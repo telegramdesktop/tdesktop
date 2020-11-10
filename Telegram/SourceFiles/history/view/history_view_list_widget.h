@@ -90,6 +90,7 @@ public:
 	virtual void listSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) = 0;
+	virtual void listHandleViaClick(not_null<UserData*> bot) = 0;
 
 };
 
@@ -239,6 +240,7 @@ public:
 	void elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) override;
+	void elementHandleViaClick(not_null<UserData*> bot) override;
 
 	~ListWidget();
 

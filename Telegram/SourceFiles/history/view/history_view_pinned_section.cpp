@@ -644,6 +644,9 @@ void PinnedWidget::listSendBotCommand(
 	const FullMsgId &context) {
 }
 
+void PinnedWidget::listHandleViaClick(not_null<UserData*> bot) {
+}
+
 void PinnedWidget::confirmDeleteSelected() {
 	ConfirmDeleteSelectedItems(_inner);
 }

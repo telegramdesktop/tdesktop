@@ -1297,7 +1297,11 @@ bool ListWidget::elementShownUnread(not_null<const Element*> view) {
 void ListWidget::elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) {
-	return _delegate->listSendBotCommand(command, context);
+	_delegate->listSendBotCommand(command, context);
+}
+
+void ListWidget::elementHandleViaClick(not_null<UserData*> bot) {
+	_delegate->listHandleViaClick(bot);
 }
 
 void ListWidget::saveState(not_null<ListMemento*> memento) {

@@ -1779,6 +1779,10 @@ void RepliesWidget::listSendBotCommand(
 	finishSending();
 }
 
+void RepliesWidget::listHandleViaClick(not_null<UserData*> bot) {
+	_composeControls->setText({ '@' + bot->username + ' ' });
+}
+
 void RepliesWidget::confirmDeleteSelected() {
 	ConfirmDeleteSelectedItems(_inner);
 }

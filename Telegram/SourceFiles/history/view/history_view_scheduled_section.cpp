@@ -1192,6 +1192,10 @@ void ScheduledWidget::listSendBotCommand(
 		Ui::LayerOption::KeepOther);
 }
 
+void ScheduledWidget::listHandleViaClick(not_null<UserData*> bot) {
+	_composeControls->setText({ '@' + bot->username + ' ' });
+}
+
 void ScheduledWidget::confirmSendNowSelected() {
 	ConfirmSendNowSelectedItems(_inner);
 }

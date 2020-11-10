@@ -126,6 +126,9 @@ void SimpleElementDelegate::elementSendBotCommand(
 	const FullMsgId &context) {
 }
 
+void SimpleElementDelegate::elementHandleViaClick(not_null<UserData*> bot) {
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {

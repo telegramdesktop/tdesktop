@@ -187,6 +187,7 @@ private:
 	bool showRecordButton() const;
 	void drawRestrictedWrite(Painter &p, const QString &error);
 	void updateOverStates(QPoint pos);
+	bool updateBotCommandShown();
 
 	void cancelInlineBot();
 	void clearInlineBot();
@@ -217,6 +218,8 @@ private:
 	const not_null<Ui::IconButton*> _attachToggle;
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
 	const not_null<Ui::InputField*> _field;
+	const not_null<Ui::IconButton*> _botCommandStart;
+
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
 	std::unique_ptr<FieldAutocomplete> _autocomplete;
@@ -243,6 +246,7 @@ private:
 	bool _inlineLookingUpBot = false;
 	mtpRequestId _inlineBotResolveRequestId = 0;
 	bool _isInlineBot = false;
+	bool _botCommandShown = false;
 
 	rpl::lifetime _uploaderSubscriptions;
 

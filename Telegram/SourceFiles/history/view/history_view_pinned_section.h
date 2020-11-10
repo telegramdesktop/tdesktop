@@ -96,6 +96,7 @@ public:
 	void listSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) override;
+	void listHandleViaClick(not_null<UserData*> bot) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;

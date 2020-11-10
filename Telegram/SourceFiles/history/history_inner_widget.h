@@ -95,6 +95,7 @@ public:
 	void elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context);
+	void elementHandleViaClick(not_null<UserData*> bot);
 
 	void updateBotInfo(bool recount = true);
 

@@ -2566,6 +2566,10 @@ void HistoryInner::elementSendBotCommand(
 	}
 }
 
+void HistoryInner::elementHandleViaClick(not_null<UserData*> bot) {
+	App::insertBotCommand('@' + bot->username);
+}
+
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
@@ -3462,9 +3466,14 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 		}
 		void elementSendBotCommand(
 				const QString &command,
-				const FullMsgId &context) {
+				const FullMsgId &context) override {
 			if (Instance) {
 				Instance->elementSendBotCommand(command, context);
+			}
+		}
+		void elementHandleViaClick(not_null<UserData*> bot) override {
+			if (Instance) {
+				Instance->elementHandleViaClick(bot);
 			}
 		}
 	};

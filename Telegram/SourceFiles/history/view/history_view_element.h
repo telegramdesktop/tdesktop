@@ -70,6 +70,7 @@ public:
 	virtual void elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) = 0;
+	virtual void elementHandleViaClick(not_null<UserData*> bot) = 0;
 
 };
 
@@ -105,6 +106,7 @@ public:
 	void elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) override;
+	void elementHandleViaClick(not_null<UserData*> bot) override;
 
 private:
 	const not_null<Window::SessionController*> _controller;

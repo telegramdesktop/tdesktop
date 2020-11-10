@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/media/history_view_document.h"
+#include "core/click_handler_types.h"
 #include "mainwindow.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
@@ -45,7 +46,8 @@ void HistoryMessageVia::create(
 	bot = owner->user(userId);
 	maxWidth = st::msgServiceNameFont->width(
 		tr::lng_inline_bot_via(tr::now, lt_inline_bot, '@' + bot->username));
-	link = std::make_shared<LambdaClickHandler>([bot = this->bot] {
+	link = std::make_shared<LambdaClickHandler>([bot = this->bot](
+			ClickContext context) {
 		if (QGuiApplication::keyboardModifiers() == Qt::ControlModifier) {
 			if (const auto window = App::wnd()) {
 				if (const auto controller = window->sessionController()) {
@@ -54,7 +56,12 @@ void HistoryMessageVia::create(
 				}
 			}
 		}
-		App::insertBotCommand('@' + bot->username);
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto delegate = my.elementDelegate ? my.elementDelegate() : nullptr) {
+			delegate->elementHandleViaClick(bot);
+		} else {
+			App::insertBotCommand('@' + bot->username);
+		}
 	});
 }
 

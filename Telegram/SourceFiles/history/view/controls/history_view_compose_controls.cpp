@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_web_page.h"
@@ -521,6 +522,9 @@ ComposeControls::ComposeControls(
 		st::historyComposeField,
 		Ui::InputField::Mode::MultiLine,
 		tr::lng_message_ph()))
+, _botCommandStart(Ui::CreateChild<Ui::IconButton>(
+	_wrap.get(),
+	st::historyBotCommandStart))
 , _autocomplete(std::make_unique<FieldAutocomplete>(
 		parent,
 		window))
@@ -562,7 +566,21 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	_window->tabbedSelector()->setCurrentPeer(
 		history ? history->peer.get() : nullptr);
 	initWebpageProcess();
+	updateBotCommandShown();
+	updateControlsGeometry(_wrap->size());
+	updateControlsVisibility();
 	updateFieldPlaceholder();
+	if (!_history) {
+		return;
+	}
+	const auto peer = _history->peer;
+	if (peer->isChat() && peer->asChat()->noParticipantInfo()) {
+		session().api().requestFullPeer(peer);
+	} else if (const auto channel = peer->asMegagroup()) {
+		if (!channel->mgInfo->botStatus) {
+			session().api().requestBots(channel);
+		}
+	}
 }
 
 void ComposeControls::move(int x, int y) {
@@ -790,6 +808,8 @@ void ComposeControls::init() {
 	initSendButton();
 	initWriteRestriction();
 	initVoiceRecordBar();
+
+	_botCommandStart->setClickedCallback([=] { setText({ "/" }); });
 
 	_wrap->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
@@ -1051,6 +1071,10 @@ void ComposeControls::fieldChanged() {
 	if (showRecordButton()) {
 		//_previewCancelled = false;
 	}
+	if (updateBotCommandShown()) {
+		updateControlsVisibility();
+		updateControlsGeometry(_wrap->size());
+	}
 	InvokeQueued(_autocomplete.get(), [=] {
 		updateInlineBotQuery();
 		updateStickersByEmoji();
@@ -1297,13 +1321,14 @@ void ComposeControls::finishAnimating() {
 
 void ComposeControls::updateControlsGeometry(QSize size) {
 	// _attachToggle -- _inlineResults ------ _tabbedPanel -- _fieldBarCancel
-	// (_attachDocument|_attachPhoto) _field _tabbedSelectorToggle _send
+	// (_attachDocument|_attachPhoto) _field _botCommandStart _tabbedSelectorToggle _send
 
 	const auto fieldWidth = size.width()
 		- _attachToggle->width()
 		- st::historySendRight
 		- _send->width()
-		- _tabbedSelectorToggle->width();
+		- _tabbedSelectorToggle->width()
+		- (_botCommandShown ? _botCommandStart->width() : 0);
 	_field->resizeToWidth(fieldWidth);
 
 	const auto buttonsTop = size.height() - _attachToggle->height();
@@ -1324,11 +1349,35 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 	_send->moveToRight(right, buttonsTop);
 	right += _send->width();
 	_tabbedSelectorToggle->moveToRight(right, buttonsTop);
+	right += _tabbedSelectorToggle->width();
+	_botCommandStart->moveToRight(right, buttonsTop);
 
 	_voiceRecordBar->resizeToWidth(size.width());
 	_voiceRecordBar->moveToLeft(
 		0,
 		size.height() - _voiceRecordBar->height());
+}
+
+void ComposeControls::updateControlsVisibility() {
+	_botCommandStart->setVisible(_botCommandShown);
+}
+
+bool ComposeControls::updateBotCommandShown() {
+	auto shown = false;
+	const auto peer = _history ? _history->peer.get() : nullptr;
+	if (peer
+		&& ((peer->isChat() && peer->asChat()->botStatus > 0)
+			|| (peer->isMegagroup() && peer->asChannel()->mgInfo->botStatus > 0)
+			|| (peer->isUser() && peer->asUser()->isBot()))) {
+		if (!HasSendText(_field)) {
+			shown = true;
+		}
+	}
+	if (_botCommandShown != shown) {
+		_botCommandShown = shown;
+		return true;
+	}
+	return false;
 }
 
 void ComposeControls::updateOuterGeometry(QRect rect) {
@@ -1604,7 +1653,7 @@ void ComposeControls::initWebpageProcess() {
 		getWebPagePreview();
 	});
 
-	_window->session().changes().peerUpdates(
+	session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::Rights
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
 		return (update.peer.get() == peer);
@@ -1614,7 +1663,18 @@ void ComposeControls::initWebpageProcess() {
 		updateFieldPlaceholder();
 	}, lifetime);
 
-	_window->session().downloaderTaskFinished(
+	base::ObservableViewer(
+		session().api().fullPeerUpdated()
+	) | rpl::filter([=](PeerData *peer) {
+		return _history && (_history->peer == peer);
+	}) | rpl::start_with_next([=] {
+		if (updateBotCommandShown()) {
+			updateControlsVisibility();
+			updateControlsGeometry(_wrap->size());
+		}
+	}, lifetime);
+
+	session().downloaderTaskFinished(
 	) | rpl::filter([=] {
 		return (*previewData)
 			&& ((*previewData)->document || (*previewData)->photo);
@@ -1622,7 +1682,7 @@ void ComposeControls::initWebpageProcess() {
 		requestRepaint
 	), lifetime);
 
-	_window->session().data().webPageUpdates(
+	session().data().webPageUpdates(
 	) | rpl::filter([=](not_null<WebPageData*> page) {
 		return (*previewData == page.get());
 	}) | rpl::start_with_next([=] {
@@ -1652,7 +1712,7 @@ WebPageId ComposeControls::webPageId() const {
 rpl::producer<Data::MessagePosition> ComposeControls::scrollRequests() const {
 	return _header->scrollToItemRequests(
 		) | rpl::map([=](FullMsgId id) -> Data::MessagePosition {
-			if (const auto item = _window->session().data().message(id)) {
+			if (const auto item = session().data().message(id)) {
 				return item->position();
 			}
 			return {};
