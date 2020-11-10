@@ -15,12 +15,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_section.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "chat_helpers/field_autocomplete.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_changes.h"
 #include "data/data_messages.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
+#include "data/stickers/data_stickers.h"
 #include "data/data_web_page.h"
+#include "storage/storage_account.h"
 #include "facades.h"
 #include "boxes/confirm_box.h"
 #include "history/history.h"
@@ -515,6 +519,9 @@ ComposeControls::ComposeControls(
 		st::historyComposeField,
 		Ui::InputField::Mode::MultiLine,
 		tr::lng_message_ph()))
+, _autocomplete(std::make_unique<FieldAutocomplete>(
+		parent,
+		window))
 , _header(std::make_unique<FieldHeader>(
 		_wrap.get(),
 		&_window->session().data()))
@@ -563,6 +570,12 @@ void ComposeControls::resizeToWidth(int width) {
 	_wrap->resizeToWidth(width);
 	_writeRestricted->resizeToWidth(width);
 	updateHeight();
+}
+
+void ComposeControls::setAutocompleteBoundingRect(QRect rect) {
+	if (_autocomplete) {
+		_autocomplete->setBoundings(rect);
+	}
 }
 
 rpl::producer<int> ComposeControls::height() const {
@@ -617,6 +630,10 @@ rpl::producer<> ComposeControls::sendRequests() const {
 
 rpl::producer<VoiceToSend> ComposeControls::sendVoiceRequests() const {
 	return _voiceRecordBar->sendVoiceRequests();
+}
+
+rpl::producer<QString> ComposeControls::sendCommandRequests() const {
+	return _sendCommandRequests.events();
 }
 
 rpl::producer<MessageToEdit> ComposeControls::editRequests() const {
@@ -681,6 +698,21 @@ void ComposeControls::showFinished() {
 	_voiceRecordBar->orderControls();
 }
 
+void ComposeControls::raisePanels() {
+	if (_autocomplete) {
+		_autocomplete->raise();
+	}
+	if (_inlineResults) {
+		_inlineResults->raise();
+	}
+	if (_tabbedPanel) {
+		_tabbedPanel->raise();
+	}
+	if (_raiseEmojiSuggestions) {
+		_raiseEmojiSuggestions();
+	}
+}
+
 void ComposeControls::showForGrab() {
 	showFinished();
 }
@@ -708,13 +740,45 @@ void ComposeControls::setText(const TextWithTags &textWithTags) {
 }
 
 void ComposeControls::hidePanelsAnimated() {
-	//_fieldAutocomplete->hideAnimated();
+	if (_autocomplete) {
+		_autocomplete->hideAnimated();
+	}
 	if (_tabbedPanel) {
 		_tabbedPanel->hideAnimated();
 	}
 	if (_inlineResults) {
 		_inlineResults->hideAnimated();
 	}
+}
+
+void ComposeControls::checkAutocomplete() {
+	if (!_history) {
+		return;
+	}
+
+	const auto peer = _history->peer;
+	const auto isInlineBot = false;// _inlineBot && !_inlineLookingUpBot;
+	const auto autocomplete = isInlineBot
+		? AutocompleteQuery()
+		: ParseMentionHashtagBotCommandQuery(_field);
+	if (!autocomplete.query.isEmpty()) {
+		if (autocomplete.query[0] == '#'
+			&& cRecentWriteHashtags().isEmpty()
+			&& cRecentSearchHashtags().isEmpty()) {
+			peer->session().local().readRecentHashtagsAndBots();
+		} else if (autocomplete.query[0] == '@'
+			&& cRecentInlineBots().isEmpty()) {
+			peer->session().local().readRecentHashtagsAndBots();
+		} else if (autocomplete.query[0] == '/'
+			&& peer->isUser()
+			&& !peer->asUser()->isBot()) {
+			return;
+		}
+	}
+	_autocomplete->showFiltered(
+		peer,
+		autocomplete.query,
+		autocomplete.fromStart);
 }
 
 void ComposeControls::init() {
@@ -817,17 +881,124 @@ void ComposeControls::initField() {
 	_field->setSubmitSettings(Core::App().settings().sendSubmitWay());
 	//Ui::Connect(_field, &Ui::InputField::submitted, [=] { send(); });
 	Ui::Connect(_field, &Ui::InputField::cancelled, [=] { escape(); });
-	//Ui::Connect(_field, &Ui::InputField::tabbed, [=] { fieldTabbed(); });
+	Ui::Connect(_field, &Ui::InputField::tabbed, [=] { fieldTabbed(); });
 	Ui::Connect(_field, &Ui::InputField::resized, [=] { updateHeight(); });
 	//Ui::Connect(_field, &Ui::InputField::focused, [=] { fieldFocused(); });
 	Ui::Connect(_field, &Ui::InputField::changed, [=] { fieldChanged(); });
 	InitMessageField(_window, _field);
+	initAutocomplete();
 	const auto suggestions = Ui::Emoji::SuggestionsController::Init(
 		_parent,
 		_field,
 		&_window->session());
 	_raiseEmojiSuggestions = [=] { suggestions->raise(); };
 	InitSpellchecker(_window, _field);
+}
+
+void ComposeControls::initAutocomplete() {
+	const auto insertHashtagOrBotCommand = [=](
+			const QString &string,
+			FieldAutocomplete::ChooseMethod method) {
+		// Send bot command at once, if it was not inserted by pressing Tab.
+		if (string.at(0) == '/' && method != FieldAutocomplete::ChooseMethod::ByTab) {
+			_sendCommandRequests.fire_copy(string);
+			setText(
+				_field->getTextWithTagsPart(_field->textCursor().position()));
+		} else {
+			_field->insertTag(string);
+		}
+	};
+	const auto insertMention = [=](not_null<UserData*> user) {
+		auto replacement = QString();
+		auto entityTag = QString();
+		if (user->username.isEmpty()) {
+			_field->insertTag(
+				user->firstName.isEmpty() ? user->name : user->firstName,
+				PrepareMentionTag(user));
+		} else {
+			_field->insertTag('@' + user->username);
+		}
+	};
+
+	_autocomplete->mentionChosen(
+	) | rpl::start_with_next([=](FieldAutocomplete::MentionChosen data) {
+		insertMention(data.user);
+	}, _autocomplete->lifetime());
+
+	_autocomplete->hashtagChosen(
+	) | rpl::start_with_next([=](FieldAutocomplete::HashtagChosen data) {
+		insertHashtagOrBotCommand(data.hashtag, data.method);
+	}, _autocomplete->lifetime());
+
+	_autocomplete->botCommandChosen(
+	) | rpl::start_with_next([=](FieldAutocomplete::BotCommandChosen data) {
+		insertHashtagOrBotCommand(data.command, data.method);
+	}, _autocomplete->lifetime());
+
+	_autocomplete->stickerChosen(
+	) | rpl::start_with_next([=](FieldAutocomplete::StickerChosen data) {
+		setText({});
+		//_saveDraftText = true;
+		//_saveDraftStart = crl::now();
+		//onDraftSave();
+		//onCloudDraftSave(); // won't be needed if SendInlineBotResult will clear the cloud draft
+		_fileChosen.fire(FileChosen{
+			.document = data.sticker,
+			.options = data.options,
+		});
+	}, _autocomplete->lifetime());
+
+	//_autocomplete->setModerateKeyActivateCallback([=](int key) {
+	//	return _keyboard->isHidden()
+	//		? false
+	//		: _keyboard->moderateKeyActivate(key);
+	//});
+
+	_field->rawTextEdit()->installEventFilter(_autocomplete.get());
+
+	_window->session().data().botCommandsChanges(
+	) | rpl::filter([=](not_null<UserData*> user) {
+		const auto peer = _history ? _history->peer.get() : nullptr;
+		return peer && (peer == user || !peer->isUser());
+	}) | rpl::start_with_next([=](not_null<UserData*> user) {
+		if (_autocomplete->clearFilteredBotCommands()) {
+			checkAutocomplete();
+		}
+	}, _autocomplete->lifetime());
+
+	_window->session().data().stickers().updated(
+	) | rpl::start_with_next([=] {
+		updateStickersByEmoji();
+	}, _autocomplete->lifetime());
+
+	QObject::connect(
+		_field->rawTextEdit(),
+		&QTextEdit::cursorPositionChanged,
+		_autocomplete.get(),
+		[=] { checkAutocomplete(); },
+		Qt::QueuedConnection);
+}
+
+void ComposeControls::updateStickersByEmoji() {
+	if (!_history) {
+		return;
+	}
+	const auto emoji = [&] {
+		const auto errorForStickers = Data::RestrictionError(
+			_history->peer,
+			ChatRestriction::f_send_stickers);
+		if (!isEditingMessage() && !errorForStickers) {
+			const auto &text = _field->getTextWithTags().text;
+			auto length = 0;
+			if (const auto emoji = Ui::Emoji::Find(text, &length)) {
+				if (text.size() <= length) {
+					return emoji;
+				}
+			}
+		}
+		return EmojiPtr(nullptr);
+	}();
+	_autocomplete->showStickers(emoji);
 }
 
 void ComposeControls::fieldChanged() {
@@ -839,6 +1010,15 @@ void ComposeControls::fieldChanged() {
 	updateSendButtonType();
 	if (showRecordButton()) {
 		//_previewCancelled = false;
+	}
+	InvokeQueued(_autocomplete.get(), [=] {
+		updateStickersByEmoji();
+	});
+}
+
+void ComposeControls::fieldTabbed() {
+	if (!_autocomplete->isHidden()) {
+		_autocomplete->chooseSelected(FieldAutocomplete::ChooseMethod::ByTab);
 	}
 }
 
@@ -1136,10 +1316,16 @@ void ComposeControls::updateHeight() {
 void ComposeControls::editMessage(FullMsgId id) {
 	cancelEditMessage();
 	_header->editMessage(id);
+	if (_autocomplete) {
+		InvokeQueued(_autocomplete.get(), [=] { checkAutocomplete(); });
+	}
 }
 
 void ComposeControls::cancelEditMessage() {
 	_header->editMessage({});
+	if (_autocomplete) {
+		InvokeQueued(_autocomplete.get(), [=] { checkAutocomplete(); });
+	}
 }
 
 void ComposeControls::replyToMessage(FullMsgId id) {
@@ -1149,6 +1335,20 @@ void ComposeControls::replyToMessage(FullMsgId id) {
 
 void ComposeControls::cancelReplyMessage() {
 	_header->replyToMessage({});
+}
+
+bool ComposeControls::handleCancelRequest() {
+	if (isEditingMessage()) {
+		cancelEditMessage();
+		return true;
+	} else if (_autocomplete && !_autocomplete->isHidden()) {
+		_autocomplete->hideAnimated();
+		return true;
+	} else if (replyingToMessage()) {
+		cancelReplyMessage();
+		return true;
+	}
+	return false;
 }
 
 void ComposeControls::initWebpageProcess() {
@@ -1287,7 +1487,10 @@ void ComposeControls::initWebpageProcess() {
 		Data::PeerUpdate::Flag::Rights
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
 		return (update.peer.get() == peer);
-	}) | rpl::start_with_next(checkPreview, lifetime);
+	}) | rpl::start_with_next([=] {
+		checkPreview();
+		updateStickersByEmoji();
+	}, lifetime);
 
 	_window->session().downloaderTaskFinished(
 	) | rpl::filter([=] {

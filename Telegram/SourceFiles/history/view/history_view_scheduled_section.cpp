@@ -180,6 +180,19 @@ void ScheduledWidget::setupComposeControls() {
 		sendVoice(data.bytes, data.waveform, data.duration);
 	}, lifetime());
 
+	_composeControls->sendCommandRequests(
+	) | rpl::start_with_next([=](const QString &command) {
+		const auto callback = [=](Api::SendOptions options) {
+			auto message = ApiWrap::MessageToSend(_history);
+			message.textWithTags = { command };
+			message.action.options = options;
+			session().api().sendMessage(std::move(message));
+		};
+		Ui::show(
+			PrepareScheduleBox(this, sendMenuType(), callback),
+			Ui::LayerOption::KeepOther);
+	}, lifetime());
+
 	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);
 	_composeControls->editRequests(
 	) | rpl::start_with_next([=](auto data) {
@@ -979,6 +992,7 @@ void ScheduledWidget::updateControlsGeometry() {
 		updateInnerVisibleArea();
 	}
 	_composeControls->move(0, bottom - controlsHeight);
+	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
 
 	updateScrollDownPosition();
 }
@@ -1057,9 +1071,7 @@ void ScheduledWidget::listCancelRequest() {
 	if (_inner && !_inner->getSelectedItems().empty()) {
 		clearSelected();
 		return;
-	}
-	if (_composeControls->isEditingMessage()) {
-		_composeControls->cancelEditMessage();
+	} else if (_composeControls->handleCancelRequest()) {
 		return;
 	}
 	controller()->showBackFromStack();

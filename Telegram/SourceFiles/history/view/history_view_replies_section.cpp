@@ -253,6 +253,7 @@ RepliesWidget::RepliesWidget(
 
 	setupScrollDownButton();
 	setupComposeControls();
+	orderWidgets();
 }
 
 RepliesWidget::~RepliesWidget() {
@@ -261,6 +262,17 @@ RepliesWidget::~RepliesWidget() {
 	}
 	base::take(_sendAction);
 	_history->owner().repliesSendActionPainterRemoved(_history, _rootId);
+}
+
+void RepliesWidget::orderWidgets() {
+	if (_topBar) {
+		_topBar->raise();
+	}
+	if (_rootView) {
+		_rootView->raise();
+	}
+	_topBarShadow->raise();
+	_composeControls->raisePanels();
 }
 
 void RepliesWidget::sendReadTillRequest() {
@@ -426,6 +438,18 @@ void RepliesWidget::setupComposeControls() {
 	_composeControls->sendVoiceRequests(
 	) | rpl::start_with_next([=](ComposeControls::VoiceToSend &&data) {
 		sendVoice(data.bytes, data.waveform, data.duration);
+	}, lifetime());
+
+	_composeControls->sendCommandRequests(
+	) | rpl::start_with_next([=](const QString &command) {
+		if (showSlowmodeError()) {
+			return;
+		}
+		auto message = ApiWrap::MessageToSend(_history);
+		message.textWithTags = { command };
+		message.action.replyTo = replyToId();
+		session().api().sendMessage(std::move(message));
+		finishSending();
 	}, lifetime());
 
 	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);
@@ -1474,6 +1498,7 @@ void RepliesWidget::updateControlsGeometry() {
 		updateInnerVisibleArea();
 	}
 	_composeControls->move(0, bottom - controlsHeight);
+	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
 
 	updateScrollDownPosition();
 }
@@ -1598,12 +1623,7 @@ void RepliesWidget::listCancelRequest() {
 	if (_inner && !_inner->getSelectedItems().empty()) {
 		clearSelected();
 		return;
-	}
-	if (_composeControls->isEditingMessage()) {
-		_composeControls->cancelEditMessage();
-		return;
-	} else if (_composeControls->replyingToMessage()) {
-		_composeControls->cancelReplyMessage();
+	} else if (_composeControls->handleCancelRequest()) {
 		return;
 	}
 	controller()->showBackFromStack();

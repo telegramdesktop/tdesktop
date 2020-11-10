@@ -286,7 +286,6 @@ HistoryWidget::HistoryWidget(
 	_unreadMentions->installEventFilter(this);
 
 	InitMessageField(controller, _field);
-	_fieldAutocomplete->hide();
 
 	_fieldAutocomplete->mentionChosen(
 	) | rpl::start_with_next([=](FieldAutocomplete::MentionChosen data) {
@@ -1216,6 +1215,9 @@ void HistoryWidget::orderWidgets() {
 		_pinnedBar->raise();
 	}
 	_topShadow->raise();
+	if (_fieldAutocomplete) {
+		_fieldAutocomplete->raise();
+	}
 	if (_membersDropdown) {
 		_membersDropdown->raise();
 	}

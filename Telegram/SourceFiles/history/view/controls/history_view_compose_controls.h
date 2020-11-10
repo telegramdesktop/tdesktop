@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 
 class History;
+class FieldAutocomplete;
 
 namespace ChatHelpers {
 class TabbedPanel;
@@ -89,6 +90,7 @@ public:
 
 	void move(int x, int y);
 	void resizeToWidth(int width);
+	void setAutocompleteBoundingRect(QRect rect);
 	[[nodiscard]] rpl::producer<int> height() const;
 	[[nodiscard]] int heightCurrent() const;
 
@@ -96,6 +98,7 @@ public:
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<> sendRequests() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
+	[[nodiscard]] rpl::producer<QString> sendCommandRequests() const;
 	[[nodiscard]] rpl::producer<MessageToEdit> editRequests() const;
 	[[nodiscard]] rpl::producer<> attachRequests() const;
 	[[nodiscard]] rpl::producer<FileChosen> fileChosen() const;
@@ -122,12 +125,15 @@ public:
 	void showForGrab();
 	void showStarted();
 	void showFinished();
+	void raisePanels();
 
 	void editMessage(FullMsgId id);
 	void cancelEditMessage();
 
 	void replyToMessage(FullMsgId id);
 	void cancelReplyMessage();
+
+	bool handleCancelRequest();
 
 	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;
 	[[nodiscard]] WebPageId webPageId() const;
@@ -154,6 +160,7 @@ private:
 	void initWebpageProcess();
 	void initWriteRestriction();
 	void initVoiceRecordBar();
+	void initAutocomplete();
 	void updateSendButtonType();
 	void updateHeight();
 	void updateWrappingVisibility();
@@ -163,9 +170,12 @@ private:
 	void paintBackground(QRect clip);
 
 	void orderControls();
+	void checkAutocomplete();
+	void updateStickersByEmoji();
 
 	void escape();
 	void fieldChanged();
+	void fieldTabbed();
 	void toggleTabbedSelectorMode();
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
@@ -194,6 +204,7 @@ private:
 	const not_null<Ui::InputField*> _field;
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
+	std::unique_ptr<FieldAutocomplete> _autocomplete;
 
 	friend class FieldHeader;
 	const std::unique_ptr<FieldHeader> _header;
@@ -204,6 +215,7 @@ private:
 	rpl::event_stream<PhotoChosen> _photoChosen;
 	rpl::event_stream<ChatHelpers::TabbedSelector::InlineChosen> _inlineResultChosen;
 	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
+	rpl::event_stream<QString> _sendCommandRequests;
 
 	TextWithTags _localSavedText;
 	TextUpdateEvents _textUpdateEvents;

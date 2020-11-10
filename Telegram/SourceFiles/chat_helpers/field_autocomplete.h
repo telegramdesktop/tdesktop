@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class PopupMenu;
 class ScrollArea;
+class InputField;
 } // namespace Ui
 
 namespace Lottie {
@@ -32,41 +33,14 @@ class DocumentMedia;
 class CloudImageView;
 } // namespace Data
 
-namespace internal {
-
-struct StickerSuggestion {
-	not_null<DocumentData*> document;
-	std::shared_ptr<Data::DocumentMedia> documentMedia;
-	std::unique_ptr<Lottie::SinglePlayer> animated;
-};
-
-struct MentionRow {
-	not_null<UserData*> user;
-	std::shared_ptr<Data::CloudImageView> userpic;
-};
-
-struct BotCommandRow {
-	not_null<UserData*> user;
-	not_null<const BotCommand*> command;
-	std::shared_ptr<Data::CloudImageView> userpic;
-};
-
-using HashtagRows = std::vector<QString>;
-using BotCommandRows = std::vector<BotCommandRow>;
-using StickerRows = std::vector<StickerSuggestion>;
-using MentionRows = std::vector<MentionRow>;
-
-class FieldAutocompleteInner;
-
-} // namespace internal
-
 class FieldAutocomplete final : public Ui::RpWidget {
-
 public:
 	FieldAutocomplete(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
 	~FieldAutocomplete();
+
+	[[nodiscard]] not_null<Window::SessionController*> controller() const;
 
 	bool clearFilteredBotCommands();
 	void showFiltered(
@@ -140,29 +114,54 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	class Inner;
+	friend class Inner;
+
+	struct StickerSuggestion {
+		not_null<DocumentData*> document;
+		std::shared_ptr<Data::DocumentMedia> documentMedia;
+		std::unique_ptr<Lottie::SinglePlayer> animated;
+	};
+
+	struct MentionRow {
+		not_null<UserData*> user;
+		std::shared_ptr<Data::CloudImageView> userpic;
+	};
+
+	struct BotCommandRow {
+		not_null<UserData*> user;
+		not_null<const BotCommand*> command;
+		std::shared_ptr<Data::CloudImageView> userpic;
+	};
+
+	using HashtagRows = std::vector<QString>;
+	using BotCommandRows = std::vector<BotCommandRow>;
+	using StickerRows = std::vector<StickerSuggestion>;
+	using MentionRows = std::vector<MentionRow>;
+
 	void animationCallback();
 	void hideFinish();
 
 	void updateFiltered(bool resetScroll = false);
 	void recount(bool resetScroll = false);
-	internal::StickerRows getStickerSuggestions();
+	StickerRows getStickerSuggestions();
 
 	const not_null<Window::SessionController*> _controller;
 	QPixmap _cache;
-	internal::MentionRows _mrows;
-	internal::HashtagRows _hrows;
-	internal::BotCommandRows _brows;
-	internal::StickerRows _srows;
+	MentionRows _mrows;
+	HashtagRows _hrows;
+	BotCommandRows _brows;
+	StickerRows _srows;
 
 	void rowsUpdated(
-		internal::MentionRows &&mrows,
-		internal::HashtagRows &&hrows,
-		internal::BotCommandRows &&brows,
-		internal::StickerRows &&srows,
+		MentionRows &&mrows,
+		HashtagRows &&hrows,
+		BotCommandRows &&brows,
+		StickerRows &&srows,
 		bool resetScroll);
 
 	object_ptr<Ui::ScrollArea> _scroll;
-	QPointer<internal::FieldAutocompleteInner> _inner;
+	QPointer<Inner> _inner;
 
 	ChatData *_chat = nullptr;
 	UserData *_user = nullptr;
@@ -186,100 +185,4 @@ private:
 
 	Fn<bool(int)> _moderateKeyActivateCallback;
 
-	friend class internal::FieldAutocompleteInner;
-
 };
-
-namespace internal {
-
-class FieldAutocompleteInner final
-	: public Ui::RpWidget
-	, private base::Subscriber {
-
-public:
-	struct ScrollTo {
-		int top;
-		int bottom;
-	};
-
-	FieldAutocompleteInner(
-		not_null<Window::SessionController*> controller,
-		not_null<FieldAutocomplete*> parent,
-		not_null<MentionRows*> mrows,
-		not_null<HashtagRows*> hrows,
-		not_null<BotCommandRows*> brows,
-		not_null<StickerRows*> srows);
-
-	void clearSel(bool hidden = false);
-	bool moveSel(int key);
-	bool chooseSelected(FieldAutocomplete::ChooseMethod method) const;
-	bool chooseAtIndex(
-		FieldAutocomplete::ChooseMethod method,
-		int index,
-		Api::SendOptions options = Api::SendOptions()) const;
-
-	void setRecentInlineBotsInRows(int32 bots);
-	void rowsUpdated();
-
-	rpl::producer<FieldAutocomplete::MentionChosen> mentionChosen() const;
-	rpl::producer<FieldAutocomplete::HashtagChosen> hashtagChosen() const;
-	rpl::producer<FieldAutocomplete::BotCommandChosen>
-		botCommandChosen() const;
-	rpl::producer<FieldAutocomplete::StickerChosen> stickerChosen() const;
-	rpl::producer<ScrollTo> scrollToRequested() const;
-
-	void onParentGeometryChanged();
-
-private:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void enterEventHook(QEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
-
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
-
-	void updateSelectedRow();
-	void setSel(int sel, bool scroll = false);
-	void showPreview();
-	void selectByMouse(QPoint global);
-
-	QSize stickerBoundingBox() const;
-	void setupLottie(StickerSuggestion &suggestion);
-	void repaintSticker(not_null<DocumentData*> document);
-	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
-
-	const not_null<Window::SessionController*> _controller;
-	const not_null<FieldAutocomplete*> _parent;
-	const not_null<MentionRows*> _mrows;
-	const not_null<HashtagRows*> _hrows;
-	const not_null<BotCommandRows*> _brows;
-	const not_null<StickerRows*> _srows;
-	rpl::lifetime _stickersLifetime;
-	std::weak_ptr<Lottie::FrameRenderer> _lottieRenderer;
-	base::unique_qptr<Ui::PopupMenu> _menu;
-	int _stickersPerRow = 1;
-	int _recentInlineBotsInRows = 0;
-	int _sel = -1;
-	int _down = -1;
-	std::optional<QPoint> _lastMousePosition;
-	bool _mouseSelection = false;
-
-	bool _overDelete = false;
-
-	bool _previewShown = false;
-
-	rpl::event_stream<FieldAutocomplete::MentionChosen> _mentionChosen;
-	rpl::event_stream<FieldAutocomplete::HashtagChosen> _hashtagChosen;
-	rpl::event_stream<FieldAutocomplete::BotCommandChosen> _botCommandChosen;
-	rpl::event_stream<FieldAutocomplete::StickerChosen> _stickerChosen;
-	rpl::event_stream<ScrollTo> _scrollToRequested;
-
-	base::Timer _previewTimer;
-
-};
-
-} // namespace internal

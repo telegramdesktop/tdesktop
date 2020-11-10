@@ -186,6 +186,7 @@ private:
 	[[nodiscard]] MsgId replyToId() const;
 	[[nodiscard]] HistoryItem *lookupRoot() const;
 	[[nodiscard]] bool computeAreComments() const;
+	void orderWidgets();
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
 	void computeCurrentReplyReturn();

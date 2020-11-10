@@ -35,7 +35,7 @@ struct Contact {
 	QString lastName;
 };
 
-class Autocomplete : public Ui::RpWidget {
+class Autocomplete final : public Ui::RpWidget {
 public:
 	Autocomplete(QWidget *parent, not_null<Main::Session*> session);
 
