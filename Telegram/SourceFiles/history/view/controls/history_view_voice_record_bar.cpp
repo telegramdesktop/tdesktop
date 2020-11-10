@@ -39,6 +39,7 @@ namespace {
 using SendActionUpdate = VoiceRecordBar::SendActionUpdate;
 using VoiceToSend = VoiceRecordBar::VoiceToSend;
 
+constexpr auto kAudioVoiceUpdateView = crl::time(200);
 constexpr auto kLockDelay = crl::time(100);
 constexpr auto kRecordingUpdateDelta = crl::time(100);
 constexpr auto kAudioVoiceMaxLength = 100 * 60; // 100 minutes
@@ -54,6 +55,10 @@ enum class FilterType {
 	ShowBox,
 	Cancel,
 };
+
+[[nodiscard]] auto Progress(int low, int high) {
+	return std::clamp(float64(low) / high, 0., 1.);
+}
 
 [[nodiscard]] auto Duration(int samples) {
 	return samples / ::Media::Player::kDefaultFrequency;
@@ -116,6 +121,10 @@ public:
 private:
 	void init();
 	void initPlayButton();
+	void initPlayProgress();
+
+	bool isInPlayer(const ::Media::Player::TrackState &state) const;
+	bool isInPlayer() const;
 
 	int computeTopMargin(int height) const;
 
@@ -136,8 +145,11 @@ private:
 
 	QRect _waveformBgRect;
 	QRect _waveformBgFinalCenterRect;
+	QRect _waveformFgRect;
 
 	::Media::Player::PlayButtonLayout _playPause;
+
+	anim::value _playProgress;
 
 	rpl::variable<float64> _showProgress = 0.;
 
@@ -253,13 +265,19 @@ void ListenWrap::init() {
 
 			// Waveform paint.
 			{
-				const auto &play = _playPauseSt.playOuter;
-				const auto top = computeTopMargin(st::msgWaveformMax);
-				const auto left = play.width() / 2 + halfHeight;
-				const auto right = st::historyRecordWaveformLeftSkip
-					+ _durationWidth;
-				const auto rect = bgCenterRect.marginsRemoved(
-					style::margins(left, top, right, top));
+				const auto computeRect = [&] {
+					const auto &play = _playPauseSt.playOuter;
+					const auto top = computeTopMargin(st::msgWaveformMax);
+					const auto left = play.width() / 2 + halfHeight;
+					const auto right = st::historyRecordWaveformLeftSkip
+						+ _durationWidth;
+					_waveformFgRect = bgCenterRect.marginsRemoved(
+						style::margins(left, top, right, top));
+					return _waveformFgRect;
+				};
+				const auto rect = (progress == 1.)
+					? _waveformFgRect
+					: computeRect();
 				if (rect.width() > 0) {
 					p.translate(rect.topLeft());
 					HistoryDocumentVoice::PaintWaveform(
@@ -268,7 +286,7 @@ void ListenWrap::init() {
 						rect.width(),
 						false,
 						false,
-						0.);
+						_playProgress.current());
 					p.resetTransform();
 				}
 			}
@@ -276,6 +294,7 @@ void ListenWrap::init() {
 	}, _lifetime);
 
 	initPlayButton();
+	initPlayProgress();
 }
 
 void ListenWrap::initPlayButton() {
@@ -317,7 +336,7 @@ void ListenWrap::initPlayButton() {
 
 	instance()->updatedNotifier(
 	) | rpl::start_with_next([=](const State &state) {
-		if (state.id.audio() == _document) {
+		if (isInPlayer(state)) {
 			*showPause = ShowPauseIcon(state.state);
 		} else if (showPause->current()) {
 			*showPause = false;
@@ -332,11 +351,122 @@ void ListenWrap::initPlayButton() {
 
 	const auto weak = Ui::MakeWeak(_controller->content().get());
 	_lifetime.add([=] {
-		const auto voiceState = instance()->getState(AudioMsgId::Type::Voice);
-		if (weak && voiceState.id && (voiceState.id.audio() == _document)) {
+		if (weak && isInPlayer()) {
 			weak->stopAndClosePlayer();
 		}
 	});
+}
+
+void ListenWrap::initPlayProgress() {
+	using namespace ::Media::Player;
+	using State = TrackState;
+
+	const auto animation = _lifetime.make_state<Ui::Animations::Basic>();
+	const auto isPointer = _lifetime.make_state<rpl::variable<bool>>(false);
+	const auto &voice = AudioMsgId::Type::Voice;
+
+	const auto updateCursor = [=](const QPoint &p) {
+		*isPointer = isInPlayer() ? _waveformFgRect.contains(p) : false;
+	};
+
+	rpl::merge(
+		instance()->startsPlay(voice) | rpl::map_to(true),
+		instance()->stops(voice) | rpl::map_to(false)
+	) | rpl::start_with_next([=](bool play) {
+		_parent->setMouseTracking(isInPlayer() && play);
+		updateCursor(_parent->mapFromGlobal(QCursor::pos()));
+	}, _lifetime);
+
+	instance()->updatedNotifier(
+	) | rpl::start_with_next([=](const State &state) {
+		if (!isInPlayer(state)) {
+			return;
+		}
+		const auto progress = state.length
+			? Progress(state.position, state.length)
+			: 0.;
+		if (IsStopped(state.state)) {
+			_playProgress = anim::value();
+		} else {
+			_playProgress.start(progress);
+		}
+		animation->start();
+	}, _lifetime);
+
+	auto animationCallback = [=](crl::time now) {
+		if (anim::Disabled()) {
+			now += kAudioVoiceUpdateView;
+		}
+
+		const auto dt = (now - animation->started())
+			/ float64(kAudioVoiceUpdateView);
+		if (dt >= 1.) {
+			animation->stop();
+			_playProgress.finish();
+		} else {
+			_playProgress.update(std::min(dt, 1.), anim::linear);
+		}
+		_parent->update();
+		return (dt < 1.);
+	};
+	animation->init(std::move(animationCallback));
+
+	const auto isPressed = _lifetime.make_state<bool>(false);
+
+	isPointer->changes(
+	) | rpl::start_with_next([=](bool pointer) {
+		_parent->setCursor(pointer ? style::cur_pointer : style::cur_default);
+	}, _lifetime);
+
+	_parent->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::MouseMove
+			|| e->type() == QEvent::MouseButtonPress
+			|| e->type() == QEvent::MouseButtonRelease);
+	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (!isInPlayer()) {
+			return;
+		}
+
+		const auto type = e->type();
+		const auto isMove = (type == QEvent::MouseMove);
+		const auto &pos = static_cast<QMouseEvent*>(e.get())->pos();
+		if (*isPressed) {
+			*isPointer = true;
+		} else if (isMove) {
+			updateCursor(pos);
+		}
+		if (type == QEvent::MouseButtonPress) {
+			if (isPointer->current() && !(*isPressed)) {
+				instance()->startSeeking(voice);
+				*isPressed = true;
+			}
+		} else if (*isPressed) {
+			const auto &rect = _waveformFgRect;
+			const auto left = float64(pos.x() - rect.x());
+			const auto progress = Progress(left, rect.width());
+			const auto isRelease = (type == QEvent::MouseButtonRelease);
+			if (isRelease || isMove) {
+				_playProgress = anim::value(progress, progress);
+				_parent->update();
+				if (isRelease) {
+					instance()->finishSeeking(voice, progress);
+					*isPressed = false;
+				}
+			}
+		}
+
+	}, _lifetime);
+}
+
+
+bool ListenWrap::isInPlayer(const ::Media::Player::TrackState &state) const {
+	return (state.id && (state.id.audio() == _document));
+}
+
+bool ListenWrap::isInPlayer() const {
+	using Type = AudioMsgId::Type;
+	return isInPlayer(::Media::Player::instance()->getState(Type::Voice));
 }
 
 int ListenWrap::computeTopMargin(int height) const {
@@ -1150,8 +1280,7 @@ void VoiceRecordBar::computeAndSetLockProgress(QPoint globalPos) {
 	const auto localPos = mapFromGlobal(globalPos);
 	const auto lower = _lock->height();
 	const auto higher = 0;
-	const auto progress = localPos.y() / (float64)(higher - lower);
-	_lock->requestPaintProgress(std::clamp(progress, 0., 1.));
+	_lock->requestPaintProgress(Progress(localPos.y(), higher - lower));
 }
 
 void VoiceRecordBar::orderControls() {
