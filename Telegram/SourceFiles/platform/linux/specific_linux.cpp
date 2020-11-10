@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusConnection>
+#include <QtDBus/QDBusConnectionInterface>
 #include <QtDBus/QDBusMessage>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusError>
@@ -90,6 +91,31 @@ constexpr auto kXCBFrameExtentsAtomName = "_GTK_FRAME_EXTENTS"_cs;
 QStringList PlatformThemes;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+QStringList ListDBusActivatableNames() {
+	static const auto Result = [&] {
+		const auto message = QDBusMessage::createMethodCall(
+			qsl("org.freedesktop.DBus"),
+			qsl("/org/freedesktop/DBus"),
+			qsl("org.freedesktop.DBus"),
+			qsl("ListActivatableNames"));
+
+		const QDBusReply<QStringList> reply = QDBusConnection::sessionBus()
+			.call(message);
+
+		if (reply.isValid()) {
+			return reply.value();
+		} else {
+			LOG(("App Error: %1: %2")
+				.arg(reply.error().name())
+				.arg(reply.error().message()));
+		}
+
+		return QStringList{};
+	}();
+
+	return Result;
+}
+
 void PortalAutostart(bool autostart, bool silent = false) {
 	if (cExeName().isEmpty()) {
 		return;
@@ -155,9 +181,19 @@ bool IsXDGDesktopPortalKDEPresent() {
 }
 
 bool IsIBusPortalPresent() {
-	static const auto Result = QDBusInterface(
-		qsl("org.freedesktop.portal.IBus"),
-		qsl("/org/freedesktop/IBus")).isValid();
+	static const auto Result = [&] {
+		const auto interface = QDBusConnection::sessionBus().interface();
+		const auto activatableNames = ListDBusActivatableNames();
+
+		const auto serviceRegistered = interface
+			&& interface->isServiceRegistered(
+				qsl("org.freedesktop.portal.IBus"));
+
+		const auto serviceActivatable = activatableNames.contains(
+			qsl("org.freedesktop.portal.IBus"));
+
+		return serviceRegistered || serviceActivatable;
+	}();
 
 	return Result;
 }
