@@ -623,16 +623,15 @@ RecordLock::RecordLock(not_null<Ui::RpWidget*> parent)
 	Qt::SolidLine,
 	Qt::SquareCap,
 	Qt::RoundJoin) {
-	resize(
-		st::historyRecordLockTopShadow.width(),
-		st::historyRecordLockSize.height());
-	// resize(st::historyRecordLockSize);
 	init();
 }
 
 void RecordLock::init() {
 	shownValue(
 	) | rpl::start_with_next([=](bool shown) {
+		resize(
+			st::historyRecordLockTopShadow.width(),
+			st::historyRecordLockSize.height());
 		if (!shown) {
 			setCursor(style::cur_default);
 			setAttribute(Qt::WA_TransparentForMouseEvents, true);
@@ -667,6 +666,10 @@ void RecordLock::init() {
 			if (value == to) {
 				setCursor(style::cur_pointer);
 				setAttribute(Qt::WA_TransparentForMouseEvents, false);
+
+				resize(
+					st::historyRecordLockTopShadow.width(),
+					st::historyRecordLockTopShadow.width());
 			}
 		};
 		_lockAnimation.start(std::move(callback), from, to, duration);
@@ -1115,9 +1118,10 @@ void VoiceRecordBar::setStartRecordingFilter(Fn<bool()> &&callback) {
 }
 
 void VoiceRecordBar::setLockBottom(rpl::producer<int> &&bottom) {
-	std::move(
-		bottom
-	) | rpl::start_with_next([=](int value) {
+	rpl::combine(
+		std::move(bottom),
+		_lock->sizeValue() | rpl::map_to(true) // Dummy value.
+	) | rpl::start_with_next([=](int value, bool dummy) {
 		_lock->moveToLeft(_lock->x(), value - _lock->height());
 	}, lifetime());
 }
