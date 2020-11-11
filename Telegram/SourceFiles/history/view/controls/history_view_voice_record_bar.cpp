@@ -207,6 +207,8 @@ public:
 	rpl::producer<> stopRequests() const;
 	::Media::Capture::Result *data() const;
 
+	void playPause();
+
 	rpl::lifetime &lifetime();
 
 private:
@@ -554,6 +556,10 @@ bool ListenWrap::isInPlayer(const ::Media::Player::TrackState &state) const {
 bool ListenWrap::isInPlayer() const {
 	using Type = AudioMsgId::Type;
 	return isInPlayer(::Media::Player::instance()->getState(Type::Voice));
+}
+
+void ListenWrap::playPause() {
+	_playPauseButton->clicked(Qt::NoModifier, Qt::LeftButton);
 }
 
 QRect ListenWrap::computeWaveformRect(const QRect &centerRect) const {
@@ -1482,10 +1488,16 @@ void VoiceRecordBar::installListenStateFilter() {
 		}
 		switch(e->type()) {
 		case QEvent::KeyPress: {
-			const auto key = static_cast<QKeyEvent*>(e.get())->key();
+			const auto keyEvent = static_cast<QKeyEvent*>(e.get());
+			const auto key = keyEvent->key();
+			const auto isSpace = (key == Qt::Key_Space);
 			const auto isEsc = (key == Qt::Key_Escape);
 			const auto isEnter = (key == Qt::Key_Enter
 				|| key == Qt::Key_Return);
+			if (isSpace && !keyEvent->isAutoRepeat() && _listen) {
+				_listen->playPause();
+				return Result::Cancel;
+			}
 			if (isEnter) {
 				requestToSendWithOptions({});
 				return Result::Cancel;
