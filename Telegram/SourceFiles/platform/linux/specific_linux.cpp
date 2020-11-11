@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/file_utilities_linux.h"
+#include "platform/linux/linux_wayland_integration.h"
 #include "platform/platform_notifications_manager.h"
 #include "storage/localstorage.h"
 #include "core/crash_reports.h"
@@ -31,10 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QLibraryInfo>
 #include <QtGui/QWindow>
 
-#include <private/qwaylanddisplay_p.h>
-#include <private/qwaylandwindow_p.h>
-#include <private/qwaylandshellsurface_p.h>
-
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusConnection>
@@ -46,10 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <xcb/xcb.h>
 #include <xcb/screensaver.h>
-
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0) && !defined DESKTOP_APP_QT_PATCHED
-#include <wayland-client.h>
-#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
 
 #include <glib.h>
 
@@ -70,7 +63,7 @@ extern "C" {
 
 using namespace Platform;
 using Platform::File::internal::EscapeShell;
-using QtWaylandClient::QWaylandWindow;
+using Platform::internal::WaylandIntegration;
 
 namespace Platform {
 namespace {
@@ -367,29 +360,6 @@ uint XCBMoveResizeFromEdges(Qt::Edges edges) {
 	return 0;
 }
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0) && !defined DESKTOP_APP_QT_PATCHED
-enum wl_shell_surface_resize WlResizeFromEdges(Qt::Edges edges) {
-	if (edges == (Qt::TopEdge | Qt::LeftEdge))
-		return WL_SHELL_SURFACE_RESIZE_TOP_LEFT;
-	if (edges == Qt::TopEdge)
-		return WL_SHELL_SURFACE_RESIZE_TOP;
-	if (edges == (Qt::TopEdge | Qt::RightEdge))
-		return WL_SHELL_SURFACE_RESIZE_TOP_RIGHT;
-	if (edges == Qt::RightEdge)
-		return WL_SHELL_SURFACE_RESIZE_RIGHT;
-	if (edges == (Qt::RightEdge | Qt::BottomEdge))
-		return WL_SHELL_SURFACE_RESIZE_BOTTOM_RIGHT;
-	if (edges == Qt::BottomEdge)
-		return WL_SHELL_SURFACE_RESIZE_BOTTOM;
-	if (edges == (Qt::BottomEdge | Qt::LeftEdge))
-		return WL_SHELL_SURFACE_RESIZE_BOTTOM_LEFT;
-	if (edges == Qt::LeftEdge)
-		return WL_SHELL_SURFACE_RESIZE_LEFT;
-
-	return WL_SHELL_SURFACE_RESIZE_NONE;
-}
-#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
-
 bool StartXCBMoveResize(QWindow *window, int edges) {
 	const auto connection = base::Platform::XCB::GetConnectionFromQt();
 	if (!connection) {
@@ -480,59 +450,6 @@ bool ShowXCBWindowMenu(QWindow *window) {
 		reinterpret_cast<const char*>(&xev));
 
 	return true;
-}
-
-bool StartWaylandMove(QWindow *window) {
-	// There are startSystemMove on Qt 5.15
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
-	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
-		window->handle())) {
-		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
-			if (const auto shellSurface = waylandWindow->shellSurface()) {
-				return shellSurface->move(seat);
-			}
-		}
-	}
-#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
-
-	return false;
-}
-
-bool StartWaylandResize(QWindow *window, Qt::Edges edges) {
-	// There are startSystemResize on Qt 5.15
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
-	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
-		window->handle())) {
-		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
-			if (const auto shellSurface = waylandWindow->shellSurface()) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0)
-				shellSurface->resize(seat, edges);
-				return true;
-#else // Qt >= 5.13
-				shellSurface->resize(seat, WlResizeFromEdges(edges));
-				return true;
-#endif // Qt < 5.13
-			}
-		}
-	}
-#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
-
-	return false;
-}
-
-bool ShowWaylandWindowMenu(QWindow *window) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0) || defined DESKTOP_APP_QT_PATCHED
-	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
-		window->handle())) {
-		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
-			if (const auto shellSurface = waylandWindow->shellSurface()) {
-				return shellSurface->showWindowMenu(seat);
-			}
-		}
-	}
-#endif // Qt >= 5.13 || DESKTOP_APP_QT_PATCHED
-
-	return false;
 }
 
 bool XCBFrameExtentsSupported() {
@@ -893,7 +810,8 @@ bool SkipTaskbarSupported() {
 
 bool StartSystemMove(QWindow *window) {
 	if (IsWayland()) {
-		return StartWaylandMove(window);
+		const auto integration = WaylandIntegration::Instance();
+		return integration->startMove(window);
 	} else {
 		return StartXCBMoveResize(window, 16);
 	}
@@ -901,7 +819,8 @@ bool StartSystemMove(QWindow *window) {
 
 bool StartSystemResize(QWindow *window, Qt::Edges edges) {
 	if (IsWayland()) {
-		return StartWaylandResize(window, edges);
+		const auto integration = WaylandIntegration::Instance();
+		return integration->startResize(window, edges);
 	} else {
 		return StartXCBMoveResize(window, edges);
 	}
@@ -909,7 +828,8 @@ bool StartSystemResize(QWindow *window, Qt::Edges edges) {
 
 bool ShowWindowMenu(QWindow *window) {
 	if (IsWayland()) {
-		return ShowWaylandWindowMenu(window);
+		const auto integration = WaylandIntegration::Instance();
+		return integration->showWindowMenu(window);
 	} else {
 		return ShowXCBWindowMenu(window);
 	}

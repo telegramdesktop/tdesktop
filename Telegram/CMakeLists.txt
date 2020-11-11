@@ -70,7 +70,6 @@ PRIVATE
 if (LINUX)
     target_link_libraries(Telegram
     PRIVATE
-        desktop-app::external_materialdecoration
         desktop-app::external_nimf_qt5
         desktop-app::external_qt5ct_support
         desktop-app::external_xcb_screensaver
@@ -89,14 +88,22 @@ if (LINUX)
         )
     endif()
 
-    if (DESKTOP_APP_USE_PACKAGED AND Qt5WaylandClient_VERSION VERSION_LESS 5.13.0)
-        find_package(PkgConfig REQUIRED)
-        pkg_check_modules(WAYLAND_CLIENT REQUIRED wayland-client)
-
-        target_include_directories(Telegram
+    if (NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
+        target_link_libraries(Telegram
         PRIVATE
-            ${WAYLAND_CLIENT_INCLUDE_DIRS}
+            desktop-app::external_materialdecoration
         )
+
+        if (DESKTOP_APP_USE_PACKAGED
+            AND Qt5WaylandClient_VERSION VERSION_LESS 5.13.0)
+            find_package(PkgConfig REQUIRED)
+            pkg_check_modules(WAYLAND_CLIENT REQUIRED wayland-client)
+
+            target_include_directories(Telegram
+            PRIVATE
+                ${WAYLAND_CLIENT_INCLUDE_DIRS}
+            )
+        endif()
     endif()
 
     if (NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
@@ -803,6 +810,8 @@ PRIVATE
     platform/linux/linux_gdk_helper.h
     platform/linux/linux_libs.cpp
     platform/linux/linux_libs.h
+    platform/linux/linux_wayland_integration.cpp
+    platform/linux/linux_wayland_integration.h
     platform/linux/linux_xlib_helper.cpp
     platform/linux/linux_xlib_helper.h
     platform/linux/file_utilities_linux.cpp
@@ -1086,6 +1095,11 @@ if (NOT LINUX)
         window/window_title_qt.cpp
         window/window_title_qt.h
     )
+endif()
+
+if (LINUX AND DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
+    remove_target_sources(Telegram ${src_loc} platform/linux/linux_wayland_integration.cpp)
+    nice_target_sources(Telegram ${src_loc} PRIVATE platform/linux/linux_wayland_integration_dummy.cpp)
 endif()
 
 if (NOT DESKTOP_APP_USE_PACKAGED)
