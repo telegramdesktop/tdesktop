@@ -102,8 +102,10 @@ PinnedWidget::PinnedWidget(
 	st::historyComposeButton))
 , _scrollDown(_scroll.get(), st::historyToDown) {
 	_topBar->setActiveChat(
-		_history,
-		TopBarWidget::Section::Pinned,
+		TopBarWidget::ActiveChat{
+			.key = _history,
+			.section = TopBarWidget::Section::Pinned,
+		},
 		nullptr);
 
 	_topBar->move(0, 0);

@@ -128,10 +128,6 @@ public:
 	virtual bool replyToMessage(not_null<HistoryItem*> item) {
 		return false;
 	}
-	[[nodiscard]] virtual MsgId currentReplyToIdFor(
-			not_null<History*> history) const {
-		return 0;
-	}
 
 	// Create a memento of that section to store it in the history stack.
 	// This method may modify the section ("take" heavy items).

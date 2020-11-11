@@ -167,10 +167,7 @@ RepliesWidget::RepliesWidget(
 
 	session().api().requestFullPeer(_history->peer);
 
-	_topBar->setActiveChat(
-		_history,
-		TopBarWidget::Section::Replies,
-		_sendAction.get());
+	refreshTopBarActiveChat();
 
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
@@ -220,7 +217,7 @@ RepliesWidget::RepliesWidget(
 
 	_inner->replyToMessageRequested(
 	) | rpl::start_with_next([=](auto fullId) {
-		_composeControls->replyToMessage(fullId);
+		replyToMessage(fullId);
 	}, _inner->lifetime());
 
 	_composeControls->sendActionUpdates(
@@ -714,6 +711,7 @@ void RepliesWidget::sendingFilesConfirmed(
 	}
 	if (_composeControls->replyingToMessage().msg == replyTo) {
 		_composeControls->cancelReplyMessage();
+		refreshTopBarActiveChat();
 	}
 }
 
@@ -1138,6 +1136,17 @@ SendMenu::Type RepliesWidget::sendMenuType() const {
 		: SendMenu::Type::Scheduled;
 }
 
+void RepliesWidget::refreshTopBarActiveChat() {
+	_topBar->setActiveChat(
+		TopBarWidget::ActiveChat{
+			.key = _history,
+			.section = TopBarWidget::Section::Replies,
+			.rootId = _rootId,
+			.currentReplyToId = replyToId(),
+		},
+		_sendAction.get());
+}
+
 MsgId RepliesWidget::replyToId() const {
 	const auto custom = _composeControls->replyingToMessage().msg;
 	return custom ? custom : _rootId;
@@ -1181,6 +1190,7 @@ void RepliesWidget::finishSending() {
 	//if (_previewData && _previewData->pendingTill) previewCancel();
 	doSetInnerFocus();
 	showAtEnd();
+	refreshTopBarActiveChat();
 }
 
 void RepliesWidget::showAtPosition(
@@ -1394,13 +1404,13 @@ bool RepliesWidget::replyToMessage(not_null<HistoryItem*> item) {
 	if (item->history() != _history || item->replyToTop() != _rootId) {
 		return false;
 	}
-	_composeControls->replyToMessage(item->fullId());
+	replyToMessage(item->fullId());
 	return true;
 }
 
-MsgId RepliesWidget::currentReplyToIdFor(
-		not_null<History*> history) const {
-	return (_history == history) ? replyToId() : 0;
+void RepliesWidget::replyToMessage(FullMsgId itemId) {
+	_composeControls->replyToMessage(itemId);
+	refreshTopBarActiveChat();
 }
 
 void RepliesWidget::saveState(not_null<RepliesMemento*> memento) {
@@ -1626,6 +1636,7 @@ void RepliesWidget::listCancelRequest() {
 		clearSelected();
 		return;
 	} else if (_composeControls->handleCancelRequest()) {
+		refreshTopBarActiveChat();
 		return;
 	}
 	controller()->showBackFromStack();

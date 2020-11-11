@@ -32,12 +32,24 @@ class Controller;
 class SessionController;
 class SessionNavigation;
 
-enum class PeerMenuSource {
-	ChatsList,
-	History,
-	Profile,
-	ScheduledSection,
-	RepliesSection,
+struct PeerMenuRequest {
+	enum class Source {
+		ChatsList,
+		History,
+		Profile,
+		ScheduledSection,
+		RepliesSection,
+	};
+
+	not_null<PeerData*> peer;
+	Source source = Source::ChatsList;
+	FilterId filterId = 0;
+	MsgId rootId = 0;
+	MsgId currentReplyToId = 0;
+};
+
+struct FolderMenuRequest {
+	not_null<Data::Folder*> folder;
 };
 
 using PeerMenuCallback = Fn<QAction*(
@@ -46,15 +58,12 @@ using PeerMenuCallback = Fn<QAction*(
 
 void FillPeerMenu(
 	not_null<SessionController*> controller,
-	not_null<PeerData*> peer,
-	FilterId filterId,
-	const PeerMenuCallback &addAction,
-	PeerMenuSource source);
+	PeerMenuRequest request,
+	const PeerMenuCallback &addAction);
 void FillFolderMenu(
 	not_null<SessionController*> controller,
-	not_null<Data::Folder*> folder,
-	const PeerMenuCallback &addAction,
-	PeerMenuSource source);
+	FolderMenuRequest request,
+	const PeerMenuCallback &addAction);
 
 void PeerMenuAddMuteAction(
 	not_null<PeerData*> peer,
@@ -80,6 +89,7 @@ void PeerMenuAddChannelMembers(
 void PeerMenuCreatePoll(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
+	MsgId replyToId = 0,
 	PollData::Flags chosen = PollData::Flags(),
 	PollData::Flags disabled = PollData::Flags(),
 	Api::SendType sendType = Api::SendType::Normal);

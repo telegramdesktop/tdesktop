@@ -523,8 +523,10 @@ void Widget::refreshFolderTopBar() {
 			updateControlsGeometry();
 		}
 		_folderTopBar->setActiveChat(
-			_openedFolder,
-			HistoryView::TopBarWidget::Section::History,
+			HistoryView::TopBarWidget::ActiveChat{
+				.key = _openedFolder,
+				.section = HistoryView::TopBarWidget::Section::Dialogs,
+			},
 			nullptr);
 	} else {
 		_folderTopBar.destroy();

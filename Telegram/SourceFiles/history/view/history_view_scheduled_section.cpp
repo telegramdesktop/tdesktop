@@ -100,8 +100,10 @@ ScheduledWidget::ScheduledWidget(
 	ComposeControls::Mode::Scheduled))
 , _scrollDown(_scroll, st::historyToDown) {
 	_topBar->setActiveChat(
-		_history,
-		TopBarWidget::Section::Scheduled,
+		TopBarWidget::ActiveChat{
+			.key = _history,
+			.section = TopBarWidget::Section::Scheduled,
+		},
 		nullptr);
 
 	_topBar->move(0, 0);

@@ -353,6 +353,7 @@ private:
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<TabbedPanel> panel);
 	void updateField();
+	void refreshTopBarActiveChat();
 
 	void requestMessageData(MsgId msgId);
 	void messageDataReceived(ChannelData *channel, MsgId msgId);

@@ -707,6 +707,16 @@ void HistoryWidget::setGeometryWithTopMoved(
 	_topDelta = 0;
 }
 
+void HistoryWidget::refreshTopBarActiveChat() {
+	_topBar->setActiveChat(
+		HistoryView::TopBarWidget::ActiveChat{
+			.key = _history,
+			.section = HistoryView::TopBarWidget::Section::History,
+			.currentReplyToId = replyToId(),
+		},
+		_history->sendActionPainter());
+}
+
 void HistoryWidget::refreshTabbedPanel() {
 	if (_peer && controller()->hasTabbedSelectorOwnership()) {
 		createTabbedPanel();
@@ -1588,6 +1598,7 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 			updateControlsVisibility();
 			updateControlsGeometry();
 		}
+		refreshTopBarActiveChat();
 		return;
 	}
 
@@ -1607,7 +1618,7 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	}
 	updateControlsVisibility();
 	updateControlsGeometry();
-
+	refreshTopBarActiveChat();
 	if (_editMsgId || _replyToId) {
 		updateReplyEditTexts();
 		if (!_replyEditMsg) {
@@ -1825,10 +1836,7 @@ void HistoryWidget::showHistory(
 		}
 		_history->setFakeUnreadWhileOpened(true);
 
-		_topBar->setActiveChat(
-			_history,
-			HistoryView::TopBarWidget::Section::History,
-			_history->sendActionPainter());
+		refreshTopBarActiveChat();
 		updateTopBarSelection();
 
 		if (_channel) {
@@ -1915,10 +1923,7 @@ void HistoryWidget::showHistory(
 		unreadCountUpdated(); // set _historyDown badge.
 		showAboutTopPromotion();
 	} else {
-		_topBar->setActiveChat(
-			Dialogs::Key(),
-			HistoryView::TopBarWidget::Section::History,
-			nullptr);
+		refreshTopBarActiveChat();
 		updateTopBarSelection();
 
 		clearFieldText();
@@ -4763,6 +4768,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			updateMouseTracking();
 		}
 	}
+	refreshTopBarActiveChat();
 	updateControlsGeometry();
 	update();
 }
@@ -5479,6 +5485,7 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 		updateReplyToName();
 		updateControlsGeometry();
 		updateField();
+		refreshTopBarActiveChat();
 	}
 
 	_saveDraftText = true;
@@ -5605,7 +5612,7 @@ bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 		}
 
 		updateBotKeyboard();
-
+		refreshTopBarActiveChat();
 		updateControlsGeometry();
 		update();
 	} else if (auto localDraft = (_history ? _history->localDraft() : nullptr)) {

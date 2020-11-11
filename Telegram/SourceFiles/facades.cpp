@@ -171,7 +171,13 @@ void activateBotCommand(
 			}
 		}
 		if (const auto m = CheckMainWidget(&msg->history()->session())) {
-			Window::PeerMenuCreatePoll(m->controller(), msg->history()->peer, chosen, disabled);
+			const auto replyToId = MsgId(0);
+			Window::PeerMenuCreatePoll(
+				m->controller(),
+				msg->history()->peer,
+				replyToId,
+				chosen,
+				disabled);
 		}
 	} break;
 

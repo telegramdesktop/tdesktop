@@ -45,9 +45,16 @@ public:
 	};
 	enum class Section {
 		History,
+		Dialogs, // For folder view in dialogs list.
 		Scheduled,
 		Pinned,
 		Replies,
+	};
+	struct ActiveChat {
+		Dialogs::Key key;
+		Section section = Section::History;
+		MsgId rootId = 0;
+		MsgId currentReplyToId = 0;
 	};
 
 	TopBarWidget(
@@ -66,8 +73,7 @@ public:
 	void setAnimatingMode(bool enabled);
 
 	void setActiveChat(
-		Dialogs::Key chat,
-		Section section,
+		ActiveChat activeChat,
 		SendActionPainter *sendAction);
 	void setCustomTitle(const QString &title);
 
@@ -131,8 +137,7 @@ private:
 	void updateUnreadBadge();
 
 	const not_null<Window::SessionController*> _controller;
-	Dialogs::Key _activeChat;
-	Section _section = Section::History;
+	ActiveChat _activeChat;
 	QString _customTitleText;
 
 	int _selectedCount = 0;

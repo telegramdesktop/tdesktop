@@ -88,8 +88,6 @@ public:
 		const Window::SectionShow &params,
 		MsgId messageId) override;
 	bool replyToMessage(not_null<HistoryItem*> item) override;
-	MsgId currentReplyToIdFor(
-		not_null<History*> history) const override;
 
 	void setInternalState(
 		const QRect &geometry,
@@ -200,6 +198,8 @@ private:
 	void restoreReplyReturns(const std::vector<MsgId> &list);
 	void checkReplyReturns();
 	void recountChatWidth();
+	void replyToMessage(FullMsgId itemId);
+	void refreshTopBarActiveChat();
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(

@@ -577,10 +577,11 @@ void WrapWidget::showTopBarMenu() {
 	if (const auto peer = key().peer()) {
 		Window::FillPeerMenu(
 			_controller->parentController(),
-			peer,
-			FilterId(),
-			addAction,
-			Window::PeerMenuSource::Profile);
+			Window::PeerMenuRequest{
+				.peer = peer,
+				.source = Window::PeerMenuRequest::Source::Profile,
+			},
+			addAction);
 	//} else if (const auto feed = key().feed()) { // #feed
 	//	Window::FillFeedMenu(
 	//		_controller->parentController(),

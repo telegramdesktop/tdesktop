@@ -819,17 +819,6 @@ crl::time MainWidget::highlightStartTime(not_null<const HistoryItem*> item) cons
 	return _history->highlightStartTime(item);
 }
 
-MsgId MainWidget::currentReplyToIdFor(not_null<History*> history) const {
-	if (_mainSection) {
-		return _mainSection->currentReplyToIdFor(history);
-	} else if (_history->history() == history) {
-		return _history->replyToId();
-	} else if (const auto localDraft = history->localDraft()) {
-		return localDraft->msgId;
-	}
-	return 0;
-}
-
 void MainWidget::sendBotCommand(
 		not_null<PeerData*> peer,
 		UserData *bot,
