@@ -385,8 +385,10 @@ historyRecordDelete: IconButton(historyAttach) {
 	icon: icon {{ "info_media_delete", historyComposeIconFg }};
 	iconOver: icon {{ "info_media_delete", historyComposeIconFgOver }};
 }
-historyRecordWaveformLeftSkip: 5px;
+historyRecordWaveformRightSkip: 10px;
 historyRecordWaveformBgMargins: margins(5px, 7px, 5px, 7px);
+
+historyRecordWaveformBar: 3px;
 
 historyRecordLockPosition: point(7px, 35px);
 

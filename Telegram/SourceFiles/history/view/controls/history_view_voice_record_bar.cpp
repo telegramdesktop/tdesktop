@@ -46,6 +46,8 @@ constexpr auto kAudioVoiceMaxLength = 100 * 60; // 100 minutes
 constexpr auto kMaxSamples =
 	::Media::Player::kDefaultFrequency * kAudioVoiceMaxLength;
 
+constexpr auto kInactiveWaveformBarAlpha = int(255 * 0.6);
+
 constexpr auto kPrecision = 10;
 
 constexpr auto kLockArcAngle = 15.;
@@ -55,6 +57,10 @@ enum class FilterType {
 	ShowBox,
 	Cancel,
 };
+
+[[nodiscard]] auto InactiveColor(const QColor &c) {
+	return QColor(c.red(), c.green(), c.blue(), kInactiveWaveformBarAlpha);
+}
 
 [[nodiscard]] auto Progress(int low, int high) {
 	return std::clamp(float64(low) / high, 0., 1.);
@@ -102,6 +108,91 @@ enum class FilterType {
 		int32(0));
 }
 
+void PaintWaveform(
+		Painter &p,
+		not_null<const VoiceData*> voiceData,
+		int availableWidth,
+		const QColor &active,
+		const QColor &inactive,
+		float64 progress) {
+	const auto wf = [&]() -> const VoiceWaveform* {
+		if (voiceData->waveform.isEmpty()) {
+			return nullptr;
+		} else if (voiceData->waveform.at(0) < 0) {
+			return nullptr;
+		}
+		return &voiceData->waveform;
+	}();
+
+	const auto samplesCount = wf
+		? wf->size()
+		: ::Media::Player::kWaveformSamplesCount;
+	const auto activeWidth = std::round(availableWidth * progress);
+
+	const auto &barWidth = st::historyRecordWaveformBar;
+	const auto barFullWidth = barWidth + st::msgWaveformSkip;
+	const auto totalBarsCountF = (float)availableWidth / barFullWidth;
+	const auto totalBarsCount = int(totalBarsCountF);
+	const auto samplesPerBar = samplesCount / totalBarsCountF;
+	const auto barNormValue = (wf ? voiceData->wavemax : 0) + 1;
+	const auto maxDelta = st::msgWaveformMax - st::msgWaveformMin;
+	const auto &bottom = st::msgWaveformMax;
+
+	p.setPen(Qt::NoPen);
+	int barNum = 0;
+	const auto paintBar = [&](const auto &barValue) {
+		const auto barHeight = st::msgWaveformMin + barValue;
+		const auto barTop = (bottom - barHeight) / 2.;
+		const auto barLeft = barNum * barFullWidth;
+		const auto rect = [&](const auto &l, const auto &w) {
+			return QRectF(l, barTop, w, barHeight);
+		};
+
+		if ((barLeft < activeWidth) && (barLeft + barWidth > activeWidth)) {
+			const auto leftWidth = activeWidth - barLeft;
+			const auto rightWidth = barWidth - leftWidth;
+			p.fillRect(rect(barLeft, leftWidth), active);
+			p.fillRect(rect(activeWidth, rightWidth), inactive);
+		} else {
+			const auto &color = (barLeft >= activeWidth) ? inactive : active;
+			p.fillRect(rect(barLeft, barWidth), color);
+		}
+		barNum++;
+	};
+
+	auto barCounter = 0.;
+	auto nextBarNum = 0;
+
+	auto sum = 0;
+	auto maxValue = 0;
+
+	for (auto i = 0; i < samplesCount; i++) {
+		const auto value = wf ? wf->at(i) : 0;
+		if (i != nextBarNum) {
+			maxValue = std::max(maxValue, value);
+			sum += totalBarsCount;
+			continue;
+		}
+
+		// Compute height.
+		sum += totalBarsCount - samplesCount;
+		const auto isSumSmaller = (sum < (totalBarsCount + 1) / 2);
+		if (isSumSmaller) {
+			maxValue = std::max(maxValue, value);
+		}
+		const auto barValue = ((maxValue * maxDelta) + (barNormValue / 2))
+			/ barNormValue;
+		maxValue = isSumSmaller ? 0 : value;
+
+		const auto lastBarNum = nextBarNum;
+		while (lastBarNum == nextBarNum) {
+			barCounter += samplesPerBar;
+			nextBarNum = (int)barCounter;
+			paintBar(barValue);
+		}
+	}
+}
+
 } // namespace
 
 class ListenWrap final {
@@ -127,6 +218,7 @@ private:
 	bool isInPlayer() const;
 
 	int computeTopMargin(int height) const;
+	QRect computeWaveformRect(const QRect &centerRect) const;
 
 	not_null<Ui::RpWidget*> _parent;
 
@@ -142,6 +234,8 @@ private:
 	const int _durationWidth;
 	const style::MediaPlayerButton &_playPauseSt;
 	const base::unique_qptr<Ui::AbstractButton> _playPauseButton;
+	const QColor _activeWaveformBar;
+	const QColor _inactiveWaveformBar;
 
 	QRect _waveformBgRect;
 	QRect _waveformBgFinalCenterRect;
@@ -176,6 +270,8 @@ ListenWrap::ListenWrap(
 , _durationWidth(_durationFont->width(_duration))
 , _playPauseSt(st::mediaPlayerButton)
 , _playPauseButton(base::make_unique_q<Ui::AbstractButton>(parent))
+, _activeWaveformBar(st::historyRecordVoiceFgActiveIcon->c)
+, _inactiveWaveformBar(InactiveColor(_activeWaveformBar))
 , _playPause(_playPauseSt, [=] { _playPauseButton->update(); }) {
 	init();
 }
@@ -203,6 +299,7 @@ void ListenWrap::init() {
 				final.x() - (final.height() - play.width()) / 2,
 				final.y());
 		}
+		_waveformFgRect = computeWaveformRect(_waveformBgFinalCenterRect);
 	}, _lifetime);
 
 	_parent->paintRequest(
@@ -265,27 +362,17 @@ void ListenWrap::init() {
 
 			// Waveform paint.
 			{
-				const auto computeRect = [&] {
-					const auto &play = _playPauseSt.playOuter;
-					const auto top = computeTopMargin(st::msgWaveformMax);
-					const auto left = play.width() / 2 + halfHeight;
-					const auto right = st::historyRecordWaveformLeftSkip
-						+ _durationWidth;
-					_waveformFgRect = bgCenterRect.marginsRemoved(
-						style::margins(left, top, right, top));
-					return _waveformFgRect;
-				};
 				const auto rect = (progress == 1.)
 					? _waveformFgRect
-					: computeRect();
+					: computeWaveformRect(bgCenterRect);
 				if (rect.width() > 0) {
 					p.translate(rect.topLeft());
-					HistoryDocumentVoice::PaintWaveform(
+					PaintWaveform(
 						p,
 						_voiceData.get(),
 						rect.width(),
-						false,
-						false,
+						_activeWaveformBar,
+						_inactiveWaveformBar,
 						_playProgress.current());
 					p.resetTransform();
 				}
@@ -406,7 +493,7 @@ void ListenWrap::initPlayProgress() {
 		} else {
 			_playProgress.update(std::min(dt, 1.), anim::linear);
 		}
-		_parent->update();
+		_parent->update(_waveformFgRect);
 		return (dt < 1.);
 	};
 	animation->init(std::move(animationCallback));
@@ -448,7 +535,7 @@ void ListenWrap::initPlayProgress() {
 			const auto isRelease = (type == QEvent::MouseButtonRelease);
 			if (isRelease || isMove) {
 				_playProgress = anim::value(progress, progress);
-				_parent->update();
+				_parent->update(_waveformFgRect);
 				if (isRelease) {
 					instance()->finishSeeking(voice, progress);
 					*isPressed = false;
@@ -467,6 +554,14 @@ bool ListenWrap::isInPlayer(const ::Media::Player::TrackState &state) const {
 bool ListenWrap::isInPlayer() const {
 	using Type = AudioMsgId::Type;
 	return isInPlayer(::Media::Player::instance()->getState(Type::Voice));
+}
+
+QRect ListenWrap::computeWaveformRect(const QRect &centerRect) const {
+	const auto top = computeTopMargin(st::msgWaveformMax);
+	const auto left = (_playPauseSt.playOuter.width() + centerRect.height())
+		/ 2;
+	const auto right = st::historyRecordWaveformRightSkip + _durationWidth;
+	return centerRect.marginsRemoved(style::margins(left, top, right, top));
 }
 
 int ListenWrap::computeTopMargin(int height) const {
@@ -892,6 +987,9 @@ void VoiceRecordBar::init() {
 				_listen->requestPaintProgress(value);
 				_level->requestPaintProgress(to - value);
 				update();
+				if (to == value) {
+					_recordingLifetime.destroy();
+				}
 			};
 			_showListenAnimation.start(std::move(callback), 0., to, duration);
 		}, lifetime());
