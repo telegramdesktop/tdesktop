@@ -150,7 +150,7 @@ public:
 
 private:
 	enum class TextUpdateEvent {
-		//SaveDraft = (1 << 0),
+		SaveDraft = (1 << 0),
 		SendTyping = (1 << 1),
 	};
 	using TextUpdateEvents = base::flags<TextUpdateEvent>;

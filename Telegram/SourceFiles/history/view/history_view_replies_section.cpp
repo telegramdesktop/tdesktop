@@ -1034,14 +1034,6 @@ bool RepliesWidget::sendExistingDocument(
 	message.action.options = options;
 	Api::SendExistingDocument(std::move(message), document);
 
-	//if (_fieldAutocomplete->stickersShown()) {
-	//	clearFieldText();
-	//	//_saveDraftText = true;
-	//	//_saveDraftStart = crl::now();
-	//	//onDraftSave();
-	//	onCloudDraftSave(); // won't be needed if SendInlineBotResult will clear the cloud draft
-	//}
-
 	_composeControls->cancelReplyMessage();
 	finishSending();
 	return true;

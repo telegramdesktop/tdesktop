@@ -244,7 +244,11 @@ MainWidget::MainWidget(
 	setupConnectingWidget();
 
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
-	connect(_history, &HistoryWidget::cancelled, [=] { handleHistoryBack(); });
+
+	_history->cancelRequests(
+	) | rpl::start_with_next([=] {
+		handleHistoryBack();
+	}, lifetime());
 
 	Core::App().calls().currentCallValue(
 	) | rpl::start_with_next([=](Calls::Call *call) {

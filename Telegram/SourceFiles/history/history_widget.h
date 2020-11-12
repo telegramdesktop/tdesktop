@@ -108,8 +108,6 @@ class HistoryInner;
 struct HistoryMessageMarkupButton;
 
 class HistoryWidget final : public Window::AbstractSectionWidget {
-	Q_OBJECT
-
 public:
 	using FieldHistoryAction = Ui::InputField::HistoryAction;
 	using RecordLock = HistoryView::Controls::RecordLock;
@@ -241,7 +239,11 @@ public:
 
 	void updateFieldSubmitSettings();
 
+	void activate();
 	void setInnerFocus();
+	[[nodiscard]] rpl::producer<> cancelRequests() const {
+		return _cancelRequests.events();
+	}
 
 	void updateNotifyControls();
 
@@ -290,40 +292,6 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 
-signals:
-	void cancelled();
-
-public slots:
-	void onScroll();
-
-	void activate();
-	void onTextChange();
-
-	void onFieldTabbed();
-
-	void onWindowVisibleChanged();
-
-	void onFieldFocused();
-	void onFieldResize();
-	void onCheckFieldAutocomplete();
-	void onScrollTimer();
-
-	void onDraftSaveDelayed();
-	void onDraftSave(bool delayed = false);
-	void onCloudDraftSave();
-
-	void onUpdateHistoryItems();
-
-	// checks if we are too close to the top or to the bottom
-	// in the scroll area and preloads history if needed
-	void preloadHistoryIfNeeded();
-
-private slots:
-	void onHashtagOrBotCommandInsert(QString str, FieldAutocomplete::ChooseMethod method);
-	void onMentionInsert(UserData *user);
-	void onInlineBotCancel();
-	void onMembersDropdownShow();
-
 private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
@@ -353,6 +321,30 @@ private:
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<TabbedPanel> panel);
 	void updateField();
+	void fieldChanged();
+	void fieldTabbed();
+	void fieldFocused();
+	void fieldResized();
+
+	void insertHashtagOrBotCommand(
+		QString str,
+		FieldAutocomplete::ChooseMethod method);
+	void insertMention(UserData *user);
+	void cancelInlineBot();
+	void saveDraft(bool delayed = false);
+	void saveCloudDraft();
+	void saveDraftDelayed();
+	void checkFieldAutocomplete();
+	void showMembersDropdown();
+	void windowIsVisibleChanged();
+
+	// Checks if we are too close to the top or to the bottom
+	// in the scroll area and preloads history if needed.
+	void preloadHistoryIfNeeded();
+
+	void handleScroll();
+	void scrollByTimer();
+	void updateHistoryItemsByTimer();
 
 	[[nodiscard]] Dialogs::EntryState computeDialogsEntryState() const;
 	void refreshTopBarActiveChat();
@@ -580,6 +572,8 @@ private:
 	void setupScheduledToggle();
 	void refreshScheduledToggle();
 
+	bool kbWasHidden() const;
+
 	MTP::Sender _api;
 	MsgId _replyToId = 0;
 	Ui::Text::String _replyToName;
@@ -648,7 +642,7 @@ private:
 
 	int _lastScrollTop = 0; // gifs optimization
 	crl::time _lastScrolled = 0;
-	QTimer _updateHistoryItems;
+	base::Timer _updateHistoryItems;
 
 	crl::time _lastUserScrolled = 0;
 	bool _synteticScrollEvent = false;
@@ -692,15 +686,13 @@ private:
 	bool _inReplyEditForward = false;
 	bool _inClickable = false;
 
-	bool kbWasHidden() const;
-
 	bool _kbShown = false;
 	HistoryItem *_kbReplyTo = nullptr;
 	object_ptr<Ui::ScrollArea> _kbScroll;
 	QPointer<BotKeyboard> _keyboard;
 
 	object_ptr<Ui::InnerDropdown> _membersDropdown = { nullptr };
-	QTimer _membersDropdownShowTimer;
+	base::Timer _membersDropdownShowTimer;
 
 	object_ptr<InlineBots::Layout::Widget> _inlineResults = { nullptr };
 	std::unique_ptr<TabbedPanel> _tabbedPanel;
@@ -719,7 +711,7 @@ private:
 	Window::SlideDirection _showDirection;
 	QPixmap _cacheUnder, _cacheOver;
 
-	QTimer _scrollTimer;
+	base::Timer _scrollTimer;
 	int32 _scrollDelta = 0;
 
 	MsgId _highlightedMessageId = 0;
@@ -729,7 +721,8 @@ private:
 
 	crl::time _saveDraftStart = 0;
 	bool _saveDraftText = false;
-	QTimer _saveDraftTimer, _saveCloudDraftTimer;
+	base::Timer _saveDraftTimer;
+	base::Timer _saveCloudDraftTimer;
 
 	base::weak_ptr<Ui::Toast::Instance> _topToast;
 
@@ -737,5 +730,7 @@ private:
 	bool _inGrab = false;
 
 	int _topDelta = 0;
+
+	rpl::event_stream<> _cancelRequests;
 
 };

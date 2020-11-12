@@ -762,8 +762,8 @@ void ComposeControls::setText(const TextWithTags &textWithTags) {
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
 	_field->setTextCursor(cursor);
-	_textUpdateEvents = /*TextUpdateEvent::SaveDraft
-		| */TextUpdateEvent::SendTyping;
+	_textUpdateEvents = TextUpdateEvent::SaveDraft
+		| TextUpdateEvent::SendTyping;
 
 	//previewCancel();
 	//_previewCancelled = false;
@@ -978,8 +978,8 @@ void ComposeControls::initAutocomplete() {
 		setText({});
 		//_saveDraftText = true;
 		//_saveDraftStart = crl::now();
-		//onDraftSave();
-		//onCloudDraftSave(); // won't be needed if SendInlineBotResult will clear the cloud draft
+		//saveDraft();
+		//saveCloudDraft(); // won't be needed if SendInlineBotResult will clear the cloud draft
 		_fileChosen.fire(FileChosen{
 			.document = data.sticker,
 			.options = data.options,
