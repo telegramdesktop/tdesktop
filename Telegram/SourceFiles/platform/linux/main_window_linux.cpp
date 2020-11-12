@@ -52,12 +52,9 @@ extern "C" {
 } // extern "C"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-#include <glib.h>
-
 namespace Platform {
 namespace {
 
-constexpr auto kDisableTrayCounter = "TDESKTOP_DISABLE_TRAY_COUNTER"_cs;
 constexpr auto kPanelTrayIconName = "telegram-panel"_cs;
 constexpr auto kMutePanelTrayIconName = "telegram-mute-panel"_cs;
 constexpr auto kAttentionPanelTrayIconName = "telegram-attention-panel"_cs;
@@ -201,13 +198,6 @@ QIcon TrayIconGen(int counter, bool muted) {
 
 	const auto iconName = GetTrayIconName(counter, muted);
 
-	if (qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
-		&& !iconName.isEmpty()) {
-		const auto result = QIcon::fromTheme(iconName);
-		UpdateIconRegenerationNeeded(result, counter, muted, iconThemeName);
-		return result;
-	}
-
 	QIcon result;
 	QIcon systemIcon;
 
@@ -261,8 +251,7 @@ QIcon TrayIconGen(int counter, bool muted) {
 
 		auto iconImage = currentImageBack;
 
-		if (!qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
-			&& counter > 0) {
+		if (counter > 0) {
 			const auto &bg = muted
 				? st::trayCounterBgMute
 				: st::trayCounterBg;
@@ -590,15 +579,7 @@ void MainWindow::psTrayMenuUpdated() {
 void MainWindow::setSNITrayIcon(int counter, bool muted) {
 	const auto iconName = GetTrayIconName(counter, muted);
 
-	if (qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
-		&& !iconName.isEmpty()) {
-		if (_sniTrayIcon->iconName() == iconName) {
-			return;
-		}
-
-		_sniTrayIcon->setIconByName(iconName);
-		_sniTrayIcon->setToolTipIconByName(iconName);
-	} else if (IsIndicatorApplication()) {
+	if (IsIndicatorApplication()) {
 		if (!IsIconRegenerationNeeded(counter, muted)
 			&& _trayIconFile
 			&& _sniTrayIcon->iconName() == _trayIconFile->fileName()) {
@@ -871,13 +852,6 @@ void MainWindow::LibsLoaded() {
 	qDBusRegisterMetaType<IconPixmap>();
 	qDBusRegisterMetaType<IconPixmapList>();
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	if (!qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())) {
-		g_message(
-			"You can disable tray icon counter with %s "
-			"and make it look better if it is monochrome.",
-			kDisableTrayCounter.utf8().constData());
-	}
 }
 
 void MainWindow::initTrayMenuHook() {
