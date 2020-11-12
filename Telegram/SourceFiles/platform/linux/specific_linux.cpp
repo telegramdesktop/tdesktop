@@ -964,31 +964,30 @@ Window::ControlsLayout WindowControlsLayout() {
 			);
 		}
 
-		Window::ControlsLayout controls;
-		controls.left = controlsLeft;
-		controls.right = controlsRight;
-
-		return controls;
+		return Window::ControlsLayout{
+			.left = controlsLeft,
+			.right = controlsRight
+		};
 	}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
-	Window::ControlsLayout controls;
-
 	if (DesktopEnvironment::IsUnity()) {
-		controls.left = {
-			Window::Control::Close,
-			Window::Control::Minimize,
-			Window::Control::Maximize,
+		return Window::ControlsLayout{
+			.left = {
+				Window::Control::Close,
+				Window::Control::Minimize,
+				Window::Control::Maximize,
+			}
 		};
 	} else {
-		controls.right = {
-			Window::Control::Minimize,
-			Window::Control::Maximize,
-			Window::Control::Close,
+		return Window::ControlsLayout{
+			.right = {
+				Window::Control::Minimize,
+				Window::Control::Maximize,
+				Window::Control::Close,
+			}
 		};
 	}
-
-	return controls;
 }
 
 } // namespace Platform

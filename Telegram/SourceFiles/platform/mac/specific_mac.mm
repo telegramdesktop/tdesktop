@@ -204,14 +204,13 @@ void IgnoreApplicationActivationRightNow() {
 }
 
 Window::ControlsLayout WindowControlsLayout() {
-	Window::ControlsLayout controls;
-	controls.left = {
-		Window::Control::Close,
-		Window::Control::Minimize,
-		Window::Control::Maximize,
+	return Window::ControlsLayout{
+		.left = {
+			Window::Control::Close,
+			Window::Control::Minimize,
+			Window::Control::Maximize,
+		}
 	};
-
-	return controls;
 }
 
 } // namespace Platform
