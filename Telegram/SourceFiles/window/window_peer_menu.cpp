@@ -107,12 +107,12 @@ class Filler {
 public:
 	Filler(
 		not_null<SessionController*> controller,
-		PeerMenuRequest request,
+		Dialogs::EntryState request,
 		const PeerMenuCallback &addAction);
 	void fill();
 
 private:
-	using Source = PeerMenuRequest::Source;
+	using Section = Dialogs::EntryState::Section;
 
 	[[nodiscard]] bool showInfo();
 	[[nodiscard]] bool showHidePromotion();
@@ -128,36 +128,14 @@ private:
 	void addBlockUser(not_null<UserData*> user);
 	void addChatActions(not_null<ChatData*> chat);
 	void addChannelActions(not_null<ChannelData*> channel);
+	void addTogglesForArchive();
 
 	void addPollAction(not_null<PeerData*> peer);
 
 	not_null<SessionController*> _controller;
-	PeerMenuRequest _request;
-	not_null<PeerData*> _peer;
-	const PeerMenuCallback &_addAction;
-
-};
-
-class FolderFiller {
-public:
-	FolderFiller(
-		not_null<SessionController*> controller,
-		FolderMenuRequest request,
-		const PeerMenuCallback &addAction);
-	void fill();
-
-private:
-	void addTogglesForArchive();
-	//bool showInfo();
-	//void addTogglePin();
-	//void addInfo();
-	//void addSearch();
-	//void addNotifications();
-	//void addUngroup();
-
-	not_null<SessionController*> _controller;
-	FolderMenuRequest _request;
-	not_null<Data::Folder*> _folder;
+	Dialogs::EntryState _request;
+	PeerData *_peer = nullptr;
+	Data::Folder *_folder = nullptr;
 	const PeerMenuCallback &_addAction;
 
 };
@@ -277,16 +255,17 @@ void TogglePinnedDialog(
 
 Filler::Filler(
 	not_null<SessionController*> controller,
-	PeerMenuRequest request,
+	Dialogs::EntryState request,
 	const PeerMenuCallback &addAction)
 : _controller(controller)
 , _request(request)
-, _peer(request.peer)
+, _peer(request.key.peer())
+, _folder(request.key.folder())
 , _addAction(addAction) {
 }
 
 bool Filler::showInfo() {
-	if (_request.source == Source::Profile
+	if (_request.section == Section::Profile
 		|| _peer->isSelf()
 		|| _peer->isRepliesChat()) {
 		return false;
@@ -302,7 +281,7 @@ bool Filler::showInfo() {
 }
 
 bool Filler::showHidePromotion() {
-	if (_request.source != Source::ChatsList) {
+	if (_request.section != Section::ChatsList) {
 		return false;
 	}
 	const auto history = _peer->owner().historyLoaded(_peer);
@@ -312,7 +291,7 @@ bool Filler::showHidePromotion() {
 }
 
 bool Filler::showToggleArchived() {
-	if (_request.source != Source::ChatsList) {
+	if (_request.section != Section::ChatsList) {
 		return false;
 	}
 	const auto history = _peer->owner().historyLoaded(_peer);
@@ -325,7 +304,7 @@ bool Filler::showToggleArchived() {
 }
 
 bool Filler::showTogglePin() {
-	if (_request.source != Source::ChatsList) {
+	if (_request.section != Section::ChatsList) {
 		return false;
 	}
 	const auto history = _peer->owner().historyLoaded(_peer);
@@ -474,7 +453,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 void Filler::addUserActions(not_null<UserData*> user) {
 	const auto controller = _controller;
 	const auto window = &_controller->window();
-	if (_request.source != Source::ChatsList) {
+	if (_request.section != Section::ChatsList) {
 		if (user->session().supportMode()) {
 			_addAction("Edit support info", [=] {
 				user->session().supportHelper().editInfo(controller, user);
@@ -522,13 +501,13 @@ void Filler::addUserActions(not_null<UserData*> user) {
 	if (!user->isInaccessible()
 		&& user != user->session().user()
 		&& !user->isRepliesChat()
-		&& _request.source != Source::ChatsList) {
+		&& _request.section != Section::ChatsList) {
 		addBlockUser(user);
 	}
 }
 
 void Filler::addChatActions(not_null<ChatData*> chat) {
-	if (_request.source != Source::ChatsList) {
+	if (_request.section != Section::ChatsList) {
 		const auto controller = _controller;
 		if (EditPeerInfoBox::Available(chat)) {
 			const auto text = tr::lng_manage_group_title(tr::now);
@@ -568,7 +547,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	//			[=] { ToggleChannelGrouping(channel, !grouped); });
 	//	}
 	//}
-	if (_request.source != Source::ChatsList) {
+	if (_request.section != Section::ChatsList) {
 		if (channel->isBroadcast()) {
 			if (const auto chat = channel->linkedChat()) {
 				_addAction(tr::lng_profile_view_discussion(tr::now), [=] {
@@ -618,7 +597,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 			text,
 			[=] { channel->session().api().joinChannel(channel); });
 	}
-	if (_request.source != Source::ChatsList) {
+	if (_request.section != Section::ChatsList) {
 		const auto needReport = !channel->amCreator()
 			&& (!isGroup || channel->isPublic());
 		if (needReport) {
@@ -634,7 +613,7 @@ void Filler::addPollAction(not_null<PeerData*> peer) {
 		return;
 	}
 	const auto controller = _controller;
-	const auto source = (_request.source == Source::ScheduledSection)
+	const auto source = (_request.section == Section::Scheduled)
 		? Api::SendType::Scheduled
 		: Api::SendType::Normal;
 	const auto flag = PollData::Flags();
@@ -652,8 +631,11 @@ void Filler::addPollAction(not_null<PeerData*> peer) {
 }
 
 void Filler::fill() {
-	if (_request.source == Source::ScheduledSection
-		|| _request.source == Source::RepliesSection) {
+	if (_folder) {
+		addTogglesForArchive();
+		return;
+	} else if (_request.section == Section::Scheduled
+		|| _request.section == Section::Replies) {
 		addPollAction(_peer);
 		return;
 	}
@@ -669,10 +651,10 @@ void Filler::fill() {
 	if (showInfo()) {
 		addInfo();
 	}
-	if (_request.source != Source::Profile && !_peer->isSelf()) {
+	if (_request.section != Section::Profile && !_peer->isSelf()) {
 		PeerMenuAddMuteAction(_peer, _addAction);
 	}
-	if (_request.source == Source::ChatsList) {
+	if (_request.section == Section::ChatsList) {
 		//addSearch();
 		addToggleUnreadMark();
 	}
@@ -686,21 +668,9 @@ void Filler::fill() {
 	}
 }
 
-FolderFiller::FolderFiller(
-	not_null<SessionController*> controller,
-	FolderMenuRequest request,
-	const PeerMenuCallback &addAction)
-: _controller(controller)
-, _request(request)
-, _folder(request.folder)
-, _addAction(addAction) {
-}
+void Filler::addTogglesForArchive() {
+	Expects(_folder != nullptr);
 
-void FolderFiller::fill() {
-	addTogglesForArchive();
-}
-
-void FolderFiller::addTogglesForArchive() {
 	if (_folder->id() != Data::Folder::kId) {
 		return;
 	}
@@ -1310,20 +1280,11 @@ Fn<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer) {
 	};
 }
 
-void FillPeerMenu(
+void FillDialogsEntryMenu(
 		not_null<SessionController*> controller,
-		PeerMenuRequest request,
+		Dialogs::EntryState request,
 		const PeerMenuCallback &callback) {
-	Filler filler(controller, request, callback);
-	filler.fill();
-}
-
-void FillFolderMenu(
-		not_null<SessionController*> controller,
-		FolderMenuRequest request,
-		const PeerMenuCallback &callback) {
-	FolderFiller filler(controller, request, callback);
-	filler.fill();
+	Filler(controller, request, callback).fill();
 }
 
 } // namespace Window

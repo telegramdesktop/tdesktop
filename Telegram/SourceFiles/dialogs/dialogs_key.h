@@ -109,4 +109,21 @@ inline bool operator>=(const RowDescriptor &a, const RowDescriptor &b) {
 	return !(a < b);
 }
 
+struct EntryState {
+	enum class Section {
+		History,
+		Profile,
+		ChatsList,
+		Scheduled,
+		Pinned,
+		Replies,
+	};
+
+	Key key;
+	Section section = Section::History;
+	FilterId filterId = 0;
+	MsgId rootId = 0;
+	MsgId currentReplyToId = 0;
+};
+
 } // namespace Dialogs

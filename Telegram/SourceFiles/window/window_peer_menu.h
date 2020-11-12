@@ -24,6 +24,7 @@ class Session;
 
 namespace Dialogs {
 class MainList;
+struct EntryState;
 } // namespace Dialogs
 
 namespace Window {
@@ -32,37 +33,13 @@ class Controller;
 class SessionController;
 class SessionNavigation;
 
-struct PeerMenuRequest {
-	enum class Source {
-		ChatsList,
-		History,
-		Profile,
-		ScheduledSection,
-		RepliesSection,
-	};
-
-	not_null<PeerData*> peer;
-	Source source = Source::ChatsList;
-	FilterId filterId = 0;
-	MsgId rootId = 0;
-	MsgId currentReplyToId = 0;
-};
-
-struct FolderMenuRequest {
-	not_null<Data::Folder*> folder;
-};
-
 using PeerMenuCallback = Fn<QAction*(
 	const QString &text,
 	Fn<void()> handler)>;
 
-void FillPeerMenu(
+void FillDialogsEntryMenu(
 	not_null<SessionController*> controller,
-	PeerMenuRequest request,
-	const PeerMenuCallback &addAction);
-void FillFolderMenu(
-	not_null<SessionController*> controller,
-	FolderMenuRequest request,
+	Dialogs::EntryState request,
 	const PeerMenuCallback &addAction);
 
 void PeerMenuAddMuteAction(

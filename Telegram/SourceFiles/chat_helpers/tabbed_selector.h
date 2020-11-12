@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 
 namespace InlineBots {
-class Result;
+struct ResultSelected;
 } // namespace InlineBots
 
 namespace Main {
@@ -60,11 +60,7 @@ public:
 		not_null<PhotoData*> photo;
 		Api::SendOptions options;
 	};
-	struct InlineChosen {
-		not_null<InlineBots::Result*> result;
-		not_null<UserData*> bot;
-		Api::SendOptions options;
-	};
+	using InlineChosen = InlineBots::ResultSelected;
 	enum class Mode {
 		Full,
 		EmojiOnly

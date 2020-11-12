@@ -99,12 +99,12 @@ ScheduledWidget::ScheduledWidget(
 	controller,
 	ComposeControls::Mode::Scheduled))
 , _scrollDown(_scroll, st::historyToDown) {
-	_topBar->setActiveChat(
-		TopBarWidget::ActiveChat{
-			.key = _history,
-			.section = TopBarWidget::Section::Scheduled,
-		},
-		nullptr);
+	const auto state = Dialogs::EntryState{
+		.key = _history,
+		.section = Dialogs::EntryState::Section::Scheduled,
+	};
+	_topBar->setActiveChat(state, nullptr);
+	_composeControls->setCurrentDialogsEntryState(state);
 
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());

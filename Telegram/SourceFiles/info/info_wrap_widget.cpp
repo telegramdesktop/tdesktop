@@ -575,11 +575,11 @@ void WrapWidget::showTopBarMenu() {
 		return _topBarMenu->addAction(text, std::move(callback));
 	};
 	if (const auto peer = key().peer()) {
-		Window::FillPeerMenu(
+		Window::FillDialogsEntryMenu(
 			_controller->parentController(),
-			Window::PeerMenuRequest{
-				.peer = peer,
-				.source = Window::PeerMenuRequest::Source::Profile,
+			Dialogs::EntryState{
+				.key = peer->owner().history(peer),
+				.section = Dialogs::EntryState::Section::Profile,
 			},
 			addAction);
 	//} else if (const auto feed = key().feed()) { // #feed

@@ -191,7 +191,7 @@ void activateBotCommand(
 					if (samePeer) {
 						Notify::switchInlineBotButtonReceived(session, QString::fromUtf8(button->data), bot, msg->id);
 						return true;
-					} else if (bot->isBot() && bot->botInfo->inlineReturnPeerId) {
+					} else if (bot->isBot() && bot->botInfo->inlineReturnTo.key) {
 						if (Notify::switchInlineBotButtonReceived(session, QString::fromUtf8(button->data))) {
 							return true;
 						}

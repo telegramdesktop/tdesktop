@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/required.h"
 #include "api/api_common.h"
 #include "base/unique_qptr.h"
+#include "dialogs/dialogs_key.h"
 #include "history/view/controls/compose_controls_common.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
@@ -87,6 +88,8 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 	void setHistory(SetHistoryArgs &&args);
+	void setCurrentDialogsEntryState(Dialogs::EntryState state);
+
 	void finishAnimating();
 
 	void move(int x, int y);
@@ -237,6 +240,7 @@ private:
 
 	TextWithTags _localSavedText;
 	TextUpdateEvents _textUpdateEvents;
+	Dialogs::EntryState _currentDialogsEntryState;
 
 	//bool _inReplyEditForward = false;
 	//bool _inClickable = false;

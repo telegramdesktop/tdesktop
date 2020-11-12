@@ -38,7 +38,7 @@ namespace Layout {
 class ItemBase;
 class Widget;
 } // namespace Layout
-class Result;
+struct ResultSelected;
 } // namespace InlineBots
 
 namespace Data {
@@ -353,6 +353,8 @@ private:
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<TabbedPanel> panel);
 	void updateField();
+
+	[[nodiscard]] Dialogs::EntryState computeDialogsEntryState() const;
 	void refreshTopBarActiveChat();
 
 	void requestMessageData(MsgId msgId);
@@ -485,10 +487,7 @@ private:
 		int wasScrollTop,
 		int nowScrollTop);
 
-	void sendInlineResult(
-		not_null<InlineBots::Result*> result,
-		not_null<UserData*> bot,
-		Api::SendOptions options);
+	void sendInlineResult(InlineBots::ResultSelected result);
 
 	void drawField(Painter &p, const QRect &rect);
 	void paintEditHeader(

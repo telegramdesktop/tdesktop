@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/history_view_webpage_preview.h"
 #include "inline_bots/inline_results_widget.h"
+#include "inline_bots/inline_bot_result.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/audio/media_audio_capture.h"
@@ -580,6 +581,13 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 		if (!channel->mgInfo->botStatus) {
 			session().api().requestBots(channel);
 		}
+	}
+}
+
+void ComposeControls::setCurrentDialogsEntryState(Dialogs::EntryState state) {
+	_currentDialogsEntryState = state;
+	if (_inlineResults) {
+		_inlineResults->setCurrentDialogsEntryState(state);
 	}
 }
 
@@ -1523,6 +1531,7 @@ bool ComposeControls::handleCancelRequest() {
 
 void ComposeControls::initWebpageProcess() {
 	Expects(_history);
+
 	const auto peer = _history->peer;
 	auto &lifetime = _wrap->lifetime();
 	const auto requestRepaint = crl::guard(_header.get(), [=] {
@@ -1787,15 +1796,11 @@ void ComposeControls::applyInlineBotQuery(
 			_inlineResults = std::make_unique<InlineBots::Layout::Widget>(
 				_parent,
 				_window);
+			_inlineResults->setCurrentDialogsEntryState(
+				_currentDialogsEntryState);
 			_inlineResults->setResultSelectedCallback([=](
-					InlineBots::Result *result,
-					UserData *bot,
-					Api::SendOptions options) {
-				_inlineResultChosen.fire(InlineChosen{
-					.result = result,
-					.bot = bot,
-					.options = options,
-				});
+					InlineBots::ResultSelected result) {
+				_inlineResultChosen.fire_copy(result);
 			});
 			_inlineResults->requesting(
 			) | rpl::start_with_next([=](bool requesting) {

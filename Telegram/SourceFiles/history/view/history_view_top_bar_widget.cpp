@@ -232,30 +232,10 @@ void TopBarWidget::showMenu() {
 		Fn<void()> callback) {
 		return _menu->addAction(text, std::move(callback));
 	};
-	if (const auto peer = _activeChat.key.peer()) {
-		using Source = Window::PeerMenuRequest::Source;
-		const auto source = (_activeChat.section == Section::Scheduled)
-			? Source::ScheduledSection
-			: (_activeChat.section == Section::Replies)
-			? Source::RepliesSection
-			: Source::History;
-		Window::FillPeerMenu(
-			_controller,
-			Window::PeerMenuRequest{
-				.peer = peer,
-				.source = source,
-				.rootId = _activeChat.rootId,
-				.currentReplyToId = _activeChat.currentReplyToId,
-			},
-			addAction);
-	} else if (const auto folder = _activeChat.key.folder()) {
-		Window::FillFolderMenu(
-			_controller,
-			Window::FolderMenuRequest{ folder },
-			addAction);
-	} else {
-		Unexpected("Empty active chat in TopBarWidget::showMenu.");
-	}
+	Window::FillDialogsEntryMenu(
+		_controller,
+		_activeChat,
+		addAction);
 	if (_menu->actions().empty()) {
 		_menu.destroy();
 	} else {

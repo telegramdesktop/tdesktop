@@ -1137,14 +1137,14 @@ SendMenu::Type RepliesWidget::sendMenuType() const {
 }
 
 void RepliesWidget::refreshTopBarActiveChat() {
-	_topBar->setActiveChat(
-		TopBarWidget::ActiveChat{
-			.key = _history,
-			.section = TopBarWidget::Section::Replies,
-			.rootId = _rootId,
-			.currentReplyToId = replyToId(),
-		},
-		_sendAction.get());
+	const auto state = Dialogs::EntryState{
+		.key = _history,
+		.section = Dialogs::EntryState::Section::Replies,
+		.rootId = _rootId,
+		.currentReplyToId = replyToId(),
+	};
+	_topBar->setActiveChat(state, _sendAction.get());
+	_composeControls->setCurrentDialogsEntryState(state);
 }
 
 MsgId RepliesWidget::replyToId() const {

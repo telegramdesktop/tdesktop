@@ -43,19 +43,8 @@ public:
 		int canForwardCount = 0;
 		int canSendNowCount = 0;
 	};
-	enum class Section {
-		History,
-		Dialogs, // For folder view in dialogs list.
-		Scheduled,
-		Pinned,
-		Replies,
-	};
-	struct ActiveChat {
-		Dialogs::Key key;
-		Section section = Section::History;
-		MsgId rootId = 0;
-		MsgId currentReplyToId = 0;
-	};
+	using ActiveChat = Dialogs::EntryState;
+	using Section = ActiveChat::Section;
 
 	TopBarWidget(
 		QWidget *parent,

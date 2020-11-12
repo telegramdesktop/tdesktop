@@ -707,14 +707,20 @@ void HistoryWidget::setGeometryWithTopMoved(
 	_topDelta = 0;
 }
 
+Dialogs::EntryState HistoryWidget::computeDialogsEntryState() const {
+	return Dialogs::EntryState{
+		.key = _history,
+		.section = Dialogs::EntryState::Section::History,
+		.currentReplyToId = replyToId(),
+	};
+}
+
 void HistoryWidget::refreshTopBarActiveChat() {
-	_topBar->setActiveChat(
-		HistoryView::TopBarWidget::ActiveChat{
-			.key = _history,
-			.section = HistoryView::TopBarWidget::Section::History,
-			.currentReplyToId = replyToId(),
-		},
-		_history->sendActionPainter());
+	const auto state = computeDialogsEntryState();
+	_topBar->setActiveChat(state, _history->sendActionPainter());
+	if (_inlineResults) {
+		_inlineResults->setCurrentDialogsEntryState(state);
+	}
 }
 
 void HistoryWidget::refreshTabbedPanel() {
@@ -830,7 +836,7 @@ void HistoryWidget::initTabbedSelector() {
 	) | rpl::filter([=] {
 		return !isHidden();
 	}) | rpl::start_with_next([=](TabbedSelector::InlineChosen data) {
-		sendInlineResult(data.result, data.bot, data.options);
+		sendInlineResult(data);
 	}, lifetime());
 
 	selector->setSendMenuType([=] { return sendMenuType(); });
@@ -1195,11 +1201,11 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 		if (!_inlineResults) {
 			_inlineResults.create(this, controller());
 			_inlineResults->setResultSelectedCallback([=](
-					InlineBots::Result *result,
-					UserData *bot,
-					Api::SendOptions options) {
-				sendInlineResult(result, bot, options);
+					InlineBots::ResultSelected result) {
+				sendInlineResult(result);
 			});
+			_inlineResults->setCurrentDialogsEntryState(
+				computeDialogsEntryState());
 			_inlineResults->requesting(
 			) | rpl::start_with_next([=](bool requesting) {
 				_tabbedSelectorToggle->setLoading(requesting);
@@ -1460,22 +1466,37 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 			applyDraft();
 			return true;
 		}
-	} else if (auto bot = _peer ? _peer->asUser() : nullptr) {
-		const auto toPeerId = bot->isBot()
-			? bot->botInfo->inlineReturnPeerId
-			: PeerId(0);
-		if (!toPeerId) {
+	} else if (const auto bot = _peer ? _peer->asUser() : nullptr) {
+		const auto to = bot->isBot()
+			? bot->botInfo->inlineReturnTo
+			: Dialogs::EntryState();
+		const auto history = to.key.history();
+		if (!history) {
 			return false;
 		}
-		bot->botInfo->inlineReturnPeerId = 0;
-		const auto h = bot->owner().history(toPeerId);
+		bot->botInfo->inlineReturnTo = Dialogs::EntryState();
+		using Section = Dialogs::EntryState::Section;
+
 		TextWithTags textWithTags = { '@' + bot->username + ' ' + query, TextWithTags::Tags() };
 		MessageCursor cursor = { textWithTags.text.size(), textWithTags.text.size(), QFIXED_MAX };
-		h->setLocalDraft(std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
-		if (h == _history) {
-			applyDraft();
+		auto draft = std::make_unique<Data::Draft>(
+			textWithTags,
+			to.currentReplyToId,
+			cursor,
+			false);
+
+		if (to.section == Section::Replies) {
+			controller()->showRepliesForMessage(history, to.rootId);
 		} else {
-			Ui::showPeerHistory(h->peer, ShowAtUnreadMsgId);
+			history->setLocalDraft(std::move(draft));
+			if (to.section == Section::Scheduled) {
+				controller()->showSection(
+					HistoryView::ScheduledMemento(history));
+			} else if (history == _history) {
+				applyDraft();
+			} else {
+				Ui::showPeerHistory(history->peer, ShowAtUnreadMsgId);
+			}
 		}
 		return true;
 	}
@@ -1657,9 +1678,7 @@ void HistoryWidget::showHistory(
 	_pinnedClickedId = FullMsgId();
 	_minPinnedId = std::nullopt;
 
-	MsgId wasMsgId = _showAtMsgId;
-	History *wasHistory = _history;
-
+	const auto wasDialogsEntryState = computeDialogsEntryState();
 	const auto startBot = (showAtMsgId == ShowAndStartBotMsgId);
 	if (startBot) {
 		showAtMsgId = ShowAtTheEndMsgId;
@@ -1719,8 +1738,8 @@ void HistoryWidget::showHistory(
 			if (const auto user = _peer->asUser()) {
 				if (const auto &info = user->botInfo) {
 					if (startBot) {
-						if (wasHistory) {
-							info->inlineReturnPeerId = wasHistory->peer->id;
+						if (wasDialogsEntryState.key) {
+							info->inlineReturnTo = wasDialogsEntryState;
 						}
 						sendBotStartCommand();
 						_history->clearLocalDraft();
@@ -1894,8 +1913,8 @@ void HistoryWidget::showHistory(
 		if (const auto user = _peer->asUser()) {
 			if (const auto &info = user->botInfo) {
 				if (startBot) {
-					if (wasHistory) {
-						info->inlineReturnPeerId = wasHistory->peer->id;
+					if (wasDialogsEntryState.key) {
+						info->inlineReturnTo = wasDialogsEntryState;
 					}
 					sendBotStartCommand();
 				}
@@ -5078,17 +5097,14 @@ void HistoryWidget::onFieldTabbed() {
 	}
 }
 
-void HistoryWidget::sendInlineResult(
-		not_null<InlineBots::Result*> result,
-		not_null<UserData*> bot,
-		Api::SendOptions options) {
+void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
 	if (!_peer || !_peer->canWrite()) {
 		return;
 	} else if (showSlowmodeError()) {
 		return;
 	}
 
-	auto errorText = result->getErrorOnSend(_history);
+	auto errorText = result.result->getErrorOnSend(_history);
 	if (!errorText.isEmpty()) {
 		Ui::show(Box<InformBox>(errorText));
 		return;
@@ -5096,9 +5112,9 @@ void HistoryWidget::sendInlineResult(
 
 	auto action = Api::SendAction(_history);
 	action.replyTo = replyToId();
-	action.options = std::move(options);
+	action.options = std::move(result.options);
 	action.generateLocal = true;
-	session().api().sendInlineResult(bot, result, action);
+	session().api().sendInlineResult(result.bot, result.result, action);
 
 	clearFieldText();
 	_saveDraftText = true;
@@ -5106,14 +5122,14 @@ void HistoryWidget::sendInlineResult(
 	onDraftSave();
 
 	auto &bots = cRefRecentInlineBots();
-	const auto index = bots.indexOf(bot);
+	const auto index = bots.indexOf(result.bot);
 	if (index) {
 		if (index > 0) {
 			bots.removeAt(index);
 		} else if (bots.size() >= RecentInlineBotsLimit) {
 			bots.resize(RecentInlineBotsLimit - 1);
 		}
-		bots.push_front(bot);
+		bots.push_front(result.bot);
 		session().local().writeRecentHashtagsAndBots();
 	}
 

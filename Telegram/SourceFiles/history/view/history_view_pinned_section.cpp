@@ -104,7 +104,7 @@ PinnedWidget::PinnedWidget(
 	_topBar->setActiveChat(
 		TopBarWidget::ActiveChat{
 			.key = _history,
-			.section = TopBarWidget::Section::Pinned,
+			.section = Dialogs::EntryState::Section::Pinned,
 		},
 		nullptr);
 
