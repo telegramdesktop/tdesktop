@@ -325,14 +325,13 @@ bool ShowWindowMenu(QWindow *window) {
 }
 
 Window::ControlsLayout WindowControlsLayout() {
-	Window::ControlsLayout controls;
-	controls.right = {
-		Window::Control::Minimize,
-		Window::Control::Maximize,
-		Window::Control::Close,
+	return Window::ControlsLayout{
+		.right = {
+			Window::Control::Minimize,
+			Window::Control::Maximize,
+			Window::Control::Close,
+		}
 	};
-
-	return controls;
 }
 
 } // namespace Platform
