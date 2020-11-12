@@ -362,26 +362,26 @@ historyRecordTextLeft: 15px;
 historyRecordTextRight: 25px;
 
 historyRecordLockShowDuration: historyToDownDuration;
-historyRecordLockSize: size(75px, 150px);
+historyRecordLockSize: size(75px, 133px);
 
 historyRecordLockIconFg: historyToDownFg;
-historyRecordLockIconSize: size(14px, 18px);
+historyRecordLockIconSize: size(14px, 17px);
 historyRecordLockIconBottomHeight: 9px;
 historyRecordLockIconLineHeight: 2px;
 historyRecordLockIconLineSkip: 3px;
 historyRecordLockIconLineWidth: 2px;
 historyRecordLockIconArcHeight: 4px;
 
-historyRecordLockTopShadow: icon {{ "lock/record_lock_top_shadow", historyToDownShadow }};
-historyRecordLockTop: icon {{ "lock/record_lock_top", historyToDownBg }};
-historyRecordLockBottomShadow: icon {{ "lock/record_lock_bottom_shadow", historyToDownShadow }};
-historyRecordLockBottom: icon {{ "lock/record_lock_bottom", historyToDownBg }};
-historyRecordLockBodyShadow: icon {{ "lock/record_lock_body_shadow", historyToDownShadow }};
-historyRecordLockBody: icon {{ "lock/record_lock_body", historyToDownBg }};
+historyRecordLockTopShadow: icon {{ "voice_lock/record_lock_top_shadow", historyToDownShadow }};
+historyRecordLockTop: icon {{ "voice_lock/record_lock_top", historyToDownBg }};
+historyRecordLockBottomShadow: icon {{ "voice_lock/record_lock_bottom_shadow", historyToDownShadow }};
+historyRecordLockBottom: icon {{ "voice_lock/record_lock_bottom", historyToDownBg }};
+historyRecordLockBodyShadow: icon {{ "voice_lock/record_lock_body_shadow", historyToDownShadow }};
+historyRecordLockBody: icon {{ "voice_lock/record_lock_body", historyToDownBg }};
 historyRecordLockMargin: margins(4px, 4px, 4px, 4px);
-historyRecordLockArrow: icon {{ "history_down_arrow-flip_vertical", historyToDownFg }};
+historyRecordLockArrow: icon {{ "voice_lock/voice_arrow", historyToDownFg }};
 
-historyRecordLockPosition: historyToDownPosition;
+historyRecordLockPosition: point(7px, 35px);
 
 historySilentToggle: IconButton(historyBotKeyboardShow) {
 	icon: icon {{ "send_control_silent_off", historyComposeIconFg }};
