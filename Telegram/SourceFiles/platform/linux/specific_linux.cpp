@@ -1158,7 +1158,10 @@ void start() {
 	// Since tdesktop is distributed in static binary form,
 	// it makes sense to use ibus portal whenever it present
 	// to ensure compatibility with the maximum range of distributions.
-	if (IsIBusPortalPresent()) {
+	if (AreQtPluginsBundled()
+		&& !InFlatpak()
+		&& !InSnap()
+		&& IsIBusPortalPresent()) {
 		LOG(("IBus portal is present! Using it."));
 		qputenv("IBUS_USE_PORTAL", "1");
 	}
