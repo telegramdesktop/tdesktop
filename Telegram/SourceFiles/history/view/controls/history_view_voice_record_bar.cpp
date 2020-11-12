@@ -52,6 +52,8 @@ constexpr auto kPrecision = 10;
 
 constexpr auto kLockArcAngle = 15.;
 
+constexpr auto kHideWaveformBgOffset = 50;
+
 enum class FilterType {
 	Continue,
 	ShowBox,
@@ -239,6 +241,8 @@ private:
 	const QColor _activeWaveformBar;
 	const QColor _inactiveWaveformBar;
 
+	bool _isShowAnimation = true;
+
 	QRect _waveformBgRect;
 	QRect _waveformBgFinalCenterRect;
 	QRect _waveformFgRect;
@@ -315,19 +319,22 @@ void ListenWrap::init() {
 		}
 
 		{
+			const auto hideOffset = _isShowAnimation
+				? 0
+				: anim::interpolate(kHideWaveformBgOffset, 0, progress);
 			const auto deleteIconLeft = _stDelete.iconPosition.x();
 			const auto bgRectRight = anim::interpolate(
 				deleteIconLeft,
 				_stDelete.width,
-				progress);
+				_isShowAnimation ? progress : 1.);
 			const auto bgRectLeft = anim::interpolate(
 				_parent->width() - deleteIconLeft - _waveformBgRect.height(),
 				_stDelete.width,
-				progress);
+				_isShowAnimation ? progress : 1.);
 			const auto bgRectMargins = style::margins(
-				bgRectLeft,
+				bgRectLeft - hideOffset,
 				0,
-				bgRectRight,
+				bgRectRight + hideOffset,
 				0);
 			const auto bgRect = _waveformBgRect.marginsRemoved(bgRectMargins);
 
@@ -341,11 +348,17 @@ void ListenWrap::init() {
 			const auto bgCenterRect = bgRect.marginsRemoved(
 				style::margins(halfHeight, 0, halfHeight, 0));
 
+			if (!_isShowAnimation) {
+				p.setOpacity(progress);
+			}
 			p.setPen(Qt::NoPen);
 			p.setBrush(st::historyRecordCancelActive);
-			p.drawEllipse(bgLeftCircleRect);
-			p.drawEllipse(bgRightCircleRect);
-			p.fillRect(bgCenterRect, st::historyRecordCancelActive);
+			QPainterPath path;
+			path.setFillRule(Qt::WindingFill);
+			path.addEllipse(bgLeftCircleRect);
+			path.addEllipse(bgRightCircleRect);
+			path.addRect(bgCenterRect);
+			p.drawPath(path);
 
 			// Duration paint.
 			{
@@ -575,6 +588,7 @@ int ListenWrap::computeTopMargin(int height) const {
 }
 
 void ListenWrap::requestPaintProgress(float64 progress) {
+	_isShowAnimation = (_showProgress.current() < progress);
 	_showProgress = progress;
 }
 
