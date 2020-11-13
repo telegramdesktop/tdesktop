@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/platform/ui_platform_utility.h"
 #include "history/history.h"
 #include "window/themes/window_theme.h"
-#include "window/window_title_qt.h" // kShowAfterWindowFlagChangeDelay
 #include "window/window_session_controller.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_outdated_bar.h"
@@ -365,20 +364,9 @@ void MainWindow::refreshTitleWidget() {
 		_titleShadow.destroy();
 	}
 
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
-	// setWindowFlag calls setParent(parentWidget(), newFlags), which
-	// always calls hide() explicitly, we have to show() the window back.
-	const auto hidden = isHidden();
 	const auto withShadow = hasShadow();
-	setWindowFlag(Qt::NoDropShadowWindowHint, withShadow);
+	windowHandle()->setFlag(Qt::NoDropShadowWindowHint, withShadow);
 	setAttribute(Qt::WA_OpaquePaintEvent, !withShadow);
-	if (!hidden) {
-		base::call_delayed(
-			kShowAfterWindowFlagChangeDelay,
-			this,
-			[=] { show(); });
-	}
-#endif // Q_OS_UNIX && !Q_OS_MAC
 }
 
 void MainWindow::updateMinimumSize() {
