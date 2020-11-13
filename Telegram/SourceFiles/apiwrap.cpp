@@ -2441,16 +2441,14 @@ void ApiWrap::saveCurrentDraftToCloud() {
 	Core::App().saveCurrentDraftsToHistories();
 
 	for (const auto controller : _session->windows()) {
-		if (const auto peer = controller->activeChatCurrent().peer()) {
-			if (const auto history = _session->data().historyLoaded(peer)) {
-				_session->local().writeDrafts(history);
+		if (const auto history = controller->activeChatCurrent().history()) {
+			_session->local().writeDrafts(history);
 
-				const auto localDraft = history->localDraft();
-				const auto cloudDraft = history->cloudDraft();
-				if (!Data::draftsAreEqual(localDraft, cloudDraft)
-					&& !_session->supportMode()) {
-					saveDraftToCloudDelayed(history);
-				}
+			const auto localDraft = history->localDraft();
+			const auto cloudDraft = history->cloudDraft();
+			if (!Data::draftsAreEqual(localDraft, cloudDraft)
+				&& !_session->supportMode()) {
+				saveDraftToCloudDelayed(history);
 			}
 		}
 	}

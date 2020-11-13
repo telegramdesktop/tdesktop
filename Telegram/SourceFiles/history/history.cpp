@@ -179,22 +179,22 @@ void History::itemVanished(not_null<HistoryItem*> item) {
 	}
 }
 
-void History::setLocalDraft(std::unique_ptr<Data::Draft> &&draft) {
-	_localDraft = std::move(draft);
-}
-
-void History::takeLocalDraft(History *from) {
-	if (auto &draft = from->_localDraft) {
-		if (!draft->textWithTags.text.isEmpty() && !_localDraft) {
-			_localDraft = std::move(draft);
-
-			// Edit and reply to drafts can't migrate.
-			// Cloud drafts do not migrate automatically.
-			_localDraft->msgId = 0;
-		}
-		from->clearLocalDraft();
-		session().api().saveDraftToCloudDelayed(from);
+void History::takeLocalDraft(not_null<History*> from) {
+	const auto i = from->_drafts.find(Data::DraftKey::Local());
+	if (i == end(from->_drafts)) {
+		return;
 	}
+	auto &draft = i->second;
+	if (!draft->textWithTags.text.isEmpty()
+		&& !_drafts.contains(Data::DraftKey::Local())) {
+		// Edit and reply to drafts can't migrate.
+		// Cloud drafts do not migrate automatically.
+		draft->msgId = 0;
+
+		setLocalDraft(std::move(draft));
+	}
+	from->clearLocalDraft();
+	session().api().saveDraftToCloudDelayed(from);
 }
 
 void History::createLocalDraftFromCloud() {
@@ -227,9 +227,51 @@ void History::createLocalDraftFromCloud() {
 	}
 }
 
-void History::setCloudDraft(std::unique_ptr<Data::Draft> &&draft) {
-	_cloudDraft = std::move(draft);
-	cloudDraftTextCache.clear();
+Data::Draft *History::draft(Data::DraftKey key) const {
+	if (!key) {
+		return nullptr;
+	}
+	const auto i = _drafts.find(key);
+	return (i != _drafts.end()) ? i->second.get() : nullptr;
+}
+
+void History::setDraft(Data::DraftKey key, std::unique_ptr<Data::Draft> &&draft) {
+	if (!key) {
+		return;
+	}
+	const auto changingCloudDraft = (key == Data::DraftKey::Cloud());
+	if (changingCloudDraft) {
+		cloudDraftTextCache.clear();
+	}
+	if (draft) {
+		_drafts[key] = std::move(draft);
+	} else if (_drafts.remove(key) && changingCloudDraft) {
+		updateChatListSortPosition();
+	}
+}
+
+const Data::HistoryDrafts &History::draftsMap() const {
+	return _drafts;
+}
+
+void History::setDraftsMap(Data::HistoryDrafts &&map) {
+	for (auto &[key, draft] : _drafts) {
+		map[key] = std::move(draft);
+	}
+	_drafts = std::move(map);
+}
+
+void History::clearDraft(Data::DraftKey key) {
+	setDraft(key, nullptr);
+}
+
+void History::clearDrafts() {
+	const auto changingCloudDraft = _drafts.contains(Data::DraftKey::Cloud());
+	_drafts.clear();
+	if (changingCloudDraft) {
+		cloudDraftTextCache.clear();
+		updateChatListSortPosition();
+	}
 }
 
 Data::Draft *History::createCloudDraft(const Data::Draft *fromDraft) {
@@ -287,22 +329,6 @@ void History::clearSentDraftText(const QString &text) {
 	accumulate_max(_lastSentDraftTime, base::unixtime::now());
 }
 
-void History::setEditDraft(std::unique_ptr<Data::Draft> &&draft) {
-	_editDraft = std::move(draft);
-}
-
-void History::clearLocalDraft() {
-	_localDraft = nullptr;
-}
-
-void History::clearCloudDraft() {
-	if (_cloudDraft) {
-		_cloudDraft = nullptr;
-		cloudDraftTextCache.clear();
-		updateChatListSortPosition();
-	}
-}
-
 void History::applyCloudDraft() {
 	if (session().supportMode()) {
 		updateChatListEntry();
@@ -312,10 +338,6 @@ void History::applyCloudDraft() {
 		updateChatListSortPosition();
 		session().changes().historyUpdated(this, UpdateFlag::CloudDraft);
 	}
-}
-
-void History::clearEditDraft() {
-	_editDraft = nullptr;
 }
 
 void History::draftSavedToCloud() {

@@ -51,6 +51,7 @@ constexpr auto kSinglePeerTypeChat = qint32(2);
 constexpr auto kSinglePeerTypeChannel = qint32(3);
 constexpr auto kSinglePeerTypeSelf = qint32(4);
 constexpr auto kSinglePeerTypeEmpty = qint32(0);
+constexpr auto kMultiDraftTag = quint64(0xFFFFFFFFFFFFFF01ULL);
 
 enum { // Local Storage Keys
 	lskUserMap = 0x00,
@@ -936,80 +937,200 @@ std::unique_ptr<MTP::Config> Account::readMtpConfig() {
 	return MTP::Config::FromSerialized(serialized);
 }
 
-void Account::writeDrafts(not_null<History*> history) {
-	Storage::MessageDraft storedLocalDraft, storedEditDraft;
-	MessageCursor localCursor, editCursor;
-	if (const auto localDraft = history->localDraft()) {
-		if (_owner->session().supportMode()
-			|| !Data::draftsAreEqual(localDraft, history->cloudDraft())) {
-			storedLocalDraft = Storage::MessageDraft{
-				localDraft->msgId,
-				localDraft->textWithTags,
-				localDraft->previewCancelled
-			};
-			localCursor = localDraft->cursor;
+template <typename Callback>
+void EnumerateDrafts(
+		const Data::HistoryDrafts &map,
+		Data::Draft *cloudDraft,
+		bool supportMode,
+		Data::DraftKey replaceKey,
+		const MessageDraft &replaceDraft,
+		const MessageCursor &replaceCursor,
+		Callback &&callback) {
+	for (const auto &[key, draft] : map) {
+		if (key == Data::DraftKey::Cloud() || key == replaceKey) {
+			continue;
+		} else if (key == Data::DraftKey::Local()
+			&& !supportMode
+			&& Data::draftsAreEqual(draft.get(), cloudDraft)) {
+			continue;
 		}
+		callback(
+			key,
+			draft->msgId,
+			draft->textWithTags,
+			draft->previewCancelled,
+			draft->cursor);
 	}
-	if (const auto editDraft = history->editDraft()) {
-		storedEditDraft = Storage::MessageDraft{
-			editDraft->msgId,
-			editDraft->textWithTags,
-			editDraft->previewCancelled
-		};
-		editCursor = editDraft->cursor;
+	if (replaceKey
+		&& (replaceDraft.msgId
+			|| !replaceDraft.textWithTags.text.isEmpty()
+			|| replaceCursor != MessageCursor())) {
+		callback(
+			replaceKey,
+			replaceDraft.msgId,
+			replaceDraft.textWithTags,
+			replaceDraft.previewCancelled,
+			replaceCursor);
 	}
-	writeDrafts(
-		history->peer->id,
-		storedLocalDraft,
-		storedEditDraft);
-	writeDraftCursors(history->peer->id, localCursor, editCursor);
 }
 
 void Account::writeDrafts(
-		const PeerId &peer,
-		const MessageDraft &localDraft,
-		const MessageDraft &editDraft) {
-	if (localDraft.msgId <= 0 && localDraft.textWithTags.text.isEmpty() && editDraft.msgId <= 0) {
-		auto i = _draftsMap.find(peer);
+		not_null<History*> history,
+		Data::DraftKey replaceKey,
+		MessageDraft replaceDraft) {
+	const auto peerId = history->peer->id;
+	const auto &map = history->draftsMap();
+	const auto cloudIt = map.find(Data::DraftKey::Cloud());
+	const auto cloudDraft = (cloudIt != end(map))
+		? cloudIt->second.get()
+		: nullptr;
+	const auto supportMode = _owner->session().supportMode();
+	auto count = 0;
+	EnumerateDrafts(
+		map,
+		cloudDraft,
+		supportMode,
+		replaceKey,
+		replaceDraft,
+		MessageCursor(),
+		[&](auto&&...) { ++count; });
+	if (!count) {
+		auto i = _draftsMap.find(peerId);
 		if (i != _draftsMap.cend()) {
 			ClearKey(i->second, _basePath);
 			_draftsMap.erase(i);
 			writeMapDelayed();
 		}
 
-		_draftsNotReadMap.remove(peer);
-	} else {
-		auto i = _draftsMap.find(peer);
-		if (i == _draftsMap.cend()) {
-			i = _draftsMap.emplace(peer, GenerateKey(_basePath)).first;
-			writeMapQueued();
-		}
-
-		auto msgTags = TextUtilities::SerializeTags(
-			localDraft.textWithTags.tags);
-		auto editTags = TextUtilities::SerializeTags(
-			editDraft.textWithTags.tags);
-
-		int size = sizeof(quint64);
-		size += Serialize::stringSize(localDraft.textWithTags.text) + Serialize::bytearraySize(msgTags) + 2 * sizeof(qint32);
-		size += Serialize::stringSize(editDraft.textWithTags.text) + Serialize::bytearraySize(editTags) + 2 * sizeof(qint32);
-
-		EncryptedDescriptor data(size);
-		data.stream << quint64(peer);
-		data.stream << localDraft.textWithTags.text << msgTags;
-		data.stream << qint32(localDraft.msgId) << qint32(localDraft.previewCancelled ? 1 : 0);
-		data.stream << editDraft.textWithTags.text << editTags;
-		data.stream << qint32(editDraft.msgId) << qint32(editDraft.previewCancelled ? 1 : 0);
-
-		FileWriteDescriptor file(i->second, _basePath);
-		file.writeEncrypted(data, _localKey);
-
-		_draftsNotReadMap.remove(peer);
+		_draftsNotReadMap.remove(peerId);
+		return;
 	}
+
+	auto i = _draftsMap.find(peerId);
+	if (i == _draftsMap.cend()) {
+		i = _draftsMap.emplace(peerId, GenerateKey(_basePath)).first;
+		writeMapQueued();
+	}
+
+	auto size = int(sizeof(quint64) * 2 + sizeof(quint32));
+	const auto sizeCallback = [&](
+			auto&&, // key
+			MsgId, // msgId
+			const TextWithTags &text,
+			bool, // previewCancelled
+			auto&&) { // cursor
+		size += sizeof(qint32) // key
+			+ Serialize::stringSize(text.text)
+			+ sizeof(quint32) + TextUtilities::SerializeTagsSize(text.tags)
+			+ 2 * sizeof(qint32); // msgId, previewCancelled
+	};
+	EnumerateDrafts(
+		map,
+		cloudDraft,
+		supportMode,
+		replaceKey,
+		replaceDraft,
+		MessageCursor(),
+		sizeCallback);
+
+	EncryptedDescriptor data(size);
+	data.stream
+		<< quint64(kMultiDraftTag)
+		<< quint64(peerId)
+		<< quint32(count);
+
+	const auto writeCallback = [&](
+			const Data::DraftKey &key,
+			MsgId msgId,
+			const TextWithTags &text,
+			bool previewCancelled,
+			auto&&) { // cursor
+		data.stream
+			<< key.serialize()
+			<< text.text
+			<< TextUtilities::SerializeTags(text.tags)
+			<< qint32(msgId)
+			<< qint32(previewCancelled ? 1 : 0);
+	};
+	EnumerateDrafts(
+		map,
+		cloudDraft,
+		supportMode,
+		replaceKey,
+		replaceDraft,
+		MessageCursor(),
+		writeCallback);
+
+	FileWriteDescriptor file(i->second, _basePath);
+	file.writeEncrypted(data, _localKey);
+
+	_draftsNotReadMap.remove(peerId);
 }
 
-void Account::clearDraftCursors(const PeerId &peer) {
-	const auto i = _draftCursorsMap.find(peer);
+void Account::writeDraftCursors(
+		not_null<History*> history,
+		Data::DraftKey replaceKey,
+		MessageCursor replaceCursor) {
+	const auto peerId = history->peer->id;
+	const auto &map = history->draftsMap();
+	const auto cloudIt = map.find(Data::DraftKey::Cloud());
+	const auto cloudDraft = (cloudIt != end(map))
+		? cloudIt->second.get()
+		: nullptr;
+	const auto supportMode = _owner->session().supportMode();
+	auto count = 0;
+	EnumerateDrafts(
+		map,
+		cloudDraft,
+		supportMode,
+		replaceKey,
+		MessageDraft(),
+		replaceCursor,
+		[&](auto&&...) { ++count; });
+	if (!count) {
+		clearDraftCursors(peerId);
+		return;
+	}
+	auto i = _draftCursorsMap.find(peerId);
+	if (i == _draftCursorsMap.cend()) {
+		i = _draftCursorsMap.emplace(peerId, GenerateKey(_basePath)).first;
+		writeMapQueued();
+	}
+
+	auto size = int(sizeof(quint64) * 2 + sizeof(quint32) * 4);
+
+	EncryptedDescriptor data(size);
+	data.stream
+		<< quint64(kMultiDraftTag)
+		<< quint64(peerId)
+		<< quint32(count);
+
+	const auto writeCallback = [&](
+			auto&&, // key
+			MsgId, // msgId
+			auto&&, // text
+			bool, // previewCancelled
+			const MessageCursor &cursor) { // cursor
+		data.stream
+			<< qint32(cursor.position)
+			<< qint32(cursor.anchor)
+			<< qint32(cursor.scroll);
+	};
+	EnumerateDrafts(
+		map,
+		cloudDraft,
+		supportMode,
+		replaceKey,
+		MessageDraft(),
+		replaceCursor,
+		writeCallback);
+
+	FileWriteDescriptor file(i->second, _basePath);
+	file.writeEncrypted(data, _localKey);
+}
+
+void Account::clearDraftCursors(PeerId peerId) {
+	const auto i = _draftCursorsMap.find(peerId);
 	if (i != _draftCursorsMap.cend()) {
 		ClearKey(i->second, _basePath);
 		_draftCursorsMap.erase(i);
@@ -1017,21 +1138,44 @@ void Account::clearDraftCursors(const PeerId &peer) {
 	}
 }
 
-void Account::readDraftCursors(
-		const PeerId &peer,
-		MessageCursor &localCursor,
-		MessageCursor &editCursor) {
-	const auto j = _draftCursorsMap.find(peer);
+void Account::readDraftCursors(PeerId peerId, Data::HistoryDrafts &map) {
+	const auto j = _draftCursorsMap.find(peerId);
 	if (j == _draftCursorsMap.cend()) {
 		return;
 	}
 
 	FileReadDescriptor draft;
 	if (!ReadEncryptedFile(draft, j->second, _basePath, _localKey)) {
-		clearDraftCursors(peer);
+		clearDraftCursors(peerId);
 		return;
 	}
-	quint64 draftPeer;
+	quint64 tag = 0;
+	draft.stream >> tag;
+	if (tag != kMultiDraftTag) {
+		readDraftCursorsLegacy(peerId, draft, tag, map);
+		return;
+	}
+	quint64 draftPeer = 0;
+	quint32 count = 0;
+	draft.stream >> draftPeer >> count;
+	if (!count || count > 1000 || draftPeer != peerId) {
+		clearDraftCursors(peerId);
+		return;
+	}
+	for (auto i = 0; i != count; ++i) {
+		qint32 position = 0, anchor = 0, scroll = QFIXED_MAX;
+		draft.stream >> position >> anchor >> scroll;
+		if (const auto i = map.find(Data::DraftKey::Local()); i != end(map)) {
+			i->second->cursor = MessageCursor(position, anchor, scroll);
+		}
+	}
+}
+
+void Account::readDraftCursorsLegacy(
+		PeerId peerId,
+		details::FileReadDescriptor &draft,
+		quint64 draftPeer,
+		Data::HistoryDrafts &map) {
 	qint32 localPosition = 0, localAnchor = 0, localScroll = QFIXED_MAX;
 	qint32 editPosition = 0, editAnchor = 0, editScroll = QFIXED_MAX;
 	draft.stream >> draftPeer >> localPosition >> localAnchor >> localScroll;
@@ -1039,40 +1183,109 @@ void Account::readDraftCursors(
 		draft.stream >> editPosition >> editAnchor >> editScroll;
 	}
 
-	if (draftPeer != peer) {
-		clearDraftCursors(peer);
+	if (draftPeer != peerId) {
+		clearDraftCursors(peerId);
 		return;
 	}
 
-	localCursor = MessageCursor(localPosition, localAnchor, localScroll);
-	editCursor = MessageCursor(editPosition, editAnchor, editScroll);
+	if (const auto i = map.find(Data::DraftKey::Local()); i != end(map)) {
+		i->second->cursor = MessageCursor(
+			localPosition,
+			localAnchor,
+			localScroll);
+	}
+	if (const auto i = map.find(Data::DraftKey::LocalEdit()); i != end(map)) {
+		i->second->cursor = MessageCursor(
+			editPosition,
+			editAnchor,
+			editScroll);
+	}
 }
 
 void Account::readDraftsWithCursors(not_null<History*> history) {
-	PeerId peer = history->peer->id;
-	if (!_draftsNotReadMap.remove(peer)) {
-		clearDraftCursors(peer);
+	const auto guard = gsl::finally([&] {
+		if (const auto migrated = history->migrateFrom()) {
+			readDraftsWithCursors(migrated);
+			migrated->clearLocalEditDraft();
+			history->takeLocalDraft(migrated);
+		}
+	});
+
+	PeerId peerId = history->peer->id;
+	if (!_draftsNotReadMap.remove(peerId)) {
+		clearDraftCursors(peerId);
 		return;
 	}
 
-	const auto j = _draftsMap.find(peer);
+	const auto j = _draftsMap.find(peerId);
 	if (j == _draftsMap.cend()) {
-		clearDraftCursors(peer);
+		clearDraftCursors(peerId);
 		return;
 	}
 	FileReadDescriptor draft;
 	if (!ReadEncryptedFile(draft, j->second, _basePath, _localKey)) {
 		ClearKey(j->second, _basePath);
 		_draftsMap.erase(j);
-		clearDraftCursors(peer);
+		clearDraftCursors(peerId);
 		return;
 	}
 
+	quint64 tag = 0;
+	draft.stream >> tag;
+	if (tag != kMultiDraftTag) {
+		readDraftsWithCursorsLegacy(history, draft, tag);
+		return;
+	}
+	quint32 count = 0;
 	quint64 draftPeer = 0;
+	draft.stream >> draftPeer >> count;
+	if (!count || count > 1000 || draftPeer != peerId) {
+		ClearKey(j->second, _basePath);
+		_draftsMap.erase(j);
+		clearDraftCursors(peerId);
+		return;
+	}
+	auto map = Data::HistoryDrafts();
+	for (auto i = 0; i != count; ++i) {
+		TextWithTags data;
+		QByteArray tagsSerialized;
+		qint32 keyValue = 0, messageId = 0, previewCancelled = 0;
+		draft.stream
+			>> keyValue
+			>> data.text
+			>> tagsSerialized
+			>> messageId
+			>> previewCancelled;
+		data.tags = TextUtilities::DeserializeTags(
+			tagsSerialized,
+			data.text.size());
+		const auto key = Data::DraftKey::FromSerialized(keyValue);
+		if (key && key != Data::DraftKey::Cloud()) {
+			map.emplace(key, std::make_unique<Data::Draft>(
+				data,
+				messageId,
+				MessageCursor(),
+				previewCancelled));
+		}
+	}
+	if (draft.stream.status() != QDataStream::Ok) {
+		ClearKey(j->second, _basePath);
+		_draftsMap.erase(j);
+		clearDraftCursors(peerId);
+		return;
+	}
+	readDraftCursors(peerId, map);
+	history->setDraftsMap(std::move(map));
+}
+
+void Account::readDraftsWithCursorsLegacy(
+		not_null<History*> history,
+		details::FileReadDescriptor &draft,
+		quint64 draftPeer) {
 	TextWithTags msgData, editData;
 	QByteArray msgTagsSerialized, editTagsSerialized;
 	qint32 msgReplyTo = 0, msgPreviewCancelled = 0, editMsgId = 0, editPreviewCancelled = 0;
-	draft.stream >> draftPeer >> msgData.text;
+	draft.stream >> msgData.text;
 	if (draft.version >= 9048) {
 		draft.stream >> msgTagsSerialized;
 	}
@@ -1089,10 +1302,14 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 			}
 		}
 	}
-	if (draftPeer != peer) {
-		ClearKey(j->second, _basePath);
-		_draftsMap.erase(j);
-		clearDraftCursors(peer);
+	const auto peerId = history->peer->id;
+	if (draftPeer != peerId) {
+		const auto j = _draftsMap.find(peerId);
+		if (j != _draftsMap.cend()) {
+			ClearKey(j->second, _basePath);
+			_draftsMap.erase(j);
+		}
+		clearDraftCursors(peerId);
 		return;
 	}
 
@@ -1103,65 +1320,30 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 		editTagsSerialized,
 		editData.text.size());
 
-	MessageCursor msgCursor, editCursor;
-	readDraftCursors(peer, msgCursor, editCursor);
-
-	if (!history->localDraft()) {
-		if (msgData.text.isEmpty() && !msgReplyTo) {
-			history->clearLocalDraft();
-		} else {
-			history->setLocalDraft(std::make_unique<Data::Draft>(
-				msgData,
-				msgReplyTo,
-				msgCursor,
-				msgPreviewCancelled));
-		}
+	auto map = base::flat_map<Data::DraftKey, std::unique_ptr<Data::Draft>>();
+	if (!msgData.text.isEmpty() || msgReplyTo) {
+		map.emplace(Data::DraftKey::Local(), std::make_unique<Data::Draft>(
+			msgData,
+			msgReplyTo,
+			MessageCursor(),
+			msgPreviewCancelled));
 	}
-	if (!editMsgId) {
-		history->clearEditDraft();
-	} else {
-		history->setEditDraft(std::make_unique<Data::Draft>(
+	if (editMsgId) {
+		map.emplace(Data::DraftKey::LocalEdit(), std::make_unique<Data::Draft>(
 			editData,
 			editMsgId,
-			editCursor,
+			MessageCursor(),
 			editPreviewCancelled));
 	}
+	readDraftCursors(peerId, map);
+	history->setDraftsMap(std::move(map));
 }
 
-void Account::writeDraftCursors(
-		const PeerId &peer,
-		const MessageCursor &msgCursor,
-		const MessageCursor &editCursor) {
-	if (msgCursor == MessageCursor() && editCursor == MessageCursor()) {
-		clearDraftCursors(peer);
-	} else {
-		auto i = _draftCursorsMap.find(peer);
-		if (i == _draftCursorsMap.cend()) {
-			i = _draftCursorsMap.emplace(peer, GenerateKey(_basePath)).first;
-			writeMapQueued();
-		}
-
-		EncryptedDescriptor data(sizeof(quint64) + sizeof(qint32) * 3);
-		data.stream
-			<< quint64(peer)
-			<< qint32(msgCursor.position)
-			<< qint32(msgCursor.anchor)
-			<< qint32(msgCursor.scroll);
-		data.stream
-			<< qint32(editCursor.position)
-			<< qint32(editCursor.anchor)
-			<< qint32(editCursor.scroll);
-
-		FileWriteDescriptor file(i->second, _basePath);
-		file.writeEncrypted(data, _localKey);
-	}
-}
-
-bool Account::hasDraftCursors(const PeerId &peer) {
+bool Account::hasDraftCursors(PeerId peer) {
 	return _draftCursorsMap.contains(peer);
 }
 
-bool Account::hasDraft(const PeerId &peer) {
+bool Account::hasDraft(PeerId peer) {
 	return _draftsMap.contains(peer);
 }
 

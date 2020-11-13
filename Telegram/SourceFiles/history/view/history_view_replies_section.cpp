@@ -1133,7 +1133,7 @@ void RepliesWidget::refreshTopBarActiveChat() {
 		.key = _history,
 		.section = Dialogs::EntryState::Section::Replies,
 		.rootId = _rootId,
-		.currentReplyToId = replyToId(),
+		.currentReplyToId = _composeControls->replyingToMessage().msg,
 	};
 	_topBar->setActiveChat(state, _sendAction.get());
 	_composeControls->setCurrentDialogsEntryState(state);

@@ -617,7 +617,9 @@ void Filler::addPollAction(not_null<PeerData*> peer) {
 		? Api::SendType::Scheduled
 		: Api::SendType::Normal;
 	const auto flag = PollData::Flags();
-	const auto replyToId = _request.currentReplyToId;
+	const auto replyToId = _request.currentReplyToId
+		? _request.currentReplyToId
+		: _request.rootId;
 	auto callback = [=] {
 		PeerMenuCreatePoll(
 			controller,

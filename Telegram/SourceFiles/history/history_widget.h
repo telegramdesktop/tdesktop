@@ -41,10 +41,6 @@ class Widget;
 struct ResultSelected;
 } // namespace InlineBots
 
-namespace Data {
-struct Draft;
-} // namespace Data
-
 namespace Support {
 class Autocomplete;
 struct Contact;
@@ -526,8 +522,9 @@ private:
 	// This one is syntetic.
 	void synteticScrollToY(int y);
 
-	void writeDrafts(Data::Draft **localDraft, Data::Draft **editDraft);
-	void writeDrafts(History *history);
+	void writeDrafts();
+	void writeDraftTexts();
+	void writeDraftCursors();
 	void setFieldText(
 		const TextWithTags &textWithTags,
 		TextUpdateEvents events = 0,

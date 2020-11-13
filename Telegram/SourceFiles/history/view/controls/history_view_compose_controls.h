@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/required.h"
 #include "api/api_common.h"
 #include "base/unique_qptr.h"
+#include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 #include "history/view/controls/compose_controls_common.h"
 #include "ui/rp_widget.h"
@@ -27,6 +28,8 @@ class TabbedSelector;
 
 namespace Data {
 struct MessagePosition;
+struct Draft;
+class DraftKey;
 } // namespace Data
 
 namespace InlineBots {
@@ -74,6 +77,7 @@ public:
 	using VoiceToSend = Controls::VoiceToSend;
 	using SendActionUpdate = Controls::SendActionUpdate;
 	using SetHistoryArgs = Controls::SetHistoryArgs;
+	using FieldHistoryAction = Ui::InputField::HistoryAction;
 
 	enum class Mode {
 		Normal,
@@ -148,10 +152,17 @@ public:
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isRecording() const;
 
+	void applyDraft(
+		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
+
 private:
 	enum class TextUpdateEvent {
 		SaveDraft = (1 << 0),
 		SendTyping = (1 << 1),
+	};
+	enum class DraftType {
+		Normal,
+		Edit,
 	};
 	using TextUpdateEvents = base::flags<TextUpdateEvent>;
 	friend inline constexpr bool is_flag_type(TextUpdateEvent) { return true; };
@@ -177,6 +188,7 @@ private:
 	void checkAutocomplete();
 	void updateStickersByEmoji();
 	void updateFieldPlaceholder();
+	void editMessage(not_null<HistoryItem*> item);
 
 	void escape();
 	void fieldChanged();
@@ -185,11 +197,8 @@ private:
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
 
-	void setTextFromEditingMessage(not_null<HistoryItem*> item);
-
 	bool showRecordButton() const;
 	void drawRestrictedWrite(Painter &p, const QString &error);
-	void updateOverStates(QPoint pos);
 	bool updateBotCommandShown();
 
 	void cancelInlineBot();
@@ -204,6 +213,24 @@ private:
 
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
 	void inlineBotResolveFail(const RPCError &error, const QString &username);
+
+	[[nodiscard]] Data::DraftKey draftKey(
+		DraftType type = DraftType::Normal) const;
+	[[nodiscard]] Data::DraftKey draftKeyCurrent() const;
+	void saveDraft(bool delayed = false);
+	void saveDraftDelayed();
+
+	void writeDrafts();
+	void writeDraftTexts();
+	void writeDraftCursors();
+	void setFieldText(
+		const TextWithTags &textWithTags,
+		TextUpdateEvents events = 0,
+		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
+	void clearFieldText(
+		TextUpdateEvents events = 0,
+		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
+	void saveFieldToHistoryLocalDraft();
 
 	const not_null<QWidget*> _parent;
 	const not_null<Window::SessionController*> _window;
@@ -238,12 +265,14 @@ private:
 	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
 	rpl::event_stream<QString> _sendCommandRequests;
 
-	TextWithTags _localSavedText;
-	TextUpdateEvents _textUpdateEvents;
+	TextUpdateEvents _textUpdateEvents = TextUpdateEvents()
+		| TextUpdateEvent::SaveDraft
+		| TextUpdateEvent::SendTyping;
 	Dialogs::EntryState _currentDialogsEntryState;
 
-	//bool _inReplyEditForward = false;
-	//bool _inClickable = false;
+	crl::time _saveDraftStart = 0;
+	bool _saveDraftText = false;
+	base::Timer _saveDraftTimer;
 
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;
@@ -251,6 +280,9 @@ private:
 	mtpRequestId _inlineBotResolveRequestId = 0;
 	bool _isInlineBot = false;
 	bool _botCommandShown = false;
+
+	Fn<void()> _previewCancel;
+	bool _previewCancelled = false;
 
 	rpl::lifetime _uploaderSubscriptions;
 

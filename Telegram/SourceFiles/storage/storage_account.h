@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "storage/cache/storage_cache_database.h"
 #include "data/stickers/data_stickers_set.h"
+#include "data/data_drafts.h"
 
 class History;
 
@@ -39,6 +40,7 @@ using AuthKeyPtr = std::shared_ptr<AuthKey>;
 namespace Storage {
 namespace details {
 struct ReadSettingsContext;
+struct FileReadDescriptor;
 } // namespace details
 
 class EncryptionKey;
@@ -76,18 +78,17 @@ public:
 	void writeMtpData();
 	void writeMtpConfig();
 
-	void writeDrafts(not_null<History*> history);
 	void writeDrafts(
-		const PeerId &peer,
-		const MessageDraft &localDraft,
-		const MessageDraft &editDraft);
+		not_null<History*> history,
+		Data::DraftKey replaceKey = Data::DraftKey::None(),
+		MessageDraft replaceDraft = MessageDraft());
 	void readDraftsWithCursors(not_null<History*> history);
 	void writeDraftCursors(
-		const PeerId &peer,
-		const MessageCursor &localCursor,
-		const MessageCursor &editCursor);
-	[[nodiscard]] bool hasDraftCursors(const PeerId &peer);
-	[[nodiscard]] bool hasDraft(const PeerId &peer);
+		not_null<History*> history,
+		Data::DraftKey replaceKey = Data::DraftKey::None(),
+		MessageCursor replaceCursor = MessageCursor());
+	[[nodiscard]] bool hasDraftCursors(PeerId peerId);
+	[[nodiscard]] bool hasDraft(PeerId peerId);
 
 	void writeFileLocation(MediaKey location, const Core::FileLocation &local);
 	[[nodiscard]] Core::FileLocation readFileLocation(MediaKey location);
@@ -182,11 +183,17 @@ private:
 	std::unique_ptr<Main::SessionSettings> applyReadContext(
 		details::ReadSettingsContext &&context);
 
-	void readDraftCursors(
-		const PeerId &peer,
-		MessageCursor &localCursor,
-		MessageCursor &editCursor);
-	void clearDraftCursors(const PeerId &peer);
+	void readDraftCursors(PeerId peerId, Data::HistoryDrafts &map);
+	void readDraftCursorsLegacy(
+		PeerId peerId,
+		details::FileReadDescriptor &draft,
+		quint64 draftPeer,
+		Data::HistoryDrafts &map);
+	void clearDraftCursors(PeerId peerId);
+	void readDraftsWithCursorsLegacy(
+		not_null<History*> history,
+		details::FileReadDescriptor &draft,
+		quint64 draftPeer);
 
 	void writeStickerSet(
 		QDataStream &stream,

@@ -42,6 +42,8 @@ TitleWidget::TitleWidget(QWidget *parent)
 	});
 	_close->setPointerCursor(false);
 
+	window()->windowHandle()->setFlag(Qt::FramelessWindowHint, true);
+
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	resize(width(), _st.height);
 }

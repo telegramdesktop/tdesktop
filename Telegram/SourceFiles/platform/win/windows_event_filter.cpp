@@ -142,30 +142,42 @@ bool EventFilter::customWindowFrameEvent(
 		if (result) *result = 0;
 	} return true;
 
+	case WM_SHOWWINDOW: {
+		SetWindowLongPtr(
+			hWnd,
+			GWL_STYLE,
+			WS_POPUP
+			| WS_THICKFRAME
+			| WS_CAPTION
+			| WS_SYSMENU
+			| WS_MAXIMIZEBOX
+			| WS_MINIMIZEBOX);
+	} return false;
+
 	case WM_NCCALCSIZE: {
-		WINDOWPLACEMENT wp;
-		wp.length = sizeof(WINDOWPLACEMENT);
-		if (GetWindowPlacement(hWnd, &wp) && wp.showCmd == SW_SHOWMAXIMIZED) {
-			LPNCCALCSIZE_PARAMS params = (LPNCCALCSIZE_PARAMS)lParam;
-			LPRECT r = (wParam == TRUE) ? &params->rgrc[0] : (LPRECT)lParam;
-			HMONITOR hMonitor = MonitorFromPoint({ (r->left + r->right) / 2, (r->top + r->bottom) / 2 }, MONITOR_DEFAULTTONEAREST);
-			if (hMonitor) {
-				MONITORINFO mi;
-				mi.cbSize = sizeof(mi);
-				if (GetMonitorInfo(hMonitor, &mi)) {
-					*r = mi.rcWork;
-					UINT uEdge = (UINT)-1;
-					if (IsTaskbarAutoHidden(&mi.rcMonitor, &uEdge)) {
-						switch (uEdge) {
-						case ABE_LEFT: r->left += 1; break;
-						case ABE_RIGHT: r->right -= 1; break;
-						case ABE_TOP: r->top += 1; break;
-						case ABE_BOTTOM: r->bottom -= 1; break;
-						}
-					}
-				}
-			}
-		}
+		//WINDOWPLACEMENT wp;
+		//wp.length = sizeof(WINDOWPLACEMENT);
+		//if (GetWindowPlacement(hWnd, &wp) && wp.showCmd == SW_SHOWMAXIMIZED) {
+		//	LPNCCALCSIZE_PARAMS params = (LPNCCALCSIZE_PARAMS)lParam;
+		//	LPRECT r = (wParam == TRUE) ? &params->rgrc[0] : (LPRECT)lParam;
+		//	HMONITOR hMonitor = MonitorFromPoint({ (r->left + r->right) / 2, (r->top + r->bottom) / 2 }, MONITOR_DEFAULTTONEAREST);
+		//	if (hMonitor) {
+		//		MONITORINFO mi;
+		//		mi.cbSize = sizeof(mi);
+		//		if (GetMonitorInfo(hMonitor, &mi)) {
+		//			*r = mi.rcWork;
+		//			UINT uEdge = (UINT)-1;
+		//			if (IsTaskbarAutoHidden(&mi.rcMonitor, &uEdge)) {
+		//				switch (uEdge) {
+		//				case ABE_LEFT: r->left += 1; break;
+		//				case ABE_RIGHT: r->right -= 1; break;
+		//				case ABE_TOP: r->top += 1; break;
+		//				case ABE_BOTTOM: r->bottom -= 1; break;
+		//				}
+		//			}
+		//		}
+		//	}
+		//}
 		if (result) *result = 0;
 		return true;
 	}

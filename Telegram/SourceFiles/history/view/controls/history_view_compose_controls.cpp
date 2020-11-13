@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_changes.h"
+#include "data/data_drafts.h"
 #include "data/data_messages.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -54,6 +55,8 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kRecordingUpdateDelta = crl::time(100);
+constexpr auto kSaveDraftTimeout = crl::time(1000);
+constexpr auto kSaveDraftAnywayTimeout = 5 * crl::time(1000);
 constexpr auto kMouseEvents = {
 	QEvent::MouseMove,
 	QEvent::MouseButtonPress,
@@ -107,12 +110,24 @@ public:
 	[[nodiscard]] MessageToEdit queryToEdit();
 	[[nodiscard]] WebPageId webPageId() const;
 
+	[[nodiscard]] MsgId getDraftMessageId() const;
+	[[nodiscard]] rpl::producer<> editCancelled() const {
+		return _editCancelled.events();
+	}
+	[[nodiscard]] rpl::producer<> replyCancelled() const {
+		return _replyCancelled.events();
+	}
+	[[nodiscard]] rpl::producer<> previewCancelled() const {
+		return _previewCancelled.events();
+	}
+
 	[[nodiscard]] rpl::producer<bool> visibleChanged();
 
 private:
 	void updateControlsGeometry(QSize size);
 	void updateVisible();
 	void setShownMessage(HistoryItem *message);
+	void resolveMessageData();
 	void updateShownMessageText();
 
 	void paintWebPage(Painter &p);
@@ -122,12 +137,16 @@ private:
 		WebPageData *data = nullptr;
 		Ui::Text::String title;
 		Ui::Text::String description;
+		bool cancelled = false;
 	};
 
 	rpl::variable<QString> _title;
 	rpl::variable<QString> _description;
 
 	Preview _preview;
+	rpl::event_stream<> _editCancelled;
+	rpl::event_stream<> _replyCancelled;
+	rpl::event_stream<> _previewCancelled;
 
 	bool hasPreview() const;
 
@@ -202,10 +221,10 @@ void FieldHeader::init() {
 	}) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
 		if (update.flags & Data::MessageUpdate::Flag::Destroyed) {
 			if (_editMsgId.current() == update.item->fullId()) {
-				editMessage({});
+				_editCancelled.fire({});
 			}
 			if (_replyToId.current() == update.item->fullId()) {
-				replyToMessage({});
+				_replyCancelled.fire({});
 			}
 		} else {
 			updateShownMessageText();
@@ -215,13 +234,14 @@ void FieldHeader::init() {
 	_cancel->addClickHandler([=] {
 		if (hasPreview()) {
 			_preview = {};
-			update();
+			_previewCancelled.fire({});
 		} else if (_editMsgId.current()) {
-			editMessage({});
+			_editCancelled.fire({});
 		} else if (_replyToId.current()) {
-			replyToMessage({});
+			_replyCancelled.fire({});
 		}
 		updateVisible();
+		update();
 	});
 
 	_title.value(
@@ -308,6 +328,7 @@ void FieldHeader::setShownMessage(HistoryItem *item) {
 		}
 	} else {
 		_shownMessageText.clear();
+		resolveMessageData();
 	}
 	if (isEditingMessage()) {
 		_shownMessageName.setText(
@@ -322,6 +343,34 @@ void FieldHeader::setShownMessage(HistoryItem *item) {
 	update();
 }
 
+void FieldHeader::resolveMessageData() {
+	const auto id = (isEditingMessage() ? _editMsgId : _replyToId).current();
+	if (!id) {
+		return;
+	}
+	const auto channel = id.channel
+		? _data->channel(id.channel).get()
+		: nullptr;
+	const auto callback = [=](ChannelData *channel, MsgId msgId) {
+		const auto now = (isEditingMessage()
+			? _editMsgId
+			: _replyToId).current();
+		if (now == id && !_shownMessage) {
+			if (const auto message = _data->message(channel, msgId)) {
+				setShownMessage(message);
+			} else if (isEditingMessage()) {
+				_editCancelled.fire({});
+			} else {
+				_replyCancelled.fire({});
+			}
+		}
+	};
+	_data->session().api().requestMessageData(
+		channel,
+		id.msg,
+		crl::guard(this, callback));
+}
+
 void FieldHeader::previewRequested(
 	rpl::producer<QString> title,
 	rpl::producer<QString> description,
@@ -329,19 +378,25 @@ void FieldHeader::previewRequested(
 
 	std::move(
 		title
-	) | rpl::start_with_next([=](const QString &t) {
+	) | rpl::filter([=] {
+		return !_preview.cancelled;
+	}) | start_with_next([=](const QString &t) {
 		_title = t;
 	}, lifetime());
 
 	std::move(
 		description
-	) | rpl::start_with_next([=](const QString &d) {
+	) | rpl::filter([=] {
+		return !_preview.cancelled;
+	}) | rpl::start_with_next([=](const QString &d) {
 		_description = d;
 	}, lifetime());
 
 	std::move(
 		page
-	) | rpl::start_with_next([=](WebPageData *p) {
+	) | rpl::filter([=] {
+		return !_preview.cancelled;
+	}) | rpl::start_with_next([=](WebPageData *p) {
 		_preview.data = p;
 		updateVisible();
 	}, lifetime());
@@ -392,13 +447,25 @@ void FieldHeader::paintWebPage(Painter &p) {
 }
 
 void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
-	Expects(_shownMessage != nullptr);
-
 	const auto replySkip = st::historyReplySkip;
 	const auto availableWidth = width()
 		- replySkip
 		- _cancel->width()
 		- st::msgReplyPadding.right();
+
+	if (!_shownMessage) {
+		p.setFont(st::msgDateFont);
+		p.setPen(st::historyComposeAreaFgService);
+		const auto top = (st::msgReplyPadding.top()
+			+ (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2);
+		p.drawText(
+			replySkip,
+			top + st::msgDateFont->ascent,
+			st::msgDateFont->elided(
+				tr::lng_profile_loading(tr::now),
+				availableWidth));
+		return;
+	}
 
 	if (!isEditingMessage()) {
 		const auto user = _shownMessage->displayFrom()
@@ -458,6 +525,10 @@ bool FieldHeader::hasPreview() const {
 
 WebPageId FieldHeader::webPageId() const {
 	return hasPreview() ? _preview.data->id : CancelledWebPageId;
+}
+
+MsgId FieldHeader::getDraftMessageId() const {
+	return (isEditingMessage() ? _editMsgId : _replyToId).current().msg;
 }
 
 void FieldHeader::updateControlsGeometry(QSize size) {
@@ -538,11 +609,12 @@ ComposeControls::ComposeControls(
 		window,
 		_send,
 		st::historySendSize.height()))
-, _textUpdateEvents(TextUpdateEvent::SendTyping) {
+, _saveDraftTimer([=] { saveDraft(); }) {
 	init();
 }
 
 ComposeControls::~ComposeControls() {
+	saveFieldToHistoryLocalDraft();
 	setTabbedPanel(nullptr);
 	session().api().request(_inlineBotResolveRequestId).cancel();
 }
@@ -582,6 +654,8 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 			session().api().requestBots(channel);
 		}
 	}
+	session().local().readDraftsWithCursors(_history);
+	applyDraft();
 }
 
 void ComposeControls::setCurrentDialogsEntryState(Dialogs::EntryState state) {
@@ -752,21 +826,52 @@ TextWithTags ComposeControls::getTextWithAppliedMarkdown() const {
 }
 
 void ComposeControls::clear() {
-	setText(TextWithTags());
+	setText({});
 	cancelReplyMessage();
 }
 
 void ComposeControls::setText(const TextWithTags &textWithTags) {
-	_textUpdateEvents = TextUpdateEvents();
-	_field->setTextWithTags(textWithTags, Ui::InputField::HistoryAction::Clear/*fieldHistoryAction*/);
+	setFieldText(textWithTags);
+}
+
+void ComposeControls::setFieldText(
+		const TextWithTags &textWithTags,
+		TextUpdateEvents events,
+		FieldHistoryAction fieldHistoryAction) {
+	_textUpdateEvents = events;
+	_field->setTextWithTags(textWithTags, fieldHistoryAction);
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
 	_field->setTextCursor(cursor);
 	_textUpdateEvents = TextUpdateEvent::SaveDraft
 		| TextUpdateEvent::SendTyping;
 
-	//previewCancel();
-	//_previewCancelled = false;
+	_previewCancel();
+	_previewCancelled = false;
+}
+
+void ComposeControls::saveFieldToHistoryLocalDraft() {
+	const auto key = draftKeyCurrent();
+	if (!_history || key == Data::DraftKey::None()) {
+		return;
+	}
+	const auto id = _header->getDraftMessageId();
+	if (id || !_field->empty()) {
+		_history->setDraft(
+			draftKeyCurrent(),
+			std::make_unique<Data::Draft>(
+				_field,
+				_header->getDraftMessageId(),
+				_previewCancelled));
+	} else {
+		_history->clearDraft(draftKeyCurrent());
+	}
+}
+
+void ComposeControls::clearFieldText(
+		TextUpdateEvents events,
+		FieldHistoryAction fieldHistoryAction) {
+	setFieldText({}, events, fieldHistoryAction);
 }
 
 void ComposeControls::hidePanelsAnimated() {
@@ -836,13 +941,25 @@ void ComposeControls::init() {
 
 	_header->editMsgId(
 	) | rpl::start_with_next([=](const auto &id) {
-		if (_header->isEditingMessage()) {
-			setTextFromEditingMessage(session().data().message(id));
-		} else {
-			setText(_localSavedText);
-			_localSavedText = {};
-		}
 		updateSendButtonType();
+	}, _wrap->lifetime());
+
+	_header->previewCancelled(
+	) | rpl::start_with_next([=] {
+		_previewCancelled = true;
+		_saveDraftText = true;
+		_saveDraftStart = crl::now();
+		saveDraft();
+	}, _wrap->lifetime());
+
+	_header->editCancelled(
+	) | rpl::start_with_next([=] {
+		cancelEditMessage();
+	}, _wrap->lifetime());
+
+	_header->replyCancelled(
+	) | rpl::start_with_next([=] {
+		cancelReplyMessage();
 	}, _wrap->lifetime());
 
 	_header->visibleChanged(
@@ -894,19 +1011,6 @@ void ComposeControls::drawRestrictedWrite(Painter &p, const QString &error) {
 		style::al_center);
 }
 
-void ComposeControls::setTextFromEditingMessage(not_null<HistoryItem*> item) {
-	if (!_header->isEditingMessage()) {
-		return;
-	}
-	_localSavedText = getTextWithAppliedMarkdown();
-	const auto t = item->originalText();
-	const auto text = TextWithTags{
-		t.text,
-		TextUtilities::ConvertEntitiesToTextTags(t.entities)
-	};
-	setText(text);
-}
-
 void ComposeControls::initField() {
 	_field->setMaxHeight(st::historyComposeFieldMaxHeight);
 	updateSubmitSettings();
@@ -924,6 +1028,16 @@ void ComposeControls::initField() {
 		&_window->session());
 	_raiseEmojiSuggestions = [=] { suggestions->raise(); };
 	InitSpellchecker(_window, _field);
+
+	const auto rawTextEdit = _field->rawTextEdit().get();
+	rpl::merge(
+		_field->scrollTop().changes() | rpl::to_empty,
+		base::qt_signal_producer(
+			rawTextEdit,
+			&QTextEdit::cursorPositionChanged)
+	) | rpl::start_with_next([=] {
+		saveDraftDelayed();
+	}, _field->lifetime());
 }
 
 void ComposeControls::updateSubmitSettings() {
@@ -1077,7 +1191,7 @@ void ComposeControls::fieldChanged() {
 	}
 	updateSendButtonType();
 	if (showRecordButton()) {
-		//_previewCancelled = false;
+		_previewCancelled = false;
 	}
 	if (updateBotCommandShown()) {
 		updateControlsVisibility();
@@ -1087,6 +1201,133 @@ void ComposeControls::fieldChanged() {
 		updateInlineBotQuery();
 		updateStickersByEmoji();
 	});
+
+	if (!(_textUpdateEvents & TextUpdateEvent::SaveDraft)) {
+		return;
+	}
+	_saveDraftText = true;
+	saveDraft(true);
+}
+
+void ComposeControls::saveDraftDelayed() {
+	if (!(_textUpdateEvents & TextUpdateEvent::SaveDraft)) {
+		return;
+	}
+	saveDraft(true);
+}
+
+Data::DraftKey ComposeControls::draftKey(DraftType type) const {
+	using Section = Dialogs::EntryState::Section;
+	using Key = Data::DraftKey;
+
+	switch (_currentDialogsEntryState.section) {
+	case Section::History:
+		return (type == DraftType::Edit) ? Key::LocalEdit() : Key::Local();
+	case Section::Scheduled:
+		return (type == DraftType::Edit)
+			? Key::ScheduledEdit()
+			: Key::Scheduled();
+	case Section::Replies:
+		return (type == DraftType::Edit)
+			? Key::RepliesEdit(_currentDialogsEntryState.rootId)
+			: Key::Replies(_currentDialogsEntryState.rootId);
+	}
+	return Key::None();
+}
+
+Data::DraftKey ComposeControls::draftKeyCurrent() const {
+	return draftKey(isEditingMessage() ? DraftType::Edit : DraftType::Normal);
+}
+
+void ComposeControls::saveDraft(bool delayed) {
+	if (delayed) {
+		const auto now = crl::now();
+		if (!_saveDraftStart) {
+			_saveDraftStart = now;
+			return _saveDraftTimer.callOnce(kSaveDraftTimeout);
+		} else if (now - _saveDraftStart < kSaveDraftAnywayTimeout) {
+			return _saveDraftTimer.callOnce(kSaveDraftTimeout);
+		}
+	}
+	writeDrafts();
+}
+
+void ComposeControls::writeDraftTexts() {
+	Expects(_history != nullptr);
+
+	session().local().writeDrafts(
+		_history,
+		draftKeyCurrent(),
+		Storage::MessageDraft{
+			_header->getDraftMessageId(),
+			_field->getTextWithTags(),
+			_previewCancelled,
+		});
+}
+
+void ComposeControls::writeDraftCursors() {
+	Expects(_history != nullptr);
+
+	session().local().writeDraftCursors(
+		_history,
+		draftKeyCurrent(),
+		MessageCursor(_field));
+}
+
+void ComposeControls::writeDrafts() {
+	const auto save = (_history != nullptr)
+		&& (_saveDraftStart > 0)
+		&& (draftKeyCurrent() != Data::DraftKey::None());
+	_saveDraftStart = 0;
+	_saveDraftTimer.cancel();
+	if (save) {
+		if (_saveDraftText) {
+			writeDraftTexts();
+		}
+		writeDraftCursors();
+	}
+	_saveDraftText = false;
+
+	//if (!isEditingMessage() && !_inlineBot) {
+	//	_saveCloudDraftTimer.callOnce(kSaveCloudDraftIdleTimeout);
+	//}
+}
+
+void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
+	Expects(_history != nullptr);
+
+	InvokeQueued(_autocomplete.get(), [=] { updateStickersByEmoji(); });
+	const auto guard = gsl::finally([&] {
+		updateSendButtonType();
+		updateControlsVisibility();
+		updateControlsGeometry(_wrap->size());
+	});
+
+	const auto editDraft = _history->draft(draftKey(DraftType::Edit));
+	const auto draft = editDraft
+		? editDraft
+		: _history->draft(draftKey(DraftType::Normal));
+	if (!draft) {
+		clearFieldText(0, fieldHistoryAction);
+		_field->setFocus();
+		_header->editMessage({});
+		_header->replyToMessage({});
+		return;
+	}
+
+	_textUpdateEvents = 0;
+	setFieldText(draft->textWithTags, 0, fieldHistoryAction);
+	_field->setFocus();
+	draft->cursor.applyTo(_field);
+	_textUpdateEvents = TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping;
+	_previewCancelled = draft->previewCancelled;
+	if (draft == editDraft) {
+		_header->editMessage({ _history->channelId(), draft->msgId });
+		_header->replyToMessage({});
+	} else {
+		_header->replyToMessage({ _history->channelId(), draft->msgId });
+		_header->editMessage({});
+	}
 }
 
 void ComposeControls::fieldTabbed() {
@@ -1192,11 +1433,16 @@ void ComposeControls::inlineBotResolveFail(
 }
 
 void ComposeControls::cancelInlineBot() {
-	auto &textWithTags = _field->getTextWithTags();
+	const auto &textWithTags = _field->getTextWithTags();
 	if (textWithTags.text.size() > _inlineBotUsername.size() + 2) {
-		setText({ '@' + _inlineBotUsername + ' ', TextWithTags::Tags() });
+		setFieldText(
+			{ '@' + _inlineBotUsername + ' ', TextWithTags::Tags() },
+			TextUpdateEvent::SaveDraft,
+			Ui::InputField::HistoryAction::NewEntry);
 	} else {
-		setText({});
+		clearFieldText(
+			TextUpdateEvent::SaveDraft,
+			Ui::InputField::HistoryAction::NewEntry);
 	}
 }
 
@@ -1487,29 +1733,101 @@ void ComposeControls::updateHeight() {
 }
 
 void ComposeControls::editMessage(FullMsgId id) {
-	cancelEditMessage();
-	_header->editMessage(id);
+	if (const auto item = session().data().message(id)) {
+		editMessage(item);
+	}
+}
+
+void ComposeControls::editMessage(not_null<HistoryItem*> item) {
+	Expects(_history != nullptr);
+	Expects(draftKeyCurrent() != Data::DraftKey::None());
+
+	if (!isEditingMessage()) {
+		saveFieldToHistoryLocalDraft();
+	}
+	const auto editData = PrepareEditText(item);
+	const auto cursor = MessageCursor{
+		editData.text.size(),
+		editData.text.size(),
+		QFIXED_MAX
+	};
+	_history->setDraft(
+		draftKey(DraftType::Edit),
+		std::make_unique<Data::Draft>(
+			editData,
+			item->id,
+			cursor,
+			false));
+	applyDraft();
+
 	if (_autocomplete) {
 		InvokeQueued(_autocomplete.get(), [=] { checkAutocomplete(); });
 	}
-	updateFieldPlaceholder();
 }
 
 void ComposeControls::cancelEditMessage() {
-	_header->editMessage({});
-	if (_autocomplete) {
-		InvokeQueued(_autocomplete.get(), [=] { checkAutocomplete(); });
-	}
-	updateFieldPlaceholder();
+	Expects(_history != nullptr);
+	Expects(draftKeyCurrent() != Data::DraftKey::None());
+
+	_history->clearDraft(draftKey(DraftType::Edit));
+	applyDraft();
+
+	_saveDraftText = true;
+	_saveDraftStart = crl::now();
+	saveDraft();
 }
 
 void ComposeControls::replyToMessage(FullMsgId id) {
-	cancelReplyMessage();
-	_header->replyToMessage(id);
+	Expects(_history != nullptr);
+	Expects(draftKeyCurrent() != Data::DraftKey::None());
+
+	if (!id) {
+		cancelReplyMessage();
+		return;
+	}
+	if (isEditingMessage()) {
+		const auto key = draftKey(DraftType::Normal);
+		if (const auto localDraft = _history->draft(key)) {
+			localDraft->msgId = id.msg;
+		} else {
+			_history->setDraft(
+				key,
+				std::make_unique<Data::Draft>(
+					TextWithTags(),
+					id.msg,
+					MessageCursor(),
+					false));
+		}
+	} else {
+		_header->replyToMessage(id);
+	}
+
+	_saveDraftText = true;
+	_saveDraftStart = crl::now();
+	saveDraft();
 }
 
 void ComposeControls::cancelReplyMessage() {
+	Expects(_history != nullptr);
+	Expects(draftKeyCurrent() != Data::DraftKey::None());
+
+	const auto wasReply = replyingToMessage();
 	_header->replyToMessage({});
+	const auto key = draftKey(DraftType::Normal);
+	if (const auto localDraft = _history->draft(key)) {
+		if (localDraft->msgId) {
+			if (localDraft->textWithTags.text.isEmpty()) {
+				_history->clearDraft(key);
+			} else {
+				localDraft->msgId = 0;
+			}
+		}
+	}
+	if (wasReply) {
+		_saveDraftText = true;
+		_saveDraftStart = crl::now();
+		saveDraft();
+	}
 }
 
 bool ComposeControls::handleCancelRequest() {
@@ -1544,7 +1862,6 @@ void ComposeControls::initWebpageProcess() {
 	using PreviewCache = std::map<QString, WebPageId>;
 	const auto previewCache = lifetime.make_state<PreviewCache>();
 	const auto previewRequest = lifetime.make_state<mtpRequestId>(0);
-	const auto previewCancelled = lifetime.make_state<bool>(false);
 	const auto mtpSender =
 		lifetime.make_state<MTP::Sender>(&_window->session().mtp());
 
@@ -1591,7 +1908,7 @@ void ComposeControls::initWebpageProcess() {
 			if (till > 0 && till <= base::unixtime::now()) {
 				till = -1;
 			}
-			if (links == *previewLinks && !*previewCancelled) {
+			if (links == *previewLinks && !_previewCancelled) {
 				*previewData = (page->id && page->pendingTill >= 0)
 					? page.get()
 					: nullptr;
@@ -1599,7 +1916,7 @@ void ComposeControls::initWebpageProcess() {
 			}
 		}, [=](const MTPDmessageMediaEmpty &d) {
 			previewCache->insert({ links, 0 });
-			if (links == *previewLinks && !*previewCancelled) {
+			if (links == *previewLinks && !_previewCancelled) {
 				*previewData = nullptr;
 				updatePreview();
 			}
@@ -1607,7 +1924,7 @@ void ComposeControls::initWebpageProcess() {
 		});
 	});
 
-	const auto previewCancel = [=] {
+	_previewCancel = [=] {
 		mtpSender->request(base::take(*previewRequest)).cancel();
 		*previewData = nullptr;
 		previewLinks->clear();
@@ -1628,8 +1945,8 @@ void ComposeControls::initWebpageProcess() {
 	const auto checkPreview = crl::guard(_wrap.get(), [=] {
 		const auto previewRestricted = peer
 			&& peer->amRestricted(ChatRestriction::f_embed_links);
-		if (/*_previewCancelled ||*/ previewRestricted) {
-			previewCancel();
+		if (_previewCancelled || previewRestricted) {
+			_previewCancel();
 			return;
 		}
 		const auto newLinks = parsedLinks->join(' ');
@@ -1640,7 +1957,7 @@ void ComposeControls::initWebpageProcess() {
 		*previewLinks = newLinks;
 		if (previewLinks->isEmpty()) {
 			if (ShowWebPagePreview(*previewData)) {
-				previewCancel();
+				_previewCancel();
 			}
 		} else {
 			const auto i = previewCache->find(*previewLinks);
@@ -1650,7 +1967,7 @@ void ComposeControls::initWebpageProcess() {
 				*previewData = _history->owner().webpage(i->second);
 				updatePreview();
 			} else if (ShowWebPagePreview(*previewData)) {
-				previewCancel();
+				_previewCancel();
 			}
 		}
 	});
