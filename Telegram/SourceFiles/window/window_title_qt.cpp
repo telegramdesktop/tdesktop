@@ -91,17 +91,7 @@ TitleWidgetQt::~TitleWidgetQt() {
 }
 
 void TitleWidgetQt::toggleFramelessWindow(bool enabled) {
-	// setWindowFlag calls setParent(parentWidget(), newFlags), which
-	// always calls hide() explicitly, we have to show() the window back.
-	const auto top = window();
-	const auto hidden = top->isHidden();
-	top->setWindowFlag(Qt::FramelessWindowHint, enabled);
-	if (!hidden) {
-		base::call_delayed(
-			kShowAfterWindowFlagChangeDelay,
-			top,
-			[=] { top->show(); });
-	}
+	window()->windowHandle()->setFlag(Qt::FramelessWindowHint, enabled);
 }
 
 void TitleWidgetQt::init() {
