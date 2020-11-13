@@ -809,8 +809,7 @@ bool SkipTaskbarSupported() {
 }
 
 bool StartSystemMove(QWindow *window) {
-	if (IsWayland()) {
-		const auto integration = WaylandIntegration::Instance();
+	if (const auto integration = WaylandIntegration::Instance()) {
 		return integration->startMove(window);
 	} else {
 		return StartXCBMoveResize(window, 16);
@@ -818,8 +817,7 @@ bool StartSystemMove(QWindow *window) {
 }
 
 bool StartSystemResize(QWindow *window, Qt::Edges edges) {
-	if (IsWayland()) {
-		const auto integration = WaylandIntegration::Instance();
+	if (const auto integration = WaylandIntegration::Instance()) {
 		return integration->startResize(window, edges);
 	} else {
 		return StartXCBMoveResize(window, edges);
@@ -827,8 +825,7 @@ bool StartSystemResize(QWindow *window, Qt::Edges edges) {
 }
 
 bool ShowWindowMenu(QWindow *window) {
-	if (IsWayland()) {
-		const auto integration = WaylandIntegration::Instance();
+	if (const auto integration = WaylandIntegration::Instance()) {
 		return integration->showWindowMenu(window);
 	} else {
 		return ShowXCBWindowMenu(window);

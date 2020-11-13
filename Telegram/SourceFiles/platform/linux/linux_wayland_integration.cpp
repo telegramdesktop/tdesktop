@@ -55,6 +55,7 @@ WaylandIntegration::WaylandIntegration() {
 }
 
 WaylandIntegration *WaylandIntegration::Instance() {
+	if (!IsWayland()) return nullptr;
 	static WaylandIntegration instance;
 	return &instance;
 }
