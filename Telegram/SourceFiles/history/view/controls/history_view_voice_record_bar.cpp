@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_media_player.h"
 #include "ui/controls/send_button.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
 #include "window/window_session_controller.h"
 
@@ -604,15 +605,19 @@ rpl::lifetime &ListenWrap::lifetime() {
 	return _lifetime;
 }
 
-class RecordLock final : public Ui::RpWidget {
+class RecordLock final : public Ui::RippleButton {
 public:
 	RecordLock(not_null<Ui::RpWidget*> parent);
 
 	void requestPaintProgress(float64 progress);
 
-	[[nodiscard]] rpl::producer<> stops() const;
 	[[nodiscard]] rpl::producer<> locks() const;
 	[[nodiscard]] bool isLocked() const;
+	[[nodiscard]] bool isStopState() const;
+
+protected:
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
 
 private:
 	void init();
@@ -621,6 +626,7 @@ private:
 	void setProgress(float64 progress);
 	void startLockingAnimation(float64 to);
 
+	const QRect _rippleRect;
 	const QPen _arcPen;
 
 	Ui::Animations::Simple _lockAnimation;
@@ -630,7 +636,13 @@ private:
 };
 
 RecordLock::RecordLock(not_null<Ui::RpWidget*> parent)
-: RpWidget(parent)
+: RippleButton(parent, st::defaultRippleAnimation)
+, _rippleRect(QRect(
+	0,
+	0,
+	st::historyRecordLockTopShadow.width(),
+	st::historyRecordLockTopShadow.width())
+		.marginsRemoved(st::historyRecordLockRippleMargin))
 , _arcPen(
 	st::historyRecordLockIconFg,
 	st::historyRecordLockIconLineWidth,
@@ -755,6 +767,9 @@ void RecordLock::drawProgress(Painter &p) {
 		arrow.paintInCenter(p, arrowRect);
 		p.setOpacity(1.);
 	}
+	if (isLocked()) {
+		paintRipple(p, _rippleRect.x(), _rippleRect.y());
+	}
 	{
 		PainterHighQualityEnabler hq(p);
 		const auto &size = st::historyRecordLockIconSize;
@@ -833,18 +848,21 @@ bool RecordLock::isLocked() const {
 	return _progress.current() == 1.;
 }
 
+bool RecordLock::isStopState() const {
+	return isLocked() && (_lockAnimation.value(1.) == 1.);
+}
+
 rpl::producer<> RecordLock::locks() const {
 	return _progress.changes(
 	) | rpl::filter([=] { return isLocked(); }) | rpl::to_empty;
 }
 
-rpl::producer<> RecordLock::stops() const {
-	return events(
-	) | rpl::filter([=](not_null<QEvent*> e) {
-		return isLocked()
-			&& (_lockAnimation.value(1.) == 1.)
-			&& (e->type() == QEvent::MouseButtonRelease);
-	}) | rpl::to_empty;
+QImage RecordLock::prepareRippleMask() const {
+	return Ui::RippleAnimation::ellipseMask(_rippleRect.size());
+}
+
+QPoint RecordLock::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos()) - _rippleRect.topLeft();
 }
 
 VoiceRecordBar::VoiceRecordBar(
@@ -996,8 +1014,11 @@ void VoiceRecordBar::init() {
 		_showLockAnimation.start(std::move(callback), from, to, duration);
 	}, lifetime());
 
-	_lock->stops(
-	) | rpl::start_with_next([=] {
+	_lock->setClickedCallback([=] {
+		if (!_lock->isStopState()) {
+			return;
+		}
+
 		::Media::Capture::instance()->startedChanges(
 		) | rpl::filter([=](auto capturing) {
 			return !capturing && _listen;
@@ -1018,7 +1039,7 @@ void VoiceRecordBar::init() {
 		}, lifetime());
 
 		stopRecording(StopType::Listen);
-	}, lifetime());
+	});
 
 	_lock->locks(
 	) | rpl::start_with_next([=] {
