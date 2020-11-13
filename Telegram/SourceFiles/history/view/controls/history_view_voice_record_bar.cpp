@@ -61,6 +61,10 @@ enum class FilterType {
 	Cancel,
 };
 
+inline float64 InterpolateF(int a, int b, float64 b_ratio) {
+	return a + float64(b - a) * b_ratio;
+}
+
 [[nodiscard]] auto InactiveColor(const QColor &c) {
 	return QColor(c.red(), c.green(), c.blue(), kInactiveWaveformBarAlpha);
 }
@@ -772,26 +776,51 @@ void RecordLock::drawProgress(Painter &p) {
 	}
 	{
 		PainterHighQualityEnabler hq(p);
+		const auto lockToStopProgress =
+			_lockAnimation.value(isLocked() ? 1. : 0);
+		const auto &arcOffset = st::historyRecordLockIconLineSkip;
 		const auto &size = st::historyRecordLockIconSize;
+
+		const auto arcWidth = size.width() - arcOffset * 2;
+		const auto &arcHeight = st::historyRecordLockIconArcHeight;
+
 		const auto &blockHeight = st::historyRecordLockIconBottomHeight;
-		const auto blockRect = QRect(
-			0,
-			size.height() - blockHeight,
+
+		const auto blockRectWidth = InterpolateF(
 			size.width(),
-			blockHeight);
+			st::historyRecordStopIconWidth,
+			lockToStopProgress);
+		const auto blockRectHeight = InterpolateF(
+			blockHeight,
+			st::historyRecordStopIconWidth,
+			lockToStopProgress);
+		const auto blockRectTop = InterpolateF(
+			size.height() - blockHeight,
+			std::round((size.height() - blockRectHeight) / 2.),
+			lockToStopProgress);
+
+		const auto blockRect = QRectF(
+			(size.width() - blockRectWidth) / 2,
+			blockRectTop,
+			blockRectWidth,
+			blockRectHeight);
 		const auto &lineHeight = st::historyRecordLockIconLineHeight;
-		const auto &offset = st::historyRecordLockIconLineSkip;
 
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::historyRecordLockIconFg);
 		p.translate(
 			inner.x() + (inner.width() - size.width()) / 2,
 			inner.y() + (originTop.height() * 2 - size.height()) / 2);
-		p.drawRoundedRect(blockRect, 2, 3);
+		{
+			const auto xRadius = anim::interpolate(2, 3, lockToStopProgress);
+			p.drawRoundedRect(blockRect, xRadius, 3);
+		}
 
+		const auto offsetTranslate = lockToStopProgress *
+			(lineHeight + arcHeight + _arcPen.width() * 2);
 		p.translate(
-			size.width() - offset,
-			blockRect.y());
+			size.width() - arcOffset,
+			blockRect.y() + offsetTranslate);
 
 		if (progress < 1. && progress > 0.) {
 			p.rotate(kLockArcAngle * progress);
@@ -801,8 +830,6 @@ void RecordLock::drawProgress(Painter &p) {
 		const auto rLine = QLineF(0, 0, 0, -lineHeight);
 		p.drawLine(rLine);
 
-		const auto arcWidth = size.width() - offset * 2;
-		const auto &arcHeight = st::historyRecordLockIconArcHeight;
 		p.drawArc(
 			-arcWidth,
 			rLine.dy() - arcHeight - _arcPen.width() + rLine.y1(),

@@ -371,6 +371,7 @@ historyRecordLockIconLineHeight: 2px;
 historyRecordLockIconLineSkip: 3px;
 historyRecordLockIconLineWidth: 2px;
 historyRecordLockIconArcHeight: 4px;
+historyRecordStopIconWidth: 12px;
 
 historyRecordLockTopShadow: icon {{ "voice_lock/record_lock_top_shadow", historyToDownShadow }};
 historyRecordLockTop: icon {{ "voice_lock/record_lock_top", historyToDownBg }};
