@@ -158,7 +158,7 @@ auto GenerateCodes() {
 #endif // Q_OS_WIN || Q_OS_MAC
 
 #if defined Q_OS_UNIX && !defined Q_OS_MAC
-	codes.emplace(qsl("installauncher"), [](SessionController *window) {
+	codes.emplace(qsl("installlauncher"), [](SessionController *window) {
 		Platform::InstallLauncher(true);
 		Ui::Toast::Show("Forced launcher installation.");
 	});
