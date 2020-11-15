@@ -124,10 +124,12 @@ void PortalAutostart(bool autostart, bool silent = false) {
 	QVariantMap options;
 	options["reason"] = tr::lng_settings_auto_start(tr::now);
 	options["autostart"] = autostart;
-	options["commandline"] = QStringList({
+	options["commandline"] = QStringList{
 		cExeName(),
+		qsl("-workdir"),
+		cWorkingDir(),
 		qsl("-autostart")
-	});
+	};
 	options["dbus-activatable"] = false;
 
 	auto message = QDBusMessage::createMethodCall(
@@ -228,6 +230,10 @@ uint FileChooserPortalVersion() {
 }
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
+QString EscapeShellInLauncher(const QString &content) {
+	return EscapeShell(content.toUtf8()).replace('\\', "\\\\");
+}
+
 QString FlatpakID() {
 	static const auto Result = [] {
 		if (!qEnvironmentVariableIsEmpty("FLATPAK_ID")) {
@@ -291,35 +297,26 @@ bool GenerateDesktopFile(
 
 	QFile target(targetFile);
 	if (target.open(QIODevice::WriteOnly)) {
-		if (!Core::UpdaterDisabled()) {
-			fileText = fileText.replace(
-				QRegularExpression(
-					qsl("^TryExec=.*$"),
-					QRegularExpression::MultilineOption),
-				qsl("TryExec=")
-					+ QFile::encodeName(cExeDir() + cExeName())
-						.replace('\\', "\\\\"));
-			fileText = fileText.replace(
-				QRegularExpression(
-					qsl("^Exec=.*$"),
-					QRegularExpression::MultilineOption),
-				qsl("Exec=")
-					+ EscapeShell(QFile::encodeName(cExeDir() + cExeName()))
-						.replace('\\', "\\\\")
-					+ (args.isEmpty() ? QString() : ' ' + args));
-		} else {
-			fileText = fileText.replace(
-				QRegularExpression(
-					qsl("^Exec=(.*) -- %u$"),
-					QRegularExpression::MultilineOption),
-				qsl("Exec=\\1")
-					+ (args.isEmpty() ? QString() : ' ' + args));
-		}
+		fileText = fileText.replace(
+			QRegularExpression(
+				qsl("^TryExec=.*$"),
+				QRegularExpression::MultilineOption),
+			qsl("TryExec=%1").arg(
+				QString(cExeDir() + cExeName()).replace('\\', "\\\\")));
+
+		fileText = fileText.replace(
+			QRegularExpression(
+				qsl("^Exec=.*$"),
+				QRegularExpression::MultilineOption),
+			qsl("Exec=%1 -workdir %2").arg(
+				EscapeShellInLauncher(cExeDir() + cExeName()),
+				EscapeShellInLauncher(cWorkingDir()))
+				+ (args.isEmpty() ? QString() : ' ' + args));
 
 		target.write(fileText.toUtf8());
 		target.close();
 
-		if (IsStaticBinary()) {
+		if (!Core::UpdaterDisabled()) {
 			DEBUG_LOG(("App Info: removing old .desktop files"));
 			QFile::remove(qsl("%1telegram.desktop").arg(targetPath));
 			QFile::remove(qsl("%1telegramdesktop.desktop").arg(targetPath));
@@ -1217,10 +1214,9 @@ void RegisterCustomScheme(bool force) {
 
 	GError *error = nullptr;
 
-	const auto neededCommandlineBuilder = qsl("%1 --")
-		.arg(!Core::UpdaterDisabled()
-			? cExeDir() + cExeName()
-			: cExeName());
+	const auto neededCommandlineBuilder = qsl("%1 -workdir %2 --").arg(
+		QString(EscapeShell(QFile::encodeName(cExeDir() + cExeName()))),
+		QString(EscapeShell(QFile::encodeName(cWorkingDir()))));
 
 	const auto neededCommandline = qsl("%1 %u")
 		.arg(neededCommandlineBuilder);
