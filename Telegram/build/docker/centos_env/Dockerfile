@@ -9,6 +9,7 @@ ENV OPENSSL_VER 1_1_1
 ENV OPENSSL_PREFIX /usr/local/desktop-app/openssl-1.1.1
 
 RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+RUN yum -y install https://packages.endpoint.com/rhel/7/os/x86_64/endpoint-repo-1.7-1.x86_64.rpm
 RUN yum -y install centos-release-scl
 
 RUN yum -y install git cmake3 zlib-devel gtk3-devel libICE-devel \
@@ -176,28 +177,6 @@ RUN make DESTDIR="$LibrariesPath/libXfixes-cache" install
 
 WORKDIR ..
 RUN rm -rf libxfixes
-
-FROM builder AS libXi
-RUN git clone -b libXi-1.7.10 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxi.git
-
-WORKDIR libxi
-RUN ./autogen.sh --enable-static
-RUN make -j$(nproc)
-RUN make DESTDIR="$LibrariesPath/libXi-cache" install
-
-WORKDIR ..
-RUN rm -rf libxi
-
-FROM builder AS libXrender
-RUN git clone -b libXrender-0.9.10 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxrender.git
-
-WORKDIR libxrender
-RUN ./autogen.sh --enable-static
-RUN make -j$(nproc)
-RUN make DESTDIR="$LibrariesPath/libXrender-cache" install
-
-WORKDIR ..
-RUN rm -rf libxrender
 
 FROM builder AS wayland
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
@@ -417,8 +396,6 @@ COPY --from=xcb-keysyms ${LibrariesPath}/xcb-keysyms-cache /
 COPY --from=xcb-render-util ${LibrariesPath}/xcb-render-util-cache /
 COPY --from=libXext ${LibrariesPath}/libXext-cache /
 COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
-COPY --from=libXi ${LibrariesPath}/libXi-cache /
-COPY --from=libXrender ${LibrariesPath}/libXrender-cache /
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 COPY --from=xkbcommon ${LibrariesPath}/xkbcommon-cache /
@@ -548,8 +525,6 @@ COPY --from=xcb-keysyms ${LibrariesPath}/xcb-keysyms-cache /
 COPY --from=xcb-render-util ${LibrariesPath}/xcb-render-util-cache /
 COPY --from=libXext ${LibrariesPath}/libXext-cache /
 COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
-COPY --from=libXi ${LibrariesPath}/libXi-cache /
-COPY --from=libXrender ${LibrariesPath}/libXrender-cache /
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
 COPY --from=libva ${LibrariesPath}/libva-cache /
 COPY --from=libvdpau ${LibrariesPath}/libvdpau-cache /
