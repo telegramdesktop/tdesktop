@@ -52,6 +52,10 @@ class RepliesList;
 
 namespace HistoryView {
 
+namespace Controls {
+struct VoiceToSend;
+} // namespace Controls
+
 class Element;
 class TopBarWidget;
 class RepliesMemento;
@@ -180,7 +184,7 @@ private:
 
 	void send();
 	void send(Api::SendOptions options);
-	void sendVoice(QByteArray bytes, VoiceWaveform waveform, int duration);
+	void sendVoice(Controls::VoiceToSend &&data);
 	void edit(
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,

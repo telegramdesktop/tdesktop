@@ -158,7 +158,8 @@ RepliesWidget::RepliesWidget(
 , _composeControls(std::make_unique<ComposeControls>(
 	this,
 	controller,
-	ComposeControls::Mode::Normal))
+	ComposeControls::Mode::Normal,
+	SendMenu::Type::SilentOnly))
 , _scroll(std::make_unique<Ui::ScrollArea>(this, st::historyScroll, false))
 , _scrollDown(_scroll.get(), st::historyToDown)
 , _readRequestTimer([=] { sendReadTillRequest(); }) {
@@ -429,13 +430,13 @@ void RepliesWidget::setupComposeControls() {
 	}, lifetime());
 
 	_composeControls->sendRequests(
-	) | rpl::start_with_next([=] {
-		send();
+	) | rpl::start_with_next([=](Api::SendOptions options) {
+		send(options);
 	}, lifetime());
 
 	_composeControls->sendVoiceRequests(
 	) | rpl::start_with_next([=](ComposeControls::VoiceToSend &&data) {
-		sendVoice(data.bytes, data.waveform, data.duration);
+		sendVoice(std::move(data));
 	}, lifetime());
 
 	_composeControls->sendCommandRequests(
@@ -878,13 +879,15 @@ void RepliesWidget::send() {
 	//	Ui::LayerOption::KeepOther);
 }
 
-void RepliesWidget::sendVoice(
-		QByteArray bytes,
-		VoiceWaveform waveform,
-		int duration) {
+void RepliesWidget::sendVoice(ComposeControls::VoiceToSend &&data) {
 	auto action = Api::SendAction(_history);
 	action.replyTo = replyToId();
-	session().api().sendVoiceMessage(bytes, waveform, duration, action);
+	action.options = data.options;
+	session().api().sendVoiceMessage(
+		data.bytes,
+		data.waveform,
+		data.duration,
+		std::move(action));
 }
 
 void RepliesWidget::send(Api::SendOptions options) {

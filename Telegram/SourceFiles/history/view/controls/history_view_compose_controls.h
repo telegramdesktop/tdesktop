@@ -21,6 +21,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class FieldAutocomplete;
 
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
+
 namespace ChatHelpers {
 class TabbedPanel;
 class TabbedSelector;
@@ -87,7 +91,8 @@ public:
 	ComposeControls(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> window,
-		Mode mode);
+		Mode mode,
+		SendMenu::Type sendMenuType);
 	~ComposeControls();
 
 	[[nodiscard]] Main::Session &session() const;
@@ -104,7 +109,7 @@ public:
 
 	bool focus();
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
-	[[nodiscard]] rpl::producer<> sendRequests() const;
+	[[nodiscard]] rpl::producer<Api::SendOptions> sendRequests() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
 	[[nodiscard]] rpl::producer<QString> sendCommandRequests() const;
 	[[nodiscard]] rpl::producer<MessageToEdit> editRequests() const;
@@ -184,6 +189,13 @@ private:
 	void updateOuterGeometry(QRect rect);
 	void paintBackground(QRect clip);
 
+	[[nodiscard]] auto computeSendButtonType() const;
+	[[nodiscard]] SendMenu::Type sendMenuType() const;
+	[[nodiscard]] SendMenu::Type sendButtonMenuType() const;
+
+	void sendSilent();
+	void sendScheduled();
+
 	void orderControls();
 	void checkAutocomplete();
 	void updateStickersByEmoji();
@@ -258,6 +270,9 @@ private:
 	const std::unique_ptr<FieldHeader> _header;
 	const std::unique_ptr<Controls::VoiceRecordBar> _voiceRecordBar;
 
+	const SendMenu::Type _sendMenuType;
+
+	rpl::event_stream<Api::SendOptions> _sendCustomRequests;
 	rpl::event_stream<> _cancelRequests;
 	rpl::event_stream<FileChosen> _fileChosen;
 	rpl::event_stream<PhotoChosen> _photoChosen;

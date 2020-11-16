@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/send_context_menu.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_section.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -34,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/controls/history_view_voice_record_bar.h"
+#include "history/view/history_view_schedule_box.h" // HistoryView::PrepareScheduleBox
 #include "history/view/history_view_webpage_preview.h"
 #include "inline_bots/inline_results_widget.h"
 #include "inline_bots/inline_bot_result.h"
@@ -575,7 +577,8 @@ MessageToEdit FieldHeader::queryToEdit() {
 ComposeControls::ComposeControls(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::SessionController*> window,
-	Mode mode)
+	Mode mode,
+	SendMenu::Type sendMenuType)
 : _parent(parent)
 , _window(window)
 , _mode(mode)
@@ -609,6 +612,7 @@ ComposeControls::ComposeControls(
 		window,
 		_send,
 		st::historySendSize.height()))
+, _sendMenuType(sendMenuType)
 , _saveDraftTimer([=] { saveDraft(); }) {
 	init();
 }
@@ -717,19 +721,21 @@ rpl::producer<not_null<QKeyEvent*>> ComposeControls::keyEvents() const {
 	});
 }
 
-rpl::producer<> ComposeControls::sendRequests() const {
+rpl::producer<Api::SendOptions> ComposeControls::sendRequests() const {
 	auto filter = rpl::filter([=] {
 		const auto type = (_mode == Mode::Normal)
 			? Ui::SendButton::Type::Send
 			: Ui::SendButton::Type::Schedule;
 		return (_send->type() == type);
 	});
+	auto map = rpl::map_to(Api::SendOptions());
 	auto submits = base::qt_signal_producer(
 		_field.get(),
 		&Ui::InputField::submitted);
 	return rpl::merge(
-		_send->clicks() | filter | rpl::to_empty,
-		std::move(submits) | filter | rpl::to_empty);
+		_send->clicks() | filter | map,
+		std::move(submits) | filter | map,
+		_sendCustomRequests.events());
 }
 
 rpl::producer<VoiceToSend> ComposeControls::sendVoiceRequests() const {
@@ -1395,6 +1401,12 @@ void ComposeControls::initSendButton() {
 	}) | rpl::start_with_next([=] {
 		cancelInlineBot();
 	}, _send->lifetime());
+
+	SendMenu::SetupMenuAndShortcuts(
+		_send.get(),
+		[=] { return sendButtonMenuType(); },
+		[=] { sendSilent(); },
+		[=] { sendScheduled(); });
 }
 
 void ComposeControls::inlineBotResolveDone(
@@ -1550,18 +1562,32 @@ void ComposeControls::updateWrappingVisibility() {
 	}
 }
 
+auto ComposeControls::computeSendButtonType() const {
+	using Type = Ui::SendButton::Type;
+
+	if (_header->isEditingMessage()) {
+		return Type::Save;
+	} else if (_isInlineBot) {
+		return Type::Cancel;
+	} else if (showRecordButton()) {
+		return Type::Record;
+	}
+	return (_mode == Mode::Normal) ? Type::Send : Type::Schedule;
+}
+
+SendMenu::Type ComposeControls::sendMenuType() const {
+	return !_history ? SendMenu::Type::Disabled : _sendMenuType;
+}
+
+SendMenu::Type ComposeControls::sendButtonMenuType() const {
+	return (computeSendButtonType() == Ui::SendButton::Type::Send)
+		? sendMenuType()
+		: SendMenu::Type::Disabled;
+}
+
 void ComposeControls::updateSendButtonType() {
 	using Type = Ui::SendButton::Type;
-	const auto type = [&] {
-		if (_header->isEditingMessage()) {
-			return Type::Save;
-		} else if (_isInlineBot) {
-			return Type::Cancel;
-		} else if (showRecordButton()) {
-			return Type::Record;
-		}
-		return (_mode == Mode::Normal) ? Type::Send : Type::Schedule;
-	}();
+	const auto type = computeSendButtonType();
 	_send->setType(type);
 
 	const auto delay = [&] {
@@ -2074,6 +2100,22 @@ rpl::producer<bool> ComposeControls::lockShowStarts() const {
 
 bool ComposeControls::isRecording() const {
 	return _voiceRecordBar->isRecording();
+}
+
+void ComposeControls::sendSilent() {
+	_sendCustomRequests.fire({ .silent = true });
+}
+
+void ComposeControls::sendScheduled() {
+	auto callback = [=](Api::SendOptions options) {
+		_sendCustomRequests.fire(std::move(options));
+	};
+	Ui::show(
+		HistoryView::PrepareScheduleBox(
+			_wrap.get(),
+			sendMenuType(),
+			std::move(callback)),
+		Ui::LayerOption::KeepOther);
 }
 
 void ComposeControls::updateInlineBotQuery() {

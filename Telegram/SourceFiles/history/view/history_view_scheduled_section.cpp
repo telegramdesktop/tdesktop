@@ -97,7 +97,8 @@ ScheduledWidget::ScheduledWidget(
 , _composeControls(std::make_unique<ComposeControls>(
 	this,
 	controller,
-	ComposeControls::Mode::Scheduled))
+	ComposeControls::Mode::Scheduled,
+	SendMenu::Type::Disabled))
 , _scrollDown(_scroll, st::historyToDown) {
 	const auto state = Dialogs::EntryState{
 		.key = _history,
