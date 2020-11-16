@@ -325,6 +325,7 @@ historyScheduledToggle: IconButton(historyAttach) {
 	};
 	iconPosition: point(-1px, -1px);
 }
+
 historyRecordVoiceFg: historyComposeIconFg;
 historyRecordVoiceFgOver: historyComposeIconFgOver;
 historyRecordVoiceFgInactive: attentionButtonFg;
@@ -350,7 +351,6 @@ historyRecordMinorAmplitudeRadius: 7px;
 historyRecordRandomAddition: 8px;
 historyRecordRadiusDiff: 50px;
 historyRecordRadiusDiffMin: 10px;
-historyRecordLevelMinRadius: 38px;
 historyRecordLevelMaxRadius: 70px;
 
 historyRecordTextStyle: TextStyle(defaultTextStyle) {
@@ -381,7 +381,7 @@ historyRecordLockBodyShadow: icon {{ "voice_lock/record_lock_body_shadow", histo
 historyRecordLockBody: icon {{ "voice_lock/record_lock_body", historyToDownBg }};
 historyRecordLockMargin: margins(4px, 4px, 4px, 4px);
 historyRecordLockArrow: icon {{ "voice_lock/voice_arrow", historyToDownFg }};
-historyRecordLockRippleMargin: margins(5px, 5px, 5px, 5px);
+historyRecordLockRippleMargin: margins(6px, 6px, 6px, 6px);
 
 historyRecordDelete: IconButton(historyAttach) {
 	icon: icon {{ "info_media_delete", historyComposeIconFg }};
@@ -392,7 +392,7 @@ historyRecordWaveformBgMargins: margins(5px, 7px, 5px, 7px);
 
 historyRecordWaveformBar: 3px;
 
-historyRecordLockPosition: point(7px, 35px);
+historyRecordLockPosition: point(1px, 35px);
 
 historySilentToggle: IconButton(historyBotKeyboardShow) {
 	icon: icon {{ "send_control_silent_off", historyComposeIconFg }};

@@ -851,12 +851,15 @@ void RecordLock::drawProgress(Painter &p) {
 
 void RecordLock::startLockingAnimation(float64 to) {
 	auto callback = [=](auto value) { setProgress(value); };
-	const auto duration = st::historyRecordVoiceShowDuration;
+	const auto &duration = st::historyRecordVoiceShowDuration;
 	_lockEnderAnimation.start(std::move(callback), 0., to, duration);
 }
 
 void RecordLock::requestPaintProgress(float64 progress) {
-	if (isHidden() || isLocked() || _lockEnderAnimation.animating()) {
+	if (isHidden()
+		|| isLocked()
+		|| _lockEnderAnimation.animating()
+		|| (_progress.current() == progress)) {
 		return;
 	}
 	if (!_progress.current() && (progress > .3)) {
@@ -1028,7 +1031,7 @@ void VoiceRecordBar::init() {
 	) | rpl::start_with_next([=](bool show) {
 		const auto to = show ? 1. : 0.;
 		const auto from = show ? 0. : 1.;
-		const auto duration = st::historyRecordLockShowDuration;
+		const auto &duration = st::historyRecordLockShowDuration;
 		_lock->show();
 		auto callback = [=](auto value) {
 			updateLockGeometry();
@@ -1138,7 +1141,7 @@ void VoiceRecordBar::init() {
 
 void VoiceRecordBar::activeAnimate(bool active) {
 	const auto to = active ? 1. : 0.;
-	const auto duration = st::historyRecordVoiceDuration;
+	const auto &duration = st::historyRecordVoiceDuration;
 	if (_activeAnimation.animating()) {
 		_activeAnimation.change(to, duration);
 	} else {
@@ -1154,7 +1157,7 @@ void VoiceRecordBar::activeAnimate(bool active) {
 void VoiceRecordBar::visibilityAnimate(bool show, Fn<void()> &&callback) {
 	const auto to = show ? 1. : 0.;
 	const auto from = show ? 0. : 1.;
-	const auto duration = st::historyRecordVoiceShowDuration;
+	const auto &duration = st::historyRecordVoiceShowDuration;
 	auto animationCallback = [=, callback = std::move(callback)](auto value) {
 		if (!_listen) {
 			_level->requestPaintProgress(value);
