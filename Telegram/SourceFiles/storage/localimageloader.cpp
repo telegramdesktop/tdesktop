@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QBuffer>
 #include <QtGui/QImageWriter>
+#include <QtGui/QColorSpace>
 
 namespace {
 
@@ -878,6 +879,11 @@ void FileLoadTask::process(Args &&args) {
 				auto medium = (w > 320 || h > 320) ? fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 				auto full = (w > 1280 || h > 1280) ? fullimage.scaled(1280, 1280, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 				{
+					// We have an example of dark .png image that when being sent without
+					// removing its color space is displayed fine on tdesktop, but with
+					// a light gray background on mobile apps.
+					full.setColorSpace(QColorSpace());
+
 					QBuffer buffer(&filedata);
 					QImageWriter writer(&buffer, "JPEG");
 					writer.setQuality(87);
