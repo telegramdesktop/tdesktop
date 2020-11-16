@@ -470,17 +470,17 @@ void RepliesWidget::setupComposeControls() {
 
 	_composeControls->fileChosen(
 	) | rpl::start_with_next([=](Selector::FileChosen chosen) {
-		sendExistingDocument(chosen.document);
+		sendExistingDocument(chosen.document, chosen.options);
 	}, lifetime());
 
 	_composeControls->photoChosen(
 	) | rpl::start_with_next([=](Selector::PhotoChosen chosen) {
-		sendExistingPhoto(chosen.photo);
+		sendExistingPhoto(chosen.photo, chosen.options);
 	}, lifetime());
 
 	_composeControls->inlineResultChosen(
 	) | rpl::start_with_next([=](Selector::InlineChosen chosen) {
-		sendInlineResult(chosen.result, chosen.bot);
+		sendInlineResult(chosen.result, chosen.bot, chosen.options);
 	}, lifetime());
 
 	_composeControls->scrollRequests(
