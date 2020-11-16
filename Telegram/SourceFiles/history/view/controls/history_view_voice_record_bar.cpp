@@ -691,7 +691,7 @@ void RecordLock::init() {
 		const auto &duration = st::historyRecordVoiceShowDuration;
 		const auto from = 0.;
 		const auto to = 1.;
-		auto callback = [=](auto value) {
+		auto callback = [=](float64 value) {
 			update();
 			if (value == to) {
 				setCursor(style::cur_pointer);
@@ -850,7 +850,7 @@ void RecordLock::drawProgress(Painter &p) {
 }
 
 void RecordLock::startLockingAnimation(float64 to) {
-	auto callback = [=](auto value) { setProgress(value); };
+	auto callback = [=](float64 value) { setProgress(value); };
 	const auto &duration = st::historyRecordVoiceShowDuration;
 	_lockEnderAnimation.start(std::move(callback), 0., to, duration);
 }
@@ -1033,7 +1033,7 @@ void VoiceRecordBar::init() {
 		const auto from = show ? 0. : 1.;
 		const auto &duration = st::historyRecordLockShowDuration;
 		_lock->show();
-		auto callback = [=](auto value) {
+		auto callback = [=](float64 value) {
 			updateLockGeometry();
 			if (value == 0. && !show) {
 				_lock->hide();
@@ -1050,14 +1050,14 @@ void VoiceRecordBar::init() {
 		}
 
 		::Media::Capture::instance()->startedChanges(
-		) | rpl::filter([=](auto capturing) {
+		) | rpl::filter([=](bool capturing) {
 			return !capturing && _listen;
 		}) | rpl::take(1) | rpl::start_with_next([=] {
 			_lockShowing = false;
 
 			const auto to = 1.;
 			const auto &duration = st::historyRecordVoiceShowDuration;
-			auto callback = [=](auto value) {
+			auto callback = [=](float64 value) {
 				_listen->requestPaintProgress(value);
 				_level->requestPaintProgress(to - value);
 				update();
