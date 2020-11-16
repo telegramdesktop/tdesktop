@@ -359,6 +359,7 @@ OverlayWidget::OverlayWidget()
 	} else {
 		setWindowFlags(Qt::FramelessWindowHint);
 	}
+	updateGeometry(QApplication::primaryScreen()->geometry());
 	moveToScreen();
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
@@ -373,6 +374,17 @@ OverlayWidget::OverlayWidget()
 	if (!Platform::IsMac()) {
 		setWindowState(Qt::WindowFullScreen);
 	}
+
+	connect(
+		windowHandle(),
+		&QWindow::visibleChanged,
+		this,
+		[=](bool visible) { handleVisibleChanged(visible); });
+	connect(
+		windowHandle(),
+		&QWindow::screenChanged,
+		this,
+		[=](QScreen *screen) { handleScreenChanged(screen); });
 
 #if defined Q_OS_MAC && !defined OS_OSX
 	TouchBar::SetupMediaViewTouchBar(
@@ -417,7 +429,7 @@ void OverlayWidget::refreshLang() {
 	InvokeQueued(this, [this] { updateThemePreviewGeometry(); });
 }
 
-void OverlayWidget::moveToScreen(bool force) {
+void OverlayWidget::moveToScreen() {
 	const auto widgetScreen = [&](auto &&widget) -> QScreen* {
 		if (auto handle = widget ? widget->windowHandle() : nullptr) {
 			return handle->screen();
@@ -432,14 +444,10 @@ void OverlayWidget::moveToScreen(bool force) {
 	if (activeWindowScreen && myScreen && myScreen != activeWindowScreen) {
 		windowHandle()->setScreen(activeWindowScreen);
 	}
-	const auto screen = activeWindowScreen
-		? activeWindowScreen
-		: QApplication::primaryScreen();
-	const auto available = screen->geometry();
-	if (!force && geometry() == available) {
-		return;
-	}
-	setGeometry(available);
+}
+
+void OverlayWidget::updateGeometry(const QRect &rect) {
+	setGeometry(rect);
 
 	auto navSkip = 2 * st::mediaviewControlMargin + st::mediaviewControlSize;
 	_closeNav = myrtlrect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, st::mediaviewControlMargin, st::mediaviewControlSize, st::mediaviewControlSize);
@@ -1294,12 +1302,31 @@ void OverlayWidget::onScreenResized(int screen) {
 	const auto changed = (screen >= 0 && screen < screens.size())
 		? screens[screen]
 		: nullptr;
+	if (windowHandle()
+		&& windowHandle()->screen()
+		&& changed
+		&& windowHandle()->screen() == changed) {
+		updateGeometry(changed->geometry());
+	}
 	if (!windowHandle()
 		|| !windowHandle()->screen()
 		|| !changed
 		|| windowHandle()->screen() == changed) {
 		moveToScreen();
 	}
+}
+
+void OverlayWidget::handleVisibleChanged(bool visible) {
+	if (visible) {
+		const auto screen = windowHandle()->screen()
+			? windowHandle()->screen()
+			: QApplication::primaryScreen();
+		updateGeometry(screen->geometry());
+	}
+}
+
+void OverlayWidget::handleScreenChanged(QScreen *screen) {
+	updateGeometry(screen->geometry());
 }
 
 void OverlayWidget::onToMessage() {
