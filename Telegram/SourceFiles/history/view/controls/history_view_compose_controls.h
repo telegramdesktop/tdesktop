@@ -169,6 +169,10 @@ private:
 		Normal,
 		Edit,
 	};
+	enum class SendRequestType {
+		Text,
+		Voice,
+	};
 	using TextUpdateEvents = base::flags<TextUpdateEvent>;
 	friend inline constexpr bool is_flag_type(TextUpdateEvent) { return true; };
 
@@ -195,6 +199,8 @@ private:
 
 	void sendSilent();
 	void sendScheduled();
+	[[nodiscard]] auto sendContentRequests(
+		SendRequestType requestType = SendRequestType::Text) const;
 
 	void orderControls();
 	void checkAutocomplete();

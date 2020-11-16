@@ -721,12 +721,15 @@ rpl::producer<not_null<QKeyEvent*>> ComposeControls::keyEvents() const {
 	});
 }
 
-rpl::producer<Api::SendOptions> ComposeControls::sendRequests() const {
+auto ComposeControls::sendContentRequests(SendRequestType requestType) const {
 	auto filter = rpl::filter([=] {
 		const auto type = (_mode == Mode::Normal)
 			? Ui::SendButton::Type::Send
 			: Ui::SendButton::Type::Schedule;
-		return (_send->type() == type);
+		const auto sendRequestType = _voiceRecordBar->isListenState()
+			? SendRequestType::Voice
+			: SendRequestType::Text;
+		return (_send->type() == type) && (sendRequestType == requestType);
 	});
 	auto map = rpl::map_to(Api::SendOptions());
 	auto submits = base::qt_signal_producer(
@@ -736,6 +739,10 @@ rpl::producer<Api::SendOptions> ComposeControls::sendRequests() const {
 		_send->clicks() | filter | map,
 		std::move(submits) | filter | map,
 		_sendCustomRequests.events());
+}
+
+rpl::producer<Api::SendOptions> ComposeControls::sendRequests() const {
+	return sendContentRequests(SendRequestType::Text);
 }
 
 rpl::producer<VoiceToSend> ComposeControls::sendVoiceRequests() const {
@@ -971,6 +978,12 @@ void ComposeControls::init() {
 	_header->visibleChanged(
 	) | rpl::start_with_next([=] {
 		updateHeight();
+	}, _wrap->lifetime());
+
+	sendContentRequests(
+		SendRequestType::Voice
+	) | rpl::start_with_next([=](Api::SendOptions options) {
+		_voiceRecordBar->requestToSendWithOptions(options);
 	}, _wrap->lifetime());
 
 	{
