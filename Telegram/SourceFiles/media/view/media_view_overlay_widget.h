@@ -208,9 +208,13 @@ private:
 	void assignMediaPointer(not_null<PhotoData*> photo);
 
 	void updateOver(QPoint mpos);
-	void moveToScreen(bool force = false);
+	void moveToScreen();
 	bool moveToNext(int delta);
 	void preloadData(int delta);
+
+	void updateGeometry(const QRect &rect);
+	void handleVisibleChanged(bool visible);
+	void handleScreenChanged(QScreen *screen);
 
 	bool contentCanBeSaved() const;
 	void checkForSaveLoaded();
