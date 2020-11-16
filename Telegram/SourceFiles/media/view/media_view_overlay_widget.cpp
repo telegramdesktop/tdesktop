@@ -432,7 +432,9 @@ void OverlayWidget::moveToScreen(bool force) {
 	if (activeWindowScreen && myScreen && myScreen != activeWindowScreen) {
 		windowHandle()->setScreen(activeWindowScreen);
 	}
-	const auto screen = widgetScreen(this);
+	const auto screen = activeWindowScreen
+		? activeWindowScreen
+		: QApplication::primaryScreen();
 	const auto available = screen->geometry();
 	if (!force && geometry() == available) {
 		return;
