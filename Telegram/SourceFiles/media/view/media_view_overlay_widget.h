@@ -274,8 +274,11 @@ private:
 	void dropdownHidden();
 	void updateDocSize();
 	void updateControls();
-	void updateActions();
 	void updateControlsGeometry();
+
+	using MenuCallback = Fn<void(const QString &, Fn<void()>)>;
+	void fillContextMenuActions(const MenuCallback &addAction);
+
 	void resizeCenteredControls();
 	void resizeContentByScreenSize();
 
@@ -500,12 +503,6 @@ private:
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	object_ptr<Ui::DropdownMenu> _dropdown;
 	base::Timer _dropdownShowTimer;
-
-	struct ActionData {
-		QString text;
-		const char *member;
-	};
-	QList<ActionData> _actions;
 
 	bool _receiveMouse = true;
 
