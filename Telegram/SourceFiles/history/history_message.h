@@ -236,6 +236,8 @@ private:
 		const TextWithEntities &textWithEntities) const;
 	void reapplyText();
 
+	[[nodiscard]] bool checkRepliesPts(const MTPMessageReplies &data) const;
+
 	QString _timeText;
 	int _timeWidth = 0;
 

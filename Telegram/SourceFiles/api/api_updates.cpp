@@ -791,6 +791,10 @@ void Updates::mtpUpdateReceived(const MTPUpdates &updates) {
 	}
 }
 
+int32 Updates::pts() const {
+	return _ptsWaiter.current();
+}
+
 void Updates::updateOnline() {
 	updateOnline(false);
 }

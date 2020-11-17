@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h" // AddTimestampLinks.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "main/main_session.h"
+#include "api/api_updates.h"
 #include "boxes/share_box.h"
 #include "boxes/confirm_box.h"
 #include "ui/toast/toast.h"
@@ -1083,6 +1084,17 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	_fromNameVersion = from ? from->nameVersion : 1;
 }
 
+bool HistoryMessage::checkRepliesPts(const MTPMessageReplies &data) const {
+	const auto channel = history()->peer->asChannel();
+	const auto pts = channel
+		? channel->pts()
+		: history()->session().updates().pts();
+	const auto repliesPts = data.match([&](const MTPDmessageReplies &data) {
+		return data.vreplies_pts().v;
+	});
+	return (repliesPts >= pts);
+}
+
 void HistoryMessage::setupForwardedComponent(const CreateConfig &config) {
 	const auto forwarded = Get<HistoryMessageForwarded>();
 	if (!forwarded) {
@@ -1317,7 +1329,9 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 	setForwardsCount(message.vforwards().value_or(-1));
 	setText(_media ? textWithEntities : EnsureNonEmpty(textWithEntities));
 	if (const auto replies = message.vreplies()) {
-		setReplies(*replies);
+		if (checkRepliesPts(*replies)) {
+			setReplies(*replies);
+		}
 	} else {
 		clearReplies();
 	}
