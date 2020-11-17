@@ -322,8 +322,7 @@ OverlayWidget::OverlayWidget()
 , _radial([=](crl::time now) { return radialAnimationCallback(now); })
 , _lastAction(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction)
 , _stateAnimation([=](crl::time now) { return stateAnimationCallback(now); })
-, _dropdown(this, st::mediaviewDropdownMenu)
-, _dropdownShowTimer(this) {
+, _dropdown(this, st::mediaviewDropdownMenu) {
 	Lang::Updated(
 	) | rpl::start_with_next([=] {
 		refreshLang();
@@ -410,23 +409,19 @@ OverlayWidget::OverlayWidget()
 		}
 	}, lifetime());
 
-	_saveMsgUpdater.setSingleShot(true);
-	connect(&_saveMsgUpdater, SIGNAL(timeout()), this, SLOT(updateImage()));
+	_saveMsgUpdater.setCallback([=] { updateImage(); });
 
 	setAttribute(Qt::WA_AcceptTouchEvents);
-	_touchTimer.setSingleShot(true);
-	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
+	_touchTimer.setCallback([=] { onTouchTimer(); });
 
-	_controlsHideTimer.setSingleShot(true);
-	connect(&_controlsHideTimer, SIGNAL(timeout()), this, SLOT(onHideControls()));
+	_controlsHideTimer.setCallback([=] { onHideControls(); });
 
 	_docDownload->addClickHandler([=] { onDownload(); });
 	_docSaveAs->addClickHandler([=] { onSaveAs(); });
 	_docCancel->addClickHandler([=] { onSaveCancel(); });
 
 	_dropdown->setHiddenCallback([this] { dropdownHidden(); });
-	_dropdownShowTimer->setSingleShot(true);
-	connect(_dropdownShowTimer, SIGNAL(timeout()), this, SLOT(onDropdown()));
+	_dropdownShowTimer.setCallback([=] { onDropdown(); });
 }
 
 void OverlayWidget::refreshLang() {
@@ -1240,7 +1235,7 @@ void OverlayWidget::close() {
 
 void OverlayWidget::activateControls() {
 	if (!_menu && !_mousePressed) {
-		_controlsHideTimer.start(int(st::mediaviewWaitHide));
+		_controlsHideTimer.callOnce(st::mediaviewWaitHide);
 	}
 	if (_fullScreenVideo) {
 		if (_streamed) {
@@ -3113,7 +3108,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 				}
 				if (!_blurred) {
 					auto nextFrame = (dt < st::mediaviewSaveMsgShowing || hidingDt >= 0) ? int(AnimationTimerDelta) : (st::mediaviewSaveMsgShowing + st::mediaviewSaveMsgShown + 1 - dt);
-					_saveMsgUpdater.start(nextFrame);
+					_saveMsgUpdater.callOnce(nextFrame);
 				}
 			} else {
 				_saveMsgStarted = 0;
@@ -3968,9 +3963,9 @@ bool OverlayWidget::updateOverState(OverState newState) {
 	bool result = true;
 	if (_over != newState) {
 		if (newState == OverMore && !_ignoringDropdown) {
-			_dropdownShowTimer->start(0);
+			_dropdownShowTimer.callOnce(0);
 		} else {
-			_dropdownShowTimer->stop();
+			_dropdownShowTimer.cancel();
 		}
 		updateOverRect(_over);
 		updateOverRect(newState);
@@ -4163,7 +4158,7 @@ void OverlayWidget::touchEvent(QTouchEvent *e) {
 	switch (e->type()) {
 	case QEvent::TouchBegin: {
 		if (_touchPress || e->touchPoints().isEmpty()) return;
-		_touchTimer.start(QApplication::startDragTime());
+		_touchTimer.callOnce(QApplication::startDragTime());
 		_touchPress = true;
 		_touchMove = _touchRightButton = false;
 		_touchStart = e->touchPoints().cbegin()->screenPos().toPoint();
@@ -4203,14 +4198,14 @@ void OverlayWidget::touchEvent(QTouchEvent *e) {
 			}
 		}
 		if (weak) {
-			_touchTimer.stop();
+			_touchTimer.cancel();
 			_touchPress = _touchMove = _touchRightButton = false;
 		}
 	} break;
 
 	case QEvent::TouchCancel: {
 		_touchPress = false;
-		_touchTimer.stop();
+		_touchTimer.cancel();
 	} break;
 	}
 }
@@ -4315,7 +4310,7 @@ void OverlayWidget::setVisibleHook(bool visible) {
 		_preloadPhotos.clear();
 		_preloadDocuments.clear();
 		if (_menu) _menu->hideMenu(true);
-		_controlsHideTimer.stop();
+		_controlsHideTimer.cancel();
 		_controlsState = ControlsShown;
 		_controlsOpacity = anim::value(1, 1);
 		_groupThumbs = nullptr;

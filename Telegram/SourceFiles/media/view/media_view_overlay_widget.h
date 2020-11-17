@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "ui/rp_widget.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/animations.h"
@@ -493,13 +494,13 @@ private:
 	};
 	ControlsState _controlsState = ControlsShown;
 	crl::time _controlsAnimStarted = 0;
-	QTimer _controlsHideTimer;
+	base::Timer _controlsHideTimer;
 	anim::value _controlsOpacity;
 	bool _mousePressed = false;
 
 	Ui::PopupMenu *_menu = nullptr;
 	object_ptr<Ui::DropdownMenu> _dropdown;
-	object_ptr<QTimer> _dropdownShowTimer;
+	base::Timer _dropdownShowTimer;
 
 	struct ActionData {
 		QString text;
@@ -512,7 +513,7 @@ private:
 	bool _touchPress = false;
 	bool _touchMove = false;
 	bool _touchRightButton = false;
-	QTimer _touchTimer;
+	base::Timer _touchTimer;
 	QPoint _touchStart;
 	QPoint _accumScroll;
 
@@ -520,7 +521,7 @@ private:
 	crl::time _saveMsgStarted = 0;
 	anim::value _saveMsgOpacity;
 	QRect _saveMsg;
-	QTimer _saveMsgUpdater;
+	base::Timer _saveMsgUpdater;
 	Ui::Text::String _saveMsgText;
 	SavePhotoVideo _savePhotoVideoWhenLoaded = SavePhotoVideo::None;
 
