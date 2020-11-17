@@ -434,6 +434,12 @@ inline bool operator==(
 		&& (a.scroll == b.scroll);
 }
 
+inline bool operator!=(
+		const MessageCursor &a,
+		const MessageCursor &b) {
+	return !(a == b);
+}
+
 class FileClickHandler : public LeftButtonClickHandler {
 public:
 	FileClickHandler(

@@ -89,6 +89,12 @@ std::map<int, const char*> BetaLogs() {
 		2004008,
 		"- Upgrade several third party libraries to latest versions.\n"
 	},
+	{
+		2004010,
+		"- Use inline bots and sticker by emoji suggestions in channel comments.\n"
+
+		"- Lock voice message recording, listen to your voice message before sending.\n"
+	},
 	};
 };
 
