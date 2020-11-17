@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_entity.h"
 #include "ui/text/text_options.h"
 #include "chat_helpers/message_field.h"
@@ -133,29 +134,6 @@ void EditInfoBox::prepare() {
 
 void EditInfoBox::setInnerFocus() {
 	_field->setFocusFast();
-}
-
-QString FormatDateTime(TimeId value) {
-	const auto now = QDateTime::currentDateTime();
-	const auto date = base::unixtime::parse(value);
-	if (date.date() == now.date()) {
-		return tr::lng_mediaview_today(
-			tr::now,
-			lt_time,
-			date.time().toString(cTimeFormat()));
-	} else if (date.date().addDays(1) == now.date()) {
-		return tr::lng_mediaview_yesterday(
-			tr::now,
-			lt_time,
-			date.time().toString(cTimeFormat()));
-	} else {
-		return tr::lng_mediaview_date_time(
-			tr::now,
-			lt_date,
-			date.date().toString(qsl("dd.MM.yy")),
-			lt_time,
-			date.time().toString(cTimeFormat()));
-	}
 }
 
 uint32 OccupationTag() {
@@ -484,7 +462,10 @@ rpl::producer<QString> Helper::infoLabelValue(
 	return infoValue(
 		user
 	) | rpl::map([](const Support::UserInfo &info) {
-		return info.author + ", " + FormatDateTime(info.date);
+		const auto time = Ui::FormatDateTime(
+			base::unixtime::parse(info.date),
+			cTimeFormat());
+		return info.author + ", " + time;
 	});
 }
 

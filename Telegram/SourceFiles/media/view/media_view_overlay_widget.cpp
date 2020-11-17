@@ -606,28 +606,10 @@ void OverlayWidget::updateDocSize() {
 		return;
 	}
 
-	if (_document->loading()) {
-		quint64 ready = _document->loadOffset(), total = _document->size;
-		QString readyStr, totalStr, mb;
-		if (total >= 1024 * 1024) { // more than 1 mb
-			qint64 readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
-			readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
-			totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
-			mb = qsl("MB");
-		} else if (total >= 1024) {
-			qint64 readyKb = (ready / 1024), totalKb = (total / 1024);
-			readyStr = QString::number(readyKb);
-			totalStr = QString::number(totalKb);
-			mb = qsl("KB");
-		} else {
-			readyStr = QString::number(ready);
-			totalStr = QString::number(total);
-			mb = qsl("B");
-		}
-		_docSize = tr::lng_media_save_progress(tr::now, lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
-	} else {
-		_docSize = Ui::FormatSizeText(_document->size);
-	}
+	const auto size = _document->size;
+	_docSize = _document->loading()
+		? Ui::FormatProgressText(_document->loadOffset(), size)
+		: Ui::FormatSizeText(size);
 	_docSizeWidth = st::mediaviewFont->width(_docSize);
 	int32 maxw = st::mediaviewFileSize.width() - st::mediaviewFileIconSize - st::mediaviewFilePadding * 3;
 	if (_docSizeWidth > maxw) {
@@ -739,13 +721,7 @@ void OverlayWidget::updateControls() {
 		}
 		return dNow;
 	}();
-	if (d.date() == dNow.date()) {
-		_dateText = tr::lng_mediaview_today(tr::now, lt_time, d.time().toString(cTimeFormat()));
-	} else if (d.date().addDays(1) == dNow.date()) {
-		_dateText = tr::lng_mediaview_yesterday(tr::now, lt_time, d.time().toString(cTimeFormat()));
-	} else {
-		_dateText = tr::lng_mediaview_date_time(tr::now, lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(cTimeFormat()));
-	}
+	_dateText = Ui::FormatDateTime(d, cTimeFormat());
 	if (!_fromName.isEmpty()) {
 		_fromNameLabel.setText(st::mediaviewTextStyle, _fromName, Ui::NameTextOptions());
 		_nameNav = myrtlrect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, qMin(_fromNameLabel.maxWidth(), width() / 3), st::mediaviewFont->height);

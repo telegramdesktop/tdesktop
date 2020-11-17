@@ -13,24 +13,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-QString FormatSizeText(qint64 size) {
-	if (size >= 1024 * 1024) { // more than 1 mb
-		qint64 sizeTenthMb = (size * 10 / (1024 * 1024));
-		return QString::number(sizeTenthMb / 10) + '.' + QString::number(sizeTenthMb % 10) + u" MB"_q;
-	}
-	if (size >= 1024) {
-		qint64 sizeTenthKb = (size * 10 / 1024);
-		return QString::number(sizeTenthKb / 10) + '.' + QString::number(sizeTenthKb % 10) + u" KB"_q;
-	}
-	return QString::number(size) + u" B"_q;
-}
+namespace {
 
-QString FormatDownloadText(qint64 ready, qint64 total) {
+QString FormatTextWithReadyAndTotal(
+		tr::phrase<lngtag_ready, lngtag_total, lngtag_mb> phrase,
+		qint64 ready,
+		qint64 total) {
 	QString readyStr, totalStr, mb;
 	if (total >= 1024 * 1024) { // more than 1 mb
-		qint64 readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
-		readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
-		totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
+		const qint64 readyTenthMb = (ready * 10 / (1024 * 1024));
+		const qint64 totalTenthMb = (total * 10 / (1024 * 1024));
+		readyStr = QString::number(readyTenthMb / 10)
+			+ '.'
+			+ QString::number(readyTenthMb % 10);
+		totalStr = QString::number(totalTenthMb / 10)
+			+ '.'
+			+ QString::number(totalTenthMb % 10);
 		mb = u"MB"_q;
 	} else if (total >= 1024) {
 		qint64 readyKb = (ready / 1024), totalKb = (total / 1024);
@@ -42,7 +40,61 @@ QString FormatDownloadText(qint64 ready, qint64 total) {
 		totalStr = QString::number(total);
 		mb = u"B"_q;
 	}
-	return tr::lng_save_downloaded(tr::now, lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
+	return phrase(tr::now, lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
+}
+
+} // namespace
+
+QString FormatSizeText(qint64 size) {
+	if (size >= 1024 * 1024) { // more than 1 mb
+		const qint64 sizeTenthMb = (size * 10 / (1024 * 1024));
+		return QString::number(sizeTenthMb / 10)
+			+ '.'
+			+ QString::number(sizeTenthMb % 10) + u" MB"_q;
+	}
+	if (size >= 1024) {
+		const qint64 sizeTenthKb = (size * 10 / 1024);
+		return QString::number(sizeTenthKb / 10)
+			+ '.'
+			+ QString::number(sizeTenthKb % 10) + u" KB"_q;
+	}
+	return QString::number(size) + u" B"_q;
+}
+
+QString FormatDownloadText(qint64 ready, qint64 total) {
+	return FormatTextWithReadyAndTotal(
+		tr::lng_save_downloaded,
+		ready,
+		total);
+}
+
+QString FormatProgressText(qint64 ready, qint64 total) {
+	return FormatTextWithReadyAndTotal(
+		tr::lng_media_save_progress,
+		ready,
+		total);
+}
+
+QString FormatDateTime(QDateTime date, QString format) {
+	const auto now = QDateTime::currentDateTime();
+	if (date.date() == now.date()) {
+		return tr::lng_mediaview_today(
+			tr::now,
+			lt_time,
+			date.time().toString(format));
+	} else if (date.date().addDays(1) == now.date()) {
+		return tr::lng_mediaview_yesterday(
+			tr::now,
+			lt_time,
+			date.time().toString(format));
+	} else {
+		return tr::lng_mediaview_date_time(
+			tr::now,
+			lt_date,
+			date.date().toString(u"dd.MM.yy"_q),
+			lt_time,
+			date.time().toString(format));
+	}
 }
 
 QString FormatDurationText(qint64 duration) {
