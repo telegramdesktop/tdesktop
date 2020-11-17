@@ -128,7 +128,6 @@ private slots:
 	void onDelete();
 	void onOverview();
 	void onCopy();
-	void onMenuDestroy(QObject *obj);
 	void receiveMouse();
 	void onPhotoAttachedStickers();
 	void onDocumentAttachedStickers();
@@ -498,7 +497,7 @@ private:
 	anim::value _controlsOpacity;
 	bool _mousePressed = false;
 
-	Ui::PopupMenu *_menu = nullptr;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 	object_ptr<Ui::DropdownMenu> _dropdown;
 	base::Timer _dropdownShowTimer;
 

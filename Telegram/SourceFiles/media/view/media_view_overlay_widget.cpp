@@ -1162,8 +1162,6 @@ void OverlayWidget::clearSession() {
 		_animationOpacities.clear();
 	}
 	clearStreaming();
-	delete _menu;
-	_menu = nullptr;
 	setContext(v::null);
 	_from = nullptr;
 	_fromName = QString();
@@ -1620,7 +1618,9 @@ void OverlayWidget::onDelete() {
 }
 
 void OverlayWidget::onOverview() {
-	if (_menu) _menu->hideMenu(true);
+	if (_menu) {
+		_menu->hideMenu(true);
+	}
 	update();
 	if (const auto overviewType = computeOverviewType()) {
 		close();
@@ -3858,7 +3858,9 @@ void OverlayWidget::preloadData(int delta) {
 
 void OverlayWidget::mousePressEvent(QMouseEvent *e) {
 	updateOver(e->pos());
-	if (_menu || !_receiveMouse) return;
+	if (_menu || !_receiveMouse) {
+		return;
+	}
 
 	ClickHandler::pressed();
 
@@ -4138,16 +4140,18 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 
 void OverlayWidget::contextMenuEvent(QContextMenuEvent *e) {
 	if (e->reason() != QContextMenuEvent::Mouse || QRect(_x, _y, _w, _h).contains(e->pos())) {
-		if (_menu) {
-			_menu->deleteLater();
-			_menu = nullptr;
-		}
-		_menu = new Ui::PopupMenu(this, st::mediaviewPopupMenu);
+		_menu = base::make_unique_q<Ui::PopupMenu>(
+			this,
+			st::mediaviewPopupMenu);
 		updateActions();
 		for_const (auto &action, _actions) {
 			_menu->addAction(action.text, this, action.member);
 		}
-		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
+		_menu->setDestroyedCallback(crl::guard(this, [=] {
+			activateControls();
+			_receiveMouse = false;
+			InvokeQueued(this, [=] { receiveMouse(); });
+		}));
 		_menu->popup(e->globalPos());
 		e->accept();
 		activateControls();
@@ -4309,7 +4313,9 @@ void OverlayWidget::setVisibleHook(bool visible) {
 		assignMediaPointer(nullptr);
 		_preloadPhotos.clear();
 		_preloadDocuments.clear();
-		if (_menu) _menu->hideMenu(true);
+		if (_menu) {
+			_menu->hideMenu(true);
+		}
 		_controlsHideTimer.cancel();
 		_controlsState = ControlsShown;
 		_controlsOpacity = anim::value(1, 1);
@@ -4331,15 +4337,6 @@ void OverlayWidget::setVisibleHook(bool visible) {
 		_themeCancel.destroyDelayed();
 		_themeShare.destroyDelayed();
 	}
-}
-
-void OverlayWidget::onMenuDestroy(QObject *obj) {
-	if (_menu == obj) {
-		_menu = nullptr;
-		activateControls();
-	}
-	_receiveMouse = false;
-	InvokeQueued(this, [=] { receiveMouse(); });
 }
 
 void OverlayWidget::receiveMouse() {
