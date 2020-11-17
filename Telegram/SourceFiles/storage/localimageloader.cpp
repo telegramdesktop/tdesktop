@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "base/unixtime.h"
+#include "base/qt_adapters.h"
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "mtproto/facade.h"
@@ -33,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QBuffer>
 #include <QtGui/QImageWriter>
-#include <QtGui/QColorSpace>
 
 namespace {
 
@@ -882,8 +882,7 @@ void FileLoadTask::process(Args &&args) {
 					// We have an example of dark .png image that when being sent without
 					// removing its color space is displayed fine on tdesktop, but with
 					// a light gray background on mobile apps.
-					full.setColorSpace(QColorSpace());
-
+					base::QClearColorSpace(full);
 					QBuffer buffer(&filedata);
 					QImageWriter writer(&buffer, "JPEG");
 					writer.setQuality(87);
