@@ -4099,7 +4099,7 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 	} else if (_over == OverIcon && _down == OverIcon) {
 		onDocClick();
 	} else if (_over == OverMore && _down == OverMore) {
-		QTimer::singleShot(0, this, SLOT(onDropdown()));
+		InvokeQueued(this, [=] { onDropdown(); });
 	} else if (_over == OverClose && _down == OverClose) {
 		close();
 	} else if (_over == OverVideo && _down == OverVideo) {
@@ -4339,7 +4339,7 @@ void OverlayWidget::onMenuDestroy(QObject *obj) {
 		activateControls();
 	}
 	_receiveMouse = false;
-	QTimer::singleShot(0, this, SLOT(receiveMouse()));
+	InvokeQueued(this, [=] { receiveMouse(); });
 }
 
 void OverlayWidget::receiveMouse() {
