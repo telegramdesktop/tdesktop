@@ -441,7 +441,12 @@ void OverlayWidget::moveToScreen() {
 		: nullptr;
 	const auto activeWindowScreen = widgetScreen(window);
 	const auto myScreen = widgetScreen(this);
-	if (activeWindowScreen && myScreen && myScreen != activeWindowScreen) {
+	// Wayland doesn't support positioning, but Qt emits screenChanged anyway
+	// and geometry of the widget become broken
+	if (activeWindowScreen
+		&& myScreen
+		&& myScreen != activeWindowScreen
+		&& !Platform::IsWayland()) {
 		windowHandle()->setScreen(activeWindowScreen);
 	}
 }
