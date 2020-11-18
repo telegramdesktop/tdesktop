@@ -1218,19 +1218,14 @@ void VoiceRecordBar::startRecording() {
 			return;
 		}
 
-		const auto shown = _recordingLifetime.make_state<bool>(false);
+		_lockShowing = true;
+		startRedCircleAnimation();
 
 		_recording = true;
 		_controller->widget()->setInnerFocus();
 		instance()->start();
 		instance()->updated(
 		) | rpl::start_with_next_error([=](const Update &update) {
-			if (!(*shown) && !_showAnimation.animating()) {
-				// Show the lock widget after the first successful update.
-				*shown = true;
-				_lockShowing = true;
-				startRedCircleAnimation();
-			}
 			recordUpdated(update.level, update.samples);
 		}, [=] {
 			stop(false);
