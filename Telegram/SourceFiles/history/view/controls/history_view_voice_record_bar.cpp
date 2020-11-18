@@ -1280,6 +1280,9 @@ void VoiceRecordBar::recordUpdated(quint16 level, int samples) {
 }
 
 void VoiceRecordBar::stop(bool send) {
+	if (isHidden() && !send) {
+		return;
+	}
 	auto disappearanceCallback = [=] {
 		hide();
 
