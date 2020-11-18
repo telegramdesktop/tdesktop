@@ -22,6 +22,13 @@ public:
 		rpl::producer<> leaveWindowEventProducer);
 	~VoiceRecordButton();
 
+	enum class Type {
+		Send,
+		Record,
+	};
+
+	void setType(Type state);
+
 	void requestPaintColor(float64 progress);
 	void requestPaintProgress(float64 progress);
 	void requestPaintLevel(quint16 level);
@@ -41,6 +48,7 @@ private:
 	rpl::variable<float64> _showProgress = 0.;
 	rpl::variable<float64> _colorProgress = 0.;
 	rpl::variable<bool> _inCircle = false;
+	rpl::variable<Type> _state = Type::Record;
 
 	// This can animate for a very long time (like in music playing),
 	// so it should be a Basic, not a Simple animation.

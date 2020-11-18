@@ -1074,6 +1074,7 @@ void VoiceRecordBar::init() {
 	_lock->locks(
 	) | rpl::start_with_next([=] {
 		installClickOutsideFilter();
+		_level->setType(VoiceRecordButton::Type::Send);
 
 		_level->clicks(
 		) | rpl::start_with_next([=] {
@@ -1102,7 +1103,8 @@ void VoiceRecordBar::init() {
 			TextParseOptions{ TextParseMultiline, 0, 0, direction });
 
 		updateMessageGeometry();
-		update(_messageRect);
+		// Update a whole widget to clear a previous text.
+		update();
 	}, lifetime());
 
 	_send->events(

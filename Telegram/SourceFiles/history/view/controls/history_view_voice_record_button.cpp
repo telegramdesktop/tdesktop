@@ -213,8 +213,6 @@ private:
 	void initEnterIdleAnimation(rpl::producer<crl::time> animationTicked);
 	void initFlingAnimation(rpl::producer<crl::time> animationTicked);
 
-	Ui::Animations::Simple _flingAnimation;
-
 	const std::unique_ptr<CircleBezier> _circleBezier;
 
 	const float _rotationOffset;
@@ -652,6 +650,10 @@ void VoiceRecordButton::requestPaintLevel(quint16 level) {
 void VoiceRecordButton::init() {
 	const auto hasProgress = [](auto value) { return value != 0.; };
 
+	const auto stateChangedAnimation =
+		lifetime().make_state<Ui::Animations::Simple>();
+	const auto currentState = lifetime().make_state<Type>(_state.current());
+
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
 		Painter p(this);
@@ -674,8 +676,29 @@ void VoiceRecordButton::init() {
 		if (!complete) {
 			p.setOpacity(progress);
 		}
-		st::historyRecordVoiceActive.paintInCenter(p, rect());
 
+		// Paint icon.
+		{
+			const auto stateProgress = stateChangedAnimation->value(0.);
+			const auto scale = (std::cos(M_PI * 2 * stateProgress) + 1.) * .5;
+			p.translate(_center, _center);
+			if (scale < 1.) {
+				p.scale(scale, scale);
+			}
+			const auto state = *currentState;
+			const auto icon = (state == Type::Send)
+				? st::historySendIcon
+				: st::historyRecordVoiceActive;
+			const auto position = (state == Type::Send)
+				? st::historyRecordSendIconPosition
+				: QPoint(0, 0);
+			icon.paint(
+				p,
+				-icon.width() / 2 + position.x(),
+				-icon.height() / 2 + position.y(),
+				0,
+				st::historyRecordVoiceFgActiveIcon->c);
+		}
 	}, lifetime());
 
 	rpl::merge(
@@ -689,6 +712,7 @@ void VoiceRecordButton::init() {
 			_recordingAnimation.stop();
 			_showProgress = 0.;
 			_recordCircle->reset();
+			_state = Type::Record;
 		} else {
 			if (!_recordingAnimation.animating()) {
 				_recordingAnimation.start();
@@ -700,6 +724,19 @@ void VoiceRecordButton::init() {
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool active) {
 		setPointerCursor(active);
+	}, lifetime());
+
+	_state.changes(
+	) | rpl::start_with_next([=](Type newState) {
+		const auto to = 1.;
+		auto callback = [=](float64 value) {
+			if (value >= (to * .5)) {
+				*currentState = newState;
+			}
+			update();
+		};
+		const auto duration = st::historyRecordVoiceDuration * 2;
+		stateChangedAnimation->start(std::move(callback), 0., to, duration);
 	}, lifetime());
 }
 
@@ -743,6 +780,10 @@ void VoiceRecordButton::requestPaintProgress(float64 progress) {
 void VoiceRecordButton::requestPaintColor(float64 progress) {
 	_colorProgress = progress;
 	update();
+}
+
+void VoiceRecordButton::setType(Type state) {
+	_state = state;
 }
 
 } // namespace HistoryView::Controls
