@@ -965,9 +965,9 @@ void OverlayWidget::resizeContentByScreenSize() {
 	const auto availableWidth = width();
 	const auto availableHeight = height() - 2 * skipHeight;
 	const auto countZoomFor = [&](int outerw, int outerh) {
-		auto result = float64(outerw) / _w;
-		if (_h * result > outerh) {
-			result = float64(outerh) / _h;
+		auto result = float64(outerw) / _width;
+		if (_height * result > outerh) {
+			result = float64(outerh) / _height;
 		}
 		if (result >= 1.) {
 			result -= 1.;
@@ -976,7 +976,7 @@ void OverlayWidget::resizeContentByScreenSize() {
 		}
 		return result;
 	};
-	if (_w > 0 && _h > 0) {
+	if (_width > 0 && _height > 0) {
 		_zoomToDefault = countZoomFor(availableWidth, availableHeight);
 		_zoomToScreen = countZoomFor(width(), height());
 	} else {
@@ -984,15 +984,15 @@ void OverlayWidget::resizeContentByScreenSize() {
 	}
 	const auto usew = _fullScreenVideo ? width() : availableWidth;
 	const auto useh = _fullScreenVideo ? height() : availableHeight;
-	if ((_w > usew) || (_h > useh) || _fullScreenVideo) {
+	if ((_width > usew) || (_height > useh) || _fullScreenVideo) {
 		const auto use = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 		_zoom = kZoomToScreenLevel;
 		if (use >= 0) {
-			_w = qRound(_w * (use + 1));
-			_h = qRound(_h * (use + 1));
+			_w = qRound(_width * (use + 1));
+			_h = qRound(_height * (use + 1));
 		} else {
-			_w = qRound(_w / (-use + 1));
-			_h = qRound(_h / (-use + 1));
+			_w = qRound(_width / (-use + 1));
+			_h = qRound(_height / (-use + 1));
 		}
 	} else {
 		_zoom = 0;
