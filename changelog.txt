@@ -1,3 +1,10 @@
+2.4.11 beta (19.11.20)
+
+- Improve locked voice message recording.
+- Fix main window closing to tray on Windows.
+- Fix crash in bot command sending.
+- Fix adding additional photos when sending an album to a group with enabled slow mode.
+
 2.4.10 beta (17.11.20)
 
 - Use inline bots and sticker by emoji suggestions in channel comments.

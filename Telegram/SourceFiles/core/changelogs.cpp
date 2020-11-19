@@ -95,6 +95,16 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Lock voice message recording, listen to your voice message before sending.\n"
 	},
+	{
+		2004011,
+		"- Improve locked voice message recording.\n"
+
+		"- Fix main window closing to tray on Windows.\n"
+
+		"- Fix crash in bot command sending.\n"
+
+		"- Fix adding additional photos when sending an album to a group with enabled slow mode.\n"
+	},
 	};
 };
 
