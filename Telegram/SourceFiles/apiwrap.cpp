@@ -5273,6 +5273,11 @@ void ApiWrap::createPoll(
 			MTP_int(action.options.scheduled)
 		)).done([=](const MTPUpdates &result) mutable {
 			applyUpdates(result);
+			_session->changes().historyUpdated(
+				history,
+				(action.options.scheduled
+					? Data::HistoryUpdate::Flag::ScheduledSent
+					: Data::HistoryUpdate::Flag::MessageSent));
 			done();
 			finish();
 		}).fail([=](const RPCError &error) mutable {
