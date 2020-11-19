@@ -152,6 +152,7 @@ public:
 	void setText(const TextWithTags &text);
 	void clear();
 	void hidePanelsAnimated();
+	void clearListenState();
 
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 	[[nodiscard]] bool isLockPresent() const;

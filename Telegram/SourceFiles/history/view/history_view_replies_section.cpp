@@ -890,6 +890,7 @@ void RepliesWidget::sendVoice(ComposeControls::VoiceToSend &&data) {
 		std::move(action));
 
 	_composeControls->cancelReplyMessage();
+	_composeControls->clearListenState();
 	finishSending();
 }
 

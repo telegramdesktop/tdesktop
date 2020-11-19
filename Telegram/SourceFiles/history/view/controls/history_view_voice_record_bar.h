@@ -49,7 +49,9 @@ public:
 
 	void startRecording();
 	void finishAnimating();
+	void hideAnimated();
 	void hideFast();
+	void clearListenState();
 
 	void orderControls();
 
@@ -102,7 +104,6 @@ private:
 	bool isTypeRecord() const;
 	bool hasDuration() const;
 
-	void hideAnimated();
 	void finish();
 
 	void activeAnimate(bool active);

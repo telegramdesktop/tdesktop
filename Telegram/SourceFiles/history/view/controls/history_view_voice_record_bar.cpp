@@ -1399,7 +1399,6 @@ void VoiceRecordBar::requestToSendWithOptions(Api::SendOptions options) {
 			data->waveform,
 			Duration(data->samples),
 			options });
-		hideAnimated();
 	}
 }
 
@@ -1416,6 +1415,9 @@ bool VoiceRecordBar::isRecording() const {
 }
 
 void VoiceRecordBar::hideAnimated() {
+	if (isHidden()) {
+		return;
+	}
 	visibilityAnimate(false, [=] { hide(); });
 }
 
@@ -1453,6 +1455,12 @@ bool VoiceRecordBar::hasDuration() const {
 
 float64 VoiceRecordBar::activeAnimationRatio() const {
 	return _activeAnimation.value(_inField.current() ? 1. : 0.);
+}
+
+void VoiceRecordBar::clearListenState() {
+	if (isListenState()) {
+		hideAnimated();
+	}
 }
 
 float64 VoiceRecordBar::showAnimationRatio() const {

@@ -1018,6 +1018,10 @@ bool ComposeControls::showRecordButton() const {
 		&& !isEditingMessage();
 }
 
+void ComposeControls::clearListenState() {
+	_voiceRecordBar->clearListenState();
+}
+
 void ComposeControls::drawRestrictedWrite(Painter &p, const QString &error) {
 	p.fillRect(_writeRestricted->rect(), st::historyReplyBg);
 

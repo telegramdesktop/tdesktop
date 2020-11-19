@@ -797,6 +797,7 @@ void HistoryWidget::initVoiceRecordBar() {
 			data.waveform,
 			data.duration,
 			action);
+		_voiceRecordBar->clearListenState();
 	}, lifetime());
 
 	_voiceRecordBar->lockShowStarts(

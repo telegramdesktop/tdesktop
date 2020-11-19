@@ -573,6 +573,7 @@ void ScheduledWidget::sendVoice(
 	auto action = Api::SendAction(_history);
 	action.options = options;
 	session().api().sendVoiceMessage(bytes, waveform, duration, action);
+	_composeControls->clearListenState();
 }
 
 void ScheduledWidget::edit(
