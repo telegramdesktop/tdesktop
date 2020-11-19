@@ -818,8 +818,9 @@ void HistoryService::updateDependentText() {
 
 	setServiceText(text);
 	history()->owner().requestItemResize(this);
-	if (history()->textCachedFor == this) {
-		history()->textCachedFor = nullptr;
+	const auto inDialogsHistory = history()->migrateToOrMe();
+	if (inDialogsHistory->textCachedFor == this) {
+		inDialogsHistory->textCachedFor = nullptr;
 	}
 	//if (const auto feed = history()->peer->feed()) { // #TODO archive
 	//	if (feed->textCachedFor == this) {
