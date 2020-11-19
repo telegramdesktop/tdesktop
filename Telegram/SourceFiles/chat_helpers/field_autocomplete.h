@@ -33,6 +33,11 @@ class DocumentMedia;
 class CloudImageView;
 } // namespace Data
 
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
+
+
 class FieldAutocomplete final : public Ui::RpWidget {
 public:
 	FieldAutocomplete(
@@ -98,6 +103,7 @@ public:
 	void setModerateKeyActivateCallback(Fn<bool(int)> callback) {
 		_moderateKeyActivateCallback = std::move(callback);
 	}
+	void setSendMenuType(Fn<SendMenu::Type()> &&callback);
 
 	void hideFast();
 

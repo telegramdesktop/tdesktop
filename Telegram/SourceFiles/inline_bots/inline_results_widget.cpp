@@ -237,6 +237,10 @@ void Widget::setResultSelectedCallback(Fn<void(ResultSelected)> callback) {
 	_inner->setResultSelectedCallback(std::move(callback));
 }
 
+void Widget::setSendMenuType(Fn<SendMenu::Type()> &&callback) {
+	_inner->setSendMenuType(std::move(callback));
+}
+
 void Widget::setCurrentDialogsEntryState(Dialogs::EntryState state) {
 	_inner->setCurrentDialogsEntryState(state);
 }

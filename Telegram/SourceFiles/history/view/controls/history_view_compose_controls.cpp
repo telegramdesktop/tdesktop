@@ -1120,6 +1120,8 @@ void ComposeControls::initAutocomplete() {
 		});
 	}, _autocomplete->lifetime());
 
+	_autocomplete->setSendMenuType([=] { return sendMenuType(); });
+
 	//_autocomplete->setModerateKeyActivateCallback([=](int key) {
 	//	return _keyboard->isHidden()
 	//		? false
@@ -2187,6 +2189,7 @@ void ComposeControls::applyInlineBotQuery(
 					InlineBots::ResultSelected result) {
 				_inlineResultChosen.fire_copy(result);
 			});
+			_inlineResults->setSendMenuType([=] { return sendMenuType(); });
 			_inlineResults->requesting(
 			) | rpl::start_with_next([=](bool requesting) {
 				_tabbedSelectorToggle->setLoading(requesting);

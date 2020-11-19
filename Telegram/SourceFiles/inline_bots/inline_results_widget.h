@@ -43,6 +43,10 @@ class Result;
 struct ResultSelected;
 } // namespace InlineBots
 
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
+
 namespace InlineBots {
 namespace Layout {
 
@@ -70,6 +74,7 @@ public:
 	void hideAnimated();
 
 	void setResultSelectedCallback(Fn<void(ResultSelected)> callback);
+	void setSendMenuType(Fn<SendMenu::Type()> &&callback);
 	void setCurrentDialogsEntryState(Dialogs::EntryState state);
 
 	[[nodiscard]] rpl::producer<bool> requesting() const {

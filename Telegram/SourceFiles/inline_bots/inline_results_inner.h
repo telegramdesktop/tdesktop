@@ -40,6 +40,10 @@ class Result;
 struct ResultSelected;
 } // namespace InlineBots
 
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
+
 namespace InlineBots {
 namespace Layout {
 
@@ -87,6 +91,7 @@ public:
 	void setCurrentDialogsEntryState(Dialogs::EntryState state) {
 		_currentDialogsEntryState = state;
 	}
+	void setSendMenuType(Fn<SendMenu::Type()> &&callback);
 
 	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
@@ -179,6 +184,7 @@ private:
 	bool _previewShown = false;
 
 	Fn<void(ResultSelected)> _resultSelectedCallback;
+	Fn<SendMenu::Type()> _sendMenuType;
 
 };
 
