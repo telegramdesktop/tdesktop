@@ -63,7 +63,7 @@ private:
 	Fn<void()> _error;
 
 	struct Private;
-	std::unique_ptr<Private> d;
+	const std::unique_ptr<Private> d;
 	base::Timer _timer;
 	QByteArray _captured;
 
