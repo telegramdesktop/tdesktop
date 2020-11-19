@@ -446,7 +446,7 @@ autoDownloadLimitPadding: margins(22px, 8px, 22px, 8px);
 
 confirmCaptionArea: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 31px, 4px);
-	heightMax: 78px;
+	heightMax: 158px;
 }
 confirmBg: windowBgOver;
 confirmMaxHeight: 245px;
