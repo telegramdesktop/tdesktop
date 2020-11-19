@@ -202,6 +202,7 @@ QIcon TrayIconGen(int counter, bool muted) {
 	QIcon systemIcon;
 
 	static const auto iconSizes = {
+		16,
 		22,
 		24,
 		32,
