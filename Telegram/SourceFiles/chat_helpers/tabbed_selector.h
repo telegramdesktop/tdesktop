@@ -109,7 +109,7 @@ public:
 		_beforeHidingCallback = std::move(callback);
 	}
 
-	void setSendMenuType(Fn<SendMenu::Type()> callback) {
+	void setSendMenuType(Fn<SendMenu::Type()> &&callback) {
 		_sendMenuType = std::move(callback);
 	}
 

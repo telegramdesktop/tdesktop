@@ -377,7 +377,7 @@ void GifsListWidget::fillContextMenu(
 	};
 	SendMenu::FillSendMenu(
 		menu,
-		[&] { return type; },
+		type,
 		SendMenu::DefaultSilentCallback(send),
 		SendMenu::DefaultScheduleCallback(this, type, send));
 

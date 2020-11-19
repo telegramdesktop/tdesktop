@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/controls/history_view_voice_record_bar.h"
-#include "history/view/history_view_schedule_box.h" // HistoryView::PrepareScheduleBox
 #include "history/view/history_view_webpage_preview.h"
 #include "inline_bots/inline_results_widget.h"
 #include "inline_bots/inline_bot_result.h"
@@ -1419,11 +1418,15 @@ void ComposeControls::initSendButton() {
 		cancelInlineBot();
 	}, _send->lifetime());
 
+	const auto send = [=](Api::SendOptions options) {
+		_sendCustomRequests.fire(std::move(options));
+	};
+
 	SendMenu::SetupMenuAndShortcuts(
 		_send.get(),
 		[=] { return sendButtonMenuType(); },
-		[=] { sendSilent(); },
-		[=] { sendScheduled(); });
+		SendMenu::DefaultSilentCallback(send),
+		SendMenu::DefaultScheduleCallback(_wrap.get(), sendMenuType(), send));
 }
 
 void ComposeControls::inlineBotResolveDone(
@@ -2117,22 +2120,6 @@ rpl::producer<bool> ComposeControls::lockShowStarts() const {
 
 bool ComposeControls::isRecording() const {
 	return _voiceRecordBar->isRecording();
-}
-
-void ComposeControls::sendSilent() {
-	_sendCustomRequests.fire({ .silent = true });
-}
-
-void ComposeControls::sendScheduled() {
-	auto callback = [=](Api::SendOptions options) {
-		_sendCustomRequests.fire(std::move(options));
-	};
-	Ui::show(
-		HistoryView::PrepareScheduleBox(
-			_wrap.get(),
-			sendMenuType(),
-			std::move(callback)),
-		Ui::LayerOption::KeepOther);
 }
 
 void ComposeControls::updateInlineBotQuery() {

@@ -301,7 +301,7 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 	};
 	SendMenu::FillSendMenu(
 		_menu,
-		[&] { return type; },
+		type,
 		SendMenu::DefaultSilentCallback(send),
 		SendMenu::DefaultScheduleCallback(this, type, send));
 
