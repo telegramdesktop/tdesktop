@@ -3955,8 +3955,7 @@ void ApiWrap::forwardMessages(
 	histories.readInbox(history);
 
 	const auto anonymousPost = peer->amAnonymous();
-	const auto silentPost = action.options.silent
-		|| (peer->isBroadcast() && _session->data().notifySilentPosts(peer));
+	const auto silentPost = ShouldSendSilent(peer, action.options);
 
 	auto flags = MTPDmessage::Flags(0);
 	auto clientFlags = MTPDmessage_ClientFlags();
@@ -4155,11 +4154,7 @@ void ApiWrap::sendSharedContact(
 		MTP_string(firstName),
 		MTP_string(lastName),
 		MTP_string(vcard));
-	auto options = action.options;
-	if (_session->data().notifySilentPosts(peer)) {
-		options.silent = true;
-	}
-	sendMedia(item, media, options);
+	sendMedia(item, media, action.options);
 
 	_session->data().sendHistoryChangeNotifications();
 	_session->changes().historyUpdated(
@@ -4374,8 +4369,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			flags |= MTPDmessage::Flag::f_media;
 		}
 		const auto anonymousPost = peer->amAnonymous();
-		const auto silentPost = action.options.silent
-			|| (peer->isBroadcast() && _session->data().notifySilentPosts(peer));
+		const auto silentPost = ShouldSendSilent(peer, action.options);
 		FillMessagePostFlags(action, peer, flags);
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_silent;
@@ -4516,8 +4510,7 @@ void ApiWrap::sendInlineResult(
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;
 	}
 	const auto anonymousPost = peer->amAnonymous();
-	const auto silentPost = action.options.silent
-		|| (peer->isBroadcast() && _session->data().notifySilentPosts(peer));
+	const auto silentPost = ShouldSendSilent(peer, action.options);
 	FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_silent;
@@ -4683,7 +4676,7 @@ void ApiWrap::sendMediaWithRandomId(
 		| (replyTo
 			? MTPmessages_SendMedia::Flag::f_reply_to_msg_id
 			: MTPmessages_SendMedia::Flag(0))
-		| (options.silent
+		| (ShouldSendSilent(history->peer, options)
 			? MTPmessages_SendMedia::Flag::f_silent
 			: MTPmessages_SendMedia::Flag(0))
 		| (!sentEntities.v.isEmpty()
@@ -4790,7 +4783,7 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		| (replyTo
 			? MTPmessages_SendMultiMedia::Flag::f_reply_to_msg_id
 			: MTPmessages_SendMultiMedia::Flag(0))
-		| (album->options.silent
+		| (ShouldSendSilent(history->peer, album->options)
 			? MTPmessages_SendMultiMedia::Flag::f_silent
 			: MTPmessages_SendMultiMedia::Flag(0))
 		| (album->options.scheduled
@@ -4828,10 +4821,6 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 
 FileLoadTo ApiWrap::fileLoadTaskOptions(const SendAction &action) const {
 	const auto peer = action.history->peer;
-	auto options = action.options;
-	if (_session->data().notifySilentPosts(peer)) {
-		options.silent = true;
-	}
 	return FileLoadTo(peer->id, action.options, action.replyTo);
 }
 
@@ -5261,8 +5250,7 @@ void ApiWrap::createPoll(
 		history->clearLocalDraft();
 		history->clearCloudDraft();
 	}
-	const auto silentPost = action.options.silent
-		|| (peer->isBroadcast() && _session->data().notifySilentPosts(peer));
+	const auto silentPost = ShouldSendSilent(peer, action.options);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}

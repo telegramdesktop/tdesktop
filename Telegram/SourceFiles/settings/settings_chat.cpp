@@ -1419,6 +1419,20 @@ void SetupSupport(
 		controller->session().saveSettingsDelayed();
 	}, inner->lifetime());
 
+	inner->add(
+		object_ptr<Ui::Checkbox>(
+			inner,
+			"Send all messages without sound",
+			controller->session().settings().supportAllSilent(),
+			st::settingsCheckbox),
+		st::settingsSendTypePadding
+	)->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
+		controller->session().settings().setSupportAllSilent(
+			checked);
+		controller->session().saveSettingsDelayed();
+	}, inner->lifetime());
+
 	AddSkip(inner, st::settingsCheckboxesSkip);
 
 	AddSubsectionTitle(inner, rpl::single(qsl("Load chats for a period")));

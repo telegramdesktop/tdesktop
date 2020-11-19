@@ -158,11 +158,15 @@ ApplicationDelegate *_sharedDelegate = nil;
 	if (!Core::IsAppLaunched()) {
 		return;
 	}
-	Core::App().checkLocalTime();
+	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+		Core::App().checkLocalTime();
 
-	LOG(("Audio Info: "
-		"-receiveWakeNote: received, scheduling detach from audio device"));
-	Media::Audio::ScheduleDetachFromDeviceSafe();
+		LOG(("Audio Info: "
+			"-receiveWakeNote: received, scheduling detach from audio device"));
+		Media::Audio::ScheduleDetachFromDeviceSafe();
+
+		Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
+	});
 }
 
 - (void) setWatchingMediaKeys:(bool)watching {
