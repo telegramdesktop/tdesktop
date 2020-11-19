@@ -4295,8 +4295,31 @@ bool OverlayWidget::eventFilter(QObject *obj, QEvent *e) {
 	return OverlayParent::eventFilter(obj, e);
 }
 
+void OverlayWidget::applyHideWindowWorkaround() {
+#ifdef USE_OPENGL_OVERLAY_WIDGET
+	// QOpenGLWidget can't properly destroy a child widget if
+	// it is hidden exactly after that, so it must be repainted
+	// before it is hidden without the child widget.
+	if (!isHidden()) {
+		_dropdown->hideFast();
+		hideChildren();
+		_wasRepainted = false;
+		repaint();
+		if (!_wasRepainted) {
+			// Qt has some optimization to prevent too frequent repaints.
+			// If the previous repaint was less than 1/60 second it silently
+			// converts repaint() call to an update() call. But we have to
+			// repaint right now, before hide(), with _streamingControls destroyed.
+			auto event = QEvent(QEvent::UpdateRequest);
+			QApplication::sendEvent(this, &event);
+		}
+	}
+#endif // USE_OPENGL_OVERLAY_WIDGET
+}
+
 void OverlayWidget::setVisibleHook(bool visible) {
 	if (!visible) {
+		applyHideWindowWorkaround();
 		_sharedMedia = nullptr;
 		_sharedMediaData = std::nullopt;
 		_sharedMediaDataKey = std::nullopt;
@@ -4313,25 +4336,6 @@ void OverlayWidget::setVisibleHook(bool visible) {
 		_controlsOpacity = anim::value(1, 1);
 		_groupThumbs = nullptr;
 		_groupThumbsRect = QRect();
-#ifdef USE_OPENGL_OVERLAY_WIDGET
-		// QOpenGLWidget can't properly destroy a child widget if
-		// it is hidden exactly after that, so it must be repainted
-		// before it is hidden without the child widget.
-		if (!isHidden()) {
-			_dropdown->hideFast();
-			hideChildren();
-			_wasRepainted = false;
-			repaint();
-			if (!_wasRepainted) {
-				// Qt has some optimization to prevent too frequent repaints.
-				// If the previous repaint was less than 1/60 second it silently
-				// converts repaint() call to an update() call. But we have to
-				// repaint right now, before hide(), with _streamingControls destroyed.
-				auto event = QEvent(QEvent::UpdateRequest);
-				QApplication::sendEvent(this, &event);
-			}
-		}
-#endif // USE_OPENGL_OVERLAY_WIDGET
 	}
 	OverlayParent::setVisibleHook(visible);
 	if (visible) {

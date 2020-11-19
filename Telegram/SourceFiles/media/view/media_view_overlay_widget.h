@@ -372,6 +372,8 @@ private:
 	void clearStreaming(bool savePosition = true);
 	bool canInitStreaming() const;
 
+	void applyHideWindowWorkaround();
+
 	QBrush _transparentBrush;
 
 	Main::Session *_session = nullptr;
