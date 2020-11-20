@@ -245,6 +245,8 @@ Image ParseMaxImage(
 		size.match([](const MTPDphotoSizeEmpty &) {
 		}, [](const MTPDphotoStrippedSize &) {
 			// Max image size should not be a stripped image.
+		}, [](const MTPDphotoPathSize &) {
+			// Max image size should not be a path image.
 		}, [&](const auto &data) {
 			const auto area = data.vw().v * int64(data.vh().v);
 			if (area > maxArea) {
@@ -397,6 +399,8 @@ Image ParseDocumentThumb(
 			return 0;
 		}, [](const MTPDphotoStrippedSize &) {
 			return 0;
+		}, [](const MTPDphotoPathSize &) {
+			return 0;
 		}, [](const auto &data) {
 			return data.vw().v * data.vh().v;
 		});
@@ -409,6 +413,8 @@ Image ParseDocumentThumb(
 	return i->match([](const MTPDphotoSizeEmpty &) {
 		return Image();
 	}, [](const MTPDphotoStrippedSize &) {
+		return Image();
+	}, [](const MTPDphotoPathSize &) {
 		return Image();
 	}, [&](const auto &data) {
 		auto result = Image();

@@ -154,6 +154,8 @@ std::vector<UnavailableReason> ExtractUnavailableReasons(
 			return kInvalid;
 		}, [](const MTPDphotoStrippedSize &) {
 			return kInvalid;
+		}, [](const MTPDphotoPathSize &) {
+			return kInvalid;
 		}, [](const auto &data) {
 			return (data.vw().v * data.vh().v);
 		});

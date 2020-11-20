@@ -124,7 +124,7 @@ userStatusLastMonth#77ebc742 = UserStatus;
 chatEmpty#9ba2d800 id:int = Chat;
 chat#3bda1bde flags:# creator:flags.0?true kicked:flags.1?true left:flags.2?true deactivated:flags.5?true id:int title:string photo:ChatPhoto participants_count:int date:int version:int migrated_to:flags.6?InputChannel admin_rights:flags.14?ChatAdminRights default_banned_rights:flags.18?ChatBannedRights = Chat;
 chatForbidden#7328bdb id:int title:string = Chat;
-channel#d31a961e flags:# creator:flags.0?true left:flags.2?true broadcast:flags.5?true verified:flags.7?true megagroup:flags.8?true restricted:flags.9?true signatures:flags.11?true min:flags.12?true scam:flags.19?true has_link:flags.20?true has_geo:flags.21?true slowmode_enabled:flags.22?true id:int access_hash:flags.13?long title:string username:flags.6?string photo:ChatPhoto date:int version:int restriction_reason:flags.9?Vector<RestrictionReason> admin_rights:flags.14?ChatAdminRights banned_rights:flags.15?ChatBannedRights default_banned_rights:flags.18?ChatBannedRights participants_count:flags.17?int = Chat;
+channel#d31a961e flags:# creator:flags.0?true left:flags.2?true broadcast:flags.5?true verified:flags.7?true megagroup:flags.8?true restricted:flags.9?true signatures:flags.11?true min:flags.12?true scam:flags.19?true has_link:flags.20?true has_geo:flags.21?true slowmode_enabled:flags.22?true call_active:flags.23?true id:int access_hash:flags.13?long title:string username:flags.6?string photo:ChatPhoto date:int version:int restriction_reason:flags.9?Vector<RestrictionReason> admin_rights:flags.14?ChatAdminRights banned_rights:flags.15?ChatBannedRights default_banned_rights:flags.18?ChatBannedRights participants_count:flags.17?int = Chat;
 channelForbidden#289da732 flags:# broadcast:flags.5?true megagroup:flags.8?true id:int access_hash:long title:string until_date:flags.16?int = Chat;
 
 chatFull#1b7c9db3 flags:# can_set_username:flags.7?true has_scheduled:flags.8?true id:int about:string participants:ChatParticipants chat_photo:flags.2?Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite bot_info:flags.3?Vector<BotInfo> pinned_msg_id:flags.6?int folder_id:flags.11?int = ChatFull;
@@ -194,6 +194,7 @@ photoSize#77bfb61b type:string location:FileLocation w:int h:int size:int = Phot
 photoCachedSize#e9a734fa type:string location:FileLocation w:int h:int bytes:bytes = PhotoSize;
 photoStrippedSize#e0b0bc2e type:string bytes:bytes = PhotoSize;
 photoSizeProgressive#5aa86a51 type:string location:FileLocation w:int h:int sizes:Vector<int> = PhotoSize;
+photoPathSize#d8214d41 type:string bytes:bytes = PhotoSize;
 
 geoPointEmpty#1117dd5f = GeoPoint;
 geoPoint#b2a2f663 flags:# long:double lat:double access_hash:long accuracy_radius:flags.0?int = GeoPoint;
@@ -902,6 +903,7 @@ account.webAuthorizations#ed56c9fc authorizations:Vector<WebAuthorization> users
 inputMessageID#a676a322 id:int = InputMessage;
 inputMessageReplyTo#bad88395 id:int = InputMessage;
 inputMessagePinned#86872538 = InputMessage;
+inputMessageCallbackQuery#acfa1a7e id:int query_id:long = InputMessage;
 
 inputDialogPeer#fcaafeb7 peer:InputPeer = InputDialogPeer;
 inputDialogPeerFolder#64600527 folder_id:int = InputDialogPeer;
@@ -1547,4 +1549,4 @@ stats.getMegagroupStats#dcdf8607 flags:# dark:flags.0?true channel:InputChannel 
 stats.getMessagePublicForwards#5630281b channel:InputChannel msg_id:int offset_rate:int offset_peer:InputPeer offset_id:int limit:int = messages.Messages;
 stats.getMessageStats#b6e0a3f5 flags:# dark:flags.0?true channel:InputChannel msg_id:int = stats.MessageStats;
 
-// LAYER 120
+// LAYER 121
