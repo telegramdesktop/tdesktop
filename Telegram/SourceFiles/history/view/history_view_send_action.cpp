@@ -100,6 +100,8 @@ bool SendActionPainter::updateNeedsAnimating(
 			|| (i->second.until <= now)) {
 			emplaceAction(Type::PlayGame, kStatusShowClientsidePlayGame);
 		}
+	}, [&](const MTPDspeakingInGroupCallAction &) {
+		// #TODO calls
 	}, [&](const MTPDsendMessageCancelAction &) {
 		Unexpected("CancelAction here.");
 	});

@@ -323,6 +323,12 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	}, [](const MTPDmessageActionSecureValuesSentMe &) {
 		LOG(("API Error: messageActionSecureValuesSentMe received."));
 		return PreparedText{ tr::lng_message_empty(tr::now) };
+	}, [&](const MTPDmessageActionGroupCall &data) {
+		// #TODO calls
+		return PreparedText{ "Group call" };
+	}, [&](const MTPDmessageActionInviteToGroupCall &data) {
+		// #TODO calls
+		return PreparedText{ "Invite to group call" };
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedText{ tr::lng_message_empty(tr::now) };
 	});

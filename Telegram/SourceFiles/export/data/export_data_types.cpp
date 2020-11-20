@@ -1112,6 +1112,10 @@ ServiceAction ParseServiceAction(
 		}
 		content.distance = data.vdistance().v;
 		result.content = content;
+	}, [&](const MTPDmessageActionGroupCall &data) {
+		// #TODO calls
+	}, [&](const MTPDmessageActionInviteToGroupCall &data) {
+		// #TODO calls
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }
