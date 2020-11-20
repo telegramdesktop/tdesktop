@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_pts_waiter.h"
 #include "data/data_location.h"
 
+namespace Data {
+class GroupCall;
+} // namespace Data
+
 struct ChannelLocation {
 	QString address;
 	Data::LocationPoint point;
@@ -393,6 +397,12 @@ public:
 	[[nodiscard]] QString invitePeekHash() const;
 	void privateErrorReceived();
 
+	[[nodiscard]] Data::GroupCall *call() const {
+		return _call.get();
+	}
+	void setCall(const MTPInputGroupCall &call);
+	void clearCall();
+
 	// Still public data members.
 	uint64 access = 0;
 
@@ -438,6 +448,8 @@ private:
 	std::unique_ptr<InvitePeek> _invitePeek;
 	QString _inviteLink;
 	std::optional<ChannelData*> _linkedChat;
+
+	std::unique_ptr<Data::GroupCall> _call;
 
 	int _slowmodeSeconds = 0;
 	TimeId _slowmodeLastMessage = 0;

@@ -86,9 +86,10 @@ struct PeerUpdate {
 		ChannelLinkedChat = (1 << 27),
 		ChannelLocation   = (1 << 28),
 		Slowmode          = (1 << 29),
+		GroupCall         = (1 << 30),
 
 		// For iteration
-		LastUsedBit       = (1 << 29),
+		LastUsedBit       = (1 << 30),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

@@ -68,7 +68,7 @@ public:
 			Ended,
 		};
 		virtual void playSound(Sound sound) = 0;
-		virtual void requestPermissionsOrFail(Fn<void()> onSuccess) = 0;
+		virtual void callRequestPermissionsOrFail(Fn<void()> onSuccess) = 0;
 		virtual auto getVideoCapture()
 			-> std::shared_ptr<tgcalls::VideoCaptureInterface> = 0;
 

@@ -78,6 +78,8 @@ PRIVATE
     ui/chat/attach/attach_single_file_preview.h
     ui/chat/attach/attach_single_media_preview.cpp
     ui/chat/attach/attach_single_media_preview.h
+    ui/chat/group_call_bar.cpp
+    ui/chat/group_call_bar.h
     ui/chat/message_bar.cpp
     ui/chat/message_bar.h
     ui/chat/pinned_bar.cpp

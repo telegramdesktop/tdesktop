@@ -53,6 +53,9 @@ if (NOT DESKTOP_APP_DISABLE_WEBRTC_INTEGRATION)
         VideoCaptureInterfaceImpl.h
         VideoCapturerInterface.h
 
+        group/GroupInstanceImpl.cpp
+        group/GroupInstanceImpl.h
+
         platform/PlatformInterface.h
 
         # Android

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_call.h"
 #include "calls/calls_panel.h"
 #include "data/data_user.h"
+#include "data/data_channel.h"
 #include "data/data_session.h"
 #include "media/audio/media_audio_track.h"
 #include "platform/platform_specific.h"
@@ -39,8 +40,7 @@ Instance::Instance() = default;
 Instance::~Instance() = default;
 
 void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
-	if (alreadyInCall()) { // Already in a call.
-		_currentCallPanel->showAndActivate();
+	if (activateCurrentCall()) {
 		return;
 	}
 	if (user->callsStatus() == UserData::CallsStatus::Private) {
@@ -52,6 +52,26 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 	}
 	requestPermissionsOrFail(crl::guard(this, [=] {
 		createCall(user, Call::Type::Outgoing, video);
+	}));
+}
+
+void Instance::startGroupCall(not_null<ChannelData*> channel) {
+	if (activateCurrentCall()) {
+		return;
+	}
+	requestPermissionsOrFail(crl::guard(this, [=] {
+		createGroupCall(channel, MTP_inputGroupCall(MTPlong(), MTPlong()));
+	}));
+}
+
+void Instance::joinGroupCall(
+		not_null<ChannelData*> channel,
+		const MTPInputGroupCall &call) {
+	if (activateCurrentCall()) {
+		return;
+	}
+	requestPermissionsOrFail(crl::guard(this, [=] {
+		createGroupCall(channel, call);
 	}));
 }
 
@@ -140,6 +160,40 @@ void Instance::createCall(not_null<UserData*> user, Call::Type type, bool video)
 	_currentCallChanges.fire_copy(raw);
 	refreshServerConfig(&user->session());
 	refreshDhConfig();
+}
+
+void Instance::destroyGroupCall(not_null<GroupCall*> call) {
+	if (_currentGroupCall.get() == call) {
+		//_currentCallPanel->closeBeforeDestroy();
+		//_currentCallPanel = nullptr;
+
+		auto taken = base::take(_currentGroupCall);
+		_currentGroupCallChanges.fire(nullptr);
+		taken.reset();
+
+		if (App::quitting()) {
+			LOG(("Calls::Instance doesn't prevent quit any more."));
+		}
+		Core::App().quitPreventFinished();
+	}
+}
+
+void Instance::createGroupCall(
+		not_null<ChannelData*> channel,
+		const MTPInputGroupCall &inputCall) {
+	auto call = std::make_unique<GroupCall>(
+		getGroupCallDelegate(),
+		channel,
+		inputCall);
+	const auto raw = call.get();
+
+	channel->session().account().sessionChanges(
+	) | rpl::start_with_next([=] {
+		destroyGroupCall(raw);
+	}, raw->lifetime());
+
+	_currentGroupCall = std::move(call);
+	_currentGroupCallChanges.fire_copy(raw);
 }
 
 void Instance::refreshDhConfig() {
@@ -232,6 +286,10 @@ void Instance::handleUpdate(
 		handleCallUpdate(session, data.vphone_call());
 	}, [&](const MTPDupdatePhoneCallSignalingData &data) {
 		handleSignalingData(data);
+	}, [&](const MTPDupdateGroupCall &data) {
+		handleGroupCallUpdate(session, data.vcall());
+	}, [&](const MTPDupdateGroupCallParticipants &data) {
+		handleGroupCallUpdate(session, data);
 	}, [](const auto &) {
 		Unexpected("Update type in Calls::Instance::handleUpdate.");
 	});
@@ -267,7 +325,7 @@ void Instance::handleCallUpdate(
 			LOG(("API Error: Self found in phoneCallRequested."));
 		}
 		const auto &config = session->serverConfig();
-		if (alreadyInCall() || !user || user->isSelf()) {
+		if (inCall() || inGroupCall() || !user || user->isSelf()) {
 			const auto flags = phoneCall.is_video()
 				? MTPphone_DiscardCall::Flag::f_video
 				: MTPphone_DiscardCall::Flag(0);
@@ -290,6 +348,19 @@ void Instance::handleCallUpdate(
 	}
 }
 
+void Instance::handleGroupCallUpdate(
+		not_null<Main::Session*> session,
+		const MTPGroupCall &call) {
+	if (_currentGroupCall) {
+		_currentGroupCall->handleUpdate(call);
+	}
+}
+
+void Instance::handleGroupCallUpdate(
+		not_null<Main::Session*> session,
+		const MTPDupdateGroupCallParticipants &update) {
+}
+
 void Instance::handleSignalingData(
 		const MTPDupdatePhoneCallSignalingData &data) {
 	if (!_currentCall || !_currentCall->handleSignalingData(data)) {
@@ -298,8 +369,22 @@ void Instance::handleSignalingData(
 	}
 }
 
-bool Instance::alreadyInCall() {
+bool Instance::inCall() const {
 	return (_currentCall && _currentCall->state() != Call::State::Busy);
+}
+
+bool Instance::inGroupCall() const {
+	return (_currentGroupCall != nullptr);
+}
+
+bool Instance::activateCurrentCall() {
+	if (inCall()) {
+		_currentCallPanel->showAndActivate();
+		return true;
+	} else if (inGroupCall()) {
+		return true;
+	}
+	return false;
 }
 
 Call *Instance::currentCall() const {
@@ -335,8 +420,11 @@ void Instance::requestPermissionOrFail(Platform::PermissionType type, Fn<void()>
 			}
 		}));
 	} else {
-		if (alreadyInCall()) {
+		if (inCall()) {
 			_currentCall->hangup();
+		}
+		if (inGroupCall()) {
+			//_currentGroupCall->hangup(); // #TODO calls
 		}
 		Ui::show(Box<ConfirmBox>(tr::lng_no_mic_permission(tr::now), tr::lng_menu_settings(tr::now), crl::guard(this, [=] {
 			Platform::OpenSystemSettingsForPermission(type);

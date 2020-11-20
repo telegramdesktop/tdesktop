@@ -289,7 +289,7 @@ void Call::startIncoming() {
 }
 
 void Call::answer() {
-	_delegate->requestPermissionsOrFail(crl::guard(this, [=] {
+	_delegate->callRequestPermissionsOrFail(crl::guard(this, [=] {
 		actuallyAnswer();
 	}));
 }
@@ -776,11 +776,11 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		auto callLogPath = callLogFolder + qsl("/last_call_log.txt");
 		auto callLogNative = QDir::toNativeSeparators(callLogPath);
 #ifdef Q_OS_WIN
-		descriptor.config.logPath = callLogNative.toStdWString();
+		descriptor.config.logPath.data = callLogNative.toStdWString();
 #else // Q_OS_WIN
 		const auto callLogUtf = QFile::encodeName(callLogNative);
-		descriptor.config.logPath.resize(callLogUtf.size());
-		ranges::copy(callLogUtf, descriptor.config.logPath.begin());
+		descriptor.config.logPath.data.resize(callLogUtf.size());
+		ranges::copy(callLogUtf, descriptor.config.logPath.data.begin());
 #endif // Q_OS_WIN
 		QFile(callLogPath).remove();
 		QDir().mkpath(callLogFolder);

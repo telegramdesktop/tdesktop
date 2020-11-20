@@ -264,6 +264,8 @@ PRIVATE
     calls/calls_box_controller.h
     calls/calls_call.cpp
     calls/calls_call.h
+    calls/calls_group_call.cpp
+    calls/calls_group_call.h
     calls/calls_emoji_fingerprint.cpp
     calls/calls_emoji_fingerprint.h
     calls/calls_instance.cpp
@@ -385,6 +387,8 @@ PRIVATE
     data/data_file_origin.h
     data/data_flags.h
     data/data_game.h
+    data/data_group_call.cpp
+    data/data_group_call.h
     data/data_groups.cpp
     data/data_groups.h
     data/data_histories.cpp
@@ -536,6 +540,8 @@ PRIVATE
     history/view/history_view_cursor_state.h
     history/view/history_view_element.cpp
     history/view/history_view_element.h
+    history/view/history_view_group_call_tracker.cpp
+    history/view/history_view_group_call_tracker.h
     history/view/history_view_list_widget.cpp
     history/view/history_view_list_widget.h
     history/view/history_view_message.cpp

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_location.h"
 #include "data/data_histories.h"
+#include "data/data_group_call.h"
 #include "base/unixtime.h"
 #include "history/history.h"
 #include "main/main_session.h"
@@ -671,6 +672,32 @@ void ChannelData::privateErrorReceived() {
 	}
 }
 
+void ChannelData::setCall(const MTPInputGroupCall &call) {
+	call.match([&](const MTPDinputGroupCall &data) {
+		if (_call && _call->id() == data.vid().v) {
+			return;
+		} else if (!_call && !data.vid().v) {
+			return;
+		} else if (!data.vid().v) {
+			clearCall();
+			return;
+		}
+		_call = std::make_unique<Data::GroupCall>(
+			this,
+			data.vid().v,
+			data.vaccess_hash().v);
+		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
+	});
+}
+
+void ChannelData::clearCall() {
+	if (!_call) {
+		return;
+	}
+	_call = nullptr;
+	session().changes().peerUpdated(this, UpdateFlag::GroupCall);
+}
+
 namespace Data {
 
 void ApplyMigration(
@@ -701,6 +728,12 @@ void ApplyChannelUpdate(
 	auto canViewAdmins = channel->canViewAdmins();
 	auto canViewMembers = channel->canViewMembers();
 	auto canEditStickers = channel->canEditStickers();
+
+	if (const auto call = update.vcall()) {
+		channel->setCall(*call);
+	} else {
+		channel->clearCall();
+	}
 
 	channel->setFullFlags(update.vflags().v);
 	channel->setUserpicPhoto(update.vchat_photo());

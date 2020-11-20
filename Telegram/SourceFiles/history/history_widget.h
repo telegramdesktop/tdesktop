@@ -61,6 +61,7 @@ class FlatButton;
 class LinkButton;
 class RoundButton;
 class PinnedBar;
+class GroupCallBar;
 struct PreparedList;
 class SendFilesWay;
 namespace Toast {
@@ -90,6 +91,7 @@ class TopBarWidget;
 class ContactStatus;
 class Element;
 class PinnedTracker;
+class GroupCallTracker;
 namespace Controls {
 class RecordLock;
 class VoiceRecordBar;
@@ -475,6 +477,8 @@ private:
 		int wasScrollTop,
 		int nowScrollTop);
 
+	void setupGroupCallTracker();
+
 	void sendInlineResult(InlineBots::ResultSelected result);
 
 	void drawField(Painter &p, const QRect &rect);
@@ -591,9 +595,14 @@ private:
 	std::unique_ptr<HistoryView::PinnedTracker> _pinnedTracker;
 	std::unique_ptr<Ui::PinnedBar> _pinnedBar;
 	int _pinnedBarHeight = 0;
-	bool _preserveScrollTop = false;
 	FullMsgId _pinnedClickedId;
 	std::optional<FullMsgId> _minPinnedId;
+
+	std::unique_ptr<HistoryView::GroupCallTracker> _groupCallTracker;
+	std::unique_ptr<Ui::GroupCallBar> _groupCallBar;
+	int _groupCallBarHeight = 0;
+
+	bool _preserveScrollTop = false;
 
 	mtpRequestId _saveEditMsgRequestId = 0;
 

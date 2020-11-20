@@ -200,6 +200,8 @@ void TopBarWidget::onCall() {
 	if (const auto peer = _activeChat.key.peer()) {
 		if (const auto user = peer->asUser()) {
 			Core::App().calls().startOutgoingCall(user, false);
+		} else if (const auto megagroup = peer->asMegagroup()) {
+			Core::App().calls().startGroupCall(megagroup);
 		}
 	}
 }
@@ -691,6 +693,8 @@ void TopBarWidget::updateControlsVisibility() {
 			if (const auto user = peer->asUser()) {
 				return session().serverConfig().phoneCallsEnabled.current()
 					&& user->hasCalls();
+			} else if (const auto megagroup = peer->asMegagroup()) {
+				return true;
 			}
 		}
 		return false;
