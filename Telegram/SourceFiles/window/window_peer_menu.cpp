@@ -616,6 +616,11 @@ void Filler::addPollAction(not_null<PeerData*> peer) {
 	const auto source = (_request.section == Section::Scheduled)
 		? Api::SendType::Scheduled
 		: Api::SendType::Normal;
+	const auto sendMenuType = (_request.section == Section::Scheduled)
+		? SendMenu::Type::Disabled
+		: (_request.section == Section::Replies)
+		? SendMenu::Type::SilentOnly
+		: SendMenu::Type::Scheduled;
 	const auto flag = PollData::Flags();
 	const auto replyToId = _request.currentReplyToId
 		? _request.currentReplyToId
@@ -627,7 +632,8 @@ void Filler::addPollAction(not_null<PeerData*> peer) {
 			replyToId,
 			flag,
 			flag,
-			source);
+			source,
+			sendMenuType);
 	};
 	_addAction(tr::lng_polls_create(tr::now), std::move(callback));
 }
@@ -812,7 +818,8 @@ void PeerMenuCreatePoll(
 		MsgId replyToId,
 		PollData::Flags chosen,
 		PollData::Flags disabled,
-		Api::SendType sendType) {
+		Api::SendType sendType,
+		SendMenu::Type sendMenuType) {
 	if (peer->isChannel() && !peer->isMegagroup()) {
 		chosen &= ~PollData::Flag::PublicVotes;
 		disabled |= PollData::Flag::PublicVotes;
@@ -821,7 +828,8 @@ void PeerMenuCreatePoll(
 		controller,
 		chosen,
 		disabled,
-		sendType));
+		sendType,
+		sendMenuType));
 	const auto lock = box->lifetime().make_state<bool>(false);
 	box->submitRequests(
 	) | rpl::start_with_next([=](const CreatePollBox::Result &result) {

@@ -632,7 +632,7 @@ bool RepliesWidget::confirmSendingFiles(
 		text,
 		_history->peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
 		Api::SendType::Normal,
-		SendMenu::Type::Disabled); // #TODO replies schedule
+		SendMenu::Type::SilentOnly); // #TODO replies schedule
 	_composeControls->setText({});
 
 	const auto replyTo = replyToId();

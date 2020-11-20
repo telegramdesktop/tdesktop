@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "chat_helpers/send_context_menu.h"
 #include "data/data_poll.h"
 
 class History;
@@ -69,7 +70,8 @@ void PeerMenuCreatePoll(
 	MsgId replyToId = 0,
 	PollData::Flags chosen = PollData::Flags(),
 	PollData::Flags disabled = PollData::Flags(),
-	Api::SendType sendType = Api::SendType::Normal);
+	Api::SendType sendType = Api::SendType::Normal,
+	SendMenu::Type sendMenuType = SendMenu::Type::Scheduled);
 
 struct ClearChat {
 };
