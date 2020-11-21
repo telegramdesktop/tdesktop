@@ -62,7 +62,7 @@ public:
 
 	static Section DefaultSection(not_null<PeerData*> peer);
 	//static Section DefaultSection(Dialogs::Key key); // #feed
-	static Memento Default(not_null<PeerData*> peer);
+	static std::unique_ptr<Memento> Default(not_null<PeerData*> peer);
 	//static Memento Default(Dialogs::Key key); // #feed
 
 	~Memento();

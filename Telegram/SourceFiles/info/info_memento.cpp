@@ -101,8 +101,8 @@ Section Memento::DefaultSection(not_null<PeerData*> peer) {
 //	return Section(Section::Type::Profile);
 //}
 
-Memento Memento::Default(not_null<PeerData*> peer) {
-	return Memento(peer, DefaultSection(peer));
+std::unique_ptr<Memento> Memento::Default(not_null<PeerData*> peer) {
+	return std::make_unique<Memento>(peer, DefaultSection(peer));
 }
 // // #feed
 //Memento Memento::Default(Dialogs::Key key) {

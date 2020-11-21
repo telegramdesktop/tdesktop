@@ -349,7 +349,7 @@ void Members::showMembersWithSearch(bool withSearch) {
 	auto mementoStack = std::vector<std::unique_ptr<ContentMemento>>();
 	mementoStack.push_back(std::move(contentMemento));
 	_controller->showSection(
-		Info::Memento(std::move(mementoStack)));
+		std::make_unique<Info::Memento>(std::move(mementoStack)));
 }
 
 //void Members::toggleSearch(anim::type animated) {

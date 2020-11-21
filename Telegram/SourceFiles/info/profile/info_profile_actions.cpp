@@ -843,7 +843,7 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 		lt_count_decimal,
 		MembersCountValue(channel) | tr::to_count());
 	auto membersCallback = [=] {
-		controller->showSection(Info::Memento(
+		controller->showSection(std::make_unique<Info::Memento>(
 			channel,
 			Section::Type::Members));
 	};

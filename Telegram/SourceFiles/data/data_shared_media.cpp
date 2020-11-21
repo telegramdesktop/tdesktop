@@ -56,7 +56,7 @@ void SharedMediaShowOverview(
 				return;
 			}
 		}
-		windows.front()->showSection(Info::Memento(
+		windows.front()->showSection(std::make_unique<Info::Memento>(
 			history->peer,
 			Info::Section(type)));
 	}

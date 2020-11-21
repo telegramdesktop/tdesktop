@@ -1000,13 +1000,15 @@ void Controller::fillManageSection() {
 			st::infoIconBlacklist);
 	}
 	if (hasRecentActions) {
+		auto callback = [=] {
+			_navigation->showSection(
+				std::make_unique<AdminLog::SectionMemento>(channel));
+		};
 		AddButtonWithCount(
 			_controls.buttonsLayout,
 			tr::lng_manage_peer_recent_actions(),
 			rpl::single(QString()), //Empty count.
-			[=] {
-				_navigation->showSection(AdminLog::SectionMemento(channel));
-			},
+			std::move(callback),
 			st::infoIconRecentActions);
 	}
 

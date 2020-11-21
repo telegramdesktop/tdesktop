@@ -1736,7 +1736,7 @@ bool ComposeControls::pushTabbedSelectorToThirdSection(
 		&st::historyRecordVoiceRippleBgActive);
 	_window->resizeForThirdSection();
 	_window->showSection(
-		ChatHelpers::TabbedMemento(),
+		std::make_unique<ChatHelpers::TabbedMemento>(),
 		params.withThirdColumn());
 	return true;
 }

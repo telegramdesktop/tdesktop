@@ -493,15 +493,15 @@ void TopBarWidget::infoClicked() {
 	} else if (key.folder()) {
 		_controller->closeFolder();
 	//} else if (const auto feed = _activeChat.feed()) { // #feed
-	//	_controller->showSection(Info::Memento(
+	//	_controller->showSection(std::make_unique<Info::Memento>(
 	//		feed,
 	//		Info::Section(Info::Section::Type::Profile)));
 	} else if (key.peer()->isSelf()) {
-		_controller->showSection(Info::Memento(
+		_controller->showSection(std::make_unique<Info::Memento>(
 			key.peer(),
 			Info::Section(Storage::SharedMediaType::Photo)));
 	} else if (key.peer()->isRepliesChat()) {
-		_controller->showSection(Info::Memento(
+		_controller->showSection(std::make_unique<Info::Memento>(
 			key.peer(),
 			Info::Section(Storage::SharedMediaType::Photo)));
 	} else {

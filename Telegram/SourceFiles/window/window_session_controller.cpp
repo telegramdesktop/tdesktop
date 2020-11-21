@@ -253,12 +253,12 @@ void SessionNavigation::showRepliesForMessage(
 	const auto channelId = history->channelId();
 	//const auto item = _session->data().message(channelId, rootId);
 	//if (!commentId && (!item || !item->repliesAreComments())) {
-	//	showSection(HistoryView::RepliesMemento(history, rootId));
+	//	showSection(std::make_unique<HistoryView::RepliesMemento>(history, rootId));
 	//	return;
 	//} else if (const auto id = item ? item->commentsItemId() : FullMsgId()) {
 	//	if (const auto commentsItem = _session->data().message(id)) {
 	//		showSection(
-	//			HistoryView::RepliesMemento(commentsItem));
+	//			std::make_unique<HistoryView::RepliesMemento>(commentsItem));
 	//		return;
 	//	}
 	//}
@@ -314,8 +314,9 @@ void SessionNavigation::showRepliesForMessage(
 						post->setRepliesOutboxReadTill(readTill->v);
 					}
 				}
-				showSection(
-					HistoryView::RepliesMemento(item, commentId));
+				showSection(std::make_unique<HistoryView::RepliesMemento>(
+					item,
+					commentId));
 			}
 		});
 	}).fail([=](const RPCError &error) {
@@ -341,7 +342,7 @@ void SessionNavigation::showPeerInfo(
 	//	Core::App().settings().setThirdSectionInfoEnabled(true);
 	//	Core::App().saveSettingsDelayed();
 	//}
-	showSection(Info::Memento(peer), params);
+	showSection(std::make_unique<Info::Memento>(peer), params);
 }
 
 void SessionNavigation::showPeerInfo(
@@ -374,7 +375,7 @@ void SessionNavigation::showSettings(
 		Settings::Type type,
 		const SectionShow &params) {
 	showSection(
-		Info::Memento(
+		std::make_unique<Info::Memento>(
 			Info::Settings::Tag{ _session->user() },
 			Info::Section(type)),
 		params);
@@ -388,7 +389,7 @@ void SessionNavigation::showPollResults(
 		not_null<PollData*> poll,
 		FullMsgId contextId,
 		const SectionShow &params) {
-	showSection(Info::Memento(poll, contextId), params);
+	showSection(std::make_unique<Info::Memento>(poll, contextId), params);
 }
 
 SessionController::SessionController(
@@ -639,9 +640,9 @@ bool SessionController::jumpToChatListEntry(Dialogs::RowDescriptor row) {
 		return true;
 	//} else if (const auto feed = row.key.feed()) { // #feed
 	//	if (const auto item = session().data().message(row.fullId)) {
-	//		showSection(HistoryFeed::Memento(feed, item->position()));
+	//		showSection(std::make_unique<HistoryFeed::Memento>(feed, item->position()));
 	//	} else {
-	//		showSection(HistoryFeed::Memento(feed));
+	//		showSection(std::make_unique<HistoryFeed::Memento>(feed));
 	//	}
 	}
 	return false;
@@ -1086,10 +1087,10 @@ void SessionController::showPeerHistory(
 }
 
 void SessionController::showSection(
-		SectionMemento &&memento,
+		std::unique_ptr<SectionMemento> &&memento,
 		const SectionShow &params) {
 	if (!params.thirdColumn && widget()->showSectionInExistingLayer(
-			&memento,
+			memento.get(),
 			params)) {
 		return;
 	}

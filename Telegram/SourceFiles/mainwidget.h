@@ -134,7 +134,7 @@ public:
 
 	int backgroundFromY() const;
 	void showSection(
-		Window::SectionMemento &&memento,
+		std::unique_ptr<Window::SectionMemento> &&memento,
 		const SectionShow &params);
 	void updateColumnLayout();
 	bool stackIsEmpty() const;
@@ -271,7 +271,7 @@ private:
 	Window::SectionSlideParams prepareShowAnimation(
 		bool willHaveTopBarShadow);
 	void showNewSection(
-		Window::SectionMemento &&memento,
+		std::unique_ptr<Window::SectionMemento> &&memento,
 		const SectionShow &params);
 	void dropMainSection(Window::SectionWidget *widget);
 

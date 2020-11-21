@@ -192,8 +192,8 @@ public:
 	StackItemType type() const override {
 		return SectionStackItem;
 	}
-	Window::SectionMemento *memento() const {
-		return _memento.get();
+	std::unique_ptr<Window::SectionMemento> takeMemento() {
+		return std::move(_memento);
 	}
 
 private:
@@ -1599,10 +1599,10 @@ void MainWidget::saveSectionInStack() {
 }
 
 void MainWidget::showSection(
-		Window::SectionMemento &&memento,
+		std::unique_ptr<Window::SectionMemento> &&memento,
 		const SectionShow &params) {
 	if (_mainSection && _mainSection->showInternal(
-			&memento,
+			memento.get(),
 			params)) {
 		if (const auto entry = _mainSection->activeChat(); entry.key) {
 			_controller->setActiveChatEntry(entry);
@@ -1720,7 +1720,7 @@ Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
 }
 
 void MainWidget::showNewSection(
-		Window::SectionMemento &&memento,
+		std::unique_ptr<Window::SectionMemento> &&memento,
 		const SectionShow &params) {
 	using Column = Window::Column;
 
@@ -1732,7 +1732,7 @@ void MainWidget::showNewSection(
 		st::columnMinimalWidthThird,
 		height() - thirdSectionTop);
 	auto newThirdSection = (Adaptive::ThreeColumn() && params.thirdColumn)
-		? memento.createWidget(
+		? memento->createWidget(
 			this,
 			_controller,
 			Column::Third,
@@ -1741,7 +1741,7 @@ void MainWidget::showNewSection(
 	const auto layerRect = parentWidget()->rect();
 	if (newThirdSection) {
 		saveInStack = false;
-	} else if (auto layer = memento.createLayer(_controller, layerRect)) {
+	} else if (auto layer = memento->createLayer(_controller, layerRect)) {
 		if (params.activation != anim::activation::background) {
 			Ui::hideLayer(anim::type::instant);
 		}
@@ -1766,7 +1766,7 @@ void MainWidget::showNewSection(
 		height() - mainSectionTop);
 	auto newMainSection = newThirdSection
 		? nullptr
-		: memento.createWidget(
+		: memento->createWidget(
 			this,
 			_controller,
 			Adaptive::OneColumn() ? Column::First : Column::Second,
@@ -1777,7 +1777,7 @@ void MainWidget::showNewSection(
 		if (_a_show.animating()
 			|| Core::App().passcodeLocked()
 			|| (params.animated == anim::type::instant)
-			|| memento.instant()) {
+			|| memento->instant()) {
 			return false;
 		}
 		if (!Adaptive::OneColumn() && params.way == SectionShow::Way::ClearStack) {
@@ -1908,12 +1908,12 @@ void MainWidget::showBackFromStack(
 	} else if (item->type() == SectionStackItem) {
 		auto sectionItem = static_cast<StackItemSection*>(item.get());
 		showNewSection(
-			std::move(*sectionItem->memento()),
+			sectionItem->takeMemento(),
 			params.withWay(SectionShow::Way::Backward));
 	}
 	if (_thirdSectionFromStack && _thirdSection) {
 		_controller->showSection(
-			std::move(*base::take(_thirdSectionFromStack)),
+			base::take(_thirdSectionFromStack),
 			SectionShow(
 				SectionShow::Way::ClearStack,
 				anim::type::instant,
@@ -2455,7 +2455,7 @@ void MainWidget::updateThirdColumnToCurrentChat(
 		}
 
 		_controller->showSection(
-			std::move(*thirdSectionForCurrentMainSection(key)),
+			thirdSectionForCurrentMainSection(key),
 			params.withThirdColumn());
 	};
 	auto switchTabbedFast = [&](not_null<PeerData*> peer) {
