@@ -1536,9 +1536,10 @@ void VoiceRecordBar::installClickOutsideFilter() {
 		} else if (type == QEvent::ContextMenu || type == QEvent::Shortcut) {
 			return Type::ShowBox;
 		} else if (type == QEvent::MouseButtonPress) {
-			return (noBox && !_inField.current() && !_lock->underMouse())
-				? Type::ShowBox
-				: Type::Continue;
+			return Type::Continue;
+			// return (noBox && !_inField.current() && !_lock->underMouse())
+			// 	? Type::ShowBox
+			// 	: Type::Continue;
 		}
 		return Type::Continue;
 	};
@@ -1607,6 +1608,24 @@ void VoiceRecordBar::installListenStateFilter() {
 
 	_listen->lifetime().make_state<base::unique_qptr<QObject>>(
 		std::move(keyFilter));
+}
+
+void VoiceRecordBar::showDiscardRecordingBox(Fn<void()> &&callback) {
+	if (!isRecording()) {
+		return;
+	}
+	auto sure = [=, callback = std::move(callback)](Fn<void()> &&close) {
+		hideFast();
+		close();
+		if (callback) {
+			callback();
+		}
+	};
+	Ui::show(Box<ConfirmBox>(
+		tr::lng_record_lock_cancel_sure(tr::now),
+		tr::lng_record_lock_discard(tr::now),
+		st::attentionBoxButton,
+		std::move(sure)));
 }
 
 } // namespace HistoryView::Controls

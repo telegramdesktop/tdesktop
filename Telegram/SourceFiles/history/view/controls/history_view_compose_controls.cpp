@@ -2138,6 +2138,14 @@ bool ComposeControls::isRecording() const {
 	return _voiceRecordBar->isRecording();
 }
 
+bool ComposeControls::preventsClose(Fn<void()> &&continueCallback) const {
+	if (isRecording()) {
+		_voiceRecordBar->showDiscardRecordingBox(std::move(continueCallback));
+		return true;
+	}
+	return false;
+}
+
 void ComposeControls::updateInlineBotQuery() {
 	if (!_history) {
 		return;

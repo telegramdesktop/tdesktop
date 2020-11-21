@@ -47,6 +47,8 @@ public:
 		int recorderHeight);
 	~VoiceRecordBar();
 
+	void showDiscardRecordingBox(Fn<void()> &&callback);
+
 	void startRecording();
 	void finishAnimating();
 	void hideAnimated();

@@ -135,6 +135,8 @@ public:
 	[[nodiscard]] bool isEditingMessage() const;
 	[[nodiscard]] FullMsgId replyingToMessage() const;
 
+	[[nodiscard]] bool preventsClose(Fn<void()> &&continueCallback) const;
+
 	void showForGrab();
 	void showStarted();
 	void showFinished();

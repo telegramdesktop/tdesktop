@@ -894,6 +894,10 @@ Dialogs::RowDescriptor ScheduledWidget::activeChat() const {
 	};
 }
 
+bool ScheduledWidget::preventsClose(Fn<void()> &&continueCallback) const {
+	return _composeControls->preventsClose(std::move(continueCallback));
+}
+
 QPixmap ScheduledWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	_topBar->updateControlsVisibility();
 	if (params.withTopBarShadow) _topBarShadow->hide();

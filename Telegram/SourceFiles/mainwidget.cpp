@@ -1403,6 +1403,7 @@ void MainWidget::ui_showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,
 		MsgId showAtMsgId) {
+
 	if (auto peer = session().data().peerLoaded(peerId)) {
 		if (peer->migrateTo()) {
 			peer = peer->migrateTo();
@@ -1420,6 +1421,13 @@ void MainWidget::ui_showPeerHistory(
 	if (IsServerMsgId(showAtMsgId)
 		&& _mainSection
 		&& _mainSection->showMessage(peerId, params, showAtMsgId)) {
+		return;
+	}
+
+	if (!(_history->peer() && _history->peer()->id == peerId)
+		&& preventsCloseSection(
+			[=] { ui_showPeerHistory(peerId, params, showAtMsgId); },
+			params)) {
 		return;
 	}
 
@@ -1618,13 +1626,22 @@ void MainWidget::showSection(
 	//	return;
 	}
 
+	using MementoPtr = std::unique_ptr<Window::SectionMemento>;
+	const auto sharedMemento = std::make_shared<MementoPtr>(
+		std::move(memento));
+	if (preventsCloseSection(
+		[=] { showSection(base::take(*sharedMemento), params); },
+		params)) {
+		return;
+	}
+
 	// If the window was not resized, but we've enabled
 	// tabbedSelectorSectionEnabled or thirdSectionInfoEnabled
 	// we need to update adaptive layout to Adaptive::ThirdColumn().
 	updateColumnLayout();
 
 	showNewSection(
-		std::move(memento),
+		std::move(*sharedMemento),
 		params);
 }
 
@@ -1880,8 +1897,24 @@ bool MainWidget::stackIsEmpty() const {
 	return _stack.empty();
 }
 
+bool MainWidget::preventsCloseSection(
+		Fn<void()> callback,
+		const SectionShow &params) const {
+	if (params.thirdColumn || Core::App().passcodeLocked()) {
+		return false;
+	}
+	auto copy = callback;
+	return (_mainSection && _mainSection->preventsClose(std::move(copy)))
+		|| (_history && _history->preventsClose(std::move(callback)));
+}
+
 void MainWidget::showBackFromStack(
 		const SectionShow &params) {
+
+	if (preventsCloseSection([=] { showBackFromStack(params); }, params)) {
+		return;
+	}
+
 	if (selectingPeer()) {
 		return;
 	}

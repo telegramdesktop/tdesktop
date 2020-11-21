@@ -1315,6 +1315,10 @@ Dialogs::RowDescriptor RepliesWidget::activeChat() const {
 	};
 }
 
+bool RepliesWidget::preventsClose(Fn<void()> &&continueCallback) const {
+	return _composeControls->preventsClose(std::move(continueCallback));
+}
+
 QPixmap RepliesWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	_topBar->updateControlsVisibility();
 	if (params.withTopBarShadow) _topBarShadow->hide();
