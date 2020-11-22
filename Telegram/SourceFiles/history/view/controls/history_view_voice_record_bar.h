@@ -59,6 +59,7 @@ public:
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
 	[[nodiscard]] rpl::producer<bool> recordingStateChanges() const;
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
+	[[nodiscard]] rpl::producer<not_null<QEvent*>> lockViewportEvents() const;
 	[[nodiscard]] rpl::producer<> updateSendButtonTypeRequests() const;
 
 	void requestToSendWithOptions(Api::SendOptions options);

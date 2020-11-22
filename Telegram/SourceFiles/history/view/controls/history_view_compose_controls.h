@@ -120,6 +120,7 @@ public:
 	[[nodiscard]] rpl::producer<not_null<QKeyEvent*>> keyEvents() const;
 	[[nodiscard]] rpl::producer<InlineChosen> inlineResultChosen() const;
 	[[nodiscard]] rpl::producer<SendActionUpdate> sendActionUpdates() const;
+	[[nodiscard]] rpl::producer<not_null<QEvent*>> viewportEvents() const;
 
 	using MimeDataHook = Fn<bool(
 		not_null<const QMimeData*> data,

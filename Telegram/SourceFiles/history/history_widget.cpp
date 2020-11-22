@@ -815,6 +815,11 @@ void HistoryWidget::initVoiceRecordBar() {
 		updateSendButtonType();
 	}, lifetime());
 
+	_voiceRecordBar->lockViewportEvents(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		_scroll->viewportEvent(e);
+	}, lifetime());
+
 	_voiceRecordBar->hideFast();
 }
 

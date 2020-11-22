@@ -1433,6 +1433,13 @@ rpl::producer<bool> VoiceRecordBar::lockShowStarts() const {
 	return _lockShowing.changes();
 }
 
+rpl::producer<not_null<QEvent*>> VoiceRecordBar::lockViewportEvents() const {
+	return _lock->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return e->type() == QEvent::Wheel;
+		});
+}
+
 rpl::producer<> VoiceRecordBar::updateSendButtonTypeRequests() const {
 	return _listenChanges.events();
 }

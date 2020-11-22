@@ -2122,6 +2122,10 @@ rpl::producer<bool> ComposeControls::lockShowStarts() const {
 	return _voiceRecordBar->lockShowStarts();
 }
 
+rpl::producer<not_null<QEvent*>> ComposeControls::viewportEvents() const {
+	return _voiceRecordBar->lockViewportEvents();
+}
+
 bool ComposeControls::isRecording() const {
 	return _voiceRecordBar->isRecording();
 }
