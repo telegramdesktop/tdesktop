@@ -1288,6 +1288,7 @@ void VoiceRecordBar::stop(bool send) {
 }
 
 void VoiceRecordBar::finish() {
+	stopRecording(StopType::Cancel);
 	_recordingLifetime.destroy();
 	_lockShowing = false;
 	_recording = false;
@@ -1307,7 +1308,6 @@ void VoiceRecordBar::hideFast() {
 	hide();
 	_lock->hide();
 	_level->hide();
-	stopRecording(StopType::Cancel);
 }
 
 void VoiceRecordBar::stopRecording(StopType type) {
