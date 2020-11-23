@@ -111,7 +111,7 @@
 
 2.4.2 (02.10.20)
 
-- Allow block, report and delete all message from user from "user joined" service message context menu.
+- Allow block, report and delete all messages from a user from "user joined" service message context menu.
 - Fix admin badge display in groups.
 - Fix loading and opening of comments in channels.
 
@@ -133,7 +133,7 @@
 
 2.3.1 (21.08.20)
 
-- Fix Calls Settings for Video Calls.
+- Fix Call Settings for Video Calls.
 
 2.3 (14.08.20)
 
@@ -142,7 +142,7 @@
 2.2 (26.07.20)
 
 - Quickly switch between different Telegram accounts if you use multiple phone numbers.
-- Share and store unlimited files of any type, now up to 2'000 MB each.
+- Share and store unlimited files of any type, now up to 2000 MB each.
 - Edit your scheduled messages.
 - Use Auto-Night Mode to make Telegram night mode match the system Dark Mode settings.
 - Also added an option to switch to system window frame in Windows and Linux.
