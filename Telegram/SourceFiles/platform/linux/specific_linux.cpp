@@ -835,7 +835,7 @@ std::optional<bool> IsDarkMode() {
 
 		const auto themeName = Libs::GtkSetting("gtk-theme-name").toLower();
 
-		if (themeName.endsWith(qsl("-dark"))) {
+		if (themeName.contains(qsl("-dark"))) {
 			return true;
 		}
 
