@@ -361,7 +361,6 @@ OverlayWidget::OverlayWidget()
 		setWindowFlags(Qt::FramelessWindowHint);
 	}
 	updateGeometry(QApplication::primaryScreen()->geometry());
-	moveToScreen();
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
 	setMouseTracking(true);
@@ -435,6 +434,8 @@ void OverlayWidget::refreshLang() {
 }
 
 void OverlayWidget::moveToScreen() {
+	Expects(windowHandle());
+
 	const auto widgetScreen = [&](auto &&widget) -> QScreen* {
 		if (auto handle = widget ? widget->windowHandle() : nullptr) {
 			return handle->screen();
@@ -445,12 +446,9 @@ void OverlayWidget::moveToScreen() {
 		? Core::App().activeWindow()->widget().get()
 		: nullptr;
 	const auto activeWindowScreen = widgetScreen(window);
-	const auto myScreen = widgetScreen(this);
 	// Wayland doesn't support positioning, but Qt emits screenChanged anyway
 	// and geometry of the widget become broken
 	if (activeWindowScreen
-		&& myScreen
-		&& myScreen != activeWindowScreen
 		&& !Platform::IsWayland()) {
 		windowHandle()->setScreen(activeWindowScreen);
 	}
@@ -1317,12 +1315,6 @@ void OverlayWidget::onScreenResized(int screen) {
 		&& changed
 		&& windowHandle()->screen() == changed) {
 		updateGeometry(changed->geometry());
-	}
-	if (!windowHandle()
-		|| !windowHandle()->screen()
-		|| !changed
-		|| windowHandle()->screen() == changed) {
-		moveToScreen();
 	}
 }
 
