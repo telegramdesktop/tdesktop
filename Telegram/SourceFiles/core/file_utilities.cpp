@@ -402,16 +402,16 @@ bool GetDefault(
 void Resources::LoadAllData() {
 #ifdef TDESKTOP_USE_PACKED_RESOURCES
 	// Load resources packed into a separated file
-	QStringList paths;
+	const auto paths = QStringList{
 #ifdef _DEBUG
-	paths += cExeDir();
+		cExeDir(),
 #endif
-	paths += QStandardPaths::standardLocations(QStandardPaths::AppDataLocation);
-	for (QString directory : paths) {
+	} + QStandardPaths::standardLocations(QStandardPaths::AppDataLocation);
+	for (const auto directory : paths) {
 		if (QResource::registerResource(directory + u"/tresources.rcc"_q)) {
 			return;  // found
 		}
 	}
-	qFatal("Packed resources not found");
+	Unexpected("Packed resources not found");
 #endif
 }
