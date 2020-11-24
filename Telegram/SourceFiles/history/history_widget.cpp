@@ -1250,6 +1250,9 @@ void HistoryWidget::orderWidgets() {
 	if (_contactStatus) {
 		_contactStatus->raise();
 	}
+	if (_groupCallBar) {
+		_groupCallBar->raise();
+	}
 	if (_pinnedBar) {
 		_pinnedBar->raise();
 	}

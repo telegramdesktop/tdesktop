@@ -20,9 +20,9 @@ namespace Ui {
 GroupCallBar::GroupCallBar(
 	not_null<QWidget*> parent,
 	rpl::producer<GroupCallBarContent> content)
-	: _wrap(parent, object_ptr<RpWidget>(parent))
-	, _inner(_wrap.entity())
-	, _shadow(std::make_unique<PlainShadow>(_wrap.parentWidget())) {
+: _wrap(parent, object_ptr<RpWidget>(parent))
+, _inner(_wrap.entity())
+, _shadow(std::make_unique<PlainShadow>(_wrap.parentWidget())) {
 	_wrap.hide(anim::type::instant);
 	_shadow->hide();
 
@@ -89,6 +89,13 @@ void GroupCallBar::setupInner() {
 	) | rpl::map([] {
 		return rpl::empty_value();
 	}) | rpl::start_to_stream(_barClicks, _inner->lifetime());
+
+
+	_wrap.geometryValue(
+	) | rpl::start_with_next([=](QRect rect) {
+		updateShadowGeometry(rect);
+		updateControlsGeometry(rect);
+	}, _inner->lifetime());
 }
 
 void GroupCallBar::paint(Painter &p) {
