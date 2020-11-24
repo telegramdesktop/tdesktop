@@ -183,7 +183,6 @@ void GroupCall::checkParticipants() {
 		}
 	}
 	_instance->setSsrcs(std::move(ssrcs));
-	_instance->setIsMuted(false);
 }
 
 void GroupCall::hangup() {
@@ -342,9 +341,7 @@ void GroupCall::createAndStartController() {
 		std::move(descriptor));
 
 	const auto raw = _instance.get();
-	if (_muted.current()) {
-		raw->setIsMuted(_muted.current());
-	}
+	raw->setIsMuted(_muted.current());
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 }
 

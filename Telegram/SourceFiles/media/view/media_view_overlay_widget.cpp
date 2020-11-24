@@ -395,8 +395,12 @@ OverlayWidget::OverlayWidget()
 		_touchbarFullscreenToggled.events());
 #endif // Q_OS_MAC && !OS_OSX
 
-	Core::App().calls().currentCallValue(
-	) | rpl::start_with_next([=](Calls::Call *call) {
+	using namespace rpl::mappers;
+	rpl::combine(
+		Core::App().calls().currentCallValue(),
+		Core::App().calls().currentGroupCallValue(),
+		_1 || _2
+	) | rpl::start_with_next([=](bool call) {
 		if (!_streamed || videoIsGifOrUserpic()) {
 			return;
 		} else if (call) {

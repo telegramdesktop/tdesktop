@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "main/main_session.h"
 #include "ui/chat/group_call_bar.h"
+#include "calls/calls_group_call.h"
+#include "calls/calls_instance.h"
+#include "core/application.h"
 
 namespace HistoryView {
 
@@ -21,12 +24,15 @@ GroupCallTracker::GroupCallTracker(not_null<ChannelData*> channel)
 
 rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::content() const {
 	const auto channel = _channel;
-	return channel->session().changes().peerFlagsValue(
-		channel,
-		Data::PeerUpdate::Flag::GroupCall
-	) | rpl::map([=]() -> Ui::GroupCallBarContent {
+	return rpl::combine(
+		channel->session().changes().peerFlagsValue(
+			channel,
+			Data::PeerUpdate::Flag::GroupCall),
+		Core::App().calls().currentGroupCallValue()
+	) | rpl::map([=](const auto&, Calls::GroupCall *current)
+	-> Ui::GroupCallBarContent {
 		const auto call = channel->call();
-		if (!call) {
+		if (!call || (current && current->channel() == channel)) {
 			return { .shown = false };
 		} else if (!call->fullCount() && !call->participantsLoaded()) {
 			call->requestParticipants();

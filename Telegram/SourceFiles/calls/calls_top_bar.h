@@ -26,11 +26,13 @@ class Session;
 namespace Calls {
 
 class Call;
+class GroupCall;
 class SignalBars;
 
 class TopBar : public Ui::RpWidget {
 public:
 	TopBar(QWidget *parent, const base::weak_ptr<Call> &call);
+	TopBar(QWidget *parent, const base::weak_ptr<GroupCall> &call);
 
 	~TopBar();
 
@@ -39,6 +41,11 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	TopBar(
+		QWidget *parent,
+		const base::weak_ptr<Call> &call,
+		const base::weak_ptr<GroupCall> &groupCall);
+
 	void initControls();
 	void updateInfoLabels();
 	void setInfoLabels();
@@ -48,6 +55,7 @@ private:
 	void setMuted(bool mute);
 
 	const base::weak_ptr<Call> _call;
+	const base::weak_ptr<GroupCall> _groupCall;
 
 	bool _muted = false;
 	object_ptr<Ui::LabelSimple> _durationLabel;

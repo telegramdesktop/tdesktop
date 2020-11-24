@@ -85,6 +85,7 @@ class HistoryHider;
 
 namespace Calls {
 class Call;
+class GroupCall;
 class TopBar;
 } // namespace Calls
 
@@ -257,6 +258,7 @@ private:
 	void playerHeightUpdated();
 
 	void setCurrentCall(Calls::Call *call);
+	void setCurrentGroupCall(Calls::GroupCall *call);
 	void createCallTopBar();
 	void destroyCallTopBar();
 	void callTopBarHeightUpdated(int callTopBarHeight);
@@ -350,6 +352,7 @@ private:
 	std::unique_ptr<Window::ConnectionState> _connecting;
 
 	base::weak_ptr<Calls::Call> _currentCall;
+	base::weak_ptr<Calls::GroupCall> _currentGroupCall;
 	rpl::lifetime _currentCallLifetime;
 	object_ptr<Ui::SlideWrap<Calls::TopBar>> _callTopBar = { nullptr };
 

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "calls/calls_signal_bars.h"
 #include "data/data_user.h"
+#include "data/data_channel.h"
 #include "data/data_changes.h"
 #include "main/main_session.h"
 #include "boxes/abstract_box.h"
@@ -77,10 +78,28 @@ void DebugInfoBox::updateText() {
 TopBar::TopBar(
 	QWidget *parent,
 	const base::weak_ptr<Call> &call)
+: TopBar(parent, call, nullptr) {
+}
+
+TopBar::TopBar(
+	QWidget *parent,
+	const base::weak_ptr<GroupCall> &call)
+: TopBar(parent, nullptr, call) {
+}
+
+TopBar::TopBar(
+	QWidget *parent,
+	const base::weak_ptr<Call> &call,
+	const base::weak_ptr<GroupCall> &groupCall)
 : RpWidget(parent)
 , _call(call)
-, _durationLabel(this, st::callBarLabel)
-, _signalBars(this, _call.get(), st::callBarSignalBars)
+, _groupCall(groupCall)
+, _durationLabel(_call
+	? object_ptr<Ui::LabelSimple>(this, st::callBarLabel)
+	: object_ptr<Ui::LabelSimple>(nullptr))
+, _signalBars(_call
+	? object_ptr<SignalBars>(this, _call.get(), st::callBarSignalBars)
+	: object_ptr<SignalBars>(nullptr))
 , _fullInfoLabel(this, st::callBarInfoLabel)
 , _shortInfoLabel(this, st::callBarInfoLabel)
 , _hangupLabel(this, st::callBarLabel, tr::lng_call_bar_hangup(tr::now).toUpper())
@@ -95,22 +114,31 @@ void TopBar::initControls() {
 	_mute->setClickedCallback([=] {
 		if (const auto call = _call.get()) {
 			call->setMuted(!call->muted());
+		} else if (const auto group = _groupCall.get()) {
+			group->setMuted(!group->muted());
 		}
 	});
-	_call->mutedValue(
+
+	auto muted = _call
+		? _call->mutedValue()
+		: _groupCall->mutedValue();
+	std::move(
+		muted
 	) | rpl::start_with_next([=](bool muted) {
 		setMuted(muted);
 		update();
 	}, lifetime());
 
-	_call->user()->session().changes().peerUpdates(
-		Data::PeerUpdate::Flag::Name
-	) | rpl::filter([=](const Data::PeerUpdate &update) {
-		// _user may change for the same Panel.
-		return (_call != nullptr) && (update.peer == _call->user());
-	}) | rpl::start_with_next([=] {
-		updateInfoLabels();
-	}, lifetime());
+	if (const auto call = _call.get()) {
+		call->user()->session().changes().peerUpdates(
+			Data::PeerUpdate::Flag::Name
+		) | rpl::filter([=](const Data::PeerUpdate &update) {
+			// _user may change for the same Panel.
+			return (_call != nullptr) && (update.peer == _call->user());
+		}) | rpl::start_with_next([=] {
+			updateInfoLabels();
+		}, lifetime());
+	}
 
 	setInfoLabels();
 	_info->setClickedCallback([=] {
@@ -121,11 +149,15 @@ void TopBar::initControls() {
 			} else {
 				Core::App().calls().showInfoPanel(call);
 			}
+		} else if (const auto group = _groupCall.get()) {
+			Core::App().calls().showInfoPanel(group);
 		}
 	});
 	_hangup->setClickedCallback([this] {
-		if (auto call = _call.get()) {
+		if (const auto call = _call.get()) {
 			call->hangup();
+		} else if (const auto group = _groupCall.get()) {
+			group->hangup();
 		}
 	});
 	_updateDurationTimer.setCallback([this] { updateDurationText(); });
@@ -144,6 +176,11 @@ void TopBar::setInfoLabels() {
 		const auto shortName = user->firstName;
 		_fullInfoLabel->setText(fullName.toUpper());
 		_shortInfoLabel->setText(shortName.toUpper());
+	} else if (const auto group = _groupCall.get()) {
+		const auto channel = group->channel();
+		const auto name = channel->name;
+		_fullInfoLabel->setText(name.toUpper());
+		_shortInfoLabel->setText(name.toUpper());
 	}
 }
 
@@ -155,7 +192,7 @@ void TopBar::setMuted(bool mute) {
 }
 
 void TopBar::updateDurationText() {
-	if (!_call) {
+	if (!_call || !_durationLabel) {
 		return;
 	}
 	auto wasWidth = _durationLabel->width();
@@ -181,10 +218,14 @@ void TopBar::updateControlsGeometry() {
 	auto left = 0;
 	_mute->moveToLeft(left, 0);
 	left += _mute->width();
-	_durationLabel->moveToLeft(left, st::callBarLabelTop);
-	left += _durationLabel->width() + st::callBarSkip;
-	_signalBars->moveToLeft(left, (height() - _signalBars->height()) / 2);
-	left += _signalBars->width() + st::callBarSkip;
+	if (_durationLabel) {
+		_durationLabel->moveToLeft(left, st::callBarLabelTop);
+		left += _durationLabel->width() + st::callBarSkip;
+	}
+	if (_signalBars) {
+		_signalBars->moveToLeft(left, (height() - _signalBars->height()) / 2);
+		left += _signalBars->width() + st::callBarSkip;
+	}
 
 	auto right = st::callBarRightSkip;
 	_hangupLabel->moveToRight(right, st::callBarLabelTop);

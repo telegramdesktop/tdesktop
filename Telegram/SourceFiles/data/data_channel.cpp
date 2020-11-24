@@ -682,10 +682,14 @@ void ChannelData::setCall(const MTPInputGroupCall &call) {
 			clearCall();
 			return;
 		}
+		if (_call) {
+			owner().unregisterGroupCall(_call.get());
+		}
 		_call = std::make_unique<Data::GroupCall>(
 			this,
 			data.vid().v,
 			data.vaccess_hash().v);
+		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
 	});
 }
@@ -694,6 +698,7 @@ void ChannelData::clearCall() {
 	if (!_call) {
 		return;
 	}
+	owner().unregisterGroupCall(_call.get());
 	_call = nullptr;
 	session().changes().peerUpdated(this, UpdateFlag::GroupCall);
 }

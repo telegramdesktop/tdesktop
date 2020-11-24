@@ -53,7 +53,7 @@ public:
 		return _muted.value();
 	}
 	[[nodiscard]] bool joined() const {
-		return _mySsrc != 0;
+		return (_state.current() == State::Joined);
 	}
 
 	enum State {
@@ -103,7 +103,7 @@ private:
 	MTP::Sender _api;
 	rpl::variable<State> _state = State::Creating;
 
-	rpl::variable<bool> _muted = false;
+	rpl::variable<bool> _muted = true;
 	bool _acceptFields = false;
 
 	uint64 _id = 0;

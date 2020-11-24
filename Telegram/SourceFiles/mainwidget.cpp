@@ -254,6 +254,10 @@ MainWidget::MainWidget(
 	) | rpl::start_with_next([=](Calls::Call *call) {
 		setCurrentCall(call);
 	}, lifetime());
+	Core::App().calls().currentGroupCallValue(
+	) | rpl::start_with_next([=](Calls::GroupCall *call) {
+		setCurrentGroupCall(call);
+	}, lifetime());
 	if (_callTopBar) {
 		_callTopBar->finishAnimating();
 	}
@@ -942,6 +946,9 @@ void MainWidget::playerHeightUpdated() {
 }
 
 void MainWidget::setCurrentCall(Calls::Call *call) {
+	if (!call && _currentGroupCall) {
+		return;
+	}
 	_currentCallLifetime.destroy();
 	_currentCall = call;
 	if (_currentCall) {
@@ -959,10 +966,35 @@ void MainWidget::setCurrentCall(Calls::Call *call) {
 	}
 }
 
-void MainWidget::createCallTopBar() {
-	Expects(_currentCall != nullptr);
+void MainWidget::setCurrentGroupCall(Calls::GroupCall *call) {
+	if (!call && _currentCall) {
+		return;
+	}
+	_currentCallLifetime.destroy();
+	_currentGroupCall = call;
+	if (_currentGroupCall) {
+		_currentGroupCall->stateValue(
+		) | rpl::start_with_next([=](Calls::GroupCall::State state) {
+			using State = Calls::GroupCall::State;
+			if (state == State::Joined) {
+				createCallTopBar();
+			} else {
+				destroyCallTopBar();
+			}
+		}, _currentCallLifetime);
+	} else {
+		destroyCallTopBar();
+	}
+}
 
-	_callTopBar.create(this, object_ptr<Calls::TopBar>(this, _currentCall));
+void MainWidget::createCallTopBar() {
+	Expects(_currentCall != nullptr || _currentGroupCall != nullptr);
+
+	_callTopBar.create(
+		this,
+		(_currentCall
+			? object_ptr<Calls::TopBar>(this, _currentCall)
+			: object_ptr<Calls::TopBar>(this, _currentGroupCall)));
 	_callTopBar->heightValue(
 	) | rpl::start_with_next([this](int value) {
 		callTopBarHeightUpdated(value);
@@ -986,7 +1018,7 @@ void MainWidget::destroyCallTopBar() {
 }
 
 void MainWidget::callTopBarHeightUpdated(int callTopBarHeight) {
-	if (!callTopBarHeight && !_currentCall) {
+	if (!callTopBarHeight && !_currentCall && !_currentGroupCall) {
 		_callTopBar.destroyDelayed();
 	}
 	if (callTopBarHeight != _callTopBarHeight) {
