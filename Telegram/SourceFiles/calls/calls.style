@@ -399,3 +399,6 @@ callTitleShadow: icon {{ "calls_shadow_controls", windowShadowFg }};
 callErrorToast: Toast(defaultToast) {
 	minWidth: 240px;
 }
+
+groupCallWidth: 380px;
+groupCallHeight: 580px;

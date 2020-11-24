@@ -15,7 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 #include "calls/calls_call.h"
+#include "calls/calls_group_call.h"
 #include "calls/calls_panel.h"
+#include "calls/calls_group_panel.h"
 #include "data/data_user.h"
 #include "data/data_group_call.h"
 #include "data/data_channel.h"
@@ -177,8 +179,8 @@ void Instance::createCall(not_null<UserData*> user, Call::Type type, bool video)
 
 void Instance::destroyGroupCall(not_null<GroupCall*> call) {
 	if (_currentGroupCall.get() == call) {
-		//_currentCallPanel->closeBeforeDestroy();
-		//_currentCallPanel = nullptr;
+		_currentGroupCallPanel->closeBeforeDestroy();
+		_currentGroupCallPanel = nullptr;
 
 		auto taken = base::take(_currentGroupCall);
 		_currentGroupCallChanges.fire(nullptr);
@@ -205,6 +207,7 @@ void Instance::createGroupCall(
 		destroyGroupCall(raw);
 	}, raw->lifetime());
 
+	_currentGroupCallPanel = std::make_unique<GroupPanel>(raw);
 	_currentGroupCall = std::move(call);
 	_currentGroupCallChanges.fire_copy(raw);
 }
@@ -314,6 +317,12 @@ void Instance::showInfoPanel(not_null<Call*> call) {
 	}
 }
 
+void Instance::showInfoPanel(not_null<GroupCall*> call) {
+	if (_currentGroupCall.get() == call) {
+		_currentGroupCallPanel->showAndActivate();
+	}
+}
+
 bool Instance::isQuitPrevent() {
 	if (!_currentCall || _currentCall->isIncomingWaiting()) {
 		return false;
@@ -407,6 +416,7 @@ bool Instance::activateCurrentCall() {
 		_currentCallPanel->showAndActivate();
 		return true;
 	} else if (inGroupCall()) {
+		_currentGroupCallPanel->showAndActivate();
 		return true;
 	}
 	return false;
@@ -418,6 +428,14 @@ Call *Instance::currentCall() const {
 
 rpl::producer<Call*> Instance::currentCallValue() const {
 	return _currentCallChanges.events_starting_with(currentCall());
+}
+
+GroupCall *Instance::currentGroupCall() const {
+	return _currentGroupCall.get();
+}
+
+rpl::producer<GroupCall*> Instance::currentGroupCallValue() const {
+	return _currentGroupCallChanges.events_starting_with(currentGroupCall());
 }
 
 void Instance::requestPermissionsOrFail(Fn<void()> onSuccess) {

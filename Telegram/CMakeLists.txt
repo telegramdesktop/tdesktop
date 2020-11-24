@@ -266,6 +266,8 @@ PRIVATE
     calls/calls_call.h
     calls/calls_group_call.cpp
     calls/calls_group_call.h
+    calls/calls_group_panel.cpp
+    calls/calls_group_panel.h
     calls/calls_emoji_fingerprint.cpp
     calls/calls_emoji_fingerprint.h
     calls/calls_instance.cpp

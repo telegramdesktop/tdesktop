@@ -28,6 +28,7 @@ class Session;
 namespace Calls {
 
 class Panel;
+class GroupPanel;
 
 class Instance
 	: private Call::Delegate
@@ -47,8 +48,11 @@ public:
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
 	void showInfoPanel(not_null<Call*> call);
+	void showInfoPanel(not_null<GroupCall*> call);
 	[[nodiscard]] Call *currentCall() const;
 	[[nodiscard]] rpl::producer<Call*> currentCallValue() const;
+	[[nodiscard]] GroupCall *currentGroupCall() const;
+	[[nodiscard]] rpl::producer<GroupCall*> currentGroupCallValue() const;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> getVideoCapture() override;
 
 	[[nodiscard]] bool isQuitPrevent();
@@ -117,6 +121,7 @@ private:
 
 	std::unique_ptr<GroupCall> _currentGroupCall;
 	rpl::event_stream<GroupCall*> _currentGroupCallChanges;
+	std::unique_ptr<GroupPanel> _currentGroupCallPanel;
 
 	std::unique_ptr<Media::Audio::Track> _callConnectingTrack;
 	std::unique_ptr<Media::Audio::Track> _callEndedTrack;
