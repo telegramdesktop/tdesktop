@@ -191,6 +191,7 @@ private:
 		Ended,
 		Failed,
 	};
+
 	void handleRequestError(const RPCError &error);
 	void handleControllerError(const QString &error);
 	void finish(

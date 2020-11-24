@@ -70,6 +70,9 @@ private:
 		requestPermissionsOrFail(std::move(onSuccess));
 	}
 
+	void groupCallFinished(not_null<GroupCall*> call) override;
+	void groupCallFailed(not_null<GroupCall*> call) override;
+
 	using Sound = Call::Delegate::Sound;
 	void playSound(Sound sound) override;
 	void createCall(not_null<UserData*> user, Call::Type type, bool video);

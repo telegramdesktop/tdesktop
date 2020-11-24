@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_call.h"
 #include "calls/calls_panel.h"
 #include "data/data_user.h"
+#include "data/data_group_call.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "media/audio/media_audio_track.h"
@@ -91,6 +92,18 @@ void Instance::callRedial(not_null<Call*> call) {
 	if (_currentCall.get() == call) {
 		refreshDhConfig();
 	}
+}
+
+void Instance::groupCallFinished(not_null<GroupCall*> call) {
+	crl::on_main(call, [=] {
+		destroyGroupCall(call);
+	});
+}
+
+void Instance::groupCallFailed(not_null<GroupCall*> call) {
+	crl::on_main(call, [=] {
+		destroyGroupCall(call);
+	});
 }
 
 void Instance::playSound(Sound sound) {
@@ -351,6 +364,12 @@ void Instance::handleCallUpdate(
 void Instance::handleGroupCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPGroupCall &call) {
+	const auto callId = call.match([](const auto &data) {
+		return data.vid().v;
+	});
+	if (const auto existing = session->data().groupCall(callId)) {
+		existing->applyUpdate(call);
+	}
 	if (_currentGroupCall) {
 		_currentGroupCall->handleUpdate(call);
 	}
@@ -359,6 +378,12 @@ void Instance::handleGroupCallUpdate(
 void Instance::handleGroupCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPDupdateGroupCallParticipants &update) {
+	const auto callId = update.vcall().match([](const auto &data) {
+		return data.vid().v;
+	});
+	if (const auto existing = session->data().groupCall(callId)) {
+		existing->applyUpdate(update);
+	}
 }
 
 void Instance::handleSignalingData(
@@ -424,7 +449,7 @@ void Instance::requestPermissionOrFail(Platform::PermissionType type, Fn<void()>
 			_currentCall->hangup();
 		}
 		if (inGroupCall()) {
-			//_currentGroupCall->hangup(); // #TODO calls
+			_currentGroupCall->hangup();
 		}
 		Ui::show(Box<ConfirmBox>(tr::lng_no_mic_permission(tr::now), tr::lng_menu_settings(tr::now), crl::guard(this, [=] {
 			Platform::OpenSystemSettingsForPermission(type);

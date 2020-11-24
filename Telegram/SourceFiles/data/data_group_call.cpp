@@ -29,8 +29,17 @@ GroupCall::GroupCall(
 , _accessHash(accessHash) {
 }
 
+GroupCall::~GroupCall() {
+	_channel->session().api().request(_participantsRequestId).cancel();
+	_channel->session().api().request(_reloadRequestId).cancel();
+}
+
 uint64 GroupCall::id() const {
 	return _id;
+}
+
+not_null<ChannelData*> GroupCall::channel() const {
+	return _channel;
 }
 
 MTPInputGroupCall GroupCall::input() const {
@@ -42,8 +51,12 @@ auto GroupCall::participants() const
 	return _participants;
 }
 
+const base::flat_set<uint32> &GroupCall::sources() const {
+	return _sources;
+}
+
 void GroupCall::requestParticipants() {
-	if (_participantsRequestId) {
+	if (_participantsRequestId || _reloadRequestId) {
 		return;
 	} else if (_participants.size() >= _fullCount && _allReceived) {
 		return;
@@ -58,31 +71,9 @@ void GroupCall::requestParticipants() {
 		MTP_int(kRequestPerPage)
 	)).done([=](const MTPphone_GroupParticipants &result) {
 		result.match([&](const MTPDphone_groupParticipants &data) {
-			_fullCount = data.vcount().v;
 			_channel->owner().processUsers(data.vusers());
-			for (const auto &p : data.vparticipants().v) {
-				p.match([&](const MTPDgroupCallParticipant &data) {
-					const auto userId = data.vuser_id().v;
-					const auto user = _channel->owner().user(userId);
-					const auto value = Participant{
-						.user = user,
-						.date = data.vdate().v,
-						.source = data.vsource().v,
-						.muted = data.is_muted(),
-						.canSelfUnmute = data.is_can_self_unmute(),
-						.left = data.is_left()
-					};
-					const auto i = ranges::find(
-						_participants,
-						user,
-						&Participant::user);
-					if (i == end(_participants)) {
-						_participants.push_back(value);
-					} else {
-						*i = value;
-					}
-				});
-			}
+			applyParticipantsSlice(data.vparticipants().v);
+			_fullCount = data.vcount().v;
 			if (!_allReceived
 				&& (data.vparticipants().v.size() < kRequestPerPage)) {
 				_allReceived = true;
@@ -91,16 +82,17 @@ void GroupCall::requestParticipants() {
 				_fullCount = _participants.size();
 			}
 		});
-		ranges::sort(_participants, std::greater<>(), &Participant::date);
 		_channel->session().changes().peerUpdated(
 			_channel,
 			PeerUpdate::Flag::GroupCall);
+		_participantsRequestId = 0;
 	}).fail([=](const RPCError &error) {
-		_allReceived = true;
 		_fullCount = _participants.size();
+		_allReceived = true;
 		_channel->session().changes().peerUpdated(
 			_channel,
 			PeerUpdate::Flag::GroupCall);
+		_participantsRequestId = 0;
 	}).send();
 }
 
@@ -110,6 +102,120 @@ int GroupCall::fullCount() const {
 
 bool GroupCall::participantsLoaded() const {
 	return _allReceived;
+}
+
+void GroupCall::applyUpdate(const MTPGroupCall &update) {
+	applyCall(update, false);
+}
+
+void GroupCall::applyCall(const MTPGroupCall &call, bool force) {
+	call.match([&](const MTPDgroupCall &data) {
+		const auto changed = (_version != data.vversion().v)
+			|| (_fullCount != data.vparticipants_count().v);
+		if (!force && !changed) {
+			return;
+		} else if (!force && _version > data.vversion().v) {
+			reload();
+			return;
+		}
+		_version = data.vversion().v;
+		_fullCount = data.vparticipants_count().v;
+	}, [&](const MTPDgroupCallDiscarded &data) {
+		const auto changed = (_duration != data.vduration().v)
+			|| !_finished;
+		if (!force && !changed) {
+			return;
+		}
+		_finished = true;
+		_duration = data.vduration().v;
+	});
+	_channel->session().changes().peerUpdated(
+		_channel,
+		PeerUpdate::Flag::GroupCall);
+}
+
+void GroupCall::reload() {
+	if (_reloadRequestId) {
+		return;
+	} else if (_participantsRequestId) {
+		_channel->session().api().request(_participantsRequestId).cancel();
+		_participantsRequestId = 0;
+	}
+	_reloadRequestId = _channel->session().api().request(
+		MTPphone_GetGroupCall(input())
+	).done([=](const MTPphone_GroupCall &result) {
+		result.match([&](const MTPDphone_groupCall &data) {
+			_channel->owner().processUsers(data.vusers());
+			_participants.clear();
+			_sources.clear();
+			applyParticipantsSlice(data.vparticipants().v);
+			for (const auto &source : data.vsources().v) {
+				_sources.emplace(source.v);
+			}
+			_fullCount = _sources.size();
+			if (_participants.size() > _fullCount) {
+				_fullCount = _participants.size();
+			}
+			_allReceived = (_fullCount == _participants.size());
+			applyCall(data.vcall(), true);
+		});
+		_reloadRequestId = 0;
+	}).fail([=](const RPCError &error) {
+		_reloadRequestId = 0;
+	}).send();
+}
+
+void GroupCall::applyParticipantsSlice(
+		const QVector<MTPGroupCallParticipant> &list) {
+	for (const auto &participant : list) {
+		participant.match([&](const MTPDgroupCallParticipant &data) {
+			const auto userId = data.vuser_id().v;
+			const auto user = _channel->owner().user(userId);
+			const auto i = ranges::find(
+				_participants,
+				user,
+				&Participant::user);
+			if (data.is_left()) {
+				if (i != end(_participants)) {
+					_sources.remove(i->source);
+					_participants.erase(i);
+				}
+				if (_fullCount > _participants.size()) {
+					--_fullCount;
+				}
+				return;
+			}
+			const auto value = Participant{
+				.user = user,
+				.date = data.vdate().v,
+				.source = uint32(data.vsource().v),
+				.muted = data.is_muted(),
+				.canSelfUnmute = data.is_can_self_unmute(),
+			};
+			if (i == end(_participants)) {
+				_participants.push_back(value);
+				++_fullCount;
+			} else {
+				*i = value;
+			}
+			_sources.emplace(uint32(data.vsource().v));
+		});
+	}
+	ranges::sort(_participants, std::greater<>(), &Participant::date);
+}
+
+void GroupCall::applyUpdate(const MTPDupdateGroupCallParticipants &update) {
+	if (update.vversion().v <= _version) {
+		return;
+	} else if (update.vversion().v != _version + 1) {
+		reload();
+		return;
+	}
+	_version = update.vversion().v;
+	applyParticipantsSlice(update.vparticipants().v);
+	_channel->session().changes().peerUpdated(
+		_channel,
+		PeerUpdate::Flag::GroupCall);
 }
 
 } // namespace Data

@@ -60,6 +60,7 @@ class Histories;
 class DocumentMedia;
 class PhotoMedia;
 class Stickers;
+class GroupCall;
 
 class Session final {
 public:
@@ -152,6 +153,10 @@ public:
 	PeerData *processChats(const MTPVector<MTPChat> &data);
 
 	void applyMaximumChatVersions(const MTPVector<MTPChat> &data);
+
+	void registerGroupCall(not_null<GroupCall*> call);
+	void unregisterGroupCall(not_null<GroupCall*> call);
+	GroupCall *groupCall(uint64 callId) const;
 
 	void enumerateUsers(Fn<void(not_null<UserData*>)> action) const;
 	void enumerateGroups(Fn<void(not_null<PeerData*>)> action) const;
@@ -905,6 +910,8 @@ private:
 	rpl::event_stream<> _pinnedDialogsOrderUpdated;
 
 	base::flat_set<not_null<ViewElement*>> _heavyViewParts;
+
+	base::flat_map<uint64, not_null<GroupCall*>> _groupCalls;
 
 	History *_topPromoted = nullptr;
 

@@ -25,6 +25,9 @@ public:
 	public:
 		virtual ~Delegate() = default;
 
+		virtual void groupCallFinished(not_null<GroupCall*> call) = 0;
+		virtual void groupCallFailed(not_null<GroupCall*> call) = 0;
+
 	};
 
 	GroupCall(
@@ -38,6 +41,7 @@ public:
 	}
 
 	void start();
+	void hangup();
 	void join(const MTPInputGroupCall &inputCall);
 	bool handleUpdate(const MTPGroupCall &call);
 
@@ -47,6 +51,25 @@ public:
 	}
 	[[nodiscard]] rpl::producer<bool> mutedValue() const {
 		return _muted.value();
+	}
+	[[nodiscard]] bool joined() const {
+		return _mySsrc != 0;
+	}
+
+	enum State {
+		Creating,
+		Joining,
+		Joined,
+		FailedHangingUp,
+		Failed,
+		HangingUp,
+		Ended,
+	};
+	[[nodiscard]] State state() const {
+		return _state.current();
+	}
+	[[nodiscard]] rpl::producer<State> stateValue() const {
+		return _state.value();
 	}
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
@@ -58,22 +81,34 @@ public:
 	}
 
 private:
+	enum class FinishType {
+		None,
+		Ended,
+		Failed,
+	};
+
 	void handleRequestError(const RPCError &error);
 	void handleControllerError(const QString &error);
 	void createAndStartController();
 	void destroyController();
+	void checkParticipants();
+
+	void setState(State state);
+	void finish(FinishType type);
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
 	const not_null<Delegate*> _delegate;
 	const not_null<ChannelData*> _channel;
 	MTP::Sender _api;
-	crl::time _startTime = 0;
+	rpl::variable<State> _state = State::Creating;
 
 	rpl::variable<bool> _muted = false;
+	bool _acceptFields = false;
 
 	uint64 _id = 0;
 	uint64 _accessHash = 0;
+	uint32 _mySsrc = 0;
 
 	std::unique_ptr<tgcalls::GroupInstanceImpl> _instance;
 

@@ -25,7 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //#include "calls/calls_panel.h"
 //#include "webrtc/webrtc_video_track.h"
 //#include "webrtc/webrtc_media_devices.h"
+#include "data/data_changes.h"
 #include "data/data_channel.h"
+#include "data/data_group_call.h"
 //#include "data/data_session.h"
 //#include "facades.h"
 
@@ -49,6 +51,7 @@ GroupCall::GroupCall(
 , _channel(channel)
 , _api(&_channel->session().mtp()) {
 	if (inputCall.c_inputGroupCall().vid().v) {
+		_state = State::Joining;
 		join(inputCall);
 	} else {
 		start();
@@ -59,19 +62,51 @@ GroupCall::~GroupCall() {
 	destroyController();
 }
 
+void GroupCall::setState(State state) {
+	if (_state.current() == State::Failed) {
+		return;
+	} else if (_state.current() == State::FailedHangingUp
+		&& state != State::Failed) {
+		return;
+	}
+	if (_state.current() == state) {
+		return;
+	}
+	_state = state;
+
+	if (false
+		|| state == State::Ended
+		|| state == State::Failed) {
+		// Destroy controller before destroying Call Panel,
+		// so that the panel hide animation is smooth.
+		destroyController();
+	}
+	switch (state) {
+	case State::Ended:
+		_delegate->groupCallFinished(this);
+		break;
+	case State::Failed:
+		_delegate->groupCallFailed(this);
+		break;
+	}
+}
+
 void GroupCall::start() {
 	const auto randomId = rand_value<int32>();
 	_api.request(MTPphone_CreateGroupCall(
 		_channel->inputChannel,
 		MTP_int(randomId)
 	)).done([=](const MTPUpdates &result) {
+		_acceptFields = true;
 		_channel->session().api().applyUpdates(result);
+		_acceptFields = false;
 	}).fail([=](const RPCError &error) {
 		int a = error.code();
 	}).send();
 }
 
 void GroupCall::join(const MTPInputGroupCall &inputCall) {
+	setState(State::Joining);
 	inputCall.match([&](const MTPDinputGroupCall &data) {
 		_id = data.vid().v;
 		_accessHash = data.vaccess_hash().v;
@@ -91,10 +126,11 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 				}
 
 				auto root = QJsonObject();
+				const auto ssrc = payload.ssrc;
 				root.insert("ufrag", QString::fromStdString(payload.ufrag));
 				root.insert("pwd", QString::fromStdString(payload.pwd));
 				root.insert("fingerprints", fingerprints);
-				root.insert("ssrc", int(payload.ssrc));
+				root.insert("ssrc", double(payload.ssrc));
 
 				const auto json = QJsonDocument(root).toJson(
 					QJsonDocument::Compact);
@@ -105,6 +141,9 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 					inputCall,
 					MTP_dataJSON(MTP_bytes(json))
 				)).done([=](const MTPUpdates &updates) {
+					_mySsrc = ssrc;
+					setState(State::Joined);
+
 					_channel->session().api().applyUpdates(updates);
 				}).fail([=](const RPCError &error) {
 					int a = error.code();
@@ -112,6 +151,77 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 			});
 		});
 	});
+	_channel->setCall(inputCall);
+
+	_channel->session().changes().peerFlagsValue(
+		_channel,
+		Data::PeerUpdate::Flag::GroupCall
+	) | rpl::start_with_next([=] {
+		checkParticipants();
+	}, _lifetime);
+}
+
+void GroupCall::checkParticipants() {
+	if (!joined()) {
+		return;
+	}
+	const auto call = _channel->call();
+	if (!call || call->id() != _id) {
+		finish(FinishType::Ended);
+		return;
+	}
+	const auto &sources = call->sources();
+	if (sources.size() != call->fullCount() || sources.empty()) {
+		call->reload();
+		return;
+	}
+	auto ssrcs = std::vector<uint32_t>();
+	ssrcs.reserve(sources.size());
+	for (const auto source : sources) {
+		if (source != _mySsrc) {
+			ssrcs.push_back(source);
+		}
+	}
+	_instance->setSsrcs(std::move(ssrcs));
+	_instance->setIsMuted(false);
+}
+
+void GroupCall::hangup() {
+	finish(FinishType::Ended);
+}
+
+void GroupCall::finish(FinishType type) {
+	Expects(type != FinishType::None);
+
+	const auto finalState = (type == FinishType::Ended)
+		? State::Ended
+		: State::Failed;
+	const auto hangupState = (type == FinishType::Ended)
+		? State::HangingUp
+		: State::FailedHangingUp;
+	const auto state = _state.current();
+	if (state == State::HangingUp
+		|| state == State::FailedHangingUp
+		|| state == State::Ended
+		|| state == State::Failed) {
+		return;
+	}
+	if (!joined()) {
+		setState(finalState);
+		return;
+	}
+
+	setState(hangupState);
+	_api.request(MTPphone_LeaveGroupCall(
+		inputCall()
+	)).done([=](const MTPUpdates &result) {
+		// Here 'this' could be destroyed by updates, so we set Ended after
+		// updates being handled, but in a guarded way.
+		crl::on_main(this, [=] { setState(finalState); });
+		_channel->session().api().applyUpdates(result);
+	}).fail([=](const RPCError &error) {
+		setState(finalState);
+	}).send();
 }
 
 void GroupCall::setMuted(bool mute) {
@@ -123,7 +233,13 @@ void GroupCall::setMuted(bool mute) {
 
 bool GroupCall::handleUpdate(const MTPGroupCall &call) {
 	return call.match([&](const MTPDgroupCall &data) {
-		if (_id != data.vid().v
+		if (_acceptFields) {
+			if (_instance || _id) {
+				return false;
+			}
+			join(MTP_inputGroupCall(data.vid(), data.vaccess_hash()));
+			return true;
+		} else if (_id != data.vid().v
 			|| _accessHash != data.vaccess_hash().v
 			|| !_instance) {
 			return false;
@@ -182,34 +298,9 @@ bool GroupCall::handleUpdate(const MTPGroupCall &call) {
 					});
 				}
 				_instance->setJoinResponsePayload(payload);
-				_api.request(MTPphone_GetGroupParticipants(
-					inputCall(),
-					MTP_int(0),
-					MTP_int(10)
-				)).done([=](const MTPphone_GroupParticipants &result) {
-					auto sources = std::vector<uint32_t>();
-					result.match([&](const MTPDphone_groupParticipants &data) {
-						for (const auto &p : data.vparticipants().v) {
-							p.match([&](const MTPDgroupCallParticipant &data) {
-								if (data.vuser_id().v != _channel->session().userId()) {
-									sources.push_back(data.vsource().v);
-								}
-							});
-						}
-					});
-					_instance->setSsrcs(std::move(sources));
-					_instance->setIsMuted(false);
-				}).fail([=](const RPCError &error) {
-					int a = error.code();
-				}).send();
+				checkParticipants();
 			});
 		}
-		return true;
-	}, [&](const MTPDgroupCallPrivate &data) {
-		if (_instance || _id) {
-			return false;
-		}
-		join(MTP_inputGroupCall(data.vid(), data.vaccess_hash()));
 		return true;
 	}, [&](const MTPDgroupCallDiscarded &data) {
 		if (data.vid().v != _id) {

@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h" // tr::lng_deleted(tr::now) in user name
 #include "data/stickers/data_stickers.h"
 #include "data/data_changes.h"
+#include "data/data_group_call.h"
 #include "data/data_media_types.h"
 #include "data/data_folder.h"
 #include "data/data_channel.h"
@@ -789,6 +790,19 @@ void Session::applyMaximumChatVersions(const MTPVector<MTPChat> &data) {
 		}, [](const auto &) {
 		});
 	}
+}
+
+void Session::registerGroupCall(not_null<GroupCall*> call) {
+	_groupCalls.emplace(call->id(), call);
+}
+
+void Session::unregisterGroupCall(not_null<GroupCall*> call) {
+	_groupCalls.remove(call->id());
+}
+
+GroupCall *Session::groupCall(uint64 callId) const {
+	const auto i = _groupCalls.find(callId);
+	return (i != end(_groupCalls)) ? i->second.get() : nullptr;
 }
 
 PeerData *Session::peerByUsername(const QString &username) const {
