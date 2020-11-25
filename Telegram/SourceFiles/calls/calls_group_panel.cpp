@@ -7,42 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_group_panel.h"
 
-#include "data/data_photo.h"
-#include "data/data_session.h"
-#include "data/data_user.h"
-#include "data/data_file_origin.h"
-#include "data/data_photo_media.h"
-#include "data/data_cloud_file.h"
-#include "data/data_changes.h"
-#include "calls/calls_emoji_fingerprint.h"
-#include "calls/calls_signal_bars.h"
-#include "calls/calls_userpic.h"
-#include "calls/calls_video_bubble.h"
+#include "calls/calls_group_members.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/shadow.h"
 #include "ui/widgets/window.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/image/image.h"
-#include "ui/text/format_values.h"
-#include "ui/wrap/fade_wrap.h"
-#include "ui/wrap/padding_wrap.h"
-#include "ui/platform/ui_platform_utility.h"
-#include "ui/toast/toast.h"
-#include "ui/empty_userpic.h"
-#include "ui/emoji_config.h"
 #include "core/application.h"
-#include "mainwindow.h"
 #include "lang/lang_keys.h"
-#include "main/main_session.h"
-#include "apiwrap.h"
-#include "platform/platform_specific.h"
-#include "base/platform/base_platform_info.h"
-#include "window/main_window.h"
+#include "base/event_filter.h"
 #include "app.h"
-#include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
-#include "styles/style_chat.h"
 
 #ifdef Q_OS_WIN
 #include "ui/platform/win/ui_window_title_win.h"
@@ -246,9 +219,9 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 #ifdef Q_OS_WIN
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
 	_window.get(),
-	st::callTitle,
-	[=](bool maximized) { toggleFullScreen(maximized); }))
+	st::callTitle))
 #endif // Q_OS_WIN
+, _members(widget(), call)
 , _settings(widget(), st::callCancel)
 , _hangup(widget(), st::callHangup)
 , _mute(widget(), st::callMicrophoneMute, &st::callMicrophoneUnmute) {
@@ -262,6 +235,9 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 GroupPanel::~GroupPanel() = default;
 
 void GroupPanel::showAndActivate() {
+	if (_window->isHidden()) {
+		_window->show();
+	}
 	_window->raise();
 	_window->setWindowState(_window->windowState() | Qt::WindowActive);
 	_window->activateWindow();
@@ -276,17 +252,13 @@ void GroupPanel::initWindow() {
 	_window->setTitle(u" "_q);
 	_window->setTitleStyle(st::callTitle);
 
-	_window->events(
-	) | rpl::start_with_next([=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::Close) {
-			handleClose();
-		} else if (e->type() == QEvent::KeyPress) {
-			if ((static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Escape)
-				&& _window->isFullScreen()) {
-				_window->showNormal();
-			}
+	base::install_event_filter(_window.get(), [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::Close && handleClose()) {
+			e->ignore();
+			return base::EventFilterResult::Cancel;
 		}
-	}, _window->lifetime());
+		return base::EventFilterResult::Continue;
+	});
 
 	_window->setBodyTitleArea([=](QPoint widgetPoint) {
 		using Flag = Ui::WindowTitleHitTestFlag;
@@ -301,31 +273,8 @@ void GroupPanel::initWindow() {
 		const auto inControls = false;
 		return inControls
 			? Flag::None
-			: (Flag::Move | Flag::FullScreen);
+			: (Flag::Move | Flag::Maximize);
 	});
-
-#ifdef Q_OS_WIN
-	// On Windows we replace snap-to-top maximizing with fullscreen.
-	//
-	// We have to switch first to showNormal, so that showFullScreen
-	// will remember correct normal window geometry and next showNormal
-	// will show it instead of a moving maximized window.
-	//
-	// We have to do it in InvokeQueued, otherwise it still captures
-	// the maximized window geometry and saves it.
-	//
-	// I couldn't find a less glitchy way to do that *sigh*.
-	const auto object = _window->windowHandle();
-	const auto signal = &QWindow::windowStateChanged;
-	QObject::connect(object, signal, [=](Qt::WindowState state) {
-		if (state == Qt::WindowMaximized) {
-			InvokeQueued(object, [=] {
-				_window->showNormal();
-				_window->showFullScreen();
-			});
-		}
-	});
-#endif // Q_OS_WIN
 }
 
 void GroupPanel::initWidget() {
@@ -382,6 +331,11 @@ void GroupPanel::initWithCall(GroupCall *call) {
 	) | rpl::start_with_next([=](State state) {
 		stateChanged(state);
 	}, _callLifetime);
+
+	_members->desiredHeightValue(
+	) | rpl::start_with_next([=] {
+		updateControlsGeometry();
+	}, _members->lifetime());
 }
 
 void GroupPanel::initLayout() {
@@ -412,22 +366,33 @@ void GroupPanel::initGeometry() {
 	updateControlsGeometry();
 }
 
-void GroupPanel::toggleFullScreen(bool fullscreen) {
-	if (fullscreen) {
-		_window->showFullScreen();
-	} else {
-		_window->showNormal();
-	}
-}
-
 void GroupPanel::updateControlsGeometry() {
 	if (widget()->size().isEmpty()) {
 		return;
 	}
-	const auto top = widget()->height() - 2 * _mute->height();
-	_mute->move((widget()->width() - _mute->width()) / 2, top);
-	_settings->moveToLeft(_settings->width(), top);
-	_hangup->moveToRight(_settings->width(), top);
+	const auto desiredHeight = _members->desiredHeight();
+	const auto membersWidth = widget()->width()
+		- st::groupCallMembersMargin.left()
+		- st::groupCallMembersMargin.right();
+	const auto muteTop = widget()->height() - 2 * _mute->height();
+	const auto buttonsTop = muteTop;
+#ifdef Q_OS_WIN
+	const auto membersTop = st::callTitleButton.height
+		+ st::groupCallMembersMargin.top() / 2;
+#else // Q_OS_WIN
+	const auto membersTop = st::groupCallMembersMargin.top();
+#endif // Q_OS_WIN
+	const auto availableHeight = buttonsTop
+		- membersTop
+		- st::groupCallMembersMargin.bottom();
+	_members->setGeometry(
+		st::groupCallMembersMargin.left(),
+		membersTop,
+		membersWidth,
+		std::min(desiredHeight, availableHeight));
+	_mute->move((widget()->width() - _mute->width()) / 2, muteTop);
+	_settings->moveToLeft(_settings->width(), buttonsTop);
+	_hangup->moveToRight(_settings->width(), buttonsTop);
 }
 
 void GroupPanel::paint(QRect clip) {
@@ -435,14 +400,16 @@ void GroupPanel::paint(QRect clip) {
 
 	auto region = QRegion(clip);
 	for (const auto rect : region) {
-		p.fillRect(rect, st::callBgOpaque);
+		p.fillRect(rect, st::groupCallBg);
 	}
 }
 
-void GroupPanel::handleClose() {
+bool GroupPanel::handleClose() {
 	if (_call) {
-		_call->hangup();
+		_window->hide();
+		return true;
 	}
+	return false;
 }
 
 not_null<Ui::RpWidget*> GroupPanel::widget() const {

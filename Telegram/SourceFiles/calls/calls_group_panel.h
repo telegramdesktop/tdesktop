@@ -29,6 +29,7 @@ class FadeWrap;
 template <typename Widget>
 class PaddingWrap;
 class Window;
+class ScrollArea;
 namespace Platform {
 class TitleControls;
 } // namespace Platform
@@ -43,6 +44,8 @@ namespace Calls {
 
 class Userpic;
 class SignalBars;
+
+class GroupMembers;
 
 class GroupPanel final {
 public:
@@ -67,14 +70,11 @@ private:
 	void initLayout();
 	void initGeometry();
 
-	void handleClose();
+	bool handleClose();
 
 	void updateControlsGeometry();
 	void stateChanged(State state);
 	void showControls();
-	void startDurationUpdateTimer(crl::time currentDuration);
-
-	void toggleFullScreen(bool fullscreen);
 
 	GroupCall *_call = nullptr;
 	not_null<ChannelData*> _channel;
@@ -86,6 +86,8 @@ private:
 #endif // Q_OS_WIN
 
 	rpl::lifetime _callLifetime;
+
+	object_ptr<GroupMembers> _members;
 
 	object_ptr<Button> _settings;
 	object_ptr<Button> _hangup;

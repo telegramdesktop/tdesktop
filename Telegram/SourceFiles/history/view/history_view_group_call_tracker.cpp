@@ -35,7 +35,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::content() const {
 		if (!call || (current && current->channel() == channel)) {
 			return { .shown = false };
 		} else if (!call->fullCount() && !call->participantsLoaded()) {
-			call->requestParticipants();
+			call->reload();
 		}
 		return { .count = call->fullCount(), .shown = true };
 	});

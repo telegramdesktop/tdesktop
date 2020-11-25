@@ -219,7 +219,6 @@ contactsPhotoCheckIcon: defaultPeerListCheckIcon;
 contactsPhotoCheck: defaultPeerListCheck;
 contactsPhotoCheckbox: defaultPeerListCheckbox;
 contactsPhotoDisabledCheckFg: menuIconFg;
-contactsNameCheckedFg: windowActiveTextFg;
 contactsRipple: defaultRippleAnimation;
 
 contactsMarginTop: 4px;

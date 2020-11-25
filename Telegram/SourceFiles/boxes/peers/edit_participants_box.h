@@ -135,7 +135,6 @@ private:
 // Viewing admins, banned or restricted users list with search.
 class ParticipantsBoxController
 	: public PeerListController
-	, private base::Subscriber
 	, public base::has_weak_ptr {
 public:
 	using Role = ParticipantsRole;
