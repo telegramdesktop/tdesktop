@@ -338,7 +338,7 @@ RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/ffmpeg-cache" install
 
 FROM builder AS openal
-RUN git clone -b fix_mono --depth=1 $GIT/telegramdesktop/openal-soft.git
+RUN git clone -b openal-soft-1.21.0 --depth=1 $GIT/kcat/openal-soft.git
 
 WORKDIR openal-soft
 RUN cmake3 -B build . \

@@ -108,9 +108,9 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cmake --build . --config Release
     cd ..
 
-    git clone https://github.com/telegramdesktop/openal-soft.git
+    git clone https://github.com/kcat/openal-soft.git
     cd openal-soft
-    git checkout fix_mono
+    git checkout openal-soft-1.21.0
     cd build
     cmake .. ^
         -G "Visual Studio 16 2019" ^

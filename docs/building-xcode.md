@@ -240,9 +240,9 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
-    git clone https://github.com/telegramdesktop/openal-soft.git
+    git clone https://github.com/kcat/openal-soft.git
     cd openal-soft
-    git checkout fix_mono
+    git checkout 3970252da9
     cd build
     CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -D CMAKE_INSTALL_PREFIX:PATH=/usr/local/macos -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.12 ..
     make $MAKE_THREADS_CNT
