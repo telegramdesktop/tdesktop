@@ -58,6 +58,7 @@ private:
 
 	std::vector<Participant> _participants;
 	base::flat_set<uint32> _sources;
+	QString _nextOffset;
 	int _fullCount = 0;
 	int _duration = 0;
 	bool _finished = false;

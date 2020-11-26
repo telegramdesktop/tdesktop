@@ -60,17 +60,18 @@ void GroupCall::requestParticipants() {
 		return;
 	} else if (_participants.size() >= _fullCount && _allReceived) {
 		return;
+	} else if (_allReceived) {
+		reload();
+		return;
 	}
-	const auto requestFromDate = (_allReceived || _participants.empty())
-		? TimeId(0)
-		: _participants.back().date;
 	auto &api = _channel->session().api();
 	_participantsRequestId = api.request(MTPphone_GetGroupParticipants(
 		input(),
-		MTP_int(requestFromDate),
+		MTP_string(_nextOffset),
 		MTP_int(kRequestPerPage)
 	)).done([=](const MTPphone_GroupParticipants &result) {
 		result.match([&](const MTPDphone_groupParticipants &data) {
+			_nextOffset = qs(data.vnext_offset());
 			_channel->owner().processUsers(data.vusers());
 			applyParticipantsSlice(data.vparticipants().v);
 			_fullCount = data.vcount().v;

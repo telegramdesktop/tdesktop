@@ -369,9 +369,9 @@ int GroupMembers::desiredHeight() const {
 		}
 		return 0;
 	}();
-	desired += qMax(count, _list->fullRowsCount())
+	desired += std::max(count, _list->fullRowsCount())
 		* st::groupCallMembersList.item.height;
-	return qMax(height(), desired);
+	return std::max(height(), desired);
 }
 
 void GroupMembers::setupHeader(not_null<GroupCall*> call) {

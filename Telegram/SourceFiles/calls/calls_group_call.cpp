@@ -205,14 +205,15 @@ void GroupCall::finish(FinishType type) {
 		|| state == State::Failed) {
 		return;
 	}
-	if (!joined()) {
+	if (!_mySsrc) {
 		setState(finalState);
 		return;
 	}
 
 	setState(hangupState);
 	_api.request(MTPphone_LeaveGroupCall(
-		inputCall()
+		inputCall(),
+		MTP_int(_mySsrc)
 	)).done([=](const MTPUpdates &result) {
 		// Here 'this' could be destroyed by updates, so we set Ended after
 		// updates being handled, but in a guarded way.
