@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/message_bar.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
+#include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 #include "styles/palette.h"
 
@@ -102,7 +103,7 @@ void GroupCallBar::paint(Painter &p) {
 	p.fillRect(_inner->rect(), st::historyComposeAreaBg);
 	p.setPen(st::defaultMessageBar.textFg);
 	p.setFont(st::defaultMessageBar.text.font);
-	p.drawText(_inner->rect(), "Voice Chat", style::al_center);
+	p.drawText(_inner->rect(), tr::lng_group_call_title(tr::now), style::al_center);
 }
 
 void GroupCallBar::updateControlsGeometry(QRect wrapGeometry) {

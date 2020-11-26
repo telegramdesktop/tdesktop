@@ -1811,6 +1811,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_call_microphone_off" = "{user}'s microphone is off";
 
+"lng_group_call_title" = "Voice Chat";
+"lng_group_call_active" = "speaking";
+"lng_group_call_inactive" = "listening";
+"lng_group_call_settings" = "Settings";
+"lng_group_call_unmute" = "Unmute";
+"lng_group_call_you_are_live" = "You are Live";
+"lng_group_call_connecting" = "Connecting...";
+"lng_group_call_leave" = "Leave";
+"lng_group_call_leave_title" = "Leave voice chat";
+"lng_group_call_leave_sure" = "Are you sure you want to leave this voice chat?";
+"lng_group_call_also_end" = "End voice chat";
+"lng_group_call_settings_title" = "Settings";
+"lng_group_call_speakers" = "Speakers";
+"lng_group_call_microphone" = "Microphone";
+"lng_group_call_share" = "Share Invite Link";
+"lng_group_call_end" = "End Voice Chat";
+"lng_group_call_join" = "Join";
+
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 
 "lng_player_message_today" = "Today at {time}";

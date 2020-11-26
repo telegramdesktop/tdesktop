@@ -76,6 +76,10 @@ private:
 	void stateChanged(State state);
 	void showControls();
 
+	[[nodiscard]] int computeMembersListTop() const;
+	[[nodiscard]] std::optional<QRect> computeTitleRect() const;
+	void refreshTitle();
+
 	GroupCall *_call = nullptr;
 	not_null<ChannelData*> _channel;
 
@@ -87,6 +91,7 @@ private:
 
 	rpl::lifetime _callLifetime;
 
+	object_ptr<Ui::FlatLabel> _title = { nullptr };
 	object_ptr<GroupMembers> _members;
 
 	object_ptr<Button> _settings;

@@ -455,6 +455,7 @@ groupCallHeaderLabel: FlatLabel(defaultFlatLabel) {
 	}
 }
 groupCallAddButtonPosition: point(10px, 7px);
+groupCallMembersWidthMax: 360px;
 
 groupCallInactiveButton: IconButton {
 	width: 36px;

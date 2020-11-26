@@ -142,10 +142,10 @@ void Row::refreshStatus() {
 	setCustomStatus([&] {
 		switch (_state) {
 		case State::Inactive:
-		case State::Muted: return "listening";
-		case State::Active: return "speaking";
+		case State::Muted: return tr::lng_group_call_inactive(tr::now);
+		case State::Active: return tr::lng_group_call_active(tr::now);
 		}
-		return "";
+		Unexpected("State in Row::refreshStatus.");
 	}());
 }
 
@@ -510,11 +510,11 @@ std::vector<not_null<PeerData*>> GroupMembers::peerListCollectSelectedRows() {
 }
 
 void GroupMembers::peerListAddSelectedPeerInBunch(not_null<PeerData*> peer) {
-	Unexpected("Item selection in Info::Profile::Members.");
+	Unexpected("Item selection in Calls::GroupMembers.");
 }
 
 void GroupMembers::peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) {
-	Unexpected("Item selection in Info::Profile::Members.");
+	Unexpected("Item selection in Calls::GroupMembers.");
 }
 
 void GroupMembers::peerListFinishSelectedRowsBunch() {

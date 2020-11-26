@@ -249,8 +249,10 @@ void GroupPanel::initWindow() {
 	_window->setAttribute(Qt::WA_NoSystemBackground);
 	_window->setWindowIcon(
 		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
-	_window->setTitle(u" "_q);
 	_window->setTitleStyle(st::callTitle);
+	_window->setTitle(computeTitleRect()
+		? u" "_q
+		: tr::lng_group_call_title(tr::now));
 
 	base::install_event_filter(_window.get(), [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Close && handleClose()) {
@@ -366,22 +368,43 @@ void GroupPanel::initGeometry() {
 	updateControlsGeometry();
 }
 
+int GroupPanel::computeMembersListTop() const {
+#ifdef Q_OS_WIN
+	return st::callTitleButton.height + st::groupCallMembersMargin.top() / 2;
+#elif defined Q_OS_MAC // Q_OS_WIN
+	return st::groupCallMembersMargin.top() * 2;
+#else // Q_OS_WIN || Q_OS_MAC
+	return st::groupCallMembersMargin.top();
+#endif // Q_OS_WIN || Q_OS_MAC
+}
+
+std::optional<QRect> GroupPanel::computeTitleRect() const {
+#ifdef Q_OS_WIN
+	const auto controls = _controls->geometry();
+	return QRect(0, 0, controls.x(), controls.height());
+#else // Q_OS_WIN
+	return std::nullopt;
+#endif // Q_OS_WIN
+}
+
 void GroupPanel::updateControlsGeometry() {
 	if (widget()->size().isEmpty()) {
 		return;
 	}
 	const auto desiredHeight = _members->desiredHeight();
-	const auto membersWidth = widget()->width()
+	const auto membersWidthAvailable = widget()->width()
 		- st::groupCallMembersMargin.left()
 		- st::groupCallMembersMargin.right();
+	const auto membersWidthMin = st::groupCallWidth
+		- st::groupCallMembersMargin.left()
+		- st::groupCallMembersMargin.right();
+	const auto membersWidth = std::clamp(
+		membersWidthAvailable,
+		membersWidthMin,
+		st::groupCallMembersWidthMax);
 	const auto muteTop = widget()->height() - 2 * _mute->height();
 	const auto buttonsTop = muteTop;
-#ifdef Q_OS_WIN
-	const auto membersTop = st::callTitleButton.height
-		+ st::groupCallMembersMargin.top() / 2;
-#else // Q_OS_WIN
-	const auto membersTop = st::groupCallMembersMargin.top();
-#endif // Q_OS_WIN
+	const auto membersTop = computeMembersListTop();
 	const auto availableHeight = buttonsTop
 		- membersTop
 		- st::groupCallMembersMargin.bottom();
@@ -393,6 +416,39 @@ void GroupPanel::updateControlsGeometry() {
 	_mute->move((widget()->width() - _mute->width()) / 2, muteTop);
 	_settings->moveToLeft(_settings->width(), buttonsTop);
 	_hangup->moveToRight(_settings->width(), buttonsTop);
+	refreshTitle();
+}
+
+void GroupPanel::refreshTitle() {
+	if (const auto titleRect = computeTitleRect()) {
+		if (!_title) {
+			_title.create(
+				widget(),
+				tr::lng_group_call_title(),
+				st::groupCallHeaderLabel);
+			_window->setTitle(u" "_q);
+		}
+		const auto best = _title->naturalWidth();
+		const auto from = (widget()->width() - best) / 2;
+		const auto top = (computeMembersListTop() - _title->height()) / 2;
+		const auto left = titleRect->x();
+		if (from >= left && from + best <= left + titleRect->width()) {
+			_title->resizeToWidth(best);
+			_title->moveToLeft(from, top);
+		} else if (titleRect->width() < best) {
+			_title->resizeToWidth(titleRect->width());
+			_title->moveToLeft(left, top);
+		} else if (from < left) {
+			_title->resizeToWidth(best);
+			_title->moveToLeft(left, top);
+		} else {
+			_title->resizeToWidth(best);
+			_title->moveToLeft(left + titleRect->width() - best, top);
+		}
+	} else if (_title) {
+		_title.destroy();
+		_window->setTitle(tr::lng_group_call_title(tr::now));
+	}
 }
 
 void GroupPanel::paint(QRect clip) {
