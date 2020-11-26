@@ -161,6 +161,14 @@ bool IconThemeShouldBeSet() {
 	return Result;
 }
 
+bool CursorSizeShouldBeSet() {
+	// change the cursor size only on Wayland and if it wasn't already set
+	static const auto Result = IsWayland()
+		&& qEnvironmentVariableIsEmpty("XCURSOR_SIZE");
+
+	return Result;
+}
+
 void SetIconTheme() {
 	Core::Sandbox::Instance().customEnterFromEventLoop([] {
 		if (GtkSettingSupported()
@@ -179,6 +187,21 @@ void SetIconTheme() {
 			}
 
 			Core::App().domain().notifyUnreadBadgeChanged();
+		}
+	});
+}
+
+void SetCursorSize() {
+	Core::Sandbox::Instance().customEnterFromEventLoop([] {
+		if (GtkSettingSupported()
+			&& GtkLoaded()
+			&& CursorSizeShouldBeSet()) {
+			DEBUG_LOG(("Setting GTK cursor size"));
+
+			const auto newCursorSize = GtkSetting<gint>("gtk-cursor-theme-size");
+			qputenv("XCURSOR_SIZE", QByteArray::number(newCursorSize));
+
+			DEBUG_LOG(("New cursor size: %1").arg(newCursorSize));
 		}
 	});
 }
@@ -319,10 +342,12 @@ void start() {
 		LOAD_SYMBOL(lib_gtk, "gtk_app_chooser_get_type", gtk_app_chooser_get_type);
 
 		SetIconTheme();
+		SetCursorSize();
 
 		const auto settings = gtk_settings_get_default();
 		g_signal_connect(settings, "notify::gtk-icon-theme-name", G_CALLBACK(SetIconTheme), nullptr);
 		g_signal_connect(settings, "notify::gtk-theme-name", G_CALLBACK(DarkModeChanged), nullptr);
+		g_signal_connect(settings, "notify::gtk-cursor-theme-size", G_CALLBACK(SetCursorSize), nullptr);
 
 		if (!gtk_check_version(3, 0, 0)) {
 			g_signal_connect(settings, "notify::gtk-application-prefer-dark-theme", G_CALLBACK(DarkModeChanged), nullptr);
