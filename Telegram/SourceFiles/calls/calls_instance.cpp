@@ -393,6 +393,9 @@ void Instance::handleGroupCallUpdate(
 	if (const auto existing = session->data().groupCall(callId)) {
 		existing->applyUpdate(update);
 	}
+	if (_currentGroupCall) {
+		_currentGroupCall->handleUpdate(update);
+	}
 }
 
 void Instance::handleSignalingData(

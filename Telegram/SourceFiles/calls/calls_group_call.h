@@ -43,7 +43,8 @@ public:
 	void start();
 	void hangup();
 	void join(const MTPInputGroupCall &inputCall);
-	bool handleUpdate(const MTPGroupCall &call);
+	void handleUpdate(const MTPGroupCall &call);
+	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
 
 	void setMuted(bool mute);
 	[[nodiscard]] bool muted() const {
@@ -95,6 +96,8 @@ private:
 
 	void setState(State state);
 	void finish(FinishType type);
+	void sendMutedUpdate();
+	void rejoin();
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
@@ -109,6 +112,7 @@ private:
 	uint64 _id = 0;
 	uint64 _accessHash = 0;
 	uint32 _mySsrc = 0;
+	mtpRequestId _updateMuteRequestId = 0;
 
 	std::unique_ptr<tgcalls::GroupInstanceImpl> _instance;
 

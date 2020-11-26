@@ -111,45 +111,7 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 		_id = data.vid().v;
 		_accessHash = data.vaccess_hash().v;
 		createAndStartController();
-		const auto weak = base::make_weak(this);
-		_instance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
-			crl::on_main(weak, [=, payload = std::move(payload)]{
-				auto fingerprints = QJsonArray();
-				for (const auto print : payload.fingerprints) {
-					auto object = QJsonObject();
-					object.insert("hash", QString::fromStdString(print.hash));
-					object.insert("setup", QString::fromStdString(print.setup));
-					object.insert(
-						"fingerprint",
-						QString::fromStdString(print.fingerprint));
-					fingerprints.push_back(object);
-				}
-
-				auto root = QJsonObject();
-				const auto ssrc = payload.ssrc;
-				root.insert("ufrag", QString::fromStdString(payload.ufrag));
-				root.insert("pwd", QString::fromStdString(payload.pwd));
-				root.insert("fingerprints", fingerprints);
-				root.insert("ssrc", double(payload.ssrc));
-
-				const auto json = QJsonDocument(root).toJson(
-					QJsonDocument::Compact);
-				_api.request(MTPphone_JoinGroupCall(
-					MTP_flags(_muted.current()
-						? MTPphone_JoinGroupCall::Flag::f_muted
-						: MTPphone_JoinGroupCall::Flag(0)),
-					inputCall,
-					MTP_dataJSON(MTP_bytes(json))
-				)).done([=](const MTPUpdates &updates) {
-					_mySsrc = ssrc;
-					setState(State::Joined);
-
-					_channel->session().api().applyUpdates(updates);
-				}).fail([=](const RPCError &error) {
-					int a = error.code();
-				}).send();
-			});
-		});
+		rejoin();
 	});
 	_channel->setCall(inputCall);
 
@@ -159,6 +121,56 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 	) | rpl::start_with_next([=] {
 		checkParticipants();
 	}, _lifetime);
+}
+
+void GroupCall::rejoin() {
+	Expects(_state.current() == State::Joining);
+
+	_mySsrc = 0;
+	const auto weak = base::make_weak(this);
+	_instance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
+		crl::on_main(weak, [=, payload = std::move(payload)]{
+			auto fingerprints = QJsonArray();
+			for (const auto print : payload.fingerprints) {
+				auto object = QJsonObject();
+				object.insert("hash", QString::fromStdString(print.hash));
+				object.insert("setup", QString::fromStdString(print.setup));
+				object.insert(
+					"fingerprint",
+					QString::fromStdString(print.fingerprint));
+				fingerprints.push_back(object);
+			}
+
+			auto root = QJsonObject();
+			const auto ssrc = payload.ssrc;
+			root.insert("ufrag", QString::fromStdString(payload.ufrag));
+			root.insert("pwd", QString::fromStdString(payload.pwd));
+			root.insert("fingerprints", fingerprints);
+			root.insert("ssrc", double(payload.ssrc));
+
+			const auto json = QJsonDocument(root).toJson(
+				QJsonDocument::Compact);
+			const auto muted = _muted.current();
+			_api.request(MTPphone_JoinGroupCall(
+				MTP_flags(muted
+					? MTPphone_JoinGroupCall::Flag::f_muted
+					: MTPphone_JoinGroupCall::Flag(0)),
+				inputCall(),
+				MTP_dataJSON(MTP_bytes(json))
+			)).done([=](const MTPUpdates &updates) {
+				_mySsrc = ssrc;
+				setState(State::Joined);
+
+				if (_muted.current() != muted) {
+					sendMutedUpdate();
+				}
+
+				_channel->session().api().applyUpdates(updates);
+			}).fail([=](const RPCError &error) {
+				int a = error.code();
+			}).send();
+		});
+	});
 }
 
 void GroupCall::checkParticipants() {
@@ -226,23 +238,19 @@ void GroupCall::finish(FinishType type) {
 
 void GroupCall::setMuted(bool mute) {
 	_muted = mute;
-	if (_instance) {
-		_instance->setIsMuted(mute);
-	}
 }
 
-bool GroupCall::handleUpdate(const MTPGroupCall &call) {
+void GroupCall::handleUpdate(const MTPGroupCall &call) {
 	return call.match([&](const MTPDgroupCall &data) {
 		if (_acceptFields) {
-			if (_instance || _id) {
-				return false;
+			if (!_instance && !_id) {
+				join(MTP_inputGroupCall(data.vid(), data.vaccess_hash()));
 			}
-			join(MTP_inputGroupCall(data.vid(), data.vaccess_hash()));
-			return true;
+			return;
 		} else if (_id != data.vid().v
 			|| _accessHash != data.vaccess_hash().v
 			|| !_instance) {
-			return false;
+			return;
 		}
 		if (const auto params = data.vparams()) {
 			params->match([&](const MTPDdataJSON &data) {
@@ -301,13 +309,37 @@ bool GroupCall::handleUpdate(const MTPGroupCall &call) {
 				checkParticipants();
 			});
 		}
-		return true;
 	}, [&](const MTPDgroupCallDiscarded &data) {
-		if (data.vid().v != _id) {
-			return false;
+		if (data.vid().v == _id) {
+			_mySsrc = 0;
+			hangup();
 		}
-		return true;
 	});
+}
+
+void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
+	const auto state = _state.current();
+	if (state != State::Joined) {
+		return;
+	}
+
+	const auto self = _channel->session().userId();
+	for (const auto &participant : data.vparticipants().v) {
+		participant.match([&](const MTPDgroupCallParticipant &data) {
+			if (data.vuser_id().v != self) {
+				return;
+			}
+			if (data.is_left() && data.vsource().v == _mySsrc) {
+				// I was removed from the call, rejoin.
+				setState(State::Joining);
+				rejoin();
+			} else if (!data.is_left() && data.vsource().v != _mySsrc) {
+				// I joined from another device, hangup.
+				_mySsrc = 0;
+				hangup();
+			}
+		});
+	}
 }
 
 void GroupCall::createAndStartController() {
@@ -341,9 +373,35 @@ void GroupCall::createAndStartController() {
 	_instance = std::make_unique<tgcalls::GroupInstanceImpl>(
 		std::move(descriptor));
 
-	const auto raw = _instance.get();
-	raw->setIsMuted(_muted.current());
+	_muted.value(
+	) | rpl::start_with_next([=](bool muted) {
+		if (_instance) {
+			_instance->setIsMuted(muted);
+		}
+		if (_mySsrc) {
+			sendMutedUpdate();
+		}
+	}, _lifetime);
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
+}
+
+void GroupCall::sendMutedUpdate() {
+	_api.request(_updateMuteRequestId).cancel();
+	_updateMuteRequestId = _api.request(MTPphone_EditGroupCallMember(
+		MTP_flags(_muted.current()
+			? MTPphone_EditGroupCallMember::Flag::f_muted
+			: MTPphone_EditGroupCallMember::Flag(0)),
+		inputCall(),
+		MTP_inputUserSelf()
+	)).done([=](const MTPUpdates &result) {
+		_channel->session().api().applyUpdates(result);
+	}).fail([=](const RPCError &error) {
+		if (error.type() == u"GROUP_CALL_FORBIDDEN"_q
+			&& _state.current() == State::Joined) {
+			setState(State::Joining);
+			rejoin();
+		}
+	}).send();
 }
 
 void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {

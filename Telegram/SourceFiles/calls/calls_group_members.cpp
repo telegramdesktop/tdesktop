@@ -246,6 +246,8 @@ void MembersController::prepareRows() {
 		auto user = row->peer()->asUser();
 		if (user->isSelf()) {
 			foundSelf = true;
+			++i;
+			continue;
 		}
 		const auto contains = ranges::contains(
 			participants,
@@ -303,11 +305,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 	Expects(row->peer()->isUser());
 
 	const auto user = row->peer()->asUser();
-	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
-	//result->addAction( // #TODO calls
-	//	tr::lng_context_view_profile(tr::now),
-	//	crl::guard(this, [=] { _navigation->showPeerInfo(user); }));
-	return result;
+	return nullptr;
 }
 
 bool MembersController::appendRow(not_null<UserData*> user) {
