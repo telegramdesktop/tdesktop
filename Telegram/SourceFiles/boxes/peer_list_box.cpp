@@ -1150,7 +1150,7 @@ void PeerListContent::mousePressEvent(QMouseEvent *e) {
 			updateRow(row, hint);
 		};
 		if (_selected.action) {
-			auto actionRect = getActionRect(row, _selected.index);
+			auto actionRect = getActiveActionRect(row, _selected.index);
 			if (!actionRect.isEmpty()) {
 				auto point = mapFromGlobal(QCursor::pos()) - actionRect.topLeft();
 				row->addActionRipple(point, std::move(updateCallback));
@@ -1627,7 +1627,7 @@ void PeerListContent::selectByMouse(QPoint globalPosition) {
 		if (row->disabled()) {
 			selected = Selected();
 		} else {
-			if (getActionRect(row, selected.index).contains(point)) {
+			if (getActiveActionRect(row, selected.index).contains(point)) {
 				selected.action = true;
 			}
 		}
@@ -1635,9 +1635,9 @@ void PeerListContent::selectByMouse(QPoint globalPosition) {
 	setSelected(selected);
 }
 
-QRect PeerListContent::getActionRect(not_null<PeerListRow*> row, RowIndex index) const {
+QRect PeerListContent::getActiveActionRect(not_null<PeerListRow*> row, RowIndex index) const {
 	auto actionSize = row->actionSize();
-	if (actionSize.isEmpty()) {
+	if (actionSize.isEmpty() || row->actionDisabled()) {
 		return QRect();
 	}
 	auto actionMargins = row->actionMargins();

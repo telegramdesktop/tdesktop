@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_changes.h"
+#include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_group_call.h"
 
@@ -395,8 +396,10 @@ void GroupCall::sendMutedUpdate() {
 		inputCall(),
 		MTP_inputUserSelf()
 	)).done([=](const MTPUpdates &result) {
+		_updateMuteRequestId = 0;
 		_channel->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {
+		_updateMuteRequestId = 0;
 		if (error.type() == u"GROUP_CALL_FORBIDDEN"_q
 			&& _state.current() == State::Joined) {
 			setState(State::Joining);
@@ -414,6 +417,24 @@ void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
 			_instance->setAudioOutputDevice(id);
 		}
 	}
+}
+
+void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
+	_api.request(MTPphone_EditGroupCallMember(
+		MTP_flags(mute
+			? MTPphone_EditGroupCallMember::Flag::f_muted
+			: MTPphone_EditGroupCallMember::Flag(0)),
+		inputCall(),
+		user->inputUser
+	)).done([=](const MTPUpdates &result) {
+		_channel->session().api().applyUpdates(result);
+	}).fail([=](const RPCError &error) {
+		if (error.type() == u"GROUP_CALL_FORBIDDEN"_q
+			&& _state.current() == State::Joined) {
+			setState(State::Joining);
+			rejoin();
+		}
+	}).send();
 }
 
 //void GroupCall::setAudioVolume(bool input, float level) {

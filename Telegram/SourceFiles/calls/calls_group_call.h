@@ -80,6 +80,8 @@ public:
 	//void setAudioVolume(bool input, float level);
 	void setAudioDuckingEnabled(bool enabled);
 
+	void toggleMute(not_null<UserData*> user, bool mute);
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}

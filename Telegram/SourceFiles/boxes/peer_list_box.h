@@ -102,6 +102,9 @@ public:
 	virtual QSize actionSize() const {
 		return QSize();
 	}
+	virtual bool actionDisabled() const {
+		return false;
+	}
 	virtual QMargins actionMargins() const {
 		return QMargins();
 	}
@@ -607,7 +610,7 @@ private:
 	int getRowTop(RowIndex row) const;
 	PeerListRow *getRow(RowIndex element);
 	RowIndex findRowIndex(not_null<PeerListRow*> row, RowIndex hint = RowIndex());
-	QRect getActionRect(not_null<PeerListRow*> row, RowIndex index) const;
+	QRect getActiveActionRect(not_null<PeerListRow*> row, RowIndex index) const;
 
 	crl::time paintRow(Painter &p, crl::time ms, RowIndex index);
 

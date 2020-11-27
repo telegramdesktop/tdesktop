@@ -29,7 +29,13 @@ public:
 		QWidget *parent,
 		not_null<GroupCall*> call);
 
-	int desiredHeight() const;
+	struct MuteRequest {
+		not_null<UserData*> user;
+		bool mute = false;
+	};
+
+	[[nodiscard]] int desiredHeight() const;
+	[[nodiscard]] rpl::producer<MuteRequest> toggleMuteRequests() const;
 
 private:
 	using ListWidget = PeerListContent;

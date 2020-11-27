@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
+#include "facades.h"
 #include "styles/style_calls.h"
 
 namespace Calls {
@@ -35,6 +36,9 @@ public:
 	};
 
 	void updateState(const Data::GroupCall::Participant *participant);
+	[[nodiscard]] State state() const {
+		return _state;
+	}
 
 	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
 	void stopLastActionRipple() override;
@@ -44,6 +48,9 @@ public:
 	}
 	QSize actionSize() const override {
 		return QSize(_st->width, _st->height);
+	}
+	bool actionDisabled() const override {
+		return peer()->isSelf() || !_channel->amCreator();
 	}
 	QMargins actionMargins() const override {
 		return QMargins(
@@ -70,6 +77,7 @@ private:
 		State state);
 
 	State _state = State::Inactive;
+	not_null<ChannelData*> _channel;
 	not_null<const style::IconButton*> _st;
 
 	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
@@ -81,6 +89,8 @@ class MembersController final
 	, public base::has_weak_ptr {
 public:
 	explicit MembersController(not_null<GroupCall*> call);
+
+	using MuteRequest = GroupMembers::MuteRequest;
 
 	Main::Session &session() const override;
 	void prepare() override;
@@ -94,9 +104,9 @@ public:
 	[[nodiscard]] rpl::producer<int> fullCountValue() const {
 		return _fullCount.value();
 	}
+	[[nodiscard]] rpl::producer<MuteRequest> toggleMuteRequests() const;
 
 private:
-
 	[[nodiscard]] std::unique_ptr<PeerListRow> createSelfRow() const;
 	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
 		const Data::GroupCall::Participant &participant) const;
@@ -114,6 +124,7 @@ private:
 	const base::weak_ptr<GroupCall> _call;
 	const not_null<ChannelData*> _channel;
 
+	rpl::event_stream<MuteRequest> _toggleMuteRequests;
 	rpl::variable<int> _fullCount = 1;
 	Ui::BoxPointer _addBox;
 	rpl::lifetime _lifetime;
@@ -123,6 +134,7 @@ private:
 Row::Row(not_null<ChannelData*> channel, not_null<UserData*> user)
 : PeerListRow(user)
 , _state(ComputeState(channel, user))
+, _channel(channel)
 , _st(ComputeIconStyle(_state)) {
 	refreshStatus();
 }
@@ -384,17 +396,25 @@ void MembersController::loadMoreRows() {
 	}
 }
 
-void MembersController::rowClicked(not_null<PeerListRow*> row) {
-	Expects(row->peer()->isUser());
+auto MembersController::toggleMuteRequests() const
+-> rpl::producer<GroupMembers::MuteRequest> {
+	return _toggleMuteRequests.events();
+}
 
-	const auto user = row->peer()->asUser();
+void MembersController::rowClicked(not_null<PeerListRow*> row) {
+	Ui::showPeerHistory(row->peer(), ShowAtUnreadMsgId);
 }
 
 void MembersController::rowActionClicked(
 		not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
 
-	const auto user = row->peer()->asUser();
+	const auto real = static_cast<Row*>(row.get());
+	const auto mute = (real->state() != Row::State::Muted);
+	_toggleMuteRequests.fire(MuteRequest{
+		.user = row->peer()->asUser(),
+		.mute = mute,
+	});
 }
 
 base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
@@ -438,6 +458,12 @@ GroupMembers::GroupMembers(
 	) | rpl::start_with_next([=](QRect clip) {
 		QPainter(this).fillRect(clip, st::groupCallMembersBg);
 	}, lifetime());
+}
+
+auto GroupMembers::toggleMuteRequests() const
+-> rpl::producer<GroupMembers::MuteRequest> {
+	return static_cast<MembersController*>(
+		_listController.get())->toggleMuteRequests();
 }
 
 int GroupMembers::desiredHeight() const {

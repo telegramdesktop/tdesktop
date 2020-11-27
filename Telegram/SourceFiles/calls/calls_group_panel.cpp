@@ -342,6 +342,13 @@ void GroupPanel::initWithCall(GroupCall *call) {
 	) | rpl::start_with_next([=] {
 		updateControlsGeometry();
 	}, _members->lifetime());
+
+	_members->toggleMuteRequests(
+	) | rpl::start_with_next([=](GroupMembers::MuteRequest request) {
+		if (_call) {
+			_call->toggleMute(request.user, request.mute);
+		}
+	}, _callLifetime);
 }
 
 void GroupPanel::initLayout() {
