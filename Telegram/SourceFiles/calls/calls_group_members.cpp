@@ -478,7 +478,18 @@ int GroupMembers::desiredHeight() const {
 	}();
 	desired += std::max(count, _list->fullRowsCount())
 		* st::groupCallMembersList.item.height;
-	return std::max(height(), desired);
+	return desired;
+}
+
+rpl::producer<int> GroupMembers::desiredHeightValue() const {
+	const auto controller = static_cast<MembersController*>(
+		_listController.get());
+	return rpl::combine(
+		heightValue(),
+		controller->fullCountValue()
+	) | rpl::map([=] {
+		return desiredHeight();
+	});
 }
 
 void GroupMembers::setupHeader(not_null<GroupCall*> call) {

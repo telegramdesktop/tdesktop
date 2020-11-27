@@ -35,6 +35,7 @@ public:
 	};
 
 	[[nodiscard]] int desiredHeight() const;
+	[[nodiscard]] rpl::producer<int> desiredHeightValue() const override;
 	[[nodiscard]] rpl::producer<MuteRequest> toggleMuteRequests() const;
 
 private:
