@@ -1051,6 +1051,13 @@ void History::applyServiceChanges(
 			});
 		}
 	} break;
+
+	case mtpc_messageActionGroupCall: {
+		if (const auto channel = peer->asChannel()) {
+			const auto &d = action.c_messageActionGroupCall();
+			channel->setCall(d.vcall());
+		}
+	} break;
 	}
 }
 

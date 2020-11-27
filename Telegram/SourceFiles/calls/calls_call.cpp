@@ -978,15 +978,15 @@ void Call::setCurrentVideoDevice(const QString &deviceId) {
 	}
 }
 
-void Call::setAudioVolume(bool input, float level) {
-	if (_instance) {
-		if (input) {
-			_instance->setInputVolume(level);
-		} else {
-			_instance->setOutputVolume(level);
-		}
-	}
-}
+//void Call::setAudioVolume(bool input, float level) {
+//	if (_instance) {
+//		if (input) {
+//			_instance->setInputVolume(level);
+//		} else {
+//			_instance->setOutputVolume(level);
+//		}
+//	}
+//}
 
 void Call::setAudioDuckingEnabled(bool enabled) {
 	if (_instance) {

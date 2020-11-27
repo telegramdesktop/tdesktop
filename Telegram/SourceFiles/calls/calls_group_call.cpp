@@ -8,28 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_call.h"
 
 #include "main/main_session.h"
-//#include "main/main_account.h"
-//#include "main/main_app_config.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
-//#include "boxes/rate_call_box.h"
-//#include "calls/calls_instance.h"
-//#include "base/openssl_help.h"
-//#include "mtproto/mtproto_dh_utils.h"
-//#include "mtproto/mtproto_config.h"
-//#include "core/application.h"
-//#include "core/core_settings.h"
-//#include "media/audio/media_audio_track.h"
-//#include "base/platform/base_platform_info.h"
-//#include "calls/calls_panel.h"
-//#include "webrtc/webrtc_video_track.h"
-//#include "webrtc/webrtc_media_devices.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_group_call.h"
-//#include "data/data_session.h"
-//#include "facades.h"
 
 #include <tgcalls/group/GroupInstanceImpl.h>
 
@@ -194,7 +180,7 @@ void GroupCall::checkParticipants() {
 			ssrcs.push_back(source);
 		}
 	}
-	_instance->setSsrcs(std::move(ssrcs));
+//	_instance->setSsrcs(std::move(ssrcs));
 }
 
 void GroupCall::hangup() {
@@ -345,6 +331,8 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 void GroupCall::createAndStartController() {
 	using AudioLevels = std::vector<std::pair<uint32_t, float>>;
 
+	const auto &settings = Core::App().settings();
+
 	const auto weak = base::make_weak(this);
 	tgcalls::GroupInstanceDescriptor descriptor = {
 		.config = tgcalls::GroupConfig{
@@ -353,6 +341,10 @@ void GroupCall::createAndStartController() {
 		},
 		.audioLevelsUpdated = [=](const AudioLevels &data) {
 		},
+		.myAudioLevelUpdated = [=](float) {
+		},
+		.initialInputDeviceId = settings.callInputDeviceId().toStdString(),
+		.initialOutputDeviceId = settings.callOutputDeviceId().toStdString(),
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
@@ -407,23 +399,23 @@ void GroupCall::sendMutedUpdate() {
 void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
 	if (_instance) {
 		const auto id = deviceId.toStdString();
-		//if (input) {
-		//	_instance->setAudioInputDevice(id);
-		//} else {
-		//	_instance->setAudioOutputDevice(id);
-		//}
+		if (input) {
+			_instance->setAudioInputDevice(id);
+		} else {
+			_instance->setAudioOutputDevice(id);
+		}
 	}
 }
 
-void GroupCall::setAudioVolume(bool input, float level) {
-	if (_instance) {
-		//if (input) {
-		//	_instance->setInputVolume(level);
-		//} else {
-		//	_instance->setOutputVolume(level);
-		//}
-	}
-}
+//void GroupCall::setAudioVolume(bool input, float level) {
+//	if (_instance) {
+//		if (input) {
+//			_instance->setInputVolume(level);
+//		} else {
+//			_instance->setOutputVolume(level);
+//		}
+//	}
+//}
 
 void GroupCall::setAudioDuckingEnabled(bool enabled) {
 	if (_instance) {

@@ -74,7 +74,7 @@ public:
 	}
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
-	void setAudioVolume(bool input, float level);
+	//void setAudioVolume(bool input, float level);
 	void setAudioDuckingEnabled(bool enabled);
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
