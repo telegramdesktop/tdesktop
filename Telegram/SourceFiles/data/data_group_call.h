@@ -24,21 +24,32 @@ public:
 	struct Participant {
 		not_null<UserData*> user;
 		TimeId date = 0;
+		TimeId lastActive = 0;
+		TimeId lastActivePrecise = 0;
 		uint32 source = 0;
 		bool muted = false;
 		bool canSelfUnmute = false;
 	};
+	struct ParticipantUpdate {
+		Participant participant;
+		bool removed = false;
+	};
 
 	[[nodiscard]] auto participants() const
 		-> const std::vector<Participant> &;
-	[[nodiscard]] const base::flat_set<uint32> &sources() const;
 	void requestParticipants();
 	[[nodiscard]] bool participantsLoaded() const;
 
+	[[nodiscard]] rpl::producer<> participantsSliceAdded();
+	[[nodiscard]] rpl::producer<ParticipantUpdate> participantUpdated() const;
+
 	void applyUpdate(const MTPGroupCall &update);
 	void applyUpdate(const MTPDupdateGroupCallParticipants &update);
+	void applyUpdateChecked(
+		const MTPDupdateGroupCallParticipants &update);
 
 	[[nodiscard]] int fullCount() const;
+	[[nodiscard]] rpl::producer<int> fullCountValue() const;
 
 	void reload();
 	[[nodiscard]] bool finished() const;
@@ -46,7 +57,11 @@ public:
 
 private:
 	void applyCall(const MTPGroupCall &call, bool force);
-	void applyParticipantsSlice(const QVector<MTPGroupCallParticipant> &list);
+	void applyParticipantsSlice(
+		const QVector<MTPGroupCallParticipant> &list,
+		bool sendIndividualUpdates = false);
+	void applyParticipantsMutes(
+		const MTPDupdateGroupCallParticipants &update);
 
 	const not_null<ChannelData*> _channel;
 	const uint64 _id = 0;
@@ -57,9 +72,12 @@ private:
 	mtpRequestId _reloadRequestId = 0;
 
 	std::vector<Participant> _participants;
-	base::flat_set<uint32> _sources;
 	QString _nextOffset;
-	int _fullCount = 0;
+	rpl::variable<int> _fullCount = 0;
+
+	rpl::event_stream<ParticipantUpdate> _participantUpdates;
+	rpl::event_stream<> _participantsSliceAdded;
+
 	int _duration = 0;
 	bool _finished = false;
 	bool _allReceived = false;

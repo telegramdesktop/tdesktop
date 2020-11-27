@@ -426,9 +426,9 @@ bool PeerListRow::checked() const {
 	return _checkbox && _checkbox->checked();
 }
 
-void PeerListRow::setCustomStatus(const QString &status) {
+void PeerListRow::setCustomStatus(const QString &status, bool active) {
 	setStatusText(status);
-	_statusType = StatusType::Custom;
+	_statusType = active ? StatusType::CustomActive : StatusType::Custom;
 	_statusValidTill = 0;
 }
 
@@ -438,7 +438,10 @@ void PeerListRow::clearCustomStatus() {
 }
 
 void PeerListRow::refreshStatus() {
-	if (!_initialized || special() || _statusType == StatusType::Custom) {
+	if (!_initialized
+		|| special()
+		|| _statusType == StatusType::Custom
+		|| _statusType == StatusType::CustomActive) {
 		return;
 	}
 	_statusType = StatusType::LastSeen;
@@ -550,7 +553,8 @@ void PeerListRow::paintStatusText(
 		int availableWidth,
 		int outerWidth,
 		bool selected) {
-	auto statusHasOnlineColor = (_statusType == PeerListRow::StatusType::Online);
+	auto statusHasOnlineColor = (_statusType == PeerListRow::StatusType::Online)
+		|| (_statusType == PeerListRow::StatusType::CustomActive);
 	p.setFont(st::contactsStatusFont);
 	p.setPen(statusHasOnlineColor ? st.statusFgActive : (selected ? st.statusFgOver : st.statusFg));
 	_status.drawLeftElided(p, x, y, availableWidth, outerWidth);

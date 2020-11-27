@@ -88,7 +88,7 @@ public:
 	[[nodiscard]] virtual auto generatePaintUserpicCallback()
 		-> PaintRoundImageCallback;
 
-	void setCustomStatus(const QString &status);
+	void setCustomStatus(const QString &status, bool active = false);
 	void clearCustomStatus();
 
 	// Box interface.
@@ -127,6 +127,7 @@ public:
 		Online,
 		LastSeen,
 		Custom,
+		CustomActive,
 	};
 	virtual void refreshStatus();
 	crl::time refreshStatusTime() const;

@@ -30,6 +30,7 @@ template <typename Widget>
 class PaddingWrap;
 class Window;
 class ScrollArea;
+class LayerManager;
 namespace Platform {
 class TitleControls;
 } // namespace Platform
@@ -84,6 +85,7 @@ private:
 	not_null<ChannelData*> _channel;
 
 	const std::unique_ptr<Ui::Window> _window;
+	const std::unique_ptr<Ui::LayerManager> _layerBg;
 
 #ifdef Q_OS_WIN
 	std::unique_ptr<Ui::Platform::TitleControls> _controls;

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
+#include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_changes.h"
@@ -93,19 +94,21 @@ void GroupCall::start() {
 
 void GroupCall::join(const MTPInputGroupCall &inputCall) {
 	setState(State::Joining);
+	_channel->setCall(inputCall);
+
 	inputCall.match([&](const MTPDinputGroupCall &data) {
 		_id = data.vid().v;
 		_accessHash = data.vaccess_hash().v;
 		createAndStartController();
 		rejoin();
 	});
-	_channel->setCall(inputCall);
 
-	_channel->session().changes().peerFlagsValue(
-		_channel,
-		Data::PeerUpdate::Flag::GroupCall
-	) | rpl::start_with_next([=] {
-		checkParticipants();
+	using Update = Data::GroupCall::ParticipantUpdate;
+	_channel->call()->participantUpdated(
+	) | rpl::filter([=](const Update &update) {
+		return (_instance != nullptr) && update.removed;
+	}) | rpl::start_with_next([=](const Update &update) {
+		_instance->removeSsrcs({ update.participant.source });
 	}, _lifetime);
 }
 
@@ -113,6 +116,9 @@ void GroupCall::rejoin() {
 	Expects(_state.current() == State::Joining);
 
 	_mySsrc = 0;
+	applySelfInCallLocally();
+	LOG(("Call Info: Requesting join payload."));
+
 	const auto weak = base::make_weak(this);
 	_instance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
 		crl::on_main(weak, [=, payload = std::move(payload)]{
@@ -134,6 +140,9 @@ void GroupCall::rejoin() {
 			root.insert("fingerprints", fingerprints);
 			root.insert("ssrc", double(payload.ssrc));
 
+			LOG(("Call Info: Join payload received, joining with source: %1."
+				).arg(ssrc));
+
 			const auto json = QJsonDocument(root).toJson(
 				QJsonDocument::Compact);
 			const auto muted = _muted.current();
@@ -146,6 +155,7 @@ void GroupCall::rejoin() {
 			)).done([=](const MTPUpdates &updates) {
 				_mySsrc = ssrc;
 				setState(State::Joined);
+				applySelfInCallLocally();
 
 				if (_muted.current() != muted) {
 					sendMutedUpdate();
@@ -159,28 +169,28 @@ void GroupCall::rejoin() {
 	});
 }
 
-void GroupCall::checkParticipants() {
-	if (!joined()) {
-		return;
-	}
+void GroupCall::applySelfInCallLocally() {
 	const auto call = _channel->call();
 	if (!call || call->id() != _id) {
-		finish(FinishType::Ended);
 		return;
 	}
-	const auto &sources = call->sources();
-	if (sources.size() != call->fullCount() || sources.empty()) {
-		call->reload();
-		return;
-	}
-	auto ssrcs = std::vector<uint32_t>();
-	ssrcs.reserve(sources.size());
-	for (const auto source : sources) {
-		if (source != _mySsrc) {
-			ssrcs.push_back(source);
-		}
-	}
-//	_instance->setSsrcs(std::move(ssrcs));
+	const auto my = [&] {
+		const auto self = _channel->session().userId();
+		const auto now = base::unixtime::now();
+		using Flag = MTPDgroupCallParticipant::Flag;
+		return MTP_groupCallParticipant(
+			MTP_flags((_mySsrc ? Flag(0) : Flag::f_left)
+				| (_muted.current() ? Flag::f_muted : Flag(0))),
+			MTP_int(self),
+			MTP_int(now),
+			MTP_int(0),
+			MTP_int(_mySsrc));
+	};
+	call->applyUpdateChecked(
+		MTP_updateGroupCallParticipants(
+			inputCall(),
+			MTP_vector<MTPGroupCallParticipant>(1, my()),
+			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
 void GroupCall::hangup() {
@@ -292,7 +302,6 @@ void GroupCall::handleUpdate(const MTPGroupCall &call) {
 					});
 				}
 				_instance->setJoinResponsePayload(payload);
-				checkParticipants();
 			});
 		}
 	}, [&](const MTPDgroupCallDiscarded &data) {

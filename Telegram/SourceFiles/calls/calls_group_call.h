@@ -36,6 +36,9 @@ public:
 		const MTPInputGroupCall &inputCall);
 	~GroupCall();
 
+	[[nodiscard]] uint64 id() const {
+		return _id;
+	}
 	[[nodiscard]] not_null<ChannelData*> channel() const {
 		return _channel;
 	}
@@ -92,11 +95,11 @@ private:
 	void handleControllerError(const QString &error);
 	void createAndStartController();
 	void destroyController();
-	void checkParticipants();
 
 	void setState(State state);
 	void finish(FinishType type);
 	void sendMutedUpdate();
+	void applySelfInCallLocally();
 	void rejoin();
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;

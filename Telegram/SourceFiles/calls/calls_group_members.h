@@ -13,6 +13,10 @@ namespace Ui {
 class ScrollArea;
 } // namespace Ui
 
+namespace Data {
+class GroupCall;
+} // namespace Data
+
 namespace Calls {
 
 class GroupCall;
@@ -58,7 +62,6 @@ private:
 	void setupButtons();
 
 	void addMember();
-	void showMembersWithSearch(bool withSearch);
 	void updateHeaderControlsGeometry(int newWidth);
 
 	base::weak_ptr<GroupCall> _call;

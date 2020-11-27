@@ -24,40 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 namespace {
 
-class MembersController final
-	: public PeerListController
-	, public base::has_weak_ptr {
-public:
-	explicit MembersController(not_null<GroupCall*> call);
-
-	Main::Session &session() const override;
-	void prepare() override;
-	void rowClicked(not_null<PeerListRow*> row) override;
-	void rowActionClicked(not_null<PeerListRow*> row) override;
-	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
-		QWidget *parent,
-		not_null<PeerListRow*> row) override;
-	void loadMoreRows() override;
-
-private:
-	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
-		not_null<UserData*> user) const;
-
-	void prepareRows();
-
-	void setupListChangeViewers();
-	bool appendRow(not_null<UserData*> user);
-	bool prependRow(not_null<UserData*> user);
-	bool removeRow(not_null<UserData*> user);
-
-	const base::weak_ptr<GroupCall> _call;
-	const not_null<ChannelData*> _channel;
-
-	Ui::BoxPointer _addBox;
-	rpl::lifetime _lifetime;
-
-};
-
 class Row final : public PeerListRow {
 public:
 	Row(not_null<ChannelData*> channel, not_null<UserData*> user);
@@ -67,6 +33,8 @@ public:
 		Inactive,
 		Muted,
 	};
+
+	void updateState(const Data::GroupCall::Participant *participant);
 
 	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
 	void stopLastActionRipple() override;
@@ -108,11 +76,73 @@ private:
 
 };
 
+class MembersController final
+	: public PeerListController
+	, public base::has_weak_ptr {
+public:
+	explicit MembersController(not_null<GroupCall*> call);
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	void rowActionClicked(not_null<PeerListRow*> row) override;
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) override;
+	void loadMoreRows() override;
+
+	[[nodiscard]] rpl::producer<int> fullCountValue() const {
+		return _fullCount.value();
+	}
+
+private:
+
+	[[nodiscard]] std::unique_ptr<PeerListRow> createSelfRow() const;
+	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
+		const Data::GroupCall::Participant &participant) const;
+
+	void prepareRows(not_null<Data::GroupCall*> real);
+
+	void setupListChangeViewers(not_null<GroupCall*> call);
+	void subscribeToChanges(not_null<Data::GroupCall*> real);
+	void updateRow(
+		const Data::GroupCall::Participant &participant);
+	void updateRow(
+		not_null<Row*> row,
+		const Data::GroupCall::Participant *participant) const;
+
+	const base::weak_ptr<GroupCall> _call;
+	const not_null<ChannelData*> _channel;
+
+	rpl::variable<int> _fullCount = 1;
+	Ui::BoxPointer _addBox;
+	rpl::lifetime _lifetime;
+
+};
+
 Row::Row(not_null<ChannelData*> channel, not_null<UserData*> user)
 : PeerListRow(user)
 , _state(ComputeState(channel, user))
 , _st(ComputeIconStyle(_state)) {
 	refreshStatus();
+}
+
+void Row::updateState(const Data::GroupCall::Participant *participant) {
+	if (!participant) {
+		if (peer()->isSelf()) {
+			setCustomStatus(tr::lng_group_call_connecting(tr::now));
+		} else {
+			setCustomStatus(QString());
+		}
+		_state = State::Inactive;
+	} else if (!participant->muted) {
+		_state = State::Active;
+	} else if (participant->canSelfUnmute) {
+		_state = State::Inactive;
+	} else {
+		_state = State::Muted;
+	}
+	_st = ComputeIconStyle(_state);
 }
 
 void Row::paintAction(
@@ -146,7 +176,7 @@ void Row::refreshStatus() {
 		case State::Active: return tr::lng_group_call_active(tr::now);
 		}
 		Unexpected("State in Row::refreshStatus.");
-	}());
+	}(), (_state == State::Active));
 }
 
 Row::State Row::ComputeState(
@@ -202,18 +232,81 @@ void Row::stopLastActionRipple() {
 MembersController::MembersController(not_null<GroupCall*> call)
 : _call(call)
 , _channel(call->channel()) {
-	setupListChangeViewers();
+	setupListChangeViewers(call);
 }
 
-void MembersController::setupListChangeViewers() {
-	const auto call = _call.get();
+void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
 	const auto channel = call->channel();
-	channel->session().changes().peerUpdates(
+	channel->session().changes().peerFlagsValue(
 		channel,
 		Data::PeerUpdate::Flag::GroupCall
-	) | rpl::start_with_next([=] {
-		prepareRows();
+	) | rpl::map([=] {
+		return channel->call();
+	}) | rpl::filter([=](Data::GroupCall *real) {
+		const auto call = _call.get();
+		return call && real && (real->id() == call->id());
+	}) | rpl::take(
+		1
+	) | rpl::start_with_next([=](not_null<Data::GroupCall*> real) {
+		subscribeToChanges(real);
 	}, _lifetime);
+
+	call->stateValue(
+	) | rpl::start_with_next([=] {
+		const auto call = _call.get();
+		const auto real = channel->call();
+		if (call && real && (real->id() == call->id())) {
+			//updateRow(channel->session().user());
+		}
+	}, _lifetime);
+}
+
+void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
+	_fullCount = real->fullCountValue(
+	) | rpl::map([](int value) {
+		return std::max(value, 1);
+	});
+
+	real->participantsSliceAdded(
+	) | rpl::start_with_next([=] {
+		prepareRows(real);
+	}, _lifetime);
+
+	using Update = Data::GroupCall::ParticipantUpdate;
+	real->participantUpdated(
+	) | rpl::start_with_next([=](const Update &update) {
+		const auto user = update.participant.user;
+		if (update.removed) {
+			if (auto row = delegate()->peerListFindRow(user->id)) {
+				if (user->isSelf()) {
+					static_cast<Row*>(row)->updateState(nullptr);
+					delegate()->peerListUpdateRow(row);
+				} else {
+					delegate()->peerListRemoveRow(row);
+					delegate()->peerListRefreshRows();
+				}
+			}
+		} else {
+			updateRow(update.participant);
+		}
+	}, _lifetime);
+}
+
+void MembersController::updateRow(
+		const Data::GroupCall::Participant &participant) {
+	if (auto row = delegate()->peerListFindRow(participant.user->id)) {
+		updateRow(static_cast<Row*>(row), &participant);
+	} else if (auto row = createRow(participant)) {
+		delegate()->peerListAppendRow(std::move(row));
+		delegate()->peerListRefreshRows();
+	}
+}
+
+void MembersController::updateRow(
+		not_null<Row*> row,
+		const Data::GroupCall::Participant *participant) const {
+	row->updateState(participant);
+	delegate()->peerListUpdateRow(row);
 }
 
 Main::Session &MembersController::session() const {
@@ -226,17 +319,18 @@ void MembersController::prepare() {
 	setDescriptionText(tr::lng_contacts_loading(tr::now));
 	setSearchNoResultsText(tr::lng_blocked_list_not_found(tr::now));
 
-	prepareRows();
-	delegate()->peerListRefreshRows();
-
+	const auto call = _call.get();
+	if (const auto real = _channel->call();
+		real && call && real->id() == call->id()) {
+		prepareRows(real);
+	} else if (auto row = createSelfRow()) {
+		delegate()->peerListAppendRow(std::move(row));
+		delegate()->peerListRefreshRows();
+	}
 	loadMoreRows();
 }
 
-void MembersController::prepareRows() {
-	const auto real = _channel->call();
-	if (!real) {
-		return;
-	}
+void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
 	auto foundSelf = false;
 	auto changed = false;
 	const auto &participants = real->participants();
@@ -262,13 +356,19 @@ void MembersController::prepareRows() {
 		}
 	}
 	if (!foundSelf) {
-		if (auto row = createRow(_channel->session().user())) {
+		const auto self = _channel->session().user();
+		const auto i = ranges::find(
+			participants,
+			_channel->session().user(),
+			&Data::GroupCall::Participant::user);
+		auto row = (i != end(participants)) ? createRow(*i) : createSelfRow();
+		if (row) {
 			changed = true;
 			delegate()->peerListAppendRow(std::move(row));
 		}
 	}
 	for (const auto &participant : participants) {
-		if (auto row = createRow(participant.user)) {
+		if (auto row = createRow(participant)) {
 			changed = true;
 			delegate()->peerListAppendRow(std::move(row));
 		}
@@ -279,10 +379,8 @@ void MembersController::prepareRows() {
 }
 
 void MembersController::loadMoreRows() {
-	if (const auto call = _call.get()) {
-		if (const auto real = call->channel()->call()) {
-			real->requestParticipants();
-		}
+	if (const auto real = _channel->call()) {
+		real->requestParticipants();
 	}
 }
 
@@ -308,33 +406,18 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 	return nullptr;
 }
 
-bool MembersController::appendRow(not_null<UserData*> user) {
-	if (delegate()->peerListFindRow(user->id)) {
-		return false;
-	}
-	delegate()->peerListAppendRow(createRow(user));
-	return true;
-}
-
-bool MembersController::prependRow(not_null<UserData*> user) {
-	if (auto row = delegate()->peerListFindRow(user->id)) {
-		return false;
-	}
-	delegate()->peerListPrependRow(createRow(user));
-	return true;
-}
-
-bool MembersController::removeRow(not_null<UserData*> user) {
-	if (auto row = delegate()->peerListFindRow(user->id)) {
-		delegate()->peerListRemoveRow(row);
-		return true;
-	}
-	return false;
+std::unique_ptr<PeerListRow> MembersController::createSelfRow() const {
+	const auto self = _channel->session().user();
+	auto result = std::make_unique<Row>(_channel, self);
+	updateRow(result.get(), nullptr);
+	return result;
 }
 
 std::unique_ptr<PeerListRow> MembersController::createRow(
-		not_null<UserData*> user) const {
-	return std::make_unique<Row>(_channel, user);
+		const Data::GroupCall::Participant &participant) const {
+	auto result = std::make_unique<Row>(_channel, participant.user);
+	updateRow(result.get(), &participant);
+	return result;
 }
 
 } // namespace
@@ -393,19 +476,13 @@ void GroupMembers::setupHeader(not_null<GroupCall*> call) {
 
 object_ptr<Ui::FlatLabel> GroupMembers::setupTitle(
 		not_null<GroupCall*> call) {
-	const auto channel = call->channel();
-	auto count = channel->session().changes().peerFlagsValue(
-		channel,
-		Data::PeerUpdate::Flag::GroupCall
-	) | rpl::map([=] {
-		const auto call = channel->call();
-		return std::max(call ? call->fullCount() : 0, 1);
-	});
+	const auto controller = static_cast<MembersController*>(
+		_listController.get());
 	auto result = object_ptr<Ui::FlatLabel>(
 		_titleWrap,
 		tr::lng_chat_status_members(
 			lt_count_decimal,
-			std::move(count) | tr::to_count(),
+			controller->fullCountValue() | tr::to_count(),
 			Ui::Text::Upper
 		),
 		st::groupCallHeaderLabel);

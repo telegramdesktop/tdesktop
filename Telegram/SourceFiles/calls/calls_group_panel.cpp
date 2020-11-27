@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/window.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/layers/layer_manager.h"
+#include "boxes/confirm_box.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "base/event_filter.h"
@@ -216,6 +218,7 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 : _call(call)
 , _channel(call->channel())
 , _window(std::make_unique<Ui::Window>(Core::App().getModalParent()))
+, _layerBg(std::make_unique<Ui::LayerManager>(_window->body()))
 #ifdef Q_OS_WIN
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
 	_window.get(),
@@ -300,9 +303,10 @@ void GroupPanel::initControls() {
 		}
 	});
 	_hangup->setClickedCallback([=] {
-		if (_call) {
-			_call->hangup();
-		}
+		_layerBg->showBox(Box<ConfirmBox>(
+			tr::lng_group_call_leave_sure(tr::now),
+			tr::lng_group_call_leave(tr::now),
+			[=] { if (_call) _call->hangup(); }));
 	});
 	_settings->setClickedCallback([=] {
 	});
@@ -409,7 +413,7 @@ void GroupPanel::updateControlsGeometry() {
 		- membersTop
 		- st::groupCallMembersMargin.bottom();
 	_members->setGeometry(
-		st::groupCallMembersMargin.left(),
+		(widget()->width() - membersWidth) / 2,
 		membersTop,
 		membersWidth,
 		std::min(desiredHeight, availableHeight));
@@ -426,6 +430,7 @@ void GroupPanel::refreshTitle() {
 				widget(),
 				tr::lng_group_call_title(),
 				st::groupCallHeaderLabel);
+			_title->setAttribute(Qt::WA_TransparentForMouseEvents);
 			_window->setTitle(u" "_q);
 		}
 		const auto best = _title->naturalWidth();
