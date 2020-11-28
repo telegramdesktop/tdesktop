@@ -120,12 +120,14 @@ callAnswer: CallButton {
 		}
 	}
 	bg: callAnswerBg;
+	bgSize: 44px;
+	bgPosition: point(12px, 12px);
 	angle: 135.;
 	outerRadius: 12px;
 	outerBg: callAnswerBgOuter;
 	label: callButtonLabel;
 }
-callHangup: CallButton {
+callHangup: CallButton(callAnswer) {
 	button: IconButton(callButton) {
 		icon: icon {{ "calls/call_discard", callIconFg }};
 		ripple: RippleAnimation(defaultRippleAnimation) {
@@ -136,7 +138,7 @@ callHangup: CallButton {
 	outerBg: callHangupBg;
 	label: callButtonLabel;
 }
-callCancel: CallButton {
+callCancel: CallButton(callAnswer) {
 	button: IconButton(callButton) {
 		icon: icon {{ "calls/call_cancel", callIconFgActive }};
 		ripple: RippleAnimation(defaultRippleAnimation) {
@@ -147,7 +149,7 @@ callCancel: CallButton {
 	outerBg: callIconBgActive;
 	label: callButtonLabel;
 }
-callMicrophoneMute: CallButton {
+callMicrophoneMute: CallButton(callAnswer) {
 	button: IconButton(callButton) {
 		icon: icon {{ "calls/call_record_active", callIconFg }};
 		ripple: RippleAnimation(defaultRippleAnimation) {
@@ -478,3 +480,19 @@ groupCallMutedButton: IconButton(groupCallInactiveButton) {
 	iconOver: icon {{ "calls/group_calls_muted", groupCallMemberMutedIcon }};
 }
 groupCallMemberButtonSkip: 10px;
+
+groupCallSettings: CallButton(callMicrophoneMute) {
+	button: IconButton(callButton) {
+		iconPosition: point(-1px, 22px);
+		icon: icon {{ "calls/call_settings", callIconFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callMuteRipple;
+		}
+	}
+	bg: callIconBg;
+	outerBg: callMuteRipple;
+	label: callButtonLabel;
+}
+groupCallButtonSkip: 43px;
+groupCallButtonBottomSkip: 134px;
+groupCallMuteBottomSkip: 149px;

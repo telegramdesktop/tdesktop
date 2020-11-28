@@ -22,6 +22,8 @@ class CloudImageView;
 } // namespace Data
 
 namespace Ui {
+class CallButton;
+class CallMuteButton;
 class IconButton;
 class FlatLabel;
 template <typename Widget>
@@ -57,7 +59,6 @@ public:
 	void closeBeforeDestroy();
 
 private:
-	class Button;
 	using State = GroupCall::State;
 
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
@@ -74,7 +75,6 @@ private:
 	bool handleClose();
 
 	void updateControlsGeometry();
-	void stateChanged(State state);
 	void showControls();
 
 	[[nodiscard]] int computeMembersListTop() const;
@@ -96,9 +96,9 @@ private:
 	object_ptr<Ui::FlatLabel> _title = { nullptr };
 	object_ptr<GroupMembers> _members;
 
-	object_ptr<Button> _settings;
-	object_ptr<Button> _hangup;
-	object_ptr<Button> _mute;
+	object_ptr<Ui::CallButton> _settings;
+	std::unique_ptr<Ui::CallMuteButton> _mute;
+	object_ptr<Ui::CallButton> _hangup;
 
 };
 

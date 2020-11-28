@@ -10,7 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_members.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/window.h"
-#include "ui/effects/ripple_animation.h"
+#include "ui/widgets/call_button.h"
+#include "ui/widgets/call_mute_button.h"
 #include "ui/layers/layer_manager.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
@@ -29,191 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Calls {
 
-class GroupPanel::Button final : public Ui::RippleButton {
-public:
-	Button(
-		QWidget *parent,
-		const style::CallButton &stFrom,
-		const style::CallButton *stTo = nullptr);
-
-	void setProgress(float64 progress);
-	void setText(rpl::producer<QString> text);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	void onStateChanged(State was, StateChangeSource source) override;
-
-	QImage prepareRippleMask() const override;
-	QPoint prepareRippleStartPosition() const override;
-
-private:
-	QPoint iconPosition(not_null<const style::CallButton*> st) const;
-	void mixIconMasks();
-
-	not_null<const style::CallButton*> _stFrom;
-	const style::CallButton *_stTo = nullptr;
-	float64 _progress = 0.;
-
-	object_ptr<Ui::FlatLabel> _label = { nullptr };
-
-	QImage _bgMask, _bg;
-	QPixmap _bgFrom, _bgTo;
-	QImage _iconMixedMask, _iconFrom, _iconTo, _iconMixed;
-
-};
-
-GroupPanel::Button::Button(
-	QWidget *parent,
-	const style::CallButton &stFrom,
-	const style::CallButton *stTo)
-: Ui::RippleButton(parent, stFrom.button.ripple)
-, _stFrom(&stFrom)
-, _stTo(stTo) {
-	resize(_stFrom->button.width, _stFrom->button.height);
-
-	_bgMask = prepareRippleMask();
-	_bgFrom = App::pixmapFromImageInPlace(style::colorizeImage(_bgMask, _stFrom->bg));
-	if (_stTo) {
-		Assert(_stFrom->button.width == _stTo->button.width);
-		Assert(_stFrom->button.height == _stTo->button.height);
-		Assert(_stFrom->button.rippleAreaPosition == _stTo->button.rippleAreaPosition);
-		Assert(_stFrom->button.rippleAreaSize == _stTo->button.rippleAreaSize);
-
-		_bg = QImage(_bgMask.size(), QImage::Format_ARGB32_Premultiplied);
-		_bg.setDevicePixelRatio(cRetinaFactor());
-		_bgTo = App::pixmapFromImageInPlace(style::colorizeImage(_bgMask, _stTo->bg));
-		_iconMixedMask = QImage(_bgMask.size(), QImage::Format_ARGB32_Premultiplied);
-		_iconMixedMask.setDevicePixelRatio(cRetinaFactor());
-		_iconFrom = QImage(_bgMask.size(), QImage::Format_ARGB32_Premultiplied);
-		_iconFrom.setDevicePixelRatio(cRetinaFactor());
-		_iconFrom.fill(Qt::black);
-		{
-			Painter p(&_iconFrom);
-			p.drawImage((_stFrom->button.rippleAreaSize - _stFrom->button.icon.width()) / 2, (_stFrom->button.rippleAreaSize - _stFrom->button.icon.height()) / 2, _stFrom->button.icon.instance(Qt::white));
-		}
-		_iconTo = QImage(_bgMask.size(), QImage::Format_ARGB32_Premultiplied);
-		_iconTo.setDevicePixelRatio(cRetinaFactor());
-		_iconTo.fill(Qt::black);
-		{
-			Painter p(&_iconTo);
-			p.drawImage((_stTo->button.rippleAreaSize - _stTo->button.icon.width()) / 2, (_stTo->button.rippleAreaSize - _stTo->button.icon.height()) / 2, _stTo->button.icon.instance(Qt::white));
-		}
-		_iconMixed = QImage(_bgMask.size(), QImage::Format_ARGB32_Premultiplied);
-		_iconMixed.setDevicePixelRatio(cRetinaFactor());
-	}
-}
-
-void GroupPanel::Button::setText(rpl::producer<QString> text) {
-	_label.create(this, std::move(text), _stFrom->label);
-	_label->show();
-	rpl::combine(
-		sizeValue(),
-		_label->sizeValue()
-	) | rpl::start_with_next([=](QSize my, QSize label) {
-		_label->moveToLeft(
-			(my.width() - label.width()) / 2,
-			my.height() - label.height(),
-			my.width());
-	}, _label->lifetime());
-}
-
-void GroupPanel::Button::setProgress(float64 progress) {
-	_progress = progress;
-	update();
-}
-
-void GroupPanel::Button::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	auto bgPosition = myrtlpoint(_stFrom->button.rippleAreaPosition);
-	auto paintFrom = (_progress == 0.) || !_stTo;
-	auto paintTo = !paintFrom && (_progress == 1.);
-
-	if (paintFrom) {
-		p.drawPixmap(bgPosition, _bgFrom);
-	} else if (paintTo) {
-		p.drawPixmap(bgPosition, _bgTo);
-	} else {
-		style::colorizeImage(_bgMask, anim::color(_stFrom->bg, _stTo->bg, _progress), &_bg);
-		p.drawImage(bgPosition, _bg);
-	}
-
-	auto rippleColorInterpolated = QColor();
-	auto rippleColorOverride = &rippleColorInterpolated;
-	if (paintFrom) {
-		rippleColorOverride = nullptr;
-	} else if (paintTo) {
-		rippleColorOverride = &_stTo->button.ripple.color->c;
-	} else {
-		rippleColorInterpolated = anim::color(_stFrom->button.ripple.color, _stTo->button.ripple.color, _progress);
-	}
-	paintRipple(p, _stFrom->button.rippleAreaPosition.x(), _stFrom->button.rippleAreaPosition.y(), rippleColorOverride);
-
-	auto positionFrom = iconPosition(_stFrom);
-	if (paintFrom) {
-		const auto icon = &_stFrom->button.icon;
-		icon->paint(p, positionFrom, width());
-	} else {
-		auto positionTo = iconPosition(_stTo);
-		if (paintTo) {
-			_stTo->button.icon.paint(p, positionTo, width());
-		} else {
-			mixIconMasks();
-			style::colorizeImage(_iconMixedMask, st::callIconFg->c, &_iconMixed);
-			p.drawImage(myrtlpoint(_stFrom->button.rippleAreaPosition), _iconMixed);
-		}
-	}
-}
-
-QPoint GroupPanel::Button::iconPosition(not_null<const style::CallButton*> st) const {
-	auto result = st->button.iconPosition;
-	if (result.x() < 0) {
-		result.setX((width() - st->button.icon.width()) / 2);
-	}
-	if (result.y() < 0) {
-		result.setY((height() - st->button.icon.height()) / 2);
-	}
-	return result;
-}
-
-void GroupPanel::Button::mixIconMasks() {
-	_iconMixedMask.fill(Qt::black);
-
-	Painter p(&_iconMixedMask);
-	PainterHighQualityEnabler hq(p);
-	auto paintIconMask = [this, &p](const QImage &mask, float64 angle) {
-		auto skipFrom = _stFrom->button.rippleAreaSize / 2;
-		p.translate(skipFrom, skipFrom);
-		p.rotate(angle);
-		p.translate(-skipFrom, -skipFrom);
-		p.drawImage(0, 0, mask);
-	};
-	p.save();
-	paintIconMask(_iconFrom, (_stFrom->angle - _stTo->angle) * _progress);
-	p.restore();
-	p.setOpacity(_progress);
-	paintIconMask(_iconTo, (_stTo->angle - _stFrom->angle) * (1. - _progress));
-}
-
-void GroupPanel::Button::onStateChanged(State was, StateChangeSource source) {
-	RippleButton::onStateChanged(was, source);
-
-	auto over = isOver();
-	auto wasOver = static_cast<bool>(was & StateFlag::Over);
-	if (over != wasOver) {
-		update();
-	}
-}
-
-QPoint GroupPanel::Button::prepareRippleStartPosition() const {
-	return mapFromGlobal(QCursor::pos()) - _stFrom->button.rippleAreaPosition;
-}
-
-QImage GroupPanel::Button::prepareRippleMask() const {
-	return Ui::RippleAnimation::ellipseMask(QSize(_stFrom->button.rippleAreaSize, _stFrom->button.rippleAreaSize));
-}
-
 GroupPanel::GroupPanel(not_null<GroupCall*> call)
 : _call(call)
 , _channel(call->channel())
@@ -225,9 +41,14 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 	st::callTitle))
 #endif // Q_OS_WIN
 , _members(widget(), call)
-, _settings(widget(), st::callCancel)
-, _hangup(widget(), st::callHangup)
-, _mute(widget(), st::callMicrophoneMute, &st::callMicrophoneUnmute) {
+, _settings(widget(), st::groupCallSettings)
+, _mute(std::make_unique<Ui::CallMuteButton>(
+	widget(),
+	Ui::CallMuteButtonState{
+		.text = tr::lng_group_call_connecting(tr::now),
+		.type = Ui::CallMuteButtonType::Connecting,
+	}))
+, _hangup(widget(), st::callHangup) {
 	initWindow();
 	initWidget();
 	initControls();
@@ -297,22 +118,17 @@ void GroupPanel::initWidget() {
 }
 
 void GroupPanel::initControls() {
-	_call->mutedValue(
-	) | rpl::start_with_next([=](MuteState state) {
-		if (state == MuteState::ForceMuted) {
-			_mute->clearState();
-		}
-		_mute->setAttribute(
-			Qt::WA_TransparentForMouseEvents,
-			(state == MuteState::ForceMuted));
-	}, _mute->lifetime());
-	_mute->setClickedCallback([=] {
+	_mute->clicks(
+	) | rpl::filter([=](Qt::MouseButton button) {
+		return (button == Qt::LeftButton);
+	}) | rpl::start_with_next([=] {
 		if (_call && _call->muted() != MuteState::ForceMuted) {
 			_call->setMuted((_call->muted() == MuteState::Active)
 				? MuteState::Muted
 				: MuteState::Active);
 		}
-	});
+	}, _mute->lifetime());
+
 	_hangup->setClickedCallback([=] {
 		_layerBg->showBox(Box<ConfirmBox>(
 			tr::lng_group_call_leave_sure(tr::now),
@@ -321,6 +137,15 @@ void GroupPanel::initControls() {
 	});
 	_settings->setClickedCallback([=] {
 	});
+
+	_settings->setText(tr::lng_menu_settings());
+	_hangup->setText(tr::lng_box_leave());
+
+	_members->desiredHeightValue(
+	) | rpl::start_with_next([=] {
+		updateControlsGeometry();
+	}, _members->lifetime());
+
 	initWithCall(_call);
 }
 
@@ -333,32 +158,43 @@ void GroupPanel::initWithCall(GroupCall *call) {
 
 	_channel = _call->channel();
 
-	_settings->setText(tr::lng_menu_settings());
-	_hangup->setText(tr::lng_box_leave());
-
-	_call->mutedValue(
-	) | rpl::start_with_next([=](MuteState state) {
-		_mute->setProgress((state != MuteState::Active) ? 1. : 0.);
-		_mute->setText((state != MuteState::Active)
-			? tr::lng_call_unmute_audio()
-			: tr::lng_call_mute_audio());
+	call->levelUpdates(
+	) | rpl::filter([=](const LevelUpdate &update) {
+		return update.self;
+	}) | rpl::start_with_next([=](const LevelUpdate &update) {
+		_mute->setLevel(update.value);
 	}, _callLifetime);
-
-	_call->stateValue(
-	) | rpl::start_with_next([=](State state) {
-		stateChanged(state);
-	}, _callLifetime);
-
-	_members->desiredHeightValue(
-	) | rpl::start_with_next([=] {
-		updateControlsGeometry();
-	}, _members->lifetime());
 
 	_members->toggleMuteRequests(
 	) | rpl::start_with_next([=](GroupMembers::MuteRequest request) {
 		if (_call) {
 			_call->toggleMute(request.user, request.mute);
 		}
+	}, _callLifetime);
+
+	using namespace rpl::mappers;
+	rpl::combine(
+		_call->mutedValue(),
+		_call->stateValue() | rpl::map(
+			_1 == State::Creating || _1 == State::Joining
+		)
+	) | rpl::start_with_next([=](MuteState mute, bool connecting) {
+		_mute->setState(Ui::CallMuteButtonState{
+			.text = (connecting
+				? tr::lng_group_call_connecting(tr::now)
+				: mute == MuteState::ForceMuted
+				? tr::lng_group_call_force_muted(tr::now)
+				: mute != MuteState::Active
+				? tr::lng_call_unmute_audio(tr::now)
+				: tr::lng_call_mute_audio(tr::now)),
+			.type = (connecting
+				? Ui::CallMuteButtonType::Connecting
+				: mute == MuteState::ForceMuted
+				? Ui::CallMuteButtonType::ForceMuted
+				: mute == MuteState::Muted
+				? Ui::CallMuteButtonType::Muted
+				: Ui::CallMuteButtonType::Active),
+		});
 	}, _callLifetime);
 }
 
@@ -424,10 +260,10 @@ void GroupPanel::updateControlsGeometry() {
 		membersWidthAvailable,
 		membersWidthMin,
 		st::groupCallMembersWidthMax);
-	const auto muteTop = widget()->height() - 2 * _mute->height();
-	const auto buttonsTop = muteTop;
+	const auto muteTop = widget()->height() - st::groupCallMuteBottomSkip;
+	const auto buttonsTop = widget()->height() - st::groupCallButtonBottomSkip;
 	const auto membersTop = computeMembersListTop();
-	const auto availableHeight = buttonsTop
+	const auto availableHeight = muteTop
 		- membersTop
 		- st::groupCallMembersMargin.bottom();
 	_members->setGeometry(
@@ -435,9 +271,13 @@ void GroupPanel::updateControlsGeometry() {
 		membersTop,
 		membersWidth,
 		std::min(desiredHeight, availableHeight));
-	_mute->move((widget()->width() - _mute->width()) / 2, muteTop);
-	_settings->moveToLeft(_settings->width(), buttonsTop);
-	_hangup->moveToRight(_settings->width(), buttonsTop);
+	const auto muteSize = _mute->innerSize().width();
+	const auto fullWidth = muteSize
+		+ 2 * _settings->width()
+		+ 2 * st::groupCallButtonSkip;
+	_mute->moveInner({ (widget()->width() - muteSize) / 2, muteTop });
+	_settings->moveToLeft((widget()->width() - fullWidth) / 2, buttonsTop);
+	_hangup->moveToRight((widget()->width() - fullWidth) / 2, buttonsTop);
 	refreshTitle();
 }
 
@@ -493,16 +333,6 @@ bool GroupPanel::handleClose() {
 
 not_null<Ui::RpWidget*> GroupPanel::widget() const {
 	return _window->body();
-}
-
-void GroupPanel::stateChanged(State state) {
-	Expects(_call != nullptr);
-
-	if ((state != State::HangingUp)
-		&& (state != State::Ended)
-		&& (state != State::FailedHangingUp)
-		&& (state != State::Failed)) {
-	}
 }
 
 } // namespace Calls
