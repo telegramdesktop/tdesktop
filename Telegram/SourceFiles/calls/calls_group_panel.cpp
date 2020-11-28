@@ -191,10 +191,9 @@ void GroupPanel::initControls() {
 
 	_hangup->setClickedCallback([=] { hangup(false); });
 	_settings->setClickedCallback([=] {
-		_layerBg->showBox(Box(
-			GroupCallSettingsBox,
-			[=] { copyShareLink(); },
-			[=] { hangup(true); }));
+		if (_call) {
+			_layerBg->showBox(Box(GroupCallSettingsBox, _call));
+		}
 	});
 
 	_settings->setText(tr::lng_menu_settings());

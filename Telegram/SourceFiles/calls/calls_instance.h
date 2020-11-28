@@ -55,6 +55,8 @@ public:
 	[[nodiscard]] rpl::producer<GroupCall*> currentGroupCallValue() const;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> getVideoCapture() override;
 
+	void setCurrentAudioDevice(bool input, const QString &deviceId);
+
 	[[nodiscard]] bool isQuitPrevent();
 
 private:

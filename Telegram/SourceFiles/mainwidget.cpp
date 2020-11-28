@@ -952,13 +952,14 @@ void MainWidget::setCurrentCall(Calls::Call *call) {
 	_currentCallLifetime.destroy();
 	_currentCall = call;
 	if (_currentCall) {
+		_callTopBar.destroy();
 		_currentCall->stateValue(
 		) | rpl::start_with_next([=](Calls::Call::State state) {
 			using State = Calls::Call::State;
-			if (state == State::Established) {
-				createCallTopBar();
-			} else {
+			if (state != State::Established) {
 				destroyCallTopBar();
+			} else if (!_callTopBar) {
+				createCallTopBar();
 			}
 		}, _currentCallLifetime);
 	} else {
@@ -973,13 +974,14 @@ void MainWidget::setCurrentGroupCall(Calls::GroupCall *call) {
 	_currentCallLifetime.destroy();
 	_currentGroupCall = call;
 	if (_currentGroupCall) {
+		_callTopBar.destroy();
 		_currentGroupCall->stateValue(
 		) | rpl::start_with_next([=](Calls::GroupCall::State state) {
 			using State = Calls::GroupCall::State;
-			if (state == State::Joined || state == State::Connecting) {
-				createCallTopBar();
-			} else {
+			if (state != State::Joined && state != State::Connecting) {
 				destroyCallTopBar();
+			} else if (!_callTopBar) {
+				createCallTopBar();
 			}
 		}, _currentCallLifetime);
 	} else {

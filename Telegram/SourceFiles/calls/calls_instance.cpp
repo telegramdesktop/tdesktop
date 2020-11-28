@@ -323,6 +323,20 @@ void Instance::showInfoPanel(not_null<GroupCall*> call) {
 	}
 }
 
+void Instance::setCurrentAudioDevice(bool input, const QString &deviceId) {
+	if (input) {
+		Core::App().settings().setCallInputDeviceId(deviceId);
+	} else {
+		Core::App().settings().setCallOutputDeviceId(deviceId);
+	}
+	Core::App().saveSettingsDelayed();
+	if (const auto call = currentCall()) {
+		call->setCurrentAudioDevice(input, deviceId);
+	} else if (const auto group = currentGroupCall()) {
+		group->setCurrentAudioDevice(input, deviceId);
+	}
+}
+
 bool Instance::isQuitPrevent() {
 	if (!_currentCall || _currentCall->isIncomingWaiting()) {
 		return false;

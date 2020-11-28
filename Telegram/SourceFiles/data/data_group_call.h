@@ -54,6 +54,10 @@ public:
 
 	void reload();
 
+	void setJoinMutedLocally(bool muted);
+	[[nodiscard]] bool joinMuted() const;
+	[[nodiscard]] bool canChangeJoinMuted() const;
+
 private:
 	void applyCall(const MTPGroupCall &call, bool force);
 	void applyParticipantsSlice(
@@ -78,6 +82,8 @@ private:
 	rpl::event_stream<ParticipantUpdate> _participantUpdates;
 	rpl::event_stream<> _participantsSliceAdded;
 
+	bool _joinMuted = false;
+	bool _canChangeJoinMuted = true;
 	bool _allReceived = false;
 
 };

@@ -38,7 +38,13 @@ GroupCall::GroupCall(
 : _delegate(delegate)
 , _channel(channel)
 , _api(&_channel->session().mtp()) {
-	if (inputCall.c_inputGroupCall().vid().v) {
+	const auto id = inputCall.c_inputGroupCall().vid().v;
+	if (id) {
+		if (const auto call = _channel->call(); call && call->id() == id) {
+			if (!_channel->canManageCall() && call->joinMuted()) {
+				_muted = MuteState::ForceMuted;
+			}
+		}
 		_state = State::Joining;
 		join(inputCall);
 	} else {

@@ -23,6 +23,8 @@ namespace Webrtc {
 class AudioInputTester;
 } // namespace Webrtc
 
+class SingleChoiceBox;
+
 namespace Settings {
 
 class Calls : public Section {
@@ -36,14 +38,11 @@ private:
 	void setupContent();
 	void requestPermissionAndStartTestingMicrophone();
 	void startTestingMicrophone();
-	//void stopTestingMicrophone();
 
 	const not_null<Window::SessionController*> _controller;
 	rpl::event_stream<QString> _cameraNameStream;
 	rpl::event_stream<QString> _outputNameStream;
 	rpl::event_stream<QString> _inputNameStream;
-	//rpl::event_stream<QString> _micTestTextStream;
-	bool _needWriteSettings = false;
 	std::unique_ptr<Webrtc::AudioInputTester> _micTester;
 	Ui::LevelMeter *_micTestLevel = nullptr;
 	float _micLevel = 0.;
@@ -51,6 +50,16 @@ private:
 	base::Timer _levelUpdateTimer;
 
 };
+
+inline constexpr auto kMicTestUpdateInterval = crl::time(100);
+inline constexpr auto kMicTestAnimationDuration = crl::time(200);
+
+[[nodiscard]] QString CurrentAudioOutputName();
+[[nodiscard]] QString CurrentAudioInputName();
+[[nodiscard]] object_ptr<SingleChoiceBox> ChooseAudioOutputBox(
+	Fn<void(QString id, QString name)> chosen);
+[[nodiscard]] object_ptr<SingleChoiceBox> ChooseAudioInputBox(
+	Fn<void(QString id, QString name)> chosen);
 
 } // namespace Settings
 

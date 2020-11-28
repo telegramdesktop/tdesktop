@@ -11,9 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Calls {
 
+class GroupCall;
+
 void GroupCallSettingsBox(
 	not_null<Ui::GenericBox*> box,
-	Fn<void()> copyShareLink,
-	Fn<void()> discard);
+	not_null<GroupCall*> call);
 
 } // namespace Calls
