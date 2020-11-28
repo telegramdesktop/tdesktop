@@ -127,12 +127,22 @@ TopBarWidget::TopBarWidget(
 		| UpdateFlag::OnlineStatus
 		| UpdateFlag::Members
 		| UpdateFlag::SupportInfo
+		| UpdateFlag::Rights
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::HasCalls) {
-			if (update.peer->isUser()) {
+			if (update.peer->isUser()
+				&& (update.peer->isSelf()
+					|| _activeChat.key.peer() == update.peer)) {
 				updateControlsVisibility();
 			}
-		} else {
+		} else if ((update.flags & UpdateFlag::Rights)
+			&& (_activeChat.key.peer() == update.peer)) {
+			updateControlsVisibility();
+		}
+		if (update.flags
+			& (UpdateFlag::OnlineStatus
+				| UpdateFlag::Members
+				| UpdateFlag::SupportInfo)) {
 			updateOnlineDisplay();
 		}
 	}, lifetime());
@@ -694,7 +704,7 @@ void TopBarWidget::updateControlsVisibility() {
 				return session().serverConfig().phoneCallsEnabled.current()
 					&& user->hasCalls();
 			} else if (const auto megagroup = peer->asMegagroup()) {
-				return true;
+				return megagroup->canManageCall();
 			}
 		}
 		return false;
