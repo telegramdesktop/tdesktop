@@ -105,6 +105,11 @@ bool GroupCall::participantsLoaded() const {
 	return _allReceived;
 }
 
+UserData *GroupCall::userBySource(uint32 source) const {
+	const auto i = _userBySource.find(source);
+	return (i != end(_userBySource)) ? i->second.get() : nullptr;
+}
+
 rpl::producer<> GroupCall::participantsSliceAdded() {
 	return _participantsSliceAdded.events();
 }
@@ -183,6 +188,7 @@ void GroupCall::applyParticipantsSlice(
 						.participant = *i,
 						.removed = true,
 					};
+					_userBySource.erase(i->source);
 					_participants.erase(i);
 					if (sendIndividualUpdates) {
 						_participantUpdates.fire(std::move(update));
@@ -201,9 +207,14 @@ void GroupCall::applyParticipantsSlice(
 				.canSelfUnmute = !data.is_muted() || data.is_can_self_unmute(),
 			};
 			if (i == end(_participants)) {
+				_userBySource.emplace(value.source, value.user);
 				_participants.push_back(value);
 				++fullCount;
 			} else {
+				if (i->source != value.source) {
+					_userBySource.erase(i->source);
+					_userBySource.emplace(value.source, value.user);
+				}
 				*i = value;
 			}
 			_participantUpdates.fire({

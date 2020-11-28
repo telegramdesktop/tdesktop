@@ -26,6 +26,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 namespace {
 
+constexpr auto kLevelThreshold = 0.01;
+constexpr auto kLevelActiveTimeout = crl::time(1000);
+
+enum class UpdateLevelResult {
+	NothingChanged,
+	LevelChanged,
+	StateChanged,
+};
+
 class Row final : public PeerListRow {
 public:
 	Row(not_null<ChannelData*> channel, not_null<UserData*> user);
@@ -37,6 +46,7 @@ public:
 	};
 
 	void updateState(const Data::GroupCall::Participant *participant);
+	UpdateLevelResult updateLevel(float level);
 	[[nodiscard]] State state() const {
 		return _state;
 	}
@@ -70,6 +80,8 @@ public:
 
 private:
 	void refreshStatus() override;
+	void refreshStatus(crl::time now);
+	void resetSpeakingState();
 
 	[[nodiscard]] static State ComputeState(
 		not_null<ChannelData*> channel,
@@ -80,6 +92,8 @@ private:
 	State _state = State::Inactive;
 	not_null<ChannelData*> _channel;
 	not_null<const style::IconButton*> _st;
+	float _level = 0.;
+	crl::time _markInactiveAt = 0;
 
 	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
 
@@ -121,9 +135,17 @@ private:
 	void updateRow(
 		not_null<Row*> row,
 		const Data::GroupCall::Participant *participant) const;
+	void updateRowLevel(not_null<UserData*> user, float level) const;
+	Row *findRow(not_null<UserData*> user) const;
+
+	[[nodiscard]] Data::GroupCall *resolvedRealCall() const;
 
 	const base::weak_ptr<GroupCall> _call;
 	const not_null<ChannelData*> _channel;
+
+	// Use only resolvedRealCall() method, not this value directly.
+	Data::GroupCall *_realCallRawValue = nullptr;
+	uint64 _realId = 0;
 
 	rpl::event_stream<MuteRequest> _toggleMuteRequests;
 	rpl::variable<int> _fullCount = 1;
@@ -148,14 +170,46 @@ void Row::updateState(const Data::GroupCall::Participant *participant) {
 			setCustomStatus(QString());
 		}
 		_state = State::Inactive;
+		resetSpeakingState();
 	} else if (!participant->muted) {
 		_state = State::Active;
 	} else if (participant->canSelfUnmute) {
 		_state = State::Inactive;
+		resetSpeakingState();
 	} else {
 		_state = State::Muted;
+		resetSpeakingState();
 	}
 	_st = ComputeIconStyle(_state);
+}
+
+void Row::resetSpeakingState() {
+	_markInactiveAt = 0;
+	updateLevel(0.);
+}
+
+UpdateLevelResult Row::updateLevel(float level) {
+	if (_level == level) {
+		return UpdateLevelResult::NothingChanged;
+	}
+	const auto now = crl::now();
+	const auto stillActive = (now < _markInactiveAt);
+	const auto wasActive = (_level >= kLevelThreshold) && stillActive;
+	const auto nowActive = (level >= kLevelThreshold);
+	if (nowActive) {
+		_markInactiveAt = now + kLevelActiveTimeout;
+		if (_state != State::Active) {
+			_state = State::Active;
+			_st = ComputeIconStyle(_state);
+		}
+	}
+	_level = level;
+	const auto changed = wasActive != (nowActive || stillActive);
+	if (!changed) {
+		return UpdateLevelResult::LevelChanged;
+	}
+	refreshStatus(now);
+	return UpdateLevelResult::StateChanged;
 }
 
 void Row::paintAction(
@@ -182,14 +236,16 @@ void Row::paintAction(
 }
 
 void Row::refreshStatus() {
-	setCustomStatus([&] {
-		switch (_state) {
-		case State::Inactive:
-		case State::Muted: return tr::lng_group_call_inactive(tr::now);
-		case State::Active: return tr::lng_group_call_active(tr::now);
-		}
-		Unexpected("State in Row::refreshStatus.");
-	}(), (_state == State::Active));
+	refreshStatus(crl::now());
+}
+
+void Row::refreshStatus(crl::time now) {
+	const auto active = (now < _markInactiveAt);
+	setCustomStatus(
+		(active
+			? tr::lng_group_call_active(tr::now)
+			: tr::lng_group_call_inactive(tr::now)),
+		active);
 }
 
 Row::State Row::ComputeState(
@@ -272,9 +328,28 @@ void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
 			//updateRow(channel->session().user());
 		}
 	}, _lifetime);
+
+	call->levelUpdates(
+	) | rpl::start_with_next([=](const LevelUpdate &update) {
+		const auto findUserBySource = [&](uint32 source) -> UserData* {
+			if (const auto real = resolvedRealCall()) {
+				return real->userBySource(source);
+			}
+			return nullptr;
+		};
+		const auto user = update.self
+			? _channel->session().user().get()
+			: findUserBySource(update.source);
+		if (user) {
+			updateRowLevel(user, update.value);
+		}
+	}, _lifetime);
 }
 
 void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
+	_realCallRawValue = real;
+	_realId = real->id();
+
 	_fullCount = real->fullCountValue(
 	) | rpl::map([](int value) {
 		return std::max(value, 1);
@@ -290,9 +365,9 @@ void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	) | rpl::start_with_next([=](const Update &update) {
 		const auto user = update.participant.user;
 		if (update.removed) {
-			if (auto row = delegate()->peerListFindRow(user->id)) {
+			if (const auto row = findRow(user)) {
 				if (user->isSelf()) {
-					static_cast<Row*>(row)->updateState(nullptr);
+					row->updateState(nullptr);
 					delegate()->peerListUpdateRow(row);
 				} else {
 					delegate()->peerListRemoveRow(row);
@@ -307,8 +382,8 @@ void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
 
 void MembersController::updateRow(
 		const Data::GroupCall::Participant &participant) {
-	if (auto row = delegate()->peerListFindRow(participant.user->id)) {
-		updateRow(static_cast<Row*>(row), &participant);
+	if (const auto row = findRow(participant.user)) {
+		updateRow(row, &participant);
 	} else if (auto row = createRow(participant)) {
 		delegate()->peerListAppendRow(std::move(row));
 		delegate()->peerListRefreshRows();
@@ -320,6 +395,30 @@ void MembersController::updateRow(
 		const Data::GroupCall::Participant *participant) const {
 	row->updateState(participant);
 	delegate()->peerListUpdateRow(row);
+}
+
+void MembersController::updateRowLevel(
+		not_null<UserData*> user,
+		float level) const {
+	if (const auto row = findRow(user)) {
+		const auto result = row->updateLevel(level);
+		if (result == UpdateLevelResult::StateChanged) {
+			// #TODO calls reorder.
+		}
+		delegate()->peerListUpdateRow(row);
+	}
+}
+
+Row *MembersController::findRow(not_null<UserData*> user) const {
+	return static_cast<Row*>(delegate()->peerListFindRow(user->id));
+}
+
+Data::GroupCall *MembersController::resolvedRealCall() const {
+	return (_realCallRawValue
+		&& (_channel->call() == _realCallRawValue)
+		&& (_realCallRawValue->id() == _realId))
+		? _realCallRawValue
+		: nullptr;
 }
 
 Main::Session &MembersController::session() const {
@@ -473,7 +572,9 @@ int GroupMembers::desiredHeight() const {
 	auto count = [this] {
 		if (const auto call = _call.get()) {
 			if (const auto real = call->channel()->call()) {
-				return real->fullCount();
+				if (call->id() == real->id()) {
+					return real->fullCount();
+				}
 			}
 		}
 		return 0;

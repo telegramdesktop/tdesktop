@@ -71,7 +71,7 @@ private:
 	void addMember();
 	void updateHeaderControlsGeometry(int newWidth);
 
-	base::weak_ptr<GroupCall> _call;
+	const base::weak_ptr<GroupCall> _call;
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<PeerListController> _listController;
 	object_ptr<Ui::RpWidget> _header = { nullptr };

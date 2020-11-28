@@ -25,6 +25,12 @@ enum class MuteState {
 	ForceMuted,
 };
 
+struct LevelUpdate {
+	uint32 source = 0;
+	float value = 0.;
+	bool self = false;
+};
+
 class GroupCall final : public base::has_weak_ptr {
 public:
 	class Delegate {
@@ -82,6 +88,10 @@ public:
 		return _state.value();
 	}
 
+	[[nodiscard]] rpl::producer<LevelUpdate> levelUpdates() const {
+		return _levelUpdates.events();
+	}
+
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
 	//void setAudioVolume(bool input, float level);
 	void setAudioDuckingEnabled(bool enabled);
@@ -111,6 +121,8 @@ private:
 	void rejoin();
 
 	void myLevelUpdated(float level);
+	void audioLevelsUpdated(
+		const std::vector<std::pair<std::uint32_t, float>> &data);
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
@@ -128,6 +140,7 @@ private:
 	mtpRequestId _updateMuteRequestId = 0;
 
 	std::unique_ptr<tgcalls::GroupInstanceImpl> _instance;
+	rpl::event_stream<LevelUpdate> _levelUpdates;
 
 	rpl::lifetime _lifetime;
 

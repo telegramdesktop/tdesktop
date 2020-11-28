@@ -39,6 +39,7 @@ public:
 		-> const std::vector<Participant> &;
 	void requestParticipants();
 	[[nodiscard]] bool participantsLoaded() const;
+	[[nodiscard]] UserData *userBySource(uint32 source) const;
 
 	[[nodiscard]] rpl::producer<> participantsSliceAdded();
 	[[nodiscard]] rpl::producer<ParticipantUpdate> participantUpdated() const;
@@ -72,6 +73,7 @@ private:
 	mtpRequestId _reloadRequestId = 0;
 
 	std::vector<Participant> _participants;
+	base::flat_map<uint32, not_null<UserData*>> _userBySource;
 	QString _nextOffset;
 	rpl::variable<int> _fullCount = 0;
 

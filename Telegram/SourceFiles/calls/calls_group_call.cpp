@@ -364,15 +364,20 @@ void GroupCall::createAndStartController() {
 	const auto &settings = Core::App().settings();
 
 	const auto weak = base::make_weak(this);
+	const auto myLevel = std::make_shared<float>();
 	tgcalls::GroupInstanceDescriptor descriptor = {
 		.config = tgcalls::GroupConfig{
 		},
 		.networkStateUpdated = [=](bool) {
 		},
 		.audioLevelsUpdated = [=](const AudioLevels &data) {
+			crl::on_main(weak, [=] { audioLevelsUpdated(data); });
 		},
 		.myAudioLevelUpdated = [=](float level) {
-			crl::on_main(weak, [=] { myLevelUpdated(level); });
+			if (*myLevel != level) { // Don't send many 0 while we're muted.
+				*myLevel = level;
+				crl::on_main(weak, [=] { myLevelUpdated(level); });
+			}
 		},
 		.initialInputDeviceId = settings.callInputDeviceId().toStdString(),
 		.initialOutputDeviceId = settings.callOutputDeviceId().toStdString(),
@@ -409,7 +414,22 @@ void GroupCall::createAndStartController() {
 }
 
 void GroupCall::myLevelUpdated(float level) {
-	LOG(("Level: %1").arg(level));
+	_levelUpdates.fire(LevelUpdate{
+		.source = _mySsrc,
+		.value = level,
+		.self = true
+	});
+}
+
+void GroupCall::audioLevelsUpdated(
+		const std::vector<std::pair<std::uint32_t, float>> &data) {
+	for (const auto &[source, level] : data) {
+		_levelUpdates.fire(LevelUpdate{
+			.source = source,
+			.value = level,
+			.self = (source == _mySsrc)
+		});
+	}
 }
 
 void GroupCall::sendMutedUpdate() {
