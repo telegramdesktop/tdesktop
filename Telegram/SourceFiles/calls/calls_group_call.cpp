@@ -351,7 +351,8 @@ void GroupCall::createAndStartController() {
 		},
 		.audioLevelsUpdated = [=](const AudioLevels &data) {
 		},
-		.myAudioLevelUpdated = [=](float) {
+		.myAudioLevelUpdated = [=](float level) {
+			crl::on_main(weak, [=] { myLevelUpdated(level); });
 		},
 		.initialInputDeviceId = settings.callInputDeviceId().toStdString(),
 		.initialOutputDeviceId = settings.callOutputDeviceId().toStdString(),
@@ -385,6 +386,12 @@ void GroupCall::createAndStartController() {
 		}
 	}, _lifetime);
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
+}
+
+void GroupCall::myLevelUpdated(float level) {
+	if (level > 0.) {
+
+	}
 }
 
 void GroupCall::sendMutedUpdate() {

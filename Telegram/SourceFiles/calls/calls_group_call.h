@@ -104,6 +104,8 @@ private:
 	void applySelfInCallLocally();
 	void rejoin();
 
+	void myLevelUpdated(float level);
+
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
 	const not_null<Delegate*> _delegate;

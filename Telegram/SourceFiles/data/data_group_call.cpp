@@ -63,6 +63,8 @@ void GroupCall::requestParticipants() {
 	auto &api = _channel->session().api();
 	_participantsRequestId = api.request(MTPphone_GetGroupParticipants(
 		input(),
+		MTP_vector<MTPint>(), // ids
+		MTP_vector<MTPint>(), // sources
 		MTP_string(_nextOffset),
 		MTP_int(kRequestPerPage)
 	)).done([=](const MTPphone_GroupParticipants &result) {
