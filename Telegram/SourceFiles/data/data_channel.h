@@ -306,6 +306,7 @@ public:
 	[[nodiscard]] bool canDelete() const;
 	[[nodiscard]] bool canEditAdmin(not_null<UserData*> user) const;
 	[[nodiscard]] bool canRestrictUser(not_null<UserData*> user) const;
+	[[nodiscard]] bool canManageCall() const;
 
 	void setInviteLink(const QString &newInviteLink);
 	[[nodiscard]] QString inviteLink() const;

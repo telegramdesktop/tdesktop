@@ -212,8 +212,8 @@ void GroupCall::applyParticipantsSlice(
 		});
 	}
 	ranges::sort(_participants, std::greater<>(), [](const Participant &p) {
-		return p.lastActivePrecise
-			? p.lastActivePrecise
+		return p.lastSpoke
+			? p.lastSpoke
 			: p.lastActive
 			? p.lastActive
 			: p.date;

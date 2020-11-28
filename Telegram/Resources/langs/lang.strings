@@ -1881,6 +1881,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_group_invite_link" = "Invite users via link";
 "lng_rights_group_invite" = "Add users";
 "lng_rights_group_pin" = "Pin messages";
+"lng_rights_group_manage_calls" = "Manage voice chats";
 "lng_rights_group_delete" = "Delete messages";
 "lng_rights_group_anonymous" = "Remain Anonymous";
 "lng_rights_add_admins" = "Add new admins";
@@ -2045,6 +2046,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_admin_invite_users" = "Add members";
 "lng_admin_log_admin_invite_link" = "Invite users via link";
 "lng_admin_log_admin_pin_messages" = "Pin messages";
+"lng_admin_log_admin_manage_calls" = "Manage voice chats";
 "lng_admin_log_admin_add_admins" = "Add new admins";
 
 // #feed

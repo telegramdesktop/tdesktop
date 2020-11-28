@@ -164,6 +164,7 @@ TextWithEntities GenerateAdminChangeText(
 		{ Flag::f_ban_users, tr::lng_admin_log_admin_ban_users },
 		{ Flag::f_invite_users, invitePhrase },
 		{ Flag::f_pin_messages, tr::lng_admin_log_admin_pin_messages },
+		{ Flag::f_manage_call, tr::lng_admin_log_admin_manage_calls },
 		{ Flag::f_add_admins, tr::lng_admin_log_admin_add_admins },
 	};
 	phraseMap[Flag::f_invite_users] = invitePhrase;
@@ -197,7 +198,10 @@ QString GenerateBannedChangeText(
 		{ Flag::f_view_messages, tr::lng_admin_log_banned_view_messages },
 		{ Flag::f_send_messages, tr::lng_admin_log_banned_send_messages },
 		{ Flag::f_send_media, tr::lng_admin_log_banned_send_media },
-		{ Flag::f_send_stickers | Flag::f_send_gifs | Flag::f_send_inline | Flag::f_send_games, tr::lng_admin_log_banned_send_stickers },
+		{ Flag::f_send_stickers
+			| Flag::f_send_gifs
+			| Flag::f_send_inline
+			| Flag::f_send_games, tr::lng_admin_log_banned_send_stickers },
 		{ Flag::f_embed_links, tr::lng_admin_log_banned_embed_links },
 		{ Flag::f_send_polls, tr::lng_admin_log_banned_send_polls },
 		{ Flag::f_change_info, tr::lng_admin_log_admin_change_info },

@@ -19,7 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
+#include "facades.h" // Ui::showPeerHistory.
+#include "mainwindow.h" // App::wnd()->activate.
 #include "styles/style_calls.h"
 
 namespace Calls {
@@ -50,7 +51,7 @@ public:
 		return QSize(_st->width, _st->height);
 	}
 	bool actionDisabled() const override {
-		return peer()->isSelf() || !_channel->amCreator();
+		return peer()->isSelf() || !_channel->canManageCall();
 	}
 	QMargins actionMargins() const override {
 		return QMargins(
@@ -403,6 +404,7 @@ auto MembersController::toggleMuteRequests() const
 
 void MembersController::rowClicked(not_null<PeerListRow*> row) {
 	Ui::showPeerHistory(row->peer(), ShowAtUnreadMsgId);
+	App::wnd()->activate();
 }
 
 void MembersController::rowActionClicked(

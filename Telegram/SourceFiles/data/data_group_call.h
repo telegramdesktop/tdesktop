@@ -25,7 +25,7 @@ public:
 		not_null<UserData*> user;
 		TimeId date = 0;
 		TimeId lastActive = 0;
-		TimeId lastActivePrecise = 0;
+		TimeId lastSpoke = 0;
 		uint32 source = 0;
 		bool muted = false;
 		bool canSelfUnmute = false;

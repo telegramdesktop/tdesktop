@@ -216,7 +216,8 @@ MTPChatAdminRights EditAdminBox::Defaults(not_null<PeerData*> peer) {
 			| Flag::f_delete_messages
 			| Flag::f_ban_users
 			| Flag::f_invite_users
-			| Flag::f_pin_messages)
+			| Flag::f_pin_messages
+			| Flag::f_manage_call)
 		: (Flag::f_change_info
 			| Flag::f_post_messages
 			| Flag::f_edit_messages

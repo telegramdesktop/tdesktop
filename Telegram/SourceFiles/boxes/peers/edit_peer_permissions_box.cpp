@@ -135,6 +135,7 @@ std::vector<std::pair<ChatAdminRights, QString>> AdminRightLabels(
 				? tr::lng_rights_group_invite_link(tr::now)
 				: tr::lng_rights_group_invite(tr::now) },
 			{ Flag::f_pin_messages, tr::lng_rights_group_pin(tr::now) },
+			{ Flag::f_manage_call, tr::lng_rights_group_manage_calls(tr::now) },
 			{ Flag::f_anonymous, tr::lng_rights_group_anonymous(tr::now) },
 			{ Flag::f_add_admins, tr::lng_rights_add_admins(tr::now) },
 		};

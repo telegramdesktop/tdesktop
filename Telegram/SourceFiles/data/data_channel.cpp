@@ -523,6 +523,10 @@ bool ChannelData::canRestrictUser(not_null<UserData*> user) const {
 	return adminRights() & AdminRight::f_ban_users;
 }
 
+bool ChannelData::canManageCall() const {
+	return amCreator() || (adminRights() & AdminRight::f_manage_call);
+}
+
 void ChannelData::setAdminRights(const MTPChatAdminRights &rights) {
 	if (rights.c_chatAdminRights().vflags().v == adminRights()) {
 		return;

@@ -44,7 +44,8 @@ auto ChatData::DefaultAdminRights() -> AdminRights {
 		| Flag::f_delete_messages
 		| Flag::f_ban_users
 		| Flag::f_invite_users
-		| Flag::f_pin_messages;
+		| Flag::f_pin_messages
+		| Flag::f_manage_call;
 }
 
 bool ChatData::canWrite() const {
