@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/effects/ripple_animation.h"
 #include "main/main_session.h"
+#include "base/timer.h"
 #include "lang/lang_keys.h"
 #include "facades.h" // Ui::showPeerHistory.
 #include "mainwindow.h" // App::wnd()->activate.
@@ -29,10 +30,10 @@ namespace {
 constexpr auto kLevelThreshold = 0.01;
 constexpr auto kLevelActiveTimeout = crl::time(1000);
 
-enum class UpdateLevelResult {
-	NothingChanged,
-	LevelChanged,
-	StateChanged,
+struct UpdateLevelResult {
+	bool levelChanged = false;
+	bool stateChanged = false;
+	crl::time nextUpdateTime = 0;
 };
 
 class Row final : public PeerListRow {
@@ -127,6 +128,7 @@ private:
 		const Data::GroupCall::Participant &participant) const;
 
 	void prepareRows(not_null<Data::GroupCall*> real);
+	void repaintByTimer();
 
 	void setupListChangeViewers(not_null<GroupCall*> call);
 	void subscribeToChanges(not_null<Data::GroupCall*> real);
@@ -135,7 +137,7 @@ private:
 	void updateRow(
 		not_null<Row*> row,
 		const Data::GroupCall::Participant *participant) const;
-	void updateRowLevel(not_null<UserData*> user, float level) const;
+	void updateRowLevel(not_null<UserData*> user, float level);
 	Row *findRow(not_null<UserData*> user) const;
 
 	[[nodiscard]] Data::GroupCall *resolvedRealCall() const;
@@ -150,6 +152,10 @@ private:
 	rpl::event_stream<MuteRequest> _toggleMuteRequests;
 	rpl::variable<int> _fullCount = 1;
 	Ui::BoxPointer _addBox;
+
+	base::flat_map<not_null<UserData*>, crl::time> _repaintByTimer;
+	base::Timer _repaintTimer;
+
 	rpl::lifetime _lifetime;
 
 };
@@ -190,7 +196,7 @@ void Row::resetSpeakingState() {
 
 UpdateLevelResult Row::updateLevel(float level) {
 	if (_level == level) {
-		return UpdateLevelResult::NothingChanged;
+		return UpdateLevelResult{ .nextUpdateTime = _markInactiveAt };
 	}
 	const auto now = crl::now();
 	const auto stillActive = (now < _markInactiveAt);
@@ -206,10 +212,17 @@ UpdateLevelResult Row::updateLevel(float level) {
 	_level = level;
 	const auto changed = wasActive != (nowActive || stillActive);
 	if (!changed) {
-		return UpdateLevelResult::LevelChanged;
+		return UpdateLevelResult{
+			.levelChanged = true,
+			.nextUpdateTime = _markInactiveAt,
+		};
 	}
 	refreshStatus(now);
-	return UpdateLevelResult::StateChanged;
+	return UpdateLevelResult{
+		.levelChanged = true,
+		.stateChanged = true,
+		.nextUpdateTime = _markInactiveAt,
+	};
 }
 
 void Row::paintAction(
@@ -300,7 +313,8 @@ void Row::stopLastActionRipple() {
 
 MembersController::MembersController(not_null<GroupCall*> call)
 : _call(call)
-, _channel(call->channel()) {
+, _channel(call->channel())
+, _repaintTimer([=] { repaintByTimer(); }) {
 	setupListChangeViewers(call);
 }
 
@@ -399,13 +413,43 @@ void MembersController::updateRow(
 
 void MembersController::updateRowLevel(
 		not_null<UserData*> user,
-		float level) const {
+		float level) {
 	if (const auto row = findRow(user)) {
 		const auto result = row->updateLevel(level);
-		if (result == UpdateLevelResult::StateChanged) {
+		if (result.stateChanged) {
 			// #TODO calls reorder.
 		}
-		delegate()->peerListUpdateRow(row);
+		if (result.stateChanged) {
+			delegate()->peerListUpdateRow(row);
+		}
+		if (result.nextUpdateTime) {
+			_repaintByTimer[user] = result.nextUpdateTime;
+			if (!_repaintTimer.isActive()) {
+				_repaintTimer.callOnce(kLevelActiveTimeout);
+			}
+		} else if (_repaintByTimer.remove(user) && _repaintByTimer.empty()) {
+			_repaintTimer.cancel();
+		}
+	}
+}
+
+void MembersController::repaintByTimer() {
+	const auto now = crl::now();
+	auto next = crl::time(0);
+	for (auto i = begin(_repaintByTimer); i != end(_repaintByTimer);) {
+		if (i->second > now) {
+			if (!next || next > i->second) {
+				next = i->second;
+			}
+		} else if (const auto row = findRow(i->first)) {
+			delegate()->peerListUpdateRow(row);
+			i = _repaintByTimer.erase(i);
+			continue;
+		}
+		++i;
+	}
+	if (next) {
+		_repaintTimer.callOnce(next - now);
 	}
 }
 
