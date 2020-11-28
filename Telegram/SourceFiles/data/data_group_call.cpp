@@ -198,7 +198,7 @@ void GroupCall::applyParticipantsSlice(
 				.date = data.vdate().v,
 				.source = uint32(data.vsource().v),
 				.muted = data.is_muted(),
-				.canSelfUnmute = data.is_can_self_unmute(),
+				.canSelfUnmute = !data.is_muted() || data.is_can_self_unmute(),
 			};
 			if (i == end(_participants)) {
 				_participants.push_back(value);
@@ -236,7 +236,7 @@ void GroupCall::applyParticipantsMutes(
 				&Participant::user);
 			if (i != end(_participants)) {
 				i->muted = data.is_muted();
-				i->canSelfUnmute = data.is_can_self_unmute();
+				i->canSelfUnmute = !i->muted || data.is_can_self_unmute();
 				_participantUpdates.fire({
 					.participant = *i,
 				});

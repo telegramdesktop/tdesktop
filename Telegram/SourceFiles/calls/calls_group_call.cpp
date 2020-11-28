@@ -175,24 +175,36 @@ void GroupCall::applySelfInCallLocally() {
 	if (!call || call->id() != _id) {
 		return;
 	}
-	const auto my = [&] {
-		const auto self = _channel->session().userId();
-		const auto now = base::unixtime::now();
-		using Flag = MTPDgroupCallParticipant::Flag;
-		return MTP_groupCallParticipant(
-			MTP_flags((_mySsrc ? Flag(0) : Flag::f_left)
-				| ((_muted.current() != MuteState::Active)
-					? Flag::f_muted
-					: Flag(0))),
-			MTP_int(self),
-			MTP_int(now),
-			MTP_int(0),
-			MTP_int(_mySsrc));
-	};
+	using Flag = MTPDgroupCallParticipant::Flag;
+	const auto &participants = call->participants();
+	const auto self = _channel->session().user();
+	const auto i = ranges::find(
+		participants,
+		self,
+		&Data::GroupCall::Participant::user);
+	const auto date = (i != end(participants))
+		? i->date
+		: base::unixtime::now();
+	const auto lastActive = (i != end(participants))
+		? i->lastActive
+		: TimeId(0);
+	const auto muted = (_muted.current() != MuteState::Active);
+	const auto cantSelfUnmute = (_muted.current() == MuteState::ForceMuted);
+	const auto flags = (cantSelfUnmute ? Flag(0) : Flag::f_can_self_unmute)
+		| (lastActive ? Flag::f_active_date : Flag(0))
+		| (_mySsrc ? Flag(0) : Flag::f_left)
+		| (muted ? Flag::f_muted : Flag(0));
 	call->applyUpdateChecked(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
-			MTP_vector<MTPGroupCallParticipant>(1, my()),
+			MTP_vector<MTPGroupCallParticipant>(
+				1,
+				MTP_groupCallParticipant(
+					MTP_flags(flags),
+					MTP_int(self->bareId()),
+					MTP_int(date),
+					MTP_int(lastActive),
+					MTP_int(_mySsrc))),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -237,6 +249,7 @@ void GroupCall::finish(FinishType type) {
 
 void GroupCall::setMuted(MuteState mute) {
 	_muted = mute;
+	applySelfInCallLocally();
 }
 
 void GroupCall::handleUpdate(const MTPGroupCall &call) {
@@ -396,9 +409,7 @@ void GroupCall::createAndStartController() {
 }
 
 void GroupCall::myLevelUpdated(float level) {
-	if (level > 0.) {
-
-	}
+	LOG(("Level: %1").arg(level));
 }
 
 void GroupCall::sendMutedUpdate() {
