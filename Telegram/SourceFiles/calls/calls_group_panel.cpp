@@ -297,9 +297,20 @@ void GroupPanel::initWidget() {
 }
 
 void GroupPanel::initControls() {
+	_call->mutedValue(
+	) | rpl::start_with_next([=](MuteState state) {
+		if (state == MuteState::ForceMuted) {
+			_mute->clearState();
+		}
+		_mute->setAttribute(
+			Qt::WA_TransparentForMouseEvents,
+			(state == MuteState::ForceMuted));
+	}, _mute->lifetime());
 	_mute->setClickedCallback([=] {
-		if (_call) {
-			_call->setMuted(!_call->muted());
+		if (_call && _call->muted() != MuteState::ForceMuted) {
+			_call->setMuted((_call->muted() == MuteState::Active)
+				? MuteState::Muted
+				: MuteState::Active);
 		}
 	});
 	_hangup->setClickedCallback([=] {
@@ -326,9 +337,9 @@ void GroupPanel::initWithCall(GroupCall *call) {
 	_hangup->setText(tr::lng_box_leave());
 
 	_call->mutedValue(
-	) | rpl::start_with_next([=](bool mute) {
-		_mute->setProgress(mute ? 1. : 0.);
-		_mute->setText(mute
+	) | rpl::start_with_next([=](MuteState state) {
+		_mute->setProgress((state != MuteState::Active) ? 1. : 0.);
+		_mute->setText((state != MuteState::Active)
 			? tr::lng_call_unmute_audio()
 			: tr::lng_call_mute_audio());
 	}, _callLifetime);

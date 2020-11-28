@@ -148,7 +148,7 @@ void GroupCall::rejoin() {
 				QJsonDocument::Compact);
 			const auto muted = _muted.current();
 			_api.request(MTPphone_JoinGroupCall(
-				MTP_flags(muted
+				MTP_flags((muted != MuteState::Active)
 					? MTPphone_JoinGroupCall::Flag::f_muted
 					: MTPphone_JoinGroupCall::Flag(0)),
 				inputCall(),
@@ -181,7 +181,9 @@ void GroupCall::applySelfInCallLocally() {
 		using Flag = MTPDgroupCallParticipant::Flag;
 		return MTP_groupCallParticipant(
 			MTP_flags((_mySsrc ? Flag(0) : Flag::f_left)
-				| (_muted.current() ? Flag::f_muted : Flag(0))),
+				| ((_muted.current() != MuteState::Active)
+					? Flag::f_muted
+					: Flag(0))),
 			MTP_int(self),
 			MTP_int(now),
 			MTP_int(0),
@@ -233,7 +235,7 @@ void GroupCall::finish(FinishType type) {
 	}).send();
 }
 
-void GroupCall::setMuted(bool mute) {
+void GroupCall::setMuted(MuteState mute) {
 	_muted = mute;
 }
 
@@ -334,6 +336,11 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 				_mySsrc = 0;
 				hangup();
 			}
+			if (data.is_muted() && !data.is_can_self_unmute()) {
+				setMuted(MuteState::ForceMuted);
+			} else if (muted() == MuteState::ForceMuted) {
+				setMuted(MuteState::Muted);
+			}
 		});
 	}
 }
@@ -377,11 +384,11 @@ void GroupCall::createAndStartController() {
 		std::move(descriptor));
 
 	_muted.value(
-	) | rpl::start_with_next([=](bool muted) {
+	) | rpl::start_with_next([=](MuteState state) {
 		if (_instance) {
-			_instance->setIsMuted(muted);
+			_instance->setIsMuted(state != MuteState::Active);
 		}
-		if (_mySsrc) {
+		if (_mySsrc && state != MuteState::ForceMuted) {
 			sendMutedUpdate();
 		}
 	}, _lifetime);
@@ -397,7 +404,7 @@ void GroupCall::myLevelUpdated(float level) {
 void GroupCall::sendMutedUpdate() {
 	_api.request(_updateMuteRequestId).cancel();
 	_updateMuteRequestId = _api.request(MTPphone_EditGroupCallMember(
-		MTP_flags(_muted.current()
+		MTP_flags((_muted.current() != MuteState::Active)
 			? MTPphone_EditGroupCallMember::Flag::f_muted
 			: MTPphone_EditGroupCallMember::Flag(0)),
 		inputCall(),

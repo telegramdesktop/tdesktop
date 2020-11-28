@@ -115,19 +115,36 @@ void TopBar::initControls() {
 		if (const auto call = _call.get()) {
 			call->setMuted(!call->muted());
 		} else if (const auto group = _groupCall.get()) {
-			group->setMuted(!group->muted());
+			if (group->muted() != MuteState::ForceMuted) {
+				group->setMuted((group->muted() == MuteState::Active)
+					? MuteState::Muted
+					: MuteState::Active);
+			}
 		}
 	});
 
+	using namespace rpl::mappers;
 	auto muted = _call
 		? _call->mutedValue()
-		: _groupCall->mutedValue();
+		: (_groupCall->mutedValue() | rpl::map(_1 != MuteState::Active));
 	std::move(
 		muted
 	) | rpl::start_with_next([=](bool muted) {
 		setMuted(muted);
 		update();
 	}, lifetime());
+
+	if (_groupCall) {
+		_groupCall->mutedValue(
+		) | rpl::start_with_next([=](MuteState state) {
+			if (state == MuteState::ForceMuted) {
+				_mute->clearState();
+			}
+			_mute->setAttribute(
+				Qt::WA_TransparentForMouseEvents,
+				(state == MuteState::ForceMuted));
+		}, _mute->lifetime());
+	}
 
 	if (const auto call = _call.get()) {
 		call->user()->session().changes().peerUpdates(

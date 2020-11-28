@@ -19,6 +19,12 @@ class GroupInstanceImpl;
 
 namespace Calls {
 
+enum class MuteState {
+	Active,
+	Muted,
+	ForceMuted,
+};
+
 class GroupCall final : public base::has_weak_ptr {
 public:
 	class Delegate {
@@ -49,11 +55,11 @@ public:
 	void handleUpdate(const MTPGroupCall &call);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
 
-	void setMuted(bool mute);
-	[[nodiscard]] bool muted() const {
+	void setMuted(MuteState mute);
+	[[nodiscard]] MuteState muted() const {
 		return _muted.current();
 	}
-	[[nodiscard]] rpl::producer<bool> mutedValue() const {
+	[[nodiscard]] rpl::producer<MuteState> mutedValue() const {
 		return _muted.value();
 	}
 	[[nodiscard]] bool joined() const {
@@ -113,7 +119,7 @@ private:
 	MTP::Sender _api;
 	rpl::variable<State> _state = State::Creating;
 
-	rpl::variable<bool> _muted = true;
+	rpl::variable<MuteState> _muted = MuteState::Muted;
 	bool _acceptFields = false;
 
 	uint64 _id = 0;
