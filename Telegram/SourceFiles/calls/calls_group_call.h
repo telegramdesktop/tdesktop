@@ -57,6 +57,7 @@ public:
 
 	void start();
 	void hangup();
+	void discard();
 	void join(const MTPInputGroupCall &inputCall);
 	void handleUpdate(const MTPGroupCall &call);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
@@ -68,13 +69,11 @@ public:
 	[[nodiscard]] rpl::producer<MuteState> mutedValue() const {
 		return _muted.value();
 	}
-	[[nodiscard]] bool joined() const {
-		return (_state.current() == State::Joined);
-	}
 
 	enum State {
 		Creating,
 		Joining,
+		Connecting,
 		Joined,
 		FailedHangingUp,
 		Failed,
@@ -123,6 +122,7 @@ private:
 	void myLevelUpdated(float level);
 	void audioLevelsUpdated(
 		const std::vector<std::pair<std::uint32_t, float>> &data);
+	void setInstanceConnected(bool connected);
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
@@ -130,6 +130,7 @@ private:
 	const not_null<ChannelData*> _channel;
 	MTP::Sender _api;
 	rpl::variable<State> _state = State::Creating;
+	bool _instanceConnected = false;
 
 	rpl::variable<MuteState> _muted = MuteState::Muted;
 	bool _acceptFields = false;
@@ -137,6 +138,7 @@ private:
 	uint64 _id = 0;
 	uint64 _accessHash = 0;
 	uint32 _mySsrc = 0;
+	mtpRequestId _createRequestId = 0;
 	mtpRequestId _updateMuteRequestId = 0;
 
 	std::unique_ptr<tgcalls::GroupInstanceImpl> _instance;

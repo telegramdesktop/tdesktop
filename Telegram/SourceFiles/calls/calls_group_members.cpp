@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 namespace {
 
-constexpr auto kLevelThreshold = 0.01;
+constexpr auto kLevelThreshold = 0.2;
 constexpr auto kLevelActiveTimeout = crl::time(1000);
 
 struct UpdateLevelResult {

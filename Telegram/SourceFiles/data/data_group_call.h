@@ -53,8 +53,6 @@ public:
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
 
 	void reload();
-	[[nodiscard]] bool finished() const;
-	[[nodiscard]] int duration() const;
 
 private:
 	void applyCall(const MTPGroupCall &call, bool force);
@@ -80,8 +78,6 @@ private:
 	rpl::event_stream<ParticipantUpdate> _participantUpdates;
 	rpl::event_stream<> _participantsSliceAdded;
 
-	int _duration = 0;
-	bool _finished = false;
 	bool _allReceived = false;
 
 };

@@ -81,7 +81,7 @@ void GroupCall::setState(State state) {
 
 void GroupCall::start() {
 	const auto randomId = rand_value<int32>();
-	_api.request(MTPphone_CreateGroupCall(
+	_createRequestId = _api.request(MTPphone_CreateGroupCall(
 		_channel->inputChannel,
 		MTP_int(randomId)
 	)).done([=](const MTPUpdates &result) {
@@ -155,7 +155,9 @@ void GroupCall::rejoin() {
 				MTP_dataJSON(MTP_bytes(json))
 			)).done([=](const MTPUpdates &updates) {
 				_mySsrc = ssrc;
-				setState(State::Joined);
+				setState(_instanceConnected
+					? State::Joined
+					: State::Connecting);
 				applySelfInCallLocally();
 
 				if (_muted.current() != muted) {
@@ -210,6 +212,24 @@ void GroupCall::applySelfInCallLocally() {
 
 void GroupCall::hangup() {
 	finish(FinishType::Ended);
+}
+
+void GroupCall::discard() {
+	if (!_id) {
+		_api.request(_createRequestId).cancel();
+		hangup();
+		return;
+	}
+	_api.request(MTPphone_DiscardGroupCall(
+		inputCall()
+	)).done([=](const MTPUpdates &result) {
+		// Here 'this' could be destroyed by updates, so we set Ended after
+		// updates being handled, but in a guarded way.
+		crl::on_main(this, [=] { hangup(); });
+		_channel->session().api().applyUpdates(result);
+	}).fail([=](const RPCError &error) {
+		hangup();
+	}).send();
 }
 
 void GroupCall::finish(FinishType type) {
@@ -330,7 +350,7 @@ void GroupCall::handleUpdate(const MTPGroupCall &call) {
 
 void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 	const auto state = _state.current();
-	if (state != State::Joined) {
+	if (state != State::Joined && state != State::Connecting) {
 		return;
 	}
 
@@ -368,7 +388,8 @@ void GroupCall::createAndStartController() {
 	tgcalls::GroupInstanceDescriptor descriptor = {
 		.config = tgcalls::GroupConfig{
 		},
-		.networkStateUpdated = [=](bool) {
+		.networkStateUpdated = [=](bool connected) {
+			crl::on_main(weak, [=] { setInstanceConnected(connected); });
 		},
 		.audioLevelsUpdated = [=](const AudioLevels &data) {
 			crl::on_main(weak, [=] { audioLevelsUpdated(data); });
@@ -432,6 +453,18 @@ void GroupCall::audioLevelsUpdated(
 	}
 }
 
+void GroupCall::setInstanceConnected(bool connected) {
+	if (_instanceConnected == connected) {
+		return;
+	}
+	_instanceConnected = connected;
+	if (state() == State::Connecting && connected) {
+		setState(State::Joined);
+	} else if (state() == State::Joined && !connected) {
+		setState(State::Connecting);
+	}
+}
+
 void GroupCall::sendMutedUpdate() {
 	_api.request(_updateMuteRequestId).cancel();
 	_updateMuteRequestId = _api.request(MTPphone_EditGroupCallMember(
@@ -446,7 +479,8 @@ void GroupCall::sendMutedUpdate() {
 	}).fail([=](const RPCError &error) {
 		_updateMuteRequestId = 0;
 		if (error.type() == u"GROUP_CALL_FORBIDDEN"_q
-			&& _state.current() == State::Joined) {
+			&& (_state.current() == State::Joined
+				|| _state.current() == State::Connecting)) {
 			setState(State::Joining);
 			rejoin();
 		}
@@ -475,7 +509,8 @@ void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
 		_channel->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {
 		if (error.type() == u"GROUP_CALL_FORBIDDEN"_q
-			&& _state.current() == State::Joined) {
+			&& (_state.current() == State::Joined
+				|| _state.current() == State::Connecting)) {
 			setState(State::Joining);
 			rejoin();
 		}

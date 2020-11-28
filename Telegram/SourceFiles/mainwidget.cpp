@@ -976,7 +976,7 @@ void MainWidget::setCurrentGroupCall(Calls::GroupCall *call) {
 		_currentGroupCall->stateValue(
 		) | rpl::start_with_next([=](Calls::GroupCall::State state) {
 			using State = Calls::GroupCall::State;
-			if (state == State::Joined) {
+			if (state == State::Joined || state == State::Connecting) {
 				createCallTopBar();
 			} else {
 				destroyCallTopBar();

@@ -8,17 +8,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_panel.h"
 
 #include "calls/calls_group_members.h"
+#include "calls/calls_group_settings.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/window.h"
 #include "ui/widgets/call_button.h"
 #include "ui/widgets/call_mute_button.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/layers/layer_manager.h"
-#include "boxes/confirm_box.h"
+#include "ui/layers/generic_box.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
+#include "data/data_channel.h"
 #include "base/event_filter.h"
 #include "app.h"
 #include "styles/style_calls.h"
+#include "styles/style_layers.h"
 
 #ifdef Q_OS_WIN
 #include "ui/platform/win/ui_window_title_win.h"
@@ -29,6 +33,44 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 
 namespace Calls {
+
+void LeaveGroupCallBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<GroupCall*> call,
+		bool discardChecked,
+		BoxContext context) {
+	box->setTitle(tr::lng_group_call_leave_title());
+	box->addRow(object_ptr<Ui::FlatLabel>(
+		box.get(),
+		tr::lng_group_call_leave_sure(),
+		st::boxLabel));
+	const auto discard = call->channel()->canManageCall()
+		? box->addRow(object_ptr<Ui::Checkbox>(
+			box.get(),
+			tr::lng_group_call_end(),
+			discardChecked,
+			st::defaultBoxCheckbox),
+			style::margins(
+				st::boxRowPadding.left(),
+				st::boxRowPadding.left(),
+				st::boxRowPadding.right(),
+				st::boxRowPadding.bottom()))
+		: nullptr;
+	const auto weak = base::make_weak(call.get());
+	box->addButton(tr::lng_group_call_leave(), [=] {
+		const auto discardCall = (discard && discard->checked());
+		box->closeBox();
+
+		if (!weak) {
+			return;
+		} else if (discardCall) {
+			call->discard();
+		} else {
+			call->hangup();
+		}
+	});
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
 
 GroupPanel::GroupPanel(not_null<GroupCall*> call)
 : _call(call)
@@ -96,7 +138,10 @@ void GroupPanel::initWindow() {
 			return Flag::None | Flag(0);
 		}
 #endif // Q_OS_WIN
-		const auto inControls = false;
+		const auto inControls = _settings->geometry().contains(widgetPoint)
+			|| _mute->innerGeometry().contains(widgetPoint)
+			|| _hangup->geometry().contains(widgetPoint)
+			|| _members->geometry().contains(widgetPoint);
 		return inControls
 			? Flag::None
 			: (Flag::Move | Flag::Maximize);
@@ -117,6 +162,21 @@ void GroupPanel::initWidget() {
 	}, widget()->lifetime());
 }
 
+void GroupPanel::copyShareLink() {
+
+}
+
+void GroupPanel::hangup(bool discardCallChecked) {
+	if (!_call) {
+		return;
+	}
+	_layerBg->showBox(Box(
+		LeaveGroupCallBox,
+		_call,
+		discardCallChecked,
+		BoxContext::GroupCallPanel));
+}
+
 void GroupPanel::initControls() {
 	_mute->clicks(
 	) | rpl::filter([=](Qt::MouseButton button) {
@@ -129,13 +189,12 @@ void GroupPanel::initControls() {
 		}
 	}, _mute->lifetime());
 
-	_hangup->setClickedCallback([=] {
-		_layerBg->showBox(Box<ConfirmBox>(
-			tr::lng_group_call_leave_sure(tr::now),
-			tr::lng_group_call_leave(tr::now),
-			[=] { if (_call) _call->hangup(); }));
-	});
+	_hangup->setClickedCallback([=] { hangup(false); });
 	_settings->setClickedCallback([=] {
+		_layerBg->showBox(Box(
+			GroupCallSettingsBox,
+			[=] { copyShareLink(); },
+			[=] { hangup(true); }));
 	});
 
 	_settings->setText(tr::lng_menu_settings());
@@ -176,7 +235,9 @@ void GroupPanel::initWithCall(GroupCall *call) {
 	rpl::combine(
 		_call->mutedValue(),
 		_call->stateValue() | rpl::map(
-			_1 == State::Creating || _1 == State::Joining
+			_1 == State::Creating
+			|| _1 == State::Joining
+			|| _1 == State::Connecting
 		)
 	) | rpl::start_with_next([=](MuteState mute, bool connecting) {
 		_mute->setState(Ui::CallMuteButtonState{

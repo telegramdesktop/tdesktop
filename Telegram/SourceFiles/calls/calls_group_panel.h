@@ -32,6 +32,7 @@ template <typename Widget>
 class PaddingWrap;
 class Window;
 class ScrollArea;
+class GenericBox;
 class LayerManager;
 namespace Platform {
 class TitleControls;
@@ -49,6 +50,17 @@ class Userpic;
 class SignalBars;
 
 class GroupMembers;
+
+enum class BoxContext {
+	GroupCallPanel,
+	MainWindow,
+};
+
+void LeaveGroupCallBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<GroupCall*> call,
+	bool discardChecked,
+	BoxContext context);
 
 class GroupPanel final {
 public:
@@ -76,6 +88,9 @@ private:
 
 	void updateControlsGeometry();
 	void showControls();
+
+	void copyShareLink();
+	void hangup(bool discardCallChecked);
 
 	[[nodiscard]] int computeMembersListTop() const;
 	[[nodiscard]] std::optional<QRect> computeTitleRect() const;

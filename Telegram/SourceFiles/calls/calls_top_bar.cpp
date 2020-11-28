@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/layers/generic_box.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/text/format_values.h"
 #include "lang/lang_keys.h"
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_call.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_signal_bars.h"
+#include "calls/calls_group_panel.h" // LeaveGroupCallBox.
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_changes.h"
@@ -174,7 +176,11 @@ void TopBar::initControls() {
 		if (const auto call = _call.get()) {
 			call->hangup();
 		} else if (const auto group = _groupCall.get()) {
-			group->hangup();
+			Ui::show(Box(
+				LeaveGroupCallBox,
+				group,
+				false,
+				BoxContext::MainWindow));
 		}
 	});
 	_updateDurationTimer.setCallback([this] { updateDurationText(); });

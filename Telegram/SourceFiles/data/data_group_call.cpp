@@ -86,9 +86,6 @@ void GroupCall::requestParticipants() {
 	}).fail([=](const RPCError &error) {
 		_fullCount = _participants.size();
 		_allReceived = true;
-		_channel->session().changes().peerUpdated(
-			_channel,
-			PeerUpdate::Flag::GroupCall);
 		_participantsRequestId = 0;
 	}).send();
 }
@@ -136,13 +133,13 @@ void GroupCall::applyCall(const MTPGroupCall &call, bool force) {
 		_version = data.vversion().v;
 		_fullCount = data.vparticipants_count().v;
 	}, [&](const MTPDgroupCallDiscarded &data) {
-		const auto changed = (_duration != data.vduration().v)
-			|| !_finished;
-		if (!force && !changed) {
-			return;
-		}
-		_finished = true;
-		_duration = data.vduration().v;
+		const auto id = _id;
+		const auto channel = _channel;
+		crl::on_main(&channel->session(), [=] {
+			if (channel->call() && channel->call()->id() == id) {
+				channel->clearCall();
+			}
+		});
 	});
 }
 
