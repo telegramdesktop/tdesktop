@@ -274,6 +274,49 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareInviteToGroupCall = [this](const MTPDmessageActionInviteToGroupCall &action) {
+		const auto channel = history()->peer->asChannel();
+		const auto callId = action.vcall().match([&](const MTPDinputGroupCall &data) {
+			return data.vid().v;
+		});
+		const auto owner = &history()->owner();
+		const auto registerUser = [&](UserId userId) {
+			const auto user = owner->user(userId);
+			if (channel && callId) {
+				owner->registerInvitedToCallUser(callId, channel, user);
+			}
+			return user;
+		};
+		auto result = PreparedText{};
+		auto &users = action.vusers().v;
+		if (users.size() == 1) {
+			auto user = registerUser(users[0].v);
+			result.links.push_back(fromLink());
+			result.links.push_back(user->createOpenLink());
+			result.text = tr::lng_action_invite_user(tr::now, lt_from, fromLinkText(), lt_user, textcmdLink(2, user->name));
+		} else if (users.isEmpty()) {
+			result.links.push_back(fromLink());
+			result.text = tr::lng_action_invite_user(tr::now, lt_from, fromLinkText(), lt_user, qsl("somebody"));
+		} else {
+			result.links.push_back(fromLink());
+			for (auto i = 0, l = users.size(); i != l; ++i) {
+				auto user = registerUser(users[i].v);
+				result.links.push_back(user->createOpenLink());
+
+				auto linkText = textcmdLink(i + 2, user->name);
+				if (i == 0) {
+					result.text = linkText;
+				} else if (i + 1 == l) {
+					result.text = tr::lng_action_invite_users_and_last(tr::now, lt_accumulated, result.text, lt_user, linkText);
+				} else {
+					result.text = tr::lng_action_invite_users_and_one(tr::now, lt_accumulated, result.text, lt_user, linkText);
+				}
+			}
+			result.text = tr::lng_action_invite_users_many(tr::now, lt_from, fromLinkText(), lt_users, result.text);
+		}
+		return result;
+	};
+
 	const auto messageText = action.match([&](
 		const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -324,11 +367,9 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		LOG(("API Error: messageActionSecureValuesSentMe received."));
 		return PreparedText{ tr::lng_message_empty(tr::now) };
 	}, [&](const MTPDmessageActionGroupCall &data) {
-		// #TODO calls
-		return PreparedText{ "Group call" };
+		return PreparedText{ tr::lng_action_group_call(tr::now) };
 	}, [&](const MTPDmessageActionInviteToGroupCall &data) {
-		// #TODO calls
-		return PreparedText{ "Invite to group call" };
+		return prepareInviteToGroupCall(data);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedText{ tr::lng_message_empty(tr::now) };
 	});

@@ -208,13 +208,14 @@ void GroupCall::applyParticipantsSlice(
 				.canSelfUnmute = !data.is_muted() || data.is_can_self_unmute(),
 			};
 			if (i == end(_participants)) {
-				_userBySource.emplace(value.source, value.user);
+				_userBySource.emplace(value.source, user);
 				_participants.push_back(value);
+				_channel->owner().unregisterInvitedToCallUser(_id, user);
 				++fullCount;
 			} else {
 				if (i->source != value.source) {
 					_userBySource.erase(i->source);
-					_userBySource.emplace(value.source, value.user);
+					_userBySource.emplace(value.source, user);
 				}
 				*i = value;
 			}

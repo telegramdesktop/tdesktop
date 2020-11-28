@@ -37,6 +37,9 @@ public:
 	[[nodiscard]] int desiredHeight() const;
 	[[nodiscard]] rpl::producer<int> desiredHeightValue() const override;
 	[[nodiscard]] rpl::producer<MuteRequest> toggleMuteRequests() const;
+	[[nodiscard]] rpl::producer<> addMembersRequests() const {
+		return _addMemberRequests.events();
+	}
 
 private:
 	using ListWidget = PeerListContent;
@@ -66,9 +69,8 @@ private:
 	object_ptr<Ui::FlatLabel> setupTitle(not_null<GroupCall*> call);
 	void setupList();
 
-	void setupButtons();
+	void setupButtons(not_null<GroupCall*> call);
 
-	void addMember();
 	void updateHeaderControlsGeometry(int newWidth);
 
 	const base::weak_ptr<GroupCall> _call;
@@ -76,6 +78,7 @@ private:
 	std::unique_ptr<PeerListController> _listController;
 	object_ptr<Ui::RpWidget> _header = { nullptr };
 	ListWidget *_list = { nullptr };
+	rpl::event_stream<> _addMemberRequests;
 
 	Ui::RpWidget *_titleWrap = nullptr;
 	Ui::FlatLabel *_title = nullptr;

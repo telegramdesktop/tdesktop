@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_group_call.h"
+#include "data/data_session.h"
 
 #include <tgcalls/group/GroupInstanceImpl.h>
 
@@ -30,6 +31,11 @@ class GroupInstanceImpl;
 } // namespace tgcalls
 
 namespace Calls {
+namespace {
+
+constexpr auto kMaxInvitePerSlice = 10;
+
+} // namespace
 
 GroupCall::GroupCall(
 	not_null<Delegate*> delegate,
@@ -505,6 +511,9 @@ void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
 }
 
 void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
+	if (!_id) {
+		return;
+	}
 	_api.request(MTPphone_EditGroupCallMember(
 		MTP_flags(mute
 			? MTPphone_EditGroupCallMember::Flag::f_muted
@@ -521,6 +530,56 @@ void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
 			rejoin();
 		}
 	}).send();
+}
+
+std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
+		const std::vector<not_null<UserData*>> &users) {
+	const auto real = _channel->call();
+	if (!real || real->id() != _id) {
+		return 0;
+	}
+	const auto owner = &_channel->owner();
+	const auto &invited = owner->invitedToCallUsers(_id);
+	const auto &participants = real->participants();
+	auto &&toInvite = users | ranges::view::filter([&](
+			not_null<UserData*> user) {
+		return !invited.contains(user) && !ranges::contains(
+			participants,
+			user,
+			&Data::GroupCall::Participant::user);
+	});
+
+	auto count = 0;
+	auto slice = QVector<MTPInputUser>();
+	auto result = std::variant<int, not_null<UserData*>>(0);
+	slice.reserve(kMaxInvitePerSlice);
+	const auto sendSlice = [&] {
+		count += slice.size();
+		_api.request(MTPphone_InviteToGroupCall(
+			inputCall(),
+			MTP_vector<MTPInputUser>(slice)
+		)).done([=](const MTPUpdates &result) {
+			_channel->session().api().applyUpdates(result);
+		}).send();
+		slice.clear();
+	};
+	for (const auto user : users) {
+		if (!count && slice.empty()) {
+			result = user;
+		}
+		owner->registerInvitedToCallUser(_id, _channel, user);
+		slice.push_back(user->inputUser);
+		if (slice.size() == kMaxInvitePerSlice) {
+			sendSlice();
+		}
+	}
+	if (count != 0 || slice.size() != 1) {
+		result = int(count + slice.size());
+	}
+	if (!slice.empty()) {
+		sendSlice();
+	}
+	return result;
 }
 
 //void GroupCall::setAudioVolume(bool input, float level) {

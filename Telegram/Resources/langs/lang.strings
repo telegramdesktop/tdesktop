@@ -1062,6 +1062,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_duration_minsec_seconds#other" = "{count} sec";
 "lng_duration_minutes_seconds" = "{minutes_count} {seconds_count}";
 
+"lng_action_invite_user" = "{from} invited {user} to the voice chat";
+"lng_action_invite_users_many" = "{from} invited {users} to the voice chat";
+"lng_action_invite_users_and_one" = "{accumulated}, {user}";
+"lng_action_invite_users_and_last" = "{accumulated} and {user}";
+"lng_action_group_call" = "Group call";
 "lng_action_add_user" = "{from} added {user}";
 "lng_action_add_users_many" = "{from} added {users}";
 "lng_action_add_users_and_one" = "{accumulated}, {user}";
@@ -1824,12 +1829,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_leave_sure" = "Are you sure you want to leave this voice chat?";
 "lng_group_call_also_end" = "End voice chat";
 "lng_group_call_settings_title" = "Settings";
+"lng_group_call_invite_title" = "Invite members";
+"lng_group_call_invite_button" = "Invite";
 "lng_group_call_new_muted" = "Mute new members";
 "lng_group_call_speakers" = "Speakers";
 "lng_group_call_microphone" = "Microphone";
 "lng_group_call_share" = "Share Invite Link";
 "lng_group_call_end" = "End Voice Chat";
 "lng_group_call_join" = "Join";
+"lng_group_call_invite_done_user" = "You invited {user} to the voice chat.";
+"lng_group_call_invite_done_many#one" = "You invited **{count} member** to the voice chat.";
+"lng_group_call_invite_done_many#other" = "You invited **{count} members** to the voice chat.";
 
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 

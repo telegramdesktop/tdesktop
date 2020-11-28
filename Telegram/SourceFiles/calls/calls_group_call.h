@@ -96,6 +96,8 @@ public:
 	void setAudioDuckingEnabled(bool enabled);
 
 	void toggleMute(not_null<UserData*> user, bool mute);
+	std::variant<int, not_null<UserData*>> inviteUsers(
+		const std::vector<not_null<UserData*>> &users);
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;

@@ -425,7 +425,7 @@ groupCallMembersList: PeerList(defaultPeerList) {
 		height: 52px;
 		photoPosition: point(12px, 6px);
 		namePosition: point(68px, 7px);
-		statusPosition: point(68px, 27px);
+		statusPosition: point(68px, 26px);
 		photoSize: 40px;
 		nameFg: groupCallMembersFg;
 		nameFgChecked: groupCallMembersFg;

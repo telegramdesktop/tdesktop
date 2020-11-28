@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
+#include "data/data_peer_values.h" // Data::CanWriteValue.
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "main/main_session.h"
 #include "base/timer.h"
+#include "boxes/peers/edit_participants_box.h"
 #include "lang/lang_keys.h"
 #include "facades.h" // Ui::showPeerHistory.
 #include "mainwindow.h" // App::wnd()->activate.
@@ -613,7 +615,7 @@ auto GroupMembers::toggleMuteRequests() const
 
 int GroupMembers::desiredHeight() const {
 	auto desired = _header ? _header->height() : 0;
-	auto count = [this] {
+	auto count = [&] {
 		if (const auto call = _call.get()) {
 			if (const auto real = call->channel()->call()) {
 				if (call->id() == real->id()) {
@@ -623,9 +625,10 @@ int GroupMembers::desiredHeight() const {
 		}
 		return 0;
 	}();
-	desired += std::max(count, _list->fullRowsCount())
-		* st::groupCallMembersList.item.height;
-	return desired;
+	const auto use = std::max(count, _list->fullRowsCount());
+	return (_header ? _header->height() : 0)
+		+ (use * st::groupCallMembersList.item.height)
+		+ (use ? st::lineWidth : 0);
 }
 
 rpl::producer<int> GroupMembers::desiredHeightValue() const {
@@ -650,7 +653,7 @@ void GroupMembers::setupHeader(not_null<GroupCall*> call) {
 	_addMember = Ui::CreateChild<Ui::IconButton>(
 		parent,
 		st::groupCallAddMember);
-	setupButtons();
+	setupButtons(call);
 
 	widthValue(
 	) | rpl::start_with_next([this](int width) {
@@ -674,12 +677,14 @@ object_ptr<Ui::FlatLabel> GroupMembers::setupTitle(
 	return result;
 }
 
-void GroupMembers::setupButtons() {
+void GroupMembers::setupButtons(not_null<GroupCall*> call) {
 	using namespace rpl::mappers;
 
-	_addMember->showOn(rpl::single(true));
+	_addMember->showOn(Data::CanWriteValue(
+		call->channel()
+	));
 	_addMember->addClickHandler([=] { // TODO throttle(ripple duration)
-		addMember();
+		_addMemberRequests.fire({});
 	});
 }
 
@@ -699,7 +704,7 @@ void GroupMembers::setupList() {
 	_list->heightValue(
 	) | rpl::start_with_next([=](int listHeight) {
 		auto newHeight = (listHeight > 0)
-			? (topSkip + listHeight)
+			? (topSkip + listHeight + st::lineWidth)
 			: 0;
 		resize(width(), newHeight);
 	}, _list->lifetime());
@@ -735,10 +740,6 @@ void GroupMembers::updateHeaderControlsGeometry(int newWidth) {
 
 	_title->resizeToWidth(_titleWrap->width());
 	_title->moveToLeft(0, 0);
-}
-
-void GroupMembers::addMember() {
-	// #TODO calls
 }
 
 void GroupMembers::visibleTopBottomUpdated(

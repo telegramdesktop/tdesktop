@@ -89,9 +89,9 @@ private:
 	void updateControlsGeometry();
 	void showControls();
 
-	void copyShareLink();
 	void hangup(bool discardCallChecked);
 
+	void addMembers();
 	[[nodiscard]] int computeMembersListTop() const;
 	[[nodiscard]] std::optional<QRect> computeTitleRect() const;
 	void refreshTitle();

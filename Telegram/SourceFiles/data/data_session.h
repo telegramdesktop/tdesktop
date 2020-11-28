@@ -158,6 +158,14 @@ public:
 	void unregisterGroupCall(not_null<GroupCall*> call);
 	GroupCall *groupCall(uint64 callId) const;
 
+	[[nodiscard]] auto invitedToCallUsers(uint64 callId) const
+		-> const base::flat_set<not_null<UserData*>> &;
+	void registerInvitedToCallUser(
+		uint64 callId,
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user);
+	void unregisterInvitedToCallUser(uint64 callId, not_null<UserData*> user);
+
 	void enumerateUsers(Fn<void(not_null<UserData*>)> action) const;
 	void enumerateGroups(Fn<void(not_null<PeerData*>)> action) const;
 	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action) const;
@@ -912,6 +920,7 @@ private:
 	base::flat_set<not_null<ViewElement*>> _heavyViewParts;
 
 	base::flat_map<uint64, not_null<GroupCall*>> _groupCalls;
+	base::flat_map<uint64, base::flat_set<not_null<UserData*>>> _invitedToCallUsers;
 
 	History *_topPromoted = nullptr;
 

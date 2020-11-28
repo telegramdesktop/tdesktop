@@ -1110,10 +1110,24 @@ auto HtmlWriter::Wrap::pushMessage(
 		} else if (data.toSelf) {
 			return fromName + " is now within " + distance + " from you";
 		} else {
-			return fromName + " is now within " + distance + " from " + toName;
+			return fromName
+				+ " is now within "
+				+ distance
+				+ " from "
+				+ toName;
 		}
 	}, [&](const ActionPhoneNumberRequest &data) {
 		return serviceFrom + " requested your phone number";
+	}, [&](const ActionGroupCall &data) {
+		return "Group call"
+			+ (data.duration
+				? (" (" + QString::number(data.duration) + " seconds)")
+				: QString()).toUtf8();
+	}, [&](const ActionInviteToGroupCall &data) {
+		return serviceFrom
+			+ " invited "
+			+ peers.wrapUserNames(data.userIds)
+			+ " to the voice chat";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

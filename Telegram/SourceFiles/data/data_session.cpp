@@ -805,6 +805,42 @@ GroupCall *Session::groupCall(uint64 callId) const {
 	return (i != end(_groupCalls)) ? i->second.get() : nullptr;
 }
 
+auto Session::invitedToCallUsers(uint64 callId) const
+-> const base::flat_set<not_null<UserData*>> & {
+	static const base::flat_set<not_null<UserData*>> kEmpty;
+	const auto i = _invitedToCallUsers.find(callId);
+	return (i != _invitedToCallUsers.end()) ? i->second : kEmpty;
+}
+
+void Session::registerInvitedToCallUser(
+		uint64 callId,
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user) {
+	const auto call = channel->call();
+	if (call && call->id() == callId) {
+		const auto inCall = ranges::contains(
+			call->participants(),
+			user,
+			&Data::GroupCall::Participant::user);
+		if (inCall) {
+			return;
+		}
+	}
+	_invitedToCallUsers[callId].emplace(user);
+}
+
+void Session::unregisterInvitedToCallUser(
+		uint64 callId,
+		not_null<UserData*> user) {
+	const auto i = _invitedToCallUsers.find(callId);
+	if (i != _invitedToCallUsers.end()) {
+		i->second.remove(user);
+		if (i->second.empty()) {
+			_invitedToCallUsers.erase(i);
+		}
+	}
+}
+
 PeerData *Session::peerByUsername(const QString &username) const {
 	const auto uname = username.trimmed();
 	for (const auto &[peerId, peer] : _peers) {
