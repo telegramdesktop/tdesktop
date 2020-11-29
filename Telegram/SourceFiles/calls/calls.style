@@ -496,3 +496,7 @@ groupCallSettings: CallButton(callMicrophoneMute) {
 groupCallButtonSkip: 43px;
 groupCallButtonBottomSkip: 134px;
 groupCallMuteBottomSkip: 149px;
+
+groupCallTopBarUserpicSize: 28px;
+groupCallTopBarUserpicShift: 8px;
+groupCallTopBarUserpicStroke: 2px;

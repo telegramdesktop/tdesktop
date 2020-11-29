@@ -19,8 +19,7 @@ class PlainShadow;
 struct GroupCallBarContent {
 	int count = 0;
 	bool shown = false;
-	bool joined = false;
-	// #TODO calls userpics
+	QImage userpics;
 };
 
 class GroupCallBar final {

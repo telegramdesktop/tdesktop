@@ -101,9 +101,32 @@ void GroupCallBar::setupInner() {
 
 void GroupCallBar::paint(Painter &p) {
 	p.fillRect(_inner->rect(), st::historyComposeAreaBg);
+
+	auto left = st::msgReplyBarSkip;
+	if (!_content.userpics.isNull()) {
+		const auto imageSize = _content.userpics.size()
+			/ _content.userpics.devicePixelRatio();
+		p.drawImage(
+			left,
+			(_inner->height() - imageSize.height()) / 2,
+			_content.userpics);
+		left += imageSize.width() + st::msgReplyBarSkip;
+	}
+	const auto titleTop = st::msgReplyPadding.top();
+	const auto textTop = titleTop + st::msgServiceNameFont->height;
+	const auto width = _inner->width();
 	p.setPen(st::defaultMessageBar.textFg);
+	p.setFont(st::defaultMessageBar.title.font);
+	p.drawTextLeft(left, titleTop, width, tr::lng_group_call_title(tr::now));
+	p.setPen(st::historyComposeAreaFgService);
 	p.setFont(st::defaultMessageBar.text.font);
-	p.drawText(_inner->rect(), tr::lng_group_call_title(tr::now), style::al_center);
+	p.drawTextLeft(
+		left,
+		textTop,
+		width,
+		(_content.count > 0
+			? tr::lng_group_call_members(tr::now, lt_count, _content.count)
+			: tr::lng_group_call_no_members(tr::now)));
 }
 
 void GroupCallBar::updateControlsGeometry(QRect wrapGeometry) {
