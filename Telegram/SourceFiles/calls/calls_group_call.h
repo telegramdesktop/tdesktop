@@ -124,7 +124,10 @@ private:
 	void myLevelUpdated(float level);
 	void audioLevelsUpdated(
 		const std::vector<std::pair<std::uint32_t, float>> &data);
+	void handleLevelsUpdated(
+		gsl::span<const std::pair<std::uint32_t, float>> data);
 	void setInstanceConnected(bool connected);
+	void checkLastSpoke();
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
@@ -145,6 +148,8 @@ private:
 
 	std::unique_ptr<tgcalls::GroupInstanceImpl> _instance;
 	rpl::event_stream<LevelUpdate> _levelUpdates;
+	base::flat_map<uint32, crl::time> _lastSpoke;
+	base::Timer _lastSpokeCheckTimer;
 
 	rpl::lifetime _lifetime;
 

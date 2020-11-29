@@ -25,14 +25,14 @@ public:
 		not_null<UserData*> user;
 		TimeId date = 0;
 		TimeId lastActive = 0;
-		TimeId lastSpoke = 0;
 		uint32 source = 0;
+		bool speaking = false;
 		bool muted = false;
 		bool canSelfUnmute = false;
 	};
 	struct ParticipantUpdate {
-		Participant participant;
-		bool removed = false;
+		std::optional<Participant> was;
+		std::optional<Participant> now;
 	};
 
 	[[nodiscard]] auto participants() const
@@ -48,6 +48,7 @@ public:
 	void applyUpdate(const MTPDupdateGroupCallParticipants &update);
 	void applyUpdateChecked(
 		const MTPDupdateGroupCallParticipants &update);
+	void applyLastSpoke(uint32 source, crl::time when, crl::time now);
 
 	[[nodiscard]] int fullCount() const;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;

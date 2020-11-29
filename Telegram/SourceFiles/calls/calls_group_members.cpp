@@ -30,7 +30,6 @@ namespace Calls {
 namespace {
 
 constexpr auto kLevelThreshold = 0.2;
-constexpr auto kLevelActiveTimeout = crl::time(1000);
 
 struct UpdateLevelResult {
 	bool levelChanged = false;
@@ -49,9 +48,12 @@ public:
 	};
 
 	void updateState(const Data::GroupCall::Participant *participant);
-	UpdateLevelResult updateLevel(float level);
+	//UpdateLevelResult updateLevel(float level);
 	[[nodiscard]] State state() const {
 		return _state;
+	}
+	[[nodiscard]] bool speaking() const {
+		return _speaking;
 	}
 
 	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
@@ -83,8 +85,7 @@ public:
 
 private:
 	void refreshStatus() override;
-	void refreshStatus(crl::time now);
-	void resetSpeakingState();
+	void setSpeaking(bool speaking);
 
 	[[nodiscard]] static State ComputeState(
 		not_null<ChannelData*> channel,
@@ -95,8 +96,8 @@ private:
 	State _state = State::Inactive;
 	not_null<ChannelData*> _channel;
 	not_null<const style::IconButton*> _st;
-	float _level = 0.;
-	crl::time _markInactiveAt = 0;
+	bool _speaking = false;
+	//float _level = 0.;
 
 	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
 
@@ -130,16 +131,18 @@ private:
 		const Data::GroupCall::Participant &participant) const;
 
 	void prepareRows(not_null<Data::GroupCall*> real);
-	void repaintByTimer();
+	//void repaintByTimer();
 
 	void setupListChangeViewers(not_null<GroupCall*> call);
 	void subscribeToChanges(not_null<Data::GroupCall*> real);
 	void updateRow(
-		const Data::GroupCall::Participant &participant);
+		const std::optional<Data::GroupCall::Participant> &was,
+		const Data::GroupCall::Participant &now);
 	void updateRow(
 		not_null<Row*> row,
 		const Data::GroupCall::Participant *participant) const;
-	void updateRowLevel(not_null<UserData*> user, float level);
+	void checkSpeakingRowPosition(not_null<Row*> row);
+	//void updateRowLevel(not_null<UserData*> user, float level);
 	Row *findRow(not_null<UserData*> user) const;
 
 	[[nodiscard]] Data::GroupCall *resolvedRealCall() const;
@@ -155,8 +158,8 @@ private:
 	rpl::variable<int> _fullCount = 1;
 	Ui::BoxPointer _addBox;
 
-	base::flat_map<not_null<UserData*>, crl::time> _repaintByTimer;
-	base::Timer _repaintTimer;
+	//base::flat_map<not_null<UserData*>, crl::time> _repaintByTimer;
+	//base::Timer _repaintTimer;
 
 	rpl::lifetime _lifetime;
 
@@ -178,54 +181,61 @@ void Row::updateState(const Data::GroupCall::Participant *participant) {
 			setCustomStatus(QString());
 		}
 		_state = State::Inactive;
-		resetSpeakingState();
+		setSpeaking(false);
 	} else if (!participant->muted) {
 		_state = State::Active;
+		setSpeaking(participant->speaking);
 	} else if (participant->canSelfUnmute) {
 		_state = State::Inactive;
-		resetSpeakingState();
+		setSpeaking(false);
 	} else {
 		_state = State::Muted;
-		resetSpeakingState();
+		setSpeaking(false);
 	}
 	_st = ComputeIconStyle(_state);
 }
 
-void Row::resetSpeakingState() {
-	_markInactiveAt = 0;
-	updateLevel(0.);
+void Row::setSpeaking(bool speaking) {
+	if (_speaking == speaking) {
+		return;
+	}
+	_speaking = speaking;
+	refreshStatus();
+	//if (!_speaking) {
+	//	updateLevel(0.);
+	//}
 }
 
-UpdateLevelResult Row::updateLevel(float level) {
-	if (_level == level) {
-		return UpdateLevelResult{ .nextUpdateTime = _markInactiveAt };
-	}
-	const auto now = crl::now();
-	const auto stillActive = (now < _markInactiveAt);
-	const auto wasActive = (_level >= kLevelThreshold) && stillActive;
-	const auto nowActive = (level >= kLevelThreshold);
-	if (nowActive) {
-		_markInactiveAt = now + kLevelActiveTimeout;
-		if (_state != State::Active) {
-			_state = State::Active;
-			_st = ComputeIconStyle(_state);
-		}
-	}
-	_level = level;
-	const auto changed = wasActive != (nowActive || stillActive);
-	if (!changed) {
-		return UpdateLevelResult{
-			.levelChanged = true,
-			.nextUpdateTime = _markInactiveAt,
-		};
-	}
-	refreshStatus(now);
-	return UpdateLevelResult{
-		.levelChanged = true,
-		.stateChanged = true,
-		.nextUpdateTime = _markInactiveAt,
-	};
-}
+//UpdateLevelResult Row::updateLevel(float level) {
+//	if (_level == level) {
+//		return UpdateLevelResult{ .nextUpdateTime = _markInactiveAt };
+//	}
+//	const auto now = crl::now();
+//	const auto stillActive = (now < _markInactiveAt);
+//	const auto wasActive = (_level >= kLevelThreshold) && stillActive;
+//	const auto nowActive = (level >= kLevelThreshold);
+//	if (nowActive) {
+//		_markInactiveAt = now + kLevelActiveTimeout;
+//		if (_state != State::Active) {
+//			_state = State::Active;
+//			_st = ComputeIconStyle(_state);
+//		}
+//	}
+//	_level = level;
+//	const auto changed = wasActive != (nowActive || stillActive);
+//	if (!changed) {
+//		return UpdateLevelResult{
+//			.levelChanged = true,
+//			.nextUpdateTime = _markInactiveAt,
+//		};
+//	}
+//	refreshStatus(now);
+//	return UpdateLevelResult{
+//		.levelChanged = true,
+//		.stateChanged = true,
+//		.nextUpdateTime = _markInactiveAt,
+//	};
+//}
 
 void Row::paintAction(
 		Painter &p,
@@ -251,16 +261,11 @@ void Row::paintAction(
 }
 
 void Row::refreshStatus() {
-	refreshStatus(crl::now());
-}
-
-void Row::refreshStatus(crl::time now) {
-	const auto active = (now < _markInactiveAt);
 	setCustomStatus(
-		(active
+		(_speaking
 			? tr::lng_group_call_active(tr::now)
 			: tr::lng_group_call_inactive(tr::now)),
-		active);
+		_speaking);
 }
 
 Row::State Row::ComputeState(
@@ -315,8 +320,8 @@ void Row::stopLastActionRipple() {
 
 MembersController::MembersController(not_null<GroupCall*> call)
 : _call(call)
-, _channel(call->channel())
-, _repaintTimer([=] { repaintByTimer(); }) {
+, _channel(call->channel()) {
+//, _repaintTimer([=] { repaintByTimer(); }) {
 	setupListChangeViewers(call);
 }
 
@@ -345,21 +350,21 @@ void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
 		}
 	}, _lifetime);
 
-	call->levelUpdates(
-	) | rpl::start_with_next([=](const LevelUpdate &update) {
-		const auto findUserBySource = [&](uint32 source) -> UserData* {
-			if (const auto real = resolvedRealCall()) {
-				return real->userBySource(source);
-			}
-			return nullptr;
-		};
-		const auto user = update.self
-			? _channel->session().user().get()
-			: findUserBySource(update.source);
-		if (user) {
-			updateRowLevel(user, update.value);
-		}
-	}, _lifetime);
+	//call->levelUpdates(
+	//) | rpl::start_with_next([=](const LevelUpdate &update) {
+	//	const auto findUserBySource = [&](uint32 source) -> UserData* {
+	//		if (const auto real = resolvedRealCall()) {
+	//			return real->userBySource(source);
+	//		}
+	//		return nullptr;
+	//	};
+	//	const auto user = update.self
+	//		? _channel->session().user().get()
+	//		: findUserBySource(update.source);
+	//	if (user) {
+	//		updateRowLevel(user, update.value);
+	//	}
+	//}, _lifetime);
 }
 
 void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
@@ -379,8 +384,10 @@ void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	using Update = Data::GroupCall::ParticipantUpdate;
 	real->participantUpdated(
 	) | rpl::start_with_next([=](const Update &update) {
-		const auto user = update.participant.user;
-		if (update.removed) {
+		Expects(update.was.has_value() || update.now.has_value());
+
+		const auto user = update.was ? update.was->user : update.now->user;
+		if (!update.now) {
 			if (const auto row = findRow(user)) {
 				if (user->isSelf()) {
 					row->updateState(nullptr);
@@ -391,19 +398,58 @@ void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
 				}
 			}
 		} else {
-			updateRow(update.participant);
+			updateRow(update.was, *update.now);
 		}
 	}, _lifetime);
 }
 
 void MembersController::updateRow(
-		const Data::GroupCall::Participant &participant) {
-	if (const auto row = findRow(participant.user)) {
-		updateRow(row, &participant);
-	} else if (auto row = createRow(participant)) {
-		delegate()->peerListAppendRow(std::move(row));
+		const std::optional<Data::GroupCall::Participant> &was,
+		const Data::GroupCall::Participant &now) {
+	if (const auto row = findRow(now.user)) {
+		if (now.speaking && (!was || !was->speaking)) {
+			checkSpeakingRowPosition(row);
+		}
+		updateRow(row, &now);
+	} else if (auto row = createRow(now)) {
+		if (now.speaking) {
+			delegate()->peerListPrependRow(std::move(row));
+		} else {
+			delegate()->peerListAppendRow(std::move(row));
+		}
 		delegate()->peerListRefreshRows();
 	}
+}
+
+void MembersController::checkSpeakingRowPosition(not_null<Row*> row) {
+	// Check if there are non-speaking rows above this one.
+	const auto count = delegate()->peerListFullRowsCount();
+	for (auto i = 0; i != count; ++i) {
+		const auto above = delegate()->peerListRowAt(i);
+		if (above == row) {
+			// All rows above are speaking.
+			return;
+		} else if (!static_cast<Row*>(above.get())->speaking()) {
+			break;
+		}
+	}
+	// Someone started speaking and has a non-speaking row above him. Sort.
+	const auto proj = [&](const PeerListRow &other) {
+		if (&other == row.get()) {
+			// Bring this new one to the top.
+			return 0;
+		} else if (static_cast<const Row&>(other).speaking()) {
+			// Bring all the speaking ones below him.
+			return 1;
+		} else {
+			return 2;
+		}
+	};
+	delegate()->peerListSortRows([&](
+			const PeerListRow &a,
+			const PeerListRow &b) {
+		return proj(a) < proj(b);
+	});
 }
 
 void MembersController::updateRow(
@@ -413,47 +459,47 @@ void MembersController::updateRow(
 	delegate()->peerListUpdateRow(row);
 }
 
-void MembersController::updateRowLevel(
-		not_null<UserData*> user,
-		float level) {
-	if (const auto row = findRow(user)) {
-		const auto result = row->updateLevel(level);
-		if (result.stateChanged) {
-			// #TODO calls reorder.
-		}
-		if (result.stateChanged) {
-			delegate()->peerListUpdateRow(row);
-		}
-		if (result.nextUpdateTime) {
-			_repaintByTimer[user] = result.nextUpdateTime;
-			if (!_repaintTimer.isActive()) {
-				_repaintTimer.callOnce(kLevelActiveTimeout);
-			}
-		} else if (_repaintByTimer.remove(user) && _repaintByTimer.empty()) {
-			_repaintTimer.cancel();
-		}
-	}
-}
+//void MembersController::updateRowLevel(
+//		not_null<UserData*> user,
+//		float level) {
+//	if (const auto row = findRow(user)) {
+//		const auto result = row->updateLevel(level);
+//		if (result.stateChanged) {
+//			// #TODO calls reorder.
+//		}
+//		if (result.stateChanged) {
+//			delegate()->peerListUpdateRow(row);
+//		}
+//		if (result.nextUpdateTime) {
+//			_repaintByTimer[user] = result.nextUpdateTime;
+//			if (!_repaintTimer.isActive()) {
+//				_repaintTimer.callOnce(kLevelActiveTimeout);
+//			}
+//		} else if (_repaintByTimer.remove(user) && _repaintByTimer.empty()) {
+//			_repaintTimer.cancel();
+//		}
+//	}
+//}
 
-void MembersController::repaintByTimer() {
-	const auto now = crl::now();
-	auto next = crl::time(0);
-	for (auto i = begin(_repaintByTimer); i != end(_repaintByTimer);) {
-		if (i->second > now) {
-			if (!next || next > i->second) {
-				next = i->second;
-			}
-		} else if (const auto row = findRow(i->first)) {
-			delegate()->peerListUpdateRow(row);
-			i = _repaintByTimer.erase(i);
-			continue;
-		}
-		++i;
-	}
-	if (next) {
-		_repaintTimer.callOnce(next - now);
-	}
-}
+//void MembersController::repaintByTimer() {
+//	const auto now = crl::now();
+//	auto next = crl::time(0);
+//	for (auto i = begin(_repaintByTimer); i != end(_repaintByTimer);) {
+//		if (i->second > now) {
+//			if (!next || next > i->second) {
+//				next = i->second;
+//			}
+//		} else if (const auto row = findRow(i->first)) {
+//			delegate()->peerListUpdateRow(row);
+//			i = _repaintByTimer.erase(i);
+//			continue;
+//		}
+//		++i;
+//	}
+//	if (next) {
+//		_repaintTimer.callOnce(next - now);
+//	}
+//}
 
 Row *MembersController::findRow(not_null<UserData*> user) const {
 	return static_cast<Row*>(delegate()->peerListFindRow(user->id));
@@ -681,7 +727,7 @@ void GroupMembers::setupButtons(not_null<GroupCall*> call) {
 	using namespace rpl::mappers;
 
 	_addMember->showOn(Data::CanWriteValue(
-		call->channel()
+		call->channel().get()
 	));
 	_addMember->addClickHandler([=] { // TODO throttle(ripple duration)
 		_addMemberRequests.fire({});

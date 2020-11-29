@@ -17,6 +17,7 @@ namespace Data {
 namespace {
 
 constexpr auto kRequestPerPage = 30;
+constexpr auto kSpeakStatusKeptFor = crl::time(1000);
 
 } // namespace
 
@@ -186,8 +187,7 @@ void GroupCall::applyParticipantsSlice(
 			if (data.is_left()) {
 				if (i != end(_participants)) {
 					auto update = ParticipantUpdate{
-						.participant = *i,
-						.removed = true,
+						.was = *i,
 					};
 					_userBySource.erase(i->source);
 					_participants.erase(i);
@@ -200,10 +200,15 @@ void GroupCall::applyParticipantsSlice(
 				}
 				return;
 			}
+			const auto was = (i != end(_participants))
+				? std::make_optional(*i)
+				: std::nullopt;
 			const auto value = Participant{
 				.user = user,
 				.date = data.vdate().v,
+				.lastActive = was ? was->lastActive : 0,
 				.source = uint32(data.vsource().v),
+				.speaking = !data.is_muted() && (was ? was->speaking : false),
 				.muted = data.is_muted(),
 				.canSelfUnmute = !data.is_muted() || data.is_can_self_unmute(),
 			};
@@ -220,17 +225,11 @@ void GroupCall::applyParticipantsSlice(
 				*i = value;
 			}
 			_participantUpdates.fire({
-				.participant = value,
+				.was = was,
+				.now = value,
 			});
 		});
 	}
-	ranges::sort(_participants, std::greater<>(), [](const Participant &p) {
-		return p.lastSpoke
-			? p.lastSpoke
-			: p.lastActive
-			? p.lastActive
-			: p.date;
-	});
 	_fullCount = fullCount;
 }
 
@@ -248,15 +247,39 @@ void GroupCall::applyParticipantsMutes(
 				user,
 				&Participant::user);
 			if (i != end(_participants)) {
+				const auto was = *i;
 				i->muted = data.is_muted();
 				i->canSelfUnmute = !i->muted || data.is_can_self_unmute();
+				if (i->muted) {
+					i->speaking = false;
+				}
 				_participantUpdates.fire({
-					.participant = *i,
+					.was = was,
+					.now = *i,
 				});
 			}
 		});
 	}
+}
 
+void GroupCall::applyLastSpoke(uint32 source, crl::time when, crl::time now) {
+	const auto i = _userBySource.find(source);
+	if (i == end(_userBySource)) {
+		// #TODO calls load participant by source from server.
+		return;
+	}
+	const auto j = ranges::find(_participants, i->second, &Participant::user);
+	Assert(j != end(_participants));
+
+	const auto speaking = (when + kSpeakStatusKeptFor >= now) && !j->muted;
+	if (j->speaking != speaking) {
+		const auto was = *j;
+		j->speaking = speaking;
+		_participantUpdates.fire({
+			.was = was,
+			.now = *j,
+		});
+	}
 }
 
 void GroupCall::applyUpdate(const MTPDupdateGroupCallParticipants &update) {

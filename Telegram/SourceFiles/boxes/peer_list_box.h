@@ -760,7 +760,7 @@ public:
 		_content->reorderRows([&](
 				auto &&begin,
 				auto &&end) {
-			std::sort(begin, end, [&](auto &&a, auto &&b) {
+			std::stable_sort(begin, end, [&](auto &&a, auto &&b) {
 				return compare(*a, *b);
 			});
 		});

@@ -34,6 +34,8 @@ namespace Calls {
 namespace {
 
 constexpr auto kMaxInvitePerSlice = 10;
+constexpr auto kCheckLastSpokeInterval = 3 * crl::time(1000);
+constexpr auto kSpeakLevelThreshold = 0.2;
 
 } // namespace
 
@@ -43,7 +45,8 @@ GroupCall::GroupCall(
 	const MTPInputGroupCall &inputCall)
 : _delegate(delegate)
 , _channel(channel)
-, _api(&_channel->session().mtp()) {
+, _api(&_channel->session().mtp())
+, _lastSpokeCheckTimer([=] { checkLastSpoke(); }) {
 	const auto id = inputCall.c_inputGroupCall().vid().v;
 	if (id) {
 		if (const auto call = _channel->call(); call && call->id() == id) {
@@ -119,9 +122,11 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 	using Update = Data::GroupCall::ParticipantUpdate;
 	_channel->call()->participantUpdated(
 	) | rpl::filter([=](const Update &update) {
-		return (_instance != nullptr) && update.removed;
+		return (_instance != nullptr) && !update.now;
 	}) | rpl::start_with_next([=](const Update &update) {
-		_instance->removeSsrcs({ update.participant.source });
+		Expects(update.was.has_value());
+
+		_instance->removeSsrcs({ update.was->source });
 	}, _lifetime);
 }
 
@@ -404,7 +409,9 @@ void GroupCall::createAndStartController() {
 			crl::on_main(weak, [=] { setInstanceConnected(connected); });
 		},
 		.audioLevelsUpdated = [=](const AudioLevels &data) {
-			crl::on_main(weak, [=] { audioLevelsUpdated(data); });
+			if (!data.empty()) {
+				crl::on_main(weak, [=] { audioLevelsUpdated(data); });
+			}
 		},
 		.myAudioLevelUpdated = [=](float level) {
 			if (*myLevel != level) { // Don't send many 0 while we're muted.
@@ -446,22 +453,77 @@ void GroupCall::createAndStartController() {
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 }
 
-void GroupCall::myLevelUpdated(float level) {
-	_levelUpdates.fire(LevelUpdate{
-		.source = _mySsrc,
-		.value = level,
-		.self = true
-	});
-}
+void GroupCall::handleLevelsUpdated(
+		gsl::span<const std::pair<std::uint32_t, float>> data) {
+	Expects(!data.empty());
 
-void GroupCall::audioLevelsUpdated(
-		const std::vector<std::pair<std::uint32_t, float>> &data) {
+	auto check = false;
+	auto checkNow = false;
+	const auto now = crl::now();
 	for (const auto &[source, level] : data) {
 		_levelUpdates.fire(LevelUpdate{
 			.source = source,
 			.value = level,
 			.self = (source == _mySsrc)
 		});
+		if (level <= kSpeakLevelThreshold) {
+			continue;
+		}
+
+		check = true;
+		const auto i = _lastSpoke.find(source);
+		if (i == _lastSpoke.end()) {
+			_lastSpoke.emplace(source, now);
+			checkNow = true;
+		} else {
+			if (i->second + kCheckLastSpokeInterval / 3 <= now) {
+				checkNow = true;
+			}
+			i->second = now;
+		}
+	}
+	if (checkNow) {
+		checkLastSpoke();
+	} else if (check && !_lastSpokeCheckTimer.isActive()) {
+		_lastSpokeCheckTimer.callEach(kCheckLastSpokeInterval / 2);
+	}
+}
+
+void GroupCall::myLevelUpdated(float level) {
+	const auto pair = std::pair<std::uint32_t, float>{ _mySsrc, level };
+	handleLevelsUpdated({ &pair, &pair + 1 });
+}
+
+void GroupCall::audioLevelsUpdated(
+		const std::vector<std::pair<std::uint32_t, float>> &data) {
+	handleLevelsUpdated(gsl::make_span(data));
+}
+
+void GroupCall::checkLastSpoke() {
+	const auto real = _channel->call();
+	if (!real || real->id() != _id) {
+		return;
+	}
+
+	auto hasRecent = false;
+	const auto now = crl::now();
+	auto list = base::take(_lastSpoke);
+	for (auto i = list.begin(); i != list.end();) {
+		const auto [source, when] = *i;
+		if (when + kCheckLastSpokeInterval >= now) {
+			hasRecent = true;
+			++i;
+		} else {
+			i = list.erase(i);
+		}
+		real->applyLastSpoke(source, when, now);
+	}
+	_lastSpoke = std::move(list);
+
+	if (!hasRecent) {
+		_lastSpokeCheckTimer.cancel();
+	} else if (!_lastSpokeCheckTimer.isActive()) {
+		_lastSpokeCheckTimer.callEach(kCheckLastSpokeInterval / 3);
 	}
 }
 
