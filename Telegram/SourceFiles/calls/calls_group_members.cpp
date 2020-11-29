@@ -465,9 +465,6 @@ void MembersController::updateRow(
 //	if (const auto row = findRow(user)) {
 //		const auto result = row->updateLevel(level);
 //		if (result.stateChanged) {
-//			// #TODO calls reorder.
-//		}
-//		if (result.stateChanged) {
 //			delegate()->peerListUpdateRow(row);
 //		}
 //		if (result.nextUpdateTime) {

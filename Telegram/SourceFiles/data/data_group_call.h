@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class UserData;
 class ChannelData;
 
+class ApiWrap;
+
 namespace Data {
 
 class GroupCall final {
@@ -60,12 +62,20 @@ public:
 	[[nodiscard]] bool canChangeJoinMuted() const;
 
 private:
+	enum class ApplySliceSource {
+		SliceLoaded,
+		UnknownLoaded,
+		UpdateReceived,
+	};
+	[[nodiscard]] ApiWrap &api() const;
+
 	void applyCall(const MTPGroupCall &call, bool force);
 	void applyParticipantsSlice(
 		const QVector<MTPGroupCallParticipant> &list,
-		bool sendIndividualUpdates = false);
+		ApplySliceSource sliceSource);
 	void applyParticipantsMutes(
 		const MTPDupdateGroupCallParticipants &update);
+	void requestUnknownSources();
 
 	const not_null<ChannelData*> _channel;
 	const uint64 _id = 0;
@@ -79,6 +89,9 @@ private:
 	base::flat_map<uint32, not_null<UserData*>> _userBySource;
 	QString _nextOffset;
 	rpl::variable<int> _fullCount = 0;
+
+	base::flat_map<uint32, crl::time> _unknownSpokenSources;
+	mtpRequestId _unknownSourcesRequestId = 0;
 
 	rpl::event_stream<ParticipantUpdate> _participantUpdates;
 	rpl::event_stream<> _participantsSliceAdded;
