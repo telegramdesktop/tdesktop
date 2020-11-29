@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "calls/calls_instance.h"
 #include "data/data_peer_values.h"
+#include "data/data_group_call.h" // GroupCall::input.
 #include "data/data_folder.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
@@ -211,7 +212,11 @@ void TopBarWidget::onCall() {
 		if (const auto user = peer->asUser()) {
 			Core::App().calls().startOutgoingCall(user, false);
 		} else if (const auto megagroup = peer->asMegagroup()) {
-			Core::App().calls().startGroupCall(megagroup);
+			if (const auto call = megagroup->call()) {
+				Core::App().calls().joinGroupCall(megagroup, call->input());
+			} else {
+				Core::App().calls().startGroupCall(megagroup);
+			}
 		}
 	}
 }

@@ -219,7 +219,11 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 			});
 	}) | rpl::flatten_latest(
 	) | rpl::start_with_next([=](const Ui::GroupCallBarContent &content) {
+		const auto changed = (_userpics.size() != content.userpics.size());
 		_userpics = content.userpics;
+		if (changed) {
+			updateControlsGeometry();
+		}
 		update();
 	}, lifetime());
 }
@@ -281,6 +285,9 @@ void TopBar::updateControlsGeometry() {
 	if (_durationLabel) {
 		_durationLabel->moveToLeft(left, st::callBarLabelTop);
 		left += _durationLabel->width() + st::callBarSkip;
+	}
+	if (!_userpics.isNull()) {
+		left += _userpics.width() / _userpics.devicePixelRatio();
 	}
 	if (_signalBars) {
 		_signalBars->moveToLeft(left, (height() - _signalBars->height()) / 2);
