@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace style {
 struct PeerList;
 struct PeerListItem;
+struct MultiSelect;
 } // namespace style
 
 namespace Main {
@@ -371,6 +372,21 @@ public:
 		prepare();
 	}
 
+	void setStyleOverrides(
+			const style::PeerList *listSt,
+			const style::MultiSelect *selectSt = nullptr) {
+		_listSt = listSt;
+		_selectSt = selectSt;
+	}
+	const style::PeerList *listSt() const {
+		return _listSt;
+	}
+	const style::MultiSelect *selectSt() const {
+		return _selectSt;
+	}
+	const style::PeerList &computeListSt() const;
+	const style::MultiSelect &computeSelectSt() const;
+
 	virtual void prepare() = 0;
 	virtual void rowClicked(not_null<PeerListRow*> row) = 0;
 	virtual Main::Session &session() const = 0;
@@ -457,6 +473,9 @@ private:
 	PeerListDelegate *_delegate = nullptr;
 	std::unique_ptr<PeerListSearchController> _searchController = nullptr;
 
+	const style::PeerList *_listSt = nullptr;
+	const style::MultiSelect *_selectSt = nullptr;
+
 	rpl::lifetime _lifetime;
 
 };
@@ -478,8 +497,7 @@ class PeerListContent
 public:
 	PeerListContent(
 		QWidget *parent,
-		not_null<PeerListController*> controller,
-		const style::PeerList &st);
+		not_null<PeerListController*> controller);
 
 	void selectSkip(int direction);
 	void selectSkipPage(int height, int direction);

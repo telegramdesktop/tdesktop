@@ -501,10 +501,10 @@ ListController *CreateAnswerRows(
 		container,
 		st::boxLittleSkip));
 
+	controller->setStyleOverrides(&st::infoCommonGroupsList);
 	const auto content = container->add(object_ptr<PeerListContent>(
 		container,
-		controller,
-		st::infoCommonGroupsList));
+		controller));
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 

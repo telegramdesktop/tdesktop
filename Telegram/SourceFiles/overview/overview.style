@@ -47,7 +47,7 @@ overviewCheck: RoundCheckbox(defaultRoundCheckbox) {
 	sizeSmall: 0.3;
 	check: icon {{ "overview_photo_check", overviewCheckFgActive, point(4px, 8px) }};
 }
-overviewSmallCheck: RoundCheckbox(contactsPhotoCheck) {
+overviewSmallCheck: RoundCheckbox(defaultPeerListCheck) {
 	border: overviewCheckBorder;
 }
 overviewCheckSkip: 5px;

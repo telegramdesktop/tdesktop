@@ -25,11 +25,6 @@ settingsSectionSkip: 9px;
 settingsSectionIconLeft: 22px;
 settingsSeparatorPadding: margins(22px, infoProfileSkip, 0px, infoProfileSkip);
 settingsButtonRightSkip: 28px;
-settingsButtonRight: FlatLabel(defaultFlatLabel) {
-	textFg: windowActiveTextFg;
-	style: boxTextStyle;
-	maxHeight: 20px;
-}
 settingsScalePadding: margins(79px, 10px, 28px, 8px);
 settingsBigScalePadding: margins(22px, 10px, 22px, 8px);
 settingsSlider: SettingsSlider(defaultSettingsSlider) {

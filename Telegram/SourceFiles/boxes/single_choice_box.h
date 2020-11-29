@@ -14,6 +14,10 @@ namespace Ui {
 class Radiobutton;
 } // namespace Ui
 
+namespace style {
+struct Checkbox;
+} // namespace style
+
 class SingleChoiceBox : public Ui::BoxContent {
 public:
 	SingleChoiceBox(
@@ -21,7 +25,9 @@ public:
 		rpl::producer<QString> title,
 		const std::vector<QString> &optionTexts,
 		int initialSelection,
-		Fn<void(int)> callback);
+		Fn<void(int)> callback,
+		const style::Checkbox *st = nullptr,
+		const style::Radio *radioSt = nullptr);
 
 protected:
 	void prepare() override;
@@ -31,6 +37,8 @@ private:
 	std::vector<QString> _optionTexts;
 	int _initialSelection = 0;
 	Fn<void(int)> _callback;
+	const style::Checkbox &_st;
+	const style::Radio &_radioSt;
 
 };
 

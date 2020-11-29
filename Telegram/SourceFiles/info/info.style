@@ -44,14 +44,14 @@ infoScroll: ScrollArea(defaultScrollArea) {
 infoMediaSearch: SearchFieldRow {
 	height: 44px;
 	padding: margins(8px, 6px, 8px, 6px);
-	field: contactsSearchField;
+	field: defaultMultiSelectSearchField;
 	fieldIcon: icon {{
 		"box_search-flip_horizontal",
 		menuIconFg,
 		point(6px, 8px)
 	}};
 	fieldIconSkip: 36px;
-	fieldCancel: contactsSearchCancel;
+	fieldCancel: defaultMultiSelectSearchCancel;
 	fieldCancelSkip: 40px;
 }
 infoLayerMediaSearch: SearchFieldRow(infoMediaSearch) {
@@ -62,7 +62,7 @@ infoLayerMediaSearch: SearchFieldRow(infoMediaSearch) {
 		point(9px, 9px)
 	}};
 	fieldIconSkip: 34px;
-	fieldCancel: CrossButton(contactsSearchCancel) {
+	fieldCancel: CrossButton(defaultMultiSelectSearchCancel) {
 		width: 50px;
 		cross: CrossAnimation {
 			size: 38px;
@@ -77,7 +77,7 @@ infoLayerMediaSearch: SearchFieldRow(infoMediaSearch) {
 infoTopBarSearchRow: SearchFieldRow(infoLayerMediaSearch) {
 	height: 52px;
 	padding: margins(0px, 12px, 8px, 10px);
-	fieldCancel: CrossButton(contactsSearchCancel) {
+	fieldCancel: CrossButton(defaultMultiSelectSearchCancel) {
 		width: 51px;
 		height: 52px;
 		cross: CrossAnimation {
@@ -402,7 +402,7 @@ infoProfileToggle: Toggle(defaultToggle) {
 infoProfileToggleOver: Toggle(infoProfileToggle) {
 	untoggledFg: menuIconFgOver;
 }
-infoProfileButton: SettingsButton {
+infoProfileButton: SettingsButton(defaultSettingsButton) {
 	textFg: windowBoldFg;
 	textFgOver: windowBoldFgOver;
 	textBg: windowBg;
@@ -496,7 +496,7 @@ infoMembersSearchActiveLayer: icon {
 		infoMembersButtonIconPosition
 	}
 };
-infoMembersSearchField: InputField(contactsSearchField) {
+infoMembersSearchField: InputField(defaultMultiSelectSearchField) {
 }
 infoMembersCancelSearch: CrossButton {
 	width: 44px;

@@ -153,74 +153,6 @@ contactsAboutFg: windowSubTextFgOver;
 contactsAboutTop: 60px;
 contactsAboutBottom: 19px;
 
-contactsSearchField: InputField(defaultInputField) {
-	textBg: transparent;
-	textMargins: margins(2px, 7px, 2px, 0px);
-
-	placeholderFg: placeholderFg;
-	placeholderFgActive: placeholderFgActive;
-	placeholderFgError: placeholderFgActive;
-	placeholderMargins: margins(2px, 0px, 2px, 0px);
-	placeholderScale: 0.;
-	placeholderFont: normalFont;
-
-	border: 0px;
-	borderActive: 0px;
-
-	heightMin: 32px;
-
-	font: normalFont;
-}
-contactsSearchCancel: CrossButton {
-	width: 44px;
-	height: 44px;
-
-	cross: CrossAnimation {
-		size: 36px;
-		skip: 12px;
-		stroke: 2px;
-		minScale: 0.3;
-	}
-	crossFg: boxTitleCloseFg;
-	crossFgOver: boxTitleCloseFgOver;
-	crossPosition: point(4px, 4px);
-
-	duration: 150;
-	loadingPeriod: 1000;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
-}
-contactsMultiSelect: MultiSelect {
-	bg: boxSearchBg;
-	padding: margins(8px, 6px, 8px, 6px);
-	maxHeight: 104px;
-	scroll: ScrollArea(defaultSolidScroll) {
-		deltat: 3px;
-		deltab: 3px;
-		round: 1px;
-		width: 8px;
-		deltax: 3px;
-		hiding: 1000;
-	}
-
-	item: defaultMultiSelectItem;
-	itemSkip: 8px;
-
-	field: contactsSearchField;
-	fieldMinWidth: 42px;
-	fieldIcon: boxFieldSearchIcon;
-	fieldIconSkip: 36px;
-
-	fieldCancel: contactsSearchCancel;
-	fieldCancelSkip: 40px;
-}
-contactsPhotoCheckIcon: defaultPeerListCheckIcon;
-contactsPhotoCheck: defaultPeerListCheck;
-contactsPhotoCheckbox: defaultPeerListCheckbox;
-contactsPhotoDisabledCheckFg: menuIconFg;
-contactsRipple: defaultRippleAnimation;
-
 contactsMarginTop: 4px;
 contactsMarginBottom: 4px;
 membersMarginTop: 10px;
@@ -241,7 +173,7 @@ peerListBox: PeerList(defaultPeerList) {
 		button: OutlineButton(defaultPeerListButton) {
 			textBg: contactsBg;
 			textBgOver: contactsBgOver;
-			ripple: contactsRipple;
+			ripple: defaultRippleAnimation;
 		}
 		statusFg: contactsStatusFg;
 		statusFgOver: contactsStatusFgOver;
@@ -282,7 +214,7 @@ localStorageLimitMargin: margins(22px, 5px, 20px, 10px);
 shareRowsTop: 12px;
 shareRowHeight: 108px;
 sharePhotoTop: 6px;
-sharePhotoCheckbox: RoundImageCheckbox(contactsPhotoCheckbox) {
+sharePhotoCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
 	imageRadius: 28px;
 	imageSmallRadius: 24px;
 }
@@ -697,10 +629,10 @@ muteChatTitle: FlatLabel(boxLabel) {
 }
 muteChatTitleLeft: 50px;
 
-groupStickersRemove: contactsSearchCancel;
+groupStickersRemove: defaultMultiSelectSearchCancel;
 groupStickersRemovePosition: point(6px, 6px);
 groupStickersFieldPadding: margins(8px, 6px, 8px, 6px);
-groupStickersField: InputField(contactsSearchField) {
+groupStickersField: InputField(defaultMultiSelectSearchField) {
 	placeholderFont: boxTextFont;
 	font: boxTextFont;
 	placeholderMargins: margins(0px, 0px, 0px, 0px);
@@ -960,7 +892,7 @@ pollResultsVotesCount: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 pollResultsHeaderPadding: margins(22px, 22px, 22px, 8px);
-pollResultsShowMore: SettingsButton {
+pollResultsShowMore: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
 	textBg: windowBg;

@@ -208,7 +208,8 @@ QSize MediaPreviewWidget::currentDimensions() const {
 	QSize result, box;
 	if (_photo) {
 		result = QSize(_photo->width(), _photo->height());
-		box = QSize(width() - 2 * st::boxVerticalMargin, height() - 2 * st::boxVerticalMargin);
+		const auto skip = st::defaultBox.margin.top();
+		box = QSize(width() - 2 * skip, height() - 2 * skip);
 	} else {
 		result = _document->dimensions;
 		if (result.isEmpty()) {

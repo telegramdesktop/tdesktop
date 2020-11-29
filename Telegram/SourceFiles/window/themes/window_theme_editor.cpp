@@ -650,9 +650,9 @@ Editor::Editor(
 : _window(window)
 , _cloud(cloud)
 , _scroll(this, st::themesScroll)
-, _close(this, st::contactsMultiSelect.fieldCancel)
+, _close(this, st::defaultMultiSelect.fieldCancel)
 , _menuToggle(this, st::themesMenuToggle)
-, _select(this, st::contactsMultiSelect, tr::lng_country_ph())
+, _select(this, st::defaultMultiSelect, tr::lng_country_ph())
 , _leftShadow(this)
 , _topShadow(this)
 , _save(this, tr::lng_theme_editor_save_button(tr::now).toUpper(), st::dialogsUpdateButton) {

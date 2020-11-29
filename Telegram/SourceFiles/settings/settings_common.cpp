@@ -137,7 +137,7 @@ void CreateRightLabel(
 		rpl::producer<QString> buttonText) {
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
 		button.get(),
-		st::settingsButtonRight);
+		st.rightLabel);
 	rpl::combine(
 		button->widthValue(),
 		std::move(buttonText),

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 
 using "ui/widgets/widgets.style";
+using "ui/layers/layers.style";
 using "window/window.style";
 
 CallSignalBars {
@@ -408,32 +409,76 @@ groupCallHeight: 580px;
 groupCallRipple: RippleAnimation(defaultRippleAnimation) {
 	color: groupCallMembersRipple;
 }
-groupCallMembersList: PeerList(defaultPeerList) {
-	item: PeerListItem(defaultPeerListItem) {
-		button: OutlineButton(defaultPeerListButton) {
-			textBg: groupCallMembersBg;
-			textBgOver: groupCallMembersBg;
+groupCallMembersListItem: PeerListItem(defaultPeerListItem) {
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: groupCallMembersBg;
+		textBgOver: groupCallMembersBg;
 
-			textFg: groupCallMemberInactiveStatus;
-			textFgOver: groupCallMemberInactiveStatus;
+		textFg: groupCallMemberInactiveStatus;
+		textFgOver: groupCallMemberInactiveStatus;
 
-			font: normalFont;
-			padding: margins(11px, 5px, 11px, 5px);
+		font: normalFont;
+		padding: margins(11px, 5px, 11px, 5px);
 
-			ripple: groupCallRipple;
+		ripple: groupCallRipple;
+	}
+	disabledCheckFg: groupCallMemberNotJoinedStatus;
+	checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+		selectFg: groupCallActiveFg;
+		check: RoundCheckbox(defaultPeerListCheck) {
+			border: groupCallMembersBg;
+			bgActive: groupCallActiveFg;
+			check: icon {{ "default_checkbox_check", groupCallMembersFg, point(3px, 6px) }};
 		}
-		height: 52px;
-		photoPosition: point(12px, 6px);
-		namePosition: point(68px, 7px);
-		statusPosition: point(68px, 26px);
-		photoSize: 40px;
-		nameFg: groupCallMembersFg;
-		nameFgChecked: groupCallMembersFg;
-		statusFg: groupCallMemberInactiveStatus;
-		statusFgOver: groupCallMemberInactiveStatus;
-		statusFgActive: groupCallMemberActiveStatus;
+	}
+	height: 52px;
+	photoPosition: point(12px, 6px);
+	namePosition: point(68px, 7px);
+	statusPosition: point(68px, 26px);
+	photoSize: 40px;
+	nameFg: groupCallMembersFg;
+	nameFgChecked: groupCallMembersFg;
+	statusFg: groupCallMemberInactiveStatus;
+	statusFgOver: groupCallMemberInactiveStatus;
+	statusFgActive: groupCallMemberActiveStatus;
+}
+groupCallMembersList: PeerList(defaultPeerList) {
+	bg: groupCallMembersBg;
+	about: FlatLabel(defaultPeerListAbout) {
+		textFg: groupCallMemberInactiveStatus;
+	}
+	item: groupCallMembersListItem;
+}
+groupCallInviteMembersList: PeerList(groupCallMembersList) {
+	item: PeerListItem(groupCallMembersListItem) {
+		statusFg: groupCallMemberNotJoinedStatus;
+		statusFgOver: groupCallMemberNotJoinedStatus;
+		statusFgActive: groupCallMemberInactiveStatus;
 	}
 }
+groupCallMultiSelect: MultiSelect(defaultMultiSelect) {
+	bg: groupCallMembersBg;
+	item: MultiSelectItem(defaultMultiSelectItem) {
+		textBg: groupCallMembersRipple;
+		textFg: groupCallMembersFg;
+		textActiveBg: groupCallActiveFg;
+		textActiveFg: groupCallMembersFg;
+		deleteFg: groupCallMembersFg;
+	}
+	field: InputField(defaultMultiSelectSearchField) {
+		textFg: groupCallMembersFg;
+		placeholderFg: groupCallMemberNotJoinedStatus;
+		placeholderFgActive: groupCallMemberNotJoinedStatus;
+		placeholderFgError: groupCallMemberNotJoinedStatus;
+	}
+	fieldIcon: icon {{ "box_search", groupCallMemberNotJoinedStatus, point(10px, 9px) }};
+	fieldCancel: CrossButton(defaultMultiSelectSearchCancel) {
+		crossFg: groupCallMemberNotJoinedStatus;
+		crossFgOver: groupCallMemberNotJoinedStatus;
+		ripple: groupCallRipple;
+	}
+}
+
 groupCallMembersHeader: 47px;
 groupCallMembersMargin: margins(16px, 16px, 16px, 28px);
 groupCallAddMember: IconButton(defaultIconButton) {
@@ -504,4 +549,77 @@ groupCallTopBarJoin: RoundButton(defaultActiveButton) {
 	width: -30px;
 	height: 28px;
 	textTop: 5px;
+}
+groupCallBox: Box(defaultBox) {
+	button: RoundButton(defaultBoxButton) {
+		textFg: groupCallActiveFg;
+		textFgOver: groupCallActiveFg;
+		numbersTextFg: groupCallActiveFg;
+		numbersTextFgOver: groupCallActiveFg;
+		textBg: groupCallMembersBg;
+		textBgOver: groupCallBoxButtonBgOver;
+
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: groupCallBoxButtonBgRipple;
+		}
+	}
+	margin: margins(0px, 56px, 0px, 10px);
+	bg: groupCallMembersBg;
+	title: FlatLabel(boxTitle) {
+		textFg: groupCallMembersFg;
+	}
+	titleAdditionalFg: groupCallMemberNotJoinedStatus;
+}
+groupCallLayerBox: Box(groupCallBox) {
+	buttonPadding: margins(8px, 8px, 8px, 8px);
+}
+groupCallLevelMeter: LevelMeter(defaultLevelMeter) {
+	height: 18px;
+	lineWidth: 3px;
+	lineSpacing: 5px;
+	lineCount: 44;
+	activeFg: groupCallActiveFg;
+	inactiveFg: groupCallMemberNotJoinedStatus;
+}
+groupCallCheckboxIcon: icon {{ "default_checkbox_check", groupCallMembersFg, point(4px, 7px) }};
+groupCallCheck: Check(defaultCheck) {
+	untoggledFg: groupCallMemberNotJoinedStatus;
+	toggledFg: groupCallActiveFg;
+	icon: groupCallCheckboxIcon;
+}
+groupCallRadio: Radio(defaultRadio) {
+	untoggledFg: groupCallMemberNotJoinedStatus;
+	toggledFg: groupCallActiveFg;
+}
+groupCallCheckbox: Checkbox(defaultBoxCheckbox) {
+	textFg: groupCallMembersFg;
+	textFgActive: groupCallMembersFg;
+	rippleBg: groupCallMembersRipple;
+	rippleBgActive: groupCallBoxButtonBgRipple;
+}
+
+groupCallSettingsButton: SettingsButton {
+	textFg: groupCallMembersFg;
+	textFgOver: groupCallMembersFg;
+	textBg: groupCallMembersBg;
+	textBgOver: groupCallBoxButtonBgOver;
+
+	font: boxTextFont;
+	rightLabel: FlatLabel(defaultSettingsRightLabel) {
+		textFg: groupCallActiveFg;
+	}
+
+	height: 20px;
+	padding: margins(22px, 10px, 22px, 8px);
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: groupCallBoxButtonBgRipple;
+	}
+}
+groupCallSettingsAttentionButton: SettingsButton(groupCallSettingsButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
+groupCallBoxLabel: FlatLabel(boxLabel) {
+	textFg: groupCallMembersFg;
 }

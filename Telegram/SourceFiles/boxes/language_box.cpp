@@ -880,7 +880,7 @@ void Content::setupContent(
 		const auto inner = wrap->entity();
 		inner->add(object_ptr<Ui::FixedHeightWidget>(
 			inner,
-			st::boxVerticalMargin));
+			st::defaultBox.margin.top()));
 		const auto rows = inner->add(object_ptr<Rows>(
 			inner,
 			list,
@@ -888,7 +888,7 @@ void Content::setupContent(
 			areOfficial));
 		inner->add(object_ptr<Ui::FixedHeightWidget>(
 			inner,
-			st::boxVerticalMargin));
+			st::defaultBox.margin.top()));
 
 		rows->isEmpty() | rpl::start_with_next([=](bool empty) {
 			wrap->toggle(!empty, anim::type::instant);
@@ -1153,7 +1153,7 @@ void LanguageBox::setInnerFocus() {
 not_null<Ui::MultiSelect*> LanguageBox::createMultiSelect() {
 	const auto result = Ui::CreateChild<Ui::MultiSelect>(
 		this,
-		st::contactsMultiSelect,
+		st::defaultMultiSelect,
 		tr::lng_participant_filter());
 	result->resizeToWidth(st::boxWidth);
 	result->moveToLeft(0, 0);

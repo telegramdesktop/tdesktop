@@ -327,7 +327,9 @@ QString CurrentAudioInputName() {
 }
 
 object_ptr<SingleChoiceBox> ChooseAudioOutputBox(
-		Fn<void(QString id, QString name)> chosen) {
+		Fn<void(QString id, QString name)> chosen,
+		const style::Checkbox *st,
+		const style::Radio *radioSt) {
 	const auto &devices = Webrtc::GetAudioOutputList();
 	const auto options = ranges::view::concat(
 		ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
@@ -351,11 +353,15 @@ object_ptr<SingleChoiceBox> ChooseAudioOutputBox(
 		tr::lng_settings_call_output_device(),
 		options,
 		currentOption,
-		save);
+		save,
+		st,
+		radioSt);
 }
 
 object_ptr<SingleChoiceBox> ChooseAudioInputBox(
-		Fn<void(QString id, QString name)> chosen) {
+		Fn<void(QString id, QString name)> chosen,
+		const style::Checkbox *st,
+		const style::Radio *radioSt) {
 	const auto devices = Webrtc::GetAudioInputList();
 	const auto options = ranges::view::concat(
 		ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
@@ -379,7 +385,9 @@ object_ptr<SingleChoiceBox> ChooseAudioInputBox(
 		tr::lng_settings_call_input_device(),
 		options,
 		currentOption,
-		save);
+		save,
+		st,
+		radioSt);
 }
 
 } // namespace Settings

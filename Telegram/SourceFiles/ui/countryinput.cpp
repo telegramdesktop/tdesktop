@@ -148,12 +148,12 @@ void CountryInput::setText(const QString &newText) {
 }
 
 CountrySelectBox::CountrySelectBox(QWidget*)
-: _select(this, st::contactsMultiSelect, tr::lng_country_ph()) {
+: _select(this, st::defaultMultiSelect, tr::lng_country_ph()) {
 }
 
 CountrySelectBox::CountrySelectBox(QWidget*, const QString &iso, Type type)
 : _type(type)
-, _select(this, st::contactsMultiSelect, tr::lng_country_ph()) {
+, _select(this, st::defaultMultiSelect, tr::lng_country_ph()) {
 	if (Data::CountriesByISO2().contains(iso)) {
 		LastValidISO = iso;
 	}

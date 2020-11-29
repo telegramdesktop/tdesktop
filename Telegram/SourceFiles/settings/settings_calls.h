@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "base/timer.h"
 
+namespace style {
+struct Checkbox;
+struct Radio;
+} // namespace style
+
 namespace Calls {
 class Call;
 } // namespace Calls
@@ -57,9 +62,13 @@ inline constexpr auto kMicTestAnimationDuration = crl::time(200);
 [[nodiscard]] QString CurrentAudioOutputName();
 [[nodiscard]] QString CurrentAudioInputName();
 [[nodiscard]] object_ptr<SingleChoiceBox> ChooseAudioOutputBox(
-	Fn<void(QString id, QString name)> chosen);
+	Fn<void(QString id, QString name)> chosen,
+	const style::Checkbox *st = nullptr,
+	const style::Radio *radioSt = nullptr);
 [[nodiscard]] object_ptr<SingleChoiceBox> ChooseAudioInputBox(
-	Fn<void(QString id, QString name)> chosen);
+	Fn<void(QString id, QString name)> chosen,
+	const style::Checkbox *st = nullptr,
+	const style::Radio *radioSt = nullptr);
 
 } // namespace Settings
 

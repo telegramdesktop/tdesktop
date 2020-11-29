@@ -173,16 +173,18 @@ void LeaveGroupCallBox(
 		bool discardChecked,
 		BoxContext context) {
 	box->setTitle(tr::lng_group_call_leave_title());
+	const auto inCall = (context == BoxContext::GroupCallPanel);
 	box->addRow(object_ptr<Ui::FlatLabel>(
 		box.get(),
 		tr::lng_group_call_leave_sure(),
-		st::boxLabel));
+		(inCall ? st::groupCallBoxLabel : st::boxLabel)));
 	const auto discard = call->channel()->canManageCall()
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box.get(),
 			tr::lng_group_call_end(),
 			discardChecked,
-			st::defaultBoxCheckbox),
+			(inCall ? st::groupCallCheckbox : st::defaultBoxCheckbox),
+			(inCall ? st::groupCallCheck : st::defaultCheck)),
 			style::margins(
 				st::boxRowPadding.left(),
 				st::boxRowPadding.left(),
@@ -224,6 +226,8 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 		.type = Ui::CallMuteButtonType::Connecting,
 	}))
 , _hangup(widget(), st::callHangup) {
+	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
+
 	initWindow();
 	initWidget();
 	initControls();
@@ -412,6 +416,10 @@ void GroupPanel::addMembers() {
 		_channel,
 		std::move(alreadyIn),
 		real->fullCount());
+	controller->setStyleOverrides(
+		&st::groupCallInviteMembersList,
+		&st::groupCallMultiSelect);
+
 	const auto weak = base::make_weak(_call);
 	auto initBox = [=, controller = controller.get()](
 			not_null<PeerListBox*> box) {

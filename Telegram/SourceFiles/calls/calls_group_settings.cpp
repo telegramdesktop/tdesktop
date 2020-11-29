@@ -89,7 +89,9 @@ void GroupCallSettingsBox(
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box.get(),
 			tr::lng_group_call_new_muted(),
-			joinMuted))
+			joinMuted,
+			st::groupCallCheckbox,
+			st::groupCallCheck))
 		: nullptr;
 	if (muteJoined) {
 		AddSkip(layout);
@@ -107,13 +109,13 @@ void GroupCallSettingsBox(
 		) | rpl::then(
 			state->outputNameStream.events()
 		),
-		st::settingsButton
+		st::groupCallSettingsButton
 	)->addClickHandler([=] {
 		box->getDelegate()->show(ChooseAudioInputBox(crl::guard(box, [=](
 				const QString &id,
 				const QString &name) {
 			state->outputNameStream.fire_copy(name);
-		})));
+		}), &st::groupCallCheckbox, &st::groupCallRadio));
 	});
 
 	AddButtonWithLabel(
@@ -124,20 +126,20 @@ void GroupCallSettingsBox(
 		) | rpl::then(
 			state->inputNameStream.events()
 		),
-		st::settingsButton
+		st::groupCallSettingsButton
 	)->addClickHandler([=] {
 		box->getDelegate()->show(ChooseAudioInputBox(crl::guard(box, [=](
 				const QString &id,
 				const QString &name) {
 			state->inputNameStream.fire_copy(name);
 			state->micTester->setDeviceId(id);
-		})));
+		}), &st::groupCallCheckbox, &st::groupCallRadio));
 	});
 
 	state->micTestLevel = box->addRow(
 		object_ptr<Ui::LevelMeter>(
 			box.get(),
-			st::defaultLevelMeter),
+			st::groupCallLevelMeter),
 		st::settingsLevelMeterPadding);
 	state->micTestLevel->resize(QSize(0, st::defaultLevelMeter.height));
 
@@ -174,7 +176,7 @@ void GroupCallSettingsBox(
 		AddButton(
 			layout,
 			tr::lng_group_call_share(),
-			st::settingsButton
+			st::groupCallSettingsButton
 		)->addClickHandler([=] {
 			if (!copyLink() && !state->generatingLink) {
 				state->generatingLink = true;
@@ -195,7 +197,7 @@ void GroupCallSettingsBox(
 		AddButton(
 			layout,
 			tr::lng_group_call_end(),
-			st::settingsAttentionButton
+			st::groupCallSettingsAttentionButton
 		)->addClickHandler([=] {
 			if (const auto call = weakCall.get()) {
 				box->getDelegate()->show(Box(

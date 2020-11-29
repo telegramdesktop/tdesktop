@@ -180,9 +180,6 @@ void GroupCall::reload() {
 void GroupCall::applyParticipantsSlice(
 		const QVector<MTPGroupCallParticipant> &list,
 		ApplySliceSource sliceSource) {
-	if (sliceSource != ApplySliceSource::UnknownLoaded) {
-		return;
-	}
 	auto changedCount = _fullCount.current();
 	for (const auto &participant : list) {
 		participant.match([&](const MTPDgroupCallParticipant &data) {

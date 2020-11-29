@@ -67,7 +67,9 @@ void PeerListBox::createMultiSelect() {
 
 	auto entity = object_ptr<Ui::MultiSelect>(
 		this,
-		st::contactsMultiSelect,
+		(_controller->selectSt()
+			? *_controller->selectSt()
+			: st::defaultMultiSelect),
 		tr::lng_participant_filter());
 	_select.create(this, std::move(entity));
 	_select->heightValue(
@@ -117,8 +119,7 @@ void PeerListBox::prepare() {
 	setContent(setInnerWidget(
 		object_ptr<PeerListContent>(
 			this,
-			_controller.get(),
-			st::peerListBox),
+			_controller.get()),
 		st::boxScroll));
 	content()->resizeToWidth(_controller->contentWidth());
 
@@ -178,8 +179,12 @@ void PeerListBox::resizeEvent(QResizeEvent *e) {
 
 void PeerListBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+
+	const auto &bg = (_controller->listSt()
+		? *_controller->listSt()
+		: st::peerListBox).bg;
 	for (const auto rect : e->region()) {
-		p.fillRect(rect, st::contactsBg);
+		p.fillRect(rect, bg);
 	}
 }
 
@@ -248,6 +253,14 @@ PeerListController::PeerListController(std::unique_ptr<PeerListSearchController>
 	}
 }
 
+const style::PeerList &PeerListController::computeListSt() const {
+	return _listSt ? *_listSt : st::peerListBox;
+}
+
+const style::MultiSelect &PeerListController::computeSelectSt() const {
+	return _selectSt ? *_selectSt : st::defaultMultiSelect;
+}
+
 bool PeerListController::hasComplexSearch() const {
 	return (_searchController != nullptr);
 }
@@ -279,7 +292,8 @@ void PeerListController::setDescriptionText(const QString &text) {
 	if (text.isEmpty()) {
 		setDescription(nullptr);
 	} else {
-		setDescription(object_ptr<Ui::FlatLabel>(nullptr, text, st::membersAbout));
+		const auto &st = _listSt ? *_listSt : st::peerListBox;
+		setDescription(object_ptr<Ui::FlatLabel>(nullptr, text, computeListSt().about));
 	}
 }
 
@@ -353,17 +367,20 @@ void PeerListBox::addSelectItem(
 		createMultiSelect();
 		_select->hide(anim::type::instant);
 	}
+	const auto &activeBg = (_controller->selectSt()
+		? *_controller->selectSt()
+		: st::defaultMultiSelect).item.textActiveBg;
 	if (animated == anim::type::instant) {
 		_select->entity()->addItemInBunch(
 			itemId,
 			text,
-			st::activeButtonBg,
+			activeBg,
 			std::move(paintUserpic));
 	} else {
 		_select->entity()->addItem(
 			itemId,
 			text,
-			st::activeButtonBg,
+			activeBg,
 			std::move(paintUserpic));
 	}
 }
@@ -606,21 +623,21 @@ void PeerListRow::paintDisabledCheckUserpic(
 		int x,
 		int y,
 		int outerWidth) const {
-	auto userpicRadius = st::contactsPhotoCheckbox.imageSmallRadius;
-	auto userpicShift = st::contactsPhotoCheckbox.imageRadius - userpicRadius;
-	auto userpicDiameter = st::contactsPhotoCheckbox.imageRadius * 2;
+	auto userpicRadius = st.checkbox.imageSmallRadius;
+	auto userpicShift = st.checkbox.imageRadius - userpicRadius;
+	auto userpicDiameter = st.checkbox.imageRadius * 2;
 	auto userpicLeft = x + userpicShift;
 	auto userpicTop = y + userpicShift;
 	auto userpicEllipse = style::rtlrect(x, y, userpicDiameter, userpicDiameter, outerWidth);
-	auto userpicBorderPen = st::contactsPhotoDisabledCheckFg->p;
-	userpicBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
+	auto userpicBorderPen = st.disabledCheckFg->p;
+	userpicBorderPen.setWidth(st.checkbox.selectWidth);
 
-	auto iconDiameter = st::contactsPhotoCheckbox.check.size;
-	auto iconLeft = x + userpicDiameter + st::contactsPhotoCheckbox.selectWidth - iconDiameter;
-	auto iconTop = y + userpicDiameter + st::contactsPhotoCheckbox.selectWidth - iconDiameter;
+	auto iconDiameter = st.checkbox.check.size;
+	auto iconLeft = x + userpicDiameter + st.checkbox.selectWidth - iconDiameter;
+	auto iconTop = y + userpicDiameter + st.checkbox.selectWidth - iconDiameter;
 	auto iconEllipse = style::rtlrect(iconLeft, iconTop, iconDiameter, iconDiameter, outerWidth);
-	auto iconBorderPen = st::contactsPhotoCheckbox.check.border->p;
-	iconBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
+	auto iconBorderPen = st.checkbox.check.border->p;
+	iconBorderPen.setWidth(st.checkbox.selectWidth);
 
 	if (_isSavedMessagesChat) {
 		Ui::EmptyUserpic::PaintSavedMessages(p, userpicLeft, userpicTop, outerWidth, userpicRadius * 2);
@@ -638,11 +655,11 @@ void PeerListRow::paintDisabledCheckUserpic(
 		p.drawEllipse(userpicEllipse);
 
 		p.setPen(iconBorderPen);
-		p.setBrush(st::contactsPhotoDisabledCheckFg);
+		p.setBrush(st.disabledCheckFg);
 		p.drawEllipse(iconEllipse);
 	}
 
-	st::contactsPhotoCheckbox.check.check.paint(p, iconEllipse.topLeft(), outerWidth);
+	st.checkbox.check.check.paint(p, iconEllipse.topLeft(), outerWidth);
 }
 
 void PeerListRow::setStatusText(const QString &text) {
@@ -679,10 +696,9 @@ void PeerListRow::setCheckedInternal(bool checked, anim::type animated) {
 
 PeerListContent::PeerListContent(
 	QWidget *parent,
-	not_null<PeerListController*> controller,
-	const style::PeerList &st)
+	not_null<PeerListController*> controller)
 : RpWidget(parent)
-, _st(st)
+, _st(controller->computeListSt())
 , _controller(controller)
 , _rowHeight(_st.item.height) {
 	_controller->session().downloaderTaskFinished(

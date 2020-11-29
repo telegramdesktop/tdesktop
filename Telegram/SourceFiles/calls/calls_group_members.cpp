@@ -733,10 +733,11 @@ void GroupMembers::setupButtons(not_null<GroupCall*> call) {
 
 void GroupMembers::setupList() {
 	auto topSkip = _header ? _header->height() : 0;
+
+	_listController->setStyleOverrides(&st::groupCallMembersList);
 	_list = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
-		_listController.get(),
-		st::groupCallMembersList));
+		_listController.get()));
 
 	sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
