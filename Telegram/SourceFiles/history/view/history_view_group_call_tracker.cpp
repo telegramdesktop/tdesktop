@@ -192,7 +192,18 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 			// Full kLimit of speaking userpics already.
 			return false;
 		}
+
+		// Add the new speaking to the place we found.
 		const auto added = state->userpics.insert(i, UserpicInRow{ user });
+
+		// Remove him from the tail, if he was there.
+		for (auto i = added + 1; i != state->userpics.end(); ++i) {
+			if (i->peer == user) {
+				state->userpics.erase(i);
+				break;
+			}
+		}
+
 		if (state->userpics.size() > kLimit) {
 			// Find last non-speaking userpic to remove. It must be there.
 			for (auto i = state->userpics.end() - 1; i != added; --i) {

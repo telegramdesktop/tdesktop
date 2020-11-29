@@ -15,6 +15,7 @@ class Painter;
 namespace Ui {
 
 class PlainShadow;
+class RoundButton;
 
 struct GroupCallBarContent {
 	int count = 0;
@@ -53,9 +54,10 @@ private:
 	void setupInner();
 	void paint(Painter &p);
 
-	Ui::SlideWrap<> _wrap;
-	not_null<Ui::RpWidget*> _inner;
-	std::unique_ptr<Ui::PlainShadow> _shadow;
+	SlideWrap<> _wrap;
+	not_null<RpWidget*> _inner;
+	std::unique_ptr<RoundButton> _join;
+	std::unique_ptr<PlainShadow> _shadow;
 	rpl::event_stream<> _barClicks;
 	Fn<QRect(QRect)> _shadowGeometryPostprocess;
 	bool _shouldBeShown = false;

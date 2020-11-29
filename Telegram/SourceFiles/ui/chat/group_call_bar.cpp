@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
+#include "styles/style_calls.h"
 #include "styles/palette.h"
 
 #include <QtGui/QtEvents>
@@ -23,6 +24,10 @@ GroupCallBar::GroupCallBar(
 	rpl::producer<GroupCallBarContent> content)
 : _wrap(parent, object_ptr<RpWidget>(parent))
 , _inner(_wrap.entity())
+, _join(std::make_unique<RoundButton>(
+	_inner.get(),
+	tr::lng_group_call_join(),
+	st::groupCallTopBarJoin))
 , _shadow(std::make_unique<PlainShadow>(_wrap.parentWidget())) {
 	_wrap.hide(anim::type::instant);
 	_shadow->hide();
@@ -72,7 +77,6 @@ void GroupCallBar::setupInner() {
 		paint(p);
 	}, _inner->lifetime());
 
-
 	// Clicks.
 	_inner->setCursor(style::cur_pointer);
 	_inner->events(
@@ -91,6 +95,16 @@ void GroupCallBar::setupInner() {
 		return rpl::empty_value();
 	}) | rpl::start_to_stream(_barClicks, _inner->lifetime());
 
+	rpl::combine(
+		_inner->widthValue(),
+		_join->widthValue()
+	) | rpl::start_with_next([=](int outerWidth, int) {
+		// Skip shadow of the bar above.
+		const auto top = (st::historyReplyHeight
+			- st::lineWidth
+			- _join->height()) / 2 + st::lineWidth;
+		_join->moveToRight(top, top, outerWidth);
+	}, _join->lifetime());
 
 	_wrap.geometryValue(
 	) | rpl::start_with_next([=](QRect rect) {
@@ -106,10 +120,11 @@ void GroupCallBar::paint(Painter &p) {
 	if (!_content.userpics.isNull()) {
 		const auto imageSize = _content.userpics.size()
 			/ _content.userpics.devicePixelRatio();
-		p.drawImage(
-			left,
-			(_inner->height() - imageSize.height()) / 2,
-			_content.userpics);
+		// Skip shadow of the bar above.
+		const auto imageTop = (st::historyReplyHeight
+			- st::lineWidth
+			- imageSize.height()) / 2 + st::lineWidth;
+		p.drawImage(left, imageTop, _content.userpics);
 		left += imageSize.width() + st::msgReplyBarSkip;
 	}
 	const auto titleTop = st::msgReplyPadding.top();
@@ -207,7 +222,7 @@ rpl::producer<> GroupCallBar::barClicks() const {
 }
 
 rpl::producer<> GroupCallBar::joinClicks() const {
-	return rpl::never<>();
+	return _join->clicks() | rpl::to_empty;
 }
 
 } // namespace Ui

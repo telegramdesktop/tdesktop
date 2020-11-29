@@ -54,10 +54,13 @@ private:
 	void startDurationUpdateTimer(crl::time currentDuration);
 	void setMuted(bool mute);
 
+	void subscribeToMembersChanges(not_null<GroupCall*> call);
+
 	const base::weak_ptr<Call> _call;
 	const base::weak_ptr<GroupCall> _groupCall;
 
 	bool _muted = false;
+	QImage _userpics;
 	object_ptr<Ui::LabelSimple> _durationLabel;
 	object_ptr<SignalBars> _signalBars;
 	object_ptr<Ui::FlatLabel> _fullInfoLabel;

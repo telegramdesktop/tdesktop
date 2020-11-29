@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/chat/group_call_bar.h" // Ui::GroupCallBarContent.
 #include "ui/layers/generic_box.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/text/format_values.h"
@@ -18,7 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "calls/calls_signal_bars.h"
 #include "calls/calls_group_panel.h" // LeaveGroupCallBox.
+#include "history/view/history_view_group_call_tracker.h" // ContentByCall.
 #include "data/data_user.h"
+#include "data/data_group_call.h"
 #include "data/data_channel.h"
 #include "data/data_changes.h"
 #include "main/main_session.h"
@@ -104,7 +107,12 @@ TopBar::TopBar(
 	: object_ptr<SignalBars>(nullptr))
 , _fullInfoLabel(this, st::callBarInfoLabel)
 , _shortInfoLabel(this, st::callBarInfoLabel)
-, _hangupLabel(this, st::callBarLabel, tr::lng_call_bar_hangup(tr::now).toUpper())
+, _hangupLabel(_call
+	? object_ptr<Ui::LabelSimple>(
+		this,
+		st::callBarLabel,
+		tr::lng_call_bar_hangup(tr::now).toUpper())
+	: object_ptr<Ui::LabelSimple>(nullptr))
 , _mute(this, st::callBarMuteToggle)
 , _info(this)
 , _hangup(this, st::callBarHangup) {
@@ -136,8 +144,8 @@ void TopBar::initControls() {
 		update();
 	}, lifetime());
 
-	if (_groupCall) {
-		_groupCall->mutedValue(
+	if (const auto group = _groupCall.get()) {
+		group->mutedValue(
 		) | rpl::start_with_next([=](MuteState state) {
 			if (state == MuteState::ForceMuted) {
 				_mute->clearState();
@@ -146,6 +154,8 @@ void TopBar::initControls() {
 				Qt::WA_TransparentForMouseEvents,
 				(state == MuteState::ForceMuted));
 		}, _mute->lifetime());
+
+		subscribeToMembersChanges(group);
 	}
 
 	if (const auto call = _call.get()) {
@@ -185,6 +195,33 @@ void TopBar::initControls() {
 	});
 	_updateDurationTimer.setCallback([this] { updateDurationText(); });
 	updateDurationText();
+}
+
+void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
+	const auto channel = call->channel();
+	channel->session().changes().peerFlagsValue(
+		channel,
+		Data::PeerUpdate::Flag::GroupCall
+	) | rpl::map([=] {
+		return channel->call();
+	}) | rpl::filter([=](Data::GroupCall *real) {
+		const auto call = _groupCall.get();
+		return call && real && (real->id() == call->id());
+	}) | rpl::take(
+		1
+	) | rpl::map([=](not_null<Data::GroupCall*> real) {
+		return HistoryView::GroupCallTracker::ContentByCall(
+			real,
+			HistoryView::UserpicsInRowStyle{
+				.size = st::groupCallTopBarUserpicSize,
+				.shift = st::groupCallTopBarUserpicShift,
+				.stroke = st::groupCallTopBarUserpicStroke,
+			});
+	}) | rpl::flatten_latest(
+	) | rpl::start_with_next([=](const Ui::GroupCallBarContent &content) {
+		_userpics = content.userpics;
+		update();
+	}, lifetime());
 }
 
 void TopBar::updateInfoLabels() {
@@ -251,8 +288,12 @@ void TopBar::updateControlsGeometry() {
 	}
 
 	auto right = st::callBarRightSkip;
-	_hangupLabel->moveToRight(right, st::callBarLabelTop);
-	right += _hangupLabel->width();
+	if (_hangupLabel) {
+		_hangupLabel->moveToRight(right, st::callBarLabelTop);
+		right += _hangupLabel->width();
+	} else {
+		//right -= st::callBarRightSkip;
+	}
 	right += st::callBarHangup.width;
 	_hangup->setGeometryToRight(0, 0, right, height());
 	_info->setGeometryToLeft(
@@ -283,6 +324,12 @@ void TopBar::updateControlsGeometry() {
 void TopBar::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.fillRect(e->rect(), _muted ? st::callBarBgMuted : st::callBarBg);
+	if (!_userpics.isNull()) {
+		const auto imageSize = _userpics.size()
+			/ _userpics.devicePixelRatio();
+		const auto top = (height() - imageSize.height()) / 2;
+		p.drawImage(_mute->width(), top, _userpics);
+	}
 }
 
 TopBar::~TopBar() = default;
