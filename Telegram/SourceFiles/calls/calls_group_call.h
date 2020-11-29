@@ -129,6 +129,8 @@ private:
 	void setInstanceConnected(bool connected);
 	void checkLastSpoke();
 
+	void checkJoined();
+
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
 	const not_null<Delegate*> _delegate;
@@ -150,6 +152,7 @@ private:
 	rpl::event_stream<LevelUpdate> _levelUpdates;
 	base::flat_map<uint32, crl::time> _lastSpoke;
 	base::Timer _lastSpokeCheckTimer;
+	base::Timer _checkJoinedTimer;
 
 	rpl::lifetime _lifetime;
 

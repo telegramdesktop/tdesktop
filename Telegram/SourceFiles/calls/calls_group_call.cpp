@@ -36,6 +36,7 @@ namespace {
 constexpr auto kMaxInvitePerSlice = 10;
 constexpr auto kCheckLastSpokeInterval = 3 * crl::time(1000);
 constexpr auto kSpeakLevelThreshold = 0.2;
+constexpr auto kCheckJoinedTimeout = 4 * crl::time(1000);
 
 } // namespace
 
@@ -46,7 +47,18 @@ GroupCall::GroupCall(
 : _delegate(delegate)
 , _channel(channel)
 , _api(&_channel->session().mtp())
-, _lastSpokeCheckTimer([=] { checkLastSpoke(); }) {
+, _lastSpokeCheckTimer([=] { checkLastSpoke(); })
+, _checkJoinedTimer([=] { checkJoined(); }) {
+	_muted.changes(
+	) | rpl::start_with_next([=](MuteState state) {
+		if (_instance) {
+			_instance->setIsMuted(state != MuteState::Active);
+		}
+		if (_mySsrc && state != MuteState::ForceMuted) {
+			sendMutedUpdate();
+		}
+	}, _lifetime);
+
 	const auto id = inputCall.c_inputGroupCall().vid().v;
 	if (id) {
 		if (const auto call = _channel->call(); call && call->id() == id) {
@@ -91,6 +103,11 @@ void GroupCall::setState(State state) {
 	case State::Failed:
 		_delegate->groupCallFailed(this);
 		break;
+	case State::Connecting:
+		if (!_checkJoinedTimer.isActive()) {
+			_checkJoinedTimer.callOnce(kCheckJoinedTimeout);
+		}
+		break;
 	}
 }
 
@@ -115,7 +132,6 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 	inputCall.match([&](const MTPDinputGroupCall &data) {
 		_id = data.vid().v;
 		_accessHash = data.vaccess_hash().v;
-		createAndStartController();
 		rejoin();
 	});
 
@@ -131,9 +147,13 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 }
 
 void GroupCall::rejoin() {
-	Expects(_state.current() == State::Joining);
+	Expects(_state.current() == State::Joining
+		|| _state.current() == State::Joined
+		|| _state.current() == State::Connecting);
 
 	_mySsrc = 0;
+	setState(State::Joining);
+	createAndStartController();
 	applySelfInCallLocally();
 	LOG(("Call Info: Requesting join payload."));
 
@@ -183,7 +203,9 @@ void GroupCall::rejoin() {
 
 				_channel->session().api().applyUpdates(updates);
 			}).fail([=](const RPCError &error) {
-				int a = error.code();
+				LOG(("Call Error: Could not join, error: %1"
+					).arg(error.type()));
+				hangup();
 			}).send();
 		});
 	});
@@ -440,16 +462,8 @@ void GroupCall::createAndStartController() {
 	LOG(("Call Info: Creating group instance"));
 	_instance = std::make_unique<tgcalls::GroupInstanceImpl>(
 		std::move(descriptor));
+	_instance->setIsMuted(_muted.current() != MuteState::Active);
 
-	_muted.value(
-	) | rpl::start_with_next([=](MuteState state) {
-		if (_instance) {
-			_instance->setIsMuted(state != MuteState::Active);
-		}
-		if (_mySsrc && state != MuteState::ForceMuted) {
-			sendMutedUpdate();
-		}
-	}, _lifetime);
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 }
 
@@ -527,6 +541,24 @@ void GroupCall::checkLastSpoke() {
 	}
 }
 
+void GroupCall::checkJoined() {
+	if (state() != State::Connecting || !_id || !_mySsrc) {
+		return;
+	}
+	_api.request(MTPphone_CheckGroupCall(
+		inputCall(),
+		MTP_int(_mySsrc)
+	)).done([=](const MTPBool &result) {
+		if (!mtpIsTrue(result)) {
+			rejoin();
+		} else if (state() == State::Connecting) {
+			_checkJoinedTimer.callOnce(kCheckJoinedTimeout);
+		}
+	}).fail([=](const RPCError &error) {
+		rejoin();
+	}).send();
+}
+
 void GroupCall::setInstanceConnected(bool connected) {
 	if (_instanceConnected == connected) {
 		return;
@@ -552,10 +584,7 @@ void GroupCall::sendMutedUpdate() {
 		_channel->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {
 		_updateMuteRequestId = 0;
-		if (error.type() == u"GROUP_CALL_FORBIDDEN"_q
-			&& (_state.current() == State::Joined
-				|| _state.current() == State::Connecting)) {
-			setState(State::Joining);
+		if (error.type() == u"GROUP_CALL_FORBIDDEN"_q) {
 			rejoin();
 		}
 	}).send();
@@ -585,10 +614,7 @@ void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
 	)).done([=](const MTPUpdates &result) {
 		_channel->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {
-		if (error.type() == u"GROUP_CALL_FORBIDDEN"_q
-			&& (_state.current() == State::Joined
-				|| _state.current() == State::Connecting)) {
-			setState(State::Joining);
+		if (error.type() == u"GROUP_CALL_FORBIDDEN"_q) {
 			rejoin();
 		}
 	}).send();
