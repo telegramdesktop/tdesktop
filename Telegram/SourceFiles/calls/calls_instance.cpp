@@ -301,7 +301,7 @@ void Instance::handleUpdate(
 	update.match([&](const MTPDupdatePhoneCall &data) {
 		handleCallUpdate(session, data.vphone_call());
 	}, [&](const MTPDupdatePhoneCallSignalingData &data) {
-		handleSignalingData(data);
+		handleSignalingData(session, data);
 	}, [&](const MTPDupdateGroupCall &data) {
 		handleGroupCallUpdate(session, data.vcall());
 	}, [&](const MTPDupdateGroupCallParticipants &data) {
@@ -379,7 +379,9 @@ void Instance::handleCallUpdate(
 			createCall(user, Call::Type::Incoming, phoneCall.is_video());
 			_currentCall->handleUpdate(call);
 		}
-	} else if (!_currentCall || !_currentCall->handleUpdate(call)) {
+	} else if (!_currentCall
+		|| (&_currentCall->user()->session() != session)
+		|| !_currentCall->handleUpdate(call)) {
 		DEBUG_LOG(("API Warning: unexpected phone call update %1").arg(call.type()));
 	}
 }
@@ -393,7 +395,8 @@ void Instance::handleGroupCallUpdate(
 	if (const auto existing = session->data().groupCall(callId)) {
 		existing->applyUpdate(call);
 	}
-	if (_currentGroupCall) {
+	if (_currentGroupCall
+		&& (&_currentGroupCall->channel()->session() == session)) {
 		_currentGroupCall->handleUpdate(call);
 	}
 }
@@ -407,14 +410,18 @@ void Instance::handleGroupCallUpdate(
 	if (const auto existing = session->data().groupCall(callId)) {
 		existing->applyUpdate(update);
 	}
-	if (_currentGroupCall) {
+	if (_currentGroupCall
+		&& (&_currentGroupCall->channel()->session() == session)) {
 		_currentGroupCall->handleUpdate(update);
 	}
 }
 
 void Instance::handleSignalingData(
+		not_null<Main::Session*> session,
 		const MTPDupdatePhoneCallSignalingData &data) {
-	if (!_currentCall || !_currentCall->handleSignalingData(data)) {
+	if (!_currentCall
+		|| (&_currentCall->user()->session() != session)
+		|| !_currentCall->handleSignalingData(data)) {
 		DEBUG_LOG(("API Warning: unexpected call signaling data %1"
 			).arg(data.vphone_call_id().v));
 	}

@@ -92,8 +92,6 @@ private:
 	void requestPermissionsOrFail(Fn<void()> onSuccess);
 	void requestPermissionOrFail(Platform::PermissionType type, Fn<void()> onSuccess);
 
-	void handleSignalingData(const MTPDupdatePhoneCallSignalingData &data);
-
 	void refreshDhConfig();
 	void refreshServerConfig(not_null<Main::Session*> session);
 	bytes::const_span updateDhConfig(const MTPmessages_DhConfig &data);
@@ -104,6 +102,9 @@ private:
 	void handleCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPPhoneCall &call);
+	void handleSignalingData(
+		not_null<Main::Session*> session,
+		const MTPDupdatePhoneCallSignalingData &data);
 	void handleGroupCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPGroupCall &call);
