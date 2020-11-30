@@ -890,7 +890,66 @@ void GroupMembers::updateHeaderControlsGeometry(int newWidth) {
 }
 
 void GroupMembers::setupFakeRoundCorners() {
+	const auto size = st::roundRadiusLarge;
+	const auto full = 3 * size;
+	const auto imagePartSize = size * cIntRetinaFactor();
+	const auto imageSize = full * cIntRetinaFactor();
+	const auto image = std::make_shared<QImage>(
+		QImage(imageSize, imageSize, QImage::Format_ARGB32_Premultiplied));
+	image->setDevicePixelRatio(cRetinaFactor());
 
+	const auto refreshImage = [=] {
+		image->fill(st::groupCallBg->c);
+		{
+			QPainter p(image.get());
+			PainterHighQualityEnabler hq(p);
+			p.setCompositionMode(QPainter::CompositionMode_Source);
+			p.setPen(Qt::NoPen);
+			p.setBrush(Qt::transparent);
+			p.drawRoundedRect(0, 0, full, full, size, size);
+		}
+	};
+
+	const auto create = [&](QPoint imagePartOrigin) {
+		const auto result = Ui::CreateChild<Ui::RpWidget>(this);
+		result->show();
+		result->resize(size, size);
+		result->setAttribute(Qt::WA_TransparentForMouseEvents);
+		result->paintRequest(
+		) | rpl::start_with_next([=] {
+			QPainter(result).drawImage(
+				result->rect(),
+				*image,
+				QRect(imagePartOrigin, QSize(imagePartSize, imagePartSize)));
+		}, result->lifetime());
+		result->raise();
+		return result;
+	};
+	const auto shift = imageSize - imagePartSize;
+	const auto topleft = create({ 0, 0 });
+	const auto topright = create({ shift, 0 });
+	const auto bottomleft = create({ 0, shift });
+	const auto bottomright = create({ shift, shift });
+
+	sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		topleft->move(0, 0);
+		topright->move(size.width() - topright->width(), 0);
+		bottomleft->move(0, size.height() - bottomleft->height());
+		bottomright->move(
+			size.width() - bottomright->width(),
+			size.height() - bottomright->height());
+	}, lifetime());
+
+	refreshImage();
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		refreshImage();
+		topleft->update();
+		topright->update();
+		bottomleft->update();
+		bottomright->update();
+	}, lifetime());
 }
 
 void GroupMembers::visibleTopBottomUpdated(
