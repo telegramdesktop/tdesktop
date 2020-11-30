@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "app.h"
+#include "apiwrap.h" // api().kickParticipant.
 #include "styles/style_calls.h"
 #include "styles/style_layers.h"
 
@@ -360,6 +361,11 @@ void GroupPanel::initWithCall(GroupCall *call) {
 		}
 	}, _callLifetime);
 
+	_members->kickMemberRequests(
+	) | rpl::start_with_next([=](not_null<UserData*> user) {
+		kickMember(user);
+	}, _callLifetime);
+
 	_members->addMembersRequests(
 	) | rpl::start_with_next([=] {
 		if (_call) {
@@ -453,6 +459,43 @@ void GroupPanel::addMembers() {
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	};
 	_layerBg->showBox(Box<PeerListBox>(std::move(controller), initBox));
+}
+
+void GroupPanel::kickMember(not_null<UserData*> user) {
+	_layerBg->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box.get(),
+				tr::lng_profile_sure_kick(
+					tr::now,
+					lt_user,
+					user->firstName),
+				st::groupCallBoxLabel),
+			style::margins(
+				st::boxRowPadding.left(),
+				st::boxPadding.top(),
+				st::boxRowPadding.right(),
+				st::boxPadding.bottom()));
+		box->addButton(tr::lng_box_remove(), [=] {
+			box->closeBox();
+			kickMemberSure(user);
+		});
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}));
+}
+
+void GroupPanel::kickMemberSure(not_null<UserData*> user) {
+	const auto currentRestrictedRights = [&]() -> MTPChatBannedRights {
+		const auto it = _channel->mgInfo->lastRestricted.find(user);
+		return (it != _channel->mgInfo->lastRestricted.cend())
+			? it->second.rights
+			: MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
+	}();
+
+	_channel->session().api().kickParticipant(
+		_channel,
+		user,
+		currentRestrictedRights);
 }
 
 void GroupPanel::initLayout() {

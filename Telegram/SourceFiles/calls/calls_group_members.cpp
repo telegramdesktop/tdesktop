@@ -18,12 +18,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/text/text_utilities.h"
 #include "ui/effects/ripple_animation.h"
+#include "core/application.h" // Core::App().domain, Core::App().activeWindow.
+#include "main/main_domain.h" // Core::App().domain().activate.
 #include "main/main_session.h"
 #include "base/timer.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "lang/lang_keys.h"
-#include "facades.h" // Ui::showPeerHistory.
-#include "mainwindow.h" // App::wnd()->activate.
+#include "window/window_controller.h" // Controller::sessionController.
+#include "window/window_session_controller.h"
 #include "styles/style_calls.h"
 
 namespace Calls {
@@ -107,7 +109,9 @@ class MembersController final
 	: public PeerListController
 	, public base::has_weak_ptr {
 public:
-	explicit MembersController(not_null<GroupCall*> call);
+	MembersController(
+		not_null<GroupCall*> call,
+		not_null<QWidget*> menuParent);
 
 	using MuteRequest = GroupMembers::MuteRequest;
 
@@ -124,6 +128,8 @@ public:
 		return _fullCount.value();
 	}
 	[[nodiscard]] rpl::producer<MuteRequest> toggleMuteRequests() const;
+	[[nodiscard]] auto kickMemberRequests() const
+		-> rpl::producer<not_null<UserData*>>;
 
 private:
 	[[nodiscard]] std::unique_ptr<PeerListRow> createSelfRow() const;
@@ -155,8 +161,11 @@ private:
 	uint64 _realId = 0;
 
 	rpl::event_stream<MuteRequest> _toggleMuteRequests;
+	rpl::event_stream<not_null<UserData*>> _kickMemberRequests;
 	rpl::variable<int> _fullCount = 1;
-	Ui::BoxPointer _addBox;
+
+	not_null<QWidget*> _menuParent;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	//base::flat_map<not_null<UserData*>, crl::time> _repaintByTimer;
 	//base::Timer _repaintTimer;
@@ -318,9 +327,12 @@ void Row::stopLastActionRipple() {
 	}
 }
 
-MembersController::MembersController(not_null<GroupCall*> call)
+MembersController::MembersController(
+	not_null<GroupCall*> call,
+	not_null<QWidget*> menuParent)
 : _call(call)
-, _channel(call->channel()) {
+, _channel(call->channel())
+, _menuParent(menuParent) {
 //, _repaintTimer([=] { repaintByTimer(); }) {
 	setupListChangeViewers(call);
 }
@@ -586,25 +598,27 @@ void MembersController::loadMoreRows() {
 }
 
 auto MembersController::toggleMuteRequests() const
--> rpl::producer<GroupMembers::MuteRequest> {
+-> rpl::producer<MuteRequest> {
 	return _toggleMuteRequests.events();
 }
 
+auto MembersController::kickMemberRequests() const
+-> rpl::producer<not_null<UserData*>>{
+	return _kickMemberRequests.events();
+}
+
 void MembersController::rowClicked(not_null<PeerListRow*> row) {
-	Ui::showPeerHistory(row->peer(), ShowAtUnreadMsgId);
-	App::wnd()->activate();
+	if (_menu) {
+		_menu->deleteLater();
+		_menu = nullptr;
+	}
+	_menu = rowContextMenu(_menuParent, row);
+	_menu->popup(QCursor::pos());
 }
 
 void MembersController::rowActionClicked(
 		not_null<PeerListRow*> row) {
-	Expects(row->peer()->isUser());
-
-	const auto real = static_cast<Row*>(row.get());
-	const auto mute = (real->state() != Row::State::Muted);
-	_toggleMuteRequests.fire(MuteRequest{
-		.user = row->peer()->asUser(),
-		.mute = mute,
-	});
+	rowClicked(row);
 }
 
 base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
@@ -612,8 +626,86 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 		not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
 
+	const auto real = static_cast<Row*>(row.get());
 	const auto user = row->peer()->asUser();
-	return nullptr;
+	auto result = base::make_unique_q<Ui::PopupMenu>(
+		parent,
+		st::groupCallPopupMenu);
+
+	const auto mute = (real->state() != Row::State::Muted);
+	const auto toggleMute = crl::guard(this, [=] {
+		_toggleMuteRequests.fire(MuteRequest{
+			.user = user,
+			.mute = mute,
+		});
+	});
+
+	const auto session = &user->session();
+	const auto getCurrentWindow = [=]() -> Window::SessionController* {
+		if (const auto window = Core::App().activeWindow()) {
+			if (const auto controller = window->sessionController()) {
+				if (&controller->session() == session) {
+					return controller;
+				}
+			}
+		}
+		return nullptr;
+	};
+	const auto getWindow = [=] {
+		if (const auto current = getCurrentWindow()) {
+			return current;
+		} else if (&Core::App().domain().active() != &session->account()) {
+			Core::App().domain().activate(&session->account());
+		}
+		return getCurrentWindow();
+	};
+	const auto performOnMainWindow = [=](auto callback) {
+		if (const auto window = getWindow()) {
+			if (_menu) {
+				_menu->discardParentReActivate();
+
+				// We must hide PopupMenu before we activate the MainWindow,
+				// otherwise we set focus in field inside MainWindow and then
+				// PopupMenu::hide activates back the group call panel :(
+				_menu = nullptr;
+			}
+			callback(window);
+			window->widget()->activate();
+		}
+	};
+	const auto showProfile = [=] {
+		performOnMainWindow([=](not_null<Window::SessionController*> window) {
+			window->showPeerInfo(user);
+		});
+	};
+	const auto showHistory = [=] {
+		performOnMainWindow([=](not_null<Window::SessionController*> window) {
+			window->showPeerHistory(user);
+		});
+	};
+	const auto removeFromGroup = crl::guard(this, [=] {
+		_kickMemberRequests.fire_copy(user);
+	});
+
+	if (!user->isSelf() && _channel->canManageCall()) {
+		result->addAction(
+			(mute
+				? tr::lng_group_call_context_mute(tr::now)
+				: tr::lng_group_call_context_unmute(tr::now)),
+			toggleMute);
+	}
+	result->addAction(
+		tr::lng_context_view_profile(tr::now),
+		showProfile);
+	result->addAction(
+		tr::lng_context_send_message(tr::now),
+		showHistory);
+	if (_channel->canRestrictUser(user)) {
+		result->addAction(
+			tr::lng_context_remove_from_group(tr::now),
+			removeFromGroup);
+	}
+	return result;
 }
 
 std::unique_ptr<PeerListRow> MembersController::createSelfRow() const {
@@ -633,15 +725,16 @@ std::unique_ptr<PeerListRow> MembersController::createRow(
 } // namespace
 
 GroupMembers::GroupMembers(
-	QWidget *parent,
+	not_null<QWidget*> parent,
 	not_null<GroupCall*> call)
 : RpWidget(parent)
 , _call(call)
 , _scroll(this, st::defaultSolidScroll)
-, _listController(std::make_unique<MembersController>(call)) {
+, _listController(std::make_unique<MembersController>(call, parent)) {
 	setupHeader(call);
 	setupList();
 	setContent(_list);
+	setupFakeRoundCorners();
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
 
 	paintRequest(
@@ -658,6 +751,12 @@ auto GroupMembers::toggleMuteRequests() const
 -> rpl::producer<GroupMembers::MuteRequest> {
 	return static_cast<MembersController*>(
 		_listController.get())->toggleMuteRequests();
+}
+
+auto GroupMembers::kickMemberRequests() const
+-> rpl::producer<not_null<UserData*>> {
+	return static_cast<MembersController*>(
+		_listController.get())->kickMemberRequests();
 }
 
 int GroupMembers::desiredHeight() const {
@@ -788,6 +887,10 @@ void GroupMembers::updateHeaderControlsGeometry(int newWidth) {
 
 	_title->resizeToWidth(_titleWrap->width());
 	_title->moveToLeft(0, 0);
+}
+
+void GroupMembers::setupFakeRoundCorners() {
+
 }
 
 void GroupMembers::visibleTopBottomUpdated(

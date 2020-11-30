@@ -92,6 +92,8 @@ private:
 	void hangup(bool discardCallChecked);
 
 	void addMembers();
+	void kickMember(not_null<UserData*> user);
+	void kickMemberSure(not_null<UserData*> user);
 	[[nodiscard]] int computeMembersListTop() const;
 	[[nodiscard]] std::optional<QRect> computeTitleRect() const;
 	void refreshTitle();

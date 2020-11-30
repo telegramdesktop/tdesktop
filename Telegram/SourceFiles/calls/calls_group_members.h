@@ -26,7 +26,7 @@ class GroupMembers final
 	, private PeerListContentDelegate {
 public:
 	GroupMembers(
-		QWidget *parent,
+		not_null<QWidget*> parent,
 		not_null<GroupCall*> call);
 
 	struct MuteRequest {
@@ -37,6 +37,8 @@ public:
 	[[nodiscard]] int desiredHeight() const;
 	[[nodiscard]] rpl::producer<int> desiredHeightValue() const override;
 	[[nodiscard]] rpl::producer<MuteRequest> toggleMuteRequests() const;
+	[[nodiscard]] auto kickMemberRequests() const
+		-> rpl::producer<not_null<UserData*>>;
 	[[nodiscard]] rpl::producer<> addMembersRequests() const {
 		return _addMemberRequests.events();
 	}
@@ -68,6 +70,7 @@ private:
 	void setupHeader(not_null<GroupCall*> call);
 	object_ptr<Ui::FlatLabel> setupTitle(not_null<GroupCall*> call);
 	void setupList();
+	void setupFakeRoundCorners();
 
 	void setupButtons(not_null<GroupCall*> call);
 

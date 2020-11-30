@@ -1846,6 +1846,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_members#other" = "{count} members";
 "lng_group_call_no_anonymous" = "Anonymous admins can't join voice chats :(";
 "lng_group_call_context_mute" = "Mute";
+"lng_group_call_context_unmute" = "Unmute";
 
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 
