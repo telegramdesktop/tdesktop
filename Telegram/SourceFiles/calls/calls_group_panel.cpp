@@ -389,8 +389,8 @@ void GroupPanel::initWithCall(GroupCall *call) {
 				: mute == MuteState::ForceMuted
 				? tr::lng_group_call_force_muted(tr::now)
 				: mute != MuteState::Active
-				? tr::lng_call_unmute_audio(tr::now)
-				: tr::lng_call_mute_audio(tr::now)),
+				? tr::lng_group_call_unmute(tr::now)
+				: tr::lng_group_call_you_are_live(tr::now)),
 			.type = (connecting
 				? Ui::CallMuteButtonType::Connecting
 				: mute == MuteState::ForceMuted
