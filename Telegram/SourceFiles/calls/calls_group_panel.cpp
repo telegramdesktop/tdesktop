@@ -255,9 +255,7 @@ void GroupPanel::initWindow() {
 	_window->setWindowIcon(
 		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
 	_window->setTitleStyle(st::callTitle);
-	_window->setTitle(computeTitleRect()
-		? u" "_q
-		: tr::lng_group_call_title(tr::now));
+	_window->setTitle(tr::lng_group_call_title(tr::now));
 
 	base::install_event_filter(_window.get(), [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Close && handleClose()) {
@@ -590,7 +588,6 @@ void GroupPanel::refreshTitle() {
 				tr::lng_group_call_title(),
 				st::groupCallHeaderLabel);
 			_title->setAttribute(Qt::WA_TransparentForMouseEvents);
-			_window->setTitle(u" "_q);
 		}
 		const auto best = _title->naturalWidth();
 		const auto from = (widget()->width() - best) / 2;
@@ -611,7 +608,6 @@ void GroupPanel::refreshTitle() {
 		}
 	} else if (_title) {
 		_title.destroy();
-		_window->setTitle(tr::lng_group_call_title(tr::now));
 	}
 }
 

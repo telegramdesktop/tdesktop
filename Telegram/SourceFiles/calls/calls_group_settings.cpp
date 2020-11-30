@@ -101,10 +101,6 @@ void GroupCallSettingsBox(
 		AddSkip(layout);
 	}
 
-	state->levelUpdateTimer.callEach(kMicTestUpdateInterval);
-	state->micTester = std::make_unique<Webrtc::AudioInputTester>(
-		settings.callInputDeviceId());
-
 	AddButtonWithLabel(
 		layout,
 		tr::lng_group_call_speakers(),
@@ -136,7 +132,9 @@ void GroupCallSettingsBox(
 				const QString &id,
 				const QString &name) {
 			state->inputNameStream.fire_copy(name);
-			state->micTester->setDeviceId(id);
+			if (state->micTester) {
+				state->micTester->setDeviceId(id);
+			}
 		}), &st::groupCallCheckbox, &st::groupCallRadio));
 	});
 
@@ -213,6 +211,15 @@ void GroupCallSettingsBox(
 			}
 		});
 	}
+
+	box->setShowFinishedCallback([=] {
+		// Means we finished showing the box.
+		crl::on_main(box, [=] {
+			state->micTester = std::make_unique<Webrtc::AudioInputTester>(
+				Core::App().settings().callInputDeviceId());
+			state->levelUpdateTimer.callEach(kMicTestUpdateInterval);
+		});
+	});
 
 	box->setTitle(tr::lng_group_call_settings_title());
 	box->boxClosing(
