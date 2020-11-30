@@ -226,7 +226,7 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 		.text = tr::lng_group_call_connecting(tr::now),
 		.type = Ui::CallMuteButtonType::Connecting,
 	}))
-, _hangup(widget(), st::callHangup) {
+, _hangup(widget(), st::groupCallHangup) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 
 	initWindow();

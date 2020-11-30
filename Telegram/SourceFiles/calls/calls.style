@@ -411,8 +411,8 @@ groupCallRipple: RippleAnimation(defaultRippleAnimation) {
 }
 
 groupCallMenu: Menu(defaultMenu) {
-	itemBg: groupCallMembersBgOver;
-	itemBgOver: groupCallMembersBgRipple;
+	itemBg: groupCallMenuBg;
+	itemBgOver: groupCallMenuBgOver;
 	itemFg: groupCallMembersFg;
 	itemFgOver: groupCallMembersFg;
 	itemFgDisabled: groupCallMemberNotJoinedStatus;
@@ -424,13 +424,15 @@ groupCallMenu: Menu(defaultMenu) {
 
 	arrow: icon {{ "dropdown_submenu_arrow", groupCallMemberNotJoinedStatus }};
 
-	ripple: groupCallRipple;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: groupCallMenuBgRipple;
+	}
 }
 groupCallMenuShadow: Shadow(defaultEmptyShadow) {
-	fallback: groupCallMembersBgOver;
+	fallback: groupCallMenuBg;
 }
 groupCallPanelAnimation: PanelAnimation(defaultPanelAnimation) {
-	fadeBg: groupCallMembersBgOver;
+	fadeBg: groupCallMenuBg;
 	shadow: groupCallMenuShadow;
 }
 groupCallPopupMenu: PopupMenu(defaultPopupMenu) {
@@ -565,8 +567,16 @@ groupCallSettings: CallButton(callMicrophoneMute) {
 			color: callMuteRipple;
 		}
 	}
-	bg: callIconBg;
-	outerBg: callMuteRipple;
+}
+groupCallHangup: CallButton(callHangup) {
+	button: IconButton(callButton) {
+		icon: icon {{ "calls/call_discard", callIconFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: groupCallLeaveBgRipple;
+		}
+	}
+	bg: groupCallLeaveBg;
+	outerBg: groupCallLeaveBg;
 	label: callButtonLabel;
 }
 groupCallButtonSkip: 43px;
