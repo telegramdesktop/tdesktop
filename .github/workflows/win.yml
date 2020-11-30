@@ -211,10 +211,8 @@ jobs:
         run: |
           %VC%
 
-          git clone %GIT%/telegramdesktop/openal-soft.git
-          cd openal-soft
-          git checkout fix_capture
-          cd build
+          git clone -b openal-soft-1.21.0 --depth=1 $GIT/kcat/openal-soft.git
+          cd openal-soft\build
           cmake .. ^
           -G "Visual Studio 16 2019" ^
           -A Win32 ^
@@ -367,7 +365,7 @@ jobs:
         run: |
           %VC%
 
-          git clone %GIT%/desktop-app/tg_owt.git
+          git clone --recursive %GIT%/desktop-app/tg_owt.git
           mkdir tg_owt\out\Debug
           cd tg_owt\out\Debug
           cmake -G Ninja ^

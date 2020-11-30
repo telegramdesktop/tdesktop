@@ -366,9 +366,9 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone https://github.com/telegramdesktop/openal-soft.git
+          git clone $GIT/kcat/openal-soft.git
           cd openal-soft
-          git checkout fix_mono
+          git checkout 3970252da9
           cd build
 
           CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake \
@@ -481,7 +481,7 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone $GIT/desktop-app/tg_owt.git
+          git clone --recursive $GIT/desktop-app/tg_owt.git
           mkdir -p tg_owt/out/Debug
           cd tg_owt/out/Debug
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug \

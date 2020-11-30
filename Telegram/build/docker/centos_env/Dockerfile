@@ -486,7 +486,7 @@ COPY --from=opus ${LibrariesPath}/opus-cache /
 COPY --from=ffmpeg ${LibrariesPath}/ffmpeg-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 
-RUN git clone $GIT/desktop-app/tg_owt.git
+RUN git clone --recursive $GIT/desktop-app/tg_owt.git
 
 WORKDIR tg_owt
 RUN git checkout c73a471
