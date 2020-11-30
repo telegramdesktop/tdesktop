@@ -5413,12 +5413,14 @@ void HistoryWidget::setupGroupCallTracker() {
 		const auto channel = _history->peer->asChannel();
 		if (!channel) {
 			return;
-		}
-		const auto call = channel->call();
-		if (!call) {
+		} else if (channel->amAnonymous()) {
+			Ui::ShowMultilineToast({
+				.text = tr::lng_group_call_no_anonymous(tr::now),
+				});
 			return;
+		} else if (const auto call = channel->call()) {
+			Core::App().calls().joinGroupCall(channel, call->input());
 		}
-		Core::App().calls().joinGroupCall(channel, call->input());
 	}, _groupCallBar->lifetime());
 
 	_groupCallBarHeight = 0;

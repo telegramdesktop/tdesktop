@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/special_buttons.h"
 #include "ui/unread_badge.h"
 #include "ui/ui_utility.h"
@@ -212,7 +213,11 @@ void TopBarWidget::onCall() {
 		if (const auto user = peer->asUser()) {
 			Core::App().calls().startOutgoingCall(user, false);
 		} else if (const auto megagroup = peer->asMegagroup()) {
-			if (const auto call = megagroup->call()) {
+			if (megagroup->amAnonymous()) {
+				Ui::ShowMultilineToast({
+					.text = tr::lng_group_call_no_anonymous(tr::now),
+				});
+			} else if (const auto call = megagroup->call()) {
 				Core::App().calls().joinGroupCall(megagroup, call->input());
 			} else {
 				Core::App().calls().startGroupCall(megagroup);

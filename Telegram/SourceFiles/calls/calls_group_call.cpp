@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
+#include "ui/toasts/common_toasts.h"
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -112,16 +113,22 @@ void GroupCall::setState(State state) {
 }
 
 void GroupCall::start() {
-	const auto randomId = rand_value<int32>();
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
 		_channel->inputChannel,
-		MTP_int(randomId)
+		MTP_int(rand_value<int32>())
 	)).done([=](const MTPUpdates &result) {
 		_acceptFields = true;
 		_channel->session().api().applyUpdates(result);
 		_acceptFields = false;
 	}).fail([=](const RPCError &error) {
-		int a = error.code();
+		LOG(("Call Error: Could not create, error: %1"
+			).arg(error.type()));
+		hangup();
+		if (error.type() == u"GROUP_CALL_ANONYMOUS_FORBIDDEN"_q) {
+			Ui::ShowMultilineToast({
+				.text = tr::lng_group_call_no_anonymous(tr::now),
+			});
+		}
 	}).send();
 }
 
@@ -206,6 +213,11 @@ void GroupCall::rejoin() {
 				LOG(("Call Error: Could not join, error: %1"
 					).arg(error.type()));
 				hangup();
+				if (error.type() == u"GROUP_CALL_ANONYMOUS_FORBIDDEN"_q) {
+					Ui::ShowMultilineToast({
+						.text = tr::lng_group_call_no_anonymous(tr::now),
+					});
+				}
 			}).send();
 		});
 	});
@@ -401,10 +413,14 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 			}
 			if (data.is_left() && data.vsource().v == _mySsrc) {
 				// I was removed from the call, rejoin.
+				LOG(("Call Info: Rejoin after got 'left' with my source."));
 				setState(State::Joining);
 				rejoin();
 			} else if (!data.is_left() && data.vsource().v != _mySsrc) {
 				// I joined from another device, hangup.
+				LOG(("Call Info: Hangup after '!left' with source %1, my %2."
+					).arg(data.vsource().v
+					).arg(_mySsrc));
 				_mySsrc = 0;
 				hangup();
 			}
@@ -550,11 +566,14 @@ void GroupCall::checkJoined() {
 		MTP_int(_mySsrc)
 	)).done([=](const MTPBool &result) {
 		if (!mtpIsTrue(result)) {
+			LOG(("Call Info: Rejoin after FALSE in checkGroupCall."));
 			rejoin();
 		} else if (state() == State::Connecting) {
 			_checkJoinedTimer.callOnce(kCheckJoinedTimeout);
 		}
 	}).fail([=](const RPCError &error) {
+		LOG(("Call Info: Rejoin after error '%1' in checkGroupCall."
+			).arg(error.type()));
 		rejoin();
 	}).send();
 }
@@ -585,6 +604,8 @@ void GroupCall::sendMutedUpdate() {
 	}).fail([=](const RPCError &error) {
 		_updateMuteRequestId = 0;
 		if (error.type() == u"GROUP_CALL_FORBIDDEN"_q) {
+			LOG(("Call Info: Rejoin after error '%1' in editGroupCallMember."
+				).arg(error.type()));
 			rejoin();
 		}
 	}).send();
@@ -615,6 +636,8 @@ void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
 		_channel->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {
 		if (error.type() == u"GROUP_CALL_FORBIDDEN"_q) {
+			LOG(("Call Info: Rejoin after error '%1' in editGroupCallMember."
+				).arg(error.type()));
 			rejoin();
 		}
 	}).send();
