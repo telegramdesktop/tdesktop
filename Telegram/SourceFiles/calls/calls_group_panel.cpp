@@ -267,21 +267,14 @@ void GroupPanel::initWindow() {
 
 	_window->setBodyTitleArea([=](QPoint widgetPoint) {
 		using Flag = Ui::WindowTitleHitTestFlag;
-		if (!widget()->rect().contains(widgetPoint)) {
-			return Flag::None | Flag(0);
-		}
-#ifdef Q_OS_WIN
-		if (_controls->geometry().contains(widgetPoint)) {
-			return Flag::None | Flag(0);
-		}
-#endif // Q_OS_WIN
-		const auto inControls = _settings->geometry().contains(widgetPoint)
-			|| _mute->innerGeometry().contains(widgetPoint)
-			|| _hangup->geometry().contains(widgetPoint)
-			|| _members->geometry().contains(widgetPoint);
-		return inControls
-			? Flag::None
-			: (Flag::Move | Flag::Maximize);
+		const auto titleRect = QRect(
+			0,
+			0,
+			widget()->width(),
+			computeMembersListTop());
+		return titleRect.contains(widgetPoint)
+			? (Flag::Move | Flag::Maximize)
+			: Flag::None;
 	});
 }
 
