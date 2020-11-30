@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "mtproto/mtproto_auth_key.h"
 
+class History;
+
 namespace tgcalls {
 class GroupInstanceImpl;
 } // namespace tgcalls
@@ -135,6 +137,7 @@ private:
 
 	const not_null<Delegate*> _delegate;
 	const not_null<ChannelData*> _channel;
+	const not_null<History*> _history;
 	MTP::Sender _api;
 	rpl::variable<State> _state = State::Creating;
 	bool _instanceConnected = false;
@@ -153,6 +156,8 @@ private:
 	base::flat_map<uint32, crl::time> _lastSpoke;
 	base::Timer _lastSpokeCheckTimer;
 	base::Timer _checkJoinedTimer;
+
+	crl::time _lastSendProgressUpdate = 0;
 
 	rpl::lifetime _lifetime;
 

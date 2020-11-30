@@ -51,9 +51,9 @@ bool SendActionPainter::updateNeedsAnimating(
 
 	const auto now = crl::now();
 	const auto emplaceAction = [&](
-		Type type,
-		crl::time duration,
-		int progress = 0) {
+			Type type,
+			crl::time duration,
+			int progress = 0) {
 		_sendActions.emplace_or_assign(user, type, now + duration, progress);
 	};
 	action.match([&](const MTPDsendMessageTypingAction &) {

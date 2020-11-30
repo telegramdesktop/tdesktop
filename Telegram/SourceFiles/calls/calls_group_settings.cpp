@@ -115,7 +115,7 @@ void GroupCallSettingsBox(
 		),
 		st::groupCallSettingsButton
 	)->addClickHandler([=] {
-		box->getDelegate()->show(ChooseAudioInputBox(crl::guard(box, [=](
+		box->getDelegate()->show(ChooseAudioOutputBox(crl::guard(box, [=](
 				const QString &id,
 				const QString &name) {
 			state->outputNameStream.fire_copy(name);

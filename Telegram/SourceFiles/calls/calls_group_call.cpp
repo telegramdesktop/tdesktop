@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_call.h"
 
 #include "main/main_session.h"
+#include "api/api_send_progress.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
@@ -38,6 +39,7 @@ constexpr auto kMaxInvitePerSlice = 10;
 constexpr auto kCheckLastSpokeInterval = 3 * crl::time(1000);
 constexpr auto kSpeakLevelThreshold = 0.2;
 constexpr auto kCheckJoinedTimeout = 4 * crl::time(1000);
+constexpr auto kUpdateSendActionEach = crl::time(500);
 
 } // namespace
 
@@ -47,6 +49,7 @@ GroupCall::GroupCall(
 	const MTPInputGroupCall &inputCall)
 : _delegate(delegate)
 , _channel(channel)
+, _history(channel->owner().history(channel))
 , _api(&_channel->session().mtp())
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); }) {
@@ -154,9 +157,11 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 }
 
 void GroupCall::rejoin() {
-	Expects(_state.current() == State::Joining
-		|| _state.current() == State::Joined
-		|| _state.current() == State::Connecting);
+	if (state() != State::Joining
+		&& state() != State::Joined
+		&& state() != State::Connecting) {
+		return;
+	}
 
 	_mySsrc = 0;
 	setState(State::Joining);
@@ -491,13 +496,22 @@ void GroupCall::handleLevelsUpdated(
 	auto checkNow = false;
 	const auto now = crl::now();
 	for (const auto &[source, level] : data) {
+		const auto self = (source == _mySsrc);
 		_levelUpdates.fire(LevelUpdate{
 			.source = source,
 			.value = level,
-			.self = (source == _mySsrc)
+			.self = self
 		});
 		if (level <= kSpeakLevelThreshold) {
 			continue;
+		}
+		if (self
+			&& (!_lastSendProgressUpdate
+				|| _lastSendProgressUpdate + kUpdateSendActionEach < now)) {
+			_lastSendProgressUpdate = now;
+			_channel->session().sendProgressManager().update(
+				_history,
+				Api::SendProgressType::Speaking);
 		}
 
 		check = true;
