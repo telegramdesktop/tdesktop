@@ -307,10 +307,7 @@ void Panel::initControls() {
 	});
 	_camera->setClickedCallback([=] {
 		if (_call) {
-			_call->videoOutgoing()->setState(
-				(_call->videoOutgoing()->state() == Webrtc::VideoState::Active)
-				? Webrtc::VideoState::Inactive
-				: Webrtc::VideoState::Active);
+			_call->switchVideoOutgoing();
 		}
 	});
 

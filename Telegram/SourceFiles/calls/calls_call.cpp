@@ -288,10 +288,19 @@ void Call::startIncoming() {
 	}).send();
 }
 
+void Call::switchVideoOutgoing() {
+	const auto video = _videoOutgoing->state() == Webrtc::VideoState::Active;
+	_delegate->callRequestPermissionsOrFail(crl::guard(this, [=] {
+		videoOutgoing()->setState(StartVideoState(!video));
+	}), true);
+
+}
+
 void Call::answer() {
+	const auto video = _videoOutgoing->state() == Webrtc::VideoState::Active;
 	_delegate->callRequestPermissionsOrFail(crl::guard(this, [=] {
 		actuallyAnswer();
-	}));
+	}), video);
 }
 
 void Call::actuallyAnswer() {

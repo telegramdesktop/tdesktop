@@ -72,8 +72,10 @@ private:
 	void callFinished(not_null<Call*> call) override;
 	void callFailed(not_null<Call*> call) override;
 	void callRedial(not_null<Call*> call) override;
-	void callRequestPermissionsOrFail(Fn<void()> onSuccess) override {
-		requestPermissionsOrFail(std::move(onSuccess));
+	void callRequestPermissionsOrFail(
+			Fn<void()> onSuccess,
+			bool video) override {
+		requestPermissionsOrFail(std::move(onSuccess), video);
 	}
 
 	void groupCallFinished(not_null<GroupCall*> call) override;
@@ -89,7 +91,7 @@ private:
 		const MTPInputGroupCall &inputCall);
 	void destroyGroupCall(not_null<GroupCall*> call);
 
-	void requestPermissionsOrFail(Fn<void()> onSuccess);
+	void requestPermissionsOrFail(Fn<void()> onSuccess, bool video = true);
 	void requestPermissionOrFail(Platform::PermissionType type, Fn<void()> onSuccess);
 
 	void refreshDhConfig();

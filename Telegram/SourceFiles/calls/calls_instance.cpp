@@ -55,7 +55,7 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 	}
 	requestPermissionsOrFail(crl::guard(this, [=] {
 		createCall(user, Call::Type::Outgoing, video);
-	}));
+	}), video);
 }
 
 void Instance::startGroupCall(not_null<ChannelData*> channel) {
@@ -64,7 +64,7 @@ void Instance::startGroupCall(not_null<ChannelData*> channel) {
 	}
 	requestPermissionsOrFail(crl::guard(this, [=] {
 		createGroupCall(channel, MTP_inputGroupCall(MTPlong(), MTPlong()));
-	}));
+	}), false);
 }
 
 void Instance::joinGroupCall(
@@ -75,7 +75,7 @@ void Instance::joinGroupCall(
 	}
 	requestPermissionsOrFail(crl::guard(this, [=] {
 		createGroupCall(channel, call);
-	}));
+	}), false);
 }
 
 void Instance::callFinished(not_null<Call*> call) {
@@ -462,12 +462,15 @@ rpl::producer<GroupCall*> Instance::currentGroupCallValue() const {
 	return _currentGroupCallChanges.events_starting_with(currentGroupCall());
 }
 
-void Instance::requestPermissionsOrFail(Fn<void()> onSuccess) {
+void Instance::requestPermissionsOrFail(Fn<void()> onSuccess, bool video) {
 	using Type = Platform::PermissionType;
 	requestPermissionOrFail(Type::Microphone, [=] {
-		requestPermissionOrFail(Type::Camera, [=] {
-			crl::on_main(onSuccess);
-		});
+		auto callback = [=] { crl::on_main(onSuccess); };
+		if (video) {
+			requestPermissionOrFail(Type::Camera, std::move(callback));
+		} else {
+			callback();
+		}
 	});
 }
 
