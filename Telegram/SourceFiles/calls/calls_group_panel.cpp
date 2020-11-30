@@ -228,6 +228,7 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 	}))
 , _hangup(widget(), st::groupCallHangup) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
+	_settings->setColorOverrides(_mute->colorOverrides());
 
 	initWindow();
 	initWidget();
