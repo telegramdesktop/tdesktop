@@ -85,7 +85,11 @@ void GroupCallSettingsBox(
 
 	const auto joinMuted = goodReal ? real->joinMuted() : false;
 	const auto canChangeJoinMuted = (goodReal && real->canChangeJoinMuted());
-	const auto muteJoined = (channel->canManageCall() && canChangeJoinMuted)
+	const auto addCheck = (channel->canManageCall() && canChangeJoinMuted);
+	if (addCheck) {
+		AddSkip(layout);
+	}
+	const auto muteJoined = addCheck
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box.get(),
 			tr::lng_group_call_new_muted(),
@@ -93,7 +97,7 @@ void GroupCallSettingsBox(
 			st::groupCallCheckbox,
 			st::groupCallCheck))
 		: nullptr;
-	if (muteJoined) {
+	if (addCheck) {
 		AddSkip(layout);
 	}
 

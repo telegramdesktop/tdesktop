@@ -407,12 +407,12 @@ groupCallWidth: 380px;
 groupCallHeight: 580px;
 
 groupCallRipple: RippleAnimation(defaultRippleAnimation) {
-	color: groupCallMembersRipple;
+	color: groupCallMembersBgRipple;
 }
 groupCallMembersListItem: PeerListItem(defaultPeerListItem) {
 	button: OutlineButton(defaultPeerListButton) {
 		textBg: groupCallMembersBg;
-		textBgOver: groupCallMembersBg;
+		textBgOver: groupCallMembersBgOver;
 
 		textFg: groupCallMemberInactiveStatus;
 		textFgOver: groupCallMemberInactiveStatus;
@@ -459,7 +459,7 @@ groupCallInviteMembersList: PeerList(groupCallMembersList) {
 groupCallMultiSelect: MultiSelect(defaultMultiSelect) {
 	bg: groupCallMembersBg;
 	item: MultiSelectItem(defaultMultiSelectItem) {
-		textBg: groupCallMembersRipple;
+		textBg: groupCallMembersBgRipple;
 		textFg: groupCallMembersFg;
 		textActiveBg: groupCallActiveFg;
 		textActiveFg: groupCallMembersFg;
@@ -557,10 +557,10 @@ groupCallBox: Box(defaultBox) {
 		numbersTextFg: groupCallActiveFg;
 		numbersTextFgOver: groupCallActiveFg;
 		textBg: groupCallMembersBg;
-		textBgOver: groupCallBoxButtonBgOver;
+		textBgOver: groupCallMembersBgOver;
 
 		ripple: RippleAnimation(defaultRippleAnimation) {
-			color: groupCallBoxButtonBgRipple;
+			color: groupCallMembersBgRipple;
 		}
 	}
 	margin: margins(0px, 56px, 0px, 10px);
@@ -594,15 +594,15 @@ groupCallRadio: Radio(defaultRadio) {
 groupCallCheckbox: Checkbox(defaultBoxCheckbox) {
 	textFg: groupCallMembersFg;
 	textFgActive: groupCallMembersFg;
-	rippleBg: groupCallMembersRipple;
-	rippleBgActive: groupCallBoxButtonBgRipple;
+	rippleBg: groupCallMembersBgRipple;
+	rippleBgActive: groupCallMembersBgRipple;
 }
 
 groupCallSettingsButton: SettingsButton {
 	textFg: groupCallMembersFg;
 	textFgOver: groupCallMembersFg;
 	textBg: groupCallMembersBg;
-	textBgOver: groupCallBoxButtonBgOver;
+	textBgOver: groupCallMembersBgOver;
 
 	font: boxTextFont;
 	rightLabel: FlatLabel(defaultSettingsRightLabel) {
@@ -613,7 +613,7 @@ groupCallSettingsButton: SettingsButton {
 	padding: margins(22px, 10px, 22px, 8px);
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: groupCallBoxButtonBgRipple;
+		color: groupCallMembersBgRipple;
 	}
 }
 groupCallSettingsAttentionButton: SettingsButton(groupCallSettingsButton) {

@@ -646,7 +646,11 @@ GroupMembers::GroupMembers(
 
 	paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
-		QPainter(this).fillRect(clip, st::groupCallMembersBg);
+		const auto headerPart = clip.intersected(
+			QRect(0, 0, width(), _header->height()));
+		if (!headerPart.isEmpty()) {
+			QPainter(this).fillRect(headerPart, st::groupCallMembersBg);
+		}
 	}, lifetime());
 }
 
