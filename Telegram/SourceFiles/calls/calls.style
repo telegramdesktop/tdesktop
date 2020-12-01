@@ -550,8 +550,8 @@ groupCallInactiveButton: IconButton {
 	rippleAreaSize: 36px;
 }
 groupCallActiveButton: IconButton(groupCallInactiveButton) {
-	icon: icon {{ "calls/group_calls_unmuted", groupCallMemberActiveIcon }};
-	iconOver: icon {{ "calls/group_calls_unmuted", groupCallMemberActiveIcon }};
+	icon: icon {{ "calls/group_calls_unmuted", groupCallMemberInactiveIcon }};
+	iconOver: icon {{ "calls/group_calls_unmuted", groupCallMemberInactiveIcon }};
 }
 groupCallMutedButton: IconButton(groupCallInactiveButton) {
 	icon: icon {{ "calls/group_calls_muted", groupCallMemberMutedIcon }};
@@ -661,5 +661,5 @@ groupCallBoxLabel: FlatLabel(boxLabel) {
 	textFg: groupCallMembersFg;
 }
 
-groupCallRowBlobMinRadius: 26px;
-groupCallRowBlobMaxRadius: 30px;
+groupCallRowBlobMinRadius: 28px;
+groupCallRowBlobMaxRadius: 31px;

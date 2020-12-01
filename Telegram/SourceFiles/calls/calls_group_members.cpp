@@ -32,25 +32,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 namespace {
 
-constexpr auto kLevelThreshold = 0.2;
+constexpr auto kBlobsEnterDuration = crl::time(250);
 constexpr auto kRowBlobRadiusFactor = (float)(50. / 57.);
 constexpr auto kLevelDuration = 100. + 500. * 0.33;
 constexpr auto kScaleSmall = 0.704 - 0.1;
 constexpr auto kScaleSmallMin = 0.926;
 constexpr auto kScaleSmallMax = (float)(kScaleSmallMin + kScaleSmall);
 constexpr auto kMaxLevel = 1.;
+constexpr auto kWideScale = 5;
 
 auto RowBlobs() -> std::array<Ui::Paint::Blobs::BlobData, 2> {
 	return { {
 		{
 			.segmentsCount = 6,
-			.minScale = kScaleSmallMin / kScaleSmallMax,
+			.minScale = (kScaleSmallMin / kScaleSmallMax) * 0.9f,
 			.minRadius = st::groupCallRowBlobMinRadius
-				* kRowBlobRadiusFactor,
+				* kRowBlobRadiusFactor * 0.9f,
 			.maxRadius = st::groupCallRowBlobMaxRadius
-				* kRowBlobRadiusFactor,
+				* kRowBlobRadiusFactor * 0.9f,
 			.speedScale = 1.,
-			.alpha = (76. / 255.),
+			.alpha = .5,
 		},
 		{
 			.segmentsCount = 8,
@@ -60,7 +61,7 @@ auto RowBlobs() -> std::array<Ui::Paint::Blobs::BlobData, 2> {
 			.maxRadius = st::groupCallRowBlobMaxRadius
 				* kRowBlobRadiusFactor,
 			.speedScale = 1.,
-			.alpha = (76. / 255.),
+			.alpha = .2,
 		},
 	} };
 }
@@ -118,6 +119,28 @@ public:
 	auto generatePaintUserpicCallback() -> PaintRoundImageCallback override;
 
 private:
+	struct SpeakingAnimation {
+		SpeakingAnimation(
+			std::vector<Ui::Paint::Blobs::BlobData> blobDatas,
+			float levelDuration,
+			float maxLevel)
+		: blobs(std::move(blobDatas), levelDuration, maxLevel) {
+			style::PaletteChanged(
+			) | rpl::start_with_next([=] {
+				userpicCache = QImage();
+			}, lifetime);
+		}
+
+		Ui::Paint::Blobs blobs;
+		crl::time lastTime = 0;
+		crl::time lastSpeakingUpdateTime = 0;
+		float64 enter = 0.;
+
+		QImage userpicCache;
+		InMemoryKey userpicKey;
+
+		rpl::lifetime lifetime;
+	};
 	void refreshStatus() override;
 	void setSpeaking(bool speaking);
 	void setSsrc(uint32 ssrc);
@@ -128,12 +151,15 @@ private:
 	[[nodiscard]] static not_null<const style::IconButton*> ComputeIconStyle(
 		State state);
 
+	void ensureUserpicCache(
+		std::shared_ptr<Data::CloudImageView> &view,
+		int size);
+
 	State _state = State::Inactive;
 	not_null<ChannelData*> _channel;
 	not_null<const style::IconButton*> _st;
 	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
-	std::unique_ptr<Ui::Paint::Blobs> _blobs;
-	crl::time _blobsLastTime = 0;
+	std::unique_ptr<SpeakingAnimation> _speakingAnimation;
 	uint32 _ssrc = 0;
 	float _level = 0.;
 	bool _speaking = false;
@@ -247,7 +273,14 @@ void Row::setSpeaking(bool speaking) {
 	}
 	_speaking = speaking;
 	if (!_speaking) {
-		_blobs = nullptr;
+		_speakingAnimation = nullptr;
+	} else if (!_speakingAnimation) {
+		_speakingAnimation = std::make_unique<SpeakingAnimation>(
+			RowBlobs() | ranges::to_vector,
+			kLevelDuration,
+			kMaxLevel);
+		_speakingAnimation->lastTime = crl::now();
+		updateLevel(GroupCall::kSpeakLevelThreshold);
 	}
 	refreshStatus();
 }
@@ -257,36 +290,102 @@ void Row::setSsrc(uint32 ssrc) {
 }
 
 void Row::updateLevel(float level) {
-	Expects(_speaking);
+	Expects(_speakingAnimation != nullptr);
 
-	if (!_blobs) {
-		_blobs = std::make_unique<Ui::Paint::Blobs>(
-			RowBlobs() | ranges::to_vector,
-			kLevelDuration,
-			kMaxLevel);
-		_blobsLastTime = crl::now();
+	if (level >= GroupCall::kSpeakLevelThreshold) {
+		_speakingAnimation->lastSpeakingUpdateTime = crl::now();
 	}
-	_blobs->setLevel(level + 0.5);
+	_speakingAnimation->blobs.setLevel(level);
 }
 
 void Row::updateBlobAnimation(crl::time now) {
-	if (_blobs) {
-		_blobs->updateLevel(now - _blobsLastTime);
-		_blobsLastTime = now;
+	Expects(_speakingAnimation != nullptr);
+
+	const auto speakingFinishesAt = _speakingAnimation->lastSpeakingUpdateTime
+		+ Data::GroupCall::kSpeakStatusKeptFor;
+	const auto speakingStartsFinishing = speakingFinishesAt
+		- kBlobsEnterDuration;
+	const auto speakingFinishes = (speakingStartsFinishing < now);
+	if (speakingFinishes) {
+		_speakingAnimation->enter = std::clamp(
+			(speakingFinishesAt - now) / float64(kBlobsEnterDuration),
+			0.,
+			1.);
+	} else if (_speakingAnimation->enter < 1.) {
+		_speakingAnimation->enter = std::clamp(
+			(_speakingAnimation->enter
+				+ ((now - _speakingAnimation->lastTime)
+					/ float64(kBlobsEnterDuration))),
+			0.,
+			1.);
+	}
+	_speakingAnimation->blobs.updateLevel(now - _speakingAnimation->lastTime);
+	_speakingAnimation->lastTime = now;
+}
+
+void Row::ensureUserpicCache(
+		std::shared_ptr<Data::CloudImageView> &view,
+		int size) {
+	Expects(_speakingAnimation != nullptr);
+
+	const auto user = peer();
+	const auto key = user->userpicUniqueKey(view);
+	const auto full = QSize(size, size) * kWideScale * cIntRetinaFactor();
+	auto &cache = _speakingAnimation->userpicCache;
+	if (cache.isNull()) {
+		cache = QImage(full, QImage::Format_ARGB32_Premultiplied);
+		cache.setDevicePixelRatio(cRetinaFactor());
+	} else if (_speakingAnimation->userpicKey == key
+		&& cache.size() == full) {
+		return;
+	}
+	_speakingAnimation->userpicKey = key;
+	cache.fill(Qt::transparent);
+	{
+		Painter p(&cache);
+		const auto skip = (kWideScale - 1) / 2 * size;
+		user->paintUserpicLeft(p, view, skip, skip, kWideScale * size, size);
 	}
 }
 
 auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	auto userpic = ensureUserpicView();
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
-		if (_blobs) {
+		if (_speakingAnimation) {
 			const auto shift = QPointF(x + size / 2., y + size / 2.);
 			p.translate(shift);
-			_blobs->paint(p, st::groupCallLive1);
+			_speakingAnimation->blobs.paint(p, st::groupCallMemberActiveStatus);
 			p.translate(-shift);
 			p.setOpacity(1.);
+
+			const auto enter = _speakingAnimation->enter;
+			const auto scaleAvatar = 0.8
+				+ 0.2 * _speakingAnimation->blobs.currentLevel();
+			const auto scale = scaleAvatar * enter + 1. * (1. - enter);
+			if (scale == 1.) {
+				peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
+			} else {
+				ensureUserpicCache(userpic, size);
+
+				PainterHighQualityEnabler hq(p);
+
+				auto target = QRect(
+					x + (1 - kWideScale) / 2 * size,
+					y + (1 - kWideScale) / 2 * size,
+					kWideScale * size,
+					kWideScale * size);
+				auto shrink = anim::interpolate(
+					(1 - kWideScale) / 2 * size,
+					0,
+					scale);
+				auto margins = QMargins(shrink, shrink, shrink, shrink);
+				p.drawImage(
+					target.marginsAdded(margins),
+					_speakingAnimation->userpicCache);
+			}
+		} else {
+			peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 		}
-		peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 	};
 }
 
@@ -308,9 +407,17 @@ void Row::paintAction(
 			_actionRipple.reset();
 		}
 	}
-	_st->icon.paintInCenter(
-		p,
-		style::rtlrect(x, y, size.width(), size.height(), outerWidth));
+	const auto iconRect = style::rtlrect(
+		x,
+		y,
+		size.width(),
+		size.height(),
+		outerWidth);
+	if (_speaking) {
+		_st->icon.paintInCenter(p, iconRect, st::groupCallMemberActiveIcon->c);
+	} else {
+		_st->icon.paintInCenter(p, iconRect);
+	}
 }
 
 void Row::refreshStatus() {

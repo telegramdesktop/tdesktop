@@ -37,6 +37,8 @@ public:
 		std::optional<Participant> now;
 	};
 
+	static constexpr auto kSpeakStatusKeptFor = crl::time(1000);
+
 	[[nodiscard]] auto participants() const
 		-> const std::vector<Participant> &;
 	void requestParticipants();

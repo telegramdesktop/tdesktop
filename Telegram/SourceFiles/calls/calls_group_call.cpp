@@ -37,7 +37,6 @@ namespace {
 
 constexpr auto kMaxInvitePerSlice = 10;
 constexpr auto kCheckLastSpokeInterval = 3 * crl::time(1000);
-constexpr auto kSpeakLevelThreshold = 0.2;
 constexpr auto kCheckJoinedTimeout = 4 * crl::time(1000);
 constexpr auto kUpdateSendActionEach = crl::time(500);
 

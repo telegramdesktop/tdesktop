@@ -17,7 +17,6 @@ namespace Data {
 namespace {
 
 constexpr auto kRequestPerPage = 30;
-constexpr auto kSpeakStatusKeptFor = crl::time(1000);
 
 } // namespace
 

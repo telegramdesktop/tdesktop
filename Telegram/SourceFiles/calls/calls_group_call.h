@@ -92,6 +92,7 @@ public:
 	[[nodiscard]] rpl::producer<LevelUpdate> levelUpdates() const {
 		return _levelUpdates.events();
 	}
+	static constexpr auto kSpeakLevelThreshold = 0.2;
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
 	//void setAudioVolume(bool input, float level);
