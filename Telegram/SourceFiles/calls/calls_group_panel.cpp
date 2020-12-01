@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "info/profile/info_profile_values.h" // Info::Profile::Value.
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "data/data_channel.h"
@@ -255,7 +256,12 @@ void GroupPanel::initWindow() {
 	_window->setWindowIcon(
 		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
 	_window->setTitleStyle(st::callTitle);
-	_window->setTitle(tr::lng_group_call_title(tr::now));
+
+	Info::Profile::NameValue(
+		_channel
+	) | rpl::start_with_next([=](const TextWithEntities &name) {
+		_window->setTitle(name.text);
+	}, _window->lifetime());
 
 	base::install_event_filter(_window.get(), [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Close && handleClose()) {
@@ -585,7 +591,7 @@ void GroupPanel::refreshTitle() {
 		if (!_title) {
 			_title.create(
 				widget(),
-				tr::lng_group_call_title(),
+				Info::Profile::NameValue(_channel),
 				st::groupCallHeaderLabel);
 			_title->setAttribute(Qt::WA_TransparentForMouseEvents);
 		}

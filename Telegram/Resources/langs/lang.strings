@@ -1847,7 +1847,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_members#other" = "{count} members";
 "lng_group_call_no_anonymous" = "Anonymous admins can't join voice chats :(";
 "lng_group_call_context_mute" = "Mute";
-"lng_group_call_context_unmute" = "Unmute";
+"lng_group_call_context_unmute" = "Allow to speak";
 "lng_group_call_duration_days#one" = "{count} day";
 "lng_group_call_duration_days#other" = "{count} days";
 "lng_group_call_duration_hours#one" = "{count} hour";
