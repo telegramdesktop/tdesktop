@@ -35,6 +35,25 @@ namespace Calls {
 namespace {
 
 constexpr auto kUpdateDebugTimeoutMs = crl::time(500);
+constexpr auto kSwitchStateDuration = 120;
+
+auto Colors() {
+	using Vector = std::vector<QColor>;
+	return base::flat_map<MuteState, Vector>{
+		{
+			MuteState::ForceMuted,
+			Vector{ st::callIconBg->c, st::callIconBg->c }
+		},
+		{
+			MuteState::Active,
+			Vector{ st::groupCallLive1->c, st::groupCallLive2->c }
+		},
+		{
+			MuteState::Muted,
+			Vector{ st::groupCallMuted1->c, st::groupCallMuted2->c }
+		},
+	};
+}
 
 class DebugInfoBox : public Ui::BoxContent {
 public:
@@ -115,7 +134,8 @@ TopBar::TopBar(
 	: object_ptr<Ui::LabelSimple>(nullptr))
 , _mute(this, st::callBarMuteToggle)
 , _info(this)
-, _hangup(this, st::callBarHangup) {
+, _hangup(this, st::callBarHangup)
+, _gradients(Colors(), QPointF(), QPointF()) {
 	initControls();
 	resize(width(), st::callBarHeight);
 }
@@ -145,6 +165,9 @@ void TopBar::initControls() {
 	}, lifetime());
 
 	if (const auto group = _groupCall.get()) {
+		const auto fromState = _mute->lifetime().make_state<MuteState>(
+			group->muted());
+
 		group->mutedValue(
 		) | rpl::start_with_next([=](MuteState state) {
 			if (state == MuteState::ForceMuted) {
@@ -153,6 +176,28 @@ void TopBar::initControls() {
 			_mute->setAttribute(
 				Qt::WA_TransparentForMouseEvents,
 				(state == MuteState::ForceMuted));
+
+			const auto to = 1.;
+			const auto from = _switchStateAnimation.animating()
+				? (to - _switchStateAnimation.value(0.))
+				: 0.;
+			const auto fromMuted = *fromState;
+			const auto toMuted = state;
+			*fromState = state;
+
+			auto animationCallback = [=](float64 value) {
+				_groupBrush = QBrush(
+					_gradients.gradient(fromMuted, toMuted, value));
+				update();
+			};
+
+			_switchStateAnimation.stop();
+			const auto duration = (to - from) * kSwitchStateDuration;
+			_switchStateAnimation.start(
+				std::move(animationCallback),
+				from,
+				to,
+				duration);
 		}, _mute->lifetime());
 
 		subscribeToMembersChanges(group);
@@ -250,8 +295,11 @@ void TopBar::setInfoLabels() {
 
 void TopBar::setMuted(bool mute) {
 	_mute->setIconOverride(mute ? &st::callBarUnmuteIcon : nullptr);
-	_mute->setRippleColorOverride(mute ? &st::callBarUnmuteRipple : nullptr);
-	_hangup->setRippleColorOverride(mute ? &st::callBarUnmuteRipple : nullptr);
+	const auto color = _groupCall
+		? &st::shadowFg
+		: (mute ? &st::callBarUnmuteRipple : nullptr);
+	_mute->setRippleColorOverride(color);
+	_hangup->setRippleColorOverride(color);
 	_muted = mute;
 }
 
@@ -326,11 +374,19 @@ void TopBar::updateControlsGeometry() {
 	};
 	setInfoLabelGeometry(_fullInfoLabel);
 	setInfoLabelGeometry(_shortInfoLabel);
+
+	_gradients.set_points(
+		QPointF(0, st::callBarHeight / 2),
+		QPointF(width(), st::callBarHeight / 2));
 }
 
 void TopBar::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(e->rect(), _muted ? st::callBarBgMuted : st::callBarBg);
+	auto brush = _groupCall
+		? _groupBrush
+		: (_muted ? st::callBarBgMuted : st::callBarBg);
+	p.fillRect(e->rect(), std::move(brush));
+
 	if (!_userpics.isNull()) {
 		const auto imageSize = _userpics.size()
 			/ _userpics.devicePixelRatio();

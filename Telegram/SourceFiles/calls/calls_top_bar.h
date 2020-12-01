@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 #include "base/object_ptr.h"
+#include "ui/effects/animations.h"
+#include "ui/effects/gradient.h"
 #include "ui/rp_widget.h"
 
 namespace Ui {
@@ -28,6 +30,7 @@ namespace Calls {
 class Call;
 class GroupCall;
 class SignalBars;
+enum class MuteState;
 
 class TopBar : public Ui::RpWidget {
 public:
@@ -69,6 +72,10 @@ private:
 	object_ptr<Ui::IconButton> _mute;
 	object_ptr<Ui::AbstractButton> _info;
 	object_ptr<Ui::IconButton> _hangup;
+
+	QBrush _groupBrush;
+	anim::linear_gradients<MuteState> _gradients;
+	Ui::Animations::Simple _switchStateAnimation;
 
 	base::Timer _updateDurationTimer;
 
