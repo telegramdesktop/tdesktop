@@ -49,27 +49,28 @@ ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
 , inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0)))
 , _ptsWaiter(&owner->session().updates()) {
-	Data::PeerFlagValue(
-		this,
-		MTPDchannel::Flag::f_megagroup
-	) | rpl::start_with_next([=](bool megagroup) {
-		if (megagroup) {
-			if (!mgInfo) {
-				mgInfo = std::make_unique<MegagroupInfo>();
+	_flags.changes(
+	) | rpl::start_with_next([=](const Flags::Change &change) {
+		if (change.diff
+			& (MTPDchannel::Flag::f_left | MTPDchannel_ClientFlag::f_forbidden)) {
+			if (const auto chat = getMigrateFromChat()) {
+				session().changes().peerUpdated(chat, UpdateFlag::Migration);
+				session().changes().peerUpdated(this, UpdateFlag::Migration);
 			}
-		} else if (mgInfo) {
-			mgInfo = nullptr;
 		}
-	}, _lifetime);
-
-	Data::PeerFlagsValue(
-		this,
-		MTPDchannel::Flag::f_left | MTPDchannel_ClientFlag::f_forbidden
-	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=] {
-		if (const auto chat = getMigrateFromChat()) {
-			session().changes().peerUpdated(chat, UpdateFlag::Migration);
-			session().changes().peerUpdated(this, UpdateFlag::Migration);
+		if (change.diff & MTPDchannel::Flag::f_megagroup) {
+			if (change.value & MTPDchannel::Flag::f_megagroup) {
+				if (!mgInfo) {
+					mgInfo = std::make_unique<MegagroupInfo>();
+				}
+			} else if (mgInfo) {
+				mgInfo = nullptr;
+			}
+		}
+		if (change.diff & MTPDchannel::Flag::f_call_active) {
+			if (const auto history = this->owner().historyLoaded(this)) {
+				history->updateChatListEntry();
+			}
 		}
 	}, _lifetime);
 }
@@ -686,7 +687,8 @@ void ChannelData::setCall(const MTPInputGroupCall &call) {
 			clearCall();
 			return;
 		}
-		if (_call) {
+		const auto hasCall = (_call != nullptr);
+		if (hasCall) {
 			owner().unregisterGroupCall(_call.get());
 		}
 		_call = std::make_unique<Data::GroupCall>(
@@ -695,6 +697,7 @@ void ChannelData::setCall(const MTPInputGroupCall &call) {
 			data.vaccess_hash().v);
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
+		addFlags(MTPDchannel::Flag::f_call_active);
 	});
 }
 
@@ -705,6 +708,7 @@ void ChannelData::clearCall() {
 	owner().unregisterGroupCall(_call.get());
 	_call = nullptr;
 	session().changes().peerUpdated(this, UpdateFlag::GroupCall);
+	removeFlags(MTPDchannel::Flag::f_call_active);
 }
 
 namespace Data {

@@ -662,4 +662,4 @@ groupCallBoxLabel: FlatLabel(boxLabel) {
 }
 
 groupCallRowBlobMinRadius: 28px;
-groupCallRowBlobMaxRadius: 31px;
+groupCallRowBlobMaxRadius: 30px;

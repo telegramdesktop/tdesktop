@@ -156,7 +156,6 @@ private:
 	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
 	std::unique_ptr<SpeakingAnimation> _speakingAnimation;
 	uint32 _ssrc = 0;
-	float _level = 0.;
 	bool _speaking = false;
 
 };
