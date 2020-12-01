@@ -663,3 +663,11 @@ groupCallBoxLabel: FlatLabel(boxLabel) {
 
 groupCallRowBlobMinRadius: 28px;
 groupCallRowBlobMaxRadius: 30px;
+
+callTopBarMuteCrossLine: CrossLineAnimation {
+	fg: callBarFg;
+	icon: icon {{ "calls/call_record_active", callBarFg }};
+	startPosition: point(11px, 8px);
+	endPosition: point(26px, 23px);
+	stroke: 2px;
+}

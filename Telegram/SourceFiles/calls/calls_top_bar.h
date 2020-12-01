@@ -30,6 +30,7 @@ namespace Calls {
 class Call;
 class GroupCall;
 class SignalBars;
+class Mute;
 enum class MuteState;
 
 class TopBar : public Ui::RpWidget {
@@ -69,7 +70,7 @@ private:
 	object_ptr<Ui::FlatLabel> _fullInfoLabel;
 	object_ptr<Ui::FlatLabel> _shortInfoLabel;
 	object_ptr<Ui::LabelSimple> _hangupLabel;
-	object_ptr<Ui::IconButton> _mute;
+	object_ptr<Mute> _mute;
 	object_ptr<Ui::AbstractButton> _info;
 	object_ptr<Ui::IconButton> _hangup;
 

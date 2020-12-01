@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_top_bar.h"
 
+#include "ui/effects/cross_line.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/chat/group_call_bar.h" // Ui::GroupCallBarContent.
@@ -99,6 +100,52 @@ void DebugInfoBox::updateText() {
 
 } // namespace
 
+class Mute final : public Ui::IconButton {
+public:
+	Mute(QWidget *parent, const style::IconButton &st)
+	: Ui::IconButton(parent, st)
+	, _st(st)
+	, _crossLineMuteAnimation(st::callTopBarMuteCrossLine) {
+		resize(_st.width, _st.height);
+		installEventFilter(this);
+	}
+
+	void setProgress(float64 progress) {
+		if (_progress == progress) {
+			return;
+		}
+		_progress = progress;
+		update();
+	}
+
+	void setRippleColorOverride(const style::color *colorOverride) {
+		_rippleColorOverride = colorOverride;
+	}
+
+protected:
+	bool eventFilter(QObject *object, QEvent *event) {
+		if (event->type() == QEvent::Paint) {
+			Painter p(this);
+			paintRipple(
+				p,
+				_st.rippleAreaPosition.x(),
+				_st.rippleAreaPosition.y(),
+				_rippleColorOverride ? &(*_rippleColorOverride)->c : nullptr);
+			_crossLineMuteAnimation.paint(p, _st.iconPosition, _progress);
+			return true;
+		}
+		return QObject::eventFilter(object, event);
+	}
+
+private:
+	float64 _progress = 0.;
+
+	const style::IconButton &_st;
+	Ui::CrossLineAnimation _crossLineMuteAnimation;
+	const style::color *_rippleColorOverride = nullptr;
+
+};
+
 TopBar::TopBar(
 	QWidget *parent,
 	const base::weak_ptr<Call> &call)
@@ -153,53 +200,62 @@ void TopBar::initControls() {
 		}
 	});
 
-	using namespace rpl::mappers;
+	const auto mapToState = [](bool muted) {
+		return muted ? MuteState::Muted : MuteState::Active;
+	};
+	const auto fromState = _mute->lifetime().make_state<MuteState>(
+		_call ? mapToState(_call->muted()) : _groupCall->muted());
 	auto muted = _call
-		? _call->mutedValue()
-		: (_groupCall->mutedValue() | rpl::map(_1 != MuteState::Active));
+		? _call->mutedValue() | rpl::map(mapToState)
+		: _groupCall->mutedValue();
 	std::move(
 		muted
-	) | rpl::start_with_next([=](bool muted) {
-		setMuted(muted);
+	) | rpl::start_with_next([=](MuteState state) {
+		setMuted(state != MuteState::Active);
 		update();
-	}, lifetime());
 
-	if (const auto group = _groupCall.get()) {
-		const auto fromState = _mute->lifetime().make_state<MuteState>(
-			group->muted());
+		const auto isForceMuted = (state == MuteState::ForceMuted);
+		if (isForceMuted) {
+			_mute->clearState();
+		}
+		_mute->setAttribute(
+			Qt::WA_TransparentForMouseEvents,
+			isForceMuted);
 
-		group->mutedValue(
-		) | rpl::start_with_next([=](MuteState state) {
-			if (state == MuteState::ForceMuted) {
-				_mute->clearState();
-			}
-			_mute->setAttribute(
-				Qt::WA_TransparentForMouseEvents,
-				(state == MuteState::ForceMuted));
+		const auto to = 1.;
+		const auto from = _switchStateAnimation.animating()
+			? (to - _switchStateAnimation.value(0.))
+			: 0.;
+		const auto fromMuted = *fromState;
+		const auto toMuted = state;
+		*fromState = state;
 
-			const auto to = 1.;
-			const auto from = _switchStateAnimation.animating()
-				? (to - _switchStateAnimation.value(0.))
-				: 0.;
-			const auto fromMuted = *fromState;
-			const auto toMuted = state;
-			*fromState = state;
+		const auto crossFrom = (fromMuted != MuteState::Active) ? 1. : 0.;
+		const auto crossTo = (toMuted != MuteState::Active) ? 1. : 0.;
 
-			auto animationCallback = [=](float64 value) {
+		auto animationCallback = [=](float64 value) {
+			if (_groupCall) {
 				_groupBrush = QBrush(
 					_gradients.gradient(fromMuted, toMuted, value));
 				update();
-			};
+			}
 
-			_switchStateAnimation.stop();
-			const auto duration = (to - from) * kSwitchStateDuration;
-			_switchStateAnimation.start(
-				std::move(animationCallback),
-				from,
-				to,
-				duration);
-		}, _mute->lifetime());
+			const auto crossProgress = (crossFrom == crossTo)
+				? crossTo
+				: (crossFrom + float64(crossTo - crossFrom) * value);
+			_mute->setProgress(crossProgress);
+		};
 
+		_switchStateAnimation.stop();
+		const auto duration = (to - from) * kSwitchStateDuration;
+		_switchStateAnimation.start(
+			std::move(animationCallback),
+			from,
+			to,
+			duration);
+	}, _mute->lifetime());
+
+	if (const auto group = _groupCall.get()) {
 		subscribeToMembersChanges(group);
 	}
 
@@ -294,12 +350,8 @@ void TopBar::setInfoLabels() {
 }
 
 void TopBar::setMuted(bool mute) {
-	_mute->setIconOverride(mute ? &st::callBarUnmuteIcon : nullptr);
-	const auto color = _groupCall
-		? &st::shadowFg
-		: (mute ? &st::callBarUnmuteRipple : nullptr);
-	_mute->setRippleColorOverride(color);
-	_hangup->setRippleColorOverride(color);
+	_mute->setRippleColorOverride(&st::shadowFg);
+	_hangup->setRippleColorOverride(&st::shadowFg);
 	_muted = mute;
 }
 
