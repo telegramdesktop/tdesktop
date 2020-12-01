@@ -33,11 +33,10 @@ namespace Calls {
 namespace {
 
 constexpr auto kBlobsEnterDuration = crl::time(250);
-constexpr auto kRowBlobRadiusFactor = (float)(50. / 57.);
-constexpr auto kLevelDuration = 100. + 500. * 0.33;
-constexpr auto kScaleSmall = 0.704 - 0.1;
-constexpr auto kScaleSmallMin = 0.926;
-constexpr auto kScaleSmallMax = (float)(kScaleSmallMin + kScaleSmall);
+constexpr auto kLevelDuration = 100. + 500. * 0.23;
+constexpr auto kBlobScale = 0.605;
+constexpr auto kMinorBlobFactor = 0.9f;
+constexpr auto kUserpicMinScale = 0.8;
 constexpr auto kMaxLevel = 1.;
 constexpr auto kWideScale = 5;
 
@@ -45,21 +44,17 @@ auto RowBlobs() -> std::array<Ui::Paint::Blobs::BlobData, 2> {
 	return { {
 		{
 			.segmentsCount = 6,
-			.minScale = (kScaleSmallMin / kScaleSmallMax) * 0.9f,
-			.minRadius = st::groupCallRowBlobMinRadius
-				* kRowBlobRadiusFactor * 0.9f,
-			.maxRadius = st::groupCallRowBlobMaxRadius
-				* kRowBlobRadiusFactor * 0.9f,
+			.minScale = kBlobScale * kMinorBlobFactor,
+			.minRadius = st::groupCallRowBlobMinRadius * kMinorBlobFactor,
+			.maxRadius = st::groupCallRowBlobMaxRadius * kMinorBlobFactor,
 			.speedScale = 1.,
 			.alpha = .5,
 		},
 		{
 			.segmentsCount = 8,
-			.minScale = kScaleSmallMin / kScaleSmallMax,
-			.minRadius = st::groupCallRowBlobMinRadius
-				* kRowBlobRadiusFactor,
-			.maxRadius = st::groupCallRowBlobMaxRadius
-				* kRowBlobRadiusFactor,
+			.minScale = kBlobScale,
+			.minRadius = (float)st::groupCallRowBlobMinRadius,
+			.maxRadius = (float)st::groupCallRowBlobMaxRadius,
 			.speedScale = 1.,
 			.alpha = .2,
 		},
@@ -359,9 +354,10 @@ auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 			p.setOpacity(1.);
 
 			const auto enter = _speakingAnimation->enter;
-			const auto scaleAvatar = 0.8
-				+ 0.2 * _speakingAnimation->blobs.currentLevel();
-			const auto scale = scaleAvatar * enter + 1. * (1. - enter);
+			const auto &minScale = kUserpicMinScale;
+			const auto scaleUserpic = minScale
+				+ (1. - minScale) * _speakingAnimation->blobs.currentLevel();
+			const auto scale = scaleUserpic * enter + 1. * (1. - enter);
 			if (scale == 1.) {
 				peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 			} else {
