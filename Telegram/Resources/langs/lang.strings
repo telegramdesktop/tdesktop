@@ -1066,7 +1066,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_invite_users_many" = "{from} invited {users} to the voice chat";
 "lng_action_invite_users_and_one" = "{accumulated}, {user}";
 "lng_action_invite_users_and_last" = "{accumulated} and {user}";
-"lng_action_group_call" = "Group call";
+"lng_action_group_call_started" = "{from} started a voice chat";
+"lng_action_group_call_finished" = "Voice chat finished ({duration})";
 "lng_action_add_user" = "{from} added {user}";
 "lng_action_add_users_many" = "{from} added {users}";
 "lng_action_add_users_and_one" = "{accumulated}, {user}";
@@ -1847,6 +1848,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_no_anonymous" = "Anonymous admins can't join voice chats :(";
 "lng_group_call_context_mute" = "Mute";
 "lng_group_call_context_unmute" = "Unmute";
+"lng_group_call_duration_days#one" = "{count} day";
+"lng_group_call_duration_days#other" = "{count} days";
+"lng_group_call_duration_hours#one" = "{count} hour";
+"lng_group_call_duration_hours#other" = "{count} hours";
+"lng_group_call_duration_minutes#one" = "{count} minute";
+"lng_group_call_duration_minutes#other" = "{count} minutes";
+"lng_group_call_duration_seconds#one" = "{count} second";
+"lng_group_call_duration_seconds#other" = "{count} seconds";
 
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 

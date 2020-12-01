@@ -158,6 +158,13 @@ public:
 	void unregisterGroupCall(not_null<GroupCall*> call);
 	GroupCall *groupCall(uint64 callId) const;
 
+	struct GroupCallDiscard {
+		uint64 id = 0;
+		int duration = 0;
+	};
+	rpl::producer<GroupCallDiscard> groupCallDiscards() const;
+	void groupCallDiscarded(uint64 id, int duration);
+
 	[[nodiscard]] auto invitedToCallUsers(uint64 callId) const
 		-> const base::flat_set<not_null<UserData*>> &;
 	void registerInvitedToCallUser(
@@ -921,6 +928,7 @@ private:
 
 	base::flat_map<uint64, not_null<GroupCall*>> _groupCalls;
 	base::flat_map<uint64, base::flat_set<not_null<UserData*>>> _invitedToCallUsers;
+	rpl::event_stream<GroupCallDiscard> _groupCallDiscarded;
 
 	History *_topPromoted = nullptr;
 

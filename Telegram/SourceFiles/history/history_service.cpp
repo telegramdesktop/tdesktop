@@ -274,6 +274,16 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareGroupCall = [this](const MTPDmessageActionGroupCall &action) {
+		if (const auto duration = action.vduration()) {
+			return prepareDiscardedCallText(duration->v);
+		}
+		auto result = PreparedText{};
+		result.links.push_back(fromLink());
+		result.text = tr::lng_action_group_call_started(tr::now, lt_from, fromLinkText());
+		return result;
+	};
+
 	auto prepareInviteToGroupCall = [this](const MTPDmessageActionInviteToGroupCall &action) {
 		const auto channel = history()->peer->asChannel();
 		const auto callId = action.vcall().match([&](const MTPDinputGroupCall &data) {
@@ -367,7 +377,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		LOG(("API Error: messageActionSecureValuesSentMe received."));
 		return PreparedText{ tr::lng_message_empty(tr::now) };
 	}, [&](const MTPDmessageActionGroupCall &data) {
-		return PreparedText{ tr::lng_action_group_call(tr::now) };
+		return prepareGroupCall(data);
 	}, [&](const MTPDmessageActionInviteToGroupCall &data) {
 		return prepareInviteToGroupCall(data);
 	}, [](const MTPDmessageActionEmpty &) {
@@ -464,6 +474,22 @@ bool HistoryService::updateDependent(bool force) {
 		Core::App().notifications().checkDelayed();
 	}
 	return (dependent->msg || !dependent->msgId);
+}
+
+HistoryService::PreparedText HistoryService::prepareDiscardedCallText(
+		int duration) {
+	const auto seconds = duration;
+	const auto days = seconds / 86400;
+	const auto hours = seconds / 3600;
+	const auto minutes = seconds / 60;
+	auto text = (days > 1)
+		? tr::lng_group_call_duration_days(tr::now, lt_count, days)
+		: (hours > 1)
+		? tr::lng_group_call_duration_hours(tr::now, lt_count, hours)
+		: (minutes > 1)
+		? tr::lng_group_call_duration_minutes(tr::now, lt_count, minutes)
+		: tr::lng_group_call_duration_seconds(tr::now, lt_count, seconds);
+	return PreparedText{ tr::lng_action_group_call_finished(tr::now, lt_duration, text) };
 }
 
 HistoryService::PreparedText HistoryService::preparePinnedText() {
@@ -789,13 +815,33 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 
 void HistoryService::createFromMtp(const MTPDmessageService &message) {
 	if (message.vaction().type() == mtpc_messageActionGameScore) {
+		const auto &data = message.vaction().c_messageActionGameScore();
 		UpdateComponents(HistoryServiceGameScore::Bit());
-		Get<HistoryServiceGameScore>()->score = message.vaction().c_messageActionGameScore().vscore().v;
+		Get<HistoryServiceGameScore>()->score = data.vscore().v;
 	} else if (message.vaction().type() == mtpc_messageActionPaymentSent) {
+		const auto &data = message.vaction().c_messageActionPaymentSent();
 		UpdateComponents(HistoryServicePayment::Bit());
-		auto amount = message.vaction().c_messageActionPaymentSent().vtotal_amount().v;
-		auto currency = qs(message.vaction().c_messageActionPaymentSent().vcurrency());
+		const auto amount = data.vtotal_amount().v;
+		const auto currency = qs(data.vcurrency());
 		Get<HistoryServicePayment>()->amount = Ui::FillAmountAndCurrency(amount, currency);
+	} else if (message.vaction().type() == mtpc_messageActionGroupCall) {
+		const auto &data = message.vaction().c_messageActionGroupCall();
+		if (data.vduration()) {
+			RemoveComponents(HistoryServiceOngoingCall::Bit());
+		} else {
+			UpdateComponents(HistoryServiceOngoingCall::Bit());
+			const auto call = Get<HistoryServiceOngoingCall>();
+			const auto id = data.vcall().c_inputGroupCall().vid().v;
+			call->lifetime.destroy();
+			history()->owner().groupCallDiscards(
+			) | rpl::filter([=](Data::Session::GroupCallDiscard discard) {
+				return (discard.id == id);
+			}) | rpl::start_with_next([=](
+					Data::Session::GroupCallDiscard discard) {
+				RemoveComponents(HistoryServiceOngoingCall::Bit());
+				updateText(prepareDiscardedCallText(discard.duration));
+			}, call->lifetime);
+		}
 	}
 	if (const auto replyTo = message.vreply_to()) {
 		replyTo->match([&](const MTPDmessageReplyHeader &data) {
@@ -852,7 +898,7 @@ Storage::SharedMediaTypesMask HistoryService::sharedMediaTypes() const {
 }
 
 void HistoryService::updateDependentText() {
-	auto text = PreparedText {};
+	auto text = PreparedText{};
 	if (Has<HistoryServicePinned>()) {
 		text = preparePinnedText();
 	} else if (Has<HistoryServiceGameScore>()) {
@@ -862,7 +908,10 @@ void HistoryService::updateDependentText() {
 	} else {
 		return;
 	}
+	updateText(std::move(text));
+}
 
+void HistoryService::updateText(PreparedText &&text) {
 	setServiceText(text);
 	history()->owner().requestItemResize(this);
 	const auto inDialogsHistory = history()->migrateToOrMe();
