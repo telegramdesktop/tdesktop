@@ -31,7 +31,7 @@ GroupCall::GroupCall(
 }
 
 GroupCall::~GroupCall() {
-	api().request(_unknownSourcesRequestId).cancel();
+	api().request(_unknownSsrcsRequestId).cancel();
 	api().request(_participantsRequestId).cancel();
 	api().request(_reloadRequestId).cancel();
 }
@@ -65,7 +65,7 @@ void GroupCall::requestParticipants() {
 	_participantsRequestId = api().request(MTPphone_GetGroupParticipants(
 		input(),
 		MTP_vector<MTPint>(), // ids
-		MTP_vector<MTPint>(), // sources
+		MTP_vector<MTPint>(), // ssrcs
 		MTP_string(_nextOffset),
 		MTP_int(kRequestPerPage)
 	)).done([=](const MTPphone_GroupParticipants &result) {
@@ -105,9 +105,9 @@ bool GroupCall::participantsLoaded() const {
 	return _allReceived;
 }
 
-UserData *GroupCall::userBySource(uint32 source) const {
-	const auto i = _userBySource.find(source);
-	return (i != end(_userBySource)) ? i->second.get() : nullptr;
+UserData *GroupCall::userBySsrc(uint32 ssrc) const {
+	const auto i = _userBySsrc.find(ssrc);
+	return (i != end(_userBySsrc)) ? i->second.get() : nullptr;
 }
 
 rpl::producer<> GroupCall::participantsSliceAdded() {
@@ -163,7 +163,7 @@ void GroupCall::reload() {
 		result.match([&](const MTPDphone_groupCall &data) {
 			_channel->owner().processUsers(data.vusers());
 			_participants.clear();
-			_userBySource.clear();
+			_userBySsrc.clear();
 			applyParticipantsSlice(
 				data.vparticipants().v,
 				ApplySliceSource::SliceLoaded);
@@ -194,7 +194,7 @@ void GroupCall::applyParticipantsSlice(
 					auto update = ParticipantUpdate{
 						.was = *i,
 					};
-					_userBySource.erase(i->source);
+					_userBySsrc.erase(i->ssrc);
 					_participants.erase(i);
 					if (sliceSource != ApplySliceSource::SliceLoaded) {
 						_participantUpdates.fire(std::move(update));
@@ -212,20 +212,20 @@ void GroupCall::applyParticipantsSlice(
 				.user = user,
 				.date = data.vdate().v,
 				.lastActive = was ? was->lastActive : 0,
-				.source = uint32(data.vsource().v),
+				.ssrc = uint32(data.vsource().v),
 				.speaking = !data.is_muted() && (was ? was->speaking : false),
 				.muted = data.is_muted(),
 				.canSelfUnmute = !data.is_muted() || data.is_can_self_unmute(),
 			};
 			if (i == end(_participants)) {
-				_userBySource.emplace(value.source, user);
+				_userBySsrc.emplace(value.ssrc, user);
 				_participants.push_back(value);
 				_channel->owner().unregisterInvitedToCallUser(_id, user);
 				++changedCount;
 			} else {
-				if (i->source != value.source) {
-					_userBySource.erase(i->source);
-					_userBySource.emplace(value.source, user);
+				if (i->ssrc != value.ssrc) {
+					_userBySsrc.erase(i->ssrc);
+					_userBySsrc.emplace(value.ssrc, user);
 				}
 				*i = value;
 			}
@@ -271,11 +271,11 @@ void GroupCall::applyParticipantsMutes(
 	}
 }
 
-void GroupCall::applyLastSpoke(uint32 source, crl::time when, crl::time now) {
-	const auto i = _userBySource.find(source);
-	if (i == end(_userBySource)) {
-		_unknownSpokenSources.emplace(source, when);
-		requestUnknownSources();
+void GroupCall::applyLastSpoke(uint32 ssrc, crl::time when, crl::time now) {
+	const auto i = _userBySsrc.find(ssrc);
+	if (i == end(_userBySsrc)) {
+		_unknownSpokenSsrcs.emplace(ssrc, when);
+		requestUnknownSsrcs();
 		return;
 	}
 	const auto j = ranges::find(_participants, i->second, &Participant::user);
@@ -292,32 +292,32 @@ void GroupCall::applyLastSpoke(uint32 source, crl::time when, crl::time now) {
 	}
 }
 
-void GroupCall::requestUnknownSources() {
-	if (_unknownSourcesRequestId || _unknownSpokenSources.empty()) {
+void GroupCall::requestUnknownSsrcs() {
+	if (_unknownSsrcsRequestId || _unknownSpokenSsrcs.empty()) {
 		return;
 	}
-	const auto sources = [&] {
-		if (_unknownSpokenSources.size() < kRequestPerPage) {
-			return base::take(_unknownSpokenSources);
+	const auto ssrcs = [&] {
+		if (_unknownSpokenSsrcs.size() < kRequestPerPage) {
+			return base::take(_unknownSpokenSsrcs);
 		}
 		auto result = base::flat_map<uint32, crl::time>();
 		result.reserve(kRequestPerPage);
 		while (result.size() < kRequestPerPage) {
-			const auto [source, when] = _unknownSpokenSources.back();
-			result.emplace(source, when);
-			_unknownSpokenSources.erase(_unknownSpokenSources.end() - 1);
+			const auto [ssrc, when] = _unknownSpokenSsrcs.back();
+			result.emplace(ssrc, when);
+			_unknownSpokenSsrcs.erase(_unknownSpokenSsrcs.end() - 1);
 		}
 		return result;
 	}();
-	auto sourceInputs = QVector<MTPint>();
-	sourceInputs.reserve(sources.size());
-	for (const auto [source, when] : sources) {
-		sourceInputs.push_back(MTP_int(source));
+	auto inputs = QVector<MTPint>();
+	inputs.reserve(ssrcs.size());
+	for (const auto [ssrc, when] : ssrcs) {
+		inputs.push_back(MTP_int(ssrc));
 	}
-	_unknownSourcesRequestId = api().request(MTPphone_GetGroupParticipants(
+	_unknownSsrcsRequestId = api().request(MTPphone_GetGroupParticipants(
 		input(),
 		MTP_vector<MTPint>(), // ids
-		MTP_vector<MTPint>(sourceInputs),
+		MTP_vector<MTPint>(inputs),
 		MTP_string(QString()),
 		MTP_int(kRequestPerPage)
 	)).done([=](const MTPphone_GroupParticipants &result) {
@@ -327,19 +327,19 @@ void GroupCall::requestUnknownSources() {
 				data.vparticipants().v,
 				ApplySliceSource::UnknownLoaded);
 		});
-		_unknownSourcesRequestId = 0;
+		_unknownSsrcsRequestId = 0;
 		const auto now = crl::now();
-		for (const auto [source, when] : sources) {
-			applyLastSpoke(source, when, now);
-			_unknownSpokenSources.remove(source);
+		for (const auto [ssrc, when] : ssrcs) {
+			applyLastSpoke(ssrc, when, now);
+			_unknownSpokenSsrcs.remove(ssrc);
 		}
-		requestUnknownSources();
+		requestUnknownSsrcs();
 	}).fail([=](const RPCError &error) {
-		_unknownSourcesRequestId = 0;
-		for (const auto [source, when] : sources) {
-			_unknownSpokenSources.remove(source);
+		_unknownSsrcsRequestId = 0;
+		for (const auto [ssrc, when] : ssrcs) {
+			_unknownSpokenSsrcs.remove(ssrc);
 		}
-		requestUnknownSources();
+		requestUnknownSsrcs();
 	}).send();
 }
 

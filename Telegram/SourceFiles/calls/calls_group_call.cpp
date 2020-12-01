@@ -152,7 +152,7 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 	}) | rpl::start_with_next([=](const Update &update) {
 		Expects(update.was.has_value());
 
-		_instance->removeSsrcs({ update.was->source });
+		_instance->removeSsrcs({ update.was->ssrc });
 	}, _lifetime);
 }
 
@@ -190,7 +190,7 @@ void GroupCall::rejoin() {
 			root.insert("fingerprints", fingerprints);
 			root.insert("ssrc", double(payload.ssrc));
 
-			LOG(("Call Info: Join payload received, joining with source: %1."
+			LOG(("Call Info: Join payload received, joining with ssrc: %1."
 				).arg(ssrc));
 
 			const auto json = QJsonDocument(root).toJson(
@@ -418,12 +418,12 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 			}
 			if (data.is_left() && data.vsource().v == _mySsrc) {
 				// I was removed from the call, rejoin.
-				LOG(("Call Info: Rejoin after got 'left' with my source."));
+				LOG(("Call Info: Rejoin after got 'left' with my ssrc."));
 				setState(State::Joining);
 				rejoin();
 			} else if (!data.is_left() && data.vsource().v != _mySsrc) {
 				// I joined from another device, hangup.
-				LOG(("Call Info: Hangup after '!left' with source %1, my %2."
+				LOG(("Call Info: Hangup after '!left' with ssrc %1, my %2."
 					).arg(data.vsource().v
 					).arg(_mySsrc));
 				_mySsrc = 0;
@@ -495,10 +495,10 @@ void GroupCall::handleLevelsUpdated(
 	auto check = false;
 	auto checkNow = false;
 	const auto now = crl::now();
-	for (const auto &[source, level] : data) {
-		const auto self = (source == _mySsrc);
+	for (const auto &[ssrc, level] : data) {
+		const auto self = (ssrc == _mySsrc);
 		_levelUpdates.fire(LevelUpdate{
-			.source = source,
+			.ssrc = ssrc,
 			.value = level,
 			.self = self
 		});
@@ -515,9 +515,9 @@ void GroupCall::handleLevelsUpdated(
 		}
 
 		check = true;
-		const auto i = _lastSpoke.find(source);
+		const auto i = _lastSpoke.find(ssrc);
 		if (i == _lastSpoke.end()) {
-			_lastSpoke.emplace(source, now);
+			_lastSpoke.emplace(ssrc, now);
 			checkNow = true;
 		} else {
 			if (i->second + kCheckLastSpokeInterval / 3 <= now) {
@@ -553,14 +553,14 @@ void GroupCall::checkLastSpoke() {
 	const auto now = crl::now();
 	auto list = base::take(_lastSpoke);
 	for (auto i = list.begin(); i != list.end();) {
-		const auto [source, when] = *i;
+		const auto [ssrc, when] = *i;
 		if (when + kCheckLastSpokeInterval >= now) {
 			hasRecent = true;
 			++i;
 		} else {
 			i = list.erase(i);
 		}
-		real->applyLastSpoke(source, when, now);
+		real->applyLastSpoke(ssrc, when, now);
 	}
 	_lastSpoke = std::move(list);
 

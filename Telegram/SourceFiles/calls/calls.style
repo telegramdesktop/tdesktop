@@ -660,3 +660,6 @@ groupCallSettingsAttentionButton: SettingsButton(groupCallSettingsButton) {
 groupCallBoxLabel: FlatLabel(boxLabel) {
 	textFg: groupCallMembersFg;
 }
+
+groupCallRowBlobMinRadius: 26px;
+groupCallRowBlobMaxRadius: 30px;

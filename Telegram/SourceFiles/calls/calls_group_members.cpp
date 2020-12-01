@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_peer_values.h" // Data::CanWriteValue.
+#include "ui/paint/blobs.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
@@ -32,12 +33,37 @@ namespace Calls {
 namespace {
 
 constexpr auto kLevelThreshold = 0.2;
+constexpr auto kRowBlobRadiusFactor = (float)(50. / 57.);
+constexpr auto kLevelDuration = 100. + 500. * 0.33;
+constexpr auto kScaleSmall = 0.704 - 0.1;
+constexpr auto kScaleSmallMin = 0.926;
+constexpr auto kScaleSmallMax = (float)(kScaleSmallMin + kScaleSmall);
+constexpr auto kMaxLevel = 1.;
 
-struct UpdateLevelResult {
-	bool levelChanged = false;
-	bool stateChanged = false;
-	crl::time nextUpdateTime = 0;
-};
+auto RowBlobs() -> std::array<Ui::Paint::Blobs::BlobData, 2> {
+	return { {
+		{
+			.segmentsCount = 6,
+			.minScale = kScaleSmallMin / kScaleSmallMax,
+			.minRadius = st::groupCallRowBlobMinRadius
+				* kRowBlobRadiusFactor,
+			.maxRadius = st::groupCallRowBlobMaxRadius
+				* kRowBlobRadiusFactor,
+			.speedScale = 1.,
+			.alpha = (76. / 255.),
+		},
+		{
+			.segmentsCount = 8,
+			.minScale = kScaleSmallMin / kScaleSmallMax,
+			.minRadius = st::groupCallRowBlobMinRadius
+				* kRowBlobRadiusFactor,
+			.maxRadius = st::groupCallRowBlobMaxRadius
+				* kRowBlobRadiusFactor,
+			.speedScale = 1.,
+			.alpha = (76. / 255.),
+		},
+	} };
+}
 
 class Row final : public PeerListRow {
 public:
@@ -50,9 +76,13 @@ public:
 	};
 
 	void updateState(const Data::GroupCall::Participant *participant);
-	//UpdateLevelResult updateLevel(float level);
+	void updateLevel(float level);
+	void updateBlobAnimation(crl::time now);
 	[[nodiscard]] State state() const {
 		return _state;
+	}
+	[[nodiscard]] uint32 ssrc() const {
+		return _ssrc;
 	}
 	[[nodiscard]] bool speaking() const {
 		return _speaking;
@@ -85,9 +115,12 @@ public:
 		bool selected,
 		bool actionSelected) override;
 
+	auto generatePaintUserpicCallback() -> PaintRoundImageCallback override;
+
 private:
 	void refreshStatus() override;
 	void setSpeaking(bool speaking);
+	void setSsrc(uint32 ssrc);
 
 	[[nodiscard]] static State ComputeState(
 		not_null<ChannelData*> channel,
@@ -98,10 +131,12 @@ private:
 	State _state = State::Inactive;
 	not_null<ChannelData*> _channel;
 	not_null<const style::IconButton*> _st;
-	bool _speaking = false;
-	//float _level = 0.;
-
 	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
+	std::unique_ptr<Ui::Paint::Blobs> _blobs;
+	crl::time _blobsLastTime = 0;
+	uint32 _ssrc = 0;
+	float _level = 0.;
+	bool _speaking = false;
 
 };
 
@@ -132,9 +167,9 @@ public:
 		-> rpl::producer<not_null<UserData*>>;
 
 private:
-	[[nodiscard]] std::unique_ptr<PeerListRow> createSelfRow() const;
-	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
-		const Data::GroupCall::Participant &participant) const;
+	[[nodiscard]] std::unique_ptr<Row> createSelfRow();
+	[[nodiscard]] std::unique_ptr<Row> createRow(
+		const Data::GroupCall::Participant &participant);
 
 	void prepareRows(not_null<Data::GroupCall*> real);
 	//void repaintByTimer();
@@ -146,9 +181,10 @@ private:
 		const Data::GroupCall::Participant &now);
 	void updateRow(
 		not_null<Row*> row,
-		const Data::GroupCall::Participant *participant) const;
+		const Data::GroupCall::Participant *participant);
+	void removeRow(not_null<Row*> row);
+	void updateRowLevel(not_null<Row*> row, float level);
 	void checkSpeakingRowPosition(not_null<Row*> row);
-	//void updateRowLevel(not_null<UserData*> user, float level);
 	Row *findRow(not_null<UserData*> user) const;
 
 	[[nodiscard]] Data::GroupCall *resolvedRealCall() const;
@@ -167,8 +203,8 @@ private:
 	not_null<QWidget*> _menuParent;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
-	//base::flat_map<not_null<UserData*>, crl::time> _repaintByTimer;
-	//base::Timer _repaintTimer;
+	base::flat_map<uint32, not_null<Row*>> _speakingRowBySsrc;
+	Ui::Animations::Basic _speakingAnimation;
 
 	rpl::lifetime _lifetime;
 
@@ -183,6 +219,7 @@ Row::Row(not_null<ChannelData*> channel, not_null<UserData*> user)
 }
 
 void Row::updateState(const Data::GroupCall::Participant *participant) {
+	setSsrc(participant ? participant->ssrc : 0);
 	if (!participant) {
 		if (peer()->isSelf()) {
 			setCustomStatus(tr::lng_group_call_connecting(tr::now));
@@ -193,7 +230,7 @@ void Row::updateState(const Data::GroupCall::Participant *participant) {
 		setSpeaking(false);
 	} else if (!participant->muted) {
 		_state = State::Active;
-		setSpeaking(participant->speaking);
+		setSpeaking(participant->speaking && participant->ssrc != 0);
 	} else if (participant->canSelfUnmute) {
 		_state = State::Inactive;
 		setSpeaking(false);
@@ -209,42 +246,49 @@ void Row::setSpeaking(bool speaking) {
 		return;
 	}
 	_speaking = speaking;
+	if (!_speaking) {
+		_blobs = nullptr;
+	}
 	refreshStatus();
-	//if (!_speaking) {
-	//	updateLevel(0.);
-	//}
 }
 
-//UpdateLevelResult Row::updateLevel(float level) {
-//	if (_level == level) {
-//		return UpdateLevelResult{ .nextUpdateTime = _markInactiveAt };
-//	}
-//	const auto now = crl::now();
-//	const auto stillActive = (now < _markInactiveAt);
-//	const auto wasActive = (_level >= kLevelThreshold) && stillActive;
-//	const auto nowActive = (level >= kLevelThreshold);
-//	if (nowActive) {
-//		_markInactiveAt = now + kLevelActiveTimeout;
-//		if (_state != State::Active) {
-//			_state = State::Active;
-//			_st = ComputeIconStyle(_state);
-//		}
-//	}
-//	_level = level;
-//	const auto changed = wasActive != (nowActive || stillActive);
-//	if (!changed) {
-//		return UpdateLevelResult{
-//			.levelChanged = true,
-//			.nextUpdateTime = _markInactiveAt,
-//		};
-//	}
-//	refreshStatus(now);
-//	return UpdateLevelResult{
-//		.levelChanged = true,
-//		.stateChanged = true,
-//		.nextUpdateTime = _markInactiveAt,
-//	};
-//}
+void Row::setSsrc(uint32 ssrc) {
+	_ssrc = ssrc;
+}
+
+void Row::updateLevel(float level) {
+	Expects(_speaking);
+
+	if (!_blobs) {
+		_blobs = std::make_unique<Ui::Paint::Blobs>(
+			RowBlobs() | ranges::to_vector,
+			kLevelDuration,
+			kMaxLevel);
+		_blobsLastTime = crl::now();
+	}
+	_blobs->setLevel(level + 0.5);
+}
+
+void Row::updateBlobAnimation(crl::time now) {
+	if (_blobs) {
+		_blobs->updateLevel(now - _blobsLastTime);
+		_blobsLastTime = now;
+	}
+}
+
+auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
+	auto userpic = ensureUserpicView();
+	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
+		if (_blobs) {
+			const auto shift = QPointF(x + size / 2., y + size / 2.);
+			p.translate(shift);
+			_blobs->paint(p, st::groupCallLive1);
+			p.translate(-shift);
+			p.setOpacity(1.);
+		}
+		peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
+	};
+}
 
 void Row::paintAction(
 		Painter &p,
@@ -333,8 +377,15 @@ MembersController::MembersController(
 : _call(call)
 , _channel(call->channel())
 , _menuParent(menuParent) {
-//, _repaintTimer([=] { repaintByTimer(); }) {
 	setupListChangeViewers(call);
+
+	_speakingAnimation.init([=](crl::time now) {
+		for (const auto [ssrc, row] : _speakingRowBySsrc) {
+			row->updateBlobAnimation(now);
+			delegate()->peerListUpdateRow(row);
+		}
+		return true;
+	});
 }
 
 void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
@@ -362,21 +413,13 @@ void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
 		}
 	}, _lifetime);
 
-	//call->levelUpdates(
-	//) | rpl::start_with_next([=](const LevelUpdate &update) {
-	//	const auto findUserBySource = [&](uint32 source) -> UserData* {
-	//		if (const auto real = resolvedRealCall()) {
-	//			return real->userBySource(source);
-	//		}
-	//		return nullptr;
-	//	};
-	//	const auto user = update.self
-	//		? _channel->session().user().get()
-	//		: findUserBySource(update.source);
-	//	if (user) {
-	//		updateRowLevel(user, update.value);
-	//	}
-	//}, _lifetime);
+	call->levelUpdates(
+	) | rpl::start_with_next([=](const LevelUpdate &update) {
+		const auto i = _speakingRowBySsrc.find(update.ssrc);
+		if (i != end(_speakingRowBySsrc)) {
+			updateRowLevel(i->second, update.value);
+		}
+	}, _lifetime);
 }
 
 void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
@@ -402,10 +445,9 @@ void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
 		if (!update.now) {
 			if (const auto row = findRow(user)) {
 				if (user->isSelf()) {
-					row->updateState(nullptr);
-					delegate()->peerListUpdateRow(row);
+					updateRow(row, nullptr);
 				} else {
-					delegate()->peerListRemoveRow(row);
+					removeRow(row);
 					delegate()->peerListRefreshRows();
 				}
 			}
@@ -424,7 +466,7 @@ void MembersController::updateRow(
 		}
 		updateRow(row, &now);
 	} else if (auto row = createRow(now)) {
-		if (now.speaking) {
+		if (row->speaking()) {
 			delegate()->peerListPrependRow(std::move(row));
 		} else {
 			delegate()->peerListAppendRow(std::move(row));
@@ -466,49 +508,49 @@ void MembersController::checkSpeakingRowPosition(not_null<Row*> row) {
 
 void MembersController::updateRow(
 		not_null<Row*> row,
-		const Data::GroupCall::Participant *participant) const {
+		const Data::GroupCall::Participant *participant) {
+	const auto wasSpeaking = row->speaking();
+	const auto wasSsrc = row->ssrc();
 	row->updateState(participant);
+	const auto nowSpeaking = row->speaking();
+	const auto nowSsrc = row->ssrc();
+
+	const auto wasNoSpeaking = _speakingRowBySsrc.empty();
+	if (wasSsrc == nowSsrc) {
+		if (nowSpeaking != wasSpeaking) {
+			if (nowSpeaking) {
+				_speakingRowBySsrc.emplace(nowSsrc, row);
+			} else {
+				_speakingRowBySsrc.remove(nowSsrc);
+			}
+		}
+	} else {
+		_speakingRowBySsrc.remove(wasSsrc);
+		if (nowSpeaking) {
+			Assert(nowSsrc != 0);
+			_speakingRowBySsrc.emplace(nowSsrc, row);
+		}
+	}
+	const auto nowNoSpeaking = _speakingRowBySsrc.empty();
+	if (wasNoSpeaking && !nowNoSpeaking) {
+		_speakingAnimation.start();
+	} else if (nowNoSpeaking && !wasNoSpeaking) {
+		_speakingAnimation.stop();
+	}
+
 	delegate()->peerListUpdateRow(row);
 }
 
-//void MembersController::updateRowLevel(
-//		not_null<UserData*> user,
-//		float level) {
-//	if (const auto row = findRow(user)) {
-//		const auto result = row->updateLevel(level);
-//		if (result.stateChanged) {
-//			delegate()->peerListUpdateRow(row);
-//		}
-//		if (result.nextUpdateTime) {
-//			_repaintByTimer[user] = result.nextUpdateTime;
-//			if (!_repaintTimer.isActive()) {
-//				_repaintTimer.callOnce(kLevelActiveTimeout);
-//			}
-//		} else if (_repaintByTimer.remove(user) && _repaintByTimer.empty()) {
-//			_repaintTimer.cancel();
-//		}
-//	}
-//}
+void MembersController::removeRow(not_null<Row*> row) {
+	_speakingRowBySsrc.remove(row->ssrc());
+	delegate()->peerListRemoveRow(row);
+}
 
-//void MembersController::repaintByTimer() {
-//	const auto now = crl::now();
-//	auto next = crl::time(0);
-//	for (auto i = begin(_repaintByTimer); i != end(_repaintByTimer);) {
-//		if (i->second > now) {
-//			if (!next || next > i->second) {
-//				next = i->second;
-//			}
-//		} else if (const auto row = findRow(i->first)) {
-//			delegate()->peerListUpdateRow(row);
-//			i = _repaintByTimer.erase(i);
-//			continue;
-//		}
-//		++i;
-//	}
-//	if (next) {
-//		_repaintTimer.callOnce(next - now);
-//	}
-//}
+void MembersController::updateRowLevel(
+		not_null<Row*> row,
+		float level) {
+	row->updateLevel(level);
+}
 
 Row *MembersController::findRow(not_null<UserData*> user) const {
 	return static_cast<Row*>(delegate()->peerListFindRow(user->id));
@@ -564,7 +606,7 @@ void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
 			++i;
 		} else {
 			changed = true;
-			delegate()->peerListRemoveRow(row);
+			removeRow(static_cast<Row*>(row.get()));
 			--count;
 		}
 	}
@@ -708,15 +750,15 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 	return result;
 }
 
-std::unique_ptr<PeerListRow> MembersController::createSelfRow() const {
+std::unique_ptr<Row> MembersController::createSelfRow() {
 	const auto self = _channel->session().user();
 	auto result = std::make_unique<Row>(_channel, self);
 	updateRow(result.get(), nullptr);
 	return result;
 }
 
-std::unique_ptr<PeerListRow> MembersController::createRow(
-		const Data::GroupCall::Participant &participant) const {
+std::unique_ptr<Row> MembersController::createRow(
+		const Data::GroupCall::Participant &participant) {
 	auto result = std::make_unique<Row>(_channel, participant.user);
 	updateRow(result.get(), &participant);
 	return result;

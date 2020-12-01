@@ -28,7 +28,7 @@ enum class MuteState {
 };
 
 struct LevelUpdate {
-	uint32 source = 0;
+	uint32 ssrc = 0;
 	float value = 0.;
 	bool self = false;
 };
