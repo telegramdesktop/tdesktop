@@ -767,7 +767,7 @@ bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 		if (result.error == Ui::PreparedList::Error::None) {
 			return result;
 		} else if (data->hasImage()) {
-			auto image = Platform::GetImageFromClipboard();
+			auto image = Platform::GetClipboardImage();
 			if (image.isNull()) {
 				image = qvariant_cast<QImage>(data->imageData());
 			}
