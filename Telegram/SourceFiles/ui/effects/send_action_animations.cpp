@@ -225,25 +225,47 @@ public:
 	}
 
 	int width() const override {
-		return 4 * (st::dialogsSpeakingStrokeNumerator / st::dialogsSpeakingDenominator);
+		const auto &numerator = st::dialogsSpeakingStrokeNumerator;
+		const auto &denominator = st::dialogsSpeakingDenominator;
+		return 4 * (numerator / denominator);
 	}
 
 	void restartedAt(crl::time now) override;
 	bool finishNow() override;
 
-	static void PaintIdle(Painter &p, style::color color, int x, int y, int outerWidth);
+	static void PaintIdle(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth);
 
-	void paint(Painter &p, style::color color, int x, int y, int outerWidth, crl::time now) override;
+	void paint(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time now) override;
 
 private:
-	static void PaintFrame(Painter &p, style::color color, int x, int y, int outerWidth, int frameMs, float64 started);
+	static void PaintFrame(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		int frameMs,
+		float64 started);
 
 	crl::time _startStarted = 0;
 	crl::time _finishStarted = 0;
 
 };
 
-const SpeakingAnimation::MetaData SpeakingAnimation::kMeta = { 0, &SpeakingAnimation::create };
+const SpeakingAnimation::MetaData SpeakingAnimation::kMeta = {
+	0,
+	&SpeakingAnimation::create };
 
 SpeakingAnimation::SpeakingAnimation()
 : Impl(kSpeakingDuration)
@@ -281,39 +303,41 @@ bool SpeakingAnimation::finishNow() {
 	return false;
 }
 
-void SpeakingAnimation::PaintIdle(Painter &p, style::color color, int x, int y, int outerWidth) {
+void SpeakingAnimation::PaintIdle(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth) {
 	PaintFrame(p, color, x, y, outerWidth, 0, 0.);
-	PainterHighQualityEnabler hq(p);
-
-	const auto line = st::dialogsSpeakingStrokeNumerator / (2 * st::dialogsSpeakingDenominator);
-
-	p.setPen(Qt::NoPen);
-	p.setBrush(color);
-
-	const auto half = st::dialogsCallBadgeSize / 2.;
-	const auto center = QPointF(x + half, y + half);
-	auto middleSize = line;
-	auto sideSize = line;
-
-	auto left = center.x() - 4 * line;
-	p.drawRoundedRect(left, center.y() - line * 2, 2 * line, 4 * line, line, line);
-	left += 3 * line;
-	p.drawRoundedRect(left, center.y() - line * 2, 2 * line, 4 * line, line, line);
-	left += 3 * line;
-	p.drawRoundedRect(left, center.y() - line * 2, 2 * line, 4 * line, line, line);
 }
 
-void SpeakingAnimation::paint(Painter &p, style::color color, int x, int y, int outerWidth, crl::time now) {
+void SpeakingAnimation::paint(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		crl::time now) {
 	const auto started = _finishStarted
 		? (1. - ((now - _finishStarted) / float64(kSpeakingFadeDuration)))
 		: (now - _startStarted) / float64(kSpeakingFadeDuration);
-	PaintFrame(p, color, x, y, outerWidth, frameTime(now), std::clamp(started, 0., 1.));
+	const auto progress = std::clamp(started, 0., 1.);
+	PaintFrame(p, color, x, y, outerWidth, frameTime(now), progress);
 }
 
-void SpeakingAnimation::PaintFrame(Painter &p, style::color color, int x, int y, int outerWidth, int frameMs, float64 started) {
+void SpeakingAnimation::PaintFrame(
+		Painter &p,
+		style::color color,
+		int x,
+		int y,
+		int outerWidth,
+		int frameMs,
+		float64 started) {
 	PainterHighQualityEnabler hq(p);
 
-	const auto line = st::dialogsSpeakingStrokeNumerator / (2 * st::dialogsSpeakingDenominator);
+	const auto line = st::dialogsSpeakingStrokeNumerator
+		/ (2 * st::dialogsSpeakingDenominator);
 
 	p.setPen(Qt::NoPen);
 	p.setBrush(color);
@@ -322,7 +346,8 @@ void SpeakingAnimation::PaintFrame(Painter &p, style::color color, int x, int y,
 	const auto stageDuration = duration / 8;
 	const auto fullprogress = frameMs;
 	const auto stage = fullprogress / stageDuration;
-	const auto progress = (fullprogress - stage * stageDuration) / float64(stageDuration);
+	const auto progress = (fullprogress - stage * stageDuration)
+		/ float64(stageDuration);
 	const auto half = st::dialogsCallBadgeSize / 2.;
 	const auto center = QPointF(x + half, y + half);
 	const auto middleSize = [&] {
@@ -364,12 +389,24 @@ void SpeakingAnimation::PaintFrame(Painter &p, style::color color, int x, int y,
 			: (started * result) + ((1. - started) * 2 * line);
 	}();
 
+	const auto drawRoundedRect = [&](float left, float size) {
+		const auto top = center.y() - size;
+		const auto w = 2 * line;
+		const auto h = 2 * size;
+
+		if (left == (int)left) {
+			p.drawRoundedRect(left, top, w, h, line, line);
+		} else {
+			p.drawRoundedRect(QRectF(left, top, w, h), line, line);
+		}
+	};
+
 	auto left = center.x() - 4 * line;
-	p.drawRoundedRect(left, center.y() - sideSize, 2 * line, 2 * sideSize, line, line);
+	drawRoundedRect(left, sideSize);
 	left += 3 * line;
-	p.drawRoundedRect(left, center.y() - middleSize, 2 * line, 2 * middleSize, line, line);
+	drawRoundedRect(left, middleSize);
 	left += 3 * line;
-	p.drawRoundedRect(left, center.y() - sideSize, 2 * line, 2 * sideSize, line, line);
+	drawRoundedRect(left, sideSize);
 }
 
 void CreateImplementationsMap() {
