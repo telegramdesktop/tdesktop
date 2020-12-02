@@ -88,6 +88,9 @@ extern f_gtk_clipboard_get gtk_clipboard_get;
 typedef void (*f_gtk_clipboard_store)(::GtkClipboard *clipboard);
 extern f_gtk_clipboard_store gtk_clipboard_store;
 
+typedef void (*f_gtk_clipboard_set_image)(::GtkClipboard *clipboard, GdkPixbuf *pixbuf);
+extern f_gtk_clipboard_set_image gtk_clipboard_set_image;
+
 typedef GtkSelectionData* (*f_gtk_clipboard_wait_for_contents)(::GtkClipboard *clipboard, GdkAtom target);
 extern f_gtk_clipboard_wait_for_contents gtk_clipboard_wait_for_contents;
 
@@ -267,6 +270,9 @@ extern f_gtk_dialog_run gtk_dialog_run;
 
 typedef GdkAtom (*f_gdk_atom_intern)(const gchar *atom_name, gboolean only_if_exists);
 extern f_gdk_atom_intern gdk_atom_intern;
+
+typedef GdkPixbuf* (*f_gdk_pixbuf_new_from_data)(const guchar *data, GdkColorspace colorspace, gboolean has_alpha, int bits_per_sample, int width, int height, int rowstride, GdkPixbufDestroyNotify destroy_fn, gpointer destroy_fn_data);
+extern f_gdk_pixbuf_new_from_data gdk_pixbuf_new_from_data;
 
 typedef GdkPixbuf* (*f_gdk_pixbuf_new_from_file_at_size)(const gchar *filename, int width, int height, GError **error);
 extern f_gdk_pixbuf_new_from_file_at_size gdk_pixbuf_new_from_file_at_size;

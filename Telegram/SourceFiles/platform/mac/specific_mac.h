@@ -18,8 +18,12 @@ namespace Platform {
 
 [[nodiscard]] bool IsDarkMenuBar();
 
-inline QImage GetImageFromClipboard() {
+inline QImage GetClipboardImage() {
 	return {};
+}
+
+inline bool SetClipboardImage(const QImage &image) {
+	return false;
 }
 
 inline bool StartSystemMove(QWindow *window) {
