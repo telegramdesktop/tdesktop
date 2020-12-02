@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/text/text_utilities.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/cross_line.h"
 #include "core/application.h" // Core::App().domain, Core::App().activeWindow.
 #include "main/main_domain.h" // Core::App().domain().activate.
 #include "main/main_session.h"
@@ -61,9 +62,23 @@ auto RowBlobs() -> std::array<Ui::Paint::Blobs::BlobData, 2> {
 	} };
 }
 
+class Row;
+
+class RowDelegate {
+public:
+	virtual bool rowCanMuteMembers() = 0;
+	virtual void rowUpdateRow(not_null<Row*> row) = 0;
+	virtual void rowPaintIcon(
+		Painter &p,
+		QRect rect,
+		float64 speaking,
+		float64 active,
+		float64 muted) = 0;
+};
+
 class Row final : public PeerListRow {
 public:
-	Row(not_null<ChannelData*> channel, not_null<UserData*> user);
+	Row(not_null<RowDelegate*> delegate, not_null<UserData*> user);
 
 	enum class State {
 		Active,
@@ -91,10 +106,12 @@ public:
 		return 0;
 	}
 	QSize actionSize() const override {
-		return QSize(_st->width, _st->height);
+		return QSize(
+			st::groupCallActiveButton.width,
+			st::groupCallActiveButton.height);
 	}
 	bool actionDisabled() const override {
-		return peer()->isSelf() || !_channel->canManageCall();
+		return peer()->isSelf() || !_delegate->rowCanMuteMembers();
 	}
 	QMargins actionMargins() const override {
 		return QMargins(
@@ -114,8 +131,8 @@ public:
 	auto generatePaintUserpicCallback() -> PaintRoundImageCallback override;
 
 private:
-	struct SpeakingAnimation {
-		SpeakingAnimation(
+	struct BlobsAnimation {
+		BlobsAnimation(
 			std::vector<Ui::Paint::Blobs::BlobData> blobDatas,
 			float levelDuration,
 			float maxLevel)
@@ -138,23 +155,20 @@ private:
 	};
 	void refreshStatus() override;
 	void setSpeaking(bool speaking);
+	void setState(State state);
 	void setSsrc(uint32 ssrc);
-
-	[[nodiscard]] static State ComputeState(
-		not_null<ChannelData*> channel,
-		not_null<UserData*> user);
-	[[nodiscard]] static not_null<const style::IconButton*> ComputeIconStyle(
-		State state);
 
 	void ensureUserpicCache(
 		std::shared_ptr<Data::CloudImageView> &view,
 		int size);
 
+	const not_null<RowDelegate*> _delegate;
 	State _state = State::Inactive;
-	not_null<ChannelData*> _channel;
-	not_null<const style::IconButton*> _st;
 	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
-	std::unique_ptr<SpeakingAnimation> _speakingAnimation;
+	std::unique_ptr<BlobsAnimation> _blobsAnimation;
+	Ui::Animations::Simple _speakingAnimation; // For gray-red/green icon.
+	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
+	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
 	uint32 _ssrc = 0;
 	bool _speaking = false;
 
@@ -162,6 +176,7 @@ private:
 
 class MembersController final
 	: public PeerListController
+	, public RowDelegate
 	, public base::has_weak_ptr {
 public:
 	MembersController(
@@ -185,6 +200,15 @@ public:
 	[[nodiscard]] rpl::producer<MuteRequest> toggleMuteRequests() const;
 	[[nodiscard]] auto kickMemberRequests() const
 		-> rpl::producer<not_null<UserData*>>;
+
+	bool rowCanMuteMembers() override;
+	void rowUpdateRow(not_null<Row*> row) override;
+	void rowPaintIcon(
+		Painter &p,
+		QRect rect,
+		float64 speaking,
+		float64 active,
+		float64 muted) override;
 
 private:
 	[[nodiscard]] std::unique_ptr<Row> createSelfRow();
@@ -226,15 +250,16 @@ private:
 	base::flat_map<uint32, not_null<Row*>> _speakingRowBySsrc;
 	Ui::Animations::Basic _speakingAnimation;
 
+	Ui::CrossLineAnimation _inactiveCrossLine;
+	Ui::CrossLineAnimation _coloredCrossLine;
+
 	rpl::lifetime _lifetime;
 
 };
 
-Row::Row(not_null<ChannelData*> channel, not_null<UserData*> user)
+Row::Row(not_null<RowDelegate*> delegate, not_null<UserData*> user)
 : PeerListRow(user)
-, _state(ComputeState(channel, user))
-, _channel(channel)
-, _st(ComputeIconStyle(_state)) {
+, _delegate(delegate) {
 	refreshStatus();
 }
 
@@ -246,19 +271,18 @@ void Row::updateState(const Data::GroupCall::Participant *participant) {
 		} else {
 			setCustomStatus(QString());
 		}
-		_state = State::Inactive;
+		setState(State::Inactive);
 		setSpeaking(false);
 	} else if (!participant->muted) {
-		_state = State::Active;
+		setState(State::Active);
 		setSpeaking(participant->speaking && participant->ssrc != 0);
 	} else if (participant->canSelfUnmute) {
-		_state = State::Inactive;
+		setState(State::Inactive);
 		setSpeaking(false);
 	} else {
-		_state = State::Muted;
+		setState(State::Muted);
 		setSpeaking(false);
 	}
-	_st = ComputeIconStyle(_state);
 }
 
 void Row::setSpeaking(bool speaking) {
@@ -266,17 +290,47 @@ void Row::setSpeaking(bool speaking) {
 		return;
 	}
 	_speaking = speaking;
+	_speakingAnimation.start(
+		[=] { _delegate->rowUpdateRow(this); },
+		_speaking ? 0. : 1.,
+		_speaking ? 1. : 0.,
+		st::widgetFadeDuration);
 	if (!_speaking) {
-		_speakingAnimation = nullptr;
-	} else if (!_speakingAnimation) {
-		_speakingAnimation = std::make_unique<SpeakingAnimation>(
+		_blobsAnimation = nullptr;
+	} else if (!_blobsAnimation) {
+		_blobsAnimation = std::make_unique<BlobsAnimation>(
 			RowBlobs() | ranges::to_vector,
 			kLevelDuration,
 			kMaxLevel);
-		_speakingAnimation->lastTime = crl::now();
+		_blobsAnimation->lastTime = crl::now();
 		updateLevel(GroupCall::kSpeakLevelThreshold);
 	}
 	refreshStatus();
+}
+
+void Row::setState(State state) {
+	if (_state == state) {
+		return;
+	}
+	const auto wasActive = (_state == State::Active);
+	const auto wasMuted = (_state == State::Muted);
+	_state = state;
+	const auto nowActive = (_state == State::Active);
+	const auto nowMuted = (_state == State::Muted);
+	if (nowActive != wasActive) {
+		_activeAnimation.start(
+			[=] { _delegate->rowUpdateRow(this); },
+			nowActive ? 0. : 1.,
+			nowActive ? 1. : 0.,
+			st::widgetFadeDuration);
+	}
+	if (nowMuted != wasMuted) {
+		_mutedAnimation.start(
+			[=] { _delegate->rowUpdateRow(this); },
+			nowMuted ? 0. : 1.,
+			nowMuted ? 1. : 0.,
+			st::widgetFadeDuration);
+	}
 }
 
 void Row::setSsrc(uint32 ssrc) {
@@ -284,56 +338,56 @@ void Row::setSsrc(uint32 ssrc) {
 }
 
 void Row::updateLevel(float level) {
-	Expects(_speakingAnimation != nullptr);
+	Expects(_blobsAnimation != nullptr);
 
 	if (level >= GroupCall::kSpeakLevelThreshold) {
-		_speakingAnimation->lastSpeakingUpdateTime = crl::now();
+		_blobsAnimation->lastSpeakingUpdateTime = crl::now();
 	}
-	_speakingAnimation->blobs.setLevel(level);
+	_blobsAnimation->blobs.setLevel(level);
 }
 
 void Row::updateBlobAnimation(crl::time now) {
-	Expects(_speakingAnimation != nullptr);
+	Expects(_blobsAnimation != nullptr);
 
-	const auto speakingFinishesAt = _speakingAnimation->lastSpeakingUpdateTime
+	const auto speakingFinishesAt = _blobsAnimation->lastSpeakingUpdateTime
 		+ Data::GroupCall::kSpeakStatusKeptFor;
 	const auto speakingStartsFinishing = speakingFinishesAt
 		- kBlobsEnterDuration;
 	const auto speakingFinishes = (speakingStartsFinishing < now);
 	if (speakingFinishes) {
-		_speakingAnimation->enter = std::clamp(
+		_blobsAnimation->enter = std::clamp(
 			(speakingFinishesAt - now) / float64(kBlobsEnterDuration),
 			0.,
 			1.);
-	} else if (_speakingAnimation->enter < 1.) {
-		_speakingAnimation->enter = std::clamp(
-			(_speakingAnimation->enter
-				+ ((now - _speakingAnimation->lastTime)
+	} else if (_blobsAnimation->enter < 1.) {
+		_blobsAnimation->enter = std::clamp(
+			(_blobsAnimation->enter
+				+ ((now - _blobsAnimation->lastTime)
 					/ float64(kBlobsEnterDuration))),
 			0.,
 			1.);
 	}
-	_speakingAnimation->blobs.updateLevel(now - _speakingAnimation->lastTime);
-	_speakingAnimation->lastTime = now;
+	_blobsAnimation->blobs.updateLevel(now - _blobsAnimation->lastTime);
+	_blobsAnimation->lastTime = now;
 }
 
 void Row::ensureUserpicCache(
 		std::shared_ptr<Data::CloudImageView> &view,
 		int size) {
-	Expects(_speakingAnimation != nullptr);
+	Expects(_blobsAnimation != nullptr);
 
 	const auto user = peer();
 	const auto key = user->userpicUniqueKey(view);
 	const auto full = QSize(size, size) * kWideScale * cIntRetinaFactor();
-	auto &cache = _speakingAnimation->userpicCache;
+	auto &cache = _blobsAnimation->userpicCache;
 	if (cache.isNull()) {
 		cache = QImage(full, QImage::Format_ARGB32_Premultiplied);
 		cache.setDevicePixelRatio(cRetinaFactor());
-	} else if (_speakingAnimation->userpicKey == key
+	} else if (_blobsAnimation->userpicKey == key
 		&& cache.size() == full) {
 		return;
 	}
-	_speakingAnimation->userpicKey = key;
+	_blobsAnimation->userpicKey = key;
 	cache.fill(Qt::transparent);
 	{
 		Painter p(&cache);
@@ -345,17 +399,17 @@ void Row::ensureUserpicCache(
 auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	auto userpic = ensureUserpicView();
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
-		if (_speakingAnimation) {
+		if (_blobsAnimation) {
 			const auto shift = QPointF(x + size / 2., y + size / 2.);
 			p.translate(shift);
-			_speakingAnimation->blobs.paint(p, st::groupCallMemberActiveStatus);
+			_blobsAnimation->blobs.paint(p, st::groupCallMemberActiveStatus);
 			p.translate(-shift);
 			p.setOpacity(1.);
 
-			const auto enter = _speakingAnimation->enter;
+			const auto enter = _blobsAnimation->enter;
 			const auto &minScale = kUserpicMinScale;
 			const auto scaleUserpic = minScale
-				+ (1. - minScale) * _speakingAnimation->blobs.currentLevel();
+				+ (1. - minScale) * _blobsAnimation->blobs.currentLevel();
 			const auto scale = scaleUserpic * enter + 1. * (1. - enter);
 			if (scale == 1.) {
 				peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
@@ -376,7 +430,7 @@ auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 				auto margins = QMargins(shrink, shrink, shrink, shrink);
 				p.drawImage(
 					target.marginsAdded(margins),
-					_speakingAnimation->userpicCache);
+					_blobsAnimation->userpicCache);
 			}
 		} else {
 			peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
@@ -395,8 +449,8 @@ void Row::paintAction(
 	if (_actionRipple) {
 		_actionRipple->paint(
 			p,
-			x + _st->rippleAreaPosition.x(),
-			y + _st->rippleAreaPosition.y(),
+			x + st::groupCallActiveButton.rippleAreaPosition.x(),
+			y + st::groupCallActiveButton.rippleAreaPosition.y(),
 			outerWidth);
 		if (_actionRipple->empty()) {
 			_actionRipple.reset();
@@ -408,11 +462,12 @@ void Row::paintAction(
 		size.width(),
 		size.height(),
 		outerWidth);
-	if (_speaking) {
-		_st->icon.paintInCenter(p, iconRect, st::groupCallMemberActiveIcon->c);
-	} else {
-		_st->icon.paintInCenter(p, iconRect);
-	}
+	const auto speaking = _speakingAnimation.value(_speaking ? 1. : 0.);
+	const auto active = _activeAnimation.value(
+		(_state == State::Active) ? 1. : 0.);
+	const auto muted = _mutedAnimation.value(
+		(_state == State::Muted) ? 1. : 0.);
+	_delegate->rowPaintIcon(p, iconRect, speaking, active, muted);
 }
 
 void Row::refreshStatus() {
@@ -423,48 +478,17 @@ void Row::refreshStatus() {
 		_speaking);
 }
 
-Row::State Row::ComputeState(
-		not_null<ChannelData*> channel,
-		not_null<UserData*> user) {
-	const auto call = channel->call();
-	if (!call) {
-		return State::Inactive;
-	}
-	const auto &participants = call->participants();
-	const auto i = ranges::find(
-		participants,
-		user,
-		&Data::GroupCall::Participant::user);
-	if (i == end(participants)) {
-		return State::Inactive;
-	}
-	return !i->muted
-		? State::Active
-		: i->canSelfUnmute
-		? State::Inactive
-		: State::Muted;
-}
-
-not_null<const style::IconButton*> Row::ComputeIconStyle(
-		State state) {
-	switch (state) {
-	case State::Inactive: return &st::groupCallInactiveButton;
-	case State::Active: return &st::groupCallActiveButton;
-	case State::Muted: return &st::groupCallMutedButton;
-	}
-	Unexpected("State in Row::ComputeIconStyle.");
-}
-
 void Row::addActionRipple(QPoint point, Fn<void()> updateCallback) {
 	if (!_actionRipple) {
-		auto mask = Ui::RippleAnimation::ellipseMask(
-			QSize(_st->rippleAreaSize, _st->rippleAreaSize));
+		auto mask = Ui::RippleAnimation::ellipseMask(QSize(
+			st::groupCallActiveButton.rippleAreaSize,
+			st::groupCallActiveButton.rippleAreaSize));
 		_actionRipple = std::make_unique<Ui::RippleAnimation>(
-			_st->ripple,
+			st::groupCallActiveButton.ripple,
 			std::move(mask),
 			std::move(updateCallback));
 	}
-	_actionRipple->add(point - _st->rippleAreaPosition);
+	_actionRipple->add(point - st::groupCallActiveButton.rippleAreaPosition);
 }
 
 void Row::stopLastActionRipple() {
@@ -478,8 +502,16 @@ MembersController::MembersController(
 	not_null<QWidget*> menuParent)
 : _call(call)
 , _channel(call->channel())
-, _menuParent(menuParent) {
+, _menuParent(menuParent)
+, _inactiveCrossLine(st::groupCallMemberInactiveCrossLine)
+, _coloredCrossLine(st::groupCallMemberColoredCrossLine) {
 	setupListChangeViewers(call);
+
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_inactiveCrossLine.invalidate();
+		_coloredCrossLine.invalidate();
+	}, _lifetime);
 
 	_speakingAnimation.init([=](crl::time now) {
 		for (const auto [ssrc, row] : _speakingRowBySsrc) {
@@ -746,6 +778,63 @@ auto MembersController::toggleMuteRequests() const
 	return _toggleMuteRequests.events();
 }
 
+bool MembersController::rowCanMuteMembers() {
+	return _channel->canManageCall();
+}
+
+void MembersController::rowUpdateRow(not_null<Row*> row) {
+	delegate()->peerListUpdateRow(row);
+}
+
+void MembersController::rowPaintIcon(
+		Painter &p,
+		QRect rect,
+		float64 speaking,
+		float64 active,
+		float64 muted) {
+	const auto &greenIcon = st::groupCallMemberColoredCrossLine.icon;
+	const auto left = rect.x() + (rect.width() - greenIcon.width()) / 2;
+	const auto top = rect.y() + (rect.height() - greenIcon.height()) / 2;
+	if (speaking == 1.) {
+		// Just green icon, no cross, no coloring.
+		greenIcon.paintInCenter(p, rect);
+		return;
+	} else if (speaking == 0.) {
+		if (active == 1.) {
+			// Just gray icon, no cross, no coloring.
+			st::groupCallMemberInactiveCrossLine.icon.paintInCenter(p, rect);
+			return;
+		} else if (active == 0.) {
+			if (muted == 1.) {
+				// Red crossed icon, colorized once, cached as last frame.
+				_coloredCrossLine.paint(
+					p,
+					left,
+					top,
+					1.,
+					st::groupCallMemberMutedIcon->c);
+				return;
+			} else if (muted == 0.) {
+				// Gray crossed icon, no coloring, cached as last frame.
+				_inactiveCrossLine.paint(p, left, top, 1.);
+				return;
+			}
+		}
+	}
+	const auto activeInactiveColor = anim::color(
+		st::groupCallMemberInactiveIcon,
+		st::groupCallMemberActiveIcon,
+		speaking);
+	const auto iconColor = anim::color(
+		activeInactiveColor,
+		st::groupCallMemberMutedIcon,
+		muted);
+
+	// Don't use caching of the last frame, because 'muted' may animate color.
+	const auto crossProgress = std::min(1. - active, 0.9999);
+	_inactiveCrossLine.paint(p, left, top, crossProgress, iconColor);
+}
+
 auto MembersController::kickMemberRequests() const
 -> rpl::producer<not_null<UserData*>>{
 	return _kickMemberRequests.events();
@@ -854,14 +943,14 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 
 std::unique_ptr<Row> MembersController::createSelfRow() {
 	const auto self = _channel->session().user();
-	auto result = std::make_unique<Row>(_channel, self);
+	auto result = std::make_unique<Row>(this, self);
 	updateRow(result.get(), nullptr);
 	return result;
 }
 
 std::unique_ptr<Row> MembersController::createRow(
 		const Data::GroupCall::Participant &participant) {
-	auto result = std::make_unique<Row>(_channel, participant.user);
+	auto result = std::make_unique<Row>(this, participant.user);
 	updateRow(result.get(), &participant);
 	return result;
 }

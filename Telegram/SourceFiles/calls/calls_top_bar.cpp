@@ -108,6 +108,11 @@ public:
 	, _crossLineMuteAnimation(st::callTopBarMuteCrossLine) {
 		resize(_st.width, _st.height);
 		installEventFilter(this);
+
+		style::PaletteChanged(
+		) | rpl::start_with_next([=] {
+			_crossLineMuteAnimation.invalidate();
+		}, lifetime());
 	}
 
 	void setProgress(float64 progress) {

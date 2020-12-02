@@ -537,27 +537,31 @@ groupCallHeaderLabel: FlatLabel(defaultFlatLabel) {
 groupCallAddButtonPosition: point(10px, 7px);
 groupCallMembersWidthMax: 360px;
 
-groupCallInactiveButton: IconButton {
+groupCallActiveButton: IconButton {
 	width: 36px;
 	height: 52px;
 
-	icon: icon {{ "calls/group_calls_muted", groupCallMemberInactiveIcon }};
-	iconOver: icon {{ "calls/group_calls_muted", groupCallMemberInactiveIcon }};
+	icon: icon {{ "calls/group_calls_unmuted", groupCallMemberInactiveIcon }};
+	iconOver: icon {{ "calls/group_calls_unmuted", groupCallMemberInactiveIcon }};
 	iconPosition: point(-1px, -1px);
 
 	ripple: groupCallRipple;
 	rippleAreaPosition: point(0px, 8px);
 	rippleAreaSize: 36px;
 }
-groupCallActiveButton: IconButton(groupCallInactiveButton) {
-	icon: icon {{ "calls/group_calls_unmuted", groupCallMemberInactiveIcon }};
-	iconOver: icon {{ "calls/group_calls_unmuted", groupCallMemberInactiveIcon }};
-}
-groupCallMutedButton: IconButton(groupCallInactiveButton) {
-	icon: icon {{ "calls/group_calls_muted", groupCallMemberMutedIcon }};
-	iconOver: icon {{ "calls/group_calls_muted", groupCallMemberMutedIcon }};
-}
 groupCallMemberButtonSkip: 10px;
+
+groupCallMemberInactiveCrossLine: CrossLineAnimation {
+	fg: groupCallMemberInactiveIcon;
+	icon: icon {{ "calls/group_calls_unmuted", groupCallMemberInactiveIcon }};
+	startPosition: point(5px, 2px);
+	endPosition: point(20px, 17px);
+	stroke: 2px;
+}
+groupCallMemberColoredCrossLine: CrossLineAnimation(groupCallMemberInactiveCrossLine) {
+	fg: groupCallMemberMutedIcon;
+	icon: icon {{ "calls/group_calls_unmuted", groupCallMemberActiveIcon }};
+}
 
 groupCallSettings: CallButton(callMicrophoneMute) {
 	button: IconButton(callButton) {
@@ -661,8 +665,8 @@ groupCallBoxLabel: FlatLabel(boxLabel) {
 	textFg: groupCallMembersFg;
 }
 
-groupCallRowBlobMinRadius: 28px;
-groupCallRowBlobMaxRadius: 30px;
+groupCallRowBlobMinRadius: 27px;
+groupCallRowBlobMaxRadius: 29px;
 
 callTopBarMuteCrossLine: CrossLineAnimation {
 	fg: callBarFg;
