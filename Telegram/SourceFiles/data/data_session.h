@@ -400,6 +400,9 @@ public:
 	[[nodiscard]] auto sendActionAnimationUpdated() const
 		-> rpl::producer<SendActionAnimationUpdate>;
 	void updateSendActionAnimation(SendActionAnimationUpdate &&update);
+	[[nodiscard]] auto speakingAnimationUpdated() const
+		-> rpl::producer<not_null<History*>>;
+	void updateSpeakingAnimation(not_null<History*> history);
 
 	using SendActionPainter = HistoryView::SendActionPainter;
 	[[nodiscard]] std::shared_ptr<SendActionPainter> repliesSendActionPainter(
@@ -951,6 +954,7 @@ private:
 	std::unique_ptr<CredentialsWithGeneration> _passportCredentials;
 
 	rpl::event_stream<SendActionAnimationUpdate> _sendActionAnimationUpdate;
+	rpl::event_stream<not_null<History*>> _speakingAnimationUpdate;
 
 	std::vector<WallPaper> _wallpapers;
 	int32 _wallpapersHash = 0;

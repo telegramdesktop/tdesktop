@@ -2181,6 +2181,15 @@ void Session::updateSendActionAnimation(
 	_sendActionAnimationUpdate.fire(std::move(update));
 }
 
+auto Session::speakingAnimationUpdated() const
+-> rpl::producer<not_null<History*>> {
+	return _speakingAnimationUpdate.events();
+}
+
+void Session::updateSpeakingAnimation(not_null<History*> history) {
+	_speakingAnimationUpdate.fire_copy(history);
+}
+
 int Session::unreadBadge() const {
 	return computeUnreadBadge(_chatsList.unreadState());
 }

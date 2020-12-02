@@ -34,11 +34,14 @@ public:
 	BasicRow();
 	~BasicRow();
 
-	void setOnline(bool online, Fn<void()> updateCallback = nullptr) const;
+	void updateCornerBadgeShown(
+		not_null<PeerData*> peer,
+		Fn<void()> updateCallback = nullptr) const;
 	void paintUserpic(
 		Painter &p,
 		not_null<PeerData*> peer,
-		bool allowOnline,
+		History *historyForCornerBadge,
+		crl::time now,
 		bool active,
 		int fullWidth) const;
 
@@ -57,24 +60,27 @@ public:
 	}
 
 private:
-	struct OnlineUserpic {
+	struct CornerBadgeUserpic {
 		InMemoryKey key;
-		float64 online = 0.;
+		float64 shown = 0.;
 		bool active = false;
 		QImage frame;
 		Ui::Animations::Simple animation;
 	};
 
-	void ensureOnlineUserpic() const;
-	static void PaintOnlineFrame(
-		not_null<OnlineUserpic*> data,
+	void setCornerBadgeShown(
+		bool shown,
+		Fn<void()> updateCallback) const;
+	void ensureCornerBadgeUserpic() const;
+	static void PaintCornerBadgeFrame(
+		not_null<CornerBadgeUserpic*> data,
 		not_null<PeerData*> peer,
 		std::shared_ptr<Data::CloudImageView> &view);
 
 	mutable std::shared_ptr<Data::CloudImageView> _userpic;
 	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
-	mutable std::unique_ptr<OnlineUserpic> _onlineUserpic;
-	mutable bool _online = false;
+	mutable std::unique_ptr<CornerBadgeUserpic> _cornerBadgeUserpic;
+	mutable bool _cornerBadgeShown = false;
 
 };
 

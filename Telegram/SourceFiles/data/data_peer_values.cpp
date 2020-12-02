@@ -438,11 +438,12 @@ bool OnlineTextActive(not_null<UserData*> user, TimeId now) {
 	return OnlineTextActive(user->onlineTill, now);
 }
 
-bool IsPeerAnOnlineUser(not_null<PeerData*> peer) {
-	if (const auto user = peer->asUser()) {
-		return OnlineTextActive(user, base::unixtime::now());
-	}
-	return false;
+bool IsUserOnline(not_null<UserData*> user) {
+	return OnlineTextActive(user, base::unixtime::now());
+}
+
+bool ChannelHasActiveCall(not_null<ChannelData*> channel) {
+	return (channel->flags() & MTPDchannel::Flag::f_call_active);
 }
 
 } // namespace Data
