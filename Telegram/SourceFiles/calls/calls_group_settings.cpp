@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/toast/toast.h"
 #include "lang/lang_keys.h"
+#include "base/event_filter.h"
 #include "base/platform/base_platform_global_shortcuts.h"
 #include "data/data_channel.h"
 #include "data/data_group_call.h"
@@ -243,6 +244,17 @@ void GroupCallSettingsBox(
 		) | rpl::start_with_next([=] {
 			call->applyGlobalShortcutChanges();
 		}, box->lifetime());
+
+		auto boxKeyFilter = [=](not_null<QEvent*> e) {
+			if (e->type() != QEvent::KeyPress) {
+				return base::EventFilterResult::Continue;
+			}
+			return (state->recording)
+				? base::EventFilterResult::Cancel
+				: base::EventFilterResult::Continue;
+		};
+		box->lifetime().make_state<base::unique_qptr<QObject>>(
+			base::install_event_filter(box, std::move(boxKeyFilter)));
 	}
 
 	AddSkip(layout);
