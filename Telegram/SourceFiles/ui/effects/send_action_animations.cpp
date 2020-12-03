@@ -391,14 +391,7 @@ void SpeakingAnimation::PaintFrame(
 
 	const auto drawRoundedRect = [&](float left, float size) {
 		const auto top = center.y() - size;
-		const auto w = 2 * line;
-		const auto h = 2 * size;
-
-		if (left == (int)left) {
-			p.drawRoundedRect(left, top, w, h, line, line);
-		} else {
-			p.drawRoundedRect(QRectF(left, top, w, h), line, line);
-		}
+		p.drawRoundedRect(QRectF(left, top, 2 * line, 2 * size), line, line);
 	};
 
 	auto left = center.x() - 4 * line;
