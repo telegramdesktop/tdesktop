@@ -516,14 +516,19 @@ MembersController::MembersController(
 		_coloredCrossLine.invalidate();
 	}, _lifetime);
 
-	Core::App().appDeactivates(
-	) | rpl::start_with_next([=](bool hide) {
-		_speakingAnimationHideLastTime = hide ? crl::now() : 0;
+	rpl::combine(
+		rpl::single(anim::Disabled()) | rpl::then(anim::Disables()),
+		rpl::single(false) | rpl::then(Core::App().appDeactivates())
+	) | rpl::start_with_next([=](bool animDisabled, bool deactivated) {
+		const auto hide = !(!animDisabled && !deactivated);
+
+		if (!(hide && _speakingAnimationHideLastTime)) {
+			_speakingAnimationHideLastTime = hide ? crl::now() : 0;
+		}
 		for (const auto [_, row] : _speakingRowBySsrc) {
 			if (hide) {
-				row->updateLevel(0.);
+				updateRowLevel(row, 0.);
 			}
-			updateRowLevel(row, 0.);
 			if (!hide && !_speakingAnimation.animating()) {
 				_speakingAnimation.start();
 			}
