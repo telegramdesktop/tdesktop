@@ -1836,6 +1836,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_new_muted" = "Mute new members";
 "lng_group_call_speakers" = "Speakers";
 "lng_group_call_microphone" = "Microphone";
+"lng_group_call_push_to_talk" = "Push to Talk";
+"lng_group_call_ptt_shortcut" = "Edit Shortcut";
+"lng_group_call_ptt_recording" = "Stop Recording";
 "lng_group_call_share" = "Share Invite Link";
 "lng_group_call_end" = "End Voice Chat";
 "lng_group_call_join" = "Join";

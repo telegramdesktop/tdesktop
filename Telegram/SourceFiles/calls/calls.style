@@ -641,20 +641,22 @@ groupCallCheckbox: Checkbox(defaultBoxCheckbox) {
 	rippleBgActive: groupCallMembersBgRipple;
 }
 
-groupCallSettingsButton: SettingsButton {
+groupCallSettingsToggle: Toggle(defaultToggle) {
+	toggledBg: groupCallMembersBg;
+	toggledFg: groupCallActiveFg;
+	untoggledBg: groupCallMembersBg;
+	untoggledFg: groupCallMemberNotJoinedStatus;
+}
+groupCallSettingsButton: SettingsButton(defaultSettingsButton) {
 	textFg: groupCallMembersFg;
 	textFgOver: groupCallMembersFg;
 	textBg: groupCallMembersBg;
 	textBgOver: groupCallMembersBgOver;
-
-	font: boxTextFont;
 	rightLabel: FlatLabel(defaultSettingsRightLabel) {
 		textFg: groupCallActiveFg;
 	}
-
-	height: 20px;
-	padding: margins(22px, 10px, 22px, 8px);
-
+	toggle: groupCallSettingsToggle;
+	toggleOver: groupCallSettingsToggle;
 	ripple: groupCallRipple;
 }
 groupCallSettingsAttentionButton: SettingsButton(groupCallSettingsButton) {

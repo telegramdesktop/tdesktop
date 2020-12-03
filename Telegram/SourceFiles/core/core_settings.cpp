@@ -109,7 +109,9 @@ QByteArray Settings::serialize() const {
 			<< qint32(_nativeWindowFrame.current() ? 1 : 0)
 			<< qint32(_systemDarkModeEnabled.current() ? 1 : 0)
 			<< _callVideoInputDeviceId
-			<< qint32(_ipRevealWarning ? 1 : 0);
+			<< qint32(_ipRevealWarning ? 1 : 0)
+			<< qint32(_groupCallPushToTalk ? 1 : 0)
+			<< _groupCallPushToTalkShortcut;
 	}
 	return result;
 }
@@ -177,6 +179,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 nativeWindowFrame = _nativeWindowFrame.current() ? 1 : 0;
 	qint32 systemDarkModeEnabled = _systemDarkModeEnabled.current() ? 1 : 0;
 	qint32 ipRevealWarning = _ipRevealWarning ? 1 : 0;
+	qint32 groupCallPushToTalk = _groupCallPushToTalk ? 1 : 0;
+	QByteArray groupCallPushToTalkShortcut = _groupCallPushToTalkShortcut;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -262,6 +266,11 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}
 	if (!stream.atEnd()) {
 		stream >> ipRevealWarning;
+	}
+	if (!stream.atEnd()) {
+		stream
+			>> groupCallPushToTalk
+			>> groupCallPushToTalkShortcut;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -354,6 +363,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_notifyFromAll = (notifyFromAll == 1);
 	_nativeWindowFrame = (nativeWindowFrame == 1);
 	_systemDarkModeEnabled = (systemDarkModeEnabled == 1);
+	_groupCallPushToTalk = (groupCallPushToTalk == 1);
+	_groupCallPushToTalkShortcut = groupCallPushToTalkShortcut;
 }
 
 bool Settings::chatWide() const {

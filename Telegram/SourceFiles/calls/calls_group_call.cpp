@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_group_call.h"
 #include "data/data_session.h"
+#include "base/platform/base_platform_global_shortcuts.h"
 
 #include <tgcalls/group/GroupInstanceImpl.h>
 
@@ -91,6 +92,11 @@ void GroupCall::setState(State state) {
 		return;
 	}
 	_state = state;
+
+	if (_state.current() == State::Joined && !_pushToTalkStarted) {
+		_pushToTalkStarted = true;
+		applyGlobalShortcutChanges();
+	}
 
 	if (false
 		|| state == State::Ended
@@ -706,6 +712,57 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 	return result;
 }
 
+auto GroupCall::ensureGlobalShortcutManager()
+-> std::shared_ptr<GlobalShortcutManager> {
+	if (!_shortcutManager) {
+		_shortcutManager = base::Platform::CreateGlobalShortcutManager();
+	}
+	return _shortcutManager;
+}
+
+void GroupCall::applyGlobalShortcutChanges() {
+	auto &settings = Core::App().settings();
+	if (!settings.groupCallPushToTalk()) {
+		_shortcutManager = nullptr;
+		_pushToTalk = nullptr;
+		return;
+	} else if (settings.groupCallPushToTalkShortcut().isEmpty()) {
+		settings.setGroupCallPushToTalk(false);
+		Core::App().saveSettingsDelayed();
+		_shortcutManager = nullptr;
+		_pushToTalk = nullptr;
+		return;
+	}
+	ensureGlobalShortcutManager();
+	if (!_shortcutManager) {
+		settings.setGroupCallPushToTalk(false);
+		Core::App().saveSettingsDelayed();
+		_pushToTalk = nullptr;
+		return;
+	}
+	const auto shortcut = _shortcutManager->shortcutFromSerialized(
+		settings.groupCallPushToTalkShortcut());
+	if (!shortcut) {
+		settings.setGroupCallPushToTalkShortcut(QByteArray());
+		settings.setGroupCallPushToTalk(false);
+		Core::App().saveSettingsDelayed();
+		_shortcutManager = nullptr;
+		_pushToTalk = nullptr;
+		return;
+	}
+	if (_pushToTalk) {
+		if (shortcut->serialize() == _pushToTalk->serialize()) {
+			return;
+		}
+		_shortcutManager->stopWatching(_pushToTalk);
+	}
+	_pushToTalk = shortcut;
+	_shortcutManager->startWatching(_pushToTalk, [=](bool pressed) {
+		if (_muted.current() != MuteState::ForceMuted) {
+			setMuted(pressed ? MuteState::Active : MuteState::Muted);
+		}
+	});
+}
 //void GroupCall::setAudioVolume(bool input, float level) {
 //	if (_instance) {
 //		if (input) {

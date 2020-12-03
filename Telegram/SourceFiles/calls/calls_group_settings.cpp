@@ -10,10 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_call.h"
 #include "calls/calls_group_panel.h" // LeaveGroupCallBox.
 #include "calls/calls_instance.h"
-#include "ui/widgets/checkbox.h"
 #include "ui/widgets/level_meter.h"
+#include "ui/widgets/buttons.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/toast/toast.h"
 #include "lang/lang_keys.h"
+#include "base/platform/base_platform_global_shortcuts.h"
 #include "data/data_channel.h"
 #include "data/data_group_call.h"
 #include "core/application.h"
@@ -90,12 +92,10 @@ void GroupCallSettingsBox(
 		AddSkip(layout);
 	}
 	const auto muteJoined = addCheck
-		? box->addRow(object_ptr<Ui::Checkbox>(
-			box.get(),
+		? AddButton(
+			layout,
 			tr::lng_group_call_new_muted(),
-			joinMuted,
-			st::groupCallCheckbox,
-			st::groupCallCheck))
+			st::groupCallSettingsButton)->toggleOn(rpl::single(joinMuted))
 		: nullptr;
 	if (addCheck) {
 		AddSkip(layout);
@@ -155,6 +155,97 @@ void GroupCallSettingsBox(
 	});
 
 	AddSkip(layout);
+	//AddDivider(layout);
+	//AddSkip(layout);
+
+	using namespace base::Platform;
+	struct PushToTalkState {
+		rpl::variable<QString> recordText = tr::lng_group_call_ptt_shortcut();
+		rpl::variable<QString> shortcutText;
+		GlobalShortcut shortcut;
+		bool recording = false;
+	};
+	const auto manager = call->ensureGlobalShortcutManager();
+	if (manager) {
+		const auto state = box->lifetime().make_state<PushToTalkState>();
+		state->shortcut = manager->shortcutFromSerialized(
+			settings.groupCallPushToTalkShortcut());
+		state->shortcutText = state->shortcut
+			? state->shortcut->toDisplayString()
+			: QString();
+		const auto pushToTalk = AddButton(
+			layout,
+			tr::lng_group_call_push_to_talk(),
+			st::groupCallSettingsButton
+		)->toggleOn(rpl::single(settings.groupCallPushToTalk()));
+		const auto recordingWrap = layout->add(
+			object_ptr<Ui::SlideWrap<Button>>(
+				layout,
+				object_ptr<Button>(
+					layout,
+					state->recordText.value(),
+					st::groupCallSettingsButton)));
+		const auto recording = recordingWrap->entity();
+		CreateRightLabel(
+			recording,
+			state->shortcutText.value(),
+			st::groupCallSettingsButton,
+			state->recordText.value());
+		const auto startRecording = [=] {
+			state->recording = true;
+			state->recordText = tr::lng_group_call_ptt_recording();
+			manager->startRecording([=](GlobalShortcut shortcut) {
+				state->shortcutText = shortcut->toDisplayString();
+			}, [=](GlobalShortcut shortcut) {
+				state->recording = false;
+				state->shortcut = shortcut;
+				state->shortcutText = shortcut
+					? shortcut->toDisplayString()
+					: QString();
+				state->recordText = tr::lng_group_call_ptt_shortcut();
+				Core::App().settings().setGroupCallPushToTalkShortcut(shortcut
+					? shortcut->serialize()
+					: QByteArray());
+				Core::App().saveSettingsDelayed();
+			});
+		};
+		const auto stopRecording = [=] {
+			state->recording = false;
+			state->recordText = tr::lng_group_call_ptt_shortcut();
+			state->shortcutText = state->shortcut
+				? state->shortcut->toDisplayString()
+				: QString();
+			manager->stopRecording();
+		};
+		recording->addClickHandler([=] {
+			if (state->recording) {
+				stopRecording();
+			} else {
+				startRecording();
+			}
+		});
+		recordingWrap->toggle(
+			settings.groupCallPushToTalk(),
+			anim::type::instant);
+		pushToTalk->toggledChanges(
+		) | rpl::start_with_next([=](bool toggled) {
+			if (!toggled) {
+				stopRecording();
+			}
+			Core::App().settings().setGroupCallPushToTalk(toggled);
+			Core::App().saveSettingsDelayed();
+			recordingWrap->toggle(toggled, anim::type::normal);
+		}, pushToTalk->lifetime());
+
+		box->boxClosing(
+		) | rpl::start_with_next([=] {
+			call->applyGlobalShortcutChanges();
+		}, box->lifetime());
+	}
+
+	AddSkip(layout);
+	//AddDivider(layout);
+	//AddSkip(layout);
 
 	const auto lookupLink = [=] {
 		return channel->hasUsername()
@@ -226,8 +317,8 @@ void GroupCallSettingsBox(
 	) | rpl::start_with_next([=] {
 		if (canChangeJoinMuted
 			&& muteJoined
-			&& muteJoined->checked() != joinMuted) {
-			SaveCallJoinMuted(channel, id, muteJoined->checked());
+			&& muteJoined->toggled() != joinMuted) {
+			SaveCallJoinMuted(channel, id, muteJoined->toggled());
 		}
 	}, box->lifetime());
 	box->addButton(tr::lng_box_done(), [=] {

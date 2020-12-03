@@ -217,6 +217,18 @@ public:
 	void setCallAudioDuckingEnabled(bool value) {
 		_callAudioDuckingEnabled = value;
 	}
+	[[nodiscard]] bool groupCallPushToTalk() const {
+		return _groupCallPushToTalk;
+	}
+	void setGroupCallPushToTalk(bool value) {
+		_groupCallPushToTalk = value;
+	}
+	[[nodiscard]] QByteArray groupCallPushToTalkShortcut() const {
+		return _groupCallPushToTalkShortcut;
+	}
+	void setGroupCallPushToTalkShortcut(const QByteArray &serialized) {
+		_groupCallPushToTalkShortcut = serialized;
+	}
 	[[nodiscard]] Window::Theme::AccentColors &themesAccentColors() {
 		return _themesAccentColors;
 	}
@@ -513,6 +525,8 @@ private:
 	int _callOutputVolume = 100;
 	int _callInputVolume = 100;
 	bool _callAudioDuckingEnabled = true;
+	bool _groupCallPushToTalk = false;
+	QByteArray _groupCallPushToTalkShortcut;
 	Window::Theme::AccentColors _themesAccentColors;
 	bool _lastSeenWarningSeen = false;
 	Ui::SendFilesWay _sendFilesWay;

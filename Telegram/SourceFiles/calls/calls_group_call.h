@@ -19,6 +19,13 @@ namespace tgcalls {
 class GroupInstanceImpl;
 } // namespace tgcalls
 
+namespace base {
+namespace Platform {
+class GlobalShortcutManager;
+class GlobalShortcutValue;
+} // namespace Platform
+} // namespace base
+
 namespace Calls {
 
 enum class MuteState {
@@ -43,6 +50,8 @@ public:
 		virtual void groupCallFailed(not_null<GroupCall*> call) = 0;
 
 	};
+
+	using GlobalShortcutManager = base::Platform::GlobalShortcutManager;
 
 	GroupCall(
 		not_null<Delegate*> delegate,
@@ -102,11 +111,16 @@ public:
 	std::variant<int, not_null<UserData*>> inviteUsers(
 		const std::vector<not_null<UserData*>> &users);
 
+	std::shared_ptr<GlobalShortcutManager> ensureGlobalShortcutManager();
+	void applyGlobalShortcutChanges();
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
 
 private:
+	using GlobalShortcutValue = base::Platform::GlobalShortcutValue;
+
 	enum class FinishType {
 		None,
 		Ended,
@@ -159,6 +173,10 @@ private:
 	base::Timer _checkJoinedTimer;
 
 	crl::time _lastSendProgressUpdate = 0;
+
+	std::shared_ptr<GlobalShortcutManager> _shortcutManager;
+	std::shared_ptr<GlobalShortcutValue> _pushToTalk;
+	bool _pushToTalkStarted = false;
 
 	rpl::lifetime _lifetime;
 
