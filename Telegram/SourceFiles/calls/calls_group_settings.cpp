@@ -194,9 +194,10 @@ void GroupCallSettingsBox(
 		const auto startRecording = [=] {
 			state->recording = true;
 			state->recordText = tr::lng_group_call_ptt_recording();
-			manager->startRecording([=](GlobalShortcut shortcut) {
+			auto progress = crl::guard(box, [=](GlobalShortcut shortcut) {
 				state->shortcutText = shortcut->toDisplayString();
-			}, [=](GlobalShortcut shortcut) {
+			});
+			auto done = crl::guard(box, [=](GlobalShortcut shortcut) {
 				state->recording = false;
 				state->shortcut = shortcut;
 				state->shortcutText = shortcut
@@ -208,6 +209,7 @@ void GroupCallSettingsBox(
 					: QByteArray());
 				Core::App().saveSettingsDelayed();
 			});
+			manager->startRecording(std::move(progress), std::move(done));
 		};
 		const auto stopRecording = [=] {
 			state->recording = false;
