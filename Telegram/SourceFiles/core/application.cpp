@@ -247,7 +247,7 @@ void Application::run() {
 
 	QCoreApplication::instance()->installEventFilter(this);
 
-	appDeactivated(
+	appDeactivates(
 	) | rpl::start_with_next([=](bool deactivated) {
 		if (deactivated) {
 			handleAppDeactivated();
@@ -652,7 +652,7 @@ void Application::handleAppDeactivated() {
 	Ui::Tooltip::Hide();
 }
 
-rpl::producer<bool> Application::appDeactivated() const {
+rpl::producer<bool> Application::appDeactivates() const {
 	return base::qt_signal_producer(
 		static_cast<QGuiApplication*>(QCoreApplication::instance()),
 		&QGuiApplication::applicationStateChanged

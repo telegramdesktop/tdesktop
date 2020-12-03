@@ -250,6 +250,9 @@ private:
 	base::flat_map<uint32, not_null<Row*>> _speakingRowBySsrc;
 	Ui::Animations::Basic _speakingAnimation;
 
+	crl::time _speakingAnimationHideLastTime = 0;
+	bool _skipRowLevelUpdate = false;
+
 	Ui::CrossLineAnimation _inactiveCrossLine;
 	Ui::CrossLineAnimation _coloredCrossLine;
 
@@ -513,7 +516,27 @@ MembersController::MembersController(
 		_coloredCrossLine.invalidate();
 	}, _lifetime);
 
+	Core::App().appDeactivates(
+	) | rpl::start_with_next([=](bool hide) {
+		_speakingAnimationHideLastTime = hide ? crl::now() : 0;
+		for (const auto [_, row] : _speakingRowBySsrc) {
+			if (hide) {
+				row->updateLevel(0.);
+			}
+			updateRowLevel(row, 0.);
+			if (!hide && !_speakingAnimation.animating()) {
+				_speakingAnimation.start();
+			}
+		}
+		_skipRowLevelUpdate = hide;
+	}, _lifetime);
+
 	_speakingAnimation.init([=](crl::time now) {
+		if (const auto &last = _speakingAnimationHideLastTime; (last > 0)
+			&& (now - last >= Ui::Paint::Blobs::kHideBlobsDuration)) {
+			_speakingAnimation.stop();
+			return false;
+		}
 		for (const auto [ssrc, row] : _speakingRowBySsrc) {
 			row->updateBlobAnimation(now);
 			delegate()->peerListUpdateRow(row);
@@ -683,6 +706,9 @@ void MembersController::removeRow(not_null<Row*> row) {
 void MembersController::updateRowLevel(
 		not_null<Row*> row,
 		float level) {
+	if (_skipRowLevelUpdate) {
+		return;
+	}
 	row->updateLevel(level);
 }
 

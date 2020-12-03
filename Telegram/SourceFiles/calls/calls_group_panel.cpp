@@ -223,6 +223,7 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 , _settings(widget(), st::groupCallSettings)
 , _mute(std::make_unique<Ui::CallMuteButton>(
 	widget(),
+	Core::App().appDeactivates(),
 	Ui::CallMuteButtonState{
 		.text = tr::lng_group_call_connecting(tr::now),
 		.type = Ui::CallMuteButtonType::Connecting,
