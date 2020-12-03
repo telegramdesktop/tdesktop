@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "base/timer.h"
 #include "base/concurrent_timer.h"
+#include "base/qt_signal_producer.h"
 #include "base/unixtime.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
@@ -245,11 +246,15 @@ void Application::run() {
 	}, _window->widget()->lifetime());
 
 	QCoreApplication::instance()->installEventFilter(this);
-	connect(
-		static_cast<QGuiApplication*>(QCoreApplication::instance()),
-		&QGuiApplication::applicationStateChanged,
-		this,
-		&Application::stateChanged);
+
+	appDeactivated(
+	) | rpl::start_with_next([=](bool deactivated) {
+		if (deactivated) {
+			handleAppDeactivated();
+		} else {
+			handleAppActivated();
+		}
+	}, _lifetime);
 
 	DEBUG_LOG(("Application Info: window created..."));
 
@@ -633,14 +638,6 @@ void Application::checkLocalTime() {
 	}
 }
 
-void Application::stateChanged(Qt::ApplicationState state) {
-	if (state == Qt::ApplicationActive) {
-		handleAppActivated();
-	} else {
-		handleAppDeactivated();
-	}
-}
-
 void Application::handleAppActivated() {
 	checkLocalTime();
 	if (_window) {
@@ -653,6 +650,15 @@ void Application::handleAppDeactivated() {
 		_window->updateIsActiveBlur();
 	}
 	Ui::Tooltip::Hide();
+}
+
+rpl::producer<bool> Application::appDeactivated() const {
+	return base::qt_signal_producer(
+		static_cast<QGuiApplication*>(QCoreApplication::instance()),
+		&QGuiApplication::applicationStateChanged
+	) | rpl::map([=](Qt::ApplicationState state) {
+		return (state != Qt::ApplicationActive);
+	});
 }
 
 void Application::call_handleObservables() {
