@@ -43,7 +43,7 @@ auto Colors() {
 	return base::flat_map<MuteState, Vector>{
 		{
 			MuteState::ForceMuted,
-			Vector{ st::callIconBg->c, st::callIconBg->c }
+			Vector{ st::groupCallMembersBg->c, st::groupCallMembersBg->c }
 		},
 		{
 			MuteState::Active,
