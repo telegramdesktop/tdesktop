@@ -758,8 +758,13 @@ void TopBarWidget::updateControlsVisibility() {
 	_recentActions->setVisible(isAdmin);
 	const auto isGroup = [&] {
 		if (const auto peer = _activeChat.peer()) {
-			if (peer->isMegagroup() || peer->isChannel()) {
+			if (peer->isMegagroup()) {
 				return true;
+			} else if (peer->isChannel()) {
+				const auto channel = peer->asChannel();
+				if (channel->hasAdminRights() || channel->amCreator()) {
+					return true;
+				}
 			}
 		}
 		return false;
