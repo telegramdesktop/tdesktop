@@ -411,7 +411,8 @@ void Instance::handleGroupCallUpdate(
 		existing->applyUpdate(update);
 	}
 	if (_currentGroupCall
-		&& (&_currentGroupCall->channel()->session() == session)) {
+		&& (&_currentGroupCall->channel()->session() == session)
+		&& (_currentGroupCall->id() == callId)) {
 		_currentGroupCall->handleUpdate(update);
 	}
 }
