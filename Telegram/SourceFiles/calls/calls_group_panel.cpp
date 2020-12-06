@@ -217,7 +217,7 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 #ifdef Q_OS_WIN
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
 	_window.get(),
-	st::callTitle))
+	st::groupCallTitle))
 #endif // Q_OS_WIN
 , _members(widget(), call)
 , _settings(widget(), st::groupCallSettings)

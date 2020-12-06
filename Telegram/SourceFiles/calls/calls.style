@@ -687,6 +687,69 @@ groupCallDelaySlider: MediaSlider(defaultContinuousSlider) {
 }
 groupCallDelayMargin: margins(22px, 5px, 20px, 10px);
 
+groupCallTitleButton: IconButton {
+	width: 24px;
+	height: 21px;
+	iconPosition: point(0px, 0px);
+}
+groupCallTitleMinimizeIcon: icon {
+	{ "title_button_minimize", groupCallMemberNotJoinedStatus, point(4px, 4px) },
+};
+groupCallTitleMinimizeIconOver: icon {
+	{ size(24px, 21px), groupCallMembersBgOver },
+	{ "title_button_minimize", groupCallMembersFg, point(4px, 4px) },
+};
+groupCallTitleMaximizeIcon: icon {
+	{ "title_button_maximize", groupCallMemberNotJoinedStatus, point(4px, 4px) },
+};
+groupCallTitleMaximizeIconOver: icon {
+	{ size(24px, 21px), groupCallMembersBgOver },
+	{ "title_button_maximize", groupCallMembersFg, point(4px, 4px) },
+};
+groupCallTitleRestoreIcon: icon {
+	{ "title_button_restore", groupCallMemberNotJoinedStatus, point(4px, 4px) },
+};
+groupCallTitleRestoreIconOver: icon {
+	{ size(24px, 21px), groupCallMembersBgOver },
+	{ "title_button_restore", groupCallMembersFg, point(4px, 4px) },
+};
+groupCallTitleCloseIcon: icon {
+	{ "title_button_close", groupCallMemberNotJoinedStatus, point(4px, 4px) },
+};
+groupCallTitleCloseIconOver: icon {
+	{ size(24px, 21px), titleButtonCloseBgOver },
+	{ "title_button_close", titleButtonCloseFgOver, point(4px, 4px) },
+};
+groupCallTitle: WindowTitle(defaultWindowTitle) {
+	height: 0px;
+	bg: groupCallBg;
+	bgActive: groupCallBg;
+	fg: transparent;
+	fgActive: transparent;
+	minimize: IconButton(groupCallTitleButton) {
+		icon: groupCallTitleMinimizeIcon;
+		iconOver: groupCallTitleMinimizeIconOver;
+	}
+	minimizeIconActive: groupCallTitleMinimizeIcon;
+	minimizeIconActiveOver: groupCallTitleMinimizeIconOver;
+	maximize: IconButton(groupCallTitleButton) {
+		icon: groupCallTitleMaximizeIcon;
+		iconOver: groupCallTitleMaximizeIconOver;
+	}
+	maximizeIconActive: groupCallTitleMaximizeIcon;
+	maximizeIconActiveOver: groupCallTitleMaximizeIconOver;
+	restoreIcon: groupCallTitleRestoreIcon;
+	restoreIconOver: groupCallTitleRestoreIconOver;
+	restoreIconActive: groupCallTitleRestoreIcon;
+	restoreIconActiveOver: groupCallTitleRestoreIconOver;
+	close: IconButton(groupCallTitleButton) {
+		icon: groupCallTitleCloseIcon;
+		iconOver: groupCallTitleCloseIconOver;
+	}
+	closeIconActive: groupCallTitleCloseIcon;
+	closeIconActiveOver: groupCallTitleCloseIconOver;
+}
+
 callTopBarMuteCrossLine: CrossLineAnimation {
 	fg: callBarFg;
 	icon: icon {{ "calls/call_record_active", callBarFg }};
