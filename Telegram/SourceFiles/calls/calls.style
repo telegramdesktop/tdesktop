@@ -670,6 +670,23 @@ groupCallBoxLabel: FlatLabel(boxLabel) {
 groupCallRowBlobMinRadius: 27px;
 groupCallRowBlobMaxRadius: 29px;
 
+groupCallDelayLabel: LabelSimple(defaultLabelSimple) {
+	textFg: groupCallMembersFg;
+	font: boxTextFont;
+}
+groupCallDelayLabelMargin: margins(22px, 10px, 20px, 5px);
+groupCallDelaySlider: MediaSlider(defaultContinuousSlider) {
+	seekSize: size(15px, 15px);
+	activeFg: groupCallActiveFg;
+	inactiveFg: groupCallMemberNotJoinedStatus;
+	activeFgOver: groupCallActiveFg;
+	inactiveFgOver: groupCallMemberNotJoinedStatus;
+	activeFgDisabled: groupCallActiveFg;
+	inactiveFgDisabled: groupCallMemberNotJoinedStatus;
+	receivedTillFg: groupCallMemberNotJoinedStatus;
+}
+groupCallDelayMargin: margins(22px, 5px, 20px, 10px);
+
 callTopBarMuteCrossLine: CrossLineAnimation {
 	fg: callBarFg;
 	icon: icon {{ "calls/call_record_active", callBarFg }};

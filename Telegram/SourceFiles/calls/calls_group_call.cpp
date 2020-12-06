@@ -52,7 +52,8 @@ GroupCall::GroupCall(
 , _history(channel->owner().history(channel))
 , _api(&_channel->session().mtp())
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
-, _checkJoinedTimer([=] { checkJoined(); }) {
+, _checkJoinedTimer([=] { checkJoined(); })
+, _pushToTalkCancelTimer([=] { pushToTalkCancel(); }) {
 	_muted.value(
 	) | rpl::combine_previous(
 	) | rpl::start_with_next([=](MuteState previous, MuteState state) {
@@ -781,12 +782,28 @@ void GroupCall::applyGlobalShortcutChanges() {
 	}
 	_pushToTalk = shortcut;
 	_shortcutManager->startWatching(_pushToTalk, [=](bool pressed) {
-		if (muted() != MuteState::ForceMuted
-			&& muted() != MuteState::Active) {
-			setMuted(pressed ? MuteState::PushToTalk : MuteState::Muted);
+		const auto delay = Core::App().settings().groupCallPushToTalkDelay();
+		if (muted() == MuteState::ForceMuted
+			|| muted() == MuteState::Active) {
+			return;
+		} else if (pressed) {
+			_pushToTalkCancelTimer.cancel();
+			setMuted(MuteState::PushToTalk);
+		} else if (delay) {
+			_pushToTalkCancelTimer.callOnce(delay);
+		} else {
+			pushToTalkCancel();
 		}
 	});
 }
+
+void GroupCall::pushToTalkCancel() {
+	_pushToTalkCancelTimer.cancel();
+	if (muted() == MuteState::PushToTalk) {
+		setMuted(MuteState::Muted);
+	}
+}
+
 //void GroupCall::setAudioVolume(bool input, float level) {
 //	if (_instance) {
 //		if (input) {

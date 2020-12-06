@@ -111,7 +111,8 @@ QByteArray Settings::serialize() const {
 			<< _callVideoInputDeviceId
 			<< qint32(_ipRevealWarning ? 1 : 0)
 			<< qint32(_groupCallPushToTalk ? 1 : 0)
-			<< _groupCallPushToTalkShortcut;
+			<< _groupCallPushToTalkShortcut
+			<< qint64(_groupCallPushToTalkDelay);
 	}
 	return result;
 }
@@ -181,6 +182,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 ipRevealWarning = _ipRevealWarning ? 1 : 0;
 	qint32 groupCallPushToTalk = _groupCallPushToTalk ? 1 : 0;
 	QByteArray groupCallPushToTalkShortcut = _groupCallPushToTalkShortcut;
+	qint64 groupCallPushToTalkDelay = _groupCallPushToTalkDelay;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -270,9 +272,11 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream
 			>> groupCallPushToTalk
-			>> groupCallPushToTalkShortcut;
+			>> groupCallPushToTalkShortcut
+			>> groupCallPushToTalkDelay;
 	}
-	if (stream.status() != QDataStream::Ok) {
+	if (false && stream.status() != QDataStream::Ok) {
+		AssertIsDebug();
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
 		return;
@@ -365,6 +369,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_systemDarkModeEnabled = (systemDarkModeEnabled == 1);
 	_groupCallPushToTalk = (groupCallPushToTalk == 1);
 	_groupCallPushToTalkShortcut = groupCallPushToTalkShortcut;
+	_groupCallPushToTalkDelay = groupCallPushToTalkDelay;
 }
 
 bool Settings::chatWide() const {
@@ -470,6 +475,10 @@ void Settings::resetOnLastLogout() {
 	//_callOutputVolume = 100;
 	//_callInputVolume = 100;
 	//_callAudioDuckingEnabled = true;
+
+	_groupCallPushToTalk = false;
+	_groupCallPushToTalkShortcut = QByteArray();
+	_groupCallPushToTalkDelay = 20;
 
 	//_themesAccentColors = Window::Theme::AccentColors();
 

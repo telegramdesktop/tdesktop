@@ -152,6 +152,7 @@ private:
 		gsl::span<const std::pair<std::uint32_t, float>> data);
 	void setInstanceConnected(bool connected);
 	void checkLastSpoke();
+	void pushToTalkCancel();
 
 	void checkJoined();
 
@@ -183,6 +184,7 @@ private:
 
 	std::shared_ptr<GlobalShortcutManager> _shortcutManager;
 	std::shared_ptr<GlobalShortcutValue> _pushToTalk;
+	base::Timer _pushToTalkCancelTimer;
 	bool _pushToTalkStarted = false;
 
 	rpl::lifetime _lifetime;

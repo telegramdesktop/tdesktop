@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_panel.h" // LeaveGroupCallBox.
 #include "calls/calls_instance.h"
 #include "ui/widgets/level_meter.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/toast/toast.h"
@@ -36,6 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 namespace {
 
+constexpr auto kDelaysCount = 201;
+
 void SaveCallJoinMuted(
 		not_null<ChannelData*> channel,
 		uint64 callId,
@@ -54,6 +57,22 @@ void SaveCallJoinMuted(
 		call->input(),
 		MTP_bool(joinMuted)
 	)).send();
+}
+
+[[nodiscard]] crl::time DelayByIndex(int index) {
+	return index * crl::time(10);
+}
+
+[[nodiscard]] QString FormatDelay(crl::time delay) {
+	return (delay < crl::time(1000))
+		? tr::lng_group_call_ptt_delay_ms(
+			tr::now,
+			lt_amount,
+			QString::number(delay))
+		: tr::lng_group_call_ptt_delay_s(
+			tr::now,
+			lt_amount,
+			QString::number(delay / 1000., 'f', 2));
 }
 
 } // namespace
@@ -164,6 +183,7 @@ void GroupCallSettingsBox(
 		rpl::variable<QString> recordText = tr::lng_group_call_ptt_shortcut();
 		rpl::variable<QString> shortcutText;
 		GlobalShortcut shortcut;
+		crl::time delay = 0;
 		bool recording = false;
 	};
 	const auto manager = call->ensureGlobalShortcutManager();
@@ -171,6 +191,7 @@ void GroupCallSettingsBox(
 		const auto state = box->lifetime().make_state<PushToTalkState>();
 		state->shortcut = manager->shortcutFromSerialized(
 			settings.groupCallPushToTalkShortcut());
+		state->delay = settings.groupCallPushToTalkDelay();
 		state->shortcutText = state->shortcut
 			? state->shortcut->toDisplayString()
 			: QString();
@@ -240,16 +261,40 @@ void GroupCallSettingsBox(
 			recordingWrap->toggle(toggled, anim::type::normal);
 		}, pushToTalk->lifetime());
 
+		const auto label = layout->add(
+			object_ptr<Ui::LabelSimple>(layout, st::groupCallDelayLabel),
+			st::groupCallDelayLabelMargin);
+		const auto value = std::clamp(
+			state->delay,
+			crl::time(0),
+			DelayByIndex(kDelaysCount - 1));
+		const auto callback = [=](crl::time delay) {
+			state->delay = delay;
+			label->setText(tr::lng_group_call_ptt_delay(
+				tr::now,
+				lt_delay,
+				FormatDelay(delay)));
+			Core::App().settings().setGroupCallPushToTalkDelay(delay);
+			Core::App().saveSettingsDelayed();
+		};
+		callback(value);
+		const auto slider = layout->add(
+			object_ptr<Ui::MediaSlider>(layout, st::groupCallDelaySlider),
+			st::groupCallDelayMargin);
+		slider->resize(st::groupCallDelaySlider.seekSize);
+		slider->setPseudoDiscrete(
+			kDelaysCount,
+			DelayByIndex,
+			value,
+			callback);
+
 		box->boxClosing(
 		) | rpl::start_with_next([=] {
 			call->applyGlobalShortcutChanges();
 		}, box->lifetime());
 
 		auto boxKeyFilter = [=](not_null<QEvent*> e) {
-			if (e->type() != QEvent::KeyPress) {
-				return base::EventFilterResult::Continue;
-			}
-			return (state->recording)
+			return (e->type() == QEvent::KeyPress && state->recording)
 				? base::EventFilterResult::Cancel
 				: base::EventFilterResult::Continue;
 		};

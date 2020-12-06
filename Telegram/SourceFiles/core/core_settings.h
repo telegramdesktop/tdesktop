@@ -229,6 +229,12 @@ public:
 	void setGroupCallPushToTalkShortcut(const QByteArray &serialized) {
 		_groupCallPushToTalkShortcut = serialized;
 	}
+	[[nodiscard]] crl::time groupCallPushToTalkDelay() const {
+		return _groupCallPushToTalkDelay;
+	}
+	void setGroupCallPushToTalkDelay(crl::time delay) {
+		_groupCallPushToTalkDelay = delay;
+	}
 	[[nodiscard]] Window::Theme::AccentColors &themesAccentColors() {
 		return _themesAccentColors;
 	}
@@ -527,6 +533,7 @@ private:
 	bool _callAudioDuckingEnabled = true;
 	bool _groupCallPushToTalk = false;
 	QByteArray _groupCallPushToTalkShortcut;
+	crl::time _groupCallPushToTalkDelay = 20;
 	Window::Theme::AccentColors _themesAccentColors;
 	bool _lastSeenWarningSeen = false;
 	Ui::SendFilesWay _sendFilesWay;
