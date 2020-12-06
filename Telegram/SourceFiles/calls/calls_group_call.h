@@ -20,10 +20,8 @@ class GroupInstanceImpl;
 } // namespace tgcalls
 
 namespace base {
-namespace Platform {
 class GlobalShortcutManager;
 class GlobalShortcutValue;
-} // namespace Platform
 } // namespace base
 
 namespace Calls {
@@ -51,7 +49,7 @@ public:
 
 	};
 
-	using GlobalShortcutManager = base::Platform::GlobalShortcutManager;
+	using GlobalShortcutManager = base::GlobalShortcutManager;
 
 	GroupCall(
 		not_null<Delegate*> delegate,
@@ -119,7 +117,7 @@ public:
 	}
 
 private:
-	using GlobalShortcutValue = base::Platform::GlobalShortcutValue;
+	using GlobalShortcutValue = base::GlobalShortcutValue;
 
 	enum class FinishType {
 		None,

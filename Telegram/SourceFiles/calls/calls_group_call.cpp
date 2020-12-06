@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_group_call.h"
 #include "data/data_session.h"
-#include "base/platform/base_platform_global_shortcuts.h"
+#include "base/global_shortcuts.h"
 
 #include <tgcalls/group/GroupInstanceImpl.h>
 
@@ -715,7 +715,7 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 auto GroupCall::ensureGlobalShortcutManager()
 -> std::shared_ptr<GlobalShortcutManager> {
 	if (!_shortcutManager) {
-		_shortcutManager = base::Platform::CreateGlobalShortcutManager();
+		_shortcutManager = base::CreateGlobalShortcutManager();
 	}
 	return _shortcutManager;
 }

@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "lang/lang_keys.h"
 #include "base/event_filter.h"
-#include "base/platform/base_platform_global_shortcuts.h"
+#include "base/global_shortcuts.h"
 #include "data/data_channel.h"
 #include "data/data_group_call.h"
 #include "core/application.h"
@@ -159,7 +159,7 @@ void GroupCallSettingsBox(
 	//AddDivider(layout);
 	//AddSkip(layout);
 
-	using namespace base::Platform;
+	using GlobalShortcut = base::GlobalShortcut;
 	struct PushToTalkState {
 		rpl::variable<QString> recordText = tr::lng_group_call_ptt_shortcut();
 		rpl::variable<QString> shortcutText;
