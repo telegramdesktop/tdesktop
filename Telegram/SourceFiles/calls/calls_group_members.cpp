@@ -521,7 +521,7 @@ MembersController::MembersController(
 
 	rpl::combine(
 		rpl::single(anim::Disabled()) | rpl::then(anim::Disables()),
-		rpl::single(false) | rpl::then(Core::App().appDeactivates())
+		rpl::single(false) | rpl::then(Core::App().appDeactivatedValue())
 	) | rpl::start_with_next([=](bool animDisabled, bool deactivated) {
 		const auto hide = !(!animDisabled && !deactivated);
 
