@@ -746,13 +746,8 @@ auto GroupCall::ensureGlobalShortcutManager()
 
 void GroupCall::applyGlobalShortcutChanges() {
 	auto &settings = Core::App().settings();
-	if (!settings.groupCallPushToTalk()) {
-		_shortcutManager = nullptr;
-		_pushToTalk = nullptr;
-		return;
-	} else if (settings.groupCallPushToTalkShortcut().isEmpty()) {
-		settings.setGroupCallPushToTalk(false);
-		Core::App().saveSettingsDelayed();
+	if (!settings.groupCallPushToTalk()
+		|| settings.groupCallPushToTalkShortcut().isEmpty()) {
 		_shortcutManager = nullptr;
 		_pushToTalk = nullptr;
 		return;

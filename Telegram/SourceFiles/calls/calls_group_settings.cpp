@@ -200,38 +200,25 @@ void GroupCallSettingsBox(
 			tr::lng_group_call_push_to_talk(),
 			st::groupCallSettingsButton
 		)->toggleOn(rpl::single(settings.groupCallPushToTalk()));
-		const auto recordingWrap = layout->add(
-			object_ptr<Ui::SlideWrap<Button>>(
+		const auto pushToTalkWrap = layout->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				layout,
-				object_ptr<Button>(
-					layout,
-					state->recordText.value(),
-					st::groupCallSettingsButton)));
-		const auto recording = recordingWrap->entity();
+				object_ptr<Ui::VerticalLayout>(layout)));
+		const auto pushToTalkInner = pushToTalkWrap->entity();
+		const auto recording = pushToTalkInner->add(
+			object_ptr<Button>(
+				layout,
+				state->recordText.value(),
+				st::groupCallSettingsButton));
 		CreateRightLabel(
 			recording,
 			state->shortcutText.value(),
 			st::groupCallSettingsButton,
 			state->recordText.value());
-		const auto startRecording = [=] {
-			state->recording = true;
-			state->recordText = tr::lng_group_call_ptt_recording();
-			auto progress = crl::guard(box, [=](GlobalShortcut shortcut) {
-				state->shortcutText = shortcut->toDisplayString();
-			});
-			auto done = crl::guard(box, [=](GlobalShortcut shortcut) {
-				state->recording = false;
-				state->shortcut = shortcut;
-				state->shortcutText = shortcut
-					? shortcut->toDisplayString()
-					: QString();
-				state->recordText = tr::lng_group_call_ptt_shortcut();
-				Core::App().settings().setGroupCallPushToTalkShortcut(shortcut
-					? shortcut->serialize()
-					: QByteArray());
-				Core::App().saveSettingsDelayed();
-			});
-			manager->startRecording(std::move(progress), std::move(done));
+
+		const auto applyAndSave = [=] {
+			call->applyGlobalShortcutChanges();
+			Core::App().saveSettingsDelayed();
 		};
 		const auto stopRecording = [=] {
 			state->recording = false;
@@ -239,7 +226,26 @@ void GroupCallSettingsBox(
 			state->shortcutText = state->shortcut
 				? state->shortcut->toDisplayString()
 				: QString();
+			recording->setColorOverride(std::nullopt);
 			manager->stopRecording();
+		};
+		const auto startRecording = [=] {
+			state->recording = true;
+			state->recordText = tr::lng_group_call_ptt_recording();
+			recording->setColorOverride(
+				st::groupCallSettingsAttentionButton.textFg->c);
+			auto progress = crl::guard(box, [=](GlobalShortcut shortcut) {
+				state->shortcutText = shortcut->toDisplayString();
+			});
+			auto done = crl::guard(box, [=](GlobalShortcut shortcut) {
+				state->shortcut = shortcut;
+				Core::App().settings().setGroupCallPushToTalkShortcut(shortcut
+					? shortcut->serialize()
+					: QByteArray());
+				applyAndSave();
+				stopRecording();
+			});
+			manager->startRecording(std::move(progress), std::move(done));
 		};
 		recording->addClickHandler([=] {
 			if (state->recording) {
@@ -248,21 +254,11 @@ void GroupCallSettingsBox(
 				startRecording();
 			}
 		});
-		recordingWrap->toggle(
-			settings.groupCallPushToTalk(),
-			anim::type::instant);
-		pushToTalk->toggledChanges(
-		) | rpl::start_with_next([=](bool toggled) {
-			if (!toggled) {
-				stopRecording();
-			}
-			Core::App().settings().setGroupCallPushToTalk(toggled);
-			Core::App().saveSettingsDelayed();
-			recordingWrap->toggle(toggled, anim::type::normal);
-		}, pushToTalk->lifetime());
 
-		const auto label = layout->add(
-			object_ptr<Ui::LabelSimple>(layout, st::groupCallDelayLabel),
+		const auto label = pushToTalkInner->add(
+			object_ptr<Ui::LabelSimple>(
+				pushToTalkInner,
+				st::groupCallDelayLabel),
 			st::groupCallDelayLabelMargin);
 		const auto value = std::clamp(
 			state->delay,
@@ -275,11 +271,13 @@ void GroupCallSettingsBox(
 				lt_delay,
 				FormatDelay(delay)));
 			Core::App().settings().setGroupCallPushToTalkDelay(delay);
-			Core::App().saveSettingsDelayed();
+			applyAndSave();
 		};
 		callback(value);
-		const auto slider = layout->add(
-			object_ptr<Ui::MediaSlider>(layout, st::groupCallDelaySlider),
+		const auto slider = pushToTalkInner->add(
+			object_ptr<Ui::MediaSlider>(
+				pushToTalkInner,
+				st::groupCallDelaySlider),
 			st::groupCallDelayMargin);
 		slider->resize(st::groupCallDelaySlider.seekSize);
 		slider->setPseudoDiscrete(
@@ -288,10 +286,18 @@ void GroupCallSettingsBox(
 			value,
 			callback);
 
-		box->boxClosing(
-		) | rpl::start_with_next([=] {
-			call->applyGlobalShortcutChanges();
-		}, box->lifetime());
+		pushToTalkWrap->toggle(
+			settings.groupCallPushToTalk(),
+			anim::type::instant);
+		pushToTalk->toggledChanges(
+		) | rpl::start_with_next([=](bool toggled) {
+			if (!toggled) {
+				stopRecording();
+			}
+			Core::App().settings().setGroupCallPushToTalk(toggled);
+			applyAndSave();
+			pushToTalkWrap->toggle(toggled, anim::type::normal);
+		}, pushToTalk->lifetime());
 
 		auto boxKeyFilter = [=](not_null<QEvent*> e) {
 			return (e->type() == QEvent::KeyPress && state->recording)
