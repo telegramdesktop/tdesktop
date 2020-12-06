@@ -325,8 +325,14 @@ void GroupCall::finish(FinishType type) {
 }
 
 void GroupCall::setMuted(MuteState mute) {
+	const auto wasMuted = (muted() == MuteState::Muted)
+		|| (muted() == MuteState::PushToTalk);
 	_muted = mute;
-	applySelfInCallLocally();
+	const auto nowMuted = (muted() == MuteState::Muted)
+		|| (muted() == MuteState::PushToTalk);
+	if (wasMuted != nowMuted) {
+		applySelfInCallLocally();
+	}
 }
 
 void GroupCall::handleUpdate(const MTPGroupCall &call) {

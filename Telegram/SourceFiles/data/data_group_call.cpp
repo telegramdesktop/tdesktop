@@ -207,14 +207,16 @@ void GroupCall::applyParticipantsSlice(
 			const auto was = (i != end(_participants))
 				? std::make_optional(*i)
 				: std::nullopt;
+			const auto canSelfUnmute = !data.is_muted()
+				|| data.is_can_self_unmute();
 			const auto value = Participant{
 				.user = user,
 				.date = data.vdate().v,
 				.lastActive = was ? was->lastActive : 0,
 				.ssrc = uint32(data.vsource().v),
-				.speaking = !data.is_muted() && (was ? was->speaking : false),
+				.speaking = canSelfUnmute && (was ? was->speaking : false),
 				.muted = data.is_muted(),
-				.canSelfUnmute = !data.is_muted() || data.is_can_self_unmute(),
+				.canSelfUnmute = canSelfUnmute,
 			};
 			if (i == end(_participants)) {
 				_userBySsrc.emplace(value.ssrc, user);
@@ -258,7 +260,7 @@ void GroupCall::applyParticipantsMutes(
 				const auto was = *i;
 				i->muted = data.is_muted();
 				i->canSelfUnmute = !i->muted || data.is_can_self_unmute();
-				if (i->muted) {
+				if (!i->canSelfUnmute) {
 					i->speaking = false;
 				}
 				_participantUpdates.fire({
@@ -280,7 +282,8 @@ void GroupCall::applyLastSpoke(uint32 ssrc, crl::time when, crl::time now) {
 	const auto j = ranges::find(_participants, i->second, &Participant::user);
 	Assert(j != end(_participants));
 
-	const auto speaking = (when + kSpeakStatusKeptFor >= now) && !j->muted;
+	const auto speaking = (when + kSpeakStatusKeptFor >= now)
+		&& j->canSelfUnmute;
 	if (j->speaking != speaking) {
 		const auto was = *j;
 		j->speaking = speaking;

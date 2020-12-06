@@ -182,6 +182,7 @@ public:
 	MembersController(
 		not_null<GroupCall*> call,
 		not_null<QWidget*> menuParent);
+	~MembersController();
 
 	using MuteRequest = GroupMembers::MuteRequest;
 
@@ -246,6 +247,7 @@ private:
 
 	not_null<QWidget*> _menuParent;
 	base::unique_qptr<Ui::PopupMenu> _menu;
+	base::flat_set<not_null<PeerData*>> _menuCheckRowsAfterHidden;
 
 	base::flat_map<uint32, not_null<Row*>> _speakingRowBySsrc;
 	Ui::Animations::Basic _speakingAnimation;
@@ -276,7 +278,8 @@ void Row::updateState(const Data::GroupCall::Participant *participant) {
 		}
 		setState(State::Inactive);
 		setSpeaking(false);
-	} else if (!participant->muted) {
+	} else if (!participant->muted
+		|| (participant->speaking && participant->ssrc != 0)) {
 		setState(State::Active);
 		setSpeaking(participant->speaking && participant->ssrc != 0);
 	} else if (participant->canSelfUnmute) {
@@ -550,6 +553,13 @@ MembersController::MembersController(
 	});
 }
 
+MembersController::~MembersController() {
+	if (_menu) {
+		_menu->setDestroyedCallback(nullptr);
+		_menu = nullptr;
+	}
+}
+
 void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
 	const auto channel = call->channel();
 	channel->session().changes().peerFlagsValue(
@@ -638,6 +648,11 @@ void MembersController::updateRow(
 }
 
 void MembersController::checkSpeakingRowPosition(not_null<Row*> row) {
+	if (_menu) {
+		// Don't reorder rows while we show the popup menu.
+		_menuCheckRowsAfterHidden.emplace(row->peer());
+		return;
+	}
 	// Check if there are non-speaking rows above this one.
 	const auto count = delegate()->peerListFullRowsCount();
 	for (auto i = 0; i != count; ++i) {
@@ -873,11 +888,28 @@ auto MembersController::kickMemberRequests() const
 
 void MembersController::rowClicked(not_null<PeerListRow*> row) {
 	if (_menu) {
+		_menu->setDestroyedCallback(nullptr);
 		_menu->deleteLater();
 		_menu = nullptr;
 	}
 	_menu = rowContextMenu(_menuParent, row);
-	_menu->popup(QCursor::pos());
+	if (const auto raw = _menu.get()) {
+		raw->setDestroyedCallback([=] {
+			if (_menu && _menu.get() != raw) {
+				return;
+			}
+			auto saved = base::take(_menu);
+			for (const auto peer : base::take(_menuCheckRowsAfterHidden)) {
+				if (const auto row = findRow(peer->asUser())) {
+					if (row->speaking()) {
+						checkSpeakingRowPosition(row);
+					}
+				}
+			}
+			_menu = std::move(saved);
+		});
+		raw->popup(QCursor::pos());
+	}
 }
 
 void MembersController::rowActionClicked(
@@ -890,6 +922,9 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 		not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
 
+	if (row->peer()->isSelf()) {
+		return nullptr;
+	}
 	const auto real = static_cast<Row*>(row.get());
 	const auto user = row->peer()->asUser();
 	auto result = base::make_unique_q<Ui::PopupMenu>(
@@ -951,7 +986,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 		_kickMemberRequests.fire_copy(user);
 	});
 
-	if (!user->isSelf() && _channel->canManageCall()) {
+	if (_channel->canManageCall()) {
 		result->addAction(
 			(mute
 				? tr::lng_group_call_context_mute(tr::now)
