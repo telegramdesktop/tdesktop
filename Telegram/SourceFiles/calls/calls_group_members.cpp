@@ -86,6 +86,7 @@ public:
 		Muted,
 	};
 
+	void setSkipLevelUpdate(bool value);
 	void updateState(const Data::GroupCall::Participant *participant);
 	void updateLevel(float level);
 	void updateBlobAnimation(crl::time now);
@@ -171,6 +172,7 @@ private:
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
 	uint32 _ssrc = 0;
 	bool _speaking = false;
+	bool _skipLevelUpdate = false;
 
 };
 
@@ -268,6 +270,10 @@ Row::Row(not_null<RowDelegate*> delegate, not_null<UserData*> user)
 	refreshStatus();
 }
 
+void Row::setSkipLevelUpdate(bool value) {
+	_skipLevelUpdate = value;
+}
+
 void Row::updateState(const Data::GroupCall::Participant *participant) {
 	setSsrc(participant ? participant->ssrc : 0);
 	if (!participant) {
@@ -345,6 +351,10 @@ void Row::setSsrc(uint32 ssrc) {
 
 void Row::updateLevel(float level) {
 	Expects(_blobsAnimation != nullptr);
+
+	if (_skipLevelUpdate) {
+		return;
+	}
 
 	if (level >= GroupCall::kSpeakLevelThreshold) {
 		_blobsAnimation->lastSpeakingUpdateTime = crl::now();
@@ -521,7 +531,7 @@ MembersController::MembersController(
 
 	rpl::combine(
 		rpl::single(anim::Disabled()) | rpl::then(anim::Disables()),
-		rpl::single(false) | rpl::then(Core::App().appDeactivatedValue())
+		Core::App().appDeactivatedValue()
 	) | rpl::start_with_next([=](bool animDisabled, bool deactivated) {
 		const auto hide = !(!animDisabled && !deactivated);
 
@@ -532,16 +542,17 @@ MembersController::MembersController(
 			if (hide) {
 				updateRowLevel(row, 0.);
 			}
-			if (!hide && !_speakingAnimation.animating()) {
-				_speakingAnimation.start();
-			}
+			row->setSkipLevelUpdate(hide);
+		}
+		if (!hide && !_speakingAnimation.animating()) {
+			_speakingAnimation.start();
 		}
 		_skipRowLevelUpdate = hide;
 	}, _lifetime);
 
 	_speakingAnimation.init([=](crl::time now) {
 		if (const auto &last = _speakingAnimationHideLastTime; (last > 0)
-			&& (now - last >= Ui::Paint::Blobs::kHideBlobsDuration)) {
+			&& (now - last >= kBlobsEnterDuration)) {
 			_speakingAnimation.stop();
 			return false;
 		}
@@ -688,6 +699,7 @@ void MembersController::updateRow(
 		const Data::GroupCall::Participant *participant) {
 	const auto wasSpeaking = row->speaking();
 	const auto wasSsrc = row->ssrc();
+	row->setSkipLevelUpdate(_skipRowLevelUpdate);
 	row->updateState(participant);
 	const auto nowSpeaking = row->speaking();
 	const auto nowSsrc = row->ssrc();
