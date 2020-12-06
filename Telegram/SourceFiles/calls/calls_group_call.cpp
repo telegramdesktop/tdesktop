@@ -53,13 +53,14 @@ GroupCall::GroupCall(
 , _api(&_channel->session().mtp())
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); }) {
-	_muted.changes(
-	) | rpl::start_with_next([=](MuteState state) {
+	_muted.value(
+	) | rpl::combine_previous(
+	) | rpl::start_with_next([=](MuteState previous, MuteState state) {
 		if (_instance) {
-			_instance->setIsMuted(state != MuteState::Active);
+			updateInstanceMuteState();
 		}
-		if (_mySsrc && state != MuteState::ForceMuted) {
-			sendMutedUpdate();
+		if (_mySsrc) {
+			maybeSendMutedUpdate(previous);
 		}
 	}, _lifetime);
 
@@ -200,9 +201,9 @@ void GroupCall::rejoin() {
 
 			const auto json = QJsonDocument(root).toJson(
 				QJsonDocument::Compact);
-			const auto muted = _muted.current();
+			const auto wasMuteState = muted();
 			_api.request(MTPphone_JoinGroupCall(
-				MTP_flags((muted != MuteState::Active)
+				MTP_flags((wasMuteState != MuteState::Active)
 					? MTPphone_JoinGroupCall::Flag::f_muted
 					: MTPphone_JoinGroupCall::Flag(0)),
 				inputCall(),
@@ -213,11 +214,7 @@ void GroupCall::rejoin() {
 					? State::Joined
 					: State::Connecting);
 				applySelfInCallLocally();
-
-				if (_muted.current() != muted) {
-					sendMutedUpdate();
-				}
-
+				maybeSendMutedUpdate(wasMuteState);
 				_channel->session().api().applyUpdates(updates);
 			}).fail([=](const RPCError &error) {
 				LOG(("Call Error: Could not join, error: %1"
@@ -251,12 +248,11 @@ void GroupCall::applySelfInCallLocally() {
 	const auto lastActive = (i != end(participants))
 		? i->lastActive
 		: TimeId(0);
-	const auto muted = (_muted.current() != MuteState::Active);
-	const auto cantSelfUnmute = (_muted.current() == MuteState::ForceMuted);
-	const auto flags = (cantSelfUnmute ? Flag(0) : Flag::f_can_self_unmute)
+	const auto canSelfUnmute = (muted() != MuteState::ForceMuted);
+	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (lastActive ? Flag::f_active_date : Flag(0))
 		| (_mySsrc ? Flag(0) : Flag::f_left)
-		| (muted ? Flag::f_muted : Flag(0));
+		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0));
 	call->applyUpdateChecked(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
@@ -488,9 +484,17 @@ void GroupCall::createAndStartController() {
 	LOG(("Call Info: Creating group instance"));
 	_instance = std::make_unique<tgcalls::GroupInstanceImpl>(
 		std::move(descriptor));
-	_instance->setIsMuted(_muted.current() != MuteState::Active);
+	updateInstanceMuteState();
 
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
+}
+
+void GroupCall::updateInstanceMuteState() {
+	Expects(_instance != nullptr);
+
+	const auto state = muted();
+	_instance->setIsMuted(state != MuteState::Active
+		&& state != MuteState::PushToTalk);
 }
 
 void GroupCall::handleLevelsUpdated(
@@ -609,10 +613,23 @@ void GroupCall::setInstanceConnected(bool connected) {
 	}
 }
 
+void GroupCall::maybeSendMutedUpdate(MuteState previous) {
+	// Send only Active <-> !Active changes.
+	const auto now = muted();
+	const auto wasActive = (previous == MuteState::Active);
+	const auto nowActive = (now == MuteState::Active);
+	if (now == MuteState::ForceMuted
+		|| previous == MuteState::ForceMuted
+		|| (nowActive == wasActive)) {
+		return;
+	}
+	sendMutedUpdate();
+}
+
 void GroupCall::sendMutedUpdate() {
 	_api.request(_updateMuteRequestId).cancel();
 	_updateMuteRequestId = _api.request(MTPphone_EditGroupCallMember(
-		MTP_flags((_muted.current() != MuteState::Active)
+		MTP_flags((muted() != MuteState::Active)
 			? MTPphone_EditGroupCallMember::Flag::f_muted
 			: MTPphone_EditGroupCallMember::Flag(0)),
 		inputCall(),
@@ -758,8 +775,9 @@ void GroupCall::applyGlobalShortcutChanges() {
 	}
 	_pushToTalk = shortcut;
 	_shortcutManager->startWatching(_pushToTalk, [=](bool pressed) {
-		if (_muted.current() != MuteState::ForceMuted) {
-			setMuted(pressed ? MuteState::Active : MuteState::Muted);
+		if (muted() != MuteState::ForceMuted
+			&& muted() != MuteState::Active) {
+			setMuted(pressed ? MuteState::PushToTalk : MuteState::Muted);
 		}
 	});
 }

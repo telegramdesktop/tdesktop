@@ -28,9 +28,16 @@ namespace Calls {
 
 enum class MuteState {
 	Active,
+	PushToTalk,
 	Muted,
 	ForceMuted,
 };
+
+[[nodiscard]] inline auto MapPushToTalkToActive() {
+	return rpl::map([=](MuteState state) {
+		return (state == MuteState::PushToTalk) ? MuteState::Active : state;
+	});
+}
 
 struct LevelUpdate {
 	uint32 ssrc = 0;
@@ -132,7 +139,9 @@ private:
 
 	void setState(State state);
 	void finish(FinishType type);
+	void maybeSendMutedUpdate(MuteState previous);
 	void sendMutedUpdate();
+	void updateInstanceMuteState();
 	void applySelfInCallLocally();
 	void rejoin();
 

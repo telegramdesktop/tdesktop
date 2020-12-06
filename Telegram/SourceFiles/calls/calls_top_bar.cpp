@@ -198,9 +198,9 @@ void TopBar::initControls() {
 			call->setMuted(!call->muted());
 		} else if (const auto group = _groupCall.get()) {
 			if (group->muted() != MuteState::ForceMuted) {
-				group->setMuted((group->muted() == MuteState::Active)
-					? MuteState::Muted
-					: MuteState::Active);
+				group->setMuted((group->muted() == MuteState::Muted)
+					? MuteState::Active
+					: MuteState::Muted);
 			}
 		}
 	});
@@ -212,7 +212,9 @@ void TopBar::initControls() {
 		_call ? mapToState(_call->muted()) : _groupCall->muted());
 	auto muted = _call
 		? _call->mutedValue() | rpl::map(mapToState)
-		: _groupCall->mutedValue();
+		: (_groupCall->mutedValue()
+			| MapPushToTalkToActive()
+			| rpl::distinct_until_changed());
 	std::move(
 		muted
 	) | rpl::start_with_next([=](MuteState state) {

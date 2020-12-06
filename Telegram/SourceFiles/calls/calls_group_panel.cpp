@@ -317,13 +317,13 @@ void GroupPanel::hangup(bool discardCallChecked) {
 void GroupPanel::initControls() {
 	_mute->clicks(
 	) | rpl::filter([=](Qt::MouseButton button) {
-		return (button == Qt::LeftButton);
+		return (button == Qt::LeftButton)
+			&& _call
+			&& (_call->muted() != MuteState::ForceMuted);
 	}) | rpl::start_with_next([=] {
-		if (_call && _call->muted() != MuteState::ForceMuted) {
-			_call->setMuted((_call->muted() == MuteState::Active)
-				? MuteState::Muted
-				: MuteState::Active);
-		}
+		_call->setMuted((_call->muted() == MuteState::Muted)
+			? MuteState::Active
+			: MuteState::Muted);
 	}, _mute->lifetime());
 
 	_hangup->setClickedCallback([=] { hangup(false); });
@@ -381,19 +381,20 @@ void GroupPanel::initWithCall(GroupCall *call) {
 
 	using namespace rpl::mappers;
 	rpl::combine(
-		_call->mutedValue(),
+		_call->mutedValue() | MapPushToTalkToActive(),
 		_call->stateValue() | rpl::map(
 			_1 == State::Creating
 			|| _1 == State::Joining
 			|| _1 == State::Connecting
 		)
+	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](MuteState mute, bool connecting) {
 		_mute->setState(Ui::CallMuteButtonState{
 			.text = (connecting
 				? tr::lng_group_call_connecting(tr::now)
 				: mute == MuteState::ForceMuted
 				? tr::lng_group_call_force_muted(tr::now)
-				: mute != MuteState::Active
+				: mute == MuteState::Muted
 				? tr::lng_group_call_unmute(tr::now)
 				: tr::lng_group_call_you_are_live(tr::now)),
 			.type = (connecting
