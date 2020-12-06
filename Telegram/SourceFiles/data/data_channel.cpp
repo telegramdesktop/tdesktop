@@ -67,7 +67,7 @@ ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 				mgInfo = nullptr;
 			}
 		}
-		if (change.diff & MTPDchannel::Flag::f_call_active) {
+		if (change.diff & MTPDchannel::Flag::f_call_not_empty) {
 			if (const auto history = this->owner().historyLoaded(this)) {
 				history->updateChatListEntry();
 			}
@@ -708,7 +708,8 @@ void ChannelData::clearCall() {
 	owner().unregisterGroupCall(_call.get());
 	_call = nullptr;
 	session().changes().peerUpdated(this, UpdateFlag::GroupCall);
-	removeFlags(MTPDchannel::Flag::f_call_active);
+	removeFlags(MTPDchannel::Flag::f_call_active
+		| MTPDchannel::Flag::f_call_not_empty);
 }
 
 namespace Data {

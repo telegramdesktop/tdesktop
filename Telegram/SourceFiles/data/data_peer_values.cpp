@@ -443,7 +443,7 @@ bool IsUserOnline(not_null<UserData*> user) {
 }
 
 bool ChannelHasActiveCall(not_null<ChannelData*> channel) {
-	return (channel->flags() & MTPDchannel::Flag::f_call_active);
+	return (channel->flags() & MTPDchannel::Flag::f_call_not_empty);
 }
 
 } // namespace Data

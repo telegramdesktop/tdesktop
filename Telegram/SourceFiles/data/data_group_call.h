@@ -78,6 +78,7 @@ private:
 	void applyParticipantsMutes(
 		const MTPDupdateGroupCallParticipants &update);
 	void requestUnknownSsrcs();
+	void changeChannelEmptyCallFlag();
 
 	const not_null<ChannelData*> _channel;
 	const uint64 _id = 0;

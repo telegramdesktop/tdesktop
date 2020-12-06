@@ -686,7 +686,11 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			} else {
 				channel->setUnavailableReasons({});
 			}
-			channel->setFlags(data.vflags().v);
+			const auto callFlag = MTPDchannel::Flag::f_call_not_empty;
+			const auto callNotEmpty = (data.vflags().v & callFlag)
+				|| (channel->call() && channel->call()->fullCount() > 0);
+			channel->setFlags(data.vflags().v
+				| (callNotEmpty ? callFlag : MTPDchannel::Flag(0)));
 			//if (const auto feedId = data.vfeed_id()) { // #feed
 			//	channel->setFeed(feed(feedId->v));
 			//} else {

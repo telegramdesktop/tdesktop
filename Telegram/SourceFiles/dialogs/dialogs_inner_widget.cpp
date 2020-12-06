@@ -3010,9 +3010,7 @@ void InnerWidget::userOnlineUpdated(not_null<PeerData*> peer) {
 	if (!history) {
 		return;
 	}
-	updateRowCornerStatusShown(
-		history,
-		Data::OnlineTextActive(user, base::unixtime::now()));
+	updateRowCornerStatusShown(history, Data::IsUserOnline(user));
 }
 
 void InnerWidget::groupHasCallUpdated(not_null<PeerData*> peer) {
@@ -3024,9 +3022,7 @@ void InnerWidget::groupHasCallUpdated(not_null<PeerData*> peer) {
 	if (!history) {
 		return;
 	}
-	updateRowCornerStatusShown(
-		history,
-		group->flags() & MTPDchannel::Flag::f_call_active);
+	updateRowCornerStatusShown(history, Data::ChannelHasActiveCall(group));
 }
 
 void InnerWidget::updateRowCornerStatusShown(

@@ -85,11 +85,32 @@ void GroupCall::requestParticipants() {
 		});
 		_participantsSliceAdded.fire({});
 		_participantsRequestId = 0;
+		changeChannelEmptyCallFlag();
 	}).fail([=](const RPCError &error) {
 		_fullCount = _participants.size();
 		_allReceived = true;
 		_participantsRequestId = 0;
+		changeChannelEmptyCallFlag();
 	}).send();
+}
+
+void GroupCall::changeChannelEmptyCallFlag() {
+	constexpr auto flag = MTPDchannel::Flag::f_call_not_empty;
+	if (_channel->call() != this) {
+		return;
+	} else if (fullCount() > 0) {
+		if (!(_channel->flags() & flag)) {
+			_channel->addFlags(flag);
+			_channel->session().changes().peerUpdated(
+				_channel,
+				Data::PeerUpdate::Flag::GroupCall);
+		}
+	} else if (_channel->flags() & flag) {
+		_channel->removeFlags(flag);
+		_channel->session().changes().peerUpdated(
+			_channel,
+			Data::PeerUpdate::Flag::GroupCall);
+	}
 }
 
 int GroupCall::fullCount() const {
@@ -138,6 +159,7 @@ void GroupCall::applyCall(const MTPGroupCall &call, bool force) {
 		_canChangeJoinMuted = data.is_can_change_join_muted();
 		_version = data.vversion().v;
 		_fullCount = data.vparticipants_count().v;
+		changeChannelEmptyCallFlag();
 	}, [&](const MTPDgroupCallDiscarded &data) {
 		const auto id = _id;
 		const auto channel = _channel;
@@ -240,6 +262,7 @@ void GroupCall::applyParticipantsSlice(
 	}
 	if (sliceSource == ApplySliceSource::UpdateReceived) {
 		_fullCount = changedCount;
+		changeChannelEmptyCallFlag();
 	}
 }
 

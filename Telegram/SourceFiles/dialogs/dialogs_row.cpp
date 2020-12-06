@@ -238,13 +238,13 @@ void BasicRow::paintUserpic(
 	if (historyForCornerBadge->peer->isUser()) {
 		return;
 	}
-	p.setOpacity(shown);
 	const auto actionPainter = historyForCornerBadge->sendActionPainter();
 	const auto bg = active
 		? st::dialogsBgActive
 		: st::dialogsBg;
 	const auto size = st::dialogsCallBadgeSize;
 	const auto skip = st::dialogsCallBadgeSkip;
+	p.setOpacity(shown);
 	p.translate(st::dialogsPadding);
 	actionPainter->paintSpeaking(
 		p,
@@ -254,6 +254,7 @@ void BasicRow::paintUserpic(
 		bg,
 		now);
 	p.translate(-st::dialogsPadding);
+	p.setOpacity(1.);
 }
 
 Row::Row(Key key, int pos) : _id(key), _pos(pos) {
