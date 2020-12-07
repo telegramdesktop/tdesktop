@@ -14,10 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "lang/lang_keys.h"
+#include "base/timer_rpl.h"
 #include "base/event_filter.h"
 #include "base/global_shortcuts.h"
+#include "base/platform/base_platform_info.h"
 #include "data/data_channel.h"
 #include "data/data_group_call.h"
 #include "core/application.h"
@@ -38,6 +41,7 @@ namespace Calls {
 namespace {
 
 constexpr auto kDelaysCount = 201;
+constexpr auto kCheckAccessibilityInterval = crl::time(500);
 
 void SaveCallJoinMuted(
 		not_null<ChannelData*> channel,
@@ -182,24 +186,39 @@ void GroupCallSettingsBox(
 	struct PushToTalkState {
 		rpl::variable<QString> recordText = tr::lng_group_call_ptt_shortcut();
 		rpl::variable<QString> shortcutText;
+		rpl::event_stream<bool> pushToTalkToggles;
+		std::shared_ptr<base::GlobalShortcutManager> manager;
 		GlobalShortcut shortcut;
 		crl::time delay = 0;
 		bool recording = false;
 	};
-	const auto manager = call->ensureGlobalShortcutManager();
-	if (manager) {
+	if (base::GlobalShortcutsAvailable()) {
 		const auto state = box->lifetime().make_state<PushToTalkState>();
-		state->shortcut = manager->shortcutFromSerialized(
-			settings.groupCallPushToTalkShortcut());
+		if (!base::GlobalShortcutsAllowed()) {
+			Core::App().settings().setGroupCallPushToTalk(false);
+		}
+		const auto tryFillFromManager = [=] {
+			state->shortcut = state->manager
+				? state->manager->shortcutFromSerialized(
+					Core::App().settings().groupCallPushToTalkShortcut())
+				: nullptr;
+			state->shortcutText = state->shortcut
+				? state->shortcut->toDisplayString()
+				: QString();
+		};
+		state->manager = settings.groupCallPushToTalk()
+			? call->ensureGlobalShortcutManager()
+			: nullptr;
+		tryFillFromManager();
+
 		state->delay = settings.groupCallPushToTalkDelay();
-		state->shortcutText = state->shortcut
-			? state->shortcut->toDisplayString()
-			: QString();
 		const auto pushToTalk = AddButton(
 			layout,
 			tr::lng_group_call_push_to_talk(),
 			st::groupCallSettingsButton
-		)->toggleOn(rpl::single(settings.groupCallPushToTalk()));
+		)->toggleOn(rpl::single(
+			settings.groupCallPushToTalk()
+		) | rpl::then(state->pushToTalkToggles.events()));
 		const auto pushToTalkWrap = layout->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				layout,
@@ -220,6 +239,65 @@ void GroupCallSettingsBox(
 			call->applyGlobalShortcutChanges();
 			Core::App().saveSettingsDelayed();
 		};
+		const auto showPrivacyRequest = [=] {
+#ifdef Q_OS_MAC
+			if (!Platform::IsMac10_14OrGreater()) {
+				return;
+			}
+			const auto requestInputMonitoring = Platform::IsMac10_15OrGreater();
+			box->getDelegate()->show(Box([=](not_null<Ui::GenericBox*> box) {
+				box->addRow(
+					object_ptr<Ui::FlatLabel>(
+						box.get(),
+						rpl::combine(
+							tr::lng_group_call_mac_access(),
+							(requestInputMonitoring
+								? tr::lng_group_call_mac_input()
+								: tr::lng_group_call_mac_accessibility())
+						) | rpl::map([](QString a, QString b) {
+							auto result = Ui::Text::RichLangValue(a);
+							result.append("\n\n").append(Ui::Text::RichLangValue(b));
+							return result;
+						}),
+						st::groupCallBoxLabel),
+					style::margins(
+						st::boxRowPadding.left(),
+						st::boxPadding.top(),
+						st::boxRowPadding.right(),
+						st::boxPadding.bottom()));
+				box->addButton(tr::lng_group_call_mac_settings(), [=] {
+					if (requestInputMonitoring) {
+						Platform::OpenInputMonitoringPrivacySettings();
+					} else {
+						Platform::OpenAccessibilityPrivacySettings();
+					}
+				});
+				box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+
+				if (!requestInputMonitoring) {
+					// Accessibility is enabled without app restart, so short-poll it.
+					base::timer_each(
+						kCheckAccessibilityInterval
+					) | rpl::filter([] {
+						return base::GlobalShortcutsAllowed();
+					}) | rpl::start_with_next([=] {
+						box->closeBox();
+					}, box->lifetime());
+				}
+			}));
+#endif // Q_OS_MAC
+		};
+		const auto ensureManager = [=] {
+			if (state->manager) {
+				return true;
+			} else if (base::GlobalShortcutsAllowed()) {
+				state->manager = call->ensureGlobalShortcutManager();
+				tryFillFromManager();
+				return true;
+			}
+			showPrivacyRequest();
+			return false;
+		};
 		const auto stopRecording = [=] {
 			state->recording = false;
 			state->recordText = tr::lng_group_call_ptt_shortcut();
@@ -227,9 +305,16 @@ void GroupCallSettingsBox(
 				? state->shortcut->toDisplayString()
 				: QString();
 			recording->setColorOverride(std::nullopt);
-			manager->stopRecording();
+			if (state->manager) {
+				state->manager->stopRecording();
+			}
 		};
 		const auto startRecording = [=] {
+			if (!ensureManager()) {
+				state->pushToTalkToggles.fire(false);
+				pushToTalkWrap->hide(anim::type::instant);
+				return;
+			}
 			state->recording = true;
 			state->recordText = tr::lng_group_call_ptt_recording();
 			recording->setColorOverride(
@@ -245,7 +330,7 @@ void GroupCallSettingsBox(
 				applyAndSave();
 				stopRecording();
 			});
-			manager->startRecording(std::move(progress), std::move(done));
+			state->manager->startRecording(std::move(progress), std::move(done));
 		};
 		recording->addClickHandler([=] {
 			if (state->recording) {
@@ -293,6 +378,10 @@ void GroupCallSettingsBox(
 		) | rpl::start_with_next([=](bool toggled) {
 			if (!toggled) {
 				stopRecording();
+			} else if (!ensureManager()) {
+				state->pushToTalkToggles.fire(false);
+				pushToTalkWrap->hide(anim::type::instant);
+				return;
 			}
 			Core::App().settings().setGroupCallPushToTalk(toggled);
 			applyAndSave();

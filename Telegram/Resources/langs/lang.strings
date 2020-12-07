@@ -1862,6 +1862,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_duration_minutes#other" = "{count} minutes";
 "lng_group_call_duration_seconds#one" = "{count} second";
 "lng_group_call_duration_seconds#other" = "{count} seconds";
+"lng_group_call_mac_access" = "Telegram Desktop does not have access to system wide keyboard input required for Push to Talk.";
+"lng_group_call_mac_input" = "Please allow **Input Monitoring** for Telegram in Privacy Settings.";
+"lng_group_call_mac_accessibility" = "Please allow **Accessibility** for Telegram in Privacy Settings.\n\nApp restart may be required.";
+"lng_group_call_mac_settings" = "Open Settings";
 
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 

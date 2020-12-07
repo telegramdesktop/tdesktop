@@ -65,6 +65,8 @@ GroupCall::GroupCall(
 		}
 	}, _lifetime);
 
+	checkGlobalShortcutAvailability();
+
 	const auto id = inputCall.c_inputGroupCall().vid().v;
 	if (id) {
 		if (const auto call = _channel->call(); call && call->id() == id) {
@@ -81,6 +83,16 @@ GroupCall::GroupCall(
 
 GroupCall::~GroupCall() {
 	destroyController();
+}
+
+void GroupCall::checkGlobalShortcutAvailability() {
+	auto &settings = Core::App().settings();
+	if (!settings.groupCallPushToTalk()) {
+		return;
+	} else if (!base::GlobalShortcutsAllowed()) {
+		settings.setGroupCallPushToTalk(false);
+		Core::App().saveSettingsDelayed();
+	}
 }
 
 void GroupCall::setState(State state) {
@@ -747,18 +759,14 @@ auto GroupCall::ensureGlobalShortcutManager()
 void GroupCall::applyGlobalShortcutChanges() {
 	auto &settings = Core::App().settings();
 	if (!settings.groupCallPushToTalk()
-		|| settings.groupCallPushToTalkShortcut().isEmpty()) {
+		|| settings.groupCallPushToTalkShortcut().isEmpty()
+		|| !base::GlobalShortcutsAvailable()
+		|| !base::GlobalShortcutsAllowed()) {
 		_shortcutManager = nullptr;
 		_pushToTalk = nullptr;
 		return;
 	}
 	ensureGlobalShortcutManager();
-	if (!_shortcutManager) {
-		settings.setGroupCallPushToTalk(false);
-		Core::App().saveSettingsDelayed();
-		_pushToTalk = nullptr;
-		return;
-	}
 	const auto shortcut = _shortcutManager->shortcutFromSerialized(
 		settings.groupCallPushToTalkShortcut());
 	if (!shortcut) {

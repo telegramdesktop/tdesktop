@@ -154,6 +154,7 @@ private:
 	void checkLastSpoke();
 	void pushToTalkCancel();
 
+	void checkGlobalShortcutAvailability();
 	void checkJoined();
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
