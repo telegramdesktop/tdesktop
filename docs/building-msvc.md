@@ -33,7 +33,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd ThirdParty
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout e052c49
+    git checkout f22ccc5
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
@@ -63,7 +63,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout e052c49
+    git checkout f22ccc5
     cd ..
 
     git clone https://github.com/desktop-app/lzma.git
@@ -161,17 +161,17 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd ..
 
     SET LibrariesPath=%cd%
-    git clone git://code.qt.io/qt/qt5.git qt_5_15_1
-    cd qt_5_15_1
+    git clone git://code.qt.io/qt/qt5.git qt_5_15_2
+    cd qt_5_15_2
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.15.1
+    git checkout v5.15.2
     git submodule update qtbase qtimageformats
     cd qtbase
-    for /r %i in (..\..\patches\qtbase_5_15_1\*) do git apply %i
+    for /r %i in (..\..\patches\qtbase_5_15_2\*) do git apply %i
     cd ..
 
     configure ^
-        -prefix "%LibrariesPath%\Qt-5.15.1" ^
+        -prefix "%LibrariesPath%\Qt-5.15.2" ^
         -debug-and-release ^
         -force-debug-info ^
         -opensource ^

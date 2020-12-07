@@ -91,7 +91,7 @@ const auto kDictionaries = {
 	Dict{{ QLocale::Korean,              615, 1'256'987, "\xed\x95\x9c\xea\xb5\xad\xec\x96\xb4" }}, // ko_KR
 	Dict{{ QLocale::Lithuanian,          616,   267'427, "\x4c\x69\x65\x74\x75\x76\x69\xc5\xb3" }}, // lt_LT
 	Dict{{ QLocale::Latvian,             617,   641'602, "\x4c\x61\x74\x76\x69\x65\xc5\xa1\x75" }}, // lv_LV
-	Dict{{ QLocale::Norwegian,           618,   588'650, "\x4e\x6f\x72\x73\x6b" }}, // nb_NO
+	Dict{{ QLocale::NorwegianBokmal,     618,   588'650, "\x4e\x6f\x72\x73\x6b" }}, // nb_NO
 	Dict{{ QLocale::Dutch,               619,   743'406, "\x4e\x65\x64\x65\x72\x6c\x61\x6e\x64\x73" }}, // nl_NL
 	Dict{{ QLocale::Polish,              620, 1'015'747, "\x50\x6f\x6c\x73\x6b\x69" }}, // pl_PL
 	Dict{{ QLocale::Portuguese,          621, 1'231'999, "\x50\x6f\x72\x74\x75\x67\x75\xc3\xaa\x73 (Brazil)" }}, // pt_BR

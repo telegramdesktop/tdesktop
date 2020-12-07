@@ -29,7 +29,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout e052c49
+    git checkout f22ccc5
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -58,7 +58,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout e052c49
+    git checkout f22ccc5
     cd ..
 
     git clone https://git.tukaani.org/xz.git
@@ -269,16 +269,16 @@ Go to ***BuildPath*** and run
     ninja -C out/Release
     cd ..
 
-    git clone git://code.qt.io/qt/qt5.git qt_5_15_1
-    cd qt_5_15_1
+    git clone git://code.qt.io/qt/qt5.git qt_5_15_2
+    cd qt_5_15_2
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.15.1
+    git checkout v5.15.2
     git submodule update qtbase qtimageformats
     cd qtbase
-    find ../../patches/qtbase_5_15_1 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_5_15_2 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
-    ./configure -prefix "/usr/local/desktop-app/Qt-5.15.1" \
+    ./configure -prefix "/usr/local/desktop-app/Qt-5.15.2" \
         -debug-and-release \
         -force-debug-info \
         -opensource \

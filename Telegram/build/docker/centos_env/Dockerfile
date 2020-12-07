@@ -2,9 +2,9 @@ FROM centos:7 AS builder
 
 ENV GIT https://github.com
 ENV PKG_CONFIG_PATH /usr/local/lib/pkgconfig
-ENV QT 5_15_1
-ENV QT_TAG v5.15.1
-ENV QT_PREFIX /usr/local/desktop-app/Qt-5.15.1
+ENV QT 5_15_2
+ENV QT_TAG v5.15.2
+ENV QT_PREFIX /usr/local/desktop-app/Qt-5.15.2
 ENV OPENSSL_VER 1_1_1
 ENV OPENSSL_PREFIX /usr/local/desktop-app/openssl-1.1.1
 
@@ -28,7 +28,7 @@ WORKDIR $LibrariesPath
 
 FROM builder AS patches
 RUN git clone $GIT/desktop-app/patches.git
-RUN cd patches && git checkout e052c49
+RUN cd patches && git checkout f22ccc5
 
 FROM builder AS libffi
 RUN git clone -b v3.3 --depth=1 $GIT/libffi/libffi.git
@@ -489,7 +489,7 @@ COPY --from=openssl ${LibrariesPath}/openssl-cache /
 RUN git clone --recursive $GIT/desktop-app/tg_owt.git
 
 WORKDIR tg_owt
-RUN git checkout c73a471
+RUN git checkout 75ac669
 
 RUN cmake3 -B out/Release . \
 	-DCMAKE_BUILD_TYPE=Release \
