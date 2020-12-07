@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_send_progress.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_hardcoded.h"
 #include "boxes/confirm_box.h"
 #include "ui/toasts/common_toasts.h"
 #include "base/unixtime.h"
@@ -230,14 +231,17 @@ void GroupCall::rejoin() {
 				maybeSendMutedUpdate(wasMuteState);
 				_channel->session().api().applyUpdates(updates);
 			}).fail([=](const RPCError &error) {
-				LOG(("Call Error: Could not join, error: %1"
-					).arg(error.type()));
+				const auto type = error.type();
+				LOG(("Call Error: Could not join, error: %1").arg(type));
 				hangup();
-				if (error.type() == u"GROUP_CALL_ANONYMOUS_FORBIDDEN"_q) {
-					Ui::ShowMultilineToast({
-						.text = tr::lng_group_call_no_anonymous(tr::now),
-					});
-				}
+
+				Ui::ShowMultilineToast({
+					.text = (type == u"GROUP_CALL_ANONYMOUS_FORBIDDEN"_q
+						? tr::lng_group_call_no_anonymous(tr::now)
+						: type == u"GROUPCALL_PARTICIPANTS_TOO_MUCH"_q
+						? tr::lng_group_call_too_many(tr::now)
+						: Lang::Hard::ServerError()),
+				});
 			}).send();
 		});
 	});

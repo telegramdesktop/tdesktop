@@ -1851,7 +1851,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_no_members" = "No members";
 "lng_group_call_members#one" = "{count} member";
 "lng_group_call_members#other" = "{count} members";
-"lng_group_call_no_anonymous" = "Anonymous admins can't join voice chats :(";
+"lng_group_call_no_anonymous" = "Sorry, anonymous group admins can't join voice chats.";
+"lng_group_call_too_many" = "Sorry, there are too many members in this voice chat. Please try again later.";
 "lng_group_call_context_mute" = "Mute";
 "lng_group_call_context_unmute" = "Allow to speak";
 "lng_group_call_duration_days#one" = "{count} day";
