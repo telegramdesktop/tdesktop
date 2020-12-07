@@ -64,6 +64,7 @@ TopBarWidget::TopBarWidget(
 , _delete(this, tr::lng_selected_delete(), st::defaultActiveButton)
 , _back(this, st::historyTopBarBack)
 , _call(this, st::topBarCall)
+, _groupCall(this, st::topBarGroupCall)
 , _search(this, st::topBarSearch)
 , _infoToggle(this, st::topBarInfo)
 , _menuToggle(this, st::topBarMenuToggle)
@@ -83,8 +84,9 @@ TopBarWidget::TopBarWidget(
 	_delete->setClickedCallback([=] { _deleteSelection.fire({}); });
 	_delete->setWidthChangedCallback([=] { updateControlsGeometry(); });
 	_clear->setClickedCallback([=] { _clearSelection.fire({}); });
-	_call->setClickedCallback([=] { onCall(); });
-	_search->setClickedCallback([=] { onSearch(); });
+	_call->setClickedCallback([=] { call(); });
+	_groupCall->setClickedCallback([=] { groupCall(); });
+	_search->setClickedCallback([=] { search(); });
 	_menuToggle->setClickedCallback([=] { showMenu(); });
 	_infoToggle->setClickedCallback([=] { toggleInfoSection(); });
 	_back->addClickHandler([=] { backClicked(); });
@@ -202,21 +204,27 @@ void TopBarWidget::refreshLang() {
 	InvokeQueued(this, [this] { updateControlsGeometry(); });
 }
 
-void TopBarWidget::onSearch() {
+void TopBarWidget::search() {
 	if (_activeChat.key) {
 		_controller->content()->searchInChat(_activeChat.key);
 	}
 }
 
-void TopBarWidget::onCall() {
+void TopBarWidget::call() {
 	if (const auto peer = _activeChat.key.peer()) {
 		if (const auto user = peer->asUser()) {
 			Core::App().calls().startOutgoingCall(user, false);
-		} else if (const auto megagroup = peer->asMegagroup()) {
+		}
+	}
+}
+
+void TopBarWidget::groupCall() {
+	if (const auto peer = _activeChat.key.peer()) {
+		if (const auto megagroup = peer->asMegagroup()) {
 			if (megagroup->amAnonymous()) {
 				Ui::ShowMultilineToast({
 					.text = tr::lng_group_call_no_anonymous(tr::now),
-				});
+					});
 			} else if (const auto call = megagroup->call()) {
 				Core::App().calls().joinGroupCall(megagroup, call->input());
 			} else {
@@ -653,6 +661,7 @@ void TopBarWidget::updateControlsGeometry() {
 	_search->moveToRight(_rightTaken, otherButtonsTop);
 	_rightTaken += _search->width() + st::topBarCallSkip;
 	_call->moveToRight(_rightTaken, otherButtonsTop);
+	_groupCall->moveToRight(_rightTaken, otherButtonsTop);
 	_rightTaken += _call->width();
 
 	updateMembersShowArea();
@@ -713,13 +722,20 @@ void TopBarWidget::updateControlsVisibility() {
 			if (const auto user = peer->asUser()) {
 				return session().serverConfig().phoneCallsEnabled.current()
 					&& user->hasCalls();
-			} else if (const auto megagroup = peer->asMegagroup()) {
-				return megagroup->canManageCall();
 			}
 		}
 		return false;
 	}();
 	_call->setVisible(historyMode && callsEnabled);
+	const auto groupCallsEnabled = [&] {
+		if (const auto peer = _activeChat.key.peer()) {
+			if (const auto megagroup = peer->asMegagroup()) {
+				return megagroup->canManageCall();
+			}
+		}
+		return false;
+	}();
+	_groupCall->setVisible(historyMode && groupCallsEnabled);
 
 	if (_membersShowArea) {
 		_membersShowArea->show();
