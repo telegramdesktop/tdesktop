@@ -233,8 +233,13 @@ void GroupCall::rejoin() {
 			}).fail([=](const RPCError &error) {
 				const auto type = error.type();
 				LOG(("Call Error: Could not join, error: %1").arg(type));
-				hangup();
 
+				if (type == u"GROUPCALL_SSRC_DUPLICATE_MUCH") {
+					rejoin();
+					return;
+				}
+
+				hangup();
 				Ui::ShowMultilineToast({
 					.text = (type == u"GROUPCALL_ANONYMOUS_FORBIDDEN"_q
 						? tr::lng_group_call_no_anonymous(tr::now)
