@@ -1777,6 +1777,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_call_error_audio_io" = "There seems to be a problem with audio playback on your computer. Please make sure that your computer's speakers and microphone are working and try again.";
 
 "lng_call_bar_hangup" = "End call";
+"lng_call_leave_to_other_sure" = "Do you want to end your active call and join a voice chat in this group?";
 
 "lng_call_box_title" = "Calls";
 "lng_call_box_about" = "You haven't made any Telegram calls yet.";
@@ -1824,6 +1825,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_leave" = "Leave";
 "lng_group_call_leave_title" = "Leave voice chat";
 "lng_group_call_leave_sure" = "Are you sure you want to leave this voice chat?";
+"lng_group_call_leave_to_other_sure" = "Do you want to leave your active voice chat and join a voice chat in this group?";
 "lng_group_call_also_end" = "End voice chat";
 "lng_group_call_settings_title" = "Settings";
 "lng_group_call_invite_title" = "Invite members";

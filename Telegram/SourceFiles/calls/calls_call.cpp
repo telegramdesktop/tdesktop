@@ -1036,7 +1036,12 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 		|| (_videoOutgoing->state() != Webrtc::VideoState::Inactive))
 		? MTPphone_DiscardCall::Flag::f_video
 		: MTPphone_DiscardCall::Flag(0);
-	_api.request(MTPphone_DiscardCall(
+
+	// We want to discard request still being sent and processed even if
+	// the call is already destroyed.
+	const auto session = &_user->session();
+	const auto weak = base::make_weak(this);
+	session->api().request(MTPphone_DiscardCall( // We send 'discard' here.
 		MTP_flags(flags),
 		MTP_inputPhoneCall(
 			MTP_long(_id),
@@ -1047,11 +1052,11 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	)).done([=](const MTPUpdates &result) {
 		// Here 'this' could be destroyed by updates, so we set Ended after
 		// updates being handled, but in a guarded way.
-		crl::on_main(this, [=] { setState(finalState); });
-		_user->session().api().applyUpdates(result);
-	}).fail([this, finalState](const RPCError &error) {
+		crl::on_main(weak, [=] { setState(finalState); });
+		session->api().applyUpdates(result);
+	}).fail(crl::guard(weak, [this, finalState](const RPCError &error) {
 		setState(finalState);
-	}).send();
+	})).send();
 }
 
 void Call::setStateQueued(State state) {

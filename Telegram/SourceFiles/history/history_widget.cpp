@@ -5441,8 +5441,8 @@ void HistoryWidget::setupGroupCallTracker() {
 				.text = tr::lng_group_call_no_anonymous(tr::now),
 				});
 			return;
-		} else if (const auto call = channel->call()) {
-			Core::App().calls().joinGroupCall(channel, call->input());
+		} else if (channel->call()) {
+			controller()->startOrJoinGroupCall(channel);
 		}
 	}, _groupCallBar->lifetime());
 

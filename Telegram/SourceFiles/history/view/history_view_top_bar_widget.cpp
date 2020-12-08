@@ -221,18 +221,10 @@ void TopBarWidget::call() {
 void TopBarWidget::groupCall() {
 	if (const auto peer = _activeChat.key.peer()) {
 		if (const auto megagroup = peer->asMegagroup()) {
-			if (megagroup->amAnonymous()) {
-				Ui::ShowMultilineToast({
-					.text = tr::lng_group_call_no_anonymous(tr::now),
-					});
-			} else if (const auto call = megagroup->call()) {
-				Core::App().calls().joinGroupCall(megagroup, call->input());
-			} else {
-				Core::App().calls().startGroupCall(megagroup);
-			}
+			_controller->startOrJoinGroupCall(megagroup);
 		} else if (const auto chat = peer->asChat()) {
 			const auto start = [=](not_null<ChannelData*> megagroup) {
-				Core::App().calls().startGroupCall(megagroup);
+				_controller->startOrJoinGroupCall(megagroup);
 			};
 			peer->session().api().migrateChat(chat, crl::guard(this, start));
 		}

@@ -40,10 +40,7 @@ public:
 	~Instance();
 
 	void startOutgoingCall(not_null<UserData*> user, bool video);
-	void startGroupCall(not_null<ChannelData*> channel);
-	void joinGroupCall(
-		not_null<ChannelData*> channel,
-		const MTPInputGroupCall &call);
+	void startOrJoinGroupCall(not_null<ChannelData*> channel);
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
@@ -53,6 +50,9 @@ public:
 	[[nodiscard]] rpl::producer<Call*> currentCallValue() const;
 	[[nodiscard]] GroupCall *currentGroupCall() const;
 	[[nodiscard]] rpl::producer<GroupCall*> currentGroupCallValue() const;
+	[[nodiscard]] bool inCall() const;
+	[[nodiscard]] bool inGroupCall() const;
+	bool activateCurrentCall();
 	std::shared_ptr<tgcalls::VideoCaptureInterface> getVideoCapture() override;
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
@@ -98,9 +98,7 @@ private:
 	void refreshServerConfig(not_null<Main::Session*> session);
 	bytes::const_span updateDhConfig(const MTPmessages_DhConfig &data);
 
-	bool activateCurrentCall();
-	[[nodiscard]] bool inCall() const;
-	[[nodiscard]] bool inGroupCall() const;
+	void destroyCurrentCall();
 	void handleCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPPhoneCall &call);

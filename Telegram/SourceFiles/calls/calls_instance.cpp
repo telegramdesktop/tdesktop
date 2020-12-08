@@ -58,23 +58,13 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 	}), video);
 }
 
-void Instance::startGroupCall(not_null<ChannelData*> channel) {
-	if (activateCurrentCall()) {
-		return;
-	}
+void Instance::startOrJoinGroupCall(not_null<ChannelData*> channel) {
+	destroyCurrentCall();
 	requestPermissionsOrFail(crl::guard(this, [=] {
-		createGroupCall(channel, MTP_inputGroupCall(MTPlong(), MTPlong()));
-	}), false);
-}
-
-void Instance::joinGroupCall(
-		not_null<ChannelData*> channel,
-		const MTPInputGroupCall &call) {
-	if (activateCurrentCall()) {
-		return;
-	}
-	requestPermissionsOrFail(crl::guard(this, [=] {
-		createGroupCall(channel, call);
+		const auto call = channel->call();
+		createGroupCall(
+			channel,
+			call ? call->input() : MTP_inputGroupCall(MTPlong(), MTPlong()));
 	}), false);
 }
 
@@ -432,7 +422,11 @@ void Instance::handleSignalingData(
 }
 
 bool Instance::inCall() const {
-	return (_currentCall && _currentCall->state() != Call::State::Busy);
+	if (!_currentCall) {
+		return false;
+	}
+	const auto state = _currentCall->state();
+	return (state != Call::State::Busy);
 }
 
 bool Instance::inGroupCall() const {
@@ -444,6 +438,21 @@ bool Instance::inGroupCall() const {
 		&& (state != GroupCall::State::Ended)
 		&& (state != GroupCall::State::FailedHangingUp)
 		&& (state != GroupCall::State::Failed);
+}
+
+void Instance::destroyCurrentCall() {
+	if (const auto current = currentCall()) {
+		current->hangup();
+		if (const auto still = currentCall()) {
+			destroyCall(still);
+		}
+	}
+	if (const auto current = currentGroupCall()) {
+		current->hangup();
+		if (const auto still = currentGroupCall()) {
+			destroyGroupCall(still);
+		}
+	}
 }
 
 bool Instance::activateCurrentCall() {

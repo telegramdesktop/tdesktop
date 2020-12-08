@@ -296,6 +296,10 @@ public:
 	void resizeForThirdSection();
 	void closeThirdSection();
 
+	void startOrJoinGroupCall(
+		not_null<ChannelData*> megagroup,
+		bool confirmedLeaveOther = false);
+
 	void showSection(
 		SectionMemento &&memento,
 		const SectionShow &params = SectionShow()) override;

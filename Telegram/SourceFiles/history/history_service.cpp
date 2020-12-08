@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
+#include "main/main_domain.h" // Core::App().domain().activate().
 #include "apiwrap.h"
 #include "layout.h"
 #include "history/history.h"
@@ -72,6 +73,24 @@ constexpr auto kPinnedMessageTextLimit = 16;
 [[nodiscard]] uint64 CallIdFromInput(const MTPInputGroupCall &data) {
 	return data.match([&](const MTPDinputGroupCall &data) {
 		return data.vid().v;
+	});
+}
+
+[[nodiscard]] ClickHandlerPtr ChannelCallClickHandler(
+		not_null<ChannelData*> megagroup,
+		uint64 callId) {
+	return std::make_shared<LambdaClickHandler>([=] {
+		const auto call = megagroup->call();
+		if (call && call->id() == callId) {
+			const auto &windows = megagroup->session().windows();
+			if (windows.empty()) {
+				Core::App().domain().activate(&megagroup->session().account());
+				if (windows.empty()) {
+					return;
+				}
+			}
+			windows.front()->startOrJoinGroupCall(megagroup);
+		}
 	});
 }
 
@@ -518,12 +537,7 @@ HistoryService::PreparedText HistoryService::prepareStartedCallText(
 	const auto channel = history()->peer->asChannel();
 	auto chatText = tr::lng_action_group_call_started_chat(tr::now);
 	if (channel && linkCallId) {
-		result.links.push_back(std::make_shared<LambdaClickHandler>([=] {
-			const auto call = channel->call();
-			if (call && call->id() == linkCallId) {
-				Core::App().calls().joinGroupCall(channel, call->input());
-			}
-		}));
+		result.links.push_back(ChannelCallClickHandler(channel, linkCallId));
 		chatText = textcmdLink(2, chatText);
 	}
 	result.text = tr::lng_action_group_call_started(
@@ -545,12 +559,7 @@ HistoryService::PreparedText HistoryService::prepareInvitedToCallText(
 	result.links.push_back(fromLink());
 	auto linkIndex = 1;
 	if (channel && linkCallId) {
-		result.links.push_back(std::make_shared<LambdaClickHandler>([=] {
-			const auto call = channel->call();
-			if (call && call->id() == linkCallId) {
-				Core::App().calls().joinGroupCall(channel, call->input());
-			}
-		}));
+		result.links.push_back(ChannelCallClickHandler(channel, linkCallId));
 		chatText = textcmdLink(++linkIndex, chatText);
 	}
 	if (users.size() == 1) {

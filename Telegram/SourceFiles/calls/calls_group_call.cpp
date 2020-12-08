@@ -330,17 +330,22 @@ void GroupCall::finish(FinishType type) {
 	}
 
 	setState(hangupState);
-	_api.request(MTPphone_LeaveGroupCall(
+
+	// We want to leave request still being sent and processed even if
+	// the call is already destroyed.
+	const auto session = &_channel->session();
+	const auto weak = base::make_weak(this);
+	session->api().request(MTPphone_LeaveGroupCall(
 		inputCall(),
 		MTP_int(_mySsrc)
 	)).done([=](const MTPUpdates &result) {
 		// Here 'this' could be destroyed by updates, so we set Ended after
 		// updates being handled, but in a guarded way.
-		crl::on_main(this, [=] { setState(finalState); });
-		_channel->session().api().applyUpdates(result);
-	}).fail([=](const RPCError &error) {
+		crl::on_main(weak, [=] { setState(finalState); });
+		session->api().applyUpdates(result);
+	}).fail(crl::guard(weak, [=](const RPCError &error) {
 		setState(finalState);
-	}).send();
+	})).send();
 }
 
 void GroupCall::setMuted(MuteState mute) {
