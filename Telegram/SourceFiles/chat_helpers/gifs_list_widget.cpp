@@ -329,7 +329,7 @@ void GifsListWidget::paintInlineItems(Painter &p, QRect clip) {
 			break;
 		}
 		if (top + inlineRow.height > clip.top()) {
-			auto left = st::inlineResultsLeft - st::buttonRadius;
+			auto left = st::inlineResultsLeft - st::roundRadiusSmall;
 			if (row == rows - 1) context.lastRow = true;
 			for (int col = 0, cols = inlineRow.items.size(); col < cols; ++col) {
 				if (left >= tox) break;
@@ -559,7 +559,7 @@ bool GifsListWidget::inlineRowFinalize(Row &row, int32 &sumWidth, bool force) {
 	auto full = (row.items.size() >= kInlineItemsMaxPerRow);
 
 	// Currently use the same GIFs layout for all widget sizes.
-//	auto big = (sumWidth >= st::buttonRadius + width() - st::inlineResultsLeft);
+//	auto big = (sumWidth >= st::roundRadiusSmall + width() - st::inlineResultsLeft);
 	auto big = (sumWidth >= st::emojiPanWidth - st::inlineResultsLeft);
 	if (full || big || force) {
 		row.maxWidth = (full || big) ? sumWidth : 0;
@@ -701,7 +701,7 @@ void GifsListWidget::layoutInlineRow(Row &row, int fullWidth) {
 
 	auto desiredWidth = row.maxWidth;
 	row.height = 0;
-	int availw = fullWidth - (st::inlineResultsLeft - st::buttonRadius);
+	int availw = fullWidth - (st::inlineResultsLeft - st::roundRadiusSmall);
 	for (int i = 0; i < count; ++i) {
 		const auto index = indices[i];
 		const auto &item = row.items[index];
@@ -1020,7 +1020,7 @@ void GifsListWidget::updateSelected() {
 	}
 
 	auto p = mapFromGlobal(_lastMousePos);
-	int sx = (rtl() ? width() - p.x() : p.x()) - (st::inlineResultsLeft - st::buttonRadius);
+	int sx = (rtl() ? width() - p.x() : p.x()) - (st::inlineResultsLeft - st::roundRadiusSmall);
 	int sy = p.y() - st::stickerPanPadding;
 	int row = -1, col = -1, sel = -1;
 	ClickHandlerPtr lnk;

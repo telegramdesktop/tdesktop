@@ -801,8 +801,8 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				} else {
 					const auto coef = std::min(
 						std::min(
-							(st::stickerPanSize.width() - st::buttonRadius * 2) / float64(document->dimensions.width()),
-							(st::stickerPanSize.height() - st::buttonRadius * 2) / float64(document->dimensions.height())),
+							(st::stickerPanSize.width() - st::roundRadiusSmall * 2) / float64(document->dimensions.width()),
+							(st::stickerPanSize.height() - st::roundRadiusSmall * 2) / float64(document->dimensions.height())),
 						1.);
 					w = std::max(qRound(coef * document->dimensions.width()), 1);
 					h = std::max(qRound(coef * document->dimensions.height()), 1);
@@ -1220,8 +1220,8 @@ void FieldAutocomplete::Inner::setupLottie(StickerSuggestion &suggestion) {
 
 QSize FieldAutocomplete::Inner::stickerBoundingBox() const {
 	return QSize(
-		st::stickerPanSize.width() - st::buttonRadius * 2,
-		st::stickerPanSize.height() - st::buttonRadius * 2);
+		st::stickerPanSize.width() - st::roundRadiusSmall * 2,
+		st::stickerPanSize.height() - st::roundRadiusSmall * 2);
 }
 
 void FieldAutocomplete::Inner::repaintSticker(

@@ -253,7 +253,7 @@ object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 			fullBarsSize.width(),
 			height);
 		const auto bigRadius = height / 2;
-		const auto smallRadius = st::buttonRadius;
+		const auto smallRadius = st::roundRadiusSmall;
 		const auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::callBgButton);

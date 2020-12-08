@@ -561,7 +561,7 @@ void Generator::paintDialogs() {
 	_p->setBrush(st::dialogsFilter.bgColor[_palette]);
 	{
 		PainterHighQualityEnabler hq(*_p);
-		_p->drawRoundedRect(QRectF(filter).marginsRemoved(QMarginsF(st::dialogsFilter.borderWidth / 2., st::dialogsFilter.borderWidth / 2., st::dialogsFilter.borderWidth / 2., st::dialogsFilter.borderWidth / 2.)), st::buttonRadius - (st::dialogsFilter.borderWidth / 2.), st::buttonRadius - (st::dialogsFilter.borderWidth / 2.));
+		_p->drawRoundedRect(QRectF(filter).marginsRemoved(QMarginsF(st::dialogsFilter.borderWidth / 2., st::dialogsFilter.borderWidth / 2., st::dialogsFilter.borderWidth / 2., st::dialogsFilter.borderWidth / 2.)), st::roundRadiusSmall - (st::dialogsFilter.borderWidth / 2.), st::roundRadiusSmall - (st::dialogsFilter.borderWidth / 2.));
 	}
 
 	if (!st::dialogsFilter.icon.empty()) {

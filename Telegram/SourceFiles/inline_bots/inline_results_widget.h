@@ -96,11 +96,11 @@ private:
 	// Rounded rect which has shadow around it.
 	QRect innerRect() const;
 
-	// Inner rect with removed st::buttonRadius from top and bottom.
+	// Inner rect with removed st::roundRadiusSmall from top and bottom.
 	// This one is allowed to be not rounded.
 	QRect horizontalRect() const;
 
-	// Inner rect with removed st::buttonRadius from left and right.
+	// Inner rect with removed st::roundRadiusSmall from left and right.
 	// This one is allowed to be not rounded.
 	QRect verticalRect() const;
 
