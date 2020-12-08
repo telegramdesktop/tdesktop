@@ -105,6 +105,10 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Fix adding additional photos when sending an album to a group with enabled slow mode.\n"
 	},
+	{
+		2004012,
+		"- Voice chats in groups. (alpha version)\n"
+	},
 	};
 };
 

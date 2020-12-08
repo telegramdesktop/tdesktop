@@ -1,3 +1,7 @@
+2.4.12 beta (09.12.20)
+
+- Voice chats in groups. (alpha version)
+
 2.4.11 beta (19.11.20)
 
 - Improve locked voice message recording.
