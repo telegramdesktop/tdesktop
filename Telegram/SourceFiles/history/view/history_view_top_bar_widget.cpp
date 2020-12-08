@@ -230,6 +230,11 @@ void TopBarWidget::groupCall() {
 			} else {
 				Core::App().calls().startGroupCall(megagroup);
 			}
+		} else if (const auto chat = peer->asChat()) {
+			const auto start = [=](not_null<ChannelData*> megagroup) {
+				Core::App().calls().startGroupCall(megagroup);
+			};
+			peer->session().api().migrateChat(chat, crl::guard(this, start));
 		}
 	}
 }
@@ -731,6 +736,8 @@ void TopBarWidget::updateControlsVisibility() {
 		if (const auto peer = _activeChat.key.peer()) {
 			if (const auto megagroup = peer->asMegagroup()) {
 				return megagroup->canManageCall();
+			} else if (const auto chat = peer->asChat()) {
+				return chat->amCreator();
 			}
 		}
 		return false;
