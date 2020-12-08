@@ -51,6 +51,7 @@ public:
 	Panel(not_null<Call*> call);
 	~Panel();
 
+	[[nodiscard]] bool isActive() const;
 	void showAndActivate();
 	void replaceCall(not_null<Call*> call);
 	void closeBeforeDestroy();

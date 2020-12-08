@@ -241,6 +241,12 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 
 GroupPanel::~GroupPanel() = default;
 
+bool GroupPanel::isActive() const {
+	return _window->isActiveWindow()
+		&& _window->isVisible()
+		&& !(_window->windowState() & Qt::WindowMinimized);
+}
+
 void GroupPanel::showAndActivate() {
 	if (_window->isHidden()) {
 		_window->show();

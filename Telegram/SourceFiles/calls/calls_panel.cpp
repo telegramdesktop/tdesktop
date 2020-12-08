@@ -202,6 +202,12 @@ Panel::Panel(not_null<Call*> call)
 
 Panel::~Panel() = default;
 
+bool Panel::isActive() const {
+	return _window->isActiveWindow()
+		&& _window->isVisible()
+		&& !(_window->windowState() & Qt::WindowMinimized);
+}
+
 void Panel::showAndActivate() {
 	_window->raise();
 	_window->setWindowState(_window->windowState() | Qt::WindowActive);

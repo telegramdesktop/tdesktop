@@ -52,6 +52,8 @@ public:
 	[[nodiscard]] rpl::producer<GroupCall*> currentGroupCallValue() const;
 	[[nodiscard]] bool inCall() const;
 	[[nodiscard]] bool inGroupCall() const;
+	[[nodiscard]] bool hasActivePanel(
+		not_null<Main::Session*> session) const;
 	bool activateCurrentCall();
 	std::shared_ptr<tgcalls::VideoCaptureInterface> getVideoCapture() override;
 

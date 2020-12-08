@@ -67,6 +67,7 @@ public:
 	GroupPanel(not_null<GroupCall*> call);
 	~GroupPanel();
 
+	[[nodiscard]] bool isActive() const;
 	void showAndActivate();
 	void closeBeforeDestroy();
 

@@ -880,9 +880,12 @@ void Application::localPasscodeChanged() {
 bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
 	if (App::quitting() || !_window) {
 		return false;
+	} else if (_calls->hasActivePanel(session)) {
+		return true;
 	} else if (const auto controller = _window->sessionController()) {
-		if (&controller->session() == session) {
-			return _window->widget()->isActive();
+		if (&controller->session() == session
+			&& _window->widget()->isActive()) {
+			return true;
 		}
 	}
 	return false;

@@ -455,6 +455,17 @@ void Instance::destroyCurrentCall() {
 	}
 }
 
+bool Instance::hasActivePanel(not_null<Main::Session*> session) const {
+	if (inCall()) {
+		return (&_currentCall->user()->session() == session)
+			&& _currentCallPanel->isActive();
+	} else if (inGroupCall()) {
+		return (&_currentGroupCall->channel()->session() == session)
+			&& _currentGroupCallPanel->isActive();
+	}
+	return false;
+}
+
 bool Instance::activateCurrentCall() {
 	if (inCall()) {
 		_currentCallPanel->showAndActivate();
