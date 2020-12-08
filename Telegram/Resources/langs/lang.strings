@@ -1062,11 +1062,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_duration_minsec_seconds#other" = "{count} sec";
 "lng_duration_minutes_seconds" = "{minutes_count} {seconds_count}";
 
-"lng_action_invite_user" = "{from} invited {user} to the voice chat";
-"lng_action_invite_users_many" = "{from} invited {users} to the voice chat";
+"lng_action_invite_user" = "{from} invited {user} to {chat}";
+"lng_action_invite_users_many" = "{from} invited {users} to {chat}";
+"lng_action_invite_user_chat" = "the voice chat";
 "lng_action_invite_users_and_one" = "{accumulated}, {user}";
 "lng_action_invite_users_and_last" = "{accumulated} and {user}";
-"lng_action_group_call_started" = "{from} started a voice chat";
+"lng_action_group_call_started" = "{from} started {chat}";
+"lng_action_group_call_started_chat" = "a voice chat";
 "lng_action_group_call_finished" = "Voice chat finished ({duration})";
 "lng_action_add_user" = "{from} added {user}";
 "lng_action_add_users_many" = "{from} added {users}";
@@ -1142,13 +1144,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_migrate_body" = "To add more members, you can upgrade your group to a supergroup.";
 "lng_profile_migrate_learn_more" = "Learn more »";
 "lng_profile_migrate_button" = "Upgrade to supergroup";
-"lng_profile_convert_title" = "Convert to supergroup";
-"lng_profile_convert_feature1" = "— New members see the full message history";
-"lng_profile_convert_feature2" = "— Messages are deleted for all members";
-"lng_profile_convert_feature3" = "— Admins can pin important messages";
-"lng_profile_convert_feature4" = "— Creator can set a public link for the group";
-"lng_profile_convert_warning" = "{bold_start}Note:{bold_end} This action can not be undone";
-"lng_profile_convert_confirm" = "Convert";
 "lng_profile_add_more_after_create" = "You will be able to add more members after you create the group.";
 
 "lng_channel_not_accessible" = "Sorry, this channel is not accessible.";

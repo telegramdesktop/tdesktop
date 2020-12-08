@@ -157,6 +157,10 @@ private:
 	PreparedText prepareGameScoreText();
 	PreparedText preparePaymentSentText();
 	PreparedText prepareDiscardedCallText(int duration);
+	PreparedText prepareStartedCallText(uint64 linkCallId);
+	PreparedText prepareInvitedToCallText(
+		const QVector<MTPint> &users,
+		uint64 linkCallId);
 
 	friend class HistoryView::Service;
 
