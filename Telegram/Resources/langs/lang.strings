@@ -1848,7 +1848,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_invite_done_user" = "You invited {user} to the voice chat.";
 "lng_group_call_invite_done_many#one" = "You invited **{count} member** to the voice chat.";
 "lng_group_call_invite_done_many#other" = "You invited **{count} members** to the voice chat.";
-"lng_group_call_no_members" = "No members";
+"lng_group_call_no_members" = "click to join";
 "lng_group_call_members#one" = "{count} member";
 "lng_group_call_members#other" = "{count} members";
 "lng_group_call_no_anonymous" = "Sorry, anonymous group admins can't join voice chats.";

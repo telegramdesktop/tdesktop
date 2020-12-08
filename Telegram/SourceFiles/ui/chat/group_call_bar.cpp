@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 #include "styles/style_calls.h"
+#include "styles/style_info.h" // st::topBarArrowPadding, like TopBarWidget.
 #include "styles/palette.h"
 
 #include <QtGui/QtEvents>
@@ -116,17 +117,7 @@ void GroupCallBar::setupInner() {
 void GroupCallBar::paint(Painter &p) {
 	p.fillRect(_inner->rect(), st::historyComposeAreaBg);
 
-	auto left = st::msgReplyBarSkip;
-	if (!_content.userpics.isNull()) {
-		const auto imageSize = _content.userpics.size()
-			/ _content.userpics.devicePixelRatio();
-		// Skip shadow of the bar above.
-		const auto imageTop = (st::historyReplyHeight
-			- st::lineWidth
-			- imageSize.height()) / 2 + st::lineWidth;
-		p.drawImage(left, imageTop, _content.userpics);
-		left += imageSize.width() + st::msgReplyBarSkip;
-	}
+	const auto left = st::topBarArrowPadding.right();
 	const auto titleTop = st::msgReplyPadding.top();
 	const auto textTop = titleTop + st::msgServiceNameFont->height;
 	const auto width = _inner->width();
@@ -142,6 +133,17 @@ void GroupCallBar::paint(Painter &p) {
 		(_content.count > 0
 			? tr::lng_group_call_members(tr::now, lt_count, _content.count)
 			: tr::lng_group_call_no_members(tr::now)));
+
+	if (!_content.userpics.isNull()) {
+		const auto imageSize = _content.userpics.size()
+			/ _content.userpics.devicePixelRatio();
+		// Skip shadow of the bar above.
+		const auto imageTop = (st::historyReplyHeight
+			- st::lineWidth
+			- imageSize.height()) / 2 + st::lineWidth;
+		const auto imageLeft = (_inner->width() - imageSize.width()) / 2;
+		p.drawImage(imageLeft, imageTop, _content.userpics);
+	}
 }
 
 void GroupCallBar::updateControlsGeometry(QRect wrapGeometry) {

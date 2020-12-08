@@ -275,8 +275,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			>> groupCallPushToTalkShortcut
 			>> groupCallPushToTalkDelay;
 	}
-	if (false && stream.status() != QDataStream::Ok) {
-		AssertIsDebug();
+	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
 		return;

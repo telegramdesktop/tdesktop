@@ -1262,11 +1262,11 @@ void HistoryWidget::orderWidgets() {
 	if (_contactStatus) {
 		_contactStatus->raise();
 	}
-	if (_groupCallBar) {
-		_groupCallBar->raise();
-	}
 	if (_pinnedBar) {
 		_pinnedBar->raise();
+	}
+	if (_groupCallBar) {
+		_groupCallBar->raise();
 	}
 	_topShadow->raise();
 	if (_fieldAutocomplete) {
@@ -4448,17 +4448,17 @@ void HistoryWidget::updateControlsGeometry() {
 
 	moveFieldControls();
 
-	const auto pinnedBarTop = _topBar->bottomNoMargins();
-	if (_pinnedBar) {
-		_pinnedBar->move(0, pinnedBarTop);
-		_pinnedBar->resizeToWidth(width());
-	}
-	const auto groupCallTop = pinnedBarTop + (_pinnedBar ? _pinnedBar->height() : 0);
+	const auto groupCallTop = _topBar->bottomNoMargins();
 	if (_groupCallBar) {
 		_groupCallBar->move(0, groupCallTop);
 		_groupCallBar->resizeToWidth(width());
 	}
-	const auto contactStatusTop = groupCallTop + (_groupCallBar ? _groupCallBar->height() : 0);
+	const auto pinnedBarTop = groupCallTop + (_groupCallBar ? _groupCallBar->height() : 0);
+	if (_pinnedBar) {
+		_pinnedBar->move(0, pinnedBarTop);
+		_pinnedBar->resizeToWidth(width());
+	}
+	const auto contactStatusTop = pinnedBarTop + (_pinnedBar ? _pinnedBar->height() : 0);
 	if (_contactStatus) {
 		_contactStatus->move(0, contactStatusTop);
 	}

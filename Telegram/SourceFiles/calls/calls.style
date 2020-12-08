@@ -591,9 +591,9 @@ groupCallTopBarUserpicSize: 28px;
 groupCallTopBarUserpicShift: 8px;
 groupCallTopBarUserpicStroke: 2px;
 groupCallTopBarJoin: RoundButton(defaultActiveButton) {
-	width: -30px;
-	height: 28px;
-	textTop: 5px;
+	width: -26px;
+	height: 26px;
+	textTop: 4px;
 }
 groupCallBox: Box(defaultBox) {
 	button: RoundButton(defaultBoxButton) {
