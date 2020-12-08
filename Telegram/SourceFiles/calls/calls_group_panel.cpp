@@ -353,6 +353,16 @@ void GroupPanel::initWithCall(GroupCall *call) {
 
 	_channel = _call->channel();
 
+	call->stateValue(
+	) | rpl::filter([](State state) {
+		return (state == State::HangingUp)
+			|| (state == State::Ended)
+			|| (state == State::FailedHangingUp)
+			|| (state == State::Failed);
+	}) | rpl::start_with_next([=] {
+		closeBeforeDestroy();
+	}, _callLifetime);
+
 	call->levelUpdates(
 	) | rpl::filter([=](const LevelUpdate &update) {
 		return update.self;

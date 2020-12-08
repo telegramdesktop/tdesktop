@@ -196,6 +196,9 @@ void Instance::destroyGroupCall(not_null<GroupCall*> call) {
 void Instance::createGroupCall(
 		not_null<ChannelData*> channel,
 		const MTPInputGroupCall &inputCall) {
+	if (_currentGroupCall) {
+		destroyGroupCall(_currentGroupCall.get());
+	}
 	auto call = std::make_unique<GroupCall>(
 		getGroupCallDelegate(),
 		channel,
@@ -433,7 +436,14 @@ bool Instance::inCall() const {
 }
 
 bool Instance::inGroupCall() const {
-	return (_currentGroupCall != nullptr);
+	if (!_currentGroupCall) {
+		return false;
+	}
+	const auto state = _currentGroupCall->state();
+	return (state != GroupCall::State::HangingUp)
+		&& (state != GroupCall::State::Ended)
+		&& (state != GroupCall::State::FailedHangingUp)
+		&& (state != GroupCall::State::Failed);
 }
 
 bool Instance::activateCurrentCall() {
