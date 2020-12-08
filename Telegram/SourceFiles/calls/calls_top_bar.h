@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 #include "base/object_ptr.h"
+#include "base/unique_qptr.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/gradient.h"
 #include "ui/rp_widget.h"
@@ -19,6 +20,9 @@ class IconButton;
 class AbstractButton;
 class LabelSimple;
 class FlatLabel;
+namespace Paint {
+class LinearBlobs;
+} // namespace Paint
 } // namespace Ui
 
 namespace Main {
@@ -51,6 +55,7 @@ private:
 		const base::weak_ptr<GroupCall> &groupCall);
 
 	void initControls();
+	void initBlobs();
 	void updateInfoLabels();
 	void setInfoLabels();
 	void updateDurationText();
@@ -73,10 +78,15 @@ private:
 	object_ptr<Mute> _mute;
 	object_ptr<Ui::AbstractButton> _info;
 	object_ptr<Ui::IconButton> _hangup;
+	base::unique_qptr<Ui::RpWidget> _blobs;
+	std::unique_ptr<Ui::Paint::LinearBlobs> _blobsPaint;
 
 	QBrush _groupBrush;
 	anim::linear_gradients<MuteState> _gradients;
 	Ui::Animations::Simple _switchStateAnimation;
+
+	Ui::Animations::Simple _blobsHideAnimation;
+	Ui::Animations::Basic _blobsAnimation;
 
 	base::Timer _updateDurationTimer;
 

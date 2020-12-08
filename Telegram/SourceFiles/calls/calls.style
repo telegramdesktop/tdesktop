@@ -750,6 +750,17 @@ groupCallTitle: WindowTitle(defaultWindowTitle) {
 	closeIconActiveOver: groupCallTitleCloseIconOver;
 }
 
+groupCallMajorBlobMinRadius: 2px;
+groupCallMajorBlobMaxRadius: 2px;
+
+groupCallMinorBlobMinRadius: 3px;
+groupCallMinorBlobMaxRadius: 9px;
+
+groupCallMajorBlobTopOffset: 0px;
+groupCallMinorBlobTopOffset: 6px;
+
+groupCallBlobWidthAdditional: 40px;
+
 callTopBarMuteCrossLine: CrossLineAnimation {
 	fg: callBarFg;
 	icon: icon {{ "calls/call_record_active", callBarFg }};

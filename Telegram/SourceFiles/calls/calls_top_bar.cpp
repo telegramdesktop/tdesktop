@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_top_bar.h"
 
 #include "ui/effects/cross_line.h"
+#include "ui/paint/blobs_linear.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/chat/group_call_bar.h" // Ui::GroupCallBarContent.
@@ -37,6 +38,43 @@ namespace {
 
 constexpr auto kUpdateDebugTimeoutMs = crl::time(500);
 constexpr auto kSwitchStateDuration = 120;
+
+constexpr auto kMinorBlobAlpha = 76. / 255.;
+
+constexpr auto kBlobLevelDuration1 = 250;
+constexpr auto kBlobLevelDuration2 = 120;
+
+auto LinearBlobs() -> std::array<Ui::Paint::LinearBlobs::BlobData, 3> {
+	return { {
+		{
+			.segmentsCount = 5,
+			.minScale = 1.,
+			.minRadius = (float)st::groupCallMajorBlobMinRadius,
+			.maxRadius = (float)st::groupCallMajorBlobMaxRadius,
+			.speedScale = .3,
+			.alpha = 1.,
+			.topOffset = st::groupCallMajorBlobTopOffset,
+		},
+		{
+			.segmentsCount = 7,
+			.minScale = 1.,
+			.minRadius = (float)st::groupCallMinorBlobMinRadius,
+			.maxRadius = (float)st::groupCallMinorBlobMaxRadius,
+			.speedScale = .7,
+			.alpha = kMinorBlobAlpha,
+			.topOffset = st::groupCallMinorBlobTopOffset,
+		},
+		{
+			.segmentsCount = 8,
+			.minScale = 1.,
+			.minRadius = (float)st::groupCallMinorBlobMinRadius,
+			.maxRadius = (float)st::groupCallMinorBlobMaxRadius,
+			.speedScale = .7,
+			.alpha = kMinorBlobAlpha,
+			.topOffset = st::groupCallMinorBlobTopOffset,
+		},
+	} };
+}
 
 auto Colors() {
 	using Vector = std::vector<QColor>;
@@ -187,6 +225,12 @@ TopBar::TopBar(
 , _mute(this, st::callBarMuteToggle)
 , _info(this)
 , _hangup(this, st::callBarHangup)
+, _blobs(base::make_unique_q<Ui::RpWidget>(parent))
+, _blobsPaint(std::make_unique<Ui::Paint::LinearBlobs>(
+	LinearBlobs() | ranges::to_vector,
+	kBlobLevelDuration1,
+	kBlobLevelDuration2,
+	1.))
 , _gradients(Colors(), QPointF(), QPointF()) {
 	initControls();
 	resize(width(), st::callBarHeight);
@@ -303,6 +347,140 @@ void TopBar::initControls() {
 	});
 	_updateDurationTimer.setCallback([this] { updateDurationText(); });
 	updateDurationText();
+
+	initBlobs();
+}
+
+void TopBar::initBlobs() {
+	const auto &hideDuration = kBlobLevelDuration1 * 2;
+	const auto hideLastTime = _blobs->lifetime().make_state<crl::time>(0);
+	const auto lastTime = _blobs->lifetime().make_state<crl::time>(0);
+	const auto blobsRect =
+		_blobs->lifetime().make_state<QRect>(_blobs->rect());
+
+	_blobsAnimation.init([=](crl::time now) {
+		if (const auto last = *hideLastTime; (last > 0)
+			&& (now - last >= hideDuration)) {
+			_blobsAnimation.stop();
+			return false;
+		}
+		_blobsPaint->updateLevel(now - *lastTime);
+		*lastTime = now;
+
+		_blobs->update();
+		return true;
+	});
+
+	_groupCall->stateValue(
+	) | rpl::start_with_next([=](Calls::GroupCall::State state) {
+		if (state == Calls::GroupCall::State::HangingUp) {
+			_blobs->hide();
+		}
+	}, lifetime());
+
+	auto hideBlobs = rpl::combine(
+		rpl::single(anim::Disabled()) | rpl::then(anim::Disables()),
+		Core::App().appDeactivatedValue(),
+		_groupCall->stateValue(
+		) | rpl::map([](Calls::GroupCall::State state) {
+			using State = Calls::GroupCall::State;
+			if (state != State::Creating
+				&& state != State::Joining
+				&& state != State::Joined
+				&& state != State::Connecting) {
+				return true;
+			}
+			return false;
+		}) | rpl::distinct_until_changed()
+	) | rpl::map([](bool animDisabled, bool hide, bool isBadState) {
+		return isBadState || !(!animDisabled && !hide);
+	});
+
+	std::move(
+		hideBlobs
+	) | rpl::start_with_next([=](bool hide) {
+		if (hide) {
+			_blobsPaint->setLevel(0.);
+		}
+		*hideLastTime = hide ? crl::now() : 0;
+		if (!hide && !_blobsAnimation.animating()) {
+			_blobsAnimation.start();
+		}
+
+		const auto from = hide ? 0. : 1.;
+		const auto to = hide ? 1. : 0.;
+		_blobsHideAnimation.start([=](float64 value) {
+			blobsRect->setHeight(anim::interpolate(0, -20, value));
+		}, from, to, hideDuration);
+	}, lifetime());
+
+	///
+
+	const auto parent = static_cast<Ui::RpWidget*>(parentWidget());
+	geometryValue(
+	) | rpl::start_with_next([=](QRect rect) {
+		_blobs->resize(rect.width(), rect.height());
+
+		{
+			const auto &r = _blobs->rect();
+			*blobsRect = QRect(
+				r.x(),
+				r.y(),
+				r.width() + st::groupCallBlobWidthAdditional,
+				0);
+		}
+
+		const auto relativePos = mapTo(parent, rect.topLeft());
+		_blobs->moveToLeft(relativePos.x(), relativePos.y() + rect.height());
+	}, lifetime());
+
+	shownValue(
+	) | rpl::start_with_next([=](bool shown) {
+		_blobs->setVisible(shown);
+	}, lifetime());
+
+	_blobs->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		Painter p(_blobs);
+
+		const auto alpha = 1. - _blobsHideAnimation.value(0.);
+		if (alpha < 1.) {
+			p.setOpacity(alpha);
+		}
+		_blobsPaint->paint(p, _groupBrush, *blobsRect, 0, 0);
+	}, _blobs->lifetime());
+
+	rpl::single(
+	) | rpl::then(
+		events(
+		) | rpl::filter([](not_null<QEvent*> e) {
+			return e->type() == QEvent::ZOrderChange;
+		}) | rpl::to_empty
+	) | rpl::start_with_next([=] {
+		crl::on_main(_blobs.get(), [=] {
+			_blobs->raise();
+		});
+	}, lifetime());
+
+	_groupCall->levelUpdates(
+	) | rpl::filter([=](const LevelUpdate &update) {
+		return update.self;
+	}) | rpl::start_with_next([=](const LevelUpdate &update) {
+		if (*hideLastTime) {
+			 return;
+		}
+		_blobsPaint->setLevel(update.value);
+	}, _blobs->lifetime());
+
+	_blobs->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_blobs->show();
+	_blobsAnimation.start();
+
+	crl::on_main([=] {
+		const auto r = rect();
+		const auto relativePos = mapTo(parent, r.topLeft());
+		_blobs->moveToLeft(relativePos.x(), relativePos.y() + r.height());
+	});
 }
 
 void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
