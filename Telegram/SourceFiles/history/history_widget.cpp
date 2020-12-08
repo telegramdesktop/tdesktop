@@ -2397,7 +2397,11 @@ void HistoryWidget::messagesFailed(const RPCError &error, int requestId) {
 		|| error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		auto was = _peer;
 		controller()->showBackFromStack();
-		Ui::show(Box<InformBox>((was && was->isMegagroup()) ? tr::lng_group_not_accessible(tr::now) : tr::lng_channel_not_accessible(tr::now)));
+		Ui::ShowMultilineToast({
+			.text = ((was && was->isMegagroup())
+				? tr::lng_group_not_accessible(tr::now)
+				: tr::lng_channel_not_accessible(tr::now)),
+		});
 		return;
 	}
 

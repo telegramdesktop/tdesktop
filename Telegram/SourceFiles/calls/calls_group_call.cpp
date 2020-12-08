@@ -240,6 +240,8 @@ void GroupCall::rejoin() {
 						? tr::lng_group_call_no_anonymous(tr::now)
 						: type == u"GROUPCALL_PARTICIPANTS_TOO_MUCH"_q
 						? tr::lng_group_call_too_many(tr::now)
+						: type == u"GROUPCALL_FORBIDDEN"_q
+						? tr::lng_group_not_accessible(tr::now)
 						: Lang::Hard::ServerError()),
 				});
 			}).send();
