@@ -315,7 +315,7 @@ updateNewStickerSet#688a30aa stickerset:messages.StickerSet = Update;
 updateStickerSetsOrder#bb2d201 flags:# masks:flags.0?true order:Vector<long> = Update;
 updateStickerSets#43ae3dec = Update;
 updateSavedGifs#9375341e = Update;
-updateBotInlineQuery#54826690 flags:# query_id:long user_id:int query:string geo:flags.0?GeoPoint offset:string = Update;
+updateBotInlineQuery#3f2038db flags:# query_id:long user_id:int query:string geo:flags.0?GeoPoint peer_type:flags.1?InlineQueryPeerType offset:string = Update;
 updateBotInlineSend#e48f964 flags:# user_id:int query:string geo:flags.0?GeoPoint id:string msg_id:flags.1?InputBotInlineMessageID = Update;
 updateEditChannelMessage#1b3f4df7 message:Message pts:int pts_count:int = Update;
 updateBotCallbackQuery#e73547e1 flags:# query_id:long user_id:int peer:Peer msg_id:int chat_instance:long data:flags.0?bytes game_short_name:flags.1?string = Update;
@@ -879,6 +879,11 @@ channelAdminLogEventActionStopPoll#8f079643 message:Message = ChannelAdminLogEve
 channelAdminLogEventActionChangeLinkedChat#a26f881b prev_value:int new_value:int = ChannelAdminLogEventAction;
 channelAdminLogEventActionChangeLocation#e6b76ae prev_value:ChannelLocation new_value:ChannelLocation = ChannelAdminLogEventAction;
 channelAdminLogEventActionToggleSlowMode#53909779 prev_value:int new_value:int = ChannelAdminLogEventAction;
+channelAdminLogEventActionStartGroupCall#23209745 call:InputGroupCall = ChannelAdminLogEventAction;
+channelAdminLogEventActionDiscardGroupCall#db9f9140 call:InputGroupCall = ChannelAdminLogEventAction;
+channelAdminLogEventActionParticipantMute#f92424d2 participant:GroupCallParticipant = ChannelAdminLogEventAction;
+channelAdminLogEventActionParticipantUnmute#e64429c0 participant:GroupCallParticipant = ChannelAdminLogEventAction;
+channelAdminLogEventActionToggleGroupCallSetting#56d6a247 join_muted:Bool = ChannelAdminLogEventAction;
 
 channelAdminLogEvent#3b5a3e40 id:long date:int user_id:int action:ChannelAdminLogEventAction = ChannelAdminLogEvent;
 
@@ -1194,6 +1199,12 @@ groupCallParticipant#56b087c9 flags:# muted:flags.0?true left:flags.1?true can_s
 phone.groupCall#66ab0bfc call:GroupCall participants:Vector<GroupCallParticipant> participants_next_offset:string users:Vector<User> = phone.GroupCall;
 
 phone.groupParticipants#9cfeb92d count:int participants:Vector<GroupCallParticipant> next_offset:string users:Vector<User> version:int = phone.GroupParticipants;
+
+inlineQueryPeerTypeSameBotPM#3081ed9d = InlineQueryPeerType;
+inlineQueryPeerTypePM#833c0fac = InlineQueryPeerType;
+inlineQueryPeerTypeChat#d766c50a = InlineQueryPeerType;
+inlineQueryPeerTypeMegagroup#5ec4be43 = InlineQueryPeerType;
+inlineQueryPeerTypeBroadcast#6334ee9a = InlineQueryPeerType;
 
 ---functions---
 

@@ -2068,6 +2068,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_removed_location_chat" = "{from} removed the group location";
 "lng_admin_log_changed_slow_mode" = "{from} changed slow mode to {duration}";
 "lng_admin_log_removed_slow_mode" = "{from} disabled slow mode";
+"lng_admin_log_started_group_call" = "{from} started a new voice chat";
+"lng_admin_log_discarded_group_call" = "{from} discarded a voice chat";
+"lng_admin_log_muted_participant" = "{from} muted {user} in a voice chat";
+"lng_admin_log_unmuted_participant" = "{from} unmuted {user} in a voice chat";
+"lng_admin_log_allowed_unmute_self" = "{from} allowed new voice chat members to speak";
+"lng_admin_log_disallowed_unmute_self" = "{from} started muting new voice chat members";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_restricted_forever" = "indefinitely";
 "lng_admin_log_restricted_until" = "until {date}";

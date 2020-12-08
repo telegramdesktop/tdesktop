@@ -147,7 +147,7 @@ void GroupCall::start() {
 		LOG(("Call Error: Could not create, error: %1"
 			).arg(error.type()));
 		hangup();
-		if (error.type() == u"GROUP_CALL_ANONYMOUS_FORBIDDEN"_q) {
+		if (error.type() == u"GROUPCALL_ANONYMOUS_FORBIDDEN"_q) {
 			Ui::ShowMultilineToast({
 				.text = tr::lng_group_call_no_anonymous(tr::now),
 			});
@@ -236,7 +236,7 @@ void GroupCall::rejoin() {
 				hangup();
 
 				Ui::ShowMultilineToast({
-					.text = (type == u"GROUP_CALL_ANONYMOUS_FORBIDDEN"_q
+					.text = (type == u"GROUPCALL_ANONYMOUS_FORBIDDEN"_q
 						? tr::lng_group_call_no_anonymous(tr::now)
 						: type == u"GROUPCALL_PARTICIPANTS_TOO_MUCH"_q
 						? tr::lng_group_call_too_many(tr::now)
@@ -662,7 +662,7 @@ void GroupCall::sendMutedUpdate() {
 		_channel->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {
 		_updateMuteRequestId = 0;
-		if (error.type() == u"GROUP_CALL_FORBIDDEN"_q) {
+		if (error.type() == u"GROUPCALL_FORBIDDEN"_q) {
 			LOG(("Call Info: Rejoin after error '%1' in editGroupCallMember."
 				).arg(error.type()));
 			rejoin();
@@ -694,7 +694,7 @@ void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
 	)).done([=](const MTPUpdates &result) {
 		_channel->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {
-		if (error.type() == u"GROUP_CALL_FORBIDDEN"_q) {
+		if (error.type() == u"GROUPCALL_FORBIDDEN"_q) {
 			LOG(("Call Info: Rejoin after error '%1' in editGroupCallMember."
 				).arg(error.type()));
 			rejoin();

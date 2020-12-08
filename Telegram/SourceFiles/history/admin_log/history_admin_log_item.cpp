@@ -824,6 +824,71 @@ void GenerateItems(
 		}
 	};
 
+	auto createStartGroupCall = [&](const MTPDchannelAdminLogEventActionStartGroupCall &data) {
+		const auto text = tr::lng_admin_log_started_group_call(tr::now, lt_from, fromLinkText);
+		addSimpleServiceMessage(text);
+	};
+
+	auto createDiscardGroupCall = [&](const MTPDchannelAdminLogEventActionDiscardGroupCall &data) {
+		const auto text = tr::lng_admin_log_discarded_group_call(tr::now, lt_from, fromLinkText);
+		addSimpleServiceMessage(text);
+	};
+
+	auto createParticipantMute = [&](const MTPDchannelAdminLogEventActionParticipantMute &data) {
+		data.vparticipant().match([&](const MTPDgroupCallParticipant &data) {
+			const auto user = history->owner().user(data.vuser_id().v);
+			const auto userLink = user->createOpenLink();
+			const auto userLinkText = textcmdLink(1, user->name);
+			auto text = tr::lng_admin_log_muted_participant(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_user,
+				userLinkText);
+			auto message = HistoryService::PreparedText{ text };
+			message.links.push_back(fromLink);
+			message.links.push_back(userLink);
+			addPart(history->makeServiceMessage(
+				history->nextNonHistoryEntryId(),
+				MTPDmessage_ClientFlag::f_admin_log_entry,
+				date,
+				message,
+				MTPDmessage::Flags(0),
+				peerToUser(from->id)));
+		});
+	};
+
+	auto createParticipantUnmute = [&](const MTPDchannelAdminLogEventActionParticipantUnmute &data) {
+		data.vparticipant().match([&](const MTPDgroupCallParticipant &data) {
+			const auto user = history->owner().user(data.vuser_id().v);
+			const auto userLink = user->createOpenLink();
+			const auto userLinkText = textcmdLink(1, user->name);
+			auto text = tr::lng_admin_log_unmuted_participant(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_user,
+				userLinkText);
+			auto message = HistoryService::PreparedText{ text };
+			message.links.push_back(fromLink);
+			message.links.push_back(userLink);
+			addPart(history->makeServiceMessage(
+				history->nextNonHistoryEntryId(),
+				MTPDmessage_ClientFlag::f_admin_log_entry,
+				date,
+				message,
+				MTPDmessage::Flags(0),
+				peerToUser(from->id)));
+		});
+	};
+
+	auto createToggleGroupCallSetting = [&](const MTPDchannelAdminLogEventActionToggleGroupCallSetting &data) {
+		const auto text = mtpIsTrue(data.vjoin_muted())
+			? tr::lng_admin_log_disallowed_unmute_self(tr::now, lt_from, fromLinkText)
+			: tr::lng_admin_log_allowed_unmute_self(tr::now, lt_from, fromLinkText);
+		addSimpleServiceMessage(text);
+	};
+
 	action.match([&](const MTPDchannelAdminLogEventActionChangeTitle &data) {
 		createChangeTitle(data);
 	}, [&](const MTPDchannelAdminLogEventActionChangeAbout &data) {
@@ -866,6 +931,16 @@ void GenerateItems(
 		createChangeLocation(data);
 	}, [&](const MTPDchannelAdminLogEventActionToggleSlowMode &data) {
 		createToggleSlowMode(data);
+	}, [&](const MTPDchannelAdminLogEventActionStartGroupCall &data) {
+		createStartGroupCall(data);
+	}, [&](const MTPDchannelAdminLogEventActionDiscardGroupCall &data) {
+		createDiscardGroupCall(data);
+	}, [&](const MTPDchannelAdminLogEventActionParticipantMute &data) {
+		createParticipantMute(data);
+	}, [&](const MTPDchannelAdminLogEventActionParticipantUnmute &data) {
+		createParticipantUnmute(data);
+	}, [&](const MTPDchannelAdminLogEventActionToggleGroupCallSetting &data) {
+		createToggleGroupCallSetting(data);
 	});
 }
 
