@@ -33,7 +33,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd ThirdParty
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout ddd4084
+    
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
@@ -53,18 +53,20 @@ Add **GYP** and **Ninja** to your PATH:
 ## Clone source code and prepare libraries
 
 Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
+
     SET PATH=%cd%\ThirdParty\Strawberry\perl\bin;%cd%\ThirdParty\Python27;%cd%\ThirdParty\NASM;%cd%\ThirdParty\jom;%cd%\ThirdParty\cmake\bin;%cd%\ThirdParty\yasm;%PATH%
 
     git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
-    mkdir Libraries
-    cd Libraries
+    if not exist Libraries\win64 mkdir Libraries\win64
+    cd Libraries\win64
+
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout ddd4084
+    
     cd ..
 
-    git clone https://github.com/TDesktop-x64/lzma.git
+    git clone https://github.com/desktop-app/lzma.git
     cd lzma\C\Util\LzmaLib
     msbuild LzmaLib.sln /property:Configuration=Debug /property:Platform="x64"
     msbuild LzmaLib.sln /property:Configuration=Release /property:Platform="x64"
@@ -93,8 +95,8 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd ..
 
     git clone https://github.com/desktop-app/zlib.git
-    cd zlib
-    cd contrib\vstudio\vc14
+
+    cd zlib\contrib\vstudio\vc14
     msbuild zlibstat.vcxproj /property:Configuration=Debug /property:Platform="x64"
     msbuild zlibstat.vcxproj /property:Configuration=ReleaseWithoutAsm /property:Platform="x64"
     cd ..\..\..\..
@@ -102,10 +104,10 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git clone -b v4.0.1-rc2 https://github.com/mozilla/mozjpeg.git
     cd mozjpeg
     cmake . ^
-    -G "Visual Studio 16 2019" ^
-    -A x64 ^
-    -DWITH_JPEG8=ON ^
-    -DPNG_SUPPORTED=OFF
+        -G "Visual Studio 16 2019" ^
+        -A x64 ^
+        -DWITH_JPEG8=ON ^
+        -DPNG_SUPPORTED=OFF
     cmake --build . --config Debug
     cmake --build . --config Release
     cd ..
@@ -115,10 +117,10 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git checkout fix_mono
     cd build
     cmake .. ^
-    -G "Visual Studio 16 2019" ^
-    -A x64 ^
-    -D LIBTYPE:STRING=STATIC ^
-    -D FORCE_STATIC_VCRT=ON
+        -G "Visual Studio 16 2019" ^
+        -A x64 ^
+        -D LIBTYPE:STRING=STATIC ^
+        -D FORCE_STATIC_VCRT=ON
     msbuild OpenAL.vcxproj /property:Configuration=Debug /property:Platform="x64"
     msbuild OpenAL.vcxproj /property:Configuration=RelWithDebInfo /property:Platform="x64"
     cd ..\..
@@ -126,7 +128,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git clone https://github.com/google/breakpad
     cd breakpad
     git checkout a1dbcdcb43
-    git apply ../../tdesktop/Telegram/Patches/breakpad.diff
+    git apply ../patches/breakpad.diff
     cd src
     git clone https://github.com/google/googletest testing
     cd client\windows
@@ -139,41 +141,41 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     msbuild dump_syms.vcxproj /property:Configuration=Release /property:Platform="x64"
     cd ..\..\..\..\..
 
-    git clone https://github.com/TDesktop-x64/opus.git
+    git clone https://github.com/telegramdesktop/opus.git
     cd opus
     git checkout tdesktop
     cd win32\VS2015
     msbuild opus.sln /property:Configuration=Debug /property:Platform="x64"
     msbuild opus.sln /property:Configuration=Release /property:Platform="x64"
 
-    cd ..\..\..\..
+    cd ..\..\..\..\..
     SET PATH_BACKUP_=%PATH%
     SET PATH=%cd%\ThirdParty\msys64\usr\bin;%PATH%
-    cd Libraries
+    cd Libraries\win64
 
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
-    git checkout release/3.4
+    git checkout release/4.2
 
     set CHERE_INVOKING=enabled_from_arguments
     set MSYS2_PATH_TYPE=inherit
-    bash --login ../../tdesktop/Telegram/Patches/build_ffmpeg_win.sh
+    bash --login ../patches/build_ffmpeg_win.sh
 
     SET PATH=%PATH_BACKUP_%
     cd ..
 
     SET LibrariesPath=%cd%
-    git clone git://code.qt.io/qt/qt5.git qt_5_12_8
-    cd qt_5_12_8
+    git clone git://code.qt.io/qt/qt5.git qt_5_15_2
+    cd qt_5_15_2
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.12.8
+    git checkout v5.15.2
     git submodule update qtbase qtimageformats
     cd qtbase
-    for /r %i in (..\..\patches\qtbase_5_12_8\*) do git apply %i
+    for /r %i in (..\..\patches\qtbase_5_15_2\*) do git apply %i
     cd ..
 
     configure ^
-        -prefix "%LibrariesPath%\Qt-5.12.8" ^
+        -prefix "%LibrariesPath%\Qt-5.15.2" ^
         -debug-and-release ^
         -force-debug-info ^
         -opensource ^
@@ -182,7 +184,6 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
         -static-runtime ^
         -no-opengl ^
         -openssl-linked ^
-        -recheck ^
         -I "%LibrariesPath%\openssl_1_1_1\include" ^
         OPENSSL_LIBS_DEBUG="%LibrariesPath%\openssl_1_1_1\out64.dbg\libssl.lib %LibrariesPath%\openssl_1_1_1\out64.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
         OPENSSL_LIBS_RELEASE="%LibrariesPath%\openssl_1_1_1\out64\libssl.lib %LibrariesPath%\openssl_1_1_1\out64\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
@@ -198,30 +199,30 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     jom -j %NUMBER_OF_PROCESSORS% install
     cd ..
  
-    git clone https://github.com/desktop-app/tg_owt.git
+    git clone --recursive https://github.com/desktop-app/tg_owt.git
     cd tg_owt
     mkdir out
     cd out
     mkdir Debug
     cd Debug
     cmake -G Ninja ^
-    -DCMAKE_BUILD_TYPE=Debug ^
-    -DTG_OWT_SPECIAL_TARGET=win ^
-    -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
-    -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include ^
-    -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
-    -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ../..
+        -DCMAKE_BUILD_TYPE=Debug ^
+        -DTG_OWT_SPECIAL_TARGET=win64 ^
+        -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include ^
+        -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ../..
     ninja
     cd ..
     mkdir Release
     cd Release
     cmake -G Ninja ^
-    -DCMAKE_BUILD_TYPE=Release ^
-    -DTG_OWT_SPECIAL_TARGET=win ^
-    -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
-    -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include ^
-    -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
-    -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ../..
+        -DCMAKE_BUILD_TYPE=Release ^
+        -DTG_OWT_SPECIAL_TARGET=win64 ^
+        -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
+        -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include ^
+        -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
+        -DTG_OWT_FFMPEG_INCLUDE_PATH=%cd%/../../../ffmpeg ../..
     ninja
     cd ..\..\..
 
@@ -229,7 +230,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
 Go to ***BuildPath*\\tdesktop\\Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
-    configure.bat -D TDESKTOP_API_ID=YOUR_API_ID -D TDESKTOP_API_HASH=YOUR_API_HASH -D DESKTOP_APP_USE_PACKAGED=OFF -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
+    configure.bat x64 -D TDESKTOP_API_ID=YOUR_API_ID -D TDESKTOP_API_HASH=YOUR_API_HASH -D DESKTOP_APP_USE_PACKAGED=OFF -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
 
 * Open ***BuildPath*\\tdesktop\\out\\Telegram.sln** in Visual Studio 2019
 * Select Telegram project and press Build > Build Telegram (Debug and Release configurations)
