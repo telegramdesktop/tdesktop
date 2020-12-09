@@ -3981,6 +3981,7 @@ void ApiWrap::forwardMessages(
 			++shared->requestsLeft;
 		}
 		const auto requestType = Data::Histories::RequestType::Send;
+		const auto idsCopy = localIds;
 		histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
 			history->sendRequestId = request(MTPmessages_ForwardMessages(
 				MTP_flags(sendFlags),
@@ -3995,9 +3996,9 @@ void ApiWrap::forwardMessages(
 					shared->callback();
 				}
 				finish();
-			}).fail([=, ids = localIds](const RPCError &error) {
-				if (ids) {
-					for (const auto &[randomId, itemId] : *ids) {
+			}).fail([=](const RPCError &error) {
+				if (idsCopy) {
+					for (const auto &[randomId, itemId] : *idsCopy) {
 						sendMessageFail(error, peer, randomId, itemId);
 					}
 				} else {

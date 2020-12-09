@@ -43,6 +43,7 @@ constexpr auto kMinorBlobAlpha = 76. / 255.;
 
 constexpr auto kBlobLevelDuration1 = 250;
 constexpr auto kBlobLevelDuration2 = 120;
+constexpr auto kBlobUpdateInterval = crl::time(100);
 
 auto LinearBlobs() -> std::array<Ui::Paint::LinearBlobs::BlobData, 3> {
 	return { {
@@ -231,7 +232,9 @@ TopBar::TopBar(
 	kBlobLevelDuration1,
 	kBlobLevelDuration2,
 	1.))
-, _gradients(Colors(), QPointF(), QPointF()) {
+, _blobsLevelTimer([=] { _blobsLastLevel = 0.; })
+, _gradients(Colors(), QPointF(), QPointF())
+, _updateDurationTimer([=] { updateDurationText(); }) {
 	initControls();
 	resize(width(), st::callBarHeight);
 }
@@ -346,7 +349,6 @@ void TopBar::initControls() {
 				BoxContext::MainWindow));
 		}
 	});
-	_updateDurationTimer.setCallback([this] { updateDurationText(); });
 	updateDurationText();
 
 	initBlobs();
@@ -394,7 +396,7 @@ void TopBar::initBlobs() {
 			return false;
 		}) | rpl::distinct_until_changed()
 	) | rpl::map([](bool animDisabled, bool hide, bool isBadState) {
-		return isBadState || !(!animDisabled && !hide);
+		return isBadState || animDisabled || hide;
 	});
 
 	std::move(
@@ -406,6 +408,12 @@ void TopBar::initBlobs() {
 		*hideLastTime = hide ? crl::now() : 0;
 		if (!hide && !_blobsAnimation.animating()) {
 			_blobsAnimation.start();
+		}
+		if (hide) {
+			_blobsLevelTimer.cancel();
+		} else {
+			_blobsLastLevel = 0.;
+			_blobsLevelTimer.callEach(kBlobUpdateInterval);
 		}
 
 		const auto from = hide ? 0. : 1.;
@@ -465,12 +473,10 @@ void TopBar::initBlobs() {
 
 	_groupCall->levelUpdates(
 	) | rpl::filter([=](const LevelUpdate &update) {
-		return update.self;
+		return !*hideLastTime && (update.value > _blobsLastLevel);
 	}) | rpl::start_with_next([=](const LevelUpdate &update) {
-		if (*hideLastTime) {
-			 return;
-		}
-		_blobsPaint->setLevel(update.value);
+		_blobsLastLevel = update.value;
+		_blobsPaint->setLevel(_blobsLastLevel);
 	}, _blobs->lifetime());
 
 	_blobs->setAttribute(Qt::WA_TransparentForMouseEvents);

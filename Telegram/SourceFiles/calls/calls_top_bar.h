@@ -80,6 +80,8 @@ private:
 	object_ptr<Ui::IconButton> _hangup;
 	base::unique_qptr<Ui::RpWidget> _blobs;
 	std::unique_ptr<Ui::Paint::LinearBlobs> _blobsPaint;
+	float _blobsLastLevel = 0.;
+	base::Timer _blobsLevelTimer;
 
 	QBrush _groupBrush;
 	anim::linear_gradients<MuteState> _gradients;
