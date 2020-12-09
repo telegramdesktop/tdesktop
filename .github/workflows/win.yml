@@ -59,8 +59,8 @@ jobs:
       SDK: "10.0.18362.0"
       VC: "call vcvars32.bat && cd Libraries"
       GIT: "https://github.com"
-      QT: "5_15_1"
-      QT_VER: "5.15.1"
+      QT: "5_15_2"
+      QT_VER: "5.15.2"
       OPENSSL_VER: "1_1_1"
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
@@ -211,7 +211,7 @@ jobs:
         run: |
           %VC%
 
-          git clone -b openal-soft-1.21.0 --depth=1 $GIT/kcat/openal-soft.git
+          git clone -b openal-soft-1.21.0 --depth=1 %GIT%/kcat/openal-soft.git
           cd openal-soft\build
           cmake .. ^
           -G "Visual Studio 16 2019" ^
@@ -299,13 +299,13 @@ jobs:
 
           rmdir /S /Q .git
 
-      - name: Qt 5.15.1 cache.
+      - name: Qt 5.15.2 cache.
         id: cache-qt
         uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/Qt-${{ env.QT_VER }}
-          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_15_1/*') }}
-      - name: Configure Qt 5.15.1.
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_15_2/*') }}
+      - name: Configure Qt 5.15.2.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           %VC%
@@ -342,7 +342,7 @@ jobs:
           -I "%LibrariesPath%\mozjpeg" ^
           LIBJPEG_LIBS_DEBUG="%LibrariesPath%\mozjpeg\Debug\jpeg-static.lib" ^
           LIBJPEG_LIBS_RELEASE="%LibrariesPath%\mozjpeg\Release\jpeg-static.lib"
-      - name: Qt 5.15.1 build.
+      - name: Qt 5.15.2 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           %VC%
