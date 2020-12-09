@@ -1000,6 +1000,7 @@ void MainWidget::createCallTopBar() {
 		(_currentCall
 			? object_ptr<Calls::TopBar>(this, _currentCall)
 			: object_ptr<Calls::TopBar>(this, _currentGroupCall)));
+	_callTopBar->entity()->initBlobsUnder(this, _callTopBar->geometryValue());
 	_callTopBar->heightValue(
 	) | rpl::start_with_next([this](int value) {
 		callTopBarHeightUpdated(value);

@@ -20,9 +20,6 @@ class IconButton;
 class AbstractButton;
 class LabelSimple;
 class FlatLabel;
-namespace Paint {
-class LinearBlobs;
-} // namespace Paint
 } // namespace Ui
 
 namespace Main {
@@ -41,8 +38,11 @@ class TopBar : public Ui::RpWidget {
 public:
 	TopBar(QWidget *parent, const base::weak_ptr<Call> &call);
 	TopBar(QWidget *parent, const base::weak_ptr<GroupCall> &call);
-
 	~TopBar();
+
+	void initBlobsUnder(
+		QWidget *blobsParent,
+		rpl::producer<QRect> barGeometry);
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -55,7 +55,6 @@ private:
 		const base::weak_ptr<GroupCall> &groupCall);
 
 	void initControls();
-	void initBlobs();
 	void updateInfoLabels();
 	void setInfoLabels();
 	void updateDurationText();
@@ -79,16 +78,10 @@ private:
 	object_ptr<Ui::AbstractButton> _info;
 	object_ptr<Ui::IconButton> _hangup;
 	base::unique_qptr<Ui::RpWidget> _blobs;
-	std::unique_ptr<Ui::Paint::LinearBlobs> _blobsPaint;
-	float _blobsLastLevel = 0.;
-	base::Timer _blobsLevelTimer;
 
 	QBrush _groupBrush;
 	anim::linear_gradients<MuteState> _gradients;
 	Ui::Animations::Simple _switchStateAnimation;
-
-	Ui::Animations::Simple _blobsHideAnimation;
-	Ui::Animations::Basic _blobsAnimation;
 
 	base::Timer _updateDurationTimer;
 

@@ -226,13 +226,6 @@ TopBar::TopBar(
 , _mute(this, st::callBarMuteToggle)
 , _info(this)
 , _hangup(this, st::callBarHangup)
-, _blobs(base::make_unique_q<Ui::RpWidget>(parent))
-, _blobsPaint(std::make_unique<Ui::Paint::LinearBlobs>(
-	LinearBlobs() | ranges::to_vector,
-	kBlobLevelDuration1,
-	kBlobLevelDuration2,
-	1.))
-, _blobsLevelTimer([=] { _blobsLastLevel = 0.; })
 , _gradients(Colors(), QPointF(), QPointF())
 , _updateDurationTimer([=] { updateDurationText(); }) {
 	initControls();
@@ -350,30 +343,56 @@ void TopBar::initControls() {
 		}
 	});
 	updateDurationText();
-
-	initBlobs();
 }
 
-void TopBar::initBlobs() {
+void TopBar::initBlobsUnder(
+		QWidget *blobsParent,
+		rpl::producer<QRect> barGeometry) {
 	const auto group = _groupCall.get();
 	if (!group) {
 		return;
 	}
 
-	const auto &hideDuration = kBlobLevelDuration1 * 2;
-	const auto hideLastTime = _blobs->lifetime().make_state<crl::time>(0);
-	const auto lastTime = _blobs->lifetime().make_state<crl::time>(0);
-	const auto blobsRect =
-		_blobs->lifetime().make_state<QRect>(_blobs->rect());
+	static constexpr auto kHideDuration = kBlobLevelDuration1 * 2;
 
-	_blobsAnimation.init([=](crl::time now) {
-		if (const auto last = *hideLastTime; (last > 0)
-			&& (now - last >= hideDuration)) {
-			_blobsAnimation.stop();
+	struct State {
+		Ui::Paint::LinearBlobs paint = {
+			LinearBlobs() | ranges::to_vector,
+			kBlobLevelDuration1,
+			kBlobLevelDuration2,
+			1.
+		};
+		Ui::Animations::Simple hideAnimation;
+		Ui::Animations::Basic animation;
+		base::Timer levelTimer;
+		crl::time hideLastTime = 0;
+		crl::time lastTime = 0;
+		float lastLevel = 0.;
+		float levelBeforeLast = 0.;
+		int maxHeight = st::groupCallMinorBlobMinRadius
+			+ st::groupCallMinorBlobMaxRadius;
+	};
+
+	_blobs = base::make_unique_q<Ui::RpWidget>(blobsParent);
+
+	const auto state = _blobs->lifetime().make_state<State>();
+	state->levelTimer.setCallback([=] {
+		state->levelBeforeLast = state->lastLevel;
+		state->lastLevel = 0.;
+		if (state->levelBeforeLast == 0.) {
+			state->paint.setLevel(0.);
+			state->levelTimer.cancel();
+		}
+	});
+
+	state->animation.init([=](crl::time now) {
+		if (const auto last = state->hideLastTime; (last > 0)
+			&& (now - last >= kHideDuration)) {
+			state->animation.stop();
 			return false;
 		}
-		_blobsPaint->updateLevel(now - *lastTime);
-		*lastTime = now;
+		state->paint.updateLevel(now - state->lastTime);
+		state->lastTime = now;
 
 		_blobs->update();
 		return true;
@@ -408,44 +427,32 @@ void TopBar::initBlobs() {
 		hideBlobs
 	) | rpl::start_with_next([=](bool hide) {
 		if (hide) {
-			_blobsPaint->setLevel(0.);
+			state->paint.setLevel(0.);
 		}
-		*hideLastTime = hide ? crl::now() : 0;
-		if (!hide && !_blobsAnimation.animating()) {
-			_blobsAnimation.start();
+		state->hideLastTime = hide ? crl::now() : 0;
+		if (!hide && !state->animation.animating()) {
+			state->animation.start();
 		}
 		if (hide) {
-			_blobsLevelTimer.cancel();
+			state->levelTimer.cancel();
 		} else {
-			_blobsLastLevel = 0.;
-			_blobsLevelTimer.callEach(kBlobUpdateInterval);
+			state->lastLevel = 0.;
 		}
 
 		const auto from = hide ? 0. : 1.;
 		const auto to = hide ? 1. : 0.;
-		_blobsHideAnimation.start([=](float64 value) {
-			blobsRect->setHeight(anim::interpolate(0, -20, value));
-		}, from, to, hideDuration);
+		state->hideAnimation.start([=](float64) {
+			_blobs->update();
+		}, from, to, kHideDuration);
 	}, lifetime());
 
-	///
-
-	const auto parent = static_cast<Ui::RpWidget*>(parentWidget());
-	geometryValue(
+	std::move(
+		barGeometry
 	) | rpl::start_with_next([=](QRect rect) {
-		_blobs->resize(rect.width(), rect.height());
-
-		{
-			const auto &r = _blobs->rect();
-			*blobsRect = QRect(
-				r.x(),
-				r.y(),
-				r.width() + st::groupCallBlobWidthAdditional,
-				0);
-		}
-
-		const auto relativePos = mapTo(parent, rect.topLeft());
-		_blobs->moveToLeft(relativePos.x(), relativePos.y() + rect.height());
+		_blobs->resize(
+			rect.width(),
+			std::min(state->maxHeight, rect.height()));
+		_blobs->moveToLeft(rect.x(), rect.y() + rect.height());
 	}, lifetime());
 
 	shownValue(
@@ -455,44 +462,42 @@ void TopBar::initBlobs() {
 
 	_blobs->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
-		Painter p(_blobs);
-
-		const auto alpha = 1. - _blobsHideAnimation.value(0.);
-		if (alpha < 1.) {
-			p.setOpacity(alpha);
+		const auto hidden = state->hideAnimation.value(
+			state->hideLastTime ? 1. : 0.);
+		if (hidden == 1.) {
+			return;
 		}
-		_blobsPaint->paint(p, _groupBrush, *blobsRect, 0, 0);
-	}, _blobs->lifetime());
 
-	rpl::single(
-	) | rpl::then(
-		events(
-		) | rpl::filter([](not_null<QEvent*> e) {
-			return e->type() == QEvent::ZOrderChange;
-		}) | rpl::to_empty
-	) | rpl::start_with_next([=] {
-		crl::on_main(_blobs.get(), [=] {
-			_blobs->raise();
-		});
-	}, lifetime());
+		Painter p(_blobs);
+		if (hidden > 0.) {
+			p.setOpacity(1. - hidden);
+		}
+		const auto top = -_blobs->height() * hidden;
+		const auto drawUnder = QRect(
+			0,
+			top,
+			_blobs->width() + st::groupCallBlobWidthAdditional,
+			0);
+		state->paint.paint(p, _groupBrush, drawUnder, 0, 0);
+	}, _blobs->lifetime());
 
 	group->levelUpdates(
 	) | rpl::filter([=](const LevelUpdate &update) {
-		return !*hideLastTime && (update.value > _blobsLastLevel);
+		return !state->hideLastTime && (update.value > state->lastLevel);
 	}) | rpl::start_with_next([=](const LevelUpdate &update) {
-		_blobsLastLevel = update.value;
-		_blobsPaint->setLevel(_blobsLastLevel);
+		if (state->lastLevel == 0.) {
+			state->levelTimer.callEach(kBlobUpdateInterval);
+		}
+		state->lastLevel = update.value;
+		state->paint.setLevel(update.value);
 	}, _blobs->lifetime());
 
 	_blobs->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_blobs->show();
-	_blobsAnimation.start();
 
-	crl::on_main([=] {
-		const auto r = rect();
-		const auto relativePos = mapTo(parent, r.topLeft());
-		_blobs->moveToLeft(relativePos.x(), relativePos.y() + r.height());
-	});
+	if (!state->hideLastTime) {
+		state->animation.start();
+	}
 }
 
 void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
