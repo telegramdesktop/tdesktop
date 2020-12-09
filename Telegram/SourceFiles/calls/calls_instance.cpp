@@ -60,12 +60,11 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 
 void Instance::startOrJoinGroupCall(not_null<ChannelData*> channel) {
 	destroyCurrentCall();
-	requestPermissionsOrFail(crl::guard(this, [=] {
-		const auto call = channel->call();
-		createGroupCall(
-			channel,
-			call ? call->input() : MTP_inputGroupCall(MTPlong(), MTPlong()));
-	}), false);
+
+	const auto call = channel->call();
+	createGroupCall(
+		channel,
+		call ? call->input() : MTP_inputGroupCall(MTPlong(), MTPlong()));
 }
 
 void Instance::callFinished(not_null<Call*> call) {
@@ -186,9 +185,8 @@ void Instance::destroyGroupCall(not_null<GroupCall*> call) {
 void Instance::createGroupCall(
 		not_null<ChannelData*> channel,
 		const MTPInputGroupCall &inputCall) {
-	if (_currentGroupCall) {
-		destroyGroupCall(_currentGroupCall.get());
-	}
+	destroyCurrentCall();
+
 	auto call = std::make_unique<GroupCall>(
 		getGroupCallDelegate(),
 		channel,

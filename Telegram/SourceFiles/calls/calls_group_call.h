@@ -53,7 +53,8 @@ public:
 
 		virtual void groupCallFinished(not_null<GroupCall*> call) = 0;
 		virtual void groupCallFailed(not_null<GroupCall*> call) = 0;
-
+		virtual void groupCallRequestPermissionsOrFail(
+			Fn<void()> onSuccess) = 0;
 	};
 
 	using GlobalShortcutManager = base::GlobalShortcutManager;

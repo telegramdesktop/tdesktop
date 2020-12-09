@@ -55,7 +55,9 @@ public:
 	[[nodiscard]] bool hasActivePanel(
 		not_null<Main::Session*> session) const;
 	bool activateCurrentCall();
-	std::shared_ptr<tgcalls::VideoCaptureInterface> getVideoCapture() override;
+	auto getVideoCapture()
+		-> std::shared_ptr<tgcalls::VideoCaptureInterface> override;
+	void requestPermissionsOrFail(Fn<void()> onSuccess, bool video = true);
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
 
@@ -82,6 +84,9 @@ private:
 
 	void groupCallFinished(not_null<GroupCall*> call) override;
 	void groupCallFailed(not_null<GroupCall*> call) override;
+	void groupCallRequestPermissionsOrFail(Fn<void()> onSuccess) override {
+		requestPermissionsOrFail(std::move(onSuccess), false);
+	}
 
 	using Sound = Call::Delegate::Sound;
 	void playSound(Sound sound) override;
@@ -93,7 +98,6 @@ private:
 		const MTPInputGroupCall &inputCall);
 	void destroyGroupCall(not_null<GroupCall*> call);
 
-	void requestPermissionsOrFail(Fn<void()> onSuccess, bool video = true);
 	void requestPermissionOrFail(Platform::PermissionType type, Fn<void()> onSuccess);
 
 	void refreshDhConfig();

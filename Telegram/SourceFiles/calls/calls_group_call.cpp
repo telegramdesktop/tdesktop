@@ -354,13 +354,20 @@ void GroupCall::finish(FinishType type) {
 }
 
 void GroupCall::setMuted(MuteState mute) {
-	const auto wasMuted = (muted() == MuteState::Muted)
-		|| (muted() == MuteState::PushToTalk);
-	_muted = mute;
-	const auto nowMuted = (muted() == MuteState::Muted)
-		|| (muted() == MuteState::PushToTalk);
-	if (wasMuted != nowMuted) {
-		applySelfInCallLocally();
+	const auto set = [=] {
+		const auto wasMuted = (muted() == MuteState::Muted)
+			|| (muted() == MuteState::PushToTalk);
+		_muted = mute;
+		const auto nowMuted = (muted() == MuteState::Muted)
+			|| (muted() == MuteState::PushToTalk);
+		if (wasMuted != nowMuted) {
+			applySelfInCallLocally();
+		}
+	};
+	if (mute == MuteState::Active || mute == MuteState::PushToTalk) {
+		_delegate->groupCallRequestPermissionsOrFail(crl::guard(this, set));
+	} else {
+		set();
 	}
 }
 
