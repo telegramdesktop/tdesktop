@@ -258,7 +258,8 @@ void TopBar::initControls() {
 		? _call->mutedValue() | rpl::map(mapToState)
 		: (_groupCall->mutedValue()
 			| MapPushToTalkToActive()
-			| rpl::distinct_until_changed());
+			| rpl::distinct_until_changed()
+			| rpl::type_erased());
 	std::move(
 		muted
 	) | rpl::start_with_next([=](MuteState state) {
