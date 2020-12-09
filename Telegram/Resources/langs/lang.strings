@@ -1826,6 +1826,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_leave_title" = "Leave voice chat";
 "lng_group_call_leave_sure" = "Are you sure you want to leave this voice chat?";
 "lng_group_call_leave_to_other_sure" = "Do you want to leave your active voice chat and join a voice chat in this group?";
+"lng_group_call_create_sure" = "Do you really want to start a voice chat in this group?";
 "lng_group_call_also_end" = "End voice chat";
 "lng_group_call_settings_title" = "Settings";
 "lng_group_call_invite_title" = "Invite members";
@@ -1833,7 +1834,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_new_muted" = "Mute new members";
 "lng_group_call_speakers" = "Speakers";
 "lng_group_call_microphone" = "Microphone";
-"lng_group_call_push_to_talk" = "Push to Talk";
+"lng_group_call_push_to_talk" = "Push to Talk Shortcut";
 "lng_group_call_ptt_shortcut" = "Edit Shortcut";
 "lng_group_call_ptt_recording" = "Stop Recording";
 "lng_group_call_ptt_delay_ms" = "{amount} ms";

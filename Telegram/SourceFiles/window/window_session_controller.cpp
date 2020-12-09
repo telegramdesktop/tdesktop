@@ -961,6 +961,10 @@ void SessionController::startOrJoinGroupCall(
 				tr::lng_group_call_leave_to_other_sure(tr::now),
 				tr::lng_group_call_leave(tr::now));
 		}
+	} else if (!confirmedLeaveOther && !megagroup->call()) {
+		confirm(
+			tr::lng_group_call_create_sure(tr::now),
+			tr::lng_continue(tr::now));
 	} else {
 		calls.startOrJoinGroupCall(megagroup);
 	}

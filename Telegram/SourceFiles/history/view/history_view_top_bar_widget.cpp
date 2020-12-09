@@ -223,10 +223,19 @@ void TopBarWidget::groupCall() {
 		if (const auto megagroup = peer->asMegagroup()) {
 			_controller->startOrJoinGroupCall(megagroup);
 		} else if (const auto chat = peer->asChat()) {
-			const auto start = [=](not_null<ChannelData*> megagroup) {
-				_controller->startOrJoinGroupCall(megagroup);
+			const auto callback = [=] {
+				Ui::hideLayer();
+				const auto start = [=](not_null<ChannelData*> megagroup) {
+					_controller->startOrJoinGroupCall(megagroup, true);
+				};
+				peer->session().api().migrateChat(
+					chat,
+					crl::guard(this, start));
 			};
-			peer->session().api().migrateChat(chat, crl::guard(this, start));
+			Ui::show(Box<ConfirmBox>(
+				tr::lng_group_call_create_sure(tr::now),
+				tr::lng_continue(tr::now),
+				crl::guard(this, callback)));
 		}
 	}
 }
@@ -655,11 +664,11 @@ void TopBarWidget::updateControlsGeometry() {
 	if (!_infoToggle->isHidden()) {
 		_rightTaken += _infoToggle->width() + st::topBarSkip;
 	}
-	_search->moveToRight(_rightTaken, otherButtonsTop);
-	_rightTaken += _search->width() + st::topBarCallSkip;
 	_call->moveToRight(_rightTaken, otherButtonsTop);
 	_groupCall->moveToRight(_rightTaken, otherButtonsTop);
 	_rightTaken += _call->width();
+	_search->moveToRight(_rightTaken, otherButtonsTop);
+	_rightTaken += _search->width() + st::topBarCallSkip;
 
 	updateMembersShowArea();
 }
@@ -717,8 +726,7 @@ void TopBarWidget::updateControlsVisibility() {
 	const auto callsEnabled = [&] {
 		if (const auto peer = _activeChat.key.peer()) {
 			if (const auto user = peer->asUser()) {
-				return session().serverConfig().phoneCallsEnabled.current()
-					&& user->hasCalls();
+				return true;
 			}
 		}
 		return false;
