@@ -1144,6 +1144,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_migrate_body" = "To add more members, you can upgrade your group to a supergroup.";
 "lng_profile_migrate_learn_more" = "Learn more »";
 "lng_profile_migrate_button" = "Upgrade to supergroup";
+"lng_profile_convert_title" = "Convert to supergroup";
+"lng_profile_convert_feature1" = "— New members see the full message history";
+"lng_profile_convert_feature2" = "— Messages are deleted for all members";
+"lng_profile_convert_feature3" = "— Admins can pin important messages";
+"lng_profile_convert_feature4" = "— Creator can set a public link for the group";
+"lng_profile_convert_warning" = "{bold_start}Note:{bold_end} This action can not be undone";
+"lng_profile_convert_confirm" = "Convert";
 "lng_profile_add_more_after_create" = "You will be able to add more members after you create the group.";
 
 "lng_channel_not_accessible" = "Sorry, this channel is not accessible.";

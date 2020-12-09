@@ -103,7 +103,7 @@ public:
 	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
 	void stopLastActionRipple() override;
 
-	int nameIconWidth() const override {
+	int nameIconWidth() const {
 		return 0;
 	}
 	QSize actionSize() const override {

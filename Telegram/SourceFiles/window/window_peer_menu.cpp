@@ -114,7 +114,7 @@ class Filler {
 public:
 	Filler(
 		not_null<SessionController*> controller,
-*		Dialogs::EntryState request,
+		Dialogs::EntryState request,
 		const PeerMenuCallback &addAction);
 	void fill();
 

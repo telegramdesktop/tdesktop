@@ -102,13 +102,13 @@ TopBarWidget::TopBarWidget(
 	_groupCall->setClickedCallback([=] { groupCall(); });
 	_search->setClickedCallback([=] { search(); });
 	_recentActions->setClickedCallback([=] {
-		const auto channel = _activeChat.peer()->asChannel();
+		const auto channel = _activeChat.key.peer()->asChannel();
 		_controller->showSection(AdminLog::SectionMemento(channel));
 	});
 	_admins->setClickedCallback([=] {
 		ParticipantsBoxController::Start(
 					controller,
-					_activeChat.peer(),
+					_activeChat.key.peer(),
 					ParticipantsBoxController::Role::Admins);
 	});
 	_menuToggle->setClickedCallback([=] { showMenu(); });
@@ -772,7 +772,7 @@ void TopBarWidget::updateControlsVisibility() {
 	updateSearchVisibility();
 	_menuToggle->setVisible(hasMenu);
 	const auto isAdmin = [&] {
-		if (const auto peer = _activeChat.peer()) {
+		if (const auto peer = _activeChat.key.peer()) {
 			if (peer->isMegagroup() || peer->isChannel()) {
 				const auto channel = peer->asChannel();
 				if (channel->hasAdminRights() || channel->amCreator()) {
@@ -784,7 +784,7 @@ void TopBarWidget::updateControlsVisibility() {
 	}();
 	_recentActions->setVisible(isAdmin);
 	const auto isGroup = [&] {
-		if (const auto peer = _activeChat.peer()) {
+		if (const auto peer = _activeChat.key.peer()) {
 			if (peer->isMegagroup()) {
 				return true;
 			} else if (peer->isChannel()) {
