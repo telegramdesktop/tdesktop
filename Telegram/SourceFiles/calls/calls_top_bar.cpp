@@ -355,6 +355,11 @@ void TopBar::initControls() {
 }
 
 void TopBar::initBlobs() {
+	const auto group = _groupCall.get();
+	if (!group) {
+		return;
+	}
+
 	const auto &hideDuration = kBlobLevelDuration1 * 2;
 	const auto hideLastTime = _blobs->lifetime().make_state<crl::time>(0);
 	const auto lastTime = _blobs->lifetime().make_state<crl::time>(0);
@@ -374,7 +379,7 @@ void TopBar::initBlobs() {
 		return true;
 	});
 
-	_groupCall->stateValue(
+	group->stateValue(
 	) | rpl::start_with_next([=](Calls::GroupCall::State state) {
 		if (state == Calls::GroupCall::State::HangingUp) {
 			_blobs->hide();
@@ -384,7 +389,7 @@ void TopBar::initBlobs() {
 	auto hideBlobs = rpl::combine(
 		rpl::single(anim::Disabled()) | rpl::then(anim::Disables()),
 		Core::App().appDeactivatedValue(),
-		_groupCall->stateValue(
+		group->stateValue(
 		) | rpl::map([](Calls::GroupCall::State state) {
 			using State = Calls::GroupCall::State;
 			if (state != State::Creating
@@ -471,7 +476,7 @@ void TopBar::initBlobs() {
 		});
 	}, lifetime());
 
-	_groupCall->levelUpdates(
+	group->levelUpdates(
 	) | rpl::filter([=](const LevelUpdate &update) {
 		return !*hideLastTime && (update.value > _blobsLastLevel);
 	}) | rpl::start_with_next([=](const LevelUpdate &update) {
