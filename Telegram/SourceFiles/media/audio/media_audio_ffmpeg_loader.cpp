@@ -550,7 +550,7 @@ bool FFMpegLoader::openCodecContext() {
 			));
 		return false;
 	}
-	av_codec_set_pkt_timebase(_codecContext, stream->time_base);
+	_codecContext->pkt_timebase = stream->time_base;
 	av_opt_set_int(_codecContext, "refcounted_frames", 1, 0);
 
 	if ((res = avcodec_open2(_codecContext, codec, 0)) < 0) {

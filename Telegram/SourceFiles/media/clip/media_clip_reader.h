@@ -226,7 +226,7 @@ public:
 	~Manager();
 
 	int loadLevel() const {
-		return _loadLevel.load();
+		return _loadLevel;
 	}
 	void append(Reader *reader, const Core::FileLocation &location, const QByteArray &data);
 	void start(Reader *reader);

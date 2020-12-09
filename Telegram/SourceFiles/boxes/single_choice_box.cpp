@@ -21,11 +21,15 @@ SingleChoiceBox::SingleChoiceBox(
 	rpl::producer<QString> title,
 	const std::vector<QString> &optionTexts,
 	int initialSelection,
-	Fn<void(int)> callback)
+	Fn<void(int)> callback,
+	const style::Checkbox *st,
+	const style::Radio *radioSt)
 : _title(std::move(title))
 , _optionTexts(optionTexts)
 , _initialSelection(initialSelection)
-, _callback(callback) {
+, _callback(callback)
+, _st(st ? *st : st::defaultBoxCheckbox)
+, _radioSt(radioSt ? *radioSt : st::defaultRadio) {
 }
 
 void SingleChoiceBox::prepare() {
@@ -47,7 +51,8 @@ void SingleChoiceBox::prepare() {
 				group,
 				i,
 				text,
-				st::defaultBoxCheckbox),
+				_st,
+				_radioSt),
 			QMargins(
 				st::boxPadding.left() + st::boxOptionListPadding.left(),
 				0,

@@ -10,15 +10,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_libs.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_xcb_utilities_linux.h"
+#include "base/qt_adapters.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/file_utilities_linux.h"
+#include "platform/linux/linux_wayland_integration.h"
 #include "platform/platform_notifications_manager.h"
 #include "storage/localstorage.h"
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
+#include "window/window_controller.h"
+#include "core/application.h"
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>
@@ -28,13 +32,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QLibraryInfo>
 #include <QtGui/QWindow>
 
-#include <private/qwaylanddisplay_p.h>
-#include <private/qwaylandwindow_p.h>
-#include <private/qwaylandshellsurface_p.h>
-
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusConnection>
+#include <QtDBus/QDBusConnectionInterface>
 #include <QtDBus/QDBusMessage>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusError>
@@ -42,10 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <xcb/xcb.h>
 #include <xcb/screensaver.h>
-
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0) && !defined DESKTOP_APP_QT_PATCHED
-#include <wayland-client.h>
-#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
 
 #include <glib.h>
 
@@ -66,7 +63,7 @@ extern "C" {
 
 using namespace Platform;
 using Platform::File::internal::EscapeShell;
-using QtWaylandClient::QWaylandWindow;
+using Platform::internal::WaylandIntegration;
 
 namespace Platform {
 namespace {
@@ -87,6 +84,31 @@ constexpr auto kXCBFrameExtentsAtomName = "_GTK_FRAME_EXTENTS"_cs;
 QStringList PlatformThemes;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+QStringList ListDBusActivatableNames() {
+	static const auto Result = [&] {
+		const auto message = QDBusMessage::createMethodCall(
+			qsl("org.freedesktop.DBus"),
+			qsl("/org/freedesktop/DBus"),
+			qsl("org.freedesktop.DBus"),
+			qsl("ListActivatableNames"));
+
+		const QDBusReply<QStringList> reply = QDBusConnection::sessionBus()
+			.call(message);
+
+		if (reply.isValid()) {
+			return reply.value();
+		} else {
+			LOG(("App Error: %1: %2")
+				.arg(reply.error().name())
+				.arg(reply.error().message()));
+		}
+
+		return QStringList{};
+	}();
+
+	return Result;
+}
+
 void PortalAutostart(bool autostart, bool silent = false) {
 	if (cExeName().isEmpty()) {
 		return;
@@ -95,10 +117,12 @@ void PortalAutostart(bool autostart, bool silent = false) {
 	QVariantMap options;
 	options["reason"] = tr::lng_settings_auto_start(tr::now);
 	options["autostart"] = autostart;
-	options["commandline"] = QStringList({
+	options["commandline"] = QStringList{
 		cExeName(),
+		qsl("-workdir"),
+		cWorkingDir(),
 		qsl("-autostart")
-	});
+	};
 	options["dbus-activatable"] = false;
 
 	auto message = QDBusMessage::createMethodCall(
@@ -107,8 +131,19 @@ void PortalAutostart(bool autostart, bool silent = false) {
 		qsl("org.freedesktop.portal.Background"),
 		qsl("RequestBackground"));
 
+	const auto parentWindowId = [&] {
+		if (const auto activeWindow = Core::App().activeWindow()) {
+			if (!IsWayland()) {
+				return qsl("x11:%1").arg(QString::number(
+					activeWindow->widget().get()->windowHandle()->winId(),
+					16));
+			}
+		}
+		return QString();
+	}();
+
 	message.setArguments({
-		QString(),
+		parentWindowId,
 		options
 	});
 
@@ -124,6 +159,14 @@ void PortalAutostart(bool autostart, bool silent = false) {
 	}
 }
 
+bool IsXDGDesktopPortalPresent() {
+	static const auto Result = QDBusInterface(
+		kXDGDesktopPortalService.utf16(),
+		kXDGDesktopPortalObjectPath.utf16()).isValid();
+
+	return Result;
+}
+
 bool IsXDGDesktopPortalKDEPresent() {
 	static const auto Result = QDBusInterface(
 		qsl("org.freedesktop.impl.portal.desktop.kde"),
@@ -133,9 +176,19 @@ bool IsXDGDesktopPortalKDEPresent() {
 }
 
 bool IsIBusPortalPresent() {
-	static const auto Result = QDBusInterface(
-		qsl("org.freedesktop.portal.IBus"),
-		qsl("/org/freedesktop/IBus")).isValid();
+	static const auto Result = [&] {
+		const auto interface = QDBusConnection::sessionBus().interface();
+		const auto activatableNames = ListDBusActivatableNames();
+
+		const auto serviceRegistered = interface
+			&& interface->isServiceRegistered(
+				qsl("org.freedesktop.portal.IBus"));
+
+		const auto serviceActivatable = activatableNames.contains(
+			qsl("org.freedesktop.portal.IBus"));
+
+		return serviceRegistered || serviceActivatable;
+	}();
 
 	return Result;
 }
@@ -153,11 +206,11 @@ uint FileChooserPortalVersion() {
 			qsl("version")
 		});
 
-		const QDBusReply<uint> reply = QDBusConnection::sessionBus().call(
+		const QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(
 			message);
 
 		if (reply.isValid()) {
-			return reply.value();
+			return reply.value().toUInt();
 		} else {
 			LOG(("Error getting FileChooser portal version: %1")
 				.arg(reply.error().message()));
@@ -169,6 +222,10 @@ uint FileChooserPortalVersion() {
 	return Result;
 }
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
+QString EscapeShellInLauncher(const QString &content) {
+	return EscapeShell(content.toUtf8()).replace('\\', "\\\\");
+}
 
 QString FlatpakID() {
 	static const auto Result = [] {
@@ -233,38 +290,29 @@ bool GenerateDesktopFile(
 
 	QFile target(targetFile);
 	if (target.open(QIODevice::WriteOnly)) {
-		if (!Core::UpdaterDisabled()) {
-			fileText = fileText.replace(
-				QRegularExpression(
-					qsl("^TryExec=.*$"),
-					QRegularExpression::MultilineOption),
-				qsl("TryExec=")
-					+ QFile::encodeName(cExeDir() + cExeName())
-						.replace('\\', qsl("\\\\")));
-			fileText = fileText.replace(
-				QRegularExpression(
-					qsl("^Exec=.*$"),
-					QRegularExpression::MultilineOption),
-				qsl("Exec=")
-					+ EscapeShell(QFile::encodeName(cExeDir() + cExeName()))
-						.replace('\\', qsl("\\\\"))
-					+ (args.isEmpty() ? QString() : ' ' + args));
-		} else {
-			fileText = fileText.replace(
-				QRegularExpression(
-					qsl("^Exec=(.*) -- %u$"),
-					QRegularExpression::MultilineOption),
-				qsl("Exec=\\1")
-					+ (args.isEmpty() ? QString() : ' ' + args));
-		}
+		fileText = fileText.replace(
+			QRegularExpression(
+				qsl("^TryExec=.*$"),
+				QRegularExpression::MultilineOption),
+			qsl("TryExec=%1").arg(
+				QString(cExeDir() + cExeName()).replace('\\', "\\\\")));
+
+		fileText = fileText.replace(
+			QRegularExpression(
+				qsl("^Exec=.*$"),
+				QRegularExpression::MultilineOption),
+			qsl("Exec=%1 -workdir %2").arg(
+				EscapeShellInLauncher(cExeDir() + cExeName()),
+				EscapeShellInLauncher(cWorkingDir()))
+				+ (args.isEmpty() ? QString() : ' ' + args));
 
 		target.write(fileText.toUtf8());
 		target.close();
 
-		if (IsStaticBinary()) {
+		if (!Core::UpdaterDisabled()) {
 			DEBUG_LOG(("App Info: removing old .desktop files"));
-			QFile(qsl("%1telegram.desktop").arg(targetPath)).remove();
-			QFile(qsl("%1telegramdesktop.desktop").arg(targetPath)).remove();
+			QFile::remove(qsl("%1telegram.desktop").arg(targetPath));
+			QFile::remove(qsl("%1telegramdesktop.desktop").arg(targetPath));
 		}
 
 		return true;
@@ -277,7 +325,7 @@ bool GenerateDesktopFile(
 }
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-bool GetImageFromClipboardSupported() {
+bool GetClipboardImageSupported() {
 	return (Libs::gtk_clipboard_wait_for_contents != nullptr)
 		&& (Libs::gtk_clipboard_wait_for_image != nullptr)
 		&& (Libs::gtk_selection_data_targets_include_image != nullptr)
@@ -288,6 +336,11 @@ bool GetImageFromClipboardSupported() {
 		&& (Libs::gdk_pixbuf_get_rowstride != nullptr)
 		&& (Libs::gdk_pixbuf_get_has_alpha != nullptr)
 		&& (Libs::gdk_atom_intern != nullptr);
+}
+
+bool SetClipboardImageSupported() {
+	return (Libs::gtk_clipboard_set_image != nullptr)
+		&& (Libs::gdk_pixbuf_new_from_data != nullptr);
 }
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
@@ -311,29 +364,6 @@ uint XCBMoveResizeFromEdges(Qt::Edges edges) {
 
 	return 0;
 }
-
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0) && !defined DESKTOP_APP_QT_PATCHED
-enum wl_shell_surface_resize WlResizeFromEdges(Qt::Edges edges) {
-	if (edges == (Qt::TopEdge | Qt::LeftEdge))
-		return WL_SHELL_SURFACE_RESIZE_TOP_LEFT;
-	if (edges == Qt::TopEdge)
-		return WL_SHELL_SURFACE_RESIZE_TOP;
-	if (edges == (Qt::TopEdge | Qt::RightEdge))
-		return WL_SHELL_SURFACE_RESIZE_TOP_RIGHT;
-	if (edges == Qt::RightEdge)
-		return WL_SHELL_SURFACE_RESIZE_RIGHT;
-	if (edges == (Qt::RightEdge | Qt::BottomEdge))
-		return WL_SHELL_SURFACE_RESIZE_BOTTOM_RIGHT;
-	if (edges == Qt::BottomEdge)
-		return WL_SHELL_SURFACE_RESIZE_BOTTOM;
-	if (edges == (Qt::BottomEdge | Qt::LeftEdge))
-		return WL_SHELL_SURFACE_RESIZE_BOTTOM_LEFT;
-	if (edges == Qt::LeftEdge)
-		return WL_SHELL_SURFACE_RESIZE_LEFT;
-
-	return WL_SHELL_SURFACE_RESIZE_NONE;
-}
-#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
 
 bool StartXCBMoveResize(QWindow *window, int edges) {
 	const auto connection = base::Platform::XCB::GetConnectionFromQt();
@@ -425,59 +455,6 @@ bool ShowXCBWindowMenu(QWindow *window) {
 		reinterpret_cast<const char*>(&xev));
 
 	return true;
-}
-
-bool StartWaylandMove(QWindow *window) {
-	// There are startSystemMove on Qt 5.15
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
-	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
-		window->handle())) {
-		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
-			if (const auto shellSurface = waylandWindow->shellSurface()) {
-				return shellSurface->move(seat);
-			}
-		}
-	}
-#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
-
-	return false;
-}
-
-bool StartWaylandResize(QWindow *window, Qt::Edges edges) {
-	// There are startSystemResize on Qt 5.15
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
-	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
-		window->handle())) {
-		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
-			if (const auto shellSurface = waylandWindow->shellSurface()) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0)
-				shellSurface->resize(seat, edges);
-				return true;
-#else // Qt >= 5.13
-				shellSurface->resize(seat, WlResizeFromEdges(edges));
-				return true;
-#endif // Qt < 5.13
-			}
-		}
-	}
-#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
-
-	return false;
-}
-
-bool ShowWaylandWindowMenu(QWindow *window) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0) || defined DESKTOP_APP_QT_PATCHED
-	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
-		window->handle())) {
-		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
-			if (const auto shellSurface = waylandWindow->shellSurface()) {
-				return shellSurface->showWindowMenu(seat);
-			}
-		}
-	}
-#endif // Qt >= 5.13 || DESKTOP_APP_QT_PATCHED
-
-	return false;
 }
 
 bool XCBFrameExtentsSupported() {
@@ -635,34 +612,29 @@ bool IsGtkIntegrationForced() {
 }
 
 bool AreQtPluginsBundled() {
-#ifdef DESKTOP_APP_USE_PACKAGED_LAZY
+#if !defined DESKTOP_APP_USE_PACKAGED || defined DESKTOP_APP_USE_PACKAGED_LAZY
 	return true;
-#else // DESKTOP_APP_USE_PACKAGED_LAZY
+#else // !DESKTOP_APP_USE_PACKAGED || DESKTOP_APP_USE_PACKAGED_LAZY
 	return false;
-#endif // !DESKTOP_APP_USE_PACKAGED_LAZY
-}
-
-bool IsXDGDesktopPortalPresent() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	static const auto Result = QDBusInterface(
-		kXDGDesktopPortalService.utf16(),
-		kXDGDesktopPortalObjectPath.utf16()).isValid();
-
-	return Result;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	return false;
+#endif // DESKTOP_APP_USE_PACKAGED && !DESKTOP_APP_USE_PACKAGED_LAZY
 }
 
 bool UseXDGDesktopPortal() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	static const auto Result = [&] {
+		const auto onlyIn = AreQtPluginsBundled()
+			// it is handled by Qt for flatpak and snap
+			&& !InFlatpak()
+			&& !InSnap();
+
 		const auto envVar = qEnvironmentVariableIsSet("TDESKTOP_USE_PORTAL");
 		const auto portalPresent = IsXDGDesktopPortalPresent();
 		const auto neededForKde = DesktopEnvironment::IsKDE()
 			&& IsXDGDesktopPortalKDEPresent();
 
-		return (neededForKde || envVar) && portalPresent;
+		return onlyIn
+			&& portalPresent
+			&& (neededForKde || envVar);
 	}();
 
 	return Result;
@@ -762,11 +734,11 @@ QString GetIconName() {
 	return Result;
 }
 
-QImage GetImageFromClipboard() {
+QImage GetClipboardImage() {
 	QImage data;
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (!GetImageFromClipboardSupported() || !Libs::GtkClipboard()) {
+	if (!GetClipboardImageSupported() || !Libs::GtkClipboard()) {
 		return data;
 	}
 
@@ -800,6 +772,57 @@ QImage GetImageFromClipboard() {
 	return data;
 }
 
+bool SetClipboardImage(const QImage &image) {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
+	if (!SetClipboardImageSupported()
+		|| !Libs::GtkClipboard()
+		|| image.isNull()) {
+		return false;
+	}
+
+	const auto convertedImage = [&] {
+		if (image.hasAlphaChannel()) {
+			if (image.format() != QImage::Format_RGBA8888) {
+				return image.convertToFormat(QImage::Format_RGBA8888);
+			}
+		} else {
+			if (image.format() != QImage::Format_RGB888) {
+				return image.convertToFormat(QImage::Format_RGB888);
+			}
+		}
+		return image;
+	}();
+
+	auto imageBuf = reinterpret_cast<guchar*>(
+		malloc(convertedImage.sizeInBytes()));
+
+	memcpy(
+		imageBuf,
+		convertedImage.constBits(),
+		convertedImage.sizeInBytes());
+
+	auto imagePixbuf = Libs::gdk_pixbuf_new_from_data(
+		imageBuf,
+		GDK_COLORSPACE_RGB,
+		convertedImage.hasAlphaChannel(),
+		8,
+		convertedImage.width(),
+		convertedImage.height(),
+		convertedImage.bytesPerLine(),
+		[](guchar *pixels, gpointer data) {
+			free(pixels);
+		},
+		nullptr);
+
+	Libs::gtk_clipboard_set_image(Libs::GtkClipboard(), imagePixbuf);
+	g_object_unref(imagePixbuf);
+
+	return true;
+#else // !TDESKTOP_DISABLE_GTK_INTEGRATION
+	return false;
+#endif // TDESKTOP_DISABLE_GTK_INTEGRATION
+}
+
 std::optional<bool> IsDarkMode() {
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	if (Libs::GtkSettingSupported() && Libs::GtkLoaded()) {
@@ -812,7 +835,7 @@ std::optional<bool> IsDarkMode() {
 
 		const auto themeName = Libs::GtkSetting("gtk-theme-name").toLower();
 
-		if (themeName.endsWith(qsl("-dark"))) {
+		if (themeName.contains(qsl("-dark"))) {
 			return true;
 		}
 
@@ -842,24 +865,24 @@ bool SkipTaskbarSupported() {
 }
 
 bool StartSystemMove(QWindow *window) {
-	if (IsWayland()) {
-		return StartWaylandMove(window);
+	if (const auto integration = WaylandIntegration::Instance()) {
+		return integration->startMove(window);
 	} else {
 		return StartXCBMoveResize(window, 16);
 	}
 }
 
 bool StartSystemResize(QWindow *window, Qt::Edges edges) {
-	if (IsWayland()) {
-		return StartWaylandResize(window, edges);
+	if (const auto integration = WaylandIntegration::Instance()) {
+		return integration->startResize(window, edges);
 	} else {
 		return StartXCBMoveResize(window, edges);
 	}
 }
 
 bool ShowWindowMenu(QWindow *window) {
-	if (IsWayland()) {
-		return ShowWaylandWindowMenu(window);
+	if (const auto integration = WaylandIntegration::Instance()) {
+		return integration->showWindowMenu(window);
 	} else {
 		return ShowXCBWindowMenu(window);
 	}
@@ -914,43 +937,37 @@ Window::ControlsLayout WindowControlsLayout() {
 			);
 		}
 
-		Window::ControlsLayout controls;
-		controls.left = controlsLeft;
-		controls.right = controlsRight;
-
-		return controls;
+		return Window::ControlsLayout{
+			.left = controlsLeft,
+			.right = controlsRight
+		};
 	}
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
-	Window::ControlsLayout controls;
-
 	if (DesktopEnvironment::IsUnity()) {
-		controls.left = {
-			Window::Control::Close,
-			Window::Control::Minimize,
-			Window::Control::Maximize,
+		return Window::ControlsLayout{
+			.left = {
+				Window::Control::Close,
+				Window::Control::Minimize,
+				Window::Control::Maximize,
+			}
 		};
 	} else {
-		controls.right = {
-			Window::Control::Minimize,
-			Window::Control::Maximize,
-			Window::Control::Close,
+		return Window::ControlsLayout{
+			.right = {
+				Window::Control::Minimize,
+				Window::Control::Maximize,
+				Window::Control::Close,
+			}
 		};
 	}
-
-	return controls;
 }
 
 } // namespace Platform
 
-namespace {
-
-QRect _monitorRect;
-auto _monitorLastGot = 0LL;
-
-} // namespace
-
 QRect psDesktopRect() {
+	static QRect _monitorRect;
+	static auto _monitorLastGot = 0LL;
 	auto tnow = crl::now();
 	if (tnow > _monitorLastGot + 1000LL || tnow < _monitorLastGot) {
 		_monitorLastGot = tnow;
@@ -987,9 +1004,9 @@ QString psAppDataPath() {
 	if (!home.isEmpty()) {
 		auto oldPath = home + qsl(".TelegramDesktop/");
 		auto oldSettingsBase = oldPath + qsl("tdata/settings");
-		if (QFile(oldSettingsBase + '0').exists()
-			|| QFile(oldSettingsBase + '1').exists()
-			|| QFile(oldSettingsBase + 's').exists()) {
+		if (QFile::exists(oldSettingsBase + '0')
+			|| QFile::exists(oldSettingsBase + '1')
+			|| QFile::exists(oldSettingsBase + 's')) {
 			return oldPath;
 		}
 	}
@@ -1022,7 +1039,7 @@ namespace Platform {
 
 void start() {
 	PlatformThemes = QString::fromUtf8(qgetenv("QT_QPA_PLATFORMTHEME"))
-		.split(':', QString::SkipEmptyParts);
+		.split(':', base::QStringSkipEmptyParts);
 
 	LOG(("Launcher filename: %1").arg(GetLauncherFilename()));
 
@@ -1086,27 +1103,22 @@ void start() {
 		qputenv("QT_WAYLAND_DECORATION", "material");
 	}
 
-	if (AreQtPluginsBundled()
-		// it is handled by Qt for flatpak and snap
-		&& !InFlatpak()
-		&& !InSnap()) {
-		LOG(("Checking for XDG Desktop Portal..."));
-		// this can give us a chance to use
-		// a proper file dialog for current session
-		if (IsXDGDesktopPortalPresent()) {
-			LOG(("XDG Desktop Portal is present!"));
-			if (UseXDGDesktopPortal()) {
-				LOG(("Using XDG Desktop Portal."));
-				qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
-			} else {
-				LOG(("Not using XDG Desktop Portal."));
-			}
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	// this can give us a chance to use
+	// a proper file dialog for current session
+	DEBUG_LOG(("Checking for XDG Desktop Portal..."));
+	if (IsXDGDesktopPortalPresent()) {
+		DEBUG_LOG(("XDG Desktop Portal is present!"));
+		if (UseXDGDesktopPortal()) {
+			LOG(("Using XDG Desktop Portal."));
+			qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
 		} else {
-			LOG(("XDG Desktop Portal is not present :("));
+			DEBUG_LOG(("Not using XDG Desktop Portal."));
 		}
+	} else {
+		DEBUG_LOG(("XDG Desktop Portal is not present :("));
 	}
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	// IBus has changed its socket path several times
 	// and each change should be synchronized with Qt.
 	// Moreover, the last time Qt changed the path,
@@ -1115,7 +1127,10 @@ void start() {
 	// Since tdesktop is distributed in static binary form,
 	// it makes sense to use ibus portal whenever it present
 	// to ensure compatibility with the maximum range of distributions.
-	if (IsIBusPortalPresent()) {
+	if (AreQtPluginsBundled()
+		&& !InFlatpak()
+		&& !InSnap()
+		&& IsIBusPortalPresent()) {
 		LOG(("IBus portal is present! Using it."));
 		qputenv("IBUS_USE_PORTAL", "1");
 	}
@@ -1145,16 +1160,16 @@ void InstallLauncher(bool force) {
 
 	if (!QDir(icons).exists()) QDir().mkpath(icons);
 
-	const auto icon = icons + qsl("telegram.png");
-	auto iconExists = QFile(icon).exists();
+	const auto icon = icons + kIconName.utf16() + qsl(".png");
+	auto iconExists = QFile::exists(icon);
 	if (Local::oldSettingsVersion() < 10021 && iconExists) {
 		// Icon was changed.
-		if (QFile(icon).remove()) {
+		if (QFile::remove(icon)) {
 			iconExists = false;
 		}
 	}
 	if (!iconExists) {
-		if (QFile(qsl(":/gui/art/logo_256.png")).copy(icon)) {
+		if (QFile::copy(qsl(":/gui/art/logo_256.png"), icon)) {
 			DEBUG_LOG(("App Info: Icon copied to '%1'").arg(icon));
 		}
 	}
@@ -1171,10 +1186,9 @@ void RegisterCustomScheme(bool force) {
 
 	GError *error = nullptr;
 
-	const auto neededCommandlineBuilder = qsl("%1 --")
-		.arg(!Core::UpdaterDisabled()
-			? cExeDir() + cExeName()
-			: cExeName());
+	const auto neededCommandlineBuilder = qsl("%1 -workdir %2 --").arg(
+		QString(EscapeShell(QFile::encodeName(cExeDir() + cExeName()))),
+		QString(EscapeShell(QFile::encodeName(cWorkingDir()))));
 
 	const auto neededCommandline = qsl("%1 %u")
 		.arg(neededCommandlineBuilder);
@@ -1251,27 +1265,35 @@ void OpenSystemSettingsForPermission(PermissionType type) {
 
 bool OpenSystemSettings(SystemSettingsType type) {
 	if (type == SystemSettingsType::Audio) {
-		auto options = std::vector<QString>();
-		const auto add = [&](const char *option) {
-			options.emplace_back(option);
+		struct Command {
+			QString command;
+			QStringList arguments;
+		};
+		auto options = std::vector<Command>();
+		const auto add = [&](const char *option, const char *arg = nullptr) {
+			auto command = Command{ .command = option };
+			if (arg) {
+				command.arguments.push_back(arg);
+			}
+			options.push_back(std::move(command));
 		};
 		if (DesktopEnvironment::IsUnity()) {
-			add("unity-control-center sound");
+			add("unity-control-center", "sound");
 		} else if (DesktopEnvironment::IsKDE()) {
-			add("kcmshell5 kcm_pulseaudio");
-			add("kcmshell4 phonon");
+			add("kcmshell5", "kcm_pulseaudio");
+			add("kcmshell4", "phonon");
 		} else if (DesktopEnvironment::IsGnome()) {
-			add("gnome-control-center sound");
+			add("gnome-control-center", "sound");
 		} else if (DesktopEnvironment::IsCinnamon()) {
-			add("cinnamon-settings sound");
+			add("cinnamon-settings", "sound");
 		} else if (DesktopEnvironment::IsMATE()) {
 			add("mate-volume-control");
 		}
 		add("pavucontrol-qt");
 		add("pavucontrol");
 		add("alsamixergui");
-		return ranges::any_of(options, [](const QString &command) {
-			return QProcess::startDetached(command);
+		return ranges::any_of(options, [](const Command &command) {
+			return QProcess::startDetached(command.command, command.arguments);
 		});
 	}
 	return true;

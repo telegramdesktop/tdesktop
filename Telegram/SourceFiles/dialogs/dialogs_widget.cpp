@@ -523,8 +523,10 @@ void Widget::refreshFolderTopBar() {
 			updateControlsGeometry();
 		}
 		_folderTopBar->setActiveChat(
-			_openedFolder,
-			HistoryView::TopBarWidget::Section::History,
+			HistoryView::TopBarWidget::ActiveChat{
+				.key = _openedFolder,
+				.section = Dialogs::EntryState::Section::ChatsList,
+			},
 			nullptr);
 	} else {
 		_folderTopBar.destroy();
@@ -849,12 +851,12 @@ bool Widget::onSearchMessages(bool searchCache) {
 					MTP_int(0),
 					MTP_int(0)
 				)).done([=](const MTPmessages_Messages &result) {
-					searchReceived(type, result, _searchRequest);
 					_searchInHistoryRequest = 0;
+					searchReceived(type, result, _searchRequest);
 					finish();
 				}).fail([=](const RPCError &error) {
-					searchFailed(type, error, _searchRequest);
 					_searchInHistoryRequest = 0;
+					searchFailed(type, error, _searchRequest);
 					finish();
 				}).send();
 				_searchQueries.emplace(_searchRequest, _searchQuery);
@@ -1277,7 +1279,15 @@ void Widget::searchFailed(
 		SearchRequestType type,
 		const RPCError &error,
 		mtpRequestId requestId) {
-	if (_searchRequest == requestId) {
+	if (error.type() == qstr("SEARCH_QUERY_EMPTY")) {
+		searchReceived(
+			type,
+			MTP_messages_messages(
+				MTP_vector<MTPMessage>(),
+				MTP_vector<MTPChat>(),
+				MTP_vector<MTPUser>()),
+			requestId);
+	} else if (_searchRequest == requestId) {
 		_searchRequest = 0;
 		if (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset) {
 			_searchFullMigrated = true;
@@ -1791,7 +1801,9 @@ bool Widget::onCancelSearch() {
 void Widget::onCancelSearchInChat() {
 	cancelSearchRequest();
 	if (_searchInChat) {
-		if (Adaptive::OneColumn() && !controller()->selectingPeer()) {
+		if (Adaptive::OneColumn()
+			&& !controller()->selectingPeer()
+			&& _filter->getLastText().trimmed().isEmpty()) {
 			if (const auto peer = _searchInChat.peer()) {
 				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 			//} else if (const auto feed = _searchInChat.feed()) { // #feed

@@ -120,6 +120,7 @@ inline auto PeerFullFlagValue(
 [[nodiscard]] QString OnlineTextFull(not_null<UserData*> user, TimeId now);
 [[nodiscard]] bool OnlineTextActive(TimeId online, TimeId now);
 [[nodiscard]] bool OnlineTextActive(not_null<UserData*> user, TimeId now);
-[[nodiscard]] bool IsPeerAnOnlineUser(not_null<PeerData*> peer);
+[[nodiscard]] bool IsUserOnline(not_null<UserData*> user);
+[[nodiscard]] bool ChannelHasActiveCall(not_null<ChannelData*> channel);
 
 } // namespace Data

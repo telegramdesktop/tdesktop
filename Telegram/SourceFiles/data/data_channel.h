@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_pts_waiter.h"
 #include "data/data_location.h"
 
+namespace Data {
+class GroupCall;
+} // namespace Data
+
 struct ChannelLocation {
 	QString address;
 	Data::LocationPoint point;
@@ -98,6 +102,7 @@ public:
 		| MTPDchannel::Flag::f_restricted
 		| MTPDchannel::Flag::f_signatures
 		| MTPDchannel::Flag::f_username
+		| MTPDchannel::Flag::f_call_not_empty
 		| MTPDchannel::Flag::f_slowmode_enabled;
 	using Flags = Data::Flags<
 		MTPDchannel::Flags,
@@ -303,6 +308,7 @@ public:
 	[[nodiscard]] bool canDelete() const;
 	[[nodiscard]] bool canEditAdmin(not_null<UserData*> user) const;
 	[[nodiscard]] bool canRestrictUser(not_null<UserData*> user) const;
+	[[nodiscard]] bool canManageCall() const;
 
 	void setInviteLink(const QString &newInviteLink);
 	[[nodiscard]] QString inviteLink() const;
@@ -394,6 +400,12 @@ public:
 	[[nodiscard]] QString invitePeekHash() const;
 	void privateErrorReceived();
 
+	[[nodiscard]] Data::GroupCall *call() const {
+		return _call.get();
+	}
+	void setCall(const MTPInputGroupCall &call);
+	void clearCall();
+
 	// Still public data members.
 	uint64 access = 0;
 
@@ -441,6 +453,8 @@ private:
 	std::unique_ptr<InvitePeek> _invitePeek;
 	QString _inviteLink;
 	std::optional<ChannelData*> _linkedChat;
+
+	std::unique_ptr<Data::GroupCall> _call;
 
 	int _slowmodeSeconds = 0;
 	TimeId _slowmodeLastMessage = 0;

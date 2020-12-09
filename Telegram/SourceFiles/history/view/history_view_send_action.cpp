@@ -19,18 +19,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-constexpr auto kStatusShowClientsideTyping = 6000;
-constexpr auto kStatusShowClientsideRecordVideo = 6000;
-constexpr auto kStatusShowClientsideUploadVideo = 6000;
-constexpr auto kStatusShowClientsideRecordVoice = 6000;
-constexpr auto kStatusShowClientsideUploadVoice = 6000;
-constexpr auto kStatusShowClientsideRecordRound = 6000;
-constexpr auto kStatusShowClientsideUploadRound = 6000;
-constexpr auto kStatusShowClientsideUploadPhoto = 6000;
-constexpr auto kStatusShowClientsideUploadFile = 6000;
-constexpr auto kStatusShowClientsideChooseLocation = 6000;
-constexpr auto kStatusShowClientsideChooseContact = 6000;
-constexpr auto kStatusShowClientsidePlayGame = 10000;
+constexpr auto kStatusShowClientsideTyping = 6 * crl::time(1000);
+constexpr auto kStatusShowClientsideRecordVideo = 6 * crl::time(1000);
+constexpr auto kStatusShowClientsideUploadVideo = 6 * crl::time(1000);
+constexpr auto kStatusShowClientsideRecordVoice = 6 * crl::time(1000);
+constexpr auto kStatusShowClientsideUploadVoice = 6 * crl::time(1000);
+constexpr auto kStatusShowClientsideRecordRound = 6 * crl::time(1000);
+constexpr auto kStatusShowClientsideUploadRound = 6 * crl::time(1000);
+constexpr auto kStatusShowClientsideUploadPhoto = 6 * crl::time(1000);
+constexpr auto kStatusShowClientsideUploadFile = 6 * crl::time(1000);
+constexpr auto kStatusShowClientsideChooseLocation = 6 * crl::time(1000);
+constexpr auto kStatusShowClientsideChooseContact = 6 * crl::time(1000);
+constexpr auto kStatusShowClientsidePlayGame = 10 * crl::time(1000);
+constexpr auto kStatusShowClientsideSpeaking = 6 * crl::time(1000);
 
 } // namespace
 
@@ -51,9 +52,9 @@ bool SendActionPainter::updateNeedsAnimating(
 
 	const auto now = crl::now();
 	const auto emplaceAction = [&](
-		Type type,
-		crl::time duration,
-		int progress = 0) {
+			Type type,
+			crl::time duration,
+			int progress = 0) {
 		_sendActions.emplace_or_assign(user, type, now + duration, progress);
 	};
 	action.match([&](const MTPDsendMessageTypingAction &) {
@@ -100,6 +101,10 @@ bool SendActionPainter::updateNeedsAnimating(
 			|| (i->second.until <= now)) {
 			emplaceAction(Type::PlayGame, kStatusShowClientsidePlayGame);
 		}
+	}, [&](const MTPDspeakingInGroupCallAction &) {
+		_speaking.emplace_or_assign(
+			user,
+			now + kStatusShowClientsideSpeaking);
 	}, [&](const MTPDsendMessageCancelAction &) {
 		Unexpected("CancelAction here.");
 	});
@@ -132,15 +137,49 @@ bool SendActionPainter::paint(
 	return false;
 }
 
+void SendActionPainter::paintSpeaking(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		style::color color,
+		crl::time ms) {
+	if (_speakingAnimation) {
+		_speakingAnimation.paint(
+			p,
+			color,
+			x,
+			y,
+			outerWidth,
+			ms);
+	} else {
+		Ui::SendActionAnimation::PaintSpeakingIdle(
+			p,
+			color,
+			x,
+			y,
+			outerWidth);
+	}
+}
+
 bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 	if (!_weak) {
 		return false;
 	}
-	auto changed = force;
+	auto sendActionChanged = false;
+	auto speakingChanged = false;
 	for (auto i = begin(_typing); i != end(_typing);) {
 		if (now >= i->second) {
 			i = _typing.erase(i);
-			changed = true;
+			sendActionChanged = true;
+		} else {
+			++i;
+		}
+	}
+	for (auto i = begin(_speaking); i != end(_speaking);) {
+		if (now >= i->second) {
+			i = _speaking.erase(i);
+			speakingChanged = true;
 		} else {
 			++i;
 		}
@@ -148,12 +187,13 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 	for (auto i = begin(_sendActions); i != end(_sendActions);) {
 		if (now >= i->second.until) {
 			i = _sendActions.erase(i);
-			changed = true;
+			sendActionChanged = true;
 		} else {
 			++i;
 		}
 	}
-	if (changed) {
+	const auto wasSpeakingAnimation = !!_speakingAnimation;
+	if (force || sendActionChanged || speakingChanged) {
 		QString newTypingString;
 		auto typingCount = _typing.size();
 		if (typingCount > 2) {
@@ -230,7 +270,7 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 		if (typingCount > 0) {
 			_sendActionAnimation.start(Api::SendProgressType::Typing);
 		} else if (newTypingString.isEmpty()) {
-			_sendActionAnimation.stop();
+			_sendActionAnimation.tryToFinish();
 		}
 		if (_sendActionString != newTypingString) {
 			_sendActionString = newTypingString;
@@ -239,17 +279,34 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 				_sendActionString,
 				Ui::NameTextOptions());
 		}
+		if (_speaking.empty()) {
+			_speakingAnimation.tryToFinish();
+		} else {
+			_speakingAnimation.start(Api::SendProgressType::Speaking);
+		}
+	} else if (_speaking.empty() && _speakingAnimation) {
+		_speakingAnimation.tryToFinish();
 	}
-	const auto result = (!_typing.empty() || !_sendActions.empty());
-	if (changed || (result && !anim::Disabled())) {
+	const auto sendActionResult = !_typing.empty() || !_sendActions.empty();
+	const auto speakingResult = !_speaking.empty() || wasSpeakingAnimation;
+	if (force
+		|| sendActionChanged
+		|| (sendActionResult && !anim::Disabled())) {
 		_history->peer->owner().updateSendActionAnimation({
 			_history,
 			_sendActionAnimation.width(),
 			st::normalFont->height,
-			changed
+			(force || sendActionChanged)
 		});
 	}
-	return result;
+	if (force
+		|| speakingChanged
+		|| (speakingResult && !anim::Disabled())) {
+		_history->peer->owner().updateSpeakingAnimation({
+			_history
+		});
+	}
+	return sendActionResult || speakingResult;
 }
 
 void SendActionPainter::clear(not_null<UserData*> from) {

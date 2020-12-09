@@ -754,11 +754,13 @@ CreatePollBox::CreatePollBox(
 	not_null<Window::SessionController*> controller,
 	PollData::Flags chosen,
 	PollData::Flags disabled,
-	Api::SendType sendType)
+	Api::SendType sendType,
+	SendMenu::Type sendMenuType)
 : _controller(controller)
 , _chosen(chosen)
 , _disabled(disabled)
-, _sendType(sendType) {
+, _sendType(sendType)
+, _sendMenuType(sendMenuType) {
 }
 
 rpl::producer<CreatePollBox::Result> CreatePollBox::submitRequests() const {
@@ -1101,26 +1103,23 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	}, lifetime());
 
 	const auto isNormal = (_sendType == Api::SendType::Normal);
-	const auto isScheduled = (_sendType == Api::SendType::Scheduled);
 
 	const auto submit = addButton(
 		isNormal
 			? tr::lng_polls_create_button()
 			: tr::lng_schedule_button(),
 		[=] { isNormal ? send({}) : sendScheduled(); });
-	if (isNormal || isScheduled) {
-		const auto sendMenuType = [=] {
-			collectError();
-			return (*error || isScheduled)
-				? SendMenu::Type::Disabled
-				: SendMenu::Type::Scheduled;
-		};
-		SendMenu::SetupMenuAndShortcuts(
-			submit.data(),
-			sendMenuType,
-			sendSilent,
-			sendScheduled);
-	}
+	const auto sendMenuType = [=] {
+		collectError();
+		return (*error)
+			? SendMenu::Type::Disabled
+			: _sendMenuType;
+	};
+	SendMenu::SetupMenuAndShortcuts(
+		submit.data(),
+		sendMenuType,
+		sendSilent,
+		sendScheduled);
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	return result;

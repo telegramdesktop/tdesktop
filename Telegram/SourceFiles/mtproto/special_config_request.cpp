@@ -79,9 +79,9 @@ bool CheckPhoneByPrefixesRules(const QString &phone, const QString &rules) {
 }
 
 QByteArray ConcatenateDnsTxtFields(const std::vector<DnsEntry> &response) {
-	auto entries = QMap<int, QString>();
+	auto entries = QMultiMap<int, QString>();
 	for (const auto &entry : response) {
-		entries.insertMulti(INT_MAX - entry.data.size(), entry.data);
+		entries.insert(INT_MAX - entry.data.size(), entry.data);
 	}
 	return QStringList(entries.values()).join(QString()).toLatin1();
 }

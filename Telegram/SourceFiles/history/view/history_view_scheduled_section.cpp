@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_scheduled_section.h"
 
-#include "history/view/history_view_compose_controls.h"
+#include "history/view/controls/history_view_compose_controls.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_schedule_box.h"
@@ -97,12 +97,15 @@ ScheduledWidget::ScheduledWidget(
 , _composeControls(std::make_unique<ComposeControls>(
 	this,
 	controller,
-	ComposeControls::Mode::Scheduled))
+	ComposeControls::Mode::Scheduled,
+	SendMenu::Type::Disabled))
 , _scrollDown(_scroll, st::historyToDown) {
-	_topBar->setActiveChat(
-		_history,
-		TopBarWidget::Section::Scheduled,
-		nullptr);
+	const auto state = Dialogs::EntryState{
+		.key = _history,
+		.section = Dialogs::EntryState::Section::Scheduled,
+	};
+	_topBar->setActiveChat(state, nullptr);
+	_composeControls->setCurrentDialogsEntryState(state);
 
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
@@ -180,6 +183,11 @@ void ScheduledWidget::setupComposeControls() {
 		sendVoice(data.bytes, data.waveform, data.duration);
 	}, lifetime());
 
+	_composeControls->sendCommandRequests(
+	) | rpl::start_with_next([=](const QString &command) {
+		listSendBotCommand(command, FullMsgId());
+	}, lifetime());
+
 	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);
 	_composeControls->editRequests(
 	) | rpl::start_with_next([=](auto data) {
@@ -253,6 +261,16 @@ void ScheduledWidget::setupComposeControls() {
 		}
 		Unexpected("action in MimeData hook.");
 	});
+
+	_composeControls->lockShowStarts(
+	) | rpl::start_with_next([=] {
+		updateScrollDownVisibility();
+	}, lifetime());
+
+	_composeControls->viewportEvents(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		_scroll->viewportEvent(e);
+	}, lifetime());
 }
 
 void ScheduledWidget::chooseAttach() {
@@ -317,7 +335,7 @@ bool ScheduledWidget::confirmSendingFiles(
 	}
 
 	if (hasImage) {
-		auto image = Platform::GetImageFromClipboard();
+		auto image = Platform::GetClipboardImage();
 		if (image.isNull()) {
 			image = qvariant_cast<QImage>(data->imageData());
 		}
@@ -560,6 +578,7 @@ void ScheduledWidget::sendVoice(
 	auto action = Api::SendAction(_history);
 	action.options = options;
 	session().api().sendVoiceMessage(bytes, waveform, duration, action);
+	_composeControls->clearListenState();
 }
 
 void ScheduledWidget::edit(
@@ -660,14 +679,6 @@ bool ScheduledWidget::sendExistingDocument(
 	//message.action.replyTo = replyToId();
 	message.action.options = options;
 	Api::SendExistingDocument(std::move(message), document);
-
-	//if (_fieldAutocomplete->stickersShown()) {
-	//	clearFieldText();
-	//	//_saveDraftText = true;
-	//	//_saveDraftStart = crl::now();
-	//	//onDraftSave();
-	//	onCloudDraftSave(); // won't be needed if SendInlineBotResult will clear the cloud draft
-	//}
 
 	_composeControls->hidePanelsAnimated();
 	_composeControls->focus();
@@ -820,6 +831,9 @@ void ScheduledWidget::updateScrollDownVisibility() {
 	}
 
 	const auto scrollDownIsVisible = [&]() -> std::optional<bool> {
+		if (_composeControls->isLockPresent()) {
+			return false;
+		}
 		const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
 		if (top < _scroll->scrollTopMax()) {
 			return true;
@@ -971,6 +985,7 @@ void ScheduledWidget::updateControlsGeometry() {
 		updateInnerVisibleArea();
 	}
 	_composeControls->move(0, bottom - controlsHeight);
+	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
 
 	updateScrollDownPosition();
 }
@@ -1049,9 +1064,7 @@ void ScheduledWidget::listCancelRequest() {
 	if (_inner && !_inner->getSelectedItems().empty()) {
 		clearSelected();
 		return;
-	}
-	if (_composeControls->isEditingMessage()) {
-		_composeControls->cancelEditMessage();
+	} else if (_composeControls->handleCancelRequest()) {
 		return;
 	}
 	controller()->showBackFromStack();
@@ -1165,6 +1178,25 @@ bool ScheduledWidget::listIsGoodForAroundPosition(
 	return true;
 }
 
+void ScheduledWidget::listSendBotCommand(
+		const QString &command,
+		const FullMsgId &context) {
+	const auto callback = [=](Api::SendOptions options) {
+		const auto text = WrapBotCommandInChat(_history->peer, command, context);
+		auto message = ApiWrap::MessageToSend(_history);
+		message.textWithTags = { text };
+		message.action.options = options;
+		session().api().sendMessage(std::move(message));
+	};
+	Ui::show(
+		PrepareScheduleBox(this, sendMenuType(), callback),
+		Ui::LayerOption::KeepOther);
+}
+
+void ScheduledWidget::listHandleViaClick(not_null<UserData*> bot) {
+	_composeControls->setText({ '@' + bot->username + ' ' });
+}
+
 void ScheduledWidget::confirmSendNowSelected() {
 	ConfirmSendNowSelectedItems(_inner);
 }
@@ -1180,7 +1212,7 @@ void ScheduledWidget::clearSelected() {
 void ScheduledWidget::setupDragArea() {
 	const auto areas = DragArea::SetupDragAreaToContainer(
 		this,
-		[=](not_null<const QMimeData*> d) { return _history; },
+		[=](auto d) { return _history && !_composeControls->isRecording(); },
 		nullptr,
 		[=] { updateControlsGeometry(); });
 

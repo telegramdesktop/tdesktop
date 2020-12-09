@@ -135,7 +135,6 @@ private:
 // Viewing admins, banned or restricted users list with search.
 class ParticipantsBoxController
 	: public PeerListController
-	, private base::Subscriber
 	, public base::has_weak_ptr {
 public:
 	using Role = ParticipantsRole;
@@ -171,6 +170,16 @@ public:
 	rpl::producer<int> onlineCountValue() const override;
 
 protected:
+	// Allow child controllers not providing navigation.
+	// This is their responsibility to override all methods that use it.
+	struct CreateTag {
+	};
+	ParticipantsBoxController(
+		CreateTag,
+		Window::SessionNavigation *navigation,
+		not_null<PeerData*> peer,
+		Role role);
+
 	virtual std::unique_ptr<PeerListRow> createRow(
 		not_null<UserData*> user) const;
 
@@ -237,7 +246,9 @@ private:
 	void subscribeToCreatorChange(not_null<ChannelData*> channel);
 	void fullListRefresh();
 
-	not_null<Window::SessionNavigation*> _navigation;
+	// It may be nullptr in subclasses of this controller.
+	Window::SessionNavigation *_navigation = nullptr;
+
 	not_null<PeerData*> _peer;
 	MTP::Sender _api;
 	Role _role = Role::Admins;

@@ -580,8 +580,7 @@ void DocumentData::setattributes(
 
 void DocumentData::validateLottieSticker() {
 	if (type == FileDocument
-		&& _mimeString == qstr("application/x-tgsticker")
-		&& hasThumbnail()) {
+		&& _mimeString == qstr("application/x-tgsticker")) {
 		type = StickerDocument;
 		_additional = std::make_unique<StickerData>();
 		sticker()->animated = true;

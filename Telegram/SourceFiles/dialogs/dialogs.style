@@ -36,8 +36,14 @@ dialogsPadding: point(10px, 8px);
 
 dialogsOnlineBadgeStroke: 2px;
 dialogsOnlineBadgeSize: 10px;
-dialogsOnlineBadgeSkip: point(10px, 12px);
+dialogsOnlineBadgeSkip: point(0px, 2px);
 dialogsOnlineBadgeDuration: 150;
+
+dialogsCallBadgeSize: 16px;
+dialogsCallBadgeSkip: point(-1px, 1px);
+
+dialogsSpeakingStrokeNumerator: 16px;
+dialogsSpeakingDenominator: 8.;
 
 dialogsImportantBarHeight: 37px;
 

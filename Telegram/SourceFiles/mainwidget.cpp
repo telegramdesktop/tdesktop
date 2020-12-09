@@ -244,11 +244,19 @@ MainWidget::MainWidget(
 	setupConnectingWidget();
 
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
-	connect(_history, &HistoryWidget::cancelled, [=] { handleHistoryBack(); });
+
+	_history->cancelRequests(
+	) | rpl::start_with_next([=] {
+		handleHistoryBack();
+	}, lifetime());
 
 	Core::App().calls().currentCallValue(
 	) | rpl::start_with_next([=](Calls::Call *call) {
 		setCurrentCall(call);
+	}, lifetime());
+	Core::App().calls().currentGroupCallValue(
+	) | rpl::start_with_next([=](Calls::GroupCall *call) {
+		setCurrentGroupCall(call);
 	}, lifetime());
 	if (_callTopBar) {
 		_callTopBar->finishAnimating();
@@ -479,7 +487,7 @@ void MainWidget::floatPlayerClosed(FullMsgId itemId) {
 		const auto voiceData = Media::Player::instance()->current(
 			AudioMsgId::Type::Voice);
 		if (voiceData.contextId() == itemId) {
-			_player->entity()->stopAndClose();
+			stopAndClosePlayer();
 		}
 	}
 }
@@ -529,7 +537,7 @@ bool MainWidget::shareUrl(
 	auto history = peer->owner().history(peer);
 	history->setLocalDraft(
 		std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
-	history->clearEditDraft();
+	history->clearLocalEditDraft();
 	if (_history->peer() == peer) {
 		_history->applyDraft();
 	} else {
@@ -558,7 +566,7 @@ bool MainWidget::inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) {
 	TextWithTags textWithTags = { botAndQuery, TextWithTags::Tags() };
 	MessageCursor cursor = { botAndQuery.size(), botAndQuery.size(), QFIXED_MAX };
 	h->setLocalDraft(std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
-	h->clearEditDraft();
+	h->clearLocalEditDraft();
 	const auto opened = _history->peer() && (_history->peer() == peer);
 	if (opened) {
 		_history->applyDraft();
@@ -819,15 +827,6 @@ crl::time MainWidget::highlightStartTime(not_null<const HistoryItem*> item) cons
 	return _history->highlightStartTime(item);
 }
 
-MsgId MainWidget::currentReplyToIdFor(not_null<History*> history) const {
-	if (_history->history() == history) {
-		return _history->replyToId();
-	} else if (const auto localDraft = history->localDraft()) {
-		return localDraft->msgId;
-	}
-	return 0;
-}
-
 void MainWidget::sendBotCommand(
 		not_null<PeerData*> peer,
 		UserData *bot,
@@ -887,6 +886,12 @@ void MainWidget::closeBothPlayers() {
 	Shortcuts::ToggleMediaShortcuts(false);
 }
 
+void MainWidget::stopAndClosePlayer() {
+	if (_player) {
+		_player->entity()->stopAndClose();
+	}
+}
+
 void MainWidget::createPlayer() {
 	if (!_player) {
 		_player.create(
@@ -941,16 +946,45 @@ void MainWidget::playerHeightUpdated() {
 }
 
 void MainWidget::setCurrentCall(Calls::Call *call) {
+	if (!call && _currentGroupCall) {
+		return;
+	}
 	_currentCallLifetime.destroy();
 	_currentCall = call;
 	if (_currentCall) {
+		_callTopBar.destroy();
 		_currentCall->stateValue(
 		) | rpl::start_with_next([=](Calls::Call::State state) {
 			using State = Calls::Call::State;
-			if (state == State::Established) {
-				createCallTopBar();
-			} else {
+			if (state != State::Established) {
 				destroyCallTopBar();
+			} else if (!_callTopBar) {
+				createCallTopBar();
+			}
+		}, _currentCallLifetime);
+	} else {
+		destroyCallTopBar();
+	}
+}
+
+void MainWidget::setCurrentGroupCall(Calls::GroupCall *call) {
+	if (!call && _currentCall) {
+		return;
+	}
+	_currentCallLifetime.destroy();
+	_currentGroupCall = call;
+	if (_currentGroupCall) {
+		_callTopBar.destroy();
+		_currentGroupCall->stateValue(
+		) | rpl::start_with_next([=](Calls::GroupCall::State state) {
+			using State = Calls::GroupCall::State;
+			if (state != State::Creating
+				&& state != State::Joining
+				&& state != State::Joined
+				&& state != State::Connecting) {
+				destroyCallTopBar();
+			} else if (!_callTopBar) {
+				createCallTopBar();
 			}
 		}, _currentCallLifetime);
 	} else {
@@ -959,9 +993,14 @@ void MainWidget::setCurrentCall(Calls::Call *call) {
 }
 
 void MainWidget::createCallTopBar() {
-	Expects(_currentCall != nullptr);
+	Expects(_currentCall != nullptr || _currentGroupCall != nullptr);
 
-	_callTopBar.create(this, object_ptr<Calls::TopBar>(this, _currentCall));
+	_callTopBar.create(
+		this,
+		(_currentCall
+			? object_ptr<Calls::TopBar>(this, _currentCall)
+			: object_ptr<Calls::TopBar>(this, _currentGroupCall)));
+	_callTopBar->entity()->initBlobsUnder(this, _callTopBar->geometryValue());
 	_callTopBar->heightValue(
 	) | rpl::start_with_next([this](int value) {
 		callTopBarHeightUpdated(value);
@@ -985,7 +1024,7 @@ void MainWidget::destroyCallTopBar() {
 }
 
 void MainWidget::callTopBarHeightUpdated(int callTopBarHeight) {
-	if (!callTopBarHeight && !_currentCall) {
+	if (!callTopBarHeight && !_currentCall && !_currentGroupCall) {
 		_callTopBar.destroyDelayed();
 	}
 	if (callTopBarHeight != _callTopBarHeight) {

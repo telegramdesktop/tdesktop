@@ -212,10 +212,10 @@ void Members::setupButtons() {
 
 void Members::setupList() {
 	auto topSkip = _header ? _header->height() : 0;
+	_listController->setStyleOverrides(&st::infoMembersList);
 	_list = object_ptr<ListWidget>(
 		this,
-		_listController.get(),
-		st::infoMembersList);
+		_listController.get());
 	_list->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
 		auto addmin = (request.ymin < 0 || !_header)

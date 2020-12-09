@@ -31,6 +31,7 @@ enum class SendProgressType {
 	ChooseLocation,
 	ChooseContact,
 	PlayGame,
+	Speaking,
 };
 
 struct SendProgress {

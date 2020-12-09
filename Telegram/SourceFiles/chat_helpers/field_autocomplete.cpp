@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "chat_helpers/send_context_menu.h" // SendMenu::FillSendMenu
 #include "chat_helpers/stickers_lottie.h"
+#include "chat_helpers/message_field.h" // PrepareMentionTag.
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
@@ -27,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/image/image.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
@@ -39,15 +41,108 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 
+class FieldAutocomplete::Inner final
+	: public Ui::RpWidget
+	, private base::Subscriber {
+
+public:
+	struct ScrollTo {
+		int top;
+		int bottom;
+	};
+
+	Inner(
+		not_null<Window::SessionController*> controller,
+		not_null<FieldAutocomplete*> parent,
+		not_null<MentionRows*> mrows,
+		not_null<HashtagRows*> hrows,
+		not_null<BotCommandRows*> brows,
+		not_null<StickerRows*> srows);
+
+	void clearSel(bool hidden = false);
+	bool moveSel(int key);
+	bool chooseSelected(FieldAutocomplete::ChooseMethod method) const;
+	bool chooseAtIndex(
+		FieldAutocomplete::ChooseMethod method,
+		int index,
+		Api::SendOptions options = Api::SendOptions()) const;
+
+	void setRecentInlineBotsInRows(int32 bots);
+	void setSendMenuType(Fn<SendMenu::Type()> &&callback);
+	void rowsUpdated();
+
+	rpl::producer<FieldAutocomplete::MentionChosen> mentionChosen() const;
+	rpl::producer<FieldAutocomplete::HashtagChosen> hashtagChosen() const;
+	rpl::producer<FieldAutocomplete::BotCommandChosen>
+		botCommandChosen() const;
+	rpl::producer<FieldAutocomplete::StickerChosen> stickerChosen() const;
+	rpl::producer<ScrollTo> scrollToRequested() const;
+
+	void onParentGeometryChanged();
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
+
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
+
+	void updateSelectedRow();
+	void setSel(int sel, bool scroll = false);
+	void showPreview();
+	void selectByMouse(QPoint global);
+
+	QSize stickerBoundingBox() const;
+	void setupLottie(StickerSuggestion &suggestion);
+	void repaintSticker(not_null<DocumentData*> document);
+	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
+
+	const not_null<Window::SessionController*> _controller;
+	const not_null<FieldAutocomplete*> _parent;
+	const not_null<MentionRows*> _mrows;
+	const not_null<HashtagRows*> _hrows;
+	const not_null<BotCommandRows*> _brows;
+	const not_null<StickerRows*> _srows;
+	rpl::lifetime _stickersLifetime;
+	std::weak_ptr<Lottie::FrameRenderer> _lottieRenderer;
+	base::unique_qptr<Ui::PopupMenu> _menu;
+	int _stickersPerRow = 1;
+	int _recentInlineBotsInRows = 0;
+	int _sel = -1;
+	int _down = -1;
+	std::optional<QPoint> _lastMousePosition;
+	bool _mouseSelection = false;
+
+	bool _overDelete = false;
+
+	bool _previewShown = false;
+
+	Fn<SendMenu::Type()> _sendMenuType;
+
+	rpl::event_stream<FieldAutocomplete::MentionChosen> _mentionChosen;
+	rpl::event_stream<FieldAutocomplete::HashtagChosen> _hashtagChosen;
+	rpl::event_stream<FieldAutocomplete::BotCommandChosen> _botCommandChosen;
+	rpl::event_stream<FieldAutocomplete::StickerChosen> _stickerChosen;
+	rpl::event_stream<ScrollTo> _scrollToRequested;
+
+	base::Timer _previewTimer;
+
+};
+
 FieldAutocomplete::FieldAutocomplete(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
 , _scroll(this, st::mentionScroll) {
-	_scroll->setGeometry(rect());
+	hide();
 
-	using Inner = internal::FieldAutocompleteInner;
+	_scroll->setGeometry(rect());
 
 	_inner = _scroll->setOwnedWidget(
 		object_ptr<Inner>(
@@ -74,6 +169,10 @@ FieldAutocomplete::FieldAutocomplete(
 		&Ui::ScrollArea::geometryChanged,
 		_inner,
 		&Inner::onParentGeometryChanged);
+}
+
+not_null<Window::SessionController*> FieldAutocomplete::controller() const {
+	return _controller;
 }
 
 auto FieldAutocomplete::mentionChosen() const
@@ -125,9 +224,9 @@ void FieldAutocomplete::showFiltered(
 	if (query.isEmpty()) {
 		_type = Type::Mentions;
 		rowsUpdated(
-			internal::MentionRows(),
-			internal::HashtagRows(),
-			internal::BotCommandRows(),
+			MentionRows(),
+			HashtagRows(),
+			BotCommandRows(),
 			base::take(_srows),
 			false);
 		return;
@@ -171,7 +270,7 @@ void FieldAutocomplete::showStickers(EmojiPtr emoji) {
 			base::take(_mrows),
 			base::take(_hrows),
 			base::take(_brows),
-			internal::StickerRows(),
+			StickerRows(),
 			false);
 		return;
 	}
@@ -203,7 +302,7 @@ inline int indexOfInFirstN(const T &v, const U &elem, int last) {
 }
 }
 
-internal::StickerRows FieldAutocomplete::getStickerSuggestions() {
+FieldAutocomplete::StickerRows FieldAutocomplete::getStickerSuggestions() {
 	const auto list = _controller->session().data().stickers().getListByEmoji(
 		_emoji,
 		_stickersSeed
@@ -211,7 +310,7 @@ internal::StickerRows FieldAutocomplete::getStickerSuggestions() {
 	auto result = ranges::view::all(
 		list
 	) | ranges::view::transform([](not_null<DocumentData*> sticker) {
-		return internal::StickerSuggestion{
+		return StickerSuggestion{
 			sticker,
 			sticker->createMediaView()
 		};
@@ -223,7 +322,7 @@ internal::StickerRows FieldAutocomplete::getStickerSuggestions() {
 		const auto i = ranges::find(
 			result,
 			suggestion.document,
-			&internal::StickerSuggestion::document);
+			&StickerSuggestion::document);
 		if (i != end(result)) {
 			i->animated = std::move(suggestion.animated);
 		}
@@ -233,10 +332,10 @@ internal::StickerRows FieldAutocomplete::getStickerSuggestions() {
 
 void FieldAutocomplete::updateFiltered(bool resetScroll) {
 	int32 now = base::unixtime::now(), recentInlineBots = 0;
-	internal::MentionRows mrows;
-	internal::HashtagRows hrows;
-	internal::BotCommandRows brows;
-	internal::StickerRows srows;
+	MentionRows mrows;
+	HashtagRows hrows;
+	BotCommandRows brows;
+	StickerRows srows;
 	if (_emoji) {
 		srows = getStickerSuggestions();
 	} else if (_type == Type::Mentions) {
@@ -435,10 +534,10 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 }
 
 void FieldAutocomplete::rowsUpdated(
-		internal::MentionRows &&mrows,
-		internal::HashtagRows &&hrows,
-		internal::BotCommandRows &&brows,
-		internal::StickerRows &&srows,
+		MentionRows &&mrows,
+		HashtagRows &&hrows,
+		BotCommandRows &&brows,
+		StickerRows &&srows,
 		bool resetScroll) {
 	if (mrows.empty() && hrows.empty() && brows.empty() && srows.empty()) {
 		if (!isHidden()) {
@@ -590,6 +689,10 @@ bool FieldAutocomplete::chooseSelected(ChooseMethod method) const {
 	return _inner->chooseSelected(method);
 }
 
+void FieldAutocomplete::setSendMenuType(Fn<SendMenu::Type()> &&callback) {
+	_inner->setSendMenuType(std::move(callback));
+}
+
 bool FieldAutocomplete::eventFilter(QObject *obj, QEvent *e) {
 	auto hidden = isHidden();
 	auto moderate = Core::App().settings().moderateModeEnabled();
@@ -620,9 +723,7 @@ bool FieldAutocomplete::eventFilter(QObject *obj, QEvent *e) {
 	return QWidget::eventFilter(obj, e);
 }
 
-namespace internal {
-
-FieldAutocompleteInner::FieldAutocompleteInner(
+FieldAutocomplete::Inner::Inner(
 	not_null<Window::SessionController*> controller,
 	not_null<FieldAutocomplete*> parent,
 	not_null<MentionRows*> mrows,
@@ -642,7 +743,7 @@ FieldAutocompleteInner::FieldAutocompleteInner(
 	}, lifetime());
 }
 
-void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
+void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	QRect r(e->rect());
@@ -700,8 +801,8 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 				} else {
 					const auto coef = std::min(
 						std::min(
-							(st::stickerPanSize.width() - st::buttonRadius * 2) / float64(document->dimensions.width()),
-							(st::stickerPanSize.height() - st::buttonRadius * 2) / float64(document->dimensions.height())),
+							(st::stickerPanSize.width() - st::roundRadiusSmall * 2) / float64(document->dimensions.width()),
+							(st::stickerPanSize.height() - st::roundRadiusSmall * 2) / float64(document->dimensions.height())),
 						1.);
 					w = std::max(qRound(coef * document->dimensions.width()), 1);
 					h = std::max(qRound(coef * document->dimensions.height()), 1);
@@ -841,11 +942,11 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerTop(), width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
 }
 
-void FieldAutocompleteInner::resizeEvent(QResizeEvent *e) {
+void FieldAutocomplete::Inner::resizeEvent(QResizeEvent *e) {
 	_stickersPerRow = qMax(1, int32(width() - 2 * st::stickerPanPadding) / int32(st::stickerPanSize.width()));
 }
 
-void FieldAutocompleteInner::mouseMoveEvent(QMouseEvent *e) {
+void FieldAutocomplete::Inner::mouseMoveEvent(QMouseEvent *e) {
 	const auto globalPosition = e->globalPos();
 	if (!_lastMousePosition) {
 		_lastMousePosition = globalPosition;
@@ -857,7 +958,7 @@ void FieldAutocompleteInner::mouseMoveEvent(QMouseEvent *e) {
 	selectByMouse(globalPosition);
 }
 
-void FieldAutocompleteInner::clearSel(bool hidden) {
+void FieldAutocomplete::Inner::clearSel(bool hidden) {
 	_overDelete = false;
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
@@ -868,7 +969,7 @@ void FieldAutocompleteInner::clearSel(bool hidden) {
 	}
 }
 
-bool FieldAutocompleteInner::moveSel(int key) {
+bool FieldAutocomplete::Inner::moveSel(int key) {
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
 
@@ -903,12 +1004,12 @@ bool FieldAutocompleteInner::moveSel(int key) {
 	return true;
 }
 
-bool FieldAutocompleteInner::chooseSelected(
+bool FieldAutocomplete::Inner::chooseSelected(
 		FieldAutocomplete::ChooseMethod method) const {
 	return chooseAtIndex(method, _sel);
 }
 
-bool FieldAutocompleteInner::chooseAtIndex(
+bool FieldAutocomplete::Inner::chooseAtIndex(
 		FieldAutocomplete::ChooseMethod method,
 		int index,
 		Api::SendOptions options) const {
@@ -955,11 +1056,11 @@ bool FieldAutocompleteInner::chooseAtIndex(
 	return false;
 }
 
-void FieldAutocompleteInner::setRecentInlineBotsInRows(int32 bots) {
+void FieldAutocomplete::Inner::setRecentInlineBotsInRows(int32 bots) {
 	_recentInlineBotsInRows = bots;
 }
 
-void FieldAutocompleteInner::mousePressEvent(QMouseEvent *e) {
+void FieldAutocomplete::Inner::mousePressEvent(QMouseEvent *e) {
 	selectByMouse(e->globalPos());
 	if (e->button() == Qt::LeftButton) {
 		if (_overDelete && _sel >= 0 && _sel < (_mrows->empty() ? _hrows->size() : _recentInlineBotsInRows)) {
@@ -999,7 +1100,7 @@ void FieldAutocompleteInner::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void FieldAutocompleteInner::mouseReleaseEvent(QMouseEvent *e) {
+void FieldAutocomplete::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	_previewTimer.cancel();
 
 	int32 pressed = _down;
@@ -1017,12 +1118,14 @@ void FieldAutocompleteInner::mouseReleaseEvent(QMouseEvent *e) {
 	chooseSelected(FieldAutocomplete::ChooseMethod::ByClick);
 }
 
-void FieldAutocompleteInner::contextMenuEvent(QContextMenuEvent *e) {
+void FieldAutocomplete::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	if (_sel < 0 || _srows->empty() || _down >= 0) {
 		return;
 	}
 	const auto index = _sel;
-	const auto type = SendMenu::Type::Scheduled;
+	const auto type = _sendMenuType
+		? _sendMenuType()
+		: SendMenu::Type::Disabled;
 	const auto method = FieldAutocomplete::ChooseMethod::ByClick;
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 
@@ -1031,7 +1134,7 @@ void FieldAutocompleteInner::contextMenuEvent(QContextMenuEvent *e) {
 	};
 	SendMenu::FillSendMenu(
 		_menu,
-		[&] { return type; },
+		type,
 		SendMenu::DefaultSilentCallback(send),
 		SendMenu::DefaultScheduleCallback(this, type, send));
 
@@ -1040,11 +1143,11 @@ void FieldAutocompleteInner::contextMenuEvent(QContextMenuEvent *e) {
 	}
 }
 
-void FieldAutocompleteInner::enterEventHook(QEvent *e) {
+void FieldAutocomplete::Inner::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
 }
 
-void FieldAutocompleteInner::leaveEventHook(QEvent *e) {
+void FieldAutocomplete::Inner::leaveEventHook(QEvent *e) {
 	setMouseTracking(false);
 	if (_mouseSelection) {
 		setSel(-1);
@@ -1053,7 +1156,7 @@ void FieldAutocompleteInner::leaveEventHook(QEvent *e) {
 	}
 }
 
-void FieldAutocompleteInner::updateSelectedRow() {
+void FieldAutocomplete::Inner::updateSelectedRow() {
 	if (_sel >= 0) {
 		if (_srows->empty()) {
 			update(0, _sel * st::mentionHeight, width(), st::mentionHeight);
@@ -1064,7 +1167,7 @@ void FieldAutocompleteInner::updateSelectedRow() {
 	}
 }
 
-void FieldAutocompleteInner::setSel(int sel, bool scroll) {
+void FieldAutocomplete::Inner::setSel(int sel, bool scroll) {
 	updateSelectedRow();
 	_sel = sel;
 	updateSelectedRow();
@@ -1084,13 +1187,13 @@ void FieldAutocompleteInner::setSel(int sel, bool scroll) {
 	}
 }
 
-void FieldAutocompleteInner::rowsUpdated() {
+void FieldAutocomplete::Inner::rowsUpdated() {
 	if (_srows->empty()) {
 		_stickersLifetime.destroy();
 	}
 }
 
-auto FieldAutocompleteInner::getLottieRenderer()
+auto FieldAutocomplete::Inner::getLottieRenderer()
 -> std::shared_ptr<Lottie::FrameRenderer> {
 	if (auto result = _lottieRenderer.lock()) {
 		return result;
@@ -1100,7 +1203,7 @@ auto FieldAutocompleteInner::getLottieRenderer()
 	return result;
 }
 
-void FieldAutocompleteInner::setupLottie(StickerSuggestion &suggestion) {
+void FieldAutocomplete::Inner::setupLottie(StickerSuggestion &suggestion) {
 	const auto document = suggestion.document;
 	suggestion.animated = ChatHelpers::LottiePlayerFromDocument(
 		suggestion.documentMedia.get(),
@@ -1115,13 +1218,13 @@ void FieldAutocompleteInner::setupLottie(StickerSuggestion &suggestion) {
 	}, _stickersLifetime);
 }
 
-QSize FieldAutocompleteInner::stickerBoundingBox() const {
+QSize FieldAutocomplete::Inner::stickerBoundingBox() const {
 	return QSize(
-		st::stickerPanSize.width() - st::buttonRadius * 2,
-		st::stickerPanSize.height() - st::buttonRadius * 2);
+		st::stickerPanSize.width() - st::roundRadiusSmall * 2,
+		st::stickerPanSize.height() - st::roundRadiusSmall * 2);
 }
 
-void FieldAutocompleteInner::repaintSticker(
+void FieldAutocomplete::Inner::repaintSticker(
 		not_null<DocumentData*> document) {
 	const auto i = ranges::find(
 		*_srows,
@@ -1140,7 +1243,7 @@ void FieldAutocompleteInner::repaintSticker(
 		st::stickerPanSize.height());
 }
 
-void FieldAutocompleteInner::selectByMouse(QPoint globalPosition) {
+void FieldAutocomplete::Inner::selectByMouse(QPoint globalPosition) {
 	_mouseSelection = true;
 	_lastMousePosition = globalPosition;
 	const auto mouse = mapFromGlobal(globalPosition);
@@ -1186,7 +1289,7 @@ void FieldAutocompleteInner::selectByMouse(QPoint globalPosition) {
 	}
 }
 
-void FieldAutocompleteInner::onParentGeometryChanged() {
+void FieldAutocomplete::Inner::onParentGeometryChanged() {
 	const auto globalPosition = QCursor::pos();
 	if (rect().contains(mapFromGlobal(globalPosition))) {
 		setMouseTracking(true);
@@ -1196,7 +1299,7 @@ void FieldAutocompleteInner::onParentGeometryChanged() {
 	}
 }
 
-void FieldAutocompleteInner::showPreview() {
+void FieldAutocomplete::Inner::showPreview() {
 	if (_down >= 0 && _down < _srows->size()) {
 		if (const auto w = App::wnd()) {
 			w->showMediaPreview(
@@ -1207,29 +1310,32 @@ void FieldAutocompleteInner::showPreview() {
 	}
 }
 
-auto FieldAutocompleteInner::mentionChosen() const
+void FieldAutocomplete::Inner::setSendMenuType(
+		Fn<SendMenu::Type()> &&callback) {
+	_sendMenuType = std::move(callback);
+}
+
+auto FieldAutocomplete::Inner::mentionChosen() const
 -> rpl::producer<FieldAutocomplete::MentionChosen> {
 	return _mentionChosen.events();
 }
 
-auto FieldAutocompleteInner::hashtagChosen() const
+auto FieldAutocomplete::Inner::hashtagChosen() const
 -> rpl::producer<FieldAutocomplete::HashtagChosen> {
 	return _hashtagChosen.events();
 }
 
-auto FieldAutocompleteInner::botCommandChosen() const
+auto FieldAutocomplete::Inner::botCommandChosen() const
 -> rpl::producer<FieldAutocomplete::BotCommandChosen> {
 	return _botCommandChosen.events();
 }
 
-auto FieldAutocompleteInner::stickerChosen() const
+auto FieldAutocomplete::Inner::stickerChosen() const
 -> rpl::producer<FieldAutocomplete::StickerChosen> {
 	return _stickerChosen.events();
 }
 
-auto FieldAutocompleteInner::scrollToRequested() const
+auto FieldAutocomplete::Inner::scrollToRequested() const
 -> rpl::producer<ScrollTo> {
 	return _scrollToRequested.events();
 }
-
-} // namespace internal

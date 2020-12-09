@@ -38,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/delayed_activation.h"
 #include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
+#include "calls/calls_instance.h" // Core::App().calls().inCall().
 #include "boxes/calendar_box.h"
 #include "boxes/confirm_box.h"
 #include "mainwidget.h"
@@ -927,6 +929,44 @@ void SessionController::closeThirdSection() {
 		widget()->resize(newWindowSize);
 	} else {
 		updateColumnLayout();
+	}
+}
+
+void SessionController::startOrJoinGroupCall(
+		not_null<ChannelData*> megagroup,
+		bool confirmedLeaveOther) {
+	if (megagroup->amAnonymous()) {
+		Ui::ShowMultilineToast({
+			.text = tr::lng_group_call_no_anonymous(tr::now),
+		});
+		return;
+	}
+	auto &calls = Core::App().calls();
+	const auto confirm = [&](QString text, QString button) {
+		Ui::show(Box<ConfirmBox>(text, button, crl::guard(this, [=] {
+			Ui::hideLayer();
+			startOrJoinGroupCall(megagroup, true);
+		})));
+	};
+	if (!confirmedLeaveOther && calls.inCall()) {
+		// Do you want to leave your active voice chat to join a voice chat in this group?
+		confirm(
+			tr::lng_call_leave_to_other_sure(tr::now),
+			tr::lng_call_bar_hangup(tr::now));
+	} else if (!confirmedLeaveOther && calls.inGroupCall()) {
+		if (calls.currentGroupCall()->channel() == megagroup) {
+			calls.activateCurrentCall();
+		} else {
+			confirm(
+				tr::lng_group_call_leave_to_other_sure(tr::now),
+				tr::lng_group_call_leave(tr::now));
+		}
+	} else if (!confirmedLeaveOther && !megagroup->call()) {
+		confirm(
+			tr::lng_group_call_create_sure(tr::now),
+			tr::lng_continue(tr::now));
+	} else {
+		calls.startOrJoinGroupCall(megagroup);
 	}
 }
 

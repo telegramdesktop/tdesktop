@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #import <AppKit/NSSlider.h>
 #import <AppKit/NSSliderTouchBarItem.h>
 
-NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 using TouchBar::kCircleDiameter;
 using TouchBar::CreateNSImageFromStyleIcon;
 

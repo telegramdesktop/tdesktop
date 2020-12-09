@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
+#include "main/main_domain.h" // Core::App().domain().activate().
 #include "apiwrap.h"
 #include "layout.h"
 #include "history/history.h"
@@ -24,7 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
+#include "data/data_group_call.h" // Data::GroupCall::id().
 #include "core/application.h"
+#include "calls/calls_instance.h" // Core::App().calls().joinGroupCall.
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
@@ -41,6 +44,62 @@ QString GenerateServiceTime(TimeId date) {
 		return qs(" (") + base::unixtime::parse(date).toString(cTimeFormat()) + qs(")");
 	}
 	return QString();
+}
+
+[[nodiscard]] rpl::producer<bool> ChannelHasThisCallValue(
+		not_null<ChannelData*> channel,
+		uint64 id) {
+	return channel->session().changes().peerFlagsValue(
+		channel,
+		Data::PeerUpdate::Flag::GroupCall
+	) | rpl::filter([=] {
+		return (channel->call() != nullptr)
+			|| !(channel->flags()
+				& MTPDchannel::Flag::f_call_active);
+	}) | rpl::map([=] {
+		const auto call = channel->call();
+		return (call && call->id() == id);
+	}) | rpl::distinct_until_changed(
+	) | rpl::take_while([=](bool hasThisCall) {
+		return hasThisCall;
+	}) | rpl::then(
+		rpl::single(false)
+	);
+}
+
+[[nodiscard]] std::optional<bool> ChannelHasThisCall(
+		not_null<ChannelData*> channel,
+		uint64 id) {
+	const auto call = channel->call();
+	return call
+		? std::make_optional(call->id() == id)
+		: (channel->flags() & MTPDchannel::Flag::f_call_active)
+		? std::nullopt
+		: std::make_optional(false);
+}
+
+[[nodiscard]] uint64 CallIdFromInput(const MTPInputGroupCall &data) {
+	return data.match([&](const MTPDinputGroupCall &data) {
+		return data.vid().v;
+	});
+}
+
+[[nodiscard]] ClickHandlerPtr ChannelCallClickHandler(
+		not_null<ChannelData*> megagroup,
+		uint64 callId) {
+	return std::make_shared<LambdaClickHandler>([=] {
+		const auto call = megagroup->call();
+		if (call && call->id() == callId) {
+			const auto &windows = megagroup->session().windows();
+			if (windows.empty()) {
+				Core::App().domain().activate(&megagroup->session().account());
+				if (windows.empty()) {
+					return;
+				}
+			}
+			windows.front()->startOrJoinGroupCall(megagroup);
+		}
+	});
 }
 
 } // namespace
@@ -282,6 +341,38 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareGroupCall = [this](const MTPDmessageActionGroupCall &action) {
+		if (const auto duration = action.vduration()) {
+			return prepareDiscardedCallText(duration->v);
+		}
+		const auto callId = CallIdFromInput(action.vcall());
+		const auto channel = history()->peer->asChannel();
+		const auto linkCallId = !channel
+			? 0
+			: ChannelHasThisCall(channel, callId).value_or(false)
+			? callId
+			: 0;
+		return prepareStartedCallText(linkCallId);
+	};
+
+	auto prepareInviteToGroupCall = [this](const MTPDmessageActionInviteToGroupCall &action) {
+		const auto callId = CallIdFromInput(action.vcall());
+		const auto owner = &history()->owner();
+		const auto channel = history()->peer->asChannel();
+		for (const auto id : action.vusers().v) {
+			const auto user = owner->user(id.v);
+			if (channel && callId) {
+				owner->registerInvitedToCallUser(callId, channel, user);
+			}
+		};
+		const auto linkCallId = !channel
+			? 0
+			: ChannelHasThisCall(channel, callId).value_or(false)
+			? callId
+			: 0;
+		return prepareInvitedToCallText(action.vusers().v, linkCallId);
+	};
+
 	const auto messageText = action.match([&](
 		const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -331,6 +422,10 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	}, [](const MTPDmessageActionSecureValuesSentMe &) {
 		LOG(("API Error: messageActionSecureValuesSentMe received."));
 		return PreparedText{ tr::lng_message_empty(tr::now) };
+	}, [&](const MTPDmessageActionGroupCall &data) {
+		return prepareGroupCall(data);
+	}, [&](const MTPDmessageActionInviteToGroupCall &data) {
+		return prepareInviteToGroupCall(data);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedText{ tr::lng_message_empty(tr::now) };
 	});
@@ -425,6 +520,79 @@ bool HistoryService::updateDependent(bool force) {
 		Core::App().notifications().checkDelayed();
 	}
 	return (dependent->msg || !dependent->msgId);
+}
+
+HistoryService::PreparedText HistoryService::prepareDiscardedCallText(
+		int duration) {
+	const auto seconds = duration;
+	const auto days = seconds / 86400;
+	const auto hours = seconds / 3600;
+	const auto minutes = seconds / 60;
+	auto text = (days > 1)
+		? tr::lng_group_call_duration_days(tr::now, lt_count, days)
+		: (hours > 1)
+		? tr::lng_group_call_duration_hours(tr::now, lt_count, hours)
+		: (minutes > 1)
+		? tr::lng_group_call_duration_minutes(tr::now, lt_count, minutes)
+		: tr::lng_group_call_duration_seconds(tr::now, lt_count, seconds);
+	return PreparedText{ tr::lng_action_group_call_finished(tr::now, lt_duration, text) };
+}
+
+HistoryService::PreparedText HistoryService::prepareStartedCallText(
+		uint64 linkCallId) {
+	auto result = PreparedText{};
+	result.links.push_back(fromLink());
+	const auto channel = history()->peer->asChannel();
+	auto chatText = tr::lng_action_group_call_started_chat(tr::now);
+	if (channel && linkCallId) {
+		result.links.push_back(ChannelCallClickHandler(channel, linkCallId));
+		chatText = textcmdLink(2, chatText);
+	}
+	result.text = tr::lng_action_group_call_started(
+		tr::now,
+		lt_from,
+		fromLinkText(),
+		lt_chat,
+		chatText);
+	return result;
+}
+
+HistoryService::PreparedText HistoryService::prepareInvitedToCallText(
+		const QVector<MTPint> &users,
+		uint64 linkCallId) {
+	const auto channel = history()->peer->asChannel();
+	const auto owner = &channel->owner();
+	auto chatText = tr::lng_action_invite_user_chat(tr::now);
+	auto result = PreparedText{};
+	result.links.push_back(fromLink());
+	auto linkIndex = 1;
+	if (channel && linkCallId) {
+		result.links.push_back(ChannelCallClickHandler(channel, linkCallId));
+		chatText = textcmdLink(++linkIndex, chatText);
+	}
+	if (users.size() == 1) {
+		auto user = owner->user(users[0].v);
+		result.links.push_back(user->createOpenLink());
+		result.text = tr::lng_action_invite_user(tr::now, lt_from, fromLinkText(), lt_user, textcmdLink(++linkIndex, user->name), lt_chat, chatText);
+	} else if (users.isEmpty()) {
+		result.text = tr::lng_action_invite_user(tr::now, lt_from, fromLinkText(), lt_user, qsl("somebody"), lt_chat, chatText);
+	} else {
+		for (auto i = 0, l = users.size(); i != l; ++i) {
+			auto user = owner->user(users[i].v);
+			result.links.push_back(user->createOpenLink());
+
+			auto linkText = textcmdLink(++linkIndex, user->name);
+			if (i == 0) {
+				result.text = linkText;
+			} else if (i + 1 == l) {
+				result.text = tr::lng_action_invite_users_and_last(tr::now, lt_accumulated, result.text, lt_user, linkText);
+			} else {
+				result.text = tr::lng_action_invite_users_and_one(tr::now, lt_accumulated, result.text, lt_user, linkText);
+			}
+		}
+		result.text = tr::lng_action_invite_users_many(tr::now, lt_from, fromLinkText(), lt_users, result.text, lt_chat, chatText);
+	}
+	return result;
 }
 
 HistoryService::PreparedText HistoryService::preparePinnedText() {
@@ -625,6 +793,11 @@ bool HistoryService::updateDependencyItem() {
 	return HistoryItem::updateDependencyItem();
 }
 
+bool HistoryService::needCheck() const {
+	return (GetDependentData() != nullptr)
+		|| Has<HistoryServiceSelfDestruct>();
+}
+
 QString HistoryService::inDialogsText(DrawInDialog way) const {
 	return textcmdLink(1, TextUtilities::Clean(notificationText()));
 }
@@ -745,13 +918,83 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 
 void HistoryService::createFromMtp(const MTPDmessageService &message) {
 	if (message.vaction().type() == mtpc_messageActionGameScore) {
+		const auto &data = message.vaction().c_messageActionGameScore();
 		UpdateComponents(HistoryServiceGameScore::Bit());
-		Get<HistoryServiceGameScore>()->score = message.vaction().c_messageActionGameScore().vscore().v;
+		Get<HistoryServiceGameScore>()->score = data.vscore().v;
 	} else if (message.vaction().type() == mtpc_messageActionPaymentSent) {
+		const auto &data = message.vaction().c_messageActionPaymentSent();
 		UpdateComponents(HistoryServicePayment::Bit());
-		auto amount = message.vaction().c_messageActionPaymentSent().vtotal_amount().v;
-		auto currency = qs(message.vaction().c_messageActionPaymentSent().vcurrency());
+		const auto amount = data.vtotal_amount().v;
+		const auto currency = qs(data.vcurrency());
 		Get<HistoryServicePayment>()->amount = Ui::FillAmountAndCurrency(amount, currency);
+	} else if (message.vaction().type() == mtpc_messageActionGroupCall) {
+		const auto &data = message.vaction().c_messageActionGroupCall();
+		if (data.vduration()) {
+			RemoveComponents(HistoryServiceOngoingCall::Bit());
+		} else {
+			UpdateComponents(HistoryServiceOngoingCall::Bit());
+			const auto call = Get<HistoryServiceOngoingCall>();
+			const auto id = CallIdFromInput(data.vcall());
+			call->lifetime.destroy();
+
+			history()->owner().groupCallDiscards(
+			) | rpl::filter([=](Data::Session::GroupCallDiscard discard) {
+				return (discard.id == id);
+			}) | rpl::start_with_next([=](
+					Data::Session::GroupCallDiscard discard) {
+				RemoveComponents(HistoryServiceOngoingCall::Bit());
+				updateText(prepareDiscardedCallText(discard.duration));
+			}, call->lifetime);
+
+			if (const auto channel = history()->peer->asChannel()) {
+				const auto has = ChannelHasThisCall(channel, id);
+				if (!has.has_value()) {
+					ChannelHasThisCallValue(
+						channel,
+						id
+					) | rpl::start_with_next([=](bool has) {
+						updateText(prepareStartedCallText(has ? id : 0));
+					}, call->lifetime);
+				} else if (*has) {
+					ChannelHasThisCallValue(
+						channel,
+						id
+					) | rpl::skip(1) | rpl::start_with_next([=](bool has) {
+						Assert(!has);
+						updateText(prepareStartedCallText(0));
+					}, call->lifetime);
+				}
+			}
+		}
+	} else if (message.vaction().type() == mtpc_messageActionInviteToGroupCall) {
+		const auto &data = message.vaction().c_messageActionInviteToGroupCall();
+		const auto id = CallIdFromInput(data.vcall());
+		const auto channel = history()->peer->asChannel();
+		const auto has = channel
+			? ChannelHasThisCall(channel, id)
+			: std::make_optional(false);
+		auto hasLink = !has.has_value()
+			? ChannelHasThisCallValue(channel, id)
+			: (*has)
+			? ChannelHasThisCallValue(
+				channel,
+				id) | rpl::skip(1) | rpl::type_erased()
+			: rpl::producer<bool>();
+		if (!hasLink) {
+			RemoveComponents(HistoryServiceOngoingCall::Bit());
+		} else {
+			UpdateComponents(HistoryServiceOngoingCall::Bit());
+			const auto call = Get<HistoryServiceOngoingCall>();
+			call->lifetime.destroy();
+
+			const auto users = data.vusers().v;
+			std::move(hasLink) | rpl::start_with_next([=](bool has) {
+				updateText(prepareInvitedToCallText(users, has ? id : 0));
+				if (!has) {
+					RemoveComponents(HistoryServiceOngoingCall::Bit());
+				}
+			}, call->lifetime);
+		}
 	}
 	if (const auto replyTo = message.vreply_to()) {
 		replyTo->match([&](const MTPDmessageReplyHeader &data) {
@@ -808,7 +1051,7 @@ Storage::SharedMediaTypesMask HistoryService::sharedMediaTypes() const {
 }
 
 void HistoryService::updateDependentText() {
-	auto text = PreparedText {};
+	auto text = PreparedText{};
 	if (Has<HistoryServicePinned>()) {
 		text = preparePinnedText();
 	} else if (Has<HistoryServiceGameScore>()) {
@@ -818,11 +1061,15 @@ void HistoryService::updateDependentText() {
 	} else {
 		return;
 	}
+	updateText(std::move(text));
+}
 
+void HistoryService::updateText(PreparedText &&text) {
 	setServiceText(text);
 	history()->owner().requestItemResize(this);
-	if (history()->textCachedFor == this) {
-		history()->textCachedFor = nullptr;
+	const auto inDialogsHistory = history()->migrateToOrMe();
+	if (inDialogsHistory->textCachedFor == this) {
+		inDialogsHistory->textCachedFor = nullptr;
 	}
 	//if (const auto feed = history()->peer->feed()) { // #TODO archive
 	//	if (feed->textCachedFor == this) {

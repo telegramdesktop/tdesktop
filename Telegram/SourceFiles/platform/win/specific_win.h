@@ -22,8 +22,12 @@ inline void SetWatchingMediaKeys(bool watching) {
 inline void IgnoreApplicationActivationRightNow() {
 }
 
-inline QImage GetImageFromClipboard() {
+inline QImage GetClipboardImage() {
 	return {};
+}
+
+inline bool SetClipboardImage(const QImage &image) {
+	return false;
 }
 
 inline bool StartSystemMove(QWindow *window) {
@@ -69,11 +73,7 @@ inline void psCheckLocalSocket(const QString &) {
 
 void psWriteDump();
 
-QStringList psInitLogs();
-void psClearInitLogs();
-
 void psActivateProcess(uint64 pid = 0);
-QString psLocalServerPrefix();
 QString psAppDataPath();
 QString psAppDataPathOld();
 void psAutoStart(bool start, bool silent = false);

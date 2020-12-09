@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download_web.h"
 
 #include "storage/cache/storage_cache_types.h"
+#include "base/qt_adapters.h"
 
 #include <QtNetwork/QAuthenticator>
 
@@ -18,9 +19,6 @@ constexpr auto kMaxHttpRedirects = 5;
 constexpr auto kResetDownloadPrioritiesTimeout = crl::time(200);
 
 std::weak_ptr<WebLoadManager> GlobalLoadManager;
-
-using ErrorSignal = void(QNetworkReply::*)(QNetworkReply::NetworkError);
-const auto QNetworkReply_error = ErrorSignal(&QNetworkReply::error);
 
 [[nodiscard]] std::shared_ptr<WebLoadManager> GetManager() {
 	auto result = GlobalLoadManager.lock();
@@ -270,7 +268,7 @@ not_null<QNetworkReply*> WebLoadManager::send(int id, const QString &url) {
 		failed(id, result, error);
 	};
 	connect(result, &QNetworkReply::downloadProgress, handleProgress);
-	connect(result, QNetworkReply_error, handleError);
+	connect(result, base::QNetworkReply_error, handleError);
 	return result;
 }
 

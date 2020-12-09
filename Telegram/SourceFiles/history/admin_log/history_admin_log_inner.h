@@ -116,6 +116,10 @@ public:
 		not_null<const HistoryView::Element*> view) override;
 	bool elementShownUnread(
 		not_null<const HistoryView::Element*> view) override;
+	void elementSendBotCommand(
+		const QString &command,
+		const FullMsgId &context) override;
+	void elementHandleViaClick(not_null<UserData*> bot) override;
 
 	~InnerWidget();
 

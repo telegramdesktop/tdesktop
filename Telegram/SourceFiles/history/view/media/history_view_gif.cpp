@@ -445,7 +445,7 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 					const auto roundTop = (roundCorners & RectPart::TopLeft);
 					const auto roundBottom = (roundCorners & RectPart::BottomLeft);
 					const auto margin = inWebPage
-						? st::buttonRadius
+						? st::roundRadiusSmall
 						: st::historyMessageRadius;
 					const auto parts = roundCorners
 						| RectPart::NoTopBottom

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 
 using "ui/widgets/widgets.style";
+using "ui/layers/layers.style";
 using "window/window.style";
 
 CallSignalBars {
@@ -22,14 +23,14 @@ CallSignalBars {
 
 callRadius: 6px;
 callShadow: Shadow {
-	left: icon {{ "call_shadow_left", windowShadowFg }};
-	topLeft: icon {{ "call_shadow_top_left", windowShadowFg }};
-	top: icon {{ "call_shadow_top", windowShadowFg }};
-	topRight: icon {{ "call_shadow_top_left-flip_horizontal", windowShadowFg }};
-	right: icon {{ "call_shadow_left-flip_horizontal", windowShadowFg }};
-	bottomRight: icon {{ "call_shadow_top_left-flip_vertical-flip_horizontal", windowShadowFg }};
-	bottom: icon {{ "call_shadow_top-flip_vertical", windowShadowFg }};
-	bottomLeft: icon {{ "call_shadow_top_left-flip_vertical", windowShadowFg }};
+	left: icon {{ "calls/call_shadow_left", windowShadowFg }};
+	topLeft: icon {{ "calls/call_shadow_top_left", windowShadowFg }};
+	top: icon {{ "calls/call_shadow_top", windowShadowFg }};
+	topRight: icon {{ "calls/call_shadow_top_left-flip_horizontal", windowShadowFg }};
+	right: icon {{ "calls/call_shadow_left-flip_horizontal", windowShadowFg }};
+	bottomRight: icon {{ "calls/call_shadow_top_left-flip_vertical-flip_horizontal", windowShadowFg }};
+	bottom: icon {{ "calls/call_shadow_top-flip_vertical", windowShadowFg }};
+	bottomLeft: icon {{ "calls/call_shadow_top_left-flip_vertical", windowShadowFg }};
 	extend: margins(9px, 8px, 9px, 10px);
 	fallback: windowShadowFgFallback;
 }
@@ -72,7 +73,7 @@ callBodyWithPreview: CallBodyLayout {
 	muteSize: 0px;
 	mutePosition: point(90px, 84px);
 }
-callMutedPeerIcon: icon {{ "calls_mute_userpic", callIconFg }};
+callMutedPeerIcon: icon {{ "calls/calls_mute_userpic", callIconFg }};
 
 callOutgoingPreviewMin: size(360px, 120px);
 callOutgoingPreview: size(540px, 180px); // default, for height == callHeight.
@@ -89,7 +90,7 @@ callSignalBarsPadding: margins(8px, 9px, 11px, 5px);
 callFingerprintTop: 8px;
 callFingerprintBottom: -16px;
 
-callTooltipMutedIcon: icon{{ "calls_mute_tooltip", videoPlayIconFg }};
+callTooltipMutedIcon: icon{{ "calls/calls_mute_tooltip", videoPlayIconFg }};
 callTooltipMutedIconPosition: point(10px, 5px);
 callTooltipPadding: margins(41px, 7px, 15px, 8px);
 
@@ -114,20 +115,22 @@ callButtonLabel: FlatLabel(defaultFlatLabel) {
 
 callAnswer: CallButton {
 	button: IconButton(callButton) {
-		icon: icon {{ "call_answer", callIconFg }};
+		icon: icon {{ "calls/call_answer", callIconFg }};
 		ripple: RippleAnimation(defaultRippleAnimation) {
 			color: callAnswerRipple;
 		}
 	}
 	bg: callAnswerBg;
+	bgSize: 44px;
+	bgPosition: point(12px, 12px);
 	angle: 135.;
 	outerRadius: 12px;
 	outerBg: callAnswerBgOuter;
 	label: callButtonLabel;
 }
-callHangup: CallButton {
+callHangup: CallButton(callAnswer) {
 	button: IconButton(callButton) {
-		icon: icon {{ "call_discard", callIconFg }};
+		icon: icon {{ "calls/call_discard", callIconFg }};
 		ripple: RippleAnimation(defaultRippleAnimation) {
 			color: callHangupRipple;
 		}
@@ -136,9 +139,9 @@ callHangup: CallButton {
 	outerBg: callHangupBg;
 	label: callButtonLabel;
 }
-callCancel: CallButton {
+callCancel: CallButton(callAnswer) {
 	button: IconButton(callButton) {
-		icon: icon {{ "call_cancel", callIconFgActive }};
+		icon: icon {{ "calls/call_cancel", callIconFgActive }};
 		ripple: RippleAnimation(defaultRippleAnimation) {
 			color: callIconActiveRipple;
 		}
@@ -147,9 +150,9 @@ callCancel: CallButton {
 	outerBg: callIconBgActive;
 	label: callButtonLabel;
 }
-callMicrophoneMute: CallButton {
+callMicrophoneMute: CallButton(callAnswer) {
 	button: IconButton(callButton) {
-		icon: icon {{ "call_record_active", callIconFg }};
+		icon: icon {{ "calls/call_record_active", callIconFg }};
 		ripple: RippleAnimation(defaultRippleAnimation) {
 			color: callMuteRipple;
 		}
@@ -160,7 +163,7 @@ callMicrophoneMute: CallButton {
 }
 callMicrophoneUnmute: CallButton(callMicrophoneMute) {
 	button: IconButton(callButton) {
-		icon: icon {{ "call_record_muted", callIconFgActive }};
+		icon: icon {{ "calls/call_record_muted", callIconFgActive }};
 		ripple: RippleAnimation(defaultRippleAnimation) {
 			color: callIconActiveRipple;
 		}
@@ -169,7 +172,7 @@ callMicrophoneUnmute: CallButton(callMicrophoneMute) {
 }
 callCameraMute: CallButton(callMicrophoneMute) {
 	button: IconButton(callButton) {
-		icon: icon {{ "call_camera_active", callIconFg }};
+		icon: icon {{ "calls/call_camera_active", callIconFg }};
 		ripple: RippleAnimation(defaultRippleAnimation) {
 			color: callMuteRipple;
 		}
@@ -177,7 +180,7 @@ callCameraMute: CallButton(callMicrophoneMute) {
 }
 callCameraUnmute: CallButton(callMicrophoneUnmute) {
 	button: IconButton(callButton) {
-		icon: icon {{ "call_camera_muted", callIconFgActive }};
+		icon: icon {{ "calls/call_camera_muted", callIconFgActive }};
 		ripple: RippleAnimation(defaultRippleAnimation) {
 			color: callIconActiveRipple;
 		}
@@ -223,7 +226,7 @@ callBarMuteToggle: IconButton {
 	width: 41px;
 	height: 38px;
 
-	icon: icon {{ "call_record_active", callBarFg }};
+	icon: icon {{ "calls/call_record_active", callBarFg }};
 	iconPosition: point(3px, 2px);
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
@@ -232,11 +235,11 @@ callBarMuteToggle: IconButton {
 	rippleAreaPosition: point(5px, 3px);
 	rippleAreaSize: 32px;
 }
-callBarUnmuteIcon: icon {{ "call_record_muted", callBarFg }};
+callBarUnmuteIcon: icon {{ "calls/call_record_muted", callBarFg }};
 callBarRightSkip: 12px;
 callBarSkip: 10px;
 callBarHangup: IconButton(callBarMuteToggle) {
-	icon: icon {{ "call_discard", callBarFg }};
+	icon: icon {{ "calls/call_discard", callBarFg }};
 	iconPosition: point(3px, 1px);
 }
 callBarLabel: LabelSimple(defaultLabelSimple) {
@@ -254,16 +257,16 @@ callBarInfoLabel: FlatLabel(defaultFlatLabel) {
 callBarLabelTop: 10px;
 
 callArrowPosition: point(-2px, 1px);
-callArrowIn: icon {{ "call_arrow_in", callArrowFg }};
-callArrowOut: icon {{ "call_arrow_out", callArrowFg }};
-callArrowMissed: icon {{ "call_arrow_in", callArrowMissedFg }};
+callArrowIn: icon {{ "calls/call_arrow_in", callArrowFg }};
+callArrowOut: icon {{ "calls/call_arrow_out", callArrowFg }};
+callArrowMissed: icon {{ "calls/call_arrow_in", callArrowMissedFg }};
 callArrowSkip: 4px;
 callReDial: IconButton {
 	width: 40px;
 	height: 56px;
 
-	icon: icon {{ "call_answer", menuIconFg }};
-	iconOver: icon {{ "call_answer", menuIconFgOver }};
+	icon: icon {{ "calls/call_answer", menuIconFg }};
+	iconOver: icon {{ "calls/call_answer", menuIconFgOver }};
 	iconPosition: point(-1px, -1px);
 
 	ripple: defaultRippleAnimation;
@@ -272,8 +275,8 @@ callReDial: IconButton {
 }
 
 callCameraReDial: IconButton(callReDial) {
-	icon: icon {{ "call_camera_active", menuIconFg }};
-	iconOver: icon {{ "call_camera_active", menuIconFgOver }};
+	icon: icon {{ "calls/call_camera_active", menuIconFg }};
+	iconOver: icon {{ "calls/call_camera_active", menuIconFgOver }};
 }
 
 callRatingPadding: margins(24px, 12px, 24px, 0px);
@@ -281,7 +284,7 @@ callRatingStar: IconButton {
 	width: 36px;
 	height: 36px;
 
-	icon: icon {{ "call_rating", windowSubTextFg }};
+	icon: icon {{ "calls/call_rating", windowSubTextFg }};
 	iconPosition: point(-1px, -1px);
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
@@ -290,7 +293,7 @@ callRatingStar: IconButton {
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: 36px;
 }
-callRatingStarFilled: icon {{ "call_rating_filled", lightButtonFg }};
+callRatingStarFilled: icon {{ "calls/call_rating_filled", lightButtonFg }};
 callRatingStarTop: 4px;
 callRatingComment: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 1px, 4px);
@@ -327,43 +330,43 @@ callTitleButton: IconButton {
 	iconPosition: point(0px, 0px);
 }
 callTitleMinimizeIcon: icon {
-	{ "calls_minimize_shadow", windowShadowFg },
-	{ "calls_minimize_main", callNameFg },
+	{ "calls/calls_minimize_shadow", windowShadowFg },
+	{ "calls/calls_minimize_main", callNameFg },
 };
 callTitleMinimizeIconOver: icon {
 	{ size(34px, 30px), callBgButton },
 	{ size(34px, 30px), callMuteRipple },
-	{ "calls_minimize_shadow", windowShadowFg },
-	{ "calls_minimize_main", callNameFg },
+	{ "calls/calls_minimize_shadow", windowShadowFg },
+	{ "calls/calls_minimize_main", callNameFg },
 };
 callTitleMaximizeIcon: icon {
-	{ "calls_maximize_shadow", windowShadowFg },
-	{ "calls_maximize_main", callNameFg },
+	{ "calls/calls_maximize_shadow", windowShadowFg },
+	{ "calls/calls_maximize_main", callNameFg },
 };
 callTitleMaximizeIconOver: icon {
 	{ size(34px, 30px), callBgButton },
 	{ size(34px, 30px), callMuteRipple },
-	{ "calls_maximize_shadow", windowShadowFg },
-	{ "calls_maximize_main", callNameFg },
+	{ "calls/calls_maximize_shadow", windowShadowFg },
+	{ "calls/calls_maximize_main", callNameFg },
 };
 callTitleRestoreIcon: icon {
-	{ "calls_restore_shadow", windowShadowFg },
-	{ "calls_restore_main", callNameFg },
+	{ "calls/calls_restore_shadow", windowShadowFg },
+	{ "calls/calls_restore_main", callNameFg },
 };
 callTitleRestoreIconOver: icon {
 	{ size(34px, 30px), callBgButton },
 	{ size(34px, 30px), callMuteRipple },
-	{ "calls_restore_shadow", windowShadowFg },
-	{ "calls_restore_main", callNameFg },
+	{ "calls/calls_restore_shadow", windowShadowFg },
+	{ "calls/calls_restore_main", callNameFg },
 };
 callTitleCloseIcon: icon {
-	{ "calls_close_shadow", windowShadowFg },
-	{ "calls_close_main", callNameFg },
+	{ "calls/calls_close_shadow", windowShadowFg },
+	{ "calls/calls_close_main", callNameFg },
 };
 callTitleCloseIconOver: icon {
 	{ size(34px, 30px), titleButtonCloseBgOver },
-	{ "calls_close_shadow", windowShadowFg },
-	{ "calls_close_main", titleButtonCloseFgOver },
+	{ "calls/calls_close_shadow", windowShadowFg },
+	{ "calls/calls_close_main", titleButtonCloseFgOver },
 };
 callTitle: WindowTitle(defaultWindowTitle) {
 	height: 0px;
@@ -394,8 +397,374 @@ callTitle: WindowTitle(defaultWindowTitle) {
 	closeIconActive: callTitleCloseIcon;
 	closeIconActiveOver: callTitleCloseIconOver;
 }
-callTitleShadow: icon {{ "calls_shadow_controls", windowShadowFg }};
+callTitleShadow: icon {{ "calls/calls_shadow_controls", windowShadowFg }};
 
 callErrorToast: Toast(defaultToast) {
 	minWidth: 240px;
+}
+
+groupCallWidth: 380px;
+groupCallHeight: 580px;
+
+groupCallRipple: RippleAnimation(defaultRippleAnimation) {
+	color: groupCallMembersBgRipple;
+}
+
+groupCallMenu: Menu(defaultMenu) {
+	itemBg: groupCallMenuBg;
+	itemBgOver: groupCallMenuBgOver;
+	itemFg: groupCallMembersFg;
+	itemFgOver: groupCallMembersFg;
+	itemFgDisabled: groupCallMemberNotJoinedStatus;
+	itemFgShortcut: groupCallMemberNotJoinedStatus;
+	itemFgShortcutOver: groupCallMemberNotJoinedStatus;
+	itemFgShortcutDisabled: groupCallMemberNotJoinedStatus;
+
+	separatorFg: groupCallMemberNotJoinedStatus;
+
+	arrow: icon {{ "dropdown_submenu_arrow", groupCallMemberNotJoinedStatus }};
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: groupCallMenuBgRipple;
+	}
+}
+groupCallMenuShadow: Shadow(defaultEmptyShadow) {
+	fallback: groupCallMenuBg;
+}
+groupCallPanelAnimation: PanelAnimation(defaultPanelAnimation) {
+	fadeBg: groupCallMenuBg;
+	shadow: groupCallMenuShadow;
+}
+groupCallPopupMenu: PopupMenu(defaultPopupMenu) {
+	shadow: groupCallMenuShadow;
+	menu: groupCallMenu;
+	animation: groupCallPanelAnimation;
+}
+
+groupCallMembersListItem: PeerListItem(defaultPeerListItem) {
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: groupCallMembersBg;
+		textBgOver: groupCallMembersBgOver;
+
+		textFg: groupCallMemberInactiveStatus;
+		textFgOver: groupCallMemberInactiveStatus;
+
+		font: normalFont;
+		padding: margins(11px, 5px, 11px, 5px);
+
+		ripple: groupCallRipple;
+	}
+	disabledCheckFg: groupCallMemberNotJoinedStatus;
+	checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+		selectFg: groupCallActiveFg;
+		check: RoundCheckbox(defaultPeerListCheck) {
+			border: groupCallMembersBg;
+			bgActive: groupCallActiveFg;
+			check: icon {{ "default_checkbox_check", groupCallMembersFg, point(3px, 6px) }};
+		}
+	}
+	height: 52px;
+	photoPosition: point(12px, 6px);
+	namePosition: point(68px, 7px);
+	statusPosition: point(68px, 26px);
+	photoSize: 40px;
+	nameFg: groupCallMembersFg;
+	nameFgChecked: groupCallMembersFg;
+	statusFg: groupCallMemberInactiveStatus;
+	statusFgOver: groupCallMemberInactiveStatus;
+	statusFgActive: groupCallMemberActiveStatus;
+}
+groupCallMembersList: PeerList(defaultPeerList) {
+	bg: groupCallMembersBg;
+	about: FlatLabel(defaultPeerListAbout) {
+		textFg: groupCallMemberInactiveStatus;
+	}
+	item: groupCallMembersListItem;
+}
+groupCallInviteMembersList: PeerList(groupCallMembersList) {
+	item: PeerListItem(groupCallMembersListItem) {
+		statusFg: groupCallMemberNotJoinedStatus;
+		statusFgOver: groupCallMemberNotJoinedStatus;
+		statusFgActive: groupCallMemberInactiveStatus;
+	}
+}
+groupCallMultiSelect: MultiSelect(defaultMultiSelect) {
+	bg: groupCallMembersBg;
+	item: MultiSelectItem(defaultMultiSelectItem) {
+		textBg: groupCallMembersBgRipple;
+		textFg: groupCallMembersFg;
+		textActiveBg: groupCallActiveFg;
+		textActiveFg: groupCallMembersFg;
+		deleteFg: groupCallMembersFg;
+	}
+	field: InputField(defaultMultiSelectSearchField) {
+		textFg: groupCallMembersFg;
+		placeholderFg: groupCallMemberNotJoinedStatus;
+		placeholderFgActive: groupCallMemberNotJoinedStatus;
+		placeholderFgError: groupCallMemberNotJoinedStatus;
+		menu: groupCallPopupMenu;
+	}
+	fieldIcon: icon {{ "box_search", groupCallMemberNotJoinedStatus, point(10px, 9px) }};
+	fieldCancel: CrossButton(defaultMultiSelectSearchCancel) {
+		crossFg: groupCallMemberNotJoinedStatus;
+		crossFgOver: groupCallMemberNotJoinedStatus;
+		ripple: groupCallRipple;
+	}
+}
+
+groupCallMembersHeader: 47px;
+groupCallMembersMargin: margins(16px, 16px, 16px, 28px);
+groupCallAddMember: IconButton(defaultIconButton) {
+	width: 36px;
+	height: 36px;
+	iconPosition: point(3px, 5px);
+	icon: icon {{ "info_add_member", groupCallMemberInactiveIcon }};
+	iconOver: icon {{ "info_add_member", groupCallMemberInactiveIcon }};
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 36px;
+	ripple: groupCallRipple;
+}
+groupCallHeaderPosition: point(16px, 16px);
+groupCallHeaderLabel: FlatLabel(defaultFlatLabel) {
+	maxHeight: 18px;
+	textFg: groupCallMembersFg;
+	style: TextStyle(defaultTextStyle) {
+		font: semiboldFont;
+		linkFont: semiboldFont;
+		linkFontOver: semiboldFont;
+	}
+}
+groupCallAddButtonPosition: point(10px, 7px);
+groupCallMembersWidthMax: 360px;
+
+groupCallActiveButton: IconButton {
+	width: 36px;
+	height: 52px;
+
+	icon: icon {{ "calls/group_calls_unmuted", groupCallMemberInactiveIcon }};
+	iconOver: icon {{ "calls/group_calls_unmuted", groupCallMemberInactiveIcon }};
+	iconPosition: point(-1px, -1px);
+
+	ripple: groupCallRipple;
+	rippleAreaPosition: point(0px, 8px);
+	rippleAreaSize: 36px;
+}
+groupCallMemberButtonSkip: 10px;
+
+groupCallMemberInactiveCrossLine: CrossLineAnimation {
+	fg: groupCallMemberInactiveIcon;
+	icon: icon {{ "calls/group_calls_unmuted", groupCallMemberInactiveIcon }};
+	startPosition: point(5px, 2px);
+	endPosition: point(20px, 17px);
+	stroke: 2px;
+}
+groupCallMemberColoredCrossLine: CrossLineAnimation(groupCallMemberInactiveCrossLine) {
+	fg: groupCallMemberMutedIcon;
+	icon: icon {{ "calls/group_calls_unmuted", groupCallMemberActiveIcon }};
+}
+
+groupCallSettings: CallButton(callMicrophoneMute) {
+	button: IconButton(callButton) {
+		iconPosition: point(-1px, 22px);
+		icon: icon {{ "calls/call_settings", callIconFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callMuteRipple;
+		}
+	}
+}
+groupCallHangup: CallButton(callHangup) {
+	button: IconButton(callButton) {
+		icon: icon {{ "calls/call_discard", callIconFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: groupCallLeaveBgRipple;
+		}
+	}
+	bg: groupCallLeaveBg;
+	outerBg: groupCallLeaveBg;
+	label: callButtonLabel;
+}
+groupCallButtonSkip: 43px;
+groupCallButtonBottomSkip: 134px;
+groupCallMuteBottomSkip: 149px;
+
+groupCallTopBarUserpicSize: 28px;
+groupCallTopBarUserpicShift: 8px;
+groupCallTopBarUserpicStroke: 2px;
+groupCallTopBarJoin: RoundButton(defaultActiveButton) {
+	width: -26px;
+	height: 26px;
+	textTop: 4px;
+}
+groupCallBox: Box(defaultBox) {
+	button: RoundButton(defaultBoxButton) {
+		textFg: groupCallActiveFg;
+		textFgOver: groupCallActiveFg;
+		numbersTextFg: groupCallActiveFg;
+		numbersTextFgOver: groupCallActiveFg;
+		textBg: groupCallMembersBg;
+		textBgOver: groupCallMembersBgOver;
+
+		ripple: groupCallRipple;
+	}
+	margin: margins(0px, 56px, 0px, 10px);
+	bg: groupCallMembersBg;
+	title: FlatLabel(boxTitle) {
+		textFg: groupCallMembersFg;
+	}
+	titleAdditionalFg: groupCallMemberNotJoinedStatus;
+}
+groupCallLayerBox: Box(groupCallBox) {
+	buttonPadding: margins(8px, 8px, 8px, 8px);
+}
+groupCallLevelMeter: LevelMeter(defaultLevelMeter) {
+	height: 18px;
+	lineWidth: 3px;
+	lineSpacing: 5px;
+	lineCount: 44;
+	activeFg: groupCallActiveFg;
+	inactiveFg: groupCallMemberNotJoinedStatus;
+}
+groupCallCheckboxIcon: icon {{ "default_checkbox_check", groupCallMembersFg, point(4px, 7px) }};
+groupCallCheck: Check(defaultCheck) {
+	untoggledFg: groupCallMemberNotJoinedStatus;
+	toggledFg: groupCallActiveFg;
+	icon: groupCallCheckboxIcon;
+}
+groupCallRadio: Radio(defaultRadio) {
+	untoggledFg: groupCallMemberNotJoinedStatus;
+	toggledFg: groupCallActiveFg;
+}
+groupCallCheckbox: Checkbox(defaultBoxCheckbox) {
+	textFg: groupCallMembersFg;
+	textFgActive: groupCallMembersFg;
+	rippleBg: groupCallMembersBgRipple;
+	rippleBgActive: groupCallMembersBgRipple;
+}
+
+groupCallSettingsToggle: Toggle(defaultToggle) {
+	toggledBg: groupCallMembersBg;
+	toggledFg: groupCallActiveFg;
+	untoggledBg: groupCallMembersBg;
+	untoggledFg: groupCallMemberNotJoinedStatus;
+}
+groupCallSettingsButton: SettingsButton(defaultSettingsButton) {
+	textFg: groupCallMembersFg;
+	textFgOver: groupCallMembersFg;
+	textBg: groupCallMembersBg;
+	textBgOver: groupCallMembersBgOver;
+	rightLabel: FlatLabel(defaultSettingsRightLabel) {
+		textFg: groupCallActiveFg;
+	}
+	toggle: groupCallSettingsToggle;
+	toggleOver: groupCallSettingsToggle;
+	ripple: groupCallRipple;
+}
+groupCallSettingsAttentionButton: SettingsButton(groupCallSettingsButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
+groupCallBoxLabel: FlatLabel(boxLabel) {
+	textFg: groupCallMembersFg;
+}
+
+groupCallRowBlobMinRadius: 27px;
+groupCallRowBlobMaxRadius: 29px;
+
+groupCallDelayLabel: LabelSimple(defaultLabelSimple) {
+	textFg: groupCallMembersFg;
+	font: boxTextFont;
+}
+groupCallDelayLabelMargin: margins(22px, 10px, 20px, 5px);
+groupCallDelaySlider: MediaSlider(defaultContinuousSlider) {
+	seekSize: size(15px, 15px);
+	activeFg: groupCallActiveFg;
+	inactiveFg: groupCallMemberNotJoinedStatus;
+	activeFgOver: groupCallActiveFg;
+	inactiveFgOver: groupCallMemberNotJoinedStatus;
+	activeFgDisabled: groupCallActiveFg;
+	inactiveFgDisabled: groupCallMemberNotJoinedStatus;
+	receivedTillFg: groupCallMemberNotJoinedStatus;
+}
+groupCallDelayMargin: margins(22px, 5px, 20px, 10px);
+
+groupCallTitleButton: IconButton {
+	width: 24px;
+	height: 21px;
+	iconPosition: point(0px, 0px);
+}
+groupCallTitleMinimizeIcon: icon {
+	{ "title_button_minimize", groupCallMemberNotJoinedStatus, point(4px, 4px) },
+};
+groupCallTitleMinimizeIconOver: icon {
+	{ size(24px, 21px), groupCallMembersBgOver },
+	{ "title_button_minimize", groupCallMembersFg, point(4px, 4px) },
+};
+groupCallTitleMaximizeIcon: icon {
+	{ "title_button_maximize", groupCallMemberNotJoinedStatus, point(4px, 4px) },
+};
+groupCallTitleMaximizeIconOver: icon {
+	{ size(24px, 21px), groupCallMembersBgOver },
+	{ "title_button_maximize", groupCallMembersFg, point(4px, 4px) },
+};
+groupCallTitleRestoreIcon: icon {
+	{ "title_button_restore", groupCallMemberNotJoinedStatus, point(4px, 4px) },
+};
+groupCallTitleRestoreIconOver: icon {
+	{ size(24px, 21px), groupCallMembersBgOver },
+	{ "title_button_restore", groupCallMembersFg, point(4px, 4px) },
+};
+groupCallTitleCloseIcon: icon {
+	{ "title_button_close", groupCallMemberNotJoinedStatus, point(4px, 4px) },
+};
+groupCallTitleCloseIconOver: icon {
+	{ size(24px, 21px), titleButtonCloseBgOver },
+	{ "title_button_close", titleButtonCloseFgOver, point(4px, 4px) },
+};
+groupCallTitle: WindowTitle(defaultWindowTitle) {
+	height: 0px;
+	bg: groupCallBg;
+	bgActive: groupCallBg;
+	fg: transparent;
+	fgActive: transparent;
+	minimize: IconButton(groupCallTitleButton) {
+		icon: groupCallTitleMinimizeIcon;
+		iconOver: groupCallTitleMinimizeIconOver;
+	}
+	minimizeIconActive: groupCallTitleMinimizeIcon;
+	minimizeIconActiveOver: groupCallTitleMinimizeIconOver;
+	maximize: IconButton(groupCallTitleButton) {
+		icon: groupCallTitleMaximizeIcon;
+		iconOver: groupCallTitleMaximizeIconOver;
+	}
+	maximizeIconActive: groupCallTitleMaximizeIcon;
+	maximizeIconActiveOver: groupCallTitleMaximizeIconOver;
+	restoreIcon: groupCallTitleRestoreIcon;
+	restoreIconOver: groupCallTitleRestoreIconOver;
+	restoreIconActive: groupCallTitleRestoreIcon;
+	restoreIconActiveOver: groupCallTitleRestoreIconOver;
+	close: IconButton(groupCallTitleButton) {
+		icon: groupCallTitleCloseIcon;
+		iconOver: groupCallTitleCloseIconOver;
+	}
+	closeIconActive: groupCallTitleCloseIcon;
+	closeIconActiveOver: groupCallTitleCloseIconOver;
+}
+
+groupCallMajorBlobMinRadius: 2px;
+groupCallMajorBlobMaxRadius: 2px;
+
+groupCallMinorBlobMinRadius: 3px;
+groupCallMinorBlobMaxRadius: 9px;
+
+groupCallMajorBlobTopOffset: 0px;
+groupCallMinorBlobTopOffset: 6px;
+
+groupCallBlobWidthAdditional: 40px;
+
+callTopBarMuteCrossLine: CrossLineAnimation {
+	fg: callBarFg;
+	icon: icon {{ "calls/call_record_active", callBarFg }};
+	startPosition: point(11px, 8px);
+	endPosition: point(26px, 23px);
+	stroke: 2px;
 }

@@ -114,8 +114,12 @@ Instance::Instance()
 		handleSongUpdate(audioId);
 	});
 
-	Core::App().calls().currentCallValue(
-	) | rpl::start_with_next([=](Calls::Call *call) {
+	using namespace rpl::mappers;
+	rpl::combine(
+		Core::App().calls().currentCallValue(),
+		Core::App().calls().currentGroupCallValue(),
+		_1 || _2
+	) | rpl::start_with_next([=](bool call) {
 		if (call) {
 			pauseOnCall(AudioMsgId::Type::Voice);
 			pauseOnCall(AudioMsgId::Type::Song);
@@ -733,7 +737,7 @@ void Instance::setupShortcuts() {
 	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 		request->check(Command::MediaPlay) && request->handle([=] {
-			play();
+			playPause();
 			return true;
 		});
 		request->check(Command::MediaPause) && request->handle([=] {

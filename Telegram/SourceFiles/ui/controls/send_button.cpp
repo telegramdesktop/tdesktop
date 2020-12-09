@@ -42,22 +42,6 @@ void SendButton::setType(Type type) {
 		setPointerCursor(_type != Type::Slowmode);
 		update();
 	}
-	if (_type != Type::Record) {
-		_recordActive = false;
-		_a_recordActive.stop();
-	}
-}
-
-void SendButton::setRecordActive(bool recordActive) {
-	if (_recordActive != recordActive) {
-		_recordActive = recordActive;
-		_a_recordActive.start(
-			[=] { recordAnimationCallback(); },
-			_recordActive ? 0. : 1.,
-			_recordActive ? 1. : 0,
-			st::historyRecordVoiceDuration);
-		update();
-	}
 }
 
 void SendButton::setSlowmodeDelay(int seconds) {
@@ -76,17 +60,7 @@ void SendButton::setSlowmodeDelay(int seconds) {
 
 void SendButton::finishAnimating() {
 	_a_typeChanged.stop();
-	_a_recordActive.stop();
 	update();
-}
-
-void SendButton::mouseMoveEvent(QMouseEvent *e) {
-	AbstractButton::mouseMoveEvent(e);
-	if (_recording) {
-		if (_recordUpdateCallback) {
-			_recordUpdateCallback(e->globalPos());
-		}
-	}
 }
 
 void SendButton::paintEvent(QPaintEvent *e) {
@@ -118,10 +92,17 @@ void SendButton::paintEvent(QPaintEvent *e) {
 }
 
 void SendButton::paintRecord(Painter &p, bool over) {
-	auto recordActive = recordActiveRatio();
+	const auto recordActive = 0.;
 	if (!isDisabled()) {
-		auto rippleColor = anim::color(st::historyAttachEmoji.ripple.color, st::historyRecordVoiceRippleBgActive, recordActive);
-		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), &rippleColor);
+		auto rippleColor = anim::color(
+			st::historyAttachEmoji.ripple.color,
+			st::historyRecordVoiceRippleBgActive,
+			recordActive);
+		paintRipple(
+			p,
+			(width() - st::historyAttachEmoji.rippleAreaSize) / 2,
+			st::historyAttachEmoji.rippleAreaPosition.y(),
+			&rippleColor);
 	}
 
 	auto fastIcon = [&] {
@@ -196,27 +177,6 @@ void SendButton::paintSlowmode(Painter &p) {
 		style::al_center);
 }
 
-void SendButton::onStateChanged(State was, StateChangeSource source) {
-	RippleButton::onStateChanged(was, source);
-
-	auto down = (state() & StateFlag::Down);
-	if ((was & StateFlag::Down) != down) {
-		if (down) {
-			if (_type == Type::Record) {
-				_recording = true;
-				if (_recordStartCallback) {
-					_recordStartCallback();
-				}
-			}
-		} else if (_recording) {
-			_recording = false;
-			if (_recordStopCallback) {
-				_recordStopCallback(_recordActive);
-			}
-		}
-	}
-}
-
 bool SendButton::isSlowmode() const {
 	return (_slowmodeDelay > 0);
 }
@@ -253,13 +213,6 @@ QPoint SendButton::prepareRippleStartPosition() const {
 		? st::historyAttachEmoji.rippleAreaPosition.y()
 		: (height() - st::historyReplyCancel.rippleAreaSize) / 2;
 	return real - QPoint((width() - size) / 2, y);
-}
-
-void SendButton::recordAnimationCallback() {
-	update();
-	if (_recordAnimationCallback) {
-		_recordAnimationCallback();
-	}
 }
 
 } // namespace Ui

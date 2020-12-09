@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/empty_userpic.h"
 #include "ui/text/text_options.h"
+#include "ui/toasts/common_toasts.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
@@ -108,9 +109,11 @@ void PeerClickHandler::onClick(ClickContext context) const {
 			&& !clickedChannel->amIn()
 			&& (!currentPeer->isChannel()
 				|| currentPeer->asChannel()->linkedChat() != clickedChannel)) {
-			Ui::show(Box<InformBox>(_peer->isMegagroup()
-				? tr::lng_group_not_accessible(tr::now)
-				: tr::lng_channel_not_accessible(tr::now)));
+			Ui::ShowMultilineToast({
+				.text = (_peer->isMegagroup()
+					? tr::lng_group_not_accessible(tr::now)
+					: tr::lng_channel_not_accessible(tr::now)),
+			});
 		} else {
 			window->showPeerHistory(
 				_peer,

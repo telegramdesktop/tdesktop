@@ -57,9 +57,9 @@ jobs:
       PREFIX: "/usr/local/macos"
       MACOSX_DEPLOYMENT_TARGET: "10.12"
       XZ: "xz-5.2.4"
-      QT: "5_12_8"
+      QT: "5_15_2"
       OPENSSL_VER: "1_1_1"
-      QT_PREFIX: "/usr/local/desktop-app/Qt-5.12.8"
+      QT_PREFIX: "/usr/local/desktop-app/Qt-5.15.2"
       LIBICONV_VER: "libiconv-1.16"
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
@@ -235,7 +235,7 @@ jobs:
 
           git clone $GIT/FFmpeg/FFmpeg.git ffmpeg
           cd ffmpeg
-          git checkout release/3.4
+          git checkout release/4.2
           CFLAGS=`freetype-config --cflags`
           LDFLAGS=`freetype-config --libs`
           PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
@@ -244,7 +244,9 @@ jobs:
           --extra-cflags="$MIN_MAC $UNGUARDED" \
           --extra-cxxflags="$MIN_MAC $UNGUARDED" \
           --extra-ldflags="$MIN_MAC" \
-          --enable-protocol=file --enable-libopus \
+          --x86asmexe=`pwd`/macos_yasm_wrap.sh \
+          --enable-protocol=file \
+          --enable-libopus \
           --disable-programs \
           --disable-doc \
           --disable-network \
@@ -366,7 +368,7 @@ jobs:
 
           git clone $GIT/kcat/openal-soft.git
           cd openal-soft
-          git checkout openal-soft-1.19.1
+          git checkout 3970252da9
           cd build
 
           CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake \
@@ -417,20 +419,20 @@ jobs:
           build/gyp_crashpad.py -Dmac_deployment_target=10.10
           ninja -C out/Debug
 
-      - name: Qt 5.12.8 cache.
+      - name: Qt 5.15.2 cache.
         id: cache-qt
         uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/qt-cache
-          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_8/*') }}
-      - name: Use cached Qt 5.12.8.
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_15_2/*') }}
+      - name: Use cached Qt 5.15.2.
         if: steps.cache-qt.outputs.cache-hit == 'true'
         run: |
           cd $LibrariesPath
-          mv qt-cache Qt-5.12.8
+          mv qt-cache Qt-5.15.2
           sudo mkdir -p $QT_PREFIX
-          sudo mv -f Qt-5.12.8 "$(dirname "$QT_PREFIX")"/
-      - name: Qt 5.12.8 build.
+          sudo mv -f Qt-5.15.2 "$(dirname "$QT_PREFIX")"/
+      - name: Qt 5.15.2 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           cd $LibrariesPath
@@ -438,7 +440,7 @@ jobs:
           git clone git://code.qt.io/qt/qt5.git qt_$QT
           cd qt_$QT
           perl init-repository --module-subset=qtbase,qtimageformats
-          git checkout v5.12.8
+          git checkout v5.15.2
           git submodule update qtbase
           git submodule update qtimageformats
           cd qtbase
@@ -479,7 +481,7 @@ jobs:
         run: |
           cd $LibrariesPath
 
-          git clone $GIT/desktop-app/tg_owt.git
+          git clone --recursive $GIT/desktop-app/tg_owt.git
           mkdir -p tg_owt/out/Debug
           cd tg_owt/out/Debug
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug \
@@ -513,6 +515,8 @@ jobs:
           fi
 
           ./configure.sh \
+          -D CMAKE_C_FLAGS="-Werror" \
+          -D CMAKE_CXX_FLAGS="-Werror" \
           -D TDESKTOP_API_TEST=ON \
           -D DESKTOP_APP_USE_PACKAGED=OFF \
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \

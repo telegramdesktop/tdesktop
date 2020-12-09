@@ -423,10 +423,10 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 		&session(),
 		_options,
 		_selected);
+	controller->setStyleOverrides(&st::windowFilterSmallList);
 	const auto content = result->add(object_ptr<PeerListContent>(
 		container,
-		controller,
-		st::windowFilterSmallList));
+		controller));
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 	for (const auto flag : kAllTypes) {

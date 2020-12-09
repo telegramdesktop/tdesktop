@@ -54,7 +54,7 @@ TabbedPanel::TabbedPanel(
 	Expects(_selector != nullptr);
 
 	_selector->setParent(this);
-	_selector->setRoundRadius(st::buttonRadius);
+	_selector->setRoundRadius(st::roundRadiusSmall);
 	_selector->setAfterShownCallback([=](SelectorTab tab) {
 		if (tab == SelectorTab::Gifs || tab == SelectorTab::Stickers) {
 			_controller->enableGifPauseReason(
@@ -441,8 +441,8 @@ bool TabbedPanel::overlaps(const QRect &globalRect) const {
 
 	auto testRect = QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size());
 	auto inner = rect().marginsRemoved(st::emojiPanMargins);
-	return inner.marginsRemoved(QMargins(st::buttonRadius, 0, st::buttonRadius, 0)).contains(testRect)
-		|| inner.marginsRemoved(QMargins(0, st::buttonRadius, 0, st::buttonRadius)).contains(testRect);
+	return inner.marginsRemoved(QMargins(st::roundRadiusSmall, 0, st::roundRadiusSmall, 0)).contains(testRect)
+		|| inner.marginsRemoved(QMargins(0, st::roundRadiusSmall, 0, st::roundRadiusSmall)).contains(testRect);
 }
 
 TabbedPanel::~TabbedPanel() {

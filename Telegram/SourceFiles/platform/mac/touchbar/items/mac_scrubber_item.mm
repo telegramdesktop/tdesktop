@@ -43,7 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #import <AppKit/NSSegmentedControl.h>
 #import <AppKit/NSTextField.h>
 
-NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 using TouchBar::kCircleDiameter;
 using TouchBar::CreateNSImageFromStyleIcon;
 
@@ -96,32 +95,32 @@ struct PickerScrubberItem {
 	}
 
 	void updateThumbnail() {
-		if (!document || !qpixmap.isNull()) {
+		if (!document || !image.isNull()) {
 			return;
 		}
-		const auto image = mediaView->getStickerSmall();
-		if (!image) {
+		const auto sticker = mediaView->getStickerSmall();
+		if (!sticker) {
 			return;
 		}
-		const auto size = image->size()
+		const auto size = sticker->size()
 			.scaled(kCircleDiameter, kCircleDiameter, Qt::KeepAspectRatio);
-		qpixmap = image->pixSingle(
+		image = sticker->pixSingle(
 			size.width(),
 			size.height(),
 			kCircleDiameter,
 			kCircleDiameter,
-			ImageRoundRadius::None);
+			ImageRoundRadius::None).toImage();
 	}
 
 	bool isStickerLoaded() const {
-		return !qpixmap.isNull();
+		return !image.isNull();
 	}
 
 	QString title = QString();
 
 	DocumentData *document = nullptr;
 	std::shared_ptr<Data::DocumentMedia> mediaView = nullptr;
-	QPixmap qpixmap;
+	QImage image;
 
 	EmojiPtr emoji = nullptr;
 };
@@ -140,21 +139,25 @@ struct PickerScrubberItemsHolder {
 };
 
 using Platform::Q2NSString;
+using Platform::Q2NSImage;
 
 NSImage *CreateNSImageFromEmoji(EmojiPtr emoji) {
-	const auto s = kIdealIconSize * cIntRetinaFactor();
-	auto pixmap = QPixmap(s, s);
-	pixmap.setDevicePixelRatio(cRetinaFactor());
-	pixmap.fill(Qt::black);
-	Painter paint(&pixmap);
-	PainterHighQualityEnabler hq(paint);
-	Ui::Emoji::Draw(
-		paint,
-		std::move(emoji),
-		Ui::Emoji::GetSizeTouchbar(),
-		0,
-		0);
-	return [qt_mac_create_nsimage(pixmap) autorelease];
+	auto image = QImage(
+		QSize(kIdealIconSize, kIdealIconSize) * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(cRetinaFactor());
+	image.fill(Qt::black);
+	{
+		Painter paint(&image);
+		PainterHighQualityEnabler hq(paint);
+		Ui::Emoji::Draw(
+			paint,
+			emoji,
+			Ui::Emoji::GetSizeTouchbar(),
+			0,
+			0);
+	}
+	return Q2NSImage(image);
 }
 
 auto ActiveChat(not_null<Window::Controller*> controller) {
@@ -421,8 +424,7 @@ void AppendEmojiPacks(
 		PickerScrubberItemView *itemView = [scrubber
 			makeItemWithIdentifier:kStickerItemIdentifier
 			owner:self];
-		itemView.imageView.image = [qt_mac_create_nsimage(item.qpixmap)
-			autorelease];
+		itemView.imageView.image = Q2NSImage(item.image);
 		itemView->documentId = document->id;
 		return itemView;
 	} else if (const auto emoji = item.emoji) {

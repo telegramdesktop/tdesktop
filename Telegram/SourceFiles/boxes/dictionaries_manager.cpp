@@ -91,7 +91,7 @@ QString StateDescription(const DictState &state) {
 auto CreateMultiSelect(QWidget *parent) {
 	const auto result = Ui::CreateChild<Ui::MultiSelect>(
 		parent,
-		st::contactsMultiSelect,
+		st::defaultMultiSelect,
 		tr::lng_participant_filter());
 
 	result->resizeToWidth(st::boxWidth);

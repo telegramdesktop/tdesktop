@@ -109,7 +109,10 @@ QByteArray Settings::serialize() const {
 			<< qint32(_nativeWindowFrame.current() ? 1 : 0)
 			<< qint32(_systemDarkModeEnabled.current() ? 1 : 0)
 			<< _callVideoInputDeviceId
-			<< qint32(_ipRevealWarning ? 1 : 0);
+			<< qint32(_ipRevealWarning ? 1 : 0)
+			<< qint32(_groupCallPushToTalk ? 1 : 0)
+			<< _groupCallPushToTalkShortcut
+			<< qint64(_groupCallPushToTalkDelay);
 	}
 	return result;
 }
@@ -177,6 +180,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 nativeWindowFrame = _nativeWindowFrame.current() ? 1 : 0;
 	qint32 systemDarkModeEnabled = _systemDarkModeEnabled.current() ? 1 : 0;
 	qint32 ipRevealWarning = _ipRevealWarning ? 1 : 0;
+	qint32 groupCallPushToTalk = _groupCallPushToTalk ? 1 : 0;
+	QByteArray groupCallPushToTalkShortcut = _groupCallPushToTalkShortcut;
+	qint64 groupCallPushToTalkDelay = _groupCallPushToTalkDelay;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -262,6 +268,12 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}
 	if (!stream.atEnd()) {
 		stream >> ipRevealWarning;
+	}
+	if (!stream.atEnd()) {
+		stream
+			>> groupCallPushToTalk
+			>> groupCallPushToTalkShortcut
+			>> groupCallPushToTalkDelay;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -354,6 +366,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_notifyFromAll = (notifyFromAll == 1);
 	_nativeWindowFrame = (nativeWindowFrame == 1);
 	_systemDarkModeEnabled = (systemDarkModeEnabled == 1);
+	_groupCallPushToTalk = (groupCallPushToTalk == 1);
+	_groupCallPushToTalkShortcut = groupCallPushToTalkShortcut;
+	_groupCallPushToTalkDelay = groupCallPushToTalkDelay;
 }
 
 bool Settings::chatWide() const {
@@ -459,6 +474,10 @@ void Settings::resetOnLastLogout() {
 	//_callOutputVolume = 100;
 	//_callInputVolume = 100;
 	//_callAudioDuckingEnabled = true;
+
+	_groupCallPushToTalk = false;
+	_groupCallPushToTalkShortcut = QByteArray();
+	_groupCallPushToTalkDelay = 20;
 
 	//_themesAccentColors = Window::Theme::AccentColors();
 

@@ -245,6 +245,8 @@ Image ParseMaxImage(
 		size.match([](const MTPDphotoSizeEmpty &) {
 		}, [](const MTPDphotoStrippedSize &) {
 			// Max image size should not be a stripped image.
+		}, [](const MTPDphotoPathSize &) {
+			// Max image size should not be a path image.
 		}, [&](const auto &data) {
 			const auto area = data.vw().v * int64(data.vh().v);
 			if (area > maxArea) {
@@ -397,6 +399,8 @@ Image ParseDocumentThumb(
 			return 0;
 		}, [](const MTPDphotoStrippedSize &) {
 			return 0;
+		}, [](const MTPDphotoPathSize &) {
+			return 0;
 		}, [](const auto &data) {
 			return data.vw().v * data.vh().v;
 		});
@@ -409,6 +413,8 @@ Image ParseDocumentThumb(
 	return i->match([](const MTPDphotoSizeEmpty &) {
 		return Image();
 	}, [](const MTPDphotoStrippedSize &) {
+		return Image();
+	}, [](const MTPDphotoPathSize &) {
 		return Image();
 	}, [&](const auto &data) {
 		auto result = Image();
@@ -1105,6 +1111,19 @@ ServiceAction ParseServiceAction(
 			content.toSelf = true;
 		}
 		content.distance = data.vdistance().v;
+		result.content = content;
+	}, [&](const MTPDmessageActionGroupCall &data) {
+		auto content = ActionGroupCall();
+		if (const auto duration = data.vduration()) {
+			content.duration = duration->v;
+		}
+		result.content = content;
+	}, [&](const MTPDmessageActionInviteToGroupCall &data) {
+		auto content = ActionInviteToGroupCall();
+		content.userIds.reserve(data.vusers().v.size());
+		for (const auto &user : data.vusers().v) {
+			content.userIds.push_back(user.v);
+		}
 		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;

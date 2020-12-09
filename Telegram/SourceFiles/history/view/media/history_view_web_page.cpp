@@ -201,11 +201,12 @@ QSize WebPage::countOptimalSize() {
 				- st::msgPadding.right()
 				- st::webPageLeft);
 		}
-		auto context = Core::UiIntegration::Context();
+		auto context = Core::MarkedTextContext();
+		using MarkedTextContext = Core::MarkedTextContext;
 		if (_data->siteName == qstr("Twitter")) {
-			context.type = Core::UiIntegration::HashtagMentionType::Twitter;
+			context.type = MarkedTextContext::HashtagMentionType::Twitter;
 		} else if (_data->siteName == qstr("Instagram")) {
-			context.type = Core::UiIntegration::HashtagMentionType::Instagram;
+			context.type = MarkedTextContext::HashtagMentionType::Instagram;
 		}
 		_description.setMarkedText(
 			st::webPageDescriptionStyle,

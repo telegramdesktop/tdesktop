@@ -1369,7 +1369,7 @@ void StickersBox::Inner::setActionDown(int newActionDown) {
 			if (_section == Section::Installed) {
 				if (row->removed) {
 					auto rippleSize = QSize(_undoWidth - st::stickersUndoRemove.width, st::stickersUndoRemove.height);
-					auto rippleMask = Ui::RippleAnimation::roundRectMask(rippleSize, st::buttonRadius);
+					auto rippleMask = Ui::RippleAnimation::roundRectMask(rippleSize, st::roundRadiusSmall);
 					ensureRipple(st::stickersUndoRemove.ripple, std::move(rippleMask), removeButton);
 				} else {
 					auto rippleSize = st::stickersRemove.rippleAreaSize;
@@ -1378,7 +1378,7 @@ void StickersBox::Inner::setActionDown(int newActionDown) {
 				}
 			} else if (!row->installed || row->archived || row->removed) {
 				auto rippleSize = QSize(_addWidth - st::stickersTrendingAdd.width, st::stickersTrendingAdd.height);
-				auto rippleMask = Ui::RippleAnimation::roundRectMask(rippleSize, st::buttonRadius);
+				auto rippleMask = Ui::RippleAnimation::roundRectMask(rippleSize, st::roundRadiusSmall);
 				ensureRipple(st::stickersTrendingAdd.ripple, std::move(rippleMask), removeButton);
 			}
 		}
@@ -1436,7 +1436,7 @@ void StickersBox::Inner::setPressed(SelectedRow pressed) {
 		auto &set = _rows[pressedIndex];
 		auto rippleMask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
 		if (!set->ripple) {
-			set->ripple = std::make_unique<Ui::RippleAnimation>(st::contactsRipple, std::move(rippleMask), [this, pressedIndex] {
+			set->ripple = std::make_unique<Ui::RippleAnimation>(st::defaultRippleAnimation, std::move(rippleMask), [this, pressedIndex] {
 				update(0, _itemsTop + pressedIndex * _rowHeight, width(), _rowHeight);
 			});
 		}

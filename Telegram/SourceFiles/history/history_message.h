@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Api {
 struct SendAction;
+struct SendOptions;
 } // namespace Api
 
 namespace HistoryView {
@@ -24,6 +25,9 @@ struct HistoryMessageViews;
 [[nodiscard]] Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 	not_null<HistoryItem*> item);
 [[nodiscard]] MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);
+[[nodiscard]] bool ShouldSendSilent(
+	not_null<PeerData*> peer,
+	const Api::SendOptions &options);
 [[nodiscard]] MTPDmessage_ClientFlags NewMessageClientFlags();
 [[nodiscard]] MsgId LookupReplyToTop(
 	not_null<History*> history,
@@ -235,6 +239,8 @@ private:
 	[[nodiscard]] TextWithEntities withLocalEntities(
 		const TextWithEntities &textWithEntities) const;
 	void reapplyText();
+
+	[[nodiscard]] bool checkRepliesPts(const MTPMessageReplies &data) const;
 
 	QString _timeText;
 	int _timeWidth = 0;

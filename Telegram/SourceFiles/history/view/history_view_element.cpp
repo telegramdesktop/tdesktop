@@ -121,6 +121,14 @@ bool SimpleElementDelegate::elementShownUnread(
 	return view->data()->unread();
 }
 
+void SimpleElementDelegate::elementSendBotCommand(
+	const QString &command,
+	const FullMsgId &context) {
+}
+
+void SimpleElementDelegate::elementHandleViaClick(not_null<UserData*> bot) {
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {

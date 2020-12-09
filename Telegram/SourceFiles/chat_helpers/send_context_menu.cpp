@@ -40,13 +40,13 @@ Fn<void()> DefaultScheduleCallback(
 
 FillMenuResult FillSendMenu(
 		not_null<Ui::PopupMenu*> menu,
-		Fn<Type()> type,
+		Type type,
 		Fn<void()> silent,
 		Fn<void()> schedule) {
 	if (!silent && !schedule) {
 		return FillMenuResult::None;
 	}
-	const auto now = type();
+	const auto now = type;
 	if (now == Type::Disabled
 		|| (!silent && now == Type::SilentOnly)) {
 		return FillMenuResult::None;
@@ -76,7 +76,7 @@ void SetupMenuAndShortcuts(
 	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
 	const auto showMenu = [=] {
 		*menu = base::make_unique_q<Ui::PopupMenu>(button);
-		const auto result = FillSendMenu(*menu, type, silent, schedule);
+		const auto result = FillSendMenu(*menu, type(), silent, schedule);
 		const auto success = (result == FillMenuResult::Success);
 		if (success) {
 			(*menu)->popup(QCursor::pos());

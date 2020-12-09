@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "core/core_cloud_password.h"
 #include "base/unixtime.h"
+#include "base/qt_adapters.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
 #include "styles/style_layers.h"
@@ -215,7 +216,8 @@ MTPChatAdminRights EditAdminBox::Defaults(not_null<PeerData*> peer) {
 			| Flag::f_delete_messages
 			| Flag::f_ban_users
 			| Flag::f_invite_users
-			| Flag::f_pin_messages)
+			| Flag::f_pin_messages
+			| Flag::f_manage_call)
 		: (Flag::f_change_info
 			| Flag::f_post_messages
 			| Flag::f_edit_messages
@@ -694,7 +696,7 @@ void EditRestrictedBox::showRestrictUntil() {
 			highlighted,
 			[this](const QDate &date) {
 				setRestrictUntil(
-					static_cast<int>(QDateTime(date).toTime_t()));
+					static_cast<int>(base::QDateToDateTime(date).toTime_t()));
 			}),
 		Ui::LayerOption::KeepOther);
 	_restrictUntilBox->setMaxDate(

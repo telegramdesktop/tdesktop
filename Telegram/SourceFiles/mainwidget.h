@@ -85,6 +85,7 @@ class HistoryHider;
 
 namespace Calls {
 class Call;
+class GroupCall;
 class TopBar;
 } // namespace Calls
 
@@ -175,8 +176,6 @@ public:
 	// While HistoryInner is not HistoryView::ListWidget.
 	crl::time highlightStartTime(not_null<const HistoryItem*> item) const;
 
-	MsgId currentReplyToIdFor(not_null<History*> history) const;
-
 	void sendBotCommand(
 		not_null<PeerData*> peer,
 		UserData *bot,
@@ -222,6 +221,7 @@ public:
 	using FloatDelegate::floatPlayerAreaUpdated;
 
 	void closeBothPlayers();
+	void stopAndClosePlayer();
 
 public slots:
 	void inlineResultLoadProgress(FileLoader *loader);
@@ -258,6 +258,7 @@ private:
 	void playerHeightUpdated();
 
 	void setCurrentCall(Calls::Call *call);
+	void setCurrentGroupCall(Calls::GroupCall *call);
 	void createCallTopBar();
 	void destroyCallTopBar();
 	void callTopBarHeightUpdated(int callTopBarHeight);
@@ -351,6 +352,7 @@ private:
 	std::unique_ptr<Window::ConnectionState> _connecting;
 
 	base::weak_ptr<Calls::Call> _currentCall;
+	base::weak_ptr<Calls::GroupCall> _currentGroupCall;
 	rpl::lifetime _currentCallLifetime;
 	object_ptr<Ui::SlideWrap<Calls::TopBar>> _callTopBar = { nullptr };
 

@@ -91,6 +91,8 @@ ImageWithLocation FromPhotoSize(
 		//	.bytes = bytes,
 		//	.bytesCount = bytes.size(),
 		//};
+	}, [&](const MTPDphotoPathSize &) {
+		return ImageWithLocation();
 	}, [&](const MTPDphotoSizeEmpty &) {
 		return ImageWithLocation();
 	});
@@ -183,6 +185,8 @@ ImageWithLocation FromPhotoSize(
 		//	.bytes = bytes,
 		//	.bytesCount = bytes.size(),
 		//};
+	}, [&](const MTPDphotoPathSize &data) {
+		return ImageWithLocation();
 	}, [&](const MTPDphotoSizeEmpty &) {
 		return ImageWithLocation();
 	});
@@ -263,6 +267,8 @@ ImageWithLocation FromPhotoSize(
 		//	.bytes = bytes,
 		//	.bytesCount = bytes.size(),
 		//};
+	}, [&](const MTPDphotoPathSize &data) {
+		return ImageWithLocation();
 	}, [&](const MTPDphotoSizeEmpty &) {
 		return ImageWithLocation();
 	});

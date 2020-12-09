@@ -1,3 +1,34 @@
+2.4.13 beta (09.12.20)
+
+- Fix voice messages sending.
+- Fix crash in voice calls.
+
+2.4.12 beta (09.12.20)
+
+- Voice chats in groups. (alpha version)
+
+2.4.11 beta (19.11.20)
+
+- Improve locked voice message recording.
+- Fix main window closing to tray on Windows.
+- Fix crash in bot command sending.
+- Fix adding additional photos when sending an album to a group with enabled slow mode.
+
+2.4.10 beta (17.11.20)
+
+- Use inline bots and sticker by emoji suggestions in channel comments.
+- Lock voice message recording, listen to your voice message before sending.
+
+2.4.9 beta (06.11.20)
+
+- Fix crash in tray icon removing. (macOS only)
+
+2.4.8 beta (06.11.20)
+
+- Upgrade Qt to version 5.15.1.
+- Upgrade FFmpeg to version 4.2.
+- Upgrade OpenAL to version 1.20.1.
+
 2.4.7 (05.11.20)
 
 - Fix playback display in albums of music files.

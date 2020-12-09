@@ -68,7 +68,9 @@ public:
 			Ended,
 		};
 		virtual void playSound(Sound sound) = 0;
-		virtual void requestPermissionsOrFail(Fn<void()> onSuccess) = 0;
+		virtual void callRequestPermissionsOrFail(
+			Fn<void()> onSuccess,
+			bool video) = 0;
 		virtual auto getVideoCapture()
 			-> std::shared_ptr<tgcalls::VideoCaptureInterface> = 0;
 
@@ -165,6 +167,7 @@ public:
 	crl::time getDurationMs() const;
 	float64 getWaitingSoundPeakValue() const;
 
+	void switchVideoOutgoing();
 	void answer();
 	void hangup();
 	void redial();
@@ -176,7 +179,7 @@ public:
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
 	void setCurrentVideoDevice(const QString &deviceId);
-	void setAudioVolume(bool input, float level);
+	//void setAudioVolume(bool input, float level);
 	void setAudioDuckingEnabled(bool enabled);
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
@@ -191,6 +194,7 @@ private:
 		Ended,
 		Failed,
 	};
+
 	void handleRequestError(const RPCError &error);
 	void handleControllerError(const QString &error);
 	void finish(

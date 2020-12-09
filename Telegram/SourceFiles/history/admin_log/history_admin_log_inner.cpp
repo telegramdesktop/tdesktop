@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "boxes/sticker_set_box.h"
 #include "base/platform/base_platform_info.h"
+#include "platform/platform_specific.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
@@ -599,6 +600,14 @@ bool InnerWidget::elementHideReply(not_null<const Element*> view) {
 
 bool InnerWidget::elementShownUnread(not_null<const Element*> view) {
 	return view->data()->unread();
+}
+
+void InnerWidget::elementSendBotCommand(
+	const QString &command,
+	const FullMsgId &context) {
+}
+
+void InnerWidget::elementHandleViaClick(not_null<UserData*> bot) {
 }
 
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
@@ -1212,7 +1221,9 @@ void InnerWidget::copyContextImage(not_null<PhotoData*> photo) {
 	}
 
 	const auto image = media->image(Data::PhotoSize::Large)->original();
-	QGuiApplication::clipboard()->setImage(image);
+	if (!Platform::SetClipboardImage(image)) {
+		QGuiApplication::clipboard()->setImage(image);
+	}
 }
 
 void InnerWidget::copySelectedText() {
@@ -1556,13 +1567,13 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 	_mouseSelectType = TextSelectType::Letters;
 	//_widget->noSelectingScroll(); // TODO
 
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
-	if (_selectedItem && _selectedText.from != _selectedText.to) {
+	if (QGuiApplication::clipboard()->supportsSelection()
+		&& _selectedItem
+		&& _selectedText.from != _selectedText.to) {
 		TextUtilities::SetClipboardText(
 			_selectedItem->selectedText(_selectedText),
 			QClipboard::Selection);
 	}
-#endif // Q_OS_UNIX && !Q_OS_MAC
 }
 
 void InnerWidget::updateSelected() {

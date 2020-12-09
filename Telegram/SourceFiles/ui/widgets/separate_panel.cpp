@@ -358,7 +358,6 @@ void SeparatePanel::initGeometry(QSize size) {
 			st::lineWidth,
 			st::lineWidth);
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
-	const auto screen = QApplication::desktop()->screenGeometry(center);
 	const auto rect = [&] {
 		const QRect initRect(QPoint(), size);
 		return initRect.translated(center - initRect.center()).marginsAdded(_padding);

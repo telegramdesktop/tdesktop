@@ -35,6 +35,13 @@ public:
 		int outerWidth,
 		style::color color,
 		crl::time now);
+	void paintSpeaking(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		style::color color,
+		crl::time now);
 
 	bool updateNeedsAnimating(
 		crl::time now,
@@ -48,10 +55,12 @@ private:
 	const not_null<History*> _history;
 	const base::weak_ptr<Main::Session> _weak;
 	base::flat_map<not_null<UserData*>, crl::time> _typing;
+	base::flat_map<not_null<UserData*>, crl::time> _speaking;
 	base::flat_map<not_null<UserData*>, Api::SendProgress> _sendActions;
 	QString _sendActionString;
 	Ui::Text::String _sendActionText;
 	Ui::SendActionAnimation _sendActionAnimation;
+	Ui::SendActionAnimation _speakingAnimation;
 
 };
 

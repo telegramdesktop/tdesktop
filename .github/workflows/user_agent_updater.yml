@@ -44,12 +44,14 @@ jobs:
           git remote set-url origin $url
 
       - name: Delete branch.
+        env:
+          ref: ${{ github.event.pull_request.head.ref }}
         if: |
           env.isPull == '1'
             && github.event.action == 'closed'
-            && startsWith(github.head_ref, env.headBranchPrefix)
+            && startsWith(env.ref, env.headBranchPrefix)
         run: |
-          git push origin --delete ${{ github.head_ref }}
+          git push origin --delete $ref
 
       - name: Write a new version of Google Chrome to the user-agent for DNS.
         if: env.isPull == '0'

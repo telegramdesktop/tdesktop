@@ -213,10 +213,10 @@ int InnerWidget::desiredHeight() const {
 object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
 		RpWidget *parent,
 		not_null<PeerListController*> controller) const {
+	controller->setStyleOverrides(&st::infoCommonGroupsList);
 	auto result = object_ptr<ListWidget>(
 		parent,
-		controller,
-		st::infoCommonGroupsList);
+		controller);
 	result->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
 		auto addmin = (request.ymin < 0)

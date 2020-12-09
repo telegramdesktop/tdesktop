@@ -221,7 +221,7 @@ void Inner::setupContent() {
 }
 
 Row::Row(QWidget *widget, not_null<Main::Session*> session, const Set &set)
-: RippleButton(widget, st::contactsRipple)
+: RippleButton(widget, st::defaultRippleAnimation)
 , _session(session)
 , _id(set.id)
 , _state(Available{ set.size }) {

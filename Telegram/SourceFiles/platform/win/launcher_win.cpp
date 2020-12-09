@@ -129,11 +129,11 @@ bool Launcher::launch(
 		arguments.toStdWString().c_str(),
 		nativeWorkingDir.empty() ? nullptr : nativeWorkingDir.c_str(),
 		SW_SHOWNORMAL);
-	if (long(result) < 32) {
+	if (int64(result) < 32) {
 		DEBUG_LOG(("Application Error: failed to execute %1, working directory: '%2', result: %3"
 			).arg(binaryPath
 			).arg(cWorkingDir()
-			).arg(long(result)
+			).arg(int64(result)
 			));
 		return false;
 	}

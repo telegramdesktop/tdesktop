@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "chat_helpers/send_context_menu.h"
 #include "data/data_poll.h"
 
 class History;
@@ -24,6 +25,7 @@ class Session;
 
 namespace Dialogs {
 class MainList;
+struct EntryState;
 } // namespace Dialogs
 
 namespace Window {
@@ -32,28 +34,14 @@ class Controller;
 class SessionController;
 class SessionNavigation;
 
-enum class PeerMenuSource {
-	ChatsList,
-	History,
-	Profile,
-	ScheduledSection,
-};
-
 using PeerMenuCallback = Fn<QAction*(
 	const QString &text,
 	Fn<void()> handler)>;
 
-void FillPeerMenu(
+void FillDialogsEntryMenu(
 	not_null<SessionController*> controller,
-	not_null<PeerData*> peer,
-	FilterId filterId,
-	const PeerMenuCallback &addAction,
-	PeerMenuSource source);
-void FillFolderMenu(
-	not_null<SessionController*> controller,
-	not_null<Data::Folder*> folder,
-	const PeerMenuCallback &addAction,
-	PeerMenuSource source);
+	Dialogs::EntryState request,
+	const PeerMenuCallback &addAction);
 
 void PeerMenuAddMuteAction(
 	not_null<PeerData*> peer,
@@ -79,9 +67,11 @@ void PeerMenuAddChannelMembers(
 void PeerMenuCreatePoll(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
+	MsgId replyToId = 0,
 	PollData::Flags chosen = PollData::Flags(),
 	PollData::Flags disabled = PollData::Flags(),
-	Api::SendType sendType = Api::SendType::Normal);
+	Api::SendType sendType = Api::SendType::Normal,
+	SendMenu::Type sendMenuType = SendMenu::Type::Scheduled);
 
 struct ClearChat {
 };

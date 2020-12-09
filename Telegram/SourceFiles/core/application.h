@@ -271,6 +271,7 @@ public:
 
 	void handleAppActivated();
 	void handleAppDeactivated();
+	[[nodiscard]] rpl::producer<bool> appDeactivatedValue() const;
 
 	void switchDebugMode();
 	void switchFreeType();

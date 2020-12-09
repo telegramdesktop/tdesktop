@@ -33,6 +33,8 @@ public:
 	void applyUpdatesNoPtsCheck(const MTPUpdates &updates);
 	void applyUpdateNoPtsCheck(const MTPUpdate &update);
 
+	[[nodiscard]] int32 pts() const;
+
 	void updateOnline();
 	[[nodiscard]] bool isIdle() const;
 	void checkIdleFinish();

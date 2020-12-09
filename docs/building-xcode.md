@@ -29,7 +29,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout a77e4d5
+    git checkout f22ccc5
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -39,14 +39,26 @@ Go to ***BuildPath*** and run
     git apply ../patches/gyp.diff
     ./setup.py build
     sudo ./setup.py install
-    cd ../..
+    cd ..
 
+    git clone -b macos_padding https://github.com/desktop-app/yasm.git
+    cd yasm
+    ./autogen.sh
+    make $MAKE_THREADS_CNT
+    cd ..
+
+    git clone https://github.com/desktop-app/macho_edit.git
+    cd macho_edit
+    xcodebuild build -configuration Release -project macho_edit.xcodeproj -target macho_edit
+    cd ..
+
+    cd ..
     mkdir -p Libraries/macos
     cd Libraries/macos
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout a77e4d5
+    git checkout f22ccc5
     cd ..
 
     git clone https://git.tukaani.org/xz.git
@@ -115,16 +127,19 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
-    git checkout release/3.4
+    git checkout release/4.2
     CFLAGS=`freetype-config --cflags`
     LDFLAGS=`freetype-config --libs`
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
+    cp ../patches/macos_yasm_wrap.sh ./
 
     ./configure --prefix=/usr/local/macos \
     --extra-cflags="$MIN_VER $UNGUARDED" \
     --extra-cxxflags="$MIN_VER $UNGUARDED" \
     --extra-ldflags="$MIN_VER" \
-    --enable-protocol=file --enable-libopus \
+    --x86asmexe=`pwd`/macos_yasm_wrap.sh \
+    --enable-protocol=file \
+    --enable-libopus \
     --disable-programs \
     --disable-doc \
     --disable-network \
@@ -225,9 +240,9 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
-    git clone git://repo.or.cz/openal-soft.git
+    git clone https://github.com/kcat/openal-soft.git
     cd openal-soft
-    git checkout v1.19
+    git checkout 3970252da9
     cd build
     CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -D CMAKE_INSTALL_PREFIX:PATH=/usr/local/macos -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.12 ..
     make $MAKE_THREADS_CNT
@@ -254,16 +269,16 @@ Go to ***BuildPath*** and run
     ninja -C out/Release
     cd ..
 
-    git clone git://code.qt.io/qt/qt5.git qt_5_12_8
-    cd qt_5_12_8
+    git clone git://code.qt.io/qt/qt5.git qt_5_15_2
+    cd qt_5_15_2
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.12.8
+    git checkout v5.15.2
     git submodule update qtbase qtimageformats
     cd qtbase
-    find ../../patches/qtbase_5_12_8 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_5_15_2 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
-    ./configure -prefix "/usr/local/desktop-app/Qt-5.12.8" \
+    ./configure -prefix "/usr/local/desktop-app/Qt-5.15.2" \
         -debug-and-release \
         -force-debug-info \
         -opensource \

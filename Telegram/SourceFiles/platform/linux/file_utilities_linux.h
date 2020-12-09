@@ -34,10 +34,6 @@ inline bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosit
 	return false;
 }
 
-inline bool UnsafeShowOpenWith(const QString &filepath) {
-	return false;
-}
-
 inline void PostprocessDownloaded(const QString &filepath) {
 }
 
@@ -141,7 +137,7 @@ private:
 	void hideHelper();
 
 	// Options
-	QFileDialog::Options _options = { 0 };
+	QFileDialog::Options _options;
 	QString _windowTitle = "Choose file";
 	QString _initialDirectory;
 	QStringList _initialFiles;

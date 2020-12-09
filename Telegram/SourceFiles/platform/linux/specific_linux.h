@@ -23,25 +23,21 @@ inline void SetWatchingMediaKeys(bool watching) {
 bool InFlatpak();
 bool InSnap();
 bool IsStaticBinary();
+bool AreQtPluginsBundled();
 bool UseGtkIntegration();
 bool IsGtkIntegrationForced();
-bool AreQtPluginsBundled();
-
-bool IsXDGDesktopPortalPresent();
 bool UseXDGDesktopPortal();
 bool CanOpenDirectoryWithPortal();
 
 QString AppRuntimeDirectory();
-
 QString GetLauncherBasename();
 QString GetLauncherFilename();
-
 QString GetIconName();
+
+void InstallLauncher(bool force = false);
 
 inline void IgnoreApplicationActivationRightNow() {
 }
-
-void InstallLauncher(bool force = false);
 
 } // namespace Platform
 
@@ -54,11 +50,7 @@ inline void psCheckLocalSocket(const QString &serverName) {
 
 void psWriteDump();
 
-QStringList psInitLogs();
-void psClearInitLogs();
-
 void psActivateProcess(uint64 pid = 0);
-QString psLocalServerPrefix();
 QString psAppDataPath();
 void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);

@@ -59,8 +59,8 @@ jobs:
       SDK: "10.0.18362.0"
       VC: "call vcvars32.bat && cd Libraries"
       GIT: "https://github.com"
-      QT: "5_12_8"
-      QT_VER: "5.12.8"
+      QT: "5_15_2"
+      QT_VER: "5.15.2"
       OPENSSL_VER: "1_1_1"
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
@@ -211,10 +211,8 @@ jobs:
         run: |
           %VC%
 
-          git clone %GIT%/telegramdesktop/openal-soft.git
-          cd openal-soft
-          git checkout fix_capture
-          cd build
+          git clone -b openal-soft-1.21.0 --depth=1 %GIT%/kcat/openal-soft.git
+          cd openal-soft\build
           cmake .. ^
           -G "Visual Studio 16 2019" ^
           -A Win32 ^
@@ -294,20 +292,20 @@ jobs:
 
           git clone %GIT%/FFmpeg/FFmpeg.git ffmpeg
           cd ffmpeg
-          git checkout release/3.4
+          git checkout release/4.2
           set CHERE_INVOKING=enabled_from_arguments
           set MSYS2_PATH_TYPE=inherit
-          call c:\tools\msys64\usr\bin\bash --login ../../%REPO_NAME%/Telegram/Patches/build_ffmpeg_win.sh
+          call c:\tools\msys64\usr\bin\bash --login ../patches/build_ffmpeg_win.sh
 
           rmdir /S /Q .git
 
-      - name: Qt 5.12.8 cache.
+      - name: Qt 5.15.2 cache.
         id: cache-qt
         uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/Qt-${{ env.QT_VER }}
-          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_12_8/*') }}
-      - name: Configure Qt 5.12.8.
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_15_2/*') }}
+      - name: Configure Qt 5.15.2.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           %VC%
@@ -344,7 +342,7 @@ jobs:
           -I "%LibrariesPath%\mozjpeg" ^
           LIBJPEG_LIBS_DEBUG="%LibrariesPath%\mozjpeg\Debug\jpeg-static.lib" ^
           LIBJPEG_LIBS_RELEASE="%LibrariesPath%\mozjpeg\Release\jpeg-static.lib"
-      - name: Qt 5.12.8 build.
+      - name: Qt 5.15.2 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           %VC%
@@ -367,7 +365,7 @@ jobs:
         run: |
           %VC%
 
-          git clone %GIT%/desktop-app/tg_owt.git
+          git clone --recursive %GIT%/desktop-app/tg_owt.git
           mkdir tg_owt\out\Debug
           cd tg_owt\out\Debug
           cmake -G Ninja ^

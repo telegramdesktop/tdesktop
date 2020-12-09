@@ -71,27 +71,29 @@ QString ComposeFolderListEntryText(not_null<Data::Folder*> folder) {
 BasicRow::BasicRow() = default;
 BasicRow::~BasicRow() = default;
 
-void BasicRow::setOnline(bool online, Fn<void()> updateCallback) const {
-	if (_online == online) {
+void BasicRow::setCornerBadgeShown(
+		bool shown,
+		Fn<void()> updateCallback) const {
+	if (_cornerBadgeShown == shown) {
 		return;
 	}
-	_online = online;
-	if (_onlineUserpic && _onlineUserpic->animation.animating()) {
-		_onlineUserpic->animation.change(
-			_online ? 1. : 0.,
+	_cornerBadgeShown = shown;
+	if (_cornerBadgeUserpic && _cornerBadgeUserpic->animation.animating()) {
+		_cornerBadgeUserpic->animation.change(
+			_cornerBadgeShown ? 1. : 0.,
 			st::dialogsOnlineBadgeDuration);
 	} else if (updateCallback) {
-		ensureOnlineUserpic();
-		_onlineUserpic->animation.start(
+		ensureCornerBadgeUserpic();
+		_cornerBadgeUserpic->animation.start(
 			std::move(updateCallback),
-			_online ? 0. : 1.,
-			_online ? 1. : 0.,
+			_cornerBadgeShown ? 0. : 1.,
+			_cornerBadgeShown ? 1. : 0.,
 			st::dialogsOnlineBadgeDuration);
 	}
-	if (!_online
-		&& _onlineUserpic
-		&& !_onlineUserpic->animation.animating()) {
-		_onlineUserpic = nullptr;
+	if (!_cornerBadgeShown
+		&& _cornerBadgeUserpic
+		&& !_cornerBadgeUserpic->animation.animating()) {
+		_cornerBadgeUserpic = nullptr;
 	}
 }
 
@@ -129,15 +131,29 @@ void BasicRow::paintRipple(
 	}
 }
 
-void BasicRow::ensureOnlineUserpic() const {
-	if (_onlineUserpic) {
-		return;
-	}
-	_onlineUserpic = std::make_unique<OnlineUserpic>();
+void BasicRow::updateCornerBadgeShown(
+		not_null<PeerData*> peer,
+		Fn<void()> updateCallback) const {
+	const auto shown = [&] {
+		if (const auto user = peer->asUser()) {
+			return Data::IsUserOnline(user);
+		} else if (const auto channel = peer->asChannel()) {
+			return Data::ChannelHasActiveCall(channel);
+		}
+		return false;
+	}();
+	setCornerBadgeShown(shown, std::move(updateCallback));
 }
 
-void BasicRow::PaintOnlineFrame(
-		not_null<OnlineUserpic*> data,
+void BasicRow::ensureCornerBadgeUserpic() const {
+	if (_cornerBadgeUserpic) {
+		return;
+	}
+	_cornerBadgeUserpic = std::make_unique<CornerBadgeUserpic>();
+}
+
+void BasicRow::PaintCornerBadgeFrame(
+		not_null<CornerBadgeUserpic*> data,
 		not_null<PeerData*> peer,
 		std::shared_ptr<Data::CloudImageView> &view) {
 	data->frame.fill(Qt::transparent);
@@ -153,21 +169,24 @@ void BasicRow::PaintOnlineFrame(
 	PainterHighQualityEnabler hq(q);
 	q.setCompositionMode(QPainter::CompositionMode_Source);
 
-	const auto size = st::dialogsOnlineBadgeSize;
+	const auto size = peer->isUser()
+		? st::dialogsOnlineBadgeSize
+		: st::dialogsCallBadgeSize;
 	const auto stroke = st::dialogsOnlineBadgeStroke;
-	const auto skip = st::dialogsOnlineBadgeSkip;
-	const auto edge = st::dialogsPadding.x() + st::dialogsPhotoSize;
-	const auto shrink = (size / 2) * (1. - data->online);
+	const auto skip = peer->isUser()
+		? st::dialogsOnlineBadgeSkip
+		: st::dialogsCallBadgeSkip;
+	const auto shrink = (size / 2) * (1. - data->shown);
 
 	auto pen = QPen(Qt::transparent);
-	pen.setWidthF(stroke * data->online);
+	pen.setWidthF(stroke * data->shown);
 	q.setPen(pen);
 	q.setBrush(data->active
 		? st::dialogsOnlineBadgeFgActive
 		: st::dialogsOnlineBadgeFg);
 	q.drawEllipse(QRectF(
-		edge - skip.x() - size,
-		edge - skip.y() - size,
+		st::dialogsPhotoSize - skip.x() - size,
+		st::dialogsPhotoSize - skip.y() - size,
 		size,
 		size
 	).marginsRemoved({ shrink, shrink, shrink, shrink }));
@@ -176,15 +195,16 @@ void BasicRow::PaintOnlineFrame(
 void BasicRow::paintUserpic(
 		Painter &p,
 		not_null<PeerData*> peer,
-		bool allowOnline,
+		History *historyForCornerBadge,
+		crl::time now,
 		bool active,
 		int fullWidth) const {
-	setOnline(Data::IsPeerAnOnlineUser(peer));
+	updateCornerBadgeShown(peer);
 
-	const auto online = _onlineUserpic
-		? _onlineUserpic->animation.value(_online ? 1. : 0.)
-		: (_online ? 1. : 0.);
-	if (!allowOnline || online == 0.) {
+	const auto shown = _cornerBadgeUserpic
+		? _cornerBadgeUserpic->animation.value(_cornerBadgeShown ? 1. : 0.)
+		: (_cornerBadgeShown ? 1. : 0.);
+	if (!historyForCornerBadge || shown == 0.) {
 		peer->paintUserpicLeft(
 			p,
 			_userpic,
@@ -192,34 +212,54 @@ void BasicRow::paintUserpic(
 			st::dialogsPadding.y(),
 			fullWidth,
 			st::dialogsPhotoSize);
-		if (!allowOnline || !_online) {
-			_onlineUserpic = nullptr;
+		if (!historyForCornerBadge || !_cornerBadgeShown) {
+			_cornerBadgeUserpic = nullptr;
 		}
 		return;
 	}
-	ensureOnlineUserpic();
-	if (_onlineUserpic->frame.isNull()) {
-		_onlineUserpic->frame = QImage(
+	ensureCornerBadgeUserpic();
+	if (_cornerBadgeUserpic->frame.isNull()) {
+		_cornerBadgeUserpic->frame = QImage(
 			st::dialogsPhotoSize * cRetinaFactor(),
 			st::dialogsPhotoSize * cRetinaFactor(),
 			QImage::Format_ARGB32_Premultiplied);
-		_onlineUserpic->frame.setDevicePixelRatio(cRetinaFactor());
+		_cornerBadgeUserpic->frame.setDevicePixelRatio(cRetinaFactor());
 	}
 	const auto key = peer->userpicUniqueKey(_userpic);
-	if (_onlineUserpic->online != online
-		|| _onlineUserpic->key != key
-		|| _onlineUserpic->active != active) {
-		_onlineUserpic->online = online;
-		_onlineUserpic->key = key;
-		_onlineUserpic->active = active;
-		PaintOnlineFrame(_onlineUserpic.get(), peer, _userpic);
+	if (_cornerBadgeUserpic->shown != shown
+		|| _cornerBadgeUserpic->key != key
+		|| _cornerBadgeUserpic->active != active) {
+		_cornerBadgeUserpic->shown = shown;
+		_cornerBadgeUserpic->key = key;
+		_cornerBadgeUserpic->active = active;
+		PaintCornerBadgeFrame(_cornerBadgeUserpic.get(), peer, _userpic);
 	}
-	p.drawImage(st::dialogsPadding, _onlineUserpic->frame);
+	p.drawImage(st::dialogsPadding, _cornerBadgeUserpic->frame);
+	if (historyForCornerBadge->peer->isUser()) {
+		return;
+	}
+	const auto actionPainter = historyForCornerBadge->sendActionPainter();
+	const auto bg = active
+		? st::dialogsBgActive
+		: st::dialogsBg;
+	const auto size = st::dialogsCallBadgeSize;
+	const auto skip = st::dialogsCallBadgeSkip;
+	p.setOpacity(shown);
+	p.translate(st::dialogsPadding);
+	actionPainter->paintSpeaking(
+		p,
+		st::dialogsPhotoSize - skip.x() - size,
+		st::dialogsPhotoSize - skip.y() - size,
+		fullWidth,
+		bg,
+		now);
+	p.translate(-st::dialogsPadding);
+	p.setOpacity(1.);
 }
 
 Row::Row(Key key, int pos) : _id(key), _pos(pos) {
 	if (const auto history = key.history()) {
-		setOnline(Data::IsPeerAnOnlineUser(history->peer));
+		updateCornerBadgeShown(history->peer);
 	}
 }
 

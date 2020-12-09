@@ -52,12 +52,9 @@ extern "C" {
 } // extern "C"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-#include <glib.h>
-
 namespace Platform {
 namespace {
 
-constexpr auto kDisableTrayCounter = "TDESKTOP_DISABLE_TRAY_COUNTER"_cs;
 constexpr auto kPanelTrayIconName = "telegram-panel"_cs;
 constexpr auto kMutePanelTrayIconName = "telegram-mute-panel"_cs;
 constexpr auto kAttentionPanelTrayIconName = "telegram-attention-panel"_cs;
@@ -201,17 +198,10 @@ QIcon TrayIconGen(int counter, bool muted) {
 
 	const auto iconName = GetTrayIconName(counter, muted);
 
-	if (qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
-		&& !iconName.isEmpty()) {
-		const auto result = QIcon::fromTheme(iconName);
-		UpdateIconRegenerationNeeded(result, counter, muted, iconThemeName);
-		return result;
-	}
-
 	QIcon result;
 	QIcon systemIcon;
 
-	const auto iconSizes = {
+	static const auto iconSizes = {
 		16,
 		22,
 		24,
@@ -251,9 +241,12 @@ QIcon TrayIconGen(int counter, bool muted) {
 				currentImageBack = Core::App().logo();
 			}
 
-			if (currentImageBack.size() != desiredSize) {
+			const auto currentImageBackSize = currentImageBack.size()
+				/ currentImageBack.devicePixelRatio();
+
+			if (currentImageBackSize != desiredSize) {
 				currentImageBack = currentImageBack.scaled(
-					desiredSize,
+					desiredSize * currentImageBack.devicePixelRatio(),
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation);
 			}
@@ -261,8 +254,7 @@ QIcon TrayIconGen(int counter, bool muted) {
 
 		auto iconImage = currentImageBack;
 
-		if (!qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
-			&& counter > 0) {
+		if (counter > 0) {
 			const auto &bg = muted
 				? st::trayCounterBgMute
 				: st::trayCounterBg;
@@ -339,8 +331,7 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 	static const auto templateName = AppRuntimeDirectory()
 		+ kTrayIconFilename.utf16();
 
-	const auto dpr = style::DevicePixelRatio();
-	const auto desiredSize = QSize(22 * dpr, 22 * dpr);
+	static const auto desiredSize = QSize(22, 22);
 
 	auto ret = std::make_unique<QTemporaryFile>(
 		templateName,
@@ -358,10 +349,11 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 			std::less<>(),
 			&QSize::width);
 
-		icon
-			.pixmap(*biggestSize)
+		const auto iconPixmap = icon.pixmap(*biggestSize);
+
+		iconPixmap
 			.scaled(
-				desiredSize,
+				desiredSize * iconPixmap.devicePixelRatio(),
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation)
 			.save(ret.get());
@@ -588,17 +580,7 @@ void MainWindow::psTrayMenuUpdated() {
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void MainWindow::setSNITrayIcon(int counter, bool muted) {
-	const auto iconName = GetTrayIconName(counter, muted);
-
-	if (qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())
-		&& !iconName.isEmpty()) {
-		if (_sniTrayIcon->iconName() == iconName) {
-			return;
-		}
-
-		_sniTrayIcon->setIconByName(iconName);
-		_sniTrayIcon->setToolTipIconByName(iconName);
-	} else if (IsIndicatorApplication()) {
+	if (IsIndicatorApplication()) {
 		if (!IsIconRegenerationNeeded(counter, muted)
 			&& _trayIconFile
 			&& _sniTrayIcon->iconName() == _trayIconFile->fileName()) {
@@ -871,13 +853,6 @@ void MainWindow::LibsLoaded() {
 	qDBusRegisterMetaType<IconPixmap>();
 	qDBusRegisterMetaType<IconPixmapList>();
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	if (!qEnvironmentVariableIsSet(kDisableTrayCounter.utf8())) {
-		g_message(
-			"You can disable tray icon counter with %s "
-			"and make it look better if it is monochrome.",
-			kDisableTrayCounter.utf8().constData());
-	}
 }
 
 void MainWindow::initTrayMenuHook() {

@@ -20,24 +20,24 @@ struct HistoryServiceDependentData {
 };
 
 struct HistoryServicePinned
-	: public RuntimeComponent<HistoryServicePinned, HistoryItem>
-	, public HistoryServiceDependentData {
+: public RuntimeComponent<HistoryServicePinned, HistoryItem>
+, public HistoryServiceDependentData {
 };
 
 struct HistoryServiceGameScore
-	: public RuntimeComponent<HistoryServiceGameScore, HistoryItem>
-	, public HistoryServiceDependentData {
+: public RuntimeComponent<HistoryServiceGameScore, HistoryItem>
+, public HistoryServiceDependentData {
 	int score = 0;
 };
 
 struct HistoryServicePayment
-	: public RuntimeComponent<HistoryServicePayment, HistoryItem>
-	, public HistoryServiceDependentData {
+: public RuntimeComponent<HistoryServicePayment, HistoryItem>
+, public HistoryServiceDependentData {
 	QString amount;
 };
 
 struct HistoryServiceSelfDestruct
-	: public RuntimeComponent<HistoryServiceSelfDestruct, HistoryItem> {
+: public RuntimeComponent<HistoryServiceSelfDestruct, HistoryItem> {
 	enum class Type {
 		Photo,
 		Video,
@@ -45,6 +45,12 @@ struct HistoryServiceSelfDestruct
 	Type type = Type::Photo;
 	crl::time timeToLive = 0;
 	crl::time destructAt = 0;
+};
+
+struct HistoryServiceOngoingCall
+: public RuntimeComponent<HistoryServiceOngoingCall, HistoryItem> {
+	uint64 id = 0;
+	rpl::lifetime lifetime;
 };
 
 namespace HistoryView {
@@ -95,9 +101,7 @@ public:
 
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
-	bool needCheck() const override {
-		return false;
-	}
+	bool needCheck() const override;
 	bool serviceMsg() const override {
 		return true;
 	}
@@ -138,6 +142,7 @@ private:
 	}
 	bool updateDependent(bool force = false);
 	void updateDependentText();
+	void updateText(PreparedText &&text);
 	void clearDependency();
 
 	void createFromMtp(const MTPDmessage &message);
@@ -151,6 +156,11 @@ private:
 	PreparedText preparePinnedText();
 	PreparedText prepareGameScoreText();
 	PreparedText preparePaymentSentText();
+	PreparedText prepareDiscardedCallText(int duration);
+	PreparedText prepareStartedCallText(uint64 linkCallId);
+	PreparedText prepareInvitedToCallText(
+		const QVector<MTPint> &users,
+		uint64 linkCallId);
 
 	friend class HistoryView::Service;
 

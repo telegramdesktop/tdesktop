@@ -40,7 +40,7 @@ Fn<void()> DefaultScheduleCallback(
 
 FillMenuResult FillSendMenu(
 	not_null<Ui::PopupMenu*> menu,
-	Fn<Type()> type,
+	Type type,
 	Fn<void()> silent,
 	Fn<void()> schedule);
 

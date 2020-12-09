@@ -288,10 +288,19 @@ void Call::startIncoming() {
 	}).send();
 }
 
+void Call::switchVideoOutgoing() {
+	const auto video = _videoOutgoing->state() == Webrtc::VideoState::Active;
+	_delegate->callRequestPermissionsOrFail(crl::guard(this, [=] {
+		videoOutgoing()->setState(StartVideoState(!video));
+	}), true);
+
+}
+
 void Call::answer() {
-	_delegate->requestPermissionsOrFail(crl::guard(this, [=] {
+	const auto video = _videoOutgoing->state() == Webrtc::VideoState::Active;
+	_delegate->callRequestPermissionsOrFail(crl::guard(this, [=] {
 		actuallyAnswer();
-	}));
+	}), video);
 }
 
 void Call::actuallyAnswer() {
@@ -776,11 +785,11 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		auto callLogPath = callLogFolder + qsl("/last_call_log.txt");
 		auto callLogNative = QDir::toNativeSeparators(callLogPath);
 #ifdef Q_OS_WIN
-		descriptor.config.logPath = callLogNative.toStdWString();
+		descriptor.config.logPath.data = callLogNative.toStdWString();
 #else // Q_OS_WIN
 		const auto callLogUtf = QFile::encodeName(callLogNative);
-		descriptor.config.logPath.resize(callLogUtf.size());
-		ranges::copy(callLogUtf, descriptor.config.logPath.begin());
+		descriptor.config.logPath.data.resize(callLogUtf.size());
+		ranges::copy(callLogUtf, descriptor.config.logPath.data.begin());
 #endif // Q_OS_WIN
 		QFile(callLogPath).remove();
 		QDir().mkpath(callLogFolder);
@@ -978,15 +987,15 @@ void Call::setCurrentVideoDevice(const QString &deviceId) {
 	}
 }
 
-void Call::setAudioVolume(bool input, float level) {
-	if (_instance) {
-		if (input) {
-			_instance->setInputVolume(level);
-		} else {
-			_instance->setOutputVolume(level);
-		}
-	}
-}
+//void Call::setAudioVolume(bool input, float level) {
+//	if (_instance) {
+//		if (input) {
+//			_instance->setInputVolume(level);
+//		} else {
+//			_instance->setOutputVolume(level);
+//		}
+//	}
+//}
 
 void Call::setAudioDuckingEnabled(bool enabled) {
 	if (_instance) {
@@ -1027,7 +1036,12 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 		|| (_videoOutgoing->state() != Webrtc::VideoState::Inactive))
 		? MTPphone_DiscardCall::Flag::f_video
 		: MTPphone_DiscardCall::Flag(0);
-	_api.request(MTPphone_DiscardCall(
+
+	// We want to discard request still being sent and processed even if
+	// the call is already destroyed.
+	const auto session = &_user->session();
+	const auto weak = base::make_weak(this);
+	session->api().request(MTPphone_DiscardCall( // We send 'discard' here.
 		MTP_flags(flags),
 		MTP_inputPhoneCall(
 			MTP_long(_id),
@@ -1038,11 +1052,11 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	)).done([=](const MTPUpdates &result) {
 		// Here 'this' could be destroyed by updates, so we set Ended after
 		// updates being handled, but in a guarded way.
-		crl::on_main(this, [=] { setState(finalState); });
-		_user->session().api().applyUpdates(result);
-	}).fail([this, finalState](const RPCError &error) {
+		crl::on_main(weak, [=] { setState(finalState); });
+		session->api().applyUpdates(result);
+	}).fail(crl::guard(weak, [this, finalState](const RPCError &error) {
 		setState(finalState);
-	}).send();
+	})).send();
 }
 
 void Call::setStateQueued(State state) {

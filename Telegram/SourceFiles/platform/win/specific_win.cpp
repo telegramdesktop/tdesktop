@@ -70,8 +70,6 @@ using namespace Platform;
 
 namespace {
 
-QStringList _initLogs;
-
 bool themeInited = false;
 bool finished = true;
 QMargins simpleMargins, margins;
@@ -106,14 +104,6 @@ BOOL CALLBACK _ActivateProcess(HWND hWnd, LPARAM lParam) {
 	return TRUE;
 }
 
-}
-
-QStringList psInitLogs() {
-	return _initLogs;
-}
-
-void psClearInitLogs() {
-	_initLogs = QStringList();
 }
 
 void psActivateProcess(uint64 pid) {
@@ -155,14 +145,9 @@ void psDoCleanup() {
 	}
 }
 
-namespace {
-
-QRect _monitorRect;
-crl::time _monitorLastGot = 0;
-
-} // namespace
-
 QRect psDesktopRect() {
+	static QRect _monitorRect;
+	static crl::time _monitorLastGot = 0;
 	auto tnow = crl::now();
 	if (tnow > _monitorLastGot + 1000LL || tnow < _monitorLastGot) {
 		_monitorLastGot = tnow;
@@ -340,14 +325,13 @@ bool ShowWindowMenu(QWindow *window) {
 }
 
 Window::ControlsLayout WindowControlsLayout() {
-	Window::ControlsLayout controls;
-	controls.right = {
-		Window::Control::Minimize,
-		Window::Control::Maximize,
-		Window::Control::Close,
+	return Window::ControlsLayout{
+		.right = {
+			Window::Control::Minimize,
+			Window::Control::Maximize,
+			Window::Control::Close,
+		}
 	};
-
-	return controls;
 }
 
 } // namespace Platform

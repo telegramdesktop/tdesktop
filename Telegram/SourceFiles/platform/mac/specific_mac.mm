@@ -36,20 +36,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <mach-o/dyld.h>
 #include <AVFoundation/AVFoundation.h>
 
-namespace {
-
-QStringList _initLogs;
-
-};
-
-namespace {
-
-QRect _monitorRect;
-crl::time _monitorLastGot = 0;
-
-} // namespace
-
 QRect psDesktopRect() {
+	static QRect _monitorRect;
+	static crl::time _monitorLastGot = 0;
 	auto tnow = crl::now();
 	if (tnow > _monitorLastGot + 1000 || tnow < _monitorLastGot) {
 		_monitorLastGot = tnow;
@@ -63,14 +52,6 @@ void psWriteDump() {
 	double v = objc_appkitVersion();
 	CrashReports::dump() << "OS-Version: " << v;
 #endif // DESKTOP_APP_DISABLE_CRASH_REPORTS
-}
-
-QStringList psInitLogs() {
-	return _initLogs;
-}
-
-void psClearInitLogs() {
-	_initLogs = QStringList();
 }
 
 void psActivateProcess(uint64 pid) {
@@ -223,14 +204,13 @@ void IgnoreApplicationActivationRightNow() {
 }
 
 Window::ControlsLayout WindowControlsLayout() {
-	Window::ControlsLayout controls;
-	controls.left = {
-		Window::Control::Close,
-		Window::Control::Minimize,
-		Window::Control::Maximize,
+	return Window::ControlsLayout{
+		.left = {
+			Window::Control::Close,
+			Window::Control::Minimize,
+			Window::Control::Maximize,
+		}
 	};
-
-	return controls;
 }
 
 } // namespace Platform

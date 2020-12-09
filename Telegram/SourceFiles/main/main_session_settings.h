@@ -51,6 +51,12 @@ public:
 	void setSupportAllSearchResults(bool all);
 	[[nodiscard]] bool supportAllSearchResults() const;
 	[[nodiscard]] rpl::producer<bool> supportAllSearchResultsValue() const;
+	void setSupportAllSilent(bool enabled) {
+		_supportAllSilent = enabled;
+	}
+	[[nodiscard]] bool supportAllSilent() const {
+		return _supportAllSilent;
+	}
 
 	[[nodiscard]] ChatHelpers::SelectorTab selectorTab() const {
 		return _selectorTab;
@@ -131,6 +137,7 @@ private:
 	Support::SwitchSettings _supportSwitch;
 	bool _supportFixChatsOrder = true;
 	bool _supportTemplatesAutocomplete = true;
+	bool _supportAllSilent = false;
 	rpl::variable<int> _supportChatsTimeSlice
 		= kDefaultSupportChatsLimitSlice;
 	rpl::variable<bool> _supportAllSearchResults = false;

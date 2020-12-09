@@ -458,6 +458,14 @@ struct ActionGeoProximityReached {
 	bool toSelf = false;
 };
 
+struct ActionGroupCall {
+	int duration = 0;
+};
+
+struct ActionInviteToGroupCall {
+	std::vector<int32> userIds;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -482,7 +490,9 @@ struct ServiceAction {
 		ActionSecureValuesSent,
 		ActionContactSignUp,
 		ActionPhoneNumberRequest,
-		ActionGeoProximityReached> content;
+		ActionGeoProximityReached,
+		ActionGroupCall,
+		ActionInviteToGroupCall> content;
 };
 
 ServiceAction ParseServiceAction(

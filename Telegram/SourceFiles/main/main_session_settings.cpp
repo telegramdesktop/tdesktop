@@ -69,6 +69,7 @@ QByteArray SessionSettings::serialize() const {
 			stream << quint64(key) << qint32(value);
 		}
 		stream << qint32(_dialogsFiltersEnabled ? 1 : 0);
+		stream << qint32(_supportAllSilent ? 1 : 0);
 	}
 	return result;
 }
@@ -127,6 +128,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	qint32 appAutoDownloadDictionaries = app.autoDownloadDictionaries() ? 1 : 0;
 	base::flat_map<PeerId, MsgId> hiddenPinnedMessages;
 	qint32 dialogsFiltersEnabled = _dialogsFiltersEnabled ? 1 : 0;
+	qint32 supportAllSilent = _supportAllSilent ? 1 : 0;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -321,6 +323,9 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> dialogsFiltersEnabled;
 	}
+	if (!stream.atEnd()) {
+		stream >> supportAllSilent;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -362,6 +367,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	_mediaLastPlaybackPosition = std::move(mediaLastPlaybackPosition);
 	_hiddenPinnedMessages = std::move(hiddenPinnedMessages);
 	_dialogsFiltersEnabled = (dialogsFiltersEnabled == 1);
+	_supportAllSilent = (supportAllSilent == 1);
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);

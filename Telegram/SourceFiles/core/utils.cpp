@@ -170,17 +170,10 @@ namespace ThirdParty {
 			LOG(("MTP Error: dynlock_create callback is set without dynlock_lock callback!"));
 		}
 
-		av_register_all();
-		avcodec_register_all();
-
-		av_lockmgr_register(_ffmpegLockManager);
-
 		_sslInited = true;
 	}
 
 	void finish() {
-		av_lockmgr_register(nullptr);
-
 		CRYPTO_cleanup_all_ex_data();
 #ifndef LIBRESSL_VERSION_NUMBER
 		FIPS_mode_set(0);

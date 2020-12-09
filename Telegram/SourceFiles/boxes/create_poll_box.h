@@ -22,6 +22,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace SendMenu {
+enum class Type;
+} // namespace SendMenu
+
 class CreatePollBox : public Ui::BoxContent {
 public:
 	struct Result {
@@ -34,7 +38,8 @@ public:
 		not_null<Window::SessionController*> controller,
 		PollData::Flags chosen,
 		PollData::Flags disabled,
-		Api::SendType sendType);
+		Api::SendType sendType,
+		SendMenu::Type sendMenuType);
 
 	[[nodiscard]] rpl::producer<Result> submitRequests() const;
 	void submitFailed(const QString &error);
@@ -66,6 +71,7 @@ private:
 	const PollData::Flags _chosen = PollData::Flags();
 	const PollData::Flags _disabled = PollData::Flags();
 	const Api::SendType _sendType = Api::SendType();
+	const SendMenu::Type _sendMenuType;
 	Fn<void()> _setInnerFocus;
 	Fn<rpl::producer<bool>()> _dataIsValidValue;
 	rpl::event_stream<Result> _submitRequests;

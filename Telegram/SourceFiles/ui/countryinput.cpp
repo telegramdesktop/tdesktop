@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/effects/ripple_animation.h"
 #include "data/data_countries.h"
+#include "base/qt_adapters.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
@@ -147,12 +148,12 @@ void CountryInput::setText(const QString &newText) {
 }
 
 CountrySelectBox::CountrySelectBox(QWidget*)
-: _select(this, st::contactsMultiSelect, tr::lng_country_ph()) {
+: _select(this, st::defaultMultiSelect, tr::lng_country_ph()) {
 }
 
 CountrySelectBox::CountrySelectBox(QWidget*, const QString &iso, Type type)
 : _type(type)
-, _select(this, st::contactsMultiSelect, tr::lng_country_ph()) {
+, _select(this, st::defaultMultiSelect, tr::lng_country_ph()) {
 	if (Data::CountriesByISO2().contains(iso)) {
 		LastValidISO = iso;
 	}
@@ -248,7 +249,7 @@ CountrySelectBox::Inner::Inner(QWidget *parent, Type type)
 				: QString());
 		const auto namesList = std::move(full).toLower().split(
 			QRegularExpression("[\\s\\-]"),
-			QString::SkipEmptyParts);
+			base::QStringSkipEmptyParts);
 		auto &names = _namesList.emplace_back();
 		names.reserve(namesList.size());
 		for (const auto &name : namesList) {

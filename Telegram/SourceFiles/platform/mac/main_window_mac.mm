@@ -124,6 +124,17 @@ private:
 
 };
 
+[[nodiscard]] QImage TrayIconBack(bool darkMode) {
+	static const auto WithColor = [](QColor color) {
+		return st::macTrayIcon.instance(color, 100);
+	};
+	static const auto DarkModeResult = WithColor({ 255, 255, 255 });
+	static const auto LightModeResult = WithColor({ 0, 0, 0, 180 });
+	auto result = darkMode ? DarkModeResult : LightModeResult;
+	result.detach();
+	return result;
+}
+
 } // namespace
 
 class MainWindow::Private {
@@ -200,7 +211,6 @@ private:
 - (void) darkModeChanged:(NSNotification *)aNotification {
 	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 		Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
-		Core::App().domain().notifyUnreadBadgeChanged();
 	});
 }
 
@@ -485,9 +495,6 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 	auto forceOpenGL = std::make_unique<QOpenGLWidget>(this);
 #endif // !OS_MAC_OLD
 
-	trayImg = st::macTrayIcon.instance(QColor(0, 0, 0, 180), 100);
-	trayImgSel = st::macTrayIcon.instance(QColor(255, 255, 255), 100);
-
 	_hideAfterFullScreenTimer.setCallback([this] { hideAndDeactivate(); });
 
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
@@ -543,10 +550,6 @@ void MainWindow::hideAndDeactivate() {
 	hide();
 }
 
-QImage MainWindow::psTrayIcon(bool selected) const {
-	return selected ? trayImgSel : trayImg;
-}
-
 void MainWindow::psShowTrayMenu() {
 }
 
@@ -566,14 +569,13 @@ void MainWindow::psTrayMenuUpdated() {
 void MainWindow::psSetupTrayIcon() {
 	if (!trayIcon) {
 		trayIcon = new QSystemTrayIcon(this);
-
-		QIcon icon(QPixmap::fromImage(psTrayIcon(), Qt::ColorOnly));
-		icon.addPixmap(QPixmap::fromImage(psTrayIcon(true), Qt::ColorOnly), QIcon::Selected);
-
-		trayIcon->setIcon(icon);
+		trayIcon->setIcon(generateIconForTray(
+			Core::App().unreadBadge(),
+			Core::App().unreadBadgeMuted()));
 		attachToTrayIcon(trayIcon);
+	} else {
+		updateIconCounters();
 	}
-	updateIconCounters();
 
 	trayIcon->show();
 }
@@ -651,19 +653,29 @@ void MainWindow::updateIconCounters() {
 	_private->setWindowBadge(string);
 
 	if (trayIcon) {
-		bool dm = Platform::IsDarkMenuBar();
-		auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
-		QIcon icon;
-		QImage img(psTrayIcon(dm)), imgsel(psTrayIcon(true));
-		img.detach();
-		imgsel.detach();
-		int32 size = 22 * cIntRetinaFactor();
-		_placeCounter(img, size, counter, bg, (dm && muted) ? st::trayCounterFgMacInvert : st::trayCounterFg);
-		_placeCounter(imgsel, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
-		icon.addPixmap(App::pixmapFromImageInPlace(std::move(img)));
-		icon.addPixmap(App::pixmapFromImageInPlace(std::move(imgsel)), QIcon::Selected);
-		trayIcon->setIcon(icon);
+		trayIcon->setIcon(generateIconForTray(counter, muted));
 	}
+}
+
+QIcon MainWindow::generateIconForTray(int counter, bool muted) const {
+	auto result = QIcon();
+	auto lightMode = TrayIconBack(false);
+	auto darkMode = TrayIconBack(true);
+	auto lightModeActive = darkMode;
+	auto darkModeActive = darkMode;
+	lightModeActive.detach();
+	darkModeActive.detach();
+	const auto size = 22 * cIntRetinaFactor();
+	const auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
+	_placeCounter(lightMode, size, counter, bg, st::trayCounterFg);
+	_placeCounter(darkMode, size, counter, bg, muted ? st::trayCounterFgMacInvert : st::trayCounterFg);
+	_placeCounter(lightModeActive, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
+	_placeCounter(darkModeActive, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
+	result.addPixmap(App::pixmapFromImageInPlace(std::move(lightMode)), QIcon::Normal, QIcon::Off);
+	result.addPixmap(App::pixmapFromImageInPlace(std::move(darkMode)), QIcon::Normal, QIcon::On);
+	result.addPixmap(App::pixmapFromImageInPlace(std::move(lightModeActive)), QIcon::Active, QIcon::Off);
+	result.addPixmap(App::pixmapFromImageInPlace(std::move(darkModeActive)), QIcon::Active, QIcon::On);
+	return result;
 }
 
 void MainWindow::initShadows() {

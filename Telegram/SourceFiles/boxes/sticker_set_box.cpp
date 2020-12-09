@@ -597,8 +597,8 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 
 QSize StickerSetBox::Inner::boundingBoxSize() const {
 	return QSize(
-		st::stickersSize.width() - st::buttonRadius * 2,
-		st::stickersSize.height() - st::buttonRadius * 2);
+		st::stickersSize.width() - st::roundRadiusSmall * 2,
+		st::stickersSize.height() - st::roundRadiusSmall * 2);
 }
 
 void StickerSetBox::Inner::visibleTopBottomUpdated(
@@ -684,7 +684,7 @@ void StickerSetBox::Inner::paintSticker(
 		w = std::max(size.width(), 1);
 		h = std::max(size.height(), 1);
 	} else {
-		auto coef = qMin((st::stickersSize.width() - st::buttonRadius * 2) / float64(document->dimensions.width()), (st::stickersSize.height() - st::buttonRadius * 2) / float64(document->dimensions.height()));
+		auto coef = qMin((st::stickersSize.width() - st::roundRadiusSmall * 2) / float64(document->dimensions.width()), (st::stickersSize.height() - st::roundRadiusSmall * 2) / float64(document->dimensions.height()));
 		if (coef > 1) coef = 1;
 		w = std::max(qRound(coef * document->dimensions.width()), 1);
 		h = std::max(qRound(coef * document->dimensions.height()), 1);

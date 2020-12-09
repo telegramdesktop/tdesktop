@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/invoke_queued.h"
 #include "base/qthelp_url.h"
 #include "base/qthelp_regex.h"
+#include "base/qt_adapters.h"
 #include "ui/effects/animations.h"
 #include "facades.h"
 #include "app.h"
@@ -34,9 +35,6 @@ namespace Core {
 namespace {
 
 constexpr auto kEmptyPidForCommandResponse = 0ULL;
-
-using ErrorSignal = void(QLocalSocket::*)(QLocalSocket::LocalSocketError);
-const auto QLocalSocket_error = ErrorSignal(&QLocalSocket::error);
 
 QChar _toHex(ushort v) {
 	v = v & 0x000F;
@@ -112,7 +110,7 @@ int Sandbox::start() {
 		[=] { socketDisconnected(); });
 	connect(
 		&_localSocket,
-		QLocalSocket_error,
+		base::QLocalSocket_error,
 		[=](QLocalSocket::LocalSocketError error) { socketError(error); });
 	connect(
 		&_localSocket,
@@ -217,7 +215,7 @@ void Sandbox::setupScreenScale() {
 Sandbox::~Sandbox() = default;
 
 bool Sandbox::event(QEvent *e) {
-	if (e->type() == QEvent::Close) {
+	if (e->type() == QEvent::Close || e->type() == QEvent::Quit) {
 		App::quit();
 	}
 	return QApplication::event(e);

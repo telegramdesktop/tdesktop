@@ -229,7 +229,7 @@ NSSliderTouchBarItem *CreateTouchBarSlider(
 			touchesMatchingPhase:NSTouchPhaseEnded
 			inView:nil].count > 0;
 		Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-			callback(touchUp, seekBar.doubleValue, *lastDurationMs);
+			callback(touchUp, seekBar.slider.doubleValue, *lastDurationMs);
 		});
 	} copy];
 

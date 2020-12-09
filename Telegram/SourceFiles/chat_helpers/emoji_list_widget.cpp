@@ -478,7 +478,7 @@ EmojiListWidget::SectionInfo EmojiListWidget::sectionInfoByOffset(int yOffset) c
 }
 
 int EmojiListWidget::countDesiredHeight(int newWidth) {
-	auto fullWidth = (st::buttonRadius + newWidth + st::emojiScroll.width);
+	auto fullWidth = (st::roundRadiusSmall + newWidth + st::emojiScroll.width);
 	_columnCount = std::max(
 		(fullWidth - st::emojiPadding * 2) / st::emojiPanDesiredSize,
 		1);
@@ -487,7 +487,7 @@ int EmojiListWidget::countDesiredHeight(int newWidth) {
 	auto rowsRight = std::max(_rowsLeft, st::emojiScroll.width);
 	auto singleWidth = (fullWidth - _rowsLeft - rowsRight)
 		/ _columnCount;
-	_rowsLeft -= st::buttonRadius;
+	_rowsLeft -= st::roundRadiusSmall;
 	_singleSize = QSize(singleWidth, singleWidth - 4 * st::lineWidth);
 	_picker->setSingleSize(_singleSize);
 	return sectionInfo(kEmojiSectionCount - 1).rowsBottom + st::emojiPanPadding;
@@ -541,7 +541,7 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 		if (info.section > 0 && r.top() < info.rowsTop) {
 			p.setFont(st::emojiPanHeaderFont);
 			p.setPen(st::emojiPanHeaderFg);
-			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, info.top + st::emojiPanHeaderTop, width(), ChatHelpers::EmojiCategoryTitle(info.section)(tr::now));
+			p.drawTextLeft(st::emojiPanHeaderLeft - st::roundRadiusSmall, info.top + st::emojiPanHeaderTop, width(), ChatHelpers::EmojiCategoryTitle(info.section)(tr::now));
 		}
 		if (r.top() + r.height() > info.rowsTop) {
 			ensureLoaded(info.section);
@@ -663,9 +663,9 @@ void EmojiListWidget::showPicker() {
 		_picker->showEmoji(_emoji[section][sel]);
 
 		auto y = emojiRect(section, sel).y();
-		y -= _picker->height() - st::buttonRadius + getVisibleTop();
+		y -= _picker->height() - st::roundRadiusSmall + getVisibleTop();
 		if (y < st::emojiPanHeader) {
-			y += _picker->height() - st::buttonRadius + _singleSize.height() - st::buttonRadius;
+			y += _picker->height() - st::roundRadiusSmall + _singleSize.height() - st::roundRadiusSmall;
 		}
 		auto xmax = width() - _picker->width();
 		auto coef = float64(sel % _columnCount) / float64(_columnCount - 1);

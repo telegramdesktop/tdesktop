@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/openssl_help.h"
 #include "base/unixtime.h"
+#include "base/qt_adapters.h"
 #include "base/call_delayed.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -2440,16 +2441,14 @@ void ApiWrap::saveCurrentDraftToCloud() {
 	Core::App().saveCurrentDraftsToHistories();
 
 	for (const auto controller : _session->windows()) {
-		if (const auto peer = controller->activeChatCurrent().peer()) {
-			if (const auto history = _session->data().historyLoaded(peer)) {
-				_session->local().writeDrafts(history);
+		if (const auto history = controller->activeChatCurrent().history()) {
+			_session->local().writeDrafts(history);
 
-				const auto localDraft = history->localDraft();
-				const auto cloudDraft = history->cloudDraft();
-				if (!Data::draftsAreEqual(localDraft, cloudDraft)
-					&& !_session->supportMode()) {
-					saveDraftToCloudDelayed(history);
-				}
+			const auto localDraft = history->localDraft();
+			const auto cloudDraft = history->cloudDraft();
+			if (!Data::draftsAreEqual(localDraft, cloudDraft)
+				&& !_session->supportMode()) {
+				saveDraftToCloudDelayed(history);
 			}
 		}
 	}
@@ -3277,7 +3276,7 @@ void ApiWrap::requestMessageAfterDate(
 	// So we request a message with offset_date = desired_date - 1 and add_offset = -1.
 	// This should give us the first message with date >= desired_date.
 	auto offsetId = 0;
-	auto offsetDate = static_cast<int>(QDateTime(date).toTime_t()) - 1;
+	auto offsetDate = static_cast<int>(base::QDateToDateTime(date).toTime_t()) - 1;
 	auto addOffset = -1;
 	auto limit = 1;
 	auto maxId = 0;
@@ -3365,7 +3364,7 @@ void ApiWrap::jumpToHistoryDate(not_null<PeerData*> peer, const QDate &date) {
 //		const QDate &date,
 //		Callback &&callback) {
 //	const auto offsetId = 0;
-//	const auto offsetDate = static_cast<TimeId>(QDateTime(date).toTime_t());
+//	const auto offsetDate = static_cast<TimeId>(base::QDateToDateTime(date).toTime_t());
 //	const auto addOffset = -2;
 //	const auto limit = 1;
 //	const auto hash = 0;
@@ -3956,8 +3955,7 @@ void ApiWrap::forwardMessages(
 	histories.readInbox(history);
 
 	const auto anonymousPost = peer->amAnonymous();
-	const auto silentPost = action.options.silent
-		|| (peer->isBroadcast() && _session->data().notifySilentPosts(peer));
+	const auto silentPost = ShouldSendSilent(peer, action.options);
 
 	auto flags = MTPDmessage::Flags(0);
 	auto clientFlags = MTPDmessage_ClientFlags();
@@ -3983,6 +3981,7 @@ void ApiWrap::forwardMessages(
 			++shared->requestsLeft;
 		}
 		const auto requestType = Data::Histories::RequestType::Send;
+		const auto idsCopy = localIds;
 		histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
 			history->sendRequestId = request(MTPmessages_ForwardMessages(
 				MTP_flags(sendFlags),
@@ -3997,9 +3996,9 @@ void ApiWrap::forwardMessages(
 					shared->callback();
 				}
 				finish();
-			}).fail([=, ids = localIds](const RPCError &error) {
-				if (ids) {
-					for (const auto &[randomId, itemId] : *ids) {
+			}).fail([=](const RPCError &error) {
+				if (idsCopy) {
+					for (const auto &[randomId, itemId] : *idsCopy) {
 						sendMessageFail(error, peer, randomId, itemId);
 					}
 				} else {
@@ -4156,11 +4155,7 @@ void ApiWrap::sendSharedContact(
 		MTP_string(firstName),
 		MTP_string(lastName),
 		MTP_string(vcard));
-	auto options = action.options;
-	if (_session->data().notifySilentPosts(peer)) {
-		options.silent = true;
-	}
-	sendMedia(item, media, options);
+	sendMedia(item, media, action.options);
 
 	_session->data().sendHistoryChangeNotifications();
 	_session->changes().historyUpdated(
@@ -4375,8 +4370,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			flags |= MTPDmessage::Flag::f_media;
 		}
 		const auto anonymousPost = peer->amAnonymous();
-		const auto silentPost = action.options.silent
-			|| (peer->isBroadcast() && _session->data().notifySilentPosts(peer));
+		const auto silentPost = ShouldSendSilent(peer, action.options);
 		FillMessagePostFlags(action, peer, flags);
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_silent;
@@ -4517,8 +4511,7 @@ void ApiWrap::sendInlineResult(
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;
 	}
 	const auto anonymousPost = peer->amAnonymous();
-	const auto silentPost = action.options.silent
-		|| (peer->isBroadcast() && _session->data().notifySilentPosts(peer));
+	const auto silentPost = ShouldSendSilent(peer, action.options);
 	FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_silent;
@@ -4684,7 +4677,7 @@ void ApiWrap::sendMediaWithRandomId(
 		| (replyTo
 			? MTPmessages_SendMedia::Flag::f_reply_to_msg_id
 			: MTPmessages_SendMedia::Flag(0))
-		| (options.silent
+		| (ShouldSendSilent(history->peer, options)
 			? MTPmessages_SendMedia::Flag::f_silent
 			: MTPmessages_SendMedia::Flag(0))
 		| (!sentEntities.v.isEmpty()
@@ -4791,7 +4784,7 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		| (replyTo
 			? MTPmessages_SendMultiMedia::Flag::f_reply_to_msg_id
 			: MTPmessages_SendMultiMedia::Flag(0))
-		| (album->options.silent
+		| (ShouldSendSilent(history->peer, album->options)
 			? MTPmessages_SendMultiMedia::Flag::f_silent
 			: MTPmessages_SendMultiMedia::Flag(0))
 		| (album->options.scheduled
@@ -4829,10 +4822,6 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 
 FileLoadTo ApiWrap::fileLoadTaskOptions(const SendAction &action) const {
 	const auto peer = action.history->peer;
-	auto options = action.options;
-	if (_session->data().notifySilentPosts(peer)) {
-		options.silent = true;
-	}
 	return FileLoadTo(peer->id, action.options, action.replyTo);
 }
 
@@ -5262,8 +5251,7 @@ void ApiWrap::createPoll(
 		history->clearLocalDraft();
 		history->clearCloudDraft();
 	}
-	const auto silentPost = action.options.silent
-		|| (peer->isBroadcast() && _session->data().notifySilentPosts(peer));
+	const auto silentPost = ShouldSendSilent(peer, action.options);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
@@ -5286,6 +5274,11 @@ void ApiWrap::createPoll(
 			MTP_int(action.options.scheduled)
 		)).done([=](const MTPUpdates &result) mutable {
 			applyUpdates(result);
+			_session->changes().historyUpdated(
+				history,
+				(action.options.scheduled
+					? Data::HistoryUpdate::Flag::ScheduledSent
+					: Data::HistoryUpdate::Flag::MessageSent));
 			done();
 			finish();
 		}).fail([=](const RPCError &error) mutable {

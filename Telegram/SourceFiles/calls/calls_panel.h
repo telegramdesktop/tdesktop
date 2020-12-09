@@ -23,6 +23,7 @@ class CloudImageView;
 
 namespace Ui {
 class IconButton;
+class CallButton;
 class FlatLabel;
 template <typename Widget>
 class FadeWrap;
@@ -50,13 +51,13 @@ public:
 	Panel(not_null<Call*> call);
 	~Panel();
 
+	[[nodiscard]] bool isActive() const;
 	void showAndActivate();
 	void replaceCall(not_null<Call*> call);
 	void closeBeforeDestroy();
 
 private:
 	class Incoming;
-	class Button;
 	using State = Call::State;
 	using Type = Call::Type;
 	enum class AnswerHangupRedialState : uchar {
@@ -115,15 +116,15 @@ private:
 	rpl::lifetime _callLifetime;
 
 	not_null<const style::CallBodyLayout*> _bodySt;
-	object_ptr<Button> _answerHangupRedial;
-	object_ptr<Ui::FadeWrap<Button>> _decline;
-	object_ptr<Ui::FadeWrap<Button>> _cancel;
+	object_ptr<Ui::CallButton> _answerHangupRedial;
+	object_ptr<Ui::FadeWrap<Ui::CallButton>> _decline;
+	object_ptr<Ui::FadeWrap<Ui::CallButton>> _cancel;
 	bool _hangupShown = false;
 	bool _outgoingPreviewInBody = false;
 	std::optional<AnswerHangupRedialState> _answerHangupRedialState;
 	Ui::Animations::Simple _hangupShownProgress;
-	object_ptr<Button> _camera;
-	object_ptr<Button> _mute;
+	object_ptr<Ui::CallButton> _camera;
+	object_ptr<Ui::CallButton> _mute;
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;
 	object_ptr<Ui::RpWidget> _fingerprint = { nullptr };

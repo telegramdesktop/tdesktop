@@ -18,6 +18,9 @@ extern "C" {
 #define signals public
 } // extern "C"
 
+// present starting with gtk 3.0, we can build with gtk2 headers
+typedef struct _GtkAppChooser GtkAppChooser;
+
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 #if defined DESKTOP_APP_USE_PACKAGED && !defined DESKTOP_APP_USE_PACKAGED_LAZY
@@ -84,6 +87,9 @@ extern f_gtk_clipboard_get gtk_clipboard_get;
 
 typedef void (*f_gtk_clipboard_store)(::GtkClipboard *clipboard);
 extern f_gtk_clipboard_store gtk_clipboard_store;
+
+typedef void (*f_gtk_clipboard_set_image)(::GtkClipboard *clipboard, GdkPixbuf *pixbuf);
+extern f_gtk_clipboard_set_image gtk_clipboard_set_image;
 
 typedef GtkSelectionData* (*f_gtk_clipboard_wait_for_contents)(::GtkClipboard *clipboard, GdkAtom target);
 extern f_gtk_clipboard_wait_for_contents gtk_clipboard_wait_for_contents;
@@ -172,6 +178,12 @@ extern f_gtk_image_new gtk_image_new;
 typedef void (*f_gtk_image_set_from_pixbuf)(GtkImage *image, GdkPixbuf *pixbuf);
 extern f_gtk_image_set_from_pixbuf gtk_image_set_from_pixbuf;
 
+typedef GtkWidget* (*f_gtk_app_chooser_dialog_new)(GtkWindow *parent, GtkDialogFlags flags, GFile *file);
+extern f_gtk_app_chooser_dialog_new gtk_app_chooser_dialog_new;
+
+typedef GAppInfo* (*f_gtk_app_chooser_get_app_info)(GtkAppChooser *self);
+extern f_gtk_app_chooser_get_app_info gtk_app_chooser_get_app_info;
+
 typedef void (*f_gdk_set_allowed_backends)(const gchar *backends);
 extern f_gdk_set_allowed_backends gdk_set_allowed_backends;
 
@@ -226,6 +238,22 @@ inline GtkWindow *gtk_window_cast(Object *obj) {
 	return g_type_cic_helper<GtkWindow, Object>(obj, gtk_window_get_type());
 }
 
+typedef GType (*f_gtk_widget_get_type)(void) G_GNUC_CONST;
+extern f_gtk_widget_get_type gtk_widget_get_type;
+
+template <typename Object>
+inline GtkWidget *gtk_widget_cast(Object *obj) {
+	return g_type_cic_helper<GtkWidget, Object>(obj, gtk_widget_get_type());
+}
+
+typedef GType (*f_gtk_app_chooser_get_type)(void) G_GNUC_CONST;
+extern f_gtk_app_chooser_get_type gtk_app_chooser_get_type;
+
+template <typename Object>
+inline GtkAppChooser *gtk_app_chooser_cast(Object *obj) {
+	return g_type_cic_helper<GtkAppChooser, Object>(obj, gtk_app_chooser_get_type());
+}
+
 template <typename Object>
 inline bool g_type_cit_helper(Object *instance, GType iface_type) {
 	if (!instance) return false;
@@ -242,6 +270,9 @@ extern f_gtk_dialog_run gtk_dialog_run;
 
 typedef GdkAtom (*f_gdk_atom_intern)(const gchar *atom_name, gboolean only_if_exists);
 extern f_gdk_atom_intern gdk_atom_intern;
+
+typedef GdkPixbuf* (*f_gdk_pixbuf_new_from_data)(const guchar *data, GdkColorspace colorspace, gboolean has_alpha, int bits_per_sample, int width, int height, int rowstride, GdkPixbufDestroyNotify destroy_fn, gpointer destroy_fn_data);
+extern f_gdk_pixbuf_new_from_data gdk_pixbuf_new_from_data;
 
 typedef GdkPixbuf* (*f_gdk_pixbuf_new_from_file_at_size)(const gchar *filename, int width, int height, GError **error);
 extern f_gdk_pixbuf_new_from_file_at_size gdk_pixbuf_new_from_file_at_size;

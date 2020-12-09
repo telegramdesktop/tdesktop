@@ -487,6 +487,16 @@ QByteArray SerializeMessage(
 	}, [&](const ActionPhoneNumberRequest &data) {
 		pushActor();
 		pushAction("requested_phone_number");
+	}, [&](const ActionGroupCall &data) {
+		pushActor();
+		pushAction("group_call");
+		if (data.duration) {
+			push("duration", data.duration);
+		}
+	}, [&](const ActionInviteToGroupCall &data) {
+		pushActor();
+		pushAction("invite_to_group_call");
+		pushUserNames(data.userIds);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

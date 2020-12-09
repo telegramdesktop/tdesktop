@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_peer.h"
+#include "dialogs/dialogs_key.h"
 
 class BotCommand {
 public:
@@ -34,7 +35,7 @@ struct BotInfo {
 	Ui::Text::String text = { int(st::msgMinWidth) }; // description
 
 	QString startToken, startGroupToken, shareGameShortName;
-	PeerId inlineReturnPeerId = 0;
+	Dialogs::EntryState inlineReturnTo;
 };
 
 class UserData : public PeerData {

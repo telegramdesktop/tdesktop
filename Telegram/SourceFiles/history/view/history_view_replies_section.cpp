@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_replies_section.h"
 
-#include "history/view/history_view_compose_controls.h"
+#include "history/view/controls/history_view_compose_controls.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_schedule_box.h"
@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_replies_list.h"
 #include "data/data_changes.h"
@@ -157,7 +158,8 @@ RepliesWidget::RepliesWidget(
 , _composeControls(std::make_unique<ComposeControls>(
 	this,
 	controller,
-	ComposeControls::Mode::Normal))
+	ComposeControls::Mode::Normal,
+	SendMenu::Type::SilentOnly))
 , _scroll(std::make_unique<Ui::ScrollArea>(this, st::historyScroll, false))
 , _scrollDown(_scroll.get(), st::historyToDown)
 , _readRequestTimer([=] { sendReadTillRequest(); }) {
@@ -166,10 +168,7 @@ RepliesWidget::RepliesWidget(
 
 	session().api().requestFullPeer(_history->peer);
 
-	_topBar->setActiveChat(
-		_history,
-		TopBarWidget::Section::Replies,
-		_sendAction.get());
+	refreshTopBarActiveChat();
 
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
@@ -219,7 +218,7 @@ RepliesWidget::RepliesWidget(
 
 	_inner->replyToMessageRequested(
 	) | rpl::start_with_next([=](auto fullId) {
-		_composeControls->replyToMessage(fullId);
+		replyToMessage(fullId);
 	}, _inner->lifetime());
 
 	_composeControls->sendActionUpdates(
@@ -253,6 +252,7 @@ RepliesWidget::RepliesWidget(
 
 	setupScrollDownButton();
 	setupComposeControls();
+	orderWidgets();
 }
 
 RepliesWidget::~RepliesWidget() {
@@ -261,6 +261,17 @@ RepliesWidget::~RepliesWidget() {
 	}
 	base::take(_sendAction);
 	_history->owner().repliesSendActionPainterRemoved(_history, _rootId);
+}
+
+void RepliesWidget::orderWidgets() {
+	if (_topBar) {
+		_topBar->raise();
+	}
+	if (_rootView) {
+		_rootView->raise();
+	}
+	_topBarShadow->raise();
+	_composeControls->raisePanels();
 }
 
 void RepliesWidget::sendReadTillRequest() {
@@ -419,13 +430,21 @@ void RepliesWidget::setupComposeControls() {
 	}, lifetime());
 
 	_composeControls->sendRequests(
-	) | rpl::start_with_next([=] {
-		send();
+	) | rpl::start_with_next([=](Api::SendOptions options) {
+		send(options);
 	}, lifetime());
 
 	_composeControls->sendVoiceRequests(
 	) | rpl::start_with_next([=](ComposeControls::VoiceToSend &&data) {
-		sendVoice(data.bytes, data.waveform, data.duration);
+		sendVoice(std::move(data));
+	}, lifetime());
+
+	_composeControls->sendCommandRequests(
+	) | rpl::start_with_next([=](const QString &command) {
+		if (showSlowmodeError()) {
+			return;
+		}
+		listSendBotCommand(command, FullMsgId());
 	}, lifetime());
 
 	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);
@@ -451,17 +470,17 @@ void RepliesWidget::setupComposeControls() {
 
 	_composeControls->fileChosen(
 	) | rpl::start_with_next([=](Selector::FileChosen chosen) {
-		sendExistingDocument(chosen.document);
+		sendExistingDocument(chosen.document, chosen.options);
 	}, lifetime());
 
 	_composeControls->photoChosen(
 	) | rpl::start_with_next([=](Selector::PhotoChosen chosen) {
-		sendExistingPhoto(chosen.photo);
+		sendExistingPhoto(chosen.photo, chosen.options);
 	}, lifetime());
 
 	_composeControls->inlineResultChosen(
 	) | rpl::start_with_next([=](Selector::InlineChosen chosen) {
-		sendInlineResult(chosen.result, chosen.bot);
+		sendInlineResult(chosen.result, chosen.bot, chosen.options);
 	}, lifetime());
 
 	_composeControls->scrollRequests(
@@ -506,6 +525,16 @@ void RepliesWidget::setupComposeControls() {
 		}
 		Unexpected("action in MimeData hook.");
 	});
+
+	_composeControls->lockShowStarts(
+	) | rpl::start_with_next([=] {
+		updateScrollDownVisibility();
+	}, lifetime());
+
+	_composeControls->viewportEvents(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		_scroll->viewportEvent(e);
+	}, lifetime());
 
 	_composeControls->finishAnimating();
 }
@@ -574,7 +603,7 @@ bool RepliesWidget::confirmSendingFiles(
 	}
 
 	if (hasImage) {
-		auto image = Platform::GetImageFromClipboard();
+		auto image = Platform::GetClipboardImage();
 		if (image.isNull()) {
 			image = qvariant_cast<QImage>(data->imageData());
 		}
@@ -608,7 +637,7 @@ bool RepliesWidget::confirmSendingFiles(
 		text,
 		_history->peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
 		Api::SendType::Normal,
-		SendMenu::Type::Disabled); // #TODO replies schedule
+		SendMenu::Type::SilentOnly); // #TODO replies schedule
 	_composeControls->setText({});
 
 	const auto replyTo = replyToId();
@@ -688,6 +717,7 @@ void RepliesWidget::sendingFilesConfirmed(
 	}
 	if (_composeControls->replyingToMessage().msg == replyTo) {
 		_composeControls->cancelReplyMessage();
+		refreshTopBarActiveChat();
 	}
 }
 
@@ -854,13 +884,19 @@ void RepliesWidget::send() {
 	//	Ui::LayerOption::KeepOther);
 }
 
-void RepliesWidget::sendVoice(
-		QByteArray bytes,
-		VoiceWaveform waveform,
-		int duration) {
+void RepliesWidget::sendVoice(ComposeControls::VoiceToSend &&data) {
 	auto action = Api::SendAction(_history);
 	action.replyTo = replyToId();
-	session().api().sendVoiceMessage(bytes, waveform, duration, action);
+	action.options = data.options;
+	session().api().sendVoiceMessage(
+		data.bytes,
+		data.waveform,
+		data.duration,
+		std::move(action));
+
+	_composeControls->cancelReplyMessage();
+	_composeControls->clearListenState();
+	finishSending();
 }
 
 void RepliesWidget::send(Api::SendOptions options) {
@@ -1010,14 +1046,6 @@ bool RepliesWidget::sendExistingDocument(
 	message.action.options = options;
 	Api::SendExistingDocument(std::move(message), document);
 
-	//if (_fieldAutocomplete->stickersShown()) {
-	//	clearFieldText();
-	//	//_saveDraftText = true;
-	//	//_saveDraftStart = crl::now();
-	//	//onDraftSave();
-	//	onCloudDraftSave(); // won't be needed if SendInlineBotResult will clear the cloud draft
-	//}
-
 	_composeControls->cancelReplyMessage();
 	finishSending();
 	return true;
@@ -1112,6 +1140,17 @@ SendMenu::Type RepliesWidget::sendMenuType() const {
 		: SendMenu::Type::Scheduled;
 }
 
+void RepliesWidget::refreshTopBarActiveChat() {
+	const auto state = Dialogs::EntryState{
+		.key = _history,
+		.section = Dialogs::EntryState::Section::Replies,
+		.rootId = _rootId,
+		.currentReplyToId = _composeControls->replyingToMessage().msg,
+	};
+	_topBar->setActiveChat(state, _sendAction.get());
+	_composeControls->setCurrentDialogsEntryState(state);
+}
+
 MsgId RepliesWidget::replyToId() const {
 	const auto custom = _composeControls->replyingToMessage().msg;
 	return custom ? custom : _rootId;
@@ -1155,6 +1194,7 @@ void RepliesWidget::finishSending() {
 	//if (_previewData && _previewData->pendingTill) previewCancel();
 	doSetInnerFocus();
 	showAtEnd();
+	refreshTopBarActiveChat();
 }
 
 void RepliesWidget::showAtPosition(
@@ -1213,6 +1253,9 @@ void RepliesWidget::updateScrollDownVisibility() {
 	}
 
 	const auto scrollDownIsVisible = [&]() -> std::optional<bool> {
+		if (_composeControls->isLockPresent()) {
+			return false;
+		}
 		const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
 		if (top < _scroll->scrollTopMax() || _replyReturn) {
 			return true;
@@ -1365,8 +1408,13 @@ bool RepliesWidget::replyToMessage(not_null<HistoryItem*> item) {
 	if (item->history() != _history || item->replyToTop() != _rootId) {
 		return false;
 	}
-	_composeControls->replyToMessage(item->fullId());
+	replyToMessage(item->fullId());
 	return true;
+}
+
+void RepliesWidget::replyToMessage(FullMsgId itemId) {
+	_composeControls->replyToMessage(itemId);
+	refreshTopBarActiveChat();
 }
 
 void RepliesWidget::saveState(not_null<RepliesMemento*> memento) {
@@ -1466,6 +1514,7 @@ void RepliesWidget::updateControlsGeometry() {
 		updateInnerVisibleArea();
 	}
 	_composeControls->move(0, bottom - controlsHeight);
+	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
 
 	updateScrollDownPosition();
 }
@@ -1590,12 +1639,8 @@ void RepliesWidget::listCancelRequest() {
 	if (_inner && !_inner->getSelectedItems().empty()) {
 		clearSelected();
 		return;
-	}
-	if (_composeControls->isEditingMessage()) {
-		_composeControls->cancelEditMessage();
-		return;
-	} else if (_composeControls->replyingToMessage()) {
-		_composeControls->cancelReplyMessage();
+	} else if (_composeControls->handleCancelRequest()) {
+		refreshTopBarActiveChat();
 		return;
 	}
 	controller()->showBackFromStack();
@@ -1738,6 +1783,21 @@ bool RepliesWidget::listIsGoodForAroundPosition(
 	return IsServerMsgId(view->data()->id);
 }
 
+void RepliesWidget::listSendBotCommand(
+		const QString &command,
+		const FullMsgId &context) {
+	const auto text = WrapBotCommandInChat(_history->peer, command, context);
+	auto message = ApiWrap::MessageToSend(_history);
+	message.textWithTags = { text };
+	message.action.replyTo = replyToId();
+	session().api().sendMessage(std::move(message));
+	finishSending();
+}
+
+void RepliesWidget::listHandleViaClick(not_null<UserData*> bot) {
+	_composeControls->setText({ '@' + bot->username + ' ' });
+}
+
 void RepliesWidget::confirmDeleteSelected() {
 	ConfirmDeleteSelectedItems(_inner);
 }
@@ -1753,7 +1813,7 @@ void RepliesWidget::clearSelected() {
 void RepliesWidget::setupDragArea() {
 	const auto areas = DragArea::SetupDragAreaToContainer(
 		this,
-		[=](not_null<const QMimeData*> d) { return _history; },
+		[=](auto d) { return _history && !_composeControls->isRecording(); },
 		nullptr,
 		[=] { updateControlsGeometry(); });
 

@@ -108,8 +108,8 @@ auto GenerateCodes() {
 				if (const auto strong = weak.get()) {
 					loadFor(strong);
 				} else {
-					for (const auto &[index, account] : Core::App().domain().accounts()) {
-						loadFor(account.get());
+					for (const auto &pair : Core::App().domain().accounts()) {
+						loadFor(pair.account.get());
 					}
 				}
 			}
@@ -158,7 +158,7 @@ auto GenerateCodes() {
 #endif // Q_OS_WIN || Q_OS_MAC
 
 #if defined Q_OS_UNIX && !defined Q_OS_MAC
-	codes.emplace(qsl("installauncher"), [](SessionController *window) {
+	codes.emplace(qsl("installlauncher"), [](SessionController *window) {
 		Platform::InstallLauncher(true);
 		Ui::Toast::Show("Forced launcher installation.");
 	});

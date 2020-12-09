@@ -451,13 +451,13 @@ void TabbedSelector::resizeEvent(QResizeEvent *e) {
 			st::lineWidth);
 	}
 
-	auto scrollWidth = width() - st::buttonRadius;
+	auto scrollWidth = width() - st::roundRadiusSmall;
 	auto scrollHeight = height() - scrollTop() - marginBottom();
 	auto inner = currentTab()->widget();
 	auto innerWidth = scrollWidth - st::emojiScroll.width;
 	auto updateScrollGeometry = [&] {
 		_scroll->setGeometryToLeft(
-			st::buttonRadius,
+			st::roundRadiusSmall,
 			scrollTop(),
 			scrollWidth,
 			scrollHeight);
@@ -561,7 +561,7 @@ void TabbedSelector::paintContent(Painter &p) {
 		p.fillRect(0, sidesTop, width(), sidesHeight, st::emojiPanBg);
 	} else {
 		p.fillRect(myrtlrect(width() - st::emojiScroll.width, sidesTop, st::emojiScroll.width, sidesHeight), st::emojiPanBg);
-		p.fillRect(myrtlrect(0, sidesTop, st::buttonRadius, sidesHeight), st::emojiPanBg);
+		p.fillRect(myrtlrect(0, sidesTop, st::roundRadiusSmall, sidesHeight), st::emojiPanBg);
 	}
 }
 

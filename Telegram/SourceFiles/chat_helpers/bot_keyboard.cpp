@@ -69,7 +69,7 @@ void Style::repaint(not_null<const HistoryItem*> item) const {
 }
 
 int Style::buttonRadius() const {
-	return st::buttonRadius;
+	return st::roundRadiusSmall;
 }
 
 void Style::paintButtonBg(

@@ -85,6 +85,30 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Bug fixes and other minor improvements.\n"
 	},
+	{
+		2004008,
+		"- Upgrade several third party libraries to latest versions.\n"
+	},
+	{
+		2004010,
+		"- Use inline bots and sticker by emoji suggestions in channel comments.\n"
+
+		"- Lock voice message recording, listen to your voice message before sending.\n"
+	},
+	{
+		2004011,
+		"- Improve locked voice message recording.\n"
+
+		"- Fix main window closing to tray on Windows.\n"
+
+		"- Fix crash in bot command sending.\n"
+
+		"- Fix adding additional photos when sending an album to a group with enabled slow mode.\n"
+	},
+	{
+		2004012,
+		"- Voice chats in groups. (alpha version)\n"
+	},
 	};
 };
 

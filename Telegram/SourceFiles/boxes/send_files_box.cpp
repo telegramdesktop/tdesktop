@@ -280,8 +280,9 @@ void SendFilesBox::enqueueNextPrepare() {
 	}
 	while (!_list.filesToProcess.empty()
 		&& _list.filesToProcess.front().information) {
-		addFile(std::move(_list.filesToProcess.front()));
+		auto file = std::move(_list.filesToProcess.front());
 		_list.filesToProcess.pop_front();
+		addFile(std::move(file));
 	}
 	if (_list.filesToProcess.empty()) {
 		return;
@@ -329,7 +330,11 @@ void SendFilesBox::setupShadows() {
 }
 
 void SendFilesBox::prepare() {
-	_send = addButton(tr::lng_send_button(), [=] { send({}); });
+	_send = addButton(
+		(_sendType == Api::SendType::Normal
+			? tr::lng_send_button()
+			: tr::lng_create_group_next()),
+		[=] { send({}); });
 	if (_sendType == Api::SendType::Normal) {
 		SendMenu::SetupMenuAndShortcuts(
 			_send,
@@ -638,9 +643,6 @@ void SendFilesBox::setupSendWayControls() {
 }
 
 void SendFilesBox::updateSendWayControlsVisibility() {
-	if (_sendLimit == SendLimit::One) {
-		return;
-	}
 	const auto onlyOne = (_sendLimit == SendLimit::One);
 	_groupFiles->setVisible(_list.hasGroupOption(onlyOne));
 	_sendImagesAsPhotos->setVisible(
@@ -765,7 +767,7 @@ bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 		if (result.error == Ui::PreparedList::Error::None) {
 			return result;
 		} else if (data->hasImage()) {
-			auto image = Platform::GetImageFromClipboard();
+			auto image = Platform::GetClipboardImage();
 			if (image.isNull()) {
 				image = qvariant_cast<QImage>(data->imageData());
 			}
@@ -817,10 +819,13 @@ void SendFilesBox::addPreparedAsyncFile(Ui::PreparedFile &&file) {
 }
 
 void SendFilesBox::addFile(Ui::PreparedFile &&file) {
+	// canBeSentInSlowmode checks for non empty filesToProcess.
+	auto saved = base::take(_list.filesToProcess);
 	_list.files.push_back(std::move(file));
 	if (_sendLimit == SendLimit::One && !_list.canBeSentInSlowmode()) {
 		_list.files.pop_back();
 	}
+	_list.filesToProcess = std::move(saved);
 }
 
 void SendFilesBox::refreshTitleText() {

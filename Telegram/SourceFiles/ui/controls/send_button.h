@@ -29,37 +29,16 @@ public:
 		return _type;
 	}
 	void setType(Type state);
-	void setRecordActive(bool recordActive);
 	void setSlowmodeDelay(int seconds);
 	void finishAnimating();
 
-	void setRecordStartCallback(Fn<void()> callback) {
-		_recordStartCallback = std::move(callback);
-	}
-	void setRecordUpdateCallback(Fn<void(QPoint globalPos)> callback) {
-		_recordUpdateCallback = std::move(callback);
-	}
-	void setRecordStopCallback(Fn<void(bool active)> callback) {
-		_recordStopCallback = std::move(callback);
-	}
-	void setRecordAnimationCallback(Fn<void()> callback) {
-		_recordAnimationCallback = std::move(callback);
-	}
-
-	[[nodiscard]] float64 recordActiveRatio() {
-		return _a_recordActive.value(_recordActive ? 1. : 0.);
-	}
-
 protected:
-	void mouseMoveEvent(QMouseEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	void onStateChanged(State was, StateChangeSource source) override;
 
 	QImage prepareRippleMask() const override;
 	QPoint prepareRippleStartPosition() const override;
 
 private:
-	void recordAnimationCallback();
 	[[nodiscard]] QPixmap grabContent();
 	[[nodiscard]] bool isSlowmode() const;
 
@@ -72,17 +51,9 @@ private:
 
 	Type _type = Type::Send;
 	Type _afterSlowmodeType = Type::Send;
-	bool _recordActive = false;
 	QPixmap _contentFrom, _contentTo;
 
 	Ui::Animations::Simple _a_typeChanged;
-	Ui::Animations::Simple _a_recordActive;
-
-	bool _recording = false;
-	Fn<void()> _recordStartCallback;
-	Fn<void(bool active)> _recordStopCallback;
-	Fn<void(QPoint globalPos)> _recordUpdateCallback;
-	Fn<void()> _recordAnimationCallback;
 
 	int _slowmodeDelay = 0;
 	QString _slowmodeDelayText;
