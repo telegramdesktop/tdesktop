@@ -17,8 +17,16 @@ namespace internal {
 
 class XErrorHandlerRestorer::Private {
 public:
-	Private() {}
-	int (*oldErrorHandler)(Display *, XErrorEvent *);
+	Private()
+	: _oldErrorHandler(XSetErrorHandler(nullptr)) {
+	}
+
+	~Private() {
+		XSetErrorHandler(_oldErrorHandler);
+	}
+
+private:
+	int (*_oldErrorHandler)(Display *, XErrorEvent *);
 };
 
 XErrorHandlerRestorer::XErrorHandlerRestorer()
@@ -26,14 +34,6 @@ XErrorHandlerRestorer::XErrorHandlerRestorer()
 }
 
 XErrorHandlerRestorer::~XErrorHandlerRestorer() = default;
-
-void XErrorHandlerRestorer::save() {
-	_private->oldErrorHandler = XSetErrorHandler(nullptr);
-}
-
-void XErrorHandlerRestorer::restore() {
-	XSetErrorHandler(_private->oldErrorHandler);
-}
 
 } // namespace internal
 } // namespace Platform
