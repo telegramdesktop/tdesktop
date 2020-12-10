@@ -17,7 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "mainwindow.h"
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 using Platform::internal::XErrorHandlerRestorer;
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 namespace Platform {
 namespace Libs {
