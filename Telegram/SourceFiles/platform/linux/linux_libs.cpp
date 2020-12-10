@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "mainwindow.h"
 
+using Platform::internal::XErrorHandlerRestorer;
+
 namespace Platform {
 namespace Libs {
 namespace {
@@ -123,8 +125,7 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 
 	// gtk_init will reset the Xlib error handler, and that causes
 	// Qt applications to quit on X errors. Therefore, we need to manually restore it.
-	internal::XErrorHandlerRestorer handlerRestorer;
-	handlerRestorer.save();
+	XErrorHandlerRestorer handlerRestorer;
 
 	DEBUG_LOG(("Library gtk functions loaded!"));
 	gtkTriedToInit = true;
@@ -134,8 +135,6 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 		return false;
 	}
 	DEBUG_LOG(("Checked gtk with gtk_init_check!"));
-
-	handlerRestorer.restore();
 
 	// Use our custom log handler.
 	g_log_set_handler("Gtk", G_LOG_LEVEL_MESSAGE, gtkMessageHandler, nullptr);
