@@ -42,40 +42,37 @@ constexpr auto kSwitchStateDuration = 120;
 
 constexpr auto kMinorBlobAlpha = 76. / 255.;
 
-constexpr auto kBlobLevelDuration1 = 250;
-constexpr auto kBlobLevelDuration2 = 120;
+constexpr auto kHideBlobsDuration = crl::time(500);
+constexpr auto kBlobLevelDuration = crl::time(250);
 constexpr auto kBlobUpdateInterval = crl::time(100);
 
-auto LinearBlobs() -> std::array<Ui::Paint::LinearBlobs::BlobData, 3> {
-	return { {
+auto LinearBlobs() {
+	return std::vector<Ui::Paint::LinearBlobs::BlobData>{
 		{
 			.segmentsCount = 5,
-			.minScale = 1.,
-			.minRadius = (float)st::groupCallMajorBlobMinRadius,
+			.minRadius = 0.,
 			.maxRadius = (float)st::groupCallMajorBlobMaxRadius,
+			.idleRadius = (float)st::groupCallMinorBlobIdleRadius,
 			.speedScale = .3,
 			.alpha = 1.,
-			.topOffset = st::groupCallMajorBlobTopOffset,
 		},
 		{
 			.segmentsCount = 7,
-			.minScale = 1.,
-			.minRadius = (float)st::groupCallMinorBlobMinRadius,
+			.minRadius = 0.,
 			.maxRadius = (float)st::groupCallMinorBlobMaxRadius,
+			.idleRadius = (float)st::groupCallMinorBlobIdleRadius,
 			.speedScale = .7,
 			.alpha = kMinorBlobAlpha,
-			.topOffset = st::groupCallMinorBlobTopOffset,
 		},
 		{
 			.segmentsCount = 8,
-			.minScale = 1.,
-			.minRadius = (float)st::groupCallMinorBlobMinRadius,
+			.minRadius = 0.,
 			.maxRadius = (float)st::groupCallMinorBlobMaxRadius,
+			.idleRadius = (float)st::groupCallMinorBlobIdleRadius,
 			.speedScale = .7,
 			.alpha = kMinorBlobAlpha,
-			.topOffset = st::groupCallMinorBlobTopOffset,
 		},
-	} };
+	};
 }
 
 auto Colors() {
@@ -358,14 +355,12 @@ void TopBar::initBlobsUnder(
 		return;
 	}
 
-	static constexpr auto kHideDuration = kBlobLevelDuration1 * 2;
-
 	struct State {
 		Ui::Paint::LinearBlobs paint = {
-			LinearBlobs() | ranges::to_vector,
-			kBlobLevelDuration1,
-			kBlobLevelDuration2,
-			1.
+			LinearBlobs(),
+			kBlobLevelDuration,
+			1.,
+			Ui::Paint::LinearBlob::Direction::TopDown
 		};
 		Ui::Animations::Simple hideAnimation;
 		Ui::Animations::Basic animation;
@@ -374,8 +369,6 @@ void TopBar::initBlobsUnder(
 		crl::time lastTime = 0;
 		float lastLevel = 0.;
 		float levelBeforeLast = 0.;
-		int maxHeight = st::groupCallMinorBlobMinRadius
-			+ st::groupCallMinorBlobMaxRadius;
 	};
 
 	_blobs = base::make_unique_q<Ui::RpWidget>(blobsParent);
@@ -392,7 +385,7 @@ void TopBar::initBlobsUnder(
 
 	state->animation.init([=](crl::time now) {
 		if (const auto last = state->hideLastTime; (last > 0)
-			&& (now - last >= kHideDuration)) {
+			&& (now - last >= kHideBlobsDuration)) {
 			state->animation.stop();
 			return false;
 		}
@@ -448,7 +441,7 @@ void TopBar::initBlobsUnder(
 		const auto to = hide ? 1. : 0.;
 		state->hideAnimation.start([=](float64) {
 			_blobs->update();
-		}, from, to, kHideDuration);
+		}, from, to, kHideBlobsDuration);
 	}, lifetime());
 
 	std::move(
@@ -456,7 +449,7 @@ void TopBar::initBlobsUnder(
 	) | rpl::start_with_next([=](QRect rect) {
 		_blobs->resize(
 			rect.width(),
-			std::min(state->maxHeight, rect.height()));
+			(int)state->paint.maxRadius());
 		_blobs->moveToLeft(rect.x(), rect.y() + rect.height());
 	}, lifetime());
 
@@ -478,12 +471,9 @@ void TopBar::initBlobsUnder(
 			p.setOpacity(1. - hidden);
 		}
 		const auto top = -_blobs->height() * hidden;
-		const auto drawUnder = QRect(
-			0,
-			top,
-			_blobs->width() + st::groupCallBlobWidthAdditional,
-			0);
-		state->paint.paint(p, _groupBrush, drawUnder, 0, 0);
+		const auto width = _blobs->width();
+		p.translate(0, top);
+		state->paint.paint(p, _groupBrush, width);
 	}, _blobs->lifetime());
 
 	group->levelUpdates(
