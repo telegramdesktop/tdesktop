@@ -820,6 +820,13 @@ void HistoryWidget::initVoiceRecordBar() {
 		_scroll->viewportEvent(e);
 	}, lifetime());
 
+	_voiceRecordBar->shownValue(
+	) | rpl::start_with_next([=](bool shown) {
+		if (!shown) {
+			applyDraft();
+		}
+	}, lifetime());
+
 	_voiceRecordBar->hideFast();
 }
 
@@ -1621,7 +1628,8 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		: _history->localEditDraft()
 		? _history->localEditDraft()
 		: _history->localDraft();
-	auto fieldAvailable = canWriteMessage();
+	auto fieldAvailable = canWriteMessage()
+		&& !_voiceRecordBar->preventDraftApply();
 	if (!draft || (!_history->localEditDraft() && !fieldAvailable)) {
 		auto fieldWillBeHiddenAfterEdit = (!fieldAvailable && _editMsgId != 0);
 		clearFieldText(0, fieldHistoryAction);

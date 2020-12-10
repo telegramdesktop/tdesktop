@@ -1414,6 +1414,10 @@ bool VoiceRecordBar::isRecording() const {
 	return _recording.current();
 }
 
+bool VoiceRecordBar::preventDraftApply() const {
+	return isRecording() || isListenState();
+}
+
 void VoiceRecordBar::hideAnimated() {
 	if (isHidden()) {
 		return;
