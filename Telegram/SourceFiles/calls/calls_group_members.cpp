@@ -417,6 +417,7 @@ auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		if (_blobsAnimation) {
 			const auto shift = QPointF(x + size / 2., y + size / 2.);
+			auto hq = PainterHighQualityEnabler(p);
 			p.translate(shift);
 			_blobsAnimation->blobs.paint(p, st::groupCallMemberActiveStatus);
 			p.translate(-shift);
