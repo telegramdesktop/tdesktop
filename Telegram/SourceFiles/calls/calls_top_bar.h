@@ -49,6 +49,8 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	struct User;
+
 	TopBar(
 		QWidget *parent,
 		const base::weak_ptr<Call> &call,
@@ -63,11 +65,13 @@ private:
 	void setMuted(bool mute);
 
 	void subscribeToMembersChanges(not_null<GroupCall*> call);
+	void generateUserpicsInRow();
 
 	const base::weak_ptr<Call> _call;
 	const base::weak_ptr<GroupCall> _groupCall;
 
 	bool _muted = false;
+	std::vector<User> _users;
 	QImage _userpics;
 	object_ptr<Ui::LabelSimple> _durationLabel;
 	object_ptr<SignalBars> _signalBars;

@@ -18,9 +18,15 @@ class PlainShadow;
 class RoundButton;
 
 struct GroupCallBarContent {
+	struct User {
+		QImage userpic;
+		std::pair<uint64, uint64> userpicKey = {};
+		int32 id = 0;
+		bool speaking = false;
+	};
 	int count = 0;
 	bool shown = false;
-	QImage userpics;
+	std::vector<User> users;
 };
 
 class GroupCallBar final {

@@ -108,9 +108,14 @@ void GroupCall::setState(State state) {
 	}
 	_state = state;
 
-	if (_state.current() == State::Joined && !_pushToTalkStarted) {
-		_pushToTalkStarted = true;
-		applyGlobalShortcutChanges();
+	if (_state.current() == State::Joined) {
+		if (!_pushToTalkStarted) {
+			_pushToTalkStarted = true;
+			applyGlobalShortcutChanges();
+		}
+		if (const auto call = _channel->call(); call && call->id() == _id) {
+			call->setInCall();
+		}
 	}
 
 	if (false

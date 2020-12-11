@@ -118,7 +118,10 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 		}
 		for (auto i = 0; i != kLimit - already; ++i) {
 			if (adding[i]) {
-				state->userpics.push_back(UserpicInRow{ adding[i]->user });
+				state->userpics.push_back(UserpicInRow{
+					.peer = adding[i]->user,
+					.speaking = adding[i]->speaking,
+				});
 			}
 		}
 		return true;
@@ -133,12 +136,18 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 		if (!result) {
 			return false;
 		}
-		GenerateUserpicsInRow(
-			state->current.userpics,
-			state->userpics,
-			st);
+		state->current.users.reserve(state->userpics.size());
+		state->current.users.clear();
 		state->someUserpicsNotLoaded = false;
+		using User = Ui::GroupCallBarContent::User;
 		for (const auto &userpic : state->userpics) {
+			const auto pic = userpic.peer->genUserpic(userpic.view, st.size);
+			state->current.users.push_back({
+				.userpic = pic.toImage(),
+				.userpicKey = userpic.uniqueKey,
+				.id = userpic.peer->bareId(),
+				.speaking = userpic.speaking,
+			});
 			if (userpic.peer->hasUserpic()
 				&& userpic.peer->useEmptyUserpic(userpic.view)) {
 				state->someUserpicsNotLoaded = true;
@@ -172,12 +181,17 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 		Expects(state->userpics.size() <= kLimit);
 
 		const auto &participants = call->participants();
-		auto i = state->userpics.begin();
+		auto i = begin(state->userpics);
 
 		// Find where to put a new speaking userpic.
-		for (; i != state->userpics.end(); ++i) {
+		for (; i != end(state->userpics); ++i) {
 			if (i->peer == user) {
-				return false;
+				if (i->speaking) {
+					return false;
+				}
+				const auto index = i - begin(state->userpics);
+				state->current.users[index].speaking = i->speaking = true;
+				return true;
 			}
 			const auto j = ranges::find(
 				participants,
@@ -194,7 +208,10 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 		}
 
 		// Add the new speaking to the place we found.
-		const auto added = state->userpics.insert(i, UserpicInRow{ user });
+		const auto added = state->userpics.insert(i, UserpicInRow{
+			.peer = user,
+			.speaking = true,
+		});
 
 		// Remove him from the tail, if he was there.
 		for (auto i = added + 1; i != state->userpics.end(); ++i) {
@@ -252,8 +269,27 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 				if (CheckPushToFront(state, call, user, st)) {
 					pushNext();
 				}
-			} else if (RegenerateUserpics(state, call, st)) {
-				pushNext();
+			} else {
+				auto updateSpeakingState = update.was.has_value()
+					&& (update.now->speaking != update.was->speaking);
+				if (updateSpeakingState) {
+					const auto i = ranges::find(
+						state->userpics,
+						user,
+						&UserpicInRow::peer);
+					if (i != end(state->userpics)) {
+						const auto index = i - begin(state->userpics);
+						state->current.users[index].speaking
+							= i->speaking
+							= update.now->speaking;
+					} else {
+						updateSpeakingState = false;
+					}
+				}
+				if (RegenerateUserpics(state, call, st)
+					|| updateSpeakingState) {
+					pushNext();
+				}
 			}
 		}, lifetime);
 

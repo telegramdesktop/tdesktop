@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 namespace {
 
+constexpr auto kMaxUsersInBar = 3;
 constexpr auto kUpdateDebugTimeoutMs = crl::time(500);
 constexpr auto kSwitchStateDuration = 120;
 
@@ -138,6 +139,10 @@ void DebugInfoBox::updateText() {
 }
 
 } // namespace
+
+struct TopBar::User {
+	Ui::GroupCallBarContent::User data;
+};
 
 class Mute final : public Ui::IconButton {
 public:
@@ -521,14 +526,64 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 				.stroke = st::groupCallTopBarUserpicStroke,
 			});
 	}) | rpl::flatten_latest(
-	) | rpl::start_with_next([=](const Ui::GroupCallBarContent &content) {
-		const auto changed = (_userpics.size() != content.userpics.size());
-		_userpics = content.userpics;
-		if (changed) {
+	) | rpl::filter([=](const Ui::GroupCallBarContent &content) {
+		if (_users.size() != content.users.size()) {
+			return true;
+		}
+		for (auto i = 0, count = int(_users.size()); i != count; ++i) {
+			if (_users[i].data.userpicKey != content.users[i].userpicKey
+				|| _users[i].data.id != content.users[i].id) {
+				return true;
+			}
+		}
+		return false;
+	}) | rpl::start_with_next([=](const Ui::GroupCallBarContent &content) {
+		const auto sizeChanged = (_users.size() != content.users.size());
+		_users = ranges::view::all(
+			content.users
+		) | ranges::view::transform([](const auto &user) {
+			return User{ user };
+		}) | ranges::to_vector;
+		generateUserpicsInRow();
+		if (sizeChanged) {
 			updateControlsGeometry();
 		}
 		update();
 	}, lifetime());
+}
+
+void TopBar::generateUserpicsInRow() {
+	const auto count = int(_users.size());
+	if (!count) {
+		_userpics = QImage();
+		return;
+	}
+	const auto limit = std::min(count, kMaxUsersInBar);
+	const auto single = st::groupCallTopBarUserpicSize;
+	const auto shift = st::groupCallTopBarUserpicShift;
+	const auto width = single + (limit - 1) * (single - shift);
+	if (_userpics.width() != width * cIntRetinaFactor()) {
+		_userpics = QImage(
+			QSize(width, single) * cIntRetinaFactor(),
+			QImage::Format_ARGB32_Premultiplied);
+	}
+	_userpics.fill(Qt::transparent);
+	_userpics.setDevicePixelRatio(cRetinaFactor());
+
+	auto q = Painter(&_userpics);
+	auto hq = PainterHighQualityEnabler(q);
+	auto pen = QPen(Qt::transparent);
+	pen.setWidth(st::groupCallTopBarUserpicStroke);
+	auto x = (count - 1) * (single - shift);
+	for (auto i = count; i != 0;) {
+		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		q.drawImage(x, 0, _users[--i].data.userpic);
+		q.setCompositionMode(QPainter::CompositionMode_Source);
+		q.setBrush(Qt::NoBrush);
+		q.setPen(pen);
+		q.drawEllipse(x, 0, single, single);
+		x -= single - shift;
+	}
 }
 
 void TopBar::updateInfoLabels() {

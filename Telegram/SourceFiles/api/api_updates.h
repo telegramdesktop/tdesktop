@@ -160,6 +160,9 @@ private:
 	bool _handlingChannelDifference = false;
 
 	base::flat_map<int, ActiveChatTracker> _activeChats;
+	base::flat_map<
+		not_null<ChannelData*>,
+		base::flat_map<UserId, crl::time>> _pendingSpeakingCallMembers;
 
 	mtpRequestId _onlineRequest = 0;
 	base::Timer _idleFinishTimer;

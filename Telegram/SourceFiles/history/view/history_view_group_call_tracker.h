@@ -22,6 +22,7 @@ namespace HistoryView {
 
 struct UserpicInRow {
 	not_null<PeerData*> peer;
+	bool speaking = false;
 	mutable std::shared_ptr<Data::CloudImageView> view;
 	mutable InMemoryKey uniqueKey;
 };

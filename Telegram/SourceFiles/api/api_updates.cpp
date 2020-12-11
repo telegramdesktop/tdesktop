@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat_filters.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_group_call.h"
 #include "data/data_drafts.h"
 #include "data/data_histories.h"
 #include "data/data_folder.h"
@@ -232,6 +233,26 @@ Updates::Updates(not_null<Main::Session*> session)
 	)).done([=](const MTPupdates_State &result) {
 		stateDone(result);
 	}).send();
+
+	using namespace rpl::mappers;
+	base::ObservableViewer(
+		api().fullPeerUpdated()
+	) | rpl::map([=](not_null<PeerData*> peer) {
+		return peer->asChannel();
+	}) | rpl::filter(
+		_1 != nullptr
+	) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
+		if (const auto users = _pendingSpeakingCallMembers.take(channel)) {
+			if (const auto call = channel->call()) {
+				for (const auto [userId, when] : *users) {
+					call->applyActiveUpdate(
+						userId,
+						when,
+						channel->owner().userLoaded(userId));
+				}
+			}
+		}
+	}, _lifetime);
 }
 
 Main::Session &Updates::session() const {
@@ -1616,20 +1637,38 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updateChannelUserTyping();
 		const auto history = session().data().historyLoaded(
 			peerFromChannel(d.vchannel_id()));
-		const auto user = (d.vuser_id().v == session().userId())
-			? nullptr
-			: session().data().userLoaded(d.vuser_id().v);
-		if (history && user) {
-			const auto when = requestingDifference()
-				? 0
-				: base::unixtime::now();
-			const auto rootId = d.vtop_msg_id().value_or_empty();
-			session().data().registerSendAction(
-				history,
-				rootId,
-				user,
-				d.vaction(),
-				when);
+		if (history) {
+			const auto userId = d.vuser_id().v;
+			const auto user = (userId == session().userId())
+				? session().user().get()
+				: session().data().userLoaded(userId);
+			const auto isSpeakingInCall = (d.vaction().type()
+				== mtpc_speakingInGroupCallAction);
+			if (isSpeakingInCall) {
+				const auto channel = history->peer->asChannel();
+				const auto call = channel->call();
+				const auto now = crl::now();
+				if (call) {
+					call->applyActiveUpdate(userId, now, user);
+				} else if (channel->flags()
+					& MTPDchannel::Flag::f_call_active) {
+					_pendingSpeakingCallMembers.emplace(
+						channel).first->second[userId] = now;
+					session().api().requestFullPeer(channel);
+				}
+			}
+			if (user && !user->isSelf()) {
+				const auto when = requestingDifference()
+					? 0
+					: base::unixtime::now();
+				const auto rootId = d.vtop_msg_id().value_or_empty();
+				session().data().registerSendAction(
+					history,
+					rootId,
+					user,
+					d.vaction(),
+					when);
+			}
 		}
 	} break;
 

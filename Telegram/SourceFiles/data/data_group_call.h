@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
+
 class UserData;
 class ChannelData;
 
@@ -53,10 +55,15 @@ public:
 	void applyUpdateChecked(
 		const MTPDupdateGroupCallParticipants &update);
 	void applyLastSpoke(uint32 ssrc, crl::time when, crl::time now);
+	void applyActiveUpdate(
+		UserId userId,
+		crl::time when,
+		UserData *userLoaded);
 
 	[[nodiscard]] int fullCount() const;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
 
+	void setInCall();
 	void reload();
 
 	void setJoinMutedLocally(bool muted);
@@ -71,14 +78,16 @@ private:
 	};
 	[[nodiscard]] ApiWrap &api() const;
 
+	[[nodiscard]] bool inCall() const;
 	void applyCall(const MTPGroupCall &call, bool force);
 	void applyParticipantsSlice(
 		const QVector<MTPGroupCallParticipant> &list,
 		ApplySliceSource sliceSource);
 	void applyParticipantsMutes(
 		const MTPDupdateGroupCallParticipants &update);
-	void requestUnknownSsrcs();
+	void requestUnknownParticipants();
 	void changeChannelEmptyCallFlag();
+	void checkFinishSpeakingByActive();
 
 	const not_null<ChannelData*> _channel;
 	const uint64 _id = 0;
@@ -90,11 +99,14 @@ private:
 
 	std::vector<Participant> _participants;
 	base::flat_map<uint32, not_null<UserData*>> _userBySsrc;
+	base::flat_map<not_null<UserData*>, crl::time> _speakingByActiveFinishes;
+	base::Timer _speakingByActiveFinishTimer;
 	QString _nextOffset;
 	rpl::variable<int> _fullCount = 0;
 
 	base::flat_map<uint32, crl::time> _unknownSpokenSsrcs;
-	mtpRequestId _unknownSsrcsRequestId = 0;
+	base::flat_map<UserId, crl::time> _unknownSpokenUids;
+	mtpRequestId _unknownUsersRequestId = 0;
 
 	rpl::event_stream<ParticipantUpdate> _participantUpdates;
 	rpl::event_stream<> _participantsSliceAdded;

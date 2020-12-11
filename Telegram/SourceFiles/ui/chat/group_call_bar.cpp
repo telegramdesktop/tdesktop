@@ -134,15 +134,19 @@ void GroupCallBar::paint(Painter &p) {
 			? tr::lng_group_call_members(tr::now, lt_count, _content.count)
 			: tr::lng_group_call_no_members(tr::now)));
 
-	if (!_content.userpics.isNull()) {
-		const auto imageSize = _content.userpics.size()
-			/ _content.userpics.devicePixelRatio();
-		// Skip shadow of the bar above.
-		const auto imageTop = (st::historyReplyHeight
-			- st::lineWidth
-			- imageSize.height()) / 2 + st::lineWidth;
-		const auto imageLeft = (_inner->width() - imageSize.width()) / 2;
-		p.drawImage(imageLeft, imageTop, _content.userpics);
+	const auto picsSize = _content.users.size() * st::historyGroupCallUserpicSize;
+	// Skip shadow of the bar above.
+	const auto imageTop = (st::historyReplyHeight
+		- st::lineWidth
+		- st::historyGroupCallUserpicSize) / 2 + st::lineWidth;
+	const auto picsLeft = (_inner->width() - picsSize) / 2;
+	auto imageLeft = picsLeft;
+	for (const auto &user : _content.users) {
+		if (user.speaking) {
+			p.fillRect(imageLeft, imageTop, st::historyGroupCallUserpicSize, st::historyGroupCallUserpicSize, QColor(255, 128, 128));
+		}
+		p.drawImage(imageLeft, imageTop, user.userpic);
+		imageLeft += st::historyGroupCallUserpicSize;
 	}
 }
 
