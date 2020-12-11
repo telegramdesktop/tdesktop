@@ -664,9 +664,11 @@ void TopBarWidget::updateControlsGeometry() {
 	if (!_infoToggle->isHidden()) {
 		_rightTaken += _infoToggle->width() + st::topBarSkip;
 	}
-	_call->moveToRight(_rightTaken, otherButtonsTop);
-	_groupCall->moveToRight(_rightTaken, otherButtonsTop);
-	_rightTaken += _call->width();
+	if (!_call->isHidden() || !_groupCall->isHidden()) {
+		_call->moveToRight(_rightTaken, otherButtonsTop);
+		_groupCall->moveToRight(_rightTaken, otherButtonsTop);
+		_rightTaken += _call->width();
+	}
 	_search->moveToRight(_rightTaken, otherButtonsTop);
 	_rightTaken += _search->width() + st::topBarCallSkip;
 
@@ -726,7 +728,7 @@ void TopBarWidget::updateControlsVisibility() {
 	const auto callsEnabled = [&] {
 		if (const auto peer = _activeChat.key.peer()) {
 			if (const auto user = peer->asUser()) {
-				return true;
+				return !user->isSelf() && !user->isBot();
 			}
 		}
 		return false;
