@@ -292,7 +292,7 @@ void TopBar::initControls() {
 
 			const auto crossProgress = (crossFrom == crossTo)
 				? crossTo
-				: (crossFrom + float64(crossTo - crossFrom) * value);
+				: anim::interpolateF(crossFrom, crossTo, value);
 			_mute->setProgress(crossProgress);
 		};
 

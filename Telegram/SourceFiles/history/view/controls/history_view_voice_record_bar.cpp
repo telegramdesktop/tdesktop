@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_media_player.h"
 #include "ui/controls/send_button.h"
+#include "ui/effects/animation_value.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
 #include "window/window_session_controller.h"
@@ -60,10 +61,6 @@ enum class FilterType {
 	ShowBox,
 	Cancel,
 };
-
-inline float64 InterpolateF(int a, int b, float64 b_ratio) {
-	return a + float64(b - a) * b_ratio;
-}
 
 [[nodiscard]] auto InactiveColor(const QColor &c) {
 	return QColor(c.red(), c.green(), c.blue(), kInactiveWaveformBarAlpha);
@@ -786,15 +783,15 @@ void RecordLock::drawProgress(Painter &p) {
 
 		const auto &blockHeight = st::historyRecordLockIconBottomHeight;
 
-		const auto blockRectWidth = InterpolateF(
+		const auto blockRectWidth = anim::interpolateF(
 			size.width(),
 			st::historyRecordStopIconWidth,
 			lockToStopProgress);
-		const auto blockRectHeight = InterpolateF(
+		const auto blockRectHeight = anim::interpolateF(
 			blockHeight,
 			st::historyRecordStopIconWidth,
 			lockToStopProgress);
-		const auto blockRectTop = InterpolateF(
+		const auto blockRectTop = anim::interpolateF(
 			size.height() - blockHeight,
 			std::round((size.height() - blockRectHeight) / 2.),
 			lockToStopProgress);
