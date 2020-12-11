@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "boxes/sticker_set_box.h"
 #include "base/platform/base_platform_info.h"
-#include "platform/platform_specific.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
@@ -1220,9 +1219,7 @@ void InnerWidget::copyContextImage(not_null<PhotoData*> photo) {
 	}
 
 	const auto image = media->image(Data::PhotoSize::Large)->original();
-	if (!Platform::SetClipboardImage(image)) {
-		QGuiApplication::clipboard()->setImage(image);
-	}
+	QGuiApplication::clipboard()->setImage(image);
 }
 
 void InnerWidget::copySelectedText() {

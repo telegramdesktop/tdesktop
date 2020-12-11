@@ -77,6 +77,10 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!LOAD_SYMBOL(lib_gtk, "gtk_widget_get_type", gtk_widget_get_type)) return false;
 	if (!LOAD_SYMBOL(lib_gtk, "gtk_clipboard_get", gtk_clipboard_get)) return false;
 	if (!LOAD_SYMBOL(lib_gtk, "gtk_clipboard_store", gtk_clipboard_store)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_clipboard_wait_for_contents", gtk_clipboard_wait_for_contents)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_clipboard_wait_for_image", gtk_clipboard_wait_for_image)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_selection_data_targets_include_image", gtk_selection_data_targets_include_image)) return false;
+	if (!LOAD_SYMBOL(lib_gtk, "gtk_selection_data_free", gtk_selection_data_free)) return false;
 	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_dialog_new", gtk_file_chooser_dialog_new)) return false;
 	if (!LOAD_SYMBOL(lib_gtk, "gtk_file_chooser_get_type", gtk_file_chooser_get_type)) return false;
 	if (!LOAD_SYMBOL(lib_gtk, "gtk_image_get_type", gtk_image_get_type)) return false;
@@ -235,7 +239,6 @@ f_gtk_widget_destroy gtk_widget_destroy = nullptr;
 f_gtk_widget_get_type gtk_widget_get_type = nullptr;
 f_gtk_clipboard_get gtk_clipboard_get = nullptr;
 f_gtk_clipboard_store gtk_clipboard_store = nullptr;
-f_gtk_clipboard_set_image gtk_clipboard_set_image = nullptr;
 f_gtk_clipboard_wait_for_contents gtk_clipboard_wait_for_contents = nullptr;
 f_gtk_clipboard_wait_for_image gtk_clipboard_wait_for_image = nullptr;
 f_gtk_selection_data_targets_include_image gtk_selection_data_targets_include_image = nullptr;
@@ -278,7 +281,6 @@ f_gdk_window_focus gdk_window_focus = nullptr;
 f_gtk_dialog_get_type gtk_dialog_get_type = nullptr;
 f_gtk_dialog_run gtk_dialog_run = nullptr;
 f_gdk_atom_intern gdk_atom_intern = nullptr;
-f_gdk_pixbuf_new_from_data gdk_pixbuf_new_from_data = nullptr;
 f_gdk_pixbuf_new_from_file_at_size gdk_pixbuf_new_from_file_at_size = nullptr;
 f_gdk_pixbuf_get_has_alpha gdk_pixbuf_get_has_alpha = nullptr;
 f_gdk_pixbuf_get_pixels gdk_pixbuf_get_pixels = nullptr;
@@ -318,7 +320,6 @@ void start() {
 	}
 
 	if (gtkLoaded) {
-		LOAD_SYMBOL(lib_gtk, "gdk_pixbuf_new_from_data", gdk_pixbuf_new_from_data);
 		LOAD_SYMBOL(lib_gtk, "gdk_pixbuf_new_from_file_at_size", gdk_pixbuf_new_from_file_at_size);
 		LOAD_SYMBOL(lib_gtk, "gdk_pixbuf_get_has_alpha", gdk_pixbuf_get_has_alpha);
 		LOAD_SYMBOL(lib_gtk, "gdk_pixbuf_get_pixels", gdk_pixbuf_get_pixels);
@@ -327,12 +328,6 @@ void start() {
 		LOAD_SYMBOL(lib_gtk, "gdk_pixbuf_get_rowstride", gdk_pixbuf_get_rowstride);
 
 		internal::GdkHelperLoad(lib_gtk);
-
-		LOAD_SYMBOL(lib_gtk, "gtk_clipboard_set_image", gtk_clipboard_set_image);
-		LOAD_SYMBOL(lib_gtk, "gtk_clipboard_wait_for_contents", gtk_clipboard_wait_for_contents);
-		LOAD_SYMBOL(lib_gtk, "gtk_clipboard_wait_for_image", gtk_clipboard_wait_for_image);
-		LOAD_SYMBOL(lib_gtk, "gtk_selection_data_targets_include_image", gtk_selection_data_targets_include_image);
-		LOAD_SYMBOL(lib_gtk, "gtk_selection_data_free", gtk_selection_data_free);
 
 		LOAD_SYMBOL(lib_gtk, "gtk_dialog_get_widget_for_response", gtk_dialog_get_widget_for_response);
 		LOAD_SYMBOL(lib_gtk, "gtk_button_set_label", gtk_button_set_label);

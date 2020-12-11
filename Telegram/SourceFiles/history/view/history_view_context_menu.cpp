@@ -39,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_scheduled_messages.h"
 #include "core/file_utilities.h"
 #include "base/platform/base_platform_info.h"
-#include "platform/platform_specific.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
@@ -126,9 +125,7 @@ void CopyImage(not_null<PhotoData*> photo) {
 	}
 
 	const auto image = media->image(Data::PhotoSize::Large)->original();
-	if (!Platform::SetClipboardImage(image)) {
-		QGuiApplication::clipboard()->setImage(image);
-	}
+	QGuiApplication::clipboard()->setImage(image);
 }
 
 void ShowStickerPackInfo(

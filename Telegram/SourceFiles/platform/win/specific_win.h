@@ -22,12 +22,8 @@ inline void SetWatchingMediaKeys(bool watching) {
 inline void IgnoreApplicationActivationRightNow() {
 }
 
-inline QImage GetClipboardImage() {
+inline QImage GetImageFromClipboard() {
 	return {};
-}
-
-inline bool SetClipboardImage(const QImage &image) {
-	return false;
 }
 
 inline bool StartSystemMove(QWindow *window) {

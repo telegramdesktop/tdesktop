@@ -38,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sticker_set_box.h"
 #include "chat_helpers/message_field.h"
 #include "history/history_widget.h"
-#include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "mainwindow.h"
@@ -1900,9 +1899,7 @@ void HistoryInner::copyContextImage(not_null<PhotoData*> photo) {
 	}
 
 	const auto image = media->image(Data::PhotoSize::Large)->original();
-	if (!Platform::SetClipboardImage(image)) {
-		QGuiApplication::clipboard()->setImage(image);
-	}
+	QGuiApplication::clipboard()->setImage(image);
 }
 
 void HistoryInner::showStickerPackInfo(not_null<DocumentData*> document) {
