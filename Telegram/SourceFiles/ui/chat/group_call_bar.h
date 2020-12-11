@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/wrap/slide_wrap.h"
+#include "ui/effects/animations.h"
 #include "base/object_ptr.h"
 
 class Painter;
@@ -55,10 +56,31 @@ public:
 	}
 
 private:
+	using User = GroupCallBarContent::User;
+	struct Userpic {
+		User data;
+		std::pair<uint64, uint64> cacheKey;
+		QImage cache;
+		Animations::Simple leftAnimation;
+		Animations::Simple shownAnimation;
+		int left = 0;
+		bool positionInited = false;
+		bool topMost = false;
+		bool hiding = false;
+		bool cacheMasked = false;
+	};
 	void updateShadowGeometry(QRect wrapGeometry);
 	void updateControlsGeometry(QRect wrapGeometry);
+	void updateUserpicsFromContent();
 	void setupInner();
 	void paint(Painter &p);
+	void paintUserpics(Painter &p);
+
+	void toggleUserpic(Userpic &userpic, bool shown);
+	void updateUserpics();
+	void updateUserpicsPositions();
+	void validateUserpicCache(Userpic &userpic);
+	[[nodiscard]] bool needUserpicCacheRefresh(Userpic &userpic);
 
 	SlideWrap<> _wrap;
 	not_null<RpWidget*> _inner;
@@ -66,6 +88,8 @@ private:
 	std::unique_ptr<PlainShadow> _shadow;
 	rpl::event_stream<> _barClicks;
 	Fn<QRect(QRect)> _shadowGeometryPostprocess;
+	std::vector<Userpic> _userpics;
+	int _maxUserpicsWidth = 0;
 	bool _shouldBeShown = false;
 	bool _forceHidden = false;
 

@@ -19,6 +19,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QtEvents>
 
 namespace Ui {
+namespace {
+
+constexpr auto kDuration = 160;
+constexpr auto kMaxUserpics = 4;
+constexpr auto kWideScale = 5;
+
+} // namespace
 
 GroupCallBar::GroupCallBar(
 	not_null<QWidget*> parent,
@@ -32,6 +39,12 @@ GroupCallBar::GroupCallBar(
 , _shadow(std::make_unique<PlainShadow>(_wrap.parentWidget())) {
 	_wrap.hide(anim::type::instant);
 	_shadow->hide();
+
+	const auto limit = kMaxUserpics;
+	const auto single = st::historyGroupCallUserpicSize;
+	const auto shift = st::historyGroupCallUserpicShift;
+	// + 1 * single for the blobs.
+	_maxUserpicsWidth = 2 * single + (limit - 1) * (single - shift);
 
 	_wrap.entity()->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
@@ -47,6 +60,7 @@ GroupCallBar::GroupCallBar(
 		copy
 	) | rpl::start_with_next([=](GroupCallBarContent &&content) {
 		_content = content;
+		updateUserpicsFromContent();
 		_inner->update();
 	}, lifetime());
 
@@ -134,19 +148,102 @@ void GroupCallBar::paint(Painter &p) {
 			? tr::lng_group_call_members(tr::now, lt_count, _content.count)
 			: tr::lng_group_call_no_members(tr::now)));
 
-	const auto picsSize = _content.users.size() * st::historyGroupCallUserpicSize;
 	// Skip shadow of the bar above.
-	const auto imageTop = (st::historyReplyHeight
+	paintUserpics(p);
+}
+
+void GroupCallBar::paintUserpics(Painter &p) {
+	const auto top = (st::historyReplyHeight
 		- st::lineWidth
 		- st::historyGroupCallUserpicSize) / 2 + st::lineWidth;
-	const auto picsLeft = (_inner->width() - picsSize) / 2;
-	auto imageLeft = picsLeft;
-	for (const auto &user : _content.users) {
-		if (user.speaking) {
-			p.fillRect(imageLeft, imageTop, st::historyGroupCallUserpicSize, st::historyGroupCallUserpicSize, QColor(255, 128, 128));
+	const auto middle = _inner->width()  / 2;
+	const auto size = st::historyGroupCallUserpicSize;
+	const auto factor = style::DevicePixelRatio();
+	for (auto &userpic : ranges::view::reverse(_userpics)) {
+		const auto shown = userpic.shownAnimation.value(
+			userpic.hiding ? 0. : 1.);
+		if (shown == 0.) {
+			continue;
 		}
-		p.drawImage(imageLeft, imageTop, user.userpic);
-		imageLeft += st::historyGroupCallUserpicSize;
+		validateUserpicCache(userpic);
+		p.setOpacity(shown);
+		const auto left = middle + userpic.leftAnimation.value(userpic.left);
+		if (userpic.data.speaking) {
+			//p.fillRect(left, top, size, size, QColor(255, 128, 128));
+		}
+		if (shown == 1.) {
+			const auto skip = ((kWideScale - 1) / 2) * size * factor;
+			p.drawImage(
+				QRect(left, top, size, size),
+				userpic.cache,
+				QRect(skip, skip, size * factor, size * factor));
+		} else {
+			const auto scale = 0.5 + shown / 2.;
+			auto target = QRect(
+				left + (1 - kWideScale) / 2 * size,
+				top + (1 - kWideScale) / 2 * size,
+				kWideScale * size,
+				kWideScale * size);
+			auto shrink = anim::interpolate(
+				(1 - kWideScale) / 2 * size,
+				0,
+				scale);
+			auto margins = QMargins(shrink, shrink, shrink, shrink);
+			p.drawImage(target.marginsAdded(margins), userpic.cache);
+		}
+	}
+	p.setOpacity(1.);
+
+	const auto hidden = [](const Userpic &userpic) {
+		return userpic.hiding && !userpic.shownAnimation.animating();
+	};
+	_userpics.erase(ranges::remove_if(_userpics, hidden), end(_userpics));
+}
+
+bool GroupCallBar::needUserpicCacheRefresh(Userpic &userpic) {
+	if (userpic.cache.isNull()) {
+		return true;
+	} else if (userpic.hiding) {
+		return false;
+	} else if (userpic.cacheKey != userpic.data.userpicKey) {
+		return true;
+	}
+	const auto shouldBeMasked = !userpic.topMost;
+	if (userpic.cacheMasked == shouldBeMasked || !shouldBeMasked) {
+		return true;
+	}
+	return !userpic.leftAnimation.animating();
+}
+
+void GroupCallBar::validateUserpicCache(Userpic &userpic) {
+	if (!needUserpicCacheRefresh(userpic)) {
+		return;
+	}
+	const auto factor = style::DevicePixelRatio();
+	const auto size = st::historyGroupCallUserpicSize;
+	const auto shift = st::historyGroupCallUserpicShift;
+	const auto full = QSize(size, size) * kWideScale * factor;
+	if (userpic.cache.isNull()) {
+		userpic.cache = QImage(full, QImage::Format_ARGB32_Premultiplied);
+		userpic.cache.setDevicePixelRatio(factor);
+	}
+	userpic.cacheKey = userpic.data.userpicKey;
+	userpic.cacheMasked = !userpic.topMost;
+	userpic.cache.fill(Qt::transparent);
+	{
+		Painter p(&userpic.cache);
+		const auto skip = (kWideScale - 1) / 2 * size;
+		p.drawImage(skip, skip, userpic.data.userpic);
+
+		if (userpic.cacheMasked) {
+			auto hq = PainterHighQualityEnabler(p);
+			auto pen = QPen(Qt::transparent);
+			pen.setWidth(st::historyGroupCallUserpicStroke);
+			p.setCompositionMode(QPainter::CompositionMode_Source);
+			p.setBrush(Qt::transparent);
+			p.setPen(pen);
+			p.drawEllipse(skip - size + shift, skip, size, size);
+		}
 	}
 }
 
@@ -172,6 +269,108 @@ void GroupCallBar::updateShadowGeometry(QRect wrapGeometry) {
 	_shadow->setGeometry(_shadowGeometryPostprocess
 		? _shadowGeometryPostprocess(regular)
 		: regular);
+}
+
+void GroupCallBar::updateUserpicsFromContent() {
+	const auto idFromUserpic = [](const Userpic &userpic) {
+		return userpic.data.id;
+	};
+
+	// Use "topMost" as "willBeHidden" flag.
+	for (auto &userpic : _userpics) {
+		userpic.topMost = true;
+	}
+	for (const auto &user : _content.users) {
+		const auto i = ranges::find(_userpics, user.id, idFromUserpic);
+		if (i == end(_userpics)) {
+			_userpics.push_back(Userpic{ user });
+			toggleUserpic(_userpics.back(), true);
+			continue;
+		}
+		i->topMost = false;
+
+		if (i->hiding) {
+			toggleUserpic(*i, true);
+		}
+		i->data = user;
+
+		// Put this one after the last we are not hiding.
+		for (auto j = end(_userpics) - 1; j != i; --j) {
+			if (!j->topMost) {
+				ranges::rotate(i, i + 1, j + 1);
+				break;
+			}
+		}
+	}
+
+	// Hide the ones that "willBeHidden" (currently having "topMost" flag).
+	// Set correct real values of "topMost" flag.
+	const auto userpicsBegin = begin(_userpics);
+	const auto userpicsEnd = end(_userpics);
+	auto markedTopMost = userpicsEnd;
+	for (auto i = userpicsBegin; i != userpicsEnd; ++i) {
+		auto &userpic = *i;
+		if (userpic.topMost) {
+			toggleUserpic(userpic, false);
+			userpic.topMost = false;
+		} else if (markedTopMost == userpicsEnd) {
+			userpic.topMost = true;
+			markedTopMost = i;
+		}
+	}
+	if (markedTopMost != userpicsEnd && markedTopMost != userpicsBegin) {
+		// Bring the topMost userpic to the very beginning, above all hiding.
+		std::rotate(userpicsBegin, markedTopMost, markedTopMost + 1);
+	}
+	updateUserpicsPositions();
+}
+
+void GroupCallBar::toggleUserpic(Userpic &userpic, bool shown) {
+	userpic.hiding = !shown;
+	userpic.shownAnimation.start(
+		[=] { updateUserpics(); },
+		shown ? 0. : 1.,
+		shown ? 1. : 0.,
+		kDuration);
+}
+
+void GroupCallBar::updateUserpicsPositions() {
+	const auto shownCount = ranges::count(_userpics, false, &Userpic::hiding);
+	if (!shownCount) {
+		return;
+	}
+	const auto single = st::historyGroupCallUserpicSize;
+	const auto shift = st::historyGroupCallUserpicShift;
+	// + 1 * single for the blobs.
+	const auto fullWidth = single + (shownCount - 1) * (single - shift);
+	auto left = (-fullWidth / 2);
+	for (auto &userpic : _userpics) {
+		if (userpic.hiding) {
+			continue;
+		}
+		if (!userpic.positionInited) {
+			userpic.positionInited = true;
+			userpic.left = left;
+		} else if (userpic.left != left) {
+			userpic.leftAnimation.start(
+				[=] { updateUserpics(); },
+				userpic.left,
+				left,
+				kDuration);
+			userpic.left = left;
+		}
+		left += (single - shift);
+	}
+}
+
+void GroupCallBar::updateUserpics() {
+	const auto widget = _wrap.entity();
+	const auto middle = widget->width() / 2;
+	_wrap.entity()->update(
+		(middle - _maxUserpicsWidth / 2),
+		0,
+		_maxUserpicsWidth,
+		widget->height());
 }
 
 void GroupCallBar::show() {
