@@ -359,7 +359,7 @@ OverlayWidget::OverlayWidget()
 	} else {
 		setWindowFlags(Qt::FramelessWindowHint);
 	}
-	updateGeometry(QApplication::primaryScreen()->geometry());
+	updateGeometry();
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
 	setMouseTracking(true);
@@ -453,8 +453,11 @@ void OverlayWidget::moveToScreen() {
 	}
 }
 
-void OverlayWidget::updateGeometry(const QRect &rect) {
-	setGeometry(rect);
+void OverlayWidget::updateGeometry() {
+	const auto screen = windowHandle() && windowHandle()->screen()
+		? windowHandle()->screen()
+		: QApplication::primaryScreen();
+	setGeometry(screen->geometry());
 
 	auto navSkip = 2 * st::mediaviewControlMargin + st::mediaviewControlSize;
 	_closeNav = myrtlrect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, st::mediaviewControlMargin, st::mediaviewControlSize, st::mediaviewControlSize);
@@ -1313,21 +1316,18 @@ void OverlayWidget::onScreenResized(int screen) {
 		&& windowHandle()->screen()
 		&& changed
 		&& windowHandle()->screen() == changed) {
-		updateGeometry(changed->geometry());
+		updateGeometry();
 	}
 }
 
 void OverlayWidget::handleVisibleChanged(bool visible) {
 	if (visible) {
-		const auto screen = windowHandle()->screen()
-			? windowHandle()->screen()
-			: QApplication::primaryScreen();
-		updateGeometry(screen->geometry());
+		updateGeometry();
 	}
 }
 
 void OverlayWidget::handleScreenChanged(QScreen *screen) {
-	updateGeometry(screen->geometry());
+	updateGeometry();
 }
 
 void OverlayWidget::onToMessage() {
