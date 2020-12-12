@@ -221,9 +221,13 @@ namespace EnhancedSettings {
             }
         });
 
-		ReadBoolOption(settings, "show_phone_number", [&](auto v) {
-			cSetShowPhoneNumber(v);
-		});
+        ReadBoolOption(settings, "show_phone_number", [&](auto v) {
+            cSetShowPhoneNumber(v);
+        });
+
+        ReadBoolOption(settings, "repeater_reply_to_orig_msg", [&](auto v) {
+        	cSetRepeaterReplyToOrigMsg(v);
+        });
 
         return true;
     }
@@ -246,7 +250,8 @@ namespace EnhancedSettings {
         settings.insert(qsl("show_repeater_option"), false);
         settings.insert(qsl("show_emoji_button_as_text"), false);
         settings.insert(qsl("always_delete_for"), 0);
-		settings.insert(qsl("show_phone_number"), true);
+        settings.insert(qsl("show_phone_number"), true);
+        settings.insert(qsl("repeater_reply_to_orig_msg"), false);
 
         auto document = QJsonDocument();
         document.setObject(settings);
@@ -274,7 +279,8 @@ namespace EnhancedSettings {
         settings.insert(qsl("show_repeater_option"), cShowRepeaterOption());
         settings.insert(qsl("show_emoji_button_as_text"), cShowEmojiButtonAsText());
         settings.insert(qsl("always_delete_for"), cAlwaysDeleteFor());
-		settings.insert(qsl("show_phone_number"), cShowPhoneNumber());
+        settings.insert(qsl("show_phone_number"), cShowPhoneNumber());
+        settings.insert(qsl("repeater_reply_to_orig_msg"), cRepeaterReplyToOrigMsg());
 
         auto document = QJsonDocument();
         document.setObject(settings);

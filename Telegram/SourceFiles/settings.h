@@ -182,6 +182,7 @@ DeclareSetting(bool, EnhancedFirstRun);
 DeclareSetting(bool, ShowMessagesID);
 DeclareSetting(bool, ShowEmojiButtonAsText);
 DeclareSetting(bool, ShowRepeaterOption);
+DeclareSetting(bool, RepeaterReplyToOrigMsg);
 DeclareSetting(bool, ShowPhoneNumber);
 
 DeclareSetting(int, NetSpeedBoost);

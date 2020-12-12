@@ -103,6 +103,22 @@ namespace Settings {
             EnhancedSettings::Write();
         }, container->lifetime());
 
+		if (cShowRepeaterOption()) {
+			AddButton(
+					inner,
+					tr::lng_settings_repeater_reply_to_orig_msg(),
+					st::settingsButton
+			)->toggleOn(
+					rpl::single(cRepeaterReplyToOrigMsg())
+			)->toggledChanges(
+			) | rpl::filter([=](bool toggled) {
+				return (toggled != cRepeaterReplyToOrigMsg());
+			}) | rpl::start_with_next([=](bool toggled) {
+				cSetRepeaterReplyToOrigMsg(toggled);
+				EnhancedSettings::Write();
+			}, container->lifetime());
+		}
+
         auto value = rpl::single(
                 rpl::empty_value()
         ) | rpl::then(base::ObservableViewer(

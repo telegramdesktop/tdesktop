@@ -15,6 +15,7 @@
     "lng_settings_show_emoji_button_as_text": "Show Emoji Button As Text",
     "lng_settings_show_repeater_option": "Show Repeater Option",
     "lng_settings_show_phone_number": "Show Phone Number",
+    "lng_settings_repeater_reply_to_orig_msg": "Reply to original message",
     "lng_settings_restart_hint": "WARNING: Changing options with colored will take effect immediately with restart.",
 
     "lng_net_speed_boost_title": "Network speed boost",
