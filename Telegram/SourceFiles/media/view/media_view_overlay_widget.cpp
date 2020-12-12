@@ -50,7 +50,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
-#include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "main/main_account.h"
@@ -1645,18 +1644,13 @@ void OverlayWidget::onOverview() {
 void OverlayWidget::onCopy() {
 	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
 	if (_document) {
-		const auto image = videoShown()
+		QGuiApplication::clipboard()->setImage(videoShown()
 			? transformVideoFrame(videoFrame())
-			: transformStaticContent(_staticContent);
-		if (!Platform::SetClipboardImage(image)) {
-			QGuiApplication::clipboard()->setImage(image);
-		}
+			: transformStaticContent(_staticContent));
 	} else if (_photo && _photoMedia->loaded()) {
 		const auto image = _photoMedia->image(
 			Data::PhotoSize::Large)->original();
-		if (!Platform::SetClipboardImage(image)) {
-			QGuiApplication::clipboard()->setImage(image);
-		}
+		QGuiApplication::clipboard()->setImage(image);
 	}
 }
 

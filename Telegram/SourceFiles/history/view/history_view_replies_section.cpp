@@ -603,7 +603,7 @@ bool RepliesWidget::confirmSendingFiles(
 	}
 
 	if (hasImage) {
-		auto image = Platform::GetClipboardImage();
+		auto image = Platform::GetImageFromClipboard();
 		if (image.isNull()) {
 			image = qvariant_cast<QImage>(data->imageData());
 		}

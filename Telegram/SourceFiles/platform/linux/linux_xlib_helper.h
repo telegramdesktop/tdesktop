@@ -16,9 +16,6 @@ public:
 	XErrorHandlerRestorer();
 	~XErrorHandlerRestorer();
 
-	void save();
-	void restore();
-
 private:
 	class Private;
 	const std::unique_ptr<Private> _private;

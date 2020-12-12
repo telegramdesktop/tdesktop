@@ -325,7 +325,7 @@ bool GenerateDesktopFile(
 }
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-bool GetClipboardImageSupported() {
+bool GetImageFromClipboardSupported() {
 	return (Libs::gtk_clipboard_wait_for_contents != nullptr)
 		&& (Libs::gtk_clipboard_wait_for_image != nullptr)
 		&& (Libs::gtk_selection_data_targets_include_image != nullptr)
@@ -336,11 +336,6 @@ bool GetClipboardImageSupported() {
 		&& (Libs::gdk_pixbuf_get_rowstride != nullptr)
 		&& (Libs::gdk_pixbuf_get_has_alpha != nullptr)
 		&& (Libs::gdk_atom_intern != nullptr);
-}
-
-bool SetClipboardImageSupported() {
-	return (Libs::gtk_clipboard_set_image != nullptr)
-		&& (Libs::gdk_pixbuf_new_from_data != nullptr);
 }
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
@@ -734,11 +729,11 @@ QString GetIconName() {
 	return Result;
 }
 
-QImage GetClipboardImage() {
+QImage GetImageFromClipboard() {
 	QImage data;
 
 #ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (!GetClipboardImageSupported() || !Libs::GtkClipboard()) {
+	if (!GetImageFromClipboardSupported() || !Libs::GtkClipboard()) {
 		return data;
 	}
 
@@ -770,57 +765,6 @@ QImage GetClipboardImage() {
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 	return data;
-}
-
-bool SetClipboardImage(const QImage &image) {
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (!SetClipboardImageSupported()
-		|| !Libs::GtkClipboard()
-		|| image.isNull()) {
-		return false;
-	}
-
-	const auto convertedImage = [&] {
-		if (image.hasAlphaChannel()) {
-			if (image.format() != QImage::Format_RGBA8888) {
-				return image.convertToFormat(QImage::Format_RGBA8888);
-			}
-		} else {
-			if (image.format() != QImage::Format_RGB888) {
-				return image.convertToFormat(QImage::Format_RGB888);
-			}
-		}
-		return image;
-	}();
-
-	auto imageBuf = reinterpret_cast<guchar*>(
-		malloc(convertedImage.sizeInBytes()));
-
-	memcpy(
-		imageBuf,
-		convertedImage.constBits(),
-		convertedImage.sizeInBytes());
-
-	auto imagePixbuf = Libs::gdk_pixbuf_new_from_data(
-		imageBuf,
-		GDK_COLORSPACE_RGB,
-		convertedImage.hasAlphaChannel(),
-		8,
-		convertedImage.width(),
-		convertedImage.height(),
-		convertedImage.bytesPerLine(),
-		[](guchar *pixels, gpointer data) {
-			free(pixels);
-		},
-		nullptr);
-
-	Libs::gtk_clipboard_set_image(Libs::GtkClipboard(), imagePixbuf);
-	g_object_unref(imagePixbuf);
-
-	return true;
-#else // !TDESKTOP_DISABLE_GTK_INTEGRATION
-	return false;
-#endif // TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
 std::optional<bool> IsDarkMode() {

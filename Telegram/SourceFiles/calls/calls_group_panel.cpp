@@ -251,8 +251,11 @@ void GroupPanel::showAndActivate() {
 	if (_window->isHidden()) {
 		_window->show();
 	}
+	const auto state = _window->windowState();
+	if (state & Qt::WindowMinimized) {
+		_window->setWindowState(state & ~Qt::WindowMinimized);
+	}
 	_window->raise();
-	_window->setWindowState(_window->windowState() | Qt::WindowActive);
 	_window->activateWindow();
 	_window->setFocus();
 }

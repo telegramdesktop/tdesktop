@@ -79,6 +79,8 @@ parts:
       - libqt5waylandclient5-dev
       - libssl-dev
       - libxcb1-dev
+      - libxcb-keysyms1-dev
+      - libxcb-record0-dev
       - libxcb-screensaver0-dev
       - zlib1g-dev
     stage-packages:
@@ -93,6 +95,8 @@ parts:
       - libqt5waylandclient5
       - libssl1.1
       - libxcb1
+      - libxcb-keysyms1
+      - libxcb-record0
       - libxcb-screensaver0
       - zlib1g
     cmake-parameters:

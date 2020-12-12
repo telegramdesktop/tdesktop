@@ -72,12 +72,6 @@ jobs:
       - name: Get repository name.
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
-      - name: Yum install.
-        run: |
-          yum -y autoremove git
-          yum -y install https://packages.endpoint.com/rhel/7/os/x86_64/endpoint-repo-1.7-1.x86_64.rpm
-          yum -y install git
-
       - name: Clone.
         uses: actions/checkout@v2
         with:

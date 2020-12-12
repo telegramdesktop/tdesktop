@@ -218,7 +218,7 @@ jobs:
           -A Win32 ^
           -D LIBTYPE:STRING=STATIC ^
           -D FORCE_STATIC_VCRT=ON ^
-          -D ALSOFT_BACKEND_WASAPI=OFF
+          -D ALSOFT_BACKEND_DSOUND=OFF
 
           msbuild -m OpenAL.vcxproj /property:Configuration=Debug
 
