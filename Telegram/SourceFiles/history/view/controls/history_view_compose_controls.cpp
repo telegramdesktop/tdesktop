@@ -1639,7 +1639,15 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		- _send->width()
 		- _tabbedSelectorToggle->width()
 		- (_botCommandShown ? _botCommandStart->width() : 0);
-	_field->resizeToWidth(fieldWidth);
+	{
+		const auto oldFieldHeight = _field->height();
+		_field->resizeToWidth(fieldWidth);
+		// If a height of the field is changed
+		// then this method will be called with the updated size.
+		if (oldFieldHeight != _field->height()) {
+			return;
+		}
+	}
 
 	const auto buttonsTop = size.height() - _attachToggle->height();
 
