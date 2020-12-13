@@ -1567,10 +1567,6 @@ void ComposeControls::initVoiceRecordBar() {
 		_voiceRecordBar->setLockBottom(std::move(bottom));
 	}
 
-	_voiceRecordBar->setEscFilter([=] {
-		return (isEditingMessage() || replyingToMessage());
-	});
-
 	_voiceRecordBar->updateSendButtonTypeRequests(
 	) | rpl::start_with_next([=] {
 		updateSendButtonType();
@@ -1716,7 +1712,11 @@ void ComposeControls::paintBackground(QRect clip) {
 }
 
 void ComposeControls::escape() {
-	_cancelRequests.fire({});
+	if (auto &voice = _voiceRecordBar; !voice->isActive()) {
+		voice->showDiscardBox(nullptr, anim::type::normal);
+	} else {
+		_cancelRequests.fire({});
+	}
 }
 
 bool ComposeControls::pushTabbedSelectorToThirdSection(
@@ -2139,8 +2139,8 @@ bool ComposeControls::isRecording() const {
 }
 
 bool ComposeControls::preventsClose(Fn<void()> &&continueCallback) const {
-	if (isRecording()) {
-		_voiceRecordBar->showDiscardRecordingBox(std::move(continueCallback));
+	if (_voiceRecordBar->isActive()) {
+		_voiceRecordBar->showDiscardBox(std::move(continueCallback));
 		return true;
 	}
 	return false;

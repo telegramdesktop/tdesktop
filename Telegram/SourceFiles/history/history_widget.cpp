@@ -757,9 +757,6 @@ void HistoryWidget::initVoiceRecordBar() {
 		});
 		_voiceRecordBar->setLockBottom(std::move(scrollHeight));
 	}
-	_voiceRecordBar->setEscFilter([=]() -> bool {
-		return _replyToId || (_nonEmptySelection && _list);
-	});
 
 	_voiceRecordBar->setSendButtonGeometryValue(_send->geometryValue());
 
@@ -1629,7 +1626,7 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		? _history->localEditDraft()
 		: _history->localDraft();
 	auto fieldAvailable = canWriteMessage()
-		&& !_voiceRecordBar->preventDraftApply();
+		&& !_voiceRecordBar->isActive();
 	if (!draft || (!_history->localEditDraft() && !fieldAvailable)) {
 		auto fieldWillBeHiddenAfterEdit = (!fieldAvailable && _editMsgId != 0);
 		clearFieldText(0, fieldHistoryAction);
@@ -3099,7 +3096,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 		return;
 	}
 
-	if (_voiceRecordBar && _voiceRecordBar->isListenState()) {
+	if (_voiceRecordBar->isListenState()) {
 		_voiceRecordBar->requestToSendWithOptions(options);
 		return;
 	}
@@ -3915,8 +3912,8 @@ void HistoryWidget::setTabbedPanel(std::unique_ptr<TabbedPanel> panel) {
 }
 
 bool HistoryWidget::preventsClose(Fn<void()> &&continueCallback) const {
-	if (isRecording()) {
-		_voiceRecordBar->showDiscardRecordingBox(std::move(continueCallback));
+	if (_voiceRecordBar->isActive()) {
+		_voiceRecordBar->showDiscardBox(std::move(continueCallback));
 		return true;
 	}
 	return false;
@@ -5648,7 +5645,7 @@ void HistoryWidget::editMessage(FullMsgId itemId) {
 }
 
 void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
-	if (_voiceRecordBar && _voiceRecordBar->isListenState()) {
+	if (_voiceRecordBar->isListenState()) {
 		Ui::show(Box<InformBox>(tr::lng_edit_caption_voice(tr::now)));
 		return;
 	}
@@ -6122,6 +6119,8 @@ void HistoryWidget::escape() {
 		_fieldAutocomplete->hideAnimated();
 	} else if (_replyToId && _field->getTextWithTags().text.isEmpty()) {
 		cancelReply();
+	} else if (auto &voice = _voiceRecordBar; voice->isActive()) {
+		voice->showDiscardBox(nullptr, anim::type::normal);
 	} else {
 		_cancelRequests.fire({});
 	}

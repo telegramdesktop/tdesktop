@@ -47,7 +47,9 @@ public:
 		int recorderHeight);
 	~VoiceRecordBar();
 
-	void showDiscardRecordingBox(Fn<void()> &&callback);
+	void showDiscardBox(
+		Fn<void()> &&callback,
+		anim::type animated = anim::type::instant);
 
 	void startRecording();
 	void finishAnimating();
@@ -68,13 +70,12 @@ public:
 
 	void setLockBottom(rpl::producer<int> &&bottom);
 	void setSendButtonGeometryValue(rpl::producer<QRect> &&geometry);
-	void setEscFilter(Fn<bool()> &&callback);
 	void setStartRecordingFilter(Fn<bool()> &&callback);
 
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isListenState() const;
-	[[nodiscard]] bool preventDraftApply() const;
+	[[nodiscard]] bool isActive() const;
 
 private:
 	enum class StopType {
@@ -102,7 +103,6 @@ private:
 	void drawMessage(Painter &p, float64 recordActive);
 
 	void startRedCircleAnimation();
-	void installClickOutsideFilter();
 	void installListenStateFilter();
 
 	bool isTypeRecord() const;
@@ -137,7 +137,6 @@ private:
 
 	Ui::Text::String _message;
 
-	Fn<bool()> _escFilter;
 	Fn<bool()> _startRecordingFilter;
 
 	rpl::variable<bool> _recording = false;
