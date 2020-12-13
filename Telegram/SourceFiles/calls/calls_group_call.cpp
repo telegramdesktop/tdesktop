@@ -142,7 +142,7 @@ void GroupCall::setState(State state) {
 
 void GroupCall::start() {
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
-		_channel->inputChannel,
+		_channel->input,
 		MTP_int(rand_value<int32>())
 	)).done([=](const MTPUpdates &result) {
 		_acceptFields = true;

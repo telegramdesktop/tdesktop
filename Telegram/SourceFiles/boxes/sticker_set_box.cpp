@@ -334,14 +334,20 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			_setHash = set.vhash().v;
 			_setFlags = set.vflags().v;
 			_setInstallDate = set.vinstalled_date().value_or(0);
-			if (const auto thumb = set.vthumb()) {
-				_setThumbnail = Images::FromPhotoSize(
-					&_controller->session(),
-					set,
-					*thumb);
-			} else {
-				_setThumbnail = ImageWithLocation();
-			}
+			_setThumbnail = [&] {
+				if (const auto thumbs = set.vthumbs()) {
+					for (const auto &thumb : thumbs->v) {
+						const auto result = Images::FromPhotoSize(
+							&_controller->session(),
+							set,
+							thumb);
+						if (result.location.valid()) {
+							return result;
+						}
+					}
+				}
+				return ImageWithLocation();
+			}();
 			const auto &sets = _controller->session().data().stickers().sets();
 			const auto it = sets.find(_setId);
 			if (it != sets.cend()) {
