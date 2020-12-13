@@ -1897,15 +1897,21 @@ bool MainWidget::stackIsEmpty() const {
 	return _stack.empty();
 }
 
-bool MainWidget::preventsCloseSection(
-		Fn<void()> callback,
-		const SectionShow &params) const {
-	if (params.thirdColumn || Core::App().passcodeLocked()) {
+bool MainWidget::preventsCloseSection(Fn<void()> callback) const {
+	if (Core::App().passcodeLocked()) {
 		return false;
 	}
 	auto copy = callback;
 	return (_mainSection && _mainSection->preventsClose(std::move(copy)))
 		|| (_history && _history->preventsClose(std::move(callback)));
+}
+
+bool MainWidget::preventsCloseSection(
+		Fn<void()> callback,
+		const SectionShow &params) const {
+	return params.thirdColumn
+		? false
+		: preventsCloseSection(std::move(callback));
 }
 
 void MainWidget::showBackFromStack(

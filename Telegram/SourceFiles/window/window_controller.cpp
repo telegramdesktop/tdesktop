@@ -317,6 +317,10 @@ void Controller::close() {
 	_widget.close();
 }
 
+void Controller::preventOrInvoke(Fn<void()> &&callback) {
+	_widget.preventOrInvoke(std::move(callback));
+}
+
 QPoint Controller::getPointForCallPanelCenter() const {
 	Expects(_widget.windowHandle() != nullptr);
 

@@ -63,6 +63,7 @@ public:
 	void notifyUnreadBadgeChanged();
 
 	[[nodiscard]] not_null<Main::Account*> add(MTP::Environment environment);
+	void maybeActivate(not_null<Main::Account*> account);
 	void activate(not_null<Main::Account*> account);
 	void addActivated(MTP::Environment environment);
 

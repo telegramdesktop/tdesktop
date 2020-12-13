@@ -48,6 +48,8 @@ public:
 
 	void finishFirstShow();
 
+	void preventOrInvoke(Fn<void()> callback);
+
 	void setupPasscodeLock();
 	void clearPasscodeLock();
 	void setupIntro(Intro::EnterPoint point);

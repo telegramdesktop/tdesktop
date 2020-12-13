@@ -277,6 +277,8 @@ public:
 	void switchFreeType();
 	void writeInstallBetaVersionsSetting();
 
+	void preventOrInvoke(Fn<void()> &&callback);
+
 	void call_handleObservables();
 
 protected:

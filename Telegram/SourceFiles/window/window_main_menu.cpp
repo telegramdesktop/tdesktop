@@ -761,7 +761,7 @@ void MainMenu::rebuildAccounts() {
 				}
 				auto activate = [=, guard = _accountSwitchGuard.make_guard()]{
 					if (guard) {
-						Core::App().domain().activate(account);
+						Core::App().domain().maybeActivate(account);
 					}
 				};
 				base::call_delayed(
@@ -815,7 +815,9 @@ not_null<Ui::SlideWrap<Ui::RippleButton>*> MainMenu::setupAddAccount(
 	}, button->lifetime());
 
 	const auto add = [=](MTP::Environment environment) {
-		Core::App().domain().addActivated(environment);
+		Core::App().preventOrInvoke([=] {
+			Core::App().domain().addActivated(environment);
+		});
 	};
 
 	button->setAcceptBoth(true);

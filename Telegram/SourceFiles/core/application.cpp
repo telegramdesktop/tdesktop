@@ -789,9 +789,17 @@ bool Application::openCustomUrl(
 
 }
 
+void Application::preventOrInvoke(Fn<void()> &&callback) {
+	_window->preventOrInvoke(std::move(callback));
+}
+
 void Application::lockByPasscode() {
-	_passcodeLock = true;
-	_window->setupPasscodeLock();
+	preventOrInvoke([=] {
+		if (_window) {
+			_passcodeLock = true;
+			_window->setupPasscodeLock();
+		}
+	});
 }
 
 void Application::unlockPasscode() {

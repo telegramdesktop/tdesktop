@@ -223,6 +223,11 @@ public:
 	void closeBothPlayers();
 	void stopAndClosePlayer();
 
+	bool preventsCloseSection(Fn<void()> callback) const;
+	bool preventsCloseSection(
+		Fn<void()> callback,
+		const SectionShow &params) const;
+
 public slots:
 	void inlineResultLoadProgress(FileLoader *loader);
 	void inlineResultLoadFailed(FileLoader *loader, bool started);
@@ -274,9 +279,6 @@ private:
 		std::unique_ptr<Window::SectionMemento> &&memento,
 		const SectionShow &params);
 	void dropMainSection(Window::SectionWidget *widget);
-	bool preventsCloseSection(
-		Fn<void()> callback,
-		const SectionShow &params) const;
 
 	Window::SectionSlideParams prepareThirdSectionAnimation(Window::SectionWidget *section);
 
