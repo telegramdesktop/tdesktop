@@ -1322,7 +1322,7 @@ void OverlayWidget::onScreenResized(int screen) {
 
 void OverlayWidget::handleVisibleChanged(bool visible) {
 	if (visible) {
-		updateGeometry();
+		moveToScreen();
 	}
 }
 
@@ -2186,9 +2186,6 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 		displayDocument(nullptr, item);
 		return;
 	}
-	if (isHidden()) {
-		moveToScreen();
-	}
 	_touchbarDisplay.fire(TouchBarItemType::Photo);
 
 	clearStreaming();
@@ -2255,9 +2252,6 @@ void OverlayWidget::displayDocument(
 		HistoryItem *item,
 		const Data::CloudTheme &cloud,
 		bool continueStreaming) {
-	if (isHidden()) {
-		moveToScreen();
-	}
 	_fullScreenVideo = false;
 	_staticContent = QPixmap();
 	clearStreaming(_document != doc);
