@@ -178,6 +178,19 @@ RUN make DESTDIR="$LibrariesPath/libXfixes-cache" install
 WORKDIR ..
 RUN rm -rf libxfixes
 
+FROM builder AS libXv
+COPY --from=libXext ${LibrariesPath}/libXext-cache /
+
+RUN git clone -b libXv-1.0.11 --depth=1 https://gitlab.freedesktop.org/xorg/lib/libxv.git
+
+WORKDIR libxv
+RUN ./autogen.sh --enable-static
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/libXv-cache" install
+
+WORKDIR ..
+RUN rm -rf libxv
+
 FROM builder AS wayland
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 
@@ -226,6 +239,9 @@ RUN rm -rf libvdpau
 FROM builder AS ffmpeg
 
 COPY --from=opus ${LibrariesPath}/opus-cache /
+COPY --from=libXext ${LibrariesPath}/libXext-cache /
+COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
+COPY --from=libXv ${LibrariesPath}/libXv-cache /
 COPY --from=libva ${LibrariesPath}/libva-cache /
 COPY --from=libvdpau ${LibrariesPath}/libvdpau-cache /
 
@@ -244,6 +260,8 @@ RUN ./configure \
 	--enable-libopus \
 	--enable-vaapi \
 	--enable-vdpau \
+	--enable-xlib \
+	--enable-libdrm \
 	--enable-protocol=file \
 	--enable-hwaccel=h264_vaapi \
 	--enable-hwaccel=h264_vdpau \
@@ -394,8 +412,6 @@ COPY --from=xcb-util ${LibrariesPath}/xcb-util-cache /
 COPY --from=xcb-image ${LibrariesPath}/xcb-image-cache /
 COPY --from=xcb-keysyms ${LibrariesPath}/xcb-keysyms-cache /
 COPY --from=xcb-render-util ${LibrariesPath}/xcb-render-util-cache /
-COPY --from=libXext ${LibrariesPath}/libXext-cache /
-COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 COPY --from=xkbcommon ${LibrariesPath}/xkbcommon-cache /
@@ -525,6 +541,7 @@ COPY --from=xcb-keysyms ${LibrariesPath}/xcb-keysyms-cache /
 COPY --from=xcb-render-util ${LibrariesPath}/xcb-render-util-cache /
 COPY --from=libXext ${LibrariesPath}/libXext-cache /
 COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
+COPY --from=libXv ${LibrariesPath}/libXv-cache /
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
 COPY --from=libva ${LibrariesPath}/libva-cache /
 COPY --from=libvdpau ${LibrariesPath}/libvdpau-cache /
