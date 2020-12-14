@@ -59,6 +59,8 @@ FFmpeg::AvErrorWrap ProcessPacket(Stream &stream, FFmpeg::Packet &&packet) {
 				return FFmpeg::AvErrorWrap(); // Try to skip a bad packet.
 			}
 		}
+	} else {
+		stream.invalidDataPackets = 0;
 	}
 	return error;
 }
