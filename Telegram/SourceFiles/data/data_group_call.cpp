@@ -288,13 +288,15 @@ void GroupCall::applyParticipantsSlice(
 				_userBySsrc.emplace(value.ssrc, user);
 				_participants.push_back(value);
 				_peer->owner().unregisterInvitedToCallUser(_id, user);
-				++changedCount;
 			} else {
 				if (i->ssrc != value.ssrc) {
 					_userBySsrc.erase(i->ssrc);
 					_userBySsrc.emplace(value.ssrc, user);
 				}
 				*i = value;
+			}
+			if (data.is_just_joined()) {
+				++changedCount;
 			}
 			if (sliceSource != ApplySliceSource::SliceLoaded) {
 				_participantUpdates.fire({
