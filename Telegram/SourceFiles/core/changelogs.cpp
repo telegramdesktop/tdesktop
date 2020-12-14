@@ -109,6 +109,16 @@ std::map<int, const char*> BetaLogs() {
 		2004012,
 		"- Voice chats in groups. (alpha version)\n"
 	},
+	{
+		2004014,
+		"- Create voice chats in legacy groups.\n"
+
+		"- Fix sticker pack opening.\n"
+
+		"- Fix group status display.\n"
+		
+		"- Fix group members display.\n"
+	},
 	};
 };
 
