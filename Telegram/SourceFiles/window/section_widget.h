@@ -135,7 +135,7 @@ public:
 
 	// Create a memento of that section to store it in the history stack.
 	// This method may modify the section ("take" heavy items).
-	virtual std::unique_ptr<SectionMemento> createMemento();
+	virtual std::shared_ptr<SectionMemento> createMemento();
 
 	void setInnerFocus() {
 		doSetInnerFocus();

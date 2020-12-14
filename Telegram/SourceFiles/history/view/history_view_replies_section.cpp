@@ -1367,8 +1367,8 @@ bool RepliesWidget::returnTabbedSelector() {
 	return _composeControls->returnTabbedSelector();
 }
 
-std::unique_ptr<Window::SectionMemento> RepliesWidget::createMemento() {
-	auto result = std::make_unique<RepliesMemento>(history(), _rootId);
+std::shared_ptr<Window::SectionMemento> RepliesWidget::createMemento() {
+	auto result = std::make_shared<RepliesMemento>(history(), _rootId);
 	saveState(result.get());
 	return result;
 }

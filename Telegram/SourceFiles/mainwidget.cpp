@@ -140,8 +140,8 @@ public:
 	}
 
 	void setThirdSectionMemento(
-		std::unique_ptr<Window::SectionMemento> &&memento);
-	std::unique_ptr<Window::SectionMemento> takeThirdSectionMemento() {
+		std::shared_ptr<Window::SectionMemento> memento);
+	std::shared_ptr<Window::SectionMemento> takeThirdSectionMemento() {
 		return std::move(_thirdSectionMemento);
 	}
 
@@ -158,7 +158,7 @@ public:
 private:
 	PeerData *_peer = nullptr;
 	QPointer<Window::SectionWidget> _thirdSectionWeak;
-	std::unique_ptr<Window::SectionMemento> _thirdSectionMemento;
+	std::shared_ptr<Window::SectionMemento> _thirdSectionMemento;
 
 };
 
@@ -187,27 +187,27 @@ public:
 class StackItemSection : public StackItem {
 public:
 	StackItemSection(
-		std::unique_ptr<Window::SectionMemento> &&memento);
+		std::shared_ptr<Window::SectionMemento> memento);
 
 	StackItemType type() const override {
 		return SectionStackItem;
 	}
-	std::unique_ptr<Window::SectionMemento> takeMemento() {
+	std::shared_ptr<Window::SectionMemento> takeMemento() {
 		return std::move(_memento);
 	}
 
 private:
-	std::unique_ptr<Window::SectionMemento> _memento;
+	std::shared_ptr<Window::SectionMemento> _memento;
 
 };
 
 void StackItem::setThirdSectionMemento(
-		std::unique_ptr<Window::SectionMemento> &&memento) {
+		std::shared_ptr<Window::SectionMemento> memento) {
 	_thirdSectionMemento = std::move(memento);
 }
 
 StackItemSection::StackItemSection(
-	std::unique_ptr<Window::SectionMemento> &&memento)
+	std::shared_ptr<Window::SectionMemento> memento)
 : StackItem(nullptr)
 , _memento(std::move(memento)) {
 }
@@ -1607,7 +1607,7 @@ void MainWidget::saveSectionInStack() {
 }
 
 void MainWidget::showSection(
-		std::unique_ptr<Window::SectionMemento> &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const SectionShow &params) {
 	if (_mainSection && _mainSection->showInternal(
 			memento.get(),
@@ -1626,11 +1626,8 @@ void MainWidget::showSection(
 	//	return;
 	}
 
-	using MementoPtr = std::unique_ptr<Window::SectionMemento>;
-	const auto sharedMemento = std::make_shared<MementoPtr>(
-		std::move(memento));
 	if (preventsCloseSection(
-		[=] { showSection(base::take(*sharedMemento), params); },
+		[=] { showSection(memento, params); },
 		params)) {
 		return;
 	}
@@ -1640,9 +1637,7 @@ void MainWidget::showSection(
 	// we need to update adaptive layout to Adaptive::ThirdColumn().
 	updateColumnLayout();
 
-	showNewSection(
-		std::move(*sharedMemento),
-		params);
+	showNewSection(std::move(memento), params);
 }
 
 void MainWidget::updateColumnLayout() {
@@ -1737,7 +1732,7 @@ Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
 }
 
 void MainWidget::showNewSection(
-		std::unique_ptr<Window::SectionMemento> &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const SectionShow &params) {
 	using Column = Window::Column;
 
@@ -2451,15 +2446,15 @@ bool MainWidget::saveThirdSectionToStackBack() const {
 
 auto MainWidget::thirdSectionForCurrentMainSection(
 	Dialogs::Key key)
--> std::unique_ptr<Window::SectionMemento> {
+-> std::shared_ptr<Window::SectionMemento> {
 	if (_thirdSectionFromStack) {
 		return std::move(_thirdSectionFromStack);
 	} else if (const auto peer = key.peer()) {
-		return std::make_unique<Info::Memento>(
+		return std::make_shared<Info::Memento>(
 			peer,
 			Info::Memento::DefaultSection(peer));
 	//} else if (const auto feed = key.feed()) { // #feed
-	//	return std::make_unique<Info::Memento>(
+	//	return std::make_shared<Info::Memento>(
 	//		feed,
 	//		Info::Memento::DefaultSection(key));
 	}

@@ -687,7 +687,7 @@ HistoryWidget::HistoryWidget(
 			cancelReply(lastKeyboardUsed);
 			crl::on_main(this, [=, history = action.history]{
 				controller->showSection(
-					std::make_unique<HistoryView::ScheduledMemento>(history));
+					std::make_shared<HistoryView::ScheduledMemento>(history));
 			});
 		} else {
 			fastShowAtEnd(action.history);
@@ -1502,7 +1502,7 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 		} else if (to.section == Section::Scheduled) {
 			history->setDraft(Data::DraftKey::Scheduled(), std::move(draft));
 			controller()->showSection(
-				std::make_unique<HistoryView::ScheduledMemento>(history));
+				std::make_shared<HistoryView::ScheduledMemento>(history));
 		} else {
 			history->setLocalDraft(std::move(draft));
 			if (history == _history) {
@@ -2070,7 +2070,7 @@ void HistoryWidget::refreshScheduledToggle() {
 		_scheduled->show();
 		_scheduled->addClickHandler([=] {
 			controller()->showSection(
-				std::make_unique<HistoryView::ScheduledMemento>(_history));
+				std::make_shared<HistoryView::ScheduledMemento>(_history));
 		});
 		orderWidgets(); // Raise drag areas to the top.
 	} else if (_scheduled && !has) {
@@ -3880,7 +3880,7 @@ bool HistoryWidget::pushTabbedSelectorToThirdSection(
 	Core::App().settings().setTabbedReplacedWithInfo(false);
 	controller()->resizeForThirdSection();
 	controller()->showSection(
-		std::make_unique<ChatHelpers::TabbedMemento>(),
+		std::make_shared<ChatHelpers::TabbedMemento>(),
 		params.withThirdColumn());
 	return true;
 }
@@ -5387,7 +5387,7 @@ void HistoryWidget::refreshPinnedBarButton(bool many) {
 			const auto id = _pinnedTracker->currentMessageId();
 			if (id.message) {
 				controller()->showSection(
-					std::make_unique<HistoryView::PinnedMemento>(
+					std::make_shared<HistoryView::PinnedMemento>(
 						_history,
 						((!_migrated || id.message.channel)
 							? id.message.msg

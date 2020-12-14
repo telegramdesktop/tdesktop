@@ -941,8 +941,8 @@ bool ScheduledWidget::returnTabbedSelector() {
 	return _composeControls->returnTabbedSelector();
 }
 
-std::unique_ptr<Window::SectionMemento> ScheduledWidget::createMemento() {
-	auto result = std::make_unique<ScheduledMemento>(history());
+std::shared_ptr<Window::SectionMemento> ScheduledWidget::createMemento() {
+	auto result = std::make_shared<ScheduledMemento>(history());
 	saveState(result.get());
 	return result;
 }

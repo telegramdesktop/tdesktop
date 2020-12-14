@@ -92,7 +92,7 @@ bool SectionWidget::showInternal(
 	return _content->showInternal(memento, params);
 }
 
-std::unique_ptr<Window::SectionMemento> SectionWidget::createMemento() {
+std::shared_ptr<Window::SectionMemento> SectionWidget::createMemento() {
 	return _content->createMemento();
 }
 

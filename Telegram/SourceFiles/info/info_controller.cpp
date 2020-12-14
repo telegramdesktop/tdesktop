@@ -123,7 +123,7 @@ PollData *AbstractController::poll() const {
 }
 
 void AbstractController::showSection(
-		std::unique_ptr<Window::SectionMemento> &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const Window::SectionShow &params) {
 	return parentController()->showSection(std::move(memento), params);
 }
@@ -170,7 +170,7 @@ void Controller::setupMigrationViewer() {
 		const auto section = _section;
 		InvokeQueued(_widget, [=] {
 			window->showSection(
-				std::make_unique<Memento>(peer, section),
+				std::make_shared<Memento>(peer, section),
 				Window::SectionShow(
 					Window::SectionShow::Way::Backward,
 					anim::type::instant,
@@ -261,7 +261,7 @@ void Controller::saveSearchState(not_null<ContentMemento*> memento) {
 }
 
 void Controller::showSection(
-		std::unique_ptr<Window::SectionMemento> &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const Window::SectionShow &params) {
 	if (!_widget->showInternal(memento.get(), params)) {
 		AbstractController::showSection(std::move(memento), params);

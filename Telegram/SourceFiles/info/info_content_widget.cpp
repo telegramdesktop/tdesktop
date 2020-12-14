@@ -94,7 +94,7 @@ void ContentWidget::updateControlsGeometry() {
 	}
 }
 
-std::unique_ptr<ContentMemento> ContentWidget::createMemento() {
+std::shared_ptr<ContentMemento> ContentWidget::createMemento() {
 	auto result = doCreateMemento();
 	_controller->saveSearchState(result.get());
 	return result;

@@ -342,8 +342,8 @@ void PinnedWidget::setInternalState(
 	restoreState(memento);
 }
 
-std::unique_ptr<Window::SectionMemento> PinnedWidget::createMemento() {
-	auto result = std::make_unique<PinnedMemento>(history());
+std::shared_ptr<Window::SectionMemento> PinnedWidget::createMemento() {
+	auto result = std::make_shared<PinnedMemento>(history());
 	saveState(result.get());
 	return result;
 }

@@ -1002,7 +1002,7 @@ void Controller::fillManageSection() {
 	if (hasRecentActions) {
 		auto callback = [=] {
 			_navigation->showSection(
-				std::make_unique<AdminLog::SectionMemento>(channel));
+				std::make_shared<AdminLog::SectionMemento>(channel));
 		};
 		AddButtonWithCount(
 			_controls.buttonsLayout,

@@ -134,7 +134,7 @@ public:
 
 	int backgroundFromY() const;
 	void showSection(
-		std::unique_ptr<Window::SectionMemento> &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const SectionShow &params);
 	void updateColumnLayout();
 	bool stackIsEmpty() const;
@@ -256,7 +256,7 @@ private:
 		bool canWrite);
 	[[nodiscard]] bool saveThirdSectionToStackBack() const;
 	[[nodiscard]] auto thirdSectionForCurrentMainSection(Dialogs::Key key)
-		-> std::unique_ptr<Window::SectionMemento>;
+		-> std::shared_ptr<Window::SectionMemento>;
 
 	void setupConnectingWidget();
 	void createPlayer();
@@ -276,7 +276,7 @@ private:
 	Window::SectionSlideParams prepareShowAnimation(
 		bool willHaveTopBarShadow);
 	void showNewSection(
-		std::unique_ptr<Window::SectionMemento> &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const SectionShow &params);
 	void dropMainSection(Window::SectionWidget *widget);
 
@@ -353,7 +353,7 @@ private:
 	object_ptr<HistoryWidget> _history;
 	object_ptr<Window::SectionWidget> _mainSection = { nullptr };
 	object_ptr<Window::SectionWidget> _thirdSection = { nullptr };
-	std::unique_ptr<Window::SectionMemento> _thirdSectionFromStack;
+	std::shared_ptr<Window::SectionMemento> _thirdSectionFromStack;
 	std::unique_ptr<Window::ConnectionState> _connecting;
 
 	base::weak_ptr<Calls::Call> _currentCall;
