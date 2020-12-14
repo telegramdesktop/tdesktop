@@ -5417,7 +5417,8 @@ void HistoryWidget::setupGroupCallTracker() {
 		channel);
 	_groupCallBar = std::make_unique<Ui::GroupCallBar>(
 		this,
-		_groupCallTracker->content());
+		_groupCallTracker->content(),
+		Core::App().appDeactivatedValue());
 
 	rpl::single(
 		rpl::empty_value()

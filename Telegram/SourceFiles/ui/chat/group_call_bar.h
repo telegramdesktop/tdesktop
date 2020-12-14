@@ -35,7 +35,8 @@ class GroupCallBar final {
 public:
 	GroupCallBar(
 		not_null<QWidget*> parent,
-		rpl::producer<GroupCallBarContent> content);
+		rpl::producer<GroupCallBarContent> content,
+		rpl::producer<bool> &&hideBlobs);
 	~GroupCallBar();
 
 	void show();
@@ -88,6 +89,9 @@ private:
 	int _maxUserpicsWidth = 0;
 	bool _shouldBeShown = false;
 	bool _forceHidden = false;
+
+	bool _skipLevelUpdate = false;
+	crl::time _speakingAnimationHideLastTime = 0;
 
 	GroupCallBarContent _content;
 
