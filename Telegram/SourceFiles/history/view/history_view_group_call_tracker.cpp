@@ -139,7 +139,6 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 		state->current.users.reserve(state->userpics.size());
 		state->current.users.clear();
 		state->someUserpicsNotLoaded = false;
-		using User = Ui::GroupCallBarContent::User;
 		for (auto &userpic : state->userpics) {
 			userpic.peer->loadUserpic();
 			const auto pic = userpic.peer->genUserpic(userpic.view, st.size);
