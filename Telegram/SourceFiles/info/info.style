@@ -748,7 +748,7 @@ topBarSearch: IconButton {
 		color: windowBgOver;
 	}
 }
-topBarSkip: -2px;
+topBarSkip: -5px;
 topBarCallSkip: -1px;
 topBarMenuToggle: IconButton(topBarSearch) {
 	width: 44px;
@@ -766,7 +766,7 @@ topBarCall: IconButton(topBarSearch) {
 topBarGroupCall: IconButton(topBarSearch) {
 	icon: icon {{ "top_bar_group_call", menuIconFg }};
 	iconOver: icon {{ "top_bar_group_call", menuIconFgOver }};
-	iconPosition: point(8px, 15px);
+	iconPosition: point(8px, 16px);
 }
 topBarInfo: IconButton(topBarSearch) {
 	icon: icon {{ "top_bar_profile", menuIconFg }};

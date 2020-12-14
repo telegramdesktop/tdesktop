@@ -647,7 +647,8 @@ void TopBarWidget::updateControlsGeometry() {
 	}
 	_infoToggle->moveToRight(_rightTaken, otherButtonsTop);
 	if (!_infoToggle->isHidden()) {
-		_rightTaken += _infoToggle->width() + st::topBarSkip;
+		_infoToggle->moveToRight(_rightTaken, otherButtonsTop);
+		_rightTaken += _infoToggle->width();
 	}
 	if (!_call->isHidden() || !_groupCall->isHidden()) {
 		_call->moveToRight(_rightTaken, otherButtonsTop);
