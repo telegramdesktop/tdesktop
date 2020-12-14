@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_group_call_tracker.h" // ContentByCall.
 #include "data/data_user.h"
 #include "data/data_group_call.h"
-#include "data/data_channel.h"
+#include "data/data_peer.h"
 #include "data/data_changes.h"
 #include "main/main_session.h"
 #include "boxes/abstract_box.h"
@@ -506,12 +506,12 @@ void TopBar::initBlobsUnder(
 }
 
 void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
-	const auto channel = call->channel();
-	channel->session().changes().peerFlagsValue(
-		channel,
+	const auto peer = call->peer();
+	peer->session().changes().peerFlagsValue(
+		peer,
 		Data::PeerUpdate::Flag::GroupCall
 	) | rpl::map([=] {
-		return channel->call();
+		return peer->groupCall();
 	}) | rpl::filter([=](Data::GroupCall *real) {
 		const auto call = _groupCall.get();
 		return call && real && (real->id() == call->id());
@@ -550,6 +550,17 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 		}
 		update();
 	}, lifetime());
+
+	call->peer()->session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::Name
+	) | rpl::filter([=](const Data::PeerUpdate &update) {
+		// _peer may change for the same Panel.
+		const auto call = _groupCall.get();
+		return (call != nullptr) && (update.peer == call->peer());
+	}) | rpl::start_with_next([=] {
+		updateInfoLabels();
+	}, lifetime());
+
 }
 
 void TopBar::generateUserpicsInRow() {
@@ -599,8 +610,8 @@ void TopBar::setInfoLabels() {
 		_fullInfoLabel->setText(fullName.toUpper());
 		_shortInfoLabel->setText(shortName.toUpper());
 	} else if (const auto group = _groupCall.get()) {
-		const auto channel = group->channel();
-		const auto name = channel->name;
+		const auto peer = group->peer();
+		const auto name = peer->name;
 		_fullInfoLabel->setText(name.toUpper());
 		_shortInfoLabel->setText(name.toUpper());
 	}

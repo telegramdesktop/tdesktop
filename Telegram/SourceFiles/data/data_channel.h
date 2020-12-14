@@ -11,10 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_pts_waiter.h"
 #include "data/data_location.h"
 
-namespace Data {
-class GroupCall;
-} // namespace Data
-
 struct ChannelLocation {
 	QString address;
 	Data::LocationPoint point;
@@ -307,10 +303,11 @@ public:
 	[[nodiscard]] bool canDelete() const;
 	[[nodiscard]] bool canEditAdmin(not_null<UserData*> user) const;
 	[[nodiscard]] bool canRestrictUser(not_null<UserData*> user) const;
-	[[nodiscard]] bool canManageCall() const;
 
 	void setInviteLink(const QString &newInviteLink);
-	[[nodiscard]] QString inviteLink() const;
+	[[nodiscard]] QString inviteLink() const {
+		return _inviteLink;
+	}
 	[[nodiscard]] bool canHaveInviteLink() const;
 
 	void setLocation(const MTPChannelLocation &data);
@@ -399,11 +396,12 @@ public:
 	[[nodiscard]] QString invitePeekHash() const;
 	void privateErrorReceived();
 
-	[[nodiscard]] Data::GroupCall *call() const {
+	[[nodiscard]] Data::GroupCall *groupCall() const {
 		return _call.get();
 	}
-	void setCall(const MTPInputGroupCall &call);
-	void clearCall();
+	void migrateCall(std::unique_ptr<Data::GroupCall> call);
+	void setGroupCall(const MTPInputGroupCall &call);
+	void clearGroupCall();
 
 	// Still public data members.
 	uint64 access = 0;

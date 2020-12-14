@@ -104,13 +104,9 @@ void ChannelData::setInviteLink(const QString &newInviteLink) {
 	}
 }
 
-QString ChannelData::inviteLink() const {
-	return _inviteLink;
-}
-
 bool ChannelData::canHaveInviteLink() const {
-	return (adminRights() & AdminRight::f_invite_users)
-		|| amCreator();
+	return amCreator()
+		|| (adminRights() & AdminRight::f_invite_users);
 }
 
 void ChannelData::setLocation(const MTPChannelLocation &data) {
@@ -524,10 +520,6 @@ bool ChannelData::canRestrictUser(not_null<UserData*> user) const {
 	return adminRights() & AdminRight::f_ban_users;
 }
 
-bool ChannelData::canManageCall() const {
-	return amCreator() || (adminRights() & AdminRight::f_manage_call);
-}
-
 void ChannelData::setAdminRights(const MTPChatAdminRights &rights) {
 	if (rights.c_chatAdminRights().vflags().v == adminRights()) {
 		return;
@@ -677,14 +669,24 @@ void ChannelData::privateErrorReceived() {
 	}
 }
 
-void ChannelData::setCall(const MTPInputGroupCall &call) {
+void ChannelData::migrateCall(std::unique_ptr<Data::GroupCall> call) {
+	Expects(_call == nullptr);
+	Expects(call != nullptr);
+
+	_call = std::move(call);
+	_call->setPeer(this);
+	session().changes().peerUpdated(this, UpdateFlag::GroupCall);
+	addFlags(MTPDchannel::Flag::f_call_active);
+}
+
+void ChannelData::setGroupCall(const MTPInputGroupCall &call) {
 	call.match([&](const MTPDinputGroupCall &data) {
 		if (_call && _call->id() == data.vid().v) {
 			return;
 		} else if (!_call && !data.vid().v) {
 			return;
 		} else if (!data.vid().v) {
-			clearCall();
+			clearGroupCall();
 			return;
 		}
 		const auto hasCall = (_call != nullptr);
@@ -701,7 +703,7 @@ void ChannelData::setCall(const MTPInputGroupCall &call) {
 	});
 }
 
-void ChannelData::clearCall() {
+void ChannelData::clearGroupCall() {
 	if (!_call) {
 		return;
 	}
@@ -744,9 +746,9 @@ void ApplyChannelUpdate(
 	auto canEditStickers = channel->canEditStickers();
 
 	if (const auto call = update.vcall()) {
-		channel->setCall(*call);
+		channel->setGroupCall(*call);
 	} else {
-		channel->clearCall();
+		channel->clearGroupCall();
 	}
 
 	channel->setFullFlags(update.vflags().v);

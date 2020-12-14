@@ -297,7 +297,7 @@ public:
 	void closeThirdSection();
 
 	void startOrJoinGroupCall(
-		not_null<ChannelData*> megagroup,
+		not_null<PeerData*> peer,
 		bool confirmedLeaveOther = false);
 
 	void showSection(

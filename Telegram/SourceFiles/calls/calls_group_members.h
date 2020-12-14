@@ -86,6 +86,7 @@ private:
 	Ui::RpWidget *_titleWrap = nullptr;
 	Ui::FlatLabel *_title = nullptr;
 	Ui::IconButton *_addMember = nullptr;
+	rpl::variable<bool> _canAddMembers;
 
 };
 

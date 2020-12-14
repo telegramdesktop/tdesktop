@@ -933,9 +933,10 @@ void SessionController::closeThirdSection() {
 }
 
 void SessionController::startOrJoinGroupCall(
-		not_null<ChannelData*> megagroup,
+		not_null<PeerData*> peer,
 		bool confirmedLeaveOther) {
-	if (megagroup->amAnonymous()) {
+	const auto channel = peer->asChannel();
+	if (channel && channel->amAnonymous()) {
 		Ui::ShowMultilineToast({
 			.text = tr::lng_group_call_no_anonymous(tr::now),
 		});
@@ -945,7 +946,7 @@ void SessionController::startOrJoinGroupCall(
 	const auto confirm = [&](QString text, QString button) {
 		Ui::show(Box<ConfirmBox>(text, button, crl::guard(this, [=] {
 			Ui::hideLayer();
-			startOrJoinGroupCall(megagroup, true);
+			startOrJoinGroupCall(peer, true);
 		})));
 	};
 	if (!confirmedLeaveOther && calls.inCall()) {
@@ -954,19 +955,19 @@ void SessionController::startOrJoinGroupCall(
 			tr::lng_call_leave_to_other_sure(tr::now),
 			tr::lng_call_bar_hangup(tr::now));
 	} else if (!confirmedLeaveOther && calls.inGroupCall()) {
-		if (calls.currentGroupCall()->channel() == megagroup) {
+		if (calls.currentGroupCall()->peer() == peer) {
 			calls.activateCurrentCall();
 		} else {
 			confirm(
 				tr::lng_group_call_leave_to_other_sure(tr::now),
 				tr::lng_group_call_leave(tr::now));
 		}
-	} else if (!confirmedLeaveOther && !megagroup->call()) {
+	} else if (!confirmedLeaveOther && !peer->groupCall()) {
 		confirm(
 			tr::lng_group_call_create_sure(tr::now),
 			tr::lng_continue(tr::now));
 	} else {
-		calls.startOrJoinGroupCall(megagroup);
+		calls.startOrJoinGroupCall(peer);
 	}
 }
 

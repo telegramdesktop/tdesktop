@@ -604,7 +604,12 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			});
 		}
 
-		chat->setFlags(data.vflags().v);
+		const auto callFlag = MTPDchat::Flag::f_call_not_empty;
+		const auto callNotEmpty = (data.vflags().v & callFlag)
+			|| (chat->groupCall()
+				&& chat->groupCall()->fullCount() > 0);
+		chat->setFlags(data.vflags().v
+			| (callNotEmpty ? callFlag : MTPDchat::Flag(0)));
 		chat->count = data.vparticipants_count().v;
 
 		if (canAddMembers != chat->canAddMembers()) {
@@ -651,13 +656,21 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			channel->setDefaultRestrictions(
 				MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
 		}
+		const auto callFlag = MTPDchannel::Flag::f_call_not_empty;
+		const auto callNotEmpty = (data.vflags().v & callFlag)
+			|| (channel->groupCall()
+				&& channel->groupCall()->fullCount() > 0);
 		if (minimal) {
 			auto mask = 0
 				| MTPDchannel::Flag::f_broadcast
 				| MTPDchannel::Flag::f_verified
 				| MTPDchannel::Flag::f_megagroup
+				| MTPDchannel::Flag::f_call_active
+				| MTPDchannel::Flag::f_call_not_empty
 				| MTPDchannel_ClientFlag::f_forbidden;
-			channel->setFlags((channel->flags() & ~mask) | (data.vflags().v & mask));
+			channel->setFlags((channel->flags() & ~mask)
+				| (data.vflags().v & mask)
+				| (callNotEmpty ? callFlag : MTPDchannel::Flag(0)));
 			if (channel->input.type() == mtpc_inputPeerEmpty
 				|| channel->inputChannel.type() == mtpc_inputChannelEmpty) {
 				channel->setAccessHash(data.vaccess_hash().value_or_empty());
@@ -686,9 +699,6 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			} else {
 				channel->setUnavailableReasons({});
 			}
-			const auto callFlag = MTPDchannel::Flag::f_call_not_empty;
-			const auto callNotEmpty = (data.vflags().v & callFlag)
-				|| (channel->call() && channel->call()->fullCount() > 0);
 			channel->setFlags(data.vflags().v
 				| (callNotEmpty ? callFlag : MTPDchannel::Flag(0)));
 			//if (const auto feedId = data.vfeed_id()) { // #feed
@@ -826,9 +836,9 @@ auto Session::invitedToCallUsers(uint64 callId) const
 
 void Session::registerInvitedToCallUser(
 		uint64 callId,
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		not_null<UserData*> user) {
-	const auto call = channel->call();
+	const auto call = peer->groupCall();
 	if (call && call->id() == callId) {
 		const auto inCall = ranges::contains(
 			call->participants(),
@@ -1164,6 +1174,7 @@ void Session::setupMigrationViewer() {
 			return;
 		}
 
+		chat->clearGroupCall();
 		if (const auto from = historyLoaded(chat)) {
 			if (const auto to = historyLoaded(channel)) {
 				if (to->inChatList() && from->inChatList()) {

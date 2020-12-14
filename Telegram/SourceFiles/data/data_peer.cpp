@@ -888,6 +888,26 @@ bool PeerData::canSendPolls() const {
 	return false;
 }
 
+bool PeerData::canManageGroupCall() const {
+	if (const auto chat = asChat()) {
+		return chat->amCreator()
+			|| (chat->adminRights() & ChatAdminRight::f_manage_call);
+	} else if (const auto group = asMegagroup()) {
+		return group->amCreator()
+			|| (group->adminRights() & ChatAdminRight::f_manage_call);
+	}
+	return false;
+}
+
+Data::GroupCall *PeerData::groupCall() const {
+	if (const auto chat = asChat()) {
+		return chat->groupCall();
+	} else if (const auto group = asMegagroup()) {
+		return group->groupCall();
+	}
+	return nullptr;
+}
+
 void PeerData::setIsBlocked(bool is) {
 	const auto status = is
 		? BlockStatus::Blocked

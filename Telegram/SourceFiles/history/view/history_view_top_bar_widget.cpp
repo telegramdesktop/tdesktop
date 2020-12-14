@@ -220,23 +220,7 @@ void TopBarWidget::call() {
 
 void TopBarWidget::groupCall() {
 	if (const auto peer = _activeChat.key.peer()) {
-		if (const auto megagroup = peer->asMegagroup()) {
-			_controller->startOrJoinGroupCall(megagroup);
-		} else if (const auto chat = peer->asChat()) {
-			const auto callback = [=] {
-				Ui::hideLayer();
-				const auto start = [=](not_null<ChannelData*> megagroup) {
-					_controller->startOrJoinGroupCall(megagroup, true);
-				};
-				peer->session().api().migrateChat(
-					chat,
-					crl::guard(this, start));
-			};
-			Ui::show(Box<ConfirmBox>(
-				tr::lng_group_call_create_sure(tr::now),
-				tr::lng_continue(tr::now),
-				crl::guard(this, callback)));
-		}
+		_controller->startOrJoinGroupCall(peer);
 	}
 }
 
@@ -543,6 +527,7 @@ void TopBarWidget::setActiveChat(
 	}
 	_activeChat = activeChat;
 	_sendAction = sendAction;
+	_titlePeerText.clear();
 	_back->clearState();
 	update();
 
@@ -736,11 +721,7 @@ void TopBarWidget::updateControlsVisibility() {
 	_call->setVisible(historyMode && callsEnabled);
 	const auto groupCallsEnabled = [&] {
 		if (const auto peer = _activeChat.key.peer()) {
-			if (const auto megagroup = peer->asMegagroup()) {
-				return megagroup->canManageCall();
-			} else if (const auto chat = peer->asChat()) {
-				return chat->amCreator();
-			}
+			return peer->canManageGroupCall();
 		}
 		return false;
 	}();

@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_game.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
+#include "data/data_chat.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h" // Data::GroupCall::id().
 #include "core/application.h"
@@ -38,18 +39,27 @@ namespace {
 
 constexpr auto kPinnedMessageTextLimit = 16;
 
-[[nodiscard]] rpl::producer<bool> ChannelHasThisCallValue(
-		not_null<ChannelData*> channel,
+[[nodiscard]] bool PeerCallKnown(not_null<PeerData*> peer) {
+	if (peer->groupCall() != nullptr) {
+		return true;
+	} else if (const auto chat = peer->asChat()) {
+		return !(chat->flags() & MTPDchat::Flag::f_call_active);
+	} else if (const auto channel = peer->asChannel()) {
+		return !(channel->flags() & MTPDchannel::Flag::f_call_active);
+	}
+	return true;
+}
+
+[[nodiscard]] rpl::producer<bool> PeerHasThisCallValue(
+		not_null<PeerData*> peer,
 		uint64 id) {
-	return channel->session().changes().peerFlagsValue(
-		channel,
+	return peer->session().changes().peerFlagsValue(
+		peer,
 		Data::PeerUpdate::Flag::GroupCall
 	) | rpl::filter([=] {
-		return (channel->call() != nullptr)
-			|| !(channel->flags()
-				& MTPDchannel::Flag::f_call_active);
+		return PeerCallKnown(peer);
 	}) | rpl::map([=] {
-		const auto call = channel->call();
+		const auto call = peer->groupCall();
 		return (call && call->id() == id);
 	}) | rpl::distinct_until_changed(
 	) | rpl::take_while([=](bool hasThisCall) {
@@ -59,15 +69,15 @@ constexpr auto kPinnedMessageTextLimit = 16;
 	);
 }
 
-[[nodiscard]] std::optional<bool> ChannelHasThisCall(
-		not_null<ChannelData*> channel,
+[[nodiscard]] std::optional<bool> PeerHasThisCall(
+		not_null<PeerData*> peer,
 		uint64 id) {
-	const auto call = channel->call();
+	const auto call = peer->groupCall();
 	return call
 		? std::make_optional(call->id() == id)
-		: (channel->flags() & MTPDchannel::Flag::f_call_active)
-		? std::nullopt
-		: std::make_optional(false);
+		: PeerCallKnown(peer)
+		? std::make_optional(false)
+		: std::nullopt;
 }
 
 [[nodiscard]] uint64 CallIdFromInput(const MTPInputGroupCall &data) {
@@ -76,20 +86,20 @@ constexpr auto kPinnedMessageTextLimit = 16;
 	});
 }
 
-[[nodiscard]] ClickHandlerPtr ChannelCallClickHandler(
-		not_null<ChannelData*> megagroup,
+[[nodiscard]] ClickHandlerPtr GroupCallClickHandler(
+		not_null<PeerData*> peer,
 		uint64 callId) {
 	return std::make_shared<LambdaClickHandler>([=] {
-		const auto call = megagroup->call();
+		const auto call = peer->groupCall();
 		if (call && call->id() == callId) {
-			const auto &windows = megagroup->session().windows();
+			const auto &windows = peer->session().windows();
 			if (windows.empty()) {
-				Core::App().domain().activate(&megagroup->session().account());
+				Core::App().domain().activate(&peer->session().account());
 				if (windows.empty()) {
 					return;
 				}
 			}
-			windows.front()->startOrJoinGroupCall(megagroup);
+			windows.front()->startOrJoinGroupCall(peer);
 		}
 	});
 }
@@ -338,10 +348,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			return prepareDiscardedCallText(duration->v);
 		}
 		const auto callId = CallIdFromInput(action.vcall());
-		const auto channel = history()->peer->asChannel();
-		const auto linkCallId = !channel
-			? 0
-			: ChannelHasThisCall(channel, callId).value_or(false)
+		const auto peer = history()->peer;
+		const auto linkCallId = PeerHasThisCall(peer, callId).value_or(false)
 			? callId
 			: 0;
 		return prepareStartedCallText(linkCallId);
@@ -350,16 +358,14 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareInviteToGroupCall = [this](const MTPDmessageActionInviteToGroupCall &action) {
 		const auto callId = CallIdFromInput(action.vcall());
 		const auto owner = &history()->owner();
-		const auto channel = history()->peer->asChannel();
+		const auto peer = history()->peer;
 		for (const auto id : action.vusers().v) {
 			const auto user = owner->user(id.v);
-			if (channel && callId) {
-				owner->registerInvitedToCallUser(callId, channel, user);
+			if (callId) {
+				owner->registerInvitedToCallUser(callId, peer, user);
 			}
 		};
-		const auto linkCallId = !channel
-			? 0
-			: ChannelHasThisCall(channel, callId).value_or(false)
+		const auto linkCallId = PeerHasThisCall(peer, callId).value_or(false)
 			? callId
 			: 0;
 		return prepareInvitedToCallText(action.vusers().v, linkCallId);
@@ -534,10 +540,10 @@ HistoryService::PreparedText HistoryService::prepareStartedCallText(
 		uint64 linkCallId) {
 	auto result = PreparedText{};
 	result.links.push_back(fromLink());
-	const auto channel = history()->peer->asChannel();
 	auto chatText = tr::lng_action_group_call_started_chat(tr::now);
-	if (channel && linkCallId) {
-		result.links.push_back(ChannelCallClickHandler(channel, linkCallId));
+	if (linkCallId) {
+		const auto peer = history()->peer;
+		result.links.push_back(GroupCallClickHandler(peer, linkCallId));
 		chatText = textcmdLink(2, chatText);
 	}
 	result.text = tr::lng_action_group_call_started(
@@ -552,14 +558,14 @@ HistoryService::PreparedText HistoryService::prepareStartedCallText(
 HistoryService::PreparedText HistoryService::prepareInvitedToCallText(
 		const QVector<MTPint> &users,
 		uint64 linkCallId) {
-	const auto channel = history()->peer->asChannel();
-	const auto owner = &channel->owner();
+	const auto owner = &history()->owner();
 	auto chatText = tr::lng_action_invite_user_chat(tr::now);
 	auto result = PreparedText{};
 	result.links.push_back(fromLink());
 	auto linkIndex = 1;
-	if (channel && linkCallId) {
-		result.links.push_back(ChannelCallClickHandler(channel, linkCallId));
+	if (linkCallId) {
+		const auto peer = history()->peer;
+		result.links.push_back(GroupCallClickHandler(peer, linkCallId));
 		chatText = textcmdLink(++linkIndex, chatText);
 	}
 	if (users.size() == 1) {
@@ -938,38 +944,35 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 				updateText(prepareDiscardedCallText(discard.duration));
 			}, call->lifetime);
 
-			if (const auto channel = history()->peer->asChannel()) {
-				const auto has = ChannelHasThisCall(channel, id);
-				if (!has.has_value()) {
-					ChannelHasThisCallValue(
-						channel,
-						id
-					) | rpl::start_with_next([=](bool has) {
-						updateText(prepareStartedCallText(has ? id : 0));
-					}, call->lifetime);
-				} else if (*has) {
-					ChannelHasThisCallValue(
-						channel,
-						id
-					) | rpl::skip(1) | rpl::start_with_next([=](bool has) {
-						Assert(!has);
-						updateText(prepareStartedCallText(0));
-					}, call->lifetime);
-				}
+			const auto peer = history()->peer;
+			const auto has = PeerHasThisCall(peer, id);
+			if (!has.has_value()) {
+				PeerHasThisCallValue(
+					peer,
+					id
+				) | rpl::start_with_next([=](bool has) {
+					updateText(prepareStartedCallText(has ? id : 0));
+				}, call->lifetime);
+			} else if (*has) {
+				PeerHasThisCallValue(
+					peer,
+					id
+				) | rpl::skip(1) | rpl::start_with_next([=](bool has) {
+					Assert(!has);
+					updateText(prepareStartedCallText(0));
+				}, call->lifetime);
 			}
 		}
 	} else if (message.vaction().type() == mtpc_messageActionInviteToGroupCall) {
 		const auto &data = message.vaction().c_messageActionInviteToGroupCall();
 		const auto id = CallIdFromInput(data.vcall());
-		const auto channel = history()->peer->asChannel();
-		const auto has = channel
-			? ChannelHasThisCall(channel, id)
-			: std::make_optional(false);
+		const auto peer = history()->peer;
+		const auto has = PeerHasThisCall(peer, id);
 		auto hasLink = !has.has_value()
-			? ChannelHasThisCallValue(channel, id)
+			? PeerHasThisCallValue(peer, id)
 			: (*has)
-			? ChannelHasThisCallValue(
-				channel,
+			? PeerHasThisCallValue(
+				peer,
 				id) | rpl::skip(1) | rpl::type_erased()
 			: rpl::producer<bool>();
 		if (!hasLink) {

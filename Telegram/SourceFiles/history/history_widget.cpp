@@ -5419,16 +5419,15 @@ void HistoryWidget::setupGroupCallTracker() {
 		_groupCallBar->barClicks(),
 		_groupCallBar->joinClicks()
 	) | rpl::start_with_next([=] {
-		const auto channel = _history->peer->asChannel();
-		if (!channel) {
-			return;
-		} else if (channel->amAnonymous()) {
+		const auto peer = _history->peer;
+		const auto channel = peer->asChannel();
+		if (channel && channel->amAnonymous()) {
 			Ui::ShowMultilineToast({
 				.text = tr::lng_group_call_no_anonymous(tr::now),
 				});
 			return;
-		} else if (channel->call()) {
-			controller()->startOrJoinGroupCall(channel);
+		} else if (peer->groupCall()) {
+			controller()->startOrJoinGroupCall(peer);
 		}
 	}, _groupCallBar->lifetime());
 

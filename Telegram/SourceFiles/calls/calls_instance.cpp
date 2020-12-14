@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_group_call.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_session.h"
 #include "media/audio/media_audio_track.h"
 #include "platform/platform_specific.h"
@@ -58,12 +59,12 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 	}), video);
 }
 
-void Instance::startOrJoinGroupCall(not_null<ChannelData*> channel) {
+void Instance::startOrJoinGroupCall(not_null<PeerData*> peer) {
 	destroyCurrentCall();
 
-	const auto call = channel->call();
+	const auto call = peer->groupCall();
 	createGroupCall(
-		channel,
+		peer,
 		call ? call->input() : MTP_inputGroupCall(MTPlong(), MTPlong()));
 }
 
@@ -183,17 +184,17 @@ void Instance::destroyGroupCall(not_null<GroupCall*> call) {
 }
 
 void Instance::createGroupCall(
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		const MTPInputGroupCall &inputCall) {
 	destroyCurrentCall();
 
 	auto call = std::make_unique<GroupCall>(
 		getGroupCallDelegate(),
-		channel,
+		peer,
 		inputCall);
 	const auto raw = call.get();
 
-	channel->session().account().sessionChanges(
+	peer->session().account().sessionChanges(
 	) | rpl::start_with_next([=] {
 		destroyGroupCall(raw);
 	}, raw->lifetime());
@@ -387,7 +388,7 @@ void Instance::handleGroupCallUpdate(
 		existing->applyUpdate(call);
 	}
 	if (_currentGroupCall
-		&& (&_currentGroupCall->channel()->session() == session)) {
+		&& (&_currentGroupCall->peer()->session() == session)) {
 		_currentGroupCall->handleUpdate(call);
 	}
 }
@@ -402,7 +403,7 @@ void Instance::handleGroupCallUpdate(
 		existing->applyUpdate(update);
 	}
 	if (_currentGroupCall
-		&& (&_currentGroupCall->channel()->session() == session)
+		&& (&_currentGroupCall->peer()->session() == session)
 		&& (_currentGroupCall->id() == callId)) {
 		_currentGroupCall->handleUpdate(update);
 	}
@@ -458,7 +459,7 @@ bool Instance::hasActivePanel(not_null<Main::Session*> session) const {
 		return (&_currentCall->user()->session() == session)
 			&& _currentCallPanel->isActive();
 	} else if (inGroupCall()) {
-		return (&_currentGroupCall->channel()->session() == session)
+		return (&_currentGroupCall->peer()->session() == session)
 			&& _currentGroupCallPanel->isActive();
 	}
 	return false;

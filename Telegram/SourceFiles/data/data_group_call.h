@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 class UserData;
-class ChannelData;
+class PeerData;
 
 class ApiWrap;
 
@@ -18,12 +18,14 @@ namespace Data {
 
 class GroupCall final {
 public:
-	GroupCall(not_null<ChannelData*> channel, uint64 id, uint64 accessHash);
+	GroupCall(not_null<PeerData*> peer, uint64 id, uint64 accessHash);
 	~GroupCall();
 
 	[[nodiscard]] uint64 id() const;
-	[[nodiscard]] not_null<ChannelData*> channel() const;
+	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] MTPInputGroupCall input() const;
+
+	void setPeer(not_null<PeerData*> peer);
 
 	struct Participant {
 		not_null<UserData*> user;
@@ -86,13 +88,13 @@ private:
 	void applyParticipantsMutes(
 		const MTPDupdateGroupCallParticipants &update);
 	void requestUnknownParticipants();
-	void changeChannelEmptyCallFlag();
+	void changePeerEmptyCallFlag();
 	void checkFinishSpeakingByActive();
 
-	const not_null<ChannelData*> _channel;
 	const uint64 _id = 0;
 	const uint64 _accessHash = 0;
 
+	not_null<PeerData*> _peer;
 	int _version = 0;
 	mtpRequestId _participantsRequestId = 0;
 	mtpRequestId _reloadRequestId = 0;

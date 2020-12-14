@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
+#include "data/data_group_call.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -24,6 +25,14 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 ChatData::ChatData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
 , inputChat(MTP_int(bareId())) {
+	_flags.changes(
+	) | rpl::start_with_next([=](const Flags::Change &change) {
+		if (change.diff & MTPDchat::Flag::f_call_not_empty) {
+			if (const auto history = this->owner().historyLoaded(this)) {
+				history->updateChatListEntry();
+			}
+		}
+	}, _lifetime);
 }
 
 void ChatData::setPhoto(const MTPChatPhoto &photo) {
@@ -124,6 +133,11 @@ void ChatData::setInviteLink(const QString &newInviteLink) {
 	}
 }
 
+bool ChatData::canHaveInviteLink() const {
+	return amCreator()
+		|| (adminRights() & AdminRight::f_invite_users);
+}
+
 void ChatData::setAdminRights(const MTPChatAdminRights &rights) {
 	if (rights.c_chatAdminRights().vflags().v == adminRights()) {
 		return;
@@ -174,6 +188,47 @@ void ChatData::setMigrateToChannel(ChannelData *channel) {
 			session().changes().peerUpdated(this, UpdateFlag::Migration);
 		}
 	}
+}
+
+void ChatData::setGroupCall(const MTPInputGroupCall &call) {
+	if (migrateTo()) {
+		return;
+	}
+	call.match([&](const MTPDinputGroupCall &data) {
+		if (_call && _call->id() == data.vid().v) {
+			return;
+		} else if (!_call && !data.vid().v) {
+			return;
+		} else if (!data.vid().v) {
+			clearGroupCall();
+			return;
+		}
+		const auto hasCall = (_call != nullptr);
+		if (hasCall) {
+			owner().unregisterGroupCall(_call.get());
+		}
+		_call = std::make_unique<Data::GroupCall>(
+			this,
+			data.vid().v,
+			data.vaccess_hash().v);
+		owner().registerGroupCall(_call.get());
+		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
+		addFlags(MTPDchat::Flag::f_call_active);
+	});
+}
+
+void ChatData::clearGroupCall() {
+	if (!_call) {
+		return;
+	} else if (const auto group = migrateTo(); group && !group->groupCall()) {
+		group->migrateCall(base::take(_call));
+	} else {
+		owner().unregisterGroupCall(_call.get());
+		_call = nullptr;
+	}
+	session().changes().peerUpdated(this, UpdateFlag::GroupCall);
+	removeFlags(MTPDchat::Flag::f_call_active
+		| MTPDchat::Flag::f_call_not_empty);
 }
 
 namespace Data {
@@ -309,6 +364,12 @@ void ApplyChatUpdate(
 
 void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 	ApplyChatUpdate(chat, update.vparticipants());
+
+	if (const auto call = update.vcall()) {
+		chat->setGroupCall(*call);
+	} else {
+		chat->clearGroupCall();
+	}
 
 	if (const auto info = update.vbot_info()) {
 		for (const auto &item : info->v) {

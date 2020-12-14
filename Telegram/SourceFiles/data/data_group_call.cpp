@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
@@ -27,12 +28,12 @@ constexpr auto kActiveAfterJoined = crl::time(1000);
 } // namespace
 
 GroupCall::GroupCall(
-	not_null<ChannelData*> channel,
+	not_null<PeerData*> peer,
 	uint64 id,
 	uint64 accessHash)
-: _channel(channel)
-, _id(id)
+: _id(id)
 , _accessHash(accessHash)
+, _peer(peer) // #TODO calls migration
 , _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); }) {
 }
 
@@ -46,12 +47,19 @@ uint64 GroupCall::id() const {
 	return _id;
 }
 
-not_null<ChannelData*> GroupCall::channel() const {
-	return _channel;
+not_null<PeerData*> GroupCall::peer() const {
+	return _peer;
 }
 
 MTPInputGroupCall GroupCall::input() const {
 	return MTP_inputGroupCall(MTP_long(_id), MTP_long(_accessHash));
+}
+
+void GroupCall::setPeer(not_null<PeerData*> peer) {
+	Expects(peer->migrateFrom() == _peer);
+	Expects(_peer->migrateTo() == peer);
+
+	_peer = peer;
 }
 
 auto GroupCall::participants() const
@@ -77,7 +85,7 @@ void GroupCall::requestParticipants() {
 	)).done([=](const MTPphone_GroupParticipants &result) {
 		result.match([&](const MTPDphone_groupParticipants &data) {
 			_nextOffset = qs(data.vnext_offset());
-			_channel->owner().processUsers(data.vusers());
+			_peer->owner().processUsers(data.vusers());
 			applyParticipantsSlice(
 				data.vparticipants().v,
 				ApplySliceSource::SliceLoaded);
@@ -92,30 +100,43 @@ void GroupCall::requestParticipants() {
 		});
 		_participantsSliceAdded.fire({});
 		_participantsRequestId = 0;
-		changeChannelEmptyCallFlag();
+		changePeerEmptyCallFlag();
 	}).fail([=](const RPCError &error) {
 		_fullCount = _participants.size();
 		_allReceived = true;
 		_participantsRequestId = 0;
-		changeChannelEmptyCallFlag();
+		changePeerEmptyCallFlag();
 	}).send();
 }
 
-void GroupCall::changeChannelEmptyCallFlag() {
-	constexpr auto flag = MTPDchannel::Flag::f_call_not_empty;
-	if (_channel->call() != this) {
+void GroupCall::changePeerEmptyCallFlag() {
+	const auto chat = _peer->asChat();
+	const auto channel = _peer->asChannel();
+	constexpr auto chatFlag = MTPDchat::Flag::f_call_not_empty;
+	constexpr auto channelFlag = MTPDchannel::Flag::f_call_not_empty;
+	if (_peer->groupCall() != this) {
 		return;
 	} else if (fullCount() > 0) {
-		if (!(_channel->flags() & flag)) {
-			_channel->addFlags(flag);
-			_channel->session().changes().peerUpdated(
-				_channel,
+		if (chat && !(chat->flags() & chatFlag)) {
+			chat->addFlags(chatFlag);
+			chat->session().changes().peerUpdated(
+				chat,
+				Data::PeerUpdate::Flag::GroupCall);
+		} else if (channel && !(channel->flags() & channelFlag)) {
+			channel->addFlags(channelFlag);
+			channel->session().changes().peerUpdated(
+				channel,
 				Data::PeerUpdate::Flag::GroupCall);
 		}
-	} else if (_channel->flags() & flag) {
-		_channel->removeFlags(flag);
-		_channel->session().changes().peerUpdated(
-			_channel,
+	} else if (chat && (chat->flags() & chatFlag)) {
+		chat->removeFlags(chatFlag);
+		chat->session().changes().peerUpdated(
+			chat,
+			Data::PeerUpdate::Flag::GroupCall);
+	} else if (channel && (channel->flags() & channelFlag)) {
+		channel->removeFlags(channelFlag);
+		channel->session().changes().peerUpdated(
+			channel,
 			Data::PeerUpdate::Flag::GroupCall);
 	}
 }
@@ -166,13 +187,17 @@ void GroupCall::applyCall(const MTPGroupCall &call, bool force) {
 		_canChangeJoinMuted = data.is_can_change_join_muted();
 		_version = data.vversion().v;
 		_fullCount = data.vparticipants_count().v;
-		changeChannelEmptyCallFlag();
+		changePeerEmptyCallFlag();
 	}, [&](const MTPDgroupCallDiscarded &data) {
 		const auto id = _id;
-		const auto channel = _channel;
-		crl::on_main(&channel->session(), [=] {
-			if (channel->call() && channel->call()->id() == id) {
-				channel->clearCall();
+		const auto peer = _peer;
+		crl::on_main(&peer->session(), [=] {
+			if (peer->groupCall() && peer->groupCall()->id() == id) {
+				if (const auto chat = peer->asChat()) {
+					chat->clearGroupCall();
+				} else if (const auto channel = peer->asChannel()) {
+					channel->clearGroupCall();
+				}
 			}
 		});
 	});
@@ -189,7 +214,7 @@ void GroupCall::reload() {
 		MTPphone_GetGroupCall(input())
 	).done([=](const MTPphone_GroupCall &result) {
 		result.match([&](const MTPDphone_groupCall &data) {
-			_channel->owner().processUsers(data.vusers());
+			_peer->owner().processUsers(data.vusers());
 			_participants.clear();
 			_speakingByActiveFinishes.clear();
 			_userBySsrc.clear();
@@ -217,7 +242,7 @@ void GroupCall::applyParticipantsSlice(
 	for (const auto &participant : list) {
 		participant.match([&](const MTPDgroupCallParticipant &data) {
 			const auto userId = data.vuser_id().v;
-			const auto user = _channel->owner().user(userId);
+			const auto user = _peer->owner().user(userId);
 			const auto i = ranges::find(
 				_participants,
 				user,
@@ -262,7 +287,7 @@ void GroupCall::applyParticipantsSlice(
 			if (i == end(_participants)) {
 				_userBySsrc.emplace(value.ssrc, user);
 				_participants.push_back(value);
-				_channel->owner().unregisterInvitedToCallUser(_id, user);
+				_peer->owner().unregisterInvitedToCallUser(_id, user);
 				++changedCount;
 			} else {
 				if (i->ssrc != value.ssrc) {
@@ -281,7 +306,7 @@ void GroupCall::applyParticipantsSlice(
 	}
 	if (sliceSource == ApplySliceSource::UpdateReceived) {
 		_fullCount = changedCount;
-		changeChannelEmptyCallFlag();
+		changePeerEmptyCallFlag();
 	}
 }
 
@@ -293,7 +318,7 @@ void GroupCall::applyParticipantsMutes(
 				return;
 			}
 			const auto userId = data.vuser_id().v;
-			const auto user = _channel->owner().user(userId);
+			const auto user = _peer->owner().user(userId);
 			const auto i = ranges::find(
 				_participants,
 				user,
@@ -466,7 +491,7 @@ void GroupCall::requestUnknownParticipants() {
 		MTP_int(kRequestPerPage)
 	)).done([=](const MTPphone_GroupParticipants &result) {
 		result.match([&](const MTPDphone_groupParticipants &data) {
-			_channel->owner().processUsers(data.vusers());
+			_peer->owner().processUsers(data.vusers());
 			applyParticipantsSlice(
 				data.vparticipants().v,
 				ApplySliceSource::UnknownLoaded);
@@ -478,7 +503,7 @@ void GroupCall::requestUnknownParticipants() {
 			_unknownSpokenSsrcs.remove(ssrc);
 		}
 		for (const auto [userId, when] : uids) {
-			if (const auto user = _channel->owner().userLoaded(userId)) {
+			if (const auto user = _peer->owner().userLoaded(userId)) {
 				const auto isParticipant = ranges::contains(
 					_participants,
 					not_null{ user },
@@ -564,7 +589,7 @@ bool GroupCall::canChangeJoinMuted() const {
 }
 
 ApiWrap &GroupCall::api() const {
-	return _channel->session().api();
+	return _peer->session().api();
 }
 
 } // namespace Data

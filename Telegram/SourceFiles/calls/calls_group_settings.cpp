@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/global_shortcuts.h"
 #include "base/platform/base_platform_info.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_group_call.h"
 #include "core/application.h"
 #include "boxes/single_choice_box.h"
@@ -44,19 +45,19 @@ constexpr auto kDelaysCount = 201;
 constexpr auto kCheckAccessibilityInterval = crl::time(500);
 
 void SaveCallJoinMuted(
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		uint64 callId,
 		bool joinMuted) {
-	const auto call = channel->call();
+	const auto call = peer->groupCall();
 	if (!call
 		|| call->id() != callId
-		|| !channel->canManageCall()
+		|| !peer->canManageGroupCall()
 		|| !call->canChangeJoinMuted()
 		|| call->joinMuted() == joinMuted) {
 		return;
 	}
 	call->setJoinMutedLocally(joinMuted);
-	channel->session().api().request(MTPphone_ToggleGroupCallSettings(
+	peer->session().api().request(MTPphone_ToggleGroupCallSettings(
 		MTP_flags(MTPphone_ToggleGroupCallSettings::Flag::f_join_muted),
 		call->input(),
 		MTP_bool(joinMuted)
@@ -101,8 +102,8 @@ void GroupCallSettingsBox(
 	};
 	const auto state = box->lifetime().make_state<State>();
 
-	const auto channel = call->channel();
-	const auto real = channel->call();
+	const auto peer = call->peer();
+	const auto real = peer->groupCall();
 	const auto id = call->id();
 	const auto goodReal = (real && real->id() == id);
 
@@ -111,7 +112,7 @@ void GroupCallSettingsBox(
 
 	const auto joinMuted = goodReal ? real->joinMuted() : false;
 	const auto canChangeJoinMuted = (goodReal && real->canChangeJoinMuted());
-	const auto addCheck = (channel->canManageCall() && canChangeJoinMuted);
+	const auto addCheck = (peer->canManageGroupCall() && canChangeJoinMuted);
 	if (addCheck) {
 		AddSkip(layout);
 	}
@@ -402,11 +403,24 @@ void GroupCallSettingsBox(
 	//AddSkip(layout);
 
 	const auto lookupLink = [=] {
-		return channel->hasUsername()
-			? channel->session().createInternalLinkFull(channel->username)
-			: channel->inviteLink();
+		if (const auto group = peer->asMegagroup()) {
+			return group->hasUsername()
+				? group->session().createInternalLinkFull(group->username)
+				: group->inviteLink();
+		} else if (const auto chat = peer->asChat()) {
+			return chat->inviteLink();
+		}
+		return QString();
 	};
-	if (!lookupLink().isEmpty() || channel->canHaveInviteLink()) {
+	const auto canCreateLink = [&] {
+		if (const auto chat = peer->asChat()) {
+			return chat->canHaveInviteLink();
+		} else if (const auto group = peer->asMegagroup()) {
+			return group->canHaveInviteLink();
+		}
+		return false;
+	};
+	if (!lookupLink().isEmpty() || canCreateLink()) {
 		const auto copyLink = [=] {
 			const auto link = lookupLink();
 			if (link.isEmpty()) {
@@ -427,12 +441,17 @@ void GroupCallSettingsBox(
 		)->addClickHandler([=] {
 			if (!copyLink() && !state->generatingLink) {
 				state->generatingLink = true;
-				channel->session().api().request(MTPmessages_ExportChatInvite(
-					channel->input
+				peer->session().api().request(MTPmessages_ExportChatInvite(
+					peer->input
 				)).done([=](const MTPExportedChatInvite &result) {
 					if (result.type() == mtpc_chatInviteExported) {
-						channel->setInviteLink(
-							qs(result.c_chatInviteExported().vlink()));
+						const auto link = qs(
+							result.c_chatInviteExported().vlink());
+						if (const auto chat = peer->asChat()) {
+							chat->setInviteLink(link);
+						} else if (const auto channel = peer->asChannel()) {
+							channel->setInviteLink(link);
+						}
 						copyLink();
 					}
 				}).send();
@@ -440,7 +459,7 @@ void GroupCallSettingsBox(
 		});
 	}
 
-	if (channel->canManageCall()) {
+	if (peer->canManageGroupCall()) {
 		AddButton(
 			layout,
 			tr::lng_group_call_end(),
@@ -472,7 +491,7 @@ void GroupCallSettingsBox(
 		if (canChangeJoinMuted
 			&& muteJoined
 			&& muteJoined->toggled() != joinMuted) {
-			SaveCallJoinMuted(channel, id, muteJoined->toggled());
+			SaveCallJoinMuted(peer, id, muteJoined->toggled());
 		}
 	}, box->lifetime());
 	box->addButton(tr::lng_box_done(), [=] {

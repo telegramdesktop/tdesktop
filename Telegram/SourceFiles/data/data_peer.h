@@ -29,6 +29,7 @@ class Session;
 namespace Data {
 
 class Session;
+class GroupCall;
 
 int PeerColorIndex(PeerId peerId);
 int PeerColorIndex(int32 bareId);
@@ -202,6 +203,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> slowmodeAppliedValue() const;
 	[[nodiscard]] int slowmodeSecondsLeft() const;
 	[[nodiscard]] bool canSendPolls() const;
+	[[nodiscard]] bool canManageGroupCall() const;
 
 	[[nodiscard]] UserData *asUser();
 	[[nodiscard]] const UserData *asUser() const;
@@ -382,6 +384,8 @@ public:
 		return (loadedStatus() == LoadedStatus::Full);
 	}
 	void setLoadedStatus(LoadedStatus status);
+
+	[[nodiscard]] Data::GroupCall *groupCall() const;
 
 	const PeerId id;
 	QString name;

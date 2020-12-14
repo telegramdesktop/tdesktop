@@ -61,15 +61,15 @@ public:
 
 	GroupCall(
 		not_null<Delegate*> delegate,
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		const MTPInputGroupCall &inputCall);
 	~GroupCall();
 
 	[[nodiscard]] uint64 id() const {
 		return _id;
 	}
-	[[nodiscard]] not_null<ChannelData*> channel() const {
-		return _channel;
+	[[nodiscard]] not_null<PeerData*> peer() const {
+		return _peer;
 	}
 
 	void start();
@@ -161,8 +161,8 @@ private:
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
 	const not_null<Delegate*> _delegate;
-	const not_null<ChannelData*> _channel;
-	const not_null<History*> _history;
+	not_null<PeerData*> _peer; // Can change in legacy group migration.
+	not_null<History*> _history; // Can change in legacy group migration.
 	MTP::Sender _api;
 	rpl::variable<State> _state = State::Creating;
 	bool _instanceConnected = false;
