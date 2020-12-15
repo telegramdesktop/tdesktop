@@ -90,7 +90,7 @@ private:
 	void updateControlsGeometry();
 	void showControls();
 
-	void hangup(bool discardCallChecked);
+	void endCall();
 
 	void addMembers();
 	void kickMember(not_null<UserData*> user);

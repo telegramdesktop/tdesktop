@@ -315,14 +315,17 @@ void GroupPanel::initWidget() {
 	}, widget()->lifetime());
 }
 
-void GroupPanel::hangup(bool discardCallChecked) {
+void GroupPanel::endCall() {
 	if (!_call) {
+		return;
+	} else if (!_call->peer()->canManageGroupCall()) {
+		_call->hangup();
 		return;
 	}
 	_layerBg->showBox(Box(
 		LeaveGroupCallBox,
 		_call,
-		discardCallChecked,
+		false,
 		BoxContext::GroupCallPanel));
 }
 
@@ -338,7 +341,7 @@ void GroupPanel::initControls() {
 			: MuteState::Muted);
 	}, _mute->lifetime());
 
-	_hangup->setClickedCallback([=] { hangup(false); });
+	_hangup->setClickedCallback([=] { endCall(); });
 	_settings->setClickedCallback([=] {
 		if (_call) {
 			_layerBg->showBox(Box(GroupCallSettingsBox, _call));

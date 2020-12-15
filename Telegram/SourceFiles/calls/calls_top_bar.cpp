@@ -337,11 +337,15 @@ void TopBar::initControls() {
 		if (const auto call = _call.get()) {
 			call->hangup();
 		} else if (const auto group = _groupCall.get()) {
-			Ui::show(Box(
-				LeaveGroupCallBox,
-				group,
-				false,
-				BoxContext::MainWindow));
+			if (!group->peer()->canManageGroupCall()) {
+				group->hangup();
+			} else {
+				Ui::show(Box(
+					LeaveGroupCallBox,
+					group,
+					false,
+					BoxContext::MainWindow));
+			}
 		}
 	});
 	updateDurationText();
