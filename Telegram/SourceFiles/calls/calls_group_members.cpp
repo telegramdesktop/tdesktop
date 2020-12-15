@@ -965,7 +965,29 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 		parent,
 		st::groupCallPopupMenu);
 
-	const auto mute = (real->state() != Row::State::Muted);
+	const auto muteState = real->state();
+	const auto admin = [&] {
+		if (const auto chat = _peer->asChat()) {
+			return chat->admins.contains(user)
+				|| (chat->creator == user->bareId());
+		} else if (const auto group = _peer->asMegagroup()) {
+			if (const auto mgInfo = group->mgInfo.get()) {
+				if (mgInfo->creator == user) {
+					return true;
+				}
+				const auto i = mgInfo->lastAdmins.find(user);
+				if (i == mgInfo->lastAdmins.end()) {
+					return false;
+				}
+				const auto &rights = i->second.rights;
+				return rights.c_chatAdminRights().is_manage_call();
+			}
+		}
+		return false;
+	}();
+	const auto mute = admin
+		? (muteState == Row::State::Active)
+		: (muteState != Row::State::Muted);
 	const auto toggleMute = crl::guard(this, [=] {
 		_toggleMuteRequests.fire(MuteRequest{
 			.user = user,
@@ -1020,7 +1042,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 		_kickMemberRequests.fire_copy(user);
 	});
 
-	if (_peer->canManageGroupCall()) {
+	if (_peer->canManageGroupCall() && (!admin || mute)) {
 		result->addAction(
 			(mute
 				? tr::lng_group_call_context_mute(tr::now)
