@@ -1848,8 +1848,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_invite_done_many#one" = "You invited **{count} member** to the voice chat.";
 "lng_group_call_invite_done_many#other" = "You invited **{count} members** to the voice chat.";
 "lng_group_call_no_members" = "click to join";
-"lng_group_call_members#one" = "{count} member";
-"lng_group_call_members#other" = "{count} members";
+"lng_group_call_members#one" = "{count} participant";
+"lng_group_call_members#other" = "{count} participants";
 "lng_group_call_no_anonymous" = "Sorry, anonymous group admins can't join voice chats.";
 "lng_group_call_too_many" = "Sorry, there are too many members in this voice chat. Please try again later.";
 "lng_group_call_context_mute" = "Mute";
