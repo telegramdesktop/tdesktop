@@ -371,8 +371,8 @@ void Widget::setupShortcuts() {
 	}, lifetime());
 }
 
-std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
-	auto result = std::make_unique<SectionMemento>(channel());
+std::shared_ptr<Window::SectionMemento> Widget::createMemento() {
+	auto result = std::make_shared<SectionMemento>(channel());
 	saveState(result.get());
 	return result;
 }

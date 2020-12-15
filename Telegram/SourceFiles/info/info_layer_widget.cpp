@@ -106,7 +106,7 @@ void LayerWidget::parentResized() {
 		Ui::FocusPersister persister(this);
 		restoreFloatPlayerDelegate();
 
-		auto memento = MoveMemento(std::move(_content));
+		auto memento = std::make_shared<MoveMemento>(std::move(_content));
 
 		// We want to call hideSpecialLayer synchronously to avoid glitches,
 		// but we can't destroy LayerStackWidget from its' resizeEvent,

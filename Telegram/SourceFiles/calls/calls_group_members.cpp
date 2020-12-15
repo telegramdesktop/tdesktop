@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "calls/calls_group_call.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
@@ -24,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h" // Core::App().domain().activate.
 #include "main/main_session.h"
 #include "base/timer.h"
-#include "boxes/peers/edit_participants_box.h"
+#include "boxes/peers/edit_participants_box.h" // SubscribeToMigration.
 #include "lang/lang_keys.h"
 #include "window/window_controller.h" // Controller::sessionController.
 #include "window/window_session_controller.h"
@@ -237,7 +238,7 @@ private:
 	[[nodiscard]] Data::GroupCall *resolvedRealCall() const;
 
 	const base::weak_ptr<GroupCall> _call;
-	const not_null<ChannelData*> _channel;
+	not_null<PeerData*> _peer;
 
 	// Use only resolvedRealCall() method, not this value directly.
 	Data::GroupCall *_realCallRawValue = nullptr;
@@ -417,6 +418,7 @@ auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		if (_blobsAnimation) {
 			const auto shift = QPointF(x + size / 2., y + size / 2.);
+			auto hq = PainterHighQualityEnabler(p);
 			p.translate(shift);
 			_blobsAnimation->blobs.paint(p, st::groupCallMemberActiveStatus);
 			p.translate(-shift);
@@ -517,7 +519,7 @@ MembersController::MembersController(
 	not_null<GroupCall*> call,
 	not_null<QWidget*> menuParent)
 : _call(call)
-, _channel(call->channel())
+, _peer(call->peer())
 , _menuParent(menuParent)
 , _inactiveCrossLine(st::groupCallMemberInactiveCrossLine)
 , _coloredCrossLine(st::groupCallMemberColoredCrossLine) {
@@ -572,12 +574,12 @@ MembersController::~MembersController() {
 }
 
 void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
-	const auto channel = call->channel();
-	channel->session().changes().peerFlagsValue(
-		channel,
+	const auto peer = call->peer();
+	peer->session().changes().peerFlagsValue(
+		peer,
 		Data::PeerUpdate::Flag::GroupCall
 	) | rpl::map([=] {
-		return channel->call();
+		return peer->groupCall();
 	}) | rpl::filter([=](Data::GroupCall *real) {
 		const auto call = _call.get();
 		return call && real && (real->id() == call->id());
@@ -590,7 +592,7 @@ void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
 	call->stateValue(
 	) | rpl::start_with_next([=] {
 		const auto call = _call.get();
-		const auto real = channel->call();
+		const auto real = peer->groupCall();
 		if (call && real && (real->id() == call->id())) {
 			//updateRow(channel->session().user());
 		}
@@ -750,14 +752,14 @@ Row *MembersController::findRow(not_null<UserData*> user) const {
 
 Data::GroupCall *MembersController::resolvedRealCall() const {
 	return (_realCallRawValue
-		&& (_channel->call() == _realCallRawValue)
+		&& (_peer->groupCall() == _realCallRawValue)
 		&& (_realCallRawValue->id() == _realId))
 		? _realCallRawValue
 		: nullptr;
 }
 
 Main::Session &MembersController::session() const {
-	return _call->channel()->session();
+	return _call->peer()->session();
 }
 
 void MembersController::prepare() {
@@ -767,7 +769,7 @@ void MembersController::prepare() {
 	setSearchNoResultsText(tr::lng_blocked_list_not_found(tr::now));
 
 	const auto call = _call.get();
-	if (const auto real = _channel->call();
+	if (const auto real = _peer->groupCall();
 		real && call && real->id() == call->id()) {
 		prepareRows(real);
 	} else if (auto row = createSelfRow()) {
@@ -803,10 +805,10 @@ void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
 		}
 	}
 	if (!foundSelf) {
-		const auto self = _channel->session().user();
+		const auto self = _peer->session().user();
 		const auto i = ranges::find(
 			participants,
-			_channel->session().user(),
+			_peer->session().user(),
 			&Data::GroupCall::Participant::user);
 		auto row = (i != end(participants)) ? createRow(*i) : createSelfRow();
 		if (row) {
@@ -826,7 +828,7 @@ void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
 }
 
 void MembersController::loadMoreRows() {
-	if (const auto real = _channel->call()) {
+	if (const auto real = _peer->groupCall()) {
 		real->requestParticipants();
 	}
 }
@@ -837,7 +839,7 @@ auto MembersController::toggleMuteRequests() const
 }
 
 bool MembersController::rowCanMuteMembers() {
-	return _channel->canManageCall();
+	return _peer->canManageGroupCall();
 }
 
 void MembersController::rowUpdateRow(not_null<Row*> row) {
@@ -998,7 +1000,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 		_kickMemberRequests.fire_copy(user);
 	});
 
-	if (_channel->canManageCall()) {
+	if (_peer->canManageGroupCall()) {
 		result->addAction(
 			(mute
 				? tr::lng_group_call_context_mute(tr::now)
@@ -1011,7 +1013,16 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 	result->addAction(
 		tr::lng_context_send_message(tr::now),
 		showHistory);
-	if (_channel->canRestrictUser(user)) {
+	const auto canKick = [&] {
+		if (const auto chat = _peer->asChat()) {
+			return chat->amCreator()
+				|| (chat->canBanMembers() && !chat->admins.contains(user));
+		} else if (const auto group = _peer->asMegagroup()) {
+			return group->canRestrictUser(user);
+		}
+		return false;
+	}();
+	if (canKick) {
 		result->addAction(
 			tr::lng_context_remove_from_group(tr::now),
 			removeFromGroup);
@@ -1020,7 +1031,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 }
 
 std::unique_ptr<Row> MembersController::createSelfRow() {
-	const auto self = _channel->session().user();
+	const auto self = _peer->session().user();
 	auto result = std::make_unique<Row>(this, self);
 	updateRow(result.get(), nullptr);
 	return result;
@@ -1074,7 +1085,7 @@ int GroupMembers::desiredHeight() const {
 	auto desired = _header ? _header->height() : 0;
 	auto count = [&] {
 		if (const auto call = _call.get()) {
-			if (const auto real = call->channel()->call()) {
+			if (const auto real = call->peer()->groupCall()) {
 				if (call->id() == real->id()) {
 					return real->fullCount();
 				}
@@ -1137,9 +1148,15 @@ object_ptr<Ui::FlatLabel> GroupMembers::setupTitle(
 void GroupMembers::setupButtons(not_null<GroupCall*> call) {
 	using namespace rpl::mappers;
 
-	_addMember->showOn(Data::CanWriteValue(
-		call->channel().get()
-	));
+	_canAddMembers = Data::CanWriteValue(call->peer().get());
+	SubscribeToMigration(
+		call->peer(),
+		lifetime(),
+		[=](not_null<ChannelData*> channel) {
+			_canAddMembers = Data::CanWriteValue(channel.get());
+		});
+
+	_addMember->showOn(_canAddMembers.value());
 	_addMember->addClickHandler([=] { // TODO throttle(ripple duration)
 		_addMemberRequests.fire({});
 	});

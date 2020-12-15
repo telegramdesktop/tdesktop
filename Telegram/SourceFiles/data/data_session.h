@@ -169,7 +169,7 @@ public:
 		-> const base::flat_set<not_null<UserData*>> &;
 	void registerInvitedToCallUser(
 		uint64 callId,
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		not_null<UserData*> user);
 	void unregisterInvitedToCallUser(uint64 callId, not_null<UserData*> user);
 

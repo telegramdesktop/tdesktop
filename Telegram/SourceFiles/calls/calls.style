@@ -750,16 +750,11 @@ groupCallTitle: WindowTitle(defaultWindowTitle) {
 	closeIconActiveOver: groupCallTitleCloseIconOver;
 }
 
-groupCallMajorBlobMinRadius: 2px;
-groupCallMajorBlobMaxRadius: 2px;
+groupCallMajorBlobIdleRadius: 2px;
+groupCallMajorBlobMaxRadius: 4px;
 
-groupCallMinorBlobMinRadius: 3px;
-groupCallMinorBlobMaxRadius: 9px;
-
-groupCallMajorBlobTopOffset: 0px;
-groupCallMinorBlobTopOffset: 6px;
-
-groupCallBlobWidthAdditional: 40px;
+groupCallMinorBlobIdleRadius: 3px;
+groupCallMinorBlobMaxRadius: 12px;
 
 callTopBarMuteCrossLine: CrossLineAnimation {
 	fg: callBarFg;

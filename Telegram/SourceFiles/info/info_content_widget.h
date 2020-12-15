@@ -39,7 +39,7 @@ public:
 
 	virtual bool showInternal(
 		not_null<ContentMemento*> memento) = 0;
-	std::unique_ptr<ContentMemento> createMemento();
+	std::shared_ptr<ContentMemento> createMemento();
 
 	virtual void setIsStackBottom(bool isStackBottom) {
 	}
@@ -96,7 +96,7 @@ private:
 	void updateControlsGeometry();
 	void refreshSearchField(bool shown);
 
-	virtual std::unique_ptr<ContentMemento> doCreateMemento() = 0;
+	virtual std::shared_ptr<ContentMemento> doCreateMemento() = 0;
 
 	const not_null<Controller*> _controller;
 

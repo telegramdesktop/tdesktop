@@ -342,14 +342,14 @@ void Members::showMembersWithSearch(bool withSearch) {
 	//if (!_searchShown) {
 	//	toggleSearch();
 	//}
-	auto contentMemento = std::make_unique<Info::Members::Memento>(
+	auto contentMemento = std::make_shared<Info::Members::Memento>(
 		_controller);
 	contentMemento->setState(saveState());
 	contentMemento->setSearchStartsFocused(withSearch);
-	auto mementoStack = std::vector<std::unique_ptr<ContentMemento>>();
+	auto mementoStack = std::vector<std::shared_ptr<ContentMemento>>();
 	mementoStack.push_back(std::move(contentMemento));
 	_controller->showSection(
-		Info::Memento(std::move(mementoStack)));
+		std::make_shared<Info::Memento>(std::move(mementoStack)));
 }
 
 //void Members::toggleSearch(anim::type animated) {

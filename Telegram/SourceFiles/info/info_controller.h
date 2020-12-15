@@ -136,7 +136,7 @@ public:
 	virtual rpl::producer<QString> mediaSourceQueryValue() const;
 
 	void showSection(
-		Window::SectionMemento &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const Window::SectionShow &params = Window::SectionShow()) override;
 	void showBackFromStack(
 		const Window::SectionShow &params = Window::SectionShow()) override;
@@ -202,7 +202,7 @@ public:
 	void saveSearchState(not_null<ContentMemento*> memento);
 
 	void showSection(
-		Window::SectionMemento &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const Window::SectionShow &params = Window::SectionShow()) override;
 	void showBackFromStack(
 		const Window::SectionShow &params = Window::SectionShow()) override;

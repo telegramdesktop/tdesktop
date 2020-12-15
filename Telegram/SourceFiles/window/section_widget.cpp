@@ -70,7 +70,7 @@ void SectionWidget::showAnimated(
 	show();
 }
 
-std::unique_ptr<SectionMemento> SectionWidget::createMemento() {
+std::shared_ptr<SectionMemento> SectionWidget::createMemento() {
 	return nullptr;
 }
 

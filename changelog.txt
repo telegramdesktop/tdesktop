@@ -1,3 +1,10 @@
+2.4.14 beta (14.12.20)
+
+- Create voice chats in legacy groups.
+- Fix sticker pack opening.
+- Fix group status display.
+- Fix group members display.
+
 2.4.13 beta (09.12.20)
 
 - Fix voice messages sending.

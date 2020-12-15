@@ -650,7 +650,7 @@ void Manager::openNotificationMessage(
 		Ui::showPeerHistory(history, messageId);
 	//} else if (messageFeed) { // #feed
 	//	App::wnd()->sessionController()->showSection(
-	//		HistoryFeed::Memento(messageFeed));
+	//		std::make_shared<HistoryFeed::Memento>(messageFeed));
 	} else {
 		Ui::showPeerHistory(history, ShowAtUnreadMsgId);
 	}

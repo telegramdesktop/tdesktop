@@ -61,8 +61,8 @@ void GenerateUserpicsInRow(
 	}
 }
 
-GroupCallTracker::GroupCallTracker(not_null<ChannelData*> channel)
-: _channel(channel) {
+GroupCallTracker::GroupCallTracker(not_null<PeerData*> peer)
+: _peer(peer) {
 }
 
 rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
@@ -118,7 +118,10 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 		}
 		for (auto i = 0; i != kLimit - already; ++i) {
 			if (adding[i]) {
-				state->userpics.push_back(UserpicInRow{ adding[i]->user });
+				state->userpics.push_back(UserpicInRow{
+					.peer = adding[i]->user,
+					.speaking = adding[i]->speaking,
+				});
 			}
 		}
 		return true;
@@ -133,12 +136,19 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 		if (!result) {
 			return false;
 		}
-		GenerateUserpicsInRow(
-			state->current.userpics,
-			state->userpics,
-			st);
+		state->current.users.reserve(state->userpics.size());
+		state->current.users.clear();
 		state->someUserpicsNotLoaded = false;
-		for (const auto &userpic : state->userpics) {
+		for (auto &userpic : state->userpics) {
+			userpic.peer->loadUserpic();
+			const auto pic = userpic.peer->genUserpic(userpic.view, st.size);
+			userpic.uniqueKey = userpic.peer->userpicUniqueKey(userpic.view);
+			state->current.users.push_back({
+				.userpic = pic.toImage(),
+				.userpicKey = userpic.uniqueKey,
+				.id = userpic.peer->bareId(),
+				.speaking = userpic.speaking,
+			});
 			if (userpic.peer->hasUserpic()
 				&& userpic.peer->useEmptyUserpic(userpic.view)) {
 				state->someUserpicsNotLoaded = true;
@@ -172,12 +182,17 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 		Expects(state->userpics.size() <= kLimit);
 
 		const auto &participants = call->participants();
-		auto i = state->userpics.begin();
+		auto i = begin(state->userpics);
 
 		// Find where to put a new speaking userpic.
-		for (; i != state->userpics.end(); ++i) {
+		for (; i != end(state->userpics); ++i) {
 			if (i->peer == user) {
-				return false;
+				if (i->speaking) {
+					return false;
+				}
+				const auto index = i - begin(state->userpics);
+				state->current.users[index].speaking = i->speaking = true;
+				return true;
 			}
 			const auto j = ranges::find(
 				participants,
@@ -194,7 +209,10 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 		}
 
 		// Add the new speaking to the place we found.
-		const auto added = state->userpics.insert(i, UserpicInRow{ user });
+		const auto added = state->userpics.insert(i, UserpicInRow{
+			.peer = user,
+			.speaking = true,
+		});
 
 		// Remove him from the tail, if he was there.
 		for (auto i = added + 1; i != state->userpics.end(); ++i) {
@@ -252,8 +270,27 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 				if (CheckPushToFront(state, call, user, st)) {
 					pushNext();
 				}
-			} else if (RegenerateUserpics(state, call, st)) {
-				pushNext();
+			} else {
+				auto updateSpeakingState = update.was.has_value()
+					&& (update.now->speaking != update.was->speaking);
+				if (updateSpeakingState) {
+					const auto i = ranges::find(
+						state->userpics,
+						user,
+						&UserpicInRow::peer);
+					if (i != end(state->userpics)) {
+						const auto index = i - begin(state->userpics);
+						state->current.users[index].speaking
+							= i->speaking
+							= update.now->speaking;
+					} else {
+						updateSpeakingState = false;
+					}
+				}
+				if (RegenerateUserpics(state, call, st)
+					|| updateSpeakingState) {
+					pushNext();
+				}
 			}
 		}, lifetime);
 
@@ -262,7 +299,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 			return RegenerateUserpics(state, call, st);
 		}) | rpl::start_with_next(pushNext, lifetime);
 
-		call->channel()->session().downloaderTaskFinished(
+		call->peer()->session().downloaderTaskFinished(
 		) | rpl::filter([=] {
 			return state->someUserpicsNotLoaded;
 		}) | rpl::start_with_next([=] {
@@ -289,15 +326,15 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 }
 
 rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::content() const {
-	const auto channel = _channel;
+	const auto peer = _peer;
 	return rpl::combine(
-		channel->session().changes().peerFlagsValue(
-			channel,
+		peer->session().changes().peerFlagsValue(
+			peer,
 			Data::PeerUpdate::Flag::GroupCall),
 		Core::App().calls().currentGroupCallValue()
 	) | rpl::map([=](const auto&, Calls::GroupCall *current) {
-		const auto call = channel->call();
-		return (call && (!current || current->channel() != channel))
+		const auto call = peer->groupCall();
+		return (call && (!current || current->peer() != peer))
 			? call
 			: nullptr;
 	}) | rpl::distinct_until_changed(

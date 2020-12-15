@@ -894,6 +894,10 @@ Dialogs::RowDescriptor ScheduledWidget::activeChat() const {
 	};
 }
 
+bool ScheduledWidget::preventsClose(Fn<void()> &&continueCallback) const {
+	return _composeControls->preventsClose(std::move(continueCallback));
+}
+
 QPixmap ScheduledWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	_topBar->updateControlsVisibility();
 	if (params.withTopBarShadow) _topBarShadow->hide();
@@ -937,8 +941,8 @@ bool ScheduledWidget::returnTabbedSelector() {
 	return _composeControls->returnTabbedSelector();
 }
 
-std::unique_ptr<Window::SectionMemento> ScheduledWidget::createMemento() {
-	auto result = std::make_unique<ScheduledMemento>(history());
+std::shared_ptr<Window::SectionMemento> ScheduledWidget::createMemento() {
+	auto result = std::make_shared<ScheduledMemento>(history());
 	saveState(result.get());
 	return result;
 }

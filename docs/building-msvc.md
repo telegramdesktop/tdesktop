@@ -195,7 +195,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     jom -j8 install
     cd ..
 
-    git clone https://github.com/desktop-app/tg_owt.git
+    git clone --recursive https://github.com/desktop-app/tg_owt.git
     cd tg_owt
     mkdir out
     cd out

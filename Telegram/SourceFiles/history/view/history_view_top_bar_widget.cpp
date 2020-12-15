@@ -244,23 +244,7 @@ void TopBarWidget::call() {
 
 void TopBarWidget::groupCall() {
 	if (const auto peer = _activeChat.key.peer()) {
-		if (const auto megagroup = peer->asMegagroup()) {
-			_controller->startOrJoinGroupCall(megagroup);
-		} else if (const auto chat = peer->asChat()) {
-			const auto callback = [=] {
-				Ui::hideLayer();
-				const auto start = [=](not_null<ChannelData*> megagroup) {
-					_controller->startOrJoinGroupCall(megagroup, true);
-				};
-				peer->session().api().migrateChat(
-					chat,
-					crl::guard(this, start));
-			};
-			Ui::show(Box<ConfirmBox>(
-				tr::lng_group_call_create_sure(tr::now),
-				tr::lng_continue(tr::now),
-				crl::guard(this, callback)));
-		}
+		_controller->startOrJoinGroupCall(peer);
 	}
 }
 
@@ -533,15 +517,15 @@ void TopBarWidget::infoClicked() {
 	} else if (key.folder()) {
 		_controller->closeFolder();
 	//} else if (const auto feed = _activeChat.feed()) { // #feed
-	//	_controller->showSection(Info::Memento(
+	//	_controller->showSection(std::make_shared<Info::Memento>(
 	//		feed,
 	//		Info::Section(Info::Section::Type::Profile)));
 	} else if (key.peer()->isSelf()) {
-		_controller->showSection(Info::Memento(
+		_controller->showSection(std::make_shared<Info::Memento>(
 			key.peer(),
 			Info::Section(Storage::SharedMediaType::Photo)));
 	} else if (key.peer()->isRepliesChat()) {
-		_controller->showSection(Info::Memento(
+		_controller->showSection(std::make_shared<Info::Memento>(
 			key.peer(),
 			Info::Section(Storage::SharedMediaType::Photo)));
 	} else {
@@ -567,6 +551,7 @@ void TopBarWidget::setActiveChat(
 	}
 	_activeChat = activeChat;
 	_sendAction = sendAction;
+	_titlePeerText.clear();
 	_back->clearState();
 	update();
 
@@ -704,7 +689,8 @@ void TopBarWidget::updateControlsGeometry() {
 	}
 	_infoToggle->moveToRight(_rightTaken, otherButtonsTop);
 	if (!_infoToggle->isHidden()) {
-		_rightTaken += _infoToggle->width() + st::topBarSkip;
+		_infoToggle->moveToRight(_rightTaken, otherButtonsTop);
+		_rightTaken += _infoToggle->width();
 	}
 	_admins->moveToRight(_rightTaken, otherButtonsTop);
 	if (!_admins->isHidden()) {
@@ -814,11 +800,7 @@ void TopBarWidget::updateControlsVisibility() {
 	_call->setVisible(historyMode && callsEnabled);
 	const auto groupCallsEnabled = [&] {
 		if (const auto peer = _activeChat.key.peer()) {
-			if (const auto megagroup = peer->asMegagroup()) {
-				return megagroup->canManageCall();
-			} else if (const auto chat = peer->asChat()) {
-				return chat->amCreator();
-			}
+			return peer->canManageGroupCall();
 		}
 		return false;
 	}();

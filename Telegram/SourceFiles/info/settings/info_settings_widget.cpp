@@ -95,8 +95,8 @@ rpl::producer<bool> Widget::desiredShadowVisibility() const {
 		: rpl::single(true);
 }
 
-std::unique_ptr<ContentMemento> Widget::doCreateMemento() {
-	auto result = std::make_unique<Memento>(self(), _type);
+std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
+	auto result = std::make_shared<Memento>(self(), _type);
 	saveState(result.get());
 	return result;
 }

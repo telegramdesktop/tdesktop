@@ -140,8 +140,8 @@ public:
 	}
 
 	void setThirdSectionMemento(
-		std::unique_ptr<Window::SectionMemento> &&memento);
-	std::unique_ptr<Window::SectionMemento> takeThirdSectionMemento() {
+		std::shared_ptr<Window::SectionMemento> memento);
+	std::shared_ptr<Window::SectionMemento> takeThirdSectionMemento() {
 		return std::move(_thirdSectionMemento);
 	}
 
@@ -158,7 +158,7 @@ public:
 private:
 	PeerData *_peer = nullptr;
 	QPointer<Window::SectionWidget> _thirdSectionWeak;
-	std::unique_ptr<Window::SectionMemento> _thirdSectionMemento;
+	std::shared_ptr<Window::SectionMemento> _thirdSectionMemento;
 
 };
 
@@ -187,27 +187,27 @@ public:
 class StackItemSection : public StackItem {
 public:
 	StackItemSection(
-		std::unique_ptr<Window::SectionMemento> &&memento);
+		std::shared_ptr<Window::SectionMemento> memento);
 
 	StackItemType type() const override {
 		return SectionStackItem;
 	}
-	Window::SectionMemento *memento() const {
-		return _memento.get();
+	std::shared_ptr<Window::SectionMemento> takeMemento() {
+		return std::move(_memento);
 	}
 
 private:
-	std::unique_ptr<Window::SectionMemento> _memento;
+	std::shared_ptr<Window::SectionMemento> _memento;
 
 };
 
 void StackItem::setThirdSectionMemento(
-		std::unique_ptr<Window::SectionMemento> &&memento) {
+		std::shared_ptr<Window::SectionMemento> memento) {
 	_thirdSectionMemento = std::move(memento);
 }
 
 StackItemSection::StackItemSection(
-	std::unique_ptr<Window::SectionMemento> &&memento)
+	std::shared_ptr<Window::SectionMemento> memento)
 : StackItem(nullptr)
 , _memento(std::move(memento)) {
 }
@@ -1403,6 +1403,7 @@ void MainWidget::ui_showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,
 		MsgId showAtMsgId) {
+
 	if (auto peer = session().data().peerLoaded(peerId)) {
 		if (peer->migrateTo()) {
 			peer = peer->migrateTo();
@@ -1420,6 +1421,13 @@ void MainWidget::ui_showPeerHistory(
 	if (IsServerMsgId(showAtMsgId)
 		&& _mainSection
 		&& _mainSection->showMessage(peerId, params, showAtMsgId)) {
+		return;
+	}
+
+	if (!(_history->peer() && _history->peer()->id == peerId)
+		&& preventsCloseSection(
+			[=] { ui_showPeerHistory(peerId, params, showAtMsgId); },
+			params)) {
 		return;
 	}
 
@@ -1599,10 +1607,10 @@ void MainWidget::saveSectionInStack() {
 }
 
 void MainWidget::showSection(
-		Window::SectionMemento &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const SectionShow &params) {
 	if (_mainSection && _mainSection->showInternal(
-			&memento,
+			memento.get(),
 			params)) {
 		if (const auto entry = _mainSection->activeChat(); entry.key) {
 			_controller->setActiveChatEntry(entry);
@@ -1618,14 +1626,18 @@ void MainWidget::showSection(
 	//	return;
 	}
 
+	if (preventsCloseSection(
+		[=] { showSection(memento, params); },
+		params)) {
+		return;
+	}
+
 	// If the window was not resized, but we've enabled
 	// tabbedSelectorSectionEnabled or thirdSectionInfoEnabled
 	// we need to update adaptive layout to Adaptive::ThirdColumn().
 	updateColumnLayout();
 
-	showNewSection(
-		std::move(memento),
-		params);
+	showNewSection(std::move(memento), params);
 }
 
 void MainWidget::updateColumnLayout() {
@@ -1720,7 +1732,7 @@ Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
 }
 
 void MainWidget::showNewSection(
-		Window::SectionMemento &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const SectionShow &params) {
 	using Column = Window::Column;
 
@@ -1732,7 +1744,7 @@ void MainWidget::showNewSection(
 		st::columnMinimalWidthThird,
 		height() - thirdSectionTop);
 	auto newThirdSection = (Adaptive::ThreeColumn() && params.thirdColumn)
-		? memento.createWidget(
+		? memento->createWidget(
 			this,
 			_controller,
 			Column::Third,
@@ -1741,7 +1753,7 @@ void MainWidget::showNewSection(
 	const auto layerRect = parentWidget()->rect();
 	if (newThirdSection) {
 		saveInStack = false;
-	} else if (auto layer = memento.createLayer(_controller, layerRect)) {
+	} else if (auto layer = memento->createLayer(_controller, layerRect)) {
 		if (params.activation != anim::activation::background) {
 			Ui::hideLayer(anim::type::instant);
 		}
@@ -1766,7 +1778,7 @@ void MainWidget::showNewSection(
 		height() - mainSectionTop);
 	auto newMainSection = newThirdSection
 		? nullptr
-		: memento.createWidget(
+		: memento->createWidget(
 			this,
 			_controller,
 			Adaptive::OneColumn() ? Column::First : Column::Second,
@@ -1777,7 +1789,7 @@ void MainWidget::showNewSection(
 		if (_a_show.animating()
 			|| Core::App().passcodeLocked()
 			|| (params.animated == anim::type::instant)
-			|| memento.instant()) {
+			|| memento->instant()) {
 			return false;
 		}
 		if (!Adaptive::OneColumn() && params.way == SectionShow::Way::ClearStack) {
@@ -1880,8 +1892,30 @@ bool MainWidget::stackIsEmpty() const {
 	return _stack.empty();
 }
 
+bool MainWidget::preventsCloseSection(Fn<void()> callback) const {
+	if (Core::App().passcodeLocked()) {
+		return false;
+	}
+	auto copy = callback;
+	return (_mainSection && _mainSection->preventsClose(std::move(copy)))
+		|| (_history && _history->preventsClose(std::move(callback)));
+}
+
+bool MainWidget::preventsCloseSection(
+		Fn<void()> callback,
+		const SectionShow &params) const {
+	return params.thirdColumn
+		? false
+		: preventsCloseSection(std::move(callback));
+}
+
 void MainWidget::showBackFromStack(
 		const SectionShow &params) {
+
+	if (preventsCloseSection([=] { showBackFromStack(params); }, params)) {
+		return;
+	}
+
 	if (selectingPeer()) {
 		return;
 	}
@@ -1908,12 +1942,12 @@ void MainWidget::showBackFromStack(
 	} else if (item->type() == SectionStackItem) {
 		auto sectionItem = static_cast<StackItemSection*>(item.get());
 		showNewSection(
-			std::move(*sectionItem->memento()),
+			sectionItem->takeMemento(),
 			params.withWay(SectionShow::Way::Backward));
 	}
 	if (_thirdSectionFromStack && _thirdSection) {
 		_controller->showSection(
-			std::move(*base::take(_thirdSectionFromStack)),
+			base::take(_thirdSectionFromStack),
 			SectionShow(
 				SectionShow::Way::ClearStack,
 				anim::type::instant,
@@ -2412,15 +2446,15 @@ bool MainWidget::saveThirdSectionToStackBack() const {
 
 auto MainWidget::thirdSectionForCurrentMainSection(
 	Dialogs::Key key)
--> std::unique_ptr<Window::SectionMemento> {
+-> std::shared_ptr<Window::SectionMemento> {
 	if (_thirdSectionFromStack) {
 		return std::move(_thirdSectionFromStack);
 	} else if (const auto peer = key.peer()) {
-		return std::make_unique<Info::Memento>(
+		return std::make_shared<Info::Memento>(
 			peer,
 			Info::Memento::DefaultSection(peer));
 	//} else if (const auto feed = key.feed()) { // #feed
-	//	return std::make_unique<Info::Memento>(
+	//	return std::make_shared<Info::Memento>(
 	//		feed,
 	//		Info::Memento::DefaultSection(key));
 	}
@@ -2455,7 +2489,7 @@ void MainWidget::updateThirdColumnToCurrentChat(
 		}
 
 		_controller->showSection(
-			std::move(*thirdSectionForCurrentMainSection(key)),
+			thirdSectionForCurrentMainSection(key),
 			params.withThirdColumn());
 	};
 	auto switchTabbedFast = [&](not_null<PeerData*> peer) {

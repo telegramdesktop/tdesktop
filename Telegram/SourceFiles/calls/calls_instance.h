@@ -40,7 +40,7 @@ public:
 	~Instance();
 
 	void startOutgoingCall(not_null<UserData*> user, bool video);
-	void startOrJoinGroupCall(not_null<ChannelData*> channel);
+	void startOrJoinGroupCall(not_null<PeerData*> peer);
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
@@ -94,7 +94,7 @@ private:
 	void destroyCall(not_null<Call*> call);
 
 	void createGroupCall(
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		const MTPInputGroupCall &inputCall);
 	void destroyGroupCall(not_null<GroupCall*> call);
 

@@ -12,13 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_hardcoded.h"
-#include "boxes/confirm_box.h"
+#include "boxes/peers/edit_participants_box.h" // SubscribeToMigration.
 #include "ui/toasts/common_toasts.h"
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
+#include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_group_call.h"
 #include "data/data_session.h"
@@ -46,12 +47,12 @@ constexpr auto kUpdateSendActionEach = crl::time(500);
 
 GroupCall::GroupCall(
 	not_null<Delegate*> delegate,
-	not_null<ChannelData*> channel,
+	not_null<PeerData*> peer,
 	const MTPInputGroupCall &inputCall)
 : _delegate(delegate)
-, _channel(channel)
-, _history(channel->owner().history(channel))
-, _api(&_channel->session().mtp())
+, _peer(peer)
+, _history(peer->owner().history(peer))
+, _api(&peer->session().mtp())
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
 , _pushToTalkCancelTimer([=] { pushToTalkCancel(); }) {
@@ -70,8 +71,8 @@ GroupCall::GroupCall(
 
 	const auto id = inputCall.c_inputGroupCall().vid().v;
 	if (id) {
-		if (const auto call = _channel->call(); call && call->id() == id) {
-			if (!_channel->canManageCall() && call->joinMuted()) {
+		if (const auto call = _peer->groupCall(); call && call->id() == id) {
+			if (!_peer->canManageGroupCall() && call->joinMuted()) {
 				_muted = MuteState::ForceMuted;
 			}
 		}
@@ -108,9 +109,14 @@ void GroupCall::setState(State state) {
 	}
 	_state = state;
 
-	if (_state.current() == State::Joined && !_pushToTalkStarted) {
-		_pushToTalkStarted = true;
-		applyGlobalShortcutChanges();
+	if (_state.current() == State::Joined) {
+		if (!_pushToTalkStarted) {
+			_pushToTalkStarted = true;
+			applyGlobalShortcutChanges();
+		}
+		if (const auto call = _peer->groupCall(); call && call->id() == _id) {
+			call->setInCall();
+		}
 	}
 
 	if (false
@@ -137,11 +143,11 @@ void GroupCall::setState(State state) {
 
 void GroupCall::start() {
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
-		_channel->inputChannel,
+		_peer->input,
 		MTP_int(rand_value<int32>())
 	)).done([=](const MTPUpdates &result) {
 		_acceptFields = true;
-		_channel->session().api().applyUpdates(result);
+		_peer->session().api().applyUpdates(result);
 		_acceptFields = false;
 	}).fail([=](const RPCError &error) {
 		LOG(("Call Error: Could not create, error: %1"
@@ -157,7 +163,13 @@ void GroupCall::start() {
 
 void GroupCall::join(const MTPInputGroupCall &inputCall) {
 	setState(State::Joining);
-	_channel->setCall(inputCall);
+	if (const auto chat = _peer->asChat()) {
+		chat->setGroupCall(inputCall);
+	} else if (const auto group = _peer->asMegagroup()) {
+		group->setGroupCall(inputCall);
+	} else {
+		Unexpected("Peer type in GroupCall::join.");
+	}
 
 	inputCall.match([&](const MTPDinputGroupCall &data) {
 		_id = data.vid().v;
@@ -166,7 +178,7 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 	});
 
 	using Update = Data::GroupCall::ParticipantUpdate;
-	_channel->call()->participantUpdated(
+	_peer->groupCall()->participantUpdated(
 	) | rpl::filter([=](const Update &update) {
 		return (_instance != nullptr) && !update.now;
 	}) | rpl::start_with_next([=](const Update &update) {
@@ -174,6 +186,10 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 
 		_instance->removeSsrcs({ update.was->ssrc });
 	}, _lifetime);
+
+	SubscribeToMigration(_peer, _lifetime, [=](not_null<ChannelData*> group) {
+		_peer = group;
+	});
 }
 
 void GroupCall::rejoin() {
@@ -229,7 +245,7 @@ void GroupCall::rejoin() {
 					: State::Connecting);
 				applySelfInCallLocally();
 				maybeSendMutedUpdate(wasMuteState);
-				_channel->session().api().applyUpdates(updates);
+				_peer->session().api().applyUpdates(updates);
 			}).fail([=](const RPCError &error) {
 				const auto type = error.type();
 				LOG(("Call Error: Could not join, error: %1").arg(type));
@@ -255,13 +271,13 @@ void GroupCall::rejoin() {
 }
 
 void GroupCall::applySelfInCallLocally() {
-	const auto call = _channel->call();
+	const auto call = _peer->groupCall();
 	if (!call || call->id() != _id) {
 		return;
 	}
 	using Flag = MTPDgroupCallParticipant::Flag;
 	const auto &participants = call->participants();
-	const auto self = _channel->session().user();
+	const auto self = _peer->session().user();
 	const auto i = ranges::find(
 		participants,
 		self,
@@ -307,7 +323,7 @@ void GroupCall::discard() {
 		// Here 'this' could be destroyed by updates, so we set Ended after
 		// updates being handled, but in a guarded way.
 		crl::on_main(this, [=] { hangup(); });
-		_channel->session().api().applyUpdates(result);
+		_peer->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {
 		hangup();
 	}).send();
@@ -338,7 +354,7 @@ void GroupCall::finish(FinishType type) {
 
 	// We want to leave request still being sent and processed even if
 	// the call is already destroyed.
-	const auto session = &_channel->session();
+	const auto session = &_peer->session();
 	const auto weak = base::make_weak(this);
 	session->api().request(MTPphone_LeaveGroupCall(
 		inputCall(),
@@ -453,7 +469,7 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 		return;
 	}
 
-	const auto self = _channel->session().userId();
+	const auto self = _peer->session().userId();
 	for (const auto &participant : data.vparticipants().v) {
 		participant.match([&](const MTPDgroupCallParticipant &data) {
 			if (data.vuser_id().v != self) {
@@ -560,7 +576,7 @@ void GroupCall::handleLevelsUpdated(
 			&& (!_lastSendProgressUpdate
 				|| _lastSendProgressUpdate + kUpdateSendActionEach < now)) {
 			_lastSendProgressUpdate = now;
-			_channel->session().sendProgressManager().update(
+			_peer->session().sendProgressManager().update(
 				_history,
 				Api::SendProgressType::Speaking);
 		}
@@ -595,7 +611,7 @@ void GroupCall::audioLevelsUpdated(
 }
 
 void GroupCall::checkLastSpoke() {
-	const auto real = _channel->call();
+	const auto real = _peer->groupCall();
 	if (!real || real->id() != _id) {
 		return;
 	}
@@ -678,7 +694,7 @@ void GroupCall::sendMutedUpdate() {
 		MTP_inputUserSelf()
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
-		_channel->session().api().applyUpdates(result);
+		_peer->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {
 		_updateMuteRequestId = 0;
 		if (error.type() == u"GROUPCALL_FORBIDDEN"_q) {
@@ -711,7 +727,7 @@ void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
 		inputCall(),
 		user->inputUser
 	)).done([=](const MTPUpdates &result) {
-		_channel->session().api().applyUpdates(result);
+		_peer->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {
 		if (error.type() == u"GROUPCALL_FORBIDDEN"_q) {
 			LOG(("Call Info: Rejoin after error '%1' in editGroupCallMember."
@@ -723,11 +739,11 @@ void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
 
 std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 		const std::vector<not_null<UserData*>> &users) {
-	const auto real = _channel->call();
+	const auto real = _peer->groupCall();
 	if (!real || real->id() != _id) {
 		return 0;
 	}
-	const auto owner = &_channel->owner();
+	const auto owner = &_peer->owner();
 	const auto &invited = owner->invitedToCallUsers(_id);
 	const auto &participants = real->participants();
 	auto &&toInvite = users | ranges::view::filter([&](
@@ -748,7 +764,7 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 			inputCall(),
 			MTP_vector<MTPInputUser>(slice)
 		)).done([=](const MTPUpdates &result) {
-			_channel->session().api().applyUpdates(result);
+			_peer->session().api().applyUpdates(result);
 		}).send();
 		slice.clear();
 	};
@@ -756,7 +772,7 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 		if (!count && slice.empty()) {
 			result = user;
 		}
-		owner->registerInvitedToCallUser(_id, _channel, user);
+		owner->registerInvitedToCallUser(_id, _peer, user);
 		slice.push_back(user->inputUser);
 		if (slice.size() == kMaxInvitePerSlice) {
 			sendSlice();
@@ -864,7 +880,7 @@ void GroupCall::handleControllerError(const QString &error) {
 		//		"{user}",
 		//		_user->name)));
 	} else if (error == u"ERROR_AUDIO_IO"_q) {
-		Ui::show(Box<InformBox>(tr::lng_call_error_audio_io(tr::now)));
+		//Ui::show(Box<InformBox>(tr::lng_call_error_audio_io(tr::now)));
 	}
 	//finish(FinishType::Failed);
 }

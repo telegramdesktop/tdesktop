@@ -132,7 +132,7 @@ public:
 	Main::Session &session() const;
 
 	virtual void showSection(
-		SectionMemento &&memento,
+		std::shared_ptr<SectionMemento> memento,
 		const SectionShow &params = SectionShow()) = 0;
 	virtual void showBackFromStack(
 		const SectionShow &params = SectionShow()) = 0;
@@ -297,11 +297,11 @@ public:
 	void closeThirdSection();
 
 	void startOrJoinGroupCall(
-		not_null<ChannelData*> megagroup,
+		not_null<PeerData*> peer,
 		bool confirmedLeaveOther = false);
 
 	void showSection(
-		SectionMemento &&memento,
+		std::shared_ptr<SectionMemento> memento,
 		const SectionShow &params = SectionShow()) override;
 	void showBackFromStack(
 		const SectionShow &params = SectionShow()) override;

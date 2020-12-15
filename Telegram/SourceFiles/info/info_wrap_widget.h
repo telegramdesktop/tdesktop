@@ -101,7 +101,7 @@ public:
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) override;
 	bool showBackFromStackInternal(const Window::SectionShow &params);
-	std::unique_ptr<Window::SectionMemento> createMemento() override;
+	std::shared_ptr<Window::SectionMemento> createMemento() override;
 
 	rpl::producer<int> desiredHeightValue() const override;
 
@@ -146,10 +146,10 @@ private:
 	void injectActivePeerProfile(not_null<PeerData*> peer);
 	//void injectActiveFeedProfile(not_null<Data::Feed*> feed); // #feed
 	void injectActiveProfileMemento(
-		std::unique_ptr<ContentMemento> memento);
+		std::shared_ptr<ContentMemento> memento);
 	void checkBeforeClose(Fn<void()> close);
 	void restoreHistoryStack(
-		std::vector<std::unique_ptr<ContentMemento>> stack);
+		std::vector<std::shared_ptr<ContentMemento>> stack);
 	bool hasStackHistory() const {
 		return !_historyStack.empty();
 	}
@@ -178,7 +178,7 @@ private:
 
 	//void showTab(Tab tab);
 	void showContent(object_ptr<ContentWidget> content);
-	//std::unique_ptr<ContentMemento> createTabMemento(Tab tab);
+	//std::shared_ptr<ContentMemento> createTabMemento(Tab tab);
 	object_ptr<ContentWidget> createContent(
 		not_null<ContentMemento*> memento,
 		not_null<Controller*> controller);
@@ -212,7 +212,7 @@ private:
 	base::unique_qptr<Ui::DropdownMenu> _topBarMenu;
 
 //	Tab _tab = Tab::Profile;
-//	std::unique_ptr<ContentMemento> _anotherTabMemento;
+//	std::shared_ptr<ContentMemento> _anotherTabMemento;
 	std::vector<StackItem> _historyStack;
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;

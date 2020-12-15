@@ -22,6 +22,7 @@ namespace HistoryView {
 
 struct UserpicInRow {
 	not_null<PeerData*> peer;
+	bool speaking = false;
 	mutable std::shared_ptr<Data::CloudImageView> view;
 	mutable InMemoryKey uniqueKey;
 };
@@ -40,7 +41,7 @@ void GenerateUserpicsInRow(
 
 class GroupCallTracker final {
 public:
-	GroupCallTracker(not_null<ChannelData*> channel);
+	explicit GroupCallTracker(not_null<PeerData*> peer);
 
 	[[nodiscard]] rpl::producer<Ui::GroupCallBarContent> content() const;
 	[[nodiscard]] rpl::producer<> joinClicks() const;
@@ -50,7 +51,7 @@ public:
 		const UserpicsInRowStyle &st);
 
 private:
-	not_null<ChannelData*> _channel;
+	const not_null<PeerData*> _peer;
 
 	rpl::event_stream<> _joinClicks;
 

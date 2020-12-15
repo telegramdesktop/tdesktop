@@ -1352,6 +1352,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_record_cancel" = "Release outside this field to cancel";
 "lng_record_lock_cancel" = "Click outside of the circle to cancel";
 "lng_record_lock_cancel_sure" = "Are you sure you want to stop recording and discard your voice message?";
+"lng_record_listen_cancel_sure" = "Are you sure you want to discard your recorded voice message?";
 "lng_record_lock_discard" = "Discard";
 "lng_will_be_notified" = "Members will be notified when you post";
 "lng_wont_be_notified" = "Members will not be notified when you post";
@@ -1830,7 +1831,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_settings" = "Settings";
 "lng_group_call_unmute" = "Unmute";
 "lng_group_call_you_are_live" = "You are Live";
-"lng_group_call_force_muted" = "You are muted";
+"lng_group_call_force_muted" = "You are in Listen Only mode";
 "lng_group_call_connecting" = "Connecting...";
 "lng_group_call_leave" = "Leave";
 "lng_group_call_leave_title" = "Leave voice chat";

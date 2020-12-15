@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_media_player.h"
 #include "ui/controls/send_button.h"
+#include "ui/effects/animation_value.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
 #include "window/window_session_controller.h"
@@ -60,10 +61,6 @@ enum class FilterType {
 	ShowBox,
 	Cancel,
 };
-
-inline float64 InterpolateF(int a, int b, float64 b_ratio) {
-	return a + float64(b - a) * b_ratio;
-}
 
 [[nodiscard]] auto InactiveColor(const QColor &c) {
 	return QColor(c.red(), c.green(), c.blue(), kInactiveWaveformBarAlpha);
@@ -786,15 +783,15 @@ void RecordLock::drawProgress(Painter &p) {
 
 		const auto &blockHeight = st::historyRecordLockIconBottomHeight;
 
-		const auto blockRectWidth = InterpolateF(
+		const auto blockRectWidth = anim::interpolateF(
 			size.width(),
 			st::historyRecordStopIconWidth,
 			lockToStopProgress);
-		const auto blockRectHeight = InterpolateF(
+		const auto blockRectHeight = anim::interpolateF(
 			blockHeight,
 			st::historyRecordStopIconWidth,
 			lockToStopProgress);
-		const auto blockRectTop = InterpolateF(
+		const auto blockRectTop = anim::interpolateF(
 			size.height() - blockHeight,
 			std::round((size.height() - blockRectHeight) / 2.),
 			lockToStopProgress);
@@ -1073,7 +1070,6 @@ void VoiceRecordBar::init() {
 
 	_lock->locks(
 	) | rpl::start_with_next([=] {
-		installClickOutsideFilter();
 		_level->setType(VoiceRecordButton::Type::Send);
 
 		_level->clicks(
@@ -1176,10 +1172,6 @@ void VoiceRecordBar::visibilityAnimate(bool show, Fn<void()> &&callback) {
 	_showAnimation.start(std::move(animationCallback), from, to, duration);
 }
 
-void VoiceRecordBar::setEscFilter(Fn<bool()> &&callback) {
-	_escFilter = std::move(callback);
-}
-
 void VoiceRecordBar::setStartRecordingFilter(Fn<bool()> &&callback) {
 	_startRecordingFilter = std::move(callback);
 }
@@ -1230,6 +1222,9 @@ void VoiceRecordBar::startRecording() {
 		}, [=] {
 			stop(false);
 		}, _recordingLifetime);
+		_recordingLifetime.add([=] {
+			_recording = false;
+		});
 	};
 	visibilityAnimate(true, std::move(appearanceCallback));
 	show();
@@ -1290,7 +1285,6 @@ void VoiceRecordBar::stop(bool send) {
 void VoiceRecordBar::finish() {
 	_recordingLifetime.destroy();
 	_lockShowing = false;
-	_recording = false;
 	_inField = false;
 	_redCircleProgress = 0.;
 	_recordingSamples = 0;
@@ -1414,11 +1408,15 @@ bool VoiceRecordBar::isRecording() const {
 	return _recording.current();
 }
 
+bool VoiceRecordBar::isActive() const {
+	return isRecording() || isListenState();
+}
+
 void VoiceRecordBar::hideAnimated() {
 	if (isHidden()) {
 		return;
 	}
-	visibilityAnimate(false, [=] { hide(); });
+	visibilityAnimate(false, [=] { hideFast(); });
 }
 
 void VoiceRecordBar::finishAnimating() {
@@ -1493,76 +1491,6 @@ void VoiceRecordBar::orderControls() {
 	_lock->raise();
 }
 
-void VoiceRecordBar::installClickOutsideFilter() {
-	const auto box = _recordingLifetime.make_state<QPointer<ConfirmBox>>();
-	const auto showBox = [=] {
-		if (*box) {
-			return;
-		}
-		auto sure = [=](Fn<void()> &&close) {
-			stop(false);
-			close();
-		};
-		*box = Ui::show(Box<ConfirmBox>(
-			tr::lng_record_lock_cancel_sure(tr::now),
-			tr::lng_record_lock_discard(tr::now),
-			st::attentionBoxButton,
-			std::move(sure)));
-	};
-
-	const auto computeResult = [=](not_null<QEvent*> e) {
-		using Type = FilterType;
-		if (!_lock->isLocked()) {
-			return Type::Continue;
-		}
-		const auto type = e->type();
-		const auto noBox = !(*box);
-		if (type == QEvent::KeyPress) {
-			const auto key = static_cast<QKeyEvent*>(e.get())->key();
-			const auto isEsc = (key == Qt::Key_Escape);
-			const auto isEnter = (key == Qt::Key_Enter
-				|| key == Qt::Key_Return);
-			if (noBox) {
-				if (isEnter) {
-					stop(true);
-					return Type::Cancel;
-				} else if (isEsc && (_escFilter && _escFilter())) {
-					return Type::Continue;
-				}
-				return Type::ShowBox;
-			}
-			return (isEsc || isEnter) ? Type::Continue : Type::ShowBox;
-		} else if (type == QEvent::ContextMenu || type == QEvent::Shortcut) {
-			return Type::ShowBox;
-		} else if (type == QEvent::MouseButtonPress) {
-			return (noBox && !_inField.current() && !_lock->underMouse())
-				? Type::ShowBox
-				: Type::Continue;
-		}
-		return Type::Continue;
-	};
-
-	auto filterCallback = [=](not_null<QEvent*> e) {
-		using Result = base::EventFilterResult;
-		switch(computeResult(e)) {
-		case FilterType::ShowBox: {
-			showBox();
-			return Result::Cancel;
-		}
-		case FilterType::Continue: return Result::Continue;
-		case FilterType::Cancel: return Result::Cancel;
-		default: return Result::Continue;
-		}
-	};
-
-	auto filter = base::install_event_filter(
-		QCoreApplication::instance(),
-		std::move(filterCallback));
-
-	_recordingLifetime.make_state<base::unique_qptr<QObject>>(
-		std::move(filter));
-}
-
 void VoiceRecordBar::installListenStateFilter() {
 	auto keyFilterCallback = [=](not_null<QEvent*> e) {
 		using Result = base::EventFilterResult;
@@ -1575,7 +1503,6 @@ void VoiceRecordBar::installListenStateFilter() {
 			const auto keyEvent = static_cast<QKeyEvent*>(e.get());
 			const auto key = keyEvent->key();
 			const auto isSpace = (key == Qt::Key_Space);
-			const auto isEsc = (key == Qt::Key_Escape);
 			const auto isEnter = (key == Qt::Key_Enter
 				|| key == Qt::Key_Return);
 			if (isSpace && !keyEvent->isAutoRepeat() && _listen) {
@@ -1585,14 +1512,6 @@ void VoiceRecordBar::installListenStateFilter() {
 			if (isEnter) {
 				requestToSendWithOptions({});
 				return Result::Cancel;
-			}
-			if (isEsc) {
-				if (_escFilter && _escFilter()) {
-					return Result::Continue;
-				} else {
-					hideAnimated();
-					return Result::Cancel;
-				}
 			}
 			return Result::Continue;
 		}
@@ -1606,6 +1525,32 @@ void VoiceRecordBar::installListenStateFilter() {
 
 	_listen->lifetime().make_state<base::unique_qptr<QObject>>(
 		std::move(keyFilter));
+}
+
+void VoiceRecordBar::showDiscardBox(
+		Fn<void()> &&callback,
+		anim::type animated) {
+	if (!isActive()) {
+		return;
+	}
+	auto sure = [=, callback = std::move(callback)](Fn<void()> &&close) {
+		if (animated == anim::type::instant) {
+			hideFast();
+		} else {
+			hideAnimated();
+		}
+		close();
+		if (callback) {
+			callback();
+		}
+	};
+	Ui::show(Box<ConfirmBox>(
+		(isListenState()
+			? tr::lng_record_listen_cancel_sure
+			: tr::lng_record_lock_cancel_sure)(tr::now),
+		tr::lng_record_lock_discard(tr::now),
+		st::attentionBoxButton,
+		std::move(sure)));
 }
 
 } // namespace HistoryView::Controls

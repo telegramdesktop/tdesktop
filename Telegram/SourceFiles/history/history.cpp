@@ -1053,9 +1053,11 @@ void History::applyServiceChanges(
 	} break;
 
 	case mtpc_messageActionGroupCall: {
+		const auto &d = action.c_messageActionGroupCall();
 		if (const auto channel = peer->asChannel()) {
-			const auto &d = action.c_messageActionGroupCall();
-			channel->setCall(d.vcall());
+			channel->setGroupCall(d.vcall());
+		} else if (const auto chat = peer->asChat()) {
+			chat->setGroupCall(d.vcall());
 		}
 	} break;
 	}

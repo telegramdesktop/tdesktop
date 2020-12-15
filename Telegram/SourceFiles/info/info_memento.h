@@ -37,7 +37,7 @@ public:
 	//Memento(not_null<Data::Feed*> feed, Section section); // #feed
 	Memento(Settings::Tag settings, Section section);
 	Memento(not_null<PollData*> poll, FullMsgId contextId);
-	explicit Memento(std::vector<std::unique_ptr<ContentMemento>> stack);
+	explicit Memento(std::vector<std::shared_ptr<ContentMemento>> stack);
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
@@ -52,7 +52,7 @@ public:
 	int stackSize() const {
 		return int(_stack.size());
 	}
-	std::vector<std::unique_ptr<ContentMemento>> takeStack();
+	std::vector<std::shared_ptr<ContentMemento>> takeStack();
 
 	not_null<ContentMemento*> content() {
 		Expects(!_stack.empty());
@@ -62,33 +62,33 @@ public:
 
 	static Section DefaultSection(not_null<PeerData*> peer);
 	//static Section DefaultSection(Dialogs::Key key); // #feed
-	static Memento Default(not_null<PeerData*> peer);
+	static std::shared_ptr<Memento> Default(not_null<PeerData*> peer);
 	//static Memento Default(Dialogs::Key key); // #feed
 
 	~Memento();
 
 private:
-	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
+	static std::vector<std::shared_ptr<ContentMemento>> DefaultStack(
 		not_null<PeerData*> peer,
 		Section section);
-	//static std::vector<std::unique_ptr<ContentMemento>> DefaultStack( // #feed
+	//static std::vector<std::shared_ptr<ContentMemento>> DefaultStack( // #feed
 	//	not_null<Data::Feed*> feed,
 	//	Section section);
-	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
+	static std::vector<std::shared_ptr<ContentMemento>> DefaultStack(
 		Settings::Tag settings,
 		Section section);
-	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
+	static std::vector<std::shared_ptr<ContentMemento>> DefaultStack(
 		not_null<PollData*> poll,
 		FullMsgId contextId);
 
-	//static std::unique_ptr<ContentMemento> DefaultContent( // #feed
+	//static std::shared_ptr<ContentMemento> DefaultContent( // #feed
 	//	not_null<Data::Feed*> feed,
 	//	Section section);
-	static std::unique_ptr<ContentMemento> DefaultContent(
+	static std::shared_ptr<ContentMemento> DefaultContent(
 		not_null<PeerData*> peer,
 		Section section);
 
-	std::vector<std::unique_ptr<ContentMemento>> _stack;
+	std::vector<std::shared_ptr<ContentMemento>> _stack;
 
 };
 

@@ -3412,7 +3412,7 @@ void ApiWrap::jumpToHistoryDate(not_null<PeerData*> peer, const QDate &date) {
 //	requestMessageAfterDate(feed, date, [=](Data::MessagePosition result) {
 //		Ui::hideLayer();
 //		App::wnd()->sessionController()->showSection(
-//			HistoryFeed::Memento(feed, result));
+//			std::make_shared<HistoryFeed::Memento>(feed, result));
 //	});
 //}
 

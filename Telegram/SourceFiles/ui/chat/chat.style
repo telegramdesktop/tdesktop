@@ -797,9 +797,11 @@ historyCommentsOpenOutSelected: icon {{ "history_comments_open", msgFileThumbLin
 
 historySlowmodeCounterMargins: margins(0px, 0px, 10px, 0px);
 
-historyGroupCallUserpicSize: 36px;
+historyGroupCallUserpicSize: 32px;
 historyGroupCallUserpicShift: 12px;
-historyGroupCallUserpicStroke: 2px;
+historyGroupCallUserpicStroke: 4px;
+historyGroupCallBlobMinRadius: 23px;
+historyGroupCallBlobMaxRadius: 25px;
 
 largeEmojiSize: 36px;
 largeEmojiOutline: 1px;

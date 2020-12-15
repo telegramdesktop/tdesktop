@@ -122,6 +122,12 @@ private:
 		base::flat_map<not_null<ChannelData*>, crl::time> &whenMap,
 		crl::time &curTime);
 
+	void handleSendActionUpdate(
+		PeerId peerId,
+		MsgId rootId,
+		UserId userId,
+		const MTPSendMessageAction &action);
+
 	const not_null<Main::Session*> _session;
 
 	int32 _updatesDate = 0;
@@ -160,6 +166,9 @@ private:
 	bool _handlingChannelDifference = false;
 
 	base::flat_map<int, ActiveChatTracker> _activeChats;
+	base::flat_map<
+		not_null<PeerData*>,
+		base::flat_map<UserId, crl::time>> _pendingSpeakingCallMembers;
 
 	mtpRequestId _onlineRequest = 0;
 	base::Timer _idleFinishTimer;

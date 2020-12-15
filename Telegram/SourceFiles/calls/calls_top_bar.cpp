@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_group_call_tracker.h" // ContentByCall.
 #include "data/data_user.h"
 #include "data/data_group_call.h"
-#include "data/data_channel.h"
+#include "data/data_peer.h"
 #include "data/data_changes.h"
 #include "main/main_session.h"
 #include "boxes/abstract_box.h"
@@ -36,45 +36,43 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 namespace {
 
+constexpr auto kMaxUsersInBar = 3;
 constexpr auto kUpdateDebugTimeoutMs = crl::time(500);
 constexpr auto kSwitchStateDuration = 120;
 
 constexpr auto kMinorBlobAlpha = 76. / 255.;
 
-constexpr auto kBlobLevelDuration1 = 250;
-constexpr auto kBlobLevelDuration2 = 120;
+constexpr auto kHideBlobsDuration = crl::time(500);
+constexpr auto kBlobLevelDuration = crl::time(250);
 constexpr auto kBlobUpdateInterval = crl::time(100);
 
-auto LinearBlobs() -> std::array<Ui::Paint::LinearBlobs::BlobData, 3> {
-	return { {
+auto LinearBlobs() {
+	return std::vector<Ui::Paint::LinearBlobs::BlobData>{
 		{
 			.segmentsCount = 5,
-			.minScale = 1.,
-			.minRadius = (float)st::groupCallMajorBlobMinRadius,
+			.minRadius = 0.,
 			.maxRadius = (float)st::groupCallMajorBlobMaxRadius,
+			.idleRadius = (float)st::groupCallMinorBlobIdleRadius,
 			.speedScale = .3,
 			.alpha = 1.,
-			.topOffset = st::groupCallMajorBlobTopOffset,
 		},
 		{
 			.segmentsCount = 7,
-			.minScale = 1.,
-			.minRadius = (float)st::groupCallMinorBlobMinRadius,
+			.minRadius = 0.,
 			.maxRadius = (float)st::groupCallMinorBlobMaxRadius,
+			.idleRadius = (float)st::groupCallMinorBlobIdleRadius,
 			.speedScale = .7,
 			.alpha = kMinorBlobAlpha,
-			.topOffset = st::groupCallMinorBlobTopOffset,
 		},
 		{
 			.segmentsCount = 8,
-			.minScale = 1.,
-			.minRadius = (float)st::groupCallMinorBlobMinRadius,
+			.minRadius = 0.,
 			.maxRadius = (float)st::groupCallMinorBlobMaxRadius,
+			.idleRadius = (float)st::groupCallMinorBlobIdleRadius,
 			.speedScale = .7,
 			.alpha = kMinorBlobAlpha,
-			.topOffset = st::groupCallMinorBlobTopOffset,
 		},
-	} };
+	};
 }
 
 auto Colors() {
@@ -82,7 +80,7 @@ auto Colors() {
 	return base::flat_map<MuteState, Vector>{
 		{
 			MuteState::ForceMuted,
-			Vector{ st::groupCallMembersBg->c, st::groupCallMembersBg->c }
+			Vector{ st::groupCallForceMuted1->c, st::groupCallForceMuted2->c }
 		},
 		{
 			MuteState::Active,
@@ -138,6 +136,10 @@ void DebugInfoBox::updateText() {
 }
 
 } // namespace
+
+struct TopBar::User {
+	Ui::GroupCallBarContent::User data;
+};
 
 class Mute final : public Ui::IconButton {
 public:
@@ -290,7 +292,7 @@ void TopBar::initControls() {
 
 			const auto crossProgress = (crossFrom == crossTo)
 				? crossTo
-				: (crossFrom + float64(crossTo - crossFrom) * value);
+				: anim::interpolateF(crossFrom, crossTo, value);
 			_mute->setProgress(crossProgress);
 		};
 
@@ -353,14 +355,12 @@ void TopBar::initBlobsUnder(
 		return;
 	}
 
-	static constexpr auto kHideDuration = kBlobLevelDuration1 * 2;
-
 	struct State {
 		Ui::Paint::LinearBlobs paint = {
-			LinearBlobs() | ranges::to_vector,
-			kBlobLevelDuration1,
-			kBlobLevelDuration2,
-			1.
+			LinearBlobs(),
+			kBlobLevelDuration,
+			1.,
+			Ui::Paint::LinearBlob::Direction::TopDown
 		};
 		Ui::Animations::Simple hideAnimation;
 		Ui::Animations::Basic animation;
@@ -369,8 +369,6 @@ void TopBar::initBlobsUnder(
 		crl::time lastTime = 0;
 		float lastLevel = 0.;
 		float levelBeforeLast = 0.;
-		int maxHeight = st::groupCallMinorBlobMinRadius
-			+ st::groupCallMinorBlobMaxRadius;
 	};
 
 	_blobs = base::make_unique_q<Ui::RpWidget>(blobsParent);
@@ -387,7 +385,7 @@ void TopBar::initBlobsUnder(
 
 	state->animation.init([=](crl::time now) {
 		if (const auto last = state->hideLastTime; (last > 0)
-			&& (now - last >= kHideDuration)) {
+			&& (now - last >= kHideBlobsDuration)) {
 			state->animation.stop();
 			return false;
 		}
@@ -443,7 +441,7 @@ void TopBar::initBlobsUnder(
 		const auto to = hide ? 1. : 0.;
 		state->hideAnimation.start([=](float64) {
 			_blobs->update();
-		}, from, to, kHideDuration);
+		}, from, to, kHideBlobsDuration);
 	}, lifetime());
 
 	std::move(
@@ -451,7 +449,7 @@ void TopBar::initBlobsUnder(
 	) | rpl::start_with_next([=](QRect rect) {
 		_blobs->resize(
 			rect.width(),
-			std::min(state->maxHeight, rect.height()));
+			(int)state->paint.maxRadius());
 		_blobs->moveToLeft(rect.x(), rect.y() + rect.height());
 	}, lifetime());
 
@@ -473,12 +471,9 @@ void TopBar::initBlobsUnder(
 			p.setOpacity(1. - hidden);
 		}
 		const auto top = -_blobs->height() * hidden;
-		const auto drawUnder = QRect(
-			0,
-			top,
-			_blobs->width() + st::groupCallBlobWidthAdditional,
-			0);
-		state->paint.paint(p, _groupBrush, drawUnder, 0, 0);
+		const auto width = _blobs->width();
+		p.translate(0, top);
+		state->paint.paint(p, _groupBrush, width);
 	}, _blobs->lifetime());
 
 	group->levelUpdates(
@@ -501,12 +496,12 @@ void TopBar::initBlobsUnder(
 }
 
 void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
-	const auto channel = call->channel();
-	channel->session().changes().peerFlagsValue(
-		channel,
+	const auto peer = call->peer();
+	peer->session().changes().peerFlagsValue(
+		peer,
 		Data::PeerUpdate::Flag::GroupCall
 	) | rpl::map([=] {
-		return channel->call();
+		return peer->groupCall();
 	}) | rpl::filter([=](Data::GroupCall *real) {
 		const auto call = _groupCall.get();
 		return call && real && (real->id() == call->id());
@@ -521,14 +516,75 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 				.stroke = st::groupCallTopBarUserpicStroke,
 			});
 	}) | rpl::flatten_latest(
-	) | rpl::start_with_next([=](const Ui::GroupCallBarContent &content) {
-		const auto changed = (_userpics.size() != content.userpics.size());
-		_userpics = content.userpics;
-		if (changed) {
+	) | rpl::filter([=](const Ui::GroupCallBarContent &content) {
+		if (_users.size() != content.users.size()) {
+			return true;
+		}
+		for (auto i = 0, count = int(_users.size()); i != count; ++i) {
+			if (_users[i].data.userpicKey != content.users[i].userpicKey
+				|| _users[i].data.id != content.users[i].id) {
+				return true;
+			}
+		}
+		return false;
+	}) | rpl::start_with_next([=](const Ui::GroupCallBarContent &content) {
+		const auto sizeChanged = (_users.size() != content.users.size());
+		_users = ranges::view::all(
+			content.users
+		) | ranges::view::transform([](const auto &user) {
+			return User{ user };
+		}) | ranges::to_vector;
+		generateUserpicsInRow();
+		if (sizeChanged) {
 			updateControlsGeometry();
 		}
 		update();
 	}, lifetime());
+
+	call->peer()->session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::Name
+	) | rpl::filter([=](const Data::PeerUpdate &update) {
+		// _peer may change for the same Panel.
+		const auto call = _groupCall.get();
+		return (call != nullptr) && (update.peer == call->peer());
+	}) | rpl::start_with_next([=] {
+		updateInfoLabels();
+	}, lifetime());
+
+}
+
+void TopBar::generateUserpicsInRow() {
+	const auto count = int(_users.size());
+	if (!count) {
+		_userpics = QImage();
+		return;
+	}
+	const auto limit = std::min(count, kMaxUsersInBar);
+	const auto single = st::groupCallTopBarUserpicSize;
+	const auto shift = st::groupCallTopBarUserpicShift;
+	const auto width = single + (limit - 1) * (single - shift);
+	if (_userpics.width() != width * cIntRetinaFactor()) {
+		_userpics = QImage(
+			QSize(width, single) * cIntRetinaFactor(),
+			QImage::Format_ARGB32_Premultiplied);
+	}
+	_userpics.fill(Qt::transparent);
+	_userpics.setDevicePixelRatio(cRetinaFactor());
+
+	auto q = Painter(&_userpics);
+	auto hq = PainterHighQualityEnabler(q);
+	auto pen = QPen(Qt::transparent);
+	pen.setWidth(st::groupCallTopBarUserpicStroke);
+	auto x = (count - 1) * (single - shift);
+	for (auto i = count; i != 0;) {
+		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		q.drawImage(x, 0, _users[--i].data.userpic);
+		q.setCompositionMode(QPainter::CompositionMode_Source);
+		q.setBrush(Qt::NoBrush);
+		q.setPen(pen);
+		q.drawEllipse(x, 0, single, single);
+		x -= single - shift;
+	}
 }
 
 void TopBar::updateInfoLabels() {
@@ -544,8 +600,8 @@ void TopBar::setInfoLabels() {
 		_fullInfoLabel->setText(fullName.toUpper());
 		_shortInfoLabel->setText(shortName.toUpper());
 	} else if (const auto group = _groupCall.get()) {
-		const auto channel = group->channel();
-		const auto name = channel->name;
+		const auto peer = group->peer();
+		const auto name = peer->name;
 		_fullInfoLabel->setText(name.toUpper());
 		_shortInfoLabel->setText(name.toUpper());
 	}

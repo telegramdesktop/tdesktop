@@ -721,7 +721,7 @@ void Filler::addTogglesForArchive() {
 //	const auto controller = _controller;
 //	const auto feed = _feed;
 //	_addAction(tr::lng_context_view_feed_info(tr::now), [=] {
-//		controller->showSection(Info::Memento(
+//		controller->showSection(std::make_shared<Info::Memento>(
 //			feed,
 //			Info::Section(Info::Section::Type::Profile)));
 //	});

@@ -385,6 +385,12 @@ void Domain::checkForLastProductionConfig(
 	Core::App().refreshFallbackProductionConfig(mtp->config());
 }
 
+void Domain::maybeActivate(not_null<Main::Account*> account) {
+	Core::App().preventOrInvoke(crl::guard(account, [=] {
+		activate(account);
+	}));
+}
+
 void Domain::activate(not_null<Main::Account*> account) {
 	if (_active.current() == account.get()) {
 		return;

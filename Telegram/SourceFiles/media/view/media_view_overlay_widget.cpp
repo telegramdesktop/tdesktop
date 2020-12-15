@@ -359,7 +359,7 @@ OverlayWidget::OverlayWidget()
 	} else {
 		setWindowFlags(Qt::FramelessWindowHint);
 	}
-	updateGeometry(QApplication::primaryScreen()->geometry());
+	updateGeometry();
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
 	setMouseTracking(true);
@@ -445,16 +445,26 @@ void OverlayWidget::moveToScreen() {
 		? Core::App().activeWindow()->widget().get()
 		: nullptr;
 	const auto activeWindowScreen = widgetScreen(window);
+	const auto myScreen = widgetScreen(this);
 	// Wayland doesn't support positioning, but Qt emits screenChanged anyway
 	// and geometry of the widget become broken
 	if (activeWindowScreen
+		&& myScreen != activeWindowScreen
 		&& !Platform::IsWayland()) {
 		windowHandle()->setScreen(activeWindowScreen);
 	}
+	updateGeometry();
 }
 
-void OverlayWidget::updateGeometry(const QRect &rect) {
-	setGeometry(rect);
+void OverlayWidget::updateGeometry() {
+	const auto screen = windowHandle() && windowHandle()->screen()
+		? windowHandle()->screen()
+		: QApplication::primaryScreen();
+	const auto available = screen->geometry();
+	if (geometry() == available) {
+		return;
+	}
+	setGeometry(available);
 
 	auto navSkip = 2 * st::mediaviewControlMargin + st::mediaviewControlSize;
 	_closeNav = myrtlrect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, st::mediaviewControlMargin, st::mediaviewControlSize, st::mediaviewControlSize);
@@ -1313,21 +1323,18 @@ void OverlayWidget::onScreenResized(int screen) {
 		&& windowHandle()->screen()
 		&& changed
 		&& windowHandle()->screen() == changed) {
-		updateGeometry(changed->geometry());
+		updateGeometry();
 	}
 }
 
 void OverlayWidget::handleVisibleChanged(bool visible) {
 	if (visible) {
-		const auto screen = windowHandle()->screen()
-			? windowHandle()->screen()
-			: QApplication::primaryScreen();
-		updateGeometry(screen->geometry());
+		moveToScreen();
 	}
 }
 
 void OverlayWidget::handleScreenChanged(QScreen *screen) {
-	updateGeometry(screen->geometry());
+	moveToScreen();
 }
 
 void OverlayWidget::onToMessage() {
@@ -2186,9 +2193,6 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 		displayDocument(nullptr, item);
 		return;
 	}
-	if (isHidden()) {
-		moveToScreen();
-	}
 	_touchbarDisplay.fire(TouchBarItemType::Photo);
 
 	clearStreaming();
@@ -2255,9 +2259,6 @@ void OverlayWidget::displayDocument(
 		HistoryItem *item,
 		const Data::CloudTheme &cloud,
 		bool continueStreaming) {
-	if (isHidden()) {
-		moveToScreen();
-	}
 	_fullScreenVideo = false;
 	_staticContent = QPixmap();
 	clearStreaming(_document != doc);

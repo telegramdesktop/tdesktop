@@ -72,6 +72,8 @@ public:
 	void minimize();
 	void close();
 
+	void preventOrInvoke(Fn<void()> &&callback);
+
 	QPoint getPointForCallPanelCenter() const;
 
 private:

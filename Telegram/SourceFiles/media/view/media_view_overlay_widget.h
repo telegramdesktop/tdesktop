@@ -209,10 +209,10 @@ private:
 
 	void updateOver(QPoint mpos);
 	void moveToScreen();
+	void updateGeometry();
 	bool moveToNext(int delta);
 	void preloadData(int delta);
 
-	void updateGeometry(const QRect &rect);
 	void handleVisibleChanged(bool visible);
 	void handleScreenChanged(QScreen *screen);
 

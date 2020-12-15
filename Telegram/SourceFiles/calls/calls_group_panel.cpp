@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_group_call.h"
 #include "data/data_session.h"
@@ -47,7 +48,7 @@ namespace {
 class InviteController final : public ParticipantsBoxController {
 public:
 	InviteController(
-		not_null<ChannelData*> channel,
+		not_null<PeerData*> peer,
 		base::flat_set<not_null<UserData*>> alreadyIn,
 		int fullInCount);
 
@@ -65,7 +66,6 @@ public:
 		not_null<GroupCall*> call) const;
 
 private:
-	void updateTitle() const;
 	[[nodiscard]] int alreadyInCount() const;
 	[[nodiscard]] bool isAlreadyIn(not_null<UserData*> user) const;
 	[[nodiscard]] int fullCount() const;
@@ -73,7 +73,7 @@ private:
 	std::unique_ptr<PeerListRow> createRow(
 		not_null<UserData*> user) const override;
 
-	const not_null<ChannelData*> _channel;
+	not_null<PeerData*> _peer;
 	const base::flat_set<not_null<UserData*>> _alreadyIn;
 	const int _fullInCount = 0;
 	mutable base::flat_set<not_null<UserData*>> _skippedUsers;
@@ -81,24 +81,27 @@ private:
 };
 
 InviteController::InviteController(
-	not_null<ChannelData*> channel,
+	not_null<PeerData*> peer,
 	base::flat_set<not_null<UserData*>> alreadyIn,
 	int fullInCount)
-: ParticipantsBoxController(CreateTag{}, nullptr, channel, Role::Members)
-, _channel(channel)
+: ParticipantsBoxController(CreateTag{}, nullptr, peer, Role::Members)
+, _peer(peer)
 , _alreadyIn(std::move(alreadyIn))
 , _fullInCount(std::max(fullInCount, int(_alreadyIn.size()))) {
-	_skippedUsers.emplace(channel->session().user());
+	_skippedUsers.emplace(peer->session().user());
+	SubscribeToMigration(
+		_peer,
+		lifetime(),
+		[=](not_null<ChannelData*> channel) { _peer = channel; });
 }
 
 void InviteController::prepare() {
 	ParticipantsBoxController::prepare();
-	updateTitle();
+	delegate()->peerListSetTitle(tr::lng_group_call_invite_title());
 }
 
 void InviteController::rowClicked(not_null<PeerListRow*> row) {
 	delegate()->peerListSetRowChecked(row, !row->checked());
-	updateTitle();
 }
 
 base::unique_qptr<Ui::PopupMenu> InviteController::rowContextMenu(
@@ -108,7 +111,6 @@ base::unique_qptr<Ui::PopupMenu> InviteController::rowContextMenu(
 }
 
 void InviteController::itemDeselectedHook(not_null<PeerData*> peer) {
-	updateTitle();
 }
 
 int InviteController::alreadyInCount() const {
@@ -126,9 +128,7 @@ int InviteController::fullCount() const {
 std::unique_ptr<PeerListRow> InviteController::createRow(
 		not_null<UserData*> user) const {
 	if (user->isSelf() || user->isBot()) {
-		if (_skippedUsers.emplace(user).second) {
-			updateTitle();
-		}
+		_skippedUsers.emplace(user);
 		return nullptr;
 	}
 	auto result = std::make_unique<PeerListRow>(user);
@@ -136,20 +136,6 @@ std::unique_ptr<PeerListRow> InviteController::createRow(
 		result->setDisabledState(PeerListRow::State::DisabledChecked);
 	}
 	return result;
-}
-
-void InviteController::updateTitle() const {
-	const auto inOrInvited = fullCount() - 1; // minus self
-	const auto canBeInvited = std::max({
-		delegate()->peerListFullRowsCount(), // minus self and bots
-		_channel->membersCount() - int(_skippedUsers.size()), // self + bots
-		inOrInvited
-	});
-	const auto additional = canBeInvited
-		? qsl("%1 / %2").arg(inOrInvited).arg(canBeInvited)
-		: QString();
-	delegate()->peerListSetTitle(tr::lng_group_call_invite_title());
-	delegate()->peerListSetAdditionalTitle(rpl::single(additional));
 }
 
 std::variant<int, not_null<UserData*>> InviteController::inviteSelectedUsers(
@@ -180,7 +166,7 @@ void LeaveGroupCallBox(
 		box.get(),
 		tr::lng_group_call_leave_sure(),
 		(inCall ? st::groupCallBoxLabel : st::boxLabel)));
-	const auto discard = call->channel()->canManageCall()
+	const auto discard = call->peer()->canManageGroupCall()
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box.get(),
 			tr::lng_group_call_end(),
@@ -211,7 +197,7 @@ void LeaveGroupCallBox(
 
 GroupPanel::GroupPanel(not_null<GroupCall*> call)
 : _call(call)
-, _channel(call->channel())
+, _peer(call->peer())
 , _window(std::make_unique<Ui::Window>(Core::App().getModalParent()))
 , _layerBg(std::make_unique<Ui::LayerManager>(_window->body()))
 #ifdef Q_OS_WIN
@@ -231,6 +217,11 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 , _hangup(widget(), st::groupCallHangup) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_settings->setColorOverrides(_mute->colorOverrides());
+
+	SubscribeToMigration(
+		_peer,
+		_window->lifetime(),
+		[=](not_null<ChannelData*> channel) { migrate(channel); });
 
 	initWindow();
 	initWidget();
@@ -260,6 +251,22 @@ void GroupPanel::showAndActivate() {
 	_window->setFocus();
 }
 
+void GroupPanel::migrate(not_null<ChannelData*> channel) {
+	_peer = channel;
+	_peerLifetime.destroy();
+	subscribeToPeerChanges();
+	_title.destroy();
+	refreshTitle();
+}
+
+void GroupPanel::subscribeToPeerChanges() {
+	Info::Profile::NameValue(
+		_peer
+	) | rpl::start_with_next([=](const TextWithEntities &name) {
+		_window->setTitle(name.text);
+	}, _peerLifetime);
+}
+
 void GroupPanel::initWindow() {
 	_window->setAttribute(Qt::WA_OpaquePaintEvent);
 	_window->setAttribute(Qt::WA_NoSystemBackground);
@@ -267,11 +274,7 @@ void GroupPanel::initWindow() {
 		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
 	_window->setTitleStyle(st::callTitle);
 
-	Info::Profile::NameValue(
-		_channel
-	) | rpl::start_with_next([=](const TextWithEntities &name) {
-		_window->setTitle(name.text);
-	}, _window->lifetime());
+	subscribeToPeerChanges();
 
 	base::install_event_filter(_window.get(), [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Close && handleClose()) {
@@ -360,7 +363,7 @@ void GroupPanel::initWithCall(GroupCall *call) {
 		return;
 	}
 
-	_channel = _call->channel();
+	_peer = _call->peer();
 
 	call->stateValue(
 	) | rpl::filter([](State state) {
@@ -428,17 +431,17 @@ void GroupPanel::initWithCall(GroupCall *call) {
 }
 
 void GroupPanel::addMembers() {
-	const auto real = _channel->call();
+	const auto real = _peer->groupCall();
 	if (!_call || !real || real->id() != _call->id()) {
 		return;
 	}
-	auto alreadyIn = _channel->owner().invitedToCallUsers(real->id());
+	auto alreadyIn = _peer->owner().invitedToCallUsers(real->id());
 	for (const auto &participant : real->participants()) {
 		alreadyIn.emplace(participant.user);
 	}
-	alreadyIn.emplace(_channel->session().user());
+	alreadyIn.emplace(_peer->session().user());
 	auto controller = std::make_unique<InviteController>(
-		_channel,
+		_peer,
 		std::move(alreadyIn),
 		real->fullCount());
 	controller->setStyleOverrides(
@@ -511,17 +514,21 @@ void GroupPanel::kickMember(not_null<UserData*> user) {
 }
 
 void GroupPanel::kickMemberSure(not_null<UserData*> user) {
-	const auto currentRestrictedRights = [&]() -> MTPChatBannedRights {
-		const auto it = _channel->mgInfo->lastRestricted.find(user);
-		return (it != _channel->mgInfo->lastRestricted.cend())
-			? it->second.rights
-			: MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
-	}();
+	if (const auto chat = _peer->asChat()) {
+		chat->session().api().kickParticipant(chat, user);
+	} else if (const auto channel = _peer->asChannel()) {
+		const auto currentRestrictedRights = [&]() -> MTPChatBannedRights {
+			const auto it = channel->mgInfo->lastRestricted.find(user);
+			return (it != channel->mgInfo->lastRestricted.cend())
+				? it->second.rights
+				: MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
+		}();
 
-	_channel->session().api().kickParticipant(
-		_channel,
-		user,
-		currentRestrictedRights);
+		channel->session().api().kickParticipant(
+			channel,
+			user,
+			currentRestrictedRights);
+	}
 }
 
 void GroupPanel::initLayout() {
@@ -612,7 +619,7 @@ void GroupPanel::refreshTitle() {
 		if (!_title) {
 			_title.create(
 				widget(),
-				Info::Profile::NameValue(_channel),
+				Info::Profile::NameValue(_peer),
 				st::groupCallHeaderLabel);
 			_title->setAttribute(Qt::WA_TransparentForMouseEvents);
 		}

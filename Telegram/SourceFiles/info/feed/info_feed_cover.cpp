@@ -84,7 +84,7 @@ void Cover::refreshStatusText() {
 	}();
 	_status->setRichText(textcmdLink(1, statusText));
 	_status->setLink(1, std::make_shared<LambdaClickHandler>([=] {
-		_controller->showSection(Info::Memento(
+		_controller->showSection(std::make_unique<Info::Memento>(
 			_feed,
 			Section::Type::Channels));
 	}));

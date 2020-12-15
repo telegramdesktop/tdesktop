@@ -253,12 +253,12 @@ void SessionNavigation::showRepliesForMessage(
 	const auto channelId = history->channelId();
 	//const auto item = _session->data().message(channelId, rootId);
 	//if (!commentId && (!item || !item->repliesAreComments())) {
-	//	showSection(HistoryView::RepliesMemento(history, rootId));
+	//	showSection(std::make_shared<HistoryView::RepliesMemento>(history, rootId));
 	//	return;
 	//} else if (const auto id = item ? item->commentsItemId() : FullMsgId()) {
 	//	if (const auto commentsItem = _session->data().message(id)) {
 	//		showSection(
-	//			HistoryView::RepliesMemento(commentsItem));
+	//			std::make_shared<HistoryView::RepliesMemento>(commentsItem));
 	//		return;
 	//	}
 	//}
@@ -314,8 +314,9 @@ void SessionNavigation::showRepliesForMessage(
 						post->setRepliesOutboxReadTill(readTill->v);
 					}
 				}
-				showSection(
-					HistoryView::RepliesMemento(item, commentId));
+				showSection(std::make_shared<HistoryView::RepliesMemento>(
+					item,
+					commentId));
 			}
 		});
 	}).fail([=](const RPCError &error) {
@@ -341,7 +342,7 @@ void SessionNavigation::showPeerInfo(
 	//	Core::App().settings().setThirdSectionInfoEnabled(true);
 	//	Core::App().saveSettingsDelayed();
 	//}
-	showSection(Info::Memento(peer), params);
+	showSection(std::make_shared<Info::Memento>(peer), params);
 }
 
 void SessionNavigation::showPeerInfo(
@@ -374,7 +375,7 @@ void SessionNavigation::showSettings(
 		Settings::Type type,
 		const SectionShow &params) {
 	showSection(
-		Info::Memento(
+		std::make_shared<Info::Memento>(
 			Info::Settings::Tag{ _session->user() },
 			Info::Section(type)),
 		params);
@@ -388,7 +389,7 @@ void SessionNavigation::showPollResults(
 		not_null<PollData*> poll,
 		FullMsgId contextId,
 		const SectionShow &params) {
-	showSection(Info::Memento(poll, contextId), params);
+	showSection(std::make_shared<Info::Memento>(poll, contextId), params);
 }
 
 SessionController::SessionController(
@@ -639,9 +640,9 @@ bool SessionController::jumpToChatListEntry(Dialogs::RowDescriptor row) {
 		return true;
 	//} else if (const auto feed = row.key.feed()) { // #feed
 	//	if (const auto item = session().data().message(row.fullId)) {
-	//		showSection(HistoryFeed::Memento(feed, item->position()));
+	//		showSection(std::make_shared<HistoryFeed::Memento>(feed, item->position()));
 	//	} else {
-	//		showSection(HistoryFeed::Memento(feed));
+	//		showSection(std::make_shared<HistoryFeed::Memento>(feed));
 	//	}
 	}
 	return false;
@@ -933,9 +934,10 @@ void SessionController::closeThirdSection() {
 }
 
 void SessionController::startOrJoinGroupCall(
-		not_null<ChannelData*> megagroup,
+		not_null<PeerData*> peer,
 		bool confirmedLeaveOther) {
-	if (megagroup->amAnonymous()) {
+	const auto channel = peer->asChannel();
+	if (channel && channel->amAnonymous()) {
 		Ui::ShowMultilineToast({
 			.text = tr::lng_group_call_no_anonymous(tr::now),
 		});
@@ -945,7 +947,7 @@ void SessionController::startOrJoinGroupCall(
 	const auto confirm = [&](QString text, QString button) {
 		Ui::show(Box<ConfirmBox>(text, button, crl::guard(this, [=] {
 			Ui::hideLayer();
-			startOrJoinGroupCall(megagroup, true);
+			startOrJoinGroupCall(peer, true);
 		})));
 	};
 	if (!confirmedLeaveOther && calls.inCall()) {
@@ -954,19 +956,19 @@ void SessionController::startOrJoinGroupCall(
 			tr::lng_call_leave_to_other_sure(tr::now),
 			tr::lng_call_bar_hangup(tr::now));
 	} else if (!confirmedLeaveOther && calls.inGroupCall()) {
-		if (calls.currentGroupCall()->channel() == megagroup) {
+		if (calls.currentGroupCall()->peer() == peer) {
 			calls.activateCurrentCall();
 		} else {
 			confirm(
 				tr::lng_group_call_leave_to_other_sure(tr::now),
 				tr::lng_group_call_leave(tr::now));
 		}
-	} else if (!confirmedLeaveOther && !megagroup->call()) {
+	} else if (!confirmedLeaveOther && !peer->groupCall()) {
 		confirm(
 			tr::lng_group_call_create_sure(tr::now),
 			tr::lng_continue(tr::now));
 	} else {
-		calls.startOrJoinGroupCall(megagroup);
+		calls.startOrJoinGroupCall(peer);
 	}
 }
 
@@ -1085,10 +1087,10 @@ void SessionController::showPeerHistory(
 }
 
 void SessionController::showSection(
-		SectionMemento &&memento,
+		std::shared_ptr<SectionMemento> memento,
 		const SectionShow &params) {
 	if (!params.thirdColumn && widget()->showSectionInExistingLayer(
-			&memento,
+			memento.get(),
 			params)) {
 		return;
 	}

@@ -221,6 +221,13 @@ QPixmap MainWindow::grabInner() {
 	return {};
 }
 
+void MainWindow::preventOrInvoke(Fn<void()> callback) {
+	if (_main && _main->preventsCloseSection(callback)) {
+		return;
+	}
+	callback();
+}
+
 void MainWindow::setupPasscodeLock() {
 	auto animated = (_main || _intro);
 	auto bg = animated ? grabInner() : QPixmap();

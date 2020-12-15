@@ -99,8 +99,11 @@ private:
 	[[nodiscard]] std::optional<QRect> computeTitleRect() const;
 	void refreshTitle();
 
+	void migrate(not_null<ChannelData*> channel);
+	void subscribeToPeerChanges();
+
 	GroupCall *_call = nullptr;
-	not_null<ChannelData*> _channel;
+	not_null<PeerData*> _peer;
 
 	const std::unique_ptr<Ui::Window> _window;
 	const std::unique_ptr<Ui::LayerManager> _layerBg;
@@ -117,6 +120,8 @@ private:
 	object_ptr<Ui::CallButton> _settings;
 	std::unique_ptr<Ui::CallMuteButton> _mute;
 	object_ptr<Ui::CallButton> _hangup;
+
+	rpl::lifetime _peerLifetime;
 
 };
 

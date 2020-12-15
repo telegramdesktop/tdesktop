@@ -1567,10 +1567,6 @@ void ComposeControls::initVoiceRecordBar() {
 		_voiceRecordBar->setLockBottom(std::move(bottom));
 	}
 
-	_voiceRecordBar->setEscFilter([=] {
-		return (isEditingMessage() || replyingToMessage());
-	});
-
 	_voiceRecordBar->updateSendButtonTypeRequests(
 	) | rpl::start_with_next([=] {
 		updateSendButtonType();
@@ -1639,7 +1635,15 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		- _send->width()
 		- _tabbedSelectorToggle->width()
 		- (_botCommandShown ? _botCommandStart->width() : 0);
-	_field->resizeToWidth(fieldWidth);
+	{
+		const auto oldFieldHeight = _field->height();
+		_field->resizeToWidth(fieldWidth);
+		// If a height of the field is changed
+		// then this method will be called with the updated size.
+		if (oldFieldHeight != _field->height()) {
+			return;
+		}
+	}
 
 	const auto buttonsTop = size.height() - _attachToggle->height();
 
@@ -1708,7 +1712,11 @@ void ComposeControls::paintBackground(QRect clip) {
 }
 
 void ComposeControls::escape() {
-	_cancelRequests.fire({});
+	if (auto &voice = _voiceRecordBar; !voice->isActive()) {
+		voice->showDiscardBox(nullptr, anim::type::normal);
+	} else {
+		_cancelRequests.fire({});
+	}
 }
 
 bool ComposeControls::pushTabbedSelectorToThirdSection(
@@ -1728,7 +1736,7 @@ bool ComposeControls::pushTabbedSelectorToThirdSection(
 		&st::historyRecordVoiceRippleBgActive);
 	_window->resizeForThirdSection();
 	_window->showSection(
-		ChatHelpers::TabbedMemento(),
+		std::make_shared<ChatHelpers::TabbedMemento>(),
 		params.withThirdColumn());
 	return true;
 }
@@ -2128,6 +2136,14 @@ rpl::producer<not_null<QEvent*>> ComposeControls::viewportEvents() const {
 
 bool ComposeControls::isRecording() const {
 	return _voiceRecordBar->isRecording();
+}
+
+bool ComposeControls::preventsClose(Fn<void()> &&continueCallback) const {
+	if (_voiceRecordBar->isActive()) {
+		_voiceRecordBar->showDiscardBox(std::move(continueCallback));
+		return true;
+	}
+	return false;
 }
 
 void ComposeControls::updateInlineBotQuery() {
