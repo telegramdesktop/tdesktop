@@ -125,13 +125,20 @@ void Authorizations::requestTerminate(
 		Fn<void(const MTPBool &result)> &&done,
 		Fn<void(const RPCError &error)> &&fail,
 		std::optional<uint64> hash) {
-	auto request = hash
-		? MTPaccount_ResetAuthorization(MTP_long(*hash))
-		: MTPaccount_ResetAuthorization();
-	_api.request(std::move(request))
-	.done(std::move(done))
-	.fail(std::move(fail))
-	.send();
+	const auto send = [&](auto request) {
+		_api.request(
+			std::move(request)
+		).done(
+			std::move(done)
+		).fail(
+			std::move(fail)
+		).send();
+	};
+	if (hash) {
+		send(MTPaccount_ResetAuthorization(MTP_long(*hash)));
+	} else {
+		send(MTPauth_ResetAuthorizations());
+	}
 }
 
 Authorizations::List Authorizations::list() const {
