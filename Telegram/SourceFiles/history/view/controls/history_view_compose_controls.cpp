@@ -796,6 +796,9 @@ void ComposeControls::showStarted() {
 	if (_voiceRecordBar) {
 		_voiceRecordBar->hideFast();
 	}
+	if (_autocomplete) {
+		_autocomplete->hideFast();
+	}
 	_wrap->hide();
 	_writeRestricted->hide();
 }
@@ -809,6 +812,9 @@ void ComposeControls::showFinished() {
 	}
 	if (_voiceRecordBar) {
 		_voiceRecordBar->hideFast();
+	}
+	if (_autocomplete) {
+		_autocomplete->hideFast();
 	}
 	updateWrappingVisibility();
 	_voiceRecordBar->orderControls();
@@ -1154,6 +1160,8 @@ void ComposeControls::initAutocomplete() {
 		_autocomplete.get(),
 		[=] { checkAutocomplete(); },
 		Qt::QueuedConnection);
+
+	_autocomplete->hideFast();
 }
 
 void ComposeControls::updateStickersByEmoji() {
@@ -1712,7 +1720,7 @@ void ComposeControls::paintBackground(QRect clip) {
 }
 
 void ComposeControls::escape() {
-	if (auto &voice = _voiceRecordBar; !voice->isActive()) {
+	if (const auto voice = _voiceRecordBar.get(); voice->isActive()) {
 		voice->showDiscardBox(nullptr, anim::type::normal);
 	} else {
 		_cancelRequests.fire({});
