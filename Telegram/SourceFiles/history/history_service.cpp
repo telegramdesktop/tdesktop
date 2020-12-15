@@ -935,15 +935,6 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 			const auto id = CallIdFromInput(data.vcall());
 			call->lifetime.destroy();
 
-			history()->owner().groupCallDiscards(
-			) | rpl::filter([=](Data::Session::GroupCallDiscard discard) {
-				return (discard.id == id);
-			}) | rpl::start_with_next([=](
-					Data::Session::GroupCallDiscard discard) {
-				RemoveComponents(HistoryServiceOngoingCall::Bit());
-				updateText(prepareDiscardedCallText(discard.duration));
-			}, call->lifetime);
-
 			const auto peer = history()->peer;
 			const auto has = PeerHasThisCall(peer, id);
 			if (!has.has_value()) {

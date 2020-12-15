@@ -1842,15 +1842,6 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updatePhoneCallSignalingData:
 	case mtpc_updateGroupCallParticipants:
 	case mtpc_updateGroupCall: {
-		if (update.type() == mtpc_updateGroupCall) {
-			const auto &data = update.c_updateGroupCall();
-			if (data.vcall().type() == mtpc_groupCallDiscarded) {
-				const auto &call = data.vcall().c_groupCallDiscarded();
-				session().data().groupCallDiscarded(
-					call.vid().v,
-					call.vduration().v);
-			}
-		}
 		Core::App().calls().handleUpdate(&session(), update);
 	} break;
 
