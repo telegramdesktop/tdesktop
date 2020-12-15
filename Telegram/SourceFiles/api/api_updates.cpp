@@ -245,7 +245,10 @@ Updates::Updates(not_null<Main::Session*> session)
 				for (const auto [userId, when] : *users) {
 					call->applyActiveUpdate(
 						userId,
-						when,
+						Data::LastSpokeTimes{
+							.anything = when,
+							.voice = when
+						},
 						peer->owner().userLoaded(userId));
 				}
 			}
@@ -928,7 +931,10 @@ void Updates::handleSendActionUpdate(
 		const auto call = peer->groupCall();
 		const auto now = crl::now();
 		if (call) {
-			call->applyActiveUpdate(userId, now, user);
+			call->applyActiveUpdate(
+				userId,
+				Data::LastSpokeTimes{ .anything = now, .voice = now },
+				user);
 		} else {
 			const auto chat = peer->asChat();
 			const auto channel = peer->asChannel();

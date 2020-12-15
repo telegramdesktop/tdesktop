@@ -498,28 +498,30 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 }
 
 void GroupCall::createAndStartController() {
-	using AudioLevels = std::vector<std::pair<uint32_t, float>>;
-
 	const auto &settings = Core::App().settings();
 
 	const auto weak = base::make_weak(this);
-	const auto myLevel = std::make_shared<float>();
+	const auto myLevel = std::make_shared<tgcalls::GroupLevelValue>();
 	tgcalls::GroupInstanceDescriptor descriptor = {
 		.config = tgcalls::GroupConfig{
 		},
 		.networkStateUpdated = [=](bool connected) {
 			crl::on_main(weak, [=] { setInstanceConnected(connected); });
 		},
-		.audioLevelsUpdated = [=](const AudioLevels &data) {
-			if (!data.empty()) {
-				crl::on_main(weak, [=] { audioLevelsUpdated(data); });
+		.audioLevelsUpdated = [=](const tgcalls::GroupLevelsUpdate &data) {
+			const auto &updates = data.updates;
+			if (updates.empty()) {
+				return;
+			} else if (updates.size() == 1 && !updates.front().ssrc) {
+				const auto &value = updates.front().value;
+				// Don't send many 0 while we're muted.
+				if (myLevel->level == value.level
+					&& myLevel->voice == value.voice) {
+					return;
+				}
+				*myLevel = updates.front().value;
 			}
-		},
-		.myAudioLevelUpdated = [=](float level) {
-			if (*myLevel != level) { // Don't send many 0 while we're muted.
-				*myLevel = level;
-				crl::on_main(weak, [=] { myLevelUpdated(level); });
-			}
+			crl::on_main(weak, [=] { audioLevelsUpdated(data); });
 		},
 		.initialInputDeviceId = settings.callInputDeviceId().toStdString(),
 		.initialOutputDeviceId = settings.callOutputDeviceId().toStdString(),
@@ -555,24 +557,28 @@ void GroupCall::updateInstanceMuteState() {
 		&& state != MuteState::PushToTalk);
 }
 
-void GroupCall::handleLevelsUpdated(
-		gsl::span<const std::pair<std::uint32_t, float>> data) {
-	Expects(!data.empty());
+void GroupCall::audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data) {
+	Expects(!data.updates.empty());
 
 	auto check = false;
 	auto checkNow = false;
 	const auto now = crl::now();
-	for (const auto &[ssrc, level] : data) {
+	for (const auto &[ssrcOrZero, value] : data.updates) {
+		const auto ssrc = ssrcOrZero ? ssrcOrZero : _mySsrc;
+		const auto level = value.level;
+		const auto voice = value.voice;
 		const auto self = (ssrc == _mySsrc);
 		_levelUpdates.fire(LevelUpdate{
 			.ssrc = ssrc,
 			.value = level,
+			.voice = voice,
 			.self = self
 		});
 		if (level <= kSpeakLevelThreshold) {
 			continue;
 		}
 		if (self
+			&& voice
 			&& (!_lastSendProgressUpdate
 				|| _lastSendProgressUpdate + kUpdateSendActionEach < now)) {
 			_lastSendProgressUpdate = now;
@@ -584,13 +590,21 @@ void GroupCall::handleLevelsUpdated(
 		check = true;
 		const auto i = _lastSpoke.find(ssrc);
 		if (i == _lastSpoke.end()) {
-			_lastSpoke.emplace(ssrc, now);
+			_lastSpoke.emplace(ssrc, Data::LastSpokeTimes{
+				.anything = now,
+				.voice = voice ? now : 0,
+			});
 			checkNow = true;
 		} else {
-			if (i->second + kCheckLastSpokeInterval / 3 <= now) {
+			if ((i->second.anything + kCheckLastSpokeInterval / 3 <= now)
+				|| (voice
+					&& i->second.voice + kCheckLastSpokeInterval / 3 <= now)) {
 				checkNow = true;
 			}
-			i->second = now;
+			i->second.anything = now;
+			if (voice) {
+				i->second.voice = now;
+			}
 		}
 	}
 	if (checkNow) {
@@ -598,16 +612,6 @@ void GroupCall::handleLevelsUpdated(
 	} else if (check && !_lastSpokeCheckTimer.isActive()) {
 		_lastSpokeCheckTimer.callEach(kCheckLastSpokeInterval / 2);
 	}
-}
-
-void GroupCall::myLevelUpdated(float level) {
-	const auto pair = std::pair<std::uint32_t, float>{ _mySsrc, level };
-	handleLevelsUpdated({ &pair, &pair + 1 });
-}
-
-void GroupCall::audioLevelsUpdated(
-		const std::vector<std::pair<std::uint32_t, float>> &data) {
-	handleLevelsUpdated(gsl::make_span(data));
 }
 
 void GroupCall::checkLastSpoke() {
@@ -621,7 +625,7 @@ void GroupCall::checkLastSpoke() {
 	auto list = base::take(_lastSpoke);
 	for (auto i = list.begin(); i != list.end();) {
 		const auto [ssrc, when] = *i;
-		if (when + kCheckLastSpokeInterval >= now) {
+		if (when.anything + kCheckLastSpokeInterval >= now) {
 			hasRecent = true;
 			++i;
 		} else {

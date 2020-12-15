@@ -97,6 +97,9 @@ public:
 	[[nodiscard]] uint32 ssrc() const {
 		return _ssrc;
 	}
+	[[nodiscard]] bool sounding() const {
+		return _sounding;
+	}
 	[[nodiscard]] bool speaking() const {
 		return _speaking;
 	}
@@ -147,7 +150,7 @@ private:
 
 		Ui::Paint::Blobs blobs;
 		crl::time lastTime = 0;
-		crl::time lastSpeakingUpdateTime = 0;
+		crl::time lastSoundingUpdateTime = 0;
 		float64 enter = 0.;
 
 		QImage userpicCache;
@@ -156,6 +159,7 @@ private:
 		rpl::lifetime lifetime;
 	};
 	void refreshStatus() override;
+	void setSounding(bool sounding);
 	void setSpeaking(bool speaking);
 	void setState(State state);
 	void setSsrc(uint32 ssrc);
@@ -172,6 +176,7 @@ private:
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
 	uint32 _ssrc = 0;
+	bool _sounding = false;
 	bool _speaking = false;
 	bool _skipLevelUpdate = false;
 
@@ -252,10 +257,10 @@ private:
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	base::flat_set<not_null<PeerData*>> _menuCheckRowsAfterHidden;
 
-	base::flat_map<uint32, not_null<Row*>> _speakingRowBySsrc;
-	Ui::Animations::Basic _speakingAnimation;
+	base::flat_map<uint32, not_null<Row*>> _soundingRowBySsrc;
+	Ui::Animations::Basic _soundingAnimation;
 
-	crl::time _speakingAnimationHideLastTime = 0;
+	crl::time _soundingAnimationHideLastTime = 0;
 	bool _skipRowLevelUpdate = false;
 
 	Ui::CrossLineAnimation _inactiveCrossLine;
@@ -284,16 +289,20 @@ void Row::updateState(const Data::GroupCall::Participant *participant) {
 			setCustomStatus(QString());
 		}
 		setState(State::Inactive);
+		setSounding(false);
 		setSpeaking(false);
 	} else if (!participant->muted
-		|| (participant->speaking && participant->ssrc != 0)) {
+		|| (participant->sounding && participant->ssrc != 0)) {
 		setState(State::Active);
+		setSounding(participant->sounding && participant->ssrc != 0);
 		setSpeaking(participant->speaking && participant->ssrc != 0);
 	} else if (participant->canSelfUnmute) {
 		setState(State::Inactive);
+		setSounding(false);
 		setSpeaking(false);
 	} else {
 		setState(State::Muted);
+		setSounding(false);
 		setSpeaking(false);
 	}
 }
@@ -308,7 +317,14 @@ void Row::setSpeaking(bool speaking) {
 		_speaking ? 0. : 1.,
 		_speaking ? 1. : 0.,
 		st::widgetFadeDuration);
-	if (!_speaking) {
+}
+
+void Row::setSounding(bool sounding) {
+	if (_sounding == sounding) {
+		return;
+	}
+	_sounding = sounding;
+	if (!_sounding) {
 		_blobsAnimation = nullptr;
 	} else if (!_blobsAnimation) {
 		_blobsAnimation = std::make_unique<BlobsAnimation>(
@@ -358,7 +374,7 @@ void Row::updateLevel(float level) {
 	}
 
 	if (level >= GroupCall::kSpeakLevelThreshold) {
-		_blobsAnimation->lastSpeakingUpdateTime = crl::now();
+		_blobsAnimation->lastSoundingUpdateTime = crl::now();
 	}
 	_blobsAnimation->blobs.setLevel(level);
 }
@@ -366,14 +382,14 @@ void Row::updateLevel(float level) {
 void Row::updateBlobAnimation(crl::time now) {
 	Expects(_blobsAnimation != nullptr);
 
-	const auto speakingFinishesAt = _blobsAnimation->lastSpeakingUpdateTime
-		+ Data::GroupCall::kSpeakStatusKeptFor;
-	const auto speakingStartsFinishing = speakingFinishesAt
+	const auto soundingFinishesAt = _blobsAnimation->lastSoundingUpdateTime
+		+ Data::GroupCall::kSoundStatusKeptFor;
+	const auto soundingStartsFinishing = soundingFinishesAt
 		- kBlobsEnterDuration;
-	const auto speakingFinishes = (speakingStartsFinishing < now);
-	if (speakingFinishes) {
+	const auto soundingFinishes = (soundingStartsFinishing < now);
+	if (soundingFinishes) {
 		_blobsAnimation->enter = std::clamp(
-			(speakingFinishesAt - now) / float64(kBlobsEnterDuration),
+			(soundingFinishesAt - now) / float64(kBlobsEnterDuration),
 			0.,
 			1.);
 	} else if (_blobsAnimation->enter < 1.) {
@@ -418,9 +434,15 @@ auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		if (_blobsAnimation) {
 			const auto shift = QPointF(x + size / 2., y + size / 2.);
+			const auto speaking = _speakingAnimation.value(
+				_speaking ? 1. : 0.);
 			auto hq = PainterHighQualityEnabler(p);
 			p.translate(shift);
-			_blobsAnimation->blobs.paint(p, st::groupCallMemberActiveStatus);
+			const auto brush = anim::brush(
+				st::groupCallMemberInactiveStatus,
+				st::groupCallMemberActiveStatus,
+				speaking);
+			_blobsAnimation->blobs.paint(p, brush);
 			p.translate(-shift);
 			p.setOpacity(1.);
 
@@ -537,28 +559,28 @@ MembersController::MembersController(
 	) | rpl::start_with_next([=](bool animDisabled, bool deactivated) {
 		const auto hide = !(!animDisabled && !deactivated);
 
-		if (!(hide && _speakingAnimationHideLastTime)) {
-			_speakingAnimationHideLastTime = hide ? crl::now() : 0;
+		if (!(hide && _soundingAnimationHideLastTime)) {
+			_soundingAnimationHideLastTime = hide ? crl::now() : 0;
 		}
-		for (const auto [_, row] : _speakingRowBySsrc) {
+		for (const auto [_, row] : _soundingRowBySsrc) {
 			if (hide) {
 				updateRowLevel(row, 0.);
 			}
 			row->setSkipLevelUpdate(hide);
 		}
-		if (!hide && !_speakingAnimation.animating()) {
-			_speakingAnimation.start();
+		if (!hide && !_soundingAnimation.animating()) {
+			_soundingAnimation.start();
 		}
 		_skipRowLevelUpdate = hide;
 	}, _lifetime);
 
-	_speakingAnimation.init([=](crl::time now) {
-		if (const auto &last = _speakingAnimationHideLastTime; (last > 0)
+	_soundingAnimation.init([=](crl::time now) {
+		if (const auto &last = _soundingAnimationHideLastTime; (last > 0)
 			&& (now - last >= kBlobsEnterDuration)) {
-			_speakingAnimation.stop();
+			_soundingAnimation.stop();
 			return false;
 		}
-		for (const auto [ssrc, row] : _speakingRowBySsrc) {
+		for (const auto [ssrc, row] : _soundingRowBySsrc) {
 			row->updateBlobAnimation(now);
 			delegate()->peerListUpdateRow(row);
 		}
@@ -600,8 +622,8 @@ void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
 
 	call->levelUpdates(
 	) | rpl::start_with_next([=](const LevelUpdate &update) {
-		const auto i = _speakingRowBySsrc.find(update.ssrc);
-		if (i != end(_speakingRowBySsrc)) {
+		const auto i = _soundingRowBySsrc.find(update.ssrc);
+		if (i != end(_soundingRowBySsrc)) {
 			updateRowLevel(i->second, update.value);
 		}
 	}, _lifetime);
@@ -699,41 +721,41 @@ void MembersController::checkSpeakingRowPosition(not_null<Row*> row) {
 void MembersController::updateRow(
 		not_null<Row*> row,
 		const Data::GroupCall::Participant *participant) {
-	const auto wasSpeaking = row->speaking();
+	const auto wasSounding = row->sounding();
 	const auto wasSsrc = row->ssrc();
 	row->setSkipLevelUpdate(_skipRowLevelUpdate);
 	row->updateState(participant);
-	const auto nowSpeaking = row->speaking();
+	const auto nowSounding = row->sounding();
 	const auto nowSsrc = row->ssrc();
 
-	const auto wasNoSpeaking = _speakingRowBySsrc.empty();
+	const auto wasNoSounding = _soundingRowBySsrc.empty();
 	if (wasSsrc == nowSsrc) {
-		if (nowSpeaking != wasSpeaking) {
-			if (nowSpeaking) {
-				_speakingRowBySsrc.emplace(nowSsrc, row);
+		if (nowSounding != wasSounding) {
+			if (nowSounding) {
+				_soundingRowBySsrc.emplace(nowSsrc, row);
 			} else {
-				_speakingRowBySsrc.remove(nowSsrc);
+				_soundingRowBySsrc.remove(nowSsrc);
 			}
 		}
 	} else {
-		_speakingRowBySsrc.remove(wasSsrc);
-		if (nowSpeaking) {
+		_soundingRowBySsrc.remove(wasSsrc);
+		if (nowSounding) {
 			Assert(nowSsrc != 0);
-			_speakingRowBySsrc.emplace(nowSsrc, row);
+			_soundingRowBySsrc.emplace(nowSsrc, row);
 		}
 	}
-	const auto nowNoSpeaking = _speakingRowBySsrc.empty();
-	if (wasNoSpeaking && !nowNoSpeaking) {
-		_speakingAnimation.start();
-	} else if (nowNoSpeaking && !wasNoSpeaking) {
-		_speakingAnimation.stop();
+	const auto nowNoSounding = _soundingRowBySsrc.empty();
+	if (wasNoSounding && !nowNoSounding) {
+		_soundingAnimation.start();
+	} else if (nowNoSounding && !wasNoSounding) {
+		_soundingAnimation.stop();
 	}
 
 	delegate()->peerListUpdateRow(row);
 }
 
 void MembersController::removeRow(not_null<Row*> row) {
-	_speakingRowBySsrc.remove(row->ssrc());
+	_soundingRowBySsrc.remove(row->ssrc());
 	delegate()->peerListRemoveRow(row);
 }
 

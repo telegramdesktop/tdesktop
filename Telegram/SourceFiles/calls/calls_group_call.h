@@ -17,12 +17,17 @@ class History;
 
 namespace tgcalls {
 class GroupInstanceImpl;
+struct GroupLevelsUpdate;
 } // namespace tgcalls
 
 namespace base {
 class GlobalShortcutManager;
 class GlobalShortcutValue;
 } // namespace base
+
+namespace Data {
+struct LastSpokeTimes;
+} // namespace Data
 
 namespace Calls {
 
@@ -42,6 +47,7 @@ enum class MuteState {
 struct LevelUpdate {
 	uint32 ssrc = 0;
 	float value = 0.;
+	bool voice = false;
 	bool self = false;
 };
 
@@ -146,11 +152,7 @@ private:
 	void applySelfInCallLocally();
 	void rejoin();
 
-	void myLevelUpdated(float level);
-	void audioLevelsUpdated(
-		const std::vector<std::pair<std::uint32_t, float>> &data);
-	void handleLevelsUpdated(
-		gsl::span<const std::pair<std::uint32_t, float>> data);
+	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
 	void setInstanceConnected(bool connected);
 	void checkLastSpoke();
 	void pushToTalkCancel();
@@ -178,7 +180,7 @@ private:
 
 	std::unique_ptr<tgcalls::GroupInstanceImpl> _instance;
 	rpl::event_stream<LevelUpdate> _levelUpdates;
-	base::flat_map<uint32, crl::time> _lastSpoke;
+	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	base::Timer _lastSpokeCheckTimer;
 	base::Timer _checkJoinedTimer;
 
