@@ -103,7 +103,7 @@ TopBarWidget::TopBarWidget(
 	_search->setClickedCallback([=] { search(); });
 	_recentActions->setClickedCallback([=] {
 		const auto channel = _activeChat.key.peer()->asChannel();
-		_controller->showSection(AdminLog::SectionMemento(channel));
+		_controller->showSection(std::make_shared<AdminLog::SectionMemento>(channel));
 	});
 	_admins->setClickedCallback([=] {
 		ParticipantsBoxController::Start(
