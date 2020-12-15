@@ -1369,9 +1369,12 @@ bool ParticipantsBoxController::feedMegagroupLastParticipants() {
 		return false;
 	}
 
+	auto added = false;
 	_additional.fillFromPeer();
 	for (const auto user : info->lastParticipants) {
-		appendRow(user);
+		if (appendRow(user)) {
+			added = true;
+		}
 
 		//
 		// Don't count lastParticipants in _offset, because we don't know
@@ -1383,7 +1386,7 @@ bool ParticipantsBoxController::feedMegagroupLastParticipants() {
 	if (_onlineSorter) {
 		_onlineSorter->sort();
 	}
-	return true;
+	return added;
 }
 
 void ParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
