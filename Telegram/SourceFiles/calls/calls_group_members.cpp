@@ -434,14 +434,12 @@ auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		if (_blobsAnimation) {
 			const auto shift = QPointF(x + size / 2., y + size / 2.);
-			const auto speaking = _speakingAnimation.value(
-				_speaking ? 1. : 0.);
 			auto hq = PainterHighQualityEnabler(p);
 			p.translate(shift);
 			const auto brush = anim::brush(
 				st::groupCallMemberInactiveStatus,
 				st::groupCallMemberActiveStatus,
-				speaking);
+				_speakingAnimation.value(_speaking ? 1. : 0.));
 			_blobsAnimation->blobs.paint(p, brush);
 			p.translate(-shift);
 			p.setOpacity(1.);
