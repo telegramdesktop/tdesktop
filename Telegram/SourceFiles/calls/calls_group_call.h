@@ -126,6 +126,8 @@ public:
 	std::shared_ptr<GlobalShortcutManager> ensureGlobalShortcutManager();
 	void applyGlobalShortcutChanges();
 
+	void pushToTalk(bool pressed, crl::time delay);
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}

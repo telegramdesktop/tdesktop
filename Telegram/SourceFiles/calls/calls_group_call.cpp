@@ -828,19 +828,24 @@ void GroupCall::applyGlobalShortcutChanges() {
 	}
 	_pushToTalk = shortcut;
 	_shortcutManager->startWatching(_pushToTalk, [=](bool pressed) {
-		const auto delay = Core::App().settings().groupCallPushToTalkDelay();
-		if (muted() == MuteState::ForceMuted
-			|| muted() == MuteState::Active) {
-			return;
-		} else if (pressed) {
-			_pushToTalkCancelTimer.cancel();
-			setMuted(MuteState::PushToTalk);
-		} else if (delay) {
-			_pushToTalkCancelTimer.callOnce(delay);
-		} else {
-			pushToTalkCancel();
-		}
+		pushToTalk(
+			pressed,
+			Core::App().settings().groupCallPushToTalkDelay());
 	});
+}
+
+void GroupCall::pushToTalk(bool pressed, crl::time delay) {
+	if (muted() == MuteState::ForceMuted
+		|| muted() == MuteState::Active) {
+		return;
+	} else if (pressed) {
+		_pushToTalkCancelTimer.cancel();
+		setMuted(MuteState::PushToTalk);
+	} else if (delay) {
+		_pushToTalkCancelTimer.callOnce(delay);
+	} else {
+		pushToTalkCancel();
+	}
 }
 
 void GroupCall::pushToTalkCancel() {

@@ -45,6 +45,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 namespace {
 
+constexpr auto kSpacePushToTalkDelay = crl::time(250);
+
 class InviteController final : public ParticipantsBoxController {
 public:
 	InviteController(
@@ -280,6 +282,15 @@ void GroupPanel::initWindow() {
 		if (e->type() == QEvent::Close && handleClose()) {
 			e->ignore();
 			return base::EventFilterResult::Cancel;
+		} else if (e->type() == QEvent::KeyPress
+			|| e->type() == QEvent::KeyRelease) {
+			if (static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Space) {
+				if (_call) {
+					_call->pushToTalk(
+						e->type() == QEvent::KeyPress,
+						kSpacePushToTalkDelay);
+				}
+			}
 		}
 		return base::EventFilterResult::Continue;
 	});
