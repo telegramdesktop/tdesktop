@@ -343,13 +343,15 @@ void GroupPanel::endCall() {
 void GroupPanel::initControls() {
 	_mute->clicks(
 	) | rpl::filter([=](Qt::MouseButton button) {
-		return (button == Qt::LeftButton)
-			&& _call
-			&& (_call->muted() != MuteState::ForceMuted);
+		return (button == Qt::LeftButton) && (_call != nullptr);
 	}) | rpl::start_with_next([=] {
-		_call->setMuted((_call->muted() == MuteState::Muted)
-			? MuteState::Active
-			: MuteState::Muted);
+		if (_call->muted() == MuteState::ForceMuted) {
+			_mute->shake();
+		} else {
+			_call->setMuted((_call->muted() == MuteState::Muted)
+				? MuteState::Active
+				: MuteState::Muted);
+		}
 	}, _mute->lifetime());
 
 	_hangup->setClickedCallback([=] { endCall(); });
