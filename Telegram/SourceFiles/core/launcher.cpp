@@ -311,6 +311,9 @@ void Launcher::init() {
 	// and https://github.com/telegramdesktop/tdesktop/issues/7549
 	// and https://github.com/telegramdesktop/tdesktop/issues/948
 	// more info: https://doc.qt.io/qt-5/qguiapplication.html#isFallbackSessionManagementEnabled
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+	QApplication::setAttribute(Qt::AA_DisableSessionManager, true);
+#endif // Qt >= 5.14
 	QApplication::setFallbackSessionManagementEnabled(false);
 
 	initHook();
