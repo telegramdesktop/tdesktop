@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_peer_values.h" // Data::CanWriteValue.
 #include "data/data_session.h" // Data::Session::invitedToCallUsers.
+#include "settings/settings_common.h" // Settings::CreateButton.
 #include "ui/paint/blobs.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
@@ -513,7 +514,9 @@ void Row::paintStatusText(
 		x,
 		y,
 		outerWidth,
-		peer()->isSelf() ? "connecting..." : "invited");
+		(peer()->isSelf()
+			? tr::lng_status_connecting(tr::now)
+			: tr::lng_group_call_invited_status(tr::now)));
 }
 
 void Row::paintAction(
@@ -1185,20 +1188,11 @@ GroupMembers::GroupMembers(
 , _call(call)
 , _scroll(this, st::defaultSolidScroll)
 , _listController(std::make_unique<MembersController>(call, parent)) {
-	setupHeader(call);
+	setupAddMember(call);
 	setupList();
 	setContent(_list);
 	setupFakeRoundCorners();
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
-
-	paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
-		const auto headerPart = clip.intersected(
-			QRect(0, 0, width(), _header->height()));
-		if (!headerPart.isEmpty()) {
-			QPainter(this).fillRect(headerPart, st::groupCallMembersBg);
-		}
-	}, lifetime());
 }
 
 auto GroupMembers::toggleMuteRequests() const
@@ -1214,7 +1208,7 @@ auto GroupMembers::kickMemberRequests() const
 }
 
 int GroupMembers::desiredHeight() const {
-	auto desired = _header ? _header->height() : 0;
+	const auto top = _addMember ? _addMember->height() : 0;
 	auto count = [&] {
 		if (const auto call = _call.get()) {
 			if (const auto real = call->peer()->groupCall()) {
@@ -1226,7 +1220,7 @@ int GroupMembers::desiredHeight() const {
 		return 0;
 	}();
 	const auto use = std::max(count, _list->fullRowsCount());
-	return (_header ? _header->height() : 0)
+	return top
 		+ (use * st::groupCallMembersList.item.height)
 		+ (use ? st::lineWidth : 0);
 }
@@ -1236,48 +1230,14 @@ rpl::producer<int> GroupMembers::desiredHeightValue() const {
 		_listController.get());
 	return rpl::combine(
 		heightValue(),
+		_addMemberButton.value(),
 		controller->fullCountValue()
 	) | rpl::map([=] {
 		return desiredHeight();
 	});
 }
 
-void GroupMembers::setupHeader(not_null<GroupCall*> call) {
-	_header = object_ptr<Ui::FixedHeightWidget>(
-		this,
-		st::groupCallMembersHeader);
-	auto parent = _header.data();
-
-	_titleWrap = Ui::CreateChild<Ui::RpWidget>(parent);
-	_title = setupTitle(call);
-	_addMember = Ui::CreateChild<Ui::IconButton>(
-		parent,
-		st::groupCallAddMember);
-	setupButtons(call);
-
-	widthValue(
-	) | rpl::start_with_next([this](int width) {
-		_header->resizeToWidth(width);
-	}, _header->lifetime());
-}
-
-object_ptr<Ui::FlatLabel> GroupMembers::setupTitle(
-		not_null<GroupCall*> call) {
-	const auto controller = static_cast<MembersController*>(
-		_listController.get());
-	auto result = object_ptr<Ui::FlatLabel>(
-		_titleWrap,
-		tr::lng_chat_status_members(
-			lt_count_decimal,
-			controller->fullCountValue() | tr::to_count(),
-			Ui::Text::Upper
-		),
-		st::groupCallHeaderLabel);
-	result->setAttribute(Qt::WA_TransparentForMouseEvents);
-	return result;
-}
-
-void GroupMembers::setupButtons(not_null<GroupCall*> call) {
+void GroupMembers::setupAddMember(not_null<GroupCall*> call) {
 	using namespace rpl::mappers;
 
 	_canAddMembers = Data::CanWriteValue(call->peer().get());
@@ -1288,65 +1248,89 @@ void GroupMembers::setupButtons(not_null<GroupCall*> call) {
 			_canAddMembers = Data::CanWriteValue(channel.get());
 		});
 
-	_addMember->showOn(_canAddMembers.value());
-	_addMember->addClickHandler([=] { // TODO throttle(ripple duration)
-		_addMemberRequests.fire({});
-	});
+	_canAddMembers.value(
+	) | rpl::start_with_next([=](bool can) {
+		if (!can) {
+			_addMemberButton = nullptr;
+			_addMember.destroy();
+			updateControlsGeometry();
+			return;
+		}
+		_addMember = Settings::CreateButton(
+			this,
+			tr::lng_group_call_invite(),
+			st::groupCallAddMember,
+			&st::groupCallAddMemberIcon,
+			st::groupCallAddMemberIconLeft);
+		_addMember->show();
+
+		_addMember->addClickHandler([=] { // TODO throttle(ripple duration)
+			_addMemberRequests.fire({});
+		});
+		_addMemberButton = _addMember.data();
+
+		resizeToList();
+	}, lifetime());
 }
 
-void GroupMembers::setupList() {
-	auto topSkip = _header ? _header->height() : 0;
+rpl::producer<int> GroupMembers::fullCountValue() const {
+	return static_cast<MembersController*>(
+		_listController.get())->fullCountValue();
+}
 
+//tr::lng_chat_status_members(
+//	lt_count_decimal,
+//	controller->fullCountValue() | tr::to_count(),
+//	Ui::Text::Upper
+//),
+
+void GroupMembers::setupList() {
 	_listController->setStyleOverrides(&st::groupCallMembersList);
 	_list = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
 		_listController.get()));
 
-	sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		_scroll->setGeometry(0, topSkip, size.width(), size.height() - topSkip);
-		_list->resizeToWidth(size.width());
+	_list->heightValue(
+	) | rpl::start_with_next([=] {
+		resizeToList();
 	}, _list->lifetime());
 
-	_list->heightValue(
-	) | rpl::start_with_next([=](int listHeight) {
-		auto newHeight = (listHeight > 0)
-			? (topSkip + listHeight + st::lineWidth)
-			: 0;
-		resize(width(), newHeight);
-	}, _list->lifetime());
-	_list->moveToLeft(0, topSkip);
-	_list->show();
+	updateControlsGeometry();
 }
 
 void GroupMembers::resizeEvent(QResizeEvent *e) {
-	if (_header) {
-		updateHeaderControlsGeometry(width());
+	updateControlsGeometry();
+}
+
+void GroupMembers::resizeToList() {
+	if (!_list) {
+		return;
+	}
+	const auto listHeight = _list->height();
+	const auto newHeight = (listHeight > 0)
+		? ((_addMember ? _addMember->height() : 0)
+			+ listHeight
+			+ st::lineWidth)
+		: 0;
+	if (height() == newHeight) {
+		updateControlsGeometry();
+	} else {
+		resize(width(), newHeight);
 	}
 }
 
-void GroupMembers::updateHeaderControlsGeometry(int newWidth) {
-	auto availableWidth = newWidth
-		- st::groupCallAddButtonPosition.x();
-	_addMember->moveToLeft(
-		availableWidth - _addMember->width(),
-		st::groupCallAddButtonPosition.y(),
-		newWidth);
-	if (!_addMember->isHidden()) {
-		availableWidth -= _addMember->width();
+void GroupMembers::updateControlsGeometry() {
+	if (!_list) {
+		return;
 	}
-
-	_titleWrap->resize(
-		availableWidth - _addMember->width() - st::groupCallHeaderPosition.x(),
-		_title->height());
-	_titleWrap->moveToLeft(
-		st::groupCallHeaderPosition.x(),
-		st::groupCallHeaderPosition.y(),
-		newWidth);
-	_titleWrap->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	_title->resizeToWidth(_titleWrap->width());
-	_title->moveToLeft(0, 0);
+	auto topSkip = 0;
+	if (_addMember) {
+		_addMember->resizeToWidth(width());
+		_addMember->move(0, 0);
+		topSkip = _addMember->height();
+	}
+	_scroll->setGeometry(0, topSkip, width(), height() - topSkip);
+	_list->resizeToWidth(width());
 }
 
 void GroupMembers::setupFakeRoundCorners() {

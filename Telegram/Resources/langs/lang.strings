@@ -1830,6 +1830,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_create_sure" = "Do you really want to start a voice chat in this group?";
 "lng_group_call_also_end" = "End voice chat";
 "lng_group_call_settings_title" = "Settings";
+"lng_group_call_invite" = "Invite Member";
+"lng_group_call_invited_status" = "invited";
 "lng_group_call_invite_title" = "Invite members";
 "lng_group_call_invite_button" = "Invite";
 "lng_group_call_new_muted" = "Mute new members";

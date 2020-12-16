@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class ScrollArea;
+class SettingsButton;
 } // namespace Ui
 
 namespace Data {
@@ -36,6 +37,7 @@ public:
 
 	[[nodiscard]] int desiredHeight() const;
 	[[nodiscard]] rpl::producer<int> desiredHeightValue() const override;
+	[[nodiscard]] rpl::producer<int> fullCountValue() const;
 	[[nodiscard]] rpl::producer<MuteRequest> toggleMuteRequests() const;
 	[[nodiscard]] auto kickMemberRequests() const
 		-> rpl::producer<not_null<UserData*>>;
@@ -67,25 +69,21 @@ private:
 	void peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) override;
 
-	void setupHeader(not_null<GroupCall*> call);
-	object_ptr<Ui::FlatLabel> setupTitle(not_null<GroupCall*> call);
+	void setupAddMember(not_null<GroupCall*> call);
+	void resizeToList();
 	void setupList();
 	void setupFakeRoundCorners();
 
-	void setupButtons(not_null<GroupCall*> call);
-
-	void updateHeaderControlsGeometry(int newWidth);
+	void updateControlsGeometry();
 
 	const base::weak_ptr<GroupCall> _call;
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<PeerListController> _listController;
-	object_ptr<Ui::RpWidget> _header = { nullptr };
+	object_ptr<Ui::SettingsButton> _addMember = { nullptr };
+	rpl::variable<Ui::SettingsButton*> _addMemberButton = nullptr;
 	ListWidget *_list = { nullptr };
 	rpl::event_stream<> _addMemberRequests;
 
-	Ui::RpWidget *_titleWrap = nullptr;
-	Ui::FlatLabel *_title = nullptr;
-	Ui::IconButton *_addMember = nullptr;
 	rpl::variable<bool> _canAddMembers;
 
 };
