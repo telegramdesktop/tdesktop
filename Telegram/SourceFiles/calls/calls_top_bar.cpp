@@ -78,18 +78,22 @@ auto LinearBlobs() {
 
 auto Colors() {
 	using Vector = std::vector<QColor>;
-	return base::flat_map<MuteState, Vector>{
+	using Colors = anim::gradient_colors;
+	return base::flat_map<MuteState, Colors>{
 		{
 			MuteState::ForceMuted,
-			Vector{ st::groupCallForceMuted1->c, st::groupCallForceMuted2->c }
+			Colors(QGradientStops{
+				{ 0.0, st::groupCallForceMutedBar1->c },
+				{ .35, st::groupCallForceMutedBar2->c },
+				{ 1.0, st::groupCallForceMutedBar3->c } })
 		},
 		{
 			MuteState::Active,
-			Vector{ st::groupCallLive1->c, st::groupCallLive2->c }
+			Colors(Vector{ st::groupCallLive1->c, st::groupCallLive2->c })
 		},
 		{
 			MuteState::Muted,
-			Vector{ st::groupCallMuted1->c, st::groupCallMuted2->c }
+			Colors(Vector{ st::groupCallMuted1->c, st::groupCallMuted2->c })
 		},
 	};
 }
