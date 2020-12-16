@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_peer_values.h" // Data::CanWriteValue.
+#include "data/data_session.h" // Data::Session::invitedToCallUsers.
 #include "ui/paint/blobs.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
@@ -85,6 +86,7 @@ public:
 		Active,
 		Inactive,
 		Muted,
+		Invited,
 	};
 
 	void setSkipLevelUpdate(bool value);
@@ -116,7 +118,9 @@ public:
 			st::groupCallActiveButton.height);
 	}
 	bool actionDisabled() const override {
-		return peer()->isSelf() || !_delegate->rowCanMuteMembers();
+		return peer()->isSelf()
+			|| (_state == State::Invited)
+			|| !_delegate->rowCanMuteMembers();
 	}
 	QMargins actionMargins() const override {
 		return QMargins(
@@ -134,6 +138,15 @@ public:
 		bool actionSelected) override;
 
 	auto generatePaintUserpicCallback() -> PaintRoundImageCallback override;
+
+	void paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected) override;
 
 private:
 	struct BlobsAnimation {
@@ -223,6 +236,8 @@ private:
 	[[nodiscard]] std::unique_ptr<Row> createSelfRow();
 	[[nodiscard]] std::unique_ptr<Row> createRow(
 		const Data::GroupCall::Participant &participant);
+	[[nodiscard]] std::unique_ptr<Row> createInvitedRow(
+		not_null<UserData*> user);
 
 	void prepareRows(not_null<Data::GroupCall*> real);
 	//void repaintByTimer();
@@ -241,6 +256,7 @@ private:
 	Row *findRow(not_null<UserData*> user) const;
 
 	[[nodiscard]] Data::GroupCall *resolvedRealCall() const;
+	void appendInvitedUsers();
 
 	const base::weak_ptr<GroupCall> _call;
 	not_null<PeerData*> _peer;
@@ -248,6 +264,7 @@ private:
 	// Use only resolvedRealCall() method, not this value directly.
 	Data::GroupCall *_realCallRawValue = nullptr;
 	uint64 _realId = 0;
+	bool _prepared = false;
 
 	rpl::event_stream<MuteRequest> _toggleMuteRequests;
 	rpl::event_stream<not_null<UserData*>> _kickMemberRequests;
@@ -283,12 +300,7 @@ void Row::setSkipLevelUpdate(bool value) {
 void Row::updateState(const Data::GroupCall::Participant *participant) {
 	setSsrc(participant ? participant->ssrc : 0);
 	if (!participant) {
-		if (peer()->isSelf()) {
-			setCustomStatus(tr::lng_group_call_connecting(tr::now));
-		} else {
-			setCustomStatus(QString());
-		}
-		setState(State::Inactive);
+		setState(State::Invited);
 		setSounding(false);
 		setSpeaking(false);
 	} else if (!participant->muted
@@ -476,6 +488,34 @@ auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	};
 }
 
+void Row::paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected) {
+	if (_state != State::Invited) {
+		PeerListRow::paintStatusText(
+			p,
+			st,
+			x,
+			y,
+			availableWidth,
+			outerWidth,
+			selected);
+		return;
+	}
+	p.setFont(st::normalFont);
+	p.setPen(st::groupCallMemberNotJoinedStatus);
+	p.drawTextLeft(
+		x,
+		y,
+		outerWidth,
+		peer()->isSelf() ? "connecting..." : "invited");
+}
+
 void Row::paintAction(
 		Painter &p,
 		int x,
@@ -484,6 +524,20 @@ void Row::paintAction(
 		bool selected,
 		bool actionSelected) {
 	auto size = actionSize();
+	const auto iconRect = style::rtlrect(
+		x,
+		y,
+		size.width(),
+		size.height(),
+		outerWidth);
+	if (_state == State::Invited) {
+		_actionRipple = nullptr;
+		st::groupCallMemberInvited.paint(
+			p,
+			QPoint(x, y) + st::groupCallMemberInvitedPosition,
+			outerWidth);
+		return;
+	}
 	if (_actionRipple) {
 		_actionRipple->paint(
 			p,
@@ -494,12 +548,6 @@ void Row::paintAction(
 			_actionRipple.reset();
 		}
 	}
-	const auto iconRect = style::rtlrect(
-		x,
-		y,
-		size.width(),
-		size.height(),
-		outerWidth);
 	const auto speaking = _speakingAnimation.value(_speaking ? 1. : 0.);
 	const auto active = _activeAnimation.value(
 		(_state == State::Active) ? 1. : 0.);
@@ -649,6 +697,7 @@ void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
 		const auto user = update.was ? update.was->user : update.now->user;
 		if (!update.now) {
 			if (const auto row = findRow(user)) {
+				const auto owner = &user->owner();
 				if (user->isSelf()) {
 					updateRow(row, nullptr);
 				} else {
@@ -658,6 +707,30 @@ void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
 			}
 		} else {
 			updateRow(update.was, *update.now);
+		}
+	}, _lifetime);
+
+	if (_prepared) {
+		appendInvitedUsers();
+	}
+}
+
+void MembersController::appendInvitedUsers() {
+	for (const auto user : _peer->owner().invitedToCallUsers(_realId)) {
+		if (auto row = createInvitedRow(user)) {
+			delegate()->peerListAppendRow(std::move(row));
+		}
+	}
+	delegate()->peerListRefreshRows();
+
+	using Invite = Data::Session::InviteToCall;
+	_peer->owner().invitesToCalls(
+	) | rpl::filter([=](const Invite &invite) {
+		return (invite.id == _realId);
+	}) | rpl::start_with_next([=](const Invite &invite) {
+		if (auto row = createInvitedRow(invite.user)) {
+			delegate()->peerListAppendRow(std::move(row));
+			delegate()->peerListRefreshRows();
 		}
 	}, _lifetime);
 }
@@ -796,7 +869,12 @@ void MembersController::prepare() {
 		delegate()->peerListAppendRow(std::move(row));
 		delegate()->peerListRefreshRows();
 	}
+
 	loadMoreRows();
+	if (_realId) {
+		appendInvitedUsers();
+	}
+	_prepared = true;
 }
 
 void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
@@ -1056,7 +1134,9 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 		tr::lng_context_send_message(tr::now),
 		showHistory);
 	const auto canKick = [&] {
-		if (const auto chat = _peer->asChat()) {
+		if (static_cast<Row*>(row.get())->state() == Row::State::Invited) {
+			return false;
+		} else if (const auto chat = _peer->asChat()) {
 			return chat->amCreator()
 				|| (chat->canBanMembers() && !chat->admins.contains(user));
 		} else if (const auto group = _peer->asMegagroup()) {
@@ -1083,6 +1163,16 @@ std::unique_ptr<Row> MembersController::createRow(
 		const Data::GroupCall::Participant &participant) {
 	auto result = std::make_unique<Row>(this, participant.user);
 	updateRow(result.get(), &participant);
+	return result;
+}
+
+std::unique_ptr<Row> MembersController::createInvitedRow(
+		not_null<UserData*> user) {
+	if (findRow(user)) {
+		return nullptr;
+	}
+	auto result = std::make_unique<Row>(this, user);
+	updateRow(result.get(), nullptr);
 	return result;
 }
 

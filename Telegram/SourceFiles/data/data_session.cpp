@@ -841,6 +841,7 @@ void Session::registerInvitedToCallUser(
 		}
 	}
 	_invitedToCallUsers[callId].emplace(user);
+	_invitesToCalls.fire({ callId, user });
 }
 
 void Session::unregisterInvitedToCallUser(

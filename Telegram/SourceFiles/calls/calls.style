@@ -562,6 +562,8 @@ groupCallMemberColoredCrossLine: CrossLineAnimation(groupCallMemberInactiveCross
 	fg: groupCallMemberMutedIcon;
 	icon: icon {{ "calls/group_calls_unmuted", groupCallMemberActiveIcon }};
 }
+groupCallMemberInvited: icon {{ "calls/group_calls_invited", groupCallMemberInactiveIcon }};
+groupCallMemberInvitedPosition: point(2px, 12px);
 
 groupCallSettings: CallButton(callMicrophoneMute) {
 	button: IconButton(callButton) {

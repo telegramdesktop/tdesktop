@@ -166,6 +166,14 @@ public:
 		not_null<UserData*> user);
 	void unregisterInvitedToCallUser(uint64 callId, not_null<UserData*> user);
 
+	struct InviteToCall {
+		uint64 id = 0;
+		not_null<UserData*> user;
+	};
+	[[nodiscard]] rpl::producer<InviteToCall> invitesToCalls() const {
+		return _invitesToCalls.events();
+	}
+
 	void enumerateUsers(Fn<void(not_null<UserData*>)> action) const;
 	void enumerateGroups(Fn<void(not_null<PeerData*>)> action) const;
 	void enumerateChannels(Fn<void(not_null<ChannelData*>)> action) const;
@@ -923,6 +931,7 @@ private:
 	base::flat_set<not_null<ViewElement*>> _heavyViewParts;
 
 	base::flat_map<uint64, not_null<GroupCall*>> _groupCalls;
+	rpl::event_stream<InviteToCall> _invitesToCalls;
 	base::flat_map<uint64, base::flat_set<not_null<UserData*>>> _invitedToCallUsers;
 
 	History *_topPromoted = nullptr;
