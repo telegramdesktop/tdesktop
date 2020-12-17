@@ -221,7 +221,7 @@ void GroupCallBar::paint(Painter &p) {
 	p.setPen(st::defaultMessageBar.textFg);
 	p.setFont(st::defaultMessageBar.title.font);
 	p.drawTextLeft(left, titleTop, width, tr::lng_group_call_title(tr::now));
-	p.setPen(st::historyComposeAreaFgService);
+	p.setPen(st::historyStatusFg);
 	p.setFont(st::defaultMessageBar.text.font);
 	p.drawTextLeft(
 		left,

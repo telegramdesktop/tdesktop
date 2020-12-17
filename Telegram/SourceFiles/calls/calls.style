@@ -512,7 +512,10 @@ groupCallMultiSelect: MultiSelect(defaultMultiSelect) {
 	}
 }
 
-groupCallMembersHeader: 47px;
+groupCallMembersTop: 62px;
+groupCallTitleTop: 14px;
+groupCallSubtitleTop: 33px;
+
 groupCallMembersMargin: margins(16px, 16px, 16px, 28px);
 groupCallAddMember: SettingsButton(defaultSettingsButton) {
 	textFg: groupCallMemberNotJoinedStatus;
@@ -529,14 +532,16 @@ groupCallAddMember: SettingsButton(defaultSettingsButton) {
 }
 groupCallAddMemberIcon: icon {{ "info_add_member", groupCallMemberInactiveIcon, point(0px, 3px) }};
 groupCallAddMemberIconLeft: 16px;
-groupCallHeaderPosition: point(16px, 16px);
-groupCallHeaderLabel: FlatLabel(defaultFlatLabel) {
+groupCallSubtitleLabel: FlatLabel(defaultFlatLabel) {
 	maxHeight: 18px;
+	textFg: groupCallMemberNotJoinedStatus;
+}
+groupCallTitleLabel: FlatLabel(groupCallSubtitleLabel) {
 	textFg: groupCallMembersFg;
 	style: TextStyle(defaultTextStyle) {
-		font: semiboldFont;
-		linkFont: semiboldFont;
-		linkFontOver: semiboldFont;
+		font: font(semibold 14px);
+		linkFont: font(semibold 14px);
+		linkFontOver: font(semibold 14px);
 	}
 }
 groupCallAddButtonPosition: point(10px, 7px);
@@ -729,8 +734,8 @@ groupCallTitleCloseIconOver: icon {
 };
 groupCallTitle: WindowTitle(defaultWindowTitle) {
 	height: 0px;
-	bg: groupCallBg;
-	bgActive: groupCallBg;
+	bg: transparent;
+	bgActive: transparent;
 	fg: transparent;
 	fgActive: transparent;
 	minimize: IconButton(groupCallTitleButton) {

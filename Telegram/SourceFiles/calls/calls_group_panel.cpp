@@ -220,6 +220,8 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_settings->setColorOverrides(_mute->colorOverrides());
 
+	_window->setTitleStyle(st::groupCallTitle);
+
 	SubscribeToMigration(
 		_peer,
 		_window->lifetime(),
@@ -576,22 +578,22 @@ void GroupPanel::initGeometry() {
 }
 
 int GroupPanel::computeMembersListTop() const {
-#ifdef Q_OS_WIN
-	return st::callTitleButton.height + st::groupCallMembersMargin.top() / 2;
-#elif defined Q_OS_MAC // Q_OS_WIN
-	return st::groupCallMembersMargin.top() * 2;
-#else // Q_OS_WIN || Q_OS_MAC
-	return st::groupCallMembersMargin.top();
-#endif // Q_OS_WIN || Q_OS_MAC
+	if (computeTitleRect().has_value()) {
+		return st::groupCallMembersTop;
+	}
+	return st::groupCallMembersTop
+		- (st::groupCallSubtitleTop - st::groupCallTitleTop);
 }
 
 std::optional<QRect> GroupPanel::computeTitleRect() const {
 #ifdef Q_OS_WIN
 	const auto controls = _controls->geometry();
 	return QRect(0, 0, controls.x(), controls.height());
-#else // Q_OS_WIN
+#elif Q_OS_MAC // Q_OS_WIN
+	return QRect(70, 0, widget()->width() - 70, 28);
+#else // Q_OS_WIN || Q_OS_MAC
 	return std::nullopt;
-#endif // Q_OS_WIN
+#endif // Q_OS_WIN || Q_OS_MAC
 }
 
 void GroupPanel::updateControlsGeometry() {
@@ -636,12 +638,13 @@ void GroupPanel::refreshTitle() {
 			_title.create(
 				widget(),
 				Info::Profile::NameValue(_peer),
-				st::groupCallHeaderLabel);
+				st::groupCallTitleLabel);
+			_title->show();
 			_title->setAttribute(Qt::WA_TransparentForMouseEvents);
 		}
 		const auto best = _title->naturalWidth();
 		const auto from = (widget()->width() - best) / 2;
-		const auto top = (computeMembersListTop() - _title->height()) / 2;
+		const auto top = st::groupCallTitleTop;
 		const auto left = titleRect->x();
 		if (from >= left && from + best <= left + titleRect->width()) {
 			_title->resizeToWidth(best);
@@ -659,6 +662,23 @@ void GroupPanel::refreshTitle() {
 	} else if (_title) {
 		_title.destroy();
 	}
+	if (!_subtitle) {
+		_subtitle.create(
+			widget(),
+			tr::lng_group_call_members(
+				lt_count_decimal,
+				_members->fullCountValue() | tr::to_count()),
+			st::groupCallSubtitleLabel);
+		_subtitle->show();
+		_subtitle->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
+	const auto middle = _title
+		? (_title->x() + _title->width() / 2)
+		: (widget()->width() / 2);
+	const auto top = _title
+		? st::groupCallSubtitleTop
+		: st::groupCallTitleTop;
+	_subtitle->moveToLeft(middle - (_subtitle->width() / 2), top);
 }
 
 void GroupPanel::paint(QRect clip) {
