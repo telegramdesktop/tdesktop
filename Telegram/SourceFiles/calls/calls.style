@@ -596,8 +596,8 @@ groupCallHangup: CallButton(callHangup) {
 	label: callButtonLabel;
 }
 groupCallButtonSkip: 43px;
-groupCallButtonBottomSkip: 134px;
-groupCallMuteBottomSkip: 149px;
+groupCallButtonBottomSkip: 145px;
+groupCallMuteBottomSkip: 160px;
 
 groupCallTopBarUserpicSize: 28px;
 groupCallTopBarUserpicShift: 8px;

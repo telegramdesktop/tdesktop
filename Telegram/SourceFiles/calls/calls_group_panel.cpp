@@ -435,6 +435,13 @@ void GroupPanel::initWithCall(GroupCall *call) {
 				: mute == MuteState::Muted
 				? tr::lng_group_call_unmute(tr::now)
 				: tr::lng_group_call_you_are_live(tr::now)),
+			.subtext = (connecting
+				? QString()
+				: mute == MuteState::ForceMuted
+				? tr::lng_group_call_force_muted_sub(tr::now)
+				: mute == MuteState::Muted
+				? tr::lng_group_call_unmute_sub(tr::now)
+				: QString()),
 			.type = (connecting
 				? Ui::CallMuteButtonType::Connecting
 				: mute == MuteState::ForceMuted

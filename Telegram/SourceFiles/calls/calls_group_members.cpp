@@ -1116,7 +1116,9 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 	};
 	const auto showHistory = [=] {
 		performOnMainWindow([=](not_null<Window::SessionController*> window) {
-			window->showPeerHistory(user);
+			window->showPeerHistory(
+				user,
+				Window::SectionShow::Way::Forward);
 		});
 	};
 	const auto removeFromGroup = crl::guard(this, [=] {
