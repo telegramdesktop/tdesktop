@@ -220,8 +220,6 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_settings->setColorOverrides(_mute->colorOverrides());
 
-	_window->setTitleStyle(st::groupCallTitle);
-
 	SubscribeToMigration(
 		_peer,
 		_window->lifetime(),
@@ -276,7 +274,7 @@ void GroupPanel::initWindow() {
 	_window->setAttribute(Qt::WA_NoSystemBackground);
 	_window->setWindowIcon(
 		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
-	_window->setTitleStyle(st::callTitle);
+	_window->setTitleStyle(st::groupCallTitle);
 
 	subscribeToPeerChanges();
 
@@ -589,7 +587,7 @@ std::optional<QRect> GroupPanel::computeTitleRect() const {
 #ifdef Q_OS_WIN
 	const auto controls = _controls->geometry();
 	return QRect(0, 0, controls.x(), controls.height());
-#elif Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_MAC // Q_OS_WIN
 	return QRect(70, 0, widget()->width() - 70, 28);
 #else // Q_OS_WIN || Q_OS_MAC
 	return std::nullopt;
@@ -678,7 +676,9 @@ void GroupPanel::refreshTitle() {
 	const auto top = _title
 		? st::groupCallSubtitleTop
 		: st::groupCallTitleTop;
-	_subtitle->moveToLeft(middle - (_subtitle->width() / 2), top);
+	_subtitle->moveToLeft(
+		(widget()->width() - _subtitle->width()) / 2,
+		top);
 }
 
 void GroupPanel::paint(QRect clip) {
