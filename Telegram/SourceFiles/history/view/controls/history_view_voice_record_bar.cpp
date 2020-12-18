@@ -1307,6 +1307,7 @@ void VoiceRecordBar::hideFast() {
 void VoiceRecordBar::stopRecording(StopType type) {
 	using namespace ::Media::Capture;
 	if (type == StopType::Cancel) {
+		_cancelRequests.fire({});
 		instance()->stop();
 		return;
 	}
@@ -1402,6 +1403,10 @@ rpl::producer<SendActionUpdate> VoiceRecordBar::sendActionUpdates() const {
 
 rpl::producer<VoiceToSend> VoiceRecordBar::sendVoiceRequests() const {
 	return _sendVoiceRequests.events();
+}
+
+rpl::producer<> VoiceRecordBar::cancelRequests() const {
+	return _cancelRequests.events();
 }
 
 bool VoiceRecordBar::isRecording() const {

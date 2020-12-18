@@ -61,6 +61,7 @@ public:
 
 	[[nodiscard]] rpl::producer<SendActionUpdate> sendActionUpdates() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
+	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<bool> recordingStateChanges() const;
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 	[[nodiscard]] rpl::producer<not_null<QEvent*>> lockViewportEvents() const;
@@ -128,6 +129,7 @@ private:
 
 	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
 	rpl::event_stream<VoiceToSend> _sendVoiceRequests;
+	rpl::event_stream<> _cancelRequests;
 	rpl::event_stream<> _listenChanges;
 
 	int _centerY = 0;
