@@ -25,6 +25,10 @@ class GlobalShortcutManager;
 class GlobalShortcutValue;
 } // namespace base
 
+namespace Webrtc {
+class MediaDevices;
+} // namespace Webrtc
+
 namespace Data {
 struct LastSpokeTimes;
 } // namespace Data
@@ -204,6 +208,10 @@ private:
 	base::Timer _pushToTalkCancelTimer;
 	base::Timer _connectingSoundTimer;
 	bool _hadJoinedState = false;
+
+	std::unique_ptr<Webrtc::MediaDevices> _mediaDevices;
+	QString _audioInputId;
+	QString _audioOutputId;
 
 	rpl::lifetime _lifetime;
 

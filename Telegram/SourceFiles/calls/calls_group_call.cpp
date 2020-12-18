@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_session.h"
 #include "base/global_shortcuts.h"
+#include "webrtc/webrtc_media_devices.h"
 
 #include <tgcalls/group/GroupInstanceImpl.h>
 
@@ -44,6 +45,14 @@ constexpr auto kCheckJoinedTimeout = 4 * crl::time(1000);
 constexpr auto kUpdateSendActionEach = crl::time(500);
 constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 
+[[nodiscard]] std::unique_ptr<Webrtc::MediaDevices> CreateMediaDevices() {
+	const auto &settings = Core::App().settings();
+	return Webrtc::CreateMediaDevices(
+		settings.callInputDeviceId(),
+		settings.callOutputDeviceId(),
+		settings.callVideoInputDeviceId());
+}
+
 } // namespace
 
 GroupCall::GroupCall(
@@ -57,7 +66,8 @@ GroupCall::GroupCall(
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
 , _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
-, _connectingSoundTimer([=] { playConnectingSoundOnce(); }) {
+, _connectingSoundTimer([=] { playConnectingSoundOnce(); })
+, _mediaDevices(CreateMediaDevices()) {
 	_muted.value(
 	) | rpl::combine_previous(
 	) | rpl::start_with_next([=](MuteState previous, MuteState state) {
@@ -83,6 +93,22 @@ GroupCall::GroupCall(
 	} else {
 		start();
 	}
+
+	_mediaDevices->audioInputId(
+	) | rpl::start_with_next([=](QString id) {
+		_audioInputId = id;
+		if (_instance) {
+			_instance->setAudioInputDevice(id.toStdString());
+		}
+	}, _lifetime);
+
+	_mediaDevices->audioOutputId(
+	) | rpl::start_with_next([=](QString id) {
+		_audioOutputId = id;
+		if (_instance) {
+			_instance->setAudioOutputDevice(id.toStdString());
+		}
+	}, _lifetime);
 }
 
 GroupCall::~GroupCall() {
@@ -553,8 +579,8 @@ void GroupCall::createAndStartController() {
 			}
 			crl::on_main(weak, [=] { audioLevelsUpdated(data); });
 		},
-		.initialInputDeviceId = settings.callInputDeviceId().toStdString(),
-		.initialOutputDeviceId = settings.callOutputDeviceId().toStdString(),
+		.initialInputDeviceId = _audioInputId.toStdString(),
+		.initialOutputDeviceId = _audioOutputId.toStdString(),
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
@@ -574,6 +600,7 @@ void GroupCall::createAndStartController() {
 	LOG(("Call Info: Creating group instance"));
 	_instance = std::make_unique<tgcalls::GroupInstanceImpl>(
 		std::move(descriptor));
+
 	updateInstanceMuteState();
 
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
@@ -740,13 +767,10 @@ void GroupCall::sendMutedUpdate() {
 }
 
 void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
-	if (_instance) {
-		const auto id = deviceId.toStdString();
-		if (input) {
-			_instance->setAudioInputDevice(id);
-		} else {
-			_instance->setAudioOutputDevice(id);
-		}
+	if (input) {
+		_mediaDevices->switchToAudioInput(deviceId);
+	} else {
+		_mediaDevices->switchToAudioOutput(deviceId);
 	}
 }
 
