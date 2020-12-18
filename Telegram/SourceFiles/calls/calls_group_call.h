@@ -61,6 +61,13 @@ public:
 		virtual void groupCallFailed(not_null<GroupCall*> call) = 0;
 		virtual void groupCallRequestPermissionsOrFail(
 			Fn<void()> onSuccess) = 0;
+
+		enum class GroupCallSound {
+			Started,
+			Connecting,
+			Ended,
+		};
+		virtual void groupCallPlaySound(GroupCallSound sound) = 0;
 	};
 
 	using GlobalShortcutManager = base::GlobalShortcutManager;
@@ -162,6 +169,10 @@ private:
 	void checkGlobalShortcutAvailability();
 	void checkJoined();
 
+	void playConnectingSound();
+	void stopConnectingSound();
+	void playConnectingSoundOnce();
+
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
 	const not_null<Delegate*> _delegate;
@@ -191,7 +202,8 @@ private:
 	std::shared_ptr<GlobalShortcutManager> _shortcutManager;
 	std::shared_ptr<GlobalShortcutValue> _pushToTalk;
 	base::Timer _pushToTalkCancelTimer;
-	bool _pushToTalkStarted = false;
+	base::Timer _connectingSoundTimer;
+	bool _hadJoinedState = false;
 
 	rpl::lifetime _lifetime;
 

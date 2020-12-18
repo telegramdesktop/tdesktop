@@ -64,6 +64,9 @@ public:
 	[[nodiscard]] bool isQuitPrevent();
 
 private:
+	using CallSound = Call::Delegate::CallSound;
+	using GroupCallSound = GroupCall::Delegate::GroupCallSound;
+
 	[[nodiscard]] not_null<Call::Delegate*> getCallDelegate() {
 		return static_cast<Call::Delegate*>(this);
 	}
@@ -73,6 +76,10 @@ private:
 	[[nodiscard]] DhConfig getDhConfig() const override {
 		return _dhConfig;
 	}
+
+	not_null<Media::Audio::Track*> ensureSoundLoaded(const QString &key);
+	void playSoundOnce(const QString &key);
+
 	void callFinished(not_null<Call*> call) override;
 	void callFailed(not_null<Call*> call) override;
 	void callRedial(not_null<Call*> call) override;
@@ -81,15 +88,15 @@ private:
 			bool video) override {
 		requestPermissionsOrFail(std::move(onSuccess), video);
 	}
+	void callPlaySound(CallSound sound) override;
 
 	void groupCallFinished(not_null<GroupCall*> call) override;
 	void groupCallFailed(not_null<GroupCall*> call) override;
 	void groupCallRequestPermissionsOrFail(Fn<void()> onSuccess) override {
 		requestPermissionsOrFail(std::move(onSuccess), false);
 	}
+	void groupCallPlaySound(GroupCallSound sound) override;
 
-	using Sound = Call::Delegate::Sound;
-	void playSound(Sound sound) override;
 	void createCall(not_null<UserData*> user, Call::Type type, bool video);
 	void destroyCall(not_null<Call*> call);
 
@@ -98,7 +105,9 @@ private:
 		const MTPInputGroupCall &inputCall);
 	void destroyGroupCall(not_null<GroupCall*> call);
 
-	void requestPermissionOrFail(Platform::PermissionType type, Fn<void()> onSuccess);
+	void requestPermissionOrFail(
+		Platform::PermissionType type,
+		Fn<void()> onSuccess);
 
 	void refreshDhConfig();
 	void refreshServerConfig(not_null<Main::Session*> session);
@@ -132,9 +141,7 @@ private:
 	rpl::event_stream<GroupCall*> _currentGroupCallChanges;
 	std::unique_ptr<GroupPanel> _currentGroupCallPanel;
 
-	std::unique_ptr<Media::Audio::Track> _callConnectingTrack;
-	std::unique_ptr<Media::Audio::Track> _callEndedTrack;
-	std::unique_ptr<Media::Audio::Track> _callBusyTrack;
+	base::flat_map<QString, std::unique_ptr<Media::Audio::Track>> _tracks;
 
 };
 

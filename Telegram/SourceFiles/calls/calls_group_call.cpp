@@ -42,6 +42,7 @@ constexpr auto kMaxInvitePerSlice = 10;
 constexpr auto kCheckLastSpokeInterval = crl::time(1000);
 constexpr auto kCheckJoinedTimeout = 4 * crl::time(1000);
 constexpr auto kUpdateSendActionEach = crl::time(500);
+constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 
 } // namespace
 
@@ -55,7 +56,8 @@ GroupCall::GroupCall(
 , _api(&peer->session().mtp())
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
-, _pushToTalkCancelTimer([=] { pushToTalkCancel(); }) {
+, _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
+, _connectingSoundTimer([=] { playConnectingSoundOnce(); }) {
 	_muted.value(
 	) | rpl::combine_previous(
 	) | rpl::start_with_next([=](MuteState previous, MuteState state) {
@@ -109,14 +111,22 @@ void GroupCall::setState(State state) {
 	}
 	_state = state;
 
-	if (_state.current() == State::Joined) {
-		if (!_pushToTalkStarted) {
-			_pushToTalkStarted = true;
+	if (state == State::Joined) {
+		stopConnectingSound();
+		if (!_hadJoinedState) {
+			_hadJoinedState = true;
 			applyGlobalShortcutChanges();
+			_delegate->groupCallPlaySound(Delegate::GroupCallSound::Started);
 		}
 		if (const auto call = _peer->groupCall(); call && call->id() == _id) {
 			call->setInCall();
 		}
+	} else if (state == State::Connecting || state == State::Joining) {
+		if (_hadJoinedState) {
+			playConnectingSound();
+		}
+	} else {
+		stopConnectingSound();
 	}
 
 	if (false
@@ -127,6 +137,10 @@ void GroupCall::setState(State state) {
 		destroyController();
 	}
 	switch (state) {
+	case State::HangingUp:
+	case State::FailedHangingUp:
+		_delegate->groupCallPlaySound(Delegate::GroupCallSound::Ended);
+		break;
 	case State::Ended:
 		_delegate->groupCallFinished(this);
 		break;
@@ -139,6 +153,22 @@ void GroupCall::setState(State state) {
 		}
 		break;
 	}
+}
+
+void GroupCall::playConnectingSound() {
+	if (_connectingSoundTimer.isActive()) {
+		return;
+	}
+	playConnectingSoundOnce();
+	_connectingSoundTimer.callEach(kPlayConnectingEach);
+}
+
+void GroupCall::stopConnectingSound() {
+	_connectingSoundTimer.cancel();
+}
+
+void GroupCall::playConnectingSoundOnce() {
+	_delegate->groupCallPlaySound(Delegate::GroupCallSound::Connecting);
 }
 
 void GroupCall::start() {

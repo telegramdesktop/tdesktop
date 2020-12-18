@@ -62,15 +62,16 @@ public:
 		virtual void callFailed(not_null<Call*> call) = 0;
 		virtual void callRedial(not_null<Call*> call) = 0;
 
-		enum class Sound {
+		enum class CallSound {
 			Connecting,
 			Busy,
 			Ended,
 		};
-		virtual void playSound(Sound sound) = 0;
+		virtual void callPlaySound(CallSound sound) = 0;
 		virtual void callRequestPermissionsOrFail(
 			Fn<void()> onSuccess,
 			bool video) = 0;
+
 		virtual auto getVideoCapture()
 			-> std::shared_ptr<tgcalls::VideoCaptureInterface> = 0;
 

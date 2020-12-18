@@ -6,5 +6,8 @@
     <file alias="call_end.mp3">../../sounds/call_end.mp3</file>
     <file alias="call_incoming.mp3">../../sounds/call_incoming.mp3</file>
     <file alias="call_outgoing.mp3">../../sounds/call_outgoing.mp3</file>
+    <file alias="group_call_start.mp3">../../sounds/group_call_start.mp3</file>
+    <file alias="group_call_connect.mp3">../../sounds/group_call_connect.mp3</file>
+    <file alias="group_call_end.mp3">../../sounds/group_call_end.mp3</file>
   </qresource>
 </RCC>

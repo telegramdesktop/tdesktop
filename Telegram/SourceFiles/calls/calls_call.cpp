@@ -951,20 +951,20 @@ void Call::setState(State state) {
 			_startTime = crl::now();
 			break;
 		case State::ExchangingKeys:
-			_delegate->playSound(Delegate::Sound::Connecting);
+			_delegate->callPlaySound(Delegate::CallSound::Connecting);
 			break;
 		case State::Ended:
-			_delegate->playSound(Delegate::Sound::Ended);
+			_delegate->callPlaySound(Delegate::CallSound::Ended);
 			[[fallthrough]];
 		case State::EndedByOtherDevice:
 			_delegate->callFinished(this);
 			break;
 		case State::Failed:
-			_delegate->playSound(Delegate::Sound::Ended);
+			_delegate->callPlaySound(Delegate::CallSound::Ended);
 			_delegate->callFailed(this);
 			break;
 		case State::Busy:
-			_delegate->playSound(Delegate::Sound::Busy);
+			_delegate->callPlaySound(Delegate::CallSound::Busy);
 			break;
 		}
 	}
