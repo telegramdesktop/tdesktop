@@ -120,6 +120,7 @@ public:
 	[[nodiscard]] rpl::producer<State> stateValue() const {
 		return _state.value();
 	}
+	[[nodiscard]] rpl::producer<bool> connectingValue() const;
 
 	[[nodiscard]] rpl::producer<LevelUpdate> levelUpdates() const {
 		return _levelUpdates.events();

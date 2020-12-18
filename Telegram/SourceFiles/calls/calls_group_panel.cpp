@@ -417,14 +417,9 @@ void GroupPanel::initWithCall(GroupCall *call) {
 		}
 	}, _callLifetime);
 
-	using namespace rpl::mappers;
 	rpl::combine(
 		_call->mutedValue() | MapPushToTalkToActive(),
-		_call->stateValue() | rpl::map(
-			_1 == State::Creating
-			|| _1 == State::Joining
-			|| _1 == State::Connecting
-		)
+		_call->connectingValue()
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](MuteState mute, bool connecting) {
 		_mute->setState(Ui::CallMuteButtonState{
