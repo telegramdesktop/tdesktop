@@ -5407,14 +5407,14 @@ void HistoryWidget::refreshPinnedBarButton(bool many) {
 void HistoryWidget::setupGroupCallTracker() {
 	Expects(_history != nullptr);
 
-	const auto channel = _history->peer->asChannel();
-	if (!channel) {
+	const auto peer = _history->peer;
+	if (!peer->asMegagroup() && !peer->asChat()) {
 		_groupCallTracker = nullptr;
 		_groupCallBar = nullptr;
 		return;
 	}
 	_groupCallTracker = std::make_unique<HistoryView::GroupCallTracker>(
-		channel);
+		peer);
 	_groupCallBar = std::make_unique<Ui::GroupCallBar>(
 		this,
 		_groupCallTracker->content(),
