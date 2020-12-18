@@ -28,6 +28,7 @@ namespace HistoryView::Controls {
 class VoiceRecordButton;
 class ListenWrap;
 class RecordLock;
+class CancelButton;
 
 class VoiceRecordBar final : public Ui::RpWidget {
 public:
@@ -123,6 +124,7 @@ private:
 	const std::shared_ptr<Ui::SendButton> _send;
 	const std::unique_ptr<RecordLock> _lock;
 	const std::unique_ptr<VoiceRecordButton> _level;
+	const std::unique_ptr<CancelButton> _cancel;
 	std::unique_ptr<ListenWrap> _listen;
 
 	base::Timer _startTimer;
@@ -152,6 +154,7 @@ private:
 	rpl::lifetime _recordingLifetime;
 
 	Ui::Animations::Simple _showLockAnimation;
+	Ui::Animations::Simple _lockToStopAnimation;
 	Ui::Animations::Simple _showListenAnimation;
 	Ui::Animations::Simple _activeAnimation;
 	Ui::Animations::Simple _showAnimation;
