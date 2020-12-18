@@ -50,6 +50,10 @@ Launcher::Launcher(int argc, char *argv[])
 }
 
 void Launcher::initHook() {
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+	QApplication::setAttribute(Qt::AA_DisableSessionManager, true);
+#endif // Qt >= 5.14
+
 	QApplication::setDesktopFileName(GetLauncherFilename());
 }
 
