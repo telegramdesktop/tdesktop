@@ -33,6 +33,7 @@ class GroupCall;
 class SignalBars;
 class Mute;
 enum class MuteState;
+enum class BarState;
 
 class TopBar : public Ui::RpWidget {
 public:
@@ -83,8 +84,10 @@ private:
 	object_ptr<Ui::IconButton> _hangup;
 	base::unique_qptr<Ui::RpWidget> _blobs;
 
+	rpl::variable<bool> _isGroupConnecting = false;
+
 	QBrush _groupBrush;
-	anim::linear_gradients<MuteState> _gradients;
+	anim::linear_gradients<BarState> _gradients;
 	Ui::Animations::Simple _switchStateAnimation;
 
 	base::Timer _updateDurationTimer;

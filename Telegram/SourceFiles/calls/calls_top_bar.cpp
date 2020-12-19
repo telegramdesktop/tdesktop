@@ -35,6 +35,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 
 namespace Calls {
+
+enum class BarState {
+	Connecting,
+	Active,
+	Muted,
+	ForceMuted,
+};
+
 namespace {
 
 constexpr auto kMaxUsersInBar = 3;
@@ -46,6 +54,16 @@ constexpr auto kMinorBlobAlpha = 76. / 255.;
 constexpr auto kHideBlobsDuration = crl::time(500);
 constexpr auto kBlobLevelDuration = crl::time(250);
 constexpr auto kBlobUpdateInterval = crl::time(100);
+
+auto BarStateFromMuteState(MuteState state, bool connecting) {
+	return (connecting
+		? BarState::Connecting
+		: state == MuteState::ForceMuted
+		? BarState::ForceMuted
+		: state == MuteState::Muted
+		? BarState::Muted
+		: BarState::Active);
+};
 
 auto LinearBlobs() {
 	return std::vector<Ui::Paint::LinearBlobs::BlobData>{
@@ -79,21 +97,25 @@ auto LinearBlobs() {
 auto Colors() {
 	using Vector = std::vector<QColor>;
 	using Colors = anim::gradient_colors;
-	return base::flat_map<MuteState, Colors>{
+	return base::flat_map<BarState, Colors>{
 		{
-			MuteState::ForceMuted,
+			BarState::ForceMuted,
 			Colors(QGradientStops{
 				{ 0.0, st::groupCallForceMutedBar1->c },
 				{ .35, st::groupCallForceMutedBar2->c },
 				{ 1.0, st::groupCallForceMutedBar3->c } })
 		},
 		{
-			MuteState::Active,
+			BarState::Active,
 			Colors(Vector{ st::groupCallLive1->c, st::groupCallLive2->c })
 		},
 		{
-			MuteState::Muted,
+			BarState::Muted,
 			Colors(Vector{ st::groupCallMuted1->c, st::groupCallMuted2->c })
+		},
+		{
+			BarState::Connecting,
+			Colors(st::callBarBgMuted->c)
 		},
 	};
 }
@@ -257,21 +279,32 @@ void TopBar::initControls() {
 	const auto mapToState = [](bool muted) {
 		return muted ? MuteState::Muted : MuteState::Active;
 	};
-	const auto fromState = _mute->lifetime().make_state<MuteState>(
-		_call ? mapToState(_call->muted()) : _groupCall->muted());
+	const auto fromState = _mute->lifetime().make_state<BarState>(
+		BarStateFromMuteState(
+			_call
+				? mapToState(_call->muted())
+				: _groupCall->muted(),
+			false));
 	auto muted = _call
-		? _call->mutedValue() | rpl::map(mapToState)
-		: (_groupCall->mutedValue()
-			| MapPushToTalkToActive()
-			| rpl::distinct_until_changed()
-			| rpl::type_erased());
+		? rpl::combine(
+			_call->mutedValue() | rpl::map(mapToState),
+			rpl::single(false))
+		: rpl::combine(
+			(_groupCall->mutedValue()
+				| MapPushToTalkToActive()
+				| rpl::distinct_until_changed()
+				| rpl::type_erased()),
+			_groupCall->connectingValue());
 	std::move(
 		muted
-	) | rpl::start_with_next([=](MuteState state) {
-		setMuted(state != MuteState::Active);
+	) | rpl::map(
+		BarStateFromMuteState
+	) | rpl::start_with_next([=](BarState state) {
+		_isGroupConnecting = (state == BarState::Connecting);
+		setMuted(state != BarState::Active);
 		update();
 
-		const auto isForceMuted = (state == MuteState::ForceMuted);
+		const auto isForceMuted = (state == BarState::ForceMuted);
 		if (isForceMuted) {
 			_mute->clearState();
 		}
@@ -285,8 +318,8 @@ void TopBar::initControls() {
 		const auto toMuted = state;
 		*fromState = state;
 
-		const auto crossFrom = (fromMuted != MuteState::Active) ? 1. : 0.;
-		const auto crossTo = (toMuted != MuteState::Active) ? 1. : 0.;
+		const auto crossFrom = (fromMuted != BarState::Active) ? 1. : 0.;
+		const auto crossTo = (toMuted != BarState::Active) ? 1. : 0.;
 
 		auto animationCallback = [=](float64 value) {
 			if (_groupCall) {
@@ -312,6 +345,14 @@ void TopBar::initControls() {
 
 	if (const auto group = _groupCall.get()) {
 		subscribeToMembersChanges(group);
+
+		_isGroupConnecting.value(
+		) | rpl::start_with_next([=](bool isConnecting) {
+			_mute->setAttribute(
+				Qt::WA_TransparentForMouseEvents,
+				isConnecting);
+			updateInfoLabels();
+		}, lifetime());
 	}
 
 	if (const auto call = _call.get()) {
@@ -415,23 +456,14 @@ void TopBar::initBlobsUnder(
 	auto hideBlobs = rpl::combine(
 		rpl::single(anim::Disabled()) | rpl::then(anim::Disables()),
 		Core::App().appDeactivatedValue(),
-		group->stateValue(
-		) | rpl::map([](Calls::GroupCall::State state) {
-			using State = Calls::GroupCall::State;
-			if (state != State::Creating
-				&& state != State::Joining
-				&& state != State::Joined
-				&& state != State::Connecting) {
-				return true;
-			}
-			return false;
-		}) | rpl::distinct_until_changed()
-	) | rpl::map([](bool animDisabled, bool hide, bool isBadState) {
-		return isBadState || animDisabled || hide;
+		group->connectingValue()
+	) | rpl::map([](bool animDisabled, bool hide, bool connecting) {
+		return connecting || animDisabled || hide;
 	});
 
 	std::move(
 		hideBlobs
+	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool hide) {
 		if (hide) {
 			state->paint.setLevel(0.);
@@ -611,8 +643,11 @@ void TopBar::setInfoLabels() {
 	} else if (const auto group = _groupCall.get()) {
 		const auto peer = group->peer();
 		const auto name = peer->name;
-		_fullInfoLabel->setText(name.toUpper());
-		_shortInfoLabel->setText(name.toUpper());
+		const auto text = _isGroupConnecting.current()
+			? tr::lng_group_call_connecting(tr::now)
+			: name.toUpper();
+		_fullInfoLabel->setText(text);
+		_shortInfoLabel->setText(text);
 	}
 }
 

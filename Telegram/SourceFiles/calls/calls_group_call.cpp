@@ -766,6 +766,15 @@ void GroupCall::sendMutedUpdate() {
 	}).send();
 }
 
+rpl::producer<bool> GroupCall::connectingValue() const {
+	using namespace rpl::mappers;
+	return _state.value() | rpl::map(
+		_1 == State::Creating
+		|| _1 == State::Joining
+		|| _1 == State::Connecting
+	) | rpl::distinct_until_changed();
+}
+
 void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
 	if (input) {
 		_mediaDevices->switchToAudioInput(deviceId);
