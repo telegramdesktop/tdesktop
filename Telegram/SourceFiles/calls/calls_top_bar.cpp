@@ -288,7 +288,7 @@ void TopBar::initControls() {
 	auto muted = _call
 		? rpl::combine(
 			_call->mutedValue() | rpl::map(mapToState),
-			rpl::single(false))
+			rpl::single(false)) | rpl::type_erased()
 		: rpl::combine(
 			(_groupCall->mutedValue()
 				| MapPushToTalkToActive()
