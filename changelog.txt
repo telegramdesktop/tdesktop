@@ -1,3 +1,10 @@
+2.4.15 beta (19.12.20)
+
+- Improve design of voice chats.
+- Fix sending of voice messages as replies.
+- Fix 'Open With' menu position in macOS.
+- Fix freeze on secondary screen disconnect.
+
 2.4.14 beta (14.12.20)
 
 - Create voice chats in legacy groups.
