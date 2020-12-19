@@ -17,12 +17,21 @@ class History;
 
 namespace tgcalls {
 class GroupInstanceImpl;
+struct GroupLevelsUpdate;
 } // namespace tgcalls
 
 namespace base {
 class GlobalShortcutManager;
 class GlobalShortcutValue;
 } // namespace base
+
+namespace Webrtc {
+class MediaDevices;
+} // namespace Webrtc
+
+namespace Data {
+struct LastSpokeTimes;
+} // namespace Data
 
 namespace Calls {
 
@@ -42,6 +51,7 @@ enum class MuteState {
 struct LevelUpdate {
 	uint32 ssrc = 0;
 	float value = 0.;
+	bool voice = false;
 	bool self = false;
 };
 
@@ -55,6 +65,13 @@ public:
 		virtual void groupCallFailed(not_null<GroupCall*> call) = 0;
 		virtual void groupCallRequestPermissionsOrFail(
 			Fn<void()> onSuccess) = 0;
+
+		enum class GroupCallSound {
+			Started,
+			Connecting,
+			Ended,
+		};
+		virtual void groupCallPlaySound(GroupCallSound sound) = 0;
 	};
 
 	using GlobalShortcutManager = base::GlobalShortcutManager;
@@ -120,6 +137,8 @@ public:
 	std::shared_ptr<GlobalShortcutManager> ensureGlobalShortcutManager();
 	void applyGlobalShortcutChanges();
 
+	void pushToTalk(bool pressed, crl::time delay);
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -146,17 +165,17 @@ private:
 	void applySelfInCallLocally();
 	void rejoin();
 
-	void myLevelUpdated(float level);
-	void audioLevelsUpdated(
-		const std::vector<std::pair<std::uint32_t, float>> &data);
-	void handleLevelsUpdated(
-		gsl::span<const std::pair<std::uint32_t, float>> data);
+	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
 	void setInstanceConnected(bool connected);
 	void checkLastSpoke();
 	void pushToTalkCancel();
 
 	void checkGlobalShortcutAvailability();
 	void checkJoined();
+
+	void playConnectingSound();
+	void stopConnectingSound();
+	void playConnectingSoundOnce();
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
@@ -178,7 +197,7 @@ private:
 
 	std::unique_ptr<tgcalls::GroupInstanceImpl> _instance;
 	rpl::event_stream<LevelUpdate> _levelUpdates;
-	base::flat_map<uint32, crl::time> _lastSpoke;
+	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	base::Timer _lastSpokeCheckTimer;
 	base::Timer _checkJoinedTimer;
 
@@ -187,7 +206,12 @@ private:
 	std::shared_ptr<GlobalShortcutManager> _shortcutManager;
 	std::shared_ptr<GlobalShortcutValue> _pushToTalk;
 	base::Timer _pushToTalkCancelTimer;
-	bool _pushToTalkStarted = false;
+	base::Timer _connectingSoundTimer;
+	bool _hadJoinedState = false;
+
+	std::unique_ptr<Webrtc::MediaDevices> _mediaDevices;
+	QString _audioInputId;
+	QString _audioOutputId;
 
 	rpl::lifetime _lifetime;
 

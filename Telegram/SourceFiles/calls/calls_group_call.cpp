@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_session.h"
 #include "base/global_shortcuts.h"
+#include "webrtc/webrtc_media_devices.h"
 
 #include <tgcalls/group/GroupInstanceImpl.h>
 
@@ -42,6 +43,15 @@ constexpr auto kMaxInvitePerSlice = 10;
 constexpr auto kCheckLastSpokeInterval = crl::time(1000);
 constexpr auto kCheckJoinedTimeout = 4 * crl::time(1000);
 constexpr auto kUpdateSendActionEach = crl::time(500);
+constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
+
+[[nodiscard]] std::unique_ptr<Webrtc::MediaDevices> CreateMediaDevices() {
+	const auto &settings = Core::App().settings();
+	return Webrtc::CreateMediaDevices(
+		settings.callInputDeviceId(),
+		settings.callOutputDeviceId(),
+		settings.callVideoInputDeviceId());
+}
 
 } // namespace
 
@@ -55,7 +65,9 @@ GroupCall::GroupCall(
 , _api(&peer->session().mtp())
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
-, _pushToTalkCancelTimer([=] { pushToTalkCancel(); }) {
+, _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
+, _connectingSoundTimer([=] { playConnectingSoundOnce(); })
+, _mediaDevices(CreateMediaDevices()) {
 	_muted.value(
 	) | rpl::combine_previous(
 	) | rpl::start_with_next([=](MuteState previous, MuteState state) {
@@ -81,6 +93,22 @@ GroupCall::GroupCall(
 	} else {
 		start();
 	}
+
+	_mediaDevices->audioInputId(
+	) | rpl::start_with_next([=](QString id) {
+		_audioInputId = id;
+		if (_instance) {
+			_instance->setAudioInputDevice(id.toStdString());
+		}
+	}, _lifetime);
+
+	_mediaDevices->audioOutputId(
+	) | rpl::start_with_next([=](QString id) {
+		_audioOutputId = id;
+		if (_instance) {
+			_instance->setAudioOutputDevice(id.toStdString());
+		}
+	}, _lifetime);
 }
 
 GroupCall::~GroupCall() {
@@ -109,14 +137,22 @@ void GroupCall::setState(State state) {
 	}
 	_state = state;
 
-	if (_state.current() == State::Joined) {
-		if (!_pushToTalkStarted) {
-			_pushToTalkStarted = true;
+	if (state == State::Joined) {
+		stopConnectingSound();
+		if (!_hadJoinedState) {
+			_hadJoinedState = true;
 			applyGlobalShortcutChanges();
+			_delegate->groupCallPlaySound(Delegate::GroupCallSound::Started);
 		}
 		if (const auto call = _peer->groupCall(); call && call->id() == _id) {
 			call->setInCall();
 		}
+	} else if (state == State::Connecting || state == State::Joining) {
+		if (_hadJoinedState) {
+			playConnectingSound();
+		}
+	} else {
+		stopConnectingSound();
 	}
 
 	if (false
@@ -127,6 +163,10 @@ void GroupCall::setState(State state) {
 		destroyController();
 	}
 	switch (state) {
+	case State::HangingUp:
+	case State::FailedHangingUp:
+		_delegate->groupCallPlaySound(Delegate::GroupCallSound::Ended);
+		break;
 	case State::Ended:
 		_delegate->groupCallFinished(this);
 		break;
@@ -139,6 +179,22 @@ void GroupCall::setState(State state) {
 		}
 		break;
 	}
+}
+
+void GroupCall::playConnectingSound() {
+	if (_connectingSoundTimer.isActive()) {
+		return;
+	}
+	playConnectingSoundOnce();
+	_connectingSoundTimer.callEach(kPlayConnectingEach);
+}
+
+void GroupCall::stopConnectingSound() {
+	_connectingSoundTimer.cancel();
+}
+
+void GroupCall::playConnectingSoundOnce() {
+	_delegate->groupCallPlaySound(Delegate::GroupCallSound::Connecting);
 }
 
 void GroupCall::start() {
@@ -498,31 +554,33 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 }
 
 void GroupCall::createAndStartController() {
-	using AudioLevels = std::vector<std::pair<uint32_t, float>>;
-
 	const auto &settings = Core::App().settings();
 
 	const auto weak = base::make_weak(this);
-	const auto myLevel = std::make_shared<float>();
+	const auto myLevel = std::make_shared<tgcalls::GroupLevelValue>();
 	tgcalls::GroupInstanceDescriptor descriptor = {
 		.config = tgcalls::GroupConfig{
 		},
 		.networkStateUpdated = [=](bool connected) {
 			crl::on_main(weak, [=] { setInstanceConnected(connected); });
 		},
-		.audioLevelsUpdated = [=](const AudioLevels &data) {
-			if (!data.empty()) {
-				crl::on_main(weak, [=] { audioLevelsUpdated(data); });
+		.audioLevelsUpdated = [=](const tgcalls::GroupLevelsUpdate &data) {
+			const auto &updates = data.updates;
+			if (updates.empty()) {
+				return;
+			} else if (updates.size() == 1 && !updates.front().ssrc) {
+				const auto &value = updates.front().value;
+				// Don't send many 0 while we're muted.
+				if (myLevel->level == value.level
+					&& myLevel->voice == value.voice) {
+					return;
+				}
+				*myLevel = updates.front().value;
 			}
+			crl::on_main(weak, [=] { audioLevelsUpdated(data); });
 		},
-		.myAudioLevelUpdated = [=](float level) {
-			if (*myLevel != level) { // Don't send many 0 while we're muted.
-				*myLevel = level;
-				crl::on_main(weak, [=] { myLevelUpdated(level); });
-			}
-		},
-		.initialInputDeviceId = settings.callInputDeviceId().toStdString(),
-		.initialOutputDeviceId = settings.callOutputDeviceId().toStdString(),
+		.initialInputDeviceId = _audioInputId.toStdString(),
+		.initialOutputDeviceId = _audioOutputId.toStdString(),
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
@@ -542,6 +600,7 @@ void GroupCall::createAndStartController() {
 	LOG(("Call Info: Creating group instance"));
 	_instance = std::make_unique<tgcalls::GroupInstanceImpl>(
 		std::move(descriptor));
+
 	updateInstanceMuteState();
 
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
@@ -555,24 +614,28 @@ void GroupCall::updateInstanceMuteState() {
 		&& state != MuteState::PushToTalk);
 }
 
-void GroupCall::handleLevelsUpdated(
-		gsl::span<const std::pair<std::uint32_t, float>> data) {
-	Expects(!data.empty());
+void GroupCall::audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data) {
+	Expects(!data.updates.empty());
 
 	auto check = false;
 	auto checkNow = false;
 	const auto now = crl::now();
-	for (const auto &[ssrc, level] : data) {
+	for (const auto &[ssrcOrZero, value] : data.updates) {
+		const auto ssrc = ssrcOrZero ? ssrcOrZero : _mySsrc;
+		const auto level = value.level;
+		const auto voice = value.voice;
 		const auto self = (ssrc == _mySsrc);
 		_levelUpdates.fire(LevelUpdate{
 			.ssrc = ssrc,
 			.value = level,
+			.voice = voice,
 			.self = self
 		});
 		if (level <= kSpeakLevelThreshold) {
 			continue;
 		}
 		if (self
+			&& voice
 			&& (!_lastSendProgressUpdate
 				|| _lastSendProgressUpdate + kUpdateSendActionEach < now)) {
 			_lastSendProgressUpdate = now;
@@ -584,13 +647,21 @@ void GroupCall::handleLevelsUpdated(
 		check = true;
 		const auto i = _lastSpoke.find(ssrc);
 		if (i == _lastSpoke.end()) {
-			_lastSpoke.emplace(ssrc, now);
+			_lastSpoke.emplace(ssrc, Data::LastSpokeTimes{
+				.anything = now,
+				.voice = voice ? now : 0,
+			});
 			checkNow = true;
 		} else {
-			if (i->second + kCheckLastSpokeInterval / 3 <= now) {
+			if ((i->second.anything + kCheckLastSpokeInterval / 3 <= now)
+				|| (voice
+					&& i->second.voice + kCheckLastSpokeInterval / 3 <= now)) {
 				checkNow = true;
 			}
-			i->second = now;
+			i->second.anything = now;
+			if (voice) {
+				i->second.voice = now;
+			}
 		}
 	}
 	if (checkNow) {
@@ -598,16 +669,6 @@ void GroupCall::handleLevelsUpdated(
 	} else if (check && !_lastSpokeCheckTimer.isActive()) {
 		_lastSpokeCheckTimer.callEach(kCheckLastSpokeInterval / 2);
 	}
-}
-
-void GroupCall::myLevelUpdated(float level) {
-	const auto pair = std::pair<std::uint32_t, float>{ _mySsrc, level };
-	handleLevelsUpdated({ &pair, &pair + 1 });
-}
-
-void GroupCall::audioLevelsUpdated(
-		const std::vector<std::pair<std::uint32_t, float>> &data) {
-	handleLevelsUpdated(gsl::make_span(data));
 }
 
 void GroupCall::checkLastSpoke() {
@@ -621,7 +682,7 @@ void GroupCall::checkLastSpoke() {
 	auto list = base::take(_lastSpoke);
 	for (auto i = list.begin(); i != list.end();) {
 		const auto [ssrc, when] = *i;
-		if (when + kCheckLastSpokeInterval >= now) {
+		if (when.anything + kCheckLastSpokeInterval >= now) {
 			hasRecent = true;
 			++i;
 		} else {
@@ -706,13 +767,10 @@ void GroupCall::sendMutedUpdate() {
 }
 
 void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
-	if (_instance) {
-		const auto id = deviceId.toStdString();
-		if (input) {
-			_instance->setAudioInputDevice(id);
-		} else {
-			_instance->setAudioOutputDevice(id);
-		}
+	if (input) {
+		_mediaDevices->switchToAudioInput(deviceId);
+	} else {
+		_mediaDevices->switchToAudioOutput(deviceId);
 	}
 }
 
@@ -824,19 +882,24 @@ void GroupCall::applyGlobalShortcutChanges() {
 	}
 	_pushToTalk = shortcut;
 	_shortcutManager->startWatching(_pushToTalk, [=](bool pressed) {
-		const auto delay = Core::App().settings().groupCallPushToTalkDelay();
-		if (muted() == MuteState::ForceMuted
-			|| muted() == MuteState::Active) {
-			return;
-		} else if (pressed) {
-			_pushToTalkCancelTimer.cancel();
-			setMuted(MuteState::PushToTalk);
-		} else if (delay) {
-			_pushToTalkCancelTimer.callOnce(delay);
-		} else {
-			pushToTalkCancel();
-		}
+		pushToTalk(
+			pressed,
+			Core::App().settings().groupCallPushToTalkDelay());
 	});
+}
+
+void GroupCall::pushToTalk(bool pressed, crl::time delay) {
+	if (muted() == MuteState::ForceMuted
+		|| muted() == MuteState::Active) {
+		return;
+	} else if (pressed) {
+		_pushToTalkCancelTimer.cancel();
+		setMuted(MuteState::PushToTalk);
+	} else if (delay) {
+		_pushToTalkCancelTimer.callOnce(delay);
+	} else {
+		pushToTalkCancel();
+	}
 }
 
 void GroupCall::pushToTalkCancel() {

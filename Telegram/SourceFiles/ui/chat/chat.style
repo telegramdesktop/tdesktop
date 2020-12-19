@@ -395,6 +395,9 @@ historyRecordWaveformBar: 3px;
 
 historyRecordLockPosition: point(1px, 35px);
 
+historyRecordCancelButtonWidth: 100px;
+historyRecordCancelButtonFg: lightButtonFg;
+
 historySilentToggle: IconButton(historyBotKeyboardShow) {
 	icon: icon {{ "send_control_silent_off", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_silent_off", historyComposeIconFgOver }};

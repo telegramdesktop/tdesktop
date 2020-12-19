@@ -1350,7 +1350,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_broadcast_silent_ph" = "Silent broadcast...";
 "lng_send_anonymous_ph" = "Send anonymously...";
 "lng_record_cancel" = "Release outside this field to cancel";
-"lng_record_lock_cancel" = "Click outside of the circle to cancel";
 "lng_record_lock_cancel_sure" = "Are you sure you want to stop recording and discard your voice message?";
 "lng_record_listen_cancel_sure" = "Are you sure you want to discard your recorded voice message?";
 "lng_record_lock_discard" = "Discard";
@@ -1830,8 +1829,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_inactive" = "listening";
 "lng_group_call_settings" = "Settings";
 "lng_group_call_unmute" = "Unmute";
+"lng_group_call_unmute_sub" = "or hold spacebar to talk";
 "lng_group_call_you_are_live" = "You are Live";
-"lng_group_call_force_muted" = "You are in Listen Only mode";
+"lng_group_call_force_muted" = "Muted by admin";
+"lng_group_call_force_muted_sub" = "You are in Listen Only mode";
 "lng_group_call_connecting" = "Connecting...";
 "lng_group_call_leave" = "Leave";
 "lng_group_call_leave_title" = "Leave voice chat";
@@ -1840,6 +1841,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_create_sure" = "Do you really want to start a voice chat in this group?";
 "lng_group_call_also_end" = "End voice chat";
 "lng_group_call_settings_title" = "Settings";
+"lng_group_call_invite" = "Invite Member";
+"lng_group_call_invited_status" = "invited";
 "lng_group_call_invite_title" = "Invite members";
 "lng_group_call_invite_button" = "Invite";
 "lng_group_call_new_muted" = "Mute new members";
@@ -1858,8 +1861,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_invite_done_many#one" = "You invited **{count} member** to the voice chat.";
 "lng_group_call_invite_done_many#other" = "You invited **{count} members** to the voice chat.";
 "lng_group_call_no_members" = "click to join";
-"lng_group_call_members#one" = "{count} member";
-"lng_group_call_members#other" = "{count} members";
+"lng_group_call_members#one" = "{count} participant";
+"lng_group_call_members#other" = "{count} participants";
 "lng_group_call_no_anonymous" = "Sorry, anonymous group admins can't join voice chats.";
 "lng_group_call_too_many" = "Sorry, there are too many members in this voice chat. Please try again later.";
 "lng_group_call_context_mute" = "Mute";

@@ -28,6 +28,7 @@ namespace HistoryView::Controls {
 class VoiceRecordButton;
 class ListenWrap;
 class RecordLock;
+class CancelButton;
 
 class VoiceRecordBar final : public Ui::RpWidget {
 public:
@@ -61,6 +62,7 @@ public:
 
 	[[nodiscard]] rpl::producer<SendActionUpdate> sendActionUpdates() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
+	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<bool> recordingStateChanges() const;
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 	[[nodiscard]] rpl::producer<not_null<QEvent*>> lockViewportEvents() const;
@@ -122,12 +124,14 @@ private:
 	const std::shared_ptr<Ui::SendButton> _send;
 	const std::unique_ptr<RecordLock> _lock;
 	const std::unique_ptr<VoiceRecordButton> _level;
+	const std::unique_ptr<CancelButton> _cancel;
 	std::unique_ptr<ListenWrap> _listen;
 
 	base::Timer _startTimer;
 
 	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
 	rpl::event_stream<VoiceToSend> _sendVoiceRequests;
+	rpl::event_stream<> _cancelRequests;
 	rpl::event_stream<> _listenChanges;
 
 	int _centerY = 0;
@@ -150,6 +154,7 @@ private:
 	rpl::lifetime _recordingLifetime;
 
 	Ui::Animations::Simple _showLockAnimation;
+	Ui::Animations::Simple _lockToStopAnimation;
 	Ui::Animations::Simple _showListenAnimation;
 	Ui::Animations::Simple _activeAnimation;
 	Ui::Animations::Simple _showAnimation;

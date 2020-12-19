@@ -16,6 +16,11 @@ class ApiWrap;
 
 namespace Data {
 
+struct LastSpokeTimes {
+	crl::time anything = 0;
+	crl::time voice = 0;
+};
+
 class GroupCall final {
 public:
 	GroupCall(not_null<PeerData*> peer, uint64 id, uint64 accessHash);
@@ -32,6 +37,7 @@ public:
 		TimeId date = 0;
 		TimeId lastActive = 0;
 		uint32 ssrc = 0;
+		bool sounding = false;
 		bool speaking = false;
 		bool muted = false;
 		bool canSelfUnmute = false;
@@ -41,7 +47,7 @@ public:
 		std::optional<Participant> now;
 	};
 
-	static constexpr auto kSpeakStatusKeptFor = crl::time(350);
+	static constexpr auto kSoundStatusKeptFor = crl::time(350);
 
 	[[nodiscard]] auto participants() const
 		-> const std::vector<Participant> &;
@@ -56,10 +62,10 @@ public:
 	void applyUpdate(const MTPDupdateGroupCallParticipants &update);
 	void applyUpdateChecked(
 		const MTPDupdateGroupCallParticipants &update);
-	void applyLastSpoke(uint32 ssrc, crl::time when, crl::time now);
+	void applyLastSpoke(uint32 ssrc, LastSpokeTimes when, crl::time now);
 	void applyActiveUpdate(
 		UserId userId,
-		crl::time when,
+		LastSpokeTimes when,
 		UserData *userLoaded);
 
 	[[nodiscard]] int fullCount() const;
@@ -106,8 +112,8 @@ private:
 	QString _nextOffset;
 	rpl::variable<int> _fullCount = 0;
 
-	base::flat_map<uint32, crl::time> _unknownSpokenSsrcs;
-	base::flat_map<UserId, crl::time> _unknownSpokenUids;
+	base::flat_map<uint32, LastSpokeTimes> _unknownSpokenSsrcs;
+	base::flat_map<UserId, LastSpokeTimes> _unknownSpokenUids;
 	mtpRequestId _unknownUsersRequestId = 0;
 
 	rpl::event_stream<ParticipantUpdate> _participantUpdates;

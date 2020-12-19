@@ -89,7 +89,8 @@ struct GroupCallBar::Userpic {
 
 GroupCallBar::GroupCallBar(
 	not_null<QWidget*> parent,
-	rpl::producer<GroupCallBarContent> content)
+	rpl::producer<GroupCallBarContent> content,
+	rpl::producer<bool> &&hideBlobs)
 : _wrap(parent, object_ptr<RpWidget>(parent))
 , _inner(_wrap.entity())
 , _join(std::make_unique<RoundButton>(
@@ -147,11 +148,10 @@ GroupCallBar::GroupCallBar(
 	}, lifetime());
 
 	_speakingAnimation.init([=](crl::time now) {
-		//if (const auto &last = _speakingAnimationHideLastTime; (last > 0)
-		//	&& (now - last >= kBlobsEnterDuration)) {
-		//	_speakingAnimation.stop();
-		//	return false;
-		//}
+		if (const auto &last = _speakingAnimationHideLastTime; (last > 0)
+			&& (now - last >= kBlobsEnterDuration)) {
+			_speakingAnimation.stop();
+		}
 		for (auto &userpic : _userpics) {
 			if (const auto blobs = userpic.blobsAnimation.get()) {
 				blobs->blobs.updateLevel(now - blobs->lastTime);
@@ -160,6 +160,27 @@ GroupCallBar::GroupCallBar(
 		}
 		updateUserpics();
 	});
+
+	rpl::combine(
+		rpl::single(anim::Disabled()) | rpl::then(anim::Disables()),
+		std::move(hideBlobs)
+	) | rpl::start_with_next([=](bool animDisabled, bool deactivated) {
+		const auto hide = animDisabled || deactivated;
+
+		if (!(hide && _speakingAnimationHideLastTime)) {
+			_speakingAnimationHideLastTime = hide ? crl::now() : 0;
+		}
+		_skipLevelUpdate = hide;
+		for (auto &userpic : _userpics) {
+			if (const auto blobs = userpic.blobsAnimation.get()) {
+				blobs->blobs.setLevel(0.);
+			}
+		}
+		if (!hide && !_speakingAnimation.animating()) {
+			_speakingAnimation.start();
+		}
+		_skipLevelUpdate = hide;
+	}, lifetime());
 
 	setupInner();
 }
@@ -221,7 +242,7 @@ void GroupCallBar::paint(Painter &p) {
 	p.setPen(st::defaultMessageBar.textFg);
 	p.setFont(st::defaultMessageBar.title.font);
 	p.drawTextLeft(left, titleTop, width, tr::lng_group_call_title(tr::now));
-	p.setPen(st::historyComposeAreaFgService);
+	p.setPen(st::historyStatusFg);
 	p.setFont(st::defaultMessageBar.text.font);
 	p.drawTextLeft(
 		left,
@@ -242,6 +263,7 @@ void GroupCallBar::paintUserpics(Painter &p) {
 	const auto middle = _inner->width()  / 2;
 	const auto size = st::historyGroupCallUserpicSize;
 	const auto factor = style::DevicePixelRatio();
+	const auto &minScale = kUserpicMinScale;
 	for (auto &userpic : ranges::view::reverse(_userpics)) {
 		const auto shown = userpic.shownAnimation.value(
 			userpic.hiding ? 0. : 1.);
@@ -253,10 +275,12 @@ void GroupCallBar::paintUserpics(Painter &p) {
 		const auto left = middle + userpic.leftAnimation.value(userpic.left);
 		const auto blobs = userpic.blobsAnimation.get();
 		const auto shownScale = 0.5 + shown / 2.;
-		const auto &minScale = kUserpicMinScale;
-		const auto scale = shownScale * (blobs
-			? (minScale + (1. - minScale) * blobs->blobs.currentLevel())
-			: 1.);
+		const auto scale = shownScale * (!blobs
+			? 1.
+			: (minScale
+				+ (1. - minScale) * (_speakingAnimationHideLastTime
+					? (1. - blobs->blobs.currentLevel())
+					: blobs->blobs.currentLevel())));
 		if (blobs) {
 			auto hq = PainterHighQualityEnabler(p);
 
@@ -323,6 +347,9 @@ void GroupCallBar::ensureBlobsAnimation(Userpic &userpic) {
 }
 
 void GroupCallBar::sendRandomLevels() {
+	if (_skipLevelUpdate) {
+		return;
+	}
 	for (auto &userpic : _userpics) {
 		if (const auto blobs = userpic.blobsAnimation.get()) {
 			const auto value = 30 + (openssl::RandomValue<uint32>() % 70);

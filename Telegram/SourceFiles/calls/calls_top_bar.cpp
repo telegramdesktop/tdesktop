@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/text/format_values.h"
+#include "ui/toast/toast.h"
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "calls/calls_call.h"
@@ -77,18 +78,22 @@ auto LinearBlobs() {
 
 auto Colors() {
 	using Vector = std::vector<QColor>;
-	return base::flat_map<MuteState, Vector>{
+	using Colors = anim::gradient_colors;
+	return base::flat_map<MuteState, Colors>{
 		{
 			MuteState::ForceMuted,
-			Vector{ st::groupCallForceMuted1->c, st::groupCallForceMuted2->c }
+			Colors(QGradientStops{
+				{ 0.0, st::groupCallForceMutedBar1->c },
+				{ .35, st::groupCallForceMutedBar2->c },
+				{ 1.0, st::groupCallForceMutedBar3->c } })
 		},
 		{
 			MuteState::Active,
-			Vector{ st::groupCallLive1->c, st::groupCallLive2->c }
+			Colors(Vector{ st::groupCallLive1->c, st::groupCallLive2->c })
 		},
 		{
 			MuteState::Muted,
-			Vector{ st::groupCallMuted1->c, st::groupCallMuted2->c }
+			Colors(Vector{ st::groupCallMuted1->c, st::groupCallMuted2->c })
 		},
 	};
 }
@@ -239,7 +244,9 @@ void TopBar::initControls() {
 		if (const auto call = _call.get()) {
 			call->setMuted(!call->muted());
 		} else if (const auto group = _groupCall.get()) {
-			if (group->muted() != MuteState::ForceMuted) {
+			if (group->muted() == MuteState::ForceMuted) {
+				Ui::Toast::Show(tr::lng_group_call_force_muted(tr::now));
+			} else {
 				group->setMuted((group->muted() == MuteState::Muted)
 					? MuteState::Active
 					: MuteState::Muted);
@@ -268,9 +275,7 @@ void TopBar::initControls() {
 		if (isForceMuted) {
 			_mute->clearState();
 		}
-		_mute->setAttribute(
-			Qt::WA_TransparentForMouseEvents,
-			isForceMuted);
+		_mute->setPointerCursor(!isForceMuted);
 
 		const auto to = 1.;
 		const auto from = _switchStateAnimation.animating()
@@ -337,11 +342,15 @@ void TopBar::initControls() {
 		if (const auto call = _call.get()) {
 			call->hangup();
 		} else if (const auto group = _groupCall.get()) {
-			Ui::show(Box(
-				LeaveGroupCallBox,
-				group,
-				false,
-				BoxContext::MainWindow));
+			if (!group->peer()->canManageGroupCall()) {
+				group->hangup();
+			} else {
+				Ui::show(Box(
+					LeaveGroupCallBox,
+					group,
+					false,
+					BoxContext::MainWindow));
+			}
 		}
 	});
 	updateDurationText();

@@ -818,14 +818,6 @@ void Session::unregisterGroupCall(not_null<GroupCall*> call) {
 	_groupCalls.remove(call->id());
 }
 
-rpl::producer<Session::GroupCallDiscard> Session::groupCallDiscards() const {
-	return _groupCallDiscarded.events();
-}
-
-void Session::groupCallDiscarded(uint64 id, int duration) {
-	_groupCallDiscarded.fire({ id, duration });
-}
-
 GroupCall *Session::groupCall(uint64 callId) const {
 	const auto i = _groupCalls.find(callId);
 	return (i != end(_groupCalls)) ? i->second.get() : nullptr;
@@ -853,6 +845,7 @@ void Session::registerInvitedToCallUser(
 		}
 	}
 	_invitedToCallUsers[callId].emplace(user);
+	_invitesToCalls.fire({ callId, user });
 }
 
 void Session::unregisterInvitedToCallUser(

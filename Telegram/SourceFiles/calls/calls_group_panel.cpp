@@ -45,6 +45,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 namespace {
 
+constexpr auto kSpacePushToTalkDelay = crl::time(250);
+
 class InviteController final : public ParticipantsBoxController {
 public:
 	InviteController(
@@ -272,7 +274,7 @@ void GroupPanel::initWindow() {
 	_window->setAttribute(Qt::WA_NoSystemBackground);
 	_window->setWindowIcon(
 		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
-	_window->setTitleStyle(st::callTitle);
+	_window->setTitleStyle(st::groupCallTitle);
 
 	subscribeToPeerChanges();
 
@@ -280,6 +282,15 @@ void GroupPanel::initWindow() {
 		if (e->type() == QEvent::Close && handleClose()) {
 			e->ignore();
 			return base::EventFilterResult::Cancel;
+		} else if (e->type() == QEvent::KeyPress
+			|| e->type() == QEvent::KeyRelease) {
+			if (static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Space) {
+				if (_call) {
+					_call->pushToTalk(
+						e->type() == QEvent::KeyPress,
+						kSpacePushToTalkDelay);
+				}
+			}
 		}
 		return base::EventFilterResult::Continue;
 	});
@@ -315,30 +326,35 @@ void GroupPanel::initWidget() {
 	}, widget()->lifetime());
 }
 
-void GroupPanel::hangup(bool discardCallChecked) {
+void GroupPanel::endCall() {
 	if (!_call) {
+		return;
+	} else if (!_call->peer()->canManageGroupCall()) {
+		_call->hangup();
 		return;
 	}
 	_layerBg->showBox(Box(
 		LeaveGroupCallBox,
 		_call,
-		discardCallChecked,
+		false,
 		BoxContext::GroupCallPanel));
 }
 
 void GroupPanel::initControls() {
 	_mute->clicks(
 	) | rpl::filter([=](Qt::MouseButton button) {
-		return (button == Qt::LeftButton)
-			&& _call
-			&& (_call->muted() != MuteState::ForceMuted);
+		return (button == Qt::LeftButton) && (_call != nullptr);
 	}) | rpl::start_with_next([=] {
-		_call->setMuted((_call->muted() == MuteState::Muted)
-			? MuteState::Active
-			: MuteState::Muted);
+		if (_call->muted() == MuteState::ForceMuted) {
+			_mute->shake();
+		} else {
+			_call->setMuted((_call->muted() == MuteState::Muted)
+				? MuteState::Active
+				: MuteState::Muted);
+		}
 	}, _mute->lifetime());
 
-	_hangup->setClickedCallback([=] { hangup(false); });
+	_hangup->setClickedCallback([=] { endCall(); });
 	_settings->setClickedCallback([=] {
 		if (_call) {
 			_layerBg->showBox(Box(GroupCallSettingsBox, _call));
@@ -419,6 +435,13 @@ void GroupPanel::initWithCall(GroupCall *call) {
 				: mute == MuteState::Muted
 				? tr::lng_group_call_unmute(tr::now)
 				: tr::lng_group_call_you_are_live(tr::now)),
+			.subtext = (connecting
+				? QString()
+				: mute == MuteState::ForceMuted
+				? tr::lng_group_call_force_muted_sub(tr::now)
+				: mute == MuteState::Muted
+				? tr::lng_group_call_unmute_sub(tr::now)
+				: QString()),
 			.type = (connecting
 				? Ui::CallMuteButtonType::Connecting
 				: mute == MuteState::ForceMuted
@@ -560,22 +583,22 @@ void GroupPanel::initGeometry() {
 }
 
 int GroupPanel::computeMembersListTop() const {
-#ifdef Q_OS_WIN
-	return st::callTitleButton.height + st::groupCallMembersMargin.top() / 2;
-#elif defined Q_OS_MAC // Q_OS_WIN
-	return st::groupCallMembersMargin.top() * 2;
-#else // Q_OS_WIN || Q_OS_MAC
-	return st::groupCallMembersMargin.top();
-#endif // Q_OS_WIN || Q_OS_MAC
+	if (computeTitleRect().has_value()) {
+		return st::groupCallMembersTop;
+	}
+	return st::groupCallMembersTop
+		- (st::groupCallSubtitleTop - st::groupCallTitleTop);
 }
 
 std::optional<QRect> GroupPanel::computeTitleRect() const {
 #ifdef Q_OS_WIN
 	const auto controls = _controls->geometry();
 	return QRect(0, 0, controls.x(), controls.height());
-#else // Q_OS_WIN
+#elif defined Q_OS_MAC // Q_OS_WIN
+	return QRect(70, 0, widget()->width() - 70, 28);
+#else // Q_OS_WIN || Q_OS_MAC
 	return std::nullopt;
-#endif // Q_OS_WIN
+#endif // Q_OS_WIN || Q_OS_MAC
 }
 
 void GroupPanel::updateControlsGeometry() {
@@ -620,12 +643,13 @@ void GroupPanel::refreshTitle() {
 			_title.create(
 				widget(),
 				Info::Profile::NameValue(_peer),
-				st::groupCallHeaderLabel);
+				st::groupCallTitleLabel);
+			_title->show();
 			_title->setAttribute(Qt::WA_TransparentForMouseEvents);
 		}
 		const auto best = _title->naturalWidth();
 		const auto from = (widget()->width() - best) / 2;
-		const auto top = (computeMembersListTop() - _title->height()) / 2;
+		const auto top = st::groupCallTitleTop;
 		const auto left = titleRect->x();
 		if (from >= left && from + best <= left + titleRect->width()) {
 			_title->resizeToWidth(best);
@@ -643,6 +667,25 @@ void GroupPanel::refreshTitle() {
 	} else if (_title) {
 		_title.destroy();
 	}
+	if (!_subtitle) {
+		_subtitle.create(
+			widget(),
+			tr::lng_group_call_members(
+				lt_count_decimal,
+				_members->fullCountValue() | tr::to_count()),
+			st::groupCallSubtitleLabel);
+		_subtitle->show();
+		_subtitle->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
+	const auto middle = _title
+		? (_title->x() + _title->width() / 2)
+		: (widget()->width() / 2);
+	const auto top = _title
+		? st::groupCallSubtitleTop
+		: st::groupCallTitleTop;
+	_subtitle->moveToLeft(
+		(widget()->width() - _subtitle->width()) / 2,
+		top);
 }
 
 void GroupPanel::paint(QRect clip) {

@@ -403,7 +403,7 @@ bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition) {
 		if (!screen) {
 			return false;
 		}
-		const auto r = screen->availableGeometry();
+		const auto r = screen->geometry();
 		auto x = menuPosition.x();
 		auto y = r.y() + r.height() - menuPosition.y();
 		return !![menu popupAtX:x andY:y];

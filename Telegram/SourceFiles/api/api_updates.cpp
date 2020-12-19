@@ -245,7 +245,10 @@ Updates::Updates(not_null<Main::Session*> session)
 				for (const auto [userId, when] : *users) {
 					call->applyActiveUpdate(
 						userId,
-						when,
+						Data::LastSpokeTimes{
+							.anything = when,
+							.voice = when
+						},
 						peer->owner().userLoaded(userId));
 				}
 			}
@@ -928,7 +931,10 @@ void Updates::handleSendActionUpdate(
 		const auto call = peer->groupCall();
 		const auto now = crl::now();
 		if (call) {
-			call->applyActiveUpdate(userId, now, user);
+			call->applyActiveUpdate(
+				userId,
+				Data::LastSpokeTimes{ .anything = now, .voice = now },
+				user);
 		} else {
 			const auto chat = peer->asChat();
 			const auto channel = peer->asChannel();
@@ -1836,15 +1842,6 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updatePhoneCallSignalingData:
 	case mtpc_updateGroupCallParticipants:
 	case mtpc_updateGroupCall: {
-		if (update.type() == mtpc_updateGroupCall) {
-			const auto &data = update.c_updateGroupCall();
-			if (data.vcall().type() == mtpc_groupCallDiscarded) {
-				const auto &call = data.vcall().c_groupCallDiscarded();
-				session().data().groupCallDiscarded(
-					call.vid().v,
-					call.vduration().v);
-			}
-		}
 		Core::App().calls().handleUpdate(&session(), update);
 	} break;
 

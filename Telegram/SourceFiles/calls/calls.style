@@ -465,8 +465,8 @@ groupCallMembersListItem: PeerListItem(defaultPeerListItem) {
 	}
 	height: 52px;
 	photoPosition: point(12px, 6px);
-	namePosition: point(68px, 7px);
-	statusPosition: point(68px, 26px);
+	namePosition: point(63px, 7px);
+	statusPosition: point(63px, 26px);
 	photoSize: 40px;
 	nameFg: groupCallMembersFg;
 	nameFgChecked: groupCallMembersFg;
@@ -512,26 +512,36 @@ groupCallMultiSelect: MultiSelect(defaultMultiSelect) {
 	}
 }
 
-groupCallMembersHeader: 47px;
+groupCallMembersTop: 62px;
+groupCallTitleTop: 14px;
+groupCallSubtitleTop: 33px;
+
 groupCallMembersMargin: margins(16px, 16px, 16px, 28px);
-groupCallAddMember: IconButton(defaultIconButton) {
-	width: 36px;
-	height: 36px;
-	iconPosition: point(3px, 5px);
-	icon: icon {{ "info_add_member", groupCallMemberInactiveIcon }};
-	iconOver: icon {{ "info_add_member", groupCallMemberInactiveIcon }};
-	rippleAreaPosition: point(0px, 0px);
-	rippleAreaSize: 36px;
+groupCallAddMember: SettingsButton(defaultSettingsButton) {
+	textFg: groupCallMemberNotJoinedStatus;
+	textFgOver: groupCallMemberNotJoinedStatus;
+	textBg: groupCallMembersBg;
+	textBgOver: groupCallMembersBgOver;
+
+	font: semiboldFont;
+
+	height: 22px;
+	padding: margins(63px, 17px, 22px, 11px);
+
 	ripple: groupCallRipple;
 }
-groupCallHeaderPosition: point(16px, 16px);
-groupCallHeaderLabel: FlatLabel(defaultFlatLabel) {
+groupCallAddMemberIcon: icon {{ "info_add_member", groupCallMemberInactiveIcon, point(0px, 3px) }};
+groupCallAddMemberIconLeft: 16px;
+groupCallSubtitleLabel: FlatLabel(defaultFlatLabel) {
 	maxHeight: 18px;
+	textFg: groupCallMemberNotJoinedStatus;
+}
+groupCallTitleLabel: FlatLabel(groupCallSubtitleLabel) {
 	textFg: groupCallMembersFg;
 	style: TextStyle(defaultTextStyle) {
-		font: semiboldFont;
-		linkFont: semiboldFont;
-		linkFontOver: semiboldFont;
+		font: font(semibold 14px);
+		linkFont: font(semibold 14px);
+		linkFontOver: font(semibold 14px);
 	}
 }
 groupCallAddButtonPosition: point(10px, 7px);
@@ -562,6 +572,8 @@ groupCallMemberColoredCrossLine: CrossLineAnimation(groupCallMemberInactiveCross
 	fg: groupCallMemberMutedIcon;
 	icon: icon {{ "calls/group_calls_unmuted", groupCallMemberActiveIcon }};
 }
+groupCallMemberInvited: icon {{ "calls/group_calls_invited", groupCallMemberInactiveIcon }};
+groupCallMemberInvitedPosition: point(2px, 12px);
 
 groupCallSettings: CallButton(callMicrophoneMute) {
 	button: IconButton(callButton) {
@@ -584,8 +596,8 @@ groupCallHangup: CallButton(callHangup) {
 	label: callButtonLabel;
 }
 groupCallButtonSkip: 43px;
-groupCallButtonBottomSkip: 134px;
-groupCallMuteBottomSkip: 149px;
+groupCallButtonBottomSkip: 145px;
+groupCallMuteBottomSkip: 160px;
 
 groupCallTopBarUserpicSize: 28px;
 groupCallTopBarUserpicShift: 8px;
@@ -722,8 +734,8 @@ groupCallTitleCloseIconOver: icon {
 };
 groupCallTitle: WindowTitle(defaultWindowTitle) {
 	height: 0px;
-	bg: groupCallBg;
-	bgActive: groupCallBg;
+	bg: transparent;
+	bgActive: transparent;
 	fg: transparent;
 	fgActive: transparent;
 	minimize: IconButton(groupCallTitleButton) {

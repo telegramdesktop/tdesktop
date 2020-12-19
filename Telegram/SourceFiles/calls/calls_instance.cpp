@@ -98,35 +98,45 @@ void Instance::groupCallFailed(not_null<GroupCall*> call) {
 	});
 }
 
-void Instance::playSound(Sound sound) {
-	switch (sound) {
-	case Sound::Busy: {
-		if (!_callBusyTrack) {
-			_callBusyTrack = Media::Audio::Current().createTrack();
-			_callBusyTrack->fillFromFile(
-				Core::App().settings().getSoundPath(qsl("call_busy")));
-		}
-		_callBusyTrack->playOnce();
-	} break;
-
-	case Sound::Ended: {
-		if (!_callEndedTrack) {
-			_callEndedTrack = Media::Audio::Current().createTrack();
-			_callEndedTrack->fillFromFile(
-				Core::App().settings().getSoundPath(qsl("call_end")));
-		}
-		_callEndedTrack->playOnce();
-	} break;
-
-	case Sound::Connecting: {
-		if (!_callConnectingTrack) {
-			_callConnectingTrack = Media::Audio::Current().createTrack();
-			_callConnectingTrack->fillFromFile(
-				Core::App().settings().getSoundPath(qsl("call_connect")));
-		}
-		_callConnectingTrack->playOnce();
-	} break;
+not_null<Media::Audio::Track*> Instance::ensureSoundLoaded(
+		const QString &key) {
+	const auto i = _tracks.find(key);
+	if (i != end(_tracks)) {
+		return i->second.get();
 	}
+	const auto result = _tracks.emplace(
+		key,
+		Media::Audio::Current().createTrack()).first->second.get();
+	result->fillFromFile(Core::App().settings().getSoundPath(key));
+	return result;
+}
+
+void Instance::playSoundOnce(const QString &key) {
+	ensureSoundLoaded(key)->playOnce();
+}
+
+void Instance::callPlaySound(CallSound sound) {
+	playSoundOnce([&] {
+		switch (sound) {
+		case CallSound::Busy: return "call_busy";
+		case CallSound::Ended: return "call_end";
+		case CallSound::Connecting: return "call_connect";
+		}
+		Unexpected("CallSound in Instance::callPlaySound.");
+		return "";
+	}());
+}
+
+void Instance::groupCallPlaySound(GroupCallSound sound) {
+	playSoundOnce([&] {
+		switch (sound) {
+		case GroupCallSound::Started: return "group_call_start";
+		case GroupCallSound::Ended: return "group_call_end";
+		case GroupCallSound::Connecting: return "group_call_connect";
+		}
+		Unexpected("GroupCallSound in Instance::groupCallPlaySound.");
+		return "";
+	}());
 }
 
 void Instance::destroyCall(not_null<Call*> call) {

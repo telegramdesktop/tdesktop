@@ -90,7 +90,7 @@ private:
 	void updateControlsGeometry();
 	void showControls();
 
-	void hangup(bool discardCallChecked);
+	void endCall();
 
 	void addMembers();
 	void kickMember(not_null<UserData*> user);
@@ -115,6 +115,7 @@ private:
 	rpl::lifetime _callLifetime;
 
 	object_ptr<Ui::FlatLabel> _title = { nullptr };
+	object_ptr<Ui::FlatLabel> _subtitle = { nullptr };
 	object_ptr<GroupMembers> _members;
 
 	object_ptr<Ui::CallButton> _settings;

@@ -883,6 +883,12 @@ void HistoryWidget::initVoiceRecordBar() {
 		return false;
 	});
 
+	const auto applyLocalDraft = [=] {
+		if (_history && _history->localDraft()) {
+			applyDraft();
+		}
+	};
+
 	_voiceRecordBar->sendActionUpdates(
 	) | rpl::start_with_next([=](const auto &data) {
 		if (!_history) {
@@ -909,7 +915,11 @@ void HistoryWidget::initVoiceRecordBar() {
 			data.duration,
 			action);
 		_voiceRecordBar->clearListenState();
+		applyLocalDraft();
 	}, lifetime());
+
+	_voiceRecordBar->cancelRequests(
+	) | rpl::start_with_next(applyLocalDraft, lifetime());
 
 	_voiceRecordBar->lockShowStarts(
 	) | rpl::start_with_next([=] {
@@ -925,13 +935,6 @@ void HistoryWidget::initVoiceRecordBar() {
 	_voiceRecordBar->lockViewportEvents(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		_scroll->viewportEvent(e);
-	}, lifetime());
-
-	_voiceRecordBar->shownValue(
-	) | rpl::start_with_next([=](bool shown) {
-		if (!shown) {
-			applyDraft();
-		}
 	}, lifetime());
 
 	_voiceRecordBar->hideFast();
@@ -1730,13 +1733,16 @@ void HistoryWidget::fastShowAtEnd(not_null<History*> history) {
 void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	InvokeQueued(this, [=] { updateStickersByEmoji(); });
 
+	if (_voiceRecordBar->isActive()) {
+		return;
+	}
+
 	auto draft = !_history
 		? nullptr
 		: _history->localEditDraft()
 		? _history->localEditDraft()
 		: _history->localDraft();
-	auto fieldAvailable = canWriteMessage()
-		&& !_voiceRecordBar->isActive();
+	auto fieldAvailable = canWriteMessage();
 	if (!draft || (!_history->localEditDraft() && !fieldAvailable)) {
 		auto fieldWillBeHiddenAfterEdit = (!fieldAvailable && _editMsgId != 0);
 		clearFieldText(0, fieldHistoryAction);
@@ -5572,17 +5578,18 @@ void HistoryWidget::refreshPinnedBarButton(bool many) {
 void HistoryWidget::setupGroupCallTracker() {
 	Expects(_history != nullptr);
 
-	const auto channel = _history->peer->asChannel();
-	if (!channel) {
+	const auto peer = _history->peer;
+	if (!peer->asMegagroup() && !peer->asChat()) {
 		_groupCallTracker = nullptr;
 		_groupCallBar = nullptr;
 		return;
 	}
 	_groupCallTracker = std::make_unique<HistoryView::GroupCallTracker>(
-		channel);
+		peer);
 	_groupCallBar = std::make_unique<Ui::GroupCallBar>(
 		this,
-		_groupCallTracker->content());
+		_groupCallTracker->content(),
+		Core::App().appDeactivatedValue());
 
 	rpl::single(
 		rpl::empty_value()

@@ -292,7 +292,7 @@ void SessionsContent::terminateAll() {
 	auto callback = [=] {
 		const auto reset = crl::guard(weak, [=] {
 			_authorizations->cancelCurrentRequest();
-			shortPollSessions();
+			_authorizations->reload();
 		});
 		_authorizations->requestTerminate(
 			[=](const MTPBool &result) { reset(); },

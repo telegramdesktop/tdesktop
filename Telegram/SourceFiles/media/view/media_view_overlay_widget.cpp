@@ -1334,7 +1334,9 @@ void OverlayWidget::handleVisibleChanged(bool visible) {
 }
 
 void OverlayWidget::handleScreenChanged(QScreen *screen) {
-	moveToScreen();
+	if (isVisible()) {
+		moveToScreen();
+	}
 }
 
 void OverlayWidget::onToMessage() {
