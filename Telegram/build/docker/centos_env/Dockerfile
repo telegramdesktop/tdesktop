@@ -28,7 +28,7 @@ WORKDIR $LibrariesPath
 
 FROM builder AS patches
 RUN git clone $GIT/desktop-app/patches.git
-RUN cd patches && git checkout f22ccc5
+RUN cd patches && git checkout 6afd91a
 
 FROM builder AS libffi
 RUN git clone -b v3.3 --depth=1 $GIT/libffi/libffi.git
