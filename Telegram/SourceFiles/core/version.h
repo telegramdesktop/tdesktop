@@ -26,4 +26,4 @@ constexpr auto AppVersion = 2004015;
 constexpr auto AppVersionStr = "2.4.15";
 constexpr auto AppBetaVersion = true;
 constexpr auto AppAlphaVersion = TDESKTOP_ALPHA_VERSION;
-constexpr auto AppVersionReleaseStr = "2.4.14.1";
+constexpr auto AppVersionReleaseStr = "2.4.15.1";
