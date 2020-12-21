@@ -477,11 +477,17 @@ groupCallMembersListItem: PeerListItem(defaultPeerListItem) {
 groupCallMembersList: PeerList(defaultPeerList) {
 	bg: groupCallMembersBg;
 	about: FlatLabel(defaultPeerListAbout) {
-		textFg: groupCallMemberInactiveStatus;
+		textFg: groupCallMemberNotJoinedStatus;
 	}
 	item: groupCallMembersListItem;
 }
+groupCallInviteDividerLabel: FlatLabel(defaultFlatLabel) {
+	textFg: groupCallMemberNotJoinedStatus;
+}
+groupCallInviteDividerPadding: margins(17px, 7px, 17px, 7px);
+
 groupCallInviteMembersList: PeerList(groupCallMembersList) {
+	padding: margins(0px, 10px, 0px, 10px);
 	item: PeerListItem(groupCallMembersListItem) {
 		statusFg: groupCallMemberNotJoinedStatus;
 		statusFgOver: groupCallMemberNotJoinedStatus;

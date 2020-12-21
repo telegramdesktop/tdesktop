@@ -1835,6 +1835,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_invited_status" = "invited";
 "lng_group_call_invite_title" = "Invite members";
 "lng_group_call_invite_button" = "Invite";
+"lng_group_call_add_to_group_one" = "{user} isn't a member of «{group}» yet. Add them to the group?";
+"lng_group_call_add_to_group_some" = "Some of those users aren't members of «{group}» yet. Add them to the group?";
+"lng_group_call_add_to_group_all" = "Those users aren't members of «{group}» yet. Add them to the group?";
+"lng_group_call_invite_members" = "Group members";
+"lng_group_call_invite_search_results" = "Search results";
 "lng_group_call_new_muted" = "Mute new members";
 "lng_group_call_speakers" = "Speakers";
 "lng_group_call_microphone" = "Microphone";

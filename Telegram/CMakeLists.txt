@@ -235,6 +235,8 @@ PRIVATE
     boxes/peer_list_box.h
     boxes/peer_list_controllers.cpp
     boxes/peer_list_controllers.h
+    boxes/peer_lists_box.cpp
+    boxes/peer_lists_box.h
     boxes/passcode_box.cpp
     boxes/passcode_box.h
     boxes/photo_crop_box.cpp

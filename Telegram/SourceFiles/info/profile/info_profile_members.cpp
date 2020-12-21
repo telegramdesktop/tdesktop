@@ -423,10 +423,6 @@ int Members::peerListSelectedRowsCount() {
 	return 0;
 }
 
-std::vector<not_null<PeerData*>> Members::peerListCollectSelectedRows() {
-	return {};
-}
-
 void Members::peerListScrollToTop() {
 	_scrollToRequests.fire({ -1, -1 });
 }

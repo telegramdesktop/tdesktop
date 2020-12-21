@@ -483,7 +483,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 			using AddBotToGroup = AddBotToGroupBoxController;
 			_addAction(
 				tr::lng_profile_invite_to_group(tr::now),
-				[=] { AddBotToGroup::Start(controller, user); });
+				[=] { AddBotToGroup::Start(user); });
 		}
 		addPollAction(user);
 		if (user->canExportChatHistory()) {
@@ -803,7 +803,7 @@ void PeerMenuShareContactBox(
 	};
 	*weak = Ui::show(Box<PeerListBox>(
 		std::make_unique<ChooseRecipientBoxController>(
-			navigation,
+			&navigation->session(),
 			std::move(callback)),
 		[](not_null<PeerListBox*> box) {
 			box->addButton(tr::lng_cancel(), [=] {
@@ -1010,7 +1010,7 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 	};
 	*weak = Ui::show(Box<PeerListBox>(
 		std::make_unique<ChooseRecipientBoxController>(
-			navigation,
+			&navigation->session(),
 			std::move(callback)),
 		std::move(initBox)), Ui::LayerOption::KeepOther);
 	return weak->data();

@@ -33,7 +33,7 @@ GroupCall::GroupCall(
 	uint64 accessHash)
 : _id(id)
 , _accessHash(accessHash)
-, _peer(peer) // #TODO calls migration
+, _peer(peer)
 , _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); }) {
 }
 

@@ -1410,6 +1410,9 @@ void GroupMembers::peerListSetTitle(rpl::producer<QString> title) {
 void GroupMembers::peerListSetAdditionalTitle(rpl::producer<QString> title) {
 }
 
+void GroupMembers::peerListSetHideEmpty(bool hide) {
+}
+
 bool GroupMembers::peerListIsRowChecked(not_null<PeerListRow*> row) {
 	return false;
 }
@@ -1419,10 +1422,6 @@ void GroupMembers::peerListScrollToTop() {
 
 int GroupMembers::peerListSelectedRowsCount() {
 	return 0;
-}
-
-std::vector<not_null<PeerData*>> GroupMembers::peerListCollectSelectedRows() {
-	return {};
 }
 
 void GroupMembers::peerListAddSelectedPeerInBunch(not_null<PeerData*> peer) {

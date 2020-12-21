@@ -68,7 +68,6 @@ public:
 	void peerListSetAdditionalTitle(rpl::producer<QString> title) override;
 	bool peerListIsRowChecked(not_null<PeerListRow*> row) override;
 	int peerListSelectedRowsCount() override;
-	std::vector<not_null<PeerData*>> peerListCollectSelectedRows() override;
 	void peerListScrollToTop() override;
 	void peerListAddSelectedPeerInBunch(
 		not_null<PeerData*> peer) override;
@@ -209,11 +208,6 @@ int TypeDelegate::peerListSelectedRowsCount() {
 	return 0;
 }
 
-auto TypeDelegate::peerListCollectSelectedRows()
--> std::vector<not_null<PeerData*>> {
-	return {};
-}
-
 void TypeDelegate::peerListScrollToTop() {
 }
 
@@ -347,13 +341,13 @@ void PaintFilterChatsTypeIcon(
 }
 
 EditFilterChatsListController::EditFilterChatsListController(
-	not_null<Window::SessionNavigation*> navigation,
+	not_null<Main::Session*> session,
 	rpl::producer<QString> title,
 	Flags options,
 	Flags selected,
 	const base::flat_set<not_null<History*>> &peers)
-: ChatsListBoxController(navigation)
-, _navigation(navigation)
+: ChatsListBoxController(session)
+, _session(session)
 , _title(std::move(title))
 , _peers(peers)
 , _options(options)
@@ -361,7 +355,7 @@ EditFilterChatsListController::EditFilterChatsListController(
 }
 
 Main::Session &EditFilterChatsListController::session() const {
-	return _navigation->session();
+	return *_session;
 }
 
 void EditFilterChatsListController::rowClicked(not_null<PeerListRow*> row) {

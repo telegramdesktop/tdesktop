@@ -399,7 +399,7 @@ int PeerListBox::peerListSelectedRowsCount() {
 	return _select ? _select->entity()->getItemsCount() : 0;
 }
 
-auto PeerListBox::peerListCollectSelectedRows()
+auto PeerListBox::collectSelectedRows()
 -> std::vector<not_null<PeerData*>> {
 	auto result = std::vector<not_null<PeerData*>>();
 	auto items = _select
@@ -982,6 +982,18 @@ void PeerListContent::setAboveWidget(object_ptr<TWidget> widget) {
 	}
 }
 
+void PeerListContent::setAboveSearchWidget(object_ptr<TWidget> widget) {
+	_aboveSearchWidget = std::move(widget);
+	if (_aboveSearchWidget) {
+		_aboveSearchWidget->setParent(this);
+	}
+}
+
+void PeerListContent::setHideEmpty(bool hide) {
+	_hideEmpty = hide;
+	resizeToWidth(width());
+}
+
 void PeerListContent::setBelowWidget(object_ptr<TWidget> widget) {
 	_belowWidget = std::move(widget);
 	if (_belowWidget) {
@@ -990,6 +1002,9 @@ void PeerListContent::setBelowWidget(object_ptr<TWidget> widget) {
 }
 
 int PeerListContent::labelHeight() const {
+	if (_hideEmpty && !shownRowsCount()) {
+		return 0;
+	}
 	auto computeLabelHeight = [](auto &label) {
 		if (!label) {
 			return 0;
@@ -1082,34 +1097,45 @@ void PeerListContent::paintEvent(QPaintEvent *e) {
 }
 
 int PeerListContent::resizeGetHeight(int newWidth) {
+	const auto rowsCount = shownRowsCount();
+	const auto hideAll = !rowsCount && _hideEmpty;
 	_aboveHeight = 0;
 	if (_aboveWidget) {
 		_aboveWidget->resizeToWidth(newWidth);
 		_aboveWidget->moveToLeft(0, 0, newWidth);
-		if (showingSearch()) {
+		if (hideAll || showingSearch()) {
 			_aboveWidget->hide();
 		} else {
 			_aboveWidget->show();
 			_aboveHeight = _aboveWidget->height();
 		}
 	}
-	const auto rowsCount = shownRowsCount();
+	if (_aboveSearchWidget) {
+		_aboveSearchWidget->resizeToWidth(newWidth);
+		_aboveSearchWidget->moveToLeft(0, 0, newWidth);
+		if (hideAll || !showingSearch()) {
+			_aboveSearchWidget->hide();
+		} else {
+			_aboveSearchWidget->show();
+			_aboveHeight = _aboveSearchWidget->height();
+		}
+	}
 	const auto labelTop = rowsTop() + qMax(1, shownRowsCount()) * _rowHeight;
 	const auto labelWidth = newWidth - 2 * st::contactsPadding.left();
 	if (_description) {
 		_description->resizeToWidth(labelWidth);
 		_description->moveToLeft(st::contactsPadding.left(), labelTop + st::membersAboutLimitPadding.top(), newWidth);
-		_description->setVisible(!showingSearch());
+		_description->setVisible(!hideAll && !showingSearch());
 	}
 	if (_searchNoResults) {
 		_searchNoResults->resizeToWidth(labelWidth);
 		_searchNoResults->moveToLeft(st::contactsPadding.left(), labelTop + st::membersAboutLimitPadding.top(), newWidth);
-		_searchNoResults->setVisible(showingSearch() && _filterResults.empty() && !_controller->isSearchLoading());
+		_searchNoResults->setVisible(!hideAll && showingSearch() && _filterResults.empty() && !_controller->isSearchLoading());
 	}
 	if (_searchLoading) {
 		_searchLoading->resizeToWidth(labelWidth);
 		_searchLoading->moveToLeft(st::contactsPadding.left(), labelTop + st::membersAboutLimitPadding.top(), newWidth);
-		_searchLoading->setVisible(showingSearch() && _filterResults.empty() && _controller->isSearchLoading());
+		_searchLoading->setVisible(!hideAll && showingSearch() && _filterResults.empty() && _controller->isSearchLoading());
 	}
 	const auto label = labelHeight();
 	const auto belowTop = (label > 0 || rowsCount > 0)
@@ -1119,7 +1145,7 @@ int PeerListContent::resizeGetHeight(int newWidth) {
 	if (_belowWidget) {
 		_belowWidget->resizeToWidth(newWidth);
 		_belowWidget->moveToLeft(0, belowTop, newWidth);
-		if (showingSearch()) {
+		if (hideAll || showingSearch()) {
 			_belowWidget->hide();
 		} else {
 			_belowWidget->show();
@@ -1351,14 +1377,17 @@ crl::time PeerListContent::paintRow(
 	return (refreshStatusAt - ms);
 }
 
-void PeerListContent::selectSkip(int direction) {
-	if (_pressed.index.value >= 0) {
-		return;
+PeerListContent::SkipResult PeerListContent::selectSkip(int direction) {
+	if (hasPressed()) {
+		return { _selected.index.value, _selected.index.value };
 	}
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
 
 	auto newSelectedIndex = _selected.index.value + direction;
+
+	auto result = SkipResult();
+	result.shouldMoveTo = newSelectedIndex;
 
 	auto rowsCount = shownRowsCount();
 	auto index = 0;
@@ -1415,12 +1444,34 @@ void PeerListContent::selectSkip(int direction) {
 	}
 
 	update();
+
+	_selectedIndex = _selected.index.value;
+	result.reallyMovedTo = _selected.index.value;
+	return result;
 }
 
 void PeerListContent::selectSkipPage(int height, int direction) {
 	auto rowsToSkip = height / _rowHeight;
-	if (!rowsToSkip) return;
+	if (!rowsToSkip) {
+		return;
+	}
 	selectSkip(rowsToSkip * direction);
+}
+
+rpl::producer<int> PeerListContent::selectedIndexValue() const {
+	return _selectedIndex.value();
+}
+
+bool PeerListContent::hasSelection() const {
+	return _selected.index.value >= 0;
+}
+
+bool PeerListContent::hasPressed() const {
+	return _pressed.index.value >= 0;
+}
+
+void PeerListContent::clearSelection() {
+	setSelected(Selected());
 }
 
 void PeerListContent::loadProfilePhotos() {
@@ -1569,14 +1620,17 @@ void PeerListContent::setSearchQuery(
 	clearSearchRows();
 }
 
-void PeerListContent::submitted() {
+bool PeerListContent::submitted() {
 	if (const auto row = getRow(_selected.index)) {
 		_controller->rowClicked(row);
+		return true;
 	} else if (showingSearch()) {
 		if (const auto row = getRow(RowIndex(0))) {
 			_controller->rowClicked(row);
+			return true;
 		}
 	}
+	return false;
 }
 
 void PeerListContent::visibleTopBottomUpdated(
@@ -1590,11 +1644,14 @@ void PeerListContent::visibleTopBottomUpdated(
 
 void PeerListContent::setSelected(Selected selected) {
 	updateRow(_selected.index);
-	if (_selected != selected) {
-		_selected = selected;
-		updateRow(_selected.index);
-		setCursor(_selected.action ? style::cur_pointer : style::cur_default);
+	if (_selected == selected) {
+		return;
 	}
+	_selected = selected;
+	updateRow(_selected.index);
+	setCursor(_selected.action ? style::cur_pointer : style::cur_default);
+
+	_selectedIndex = _selected.index.value;
 }
 
 void PeerListContent::setContexted(Selected contexted) {
