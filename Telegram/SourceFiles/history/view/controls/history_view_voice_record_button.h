@@ -11,9 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
-namespace HistoryView::Controls {
+namespace Ui {
+namespace Paint {
+class Blobs;
+} // namespace Paint
+} // namespace Ui
 
-class RecordCircle;
+namespace HistoryView::Controls {
 
 class VoiceRecordButton final : public Ui::AbstractButton {
 public:
@@ -34,25 +38,28 @@ public:
 	void requestPaintLevel(quint16 level);
 
 	[[nodiscard]] rpl::producer<bool> actives() const;
+	[[nodiscard]] rpl::producer<> clicks() const;
 
 	[[nodiscard]] bool inCircle(const QPoint &localPos) const;
 
 private:
 	void init();
 
-	rpl::event_stream<crl::time> _recordAnimationTicked;
-	std::unique_ptr<RecordCircle> _recordCircle;
+	std::unique_ptr<Ui::Paint::Blobs> _blobs;
 
+	crl::time _lastUpdateTime = 0;
+	crl::time _blobsHideLastTime = 0;
 	const int _center;
 
 	rpl::variable<float64> _showProgress = 0.;
-	rpl::variable<float64> _colorProgress = 0.;
+	float64 _colorProgress = 0.;
 	rpl::variable<bool> _inCircle = false;
 	rpl::variable<Type> _state = Type::Record;
 
 	// This can animate for a very long time (like in music playing),
 	// so it should be a Basic, not a Simple animation.
-	Ui::Animations::Basic _recordingAnimation;
+	Ui::Animations::Basic _animation;
+	Ui::Animations::Simple _stateChangedAnimation;
 };
 
 } // namespace HistoryView::Controls
