@@ -1449,7 +1449,7 @@ void HistoryWidget::activate() {
 			updateHistoryGeometry();
 		}
 	}
-	if (App::wnd()) App::wnd()->setInnerFocus();
+	controller()->widget()->setInnerFocus();
 }
 
 void HistoryWidget::setInnerFocus() {
@@ -3347,7 +3347,7 @@ void HistoryWidget::doneShow() {
 		_groupCallBar->finishAnimating();
 	}
 	checkHistoryActivation();
-	App::wnd()->setInnerFocus();
+	controller()->widget()->setInnerFocus();
 	_preserveScrollTop = false;
 }
 
