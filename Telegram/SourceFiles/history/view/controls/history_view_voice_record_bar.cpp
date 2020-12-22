@@ -1389,8 +1389,9 @@ void VoiceRecordBar::hideFast() {
 void VoiceRecordBar::stopRecording(StopType type) {
 	using namespace ::Media::Capture;
 	if (type == StopType::Cancel) {
-		_cancelRequests.fire({});
-		instance()->stop();
+		instance()->stop(crl::guard(this, [=](Result &&data) {
+			_cancelRequests.fire({});
+		}));
 		return;
 	}
 	instance()->stop(crl::guard(this, [=](Result &&data) {
