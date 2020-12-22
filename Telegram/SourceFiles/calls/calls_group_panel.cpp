@@ -316,6 +316,7 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 , _hangup(widget(), st::groupCallHangup) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_settings->setColorOverrides(_mute->colorOverrides());
+	_layerBg->setHideByBackgroundClick(true);
 
 	SubscribeToMigration(
 		_peer,
@@ -335,6 +336,14 @@ bool GroupPanel::isActive() const {
 	return _window->isActiveWindow()
 		&& _window->isVisible()
 		&& !(_window->windowState() & Qt::WindowMinimized);
+}
+
+void GroupPanel::minimize() {
+	_window->setWindowState(_window->windowState() | Qt::WindowMinimized);
+}
+
+void GroupPanel::close() {
+	_window->close();
 }
 
 void GroupPanel::showAndActivate() {

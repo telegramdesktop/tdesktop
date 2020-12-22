@@ -486,6 +486,25 @@ bool Instance::activateCurrentCall() {
 	return false;
 }
 
+bool Instance::minimizeCurrentActiveCall() {
+	if (inCall() && _currentCallPanel->isActive()) {
+		_currentCallPanel->minimize();
+		return true;
+	} else if (inGroupCall() && _currentGroupCallPanel->isActive()) {
+		_currentGroupCallPanel->minimize();
+		return true;
+	}
+	return false;
+}
+
+bool Instance::closeCurrentActiveCall() {
+	if (inGroupCall() && _currentGroupCallPanel->isActive()) {
+		_currentGroupCallPanel->close();
+		return true;
+	}
+	return false;
+}
+
 Call *Instance::currentCall() const {
 	return _currentCall.get();
 }

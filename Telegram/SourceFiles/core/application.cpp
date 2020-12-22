@@ -915,18 +915,25 @@ bool Application::closeActiveWindow() {
 	if (hideMediaView()) {
 		return true;
 	}
-	if (const auto window = activeWindow()) {
-		window->close();
-		return true;
+	if (!calls().closeCurrentActiveCall()) {
+		if (const auto window = activeWindow()) {
+			if (window->widget()->isVisible()
+				&& window->widget()->isActive()) {
+				window->close();
+				return true;
+			}
+		}
 	}
 	return false;
 }
 
 bool Application::minimizeActiveWindow() {
 	hideMediaView();
-	if (const auto window = activeWindow()) {
-		window->minimize();
-		return true;
+	if (!calls().minimizeCurrentActiveCall()) {
+		if (const auto window = activeWindow()) {
+			window->minimize();
+			return true;
+		}
 	}
 	return false;
 }

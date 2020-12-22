@@ -68,6 +68,8 @@ public:
 	~GroupPanel();
 
 	[[nodiscard]] bool isActive() const;
+	void minimize();
+	void close();
 	void showAndActivate();
 	void closeBeforeDestroy();
 
