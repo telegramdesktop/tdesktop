@@ -517,7 +517,7 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 		}
 		if (chat->canAddMembers()) {
 			_addAction(
-				tr::lng_profile_add_participant(tr::now),
+				tr::lng_channel_add_members(tr::now),
 				[=] { AddChatMembers(controller, chat); });
 		}
 		addPollAction(chat);
@@ -567,7 +567,9 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 		}
 		if (channel->canAddMembers()) {
 			_addAction(
-				tr::lng_channel_add_members(tr::now),
+				(channel->isMegagroup()
+					? tr::lng_channel_add_members(tr::now)
+					: tr::lng_channel_add_users(tr::now)),
 				[=] { PeerMenuAddChannelMembers(navigation, channel); });
 		}
 		addPollAction(channel);
