@@ -42,7 +42,6 @@ void init() {
 		u"rstrtmgr.dll"_q,
 		u"psapi.dll"_q,
 		u"user32.dll"_q,
-		u"thai.dll"_q,
 	};
 	for (const auto &lib : list) {
 		SafeLoadLibrary(lib);
