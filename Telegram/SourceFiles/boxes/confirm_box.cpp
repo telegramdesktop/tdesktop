@@ -801,7 +801,10 @@ void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
 
 void DeleteMessagesBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		deleteAndClear();
+		// Don't make the clearing history so easy.
+		if (!_wipeHistoryPeer) {
+			deleteAndClear();
+		}
 	} else {
 		BoxContent::keyPressEvent(e);
 	}
