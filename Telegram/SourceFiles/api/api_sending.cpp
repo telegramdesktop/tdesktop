@@ -182,7 +182,8 @@ void SendExistingDocument(
 		return MTP_inputMediaDocument(
 			MTP_flags(0),
 			document->mtpInput(),
-			MTPint());
+			MTPint(), // ttl_seconds
+			MTPstring()); // query
 	};
 	SendExistingMedia(
 		std::move(message),

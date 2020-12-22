@@ -63,7 +63,7 @@ inputMediaPhoto#b3ba0635 flags:# id:InputPhoto ttl_seconds:flags.0?int = InputMe
 inputMediaGeoPoint#f9c44144 geo_point:InputGeoPoint = InputMedia;
 inputMediaContact#f8ab7dfb phone_number:string first_name:string last_name:string vcard:string = InputMedia;
 inputMediaUploadedDocument#5b38c6c1 flags:# nosound_video:flags.3?true force_file:flags.4?true file:InputFile thumb:flags.2?InputFile mime_type:string attributes:Vector<DocumentAttribute> stickers:flags.0?Vector<InputDocument> ttl_seconds:flags.1?int = InputMedia;
-inputMediaDocument#23ab23d2 flags:# id:InputDocument ttl_seconds:flags.0?int = InputMedia;
+inputMediaDocument#33473058 flags:# id:InputDocument ttl_seconds:flags.0?int query:flags.1?string = InputMedia;
 inputMediaVenue#c13d1c11 geo_point:InputGeoPoint title:string address:string provider:string venue_id:string venue_type:string = InputMedia;
 inputMediaPhotoExternal#e5bbfe1a flags:# url:string ttl_seconds:flags.0?int = InputMedia;
 inputMediaDocumentExternal#fb52dc99 flags:# url:string ttl_seconds:flags.0?int = InputMedia;
@@ -1195,7 +1195,7 @@ groupCall#55903081 flags:# join_muted:flags.1?true can_change_join_muted:flags.2
 
 inputGroupCall#d8aa840f id:long access_hash:long = InputGroupCall;
 
-groupCallParticipant#56b087c9 flags:# muted:flags.0?true left:flags.1?true can_self_unmute:flags.2?true just_joined:flags.4?true user_id:int date:int active_date:flags.3?int source:int = GroupCallParticipant;
+groupCallParticipant#56b087c9 flags:# muted:flags.0?true left:flags.1?true can_self_unmute:flags.2?true just_joined:flags.4?true versioned:flags.5?true user_id:int date:int active_date:flags.3?int source:int = GroupCallParticipant;
 
 phone.groupCall#66ab0bfc call:GroupCall participants:Vector<GroupCallParticipant> participants_next_offset:string users:Vector<User> = phone.GroupCall;
 
