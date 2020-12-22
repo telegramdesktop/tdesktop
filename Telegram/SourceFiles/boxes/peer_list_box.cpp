@@ -1255,7 +1255,11 @@ void PeerListContent::contextMenuEvent(QContextMenuEvent *e) {
 				}));
 			_contextMenu->popup(e->globalPos());
 			e->accept();
+		} else {
+			setContexted(Selected());
 		}
+	} else {
+		setContexted(Selected());
 	}
 }
 
