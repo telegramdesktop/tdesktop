@@ -193,9 +193,6 @@ private:
 GroupThumbs::Thumb::Thumb(Key key, Fn<void()> handler)
 : _key(key) {
 	_link = std::make_shared<LambdaClickHandler>(std::move(handler));
-	_fullWidth = std::min(
-		wantedPixSize().width(),
-		st::mediaviewGroupWidthMax);
 	validateImage();
 }
 
@@ -208,9 +205,6 @@ GroupThumbs::Thumb::Thumb(
 , _photoMedia(photo->createMediaView())
 , _origin(origin) {
 	_link = std::make_shared<LambdaClickHandler>(std::move(handler));
-	_fullWidth = std::min(
-		wantedPixSize().width(),
-		st::mediaviewGroupWidthMax);
 	_photoMedia->wanted(Data::PhotoSize::Thumbnail, origin);
 	validateImage();
 }
@@ -224,9 +218,6 @@ GroupThumbs::Thumb::Thumb(
 , _documentMedia(document->createMediaView())
 , _origin(origin) {
 	_link = std::make_shared<LambdaClickHandler>(std::move(handler));
-	_fullWidth = std::min(
-		wantedPixSize().width(),
-		st::mediaviewGroupWidthMax);
 	_documentMedia->thumbnailWanted(origin);
 	validateImage();
 }
@@ -257,7 +248,8 @@ void GroupThumbs::Thumb::validateImage() {
 		const auto originalHeight = _image->height();
 		const auto takeWidth = originalWidth * st::mediaviewGroupWidthMax
 			/ pixSize.width();
-		const auto original = _image->original();
+		auto original = _image->original();
+		original.setDevicePixelRatio(cRetinaFactor());
 		_full = App::pixmapFromImageInPlace(original.copy(
 			(originalWidth - takeWidth) / 2,
 			0,
@@ -274,6 +266,9 @@ void GroupThumbs::Thumb::validateImage() {
 			pixSize.height() * cIntRetinaFactor(),
 			Images::Option::Smooth);
 	}
+	_fullWidth = std::min(
+		wantedPixSize().width(),
+		st::mediaviewGroupWidthMax);
 }
 
 int GroupThumbs::Thumb::leftToUpdate() const {
