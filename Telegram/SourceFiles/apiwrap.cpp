@@ -3458,7 +3458,8 @@ void ApiWrap::checkForUnreadMentions(
 
 void ApiWrap::addChatParticipants(
 		not_null<PeerData*> peer,
-		const std::vector<not_null<UserData*>> &users) {
+		const std::vector<not_null<UserData*>> &users,
+		Fn<void(bool)> done) {
 	if (const auto chat = peer->asChat()) {
 		for (const auto user : users) {
 			request(MTPmessages_AddChatUser(
@@ -3467,8 +3468,10 @@ void ApiWrap::addChatParticipants(
 				MTP_int(kForwardMessagesOnAdd)
 			)).done([=](const MTPUpdates &result) {
 				applyUpdates(result);
+				if (done) done(true);
 			}).fail([=](const RPCError &error) {
 				ShowAddParticipantsError(error.type(), peer, { 1, user });
+				if (done) done(false);
 			}).afterDelay(crl::time(5)).send();
 		}
 	} else if (const auto channel = peer->asChannel()) {
@@ -3480,14 +3483,17 @@ void ApiWrap::addChatParticipants(
 		auto list = QVector<MTPInputUser>();
 		list.reserve(qMin(int(users.size()), int(kMaxUsersPerInvite)));
 		const auto send = [&] {
+			const auto callback = base::take(done);
 			request(MTPchannels_InviteToChannel(
 				channel->inputChannel,
 				MTP_vector<MTPInputUser>(list)
 			)).done([=](const MTPUpdates &result) {
 				applyUpdates(result);
 				requestParticipantsCountDelayed(channel);
+				if (callback) callback(true);
 			}).fail([=](const RPCError &error) {
 				ShowAddParticipantsError(error.type(), peer, users);
+				if (callback) callback(false);
 			}).afterDelay(crl::time(5)).send();
 		};
 		for (const auto user : users) {
@@ -4639,7 +4645,8 @@ void ApiWrap::uploadAlbumMedia(
 					fields.vid(),
 					fields.vaccess_hash(),
 					fields.vfile_reference()),
-				MTP_int(data.vttl_seconds().value_or_empty()));
+				MTP_int(data.vttl_seconds().value_or_empty()),
+				MTPstring()); // query
 			sendAlbumWithUploaded(item, groupId, media);
 		} break;
 		}

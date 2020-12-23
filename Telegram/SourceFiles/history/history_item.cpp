@@ -776,7 +776,8 @@ bool HistoryItem::canBeEditedFromHistory() const {
 	}
 	if ((IsServerMsgId(id) || isScheduled())
 		&& !serviceMsg()
-		&& (out() || history()->peer->isSelf())) {
+		&& (out() || history()->peer->isSelf())
+		&& !Has<HistoryMessageForwarded>()) {
 		return true;
 	}
 	return false;

@@ -51,8 +51,7 @@ class BlockPeerBoxController
 	: public ChatsListBoxController
 	, private base::Subscriber {
 public:
-	explicit BlockPeerBoxController(
-		not_null<Window::SessionNavigation*> navigation);
+	explicit BlockPeerBoxController(not_null<Main::Session*> session);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -72,19 +71,19 @@ protected:
 private:
 	void updateIsBlocked(not_null<PeerListRow*> row, PeerData *peer) const;
 
-	const not_null<Window::SessionNavigation*> _navigation;
+	const not_null<Main::Session*> _session;
 	Fn<void(not_null<PeerData*> peer)> _blockPeerCallback;
 
 };
 
 BlockPeerBoxController::BlockPeerBoxController(
-	not_null<Window::SessionNavigation*> navigation)
-: ChatsListBoxController(navigation)
-, _navigation(navigation) {
+	not_null<Main::Session*> session)
+: ChatsListBoxController(session)
+, _session(session) {
 }
 
 Main::Session &BlockPeerBoxController::session() const {
-	return _navigation->session();
+	return *_session;
 }
 
 void BlockPeerBoxController::prepareViewHook() {
@@ -294,7 +293,8 @@ void BlockedBoxController::handleBlockedEvent(not_null<PeerData*> user) {
 
 void BlockedBoxController::BlockNewPeer(
 		not_null<Window::SessionController*> window) {
-	auto controller = std::make_unique<BlockPeerBoxController>(window);
+	auto controller = std::make_unique<BlockPeerBoxController>(
+		&window->session());
 	auto initBox = [=, controller = controller.get()](
 			not_null<PeerListBox*> box) {
 		controller->setBlockPeerCallback([=](not_null<PeerData*> peer) {

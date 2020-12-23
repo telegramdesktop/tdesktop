@@ -63,7 +63,6 @@ private:
 	void peerListSetAdditionalTitle(rpl::producer<QString> title) override;
 	bool peerListIsRowChecked(not_null<PeerListRow*> row) override;
 	int peerListSelectedRowsCount() override;
-	std::vector<not_null<PeerData*>> peerListCollectSelectedRows() override;
 	void peerListScrollToTop() override;
 	void peerListAddSelectedPeerInBunch(
 		not_null<PeerData*> peer) override;

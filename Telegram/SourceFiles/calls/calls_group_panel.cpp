@@ -29,6 +29,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "boxes/peers/edit_participants_box.h"
+#include "boxes/peers/add_participants_box.h"
+#include "boxes/peer_lists_box.h"
+#include "boxes/confirm_box.h"
 #include "app.h"
 #include "apiwrap.h" // api().kickParticipant.
 #include "styles/style_calls.h"
@@ -51,8 +54,7 @@ class InviteController final : public ParticipantsBoxController {
 public:
 	InviteController(
 		not_null<PeerData*> peer,
-		base::flat_set<not_null<UserData*>> alreadyIn,
-		int fullInCount);
+		base::flat_set<not_null<UserData*>> alreadyIn);
 
 	void prepare() override;
 
@@ -63,34 +65,81 @@ public:
 
 	void itemDeselectedHook(not_null<PeerData*> peer) override;
 
-	std::variant<int, not_null<UserData*>> inviteSelectedUsers(
-		not_null<PeerListBox*> box,
-		not_null<GroupCall*> call) const;
+	[[nodiscard]] auto peersWithRows() const
+		-> not_null<const base::flat_set<not_null<UserData*>>*>;
+	[[nodiscard]] rpl::producer<not_null<UserData*>> rowAdded() const;
+
+	[[nodiscard]] bool hasRowFor(not_null<PeerData*> peer) const;
 
 private:
-	[[nodiscard]] int alreadyInCount() const;
 	[[nodiscard]] bool isAlreadyIn(not_null<UserData*> user) const;
-	[[nodiscard]] int fullCount() const;
 
 	std::unique_ptr<PeerListRow> createRow(
 		not_null<UserData*> user) const override;
 
 	not_null<PeerData*> _peer;
 	const base::flat_set<not_null<UserData*>> _alreadyIn;
-	const int _fullInCount = 0;
-	mutable base::flat_set<not_null<UserData*>> _skippedUsers;
+	mutable base::flat_set<not_null<UserData*>> _inGroup;
+	rpl::event_stream<not_null<UserData*>> _rowAdded;
 
 };
 
+class InviteContactsController final : public AddParticipantsBoxController {
+public:
+	InviteContactsController(
+		not_null<PeerData*> peer,
+		base::flat_set<not_null<UserData*>> alreadyIn,
+		not_null<const base::flat_set<not_null<UserData*>>*> inGroup,
+		rpl::producer<not_null<UserData*>> discoveredInGroup);
+
+private:
+	void prepareViewHook() override;
+
+	std::unique_ptr<PeerListRow> createRow(
+		not_null<UserData*> user) override;
+
+	const not_null<const base::flat_set<not_null<UserData*>>*> _inGroup;
+	rpl::producer<not_null<UserData*>> _discoveredInGroup;
+
+	rpl::lifetime _lifetime;
+
+};
+
+[[nodiscard]] object_ptr<Ui::RpWidget> CreateSectionSubtitle(
+		QWidget *parent,
+		rpl::producer<QString> text) {
+	auto result = object_ptr<Ui::FixedHeightWidget>(
+		parent,
+		st::searchedBarHeight);
+
+	const auto raw = result.data();
+	raw->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		auto p = QPainter(raw);
+		p.fillRect(clip, st::groupCallMembersBgOver);
+	}, raw->lifetime());
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		raw,
+		std::move(text),
+		st::groupCallBoxLabel);
+	raw->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		const auto padding = st::groupCallInviteDividerPadding;
+		const auto available = width - padding.left() - padding.right();
+		label->resizeToNaturalWidth(available);
+		label->moveToLeft(padding.left(), padding.top(), width);
+	}, label->lifetime());
+
+	return result;
+}
+
 InviteController::InviteController(
 	not_null<PeerData*> peer,
-	base::flat_set<not_null<UserData*>> alreadyIn,
-	int fullInCount)
+	base::flat_set<not_null<UserData*>> alreadyIn)
 : ParticipantsBoxController(CreateTag{}, nullptr, peer, Role::Members)
 , _peer(peer)
-, _alreadyIn(std::move(alreadyIn))
-, _fullInCount(std::max(fullInCount, int(_alreadyIn.size()))) {
-	_skippedUsers.emplace(peer->session().user());
+, _alreadyIn(std::move(alreadyIn)) {
 	SubscribeToMigration(
 		_peer,
 		lifetime(),
@@ -98,8 +147,14 @@ InviteController::InviteController(
 }
 
 void InviteController::prepare() {
+	delegate()->peerListSetHideEmpty(true);
 	ParticipantsBoxController::prepare();
-	delegate()->peerListSetTitle(tr::lng_group_call_invite_title());
+	delegate()->peerListSetAboveWidget(CreateSectionSubtitle(
+		nullptr,
+		tr::lng_group_call_invite_members()));
+	delegate()->peerListSetAboveSearchWidget(CreateSectionSubtitle(
+		nullptr,
+		tr::lng_group_call_invite_members()));
 }
 
 void InviteController::rowClicked(not_null<PeerListRow*> row) {
@@ -115,44 +170,71 @@ base::unique_qptr<Ui::PopupMenu> InviteController::rowContextMenu(
 void InviteController::itemDeselectedHook(not_null<PeerData*> peer) {
 }
 
-int InviteController::alreadyInCount() const {
-	return std::max(_fullInCount, int(_alreadyIn.size()));
+bool InviteController::hasRowFor(not_null<PeerData*> peer) const {
+	return (delegate()->peerListFindRow(peer->id) != nullptr);
 }
 
 bool InviteController::isAlreadyIn(not_null<UserData*> user) const {
 	return _alreadyIn.contains(user);
 }
 
-int InviteController::fullCount() const {
-	return alreadyInCount() + delegate()->peerListSelectedRowsCount();
-}
-
 std::unique_ptr<PeerListRow> InviteController::createRow(
 		not_null<UserData*> user) const {
 	if (user->isSelf() || user->isBot()) {
-		_skippedUsers.emplace(user);
 		return nullptr;
 	}
 	auto result = std::make_unique<PeerListRow>(user);
+	_rowAdded.fire_copy(user);
+	_inGroup.emplace(user);
 	if (isAlreadyIn(user)) {
 		result->setDisabledState(PeerListRow::State::DisabledChecked);
 	}
 	return result;
 }
 
-std::variant<int, not_null<UserData*>> InviteController::inviteSelectedUsers(
-		not_null<PeerListBox*> box,
-		not_null<GroupCall*> call) const {
-	const auto rows = box->peerListCollectSelectedRows();
-	const auto users = ranges::view::all(
-		rows
-	) | ranges::view::transform([](not_null<PeerData*> peer) {
-		Expects(peer->isUser());
-		Expects(!peer->isSelf());
+auto InviteController::peersWithRows() const
+-> not_null<const base::flat_set<not_null<UserData*>>*> {
+	return &_inGroup;
+}
 
-		return not_null<UserData*>(peer->asUser());
-	}) | ranges::to_vector;
-	return call->inviteUsers(users);
+rpl::producer<not_null<UserData*>> InviteController::rowAdded() const {
+	return _rowAdded.events();
+}
+
+InviteContactsController::InviteContactsController(
+	not_null<PeerData*> peer,
+	base::flat_set<not_null<UserData*>> alreadyIn,
+	not_null<const base::flat_set<not_null<UserData*>>*> inGroup,
+	rpl::producer<not_null<UserData*>> discoveredInGroup)
+: AddParticipantsBoxController(peer, std::move(alreadyIn))
+, _inGroup(inGroup)
+, _discoveredInGroup(std::move(discoveredInGroup)) {
+}
+
+void InviteContactsController::prepareViewHook() {
+	AddParticipantsBoxController::prepareViewHook();
+
+	delegate()->peerListSetAboveWidget(CreateSectionSubtitle(
+		nullptr,
+		tr::lng_contacts_header()));
+	delegate()->peerListSetAboveSearchWidget(CreateSectionSubtitle(
+		nullptr,
+		tr::lng_group_call_invite_search_results()));
+
+	std::move(
+		_discoveredInGroup
+	) | rpl::start_with_next([=](not_null<UserData*> user) {
+		if (auto row = delegate()->peerListFindRow(user->id)) {
+			delegate()->peerListRemoveRow(row);
+		}
+	}, _lifetime);
+}
+
+std::unique_ptr<PeerListRow> InviteContactsController::createRow(
+		not_null<UserData*> user) {
+	return _inGroup->contains(user)
+		? nullptr
+		: AddParticipantsBoxController::createRow(user);
 }
 
 } // namespace
@@ -197,6 +279,21 @@ void LeaveGroupCallBox(
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
+void GroupCallConfirmBox(
+		not_null<Ui::GenericBox*> box,
+		const QString &text,
+		rpl::producer<QString> button,
+		Fn<void()> callback) {
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box.get(),
+			text,
+			st::groupCallBoxLabel),
+		st::boxPadding);
+	box->addButton(std::move(button), callback);
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
 GroupPanel::GroupPanel(not_null<GroupCall*> call)
 : _call(call)
 , _peer(call->peer())
@@ -219,6 +316,7 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 , _hangup(widget(), st::groupCallHangup) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_settings->setColorOverrides(_mute->colorOverrides());
+	_layerBg->setHideByBackgroundClick(true);
 
 	SubscribeToMigration(
 		_peer,
@@ -238,6 +336,14 @@ bool GroupPanel::isActive() const {
 	return _window->isActiveWindow()
 		&& _window->isVisible()
 		&& !(_window->windowState() & Qt::WindowMinimized);
+}
+
+void GroupPanel::minimize() {
+	_window->setWindowState(_window->windowState() | Qt::WindowMinimized);
+}
+
+void GroupPanel::close() {
+	_window->close();
 }
 
 void GroupPanel::showAndActivate() {
@@ -362,7 +468,7 @@ void GroupPanel::initControls() {
 	});
 
 	_settings->setText(tr::lng_menu_settings());
-	_hangup->setText(tr::lng_box_leave());
+	_hangup->setText(tr::lng_group_call_leave());
 
 	_members->desiredHeightValue(
 	) | rpl::start_with_next([=] {
@@ -460,52 +566,131 @@ void GroupPanel::addMembers() {
 	alreadyIn.emplace(_peer->session().user());
 	auto controller = std::make_unique<InviteController>(
 		_peer,
-		std::move(alreadyIn),
-		real->fullCount());
+		alreadyIn);
 	controller->setStyleOverrides(
 		&st::groupCallInviteMembersList,
 		&st::groupCallMultiSelect);
 
-	const auto weak = base::make_weak(_call);
-	auto initBox = [=, controller = controller.get()](
-			not_null<PeerListBox*> box) {
-		box->addButton(tr::lng_group_call_invite_button(), [=] {
-			if (const auto call = weak.get()) {
-				const auto result = controller->inviteSelectedUsers(box, call);
+	auto contactsController = std::make_unique<InviteContactsController>(
+		_peer,
+		std::move(alreadyIn),
+		controller->peersWithRows(),
+		controller->rowAdded());
+	contactsController->setStyleOverrides(
+		&st::groupCallInviteMembersList,
+		&st::groupCallMultiSelect);
 
-				if (const auto user = std::get_if<not_null<UserData*>>(&result)) {
-					Ui::Toast::Show(
-						widget(),
-						Ui::Toast::Config{
-							.text = tr::lng_group_call_invite_done_user(
-								tr::now,
-								lt_user,
-								Ui::Text::Bold((*user)->firstName),
-								Ui::Text::WithEntities),
-							.st = &st::defaultToast,
-						});
-				} else if (const auto count = std::get_if<int>(&result)) {
-					if (*count > 0) {
-						Ui::Toast::Show(
-							widget(),
-							Ui::Toast::Config{
-								.text = tr::lng_group_call_invite_done_many(
-									tr::now,
-									lt_count,
-									*count,
-									Ui::Text::RichLangValue),
-								.st = &st::defaultToast,
-							});
-					}
-				} else {
-					Unexpected("Result in GroupCall::inviteUsers.");
-				}
+	const auto weak = base::make_weak(_call);
+	const auto invite = [=](const std::vector<not_null<UserData*>> &users) {
+		const auto call = weak.get();
+		if (!call) {
+			return;
+		}
+		const auto result = call->inviteUsers(users);
+		if (const auto user = std::get_if<not_null<UserData*>>(&result)) {
+			Ui::Toast::Show(
+				widget(),
+				Ui::Toast::Config{
+					.text = tr::lng_group_call_invite_done_user(
+						tr::now,
+						lt_user,
+						Ui::Text::Bold((*user)->firstName),
+						Ui::Text::WithEntities),
+					.st = &st::defaultToast,
+				});
+		} else if (const auto count = std::get_if<int>(&result)) {
+			if (*count > 0) {
+				Ui::Toast::Show(
+					widget(),
+					Ui::Toast::Config{
+						.text = tr::lng_group_call_invite_done_many(
+							tr::now,
+							lt_count,
+							*count,
+							Ui::Text::RichLangValue),
+						.st = &st::defaultToast,
+					});
 			}
-			box->closeBox();
+		} else {
+			Unexpected("Result in GroupCall::inviteUsers.");
+		}
+	};
+	const auto inviteWithAdd = [=](
+			const std::vector<not_null<UserData*>> &users,
+			const std::vector<not_null<UserData*>> &nonMembers,
+			Fn<void()> finish) {
+		_peer->session().api().addChatParticipants(
+			_peer,
+			nonMembers,
+			[=](bool) { invite(users); finish(); });
+	};
+	const auto inviteWithConfirmation = [=](
+			const std::vector<not_null<UserData*>> &users,
+			const std::vector<not_null<UserData*>> &nonMembers,
+			Fn<void()> finish) {
+		if (nonMembers.empty()) {
+			invite(users);
+			finish();
+			return;
+		}
+		const auto name = _peer->name;
+		const auto text = (nonMembers.size() == 1)
+			? tr::lng_group_call_add_to_group_one(
+				tr::now,
+				lt_user,
+				nonMembers.front()->shortName(),
+				lt_group,
+				name)
+			: (nonMembers.size() < users.size())
+			? tr::lng_group_call_add_to_group_some(tr::now, lt_group, name)
+			: tr::lng_group_call_add_to_group_all(tr::now, lt_group, name);
+		const auto shared = std::make_shared<QPointer<Ui::GenericBox>>();
+		const auto finishWithConfirm = [=] {
+			if (*shared) {
+				(*shared)->closeBox();
+			}
+			finish();
+		};
+		auto box = Box(
+			GroupCallConfirmBox,
+			text,
+			tr::lng_participant_invite(),
+			[=] { inviteWithAdd(users, nonMembers, finishWithConfirm); });
+		*shared = box.data();
+		_layerBg->showBox(std::move(box));
+	};
+	auto initBox = [=, controller = controller.get()](
+			not_null<PeerListsBox*> box) {
+		box->setTitle(tr::lng_group_call_invite_title());
+		box->addButton(tr::lng_group_call_invite_button(), [=] {
+			const auto rows = box->collectSelectedRows();
+
+			const auto users = ranges::view::all(
+				rows
+			) | ranges::view::transform([](not_null<PeerData*> peer) {
+				return not_null<UserData*>(peer->asUser());
+			}) | ranges::to_vector;
+
+			const auto nonMembers = ranges::view::all(
+				users
+			) | ranges::view::filter([&](not_null<UserData*> user) {
+				return !controller->hasRowFor(user);
+			}) | ranges::to_vector;
+
+			const auto finish = [box = Ui::MakeWeak(box)]() {
+				if (box) {
+					box->closeBox();
+				}
+			};
+			inviteWithConfirmation(users, nonMembers, finish);
 		});
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	};
-	_layerBg->showBox(Box<PeerListBox>(std::move(controller), initBox));
+
+	auto controllers = std::vector<std::unique_ptr<PeerListController>>();
+	controllers.push_back(std::move(controller));
+	controllers.push_back(std::move(contactsController));
+	_layerBg->showBox(Box<PeerListsBox>(std::move(controllers), initBox));
 }
 
 void GroupPanel::kickMember(not_null<UserData*> user) {

@@ -345,14 +345,12 @@ historyRecordFont: font(13px);
 historyRecordDurationSkip: 12px;
 historyRecordDurationFg: historyComposeAreaFg;
 
-historyRecordLevelMainRadius: 23px;
-historyRecordLevelMainRadiusAmplitude: 14px;
-historyRecordMajorAmplitudeRadius: 14px;
-historyRecordMinorAmplitudeRadius: 7px;
-historyRecordRandomAddition: 8px;
-historyRecordRadiusDiff: 50px;
-historyRecordRadiusDiffMin: 10px;
-historyRecordLevelMaxRadius: 70px;
+historyRecordMainBlobMinRadius: 23px;
+historyRecordMainBlobMaxRadius: 37px;
+historyRecordMinorBlobMinRadius: 40px;
+historyRecordMinorBlobMaxRadius: 47px;
+historyRecordMajorBlobMinRadius: 43px;
+historyRecordMajorBlobMaxRadius: 50px;
 
 historyRecordTextStyle: TextStyle(defaultTextStyle) {
 	font: historyRecordFont;

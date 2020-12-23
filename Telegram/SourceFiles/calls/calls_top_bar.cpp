@@ -267,7 +267,7 @@ void TopBar::initControls() {
 			call->setMuted(!call->muted());
 		} else if (const auto group = _groupCall.get()) {
 			if (group->muted() == MuteState::ForceMuted) {
-				Ui::Toast::Show(tr::lng_group_call_force_muted(tr::now));
+				Ui::Toast::Show(tr::lng_group_call_force_muted_sub(tr::now));
 			} else {
 				group->setMuted((group->muted() == MuteState::Muted)
 					? MuteState::Active

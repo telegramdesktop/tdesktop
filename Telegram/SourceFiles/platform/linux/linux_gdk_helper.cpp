@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_gdk_helper.h"
 
 #include "platform/linux/linux_libs.h"
+#include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_xcb_utilities_linux.h"
 
 extern "C" {
@@ -78,17 +79,19 @@ bool GdkHelperLoaded() {
 
 void XSetTransientForHint(GdkWindow *window, quintptr winId) {
 	if (gdk_helper_loaded == GtkLoaded::Gtk2) {
-		xcb_change_property(
-			base::Platform::XCB::GetConnectionFromQt(),
-			XCB_PROP_MODE_REPLACE,
-			gdk_x11_drawable_get_xid(window),
-			XCB_ATOM_WM_TRANSIENT_FOR,
-			XCB_ATOM_WINDOW,
-			32,
-			1,
-			&winId);
+		if (!IsWayland()) {
+			xcb_change_property(
+				base::Platform::XCB::GetConnectionFromQt(),
+				XCB_PROP_MODE_REPLACE,
+				gdk_x11_drawable_get_xid(window),
+				XCB_ATOM_WM_TRANSIENT_FOR,
+				XCB_ATOM_WINDOW,
+				32,
+				1,
+				&winId);
+		}
 	} else if (gdk_helper_loaded == GtkLoaded::Gtk3) {
-		if (gdk_is_x11_window_check(window)) {
+		if (!IsWayland() && gdk_is_x11_window_check(window)) {
 			xcb_change_property(
 				base::Platform::XCB::GetConnectionFromQt(),
 				XCB_PROP_MODE_REPLACE,

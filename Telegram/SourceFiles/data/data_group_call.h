@@ -91,8 +91,6 @@ private:
 	void applyParticipantsSlice(
 		const QVector<MTPGroupCallParticipant> &list,
 		ApplySliceSource sliceSource);
-	void applyParticipantsMutes(
-		const MTPDupdateGroupCallParticipants &update);
 	void requestUnknownParticipants();
 	void changePeerEmptyCallFlag();
 	void checkFinishSpeakingByActive();

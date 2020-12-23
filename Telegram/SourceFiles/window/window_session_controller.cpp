@@ -194,7 +194,7 @@ void SessionNavigation::showPeerByLinkResolved(
 		const auto user = peer->asUser();
 		if (user && user->isBot() && !info.startToken.isEmpty()) {
 			user->botInfo->shareGameShortName = info.startToken;
-			AddBotToGroupBoxController::Start(this, user);
+			AddBotToGroupBoxController::Start(user);
 		} else {
 			crl::on_main(this, [=] {
 				showPeerHistory(peer->id, params);
@@ -207,7 +207,7 @@ void SessionNavigation::showPeerByLinkResolved(
 			&& !user->botInfo->cantJoinGroups
 			&& !info.startToken.isEmpty()) {
 			user->botInfo->startGroupToken = info.startToken;
-			AddBotToGroupBoxController::Start(this, user);
+			AddBotToGroupBoxController::Start(user);
 		} else if (user && user->isBot()) {
 			// Always open bot chats, even from mention links.
 			crl::on_main(this, [=] {

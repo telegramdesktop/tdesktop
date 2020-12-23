@@ -33,47 +33,41 @@ namespace {
 class PrivacyExceptionsBoxController : public ChatsListBoxController {
 public:
 	PrivacyExceptionsBoxController(
-		not_null<Window::SessionNavigation*> navigation,
+		not_null<Main::Session*> session,
 		rpl::producer<QString> title,
 		const std::vector<not_null<PeerData*>> &selected);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
-	std::vector<not_null<PeerData*>> getResult() const;
-
 protected:
 	void prepareViewHook() override;
 	std::unique_ptr<Row> createRow(not_null<History*> history) override;
 
 private:
-	not_null<Window::SessionNavigation*> _navigation;
+	const not_null<Main::Session*> _session;
 	rpl::producer<QString> _title;
 	std::vector<not_null<PeerData*>> _selected;
 
 };
 
 PrivacyExceptionsBoxController::PrivacyExceptionsBoxController(
-	not_null<Window::SessionNavigation*> navigation,
+	not_null<Main::Session*> session,
 	rpl::producer<QString> title,
 	const std::vector<not_null<PeerData*>> &selected)
-: ChatsListBoxController(navigation)
-, _navigation(navigation)
+: ChatsListBoxController(session)
+, _session(session)
 , _title(std::move(title))
 , _selected(selected) {
 }
 
 Main::Session &PrivacyExceptionsBoxController::session() const {
-	return _navigation->session();
+	return *_session;
 }
 
 void PrivacyExceptionsBoxController::prepareViewHook() {
 	delegate()->peerListSetTitle(std::move(_title));
 	delegate()->peerListAddSelectedPeers(_selected);
-}
-
-std::vector<not_null<PeerData*>> PrivacyExceptionsBoxController::getResult() const {
-	return delegate()->peerListCollectSelectedRows();
 }
 
 void PrivacyExceptionsBoxController::rowClicked(not_null<PeerListRow*> row) {
@@ -146,13 +140,13 @@ void EditPrivacyBox::editExceptions(
 		Exception exception,
 		Fn<void()> done) {
 	auto controller = std::make_unique<PrivacyExceptionsBoxController>(
-		_window,
+		&_window->session(),
 		_controller->exceptionBoxTitle(exception),
 		exceptions(exception));
 	auto initBox = [=, controller = controller.get()](
 			not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_settings_save(), crl::guard(this, [=] {
-			exceptions(exception) = controller->getResult();
+			exceptions(exception) = box->collectSelectedRows();
 			const auto type = [&] {
 				switch (exception) {
 				case Exception::Always: return Exception::Never;

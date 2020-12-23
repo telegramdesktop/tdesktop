@@ -41,7 +41,7 @@ public:
 	using Flags = Data::ChatFilter::Flags;
 
 	EditFilterChatsListController(
-		not_null<Window::SessionNavigation*> navigation,
+		not_null<Main::Session*> session,
 		rpl::producer<QString> title,
 		Flags options,
 		Flags selected,
@@ -64,7 +64,7 @@ private:
 
 	void updateTitle();
 
-	const not_null<Window::SessionNavigation*> _navigation;
+	const not_null<Main::Session*> _session;
 	rpl::producer<QString> _title;
 	base::flat_set<not_null<History*>> _peers;
 	Flags _options;

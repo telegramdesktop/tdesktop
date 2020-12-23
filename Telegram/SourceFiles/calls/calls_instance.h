@@ -55,6 +55,8 @@ public:
 	[[nodiscard]] bool hasActivePanel(
 		not_null<Main::Session*> session) const;
 	bool activateCurrentCall();
+	bool minimizeCurrentActiveCall();
+	bool closeCurrentActiveCall();
 	auto getVideoCapture()
 		-> std::shared_ptr<tgcalls::VideoCaptureInterface> override;
 	void requestPermissionsOrFail(Fn<void()> onSuccess, bool video = true);

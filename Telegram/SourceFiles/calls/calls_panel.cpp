@@ -221,6 +221,10 @@ void Panel::showAndActivate() {
 	_window->setFocus();
 }
 
+void Panel::minimize() {
+	_window->setWindowState(_window->windowState() | Qt::WindowMinimized);
+}
+
 void Panel::replaceCall(not_null<Call*> call) {
 	reinitWithCall(call);
 	updateControlsGeometry();

@@ -632,7 +632,7 @@ void GroupInfoBox::submit() {
 				not_null<PeerListBox*> box) {
 			auto create = [box, title, weak] {
 				if (weak) {
-					auto rows = box->peerListCollectSelectedRows();
+					auto rows = box->collectSelectedRows();
 					if (!rows.empty()) {
 						weak->createGroup(box, title, rows);
 					}
@@ -643,7 +643,8 @@ void GroupInfoBox::submit() {
 		};
 		Ui::show(
 			Box<PeerListBox>(
-				std::make_unique<AddParticipantsBoxController>(_navigation),
+				std::make_unique<AddParticipantsBoxController>(
+					&_navigation->session()),
 				std::move(initBox)),
 			Ui::LayerOption::KeepOther);
 	}

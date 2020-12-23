@@ -258,10 +258,6 @@ int InnerWidget::peerListSelectedRowsCount() {
 	return 0;
 }
 
-std::vector<not_null<PeerData*>> InnerWidget::peerListCollectSelectedRows() {
-	return {};
-}
-
 void InnerWidget::peerListScrollToTop() {
 	_scrollToRequests.fire({ -1, -1 });
 }

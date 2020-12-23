@@ -1506,6 +1506,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_add_to_group" = "Add to group";
 
 "lng_context_copy_link" = "Copy Link";
+"lng_context_copy_message_link" = "Copy Message Link";
 "lng_context_copy_post_link" = "Copy Post Link";
 "lng_context_copy_email" = "Copy Email Address";
 "lng_context_copy_hashtag" = "Copy Hashtag";
@@ -1845,6 +1846,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_invited_status" = "invited";
 "lng_group_call_invite_title" = "Invite members";
 "lng_group_call_invite_button" = "Invite";
+"lng_group_call_add_to_group_one" = "{user} isn't a member of «{group}» yet. Add them to the group?";
+"lng_group_call_add_to_group_some" = "Some of those users aren't members of «{group}» yet. Add them to the group?";
+"lng_group_call_add_to_group_all" = "Those users aren't members of «{group}» yet. Add them to the group?";
+"lng_group_call_invite_members" = "Group members";
+"lng_group_call_invite_search_results" = "Search results";
 "lng_group_call_new_muted" = "Mute new members";
 "lng_group_call_speakers" = "Speakers";
 "lng_group_call_microphone" = "Microphone";

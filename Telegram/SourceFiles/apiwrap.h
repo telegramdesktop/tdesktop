@@ -366,7 +366,8 @@ public:
 		Fn<void()> callbackNotModified = nullptr);
 	void addChatParticipants(
 		not_null<PeerData*> peer,
-		const std::vector<not_null<UserData*>> &users);
+		const std::vector<not_null<UserData*>> &users,
+		Fn<void(bool)> done = nullptr);
 
 	rpl::producer<SendAction> sendActions() const {
 		return _sendActions.events();

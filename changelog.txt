@@ -1,3 +1,13 @@
+2.5.1 (23.12.20)
+
+- Fix crash in voice calls.
+
+2.5 (23.12.20)
+
+- Turn any of your group chats into a hop-on, hop-off conference call.
+- Get up to several thousand participants in each voice chat.
+- Control the number of speakers with flexible admin tools.
+
 2.4.15 beta (19.12.20)
 
 - Improve design of voice chats.

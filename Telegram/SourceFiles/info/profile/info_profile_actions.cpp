@@ -535,7 +535,7 @@ void ActionsFiller::addInviteToGroupAction(
 		_wrap,
 		tr::lng_profile_invite_to_group(),
 		CanInviteBotToGroupValue(user),
-		[=] { AddBotToGroupBoxController::Start(controller, user); });
+		[=] { AddBotToGroupBoxController::Start(user); });
 }
 
 void ActionsFiller::addShareContactAction(not_null<UserData*> user) {

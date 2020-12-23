@@ -33,7 +33,7 @@ GroupCall::GroupCall(
 	uint64 accessHash)
 : _id(id)
 , _accessHash(accessHash)
-, _peer(peer) // #TODO calls migration
+, _peer(peer)
 , _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); }) {
 }
 
@@ -312,36 +312,6 @@ void GroupCall::applyParticipantsSlice(
 	}
 }
 
-void GroupCall::applyParticipantsMutes(
-		const MTPDupdateGroupCallParticipants &update) {
-	for (const auto &participant : update.vparticipants().v) {
-		participant.match([&](const MTPDgroupCallParticipant &data) {
-			if (data.is_left()) {
-				return;
-			}
-			const auto userId = data.vuser_id().v;
-			const auto user = _peer->owner().user(userId);
-			const auto i = ranges::find(
-				_participants,
-				user,
-				&Participant::user);
-			if (i != end(_participants)) {
-				const auto was = *i;
-				i->muted = data.is_muted();
-				i->canSelfUnmute = !i->muted || data.is_can_self_unmute();
-				if (!i->canSelfUnmute) {
-					i->speaking = false;
-					_speakingByActiveFinishes.remove(i->user);
-				}
-				_participantUpdates.fire({
-					.was = was,
-					.now = *i,
-				});
-			}
-		});
-	}
-}
-
 void GroupCall::applyLastSpoke(
 		uint32 ssrc,
 		LastSpokeTimes when,
@@ -563,17 +533,29 @@ bool GroupCall::inCall() const {
 
 void GroupCall::applyUpdate(const MTPDupdateGroupCallParticipants &update) {
 	const auto version = update.vversion().v;
-	if (version < _version) {
-		return;
-	} else if (version == _version) {
-		applyParticipantsMutes(update);
-		return;
-	} else if (version != _version + 1) {
-		applyParticipantsMutes(update);
-		reload();
+	const auto applyUpdate = [&] {
+		if (version < _version) {
+			return false;
+		}
+		auto versionShouldIncrement = false;
+		for (const auto &participant : update.vparticipants().v) {
+			const auto versioned = participant.match([&](
+					const MTPDgroupCallParticipant &data) {
+				return data.is_versioned();
+			});
+			if (versioned) {
+				versionShouldIncrement = true;
+				break;
+			}
+		}
+		return versionShouldIncrement
+			? (version == _version + 1)
+			: (version == _version);
+	}();
+	if (!applyUpdate) {
 		return;
 	}
-	_version = update.vversion().v;
+	_version = version;
 	applyUpdateChecked(update);
 }
 
