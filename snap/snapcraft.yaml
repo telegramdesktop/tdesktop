@@ -223,18 +223,14 @@ parts:
   openal:
     source: https://github.com/kcat/openal-soft.git
     source-depth: 1
-    source-tag: openal-soft-1.20.1
+    source-tag: openal-soft-1.21.0
     plugin: cmake
     build-packages:
       - libasound2-dev
       - libpulse-dev
-      - libsndio-dev
-      - portaudio19-dev
     stage-packages:
       - libasound2
       - libpulse0
-      - libportaudio2
-      - libsndio7.0
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
