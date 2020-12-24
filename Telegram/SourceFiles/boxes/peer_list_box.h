@@ -300,6 +300,9 @@ public:
 		peerListFinishSelectedRowsBunch();
 	}
 
+	virtual void peerListShowRowMenu(
+		not_null<PeerListRow*> row,
+		Fn<void(not_null<Ui::PopupMenu*>)> destroyed) = 0;
 	virtual int peerListSelectedRowsCount() = 0;
 	virtual std::unique_ptr<PeerListState> peerListSaveState() const = 0;
 	virtual void peerListRestoreState(
@@ -557,6 +560,10 @@ public:
 	std::unique_ptr<PeerListState> saveState() const;
 	void restoreState(std::unique_ptr<PeerListState> state);
 
+	void showRowMenu(
+		not_null<PeerListRow*> row,
+		Fn<void(not_null<Ui::PopupMenu*>)> destroyed);
+
 	auto scrollToRequests() const {
 		return _scrollToRequests.events();
 	}
@@ -639,6 +646,11 @@ private:
 	PeerListRow *getRow(RowIndex element);
 	RowIndex findRowIndex(not_null<PeerListRow*> row, RowIndex hint = RowIndex());
 	QRect getActiveActionRect(not_null<PeerListRow*> row, RowIndex index) const;
+
+	bool showRowMenu(
+		RowIndex index,
+		QPoint globalPos,
+		Fn<void(not_null<Ui::PopupMenu*>)> destroyed = nullptr);
 
 	crl::time paintRow(Painter &p, crl::time ms, RowIndex index);
 
@@ -822,6 +834,11 @@ public:
 	void peerListRestoreState(
 			std::unique_ptr<PeerListState> state) override {
 		_content->restoreState(std::move(state));
+	}
+	void peerListShowRowMenu(
+			not_null<PeerListRow*> row,
+			Fn<void(not_null<Ui::PopupMenu*>)> destroyed) override {
+		_content->showRowMenu(row, std::move(destroyed));
 	}
 
 protected:

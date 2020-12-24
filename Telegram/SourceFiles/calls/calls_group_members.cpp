@@ -243,6 +243,9 @@ private:
 	void prepareRows(not_null<Data::GroupCall*> real);
 	//void repaintByTimer();
 
+	[[nodiscard]] base::unique_qptr<Ui::PopupMenu> createRowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row);
 	void setupListChangeViewers(not_null<GroupCall*> call);
 	void subscribeToChanges(not_null<Data::GroupCall*> real);
 	void updateRow(
@@ -638,10 +641,7 @@ MembersController::MembersController(
 }
 
 MembersController::~MembersController() {
-	if (_menu) {
-		_menu->setDestroyedCallback(nullptr);
-		_menu = nullptr;
-	}
+	base::take(_menu);
 }
 
 void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
@@ -1002,29 +1002,20 @@ auto MembersController::kickMemberRequests() const
 }
 
 void MembersController::rowClicked(not_null<PeerListRow*> row) {
-	if (_menu) {
-		_menu->setDestroyedCallback(nullptr);
-		_menu->deleteLater();
-		_menu = nullptr;
-	}
-	_menu = rowContextMenu(_menuParent, row);
-	if (const auto raw = _menu.get()) {
-		raw->setDestroyedCallback([=] {
-			if (_menu && _menu.get() != raw) {
-				return;
-			}
-			auto saved = base::take(_menu);
-			for (const auto peer : base::take(_menuCheckRowsAfterHidden)) {
-				if (const auto row = findRow(peer->asUser())) {
-					if (row->speaking()) {
-						checkSpeakingRowPosition(row);
-					}
+	delegate()->peerListShowRowMenu(row, [=](not_null<Ui::PopupMenu*> menu) {
+		if (!_menu || _menu.get() != menu) {
+			return;
+		}
+		auto saved = base::take(_menu);
+		for (const auto peer : base::take(_menuCheckRowsAfterHidden)) {
+			if (const auto row = findRow(peer->asUser())) {
+				if (row->speaking()) {
+					checkSpeakingRowPosition(row);
 				}
 			}
-			_menu = std::move(saved);
-		});
-		raw->popup(QCursor::pos());
-	}
+		}
+		_menu = std::move(saved);
+	});
 }
 
 void MembersController::rowActionClicked(
@@ -1033,6 +1024,23 @@ void MembersController::rowActionClicked(
 }
 
 base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) {
+	auto result = createRowContextMenu(parent, row);
+
+	if (result) {
+		// First clear _menu value, so that we don't check row positions yet.
+		base::take(_menu);
+
+		// Here unique_qptr is used like a shared pointer, where
+		// not the last destroyed pointer destroys the object, but the first.
+		_menu = base::unique_qptr<Ui::PopupMenu>(result.get());
+	}
+
+	return result;
+}
+
+base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
@@ -1125,7 +1133,9 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 		_kickMemberRequests.fire_copy(user);
 	});
 
-	if (_peer->canManageGroupCall() && (!admin || mute)) {
+	if ((muteState != Row::State::Invited)
+		&& _peer->canManageGroupCall()
+		&& (!admin || mute)) {
 		result->addAction(
 			(mute
 				? tr::lng_group_call_context_mute(tr::now)

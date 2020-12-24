@@ -1229,37 +1229,56 @@ void PeerListContent::mousePressReleased(Qt::MouseButton button) {
 	}
 }
 
-void PeerListContent::contextMenuEvent(QContextMenuEvent *e) {
+void PeerListContent::showRowMenu(
+		not_null<PeerListRow*> row,
+		Fn<void(not_null<Ui::PopupMenu*>)> destroyed) {
+	showRowMenu(findRowIndex(row), QCursor::pos(), std::move(destroyed));
+}
+
+bool PeerListContent::showRowMenu(
+		RowIndex index,
+		QPoint globalPos,
+		Fn<void(not_null<Ui::PopupMenu*>)> destroyed) {
 	if (_contextMenu) {
-		_contextMenu->deleteLater();
+		_contextMenu->setDestroyedCallback(nullptr);
 		_contextMenu = nullptr;
 	}
 	setContexted(Selected());
-	if (e->reason() == QContextMenuEvent::Mouse) {
-		handleMouseMove(e->globalPos());
-	}
-
-	setContexted(_selected);
 	if (_pressButton != Qt::LeftButton) {
 		mousePressReleased(_pressButton);
 	}
 
-	if (const auto row = getRow(_contexted.index)) {
-		_contextMenu = _controller->rowContextMenu(this, row);
-		if (_contextMenu) {
-			_contextMenu->setDestroyedCallback(crl::guard(
-				this,
-				[this] {
-					setContexted(Selected());
-					handleMouseMove(QCursor::pos());
-				}));
-			_contextMenu->popup(e->globalPos());
-			e->accept();
-		} else {
+	const auto row = getRow(index);
+	if (!row) {
+		return false;
+	}
+
+	_contextMenu = _controller->rowContextMenu(this, row);
+	const auto raw = _contextMenu.get();
+	if (!raw) {
+		return false;
+	}
+
+	setContexted({ index, false });
+	raw->setDestroyedCallback(crl::guard(
+		this,
+		[=] {
 			setContexted(Selected());
-		}
-	} else {
-		setContexted(Selected());
+			handleMouseMove(QCursor::pos());
+			if (destroyed) {
+				destroyed(raw);
+			}
+		}));
+	raw->popup(globalPos);
+	return true;
+}
+
+void PeerListContent::contextMenuEvent(QContextMenuEvent *e) {
+	if (e->reason() == QContextMenuEvent::Mouse) {
+		handleMouseMove(e->globalPos());
+	}
+	if (showRowMenu(_selected.index, e->globalPos())) {
+		e->accept();
 	}
 }
 

@@ -689,7 +689,8 @@ void TopBar::updateControlsGeometry() {
 		left += _durationLabel->width() + st::callBarSkip;
 	}
 	if (!_userpics.isNull()) {
-		left += _userpics.width() / _userpics.devicePixelRatio();
+		left += (_userpics.width() / _userpics.devicePixelRatio())
+			+ st::callBarSkip;
 	}
 	if (_signalBars) {
 		_signalBars->moveToLeft(left, (height() - _signalBars->height()) / 2);
