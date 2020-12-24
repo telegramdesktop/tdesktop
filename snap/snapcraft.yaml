@@ -77,7 +77,6 @@ parts:
       - liblzma-dev
       - libopus-dev
       - libpulse-dev
-      - libqt5svg5-dev
       - libqt5waylandclient5-dev
       - libssl-dev
       - libxcb1-dev
@@ -93,7 +92,6 @@ parts:
       - liblzma5
       - libopus0
       - libpulse0
-      - libqt5svg5
       - libqt5waylandclient5
       - libssl1.1
       - libxcb1
