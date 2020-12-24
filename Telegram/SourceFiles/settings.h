@@ -183,6 +183,7 @@ DeclareSetting(bool, ShowMessagesID);
 DeclareSetting(bool, ShowEmojiButtonAsText);
 DeclareSetting(bool, ShowRepeaterOption);
 DeclareSetting(bool, RepeaterReplyToOrigMsg);
+DeclareSetting(bool, DisableCloudDraftSync);
 DeclareSetting(bool, ShowPhoneNumber);
 
 DeclareSetting(int, NetSpeedBoost);

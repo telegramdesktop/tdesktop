@@ -175,6 +175,7 @@ bool gShowMessagesID = false;
 bool gShowEmojiButtonAsText = false;
 bool gShowRepeaterOption = false;
 bool gRepeaterReplyToOrigMsg = false;
+bool gDisableCloudDraftSync = false;
 bool gShowPhoneNumber = true;
 
 int gNetSpeedBoost = 0;

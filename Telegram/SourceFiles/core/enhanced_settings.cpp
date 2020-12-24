@@ -226,10 +226,14 @@ namespace EnhancedSettings {
         });
 
         ReadBoolOption(settings, "repeater_reply_to_orig_msg", [&](auto v) {
-        	cSetRepeaterReplyToOrigMsg(v);
+            cSetRepeaterReplyToOrigMsg(v);
         });
 
-        return true;
+        ReadBoolOption(settings, "disable_cloud_draft_sync", [&](auto v) {
+            cSetDisableCloudDraftSync(v);
+        });
+
+      return true;
     }
 
     void Manager::writeDefaultFile() {
@@ -252,6 +256,7 @@ namespace EnhancedSettings {
         settings.insert(qsl("always_delete_for"), 0);
         settings.insert(qsl("show_phone_number"), true);
         settings.insert(qsl("repeater_reply_to_orig_msg"), false);
+        settings.insert(qsl("disable_cloud_draft_sync"), false);
 
         auto document = QJsonDocument();
         document.setObject(settings);
@@ -281,6 +286,7 @@ namespace EnhancedSettings {
         settings.insert(qsl("always_delete_for"), cAlwaysDeleteFor());
         settings.insert(qsl("show_phone_number"), cShowPhoneNumber());
         settings.insert(qsl("repeater_reply_to_orig_msg"), cRepeaterReplyToOrigMsg());
+        settings.insert(qsl("disable_cloud_draft_sync"), cDisableCloudDraftSync());
 
         auto document = QJsonDocument();
         document.setObject(settings);

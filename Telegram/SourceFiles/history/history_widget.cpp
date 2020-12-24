@@ -599,6 +599,9 @@ HistoryWidget::HistoryWidget(
 			updateBotKeyboard(update.history);
 		}
 		if (update.flags & Data::HistoryUpdate::Flag::CloudDraft) {
+			if (cDisableCloudDraftSync()) {
+				return;
+			}
 			applyCloudDraft(update.history);
 		}
 		if (update.flags & Data::HistoryUpdate::Flag::LocalMessages) {

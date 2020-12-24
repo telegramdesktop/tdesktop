@@ -69,6 +69,10 @@ void ApplyPeerCloudDraft(
 		draft.is_no_webpage());
 	cloudDraft->date = draft.vdate().v;
 
+	if (cDisableCloudDraftSync()) {
+		return;
+	}
+
 	history->setCloudDraft(std::move(cloudDraft));
 	history->applyCloudDraft();
 }
@@ -79,6 +83,10 @@ void ClearPeerCloudDraft(
 		TimeId date) {
 	const auto history = session->data().history(peerId);
 	if (history->skipCloudDraft(QString(), MsgId(0), date)) {
+		return;
+	}
+
+	if (cDisableCloudDraftSync()) {
 		return;
 	}
 

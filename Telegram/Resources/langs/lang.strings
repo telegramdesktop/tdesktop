@@ -2559,10 +2559,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_show_emoji_button_as_text" = "Show Emoji Button As Text";
 "lng_settings_show_repeater_option" = "Show Repeater Option";
 "lng_settings_repeater_reply_to_orig_msg" = "Reply to original message";
+"lng_settings_disable_cloud_draft_sync" = "Disable Cloud Draft Sync To Local";
 "lng_settings_show_phone_number" = "Show Phone Number";
 "lng_settings_restart_hint" = "WARNING: Changing options marked with \"*\" will take effect immediately with restart.";
 
-"lng_settings_always_delete_for" = "Always delete message for";
+"lng_settings_always_delete_for" = "Auto check delete message for";
 "lng_settings_delete_disabled" = "Disabled";
 "lng_settings_delete_for_group" = "Group";
 "lng_settings_delete_for_person" = "Person";
