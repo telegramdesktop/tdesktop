@@ -209,6 +209,10 @@ QIcon TrayIconGen(int counter, bool muted) {
 		48,
 	};
 
+	static const auto dprSize = [](const QImage &image) {
+		return image.size() / image.devicePixelRatio();
+	};
+
 	for (const auto iconSize : iconSizes) {
 		auto &currentImageBack = TrayIconImageBack[iconSize];
 		const auto desiredSize = QSize(iconSize, iconSize);
@@ -221,11 +225,17 @@ QIcon TrayIconGen(int counter, bool muted) {
 					systemIcon = QIcon::fromTheme(iconName);
 				}
 
-				if (systemIcon.actualSize(desiredSize) == desiredSize) {
-					currentImageBack = systemIcon
-						.pixmap(desiredSize)
-						.toImage();
-				} else {
+				// We can't use QIcon::actualSize here
+				// since it works incorrectly with svg icon themes
+				currentImageBack = systemIcon
+					.pixmap(desiredSize)
+					.toImage();
+
+				const auto firstAttemptSize = dprSize(currentImageBack);
+
+				// if current icon theme is not a svg one, Qt can return
+				// a pixmap that less in size even if there are a bigger one
+				if (firstAttemptSize.width() < desiredSize.width()) {
 					const auto availableSizes = systemIcon.availableSizes();
 
 					const auto biggestSize = ranges::max_element(
@@ -233,18 +243,17 @@ QIcon TrayIconGen(int counter, bool muted) {
 						std::less<>(),
 						&QSize::width);
 
-					currentImageBack = systemIcon
-						.pixmap(*biggestSize)
-						.toImage();
+					if ((*biggestSize).width() > firstAttemptSize.width()) {
+						currentImageBack = systemIcon
+							.pixmap(*biggestSize)
+							.toImage();
+					}
 				}
 			} else {
 				currentImageBack = Core::App().logo();
 			}
 
-			const auto currentImageBackSize = currentImageBack.size()
-				/ currentImageBack.devicePixelRatio();
-
-			if (currentImageBackSize != desiredSize) {
+			if (dprSize(currentImageBack) != desiredSize) {
 				currentImageBack = currentImageBack.scaled(
 					desiredSize * currentImageBack.devicePixelRatio(),
 					Qt::IgnoreAspectRatio,
@@ -331,7 +340,22 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 	static const auto templateName = AppRuntimeDirectory()
 		+ kTrayIconFilename.utf16();
 
+	static const auto dprSize = [](const QPixmap &pixmap) {
+		return pixmap.size() / pixmap.devicePixelRatio();
+	};
+
 	static const auto desiredSize = QSize(22, 22);
+
+	static const auto scalePixmap = [=](const QPixmap &pixmap) {
+		if (dprSize(pixmap) != desiredSize) {
+			return pixmap.scaled(
+				desiredSize * pixmap.devicePixelRatio(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
+		} else {
+			return pixmap;
+		}
+	};
 
 	auto ret = std::make_unique<QTemporaryFile>(
 		templateName,
@@ -339,9 +363,10 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 
 	ret->open();
 
-	if (icon.actualSize(desiredSize) == desiredSize) {
-		icon.pixmap(desiredSize).save(ret.get());
-	} else {
+	const auto firstAttempt = icon.pixmap(desiredSize);
+	const auto firstAttemptSize = dprSize(firstAttempt);
+
+	if (firstAttemptSize.width() < desiredSize.width()) {
 		const auto availableSizes = icon.availableSizes();
 
 		const auto biggestSize = ranges::max_element(
@@ -349,14 +374,13 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 			std::less<>(),
 			&QSize::width);
 
-		const auto iconPixmap = icon.pixmap(*biggestSize);
-
-		iconPixmap
-			.scaled(
-				desiredSize * iconPixmap.devicePixelRatio(),
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation)
-			.save(ret.get());
+		if ((*biggestSize).width() > firstAttemptSize.width()) {
+			scalePixmap(icon.pixmap(*biggestSize)).save(ret.get());
+		} else {
+			scalePixmap(firstAttempt).save(ret.get());
+		}
+	} else {
+		scalePixmap(firstAttempt).save(ret.get());
 	}
 
 	ret->close();
