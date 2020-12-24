@@ -49,6 +49,10 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 29. Show user total sent messages when you're deleting a message
 30. Shortcut for Fast Forward/Copy messages (ALT+F/ALF+C)
 31. Always delete message option(Group/Person/Both)
+32. Show Phone Number option
+33. View Channel Button in Group Info widget
+34. Show online member count if supergroup member >= 200 and more accurate
+35. Disable Cloud Draft Sync To Local
 
 ## Supported systems
 
