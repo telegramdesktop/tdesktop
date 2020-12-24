@@ -368,10 +368,10 @@ void Call::setupOutgoingVideo() {
 			_errors.fire({ ErrorType::NoCamera });
 			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 		} else if (_state.current() != State::Established
-			&& state != started
-			&& !_videoCapture) {
+			&& (state != Webrtc::VideoState::Inactive)
+			&& (started == Webrtc::VideoState::Inactive)) {
 			_errors.fire({ ErrorType::NotStartedCall });
-			_videoOutgoing->setState(started);
+			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 		} else if (state != Webrtc::VideoState::Inactive
 			&& _instance
 			&& !_instance->supportsVideo()) {
