@@ -42,7 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #include <xcb/xcb.h>
-#include <xcb/screensaver.h>
 
 #include <glib.h>
 
