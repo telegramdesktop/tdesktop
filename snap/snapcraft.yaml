@@ -88,6 +88,7 @@ parts:
       - qt5-image-formats-plugins
       - qtwayland5
       - libasound2
+      - libglib2.0-0
       - libgtk-3-0
       - liblzma5
       - libopus0
