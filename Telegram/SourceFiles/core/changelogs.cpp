@@ -75,6 +75,14 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Fix freeze on secondary screen disconnect.\n"
 	},
+	{
+		2005002,
+		"- Fix possible crash in video calls.\n"
+
+		"- Fix possible crash in connecting to voice chats.\n"
+
+		"- Use different audio module code on Windows in calls.\n"
+	}
 	};
 };
 
