@@ -18,6 +18,10 @@ class GroupCall;
 class CloudImageView;
 } // namespace Data
 
+namespace style {
+struct GroupCallUserpics;
+} // namespace style
+
 namespace HistoryView {
 
 struct UserpicInRow {
@@ -27,16 +31,10 @@ struct UserpicInRow {
 	mutable InMemoryKey uniqueKey;
 };
 
-struct UserpicsInRowStyle {
-	int size = 0;
-	int shift = 0;
-	int stroke = 0;
-};
-
 void GenerateUserpicsInRow(
 	QImage &result,
 	const std::vector<UserpicInRow> &list,
-	const UserpicsInRowStyle &st,
+	const style::GroupCallUserpics &st,
 	int maxElements = 0);
 
 class GroupCallTracker final {
@@ -48,7 +46,7 @@ public:
 
 	[[nodiscard]] static rpl::producer<Ui::GroupCallBarContent> ContentByCall(
 		not_null<Data::GroupCall*> call,
-		const UserpicsInRowStyle &st);
+		int userpicSize);
 
 private:
 	const not_null<PeerData*> _peer;

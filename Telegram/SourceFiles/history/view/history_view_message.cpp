@@ -795,8 +795,8 @@ void Message::paintCommentsButton(
 		auto &list = _comments->userpics;
 		const auto limit = HistoryMessageViews::kMaxRecentRepliers;
 		const auto count = std::min(int(views->recentRepliers.size()), limit);
-		const auto single = st::historyCommentsUserpicSize;
-		const auto shift = st::historyCommentsUserpicOverlap;
+		const auto single = st::historyCommentsUserpics.size;
+		const auto shift = st::historyCommentsUserpics.shift;
 		const auto regenerate = [&] {
 			if (list.size() != count) {
 				return true;
@@ -828,12 +828,11 @@ void Message::paintCommentsButton(
 			while (list.size() > count) {
 				list.pop_back();
 			}
-			const auto st = UserpicsInRowStyle{
-				.size = single,
-				.shift = shift,
-				.stroke = st::historyCommentsUserpicStroke,
-			};
-			GenerateUserpicsInRow(_comments->cachedUserpics, list, st, limit);
+			GenerateUserpicsInRow(
+				_comments->cachedUserpics,
+				list,
+				st::historyCommentsUserpics,
+				limit);
 		}
 		p.drawImage(
 			left,
@@ -2135,8 +2134,8 @@ int Message::minWidthForMedia() const {
 	const auto views = data()->Get<HistoryMessageViews>();
 	if (data()->repliesAreComments() && !views->replies.text.isEmpty()) {
 		const auto limit = HistoryMessageViews::kMaxRecentRepliers;
-		const auto single = st::historyCommentsUserpicSize;
-		const auto shift = st::historyCommentsUserpicOverlap;
+		const auto single = st::historyCommentsUserpics.size;
+		const auto shift = st::historyCommentsUserpics.shift;
 		const auto added = single
 			+ (limit - 1) * (single - shift)
 			+ st::historyCommentsSkipLeft

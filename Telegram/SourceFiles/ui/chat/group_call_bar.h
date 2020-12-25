@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/effects/animations.h"
 #include "base/object_ptr.h"
-#include "base/timer.h"
 
 class Painter;
 
@@ -18,17 +17,13 @@ namespace Ui {
 
 class PlainShadow;
 class RoundButton;
+struct GroupCallUser;
+class GroupCallUserpics;
 
 struct GroupCallBarContent {
-	struct User {
-		QImage userpic;
-		std::pair<uint64, uint64> userpicKey = {};
-		int32 id = 0;
-		bool speaking = false;
-	};
 	int count = 0;
 	bool shown = false;
-	std::vector<User> users;
+	std::vector<GroupCallUser> users;
 };
 
 class GroupCallBar final {
@@ -58,24 +53,13 @@ public:
 	}
 
 private:
-	using User = GroupCallBarContent::User;
-	struct BlobsAnimation;
-	struct Userpic;
+	using User = GroupCallUser;
 
 	void updateShadowGeometry(QRect wrapGeometry);
 	void updateControlsGeometry(QRect wrapGeometry);
-	void updateUserpicsFromContent();
+	void updateUserpics();
 	void setupInner();
 	void paint(Painter &p);
-	void paintUserpics(Painter &p);
-
-	void toggleUserpic(Userpic &userpic, bool shown);
-	void updateUserpics();
-	void updateUserpicsPositions();
-	void validateUserpicCache(Userpic &userpic);
-	[[nodiscard]] bool needUserpicCacheRefresh(Userpic &userpic);
-	void ensureBlobsAnimation(Userpic &userpic);
-	void sendRandomLevels();
 
 	SlideWrap<> _wrap;
 	not_null<RpWidget*> _inner;
@@ -83,17 +67,11 @@ private:
 	std::unique_ptr<PlainShadow> _shadow;
 	rpl::event_stream<> _barClicks;
 	Fn<QRect(QRect)> _shadowGeometryPostprocess;
-	std::vector<Userpic> _userpics;
-	base::Timer _randomSpeakingTimer;
-	Ui::Animations::Basic _speakingAnimation;
-	int _maxUserpicsWidth = 0;
 	bool _shouldBeShown = false;
 	bool _forceHidden = false;
 
-	bool _skipLevelUpdate = false;
-	crl::time _speakingAnimationHideLastTime = 0;
-
 	GroupCallBarContent _content;
+	std::unique_ptr<GroupCallUserpics> _userpics;
 
 };
 
