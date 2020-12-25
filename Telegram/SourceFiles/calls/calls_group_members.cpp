@@ -750,7 +750,21 @@ void MembersController::updateRow(
 		if (row->speaking()) {
 			delegate()->peerListPrependRow(std::move(row));
 		} else {
+			static constexpr auto kInvited = Row::State::Invited;
+			const auto reorder = [&] {
+				const auto count = delegate()->peerListFullRowsCount();
+				if (!count) {
+					return false;
+				}
+				const auto row = delegate()->peerListRowAt(count - 1).get();
+				return (static_cast<Row*>(row)->state() == kInvited);
+			}();
 			delegate()->peerListAppendRow(std::move(row));
+			if (reorder) {
+				delegate()->peerListPartitionRows([](const PeerListRow &row) {
+					return static_cast<const Row&>(row).state() != kInvited;
+				});
+			}
 		}
 		delegate()->peerListRefreshRows();
 	}
