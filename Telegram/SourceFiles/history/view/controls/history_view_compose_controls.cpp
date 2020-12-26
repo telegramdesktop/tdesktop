@@ -1814,7 +1814,7 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 	Expects(_history != nullptr);
 	Expects(draftKeyCurrent() != Data::DraftKey::None());
 
-	if (_voiceRecordBar && _voiceRecordBar->isListenState()) {
+	if (_voiceRecordBar->isActive()) {
 		Ui::show(Box<InformBox>(tr::lng_edit_caption_voice(tr::now)));
 		return;
 	}

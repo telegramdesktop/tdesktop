@@ -5652,7 +5652,7 @@ void HistoryWidget::editMessage(FullMsgId itemId) {
 }
 
 void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
-	if (_voiceRecordBar->isListenState()) {
+	if (_voiceRecordBar->isActive()) {
 		Ui::show(Box<InformBox>(tr::lng_edit_caption_voice(tr::now)));
 		return;
 	}
