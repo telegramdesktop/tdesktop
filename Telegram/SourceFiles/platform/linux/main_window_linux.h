@@ -24,6 +24,11 @@ typedef struct _GDBusProxy GDBusProxy;
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 namespace Platform {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+namespace internal {
+class GSDMediaKeys;
+} // namespace internal
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 class MainWindow : public Window::MainWindow {
 public:
@@ -87,6 +92,8 @@ private:
 	bool _appMenuSupported = false;
 	DBusMenuExporter *_mainMenuExporter = nullptr;
 	QDBusObjectPath _mainMenuPath;
+
+	std::unique_ptr<internal::GSDMediaKeys> _gsdMediaKeys;
 
 	QMenu *psMainMenu = nullptr;
 	QAction *psLogout = nullptr;
