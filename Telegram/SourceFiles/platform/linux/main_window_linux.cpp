@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_gsd_media_keys.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "base/call_delayed.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
 #include "facades.h"
 #include "app.h"
@@ -39,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#include <QtCore/QTemporaryFile>
 #include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusConnectionInterface>
@@ -48,7 +50,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusError>
 #include <QtDBus/QDBusMetaType>
 
-#include <xcb/xcb.h>
+#include <statusnotifieritem.h>
+#include <dbusmenuexporter.h>
 
 extern "C" {
 #undef signals
