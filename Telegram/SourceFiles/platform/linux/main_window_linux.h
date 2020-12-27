@@ -9,13 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_main_window.h"
 
-#include "ui/widgets/popup_menu.h"
+namespace Ui {
+class PopupMenu;
+} // namespace Ui
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include "statusnotifieritem.h"
-#include <QtCore/QTemporaryFile>
 #include <QtDBus/QDBusObjectPath>
-#include <dbusmenuexporter.h>
+
+class QTemporaryFile;
+class DBusMenuExporter;
+class StatusNotifierItem;
 
 typedef void* gpointer;
 typedef char gchar;
@@ -87,7 +90,7 @@ private:
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	StatusNotifierItem *_sniTrayIcon = nullptr;
 	GDBusProxy *_sniDBusProxy = nullptr;
-	std::unique_ptr<QTemporaryFile> _trayIconFile = nullptr;
+	std::unique_ptr<QTemporaryFile> _trayIconFile;
 
 	bool _appMenuSupported = false;
 	DBusMenuExporter *_mainMenuExporter = nullptr;
