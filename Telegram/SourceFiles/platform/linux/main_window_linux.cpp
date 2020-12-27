@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusMessage>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusError>
+#include <QtDBus/QDBusObjectPath>
 #include <QtDBus/QDBusMetaType>
 
 #include <statusnotifieritem.h>
@@ -451,7 +452,7 @@ bool IsAppMenuSupported() {
 	return interface->isServiceRegistered(kAppMenuService.utf16());
 }
 
-void RegisterAppMenu(uint winId, const QDBusObjectPath &menuPath) {
+void RegisterAppMenu(uint winId, const QString &menuPath) {
 	auto message = QDBusMessage::createMethodCall(
 		kAppMenuService.utf16(),
 		kAppMenuObjectPath.utf16(),
@@ -460,7 +461,7 @@ void RegisterAppMenu(uint winId, const QDBusObjectPath &menuPath) {
 
 	message.setArguments({
 		winId,
-		QVariant::fromValue(menuPath)
+		QVariant::fromValue(QDBusObjectPath(menuPath))
 	});
 
 	QDBusConnection::sessionBus().send(message);
@@ -759,7 +760,7 @@ void MainWindow::handleAppMenuOwnerChanged(
 		LOG(("Not using D-Bus global menu."));
 	}
 
-	if (_appMenuSupported && !_mainMenuPath.path().isEmpty()) {
+	if (_appMenuSupported && !_mainMenuPath.isEmpty()) {
 		RegisterAppMenu(winId(), _mainMenuPath);
 	} else {
 		UnregisterAppMenu(winId());
@@ -1075,10 +1076,10 @@ void MainWindow::createGlobalMenu() {
 
 	about->setMenuRole(QAction::AboutQtRole);
 
-	_mainMenuPath.setPath(qsl("/MenuBar"));
+	_mainMenuPath = qsl("/MenuBar");
 
 	_mainMenuExporter = new DBusMenuExporter(
-		_mainMenuPath.path(),
+		_mainMenuPath,
 		psMainMenu);
 
 	if (_appMenuSupported) {
@@ -1214,7 +1215,7 @@ void MainWindow::handleVisibleChangedHook(bool visible) {
 	}
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (_appMenuSupported && !_mainMenuPath.path().isEmpty()) {
+	if (_appMenuSupported && !_mainMenuPath.isEmpty()) {
 		if (visible) {
 			RegisterAppMenu(winId(), _mainMenuPath);
 		} else {
