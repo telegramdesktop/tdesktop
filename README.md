@@ -17,12 +17,16 @@ The latest version is available for
 
 * [Windows 7 and above](https://telegram.org/dl/desktop/win) ([portable](https://telegram.org/dl/desktop/win_portable))
 * [macOS 10.12 and above](https://telegram.org/dl/desktop/mac)
-* [OS X 10.10 and 10.11](https://telegram.org/dl/desktop/osx)
-* [Linux static build for 64 bit](https://telegram.org/dl/desktop/linux) ([32 bit](https://telegram.org/dl/desktop/linux32))
+* [Linux static build for 64 bit](https://telegram.org/dl/desktop/linux)
 * [Snap](https://snapcraft.io/telegram-desktop)
 * [Flatpak](https://flathub.org/apps/details/org.telegram.desktop)
 
 ## Old system versions
+
+Version **2.4.4** was the last that supports older systems
+
+* [OS X 10.10 and 10.11](https://updates.tdesktop.com/tosx/tsetup-osx.2.4.4.dmg)
+* [Linux static build for 32 bit](https://updates.tdesktop.com/tlinux32/tsetup32.2.4.4.tar.xz)
 
 Version **1.8.15** was the last that supports older systems
 
