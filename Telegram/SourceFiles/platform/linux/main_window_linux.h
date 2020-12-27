@@ -14,8 +14,6 @@ class PopupMenu;
 } // namespace Ui
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include <QtDBus/QDBusObjectPath>
-
 class QTemporaryFile;
 class DBusMenuExporter;
 class StatusNotifierItem;
@@ -94,7 +92,7 @@ private:
 
 	bool _appMenuSupported = false;
 	DBusMenuExporter *_mainMenuExporter = nullptr;
-	QDBusObjectPath _mainMenuPath;
+	QString _mainMenuPath;
 
 	std::unique_ptr<internal::GSDMediaKeys> _gsdMediaKeys;
 
