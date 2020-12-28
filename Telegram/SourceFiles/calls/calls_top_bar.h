@@ -20,6 +20,8 @@ class IconButton;
 class AbstractButton;
 class LabelSimple;
 class FlatLabel;
+struct GroupCallUser;
+class GroupCallUserpics;
 } // namespace Ui
 
 namespace Main {
@@ -66,14 +68,15 @@ private:
 	void setMuted(bool mute);
 
 	void subscribeToMembersChanges(not_null<GroupCall*> call);
-	void generateUserpicsInRow();
+	void updateUserpics();
 
 	const base::weak_ptr<Call> _call;
 	const base::weak_ptr<GroupCall> _groupCall;
 
 	bool _muted = false;
-	std::vector<User> _users;
-	QImage _userpics;
+	std::vector<Ui::GroupCallUser> _users;
+	std::unique_ptr<Ui::GroupCallUserpics> _userpics;
+	int _userpicsWidth = 0;
 	object_ptr<Ui::LabelSimple> _durationLabel;
 	object_ptr<SignalBars> _signalBars;
 	object_ptr<Ui::FlatLabel> _fullInfoLabel;

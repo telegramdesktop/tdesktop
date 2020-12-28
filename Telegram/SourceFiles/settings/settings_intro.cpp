@@ -73,10 +73,18 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 		SetupUpdate(result);
 		AddSkip(result);
 	}
-	AddDivider(result);
-	AddSkip(result);
-	SetupSystemIntegrationContent(result);
-	AddSkip(result);
+	{
+		auto wrap = object_ptr<Ui::VerticalLayout>(result);
+		SetupSystemIntegrationContent(wrap.data());
+		if (wrap->count() > 0) {
+			AddDivider(result);
+			AddSkip(result);
+			result->add(object_ptr<Ui::OverrideMargins>(
+				result,
+				std::move(wrap)));
+			AddSkip(result);
+		}
+	}
 	AddDivider(result);
 	AddSkip(result);
 	SetupInterfaceScale(result, false);

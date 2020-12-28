@@ -23,9 +23,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "media/player/media_player_instance.h"
+#include "media/audio/media_audio.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_xcb_utilities_linux.h"
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#include "platform/linux/linux_gsd_media_keys.h"
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "base/call_delayed.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
 #include "facades.h"
 #include "app.h"
@@ -34,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#include <QtCore/QTemporaryFile>
 #include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusConnectionInterface>
@@ -41,9 +48,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusMessage>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusError>
+#include <QtDBus/QDBusObjectPath>
 #include <QtDBus/QDBusMetaType>
 
-#include <xcb/xcb.h>
+#include <statusnotifieritem.h>
+#include <dbusmenuexporter.h>
 
 extern "C" {
 #undef signals
@@ -209,6 +218,10 @@ QIcon TrayIconGen(int counter, bool muted) {
 		48,
 	};
 
+	static const auto dprSize = [](const QImage &image) {
+		return image.size() / image.devicePixelRatio();
+	};
+
 	for (const auto iconSize : iconSizes) {
 		auto &currentImageBack = TrayIconImageBack[iconSize];
 		const auto desiredSize = QSize(iconSize, iconSize);
@@ -221,11 +234,17 @@ QIcon TrayIconGen(int counter, bool muted) {
 					systemIcon = QIcon::fromTheme(iconName);
 				}
 
-				if (systemIcon.actualSize(desiredSize) == desiredSize) {
-					currentImageBack = systemIcon
-						.pixmap(desiredSize)
-						.toImage();
-				} else {
+				// We can't use QIcon::actualSize here
+				// since it works incorrectly with svg icon themes
+				currentImageBack = systemIcon
+					.pixmap(desiredSize)
+					.toImage();
+
+				const auto firstAttemptSize = dprSize(currentImageBack);
+
+				// if current icon theme is not a svg one, Qt can return
+				// a pixmap that less in size even if there are a bigger one
+				if (firstAttemptSize.width() < desiredSize.width()) {
 					const auto availableSizes = systemIcon.availableSizes();
 
 					const auto biggestSize = ranges::max_element(
@@ -233,18 +252,17 @@ QIcon TrayIconGen(int counter, bool muted) {
 						std::less<>(),
 						&QSize::width);
 
-					currentImageBack = systemIcon
-						.pixmap(*biggestSize)
-						.toImage();
+					if ((*biggestSize).width() > firstAttemptSize.width()) {
+						currentImageBack = systemIcon
+							.pixmap(*biggestSize)
+							.toImage();
+					}
 				}
 			} else {
 				currentImageBack = Core::App().logo();
 			}
 
-			const auto currentImageBackSize = currentImageBack.size()
-				/ currentImageBack.devicePixelRatio();
-
-			if (currentImageBackSize != desiredSize) {
+			if (dprSize(currentImageBack) != desiredSize) {
 				currentImageBack = currentImageBack.scaled(
 					desiredSize * currentImageBack.devicePixelRatio(),
 					Qt::IgnoreAspectRatio,
@@ -331,7 +349,22 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 	static const auto templateName = AppRuntimeDirectory()
 		+ kTrayIconFilename.utf16();
 
+	static const auto dprSize = [](const QPixmap &pixmap) {
+		return pixmap.size() / pixmap.devicePixelRatio();
+	};
+
 	static const auto desiredSize = QSize(22, 22);
+
+	static const auto scalePixmap = [=](const QPixmap &pixmap) {
+		if (dprSize(pixmap) != desiredSize) {
+			return pixmap.scaled(
+				desiredSize * pixmap.devicePixelRatio(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
+		} else {
+			return pixmap;
+		}
+	};
 
 	auto ret = std::make_unique<QTemporaryFile>(
 		templateName,
@@ -339,9 +372,10 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 
 	ret->open();
 
-	if (icon.actualSize(desiredSize) == desiredSize) {
-		icon.pixmap(desiredSize).save(ret.get());
-	} else {
+	const auto firstAttempt = icon.pixmap(desiredSize);
+	const auto firstAttemptSize = dprSize(firstAttempt);
+
+	if (firstAttemptSize.width() < desiredSize.width()) {
 		const auto availableSizes = icon.availableSizes();
 
 		const auto biggestSize = ranges::max_element(
@@ -349,14 +383,13 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 			std::less<>(),
 			&QSize::width);
 
-		const auto iconPixmap = icon.pixmap(*biggestSize);
-
-		iconPixmap
-			.scaled(
-				desiredSize * iconPixmap.devicePixelRatio(),
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation)
-			.save(ret.get());
+		if ((*biggestSize).width() > firstAttemptSize.width()) {
+			scalePixmap(icon.pixmap(*biggestSize)).save(ret.get());
+		} else {
+			scalePixmap(firstAttempt).save(ret.get());
+		}
+	} else {
+		scalePixmap(firstAttempt).save(ret.get());
 	}
 
 	ret->close();
@@ -419,7 +452,7 @@ bool IsAppMenuSupported() {
 	return interface->isServiceRegistered(kAppMenuService.utf16());
 }
 
-void RegisterAppMenu(uint winId, const QDBusObjectPath &menuPath) {
+void RegisterAppMenu(uint winId, const QString &menuPath) {
 	auto message = QDBusMessage::createMethodCall(
 		kAppMenuService.utf16(),
 		kAppMenuObjectPath.utf16(),
@@ -428,7 +461,7 @@ void RegisterAppMenu(uint winId, const QDBusObjectPath &menuPath) {
 
 	message.setArguments({
 		winId,
-		QVariant::fromValue(menuPath)
+		QVariant::fromValue(QDBusObjectPath(menuPath))
 	});
 
 	QDBusConnection::sessionBus().send(message);
@@ -548,6 +581,17 @@ void MainWindow::initHook() {
 	} else {
 		LOG(("Not using Unity launcher counter."));
 	}
+
+	Media::Player::instance()->updatedNotifier(
+	) | rpl::start_with_next([=](const Media::Player::TrackState &state) {
+		if (!Media::Player::IsStoppedOrStopping(state.state)) {
+			if (!_gsdMediaKeys) {
+				_gsdMediaKeys = std::make_unique<internal::GSDMediaKeys>();
+			}
+		} else if (_gsdMediaKeys) {
+			_gsdMediaKeys = nullptr;
+		}
+	}, lifetime());
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	updateWaylandDecorationColors();
@@ -716,7 +760,7 @@ void MainWindow::handleAppMenuOwnerChanged(
 		LOG(("Not using D-Bus global menu."));
 	}
 
-	if (_appMenuSupported && !_mainMenuPath.path().isEmpty()) {
+	if (_appMenuSupported && !_mainMenuPath.isEmpty()) {
 		RegisterAppMenu(winId(), _mainMenuPath);
 	} else {
 		UnregisterAppMenu(winId());
@@ -1032,10 +1076,10 @@ void MainWindow::createGlobalMenu() {
 
 	about->setMenuRole(QAction::AboutQtRole);
 
-	_mainMenuPath.setPath(qsl("/MenuBar"));
+	_mainMenuPath = qsl("/MenuBar");
 
 	_mainMenuExporter = new DBusMenuExporter(
-		_mainMenuPath.path(),
+		_mainMenuPath,
 		psMainMenu);
 
 	if (_appMenuSupported) {
@@ -1171,7 +1215,7 @@ void MainWindow::handleVisibleChangedHook(bool visible) {
 	}
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (_appMenuSupported && !_mainMenuPath.path().isEmpty()) {
+	if (_appMenuSupported && !_mainMenuPath.isEmpty()) {
 		if (visible) {
 			RegisterAppMenu(winId(), _mainMenuPath);
 		} else {

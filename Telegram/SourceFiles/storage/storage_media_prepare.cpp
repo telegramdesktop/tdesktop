@@ -38,7 +38,9 @@ bool HasExtensionFrom(const QString &file, const QStringList &extensions) {
 bool ValidPhotoForAlbum(
 		const PreparedFileInformation::Image &image,
 		const QString &mime) {
-	if (image.animated || Core::IsMimeSticker(mime)) {
+	if (image.animated
+		|| Core::IsMimeSticker(mime)
+		|| (mime == u"application/pdf"_q)) {
 		return false;
 	}
 	const auto width = image.data.width();

@@ -9,13 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_main_window.h"
 
-#include "ui/widgets/popup_menu.h"
+namespace Ui {
+class PopupMenu;
+} // namespace Ui
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include "statusnotifieritem.h"
-#include <QtCore/QTemporaryFile>
-#include <QtDBus/QDBusObjectPath>
-#include <dbusmenuexporter.h>
+class QTemporaryFile;
+class DBusMenuExporter;
+class StatusNotifierItem;
 
 typedef void* gpointer;
 typedef char gchar;
@@ -24,6 +25,11 @@ typedef struct _GDBusProxy GDBusProxy;
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 namespace Platform {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+namespace internal {
+class GSDMediaKeys;
+} // namespace internal
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 class MainWindow : public Window::MainWindow {
 public:
@@ -82,11 +88,13 @@ private:
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	StatusNotifierItem *_sniTrayIcon = nullptr;
 	GDBusProxy *_sniDBusProxy = nullptr;
-	std::unique_ptr<QTemporaryFile> _trayIconFile = nullptr;
+	std::unique_ptr<QTemporaryFile> _trayIconFile;
 
 	bool _appMenuSupported = false;
 	DBusMenuExporter *_mainMenuExporter = nullptr;
-	QDBusObjectPath _mainMenuPath;
+	QString _mainMenuPath;
+
+	std::unique_ptr<internal::GSDMediaKeys> _gsdMediaKeys;
 
 	QMenu *psMainMenu = nullptr;
 	QAction *psLogout = nullptr;

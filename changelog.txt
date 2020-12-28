@@ -1,3 +1,9 @@
+2.5.2 beta (25.12.20)
+
+- Fix possible crash in video calls.
+- Fix possible crash in connecting to voice chats.
+- Use different audio module code on Windows in calls.
+
 2.5.1 (23.12.20)
 
 - Fix crash in voice calls.

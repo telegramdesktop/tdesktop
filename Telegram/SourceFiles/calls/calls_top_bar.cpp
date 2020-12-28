@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/paint/blobs_linear.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/chat/group_call_userpics.h" // Ui::GroupCallUser.
 #include "ui/chat/group_call_bar.h" // Ui::GroupCallBarContent.
 #include "ui/layers/generic_box.h"
 #include "ui/wrap/padding_wrap.h"
@@ -32,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "app.h"
 #include "styles/style_calls.h"
+#include "styles/style_chat.h" // style::GroupCallUserpics
 #include "styles/style_layers.h"
 
 namespace Calls {
@@ -165,7 +167,7 @@ void DebugInfoBox::updateText() {
 } // namespace
 
 struct TopBar::User {
-	Ui::GroupCallBarContent::User data;
+	Ui::GroupCallUser data;
 };
 
 class Mute final : public Ui::IconButton {
@@ -238,6 +240,12 @@ TopBar::TopBar(
 : RpWidget(parent)
 , _call(call)
 , _groupCall(groupCall)
+, _userpics(call
+	? nullptr
+	: std::make_unique<Ui::GroupCallUserpics>(
+		st::groupCallTopBarUserpics,
+		rpl::single(true),
+		[=] { updateUserpics(); }))
 , _durationLabel(_call
 	? object_ptr<Ui::LabelSimple>(this, st::callBarLabel)
 	: object_ptr<Ui::LabelSimple>(nullptr))
@@ -551,35 +559,31 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 	) | rpl::map([=](not_null<Data::GroupCall*> real) {
 		return HistoryView::GroupCallTracker::ContentByCall(
 			real,
-			HistoryView::UserpicsInRowStyle{
-				.size = st::groupCallTopBarUserpicSize,
-				.shift = st::groupCallTopBarUserpicShift,
-				.stroke = st::groupCallTopBarUserpicStroke,
-			});
+			st::groupCallTopBarUserpics.size);
 	}) | rpl::flatten_latest(
 	) | rpl::filter([=](const Ui::GroupCallBarContent &content) {
 		if (_users.size() != content.users.size()) {
 			return true;
 		}
 		for (auto i = 0, count = int(_users.size()); i != count; ++i) {
-			if (_users[i].data.userpicKey != content.users[i].userpicKey
-				|| _users[i].data.id != content.users[i].id) {
+			if (_users[i].userpicKey != content.users[i].userpicKey
+				|| _users[i].id != content.users[i].id) {
 				return true;
 			}
 		}
 		return false;
 	}) | rpl::start_with_next([=](const Ui::GroupCallBarContent &content) {
-		const auto sizeChanged = (_users.size() != content.users.size());
-		_users = ranges::view::all(
-			content.users
-		) | ranges::view::transform([](const auto &user) {
-			return User{ user };
-		}) | ranges::to_vector;
-		generateUserpicsInRow();
-		if (sizeChanged) {
-			updateControlsGeometry();
+		_users = content.users;
+		for (auto &user : _users) {
+			user.speaking = false;
 		}
-		update();
+		_userpics->update(_users, !isHidden());
+	}, lifetime());
+
+	_userpics->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		_userpicsWidth = width;
+		updateControlsGeometry();
 	}, lifetime());
 
 	call->peer()->session().changes().peerUpdates(
@@ -591,41 +595,10 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 	}) | rpl::start_with_next([=] {
 		updateInfoLabels();
 	}, lifetime());
-
 }
 
-void TopBar::generateUserpicsInRow() {
-	const auto count = int(_users.size());
-	if (!count) {
-		_userpics = QImage();
-		return;
-	}
-	const auto limit = std::min(count, kMaxUsersInBar);
-	const auto single = st::groupCallTopBarUserpicSize;
-	const auto shift = st::groupCallTopBarUserpicShift;
-	const auto width = single + (limit - 1) * (single - shift);
-	if (_userpics.width() != width * cIntRetinaFactor()) {
-		_userpics = QImage(
-			QSize(width, single) * cIntRetinaFactor(),
-			QImage::Format_ARGB32_Premultiplied);
-	}
-	_userpics.fill(Qt::transparent);
-	_userpics.setDevicePixelRatio(cRetinaFactor());
-
-	auto q = Painter(&_userpics);
-	auto hq = PainterHighQualityEnabler(q);
-	auto pen = QPen(Qt::transparent);
-	pen.setWidth(st::groupCallTopBarUserpicStroke);
-	auto x = (count - 1) * (single - shift);
-	for (auto i = count; i != 0;) {
-		q.setCompositionMode(QPainter::CompositionMode_SourceOver);
-		q.drawImage(x, 0, _users[--i].data.userpic);
-		q.setCompositionMode(QPainter::CompositionMode_Source);
-		q.setBrush(Qt::NoBrush);
-		q.setPen(pen);
-		q.drawEllipse(x, 0, single, single);
-		x -= single - shift;
-	}
+void TopBar::updateUserpics() {
+	update(_mute->width(), 0, _userpics->maxWidth(), height());
 }
 
 void TopBar::updateInfoLabels() {
@@ -688,8 +661,13 @@ void TopBar::updateControlsGeometry() {
 		_durationLabel->moveToLeft(left, st::callBarLabelTop);
 		left += _durationLabel->width() + st::callBarSkip;
 	}
-	if (!_userpics.isNull()) {
-		left += _userpics.width() / _userpics.devicePixelRatio();
+	if (_userpicsWidth) {
+		const auto single = st::groupCallTopBarUserpics.size;
+		const auto skip = anim::interpolate(
+			0,
+			st::callBarSkip,
+			std::min(_userpicsWidth, single) / float64(single));
+		left += _userpicsWidth + skip;
 	}
 	if (_signalBars) {
 		_signalBars->moveToLeft(left, (height() - _signalBars->height()) / 2);
@@ -741,11 +719,10 @@ void TopBar::paintEvent(QPaintEvent *e) {
 		: (_muted ? st::callBarBgMuted : st::callBarBg);
 	p.fillRect(e->rect(), std::move(brush));
 
-	if (!_userpics.isNull()) {
-		const auto imageSize = _userpics.size()
-			/ _userpics.devicePixelRatio();
-		const auto top = (height() - imageSize.height()) / 2;
-		p.drawImage(_mute->width(), top, _userpics);
+	if (_userpicsWidth) {
+		const auto size = st::groupCallTopBarUserpics.size;
+		const auto top = (height() - size) / 2;
+		_userpics->paint(p, _mute->width(), top, size);
 	}
 }
 

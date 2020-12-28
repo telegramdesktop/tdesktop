@@ -45,6 +45,11 @@ MessageBar::MessageBar(not_null<QWidget*> parent, const style::MessageBar &st)
 : _st(st)
 , _widget(parent) {
 	setup();
+
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_topBarGradient = _bottomBarGradient = QPixmap();
+	}, _widget.lifetime());
 }
 
 void MessageBar::setup() {
