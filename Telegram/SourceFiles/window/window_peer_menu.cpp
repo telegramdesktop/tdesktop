@@ -1233,6 +1233,7 @@ QPointer<Ui::RpWidget> ShowForwardNoQuoteMessagesBox(
 							auto message = ApiWrap::MessageToSend(history);
 							message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
 							message.action = Api::SendAction(history);
+							message.action.options.scheduled = options.scheduled;
 							Api::SendExistingDocument(std::move(message), document);
 						}
 						else if (item->media()->photo() != nullptr) {
@@ -1240,12 +1241,14 @@ QPointer<Ui::RpWidget> ShowForwardNoQuoteMessagesBox(
 							auto message = ApiWrap::MessageToSend(history);
 							message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
 							message.action = Api::SendAction(history);
+							message.action.options.scheduled = options.scheduled;
 							Api::SendExistingPhoto(std::move(message), photo);
 						}
 					} else {
 						auto message = ApiWrap::MessageToSend(history);
 						message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
 						message.action = Api::SendAction(history);
+						message.action.options.scheduled = options.scheduled;
 						api->sendMessage(std::move(message));
 					}
 				}
