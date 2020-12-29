@@ -92,7 +92,6 @@ private:
 
 	bool _appMenuSupported = false;
 	DBusMenuExporter *_mainMenuExporter = nullptr;
-	QString _mainMenuPath;
 
 	std::unique_ptr<internal::GSDMediaKeys> _gsdMediaKeys;
 

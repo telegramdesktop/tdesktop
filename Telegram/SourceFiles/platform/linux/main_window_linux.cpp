@@ -67,6 +67,7 @@ namespace {
 constexpr auto kPanelTrayIconName = "telegram-panel"_cs;
 constexpr auto kMutePanelTrayIconName = "telegram-mute-panel"_cs;
 constexpr auto kAttentionPanelTrayIconName = "telegram-attention-panel"_cs;
+
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 constexpr auto kTrayIconFilename = "tdesktop-trayicon-XXXXXX.png"_cs;
 
@@ -77,6 +78,8 @@ constexpr auto kSNIWatcherInterface = kSNIWatcherService;
 constexpr auto kAppMenuService = "com.canonical.AppMenu.Registrar"_cs;
 constexpr auto kAppMenuObjectPath = "/com/canonical/AppMenu/Registrar"_cs;
 constexpr auto kAppMenuInterface = kAppMenuService;
+
+constexpr auto kMainMenuObjectPath = "/MenuBar"_cs;
 
 bool TrayIconMuted = true;
 int32 TrayIconCount = 0;
@@ -760,8 +763,8 @@ void MainWindow::handleAppMenuOwnerChanged(
 		LOG(("Not using D-Bus global menu."));
 	}
 
-	if (_appMenuSupported && !_mainMenuPath.isEmpty()) {
-		RegisterAppMenu(winId(), _mainMenuPath);
+	if (_appMenuSupported && _mainMenuExporter) {
+		RegisterAppMenu(winId(), kMainMenuObjectPath.utf16());
 	} else {
 		UnregisterAppMenu(winId());
 	}
@@ -1076,14 +1079,12 @@ void MainWindow::createGlobalMenu() {
 
 	about->setMenuRole(QAction::AboutQtRole);
 
-	_mainMenuPath = qsl("/MenuBar");
-
 	_mainMenuExporter = new DBusMenuExporter(
-		_mainMenuPath,
+		kMainMenuObjectPath.utf16(),
 		psMainMenu);
 
 	if (_appMenuSupported) {
-		RegisterAppMenu(winId(), _mainMenuPath);
+		RegisterAppMenu(winId(), kMainMenuObjectPath.utf16());
 	}
 
 	updateGlobalMenu();
@@ -1215,9 +1216,9 @@ void MainWindow::handleVisibleChangedHook(bool visible) {
 	}
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (_appMenuSupported && !_mainMenuPath.isEmpty()) {
+	if (_appMenuSupported && _mainMenuExporter) {
 		if (visible) {
-			RegisterAppMenu(winId(), _mainMenuPath);
+			RegisterAppMenu(winId(), kMainMenuObjectPath.utf16());
 		} else {
 			UnregisterAppMenu(winId());
 		}
