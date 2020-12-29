@@ -442,7 +442,10 @@ void GroupCallSettingsBox(
 			if (!copyLink() && !state->generatingLink) {
 				state->generatingLink = true;
 				peer->session().api().request(MTPmessages_ExportChatInvite(
-					peer->input
+					MTP_flags(0),
+					peer->input,
+					MTPint(), // expire_date
+					MTPint() // usage_limit
 				)).done([=](const MTPExportedChatInvite &result) {
 					if (result.type() == mtpc_chatInviteExported) {
 						const auto link = qs(

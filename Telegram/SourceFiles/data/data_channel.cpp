@@ -777,12 +777,13 @@ void ApplyChannelUpdate(
 		channel->growSlowmodeLastMessage(
 			next->v - channel->slowmodeSeconds());
 	}
-	channel->setInviteLink(update.vexported_invite().match([&](
-			const MTPDchatInviteExported &data) {
-		return qs(data.vlink());
-	}, [&](const MTPDchatInviteEmpty &) {
-		return QString();
-	}));
+	if (const auto invite = update.vexported_invite()) {
+		invite->match([&](const MTPDchatInviteExported &data) {
+			channel->setInviteLink(qs(data.vlink()));
+		});
+	} else {
+		channel->setInviteLink(QString());
+	}
 	if (const auto location = update.vlocation()) {
 		channel->setLocation(*location);
 	} else {

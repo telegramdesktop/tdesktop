@@ -127,8 +127,8 @@ chatForbidden#7328bdb id:int title:string = Chat;
 channel#d31a961e flags:# creator:flags.0?true left:flags.2?true broadcast:flags.5?true verified:flags.7?true megagroup:flags.8?true restricted:flags.9?true signatures:flags.11?true min:flags.12?true scam:flags.19?true has_link:flags.20?true has_geo:flags.21?true slowmode_enabled:flags.22?true call_active:flags.23?true call_not_empty:flags.24?true id:int access_hash:flags.13?long title:string username:flags.6?string photo:ChatPhoto date:int version:int restriction_reason:flags.9?Vector<RestrictionReason> admin_rights:flags.14?ChatAdminRights banned_rights:flags.15?ChatBannedRights default_banned_rights:flags.18?ChatBannedRights participants_count:flags.17?int = Chat;
 channelForbidden#289da732 flags:# broadcast:flags.5?true megagroup:flags.8?true id:int access_hash:long title:string until_date:flags.16?int = Chat;
 
-chatFull#dc8c181 flags:# can_set_username:flags.7?true has_scheduled:flags.8?true id:int about:string participants:ChatParticipants chat_photo:flags.2?Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite bot_info:flags.3?Vector<BotInfo> pinned_msg_id:flags.6?int folder_id:flags.11?int call:flags.12?InputGroupCall = ChatFull;
-channelFull#ef3a6acd flags:# can_view_participants:flags.3?true can_set_username:flags.6?true can_set_stickers:flags.7?true hidden_prehistory:flags.10?true can_set_location:flags.16?true has_scheduled:flags.19?true can_view_stats:flags.20?true blocked:flags.22?true id:int about:string participants_count:flags.0?int admins_count:flags.1?int kicked_count:flags.2?int banned_count:flags.2?int online_count:flags.13?int read_inbox_max_id:int read_outbox_max_id:int unread_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:ExportedChatInvite bot_info:Vector<BotInfo> migrated_from_chat_id:flags.4?int migrated_from_max_id:flags.4?int pinned_msg_id:flags.5?int stickerset:flags.8?StickerSet available_min_id:flags.9?int folder_id:flags.11?int linked_chat_id:flags.14?int location:flags.15?ChannelLocation slowmode_seconds:flags.17?int slowmode_next_send_date:flags.18?int stats_dc:flags.12?int pts:int call:flags.21?InputGroupCall = ChatFull;
+chatFull#f3474af6 flags:# can_set_username:flags.7?true has_scheduled:flags.8?true id:int about:string participants:ChatParticipants chat_photo:flags.2?Photo notify_settings:PeerNotifySettings exported_invite:flags.13?ExportedChatInvite bot_info:flags.3?Vector<BotInfo> pinned_msg_id:flags.6?int folder_id:flags.11?int call:flags.12?InputGroupCall = ChatFull;
+channelFull#7a7de4f7 flags:# can_view_participants:flags.3?true can_set_username:flags.6?true can_set_stickers:flags.7?true hidden_prehistory:flags.10?true can_set_location:flags.16?true has_scheduled:flags.19?true can_view_stats:flags.20?true blocked:flags.22?true id:int about:string participants_count:flags.0?int admins_count:flags.1?int kicked_count:flags.2?int banned_count:flags.2?int online_count:flags.13?int read_inbox_max_id:int read_outbox_max_id:int unread_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:flags.23?ExportedChatInvite bot_info:Vector<BotInfo> migrated_from_chat_id:flags.4?int migrated_from_max_id:flags.4?int pinned_msg_id:flags.5?int stickerset:flags.8?StickerSet available_min_id:flags.9?int folder_id:flags.11?int linked_chat_id:flags.14?int location:flags.15?ChannelLocation slowmode_seconds:flags.17?int slowmode_next_send_date:flags.18?int stats_dc:flags.12?int pts:int call:flags.21?InputGroupCall = ChatFull;
 
 chatParticipant#c8d7493e user_id:int inviter_id:int date:int = ChatParticipant;
 chatParticipantCreator#da13538a user_id:int = ChatParticipant;
@@ -140,7 +140,7 @@ chatParticipants#3f460fed chat_id:int participants:Vector<ChatParticipant> versi
 chatPhotoEmpty#37c1011c = ChatPhoto;
 chatPhoto#d20b9f3c flags:# has_video:flags.0?true photo_small:FileLocation photo_big:FileLocation dc_id:int = ChatPhoto;
 
-messageEmpty#83e5de54 id:int = Message;
+messageEmpty#90a6ca84 flags:# id:int peer_id:flags.0?Peer = Message;
 message#58ae39c9 flags:# out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true post:flags.14?true from_scheduled:flags.18?true legacy:flags.19?true edit_hide:flags.21?true pinned:flags.24?true id:int from_id:flags.8?Peer peer_id:Peer fwd_from:flags.2?MessageFwdHeader via_bot_id:flags.11?int reply_to:flags.3?MessageReplyHeader date:int message:string media:flags.9?MessageMedia reply_markup:flags.6?ReplyMarkup entities:flags.7?Vector<MessageEntity> views:flags.10?int forwards:flags.10?int replies:flags.23?MessageReplies edit_date:flags.15?int post_author:flags.16?string grouped_id:flags.17?long restriction_reason:flags.22?Vector<RestrictionReason> = Message;
 messageService#286fa604 flags:# out:flags.1?true mentioned:flags.4?true media_unread:flags.5?true silent:flags.13?true post:flags.14?true legacy:flags.19?true id:int from_id:flags.8?Peer peer_id:Peer reply_to:flags.3?MessageReplyHeader date:int action:MessageAction = Message;
 
@@ -535,8 +535,7 @@ auth.passwordRecovery#137948a5 email_pattern:string = auth.PasswordRecovery;
 
 receivedNotifyMessage#a384b779 id:int flags:int = ReceivedNotifyMessage;
 
-chatInviteEmpty#69df3769 = ExportedChatInvite;
-chatInviteExported#fc2e05bc link:string = ExportedChatInvite;
+chatInviteExported#a9a847ea flags:# revoked:flags.0?true link:string admin_id:int date:int expire_date:flags.1?int usage_limit:flags.2?int usage:flags.3?int = ExportedChatInvite;
 
 chatInviteAlready#5a686d7c chat:Chat = ChatInvite;
 chatInvite#dfc2f58e flags:# channel:flags.0?true broadcast:flags.1?true public:flags.2?true megagroup:flags.3?true title:string photo:Photo participants_count:int participants:flags.4?Vector<User> = ChatInvite;
@@ -820,7 +819,7 @@ payments.savedInfo#fb8fe43c flags:# has_saved_credentials:flags.1?true saved_inf
 inputPaymentCredentialsSaved#c10eb2cf id:string tmp_password:bytes = InputPaymentCredentials;
 inputPaymentCredentials#3417d728 flags:# save:flags.0?true data:DataJSON = InputPaymentCredentials;
 inputPaymentCredentialsApplePay#aa1c39f payment_data:DataJSON = InputPaymentCredentials;
-inputPaymentCredentialsAndroidPay#ca05d50e payment_token:DataJSON google_transaction_id:string = InputPaymentCredentials;
+inputPaymentCredentialsGooglePay#8ac32801 payment_token:DataJSON = InputPaymentCredentials;
 
 account.tmpPassword#db64fd34 tmp_password:bytes valid_until:int = account.TmpPassword;
 
@@ -1195,7 +1194,7 @@ groupCall#55903081 flags:# join_muted:flags.1?true can_change_join_muted:flags.2
 
 inputGroupCall#d8aa840f id:long access_hash:long = InputGroupCall;
 
-groupCallParticipant#56b087c9 flags:# muted:flags.0?true left:flags.1?true can_self_unmute:flags.2?true just_joined:flags.4?true versioned:flags.5?true user_id:int date:int active_date:flags.3?int source:int = GroupCallParticipant;
+groupCallParticipant#b881f32b flags:# muted:flags.0?true left:flags.1?true can_self_unmute:flags.2?true just_joined:flags.4?true versioned:flags.5?true muted_by_you:flags.9?true user_id:int date:int active_date:flags.3?int source:int volume:flags.7?int muted_cnt:flags.8?int = GroupCallParticipant;
 
 phone.groupCall#66ab0bfc call:GroupCall participants:Vector<GroupCallParticipant> participants_next_offset:string users:Vector<User> = phone.GroupCall;
 
@@ -1206,6 +1205,14 @@ inlineQueryPeerTypePM#833c0fac = InlineQueryPeerType;
 inlineQueryPeerTypeChat#d766c50a = InlineQueryPeerType;
 inlineQueryPeerTypeMegagroup#5ec4be43 = InlineQueryPeerType;
 inlineQueryPeerTypeBroadcast#6334ee9a = InlineQueryPeerType;
+
+chatInviteImporter#1e3e6680 user_id:int date:int = ChatInviteImporter;
+
+messages.exportedChatInvites#bdc62dcc count:int invites:Vector<ExportedChatInvite> users:Vector<User> = messages.ExportedChatInvites;
+
+messages.exportedChatInvite#97c5e3a9 invite:ExportedChatInvite recent_importers:Vector<int> users:Vector<User> = messages.ExportedChatInvite;
+
+messages.chatInviteImporters#81b6b00a count:int importers:Vector<ChatInviteImporter> users:Vector<User> = messages.ChatInviteImporters;
 
 ---functions---
 
@@ -1366,7 +1373,7 @@ messages.readMessageContents#36a73f77 id:Vector<int> = messages.AffectedMessages
 messages.getStickers#43d4f2c emoticon:string hash:int = messages.Stickers;
 messages.getAllStickers#1c9618b1 hash:int = messages.AllStickers;
 messages.getWebPagePreview#8b68b0cc flags:# message:string entities:flags.3?Vector<MessageEntity> = MessageMedia;
-messages.exportChatInvite#df7534c peer:InputPeer = ExportedChatInvite;
+messages.exportChatInvite#14b9bcd7 flags:# peer:InputPeer expire_date:flags.0?int usage_limit:flags.1?int = ExportedChatInvite;
 messages.checkChatInvite#3eadb1bb hash:string = ChatInvite;
 messages.importChatInvite#6c50051c hash:string = Updates;
 messages.getStickerSet#2619a90e stickerset:InputStickerSet = messages.StickerSet;
@@ -1456,6 +1463,10 @@ messages.getReplies#24b581ba peer:InputPeer msg_id:int offset_id:int offset_date
 messages.getDiscussionMessage#446972fd peer:InputPeer msg_id:int = messages.DiscussionMessage;
 messages.readDiscussion#f731a9f4 peer:InputPeer msg_id:int read_max_id:int = Bool;
 messages.unpinAllMessages#f025bc8b peer:InputPeer = messages.AffectedHistory;
+messages.getExportedChatInvites#6d9cae03 flags:# expired:flags.1?true peer:InputPeer admin_id:flags.0?InputUser offset_link:flags.2?string limit:int = messages.ExportedChatInvites;
+messages.editExportedChatInvite#2e4ffbe flags:# revoked:flags.2?true peer:InputPeer link:string expire_date:flags.0?int usage_limit:flags.1?int = messages.ExportedChatInvite;
+messages.getExportedChatInvite#73746f5c peer:InputPeer link:string = messages.ExportedChatInvite;
+messages.getChatInviteImporters#26fb7289 peer:InputPeer link:string offset_date:int offset_user:InputUser limit:int = messages.ChatInviteImporters;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
@@ -1564,7 +1575,7 @@ phone.sendSignalingData#ff7a9383 peer:InputPhoneCall data:bytes = Bool;
 phone.createGroupCall#bd3dabe0 peer:InputPeer random_id:int = Updates;
 phone.joinGroupCall#5f9c8e62 flags:# muted:flags.0?true call:InputGroupCall params:DataJSON = Updates;
 phone.leaveGroupCall#500377f9 call:InputGroupCall source:int = Updates;
-phone.editGroupCallMember#63146ae4 flags:# muted:flags.0?true call:InputGroupCall user_id:InputUser = Updates;
+phone.editGroupCallMember#a5e76cd8 flags:# muted:flags.0?true call:InputGroupCall user_id:InputUser volume:flags.1?int = Updates;
 phone.inviteToGroupCall#7b393160 call:InputGroupCall users:Vector<InputUser> = Updates;
 phone.discardGroupCall#7a777135 call:InputGroupCall = Updates;
 phone.toggleGroupCallSettings#74bbb43d flags:# call:InputGroupCall join_muted:flags.0?Bool = Updates;
@@ -1587,4 +1598,4 @@ stats.getMegagroupStats#dcdf8607 flags:# dark:flags.0?true channel:InputChannel 
 stats.getMessagePublicForwards#5630281b channel:InputChannel msg_id:int offset_rate:int offset_peer:InputPeer offset_id:int limit:int = messages.Messages;
 stats.getMessageStats#b6e0a3f5 flags:# dark:flags.0?true channel:InputChannel msg_id:int = stats.MessageStats;
 
-// LAYER 122
+// LAYER 123

@@ -693,7 +693,10 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 				}
 				_createdChannel = channel;
 				_creationRequestId = _api.request(MTPmessages_ExportChatInvite(
-					_createdChannel->input
+					MTP_flags(0),
+					_createdChannel->input,
+					MTPint(), // expire_date
+					MTPint() // usage_limit
 				)).done([=](const MTPExportedChatInvite &result) {
 					_creationRequestId = 0;
 					if (result.type() == mtpc_chatInviteExported) {

@@ -388,12 +388,13 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 	} else {
 		chat->setUserpicPhoto(MTP_photoEmpty(MTP_long(0)));
 	}
-	chat->setInviteLink(update.vexported_invite().match([&](
-			const MTPDchatInviteExported &data) {
-		return qs(data.vlink());
-	}, [&](const MTPDchatInviteEmpty &) {
-		return QString();
-	}));
+	if (const auto invite = update.vexported_invite()) {
+		invite->match([&](const MTPDchatInviteExported &data) {
+			chat->setInviteLink(qs(data.vlink()));
+		});
+	} else {
+		chat->setInviteLink(QString());
+	}
 	if (const auto pinned = update.vpinned_msg_id()) {
 		SetTopPinnedMessageId(chat, pinned->v);
 	}

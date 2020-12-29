@@ -347,10 +347,12 @@ void GroupCall::applySelfInCallLocally() {
 		? i->lastActive
 		: TimeId(0);
 	const auto canSelfUnmute = (muted() != MuteState::ForceMuted);
+	const auto mutedCount = (i != end(participants)) ? /*i->mutedCount*/0 : 0;
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (lastActive ? Flag::f_active_date : Flag(0))
 		| (_mySsrc ? Flag(0) : Flag::f_left)
-		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0));
+		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0))
+		| (mutedCount ? Flag::f_muted_cnt : Flag(0));
 	call->applyUpdateChecked(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
@@ -361,7 +363,9 @@ void GroupCall::applySelfInCallLocally() {
 					MTP_int(self->bareId()),
 					MTP_int(date),
 					MTP_int(lastActive),
-					MTP_int(_mySsrc))),
+					MTP_int(_mySsrc),
+					MTP_int(10000), // volume
+					MTP_int(mutedCount))),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -756,7 +760,8 @@ void GroupCall::sendMutedUpdate() {
 			? MTPphone_EditGroupCallMember::Flag::f_muted
 			: MTPphone_EditGroupCallMember::Flag(0)),
 		inputCall(),
-		MTP_inputUserSelf()
+		MTP_inputUserSelf(),
+		MTP_int(100000) // volume
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
 		_peer->session().api().applyUpdates(result);
@@ -796,7 +801,8 @@ void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
 			? MTPphone_EditGroupCallMember::Flag::f_muted
 			: MTPphone_EditGroupCallMember::Flag(0)),
 		inputCall(),
-		user->inputUser
+		user->inputUser,
+		MTP_int(100000) // volume
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {

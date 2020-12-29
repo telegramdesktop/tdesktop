@@ -2127,7 +2127,10 @@ void ApiWrap::exportInviteLink(not_null<PeerData*> peer) {
 
 	const auto requestId = [&] {
 		return request(MTPmessages_ExportChatInvite(
-			peer->input
+			MTP_flags(0),
+			peer->input,
+			MTPint(), // expire_date
+			MTPint() // usage_limit
 		)).done([=](const MTPExportedChatInvite &result) {
 			_exportInviteRequests.erase(peer);
 			const auto link = (result.type() == mtpc_chatInviteExported)

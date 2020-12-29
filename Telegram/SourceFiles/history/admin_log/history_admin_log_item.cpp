@@ -59,8 +59,11 @@ MTPMessage PrepareLogMessage(
 		const MTPMessage &message,
 		MsgId newId,
 		TimeId newDate) {
-	return message.match([&](const MTPDmessageEmpty &) {
-		return MTP_messageEmpty(MTP_int(newId));
+	return message.match([&](const MTPDmessageEmpty &data) {
+		return MTP_messageEmpty(
+			data.vflags(),
+			MTP_int(newId),
+			data.vpeer_id() ? *data.vpeer_id() : MTPPeer());
 	}, [&](const MTPDmessageService &data) {
 		const auto removeFlags = MTPDmessageService::Flag::f_out
 			| MTPDmessageService::Flag::f_post
