@@ -32,14 +32,17 @@ public:
 
 	void setPeer(not_null<PeerData*> peer);
 
+	static constexpr auto kDefaultVolume = 10000;
 	struct Participant {
 		not_null<UserData*> user;
 		TimeId date = 0;
 		TimeId lastActive = 0;
 		uint32 ssrc = 0;
+		int volume = 0;
 		bool sounding = false;
 		bool speaking = false;
 		bool muted = false;
+		bool mutedByMe = false;
 		bool canSelfUnmute = false;
 	};
 	struct ParticipantUpdate {

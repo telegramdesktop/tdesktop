@@ -238,11 +238,25 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 	using Update = Data::GroupCall::ParticipantUpdate;
 	_peer->groupCall()->participantUpdated(
 	) | rpl::filter([=](const Update &update) {
-		return (_instance != nullptr) && !update.now;
+		return (_instance != nullptr);
 	}) | rpl::start_with_next([=](const Update &update) {
-		Expects(update.was.has_value());
-
-		_instance->removeSsrcs({ update.was->ssrc });
+		if (!update.now) {
+			_instance->removeSsrcs({ update.was->ssrc });
+		} else {
+			const auto &now = *update.now;
+			const auto &was = update.was;
+			const auto volumeChanged = was
+				? (was->volume != now.volume || was->mutedByMe != now.mutedByMe)
+				: (now.volume != Data::GroupCall::kDefaultVolume || now.mutedByMe);
+			if (volumeChanged) {
+				_instance->setVolume(
+					now.ssrc,
+					(now.mutedByMe
+						? 0.
+						: (now.volume
+							/ float64(Data::GroupCall::kDefaultVolume))));
+			}
+		}
 	}, _lifetime);
 
 	SubscribeToMigration(_peer, _lifetime, [=](not_null<ChannelData*> group) {
@@ -610,6 +624,7 @@ void GroupCall::createAndStartController() {
 		std::move(descriptor));
 
 	updateInstanceMuteState();
+	updateInstanceVolumes();
 
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 }
@@ -620,6 +635,27 @@ void GroupCall::updateInstanceMuteState() {
 	const auto state = muted();
 	_instance->setIsMuted(state != MuteState::Active
 		&& state != MuteState::PushToTalk);
+}
+
+void GroupCall::updateInstanceVolumes() {
+	const auto real = _peer->groupCall();
+	if (!real || real->id() != _id) {
+		return;
+	}
+
+	const auto &participants = real->participants();
+	for (const auto &participant : participants) {
+		const auto setVolume = participant.mutedByMe
+			|| (participant.volume != Data::GroupCall::kDefaultVolume);
+		if (setVolume && participant.ssrc) {
+			_instance->setVolume(
+				participant.ssrc,
+				(participant.mutedByMe
+					? 0.
+					: (participant.volume
+						/ float64(Data::GroupCall::kDefaultVolume))));
+		}
+	}
 }
 
 void GroupCall::audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data) {
@@ -792,17 +828,46 @@ void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
 	}
 }
 
+[[nodiscard]] const Data::GroupCall::Participant *LookupParticipant(
+		not_null<PeerData*> chat,
+		uint64 id,
+		not_null<UserData*> user) {
+	const auto call = chat->groupCall();
+	if (!id || !call || call->id() != id) {
+		return nullptr;
+	}
+	const auto &participants = call->participants();
+	const auto i = ranges::find(
+		participants,
+		user,
+		&Data::GroupCall::Participant::user);
+	return (i != end(participants)) ? &*i : nullptr;
+}
+
 void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
-	if (!_id) {
+	editParticipant(user, mute, std::nullopt);
+}
+
+void GroupCall::changeVolume(not_null<UserData*> user, int volume) {
+	editParticipant(user, false, volume);
+}
+
+void GroupCall::editParticipant(
+		not_null<UserData*> user,
+		bool mute,
+		std::optional<int> volume) {
+	const auto participant = LookupParticipant(_peer, _id, user);
+	if (!participant) {
 		return;
 	}
+	using Flag = MTPphone_EditGroupCallMember::Flag;
+	const auto flags = (mute ? Flag::f_muted : Flag(0))
+		| (volume.has_value() ? Flag::f_volume : Flag(0));
 	_api.request(MTPphone_EditGroupCallMember(
-		MTP_flags(mute
-			? MTPphone_EditGroupCallMember::Flag::f_muted
-			: MTPphone_EditGroupCallMember::Flag(0)),
+		MTP_flags(flags),
 		inputCall(),
 		user->inputUser,
-		MTP_int(100000) // volume
+		MTP_int(std::clamp(volume.value_or(0), 1, 20000))
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {

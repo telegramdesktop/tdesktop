@@ -280,8 +280,10 @@ void GroupCall::applyParticipantsSlice(
 				.date = data.vdate().v,
 				.lastActive = lastActive,
 				.ssrc = uint32(data.vsource().v),
+				.volume = data.vvolume().value_or(kDefaultVolume),
 				.speaking = canSelfUnmute && (was ? was->speaking : false),
 				.muted = data.is_muted(),
+				.mutedByMe = data.is_muted_by_you(),
 				.canSelfUnmute = canSelfUnmute,
 			};
 			if (i == end(_participants)) {

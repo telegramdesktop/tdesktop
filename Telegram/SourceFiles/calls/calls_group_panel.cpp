@@ -511,6 +511,13 @@ void GroupPanel::initWithCall(GroupCall *call) {
 		}
 	}, _callLifetime);
 
+	_members->changeVolumeRequests(
+	) | rpl::start_with_next([=](GroupMembers::VolumeRequest request) {
+		if (_call) {
+			_call->changeVolume(request.user, request.volume);
+		}
+	}, _callLifetime);
+
 	_members->kickMemberRequests(
 	) | rpl::start_with_next([=](not_null<UserData*> user) {
 		kickMember(user);

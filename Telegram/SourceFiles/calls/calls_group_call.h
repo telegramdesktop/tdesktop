@@ -132,6 +132,7 @@ public:
 	void setAudioDuckingEnabled(bool enabled);
 
 	void toggleMute(not_null<UserData*> user, bool mute);
+	void changeVolume(not_null<UserData*> user, int volume);
 	std::variant<int, not_null<UserData*>> inviteUsers(
 		const std::vector<not_null<UserData*>> &users);
 
@@ -163,6 +164,7 @@ private:
 	void maybeSendMutedUpdate(MuteState previous);
 	void sendMutedUpdate();
 	void updateInstanceMuteState();
+	void updateInstanceVolumes();
 	void applySelfInCallLocally();
 	void rejoin();
 
@@ -177,6 +179,11 @@ private:
 	void playConnectingSound();
 	void stopConnectingSound();
 	void playConnectingSoundOnce();
+
+	void editParticipant(
+		not_null<UserData*> user,
+		bool mute,
+		std::optional<int> volume);
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
