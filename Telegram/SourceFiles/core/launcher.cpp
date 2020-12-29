@@ -324,6 +324,23 @@ int Launcher::exec() {
 	// Must be started before Platform is started.
 	Logs::start(this);
 
+	if (Logs::DebugEnabled()) {
+		const auto openalLogPath = QDir::toNativeSeparators(
+			cWorkingDir() + qsl("DebugLogs/last_openal_log.txt"));
+
+		qputenv("ALSOFT_LOGLEVEL", "3");
+
+#ifdef Q_OS_WIN
+		_wputenv_s(
+			L"ALSOFT_LOGFILE",
+			openalLogPath.toStdWString().c_str());
+#else // Q_OS_WIN
+		qputenv(
+			"ALSOFT_LOGFILE",
+			QFile::encodeName(openalLogPath));
+#endif // !Q_OS_WIN
+	}
+
 	// Must be started before Sandbox is created.
 	Platform::start();
 	Ui::DisableCustomScaling();
