@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
-#include "base/platform/base_platform_info.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "base/platform/mac/base_utilities_mac.h"
 
@@ -20,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 
 Launcher::Launcher(int argc, char *argv[])
-: Core::Launcher(argc, argv, DeviceModelPretty(), SystemVersionPretty()) {
+: Core::Launcher(argc, argv) {
 }
 
 void Launcher::initHook() {
