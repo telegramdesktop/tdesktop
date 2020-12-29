@@ -1240,13 +1240,16 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 					: "Unmute for me"),
 				toggleMute);
 		}
-		const auto volume = real->volume();
-		result->addAction(QString("Increase volume (%1%)").arg(volume / 100.), [=] {
-			changeVolume(volume + 2000);
-		});
-		result->addAction(QString("Decrease volume (%1%)").arg(volume / 100.), [=] {
-			changeVolume(volume - 2000);
-		});
+		if (muteState != Row::State::Muted
+			&& muteState != Row::State::MutedByMe) {
+			const auto volume = real->volume();
+			result->addAction(QString("Increase volume (%1%)").arg(volume / 100.), [=] {
+				changeVolume(volume + 2000);
+			});
+			result->addAction(QString("Decrease volume (%1%)").arg(volume / 100.), [=] {
+				changeVolume(volume - 2000);
+			});
+		}
 	}
 	result->addAction(
 		tr::lng_context_view_profile(tr::now),
