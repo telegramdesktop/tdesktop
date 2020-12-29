@@ -184,6 +184,10 @@ private:
 		not_null<UserData*> user,
 		bool mute,
 		std::optional<int> volume);
+	void applyParticipantLocally(
+		not_null<UserData*> user,
+		bool mute,
+		std::optional<int> volume);
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 

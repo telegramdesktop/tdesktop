@@ -55,6 +55,22 @@ constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 		settings.callVideoInputDeviceId());
 }
 
+[[nodiscard]] const Data::GroupCall::Participant *LookupParticipant(
+		not_null<PeerData*> chat,
+		uint64 id,
+		not_null<UserData*> user) {
+	const auto call = chat->groupCall();
+	if (!id || !call || call->id() != id) {
+		return nullptr;
+	}
+	const auto &participants = call->participants();
+	const auto i = ranges::find(
+		participants,
+		user,
+		&Data::GroupCall::Participant::user);
+	return (i != end(participants)) ? &*i : nullptr;
+}
+
 } // namespace
 
 GroupCall::GroupCall(
@@ -379,6 +395,38 @@ void GroupCall::applySelfInCallLocally() {
 					MTP_int(lastActive),
 					MTP_int(_mySsrc),
 					MTP_int(10000), // volume
+					MTP_int(mutedCount))),
+			MTP_int(0)).c_updateGroupCallParticipants());
+}
+
+void GroupCall::applyParticipantLocally(
+		not_null<UserData*> user,
+		bool mute,
+		std::optional<int> volume) {
+	const auto participant = LookupParticipant(_peer, _id, user);
+	if (!participant || !participant->ssrc) {
+		return;
+	}
+	const auto canSelfUnmute = participant->canSelfUnmute;
+	const auto mutedCount = 0/*participant->mutedCount*/;
+	using Flag = MTPDgroupCallParticipant::Flag;
+	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
+		| (participant->lastActive ? Flag::f_active_date : Flag(0))
+		| (participant->muted ? Flag::f_muted : Flag(0))
+		| (participant->mutedByMe ? Flag::f_muted_by_you : Flag(0))
+		| (mutedCount ? Flag::f_muted_cnt : Flag(0));
+	_peer->groupCall()->applyUpdateChecked(
+		MTP_updateGroupCallParticipants(
+			inputCall(),
+			MTP_vector<MTPGroupCallParticipant>(
+				1,
+				MTP_groupCallParticipant(
+					MTP_flags(flags),
+					MTP_int(user->bareId()),
+					MTP_int(participant->date),
+					MTP_int(participant->lastActive),
+					MTP_int(participant->ssrc),
+					MTP_int(volume.value_or(participant->volume)), // volume
 					MTP_int(mutedCount))),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
@@ -828,22 +876,6 @@ void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
 	}
 }
 
-[[nodiscard]] const Data::GroupCall::Participant *LookupParticipant(
-		not_null<PeerData*> chat,
-		uint64 id,
-		not_null<UserData*> user) {
-	const auto call = chat->groupCall();
-	if (!id || !call || call->id() != id) {
-		return nullptr;
-	}
-	const auto &participants = call->participants();
-	const auto i = ranges::find(
-		participants,
-		user,
-		&Data::GroupCall::Participant::user);
-	return (i != end(participants)) ? &*i : nullptr;
-}
-
 void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
 	editParticipant(user, mute, std::nullopt);
 }
@@ -860,6 +892,8 @@ void GroupCall::editParticipant(
 	if (!participant) {
 		return;
 	}
+	applyParticipantLocally(user, mute, volume);
+
 	using Flag = MTPphone_EditGroupCallMember::Flag;
 	const auto flags = (mute ? Flag::f_muted : Flag(0))
 		| (volume.has_value() ? Flag::f_volume : Flag(0));
