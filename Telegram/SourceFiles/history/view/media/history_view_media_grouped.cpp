@@ -268,6 +268,18 @@ QMargins GroupedMedia::groupedPadding() const {
 		(normal.bottom() - grouped.bottom()) + addToBottom);
 }
 
+void GroupedMedia::drawHighlight(Painter &p, int top) const {
+	if (_mode != Mode::Column) {
+		return;
+	}
+	const auto skip = top + groupedPadding().top();
+	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
+		const auto &part = _parts[i];
+		const auto rect = part.geometry.translated(0, skip);
+		_parent->paintCustomHighlight(p, rect.y(), rect.height(), part.item);
+	}
+}
+
 void GroupedMedia::draw(
 		Painter &p,
 		const QRect &clip,
@@ -290,6 +302,9 @@ void GroupedMedia::draw(
 		if (textSelection) {
 			selection = part.content->skipSelection(selection);
 		}
+		const auto highlightOpacity = (_mode == Mode::Grid)
+			? _parent->highlightOpacity(part.item)
+			: 0.;
 		part.content->drawGrouped(
 			p,
 			clip,
@@ -298,6 +313,7 @@ void GroupedMedia::draw(
 			part.geometry.translated(0, groupPadding.top()),
 			part.sides,
 			cornersFromSides(part.sides),
+			highlightOpacity,
 			&part.cacheKey,
 			&part.cache);
 	}

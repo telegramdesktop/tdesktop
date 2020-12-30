@@ -2520,9 +2520,9 @@ void HistoryInner::elementStartStickerLoop(
 	_animatedStickersPlayed.emplace(view->data());
 }
 
-crl::time HistoryInner::elementHighlightTime(not_null<const Element*> view) {
-	const auto fullAnimMs = _controller->content()->highlightStartTime(
-		view->data());
+crl::time HistoryInner::elementHighlightTime(
+		not_null<const HistoryItem*> item) {
+	const auto fullAnimMs = _controller->content()->highlightStartTime(item);
 	if (fullAnimMs > 0) {
 		const auto now = crl::now();
 		if (fullAnimMs < now) {
@@ -3421,8 +3421,8 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 			return (App::hoveredItem() == view);
 		}
 		crl::time elementHighlightTime(
-				not_null<const Element*> view) override {
-			return Instance ? Instance->elementHighlightTime(view) : 0;
+				not_null<const HistoryItem*> item) override {
+			return Instance ? Instance->elementHighlightTime(item) : 0;
 		}
 		bool elementInSelectionMode() override {
 			return Instance ? Instance->inSelectionMode() : false;

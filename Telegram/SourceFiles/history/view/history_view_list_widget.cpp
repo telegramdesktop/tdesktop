@@ -482,7 +482,7 @@ void ListWidget::highlightMessage(FullMsgId itemId) {
 			_highlightedMessageId = itemId;
 			_highlightTimer.callEach(AnimationTimerDelta);
 
-			repaintItem(view);
+			repaintHighlightedItem(view);
 		}
 	}
 }
@@ -496,10 +496,24 @@ void ListWidget::showAroundPosition(
 	refreshViewer();
 }
 
+void ListWidget::repaintHighlightedItem(not_null<const Element*> view) {
+	if (view->isHiddenByGroup()) {
+		if (const auto group = session().data().groups().find(view->data())) {
+			if (const auto leader = viewForItem(group->items.front())) {
+				if (!leader->isHiddenByGroup()) {
+					repaintItem(leader);
+					return;
+				}
+			}
+		}
+	}
+	repaintItem(view);
+}
+
 void ListWidget::updateHighlightedMessage() {
 	if (const auto item = session().data().message(_highlightedMessageId)) {
 		if (const auto view = viewForItem(item)) {
-			repaintItem(view);
+			repaintHighlightedItem(view);
 			auto duration = st::activeFadeInDuration + st::activeFadeOutDuration;
 			if (crl::now() - _highlightStart <= duration) {
 				return;
@@ -1244,8 +1258,8 @@ bool ListWidget::elementUnderCursor(
 }
 
 crl::time ListWidget::elementHighlightTime(
-		not_null<const HistoryView::Element*> element) {
-	if (element->data()->fullId() == _highlightedMessageId) {
+		not_null<const HistoryItem*> item) {
+	if (item->fullId() == _highlightedMessageId) {
 		if (_highlightTimer.isActive()) {
 			return crl::now() - _highlightStart;
 		}

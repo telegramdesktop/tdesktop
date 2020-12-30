@@ -1045,11 +1045,6 @@ void HistoryWidget::scrollToAnimationCallback(
 
 void HistoryWidget::enqueueMessageHighlight(
 		not_null<HistoryView::Element*> view) {
-	if (const auto group = session().data().groups().find(view->data())) {
-		if (const auto leader = group->items.front()->mainView()) {
-			view = leader;
-		}
-	}
 	auto enqueueMessageId = [this](MsgId universalId) {
 		if (_highlightQueue.empty() && !_highlightTimer.isActive()) {
 			highlightMessage(universalId);
@@ -1096,7 +1091,7 @@ void HistoryWidget::checkNextHighlight() {
 
 void HistoryWidget::updateHighlightedMessage() {
 	const auto item = getItemFromHistoryOrMigrated(_highlightedMessageId);
-	const auto view = item ? item->mainView() : nullptr;
+	auto view = item ? item->mainView() : nullptr;
 	if (!view) {
 		return stopMessageHighlight();
 	}
@@ -1105,6 +1100,11 @@ void HistoryWidget::updateHighlightedMessage() {
 		return stopMessageHighlight();
 	}
 
+	if (const auto group = session().data().groups().find(view->data())) {
+		if (const auto leader = group->items.front()->mainView()) {
+			view = leader;
+		}
+	}
 	session().data().requestViewRepaint(view);
 }
 

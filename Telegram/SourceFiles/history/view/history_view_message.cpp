@@ -570,7 +570,40 @@ void Message::draw(
 		return;
 	}
 
-	paintHighlight(p, g.height());
+	auto entry = logEntryOriginal();
+	auto mediaDisplayed = media && media->isDisplayed();
+
+	// Entry page is always a bubble bottom.
+	auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
+	auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
+
+	auto mediaSelectionIntervals = (!selected && mediaDisplayed)
+		? media->getBubbleSelectionIntervals(selection)
+		: std::vector<BubbleSelectionInterval>();
+	auto localMediaTop = 0;
+	const auto customHighlight = mediaDisplayed && media->customHighlight();
+	if (!mediaSelectionIntervals.empty() || customHighlight) {
+		auto localMediaBottom = g.top() + g.height();
+		if (data()->repliesAreComments() || data()->externalReply()) {
+			localMediaBottom -= st::historyCommentsButtonHeight;
+		}
+		if (!mediaOnBottom) {
+			localMediaBottom -= st::msgPadding.bottom();
+		}
+		if (entry) {
+			localMediaBottom -= entry->height();
+		}
+		localMediaTop = localMediaBottom - media->height();
+		for (auto &[top, height] : mediaSelectionIntervals) {
+			top += localMediaTop;
+		}
+	}
+
+	if (customHighlight) {
+		media->drawHighlight(p, localMediaTop);
+	} else {
+		paintHighlight(p, g.height());
+	}
 
 	const auto roll = media ? media->bubbleRoll() : Media::BubbleRoll();
 	if (roll) {
@@ -600,34 +633,6 @@ void Message::draw(
 			&& item->displayFrom()
 			&& item->displayFrom()->nameVersion > item->_fromNameVersion) {
 			fromNameUpdated(g.width());
-		}
-
-		auto entry = logEntryOriginal();
-		auto mediaDisplayed = media && media->isDisplayed();
-
-		// Entry page is always a bubble bottom.
-		auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
-		auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
-
-
-		auto mediaSelectionIntervals = (!selected && mediaDisplayed)
-			? media->getBubbleSelectionIntervals(selection)
-			: std::vector<BubbleSelectionInterval>();
-		if (!mediaSelectionIntervals.empty()) {
-			auto localMediaBottom = g.top() + g.height();
-			if (data()->repliesAreComments() || data()->externalReply()) {
-				localMediaBottom -= st::historyCommentsButtonHeight;
-			}
-			if (!mediaOnBottom) {
-				localMediaBottom -= st::msgPadding.bottom();
-			}
-			if (entry) {
-				localMediaBottom -= entry->height();
-			}
-			const auto localMediaTop = localMediaBottom - media->height();
-			for (auto &[top, height] : mediaSelectionIntervals) {
-				top += localMediaTop;
-			}
 		}
 
 		auto skipTail = isAttachedToNext()
