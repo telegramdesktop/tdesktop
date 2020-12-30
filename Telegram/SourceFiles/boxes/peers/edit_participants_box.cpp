@@ -1212,6 +1212,9 @@ void ParticipantsBoxController::rebuildChatAdmins(
 		return true;
 	}();
 	if (same) {
+		if (!_allLoaded && !delegate()->peerListFullRowsCount()) {
+			chatListReady();
+		}
 		return;
 	}
 

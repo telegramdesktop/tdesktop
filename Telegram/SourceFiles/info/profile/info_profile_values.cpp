@@ -247,7 +247,7 @@ rpl::producer<int> AdminsCountValue(not_null<PeerData*> peer) {
 		) | rpl::map([=] {
 			return chat->participants.empty()
 				? 0
-				: int(chat->admins.size() + 1); // + creator
+				: int(chat->admins.size() + (chat->creator ? 1 : 0));
 		});
 	} else if (const auto channel = peer->asChannel()) {
 		return peer->session().changes().peerFlagsValue(
