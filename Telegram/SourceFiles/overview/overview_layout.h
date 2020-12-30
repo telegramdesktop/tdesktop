@@ -368,6 +368,7 @@ private:
 	int _pixh = 0;
 	Ui::Text::String _text = { st::msgMinWidth };
 	QPixmap _thumbnail;
+	bool _thumbnailBlurred = true;
 
 	struct LinkEntry {
 		LinkEntry() : width(0) {
