@@ -358,7 +358,7 @@ bool ParticipantsAdditionalData::canRemoveUser(
 	if (canRestrictUser(user)) {
 		return true;
 	} else if (const auto chat = _peer->asChat()) {
-		return chat->invitedByMe.contains(user);
+		return !user->isSelf() && chat->invitedByMe.contains(user);
 	}
 	return false;
 }
