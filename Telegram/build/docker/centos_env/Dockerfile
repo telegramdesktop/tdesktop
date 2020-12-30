@@ -27,8 +27,8 @@ ENV LibrariesPath /usr/src/Libraries
 WORKDIR $LibrariesPath
 
 FROM builder AS patches
-RUN git clone $GIT/desktop-app/patches.git
-RUN cd patches && git checkout 6afd91a
+ADD https://api.github.com/repos/desktop-app/patches/git/refs/heads/master patches-version.json
+RUN git clone --depth=1 $GIT/desktop-app/patches.git
 
 FROM builder AS libffi
 RUN git clone -b v3.3 --depth=1 $GIT/libffi/libffi.git
@@ -107,20 +107,18 @@ RUN rm -rf libxcb
 
 FROM builder AS xcb-wm
 
-RUN git clone --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-wm.git
+RUN git clone -b 0.4.1 --depth=1 --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-wm.git
 
 WORKDIR libxcb-wm
-RUN git checkout 0.4.1
 RUN ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/xcb-wm-cache" install
 
 FROM builder AS xcb-util
 
-RUN git clone --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-util.git
+RUN git clone -b 0.4.0 --depth=1 --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-util.git
 
 WORKDIR libxcb-util
-RUN git checkout 0.4.0
 RUN ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/xcb-util-cache" install
@@ -128,30 +126,27 @@ RUN make DESTDIR="$LibrariesPath/xcb-util-cache" install
 FROM builder AS xcb-image
 COPY --from=xcb-util ${LibrariesPath}/xcb-util-cache /
 
-RUN git clone --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-image.git
+RUN git clone -b 0.4.0 --depth=1 --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-image.git
 
 WORKDIR libxcb-image
-RUN git checkout 0.4.0
 RUN ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/xcb-image-cache" install
 
 FROM builder AS xcb-keysyms
 
-RUN git clone --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-keysyms.git
+RUN git clone -b 0.4.0 --depth=1 --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-keysyms.git
 
 WORKDIR libxcb-keysyms
-RUN git checkout 0.4.0
 RUN ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/xcb-keysyms-cache" install
 
 FROM builder AS xcb-render-util
 
-RUN git clone --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-render-util.git
+RUN git clone -b 0.3.9 --depth=1 --recursive https://gitlab.freedesktop.org/xorg/lib/libxcb-render-util.git
 
 WORKDIR libxcb-render-util
-RUN git checkout 0.3.9
 RUN ./autogen.sh --enable-static
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/xcb-render-util-cache" install
@@ -482,7 +477,7 @@ RUN make DESTDIR="$BreakpadCache" install
 
 WORKDIR src
 RUN rm -rf testing
-RUN git clone $GIT/google/googletest.git testing
+RUN git clone --depth=1 $GIT/google/googletest.git testing
 
 WORKDIR tools
 RUN sed -i 's/minidump_upload.m/minidump_upload.cc/' linux/tools_linux.gypi
@@ -503,10 +498,10 @@ COPY --from=opus ${LibrariesPath}/opus-cache /
 COPY --from=ffmpeg ${LibrariesPath}/ffmpeg-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 
-RUN git clone --recursive $GIT/desktop-app/tg_owt.git
+ADD https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master tg_owt-version.json
+RUN git clone --depth=1 --recursive $GIT/desktop-app/tg_owt.git
 
 WORKDIR tg_owt
-RUN git checkout 75ac669
 
 RUN cmake3 -B out/Release . \
 	-DCMAKE_BUILD_TYPE=Release \
