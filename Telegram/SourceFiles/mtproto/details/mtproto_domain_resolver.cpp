@@ -65,7 +65,7 @@ QByteArray DnsUserAgent() {
 	static const auto kResult = QByteArray(
 		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
 		"AppleWebKit/537.36 (KHTML, like Gecko) "
-		"Chrome/86.0.4240.198 Safari/537.36");
+		"Chrome/87.0.4280.88 Safari/537.36");
 	return kResult;
 }
 
