@@ -235,14 +235,6 @@ inline GtkWindow *gtk_window_cast(Object *obj) {
 	return g_type_cic_helper<GtkWindow, Object>(obj, gtk_window_get_type());
 }
 
-typedef GType (*f_gtk_widget_get_type)(void) G_GNUC_CONST;
-extern f_gtk_widget_get_type gtk_widget_get_type;
-
-template <typename Object>
-inline GtkWidget *gtk_widget_cast(Object *obj) {
-	return g_type_cic_helper<GtkWidget, Object>(obj, gtk_widget_get_type());
-}
-
 typedef GType (*f_gtk_app_chooser_get_type)(void) G_GNUC_CONST;
 extern f_gtk_app_chooser_get_type gtk_app_chooser_get_type;
 
