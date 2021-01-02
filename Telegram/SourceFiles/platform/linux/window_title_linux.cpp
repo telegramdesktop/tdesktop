@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/window_title_linux.h"
 
-#include "platform/linux/linux_desktop_environment.h"
+#include "platform/linux/linux_wayland_integration.h"
 #include "base/platform/base_platform_info.h"
 
 namespace Platform {
@@ -24,9 +24,10 @@ bool SystemMoveResizeSupported() {
 } // namespace
 
 bool AllowNativeWindowFrameToggle() {
+	const auto waylandIntegration = internal::WaylandIntegration::Instance();
 	return SystemMoveResizeSupported()
-		// https://gitlab.gnome.org/GNOME/mutter/-/issues/217
-		&& !(DesktopEnvironment::IsGnome() && IsWayland());
+		&& (!waylandIntegration
+			|| waylandIntegration->supportsXdgDecoration());
 }
 
 object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {

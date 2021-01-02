@@ -1,12 +1,14 @@
 FROM centos:7 AS builder
 
 ENV GIT https://github.com
-ENV PKG_CONFIG_PATH /usr/local/lib/pkgconfig
+ENV PKG_CONFIG_PATH /usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
 ENV QT 5_15_2
 ENV QT_TAG v5.15.2
 ENV QT_PREFIX /usr/local/desktop-app/Qt-5.15.2
 ENV OPENSSL_VER 1_1_1
 ENV OPENSSL_PREFIX /usr/local/desktop-app/openssl-1.1.1
+ENV PATH ${PATH}:${QT_PREFIX}/bin
+ENV Qt5_DIR ${QT_PREFIX}
 
 RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 RUN yum -y install https://packages.endpoint.com/rhel/7/os/x86_64/endpoint-repo-1.7-1.x86_64.rpm
@@ -29,6 +31,18 @@ WORKDIR $LibrariesPath
 FROM builder AS patches
 ADD https://api.github.com/repos/desktop-app/patches/git/refs/heads/master patches-version.json
 RUN git clone --depth=1 $GIT/desktop-app/patches.git
+
+FROM builder AS extra-cmake-modules
+
+RUN git clone -b v5.77.0 --depth=1 $GIT/KDE/extra-cmake-modules.git
+
+WORKDIR extra-cmake-modules
+RUN cmake3 -B build . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+RUN cmake3 --build build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/extra-cmake-modules-cache" cmake3 --install build
+
+WORKDIR ..
+RUN rm -rf extra-cmake-modules
 
 FROM builder AS libffi
 RUN git clone -b v3.3 --depth=1 $GIT/libffi/libffi.git
@@ -202,6 +216,32 @@ RUN make DESTDIR="$LibrariesPath/wayland-cache" install
 
 WORKDIR ..
 RUN rm -rf wayland
+
+FROM builder AS wayland-protocols
+COPY --from=wayland ${LibrariesPath}/wayland-cache /
+
+RUN git clone -b 1.18 --depth=1 https://gitlab.freedesktop.org/wayland/wayland-protocols.git
+
+WORKDIR wayland-protocols
+RUN ./autogen.sh
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/wayland-protocols-cache" install
+
+WORKDIR ..
+RUN rm -rf wayland-protocols
+
+FROM builder AS plasma-wayland-protocols
+COPY --from=extra-cmake-modules ${LibrariesPath}/extra-cmake-modules-cache /
+
+RUN git clone -b v1.1.1 --depth=1 $GIT/KDE/plasma-wayland-protocols.git
+
+WORKDIR plasma-wayland-protocols
+RUN cmake3 -B build . -DCMAKE_BUILD_TYPE=Release
+RUN cmake3 --build build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/plasma-wayland-protocols-cache" cmake3 --install build
+
+WORKDIR ..
+RUN rm -rf plasma-wayland-protocols
 
 FROM builder AS libva
 
@@ -452,6 +492,34 @@ RUN make INSTALL_ROOT="$LibrariesPath/qt-cache" install
 WORKDIR ..
 RUN rm -rf qt_${QT}
 
+FROM builder AS kwayland
+
+COPY --from=extra-cmake-modules ${LibrariesPath}/extra-cmake-modules-cache /
+COPY --from=libffi ${LibrariesPath}/libffi-cache /
+COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
+COPY --from=xcb ${LibrariesPath}/xcb-cache /
+COPY --from=xcb-wm ${LibrariesPath}/xcb-wm-cache /
+COPY --from=xcb-util ${LibrariesPath}/xcb-util-cache /
+COPY --from=xcb-image ${LibrariesPath}/xcb-image-cache /
+COPY --from=xcb-keysyms ${LibrariesPath}/xcb-keysyms-cache /
+COPY --from=xcb-render-util ${LibrariesPath}/xcb-render-util-cache /
+COPY --from=wayland ${LibrariesPath}/wayland-cache /
+COPY --from=wayland-protocols ${LibrariesPath}/wayland-protocols-cache /
+COPY --from=plasma-wayland-protocols ${LibrariesPath}/plasma-wayland-protocols-cache /
+COPY --from=openssl ${LibrariesPath}/openssl-cache /
+COPY --from=xkbcommon ${LibrariesPath}/xkbcommon-cache /
+COPY --from=qt ${LibrariesPath}/qt-cache /
+
+RUN git clone -b v5.77.0 --depth=1 $GIT/KDE/kwayland.git
+
+WORKDIR kwayland
+RUN cmake3 -B build . -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF
+RUN cmake3 --build build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/kwayland-cache" cmake3 --install build
+
+WORKDIR ..
+RUN rm -rf kwayland
+
 FROM patches AS breakpad
 RUN git clone https://chromium.googlesource.com/breakpad/breakpad.git
 
@@ -547,6 +615,7 @@ COPY --from=openal ${LibrariesPath}/openal-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 COPY --from=xkbcommon ${LibrariesPath}/xkbcommon-cache /
 COPY --from=qt ${LibrariesPath}/qt-cache /
+COPY --from=kwayland ${LibrariesPath}/kwayland-cache /
 COPY --from=breakpad ${LibrariesPath}/breakpad breakpad
 COPY --from=breakpad ${LibrariesPath}/breakpad-cache /
 COPY --from=webrtc ${LibrariesPath}/tg_owt tg_owt

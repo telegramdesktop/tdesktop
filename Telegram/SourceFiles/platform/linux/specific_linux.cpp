@@ -1226,6 +1226,11 @@ void start() {
 
 	Libs::start();
 	MainWindow::LibsLoaded();
+
+	// wait for interface announce to know if native window frame is supported
+	if (const auto waylandIntegration = WaylandIntegration::Instance()) {
+		waylandIntegration->waitForInterfaceAnnounce();
+	}
 }
 
 void finish() {

@@ -84,6 +84,13 @@ if (LINUX)
         )
     endif()
 
+    if (NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
+        target_link_libraries(Telegram
+        PRIVATE
+            desktop-app::external_kwayland
+        )
+    endif()
+
     if (DESKTOP_APP_USE_PACKAGED
         AND NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
         AND Qt5WaylandClient_VERSION VERSION_LESS 5.13.0)
