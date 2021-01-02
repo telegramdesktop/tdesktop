@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/launcher_linux.h"
 
-#include "base/platform/base_platform_info.h"
 #include "platform/linux/specific_linux.h"
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
@@ -46,7 +45,7 @@ private:
 } // namespace
 
 Launcher::Launcher(int argc, char *argv[])
-: Core::Launcher(argc, argv, DeviceModelPretty(), SystemVersionPretty()) {
+: Core::Launcher(argc, argv) {
 }
 
 void Launcher::initHook() {

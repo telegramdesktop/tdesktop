@@ -97,7 +97,7 @@ public:
 	bool elementUnderCursor(
 		not_null<const HistoryView::Element*> view) override;
 	crl::time elementHighlightTime(
-		not_null<const HistoryView::Element*> element) override;
+		not_null<const HistoryItem*> item) override;
 	bool elementInSelectionMode() override;
 	bool elementIntersectsRange(
 		not_null<const HistoryView::Element*> view,

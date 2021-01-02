@@ -1,3 +1,8 @@
+2.5.3 beta (30.12.20)
+
+- Allow using mouse buttons in Push-to-Talk shortcut.
+- Fix blurred thumbnails in Shared Links section.
+
 2.5.2 beta (25.12.20)
 
 - Fix possible crash in video calls.

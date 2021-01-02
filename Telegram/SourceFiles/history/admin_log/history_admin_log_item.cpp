@@ -838,7 +838,7 @@ void GenerateItems(
 		data.vparticipant().match([&](const MTPDgroupCallParticipant &data) {
 			const auto user = history->owner().user(data.vuser_id().v);
 			const auto userLink = user->createOpenLink();
-			const auto userLinkText = textcmdLink(1, user->name);
+			const auto userLinkText = textcmdLink(2, user->name);
 			auto text = tr::lng_admin_log_muted_participant(
 				tr::now,
 				lt_from,
@@ -862,7 +862,7 @@ void GenerateItems(
 		data.vparticipant().match([&](const MTPDgroupCallParticipant &data) {
 			const auto user = history->owner().user(data.vuser_id().v);
 			const auto userLink = user->createOpenLink();
-			const auto userLinkText = textcmdLink(1, user->name);
+			const auto userLinkText = textcmdLink(2, user->name);
 			auto text = tr::lng_admin_log_unmuted_participant(
 				tr::now,
 				lt_from,

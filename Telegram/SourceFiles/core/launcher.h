@@ -15,9 +15,7 @@ class Launcher {
 public:
 	Launcher(
 		int argc,
-		char *argv[],
-		const QString &deviceModel,
-		const QString &systemVersion);
+		char *argv[]);
 
 	static std::unique_ptr<Launcher> Create(int argc, char *argv[]);
 
@@ -26,8 +24,6 @@ public:
 	QString argumentsString() const;
 	bool customWorkingDir() const;
 
-	QString deviceModel() const;
-	QString systemVersion() const;
 	uint64 installationTag() const;
 
 	bool checkPortableVersionFolder();
@@ -66,9 +62,6 @@ private:
 	char **_argv;
 	QStringList _arguments;
 	BaseIntegration _baseIntegration;
-
-	const QString _deviceModel;
-	const QString _systemVersion;
 
 	bool _customWorkingDir = false;
 

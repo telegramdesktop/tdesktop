@@ -924,12 +924,9 @@ CancelButton::CancelButton(not_null<Ui::RpWidget*> parent, int height)
 
 void CancelButton::init() {
 	_showProgress.value(
-	) | rpl::start_with_next([=](float64 progress) {
-		const auto hasProgress = (progress > 0.);
-		if (isHidden() == !hasProgress) {
-			setVisible(hasProgress);
-		}
-		update();
+	) | rpl::map(rpl::mappers::_1 > 0.) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool hasProgress) {
+		setVisible(hasProgress);
 	}, lifetime());
 
 	paintRequest(
@@ -960,6 +957,7 @@ QPoint CancelButton::prepareRippleStartPosition() const {
 
 void CancelButton::requestPaintProgress(float64 progress) {
 	_showProgress = progress;
+	update();
 }
 
 VoiceRecordBar::VoiceRecordBar(

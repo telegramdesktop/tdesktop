@@ -31,6 +31,7 @@ public:
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
+	void drawHighlight(Painter &p, int top) const override;
 	void draw(
 		Painter &p,
 		const QRect &clip,
@@ -85,6 +86,9 @@ public:
 		return _caption.isEmpty() && (_mode != Mode::Column);
 	}
 	bool allowsFastShare() const override {
+		return true;
+	}
+	bool customHighlight() const override {
 		return true;
 	}
 

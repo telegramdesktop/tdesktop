@@ -270,14 +270,10 @@ std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 
 Launcher::Launcher(
 	int argc,
-	char *argv[],
-	const QString &deviceModel,
-	const QString &systemVersion)
+	char *argv[])
 : _argc(argc)
 , _argv(argv)
-, _baseIntegration(_argc, _argv)
-, _deviceModel(deviceModel)
-, _systemVersion(systemVersion) {
+, _baseIntegration(_argc, _argv) {
 	base::Integration::Set(&_baseIntegration);
 }
 
@@ -327,6 +323,23 @@ int Launcher::exec() {
 
 	// Must be started before Platform is started.
 	Logs::start(this);
+
+	if (Logs::DebugEnabled()) {
+		const auto openalLogPath = QDir::toNativeSeparators(
+			cWorkingDir() + qsl("DebugLogs/last_openal_log.txt"));
+
+		qputenv("ALSOFT_LOGLEVEL", "3");
+
+#ifdef Q_OS_WIN
+		_wputenv_s(
+			L"ALSOFT_LOGFILE",
+			openalLogPath.toStdWString().c_str());
+#else // Q_OS_WIN
+		qputenv(
+			"ALSOFT_LOGFILE",
+			QFile::encodeName(openalLogPath));
+#endif // !Q_OS_WIN
+	}
 
 	// Must be started before Sandbox is created.
 	Platform::start();
@@ -417,14 +430,6 @@ void Launcher::prepareSettings() {
 	}
 
 	processArguments();
-}
-
-QString Launcher::deviceModel() const {
-	return _deviceModel;
-}
-
-QString Launcher::systemVersion() const {
-	return _systemVersion;
 }
 
 uint64 Launcher::installationTag() const {

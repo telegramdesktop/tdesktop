@@ -28,6 +28,8 @@ PRIVATE
 if (NOT DESKTOP_APP_DISABLE_WEBRTC_INTEGRATION)
     nice_target_sources(lib_tgcalls ${tgcalls_loc}
     PRIVATE
+        AudioDeviceHelper.cpp
+        AudioDeviceHelper.h
         CodecSelectHelper.cpp
         CodecSelectHelper.h
         CryptoHelper.cpp

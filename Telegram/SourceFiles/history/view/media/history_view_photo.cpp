@@ -485,6 +485,7 @@ void Photo::drawGrouped(
 		const QRect &geometry,
 		RectParts sides,
 		RectParts corners,
+		float64 highlightOpacity,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
 	ensureDataMediaCreated();
@@ -509,9 +510,18 @@ void Photo::drawGrouped(
 //		App::roundShadow(p, 0, 0, paintw, painth, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
 	}
 	p.drawPixmap(geometry.topLeft(), *cache);
-	if (selected) {
+
+	const auto overlayOpacity = selected
+		? (1. - highlightOpacity)
+		: highlightOpacity;
+	if (overlayOpacity > 0.) {
+		p.setOpacity(overlayOpacity);
 		const auto roundRadius = ImageRoundRadius::Large;
 		Ui::FillComplexOverlayRect(p, geometry, roundRadius, corners);
+		if (!selected) {
+			Ui::FillComplexOverlayRect(p, geometry, roundRadius, corners);
+		}
+		p.setOpacity(1.);
 	}
 
 	const auto displayState = radial

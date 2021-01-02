@@ -1158,11 +1158,6 @@ void HistoryWidget::scrollToAnimationCallback(
 
 void HistoryWidget::enqueueMessageHighlight(
 		not_null<HistoryView::Element*> view) {
-	if (const auto group = session().data().groups().find(view->data())) {
-		if (const auto leader = group->items.front()->mainView()) {
-			view = leader;
-		}
-	}
 	auto enqueueMessageId = [this](MsgId universalId) {
 		if (_highlightQueue.empty() && !_highlightTimer.isActive()) {
 			highlightMessage(universalId);
@@ -1209,7 +1204,7 @@ void HistoryWidget::checkNextHighlight() {
 
 void HistoryWidget::updateHighlightedMessage() {
 	const auto item = getItemFromHistoryOrMigrated(_highlightedMessageId);
-	const auto view = item ? item->mainView() : nullptr;
+	auto view = item ? item->mainView() : nullptr;
 	if (!view) {
 		return stopMessageHighlight();
 	}
@@ -1218,6 +1213,11 @@ void HistoryWidget::updateHighlightedMessage() {
 		return stopMessageHighlight();
 	}
 
+	if (const auto group = session().data().groups().find(view->data())) {
+		if (const auto leader = group->items.front()->mainView()) {
+			view = leader;
+		}
+	}
 	session().data().requestViewRepaint(view);
 }
 
@@ -1774,6 +1774,7 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		_editMsgId = 0;
 		_replyToId = readyToForward() ? 0 : _history->localDraft()->msgId;
 	}
+	updateCmdStartShown();
 	updateControlsVisibility();
 	updateControlsGeometry();
 	refreshTopBarActiveChat();
@@ -2367,11 +2368,7 @@ void HistoryWidget::updateControlsVisibility() {
 				_botCommandStart->hide();
 			} else {
 				_botKeyboardShow->hide();
-				if (_cmdStartShown) {
-					_botCommandStart->show();
-				} else {
-					_botCommandStart->hide();
-				}
+				_botCommandStart->setVisible(_cmdStartShown);
 			}
 		}
 		_attachToggle->show();
@@ -3894,7 +3891,7 @@ void HistoryWidget::updateSendButtonType() {
 bool HistoryWidget::updateCmdStartShown() {
 	bool cmdStartShown = false;
 	if (_history && _peer && ((_peer->isChat() && _peer->asChat()->botStatus > 0) || (_peer->isMegagroup() && _peer->asChannel()->mgInfo->botStatus > 0) || (_peer->isUser() && _peer->asUser()->isBot()))) {
-		if (!isBotStart() && !isBlocked() && !_keyboard->hasMarkup() && !_keyboard->forceReply()) {
+		if (!isBotStart() && !isBlocked() && !_keyboard->hasMarkup() && !_keyboard->forceReply() && !_editMsgId) {
 			if (!HasSendText(_field)) {
 				cmdStartShown = true;
 			}
@@ -4254,8 +4251,8 @@ void HistoryWidget::checkFieldAutocomplete() {
 			&& cRecentInlineBots().isEmpty()) {
 			session().local().readRecentHashtagsAndBots();
 		} else if (autocomplete.query[0] == '/'
-			&& _peer->isUser()
-			&& !_peer->asUser()->isBot()) {
+			&& ((_peer->isUser() && !_peer->asUser()->isBot())
+				|| _editMsgId)) {
 			return;
 		}
 	}
@@ -5020,7 +5017,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			_tabbedSelectorToggle->show();
 			_botKeyboardHide->hide();
 			_botKeyboardShow->hide();
-			_botCommandStart->show();
+			_botCommandStart->setVisible(!_editMsgId);
 		}
 		_field->setMaxHeight(computeMaxFieldHeight());
 		_kbShown = false;
@@ -5827,7 +5824,7 @@ void HistoryWidget::editMessage(FullMsgId itemId) {
 }
 
 void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
-	if (_voiceRecordBar->isListenState()) {
+	if (_voiceRecordBar->isActive()) {
 		Ui::show(Box<InformBox>(tr::lng_edit_caption_voice(tr::now)));
 		return;
 	}

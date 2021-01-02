@@ -2443,7 +2443,9 @@ bool OverlayWidget::initStreaming(bool continueStreaming) {
 void OverlayWidget::startStreamingPlayer() {
 	Expects(_streamed != nullptr);
 
-	if (_streamed->instance.player().playing()) {
+	if (!_streamed->instance.player().paused()
+		&& !_streamed->instance.player().finished()
+		&& !_streamed->instance.player().failed()) {
 		if (!_streamed->withSound) {
 			return;
 		}

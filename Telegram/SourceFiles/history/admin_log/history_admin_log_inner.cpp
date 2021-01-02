@@ -557,7 +557,7 @@ bool InnerWidget::elementUnderCursor(
 }
 
 crl::time InnerWidget::elementHighlightTime(
-		not_null<const HistoryView::Element*> element) {
+		not_null<const HistoryItem*> item) {
 	return crl::time(0);
 }
 
