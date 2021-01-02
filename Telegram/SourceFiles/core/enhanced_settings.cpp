@@ -233,6 +233,10 @@ namespace EnhancedSettings {
             cSetDisableCloudDraftSync(v);
         });
 
+		ReadBoolOption(settings, "show_scheduled_button", [&](auto v) {
+			cSetShowScheduledButton(v);
+		});
+
       return true;
     }
 
@@ -257,6 +261,7 @@ namespace EnhancedSettings {
         settings.insert(qsl("show_phone_number"), true);
         settings.insert(qsl("repeater_reply_to_orig_msg"), false);
         settings.insert(qsl("disable_cloud_draft_sync"), false);
+		settings.insert(qsl("show_scheduled_button"), false);
 
         auto document = QJsonDocument();
         document.setObject(settings);
@@ -287,6 +292,7 @@ namespace EnhancedSettings {
         settings.insert(qsl("show_phone_number"), cShowPhoneNumber());
         settings.insert(qsl("repeater_reply_to_orig_msg"), cRepeaterReplyToOrigMsg());
         settings.insert(qsl("disable_cloud_draft_sync"), cDisableCloudDraftSync());
+		settings.insert(qsl("show_scheduled_button"), cShowScheduledButton());
 
         auto document = QJsonDocument();
         document.setObject(settings);

@@ -183,6 +183,20 @@ namespace Settings {
 
         AddDividerText(inner, tr::lng_show_emoji_button_as_text_desc());
 
+		AddButton(
+				inner,
+				tr::lng_settings_show_schedule_button(),
+				st::settingsButton
+		)->toggleOn(
+				rpl::single(cShowScheduledButton())
+		)->toggledChanges(
+		) | rpl::filter([=](bool toggled) {
+			return (toggled != cShowScheduledButton());
+		}) | rpl::start_with_next([=](bool toggled) {
+			cSetShowScheduledButton(toggled);
+			EnhancedSettings::Write();
+		}, container->lifetime());
+
         AddSkip(container);
     }
 

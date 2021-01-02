@@ -2181,9 +2181,10 @@ void HistoryWidget::setupScheduledToggle() {
 }
 
 void HistoryWidget::refreshScheduledToggle() {
-	const auto has = _history
+	auto has = _history
 		&& _peer->canWrite()
 		&& (session().data().scheduledMessages().count(_history) > 0);
+	if (cShowScheduledButton()) has = true;
 	if (!_scheduled && has) {
 		_scheduled.create(this, st::historyScheduledToggle);
 		_scheduled->show();

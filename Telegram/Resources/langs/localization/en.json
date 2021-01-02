@@ -17,6 +17,7 @@
     "lng_settings_show_phone_number": "Show Phone Number",
     "lng_settings_repeater_reply_to_orig_msg": "Reply to original message",
     "lng_settings_disable_cloud_draft_sync": "Disable Cloud Draft Sync To Local",
+    "lng_settings_show_scheduled_button": "Always Show Scheduled Button",
     "lng_settings_restart_hint": "WARNING: Changing options with colored will take effect immediately with restart.",
 
     "lng_net_speed_boost_title": "Network speed boost",

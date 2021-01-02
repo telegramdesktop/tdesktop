@@ -2561,6 +2561,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_repeater_reply_to_orig_msg" = "Reply to original message";
 "lng_settings_disable_cloud_draft_sync" = "Disable Cloud Draft Sync To Local";
 "lng_settings_show_phone_number" = "Show Phone Number";
+"lng_settings_show_scheduled_button" = "Always Show Scheduled Button";
 "lng_settings_restart_hint" = "WARNING: Changing options marked with \"*\" will take effect immediately with restart.";
 
 "lng_settings_always_delete_for" = "Auto check delete message for";

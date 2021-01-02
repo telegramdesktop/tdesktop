@@ -185,6 +185,7 @@ DeclareSetting(bool, ShowRepeaterOption);
 DeclareSetting(bool, RepeaterReplyToOrigMsg);
 DeclareSetting(bool, DisableCloudDraftSync);
 DeclareSetting(bool, ShowPhoneNumber);
+DeclareSetting(bool, ShowScheduledButton);
 
 DeclareSetting(int, NetSpeedBoost);
 DeclareSetting(int, NetRequestsCount);
