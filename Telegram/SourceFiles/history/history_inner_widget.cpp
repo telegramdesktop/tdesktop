@@ -1751,18 +1751,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}
 				if (const auto media = item->media()) {
 					if (const auto poll = media->poll()) {
-						if (!poll->closed()) {
-							if (poll->voted() && !poll->quiz()) {
-								_menu->addAction(tr::lng_polls_retract(tr::now), [=] {
-									session->api().sendPollVotes(itemId, {});
-								});
-							}
-							if (item->canStopPoll()) {
-								_menu->addAction(tr::lng_polls_stop(tr::now), [=] {
-									HistoryView::StopPoll(session, itemId);
-								});
-							}
-						}
+						HistoryView::AddPollActions(
+							_menu,
+							poll,
+							item,
+							HistoryView::Context::History);
 					} else if (const auto contact = media->sharedContact()) {
 						const auto phone = contact->phoneNumber;
 						_menu->addAction(tr::lng_profile_copy_phone(tr::now), [=] {
