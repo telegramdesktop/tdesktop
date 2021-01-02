@@ -23,13 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "media/player/media_player_instance.h"
-#include "media/audio/media_audio.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_xcb_utilities_linux.h"
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include "platform/linux/linux_gsd_media_keys.h"
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "base/call_delayed.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
@@ -584,17 +579,6 @@ void MainWindow::initHook() {
 	} else {
 		LOG(("Not using Unity launcher counter."));
 	}
-
-	Media::Player::instance()->updatedNotifier(
-	) | rpl::start_with_next([=](const Media::Player::TrackState &state) {
-		if (!Media::Player::IsStoppedOrStopping(state.state)) {
-			if (!_gsdMediaKeys) {
-				_gsdMediaKeys = std::make_unique<internal::GSDMediaKeys>();
-			}
-		} else if (_gsdMediaKeys) {
-			_gsdMediaKeys = nullptr;
-		}
-	}, lifetime());
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	updateWaylandDecorationColors();

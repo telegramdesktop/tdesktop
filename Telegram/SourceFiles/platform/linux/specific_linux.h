@@ -17,9 +17,6 @@ class LocationPoint;
 
 namespace Platform {
 
-inline void SetWatchingMediaKeys(bool watching) {
-}
-
 bool InFlatpak();
 bool InSnap();
 bool IsStaticBinary();
