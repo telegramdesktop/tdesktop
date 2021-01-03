@@ -185,7 +185,7 @@ namespace Settings {
 
 		AddButton(
 				inner,
-				tr::lng_settings_show_schedule_button(),
+				tr::lng_settings_show_scheduled_button(),
 				st::settingsButton
 		)->toggleOn(
 				rpl::single(cShowScheduledButton())
