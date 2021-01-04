@@ -446,11 +446,7 @@ void OverlayWidget::moveToScreen() {
 		: nullptr;
 	const auto activeWindowScreen = widgetScreen(window);
 	const auto myScreen = widgetScreen(this);
-	// Wayland doesn't support positioning, but Qt emits screenChanged anyway
-	// and geometry of the widget become broken
-	if (activeWindowScreen
-		&& myScreen != activeWindowScreen
-		&& !Platform::IsWayland()) {
+	if (activeWindowScreen && myScreen != activeWindowScreen) {
 		windowHandle()->setScreen(activeWindowScreen);
 	}
 	updateGeometry();
@@ -465,7 +461,9 @@ void OverlayWidget::updateGeometry() {
 		return;
 	}
 	setGeometry(available);
+}
 
+void OverlayWidget::resizeEvent(QResizeEvent *e) {
 	auto navSkip = 2 * st::mediaviewControlMargin + st::mediaviewControlSize;
 	_closeNav = myrtlrect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, st::mediaviewControlMargin, st::mediaviewControlSize, st::mediaviewControlSize);
 	_closeNavIcon = style::centerrect(_closeNav, st::mediaviewClose);
