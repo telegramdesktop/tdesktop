@@ -413,7 +413,7 @@ bool IsSNIAvailable() {
 		qsl("Get"));
 
 	message.setArguments({
-		kSNIWatcherService.utf16(),
+		kSNIWatcherInterface.utf16(),
 		qsl("IsStatusNotifierHostRegistered")
 	});
 
