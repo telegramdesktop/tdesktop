@@ -402,10 +402,8 @@ bool UseUnityCounter() {
 
 	return Result;
 }
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 bool IsSNIAvailable() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	auto message = QDBusMessage::createMethodCall(
 		kSNIWatcherService.utf16(),
 		kSNIWatcherObjectPath.utf16(),
@@ -425,7 +423,6 @@ bool IsSNIAvailable() {
 	} else if (reply.error().type() != QDBusError::ServiceUnknown) {
 		LOG(("SNI Error: %1").arg(reply.error().message()));
 	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	return false;
 }
@@ -439,7 +436,6 @@ quint32 djbStringHash(QString string) {
 	return hash;
 }
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 bool IsAppMenuSupported() {
 	const auto interface = QDBusConnection::sessionBus().interface();
 
@@ -512,10 +508,9 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 }
 
 void MainWindow::initHook() {
-	_sniAvailable = IsSNIAvailable();
-	LOG(("System tray available: %1").arg(Logs::b(trayAvailable())));
-
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	_sniAvailable = IsSNIAvailable();
+
 	_sniDBusProxy = g_dbus_proxy_new_for_bus_sync(
 		G_BUS_TYPE_SESSION,
 		G_DBUS_PROXY_FLAGS_NONE,
@@ -581,8 +576,9 @@ void MainWindow::initHook() {
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-	updateWaylandDecorationColors();
+	LOG(("System tray available: %1").arg(Logs::b(trayAvailable())));
 
+	updateWaylandDecorationColors();
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		updateWaylandDecorationColors();
