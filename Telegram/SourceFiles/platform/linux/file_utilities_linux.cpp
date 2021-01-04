@@ -76,7 +76,7 @@ OpenWithDialog::OpenWithDialog(const QString &filepath)
 	g_signal_connect_swapped(
 		_gtkWidget,
 		"response",
-		G_CALLBACK(handleAppChooserResponse),
+		G_CALLBACK(handleResponse),
 		this);
 }
 
