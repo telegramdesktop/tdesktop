@@ -822,25 +822,28 @@ void MainWindow::updateIconCounters() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	if (UseUnityCounter()) {
 		const auto launcherUrl = "application://" + GetLauncherFilename();
+		// Gnome requires that count is a 64bit integer
+		const qint64 counterSlice = std::min(counter, 9999);
 		QVariantMap dbusUnityProperties;
-		if (counter > 0) {
-			// Gnome requires that count is a 64bit integer
-			dbusUnityProperties.insert(
-				"count",
-				(qint64) ((counter > 9999)
-					? 9999
-					: counter));
-			dbusUnityProperties.insert("count-visible", true);
+
+		if (counterSlice > 0) {
+			dbusUnityProperties["count"] = counterSlice;
+			dbusUnityProperties["count-visible"] = true;
 		} else {
-			dbusUnityProperties.insert("count-visible", false);
+			dbusUnityProperties["count-visible"] = false;
 		}
-		QDBusMessage signal = QDBusMessage::createSignal(
+
+		auto signal = QDBusMessage::createSignal(
 			"/com/canonical/unity/launcherentry/"
 				+ QString::number(djbStringHash(launcherUrl)),
 			"com.canonical.Unity.LauncherEntry",
 			"Update");
-		signal << launcherUrl;
-		signal << dbusUnityProperties;
+
+		signal.setArguments({
+			launcherUrl,
+			dbusUnityProperties
+		});
+
 		QDBusConnection::sessionBus().send(signal);
 	}
 
