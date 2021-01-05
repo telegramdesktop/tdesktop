@@ -476,6 +476,7 @@ void OverlayWidget::resizeEvent(QResizeEvent *e) {
 	_photoRadialRect = QRect(QPoint((width() - st::radialSize.width()) / 2, (height() - st::radialSize.height()) / 2), st::radialSize);
 
 	resizeContentByScreenSize();
+	updateControls();
 	update();
 }
 
