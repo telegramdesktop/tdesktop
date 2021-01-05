@@ -103,6 +103,7 @@ jobs:
       - name: Generate cache key.
         shell: bash
         run: |
+          curl -o $LibrariesPath/tg_owt-version.json https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master
           echo $MANUAL_CACHING >> CACHE_KEY.txt
           if [ "$AUTO_CACHING" == "1" ]; then
             thisFile=$REPO_NAME/.github/workflows/win.yml
@@ -359,7 +360,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/tg_owt
-          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}
+          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}-${{ hashFiles('**/tg_owt-version.json') }}
       - name: WebRTC.
         if: steps.cache-webrtc.outputs.cache-hit != 'true'
         run: |
