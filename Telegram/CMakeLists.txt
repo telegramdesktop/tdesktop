@@ -1114,6 +1114,12 @@ if (LINUX AND DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
     remove_target_sources(Telegram ${src_loc}
         platform/linux/linux_gsd_media_keys.cpp
         platform/linux/linux_gsd_media_keys.h
+        platform/linux/notifications_manager_linux.cpp
+    )
+
+    nice_target_sources(Telegram ${src_loc}
+    PRIVATE
+        platform/linux/notifications_manager_linux_dummy.cpp
     )
 endif()
 
