@@ -10,6 +10,10 @@
 
 Choose an empty folder for the future build, for example **D:\\TBuild**. It will be named ***BuildPath*** in the rest of this document. Create two folders there, ***BuildPath*\\ThirdParty** and ***BuildPath*\\Libraries**.
 
+#### About Visual Stodio 2019
+
+* Download **Visual Stodio 2019** installer from [https://visualstudio.microsoft.com/downloads/](https://visualstudio.microsoft.com/downloads/) and install it.
+
 All commands (if not stated otherwise) will be launched from **x86 Native Tools Command Prompt for VS 2019.bat** (should be in **Start Menu > Visual Studio 2019** menu folder). Pay attention not to use any other Command Prompt.
 
 ### Obtain your API credentials
