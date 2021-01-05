@@ -360,6 +360,7 @@ OverlayWidget::OverlayWidget()
 		setWindowFlags(Qt::FramelessWindowHint);
 	}
 	updateGeometry();
+	updateControlsGeometry();
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
 	setMouseTracking(true);
@@ -467,6 +468,10 @@ void OverlayWidget::updateGeometry() {
 }
 
 void OverlayWidget::resizeEvent(QResizeEvent *e) {
+	updateControlsGeometry();
+}
+
+void OverlayWidget::updateControlsGeometry() {
 	auto navSkip = 2 * st::mediaviewControlMargin + st::mediaviewControlSize;
 	_closeNav = myrtlrect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, st::mediaviewControlMargin, st::mediaviewControlSize, st::mediaviewControlSize);
 	_closeNavIcon = style::centerrect(_closeNav, st::mediaviewClose);

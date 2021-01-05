@@ -275,6 +275,7 @@ private:
 	void updateDocSize();
 	void updateControls();
 	void updateActions();
+	void updateControlsGeometry();
 	void resizeCenteredControls();
 	void resizeContentByScreenSize();
 
