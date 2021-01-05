@@ -321,6 +321,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 		call->fullCountValue(
 		) | rpl::start_with_next([=](int count) {
 			state->current.count = count;
+			state->current.shown = (count > 0);
 			consumer.put_next_copy(state->current);
 		}, lifetime);
 

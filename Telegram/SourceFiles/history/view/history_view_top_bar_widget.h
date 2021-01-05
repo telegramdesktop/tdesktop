@@ -130,6 +130,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	ActiveChat _activeChat;
 	QString _customTitleText;
+	rpl::lifetime _activeChatLifetime;
 
 	int _selectedCount = 0;
 	bool _canDelete = false;

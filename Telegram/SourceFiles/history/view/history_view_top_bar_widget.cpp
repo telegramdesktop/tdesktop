@@ -525,12 +525,36 @@ void TopBarWidget::setActiveChat(
 		_activeChat = activeChat;
 		return;
 	}
+	const auto peerChanged = (_activeChat.key.history()
+		!= activeChat.key.history());
+
 	_activeChat = activeChat;
 	_sendAction = sendAction;
 	_titlePeerText.clear();
 	_back->clearState();
 	update();
 
+	if (peerChanged) {
+		_activeChatLifetime.destroy();
+		if (const auto history = _activeChat.key.history()) {
+			session().changes().peerFlagsValue(
+				history->peer,
+				Data::PeerUpdate::Flag::GroupCall
+			) | rpl::map([=] {
+				return history->peer->groupCall();
+			}) | rpl::distinct_until_changed(
+			) | rpl::map([](Data::GroupCall *call) {
+				return call ? call->fullCountValue() : rpl::single(-1);
+			}) | rpl::flatten_latest(
+			) | rpl::map([](int count) {
+				return (count == 0);
+			}) | rpl::distinct_until_changed(
+			) | rpl::start_with_next([=] {
+				updateControlsVisibility();
+				updateControlsGeometry();
+			}, _activeChatLifetime);
+		}
+	}
 	updateUnreadBadge();
 	refreshInfoButton();
 	if (_menu) {
@@ -722,7 +746,12 @@ void TopBarWidget::updateControlsVisibility() {
 	_call->setVisible(historyMode && callsEnabled);
 	const auto groupCallsEnabled = [&] {
 		if (const auto peer = _activeChat.key.peer()) {
-			return peer->canManageGroupCall();
+			if (peer->canManageGroupCall()) {
+				return true;
+			} else if (const auto call = peer->groupCall()) {
+				return (call->fullCount() == 0);
+			}
+			return false;
 		}
 		return false;
 	}();
