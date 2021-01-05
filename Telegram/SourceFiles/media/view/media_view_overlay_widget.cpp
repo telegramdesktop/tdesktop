@@ -453,6 +453,9 @@ void OverlayWidget::moveToScreen() {
 }
 
 void OverlayWidget::updateGeometry() {
+	if (!Platform::IsMac()) {
+		return;
+	}
 	const auto screen = windowHandle() && windowHandle()->screen()
 		? windowHandle()->screen()
 		: QApplication::primaryScreen();

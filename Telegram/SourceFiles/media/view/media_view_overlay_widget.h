@@ -55,10 +55,14 @@ class Pip;
 #define USE_OPENGL_OVERLAY_WIDGET
 #endif // Q_OS_MAC && !OS_MAC_OLD
 
+struct OverlayParentTraits : Ui::RpWidgetDefaultTraits {
+	static constexpr bool kSetZeroGeometry = false;
+};
+
 #ifdef USE_OPENGL_OVERLAY_WIDGET
-using OverlayParent = Ui::RpWidgetWrap<QOpenGLWidget>;
+using OverlayParent = Ui::RpWidgetWrap<QOpenGLWidget, OverlayParentTraits>;
 #else // USE_OPENGL_OVERLAY_WIDGET
-using OverlayParent = Ui::RpWidget;
+using OverlayParent = Ui::RpWidgetWrap<QWidget, OverlayParentTraits>;
 #endif // USE_OPENGL_OVERLAY_WIDGET
 
 class OverlayWidget final
