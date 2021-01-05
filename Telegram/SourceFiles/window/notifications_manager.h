@@ -248,6 +248,30 @@ protected:
 
 };
 
+class DummyManager : public NativeManager {
+public:
+	using NativeManager::NativeManager;
+
+protected:
+	void doShowNativeNotification(
+		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &userpicView,
+		MsgId msgId,
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideNameAndPhoto,
+		bool hideReplyButton) override {
+	}
+	void doClearAllFast() override {
+	}
+	void doClearFromHistory(not_null<History*> history) override {
+	}
+	void doClearFromSession(not_null<Main::Session*> session) override {
+	}
+
+};
+
 QString WrapFromScheduled(const QString &text);
 
 } // namespace Notifications
