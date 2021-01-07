@@ -1,3 +1,10 @@
+2.5.4 beta (07.01.21)
+
+- Implement new audio module code for calls and voice chats.
+- Allow retracting votes from polls in comments to channel posts.
+- Show small voice chat button for empty voice chats.
+- Fix media viewer updating when screen resolution is changed.
+
 2.5.3 beta (30.12.20)
 
 - Allow using mouse buttons in Push-to-Talk shortcut.
