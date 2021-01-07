@@ -1410,7 +1410,10 @@ void ComposeControls::initTabbedSelector() {
 	selector->inlineResultChosen(
 	) | rpl::start_to_stream(_inlineResultChosen, wrap->lifetime());
 
-	selector->setSendMenuType([=] { return sendMenuType(); });
+	selector->contextMenuRequested(
+	) | rpl::start_with_next([=] {
+		selector->showMenuWithType(sendMenuType());
+	}, wrap->lifetime());
 }
 
 void ComposeControls::initSendButton() {

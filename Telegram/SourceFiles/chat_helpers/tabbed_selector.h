@@ -82,6 +82,7 @@ public:
 	rpl::producer<> cancelled() const;
 	rpl::producer<> checkForHide() const;
 	rpl::producer<> slideFinished() const;
+	rpl::producer<> contextMenuRequested() const;
 
 	void setRoundRadius(int radius);
 	void refreshStickers();
@@ -109,9 +110,7 @@ public:
 		_beforeHidingCallback = std::move(callback);
 	}
 
-	void setSendMenuType(Fn<SendMenu::Type()> &&callback) {
-		_sendMenuType = std::move(callback);
-	}
+	void showMenuWithType(SendMenu::Type type);
 
 	// Float player interface.
 	bool floatPlayerHandleWheelEvent(QEvent *e);
@@ -127,7 +126,6 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	class Tab {
@@ -227,8 +225,6 @@ private:
 
 	Fn<void(SelectorTab)> _afterShownCallback;
 	Fn<void(SelectorTab)> _beforeHidingCallback;
-
-	Fn<SendMenu::Type()> _sendMenuType;
 
 	rpl::event_stream<> _showRequests;
 	rpl::event_stream<> _slideFinished;

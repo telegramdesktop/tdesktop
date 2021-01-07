@@ -877,16 +877,20 @@ void TabbedSelector::scrollToY(int y) {
 	}
 }
 
-void TabbedSelector::contextMenuEvent(QContextMenuEvent *e) {
+void TabbedSelector::showMenuWithType(SendMenu::Type type) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
-	const auto type = _sendMenuType
-		? _sendMenuType()
-		: SendMenu::Type::Disabled;
 	currentTab()->widget()->fillContextMenu(_menu, type);
 
 	if (!_menu->actions().empty()) {
 		_menu->popup(QCursor::pos());
 	}
+}
+
+rpl::producer<> TabbedSelector::contextMenuRequested() const {
+	return events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return e->type() == QEvent::ContextMenu;
+	}) | rpl::to_empty;
 }
 
 TabbedSelector::Inner::Inner(
