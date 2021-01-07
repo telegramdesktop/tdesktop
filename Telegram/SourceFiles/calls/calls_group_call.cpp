@@ -582,7 +582,8 @@ void GroupCall::createAndStartController() {
 		},
 		.initialInputDeviceId = _audioInputId.toStdString(),
 		.initialOutputDeviceId = _audioOutputId.toStdString(),
-		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(),
+		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
+			settings.callAudioBackend()),
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");

@@ -480,6 +480,7 @@ void GroupCallSettingsBox(
 		// Means we finished showing the box.
 		crl::on_main(box, [=] {
 			state->micTester = std::make_unique<Webrtc::AudioInputTester>(
+				Core::App().settings().callAudioBackend(),
 				Core::App().settings().callInputDeviceId());
 			state->levelUpdateTimer.callEach(kMicTestUpdateInterval);
 		});
