@@ -143,4 +143,10 @@ private:
 
 };
 
+bool DrawThumbnailAsSongCover(
+	Painter &p,
+	const std::shared_ptr<Data::DocumentMedia> &dataMedia,
+	const QRect &rect,
+	const bool selected = false);
+
 } // namespace HistoryView

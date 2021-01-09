@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/media/history_view_document.h" // DrawThumbnailAsSongCover
 #include "base/unixtime.h"
 #include "base/qt_adapters.h"
 #include "ui/effects/round_checkbox.h"
@@ -1008,21 +1009,33 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 		auto inner = style::rtlrect(_st.songPadding.left(), _st.songPadding.top(), _st.songThumbSize, _st.songThumbSize, _width);
 		if (clip.intersects(inner)) {
+			const auto isLoading = (!cornerDownload
+				&& (_data->loading() || _data->uploading()));
 			p.setPen(Qt::NoPen);
-			if (selected) {
-				p.setBrush(st::msgFileInBgSelected);
-			} else {
-				auto over = ClickHandler::showAsActive((!cornerDownload && (_data->loading() || _data->uploading())) ? _cancell : (loaded || _dataMedia->canBePlayed()) ? _openl : _savel);
-				p.setBrush(anim::brush(_st.songIconBg, _st.songOverBg, _a_iconOver.value(over ? 1. : 0.)));
-			}
 
-			{
+			using namespace HistoryView;
+			const auto coverDrawn = _data->isSongWithCover()
+				&& DrawThumbnailAsSongCover(p, _dataMedia, inner, selected);
+			if (!coverDrawn) {
+				if (selected) {
+					p.setBrush(st::msgFileInBgSelected);
+				} else {
+					const auto over = ClickHandler::showAsActive(isLoading
+						? _cancell
+						: (loaded || _dataMedia->canBePlayed())
+						? _openl
+						: _savel);
+					p.setBrush(anim::brush(
+						_st.songIconBg,
+						_st.songOverBg,
+						_a_iconOver.value(over ? 1. : 0.)));
+				}
 				PainterHighQualityEnabler hq(p);
 				p.drawEllipse(inner);
 			}
 
 			const auto icon = [&] {
-				if (!cornerDownload && (_data->loading() || _data->uploading())) {
+				if (isLoading) {
 					return &(selected ? _st.songCancelSelected : _st.songCancel);
 				} else if (showPause) {
 					return &(selected ? _st.songPauseSelected : _st.songPause);

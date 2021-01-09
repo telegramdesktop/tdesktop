@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
+#include "ui/ui_utility.h"
 #include "layout.h" // FullSelection
 #include "data/data_session.h"
 #include "data/data_document.h"
@@ -442,14 +443,14 @@ void Document::draw(
 		}
 	} else {
 		p.setPen(Qt::NoPen);
-		if (selected) {
-			p.setBrush(outbg ? st::msgFileOutBgSelected : st::msgFileInBgSelected);
-		} else {
-			p.setBrush(outbg ? st::msgFileOutBg : st::msgFileInBg);
-		}
 
-		{
+		const auto coverDrawn = _data->isSongWithCover()
+			&& DrawThumbnailAsSongCover(p, _dataMedia, inner, selected);
+		if (!coverDrawn) {
 			PainterHighQualityEnabler hq(p);
+			p.setBrush(selected
+				? (outbg ? st::msgFileOutBgSelected : st::msgFileInBgSelected)
+				: (outbg ? st::msgFileOutBg : st::msgFileInBg));
 			p.drawEllipse(inner);
 		}
 
@@ -581,7 +582,7 @@ void Document::ensureDataMediaCreated() const {
 		return;
 	}
 	_dataMedia = _data->createMediaView();
-	if (Get<HistoryDocumentThumbed>()) {
+	if (Get<HistoryDocumentThumbed>() || _data->isSongWithCover()) {
 		_dataMedia->thumbnailWanted(_realParent->fullId());
 	}
 	history()->owner().registerHeavyViewPart(_parent);
@@ -1070,6 +1071,51 @@ Ui::Text::String Document::createCaption() {
 		_realParent,
 		timestampLinksDuration,
 		timestampLinkBase);
+}
+
+bool DrawThumbnailAsSongCover(
+		Painter &p,
+		const std::shared_ptr<Data::DocumentMedia> &dataMedia,
+		const QRect &rect,
+		const bool selected) {
+	if (!dataMedia) {
+		return false;
+	}
+
+	QPixmap cover;
+
+	const auto ow = rect.width();
+	const auto oh = rect.height();
+	const auto r = ImageRoundRadius::Ellipse;
+	const auto c = RectPart::AllCorners;
+	const auto color = &st::songCoverOverlayFg;
+	const auto aspectRatio = Qt::KeepAspectRatioByExpanding;
+
+	const auto scaled = [&](not_null<Image*> image) -> std::pair<int, int> {
+		const auto size = image->size().scaled(ow, oh, aspectRatio);
+		return { size.width(), size.height() };
+	};
+
+	if (const auto normal = dataMedia->thumbnail()) {
+		const auto &[w, h] = scaled(normal);
+		cover = normal->pixSingle(w, h, ow, oh, r, c, color);
+	} else if (const auto blurred = dataMedia->thumbnailInline()) {
+		const auto &[w, h] = scaled(blurred);
+		cover = blurred->pixBlurredSingle(w, h, ow, oh, r, c, color);
+	} else {
+		return false;
+	}
+	if (selected) {
+		auto selectedCover = Images::prepareColored(
+			p.textPalette().selectOverlay,
+			cover.toImage());
+		cover = QPixmap::fromImage(
+			std::move(selectedCover),
+			Qt::ColorOnly);
+	}
+	p.drawPixmap(rect.topLeft(), cover);
+
+	return true;
 }
 
 } // namespace HistoryView

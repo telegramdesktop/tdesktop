@@ -1488,6 +1488,10 @@ bool DocumentData::isSong() const {
 	return (type == SongDocument);
 }
 
+bool DocumentData::isSongWithCover() const {
+	return isSong() && hasThumbnail();
+}
+
 bool DocumentData::isAudioFile() const {
 	if (isVoiceMessage()) {
 		return false;
