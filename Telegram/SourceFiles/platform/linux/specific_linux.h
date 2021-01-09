@@ -25,6 +25,7 @@ bool UseGtkIntegration();
 bool IsGtkIntegrationForced();
 bool UseXDGDesktopPortal();
 bool CanOpenDirectoryWithPortal();
+bool IsNotificationServiceActivatable();
 
 QString AppRuntimeDirectory();
 QString GetLauncherBasename();

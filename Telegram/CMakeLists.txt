@@ -823,6 +823,8 @@ PRIVATE
     platform/linux/linux_gsd_media_keys.h
     platform/linux/linux_libs.cpp
     platform/linux/linux_libs.h
+    platform/linux/linux_notification_service_watcher.cpp
+    platform/linux/linux_notification_service_watcher.h
     platform/linux/linux_wayland_integration.cpp
     platform/linux/linux_wayland_integration.h
     platform/linux/linux_xlib_helper.cpp
@@ -1116,6 +1118,8 @@ if (LINUX AND DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
     remove_target_sources(Telegram ${src_loc}
         platform/linux/linux_gsd_media_keys.cpp
         platform/linux/linux_gsd_media_keys.h
+        platform/linux/linux_notification_service_watcher.cpp
+        platform/linux/linux_notification_service_watcher.h
         platform/linux/notifications_manager_linux.cpp
     )
 

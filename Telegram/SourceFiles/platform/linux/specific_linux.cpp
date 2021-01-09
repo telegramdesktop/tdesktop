@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#include "platform/linux/linux_notification_service_watcher.h"
 #include "platform/linux/linux_gsd_media_keys.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
@@ -87,6 +88,8 @@ constexpr auto kXCBFrameExtentsAtomName = "_GTK_FRAME_EXTENTS"_cs;
 QStringList PlatformThemes;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+std::unique_ptr<internal::NotificationServiceWatcher> NSWInstance;
+
 QStringList ListDBusActivatableNames() {
 	static const auto Result = [&] {
 		const auto message = QDBusMessage::createMethodCall(
@@ -625,6 +628,17 @@ bool CanOpenDirectoryWithPortal() {
 			&& FileChooserPortalVersion() >= 3;
 #endif // !DESKTOP_APP_QT_PATCHED
 	}();
+
+	return Result;
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
+	return false;
+}
+
+bool IsNotificationServiceActivatable() {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	static const auto Result = ListDBusActivatableNames().contains(
+		qsl("org.freedesktop.Notifications"));
 
 	return Result;
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -1231,9 +1245,21 @@ void start() {
 	if (const auto waylandIntegration = WaylandIntegration::Instance()) {
 		waylandIntegration->waitForInterfaceAnnounce();
 	}
+
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	if (!IsNotificationServiceActivatable()) {
+		NSWInstance = std::make_unique<
+			internal::NotificationServiceWatcher>();
+	}
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 void finish() {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	if (NSWInstance) {
+		NSWInstance = nullptr;
+	}
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 } // namespace ThirdParty

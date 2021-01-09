@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QVersionNumber>
 #include <QtDBus/QDBusConnection>
+#include <QtDBus/QDBusConnectionInterface>
 #include <QtDBus/QDBusMessage>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusError>
@@ -41,112 +42,89 @@ constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 constexpr auto kImageDataType = "(iiibii@ay)"_cs;
 constexpr auto kNotifyArgsType = "(susssasa{sv}i)"_cs;
 
-bool NotificationsSupported = false;
+bool ServiceRegistered = false;
 bool InhibitedNotSupported = false;
+std::vector<QString> CurrentServerInformation;
+QStringList CurrentCapabilities;
 
-void ComputeSupported(bool wait = false) {
-	const auto message = QDBusMessage::createMethodCall(
-		kService.utf16(),
-		kObjectPath.utf16(),
-		kInterface.utf16(),
-		qsl("GetServerInformation"));
+bool GetServiceRegistered() {
+	const auto interface = QDBusConnection::sessionBus().interface();
+	const auto activatable = IsNotificationServiceActivatable();
 
-	auto async = QDBusConnection::sessionBus().asyncCall(message);
-	auto watcher = new QDBusPendingCallWatcher(async);
-
-	QObject::connect(
-		watcher,
-		&QDBusPendingCallWatcher::finished,
-		[=](QDBusPendingCallWatcher *call) {
-			QDBusPendingReply<
-				QString,
-				QString,
-				QString,
-				QString> reply = *call;
-
-			if (reply.isValid()) {
-				NotificationsSupported = true;
-			}
-
-			call->deleteLater();
-		});
-
-	if (wait) {
-		watcher->waitForFinished();
-	}
-}
-
-void GetSupported() {
-	static auto Checked = false;
-	if (Checked) {
-		return;
-	}
-	Checked = true;
-
-	if (Core::App().settings().nativeNotifications() && !IsWayland()) {
-		ComputeSupported(true);
-	} else {
-		ComputeSupported();
-	}
-}
-
-std::vector<QString> ComputeServerInformation() {
-	std::vector<QString> serverInformation;
-
-	const auto message = QDBusMessage::createMethodCall(
-		kService.utf16(),
-		kObjectPath.utf16(),
-		kInterface.utf16(),
-		qsl("GetServerInformation"));
-
-	const auto reply = QDBusConnection::sessionBus().call(message);
-
-	if (reply.type() == QDBusMessage::ReplyMessage) {
-		ranges::transform(
-			reply.arguments(),
-			ranges::back_inserter(serverInformation),
-			&QVariant::toString
-		);
-	} else if (reply.type() == QDBusMessage::ErrorMessage) {
-		LOG(("Native notification error: %1").arg(reply.errorMessage()));
-	} else {
-		LOG(("Native notification error: "
-			"invalid reply from GetServerInformation"));
-	}
-
-	return serverInformation;
+	return interface
+		? interface->isServiceRegistered(kService.utf16()) || activatable
+		: activatable;
 }
 
 std::vector<QString> GetServerInformation() {
-	static const auto Result = ComputeServerInformation();
-	return Result;
+	std::vector<QString> result;
+
+	const auto message = QDBusMessage::createMethodCall(
+		kService.utf16(),
+		kObjectPath.utf16(),
+		kInterface.utf16(),
+		qsl("GetServerInformation"));
+
+	// We may be launched earlier than notification daemon
+	while (true) {
+		const auto reply = QDBusConnection::sessionBus().call(message);
+
+		if (reply.type() == QDBusMessage::ReplyMessage) {
+			ranges::transform(
+				reply.arguments(),
+				ranges::back_inserter(result),
+				&QVariant::toString);
+		} else if (reply.type() == QDBusMessage::ErrorMessage) {
+			LOG(("Native notification error: %1").arg(reply.errorMessage()));
+
+			if (reply.errorName()
+				== qsl("org.freedesktop.DBus.Error.NoReply")) {
+				continue;
+			}
+		} else {
+			LOG(("Native notification error: "
+				"invalid reply from GetServerInformation"));
+		}
+
+		break;
+	}
+
+	return result;
 }
 
-QStringList ComputeCapabilities() {
+QStringList GetCapabilities() {
 	const auto message = QDBusMessage::createMethodCall(
 		kService.utf16(),
 		kObjectPath.utf16(),
 		kInterface.utf16(),
 		qsl("GetCapabilities"));
 
-	const QDBusReply<QStringList> reply = QDBusConnection::sessionBus().call(
-		message);
+	// We may be launched earlier than notification daemon
+	while (true) {
+		const QDBusReply<QStringList> reply = QDBusConnection::sessionBus()
+			.call(message);
 
-	if (reply.isValid()) {
-		return reply.value();
-	} else {
+		if (reply.isValid()) {
+			return reply.value();
+		}
+
 		LOG(("Native notification error: %1").arg(reply.error().message()));
+
+		if (reply.error().type() != QDBusError::NoReply) {
+			break;
+		}
 	}
 
 	return {};
 }
 
-QStringList GetCapabilities() {
-	static const auto Result = ComputeCapabilities();
-	return Result;
-}
-
 bool Inhibited() {
+	if (!Supported()
+		|| !CurrentCapabilities.contains(qsl("inhibitions"))
+		|| InhibitedNotSupported) {
+		return false;
+	}
+
 	auto message = QDBusMessage::createMethodCall(
 		kService.utf16(),
 		kObjectPath.utf16(),
@@ -277,8 +255,7 @@ NotificationData::NotificationData(
 	bool hideReplyButton)
 : _manager(manager)
 , _title(title)
-, _imageKey(GetImageKey(ParseSpecificationVersion(
-	GetServerInformation())))
+, _imageKey(GetImageKey(ParseSpecificationVersion(CurrentServerInformation)))
 , _id(id) {
 	GError *error = nullptr;
 
@@ -293,7 +270,7 @@ NotificationData::NotificationData(
 		return;
 	}
 
-	const auto capabilities = GetCapabilities();
+	const auto capabilities = CurrentCapabilities;
 
 	if (capabilities.contains(qsl("body-markup"))) {
 		_body = subtitle.isEmpty()
@@ -613,30 +590,33 @@ void NotificationData::notificationReplied(uint id, const QString &text) {
 } // namespace
 
 bool SkipAudio() {
-	if (Supported()
-		&& GetCapabilities().contains(qsl("inhibitions"))
-		&& !InhibitedNotSupported) {
-		return Inhibited();
-	}
-
-	return false;
+	return Inhibited();
 }
 
 bool SkipToast() {
-	return SkipAudio();
+	return Inhibited();
 }
 
 bool SkipFlashBounce() {
-	return SkipAudio();
+	return Inhibited();
 }
 
 bool Supported() {
-	return NotificationsSupported;
+	return ServiceRegistered;
 }
 
 std::unique_ptr<Window::Notifications::Manager> Create(
 		Window::Notifications::System *system) {
-	GetSupported();
+	ServiceRegistered = GetServiceRegistered();
+	InhibitedNotSupported = false;
+
+	if (Supported()) {
+		CurrentServerInformation = GetServerInformation();
+		CurrentCapabilities = GetCapabilities();
+	} else {
+		CurrentServerInformation = {};
+		CurrentCapabilities = QStringList{};
+	}
 
 	if ((Core::App().settings().nativeNotifications() && Supported())
 		|| IsWayland()) {
@@ -683,8 +663,8 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 		return;
 	}
 
-	const auto serverInformation = GetServerInformation();
-	const auto capabilities = GetCapabilities();
+	const auto serverInformation = CurrentServerInformation;
+	const auto capabilities = CurrentCapabilities;
 
 	if (!serverInformation.empty()) {
 		LOG(("Notification daemon product name: %1")
