@@ -96,6 +96,8 @@ private:
 	void createEditMediaButton();
 	bool setPreparedList(Ui::PreparedList &&list);
 
+	bool isThumbedLayout() const;
+
 	inline QString getNewMediaPath() {
 		return _preparedList.files.empty()
 			? QString()

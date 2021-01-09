@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
+#include "history/view/media/history_view_document.h" // DrawThumbnailAsSongCover
 #include "platform/platform_specific.h"
 #include "lang/lang_keys.h"
 #include "media/streaming/media_streaming_instance.h"
@@ -171,7 +172,9 @@ EditCaptionBox::EditCaptionBox(
 			_thumbw = 0;
 			_thumbnailImageLoaded = true;
 		} else {
-			const auto thumbSize = st::msgFileThumbLayout.thumbSize;
+			const auto thumbSize = (!media->document()->isSongWithCover()
+				? st::msgFileThumbLayout
+				: st::msgFileLayout).thumbSize;
 			const auto tw = dimensions.width(), th = dimensions.height();
 			if (tw > th) {
 				_thumbw = (tw * thumbSize) / th;
@@ -183,19 +186,31 @@ EditCaptionBox::EditCaptionBox(
 				if (!image) {
 					return;
 				}
-				const auto options = Images::Option::Smooth
-					| Images::Option::RoundedSmall
-					| Images::Option::RoundedTopLeft
-					| Images::Option::RoundedTopRight
-					| Images::Option::RoundedBottomLeft
-					| Images::Option::RoundedBottomRight;
-				_thumb = App::pixmapFromImageInPlace(Images::prepare(
-					image->original(),
-					_thumbw * cIntRetinaFactor(),
-					0,
-					options,
-					thumbSize,
-					thumbSize));
+				if (media->document()->isSongWithCover()) {
+					const auto size = QSize(thumbSize, thumbSize);
+					_thumb = QPixmap(size);
+					_thumb.fill(Qt::transparent);
+					Painter p(&_thumb);
+
+					HistoryView::DrawThumbnailAsSongCover(
+						p,
+						_documentMedia,
+						QRect(QPoint(), size));
+				} else {
+					const auto options = Images::Option::Smooth
+						| Images::Option::RoundedSmall
+						| Images::Option::RoundedTopLeft
+						| Images::Option::RoundedTopRight
+						| Images::Option::RoundedBottomLeft
+						| Images::Option::RoundedBottomRight;
+					_thumb = App::pixmapFromImageInPlace(Images::prepare(
+						image->original(),
+						_thumbw * cIntRetinaFactor(),
+						0,
+						options,
+						thumbSize,
+						thumbSize));
+				}
 				_thumbnailImageLoaded = true;
 			};
 			_refreshThumbnail();
@@ -539,6 +554,14 @@ void EditCaptionBox::updateEditPreview() {
 				song->title,
 				song->performer);
 			_isAudio = true;
+
+			if (auto cover = song->cover; !cover.isNull()) {
+				_thumb = Ui::PrepareSongCoverForThumbnail(
+					cover,
+					st::msgFileLayout.thumbSize);
+				_thumbw = _thumb.width() / cIntRetinaFactor();
+				_thumbh = _thumb.height() / cIntRetinaFactor();
+			}
 		}
 
 		const auto getExt = [&] {
@@ -810,15 +833,21 @@ void EditCaptionBox::setupDragArea() {
 	areas.photo->setDroppedCallback(droppedCallback(true));
 }
 
+bool EditCaptionBox::isThumbedLayout() const {
+	return (_thumbw && !_isAudio);
+}
+
 void EditCaptionBox::updateBoxSize() {
 	auto newHeight = st::boxPhotoPadding.top() + st::boxPhotoCaptionSkip + _field->height() + errorTopSkip() + st::normalFont->height;
 	if (_photo) {
 		newHeight += _wayWrap->height() / 2;
 	}
-	const auto &st = _thumbw ? st::msgFileThumbLayout : st::msgFileLayout;
+	const auto &st = isThumbedLayout()
+		? st::msgFileThumbLayout
+		: st::msgFileLayout;
 	if (_photo || _animated) {
 		newHeight += std::max(_thumbh, _gifh);
-	} else if (_thumbw || _doc) {
+	} else if (isThumbedLayout() || _doc) {
 		newHeight += 0 + st.thumbSize + 0;
 	} else {
 		newHeight += st::boxTitleFont->height;
@@ -902,7 +931,9 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 			icon->paintInCenter(p, inner);
 		}
 	} else if (_doc) {
-		const auto &st = _thumbw ? st::msgFileThumbLayout : st::msgFileLayout;
+		const auto &st = isThumbedLayout()
+			? st::msgFileThumbLayout
+			: st::msgFileLayout;
 		const auto w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
 		const auto h = 0 + st.thumbSize + 0;
 		const auto nameleft = 0 + st.thumbSize + st.padding.right();
@@ -918,18 +949,24 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 //		Ui::FillRoundCorner(p, x, y, w, h, st::msgInBg, Ui::MessageInCorners, &st::msgInShadow);
 
 		const auto rthumb = style::rtlrect(x + 0, y + 0, st.thumbSize, st.thumbSize, width());
-		if (_thumbw) {
+		if (isThumbedLayout()) {
 			p.drawPixmap(rthumb.topLeft(), _thumb);
 		} else {
 			p.setPen(Qt::NoPen);
-			p.setBrush(st::msgFileInBg);
 
-			{
+			if (_isAudio && _thumbw) {
+				p.drawPixmap(rthumb.topLeft(), _thumb);
+			} else {
+				p.setBrush(st::msgFileInBg);
 				PainterHighQualityEnabler hq(p);
 				p.drawEllipse(rthumb);
 			}
 
-			const auto icon = &(_isAudio ? st::historyFileInPlay : _isImage ? st::historyFileInImage : st::historyFileInDocument);
+			const auto icon = &(_isAudio
+				? st::historyFileInPlay
+				: _isImage
+				? st::historyFileInImage
+				: st::historyFileInDocument);
 			icon->paintInCenter(p, rthumb);
 		}
 		p.setFont(st::semiboldFont);

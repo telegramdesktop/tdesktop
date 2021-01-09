@@ -32,7 +32,7 @@ SingleFilePreview::SingleFilePreview(
 	_editMedia->setIconOverride(&st::sendBoxAlbumGroupEditButtonIconFile);
 	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupDeleteButtonIconFile);
 
-	const auto &st = _fileThumb.isNull()
+	const auto &st = !isThumbedLayout()
 		? st::attachPreviewLayout
 		: st::attachPreviewThumbLayout;
 	resize(width(), st.thumbSize);
@@ -106,13 +106,19 @@ void SingleFilePreview::preparePreview(const PreparedFile &file) {
 				songTitle = song->title;
 				songPerformer = song->performer;
 				_fileIsAudio = true;
+
+				if (auto cover = song->cover; !cover.isNull()) {
+					_fileThumb = Ui::PrepareSongCoverForThumbnail(
+						cover,
+						st::attachPreviewLayout.thumbSize);
+				}
 			}
 		}
 
 		_name = ComposeNameString(filename, songTitle, songPerformer);
 		_statusText = FormatSizeText(fileinfo.size());
 	}
-	const auto &st = _fileThumb.isNull()
+	const auto &st = !isThumbedLayout()
 		? st::attachPreviewLayout
 		: st::attachPreviewThumbLayout;
 	const auto nameleft = st.thumbSize + st.padding.right();
@@ -141,7 +147,7 @@ void SingleFilePreview::paintEvent(QPaintEvent *e) {
 
 	auto w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
 	auto h = height();
-	const auto &st = _fileThumb.isNull()
+	const auto &st = !isThumbedLayout()
 		? st::attachPreviewLayout
 		: st::attachPreviewThumbLayout;
 	const auto nameleft = st.thumbSize + st.padding.right();
@@ -149,12 +155,14 @@ void SingleFilePreview::paintEvent(QPaintEvent *e) {
 	const auto statustop = st.statusTop;
 	const auto x = (width() - w) / 2, y = 0;
 
-	if (_fileThumb.isNull()) {
+	if (!isThumbedLayout()) {
 		QRect inner(style::rtlrect(x, y, st.thumbSize, st.thumbSize, width()));
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::msgFileInBg);
 
-		{
+		if (_fileIsAudio && !_fileThumb.isNull()) {
+			p.drawPixmap(inner.topLeft(), _fileThumb);
+		} else {
+			p.setBrush(st::msgFileInBg);
 			PainterHighQualityEnabler hq(p);
 			p.drawEllipse(inner);
 		}
@@ -186,6 +194,10 @@ void SingleFilePreview::resizeEvent(QResizeEvent *e) {
 	_deleteMedia->moveToRight(right, top);
 	right += st::sendBoxFileGroupEditInternalSkip + _deleteMedia->width();
 	_editMedia->moveToRight(right, top);
+}
+
+bool SingleFilePreview::isThumbedLayout() const {
+	return (!_fileThumb.isNull() && !_fileIsAudio);
 }
 
 } // namespace Ui
