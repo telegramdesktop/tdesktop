@@ -21,6 +21,10 @@ namespace Window {
 enum class Column;
 } // namespace Window
 
+namespace Webrtc {
+enum class Backend;
+} // namespace Webrtc
+
 namespace Core {
 
 class Settings final {
@@ -216,6 +220,12 @@ public:
 	}
 	void setCallAudioDuckingEnabled(bool value) {
 		_callAudioDuckingEnabled = value;
+	}
+	[[nodiscard]] Webrtc::Backend callAudioBackend() const {
+		return _callAudioBackend;
+	}
+	void setCallAudioBackend(Webrtc::Backend backend) {
+		_callAudioBackend = backend;
 	}
 	[[nodiscard]] bool groupCallPushToTalk() const {
 		return _groupCallPushToTalk;
@@ -531,13 +541,14 @@ private:
 	int _callOutputVolume = 100;
 	int _callInputVolume = 100;
 	bool _callAudioDuckingEnabled = true;
+	Webrtc::Backend _callAudioBackend = Webrtc::Backend();
 	bool _groupCallPushToTalk = false;
 	QByteArray _groupCallPushToTalkShortcut;
 	crl::time _groupCallPushToTalkDelay = 20;
 	Window::Theme::AccentColors _themesAccentColors;
 	bool _lastSeenWarningSeen = false;
-	Ui::SendFilesWay _sendFilesWay;
-	Ui::InputSubmitSettings _sendSubmitWay;
+	Ui::SendFilesWay _sendFilesWay = Ui::SendFilesWay();
+	Ui::InputSubmitSettings _sendSubmitWay = Ui::InputSubmitSettings();
 	base::flat_map<QString, QString> _soundOverrides;
 	bool _exeLaunchWarning = true;
 	bool _ipRevealWarning = true;
@@ -553,8 +564,8 @@ private:
 	rpl::variable<bool> _autoDownloadDictionaries = true;
 	rpl::variable<bool> _mainMenuAccountsShown = true;
 	bool _tabbedSelectorSectionEnabled = false; // per-window
-	Window::Column _floatPlayerColumn; // per-window
-	RectPart _floatPlayerCorner; // per-window
+	Window::Column _floatPlayerColumn = Window::Column(); // per-window
+	RectPart _floatPlayerCorner = RectPart(); // per-window
 	bool _thirdSectionInfoEnabled = true; // per-window
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue; // per-window
 	int _thirdSectionExtendedBy = -1; // per-window

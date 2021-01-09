@@ -360,6 +360,7 @@ OverlayWidget::OverlayWidget()
 		setWindowFlags(Qt::FramelessWindowHint);
 	}
 	updateGeometry();
+	updateControlsGeometry();
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
 	setMouseTracking(true);
@@ -446,17 +447,16 @@ void OverlayWidget::moveToScreen() {
 		: nullptr;
 	const auto activeWindowScreen = widgetScreen(window);
 	const auto myScreen = widgetScreen(this);
-	// Wayland doesn't support positioning, but Qt emits screenChanged anyway
-	// and geometry of the widget become broken
-	if (activeWindowScreen
-		&& myScreen != activeWindowScreen
-		&& !Platform::IsWayland()) {
+	if (activeWindowScreen && myScreen != activeWindowScreen) {
 		windowHandle()->setScreen(activeWindowScreen);
 	}
 	updateGeometry();
 }
 
 void OverlayWidget::updateGeometry() {
+	if (!Platform::IsMac()) {
+		return;
+	}
 	const auto screen = windowHandle() && windowHandle()->screen()
 		? windowHandle()->screen()
 		: QApplication::primaryScreen();
@@ -465,7 +465,13 @@ void OverlayWidget::updateGeometry() {
 		return;
 	}
 	setGeometry(available);
+}
 
+void OverlayWidget::resizeEvent(QResizeEvent *e) {
+	updateControlsGeometry();
+}
+
+void OverlayWidget::updateControlsGeometry() {
 	auto navSkip = 2 * st::mediaviewControlMargin + st::mediaviewControlSize;
 	_closeNav = myrtlrect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, st::mediaviewControlMargin, st::mediaviewControlSize, st::mediaviewControlSize);
 	_closeNavIcon = style::centerrect(_closeNav, st::mediaviewClose);
@@ -478,6 +484,7 @@ void OverlayWidget::updateGeometry() {
 	_photoRadialRect = QRect(QPoint((width() - st::radialSize.width()) / 2, (height() - st::radialSize.height()) / 2), st::radialSize);
 
 	resizeContentByScreenSize();
+	updateControls();
 	update();
 }
 

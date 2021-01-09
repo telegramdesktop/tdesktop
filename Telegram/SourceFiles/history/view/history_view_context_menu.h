@@ -49,5 +49,10 @@ void CopyPostLink(
 	FullMsgId itemId,
 	Context context);
 void StopPoll(not_null<Main::Session*> session, FullMsgId itemId);
+void AddPollActions(
+	not_null<Ui::PopupMenu*> menu,
+	not_null<PollData*> poll,
+	not_null<HistoryItem*> item,
+	Context context);
 
 } // namespace

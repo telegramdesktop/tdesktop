@@ -24,6 +24,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "core/application.h"
 
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#include "platform/linux/linux_gsd_media_keys.h"
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>
 #include <QtCore/QStandardPaths>
@@ -520,6 +524,18 @@ Window::Control GtkKeywordToWindowControl(const QString &keyword) {
 }
 
 } // namespace
+
+void SetWatchingMediaKeys(bool watching) {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	static std::unique_ptr<internal::GSDMediaKeys> Instance;
+
+	if (watching && !Instance) {
+		Instance = std::make_unique<internal::GSDMediaKeys>();
+	} else if (!watching && Instance) {
+		Instance = nullptr;
+	}
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+}
 
 void SetApplicationIcon(const QIcon &icon) {
 	QApplication::setWindowIcon(icon);
@@ -1210,6 +1226,11 @@ void start() {
 
 	Libs::start();
 	MainWindow::LibsLoaded();
+
+	// wait for interface announce to know if native window frame is supported
+	if (const auto waylandIntegration = WaylandIntegration::Instance()) {
+		waylandIntegration->waitForInterfaceAnnounce();
+	}
 }
 
 void finish() {

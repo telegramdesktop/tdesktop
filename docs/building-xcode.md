@@ -68,17 +68,8 @@ Go to ***BuildPath*** and run
     cd build
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.12 -D CMAKE_INSTALL_PREFIX:STRING=/usr/local/macos ..
     make $MAKE_THREADS_CNT
-    cd ../..
-
-    xz_ver=5.2.4
-    wget https://tukaani.org/xz/xz-$xz_ver.tar.gz
-    tar -xvzf xz-$xz_ver.tar.gz
-    rm xz-$xz_ver.tar.gz
-    cd xz-$xz_ver
-    CFLAGS="$MIN_VER" LDFLAGS="$MIN_VER" ./configure --prefix=/usr/local/macos
-    make $MAKE_THREADS_CNT
     sudo make install
-    cd ..
+    cd ../..
 
     git clone https://github.com/desktop-app/zlib.git
     cd zlib

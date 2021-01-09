@@ -89,6 +89,16 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Fix blurred thumbnails in Shared Links section.\n"
 	},
+	{
+		2005004,
+		"- Implement new audio module code for calls and voice chats.\n"
+
+		"- Allow retracting votes from polls in comments to channel posts.\n"
+
+		"- Show small voice chat button for empty voice chats.\n"
+
+		"- Fix media viewer updating when screen resolution is changed.\n"
+	},
 	};
 };
 

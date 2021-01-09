@@ -30,11 +30,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_media_devices.h"
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_audio_input_tester.h"
+#include "webrtc/webrtc_create_adm.h" // Webrtc::Backend.
 #include "tgcalls/VideoCaptureInterface.h"
 #include "facades.h"
+#include "app.h" // App::restart().
 #include "styles/style_layers.h"
 
 namespace Settings {
+namespace {
+
+using namespace Webrtc;
+
+} // namespace
 
 Calls::Calls(
 	QWidget *parent,
@@ -58,7 +65,7 @@ void Calls::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	const auto &settings = Core::App().settings();
-	const auto cameras = Webrtc::GetVideoInputList();
+	const auto cameras = GetVideoInputList();
 	if (!cameras.empty()) {
 		const auto hasCall = (Core::App().calls().currentCall() != nullptr);
 
@@ -66,16 +73,16 @@ void Calls::setupContent() {
 		const auto capturer = capturerOwner.get();
 		content->lifetime().add([owner = std::move(capturerOwner)]{});
 
-		const auto track = content->lifetime().make_state<Webrtc::VideoTrack>(
+		const auto track = content->lifetime().make_state<VideoTrack>(
 			(hasCall
-				? Webrtc::VideoState::Inactive
-				: Webrtc::VideoState::Active));
+				? VideoState::Inactive
+				: VideoState::Active));
 
 		const auto currentCameraName = [&] {
 			const auto i = ranges::find(
 				cameras,
 				settings.callVideoInputDeviceId(),
-				&Webrtc::VideoInput::id);
+				&VideoInput::id);
 			return (i != end(cameras))
 				? i->name
 				: tr::lng_settings_call_device_default(tr::now);
@@ -93,15 +100,15 @@ void Calls::setupContent() {
 			),
 			st::settingsButton
 		)->addClickHandler([=] {
-			const auto &devices = Webrtc::GetVideoInputList();
+			const auto &devices = GetVideoInputList();
 			const auto options = ranges::view::concat(
 				ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
-				devices | ranges::view::transform(&Webrtc::VideoInput::name)
+				devices | ranges::view::transform(&VideoInput::name)
 			) | ranges::to_vector;
 			const auto i = ranges::find(
 				devices,
 				Core::App().settings().callVideoInputDeviceId(),
-				&Webrtc::VideoInput::id);
+				&VideoInput::id);
 			const auto currentOption = (i != end(devices))
 				? int(i - begin(devices) + 1)
 				: 0;
@@ -159,11 +166,11 @@ void Calls::setupContent() {
 		Core::App().calls().currentCallValue(
 		) | rpl::start_with_next([=](::Calls::Call *value) {
 			if (value) {
-				track->setState(Webrtc::VideoState::Inactive);
+				track->setState(VideoState::Inactive);
 				bubbleWrap->resize(bubbleWrap->width(), 0);
 			} else {
 				capturer->setPreferredAspectRatio(0.);
-				track->setState(Webrtc::VideoState::Active);
+				track->setState(VideoState::Active);
 				capturer->setOutput(track->sink());
 			}
 		}, content->lifetime());
@@ -252,6 +259,22 @@ void Calls::setupContent() {
 //	}, content->lifetime());
 //#endif // Q_OS_MAC && !OS_MAC_STORE
 
+	const auto backend = [&]() -> QString {
+		using namespace Webrtc;
+		switch (settings.callAudioBackend()) {
+		case Backend::OpenAL: return "OpenAL";
+		case Backend::ADM: return "WebRTC ADM";
+		case Backend::ADM2: return "WebRTC ADM2";
+		}
+		Unexpected("Value in backend.");
+	}();
+	AddButton(
+		content,
+		rpl::single("Call audio backend: " + backend),
+		st::settingsButton
+	)->addClickHandler([] {
+		Ui::show(ChooseAudioBackendBox());
+	});
 	AddButton(
 		content,
 		tr::lng_settings_call_open_system_prefs(),
@@ -300,27 +323,30 @@ void Calls::requestPermissionAndStartTestingMicrophone() {
 
 void Calls::startTestingMicrophone() {
 	_levelUpdateTimer.callEach(kMicTestUpdateInterval);
-	_micTester = std::make_unique<Webrtc::AudioInputTester>(
+	_micTester = std::make_unique<AudioInputTester>(
+		Core::App().settings().callAudioBackend(),
 		Core::App().settings().callInputDeviceId());
 }
 
 QString CurrentAudioOutputName() {
-	const auto list = Webrtc::GetAudioOutputList();
+	const auto &settings = Core::App().settings();
+	const auto list = GetAudioOutputList(settings.callAudioBackend());
 	const auto i = ranges::find(
 		list,
-		Core::App().settings().callOutputDeviceId(),
-		&Webrtc::AudioOutput::id);
+		settings.callOutputDeviceId(),
+		&AudioOutput::id);
 	return (i != end(list))
 		? i->name
 		: tr::lng_settings_call_device_default(tr::now);
 }
 
 QString CurrentAudioInputName() {
-	const auto list = Webrtc::GetAudioInputList();
+	const auto &settings = Core::App().settings();
+	const auto list = GetAudioInputList(settings.callAudioBackend());
 	const auto i = ranges::find(
 		list,
-		Core::App().settings().callInputDeviceId(),
-		&Webrtc::AudioInput::id);
+		settings.callInputDeviceId(),
+		&AudioInput::id);
 	return (i != end(list))
 		? i->name
 		: tr::lng_settings_call_device_default(tr::now);
@@ -330,21 +356,22 @@ object_ptr<SingleChoiceBox> ChooseAudioOutputBox(
 		Fn<void(QString id, QString name)> chosen,
 		const style::Checkbox *st,
 		const style::Radio *radioSt) {
-	const auto &devices = Webrtc::GetAudioOutputList();
+	const auto &settings = Core::App().settings();
+	const auto list = GetAudioOutputList(settings.callAudioBackend());
 	const auto options = ranges::view::concat(
 		ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
-		devices | ranges::view::transform(&Webrtc::AudioOutput::name)
+		list | ranges::view::transform(&AudioOutput::name)
 	) | ranges::to_vector;
 	const auto i = ranges::find(
-		devices,
-		Core::App().settings().callOutputDeviceId(),
-		&Webrtc::AudioOutput::id);
-	const auto currentOption = (i != end(devices))
-		? int(i - begin(devices) + 1)
+		list,
+		settings.callOutputDeviceId(),
+		&AudioOutput::id);
+	const auto currentOption = (i != end(list))
+		? int(i - begin(list) + 1)
 		: 0;
 	const auto save = [=](int option) {
 		const auto deviceId = option
-			? devices[option - 1].id
+			? list[option - 1].id
 			: "default";
 		Core::App().calls().setCurrentAudioDevice(false, deviceId);
 		chosen(deviceId, options[option]);
@@ -362,27 +389,56 @@ object_ptr<SingleChoiceBox> ChooseAudioInputBox(
 		Fn<void(QString id, QString name)> chosen,
 		const style::Checkbox *st,
 		const style::Radio *radioSt) {
-	const auto devices = Webrtc::GetAudioInputList();
+	const auto &settings = Core::App().settings();
+	const auto list = GetAudioInputList(settings.callAudioBackend());
 	const auto options = ranges::view::concat(
 		ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
-		devices | ranges::view::transform(&Webrtc::AudioInput::name)
+		list | ranges::view::transform(&AudioInput::name)
 	) | ranges::to_vector;
 	const auto i = ranges::find(
-		devices,
+		list,
 		Core::App().settings().callInputDeviceId(),
-		&Webrtc::AudioInput::id);
-	const auto currentOption = (i != end(devices))
-		? int(i - begin(devices) + 1)
+		&AudioInput::id);
+	const auto currentOption = (i != end(list))
+		? int(i - begin(list) + 1)
 		: 0;
 	const auto save = [=](int option) {
 		const auto deviceId = option
-			? devices[option - 1].id
+			? list[option - 1].id
 			: "default";
 		Core::App().calls().setCurrentAudioDevice(true, deviceId);
 		chosen(deviceId, options[option]);
 	};
 	return Box<SingleChoiceBox>(
 		tr::lng_settings_call_input_device(),
+		options,
+		currentOption,
+		save,
+		st,
+		radioSt);
+}
+
+object_ptr<SingleChoiceBox> ChooseAudioBackendBox(
+		const style::Checkbox *st,
+		const style::Radio *radioSt) {
+	const auto &settings = Core::App().settings();
+	const auto list = GetAudioInputList(settings.callAudioBackend());
+	const auto options = std::vector<QString>{
+		"OpenAL",
+		"Webrtc ADM",
+#ifdef Q_OS_WIN
+		"Webrtc ADM2",
+#endif // Q_OS_WIN
+	};
+	const auto currentOption = static_cast<int>(settings.callAudioBackend());
+	const auto save = [=](int option) {
+		Core::App().settings().setCallAudioBackend(
+			static_cast<Webrtc::Backend>(option));
+		Core::App().saveSettings();
+		App::restart();
+	};
+	return Box<SingleChoiceBox>(
+		rpl::single<QString>("Calls audio backend"),
 		options,
 		currentOption,
 		save,

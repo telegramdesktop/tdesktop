@@ -15,11 +15,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <private/qwaylandwindow_p.h>
 #include <private/qwaylandshellsurface_p.h>
 
+#include <connection_thread.h>
+#include <registry.h>
+
 #if QT_VERSION < QT_VERSION_CHECK(5, 13, 0) && !defined DESKTOP_APP_QT_PATCHED
 #include <wayland-client.h>
 #endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
 
 using QtWaylandClient::QWaylandWindow;
+using namespace KWayland::Client;
 
 namespace Platform {
 namespace internal {
@@ -51,13 +55,73 @@ enum wl_shell_surface_resize WlResizeFromEdges(Qt::Edges edges) {
 
 } // namespace
 
-WaylandIntegration::WaylandIntegration() {
+class WaylandIntegration::Private : public QObject {
+public:
+	Private();
+
+	[[nodiscard]] Registry &registry() {
+		return _registry;
+	}
+
+	[[nodiscard]] QEventLoop &interfacesLoop() {
+		return _interfacesLoop;
+	}
+
+	[[nodiscard]] bool interfacesAnnounced() const {
+		return _interfacesAnnounced;
+	}
+
+private:
+	ConnectionThread _connection;
+	Registry _registry;
+	QEventLoop _interfacesLoop;
+	bool _interfacesAnnounced = false;
+};
+
+WaylandIntegration::Private::Private() {
+	connect(&_connection, &ConnectionThread::connected, [=] {
+		LOG(("Successfully connected to Wayland server at socket: %1")
+			.arg(_connection.socketName()));
+
+		_registry.create(&_connection);
+		_registry.setup();
+	});
+
+	connect(
+		&_connection,
+		&ConnectionThread::connectionDied,
+		&_registry,
+		&Registry::destroy);
+
+	connect(&_registry, &Registry::interfacesAnnounced, [=] {
+		_interfacesAnnounced = true;
+		_interfacesLoop.quit();
+	});
+
+	_connection.initConnection();
 }
+
+WaylandIntegration::WaylandIntegration()
+: _private(std::make_unique<Private>()) {
+}
+
+WaylandIntegration::~WaylandIntegration() = default;
 
 WaylandIntegration *WaylandIntegration::Instance() {
 	if (!IsWayland()) return nullptr;
 	static WaylandIntegration instance;
 	return &instance;
+}
+
+void WaylandIntegration::waitForInterfaceAnnounce() {
+	if (!_private->interfacesAnnounced()) {
+		_private->interfacesLoop().exec();
+	}
+}
+
+bool WaylandIntegration::supportsXdgDecoration() {
+	return _private->registry().hasInterface(
+		Registry::Interface::XdgDecorationUnstableV1);
 }
 
 bool WaylandIntegration::startMove(QWindow *window) {

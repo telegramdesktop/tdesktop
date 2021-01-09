@@ -74,6 +74,7 @@ parts:
       - libasound2-dev
       - libglib2.0-dev
       - libgtk-3-dev
+      - libkf5wayland-dev
       - liblzma-dev
       - libopus-dev
       - libpulse-dev
@@ -90,6 +91,7 @@ parts:
       - libasound2
       - libglib2.0-0
       - libgtk-3-0
+      - libkf5waylandclient5
       - liblzma5
       - libopus0
       - libpulse0
@@ -251,7 +253,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 75ac66937341d8a9207375aaee79b4bdc500146c
+    source-commit: d91d618889cc743aafd809151449012de62e5327
     plugin: cmake
     build-packages:
       - yasm

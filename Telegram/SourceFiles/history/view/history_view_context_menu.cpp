@@ -868,6 +868,9 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	const auto document = linkDocument
 		? linkDocument->document().get()
 		: nullptr;
+	const auto poll = item
+		? (item->media() ? item->media()->poll() : nullptr)
+		: nullptr;
 	const auto hasSelection = !request.selectedItems.empty()
 		|| !request.selectedText.empty();
 
@@ -897,6 +900,8 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	//		});
 	//		AddToggleGroupingAction(result, linkPeer->peer());
 	//	}
+	} else if (poll) {
+		AddPollActions(result, poll, item, list->elementContext());
 	} else if (!request.overSelection && view && !hasSelection) {
 		const auto owner = &view->data()->history()->owner();
 		const auto media = view->media();
@@ -977,6 +982,32 @@ void StopPoll(not_null<Main::Session*> session, FullMsgId itemId) {
 		tr::lng_polls_stop_sure(tr::now),
 		tr::lng_cancel(tr::now),
 		stop));
+}
+
+void AddPollActions(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<PollData*> poll,
+		not_null<HistoryItem*> item,
+		Context context) {
+	if ((context != Context::History)
+		&& (context != Context::Replies)
+		&& (context != Context::Pinned)) {
+		return;
+	}
+	if (poll->closed()) {
+		return;
+	}
+	const auto itemId = item->fullId();
+	if (poll->voted() && !poll->quiz()) {
+		menu->addAction(tr::lng_polls_retract(tr::now), [=] {
+			poll->session().api().sendPollVotes(itemId, {});
+		});
+	}
+	if (item->canStopPoll()) {
+		menu->addAction(tr::lng_polls_stop(tr::now), [=] {
+			StopPoll(&poll->session(), itemId);
+		});
+	}
 }
 
 } // namespace HistoryView

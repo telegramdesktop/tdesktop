@@ -765,7 +765,9 @@ void Poll::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 			: nullptr;
 		if (animation) {
 			animation->percent.update(progress, anim::linear);
-			animation->filling.update(progress, anim::linear);
+			animation->filling.update(
+				progress,
+				showVotes() ? anim::easeOutCirc : anim::linear);
 			animation->opacity.update(progress, anim::linear);
 		}
 		const auto height = paintAnswer(

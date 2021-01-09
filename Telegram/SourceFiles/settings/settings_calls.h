@@ -69,6 +69,9 @@ inline constexpr auto kMicTestAnimationDuration = crl::time(200);
 	Fn<void(QString id, QString name)> chosen,
 	const style::Checkbox *st = nullptr,
 	const style::Radio *radioSt = nullptr);
+[[nodiscard]] object_ptr<SingleChoiceBox> ChooseAudioBackendBox(
+	const style::Checkbox *st = nullptr,
+	const style::Radio *radioSt = nullptr);
 
 } // namespace Settings
 

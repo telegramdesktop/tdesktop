@@ -84,6 +84,13 @@ if (LINUX)
         )
     endif()
 
+    if (NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
+        target_link_libraries(Telegram
+        PRIVATE
+            desktop-app::external_kwayland
+        )
+    endif()
+
     if (DESKTOP_APP_USE_PACKAGED
         AND NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
         AND Qt5WaylandClient_VERSION VERSION_LESS 5.13.0)
@@ -1113,6 +1120,12 @@ if (LINUX AND DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
     remove_target_sources(Telegram ${src_loc}
         platform/linux/linux_gsd_media_keys.cpp
         platform/linux/linux_gsd_media_keys.h
+        platform/linux/notifications_manager_linux.cpp
+    )
+
+    nice_target_sources(Telegram ${src_loc}
+    PRIVATE
+        platform/linux/notifications_manager_linux_dummy.cpp
     )
 endif()
 

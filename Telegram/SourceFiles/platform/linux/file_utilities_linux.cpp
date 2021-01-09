@@ -45,45 +45,95 @@ bool ShowOpenWithSupported() {
 		&& (Libs::gtk_app_chooser_dialog_new != nullptr)
 		&& (Libs::gtk_app_chooser_get_app_info != nullptr)
 		&& (Libs::gtk_app_chooser_get_type != nullptr)
-		&& (Libs::gtk_widget_get_type != nullptr)
 		&& (Libs::gtk_widget_get_window != nullptr)
 		&& (Libs::gtk_widget_realize != nullptr)
 		&& (Libs::gtk_widget_show != nullptr)
 		&& (Libs::gtk_widget_destroy != nullptr);
 }
 
-void HandleAppChooserResponse(
-		GtkDialog *dialog,
-		int responseId,
-		GFile *file) {
+class OpenWithDialog : public QWindow {
+public:
+	OpenWithDialog(const QString &filepath);
+	~OpenWithDialog();
+
+	bool exec();
+
+private:
+	static void handleResponse(OpenWithDialog *dialog, int responseId);
+
+	GFile *_gfileInstance = nullptr;
+	GtkWidget *_gtkWidget = nullptr;
+	QEventLoop _loop;
+	std::optional<bool> _result = std::nullopt;
+};
+
+OpenWithDialog::OpenWithDialog(const QString &filepath)
+: _gfileInstance(g_file_new_for_path(filepath.toUtf8()))
+, _gtkWidget(Libs::gtk_app_chooser_dialog_new(
+		nullptr,
+		GTK_DIALOG_MODAL,
+		_gfileInstance)) {
+	g_signal_connect_swapped(
+		_gtkWidget,
+		"response",
+		G_CALLBACK(handleResponse),
+		this);
+}
+
+OpenWithDialog::~OpenWithDialog() {
+	Libs::gtk_widget_destroy(_gtkWidget);
+	g_object_unref(_gfileInstance);
+}
+
+bool OpenWithDialog::exec() {
+	Libs::gtk_widget_realize(_gtkWidget);
+
+	if (const auto activeWindow = Core::App().activeWindow()) {
+		Platform::internal::XSetTransientForHint(
+			Libs::gtk_widget_get_window(_gtkWidget),
+			activeWindow->widget().get()->windowHandle()->winId());
+	}
+
+	QGuiApplicationPrivate::showModalWindow(this);
+	Libs::gtk_widget_show(_gtkWidget);
+
+	if (!_result.has_value()) {
+		_loop.exec();
+	}
+
+	QGuiApplicationPrivate::hideModalWindow(this);
+	return *_result;
+}
+
+void OpenWithDialog::handleResponse(OpenWithDialog *dialog, int responseId) {
 	GAppInfo *chosenAppInfo = nullptr;
+	dialog->_result = true;
 
 	switch (responseId) {
 	case GTK_RESPONSE_OK:
 		chosenAppInfo = Libs::gtk_app_chooser_get_app_info(
-			Libs::gtk_app_chooser_cast(dialog));
+			Libs::gtk_app_chooser_cast(dialog->_gtkWidget));
 
 		if (chosenAppInfo) {
 			GList *uris = nullptr;
-			uris = g_list_prepend(uris, g_file_get_uri(file));
+			uris = g_list_prepend(uris, g_file_get_uri(dialog->_gfileInstance));
 			g_app_info_launch_uris(chosenAppInfo, uris, nullptr, nullptr);
 			g_list_free(uris);
 			g_object_unref(chosenAppInfo);
 		}
 
-		g_object_unref(file);
-		Libs::gtk_widget_destroy(Libs::gtk_widget_cast(dialog));
 		break;
 
 	case GTK_RESPONSE_CANCEL:
 	case GTK_RESPONSE_DELETE_EVENT:
-		g_object_unref(file);
-		Libs::gtk_widget_destroy(Libs::gtk_widget_cast(dialog));
 		break;
 
 	default:
+		dialog->_result = false;
 		break;
 	}
+
+	dialog->_loop.quit();
 }
 #endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
@@ -141,30 +191,7 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 	}
 
 	const auto absolutePath = QFileInfo(filepath).absoluteFilePath();
-	auto gfileInstance = g_file_new_for_path(absolutePath.toUtf8());
-
-	auto appChooserDialog = Libs::gtk_app_chooser_dialog_new(
-		nullptr,
-		GTK_DIALOG_MODAL,
-		gfileInstance);
-
-	g_signal_connect(
-		appChooserDialog,
-		"response",
-		G_CALLBACK(HandleAppChooserResponse),
-		gfileInstance);
-
-	Libs::gtk_widget_realize(appChooserDialog);
-
-	if (const auto activeWindow = Core::App().activeWindow()) {
-		Platform::internal::XSetTransientForHint(
-			Libs::gtk_widget_get_window(appChooserDialog),
-			activeWindow->widget().get()->windowHandle()->winId());
-	}
-
-	Libs::gtk_widget_show(appChooserDialog);
-
-	return true;
+	return OpenWithDialog(absolutePath).exec();
 #else // !TDESKTOP_DISABLE_GTK_INTEGRATION
 	return false;
 #endif // TDESKTOP_DISABLE_GTK_INTEGRATION

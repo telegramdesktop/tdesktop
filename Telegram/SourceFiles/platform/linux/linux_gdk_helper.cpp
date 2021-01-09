@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_gdk_helper.h"
 
 #include "platform/linux/linux_libs.h"
-#include "base/platform/base_platform_info.h"
-#include "base/platform/linux/base_xcb_utilities_linux.h"
 
 extern "C" {
 #undef signals
@@ -33,6 +31,9 @@ GtkLoaded gdk_helper_loaded = GtkLoaded::GtkNone;
 #define GdkDrawable GdkWindow
 
 // Gtk 2
+using f_gdk_x11_drawable_get_xdisplay = Display*(*)(GdkDrawable*);
+f_gdk_x11_drawable_get_xdisplay gdk_x11_drawable_get_xdisplay = nullptr;
+
 using f_gdk_x11_drawable_get_xid = XID(*)(GdkDrawable*);
 f_gdk_x11_drawable_get_xid gdk_x11_drawable_get_xid = nullptr;
 
@@ -46,6 +47,12 @@ inline bool gdk_is_x11_window_check(Object *obj) {
 	return Libs::g_type_cit_helper(obj, gdk_x11_window_get_type());
 }
 
+using f_gdk_window_get_display = GdkDisplay*(*)(GdkWindow *window);
+f_gdk_window_get_display gdk_window_get_display = nullptr;
+
+using f_gdk_x11_display_get_xdisplay = Display*(*)(GdkDisplay *display);
+f_gdk_x11_display_get_xdisplay gdk_x11_display_get_xdisplay = nullptr;
+
 using f_gdk_x11_window_get_xid = Window(*)(GdkWindow *window);
 f_gdk_x11_window_get_xid gdk_x11_window_get_xid = nullptr;
 
@@ -53,6 +60,7 @@ bool GdkHelperLoadGtk2(QLibrary &lib) {
 #if defined DESKTOP_APP_USE_PACKAGED && !defined DESKTOP_APP_USE_PACKAGED_LAZY
 	return false;
 #else // DESKTOP_APP_USE_PACKAGED && !DESKTOP_APP_USE_PACKAGED_LAZY
+	if (!LOAD_SYMBOL(lib, "gdk_x11_drawable_get_xdisplay", gdk_x11_drawable_get_xdisplay)) return false;
 	if (!LOAD_SYMBOL(lib, "gdk_x11_drawable_get_xid", gdk_x11_drawable_get_xid)) return false;
 	return true;
 #endif // !DESKTOP_APP_USE_PACKAGED || DESKTOP_APP_USE_PACKAGED_LAZY
@@ -60,6 +68,8 @@ bool GdkHelperLoadGtk2(QLibrary &lib) {
 
 bool GdkHelperLoadGtk3(QLibrary &lib) {
 	if (!LOAD_SYMBOL(lib, "gdk_x11_window_get_type", gdk_x11_window_get_type)) return false;
+	if (!LOAD_SYMBOL(lib, "gdk_window_get_display", gdk_window_get_display)) return false;
+	if (!LOAD_SYMBOL(lib, "gdk_x11_display_get_xdisplay", gdk_x11_display_get_xdisplay)) return false;
 	if (!LOAD_SYMBOL(lib, "gdk_x11_window_get_xid", gdk_x11_window_get_xid)) return false;
 	return true;
 }
@@ -79,28 +89,14 @@ bool GdkHelperLoaded() {
 
 void XSetTransientForHint(GdkWindow *window, quintptr winId) {
 	if (gdk_helper_loaded == GtkLoaded::Gtk2) {
-		if (!IsWayland()) {
-			xcb_change_property(
-				base::Platform::XCB::GetConnectionFromQt(),
-				XCB_PROP_MODE_REPLACE,
-				gdk_x11_drawable_get_xid(window),
-				XCB_ATOM_WM_TRANSIENT_FOR,
-				XCB_ATOM_WINDOW,
-				32,
-				1,
-				&winId);
-		}
+		::XSetTransientForHint(gdk_x11_drawable_get_xdisplay(window),
+							   gdk_x11_drawable_get_xid(window),
+							   winId);
 	} else if (gdk_helper_loaded == GtkLoaded::Gtk3) {
-		if (!IsWayland() && gdk_is_x11_window_check(window)) {
-			xcb_change_property(
-				base::Platform::XCB::GetConnectionFromQt(),
-				XCB_PROP_MODE_REPLACE,
-				gdk_x11_window_get_xid(window),
-				XCB_ATOM_WM_TRANSIENT_FOR,
-				XCB_ATOM_WINDOW,
-				32,
-				1,
-				&winId);
+		if (gdk_is_x11_window_check(window)) {
+			::XSetTransientForHint(gdk_x11_display_get_xdisplay(gdk_window_get_display(window)),
+								   gdk_x11_window_get_xid(window),
+								   winId);
 		}
 	}
 }

@@ -13,12 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 #include "base/platform/base_platform_info.h"
+#include "webrtc/webrtc_create_adm.h"
 #include "facades.h"
 
 namespace Core {
 
 Settings::Settings()
-: _sendSubmitWay(Ui::InputSubmitSettings::Enter)
+: _callAudioBackend(Webrtc::Backend::OpenAL)
+, _sendSubmitWay(Ui::InputSubmitSettings::Enter)
 , _floatPlayerColumn(Window::Column::Second)
 , _floatPlayerCorner(RectPart::TopRight)
 , _dialogsWidthRatio(DefaultDialogsWidthRatio()) {
@@ -112,7 +114,8 @@ QByteArray Settings::serialize() const {
 			<< qint32(_ipRevealWarning ? 1 : 0)
 			<< qint32(_groupCallPushToTalk ? 1 : 0)
 			<< _groupCallPushToTalkShortcut
-			<< qint64(_groupCallPushToTalkDelay);
+			<< qint64(_groupCallPushToTalkDelay)
+			<< qint32(_callAudioBackend);
 	}
 	return result;
 }
@@ -183,6 +186,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 groupCallPushToTalk = _groupCallPushToTalk ? 1 : 0;
 	QByteArray groupCallPushToTalkShortcut = _groupCallPushToTalkShortcut;
 	qint64 groupCallPushToTalkDelay = _groupCallPushToTalkDelay;
+	qint32 callAudioBackend = static_cast<qint32>(_callAudioBackend);
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -274,6 +278,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			>> groupCallPushToTalk
 			>> groupCallPushToTalkShortcut
 			>> groupCallPushToTalkDelay;
+	}
+	if (!stream.atEnd()) {
+		stream >> callAudioBackend;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -369,6 +376,12 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_groupCallPushToTalk = (groupCallPushToTalk == 1);
 	_groupCallPushToTalkShortcut = groupCallPushToTalkShortcut;
 	_groupCallPushToTalkDelay = groupCallPushToTalkDelay;
+	auto uncheckedBackend = static_cast<Webrtc::Backend>(callAudioBackend);
+	switch (uncheckedBackend) {
+	case Webrtc::Backend::OpenAL:
+	case Webrtc::Backend::ADM:
+	case Webrtc::Backend::ADM2: _callAudioBackend = uncheckedBackend; break;
+	}
 }
 
 bool Settings::chatWide() const {

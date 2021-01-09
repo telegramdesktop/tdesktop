@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "base/global_shortcuts.h"
 #include "webrtc/webrtc_media_devices.h"
+#include "webrtc/webrtc_create_adm.h"
 
 #include <tgcalls/group/GroupInstanceImpl.h>
 
@@ -581,6 +582,8 @@ void GroupCall::createAndStartController() {
 		},
 		.initialInputDeviceId = _audioInputId.toStdString(),
 		.initialOutputDeviceId = _audioOutputId.toStdString(),
+		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
+			settings.callAudioBackend()),
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
