@@ -494,7 +494,7 @@ void RepliesWidget::setupComposeControls() {
 			if (!_composeControls->isEditingMessage()) {
 				// #TODO replies edit last sent message
 				//auto &messages = session().data().scheduledMessages();
-				//if (const auto item = messages.lastSentMessage(_history)) {
+				//if (const auto item = messages.lastEditableMessage(_history)) {
 				//	_inner->editMessageRequestNotify(item->fullId());
 				//} else {
 					_scroll->keyPressEvent(e);

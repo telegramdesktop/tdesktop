@@ -259,7 +259,7 @@ public:
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
 	MsgId msgIdForRead() const;
-	HistoryItem *lastSentMessage() const;
+	HistoryItem *lastEditableMessage() const;
 
 	void resizeToWidth(int newWidth);
 	void forceFullResize();

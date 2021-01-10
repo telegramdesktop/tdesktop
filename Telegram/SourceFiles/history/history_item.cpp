@@ -762,27 +762,6 @@ bool HistoryItem::canUpdateDate() const {
 	return isScheduled();
 }
 
-bool HistoryItem::canBeEditedFromHistory() const {
-	// Skip if message is editing media.
-	if (isEditingMedia()) {
-		return false;
-	}
-	// Skip if message is video message or sticker.
-	if (const auto m = media()) {
-		// Skip only if media is not webpage.
-		if (!m->webpage() && !m->allowsEditCaption()) {
-			return false;
-		}
-	}
-	if ((IsServerMsgId(id) || isScheduled())
-		&& !serviceMsg()
-		&& (out() || history()->peer->isSelf())
-		&& !Has<HistoryMessageForwarded>()) {
-		return true;
-	}
-	return false;
-}
-
 void HistoryItem::sendFailed() {
 	Expects(_clientFlags & MTPDmessage_ClientFlag::f_sending);
 	Expects(!(_clientFlags & MTPDmessage_ClientFlag::f_failed));
