@@ -22,35 +22,6 @@ using Platform::internal::GtkIntegration;
 
 namespace Platform {
 namespace File {
-namespace internal {
-
-QByteArray EscapeShell(const QByteArray &content) {
-	auto result = QByteArray();
-
-	auto b = content.constData(), e = content.constEnd();
-	for (auto ch = b; ch != e; ++ch) {
-		if (*ch == ' ' || *ch == '"' || *ch == '\'' || *ch == '\\') {
-			if (result.isEmpty()) {
-				result.reserve(content.size() * 2);
-			}
-			if (ch > b) {
-				result.append(b, ch - b);
-			}
-			result.append('\\');
-			b = ch;
-		}
-	}
-	if (result.isEmpty()) {
-		return content;
-	}
-
-	if (e > b) {
-		result.append(b, e - b);
-	}
-	return result;
-}
-
-} // namespace internal
 
 void UnsafeOpenUrl(const QString &url) {
 	if (!g_app_info_launch_default_for_uri(

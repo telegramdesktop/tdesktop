@@ -11,11 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Platform {
 namespace File {
-namespace internal {
-
-QByteArray EscapeShell(const QByteArray &content);
-
-} // namespace internal
 
 inline QString UrlToLocal(const QUrl &url) {
 	return ::File::internal::UrlToLocalDefault(url);
