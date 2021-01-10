@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/linux_desktop_environment.h"
 
-#include "platform/linux/specific_linux.h"
 #include "base/qt_adapters.h"
 
 namespace Platform {
