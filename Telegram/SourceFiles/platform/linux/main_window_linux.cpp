@@ -250,7 +250,7 @@ QIcon TrayIconGen(int counter, bool muted) {
 						std::less<>(),
 						&QSize::width);
 
-					if ((*biggestSize).width() > firstAttemptSize.width()) {
+					if (biggestSize->width() > firstAttemptSize.width()) {
 						currentImageBack = systemIcon
 							.pixmap(*biggestSize)
 							.toImage();
@@ -381,7 +381,7 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 			std::less<>(),
 			&QSize::width);
 
-		if ((*biggestSize).width() > firstAttemptSize.width()) {
+		if (biggestSize->width() > firstAttemptSize.width()) {
 			scalePixmap(icon.pixmap(*biggestSize)).save(ret.get());
 		} else {
 			scalePixmap(firstAttempt).save(ret.get());
