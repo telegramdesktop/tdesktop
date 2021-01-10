@@ -1,3 +1,8 @@
+2.5.5 beta (10.01.21)
+
+- Fix recording of audio in voice chats.
+- Fix media viewer zoom and crashing.
+
 2.5.4 beta (07.01.21)
 
 - Implement new audio module code for calls and voice chats.
