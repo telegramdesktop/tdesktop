@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "history/history_location_manager.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/media/history_view_document.h" // DrawThumbnailAsSongCover
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
@@ -865,16 +866,21 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 
 	auto inner = style::rtlrect(0, st::inlineRowMargin, st::inlineFileSize, st::inlineFileSize, _width);
 	p.setPen(Qt::NoPen);
-	if (isThumbAnimation()) {
-		auto over = _animation->a_thumbOver.value(1.);
-		p.setBrush(anim::brush(st::msgFileInBg, st::msgFileInBgOver, over));
-	} else {
-		bool over = ClickHandler::showAsActive(_document->loading() ? _cancel : _open);
-		p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
-	}
 
-	{
+	const auto coverDrawn = _document->isSongWithCover()
+		&& HistoryView::DrawThumbnailAsSongCover(p, _documentMedia, inner);
+	if (!coverDrawn) {
 		PainterHighQualityEnabler hq(p);
+		if (isThumbAnimation()) {
+			const auto over = _animation->a_thumbOver.value(1.);
+			p.setBrush(
+				anim::brush(st::msgFileInBg, st::msgFileInBgOver, over));
+		} else {
+			const auto over = ClickHandler::showAsActive(_document->loading()
+				? _cancel
+				: _open);
+			p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
+		}
 		p.drawEllipse(inner);
 	}
 
