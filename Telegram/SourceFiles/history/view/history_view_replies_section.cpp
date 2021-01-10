@@ -492,13 +492,11 @@ void RepliesWidget::setupComposeControls() {
 	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
 		if (e->key() == Qt::Key_Up) {
 			if (!_composeControls->isEditingMessage()) {
-				// #TODO replies edit last sent message
-				//auto &messages = session().data().scheduledMessages();
-				//if (const auto item = messages.lastEditableMessage(_history)) {
-				//	_inner->editMessageRequestNotify(item->fullId());
-				//} else {
+				if (const auto item = _replies->lastEditableMessage()) {
+					_inner->editMessageRequestNotify(item->fullId());
+				} else {
 					_scroll->keyPressEvent(e);
-				//}
+				}
 			} else {
 				_scroll->keyPressEvent(e);
 			}
