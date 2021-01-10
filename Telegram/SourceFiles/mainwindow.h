@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "platform/platform_specific.h"
 #include "platform/platform_main_window.h"
 #include "base/unique_qptr.h"
 #include "ui/layers/layer_widget.h"

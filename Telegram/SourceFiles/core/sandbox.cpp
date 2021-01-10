@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 
 #include "base/platform/base_platform_info.h"
+#include "platform/platform_specific.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"

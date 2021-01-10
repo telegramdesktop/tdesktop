@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_themes_embedded.h"
 #include "window/themes/window_theme_editor.h"
 #include "window/window_controller.h"
+#include "platform/platform_specific.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
