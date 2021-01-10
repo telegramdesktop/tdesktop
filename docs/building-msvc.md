@@ -10,7 +10,7 @@
 
 Choose an empty folder for the future build, for example **D:\\TBuild**. It will be named ***BuildPath*** in the rest of this document. Create two folders there, ***BuildPath*\\ThirdParty** and ***BuildPath*\\Libraries**.
 
-#### About Visual Stodio 2019
+#### Install Visual Studio 2019
 
 * Download **Visual Stodio 2019** installer from [https://visualstudio.microsoft.com/downloads/](https://visualstudio.microsoft.com/downloads/) and install it.
 
