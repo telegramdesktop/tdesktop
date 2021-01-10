@@ -454,7 +454,7 @@ void OverlayWidget::moveToScreen() {
 }
 
 void OverlayWidget::updateGeometry() {
-	if (!Platform::IsMac()) {
+	if (Platform::IsLinux()) {
 		return;
 	}
 	const auto screen = windowHandle() && windowHandle()->screen()
@@ -483,8 +483,8 @@ void OverlayWidget::updateControlsGeometry() {
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
 	_photoRadialRect = QRect(QPoint((width() - st::radialSize.width()) / 2, (height() - st::radialSize.height()) / 2), st::radialSize);
 
-	resizeContentByScreenSize();
 	updateControls();
+	resizeContentByScreenSize();
 	update();
 }
 
