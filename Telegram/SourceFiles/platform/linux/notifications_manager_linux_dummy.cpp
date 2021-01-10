@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/notifications_manager_linux.h"
 
+#include "base/platform/base_platform_info.h"
+
 namespace Platform {
 namespace Notifications {
 
