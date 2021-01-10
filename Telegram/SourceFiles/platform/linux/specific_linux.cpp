@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_xcb_utilities_linux.h"
 #include "platform/linux/linux_desktop_environment.h"
-#include "platform/linux/file_utilities_linux.h"
 #include "platform/linux/linux_gtk_integration.h"
 #include "platform/linux/linux_wayland_integration.h"
 #include "base/qt_adapters.h"
@@ -63,7 +62,6 @@ extern "C" {
 #include <iostream>
 
 using namespace Platform;
-using Platform::File::internal::EscapeShell;
 using Platform::internal::WaylandIntegration;
 using Platform::internal::GtkIntegration;
 
@@ -227,6 +225,32 @@ uint FileChooserPortalVersion() {
 	return Result;
 }
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
+QByteArray EscapeShell(const QByteArray &content) {
+	auto result = QByteArray();
+
+	auto b = content.constData(), e = content.constEnd();
+	for (auto ch = b; ch != e; ++ch) {
+		if (*ch == ' ' || *ch == '"' || *ch == '\'' || *ch == '\\') {
+			if (result.isEmpty()) {
+				result.reserve(content.size() * 2);
+			}
+			if (ch > b) {
+				result.append(b, ch - b);
+			}
+			result.append('\\');
+			b = ch;
+		}
+	}
+	if (result.isEmpty()) {
+		return content;
+	}
+
+	if (e > b) {
+		result.append(b, e - b);
+	}
+	return result;
+}
 
 QString EscapeShellInLauncher(const QString &content) {
 	return EscapeShell(content.toUtf8()).replace('\\', "\\\\");
