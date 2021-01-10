@@ -46,8 +46,6 @@ public:
 
 	bool isActiveForTrayMenu() override;
 
-	static void LibsLoaded();
-
 	~MainWindow();
 
 protected:
