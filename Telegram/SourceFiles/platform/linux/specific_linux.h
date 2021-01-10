@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_specific.h"
 
-#include <signal.h>
-
 namespace Data {
 class LocationPoint;
 } // namespace Data
