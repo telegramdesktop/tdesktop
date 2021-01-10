@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 namespace Platform {
 namespace internal {
 
@@ -23,4 +22,3 @@ private:
 
 } // namespace internal
 } // namespace Platform
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION

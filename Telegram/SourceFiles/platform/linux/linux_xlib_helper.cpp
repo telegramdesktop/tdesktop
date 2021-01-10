@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/linux_xlib_helper.h"
 
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 extern "C" {
 #include <X11/Xlib.h>
 }
@@ -37,4 +36,3 @@ XErrorHandlerRestorer::~XErrorHandlerRestorer() = default;
 
 } // namespace internal
 } // namespace Platform
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION

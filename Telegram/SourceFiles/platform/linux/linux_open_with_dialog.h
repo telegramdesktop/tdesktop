@@ -7,21 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-class QLibrary;
-
-extern "C" {
-#undef signals
-#include <gtk/gtk.h>
-#include <gdk/gdk.h>
-#define signals public
-} // extern "C"
-
 namespace Platform {
+namespace File {
 namespace internal {
 
-void GdkHelperLoad(QLibrary &lib);
-bool GdkHelperLoaded();
-void XSetTransientForHint(GdkWindow *window, quintptr winId);
+bool ShowOpenWithDialog(const QString &filepath);
 
 } // namespace internal
+} // namespace File
 } // namespace Platform
