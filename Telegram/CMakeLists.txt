@@ -961,6 +961,8 @@ PRIVATE
     storage/storage_account.h
     storage/storage_cloud_blob.cpp
     storage/storage_cloud_blob.h
+    storage/storage_cloud_song_cover.cpp
+    storage/storage_cloud_song_cover.h
     storage/storage_domain.cpp
     storage/storage_domain.h
     storage/storage_facade.cpp
