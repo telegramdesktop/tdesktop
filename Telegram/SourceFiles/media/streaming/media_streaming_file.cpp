@@ -148,6 +148,10 @@ Stream File::Context::initStream(
 
 	const auto info = format->streams[index];
 	if (type == AVMEDIA_TYPE_VIDEO) {
+		if (info->disposition & AV_DISPOSITION_ATTACHED_PIC) {
+			// ignore cover streams
+			return Stream();
+		}
 		result.rotation = FFmpeg::ReadRotationFromMetadata(info);
 		result.aspect = FFmpeg::ValidateAspectRatio(info->sample_aspect_ratio);
 	} else if (type == AVMEDIA_TYPE_AUDIO) {
@@ -159,10 +163,6 @@ Stream File::Context::initStream(
 
 	result.codec = FFmpeg::MakeCodecPointer(info);
 	if (!result.codec) {
-		if (info->codecpar->codec_id == AV_CODEC_ID_MJPEG) {
-			// mp3 files contain such "video stream", just ignore it.
-			return Stream();
-		}
 		return result;
 	}
 
