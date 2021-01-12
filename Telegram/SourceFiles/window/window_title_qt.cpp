@@ -306,6 +306,12 @@ void TitleWidgetQt::windowStateChanged(Qt::WindowState state) {
 void TitleWidgetQt::visibleChanged(bool visible) {
 	if (visible) {
 		updateWindowExtents();
+
+		// workaround a bug in Qt 5.12, works ok in Qt 5.15
+		// https://github.com/telegramdesktop/tdesktop/issues/10119
+		if (!_windowWasFrameless) {
+			toggleFramelessWindow(true);
+		}
 	}
 }
 
