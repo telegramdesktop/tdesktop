@@ -220,7 +220,7 @@ RUN rm -rf wayland
 FROM builder AS wayland-protocols
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
 
-RUN git clone -b 1.18 --depth=1 https://gitlab.freedesktop.org/wayland/wayland-protocols.git
+RUN git clone -b 1.20 --depth=1 https://gitlab.freedesktop.org/wayland/wayland-protocols.git
 
 WORKDIR wayland-protocols
 RUN ./autogen.sh
