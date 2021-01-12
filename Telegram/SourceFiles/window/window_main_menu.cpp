@@ -12,7 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/menu.h"
+#include "ui/widgets/menu/menu.h"
+#include "ui/widgets/menu/menu_common.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
@@ -524,7 +525,7 @@ MainMenu::MainMenu(
 	_inner.get(),
 	object_ptr<Ui::PlainShadow>(_inner.get()))))
 , _menu(_inner->add(
-	object_ptr<Ui::Menu>(_inner.get(), st::mainMenu),
+	object_ptr<Ui::Menu::Menu>(_inner.get(), st::mainMenu),
 	{ 0, st::mainMenuSkip, 0, 0 }))
 , _footer(_inner->add(object_ptr<Ui::RpWidget>(_inner.get())))
 , _telegram(
@@ -565,8 +566,8 @@ MainMenu::MainMenu(
 	}, _inner->lifetime());
 
 	parentResized();
-	_menu->setTriggeredCallback([](QAction *action, int actionTop, Ui::Menu::TriggeredSource source) {
-		emit action->triggered();
+	_menu->setTriggeredCallback([](const Ui::Menu::CallbackData &data) {
+		emit data.action->triggered();
 	});
 	refreshMenu();
 	refreshBackground();
