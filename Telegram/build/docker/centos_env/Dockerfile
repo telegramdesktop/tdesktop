@@ -1,7 +1,7 @@
 FROM centos:7 AS builder
 
 ENV GIT https://github.com
-ENV PKG_CONFIG_PATH /usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
+ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
 ENV QT 5_15_2
 ENV QT_TAG v5.15.2
 ENV QT_PREFIX /usr/local/desktop-app/Qt-5.15.2
@@ -14,8 +14,8 @@ RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.n
 RUN yum -y install https://packages.endpoint.com/rhel/7/os/x86_64/endpoint-repo-1.7-1.x86_64.rpm
 RUN yum -y install centos-release-scl
 
-RUN yum -y install git cmake3 zlib-devel gtk2-devel gtk3-devel \
-	libdrm-devel autoconf automake libtool fontconfig-devel \
+RUN yum -y install git cmake3 meson ninja-build autoconf automake libtool \
+	zlib-devel gtk2-devel gtk3-devel libdrm-devel fontconfig-devel \
 	freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
 	pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel \
 	pkgconfig bison yasm file which xorg-x11-util-macros \
@@ -422,17 +422,22 @@ WORKDIR ..
 RUN rm -rf $opensslDir
 
 FROM builder AS xkbcommon
-RUN git clone -b xkbcommon-0.8.4 --depth=1 $GIT/xkbcommon/libxkbcommon.git
+COPY --from=xcb ${LibrariesPath}/xcb-cache /
+
+RUN git clone -b xkbcommon-1.0.3 --depth=1 $GIT/xkbcommon/libxkbcommon.git
 
 WORKDIR libxkbcommon
-RUN ./autogen.sh \
-	--disable-docs \
-	--disable-wayland \
-	--with-xkb-config-root=/usr/share/X11/xkb \
-	--with-x-locale-root=/usr/share/X11/locale
+RUN meson build \
+	--default-library=both \
+	-Denable-docs=false \
+	-Denable-wayland=false \
+	-Denable-xkbregistry=false \
+	-Dxkb-config-root=/usr/share/X11/xkb \
+	-Dxkb-config-extra-path=/etc/xkb \
+	-Dx-locale-root=/usr/share/X11/locale
 
-RUN make -j$(nproc)
-RUN make DESTDIR="$LibrariesPath/xkbcommon-cache" install
+RUN meson compile -C build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/xkbcommon-cache" meson install -C build
 
 WORKDIR ..
 RUN rm -rf libxkbcommon
@@ -479,8 +484,7 @@ RUN echo './configure -prefix '$'\"''$QT_PREFIX'$'\"'' \
 	-I '$'\"''$OPENSSL_PREFIX/include'$'\"'' \
 	OPENSSL_LIBS='$'\"''$OPENSSL_PREFIX/lib/libssl.a $OPENSSL_PREFIX/lib/libcrypto.a -lz -ldl -lpthread'$'\"'' \
 	-nomake examples \
-	-nomake tests \
-	-L /usr/local/lib64' >> ./run_configure.sh
+	-nomake tests' >> ./run_configure.sh
 RUN cat ./run_configure.sh
 RUN chmod a+x ./run_configure.sh
 RUN ./run_configure.sh
