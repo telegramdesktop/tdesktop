@@ -264,12 +264,19 @@ WORKDIR ..
 RUN rm -rf libva
 
 FROM builder AS libvdpau
-RUN git clone -b libvdpau-1.2 --depth=1 https://gitlab.freedesktop.org/vdpau/libvdpau.git
+RUN git clone -b 1.4 --depth=1 https://gitlab.freedesktop.org/vdpau/libvdpau.git
 
 WORKDIR libvdpau
-RUN ./autogen.sh --enable-static
-RUN make -j$(nproc)
-RUN make DESTDIR="$LibrariesPath/libvdpau-cache" install
+RUN sed -i 's/shared_library/library/g' src/meson.build
+
+RUN meson build \
+	--default-library=both \
+	--sysconfdir=/etc \
+	-Ddocumentation=false \
+	-Dmoduledir=/usr/lib/vdpau
+
+RUN meson compile -C build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/libvdpau-cache" meson install -C build
 
 WORKDIR ..
 RUN rm -rf libvdpau
