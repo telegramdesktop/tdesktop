@@ -424,7 +424,12 @@ RUN git clone -b OpenSSL_${OPENSSL_VER}-stable --depth=1 \
 	$GIT/openssl/openssl.git $opensslDir
 
 WORKDIR ${opensslDir}
-RUN ./config --prefix="$OPENSSL_PREFIX" no-tests
+RUN ./config \
+	--prefix="$OPENSSL_PREFIX" \
+	--openssldir=/etc/ssl \
+	no-tests \
+	no-dso
+
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/openssl-cache" install_sw
 
