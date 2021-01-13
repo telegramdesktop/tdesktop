@@ -250,10 +250,13 @@ COPY --from=libXext ${LibrariesPath}/libXext-cache /
 COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
 
-RUN git clone -b 2.9.0 --depth=1 $GIT/intel/libva.git
+RUN git clone -b 2.10.0 --depth=1 $GIT/intel/libva.git
 
 WORKDIR libva
-RUN ./autogen.sh --enable-static
+RUN ./autogen.sh \
+	--enable-static \
+	--with-drivers-path=/usr/lib/dri
+
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/libva-cache" install
 
