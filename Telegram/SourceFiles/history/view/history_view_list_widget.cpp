@@ -1832,7 +1832,7 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_overState));
 
 	_menu = FillContextMenu(this, request);
-	if (_menu && !_menu->actions().empty()) {
+	if (_menu && !_menu->empty()) {
 		_menu->popup(e->globalPos());
 		e->accept();
 	} else if (_menu) {

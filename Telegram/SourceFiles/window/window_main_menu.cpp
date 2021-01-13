@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu/menu.h"
 #include "ui/widgets/menu/menu_common.h"
+#include "ui/widgets/menu/menu_toggle.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
@@ -905,7 +906,8 @@ void MainMenu::refreshMenu() {
 	}, &st::mainMenuSettings, &st::mainMenuSettingsOver);
 
 	_nightThemeAction = std::make_shared<QPointer<QAction>>();
-	auto action = _menu->addAction(tr::lng_menu_night_mode(tr::now), [=] {
+
+	auto nightCallback = [=] {
 		if (Window::Theme::Background()->editingTheme()) {
 			Ui::show(Box<InformBox>(
 				tr::lng_theme_editor_cant_change_theme(tr::now)));
@@ -924,7 +926,17 @@ void MainMenu::refreshMenu() {
 		Window::Theme::ToggleNightModeWithConfirmation(
 			&_controller->window(),
 			toggle);
-	}, &st::mainMenuNightMode, &st::mainMenuNightModeOver);
+	};
+
+	auto item = base::make_unique_q<Ui::Menu::Toggle>(
+		_menu,
+		st::mainMenu,
+		tr::lng_menu_night_mode(tr::now),
+		std::move(nightCallback),
+		&st::mainMenuNightMode,
+		&st::mainMenuNightModeOver);
+
+	auto action = _menu->addAction(std::move(item));
 	*_nightThemeAction = action;
 	action->setCheckable(true);
 	action->setChecked(Window::Theme::IsNightMode());

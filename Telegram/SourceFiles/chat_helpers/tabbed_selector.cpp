@@ -594,7 +594,7 @@ bool TabbedSelector::preventAutoHide() const {
 }
 
 bool TabbedSelector::hasMenu() const {
-	return (_menu && !_menu->actions().empty());
+	return (_menu && !_menu->empty());
 }
 
 QImage TabbedSelector::grabForAnimation() {
@@ -881,7 +881,7 @@ void TabbedSelector::showMenuWithType(SendMenu::Type type) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 	currentTab()->widget()->fillContextMenu(_menu, type);
 
-	if (!_menu->actions().empty()) {
+	if (!_menu->empty()) {
 		_menu->popup(QCursor::pos());
 	}
 }
