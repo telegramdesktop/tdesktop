@@ -325,6 +325,10 @@ bool Supported() {
 	return false;
 }
 
+bool Enforced() {
+	return false;
+}
+
 std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {
 #ifndef __MINGW32__
 	if (Core::App().settings().nativeNotifications() && Supported()) {

@@ -162,6 +162,10 @@ bool Supported() {
 	return Platform::IsMac10_8OrGreater();
 }
 
+bool Enforced() {
+	return Supported();
+}
+
 std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {
 	if (Supported()) {
 		return std::make_unique<Manager>(system);

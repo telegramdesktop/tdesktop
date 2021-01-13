@@ -43,7 +43,7 @@ constexpr auto kImageDataType = "(iiibii@ay)"_cs;
 constexpr auto kNotifyArgsType = "(susssasa{sv}i)"_cs;
 
 bool ServiceRegistered = false;
-bool InhibitedNotSupported = false;
+bool InhibitionSupported = false;
 std::vector<QString> CurrentServerInformation;
 QStringList CurrentCapabilities;
 
@@ -118,10 +118,42 @@ QStringList GetCapabilities() {
 	return {};
 }
 
+bool GetInhibitionSupported() {
+	auto message = QDBusMessage::createMethodCall(
+		kService.utf16(),
+		kObjectPath.utf16(),
+		kPropertiesInterface.utf16(),
+		qsl("Get"));
+
+	message.setArguments({
+		qsl("org.freedesktop.Notifications"),
+		qsl("Inhibited")
+	});
+
+	// We may be launched earlier than notification daemon
+	while (true) {
+		const QDBusError error = QDBusConnection::sessionBus().call(message);
+
+		if (!error.isValid()) {
+			return true;
+		} else if (error.type() == QDBusError::InvalidArgs) {
+			break;
+		}
+
+		LOG(("Native notification error: %1").arg(error.message()));
+
+		if (error.type() != QDBusError::NoReply) {
+			break;
+		}
+	}
+
+	return false;
+}
+
 bool Inhibited() {
 	if (!Supported()
 		|| !CurrentCapabilities.contains(qsl("inhibitions"))
-		|| InhibitedNotSupported) {
+		|| !InhibitionSupported) {
 		return false;
 	}
 
@@ -139,24 +171,34 @@ bool Inhibited() {
 	const QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(
 		message);
 
-	static const auto NotSupportedErrors = {
-		QDBusError::ServiceUnknown,
-		QDBusError::InvalidArgs,
-	};
-
 	if (reply.isValid()) {
 		return reply.value().toBool();
-	} else if (ranges::contains(NotSupportedErrors, reply.error().type())) {
-		InhibitedNotSupported = true;
-	} else {
-		if (reply.error().type() == QDBusError::AccessDenied) {
-			InhibitedNotSupported = true;
-		}
-
-		LOG(("Native notification error: %1").arg(reply.error().message()));
 	}
 
+	LOG(("Native notification error: %1").arg(reply.error().message()));
 	return false;
+}
+
+bool IsQualifiedDaemon() {
+	// A list of capabilities that offer feature parity
+	// with custom notifications
+	static const auto NeededCapabilities = {
+		// To show message content
+		qsl("body"),
+		// To make the sender name bold
+		qsl("body-markup"),
+		// To have buttons on notifications
+		qsl("actions"),
+		// To have quick reply
+		qsl("inline-reply"),
+		// To not to play sound with Don't Disturb activated
+		// (no, using sound capability is not a way)
+		qsl("inhibitions"),
+	};
+
+	return ranges::all_of(NeededCapabilities, [&](const auto &capability) {
+		return CurrentCapabilities.contains(capability);
+	}) && InhibitionSupported;
 }
 
 QVersionNumber ParseSpecificationVersion(
@@ -605,21 +647,28 @@ bool Supported() {
 	return ServiceRegistered;
 }
 
+bool Enforced() {
+	// Wayland doesn't support positioning
+	// and custom notifications don't work here
+	return IsQualifiedDaemon() || IsWayland();
+}
+
 std::unique_ptr<Window::Notifications::Manager> Create(
 		Window::Notifications::System *system) {
 	ServiceRegistered = GetServiceRegistered();
-	InhibitedNotSupported = false;
 
 	if (Supported()) {
 		CurrentServerInformation = GetServerInformation();
 		CurrentCapabilities = GetCapabilities();
+		InhibitionSupported = GetInhibitionSupported();
 	} else {
 		CurrentServerInformation = {};
 		CurrentCapabilities = QStringList{};
+		InhibitionSupported = false;
 	}
 
 	if ((Core::App().settings().nativeNotifications() && Supported())
-		|| IsWayland()) {
+		|| Enforced()) {
 		return std::make_unique<Manager>(system);
 	}
 
