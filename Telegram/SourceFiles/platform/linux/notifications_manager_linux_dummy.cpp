@@ -27,9 +27,15 @@ bool Supported() {
 	return false;
 }
 
+bool Enforced() {
+	// Wayland doesn't support positioning
+	// and custom notifications don't work here
+	return IsWayland();
+}
+
 std::unique_ptr<Window::Notifications::Manager> Create(
 		Window::Notifications::System *system) {
-	if (IsWayland()) {
+	if (Enforced()) {
 		return std::make_unique<Window::Notifications::DummyManager>(system);
 	}
 

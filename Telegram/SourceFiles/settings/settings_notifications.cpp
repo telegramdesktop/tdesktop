@@ -676,14 +676,13 @@ void SetupNotificationsContent(
 	}, joined->lifetime());
 
 	const auto nativeText = [&] {
-		if (!Platform::Notifications::Supported()) {
+		if (!Platform::Notifications::Supported()
+			|| Platform::Notifications::Enforced()) {
 			return QString();
 		} else if (Platform::IsWindows()) {
 			return tr::lng_settings_use_windows(tr::now);
-		} else if (Platform::IsLinux() && !Platform::IsWayland()) {
-			return tr::lng_settings_use_native_notifications(tr::now);
 		}
-		return QString();
+		return tr::lng_settings_use_native_notifications(tr::now);
 	}();
 	const auto native = [&]() -> Ui::Checkbox* {
 		if (nativeText.isEmpty()) {
@@ -697,8 +696,7 @@ void SetupNotificationsContent(
 		return addCheckbox(nativeText, settings.nativeNotifications());
 	}();
 
-	const auto advancedSlide = !Platform::IsMac10_8OrGreater()
-		&& !Platform::IsWayland()
+	const auto advancedSlide = !Platform::Notifications::Enforced()
 		? container->add(
 			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				container,
