@@ -667,6 +667,13 @@ bool SkipAudio() {
 }
 
 bool SkipToast() {
+	// Do not skip native notifications because of Do not disturb.
+	// They respect this setting anyway.
+	if ((Core::App().settings().nativeNotifications() && Supported())
+		|| Enforced()) {
+		return false;
+	}
+
 	return Inhibited();
 }
 
