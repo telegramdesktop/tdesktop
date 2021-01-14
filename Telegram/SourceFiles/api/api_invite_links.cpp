@@ -21,6 +21,23 @@ namespace {
 constexpr auto kFirstPage = 10;
 constexpr auto kPerPage = 50;
 
+void BringPermanentToFront(PeerInviteLinks &links) {
+	auto &list = links.links;
+	const auto i = ranges::find_if(list, [](const InviteLink &link) {
+		return link.permanent && !link.revoked;
+	});
+	if (i != end(list) && i != begin(list)) {
+		ranges::rotate(begin(list), i, i + 1);
+	}
+}
+
+void RemovePermanent(PeerInviteLinks &links) {
+	auto &list = links.links;
+	list.erase(ranges::remove_if(list, [](const InviteLink &link) {
+		return link.permanent && !link.revoked;
+	}), end(list));
+}
+
 } // namespace
 
 InviteLinks::InviteLinks(not_null<ApiWrap*> api) : _api(api) {
@@ -28,93 +45,167 @@ InviteLinks::InviteLinks(not_null<ApiWrap*> api) : _api(api) {
 
 void InviteLinks::create(
 		not_null<PeerData*> peer,
+		Fn<void(Link)> done,
 		TimeId expireDate,
 		int usageLimit) {
-	if (_createRequests.contains(peer)) {
+	performCreate(peer, std::move(done), false, expireDate, usageLimit);
+}
+
+void InviteLinks::performCreate(
+		not_null<PeerData*> peer,
+		Fn<void(Link)> done,
+		bool revokeLegacyPermanent,
+		TimeId expireDate,
+		int usageLimit) {
+	if (const auto i = _createCallbacks.find(peer)
+		; i != end(_createCallbacks)) {
+		if (done) {
+			i->second.push_back(std::move(done));
+		}
 		return;
+	}
+	auto &callbacks = _createCallbacks[peer];
+	if (done) {
+		callbacks.push_back(std::move(done));
 	}
 
 	using Flag = MTPmessages_ExportChatInvite::Flag;
-	const auto requestId = _api->request(MTPmessages_ExportChatInvite(
+	_api->request(MTPmessages_ExportChatInvite(
 		MTP_flags((expireDate ? Flag::f_expire_date : Flag(0))
 			| (usageLimit ? Flag::f_usage_limit : Flag(0))),
 		peer->input,
 		MTP_int(expireDate),
 		MTP_int(usageLimit)
 	)).done([=](const MTPExportedChatInvite &result) {
-		_createRequests.erase(peer);
-		const auto link = (result.type() == mtpc_chatInviteExported)
-			? qs(result.c_chatInviteExported().vlink())
-			: QString();
-		if (!expireDate && !usageLimit) {
-			editPermanentLink(peer, QString(), link);
+		const auto callbacks = _createCallbacks.take(peer);
+		const auto link = prepend(peer, result);
+		if (callbacks) {
+			for (const auto &callback : *callbacks) {
+				callback(link);
+			}
 		}
 	}).fail([=](const RPCError &error) {
-		_createRequests.erase(peer);
+		_createCallbacks.erase(peer);
 	}).send();
-	_createRequests.emplace(peer, requestId);
+}
+
+auto InviteLinks::lookupPermanent(not_null<PeerData*> peer) -> Link* {
+	auto i = _firstSlices.find(peer);
+	return (i != end(_firstSlices)) ? lookupPermanent(i->second) : nullptr;
+}
+
+auto InviteLinks::lookupPermanent(Links &links) -> Link* {
+	const auto first = links.links.begin();
+	return (first != end(links.links) && first->permanent && !first->revoked)
+		? &*first
+		: nullptr;
+}
+
+auto InviteLinks::lookupPermanent(const Links &links) const -> const Link* {
+	const auto first = links.links.begin();
+	return (first != end(links.links) && first->permanent && !first->revoked)
+		? &*first
+		: nullptr;
+}
+
+auto InviteLinks::prepend(
+		not_null<PeerData*> peer,
+		const MTPExportedChatInvite &invite) -> Link {
+	const auto link = parse(peer, invite);
+	auto i = _firstSlices.find(peer);
+	if (i == end(_firstSlices)) {
+		i = _firstSlices.emplace(peer).first;
+	}
+	auto &links = i->second;
+	if (link.permanent) {
+		if (const auto permanent = lookupPermanent(links)) {
+			permanent->revoked = true;
+		}
+		editPermanentLink(peer, link.link);
+	}
+	++links.count;
+	links.links.insert(begin(links.links), link);
+	notify(peer);
+	return link;
 }
 
 void InviteLinks::edit(
 		not_null<PeerData*> peer,
 		const QString &link,
 		TimeId expireDate,
+		int usageLimit,
+		Fn<void(Link)> done) {
+	performEdit(peer, link, std::move(done), false, expireDate, usageLimit);
+}
+
+void InviteLinks::performEdit(
+		not_null<PeerData*> peer,
+		const QString &link,
+		Fn<void(Link)> done,
+		bool revoke,
+		TimeId expireDate,
 		int usageLimit) {
 	const auto key = EditKey{ peer, link };
-	if (_editRequests.contains(key)) {
+	if (const auto i = _editCallbacks.find(key); i != end(_editCallbacks)) {
+		if (done) {
+			i->second.push_back(std::move(done));
+		}
 		return;
+	}
+	auto &callbacks = _editCallbacks[key];
+	if (done) {
+		callbacks.push_back(std::move(done));
+	}
+
+	if (const auto permanent = revoke ? lookupPermanent(peer) : nullptr) {
+		if (permanent->link == link) {
+			// In case of revoking a permanent link
+			// we should just create a new one instead.
+			performCreate(peer, std::move(done), true);
+			return;
+		}
 	}
 
 	using Flag = MTPmessages_EditExportedChatInvite::Flag;
 	const auto requestId = _api->request(MTPmessages_EditExportedChatInvite(
-		MTP_flags((expireDate ? Flag::f_expire_date : Flag(0))
-			| (usageLimit ? Flag::f_usage_limit : Flag(0))),
+		MTP_flags((revoke ? Flag::f_revoked : Flag(0))
+			| ((!revoke && expireDate) ? Flag::f_expire_date : Flag(0))
+			| ((!revoke && usageLimit) ? Flag::f_usage_limit : Flag(0))),
 		peer->input,
 		MTP_string(link),
 		MTP_int(expireDate),
 		MTP_int(usageLimit)
 	)).done([=](const MTPmessages_ExportedChatInvite &result) {
-		_editRequests.erase(key);
+		const auto callbacks = _editCallbacks.take(key);
+		const auto peer = key.peer;
 		result.match([&](const MTPDmessages_exportedChatInvite &data) {
 			_api->session().data().processUsers(data.vusers());
-			const auto &invite = data.vinvite();
-			const auto link = (invite.type() == mtpc_chatInviteExported)
-				? qs(invite.c_chatInviteExported().vlink())
-				: QString();
-			// #TODO links
+			const auto link = parse(peer, data.vinvite());
+			auto i = _firstSlices.find(peer);
+			if (i != end(_firstSlices)) {
+				const auto j = ranges::find(
+					i->second.links,
+					key.link,
+					&Link::link);
+				if (j != end(i->second.links)) {
+					*j = link;
+					notify(peer);
+				}
+			}
+			for (const auto &callback : *callbacks) {
+				callback(link);
+			}
 		});
 	}).fail([=](const RPCError &error) {
-		_editRequests.erase(key);
+		_editCallbacks.erase(key);
 	}).send();
-	_editRequests.emplace(key, requestId);
 }
 
-void InviteLinks::revoke(not_null<PeerData*> peer, const QString &link) {
-	const auto key = EditKey{ peer, link };
-	if (_editRequests.contains(key)) {
-		return;
-	}
-
-	const auto requestId = _api->request(MTPmessages_EditExportedChatInvite(
-		MTP_flags(MTPmessages_EditExportedChatInvite::Flag::f_revoked),
-		peer->input,
-		MTP_string(link),
-		MTPint(), // expire_date
-		MTPint() // usage_limit
-	)).done([=](const MTPmessages_ExportedChatInvite &result) {
-		_editRequests.erase(key);
-		result.match([&](const MTPDmessages_exportedChatInvite &data) {
-			_api->session().data().processUsers(data.vusers());
-			const auto &invite = data.vinvite();
-			const auto link = (invite.type() == mtpc_chatInviteExported)
-				? qs(invite.c_chatInviteExported().vlink())
-				: QString();
-			editPermanentLink(peer, key.link, link);
-		});
-	}).fail([=](const RPCError &error) {
-		_editRequests.erase(key);
-	}).send();
-	_editRequests.emplace(key, requestId);
+void InviteLinks::revoke(
+		not_null<PeerData*> peer,
+		const QString &link,
+		Fn<void(Link)> done) {
+	performEdit(peer, link, std::move(done), true);
 }
 
 void InviteLinks::requestLinks(not_null<PeerData*> peer) {
@@ -129,14 +220,78 @@ void InviteLinks::requestLinks(not_null<PeerData*> peer) {
 		MTP_int(kFirstPage)
 	)).done([=](const MTPmessages_ExportedChatInvites &result) {
 		_firstSliceRequests.remove(peer);
-		_firstSlices.emplace_or_assign(peer, parseSlice(peer, result));
-		peer->session().changes().peerUpdated(
-			peer,
-			Data::PeerUpdate::Flag::InviteLink);
+		auto slice = parseSlice(peer, result);
+		auto i = _firstSlices.find(peer);
+		const auto permanent = (i != end(_firstSlices))
+			? lookupPermanent(i->second)
+			: nullptr;
+		if (!permanent) {
+			BringPermanentToFront(slice);
+			const auto j = _firstSlices.emplace_or_assign(
+				peer,
+				std::move(slice)).first;
+			if (const auto permanent = lookupPermanent(j->second)) {
+				editPermanentLink(peer, permanent->link);
+			}
+		} else {
+			RemovePermanent(slice);
+			auto &existing = i->second.links;
+			existing.erase(begin(existing) + 1, end(existing));
+			existing.insert(
+				end(existing),
+				begin(slice.links),
+				end(slice.links));
+			i->second.count = std::max(slice.count, int(existing.size()));
+		}
+		notify(peer);
 	}).fail([=](const RPCError &error) {
 		_firstSliceRequests.remove(peer);
 	}).send();
 	_firstSliceRequests.emplace(peer, requestId);
+}
+
+void InviteLinks::setPermanent(
+		not_null<PeerData*> peer,
+		const MTPExportedChatInvite &invite) {
+	auto link = parse(peer, invite);
+	link.permanent = true; // #TODO links remove hack
+	//if (!link.permanent) {
+	//	LOG(("API Error: "
+	//		"InviteLinks::setPermanent called with non-permanent link."));
+	//	return;
+	//}
+	auto i = _firstSlices.find(peer);
+	if (i == end(_firstSlices)) {
+		i = _firstSlices.emplace(peer).first;
+	}
+	auto &links = i->second;
+	if (const auto permanent = lookupPermanent(links)) {
+		if (permanent->link == link.link) {
+			if (permanent->usage != link.usage) {
+				permanent->usage = link.usage;
+				notify(peer);
+			}
+			return;
+		}
+		permanent->revoked = true;
+	}
+	links.links.insert(begin(links.links), link);
+	editPermanentLink(peer, link.link);
+	notify(peer);
+}
+
+void InviteLinks::clearPermanent(not_null<PeerData*> peer) {
+	if (const auto permanent = lookupPermanent(peer)) {
+		permanent->revoked = true;
+		editPermanentLink(peer, QString());
+		notify(peer);
+	}
+}
+
+void InviteLinks::notify(not_null<PeerData*> peer) {
+	peer->session().changes().peerUpdated(
+		peer,
+		Data::PeerUpdate::Flag::InviteLinks);
 }
 
 auto InviteLinks::links(not_null<PeerData*> peer) const -> Links {
@@ -147,26 +302,40 @@ auto InviteLinks::links(not_null<PeerData*> peer) const -> Links {
 auto InviteLinks::parseSlice(
 		not_null<PeerData*> peer,
 		const MTPmessages_ExportedChatInvites &slice) const -> Links {
+	auto i = _firstSlices.find(peer);
+	const auto permanent = (i != end(_firstSlices))
+		? lookupPermanent(i->second)
+		: nullptr;
 	auto result = Links();
 	slice.match([&](const MTPDmessages_exportedChatInvites &data) {
-		auto &owner = peer->session().data();
-		owner.processUsers(data.vusers());
+		peer->session().data().processUsers(data.vusers());
 		result.count = data.vcount().v;
 		for (const auto &invite : data.vinvites().v) {
-			invite.match([&](const MTPDchatInviteExported &data) {
-				result.links.push_back({
-					.link = qs(data.vlink()),
-					.admin = owner.user(data.vadmin_id().v),
-					.date = data.vdate().v,
-					.expireDate = data.vexpire_date().value_or_empty(),
-					.usageLimit = data.vusage_limit().value_or_empty(),
-					.usage = data.vusage().value_or_empty(),
-					.revoked = data.is_revoked(),
-				});
-			});
+			const auto link = parse(peer, invite);
+			if (!permanent || link.link != permanent->link) {
+				result.links.push_back(link);
+			}
 		}
 	});
 	return result;
+}
+
+auto InviteLinks::parse(
+		not_null<PeerData*> peer,
+		const MTPExportedChatInvite &invite) const -> Link {
+	return invite.match([&](const MTPDchatInviteExported &data) {
+		return Link{
+			.link = qs(data.vlink()),
+			.admin = peer->session().data().user(data.vadmin_id().v),
+			.date = data.vdate().v,
+			.expireDate = data.vexpire_date().value_or_empty(),
+			.usageLimit = data.vusage_limit().value_or_empty(),
+			.usage = data.vusage().value_or_empty(),
+			.permanent = data.is_permanent(),
+			.expired = data.is_expired(),
+			.revoked = data.is_revoked(),
+		};
+	});
 }
 
 void InviteLinks::requestMoreLinks(
@@ -180,7 +349,9 @@ void InviteLinks::requestMoreLinks(
 		MTP_string(last),
 		MTP_int(kPerPage)
 	)).done([=](const MTPmessages_ExportedChatInvites &result) {
-		done(parseSlice(peer, result));
+		auto slice = parseSlice(peer, result);
+		RemovePermanent(slice);
+		done(std::move(slice));
 	}).fail([=](const RPCError &error) {
 		done(Links());
 	}).send();
@@ -188,16 +359,11 @@ void InviteLinks::requestMoreLinks(
 
 void InviteLinks::editPermanentLink(
 		not_null<PeerData*> peer,
-		const QString &from,
-		const QString &to) {
+		const QString &link) {
 	if (const auto chat = peer->asChat()) {
-		if (chat->inviteLink() == from) {
-			chat->setInviteLink(to);
-		}
+		chat->setInviteLink(link);
 	} else if (const auto channel = peer->asChannel()) {
-		if (channel->inviteLink() == from) {
-			channel->setInviteLink(to);
-		}
+		channel->setInviteLink(link);
 	} else {
 		Unexpected("Peer in InviteLinks::editMainLink.");
 	}

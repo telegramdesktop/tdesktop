@@ -18,6 +18,8 @@ struct InviteLink {
 	TimeId expireDate = 0;
 	int usageLimit = 0;
 	int usage = 0;
+	bool permanent = false;
+	bool expired = false;
 	bool revoked = false;
 };
 
@@ -35,14 +37,24 @@ public:
 
 	void create(
 		not_null<PeerData*> peer,
+		Fn<void(Link)> done = nullptr,
 		TimeId expireDate = 0,
 		int usageLimit = 0);
 	void edit(
 		not_null<PeerData*> peer,
 		const QString &link,
 		TimeId expireDate,
-		int usageLimit);
-	void revoke(not_null<PeerData*> peer, const QString &link);
+		int usageLimit,
+		Fn<void(Link)> done = nullptr);
+	void revoke(
+		not_null<PeerData*> peer,
+		const QString &link,
+		Fn<void(Link)> done = nullptr);
+
+	void setPermanent(
+		not_null<PeerData*> peer,
+		const MTPExportedChatInvite &invite);
+	void clearPermanent(not_null<PeerData*> peer);
 
 	void requestLinks(not_null<PeerData*> peer);
 	[[nodiscard]] Links links(not_null<PeerData*> peer) const;
@@ -64,21 +76,47 @@ private:
 		}
 	};
 
-	void editPermanentLink(
-		not_null<PeerData*> peer,
-		const QString &from,
-		const QString &to);
 	[[nodiscard]] Links parseSlice(
 		not_null<PeerData*> peer,
 		const MTPmessages_ExportedChatInvites &slice) const;
+	[[nodiscard]] Link parse(
+		not_null<PeerData*> peer,
+		const MTPExportedChatInvite &invite) const;
+	[[nodiscard]] Link *lookupPermanent(not_null<PeerData*> peer);
+	[[nodiscard]] Link *lookupPermanent(Links &links);
+	[[nodiscard]] const Link *lookupPermanent(const Links &links) const;
+	Link prepend(
+		not_null<PeerData*> peer,
+		const MTPExportedChatInvite &invite);
+	void notify(not_null<PeerData*> peer);
+
+	void editPermanentLink(
+		not_null<PeerData*> peer,
+		const QString &link);
+
+	void performEdit(
+		not_null<PeerData*> peer,
+		const QString &link,
+		Fn<void(Link)> done,
+		bool revoke,
+		TimeId expireDate = 0,
+		int usageLimit = 0);
+	void performCreate(
+		not_null<PeerData*> peer,
+		Fn<void(Link)> done,
+		bool revokeLegacyPermanent,
+		TimeId expireDate = 0,
+		int usageLimit = 0);
 
 	const not_null<ApiWrap*> _api;
 
 	base::flat_map<not_null<PeerData*>, Links> _firstSlices;
 	base::flat_map<not_null<PeerData*>, mtpRequestId> _firstSliceRequests;
 
-	base::flat_map<not_null<PeerData*>, mtpRequestId> _createRequests;
-	base::flat_map<EditKey, mtpRequestId> _editRequests;
+	base::flat_map<
+		not_null<PeerData*>,
+		std::vector<Fn<void(Link)>>> _createCallbacks;
+	base::flat_map<EditKey, std::vector<Fn<void(Link)>>> _editCallbacks;
 
 };
 

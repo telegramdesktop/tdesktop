@@ -614,7 +614,9 @@ void GroupInfoBox::createGroup(
 }
 
 void GroupInfoBox::submit() {
-	if (_creationRequestId) return;
+	if (_creationRequestId || _creatingInviteLink) {
+		return;
+	}
 
 	auto title = TextUtilities::PrepareForSending(_title->getLastText());
 	auto description = _description
@@ -653,6 +655,8 @@ void GroupInfoBox::submit() {
 }
 
 void GroupInfoBox::createChannel(const QString &title, const QString &description) {
+	Expects(!_creationRequestId);
+
 	const auto flags = (_type == Type::Megagroup)
 		? MTPchannels_CreateChannel::Flag::f_megagroup
 		: MTPchannels_CreateChannel::Flag::f_broadcast;
@@ -692,29 +696,9 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 						channel,
 						std::move(image));
 				}
+				using Flag = MTPmessages_ExportChatInvite::Flag;
 				_createdChannel = channel;
-				_creationRequestId = _api.request(MTPmessages_ExportChatInvite(
-					MTP_flags(0),
-					_createdChannel->input,
-					MTPint(), // expire_date
-					MTPint() // usage_limit
-				)).done([=](const MTPExportedChatInvite &result) {
-					_creationRequestId = 0;
-					if (result.type() == mtpc_chatInviteExported) {
-						auto link = qs(result.c_chatInviteExported().vlink());
-						_createdChannel->setInviteLink(link);
-					}
-					if (_channelDone) {
-						const auto callback = _channelDone;
-						const auto argument = _createdChannel;
-						closeBox();
-						callback(argument);
-					} else {
-						Ui::show(Box<SetupChannelBox>(
-							_navigation,
-							_createdChannel));
-					}
-				}).send();
+				checkInviteLink();
 			};
 		if (!success) {
 			LOG(("API Error: channel not found in updates (GroupInfoBox::creationDone)"));
@@ -731,6 +715,32 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 			Ui::show(Box<InformBox>(tr::lng_cant_do_this(tr::now))); // TODO
 		}
 	}).send();
+}
+
+void GroupInfoBox::checkInviteLink() {
+	Expects(_createdChannel != nullptr);
+
+	if (!_createdChannel->inviteLink().isEmpty()) {
+		channelReady();
+		return;
+	}
+	_creatingInviteLink = true;
+	_createdChannel->session().api().inviteLinks().create(
+		_createdChannel,
+		crl::guard(this, [=](auto&&) { channelReady(); }));
+}
+
+void GroupInfoBox::channelReady() {
+	if (_channelDone) {
+		const auto callback = _channelDone;
+		const auto argument = _createdChannel;
+		closeBox();
+		callback(argument);
+	} else {
+		Ui::show(Box<SetupChannelBox>(
+			_navigation,
+			_createdChannel));
+	}
 }
 
 void GroupInfoBox::descriptionResized() {
@@ -834,7 +844,7 @@ void SetupChannelBox::prepare() {
 
 	_channel->session().changes().peerUpdates(
 		_channel,
-		Data::PeerUpdate::Flag::InviteLink
+		Data::PeerUpdate::Flag::InviteLinks
 	) | rpl::start_with_next([=] {
 		rtlupdate(_invitationLink);
 	}, lifetime());

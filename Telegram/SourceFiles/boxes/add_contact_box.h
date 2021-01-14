@@ -121,6 +121,8 @@ private:
 	void createGroup(not_null<PeerListBox*> selectUsersBox, const QString &title, const std::vector<not_null<PeerData*>> &users);
 	void submitName();
 	void submit();
+	void checkInviteLink();
+	void channelReady();
 
 	void descriptionResized();
 	void updateMaxHeight();
@@ -138,6 +140,7 @@ private:
 
 	// group / channel creation
 	mtpRequestId _creationRequestId = 0;
+	bool _creatingInviteLink = false;
 	ChannelData *_createdChannel = nullptr;
 
 };

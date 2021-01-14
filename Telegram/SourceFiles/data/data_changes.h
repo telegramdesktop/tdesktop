@@ -74,7 +74,7 @@ struct PeerUpdate {
 		IsBot             = (1 << 19),
 
 		// For chats and channels
-		InviteLink        = (1 << 20),
+		InviteLinks       = (1 << 20),
 		Members           = (1 << 21),
 		Admins            = (1 << 22),
 		BannedUsers       = (1 << 23),

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "api/api_invite_links.h"
 
 namespace {
 
@@ -127,10 +128,7 @@ void ChatData::invalidateParticipants() {
 }
 
 void ChatData::setInviteLink(const QString &newInviteLink) {
-	if (newInviteLink != _inviteLink) {
-		_inviteLink = newInviteLink;
-		session().changes().peerUpdated(this, UpdateFlag::InviteLink);
-	}
+	_inviteLink = newInviteLink;
 }
 
 bool ChatData::canHaveInviteLink() const {
@@ -389,11 +387,9 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 		chat->setUserpicPhoto(MTP_photoEmpty(MTP_long(0)));
 	}
 	if (const auto invite = update.vexported_invite()) {
-		invite->match([&](const MTPDchatInviteExported &data) {
-			chat->setInviteLink(qs(data.vlink()));
-		});
+		chat->session().api().inviteLinks().setPermanent(chat, *invite);
 	} else {
-		chat->setInviteLink(QString());
+		chat->session().api().inviteLinks().clearPermanent(chat);
 	}
 	if (const auto pinned = update.vpinned_msg_id()) {
 		SetTopPinnedMessageId(chat, pinned->v);

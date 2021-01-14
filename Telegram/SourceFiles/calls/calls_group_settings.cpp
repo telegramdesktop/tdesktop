@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_group_call.h"
+#include "data/data_changes.h"
 #include "core/application.h"
 #include "boxes/single_choice_box.h"
 #include "webrtc/webrtc_audio_input_tester.h"
@@ -32,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_calls.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "api/api_invite_links.h"
 #include "styles/style_layers.h"
 #include "styles/style_calls.h"
 #include "styles/style_settings.h"
@@ -441,23 +443,9 @@ void GroupCallSettingsBox(
 		)->addClickHandler([=] {
 			if (!copyLink() && !state->generatingLink) {
 				state->generatingLink = true;
-				peer->session().api().request(MTPmessages_ExportChatInvite(
-					MTP_flags(0),
-					peer->input,
-					MTPint(), // expire_date
-					MTPint() // usage_limit
-				)).done([=](const MTPExportedChatInvite &result) {
-					if (result.type() == mtpc_chatInviteExported) {
-						const auto link = qs(
-							result.c_chatInviteExported().vlink());
-						if (const auto chat = peer->asChat()) {
-							chat->setInviteLink(link);
-						} else if (const auto channel = peer->asChannel()) {
-							channel->setInviteLink(link);
-						}
-						copyLink();
-					}
-				}).send();
+				peer->session().api().inviteLinks().create(
+					peer,
+					crl::guard(layout, [=](auto&&) { copyLink(); }));
 			}
 		});
 	}

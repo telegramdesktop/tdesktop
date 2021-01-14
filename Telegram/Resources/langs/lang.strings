@@ -934,7 +934,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_permissions" = "Permissions";
 "lng_manage_peer_invite_links" = "Invite links";
 
-
 "lng_manage_peer_group_type" = "Group type";
 "lng_manage_peer_channel_type" = "Channel type";
 "lng_manage_peer_link_type" = "Link type";

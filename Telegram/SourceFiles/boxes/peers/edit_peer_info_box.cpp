@@ -331,7 +331,6 @@ private:
 	void showEditLinkedChatBox();
 	void fillPrivacyTypeButton();
 	void fillLinkedChatButton();
-	void fillInviteLinkButton();
 	void fillSignaturesButton();
 	void fillHistoryVisibilityButton();
 	void fillManageSection();
@@ -640,6 +639,8 @@ void Controller::refreshHistoryVisibility(anim::type animated) {
 
 void Controller::showEditPeerTypeBox(
 		std::optional<rpl::producer<QString>> error) {
+	Expects(_privacySavedValue.has_value());
+
 	const auto boxCallback = crl::guard(this, [=](
 			Privacy checked, QString publicLink) {
 		_privacyTypeUpdates.fire(std::move(checked));
@@ -652,7 +653,7 @@ void Controller::showEditPeerTypeBox(
 			_peer,
 			_channelHasLocationOriginalValue,
 			boxCallback,
-			_privacySavedValue,
+			*_privacySavedValue,
 			_usernameSavedValue,
 			error),
 		Ui::LayerOption::KeepOther);
@@ -798,22 +799,9 @@ void Controller::fillLinkedChatButton() {
 	_linkedChatUpdates.fire_copy(*_linkedChatSavedValue);
 }
 
-void Controller::fillInviteLinkButton() {
-	Expects(_controls.buttonsLayout != nullptr);
-
-	const auto buttonCallback = [=] {
-		Ui::show(Box<EditPeerTypeBox>(_peer), Ui::LayerOption::KeepOther);
-	};
-
-	AddButtonWithText(
-		_controls.buttonsLayout,
-		tr::lng_profile_invite_link_section(),
-		rpl::single(QString()), //Empty text.
-		buttonCallback);
-}
-
 void Controller::fillSignaturesButton() {
 	Expects(_controls.buttonsLayout != nullptr);
+
 	const auto channel = _peer->asChannel();
 	if (!channel) return;
 
@@ -964,8 +952,6 @@ void Controller::fillManageSection() {
 
 	if (canEditUsername) {
 		fillPrivacyTypeButton();
-	} else if (canEditInviteLink) {
-		fillInviteLinkButton();
 	}
 	if (canViewOrEditLinkedChat) {
 		fillLinkedChatButton();
@@ -1010,7 +996,7 @@ void Controller::fillManageSection() {
 				peer->session().api().inviteLinks().requestLinks(peer);
 				return peer->session().changes().peerUpdates(
 					peer,
-					Data::PeerUpdate::Flag::InviteLink
+					Data::PeerUpdate::Flag::InviteLinks
 				) | rpl::map([=] {
 					return peer->session().api().inviteLinks().links(
 						peer).count;
@@ -1018,7 +1004,7 @@ void Controller::fillManageSection() {
 			}) | rpl::flatten_latest(
 			) | ToPositiveNumberString(),
 			[=] { ShowEditInviteLinks(_navigation, _peer); },
-			st::infoIconPermissions);
+			st::infoIconInviteLinks);
 	}
 	if (canViewAdmins) {
 		AddButtonWithCount(
