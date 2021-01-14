@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_members.h"
 
 #include "calls/calls_group_call.h"
+#include "calls/calls_group_common.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -196,7 +197,7 @@ private:
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
 	uint32 _ssrc = 0;
-	int _volume = Data::GroupCall::kDefaultVolume;
+	int _volume = Group::kDefaultVolume;
 	bool _sounding = false;
 	bool _speaking = false;
 	bool _skipLevelUpdate = false;
@@ -213,8 +214,8 @@ public:
 		not_null<QWidget*> menuParent);
 	~MembersController();
 
-	using MuteRequest = GroupMembers::MuteRequest;
-	using VolumeRequest = GroupMembers::VolumeRequest;
+	using MuteRequest = Group::MuteRequest;
+	using VolumeRequest = Group::VolumeRequest;
 
 	Main::Session &session() const override;
 	void prepare() override;
@@ -318,7 +319,7 @@ void Row::updateState(const Data::GroupCall::Participant *participant) {
 	setSsrc(participant ? participant->ssrc : 0);
 	setVolume(participant
 		? participant->volume
-		: Data::GroupCall::kDefaultVolume);
+		: Group::kDefaultVolume);
 	if (!participant) {
 		setState(State::Invited);
 		setSounding(false);
@@ -1160,15 +1161,15 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		? (muteState == Row::State::Active)
 		: (muteState != Row::State::Muted);
 	const auto toggleMute = crl::guard(this, [=] {
-		_toggleMuteRequests.fire(MuteRequest{
+		_toggleMuteRequests.fire(Group::MuteRequest{
 			.user = user,
 			.mute = mute,
 		});
 	});
 	const auto changeVolume = crl::guard(this, [=](int volume) {
-		_changeVolumeRequests.fire(VolumeRequest{
+		_changeVolumeRequests.fire(Group::VolumeRequest{
 			.user = user,
-			.volume = std::clamp(volume, 1, 20000),
+			.volume = std::clamp(volume, 1, Group::kMaxVolume),
 		});
 	});
 
@@ -1303,8 +1304,6 @@ std::unique_ptr<Row> MembersController::createInvitedRow(
 } // namespace
 
 
-const int GroupMembers::kDefaultVolume = Data::GroupCall::kDefaultVolume;
-
 GroupMembers::GroupMembers(
 	not_null<QWidget*> parent,
 	not_null<GroupCall*> call)
@@ -1320,13 +1319,13 @@ GroupMembers::GroupMembers(
 }
 
 auto GroupMembers::toggleMuteRequests() const
--> rpl::producer<GroupMembers::MuteRequest> {
+-> rpl::producer<Group::MuteRequest> {
 	return static_cast<MembersController*>(
 		_listController.get())->toggleMuteRequests();
 }
 
 auto GroupMembers::changeVolumeRequests() const
--> rpl::producer<GroupMembers::VolumeRequest> {
+-> rpl::producer<Group::VolumeRequest> {
 	return static_cast<MembersController*>(
 		_listController.get())->changeVolumeRequests();
 }

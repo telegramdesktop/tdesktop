@@ -32,7 +32,6 @@ public:
 
 	void setPeer(not_null<PeerData*> peer);
 
-	static constexpr auto kDefaultVolume = 10000;
 	struct Participant {
 		not_null<UserData*> user;
 		TimeId date = 0;

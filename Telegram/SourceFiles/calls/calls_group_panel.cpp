@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_group_panel.h"
 
+#include "calls/calls_group_common.h"
 #include "calls/calls_group_members.h"
 #include "calls/calls_group_settings.h"
 #include "ui/widgets/buttons.h"
@@ -505,14 +506,14 @@ void GroupPanel::initWithCall(GroupCall *call) {
 	}, _callLifetime);
 
 	_members->toggleMuteRequests(
-	) | rpl::start_with_next([=](GroupMembers::MuteRequest request) {
+	) | rpl::start_with_next([=](Group::MuteRequest request) {
 		if (_call) {
 			_call->toggleMute(request.user, request.mute);
 		}
 	}, _callLifetime);
 
 	_members->changeVolumeRequests(
-	) | rpl::start_with_next([=](GroupMembers::VolumeRequest request) {
+	) | rpl::start_with_next([=](Group::VolumeRequest request) {
 		if (_call) {
 			_call->changeVolume(request.user, request.volume);
 		}

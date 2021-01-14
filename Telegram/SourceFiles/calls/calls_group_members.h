@@ -20,6 +20,11 @@ class GroupCall;
 
 namespace Calls {
 
+namespace Group {
+struct VolumeRequest;
+struct MuteRequest;
+} // namespace Group
+
 class GroupCall;
 
 class GroupMembers final
@@ -30,23 +35,13 @@ public:
 		not_null<QWidget*> parent,
 		not_null<GroupCall*> call);
 
-	static const int kDefaultVolume;/* = Data::GroupCall::kDefaultVolume*/
-
-	struct MuteRequest {
-		not_null<UserData*> user;
-		bool mute = false;
-	};
-	struct VolumeRequest {
-		not_null<UserData*> user;
-		int volume = kDefaultVolume;
-		bool finalized = true;
-	};
-
 	[[nodiscard]] int desiredHeight() const;
 	[[nodiscard]] rpl::producer<int> desiredHeightValue() const override;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
-	[[nodiscard]] rpl::producer<MuteRequest> toggleMuteRequests() const;
-	[[nodiscard]] rpl::producer<VolumeRequest> changeVolumeRequests() const;
+	[[nodiscard]] auto toggleMuteRequests() const
+		-> rpl::producer<Group::MuteRequest>;
+	[[nodiscard]] auto changeVolumeRequests() const
+		-> rpl::producer<Group::VolumeRequest>;
 	[[nodiscard]] auto kickMemberRequests() const
 		-> rpl::producer<not_null<UserData*>>;
 	[[nodiscard]] rpl::producer<> addMembersRequests() const {

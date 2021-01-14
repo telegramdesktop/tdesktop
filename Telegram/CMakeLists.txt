@@ -269,6 +269,7 @@ PRIVATE
     calls/calls_call.h
     calls/calls_group_call.cpp
     calls/calls_group_call.h
+    calls/calls_group_common.h
     calls/calls_group_members.cpp
     calls/calls_group_members.h
     calls/calls_group_panel.cpp

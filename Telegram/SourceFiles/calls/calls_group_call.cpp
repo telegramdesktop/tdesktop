@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_group_call.h"
 
+#include "calls/calls_group_common.h"
 #include "main/main_session.h"
 #include "api/api_send_progress.h"
 #include "apiwrap.h"
@@ -263,14 +264,14 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 			const auto &was = update.was;
 			const auto volumeChanged = was
 				? (was->volume != now.volume || was->mutedByMe != now.mutedByMe)
-				: (now.volume != Data::GroupCall::kDefaultVolume || now.mutedByMe);
+				: (now.volume != Group::kDefaultVolume || now.mutedByMe);
 			if (volumeChanged) {
 				_instance->setVolume(
 					now.ssrc,
 					(now.mutedByMe
 						? 0.
 						: (now.volume
-							/ float64(Data::GroupCall::kDefaultVolume))));
+							/ float64(Group::kDefaultVolume))));
 			}
 		}
 	}, _lifetime);
@@ -392,7 +393,7 @@ void GroupCall::applySelfInCallLocally() {
 					MTP_int(date),
 					MTP_int(lastActive),
 					MTP_int(_mySsrc),
-					MTP_int(10000))), // volume
+					MTP_int(Group::kDefaultVolume))), // volume
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -689,14 +690,13 @@ void GroupCall::updateInstanceVolumes() {
 	const auto &participants = real->participants();
 	for (const auto &participant : participants) {
 		const auto setVolume = participant.mutedByMe
-			|| (participant.volume != Data::GroupCall::kDefaultVolume);
+			|| (participant.volume != Group::kDefaultVolume);
 		if (setVolume && participant.ssrc) {
 			_instance->setVolume(
 				participant.ssrc,
 				(participant.mutedByMe
 					? 0.
-					: (participant.volume
-						/ float64(Data::GroupCall::kDefaultVolume))));
+					: (participant.volume / float64(Group::kDefaultVolume))));
 		}
 	}
 }
@@ -896,7 +896,7 @@ void GroupCall::editParticipant(
 		MTP_flags(flags),
 		inputCall(),
 		user->inputUser,
-		MTP_int(std::clamp(volume.value_or(0), 1, 20000))
+		MTP_int(std::clamp(volume.value_or(0), 1, Group::kMaxVolume))
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {
