@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "history/admin_log/history_admin_log_section.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
@@ -45,6 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "info/profile/info_profile_icon.h"
 #include "app.h"
+#include "apiwrap.h"
+#include "api/api_invite_links.h"
 #include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -194,6 +197,49 @@ void SaveSlowmodeSeconds(
 }
 
 void ShowEditPermissions(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer) {
+	const auto box = Ui::show(
+		Box<EditPeerPermissionsBox>(navigation, peer),
+		Ui::LayerOption::KeepOther);
+	const auto saving = box->lifetime().make_state<int>(0);
+	const auto save = [=](
+			not_null<PeerData*> peer,
+			EditPeerPermissionsBox::Result result) {
+		Expects(result.slowmodeSeconds == 0 || peer->isChannel());
+
+		const auto close = crl::guard(box, [=] { box->closeBox(); });
+		SaveDefaultRestrictions(
+			peer,
+			MTP_chatBannedRights(MTP_flags(result.rights), MTP_int(0)),
+			close);
+		if (const auto channel = peer->asChannel()) {
+			SaveSlowmodeSeconds(channel, result.slowmodeSeconds, close);
+		}
+	};
+	box->saveEvents(
+	) | rpl::start_with_next([=](EditPeerPermissionsBox::Result result) {
+		if (*saving) {
+			return;
+		}
+		*saving = true;
+
+		const auto saveFor = peer->migrateToOrMe();
+		const auto chat = saveFor->asChat();
+		if (!result.slowmodeSeconds || !chat) {
+			save(saveFor, result);
+			return;
+		}
+		const auto api = &peer->session().api();
+		api->migrateChat(chat, [=](not_null<ChannelData*> channel) {
+			save(channel, result);
+		}, [=](const RPCError &error) {
+			*saving = false;
+		});
+	}, box->lifetime());
+}
+
+void ShowEditInviteLinks(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer) {
 	const auto box = Ui::show(
@@ -868,6 +914,11 @@ void Controller::fillManageSection() {
 			? channel->canEditPermissions()
 			: chat->canEditPermissions();
 	}();
+	const auto canEditInviteLinks = [&] {
+		return isChannel
+			? channel->canHaveInviteLink()
+			: chat->canHaveInviteLink();
+	}();
 	const auto canViewAdmins = [&] {
 		return isChannel
 			? channel->canViewAdmins()
@@ -947,6 +998,26 @@ void Controller::fillManageSection() {
 			) | rpl::flatten_latest(
 			) | ToPositiveNumberStringRestrictions(),
 			[=] { ShowEditPermissions(_navigation, _peer); },
+			st::infoIconPermissions);
+	}
+	if (canEditInviteLinks) {
+		AddButtonWithCount(
+			_controls.buttonsLayout,
+			tr::lng_manage_peer_invite_links(),
+			Info::Profile::MigratedOrMeValue(
+				_peer
+			) | rpl::map([=](not_null<PeerData*> peer) {
+				peer->session().api().inviteLinks().requestLinks(peer);
+				return peer->session().changes().peerUpdates(
+					peer,
+					Data::PeerUpdate::Flag::InviteLink
+				) | rpl::map([=] {
+					return peer->session().api().inviteLinks().links(
+						peer).count;
+				});
+			}) | rpl::flatten_latest(
+			) | ToPositiveNumberString(),
+			[=] { ShowEditInviteLinks(_navigation, _peer); },
 			st::infoIconPermissions);
 	}
 	if (canViewAdmins) {

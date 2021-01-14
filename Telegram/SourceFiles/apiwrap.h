@@ -60,6 +60,7 @@ class AttachedStickers;
 class SelfDestruct;
 class SensitiveContent;
 class GlobalPrivacy;
+class InviteLinks;
 
 namespace details {
 
@@ -289,7 +290,6 @@ public:
 	void blockPeer(not_null<PeerData*> peer);
 	void unblockPeer(not_null<PeerData*> peer, Fn<void()> onDone = nullptr);
 
-	void exportInviteLink(not_null<PeerData*> peer);
 	void requestNotifySettings(const MTPInputNotifyPeer &peer);
 	void updateNotifySettingsDelayed(not_null<const PeerData*> peer);
 	void saveDraftToCloudDelayed(not_null<History*> history);
@@ -464,6 +464,7 @@ public:
 	[[nodiscard]] Api::SelfDestruct &selfDestruct();
 	[[nodiscard]] Api::SensitiveContent &sensitiveContent();
 	[[nodiscard]] Api::GlobalPrivacy &globalPrivacy();
+	[[nodiscard]] Api::InviteLinks &inviteLinks();
 
 	void createPoll(
 		const PollData &data,
@@ -701,7 +702,6 @@ private:
 
 	QMap<ChannelData*, mtpRequestId> _channelAmInRequests;
 	base::flat_map<not_null<PeerData*>, mtpRequestId> _blockRequests;
-	base::flat_map<not_null<PeerData*>, mtpRequestId> _exportInviteRequests;
 	base::flat_map<PeerId, mtpRequestId> _notifySettingRequests;
 	base::flat_map<not_null<History*>, mtpRequestId> _draftsSaveRequestIds;
 	base::Timer _draftsSaveTimer;
@@ -828,6 +828,7 @@ private:
 	const std::unique_ptr<Api::SelfDestruct> _selfDestruct;
 	const std::unique_ptr<Api::SensitiveContent> _sensitiveContent;
 	const std::unique_ptr<Api::GlobalPrivacy> _globalPrivacy;
+	const std::unique_ptr<Api::InviteLinks> _inviteLinks;
 
 	base::flat_map<FullMsgId, mtpRequestId> _pollVotesRequestIds;
 	base::flat_map<FullMsgId, mtpRequestId> _pollCloseRequestIds;

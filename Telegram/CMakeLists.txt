@@ -145,6 +145,8 @@ PRIVATE
     api/api_global_privacy.h
     api/api_hash.cpp
     api/api_hash.h
+    api/api_invite_links.cpp
+    api/api_invite_links.h
     api/api_media.cpp
     api/api_media.h
     api/api_self_destruct.cpp

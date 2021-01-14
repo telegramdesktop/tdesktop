@@ -535,7 +535,7 @@ auth.passwordRecovery#137948a5 email_pattern:string = auth.PasswordRecovery;
 
 receivedNotifyMessage#a384b779 id:int flags:int = ReceivedNotifyMessage;
 
-chatInviteExported#a9a847ea flags:# revoked:flags.0?true link:string admin_id:int date:int expire_date:flags.1?int usage_limit:flags.2?int usage:flags.3?int = ExportedChatInvite;
+chatInviteExported#a9a847ea flags:# revoked:flags.0?true expired:flags.4?true permanent:flags.5?true link:string admin_id:int date:int expire_date:flags.1?int usage_limit:flags.2?int usage:flags.3?int = ExportedChatInvite;
 
 chatInviteAlready#5a686d7c chat:Chat = ChatInvite;
 chatInvite#dfc2f58e flags:# channel:flags.0?true broadcast:flags.1?true public:flags.2?true megagroup:flags.3?true title:string photo:Photo participants_count:int participants:flags.4?Vector<User> = ChatInvite;
@@ -1210,7 +1210,7 @@ chatInviteImporter#1e3e6680 user_id:int date:int = ChatInviteImporter;
 
 messages.exportedChatInvites#bdc62dcc count:int invites:Vector<ExportedChatInvite> users:Vector<User> = messages.ExportedChatInvites;
 
-messages.exportedChatInvite#97c5e3a9 invite:ExportedChatInvite recent_importers:Vector<int> users:Vector<User> = messages.ExportedChatInvite;
+messages.exportedChatInvite#1871be50 invite:ExportedChatInvite users:Vector<User> = messages.ExportedChatInvite;
 
 messages.chatInviteImporters#81b6b00a count:int importers:Vector<ChatInviteImporter> users:Vector<User> = messages.ChatInviteImporters;
 
@@ -1373,7 +1373,7 @@ messages.readMessageContents#36a73f77 id:Vector<int> = messages.AffectedMessages
 messages.getStickers#43d4f2c emoticon:string hash:int = messages.Stickers;
 messages.getAllStickers#1c9618b1 hash:int = messages.AllStickers;
 messages.getWebPagePreview#8b68b0cc flags:# message:string entities:flags.3?Vector<MessageEntity> = MessageMedia;
-messages.exportChatInvite#14b9bcd7 flags:# peer:InputPeer expire_date:flags.0?int usage_limit:flags.1?int = ExportedChatInvite;
+messages.exportChatInvite#14b9bcd7 flags:# legacy_revoke_permanent:flags.2?true peer:InputPeer expire_date:flags.0?int usage_limit:flags.1?int = ExportedChatInvite;
 messages.checkChatInvite#3eadb1bb hash:string = ChatInvite;
 messages.importChatInvite#6c50051c hash:string = Updates;
 messages.getStickerSet#2619a90e stickerset:InputStickerSet = messages.StickerSet;
@@ -1463,9 +1463,8 @@ messages.getReplies#24b581ba peer:InputPeer msg_id:int offset_id:int offset_date
 messages.getDiscussionMessage#446972fd peer:InputPeer msg_id:int = messages.DiscussionMessage;
 messages.readDiscussion#f731a9f4 peer:InputPeer msg_id:int read_max_id:int = Bool;
 messages.unpinAllMessages#f025bc8b peer:InputPeer = messages.AffectedHistory;
-messages.getExportedChatInvites#6d9cae03 flags:# expired:flags.1?true peer:InputPeer admin_id:flags.0?InputUser offset_link:flags.2?string limit:int = messages.ExportedChatInvites;
+messages.getExportedChatInvites#6d9cae03 flags:# peer:InputPeer admin_id:flags.0?InputUser offset_link:flags.2?string limit:int = messages.ExportedChatInvites;
 messages.editExportedChatInvite#2e4ffbe flags:# revoked:flags.2?true peer:InputPeer link:string expire_date:flags.0?int usage_limit:flags.1?int = messages.ExportedChatInvite;
-messages.getExportedChatInvite#73746f5c peer:InputPeer link:string = messages.ExportedChatInvite;
 messages.getChatInviteImporters#26fb7289 peer:InputPeer link:string offset_date:int offset_user:InputUser limit:int = messages.ChatInviteImporters;
 
 updates.getState#edd4882a = updates.State;

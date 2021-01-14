@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
+#include "api/api_invite_links.h"
 #include "main/main_session.h"
 #include "facades.h"
 #include "styles/style_layers.h"
@@ -942,7 +943,7 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	if (_linkOver) {
 		if (_channel->inviteLink().isEmpty()) {
-			_channel->session().api().exportInviteLink(_channel);
+			_channel->session().api().inviteLinks().create(_channel);
 		} else {
 			QGuiApplication::clipboard()->setText(_channel->inviteLink());
 			Ui::Toast::Show(tr::lng_create_channel_link_copied(tr::now));

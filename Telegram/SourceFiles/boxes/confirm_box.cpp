@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
+#include "api/api_invite_links.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "ui/widgets/checkbox.h"
@@ -407,7 +408,7 @@ void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_linkOver) {
 		if (_channel->inviteLink().isEmpty()) {
-			_channel->session().api().exportInviteLink(_channel);
+			_channel->session().api().inviteLinks().create(_channel);
 		} else {
 			QGuiApplication::clipboard()->setText(_channel->inviteLink());
 			Ui::Toast::Show(tr::lng_create_channel_link_copied(tr::now));

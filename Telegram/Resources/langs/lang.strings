@@ -932,6 +932,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_exceptions" = "Exceptions";
 "lng_manage_peer_removed_users" = "Removed users";
 "lng_manage_peer_permissions" = "Permissions";
+"lng_manage_peer_invite_links" = "Invite links";
+
 
 "lng_manage_peer_group_type" = "Group type";
 "lng_manage_peer_channel_type" = "Channel type";

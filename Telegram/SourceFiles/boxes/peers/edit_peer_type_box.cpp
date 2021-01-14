@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_type_box.h"
 
 #include "apiwrap.h"
+#include "api/api_invite_links.h"
 #include "main/main_session.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
@@ -126,8 +127,7 @@ private:
 	void refreshEditInviteLink();
 	void refreshCreateInviteLink();
 	void createInviteLink();
-	void revokeInviteLink();
-	void exportInviteLink(const QString &confirmation);
+	void revokeInviteLink(const QString &link);
 
 	void fillPrivaciesButtons(
 		not_null<Ui::VerticalLayout*> parent,
@@ -536,22 +536,26 @@ void Controller::showUsernameResult(
 }
 
 void Controller::createInviteLink() {
-	exportInviteLink((_isGroup
-		? tr::lng_group_invite_about
-		: tr::lng_group_invite_about_channel)(tr::now));
-}
-
-void Controller::revokeInviteLink() {
-	exportInviteLink(tr::lng_group_invite_about_new(tr::now));
-}
-
-void Controller::exportInviteLink(const QString &confirmation) {
 	const auto callback = crl::guard(this, [=](Fn<void()> &&close) {
 		close();
-		_peer->session().api().exportInviteLink(_peer->migrateToOrMe());
+		_peer->session().api().inviteLinks().create(_peer->migrateToOrMe());
 	});
 	auto box = Box<ConfirmBox>(
-		confirmation,
+		(_isGroup
+			? tr::lng_group_invite_about
+			: tr::lng_group_invite_about_channel)(tr::now),
+		std::move(callback));
+	Ui::show(std::move(box), Ui::LayerOption::KeepOther);
+}
+
+void Controller::revokeInviteLink(const QString &link) {
+	const auto callback = crl::guard(this, [=](Fn<void()> &&close) {
+		close();
+		const auto peer = _peer->migrateToOrMe();
+		peer->session().api().inviteLinks().revoke(peer, link);
+	});
+	auto box = Box<ConfirmBox>(
+		tr::lng_group_invite_about_new(tr::now),
 		std::move(callback));
 	Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 }
@@ -623,7 +627,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 		container,
 		tr::lng_group_invite_create_new(tr::now),
 		st::editPeerInviteLinkButton)
-	)->addClickHandler([=] { revokeInviteLink(); });
+	)->addClickHandler([=] { revokeInviteLink(inviteLinkText()); });
 
 	observeInviteLink();
 
