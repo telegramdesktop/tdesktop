@@ -204,6 +204,13 @@ QIcon TrayIconGen(int counter, bool muted) {
 	}
 
 	const auto iconName = GetTrayIconName(counter, muted);
+	const auto panelIconName = GetPanelIconName(counter, muted);
+
+	if (iconName == panelIconName) {
+		const auto result = QIcon::fromTheme(iconName);
+		UpdateIconRegenerationNeeded(result, counter, muted, iconThemeName);
+		return result;
+	}
 
 	QIcon result;
 	QIcon systemIcon;
@@ -624,7 +631,17 @@ void MainWindow::psTrayMenuUpdated() {
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void MainWindow::setSNITrayIcon(int counter, bool muted) {
-	if (IsIndicatorApplication()) {
+	const auto iconName = GetTrayIconName(counter, muted);
+	const auto panelIconName = GetPanelIconName(counter, muted);
+
+	if (iconName == panelIconName) {
+		if (_sniTrayIcon->iconName() == iconName) {
+			return;
+		}
+
+		_sniTrayIcon->setIconByName(iconName);
+		_sniTrayIcon->setToolTipIconByName(iconName);
+	} else if (IsIndicatorApplication()) {
 		if (!IsIconRegenerationNeeded(counter, muted)
 			&& _trayIconFile
 			&& _sniTrayIcon->iconName() == _trayIconFile->fileName()) {
