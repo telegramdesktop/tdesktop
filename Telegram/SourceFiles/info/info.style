@@ -848,4 +848,20 @@ inviteLinkThreeDots: IconButton(defaultIconButton) {
 
 	rippleAreaSize: 0px;
 }
-inviteLinkFieldPadding: margins(22px, 7px, 22px, 9px);
+inviteLinkFieldPadding: margins(22px, 7px, 22px, 14px);
+
+inviteLinkButton: RoundButton(defaultActiveButton) {
+	height: 36px;
+	textTop: 9px;
+}
+inviteLinkButtonsPadding: margins(22px, 0px, 22px, 0px);
+inviteLinkButtonsSkip: 10px;
+inviteLinkCopy: RoundButton(inviteLinkButton) {
+	icon: icon {{ "info/edit/links_copy", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_copy", activeButtonFgOver }};
+	iconPosition: point(-1px, 2px);
+}
+inviteLinkShare: RoundButton(inviteLinkCopy) {
+	icon: icon {{ "info/edit/links_share", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_share", activeButtonFgOver }};
+}

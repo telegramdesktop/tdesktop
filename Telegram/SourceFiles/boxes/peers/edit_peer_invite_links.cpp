@@ -12,8 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "api/api_invite_links.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/controls/invite_link_label.h"
+#include "ui/controls/invite_link_buttons.h"
 #include "ui/toast/toast.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
@@ -88,4 +90,9 @@ void AddPermanentLinkBlock(
 
 	label->clicks(
 	) | rpl::start_with_next(copyLink, label->lifetime());
+
+	AddCopyShareLinkButtons(
+		container,
+		copyLink,
+		shareLink);
 }

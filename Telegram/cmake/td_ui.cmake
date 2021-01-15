@@ -88,6 +88,8 @@ PRIVATE
     ui/chat/pinned_bar.h
     ui/controls/emoji_button.cpp
     ui/controls/emoji_button.h
+    ui/controls/invite_link_buttons.cpp
+    ui/controls/invite_link_buttons.h
     ui/controls/invite_link_label.cpp
     ui/controls/invite_link_label.h
     ui/controls/send_button.cpp
