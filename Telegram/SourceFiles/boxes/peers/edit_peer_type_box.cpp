@@ -616,11 +616,11 @@ void EditPeerTypeBox::setInnerFocus() {
 void EditPeerTypeBox::prepare() {
 	_peer->updateFull();
 
-	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
+	auto content = object_ptr<Ui::VerticalLayout>(this);
 
 	const auto controller = Ui::CreateChild<Controller>(
 		this,
-		content,
+		content.data(),
 		_peer,
 		_useLocationPhrases,
 		_privacySavedValue,
@@ -657,5 +657,6 @@ void EditPeerTypeBox::prepare() {
 	}
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
-	setDimensionsToContent(st::boxWideWidth, content);
+	setDimensionsToContent(st::boxWideWidth, content.data());
+	setInnerWidget(std::move(content));
 }
