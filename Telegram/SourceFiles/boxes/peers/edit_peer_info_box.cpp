@@ -1003,7 +1003,7 @@ void Controller::fillManageSection() {
 				});
 			}) | rpl::flatten_latest(
 			) | ToPositiveNumberString(),
-			[=] { ShowEditInviteLinks(_navigation, _peer); },
+			[=] { },
 			st::infoIconInviteLinks);
 	}
 	if (canViewAdmins) {

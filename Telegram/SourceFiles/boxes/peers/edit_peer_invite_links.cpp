@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_changes.h"
 #include "data/data_user.h"
+#include "data/data_drafts.h"
 #include "main/main_session.h"
+#include "data/data_session.h"
 #include "api/api_invite_links.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
@@ -19,12 +21,68 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/invite_link_buttons.h"
 #include "ui/toast/toast.h"
 #include "history/view/history_view_group_call_tracker.h" // GenerateUs...
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
+#include "boxes/peer_list_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "apiwrap.h"
+#include "api/api_common.h"
 #include "styles/style_info.h"
 
 #include <QtGui/QGuiApplication>
+
+namespace {
+
+void ShareLinkBox(not_null<PeerData*> peer, const QString &link) {
+	const auto weak = std::make_shared<QPointer<PeerListBox>>();
+	auto callback = [
+		weak,
+		link
+	](not_null<PeerData*> peer) mutable {
+		const auto history = peer->owner().history(peer);
+		if (peer->isSelf()) {
+			const auto api = &peer->session().api();
+			auto message = Api::MessageToSend(history);
+			message.action.clearDraft = false;
+			message.action.generateLocal = false;
+			message.textWithTags = { link };
+			api->sendMessage(std::move(message));
+			Ui::Toast::Show(tr::lng_share_done(tr::now));
+		} else {
+			auto textWithTags = TextWithTags{
+				link + '\n',
+				TextWithTags::Tags()
+			};
+			auto cursor = MessageCursor{
+				link.size() + 1,
+				link.size() + 1,
+				QFIXED_MAX
+			};
+			history->setLocalDraft(
+				std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
+			history->clearLocalEditDraft();
+			history->session().changes().historyUpdated(
+				history,
+				Data::HistoryUpdate::Flag::LocalDraftSet);
+		}
+		if (const auto strong = *weak) {
+			strong->closeBox();
+		}
+	};
+	auto initBox = [](not_null<PeerListBox*> box) {
+		box->addButton(tr::lng_cancel(), [box] {
+			box->closeBox();
+		});
+	};
+	*weak = Ui::show(Box<PeerListBox>(
+		std::make_unique<ChooseRecipientBoxController>(
+			&peer->session(),
+			std::move(callback)),
+		std::move(initBox)), Ui::LayerOption::KeepOther);
+}
+
+} // namespace
 
 void AddPermanentLinkBlock(
 		not_null<Ui::VerticalLayout*> container,
@@ -55,8 +113,7 @@ void AddPermanentLinkBlock(
 	});
 	const auto shareLink = crl::guard(weak, [=] {
 		if (const auto link = computePermanentLink()) {
-			QGuiApplication::clipboard()->setText(link->link);
-			Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
+			ShareLinkBox(peer, link->link);
 		}
 	});
 	const auto revokeLink = crl::guard(weak, [=] {

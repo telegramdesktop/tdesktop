@@ -301,13 +301,26 @@ MainWidget::MainWidget(
 
 	session().changes().historyUpdates(
 		Data::HistoryUpdate::Flag::MessageSent
+		| Data::HistoryUpdate::Flag::LocalDraftSet
 	) | rpl::start_with_next([=](const Data::HistoryUpdate &update) {
 		const auto history = update.history;
-		history->forgetScrollState();
-		if (const auto from = history->peer->migrateFrom()) {
-			if (const auto migrated = history->owner().historyLoaded(from)) {
-				migrated->forgetScrollState();
+		if (update.flags & Data::HistoryUpdate::Flag::MessageSent) {
+			history->forgetScrollState();
+			if (const auto from = history->peer->migrateFrom()) {
+				auto &owner = history->owner();
+				if (const auto migrated = owner.historyLoaded(from)) {
+					migrated->forgetScrollState();
+				}
 			}
+		}
+		if (update.flags & Data::HistoryUpdate::Flag::LocalDraftSet) {
+			const auto opened = (_history->peer() == history->peer.get());
+			if (opened) {
+				_history->applyDraft();
+			} else {
+				Ui::showPeerHistory(history, ShowAtUnreadMsgId);
+			}
+			Ui::hideLayer();
 		}
 	}, lifetime());
 
@@ -538,11 +551,9 @@ bool MainWidget::shareUrl(
 	history->setLocalDraft(
 		std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
 	history->clearLocalEditDraft();
-	if (_history->peer() == peer) {
-		_history->applyDraft();
-	} else {
-		Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
-	}
+	history->session().changes().historyUpdated(
+		history,
+		Data::HistoryUpdate::Flag::LocalDraftSet);
 	return true;
 }
 
@@ -567,12 +578,9 @@ bool MainWidget::inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) {
 	MessageCursor cursor = { botAndQuery.size(), botAndQuery.size(), QFIXED_MAX };
 	h->setLocalDraft(std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
 	h->clearLocalEditDraft();
-	const auto opened = _history->peer() && (_history->peer() == peer);
-	if (opened) {
-		_history->applyDraft();
-	} else {
-		Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
-	}
+	h->session().changes().historyUpdated(
+		h,
+		Data::HistoryUpdate::Flag::LocalDraftSet);
 	return true;
 }
 

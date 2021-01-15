@@ -116,8 +116,9 @@ struct HistoryUpdate {
 		OutboxRead     = (1 << 10),
 		BotKeyboard    = (1 << 11),
 		CloudDraft     = (1 << 12),
+		LocalDraftSet  = (1 << 13),
 
-		LastUsedBit    = (1 << 12),
+		LastUsedBit    = (1 << 13),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
