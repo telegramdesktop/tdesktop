@@ -420,10 +420,17 @@ bool IsSNIAvailable() {
 
 	if (reply.isValid()) {
 		return reply.value().toBool();
-	} else if (reply.error().type() != QDBusError::ServiceUnknown) {
-		LOG(("SNI Error: %1").arg(reply.error().message()));
 	}
 
+	switch (reply.error().type()) {
+	case QDBusError::Disconnected:
+	case QDBusError::ServiceUnknown:
+		return false;
+	default:
+		break;
+	}
+
+	LOG(("SNI Error: %1").arg(reply.error().message()));
 	return false;
 }
 
