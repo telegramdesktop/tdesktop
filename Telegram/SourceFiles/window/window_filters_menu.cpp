@@ -295,6 +295,24 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 			showMenu(QCursor::pos(), id);
 		}, raw->lifetime());
 	}
+	// Mark all chats as read
+	if (id == 0) {
+		raw->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return e->type() == QEvent::ContextMenu;
+		}) | rpl::start_with_next([=] {
+			_popupMenu = base::make_unique_q<Ui::PopupMenu>(raw);
+			const auto addAction = [&](const QString &text, Fn<void()> callback) {
+				return _popupMenu->addAction(
+						text,
+						crl::guard(&_outer, std::move(callback)));
+			};
+			Window::MenuAddMarkAsReadAllChatsAction(
+					&_session->session().data(),
+					addAction);
+			_popupMenu->popup(QCursor::pos());
+		}, raw->lifetime());
+	}
 	return button;
 }
 
