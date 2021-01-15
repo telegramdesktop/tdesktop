@@ -10,8 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_user.h"
 #include "data/data_drafts.h"
-#include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_histories.h"
+#include "main/main_session.h"
 #include "api/api_invite_links.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
@@ -19,14 +20,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/controls/invite_link_label.h"
 #include "ui/controls/invite_link_buttons.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "history/view/history_view_group_call_tracker.h" // GenerateUs...
+#include "history/history_message.h" // GetErrorTextForSending.
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "apiwrap.h"
+#include "mainwindow.h"
+#include "boxes/share_box.h"
+#include "window/window_session_controller.h"
 #include "api/api_common.h"
 #include "styles/style_info.h"
 
@@ -35,51 +41,81 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 void ShareLinkBox(not_null<PeerData*> peer, const QString &link) {
-	const auto weak = std::make_shared<QPointer<PeerListBox>>();
-	auto callback = [
-		weak,
-		link
-	](not_null<PeerData*> peer) mutable {
-		const auto history = peer->owner().history(peer);
-		if (peer->isSelf()) {
-			const auto api = &peer->session().api();
-			auto message = Api::MessageToSend(history);
+	const auto session = &peer->session();
+	const auto sending = std::make_shared<bool>();
+	const auto box = std::make_shared<QPointer<ShareBox>>();
+
+	auto copyCallback = [=] {
+		QGuiApplication::clipboard()->setText(link);
+		Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
+	};
+	auto submitCallback = [=](
+			std::vector<not_null<PeerData*>> &&result,
+			TextWithTags &&comment,
+			Api::SendOptions options) {
+		if (*sending || result.empty()) {
+			return;
+		}
+
+		const auto error = [&] {
+			for (const auto peer : result) {
+				const auto error = GetErrorTextForSending(
+					peer,
+					{},
+					comment);
+				if (!error.isEmpty()) {
+					return std::make_pair(error, peer);
+				}
+			}
+			return std::make_pair(QString(), result.front());
+		}();
+		if (!error.first.isEmpty()) {
+			auto text = TextWithEntities();
+			if (result.size() > 1) {
+				text.append(
+					Ui::Text::Bold(error.second->name)
+				).append("\n\n");
+			}
+			text.append(error.first);
+			Ui::show(
+				Box<InformBox>(text),
+				Ui::LayerOption::KeepOther);
+			return;
+		}
+
+		*sending = true;
+		if (!comment.text.isEmpty()) {
+			comment.text = link + "\n" + comment.text;
+			const auto add = link.size() + 1;
+			for (auto &tag : comment.tags) {
+				tag.offset += add;
+			}
+		}
+		const auto owner = &peer->owner();
+		auto &api = peer->session().api();
+		auto &histories = owner->histories();
+		const auto requestType = Data::Histories::RequestType::Send;
+		for (const auto peer : result) {
+			const auto history = owner->history(peer);
+			auto message = ApiWrap::MessageToSend(history);
+			message.textWithTags = comment;
+			message.action.options = options;
 			message.action.clearDraft = false;
-			message.action.generateLocal = false;
-			message.textWithTags = { link };
-			api->sendMessage(std::move(message));
-			Ui::Toast::Show(tr::lng_share_done(tr::now));
-		} else {
-			auto textWithTags = TextWithTags{
-				link + '\n',
-				TextWithTags::Tags()
-			};
-			auto cursor = MessageCursor{
-				link.size() + 1,
-				link.size() + 1,
-				QFIXED_MAX
-			};
-			history->setLocalDraft(
-				std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
-			history->clearLocalEditDraft();
-			history->session().changes().historyUpdated(
-				history,
-				Data::HistoryUpdate::Flag::LocalDraftSet);
+			api.sendMessage(std::move(message));
 		}
-		if (const auto strong = *weak) {
-			strong->closeBox();
+		Ui::Toast::Show(tr::lng_share_done(tr::now));
+		if (*box) {
+			(*box)->closeBox();
 		}
 	};
-	auto initBox = [](not_null<PeerListBox*> box) {
-		box->addButton(tr::lng_cancel(), [box] {
-			box->closeBox();
-		});
+	auto filterCallback = [](PeerData *peer) {
+		return peer->canWrite();
 	};
-	*weak = Ui::show(Box<PeerListBox>(
-		std::make_unique<ChooseRecipientBoxController>(
-			&peer->session(),
-			std::move(callback)),
-		std::move(initBox)), Ui::LayerOption::KeepOther);
+	*box = Ui::show(Box<ShareBox>(
+		App::wnd()->sessionController(),
+		std::move(copyCallback),
+		std::move(submitCallback),
+		std::move(filterCallback)));
 }
 
 } // namespace
