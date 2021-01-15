@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 #include "styles/style_info.h"
@@ -70,16 +71,23 @@ not_null<AbstractButton*> AddJoinedCountButton(
 		int addedWidth = 0;
 	};
 	const auto wrap = container->add(
-		object_ptr<Ui::FixedHeightWidget>(
+		object_ptr<Ui::SlideWrap<Ui::FixedHeightWidget>>(
 			container,
-			st::inviteLinkUserpics.size),
-		padding);
-	const auto result = CreateChild<JoinedCountButton>(wrap);
+			object_ptr<Ui::FixedHeightWidget>(
+				container,
+				st::inviteLinkUserpics.size),
+			QMargins(padding.left(), padding.top(), padding.right(), 0)),
+		QMargins(0, 0, 0, padding.bottom()));
+	const auto result = CreateChild<JoinedCountButton>(wrap->entity());
 	const auto state = result->lifetime().make_state<State>();
 	std::move(
 		content
 	) | rpl::start_with_next([=](JoinedCountContent &&content) {
 		state->content = std::move(content);
+		wrap->toggle(state->content.count > 0, anim::type::instant);
+		if (state->content.count <= 0) {
+			return;
+		}
 		result->setAttribute(
 			Qt::WA_TransparentForMouseEvents,
 			!state->content.count);
@@ -93,12 +101,10 @@ not_null<AbstractButton*> AddJoinedCountButton(
 		state->addedWidth = imageWidth
 			? (imageWidth + st::inviteLinkUserpicsSkip)
 			: 0;
-		state->phrase = state->content.count
-			? tr::lng_group_invite_joined(
-				tr::now,
-				lt_count_decimal,
-				state->content.count)
-			: tr::lng_group_invite_no_joined(tr::now);
+		state->phrase = tr::lng_group_invite_joined(
+			tr::now,
+			lt_count_decimal,
+			state->content.count);
 		const auto fullWidth = st::inviteLinkJoinedFont->width(state->phrase)
 			+ state->addedWidth;
 		result->resize(fullWidth, st.size);
@@ -113,9 +119,7 @@ not_null<AbstractButton*> AddJoinedCountButton(
 			p.drawImage(0, 0, state->content.userpics);
 		}
 		const auto &font = st::inviteLinkJoinedFont;
-		p.setPen(state->content.count
-			? st::defaultLinkButton.color
-			: st::windowSubTextFg);
+		p.setPen(st::defaultLinkButton.color);
 		p.setFont((result->isOver() || result->isDown())
 			? font->underline()
 			: font);
