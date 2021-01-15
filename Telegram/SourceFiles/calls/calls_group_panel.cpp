@@ -508,14 +508,14 @@ void GroupPanel::initWithCall(GroupCall *call) {
 	_members->toggleMuteRequests(
 	) | rpl::start_with_next([=](Group::MuteRequest request) {
 		if (_call) {
-			_call->toggleMute(request.user, request.mute);
+			_call->toggleMute(request);
 		}
 	}, _callLifetime);
 
 	_members->changeVolumeRequests(
 	) | rpl::start_with_next([=](Group::VolumeRequest request) {
 		if (_call) {
-			_call->changeVolume(request.user, request.volume);
+			_call->changeVolume(request);
 		}
 	}, _callLifetime);
 

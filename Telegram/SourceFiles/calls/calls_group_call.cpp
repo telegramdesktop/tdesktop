@@ -871,12 +871,20 @@ void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
 	}
 }
 
-void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
-	editParticipant(user, mute, std::nullopt);
+void GroupCall::toggleMute(const Group::MuteRequest &data) {
+	if (data.locallyOnly) {
+		applyParticipantLocally(data.user, data.mute, std::nullopt);
+	} else {
+		editParticipant(data.user, data.mute, std::nullopt);
+	}
 }
 
-void GroupCall::changeVolume(not_null<UserData*> user, int volume) {
-	editParticipant(user, false, volume);
+void GroupCall::changeVolume(const Group::VolumeRequest &data) {
+	if (data.locallyOnly) {
+		applyParticipantLocally(data.user, false, data.volume);
+	} else {
+		editParticipant(data.user, false, data.volume);
+	}
 }
 
 void GroupCall::editParticipant(

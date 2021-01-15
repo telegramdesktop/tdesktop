@@ -35,6 +35,11 @@ struct LastSpokeTimes;
 
 namespace Calls {
 
+namespace Group {
+struct MuteRequest;
+struct VolumeRequest;
+} // namespace Group
+
 enum class MuteState {
 	Active,
 	PushToTalk,
@@ -131,8 +136,8 @@ public:
 	//void setAudioVolume(bool input, float level);
 	void setAudioDuckingEnabled(bool enabled);
 
-	void toggleMute(not_null<UserData*> user, bool mute);
-	void changeVolume(not_null<UserData*> user, int volume);
+	void toggleMute(const Group::MuteRequest &data);
+	void changeVolume(const Group::VolumeRequest &data);
 	std::variant<int, not_null<UserData*>> inviteUsers(
 		const std::vector<not_null<UserData*>> &users);
 

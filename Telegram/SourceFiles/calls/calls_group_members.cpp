@@ -1166,10 +1166,11 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 			.mute = mute,
 		});
 	});
-	const auto changeVolume = crl::guard(this, [=](int volume) {
+	const auto changeVolume = crl::guard(this, [=](int volume, bool local) {
 		_changeVolumeRequests.fire(Group::VolumeRequest{
 			.user = user,
 			.volume = std::clamp(volume, 1, Group::kMaxVolume),
+			.locallyOnly = local,
 		});
 	});
 
@@ -1245,10 +1246,10 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 			&& muteState != Row::State::MutedByMe) {
 			const auto volume = real->volume();
 			result->addAction(QString("Increase volume (%1%)").arg(volume / 100.), [=] {
-				changeVolume(volume + 2000);
+				changeVolume(volume + 2000, false);
 			});
 			result->addAction(QString("Decrease volume (%1%)").arg(volume / 100.), [=] {
-				changeVolume(volume - 2000);
+				changeVolume(volume - 2000, false);
 			});
 		}
 	}

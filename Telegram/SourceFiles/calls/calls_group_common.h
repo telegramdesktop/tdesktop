@@ -17,11 +17,13 @@ constexpr auto kMaxVolume = 20000;
 struct MuteRequest {
 	not_null<UserData*> user;
 	bool mute = false;
+	bool locallyOnly = false;
 };
 struct VolumeRequest {
 	not_null<UserData*> user;
 	int volume = kDefaultVolume;
 	bool finalized = true;
+	bool locallyOnly = false;
 };
 
 } // namespace Calls::Group
