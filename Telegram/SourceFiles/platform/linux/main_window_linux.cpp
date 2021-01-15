@@ -528,11 +528,13 @@ void MainWindow::initHook() {
 		nullptr,
 		nullptr);
 
-	g_signal_connect(
-		_sniDBusProxy,
-		"g-signal",
-		G_CALLBACK(sniSignalEmitted),
-		nullptr);
+	if (_sniDBusProxy) {
+		g_signal_connect(
+			_sniDBusProxy,
+			"g-signal",
+			G_CALLBACK(sniSignalEmitted),
+			nullptr);
+	}
 
 	auto sniWatcher = new QDBusServiceWatcher(
 		kSNIWatcherService.utf16(),
@@ -1232,7 +1234,9 @@ MainWindow::~MainWindow() {
 	delete _mainMenuExporter;
 	delete psMainMenu;
 
-	g_object_unref(_sniDBusProxy);
+	if (_sniDBusProxy) {
+		g_object_unref(_sniDBusProxy);
+	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
