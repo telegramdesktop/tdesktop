@@ -589,10 +589,25 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 		return;
 	}
 
+	const auto handleOtherParticipants = [=](
+			const MTPDgroupCallParticipant &data) {
+		const auto user = _peer->owner().user(data.vuser_id().v);
+		const auto participant = LookupParticipant(_peer, _id, user);
+		if (!participant) {
+			return;
+		}
+		_otherParticipantStateValue.fire(Group::ParticipantState{
+			.user = user,
+			.mutedByMe = data.is_muted_by_you(),
+			.volume = data.vvolume().value_or_empty(),
+		});
+	};
+
 	const auto self = _peer->session().userId();
 	for (const auto &participant : data.vparticipants().v) {
 		participant.match([&](const MTPDgroupCallParticipant &data) {
 			if (data.vuser_id().v != self) {
+				handleOtherParticipants(data);
 				return;
 			}
 			if (data.is_left() && data.vsource().v == _mySsrc) {
@@ -1028,6 +1043,11 @@ void GroupCall::pushToTalkCancel() {
 	if (muted() == MuteState::PushToTalk) {
 		setMuted(MuteState::Muted);
 	}
+}
+
+auto GroupCall::otherParticipantStateValue() const
+-> rpl::producer<Group::ParticipantState> {
+	return _otherParticipantStateValue.events();
 }
 
 //void GroupCall::setAudioVolume(bool input, float level) {

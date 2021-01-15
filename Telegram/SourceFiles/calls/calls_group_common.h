@@ -26,4 +26,11 @@ struct VolumeRequest {
 	bool locallyOnly = false;
 };
 
+struct ParticipantState {
+	not_null<UserData*> user;
+	std::optional<int> volume;
+	bool mutedByMe = false;
+	bool locallyOnly = false;
+};
+
 } // namespace Calls::Group

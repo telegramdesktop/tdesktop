@@ -38,6 +38,7 @@ namespace Calls {
 namespace Group {
 struct MuteRequest;
 struct VolumeRequest;
+struct ParticipantState;
 } // namespace Group
 
 enum class MuteState {
@@ -108,6 +109,9 @@ public:
 	[[nodiscard]] rpl::producer<MuteState> mutedValue() const {
 		return _muted.value();
 	}
+
+	[[nodiscard]] auto otherParticipantStateValue() const
+		-> rpl::producer<Group::ParticipantState>;
 
 	enum State {
 		Creating,
@@ -205,6 +209,8 @@ private:
 
 	rpl::variable<MuteState> _muted = MuteState::Muted;
 	bool _acceptFields = false;
+
+	rpl::event_stream<Group::ParticipantState> _otherParticipantStateValue;
 
 	uint64 _id = 0;
 	uint64 _accessHash = 0;
