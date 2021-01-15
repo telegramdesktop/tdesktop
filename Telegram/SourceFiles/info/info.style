@@ -9,6 +9,7 @@ using "ui/basic.style";
 
 using "boxes/boxes.style";
 using "ui/widgets/widgets.style";
+using "ui/chat/chat.style"; // GroupCallUserpics.
 
 InfoToggle {
 	color: color;
@@ -865,3 +866,12 @@ inviteLinkShare: RoundButton(inviteLinkCopy) {
 	icon: icon {{ "info/edit/links_share", activeButtonFg }};
 	iconOver: icon {{ "info/edit/links_share", activeButtonFgOver }};
 }
+inviteLinkUserpics: GroupCallUserpics {
+	size: 28px;
+	shift: 6px;
+	stroke: 2px;
+	align: align(left);
+}
+inviteLinkUserpicsSkip: 8px;
+inviteLinkJoinedFont: font(14px);
+inviteLinkJoinedRowPadding: margins(0px, 18px, 0px, 0px);

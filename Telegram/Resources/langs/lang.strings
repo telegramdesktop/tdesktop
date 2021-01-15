@@ -1203,7 +1203,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_usage_about" = "You can make the link expire after it has been used for a certain number of times.";
 "lng_group_invite_usage_custom" = "Enter custom limit";
 
-
 "lng_channel_public_link_copied" = "Link copied to clipboard.";
 "lng_context_about_private_link" = "This link will only work for members of this chat.";
 

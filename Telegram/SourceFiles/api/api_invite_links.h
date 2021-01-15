@@ -28,6 +28,16 @@ struct PeerInviteLinks {
 	int count = 0;
 };
 
+struct JoinedByLinkUser {
+	not_null<UserData*> user;
+	TimeId date = 0;
+};
+
+struct JoinedByLinkSlice {
+	std::vector<JoinedByLinkUser> users;
+	int count = 0;
+};
+
 class InviteLinks final {
 public:
 	explicit InviteLinks(not_null<ApiWrap*> api);
@@ -59,20 +69,28 @@ public:
 	void requestLinks(not_null<PeerData*> peer);
 	[[nodiscard]] const Links &links(not_null<PeerData*> peer) const;
 
+	[[nodiscard]] rpl::producer<JoinedByLinkSlice> joinedFirstSliceValue(
+		not_null<PeerData*> peer,
+		const QString &link,
+		int fullCount);
+
 	void requestMoreLinks(
 		not_null<PeerData*> peer,
 		const QString &last,
 		Fn<void(Links)> done);
 
 private:
-	struct EditKey {
+	struct LinkKey {
 		not_null<PeerData*> peer;
 		QString link;
 
-		friend inline bool operator<(const EditKey &a, const EditKey &b) {
+		friend inline bool operator<(const LinkKey &a, const LinkKey &b) {
 			return (a.peer == b.peer)
 				? (a.link < b.link)
 				: (a.peer < b.peer);
+		}
+		friend inline bool operator==(const LinkKey &a, const LinkKey &b) {
+			return (a.peer == b.peer) && (a.link == b.link);
 		}
 	};
 
@@ -82,6 +100,9 @@ private:
 	[[nodiscard]] Link parse(
 		not_null<PeerData*> peer,
 		const MTPExportedChatInvite &invite) const;
+	[[nodiscard]] JoinedByLinkSlice parseSlice(
+		not_null<PeerData*> peer,
+		const MTPmessages_ChatInviteImporters &slice) const;
 	[[nodiscard]] Link *lookupPermanent(not_null<PeerData*> peer);
 	[[nodiscard]] Link *lookupPermanent(Links &links);
 	[[nodiscard]] const Link *lookupPermanent(const Links &links) const;
@@ -108,15 +129,23 @@ private:
 		TimeId expireDate = 0,
 		int usageLimit = 0);
 
+	void requestJoinedFirstSlice(LinkKey key);
+	[[nodiscard]] JoinedByLinkSlice lookupJoinedFirstSlice(
+		LinkKey key) const;
+
 	const not_null<ApiWrap*> _api;
 
 	base::flat_map<not_null<PeerData*>, Links> _firstSlices;
 	base::flat_map<not_null<PeerData*>, mtpRequestId> _firstSliceRequests;
 
+	base::flat_map<LinkKey, JoinedByLinkSlice> _firstJoined;
+	base::flat_map<LinkKey, mtpRequestId> _firstJoinedRequests;
+	rpl::event_stream<LinkKey> _joinedFirstSliceLoaded;
+
 	base::flat_map<
 		not_null<PeerData*>,
 		std::vector<Fn<void(Link)>>> _createCallbacks;
-	base::flat_map<EditKey, std::vector<Fn<void(Link)>>> _editCallbacks;
+	base::flat_map<LinkKey, std::vector<Fn<void(Link)>>> _editCallbacks;
 
 };
 
