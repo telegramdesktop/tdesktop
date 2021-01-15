@@ -72,7 +72,10 @@ void InviteLinks::performCreate(
 
 	using Flag = MTPmessages_ExportChatInvite::Flag;
 	_api->request(MTPmessages_ExportChatInvite(
-		MTP_flags((expireDate ? Flag::f_expire_date : Flag(0))
+		MTP_flags((revokeLegacyPermanent
+			? Flag::f_legacy_revoke_permanent
+			: Flag(0))
+			| (expireDate ? Flag::f_expire_date : Flag(0))
 			| (usageLimit ? Flag::f_usage_limit : Flag(0))),
 		peer->input,
 		MTP_int(expireDate),
@@ -118,14 +121,19 @@ auto InviteLinks::prepend(
 		i = _firstSlices.emplace(peer).first;
 	}
 	auto &links = i->second;
+	const auto permanent = lookupPermanent(links);
 	if (link.permanent) {
-		if (const auto permanent = lookupPermanent(links)) {
+		if (permanent) {
 			permanent->revoked = true;
 		}
 		editPermanentLink(peer, link.link);
 	}
 	++links.count;
-	links.links.insert(begin(links.links), link);
+	if (permanent && !link.permanent) {
+		links.links.insert(begin(links.links) + 1, link);
+	} else {
+		links.links.insert(begin(links.links), link);
+	}
 	notify(peer);
 	return link;
 }
@@ -153,10 +161,6 @@ void InviteLinks::performEdit(
 		}
 		return;
 	}
-	auto &callbacks = _editCallbacks[key];
-	if (done) {
-		callbacks.push_back(std::move(done));
-	}
 
 	if (const auto permanent = revoke ? lookupPermanent(peer) : nullptr) {
 		if (permanent->link == link) {
@@ -165,6 +169,11 @@ void InviteLinks::performEdit(
 			performCreate(peer, std::move(done), true);
 			return;
 		}
+	}
+
+	auto &callbacks = _editCallbacks[key];
+	if (done) {
+		callbacks.push_back(std::move(done));
 	}
 
 	using Flag = MTPmessages_EditExportedChatInvite::Flag;

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "history/view/history_view_group_call_tracker.h" // GenerateUs...
 #include "lang/lang_keys.h"
+#include "boxes/confirm_box.h"
 #include "apiwrap.h"
 #include "styles/style_info.h"
 
@@ -45,24 +46,38 @@ void AddPermanentLinkBlock(
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_spawning(container->lifetime());
 
-	const auto copyLink = [=] {
+	const auto weak = Ui::MakeWeak(container);
+	const auto copyLink = crl::guard(weak, [=] {
 		if (const auto link = computePermanentLink()) {
 			QGuiApplication::clipboard()->setText(link->link);
 			Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
 		}
-	};
-	const auto shareLink = [=] {
+	});
+	const auto shareLink = crl::guard(weak, [=] {
 		if (const auto link = computePermanentLink()) {
 			QGuiApplication::clipboard()->setText(link->link);
 			Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
 		}
-	};
-	const auto revokeLink = [=] {
-		if (const auto link = computePermanentLink()) {
-			QGuiApplication::clipboard()->setText(link->link);
-			Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
-		}
-	};
+	});
+	const auto revokeLink = crl::guard(weak, [=] {
+		const auto box = std::make_shared<QPointer<ConfirmBox>>();
+		const auto done = crl::guard(weak, [=] {
+			if (const auto link = computePermanentLink()) {
+				const auto close = [=](auto&&) {
+					if (*box) {
+						(*box)->closeBox();
+					}
+				};
+				peer->session().api().inviteLinks().revoke(
+					peer,
+					link->link,
+					close);
+			}
+		});
+		*box = Ui::show(
+			Box<ConfirmBox>(tr::lng_group_invite_about_new(tr::now), done),
+			Ui::LayerOption::KeepOther);
+	});
 
 	auto link = rpl::duplicate(
 		value

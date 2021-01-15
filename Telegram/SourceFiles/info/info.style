@@ -874,4 +874,4 @@ inviteLinkUserpics: GroupCallUserpics {
 }
 inviteLinkUserpicsSkip: 8px;
 inviteLinkJoinedFont: font(14px);
-inviteLinkJoinedRowPadding: margins(0px, 18px, 0px, 0px);
+inviteLinkJoinedRowPadding: margins(0px, 18px, 0px, 8px);
