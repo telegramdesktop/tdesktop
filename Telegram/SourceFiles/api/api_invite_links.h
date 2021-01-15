@@ -57,7 +57,7 @@ public:
 	void clearPermanent(not_null<PeerData*> peer);
 
 	void requestLinks(not_null<PeerData*> peer);
-	[[nodiscard]] Links links(not_null<PeerData*> peer) const;
+	[[nodiscard]] const Links &links(not_null<PeerData*> peer) const;
 
 	void requestMoreLinks(
 		not_null<PeerData*> peer,

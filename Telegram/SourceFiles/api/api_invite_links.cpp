@@ -254,12 +254,11 @@ void InviteLinks::setPermanent(
 		not_null<PeerData*> peer,
 		const MTPExportedChatInvite &invite) {
 	auto link = parse(peer, invite);
-	link.permanent = true; // #TODO links remove hack
-	//if (!link.permanent) {
-	//	LOG(("API Error: "
-	//		"InviteLinks::setPermanent called with non-permanent link."));
-	//	return;
-	//}
+	if (!link.permanent) {
+		LOG(("API Error: "
+			"InviteLinks::setPermanent called with non-permanent link."));
+		return;
+	}
 	auto i = _firstSlices.find(peer);
 	if (i == end(_firstSlices)) {
 		i = _firstSlices.emplace(peer).first;
@@ -294,9 +293,10 @@ void InviteLinks::notify(not_null<PeerData*> peer) {
 		Data::PeerUpdate::Flag::InviteLinks);
 }
 
-auto InviteLinks::links(not_null<PeerData*> peer) const -> Links {
+auto InviteLinks::links(not_null<PeerData*> peer) const -> const Links & {
+	static const auto kEmpty = Links();
 	const auto i = _firstSlices.find(peer);
-	return (i != end(_firstSlices)) ? i->second : Links();
+	return (i != end(_firstSlices)) ? i->second : kEmpty;
 }
 
 auto InviteLinks::parseSlice(

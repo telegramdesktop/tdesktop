@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h"
+#include "boxes/peers/edit_peer_info_box.h" // CreateButton.
+#include "boxes/peers/edit_peer_invite_links.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "core/application.h"
 #include "data/data_channel.h"
@@ -32,15 +34,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/special_fields.h"
 #include "window/window_session_controller.h"
+#include "settings/settings_common.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
+#include "styles/style_settings.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -101,8 +106,6 @@ private:
 	object_ptr<Ui::RpWidget> createUsernameEdit();
 	object_ptr<Ui::RpWidget> createInviteLinkBlock();
 
-	void observeInviteLink();
-
 	void privacyChanged(Privacy value);
 
 	void checkUsernameAvailability();
@@ -114,8 +117,6 @@ private:
 		rpl::producer<QString> &&text,
 		not_null<const style::FlatLabel*> st);
 
-	bool canEditInviteLink() const;
-	void refreshInviteLinkBlock();
 	void createInviteLink();
 	void revokeInviteLink(const QString &link);
 
@@ -177,6 +178,18 @@ void Controller::createContent() {
 	//
 	_wrap->add(createInviteLinkBlock());
 	_wrap->add(createUsernameEdit());
+
+	using namespace Settings;
+	AddSkip(_wrap.get());
+	_wrap->add(EditPeerInfoBox::CreateButton(
+		_wrap.get(),
+		tr::lng_group_invite_manage(),
+		rpl::single(QString()),
+		[=] { /*ShowEditInviteLinks(_navigation, _peer);*/ },
+		st::manageGroupButton,
+		&st::infoIconInviteLinks));
+	AddSkip(_wrap.get());
+	AddDividerText(_wrap.get(), tr::lng_group_invite_manage_about());
 
 	if (_controls.privacy->value() == Privacy::NoUsername) {
 		checkUsernameAvailability();
@@ -292,21 +305,23 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		_wrap,
-		object_ptr<Ui::VerticalLayout>(_wrap),
-		st::editPeerUsernameMargins);
+		object_ptr<Ui::VerticalLayout>(_wrap));
 	_controls.usernameWrap = result.data();
 
 	const auto container = result->entity();
-	container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
-		container,
+
+	using namespace Settings;
+	AddSkip(container);
+	container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			tr::lng_create_group_link(),
-			st::editPeerSectionLabel),
-		st::editPeerUsernameTitleLabelMargins));
+			st::settingsSubsectionTitle),
+		st::settingsSubsectionTitlePadding);
 
-	const auto placeholder = container->add(object_ptr<Ui::RpWidget>(
-		container));
+	const auto placeholder = container->add(
+		object_ptr<Ui::RpWidget>(container),
+		st::editPeerUsernameFieldMargins);
 	placeholder->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_controls.usernameInput = Ui::AttachParentChild(
 		container,
@@ -328,13 +343,9 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 	}, placeholder->lifetime());
 	_controls.usernameInput->move(placeholder->pos());
 
-	container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+	AddDividerText(
 		container,
-		object_ptr<Ui::FlatLabel>(
-			container,
-			tr::lng_create_channel_link_about(),
-			st::editPeerPrivacyLabel),
-		st::editPeerUsernameAboutLabelMargins));
+		tr::lng_create_channel_link_about());
 
 	QObject::connect(
 		_controls.usernameInput,
@@ -348,6 +359,11 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 }
 
 void Controller::privacyChanged(Privacy value) {
+	const auto toggleInviteLink = [&] {
+		_controls.inviteLinkWrap->toggle(
+			(value != Privacy::HasUsername),
+			anim::type::instant);
+	};
 	const auto toggleEditUsername = [&] {
 		_controls.usernameWrap->toggle(
 			(value == Privacy::HasUsername),
@@ -358,14 +374,14 @@ void Controller::privacyChanged(Privacy value) {
 		// Otherwise box will change own Y position.
 
 		if (value == Privacy::HasUsername) {
-			refreshInviteLinkBlock();
+			toggleInviteLink();
 			toggleEditUsername();
 
 			_controls.usernameResult = nullptr;
 			checkUsernameAvailability();
 		} else {
 			toggleEditUsername();
-			refreshInviteLinkBlock();
+			toggleInviteLink();
 		}
 	};
 	if (value == Privacy::HasUsername) {
@@ -538,98 +554,36 @@ void Controller::revokeInviteLink(const QString &link) {
 	Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 }
 
-bool Controller::canEditInviteLink() const {
-	if (const auto channel = _peer->asChannel()) {
-		return channel->canHaveInviteLink();
-	} else if (const auto chat = _peer->asChat()) {
-		return chat->canHaveInviteLink();
-	}
-	return false;
-}
-
-void Controller::observeInviteLink() {
-	if (!_controls.inviteLinkWrap) {
-		return;
-	}
-	_peer->session().changes().peerFlagsValue(
-		_peer,
-		Data::PeerUpdate::Flag::InviteLinks
-	) | rpl::start_with_next([=] {
-		refreshInviteLinkBlock();
-	}, _controls.inviteLinkWrap->lifetime());
-}
-
 object_ptr<Ui::RpWidget> Controller::createInviteLinkBlock() {
 	Expects(_wrap != nullptr);
 
-	if (!canEditInviteLink()) {
-		return nullptr;
-	}
-
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		_wrap,
-		object_ptr<Ui::VerticalLayout>(_wrap),
-		st::editPeerInvitesMargins);
+		object_ptr<Ui::VerticalLayout>(_wrap));
 	_controls.inviteLinkWrap = result.data();
 
 	const auto container = result->entity();
-	container->add(object_ptr<Ui::FlatLabel>(
-		container,
-		tr::lng_profile_invite_link_section(),
-		st::editPeerSectionLabel));
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::editPeerInviteLinkBoxBottomSkip));
 
-	_controls.inviteLink = container->add(object_ptr<Ui::FlatLabel>(
-		container,
-		st::editPeerInviteLink));
-	_controls.inviteLink->setSelectable(true);
-	_controls.inviteLink->setContextCopyText(QString());
-	_controls.inviteLink->setBreakEverywhere(true);
-	_controls.inviteLink->setClickHandlerFilter([=](auto&&...) {
-		QGuiApplication::clipboard()->setText(inviteLinkText());
-		Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
-		return false;
-	});
+	using namespace Settings;
+	AddSkip(container);
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			tr::lng_create_permanent_link_title(),
+			st::settingsSubsectionTitle),
+		st::settingsSubsectionTitlePadding);
 
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::editPeerInviteLinkSkip));
-	container->add(object_ptr<Ui::LinkButton>(
-		container,
-		tr::lng_group_invite_create_new(tr::now),
-		st::editPeerInviteLinkButton)
-	)->addClickHandler([=] { revokeInviteLink(inviteLinkText()); });
+	AddPermanentLinkBlock(container, _peer);
 
-	observeInviteLink();
+	AddSkip(container);
+
+	AddDividerText(
+		container,
+		((_peer->isMegagroup() || _peer->asChat())
+			? tr::lng_group_invite_about_permanent_group()
+			: tr::lng_group_invite_about_permanent_channel()));
 
 	return result;
-}
-
-void Controller::refreshInviteLinkBlock() {
-	const auto link = inviteLinkText();
-	auto text = TextWithEntities();
-	if (!link.isEmpty()) {
-		text.text = link;
-		const auto remove = qstr("https://");
-		if (text.text.startsWith(remove)) {
-			text.text.remove(0, remove.size());
-		}
-		text.entities.push_back({
-			EntityType::CustomUrl,
-			0,
-			text.text.size(),
-			link });
-	}
-	_controls.inviteLink->setMarkedText(text);
-
-	// Hack to expand FlatLabel width to naturalWidth again.
-	_controls.inviteLinkWrap->resizeToWidth(st::boxWideWidth);
-
-	_controls.inviteLinkWrap->toggle(
-		inviteLinkShown() && !link.isEmpty(),
-		anim::type::instant);
 }
 
 bool Controller::inviteLinkShown() {

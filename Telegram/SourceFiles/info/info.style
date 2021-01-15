@@ -693,8 +693,8 @@ editPeerSectionLabel: FlatLabel(boxTitle) {
 		linkFontOver: font(15px semibold underline);
 	}
 }
-editPeerUsernameTitleLabelMargins: margins(0px, 0px, 0px, 10px);
-editPeerUsernameAboutLabelMargins: margins(0px, 15px, 34px, 15px);
+editPeerUsernameTitleLabelMargins: margins(22px, 17px, 22px, 10px);
+editPeerUsernameFieldMargins: margins(22px, 0px, 22px, 20px);
 editPeerUsername: setupChannelLink;
 editPeerUsernameSkip: 8px;
 editPeerInviteLink: FlatLabel(defaultFlatLabel) {
@@ -702,7 +702,6 @@ editPeerInviteLink: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
 }
 editPeerInviteLinkButton: boxLinkButton;
-editPeerUsernameMargins: margins(22px, 17px, 22px, 2px);
 editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
 	textFg: boxTextFgGood;
 	style: boxTextStyle;
@@ -832,3 +831,21 @@ separatePanelBack: IconButton(separatePanelClose) {
 	icon: infoTopBarBackIcon;
 	iconOver: infoTopBarBackIconOver;
 }
+
+inviteLinkField: FlatInput(defaultFlatInput) {
+	font: font(fsize);
+
+	height: 44px;
+	textMrg: margins(14px, 12px, 36px, 9px);
+}
+inviteLinkThreeDots: IconButton(defaultIconButton) {
+	width: 36px;
+	height: 44px;
+
+	icon: icon {{ "info/edit/dotsmini", dialogsMenuIconFg }};
+	iconOver: icon {{ "info/edit/dotsmini", dialogsMenuIconFgOver }};
+	iconPosition: point(-1px, -1px);
+
+	rippleAreaSize: 0px;
+}
+inviteLinkFieldPadding: margins(22px, 7px, 22px, 9px);
