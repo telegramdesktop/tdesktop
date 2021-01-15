@@ -1165,13 +1165,44 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_members#other" = "{count} members, among them:";
 "lng_channel_invite_private" = "This channel is private.\nPlease join it to continue viewing its content.";
 
-"lng_group_invite_create" = "Create an invite link";
-"lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link.";
-"lng_group_invite_about_channel" = "Telegram users will be able to join\nyour channel by following this link.";
-"lng_group_invite_create_new" = "Revoke invite link";
+"lng_group_invite_create" = "Create an invite link"; // #TODO links legacy
+"lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link."; // #TODO links legacy
+"lng_group_invite_about_channel" = "Telegram users will be able to join\nyour channel by following this link."; // #TODO links legacy
+"lng_group_invite_create_new" = "Revoke invite link"; // #TODO links legacy
 "lng_group_invite_about_new" = "Your previous link will be deactivated and we'll generate a new invite link for you.";
 "lng_group_invite_copied" = "Invite link copied to clipboard.";
 "lng_group_invite_no_room" = "Unable to join this group because there are too many members in it already.";
+
+"lng_group_invite_permanent" = "Permanent link";
+"lng_group_invite_copy" = "Copy Link";
+"lng_group_invite_share" = "Share Link";
+"lng_group_invite_revoke" = "Revoke Link";
+"lng_group_invite_no_joined" = "No one joined yet";
+"lng_group_invite_joined#one" = "{count} person joined";
+"lng_group_invite_joined#other" = "{count} people joined";
+"lng_group_invite_about_permanent_group" = "Anyone who has Telegram installed will be able to join your group by following this link.";
+"lng_group_invite_about_permanent_channel" = "Anyone who has Telegram installed will be able to join your channel by following this link.";
+"lng_group_invite_manage" = "Manage Invite Links";
+"lng_group_invite_manage_about" = "You can create additional invite links that have limited time or number of usages.";
+"lng_group_invite_add" = "Create a New Link";
+"lng_group_invite_expires_at" = "This link expires {when}.";
+"lng_group_invite_created_by" = "Link created by";
+"lng_group_invite_context_copy" = "Copy";
+"lng_group_invite_context_share" = "Share";
+"lng_group_invite_context_edit" = "Edit";
+"lng_group_invite_context_revoke" = "Revoke";
+"lng_group_invite_revoke_about" = "Are you sure you want to revoke that invite link?";
+"lng_group_invite_link_expired" = "Expired";
+"lng_group_invite_link_revoked" = "Revoked";
+"lng_group_invite_edit_title" = "Edit Link";
+"lng_group_invite_new_title" = "New Link";
+"lng_group_invite_expire_title" = "Limit by time period";
+"lng_group_invite_expire_about" = "You can make the link expire after a certain time.";
+"lng_group_invite_expire_custom" = "Set custom duration";
+"lng_group_invite_usage_title" = "Limit number of uses.";
+"lng_group_invite_usage_about" = "You can make the link expire after it has been used for a certain number of times.";
+"lng_group_invite_usage_custom" = "Enter custom limit";
+
 
 "lng_channel_public_link_copied" = "Link copied to clipboard.";
 "lng_context_about_private_link" = "This link will only work for members of this chat.";

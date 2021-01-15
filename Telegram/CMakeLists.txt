@@ -181,6 +181,8 @@ PRIVATE
     boxes/peers/edit_participants_box.h
     boxes/peers/edit_peer_info_box.cpp
     boxes/peers/edit_peer_info_box.h
+    boxes/peers/edit_peer_invite_links.cpp
+    boxes/peers/edit_peer_invite_links.h
     boxes/peers/edit_peer_type_box.cpp
     boxes/peers/edit_peer_type_box.h
     boxes/peers/edit_peer_history_visibility_box.cpp
