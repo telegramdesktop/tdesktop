@@ -50,6 +50,10 @@ QRect ContinuousSlider::getSeekRect() const {
 		: QRect(0, decrease.height() / 2, width(), height() - decrease.width());
 }
 
+float64 ContinuousSlider::value() const {
+	return getCurrentValue();
+}
+
 void ContinuousSlider::setValue(float64 value) {
 	setValue(value, -1);
 }
