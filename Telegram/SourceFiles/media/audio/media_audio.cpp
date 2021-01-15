@@ -276,7 +276,16 @@ void StopDetachIfNotUsedSafe() {
 }
 
 bool SupportsSpeedControl() {
-	return OpenAL::HasEFXExtension();
+	return OpenAL::HasEFXExtension()
+		&& (alGetEnumValue("AL_AUXILIARY_SEND_FILTER") != 0)
+		&& (alGetEnumValue("AL_DIRECT_FILTER") != 0)
+		&& (alGetEnumValue("AL_EFFECT_TYPE") != 0)
+		&& (alGetEnumValue("AL_EFFECT_PITCH_SHIFTER") != 0)
+		&& (alGetEnumValue("AL_FILTER_TYPE") != 0)
+		&& (alGetEnumValue("AL_FILTER_LOWPASS") != 0)
+		&& (alGetEnumValue("AL_LOWPASS_GAIN") != 0)
+		&& (alGetEnumValue("AL_PITCH_SHIFTER_COARSE_TUNE") != 0)
+		&& (alGetEnumValue("AL_EFFECTSLOT_EFFECT") != 0);
 }
 
 } // namespace Audio
