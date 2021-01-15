@@ -290,6 +290,8 @@ PRIVATE
     calls/calls_userpic.h
     calls/calls_video_bubble.cpp
     calls/calls_video_bubble.h
+    calls/calls_volume_item.cpp
+    calls/calls_volume_item.h
     chat_helpers/bot_keyboard.cpp
     chat_helpers/bot_keyboard.h
     chat_helpers/emoji_keywords.cpp

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "calls/calls_group_call.h"
 #include "calls/calls_group_common.h"
+#include "calls/calls_volume_item.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -1166,6 +1167,13 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 			.mute = mute,
 		});
 	});
+	const auto toggleMute_ = crl::guard(this, [=](bool mute, bool local) {
+		_toggleMuteRequests.fire(Group::MuteRequest{
+			.user = user,
+			.mute = mute,
+			.locallyOnly = local,
+		});
+	});
 	const auto changeVolume = crl::guard(this, [=](int volume, bool local) {
 		_changeVolumeRequests.fire(Group::VolumeRequest{
 			.user = user,
@@ -1251,6 +1259,47 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 			result->addAction(QString("Decrease volume (%1%)").arg(volume / 100.), [=] {
 				changeVolume(volume - 2000, false);
 			});
+		}
+
+		{
+			const auto call = _call.get();
+			auto otherParticipantStateValue = call
+				? call->otherParticipantStateValue(
+					) | rpl::filter([=](const Group::ParticipantState &data) {
+						return data.user == user;
+					})
+				: rpl::never<Group::ParticipantState>();
+
+			auto volumeItem = base::make_unique_q<MenuVolumeItem>(
+				result,
+				st::groupCallPopupMenu.menu,
+				otherParticipantStateValue,
+				real->volume(),
+				Group::kMaxVolume,
+				(muteState == Row::State::Muted
+					|| muteState == Row::State::MutedByMe));
+
+			volumeItem->toggleMuteRequests(
+			) | rpl::start_with_next([=](bool muted) {
+				toggleMute_(muted, false);
+			}, volumeItem->lifetime());
+
+			volumeItem->toggleMuteLocallyRequests(
+			) | rpl::start_with_next([=](bool muted) {
+				toggleMute_(muted, true);
+			}, volumeItem->lifetime());
+
+			volumeItem->changeVolumeRequests(
+			) | rpl::start_with_next([=](int volume) {
+				changeVolume(volume, false);
+			}, volumeItem->lifetime());
+
+			volumeItem->changeVolumeLocallyRequests(
+			) | rpl::start_with_next([=](int volume) {
+				changeVolume(volume, true);
+			}, volumeItem->lifetime());
+
+			result->addAction(std::move(volumeItem));
 		}
 	}
 	result->addAction(
