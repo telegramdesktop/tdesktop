@@ -103,7 +103,7 @@ QStringList ListDBusActivatableNames() {
 
 		if (reply.isValid()) {
 			return reply.value();
-		} else {
+		} else if (reply.error().type() != QDBusError::Disconnected) {
 			LOG(("App Error: %1: %2")
 				.arg(reply.error().name())
 				.arg(reply.error().message()));
@@ -155,13 +155,12 @@ void PortalAutostart(bool autostart, bool silent = false) {
 
 	if (silent) {
 		QDBusConnection::sessionBus().send(message);
-	} else {
-		const QDBusReply<void> reply = QDBusConnection::sessionBus().call(
-			message);
+		return;
+	}
 
-		if (!reply.isValid()) {
-			LOG(("Flatpak autostart error: %1").arg(reply.error().message()));
-		}
+	const QDBusError error = QDBusConnection::sessionBus().call(message);
+	if (error.isValid()) {
+		LOG(("Flatpak autostart error: %1").arg(error.message()));
 	}
 }
 
@@ -217,10 +216,10 @@ uint FileChooserPortalVersion() {
 
 		if (reply.isValid()) {
 			return reply.value().toUInt();
-		} else {
-			LOG(("Error getting FileChooser portal version: %1")
-				.arg(reply.error().message()));
 		}
+
+		LOG(("Error getting FileChooser portal version: %1")
+			.arg(reply.error().message()));
 
 		return 0;
 	}();
