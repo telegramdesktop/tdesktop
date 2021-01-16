@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_item_base.h"
 
 namespace Ui {
+class CrossLineAnimation;
 class MediaSlider;
 } // namespace Ui
 
@@ -55,7 +56,12 @@ private:
 
 	const base::unique_qptr<Ui::MediaSlider> _slider;
 	const not_null<QAction*> _dummyAction;
+	const style::Menu &_st;
 	const style::font &_font;
+	const style::CrossLineAnimation &_stCross;
+
+	const std::unique_ptr<Ui::CrossLineAnimation> _crossLineMute;
+	Ui::Animations::Simple _crossLineAnimation;
 
 	rpl::event_stream<bool> _toggleMuteRequests;
 	rpl::event_stream<bool> _toggleMuteLocallyRequests;

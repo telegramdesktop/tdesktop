@@ -778,7 +778,13 @@ groupCallMajorBlobMaxRadius: 4px;
 groupCallMinorBlobIdleRadius: 3px;
 groupCallMinorBlobMaxRadius: 12px;
 
-groupCallMenuVolumeItemHeight: 100px;
+groupCallMuteCrossLine: CrossLineAnimation {
+	fg: groupCallIconFg;
+	icon: icon {{ "calls/volume/speaker", groupCallIconFg }};
+	startPosition: point(2px, 5px);
+	endPosition: point(16px, 19px);
+	stroke: 2px;
+}
 
 callTopBarMuteCrossLine: CrossLineAnimation {
 	fg: callBarFg;

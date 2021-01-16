@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_volume_item.h"
 
 #include "calls/calls_group_common.h"
+#include "ui/effects/cross_line.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "styles/style_calls.h"
 #include "styles/style_media_player.h"
@@ -34,10 +35,17 @@ MenuVolumeItem::MenuVolumeItem(
 	this,
 	st::mediaPlayerPanelPlayback))
 , _dummyAction(new QAction(parent))
-, _font(st.itemStyle.font) {
+, _st(st)
+, _font(st.itemStyle.font)
+, _stCross(st::groupCallMuteCrossLine)
+, _crossLineMute(std::make_unique<Ui::CrossLineAnimation>(_stCross, true)) {
 
 	initResizeHook(parent->sizeValue());
 	enableMouseSelecting();
+
+	const auto itemRect = rect() - st.itemPadding;
+	const auto speakerRect = QRect(itemRect.topLeft(), _stCross.icon.size());
+	const auto volumeRect = speakerRect.translated(_stCross.icon.width(), 0);
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
@@ -53,7 +61,12 @@ MenuVolumeItem::MenuVolumeItem(
 			: (enabled ? st.itemFg : st.itemFgDisabled));
 		p.setFont(_font);
 		const auto volume = std::round(_slider->value() * kMaxVolumePercent);
-		p.drawText(QPoint(0, _font->ascent), u"%1%"_q.arg(volume));
+		p.drawText(volumeRect, u"%1%"_q.arg(volume), style::al_center);
+
+		_crossLineMute->paint(
+			p,
+			speakerRect.topLeft(),
+			_crossLineAnimation.value(_localMuted ? 1. : 0.));
 	}, lifetime());
 
 	setCloudVolume(startVolume);
@@ -63,10 +76,17 @@ MenuVolumeItem::MenuVolumeItem(
 		if (_localMuted != newMuted) {
 			_localMuted = newMuted;
 			_toggleMuteLocallyRequests.fire_copy(newMuted);
+
+			_crossLineAnimation.start(
+				[=] { update(speakerRect); },
+				_localMuted ? 0. : 1.,
+				_localMuted ? 1. : 0.,
+				st::callPanelDuration);
 		}
 		if (value > 0) {
 			_changeVolumeLocallyRequests.fire(value * _maxVolume);
 		}
+		update(volumeRect);
 	});
 
 	const auto returnVolume = [=] {
@@ -122,7 +142,8 @@ MenuVolumeItem::MenuVolumeItem(
 		_waitingForUpdateVolume = false;
 	}, lifetime());
 
-	_slider->setGeometry(rect());
+	_slider->setGeometry(itemRect
+		- style::margins(0, contentHeight() / 2, 0, 0));
 }
 
 void MenuVolumeItem::setCloudVolume(int volume) {
@@ -148,7 +169,9 @@ bool MenuVolumeItem::isEnabled() const {
 }
 
 int MenuVolumeItem::contentHeight() const {
-	return st::groupCallMenuVolumeItemHeight;
+	return _st.itemPadding.top()
+		+ _st.itemPadding.bottom()
+		+ _stCross.icon.height() * 2;
 }
 
 rpl::producer<bool> MenuVolumeItem::toggleMuteRequests() const {
