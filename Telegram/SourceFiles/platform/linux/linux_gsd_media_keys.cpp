@@ -23,7 +23,6 @@ namespace Platform {
 namespace internal {
 namespace {
 
-constexpr auto kDBusTimeout = 30000;
 constexpr auto kService = "org.gnome.SettingsDaemon.MediaKeys"_cs;
 constexpr auto kOldService = "org.gnome.SettingsDaemon"_cs;
 constexpr auto kMATEService = "org.mate.SettingsDaemon"_cs;
@@ -114,7 +113,7 @@ GSDMediaKeys::GSDMediaKeys() {
 			0),
 		nullptr,
 		G_DBUS_CALL_FLAGS_NONE,
-		kDBusTimeout,
+		-1,
 		nullptr,
 		&error);
 
@@ -160,7 +159,7 @@ GSDMediaKeys::~GSDMediaKeys() {
 				QCoreApplication::applicationName().toUtf8().constData()),
 			nullptr,
 			G_DBUS_CALL_FLAGS_NONE,
-			kDBusTimeout,
+			-1,
 			nullptr,
 			&error);
 
