@@ -36,16 +36,22 @@ MenuVolumeItem::MenuVolumeItem(
 	st::mediaPlayerPanelPlayback))
 , _dummyAction(new QAction(parent))
 , _st(st)
-, _font(st.itemStyle.font)
 , _stCross(st::groupCallMuteCrossLine)
 , _crossLineMute(std::make_unique<Ui::CrossLineAnimation>(_stCross, true)) {
 
 	initResizeHook(parent->sizeValue());
 	enableMouseSelecting();
 
-	const auto itemRect = rect() - st.itemPadding;
-	const auto speakerRect = QRect(itemRect.topLeft(), _stCross.icon.size());
-	const auto volumeRect = speakerRect.translated(_stCross.icon.width(), 0);
+	sizeValue(
+	) | rpl::start_with_next([=](const QSize &size) {
+		const auto geometry = QRect(QPoint(), size);
+		_itemRect = geometry - _st.itemPadding;
+		_speakerRect = QRect(_itemRect.topLeft(), _stCross.icon.size());
+		_volumeRect = _speakerRect.translated(_stCross.icon.width(), 0);
+
+		_slider->setGeometry(_itemRect
+			- style::margins(0, contentHeight() / 2, 0, 0));
+	}, lifetime());
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
@@ -59,13 +65,13 @@ MenuVolumeItem::MenuVolumeItem(
 			: selected
 			? st.itemFgOver
 			: (enabled ? st.itemFg : st.itemFgDisabled));
-		p.setFont(_font);
+		p.setFont(_st.itemStyle.font);
 		const auto volume = std::round(_slider->value() * kMaxVolumePercent);
-		p.drawText(volumeRect, u"%1%"_q.arg(volume), style::al_center);
+		p.drawText(_volumeRect, u"%1%"_q.arg(volume), style::al_center);
 
 		_crossLineMute->paint(
 			p,
-			speakerRect.topLeft(),
+			_speakerRect.topLeft(),
 			_crossLineAnimation.value(_localMuted ? 1. : 0.));
 	}, lifetime());
 
@@ -78,7 +84,7 @@ MenuVolumeItem::MenuVolumeItem(
 			_toggleMuteLocallyRequests.fire_copy(newMuted);
 
 			_crossLineAnimation.start(
-				[=] { update(speakerRect); },
+				[=] { update(_speakerRect); },
 				_localMuted ? 0. : 1.,
 				_localMuted ? 1. : 0.,
 				st::callPanelDuration);
@@ -86,7 +92,7 @@ MenuVolumeItem::MenuVolumeItem(
 		if (value > 0) {
 			_changeVolumeLocallyRequests.fire(value * _maxVolume);
 		}
-		update(volumeRect);
+		update(_volumeRect);
 	});
 
 	const auto returnVolume = [=] {
@@ -141,9 +147,6 @@ MenuVolumeItem::MenuVolumeItem(
 		}
 		_waitingForUpdateVolume = false;
 	}, lifetime());
-
-	_slider->setGeometry(itemRect
-		- style::margins(0, contentHeight() / 2, 0, 0));
 }
 
 void MenuVolumeItem::setCloudVolume(int volume) {

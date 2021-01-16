@@ -54,10 +54,13 @@ private:
 	bool _cloudMuted = false;
 	bool _localMuted = false;
 
+	QRect _itemRect;
+	QRect _speakerRect;
+	QRect _volumeRect;
+
 	const base::unique_qptr<Ui::MediaSlider> _slider;
 	const not_null<QAction*> _dummyAction;
 	const style::Menu &_st;
-	const style::font &_font;
 	const style::CrossLineAnimation &_stCross;
 
 	const std::unique_ptr<Ui::CrossLineAnimation> _crossLineMute;
