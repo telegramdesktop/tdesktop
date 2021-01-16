@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_volume_item.h"
 
 #include "calls/calls_group_common.h"
+#include "ui/effects/animation_value.h"
 #include "ui/effects/cross_line.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "styles/style_calls.h"
@@ -57,14 +58,17 @@ MenuVolumeItem::MenuVolumeItem(
 	) | rpl::start_with_next([=](const QRect &clip) {
 		Painter p(this);
 
-		const auto enabled = isEnabled();
+		const auto muteProgress =
+			_crossLineAnimation.value(_localMuted ? 1. : 0.);
+
 		const auto selected = isSelected();
 		p.fillRect(clip, selected ? st.itemBgOver : st.itemBg);
-		p.setPen(_localMuted
-			? (selected ? st::attentionButtonFgOver : st::attentionButtonFg)
-			: selected
-			? st.itemFgOver
-			: (enabled ? st.itemFg : st.itemFgDisabled));
+
+		const auto mutePen = anim::color(
+			unmuteColor(),
+			muteColor(),
+			muteProgress);
+		p.setPen(mutePen);
 		p.setFont(_st.itemStyle.font);
 		const auto volume = std::round(_slider->value() * kMaxVolumePercent);
 		p.drawText(_volumeRect, u"%1%"_q.arg(volume), style::al_center);
@@ -72,7 +76,8 @@ MenuVolumeItem::MenuVolumeItem(
 		_crossLineMute->paint(
 			p,
 			_speakerRect.topLeft(),
-			_crossLineAnimation.value(_localMuted ? 1. : 0.));
+			muteProgress,
+			(!muteProgress) ? std::nullopt : std::optional<QColor>(mutePen));
 	}, lifetime());
 
 	setCloudVolume(startVolume);
@@ -84,7 +89,7 @@ MenuVolumeItem::MenuVolumeItem(
 			_toggleMuteLocallyRequests.fire_copy(newMuted);
 
 			_crossLineAnimation.start(
-				[=] { update(_speakerRect); },
+				[=] { update(_speakerRect.united(_volumeRect)); },
 				_localMuted ? 0. : 1.,
 				_localMuted ? 1. : 0.,
 				st::callPanelDuration);
@@ -149,6 +154,20 @@ MenuVolumeItem::MenuVolumeItem(
 	}, lifetime());
 }
 
+QColor MenuVolumeItem::unmuteColor() const {
+	return (isSelected()
+		? _st.itemFgOver
+		: isEnabled()
+		? _st.itemFg
+		: _st.itemFgDisabled)->c;
+}
+
+QColor MenuVolumeItem::muteColor() const {
+	return (isSelected()
+		? st::attentionButtonFgOver
+		: st::attentionButtonFg)->c;
+}
+
 void MenuVolumeItem::setCloudVolume(int volume) {
 	if (_cloudVolume == volume) {
 		return;
@@ -161,6 +180,7 @@ void MenuVolumeItem::setCloudVolume(int volume) {
 
 void MenuVolumeItem::setSliderVolume(int volume) {
 	_slider->setValue(float64(volume) / _maxVolume);
+	update(_volumeRect);
 }
 
 not_null<QAction*> MenuVolumeItem::action() const {

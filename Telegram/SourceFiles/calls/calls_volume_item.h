@@ -48,6 +48,9 @@ private:
 	void setCloudVolume(int volume);
 	void setSliderVolume(int volume);
 
+	QColor unmuteColor() const;
+	QColor muteColor() const;
+
 	const int _maxVolume;
 	int _cloudVolume = 0;
 	bool _waitingForUpdateVolume = false;
