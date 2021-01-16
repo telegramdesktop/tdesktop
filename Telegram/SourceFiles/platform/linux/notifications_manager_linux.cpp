@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusConnectionInterface>
 #include <QtDBus/QDBusMessage>
+#include <QtDBus/QDBusPendingReply>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusError>
 
@@ -42,9 +43,16 @@ constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 constexpr auto kImageDataType = "(iiibii@ay)"_cs;
 constexpr auto kNotifyArgsType = "(susssasa{sv}i)"_cs;
 
+struct ServerInformation {
+	QString name;
+	QString vendor;
+	QVersionNumber version;
+	QVersionNumber specVersion;
+};
+
 bool ServiceRegistered = false;
 bool InhibitionSupported = false;
-std::vector<QString> CurrentServerInformation;
+std::optional<ServerInformation> CurrentServerInformation;
 QStringList CurrentCapabilities;
 
 bool GetServiceRegistered() {
@@ -56,8 +64,12 @@ bool GetServiceRegistered() {
 		: activatable;
 }
 
-std::vector<QString> GetServerInformation() {
-	std::vector<QString> result;
+std::optional<ServerInformation> GetServerInformation() {
+	using ServerInformationReply = QDBusPendingReply<
+		QString,
+		QString,
+		QString,
+		QString>;
 
 	const auto message = QDBusMessage::createMethodCall(
 		kService.utf16(),
@@ -67,29 +79,28 @@ std::vector<QString> GetServerInformation() {
 
 	// We may be launched earlier than notification daemon
 	while (true) {
-		const auto reply = QDBusConnection::sessionBus().call(message);
+		ServerInformationReply reply = QDBusConnection::sessionBus()
+			.asyncCall(message);
 
-		if (reply.type() == QDBusMessage::ReplyMessage) {
-			ranges::transform(
-				reply.arguments(),
-				ranges::back_inserter(result),
-				&QVariant::toString);
-		} else if (reply.type() == QDBusMessage::ErrorMessage) {
-			LOG(("Native notification error: %1").arg(reply.errorMessage()));
+		reply.waitForFinished();
 
-			if (reply.errorName()
-				== qsl("org.freedesktop.DBus.Error.NoReply")) {
-				continue;
-			}
-		} else {
-			LOG(("Native notification error: "
-				"invalid reply from GetServerInformation"));
+		if (reply.isValid()) {
+			return {
+				reply.argumentAt<0>(),
+				reply.argumentAt<1>(),
+				QVersionNumber::fromString(reply.argumentAt<2>()),
+				QVersionNumber::fromString(reply.argumentAt<3>()),
+			};
 		}
 
-		break;
+		LOG(("Native notification error: %1").arg(reply.error().message()));
+
+		if (reply.error().type() != QDBusError::NoReply) {
+			break;
+		}
 	}
 
-	return result;
+	return std::nullopt;
 }
 
 QStringList GetCapabilities() {
@@ -201,34 +212,25 @@ bool IsQualifiedDaemon() {
 	}) && InhibitionSupported;
 }
 
-QVersionNumber ParseSpecificationVersion(
-		const std::vector<QString> &serverInformation) {
-	if (serverInformation.size() >= 4) {
-		return QVersionNumber::fromString(serverInformation[3]);
-	} else {
-		LOG(("Native notification error: "
-			"server information should have 4 elements"));
-	}
-
-	return QVersionNumber();
+ServerInformation CurrentServerInformationValue() {
+	return CurrentServerInformation.value_or(ServerInformation{});
 }
 
 QString GetImageKey(const QVersionNumber &specificationVersion) {
-	if (!specificationVersion.isNull()) {
-		if (specificationVersion >= QVersionNumber(1, 2)) {
-			return qsl("image-data");
-		} else if (specificationVersion == QVersionNumber(1, 1)) {
-			return qsl("image_data");
-		} else if (specificationVersion < QVersionNumber(1, 1)) {
-			return qsl("icon_data");
-		} else {
-			LOG(("Native notification error: unknown specification version"));
-		}
-	} else {
+	const auto normalizedVersion = specificationVersion.normalized();
+
+	if (normalizedVersion.isNull()) {
 		LOG(("Native notification error: specification version is null"));
+		return QString();
 	}
 
-	return QString();
+	if (normalizedVersion >= QVersionNumber(1, 2)) {
+		return qsl("image-data");
+	} else if (normalizedVersion == QVersionNumber(1, 1)) {
+		return qsl("image_data");
+	}
+
+	return qsl("icon_data");
 }
 
 class NotificationData {
@@ -302,7 +304,7 @@ NotificationData::NotificationData(
 	bool hideReplyButton)
 : _manager(manager)
 , _title(title)
-, _imageKey(GetImageKey(ParseSpecificationVersion(CurrentServerInformation)))
+, _imageKey(GetImageKey(CurrentServerInformationValue().specVersion))
 , _id(id) {
 	GError *error = nullptr;
 
@@ -688,7 +690,7 @@ std::unique_ptr<Window::Notifications::Manager> Create(
 		CurrentCapabilities = GetCapabilities();
 		InhibitionSupported = GetInhibitionSupported();
 	} else {
-		CurrentServerInformation = {};
+		CurrentServerInformation = std::nullopt;
 		CurrentCapabilities = QStringList{};
 		InhibitionSupported = false;
 	}
@@ -741,18 +743,18 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 	const auto serverInformation = CurrentServerInformation;
 	const auto capabilities = CurrentCapabilities;
 
-	if (!serverInformation.empty()) {
+	if (serverInformation.has_value()) {
 		LOG(("Notification daemon product name: %1")
-			.arg(serverInformation[0]));
+			.arg(serverInformation->name));
 
 		LOG(("Notification daemon vendor name: %1")
-			.arg(serverInformation[1]));
+			.arg(serverInformation->vendor));
 
 		LOG(("Notification daemon version: %1")
-			.arg(serverInformation[2]));
+			.arg(serverInformation->version.toString()));
 
 		LOG(("Notification daemon specification version: %1")
-			.arg(serverInformation[3]));
+			.arg(serverInformation->specVersion.toString()));
 	}
 
 	if (!capabilities.isEmpty()) {
