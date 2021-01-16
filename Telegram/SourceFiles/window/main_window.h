@@ -186,6 +186,10 @@ protected:
 	virtual void firstShadowsUpdate() {
 	}
 
+	virtual bool initSizeFromSystem() {
+		return false;
+	}
+
 	// This one is overriden in Windows for historical reasons.
 	virtual int32 screenNameChecksum(const QString &name) const;
 

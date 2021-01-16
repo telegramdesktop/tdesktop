@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/notifications_manager_win.h"
 
 #include "window/notifications_utilities.h"
+#include "base/platform/win/base_windows_wrl.h"
+#include "base/platform/base_platform_info.h"
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_event_filter.h"
 #include "platform/win/windows_dlls.h"
@@ -20,15 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <Shobjidl.h>
 #include <shellapi.h>
 
-#include <roapi.h>
-#include <wrl/client.h>
-
 #ifndef __MINGW32__
-#include "platform/win/wrapper_wrl_implements_h.h"
+#include "base/platform/win/wrl/wrl_implements_h.h"
 #include <windows.ui.notifications.h>
-
-#include <strsafe.h>
-#include <intsafe.h>
 
 HICON qt_pixmapToWinHICON(const QPixmap &);
 
@@ -44,68 +40,16 @@ namespace Notifications {
 #ifndef __MINGW32__
 namespace {
 
-class StringReferenceWrapper {
-public:
-	StringReferenceWrapper(_In_reads_(length) PCWSTR stringRef, _In_ UINT32 length) throw() {
-		HRESULT hr = Dlls::WindowsCreateStringReference(stringRef, length, &_header, &_hstring);
-		if (!SUCCEEDED(hr)) {
-			RaiseException(static_cast<DWORD>(STATUS_INVALID_PARAMETER), EXCEPTION_NONCONTINUABLE, 0, nullptr);
-		}
-	}
-
-	~StringReferenceWrapper() {
-		Dlls::WindowsDeleteString(_hstring);
-	}
-
-	template <size_t N>
-	StringReferenceWrapper(_In_reads_(N) wchar_t const (&stringRef)[N]) throw() {
-		UINT32 length = N - 1;
-		HRESULT hr = Dlls::WindowsCreateStringReference(stringRef, length, &_header, &_hstring);
-		if (!SUCCEEDED(hr)) {
-			RaiseException(static_cast<DWORD>(STATUS_INVALID_PARAMETER), EXCEPTION_NONCONTINUABLE, 0, nullptr);
-		}
-	}
-
-	template <size_t _>
-	StringReferenceWrapper(_In_reads_(_) wchar_t(&stringRef)[_]) throw() {
-		UINT32 length;
-		HRESULT hr = SizeTToUInt32(wcslen(stringRef), &length);
-		if (!SUCCEEDED(hr)) {
-			RaiseException(static_cast<DWORD>(STATUS_INVALID_PARAMETER), EXCEPTION_NONCONTINUABLE, 0, nullptr);
-		}
-
-		Dlls::WindowsCreateStringReference(stringRef, length, &_header, &_hstring);
-	}
-
-	HSTRING Get() const throw() {
-		return _hstring;
-	}
-
-private:
-	HSTRING _hstring;
-	HSTRING_HEADER _header;
-
-};
-
-template<class T>
-_Check_return_ __inline HRESULT _1_GetActivationFactory(_In_ HSTRING activatableClassId, _COM_Outptr_ T** factory) {
-	return Dlls::RoGetActivationFactory(activatableClassId, IID_INS_ARGS(factory));
-}
-
-template<typename T>
-inline HRESULT wrap_GetActivationFactory(_In_ HSTRING activatableClassId, _Inout_ Details::ComPtrRef<T> factory) throw() {
-	return _1_GetActivationFactory(activatableClassId, factory.ReleaseAndGetAddressOf());
-}
+using base::Platform::GetActivationFactory;
+using base::Platform::StringReferenceWrapper;
 
 bool init() {
-	if (QSysInfo::windowsVersion() < QSysInfo::WV_WINDOWS8) {
+	if (!IsWindows8OrGreater()) {
 		return false;
 	}
 	if ((Dlls::SetCurrentProcessExplicitAppUserModelID == nullptr)
 		|| (Dlls::PropVariantToString == nullptr)
-		|| (Dlls::RoGetActivationFactory == nullptr)
-		|| (Dlls::WindowsCreateStringReference == nullptr)
-		|| (Dlls::WindowsDeleteString == nullptr)) {
+		|| !base::Platform::SupportsWRL()) {
 		return false;
 	}
 
@@ -395,7 +339,7 @@ Manager::Private::Private(Manager *instance, Type type)
 }
 
 bool Manager::Private::init() {
-	if (!SUCCEEDED(wrap_GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotificationManager).Get(), &_notificationManager))) {
+	if (!SUCCEEDED(GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotificationManager).Get(), &_notificationManager))) {
 		return false;
 	}
 
@@ -404,7 +348,7 @@ bool Manager::Private::init() {
 		return false;
 	}
 
-	if (!SUCCEEDED(wrap_GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotification).Get(), &_notificationFactory))) {
+	if (!SUCCEEDED(GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotification).Get(), &_notificationFactory))) {
 		return false;
 	}
 	return true;

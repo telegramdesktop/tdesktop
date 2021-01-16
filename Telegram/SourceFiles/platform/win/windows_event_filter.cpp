@@ -268,7 +268,10 @@ bool EventFilter::mainWindowEvent(
 	case WM_WINDOWPOSCHANGED: {
 		WINDOWPLACEMENT wp;
 		wp.length = sizeof(WINDOWPLACEMENT);
-		if (GetWindowPlacement(hWnd, &wp) && (wp.showCmd == SW_SHOWMAXIMIZED || wp.showCmd == SW_SHOWMINIMIZED)) {
+		if (_window->hasTabletView()
+			|| (GetWindowPlacement(hWnd, &wp)
+				&& (wp.showCmd == SW_SHOWMAXIMIZED
+					|| wp.showCmd == SW_SHOWMINIMIZED))) {
 			_window->shadowsUpdate(Change::Hidden);
 		} else {
 			_window->shadowsUpdate(Change::Moved | Change::Resized, (WINDOWPOS*)lParam);

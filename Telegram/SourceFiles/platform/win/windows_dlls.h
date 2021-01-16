@@ -126,25 +126,6 @@ using f_PSStringFromPropertyKey = HRESULT(FAR STDAPICALLTYPE*)(
 	_In_ UINT cch);
 extern f_PSStringFromPropertyKey PSStringFromPropertyKey;
 
-// COMBASE.DLL
-
-using f_RoGetActivationFactory = HRESULT(FAR STDAPICALLTYPE*)(
-	_In_ HSTRING activatableClassId,
-	_In_ REFIID iid,
-	_COM_Outptr_ void ** factory);
-extern f_RoGetActivationFactory RoGetActivationFactory;
-
-using f_WindowsCreateStringReference = HRESULT(FAR STDAPICALLTYPE*)(
-	_In_reads_opt_(length + 1) PCWSTR sourceString,
-	UINT32 length,
-	_Out_ HSTRING_HEADER * hstringHeader,
-	_Outptr_result_maybenull_ _Result_nullonfailure_ HSTRING * string);
-extern f_WindowsCreateStringReference WindowsCreateStringReference;
-
-using f_WindowsDeleteString = HRESULT(FAR STDAPICALLTYPE*)(
-	_In_opt_ HSTRING string);
-extern f_WindowsDeleteString WindowsDeleteString;
-
 // DWMAPI.DLL
 
 using f_DwmIsCompositionEnabled = HRESULT(FAR STDAPICALLTYPE*)(

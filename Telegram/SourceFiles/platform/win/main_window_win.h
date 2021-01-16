@@ -40,9 +40,7 @@ public:
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
-	static UINT TaskbarCreatedMsgId() {
-		return _taskbarCreatedMsgId;
-	}
+	[[nodiscard]] static uint32 TaskbarCreatedMsgId();
 	static void TaskbarCreated();
 
 	// Custom shadows.
@@ -58,6 +56,8 @@ public:
 	int deltaTop() const {
 		return _deltaTop;
 	}
+
+	[[nodiscard]] bool hasTabletView() const;
 
 	void psShowTrayMenu();
 
@@ -87,9 +87,13 @@ protected:
 
 	void workmodeUpdated(DBIWorkMode mode) override;
 
+	bool initSizeFromSystem() override;
+
 	QTimer psUpdatedPositionTimer;
 
 private:
+	struct Private;
+
 	void setupNativeWindowFrame();
 	void updateIconCounters();
 	QMargins computeCustomMargins();
@@ -97,7 +101,7 @@ private:
 	void psDestroyIcons();
 	void fixMaximizedWindow();
 
-	static UINT _taskbarCreatedMsgId;
+	const std::unique_ptr<Private> _private;
 
 	std::optional<Ui::Platform::WindowShadow> _shadow;
 
