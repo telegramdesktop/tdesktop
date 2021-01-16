@@ -37,13 +37,10 @@ namespace Platform {
 namespace Notifications {
 namespace {
 
-constexpr auto kDBusTimeout = 30000;
 constexpr auto kService = "org.freedesktop.Notifications"_cs;
 constexpr auto kObjectPath = "/org/freedesktop/Notifications"_cs;
 constexpr auto kInterface = kService;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
-constexpr auto kImageDataType = "(iiibii@ay)"_cs;
-constexpr auto kNotifyArgsType = "(susssasa{sv}i)"_cs;
 
 struct ServerInformation {
 	QString name;
@@ -143,7 +140,7 @@ void GetInhibitionSupported(Fn<void(bool)> callback) {
 		qsl("Get"));
 
 	message.setArguments({
-		qsl("org.freedesktop.Notifications"),
+		kInterface.utf16(),
 		qsl("Inhibited")
 	});
 
@@ -178,7 +175,7 @@ bool Inhibited() {
 		qsl("Get"));
 
 	message.setArguments({
-		qsl("org.freedesktop.Notifications"),
+		kInterface.utf16(),
 		qsl("Inhibited")
 	});
 
@@ -487,7 +484,7 @@ void NotificationData::show() {
 		kInterface.utf8(),
 		"Notify",
 		g_variant_new(
-			kNotifyArgsType.utf8(),
+			"(susssasa{sv}i)",
 			AppName.utf8().constData(),
 			0,
 			iconName.toUtf8().constData(),
@@ -498,7 +495,7 @@ void NotificationData::show() {
 			-1),
 		nullptr,
 		G_DBUS_CALL_FLAGS_NONE,
-		kDBusTimeout,
+		-1,
 		nullptr,
 		notificationShown,
 		this);
@@ -560,7 +557,7 @@ void NotificationData::setImage(const QString &imagePath) {
 	_image = QImage(imagePath).convertToFormat(QImage::Format_RGBA8888);
 
 	_hints.emplace(_imageKey, g_variant_new(
-		kImageDataType.utf8(),
+		"(iiibii@ay)",
 		_image.width(),
 		_image.height(),
 		_image.bytesPerLine(),
