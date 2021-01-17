@@ -786,6 +786,21 @@ groupCallMuteCrossLine: CrossLineAnimation {
 	stroke: 2px;
 }
 
+groupCallMenuSpeakerArcsSkip: 1px;
+groupCallMenuVolumeSkip: 5px;
+
+groupCallSpeakerArcsAnimation: ArcsAnimation {
+	fg: groupCallIconFg;
+	stroke: 2px;
+	space: 4px;
+	duration: 200;
+	deltaAngle: 60;
+	deltaHeight: 6px;
+	deltaWidth: 7px;
+	startHeight: 3px;
+	startWidth: 0px;
+}
+
 callTopBarMuteCrossLine: CrossLineAnimation {
 	fg: callBarFg;
 	icon: icon {{ "calls/call_record_active", callBarFg }};

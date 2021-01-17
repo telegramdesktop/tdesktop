@@ -13,6 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class CrossLineAnimation;
 class MediaSlider;
+namespace Paint {
+class ArcsAnimation;
+} // namespace Paint
 } // namespace Ui
 
 namespace Calls {
@@ -45,6 +48,8 @@ protected:
 	int contentHeight() const override;
 
 private:
+	void initArcsAnimation();
+
 	void setCloudVolume(int volume);
 	void setSliderVolume(int volume);
 
@@ -60,6 +65,7 @@ private:
 	QRect _itemRect;
 	QRect _speakerRect;
 	QRect _volumeRect;
+	QPoint _arcPosition;
 
 	const base::unique_qptr<Ui::MediaSlider> _slider;
 	const not_null<QAction*> _dummyAction;
@@ -68,6 +74,8 @@ private:
 
 	const std::unique_ptr<Ui::CrossLineAnimation> _crossLineMute;
 	Ui::Animations::Simple _crossLineAnimation;
+	const std::unique_ptr<Ui::Paint::ArcsAnimation> _arcs;
+	Ui::Animations::Basic _arcsAnimation;
 
 	rpl::event_stream<bool> _toggleMuteRequests;
 	rpl::event_stream<bool> _toggleMuteLocallyRequests;

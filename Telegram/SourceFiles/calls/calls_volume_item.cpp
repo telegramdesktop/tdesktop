@@ -14,10 +14,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_calls.h"
 #include "styles/style_media_player.h"
 
+#include "ui/paint/arcs.h"
+
 namespace Calls {
 namespace {
 
 constexpr auto kMaxVolumePercent = 200;
+
+constexpr auto kSpeakerThreshold = {
+	10.0f / kMaxVolumePercent,
+	50.0f / kMaxVolumePercent,
+	150.0f / kMaxVolumePercent };
 
 } // namespace
 
@@ -38,7 +45,12 @@ MenuVolumeItem::MenuVolumeItem(
 , _dummyAction(new QAction(parent))
 , _st(st)
 , _stCross(st::groupCallMuteCrossLine)
-, _crossLineMute(std::make_unique<Ui::CrossLineAnimation>(_stCross, true)) {
+, _crossLineMute(std::make_unique<Ui::CrossLineAnimation>(_stCross, true))
+, _arcs(std::make_unique<Ui::Paint::ArcsAnimation>(
+	st::groupCallSpeakerArcsAnimation,
+	kSpeakerThreshold,
+	_localMuted ? 0. : (startVolume / float(maxVolume)),
+	Ui::Paint::ArcsAnimation::HorizontalDirection::Right)) {
 
 	initResizeHook(parent->sizeValue());
 	enableMouseSelecting();
@@ -48,11 +60,17 @@ MenuVolumeItem::MenuVolumeItem(
 		const auto geometry = QRect(QPoint(), size);
 		_itemRect = geometry - _st.itemPadding;
 		_speakerRect = QRect(_itemRect.topLeft(), _stCross.icon.size());
-		_volumeRect = _speakerRect.translated(_stCross.icon.width(), 0);
+		_volumeRect = _speakerRect.translated(
+			_stCross.icon.width() + st::groupCallMenuVolumeSkip,
+			0);
+		_arcPosition = _speakerRect.center()
+			+ QPoint(0, st::groupCallMenuSpeakerArcsSkip);
 
 		_slider->setGeometry(_itemRect
 			- style::margins(0, contentHeight() / 2, 0, 0));
 	}, lifetime());
+
+	setCloudVolume(startVolume);
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
@@ -78,9 +96,12 @@ MenuVolumeItem::MenuVolumeItem(
 			_speakerRect.topLeft(),
 			muteProgress,
 			(!muteProgress) ? std::nullopt : std::optional<QColor>(mutePen));
-	}, lifetime());
 
-	setCloudVolume(startVolume);
+		{
+			p.translate(_arcPosition);
+			_arcs->paint(p);
+		}
+	}, lifetime());
 
 	_slider->setChangeProgressCallback([=](float64 value) {
 		const auto newMuted = (value == 0);
@@ -98,6 +119,7 @@ MenuVolumeItem::MenuVolumeItem(
 			_changeVolumeLocallyRequests.fire(value * _maxVolume);
 		}
 		update(_volumeRect);
+		_arcs->setValue(value);
 	});
 
 	const auto returnVolume = [=] {
@@ -151,6 +173,27 @@ MenuVolumeItem::MenuVolumeItem(
 			setCloudVolume(newVolume);
 		}
 		_waitingForUpdateVolume = false;
+	}, lifetime());
+
+	initArcsAnimation();
+}
+
+void MenuVolumeItem::initArcsAnimation() {
+	_arcsAnimation.init([=](crl::time now) {
+		_arcs->update(now);
+		update(_speakerRect);
+	});
+
+	_arcs->startUpdateRequests(
+	) | rpl::start_with_next([=] {
+		if (!_arcsAnimation.animating()) {
+			_arcsAnimation.start();
+		}
+	}, lifetime());
+
+	_arcs->stopUpdateRequests(
+	) | rpl::start_with_next([=] {
+		_arcsAnimation.stop();
 	}, lifetime());
 }
 
