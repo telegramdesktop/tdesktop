@@ -194,39 +194,6 @@ PaintRoundImageCallback ExceptionRow::generatePaintUserpicCallback() {
 	};
 }
 
-void TypeDelegate::peerListSetTitle(rpl::producer<QString> title) {
-}
-
-void TypeDelegate::peerListSetAdditionalTitle(rpl::producer<QString> title) {
-}
-
-bool TypeDelegate::peerListIsRowChecked(not_null<PeerListRow*> row) {
-	return false;
-}
-
-int TypeDelegate::peerListSelectedRowsCount() {
-	return 0;
-}
-
-void TypeDelegate::peerListScrollToTop() {
-}
-
-void TypeDelegate::peerListAddSelectedPeerInBunch(not_null<PeerData*> peer) {
-	Unexpected("Item selection in Info::Profile::Members.");
-}
-
-void TypeDelegate::peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) {
-	Unexpected("Item selection in Info::Profile::Members.");
-}
-
-void TypeDelegate::peerListFinishSelectedRowsBunch() {
-}
-
-void TypeDelegate::peerListSetDescription(
-		object_ptr<Ui::FlatLabel> description) {
-	description.destroy();
-}
-
 TypeController::TypeController(
 	not_null<Main::Session*> session,
 	Flags options,
@@ -412,7 +379,9 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 	container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
 		st::membersMarginTop));
-	const auto delegate = container->lifetime().make_state<TypeDelegate>();
+	const auto delegate = container->lifetime().make_state<
+		PeerListContentDelegateSimple
+	>();
 	const auto controller = container->lifetime().make_state<TypeController>(
 		&session(),
 		_options,

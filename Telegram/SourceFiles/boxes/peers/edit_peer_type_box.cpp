@@ -185,7 +185,7 @@ void Controller::createContent() {
 		_wrap.get(),
 		tr::lng_group_invite_manage(),
 		rpl::single(QString()),
-		[=] { /*ShowEditInviteLinks(_navigation, _peer);*/ },
+		[=] { Ui::show(Box(ManageInviteLinksBox, _peer)); },
 		st::manageGroupButton,
 		&st::infoIconInviteLinks));
 	AddSkip(_wrap.get());

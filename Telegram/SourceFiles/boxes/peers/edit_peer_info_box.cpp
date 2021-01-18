@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_type_box.h"
 #include "boxes/peers/edit_peer_history_visibility_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
+#include "boxes/peers/edit_peer_invite_links.h"
 #include "boxes/peers/edit_linked_chat_box.h"
 #include "boxes/stickers_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
@@ -1003,7 +1004,7 @@ void Controller::fillManageSection() {
 				});
 			}) | rpl::flatten_latest(
 			) | ToPositiveNumberString(),
-			[=] { },
+			[=] { Ui::show(Box(ManageInviteLinksBox, _peer)); },
 			st::infoIconInviteLinks);
 	}
 	if (canViewAdmins) {

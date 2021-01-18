@@ -14,7 +14,8 @@ namespace Api {
 struct InviteLink {
 	QString link;
 	not_null<UserData*> admin;
-	TimeId date;
+	TimeId date = 0;
+	TimeId startDate = 0;
 	TimeId expireDate = 0;
 	int usageLimit = 0;
 	int usage = 0;
@@ -59,6 +60,9 @@ public:
 	void revoke(
 		not_null<PeerData*> peer,
 		const QString &link,
+		Fn<void(Link)> done = nullptr);
+	void revokePermanent(
+		not_null<PeerData*> peer,
 		Fn<void(Link)> done = nullptr);
 
 	void setPermanent(

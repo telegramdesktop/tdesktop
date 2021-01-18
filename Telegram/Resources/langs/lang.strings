@@ -1184,6 +1184,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_about_permanent_channel" = "Anyone who has Telegram installed will be able to join your channel by following this link.";
 "lng_group_invite_manage" = "Manage Invite Links";
 "lng_group_invite_manage_about" = "You can create additional invite links that have limited time or number of usages.";
+"lng_group_invite_title" = "Invite links";
 "lng_group_invite_add" = "Create a New Link";
 "lng_group_invite_expires_at" = "This link expires {when}.";
 "lng_group_invite_created_by" = "Link created by";

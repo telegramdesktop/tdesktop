@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/layers/generic_box.h"
+
 class PeerData;
 
 namespace Ui {
@@ -15,4 +17,8 @@ class VerticalLayout;
 
 void AddPermanentLinkBlock(
 	not_null<Ui::VerticalLayout*> container,
+	not_null<PeerData*> peer);
+
+void ManageInviteLinksBox(
+	not_null<Ui::GenericBox*> box,
 	not_null<PeerData*> peer);

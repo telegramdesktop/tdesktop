@@ -218,6 +218,12 @@ void InviteLinks::revoke(
 	performEdit(peer, link, std::move(done), true);
 }
 
+void InviteLinks::revokePermanent(
+		not_null<PeerData*> peer,
+		Fn<void(Link)> done) {
+	performCreate(peer, std::move(done), true);
+}
+
 void InviteLinks::requestLinks(not_null<PeerData*> peer) {
 	if (_firstSliceRequests.contains(peer)) {
 		return;
@@ -411,6 +417,7 @@ auto InviteLinks::parse(
 			.link = qs(data.vlink()),
 			.admin = peer->session().data().user(data.vadmin_id().v),
 			.date = data.vdate().v,
+			.startDate = data.vstart_date().value_or_empty(),
 			.expireDate = data.vexpire_date().value_or_empty(),
 			.usageLimit = data.vusage_limit().value_or_empty(),
 			.usage = data.vusage().value_or_empty(),

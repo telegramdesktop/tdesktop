@@ -839,12 +839,14 @@ inviteLinkField: FlatInput(defaultFlatInput) {
 	height: 44px;
 	textMrg: margins(14px, 12px, 36px, 9px);
 }
+inviteLinkThreeDotsIcon: icon {{ "info/edit/dotsmini", dialogsMenuIconFg }};
+inviteLinkThreeDotsIconOver: icon {{ "info/edit/dotsmini", dialogsMenuIconFgOver }};
 inviteLinkThreeDots: IconButton(defaultIconButton) {
 	width: 36px;
 	height: 44px;
 
-	icon: icon {{ "info/edit/dotsmini", dialogsMenuIconFg }};
-	iconOver: icon {{ "info/edit/dotsmini", dialogsMenuIconFgOver }};
+	icon: inviteLinkThreeDotsIcon;
+	iconOver: inviteLinkThreeDotsIconOver;
 	iconPosition: point(-1px, -1px);
 
 	rippleAreaSize: 0px;
@@ -875,3 +877,43 @@ inviteLinkUserpics: GroupCallUserpics {
 inviteLinkUserpicsSkip: 8px;
 inviteLinkJoinedFont: font(14px);
 inviteLinkJoinedRowPadding: margins(0px, 18px, 0px, 8px);
+
+inviteLinkCreateSkip: 8px;
+inviteLinkCreate: SettingsButton(defaultSettingsButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	font: semiboldFont;
+
+	height: 20px;
+	padding: margins(58px, 7px, 12px, 5px);
+
+	toggle: infoProfileToggle;
+	toggleOver: infoProfileToggleOver;
+	toggleSkip: 22px;
+
+	ripple: defaultRippleAnimation;
+}
+inviteLinkCreateIcon: icon {{ "info/edit/roundbtn_plus", windowFgActive }};
+inviteLinkCreateIconSize: 20px;
+inviteLinkListItem: PeerListItem(defaultPeerListItem) {
+	button: OutlineButton(defaultPeerListButton) {
+		font: normalFont;
+		padding: margins(11px, 5px, 11px, 5px);
+	}
+	height: 52px;
+	photoPosition: point(8px, 6px);
+	namePosition: point(58px, 6px);
+	statusPosition: point(58px, 25px);
+	photoSize: 40px;
+}
+inviteLinkList: PeerList(defaultPeerList) {
+	item: inviteLinkListItem;
+	padding: margins(0px, 4px, 0px, 4px);
+}
+inviteLinkIconSkip: 7px;
+inviteLinkIconStroke: 2px;
+inviteLinkIcon: icon {{ "info/edit/links_link", mediaviewFileExtFg }};
+inviteLinkThreeDotsSkip: 8px;
