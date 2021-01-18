@@ -145,4 +145,20 @@ void Groups::refreshViews(const HistoryItemsList &items) {
 	}
 }
 
+not_null<HistoryItem*> Groups::findItemToEdit(
+		not_null<HistoryItem*> item) const {
+	const auto group = find(item);
+	if (!group) {
+		return item;
+	}
+	const auto &list = group->items;
+	const auto it = ranges::find_if(
+		list,
+		ranges::not_fn(&HistoryItem::emptyText));
+	if (it == end(list)) {
+		return list.front();
+	}
+	return (*it);
+}
+
 } // namespace Data

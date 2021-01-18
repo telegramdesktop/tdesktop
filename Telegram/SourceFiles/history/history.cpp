@@ -2713,7 +2713,7 @@ HistoryItem *History::lastEditableMessage() const {
 		for (const auto &message : ranges::view::reverse(block->messages)) {
 			const auto item = message->data();
 			if (item->allowsEdit(now)) {
-				return item;
+				return owner().groups().findItemToEdit(item);
 			}
 		}
 	}

@@ -31,6 +31,8 @@ public:
 
 	const Group *find(not_null<HistoryItem*> item) const;
 
+	not_null<HistoryItem*> findItemToEdit(not_null<HistoryItem*> item) const;
+
 private:
 	HistoryItemsList::const_iterator findPositionForItem(
 		const HistoryItemsList &group,

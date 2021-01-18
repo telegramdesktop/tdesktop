@@ -558,8 +558,11 @@ HistoryItem *ScheduledMessages::lastEditableMessage(
 	auto proj = [&](const OwnedItem &item) {
 		return item->allowsEdit(now);
 	};
+
 	const auto it = ranges::find_if(items, std::move(proj));
-	return (it == end(items)) ? nullptr : (*it).get();
+	return (it == end(items))
+		? nullptr
+		: history->owner().groups().findItemToEdit((*it).get());
 }
 
 } // namespace Data
