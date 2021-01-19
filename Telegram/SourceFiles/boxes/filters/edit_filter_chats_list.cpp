@@ -62,22 +62,6 @@ public:
 
 };
 
-class TypeDelegate final : public PeerListContentDelegate {
-public:
-	void peerListSetTitle(rpl::producer<QString> title) override;
-	void peerListSetAdditionalTitle(rpl::producer<QString> title) override;
-	bool peerListIsRowChecked(not_null<PeerListRow*> row) override;
-	int peerListSelectedRowsCount() override;
-	void peerListScrollToTop() override;
-	void peerListAddSelectedPeerInBunch(
-		not_null<PeerData*> peer) override;
-	void peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) override;
-	void peerListFinishSelectedRowsBunch() override;
-	void peerListSetDescription(
-		object_ptr<Ui::FlatLabel> description) override;
-
-};
-
 class TypeController final : public PeerListController {
 public:
 	TypeController(
