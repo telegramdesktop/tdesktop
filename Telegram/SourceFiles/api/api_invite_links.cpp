@@ -431,9 +431,12 @@ auto InviteLinks::parse(
 void InviteLinks::requestMoreLinks(
 		not_null<PeerData*> peer,
 		const QString &last,
+		bool revoked,
 		Fn<void(Links)> done) {
+	using Flag = MTPmessages_GetExportedChatInvites::Flag;
 	_api->request(MTPmessages_GetExportedChatInvites(
-		MTP_flags(MTPmessages_GetExportedChatInvites::Flag::f_offset_link),
+		MTP_flags(Flag::f_offset_link
+			| (revoked ? Flag::f_revoked : Flag(0))),
 		peer->input,
 		MTPInputUser(), // admin_id,
 		MTP_string(last),

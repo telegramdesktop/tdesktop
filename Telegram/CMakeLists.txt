@@ -203,8 +203,6 @@ PRIVATE
     boxes/background_box.h
     boxes/background_preview_box.cpp
     boxes/background_preview_box.h
-    boxes/calendar_box.cpp
-    boxes/calendar_box.h
     boxes/change_phone_box.cpp
     boxes/change_phone_box.h
     boxes/confirm_box.cpp

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "main/main_session.h"
 #include "api/api_invite_links.h"
+#include "ui/boxes/edit_invite_link.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/padding_wrap.h"
@@ -27,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "history/view/history_view_group_call_tracker.h" // GenerateUs...
-#include "history/view/history_view_schedule_box.h" // ChooseDateTimeBox.
 #include "history/history_message.h" // GetErrorTextForSending.
 #include "history/history.h"
 #include "lang/lang_keys.h"
@@ -53,9 +53,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kPreloadPages = 2;
-constexpr auto kMaxLimit = std::numeric_limits<int>::max();
-constexpr auto kHour = 3600;
-constexpr auto kDay = 86400;
 
 enum class Color {
 	Permanent,
@@ -129,27 +126,6 @@ private:
 	Color _color = Color::Permanent;
 
 };
-
-[[nodiscard]] QString FormatExpireDate(TimeId date) {
-	if (date > 0) {
-		return langDateTime(base::unixtime::parse(date));
-	} else if (-date < kDay) {
-		return tr::lng_group_call_duration_hours(
-			tr::now,
-			lt_count,
-			(-date / kHour));
-	} else if (-date < 7 * kDay) {
-		return tr::lng_group_call_duration_days(
-			tr::now,
-			lt_count,
-			(-date / kDay));
-	} else {
-		return tr::lng_local_storage_limit_weeks(
-			tr::now,
-			lt_count,
-			(-date / (7 * kDay)));
-	}
-}
 
 [[nodiscard]] uint64 ComputeRowId(const QString &link) {
 	return XXH64(link.data(), link.size() * sizeof(ushort), 0);
@@ -282,6 +258,45 @@ void ShareLinkBox(not_null<PeerData*> peer, const QString &link) {
 		std::move(filterCallback)));
 }
 
+void EditLink(not_null<PeerData*> peer, const InviteLinkData &data) {
+	const auto creating = data.link.isEmpty();
+	const auto box = std::make_shared<QPointer<Ui::GenericBox>>();
+	using Fields = Ui::InviteLinkFields;
+	const auto done = [=](Fields result) {
+		const auto finish = [=](Api::InviteLink finished) {
+			if (*box) {
+				(*box)->closeBox();
+			}
+		};
+		if (creating) {
+			peer->session().api().inviteLinks().create(
+				peer,
+				finish,
+				result.expireDate,
+				result.usageLimit);
+		} else {
+			peer->session().api().inviteLinks().edit(
+				peer,
+				result.link,
+				result.expireDate,
+				result.usageLimit,
+				finish);
+		}
+	};
+	*box = Ui::show(
+		(creating
+			? Box(Ui::CreateInviteLinkBox, done)
+			: Box(
+				Ui::EditInviteLinkBox,
+				Fields{
+					.link = data.link,
+					.expireDate = data.expireDate,
+					.usageLimit = data.usageLimit
+				},
+				done)),
+		Ui::LayerOption::KeepOther);
+}
+
 not_null<Ui::SettingsButton*> AddCreateLinkButton(
 		not_null<Ui::VerticalLayout*> container) {
 	const auto result = container->add(
@@ -312,241 +327,6 @@ not_null<Ui::SettingsButton*> AddCreateLinkButton(
 		st::inviteLinkCreateIcon.paintInCenter(p, rect);
 	}, icon->lifetime());
 	return result;
-}
-
-void EditLinkBox(
-		not_null<Ui::GenericBox*> box,
-		not_null<PeerData*> peer,
-		const InviteLinkData &data) {
-	const auto link = data.link;
-	box->setTitle(link.isEmpty()
-		? tr::lng_group_invite_new_title()
-		: tr::lng_group_invite_edit_title());
-
-	using namespace Settings;
-	const auto container = box->verticalLayout();
-
-	AddSubsectionTitle(container, tr::lng_group_invite_expire_title());
-	const auto expiresWrap = container->add(object_ptr<Ui::VerticalLayout>(
-		container));
-	AddSkip(container);
-
-	AddDividerText(container, tr::lng_group_invite_expire_about());
-	AddSkip(container);
-	AddSubsectionTitle(container, tr::lng_group_invite_usage_title());
-	const auto usagesWrap = container->add(object_ptr<Ui::VerticalLayout>(
-		container));
-	AddSkip(container);
-
-	AddDividerText(container, tr::lng_group_invite_usage_about());
-
-	static const auto addButton = [](
-			not_null<Ui::VerticalLayout*> container,
-			const std::shared_ptr<Ui::RadiobuttonGroup> &group,
-			int value,
-			const QString &text) {
-		return container->add(
-			object_ptr<Ui::Radiobutton>(
-				container,
-				group,
-				value,
-				text),
-			st::inviteLinkLimitMargin);
-	};
-
-	const auto now = base::unixtime::now();
-	const auto expire = data.expireDate ? data.expireDate : kMaxLimit;
-	const auto expireGroup = std::make_shared<Ui::RadiobuttonGroup>(expire);
-	const auto usage = data.usageLimit ? data.usageLimit : kMaxLimit;
-	const auto usageGroup = std::make_shared<Ui::RadiobuttonGroup>(usage);
-
-	using Buttons = base::flat_map<int, base::unique_qptr<Ui::Radiobutton>>;
-	struct State {
-		Buttons expireButtons;
-		Buttons usageButtons;
-		int expireValue = 0;
-		int usageValue = 0;
-	};
-	const auto state = container->lifetime().make_state<State>(State{
-		.expireValue = expire,
-		.usageValue = usage
-	});
-	const auto regenerate = [=] {
-		expireGroup->setValue(state->expireValue);
-		usageGroup->setValue(state->usageValue);
-
-		auto expires = std::vector{ kMaxLimit, -kHour, -kDay, -kDay * 7, 0 };
-		auto usages = std::vector{ kMaxLimit, 1, 10, 100, 0 };
-		auto defaults = State();
-		for (auto i = begin(expires); i != end(expires); ++i) {
-			if (*i == state->expireValue) {
-				break;
-			} else if (*i == kMaxLimit) {
-				continue;
-			} else if (!*i || (now - *i >= state->expireValue)) {
-				expires.insert(i, state->expireValue);
-				break;
-			}
-		}
-		for (auto i = begin(usages); i != end(usages); ++i) {
-			if (*i == state->usageValue) {
-				break;
-			} else if (*i == kMaxLimit) {
-				continue;
-			} else if (!*i || *i > state->usageValue) {
-				usages.insert(i, state->usageValue);
-				break;
-			}
-		}
-		state->expireButtons.clear();
-		state->usageButtons.clear();
-		for (const auto limit : expires) {
-			const auto text = (limit == kMaxLimit)
-				? tr::lng_group_invite_expire_never(tr::now)
-				: !limit
-				? tr::lng_group_invite_expire_custom(tr::now)
-				: FormatExpireDate(limit);
-			state->expireButtons.emplace(
-				limit,
-				addButton(expiresWrap, expireGroup, limit, text));
-		}
-		for (const auto limit : usages) {
-			const auto text = (limit == kMaxLimit)
-				? tr::lng_group_invite_usage_any(tr::now)
-				: !limit
-				? tr::lng_group_invite_usage_custom(tr::now)
-				: QString("%L1").arg(limit);
-			state->usageButtons.emplace(
-				limit,
-				addButton(usagesWrap, usageGroup, limit, text));
-		}
-	};
-
-	const auto guard = Ui::MakeWeak(box);
-	expireGroup->setChangedCallback([=](int value) {
-		if (value) {
-			state->expireValue = value;
-			return;
-		}
-		expireGroup->setValue(state->expireValue);
-		box->getDelegate()->show(Box([=](not_null<Ui::GenericBox*> box) {
-			const auto save = [=](TimeId result) {
-				if (!result) {
-					return;
-				}
-				if (guard) {
-					state->expireValue = result;
-					regenerate();
-				}
-				box->closeBox();
-			};
-			const auto now = base::unixtime::now();
-			const auto time = (state->expireValue == kMaxLimit)
-				? (now + kDay)
-				: (state->expireValue > now)
-				? state->expireValue
-				: (state->expireValue < 0)
-				? (now - state->expireValue)
-				: (now + kDay);
-			HistoryView::ChooseDateTimeBox(
-				box,
-				tr::lng_group_invite_expire_after(),
-				tr::lng_settings_save(),
-				save,
-				time);
-		}));
-	});
-	usageGroup->setChangedCallback([=](int value) {
-		if (value) {
-			state->usageValue = value;
-			return;
-		}
-		usageGroup->setValue(state->usageValue);
-		box->getDelegate()->show(Box([=](not_null<Ui::GenericBox*> box) {
-			const auto height = st::boxPadding.bottom()
-				+ st::defaultInputField.heightMin
-				+ st::boxPadding.bottom();
-			box->setTitle(tr::lng_group_invite_expire_after());
-			const auto wrap = box->addRow(object_ptr<Ui::FixedHeightWidget>(
-				box,
-				height));
-			const auto input = Ui::CreateChild<Ui::NumberInput>(
-				wrap,
-				st::defaultInputField,
-				tr::lng_group_invite_custom_limit(),
-				(state->usageValue == kMaxLimit
-					? QString()
-					: QString::number(state->usageValue)),
-				200'000);
-			wrap->widthValue(
-			) | rpl::start_with_next([=](int width) {
-				input->resize(width, input->height());
-				input->moveToLeft(0, st::boxPadding.bottom());
-			}, input->lifetime());
-			box->setFocusCallback([=] {
-				input->setFocusFast();
-			});
-
-			const auto save = [=] {
-				const auto value = input->getLastText().toInt();
-				if (value <= 0) {
-					input->showError();
-					return;
-				}
-				if (guard) {
-					state->usageValue = value;
-					regenerate();
-				}
-				box->closeBox();
-			};
-			QObject::connect(input, &Ui::NumberInput::submitted, save);
-			box->addButton(tr::lng_settings_save(), save);
-			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-		}));
-	});
-
-	regenerate();
-
-	const auto &saveLabel = link.isEmpty()
-		? tr::lng_formatting_link_create
-		: tr::lng_settings_save;
-	box->addButton(saveLabel(), [=] {
-		const auto expireDate = (state->expireValue == kMaxLimit)
-			? 0
-			: (state->expireValue < 0)
-			? (base::unixtime::now() - state->expireValue)
-			: state->expireValue;
-		const auto usageLimit = (state->usageValue == kMaxLimit)
-			? 0
-			: state->usageValue;
-		const auto done = [=](const Api::InviteLink &result) {
-			box->closeBox();
-		};
-		if (link.isEmpty()) {
-			peer->session().api().inviteLinks().create(
-				peer,
-				done,
-				expireDate,
-				usageLimit);
-		} else {
-			peer->session().api().inviteLinks().edit(
-				peer,
-				link,
-				expireDate,
-				usageLimit,
-				done);
-		}
-	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
-
-void CreateLinkBox(
-		not_null<Ui::GenericBox*> box,
-		not_null<PeerData*> peer) {
-	EditLinkBox(
-		box,
-		peer,
-		InviteLinkData{ .admin = peer->session().user() });
 }
 
 Row::Row(
@@ -724,9 +504,7 @@ base::unique_qptr<Ui::PopupMenu> Controller::createRowContextMenu(
 			ShareLinkBox(_peer, link);
 		});
 		result->addAction(tr::lng_group_invite_context_edit(tr::now), [=] {
-			Ui::show(
-				Box(EditLinkBox, _peer, data),
-				Ui::LayerOption::KeepOther);
+			EditLink(_peer, data);
 		});
 		result->addAction(tr::lng_group_invite_context_revoke(tr::now), [=] {
 			const auto box = std::make_shared<QPointer<ConfirmBox>>();
@@ -1024,7 +802,7 @@ void ManageInviteLinksBox(
 
 	const auto add = AddCreateLinkButton(container);
 	add->setClickedCallback([=] {
-		box->getDelegate()->show(Box(CreateLinkBox, peer));
+		EditLink(peer, InviteLinkData{ .admin = peer->session().user() });
 	});
 
 	const auto list = AddLinksList(container, peer, false);

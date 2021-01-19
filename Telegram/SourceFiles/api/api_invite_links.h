@@ -81,6 +81,7 @@ public:
 	void requestMoreLinks(
 		not_null<PeerData*> peer,
 		const QString &last,
+		bool revoked,
 		Fn<void(Links)> done);
 
 private:

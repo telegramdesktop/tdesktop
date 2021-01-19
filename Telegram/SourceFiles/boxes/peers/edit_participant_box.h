@@ -18,6 +18,7 @@ class LinkButton;
 class Checkbox;
 class Radiobutton;
 class RadiobuttonGroup;
+class CalendarBox;
 template <typename Widget>
 class SlideWrap;
 } // namespace Ui
@@ -26,7 +27,6 @@ namespace Core {
 struct CloudPasswordResult;
 } // namespace Core
 
-class CalendarBox;
 class PasscodeBox;
 
 class EditParticipantBox : public Ui::BoxContent {
@@ -162,7 +162,7 @@ private:
 
 	std::shared_ptr<Ui::RadiobuttonGroup> _untilGroup;
 	std::vector<base::unique_qptr<Ui::Radiobutton>> _untilVariants;
-	QPointer<CalendarBox> _restrictUntilBox;
+	QPointer<Ui::CalendarBox> _restrictUntilBox;
 
 	static constexpr auto kUntilOneDay = -1;
 	static constexpr auto kUntilOneWeek = -2;

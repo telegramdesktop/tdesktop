@@ -21,9 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/boxes/calendar_box.h"
 #include "platform/platform_specific.h"
 #include "core/file_utilities.h"
-#include "boxes/calendar_box.h"
 #include "base/unixtime.h"
 #include "base/qt_adapters.h"
 #include "main/main_session.h"
@@ -463,8 +463,8 @@ void SettingsWidget::editDateLimit(
 		? base::unixtime::parse(min).date()
 		: QDate::currentDate();
 	const auto month = highlighted;
-	const auto shared = std::make_shared<QPointer<CalendarBox>>();
-	const auto finalize = [=](not_null<CalendarBox*> box) {
+	const auto shared = std::make_shared<QPointer<Ui::CalendarBox>>();
+	const auto finalize = [=](not_null<Ui::CalendarBox*> box) {
 		box->setMaxDate(max
 			? base::unixtime::parse(max).date()
 			: QDate::currentDate());
@@ -484,7 +484,7 @@ void SettingsWidget::editDateLimit(
 			weak->closeBox();
 		}
 	});
-	auto box = Box<CalendarBox>(
+	auto box = Box<Ui::CalendarBox>(
 		month,
 		highlighted,
 		callback,

@@ -22,18 +22,6 @@ namespace HistoryView {
 [[nodiscard]] TimeId DefaultScheduleTime();
 [[nodiscard]] bool CanScheduleUntilOnline(not_null<PeerData*> peer);
 
-struct ChooseDateTimeBoxDescriptor {
-	QPointer<Ui::RoundButton> submit;
-	Fn<TimeId()> collect;
-};
-
-ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
-	not_null<Ui::GenericBox*> box,
-	rpl::producer<QString> title,
-	rpl::producer<QString> submit,
-	Fn<void(TimeId)> done,
-	TimeId time);
-
 void ScheduleBox(
 	not_null<Ui::GenericBox*> box,
 	SendMenu::Type type,
