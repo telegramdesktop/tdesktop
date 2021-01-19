@@ -258,6 +258,10 @@ private:
 	[[nodiscard]] base::unique_qptr<Ui::PopupMenu> createRowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row);
+	void addMuteActionsToContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<UserData*> user,
+		not_null<Row*> row);
 	void setupListChangeViewers(not_null<GroupCall*> call);
 	void subscribeToChanges(not_null<Data::GroupCall*> real);
 	void updateRow(
@@ -1208,100 +1212,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 	});
 
 	if (real->ssrc() != 0) {
-		const auto muteString = [=] {
-			return (_peer->canManageGroupCall()
-				? tr::lng_group_call_context_mute
-				: tr::lng_group_call_context_mute_for_me)(tr::now);
-		};
-
-		const auto unmuteString = [=] {
-			return (_peer->canManageGroupCall()
-				? tr::lng_group_call_context_unmute
-				: tr::lng_group_call_context_unmute_for_me)(tr::now);
-		};
-
-		const auto toggleMute = crl::guard(this, [=](bool mute, bool local) {
-			_toggleMuteRequests.fire(Group::MuteRequest{
-				.user = user,
-				.mute = mute,
-				.locallyOnly = local,
-			});
-		});
-		const auto changeVolume = crl::guard(this, [=](
-				int volume,
-				bool local) {
-			_changeVolumeRequests.fire(Group::VolumeRequest{
-				.user = user,
-				.volume = std::clamp(volume, 1, Group::kMaxVolume),
-				.locallyOnly = local,
-			});
-		});
-
-		const auto call = _call.get();
-		auto otherParticipantStateValue = call
-			? call->otherParticipantStateValue(
-				) | rpl::filter([=](const Group::ParticipantState &data) {
-					return data.user == user;
-				})
-			: rpl::never<Group::ParticipantState>();
-
-		const auto isMuted = (muteState == Row::State::Muted)
-			|| (muteState == Row::State::MutedByMe);
-
-		auto volumeItem = base::make_unique_q<MenuVolumeItem>(
-			result,
-			st::groupCallPopupMenu.menu,
-			otherParticipantStateValue,
-			real->volume(),
-			Group::kMaxVolume,
-			isMuted);
-
-		auto mutesFromVolume = volumeItem->toggleMuteRequests();
-
-		volumeItem->toggleMuteRequests(
-		) | rpl::start_with_next([=](bool muted) {
-			toggleMute(muted, false);
-		}, volumeItem->lifetime());
-
-		volumeItem->toggleMuteLocallyRequests(
-		) | rpl::start_with_next([=](bool muted) {
-			toggleMute(muted, true);
-		}, volumeItem->lifetime());
-
-		volumeItem->changeVolumeRequests(
-		) | rpl::start_with_next([=](int volume) {
-			changeVolume(volume, false);
-		}, volumeItem->lifetime());
-
-		volumeItem->changeVolumeLocallyRequests(
-		) | rpl::start_with_next([=](int volume) {
-			changeVolume(volume, true);
-		}, volumeItem->lifetime());
-
-		result->addAction(std::move(volumeItem));
-
-		const auto muteAction = [&]() -> QAction* {
-			if (muteState == Row::State::Invited) {
-				return nullptr;
-			}
-			auto callback = [=] {
-				const auto state = real->state();
-				const auto muted = (state == Row::State::Muted)
-					|| (state == Row::State::MutedByMe);
-				toggleMute(!muted, false);
-			};
-			return result->addAction(
-				isMuted ? unmuteString() : muteString(),
-				std::move(callback));
-		}();
-
-		std::move(
-			mutesFromVolume
-		) | rpl::filter([=] {
-			return muteAction != nullptr;
-		}) | rpl::start_with_next([=](bool muted) {
-			muteAction->setText(muted ? unmuteString() : muteString());
-		}, result->lifetime());
+		addMuteActionsToContextMenu(result, user, real);
 	}
 
 	result->addAction(
@@ -1327,6 +1238,111 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 			removeFromGroup);
 	}
 	return result;
+}
+
+void MembersController::addMuteActionsToContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<UserData*> user,
+		not_null<Row*> row) {
+	const auto muteString = [=] {
+		return (_peer->canManageGroupCall()
+			? tr::lng_group_call_context_mute
+			: tr::lng_group_call_context_mute_for_me)(tr::now);
+	};
+
+	const auto unmuteString = [=] {
+		return (_peer->canManageGroupCall()
+			? tr::lng_group_call_context_unmute
+			: tr::lng_group_call_context_unmute_for_me)(tr::now);
+	};
+
+	const auto toggleMute = crl::guard(this, [=](bool mute, bool local) {
+		_toggleMuteRequests.fire(Group::MuteRequest{
+			.user = user,
+			.mute = mute,
+			.locallyOnly = local,
+		});
+	});
+	const auto changeVolume = crl::guard(this, [=](
+			int volume,
+			bool local) {
+		_changeVolumeRequests.fire(Group::VolumeRequest{
+			.user = user,
+			.volume = std::clamp(volume, 1, Group::kMaxVolume),
+			.locallyOnly = local,
+		});
+	});
+
+	const auto muteState = row->state();
+	const auto isMuted = (muteState == Row::State::Muted)
+		|| (muteState == Row::State::MutedByMe);
+
+	auto mutesFromVolume = rpl::never<bool>();
+
+	if (!isMuted) {
+		const auto call = _call.get();
+		auto otherParticipantStateValue = call
+			? call->otherParticipantStateValue(
+				) | rpl::filter([=](const Group::ParticipantState &data) {
+					return data.user == user;
+				})
+			: rpl::never<Group::ParticipantState>();
+
+		auto volumeItem = base::make_unique_q<MenuVolumeItem>(
+			menu,
+			st::groupCallPopupMenu.menu,
+			otherParticipantStateValue,
+			row->volume(),
+			Group::kMaxVolume,
+			isMuted);
+
+		mutesFromVolume = volumeItem->toggleMuteRequests();
+
+		volumeItem->toggleMuteRequests(
+		) | rpl::start_with_next([=](bool muted) {
+			toggleMute(muted, false);
+		}, volumeItem->lifetime());
+
+		volumeItem->toggleMuteLocallyRequests(
+		) | rpl::start_with_next([=](bool muted) {
+			toggleMute(muted, true);
+		}, volumeItem->lifetime());
+
+		volumeItem->changeVolumeRequests(
+		) | rpl::start_with_next([=](int volume) {
+			changeVolume(volume, false);
+		}, volumeItem->lifetime());
+
+		volumeItem->changeVolumeLocallyRequests(
+		) | rpl::start_with_next([=](int volume) {
+			changeVolume(volume, true);
+		}, volumeItem->lifetime());
+
+		menu->addAction(std::move(volumeItem));
+	};
+
+	const auto muteAction = [&]() -> QAction* {
+		if (muteState == Row::State::Invited) {
+			return nullptr;
+		}
+		auto callback = [=] {
+			const auto state = row->state();
+			const auto muted = (state == Row::State::Muted)
+				|| (state == Row::State::MutedByMe);
+			toggleMute(!muted, false);
+		};
+		return menu->addAction(
+			isMuted ? unmuteString() : muteString(),
+			std::move(callback));
+	}();
+
+	if (muteAction) {
+		std::move(
+			mutesFromVolume
+		) | rpl::start_with_next([=](bool muted) {
+			muteAction->setText(muted ? unmuteString() : muteString());
+		}, menu->lifetime());
+	}
 }
 
 std::unique_ptr<Row> MembersController::createSelfRow() {

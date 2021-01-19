@@ -788,6 +788,7 @@ groupCallMuteCrossLine: CrossLineAnimation {
 
 groupCallMenuSpeakerArcsSkip: 1px;
 groupCallMenuVolumeSkip: 5px;
+groupCallMenuVolumeSkipSlider: defaultContinuousSlider;
 
 groupCallSpeakerArcsAnimation: ArcsAnimation {
 	fg: groupCallIconFg;

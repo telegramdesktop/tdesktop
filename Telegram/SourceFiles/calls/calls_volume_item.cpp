@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/cross_line.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "styles/style_calls.h"
-#include "styles/style_media_player.h"
 
 #include "ui/paint/arcs.h"
 
@@ -41,7 +40,7 @@ MenuVolumeItem::MenuVolumeItem(
 , _localMuted(muted)
 , _slider(base::make_unique_q<Ui::MediaSlider>(
 	this,
-	st::mediaPlayerPanelPlayback))
+	st::groupCallMenuVolumeSkipSlider))
 , _dummyAction(new QAction(parent))
 , _st(st)
 , _stCross(st::groupCallMuteCrossLine)
@@ -88,7 +87,9 @@ MenuVolumeItem::MenuVolumeItem(
 			muteProgress);
 		p.setPen(mutePen);
 		p.setFont(_st.itemStyle.font);
-		const auto volume = std::round(_slider->value() * kMaxVolumePercent);
+		const auto volume = _localMuted
+			? 0
+			: std::round(_slider->value() * kMaxVolumePercent);
 		p.drawText(_volumeRect, u"%1%"_q.arg(volume), style::al_center);
 
 		_crossLineMute->paint(
