@@ -41,6 +41,27 @@ void RemovePermanent(PeerInviteLinks &links) {
 
 } // namespace
 
+JoinedByLinkSlice ParseJoinedByLinkSlice(
+		not_null<PeerData*> peer,
+		const MTPmessages_ChatInviteImporters &slice) {
+	auto result = JoinedByLinkSlice();
+	slice.match([&](const MTPDmessages_chatInviteImporters &data) {
+		auto &owner = peer->session().data();
+		owner.processUsers(data.vusers());
+		result.count = data.vcount().v;
+		result.users.reserve(data.vimporters().v.size());
+		for (const auto importer : data.vimporters().v) {
+			importer.match([&](const MTPDchatInviteImporter &data) {
+				result.users.push_back({
+					.user = owner.user(data.vuser_id().v),
+					.date = data.vdate().v,
+				});
+			});
+		}
+	});
+	return result;
+}
+
 InviteLinks::InviteLinks(not_null<ApiWrap*> api) : _api(api) {
 }
 
@@ -328,6 +349,7 @@ void InviteLinks::requestLinks(not_null<PeerData*> peer) {
 		MTP_flags(0),
 		peer->input,
 		MTPInputUser(), // admin_id
+		MTPint(), // offset_date
 		MTPstring(), // offset_link
 		MTP_int(kFirstPage)
 	)).done([=](const MTPmessages_ExportedChatInvites &result) {
@@ -362,9 +384,18 @@ void InviteLinks::requestLinks(not_null<PeerData*> peer) {
 	_firstSliceRequests.emplace(peer, requestId);
 }
 
-JoinedByLinkSlice InviteLinks::lookupJoinedFirstSlice(LinkKey key) const {
+std::optional<JoinedByLinkSlice> InviteLinks::lookupJoinedFirstSlice(
+		LinkKey key) const {
 	const auto i = _firstJoined.find(key);
-	return (i != end(_firstJoined)) ? i->second : JoinedByLinkSlice();
+	return (i != end(_firstJoined))
+		? std::make_optional(i->second)
+		: std::nullopt;
+}
+
+std::optional<JoinedByLinkSlice> InviteLinks::joinedFirstSliceLoaded(
+		not_null<PeerData*> peer,
+		const QString &link) const {
+	return lookupJoinedFirstSlice({ peer, link });
 }
 
 rpl::producer<JoinedByLinkSlice> InviteLinks::joinedFirstSliceValue(
@@ -372,7 +403,7 @@ rpl::producer<JoinedByLinkSlice> InviteLinks::joinedFirstSliceValue(
 		const QString &link,
 		int fullCount) {
 	const auto key = LinkKey{ peer, link };
-	auto current = lookupJoinedFirstSlice(key);
+	auto current = lookupJoinedFirstSlice(key).value_or(JoinedByLinkSlice());
 	if (current.count == fullCount
 		&& (!fullCount || !current.users.empty())) {
 		return rpl::single(current);
@@ -390,7 +421,7 @@ rpl::producer<JoinedByLinkSlice> InviteLinks::joinedFirstSliceValue(
 	) | rpl::filter(
 		_1 == key
 	) | rpl::map([=] {
-		return lookupJoinedFirstSlice(key);
+		return lookupJoinedFirstSlice(key).value_or(JoinedByLinkSlice());
 	}));
 }
 
@@ -422,7 +453,7 @@ void InviteLinks::requestJoinedFirstSlice(LinkKey key) {
 		MTP_int(kJoinedFirstPage)
 	)).done([=](const MTPmessages_ChatInviteImporters &result) {
 		_firstJoinedRequests.remove(key);
-		_firstJoined[key] = parseSlice(key.peer, result);
+		_firstJoined[key] = ParseJoinedByLinkSlice(key.peer, result);
 		_joinedFirstSliceLoaded.fire_copy(key);
 	}).fail([=](const RPCError &error) {
 		_firstJoinedRequests.remove(key);
@@ -537,27 +568,6 @@ auto InviteLinks::parseSlice(
 	return result;
 }
 
-JoinedByLinkSlice InviteLinks::parseSlice(
-		not_null<PeerData*> peer,
-		const MTPmessages_ChatInviteImporters &slice) const {
-	auto result = JoinedByLinkSlice();
-	slice.match([&](const MTPDmessages_chatInviteImporters &data) {
-		auto &owner = peer->session().data();
-		owner.processUsers(data.vusers());
-		result.count = data.vcount().v;
-		result.users.reserve(data.vimporters().v.size());
-		for (const auto importer : data.vimporters().v) {
-			importer.match([&](const MTPDchatInviteImporter &data) {
-				result.users.push_back({
-					.user = owner.user(data.vuser_id().v),
-					.date = data.vdate().v,
-				});
-			});
-		}
-	});
-	return result;
-}
-
 auto InviteLinks::parse(
 		not_null<PeerData*> peer,
 		const MTPExportedChatInvite &invite) const -> Link {
@@ -578,7 +588,8 @@ auto InviteLinks::parse(
 
 void InviteLinks::requestMoreLinks(
 		not_null<PeerData*> peer,
-		const QString &last,
+		TimeId lastDate,
+		const QString &lastLink,
 		bool revoked,
 		Fn<void(Links)> done) {
 	using Flag = MTPmessages_GetExportedChatInvites::Flag;
@@ -587,7 +598,8 @@ void InviteLinks::requestMoreLinks(
 			| (revoked ? Flag::f_revoked : Flag(0))),
 		peer->input,
 		MTPInputUser(), // admin_id,
-		MTP_string(last),
+		MTP_int(lastDate),
+		MTP_string(lastLink),
 		MTP_int(kPerPage)
 	)).done([=](const MTPmessages_ExportedChatInvites &result) {
 		auto slice = parseSlice(peer, result);

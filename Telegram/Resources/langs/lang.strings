@@ -1185,6 +1185,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_add" = "Create a New Link";
 "lng_group_invite_add_about" = "You can generate invite links that will expire after they've been used.";
 "lng_group_invite_expires_at" = "This link expires {when}.";
+"lng_group_invite_expired_already" = "This link has expired.";
 "lng_group_invite_created_by" = "Link created by";
 "lng_group_invite_context_copy" = "Copy";
 "lng_group_invite_context_share" = "Share";

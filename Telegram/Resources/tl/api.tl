@@ -455,6 +455,7 @@ sendMessageGamePlayAction#dd6a8f48 = SendMessageAction;
 sendMessageRecordRoundAction#88f27fbc = SendMessageAction;
 sendMessageUploadRoundAction#243e1c66 progress:int = SendMessageAction;
 speakingInGroupCallAction#d92c2285 = SendMessageAction;
+sendMessageHistoryImportAction#dbda9246 progress:int = SendMessageAction;
 
 contacts.found#b3134d9d my_results:Vector<Peer> results:Vector<Peer> chats:Vector<Chat> users:Vector<User> = contacts.Found;
 
@@ -535,7 +536,7 @@ auth.passwordRecovery#137948a5 email_pattern:string = auth.PasswordRecovery;
 
 receivedNotifyMessage#a384b779 id:int flags:int = ReceivedNotifyMessage;
 
-chatInviteExported#6e24fc9d flags:# revoked:flags.0?true permanent:flags.5?true expired:flags.6?true link:string admin_id:int date:int start_date:flags.4?int expire_date:flags.1?int usage_limit:flags.2?int usage:flags.3?int = ExportedChatInvite;
+chatInviteExported#6e24fc9d flags:# revoked:flags.0?true permanent:flags.5?true link:string admin_id:int date:int start_date:flags.4?int expire_date:flags.1?int usage_limit:flags.2?int usage:flags.3?int = ExportedChatInvite;
 
 chatInviteAlready#5a686d7c chat:Chat = ChatInvite;
 chatInvite#dfc2f58e flags:# channel:flags.0?true broadcast:flags.1?true public:flags.2?true megagroup:flags.3?true title:string photo:Photo participants_count:int participants:flags.4?Vector<User> = ChatInvite;
@@ -1463,7 +1464,7 @@ messages.getReplies#24b581ba peer:InputPeer msg_id:int offset_id:int offset_date
 messages.getDiscussionMessage#446972fd peer:InputPeer msg_id:int = messages.DiscussionMessage;
 messages.readDiscussion#f731a9f4 peer:InputPeer msg_id:int read_max_id:int = Bool;
 messages.unpinAllMessages#f025bc8b peer:InputPeer = messages.AffectedHistory;
-messages.getExportedChatInvites#6d9cae03 flags:# revoked:flags.3?true peer:InputPeer admin_id:flags.0?InputUser offset_link:flags.2?string limit:int = messages.ExportedChatInvites;
+messages.getExportedChatInvites#6a72ac6c flags:# revoked:flags.3?true peer:InputPeer admin_id:flags.0?InputUser offset_date:flags.2?int offset_link:flags.2?string limit:int = messages.ExportedChatInvites;
 messages.editExportedChatInvite#2e4ffbe flags:# revoked:flags.2?true peer:InputPeer link:string expire_date:flags.0?int usage_limit:flags.1?int = messages.ExportedChatInvite;
 messages.deleteRevokedExportedChatInvites#52041463 peer:InputPeer = Bool;
 messages.deleteExportedChatInvite#d464a42b peer:InputPeer link:string = Bool;

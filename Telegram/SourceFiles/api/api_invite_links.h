@@ -44,6 +44,10 @@ struct InviteLinkUpdate {
 	std::optional<InviteLink> now;
 };
 
+[[nodiscard]] JoinedByLinkSlice ParseJoinedByLinkSlice(
+	not_null<PeerData*> peer,
+	const MTPmessages_ChatInviteImporters &slice);
+
 class InviteLinks final {
 public:
 	explicit InviteLinks(not_null<ApiWrap*> api);
@@ -90,6 +94,9 @@ public:
 		not_null<PeerData*> peer,
 		const QString &link,
 		int fullCount);
+	[[nodiscard]] std::optional<JoinedByLinkSlice> joinedFirstSliceLoaded(
+		not_null<PeerData*> peer,
+		const QString &link) const;
 	[[nodiscard]] rpl::producer<Update> updates(
 		not_null<PeerData*> peer) const;
 	[[nodiscard]] rpl::producer<> allRevokedDestroyed(
@@ -97,7 +104,8 @@ public:
 
 	void requestMoreLinks(
 		not_null<PeerData*> peer,
-		const QString &last,
+		TimeId lastDate,
+		const QString &lastLink,
 		bool revoked,
 		Fn<void(Links)> done);
 
@@ -122,9 +130,6 @@ private:
 	[[nodiscard]] Link parse(
 		not_null<PeerData*> peer,
 		const MTPExportedChatInvite &invite) const;
-	[[nodiscard]] JoinedByLinkSlice parseSlice(
-		not_null<PeerData*> peer,
-		const MTPmessages_ChatInviteImporters &slice) const;
 	[[nodiscard]] Link *lookupPermanent(not_null<PeerData*> peer);
 	[[nodiscard]] Link *lookupPermanent(Links &links);
 	[[nodiscard]] const Link *lookupPermanent(const Links &links) const;
@@ -152,7 +157,7 @@ private:
 		int usageLimit = 0);
 
 	void requestJoinedFirstSlice(LinkKey key);
-	[[nodiscard]] JoinedByLinkSlice lookupJoinedFirstSlice(
+	[[nodiscard]] std::optional<JoinedByLinkSlice> lookupJoinedFirstSlice(
 		LinkKey key) const;
 
 	const not_null<ApiWrap*> _api;

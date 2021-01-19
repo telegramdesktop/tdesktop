@@ -11,14 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class PeerData;
 
-namespace Ui {
-class VerticalLayout;
-} // namespace Ui
-
-void AddPermanentLinkBlock(
-	not_null<Ui::VerticalLayout*> container,
-	not_null<PeerData*> peer);
-
 void ManageInviteLinksBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<PeerData*> peer);

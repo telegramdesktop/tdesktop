@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_info_box.h" // CreateButton.
+#include "boxes/peers/edit_peer_invite_link.h"
 #include "boxes/peers/edit_peer_invite_links.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "core/application.h"
@@ -541,13 +542,8 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkBlock() {
 
 	using namespace Settings;
 	AddSkip(container);
-	container->add(
-		object_ptr<Ui::FlatLabel>(
-			container,
-			tr::lng_create_permanent_link_title(),
-			st::settingsSubsectionTitle),
-		st::settingsSubsectionTitlePadding);
 
+	AddSubsectionTitle(container, tr::lng_create_permanent_link_title());
 	AddPermanentLinkBlock(container, _peer);
 
 	AddSkip(container);
