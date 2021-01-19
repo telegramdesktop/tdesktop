@@ -917,3 +917,5 @@ inviteLinkIconSkip: 7px;
 inviteLinkIconStroke: 2px;
 inviteLinkIcon: icon {{ "info/edit/links_link", mediaviewFileExtFg }};
 inviteLinkThreeDotsSkip: 8px;
+inviteLinkRevokedTitlePadding: margins(22px, 16px, 10px, 9px);
+inviteLinkLimitMargin: margins(22px, 8px, 22px, 8px);

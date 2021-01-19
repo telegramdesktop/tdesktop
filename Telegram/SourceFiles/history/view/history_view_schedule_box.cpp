@@ -596,19 +596,18 @@ TimeId DefaultScheduleTime() {
 
 bool CanScheduleUntilOnline(not_null<PeerData*> peer) {
 	return !peer->isSelf()
-	&& peer->isUser()
-	&& !peer->asUser()->isBot()
-	&& (peer->asUser()->onlineTill > 0);
+		&& peer->isUser()
+		&& !peer->asUser()->isBot()
+		&& (peer->asUser()->onlineTill > 0);
 }
 
-void ScheduleBox(
+ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		not_null<Ui::GenericBox*> box,
-		SendMenu::Type type,
-		Fn<void(Api::SendOptions)> done,
+		rpl::producer<QString> title,
+		rpl::producer<QString> submit,
+		Fn<void(TimeId)> done,
 		TimeId time) {
-	box->setTitle((type == SendMenu::Type::Reminder)
-		? tr::lng_remind_title()
-		: tr::lng_schedule_title());
+	box->setTitle(std::move(title));
 	box->setWidth(st::boxWideWidth);
 
 	const auto date = Ui::CreateChild<rpl::variable<QDate>>(
@@ -716,46 +715,67 @@ void ScheduleBox(
 		}
 		return result;
 	};
-	const auto save = [=](bool silent, bool untilOnline = false) {
+	const auto save = [=] {
+		if (const auto result = collect()) {
+			done(result);
+		}
+	};
+	timeInput->submitRequests(
+	) | rpl::start_with_next(
+		save,
+		timeInput->lifetime());
+
+	auto result = ChooseDateTimeBoxDescriptor();
+	box->setFocusCallback([=] { timeInput->setFocusFast(); });
+	result.submit = box->addButton(std::move(submit), save);
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+
+	return result;
+}
+
+void ScheduleBox(
+		not_null<Ui::GenericBox*> box,
+		SendMenu::Type type,
+		Fn<void(Api::SendOptions)> done,
+		TimeId time) {
+	const auto save = [=](bool silent, TimeId scheduleDate) {
+		if (!scheduleDate) {
+			return;
+		}
 		// Pro tip: Hold Ctrl key to send a silent scheduled message!
 		auto ctrl =
 			(QGuiApplication::keyboardModifiers() == Qt::ControlModifier);
 		auto result = Api::SendOptions();
 		result.silent = silent || ctrl;
-		result.scheduled = untilOnline
-			? Data::ScheduledMessages::kScheduledUntilOnlineTimestamp
-			: collect();
-		if (!result.scheduled) {
-			return;
-		}
-
-		auto copy = done;
+		result.scheduled = scheduleDate;
+		const auto copy = done;
 		box->closeBox();
 		copy(result);
 	};
-	timeInput->submitRequests(
-	) | rpl::start_with_next([=] {
-		save(false);
-	}, timeInput->lifetime());
+	auto descriptor = ChooseDateTimeBox(
+		box,
+		(type == SendMenu::Type::Reminder
+			? tr::lng_remind_title()
+			: tr::lng_schedule_title()),
+		tr::lng_schedule_button(),
+		[=](TimeId result) { save(false, result); },
+		time);
 
-	box->setFocusCallback([=] { timeInput->setFocusFast(); });
-	const auto submit = box->addButton(tr::lng_schedule_button(), [=] {
-		save(false);
-	});
 	SendMenu::SetupMenuAndShortcuts(
-		submit.data(),
+		descriptor.submit.data(),
 		[=] { return SendMenu::Type::SilentOnly; },
-		[=] { save(true); },
+		[=] { save(true, descriptor.collect()); },
 		nullptr);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 
 	if (type == SendMenu::Type::ScheduledToUser) {
 		const auto sendUntilOnline = box->addTopButton(st::infoTopBarMenu);
+		const auto timestamp
+			= Data::ScheduledMessages::kScheduledUntilOnlineTimestamp;
 		FillSendUntilOnlineMenu(
 			sendUntilOnline.data(),
-			[=] { save(false, true); });
+			[=] { save(false, timestamp); });
 	}
-
 }
 
 } // namespace HistoryView

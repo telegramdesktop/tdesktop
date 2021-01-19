@@ -252,7 +252,7 @@ private:
 
 	QPointer<Ui::SlideWrap<>> _aboutSponsored;
 	QPointer<HostInput> _host;
-	QPointer<Ui::PortInput> _port;
+	QPointer<Ui::NumberInput> _port;
 	QPointer<Ui::InputField> _user;
 	QPointer<Ui::PasswordInput> _password;
 	QPointer<Base64UrlInput> _secret;
@@ -928,11 +928,12 @@ void ProxyBox::setupSocketAddress(const ProxyData &data) {
 		st::connectionHostInputField,
 		tr::lng_connection_host_ph(),
 		data.host);
-	_port = Ui::CreateChild<Ui::PortInput>(
+	_port = Ui::CreateChild<Ui::NumberInput>(
 		address,
 		st::connectionPortInputField,
 		tr::lng_connection_port_ph(),
-		data.port ? QString::number(data.port) : QString());
+		data.port ? QString::number(data.port) : QString(),
+		65535);
 	address->widthValue(
 	) | rpl::start_with_next([=](int width) {
 		_port->moveToRight(0, 0);

@@ -117,9 +117,6 @@ private:
 		rpl::producer<QString> &&text,
 		not_null<const style::FlatLabel*> st);
 
-	void createInviteLink();
-	void revokeInviteLink(const QString &link);
-
 	void fillPrivaciesButtons(
 		not_null<Ui::VerticalLayout*> parent,
 		std::optional<Privacy> savedValue = std::nullopt);
@@ -185,7 +182,10 @@ void Controller::createContent() {
 		_wrap.get(),
 		tr::lng_group_invite_manage(),
 		rpl::single(QString()),
-		[=] { Ui::show(Box(ManageInviteLinksBox, _peer)); },
+		[=] { Ui::show(
+			Box(ManageInviteLinksBox, _peer),
+			Ui::LayerOption::KeepOther);
+		},
 		st::manageGroupButton,
 		&st::infoIconInviteLinks));
 	AddSkip(_wrap.get());
@@ -527,31 +527,6 @@ void Controller::showUsernameResult(
 		}, label->lifetime());
 	}
 	_usernameResultTexts.fire(std::move(text));
-}
-
-void Controller::createInviteLink() {
-	const auto callback = crl::guard(this, [=](Fn<void()> &&close) {
-		close();
-		_peer->session().api().inviteLinks().create(_peer->migrateToOrMe());
-	});
-	auto box = Box<ConfirmBox>(
-		(_isGroup
-			? tr::lng_group_invite_about
-			: tr::lng_group_invite_about_channel)(tr::now),
-		std::move(callback));
-	Ui::show(std::move(box), Ui::LayerOption::KeepOther);
-}
-
-void Controller::revokeInviteLink(const QString &link) {
-	const auto callback = crl::guard(this, [=](Fn<void()> &&close) {
-		close();
-		const auto peer = _peer->migrateToOrMe();
-		peer->session().api().inviteLinks().revoke(peer, link);
-	});
-	auto box = Box<ConfirmBox>(
-		tr::lng_group_invite_about_new(tr::now),
-		std::move(callback));
-	Ui::show(std::move(box), Ui::LayerOption::KeepOther);
 }
 
 object_ptr<Ui::RpWidget> Controller::createInviteLinkBlock() {

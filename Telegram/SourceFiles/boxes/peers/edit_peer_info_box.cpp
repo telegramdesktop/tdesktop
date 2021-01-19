@@ -1004,7 +1004,10 @@ void Controller::fillManageSection() {
 				});
 			}) | rpl::flatten_latest(
 			) | ToPositiveNumberString(),
-			[=] { Ui::show(Box(ManageInviteLinksBox, _peer)); },
+			[=] { Ui::show(
+				Box(ManageInviteLinksBox, _peer),
+				Ui::LayerOption::KeepOther);
+			},
 			st::infoIconInviteLinks);
 	}
 	if (canViewAdmins) {
