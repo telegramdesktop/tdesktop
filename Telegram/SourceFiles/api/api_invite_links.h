@@ -70,6 +70,13 @@ public:
 	void revokePermanent(
 		not_null<PeerData*> peer,
 		Fn<void(Link)> done = nullptr);
+	void destroy(
+		not_null<PeerData*> peer,
+		const QString &link,
+		Fn<void()> done = nullptr);
+	void destroyAllRevoked(
+		not_null<PeerData*> peer,
+		Fn<void()> done = nullptr);
 
 	void setPermanent(
 		not_null<PeerData*> peer,
@@ -84,6 +91,8 @@ public:
 		const QString &link,
 		int fullCount);
 	[[nodiscard]] rpl::producer<Update> updates(
+		not_null<PeerData*> peer) const;
+	[[nodiscard]] rpl::producer<> allRevokedDestroyed(
 		not_null<PeerData*> peer) const;
 
 	void requestMoreLinks(
@@ -159,8 +168,13 @@ private:
 		not_null<PeerData*>,
 		std::vector<Fn<void(Link)>>> _createCallbacks;
 	base::flat_map<LinkKey, std::vector<Fn<void(Link)>>> _editCallbacks;
+	base::flat_map<LinkKey, std::vector<Fn<void()>>> _deleteCallbacks;
+	base::flat_map<
+		not_null<PeerData*>,
+		std::vector<Fn<void()>>> _deleteRevokedCallbacks;
 
 	rpl::event_stream<Update> _updates;
+	rpl::event_stream<not_null<PeerData*>> _allRevokedDestroyed;
 
 };
 

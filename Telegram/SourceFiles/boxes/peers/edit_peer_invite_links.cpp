@@ -311,6 +311,36 @@ void EditLink(not_null<PeerData*> peer, const InviteLinkData &data) {
 		Ui::LayerOption::KeepOther);
 }
 
+void DeleteLink(not_null<PeerData*> peer, const QString &link) {
+	const auto box = std::make_shared<QPointer<ConfirmBox>>();
+	const auto sure = [=] {
+		const auto finish = [=] {
+			if (*box) {
+				(*box)->closeBox();
+			}
+		};
+		peer->session().api().inviteLinks().destroy(peer, link, finish);
+	};
+	*box = Ui::show(
+		Box<ConfirmBox>(tr::lng_group_invite_delete_sure(tr::now), sure),
+		Ui::LayerOption::KeepOther);
+}
+
+void DeleteAllRevoked(not_null<PeerData*> peer) {
+	const auto box = std::make_shared<QPointer<ConfirmBox>>();
+	const auto sure = [=] {
+		const auto finish = [=] {
+			if (*box) {
+				(*box)->closeBox();
+			}
+		};
+		peer->session().api().inviteLinks().destroyAllRevoked(peer, finish);
+	};
+	*box = Ui::show(
+		Box<ConfirmBox>(tr::lng_group_invite_delete_all_sure(tr::now), sure),
+		Ui::LayerOption::KeepOther);
+}
+
 not_null<Ui::SettingsButton*> AddCreateLinkButton(
 		not_null<Ui::VerticalLayout*> container) {
 	const auto result = container->add(
@@ -445,6 +475,7 @@ public:
 	Controller(not_null<PeerData*> peer, bool revoked);
 
 	void prepare() override;
+	void loadMoreRows() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowActionClicked(not_null<PeerListRow*> row) override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
@@ -467,6 +498,7 @@ private:
 	void updateRow(const InviteLinkData &data, TimeId now);
 	bool removeRow(const QString &link);
 
+	void appendSlice(const InviteLinksSlice &slice);
 	void checkExpiringTimer(not_null<Row*> row);
 	void expiringProgressTimer();
 
@@ -474,9 +506,13 @@ private:
 		QWidget *parent,
 		not_null<PeerListRow*> row);
 
-	not_null<PeerData*> _peer;
-	bool _revoked = false;
+	const not_null<PeerData*> _peer;
+	const bool _revoked = false;
 	base::unique_qptr<Ui::PopupMenu> _menu;
+
+	QString _offsetLink;
+	bool _requesting = false;
+	bool _allLoaded = false;
 
 	base::flat_set<not_null<Row*>> _expiringRows;
 	base::Timer _updateExpiringTimer;
@@ -501,8 +537,7 @@ Controller::Controller(not_null<PeerData*> peer, bool revoked)
 		peer
 	) | rpl::start_with_next([=](const Api::InviteLinkUpdate &update) {
 		const auto now = base::unixtime::now();
-		if (!update.now
-			|| (!update.was.isEmpty() && update.now->revoked != _revoked)) {
+		if (!update.now || update.now->revoked != _revoked) {
 			if (removeRow(update.was)) {
 				delegate()->peerListRefreshRows();
 			}
@@ -513,15 +548,63 @@ Controller::Controller(not_null<PeerData*> peer, bool revoked)
 			updateRow(*update.now, now);
 		}
 	}, _lifetime);
+
+	if (_revoked) {
+		peer->session().api().inviteLinks().allRevokedDestroyed(
+			peer
+		) | rpl::start_with_next([=] {
+			_requesting = false;
+			_allLoaded = true;
+			while (delegate()->peerListFullRowsCount()) {
+				delegate()->peerListRemoveRow(delegate()->peerListRowAt(0));
+			}
+			delegate()->peerListRefreshRows();
+		}, _lifetime);
+	}
 }
 
 void Controller::prepare() {
+	if (!_revoked) {
+		appendSlice(_peer->session().api().inviteLinks().links(_peer));
+	}
+	if (!delegate()->peerListFullRowsCount()) {
+		loadMoreRows();
+	}
+}
+
+void Controller::loadMoreRows() {
+	if (_requesting || _allLoaded) {
+		return;
+	}
+	_requesting = true;
+	const auto done = [=](const InviteLinksSlice &slice) {
+		if (!_requesting) {
+			return;
+		}
+		_requesting = false;
+		if (slice.links.empty()) {
+			_allLoaded = true;
+			return;
+		}
+		appendSlice(slice);
+	};
+	_peer->session().api().inviteLinks().requestMoreLinks(
+		_peer,
+		_offsetLink,
+		_revoked,
+		crl::guard(this, done));
+}
+
+void Controller::appendSlice(const InviteLinksSlice &slice) {
 	const auto now = base::unixtime::now();
-	const auto &links = _peer->session().api().inviteLinks().links(_peer);
-	for (const auto &link : links.links) {
+	for (const auto &link : slice.links) {
 		if (!link.permanent || link.revoked) {
 			appendRow(link, now);
 		}
+		_offsetLink = link.link;
+	}
+	if (slice.links.size() >= slice.count) {
+		_allLoaded = true;
 	}
 	delegate()->peerListRefreshRows();
 }
@@ -559,9 +642,9 @@ base::unique_qptr<Ui::PopupMenu> Controller::createRowContextMenu(
 	const auto link = data.link;
 	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
 	if (data.revoked) {
-		//result->addAction(tr::lng_group_invite_context_delete(tr::now), [=] {
-		//	// #TODO links delete
-		//});
+		result->addAction(tr::lng_group_invite_context_delete(tr::now), [=] {
+			DeleteLink(_peer, link);
+		});
 	} else {
 		result->addAction(tr::lng_group_invite_context_copy(tr::now), [=] {
 			CopyLink(link);
@@ -576,7 +659,6 @@ base::unique_qptr<Ui::PopupMenu> Controller::createRowContextMenu(
 			const auto box = std::make_shared<QPointer<ConfirmBox>>();
 			const auto revoke = crl::guard(this, [=] {
 				const auto done = crl::guard(this, [=](InviteLinkData data) {
-					// #TODO links add to revoked, remove from list
 					if (*box) {
 						(*box)->closeBox();
 					}
@@ -946,6 +1028,23 @@ void ManageInviteLinksBox(
 		st::inviteLinkRevokedTitlePadding));
 	const auto revoked = AddLinksList(container, peer, true);
 
+	const auto deleteAll = Ui::CreateChild<Ui::LinkButton>(
+		container.get(),
+		tr::lng_group_invite_context_delete_all(tr::now),
+		st::boxLinkButton);
+	rpl::combine(
+		header->topValue(),
+		container->widthValue()
+	) | rpl::start_with_next([=](int top, int outerWidth) {
+		deleteAll->moveToRight(
+			st::inviteLinkRevokedTitlePadding.left(),
+			top + st::inviteLinkRevokedTitlePadding.top(),
+			outerWidth);
+	}, deleteAll->lifetime());
+	deleteAll->setClickedCallback([=] {
+		DeleteAllRevoked(peer);
+	});
+
 	rpl::combine(
 		list->heightValue(),
 		revoked->heightValue()
@@ -953,5 +1052,8 @@ void ManageInviteLinksBox(
 		dividerAbout->toggle(!list, anim::type::instant);
 		divider->toggle(list > 0 && revoked > 0, anim::type::instant);
 		header->toggle(revoked > 0, anim::type::instant);
+		deleteAll->setVisible(revoked > 0);
 	}, header->lifetime());
+
+	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
 }

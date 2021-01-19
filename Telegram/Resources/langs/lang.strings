@@ -1192,6 +1192,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_context_revoke" = "Revoke";
 "lng_group_invite_context_delete" = "Delete";
 "lng_group_invite_context_delete_all" = "Delete all";
+"lng_group_invite_delete_sure" = "Are you sure you want to delete that revoked link?";
+"lng_group_invite_delete_all_sure" = "Are you sure you want to delete all revoked links? This action cannot be undone.";
 "lng_group_invite_revoked_title" = "Revoked links";
 "lng_group_invite_revoke_about" = "Are you sure you want to revoke that invite link?";
 "lng_group_invite_link_expired" = "Expired";
