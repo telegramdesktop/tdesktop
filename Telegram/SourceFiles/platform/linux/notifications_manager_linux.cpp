@@ -250,7 +250,7 @@ public:
 
 	~NotificationData();
 
-	bool show();
+	void show();
 	void close();
 	void setImage(const QString &imagePath);
 
@@ -274,6 +274,11 @@ private:
 	void notificationClosed(uint id, uint reason);
 	void actionInvoked(uint id, const QString &actionName);
 	void notificationReplied(uint id, const QString &text);
+
+	static void notificationShown(
+		GObject *source_object,
+		GAsyncResult *res,
+		gpointer user_data);
 
 	static void signalEmitted(
 		GDBusConnection *connection,
@@ -443,7 +448,7 @@ NotificationData::~NotificationData() {
 	}
 }
 
-bool NotificationData::show() {
+void NotificationData::show() {
 	GVariantBuilder actionsBuilder, hintsBuilder;
 	GError *error = nullptr;
 
@@ -470,7 +475,7 @@ bool NotificationData::show() {
 		? GetIconName()
 		: QString();
 
-	auto reply = g_dbus_connection_call_sync(
+	g_dbus_connection_call(
 		_dbusConnection,
 		kService.utf8(),
 		kObjectPath.utf8(),
@@ -490,19 +495,40 @@ bool NotificationData::show() {
 		G_DBUS_CALL_FLAGS_NONE,
 		kDBusTimeout,
 		nullptr,
+		notificationShown,
+		this);
+}
+
+void NotificationData::notificationShown(
+		GObject *source_object,
+		GAsyncResult *res,
+		gpointer user_data) {
+	const auto notificationData = reinterpret_cast<NotificationData*>(
+		user_data);
+
+	if (!notificationData) {
+		return;
+	}
+
+	GError *error = nullptr;
+
+	auto reply = g_dbus_connection_call_finish(
+		notificationData->_dbusConnection,
+		res,
 		&error);
 
-	const auto replyValid = !error;
-
-	if (replyValid) {
-		g_variant_get(reply, "(u)", &_notificationId);
+	if (!error) {
+		g_variant_get(reply, "(u)", &notificationData->_notificationId);
 		g_variant_unref(reply);
 	} else {
+		const auto manager = notificationData->_manager;
+		const auto my = notificationData->_id;
+		crl::on_main(manager, [=] {
+			manager->clearNotification(my);
+		});
 		LOG(("Native notification error: %1").arg(error->message));
 		g_error_free(error);
 	}
-
-	return replyValid;
 }
 
 void NotificationData::close() {
@@ -782,15 +808,7 @@ void Manager::Private::showNotification(
 			base::flat_map<MsgId, Notification>()).first;
 	}
 	i->second.emplace(msgId, notification);
-	if (!notification->show()) {
-		i = _notifications.find(key);
-		if (i != _notifications.cend()) {
-			i->second.remove(msgId);
-			if (i->second.empty()) {
-				_notifications.erase(i);
-			}
-		}
-	}
+	notification->show();
 }
 
 void Manager::Private::clearAll() {
