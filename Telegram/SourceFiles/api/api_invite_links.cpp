@@ -123,10 +123,16 @@ auto InviteLinks::prepend(
 	auto &links = i->second;
 	const auto permanent = lookupPermanent(links);
 	if (link.permanent) {
+		auto update = Update{ .peer = peer };
 		if (permanent) {
+			update.was = permanent->link;
 			permanent->revoked = true;
 		}
 		editPermanentLink(peer, link.link);
+		if (permanent) {
+			update.now = *permanent;
+			_updates.fire(std::move(update));
+		}
 	}
 	++links.count;
 	if (permanent && !link.permanent) {
@@ -135,6 +141,7 @@ auto InviteLinks::prepend(
 		links.links.insert(begin(links.links), link);
 	}
 	notify(peer);
+	_updates.fire(Update{ .peer = peer, .now = link });
 	return link;
 }
 
@@ -205,6 +212,11 @@ void InviteLinks::performEdit(
 			for (const auto &callback : *callbacks) {
 				callback(link);
 			}
+			_updates.fire(Update{
+				.peer = peer,
+				.was = key.link,
+				.now = link
+			});
 		});
 	}).fail([=](const RPCError &error) {
 		_editCallbacks.erase(key);
@@ -296,6 +308,13 @@ rpl::producer<JoinedByLinkSlice> InviteLinks::joinedFirstSliceValue(
 	) | rpl::map([=] {
 		return lookupJoinedFirstSlice(key);
 	}));
+}
+
+auto InviteLinks::updates(
+		not_null<PeerData*> peer) const -> rpl::producer<Update> {
+	return _updates.events() | rpl::filter([=](const Update &update) {
+		return update.peer == peer;
+	});
 }
 
 void InviteLinks::requestJoinedFirstSlice(LinkKey key) {
@@ -422,7 +441,6 @@ auto InviteLinks::parse(
 			.usageLimit = data.vusage_limit().value_or_empty(),
 			.usage = data.vusage().value_or_empty(),
 			.permanent = data.is_permanent(),
-			.expired = data.is_expired(),
 			.revoked = data.is_revoked(),
 		};
 	});

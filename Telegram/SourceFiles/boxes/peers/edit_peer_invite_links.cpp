@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kPreloadPages = 2;
+constexpr auto kFullArcLength = 360 * 16;
 
 enum class Color {
 	Permanent,
@@ -100,9 +101,11 @@ public:
 		const InviteLinkData &data,
 		TimeId now);
 
-	void update(const InviteLinkData &data);
+	void update(const InviteLinkData &data, TimeId now);
+	void updateExpireProgress(TimeId now);
 
 	[[nodiscard]] InviteLinkData data() const;
+	[[nodiscard]] crl::time updateExpireIn() const;
 
 	QString generateName() override;
 	QString generateShortName() override;
@@ -159,7 +162,6 @@ private:
 [[nodiscard]] Color ComputeColor(
 		const InviteLinkData &link,
 		float64 progress) {
-	const auto startDate = link.startDate ? link.startDate : link.date;
 	return link.revoked
 		? Color::Revoked
 		: (progress >= 1.)
@@ -171,8 +173,20 @@ private:
 		: Color::Permanent;
 }
 
-[[nodiscard]] QString ComputeStatus(const InviteLinkData &link) {
-	return "nothing";
+[[nodiscard]] QString ComputeStatus(const InviteLinkData &link, TimeId now) {
+	auto result = link.usage
+		? tr::lng_group_invite_joined(tr::now, lt_count_decimal, link.usage)
+		: tr::lng_group_invite_no_joined(tr::now);
+	const auto add = [&](const QString &text) {
+		result += QString::fromUtf8(" \xE2\xB8\xB1 ") + text;
+	};
+	if (link.revoked) {
+		add(tr::lng_group_invite_link_revoked(tr::now));
+	} else if ((link.usageLimit > 0 && link.usage >= link.usageLimit)
+		|| (link.expireDate > 0 && now >= link.expireDate)) {
+		add(tr::lng_group_invite_link_expired(tr::now));
+	}
+	return result;
 }
 
 void CopyLink(const QString &link) {
@@ -338,19 +352,43 @@ Row::Row(
 , _data(data)
 , _progressTillExpire(ComputeProgress(data, now))
 , _color(ComputeColor(data, _progressTillExpire)) {
-	setCustomStatus(ComputeStatus(data));
+	setCustomStatus(ComputeStatus(data, now));
 }
 
-void Row::update(const InviteLinkData &data) {
+void Row::update(const InviteLinkData &data, TimeId now) {
 	_data = data;
-	_progressTillExpire = ComputeProgress(data, base::unixtime::now());
+	_progressTillExpire = ComputeProgress(data, now);
 	_color = ComputeColor(data, _progressTillExpire);
-	setCustomStatus(ComputeStatus(data));
+	setCustomStatus(ComputeStatus(data, now));
 	_delegate->rowUpdateRow(this);
+}
+
+void Row::updateExpireProgress(TimeId now) {
+	const auto updated = ComputeProgress(_data, now);
+	if (std::round(_progressTillExpire * 360) != std::round(updated * 360)) {
+		_progressTillExpire = updated;
+		const auto color = ComputeColor(_data, _progressTillExpire);
+		if (_color != color) {
+			_color = color;
+			setCustomStatus(ComputeStatus(_data, now));
+		}
+		_delegate->rowUpdateRow(this);
+	}
 }
 
 InviteLinkData Row::data() const {
 	return _data;
+}
+
+crl::time Row::updateExpireIn() const {
+	if (_color != Color::Expiring && _color != Color::ExpireSoon) {
+		return 0;
+	}
+	const auto start = _data.startDate ? _data.startDate : _data.date;
+	if (_data.expireDate <= start) {
+		return 0;
+	}
+	return std::round((_data.expireDate - start) * crl::time(1000) / 720.);
 }
 
 QString Row::generateName() {
@@ -425,6 +463,13 @@ public:
 
 private:
 	void appendRow(const InviteLinkData &data, TimeId now);
+	void prependRow(const InviteLinkData &data, TimeId now);
+	void updateRow(const InviteLinkData &data, TimeId now);
+	bool removeRow(const QString &link);
+
+	void checkExpiringTimer(not_null<Row*> row);
+	void expiringProgressTimer();
+
 	[[nodiscard]] base::unique_qptr<Ui::PopupMenu> createRowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row);
@@ -433,6 +478,9 @@ private:
 	bool _revoked = false;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
+	base::flat_set<not_null<Row*>> _expiringRows;
+	base::Timer _updateExpiringTimer;
+
 	std::array<QImage, int(Color::Count)> _icons;
 	rpl::lifetime _lifetime;
 
@@ -440,11 +488,29 @@ private:
 
 Controller::Controller(not_null<PeerData*> peer, bool revoked)
 : _peer(peer)
-, _revoked(revoked) {
+, _revoked(revoked)
+, _updateExpiringTimer([=] { expiringProgressTimer(); }) {
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		for (auto &image : _icons) {
 			image = QImage();
+		}
+	}, _lifetime);
+
+	peer->session().api().inviteLinks().updates(
+		peer
+	) | rpl::start_with_next([=](const Api::InviteLinkUpdate &update) {
+		const auto now = base::unixtime::now();
+		if (!update.now
+			|| (!update.was.isEmpty() && update.now->revoked != _revoked)) {
+			if (removeRow(update.was)) {
+				delegate()->peerListRefreshRows();
+			}
+		} else if (update.was.isEmpty()) {
+			prependRow(*update.now, now);
+			delegate()->peerListRefreshRows();
+		} else {
+			updateRow(*update.now, now);
 		}
 	}, _lifetime);
 }
@@ -538,6 +604,60 @@ void Controller::appendRow(const InviteLinkData &data, TimeId now) {
 	delegate()->peerListAppendRow(std::make_unique<Row>(this, data, now));
 }
 
+void Controller::prependRow(const InviteLinkData &data, TimeId now) {
+	delegate()->peerListPrependRow(std::make_unique<Row>(this, data, now));
+}
+
+void Controller::updateRow(const InviteLinkData &data, TimeId now) {
+	if (const auto row = delegate()->peerListFindRow(ComputeRowId(data))) {
+		const auto real = static_cast<Row*>(row);
+		real->update(data, now);
+		checkExpiringTimer(real);
+		delegate()->peerListUpdateRow(row);
+	}
+}
+
+bool Controller::removeRow(const QString &link) {
+	if (const auto row = delegate()->peerListFindRow(ComputeRowId(link))) {
+		delegate()->peerListRemoveRow(row);
+		return true;
+	}
+	return false;
+}
+
+void Controller::checkExpiringTimer(not_null<Row*> row) {
+	const auto updateIn = row->updateExpireIn();
+	if (updateIn > 0) {
+		_expiringRows.emplace(row);
+		if (!_updateExpiringTimer.isActive()
+			|| updateIn < _updateExpiringTimer.remainingTime()) {
+			_updateExpiringTimer.callOnce(updateIn);
+		}
+	} else {
+		_expiringRows.remove(row);
+	}
+}
+
+void Controller::expiringProgressTimer() {
+	const auto now = base::unixtime::now();
+	auto minimalIn = 0;
+	for (auto i = begin(_expiringRows); i != end(_expiringRows);) {
+		(*i)->updateExpireProgress(now);
+		const auto updateIn = (*i)->updateExpireIn();
+		if (!updateIn) {
+			i = _expiringRows.erase(i);
+		} else {
+			++i;
+			if (!minimalIn || minimalIn > updateIn) {
+				minimalIn = updateIn;
+			}
+		}
+	}
+	if (minimalIn) {
+		_updateExpiringTimer.callOnce(minimalIn);
+	}
+}
+
 void Controller::rowUpdateRow(not_null<Row*> row) {
 	delegate()->peerListUpdateRow(row);
 }
@@ -578,7 +698,6 @@ void Controller::rowPaintIcon(
 	}
 	p.drawImage(x + skip, y + skip, icon);
 	if (progress >= 0. && progress < 1.) {
-		const auto kFullArcLength = 360 * 16;
 		const auto stroke = st::inviteLinkIconStroke;
 		auto hq = PainterHighQualityEnabler(p);
 		auto pen = QPen((*bg)->c);

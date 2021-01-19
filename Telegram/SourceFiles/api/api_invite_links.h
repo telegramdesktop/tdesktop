@@ -20,7 +20,6 @@ struct InviteLink {
 	int usageLimit = 0;
 	int usage = 0;
 	bool permanent = false;
-	bool expired = false;
 	bool revoked = false;
 };
 
@@ -39,12 +38,19 @@ struct JoinedByLinkSlice {
 	int count = 0;
 };
 
+struct InviteLinkUpdate {
+	not_null<PeerData*> peer;
+	QString was;
+	std::optional<InviteLink> now;
+};
+
 class InviteLinks final {
 public:
 	explicit InviteLinks(not_null<ApiWrap*> api);
 
 	using Link = InviteLink;
 	using Links = PeerInviteLinks;
+	using Update = InviteLinkUpdate;
 
 	void create(
 		not_null<PeerData*> peer,
@@ -77,6 +83,8 @@ public:
 		not_null<PeerData*> peer,
 		const QString &link,
 		int fullCount);
+	[[nodiscard]] rpl::producer<Update> updates(
+		not_null<PeerData*> peer) const;
 
 	void requestMoreLinks(
 		not_null<PeerData*> peer,
@@ -151,6 +159,8 @@ private:
 		not_null<PeerData*>,
 		std::vector<Fn<void(Link)>>> _createCallbacks;
 	base::flat_map<LinkKey, std::vector<Fn<void(Link)>>> _editCallbacks;
+
+	rpl::event_stream<Update> _updates;
 
 };
 
