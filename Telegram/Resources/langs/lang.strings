@@ -1223,11 +1223,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forwarded_channel_via" = "Forwarded from {channel} via {inline_bot}";
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_forwarded_hidden" = "The account was hidden by the user.";
+"lng_forwarded_imported" = "This message was imported from another app. It may not be real.";
 "lng_signed_author" = "Author: {user}";
 "lng_in_reply_to" = "In reply to";
 "lng_edited" = "edited";
 "lng_edited_date" = "Edited: {date}";
 "lng_sent_date" = "Sent: {date}";
+"lng_imported" = "imported";
 "lng_admin_badge" = "admin";
 "lng_owner_badge" = "owner";
 "lng_channel_badge" = "channel";

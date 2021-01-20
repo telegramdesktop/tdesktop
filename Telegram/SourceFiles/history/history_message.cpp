@@ -440,6 +440,7 @@ struct HistoryMessage::CreateConfig {
 	QString authorOriginal;
 	TimeId originalDate = 0;
 	TimeId editDate = 0;
+	bool imported = false;
 
 	// For messages created from MTP structs.
 	const MTPMessageReplies *mtpReplies = nullptr;
@@ -466,6 +467,7 @@ void HistoryMessage::FillForwardedInfo(
 		config.savedFromPeer = peerFromMTP(*savedFromPeer);
 		config.savedFromMsgId = savedFromMsgId->v;
 	}
+	config.imported = data.is_imported();
 }
 
 HistoryMessage::HistoryMessage(
@@ -1118,7 +1120,8 @@ void HistoryMessage::setupForwardedComponent(const CreateConfig &config) {
 		: nullptr;
 	if (!forwarded->originalSender) {
 		forwarded->hiddenSenderInfo = std::make_unique<HiddenSenderInfo>(
-			config.senderNameOriginal);
+			config.senderNameOriginal,
+			config.imported);
 	}
 	forwarded->originalId = config.originalId;
 	forwarded->originalAuthor = config.authorOriginal;
@@ -1126,6 +1129,7 @@ void HistoryMessage::setupForwardedComponent(const CreateConfig &config) {
 	forwarded->savedFromPeer = history()->owner().peerLoaded(
 		config.savedFromPeer);
 	forwarded->savedFromMsgId = config.savedFromMsgId;
+	forwarded->imported = config.imported;
 }
 
 void HistoryMessage::refreshMedia(const MTPMessageMedia *media) {

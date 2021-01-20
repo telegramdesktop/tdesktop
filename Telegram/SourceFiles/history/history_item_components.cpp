@@ -112,10 +112,14 @@ int HistoryMessageEdited::maxWidth() const {
 	return text.maxWidth();
 }
 
-HiddenSenderInfo::HiddenSenderInfo(const QString &name)
+HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 : name(name)
 , colorPeerId(Data::FakePeerIdForJustName(name))
-, userpic(Data::PeerUserpicColor(colorPeerId), name) {
+, userpic(
+	Data::PeerUserpicColor(colorPeerId),
+	(external
+		? Ui::EmptyUserpic::ExternalName()
+		: name)) {
 	nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());
 	const auto parts = name.trimmed().split(' ', base::QStringSkipEmptyParts);
 	firstName = parts[0];

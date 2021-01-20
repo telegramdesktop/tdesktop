@@ -22,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "window/window_session_controller.h"
+#include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_media_types.h"
@@ -38,18 +40,19 @@ constexpr int kAttachMessageToPreviousSecondsDelta = 900;
 
 bool IsAttachedToPreviousInSavedMessages(
 		not_null<HistoryItem*> previous,
-		not_null<HistoryItem*> item) {
-	const auto forwarded = previous->Has<HistoryMessageForwarded>();
+		HistoryMessageForwarded *prevForwarded,
+		not_null<HistoryItem*> item,
+		HistoryMessageForwarded *forwarded) {
 	const auto sender = previous->senderOriginal();
-	if (forwarded != item->Has<HistoryMessageForwarded>()) {
+	if ((prevForwarded != nullptr) != (forwarded != nullptr)) {
 		return false;
 	} else if (sender != item->senderOriginal()) {
 		return false;
-	} else if (!forwarded || sender) {
+	} else if (!prevForwarded || sender) {
 		return true;
 	}
-	const auto previousInfo = previous->hiddenForwardedInfo();
-	const auto itemInfo = item->hiddenForwardedInfo();
+	const auto previousInfo = prevForwarded->hiddenSenderInfo.get();
+	const auto itemInfo = forwarded->hiddenSenderInfo.get();
 	Assert(previousInfo != nullptr);
 	Assert(itemInfo != nullptr);
 	return (*previousInfo == *itemInfo);
@@ -174,13 +177,25 @@ QString DateTooltipText(not_null<Element*> view) {
 			base::unixtime::parse(forwarded->originalDate).toString(format));
 		if (const auto media = view->media()) {
 			if (media->hidesForwardedInfo()) {
-				dateText += '\n' + tr::lng_forwarded(
-					tr::now,
-					lt_user,
-					(forwarded->originalSender
-						? forwarded->originalSender->shortName()
-						: forwarded->hiddenSenderInfo->firstName));
+				const auto from = forwarded->originalSender
+					? forwarded->originalSender->shortName()
+					: forwarded->hiddenSenderInfo->firstName;
+				if (forwarded->imported) {
+					dateText += '\n' + tr::lng_signed_author(
+						tr::now,
+						lt_user,
+						from);
+				} else {
+					dateText += '\n' + tr::lng_forwarded(
+						tr::now,
+						lt_user,
+						from);
+				}
 			}
+		}
+		if (forwarded->imported) {
+			dateText = tr::lng_forwarded_imported(tr::now)
+				+ "\n\n" + dateText;
 		}
 	}
 	if (const auto msgsigned = view->data()->Get<HistoryMessageSigned>()) {
@@ -492,15 +507,45 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 			&& mayBeAttached(item)
 			&& mayBeAttached(prev);
 		if (possible) {
+			const auto forwarded = item->Get<HistoryMessageForwarded>();
+			const auto prevForwarded = prev->Get<HistoryMessageForwarded>();
 			if (item->history()->peer->isSelf()
-				|| item->history()->peer->isRepliesChat()) {
-				return IsAttachedToPreviousInSavedMessages(prev, item);
+				|| item->history()->peer->isRepliesChat()
+				|| (forwarded && forwarded->imported)
+				|| (prevForwarded && prevForwarded->imported)) {
+				return IsAttachedToPreviousInSavedMessages(
+					prev,
+					prevForwarded,
+					item,
+					forwarded);
 			} else {
 				return prev->from() == item->from();
 			}
 		}
 	}
 	return false;
+}
+
+ClickHandlerPtr Element::fromLink() const {
+	const auto item = data();
+	const auto from = item->displayFrom();
+	if (from) {
+		return from->openLink();
+	}
+	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		if (forwarded->imported) {
+			static const auto imported = std::make_shared<LambdaClickHandler>([] {
+				Ui::ShowMultilineToast({
+					.text = { tr::lng_forwarded_imported(tr::now) },
+				});
+			});
+			return imported;
+		}
+	}
+	static const auto hidden = std::make_shared<LambdaClickHandler>([] {
+		Ui::Toast::Show(tr::lng_forwarded_hidden(tr::now));
+	});
+	return hidden;
 }
 
 void Element::createUnreadBar(rpl::producer<QString> text) {

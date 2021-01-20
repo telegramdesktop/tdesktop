@@ -13,16 +13,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_widgets.h" // style::IconButton
+#include "styles/style_info.h" // st::topBarCall
 
 namespace Ui {
 namespace {
+
+[[nodiscard]] bool IsExternal(const QString &name) {
+	return !name.isEmpty()
+		&& (name.front() == QChar(0))
+		&& QStringView(name).mid(1) == qstr("external");
+}
 
 void PaintSavedMessagesInner(
 		Painter &p,
 		int x,
 		int y,
 		int size,
-		const style::color &bg,
 		const style::color &fg) {
 	// |<----width----->|
 	//
@@ -92,32 +99,65 @@ void PaintSavedMessagesInner(
 	}
 }
 
-void PaintRepliesMessagesInner(
+void PaintIconInner(
 		Painter &p,
 		int x,
 		int y,
 		int size,
-		const style::color &bg,
+		int defaultSize,
+		const style::icon &icon,
 		const style::color &fg) {
-	if (size == st::dialogsPhotoSize) {
+	if (size == defaultSize) {
 		const auto rect = QRect{ x, y, size, size };
-		st::dialogsRepliesUserpic.paintInCenter(
+		icon.paintInCenter(
 			p,
 			rect,
 			fg->c);
 	} else {
 		p.save();
-		const auto ratio = size / float64(st::dialogsPhotoSize);
+		const auto ratio = size / float64(defaultSize);
 		p.translate(x + size / 2., y + size / 2.);
 		p.scale(ratio, ratio);
-		const auto skip = st::dialogsPhotoSize;
+		const auto skip = defaultSize;
 		const auto rect = QRect{ -skip, -skip, 2 * skip, 2 * skip };
-		st::dialogsRepliesUserpic.paintInCenter(
+		icon.paintInCenter(
 			p,
 			rect,
 			fg->c);
 		p.restore();
 	}
+}
+
+void PaintRepliesMessagesInner(
+		Painter &p,
+		int x,
+		int y,
+		int size,
+		const style::color &fg) {
+	PaintIconInner(
+		p,
+		x,
+		y,
+		size,
+		st::dialogsPhotoSize,
+		st::dialogsRepliesUserpic,
+		fg);
+}
+
+void PaintExternalMessagesInner(
+		Painter &p,
+		int x,
+		int y,
+		int size,
+		const style::color &fg) {
+	PaintIconInner(
+		p,
+		x,
+		y,
+		size,
+		st::msgPhotoSize,
+		st::topBarCall.icon,
+		fg);
 }
 
 template <typename Callback>
@@ -141,6 +181,10 @@ EmptyUserpic::EmptyUserpic(const style::color &color, const QString &name)
 	fillString(name);
 }
 
+QString EmptyUserpic::ExternalName() {
+	return QChar(0) + u"external"_q;
+}
+
 template <typename Callback>
 void EmptyUserpic::paint(
 		Painter &p,
@@ -160,10 +204,17 @@ void EmptyUserpic::paint(
 	p.setPen(Qt::NoPen);
 	paintBackground();
 
-	p.setFont(font);
-	p.setBrush(Qt::NoBrush);
-	p.setPen(st::historyPeerUserpicFg);
-	p.drawText(QRect(x, y, size, size), _string, QTextOption(style::al_center));
+	if (IsExternal(_string)) {
+		PaintExternalMessagesInner(p, x, y, size, st::historyPeerUserpicFg);
+	} else {
+		p.setFont(font);
+		p.setBrush(Qt::NoBrush);
+		p.setPen(st::historyPeerUserpicFg);
+		p.drawText(
+			QRect(x, y, size, size),
+			_string,
+			QTextOption(style::al_center));
+	}
 }
 
 void EmptyUserpic::paint(
@@ -226,7 +277,7 @@ void EmptyUserpic::PaintSavedMessages(
 	p.setPen(Qt::NoPen);
 	p.drawEllipse(x, y, size, size);
 
-	PaintSavedMessagesInner(p, x, y, size, bg, fg);
+	PaintSavedMessagesInner(p, x, y, size, fg);
 }
 
 void EmptyUserpic::PaintSavedMessagesRounded(
@@ -244,7 +295,7 @@ void EmptyUserpic::PaintSavedMessagesRounded(
 	p.setPen(Qt::NoPen);
 	p.drawRoundedRect(x, y, size, size, st::roundRadiusSmall, st::roundRadiusSmall);
 
-	PaintSavedMessagesInner(p, x, y, size, bg, fg);
+	PaintSavedMessagesInner(p, x, y, size, fg);
 }
 
 QPixmap EmptyUserpic::GenerateSavedMessages(int size) {
@@ -296,7 +347,7 @@ void EmptyUserpic::PaintRepliesMessages(
 	p.setPen(Qt::NoPen);
 	p.drawEllipse(x, y, size, size);
 
-	PaintRepliesMessagesInner(p, x, y, size, bg, fg);
+	PaintRepliesMessagesInner(p, x, y, size, fg);
 }
 
 void EmptyUserpic::PaintRepliesMessagesRounded(
@@ -314,7 +365,7 @@ void EmptyUserpic::PaintRepliesMessagesRounded(
 	p.setPen(Qt::NoPen);
 	p.drawRoundedRect(x, y, size, size, st::roundRadiusSmall, st::roundRadiusSmall);
 
-	PaintRepliesMessagesInner(p, x, y, size, bg, fg);
+	PaintRepliesMessagesInner(p, x, y, size, fg);
 }
 
 QPixmap EmptyUserpic::GenerateRepliesMessages(int size) {
@@ -349,6 +400,10 @@ QPixmap EmptyUserpic::generate(int size) {
 }
 
 void EmptyUserpic::fillString(const QString &name) {
+	if (IsExternal(name)) {
+		_string = name;
+		return;
+	}
 	QList<QString> letters;
 	QList<int> levels;
 

@@ -325,12 +325,18 @@ public:
 	void previousInBlocksChanged();
 	void nextInBlocksRemoved();
 
+	[[nodiscard]] ClickHandlerPtr fromPhotoLink() const {
+		return fromLink();
+	}
+
 	virtual ~Element();
 
 protected:
 	void paintHighlight(
 		Painter &p,
 		int geometryHeight) const;
+
+	[[nodiscard]] ClickHandlerPtr fromLink() const;
 
 	virtual void refreshDataIdHook();
 
