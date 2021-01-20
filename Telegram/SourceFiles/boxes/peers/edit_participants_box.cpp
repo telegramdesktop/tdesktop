@@ -174,6 +174,7 @@ void SaveChatParticipantKick(
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
 	chat->session().api().request(MTPmessages_DeleteChatUser(
+		MTP_flags(0),
 		chat->inputChat,
 		user->inputUser
 	)).done([=](const MTPUpdates &result) {

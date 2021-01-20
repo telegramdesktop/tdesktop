@@ -661,7 +661,7 @@ messages.botResults#947ca848 flags:# gallery:flags.0?true query_id:long next_off
 
 exportedMessageLink#5dab1af4 link:string html:string = ExportedMessageLink;
 
-messageFwdHeader#5f777dce flags:# from_id:flags.0?Peer from_name:flags.5?string date:int channel_post:flags.2?int post_author:flags.3?string saved_from_peer:flags.4?Peer saved_from_msg_id:flags.4?int psa_type:flags.6?string = MessageFwdHeader;
+messageFwdHeader#5f777dce flags:# imported:flags.7?true from_id:flags.0?Peer from_name:flags.5?string date:int channel_post:flags.2?int post_author:flags.3?string saved_from_peer:flags.4?Peer saved_from_msg_id:flags.4?int psa_type:flags.6?string = MessageFwdHeader;
 
 auth.codeTypeSms#72a3158c = auth.CodeType;
 auth.codeTypeCall#741cd3e3 = auth.CodeType;
@@ -1215,6 +1215,8 @@ messages.exportedChatInvite#1871be50 invite:ExportedChatInvite users:Vector<User
 
 messages.chatInviteImporters#81b6b00a count:int importers:Vector<ChatInviteImporter> users:Vector<User> = messages.ChatInviteImporters;
 
+messages.historyImport#1662af0b id:long = messages.HistoryImport;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -1357,7 +1359,7 @@ messages.getFullChat#3b831c66 chat_id:int = messages.ChatFull;
 messages.editChatTitle#dc452855 chat_id:int title:string = Updates;
 messages.editChatPhoto#ca4c79d8 chat_id:int photo:InputChatPhoto = Updates;
 messages.addChatUser#f9a0aa09 chat_id:int user_id:InputUser fwd_limit:int = Updates;
-messages.deleteChatUser#e0611f16 chat_id:int user_id:InputUser = Updates;
+messages.deleteChatUser#c534459a flags:# revoke_history:flags.0?true chat_id:int user_id:InputUser = Updates;
 messages.createChat#9cb126e users:Vector<InputUser> title:string = Updates;
 messages.getDhConfig#26cf8950 version:int random_length:int = messages.DhConfig;
 messages.requestEncryption#f64daf43 user_id:InputUser random_id:int g_a:bytes = EncryptedChat;
@@ -1471,6 +1473,9 @@ messages.deleteExportedChatInvite#d464a42b peer:InputPeer link:string = Bool;
 messages.getChatInviteImporters#26fb7289 peer:InputPeer link:string offset_date:int offset_user:InputUser limit:int = messages.ChatInviteImporters;
 messages.deleteChat#83247d11 chat_id:int = Bool;
 messages.deletePhoneCallHistory#6cff1b45 flags:# revoke:flags.0?true = messages.AffectedHistory;
+messages.initHistoryImport#34090c3b peer:InputPeer file:InputFile media_count:int = messages.HistoryImport;
+messages.uploadImportedMedia#2a862092 peer:InputPeer import_id:long file_name:string media:InputMedia = MessageMedia;
+messages.startHistoryImport#b43df344 peer:InputPeer import_id:long = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
@@ -1522,7 +1527,7 @@ channels.getParticipants#123e05e9 channel:InputChannel filter:ChannelParticipant
 channels.getParticipant#546dd7a6 channel:InputChannel user_id:InputUser = channels.ChannelParticipant;
 channels.getChannels#a7f6bbb id:Vector<InputChannel> = messages.Chats;
 channels.getFullChannel#8736a09 channel:InputChannel = messages.ChatFull;
-channels.createChannel#3d5fb10f flags:# broadcast:flags.0?true megagroup:flags.1?true title:string about:string geo_point:flags.2?InputGeoPoint address:flags.2?string = Updates;
+channels.createChannel#3d5fb10f flags:# broadcast:flags.0?true megagroup:flags.1?true for_import:flags.3?true title:string about:string geo_point:flags.2?InputGeoPoint address:flags.2?string = Updates;
 channels.editAdmin#d33c8902 channel:InputChannel user_id:InputUser admin_rights:ChatAdminRights rank:string = Updates;
 channels.editTitle#566decd0 channel:InputChannel title:string = Updates;
 channels.editPhoto#f12e57c9 channel:InputChannel photo:InputChatPhoto = Updates;

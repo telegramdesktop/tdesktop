@@ -1714,6 +1714,7 @@ void ApiWrap::kickParticipant(
 		not_null<ChatData*> chat,
 		not_null<UserData*> user) {
 	request(MTPmessages_DeleteChatUser(
+		MTP_flags(0),
 		chat->inputChat,
 		user->inputUser
 	)).done([=](const MTPUpdates &result) {
@@ -2304,6 +2305,7 @@ void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
 void ApiWrap::deleteConversation(not_null<PeerData*> peer, bool revoke) {
 	if (const auto chat = peer->asChat()) {
 		request(MTPmessages_DeleteChatUser(
+			MTP_flags(0),
 			chat->inputChat,
 			_session->user()->inputUser
 		)).done([=](const MTPUpdates &result) {
