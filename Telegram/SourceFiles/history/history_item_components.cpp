@@ -413,23 +413,13 @@ ReplyMarkupClickHandler::ReplyMarkupClickHandler(
 
 // Copy to clipboard support.
 QString ReplyMarkupClickHandler::copyToClipboardText() const {
-	if (const auto button = getButton()) {
-		using Type = HistoryMessageMarkupButton::Type;
-		if (button->type == Type::Url || button->type == Type::Auth) {
-			return QString::fromUtf8(button->data);
-		}
-	}
-	return QString();
+	const auto button = getUrlButton();
+	return button ? QString::fromUtf8(button->data) : QString();
 }
 
 QString ReplyMarkupClickHandler::copyToClipboardContextItemText() const {
-	if (const auto button = getButton()) {
-		using Type = HistoryMessageMarkupButton::Type;
-		if (button->type == Type::Url || button->type == Type::Auth) {
-			return tr::lng_context_copy_link(tr::now);
-		}
-	}
-	return QString();
+	const auto button = getUrlButton();
+	return button ? tr::lng_context_copy_link(tr::now) : QString();
 }
 
 // Finds the corresponding button in the items markup struct.
@@ -438,6 +428,17 @@ QString ReplyMarkupClickHandler::copyToClipboardContextItemText() const {
 // than the one was used when constructing the handler, but not a big deal.
 const HistoryMessageMarkupButton *ReplyMarkupClickHandler::getButton() const {
 	return HistoryMessageMarkupButton::Get(_owner, _itemId, _row, _column);
+}
+
+auto ReplyMarkupClickHandler::getUrlButton() const
+-> const HistoryMessageMarkupButton* {
+	if (const auto button = getButton()) {
+		using Type = HistoryMessageMarkupButton::Type;
+		if (button->type == Type::Url || button->type == Type::Auth) {
+			return button;
+		}
+	}
+	return nullptr;
 }
 
 void ReplyMarkupClickHandler::onClickImpl() const {
@@ -452,6 +453,19 @@ QString ReplyMarkupClickHandler::buttonText() const {
 		return button->text;
 	}
 	return QString();
+}
+
+QString ReplyMarkupClickHandler::tooltip() const {
+	const auto button = getUrlButton();
+	const auto url = button ? QString::fromUtf8(button->data) : QString();
+	const auto text = _fullDisplayed ? QString() : buttonText();
+	if (!url.isEmpty() && !text.isEmpty()) {
+		return QString("%1\n\n%2").arg(text).arg(url);
+	} else if (url.isEmpty() != text.isEmpty()) {
+		return text + url;
+	} else {
+		return QString();
+	}
 }
 
 ReplyKeyboard::Button::Button() = default;
