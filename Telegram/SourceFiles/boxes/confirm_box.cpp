@@ -578,7 +578,8 @@ void DeleteMessagesBox::prepare() {
 	const auto appendDetails = [&](TextWithEntities &&text) {
 		details.append(qstr("\n\n")).append(std::move(text));
 	};
-	auto deleteText = tr::lng_box_delete();
+	auto deleteText = lifetime().make_state<rpl::variable<QString>>();
+	*deleteText = tr::lng_box_delete();
 	auto deleteStyle = &st::defaultBoxButton;
 	if (const auto peer = _wipeHistoryPeer) {
 		if (_wipeHistoryJustClear) {
@@ -598,14 +599,22 @@ void DeleteMessagesBox::prepare() {
 				: peer->isMegagroup()
 				? tr::lng_sure_leave_group(tr::now)
 				: tr::lng_sure_leave_channel(tr::now);
-			deleteText = _wipeHistoryPeer->isUser()
-				? tr::lng_box_delete()
-				: tr::lng_box_leave();
+			if (!peer->isUser()) {
+				*deleteText = tr::lng_box_leave();
+			}
 			deleteStyle = &st::attentionBoxButton;
 		}
 		if (auto revoke = revokeText(peer)) {
 			_revoke.create(this, revoke->checkbox, false, st::defaultBoxCheckbox);
 			appendDetails(std::move(revoke->description));
+			if (!peer->isUser() && !_wipeHistoryJustClear) {
+				_revoke->checkedValue(
+				) | rpl::start_with_next([=](bool revokeForAll) {
+					*deleteText = revokeForAll
+						? tr::lng_box_delete()
+						: tr::lng_box_leave();
+				}, _revoke->lifetime());
+			}
 		}
 	} else if (_moderateFrom) {
 		Assert(_moderateInChannel != nullptr);
@@ -642,7 +651,7 @@ void DeleteMessagesBox::prepare() {
 	_text.create(this, rpl::single(std::move(details)), st::boxLabel);
 
 	addButton(
-		std::move(deleteText),
+		deleteText->value(),
 		[=] { deleteAndClear(); },
 		*deleteStyle);
 	addButton(tr::lng_cancel(), [=] { closeBox(); });

@@ -836,6 +836,10 @@ bool PeerData::canRevokeFullHistory() const {
 			&& (session().serverConfig().revokePrivateTimeLimit == 0x7FFFFFFF);
 	} else if (const auto chat = asChat()) {
 		return chat->amCreator();
+	} else if (const auto megagroup = asMegagroup()) {
+		return megagroup->amCreator()
+			&& megagroup->membersCountKnown()
+			&& megagroup->canDelete();
 	}
 	return false;
 }

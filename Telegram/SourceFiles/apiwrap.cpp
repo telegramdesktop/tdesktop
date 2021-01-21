@@ -2350,14 +2350,14 @@ void ApiWrap::deleteHistory(
 		deleteTillId = history->lastMessage()->id;
 	}
 	if (const auto channel = peer->asChannel()) {
-		if (!justClear) {
+		if (!justClear && !revoke) {
 			channel->ptsWaitingForShortPoll(-1);
 			leaveChannel(channel);
 		} else {
 			if (const auto migrated = peer->migrateFrom()) {
 				deleteHistory(migrated, justClear, revoke);
 			}
-			if (IsServerMsgId(deleteTillId)) {
+			if (IsServerMsgId(deleteTillId) || (!justClear && revoke)) {
 				history->owner().histories().deleteAllMessages(
 					history,
 					deleteTillId,
