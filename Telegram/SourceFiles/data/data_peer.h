@@ -158,6 +158,7 @@ public:
 	}
 	[[nodiscard]] bool isVerified() const;
 	[[nodiscard]] bool isScam() const;
+	[[nodiscard]] bool isFake() const;
 	[[nodiscard]] bool isMegagroup() const;
 	[[nodiscard]] bool isBroadcast() const;
 	[[nodiscard]] bool isRepliesChat() const;

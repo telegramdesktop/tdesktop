@@ -747,6 +747,15 @@ bool PeerData::isScam() const {
 	return false;
 }
 
+bool PeerData::isFake() const {
+	if (const auto user = asUser()) {
+		return user->isFake();
+	} else if (const auto channel = asChannel()) {
+		return channel->isFake();
+	}
+	return false;
+}
+
 bool PeerData::isMegagroup() const {
 	return isChannel() ? asChannel()->isMegagroup() : false;
 }

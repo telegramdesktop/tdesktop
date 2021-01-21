@@ -50,6 +50,7 @@ public:
 		| MTPDuser::Flag::f_bot_nochats
 		| MTPDuser::Flag::f_verified
 		| MTPDuser::Flag::f_scam
+		| MTPDuser::Flag::f_fake
 		| MTPDuser::Flag::f_restricted
 		| MTPDuser::Flag::f_bot_inline_geo;
 	using Flags = Data::Flags<
@@ -111,48 +112,51 @@ public:
 	void removeFullFlags(MTPDuserFull::Flags which) {
 		_fullFlags.remove(which);
 	}
-	auto fullFlags() const {
+	[[nodiscard]] auto fullFlags() const {
 		return _fullFlags.current();
 	}
-	auto fullFlagsValue() const {
+	[[nodiscard]] auto fullFlagsValue() const {
 		return _fullFlags.value();
 	}
 
-	bool isVerified() const {
+	[[nodiscard]] bool isVerified() const {
 		return flags() & MTPDuser::Flag::f_verified;
 	}
-	bool isScam() const {
+	[[nodiscard]] bool isScam() const {
 		return flags() & MTPDuser::Flag::f_scam;
 	}
-	bool isBotInlineGeo() const {
+	[[nodiscard]] bool isFake() const {
+		return flags() & MTPDuser::Flag::f_fake;
+	}
+	[[nodiscard]] bool isBotInlineGeo() const {
 		return flags() & MTPDuser::Flag::f_bot_inline_geo;
 	}
-	bool isBot() const {
+	[[nodiscard]] bool isBot() const {
 		return botInfo != nullptr;
 	}
-	bool isSupport() const {
+	[[nodiscard]] bool isSupport() const {
 		return flags() & MTPDuser::Flag::f_support;
 	}
-	bool isInaccessible() const {
+	[[nodiscard]] bool isInaccessible() const {
 		constexpr auto inaccessible = 0
 			| MTPDuser::Flag::f_deleted;
 //			| MTPDuser_ClientFlag::f_inaccessible;
 		return flags() & inaccessible;
 	}
-	bool canWrite() const {
+	[[nodiscard]] bool canWrite() const {
 		// Duplicated in Data::CanWriteValue().
 		return !isInaccessible() && !isRepliesChat();
 	}
 
-	bool canShareThisContact() const;
-	bool canAddContact() const {
+	[[nodiscard]] bool canShareThisContact() const;
+	[[nodiscard]] bool canAddContact() const {
 		return canShareThisContact() && !isContact();
 	}
 
 	// In Data::Session::processUsers() we check only that.
 	// When actually trying to share contact we perform
 	// a full check by canShareThisContact() call.
-	bool canShareThisContactFast() const {
+	[[nodiscard]] bool canShareThisContactFast() const {
 		return !_phone.isEmpty();
 	}
 
@@ -161,7 +165,7 @@ public:
 	QString firstName;
 	QString lastName;
 	QString username;
-	const QString &phone() const {
+	[[nodiscard]] const QString &phone() const {
 		return _phone;
 	}
 	QString nameOrPhone;

@@ -452,11 +452,6 @@ void paintRow(
 	}
 
 	p.setFont(st::msgNameFont);
-	p.setPen(active
-		? st::dialogsNameFgActive
-		: selected
-		? st::dialogsNameFgOver
-		: st::dialogsNameFg);
 	if (flags & (Flag::SavedMessages | Flag::RepliesMessages)) {
 		auto text = (flags & Flag::SavedMessages)
 			? tr::lng_saved_messages(tr::now)
@@ -465,6 +460,11 @@ void paintRow(
 		if (textWidth > rectForName.width()) {
 			text = st::msgNameFont->elided(text, rectForName.width());
 		}
+		p.setPen(active
+			? st::dialogsNameFgActive
+			: selected
+			? st::dialogsNameFgOver
+			: st::dialogsNameFg);
 		p.drawTextLeft(rectForName.left(), rectForName.top(), fullWidth, text);
 	} else if (from) {
 		if (!(flags & Flag::SearchResult)) {
@@ -488,15 +488,25 @@ void paintRow(
 				badgeStyle);
 			rectForName.setWidth(rectForName.width() - badgeWidth);
 		}
+		p.setPen(active
+			? st::dialogsNameFgActive
+			: selected
+			? st::dialogsNameFgOver
+			: st::dialogsNameFg);
 		from->nameText().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	} else if (hiddenSenderInfo) {
+		p.setPen(active
+			? st::dialogsNameFgActive
+			: selected
+			? st::dialogsNameFgOver
+			: st::dialogsNameFg);
 		hiddenSenderInfo->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	} else {
-		if (!active) {
-			p.setPen(selected
-				? st::dialogsArchiveFgOver
-				: st::dialogsArchiveFg);
-		}
+		p.setPen(active
+			? st::dialogsNameFgActive
+			: selected
+			? st::dialogsArchiveFgOver
+			: st::dialogsArchiveFg);
 		auto text = entry->chatListName(); // TODO feed name with emoji
 		auto textWidth = st::msgNameFont->width(text);
 		if (textWidth > rectForName.width()) {

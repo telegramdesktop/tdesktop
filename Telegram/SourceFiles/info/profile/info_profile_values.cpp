@@ -376,27 +376,31 @@ rpl::producer<bool> CanAddMemberValue(not_null<PeerData*> peer) {
 	return rpl::single(false);
 }
 
-rpl::producer<bool> VerifiedValue(not_null<PeerData*> peer) {
-	if (const auto user = peer->asUser()) {
-		return Data::PeerFlagValue(user, MTPDuser::Flag::f_verified);
-	} else if (const auto channel = peer->asChannel()) {
-		return Data::PeerFlagValue(
-			channel,
-			MTPDchannel::Flag::f_verified);
-	}
-	return rpl::single(false);
+template <typename Flag, typename Peer>
+rpl::producer<Badge> BadgeValueFromFlags(Peer peer) {
+	return Data::PeerFlagsValue(
+		peer,
+		Flag::f_verified | Flag::f_scam | Flag::f_fake
+	) | rpl::map([=](base::flags<Flag> value) {
+		return (value & Flag::f_verified)
+			? Badge::Verified
+			: (value & Flag::f_scam)
+			? Badge::Scam
+			: (value & Flag::f_fake)
+			? Badge::Fake
+			: Badge::None;
+	});
 }
 
-rpl::producer<bool> ScamValue(not_null<PeerData*> peer) {
+rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
-		return Data::PeerFlagValue(user, MTPDuser::Flag::f_scam);
+		return BadgeValueFromFlags<MTPDuser::Flag>(user);
 	} else if (const auto channel = peer->asChannel()) {
-		return Data::PeerFlagValue(
-			channel,
-			MTPDchannel::Flag::f_scam);
+		return BadgeValueFromFlags<MTPDchannel::Flag>(channel);
 	}
-	return rpl::single(false);
+	return rpl::single(Badge::None);
 }
+
 // // #feed
 //rpl::producer<int> FeedChannelsCountValue(not_null<Data::Feed*> feed) {
 //	using Flag = Data::FeedUpdateFlag;

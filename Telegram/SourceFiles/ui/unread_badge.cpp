@@ -48,8 +48,10 @@ void UnreadBadge::paintEvent(QPaintEvent *e) {
 		unreadSt);
 }
 
-QSize ScamBadgeSize() {
-	const auto phrase = tr::lng_scam_badge(tr::now);
+QSize ScamBadgeSize(bool fake) {
+	const auto phrase = fake
+		? tr::lng_fake_badge(tr::now)
+		: tr::lng_scam_badge(tr::now);
 	const auto phraseWidth = st::dialogsScamFont->width(phrase);
 	const auto width = st::dialogsScamPadding.left()
 		+ phraseWidth
@@ -60,7 +62,7 @@ QSize ScamBadgeSize() {
 	return { width, height };
 }
 
-void DrawScamBadge(
+void DrawScamFakeBadge(
 		Painter &p,
 		QRect rect,
 		int outerWidth,
@@ -83,12 +85,15 @@ void DrawScamBadge(
 }
 
 void DrawScamBadge(
+		bool fake,
 		Painter &p,
 		QRect rect,
 		int outerWidth,
 		const style::color &color) {
-	const auto phrase = tr::lng_scam_badge(tr::now);
-	DrawScamBadge(
+	const auto phrase = fake
+		? tr::lng_fake_badge(tr::now)
+		: tr::lng_scam_badge(tr::now);
+	DrawScamFakeBadge(
 		p,
 		rect,
 		outerWidth,
@@ -112,8 +117,10 @@ int DrawPeerBadgeGetWidth(
 			rectForName.y(),
 			outerWidth);
 		return iconw;
-	} else if (peer->isScam() && st.scam) {
-		const auto phrase = tr::lng_scam_badge(tr::now);
+	} else if ((peer->isScam() || peer->isFake()) && st.scam) {
+		const auto phrase = peer->isScam()
+			? tr::lng_scam_badge(tr::now)
+			: tr::lng_fake_badge(tr::now);
 		const auto phraseWidth = st::dialogsScamFont->width(phrase);
 		const auto width = st::dialogsScamPadding.left()
 			+ phraseWidth
@@ -129,7 +136,7 @@ int DrawPeerBadgeGetWidth(
 			rectForName.y() + (rectForName.height() - height) / 2,
 			width,
 			height);
-		DrawScamBadge(p, rect, outerWidth, *st.scam, phrase, phraseWidth);
+		DrawScamFakeBadge(p, rect, outerWidth, *st.scam, phrase, phraseWidth);
 		return st::dialogsScamSkip + width;
 	}
 	return 0;
