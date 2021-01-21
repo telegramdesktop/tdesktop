@@ -66,10 +66,21 @@ System::System()
 }
 
 void System::createManager() {
-	_manager = Platform::Notifications::Create(this);
+	Platform::Notifications::Create(this);
+}
+
+void System::setManager(std::unique_ptr<Manager> manager) {
+	_manager = std::move(manager);
 	if (!_manager) {
 		_manager = std::make_unique<Default::Manager>(this);
 	}
+}
+
+std::optional<ManagerType> System::managerType() const {
+	if (_manager) {
+		return _manager->type();
+	}
+	return std::nullopt;
 }
 
 Main::Session *System::findSession(uint64 sessionId) const {

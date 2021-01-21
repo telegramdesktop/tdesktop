@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusConnectionInterface>
 #include <QtDBus/QDBusMessage>
+#include <QtDBus/QDBusPendingCall>
+#include <QtDBus/QDBusPendingCallWatcher>
 #include <QtDBus/QDBusPendingReply>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusError>
@@ -64,7 +66,7 @@ bool GetServiceRegistered() {
 		: activatable;
 }
 
-std::optional<ServerInformation> GetServerInformation() {
+void GetServerInformation(Fn<void(std::optional<ServerInformation>)> callback) {
 	using ServerInformationReply = QDBusPendingReply<
 		QString,
 		QString,
@@ -77,59 +79,63 @@ std::optional<ServerInformation> GetServerInformation() {
 		kInterface.utf16(),
 		qsl("GetServerInformation"));
 
-	// We may be launched earlier than notification daemon
-	while (true) {
-		ServerInformationReply reply = QDBusConnection::sessionBus()
-			.asyncCall(message);
+	const auto async = QDBusConnection::sessionBus().asyncCall(message);
+	auto watcher = new QDBusPendingCallWatcher(async);
 
-		reply.waitForFinished();
+	const auto finished = [=](QDBusPendingCallWatcher *call) {
+		const ServerInformationReply reply = *call;
 
 		if (reply.isValid()) {
-			return {
-				reply.argumentAt<0>(),
-				reply.argumentAt<1>(),
-				QVersionNumber::fromString(reply.argumentAt<2>()),
-				QVersionNumber::fromString(reply.argumentAt<3>()),
-			};
+			crl::on_main([=] {
+				callback(ServerInformation{
+					reply.argumentAt<0>(),
+					reply.argumentAt<1>(),
+					QVersionNumber::fromString(reply.argumentAt<2>()),
+					QVersionNumber::fromString(reply.argumentAt<3>()),
+				});
+			});
+		} else {
+			LOG(("Native notification error: %1").arg(
+				reply.error().message()));
+
+			crl::on_main([=] { callback(std::nullopt); });
 		}
 
-		LOG(("Native notification error: %1").arg(reply.error().message()));
+		call->deleteLater();
+	};
 
-		if (reply.error().type() != QDBusError::NoReply) {
-			break;
-		}
-	}
-
-	return std::nullopt;
+	QObject::connect(watcher, &QDBusPendingCallWatcher::finished, finished);
 }
 
-QStringList GetCapabilities() {
+void GetCapabilities(Fn<void(QStringList)> callback) {
 	const auto message = QDBusMessage::createMethodCall(
 		kService.utf16(),
 		kObjectPath.utf16(),
 		kInterface.utf16(),
 		qsl("GetCapabilities"));
 
-	// We may be launched earlier than notification daemon
-	while (true) {
-		const QDBusReply<QStringList> reply = QDBusConnection::sessionBus()
-			.call(message);
+	const auto async = QDBusConnection::sessionBus().asyncCall(message);
+	auto watcher = new QDBusPendingCallWatcher(async);
+
+	const auto finished = [=](QDBusPendingCallWatcher *call) {
+		const QDBusPendingReply<QStringList> reply = *call;
 
 		if (reply.isValid()) {
-			return reply.value();
+			crl::on_main([=] { callback(reply.value()); });
+		} else {
+			LOG(("Native notification error: %1").arg(
+				reply.error().message()));
+
+			crl::on_main([=] { callback({}); });
 		}
 
-		LOG(("Native notification error: %1").arg(reply.error().message()));
+		call->deleteLater();
+	};
 
-		if (reply.error().type() != QDBusError::NoReply) {
-			break;
-		}
-	}
-
-	return {};
+	QObject::connect(watcher, &QDBusPendingCallWatcher::finished, finished);
 }
 
-bool GetInhibitionSupported() {
+void GetInhibitionSupported(Fn<void(bool)> callback) {
 	auto message = QDBusMessage::createMethodCall(
 		kService.utf16(),
 		kObjectPath.utf16(),
@@ -141,24 +147,21 @@ bool GetInhibitionSupported() {
 		qsl("Inhibited")
 	});
 
-	// We may be launched earlier than notification daemon
-	while (true) {
-		const QDBusError error = QDBusConnection::sessionBus().call(message);
+	const auto async = QDBusConnection::sessionBus().asyncCall(message);
+	auto watcher = new QDBusPendingCallWatcher(async);
 
-		if (!error.isValid()) {
-			return true;
-		} else if (error.type() == QDBusError::InvalidArgs) {
-			break;
+	const auto finished = [=](QDBusPendingCallWatcher *call) {
+		const auto error = QDBusPendingReply<QVariant>(*call).error();
+
+		if (error.isValid() && error.type() != QDBusError::InvalidArgs) {
+			LOG(("Native notification error: %1").arg(error.message()));
 		}
 
-		LOG(("Native notification error: %1").arg(error.message()));
+		crl::on_main([=] { callback(!error.isValid()); });
+		call->deleteLater();
+	};
 
-		if (error.type() != QDBusError::NoReply) {
-			break;
-		}
-	}
-
-	return false;
+	QObject::connect(watcher, &QDBusPendingCallWatcher::finished, finished);
 }
 
 bool Inhibited() {
@@ -681,26 +684,56 @@ bool Enforced() {
 	return IsQualifiedDaemon() || IsWayland();
 }
 
-std::unique_ptr<Window::Notifications::Manager> Create(
-		Window::Notifications::System *system) {
+void Create(Window::Notifications::System *system) {
 	ServiceRegistered = GetServiceRegistered();
 
-	if (Supported()) {
-		CurrentServerInformation = GetServerInformation();
-		CurrentCapabilities = GetCapabilities();
-		InhibitionSupported = GetInhibitionSupported();
+	const auto managerSetter = [=] {
+		using ManagerType = Window::Notifications::ManagerType;
+		if ((Core::App().settings().nativeNotifications() && Supported())
+			|| Enforced()) {
+			if (*system->managerType() != ManagerType::Native) {
+				system->setManager(std::make_unique<Manager>(system));
+			}
+		} else {
+			if (*system->managerType() != ManagerType::Default) {
+				system->setManager(nullptr);
+			}
+		}
+	};
+
+	if (!system->managerType().has_value()) {
+		using DummyManager = Window::Notifications::DummyManager;
+		system->setManager(std::make_unique<DummyManager>(system));
+	}
+
+	if (ServiceRegistered) {
+		const auto counter = std::make_shared<int>(3);
+		const auto oneReady = [=] {
+			if (!--*counter) {
+				managerSetter();
+			}
+		};
+
+		GetServerInformation([=](std::optional<ServerInformation> result) {
+			CurrentServerInformation = result;
+			oneReady();
+		});
+
+		GetCapabilities([=](QStringList result) {
+			CurrentCapabilities = result;
+			oneReady();
+		});
+
+		GetInhibitionSupported([=](bool result) {
+			InhibitionSupported = result;
+			oneReady();
+		});
 	} else {
 		CurrentServerInformation = std::nullopt;
 		CurrentCapabilities = QStringList{};
 		InhibitionSupported = false;
+		managerSetter();
 	}
-
-	if ((Core::App().settings().nativeNotifications() && Supported())
-		|| Enforced()) {
-		return std::make_unique<Manager>(system);
-	}
-
-	return nullptr;
 }
 
 class Manager::Private {

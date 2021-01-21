@@ -1247,18 +1247,13 @@ void start() {
 	}
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (!IsNotificationServiceActivatable()) {
-		NSWInstance = std::make_unique<
-			internal::NotificationServiceWatcher>();
-	}
+	NSWInstance = std::make_unique<internal::NotificationServiceWatcher>();
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 void finish() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (NSWInstance) {
-		NSWInstance = nullptr;
-	}
+	NSWInstance = nullptr;
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 

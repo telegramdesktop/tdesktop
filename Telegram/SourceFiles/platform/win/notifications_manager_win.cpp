@@ -329,16 +329,17 @@ bool Enforced() {
 	return false;
 }
 
-std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {
+void Create(Window::Notifications::System *system) {
 #ifndef __MINGW32__
 	if (Core::App().settings().nativeNotifications() && Supported()) {
 		auto result = std::make_unique<Manager>(system);
 		if (result->init()) {
-			return std::move(result);
+			system->setManager(std::move(result));
+			return;
 		}
 	}
 #endif // !__MINGW32__
-	return nullptr;
+	system->setManager(nullptr);
 }
 
 #ifndef __MINGW32__
