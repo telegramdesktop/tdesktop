@@ -892,6 +892,11 @@ MediaCall::MediaCall(
 	const MTPDmessageActionPhoneCall &call)
 : Media(parent)
 , _call(ComputeCallData(call)) {
+	parent->history()->owner().registerCallItem(parent);
+}
+
+MediaCall::~MediaCall() {
+	parent()->history()->owner().unregisterCallItem(parent());
 }
 
 std::unique_ptr<Media> MediaCall::clone(not_null<HistoryItem*> parent) {

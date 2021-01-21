@@ -259,22 +259,22 @@ void Calls::setupContent() {
 //	}, content->lifetime());
 //#endif // Q_OS_MAC && !OS_MAC_STORE
 
-	const auto backend = [&]() -> QString {
-		using namespace Webrtc;
-		switch (settings.callAudioBackend()) {
-		case Backend::OpenAL: return "OpenAL";
-		case Backend::ADM: return "WebRTC ADM";
-		case Backend::ADM2: return "WebRTC ADM2";
-		}
-		Unexpected("Value in backend.");
-	}();
-	AddButton(
-		content,
-		rpl::single("Call audio backend: " + backend),
-		st::settingsButton
-	)->addClickHandler([] {
-		Ui::show(ChooseAudioBackendBox());
-	});
+	//const auto backend = [&]() -> QString {
+	//	using namespace Webrtc;
+	//	switch (settings.callAudioBackend()) {
+	//	case Backend::OpenAL: return "OpenAL";
+	//	case Backend::ADM: return "WebRTC ADM";
+	//	case Backend::ADM2: return "WebRTC ADM2";
+	//	}
+	//	Unexpected("Value in backend.");
+	//}();
+	//AddButton(
+	//	content,
+	//	rpl::single("Call audio backend: " + backend),
+	//	st::settingsButton
+	//)->addClickHandler([] {
+	//	Ui::show(ChooseAudioBackendBox());
+	//});
 	AddButton(
 		content,
 		tr::lng_settings_call_open_system_prefs(),
@@ -418,33 +418,33 @@ object_ptr<SingleChoiceBox> ChooseAudioInputBox(
 		radioSt);
 }
 
-object_ptr<SingleChoiceBox> ChooseAudioBackendBox(
-		const style::Checkbox *st,
-		const style::Radio *radioSt) {
-	const auto &settings = Core::App().settings();
-	const auto list = GetAudioInputList(settings.callAudioBackend());
-	const auto options = std::vector<QString>{
-		"OpenAL",
-		"Webrtc ADM",
-#ifdef Q_OS_WIN
-		"Webrtc ADM2",
-#endif // Q_OS_WIN
-	};
-	const auto currentOption = static_cast<int>(settings.callAudioBackend());
-	const auto save = [=](int option) {
-		Core::App().settings().setCallAudioBackend(
-			static_cast<Webrtc::Backend>(option));
-		Core::App().saveSettings();
-		App::restart();
-	};
-	return Box<SingleChoiceBox>(
-		rpl::single<QString>("Calls audio backend"),
-		options,
-		currentOption,
-		save,
-		st,
-		radioSt);
-}
+//object_ptr<SingleChoiceBox> ChooseAudioBackendBox(
+//		const style::Checkbox *st,
+//		const style::Radio *radioSt) {
+//	const auto &settings = Core::App().settings();
+//	const auto list = GetAudioInputList(settings.callAudioBackend());
+//	const auto options = std::vector<QString>{
+//		"OpenAL",
+//		"Webrtc ADM",
+//#ifdef Q_OS_WIN
+//		"Webrtc ADM2",
+//#endif // Q_OS_WIN
+//	};
+//	const auto currentOption = static_cast<int>(settings.callAudioBackend());
+//	const auto save = [=](int option) {
+//		Core::App().settings().setCallAudioBackend(
+//			static_cast<Webrtc::Backend>(option));
+//		Core::App().saveSettings();
+//		App::restart();
+//	};
+//	return Box<SingleChoiceBox>(
+//		rpl::single<QString>("Calls audio backend"),
+//		options,
+//		currentOption,
+//		save,
+//		st,
+//		radioSt);
+//}
 
 } // namespace Settings
 

@@ -436,6 +436,10 @@ void Settings::setTabbedReplacedWithInfo(bool enabled) {
 	}
 }
 
+Webrtc::Backend Settings::callAudioBackend() const {
+	return Webrtc::Backend::OpenAL;
+}
+
 void Settings::setDialogsWidthRatio(float64 ratio) {
 	_dialogsWidthRatio = ratio;
 }

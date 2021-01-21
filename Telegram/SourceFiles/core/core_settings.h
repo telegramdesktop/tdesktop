@@ -221,9 +221,7 @@ public:
 	void setCallAudioDuckingEnabled(bool value) {
 		_callAudioDuckingEnabled = value;
 	}
-	[[nodiscard]] Webrtc::Backend callAudioBackend() const {
-		return _callAudioBackend;
-	}
+	[[nodiscard]] Webrtc::Backend callAudioBackend() const;
 	void setCallAudioBackend(Webrtc::Backend backend) {
 		_callAudioBackend = backend;
 	}

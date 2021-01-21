@@ -7,10 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_box_controller.h"
 
-#include "styles/style_calls.h"
-#include "styles/style_boxes.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/popup_menu.h"
 #include "core/application.h"
 #include "calls/calls_instance.h"
 #include "history/history.h"
@@ -22,7 +23,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_media_types.h"
 #include "data/data_user.h"
+#include "boxes/confirm_box.h"
 #include "app.h"
+#include "apiwrap.h"
+#include "styles/style_layers.h" // st::boxLabel.
+#include "styles/style_calls.h"
+#include "styles/style_boxes.h"
 
 namespace Calls {
 namespace {
@@ -49,6 +55,7 @@ public:
 
 	bool canAddItem(not_null<const HistoryItem*> item) const {
 		return (ComputeType(item) == _type)
+			&& (!hasItems() || _items.front()->history() == item->history())
 			&& (ItemDateTime(item).date() == _date);
 	}
 	void addItem(not_null<HistoryItem*> item) {
@@ -66,18 +73,24 @@ public:
 			refreshStatus();
 		}
 	}
-	bool hasItems() const {
+	[[nodiscard]] bool hasItems() const {
 		return !_items.empty();
 	}
 
-	MsgId minItemId() const {
+	[[nodiscard]] MsgId minItemId() const {
 		Expects(hasItems());
+
 		return _items.back()->id;
 	}
 
-	MsgId maxItemId() const {
+	[[nodiscard]] MsgId maxItemId() const {
 		Expects(hasItems());
+
 		return _items.front()->id;
+	}
+
+	[[nodiscard]] const std::vector<not_null<HistoryItem*>> &items() const {
+		return _items;
 	}
 
 	void paintStatusText(
@@ -333,6 +346,20 @@ void BoxController::loadMoreRows() {
 	}).send();
 }
 
+base::unique_qptr<Ui::PopupMenu> BoxController::rowContextMenu(
+		QWidget *parent,
+		not_null<PeerListRow*> row) {
+	const auto &items = static_cast<Row*>(row.get())->items();
+	const auto session = &this->session();
+	const auto ids = session->data().itemsToIds(items);
+
+	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
+	result->addAction(tr::lng_context_delete_selected(tr::now), [=] {
+		Ui::show(Box<DeleteMessagesBox>(session, base::duplicate(ids)));
+	});
+	return result;
+}
+
 void BoxController::refreshAbout() {
 	setDescriptionText(delegate()->peerListFullRowsCount() ? QString() : tr::lng_call_box_about(tr::now));
 }
@@ -446,6 +473,52 @@ BoxController::Row *BoxController::rowForItem(not_null<const HistoryItem*> item)
 std::unique_ptr<PeerListRow> BoxController::createRow(
 		not_null<HistoryItem*> item) const {
 	return std::make_unique<Row>(item);
+}
+
+void ClearCallsBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::SessionController*> window) {
+	const auto weak = Ui::MakeWeak(box);
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_call_box_clear_sure(),
+			st::boxLabel),
+		st::boxPadding);
+	const auto revokeCheckbox = box->addRow(
+		object_ptr<Ui::Checkbox>(
+			box,
+			tr::lng_delete_for_everyone_check(tr::now),
+			false,
+			st::defaultBoxCheckbox),
+		style::margins(
+			st::boxPadding.left(),
+			st::boxPadding.bottom(),
+			st::boxPadding.right(),
+			st::boxPadding.bottom()));
+
+	const auto api = &window->session().api();
+	const auto sendRequest = [=](bool revoke, auto self) -> void {
+		using Flag = MTPmessages_DeletePhoneCallHistory::Flag;
+		api->request(MTPmessages_DeletePhoneCallHistory(
+			MTP_flags(revoke ? Flag::f_revoke : Flag(0))
+		)).done([=](const MTPmessages_AffectedHistory &result) {
+			const auto offset = api->applyAffectedHistory(nullptr, result);
+			if (offset > 0) {
+				self(revoke, self);
+			} else {
+				api->session().data().destroyAllCallItems();
+				if (const auto strong = weak.data()) {
+					strong->closeBox();
+				}
+			}
+		}).send();
+	};
+
+	box->addButton(tr::lng_call_box_clear_button(), [=] {
+		sendRequest(revokeCheckbox->checked(), sendRequest);
+	});
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
 } // namespace Calls

@@ -154,7 +154,7 @@ public:
 		const MTPUpdates &updates,
 		uint64 sentMessageRandomId = 0);
 	int applyAffectedHistory(
-		not_null<PeerData*> peer,
+		PeerData *peer, // May be nullptr, like for deletePhoneCallHistory.
 		const MTPmessages_AffectedHistory &result);
 
 	void registerModifyRequest(const QString &key, mtpRequestId requestId);

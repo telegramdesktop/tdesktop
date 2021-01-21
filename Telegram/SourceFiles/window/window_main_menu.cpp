@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
+#include "styles/style_info.h" // infoTopBarMenu
 #include "styles/style_layers.h"
 
 #include <QtGui/QWindow>
@@ -94,6 +95,38 @@ constexpr auto kMinDiffIntensity = 0.25;
 
 [[nodiscard]] bool IsAltShift(Qt::KeyboardModifiers modifiers) {
 	return (modifiers & Qt::ShiftModifier) && (modifiers & Qt::AltModifier);
+}
+
+void ShowCallsBox(not_null<Window::SessionController*> window) {
+	auto controller = std::make_unique<Calls::BoxController>(window);
+	const auto initBox = [=](not_null<PeerListBox*> box) {
+		box->addButton(tr::lng_close(), [=] {
+			box->closeBox();
+		});
+		using MenuPointer = base::unique_qptr<Ui::PopupMenu>;
+		const auto menu = std::make_shared<MenuPointer>();
+		const auto menuButton = box->addTopButton(st::infoTopBarMenu);
+		menuButton->setClickedCallback([=] {
+			*menu = base::make_unique_q<Ui::PopupMenu>(menuButton);
+			const auto showSettings = [=] {
+				window->showSettings(
+					Settings::Type::Calls,
+					Window::SectionShow(anim::type::instant));
+			};
+			const auto clearAll = crl::guard(box, [=] {
+				box->getDelegate()->show(Box(Calls::ClearCallsBox, window));
+			});
+			(*menu)->addAction(
+				tr::lng_settings_section_call_settings(tr::now),
+				showSettings);
+			(*menu)->addAction(
+				tr::lng_call_box_clear_all(tr::now),
+				clearAll);
+			(*menu)->popup(QCursor::pos());
+			return true;
+		});
+	};
+	Ui::show(Box<PeerListBox>(std::move(controller), initBox));
 }
 
 } // namespace
@@ -869,16 +902,7 @@ void MainMenu::refreshMenu() {
 		}, &st::mainMenuContacts, &st::mainMenuContactsOver);
 		if (_controller->session().serverConfig().phoneCallsEnabled.current()) {
 			_menu->addAction(tr::lng_menu_calls(tr::now), [=] {
-				Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>(controller), [=](not_null<PeerListBox*> box) {
-					box->addButton(tr::lng_close(), [=] {
-						box->closeBox();
-					});
-					box->addTopButton(st::callSettingsButton, [=] {
-						controller->showSettings(
-							Settings::Type::Calls,
-							Window::SectionShow(anim::type::instant));
-					});
-				}));
+				ShowCallsBox(controller);
 			}, &st::mainMenuCalls, &st::mainMenuCallsOver);
 		}
 	} else {

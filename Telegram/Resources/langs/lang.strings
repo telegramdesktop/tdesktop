@@ -1830,6 +1830,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_call_box_status_yesterday" = "Yesterday at {time}";
 "lng_call_box_status_date" = "{date} at {time}";
 "lng_call_box_status_group" = "({amount}) {status}";
+"lng_call_box_clear_all" = "Clear All";
+"lng_call_box_clear_sure" = "Are you sure you want to completely clear your calls log?";
+"lng_call_box_clear_button" = "Clear";
 
 "lng_call_outgoing" = "Outgoing call";
 "lng_call_video_outgoing" = "Outgoing video call";
