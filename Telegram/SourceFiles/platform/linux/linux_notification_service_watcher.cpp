@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "main/main_domain.h"
 #include "window/notifications_manager.h"
+#include "platform/linux/specific_linux.h"
 
 #include <QtDBus/QDBusConnection>
 
@@ -22,9 +23,15 @@ NotificationServiceWatcher::NotificationServiceWatcher()
 		QDBusConnection::sessionBus(),
 		QDBusServiceWatcher::WatchForOwnerChange) {
 	const auto signal = &QDBusServiceWatcher::serviceOwnerChanged;
-	QObject::connect(&_dbusWatcher, signal, [=] {
+	QObject::connect(&_dbusWatcher, signal, [=](
+			const QString &service,
+			const QString &oldOwner,
+			const QString &newOwner) {
 		crl::on_main([=] {
 			if (!Core::App().domain().started()) {
+				return;
+			} else if (IsNotificationServiceActivatable()
+				&& newOwner.isEmpty()) {
 				return;
 			}
 

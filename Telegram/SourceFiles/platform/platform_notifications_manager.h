@@ -18,8 +18,7 @@ namespace Notifications {
 
 [[nodiscard]] bool Supported();
 [[nodiscard]] bool Enforced();
-[[nodiscard]] std::unique_ptr<Window::Notifications::Manager> Create(
-	Window::Notifications::System *system);
+void Create(Window::Notifications::System *system);
 
 } // namespace Notifications
 } // namespace Platform

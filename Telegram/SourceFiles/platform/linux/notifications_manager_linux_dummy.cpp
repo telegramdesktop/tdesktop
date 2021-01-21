@@ -33,13 +33,13 @@ bool Enforced() {
 	return IsWayland();
 }
 
-std::unique_ptr<Window::Notifications::Manager> Create(
-		Window::Notifications::System *system) {
+void Create(Window::Notifications::System *system) {
 	if (Enforced()) {
-		return std::make_unique<Window::Notifications::DummyManager>(system);
+		using DummyManager = Window::Notifications::DummyManager;
+		system->setManager(std::make_unique<DummyManager>(system));
+	} else {
+		system->setManager(nullptr);
 	}
-
-	return nullptr;
 }
 
 } // namespace Notifications

@@ -34,6 +34,12 @@ class Track;
 namespace Window {
 namespace Notifications {
 
+enum class ManagerType {
+	Dummy,
+	Default,
+	Native,
+};
+
 enum class ChangeType {
 	SoundEnabled,
 	FlashBounceEnabled,
@@ -70,6 +76,8 @@ public:
 	[[nodiscard]] Main::Session *findSession(uint64 sessionId) const;
 
 	void createManager();
+	void setManager(std::unique_ptr<Manager> manager);
+	[[nodiscard]] std::optional<ManagerType> managerType() const;
 
 	void checkDelayed();
 	void schedule(not_null<HistoryItem*> item);
@@ -189,6 +197,8 @@ public:
 		const QString &title,
 		not_null<Main::Session*> session);
 
+	[[nodiscard]] virtual ManagerType type() const = 0;
+
 	virtual ~Manager() = default;
 
 protected:
@@ -221,6 +231,11 @@ private:
 };
 
 class NativeManager : public Manager {
+public:
+	[[nodiscard]] ManagerType type() const override {
+		return ManagerType::Native;
+	}
+
 protected:
 	using Manager::Manager;
 
@@ -251,6 +266,10 @@ protected:
 class DummyManager : public NativeManager {
 public:
 	using NativeManager::NativeManager;
+
+	[[nodiscard]] ManagerType type() const override {
+		return ManagerType::Dummy;
+	}
 
 protected:
 	void doShowNativeNotification(

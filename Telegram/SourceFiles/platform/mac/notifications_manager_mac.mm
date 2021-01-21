@@ -166,11 +166,12 @@ bool Enforced() {
 	return Supported();
 }
 
-std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {
+void Create(Window::Notifications::System *system) {
 	if (Supported()) {
-		return std::make_unique<Manager>(system);
+		system->setManager(std::make_unique<Manager>(system));
+	} else {
+		system->setManager(nullptr);
 	}
-	return nullptr;
 }
 
 class Manager::Private : public QObject, private base::Subscriber {
