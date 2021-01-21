@@ -825,6 +825,8 @@ bool PeerData::canRevokeFullHistory() const {
 			&& (!user->isBot() || user->isSupport())
 			&& session().serverConfig().revokePrivateInbox
 			&& (session().serverConfig().revokePrivateTimeLimit == 0x7FFFFFFF);
+	} else if (const auto chat = asChat()) {
+		return chat->amCreator();
 	}
 	return false;
 }

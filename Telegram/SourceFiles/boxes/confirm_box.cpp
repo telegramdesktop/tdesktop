@@ -601,9 +601,7 @@ void DeleteMessagesBox::prepare() {
 			deleteText = _wipeHistoryPeer->isUser()
 				? tr::lng_box_delete()
 				: tr::lng_box_leave();
-			deleteStyle = &(peer->isChannel()
-				? st::defaultBoxButton
-				: st::attentionBoxButton);
+			deleteStyle = &st::attentionBoxButton;
 		}
 		if (auto revoke = revokeText(peer)) {
 			_revoke.create(this, revoke->checkbox, false, st::defaultBoxCheckbox);
@@ -702,6 +700,8 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 				tr::now,
 				lt_user,
 				user->firstName);
+		} else if (_wipeHistoryJustClear) {
+			return std::nullopt;
 		} else {
 			result.checkbox = tr::lng_delete_for_everyone_check(tr::now);
 		}

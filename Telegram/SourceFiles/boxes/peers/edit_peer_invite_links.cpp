@@ -748,7 +748,7 @@ void ManageInviteLinksBox(
 	const auto deleteAll = Ui::CreateChild<Ui::LinkButton>(
 		container.get(),
 		tr::lng_group_invite_context_delete_all(tr::now),
-		st::boxLinkButton);
+		st::defaultLinkButton);
 	rpl::combine(
 		header->topValue(),
 		container->widthValue()

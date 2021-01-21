@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_session.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_folder.h"
 #include "data/data_scheduled_messages.h"
 #include "main/main_session.h"
@@ -599,11 +600,17 @@ void Histories::deleteAllMessages(
 			)).done([=](const MTPBool &result) {
 				finish();
 			}).fail(fail).send();
+		} else if (revoke && peer->isChat() && peer->asChat()->amCreator()) {
+			return session().api().request(MTPmessages_DeleteChat(
+				peer->asChat()->inputChat
+			)).done([=](const MTPBool &result) {
+				finish();
+			}).fail(fail).send();
 		} else {
 			using Flag = MTPmessages_DeleteHistory::Flag;
 			const auto flags = Flag(0)
 				| (justClear ? Flag::f_just_clear : Flag(0))
-				| ((peer->isUser() && revoke) ? Flag::f_revoke : Flag(0));
+				| (revoke ? Flag::f_revoke : Flag(0));
 			return session().api().request(MTPmessages_DeleteHistory(
 				MTP_flags(flags),
 				peer->input,
