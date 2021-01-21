@@ -120,7 +120,7 @@ struct PreparedGroup {
 
 	[[nodiscard]] bool sentWithCaption() const {
 		return (list.files.size() == 1)
-			|| (type == AlbumType::PhotoVideo);
+			|| (type != AlbumType::None);
 	}
 };
 

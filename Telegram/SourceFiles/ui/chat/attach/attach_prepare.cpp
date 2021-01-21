@@ -152,6 +152,25 @@ bool PreparedList::canAddCaption(bool sendingAlbum) const {
 	} else if (!sendingAlbum) {
 		return false;
 	}
+
+	// All music.
+	{
+		auto pred = [](const PreparedFile &file) {
+			return file.type == PreparedFile::Type::Music;
+		};
+		if (ranges::all_of(files, std::move(pred))) {
+			return true;
+		}
+	}
+	// All files.
+	{
+		auto pred = [](const PreparedFile &file) {
+			return file.type == PreparedFile::Type::File;
+		};
+		if (ranges::all_of(files, std::move(pred))) {
+			return true;
+		}
+	}
 	const auto hasFiles = ranges::contains(
 		files,
 		PreparedFile::Type::File,
