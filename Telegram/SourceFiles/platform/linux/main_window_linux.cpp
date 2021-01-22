@@ -430,7 +430,10 @@ bool IsSNIAvailable() {
 		break;
 	}
 
-	LOG(("SNI Error: %1").arg(reply.error().message()));
+	LOG(("SNI Error: %1: %2")
+		.arg(reply.error().name())
+		.arg(reply.error().message()));
+
 	return false;
 }
 
