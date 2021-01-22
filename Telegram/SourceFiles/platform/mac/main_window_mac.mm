@@ -692,7 +692,9 @@ void MainWindow::createGlobalMenu() {
 	about->setMenuRole(QAction::AboutQtRole);
 
 	main->addSeparator();
-	QAction *prefs = main->addAction(tr::lng_mac_menu_preferences(tr::now), App::wnd(), SLOT(showSettings()), QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
+	QAction *prefs = main->addAction(tr::lng_mac_menu_preferences(tr::now), App::wnd(), [=] {
+		App::wnd()->showSettings();
+	}, QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
 	prefs->setMenuRole(QAction::PreferencesRole);
 
 	QMenu *file = psMainMenu.addMenu(tr::lng_mac_menu_file(tr::now));
@@ -728,19 +730,27 @@ void MainWindow::createGlobalMenu() {
 	psContacts = window->addAction(tr::lng_mac_menu_contacts(tr::now));
 	connect(psContacts, &QAction::triggered, psContacts, crl::guard(this, [=] {
 		if (isHidden()) {
-			App::wnd()->showFromTray();
+			showFromTray();
 		}
 		if (!sessionController()) {
 			return;
 		}
 		Ui::show(PrepareContactsBox(sessionController()));
 	}));
-	psAddContact = window->addAction(tr::lng_mac_menu_add_contact(tr::now), App::wnd(), SLOT(onShowAddContact()));
+	psAddContact = window->addAction(tr::lng_mac_menu_add_contact(tr::now), App::wnd(), [=] {
+		App::wnd()->showAddContact();
+	});
 	window->addSeparator();
-	psNewGroup = window->addAction(tr::lng_mac_menu_new_group(tr::now), App::wnd(), SLOT(onShowNewGroup()));
-	psNewChannel = window->addAction(tr::lng_mac_menu_new_channel(tr::now), App::wnd(), SLOT(onShowNewChannel()));
+	psNewGroup = window->addAction(tr::lng_mac_menu_new_group(tr::now), App::wnd(), [=] {
+		App::wnd()->showNewGroup();
+	});
+	psNewChannel = window->addAction(tr::lng_mac_menu_new_channel(tr::now), App::wnd(), [=] {
+		App::wnd()->showNewChannel();
+	});
 	window->addSeparator();
-	psShowTelegram = window->addAction(tr::lng_mac_menu_show(tr::now), App::wnd(), SLOT(showFromTray()));
+	psShowTelegram = window->addAction(tr::lng_mac_menu_show(tr::now), App::wnd(), [=] {
+		showFromTray();
+	});
 
 	updateGlobalMenu();
 }

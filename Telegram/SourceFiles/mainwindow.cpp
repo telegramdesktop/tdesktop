@@ -146,11 +146,24 @@ void MainWindow::createTrayIconMenu() {
 		: tr::lng_enable_notifications_from_tray(tr::now);
 
 	if (Platform::IsLinux() && !Platform::IsWayland()) {
-		trayIconMenu->addAction(tr::lng_open_from_tray(tr::now), this, SLOT(showFromTray()));
+		trayIconMenu->addAction(tr::lng_open_from_tray(tr::now), [=] {
+			showFromTray();
+		});
 	}
-	trayIconMenu->addAction(tr::lng_minimize_to_tray(tr::now), this, SLOT(minimizeToTray()));
-	trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()));
-	trayIconMenu->addAction(tr::lng_quit_from_tray(tr::now), this, SLOT(quitFromTray()));
+	const auto showLifetime = std::make_shared<rpl::lifetime>();
+	trayIconMenu->addAction(tr::lng_minimize_to_tray(tr::now), [=] {
+		if (_activeForTrayIconAction) {
+			minimizeToTray();
+		} else {
+			showFromTrayMenu();
+		}
+	});
+	trayIconMenu->addAction(notificationActionText, [=] {
+		toggleDisplayNotifyFromTray();
+	});
+	trayIconMenu->addAction(tr::lng_quit_from_tray(tr::now), [=] {
+		quitFromTray();
+	});
 
 	initTrayMenuHook();
 }
@@ -635,18 +648,17 @@ void MainWindow::updateTrayMenu(bool force) {
 
 	auto actions = trayIconMenu->actions();
 	if (Platform::IsLinux() && !Platform::IsWayland()) {
-		auto minimizeAction = actions.at(1);
+		const auto minimizeAction = actions.at(1);
 		minimizeAction->setEnabled(isVisible());
 	} else {
-		updateIsActive();
-		auto active = Platform::IsWayland() ? isVisible() : isActive();
-		auto toggleAction = actions.at(0);
-		disconnect(toggleAction, SIGNAL(triggered(bool)), this, SLOT(minimizeToTray()));
-		disconnect(toggleAction, SIGNAL(triggered(bool)), this, SLOT(showFromTray()));
-		connect(toggleAction, SIGNAL(triggered(bool)), this, active ? SLOT(minimizeToTray()) : SLOT(showFromTray()));
-		toggleAction->setText(active
-			? tr::lng_minimize_to_tray(tr::now)
-			: tr::lng_open_from_tray(tr::now));
+		const auto active = isActiveForTrayMenu();
+		if (_activeForTrayIconAction != active) {
+			_activeForTrayIconAction = active;
+			const auto toggleAction = actions.at(0);
+			toggleAction->setText(_activeForTrayIconAction
+				? tr::lng_minimize_to_tray(tr::now)
+				: tr::lng_open_from_tray(tr::now));
+		}
 	}
 	auto notificationAction = actions.at(Platform::IsLinux() && !Platform::IsWayland() ? 2 : 1);
 	auto notificationActionText = Core::App().settings().desktopNotify()
@@ -657,8 +669,10 @@ void MainWindow::updateTrayMenu(bool force) {
 	psTrayMenuUpdated();
 }
 
-void MainWindow::onShowAddContact() {
-	if (isHidden()) showFromTray();
+void MainWindow::showAddContact() {
+	if (isHidden()) {
+		showFromTray();
+	}
 
 	if (const auto controller = sessionController()) {
 		Ui::show(
@@ -667,8 +681,10 @@ void MainWindow::onShowAddContact() {
 	}
 }
 
-void MainWindow::onShowNewGroup() {
-	if (isHidden()) showFromTray();
+void MainWindow::showNewGroup() {
+	if (isHidden()) {
+		showFromTray();
+	}
 
 	if (const auto controller = sessionController()) {
 		Ui::show(
@@ -677,8 +693,10 @@ void MainWindow::onShowNewGroup() {
 	}
 }
 
-void MainWindow::onShowNewChannel() {
-	if (isHidden()) showFromTray();
+void MainWindow::showNewChannel() {
+	if (isHidden()) {
+		showFromTray();
+	}
 
 	if (const auto controller = sessionController()) {
 		Ui::show(
@@ -720,24 +738,6 @@ void MainWindow::showLogoutConfirmation() {
 		callback));
 }
 
-void MainWindow::quitFromTray() {
-	App::quit();
-}
-
-void MainWindow::activate() {
-	bool wasHidden = !isVisible();
-	setWindowState(windowState() & ~Qt::WindowMinimized);
-	setVisible(true);
-	psActivateProcess();
-	activateWindow();
-	controller().updateIsActiveFocus();
-	if (wasHidden) {
-		if (_main) {
-			_main->windowShown();
-		}
-	}
-}
-
 bool MainWindow::takeThirdSectionFromLayer() {
 	return _layer ? _layer->takeToThirdSection() : false;
 }
@@ -749,23 +749,12 @@ void MainWindow::fixOrder() {
 	if (_testingThemeWarning) _testingThemeWarning->raise();
 }
 
-void MainWindow::showFromTray(QSystemTrayIcon::ActivationReason reason) {
-	if (reason != QSystemTrayIcon::Context) {
-		base::call_delayed(1, this, [this] {
-			updateTrayMenu();
-			updateGlobalMenu();
-		});
-		activate();
-		updateUnreadCounter();
-	}
-}
-
 void MainWindow::handleTrayIconActication(
 		QSystemTrayIcon::ActivationReason reason) {
 	updateIsActive();
 	if (Platform::IsMac() && isActive()) {
 		if (trayIcon && !trayIcon->contextMenu()) {
-			showFromTray(reason);
+			showFromTray();
 		}
 		return;
 	}
@@ -775,10 +764,10 @@ void MainWindow::handleTrayIconActication(
 			psShowTrayMenu();
 		});
 	} else if (!skipTrayClick()) {
-		if (Platform::IsWayland() ? isVisible() : isActive()) {
+		if (isActiveForTrayMenu()) {
 			minimizeToTray();
 		} else {
-			showFromTray(reason);
+			showFromTray();
 		}
 		_lastTrayClickTime = crl::now();
 	}

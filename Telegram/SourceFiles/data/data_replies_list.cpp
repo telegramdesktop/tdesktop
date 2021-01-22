@@ -642,7 +642,7 @@ HistoryItem *RepliesList::lastEditableMessage() {
 	const auto it = ranges::find_if(_list, std::move(proj));
 	return (it == end(_list))
 		? nullptr
-		: _history->owner().groups().findItemToEdit(message(*it));
+		: _history->owner().groups().findItemToEdit(message(*it)).get();
 }
 
 } // namespace Data

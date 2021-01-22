@@ -593,6 +593,11 @@ bool MainWindow::hasTrayIcon() const {
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
+bool MainWindow::isActiveForTrayMenu() {
+	updateIsActive();
+	return Platform::IsWayland() ? isVisible() : isActive();
+}
+
 void MainWindow::psShowTrayMenu() {
 	_trayIconMenuXEmbed->popup(QCursor::pos());
 }
@@ -661,7 +666,7 @@ void MainWindow::sniSignalEmitted(
 		gchar *signal_name,
 		GVariant *parameters,
 		gpointer user_data) {
-	if(signal_name == qstr("StatusNotifierHostRegistered")) {
+	if (signal_name == qstr("StatusNotifierHostRegistered")) {
 		crl::on_main([] {
 			if (const auto window = App::wnd()) {
 				window->handleSNIHostRegistered();
@@ -684,7 +689,7 @@ void MainWindow::handleSNIHostRegistered() {
 	LOG(("Switching to SNI tray icon..."));
 
 	if (trayIcon) {
-		trayIcon->setContextMenu(0);
+		trayIcon->setContextMenu(nullptr);
 		trayIcon->deleteLater();
 	}
 	trayIcon = nullptr;
@@ -886,7 +891,7 @@ void MainWindow::LibsLoaded() {
 }
 
 void MainWindow::initTrayMenuHook() {
-	_trayIconMenuXEmbed = new Ui::PopupMenu(nullptr, trayIconMenu);
+	_trayIconMenuXEmbed.emplace(nullptr, trayIconMenu);
 	_trayIconMenuXEmbed->deleteOnHide(false);
 }
 
@@ -1031,19 +1036,19 @@ void MainWindow::createGlobalMenu() {
 	psAddContact = tools->addAction(
 		tr::lng_mac_menu_add_contact(tr::now),
 		App::wnd(),
-		[=] { App::wnd()->onShowAddContact(); });
+		[=] { App::wnd()->showAddContact(); });
 
 	tools->addSeparator();
 
 	psNewGroup = tools->addAction(
 		tr::lng_mac_menu_new_group(tr::now),
 		App::wnd(),
-		[=] { App::wnd()->onShowNewGroup(); });
+		[=] { App::wnd()->showNewGroup(); });
 
 	psNewChannel = tools->addAction(
 		tr::lng_mac_menu_new_channel(tr::now),
 		App::wnd(),
-		[=] { App::wnd()->onShowNewChannel(); });
+		[=] { App::wnd()->showNewChannel(); });
 
 	auto help = psMainMenu->addMenu(tr::lng_linux_menu_help(tr::now));
 
@@ -1222,8 +1227,6 @@ MainWindow::~MainWindow() {
 
 	g_object_unref(_sniDBusProxy);
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	delete _trayIconMenuXEmbed;
 }
 
 } // namespace Platform

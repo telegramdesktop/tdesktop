@@ -50,6 +50,13 @@ public:
 
 	bool hideNoQuit();
 
+	void showFromTray();
+	void quitFromTray();
+	void activate();
+	virtual void showFromTrayMenu() {
+		showFromTray();
+	}
+
 	void init();
 	HitTestResult hitTest(const QPoint &p) const;
 
@@ -57,6 +64,10 @@ public:
 
 	bool isActive() const {
 		return _isActive;
+	}
+	virtual bool isActiveForTrayMenu() {
+		updateIsActive();
+		return isActive();
 	}
 
 	bool positionInited() const {

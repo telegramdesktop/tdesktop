@@ -859,10 +859,10 @@ void MainMenu::refreshMenu() {
 	if (!_controller->session().supportMode()) {
 		const auto controller = _controller;
 		_menu->addAction(tr::lng_create_group_title(tr::now), [] {
-			App::wnd()->onShowNewGroup();
+			App::wnd()->showNewGroup();
 		}, &st::mainMenuNewGroup, &st::mainMenuNewGroupOver);
 		_menu->addAction(tr::lng_create_channel_title(tr::now), [] {
-			App::wnd()->onShowNewChannel();
+			App::wnd()->showNewChannel();
 		}, &st::mainMenuNewChannel, &st::mainMenuNewChannelOver);
 		_menu->addAction(tr::lng_menu_contacts(tr::now), [=] {
 			Ui::show(PrepareContactsBox(controller));
@@ -883,7 +883,7 @@ void MainMenu::refreshMenu() {
 		}
 	} else {
 		_menu->addAction(tr::lng_profile_add_contact(tr::now), [] {
-			App::wnd()->onShowAddContact();
+			App::wnd()->showAddContact();
 		}, &st::mainMenuContacts, &st::mainMenuContactsOver);
 
 		const auto fix = std::make_shared<QPointer<QAction>>();

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
+#include "mainwidget.h" // session->content()->windowShown().
 #include "facades.h"
 #include "app.h"
 #include "styles/style_window.h"
@@ -294,6 +295,34 @@ void MainWindow::handleVisibleChanged(bool visible) {
 	}
 
 	handleVisibleChangedHook(visible);
+}
+
+void MainWindow::showFromTray() {
+	base::call_delayed(1, this, [this] {
+		updateTrayMenu();
+		updateGlobalMenu();
+	});
+	activate();
+	updateUnreadCounter();
+}
+
+void MainWindow::quitFromTray() {
+	App::quit();
+}
+
+void MainWindow::activate() {
+	bool wasHidden = !isVisible();
+	setWindowState(windowState() & ~Qt::WindowMinimized);
+	setVisible(true);
+	psActivateProcess();
+	raise();
+	activateWindow();
+	controller().updateIsActiveFocus();
+	if (wasHidden) {
+		if (const auto session = sessionController()) {
+			session->content()->windowShown();
+		}
+	}
 }
 
 void MainWindow::updatePalette() {

@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "history/history.h"
 #include "dialogs/dialogs_main_list.h"
-#include "window/window_session_controller.h" // onShowAddContact()
+#include "window/window_session_controller.h" // showAddContact()
 #include "facades.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
@@ -112,7 +112,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 		box->addLeftButton(
 			tr::lng_profile_add_contact(),
-			[=] { controller->widget()->onShowAddContact(); });
+			[=] { controller->widget()->showAddContact(); });
 	};
 	return Box<PeerListBox>(
 		std::make_unique<ContactsBoxController>(

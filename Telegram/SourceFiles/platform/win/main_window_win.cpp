@@ -47,6 +47,13 @@ Q_DECLARE_METATYPE(QMargins);
 namespace Platform {
 namespace {
 
+// Mouse down on tray icon deactivates the application.
+// So there is no way to know for sure if the tray icon was clicked from
+// active application or from inactive application. So we assume that
+// if the application was deactivated less than 0.5s ago, then the tray
+// icon click (both left or right button) was made from the active app.
+constexpr auto kKeepActiveForTrayIcon = crl::time(500);
+
 HICON createHIconFromQIcon(const QIcon &icon, int xSize, int ySize) {
 	if (!icon.isNull()) {
 		const QPixmap pm = icon.pixmap(icon.actualSize(QSize(xSize, ySize)));
@@ -113,6 +120,13 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 		}
 	});
 	setupNativeWindowFrame();
+
+	using namespace rpl::mappers;
+	Core::App().appDeactivatedValue(
+	) | rpl::distinct_until_changed(
+	) | rpl::filter(_1) | rpl::start_with_next([=] {
+		_lastDeactivateTime = crl::now();
+	}, lifetime());
 }
 
 void MainWindow::setupNativeWindowFrame() {
@@ -278,6 +292,11 @@ void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 
 void MainWindow::updateWindowIcon() {
 	updateIconCounters();
+}
+
+bool MainWindow::isActiveForTrayMenu() {
+	return !_lastDeactivateTime
+		|| (_lastDeactivateTime + kKeepActiveForTrayIcon >= crl::now());
 }
 
 void MainWindow::unreadCounterChangedHook() {
@@ -602,6 +621,17 @@ void MainWindow::fixMaximizedWindow() {
 			SetWindowPos(ps_hWnd, 0, 0, 0, m.right - m.left - _deltaLeft - _deltaRight, m.bottom - m.top - _deltaTop - _deltaBottom, SWP_NOMOVE | SWP_NOSENDCHANGING | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREPOSITION);
 		}
 	}
+}
+
+void MainWindow::showFromTrayMenu() {
+	// If we try to activate() window before the trayIconMenu is hidden,
+	// then the window will be shown in semi-active state (Qt bug).
+	// It will receive input events, but it will be rendered as inactive.
+	using namespace rpl::mappers;
+	_showFromTrayLifetime = trayIconMenu->shownValue(
+	) | rpl::filter(_1) | rpl::take(1) | rpl::start_with_next([=] {
+		showFromTray();
+	});
 }
 
 HWND MainWindow::psHwnd() const {
