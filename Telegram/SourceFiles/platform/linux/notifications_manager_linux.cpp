@@ -92,8 +92,9 @@ void GetServerInformation(Fn<void(std::optional<ServerInformation>)> callback) {
 				});
 			});
 		} else {
-			LOG(("Native notification error: %1").arg(
-				reply.error().message()));
+			LOG(("Native Notification Error: %1: %2")
+				.arg(reply.error().name())
+				.arg(reply.error().message()));
 
 			crl::on_main([=] { callback(std::nullopt); });
 		}
@@ -120,8 +121,9 @@ void GetCapabilities(Fn<void(QStringList)> callback) {
 		if (reply.isValid()) {
 			crl::on_main([=] { callback(reply.value()); });
 		} else {
-			LOG(("Native notification error: %1").arg(
-				reply.error().message()));
+			LOG(("Native Notification Error: %1: %2")
+				.arg(reply.error().name())
+				.arg(reply.error().message()));
 
 			crl::on_main([=] { callback({}); });
 		}
@@ -151,7 +153,9 @@ void GetInhibitionSupported(Fn<void(bool)> callback) {
 		const auto error = QDBusPendingReply<QVariant>(*call).error();
 
 		if (error.isValid() && error.type() != QDBusError::InvalidArgs) {
-			LOG(("Native notification error: %1").arg(error.message()));
+			LOG(("Native Notification Error: %1: %2")
+				.arg(error.name())
+				.arg(error.message()));
 		}
 
 		crl::on_main([=] { callback(!error.isValid()); });
@@ -186,7 +190,10 @@ bool Inhibited() {
 		return reply.value().toBool();
 	}
 
-	LOG(("Native notification error: %1").arg(reply.error().message()));
+	LOG(("Native Notification Error: %1: %2")
+			.arg(reply.error().name())
+			.arg(reply.error().message()));
+
 	return false;
 }
 
@@ -220,7 +227,7 @@ QString GetImageKey(const QVersionNumber &specificationVersion) {
 	const auto normalizedVersion = specificationVersion.normalized();
 
 	if (normalizedVersion.isNull()) {
-		LOG(("Native notification error: specification version is null"));
+		LOG(("Native Notification Error: specification version is null"));
 		return QString();
 	}
 
@@ -314,7 +321,7 @@ NotificationData::NotificationData(
 		&error);
 
 	if (error) {
-		LOG(("Native notification error: %1").arg(error->message));
+		LOG(("Native Notification Error: %1").arg(error->message));
 		g_error_free(error);
 		return;
 	}
@@ -528,7 +535,7 @@ void NotificationData::notificationShown(
 		crl::on_main(manager, [=] {
 			manager->clearNotification(my);
 		});
-		LOG(("Native notification error: %1").arg(error->message));
+		LOG(("Native Notification Error: %1").arg(error->message));
 		g_error_free(error);
 	}
 }
