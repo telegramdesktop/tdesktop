@@ -126,6 +126,8 @@ TextSelection ShiftItemSelection(
 	TextSelection selection,
 	const Ui::Text::String &byText);
 
+QString DateTooltipText(not_null<Element*> view);
+
 // Any HistoryView::Element can have this Component for
 // displaying the unread messages bar above the message.
 struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {

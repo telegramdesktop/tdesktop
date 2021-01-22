@@ -1216,8 +1216,7 @@ QString ListWidget::tooltipText() const {
 		? _overElement->data().get()
 		: nullptr;
 	if (_mouseCursorState == CursorState::Date && item) {
-		return _overElement->dateTime().toString(
-			QLocale::system().dateTimeFormat(QLocale::LongFormat));
+		return HistoryView::DateTooltipText(_overElement);
 	} else if (_mouseCursorState == CursorState::Forwarded && item) {
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 			return forwarded->text.toString();

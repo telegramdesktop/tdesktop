@@ -512,7 +512,7 @@ QString InnerWidget::tooltipText() const {
 		if (const auto view = App::hoveredItem()) {
 			const auto format = QLocale::system().dateTimeFormat(
 				QLocale::LongFormat);
-			auto dateText = view->dateTime().toString(format);
+			auto dateText = HistoryView::DateTooltipText(view);
 
 			const auto sentIt = _itemDates.find(view->data());
 			if (sentIt != end(_itemDates)) {
