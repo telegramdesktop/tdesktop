@@ -860,9 +860,12 @@ void DeleteMessagesBox::deleteAndClear() {
 		_deleteConfirmedCallback();
 	}
 
+	// deleteMessages can initiate closing of the current section,
+	// which will cause this box to be destroyed.
+	const auto session = _session;
+
 	_session->data().histories().deleteMessages(_ids, revoke);
 
-	const auto session = _session;
 	Ui::hideLayer();
 	session->data().sendHistoryChangeNotifications();
 }
