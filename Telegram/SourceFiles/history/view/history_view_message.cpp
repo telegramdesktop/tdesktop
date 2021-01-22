@@ -1185,7 +1185,9 @@ void Message::unloadHeavyPart() {
 bool Message::showForwardsFromSender(
 		not_null<HistoryMessageForwarded*> forwarded) const {
 	const auto peer = message()->history()->peer;
-	return peer->isSelf() || peer->isRepliesChat() || forwarded->imported;
+	return peer->isSelf()
+		|| peer->isRepliesChat()
+		|| forwarded->imported;
 }
 
 bool Message::hasFromPhoto() const {
@@ -1202,12 +1204,13 @@ bool Message::hasFromPhoto() const {
 		const auto item = message();
 		if (item->isPost()
 			|| item->isEmpty()
-			|| (context() == Context::Replies && data()->isDiscussionPost())) {
+			|| (context() == Context::Replies && item->isDiscussionPost())) {
 			return false;
 		} else if (Core::App().settings().chatWide()) {
 			return true;
 		} else if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-			if (showForwardsFromSender(forwarded)) {
+			const auto peer = item->history()->peer;
+			if (peer->isSelf() || peer->isRepliesChat()) {
 				return true;
 			}
 		}
@@ -2069,13 +2072,17 @@ bool Message::hasFromName() const {
 	case Context::Pinned:
 	case Context::Replies: {
 		const auto item = message();
+		const auto peer = item->history()->peer;
 		if (hasOutLayout() && !item->from()->isMegagroup()) {
 			return false;
-		} else if (!item->history()->peer->isUser()) {
+		} else if (!peer->isUser()) {
 			return true;
 		}
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-			if (showForwardsFromSender(forwarded)) {
+			if (forwarded->imported
+				&& peer.get() == forwarded->originalSender) {
+				return false;
+			} else if (showForwardsFromSender(forwarded)) {
 				return true;
 			}
 		}
@@ -2121,8 +2128,12 @@ bool Message::hasOutLayout() const {
 	if (item->history()->peer->isSelf()) {
 		return !item->Has<HistoryMessageForwarded>();
 	} else if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-		if (showForwardsFromSender(forwarded)) {
-			return false;
+		if (!forwarded->imported
+			|| !forwarded->originalSender
+			|| !forwarded->originalSender->isSelf()) {
+			if (showForwardsFromSender(forwarded)) {
+				return false;
+			}
 		}
 	}
 	return item->out() && !item->isPost();
@@ -2716,7 +2727,7 @@ void Message::initTime() {
 		if (forwarded && forwarded->imported) {
 			const auto date = base::unixtime::parse(forwarded->originalDate);
 			item->_timeText = date.toString(
-				u"d.MM.yy "_q + cTimeFormat() + ' '
+				u"d.MM.yy, "_q + cTimeFormat() + ' '
 			) + tr::lng_imported(tr::now);
 		} else {
 			item->_timeText = dateTime().toString(cTimeFormat());
