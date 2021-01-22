@@ -45,6 +45,16 @@ TextWithEntities PrepareText(const QString &value, const QString &emptyValue) {
 	return result;
 }
 
+TimeId ExtractSentDate(const MTPMessage &message) {
+	return message.match([&](const MTPDmessageEmpty &) {
+		return 0;
+	}, [&](const MTPDmessageService &data) {
+		return data.vdate().v;
+	}, [&](const MTPDmessage &data) {
+		return data.vdate().v;
+	});
+}
+
 MTPMessage PrepareLogMessage(
 		const MTPMessage &message,
 		MsgId newId,
@@ -380,7 +390,7 @@ void GenerateItems(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		not_null<History*> history,
 		const MTPDchannelAdminLogEvent &event,
-		Fn<void(OwnedItem item)> callback) {
+		Fn<void(OwnedItem item, TimeId sentDate)> callback) {
 	Expects(history->peer->isChannel());
 
 	const auto session = &history->session();
@@ -389,8 +399,10 @@ void GenerateItems(
 	const auto channel = history->peer->asChannel();
 	const auto &action = event.vaction();
 	const auto date = event.vdate().v;
-	const auto addPart = [&](not_null<HistoryItem*> item) {
-		return callback(OwnedItem(delegate, item));
+	const auto addPart = [&](
+			not_null<HistoryItem*> item,
+			TimeId sentDate = 0) {
+		return callback(OwnedItem(delegate, item), sentDate);
 	};
 
 	using Flag = MTPDmessage::Flag;
@@ -545,13 +557,15 @@ void GenerateItems(
 			addSimpleServiceMessage(text);
 
 			auto detachExistingItem = false;
-			addPart(history->createItem(
-				PrepareLogMessage(
-					action.vmessage(),
-					history->nextNonHistoryEntryId(),
-					date),
-				MTPDmessage_ClientFlag::f_admin_log_entry,
-				detachExistingItem));
+			addPart(
+				history->createItem(
+					PrepareLogMessage(
+						action.vmessage(),
+						history->nextNonHistoryEntryId(),
+						date),
+					MTPDmessage_ClientFlag::f_admin_log_entry,
+					detachExistingItem),
+				ExtractSentDate(action.vmessage()));
 		}, [&](const auto &) {
 			auto text = tr::lng_admin_log_unpinned_message(tr::now, lt_from, fromLinkText);
 			addSimpleServiceMessage(text);
@@ -598,10 +612,15 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 
 		auto detachExistingItem = false;
-		addPart(history->createItem(
-			PrepareLogMessage(action.vmessage(), history->nextNonHistoryEntryId(), date),
-			MTPDmessage_ClientFlag::f_admin_log_entry,
-			detachExistingItem));
+		addPart(
+			history->createItem(
+				PrepareLogMessage(
+					action.vmessage(),
+					history->nextNonHistoryEntryId(),
+					date),
+				MTPDmessage_ClientFlag::f_admin_log_entry,
+				detachExistingItem),
+			ExtractSentDate(action.vmessage()));
 	};
 
 	auto createParticipantJoin = [&]() {
@@ -740,10 +759,15 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 
 		auto detachExistingItem = false;
-		addPart(history->createItem(
-			PrepareLogMessage(action.vmessage(), history->nextNonHistoryEntryId(), date),
-			MTPDmessage_ClientFlag::f_admin_log_entry,
-			detachExistingItem));
+		addPart(
+			history->createItem(
+				PrepareLogMessage(
+					action.vmessage(),
+					history->nextNonHistoryEntryId(),
+					date),
+				MTPDmessage_ClientFlag::f_admin_log_entry,
+				detachExistingItem),
+			ExtractSentDate(action.vmessage()));
 	};
 
 	auto createChangeLinkedChat = [&](const MTPDchannelAdminLogEventActionChangeLinkedChat &action) {

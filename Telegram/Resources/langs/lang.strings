@@ -1187,6 +1187,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_in_reply_to" = "In reply to";
 "lng_edited" = "edited";
 "lng_edited_date" = "Edited: {date}";
+"lng_sent_date" = "Sent: {date}";
 "lng_admin_badge" = "admin";
 "lng_owner_badge" = "owner";
 "lng_channel_badge" = "channel";

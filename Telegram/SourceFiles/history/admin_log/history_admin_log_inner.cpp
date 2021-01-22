@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "boxes/sticker_set_box.h"
 #include "base/platform/base_platform_info.h"
+#include "base/unixtime.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
@@ -509,8 +510,17 @@ QString InnerWidget::tooltipText() const {
 	if (_mouseCursorState == CursorState::Date
 		&& _mouseAction == MouseAction::None) {
 		if (const auto view = App::hoveredItem()) {
-			auto dateText = view->dateTime().toString(
-				QLocale::system().dateTimeFormat(QLocale::LongFormat));
+			const auto format = QLocale::system().dateTimeFormat(
+				QLocale::LongFormat);
+			auto dateText = view->dateTime().toString(format);
+
+			const auto sentIt = _itemDates.find(view->data());
+			if (sentIt != end(_itemDates)) {
+				dateText += '\n' + tr::lng_sent_date(
+					tr::now,
+					lt_date,
+					base::unixtime::parse(sentIt->second).toString(format));
+			}
 			return dateText;
 		}
 	} else if (_mouseCursorState == CursorState::Forwarded
@@ -722,7 +732,10 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 			}
 
 			auto count = 0;
-			const auto addOne = [&](OwnedItem item) {
+			const auto addOne = [&](OwnedItem item, TimeId sentDate) {
+				if (sentDate) {
+					_itemDates.emplace(item->data(), sentDate);
+				}
 				_eventIds.emplace(id);
 				_itemsByData.emplace(item->data(), item.get());
 				addToItems.push_back(std::move(item));
