@@ -214,9 +214,9 @@ parts:
       - -./usr/share
 
   openal:
-    source: https://github.com/kcat/openal-soft.git
+    source: https://github.com/telegramdesktop/openal-soft.git
     source-depth: 1
-    source-tag: openal-soft-1.21.0
+    source-branch: fix_pulse_default
     plugin: cmake
     build-packages:
       - libasound2-dev
