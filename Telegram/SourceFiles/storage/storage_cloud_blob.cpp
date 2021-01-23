@@ -80,7 +80,7 @@ QString StateDescription(const BlobState &state, tr::phrase<> activeText) {
 		return activeText(tr::now);
 	}, [](const Loading &data) {
 		const auto percent = (data.size > 0)
-			? snap((data.already * 100) / float64(data.size), 0., 100.)
+			? std::clamp((data.already * 100) / float64(data.size), 0., 100.)
 			: 0.;
 		return tr::lng_emoji_set_loading(
 			tr::now,

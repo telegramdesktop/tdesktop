@@ -1053,7 +1053,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Core::App().settings().setSongVolume(snap(v / 1e6, 0., 1.));
+		Core::App().settings().setSongVolume(std::clamp(v / 1e6, 0., 1.));
 		context.legacyRead = true;
 	} break;
 
@@ -1062,7 +1062,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Core::App().settings().setVideoVolume(snap(v / 1e6, 0., 1.));
+		Core::App().settings().setVideoVolume(std::clamp(v / 1e6, 0., 1.));
 		context.legacyRead = true;
 	} break;
 

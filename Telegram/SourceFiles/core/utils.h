@@ -124,11 +124,6 @@ T rand_value() {
 	return result;
 }
 
-template <typename T>
-inline T snap(const T &v, const T &_min, const T &_max) {
-	return (v < _min) ? _min : ((v > _max) ? _max : v);
-}
-
 QString translitRusEng(const QString &rus);
 QString rusKeyboardLayoutSwitch(const QString &from);
 
@@ -150,16 +145,22 @@ inline int rowscount(int fullCount, int countPerRow) {
 	return (fullCount + countPerRow - 1) / countPerRow;
 }
 inline int floorclamp(int value, int step, int lowest, int highest) {
-	return qMin(qMax(value / step, lowest), highest);
+	return std::clamp(value / step, lowest, highest);
 }
 inline int floorclamp(float64 value, int step, int lowest, int highest) {
-	return qMin(qMax(static_cast<int>(std::floor(value / step)), lowest), highest);
+	return std::clamp(
+		static_cast<int>(std::floor(value / step)),
+		lowest,
+		highest);
 }
 inline int ceilclamp(int value, int step, int lowest, int highest) {
-	return qMax(qMin((value + step - 1) / step, highest), lowest);
+	return std::clamp((value + step - 1) / step, lowest, highest);
 }
 inline int ceilclamp(float64 value, int32 step, int32 lowest, int32 highest) {
-	return qMax(qMin(static_cast<int>(std::ceil(value / step)), highest), lowest);
+	return std::clamp(
+		static_cast<int>(std::ceil(value / step)),
+		lowest,
+		highest);
 }
 
 static int32 FullArcLength = 360 * 16;

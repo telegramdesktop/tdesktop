@@ -41,7 +41,7 @@ namespace {
 constexpr auto kMaxNotificationsCount = 5;
 
 [[nodiscard]] int CurrentCount() {
-	return snap(
+	return std::clamp(
 		Core::App().settings().notificationsCount(),
 		1,
 		kMaxNotificationsCount);

@@ -1319,7 +1319,7 @@ TextState Message::textState(
 		}
 		checkForPointInTime();
 		if (const auto size = rightActionSize()) {
-			const auto fastShareSkip = snap(
+			const auto fastShareSkip = std::clamp(
 				(g.height() - size->height()) / 2,
 				0,
 				st::historyFastShareBottom);

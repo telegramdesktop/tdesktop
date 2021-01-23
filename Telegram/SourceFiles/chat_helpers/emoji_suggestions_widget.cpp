@@ -179,12 +179,15 @@ void SuggestionsWidget::scrollByWheelEvent(not_null<QWheelEvent*> e) {
 			const auto delta = e->pixelDelta().x()
 				? e->pixelDelta().x()
 				: e->angleDelta().x();
-			return snap(current - ((rtl() ? -1 : 1) * delta), 0, _scrollMax);
+			return std::clamp(
+				current - ((rtl() ? -1 : 1) * delta),
+				0,
+				_scrollMax);
 		} else if (vertical) {
 			const auto delta = e->pixelDelta().y()
 				? e->pixelDelta().y()
 				: e->angleDelta().y();
-			return snap(current - delta, 0, _scrollMax);
+			return std::clamp(current - delta, 0, _scrollMax);
 		}
 		return current;
 	}();
@@ -241,7 +244,7 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 
 void SuggestionsWidget::paintFadings(Painter &p) const {
 	const auto scroll = scrollCurrent();
-	const auto o_left = snap(
+	const auto o_left = std::clamp(
 		scroll / float64(st::emojiSuggestionsFadeAfter),
 		0.,
 		1.);
@@ -256,7 +259,7 @@ void SuggestionsWidget::paintFadings(Painter &p) const {
 		st::emojiSuggestionsFadeLeft.fill(p, rect);
 		p.setOpacity(1.);
 	}
-	const auto o_right = snap(
+	const auto o_right = std::clamp(
 		(_scrollMax - scroll) / float64(st::emojiSuggestionsFadeAfter),
 		0.,
 		1.);
@@ -422,7 +425,7 @@ void SuggestionsWidget::mouseMoveEvent(QMouseEvent *e) {
 	const auto globalPosition = e->globalPos();
 	if (_dragScrollStart >= 0) {
 		const auto delta = (_mousePressPosition.x() - globalPosition.x());
-		const auto scroll = snap(
+		const auto scroll = std::clamp(
 			_dragScrollStart + (rtl() ? -1 : 1) * delta,
 			0,
 			_scrollMax);

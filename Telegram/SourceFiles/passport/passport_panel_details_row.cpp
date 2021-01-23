@@ -680,7 +680,7 @@ void DateRow::paintEvent(QPaintEvent *e) {
 	auto borderShownDegree = _a_borderShown.value(1.);
 	auto borderOpacity = _a_borderOpacity.value(_borderVisible ? 1. : 0.);
 	if (_st.borderActive && (borderOpacity > 0.)) {
-		auto borderStart = snap(_borderAnimationStart, 0, width);
+		auto borderStart = std::clamp(_borderAnimationStart, 0, width);
 		auto borderFrom = qRound(borderStart * (1. - borderShownDegree));
 		auto borderTo = borderStart + qRound((width - borderStart) * borderShownDegree);
 		if (borderTo > borderFrom) {

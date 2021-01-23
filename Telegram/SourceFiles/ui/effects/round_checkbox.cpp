@@ -423,7 +423,7 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
 
 	if (selectionLevel > 0) {
 		PainterHighQualityEnabler hq(p);
-		p.setOpacity(snap(selectionLevel, 0., 1.));
+		p.setOpacity(std::clamp(selectionLevel, 0., 1.));
 		p.setBrush(Qt::NoBrush);
 		auto pen = _st.selectFg->p;
 		pen.setWidth(_st.selectWidth);
@@ -438,7 +438,7 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
 }
 
 float64 RoundImageCheckbox::checkedAnimationRatio() const {
-	return snap(_selection.value(checked() ? 1. : 0.), 0., 1.);
+	return std::clamp(_selection.value(checked() ? 1. : 0.), 0., 1.);
 }
 
 void RoundImageCheckbox::setChecked(bool newChecked, anim::type animated) {

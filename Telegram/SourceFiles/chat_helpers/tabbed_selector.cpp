@@ -153,8 +153,9 @@ void TabbedSelector::SlideAnimation::paintFrame(QPainter &p, float64 dt, float64
 	auto rightAlpha = (leftToRight ? departingAlpha : arrivingAlpha);
 
 	// _innerLeft ..(left).. leftTo ..(both).. bothTo ..(none).. noneTo ..(right).. _innerRight
-	auto leftTo = _innerLeft + snap(_innerWidth + leftCoord, 0, _innerWidth);
-	auto rightFrom = _innerLeft + snap(rightCoord, 0, _innerWidth);
+	auto leftTo = _innerLeft
+		+ std::clamp(_innerWidth + leftCoord, 0, _innerWidth);
+	auto rightFrom = _innerLeft + std::clamp(rightCoord, 0, _innerWidth);
 	auto painterRightFrom = rightFrom / cIntRetinaFactor();
 	if (opacity < 1.) {
 		_frame.fill(Qt::transparent);

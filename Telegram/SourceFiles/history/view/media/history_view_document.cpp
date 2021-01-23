@@ -778,7 +778,11 @@ void Document::updatePressed(QPoint point) {
 			const auto &st = thumbed ? st::msgFileThumbLayout : st::msgFileLayout;
 			const auto nameleft = st.padding.left() + st.thumbSize + st.padding.right();
 			const auto nameright = st.padding.left();
-			voice->setSeekingCurrent(snap((point.x() - nameleft) / float64(width() - nameleft - nameright), 0., 1.));
+			voice->setSeekingCurrent(std::clamp(
+				(point.x() - nameleft)
+					/ float64(width() - nameleft - nameright),
+				0.,
+				1.));
 			history()->owner().requestViewRepaint(_parent);
 		}
 	}
@@ -863,7 +867,12 @@ bool Document::updateStatusText() const {
 				bool was = (voice->_playback != nullptr);
 				voice->ensurePlayback(this);
 				if (!was || state.position != voice->_playback->position) {
-					auto prg = state.length ? snap(float64(state.position) / state.length, 0., 1.) : 0.;
+					auto prg = state.length
+						? std::clamp(
+							float64(state.position) / state.length,
+							0.,
+							1.)
+						: 0.;
 					if (voice->_playback->position < state.position) {
 						voice->_playback->progress.start(prg);
 					} else {

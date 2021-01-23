@@ -207,7 +207,7 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 	auto windowWidth = parentSize.width();
 	auto windowHeight = parentSize.height();
 	auto newLeft = (windowWidth - newWidth) / 2;
-	auto newTop = snap(
+	auto newTop = std::clamp(
 		windowHeight / 24,
 		st::infoLayerTopMinimal,
 		st::infoLayerTopMaximal);
