@@ -149,10 +149,16 @@ void GetInhibitionSupported(Fn<void(bool)> callback) {
 	const auto async = QDBusConnection::sessionBus().asyncCall(message);
 	auto watcher = new QDBusPendingCallWatcher(async);
 
+	static const auto DontLogErrors = {
+		QDBusError::NoError,
+		QDBusError::InvalidArgs,
+		QDBusError::UnknownProperty,
+	};
+
 	const auto finished = [=](QDBusPendingCallWatcher *call) {
 		const auto error = QDBusPendingReply<QVariant>(*call).error();
 
-		if (error.isValid() && error.type() != QDBusError::InvalidArgs) {
+		if (!ranges::contains(DontLogErrors, error.type())) {
 			LOG(("Native Notification Error: %1: %2")
 				.arg(error.name())
 				.arg(error.message()));
