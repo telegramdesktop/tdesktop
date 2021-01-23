@@ -1216,7 +1216,7 @@ void start() {
 	DEBUG_LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
 
 	if (const auto integration = GtkIntegration::Instance()) {
-		return integration->load();
+		integration->load();
 	}
 
 	// wait for interface announce to know if native window frame is supported
