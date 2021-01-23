@@ -43,6 +43,10 @@ std::optional<QString> GtkIntegration::getStringSetting(
 	return std::nullopt;
 }
 
+std::optional<int> GtkIntegration::scaleFactor() const {
+	return std::nullopt;
+}
+
 bool GtkIntegration::fileDialogSupported() const {
 	return false;
 }

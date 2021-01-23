@@ -34,6 +34,8 @@ public:
 	[[nodiscard]] std::optional<QString> getStringSetting(
 		const QString &propertyName) const;
 
+	[[nodiscard]] std::optional<int> scaleFactor() const;
+
 	using FileDialogType = ::FileDialog::internal::Type;
 	[[nodiscard]] bool fileDialogSupported() const;
 	[[nodiscard]] bool useFileDialog(

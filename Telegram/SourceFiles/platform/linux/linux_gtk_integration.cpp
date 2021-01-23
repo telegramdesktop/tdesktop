@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/linux/linux_gtk_integration_p.h"
 #include "base/platform/base_platform_info.h"
+#include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_xlib_helper.h"
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_gtk_file_dialog.h"
@@ -207,6 +208,28 @@ bool CursorSizeShouldBeSet() {
 	return Result;
 }
 
+void SetScaleFactor() {
+	Core::Sandbox::Instance().customEnterFromEventLoop([] {
+		const auto integration = GtkIntegration::Instance();
+		if (!integration || !DesktopEnvironment::IsGtkBased()) {
+			return;
+		}
+
+		const auto scaleFactor = integration->scaleFactor();
+		if (!scaleFactor.has_value()) {
+			return;
+		}
+
+		LOG(("GTK scale factor: %1").arg(*scaleFactor));
+
+		const int scale = *scaleFactor
+			* 100
+			/ Core::Sandbox::Instance().devicePixelRatio();
+
+		cSetScreenScale(std::clamp(scale, 100, 300));
+	});
+}
+
 void SetIconTheme() {
 	Core::Sandbox::Instance().customEnterFromEventLoop([] {
 		const auto integration = GtkIntegration::Instance();
@@ -312,6 +335,10 @@ void GtkIntegration::load() {
 	}
 
 	if (GtkLoaded) {
+		LOAD_GTK_SYMBOL(lib_gtk, "gdk_display_get_default", gdk_display_get_default);
+		LOAD_GTK_SYMBOL(lib_gtk, "gdk_display_get_primary_monitor", gdk_display_get_primary_monitor);
+		LOAD_GTK_SYMBOL(lib_gtk, "gdk_monitor_get_scale_factor", gdk_monitor_get_scale_factor);
+
 		LOAD_GTK_SYMBOL(lib_gtk, "gdk_pixbuf_new_from_file_at_size", gdk_pixbuf_new_from_file_at_size);
 		LOAD_GTK_SYMBOL(lib_gtk, "gdk_pixbuf_get_has_alpha", gdk_pixbuf_get_has_alpha);
 		LOAD_GTK_SYMBOL(lib_gtk, "gdk_pixbuf_get_pixels", gdk_pixbuf_get_pixels);
@@ -329,6 +356,7 @@ void GtkIntegration::load() {
 		LOAD_GTK_SYMBOL(lib_gtk, "gtk_app_chooser_get_app_info", gtk_app_chooser_get_app_info);
 		LOAD_GTK_SYMBOL(lib_gtk, "gtk_app_chooser_get_type", gtk_app_chooser_get_type);
 
+		SetScaleFactor();
 		SetIconTheme();
 		SetCursorSize();
 
@@ -415,6 +443,18 @@ std::optional<QString> GtkIntegration::getStringSetting(
 	g_free(*value);
 	DEBUG_LOG(("Getting GTK setting, %1: '%2'").arg(propertyName).arg(str));
 	return str;
+}
+
+std::optional<int> GtkIntegration::scaleFactor() const {
+	if (!loaded()
+		|| (gdk_display_get_default == nullptr)
+		|| (gdk_display_get_primary_monitor == nullptr)
+		|| (gdk_monitor_get_scale_factor == nullptr)) {
+		return std::nullopt;
+	}
+
+	return gdk_monitor_get_scale_factor(
+		gdk_display_get_primary_monitor(gdk_display_get_default()));
 }
 
 bool GtkIntegration::fileDialogSupported() const {
