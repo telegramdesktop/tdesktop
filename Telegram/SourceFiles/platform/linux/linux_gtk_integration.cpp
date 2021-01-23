@@ -233,9 +233,7 @@ void SetScaleFactor() {
 void SetIconTheme() {
 	Core::Sandbox::Instance().customEnterFromEventLoop([] {
 		const auto integration = GtkIntegration::Instance();
-
-		if (!integration
-			|| !IconThemeShouldBeSet()) {
+		if (!integration || !IconThemeShouldBeSet()) {
 			return;
 		}
 
@@ -270,9 +268,7 @@ void SetIconTheme() {
 void SetCursorSize() {
 	Core::Sandbox::Instance().customEnterFromEventLoop([] {
 		const auto integration = GtkIntegration::Instance();
-
-		if (!integration
-			|| !CursorSizeShouldBeSet()) {
+		if (!integration || !CursorSizeShouldBeSet()) {
 			return;
 		}
 
