@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/linux/linux_gtk_integration_p.h"
 #include "base/platform/base_platform_info.h"
-#include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_xlib_helper.h"
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_gtk_file_dialog.h"
@@ -211,22 +210,18 @@ bool CursorSizeShouldBeSet() {
 void SetScaleFactor() {
 	Core::Sandbox::Instance().customEnterFromEventLoop([] {
 		const auto integration = GtkIntegration::Instance();
-		if (!integration || !DesktopEnvironment::IsGtkBased()) {
+		const auto ratio = Core::Sandbox::Instance().devicePixelRatio();
+		if (!integration || ratio > 1.) {
 			return;
 		}
 
-		const auto scaleFactor = integration->scaleFactor();
-		if (!scaleFactor.has_value()) {
+		const auto scaleFactor = integration->scaleFactor().value_or(1);
+		if (scaleFactor == 1) {
 			return;
 		}
 
-		LOG(("GTK scale factor: %1").arg(*scaleFactor));
-
-		const int scale = *scaleFactor
-			* 100
-			/ Core::Sandbox::Instance().devicePixelRatio();
-
-		cSetScreenScale(std::clamp(scale, 100, 300));
+		LOG(("GTK scale factor: %1").arg(scaleFactor));
+		cSetScreenScale(std::clamp(scaleFactor * 100, 100, 300));
 	});
 }
 
