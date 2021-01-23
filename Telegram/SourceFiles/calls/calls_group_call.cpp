@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_session.h"
 #include "base/global_shortcuts.h"
+#include "base/openssl_help.h"
 #include "webrtc/webrtc_media_devices.h"
 #include "webrtc/webrtc_create_adm.h"
 
@@ -201,7 +202,7 @@ void GroupCall::playConnectingSoundOnce() {
 void GroupCall::start() {
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
 		_peer->input,
-		MTP_int(rand_value<int32>())
+		MTP_int(openssl::RandomValue<int32>())
 	)).done([=](const MTPUpdates &result) {
 		_acceptFields = true;
 		_peer->session().api().applyUpdates(result);

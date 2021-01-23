@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
 #include "base/platform/mac/base_utilities_mac.h"
+#include "base/openssl_help.h"
 #include "history/history.h"
 #include "ui/empty_userpic.h"
 #include "main/main_session.h"
@@ -229,7 +230,7 @@ private:
 };
 
 Manager::Private::Private(Manager *manager)
-: _managerId(rand_value<uint64>())
+: _managerId(openssl::RandomValue<uint64>())
 , _managerIdString(QString::number(_managerId))
 , _delegate([[NotificationDelegate alloc] initWithManager:manager managerId:_managerId]) {
 	updateDelegate();

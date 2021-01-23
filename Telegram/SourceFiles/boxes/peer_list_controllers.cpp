@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peer_list_controllers.h"
 
+#include "base/openssl_help.h"
 #include "boxes/confirm_box.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/ui_utility.h"
@@ -35,7 +36,7 @@ void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 	auto &histories = history->owner().histories();
 	const auto requestType = Data::Histories::RequestType::Send;
 	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-		const auto randomId = rand_value<uint64>();
+		const auto randomId = openssl::RandomValue<uint64>();
 		const auto api = &chat->session().api();
 		history->sendRequestId = api->request(MTPmessages_SendMedia(
 			MTP_flags(0),

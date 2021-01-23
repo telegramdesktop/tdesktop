@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "base/event_filter.h"
 #include "base/call_delayed.h"
+#include "base/openssl_help.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -885,7 +886,7 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	using namespace Settings;
 
-	const auto id = rand_value<uint64>();
+	const auto id = openssl::RandomValue<uint64>();
 	const auto error = lifetime().make_state<Errors>(Error::Question);
 
 	auto result = object_ptr<Ui::VerticalLayout>(this);

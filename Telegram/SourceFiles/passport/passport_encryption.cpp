@@ -334,7 +334,7 @@ EncryptedData EncryptData(
 	constexpr auto kFromPadding = kMinPadding + kAlignTo - 1;
 	constexpr auto kPaddingDelta = kMaxPadding - kFromPadding;
 	const auto randomPadding = kFromPadding
-		+ (rand_value<uint32>() % kPaddingDelta);
+		+ (openssl::RandomValue<uint32>() % kPaddingDelta);
 	const auto padding = randomPadding
 		- ((bytes.size() + randomPadding) % kAlignTo);
 	Assert(padding >= kMinPadding && padding <= kMaxPadding);

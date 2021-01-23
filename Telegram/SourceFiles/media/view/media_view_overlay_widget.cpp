@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "base/platform/base_platform_info.h"
+#include "base/openssl_help.h"
 #include "base/unixtime.h"
 #include "main/main_account.h"
 #include "main/main_domain.h" // Domain::activeSessionValue.
@@ -2688,7 +2689,7 @@ void OverlayWidget::initThemePreview() {
 
 	const auto weakSession = base::make_weak(&_document->session());
 	const auto path = _document->location().name();
-	const auto id = _themePreviewId = rand_value<uint64>();
+	const auto id = _themePreviewId = openssl::RandomValue<uint64>();
 	const auto weak = Ui::MakeWeak(this);
 	crl::async([=, data = std::move(current)]() mutable {
 		auto preview = GeneratePreview(

@@ -117,12 +117,6 @@ inline std::array<char, 32> hashMd5Hex(const void *data, int size) {
 
 // good random (using openssl implementation)
 void memset_rand(void *data, uint32 len);
-template <typename T>
-T rand_value() {
-	T result;
-	memset_rand(&result, sizeof(result));
-	return result;
-}
 
 QString translitRusEng(const QString &rus);
 QString rusKeyboardLayoutSwitch(const QString &from);

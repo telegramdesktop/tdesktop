@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/base_file_utilities.h"
 #include "base/zlib_help.h"
 #include "base/unixtime.h"
+#include "base/openssl_help.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_cloud_themes.h"
@@ -341,7 +342,7 @@ bool CopyColorsToPalette(
 	auto result = QString();
 	result.reserve(kRandomSlugSize);
 	for (auto i = 0; i != kRandomSlugSize; ++i) {
-		const auto value = rand_value<uint8>() % values;
+		const auto value = openssl::RandomValue<uint8>() % values;
 		if (value < letters) {
 			result.append(char('A' + value));
 		} else if (value < 2 * letters) {
@@ -447,7 +448,7 @@ SendMediaReady PrepareThemeMedia(
 	auto attributes = QVector<MTPDocumentAttribute>(
 		1,
 		MTP_documentAttributeFilename(MTP_string(filename)));
-	const auto id = rand_value<DocumentId>();
+	const auto id = openssl::RandomValue<DocumentId>();
 	const auto document = MTP_document(
 		MTP_flags(0),
 		MTP_long(id),

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 
 #include "api/api_text_entities.h"
+#include "base/openssl_help.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -417,7 +418,7 @@ void Result::createGame(not_null<Main::Session*> session) {
 		return;
 	}
 
-	const auto gameId = rand_value<GameId>();
+	const auto gameId = openssl::RandomValue<GameId>();
 	_game = session->data().game(
 		gameId,
 		0,

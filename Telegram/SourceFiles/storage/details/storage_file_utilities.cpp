@@ -58,7 +58,7 @@ FileKey GenerateKey(const QString &basePath) {
 	path.reserve(basePath.size() + 0x11);
 	path += basePath;
 	do {
-		result = rand_value<FileKey>();
+		result = openssl::RandomValue<FileKey>();
 		path.resize(basePath.size());
 		path += ToFilePart(result);
 	} while (!result || KeyAlreadyUsed(path));
