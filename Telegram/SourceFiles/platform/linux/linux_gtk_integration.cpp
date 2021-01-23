@@ -316,6 +316,7 @@ GtkIntegration *GtkIntegration::Instance() {
 }
 
 void GtkIntegration::load() {
+	Expects(!GtkLoaded);
 	DEBUG_LOG(("Loading GTK"));
 
 	QLibrary lib_gtk;
