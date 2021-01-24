@@ -27,7 +27,7 @@ extern "C" {
 #endif // !LINK_TO_GTK
 
 // To be able to compile with gtk-2.0 headers as well
-#define GdkMonitor GdkScreen
+typedef struct _GdkMonitor GdkMonitor;
 typedef struct _GtkAppChooser GtkAppChooser;
 
 namespace Platform {
