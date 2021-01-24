@@ -36,14 +36,8 @@
     "lng_copy_restriction_reason": "Copy Restriction Reason",
 
     "lng_context_copy_callback_data": "Copy Callback Data",
-    "lng_context_show_messages_from": "Messages From User",
-    "lng_context_repeat_msg": "Repeat This Message",
-    "lng_context_repeat_msg_no_fwd": "Repeat This Message(!Forward)",
-    "lng_context_forward_msg_no_quote": "Forward Message(W/O quote)",
     "lng_context_forward_selected_no_quote": "Forward Selected(W/O quote)",
     "lng_selected_forward_no_quote": "Forward(w/o quote)",
-    "lng_forward_to_saved_message": "Forward to Saved Messages",
-    "lng_context_forward_msg_old": "Forward Message(Classic)",
     "lng_context_forward_msg_old_selected": "Forward Selected(Classic)",
     "lng_selected_forward_emoji_classic": "📠(Classic)",
 
@@ -80,5 +74,13 @@
     "lng_settings_delete_for_both": "Why not both?",
 
     "lng_title_forward_as_copy": "Copy to...",
-    "lng_title_multiple_forward": "Forward to..."
+    "lng_title_multiple_forward": "Forward to...",
+
+    "lng_context_forward_msg": "Multi-Forward",
+    "lng_context_forward_msg_old": "Single Forward",
+    "lng_context_show_messages_from": "Msgs From User",
+    "lng_context_repeat_msg": "Repeat as Forward",
+    "lng_context_repeat_msg_no_fwd": "Repeat as copy",
+    "lng_context_forward_msg_no_quote": "Forward as copy",
+    "lng_forward_to_saved_message": "Forward to Saved"
 }
