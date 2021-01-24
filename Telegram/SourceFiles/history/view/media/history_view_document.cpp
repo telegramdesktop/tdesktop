@@ -456,18 +456,43 @@ void Document::draw(
 
 		const auto icon = [&] {
 			if (_data->waitingForAlbum()) {
+				if (_data->isSong()) {
+					return &(selected
+						? st::historyFileSongWaitingSelected
+						: st::historyFileSongWaiting);
+				}
 				return &(outbg ? (selected ? st::historyFileOutWaitingSelected : st::historyFileOutWaiting) : (selected ? st::historyFileInWaitingSelected : st::historyFileInWaiting));
 			} else if (!cornerDownload && (_data->loading() || _data->uploading())) {
+				if (_data->isSong()) {
+					return &(selected
+						? st::historyFileSongCancelSelected
+						: st::historyFileSongCancel);
+				}
 				return &(outbg ? (selected ? st::historyFileOutCancelSelected : st::historyFileOutCancel) : (selected ? st::historyFileInCancelSelected : st::historyFileInCancel));
 			} else if (showPause) {
+				if (_data->isSong()) {
+					return &(selected
+						? st::historyFileSongPauseSelected
+						: st::historyFileSongPause);
+				}
 				return &(outbg ? (selected ? st::historyFileOutPauseSelected : st::historyFileOutPause) : (selected ? st::historyFileInPauseSelected : st::historyFileInPause));
 			} else if (loaded || _dataMedia->canBePlayed()) {
 				if (_dataMedia->canBePlayed()) {
+					if (_data->isSong()) {
+						return &(selected
+							? st::historyFileSongPlaySelected
+							: st::historyFileSongPlay);
+					}
 					return &(outbg ? (selected ? st::historyFileOutPlaySelected : st::historyFileOutPlay) : (selected ? st::historyFileInPlaySelected : st::historyFileInPlay));
 				} else if (_data->isImage()) {
 					return &(outbg ? (selected ? st::historyFileOutImageSelected : st::historyFileOutImage) : (selected ? st::historyFileInImageSelected : st::historyFileInImage));
 				}
 				return &(outbg ? (selected ? st::historyFileOutDocumentSelected : st::historyFileOutDocument) : (selected ? st::historyFileInDocumentSelected : st::historyFileInDocument));
+			}
+			if (_data->isSong()) {
+				return &(selected
+					? st::historyFileSongDownloadSelected
+					: st::historyFileSongDownload);
 			}
 			return &(outbg ? (selected ? st::historyFileOutDownloadSelected : st::historyFileOutDownload) : (selected ? st::historyFileInDownloadSelected : st::historyFileInDownload));
 		}();

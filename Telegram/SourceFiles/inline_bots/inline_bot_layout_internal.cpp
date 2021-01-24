@@ -896,6 +896,8 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 			return &st::historyFileInPause;
 		} else if (_document->isImage()) {
 			return &st::historyFileInImage;
+		} else if (_document->isSong()) {
+			return &st::historyFileSongPlay;
 		} else if (_document->isVoiceMessage()
 			|| _document->isAudioFile()) {
 			return &st::historyFileInPlay;

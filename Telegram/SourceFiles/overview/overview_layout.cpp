@@ -734,13 +734,15 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 		const auto icon = [&] {
 			if (_data->loading() || _data->uploading()) {
-				return &(selected ? _st.songCancelSelected : _st.songCancel);
+				return &(selected ? _st.voiceCancelSelected : _st.voiceCancel);
 			} else if (showPause) {
-				return &(selected ? _st.songPauseSelected : _st.songPause);
+				return &(selected ? _st.voicePauseSelected : _st.voicePause);
 			} else if (_dataMedia->canBePlayed()) {
-				return &(selected ? _st.songPlaySelected : _st.songPlay);
+				return &(selected ? _st.voicePlaySelected : _st.voicePlay);
 			}
-			return &(selected ? _st.songDownloadSelected : _st.songDownload);
+			return &(selected
+				? _st.voiceDownloadSelected
+				: _st.voiceDownload);
 		}();
 		icon->paintInCenter(p, inner);
 	}

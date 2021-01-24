@@ -160,6 +160,17 @@ historyFileOutWaitingSelected: icon {{ "mediaview_save_check", historyFileOutIco
 historyFileInWaiting: icon {{ "mediaview_save_check", historyFileInIconFg }};
 historyFileInWaitingSelected: icon {{ "mediaview_save_check", historyFileInIconFgSelected }};
 
+historyFileSongPause: icon {{ "history_file_pause", historyFileThumbIconFg }};
+historyFileSongPauseSelected: icon {{ "history_file_pause", historyFileThumbIconFgSelected }};
+historyFileSongPlay: icon {{ "history_file_play", historyFileThumbIconFg }};
+historyFileSongPlaySelected: icon {{ "history_file_play", historyFileThumbIconFgSelected }};
+historyFileSongCancel: icon {{ "history_file_cancel", historyFileThumbIconFg }};
+historyFileSongCancelSelected: icon {{ "history_file_cancel", historyFileThumbIconFgSelected }};
+historyFileSongDownload: icon {{ "history_file_download", historyFileThumbIconFg }};
+historyFileSongDownloadSelected: icon {{ "history_file_download", historyFileThumbIconFgSelected }};
+historyFileSongWaiting: icon {{ "mediaview_save_check", historyFileThumbIconFg }};
+historyFileSongWaitingSelected: icon {{ "mediaview_save_check", historyFileThumbIconFgSelected }};
+
 historyFileThumbDownload: icon {{ "history_file_download", historyFileThumbIconFg }};
 historyFileThumbDownloadSelected: icon {{ "history_file_download", historyFileThumbIconFgSelected }};
 historyFileThumbCancel: icon {{ "history_file_cancel", historyFileThumbIconFg }};
