@@ -127,9 +127,6 @@ MenuVolumeItem::MenuVolumeItem(
 
 	const auto returnVolume = [=] {
 		_changeVolumeLocallyRequests.fire_copy(_cloudVolume);
-		crl::on_main(_slider.get(), [=] {
-			setSliderVolume(_cloudVolume);
-		});
 	};
 
 	_slider->setChangeFinishedCallback([=](float64 value) {
@@ -220,7 +217,7 @@ void MenuVolumeItem::setCloudVolume(int volume) {
 	}
 	_cloudVolume = volume;
 	if (!_slider->isChanging()) {
-		setSliderVolume(volume);
+		setSliderVolume(_cloudMuted ? 0. : volume);
 	}
 }
 
