@@ -273,6 +273,10 @@ bool Enforced() {
 	return false;
 }
 
+bool ByDefault() {
+	return false;
+}
+
 void Create(Window::Notifications::System *system) {
 #ifndef __MINGW32__
 	if (Core::App().settings().nativeNotifications() && Supported()) {

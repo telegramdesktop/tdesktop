@@ -60,7 +60,7 @@ QByteArray Settings::serialize() const {
 			<< qint32(_desktopNotify ? 1 : 0)
 			<< qint32(_flashBounceNotify ? 1 : 0)
 			<< static_cast<qint32>(_notifyView)
-			<< qint32(_nativeNotifications ? 1 : 0)
+			<< qint32(_nativeNotifications ? (*_nativeNotifications ? 1 : 2) : 0)
 			<< qint32(_notificationsCount)
 			<< static_cast<qint32>(_notificationsCorner)
 			<< qint32(_autoLock)
@@ -141,7 +141,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 desktopNotify = _desktopNotify ? 1 : 0;
 	qint32 flashBounceNotify = _flashBounceNotify ? 1 : 0;
 	qint32 notifyView = static_cast<qint32>(_notifyView);
-	qint32 nativeNotifications = _nativeNotifications ? 1 : 0;
+	qint32 nativeNotifications = _nativeNotifications ? (*_nativeNotifications ? 1 : 2) : 0;
 	qint32 notificationsCount = _notificationsCount;
 	qint32 notificationsCorner = static_cast<qint32>(_notificationsCorner);
 	qint32 autoLock = _autoLock;
@@ -313,7 +313,12 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	case dbinvShowName:
 	case dbinvShowPreview: _notifyView = uncheckedNotifyView; break;
 	}
-	_nativeNotifications = (nativeNotifications == 1);
+	switch (nativeNotifications) {
+	case 0: _nativeNotifications = std::nullopt; break;
+	case 1: _nativeNotifications = true; break;
+	case 2: _nativeNotifications = false; break;
+	default: break;
+	}
 	_notificationsCount = (notificationsCount > 0) ? notificationsCount : 3;
 	const auto uncheckedNotificationsCorner = static_cast<ScreenCorner>(notificationsCorner);
 	switch (uncheckedNotificationsCorner) {
@@ -479,7 +484,7 @@ void Settings::resetOnLastLogout() {
 	_desktopNotify = true;
 	_flashBounceNotify = true;
 	_notifyView = dbinvShowPreview;
-	//_nativeNotifications = false;
+	//_nativeNotifications = std::nullopt;
 	//_notificationsCount = 3;
 	//_notificationsCorner = ScreenCorner::BottomRight;
 	_includeMutedCounter = true;

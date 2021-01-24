@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_themes_embedded.h"
 #include "window/window_controls_layout.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "platform/platform_notifications_manager.h"
 
 enum class RectPart;
 
@@ -135,10 +136,12 @@ public:
 		_notifyView = value;
 	}
 	[[nodiscard]] bool nativeNotifications() const {
-		return _nativeNotifications;
+		return _nativeNotifications.value_or(Platform::Notifications::ByDefault());
 	}
 	void setNativeNotifications(bool value) {
-		_nativeNotifications = value;
+		_nativeNotifications = (value == Platform::Notifications::ByDefault())
+			? std::nullopt
+			: std::make_optional(value);
 	}
 	[[nodiscard]] int notificationsCount() const {
 		return _notificationsCount;
@@ -529,7 +532,7 @@ private:
 	bool _desktopNotify = true;
 	bool _flashBounceNotify = true;
 	DBINotifyView _notifyView = dbinvShowPreview;
-	bool _nativeNotifications = false;
+	std::optional<bool> _nativeNotifications;
 	int _notificationsCount = 3;
 	ScreenCorner _notificationsCorner = ScreenCorner::BottomRight;
 	bool _includeMutedCounter = true;

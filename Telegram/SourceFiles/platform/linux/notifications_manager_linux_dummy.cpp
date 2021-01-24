@@ -35,6 +35,10 @@ bool Enforced() {
 	return IsWayland();
 }
 
+bool ByDefault() {
+	return false;
+}
+
 void Create(Window::Notifications::System *system) {
 	if (Enforced()) {
 		using DummyManager = Window::Notifications::DummyManager;
