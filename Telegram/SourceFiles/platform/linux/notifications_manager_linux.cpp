@@ -718,39 +718,42 @@ void Create(Window::Notifications::System *system) {
 		}
 	};
 
+	if (!ServiceRegistered) {
+		CurrentServerInformation = std::nullopt;
+		CurrentCapabilities = QStringList{};
+		InhibitionSupported = false;
+		managerSetter();
+		return;
+	}
+
+	// There are some asserts that manager is not nullptr,
+	// avoid crashes until some real manager is created
 	if (!system->managerType().has_value()) {
 		using DummyManager = Window::Notifications::DummyManager;
 		system->setManager(std::make_unique<DummyManager>(system));
 	}
 
-	if (ServiceRegistered) {
-		const auto counter = std::make_shared<int>(3);
-		const auto oneReady = [=] {
-			if (!--*counter) {
-				managerSetter();
-			}
-		};
+	const auto counter = std::make_shared<int>(3);
+	const auto oneReady = [=] {
+		if (!--*counter) {
+			managerSetter();
+		}
+	};
 
-		GetServerInformation([=](std::optional<ServerInformation> result) {
-			CurrentServerInformation = result;
-			oneReady();
-		});
+	GetServerInformation([=](std::optional<ServerInformation> result) {
+		CurrentServerInformation = result;
+		oneReady();
+	});
 
-		GetCapabilities([=](QStringList result) {
-			CurrentCapabilities = result;
-			oneReady();
-		});
+	GetCapabilities([=](QStringList result) {
+		CurrentCapabilities = result;
+		oneReady();
+	});
 
-		GetInhibitionSupported([=](bool result) {
-			InhibitionSupported = result;
-			oneReady();
-		});
-	} else {
-		CurrentServerInformation = std::nullopt;
-		CurrentCapabilities = QStringList{};
-		InhibitionSupported = false;
-		managerSetter();
-	}
+	GetInhibitionSupported([=](bool result) {
+		InhibitionSupported = result;
+		oneReady();
+	});
 }
 
 class Manager::Private {
