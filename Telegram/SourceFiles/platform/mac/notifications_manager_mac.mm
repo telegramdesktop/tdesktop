@@ -167,6 +167,10 @@ bool Enforced() {
 	return Supported();
 }
 
+bool ByDefault() {
+	return Supported();
+}
+
 void Create(Window::Notifications::System *system) {
 	if (Supported()) {
 		system->setManager(std::make_unique<Manager>(system));

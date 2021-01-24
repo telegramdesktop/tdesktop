@@ -18,6 +18,7 @@ namespace Notifications {
 
 [[nodiscard]] bool Supported();
 [[nodiscard]] bool Enforced();
+[[nodiscard]] bool ByDefault();
 void Create(Window::Notifications::System *system);
 
 } // namespace Notifications

@@ -698,7 +698,11 @@ bool Supported() {
 bool Enforced() {
 	// Wayland doesn't support positioning
 	// and custom notifications don't work here
-	return IsQualifiedDaemon() || IsWayland();
+	return IsWayland();
+}
+
+bool ByDefault() {
+	return IsQualifiedDaemon();
 }
 
 void Create(Window::Notifications::System *system) {
