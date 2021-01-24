@@ -40,7 +40,7 @@ MenuVolumeItem::MenuVolumeItem(
 , _localMuted(muted)
 , _slider(base::make_unique_q<Ui::MediaSlider>(
 	this,
-	st::groupCallMenuVolumeSkipSlider))
+	st::groupCallMenuVolumeSlider))
 , _dummyAction(new QAction(parent))
 , _st(st)
 , _stCross(st::groupCallMuteCrossLine)
@@ -53,6 +53,8 @@ MenuVolumeItem::MenuVolumeItem(
 
 	initResizeHook(parent->sizeValue());
 	enableMouseSelecting();
+
+	_slider->setAlwaysDisplayMarker(true);
 
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &size) {
@@ -75,8 +77,11 @@ MenuVolumeItem::MenuVolumeItem(
 	) | rpl::start_with_next([=](const QRect &clip) {
 		Painter p(this);
 
+		const auto volume = _localMuted
+			? 0
+			: std::round(_slider->value() * kMaxVolumePercent);
 		const auto muteProgress =
-			_crossLineAnimation.value(_localMuted ? 1. : 0.);
+			_crossLineAnimation.value((!volume) ? 1. : 0.);
 
 		const auto selected = isSelected();
 		p.fillRect(clip, selected ? st.itemBgOver : st.itemBg);
@@ -87,9 +92,6 @@ MenuVolumeItem::MenuVolumeItem(
 			muteProgress);
 		p.setPen(mutePen);
 		p.setFont(_st.itemStyle.font);
-		const auto volume = _localMuted
-			? 0
-			: std::round(_slider->value() * kMaxVolumePercent);
 		p.drawText(_volumeRect, u"%1%"_q.arg(volume), style::al_center);
 
 		_crossLineMute->paint(
