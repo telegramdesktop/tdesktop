@@ -222,21 +222,22 @@ void Controller::loadMoreRows() {
 	if (_requestId || _allLoaded) {
 		return;
 	}
-	_requestId = _api.request(MTPmessages_GetChatInviteImporters(
-		_peer->input,
-		MTP_string(_data.link),
-		MTP_int(_lastUser ? _lastUser->date : 0),
-		_lastUser ? _lastUser->user->inputUser : MTP_inputUserEmpty(),
-		MTP_int(_lastUser ? kPerPage : kFirstPage)
-	)).done([=](const MTPmessages_ChatInviteImporters &result) {
-		_requestId = 0;
-		auto slice = Api::ParseJoinedByLinkSlice(_peer, result);
-		_allLoaded = slice.users.empty();
-		appendSlice(slice);
-	}).fail([=](const RPCError &error) {
-		_requestId = 0;
-		_allLoaded = true;
-	}).send();
+	_allLoaded = true; // #TODO links
+	//_requestId = _api.request(MTPmessages_GetChatInviteImporters(
+	//	_peer->input,
+	//	MTP_string(_data.link),
+	//	MTP_int(_lastUser ? _lastUser->date : 0),
+	//	_lastUser ? _lastUser->user->inputUser : MTP_inputUserEmpty(),
+	//	MTP_int(_lastUser ? kPerPage : kFirstPage)
+	//)).done([=](const MTPmessages_ChatInviteImporters &result) {
+	//	_requestId = 0;
+	//	auto slice = Api::ParseJoinedByLinkSlice(_peer, result);
+	//	_allLoaded = slice.users.empty();
+	//	appendSlice(slice);
+	//}).fail([=](const RPCError &error) {
+	//	_requestId = 0;
+	//	_allLoaded = true;
+	//}).send();
 }
 
 void Controller::appendSlice(const Api::JoinedByLinkSlice &slice) {

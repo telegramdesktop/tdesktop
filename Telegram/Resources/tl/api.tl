@@ -217,7 +217,7 @@ inputPeerNotifySettings#9c3d198e flags:# show_previews:flags.0?Bool silent:flags
 
 peerNotifySettings#af509d20 flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int sound:flags.3?string = PeerNotifySettings;
 
-peerSettings#733f2961 flags:# report_spam:flags.0?true add_contact:flags.1?true block_contact:flags.2?true share_contact:flags.3?true need_contacts_exception:flags.4?true report_geo:flags.5?true autoarchived:flags.7?true geo_distance:flags.6?int = PeerSettings;
+peerSettings#733f2961 flags:# report_spam:flags.0?true add_contact:flags.1?true block_contact:flags.2?true share_contact:flags.3?true need_contacts_exception:flags.4?true report_geo:flags.5?true autoarchived:flags.7?true invite_members:flags.8?true geo_distance:flags.6?int = PeerSettings;
 
 wallPaper#a437c3ed id:long flags:# creator:flags.0?true default:flags.1?true pattern:flags.3?true dark:flags.4?true access_hash:long slug:string document:Document settings:flags.2?WallPaperSettings = WallPaper;
 wallPaperNoFile#8af40b25 flags:# default:flags.1?true dark:flags.4?true settings:flags.2?WallPaperSettings = WallPaper;
@@ -229,6 +229,7 @@ inputReportReasonChildAbuse#adf44ee3 = ReportReason;
 inputReportReasonOther#e1746d0a text:string = ReportReason;
 inputReportReasonCopyright#9b89f93a = ReportReason;
 inputReportReasonGeoIrrelevant#dbd4feed = ReportReason;
+inputReportReasonFake#f5ddd6e7 = ReportReason;
 
 userFull#edf17c12 flags:# blocked:flags.0?true phone_calls_available:flags.4?true phone_calls_private:flags.5?true can_pin_message:flags.7?true has_scheduled:flags.12?true video_calls_available:flags.13?true user:User about:flags.1?string settings:PeerSettings profile_photo:flags.2?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo pinned_msg_id:flags.6?int common_chats_count:int folder_id:flags.11?int = UserFull;
 
@@ -1195,7 +1196,7 @@ groupCall#55903081 flags:# join_muted:flags.1?true can_change_join_muted:flags.2
 
 inputGroupCall#d8aa840f id:long access_hash:long = InputGroupCall;
 
-groupCallParticipant#b881f32b flags:# muted:flags.0?true left:flags.1?true can_self_unmute:flags.2?true just_joined:flags.4?true versioned:flags.5?true muted_by_you:flags.9?true user_id:int date:int active_date:flags.3?int source:int volume:flags.7?int muted_cnt:flags.8?int = GroupCallParticipant;
+groupCallParticipant#64c62a15 flags:# muted:flags.0?true left:flags.1?true can_self_unmute:flags.2?true just_joined:flags.4?true versioned:flags.5?true muted_by_you:flags.9?true user_id:int date:int active_date:flags.3?int source:int volume:flags.7?int = GroupCallParticipant;
 
 phone.groupCall#66ab0bfc call:GroupCall participants:Vector<GroupCallParticipant> participants_next_offset:string users:Vector<User> = phone.GroupCall;
 
@@ -1207,17 +1208,9 @@ inlineQueryPeerTypeChat#d766c50a = InlineQueryPeerType;
 inlineQueryPeerTypeMegagroup#5ec4be43 = InlineQueryPeerType;
 inlineQueryPeerTypeBroadcast#6334ee9a = InlineQueryPeerType;
 
-chatInviteImporter#1e3e6680 user_id:int date:int = ChatInviteImporter;
-
-messages.exportedChatInvites#bdc62dcc count:int invites:Vector<ExportedChatInvite> users:Vector<User> = messages.ExportedChatInvites;
-
-messages.exportedChatInvite#1871be50 invite:ExportedChatInvite users:Vector<User> = messages.ExportedChatInvite;
-
-messages.chatInviteImporters#81b6b00a count:int importers:Vector<ChatInviteImporter> users:Vector<User> = messages.ChatInviteImporters;
-
 messages.historyImport#1662af0b id:long = messages.HistoryImport;
 
-messages.historyImportParsed#8d94ab42 flags:# pm:flags.0?true group:flags.1?true title:flags.1?string = messages.HistoryImportParsed;
+messages.historyImportParsed#5e0fb7b9 flags:# pm:flags.0?true group:flags.1?true title:flags.2?string = messages.HistoryImportParsed;
 
 ---functions---
 
@@ -1378,7 +1371,7 @@ messages.readMessageContents#36a73f77 id:Vector<int> = messages.AffectedMessages
 messages.getStickers#43d4f2c emoticon:string hash:int = messages.Stickers;
 messages.getAllStickers#1c9618b1 hash:int = messages.AllStickers;
 messages.getWebPagePreview#8b68b0cc flags:# message:string entities:flags.3?Vector<MessageEntity> = MessageMedia;
-messages.exportChatInvite#14b9bcd7 flags:# legacy_revoke_permanent:flags.2?true peer:InputPeer expire_date:flags.0?int usage_limit:flags.1?int = ExportedChatInvite;
+messages.exportChatInvite#df7534c peer:InputPeer = ExportedChatInvite;
 messages.checkChatInvite#3eadb1bb hash:string = ChatInvite;
 messages.importChatInvite#6c50051c hash:string = Updates;
 messages.getStickerSet#2619a90e stickerset:InputStickerSet = messages.StickerSet;
@@ -1468,11 +1461,6 @@ messages.getReplies#24b581ba peer:InputPeer msg_id:int offset_id:int offset_date
 messages.getDiscussionMessage#446972fd peer:InputPeer msg_id:int = messages.DiscussionMessage;
 messages.readDiscussion#f731a9f4 peer:InputPeer msg_id:int read_max_id:int = Bool;
 messages.unpinAllMessages#f025bc8b peer:InputPeer = messages.AffectedHistory;
-messages.getExportedChatInvites#6a72ac6c flags:# revoked:flags.3?true peer:InputPeer admin_id:flags.0?InputUser offset_date:flags.2?int offset_link:flags.2?string limit:int = messages.ExportedChatInvites;
-messages.editExportedChatInvite#2e4ffbe flags:# revoked:flags.2?true peer:InputPeer link:string expire_date:flags.0?int usage_limit:flags.1?int = messages.ExportedChatInvite;
-messages.deleteRevokedExportedChatInvites#52041463 peer:InputPeer = Bool;
-messages.deleteExportedChatInvite#d464a42b peer:InputPeer link:string = Bool;
-messages.getChatInviteImporters#26fb7289 peer:InputPeer link:string offset_date:int offset_user:InputUser limit:int = messages.ChatInviteImporters;
 messages.deleteChat#83247d11 chat_id:int = Bool;
 messages.deletePhoneCallHistory#6cff1b45 flags:# revoke:flags.0?true = messages.AffectedHistory;
 messages.checkHistoryImport#43fe19f3 import_head:string = messages.HistoryImportParsed;

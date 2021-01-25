@@ -177,20 +177,20 @@ void Controller::createContent() {
 	_wrap->add(createInviteLinkBlock());
 	_wrap->add(createUsernameEdit());
 
-	using namespace Settings;
-	AddSkip(_wrap.get());
-	_wrap->add(EditPeerInfoBox::CreateButton(
-		_wrap.get(),
-		tr::lng_group_invite_manage(),
-		rpl::single(QString()),
-		[=] { Ui::show(
-			Box(ManageInviteLinksBox, _peer),
-			Ui::LayerOption::KeepOther);
-		},
-		st::manageGroupButton,
-		&st::infoIconInviteLinks));
-	AddSkip(_wrap.get());
-	AddDividerText(_wrap.get(), tr::lng_group_invite_manage_about());
+	//using namespace Settings; // #TODO links
+	//AddSkip(_wrap.get());
+	//_wrap->add(EditPeerInfoBox::CreateButton(
+	//	_wrap.get(),
+	//	tr::lng_group_invite_manage(),
+	//	rpl::single(QString()),
+	//	[=] { Ui::show(
+	//		Box(ManageInviteLinksBox, _peer),
+	//		Ui::LayerOption::KeepOther);
+	//	},
+	//	st::manageGroupButton,
+	//	&st::infoIconInviteLinks));
+	//AddSkip(_wrap.get());
+	//AddDividerText(_wrap.get(), tr::lng_group_invite_manage_about());
 
 	if (_controls.privacy->value() == Privacy::NoUsername) {
 		checkUsernameAvailability();

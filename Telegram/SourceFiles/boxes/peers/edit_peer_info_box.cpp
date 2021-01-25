@@ -987,29 +987,29 @@ void Controller::fillManageSection() {
 			[=] { ShowEditPermissions(_navigation, _peer); },
 			st::infoIconPermissions);
 	}
-	if (canEditInviteLinks) {
-		AddButtonWithCount(
-			_controls.buttonsLayout,
-			tr::lng_manage_peer_invite_links(),
-			Info::Profile::MigratedOrMeValue(
-				_peer
-			) | rpl::map([=](not_null<PeerData*> peer) {
-				peer->session().api().inviteLinks().requestLinks(peer);
-				return peer->session().changes().peerUpdates(
-					peer,
-					Data::PeerUpdate::Flag::InviteLinks
-				) | rpl::map([=] {
-					return peer->session().api().inviteLinks().links(
-						peer).count;
-				});
-			}) | rpl::flatten_latest(
-			) | ToPositiveNumberString(),
-			[=] { Ui::show(
-				Box(ManageInviteLinksBox, _peer),
-				Ui::LayerOption::KeepOther);
-			},
-			st::infoIconInviteLinks);
-	}
+	//if (canEditInviteLinks) { // #TODO links
+	//	AddButtonWithCount(
+	//		_controls.buttonsLayout,
+	//		tr::lng_manage_peer_invite_links(),
+	//		Info::Profile::MigratedOrMeValue(
+	//			_peer
+	//		) | rpl::map([=](not_null<PeerData*> peer) {
+	//			peer->session().api().inviteLinks().requestLinks(peer);
+	//			return peer->session().changes().peerUpdates(
+	//				peer,
+	//				Data::PeerUpdate::Flag::InviteLinks
+	//			) | rpl::map([=] {
+	//				return peer->session().api().inviteLinks().links(
+	//					peer).count;
+	//			});
+	//		}) | rpl::flatten_latest(
+	//		) | ToPositiveNumberString(),
+	//		[=] { Ui::show(
+	//			Box(ManageInviteLinksBox, _peer),
+	//			Ui::LayerOption::KeepOther);
+	//		},
+	//		st::infoIconInviteLinks);
+	//}
 	if (canViewAdmins) {
 		AddButtonWithCount(
 			_controls.buttonsLayout,

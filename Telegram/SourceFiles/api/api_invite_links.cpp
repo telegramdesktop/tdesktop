@@ -41,26 +41,27 @@ void RemovePermanent(PeerInviteLinks &links) {
 
 } // namespace
 
-JoinedByLinkSlice ParseJoinedByLinkSlice(
-		not_null<PeerData*> peer,
-		const MTPmessages_ChatInviteImporters &slice) {
-	auto result = JoinedByLinkSlice();
-	slice.match([&](const MTPDmessages_chatInviteImporters &data) {
-		auto &owner = peer->session().data();
-		owner.processUsers(data.vusers());
-		result.count = data.vcount().v;
-		result.users.reserve(data.vimporters().v.size());
-		for (const auto importer : data.vimporters().v) {
-			importer.match([&](const MTPDchatInviteImporter &data) {
-				result.users.push_back({
-					.user = owner.user(data.vuser_id().v),
-					.date = data.vdate().v,
-				});
-			});
-		}
-	});
-	return result;
-}
+// #TODO links
+//JoinedByLinkSlice ParseJoinedByLinkSlice(
+//		not_null<PeerData*> peer,
+//		const MTPmessages_ChatInviteImporters &slice) {
+//	auto result = JoinedByLinkSlice();
+//	slice.match([&](const MTPDmessages_chatInviteImporters &data) {
+//		auto &owner = peer->session().data();
+//		owner.processUsers(data.vusers());
+//		result.count = data.vcount().v;
+//		result.users.reserve(data.vimporters().v.size());
+//		for (const auto importer : data.vimporters().v) {
+//			importer.match([&](const MTPDchatInviteImporter &data) {
+//				result.users.push_back({
+//					.user = owner.user(data.vuser_id().v),
+//					.date = data.vdate().v,
+//				});
+//			});
+//		}
+//	});
+//	return result;
+//}
 
 InviteLinks::InviteLinks(not_null<ApiWrap*> api) : _api(api) {
 }
@@ -91,16 +92,19 @@ void InviteLinks::performCreate(
 		callbacks.push_back(std::move(done));
 	}
 
-	using Flag = MTPmessages_ExportChatInvite::Flag;
+	// #TODO links
+	//using Flag = MTPmessages_ExportChatInvite::Flag;
+	//_api->request(MTPmessages_ExportChatInvite(
+	//	MTP_flags((revokeLegacyPermanent
+	//		? Flag::f_legacy_revoke_permanent
+	//		: Flag(0))
+	//		| (expireDate ? Flag::f_expire_date : Flag(0))
+	//		| (usageLimit ? Flag::f_usage_limit : Flag(0))),
+	//	peer->input,
+	//	MTP_int(expireDate),
+	//	MTP_int(usageLimit)
 	_api->request(MTPmessages_ExportChatInvite(
-		MTP_flags((revokeLegacyPermanent
-			? Flag::f_legacy_revoke_permanent
-			: Flag(0))
-			| (expireDate ? Flag::f_expire_date : Flag(0))
-			| (usageLimit ? Flag::f_usage_limit : Flag(0))),
-		peer->input,
-		MTP_int(expireDate),
-		MTP_int(usageLimit)
+		peer->input
 	)).done([=](const MTPExportedChatInvite &result) {
 		const auto callbacks = _createCallbacks.take(peer);
 		const auto link = prepend(peer, result);
@@ -215,51 +219,51 @@ void InviteLinks::performEdit(
 	if (done) {
 		callbacks.push_back(std::move(done));
 	}
-
-	using Flag = MTPmessages_EditExportedChatInvite::Flag;
-	_api->request(MTPmessages_EditExportedChatInvite(
-		MTP_flags((revoke ? Flag::f_revoked : Flag(0))
-			| ((!revoke && expireDate) ? Flag::f_expire_date : Flag(0))
-			| ((!revoke && usageLimit) ? Flag::f_usage_limit : Flag(0))),
-		peer->input,
-		MTP_string(link),
-		MTP_int(expireDate),
-		MTP_int(usageLimit)
-	)).done([=](const MTPmessages_ExportedChatInvite &result) {
-		const auto callbacks = _editCallbacks.take(key);
-		const auto peer = key.peer;
-		result.match([&](const MTPDmessages_exportedChatInvite &data) {
-			_api->session().data().processUsers(data.vusers());
-			const auto link = parse(peer, data.vinvite());
-			auto i = _firstSlices.find(peer);
-			if (i != end(_firstSlices)) {
-				const auto j = ranges::find(
-					i->second.links,
-					key.link,
-					&Link::link);
-				if (j != end(i->second.links)) {
-					if (link.revoked && !j->revoked) {
-						i->second.links.erase(j);
-						if (i->second.count > 0) {
-							--i->second.count;
-						}
-					} else {
-						*j = link;
-					}
-				}
-			}
-			for (const auto &callback : *callbacks) {
-				callback(link);
-			}
-			_updates.fire(Update{
-				.peer = peer,
-				.was = key.link,
-				.now = link,
-			});
-		});
-	}).fail([=](const RPCError &error) {
-		_editCallbacks.erase(key);
-	}).send();
+	// #TODO links
+	//using Flag = MTPmessages_EditExportedChatInvite::Flag;
+	//_api->request(MTPmessages_EditExportedChatInvite(
+	//	MTP_flags((revoke ? Flag::f_revoked : Flag(0))
+	//		| ((!revoke && expireDate) ? Flag::f_expire_date : Flag(0))
+	//		| ((!revoke && usageLimit) ? Flag::f_usage_limit : Flag(0))),
+	//	peer->input,
+	//	MTP_string(link),
+	//	MTP_int(expireDate),
+	//	MTP_int(usageLimit)
+	//)).done([=](const MTPmessages_ExportedChatInvite &result) {
+	//	const auto callbacks = _editCallbacks.take(key);
+	//	const auto peer = key.peer;
+	//	result.match([&](const MTPDmessages_exportedChatInvite &data) {
+	//		_api->session().data().processUsers(data.vusers());
+	//		const auto link = parse(peer, data.vinvite());
+	//		auto i = _firstSlices.find(peer);
+	//		if (i != end(_firstSlices)) {
+	//			const auto j = ranges::find(
+	//				i->second.links,
+	//				key.link,
+	//				&Link::link);
+	//			if (j != end(i->second.links)) {
+	//				if (link.revoked && !j->revoked) {
+	//					i->second.links.erase(j);
+	//					if (i->second.count > 0) {
+	//						--i->second.count;
+	//					}
+	//				} else {
+	//					*j = link;
+	//				}
+	//			}
+	//		}
+	//		for (const auto &callback : *callbacks) {
+	//			callback(link);
+	//		}
+	//		_updates.fire(Update{
+	//			.peer = peer,
+	//			.was = key.link,
+	//			.now = link,
+	//		});
+	//	});
+	//}).fail([=](const RPCError &error) {
+	//	_editCallbacks.erase(key);
+	//}).send();
 }
 
 void InviteLinks::revoke(
@@ -293,24 +297,24 @@ void InviteLinks::destroy(
 	if (done) {
 		callbacks.push_back(std::move(done));
 	}
-
-	_api->request(MTPmessages_DeleteExportedChatInvite(
-		peer->input,
-		MTP_string(link)
-	)).done([=](const MTPBool &result) {
-		const auto callbacks = _deleteCallbacks.take(key);
-		if (callbacks) {
-			for (const auto &callback : *callbacks) {
-				callback();
-			}
-		}
-		_updates.fire(Update{
-			.peer = peer,
-			.was = key.link,
-		});
-	}).fail([=](const RPCError &error) {
-		_deleteCallbacks.erase(key);
-	}).send();
+	// #TODO links
+	//_api->request(MTPmessages_DeleteExportedChatInvite(
+	//	peer->input,
+	//	MTP_string(link)
+	//)).done([=](const MTPBool &result) {
+	//	const auto callbacks = _deleteCallbacks.take(key);
+	//	if (callbacks) {
+	//		for (const auto &callback : *callbacks) {
+	//			callback();
+	//		}
+	//	}
+	//	_updates.fire(Update{
+	//		.peer = peer,
+	//		.was = key.link,
+	//	});
+	//}).fail([=](const RPCError &error) {
+	//	_deleteCallbacks.erase(key);
+	//}).send();
 }
 
 void InviteLinks::destroyAllRevoked(
@@ -327,61 +331,62 @@ void InviteLinks::destroyAllRevoked(
 	if (done) {
 		callbacks.push_back(std::move(done));
 	}
-
-	_api->request(MTPmessages_DeleteRevokedExportedChatInvites(
-		peer->input
-	)).done([=](const MTPBool &result) {
-		if (const auto callbacks = _deleteRevokedCallbacks.take(peer)) {
-			for (const auto &callback : *callbacks) {
-				callback();
-			}
-		}
-		_allRevokedDestroyed.fire_copy(peer);
-	}).fail([=](const RPCError &error) {
-	}).send();
+	// #TODO links
+	//_api->request(MTPmessages_DeleteRevokedExportedChatInvites(
+	//	peer->input
+	//)).done([=](const MTPBool &result) {
+	//	if (const auto callbacks = _deleteRevokedCallbacks.take(peer)) {
+	//		for (const auto &callback : *callbacks) {
+	//			callback();
+	//		}
+	//	}
+	//	_allRevokedDestroyed.fire_copy(peer);
+	//}).fail([=](const RPCError &error) {
+	//}).send();
 }
 
 void InviteLinks::requestLinks(not_null<PeerData*> peer) {
 	if (_firstSliceRequests.contains(peer)) {
 		return;
 	}
-	const auto requestId = _api->request(MTPmessages_GetExportedChatInvites(
-		MTP_flags(0),
-		peer->input,
-		MTPInputUser(), // admin_id
-		MTPint(), // offset_date
-		MTPstring(), // offset_link
-		MTP_int(kFirstPage)
-	)).done([=](const MTPmessages_ExportedChatInvites &result) {
-		_firstSliceRequests.remove(peer);
-		auto slice = parseSlice(peer, result);
-		auto i = _firstSlices.find(peer);
-		const auto permanent = (i != end(_firstSlices))
-			? lookupPermanent(i->second)
-			: nullptr;
-		if (!permanent) {
-			BringPermanentToFront(slice);
-			const auto j = _firstSlices.emplace_or_assign(
-				peer,
-				std::move(slice)).first;
-			if (const auto permanent = lookupPermanent(j->second)) {
-				editPermanentLink(peer, permanent->link);
-			}
-		} else {
-			RemovePermanent(slice);
-			auto &existing = i->second.links;
-			existing.erase(begin(existing) + 1, end(existing));
-			existing.insert(
-				end(existing),
-				begin(slice.links),
-				end(slice.links));
-			i->second.count = std::max(slice.count, int(existing.size()));
-		}
-		notify(peer);
-	}).fail([=](const RPCError &error) {
-		_firstSliceRequests.remove(peer);
-	}).send();
-	_firstSliceRequests.emplace(peer, requestId);
+	// #TODO links
+	//const auto requestId = _api->request(MTPmessages_GetExportedChatInvites(
+	//	MTP_flags(0),
+	//	peer->input,
+	//	MTPInputUser(), // admin_id
+	//	MTPint(), // offset_date
+	//	MTPstring(), // offset_link
+	//	MTP_int(kFirstPage)
+	//)).done([=](const MTPmessages_ExportedChatInvites &result) {
+	//	_firstSliceRequests.remove(peer);
+	//	auto slice = parseSlice(peer, result);
+	//	auto i = _firstSlices.find(peer);
+	//	const auto permanent = (i != end(_firstSlices))
+	//		? lookupPermanent(i->second)
+	//		: nullptr;
+	//	if (!permanent) {
+	//		BringPermanentToFront(slice);
+	//		const auto j = _firstSlices.emplace_or_assign(
+	//			peer,
+	//			std::move(slice)).first;
+	//		if (const auto permanent = lookupPermanent(j->second)) {
+	//			editPermanentLink(peer, permanent->link);
+	//		}
+	//	} else {
+	//		RemovePermanent(slice);
+	//		auto &existing = i->second.links;
+	//		existing.erase(begin(existing) + 1, end(existing));
+	//		existing.insert(
+	//			end(existing),
+	//			begin(slice.links),
+	//			end(slice.links));
+	//		i->second.count = std::max(slice.count, int(existing.size()));
+	//	}
+	//	notify(peer);
+	//}).fail([=](const RPCError &error) {
+	//	_firstSliceRequests.remove(peer);
+	//}).send();
+	//_firstSliceRequests.emplace(peer, requestId);
 }
 
 std::optional<JoinedByLinkSlice> InviteLinks::lookupJoinedFirstSlice(
@@ -442,23 +447,23 @@ rpl::producer<> InviteLinks::allRevokedDestroyed(
 }
 
 void InviteLinks::requestJoinedFirstSlice(LinkKey key) {
-	if (_firstJoinedRequests.contains(key)) {
-		return;
-	}
-	const auto requestId = _api->request(MTPmessages_GetChatInviteImporters(
-		key.peer->input,
-		MTP_string(key.link),
-		MTP_int(0), // offset_date
-		MTP_inputUserEmpty(), // offset_user
-		MTP_int(kJoinedFirstPage)
-	)).done([=](const MTPmessages_ChatInviteImporters &result) {
-		_firstJoinedRequests.remove(key);
-		_firstJoined[key] = ParseJoinedByLinkSlice(key.peer, result);
-		_joinedFirstSliceLoaded.fire_copy(key);
-	}).fail([=](const RPCError &error) {
-		_firstJoinedRequests.remove(key);
-	}).send();
-	_firstJoinedRequests.emplace(key, requestId);
+	//if (_firstJoinedRequests.contains(key)) { // #TODO links
+	//	return;
+	//}
+	//const auto requestId = _api->request(MTPmessages_GetChatInviteImporters(
+	//	key.peer->input,
+	//	MTP_string(key.link),
+	//	MTP_int(0), // offset_date
+	//	MTP_inputUserEmpty(), // offset_user
+	//	MTP_int(kJoinedFirstPage)
+	//)).done([=](const MTPmessages_ChatInviteImporters &result) {
+	//	_firstJoinedRequests.remove(key);
+	//	_firstJoined[key] = ParseJoinedByLinkSlice(key.peer, result);
+	//	_joinedFirstSliceLoaded.fire_copy(key);
+	//}).fail([=](const RPCError &error) {
+	//	_firstJoinedRequests.remove(key);
+	//}).send();
+	//_firstJoinedRequests.emplace(key, requestId);
 }
 
 void InviteLinks::setPermanent(
@@ -546,27 +551,27 @@ auto InviteLinks::links(not_null<PeerData*> peer) const -> const Links & {
 	const auto i = _firstSlices.find(peer);
 	return (i != end(_firstSlices)) ? i->second : kEmpty;
 }
-
-auto InviteLinks::parseSlice(
-		not_null<PeerData*> peer,
-		const MTPmessages_ExportedChatInvites &slice) const -> Links {
-	auto i = _firstSlices.find(peer);
-	const auto permanent = (i != end(_firstSlices))
-		? lookupPermanent(i->second)
-		: nullptr;
-	auto result = Links();
-	slice.match([&](const MTPDmessages_exportedChatInvites &data) {
-		peer->session().data().processUsers(data.vusers());
-		result.count = data.vcount().v;
-		for (const auto &invite : data.vinvites().v) {
-			const auto link = parse(peer, invite);
-			if (!permanent || link.link != permanent->link) {
-				result.links.push_back(link);
-			}
-		}
-	});
-	return result;
-}
+// #TODO links
+//auto InviteLinks::parseSlice(
+//		not_null<PeerData*> peer,
+//		const MTPmessages_ExportedChatInvites &slice) const -> Links {
+//	auto i = _firstSlices.find(peer);
+//	const auto permanent = (i != end(_firstSlices))
+//		? lookupPermanent(i->second)
+//		: nullptr;
+//	auto result = Links();
+//	slice.match([&](const MTPDmessages_exportedChatInvites &data) {
+//		peer->session().data().processUsers(data.vusers());
+//		result.count = data.vcount().v;
+//		for (const auto &invite : data.vinvites().v) {
+//			const auto link = parse(peer, invite);
+//			if (!permanent || link.link != permanent->link) {
+//				result.links.push_back(link);
+//			}
+//		}
+//	});
+//	return result;
+//}
 
 auto InviteLinks::parse(
 		not_null<PeerData*> peer,
@@ -592,22 +597,23 @@ void InviteLinks::requestMoreLinks(
 		const QString &lastLink,
 		bool revoked,
 		Fn<void(Links)> done) {
-	using Flag = MTPmessages_GetExportedChatInvites::Flag;
-	_api->request(MTPmessages_GetExportedChatInvites(
-		MTP_flags(Flag::f_offset_link
-			| (revoked ? Flag::f_revoked : Flag(0))),
-		peer->input,
-		MTPInputUser(), // admin_id,
-		MTP_int(lastDate),
-		MTP_string(lastLink),
-		MTP_int(kPerPage)
-	)).done([=](const MTPmessages_ExportedChatInvites &result) {
-		auto slice = parseSlice(peer, result);
-		RemovePermanent(slice);
-		done(std::move(slice));
-	}).fail([=](const RPCError &error) {
-		done(Links());
-	}).send();
+	// #TODO links
+	//using Flag = MTPmessages_GetExportedChatInvites::Flag;
+	//_api->request(MTPmessages_GetExportedChatInvites(
+	//	MTP_flags(Flag::f_offset_link
+	//		| (revoked ? Flag::f_revoked : Flag(0))),
+	//	peer->input,
+	//	MTPInputUser(), // admin_id,
+	//	MTP_int(lastDate),
+	//	MTP_string(lastLink),
+	//	MTP_int(kPerPage)
+	//)).done([=](const MTPmessages_ExportedChatInvites &result) {
+	//	auto slice = parseSlice(peer, result);
+	//	RemovePermanent(slice);
+	//	done(std::move(slice));
+	//}).fail([=](const RPCError &error) {
+	//	done(Links());
+	//}).send();
 }
 
 void InviteLinks::editPermanentLink(

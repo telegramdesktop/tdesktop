@@ -696,7 +696,6 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 						channel,
 						std::move(image));
 				}
-				using Flag = MTPmessages_ExportChatInvite::Flag;
 				_createdChannel = channel;
 				checkInviteLink();
 			};

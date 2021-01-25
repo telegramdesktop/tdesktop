@@ -377,12 +377,10 @@ void GroupCall::applySelfInCallLocally() {
 		? i->lastActive
 		: TimeId(0);
 	const auto canSelfUnmute = (muted() != MuteState::ForceMuted);
-	const auto mutedCount = (i != end(participants)) ? /*i->mutedCount*/0 : 0;
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (lastActive ? Flag::f_active_date : Flag(0))
 		| (_mySsrc ? Flag(0) : Flag::f_left)
-		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0))
-		| (mutedCount ? Flag::f_muted_cnt : Flag(0));
+		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0));
 	call->applyUpdateChecked(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
@@ -394,8 +392,7 @@ void GroupCall::applySelfInCallLocally() {
 					MTP_int(date),
 					MTP_int(lastActive),
 					MTP_int(_mySsrc),
-					MTP_int(10000), // volume
-					MTP_int(mutedCount))),
+					MTP_int(10000))), // volume
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -413,8 +410,7 @@ void GroupCall::applyParticipantLocally(
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (participant->lastActive ? Flag::f_active_date : Flag(0))
 		| (participant->muted ? Flag::f_muted : Flag(0))
-		| (participant->mutedByMe ? Flag::f_muted_by_you : Flag(0))
-		| (mutedCount ? Flag::f_muted_cnt : Flag(0));
+		| (participant->mutedByMe ? Flag::f_muted_by_you : Flag(0));
 	_peer->groupCall()->applyUpdateChecked(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
@@ -426,8 +422,7 @@ void GroupCall::applyParticipantLocally(
 					MTP_int(participant->date),
 					MTP_int(participant->lastActive),
 					MTP_int(participant->ssrc),
-					MTP_int(volume.value_or(participant->volume)), // volume
-					MTP_int(mutedCount))),
+					MTP_int(volume.value_or(participant->volume)))),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
