@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h" // Data::CanWriteValue.
 #include "data/data_session.h" // Data::Session::invitedToCallUsers.
 #include "settings/settings_common.h" // Settings::CreateButton.
+#include "ui/paint/arcs.h"
 #include "ui/paint/blobs.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
@@ -45,6 +46,11 @@ constexpr auto kMinorBlobFactor = 0.9f;
 constexpr auto kUserpicMinScale = 0.8;
 constexpr auto kMaxLevel = 1.;
 constexpr auto kWideScale = 5;
+
+constexpr auto kSpeakerThreshold = {
+	Group::kDefaultVolume * 0.1f / Group::kMaxVolume,
+	Group::kDefaultVolume * 0.5f / Group::kMaxVolume,
+	Group::kDefaultVolume * 1.5f / Group::kMaxVolume };
 
 auto RowBlobs() -> std::array<Ui::Paint::Blobs::BlobData, 2> {
 	return { {
@@ -179,6 +185,30 @@ private:
 
 		rpl::lifetime lifetime;
 	};
+
+	struct StatusIcon {
+		StatusIcon(float volume)
+		: speaker(st::groupCallMuteCrossLine.icon)
+		, arcs(std::make_unique<Ui::Paint::ArcsAnimation>(
+			st::groupCallSpeakerArcsAnimation,
+			kSpeakerThreshold,
+			volume,
+			Ui::Paint::ArcsAnimation::HorizontalDirection::Right)) {
+		}
+		const style::icon &speaker;
+		const std::unique_ptr<Ui::Paint::ArcsAnimation> arcs;
+
+		rpl::lifetime lifetime;
+	};
+
+	int statusIconWidth() const;
+	int statusIconHeight() const;
+	void paintStatusIcon(
+		Painter &p,
+		const style::PeerListItem &st,
+		const style::font &font,
+		bool selected);
+
 	void refreshStatus() override;
 	void setSounding(bool sounding);
 	void setSpeaking(bool speaking);
@@ -194,9 +224,11 @@ private:
 	State _state = State::Inactive;
 	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
 	std::unique_ptr<BlobsAnimation> _blobsAnimation;
+	std::unique_ptr<StatusIcon> _statusIcon;
 	Ui::Animations::Simple _speakingAnimation; // For gray-red/green icon.
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
+	Ui::Animations::Simple _arcsAnimation; // For volume arcs animation.
 	uint32 _ssrc = 0;
 	int _volume = Group::kDefaultVolume;
 	bool _sounding = false;
@@ -359,6 +391,28 @@ void Row::setSpeaking(bool speaking) {
 		_speaking ? 0. : 1.,
 		_speaking ? 1. : 0.,
 		st::widgetFadeDuration);
+
+	if (!_speaking || (_state == State::MutedByMe)) {
+		_statusIcon = nullptr;
+	} else if (!_statusIcon) {
+		_statusIcon = std::make_unique<StatusIcon>(
+			(float)_volume / Group::kMaxVolume);
+
+		_statusIcon->arcs->startUpdateRequests(
+		) | rpl::start_with_next([=] {
+			auto callback = [=] {
+				if (_statusIcon) {
+					_statusIcon->arcs->update(crl::now());
+				}
+				_delegate->rowUpdateRow(this);
+			};
+			_arcsAnimation.start(
+				std::move(callback),
+				0.,
+				1.,
+				st::groupCallSpeakerArcsAnimation.duration);
+		}, _statusIcon->lifetime);
+	}
 }
 
 void Row::setSounding(bool sounding) {
@@ -410,6 +464,9 @@ void Row::setSsrc(uint32 ssrc) {
 
 void Row::setVolume(int volume) {
 	_volume = volume;
+	if (_statusIcon) {
+		_statusIcon->arcs->setValue((float)volume / Group::kMaxVolume);
+	}
 }
 
 void Row::updateLevel(float level) {
@@ -525,6 +582,62 @@ auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	};
 }
 
+int Row::statusIconWidth() const {
+	if (!_statusIcon) {
+		return 0;
+	}
+	return _speaking
+		? 2 * (_statusIcon->speaker.width() + st::groupCallMenuVolumeSkip)
+		: 0;
+}
+
+int Row::statusIconHeight() const {
+	if (!_statusIcon) {
+		return 0;
+	}
+	return _speaking
+		? _statusIcon->speaker.height()
+		: 0;
+}
+
+void Row::paintStatusIcon(
+		Painter &p,
+		const style::PeerListItem &st,
+		const style::font &font,
+		bool selected) {
+	if (!_statusIcon) {
+		return;
+	}
+	p.setFont(font);
+	const auto color = (_speaking
+		? st.statusFgActive
+		: (selected ? st.statusFgOver : st.statusFg))->c;
+	p.setPen(color);
+
+	const auto speakerRect = QRect(
+		st.statusPosition
+			+ QPoint(0, (font->height - statusIconHeight()) / 2),
+		_statusIcon->speaker.size());
+	const auto volumeRect = speakerRect.translated(
+		_statusIcon->speaker.width() + st::groupCallMenuVolumeSkip,
+		0);
+	const auto arcPosition = speakerRect.center()
+		+ QPoint(0, st::groupCallMenuSpeakerArcsSkip);
+
+	const auto volume = std::round(_volume / 100.);
+	_statusIcon->speaker.paint(
+		p,
+		speakerRect.topLeft(),
+		speakerRect.width(),
+		color);
+	p.drawText(volumeRect, QString("%1%").arg(volume), style::al_center);
+
+	p.save();
+	p.translate(arcPosition);
+	_statusIcon->arcs->paint(p, color);
+	p.restore();
+}
+
 void Row::paintStatusText(
 		Painter &p,
 		const style::PeerListItem &st,
@@ -533,6 +646,11 @@ void Row::paintStatusText(
 		int availableWidth,
 		int outerWidth,
 		bool selected) {
+	p.save();
+	const auto &font = st::normalFont;
+	paintStatusIcon(p, st, font, selected);
+	p.translate(statusIconWidth(), 0);
+	const auto guard = gsl::finally([&] { p.restore(); });
 	if (_state != State::Invited && _state != State::MutedByMe) {
 		PeerListRow::paintStatusText(
 			p,
@@ -544,7 +662,7 @@ void Row::paintStatusText(
 			selected);
 		return;
 	}
-	p.setFont(st::normalFont);
+	p.setFont(font);
 	if (_state == State::MutedByMe) {
 		p.setPen(st::groupCallMemberMutedIcon);
 	} else {
@@ -555,7 +673,7 @@ void Row::paintStatusText(
 		y,
 		outerWidth,
 		(_state == State::MutedByMe
-			? "muted by me"
+			? tr::lng_group_call_muted_by_me_status(tr::now)
 			: peer()->isSelf()
 			? tr::lng_status_connecting(tr::now)
 			: tr::lng_group_call_invited_status(tr::now)));

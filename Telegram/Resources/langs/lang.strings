@@ -1881,6 +1881,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_settings_title" = "Settings";
 "lng_group_call_invite" = "Invite Member";
 "lng_group_call_invited_status" = "invited";
+"lng_group_call_muted_by_me_status" = "muted by me";
 "lng_group_call_invite_title" = "Invite members";
 "lng_group_call_invite_button" = "Invite";
 "lng_group_call_add_to_group_one" = "{user} isn't a member of «{group}» yet. Add them to the group?";
