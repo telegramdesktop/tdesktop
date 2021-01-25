@@ -725,9 +725,17 @@ bool ReadSetting(
 		auto position = TWindowPos();
 		stream >> position.x >> position.y >> position.w >> position.h;
 		stream >> position.moncrc >> position.maximized;
+		stream >> position.scale;
 		if (!CheckStreamStatus(stream)) return false;
 
-		DEBUG_LOG(("Window Pos: Read from storage %1, %2, %3, %4 (maximized %5)").arg(position.x).arg(position.y).arg(position.w).arg(position.h).arg(Logs::b(position.maximized)));
+		DEBUG_LOG(("Window Pos: Read from storage %1, %2, %3, %4 (scale %5%, maximized %6)")
+			.arg(position.x)
+			.arg(position.y)
+			.arg(position.w)
+			.arg(position.h)
+			.arg(position.scale)
+			.arg(Logs::b(position.maximized)));
+
 		cSetWindowPos(position);
 	} break;
 

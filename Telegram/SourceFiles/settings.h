@@ -73,6 +73,7 @@ struct TWindowPos {
 
 	int32 moncrc = 0;
 	int maximized = 0;
+	int scale = 0;
 	int x = 0;
 	int y = 0;
 	int w = 0;

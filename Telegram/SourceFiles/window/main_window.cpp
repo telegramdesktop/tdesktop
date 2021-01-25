@@ -425,7 +425,21 @@ void MainWindow::initSize() {
 	}
 
 	auto position = cWindowPos();
-	DEBUG_LOG(("Window Pos: Initializing first %1, %2, %3, %4 (maximized %5)").arg(position.x).arg(position.y).arg(position.w).arg(position.h).arg(Logs::b(position.maximized)));
+	DEBUG_LOG(("Window Pos: Initializing first %1, %2, %3, %4 (scale %5%, maximized %6)")
+		.arg(position.x)
+		.arg(position.y)
+		.arg(position.w)
+		.arg(position.h)
+		.arg(position.scale)
+		.arg(Logs::b(position.maximized)));
+
+	if (position.scale != 0) {
+		const auto scaleFactor = cScale() / float64(position.scale);
+		position.x *= scaleFactor;
+		position.y *= scaleFactor;
+		position.w *= scaleFactor;
+		position.h *= scaleFactor;
+	}
 
 	const auto primaryScreen = QGuiApplication::primaryScreen();
 	auto geometryScreen = primaryScreen;
@@ -593,6 +607,7 @@ void MainWindow::savePosition(Qt::WindowState state) {
 		realPosition.y = r.y();
 		realPosition.w = r.width() - (_rightColumn ? _rightColumn->width() : 0);
 		realPosition.h = r.height();
+		realPosition.scale = cScale();
 		realPosition.maximized = 0;
 		realPosition.moncrc = 0;
 
@@ -623,9 +638,16 @@ void MainWindow::savePosition(Qt::WindowState state) {
 			|| realPosition.y != savedPosition.y
 			|| realPosition.w != savedPosition.w
 			|| realPosition.h != savedPosition.h
+			|| realPosition.scale != savedPosition.scale
 			|| realPosition.moncrc != savedPosition.moncrc
 			|| realPosition.maximized != savedPosition.maximized) {
-			DEBUG_LOG(("Window Pos: Writing: %1, %2, %3, %4 (maximized %5)").arg(realPosition.x).arg(realPosition.y).arg(realPosition.w).arg(realPosition.h).arg(Logs::b(realPosition.maximized)));
+			DEBUG_LOG(("Window Pos: Writing: %1, %2, %3, %4 (scale %5%, maximized %6)")
+				.arg(realPosition.x)
+				.arg(realPosition.y)
+				.arg(realPosition.w)
+				.arg(realPosition.h)
+				.arg(realPosition.scale)
+				.arg(Logs::b(realPosition.maximized)));
 			cSetWindowPos(realPosition);
 			Local::writeSettings();
 		}
