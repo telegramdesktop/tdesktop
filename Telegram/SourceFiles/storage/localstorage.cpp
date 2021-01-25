@@ -532,8 +532,15 @@ void writeSettings() {
 	auto position = cWindowPos();
 	data.stream << quint32(dbiWindowPosition) << qint32(position.x) << qint32(position.y) << qint32(position.w) << qint32(position.h);
 	data.stream << qint32(position.moncrc) << qint32(position.maximized);
+	data.stream << qint32(position.scale);
 
-	DEBUG_LOG(("Window Pos: Writing to storage %1, %2, %3, %4 (maximized %5)").arg(position.x).arg(position.y).arg(position.w).arg(position.h).arg(Logs::b(position.maximized)));
+	DEBUG_LOG(("Window Pos: Writing to storage %1, %2, %3, %4 (scale %5%, maximized %6)")
+		.arg(position.x)
+		.arg(position.y)
+		.arg(position.w)
+		.arg(position.h)
+		.arg(position.scale)
+		.arg(Logs::b(position.maximized)));
 
 	settings.writeEncrypted(data, SettingsKey);
 }
