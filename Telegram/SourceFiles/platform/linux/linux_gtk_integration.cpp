@@ -221,7 +221,7 @@ void SetScaleFactor() {
 		}
 
 		LOG(("GTK scale factor: %1").arg(scaleFactor));
-		cSetScreenScale(std::clamp(scaleFactor * 100, 100, 300));
+		cSetScreenScale(style::CheckScale(scaleFactor * 100));
 	});
 }
 
