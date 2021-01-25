@@ -255,6 +255,7 @@ RUN git clone -b 2.10.0 --depth=1 $GIT/intel/libva.git
 WORKDIR libva
 RUN ./autogen.sh \
 	--enable-static \
+	--sysconfdir=/etc \
 	--with-drivers-path=/usr/lib/dri
 
 RUN make -j$(nproc)
