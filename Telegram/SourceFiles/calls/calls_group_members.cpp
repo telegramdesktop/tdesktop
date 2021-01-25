@@ -331,7 +331,11 @@ void Row::updateState(const Data::GroupCall::Participant *participant) {
 		setSpeaking(false);
 	} else if (!participant->muted
 		|| (participant->sounding && participant->ssrc != 0)) {
-		setState(participant->mutedByMe ? State::MutedByMe : State::Active);
+		setState(participant->mutedByMe
+			? State::MutedByMe
+			: (participant->sounding || participant->speaking)
+			? State::Active
+			: State::Inactive);
 		setSounding(participant->sounding && participant->ssrc != 0);
 		setSpeaking(participant->speaking && participant->ssrc != 0);
 	} else if (participant->canSelfUnmute) {
