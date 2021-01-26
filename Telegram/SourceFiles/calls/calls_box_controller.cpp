@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_user.h"
 #include "boxes/confirm_box.h"
+#include "base/unixtime.h"
+#include "api/api_updates.h"
 #include "app.h"
 #include "apiwrap.h"
 #include "styles/style_layers.h" // st::boxLabel.
@@ -504,16 +506,30 @@ void ClearCallsBox(
 		using Flag = MTPmessages_DeletePhoneCallHistory::Flag;
 		api->request(MTPmessages_DeletePhoneCallHistory(
 			MTP_flags(revoke ? Flag::f_revoke : Flag(0))
-		)).done([=](const MTPmessages_AffectedHistory &result) {
-			const auto offset = api->applyAffectedHistory(nullptr, result);
-			if (offset > 0) {
-				self(revoke, self);
-			} else {
-				api->session().data().destroyAllCallItems();
-				if (const auto strong = weak.data()) {
-					strong->closeBox();
+		)).done([=](const MTPmessages_AffectedFoundMessages &result) {
+			result.match([&](
+					const MTPDmessages_affectedFoundMessages &data) {
+				api->applyUpdates(MTP_updates(
+					MTP_vector<MTPUpdate>(
+						1,
+						MTP_updateDeleteMessages(
+							data.vmessages(),
+							data.vpts(),
+							data.vpts_count())),
+					MTP_vector<MTPUser>(),
+					MTP_vector<MTPChat>(),
+					MTP_int(base::unixtime::now()),
+					MTP_int(0)));
+				const auto offset = data.voffset().v;
+				if (offset > 0) {
+					self(revoke, self);
+				} else {
+					api->session().data().destroyAllCallItems();
+					if (const auto strong = weak.data()) {
+						strong->closeBox();
+					}
 				}
-			}
+			});
 		}).send();
 	};
 

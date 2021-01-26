@@ -99,7 +99,10 @@ constexpr auto kMinDiffIntensity = 0.25;
 
 void ShowCallsBox(not_null<Window::SessionController*> window) {
 	auto controller = std::make_unique<Calls::BoxController>(window);
-	const auto initBox = [=](not_null<PeerListBox*> box) {
+	const auto initBox = [
+		window,
+		controller = controller.get()
+	](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_close(), [=] {
 			box->closeBox();
 		});
@@ -119,9 +122,11 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 			(*menu)->addAction(
 				tr::lng_settings_section_call_settings(tr::now),
 				showSettings);
-			(*menu)->addAction(
-				tr::lng_call_box_clear_all(tr::now),
-				clearAll);
+			if (controller->delegate()->peerListFullRowsCount() > 0) {
+				(*menu)->addAction(
+					tr::lng_call_box_clear_all(tr::now),
+					clearAll);
+			}
 			(*menu)->popup(QCursor::pos());
 			return true;
 		});

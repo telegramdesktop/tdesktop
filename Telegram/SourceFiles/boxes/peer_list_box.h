@@ -375,6 +375,9 @@ public:
 		_delegate = delegate;
 		prepare();
 	}
+	[[nodiscard]] not_null<PeerListDelegate*> delegate() const {
+		return _delegate;
+	}
 
 	void setStyleOverrides(
 			const style::PeerList *listSt,
@@ -453,9 +456,6 @@ public:
 	virtual ~PeerListController() = default;
 
 protected:
-	not_null<PeerListDelegate*> delegate() const {
-		return _delegate;
-	}
 	PeerListSearchController *searchController() const {
 		return _searchController.get();
 	}
