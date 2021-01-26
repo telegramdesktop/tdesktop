@@ -25,6 +25,10 @@ constexpr auto kSpeakerThreshold = {
 	50.0f / kMaxVolumePercent,
 	150.0f / kMaxVolumePercent };
 
+QString VolumeString(int volumePercent) {
+	return u"%1%"_q.arg(volumePercent);
+}
+
 } // namespace
 
 MenuVolumeItem::MenuVolumeItem(
@@ -61,14 +65,13 @@ MenuVolumeItem::MenuVolumeItem(
 		const auto geometry = QRect(QPoint(), size);
 		_itemRect = geometry - _st.itemPadding;
 		_speakerRect = QRect(_itemRect.topLeft(), _stCross.icon.size());
-		_volumeRect = _speakerRect.translated(
-			_stCross.icon.width() + st::groupCallMenuVolumeSkip,
-			0);
 		_arcPosition = _speakerRect.center()
 			+ QPoint(0, st::groupCallMenuSpeakerArcsSkip);
 
 		_slider->setGeometry(_itemRect
 			- style::margins(0, contentHeight() / 2, 0, 0));
+
+		computeVolumeRect();
 	}, lifetime());
 
 	setCloudVolume(startVolume);
@@ -92,7 +95,7 @@ MenuVolumeItem::MenuVolumeItem(
 			muteProgress);
 		p.setPen(mutePen);
 		p.setFont(_st.itemStyle.font);
-		p.drawText(_volumeRect, u"%1%"_q.arg(volume), style::al_center);
+		p.drawText(_volumeRect, VolumeString(volume), style::al_left);
 
 		_crossLineMute->paint(
 			p,
@@ -121,6 +124,7 @@ MenuVolumeItem::MenuVolumeItem(
 		if (value > 0) {
 			_changeVolumeLocallyRequests.fire(value * _maxVolume);
 		}
+		computeVolumeRect();
 		update(_volumeRect);
 		_arcs->setValue(value);
 	});
@@ -182,6 +186,7 @@ void MenuVolumeItem::initArcsAnimation() {
 	_arcsAnimation.init([=](crl::time now) {
 		_arcs->update(now);
 		update(_speakerRect);
+		computeVolumeRect();
 	});
 
 	_arcs->startUpdateRequests(
@@ -195,6 +200,19 @@ void MenuVolumeItem::initArcsAnimation() {
 	) | rpl::start_with_next([=] {
 		_arcsAnimation.stop();
 	}, lifetime());
+}
+
+void MenuVolumeItem::computeVolumeRect() {
+	const auto was = _volumeRect;
+	_volumeRect = QRect(
+		_arcPosition.x() + st::groupCallMenuVolumeSkip + _arcs->width(),
+		_speakerRect.y(),
+		_st.itemStyle.font->width(VolumeString(kMaxVolumePercent)),
+		_speakerRect.height());
+	if (was != _volumeRect) {
+		// Clear the previous text rendering.
+		update();
+	}
 }
 
 QColor MenuVolumeItem::unmuteColor() const {
