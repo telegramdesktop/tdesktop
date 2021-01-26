@@ -632,18 +632,6 @@ void SetupNotificationsContent(
 	AddSkip(container, st::settingsCheckboxesSkip);
 	AddDivider(container);
 	AddSkip(container, st::settingsCheckboxesSkip);
-	AddSubsectionTitle(container, tr::lng_settings_badge_title());
-
-	const auto muted = addCheckbox(
-		tr::lng_settings_include_muted(tr::now),
-		settings.includeMutedCounter());
-	const auto count = addCheckbox(
-		tr::lng_settings_count_unread(tr::now),
-		settings.countUnreadMessages());
-
-	AddSkip(container, st::settingsCheckboxesSkip);
-	AddDivider(container);
-	AddSkip(container, st::settingsCheckboxesSkip);
 	AddSubsectionTitle(container, tr::lng_settings_events_title());
 
 	const auto joined = addCheckbox(
@@ -692,6 +680,18 @@ void SetupNotificationsContent(
 		Core::App().settings().setDisableCalls(!value);
 		Core::App().saveSettingsDelayed();
 	}, container->lifetime());
+
+	AddSkip(container, st::settingsCheckboxesSkip);
+	AddDivider(container);
+	AddSkip(container, st::settingsCheckboxesSkip);
+	AddSubsectionTitle(container, tr::lng_settings_badge_title());
+
+	const auto muted = addCheckbox(
+		tr::lng_settings_include_muted(tr::now),
+		settings.includeMutedCounter());
+	const auto count = addCheckbox(
+		tr::lng_settings_count_unread(tr::now),
+		settings.countUnreadMessages());
 
 	const auto nativeText = [&] {
 		if (!Platform::Notifications::Supported()

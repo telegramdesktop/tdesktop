@@ -979,7 +979,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_bot_title" = "Report bot";
 "lng_report_message_title" = "Report message";
 "lng_report_reason_spam" = "Spam";
-"lng_report_reason_fake" = "Fake";
+"lng_report_reason_fake" = "Fake Account";
 "lng_report_reason_violence" = "Violence";
 "lng_report_reason_child_abuse" = "Child Abuse";
 "lng_report_reason_pornography" = "Pornography";
