@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_peer_menu.h"
 
+#include "base/openssl_help.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 #include "boxes/mute_settings_box.h"
@@ -1099,7 +1100,7 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 		auto generateRandom = [&] {
 			auto result = QVector<MTPlong>(data->msgIds.size());
 			for (auto &value : result) {
-				value = rand_value<MTPlong>();
+				value = openssl::RandomValue<MTPlong>();
 			}
 			return result;
 		};

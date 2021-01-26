@@ -189,6 +189,9 @@ QString DateTooltipText(not_null<Element*> view) {
 				+ tr::lng_signed_author(tr::now, lt_user, msgsigned->author);
 		}
 	}
+	if (const auto msgId = view->data()->fullId().msg) {
+		dateText += '\n' + tr::lng_message_id(tr::now) + QString::number(msgId);
+	}
 	return dateText;
 }
 

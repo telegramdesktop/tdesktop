@@ -3458,9 +3458,6 @@ QString HistoryInner::tooltipText() const {
 		&& _mouseAction == MouseAction::None) {
 		if (const auto view = App::hoveredItem()) {
 			return HistoryView::DateTooltipText(view);
-			if (const auto msgId = view->data()->fullId().msg) {
-				dateText += '\n' + tr::lng_message_id(tr::now) + QString::number(msgId);
-			}
 		}
 	} else if (_mouseCursorState == CursorState::Forwarded
 		&& _mouseAction == MouseAction::None) {
