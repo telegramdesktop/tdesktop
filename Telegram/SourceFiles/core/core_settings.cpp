@@ -19,8 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Core {
 
 Settings::Settings()
-: _callAudioBackend(Webrtc::Backend::OpenAL)
-, _sendSubmitWay(Ui::InputSubmitSettings::Enter)
+: _sendSubmitWay(Ui::InputSubmitSettings::Enter)
 , _floatPlayerColumn(Window::Column::Second)
 , _floatPlayerCorner(RectPart::TopRight)
 , _dialogsWidthRatio(DefaultDialogsWidthRatio()) {
@@ -115,7 +114,8 @@ QByteArray Settings::serialize() const {
 			<< qint32(_groupCallPushToTalk ? 1 : 0)
 			<< _groupCallPushToTalkShortcut
 			<< qint64(_groupCallPushToTalkDelay)
-			<< qint32(_callAudioBackend);
+			<< qint32(0) // Call audio backend
+			<< qint32(_disableCalls ? 1 : 0);
 	}
 	return result;
 }
@@ -186,7 +186,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 groupCallPushToTalk = _groupCallPushToTalk ? 1 : 0;
 	QByteArray groupCallPushToTalkShortcut = _groupCallPushToTalkShortcut;
 	qint64 groupCallPushToTalkDelay = _groupCallPushToTalkDelay;
-	qint32 callAudioBackend = static_cast<qint32>(_callAudioBackend);
+	qint32 callAudioBackend = 0;
+	qint32 disableCalls = _disableCalls ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -285,6 +286,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> callAudioBackend;
 	}
+	if (!stream.atEnd()) {
+		stream >> disableCalls;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -379,12 +383,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_groupCallPushToTalk = (groupCallPushToTalk == 1);
 	_groupCallPushToTalkShortcut = groupCallPushToTalkShortcut;
 	_groupCallPushToTalkDelay = groupCallPushToTalkDelay;
-	auto uncheckedBackend = static_cast<Webrtc::Backend>(callAudioBackend);
-	switch (uncheckedBackend) {
-	case Webrtc::Backend::OpenAL:
-	case Webrtc::Backend::ADM:
-	case Webrtc::Backend::ADM2: _callAudioBackend = uncheckedBackend; break;
-	}
+	_disableCalls = (disableCalls == 1);
 }
 
 bool Settings::chatWide() const {
@@ -494,6 +493,8 @@ void Settings::resetOnLastLogout() {
 	//_callOutputVolume = 100;
 	//_callInputVolume = 100;
 	//_callAudioDuckingEnabled = true;
+
+	_disableCalls = false;
 
 	_groupCallPushToTalk = false;
 	_groupCallPushToTalkShortcut = QByteArray();

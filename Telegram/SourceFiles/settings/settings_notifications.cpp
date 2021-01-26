@@ -676,6 +676,23 @@ void SetupNotificationsContent(
 		Core::App().saveSettingsDelayed();
 	}, joined->lifetime());
 
+	AddSkip(container, st::settingsCheckboxesSkip);
+	AddDivider(container);
+	AddSkip(container, st::settingsCheckboxesSkip);
+	AddSubsectionTitle(
+		container,
+		tr::lng_settings_notifications_calls_title());
+	addCheckbox(
+		tr::lng_settings_call_accept_calls(tr::now),
+		!settings.disableCalls()
+	)->checkedChanges(
+	) | rpl::filter([&settings](bool value) {
+		return (settings.disableCalls() == value);
+	}) | rpl::start_with_next([=](bool value) {
+		Core::App().settings().setDisableCalls(!value);
+		Core::App().saveSettingsDelayed();
+	}, container->lifetime());
+
 	const auto nativeText = [&] {
 		if (!Platform::Notifications::Supported()
 			|| Platform::Notifications::Enforced()) {

@@ -277,6 +277,19 @@ void Calls::setupContent() {
 	//});
 	AddButton(
 		content,
+		tr::lng_settings_call_accept_calls(),
+		st::settingsButton
+	)->toggleOn(rpl::single(
+		!settings.disableCalls()
+	))->toggledChanges(
+	) | rpl::filter([&settings](bool value) {
+		return (settings.disableCalls() == value);
+	}) | rpl::start_with_next([=](bool value) {
+		Core::App().settings().setDisableCalls(!value);
+		Core::App().saveSettingsDelayed();
+	}, content->lifetime());
+	AddButton(
+		content,
 		tr::lng_settings_call_open_system_prefs(),
 		st::settingsButton
 	)->addClickHandler([] {
@@ -286,6 +299,7 @@ void Calls::setupContent() {
 			Ui::show(Box<InformBox>(tr::lng_linux_no_audio_prefs(tr::now)));
 		}
 	});
+
 	AddSkip(content);
 
 	Ui::ResizeFitChild(this, content);
