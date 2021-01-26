@@ -419,7 +419,14 @@ QString ReplyMarkupClickHandler::copyToClipboardText() const {
 
 QString ReplyMarkupClickHandler::copyToClipboardContextItemText() const {
 	const auto button = getUrlButton();
-	return button ? tr::lng_context_copy_link(tr::now) : QString();
+	if (button) {
+		using Type = HistoryMessageMarkupButton::Type;
+		if (button->type == Type::Callback) {
+			return tr::lng_context_copy_callback_data(tr::now);
+		}
+		return tr::lng_context_copy_link(tr::now);
+	}
+	return QString();
 }
 
 // Finds the corresponding button in the items markup struct.
@@ -434,7 +441,7 @@ auto ReplyMarkupClickHandler::getUrlButton() const
 -> const HistoryMessageMarkupButton* {
 	if (const auto button = getButton()) {
 		using Type = HistoryMessageMarkupButton::Type;
-		if (button->type == Type::Url || button->type == Type::Auth) {
+		if (button->type == Type::Url || button->type == Type::Auth || button->type == Type::Callback) {
 			return button;
 		}
 	}
