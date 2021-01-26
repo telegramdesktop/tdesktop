@@ -55,6 +55,7 @@ public:
 	void showSettings();
 	void showAddContact();
 	void showNewGroup();
+	void showNewSupergroup();
 	void showNewChannel();
 
 	void setInnerFocus();
@@ -117,8 +118,6 @@ protected:
 	void initHook() override;
 	void updateIsActiveHook() override;
 	void clearWidgetsHook() override;
-
-	void onShowNewSupergroup();
 private:
 	[[nodiscard]] bool skipTrayClick() const;
 
