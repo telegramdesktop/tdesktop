@@ -390,8 +390,6 @@ public:
 	void updateDate(TimeId newDate);
 	[[nodiscard]] bool canUpdateDate() const;
 
-	[[nodiscard]] bool canBeEditedFromHistory() const;
-
 	virtual ~HistoryItem();
 
 	MsgId id;

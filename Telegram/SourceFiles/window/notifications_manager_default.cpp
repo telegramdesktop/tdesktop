@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager_default.h"
 
 #include "platform/platform_notifications_manager.h"
+#include "platform/platform_specific.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"

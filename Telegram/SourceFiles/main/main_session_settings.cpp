@@ -189,7 +189,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		if (!stream.atEnd()) {
 			qint32 value = 0;
 			stream >> value;
-			appDialogsWidthRatio = snap(value / 1000000., 0., 1.);
+			appDialogsWidthRatio = std::clamp(value / 1000000., 0., 1.);
 
 			stream >> value;
 			appThirdColumnWidth = value;

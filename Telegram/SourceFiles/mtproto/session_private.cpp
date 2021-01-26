@@ -1073,7 +1073,10 @@ void SessionPrivate::onSentSome(uint64 size) {
 		if (!_oldConnection) {
 			// 8kb / sec, so 512 kb give 64 sec
 			auto remainBySize = size * _waitForReceived / 8192;
-			remain = snap(remainBySize, remain, uint64(kMaxReceiveTimeout));
+			remain = std::clamp(
+				remainBySize,
+				remain,
+				uint64(kMaxReceiveTimeout));
 			if (remain != _waitForReceived) {
 				DEBUG_LOG(("Checking connect for request with size %1 bytes, delay will be %2").arg(size).arg(remain));
 			}
@@ -2515,7 +2518,7 @@ void SessionPrivate::authKeyChecked() {
 		resendAll();
 	} // else receive salt in bad_server_salt first, then try to send all the requests
 
-	_pingIdToSend = rand_value<uint64>(); // get server_salt
+	_pingIdToSend = openssl::RandomValue<uint64>(); // get server_salt
 	_sessionData->queueNeedToResumeAndSend();
 }
 

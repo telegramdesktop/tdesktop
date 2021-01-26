@@ -153,8 +153,9 @@ void TabbedSelector::SlideAnimation::paintFrame(QPainter &p, float64 dt, float64
 	auto rightAlpha = (leftToRight ? departingAlpha : arrivingAlpha);
 
 	// _innerLeft ..(left).. leftTo ..(both).. bothTo ..(none).. noneTo ..(right).. _innerRight
-	auto leftTo = _innerLeft + snap(_innerWidth + leftCoord, 0, _innerWidth);
-	auto rightFrom = _innerLeft + snap(rightCoord, 0, _innerWidth);
+	auto leftTo = _innerLeft
+		+ std::clamp(_innerWidth + leftCoord, 0, _innerWidth);
+	auto rightFrom = _innerLeft + std::clamp(rightCoord, 0, _innerWidth);
 	auto painterRightFrom = rightFrom / cIntRetinaFactor();
 	if (opacity < 1.) {
 		_frame.fill(Qt::transparent);
@@ -594,7 +595,7 @@ bool TabbedSelector::preventAutoHide() const {
 }
 
 bool TabbedSelector::hasMenu() const {
-	return (_menu && !_menu->actions().empty());
+	return (_menu && !_menu->empty());
 }
 
 QImage TabbedSelector::grabForAnimation() {
@@ -877,16 +878,20 @@ void TabbedSelector::scrollToY(int y) {
 	}
 }
 
-void TabbedSelector::contextMenuEvent(QContextMenuEvent *e) {
+void TabbedSelector::showMenuWithType(SendMenu::Type type) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
-	const auto type = _sendMenuType
-		? _sendMenuType()
-		: SendMenu::Type::Disabled;
 	currentTab()->widget()->fillContextMenu(_menu, type);
 
-	if (!_menu->actions().empty()) {
+	if (!_menu->empty()) {
 		_menu->popup(QCursor::pos());
 	}
+}
+
+rpl::producer<> TabbedSelector::contextMenuRequested() const {
+	return events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return e->type() == QEvent::ContextMenu;
+	}) | rpl::to_empty;
 }
 
 TabbedSelector::Inner::Inner(

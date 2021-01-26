@@ -473,7 +473,7 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 		_tillTop = _tillBottom = true;
 		return windowHeight;
 	}
-	auto newTop = snap(
+	auto newTop = std::clamp(
 		windowHeight / 24,
 		st::infoLayerTopMinimal,
 		st::infoLayerTopMaximal);

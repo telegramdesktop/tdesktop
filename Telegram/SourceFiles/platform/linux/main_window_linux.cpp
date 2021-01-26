@@ -204,6 +204,13 @@ QIcon TrayIconGen(int counter, bool muted) {
 	}
 
 	const auto iconName = GetTrayIconName(counter, muted);
+	const auto panelIconName = GetPanelIconName(counter, muted);
+
+	if (iconName == panelIconName) {
+		const auto result = QIcon::fromTheme(iconName);
+		UpdateIconRegenerationNeeded(result, counter, muted, iconThemeName);
+		return result;
+	}
 
 	QIcon result;
 	QIcon systemIcon;
@@ -250,7 +257,7 @@ QIcon TrayIconGen(int counter, bool muted) {
 						std::less<>(),
 						&QSize::width);
 
-					if ((*biggestSize).width() > firstAttemptSize.width()) {
+					if (biggestSize->width() > firstAttemptSize.width()) {
 						currentImageBack = systemIcon
 							.pixmap(*biggestSize)
 							.toImage();
@@ -381,7 +388,7 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 			std::less<>(),
 			&QSize::width);
 
-		if ((*biggestSize).width() > firstAttemptSize.width()) {
+		if (biggestSize->width() > firstAttemptSize.width()) {
 			scalePixmap(icon.pixmap(*biggestSize)).save(ret.get());
 		} else {
 			scalePixmap(firstAttempt).save(ret.get());
@@ -420,9 +427,19 @@ bool IsSNIAvailable() {
 
 	if (reply.isValid()) {
 		return reply.value().toBool();
-	} else if (reply.error().type() != QDBusError::ServiceUnknown) {
-		LOG(("SNI Error: %1").arg(reply.error().message()));
 	}
+
+	switch (reply.error().type()) {
+	case QDBusError::Disconnected:
+	case QDBusError::ServiceUnknown:
+		return false;
+	default:
+		break;
+	}
+
+	LOG(("SNI Error: %1: %2")
+		.arg(reply.error().name())
+		.arg(reply.error().message()));
 
 	return false;
 }
@@ -505,6 +522,11 @@ void ForceDisabled(QAction *action, bool disabled) {
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller) {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	qDBusRegisterMetaType<ToolTip>();
+	qDBusRegisterMetaType<IconPixmap>();
+	qDBusRegisterMetaType<IconPixmapList>();
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 void MainWindow::initHook() {
@@ -521,11 +543,13 @@ void MainWindow::initHook() {
 		nullptr,
 		nullptr);
 
-	g_signal_connect(
-		_sniDBusProxy,
-		"g-signal",
-		G_CALLBACK(sniSignalEmitted),
-		nullptr);
+	if (_sniDBusProxy) {
+		g_signal_connect(
+			_sniDBusProxy,
+			"g-signal",
+			G_CALLBACK(sniSignalEmitted),
+			nullptr);
+	}
 
 	auto sniWatcher = new QDBusServiceWatcher(
 		kSNIWatcherService.utf16(),
@@ -593,6 +617,11 @@ bool MainWindow::hasTrayIcon() const {
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
+bool MainWindow::isActiveForTrayMenu() {
+	updateIsActive();
+	return Platform::IsWayland() ? isVisible() : isActive();
+}
+
 void MainWindow::psShowTrayMenu() {
 	_trayIconMenuXEmbed->popup(QCursor::pos());
 }
@@ -607,7 +636,17 @@ void MainWindow::psTrayMenuUpdated() {
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void MainWindow::setSNITrayIcon(int counter, bool muted) {
-	if (IsIndicatorApplication()) {
+	const auto iconName = GetTrayIconName(counter, muted);
+	const auto panelIconName = GetPanelIconName(counter, muted);
+
+	if (iconName == panelIconName) {
+		if (_sniTrayIcon->iconName() == iconName) {
+			return;
+		}
+
+		_sniTrayIcon->setIconByName(iconName);
+		_sniTrayIcon->setToolTipIconByName(iconName);
+	} else if (IsIndicatorApplication()) {
 		if (!IsIconRegenerationNeeded(counter, muted)
 			&& _trayIconFile
 			&& _sniTrayIcon->iconName() == _trayIconFile->fileName()) {
@@ -661,7 +700,7 @@ void MainWindow::sniSignalEmitted(
 		gchar *signal_name,
 		GVariant *parameters,
 		gpointer user_data) {
-	if(signal_name == qstr("StatusNotifierHostRegistered")) {
+	if (signal_name == qstr("StatusNotifierHostRegistered")) {
 		crl::on_main([] {
 			if (const auto window = App::wnd()) {
 				window->handleSNIHostRegistered();
@@ -684,7 +723,7 @@ void MainWindow::handleSNIHostRegistered() {
 	LOG(("Switching to SNI tray icon..."));
 
 	if (trayIcon) {
-		trayIcon->setContextMenu(0);
+		trayIcon->setContextMenu(nullptr);
 		trayIcon->deleteLater();
 	}
 	trayIcon = nullptr;
@@ -877,16 +916,8 @@ void MainWindow::updateWaylandDecorationColors() {
 	windowHandle()->resize(windowHandle()->size());
 }
 
-void MainWindow::LibsLoaded() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	qDBusRegisterMetaType<ToolTip>();
-	qDBusRegisterMetaType<IconPixmap>();
-	qDBusRegisterMetaType<IconPixmapList>();
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-}
-
 void MainWindow::initTrayMenuHook() {
-	_trayIconMenuXEmbed = new Ui::PopupMenu(nullptr, trayIconMenu);
+	_trayIconMenuXEmbed.emplace(nullptr, trayIconMenu);
 	_trayIconMenuXEmbed->deleteOnHide(false);
 }
 
@@ -1031,19 +1062,19 @@ void MainWindow::createGlobalMenu() {
 	psAddContact = tools->addAction(
 		tr::lng_mac_menu_add_contact(tr::now),
 		App::wnd(),
-		[=] { App::wnd()->onShowAddContact(); });
+		[=] { App::wnd()->showAddContact(); });
 
 	tools->addSeparator();
 
 	psNewGroup = tools->addAction(
 		tr::lng_mac_menu_new_group(tr::now),
 		App::wnd(),
-		[=] { App::wnd()->onShowNewGroup(); });
+		[=] { App::wnd()->showNewGroup(); });
 
 	psNewChannel = tools->addAction(
 		tr::lng_mac_menu_new_channel(tr::now),
 		App::wnd(),
-		[=] { App::wnd()->onShowNewChannel(); });
+		[=] { App::wnd()->showNewChannel(); });
 
 	auto help = psMainMenu->addMenu(tr::lng_linux_menu_help(tr::now));
 
@@ -1220,10 +1251,10 @@ MainWindow::~MainWindow() {
 	delete _mainMenuExporter;
 	delete psMainMenu;
 
-	g_object_unref(_sniDBusProxy);
+	if (_sniDBusProxy) {
+		g_object_unref(_sniDBusProxy);
+	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	delete _trayIconMenuXEmbed;
 }
 
 } // namespace Platform

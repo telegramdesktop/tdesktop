@@ -825,8 +825,15 @@ PRIVATE
     platform/linux/linux_gdk_helper.h
     platform/linux/linux_gsd_media_keys.cpp
     platform/linux/linux_gsd_media_keys.h
-    platform/linux/linux_libs.cpp
-    platform/linux/linux_libs.h
+    platform/linux/linux_gtk_file_dialog.cpp
+    platform/linux/linux_gtk_file_dialog.h
+    platform/linux/linux_gtk_integration_p.h
+    platform/linux/linux_gtk_integration.cpp
+    platform/linux/linux_gtk_integration.h
+    platform/linux/linux_notification_service_watcher.cpp
+    platform/linux/linux_notification_service_watcher.h
+    platform/linux/linux_open_with_dialog.cpp
+    platform/linux/linux_open_with_dialog.h
     platform/linux/linux_wayland_integration.cpp
     platform/linux/linux_wayland_integration.h
     platform/linux/linux_xlib_helper.cpp
@@ -967,6 +974,8 @@ PRIVATE
     storage/storage_account.h
     storage/storage_cloud_blob.cpp
     storage/storage_cloud_blob.h
+    storage/storage_cloud_song_cover.cpp
+    storage/storage_cloud_song_cover.h
     storage/storage_domain.cpp
     storage/storage_domain.h
     storage/storage_facade.cpp
@@ -1120,6 +1129,8 @@ if (LINUX AND DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
     remove_target_sources(Telegram ${src_loc}
         platform/linux/linux_gsd_media_keys.cpp
         platform/linux/linux_gsd_media_keys.h
+        platform/linux/linux_notification_service_watcher.cpp
+        platform/linux/linux_notification_service_watcher.h
         platform/linux/notifications_manager_linux.cpp
     )
 
@@ -1132,6 +1143,26 @@ endif()
 if (LINUX AND DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
     remove_target_sources(Telegram ${src_loc} platform/linux/linux_wayland_integration.cpp)
     nice_target_sources(Telegram ${src_loc} PRIVATE platform/linux/linux_wayland_integration_dummy.cpp)
+endif()
+
+if (LINUX AND TDESKTOP_DISABLE_GTK_INTEGRATION)
+    remove_target_sources(Telegram ${src_loc}
+        platform/linux/linux_gdk_helper.cpp
+        platform/linux/linux_gdk_helper.h
+        platform/linux/linux_gtk_file_dialog.cpp
+        platform/linux/linux_gtk_file_dialog.h
+        platform/linux/linux_gtk_integration_p.h
+        platform/linux/linux_gtk_integration.cpp
+        platform/linux/linux_open_with_dialog.cpp
+        platform/linux/linux_open_with_dialog.h
+        platform/linux/linux_xlib_helper.cpp
+        platform/linux/linux_xlib_helper.h
+    )
+
+    nice_target_sources(Telegram ${src_loc}
+    PRIVATE
+        platform/linux/linux_gtk_integration_dummy.cpp
+    )
 endif()
 
 if (NOT DESKTOP_APP_USE_PACKAGED)

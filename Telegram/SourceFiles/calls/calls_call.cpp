@@ -232,7 +232,7 @@ void Call::startOutgoing() {
 	_api.request(MTPphone_RequestCall(
 		MTP_flags(flags),
 		_user->inputUser,
-		MTP_int(rand_value<int32>()),
+		MTP_int(openssl::RandomValue<int32>()),
 		MTP_bytes(_gaHash),
 		MTP_phoneCallProtocol(
 			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p

@@ -7,24 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/specific_linux.h"
 
-#include "platform/linux/linux_libs.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_xcb_utilities_linux.h"
+#include "platform/linux/linux_desktop_environment.h"
+#include "platform/linux/linux_gtk_integration.h"
+#include "platform/linux/linux_wayland_integration.h"
 #include "base/qt_adapters.h"
 #include "lang/lang_keys.h"
-#include "mainwidget.h"
 #include "mainwindow.h"
-#include "platform/linux/linux_desktop_environment.h"
-#include "platform/linux/file_utilities_linux.h"
-#include "platform/linux/linux_wayland_integration.h"
-#include "platform/platform_notifications_manager.h"
 #include "storage/localstorage.h"
-#include "core/crash_reports.h"
 #include "core/update_checker.h"
 #include "window/window_controller.h"
 #include "core/application.h"
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#include "platform/linux/linux_notification_service_watcher.h"
 #include "platform/linux/linux_gsd_media_keys.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
@@ -65,13 +62,12 @@ extern "C" {
 #include <iostream>
 
 using namespace Platform;
-using Platform::File::internal::EscapeShell;
 using Platform::internal::WaylandIntegration;
+using Platform::internal::GtkIntegration;
 
 namespace Platform {
 namespace {
 
-constexpr auto kDisableGtkIntegration = "TDESKTOP_DISABLE_GTK_INTEGRATION"_cs;
 constexpr auto kIgnoreGtkIncompatibility = "TDESKTOP_I_KNOW_ABOUT_GTK_INCOMPATIBILITY"_cs;
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
@@ -87,6 +83,8 @@ constexpr auto kXCBFrameExtentsAtomName = "_GTK_FRAME_EXTENTS"_cs;
 QStringList PlatformThemes;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+std::unique_ptr<internal::NotificationServiceWatcher> NSWInstance;
+
 QStringList ListDBusActivatableNames() {
 	static const auto Result = [&] {
 		const auto message = QDBusMessage::createMethodCall(
@@ -100,8 +98,8 @@ QStringList ListDBusActivatableNames() {
 
 		if (reply.isValid()) {
 			return reply.value();
-		} else {
-			LOG(("App Error: %1: %2")
+		} else if (reply.error().type() != QDBusError::Disconnected) {
+			LOG(("ListActivatableNames Error: %1: %2")
 				.arg(reply.error().name())
 				.arg(reply.error().message()));
 		}
@@ -152,13 +150,14 @@ void PortalAutostart(bool autostart, bool silent = false) {
 
 	if (silent) {
 		QDBusConnection::sessionBus().send(message);
-	} else {
-		const QDBusReply<void> reply = QDBusConnection::sessionBus().call(
-			message);
+		return;
+	}
 
-		if (!reply.isValid()) {
-			LOG(("Flatpak autostart error: %1").arg(reply.error().message()));
-		}
+	const QDBusError error = QDBusConnection::sessionBus().call(message);
+	if (error.isValid()) {
+		LOG(("Flatpak Autostart Error: %1: %2")
+			.arg(error.name())
+			.arg(error.message()));
 	}
 }
 
@@ -214,10 +213,11 @@ uint FileChooserPortalVersion() {
 
 		if (reply.isValid()) {
 			return reply.value().toUInt();
-		} else {
-			LOG(("Error getting FileChooser portal version: %1")
-				.arg(reply.error().message()));
 		}
+
+		LOG(("Error getting FileChooser portal version: %1: %2")
+			.arg(reply.error().name())
+			.arg(reply.error().message()));
 
 		return 0;
 	}();
@@ -225,6 +225,32 @@ uint FileChooserPortalVersion() {
 	return Result;
 }
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
+QByteArray EscapeShell(const QByteArray &content) {
+	auto result = QByteArray();
+
+	auto b = content.constData(), e = content.constEnd();
+	for (auto ch = b; ch != e; ++ch) {
+		if (*ch == ' ' || *ch == '"' || *ch == '\'' || *ch == '\\') {
+			if (result.isEmpty()) {
+				result.reserve(content.size() * 2);
+			}
+			if (ch > b) {
+				result.append(b, ch - b);
+			}
+			result.append('\\');
+			b = ch;
+		}
+	}
+	if (result.isEmpty()) {
+		return content;
+	}
+
+	if (e > b) {
+		result.append(b, e - b);
+	}
+	return result;
+}
 
 QString EscapeShellInLauncher(const QString &content) {
 	return EscapeShell(content.toUtf8()).replace('\\', "\\\\");
@@ -326,21 +352,6 @@ bool GenerateDesktopFile(
 		return false;
 	}
 }
-
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-bool GetImageFromClipboardSupported() {
-	return (Libs::gtk_clipboard_wait_for_contents != nullptr)
-		&& (Libs::gtk_clipboard_wait_for_image != nullptr)
-		&& (Libs::gtk_selection_data_targets_include_image != nullptr)
-		&& (Libs::gtk_selection_data_free != nullptr)
-		&& (Libs::gdk_pixbuf_get_pixels != nullptr)
-		&& (Libs::gdk_pixbuf_get_width != nullptr)
-		&& (Libs::gdk_pixbuf_get_height != nullptr)
-		&& (Libs::gdk_pixbuf_get_rowstride != nullptr)
-		&& (Libs::gdk_pixbuf_get_has_alpha != nullptr)
-		&& (Libs::gdk_atom_intern != nullptr);
-}
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 uint XCBMoveResizeFromEdges(Qt::Edges edges) {
 	if (edges == (Qt::TopEdge | Qt::LeftEdge))
@@ -559,28 +570,17 @@ bool IsStaticBinary() {
 #endif // !DESKTOP_APP_USE_PACKAGED
 }
 
-bool UseGtkIntegration() {
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	static const auto Result = !qEnvironmentVariableIsSet(
-		kDisableGtkIntegration.utf8());
-
-	return Result;
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
-
-	return false;
-}
-
 bool IsGtkIntegrationForced() {
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	static const auto Result = [&] {
+		if (!GtkIntegration::Instance()) {
+			return false;
+		}
+
 		return PlatformThemes.contains(qstr("gtk3"), Qt::CaseInsensitive)
 			|| PlatformThemes.contains(qstr("gtk2"), Qt::CaseInsensitive);
 	}();
 
 	return Result;
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
-
-	return false;
 }
 
 bool AreQtPluginsBundled() {
@@ -625,6 +625,17 @@ bool CanOpenDirectoryWithPortal() {
 			&& FileChooserPortalVersion() >= 3;
 #endif // !DESKTOP_APP_QT_PATCHED
 	}();
+
+	return Result;
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
+	return false;
+}
+
+bool IsNotificationServiceActivatable() {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	static const auto Result = ListDBusActivatableNames().contains(
+		qsl("org.freedesktop.Notifications"));
 
 	return Result;
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -707,64 +718,38 @@ QString GetIconName() {
 }
 
 QImage GetImageFromClipboard() {
-	QImage data;
-
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (!GetImageFromClipboardSupported() || !Libs::GtkClipboard()) {
-		return data;
+	if (const auto integration = GtkIntegration::Instance()) {
+		return integration->getImageFromClipboard();
 	}
 
-	auto gsel = Libs::gtk_clipboard_wait_for_contents(
-		Libs::GtkClipboard(),
-		Libs::gdk_atom_intern("TARGETS", true));
-
-	if (gsel) {
-		if (Libs::gtk_selection_data_targets_include_image(gsel, false)) {
-			auto img = Libs::gtk_clipboard_wait_for_image(
-				Libs::GtkClipboard());
-
-			if (img) {
-				data = QImage(
-					Libs::gdk_pixbuf_get_pixels(img),
-					Libs::gdk_pixbuf_get_width(img),
-					Libs::gdk_pixbuf_get_height(img),
-					Libs::gdk_pixbuf_get_rowstride(img),
-					Libs::gdk_pixbuf_get_has_alpha(img)
-						? QImage::Format_RGBA8888
-						: QImage::Format_RGB888).copy();
-
-				g_object_unref(img);
-			}
-		}
-
-		Libs::gtk_selection_data_free(gsel);
-	}
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
-
-	return data;
+	return {};
 }
 
 std::optional<bool> IsDarkMode() {
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (Libs::GtkSettingSupported() && Libs::GtkLoaded()) {
-		if (Libs::gtk_check_version != nullptr
-			&& !Libs::gtk_check_version(3, 0, 0)
-			&& Libs::GtkSetting<gboolean>(
-				"gtk-application-prefer-dark-theme")) {
-			return true;
-		}
-
-		const auto themeName = Libs::GtkSetting("gtk-theme-name").toLower();
-
-		if (themeName.contains(qsl("-dark"))) {
-			return true;
-		}
-
-		return false;
+	const auto integration = GtkIntegration::Instance();
+	if (!integration) {
+		return std::nullopt;
 	}
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
-	return std::nullopt;
+	if (integration->checkVersion(3, 0, 0)) {
+		const auto preferDarkTheme = integration->getBoolSetting(
+			qsl("gtk-application-prefer-dark-theme"));
+		
+		if (!preferDarkTheme.has_value()) {
+			return std::nullopt;
+		} else if (*preferDarkTheme) {
+			return true;
+		}
+	}
+
+	const auto themeName = integration->getStringSetting(qsl("gtk-theme-name"));
+	if (!themeName.has_value()) {
+		return std::nullopt;
+	} else if (themeName->toLower().contains(qsl("-dark"))) {
+		return true;
+	}
+
+	return false;
 }
 
 bool AutostartSupported() {
@@ -832,38 +817,44 @@ bool WindowsNeedShadow() {
 }
 
 Window::ControlsLayout WindowControlsLayout() {
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
-	if (Libs::GtkSettingSupported()
-		&& Libs::GtkLoaded()
-		&& Libs::gtk_check_version != nullptr
-		&& !Libs::gtk_check_version(3, 12, 0)) {
-		const auto decorationLayout = Libs::GtkSetting(
-			"gtk-decoration-layout").split(':');
+	const auto gtkResult = []() -> std::optional<Window::ControlsLayout> {
+		const auto integration = GtkIntegration::Instance();
+		if (!integration || !integration->checkVersion(3, 12, 0)) {
+			return std::nullopt;
+		}
+
+		const auto decorationLayoutSetting = integration->getStringSetting(
+			qsl("gtk-decoration-layout"));
+		
+		if (!decorationLayoutSetting.has_value()) {
+			return std::nullopt;
+		}
+
+		const auto decorationLayout = decorationLayoutSetting->split(':');
 
 		std::vector<Window::Control> controlsLeft;
 		ranges::transform(
 			decorationLayout[0].split(','),
 			ranges::back_inserter(controlsLeft),
-			GtkKeywordToWindowControl
-		);
+			GtkKeywordToWindowControl);
 
 		std::vector<Window::Control> controlsRight;
 		if (decorationLayout.size() > 1) {
 			ranges::transform(
 				decorationLayout[1].split(','),
 				ranges::back_inserter(controlsRight),
-				GtkKeywordToWindowControl
-			);
+				GtkKeywordToWindowControl);
 		}
 
 		return Window::ControlsLayout{
 			.left = controlsLeft,
 			.right = controlsRight
 		};
-	}
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
+	}();
 
-	if (DesktopEnvironment::IsUnity()) {
+	if (gtkResult.has_value()) {
+		return *gtkResult;
+	} else if (DesktopEnvironment::IsUnity()) {
 		return Window::ControlsLayout{
 			.left = {
 				Window::Control::Close,
@@ -967,7 +958,7 @@ void start() {
 
 	// if gtk integration and qgtk3/qgtk2 platformtheme (or qgtk2 style)
 	// is used at the same time, the app will crash
-	if (UseGtkIntegration()
+	if (GtkIntegration::Instance()
 		&& !IsStaticBinary()
 		&& !qEnvironmentVariableIsSet(
 			kIgnoreGtkIncompatibility.utf8())) {
@@ -988,7 +979,7 @@ void start() {
 			"Keep in mind that this will lead to clipboard issues "
 			"and tdesktop will be unable to get settings from GTK "
 			"(such as decoration layout, dark mode & more).",
-			kDisableGtkIntegration.utf8().constData());
+			internal::kDisableGtkIntegration.utf8().constData());
 
 		qunsetenv("QT_QPA_PLATFORMTHEME");
 		qunsetenv("QT_STYLE_OVERRIDE");
@@ -999,7 +990,7 @@ void start() {
 		}
 	}
 
-	if (!UseGtkIntegration()) {
+	if (!GtkIntegration::Instance()) {
 		g_warning(
 			"GTK integration was disabled on build or in runtime. "
 			"This will lead to clipboard issues and a lack of some features "
@@ -1224,16 +1215,24 @@ void start() {
 	DEBUG_LOG(("Icon theme: %1").arg(QIcon::themeName()));
 	DEBUG_LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
 
-	Libs::start();
-	MainWindow::LibsLoaded();
+	if (const auto integration = GtkIntegration::Instance()) {
+		integration->load();
+	}
 
 	// wait for interface announce to know if native window frame is supported
 	if (const auto waylandIntegration = WaylandIntegration::Instance()) {
 		waylandIntegration->waitForInterfaceAnnounce();
 	}
+
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	NSWInstance = std::make_unique<internal::NotificationServiceWatcher>();
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 void finish() {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	NSWInstance = nullptr;
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 } // namespace ThirdParty

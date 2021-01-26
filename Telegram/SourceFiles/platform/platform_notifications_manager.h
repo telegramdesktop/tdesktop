@@ -17,8 +17,8 @@ namespace Notifications {
 [[nodiscard]] bool SkipFlashBounce();
 
 [[nodiscard]] bool Supported();
-[[nodiscard]] std::unique_ptr<Window::Notifications::Manager> Create(
-	Window::Notifications::System *system);
+[[nodiscard]] bool Enforced();
+void Create(Window::Notifications::System *system);
 
 } // namespace Notifications
 } // namespace Platform

@@ -411,7 +411,11 @@ int Step::contentTop() const {
 	accumulate_max(result, st::introStepTopMin);
 	if (_hasCover) {
 		const auto currentHeightFull = result + st::introNextTop + st::introContentTopAdd;
-		auto added = 1. - snap(float64(currentHeightFull - st::windowMinHeight) / (st::introStepHeightFull - st::windowMinHeight), 0., 1.);
+		auto added = 1. - std::clamp(
+			float64(currentHeightFull - st::windowMinHeight)
+				/ (st::introStepHeightFull - st::windowMinHeight),
+			0.,
+			1.);
 		result += qRound(added * st::introContentTopAdd);
 	}
 	return result;

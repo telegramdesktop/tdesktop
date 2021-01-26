@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_prepare.h"
 
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/image/image_prepare.h"
+#include "ui/ui_utility.h"
 #include "core/mime_type.h"
 
 namespace Ui {
@@ -150,6 +152,25 @@ bool PreparedList::canAddCaption(bool sendingAlbum) const {
 	} else if (!sendingAlbum) {
 		return false;
 	}
+
+	// All music.
+	{
+		auto pred = [](const PreparedFile &file) {
+			return file.type == PreparedFile::Type::Music;
+		};
+		if (ranges::all_of(files, std::move(pred))) {
+			return true;
+		}
+	}
+	// All files.
+	{
+		auto pred = [](const PreparedFile &file) {
+			return file.type == PreparedFile::Type::File;
+		};
+		if (ranges::all_of(files, std::move(pred))) {
+			return true;
+		}
+	}
 	const auto hasFiles = ranges::contains(
 		files,
 		PreparedFile::Type::File,
@@ -253,6 +274,22 @@ std::vector<PreparedGroup> DivideByGroups(
 		pushGroup();
 	}
 	return result;
+}
+
+QPixmap PrepareSongCoverForThumbnail(QImage image, int size) {
+	const auto scaledSize = image.size().scaled(
+		size,
+		size,
+		Qt::KeepAspectRatioByExpanding);
+	using Option = Images::Option;
+	return PixmapFromImage(Images::prepare(
+		std::move(image),
+		scaledSize.width() * style::DevicePixelRatio(),
+		scaledSize.height() * style::DevicePixelRatio(),
+		Option::Circled | Option::Colored | Option::Smooth,
+		size,
+		size,
+		&st::songCoverOverlayFg));
 }
 
 } // namespace Ui

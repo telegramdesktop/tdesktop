@@ -31,6 +31,8 @@ public:
 
 	[[nodiscard]] rpl::producer<int> fullCount() const;
 
+	[[nodiscard]] HistoryItem *lastEditableMessage();
+
 private:
 	struct Viewer;
 

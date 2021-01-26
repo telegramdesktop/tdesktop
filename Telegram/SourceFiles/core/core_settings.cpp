@@ -101,7 +101,7 @@ QByteArray Settings::serialize() const {
 			<< qint32(_floatPlayerColumn)
 			<< qint32(_floatPlayerCorner)
 			<< qint32(_thirdSectionInfoEnabled ? 1 : 0)
-			<< qint32(snap(
+			<< qint32(std::clamp(
 				qRound(_dialogsWidthRatio.current() * 1000000),
 				0,
 				1000000))
@@ -259,7 +259,10 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			>> thirdColumnWidth
 			>> thirdSectionExtendedBy
 			>> notifyFromAll;
-		dialogsWidthRatio = snap(dialogsWidthRatioInt / 1000000., 0., 1.);
+		dialogsWidthRatio = std::clamp(
+			dialogsWidthRatioInt / 1000000.,
+			0.,
+			1.);
 	}
 	if (!stream.atEnd()) {
 		stream >> nativeWindowFrame;

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/config_loader.h"
 
+#include "base/openssl_help.h"
 #include "mtproto/special_config_request.h"
 #include "mtproto/facade.h"
 #include "mtproto/mtproto_dc_options.h"
@@ -174,7 +175,8 @@ void ConfigLoader::sendSpecialRequest() {
 	}
 
 	const auto weak = base::make_weak(this);
-	const auto index = rand_value<uint32>() % _specialEndpoints.size();
+	const auto index = openssl::RandomValue<uint32>()
+		% _specialEndpoints.size();
 	const auto endpoint = _specialEndpoints.begin() + index;
 	_specialEnumCurrent = specialToRealDcId(endpoint->dcId);
 

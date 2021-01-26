@@ -2704,15 +2704,16 @@ MsgId History::msgIdForRead() const {
 		: result;
 }
 
-HistoryItem *History::lastSentMessage() const {
+HistoryItem *History::lastEditableMessage() const {
 	if (!loadedAtBottom()) {
 		return nullptr;
 	}
+	const auto now = base::unixtime::now();
 	for (const auto &block : ranges::view::reverse(blocks)) {
 		for (const auto &message : ranges::view::reverse(block->messages)) {
 			const auto item = message->data();
-			if (item->canBeEditedFromHistory()) {
-				return item;
+			if (item->allowsEdit(now)) {
+				return owner().groups().findItemToEdit(item);
 			}
 		}
 	}

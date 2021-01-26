@@ -1421,7 +1421,7 @@ void FormController::restoreScan(
 void FormController::prepareFile(
 		EditFile &file,
 		const QByteArray &content) {
-	const auto fileId = rand_value<uint64>();
+	const auto fileId = openssl::RandomValue<uint64>();
 	file.fields.size = content.size();
 	file.fields.id = fileId;
 	file.fields.dcId = _controller->session().mainDcId();

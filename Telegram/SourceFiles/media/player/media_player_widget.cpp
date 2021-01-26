@@ -250,7 +250,7 @@ Widget::~Widget() = default;
 void Widget::handleSeekProgress(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	const auto positionMs = snap(
+	const auto positionMs = std::clamp(
 		static_cast<crl::time>(progress * _lastDurationMs),
 		crl::time(0),
 		_lastDurationMs);
@@ -265,7 +265,7 @@ void Widget::handleSeekProgress(float64 progress) {
 void Widget::handleSeekFinished(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	const auto positionMs = snap(
+	const auto positionMs = std::clamp(
 		static_cast<crl::time>(progress * _lastDurationMs),
 		crl::time(0),
 		_lastDurationMs);

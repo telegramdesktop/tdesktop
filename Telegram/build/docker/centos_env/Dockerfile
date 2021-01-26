@@ -1,7 +1,7 @@
 FROM centos:7 AS builder
 
 ENV GIT https://github.com
-ENV PKG_CONFIG_PATH /usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
+ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
 ENV QT 5_15_2
 ENV QT_TAG v5.15.2
 ENV QT_PREFIX /usr/local/desktop-app/Qt-5.15.2
@@ -14,8 +14,8 @@ RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.n
 RUN yum -y install https://packages.endpoint.com/rhel/7/os/x86_64/endpoint-repo-1.7-1.x86_64.rpm
 RUN yum -y install centos-release-scl
 
-RUN yum -y install git cmake3 zlib-devel gtk2-devel gtk3-devel \
-	libdrm-devel autoconf automake libtool fontconfig-devel \
+RUN yum -y install git cmake3 meson ninja-build autoconf automake libtool \
+	zlib-devel gtk2-devel gtk3-devel libdrm-devel fontconfig-devel \
 	freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
 	pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel \
 	pkgconfig bison yasm file which xorg-x11-util-macros \
@@ -220,7 +220,7 @@ RUN rm -rf wayland
 FROM builder AS wayland-protocols
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
 
-RUN git clone -b 1.18 --depth=1 https://gitlab.freedesktop.org/wayland/wayland-protocols.git
+RUN git clone -b 1.20 --depth=1 https://gitlab.freedesktop.org/wayland/wayland-protocols.git
 
 WORKDIR wayland-protocols
 RUN ./autogen.sh
@@ -250,10 +250,14 @@ COPY --from=libXext ${LibrariesPath}/libXext-cache /
 COPY --from=libXfixes ${LibrariesPath}/libXfixes-cache /
 COPY --from=wayland ${LibrariesPath}/wayland-cache /
 
-RUN git clone -b 2.9.0 --depth=1 $GIT/intel/libva.git
+RUN git clone -b 2.10.0 --depth=1 $GIT/intel/libva.git
 
 WORKDIR libva
-RUN ./autogen.sh --enable-static
+RUN ./autogen.sh \
+	--enable-static \
+	--sysconfdir=/etc \
+	--with-drivers-path=/usr/lib/dri
+
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/libva-cache" install
 
@@ -261,12 +265,19 @@ WORKDIR ..
 RUN rm -rf libva
 
 FROM builder AS libvdpau
-RUN git clone -b libvdpau-1.2 --depth=1 https://gitlab.freedesktop.org/vdpau/libvdpau.git
+RUN git clone -b 1.4 --depth=1 https://gitlab.freedesktop.org/vdpau/libvdpau.git
 
 WORKDIR libvdpau
-RUN ./autogen.sh --enable-static
-RUN make -j$(nproc)
-RUN make DESTDIR="$LibrariesPath/libvdpau-cache" install
+RUN sed -i 's/shared_library/library/g' src/meson.build
+
+RUN meson build \
+	--default-library=both \
+	--sysconfdir=/etc \
+	-Ddocumentation=false \
+	-Dmoduledir=/usr/lib/vdpau
+
+RUN meson compile -C build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/libvdpau-cache" meson install -C build
 
 WORKDIR ..
 RUN rm -rf libvdpau
@@ -391,7 +402,7 @@ RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/ffmpeg-cache" install
 
 FROM builder AS openal
-RUN git clone -b openal-soft-1.21.0 --depth=1 $GIT/kcat/openal-soft.git
+RUN git clone -b fix_pulse_default --depth=1 $GIT/telegramdesktop/openal-soft.git
 
 WORKDIR openal-soft
 RUN cmake3 -B build . \
@@ -414,7 +425,12 @@ RUN git clone -b OpenSSL_${OPENSSL_VER}-stable --depth=1 \
 	$GIT/openssl/openssl.git $opensslDir
 
 WORKDIR ${opensslDir}
-RUN ./config --prefix="$OPENSSL_PREFIX" no-tests
+RUN ./config \
+	--prefix="$OPENSSL_PREFIX" \
+	--openssldir=/etc/ssl \
+	no-tests \
+	no-dso
+
 RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/openssl-cache" install_sw
 
@@ -422,17 +438,22 @@ WORKDIR ..
 RUN rm -rf $opensslDir
 
 FROM builder AS xkbcommon
-RUN git clone -b xkbcommon-0.8.4 --depth=1 $GIT/xkbcommon/libxkbcommon.git
+COPY --from=xcb ${LibrariesPath}/xcb-cache /
+
+RUN git clone -b xkbcommon-1.0.3 --depth=1 $GIT/xkbcommon/libxkbcommon.git
 
 WORKDIR libxkbcommon
-RUN ./autogen.sh \
-	--disable-docs \
-	--disable-wayland \
-	--with-xkb-config-root=/usr/share/X11/xkb \
-	--with-x-locale-root=/usr/share/X11/locale
+RUN meson build \
+	--default-library=both \
+	-Denable-docs=false \
+	-Denable-wayland=false \
+	-Denable-xkbregistry=false \
+	-Dxkb-config-root=/usr/share/X11/xkb \
+	-Dxkb-config-extra-path=/etc/xkb \
+	-Dx-locale-root=/usr/share/X11/locale
 
-RUN make -j$(nproc)
-RUN make DESTDIR="$LibrariesPath/xkbcommon-cache" install
+RUN meson compile -C build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/xkbcommon-cache" meson install -C build
 
 WORKDIR ..
 RUN rm -rf libxkbcommon
@@ -479,8 +500,7 @@ RUN echo './configure -prefix '$'\"''$QT_PREFIX'$'\"'' \
 	-I '$'\"''$OPENSSL_PREFIX/include'$'\"'' \
 	OPENSSL_LIBS='$'\"''$OPENSSL_PREFIX/lib/libssl.a $OPENSSL_PREFIX/lib/libcrypto.a -lz -ldl -lpthread'$'\"'' \
 	-nomake examples \
-	-nomake tests \
-	-L /usr/local/lib64' >> ./run_configure.sh
+	-nomake tests' >> ./run_configure.sh
 RUN cat ./run_configure.sh
 RUN chmod a+x ./run_configure.sh
 RUN ./run_configure.sh

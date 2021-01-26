@@ -228,8 +228,8 @@ void EditColorBox::Picker::preparePaletteHSL() {
 }
 
 void EditColorBox::Picker::updateCurrentPoint(QPoint localPosition) {
-	auto x = snap(localPosition.x(), 0, width()) / float64(width());
-	auto y = snap(localPosition.y(), 0, height()) / float64(height());
+	auto x = std::clamp(localPosition.x(), 0, width()) / float64(width());
+	auto y = std::clamp(localPosition.y(), 0, height()) / float64(height());
 	if (_x != x || _y != y) {
 		_x = x;
 		_y = y;
@@ -245,14 +245,14 @@ void EditColorBox::Picker::setHSB(HSB hsb) {
 		_topright = _topright.toRgb();
 		_bottomleft = _bottomright = QColor(0, 0, 0);
 
-		_x = snap(hsb.saturation / 255., 0., 1.);
-		_y = 1. - snap(hsb.brightness / 255., 0., 1.);
+		_x = std::clamp(hsb.saturation / 255., 0., 1.);
+		_y = 1. - std::clamp(hsb.brightness / 255., 0., 1.);
 	} else {
 		_topleft = _topright = QColor::fromHsl(0, 255, hsb.brightness);
 		_bottomleft = _bottomright = QColor::fromHsl(0, 0, hsb.brightness);
 
-		_x = snap(hsb.hue / 360., 0., 1.);
-		_y = 1. - snap(hsb.saturation / 255., 0., 1.);
+		_x = std::clamp(hsb.hue / 360., 0., 1.);
+		_y = 1. - std::clamp(hsb.saturation / 255., 0., 1.);
 	}
 
 	_paletteInvalidated = true;
@@ -291,7 +291,7 @@ public:
 		return _value;
 	}
 	void setValue(float64 value) {
-		_value = snap(value, 0., 1.);
+		_value = std::clamp(value, 0., 1.);
 		update();
 	}
 	void setHSB(HSB hsb);
@@ -508,12 +508,12 @@ float64 EditColorBox::Slider::valueFromColor(QColor color) const {
 }
 
 float64 EditColorBox::Slider::valueFromHue(int hue) const {
-	return (1. - snap(hue, 0, 360) / 360.);
+	return (1. - std::clamp(hue, 0, 360) / 360.);
 }
 
 void EditColorBox::Slider::setAlpha(int alpha) {
 	if (_type == Type::Opacity) {
-		_value = snap(alpha, 0, 255) / 255.;
+		_value = std::clamp(alpha, 0, 255) / 255.;
 		update();
 	}
 }
@@ -534,7 +534,7 @@ void EditColorBox::Slider::updatePixmapFromMask() {
 void EditColorBox::Slider::updateCurrentPoint(QPoint localPosition) {
 	auto coord = (isHorizontal() ? localPosition.x() : localPosition.y()) - st::colorSliderSkip;
 	auto maximum = (isHorizontal() ? width() : height()) - 2 * st::colorSliderSkip;
-	auto value = snap(coord, 0, maximum) / float64(maximum);
+	auto value = std::clamp(coord, 0, maximum) / float64(maximum);
 	if (_value != value) {
 		_value = value;
 		update();
@@ -663,7 +663,7 @@ void EditColorBox::Field::wheelEvent(QWheelEvent *e) {
 
 void EditColorBox::Field::changeValue(int delta) {
 	auto currentValue = value();
-	auto newValue = snap(currentValue + delta, 0, _limit);
+	auto newValue = std::clamp(currentValue + delta, 0, _limit);
 	if (newValue != currentValue) {
 		setText(QString::number(newValue));
 		setFocus();

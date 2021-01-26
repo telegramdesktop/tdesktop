@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
 #include "history/history.h"
+#include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/main_session.h"
@@ -155,6 +156,40 @@ TextSelection ShiftItemSelection(
 		TextSelection selection,
 		const Ui::Text::String &byText) {
 	return ShiftItemSelection(selection, byText.length());
+}
+
+QString DateTooltipText(not_null<Element*> view) {
+	const auto format = QLocale::system().dateTimeFormat(QLocale::LongFormat);
+	auto dateText = view->dateTime().toString(format);
+	if (const auto editedDate = view->displayedEditDate()) {
+		dateText += '\n' + tr::lng_edited_date(
+			tr::now,
+			lt_date,
+			base::unixtime::parse(editedDate).toString(format));
+	}
+	if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
+		dateText += '\n' + tr::lng_forwarded_date(
+			tr::now,
+			lt_date,
+			base::unixtime::parse(forwarded->originalDate).toString(format));
+		if (const auto media = view->media()) {
+			if (media->hidesForwardedInfo()) {
+				dateText += '\n' + tr::lng_forwarded(
+					tr::now,
+					lt_user,
+					(forwarded->originalSender
+						? forwarded->originalSender->shortName()
+						: forwarded->hiddenSenderInfo->firstName));
+			}
+		}
+	}
+	if (const auto msgsigned = view->data()->Get<HistoryMessageSigned>()) {
+		if (msgsigned->isElided && !msgsigned->isAnonymousRank) {
+			dateText += '\n'
+				+ tr::lng_signed_author(tr::now, lt_user, msgsigned->author);
+		}
+	}
+	return dateText;
 }
 
 void UnreadBar::init(const QString &string) {

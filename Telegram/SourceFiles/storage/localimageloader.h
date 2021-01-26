@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/openssl_help.h"
 #include "base/variant.h"
 #include "api/api_common.h"
 #include "ui/chat/attach/attach_prepare.h"
@@ -22,13 +23,47 @@ enum class SendMediaType {
 };
 
 struct SendMediaPrepare {
-	SendMediaPrepare(const QString &file, const PeerId &peer, SendMediaType type, MsgId replyTo) : id(rand_value<PhotoId>()), file(file), peer(peer), type(type), replyTo(replyTo) {
+	SendMediaPrepare(
+		const QString &file,
+		const PeerId &peer,
+		SendMediaType type,
+		MsgId replyTo) : id(openssl::RandomValue<PhotoId>()),
+		file(file),
+		peer(peer),
+		type(type),
+		replyTo(replyTo) {
 	}
-	SendMediaPrepare(const QImage &img, const PeerId &peer, SendMediaType type, MsgId replyTo) : id(rand_value<PhotoId>()), img(img), peer(peer), type(type), replyTo(replyTo) {
+	SendMediaPrepare(
+		const QImage &img,
+		const PeerId &peer,
+		SendMediaType type,
+		MsgId replyTo) : id(openssl::RandomValue<PhotoId>()),
+		img(img),
+		peer(peer),
+		type(type),
+		replyTo(replyTo) {
 	}
-	SendMediaPrepare(const QByteArray &data, const PeerId &peer, SendMediaType type, MsgId replyTo) : id(rand_value<PhotoId>()), data(data), peer(peer), type(type), replyTo(replyTo) {
+	SendMediaPrepare(
+		const QByteArray &data,
+		const PeerId &peer,
+		SendMediaType type,
+		MsgId replyTo) : id(openssl::RandomValue<PhotoId>()),
+		data(data),
+		peer(peer),
+		type(type),
+		replyTo(replyTo) {
 	}
-	SendMediaPrepare(const QByteArray &data, int duration, const PeerId &peer, SendMediaType type, MsgId replyTo) : id(rand_value<PhotoId>()), data(data), peer(peer), type(type), duration(duration), replyTo(replyTo) {
+	SendMediaPrepare(
+		const QByteArray &data,
+		int duration,
+		const PeerId &peer,
+		SendMediaType type,
+		MsgId replyTo) : id(openssl::RandomValue<PhotoId>()),
+		data(data),
+		peer(peer),
+		type(type),
+		duration(duration),
+		replyTo(replyTo) {
 	}
 	PhotoId id;
 	QString file;

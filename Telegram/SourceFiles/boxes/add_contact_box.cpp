@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mtproto/sender.h"
 #include "base/flat_set.h"
+#include "base/openssl_help.h"
 #include "boxes/confirm_box.h"
 #include "boxes/confirm_phone_box.h" // ExtractPhonePrefix.
 #include "boxes/photo_crop_box.h"
@@ -382,7 +383,7 @@ void AddContactBox::save() {
 		lastName = QString();
 	}
 	_sentName = firstName;
-	_contactId = rand_value<uint64>();
+	_contactId = openssl::RandomValue<uint64>();
 	_addRequest = _session->api().request(MTPcontacts_ImportContacts(
 		MTP_vector<MTPInputContact>(
 			1,

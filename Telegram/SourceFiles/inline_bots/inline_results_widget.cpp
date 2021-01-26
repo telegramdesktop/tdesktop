@@ -87,7 +87,10 @@ void Widget::moveBottom(int bottom) {
 void Widget::updateContentHeight() {
 	auto addedHeight = innerPadding().top() + innerPadding().bottom();
 	auto wantedContentHeight = qRound(st::emojiPanHeightRatio * _bottom) - addedHeight;
-	auto contentHeight = snap(wantedContentHeight, st::inlineResultsMinHeight, st::inlineResultsMaxHeight);
+	auto contentHeight = std::clamp(
+		wantedContentHeight,
+		st::inlineResultsMinHeight,
+		st::inlineResultsMaxHeight);
 	accumulate_min(contentHeight, _bottom - addedHeight);
 	accumulate_min(contentHeight, _contentMaxHeight);
 	auto resultTop = _bottom - addedHeight - contentHeight;

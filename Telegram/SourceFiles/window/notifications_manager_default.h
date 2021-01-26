@@ -43,6 +43,10 @@ public:
 	Manager(System *system);
 	~Manager();
 
+	[[nodiscard]] ManagerType type() const override {
+		return ManagerType::Default;
+	}
+
 	template <typename Method>
 	void enumerateNotifications(Method method) {
 		for (const auto &notification : _notifications) {

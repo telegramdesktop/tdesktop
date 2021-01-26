@@ -58,7 +58,7 @@ PreparedFileThumbnail PrepareFileThumbnail(QImage &&original) {
 		return {};
 	}
 	auto result = PreparedFileThumbnail();
-	result.id = rand_value<uint64>();
+	result.id = openssl::RandomValue<uint64>();
 	const auto scaled = (width > kThumbnailSize || height > kThumbnailSize);
 	const auto scaledWidth = [&] {
 		return (width > height)
@@ -222,7 +222,7 @@ SendMediaReady PreparePeerPhoto(MTP::DcId dcId, PeerId peerId, QImage &&image) {
 	push("b", scaled(320));
 	push("c", std::move(image), jpeg);
 
-	const auto id = rand_value<PhotoId>();
+	const auto id = openssl::RandomValue<PhotoId>();
 	const auto photo = MTP_photo(
 		MTP_flags(0),
 		MTP_long(id),
@@ -402,7 +402,7 @@ void TaskQueueWorker::onTaskAdded() {
 	_inTaskAdded = false;
 }
 
-SendingAlbum::SendingAlbum() : groupId(rand_value<uint64>()) {
+SendingAlbum::SendingAlbum() : groupId(openssl::RandomValue<uint64>()) {
 }
 
 void SendingAlbum::fillMedia(
@@ -496,7 +496,7 @@ FileLoadTask::FileLoadTask(
 	const TextWithTags &caption,
 	std::shared_ptr<SendingAlbum> album,
 	MsgId msgIdToEdit)
-: _id(rand_value<uint64>())
+: _id(openssl::RandomValue<uint64>())
 , _session(session)
 , _dcId(session->mainDcId())
 , _to(to)
@@ -518,7 +518,7 @@ FileLoadTask::FileLoadTask(
 	const VoiceWaveform &waveform,
 	const FileLoadTo &to,
 	const TextWithTags &caption)
-: _id(rand_value<uint64>())
+: _id(openssl::RandomValue<uint64>())
 , _session(session)
 , _dcId(session->mainDcId())
 , _to(to)

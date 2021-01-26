@@ -1841,7 +1841,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 			selectByMouse(globalPosition);
 		}
 	});
-	if (_menu->actions().empty()) {
+	if (_menu->empty()) {
 		_menu = nullptr;
 	} else {
 		_menu->popup(e->globalPos());
@@ -2281,7 +2281,7 @@ void InnerWidget::refreshEmptyLabel() {
 	resizeEmptyLabel();
 	_empty->setClickHandlerFilter([=](const auto &...) {
 		if (_emptyState == EmptyState::NoContacts) {
-			App::wnd()->onShowAddContact();
+			App::wnd()->showAddContact();
 		} else if (_emptyState == EmptyState::EmptyFolder) {
 			editOpenedFilter();
 		}
@@ -2437,7 +2437,13 @@ void InnerWidget::selectSkip(int32 direction) {
 				? _collapsedSelected
 				: int(_collapsedRows.size()
 					+ (list->cfind(_selected) - list->cbegin() - _skipTopDialogs));
-			cur = snap(cur + direction, 0, static_cast<int>(_collapsedRows.size() + list->size() - _skipTopDialogs - 1));
+			cur = std::clamp(
+				cur + direction,
+				0,
+				static_cast<int>(_collapsedRows.size()
+					+ list->size()
+					- _skipTopDialogs
+					- 1));
 			if (cur < _collapsedRows.size()) {
 				_collapsedSelected = cur;
 				_selected = nullptr;
@@ -2477,7 +2483,13 @@ void InnerWidget::selectSkip(int32 direction) {
 					: (base::in_range(_peerSearchSelected, 0, _peerSearchResults.size())
 						? (_peerSearchSelected + _filterResults.size() + _hashtagResults.size())
 						: (_searchedSelected + _peerSearchResults.size() + _filterResults.size() + _hashtagResults.size())));
-			cur = snap(cur + direction, 0, static_cast<int>(_hashtagResults.size() + _filterResults.size() + _peerSearchResults.size() + _searchResults.size()) - 1);
+			cur = std::clamp(
+				cur + direction,
+				0,
+				static_cast<int>(_hashtagResults.size()
+					+ _filterResults.size()
+					+ _peerSearchResults.size()
+					+ _searchResults.size()) - 1);
 			if (cur < _hashtagResults.size()) {
 				_hashtagSelected = cur;
 				_filteredSelected = _peerSearchSelected = _searchedSelected = -1;

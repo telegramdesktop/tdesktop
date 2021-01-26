@@ -51,6 +51,7 @@ public:
 		int index,
 		int amountAtRequestStart,
 		crl::time timeAtRequestStart);
+	void checkSendNextAfterSuccess(MTP::DcId dcId);
 	[[nodiscard]] int chooseSessionIndex(MTP::DcId dcId) const;
 
 private:

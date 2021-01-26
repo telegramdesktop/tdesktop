@@ -959,6 +959,11 @@ void HistoryWidget::initTabbedSelector() {
 		return base::EventFilterResult::Continue;
 	});
 
+	auto filter = rpl::filter([=] {
+		return !isHidden();
+	});
+	using Selector = TabbedSelector;
+
 	selector->emojiChosen(
 	) | rpl::filter([=] {
 		return !isHidden() && !_field->isHidden();
@@ -967,27 +972,24 @@ void HistoryWidget::initTabbedSelector() {
 	}, lifetime());
 
 	selector->fileChosen(
-	) | rpl::filter([=] {
-		return !isHidden();
-	}) | rpl::start_with_next([=](TabbedSelector::FileChosen data) {
+	) | filter | rpl::start_with_next([=](Selector::FileChosen data) {
 		sendExistingDocument(data.document, data.options);
 	}, lifetime());
 
 	selector->photoChosen(
-	) | rpl::filter([=] {
-		return !isHidden();
-	}) | rpl::start_with_next([=](TabbedSelector::PhotoChosen data) {
+	) | filter | rpl::start_with_next([=](Selector::PhotoChosen data) {
 		sendExistingPhoto(data.photo, data.options);
 	}, lifetime());
 
 	selector->inlineResultChosen(
-	) | rpl::filter([=] {
-		return !isHidden();
-	}) | rpl::start_with_next([=](TabbedSelector::InlineChosen data) {
+	) | filter | rpl::start_with_next([=](Selector::InlineChosen data) {
 		sendInlineResult(data);
 	}, lifetime());
 
-	selector->setSendMenuType([=] { return sendMenuType(); });
+	selector->contextMenuRequested(
+	) | filter | rpl::start_with_next([=] {
+		selector->showMenuWithType(sendMenuType());
+	}, lifetime());
 }
 
 void HistoryWidget::supportInitAutocomplete() {
@@ -1087,7 +1089,7 @@ void HistoryWidget::animatedScrollToItem(MsgId msgId) {
 		return;
 	}
 
-	auto scrollTo = snap(
+	auto scrollTo = std::clamp(
 		itemTopForHighlight(to->mainView()),
 		0,
 		_scroll->scrollTopMax());
@@ -5195,10 +5197,9 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 		_scroll->keyPressEvent(e);
 	} else if (e->key() == Qt::Key_Up && !commonModifiers) {
 		const auto item = _history
-			? _history->lastSentMessage()
+			? _history->lastEditableMessage()
 			: nullptr;
 		if (item
-			&& item->allowsEdit(base::unixtime::now())
 			&& _field->empty()
 			&& !_editMsgId
 			&& !_replyToId) {
@@ -6849,7 +6850,8 @@ void HistoryWidget::noSelectingScroll() {
 }
 
 bool HistoryWidget::touchScroll(const QPoint &delta) {
-	int32 scTop = _scroll->scrollTop(), scMax = _scroll->scrollTopMax(), scNew = snap(scTop - delta.y(), 0, scMax);
+	int32 scTop = _scroll->scrollTop(), scMax = _scroll->scrollTopMax();
+	const auto scNew = std::clamp(scTop - delta.y(), 0, scMax);
 	if (scNew == scTop) return false;
 
 	_scroll->scrollToY(scNew);

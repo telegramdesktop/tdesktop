@@ -59,6 +59,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
+#include "base/openssl_help.h"
 #include "facades.h" // Notify::switchInlineBotButtonReceived
 #include "app.h"
 #include "styles/style_boxes.h" // st::backgroundSize
@@ -2431,7 +2432,7 @@ PhotoData *Session::photoFromWeb(
 		return nullptr;
 	}
 	return photo(
-		rand_value<PhotoId>(),
+		openssl::RandomValue<PhotoId>(),
 		uint64(0),
 		QByteArray(),
 		base::unixtime::now(),
@@ -2696,7 +2697,7 @@ DocumentData *Session::documentFromWeb(
 		const ImageLocation &thumbnailLocation,
 		const ImageLocation &videoThumbnailLocation) {
 	const auto result = document(
-		rand_value<DocumentId>(),
+		openssl::RandomValue<DocumentId>(),
 		uint64(0),
 		QByteArray(),
 		base::unixtime::now(),
@@ -2718,7 +2719,7 @@ DocumentData *Session::documentFromWeb(
 		const ImageLocation &thumbnailLocation,
 		const ImageLocation &videoThumbnailLocation) {
 	const auto result = document(
-		rand_value<DocumentId>(),
+		openssl::RandomValue<DocumentId>(),
 		uint64(0),
 		QByteArray(),
 		base::unixtime::now(),

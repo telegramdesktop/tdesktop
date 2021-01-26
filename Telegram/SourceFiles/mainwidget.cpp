@@ -2406,7 +2406,7 @@ void MainWidget::ensureThirdColumnResizeAreaCreated() {
 		if (!Adaptive::ThreeColumn() || !_thirdSection) {
 			return;
 		}
-		Core::App().settings().setThirdColumnWidth(snap(
+		Core::App().settings().setThirdColumnWidth(std::clamp(
 			Core::App().settings().thirdColumnWidth(),
 			st::columnMinimalWidthThird,
 			st::columnMaximalWidthThird));

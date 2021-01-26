@@ -280,7 +280,7 @@ void TopBarWidget::showMenu() {
 		_controller,
 		_activeChat,
 		addAction);
-	if (_menu->actions().empty()) {
+	if (_menu->empty()) {
 		_menu.destroy();
 	} else {
 		_menu->moveToRight((parentWidget()->width() - width()) + st::topBarMenuPosition.x(), st::topBarMenuPosition.y());

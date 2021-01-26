@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "platform/platform_main_window.h"
+#include "base/unique_qptr.h"
 
 namespace Ui {
 class PopupMenu;
@@ -43,7 +44,7 @@ public:
 		return _sniAvailable || QSystemTrayIcon::isSystemTrayAvailable();
 	}
 
-	static void LibsLoaded();
+	bool isActiveForTrayMenu() override;
 
 	~MainWindow();
 
@@ -75,7 +76,7 @@ protected:
 
 private:
 	bool _sniAvailable = false;
-	Ui::PopupMenu *_trayIconMenuXEmbed = nullptr;
+	base::unique_qptr<Ui::PopupMenu> _trayIconMenuXEmbed;
 
 	void updateIconCounters();
 	void updateWaylandDecorationColors();

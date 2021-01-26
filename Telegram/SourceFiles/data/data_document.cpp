@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_gif.h"
 #include "window/window_session_controller.h"
 #include "storage/cache/storage_cache_database.h"
+#include "storage/storage_cloud_song_cover.h"
 #include "boxes/confirm_box.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
@@ -540,6 +541,13 @@ void DocumentData::setattributes(
 				songData->duration = data.vduration().v;
 				songData->title = qs(data.vtitle().value_or_empty());
 				songData->performer = qs(data.vperformer().value_or_empty());
+
+				if (!hasThumbnail()
+					&& !songData->title.isEmpty()
+					&& !songData->performer.isEmpty()) {
+
+					Storage::CloudSongCover::LoadThumbnailFromExternal(this);
+				}
 			}
 		}, [&](const MTPDdocumentAttributeFilename &data) {
 			_filename = qs(data.vfile_name());
@@ -885,7 +893,7 @@ float64 DocumentData::progress() const {
 		if (uploadingData->size > 0) {
 			const auto result = float64(uploadingData->offset)
 				/ uploadingData->size;
-			return snap(result, 0., 1.);
+			return std::clamp(result, 0., 1.);
 		}
 		return 0.;
 	}
@@ -1486,6 +1494,10 @@ bool DocumentData::isTheme() const {
 
 bool DocumentData::isSong() const {
 	return (type == SongDocument);
+}
+
+bool DocumentData::isSongWithCover() const {
+	return isSong() && hasThumbnail();
 }
 
 bool DocumentData::isAudioFile() const {

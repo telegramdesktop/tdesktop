@@ -305,7 +305,7 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 		SendMenu::DefaultSilentCallback(send),
 		SendMenu::DefaultScheduleCallback(this, type, send));
 
-	if (!_menu->actions().empty()) {
+	if (!_menu->empty()) {
 		_menu->popup(QCursor::pos());
 	}
 }

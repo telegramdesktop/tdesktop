@@ -24,6 +24,8 @@ class MainWindow : public Window::MainWindow {
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
+	void showFromTrayMenu() override;
+
 	HWND psHwnd() const;
 	HMENU psMenu() const;
 
@@ -32,6 +34,7 @@ public:
 	void updateCustomMargins();
 
 	void updateWindowIcon() override;
+	bool isActiveForTrayMenu() override;
 
 	void psRefreshTaskbarIcon();
 
@@ -102,6 +105,10 @@ private:
 	bool _inUpdateMargins = false;
 	bool _wasNativeFrame = false;
 	bool _hasActiveFrame = false;
+
+	// Workarounds for activation from tray icon.
+	crl::time _lastDeactivateTime = 0;
+	rpl::lifetime _showFromTrayLifetime;
 
 	HWND ps_hWnd = nullptr;
 	HWND ps_tbHider_hWnd = nullptr;

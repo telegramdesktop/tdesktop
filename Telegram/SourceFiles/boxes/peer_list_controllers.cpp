@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peer_list_controllers.h"
 
+#include "base/openssl_help.h"
 #include "boxes/confirm_box.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/ui_utility.h"
@@ -23,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "history/history.h"
 #include "dialogs/dialogs_main_list.h"
-#include "window/window_session_controller.h" // onShowAddContact()
+#include "window/window_session_controller.h" // showAddContact()
 #include "facades.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
@@ -35,7 +36,7 @@ void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 	auto &histories = history->owner().histories();
 	const auto requestType = Data::Histories::RequestType::Send;
 	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-		const auto randomId = rand_value<uint64>();
+		const auto randomId = openssl::RandomValue<uint64>();
 		const auto api = &chat->session().api();
 		history->sendRequestId = api->request(MTPmessages_SendMedia(
 			MTP_flags(0),
@@ -112,7 +113,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 		box->addLeftButton(
 			tr::lng_profile_add_contact(),
-			[=] { controller->widget()->onShowAddContact(); });
+			[=] { controller->widget()->showAddContact(); });
 	};
 	return Box<PeerListBox>(
 		std::make_unique<ContactsBoxController>(

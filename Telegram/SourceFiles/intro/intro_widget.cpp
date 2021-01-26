@@ -478,10 +478,17 @@ void Widget::resetAccount() {
 			_resetRequest = 0;
 
 			Ui::hideLayer();
-			moveToStep(
-				new SignupWidget(this, _account, getData()),
-				StackAction::Replace,
-				Animate::Forward);
+			if (getData()->phone.isEmpty()) {
+				moveToStep(
+					new QrWidget(this, _account, getData()),
+					StackAction::Replace,
+					Animate::Back);
+			} else {
+				moveToStep(
+					new SignupWidget(this, _account, getData()),
+					StackAction::Replace,
+					Animate::Forward);
+			}
 		}).fail([=](const RPCError &error) {
 			_resetRequest = 0;
 

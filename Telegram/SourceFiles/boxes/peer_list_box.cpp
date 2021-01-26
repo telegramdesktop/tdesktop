@@ -1445,7 +1445,10 @@ PeerListContent::SkipResult PeerListContent::selectSkip(int direction) {
 	}
 
 	// Snap the index.
-	newSelectedIndex = snap(newSelectedIndex, firstEnabled - 1, lastEnabled);
+	newSelectedIndex = std::clamp(
+		newSelectedIndex,
+		firstEnabled - 1,
+		lastEnabled);
 
 	// Skip the disabled rows.
 	if (newSelectedIndex < firstEnabled) {

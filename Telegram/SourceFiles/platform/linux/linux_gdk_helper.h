@@ -7,11 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <QtCore/QObject>
-
 class QLibrary;
 
-#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 extern "C" {
 #undef signals
 #include <gtk/gtk.h>
@@ -28,4 +25,3 @@ void XSetTransientForHint(GdkWindow *window, quintptr winId);
 
 } // namespace internal
 } // namespace Platform
-#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION

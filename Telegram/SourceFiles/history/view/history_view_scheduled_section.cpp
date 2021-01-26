@@ -235,8 +235,9 @@ void ScheduledWidget::setupComposeControls() {
 	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
 		if (e->key() == Qt::Key_Up) {
 			if (!_composeControls->isEditingMessage()) {
-				auto &messages = session().data().scheduledMessages();
-				if (const auto item = messages.lastSentMessage(_history)) {
+				const auto item = session().data().scheduledMessages()
+					.lastEditableMessage(_history);
+				if (item) {
 					_inner->editMessageRequestNotify(item->fullId());
 				} else {
 					_scroll->keyPressEvent(e);
@@ -809,10 +810,13 @@ void ScheduledWidget::showAtPosition(Data::MessagePosition position) {
 bool ScheduledWidget::showAtPositionNow(Data::MessagePosition position) {
 	if (const auto scrollTop = _inner->scrollTopForPosition(position)) {
 		const auto currentScrollTop = _scroll->scrollTop();
-		const auto wanted = snap(*scrollTop, 0, _scroll->scrollTopMax());
+		const auto wanted = std::clamp(
+			*scrollTop,
+			0,
+			_scroll->scrollTopMax());
 		const auto fullDelta = (wanted - currentScrollTop);
 		const auto limit = _scroll->height();
-		const auto scrollDelta = snap(fullDelta, -limit, limit);
+		const auto scrollDelta = std::clamp(fullDelta, -limit, limit);
 		_inner->scrollTo(
 			wanted,
 			position,

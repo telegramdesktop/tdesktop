@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/themes/window_theme.h"
 #include "platform/mac/touchbar/mac_touchbar_manager.h"
+#include "platform/platform_specific.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
 #include "boxes/peer_list_controllers.h"
@@ -692,7 +693,9 @@ void MainWindow::createGlobalMenu() {
 	about->setMenuRole(QAction::AboutQtRole);
 
 	main->addSeparator();
-	QAction *prefs = main->addAction(tr::lng_mac_menu_preferences(tr::now), App::wnd(), SLOT(showSettings()), QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
+	QAction *prefs = main->addAction(tr::lng_mac_menu_preferences(tr::now), App::wnd(), [=] {
+		App::wnd()->showSettings();
+	}, QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
 	prefs->setMenuRole(QAction::PreferencesRole);
 
 	QMenu *file = psMainMenu.addMenu(tr::lng_mac_menu_file(tr::now));
@@ -728,19 +731,27 @@ void MainWindow::createGlobalMenu() {
 	psContacts = window->addAction(tr::lng_mac_menu_contacts(tr::now));
 	connect(psContacts, &QAction::triggered, psContacts, crl::guard(this, [=] {
 		if (isHidden()) {
-			App::wnd()->showFromTray();
+			showFromTray();
 		}
 		if (!sessionController()) {
 			return;
 		}
 		Ui::show(PrepareContactsBox(sessionController()));
 	}));
-	psAddContact = window->addAction(tr::lng_mac_menu_add_contact(tr::now), App::wnd(), SLOT(onShowAddContact()));
+	psAddContact = window->addAction(tr::lng_mac_menu_add_contact(tr::now), App::wnd(), [=] {
+		App::wnd()->showAddContact();
+	});
 	window->addSeparator();
-	psNewGroup = window->addAction(tr::lng_mac_menu_new_group(tr::now), App::wnd(), SLOT(onShowNewGroup()));
-	psNewChannel = window->addAction(tr::lng_mac_menu_new_channel(tr::now), App::wnd(), SLOT(onShowNewChannel()));
+	psNewGroup = window->addAction(tr::lng_mac_menu_new_group(tr::now), App::wnd(), [=] {
+		App::wnd()->showNewGroup();
+	});
+	psNewChannel = window->addAction(tr::lng_mac_menu_new_channel(tr::now), App::wnd(), [=] {
+		App::wnd()->showNewChannel();
+	});
 	window->addSeparator();
-	psShowTelegram = window->addAction(tr::lng_mac_menu_show(tr::now), App::wnd(), SLOT(showFromTray()));
+	psShowTelegram = window->addAction(tr::lng_mac_menu_show(tr::now), App::wnd(), [=] {
+		showFromTray();
+	});
 
 	updateGlobalMenu();
 }

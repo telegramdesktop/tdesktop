@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_utilities.h"
 
 #include "base/platform/base_platform_file_utilities.h"
+#include "base/openssl_help.h"
 #include "core/application.h"
 #include "data/data_peer.h"
 #include "ui/empty_userpic.h"
@@ -59,7 +60,9 @@ QString CachedUserpics::get(
 		} else {
 			v.until = 0;
 		}
-		v.path = cWorkingDir() + qsl("tdata/temp/") + QString::number(rand_value<uint64>(), 16) + qsl(".png");
+		v.path = u"%1tdata/temp/%2.png"_q
+			.arg(cWorkingDir())
+			.arg(QString::number(openssl::RandomValue<uint64>(), 16));
 		if (key.first || key.second) {
 			if (peer->isSelf()) {
 				const auto method = (_type == Type::Rounded)

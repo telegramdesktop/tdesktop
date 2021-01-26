@@ -28,6 +28,15 @@ OverviewFileLayout {
 	songDownload: icon;
 	songDownloadSelected: icon;
 
+	voicePause: icon;
+	voicePauseSelected: icon;
+	voicePlay: icon;
+	voicePlaySelected: icon;
+	voiceCancel: icon;
+	voiceCancelSelected: icon;
+	voiceDownload: icon;
+	voiceDownloadSelected: icon;
+
 	filePadding: margins;
 	fileThumbSize: pixels;
 	fileNameTop: pixels;
@@ -64,14 +73,23 @@ overviewFileExtTop: 24px;
 overviewFileExtFg: windowFgActive;
 overviewFileExtFont: font(18px semibold);
 
-overviewSongPause: icon {{ "playlist_pause", historyFileInIconFg }};
-overviewSongPauseSelected: icon {{ "playlist_pause", historyFileInIconFgSelected }};
-overviewSongPlay: icon {{ "playlist_play", historyFileInIconFg }};
-overviewSongPlaySelected: icon {{ "playlist_play", historyFileInIconFgSelected }};
-overviewSongCancel: icon {{ "playlist_cancel", historyFileInIconFg }};
-overviewSongCancelSelected: icon {{ "playlist_cancel", historyFileInIconFgSelected }};
-overviewSongDownload: icon {{ "playlist_download", historyFileInIconFg }};
-overviewSongDownloadSelected: icon {{ "playlist_download", historyFileInIconFgSelected }};
+overviewVoicePause: icon {{ "playlist_pause", historyFileInIconFg }};
+overviewVoicePauseSelected: icon {{ "playlist_pause", historyFileInIconFgSelected }};
+overviewVoicePlay: icon {{ "playlist_play", historyFileInIconFg }};
+overviewVoicePlaySelected: icon {{ "playlist_play", historyFileInIconFgSelected }};
+overviewVoiceCancel: icon {{ "playlist_cancel", historyFileInIconFg }};
+overviewVoiceCancelSelected: icon {{ "playlist_cancel", historyFileInIconFgSelected }};
+overviewVoiceDownload: icon {{ "playlist_download", historyFileInIconFg }};
+overviewVoiceDownloadSelected: icon {{ "playlist_download", historyFileInIconFgSelected }};
+
+overviewSongPause: icon {{ "playlist_pause", historyFileThumbIconFg }};
+overviewSongPauseSelected: icon {{ "playlist_pause", historyFileThumbIconFgSelected }};
+overviewSongPlay: icon {{ "playlist_play", historyFileThumbIconFg }};
+overviewSongPlaySelected: icon {{ "playlist_play", historyFileThumbIconFgSelected }};
+overviewSongCancel: icon {{ "playlist_cancel", historyFileThumbIconFg }};
+overviewSongCancelSelected: icon {{ "playlist_cancel", historyFileThumbIconFgSelected }};
+overviewSongDownload: icon {{ "playlist_download", historyFileThumbIconFg }};
+overviewSongDownloadSelected: icon {{ "playlist_download", historyFileThumbIconFgSelected }};
 overviewSmallCancel: icon {{ "history_audio_cancel", historyFileInIconFg }};
 overviewSmallCancelSelected: icon {{ "history_audio_cancel", historyFileInIconFgSelected }};
 overviewSmallDownload: icon {{ "history_audio_download", historyFileInIconFg }};
@@ -92,6 +110,15 @@ overviewFileLayout: OverviewFileLayout {
 	songCancelSelected: overviewSongCancelSelected;
 	songDownload: overviewSongDownload;
 	songDownloadSelected: overviewSongDownloadSelected;
+
+	voicePause: overviewVoicePause;
+	voicePauseSelected: overviewVoicePauseSelected;
+	voicePlay: overviewVoicePlay;
+	voicePlaySelected: overviewVoicePlaySelected;
+	voiceCancel: overviewVoiceCancel;
+	voiceCancelSelected: overviewVoiceCancelSelected;
+	voiceDownload: overviewVoiceDownload;
+	voiceDownloadSelected: overviewVoiceDownloadSelected;
 
 	filePadding: margins(0px, 3px, 16px, 3px);
 	fileThumbSize: 70px;

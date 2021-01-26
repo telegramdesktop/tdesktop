@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/menu.h"
+#include "ui/widgets/menu/menu.h"
+#include "ui/widgets/menu/menu_common.h"
+#include "ui/widgets/menu/menu_toggle.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
@@ -525,7 +527,7 @@ MainMenu::MainMenu(
 	_inner.get(),
 	object_ptr<Ui::PlainShadow>(_inner.get()))))
 , _menu(_inner->add(
-	object_ptr<Ui::Menu>(_inner.get(), st::mainMenu),
+	object_ptr<Ui::Menu::Menu>(_inner.get(), st::mainMenu),
 	{ 0, st::mainMenuSkip, 0, 0 }))
 , _footer(_inner->add(object_ptr<Ui::RpWidget>(_inner.get())))
 , _telegram(
@@ -566,8 +568,8 @@ MainMenu::MainMenu(
 	}, _inner->lifetime());
 
 	parentResized();
-	_menu->setTriggeredCallback([](QAction *action, int actionTop, Ui::Menu::TriggeredSource source) {
-		emit action->triggered();
+	_menu->setTriggeredCallback([](const Ui::Menu::CallbackData &data) {
+		emit data.action->triggered();
 	});
 	refreshMenu();
 	refreshBackground();
@@ -858,13 +860,13 @@ void MainMenu::refreshMenu() {
 	if (!_controller->session().supportMode()) {
 		const auto controller = _controller;
 		_menu->addAction(tr::lng_create_group_title(tr::now), [] {
-			App::wnd()->onShowNewGroup();
+			App::wnd()->showNewGroup();
 		}, &st::mainMenuNewGroup, &st::mainMenuNewGroupOver);
 		_menu->addAction(tr::lng_create_supergroup_title(tr::now), [] {
 			App::wnd()->onShowNewSupergroup();
 		}, &st::mainMenuNewGroup, &st::mainMenuNewGroupOver);
 		_menu->addAction(tr::lng_create_channel_title(tr::now), [] {
-			App::wnd()->onShowNewChannel();
+			App::wnd()->showNewChannel();
 		}, &st::mainMenuNewChannel, &st::mainMenuNewChannelOver);
 		_menu->addAction(tr::lng_menu_contacts(tr::now), [=] {
 			Ui::show(PrepareContactsBox(controller));
@@ -885,7 +887,7 @@ void MainMenu::refreshMenu() {
 		}
 	} else {
 		_menu->addAction(tr::lng_profile_add_contact(tr::now), [] {
-			App::wnd()->onShowAddContact();
+			App::wnd()->showAddContact();
 		}, &st::mainMenuContacts, &st::mainMenuContactsOver);
 
 		const auto fix = std::make_shared<QPointer<QAction>>();
@@ -908,7 +910,8 @@ void MainMenu::refreshMenu() {
 	}, &st::mainMenuSettings, &st::mainMenuSettingsOver);
 
 	_nightThemeAction = std::make_shared<QPointer<QAction>>();
-	auto action = _menu->addAction(tr::lng_menu_night_mode(tr::now), [=] {
+
+	auto nightCallback = [=] {
 		if (Window::Theme::Background()->editingTheme()) {
 			Ui::show(Box<InformBox>(
 				tr::lng_theme_editor_cant_change_theme(tr::now)));
@@ -927,7 +930,17 @@ void MainMenu::refreshMenu() {
 		Window::Theme::ToggleNightModeWithConfirmation(
 			&_controller->window(),
 			toggle);
-	}, &st::mainMenuNightMode, &st::mainMenuNightModeOver);
+	};
+
+	auto item = base::make_unique_q<Ui::Menu::Toggle>(
+		_menu,
+		st::mainMenu,
+		tr::lng_menu_night_mode(tr::now),
+		std::move(nightCallback),
+		&st::mainMenuNightMode,
+		&st::mainMenuNightModeOver);
+
+	auto action = _menu->addAction(std::move(item));
 	*_nightThemeAction = action;
 	action->setCheckable(true);
 	action->setChecked(Window::Theme::IsNightMode());

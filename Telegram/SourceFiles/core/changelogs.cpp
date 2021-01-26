@@ -99,6 +99,21 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Fix media viewer updating when screen resolution is changed.\n"
 	},
+	{
+		2005005,
+		"- Fix recording of audio in voice chats.\n"
+
+		"- Fix media viewer zoom and crashing.\n"
+	},
+	{
+		2005006,
+		"- Press Up arrow to edit your last sent comment.\n"
+
+		"- Add more information to date tooltips "
+		"in Recent Actions and channel comments.\n"
+
+		"- Bug and crash fixes.\n"
+	}
 	};
 };
 

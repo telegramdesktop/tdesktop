@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
 #include "base/platform/mac/base_utilities_mac.h"
+#include "base/openssl_help.h"
 #include "history/history.h"
 #include "ui/empty_userpic.h"
 #include "main/main_session.h"
@@ -162,11 +163,16 @@ bool Supported() {
 	return Platform::IsMac10_8OrGreater();
 }
 
-std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {
+bool Enforced() {
+	return Supported();
+}
+
+void Create(Window::Notifications::System *system) {
 	if (Supported()) {
-		return std::make_unique<Manager>(system);
+		system->setManager(std::make_unique<Manager>(system));
+	} else {
+		system->setManager(nullptr);
 	}
-	return nullptr;
 }
 
 class Manager::Private : public QObject, private base::Subscriber {
@@ -224,7 +230,7 @@ private:
 };
 
 Manager::Private::Private(Manager *manager)
-: _managerId(rand_value<uint64>())
+: _managerId(openssl::RandomValue<uint64>())
 , _managerIdString(QString::number(_managerId))
 , _delegate([[NotificationDelegate alloc] initWithManager:manager managerId:_managerId]) {
 	updateDelegate();

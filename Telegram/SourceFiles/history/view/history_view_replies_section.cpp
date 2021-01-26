@@ -492,13 +492,11 @@ void RepliesWidget::setupComposeControls() {
 	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
 		if (e->key() == Qt::Key_Up) {
 			if (!_composeControls->isEditingMessage()) {
-				// #TODO replies edit last sent message
-				//auto &messages = session().data().scheduledMessages();
-				//if (const auto item = messages.lastSentMessage(_history)) {
-				//	_inner->editMessageRequestNotify(item->fullId());
-				//} else {
+				if (const auto item = _replies->lastEditableMessage()) {
+					_inner->editMessageRequestNotify(item->fullId());
+				} else {
 					_scroll->keyPressEvent(e);
-				//}
+				}
 			} else {
 				_scroll->keyPressEvent(e);
 			}
@@ -1221,10 +1219,13 @@ bool RepliesWidget::showAtPositionNow(
 			calculateNextReplyReturn();
 		}
 		const auto currentScrollTop = _scroll->scrollTop();
-		const auto wanted = snap(*scrollTop, 0, _scroll->scrollTopMax());
+		const auto wanted = std::clamp(
+			*scrollTop,
+			0,
+			_scroll->scrollTopMax());
 		const auto fullDelta = (wanted - currentScrollTop);
 		const auto limit = _scroll->height();
-		const auto scrollDelta = snap(fullDelta, -limit, limit);
+		const auto scrollDelta = std::clamp(fullDelta, -limit, limit);
 		const auto type = (animated == anim::type::instant)
 			? AnimatedScroll::None
 			: (std::abs(fullDelta) > limit)

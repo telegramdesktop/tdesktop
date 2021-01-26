@@ -276,7 +276,16 @@ void StopDetachIfNotUsedSafe() {
 }
 
 bool SupportsSpeedControl() {
-	return OpenAL::HasEFXExtension();
+	return OpenAL::HasEFXExtension()
+		&& (alGetEnumValue("AL_AUXILIARY_SEND_FILTER") != 0)
+		&& (alGetEnumValue("AL_DIRECT_FILTER") != 0)
+		&& (alGetEnumValue("AL_EFFECT_TYPE") != 0)
+		&& (alGetEnumValue("AL_EFFECT_PITCH_SHIFTER") != 0)
+		&& (alGetEnumValue("AL_FILTER_TYPE") != 0)
+		&& (alGetEnumValue("AL_FILTER_LOWPASS") != 0)
+		&& (alGetEnumValue("AL_LOWPASS_GAIN") != 0)
+		&& (alGetEnumValue("AL_PITCH_SHIFTER_COARSE_TUNE") != 0)
+		&& (alGetEnumValue("AL_EFFECTSLOT_EFFECT") != 0);
 }
 
 } // namespace Audio
@@ -587,7 +596,7 @@ Mixer::Mixer(not_null<Audio::Instance*> instance)
 	}, _lifetime);
 
 	connect(this, SIGNAL(loaderOnStart(const AudioMsgId&, qint64)), _loader, SLOT(onStart(const AudioMsgId&, qint64)));
-	connect(this, SIGNAL(loaderOnCancel(const AudioMsgId&)), _loader, SLOT(onCancel(const AudioMsgId&)));
+	connect(this, SIGNAL(loaderOnCancel(const AudioMsgId&)), _loader, SLOT(onCancel(const AudioMsgId&)), Qt::QueuedConnection);
 	connect(_loader, SIGNAL(needToCheck()), _fader, SLOT(onTimer()));
 	connect(_loader, SIGNAL(error(const AudioMsgId&)), this, SLOT(onError(const AudioMsgId&)));
 	connect(_fader, SIGNAL(needToPreload(const AudioMsgId&)), _loader, SLOT(onLoad(const AudioMsgId&)));

@@ -842,16 +842,28 @@ void HistoryInner::touchUpdateSpeed() {
 				const int oldSpeedX = _touchSpeed.x();
 				if ((oldSpeedY <= 0 && newSpeedY <= 0) || ((oldSpeedY >= 0 && newSpeedY >= 0)
 					&& (oldSpeedX <= 0 && newSpeedX <= 0)) || (oldSpeedX >= 0 && newSpeedX >= 0)) {
-					_touchSpeed.setY(snap((oldSpeedY + (newSpeedY / 4)), -Ui::kMaxScrollAccelerated, +Ui::kMaxScrollAccelerated));
-					_touchSpeed.setX(snap((oldSpeedX + (newSpeedX / 4)), -Ui::kMaxScrollAccelerated, +Ui::kMaxScrollAccelerated));
+					_touchSpeed.setY(std::clamp(
+						(oldSpeedY + (newSpeedY / 4)),
+						-Ui::kMaxScrollAccelerated,
+						+Ui::kMaxScrollAccelerated));
+					_touchSpeed.setX(std::clamp(
+						(oldSpeedX + (newSpeedX / 4)),
+						-Ui::kMaxScrollAccelerated,
+						+Ui::kMaxScrollAccelerated));
 				} else {
 					_touchSpeed = QPoint();
 				}
 			} else {
 				// we average the speed to avoid strange effects with the last delta
 				if (!_touchSpeed.isNull()) {
-					_touchSpeed.setX(snap((_touchSpeed.x() / 4) + (newSpeedX * 3 / 4), -Ui::kMaxScrollFlick, +Ui::kMaxScrollFlick));
-					_touchSpeed.setY(snap((_touchSpeed.y() / 4) + (newSpeedY * 3 / 4), -Ui::kMaxScrollFlick, +Ui::kMaxScrollFlick));
+					_touchSpeed.setX(std::clamp(
+						(_touchSpeed.x() / 4) + (newSpeedX * 3 / 4),
+						-Ui::kMaxScrollFlick,
+						+Ui::kMaxScrollFlick));
+					_touchSpeed.setY(std::clamp(
+						(_touchSpeed.y() / 4) + (newSpeedY * 3 / 4),
+						-Ui::kMaxScrollFlick,
+						+Ui::kMaxScrollFlick));
 				} else {
 					_touchSpeed = QPoint(newSpeedX, newSpeedY);
 				}
@@ -1959,7 +1971,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	}
 
-	if (_menu->actions().empty()) {
+	if (_menu->empty()) {
 		_menu = nullptr;
 	} else {
 		_menu->popup(e->globalPos());
@@ -3445,43 +3457,10 @@ QString HistoryInner::tooltipText() const {
 	if (_mouseCursorState == CursorState::Date
 		&& _mouseAction == MouseAction::None) {
 		if (const auto view = App::hoveredItem()) {
-			auto dateText = view->dateTime().toString(
-				QLocale::system().dateTimeFormat(QLocale::LongFormat));
-			if (const auto editedDate = view->displayedEditDate()) {
-				dateText += '\n' + tr::lng_edited_date(
-					tr::now,
-					lt_date,
-					base::unixtime::parse(editedDate).toString(
-						QLocale::system().dateTimeFormat(
-							QLocale::LongFormat)));
-			}
-			if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
-				dateText += '\n' + tr::lng_forwarded_date(
-					tr::now,
-					lt_date,
-					base::unixtime::parse(forwarded->originalDate).toString(
-						QLocale::system().dateTimeFormat(
-							QLocale::LongFormat)));
-				if (const auto media = view->media()) {
-					if (media->hidesForwardedInfo()) {
-						dateText += "\n" + tr::lng_forwarded(
-							tr::now,
-							lt_user,
-							(forwarded->originalSender
-								? forwarded->originalSender->shortName()
-								: forwarded->hiddenSenderInfo->firstName));
-					}
-				}
-			}
-			if (const auto msgsigned = view->data()->Get<HistoryMessageSigned>()) {
-				if (msgsigned->isElided && !msgsigned->isAnonymousRank) {
-					dateText += '\n' + tr::lng_signed_author(tr::now, lt_user, msgsigned->author);
-				}
-			}
+			return HistoryView::DateTooltipText(view);
 			if (const auto msgId = view->data()->fullId().msg) {
 				dateText += '\n' + tr::lng_message_id(tr::now) + QString::number(msgId);
 			}
-			return dateText;
 		}
 	} else if (_mouseCursorState == CursorState::Forwarded
 		&& _mouseAction == MouseAction::None) {

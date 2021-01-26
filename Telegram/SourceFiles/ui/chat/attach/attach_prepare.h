@@ -120,7 +120,7 @@ struct PreparedGroup {
 
 	[[nodiscard]] bool sentWithCaption() const {
 		return (list.files.size() == 1)
-			|| (type == AlbumType::PhotoVideo);
+			|| (type != AlbumType::None);
 	}
 };
 
@@ -131,5 +131,7 @@ struct PreparedGroup {
 
 [[nodiscard]] int MaxAlbumItems();
 [[nodiscard]] bool ValidateThumbDimensions(int width, int height);
+
+[[nodiscard]] QPixmap PrepareSongCoverForThumbnail(QImage image, int size);
 
 } // namespace Ui

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_send_progress.h"
 #include "base/event_filter.h"
+#include "base/openssl_help.h"
 #include "base/unixtime.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
@@ -99,7 +100,7 @@ enum class FilterType {
 [[nodiscard]] not_null<DocumentData*> DummyDocument(
 		not_null<Data::Session*> owner) {
 	return owner->document(
-		rand_value<DocumentId>(),
+		openssl::RandomValue<DocumentId>(),
 		uint64(0),
 		QByteArray(),
 		base::unixtime::now(),
