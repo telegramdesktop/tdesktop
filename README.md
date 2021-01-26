@@ -53,6 +53,8 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 33. View Channel Button in Group Info widget
 34. Show online member count if supergroup member >= 200 and more accurate
 35. Disable Cloud Draft Sync To Local
+36. Always Show Scheduled Button option
+37. Mark All Chats As Read for "All Chats" Folder
 
 ## Supported systems
 
