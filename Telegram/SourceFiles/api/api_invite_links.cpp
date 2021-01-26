@@ -585,7 +585,7 @@ auto InviteLinks::parse(
 			.expireDate = data.vexpire_date().value_or_empty(),
 			.usageLimit = data.vusage_limit().value_or_empty(),
 			.usage = data.vusage().value_or_empty(),
-			.permanent = data.is_permanent(),
+			.permanent = true,//data.is_permanent(), // #TODO links
 			.revoked = data.is_revoked(),
 		};
 	});
