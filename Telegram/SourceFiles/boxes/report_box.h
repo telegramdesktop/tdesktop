@@ -37,6 +37,7 @@ protected:
 private:
 	enum class Reason {
 		Spam,
+		Fake,
 		Violence,
 		ChildAbuse,
 		Pornography,
@@ -56,6 +57,7 @@ private:
 
 	std::shared_ptr<Ui::RadioenumGroup<Reason>> _reasonGroup;
 	object_ptr<Ui::Radioenum<Reason>> _reasonSpam = { nullptr };
+	object_ptr<Ui::Radioenum<Reason>> _reasonFake = { nullptr };
 	object_ptr<Ui::Radioenum<Reason>> _reasonViolence = { nullptr };
 	object_ptr<Ui::Radioenum<Reason>> _reasonChildAbuse = { nullptr };
 	object_ptr<Ui::Radioenum<Reason>> _reasonPornography = { nullptr };

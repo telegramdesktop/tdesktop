@@ -902,12 +902,14 @@ void MembersController::appendInvitedUsers() {
 void MembersController::updateRow(
 		const std::optional<Data::GroupCall::Participant> &was,
 		const Data::GroupCall::Participant &now) {
+	auto reorderIfInvitedBeforeIndex = 0;
 	auto countChange = 0;
 	if (const auto row = findRow(now.user)) {
 		if (now.speaking && (!was || !was->speaking)) {
 			checkSpeakingRowPosition(row);
 		}
 		if (row->state() == Row::State::Invited) {
+			reorderIfInvitedBeforeIndex = row->absoluteIndex();
 			countChange = 1;
 		}
 		updateRow(row, &now);
@@ -915,24 +917,26 @@ void MembersController::updateRow(
 		if (row->speaking()) {
 			delegate()->peerListPrependRow(std::move(row));
 		} else {
-			static constexpr auto kInvited = Row::State::Invited;
-			const auto reorder = [&] {
-				const auto count = delegate()->peerListFullRowsCount();
-				if (!count) {
-					return false;
-				}
-				const auto row = delegate()->peerListRowAt(count - 1).get();
-				return (static_cast<Row*>(row)->state() == kInvited);
-			}();
+			reorderIfInvitedBeforeIndex = delegate()->peerListFullRowsCount();
 			delegate()->peerListAppendRow(std::move(row));
-			if (reorder) {
-				delegate()->peerListPartitionRows([](const PeerListRow &row) {
-					return static_cast<const Row&>(row).state() != kInvited;
-				});
-			}
 		}
 		delegate()->peerListRefreshRows();
 		countChange = 1;
+	}
+	static constexpr auto kInvited = Row::State::Invited;
+	const auto reorder = [&] {
+		const auto count = reorderIfInvitedBeforeIndex;
+		if (count <= 0) {
+			return false;
+		}
+		const auto row = delegate()->peerListRowAt(
+			reorderIfInvitedBeforeIndex - 1).get();
+		return (static_cast<Row*>(row)->state() == kInvited);
+	}();
+	if (reorder) {
+		delegate()->peerListPartitionRows([](const PeerListRow &row) {
+			return static_cast<const Row&>(row).state() != kInvited;
+		});
 	}
 	if (countChange) {
 		const auto fullCountMin = _fullCountMin.current() + countChange;

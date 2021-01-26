@@ -167,7 +167,7 @@ MenuVolumeItem::MenuVolumeItem(
 				std::round(_slider->value() * _maxVolume);
 			if ((localVolume != newVolume)
 				&& (_cloudVolume == newVolume)) {
-				_changeVolumeRequests.fire(localVolume);
+				_changeVolumeRequests.fire(int(localVolume));
 			}
 		} else {
 			setCloudVolume(newVolume);
