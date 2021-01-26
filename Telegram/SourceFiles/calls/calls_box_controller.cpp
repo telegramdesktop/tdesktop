@@ -355,7 +355,9 @@ base::unique_qptr<Ui::PopupMenu> BoxController::rowContextMenu(
 
 	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
 	result->addAction(tr::lng_context_delete_selected(tr::now), [=] {
-		Ui::show(Box<DeleteMessagesBox>(session, base::duplicate(ids)));
+		Ui::show(
+			Box<DeleteMessagesBox>(session, base::duplicate(ids)),
+			Ui::LayerOption::KeepOther);
 	});
 	return result;
 }

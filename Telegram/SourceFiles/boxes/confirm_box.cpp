@@ -873,10 +873,13 @@ void DeleteMessagesBox::deleteAndClear() {
 	// deleteMessages can initiate closing of the current section,
 	// which will cause this box to be destroyed.
 	const auto session = _session;
+	const auto weak = Ui::MakeWeak(this);
 
-	_session->data().histories().deleteMessages(_ids, revoke);
+	session->data().histories().deleteMessages(_ids, revoke);
 
-	Ui::hideLayer();
+	if (const auto strong = weak.data()) {
+		strong->closeBox();
+	}
 	session->data().sendHistoryChangeNotifications();
 }
 
