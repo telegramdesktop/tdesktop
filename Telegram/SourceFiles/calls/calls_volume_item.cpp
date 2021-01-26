@@ -25,6 +25,17 @@ constexpr auto kSpeakerThreshold = {
 	50.0f / kMaxVolumePercent,
 	150.0f / kMaxVolumePercent };
 
+constexpr auto kVolumeStickedValues =
+	std::array<std::pair<float64, float64>, 7>{{
+		{ 25. / kMaxVolumePercent, 2. / kMaxVolumePercent },
+		{ 50. / kMaxVolumePercent, 2. / kMaxVolumePercent },
+		{ 75. / kMaxVolumePercent, 2. / kMaxVolumePercent },
+		{ 100. / kMaxVolumePercent, 5. / kMaxVolumePercent },
+		{ 125. / kMaxVolumePercent, 2. / kMaxVolumePercent },
+		{ 150. / kMaxVolumePercent, 2. / kMaxVolumePercent },
+		{ 175. / kMaxVolumePercent, 2. / kMaxVolumePercent },
+	}};
+
 QString VolumeString(int volumePercent) {
 	return u"%1%"_q.arg(volumePercent);
 }
@@ -178,6 +189,16 @@ MenuVolumeItem::MenuVolumeItem(
 		}
 		_waitingForUpdateVolume = false;
 	}, lifetime());
+
+	_slider->setAdjustCallback([=](float64 value) {
+		for (const auto &snap : kVolumeStickedValues) {
+			if (value > (snap.first - snap.second)
+				&& value < (snap.first + snap.second)) {
+				return snap.first;
+			}
+		}
+		return value;
+	});
 
 	initArcsAnimation();
 }
