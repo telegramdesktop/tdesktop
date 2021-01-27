@@ -197,6 +197,7 @@ private:
 		}
 		const style::icon &speaker;
 		const std::unique_ptr<Ui::Paint::ArcsAnimation> arcs;
+		int arcsWidth = 0;
 
 		rpl::lifetime lifetime;
 	};
@@ -397,12 +398,23 @@ void Row::setSpeaking(bool speaking) {
 	} else if (!_statusIcon) {
 		_statusIcon = std::make_unique<StatusIcon>(
 			(float)_volume / Group::kMaxVolume);
+		_statusIcon->arcsWidth = _statusIcon->arcs->finishedWidth();
+
+		const auto wasArcsWidth = _statusIcon->lifetime.make_state<int>(0);
 
 		_statusIcon->arcs->startUpdateRequests(
 		) | rpl::start_with_next([=] {
-			auto callback = [=] {
+			if (!_arcsAnimation.animating()) {
+				*wasArcsWidth = _statusIcon->arcsWidth;
+			}
+			auto callback = [=](float64 value) {
 				if (_statusIcon) {
 					_statusIcon->arcs->update(crl::now());
+
+					_statusIcon->arcsWidth = anim::interpolate(
+						*wasArcsWidth,
+						_statusIcon->arcs->finishedWidth(),
+						value);
 				}
 				_delegate->rowUpdateRow(this);
 			};
@@ -588,7 +600,7 @@ int Row::statusIconWidth() const {
 	}
 	return _speaking
 		? (_statusIcon->speaker.width() / 2
-			+ _statusIcon->arcs->width()
+			+ _statusIcon->arcsWidth
 			+ st::groupCallMenuVolumeSkip)
 		: 0;
 }
