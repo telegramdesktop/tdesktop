@@ -53,8 +53,6 @@ private:
 	void setCloudVolume(int volume);
 	void setSliderVolume(int volume);
 
-	void computeVolumeRect();
-
 	QColor unmuteColor() const;
 	QColor muteColor() const;
 

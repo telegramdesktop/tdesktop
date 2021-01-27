@@ -78,11 +78,16 @@ MenuVolumeItem::MenuVolumeItem(
 		_speakerRect = QRect(_itemRect.topLeft(), _stCross.icon.size());
 		_arcPosition = _speakerRect.center()
 			+ QPoint(0, st::groupCallMenuSpeakerArcsSkip);
+		_volumeRect = QRect(
+			_arcPosition.x()
+				+ st::groupCallMenuVolumeSkip
+				+ _arcs->finishedWidth(),
+			_speakerRect.y(),
+			_st.itemStyle.font->width(VolumeString(kMaxVolumePercent)),
+			_speakerRect.height());
 
 		_slider->setGeometry(_itemRect
 			- style::margins(0, contentHeight() / 2, 0, 0));
-
-		computeVolumeRect();
 	}, lifetime());
 
 	setCloudVolume(startVolume);
@@ -135,7 +140,6 @@ MenuVolumeItem::MenuVolumeItem(
 		if (value > 0) {
 			_changeVolumeLocallyRequests.fire(value * _maxVolume);
 		}
-		computeVolumeRect();
 		update(_volumeRect);
 		_arcs->setValue(value);
 	});
@@ -204,15 +208,31 @@ MenuVolumeItem::MenuVolumeItem(
 }
 
 void MenuVolumeItem::initArcsAnimation() {
+	const auto volumeLeftWas = lifetime().make_state<int>(0);
+	const auto lastTime = lifetime().make_state<int>(0);
 	_arcsAnimation.init([=](crl::time now) {
 		_arcs->update(now);
 		update(_speakerRect);
-		computeVolumeRect();
+
+		const auto wasRect = _volumeRect;
+		_volumeRect.moveLeft(anim::interpolate(
+			*volumeLeftWas,
+			_arcPosition.x()
+				+ st::groupCallMenuVolumeSkip
+				+ _arcs->finishedWidth(),
+			std::clamp(
+				(now - (*lastTime))
+					/ float64(st::groupCallSpeakerArcsAnimation.duration),
+				0.,
+				1.)));
+		update(_speakerRect.united(wasRect.united(_volumeRect)));
 	});
 
 	_arcs->startUpdateRequests(
 	) | rpl::start_with_next([=] {
 		if (!_arcsAnimation.animating()) {
+			*volumeLeftWas = _volumeRect.left();
+			*lastTime = crl::now();
 			_arcsAnimation.start();
 		}
 	}, lifetime());
@@ -221,19 +241,6 @@ void MenuVolumeItem::initArcsAnimation() {
 	) | rpl::start_with_next([=] {
 		_arcsAnimation.stop();
 	}, lifetime());
-}
-
-void MenuVolumeItem::computeVolumeRect() {
-	const auto was = _volumeRect;
-	_volumeRect = QRect(
-		_arcPosition.x() + st::groupCallMenuVolumeSkip + _arcs->width(),
-		_speakerRect.y(),
-		_st.itemStyle.font->width(VolumeString(kMaxVolumePercent)),
-		_speakerRect.height());
-	if (was != _volumeRect) {
-		// Clear the previous text rendering.
-		update();
-	}
 }
 
 QColor MenuVolumeItem::unmuteColor() const {
