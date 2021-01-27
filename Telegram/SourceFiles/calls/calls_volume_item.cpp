@@ -68,6 +68,7 @@ MenuVolumeItem::MenuVolumeItem(
 
 	initResizeHook(parent->sizeValue());
 	enableMouseSelecting();
+	enableMouseSelecting(_slider.get());
 
 	_slider->setAlwaysDisplayMarker(true);
 
