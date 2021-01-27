@@ -587,7 +587,9 @@ int Row::statusIconWidth() const {
 		return 0;
 	}
 	return _speaking
-		? 2 * (_statusIcon->speaker.width() + st::groupCallMenuVolumeSkip)
+		? (_statusIcon->speaker.width() / 2
+			+ _statusIcon->arcs->width()
+			+ st::groupCallMenuVolumeSkip)
 		: 0;
 }
 
@@ -618,9 +620,6 @@ void Row::paintStatusIcon(
 		st.statusPosition
 			+ QPoint(0, (font->height - statusIconHeight()) / 2),
 		_statusIcon->speaker.size());
-	const auto volumeRect = speakerRect.translated(
-		_statusIcon->speaker.width() + st::groupCallMenuVolumeSkip,
-		0);
 	const auto arcPosition = speakerRect.center()
 		+ QPoint(0, st::groupCallMenuSpeakerArcsSkip);
 
@@ -630,7 +629,6 @@ void Row::paintStatusIcon(
 		speakerRect.topLeft(),
 		speakerRect.width(),
 		color);
-	p.drawText(volumeRect, QString("%1%").arg(volume), style::al_center);
 
 	p.save();
 	p.translate(arcPosition);
@@ -649,7 +647,8 @@ void Row::paintStatusText(
 	p.save();
 	const auto &font = st::normalFont;
 	paintStatusIcon(p, st, font, selected);
-	p.translate(statusIconWidth(), 0);
+	const auto translatedWidth = statusIconWidth();
+	p.translate(translatedWidth, 0);
 	const auto guard = gsl::finally([&] { p.restore(); });
 	if (_state != State::Invited && _state != State::MutedByMe) {
 		PeerListRow::paintStatusText(
@@ -657,7 +656,7 @@ void Row::paintStatusText(
 			st,
 			x,
 			y,
-			availableWidth,
+			availableWidth - translatedWidth,
 			outerWidth,
 			selected);
 		return;
@@ -723,7 +722,9 @@ void Row::paintAction(
 void Row::refreshStatus() {
 	setCustomStatus(
 		(_speaking
-			? tr::lng_group_call_active(tr::now)
+			? u"%1% %2"_q
+				.arg(std::round(_volume / 100.))
+				.arg(tr::lng_group_call_active(tr::now))
 			: tr::lng_group_call_inactive(tr::now)),
 		_speaking);
 }
