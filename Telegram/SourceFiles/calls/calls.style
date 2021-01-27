@@ -809,6 +809,16 @@ groupCallSpeakerArcsAnimation: ArcsAnimation {
 	startWidth: 0px;
 }
 
+groupCallStatusSpeakerIcon: icon {{ "calls/volume/speaker_small", groupCallIconFg }};
+groupCallStatusSpeakerArcsSkip: 3px;
+groupCallStatusSpeakerArcsAnimation: ArcsAnimation(groupCallSpeakerArcsAnimation) {
+	deltaAngle: 68;
+	space: 3px;
+	deltaHeight: 5px;
+	deltaWidth: 4px;
+	startHeight: 1px;
+}
+
 callTopBarMuteCrossLine: CrossLineAnimation {
 	fg: callBarFg;
 	icon: icon {{ "calls/call_record_active", callBarFg }};

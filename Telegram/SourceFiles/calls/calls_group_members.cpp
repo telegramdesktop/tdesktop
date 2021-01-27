@@ -49,8 +49,9 @@ constexpr auto kWideScale = 5;
 
 constexpr auto kSpeakerThreshold = {
 	Group::kDefaultVolume * 0.1f / Group::kMaxVolume,
-	Group::kDefaultVolume * 0.5f / Group::kMaxVolume,
-	Group::kDefaultVolume * 1.5f / Group::kMaxVolume };
+	Group::kDefaultVolume * 0.9f / Group::kMaxVolume };
+
+constexpr auto kArcsStrokeRatio = 0.8;
 
 auto RowBlobs() -> std::array<Ui::Paint::Blobs::BlobData, 2> {
 	return { {
@@ -188,9 +189,9 @@ private:
 
 	struct StatusIcon {
 		StatusIcon(float volume)
-		: speaker(st::groupCallMuteCrossLine.icon)
+		: speaker(st::groupCallStatusSpeakerIcon)
 		, arcs(std::make_unique<Ui::Paint::ArcsAnimation>(
-			st::groupCallSpeakerArcsAnimation,
+			st::groupCallStatusSpeakerArcsAnimation,
 			kSpeakerThreshold,
 			volume,
 			Ui::Paint::ArcsAnimation::HorizontalDirection::Right)) {
@@ -398,6 +399,7 @@ void Row::setSpeaking(bool speaking) {
 	} else if (!_statusIcon) {
 		_statusIcon = std::make_unique<StatusIcon>(
 			(float)_volume / Group::kMaxVolume);
+		_statusIcon->arcs->setStrokeRatio(kArcsStrokeRatio);
 		_statusIcon->arcsWidth = _statusIcon->arcs->finishedWidth();
 
 		const auto wasArcsWidth = _statusIcon->lifetime.make_state<int>(0);
@@ -599,9 +601,7 @@ int Row::statusIconWidth() const {
 		return 0;
 	}
 	return _speaking
-		? (_statusIcon->speaker.width() / 2
-			+ _statusIcon->arcsWidth
-			+ st::groupCallMenuVolumeSkip)
+		? (_statusIcon->speaker.width() + _statusIcon->arcsWidth)
 		: 0;
 }
 
@@ -632,8 +632,10 @@ void Row::paintStatusIcon(
 		st.statusPosition
 			+ QPoint(0, (font->height - statusIconHeight()) / 2),
 		_statusIcon->speaker.size());
-	const auto arcPosition = speakerRect.center()
-		+ QPoint(0, st::groupCallMenuSpeakerArcsSkip);
+	const auto arcPosition = speakerRect.topLeft()
+		+ QPoint(
+			speakerRect.width() - st::groupCallStatusSpeakerArcsSkip,
+			speakerRect.height() / 2);
 
 	const auto volume = std::round(_volume / 100.);
 	_statusIcon->speaker.paint(
