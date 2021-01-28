@@ -71,7 +71,7 @@ struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, Hist
 };
 
 struct HiddenSenderInfo {
-	explicit HiddenSenderInfo(const QString &name);
+	HiddenSenderInfo(const QString &name, bool external);
 
 	QString name;
 	QString firstName;
@@ -101,6 +101,7 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 
 	PeerData *savedFromPeer = nullptr;
 	MsgId savedFromMsgId = 0;
+	bool imported = false;
 };
 
 struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, HistoryItem> {

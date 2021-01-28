@@ -7,8 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#pragma warning(push)
-// class has virtual functions, but destructor is not virtual
-#pragma warning(disable:4265)
-#include <wrl/implements.h>
-#pragma warning(pop)
+#include "ui/layers/generic_box.h"
+
+class PeerData;
+
+void ManageInviteLinksBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<PeerData*> peer);

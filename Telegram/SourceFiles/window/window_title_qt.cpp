@@ -248,7 +248,8 @@ void TitleWidgetQt::mouseReleaseEvent(QMouseEvent *e) {
 bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 	if (e->type() == QEvent::MouseMove
 		|| e->type() == QEvent::MouseButtonPress) {
-		if (window()->isAncestorOf(static_cast<QWidget*>(obj))) {
+		if (obj->isWidgetType()
+			&& window()->isAncestorOf(static_cast<QWidget*>(obj))) {
 			const auto mouseEvent = static_cast<QMouseEvent*>(e);
 			const auto currentPoint = mouseEvent->windowPos().toPoint();
 			const auto edges = edgesFromPos(currentPoint);
@@ -277,12 +278,12 @@ bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 			}
 		}
 	} else if (e->type() == QEvent::Leave) {
-		if (window() == static_cast<QWidget*>(obj)) {
+		if (obj->isWidgetType() && window() == static_cast<QWidget*>(obj)) {
 			restoreCursor();
 		}
 	} else if (e->type() == QEvent::Move
 		|| e->type() == QEvent::Resize) {
-		if (window() == static_cast<QWidget*>(obj)) {
+		if (obj->isWidgetType() && window() == static_cast<QWidget*>(obj)) {
 			updateWindowExtents();
 		}
 	}

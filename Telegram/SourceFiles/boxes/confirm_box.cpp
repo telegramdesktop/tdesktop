@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
+#include "api/api_invite_links.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "ui/widgets/checkbox.h"
@@ -393,7 +394,7 @@ void MaxInviteBox::prepare() {
 
 	_channel->session().changes().peerUpdates(
 		_channel,
-		Data::PeerUpdate::Flag::InviteLink
+		Data::PeerUpdate::Flag::InviteLinks
 	) | rpl::start_with_next([=] {
 		rtlupdate(_invitationLink);
 	}, lifetime());
@@ -407,7 +408,7 @@ void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_linkOver) {
 		if (_channel->inviteLink().isEmpty()) {
-			_channel->session().api().exportInviteLink(_channel);
+			_channel->session().api().inviteLinks().create(_channel);
 		} else {
 			QGuiApplication::clipboard()->setText(_channel->inviteLink());
 			Ui::Toast::Show(tr::lng_create_channel_link_copied(tr::now));
@@ -577,7 +578,8 @@ void DeleteMessagesBox::prepare() {
 	const auto appendDetails = [&](TextWithEntities &&text) {
 		details.append(qstr("\n\n")).append(std::move(text));
 	};
-	auto deleteText = tr::lng_box_delete();
+	auto deleteText = lifetime().make_state<rpl::variable<QString>>();
+	*deleteText = tr::lng_box_delete();
 	auto deleteStyle = &st::defaultBoxButton;
 	if (const auto peer = _wipeHistoryPeer) {
 		if (_wipeHistoryJustClear) {
@@ -597,16 +599,22 @@ void DeleteMessagesBox::prepare() {
 				: peer->isMegagroup()
 				? tr::lng_sure_leave_group(tr::now)
 				: tr::lng_sure_leave_channel(tr::now);
-			deleteText = _wipeHistoryPeer->isUser()
-				? tr::lng_box_delete()
-				: tr::lng_box_leave();
-			deleteStyle = &(peer->isChannel()
-				? st::defaultBoxButton
-				: st::attentionBoxButton);
+			if (!peer->isUser()) {
+				*deleteText = tr::lng_box_leave();
+			}
+			deleteStyle = &st::attentionBoxButton;
 		}
 		if (auto revoke = revokeText(peer)) {
 			_revoke.create(this, revoke->checkbox, false, st::defaultBoxCheckbox);
 			appendDetails(std::move(revoke->description));
+			if (!peer->isUser() && !_wipeHistoryJustClear) {
+				_revoke->checkedValue(
+				) | rpl::start_with_next([=](bool revokeForAll) {
+					*deleteText = revokeForAll
+						? tr::lng_box_delete()
+						: tr::lng_box_leave();
+				}, _revoke->lifetime());
+			}
 		}
 	} else if (_moderateFrom) {
 		Assert(_moderateInChannel != nullptr);
@@ -669,7 +677,7 @@ void DeleteMessagesBox::prepare() {
 	_text.create(this, rpl::single(std::move(details)), st::boxLabel);
 
 	addButton(
-		std::move(deleteText),
+		deleteText->value(),
 		[=] { deleteAndClear(); },
 		*deleteStyle);
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
@@ -733,6 +741,8 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 				tr::now,
 				lt_user,
 				user->firstName);
+		} else if (_wipeHistoryJustClear) {
+			return std::nullopt;
 		} else {
 			result.checkbox = tr::lng_delete_for_everyone_check(tr::now);
 		}
@@ -895,10 +905,13 @@ void DeleteMessagesBox::deleteAndClear() {
 	// deleteMessages can initiate closing of the current section,
 	// which will cause this box to be destroyed.
 	const auto session = _session;
+	const auto weak = Ui::MakeWeak(this);
 
-	_session->data().histories().deleteMessages(_ids, revoke);
+	session->data().histories().deleteMessages(_ids, revoke);
 
-	Ui::hideLayer();
+	if (const auto strong = weak.data()) {
+		strong->closeBox();
+	}
 	session->data().sendHistoryChangeNotifications();
 }
 

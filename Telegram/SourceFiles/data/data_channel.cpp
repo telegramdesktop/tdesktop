@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "api/api_chat_invite.h"
+#include "api/api_invite_links.h"
 #include "apiwrap.h"
 
 namespace {
@@ -99,10 +100,7 @@ void ChannelData::setAccessHash(uint64 accessHash) {
 }
 
 void ChannelData::setInviteLink(const QString &newInviteLink) {
-	if (newInviteLink != _inviteLink) {
-		_inviteLink = newInviteLink;
-		session().changes().peerUpdated(this, UpdateFlag::InviteLink);
-	}
+	_inviteLink = newInviteLink;
 }
 
 bool ChannelData::canHaveInviteLink() const {
@@ -799,12 +797,13 @@ void ApplyChannelUpdate(
 		channel->growSlowmodeLastMessage(
 			next->v - channel->slowmodeSeconds());
 	}
-	channel->setInviteLink(update.vexported_invite().match([&](
-			const MTPDchatInviteExported &data) {
-		return qs(data.vlink());
-	}, [&](const MTPDchatInviteEmpty &) {
-		return QString();
-	}));
+	if (const auto invite = update.vexported_invite()) {
+		channel->session().api().inviteLinks().setPermanent(
+			channel,
+			*invite);
+	} else {
+		channel->session().api().inviteLinks().clearPermanent(channel);
+	}
 	if (const auto location = update.vlocation()) {
 		channel->setLocation(*location);
 	} else {

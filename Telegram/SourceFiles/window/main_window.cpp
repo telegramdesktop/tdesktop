@@ -420,6 +420,10 @@ void MainWindow::recountGeometryConstraints() {
 void MainWindow::initSize() {
 	updateMinimumSize();
 
+	if (initSizeFromSystem()) {
+		return;
+	}
+
 	auto position = cWindowPos();
 	DEBUG_LOG(("Window Pos: Initializing first %1, %2, %3, %4 (maximized %5)").arg(position.x).arg(position.y).arg(position.w).arg(position.h).arg(Logs::b(position.maximized)));
 

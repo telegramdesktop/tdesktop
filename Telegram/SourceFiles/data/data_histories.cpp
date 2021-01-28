@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_session.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_folder.h"
 #include "data/data_scheduled_messages.h"
 #include "main/main_session.h"
@@ -592,18 +593,54 @@ void Histories::deleteAllMessages(
 		const auto fail = [=](const RPCError &error) {
 			finish();
 		};
-		if (const auto channel = peer->asChannel()) {
+		const auto chat = peer->asChat();
+		const auto channel = peer->asChannel();
+		if (revoke && channel && channel->canDelete()) {
+			return session().api().request(MTPchannels_DeleteChannel(
+				channel->inputChannel
+			)).done([=](const MTPUpdates &result) {
+				session().api().applyUpdates(result);
+			//}).fail([=](const RPCError &error) {
+			//	if (error.type() == qstr("CHANNEL_TOO_LARGE")) {
+			//		Ui::show(Box<InformBox>(tr::lng_cant_delete_channel(tr::now)));
+			//	}
+			}).send();
+		} else if (channel) {
 			return session().api().request(MTPchannels_DeleteHistory(
 				channel->inputChannel,
 				MTP_int(deleteTillId)
 			)).done([=](const MTPBool &result) {
 				finish();
 			}).fail(fail).send();
+		} else if (revoke && chat && chat->amCreator()) {
+			return session().api().request(MTPmessages_DeleteChat(
+				chat->inputChat
+			)).done([=](const MTPBool &result) {
+				finish();
+			}).fail([=](const RPCError &error) {
+				if (error.type() == "PEER_ID_INVALID") {
+					// Try to join and delete,
+					// while delete fails for non-joined.
+					session().api().request(MTPmessages_AddChatUser(
+						chat->inputChat,
+						MTP_inputUserSelf(),
+						MTP_int(0)
+					)).done([=](const MTPUpdates &updates) {
+						session().api().applyUpdates(updates);
+						deleteAllMessages(
+							history,
+							deleteTillId,
+							justClear,
+							revoke);
+					}).send();
+				}
+				finish();
+			}).send();
 		} else {
 			using Flag = MTPmessages_DeleteHistory::Flag;
 			const auto flags = Flag(0)
 				| (justClear ? Flag::f_just_clear : Flag(0))
-				| ((peer->isUser() && revoke) ? Flag::f_revoke : Flag(0));
+				| (revoke ? Flag::f_revoke : Flag(0));
 			return session().api().request(MTPmessages_DeleteHistory(
 				MTP_flags(flags),
 				peer->input,

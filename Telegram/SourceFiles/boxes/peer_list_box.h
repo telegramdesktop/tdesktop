@@ -304,7 +304,7 @@ public:
 
 	virtual void peerListShowRowMenu(
 		not_null<PeerListRow*> row,
-		Fn<void(not_null<Ui::PopupMenu*>)> destroyed) = 0;
+		Fn<void(not_null<Ui::PopupMenu*>)> destroyed = nullptr) = 0;
 	virtual int peerListSelectedRowsCount() = 0;
 	virtual std::unique_ptr<PeerListState> peerListSaveState() const = 0;
 	virtual void peerListRestoreState(
@@ -376,6 +376,9 @@ public:
 	void setDelegate(not_null<PeerListDelegate*> delegate) {
 		_delegate = delegate;
 		prepare();
+	}
+	[[nodiscard]] not_null<PeerListDelegate*> delegate() const {
+		return _delegate;
 	}
 
 	void setStyleOverrides(
@@ -455,9 +458,6 @@ public:
 	virtual ~PeerListController() = default;
 
 protected:
-	not_null<PeerListDelegate*> delegate() const {
-		return _delegate;
-	}
 	PeerListSearchController *searchController() const {
 		return _searchController.get();
 	}
@@ -839,7 +839,7 @@ public:
 	}
 	void peerListShowRowMenu(
 			not_null<PeerListRow*> row,
-			Fn<void(not_null<Ui::PopupMenu*>)> destroyed) override {
+			Fn<void(not_null<Ui::PopupMenu*>)> destroyed = nullptr) override {
 		_content->showRowMenu(row, std::move(destroyed));
 	}
 
@@ -852,6 +852,38 @@ private:
 	PeerListContent *_content = nullptr;
 
 };
+
+class PeerListContentDelegateSimple : public PeerListContentDelegate {
+public:
+	void peerListSetTitle(rpl::producer<QString> title) override {
+	}
+	void peerListSetAdditionalTitle(rpl::producer<QString> title) override {
+	}
+	bool peerListIsRowChecked(not_null<PeerListRow*> row) override {
+		return false;
+	}
+	int peerListSelectedRowsCount() override {
+		return 0;
+	}
+	void peerListScrollToTop() override {
+	}
+	void peerListAddSelectedPeerInBunch(
+			not_null<PeerData*> peer) override {
+		Unexpected("...DelegateSimple::peerListAddSelectedPeerInBunch");
+	}
+	void peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) override {
+		Unexpected("...DelegateSimple::peerListAddSelectedRowInBunch");
+	}
+	void peerListFinishSelectedRowsBunch() override {
+		Unexpected("...DelegateSimple::peerListFinishSelectedRowsBunch");
+	}
+	void peerListSetDescription(
+			object_ptr<Ui::FlatLabel> description) override {
+		description.destroy();
+	}
+
+};
+
 
 class PeerListBox
 	: public Ui::BoxContent

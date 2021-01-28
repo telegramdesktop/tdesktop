@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
 #include "window/main_window.h"
+#include "media/view/media_view_pip.h" // Utilities for frame rotation.
 #include "app.h"
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
@@ -98,12 +99,26 @@ Panel::Incoming::Incoming(
 void Panel::Incoming::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
-	const auto frame = _track->frame(Webrtc::FrameRequest());
-	if (frame.isNull()) {
+	const auto [image, rotation] = _track->frameOriginalWithRotation();
+	if (image.isNull()) {
 		p.fillRect(e->rect(), Qt::black);
 	} else {
+		using namespace Media::View;
 		auto hq = PainterHighQualityEnabler(p);
-		p.drawImage(rect(), frame);
+		if (UsePainterRotation(rotation)) {
+			if (rotation) {
+				p.save();
+				p.rotate(rotation);
+			}
+			p.drawImage(RotatedRect(rect(), rotation), image);
+			if (rotation) {
+				p.restore();
+			}
+		} else if (rotation) {
+			p.drawImage(rect(), RotateFrameImage(image, rotation));
+		} else {
+			p.drawImage(rect(), image);
+		}
 		fillBottomShadow(p);
 		fillTopShadow(p);
 	}
@@ -462,7 +477,11 @@ void Panel::reinitWithCall(Call *call) {
 
 	_call->videoIncoming()->renderNextFrame(
 	) | rpl::start_with_next([=] {
-		setIncomingSize(_call->videoIncoming()->frame({}).size());
+		const auto track = _call->videoIncoming();
+		const auto [frame, rotation] = track->frameOriginalWithRotation();
+		setIncomingSize((rotation == 90 || rotation == 270)
+			? QSize(frame.height(), frame.width())
+			: frame.size());
 		if (_incoming->isHidden()) {
 			return;
 		}

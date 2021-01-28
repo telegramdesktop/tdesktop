@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_group_call.h"
 
+#include "calls/calls_group_common.h"
 #include "main/main_session.h"
 #include "api/api_send_progress.h"
 #include "apiwrap.h"
@@ -53,6 +54,22 @@ constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 		settings.callInputDeviceId(),
 		settings.callOutputDeviceId(),
 		settings.callVideoInputDeviceId());
+}
+
+[[nodiscard]] const Data::GroupCall::Participant *LookupParticipant(
+		not_null<PeerData*> chat,
+		uint64 id,
+		not_null<UserData*> user) {
+	const auto call = chat->groupCall();
+	if (!id || !call || call->id() != id) {
+		return nullptr;
+	}
+	const auto &participants = call->participants();
+	const auto i = ranges::find(
+		participants,
+		user,
+		&Data::GroupCall::Participant::user);
+	return (i != end(participants)) ? &*i : nullptr;
 }
 
 } // namespace
@@ -238,11 +255,25 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 	using Update = Data::GroupCall::ParticipantUpdate;
 	_peer->groupCall()->participantUpdated(
 	) | rpl::filter([=](const Update &update) {
-		return (_instance != nullptr) && !update.now;
+		return (_instance != nullptr);
 	}) | rpl::start_with_next([=](const Update &update) {
-		Expects(update.was.has_value());
-
-		_instance->removeSsrcs({ update.was->ssrc });
+		if (!update.now) {
+			_instance->removeSsrcs({ update.was->ssrc });
+		} else {
+			const auto &now = *update.now;
+			const auto &was = update.was;
+			const auto volumeChanged = was
+				? (was->volume != now.volume || was->mutedByMe != now.mutedByMe)
+				: (now.volume != Group::kDefaultVolume || now.mutedByMe);
+			if (volumeChanged) {
+				_instance->setVolume(
+					now.ssrc,
+					(now.mutedByMe
+						? 0.
+						: (now.volume
+							/ float64(Group::kDefaultVolume))));
+			}
+		}
 	}, _lifetime);
 
 	SubscribeToMigration(_peer, _lifetime, [=](not_null<ChannelData*> group) {
@@ -361,7 +392,42 @@ void GroupCall::applySelfInCallLocally() {
 					MTP_int(self->bareId()),
 					MTP_int(date),
 					MTP_int(lastActive),
-					MTP_int(_mySsrc))),
+					MTP_int(_mySsrc),
+					MTP_int(Group::kDefaultVolume))), // volume
+			MTP_int(0)).c_updateGroupCallParticipants());
+}
+
+void GroupCall::applyParticipantLocally(
+		not_null<UserData*> user,
+		bool mute,
+		std::optional<int> volume) {
+	const auto participant = LookupParticipant(_peer, _id, user);
+	if (!participant || !participant->ssrc) {
+		return;
+	}
+	const auto canSelfUnmute = participant->canSelfUnmute;
+	const auto mutedCount = 0/*participant->mutedCount*/;
+	using Flag = MTPDgroupCallParticipant::Flag;
+	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
+		| (volume.has_value() ? Flag::f_volume : Flag(0))
+		| (participant->lastActive ? Flag::f_active_date : Flag(0))
+		| (!mute
+			? Flag(0)
+			: user->canManageGroupCall()
+			? Flag::f_muted
+			: Flag::f_muted_by_you);
+	_peer->groupCall()->applyUpdateChecked(
+		MTP_updateGroupCallParticipants(
+			inputCall(),
+			MTP_vector<MTPGroupCallParticipant>(
+				1,
+				MTP_groupCallParticipant(
+					MTP_flags(flags),
+					MTP_int(user->bareId()),
+					MTP_int(participant->date),
+					MTP_int(participant->lastActive),
+					MTP_int(participant->ssrc),
+					MTP_int(volume.value_or(participant->volume)))),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -527,10 +593,25 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 		return;
 	}
 
+	const auto handleOtherParticipants = [=](
+			const MTPDgroupCallParticipant &data) {
+		const auto user = _peer->owner().user(data.vuser_id().v);
+		const auto participant = LookupParticipant(_peer, _id, user);
+		if (!participant) {
+			return;
+		}
+		_otherParticipantStateValue.fire(Group::ParticipantState{
+			.user = user,
+			.volume = data.vvolume().value_or_empty(),
+			.mutedByMe = data.is_muted_by_you(),
+		});
+	};
+
 	const auto self = _peer->session().userId();
 	for (const auto &participant : data.vparticipants().v) {
 		participant.match([&](const MTPDgroupCallParticipant &data) {
 			if (data.vuser_id().v != self) {
+				handleOtherParticipants(data);
 				return;
 			}
 			if (data.is_left() && data.vsource().v == _mySsrc) {
@@ -606,6 +687,7 @@ void GroupCall::createAndStartController() {
 		std::move(descriptor));
 
 	updateInstanceMuteState();
+	updateInstanceVolumes();
 
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 }
@@ -616,6 +698,26 @@ void GroupCall::updateInstanceMuteState() {
 	const auto state = muted();
 	_instance->setIsMuted(state != MuteState::Active
 		&& state != MuteState::PushToTalk);
+}
+
+void GroupCall::updateInstanceVolumes() {
+	const auto real = _peer->groupCall();
+	if (!real || real->id() != _id) {
+		return;
+	}
+
+	const auto &participants = real->participants();
+	for (const auto &participant : participants) {
+		const auto setVolume = participant.mutedByMe
+			|| (participant.volume != Group::kDefaultVolume);
+		if (setVolume && participant.ssrc) {
+			_instance->setVolume(
+				participant.ssrc,
+				(participant.mutedByMe
+					? 0.
+					: (participant.volume / float64(Group::kDefaultVolume))));
+		}
+	}
 }
 
 void GroupCall::audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data) {
@@ -756,7 +858,8 @@ void GroupCall::sendMutedUpdate() {
 			? MTPphone_EditGroupCallMember::Flag::f_muted
 			: MTPphone_EditGroupCallMember::Flag(0)),
 		inputCall(),
-		MTP_inputUserSelf()
+		MTP_inputUserSelf(),
+		MTP_int(100000) // volume
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
 		_peer->session().api().applyUpdates(result);
@@ -787,16 +890,40 @@ void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
 	}
 }
 
-void GroupCall::toggleMute(not_null<UserData*> user, bool mute) {
-	if (!_id) {
+void GroupCall::toggleMute(const Group::MuteRequest &data) {
+	if (data.locallyOnly) {
+		applyParticipantLocally(data.user, data.mute, std::nullopt);
+	} else {
+		editParticipant(data.user, data.mute, std::nullopt);
+	}
+}
+
+void GroupCall::changeVolume(const Group::VolumeRequest &data) {
+	if (data.locallyOnly) {
+		applyParticipantLocally(data.user, false, data.volume);
+	} else {
+		editParticipant(data.user, false, data.volume);
+	}
+}
+
+void GroupCall::editParticipant(
+		not_null<UserData*> user,
+		bool mute,
+		std::optional<int> volume) {
+	const auto participant = LookupParticipant(_peer, _id, user);
+	if (!participant) {
 		return;
 	}
+	applyParticipantLocally(user, mute, volume);
+
+	using Flag = MTPphone_EditGroupCallMember::Flag;
+	const auto flags = (mute ? Flag::f_muted : Flag(0))
+		| (volume.has_value() ? Flag::f_volume : Flag(0));
 	_api.request(MTPphone_EditGroupCallMember(
-		MTP_flags(mute
-			? MTPphone_EditGroupCallMember::Flag::f_muted
-			: MTPphone_EditGroupCallMember::Flag(0)),
+		MTP_flags(flags),
 		inputCall(),
-		user->inputUser
+		user->inputUser,
+		MTP_int(std::clamp(volume.value_or(0), 1, Group::kMaxVolume))
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {
@@ -920,6 +1047,11 @@ void GroupCall::pushToTalkCancel() {
 	if (muted() == MuteState::PushToTalk) {
 		setMuted(MuteState::Muted);
 	}
+}
+
+auto GroupCall::otherParticipantStateValue() const
+-> rpl::producer<Group::ParticipantState> {
+	return _otherParticipantStateValue.events();
 }
 
 //void GroupCall::setAudioVolume(bool input, float level) {

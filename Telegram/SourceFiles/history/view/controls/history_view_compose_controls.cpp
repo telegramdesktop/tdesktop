@@ -1223,7 +1223,7 @@ void ComposeControls::fieldChanged() {
 		_sendActionUpdates.fire({ Api::SendProgressType::Typing });
 	}
 	updateSendButtonType();
-	if (showRecordButton()) {
+	if (!HasSendText(_field)) {
 		_previewCancelled = false;
 	}
 	if (updateBotCommandShown()) {
@@ -1831,13 +1831,20 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 		editData.text.size(),
 		QFIXED_MAX
 	};
+	const auto previewPage = [&]() -> WebPageData* {
+		if (const auto media = item->media()) {
+			return media->webpage();
+		}
+		return nullptr;
+	}();
+	const auto previewCancelled = !previewPage;
 	_history->setDraft(
 		draftKey(DraftType::Edit),
 		std::make_unique<Data::Draft>(
 			editData,
 			item->id,
 			cursor,
-			false));
+			previewCancelled));
 	applyDraft();
 
 	if (_autocomplete) {

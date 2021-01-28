@@ -40,7 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "calls/calls_instance.h" // Core::App().calls().inCall().
-#include "boxes/calendar_box.h"
+#include "ui/boxes/calendar_box.h"
 #include "boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -1051,7 +1051,7 @@ void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 	auto callback = [=](const QDate &date) {
 		session().api().jumpToDate(chat, date);
 	};
-	auto box = Box<CalendarBox>(
+	auto box = Box<Ui::CalendarBox>(
 		month,
 		highlighted,
 		std::move(callback));

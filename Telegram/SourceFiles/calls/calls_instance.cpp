@@ -377,6 +377,8 @@ void Instance::handleCallUpdate(
 		} else if (phoneCall.vdate().v + (config.callRingTimeoutMs / 1000)
 			< base::unixtime::now()) {
 			LOG(("Ignoring too old call."));
+		} else if (Core::App().settings().disableCalls()) {
+			LOG(("Ignoring call because of 'accept calls' settings."));
 		} else {
 			createCall(user, Call::Type::Incoming, phoneCall.is_video());
 			_currentCall->handleUpdate(call);

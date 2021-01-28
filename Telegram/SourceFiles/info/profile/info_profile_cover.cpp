@@ -322,15 +322,10 @@ void Cover::initViewers(rpl::producer<QString> title) {
 	} else if (_peer->isSelf()) {
 		refreshUploadPhotoOverlay();
 	}
-	VerifiedValue(
+	BadgeValue(
 		_peer
-	) | rpl::start_with_next([=](bool verified) {
-		setVerified(verified);
-	}, lifetime());
-	ScamValue(
-		_peer
-	) | rpl::start_with_next([=](bool scam) {
-		setScam(scam);
+	) | rpl::start_with_next([=](Badge badge) {
+		setBadge(badge);
 	}, lifetime());
 }
 
@@ -345,50 +340,45 @@ void Cover::refreshUploadPhotoOverlay() {
 	}());
 }
 
-void Cover::setVerified(bool verified) {
-	if ((_verifiedCheck != nullptr) == verified) {
+void Cover::setBadge(Badge badge) {
+	if (_badge == badge) {
 		return;
 	}
-	if (verified) {
-		_scamBadge.destroy();
+	_badge = badge;
+	_verifiedCheck.destroy();
+	_scamFakeBadge.destroy();
+	switch (_badge) {
+	case Badge::Verified:
 		_verifiedCheck.create(this);
 		_verifiedCheck->show();
 		_verifiedCheck->resize(st::infoVerifiedCheck.size());
 		_verifiedCheck->paintRequest(
-		) | rpl::start_with_next([check = _verifiedCheck.data()] {
+		) | rpl::start_with_next([check = _verifiedCheck.data()]{
 			Painter p(check);
 			st::infoVerifiedCheck.paint(p, 0, 0, check->width());
-		}, _verifiedCheck->lifetime());
-	} else {
-		_verifiedCheck.destroy();
-	}
-	refreshNameGeometry(width());
-}
-
-void Cover::setScam(bool scam) {
-	if ((_scamBadge != nullptr) == scam) {
-		return;
-	}
-	if (scam) {
-		_verifiedCheck.destroy();
-		const auto size = Ui::ScamBadgeSize();
+			}, _verifiedCheck->lifetime());
+		break;
+	case Badge::Scam:
+	case Badge::Fake: {
+		const auto fake = (_badge == Badge::Fake);
+		const auto size = Ui::ScamBadgeSize(fake);
 		const auto skip = st::infoVerifiedCheckPosition.x();
-		_scamBadge.create(this);
-		_scamBadge->show();
-		_scamBadge->resize(
+		_scamFakeBadge.create(this);
+		_scamFakeBadge->show();
+		_scamFakeBadge->resize(
 			size.width() + 2 * skip,
 			size.height() + 2 * skip);
-		_scamBadge->paintRequest(
-		) | rpl::start_with_next([=, badge = _scamBadge.data()] {
+		_scamFakeBadge->paintRequest(
+		) | rpl::start_with_next([=, badge = _scamFakeBadge.data()]{
 			Painter p(badge);
 			Ui::DrawScamBadge(
+				fake,
 				p,
 				badge->rect().marginsRemoved({ skip, skip, skip, skip }),
 				badge->width(),
 				st::attentionButtonFg);
-		}, _scamBadge->lifetime());
-	} else {
-		_scamBadge.destroy();
+			}, _scamFakeBadge->lifetime());
+	} break;
 	}
 	refreshNameGeometry(width());
 }
@@ -452,9 +442,9 @@ void Cover::refreshNameGeometry(int newWidth) {
 	if (_verifiedCheck) {
 		nameWidth -= st::infoVerifiedCheckPosition.x()
 			+ _verifiedCheck->width();
-	} else if (_scamBadge) {
+	} else if (_scamFakeBadge) {
 		nameWidth -= st::infoVerifiedCheckPosition.x()
-			+ _scamBadge->width();
+			+ _scamFakeBadge->width();
 	}
 	_name->resizeToNaturalWidth(nameWidth);
 	_name->moveToLeft(nameLeft, nameTop, newWidth);
@@ -465,15 +455,15 @@ void Cover::refreshNameGeometry(int newWidth) {
 		const auto checkTop = nameTop
 			+ st::infoVerifiedCheckPosition.y();
 		_verifiedCheck->moveToLeft(checkLeft, checkTop, newWidth);
-	} else if (_scamBadge) {
+	} else if (_scamFakeBadge) {
 		const auto skip = st::infoVerifiedCheckPosition.x();
 		const auto badgeLeft = nameLeft
 			+ _name->width()
 			+ st::infoVerifiedCheckPosition.x()
 			- skip;
 		const auto badgeTop = nameTop
-			+ (_name->height() - _scamBadge->height()) / 2;
-		_scamBadge->moveToLeft(badgeLeft, badgeTop, newWidth);
+			+ (_name->height() - _scamFakeBadge->height()) / 2;
+		_scamFakeBadge->moveToLeft(badgeLeft, badgeTop, newWidth);
 	}
 }
 

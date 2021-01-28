@@ -33,8 +33,11 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 }
 
 MTPMessage PrepareMessage(const MTPMessage &message, MsgId id) {
-	return message.match([&](const MTPDmessageEmpty &) {
-		return MTP_messageEmpty(MTP_int(id));
+	return message.match([&](const MTPDmessageEmpty &data) {
+		return MTP_messageEmpty(
+			data.vflags(),
+			MTP_int(id),
+			data.vpeer_id() ? *data.vpeer_id() : MTPPeer());
 	}, [&](const MTPDmessageService &data) {
 		return MTP_messageService(
 			MTP_flags(data.vflags().v

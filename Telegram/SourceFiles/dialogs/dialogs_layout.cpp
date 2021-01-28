@@ -451,6 +451,7 @@ void paintRow(
 		sendStateIcon->paint(p, rectForName.topLeft() + QPoint(rectForName.width(), 0), fullWidth);
 	}
 
+	p.setFont(st::msgNameFont);
 	if (flags & (Flag::SavedMessages | Flag::RepliesMessages)) {
 		auto text = (flags & Flag::SavedMessages)
 			? tr::lng_saved_messages(tr::now)
@@ -459,7 +460,6 @@ void paintRow(
 		if (textWidth > rectForName.width()) {
 			text = st::msgNameFont->elided(text, rectForName.width());
 		}
-		p.setFont(st::msgNameFont);
 		p.setPen(active
 			? st::dialogsNameFgActive
 			: selected
@@ -495,15 +495,18 @@ void paintRow(
 			: st::dialogsNameFg);
 		from->nameText().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	} else if (hiddenSenderInfo) {
+		p.setPen(active
+			? st::dialogsNameFgActive
+			: selected
+			? st::dialogsNameFgOver
+			: st::dialogsNameFg);
 		hiddenSenderInfo->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	} else {
-		const auto nameFg = active
+		p.setPen(active
 			? st::dialogsNameFgActive
-			: (selected
-				? st::dialogsArchiveFgOver
-				: st::dialogsArchiveFg);
-		p.setPen(nameFg);
-		p.setFont(st::msgNameFont);
+			: selected
+			? st::dialogsArchiveFgOver
+			: st::dialogsArchiveFg);
 		auto text = entry->chatListName(); // TODO feed name with emoji
 		auto textWidth = st::msgNameFont->width(text);
 		if (textWidth > rectForName.width()) {
@@ -825,8 +828,10 @@ void RowPainter::paint(
 	const auto hiddenSenderInfo = [&]() -> const HiddenSenderInfo* {
 		if (const auto searchChat = row->searchInChat()) {
 			if (const auto peer = searchChat.peer()) {
-				if (peer->isSelf()) {
-					return item->hiddenForwardedInfo();
+				if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+					if (peer->isSelf() || forwarded->imported) {
+						return forwarded->hiddenSenderInfo.get();
+					}
 				}
 			}
 		}

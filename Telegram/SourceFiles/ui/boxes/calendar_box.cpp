@@ -5,15 +5,16 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "boxes/calendar_box.h"
+#include "ui/boxes/calendar_box.h"
 
 #include "ui/widgets/buttons.h"
-#include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/ui_utility.h"
+#include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 
+namespace Ui {
 namespace {
 
 constexpr auto kDaysInWeek = 7;
@@ -229,7 +230,7 @@ private:
 	const style::CalendarSizes &_st;
 	not_null<Context*> _context;
 
-	std::map<int, std::unique_ptr<Ui::RippleAnimation>> _ripples;
+	std::map<int, std::unique_ptr<RippleAnimation>> _ripples;
 
 	Fn<void(QDate)> _dateChosenCallback;
 
@@ -257,7 +258,7 @@ void CalendarBox::Inner::monthChanged(QDate month) {
 	_ripples.clear();
 	resizeToCurrent();
 	update();
-	Ui::SendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
+	SendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
 }
 
 void CalendarBox::Inner::resizeToCurrent() {
@@ -389,9 +390,9 @@ void CalendarBox::Inner::mousePressEvent(QMouseEvent *e) {
 		auto cell = QRect(rowsLeft() + col * _st.cellSize.width(), rowsTop() + row * _st.cellSize.height(), _st.cellSize.width(), _st.cellSize.height());
 		auto it = _ripples.find(_selected);
 		if (it == _ripples.cend()) {
-			auto mask = Ui::RippleAnimation::ellipseMask(QSize(_st.cellInner, _st.cellInner));
+			auto mask = RippleAnimation::ellipseMask(QSize(_st.cellInner, _st.cellInner));
 			auto update = [this, cell] { rtlupdate(cell); };
-			it = _ripples.emplace(_selected, std::make_unique<Ui::RippleAnimation>(st::defaultRippleAnimation, std::move(mask), std::move(update))).first;
+			it = _ripples.emplace(_selected, std::make_unique<RippleAnimation>(st::defaultRippleAnimation, std::move(mask), std::move(update))).first;
 		}
 		auto ripplePosition = QPoint(cell.x() + (_st.cellSize.width() - _st.cellInner) / 2, cell.y() + (_st.cellSize.height() - _st.cellInner) / 2);
 		it->second->add(e->pos() - ripplePosition);
@@ -611,3 +612,5 @@ void CalendarBox::wheelEvent(QWheelEvent *e) {
 }
 
 CalendarBox::~CalendarBox() = default;
+
+} // namespace Ui

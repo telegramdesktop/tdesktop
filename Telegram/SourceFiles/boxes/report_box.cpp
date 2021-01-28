@@ -73,10 +73,9 @@ void ReportBox::prepare() {
 			st::defaultBoxCheckbox);
 	};
 	createButton(_reasonSpam, Reason::Spam, tr::lng_report_reason_spam(tr::now));
+	createButton(_reasonFake, Reason::Fake, tr::lng_report_reason_fake(tr::now));
 	createButton(_reasonViolence, Reason::Violence, tr::lng_report_reason_violence(tr::now));
-	if (_ids) {
-		createButton(_reasonChildAbuse, Reason::ChildAbuse, tr::lng_report_reason_child_abuse(tr::now));
-	}
+	createButton(_reasonChildAbuse, Reason::ChildAbuse, tr::lng_report_reason_child_abuse(tr::now));
 	createButton(_reasonPornography, Reason::Pornography, tr::lng_report_reason_pornography(tr::now));
 	createButton(_reasonOther, Reason::Other, tr::lng_report_reason_other(tr::now));
 	_reasonGroup->setChangedCallback([=](Reason value) {
@@ -90,14 +89,10 @@ void ReportBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
 	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top() + _reasonSpam->getMargins().top());
-	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->bottomNoMargins() + st::boxOptionListSkip);
-	if (_ids) {
-		_reasonChildAbuse->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
-		_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonChildAbuse->bottomNoMargins() + st::boxOptionListSkip);
-	}
-	else{
-		_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
-	}
+	_reasonFake->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->bottomNoMargins() + st::boxOptionListSkip);
+	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonFake->bottomNoMargins() + st::boxOptionListSkip);
+	_reasonChildAbuse->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
+	_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonChildAbuse->bottomNoMargins() + st::boxOptionListSkip);
 	_reasonOther->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonPornography->bottomNoMargins() + st::boxOptionListSkip);
 
 	if (_reasonOtherText) {
@@ -156,6 +151,7 @@ void ReportBox::report() {
 	const auto reason = [&] {
 		switch (_reasonGroup->value()) {
 		case Reason::Spam: return MTP_inputReportReasonSpam();
+		case Reason::Fake: return MTP_inputReportReasonFake();
 		case Reason::Violence: return MTP_inputReportReasonViolence();
 		case Reason::ChildAbuse: return MTP_inputReportReasonChildAbuse();
 		case Reason::Pornography: return MTP_inputReportReasonPornography();
@@ -203,7 +199,7 @@ void ReportBox::reportFail(const RPCError &error) {
 }
 
 void ReportBox::updateMaxHeight() {
-	const auto buttonsCount = _ids ? 5 : 4;
+	const auto buttonsCount = 6;
 	auto newHeight = st::boxOptionListPadding.top() + _reasonSpam->getMargins().top() + buttonsCount * _reasonSpam->heightNoMargins() + (buttonsCount - 1) * st::boxOptionListSkip + _reasonSpam->getMargins().bottom() + st::boxOptionListPadding.bottom();
 
 	if (_reasonOtherText) {

@@ -2387,9 +2387,7 @@ void ListWidget::mouseActionUpdate() {
 							Assert(message != nullptr);
 
 							const auto from = message->displayFrom();
-							dragState = TextState(nullptr, from
-								? from->openLink()
-								: hiddenUserpicLink(message->fullId()));
+							dragState = TextState(nullptr, view->fromPhotoLink());
 							_overItemExact = session().data().message(dragState.itemId);
 							lnkhost = view;
 							return false;
@@ -2459,13 +2457,6 @@ void ListWidget::mouseActionUpdate() {
 	//} else {
 	//	_widget->noSelectingScroll();
 	//} // #TODO select scroll
-}
-
-ClickHandlerPtr ListWidget::hiddenUserpicLink(FullMsgId id) {
-	static const auto result = std::make_shared<LambdaClickHandler>([] {
-		Ui::Toast::Show(tr::lng_forwarded_hidden(tr::now));
-	});
-	return result;
 }
 
 style::cursor ListWidget::computeMouseCursor() const {

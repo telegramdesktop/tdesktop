@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "mainwindow.h"
 #include "base/crc32hash.h"
+#include "base/platform/win/base_windows_wrl.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
@@ -27,23 +28,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QStyleFactory>
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>
+#include <QtGui/QScreen>
 #include <qpa/qplatformnativeinterface.h>
 
 #include <Shobjidl.h>
 #include <shellapi.h>
 #include <WtsApi32.h>
 
-#include <roapi.h>
-#include <wrl/client.h>
+#include <windows.ui.viewmanagement.h>
+#include <UIViewSettingsInterop.h>
 
 #include <Windowsx.h>
 #include <VersionHelpers.h>
 
 HICON qt_pixmapToWinHICON(const QPixmap &);
 
-using namespace Microsoft::WRL;
-
 Q_DECLARE_METATYPE(QMargins);
+
+namespace ViewManagement = ABI::Windows::UI::ViewManagement;
 
 namespace Platform {
 namespace {
@@ -54,6 +56,8 @@ namespace {
 // if the application was deactivated less than 0.5s ago, then the tray
 // icon click (both left or right button) was made from the active app.
 constexpr auto kKeepActiveForTrayIcon = crl::time(500);
+
+using namespace Microsoft::WRL;
 
 HICON createHIconFromQIcon(const QIcon &icon, int xSize, int ySize) {
 	if (!icon.isNull()) {
@@ -99,21 +103,24 @@ HWND createTaskbarHider() {
 }
 
 ComPtr<ITaskbarList3> taskbarList;
-
 bool handleSessionNotification = false;
+uint32 kTaskbarCreatedMsgId = 0;
 
 } // namespace
 
-UINT MainWindow::_taskbarCreatedMsgId = 0;
+struct MainWindow::Private {
+	ComPtr<ViewManagement::IUIViewSettings> viewSettings;
+};
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller)
+, _private(std::make_unique<Private>())
 , ps_tbHider_hWnd(createTaskbarHider()) {
 	QCoreApplication::instance()->installNativeEventFilter(
 		EventFilter::CreateInstance(this));
 
-	if (!_taskbarCreatedMsgId) {
-		_taskbarCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
+	if (!kTaskbarCreatedMsgId) {
+		kTaskbarCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
 	}
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (_shadow && update.paletteChanged()) {
@@ -166,6 +173,10 @@ void MainWindow::setupNativeWindowFrame() {
 			fixMaximizedWindow();
 		}
 	}, lifetime());
+}
+
+uint32 MainWindow::TaskbarCreatedMsgId() {
+	return kTaskbarCreatedMsgId;
 }
 
 void MainWindow::TaskbarCreated() {
@@ -291,6 +302,32 @@ void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 	}
 }
 
+bool MainWindow::hasTabletView() const {
+	if (!_private->viewSettings) {
+		return false;
+	}
+	auto mode = ViewManagement::UserInteractionMode();
+	_private->viewSettings->get_UserInteractionMode(&mode);
+	return (mode == ViewManagement::UserInteractionMode_Touch);
+}
+
+bool MainWindow::initSizeFromSystem() {
+	if (!hasTabletView()) {
+		return false;
+	}
+	const auto screen = [&] {
+		if (const auto result = windowHandle()->screen()) {
+			return result;
+		}
+		return QGuiApplication::primaryScreen();
+	}();
+	if (!screen) {
+		return false;
+	}
+	setGeometry(screen->geometry());
+	return true;
+}
+
 void MainWindow::updateWindowIcon() {
 	updateIconCounters();
 }
@@ -360,6 +397,20 @@ void MainWindow::initHook() {
 		&& (Dlls::WTSUnRegisterSessionNotification != nullptr);
 	if (handleSessionNotification) {
 		Dlls::WTSRegisterSessionNotification(ps_hWnd, NOTIFY_FOR_THIS_SESSION);
+	}
+
+	using namespace base::Platform;
+	auto factory = ComPtr<IUIViewSettingsInterop>();
+	if (SupportsWRL()) {
+		GetActivationFactory(
+			StringReferenceWrapper(
+				RuntimeClass_Windows_UI_ViewManagement_UIViewSettings).Get(),
+			&factory);
+		if (factory) {
+			factory->GetForWindow(
+				ps_hWnd,
+				IID_PPV_ARGS(&_private->viewSettings));
+		}
 	}
 
 	psInitSysMenu();
@@ -662,6 +713,7 @@ MainWindow::~MainWindow() {
 	if (handleSessionNotification) {
 		Dlls::WTSUnRegisterSessionNotification(ps_hWnd);
 	}
+	_private->viewSettings.Reset();
 	if (taskbarList) {
 		taskbarList.Reset();
 	}

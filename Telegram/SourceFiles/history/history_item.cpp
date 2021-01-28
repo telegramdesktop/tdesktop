@@ -273,9 +273,10 @@ HistoryItem *HistoryItem::lookupDiscussionPostOriginal() const {
 PeerData *HistoryItem::displayFrom() const {
 	if (const auto sender = discussionPostOriginalSender()) {
 		return sender;
-	} else if (history()->peer->isSelf()
-		|| history()->peer->isRepliesChat()) {
-		return senderOriginal();
+	} else if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		if (history()->peer->isSelf() || history()->peer->isRepliesChat() || forwarded->imported) {
+			return forwarded->originalSender;
+		}
 	}
 	return author().get();
 }

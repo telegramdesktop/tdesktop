@@ -125,7 +125,8 @@ private:
 	void refreshEditedBadge();
 	void fromNameUpdated(int width) const;
 
-	[[nodiscard]] bool showForwardsFromSender() const;
+	[[nodiscard]] bool showForwardsFromSender(
+		not_null<HistoryMessageForwarded*> forwarded) const;
 	[[nodiscard]] TextSelection skipTextSelection(
 		TextSelection selection) const;
 	[[nodiscard]] TextSelection unskipTextSelection(

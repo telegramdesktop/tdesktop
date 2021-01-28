@@ -168,14 +168,28 @@ files.append({
   'remote': 'tsetup.' + version_full + '.exe',
   'backup_folder': 'tsetup',
   'mime': 'application/octet-stream',
-  'label': 'Windows: Installer',
+  'label': 'Windows 32 bit: Installer',
 })
 files.append({
   'local': 'tportable.' + version_full + '.zip',
   'remote': 'tportable.' + version_full + '.zip',
   'backup_folder': 'tsetup',
   'mime': 'application/zip',
-  'label': 'Windows: Portable',
+  'label': 'Windows 32 bit: Portable',
+})
+files.append({
+  'local': 'tsetup-x64.' + version_full + '.exe',
+  'remote': 'tsetup-x64.' + version_full + '.exe',
+  'backup_folder': 'tx64',
+  'mime': 'application/octet-stream',
+  'label': 'Windows 64 bit: Installer',
+})
+files.append({
+  'local': 'tportable-x64.' + version_full + '.zip',
+  'remote': 'tportable-x64.' + version_full + '.zip',
+  'backup_folder': 'tx64',
+  'mime': 'application/zip',
+  'label': 'Windows 64 bit: Portable',
 })
 files.append({
   'local': 'tsetup.' + version_full + '.dmg',

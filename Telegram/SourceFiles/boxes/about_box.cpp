@@ -88,8 +88,10 @@ void AboutBox::resizeEvent(QResizeEvent *e) {
 void AboutBox::showVersionHistory() {
 	if (cRealAlphaVersion()) {
 		auto url = qsl("https://tdesktop.com/");
-		if (Platform::IsWindows()) {
+		if (Platform::IsWindows32Bit()) {
 			url += qsl("win/%1.zip");
+		} else if (Platform::IsWindows64Bit()) {
+			url += qsl("win64/%1.zip");
 		} else if (Platform::IsOSXBuild()) {
 			url += qsl("osx/%1.zip");
 		} else if (Platform::IsMac()) {
@@ -142,6 +144,9 @@ QString currentVersionText() {
 		result += qsl(" alpha %1").arg(cAlphaVersion() % 1000);
 	} else if (AppBetaVersion) {
 		result += " beta";
+	}
+	if (Platform::IsWindows64Bit()) {
+		result += " x64";
 	}
 	return result;
 }

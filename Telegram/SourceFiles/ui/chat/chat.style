@@ -833,35 +833,6 @@ largeEmojiOutline: 1px;
 largeEmojiPadding: margins(0px, 0px, 0px, 0px);
 largeEmojiSkip: 4px;
 
-scheduleHeight: 95px;
-scheduleDateTop: 38px;
-scheduleDateField: InputField(defaultInputField) {
-	textMargins: margins(2px, 0px, 2px, 0px);
-	placeholderScale: 0.;
-	heightMin: 30px;
-	textAlign: align(top);
-	font: font(14px);
-}
-scheduleTimeField: InputField(scheduleDateField) {
-	border: 0px;
-	borderActive: 0px;
-	heightMin: 28px;
-	placeholderFont: font(14px);
-	placeholderFgActive: placeholderFgActive;
-}
-scheduleDateWidth: 136px;
-scheduleTimeWidth: 72px;
-scheduleAtSkip: 24px;
-scheduleAtTop: 42px;
-scheduleAtLabel: FlatLabel(defaultFlatLabel) {
-}
-scheduleTimeSeparator: FlatLabel(defaultFlatLabel) {
-	style: TextStyle(defaultTextStyle) {
-		font: font(14px);
-	}
-}
-scheduleTimeSeparatorPadding: margins(2px, 0px, 2px, 0px);
-
 youtubeIcon: icon {
 	{ "media_youtube_play_bg", youtubePlayIconBg },
 	{ "media_youtube_play", youtubePlayIconFg, point(24px, 12px) },

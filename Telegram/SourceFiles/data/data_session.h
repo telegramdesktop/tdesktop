@@ -358,6 +358,8 @@ public:
 		not_null<HistoryItem*> dependent,
 		not_null<HistoryItem*> dependency);
 
+	void destroyAllCallItems();
+
 	void registerMessageRandomId(uint64 randomId, FullMsgId itemId);
 	void unregisterMessageRandomId(uint64 randomId);
 	[[nodiscard]] FullMsgId messageIdByRandomId(uint64 randomId) const;
@@ -570,6 +572,8 @@ public:
 	void unregisterContactItem(
 		UserId contactId,
 		not_null<HistoryItem*> item);
+	void registerCallItem(not_null<HistoryItem*> item);
+	void unregisterCallItem(not_null<HistoryItem*> item);
 
 	void documentMessageRemoved(not_null<DocumentData*> document);
 
@@ -908,6 +912,7 @@ private:
 	std::unordered_map<
 		UserId,
 		base::flat_set<not_null<ViewElement*>>> _contactViews;
+	std::unordered_set<not_null<HistoryItem*>> _callItems;
 
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;

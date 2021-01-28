@@ -65,6 +65,8 @@ using namespace Platform;
 using Platform::internal::WaylandIntegration;
 using Platform::internal::GtkIntegration;
 
+Q_DECLARE_METATYPE(QMargins);
+
 namespace Platform {
 namespace {
 
@@ -796,24 +798,45 @@ bool ShowWindowMenu(QWindow *window) {
 }
 
 bool SetWindowExtents(QWindow *window, const QMargins &extents) {
-	if (!IsWayland()) {
+	if (IsWayland()) {
+#ifdef DESKTOP_APP_QT_PATCHED
+		window->setProperty("WaylandCustomMargins", QVariant::fromValue<QMargins>(extents));
+		return true;
+#else // DESKTOP_APP_QT_PATCHED
+		return false;
+#endif // !DESKTOP_APP_QT_PATCHED
+	} else {
 		return SetXCBFrameExtents(window, extents);
 	}
-
-	return false;
 }
 
 bool UnsetWindowExtents(QWindow *window) {
-	if (!IsWayland()) {
+	if (IsWayland()) {
+#ifdef DESKTOP_APP_QT_PATCHED
+		window->setProperty("WaylandCustomMargins", QVariant());
+		return true;
+#else // DESKTOP_APP_QT_PATCHED
+		return false;
+#endif // !DESKTOP_APP_QT_PATCHED
+	} else {
 		return UnsetXCBFrameExtents(window);
 	}
-
-	return false;
 }
 
 bool WindowsNeedShadow() {
-	return !IsWayland()
-		&& base::Platform::XCB::IsSupportedByWM(kXCBFrameExtentsAtomName.utf16());
+#ifdef DESKTOP_APP_QT_PATCHED
+	if (IsWayland()) {
+		return true;
+	}
+#endif // DESKTOP_APP_QT_PATCHED
+
+	namespace XCB = base::Platform::XCB;
+	if (!IsWayland()
+		&& XCB::IsSupportedByWM(kXCBFrameExtentsAtomName.utf16())) {
+		return true;
+	}
+
+	return false;
 }
 
 Window::ControlsLayout WindowControlsLayout() {

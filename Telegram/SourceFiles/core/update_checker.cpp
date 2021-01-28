@@ -224,6 +224,7 @@ QString FindUpdateFile() {
 		if (QRegularExpression(
 			"^("
 			"tupdate|"
+			"tx64upd|"
 			"tmacupd|"
 			"tosxupd|"
 			"tlinuxupd|"

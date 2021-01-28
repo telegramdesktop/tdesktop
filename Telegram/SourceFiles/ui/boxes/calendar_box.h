@@ -7,17 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "abstract_box.h"
+#include "ui/layers/box_content.h"
+#include "base/observer.h"
 
 namespace style {
 struct CalendarSizes;
 } // namespace style
 
 namespace Ui {
-class IconButton;
-} // namespace Ui
 
-class CalendarBox : public Ui::BoxContent, private base::Subscriber {
+class IconButton;
+
+class CalendarBox : public BoxContent, private base::Subscriber {
 public:
 	CalendarBox(
 		QWidget*,
@@ -67,10 +68,12 @@ private:
 
 	class Title;
 	object_ptr<Title> _title;
-	object_ptr<Ui::IconButton> _previous;
-	object_ptr<Ui::IconButton> _next;
+	object_ptr<IconButton> _previous;
+	object_ptr<IconButton> _next;
 
 	Fn<void(QDate date)> _callback;
 	FnMut<void(not_null<CalendarBox*>)> _finalize;
 
 };
+
+} // namespace Ui

@@ -145,6 +145,8 @@ PRIVATE
     api/api_global_privacy.h
     api/api_hash.cpp
     api/api_hash.h
+    api/api_invite_links.cpp
+    api/api_invite_links.h
     api/api_media.cpp
     api/api_media.h
     api/api_self_destruct.cpp
@@ -179,6 +181,10 @@ PRIVATE
     boxes/peers/edit_participants_box.h
     boxes/peers/edit_peer_info_box.cpp
     boxes/peers/edit_peer_info_box.h
+    boxes/peers/edit_peer_invite_link.cpp
+    boxes/peers/edit_peer_invite_link.h
+    boxes/peers/edit_peer_invite_links.cpp
+    boxes/peers/edit_peer_invite_links.h
     boxes/peers/edit_peer_type_box.cpp
     boxes/peers/edit_peer_type_box.h
     boxes/peers/edit_peer_history_visibility_box.cpp
@@ -199,8 +205,6 @@ PRIVATE
     boxes/background_box.h
     boxes/background_preview_box.cpp
     boxes/background_preview_box.h
-    boxes/calendar_box.cpp
-    boxes/calendar_box.h
     boxes/change_phone_box.cpp
     boxes/change_phone_box.h
     boxes/confirm_box.cpp
@@ -267,6 +271,7 @@ PRIVATE
     calls/calls_call.h
     calls/calls_group_call.cpp
     calls/calls_group_call.h
+    calls/calls_group_common.h
     calls/calls_group_members.cpp
     calls/calls_group_members.h
     calls/calls_group_panel.cpp
@@ -287,6 +292,8 @@ PRIVATE
     calls/calls_userpic.h
     calls/calls_video_bubble.cpp
     calls/calls_video_bubble.h
+    calls/calls_volume_item.cpp
+    calls/calls_volume_item.h
     chat_helpers/bot_keyboard.cpp
     chat_helpers/bot_keyboard.h
     chat_helpers/emoji_keywords.cpp
@@ -902,7 +909,6 @@ PRIVATE
     platform/win/windows_dlls.h
     platform/win/windows_event_filter.cpp
     platform/win/windows_event_filter.h
-    platform/win/wrapper_wrl_implements_h.h
     platform/platform_audio.h
     platform/platform_file_utilities.h
     platform/platform_launcher.h

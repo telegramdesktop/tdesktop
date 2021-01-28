@@ -38,8 +38,9 @@ int DrawPeerBadgeGetWidth(
 	int nameWidth,
 	int outerWidth,
 	const PeerBadgeStyle &st);
-QSize ScamBadgeSize();
+QSize ScamBadgeSize(bool fake);
 void DrawScamBadge(
+	bool fake,
 	Painter &p,
 	QRect rect,
 	int outerWidth,

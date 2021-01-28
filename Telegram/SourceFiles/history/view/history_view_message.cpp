@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_group_call_tracker.h" // UserpicInRow.
 #include "history/history.h"
 #include "ui/effects/ripple_animation.h"
+#include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "ui/toast/toast.h"
@@ -1181,9 +1182,12 @@ void Message::unloadHeavyPart() {
 	_comments = nullptr;
 }
 
-bool Message::showForwardsFromSender() const {
+bool Message::showForwardsFromSender(
+		not_null<HistoryMessageForwarded*> forwarded) const {
 	const auto peer = message()->history()->peer;
-	return peer->isSelf() || peer->isRepliesChat();
+	return peer->isSelf()
+		|| peer->isRepliesChat()
+		|| forwarded->imported;
 }
 
 bool Message::hasFromPhoto() const {
@@ -1200,12 +1204,15 @@ bool Message::hasFromPhoto() const {
 		const auto item = message();
 		if (item->isPost()
 			|| item->isEmpty()
-			|| (context() == Context::Replies && data()->isDiscussionPost())) {
+			|| (context() == Context::Replies && item->isDiscussionPost())) {
 			return false;
 		} else if (Core::App().settings().chatWide()) {
 			return true;
-		} else if (showForwardsFromSender()) {
-			return item->Has<HistoryMessageForwarded>();
+		} else if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+			const auto peer = item->history()->peer;
+			if (peer->isSelf() || peer->isRepliesChat()) {
+				return true;
+			}
 		}
 		return !item->out() && !item->history()->peer->isUser();
 	} break;
@@ -1436,10 +1443,7 @@ bool Message::getStateFromName(
 			if (point.x() >= availableLeft
 				&& point.x() < availableLeft + availableWidth
 				&& point.x() < availableLeft + nameText->maxWidth()) {
-				static const auto hidden = std::make_shared<LambdaClickHandler>([] {
-					Ui::Toast::Show(tr::lng_forwarded_hidden(tr::now));
-				});
-				outResult->link = from ? from->openLink() : hidden;
+				outResult->link = fromLink();
 				return true;
 			}
 			auto via = item->Get<HistoryMessageVia>();
@@ -2068,9 +2072,21 @@ bool Message::hasFromName() const {
 	case Context::Pinned:
 	case Context::Replies: {
 		const auto item = message();
-		return (!hasOutLayout() || item->from()->isMegagroup())
-			&& (!item->history()->peer->isUser()
-				|| showForwardsFromSender());
+		const auto peer = item->history()->peer;
+		if (hasOutLayout() && !item->from()->isMegagroup()) {
+			return false;
+		} else if (!peer->isUser()) {
+			return true;
+		}
+		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+			if (forwarded->imported
+				&& peer.get() == forwarded->originalSender) {
+				return false;
+			} else if (showForwardsFromSender(forwarded)) {
+				return true;
+			}
+		}
+		return false;
 	} break;
 	case Context::ContactPreview:
 		return false;
@@ -2087,10 +2103,10 @@ bool Message::displayFromName() const {
 
 bool Message::displayForwardedFrom() const {
 	const auto item = message();
-	if (showForwardsFromSender()) {
-		return false;
-	}
 	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		if (showForwardsFromSender(forwarded)) {
+			return false;
+		}
 		if (const auto sender = item->discussionPostOriginalSender()) {
 			if (sender == forwarded->originalSender) {
 				return false;
@@ -2111,8 +2127,14 @@ bool Message::hasOutLayout() const {
 	const auto item = message();
 	if (item->history()->peer->isSelf()) {
 		return !item->Has<HistoryMessageForwarded>();
-	} else if (showForwardsFromSender()) {
-		return false;
+	} else if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		if (!forwarded->imported
+			|| !forwarded->originalSender
+			|| !forwarded->originalSender->isSelf()) {
+			if (showForwardsFromSender(forwarded)) {
+				return false;
+			}
+		}
 	}
 	return item->out() && !item->isPost();
 }
@@ -2217,7 +2239,7 @@ bool Message::displayFastShare() const {
 		return !peer->isMegagroup();
 	} else if (const auto user = peer->asUser()) {
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-			return !showForwardsFromSender()
+			return !showForwardsFromSender(forwarded)
 				&& !item->out()
 				&& forwarded->originalSender
 				&& forwarded->originalSender->isChannel()
@@ -2706,12 +2728,15 @@ void Message::initTime() {
 	} else if (const auto edited = displayedEditBadge()) {
 		item->_timeWidth = edited->maxWidth();
 	} else {
-		QString msgId;
-		if (item->fullId().msg > 0)
-			msgId = " (" + QString::number(item->fullId().msg) + ")";
-		else
-			msgId = "";
-		item->_timeText = dateTime().toString(cTimeFormat()) + (cShowMessagesID() ? msgId : "");
+		const auto forwarded = item->Get<HistoryMessageForwarded>();
+		if (forwarded && forwarded->imported) {
+			const auto date = base::unixtime::parse(forwarded->originalDate);
+			item->_timeText = date.toString(
+				u"d.MM.yy, "_q + cTimeFormat() + ' '
+			) + tr::lng_imported(tr::now);
+		} else {
+			item->_timeText = dateTime().toString(cTimeFormat());
+		}
 		item->_timeWidth = st::msgDateFont->width(item->_timeText);
 	}
 	if (item->_text.hasSkipBlock()) {

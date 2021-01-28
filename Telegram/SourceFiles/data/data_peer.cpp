@@ -747,6 +747,15 @@ bool PeerData::isScam() const {
 	return false;
 }
 
+bool PeerData::isFake() const {
+	if (const auto user = asUser()) {
+		return user->isFake();
+	} else if (const auto channel = asChannel()) {
+		return channel->isFake();
+	}
+	return false;
+}
+
 bool PeerData::isMegagroup() const {
 	return isChannel() ? asChannel()->isMegagroup() : false;
 }
@@ -825,6 +834,12 @@ bool PeerData::canRevokeFullHistory() const {
 			&& (!user->isBot() || user->isSupport())
 			&& session().serverConfig().revokePrivateInbox
 			&& (session().serverConfig().revokePrivateTimeLimit == 0x7FFFFFFF);
+	} else if (const auto chat = asChat()) {
+		return chat->amCreator();
+	} else if (const auto megagroup = asMegagroup()) {
+		return megagroup->amCreator()
+			&& megagroup->membersCountKnown()
+			&& megagroup->canDelete();
 	}
 	return false;
 }

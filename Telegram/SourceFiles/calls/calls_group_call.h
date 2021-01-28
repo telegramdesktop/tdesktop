@@ -35,6 +35,12 @@ struct LastSpokeTimes;
 
 namespace Calls {
 
+namespace Group {
+struct MuteRequest;
+struct VolumeRequest;
+struct ParticipantState;
+} // namespace Group
+
 enum class MuteState {
 	Active,
 	PushToTalk,
@@ -104,6 +110,9 @@ public:
 		return _muted.value();
 	}
 
+	[[nodiscard]] auto otherParticipantStateValue() const
+		-> rpl::producer<Group::ParticipantState>;
+
 	enum State {
 		Creating,
 		Joining,
@@ -131,7 +140,8 @@ public:
 	//void setAudioVolume(bool input, float level);
 	void setAudioDuckingEnabled(bool enabled);
 
-	void toggleMute(not_null<UserData*> user, bool mute);
+	void toggleMute(const Group::MuteRequest &data);
+	void changeVolume(const Group::VolumeRequest &data);
 	std::variant<int, not_null<UserData*>> inviteUsers(
 		const std::vector<not_null<UserData*>> &users);
 
@@ -163,6 +173,7 @@ private:
 	void maybeSendMutedUpdate(MuteState previous);
 	void sendMutedUpdate();
 	void updateInstanceMuteState();
+	void updateInstanceVolumes();
 	void applySelfInCallLocally();
 	void rejoin();
 
@@ -178,6 +189,15 @@ private:
 	void stopConnectingSound();
 	void playConnectingSoundOnce();
 
+	void editParticipant(
+		not_null<UserData*> user,
+		bool mute,
+		std::optional<int> volume);
+	void applyParticipantLocally(
+		not_null<UserData*> user,
+		bool mute,
+		std::optional<int> volume);
+
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
 	const not_null<Delegate*> _delegate;
@@ -189,6 +209,8 @@ private:
 
 	rpl::variable<MuteState> _muted = MuteState::Muted;
 	bool _acceptFields = false;
+
+	rpl::event_stream<Group::ParticipantState> _otherParticipantStateValue;
 
 	uint64 _id = 0;
 	uint64 _accessHash = 0;

@@ -778,6 +778,47 @@ groupCallMajorBlobMaxRadius: 4px;
 groupCallMinorBlobIdleRadius: 3px;
 groupCallMinorBlobMaxRadius: 12px;
 
+groupCallMuteCrossLine: CrossLineAnimation {
+	fg: groupCallIconFg;
+	icon: icon {{ "calls/volume/speaker", groupCallIconFg }};
+	startPosition: point(2px, 5px);
+	endPosition: point(16px, 19px);
+	stroke: 2px;
+}
+
+groupCallMenuSpeakerArcsSkip: 1px;
+groupCallMenuVolumeSkip: 5px;
+groupCallMenuVolumeSlider: MediaSlider(defaultContinuousSlider) {
+	activeFg: groupCallMembersFg;
+	inactiveFg: groupCallMemberInactiveIcon;
+	activeFgOver: groupCallMembersFg;
+	inactiveFgOver: groupCallMemberInactiveIcon;
+	activeFgDisabled: groupCallMemberInactiveIcon;
+	receivedTillFg: groupCallMemberInactiveIcon;
+}
+
+groupCallSpeakerArcsAnimation: ArcsAnimation {
+	fg: groupCallIconFg;
+	stroke: 2px;
+	space: 4px;
+	duration: 200;
+	deltaAngle: 60;
+	deltaHeight: 6px;
+	deltaWidth: 7px;
+	startHeight: 3px;
+	startWidth: 0px;
+}
+
+groupCallStatusSpeakerIcon: icon {{ "calls/volume/speaker_small", groupCallIconFg }};
+groupCallStatusSpeakerArcsSkip: 3px;
+groupCallStatusSpeakerArcsAnimation: ArcsAnimation(groupCallSpeakerArcsAnimation) {
+	deltaAngle: 68;
+	space: 3px;
+	deltaHeight: 5px;
+	deltaWidth: 4px;
+	startHeight: 1px;
+}
+
 callTopBarMuteCrossLine: CrossLineAnimation {
 	fg: callBarFg;
 	icon: icon {{ "calls/call_record_active", callBarFg }};

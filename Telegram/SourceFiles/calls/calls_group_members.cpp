@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_members.h"
 
 #include "calls/calls_group_call.h"
+#include "calls/calls_group_common.h"
+#include "calls/calls_volume_item.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -16,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h" // Data::CanWriteValue.
 #include "data/data_session.h" // Data::Session::invitedToCallUsers.
 #include "settings/settings_common.h" // Settings::CreateButton.
+#include "ui/paint/arcs.h"
 #include "ui/paint/blobs.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
@@ -43,6 +46,12 @@ constexpr auto kMinorBlobFactor = 0.9f;
 constexpr auto kUserpicMinScale = 0.8;
 constexpr auto kMaxLevel = 1.;
 constexpr auto kWideScale = 5;
+
+const auto kSpeakerThreshold = std::vector<float>{
+	Group::kDefaultVolume * 0.1f / Group::kMaxVolume,
+	Group::kDefaultVolume * 0.9f / Group::kMaxVolume };
+
+constexpr auto kArcsStrokeRatio = 0.8;
 
 auto RowBlobs() -> std::array<Ui::Paint::Blobs::BlobData, 2> {
 	return { {
@@ -76,7 +85,8 @@ public:
 		QRect rect,
 		float64 speaking,
 		float64 active,
-		float64 muted) = 0;
+		float64 muted,
+		bool mutedByMe) = 0;
 };
 
 class Row final : public PeerListRow {
@@ -87,6 +97,7 @@ public:
 		Active,
 		Inactive,
 		Muted,
+		MutedByMe,
 		Invited,
 	};
 
@@ -105,6 +116,9 @@ public:
 	}
 	[[nodiscard]] bool speaking() const {
 		return _speaking;
+	}
+	[[nodiscard]] int volume() const {
+		return _volume;
 	}
 
 	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
@@ -172,11 +186,37 @@ private:
 
 		rpl::lifetime lifetime;
 	};
+
+	struct StatusIcon {
+		StatusIcon(float volume)
+		: speaker(st::groupCallStatusSpeakerIcon)
+		, arcs(std::make_unique<Ui::Paint::ArcsAnimation>(
+			st::groupCallStatusSpeakerArcsAnimation,
+			kSpeakerThreshold,
+			volume,
+			Ui::Paint::ArcsAnimation::HorizontalDirection::Right)) {
+		}
+		const style::icon &speaker;
+		const std::unique_ptr<Ui::Paint::ArcsAnimation> arcs;
+		int arcsWidth = 0;
+
+		rpl::lifetime lifetime;
+	};
+
+	int statusIconWidth() const;
+	int statusIconHeight() const;
+	void paintStatusIcon(
+		Painter &p,
+		const style::PeerListItem &st,
+		const style::font &font,
+		bool selected);
+
 	void refreshStatus() override;
 	void setSounding(bool sounding);
 	void setSpeaking(bool speaking);
 	void setState(State state);
 	void setSsrc(uint32 ssrc);
+	void setVolume(int volume);
 
 	void ensureUserpicCache(
 		std::shared_ptr<Data::CloudImageView> &view,
@@ -186,10 +226,13 @@ private:
 	State _state = State::Inactive;
 	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
 	std::unique_ptr<BlobsAnimation> _blobsAnimation;
+	std::unique_ptr<StatusIcon> _statusIcon;
 	Ui::Animations::Simple _speakingAnimation; // For gray-red/green icon.
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
+	Ui::Animations::Simple _arcsAnimation; // For volume arcs animation.
 	uint32 _ssrc = 0;
+	int _volume = Group::kDefaultVolume;
 	bool _sounding = false;
 	bool _speaking = false;
 	bool _skipLevelUpdate = false;
@@ -206,7 +249,8 @@ public:
 		not_null<QWidget*> menuParent);
 	~MembersController();
 
-	using MuteRequest = GroupMembers::MuteRequest;
+	using MuteRequest = Group::MuteRequest;
+	using VolumeRequest = Group::VolumeRequest;
 
 	Main::Session &session() const override;
 	void prepare() override;
@@ -221,6 +265,7 @@ public:
 		return _fullCount.value();
 	}
 	[[nodiscard]] rpl::producer<MuteRequest> toggleMuteRequests() const;
+	[[nodiscard]] rpl::producer<VolumeRequest> changeVolumeRequests() const;
 	[[nodiscard]] auto kickMemberRequests() const
 		-> rpl::producer<not_null<UserData*>>;
 
@@ -231,7 +276,8 @@ public:
 		QRect rect,
 		float64 speaking,
 		float64 active,
-		float64 muted) override;
+		float64 muted,
+		bool mutedByMe) override;
 
 private:
 	[[nodiscard]] std::unique_ptr<Row> createSelfRow();
@@ -246,6 +292,10 @@ private:
 	[[nodiscard]] base::unique_qptr<Ui::PopupMenu> createRowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row);
+	void addMuteActionsToContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<UserData*> user,
+		not_null<Row*> row);
 	void setupListChangeViewers(not_null<GroupCall*> call);
 	void subscribeToChanges(not_null<Data::GroupCall*> real);
 	void updateRow(
@@ -271,6 +321,7 @@ private:
 	bool _prepared = false;
 
 	rpl::event_stream<MuteRequest> _toggleMuteRequests;
+	rpl::event_stream<VolumeRequest> _changeVolumeRequests;
 	rpl::event_stream<not_null<UserData*>> _kickMemberRequests;
 	rpl::variable<int> _fullCount = 1;
 	rpl::variable<int> _fullCountMin = 0;
@@ -305,17 +356,24 @@ void Row::setSkipLevelUpdate(bool value) {
 
 void Row::updateState(const Data::GroupCall::Participant *participant) {
 	setSsrc(participant ? participant->ssrc : 0);
+	setVolume(participant
+		? participant->volume
+		: Group::kDefaultVolume);
 	if (!participant) {
 		setState(State::Invited);
 		setSounding(false);
 		setSpeaking(false);
 	} else if (!participant->muted
 		|| (participant->sounding && participant->ssrc != 0)) {
-		setState(State::Active);
+		setState(participant->mutedByMe
+			? State::MutedByMe
+			: (participant->sounding || participant->speaking)
+			? State::Active
+			: State::Inactive);
 		setSounding(participant->sounding && participant->ssrc != 0);
 		setSpeaking(participant->speaking && participant->ssrc != 0);
 	} else if (participant->canSelfUnmute) {
-		setState(State::Inactive);
+		setState(participant->mutedByMe ? State::MutedByMe : State::Inactive);
 		setSounding(false);
 		setSpeaking(false);
 	} else {
@@ -335,6 +393,42 @@ void Row::setSpeaking(bool speaking) {
 		_speaking ? 0. : 1.,
 		_speaking ? 1. : 0.,
 		st::widgetFadeDuration);
+
+	if (!_speaking
+		|| (_state == State::MutedByMe)
+		|| (_state == State::Muted)) {
+		_statusIcon = nullptr;
+	} else if (!_statusIcon) {
+		_statusIcon = std::make_unique<StatusIcon>(
+			(float)_volume / Group::kMaxVolume);
+		_statusIcon->arcs->setStrokeRatio(kArcsStrokeRatio);
+		_statusIcon->arcsWidth = _statusIcon->arcs->finishedWidth();
+
+		const auto wasArcsWidth = _statusIcon->lifetime.make_state<int>(0);
+
+		_statusIcon->arcs->startUpdateRequests(
+		) | rpl::start_with_next([=] {
+			if (!_arcsAnimation.animating()) {
+				*wasArcsWidth = _statusIcon->arcsWidth;
+			}
+			auto callback = [=](float64 value) {
+				if (_statusIcon) {
+					_statusIcon->arcs->update(crl::now());
+
+					_statusIcon->arcsWidth = anim::interpolate(
+						*wasArcsWidth,
+						_statusIcon->arcs->finishedWidth(),
+						value);
+				}
+				_delegate->rowUpdateRow(this);
+			};
+			_arcsAnimation.start(
+				std::move(callback),
+				0.,
+				1.,
+				st::groupCallSpeakerArcsAnimation.duration);
+		}, _statusIcon->lifetime);
+	}
 }
 
 void Row::setSounding(bool sounding) {
@@ -382,6 +476,13 @@ void Row::setState(State state) {
 
 void Row::setSsrc(uint32 ssrc) {
 	_ssrc = ssrc;
+}
+
+void Row::setVolume(int volume) {
+	_volume = volume;
+	if (_statusIcon) {
+		_statusIcon->arcs->setValue((float)volume / Group::kMaxVolume);
+	}
 }
 
 void Row::updateLevel(float level) {
@@ -451,13 +552,16 @@ auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	auto userpic = ensureUserpicView();
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		if (_blobsAnimation) {
+			const auto mutedByMe = (_state == State::MutedByMe);
 			const auto shift = QPointF(x + size / 2., y + size / 2.);
 			auto hq = PainterHighQualityEnabler(p);
 			p.translate(shift);
-			const auto brush = anim::brush(
-				st::groupCallMemberInactiveStatus,
-				st::groupCallMemberActiveStatus,
-				_speakingAnimation.value(_speaking ? 1. : 0.));
+			const auto brush = mutedByMe
+				? st::groupCallMemberMutedIcon->b
+				: anim::brush(
+					st::groupCallMemberInactiveStatus,
+					st::groupCallMemberActiveStatus,
+					_speakingAnimation.value(_speaking ? 1. : 0.));
 			_blobsAnimation->blobs.paint(p, brush);
 			p.translate(-shift);
 			p.setOpacity(1.);
@@ -494,6 +598,60 @@ auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	};
 }
 
+int Row::statusIconWidth() const {
+	if (!_statusIcon) {
+		return 0;
+	}
+	return _speaking
+		? (_statusIcon->speaker.width() + _statusIcon->arcsWidth)
+		: 0;
+}
+
+int Row::statusIconHeight() const {
+	if (!_statusIcon) {
+		return 0;
+	}
+	return _speaking
+		? _statusIcon->speaker.height()
+		: 0;
+}
+
+void Row::paintStatusIcon(
+		Painter &p,
+		const style::PeerListItem &st,
+		const style::font &font,
+		bool selected) {
+	if (!_statusIcon) {
+		return;
+	}
+	p.setFont(font);
+	const auto color = (_speaking
+		? st.statusFgActive
+		: (selected ? st.statusFgOver : st.statusFg))->c;
+	p.setPen(color);
+
+	const auto speakerRect = QRect(
+		st.statusPosition
+			+ QPoint(0, (font->height - statusIconHeight()) / 2),
+		_statusIcon->speaker.size());
+	const auto arcPosition = speakerRect.topLeft()
+		+ QPoint(
+			speakerRect.width() - st::groupCallStatusSpeakerArcsSkip,
+			speakerRect.height() / 2);
+
+	const auto volume = std::round(_volume / 100.);
+	_statusIcon->speaker.paint(
+		p,
+		speakerRect.topLeft(),
+		speakerRect.width(),
+		color);
+
+	p.save();
+	p.translate(arcPosition);
+	_statusIcon->arcs->paint(p, color);
+	p.restore();
+}
+
 void Row::paintStatusText(
 		Painter &p,
 		const style::PeerListItem &st,
@@ -502,24 +660,36 @@ void Row::paintStatusText(
 		int availableWidth,
 		int outerWidth,
 		bool selected) {
-	if (_state != State::Invited) {
+	p.save();
+	const auto &font = st::normalFont;
+	paintStatusIcon(p, st, font, selected);
+	const auto translatedWidth = statusIconWidth();
+	p.translate(translatedWidth, 0);
+	const auto guard = gsl::finally([&] { p.restore(); });
+	if (_state != State::Invited && _state != State::MutedByMe) {
 		PeerListRow::paintStatusText(
 			p,
 			st,
 			x,
 			y,
-			availableWidth,
+			availableWidth - translatedWidth,
 			outerWidth,
 			selected);
 		return;
 	}
-	p.setFont(st::normalFont);
-	p.setPen(st::groupCallMemberNotJoinedStatus);
+	p.setFont(font);
+	if (_state == State::MutedByMe) {
+		p.setPen(st::groupCallMemberMutedIcon);
+	} else {
+		p.setPen(st::groupCallMemberNotJoinedStatus);
+	}
 	p.drawTextLeft(
 		x,
 		y,
 		outerWidth,
-		(peer()->isSelf()
+		(_state == State::MutedByMe
+			? tr::lng_group_call_muted_by_me_status(tr::now)
+			: peer()->isSelf()
 			? tr::lng_status_connecting(tr::now)
 			: tr::lng_group_call_invited_status(tr::now)));
 }
@@ -561,13 +731,16 @@ void Row::paintAction(
 		(_state == State::Active) ? 1. : 0.);
 	const auto muted = _mutedAnimation.value(
 		(_state == State::Muted) ? 1. : 0.);
-	_delegate->rowPaintIcon(p, iconRect, speaking, active, muted);
+	const auto mutedByMe = (_state == State::MutedByMe);
+	_delegate->rowPaintIcon(p, iconRect, speaking, active, muted, mutedByMe);
 }
 
 void Row::refreshStatus() {
 	setCustomStatus(
 		(_speaking
-			? tr::lng_group_call_active(tr::now)
+			? u"%1% %2"_q
+				.arg(std::round(_volume / 100.))
+				.arg(tr::lng_group_call_active(tr::now))
 			: tr::lng_group_call_inactive(tr::now)),
 		_speaking);
 }
@@ -746,12 +919,14 @@ void MembersController::appendInvitedUsers() {
 void MembersController::updateRow(
 		const std::optional<Data::GroupCall::Participant> &was,
 		const Data::GroupCall::Participant &now) {
+	auto reorderIfInvitedBeforeIndex = 0;
 	auto countChange = 0;
 	if (const auto row = findRow(now.user)) {
 		if (now.speaking && (!was || !was->speaking)) {
 			checkSpeakingRowPosition(row);
 		}
 		if (row->state() == Row::State::Invited) {
+			reorderIfInvitedBeforeIndex = row->absoluteIndex();
 			countChange = 1;
 		}
 		updateRow(row, &now);
@@ -759,24 +934,26 @@ void MembersController::updateRow(
 		if (row->speaking()) {
 			delegate()->peerListPrependRow(std::move(row));
 		} else {
-			static constexpr auto kInvited = Row::State::Invited;
-			const auto reorder = [&] {
-				const auto count = delegate()->peerListFullRowsCount();
-				if (!count) {
-					return false;
-				}
-				const auto row = delegate()->peerListRowAt(count - 1).get();
-				return (static_cast<Row*>(row)->state() == kInvited);
-			}();
+			reorderIfInvitedBeforeIndex = delegate()->peerListFullRowsCount();
 			delegate()->peerListAppendRow(std::move(row));
-			if (reorder) {
-				delegate()->peerListPartitionRows([](const PeerListRow &row) {
-					return static_cast<const Row&>(row).state() != kInvited;
-				});
-			}
 		}
 		delegate()->peerListRefreshRows();
 		countChange = 1;
+	}
+	static constexpr auto kInvited = Row::State::Invited;
+	const auto reorder = [&] {
+		const auto count = reorderIfInvitedBeforeIndex;
+		if (count <= 0) {
+			return false;
+		}
+		const auto row = delegate()->peerListRowAt(
+			reorderIfInvitedBeforeIndex - 1).get();
+		return (static_cast<Row*>(row)->state() == kInvited);
+	}();
+	if (reorder) {
+		delegate()->peerListPartitionRows([](const PeerListRow &row) {
+			return static_cast<const Row&>(row).state() != kInvited;
+		});
 	}
 	if (countChange) {
 		const auto fullCountMin = _fullCountMin.current() + countChange;
@@ -984,6 +1161,11 @@ auto MembersController::toggleMuteRequests() const
 	return _toggleMuteRequests.events();
 }
 
+auto MembersController::changeVolumeRequests() const
+-> rpl::producer<VolumeRequest> {
+	return _changeVolumeRequests.events();
+}
+
 bool MembersController::rowCanMuteMembers() {
 	return _peer->canManageGroupCall();
 }
@@ -997,11 +1179,12 @@ void MembersController::rowPaintIcon(
 		QRect rect,
 		float64 speaking,
 		float64 active,
-		float64 muted) {
+		float64 muted,
+		bool mutedByMe) {
 	const auto &greenIcon = st::groupCallMemberColoredCrossLine.icon;
 	const auto left = rect.x() + (rect.width() - greenIcon.width()) / 2;
 	const auto top = rect.y() + (rect.height() - greenIcon.height()) / 2;
-	if (speaking == 1.) {
+	if (speaking == 1. && !mutedByMe) {
 		// Just green icon, no cross, no coloring.
 		greenIcon.paintInCenter(p, rect);
 		return;
@@ -1029,7 +1212,9 @@ void MembersController::rowPaintIcon(
 	}
 	const auto activeInactiveColor = anim::color(
 		st::groupCallMemberInactiveIcon,
-		st::groupCallMemberActiveIcon,
+		(mutedByMe
+			? st::groupCallMemberMutedIcon
+			: st::groupCallMemberActiveIcon),
 		speaking);
 	const auto iconColor = anim::color(
 		activeInactiveColor,
@@ -1119,15 +1304,6 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		}
 		return false;
 	}();
-	const auto mute = admin
-		? (muteState == Row::State::Active)
-		: (muteState != Row::State::Muted);
-	const auto toggleMute = crl::guard(this, [=] {
-		_toggleMuteRequests.fire(MuteRequest{
-			.user = user,
-			.mute = mute,
-		});
-	});
 
 	const auto session = &user->session();
 	const auto getCurrentWindow = [=]() -> Window::SessionController* {
@@ -1178,15 +1354,10 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		_kickMemberRequests.fire_copy(user);
 	});
 
-	if ((muteState != Row::State::Invited)
-		&& _peer->canManageGroupCall()
-		&& (!admin || mute)) {
-		result->addAction(
-			(mute
-				? tr::lng_group_call_context_mute(tr::now)
-				: tr::lng_group_call_context_unmute(tr::now)),
-			toggleMute);
+	if (real->ssrc() != 0) {
+		addMuteActionsToContextMenu(result, user, real);
 	}
+
 	result->addAction(
 		tr::lng_context_view_profile(tr::now),
 		showProfile);
@@ -1210,6 +1381,111 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 			removeFromGroup);
 	}
 	return result;
+}
+
+void MembersController::addMuteActionsToContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<UserData*> user,
+		not_null<Row*> row) {
+	const auto muteString = [=] {
+		return (_peer->canManageGroupCall()
+			? tr::lng_group_call_context_mute
+			: tr::lng_group_call_context_mute_for_me)(tr::now);
+	};
+
+	const auto unmuteString = [=] {
+		return (_peer->canManageGroupCall()
+			? tr::lng_group_call_context_unmute
+			: tr::lng_group_call_context_unmute_for_me)(tr::now);
+	};
+
+	const auto toggleMute = crl::guard(this, [=](bool mute, bool local) {
+		_toggleMuteRequests.fire(Group::MuteRequest{
+			.user = user,
+			.mute = mute,
+			.locallyOnly = local,
+		});
+	});
+	const auto changeVolume = crl::guard(this, [=](
+			int volume,
+			bool local) {
+		_changeVolumeRequests.fire(Group::VolumeRequest{
+			.user = user,
+			.volume = std::clamp(volume, 1, Group::kMaxVolume),
+			.locallyOnly = local,
+		});
+	});
+
+	const auto muteState = row->state();
+	const auto isMuted = (muteState == Row::State::Muted)
+		|| (muteState == Row::State::MutedByMe);
+
+	auto mutesFromVolume = rpl::never<bool>() | rpl::type_erased();
+
+	if (!isMuted) {
+		const auto call = _call.get();
+		auto otherParticipantStateValue = call
+			? call->otherParticipantStateValue(
+				) | rpl::filter([=](const Group::ParticipantState &data) {
+					return data.user == user;
+				})
+			: rpl::never<Group::ParticipantState>() | rpl::type_erased();
+
+		auto volumeItem = base::make_unique_q<MenuVolumeItem>(
+			menu,
+			st::groupCallPopupMenu.menu,
+			otherParticipantStateValue,
+			row->volume(),
+			Group::kMaxVolume,
+			isMuted);
+
+		mutesFromVolume = volumeItem->toggleMuteRequests();
+
+		volumeItem->toggleMuteRequests(
+		) | rpl::start_with_next([=](bool muted) {
+			toggleMute(muted, false);
+		}, volumeItem->lifetime());
+
+		volumeItem->toggleMuteLocallyRequests(
+		) | rpl::start_with_next([=](bool muted) {
+			toggleMute(muted, true);
+		}, volumeItem->lifetime());
+
+		volumeItem->changeVolumeRequests(
+		) | rpl::start_with_next([=](int volume) {
+			changeVolume(volume, false);
+		}, volumeItem->lifetime());
+
+		volumeItem->changeVolumeLocallyRequests(
+		) | rpl::start_with_next([=](int volume) {
+			changeVolume(volume, true);
+		}, volumeItem->lifetime());
+
+		menu->addAction(std::move(volumeItem));
+	};
+
+	const auto muteAction = [&]() -> QAction* {
+		if (muteState == Row::State::Invited) {
+			return nullptr;
+		}
+		auto callback = [=] {
+			const auto state = row->state();
+			const auto muted = (state == Row::State::Muted)
+				|| (state == Row::State::MutedByMe);
+			toggleMute(!muted, false);
+		};
+		return menu->addAction(
+			isMuted ? unmuteString() : muteString(),
+			std::move(callback));
+	}();
+
+	if (muteAction) {
+		std::move(
+			mutesFromVolume
+		) | rpl::start_with_next([=](bool muted) {
+			muteAction->setText(muted ? unmuteString() : muteString());
+		}, menu->lifetime());
+	}
 }
 
 std::unique_ptr<Row> MembersController::createSelfRow() {
@@ -1238,6 +1514,7 @@ std::unique_ptr<Row> MembersController::createInvitedRow(
 
 } // namespace
 
+
 GroupMembers::GroupMembers(
 	not_null<QWidget*> parent,
 	not_null<GroupCall*> call)
@@ -1253,9 +1530,15 @@ GroupMembers::GroupMembers(
 }
 
 auto GroupMembers::toggleMuteRequests() const
--> rpl::producer<GroupMembers::MuteRequest> {
+-> rpl::producer<Group::MuteRequest> {
 	return static_cast<MembersController*>(
 		_listController.get())->toggleMuteRequests();
+}
+
+auto GroupMembers::changeVolumeRequests() const
+-> rpl::producer<Group::VolumeRequest> {
+	return static_cast<MembersController*>(
+		_listController.get())->changeVolumeRequests();
 }
 
 auto GroupMembers::kickMemberRequests() const
