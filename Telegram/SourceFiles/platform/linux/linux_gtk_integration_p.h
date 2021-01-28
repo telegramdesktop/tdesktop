@@ -149,6 +149,7 @@ inline bool g_type_cit_helper(Object *instance, GType iface_type) {
 inline gint (*gtk_dialog_run)(GtkDialog *dialog) = nullptr;
 inline GdkAtom (*gdk_atom_intern)(const gchar *atom_name, gboolean only_if_exists) = nullptr;
 inline GdkDisplay* (*gdk_display_get_default)(void) = nullptr;
+inline GdkMonitor* (*gdk_display_get_monitor)(GdkDisplay *display, int monitor_num) = nullptr;
 inline GdkMonitor* (*gdk_display_get_primary_monitor)(GdkDisplay *display) = nullptr;
 inline int (*gdk_monitor_get_scale_factor)(GdkMonitor *monitor) = nullptr;
 inline GdkPixbuf* (*gdk_pixbuf_new_from_file_at_size)(const gchar *filename, int width, int height, GError **error) = nullptr;
