@@ -20,7 +20,7 @@ namespace {
 
 constexpr auto kMaxVolumePercent = 200;
 
-constexpr auto kSpeakerThreshold = {
+const auto kSpeakerThreshold = std::vector<float>{
 	10.0f / kMaxVolumePercent,
 	50.0f / kMaxVolumePercent,
 	150.0f / kMaxVolumePercent };

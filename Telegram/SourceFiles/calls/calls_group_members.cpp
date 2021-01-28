@@ -47,7 +47,7 @@ constexpr auto kUserpicMinScale = 0.8;
 constexpr auto kMaxLevel = 1.;
 constexpr auto kWideScale = 5;
 
-constexpr auto kSpeakerThreshold = {
+const auto kSpeakerThreshold = std::vector<float>{
 	Group::kDefaultVolume * 0.1f / Group::kMaxVolume,
 	Group::kDefaultVolume * 0.9f / Group::kMaxVolume };
 
@@ -1420,7 +1420,7 @@ void MembersController::addMuteActionsToContextMenu(
 	const auto isMuted = (muteState == Row::State::Muted)
 		|| (muteState == Row::State::MutedByMe);
 
-	auto mutesFromVolume = rpl::never<bool>();
+	auto mutesFromVolume = rpl::never<bool>() | rpl::type_erased();
 
 	if (!isMuted) {
 		const auto call = _call.get();
@@ -1429,7 +1429,7 @@ void MembersController::addMuteActionsToContextMenu(
 				) | rpl::filter([=](const Group::ParticipantState &data) {
 					return data.user == user;
 				})
-			: rpl::never<Group::ParticipantState>();
+			: rpl::never<Group::ParticipantState>() | rpl::type_erased();
 
 		auto volumeItem = base::make_unique_q<MenuVolumeItem>(
 			menu,
