@@ -394,7 +394,9 @@ void Row::setSpeaking(bool speaking) {
 		_speaking ? 1. : 0.,
 		st::widgetFadeDuration);
 
-	if (!_speaking || (_state == State::MutedByMe)) {
+	if (!_speaking
+		|| (_state == State::MutedByMe)
+		|| (_state == State::Muted)) {
 		_statusIcon = nullptr;
 	} else if (!_statusIcon) {
 		_statusIcon = std::make_unique<StatusIcon>(

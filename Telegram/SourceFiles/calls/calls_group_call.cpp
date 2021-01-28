@@ -411,8 +411,11 @@ void GroupCall::applyParticipantLocally(
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (volume.has_value() ? Flag::f_volume : Flag(0))
 		| (participant->lastActive ? Flag::f_active_date : Flag(0))
-		| (mute ? Flag::f_muted : Flag(0))
-		| (participant->mutedByMe ? Flag::f_muted_by_you : Flag(0));
+		| (!mute
+			? Flag(0)
+			: user->canManageGroupCall()
+			? Flag::f_muted
+			: Flag::f_muted_by_you);
 	_peer->groupCall()->applyUpdateChecked(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
