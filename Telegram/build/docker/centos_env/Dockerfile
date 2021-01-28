@@ -479,6 +479,8 @@ RUN git submodule update qtbase qtwayland qtimageformats qtsvg
 
 WORKDIR qtbase
 RUN find ../../patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
+WORKDIR ../qtwayland
+RUN find ../../patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
 WORKDIR ..
 
 # I couldn't make it work with direct ./configure call :(
