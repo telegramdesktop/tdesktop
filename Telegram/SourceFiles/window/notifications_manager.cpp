@@ -106,6 +106,12 @@ System::SkipState System::skipNotification(
 	}
 	const auto scheduled = item->out() && item->isFromScheduled();
 
+	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		if (forwarded->imported) {
+			return { SkipState::Skip };
+		}
+	}
+
 	history->owner().requestNotifySettings(history->peer);
 	if (notifyBy) {
 		history->owner().requestNotifySettings(notifyBy);
