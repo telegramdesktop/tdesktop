@@ -2728,6 +2728,12 @@ void Message::initTime() {
 	} else if (const auto edited = displayedEditBadge()) {
 		item->_timeWidth = edited->maxWidth();
 	} else {
+		QString msgId;
+		if (item->fullId().msg > 0)
+			msgId = " (" + QString::number(item->fullId().msg) + ")";
+		else
+			msgId = "";
+
 		const auto forwarded = item->Get<HistoryMessageForwarded>();
 		if (forwarded && forwarded->imported) {
 			const auto date = base::unixtime::parse(forwarded->originalDate);
@@ -2737,6 +2743,7 @@ void Message::initTime() {
 		} else {
 			item->_timeText = dateTime().toString(cTimeFormat());
 		}
+		item->_timeText += (cShowMessagesID() ? msgId : "");
 		item->_timeWidth = st::msgDateFont->width(item->_timeText);
 	}
 	if (item->_text.hasSkipBlock()) {
