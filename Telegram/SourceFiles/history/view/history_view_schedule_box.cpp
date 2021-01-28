@@ -90,7 +90,6 @@ void ScheduleBox(
 		[=] { return SendMenu::Type::SilentOnly; },
 		[=] { save(true, descriptor.collect()); },
 		nullptr);
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 
 	if (type == SendMenu::Type::ScheduledToUser) {
 		const auto sendUntilOnline = box->addTopButton(st::infoTopBarMenu);
