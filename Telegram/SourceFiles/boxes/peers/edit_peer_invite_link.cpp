@@ -537,7 +537,8 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 			App::wnd()->sessionController(),
 			std::move(copyCallback),
 			std::move(submitCallback),
-			std::move(filterCallback)),
+			std::move(filterCallback),
+			tr::lng_profile_invite_link_section()),
 		Ui::LayerOption::KeepOther);
 }
 
