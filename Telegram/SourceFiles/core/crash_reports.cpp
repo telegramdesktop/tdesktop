@@ -318,12 +318,36 @@ bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, 
 #endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
 
 } // namespace
+if (Platform::IsWindowsStoreBuild()) {
+	return Platform::IsWindows64Bit()
+		? "WinStore64Bit"
+		: "WinStore32Bit";
+} else if (Platform::IsWindows32Bit()) {
+	return "Windows32Bit";
+} else if (Platform::IsWindows64Bit()) {
+	return "Windows64Bit";
+} else if (Platform::IsMacStoreBuild()) {
+	return "MacAppStore";
+} else if (Platform::IsOSXBuild()) {
+	return "OSX";
+} else if (Platform::IsMac()) {
+	return "MacOS";
+} else if (Platform::IsLinux32Bit()) {
+	return "Linux32Bit";
+} else if (Platform::IsLinux64Bit()) {
+	return "Linux64bit";
+}
+Unexpected("Platform in CrashReports::PlatformString.");
 
 QString PlatformString() {
 	if (Platform::IsWindowsStoreBuild()) {
-		return qsl("WinStore");
-	} else if (Platform::IsWindows()) {
-		return qsl("Windows");
+		return Platform::IsWindows64Bit()
+			? qsl("WinStore64Bit")
+			: qsl("WinStore32Bit");
+	} else if (Platform::IsWindows32Bit()) {
+		return qsl("Windows32Bit");
+	} else if (Platform::IsWindows64Bit()) {
+		return qsl("Windows64Bit");
 	} else if (Platform::IsMacStoreBuild()) {
 		return qsl("MacAppStore");
 	} else if (Platform::IsOSXBuild()) {
