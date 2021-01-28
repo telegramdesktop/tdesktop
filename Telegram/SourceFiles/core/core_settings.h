@@ -507,10 +507,15 @@ public:
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] float64 DefaultDialogsWidthRatio();
 	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
-		return int(std::round(std::clamp(speed * 4., 2., 8.))) - 2;
+		return int(std::round(std::clamp(speed, 0.5, 2.0) * 100));
 	}
 	[[nodiscard]] static float64 DeserializePlaybackSpeed(qint32 speed) {
-		return (std::clamp(speed, 0, 6) + 2) / 4.;
+		if (speed < 10) {
+			// The old values in settings.
+			return (std::clamp(speed, 0, 6) + 2) / 4.;
+		} else {
+			return std::clamp(speed, 50, 200) / 100.;
+		}
 	}
 
 	void resetOnLastLogout();

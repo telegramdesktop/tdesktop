@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/effects/fade_animation.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/menu/menu_item_base.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
@@ -21,6 +22,166 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media {
 namespace View {
+namespace {
+
+constexpr auto kMinSpeed = 50;
+constexpr auto kMaxSpeed = 200;
+
+constexpr float64 SpeedShiftToValue(float64 value) {
+	const auto valueAsSpeedF = value * 100.;
+	const auto valueAsSpeed = int(valueAsSpeedF + 0.5); // constexpr round.
+	return float64(valueAsSpeed) / (kMaxSpeed - kMinSpeed);
+};
+
+constexpr float64 SpeedToValue(float64 value) {
+	const auto valueAsSpeedF = value * 100.;
+	const auto valueAsSpeed = int(valueAsSpeedF + 0.5); // constexpr round.
+	return float64(valueAsSpeed - kMinSpeed) / (kMaxSpeed - kMinSpeed);
+};
+
+constexpr auto kSpeedStickedValues =
+	std::array<std::pair<float64, float64>, 5>{{
+		{ SpeedToValue(0.75), SpeedShiftToValue(0.03) },
+		{ SpeedToValue(1.00), SpeedShiftToValue(0.05) },
+		{ SpeedToValue(1.25), SpeedShiftToValue(0.03) },
+		{ SpeedToValue(1.50), SpeedShiftToValue(0.03) },
+		{ SpeedToValue(1.75), SpeedShiftToValue(0.03) },
+	}};
+
+class MenuSpeedItem final : public Ui::Menu::ItemBase {
+public:
+	MenuSpeedItem(
+		not_null<RpWidget*> parent,
+		const style::Menu &st,
+		float64 startSpeed);
+
+	not_null<QAction*> action() const override;
+	bool isEnabled() const override;
+
+	[[nodiscard]] rpl::producer<float64> changeSpeedRequests() const;
+
+protected:
+	int contentHeight() const override;
+
+private:
+	QRect _itemRect;
+	QRect _textRect;
+
+	const style::MediaSlider &_sliderSt;
+	const base::unique_qptr<Ui::MediaSlider> _slider;
+	const not_null<QAction*> _dummyAction;
+	const int _height;
+
+	rpl::event_stream<float64> _changeSpeedRequests;
+
+};
+
+MenuSpeedItem::MenuSpeedItem(
+	not_null<RpWidget*> parent,
+	const style::Menu &st,
+	float64 startSpeed)
+: Ui::Menu::ItemBase(parent, st)
+, _sliderSt(st::mediaviewPlayback)
+, _slider(base::make_unique_q<Ui::MediaSlider>(
+	this,
+	_sliderSt))
+, _dummyAction(new QAction(parent))
+, _height(st.itemPadding.top() * 2
+	+ st.itemStyle.font->height
+	+ _sliderSt.seekSize.height()
+	+ st.itemPadding.bottom() * 2) {
+
+	initResizeHook(parent->sizeValue());
+	enableMouseSelecting();
+	enableMouseSelecting(_slider.get());
+
+	const auto computeSpeed = [=](float64 value) {
+		return anim::interpolate(kMinSpeed, kMaxSpeed, value) / 100.;
+	};
+	const auto speedString = [=](float64 value) {
+		return u"%1: %2x"_q
+			.arg(tr::lng_mediaview_playback_speed(tr::now))
+			.arg(computeSpeed(value));
+	};
+
+	_slider->setAlwaysDisplayMarker(true);
+	_slider->setValue((std::round(startSpeed * 100.) - kMinSpeed)
+		/ (kMaxSpeed - kMinSpeed));
+
+	_slider->addDivider(
+		kSpeedStickedValues[1].first,
+		st::speedSliderDividerSize);
+
+	{
+		const auto goodWidth = st.itemPadding.left()
+			+ st.itemPadding.right()
+			+ st.itemStyle.font->width(speedString(0.9));
+		setMinWidth(std::clamp(goodWidth, st.widthMin, st.widthMax));
+	}
+
+	sizeValue(
+	) | rpl::start_with_next([=](const QSize &size) {
+		const auto geometry = QRect(QPoint(), size);
+		_itemRect = geometry - st.itemPadding;
+
+		const auto height = _itemRect.height();
+		_textRect = _itemRect
+			- style::margins(0, 0, 0, height - st.itemStyle.font->height);
+
+		const auto sliderGeometry = _itemRect
+			- style::margins(0, height - _sliderSt.seekSize.height(), 0, 0);
+		_slider->setGeometry(sliderGeometry);
+	}, lifetime());
+
+	paintRequest(
+	) | rpl::start_with_next([=](const QRect &clip) {
+		Painter p(this);
+
+		const auto selected = isSelected();
+		p.fillRect(clip, selected ? st.itemBgOver : st.itemBg);
+
+		const auto value = _slider->value();
+
+		p.setFont(st.itemStyle.font);
+		p.drawText(_textRect, speedString(value), style::al_left);
+	}, lifetime());
+
+	_slider->setChangeProgressCallback([=](float64 value) {
+		update(_textRect);
+	});
+
+	_slider->setChangeFinishedCallback([=](float64 value) {
+		_changeSpeedRequests.fire_copy(computeSpeed(value));
+	});
+
+	_slider->setAdjustCallback([=](float64 value) {
+		for (const auto &snap : kSpeedStickedValues) {
+			if (value > (snap.first - snap.second)
+				&& value < (snap.first + snap.second)) {
+				return snap.first;
+			}
+		}
+		return value;
+	});
+}
+
+not_null<QAction*> MenuSpeedItem::action() const {
+	return _dummyAction;
+}
+
+bool MenuSpeedItem::isEnabled() const {
+	return true;
+}
+
+int MenuSpeedItem::contentHeight() const {
+	return _height;
+}
+
+rpl::producer<float64> MenuSpeedItem::changeSpeedRequests() const {
+	return _changeSpeedRequests.events();
+}
+
+} // namespace
 
 PlaybackControls::PlaybackControls(
 	QWidget *parent,
@@ -37,7 +198,7 @@ PlaybackControls::PlaybackControls(
 , _pictureInPicture(this, st::mediaviewPipButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)
 , _toPlayLeft(this, st::mediaviewPlayProgressLabel)
-, _speedMenuStyle(st::mediaviewControlsPopupMenu)
+, _menuStyle(st::mediaviewControlsPopupMenu)
 , _fadeAnimation(std::make_unique<Ui::FadeAnimation>(this)) {
 	_fadeAnimation->show();
 	_fadeAnimation->setFinishedCallback([=] {
@@ -175,61 +336,32 @@ void PlaybackControls::fadeUpdated(float64 opacity) {
 	_volumeController->setFadeOpacity(opacity);
 }
 
-void PlaybackControls::validateSpeedMenuStyle() {
-	auto &st = _speedMenuStyle.menu;
-	const auto &check = st::mediaviewMenuCheck;
-	const auto normal = tr::lng_mediaview_playback_speed_normal(tr::now);
-	const auto itemHeight = st.itemPadding.top()
-		+ st.itemStyle.font->height
-		+ st.itemPadding.bottom();
-	const auto itemWidth = st.itemPadding.left()
-		+ st.itemStyle.font->width(normal)
-		+ st.itemPadding.right();
-	if (itemWidth + st.itemPadding.right() + check.width() > st.widthMin) {
-		st.widthMin = itemWidth + st.itemPadding.right() + check.width();
-	}
-	const auto realWidth = std::clamp(itemWidth, st.widthMin, st.widthMax);
-	st.itemIconPosition = QPoint(
-		realWidth - st.itemPadding.right() - check.width(),
-		(itemHeight - check.height()) / 2);
-}
-
 void PlaybackControls::showMenu() {
 	if (_menu) {
 		_menu = nullptr;
 		return;
 	}
 
-	validateSpeedMenuStyle();
+	_menu.emplace(this, _menuStyle);
 
-	auto submenu = std::make_unique<Ui::PopupMenu>(
-		this,
-		_speedMenuStyle);
-	const auto addSpeed = [&](float64 speed, QString text = QString()) {
-		if (text.isEmpty()) {
-			text = QString::number(speed);
-		}
-		const auto checked = (speed == _delegate->playbackControlsCurrentSpeed());
-		const auto action = submenu->addAction(
-			text,
-			[=] { updatePlaybackSpeed(speed); },
-			checked ? &st::mediaviewMenuCheck : nullptr);
-	};
-	addSpeed(0.5);
-	addSpeed(0.75);
-	addSpeed(1., tr::lng_mediaview_playback_speed_normal(tr::now));
-	addSpeed(1.25);
-	addSpeed(1.5);
-	addSpeed(1.75);
-	addSpeed(2.);
-	_menu.emplace(this, st::mediaviewControlsPopupMenu);
+	{
+		auto speedItem = base::make_unique_q<MenuSpeedItem>(
+			_menu,
+			_menuStyle.menu,
+			_delegate->playbackControlsCurrentSpeed());
+		speedItem->changeSpeedRequests(
+		) | rpl::start_with_next([=](float64 speed) {
+			updatePlaybackSpeed(speed);
+		}, speedItem->lifetime());
+		_menu->addAction(std::move(speedItem));
+	}
+
+	_menu->addSeparator();
+
 	_menu->addAction(tr::lng_mediaview_rotate_video(tr::now), [=] {
 		_delegate->playbackControlsRotate();
 	});
-	_menu->addSeparator();
-	_menu->addAction(
-		tr::lng_mediaview_playback_speed(tr::now),
-		std::move(submenu));
+
 	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::BottomLeft);
 	_menu->popup(mapToGlobal(_menuToggle->geometry().topLeft()));
 }
