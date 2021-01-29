@@ -631,6 +631,8 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 				setMuted(MuteState::ForceMuted);
 			} else if (muted() == MuteState::ForceMuted) {
 				setMuted(MuteState::Muted);
+			} else if (data.is_muted() && muted() != MuteState::Muted) {
+				setMuted(MuteState::Muted);
 			}
 		});
 	}
