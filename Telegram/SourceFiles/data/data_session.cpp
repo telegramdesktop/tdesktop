@@ -1417,9 +1417,23 @@ rpl::producer<Session::IdChange> Session::itemIdChanged() const {
 
 void Session::requestItemRepaint(not_null<const HistoryItem*> item) {
 	_itemRepaintRequest.fire_copy(item);
-	enumerateItemViews(item, [&](not_null<const ViewElement*> view) {
-		requestViewRepaint(view);
-	});
+	auto repaintGroupLeader = false;
+	auto repaintView = [&](not_null<const ViewElement*> view) {
+		if (view->isHiddenByGroup()) {
+			repaintGroupLeader = true;
+		} else {
+			requestViewRepaint(view);
+		}
+	};
+	enumerateItemViews(item, repaintView);
+	if (repaintGroupLeader) {
+		if (const auto group = groups().find(item)) {
+			const auto leader = group->items.front();
+			if (leader != item) {
+				enumerateItemViews(leader, repaintView);
+			}
+		}
+	}
 }
 
 rpl::producer<not_null<const HistoryItem*>> Session::itemRepaintRequest() const {
