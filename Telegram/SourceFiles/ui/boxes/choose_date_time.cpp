@@ -694,6 +694,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 	auto result = ChooseDateTimeBoxDescriptor();
 	box->setFocusCallback([=] { timeInput->setFocusFast(); });
 	result.submit = box->addButton(std::move(submit), save);
+	result.collect = collect;
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 
 	return result;
