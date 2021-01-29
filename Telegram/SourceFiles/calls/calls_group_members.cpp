@@ -660,13 +660,13 @@ void Row::paintStatusText(
 		int availableWidth,
 		int outerWidth,
 		bool selected) {
-	p.save();
 	const auto &font = st::normalFont;
-	paintStatusIcon(p, st, font, selected);
-	const auto translatedWidth = statusIconWidth();
-	p.translate(translatedWidth, 0);
-	const auto guard = gsl::finally([&] { p.restore(); });
 	if (_state != State::Invited && _state != State::MutedByMe) {
+		p.save();
+		paintStatusIcon(p, st, font, selected);
+		const auto translatedWidth = statusIconWidth();
+		p.translate(translatedWidth, 0);
+		const auto guard = gsl::finally([&] { p.restore(); });
 		PeerListRow::paintStatusText(
 			p,
 			st,
