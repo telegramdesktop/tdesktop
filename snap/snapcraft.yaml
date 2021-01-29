@@ -325,6 +325,7 @@ parts:
       - libpng16-16
       - libssl1.1
       - libwayland-client0
+      - libwayland-cursor0
       - libwayland-egl1
       - libx11-6
       - libx11-xcb1
@@ -380,6 +381,8 @@ parts:
         -confirm-license \
         -no-gtk \
         -no-feature-xcb-sm \
+        -no-feature-xcomposite-egl \
+        -no-feature-xcomposite-glx \
         -no-feature-wayland-server \
         -openssl-linked \
         -nomake examples \
