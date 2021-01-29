@@ -295,6 +295,7 @@ private:
 	void addMuteActionsToContextMenu(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<UserData*> user,
+		bool userIsCallAdmin,
 		not_null<Row*> row);
 	void setupListChangeViewers(not_null<GroupCall*> call);
 	void subscribeToChanges(not_null<Data::GroupCall*> real);
@@ -1356,7 +1357,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 	});
 
 	if (real->ssrc() != 0) {
-		addMuteActionsToContextMenu(result, user, real);
+		addMuteActionsToContextMenu(result, user, admin, real);
 	}
 
 	if (!user->isSelf()) {
@@ -1389,6 +1390,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 void MembersController::addMuteActionsToContextMenu(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<UserData*> user,
+		bool userIsCallAdmin,
 		not_null<Row*> row) {
 	const auto muteString = [=] {
 		return (_peer->canManageGroupCall()
@@ -1446,6 +1448,13 @@ void MembersController::addMuteActionsToContextMenu(
 
 		volumeItem->toggleMuteRequests(
 		) | rpl::start_with_next([=](bool muted) {
+			if (muted) {
+				// Slider value is changed after the callback is called.
+				// To capture good state inside the slider frame we postpone.
+				crl::on_main(menu, [=] {
+					menu->hideMenu();
+				});
+			}
 			toggleMute(muted, false);
 		}, volumeItem->lifetime());
 
@@ -1472,7 +1481,9 @@ void MembersController::addMuteActionsToContextMenu(
 	};
 
 	const auto muteAction = [&]() -> QAction* {
-		if (muteState == Row::State::Invited || user->isSelf()) {
+		if (muteState == Row::State::Invited
+			|| user->isSelf()
+			|| (userIsCallAdmin && row->state() != Row::State::Active)) {
 			return nullptr;
 		}
 		auto callback = [=] {
