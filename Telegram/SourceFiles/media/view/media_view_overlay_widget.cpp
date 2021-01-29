@@ -444,7 +444,13 @@ void OverlayWidget::moveToScreen() {
 	const auto activeWindowScreen = widgetScreen(window);
 	const auto myScreen = widgetScreen(this);
 	if (activeWindowScreen && myScreen != activeWindowScreen) {
+		const auto screenList = QGuiApplication::screens();
+		DEBUG_LOG(("Viewer Pos: Currently on screen %1, moving to screen %2")
+			.arg(screenList.indexOf(myScreen))
+			.arg(screenList.indexOf(activeWindowScreen)));
 		windowHandle()->setScreen(activeWindowScreen);
+		DEBUG_LOG(("Viewer Pos: New actual screen: %1")
+			.arg(screenList.indexOf(windowHandle->screen())));
 	}
 	updateGeometry();
 }
@@ -1313,14 +1319,24 @@ void OverlayWidget::onScreenResized(int screen) {
 
 void OverlayWidget::handleVisibleChanged(bool visible) {
 	if (visible) {
+		const auto screenList = QGuiApplication::screens();
+		DEBUG_LOG(("Viewer Pos: Shown, screen number: %1")
+			.arg(screenList.indexOf(windowHandle->screen())));
+
 		moveToScreen();
 	}
 }
 
 void OverlayWidget::handleScreenChanged(QScreen *screen) {
-	if (isVisible()) {
-		moveToScreen();
+	if (!isVisible()) {
+		return;
 	}
+
+	const auto screenList = QGuiApplication::screens();
+	DEBUG_LOG(("Viewer Pos: Screen changed to: %1")
+		.arg(screenList.indexOf(screen)));
+
+	moveToScreen();
 }
 
 void OverlayWidget::onToMessage() {
