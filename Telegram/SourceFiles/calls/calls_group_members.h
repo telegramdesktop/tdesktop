@@ -51,10 +51,6 @@ public:
 private:
 	using ListWidget = PeerListContent;
 
-	void visibleTopBottomUpdated(
-		int visibleTop,
-		int visibleBottom) override;
-
 	void resizeEvent(QResizeEvent *e) override;
 
 	// PeerListContentDelegate interface.

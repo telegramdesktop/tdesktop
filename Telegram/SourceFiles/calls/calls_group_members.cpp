@@ -1483,7 +1483,9 @@ void MembersController::addMuteActionsToContextMenu(
 	const auto muteAction = [&]() -> QAction* {
 		if (muteState == Row::State::Invited
 			|| user->isSelf()
-			|| (userIsCallAdmin && row->state() != Row::State::Active)) {
+			|| (muteState == Row::State::Muted
+				&& userIsCallAdmin
+				&& _peer->canManageGroupCall())) {
 			return nullptr;
 		}
 		auto callback = [=] {
@@ -1653,6 +1655,13 @@ void GroupMembers::setupList() {
 		resizeToList();
 	}, _list->lifetime());
 
+	rpl::combine(
+		_scroll->scrollTopValue(),
+		_scroll->heightValue()
+	) | rpl::start_with_next([=](int scrollTop, int scrollHeight) {
+		_list->setVisibleTopBottom(scrollTop, scrollTop + scrollHeight);
+	}, _scroll->lifetime());
+
 	updateControlsGeometry();
 }
 
@@ -1752,12 +1761,6 @@ void GroupMembers::setupFakeRoundCorners() {
 		bottomleft->update();
 		bottomright->update();
 	}, lifetime());
-}
-
-void GroupMembers::visibleTopBottomUpdated(
-		int visibleTop,
-		int visibleBottom) {
-	setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
 }
 
 void GroupMembers::peerListSetTitle(rpl::producer<QString> title) {
