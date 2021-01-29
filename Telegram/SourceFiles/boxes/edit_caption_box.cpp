@@ -963,7 +963,7 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 			}
 
 			const auto icon = &(_isAudio
-				? st::historyFileSongPlay
+				? (_thumbw ? st::historyFileSongPlay : st::historyFileInPlay)
 				: _isImage
 				? st::historyFileInImage
 				: st::historyFileInDocument);
