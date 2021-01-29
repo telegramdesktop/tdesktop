@@ -41,6 +41,7 @@ if %Build64% neq 0 (
     echo Bad environment. Make sure to run from 'x64 Native Tools Command Prompt for VS 2019'.
     exit /b
   )
+  set "DumpSymsPath=%SolutionPath%\..\..\Libraries\win64\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 ) else (
   if "%Platform%" neq "x86" (
     echo Bad environment. Make sure to run from 'x86 Native Tools Command Prompt for VS 2019'.
@@ -52,6 +53,7 @@ if %Build64% neq 0 (
     echo Bad environment. Make sure to run from 'x86 Native Tools Command Prompt for VS 2019'.
     exit /b
   )
+  set "DumpSymsPath=%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 )
 
 FOR /F "tokens=1,2* delims= " %%i in (%FullScriptPath%version) do set "%%i=%%j"
@@ -164,13 +166,13 @@ echo.
 echo Version %AppVersionStrFull% build successfull. Preparing..
 echo.
 
-if not exist "%SolutionPath%\..\..\Libraries\win64\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" (
+if not exist "%DumpSymsPath%" (
   echo Utility dump_syms not found!
   exit /b 1
 )
 
 echo Dumping debug symbols..
-call "%SolutionPath%\..\..\Libraries\win64\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" "%ReleasePath%\%BinaryName%.pdb" > "%ReleasePath%\%BinaryName%.sym"
+call "%DumpSymsPath%" "%ReleasePath%\%BinaryName%.pdb" > "%ReleasePath%\%BinaryName%.sym"
 echo Done!
 
 set "PATH=%PATH%;C:\Program Files\7-Zip;C:\Program Files (x86)\Inno Setup 5"
