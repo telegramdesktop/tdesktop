@@ -450,7 +450,9 @@ void OverlayWidget::moveToScreen() {
 			.arg(screenList.indexOf(activeWindowScreen)));
 		windowHandle()->setScreen(activeWindowScreen);
 		DEBUG_LOG(("Viewer Pos: New actual screen: %1")
-			.arg(screenList.indexOf(windowHandle->screen())));
+			.arg(windowHandle()
+				? screenList.indexOf(windowHandle()->screen())
+				: -2));
 	}
 	updateGeometry();
 }
@@ -1321,7 +1323,9 @@ void OverlayWidget::handleVisibleChanged(bool visible) {
 	if (visible) {
 		const auto screenList = QGuiApplication::screens();
 		DEBUG_LOG(("Viewer Pos: Shown, screen number: %1")
-			.arg(screenList.indexOf(windowHandle->screen())));
+			.arg(windowHandle()
+				? screenList.indexOf(windowHandle()->screen())
+				: -2));
 
 		moveToScreen();
 	}
