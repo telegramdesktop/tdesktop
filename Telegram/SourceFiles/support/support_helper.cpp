@@ -155,7 +155,7 @@ Data::Draft OccupiedDraft(const QString &normalizedName) {
 			+ normalizedName },
 		MsgId(0),
 		MessageCursor(),
-		false
+		Data::PreviewState::Allowed
 	};
 }
 

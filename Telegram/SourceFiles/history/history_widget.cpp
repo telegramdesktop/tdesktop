@@ -174,6 +174,7 @@ HistoryWidget::HistoryWidget(
 , _updateEditTimeLeftDisplay([=] { updateField(); })
 , _fieldBarCancel(this, st::historyReplyCancel)
 , _previewTimer([=] { requestPreview(); })
+, _previewState(Data::PreviewState::Allowed)
 , _topBar(this, controller)
 , _scroll(this, st::historyScroll, false)
 , _updateHistoryItems([=] { updateHistoryItemsByTimer(); })
@@ -335,6 +336,10 @@ HistoryWidget::HistoryWidget(
 	_fieldLinksParser = std::make_unique<MessageLinksParser>(_field);
 	_fieldLinksParser->list().changes(
 	) | rpl::start_with_next([=](QStringList &&parsed) {
+		if (_previewState == Data::PreviewState::EmptyOnEdit
+			&& _parsedLinks != parsed) {
+			_previewState = Data::PreviewState::Allowed;
+		}
 		_parsedLinks = std::move(parsed);
 		checkPreview();
 	}, lifetime());
@@ -1328,7 +1333,7 @@ void HistoryWidget::fieldChanged() {
 
 	updateSendButtonType();
 	if (!HasSendText(_field)) {
-		_previewCancelled = false;
+		_previewState = Data::PreviewState::Allowed;
 	}
 	if (updateCmdStartShown()) {
 		updateControlsVisibility();
@@ -1377,10 +1382,17 @@ void HistoryWidget::saveFieldToHistoryLocalDraft() {
 	if (!_history) return;
 
 	if (_editMsgId) {
-		_history->setLocalEditDraft(std::make_unique<Data::Draft>(_field, _editMsgId, _previewCancelled, _saveEditMsgRequestId));
+		_history->setLocalEditDraft(std::make_unique<Data::Draft>(
+			_field,
+			_editMsgId,
+			_previewState,
+			_saveEditMsgRequestId));
 	} else {
 		if (_replyToId || !_field->empty()) {
-			_history->setLocalDraft(std::make_unique<Data::Draft>(_field, _replyToId, _previewCancelled));
+			_history->setLocalDraft(std::make_unique<Data::Draft>(
+				_field,
+				_replyToId,
+				_previewState));
 		} else {
 			_history->clearLocalDraft();
 		}
@@ -1401,7 +1413,7 @@ void HistoryWidget::writeDraftTexts() {
 		Storage::MessageDraft{
 			_editMsgId ? _editMsgId : _replyToId,
 			_field->getTextWithTags(),
-			_previewCancelled,
+			_previewState,
 		});
 	if (_migrated) {
 		_migrated->clearDrafts();
@@ -1476,7 +1488,11 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 		if (_history) {
 			TextWithTags textWithTags = { '@' + samePeerBot->username + ' ' + query, TextWithTags::Tags() };
 			MessageCursor cursor = { textWithTags.text.size(), textWithTags.text.size(), QFIXED_MAX };
-			_history->setLocalDraft(std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
+			_history->setLocalDraft(std::make_unique<Data::Draft>(
+				textWithTags,
+				0,
+				cursor,
+				Data::PreviewState::Allowed));
 			applyDraft();
 			return true;
 		}
@@ -1497,7 +1513,7 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 			textWithTags,
 			to.currentReplyToId,
 			cursor,
-			false);
+			Data::PreviewState::Allowed);
 
 		if (to.section == Section::Replies) {
 			history->setDraft(
@@ -1653,8 +1669,15 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	setFieldText(draft->textWithTags, 0, fieldHistoryAction);
 	_field->setFocus();
 	draft->cursor.applyTo(_field);
-	_textUpdateEvents = TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping;
-	_previewCancelled = draft->previewCancelled;
+	_textUpdateEvents = TextUpdateEvent::SaveDraft
+		| TextUpdateEvent::SendTyping;
+
+	// Save links from _field to _parsedLinks without generating preview.
+	_previewState = Data::PreviewState::Cancelled;
+	_fieldLinksParser->parseNow();
+	_parsedLinks = _fieldLinksParser->list().current();
+	_previewState = draft->previewState;
+
 	_replyEditMsg = nullptr;
 	if (const auto editDraft = _history->localEditDraft()) {
 		_editMsgId = editDraft->msgId;
@@ -2986,7 +3009,7 @@ void HistoryWidget::saveEditMsg() {
 		cancelEdit();
 		return;
 	}
-	const auto webPageId = _previewCancelled
+	const auto webPageId = (_previewState != Data::PreviewState::Allowed)
 		? CancelledWebPageId
 		: ((_previewData && _previewData->pendingTill >= 0)
 			? _previewData->id
@@ -3106,7 +3129,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 		return;
 	}
 
-	const auto webPageId = _previewCancelled
+	const auto webPageId = (_previewState != Data::PreviewState::Allowed)
 		? CancelledWebPageId
 		: ((_previewData && _previewData->pendingTill >= 0)
 			? _previewData->id
@@ -5580,7 +5603,7 @@ void HistoryWidget::setFieldText(
 		| TextUpdateEvent::SendTyping;
 
 	previewCancel();
-	_previewCancelled = false;
+	_previewState = Data::PreviewState::Allowed;
 }
 
 void HistoryWidget::clearFieldText(
@@ -5623,7 +5646,7 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 				TextWithTags(),
 				item->id,
 				MessageCursor(),
-				false));
+				Data::PreviewState::Allowed));
 		}
 	} else {
 		_replyEditMsg = item;
@@ -5670,7 +5693,7 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				_field,
 				_replyToId,
-				_previewCancelled));
+				_previewState));
 		} else {
 			_history->clearLocalDraft();
 		}
@@ -5688,12 +5711,14 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 		}
 		return nullptr;
 	}();
-	const auto previewCancelled = !previewPage;
+	const auto previewState = previewPage
+		? Data::PreviewState::Allowed
+		: Data::PreviewState::EmptyOnEdit;
 	_history->setLocalEditDraft(std::make_unique<Data::Draft>(
 		editData,
 		item->id,
 		cursor,
-		previewCancelled));
+		previewState));
 	applyDraft();
 
 	_previewData = previewPage;
@@ -5853,7 +5878,7 @@ void HistoryWidget::cancelFieldAreaState() {
 	Ui::hideLayer();
 	_replyForwardPressed = false;
 	if (_previewData && _previewData->pendingTill >= 0) {
-		_previewCancelled = true;
+		_previewState = Data::PreviewState::Cancelled;
 		previewCancel();
 
 		_saveDraftText = true;
@@ -5881,7 +5906,7 @@ void HistoryWidget::checkPreview() {
 	const auto previewRestricted = [&] {
 		return _peer && _peer->amRestricted(ChatRestriction::f_embed_links);
 	}();
-	if (_previewCancelled || previewRestricted) {
+	if (_previewState != Data::PreviewState::Allowed || previewRestricted) {
 		previewCancel();
 		return;
 	}
@@ -5929,7 +5954,10 @@ void HistoryWidget::requestPreview() {
 	}).send();
 }
 
-void HistoryWidget::gotPreview(QString links, const MTPMessageMedia &result, mtpRequestId req) {
+void HistoryWidget::gotPreview(
+		QString links,
+		const MTPMessageMedia &result,
+		mtpRequestId req) {
 	if (req == _previewRequest) {
 		_previewRequest = 0;
 	}
@@ -5937,10 +5965,12 @@ void HistoryWidget::gotPreview(QString links, const MTPMessageMedia &result, mtp
 		const auto &data = result.c_messageMediaWebPage().vwebpage();
 		const auto page = session().data().processWebpage(data);
 		_previewCache.insert(links, page->id);
-		if (page->pendingTill > 0 && page->pendingTill <= base::unixtime::now()) {
+		if (page->pendingTill > 0
+			&& page->pendingTill <= base::unixtime::now()) {
 			page->pendingTill = -1;
 		}
-		if (links == _previewLinks && !_previewCancelled) {
+		if (links == _previewLinks
+			&& _previewState == Data::PreviewState::Allowed) {
 			_previewData = (page->id && page->pendingTill >= 0)
 				? page.get()
 				: nullptr;
@@ -5949,7 +5979,8 @@ void HistoryWidget::gotPreview(QString links, const MTPMessageMedia &result, mtp
 		session().data().sendWebPageGamePollNotifications();
 	} else if (result.type() == mtpc_messageMediaEmpty) {
 		_previewCache.insert(links, 0);
-		if (links == _previewLinks && !_previewCancelled) {
+		if (links == _previewLinks
+			&& _previewState == Data::PreviewState::Allowed) {
 			_previewData = nullptr;
 			updatePreview();
 		}

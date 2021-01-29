@@ -548,8 +548,11 @@ bool MainWidget::shareUrl(
 		QFIXED_MAX
 	};
 	auto history = peer->owner().history(peer);
-	history->setLocalDraft(
-		std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
+	history->setLocalDraft(std::make_unique<Data::Draft>(
+		textWithTags,
+		0,
+		cursor,
+		Data::PreviewState::Allowed));
 	history->clearLocalEditDraft();
 	history->session().changes().historyUpdated(
 		history,
@@ -576,7 +579,11 @@ bool MainWidget::inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) {
 	const auto h = peer->owner().history(peer);
 	TextWithTags textWithTags = { botAndQuery, TextWithTags::Tags() };
 	MessageCursor cursor = { botAndQuery.size(), botAndQuery.size(), QFIXED_MAX };
-	h->setLocalDraft(std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
+	h->setLocalDraft(std::make_unique<Data::Draft>(
+		textWithTags,
+		0,
+		cursor,
+		Data::PreviewState::Allowed));
 	h->clearLocalEditDraft();
 	h->session().changes().historyUpdated(
 		h,

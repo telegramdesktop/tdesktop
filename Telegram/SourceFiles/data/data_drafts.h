@@ -26,25 +26,31 @@ void ClearPeerCloudDraft(
 	PeerId peerId,
 	TimeId date);
 
+enum class PreviewState : char {
+	Allowed,
+	Cancelled,
+	EmptyOnEdit,
+};
+
 struct Draft {
 	Draft() = default;
 	Draft(
 		const TextWithTags &textWithTags,
 		MsgId msgId,
 		const MessageCursor &cursor,
-		bool previewCancelled,
+		PreviewState previewState,
 		mtpRequestId saveRequestId = 0);
 	Draft(
 		not_null<const Ui::InputField*> field,
 		MsgId msgId,
-		bool previewCancelled,
+		PreviewState previewState,
 		mtpRequestId saveRequestId = 0);
 
 	TimeId date = 0;
 	TextWithTags textWithTags;
 	MsgId msgId = 0; // replyToId for message draft, editMsgId for edit draft
 	MessageCursor cursor;
-	bool previewCancelled = false;
+	PreviewState previewState = PreviewState::Allowed;
 	mtpRequestId saveRequestId = 0;
 };
 
@@ -144,7 +150,7 @@ inline bool draftsAreEqual(const Draft *a, const Draft *b) {
 
 	return (a->textWithTags == b->textWithTags)
 		&& (a->msgId == b->msgId)
-		&& (a->previewCancelled == b->previewCancelled);
+		&& (a->previewState == b->previewState);
 }
 
 } // namespace Data

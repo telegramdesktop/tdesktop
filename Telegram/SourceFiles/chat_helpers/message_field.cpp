@@ -501,6 +501,11 @@ MessageLinksParser::MessageLinksParser(not_null<Ui::InputField*> field)
 	_field->installEventFilter(this);
 }
 
+void MessageLinksParser::parseNow() {
+	_timer.cancel();
+	parse();
+}
+
 bool MessageLinksParser::eventFilter(QObject *object, QEvent *event) {
 	if (object == _field) {
 		if (event->type() == QEvent::KeyPress) {

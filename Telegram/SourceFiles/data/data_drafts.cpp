@@ -18,32 +18,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 
 namespace Data {
-namespace {
-
-} // namespace
 
 Draft::Draft(
 	const TextWithTags &textWithTags,
 	MsgId msgId,
 	const MessageCursor &cursor,
-	bool previewCancelled,
+	PreviewState previewState,
 	mtpRequestId saveRequestId)
 : textWithTags(textWithTags)
 , msgId(msgId)
 , cursor(cursor)
-, previewCancelled(previewCancelled)
+, previewState(previewState)
 , saveRequestId(saveRequestId) {
 }
 
 Draft::Draft(
 	not_null<const Ui::InputField*> field,
 	MsgId msgId,
-	bool previewCancelled,
+	PreviewState previewState,
 	mtpRequestId saveRequestId)
 : textWithTags(field->getTextWithTags())
 , msgId(msgId)
 , cursor(field)
-, previewCancelled(previewCancelled) {
+, previewState(previewState) {
 }
 
 void ApplyPeerCloudDraft(
@@ -66,7 +63,9 @@ void ApplyPeerCloudDraft(
 		textWithTags,
 		replyTo,
 		MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX),
-		draft.is_no_webpage());
+		(draft.is_no_webpage()
+			? Data::PreviewState::Cancelled
+			: Data::PreviewState::Allowed));
 	cloudDraft->date = draft.vdate().v;
 
 	history->setCloudDraft(std::move(cloudDraft));

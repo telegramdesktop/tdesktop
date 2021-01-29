@@ -71,7 +71,9 @@ class MessageLinksParser : private QObject {
 public:
 	MessageLinksParser(not_null<Ui::InputField*> field);
 
-	const rpl::variable<QStringList> &list() const;
+	void parseNow();
+
+	[[nodiscard]] const rpl::variable<QStringList> &list() const;
 
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;

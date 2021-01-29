@@ -612,7 +612,8 @@ ComposeControls::ComposeControls(
 		_send,
 		st::historySendSize.height()))
 , _sendMenuType(sendMenuType)
-, _saveDraftTimer([=] { saveDraft(); }) {
+, _saveDraftTimer([=] { saveDraft(); })
+, _previewState(Data::PreviewState::Allowed) {
 	init();
 }
 
@@ -865,7 +866,7 @@ void ComposeControls::setFieldText(
 		| TextUpdateEvent::SendTyping;
 
 	_previewCancel();
-	_previewCancelled = false;
+	_previewState = Data::PreviewState::Allowed;
 }
 
 void ComposeControls::saveFieldToHistoryLocalDraft() {
@@ -880,7 +881,7 @@ void ComposeControls::saveFieldToHistoryLocalDraft() {
 			std::make_unique<Data::Draft>(
 				_field,
 				_header->getDraftMessageId(),
-				_previewCancelled));
+				_previewState));
 	} else {
 		_history->clearDraft(draftKeyCurrent());
 	}
@@ -964,7 +965,7 @@ void ComposeControls::init() {
 
 	_header->previewCancelled(
 	) | rpl::start_with_next([=] {
-		_previewCancelled = true;
+		_previewState = Data::PreviewState::Cancelled;
 		_saveDraftText = true;
 		_saveDraftStart = crl::now();
 		saveDraft();
@@ -1224,7 +1225,7 @@ void ComposeControls::fieldChanged() {
 	}
 	updateSendButtonType();
 	if (!HasSendText(_field)) {
-		_previewCancelled = false;
+		_previewState = Data::PreviewState::Allowed;
 	}
 	if (updateBotCommandShown()) {
 		updateControlsVisibility();
@@ -1294,7 +1295,7 @@ void ComposeControls::writeDraftTexts() {
 		Storage::MessageDraft{
 			_header->getDraftMessageId(),
 			_field->getTextWithTags(),
-			_previewCancelled,
+			_previewState,
 		});
 }
 
@@ -1353,7 +1354,8 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	_field->setFocus();
 	draft->cursor.applyTo(_field);
 	_textUpdateEvents = TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping;
-	_previewCancelled = draft->previewCancelled;
+	_previewSetState(draft->previewState);
+
 	if (draft == editDraft) {
 		_header->editMessage({ _history->channelId(), draft->msgId });
 		_header->replyToMessage({});
@@ -1837,14 +1839,16 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 		}
 		return nullptr;
 	}();
-	const auto previewCancelled = !previewPage;
+	const auto previewState = previewPage
+		? Data::PreviewState::Allowed
+		: Data::PreviewState::EmptyOnEdit;
 	_history->setDraft(
 		draftKey(DraftType::Edit),
 		std::make_unique<Data::Draft>(
 			editData,
 			item->id,
 			cursor,
-			previewCancelled));
+			previewState));
 	applyDraft();
 
 	if (_autocomplete) {
@@ -1883,7 +1887,7 @@ void ComposeControls::replyToMessage(FullMsgId id) {
 					TextWithTags(),
 					id.msg,
 					MessageCursor(),
-					false));
+					Data::PreviewState::Allowed));
 		}
 	} else {
 		_header->replyToMessage(id);
@@ -1995,7 +1999,8 @@ void ComposeControls::initWebpageProcess() {
 			if (till > 0 && till <= base::unixtime::now()) {
 				till = -1;
 			}
-			if (links == *previewLinks && !_previewCancelled) {
+			if (links == *previewLinks
+				&& _previewState == Data::PreviewState::Allowed) {
 				*previewData = (page->id && page->pendingTill >= 0)
 					? page.get()
 					: nullptr;
@@ -2003,7 +2008,8 @@ void ComposeControls::initWebpageProcess() {
 			}
 		}, [=](const MTPDmessageMediaEmpty &d) {
 			previewCache->insert({ links, 0 });
-			if (links == *previewLinks && !_previewCancelled) {
+			if (links == *previewLinks
+				&& _previewState == Data::PreviewState::Allowed) {
 				*previewData = nullptr;
 				updatePreview();
 			}
@@ -2032,7 +2038,8 @@ void ComposeControls::initWebpageProcess() {
 	const auto checkPreview = crl::guard(_wrap.get(), [=] {
 		const auto previewRestricted = peer
 			&& peer->amRestricted(ChatRestriction::f_embed_links);
-		if (_previewCancelled || previewRestricted) {
+		if (_previewState != Data::PreviewState::Allowed
+			|| previewRestricted) {
 			_previewCancel();
 			return;
 		}
@@ -2105,8 +2112,20 @@ void ComposeControls::initWebpageProcess() {
 	const auto fieldLinksParser =
 		lifetime.make_state<MessageLinksParser>(_field);
 
+	_previewSetState = [=](Data::PreviewState state) {
+		// Save links from _field to _parsedLinks without generating preview.
+		_previewState = Data::PreviewState::Cancelled;
+		fieldLinksParser->parseNow();
+		*parsedLinks = fieldLinksParser->list().current();
+		_previewState = state;
+	};
+
 	fieldLinksParser->list().changes(
 	) | rpl::start_with_next([=](QStringList &&parsed) {
+		if (_previewState == Data::PreviewState::EmptyOnEdit
+			&& *parsedLinks != parsed) {
+			_previewState = Data::PreviewState::Allowed;
+		}
 		*parsedLinks = std::move(parsed);
 
 		checkPreview();
