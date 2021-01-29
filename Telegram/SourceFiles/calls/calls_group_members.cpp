@@ -295,6 +295,7 @@ private:
 	void addMuteActionsToContextMenu(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<UserData*> user,
+		bool userIsCallAdmin,
 		not_null<Row*> row);
 	void setupListChangeViewers(not_null<GroupCall*> call);
 	void subscribeToChanges(not_null<Data::GroupCall*> real);
@@ -660,13 +661,13 @@ void Row::paintStatusText(
 		int availableWidth,
 		int outerWidth,
 		bool selected) {
-	p.save();
 	const auto &font = st::normalFont;
-	paintStatusIcon(p, st, font, selected);
-	const auto translatedWidth = statusIconWidth();
-	p.translate(translatedWidth, 0);
-	const auto guard = gsl::finally([&] { p.restore(); });
 	if (_state != State::Invited && _state != State::MutedByMe) {
+		p.save();
+		paintStatusIcon(p, st, font, selected);
+		const auto translatedWidth = statusIconWidth();
+		p.translate(translatedWidth, 0);
+		const auto guard = gsl::finally([&] { p.restore(); });
 		PeerListRow::paintStatusText(
 			p,
 			st,
@@ -1275,10 +1276,11 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
 
-	if (row->peer()->isSelf()) {
+	const auto real = static_cast<Row*>(row.get());
+	if (row->peer()->isSelf()
+		&& (!_peer->canManageGroupCall() || !real->ssrc())) {
 		return nullptr;
 	}
-	const auto real = static_cast<Row*>(row.get());
 	const auto user = row->peer()->asUser();
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		parent,
@@ -1355,30 +1357,32 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 	});
 
 	if (real->ssrc() != 0) {
-		addMuteActionsToContextMenu(result, user, real);
+		addMuteActionsToContextMenu(result, user, admin, real);
 	}
 
-	result->addAction(
-		tr::lng_context_view_profile(tr::now),
-		showProfile);
-	result->addAction(
-		tr::lng_context_send_message(tr::now),
-		showHistory);
-	const auto canKick = [&] {
-		if (static_cast<Row*>(row.get())->state() == Row::State::Invited) {
-			return false;
-		} else if (const auto chat = _peer->asChat()) {
-			return chat->amCreator()
-				|| (chat->canBanMembers() && !chat->admins.contains(user));
-		} else if (const auto group = _peer->asMegagroup()) {
-			return group->canRestrictUser(user);
-		}
-		return false;
-	}();
-	if (canKick) {
+	if (!user->isSelf()) {
 		result->addAction(
-			tr::lng_context_remove_from_group(tr::now),
-			removeFromGroup);
+			tr::lng_context_view_profile(tr::now),
+			showProfile);
+		result->addAction(
+			tr::lng_context_send_message(tr::now),
+			showHistory);
+		const auto canKick = [&] {
+			if (static_cast<Row*>(row.get())->state() == Row::State::Invited) {
+				return false;
+			} else if (const auto chat = _peer->asChat()) {
+				return chat->amCreator()
+					|| (chat->canBanMembers() && !chat->admins.contains(user));
+			} else if (const auto group = _peer->asMegagroup()) {
+				return group->canRestrictUser(user);
+			}
+			return false;
+		}();
+		if (canKick) {
+			result->addAction(
+				tr::lng_context_remove_from_group(tr::now),
+				removeFromGroup);
+		}
 	}
 	return result;
 }
@@ -1386,6 +1390,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 void MembersController::addMuteActionsToContextMenu(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<UserData*> user,
+		bool userIsCallAdmin,
 		not_null<Row*> row) {
 	const auto muteString = [=] {
 		return (_peer->canManageGroupCall()
@@ -1422,7 +1427,7 @@ void MembersController::addMuteActionsToContextMenu(
 
 	auto mutesFromVolume = rpl::never<bool>() | rpl::type_erased();
 
-	if (!isMuted) {
+	if (!isMuted || user->isSelf()) {
 		const auto call = _call.get();
 		auto otherParticipantStateValue = call
 			? call->otherParticipantStateValue(
@@ -1443,12 +1448,21 @@ void MembersController::addMuteActionsToContextMenu(
 
 		volumeItem->toggleMuteRequests(
 		) | rpl::start_with_next([=](bool muted) {
+			if (muted) {
+				// Slider value is changed after the callback is called.
+				// To capture good state inside the slider frame we postpone.
+				crl::on_main(menu, [=] {
+					menu->hideMenu();
+				});
+			}
 			toggleMute(muted, false);
 		}, volumeItem->lifetime());
 
 		volumeItem->toggleMuteLocallyRequests(
 		) | rpl::start_with_next([=](bool muted) {
-			toggleMute(muted, true);
+			if (!user->isSelf()) {
+				toggleMute(muted, true);
+			}
 		}, volumeItem->lifetime());
 
 		volumeItem->changeVolumeRequests(
@@ -1458,14 +1472,20 @@ void MembersController::addMuteActionsToContextMenu(
 
 		volumeItem->changeVolumeLocallyRequests(
 		) | rpl::start_with_next([=](int volume) {
-			changeVolume(volume, true);
+			if (!user->isSelf()) {
+				changeVolume(volume, true);
+			}
 		}, volumeItem->lifetime());
 
 		menu->addAction(std::move(volumeItem));
 	};
 
 	const auto muteAction = [&]() -> QAction* {
-		if (muteState == Row::State::Invited) {
+		if (muteState == Row::State::Invited
+			|| user->isSelf()
+			|| (muteState == Row::State::Muted
+				&& userIsCallAdmin
+				&& _peer->canManageGroupCall())) {
 			return nullptr;
 		}
 		auto callback = [=] {
@@ -1635,6 +1655,13 @@ void GroupMembers::setupList() {
 		resizeToList();
 	}, _list->lifetime());
 
+	rpl::combine(
+		_scroll->scrollTopValue(),
+		_scroll->heightValue()
+	) | rpl::start_with_next([=](int scrollTop, int scrollHeight) {
+		_list->setVisibleTopBottom(scrollTop, scrollTop + scrollHeight);
+	}, _scroll->lifetime());
+
 	updateControlsGeometry();
 }
 
@@ -1734,12 +1761,6 @@ void GroupMembers::setupFakeRoundCorners() {
 		bottomleft->update();
 		bottomright->update();
 	}, lifetime());
-}
-
-void GroupMembers::visibleTopBottomUpdated(
-		int visibleTop,
-		int visibleBottom) {
-	setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
 }
 
 void GroupMembers::peerListSetTitle(rpl::producer<QString> title) {

@@ -95,10 +95,12 @@ if %Build64% neq 0 (
   set "UpdateFile=tx64upd%AppVersion%"
   set "SetupFile=tsetup-x64.%AppVersionStrFull%.exe"
   set "PortableFile=tportable-x64.%AppVersionStrFull%.zip"
+  set "DumpSymsPath=%SolutionPath%\..\..\Libraries\win64\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 ) else (
   set "UpdateFile=tupdate%AppVersion%"
   set "SetupFile=tsetup.%AppVersionStrFull%.exe"
   set "PortableFile=tportable.%AppVersionStrFull%.zip"
+  set "DumpSymsPath=%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 )
 set "ReleasePath=%SolutionPath%\Release"
 set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
@@ -164,13 +166,13 @@ echo.
 echo Version %AppVersionStrFull% build successfull. Preparing..
 echo.
 
-if not exist "%SolutionPath%\..\..\Libraries\win64\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" (
+if not exist "%DumpSymsPath%" (
   echo Utility dump_syms not found!
   exit /b 1
 )
 
 echo Dumping debug symbols..
-call "%SolutionPath%\..\..\Libraries\win64\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe" "%ReleasePath%\%BinaryName%.pdb" > "%ReleasePath%\%BinaryName%.sym"
+call "%DumpSymsPath%" "%ReleasePath%\%BinaryName%.pdb" > "%ReleasePath%\%BinaryName%.sym"
 echo Done!
 
 set "PATH=%PATH%;C:\Program Files\7-Zip;C:\Program Files (x86)\Inno Setup 5"

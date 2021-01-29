@@ -2449,7 +2449,7 @@ void ApiWrap::saveDraftsToCloud() {
 
 		auto flags = MTPmessages_SaveDraft::Flags(0);
 		auto &textWithTags = cloudDraft->textWithTags;
-		if (cloudDraft->previewCancelled) {
+		if (cloudDraft->previewState != Data::PreviewState::Allowed) {
 			flags |= MTPmessages_SaveDraft::Flag::f_no_webpage;
 		}
 		if (cloudDraft->msgId) {

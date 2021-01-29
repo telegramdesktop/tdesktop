@@ -902,11 +902,7 @@ void RepliesWidget::send(Api::SendOptions options) {
 		return;
 	}
 
-	const auto webPageId = _composeControls->webPageId();/* _previewCancelled
-		? CancelledWebPageId
-		: ((_previewData && _previewData->pendingTill >= 0)
-			? _previewData->id
-			: WebPageId(0));*/
+	const auto webPageId = _composeControls->webPageId();
 
 	auto message = ApiWrap::MessageToSend(_history);
 	message.textWithTags = _composeControls->getTextWithAppliedMarkdown();

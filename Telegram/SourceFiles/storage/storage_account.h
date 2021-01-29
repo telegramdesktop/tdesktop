@@ -52,7 +52,7 @@ enum class StartResult : uchar;
 struct MessageDraft {
 	MsgId msgId = 0;
 	TextWithTags textWithTags;
-	bool previewCancelled = false;
+	Data::PreviewState previewState = Data::PreviewState::Allowed;
 };
 
 class Account final {

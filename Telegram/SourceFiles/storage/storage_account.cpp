@@ -958,7 +958,7 @@ void EnumerateDrafts(
 			key,
 			draft->msgId,
 			draft->textWithTags,
-			draft->previewCancelled,
+			draft->previewState,
 			draft->cursor);
 	}
 	if (replaceKey
@@ -969,7 +969,7 @@ void EnumerateDrafts(
 			replaceKey,
 			replaceDraft.msgId,
 			replaceDraft.textWithTags,
-			replaceDraft.previewCancelled,
+			replaceDraft.previewState,
 			replaceCursor);
 	}
 }
@@ -1017,12 +1017,12 @@ void Account::writeDrafts(
 			auto&&, // key
 			MsgId, // msgId
 			const TextWithTags &text,
-			bool, // previewCancelled
+			Data::PreviewState,
 			auto&&) { // cursor
 		size += sizeof(qint32) // key
 			+ Serialize::stringSize(text.text)
 			+ sizeof(quint32) + TextUtilities::SerializeTagsSize(text.tags)
-			+ 2 * sizeof(qint32); // msgId, previewCancelled
+			+ 2 * sizeof(qint32); // msgId, previewState
 	};
 	EnumerateDrafts(
 		map,
@@ -1043,14 +1043,14 @@ void Account::writeDrafts(
 			const Data::DraftKey &key,
 			MsgId msgId,
 			const TextWithTags &text,
-			bool previewCancelled,
+			Data::PreviewState previewState,
 			auto&&) { // cursor
 		data.stream
 			<< key.serialize()
 			<< text.text
 			<< TextUtilities::SerializeTags(text.tags)
 			<< qint32(msgId)
-			<< qint32(previewCancelled ? 1 : 0);
+			<< qint32(previewState);
 	};
 	EnumerateDrafts(
 		map,
@@ -1109,7 +1109,7 @@ void Account::writeDraftCursors(
 			auto&&, // key
 			MsgId, // msgId
 			auto&&, // text
-			bool, // previewCancelled
+			Data::PreviewState,
 			const MessageCursor &cursor) { // cursor
 		data.stream
 			<< qint32(cursor.position)
@@ -1249,23 +1249,29 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 	for (auto i = 0; i != count; ++i) {
 		TextWithTags data;
 		QByteArray tagsSerialized;
-		qint32 keyValue = 0, messageId = 0, previewCancelled = 0;
+		qint32 keyValue = 0, messageId = 0, uncheckedPreviewState = 0;
 		draft.stream
 			>> keyValue
 			>> data.text
 			>> tagsSerialized
 			>> messageId
-			>> previewCancelled;
+			>> uncheckedPreviewState;
 		data.tags = TextUtilities::DeserializeTags(
 			tagsSerialized,
 			data.text.size());
+		auto previewState = Data::PreviewState::Allowed;
+		switch (static_cast<Data::PreviewState>(uncheckedPreviewState)) {
+		case Data::PreviewState::Cancelled:
+		case Data::PreviewState::EmptyOnEdit:
+			previewState = Data::PreviewState(uncheckedPreviewState);
+		}
 		const auto key = Data::DraftKey::FromSerialized(keyValue);
 		if (key && key != Data::DraftKey::Cloud()) {
 			map.emplace(key, std::make_unique<Data::Draft>(
 				data,
 				messageId,
 				MessageCursor(),
-				previewCancelled));
+				previewState));
 		}
 	}
 	if (draft.stream.status() != QDataStream::Ok) {
@@ -1326,14 +1332,18 @@ void Account::readDraftsWithCursorsLegacy(
 			msgData,
 			msgReplyTo,
 			MessageCursor(),
-			msgPreviewCancelled));
+			(msgPreviewCancelled
+				? Data::PreviewState::Cancelled
+				: Data::PreviewState::Allowed)));
 	}
 	if (editMsgId) {
 		map.emplace(Data::DraftKey::LocalEdit(), std::make_unique<Data::Draft>(
 			editData,
 			editMsgId,
 			MessageCursor(),
-			editPreviewCancelled));
+			(editPreviewCancelled
+				? Data::PreviewState::Cancelled
+				: Data::PreviewState::Allowed)));
 	}
 	readDraftCursors(peerId, map);
 	history->setDraftsMap(std::move(map));

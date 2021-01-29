@@ -215,13 +215,13 @@ void History::createLocalDraftFromCloud() {
 				draft->textWithTags,
 				draft->msgId,
 				draft->cursor,
-				draft->previewCancelled));
+				draft->previewState));
 			existing = localDraft();
 		} else if (existing != draft) {
 			existing->textWithTags = draft->textWithTags;
 			existing->msgId = draft->msgId;
 			existing->cursor = draft->cursor;
-			existing->previewCancelled = draft->previewCancelled;
+			existing->previewState = draft->previewState;
 		}
 		existing->date = draft->date;
 	}
@@ -280,7 +280,7 @@ Data::Draft *History::createCloudDraft(const Data::Draft *fromDraft) {
 			TextWithTags(),
 			0,
 			MessageCursor(),
-			false));
+			Data::PreviewState::Allowed));
 		cloudDraft()->date = TimeId(0);
 	} else {
 		auto existing = cloudDraft();
@@ -289,13 +289,13 @@ Data::Draft *History::createCloudDraft(const Data::Draft *fromDraft) {
 				fromDraft->textWithTags,
 				fromDraft->msgId,
 				fromDraft->cursor,
-				fromDraft->previewCancelled));
+				fromDraft->previewState));
 			existing = cloudDraft();
 		} else if (existing != fromDraft) {
 			existing->textWithTags = fromDraft->textWithTags;
 			existing->msgId = fromDraft->msgId;
 			existing->cursor = fromDraft->cursor;
-			existing->previewCancelled = fromDraft->previewCancelled;
+			existing->previewState = fromDraft->previewState;
 		}
 		existing->date = base::unixtime::now();
 	}

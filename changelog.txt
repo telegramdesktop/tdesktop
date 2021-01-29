@@ -1,3 +1,10 @@
+2.5.8 (29.01.21)
+
+- Fix OpenAL device closing in calls and voice chats.
+- Fix video chat rotation when calling from iOS.
+- Fix scheduling messages without sound.
+- Remove redundant Cancel button in ScheduleBox.
+
 2.5.7 (28.01.21)
 
 - Delete not only messages, but also groups you created and call history for all sides, without a trace.

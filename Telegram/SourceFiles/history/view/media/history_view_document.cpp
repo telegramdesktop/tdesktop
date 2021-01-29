@@ -456,21 +456,21 @@ void Document::draw(
 
 		const auto icon = [&] {
 			if (_data->waitingForAlbum()) {
-				if (_data->isSong()) {
+				if (_data->isSongWithCover()) {
 					return &(selected
 						? st::historyFileSongWaitingSelected
 						: st::historyFileSongWaiting);
 				}
 				return &(outbg ? (selected ? st::historyFileOutWaitingSelected : st::historyFileOutWaiting) : (selected ? st::historyFileInWaitingSelected : st::historyFileInWaiting));
 			} else if (!cornerDownload && (_data->loading() || _data->uploading())) {
-				if (_data->isSong()) {
+				if (_data->isSongWithCover()) {
 					return &(selected
 						? st::historyFileSongCancelSelected
 						: st::historyFileSongCancel);
 				}
 				return &(outbg ? (selected ? st::historyFileOutCancelSelected : st::historyFileOutCancel) : (selected ? st::historyFileInCancelSelected : st::historyFileInCancel));
 			} else if (showPause) {
-				if (_data->isSong()) {
+				if (_data->isSongWithCover()) {
 					return &(selected
 						? st::historyFileSongPauseSelected
 						: st::historyFileSongPause);
@@ -478,7 +478,7 @@ void Document::draw(
 				return &(outbg ? (selected ? st::historyFileOutPauseSelected : st::historyFileOutPause) : (selected ? st::historyFileInPauseSelected : st::historyFileInPause));
 			} else if (loaded || _dataMedia->canBePlayed()) {
 				if (_dataMedia->canBePlayed()) {
-					if (_data->isSong()) {
+					if (_data->isSongWithCover()) {
 						return &(selected
 							? st::historyFileSongPlaySelected
 							: st::historyFileSongPlay);
@@ -489,7 +489,7 @@ void Document::draw(
 				}
 				return &(outbg ? (selected ? st::historyFileOutDocumentSelected : st::historyFileOutDocument) : (selected ? st::historyFileInDocumentSelected : st::historyFileInDocument));
 			}
-			if (_data->isSong()) {
+			if (_data->isSongWithCover()) {
 				return &(selected
 					? st::historyFileSongDownloadSelected
 					: st::historyFileSongDownload);

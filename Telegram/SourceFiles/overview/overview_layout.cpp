@@ -1037,6 +1037,24 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			}
 
 			const auto icon = [&] {
+				if (!coverDrawn) {
+					if (isLoading) {
+						return &(selected
+							? _st.voiceCancelSelected
+							: _st.voiceCancel);
+					} else if (showPause) {
+						return &(selected
+							? _st.voicePauseSelected
+							: _st.voicePause);
+					} else if (loaded || _dataMedia->canBePlayed()) {
+						return &(selected
+							? _st.voicePlaySelected
+							: _st.voicePlay);
+					}
+					return &(selected
+						? _st.voiceDownloadSelected
+						: _st.voiceDownload);
+				}
 				if (isLoading) {
 					return &(selected ? _st.songCancelSelected : _st.songCancel);
 				} else if (showPause) {

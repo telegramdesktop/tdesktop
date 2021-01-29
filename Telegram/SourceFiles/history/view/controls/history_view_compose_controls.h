@@ -34,6 +34,7 @@ namespace Data {
 struct MessagePosition;
 struct Draft;
 class DraftKey;
+enum class PreviewState : char;
 } // namespace Data
 
 namespace InlineBots {
@@ -307,7 +308,8 @@ private:
 	bool _botCommandShown = false;
 
 	Fn<void()> _previewCancel;
-	bool _previewCancelled = false;
+	Fn<void(Data::PreviewState)> _previewSetState;
+	Data::PreviewState _previewState = Data::PreviewState();
 
 	rpl::lifetime _uploaderSubscriptions;
 

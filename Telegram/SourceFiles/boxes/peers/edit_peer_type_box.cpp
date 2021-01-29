@@ -120,7 +120,7 @@ private:
 
 	void fillPrivaciesButtons(
 		not_null<Ui::VerticalLayout*> parent,
-		std::optional<Privacy> savedValue = std::nullopt);
+		Privacy savedValue);
 	void addRoundButton(
 		not_null<Ui::VerticalLayout*> container,
 		Privacy value,
@@ -195,6 +195,12 @@ void Controller::createContent() {
 	if (_controls.privacy->value() == Privacy::NoUsername) {
 		checkUsernameAvailability();
 	}
+	_controls.inviteLinkWrap->toggle(
+		(_privacySavedValue != Privacy::HasUsername),
+		anim::type::instant);
+	_controls.usernameWrap->toggle(
+		(_privacySavedValue == Privacy::HasUsername),
+		anim::type::instant);
 }
 
 void Controller::addRoundButton(
@@ -222,7 +228,7 @@ void Controller::addRoundButton(
 
 void Controller::fillPrivaciesButtons(
 		not_null<Ui::VerticalLayout*> parent,
-		std::optional<Privacy> savedValue) {
+		Privacy savedValue) {
 	const auto canEditUsername = [&] {
 		if (const auto chat = _peer->asChat()) {
 			return chat->canEditUsername();
@@ -245,8 +251,7 @@ void Controller::fillPrivaciesButtons(
 	const auto isPublic = _peer->isChannel()
 		&& _peer->asChannel()->hasUsername();
 	_controls.privacy = std::make_shared<Ui::RadioenumGroup<Privacy>>(
-		savedValue.value_or(
-			isPublic ? Privacy::HasUsername : Privacy::NoUsername));
+		savedValue);
 
 	addRoundButton(
 		container,
@@ -543,7 +548,8 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkBlock() {
 	using namespace Settings;
 	AddSkip(container);
 
-	AddSubsectionTitle(container, tr::lng_create_permanent_link_title());
+	AddSubsectionTitle(container, tr::lng_create_invite_link_title());
+	// tr::lng_create_permanent_link_title()); // #TODO links
 	AddPermanentLinkBlock(container, _peer);
 
 	AddSkip(container);
@@ -553,6 +559,16 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkBlock() {
 		((_peer->isMegagroup() || _peer->asChat())
 			? tr::lng_group_invite_about_permanent_group()
 			: tr::lng_group_invite_about_permanent_channel()));
+
+	if (_peer->wasFullUpdated()) {
+		const auto link = _peer->isChat()
+			? _peer->asChat()->inviteLink()
+			: _peer->asChannel()->inviteLink();
+		if (link.isEmpty()) {
+			// #TODO links remove this auto-export link.
+			_peer->session().api().inviteLinks().revokePermanent(_peer);
+		}
+	}
 
 	return result;
 }
