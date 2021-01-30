@@ -568,6 +568,10 @@ void PlaybackControls::mousePressEvent(QMouseEvent *e) {
 	e->accept(); // Don't pass event to the Media::View::OverlayWidget.
 }
 
+bool PlaybackControls::hasMenu() const {
+	return _menu != nullptr;
+}
+
 PlaybackControls::~PlaybackControls() = default;
 
 } // namespace View

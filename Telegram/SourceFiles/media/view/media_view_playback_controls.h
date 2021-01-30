@@ -57,6 +57,7 @@ public:
 	void updatePlayback(const Player::TrackState &state);
 	void setLoadingProgress(int ready, int total);
 	void setInFullScreen(bool inFullScreen);
+	[[nodiscard]] bool hasMenu() const;
 
 	~PlaybackControls();
 

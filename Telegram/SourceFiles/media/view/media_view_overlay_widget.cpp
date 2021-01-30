@@ -1274,6 +1274,7 @@ void OverlayWidget::activateControls() {
 void OverlayWidget::onHideControls(bool force) {
 	if (!force) {
 		if (!_dropdown->isHidden()
+			|| (_streamed && _streamed->controls.hasMenu())
 			|| _menu
 			|| _mousePressed
 			|| (_fullScreenVideo
