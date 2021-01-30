@@ -64,7 +64,7 @@ MenuVolumeItem::MenuVolumeItem(
 	st::groupCallSpeakerArcsAnimation,
 	kSpeakerThreshold,
 	_localMuted ? 0. : (startVolume / float(maxVolume)),
-	Ui::Paint::ArcsAnimation::HorizontalDirection::Right)) {
+	Ui::Paint::ArcsAnimation::Direction::Right)) {
 
 	initResizeHook(parent->sizeValue());
 	enableMouseSelecting();
