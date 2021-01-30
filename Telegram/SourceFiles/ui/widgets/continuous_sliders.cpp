@@ -219,6 +219,10 @@ void MediaSlider::disablePaint(bool disabled) {
 	_paintDisabled = disabled;
 }
 
+void MediaSlider::addDivider(float64 atValue, const QSize &size) {
+	_dividers.push_back(Divider{ atValue, size });
+}
+
 void MediaSlider::paintEvent(QPaintEvent *e) {
 	if (_paintDisabled) {
 		return;
@@ -284,6 +288,33 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 		p.setClipRect(endClipRect);
 		p.setBrush(horizontal ? inactiveFg : activeFg);
 		p.drawRoundedRect(endRect, radius, radius);
+	}
+	if (!_dividers.empty()) {
+		p.setClipRect(rect());
+		for (const auto &divider : _dividers) {
+			const auto dividerValue = horizontal
+				? divider.atValue
+				: (1. - divider.atValue);
+			const auto dividerMid = std::round(from
+				+ dividerValue * length);
+			const auto &size = divider.size;
+			const auto rect = horizontal
+				? QRect(
+					dividerMid - size.width() / 2,
+					(height() - size.height()) / 2,
+					size.width(),
+					size.height())
+				: QRect(
+					(width() - size.height()) / 2,
+					dividerMid - size.width() / 2,
+					size.height(),
+					size.width());
+			p.setBrush(((value < dividerValue) == horizontal)
+				? inactiveFg
+				: activeFg);
+			const auto dividerRadius = size.width() / 2.;
+			p.drawRoundedRect(rect, dividerRadius, dividerRadius);
+		}
 	}
 	const auto markerSizeRatio = disabled ? 0. : (_alwaysDisplayMarker ? 1. : over);
 	if (markerSizeRatio > 0) {
