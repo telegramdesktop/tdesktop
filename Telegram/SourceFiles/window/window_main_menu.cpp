@@ -975,14 +975,22 @@ void MainMenu::refreshMenu() {
 	action->setChecked(Window::Theme::IsNightMode());
 
 	_showPhoneAction = std::make_shared<QPointer<QAction>>();
-	auto action2 = _menu->addAction(tr::lng_settings_show_phone_number(tr::now), [=] {
+	auto phoneCallback = [=] {
 		if (auto action2 = *_showPhoneAction) {
 			cSetShowPhoneNumber(!action2->isChecked());
 			action2->setChecked(!action2->isChecked());
 			EnhancedSettings::Write();
 			updatePhone();
 		}
-	}, &st::mainMenuCalls, &st::mainMenuCallsOver);
+	};
+	auto item2 = base::make_unique_q<Ui::Menu::Toggle>(
+			_menu,
+			st::mainMenu,
+			tr::lng_settings_show_phone_number(tr::now),
+			std::move(phoneCallback),
+			&st::mainMenuNightMode,
+			&st::mainMenuNightModeOver);
+	auto action2 = _menu->addAction(std::move(item2));
 	*_showPhoneAction = action2;
 	action2->setCheckable(true);
 	action2->setChecked(cShowPhoneNumber());
