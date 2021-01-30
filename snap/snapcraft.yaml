@@ -390,7 +390,7 @@ parts:
         -I $SNAPCRAFT_STAGE/usr/include \
         -L $SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET
 
-      make -j$(nproc)
+      make -j$SNAPCRAFT_PARALLEL_BUILD_COUNT
       make INSTALL_ROOT="$SNAPCRAFT_PART_INSTALL" install
     stage:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
