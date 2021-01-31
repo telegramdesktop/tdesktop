@@ -768,8 +768,10 @@ rpl::producer<MessageToEdit> ComposeControls::editRequests() const {
 }
 
 rpl::producer<> ComposeControls::attachRequests() const {
-	return _attachToggle->clicks(
-	) | rpl::to_empty | rpl::filter([=] {
+	return rpl::merge(
+		_attachToggle->clicks() | rpl::to_empty,
+		_attachRequests.events()
+	) | rpl::filter([=] {
 		if (isEditingMessage()) {
 			Ui::show(Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
 			return false;
@@ -1057,6 +1059,11 @@ void ComposeControls::initKeyHandler() {
 	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		auto keyEvent = static_cast<QKeyEvent*>(e.get());
 		const auto key = keyEvent->key();
+		const auto isCtrl = keyEvent->modifiers() == Qt::ControlModifier;
+		if (key == Qt::Key_O && isCtrl) {
+			_attachRequests.fire({});
+			return;
+		}
 		if (key == Qt::Key_Up) {
 			if (!isEditingMessage()) {
 				_editLastMessageRequests.fire(std::move(keyEvent));

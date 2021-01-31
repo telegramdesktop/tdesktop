@@ -296,6 +296,7 @@ private:
 	rpl::event_stream<QString> _sendCommandRequests;
 	rpl::event_stream<not_null<QKeyEvent*>> _scrollKeyEvents;
 	rpl::event_stream<not_null<QKeyEvent*>> _editLastMessageRequests;
+	rpl::event_stream<> _attachRequests;
 
 	TextUpdateEvents _textUpdateEvents = TextUpdateEvents()
 		| TextUpdateEvent::SaveDraft
