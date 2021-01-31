@@ -767,7 +767,14 @@ rpl::producer<MessageToEdit> ComposeControls::editRequests() const {
 }
 
 rpl::producer<> ComposeControls::attachRequests() const {
-	return _attachToggle->clicks() | rpl::to_empty;
+	return _attachToggle->clicks(
+	) | rpl::to_empty | rpl::filter([=] {
+		if (isEditingMessage()) {
+			Ui::show(Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
+			return false;
+		}
+		return true;
+	});
 }
 
 void ComposeControls::setMimeDataHook(MimeDataHook hook) {
