@@ -21,6 +21,15 @@ The latest version is available for
 * [Snap](https://snapcraft.io/telegram-desktop)
 * [Flatpak](https://flathub.org/apps/details/org.telegram.desktop)
 
+## GNU/Linux Distributions
+
+| Name | Command |
+| ------------- | ------------- |
+| Debian | `sudo apt install telegram-desktop` |
+| Guix | `guix install telegram-desktop` |
+| Parabola | `sudo pacman -S telegram-desktop` |
+| Trisquel | `guix install telegram-desktop` |
+
 ## Old system versions
 
 Version **2.4.4** was the last that supports older systems
