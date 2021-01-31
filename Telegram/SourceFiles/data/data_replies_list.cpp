@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_replies_list.h"
 
-#include "base/unixtime.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_service.h"
@@ -625,24 +624,6 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 
 	Ensures(list.size() >= skipped);
 	return (list.size() == skipped);
-}
-
-HistoryItem *RepliesList::lastEditableMessage() {
-	const auto message = [&](MsgId msgId) {
-		return _history->owner().message(_history->channelId(), msgId);
-	};
-
-	const auto now = base::unixtime::now();
-	auto proj = [&](MsgId msgId) {
-		if (const auto item = message(msgId)) {
-			return item->allowsEdit(now);
-		}
-		return false;
-	};
-	const auto it = ranges::find_if(_list, std::move(proj));
-	return (it == end(_list))
-		? nullptr
-		: _history->owner().groups().findItemToEdit(message(*it)).get();
 }
 
 } // namespace Data

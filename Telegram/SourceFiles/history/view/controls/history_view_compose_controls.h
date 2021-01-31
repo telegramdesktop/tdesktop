@@ -118,11 +118,12 @@ public:
 	[[nodiscard]] rpl::producer<FileChosen> fileChosen() const;
 	[[nodiscard]] rpl::producer<PhotoChosen> photoChosen() const;
 	[[nodiscard]] rpl::producer<Data::MessagePosition> scrollRequests() const;
-	[[nodiscard]] rpl::producer<not_null<QKeyEvent*>> keyEvents() const;
 	[[nodiscard]] rpl::producer<InlineChosen> inlineResultChosen() const;
 	[[nodiscard]] rpl::producer<SendActionUpdate> sendActionUpdates() const;
 	[[nodiscard]] rpl::producer<not_null<QEvent*>> viewportEvents() const;
 	[[nodiscard]] auto scrollKeyEvents() const
+	-> rpl::producer<not_null<QKeyEvent*>>;
+	[[nodiscard]] auto editLastMessageRequests() const
 	-> rpl::producer<not_null<QKeyEvent*>>;
 
 	using MimeDataHook = Fn<bool(
@@ -294,6 +295,7 @@ private:
 	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
 	rpl::event_stream<QString> _sendCommandRequests;
 	rpl::event_stream<not_null<QKeyEvent*>> _scrollKeyEvents;
+	rpl::event_stream<not_null<QKeyEvent*>> _editLastMessageRequests;
 
 	TextUpdateEvents _textUpdateEvents = TextUpdateEvents()
 		| TextUpdateEvent::SaveDraft

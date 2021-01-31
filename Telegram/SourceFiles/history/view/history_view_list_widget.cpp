@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_list_widget.h"
 
+#include "base/unixtime.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
@@ -2725,8 +2726,25 @@ rpl::producer<FullMsgId> ListWidget::editMessageRequested() const {
 	return _requestedToEditMessage.events();
 }
 
-void ListWidget::editMessageRequestNotify(FullMsgId item) {
+void ListWidget::editMessageRequestNotify(FullMsgId item) const {
 	_requestedToEditMessage.fire(std::move(item));
+}
+
+bool ListWidget::lastMessageEditRequestNotify() const {
+	const auto now = base::unixtime::now();
+	auto proj = [&](not_null<Element*> view) {
+		return view->data()->allowsEdit(now);
+	};
+	const auto &list = ranges::view::reverse(_items);
+	const auto it = ranges::find_if(list, std::move(proj));
+	if (it == end(list)) {
+		return false;
+	} else {
+		const auto item =
+			session().data().groups().findItemToEdit((*it)->data()).get();
+		editMessageRequestNotify(item->fullId());
+		return true;
+	}
 }
 
 rpl::producer<FullMsgId> ListWidget::replyToMessageRequested() const {

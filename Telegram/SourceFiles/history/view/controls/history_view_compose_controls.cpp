@@ -712,18 +712,14 @@ rpl::producer<> ComposeControls::cancelRequests() const {
 	return _cancelRequests.events();
 }
 
-rpl::producer<not_null<QKeyEvent*>> ComposeControls::keyEvents() const {
-	return _wrap->events(
-	) | rpl::map([=](not_null<QEvent*> e) -> not_null<QKeyEvent*> {
-		return static_cast<QKeyEvent*>(e.get());
-	}) | rpl::filter([=](not_null<QEvent*> event) {
-		return (event->type() == QEvent::KeyPress);
-	});
-}
-
 auto ComposeControls::scrollKeyEvents() const
 -> rpl::producer<not_null<QKeyEvent*>> {
 	return _scrollKeyEvents.events();
+}
+
+auto ComposeControls::editLastMessageRequests() const
+-> rpl::producer<not_null<QKeyEvent*>> {
+	return _editLastMessageRequests.events();
 }
 
 auto ComposeControls::sendContentRequests(SendRequestType requestType) const {
@@ -1061,6 +1057,12 @@ void ComposeControls::initKeyHandler() {
 	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		auto keyEvent = static_cast<QKeyEvent*>(e.get());
 		const auto key = keyEvent->key();
+		if (key == Qt::Key_Up) {
+			if (!isEditingMessage()) {
+				_editLastMessageRequests.fire(std::move(keyEvent));
+				return;
+			}
+		}
 		if ((key == Qt::Key_Up)
 			|| (key == Qt::Key_Down)
 			|| (key == Qt::Key_PageUp)

@@ -493,19 +493,10 @@ void RepliesWidget::setupComposeControls() {
 		_scroll->keyPressEvent(e);
 	}, lifetime());
 
-	_composeControls->keyEvents(
+	_composeControls->editLastMessageRequests(
 	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
-		if (e->key() == Qt::Key_Up) {
-			if (!_composeControls->isEditingMessage()) {
-				if (const auto item = _replies->lastEditableMessage()) {
-					_inner->editMessageRequestNotify(item->fullId());
-				} else {
-					_scroll->keyPressEvent(e);
-				}
-			} else {
-				_scroll->keyPressEvent(e);
-			}
-			e->accept();
+		if (!_inner->lastMessageEditRequestNotify()) {
+			_scroll->keyPressEvent(e);
 		}
 	}, lifetime());
 

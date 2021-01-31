@@ -206,7 +206,8 @@ public:
 	bool tooltipWindowActive() const override;
 
 	[[nodiscard]] rpl::producer<FullMsgId> editMessageRequested() const;
-	void editMessageRequestNotify(FullMsgId item);
+	void editMessageRequestNotify(FullMsgId item) const;
+	[[nodiscard]] bool lastMessageEditRequestNotify() const;
 	[[nodiscard]] rpl::producer<FullMsgId> replyToMessageRequested() const;
 	void replyToMessageRequestNotify(FullMsgId item);
 	[[nodiscard]] rpl::producer<FullMsgId> readMessageRequested() const;
