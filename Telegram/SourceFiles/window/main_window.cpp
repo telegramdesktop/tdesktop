@@ -466,14 +466,44 @@ void MainWindow::initSize() {
 		for (auto screen : QGuiApplication::screens()) {
 			if (position.moncrc == screenNameChecksum(screen->name())) {
 				auto screenGeometry = screen->geometry();
+				auto availableGeometry = screen->availableGeometry();
 				DEBUG_LOG(("Window Pos: Screen found, screen geometry: %1, %2, %3, %4").arg(screenGeometry.x()).arg(screenGeometry.y()).arg(screenGeometry.width()).arg(screenGeometry.height()));
 
-				auto w = screenGeometry.width(), h = screenGeometry.height();
+				const auto x = availableGeometry.x() - screenGeometry.x();
+				const auto y = availableGeometry.y() - screenGeometry.y();
+				const auto w = availableGeometry.width();
+				const auto h = availableGeometry.height();
 				if (w >= st::windowMinWidth && h >= st::windowMinHeight) {
-					if (position.x < 0) position.x = 0;
-					if (position.y < 0) position.y = 0;
+					if (position.x < x) position.x = x;
+					if (position.y < y) position.y = y;
 					if (position.w > w) position.w = w;
 					if (position.h > h) position.h = h;
+					const auto rightPoint = position.x + position.w;
+					if (rightPoint > w) {
+						const auto distance = rightPoint - w;
+						const auto newXPos = position.x - distance;
+						if (newXPos >= 0) {
+							position.x = newXPos;
+						} else {
+							position.x = 0;
+							const auto newRightPoint = position.x + position.w;
+							const auto newDistance = newRightPoint - w;
+							position.w -= newDistance;
+						}
+					}
+					const auto bottomPoint = position.y + position.h;
+					if (bottomPoint > h) {
+						const auto distance = bottomPoint - h;
+						const auto newYPos = position.y - distance;
+						if (newYPos >= 0) {
+							position.y = newYPos;
+						} else {
+							position.y = 0;
+							const auto newBottomPoint = position.y + position.h;
+							const auto newDistance = newBottomPoint - h;
+							position.h -= newDistance;
+						}
+					}
 					position.x += screenGeometry.x();
 					position.y += screenGeometry.y();
 					if (position.x + st::windowMinWidth <= screenGeometry.x() + screenGeometry.width() &&
