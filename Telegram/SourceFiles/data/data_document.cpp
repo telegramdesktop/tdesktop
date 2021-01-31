@@ -352,7 +352,7 @@ void DocumentOpenClickHandler::Open(
 		} else {
 			Core::App().showDocument(data, context);
 		}
-	} else if (data->saveFromDataSilent()) {
+	} else if (data->saveFromData()) {
 		openFile();
 	} else if (data->status == FileReady
 		|| data->status == FileDownloadFailed) {
