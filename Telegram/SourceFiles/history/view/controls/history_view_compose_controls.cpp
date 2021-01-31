@@ -721,6 +721,11 @@ rpl::producer<not_null<QKeyEvent*>> ComposeControls::keyEvents() const {
 	});
 }
 
+auto ComposeControls::scrollKeyEvents() const
+-> rpl::producer<not_null<QKeyEvent*>> {
+	return _scrollKeyEvents.events();
+}
+
 auto ComposeControls::sendContentRequests(SendRequestType requestType) const {
 	auto filter = rpl::filter([=] {
 		const auto type = (_mode == Mode::Normal)
@@ -947,6 +952,7 @@ void ComposeControls::init() {
 	initSendButton();
 	initWriteRestriction();
 	initVoiceRecordBar();
+	initKeyHandler();
 
 	_botCommandStart->setClickedCallback([=] { setText({ "/" }); });
 
@@ -1046,6 +1052,22 @@ void ComposeControls::drawRestrictedWrite(Painter &p, const QString &error) {
 			QMargins(st::historySendPadding, 0, st::historySendPadding, 0)),
 		error,
 		style::al_center);
+}
+
+void ComposeControls::initKeyHandler() {
+	_wrap->events(
+	) | rpl::filter([=](not_null<QEvent*> event) {
+		return (event->type() == QEvent::KeyPress);
+	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		auto keyEvent = static_cast<QKeyEvent*>(e.get());
+		const auto key = keyEvent->key();
+		if ((key == Qt::Key_Up)
+			|| (key == Qt::Key_Down)
+			|| (key == Qt::Key_PageUp)
+			|| (key == Qt::Key_PageDown)) {
+			_scrollKeyEvents.fire(std::move(keyEvent));
+		}
+	}, _wrap->lifetime());
 }
 
 void ComposeControls::initField() {

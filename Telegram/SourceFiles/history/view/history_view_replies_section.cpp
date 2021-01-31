@@ -488,6 +488,11 @@ void RepliesWidget::setupComposeControls() {
 		showAtPosition(pos);
 	}, lifetime());
 
+	_composeControls->scrollKeyEvents(
+	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
+		_scroll->keyPressEvent(e);
+	}, lifetime());
+
 	_composeControls->keyEvents(
 	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
 		if (e->key() == Qt::Key_Up) {
@@ -500,15 +505,6 @@ void RepliesWidget::setupComposeControls() {
 			} else {
 				_scroll->keyPressEvent(e);
 			}
-			e->accept();
-		} else if (e->key() == Qt::Key_Down) {
-			_scroll->keyPressEvent(e);
-			e->accept();
-		} else if (e->key() == Qt::Key_PageDown) {
-			_scroll->keyPressEvent(e);
-			e->accept();
-		} else if (e->key() == Qt::Key_PageUp) {
-			_scroll->keyPressEvent(e);
 			e->accept();
 		}
 	}, lifetime());

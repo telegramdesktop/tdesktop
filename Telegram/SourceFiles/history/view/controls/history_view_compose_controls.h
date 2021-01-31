@@ -122,6 +122,8 @@ public:
 	[[nodiscard]] rpl::producer<InlineChosen> inlineResultChosen() const;
 	[[nodiscard]] rpl::producer<SendActionUpdate> sendActionUpdates() const;
 	[[nodiscard]] rpl::producer<not_null<QEvent*>> viewportEvents() const;
+	[[nodiscard]] auto scrollKeyEvents() const
+	-> rpl::producer<not_null<QKeyEvent*>>;
 
 	using MimeDataHook = Fn<bool(
 		not_null<const QMimeData*> data,
@@ -189,6 +191,7 @@ private:
 	void initWriteRestriction();
 	void initVoiceRecordBar();
 	void initAutocomplete();
+	void initKeyHandler();
 	void updateSubmitSettings();
 	void updateSendButtonType();
 	void updateHeight();
@@ -290,6 +293,7 @@ private:
 	rpl::event_stream<InlineChosen> _inlineResultChosen;
 	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
 	rpl::event_stream<QString> _sendCommandRequests;
+	rpl::event_stream<not_null<QKeyEvent*>> _scrollKeyEvents;
 
 	TextUpdateEvents _textUpdateEvents = TextUpdateEvents()
 		| TextUpdateEvent::SaveDraft
