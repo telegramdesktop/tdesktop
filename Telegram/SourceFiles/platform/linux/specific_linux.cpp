@@ -695,8 +695,7 @@ QString GetLauncherBasename() {
 				appimagePath.size(),
 				md5Hash);
 
-			return qsl("appimagekit_%1-%2")
-				.arg(md5Hash)
+			return qsl("appimagekit-%1")
 				.arg(AppName.utf16().replace(' ', '_'));
 		}
 
