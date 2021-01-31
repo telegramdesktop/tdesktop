@@ -525,6 +525,11 @@ void ListWidget::updateHighlightedMessage() {
 	_highlightedMessageId = FullMsgId();
 }
 
+void ListWidget::clearHighlightedMessage() {
+	_highlightedMessageId = FullMsgId();
+	updateHighlightedMessage();
+}
+
 void ListWidget::checkUnreadBarCreation() {
 	if (!_bar.element) {
 		if (auto data = _delegate->listMessagesBar(_items); data.bar.element) {
@@ -2757,6 +2762,49 @@ void ListWidget::replyToMessageRequestNotify(FullMsgId item) {
 
 rpl::producer<FullMsgId> ListWidget::readMessageRequested() const {
 	return _requestedToReadMessage.events();
+}
+
+rpl::producer<FullMsgId> ListWidget::showMessageRequested() const {
+	return _requestedToShowMessage.events();
+}
+
+void ListWidget::replyNextMessage(FullMsgId fullId, bool next) {
+	const auto reply = [&](Element *view) {
+		if (view) {
+			const auto newFullId = view->data()->fullId();
+			replyToMessageRequestNotify(newFullId);
+			_requestedToShowMessage.fire_copy(newFullId);
+		} else {
+			replyToMessageRequestNotify(FullMsgId());
+			clearHighlightedMessage();
+		}
+	};
+	const auto replyFirst = [&] {
+		reply(next ? nullptr : _items.back().get());
+	};
+	if (!fullId) {
+		replyFirst();
+		return;
+	}
+
+	auto proj = [&](not_null<Element*> view) {
+		return view->data()->fullId() == fullId;
+	};
+	const auto &list = ranges::view::reverse(_items);
+	const auto it = ranges::find_if(list, std::move(proj));
+	if (it == end(list)) {
+		replyFirst();
+		return;
+	} else {
+		const auto nextIt = it + (next ? -1 : 1);
+		if (nextIt == end(list)) {
+			return;
+		} else if (next && (it == begin(list))) {
+			reply(nullptr);
+		} else {
+			reply(nextIt->get());
+		}
+	}
 }
 
 ListWidget::~ListWidget() = default;

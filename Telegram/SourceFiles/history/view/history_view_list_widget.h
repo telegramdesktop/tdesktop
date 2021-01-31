@@ -211,6 +211,8 @@ public:
 	[[nodiscard]] rpl::producer<FullMsgId> replyToMessageRequested() const;
 	void replyToMessageRequestNotify(FullMsgId item);
 	[[nodiscard]] rpl::producer<FullMsgId> readMessageRequested() const;
+	[[nodiscard]] rpl::producer<FullMsgId> showMessageRequested() const;
+	void replyNextMessage(FullMsgId fullId, bool next = true);
 
 	// ElementDelegate interface.
 	Context elementContext() override;
@@ -448,6 +450,7 @@ private:
 	void scrollToAnimationCallback(FullMsgId attachToId, int relativeTo);
 
 	void updateHighlightedMessage();
+	void clearHighlightedMessage();
 
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
@@ -555,6 +558,7 @@ private:
 	rpl::event_stream<FullMsgId> _requestedToEditMessage;
 	rpl::event_stream<FullMsgId> _requestedToReplyToMessage;
 	rpl::event_stream<FullMsgId> _requestedToReadMessage;
+	rpl::event_stream<FullMsgId> _requestedToShowMessage;
 
 	rpl::lifetime _viewerLifetime;
 

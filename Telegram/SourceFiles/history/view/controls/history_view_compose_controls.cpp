@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_compose_controls.h"
 
 #include "base/event_filter.h"
+#include "base/platform/base_platform_info.h"
 #include "base/qt_signal_producer.h"
 #include "base/unixtime.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
@@ -63,6 +64,11 @@ constexpr auto kMouseEvents = {
 	QEvent::MouseButtonPress,
 	QEvent::MouseButtonRelease
 };
+
+constexpr auto kCommonModifiers = 0
+	| Qt::ShiftModifier
+	| Qt::MetaModifier
+	| Qt::ControlModifier;
 
 using FileChosen = ComposeControls::FileChosen;
 using PhotoChosen = ComposeControls::PhotoChosen;
@@ -722,6 +728,11 @@ auto ComposeControls::editLastMessageRequests() const
 	return _editLastMessageRequests.events();
 }
 
+auto ComposeControls::replyNextRequests() const
+-> rpl::producer<ReplyNextRequest> {
+	return _replyNextRequests.events();
+}
+
 auto ComposeControls::sendContentRequests(SendRequestType requestType) const {
 	auto filter = rpl::filter([=] {
 		const auto type = (_mode == Mode::Normal)
@@ -1077,6 +1088,37 @@ void ComposeControls::initKeyHandler() {
 			_scrollKeyEvents.fire(std::move(keyEvent));
 		}
 	}, _wrap->lifetime());
+
+	base::install_event_filter(_wrap.get(), _field, [=](not_null<QEvent*> e) {
+		using Result = base::EventFilterResult;
+		if (e->type() != QEvent::KeyPress) {
+			return Result::Continue;
+		}
+		const auto k = static_cast<QKeyEvent*>(e.get());
+
+		if ((k->modifiers() & kCommonModifiers) == Qt::ControlModifier) {
+			const auto isUp = (k->key() == Qt::Key_Up);
+			const auto isDown = (k->key() == Qt::Key_Down);
+			if (isUp || isDown) {
+				if (Platform::IsMac()) {
+					// Cmd + Up is used instead of Home.
+					if ((isUp && (!_field->textCursor().atStart()))
+						// Cmd + Down is used instead of End.
+						|| (isDown && (!_field->textCursor().atEnd()))) {
+						return Result::Continue;
+					}
+				}
+				_replyNextRequests.fire({
+					.replyId = replyingToMessage(),
+					.direction = (isDown
+						? ReplyNextRequest::Direction::Next
+						: ReplyNextRequest::Direction::Previous)
+				});
+				return Result::Cancel;
+			}
+		}
+		return Result::Continue;
+	});
 }
 
 void ComposeControls::initField() {

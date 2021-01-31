@@ -221,6 +221,13 @@ RepliesWidget::RepliesWidget(
 		replyToMessage(fullId);
 	}, _inner->lifetime());
 
+	_inner->showMessageRequested(
+	) | rpl::start_with_next([=](auto fullId) {
+		if (const auto item = session().data().message(fullId)) {
+			showAtPosition(item->position());
+		}
+	}, _inner->lifetime());
+
 	_composeControls->sendActionUpdates(
 	) | rpl::start_with_next([=](ComposeControls::SendActionUpdate &&data) {
 		session().sendProgressManager().update(
@@ -498,6 +505,14 @@ void RepliesWidget::setupComposeControls() {
 		if (!_inner->lastMessageEditRequestNotify()) {
 			_scroll->keyPressEvent(e);
 		}
+	}, lifetime());
+
+	_composeControls->replyNextRequests(
+	) | rpl::start_with_next([=](ComposeControls::ReplyNextRequest &&data) {
+		using Direction = ComposeControls::ReplyNextRequest::Direction;
+		_inner->replyNextMessage(
+			data.replyId,
+			data.direction == Direction::Next);
 	}, lifetime());
 
 	_composeControls->setMimeDataHook([=](

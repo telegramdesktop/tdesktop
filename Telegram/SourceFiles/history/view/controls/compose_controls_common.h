@@ -40,4 +40,13 @@ struct SetHistoryArgs {
 	rpl::producer<std::optional<QString>> writeRestriction;
 };
 
+struct ReplyNextRequest {
+	enum class Direction {
+		Next,
+		Previous,
+	};
+	const FullMsgId replyId;
+	const Direction direction;
+};
+
 } // namespace HistoryView::Controls

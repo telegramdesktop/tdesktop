@@ -82,6 +82,7 @@ public:
 	using VoiceToSend = Controls::VoiceToSend;
 	using SendActionUpdate = Controls::SendActionUpdate;
 	using SetHistoryArgs = Controls::SetHistoryArgs;
+	using ReplyNextRequest = Controls::ReplyNextRequest;
 	using FieldHistoryAction = Ui::InputField::HistoryAction;
 
 	enum class Mode {
@@ -125,6 +126,8 @@ public:
 	-> rpl::producer<not_null<QKeyEvent*>>;
 	[[nodiscard]] auto editLastMessageRequests() const
 	-> rpl::producer<not_null<QKeyEvent*>>;
+	[[nodiscard]] auto replyNextRequests() const
+	-> rpl::producer<ReplyNextRequest>;
 
 	using MimeDataHook = Fn<bool(
 		not_null<const QMimeData*> data,
@@ -297,6 +300,7 @@ private:
 	rpl::event_stream<not_null<QKeyEvent*>> _scrollKeyEvents;
 	rpl::event_stream<not_null<QKeyEvent*>> _editLastMessageRequests;
 	rpl::event_stream<> _attachRequests;
+	rpl::event_stream<ReplyNextRequest> _replyNextRequests;
 
 	TextUpdateEvents _textUpdateEvents = TextUpdateEvents()
 		| TextUpdateEvent::SaveDraft
