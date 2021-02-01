@@ -64,7 +64,7 @@ public:
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
 		bool useLocationPhrases,
-		Privacy privacySavedValue,
+		std::optional<Privacy> privacySavedValue,
 		std::optional<QString> usernameSavedValue);
 
 	void createContent();
@@ -72,7 +72,9 @@ public:
 	void setFocusUsername();
 
 	rpl::producer<QString> getTitle() {
-		return _isGroup
+		return !_privacySavedValue
+			? tr::lng_create_invite_link_title()
+			: _isGroup
 			? tr::lng_manage_peer_group_type()
 			: tr::lng_manage_peer_channel_type();
 	}
@@ -120,7 +122,7 @@ private:
 
 	void fillPrivaciesButtons(
 		not_null<Ui::VerticalLayout*> parent,
-		Privacy savedValue);
+		std::optional<Privacy> savedValue);
 	void addRoundButton(
 		not_null<Ui::VerticalLayout*> container,
 		Privacy value,
@@ -132,7 +134,7 @@ private:
 
 	not_null<PeerData*> _peer;
 	MTP::Sender _api;
-	Privacy _privacySavedValue = Privacy();
+	std::optional<Privacy> _privacySavedValue;
 	std::optional<QString> _usernameSavedValue;
 
 	bool _useLocationPhrases = false;
@@ -153,7 +155,7 @@ Controller::Controller(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
 	bool useLocationPhrases,
-	Privacy privacySavedValue,
+	std::optional<Privacy> privacySavedValue,
 	std::optional<QString> usernameSavedValue)
 : _peer(peer)
 , _api(&_peer->session().mtp())
@@ -172,10 +174,14 @@ void Controller::createContent() {
 
 	fillPrivaciesButtons(_wrap, _privacySavedValue);
 	// Skip.
-	_wrap->add(object_ptr<Ui::BoxContentDivider>(_wrap));
+	if (_privacySavedValue) {
+		_wrap->add(object_ptr<Ui::BoxContentDivider>(_wrap));
+	}
 	//
 	_wrap->add(createInviteLinkBlock());
-	_wrap->add(createUsernameEdit());
+	if (_privacySavedValue) {
+		_wrap->add(createUsernameEdit());
+	}
 
 	//using namespace Settings; // #TODO links
 	//AddSkip(_wrap.get());
@@ -192,15 +198,20 @@ void Controller::createContent() {
 	//AddSkip(_wrap.get());
 	//AddDividerText(_wrap.get(), tr::lng_group_invite_manage_about());
 
-	if (_controls.privacy->value() == Privacy::NoUsername) {
-		checkUsernameAvailability();
+	if (_controls.privacy) {
+		if (_controls.privacy->value() == Privacy::NoUsername) {
+			checkUsernameAvailability();
+		}
+		const auto forShowing = _privacySavedValue.value_or(Privacy::NoUsername);
+		_controls.inviteLinkWrap->toggle(
+			(forShowing != Privacy::HasUsername),
+			anim::type::instant);
+		_controls.usernameWrap->toggle(
+			(forShowing == Privacy::HasUsername),
+			anim::type::instant);
+	} else {
+		_controls.inviteLinkWrap->show(anim::type::instant);
 	}
-	_controls.inviteLinkWrap->toggle(
-		(_privacySavedValue != Privacy::HasUsername),
-		anim::type::instant);
-	_controls.usernameWrap->toggle(
-		(_privacySavedValue == Privacy::HasUsername),
-		anim::type::instant);
 }
 
 void Controller::addRoundButton(
@@ -228,7 +239,7 @@ void Controller::addRoundButton(
 
 void Controller::fillPrivaciesButtons(
 		not_null<Ui::VerticalLayout*> parent,
-		Privacy savedValue) {
+		std::optional<Privacy> savedValue) {
 	const auto canEditUsername = [&] {
 		if (const auto chat = _peer->asChat()) {
 			return chat->canEditUsername();
@@ -251,7 +262,8 @@ void Controller::fillPrivaciesButtons(
 	const auto isPublic = _peer->isChannel()
 		&& _peer->asChannel()->hasUsername();
 	_controls.privacy = std::make_shared<Ui::RadioenumGroup<Privacy>>(
-		savedValue);
+		savedValue.value_or(
+			isPublic ? Privacy::HasUsername : Privacy::NoUsername));
 
 	addRoundButton(
 		container,
@@ -546,9 +558,11 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkBlock() {
 	const auto container = result->entity();
 
 	using namespace Settings;
-	AddSkip(container);
+	if (_privacySavedValue) {
+		AddSkip(container);
 
-	AddSubsectionTitle(container, tr::lng_create_invite_link_title());
+		AddSubsectionTitle(container, tr::lng_create_invite_link_title());
+	}
 	// tr::lng_create_permanent_link_title()); // #TODO links
 	AddPermanentLinkBlock(container, _peer);
 
@@ -585,7 +599,7 @@ EditPeerTypeBox::EditPeerTypeBox(
 	not_null<PeerData*> peer,
 	bool useLocationPhrases,
 	std::optional<FnMut<void(Privacy, QString)>> savedCallback,
-	Privacy privacySaved,
+	std::optional<Privacy> privacySaved,
 	std::optional<QString> usernameSaved,
 	std::optional<rpl::producer<QString>> usernameError)
 : _peer(peer)
@@ -594,6 +608,12 @@ EditPeerTypeBox::EditPeerTypeBox(
 , _privacySavedValue(privacySaved)
 , _usernameSavedValue(usernameSaved)
 , _usernameError(usernameError) {
+}
+
+EditPeerTypeBox::EditPeerTypeBox(
+	QWidget*,
+	not_null<PeerData*> peer)
+: EditPeerTypeBox(nullptr, peer, {}, {}, {}, {}, {}) {
 }
 
 void EditPeerTypeBox::setInnerFocus() {
@@ -641,8 +661,10 @@ void EditPeerTypeBox::prepare() {
 					: QString()); // We don't need username with private type.
 			closeBox();
 		});
+		addButton(tr::lng_cancel(), [=] { closeBox(); });
+	} else {
+		addButton(tr::lng_close(), [=] { closeBox(); });
 	}
-	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	setDimensionsToContent(st::boxWideWidth, content.data());
 	setInnerWidget(std::move(content));
