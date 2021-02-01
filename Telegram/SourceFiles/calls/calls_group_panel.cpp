@@ -99,6 +99,10 @@ private:
 	std::unique_ptr<PeerListRow> createRow(
 		not_null<UserData*> user) override;
 
+	bool needsInviteLinkButton() override {
+		return false;
+	}
+
 	const not_null<const base::flat_set<not_null<UserData*>>*> _inGroup;
 	rpl::producer<not_null<UserData*>> _discoveredInGroup;
 

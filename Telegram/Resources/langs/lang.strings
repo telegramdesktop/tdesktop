@@ -827,6 +827,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_delete_contact" = "Delete";
 "lng_profile_set_group_photo" = "Set Photo";
 "lng_profile_add_participant" = "Add Members";
+"lng_profile_add_via_link" = "Invite via Link";
 "lng_profile_view_channel" = "View Channel";
 "lng_profile_view_discussion" = "View discussion";
 "lng_profile_join_channel" = "Join Channel";

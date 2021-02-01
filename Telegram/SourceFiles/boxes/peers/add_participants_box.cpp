@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/add_participants_box.h"
 
 #include "boxes/peers/edit_participant_box.h"
+#include "boxes/peers/edit_peer_type_box.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "data/data_channel.h"
@@ -18,15 +19,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "history/history.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "ui/widgets/buttons.h"
+#include "ui/wrap/padding_wrap.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "window/window_session_controller.h"
+#include "info/profile/info_profile_icon.h"
 #include "apiwrap.h"
 #include "facades.h" // Ui::showPeerHistory
 #include "app.h"
+#include "styles/style_boxes.h"
 
 namespace {
 
@@ -68,6 +73,9 @@ AddParticipantsBoxController::AddParticipantsBoxController(
 : ContactsBoxController(&peer->session())
 , _peer(peer)
 , _alreadyIn(std::move(alreadyIn)) {
+	if (needsInviteLinkButton()) {
+		setStyleOverrides(&st::peerListWithInviteViaLink);
+	}
 	subscribeToMigration();
 }
 
@@ -166,6 +174,44 @@ void AddParticipantsBoxController::updateTitle() {
 		).arg(session().serverConfig().megagroupSizeMax);
 	delegate()->peerListSetTitle(tr::lng_profile_add_participant());
 	delegate()->peerListSetAdditionalTitle(rpl::single(additional));
+
+	addInviteLinkButton();
+}
+
+bool AddParticipantsBoxController::needsInviteLinkButton() {
+	if (!_peer) {
+		return false;
+	} else if (const auto channel = _peer->asChannel()) {
+		return channel->canHaveInviteLink();
+	}
+	return _peer->asChat()->canHaveInviteLink();
+}
+
+void AddParticipantsBoxController::addInviteLinkButton() {
+	if (!needsInviteLinkButton()) {
+		return;
+	}
+	auto button = object_ptr<Ui::PaddingWrap<Ui::SettingsButton>>(
+		nullptr,
+		object_ptr<Ui::SettingsButton>(
+			nullptr,
+			tr::lng_profile_add_via_link(),
+			st::inviteViaLinkButton),
+		style::margins(0, st::membersMarginTop, 0, 0));
+	object_ptr<Info::Profile::FloatingIcon>(
+		button->entity(),
+		st::inviteViaLinkIcon,
+		st::inviteViaLinkIconPosition);
+	button->entity()->setClickedCallback([=] {
+		Ui::show(Box<EditPeerTypeBox>(_peer), Ui::LayerOption::KeepOther);
+	});
+	button->entity()->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::Enter);
+	}) | rpl::start_with_next([=] {
+		delegate()->peerListMouseLeftGeometry();
+	}, button->lifetime());
+	delegate()->peerListSetAboveWidget(std::move(button));
 }
 
 bool AddParticipantsBoxController::inviteSelectedUsers(

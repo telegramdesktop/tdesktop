@@ -44,6 +44,7 @@ protected:
 	void prepareViewHook() override;
 	std::unique_ptr<PeerListRow> createRow(
 		not_null<UserData*> user) override;
+	virtual bool needsInviteLinkButton();
 
 private:
 	static void Start(
@@ -52,6 +53,7 @@ private:
 		base::flat_set<not_null<UserData*>> &&alreadyIn,
 		bool justCreated);
 
+	void addInviteLinkButton();
 	bool inviteSelectedUsers(not_null<PeerListBox*> box) const;
 	void subscribeToMigration();
 	int alreadyInCount() const;

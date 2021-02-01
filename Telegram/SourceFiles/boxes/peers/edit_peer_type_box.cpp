@@ -133,6 +133,8 @@ private:
 	QString inviteLinkText();
 
 	not_null<PeerData*> _peer;
+	bool _linkOnly = false;
+
 	MTP::Sender _api;
 	std::optional<Privacy> _privacySavedValue;
 	std::optional<QString> _usernameSavedValue;
@@ -158,6 +160,7 @@ Controller::Controller(
 	std::optional<Privacy> privacySavedValue,
 	std::optional<QString> usernameSavedValue)
 : _peer(peer)
+, _linkOnly(!privacySavedValue.has_value())
 , _api(&_peer->session().mtp())
 , _privacySavedValue(privacySavedValue)
 , _usernameSavedValue(usernameSavedValue)
@@ -174,12 +177,12 @@ void Controller::createContent() {
 
 	fillPrivaciesButtons(_wrap, _privacySavedValue);
 	// Skip.
-	if (_privacySavedValue) {
+	if (!_linkOnly) {
 		_wrap->add(object_ptr<Ui::BoxContentDivider>(_wrap));
 	}
 	//
 	_wrap->add(createInviteLinkBlock());
-	if (_privacySavedValue) {
+	if (!_linkOnly) {
 		_wrap->add(createUsernameEdit());
 	}
 
@@ -198,7 +201,9 @@ void Controller::createContent() {
 	//AddSkip(_wrap.get());
 	//AddDividerText(_wrap.get(), tr::lng_group_invite_manage_about());
 
-	if (_controls.privacy) {
+	if (_linkOnly) {
+		_controls.inviteLinkWrap->show(anim::type::instant);
+	} else {
 		if (_controls.privacy->value() == Privacy::NoUsername) {
 			checkUsernameAvailability();
 		}
@@ -209,8 +214,6 @@ void Controller::createContent() {
 		_controls.usernameWrap->toggle(
 			(forShowing == Privacy::HasUsername),
 			anim::type::instant);
-	} else {
-		_controls.inviteLinkWrap->show(anim::type::instant);
 	}
 }
 
@@ -248,7 +251,7 @@ void Controller::fillPrivaciesButtons(
 		}
 		Unexpected("Peer type in Controller::createPrivaciesEdit.");
 	}();
-	if (!canEditUsername) {
+	if (!canEditUsername || _linkOnly) {
 		return;
 	}
 

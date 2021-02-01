@@ -22,7 +22,7 @@ struct SingleChoiceBoxArgs {
 	required<rpl::producer<QString>> title;
 	const std::vector<QString> &options;
 	int initialSelection = 0;
-	required<Fn<void(int)>> callback;
+	Fn<void(int)> callback;
 	const style::Checkbox *st = nullptr;
 	const style::Radio *radioSt = nullptr;
 };
