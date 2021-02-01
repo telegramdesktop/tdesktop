@@ -197,8 +197,7 @@ void PaintImageProfile(QPainter &p, const QImage &image, QRect rect, QRect fill)
 	});
 }
 
-QPixmap PrepareStaticImage(const QString &path) {
-	auto image = App::readImage(path, nullptr, false);
+QPixmap PrepareStaticImage(QImage image) {
 #if defined Q_OS_MAC && !defined OS_MAC_OLD
 	if (image.width() > kMaxDisplayImageSize
 		|| image.height() > kMaxDisplayImageSize) {
@@ -210,6 +209,14 @@ QPixmap PrepareStaticImage(const QString &path) {
 	}
 #endif // Q_OS_MAC && !OS_MAC_OLD
 	return App::pixmapFromImageInPlace(std::move(image));
+}
+
+QPixmap PrepareStaticImage(const QString &path) {
+	return PrepareStaticImage(App::readImage(path, nullptr, false));
+}
+
+QPixmap PrepareStaticImage(const QByteArray &bytes) {
+	return PrepareStaticImage(App::readImage(bytes, nullptr, false));
 }
 
 } // namespace
@@ -2302,6 +2309,11 @@ void OverlayWidget::displayDocument(
 					const auto &path = location.name();
 					if (QImageReader(path).canRead()) {
 						_staticContent = PrepareStaticImage(path);
+						_touchbarDisplay.fire(TouchBarItemType::Photo);
+					}
+				} else if (!_documentMedia->bytes().isEmpty()) {
+					_staticContent = PrepareStaticImage(_documentMedia->bytes());
+					if (!_staticContent.isNull()) {
 						_touchbarDisplay.fire(TouchBarItemType::Photo);
 					}
 				}
