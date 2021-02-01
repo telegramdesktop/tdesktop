@@ -443,31 +443,61 @@ bool AddSendNowMessageAction(
 	return true;
 }
 
-bool AddRescheduleMessageAction(
+bool AddRescheduleAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
-	if (!HasEditMessageAction(request, list)
-		|| !request.item->isScheduled()) {
+	const auto owner = &request.navigation->session().data();
+
+	const auto goodSingle = !(!HasEditMessageAction(request, list)
+		|| !request.item->isScheduled());
+	const auto goodMany = [&] {
+		if (goodSingle) {
+			return false;
+		}
+		if (!request.overSelection || request.selectedItems.empty()) {
+			return false;
+		}
+		return true;
+	}();
+	if (!goodSingle && !goodMany) {
 		return false;
 	}
-	const auto owner = &request.item->history()->owner();
-	const auto itemId = request.item->fullId();
-	menu->addAction(tr::lng_context_reschedule(tr::now), [=] {
-		const auto item = owner->message(itemId);
-		if (!item) {
+	auto ids = goodSingle
+		? MessageIdsList{ request.item->fullId() }
+		: ExtractIdsList(request.selectedItems);
+	ranges::sort(ids, [&](const FullMsgId &a, const FullMsgId &b) {
+		const auto itemA = owner->message(a);
+		const auto itemB = owner->message(b);
+		return (itemA && itemB) && (itemA->position() < itemB->position());
+	});
+
+	auto text = ((ids.size() == 1)
+		? tr::lng_context_reschedule
+		: tr::lng_context_reschedule_selected)(tr::now);
+
+	menu->addAction(std::move(text), [=] {
+		const auto firstItem = owner->message(ids.front());
+		if (!firstItem) {
 			return;
 		}
+		list->cancelSelection();
 		const auto callback = [=](Api::SendOptions options) {
-			if (const auto item = owner->message(itemId)) {
+			for (const auto &id : ids) {
+				const auto item = owner->message(id);
+				if (!item && !item->isScheduled()) {
+					continue;
+				}
 				if (!item->media() || !item->media()->webpage()) {
 					options.removeWebPageId = true;
 				}
 				Api::RescheduleMessage(item, options);
+				// Increase the scheduled date by 1ms to keep the order.
+				options.scheduled += 1;
 			}
 		};
 
-		const auto peer = item->history()->peer;
+		const auto peer = firstItem->history()->peer;
 		const auto sendMenuType = !peer
 			? SendMenu::Type::Disabled
 			: peer->isSelf()
@@ -477,9 +507,10 @@ bool AddRescheduleMessageAction(
 			: SendMenu::Type::Scheduled;
 
 		using S = Data::ScheduledMessages;
-		const auto date = (item->date() == S::kScheduledUntilOnlineTimestamp)
+		const auto itemDate = firstItem->date();
+		const auto date = (itemDate == S::kScheduledUntilOnlineTimestamp)
 			? HistoryView::DefaultScheduleTime()
-			: item->date() + 600;
+			: itemDate + 600;
 
 		const auto box = Ui::show(
 			HistoryView::PrepareScheduleBox(
@@ -490,9 +521,10 @@ bool AddRescheduleMessageAction(
 			Ui::LayerOption::KeepOther);
 
 		owner->itemRemoved(
-			itemId
-		) | rpl::start_with_next([=] {
-			box->closeBox();
+		) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+			if (ranges::contains(ids, item->fullId())) {
+				box->closeBox();
+			}
 		}, box->lifetime());
 	});
 	return true;
@@ -825,7 +857,7 @@ void AddMessageActions(
 	AddDeleteAction(menu, request, list);
 	AddReportAction(menu, request, list);
 	AddSelectionAction(menu, request, list);
-	AddRescheduleMessageAction(menu, request, list);
+	AddRescheduleAction(menu, request, list);
 }
 
 void AddCopyLinkAction(
