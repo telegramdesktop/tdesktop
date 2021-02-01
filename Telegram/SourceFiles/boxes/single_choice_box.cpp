@@ -16,56 +16,42 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 
-SingleChoiceBox::SingleChoiceBox(
-	QWidget*,
-	rpl::producer<QString> title,
-	const std::vector<QString> &optionTexts,
-	int initialSelection,
-	Fn<void(int)> callback,
-	const style::Checkbox *st,
-	const style::Radio *radioSt)
-: _title(std::move(title))
-, _optionTexts(optionTexts)
-, _initialSelection(initialSelection)
-, _callback(callback)
-, _st(st ? *st : st::defaultBoxCheckbox)
-, _radioSt(radioSt ? *radioSt : st::defaultRadio) {
-}
+void SingleChoiceBox(
+		not_null<Ui::GenericBox*> box,
+		SingleChoiceBoxArgs &&args) {
+	box->setTitle(std::move(args.title));
 
-void SingleChoiceBox::prepare() {
-	setTitle(std::move(_title));
+	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 
-	addButton(tr::lng_box_ok(), [=] { closeBox(); });
+	const auto group = std::make_shared<Ui::RadiobuttonGroup>(
+		args.initialSelection);
 
-	const auto group = std::make_shared<Ui::RadiobuttonGroup>(_initialSelection);
-
-	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
-	content->add(object_ptr<Ui::FixedHeightWidget>(
-		content,
+	const auto layout = box->verticalLayout();
+	layout->add(object_ptr<Ui::FixedHeightWidget>(
+		layout,
 		st::boxOptionListPadding.top() + st::autolockButton.margin.top()));
 	auto &&ints = ranges::view::ints(0, ranges::unreachable);
-	for (const auto &[i, text] : ranges::view::zip(ints, _optionTexts)) {
-		content->add(
+	for (const auto &[i, text] : ranges::view::zip(ints, args.options)) {
+		layout->add(
 			object_ptr<Ui::Radiobutton>(
-				content,
+				layout,
 				group,
 				i,
 				text,
-				_st,
-				_radioSt),
+				args.st ? *args.st : st::defaultBoxCheckbox,
+				args.radioSt ? *args.radioSt : st::defaultRadio),
 			QMargins(
 				st::boxPadding.left() + st::boxOptionListPadding.left(),
 				0,
 				st::boxPadding.right(),
 				st::boxOptionListSkip));
 	}
+	const auto callback = args.callback.value();
 	group->setChangedCallback([=](int value) {
-		const auto weak = Ui::MakeWeak(this);
-		_callback(value);
+		const auto weak = Ui::MakeWeak(box);
+		callback(value);
 		if (weak) {
-			closeBox();
+			box->closeBox();
 		}
 	});
-	setDimensionsToContent(st::boxWidth, content);
 }
-

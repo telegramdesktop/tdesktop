@@ -22,13 +22,12 @@ class Call;
 
 namespace Ui {
 class LevelMeter;
+class GenericBox;
 } // namespace Ui
 
 namespace Webrtc {
 class AudioInputTester;
 } // namespace Webrtc
-
-class SingleChoiceBox;
 
 namespace Settings {
 
@@ -61,17 +60,17 @@ inline constexpr auto kMicTestAnimationDuration = crl::time(200);
 
 [[nodiscard]] QString CurrentAudioOutputName();
 [[nodiscard]] QString CurrentAudioInputName();
-[[nodiscard]] object_ptr<SingleChoiceBox> ChooseAudioOutputBox(
+[[nodiscard]] object_ptr<Ui::GenericBox> ChooseAudioOutputBox(
 	Fn<void(QString id, QString name)> chosen,
 	const style::Checkbox *st = nullptr,
 	const style::Radio *radioSt = nullptr);
-[[nodiscard]] object_ptr<SingleChoiceBox> ChooseAudioInputBox(
+[[nodiscard]] object_ptr<Ui::GenericBox> ChooseAudioInputBox(
 	Fn<void(QString id, QString name)> chosen,
 	const style::Checkbox *st = nullptr,
 	const style::Radio *radioSt = nullptr);
-[[nodiscard]] object_ptr<SingleChoiceBox> ChooseAudioBackendBox(
-	const style::Checkbox *st = nullptr,
-	const style::Radio *radioSt = nullptr);
+//[[nodiscard]] object_ptr<Ui::GenericBox> ChooseAudioBackendBox(
+//	const style::Checkbox *st = nullptr,
+//	const style::Radio *radioSt = nullptr);
 
 } // namespace Settings
 
