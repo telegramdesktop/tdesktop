@@ -43,6 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
+constexpr auto kAnimationDuration = crl::time(120);
+
 QString CropTitle(not_null<PeerData*> peer) {
 	if (peer->isChat() || peer->isMegagroup()) {
 		return tr::lng_create_group_crop(tr::now);
@@ -858,19 +860,43 @@ void UserpicButton::prepareUserpicPixmap() {
 //}
 
 SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
-: IconButton(parent, st::historySilentToggle)
+: RippleButton(parent, st::historySilentToggle.ripple)
+, _st(st::historySilentToggle)
+, _colorOver(st::historyComposeIconFgOver->c)
 , _channel(channel)
-, _checked(channel->owner().notifySilentPosts(_channel)) {
+, _checked(channel->owner().notifySilentPosts(_channel))
+, _crossLine(st::historySilentToggleCrossLine) {
 	Expects(!channel->owner().notifySilentPostsUnknown(_channel));
 
-	if (_checked) {
-		refreshIconOverrides();
-	}
+	resize(_st.width, _st.height);
+
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_crossLine.invalidate();
+	}, lifetime());
+
+	paintRequest(
+	) | rpl::start_with_next([=](const QRect &clip) {
+		Painter p(this);
+		paintRipple(p, _st.rippleAreaPosition, nullptr);
+
+		_crossLine.paint(
+			p,
+			(width() - _st.icon.width()) / 2,
+			(height() - _st.icon.height()) / 2,
+			_crossLineAnimation.value(_checked ? 1. : 0.),
+			// Since buttons of the compose controls have no duration
+			// for the over animation, we can skip this animation here.
+			isOver()
+				? std::make_optional<QColor>(_colorOver)
+				: std::nullopt);
+	}, lifetime());
+
 	setMouseTracking(true);
 }
 
 void SilentToggle::mouseMoveEvent(QMouseEvent *e) {
-	IconButton::mouseMoveEvent(e);
+	RippleButton::mouseMoveEvent(e);
 	if (rect().contains(e->pos())) {
 		Ui::Tooltip::Show(1000, this);
 	} else {
@@ -881,28 +907,22 @@ void SilentToggle::mouseMoveEvent(QMouseEvent *e) {
 void SilentToggle::setChecked(bool checked) {
 	if (_checked != checked) {
 		_checked = checked;
-		refreshIconOverrides();
+		_crossLineAnimation.start(
+			[=] { update(); },
+			_checked ? 0. : 1.,
+			_checked ? 1. : 0.,
+			kAnimationDuration);
 	}
 }
 
-void SilentToggle::refreshIconOverrides() {
-	const auto iconOverride = _checked
-		? &st::historySilentToggleOn
-		: nullptr;
-	const auto iconOverOverride = _checked
-		? &st::historySilentToggleOnOver
-		: nullptr;
-	setIconOverride(iconOverride, iconOverOverride);
-}
-
 void SilentToggle::leaveEventHook(QEvent *e) {
-	IconButton::leaveEventHook(e);
+	RippleButton::leaveEventHook(e);
 	Ui::Tooltip::Hide();
 }
 
 void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
 	setChecked(!_checked);
-	IconButton::mouseReleaseEvent(e);
+	RippleButton::mouseReleaseEvent(e);
 	Ui::Tooltip::Show(0, this);
 	_channel->owner().updateNotifySettings(
 		_channel,
@@ -922,6 +942,20 @@ QPoint SilentToggle::tooltipPos() const {
 
 bool SilentToggle::tooltipWindowActive() const {
 	return Ui::AppInFocus() && InFocusChain(window());
+}
+
+QPoint SilentToggle::prepareRippleStartPosition() const {
+	const auto result = mapFromGlobal(QCursor::pos())
+		- _st.rippleAreaPosition;
+	const auto rect = QRect(0, 0, _st.rippleAreaSize, _st.rippleAreaSize);
+	return rect.contains(result)
+		? result
+		: DisabledRippleStartPosition();
+}
+
+QImage SilentToggle::prepareRippleMask() const {
+	return RippleAnimation::ellipseMask(
+		QSize(_st.rippleAreaSize, _st.rippleAreaSize));
 }
 
 } // namespace Ui

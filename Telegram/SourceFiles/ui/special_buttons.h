@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/cross_line.h"
 #include "styles/style_window.h"
 #include "styles/style_widgets.h"
 
@@ -183,7 +184,7 @@ private:
 //};
 
 class SilentToggle
-	: public Ui::IconButton
+	: public Ui::RippleButton
 	, public Ui::AbstractTooltipShower {
 public:
 	SilentToggle(QWidget *parent, not_null<ChannelData*> channel);
@@ -203,11 +204,18 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
 private:
-	void refreshIconOverrides();
+	const style::IconButton &_st;
+	const QColor &_colorOver;
 
 	not_null<ChannelData*> _channel;
 	bool _checked = false;
+
+	Ui::CrossLineAnimation _crossLine;
+	Ui::Animations::Simple _crossLineAnimation;
 
 };
 
