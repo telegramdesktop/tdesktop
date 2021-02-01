@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/send_button.h"
+#include "ui/special_buttons.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
 
@@ -663,6 +664,10 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 		if (!channel->mgInfo->botStatus) {
 			session().api().requestBots(channel);
 		}
+	} else if (hasSilentBroadcastToggle()) {
+		_silent = std::make_unique<Ui::SilentToggle>(
+			_wrap.get(),
+			peer->asChannel());
 	}
 	session().local().readDraftsWithCursors(_history);
 	applyDraft();
@@ -1297,6 +1302,17 @@ void ComposeControls::updateFieldPlaceholder() {
 	updateSendButtonType();
 }
 
+void ComposeControls::updateSilentBroadcast() {
+	if (!_silent || !_history) {
+		return;
+	}
+	const auto &peer = _history->peer;
+	if (!session().data().notifySilentPostsUnknown(peer)) {
+		_silent->setChecked(session().data().notifySilentPosts(peer));
+		updateFieldPlaceholder();
+	}
+}
+
 void ComposeControls::fieldChanged() {
 	if (!_inlineBot
 		&& !_header->isEditingMessage()
@@ -1720,14 +1736,15 @@ void ComposeControls::finishAnimating() {
 
 void ComposeControls::updateControlsGeometry(QSize size) {
 	// _attachToggle -- _inlineResults ------ _tabbedPanel -- _fieldBarCancel
-	// (_attachDocument|_attachPhoto) _field _botCommandStart _tabbedSelectorToggle _send
+	// (_attachDocument|_attachPhoto) _field (_silent|_botCommandStart) _tabbedSelectorToggle _send
 
 	const auto fieldWidth = size.width()
 		- _attachToggle->width()
 		- st::historySendRight
 		- _send->width()
 		- _tabbedSelectorToggle->width()
-		- (_botCommandShown ? _botCommandStart->width() : 0);
+		- (_botCommandShown ? _botCommandStart->width() : 0)
+		- (_silent ? _silent->width() : 0);
 	{
 		const auto oldFieldHeight = _field->height();
 		_field->resizeToWidth(fieldWidth);
@@ -1758,6 +1775,9 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 	_tabbedSelectorToggle->moveToRight(right, buttonsTop);
 	right += _tabbedSelectorToggle->width();
 	_botCommandStart->moveToRight(right, buttonsTop);
+	if (_silent) {
+		_silent->moveToRight(right, buttonsTop);
+	}
 
 	_voiceRecordBar->resizeToWidth(size.width());
 	_voiceRecordBar->moveToLeft(
@@ -2155,12 +2175,20 @@ void ComposeControls::initWebpageProcess() {
 
 	session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::Rights
+		| Data::PeerUpdate::Flag::Notifications
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
 		return (update.peer.get() == peer);
-	}) | rpl::start_with_next([=] {
-		checkPreview();
-		updateStickersByEmoji();
-		updateFieldPlaceholder();
+	}) | rpl::map([](const Data::PeerUpdate &update) {
+		return update.flags;
+	}) | rpl::start_with_next([=](Data::PeerUpdate::Flags flags) {
+		if (flags & Data::PeerUpdate::Flag::Rights) {
+			checkPreview();
+			updateStickersByEmoji();
+			updateFieldPlaceholder();
+		}
+		if (flags & Data::PeerUpdate::Flag::Notifications) {
+			updateSilentBroadcast();
+		}
 	}, lifetime);
 
 	base::ObservableViewer(
@@ -2261,6 +2289,18 @@ bool ComposeControls::preventsClose(Fn<void()> &&continueCallback) const {
 		return true;
 	}
 	return false;
+}
+
+bool ComposeControls::hasSilentBroadcastToggle() const {
+	if (!_history) {
+		return false;
+	}
+	const auto &peer = _history->peer;
+	return peer
+		&& peer->isChannel()
+		&& !peer->isMegagroup()
+		&& peer->canWrite()
+		&& !session().data().notifySilentPostsUnknown(peer);
 }
 
 void ComposeControls::updateInlineBotQuery() {

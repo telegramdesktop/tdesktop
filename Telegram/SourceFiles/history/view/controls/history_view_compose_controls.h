@@ -49,6 +49,7 @@ namespace Ui {
 class SendButton;
 class IconButton;
 class EmojiButton;
+class SilentToggle;
 } // namespace Ui
 
 namespace Main {
@@ -218,6 +219,7 @@ private:
 	void checkAutocomplete();
 	void updateStickersByEmoji();
 	void updateFieldPlaceholder();
+	void updateSilentBroadcast();
 	void editMessage(not_null<HistoryItem*> item);
 
 	void escape();
@@ -234,6 +236,8 @@ private:
 	void cancelInlineBot();
 	void clearInlineBot();
 	void inlineBotChanged();
+
+	bool hasSilentBroadcastToggle() const;
 
 	// Look in the _field for the inline bot and query string.
 	void updateInlineBotQuery();
@@ -279,6 +283,7 @@ private:
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
 	const not_null<Ui::InputField*> _field;
 	const not_null<Ui::IconButton*> _botCommandStart;
+	std::unique_ptr<Ui::SilentToggle> _silent;
 
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
