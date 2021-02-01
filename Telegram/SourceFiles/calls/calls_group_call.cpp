@@ -595,6 +595,10 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 
 	const auto handleOtherParticipants = [=](
 			const MTPDgroupCallParticipant &data) {
+		if (data.is_min()) {
+			// No real information about mutedByMe or my custom volume.
+			return;
+		}
 		const auto user = _peer->owner().user(data.vuser_id().v);
 		const auto participant = LookupParticipant(_peer, _id, user);
 		if (!participant) {

@@ -43,6 +43,7 @@ public:
 		bool muted = false;
 		bool mutedByMe = false;
 		bool canSelfUnmute = false;
+		bool onlyMinLoaded = false;
 	};
 	struct ParticipantUpdate {
 		std::optional<Participant> was;
