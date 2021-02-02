@@ -86,7 +86,8 @@ MTPMessage PrepareLogMessage(
 			| MTPDmessage::Flag::f_views
 			| MTPDmessage::Flag::f_forwards
 			//| MTPDmessage::Flag::f_reactions
-			| MTPDmessage::Flag::f_restriction_reason;
+			| MTPDmessage::Flag::f_restriction_reason
+			| MTPDmessage::Flag::f_ttl_period;
 		return MTP_message(
 			MTP_flags(data.vflags().v & ~removeFlags),
 			MTP_int(newId),
@@ -109,7 +110,8 @@ MTPMessage PrepareLogMessage(
 			MTP_string(),
 			MTP_long(0), // grouped_id
 			//MTPMessageReactions(),
-			MTPVector<MTPRestrictionReason>());
+			MTPVector<MTPRestrictionReason>(),
+			MTPint()); // ttl_period
 	});
 }
 
@@ -968,6 +970,15 @@ void GenerateItems(
 		createParticipantUnmute(data);
 	}, [&](const MTPDchannelAdminLogEventActionToggleGroupCallSetting &data) {
 		createToggleGroupCallSetting(data);
+	}, [&](const MTPDchannelAdminLogEventActionParticipantJoinByInvite &data) {
+	}, [&](const MTPDchannelAdminLogEventActionExportedInviteDelete &data) {
+	}, [&](const MTPDchannelAdminLogEventActionExportedInviteRevoke &data) {
+	}, [&](const MTPDchannelAdminLogEventActionExportedInviteEdit &data) {
+		// #TODO links
+	}, [&](const MTPDchannelAdminLogEventActionParticipantVolume &data) {
+		// #TODO calls
+	}, [&](const MTPDchannelAdminLogEventActionChangeHistoryTTL &data) {
+		// #TODO ttl
 	});
 }
 

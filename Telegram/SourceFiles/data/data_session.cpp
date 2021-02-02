@@ -4000,7 +4000,8 @@ void Session::insertCheckedServiceNotification(
 				MTPstring(),
 				MTPlong(),
 				//MTPMessageReactions(),
-				MTPVector<MTPRestrictionReason>()),
+				MTPVector<MTPRestrictionReason>(),
+				MTPint()), // ttl_period
 			clientFlags,
 			NewMessageType::Unread);
 	}

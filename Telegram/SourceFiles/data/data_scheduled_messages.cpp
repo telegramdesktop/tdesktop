@@ -72,7 +72,8 @@ MTPMessage PrepareMessage(const MTPMessage &message, MsgId id) {
 			MTP_bytes(data.vpost_author().value_or_empty()),
 			MTP_long(data.vgrouped_id().value_or_empty()),
 			//MTPMessageReactions(),
-			MTPVector<MTPRestrictionReason>());
+			MTPVector<MTPRestrictionReason>(),
+			MTP_int(data.vttl_period().value_or_empty()));
 	});
 }
 
@@ -178,6 +179,9 @@ void ScheduledMessages::sendNowSimpleMessage(
 		| MTPDmessage::Flag::f_from_id
 		| (local->replyToId()
 			? MTPDmessage::Flag::f_reply_to
+			: MTPDmessage::Flag(0))
+		| (update.vttl_period()
+			? MTPDmessage::Flag::f_ttl_period
 			: MTPDmessage::Flag(0));
 	auto clientFlags = NewMessageClientFlags()
 		| MTPDmessage_ClientFlag::f_local_history_entry;
@@ -206,7 +210,8 @@ void ScheduledMessages::sendNowSimpleMessage(
 			MTP_string(),
 			MTPlong(),
 			//MTPMessageReactions(),
-			MTPVector<MTPRestrictionReason>()),
+			MTPVector<MTPRestrictionReason>(),
+			MTP_int(update.vttl_period().value_or_empty())),
 		clientFlags,
 		NewMessageType::Unread);
 

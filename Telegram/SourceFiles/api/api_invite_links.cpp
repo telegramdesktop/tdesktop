@@ -92,19 +92,16 @@ void InviteLinks::performCreate(
 		callbacks.push_back(std::move(done));
 	}
 
-	// #TODO links
-	//using Flag = MTPmessages_ExportChatInvite::Flag;
-	//_api->request(MTPmessages_ExportChatInvite(
-	//	MTP_flags((revokeLegacyPermanent
-	//		? Flag::f_legacy_revoke_permanent
-	//		: Flag(0))
-	//		| (expireDate ? Flag::f_expire_date : Flag(0))
-	//		| (usageLimit ? Flag::f_usage_limit : Flag(0))),
-	//	peer->input,
-	//	MTP_int(expireDate),
-	//	MTP_int(usageLimit)
+	using Flag = MTPmessages_ExportChatInvite::Flag;
 	_api->request(MTPmessages_ExportChatInvite(
-		peer->input
+		MTP_flags((revokeLegacyPermanent
+			? Flag::f_legacy_revoke_permanent
+			: Flag(0))
+			| (expireDate ? Flag::f_expire_date : Flag(0))
+			| (usageLimit ? Flag::f_usage_limit : Flag(0))),
+		peer->input,
+		MTP_int(expireDate),
+		MTP_int(usageLimit)
 	)).done([=](const MTPExportedChatInvite &result) {
 		const auto callbacks = _createCallbacks.take(peer);
 		const auto link = prepend(peer, result);

@@ -4129,7 +4129,8 @@ void ApiWrap::sendSharedContact(
 			MTP_string(messagePostAuthor),
 			MTPlong(),
 			//MTPMessageReactions(),
-			MTPVector<MTPRestrictionReason>()),
+			MTPVector<MTPRestrictionReason>(),
+			MTPint()), // ttl_period
 		clientFlags,
 		NewMessageType::Unread);
 
@@ -4407,7 +4408,8 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 				MTP_string(messagePostAuthor),
 				MTPlong(),
 				//MTPMessageReactions(),
-				MTPVector<MTPRestrictionReason>()),
+				MTPVector<MTPRestrictionReason>(),
+				MTPint()), // ttl_period
 			clientFlags,
 			NewMessageType::Unread);
 		histories.sendRequest(history, requestType, [=](Fn<void()> finish) {

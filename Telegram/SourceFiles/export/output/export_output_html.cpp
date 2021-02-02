@@ -966,7 +966,7 @@ auto HtmlWriter::Wrap::pushMessage(
 				+ SerializeString(data.title)
 				+ "&raquo;")
 			: (serviceFrom
-				+ " fchanged group title to &laquo;"
+				+ " changed group title to &laquo;"
 				+ SerializeString(data.title)
 				+ "&raquo;");
 	}, [&](const ActionChatEditPhoto &data) {

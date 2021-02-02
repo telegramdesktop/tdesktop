@@ -997,7 +997,8 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPstring(),
 				MTPlong(),
 				//MTPMessageReactions(),
-				MTPVector<MTPRestrictionReason>()),
+				MTPVector<MTPRestrictionReason>(),
+				MTP_int(d.vttl_period().value_or_empty())),
 			MTPDmessage_ClientFlags(),
 			NewMessageType::Unread);
 	} break;
@@ -1027,7 +1028,8 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPstring(),
 				MTPlong(),
 				//MTPMessageReactions(),
-				MTPVector<MTPRestrictionReason>()),
+				MTPVector<MTPRestrictionReason>(),
+				MTP_int(d.vttl_period().value_or_empty())),
 			MTPDmessage_ClientFlags(),
 			NewMessageType::Unread);
 	} break;
@@ -1823,6 +1825,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 					Data::PeerUpdate::Flag::PhoneNumber);
 			}
 		}
+	} break;
+
+	case mtpc_updatePeerHistoryTTL: {
+		const auto &d = update.c_updatePeerHistoryTTL();
+		// #TODO ttl
 	} break;
 
 	case mtpc_updateNewEncryptedMessage: {

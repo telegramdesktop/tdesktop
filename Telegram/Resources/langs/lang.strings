@@ -1170,7 +1170,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_members#other" = "{count} members, among them:";
 "lng_channel_invite_private" = "This channel is private.\nPlease join it to continue viewing its content.";
 
-"lng_group_invite_create" = "Create an invite link"; // #TODO links legacy
+"lng_group_invite_create" = "Create an invite link";
 "lng_group_invite_about_new" = "Your previous link will be deactivated and we'll generate a new invite link for you.";
 "lng_group_invite_copied" = "Invite link copied to clipboard.";
 "lng_group_invite_no_room" = "Unable to join this group because there are too many members in it already.";

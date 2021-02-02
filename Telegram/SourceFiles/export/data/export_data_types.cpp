@@ -643,9 +643,9 @@ std::pair<QString, QSize> WriteImageThumb(
 		: largePath + postfix;
 	const auto result = Output::File::PrepareRelativePath(basePath, thumb);
 	if (!image.save(
-		basePath + result,
-		finalFormat.constData(),
-		finalQuality)) {
+			basePath + result,
+			finalFormat.constData(),
+			finalQuality)) {
 		return {};
 	}
 	return { result, finalSize };
