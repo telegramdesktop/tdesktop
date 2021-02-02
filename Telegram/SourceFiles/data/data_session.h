@@ -328,6 +328,9 @@ public:
 	void registerMessage(not_null<HistoryItem*> item);
 	void unregisterMessage(not_null<HistoryItem*> item);
 
+	void registerMessageTTL(TimeId when, not_null<HistoryItem*> item);
+	void unregisterMessageTTL(TimeId when, not_null<HistoryItem*> item);
+
 	// Returns true if item found and it is not detached.
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &data);
 	void updateEditedMessage(const MTPMessage &data);
@@ -686,6 +689,9 @@ private:
 
 	void checkSelfDestructItems();
 
+	void scheduleNextTTLs();
+	void checkTTLs();
+
 	int computeUnreadBadge(const Dialogs::UnreadState &state) const;
 	bool computeUnreadBadgeMuted(const Dialogs::UnreadState &state) const;
 
@@ -857,6 +863,8 @@ private:
 	std::map<
 		not_null<HistoryItem*>,
 		base::flat_set<not_null<HistoryItem*>>> _dependentMessages;
+	std::map<TimeId, base::flat_set<not_null<HistoryItem*>>> _ttlMessages;
+	base::Timer _ttlCheckTimer;
 
 	base::flat_map<uint64, FullMsgId> _messageByRandomId;
 	base::flat_map<uint64, SentData> _sentMessagesData;

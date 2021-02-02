@@ -188,6 +188,10 @@ public:
 		return replyToId();
 	}
 
+	[[nodiscard]] TimeId ttlDestroyAt() const override {
+		return _ttlDestroyAt;
+	}
+
 	// dynamic_cast optimization.
 	[[nodiscard]] HistoryMessage *toHistoryMessage() override {
 		return this;
@@ -240,12 +244,16 @@ private:
 		const TextWithEntities &textWithEntities) const;
 	void reapplyText();
 
+	void applyTTL(TimeId destroyAt);
+
 	[[nodiscard]] bool checkRepliesPts(const MTPMessageReplies &data) const;
 
 	QString _timeText;
 	int _timeWidth = 0;
 
 	mutable int32 _fromNameVersion = 0;
+
+	TimeId _ttlDestroyAt = 0;
 
 	friend class HistoryView::Element;
 	friend class HistoryView::Message;

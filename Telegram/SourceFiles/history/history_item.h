@@ -79,6 +79,9 @@ public:
 	[[nodiscard]] virtual bool notificationReady() const {
 		return true;
 	}
+	[[nodiscard]] virtual TimeId ttlDestroyAt() const {
+		return 0;
+	}
 	[[nodiscard]] PeerData *specialNotificationPeer() const;
 
 	[[nodiscard]] UserData *viaBot() const;

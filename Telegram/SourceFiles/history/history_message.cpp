@@ -50,6 +50,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_window.h"
 
+#include "base/call_delayed.h" // #TODO ttl
+#include "base/unixtime.h"
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
@@ -522,6 +525,12 @@ HistoryMessage::HistoryMessage(
 	if (const auto groupedId = data.vgrouped_id()) {
 		setGroupId(
 			MessageGroupId::FromRaw(history->peer->id, groupedId->v));
+	}
+
+	if (const auto period = data.vttl_period()) {
+		if (period->v > 0) {
+			applyTTL(data.vdate().v + period->v);
+		}
 	}
 }
 
@@ -1352,6 +1361,12 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 		clearReplies();
 	}
 
+	if (const auto period = message.vttl_period(); period && period->v > 0) {
+		applyTTL(message.vdate().v + period->v);
+	} else {
+		applyTTL(0);
+	}
+
 	finishEdition(keyboardTop);
 }
 
@@ -1364,6 +1379,25 @@ void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 		setForwardsCount(-1);
 
 		finishEditionToEmpty();
+	}
+}
+
+void HistoryMessage::applyTTL(TimeId destroyAt) {
+	const auto previousDestroyAt = std::exchange(_ttlDestroyAt, destroyAt);
+	if (previousDestroyAt) {
+		history()->owner().unregisterMessageTTL(previousDestroyAt, this);
+	}
+	if (!_ttlDestroyAt) {
+		return;
+	} else if (base::unixtime::now() >= _ttlDestroyAt) {
+		const auto session = &history()->session();
+		crl::on_main(session, [session, id = fullId()]{
+			if (const auto item = session->data().message(id)) {
+				item->destroy();
+			}
+		});
+	} else {
+		history()->owner().registerMessageTTL(_ttlDestroyAt, this);
 	}
 }
 
@@ -1872,6 +1906,7 @@ std::unique_ptr<HistoryView::Element> HistoryMessage::createView(
 }
 
 HistoryMessage::~HistoryMessage() {
+	applyTTL(0);
 	_media.reset();
 	clearSavedMedia();
 	if (auto reply = Get<HistoryMessageReply>()) {

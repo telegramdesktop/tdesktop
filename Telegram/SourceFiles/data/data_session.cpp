@@ -220,6 +220,7 @@ Session::Session(not_null<Main::Session*> session)
 	session->serverConfig().pinnedDialogsCountMax.value())
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
+, _ttlCheckTimer([=] { checkTTLs(); })
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
 , _sendActionsAnimation([=](crl::time now) {
 	return sendActionsAnimationCallback(now);
@@ -1957,6 +1958,54 @@ void Session::registerMessage(not_null<HistoryItem*> item) {
 		i->second->destroy();
 	}
 	list->emplace(itemId, item);
+}
+
+void Session::registerMessageTTL(TimeId when, not_null<HistoryItem*> item) {
+	Expects(when > 0);
+
+	auto &list = _ttlMessages[when];
+	list.emplace(item);
+
+	const auto nearest = _ttlMessages.begin()->first;
+	if (nearest < when && _ttlCheckTimer.isActive()) {
+		return;
+	}
+	scheduleNextTTLs();
+}
+
+void Session::scheduleNextTTLs() {
+	if (_ttlMessages.empty()) {
+		return;
+	}
+	const auto nearest = _ttlMessages.begin()->first;
+	const auto now = base::unixtime::now();
+	const auto timeout = (std::max(now, nearest) - now) * crl::time(1000);
+	_ttlCheckTimer.callOnce(timeout);
+}
+
+void Session::unregisterMessageTTL(
+		TimeId when,
+		not_null<HistoryItem*> item) {
+	Expects(when > 0);
+
+	const auto i = _ttlMessages.find(when);
+	if (i == end(_ttlMessages)) {
+		return;
+	}
+	auto &list = i->second;
+	list.erase(item);
+	if (list.empty()) {
+		_ttlMessages.erase(i);
+	}
+}
+
+void Session::checkTTLs() {
+	_ttlCheckTimer.cancel();
+	const auto now = base::unixtime::now();
+	while (!_ttlMessages.empty() && _ttlMessages.begin()->first <= now) {
+		_ttlMessages.begin()->second.front()->destroy();
+	}
+	scheduleNextTTLs();
 }
 
 void Session::processMessagesDeleted(
