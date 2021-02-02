@@ -34,6 +34,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
@@ -49,10 +51,9 @@ private:
 
 	void toggleFramelessWindow(bool enabled);
 	bool hasShadow() const;
-	int getResizeArea(Qt::Edge edge) const;
-	Qt::Edges edgesFromPos(const QPoint &pos);
+	QMargins resizeArea() const;
+	Qt::Edges edgesFromPos(const QPoint &pos) const;
 	void updateCursor(Qt::Edges edges);
-	void restoreCursor();
 	bool startMove();
 	bool startResize(Qt::Edges edges);
 
@@ -65,11 +66,8 @@ private:
 	bool _maximizedState = false;
 	bool _activeState = false;
 	bool _windowWasFrameless = false;
-	bool _cursorOverriden = false;
 	bool _extentsSet = false;
-	bool _pressedForMove = false;
-	crl::time _pressedForMoveTime = 0;
-	QPoint _pressedForMovePoint;
+	bool _mousePressed = false;
 
 };
 
