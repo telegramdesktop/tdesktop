@@ -272,6 +272,7 @@ public:
 private:
 	GDBusConnection *_dbusConnection = nullptr;
 	base::weak_ptr<Manager> _manager;
+	GCancellable *_cancellable = nullptr;
 
 	QString _title;
 	QString _body;
@@ -316,6 +317,7 @@ NotificationData::NotificationData(
 	NotificationId id,
 	bool hideReplyButton)
 : _manager(manager)
+, _cancellable(g_cancellable_new())
 , _title(title)
 , _imageKey(GetImageKey(CurrentServerInformationValue().specVersion))
 , _id(id) {
@@ -461,6 +463,9 @@ NotificationData::~NotificationData() {
 			g_variant_unref(value);
 		}
 	}
+
+	g_cancellable_cancel(_cancellable);
+	g_object_unref(_cancellable);
 }
 
 void NotificationData::show() {
@@ -509,7 +514,7 @@ void NotificationData::show() {
 		nullptr,
 		G_DBUS_CALL_FLAGS_NONE,
 		-1,
-		nullptr,
+		_cancellable,
 		notificationShown,
 		this);
 }
@@ -518,19 +523,24 @@ void NotificationData::notificationShown(
 		GObject *source_object,
 		GAsyncResult *res,
 		gpointer user_data) {
+	GError *error = nullptr;
+
+	auto reply = g_dbus_connection_call_finish(
+		reinterpret_cast<GDBusConnection*>(source_object),
+		res,
+		&error);
+
+	if (error && error->code == G_IO_ERROR_CANCELLED) {
+		g_error_free(error);
+		return;
+	}
+
 	const auto notificationData = reinterpret_cast<NotificationData*>(
 		user_data);
 
 	if (!notificationData) {
 		return;
 	}
-
-	GError *error = nullptr;
-
-	auto reply = g_dbus_connection_call_finish(
-		notificationData->_dbusConnection,
-		res,
-		&error);
 
 	if (!error) {
 		g_variant_get(reply, "(u)", &notificationData->_notificationId);
