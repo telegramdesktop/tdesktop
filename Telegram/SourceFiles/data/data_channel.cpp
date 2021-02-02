@@ -749,6 +749,9 @@ void ApplyChannelUpdate(
 		channel->clearGroupCall();
 	}
 
+	if (const auto ttl = update.vttl()) {
+		channel->applyMessagesTTL(*ttl);
+	}
 	channel->setFullFlags(update.vflags().v);
 	channel->setUserpicPhoto(update.vchat_photo());
 	if (const auto migratedFrom = update.vmigrated_from_chat_id()) {

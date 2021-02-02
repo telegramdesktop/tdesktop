@@ -128,16 +128,17 @@ public:
 	[[nodiscard]] AdminRights defaultAdminRights(not_null<UserData*> user);
 
 	// Like in ChannelData.
-	bool canWrite() const;
-	bool canEditInformation() const;
-	bool canEditPermissions() const;
-	bool canEditUsername() const;
-	bool canEditPreHistoryHidden() const;
-	bool canAddMembers() const;
-	bool canAddAdmins() const;
-	bool canBanMembers() const;
-	bool canSendPolls() const;
-	bool anyoneCanAddMembers() const;
+	[[nodiscard]] bool canWrite() const;
+	[[nodiscard]] bool canEditInformation() const;
+	[[nodiscard]] bool canEditPermissions() const;
+	[[nodiscard]] bool canEditUsername() const;
+	[[nodiscard]] bool canEditPreHistoryHidden() const;
+	[[nodiscard]] bool canDeleteMessages() const;
+	[[nodiscard]] bool canAddMembers() const;
+	[[nodiscard]] bool canAddAdmins() const;
+	[[nodiscard]] bool canBanMembers() const;
+	[[nodiscard]] bool canSendPolls() const;
+	[[nodiscard]] bool anyoneCanAddMembers() const;
 
 	void applyEditAdmin(not_null<UserData*> user, bool isAdmin);
 

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
+#include "boxes/single_choice_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_type_box.h"
@@ -307,13 +308,14 @@ private:
 		Ui::UserpicButton *photo = nullptr;
 		rpl::lifetime initialPhotoImageWaiting;
 		Ui::VerticalLayout *buttonsLayout = nullptr;
-		Ui::SlideWrap<Ui::RpWidget> *historyVisibilityWrap = nullptr;
+		Ui::SlideWrap<> *historyVisibilityWrap = nullptr;
 	};
 	struct Saving {
 		std::optional<QString> username;
 		std::optional<QString> title;
 		std::optional<QString> description;
 		std::optional<bool> hiddenPreHistory;
+		std::optional<TimeId> messagesTTL;
 		std::optional<bool> signatures;
 		std::optional<ChannelData*> linkedChat;
 	};
@@ -335,6 +337,7 @@ private:
 	//void fillInviteLinkButton();
 	void fillSignaturesButton();
 	void fillHistoryVisibilityButton();
+	void fillSetMessagesTTLButton();
 	void fillManageSection();
 
 	void submitTitle();
@@ -348,6 +351,7 @@ private:
 	bool validateTitle(Saving &to) const;
 	bool validateDescription(Saving &to) const;
 	bool validateHistoryVisibility(Saving &to) const;
+	bool validateMessagesTTL(Saving &to) const;
 	bool validateSignatures(Saving &to) const;
 
 	void save();
@@ -356,6 +360,7 @@ private:
 	void saveTitle();
 	void saveDescription();
 	void saveHistoryVisibility();
+	void saveMessagesTTL();
 	void saveSignatures();
 	void savePhoto();
 	void pushSaveStage(FnMut<void()> &&lambda);
@@ -372,6 +377,7 @@ private:
 	void migrate(not_null<ChannelData*> channel);
 
 	std::optional<Privacy> _privacySavedValue;
+	std::optional<TimeId> _ttlSavedValue;
 	std::optional<ChannelData*> _linkedChatSavedValue;
 	ChannelData *_linkedChatOriginalValue = nullptr;
 	bool _channelHasLocationOriginalValue = false;
@@ -637,7 +643,7 @@ void Controller::refreshHistoryVisibility(anim::type animated) {
 			&& !_channelHasLocationOriginalValue
 			&& (!_linkedChatSavedValue || !*_linkedChatSavedValue)),
 		animated);
-};
+}
 
 void Controller::showEditPeerTypeBox(
 		std::optional<rpl::producer<QString>> error) {
@@ -880,6 +886,68 @@ void Controller::fillHistoryVisibilityButton() {
 	refreshHistoryVisibility(anim::type::instant);
 }
 
+void Controller::fillSetMessagesTTLButton() {
+	Expects(_controls.buttonsLayout != nullptr);
+
+	_ttlSavedValue = _peer->messagesTTL();
+
+	const auto updateMessagesTTL =
+		std::make_shared<rpl::event_stream<TimeId>>();
+
+	const auto boxCallback = crl::guard(this, [=](TimeId value) {
+		updateMessagesTTL->fire_copy(value);
+		_ttlSavedValue = value;
+	});
+	const auto buttonCallback = [=] {
+		Ui::show(Box([=](not_null<Ui::GenericBox*> box) {
+			const auto options = {
+				tr::lng_manage_messages_ttl_never(tr::now),
+				tr::lng_manage_messages_ttl_after1(tr::now),
+				tr::lng_manage_messages_ttl_after2(tr::now),
+				u"5 seconds"_q, AssertIsDebug()
+			};
+			const auto initial = !*_ttlSavedValue
+				? 0
+				: (*_ttlSavedValue == 5) AssertIsDebug()
+				? 3 AssertIsDebug()
+				: (*_ttlSavedValue < 3 * 86400)
+				? 1
+				: 2;
+			const auto callback = [=](int option) {
+				boxCallback(!option
+					? 0
+					: (option == 1)
+					? 86400
+					: (option == 3) AssertIsDebug()
+					? 5 AssertIsDebug()
+					: 7 * 86400);
+			};
+			SingleChoiceBox(box, {
+				.title = tr::lng_manage_messages_ttl_title(),
+				.options = options,
+				.initialSelection = initial,
+				.callback = callback,
+			});
+		}), Ui::LayerOption::KeepOther);
+	};
+	AddButtonWithText(
+		_controls.buttonsLayout,
+		tr::lng_manage_messages_ttl_title(),
+		updateMessagesTTL->events(
+		) | rpl::map([](TimeId value) {
+			return !value
+				? tr::lng_manage_messages_ttl_never()
+				: (value == 5) AssertIsDebug()
+				? rpl::single<QString>("5 seconds") AssertIsDebug()
+				: (value < 3 * 86400)
+				? tr::lng_manage_messages_ttl_after1()
+				: tr::lng_manage_messages_ttl_after2();
+		}) | rpl::flatten_latest(),
+		buttonCallback);
+
+	updateMessagesTTL->fire_copy(*_ttlSavedValue);
+}
+
 void Controller::fillManageSection() {
 	Expects(_controls.buttonsLayout != nullptr);
 
@@ -902,6 +970,11 @@ void Controller::fillManageSection() {
 		return isChannel
 			? channel->canEditPreHistoryHidden()
 			: chat->canEditPreHistoryHidden();
+	}();
+	const auto canSetMessagesTTL = [&] {
+		return isChannel
+			? channel->canDeleteMessages()
+			: chat->canDeleteMessages();
 	}();
 
 	const auto canEditPermissions = [&] {
@@ -965,17 +1038,21 @@ void Controller::fillManageSection() {
 	if (canViewOrEditLinkedChat) {
 		fillLinkedChatButton();
 	}
-	if (canEditSignatures) {
-		fillSignaturesButton();
-	}
 	if (canEditPreHistoryHidden) {
 		fillHistoryVisibilityButton();
+	}
+	if (canSetMessagesTTL) {
+		fillSetMessagesTTLButton();
+	}
+	if (canEditSignatures) {
+		fillSignaturesButton();
 	}
 	if (canEditPreHistoryHidden
 		|| canEditSignatures
 		|| canEditInviteLinks
 		|| canViewOrEditLinkedChat
-		|| canEditUsername) {
+		|| canEditUsername
+		|| canSetMessagesTTL) {
 		AddSkip(
 			_controls.buttonsLayout,
 			st::editPeerTopButtonsLayoutSkip,
@@ -1132,6 +1209,7 @@ std::optional<Controller::Saving> Controller::validate() const {
 		&& validateTitle(result)
 		&& validateDescription(result)
 		&& validateHistoryVisibility(result)
+		&& validateMessagesTTL(result)
 		&& validateSignatures(result)) {
 		return result;
 	}
@@ -1199,6 +1277,14 @@ bool Controller::validateHistoryVisibility(Saving &to) const {
 	return true;
 }
 
+bool Controller::validateMessagesTTL(Saving &to) const {
+	if (!_ttlSavedValue) {
+		return true;
+	}
+	to.messagesTTL = _ttlSavedValue;
+	return true;
+}
+
 bool Controller::validateSignatures(Saving &to) const {
 	if (!_signaturesSavedValue.has_value()) {
 		return true;
@@ -1220,6 +1306,7 @@ void Controller::save() {
 		pushSaveStage([=] { saveTitle(); });
 		pushSaveStage([=] { saveDescription(); });
 		pushSaveStage([=] { saveHistoryVisibility(); });
+		pushSaveStage([=] { saveMessagesTTL(); });
 		pushSaveStage([=] { saveSignatures(); });
 		pushSaveStage([=] { savePhoto(); });
 		continueSave();
@@ -1425,6 +1512,24 @@ void Controller::saveHistoryVisibility() {
 		*_savingData.hiddenPreHistory,
 		[=] { continueSave(); },
 		[=] { cancelSave(); });
+}
+
+void Controller::saveMessagesTTL() {
+	if (!_savingData.messagesTTL
+		|| *_savingData.messagesTTL == _peer->messagesTTL()) {
+		return continueSave();
+	}
+	using Flag = MTPmessages_SetHistoryTTL::Flag;
+	_api.request(MTPmessages_SetHistoryTTL(
+		MTP_flags(_peer->oneSideTTL() ? Flag::f_pm_oneside : Flag(0)),
+		_peer->input,
+		MTP_int(*_savingData.messagesTTL)
+	)).done([=](const MTPUpdates &result) {
+		_peer->session().api().applyUpdates(result);
+		continueSave();
+	}).fail([=](const RPCError &error) {
+		cancelSave();
+	}).send();
 }
 
 void Controller::togglePreHistoryHidden(

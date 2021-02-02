@@ -1846,33 +1846,7 @@ bool Session::checkEntitiesAndViewsUpdate(const MTPDmessage &data) {
 	if (!existing) {
 		return false;
 	}
-	existing->updateSentContent({
-		qs(data.vmessage()),
-		Api::EntitiesFromMTP(
-			&session(),
-			data.ventities().value_or_empty())
-	}, data.vmedia());
-	existing->updateReplyMarkup(data.vreply_markup());
-	existing->updateForwardedInfo(data.vfwd_from());
-	existing->setViewsCount(data.vviews().value_or(-1));
-	if (const auto replies = data.vreplies()) {
-		existing->setReplies(*replies);
-	} else {
-		existing->clearReplies();
-	}
-	existing->setForwardsCount(data.vforwards().value_or(-1));
-	if (const auto reply = data.vreply_to()) {
-		reply->match([&](const MTPDmessageReplyHeader &data) {
-			existing->setReplyToTop(
-				data.vreply_to_top_id().value_or(
-					data.vreply_to_msg_id().v));
-		});
-	}
-	existing->setPostAuthor(data.vpost_author().value_or_empty());
-	existing->indexAsNewItem();
-	existing->contributeToSlowmode(data.vdate().v);
-	requestItemTextRefresh(existing);
-	updateDependentMessages(existing);
+	existing->applySentMessage(data);
 	const auto result = (existing->mainView() != nullptr);
 	if (result) {
 		stickers().checkSavedGif(existing);

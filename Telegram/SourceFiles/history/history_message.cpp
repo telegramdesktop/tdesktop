@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 
 #include "base/openssl_help.h"
+#include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -49,9 +50,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h"
-
-#include "base/call_delayed.h" // #TODO ttl
-#include "base/unixtime.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -974,6 +972,29 @@ bool HistoryMessage::updateDependencyItem() {
 		return result;
 	}
 	return true;
+}
+
+void HistoryMessage::applySentMessage(const MTPDmessage &data) {
+	HistoryItem::applySentMessage(data);
+
+	if (const auto period = data.vttl_period(); period && period->v > 0) {
+		applyTTL(data.vdate().v + period->v);
+	} else {
+		applyTTL(0);
+	}
+}
+
+void HistoryMessage::applySentMessage(
+		const QString &text,
+		const MTPDupdateShortSentMessage &data,
+		bool wasAlready) {
+	HistoryItem::applySentMessage(text, data, wasAlready);
+
+	if (const auto period = data.vttl_period(); period && period->v > 0) {
+		applyTTL(data.vdate().v + period->v);
+	} else {
+		applyTTL(0);
+	}
 }
 
 bool HistoryMessage::allowsForward() const {

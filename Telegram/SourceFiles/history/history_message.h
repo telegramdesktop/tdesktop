@@ -188,6 +188,12 @@ public:
 		return replyToId();
 	}
 
+	void applySentMessage(const MTPDmessage &data) override;
+	void applySentMessage(
+		const QString &text,
+		const MTPDupdateShortSentMessage &data,
+		bool wasAlready) override;
+
 	[[nodiscard]] TimeId ttlDestroyAt() const override {
 		return _ttlDestroyAt;
 	}

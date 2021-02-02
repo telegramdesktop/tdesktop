@@ -262,6 +262,12 @@ public:
 	}
 	[[nodiscard]] virtual Storage::SharedMediaTypesMask sharedMediaTypes() const = 0;
 
+	virtual void applySentMessage(const MTPDmessage &data);
+	virtual void applySentMessage(
+		const QString &text,
+		const MTPDupdateShortSentMessage &data,
+		bool wasAlready);
+
 	void indexAsNewItem();
 
 	[[nodiscard]] virtual QString notificationHeader() const {

@@ -17,6 +17,11 @@ class UserData;
 class ChatData;
 class ChannelData;
 
+using ChatAdminRight = MTPDchatAdminRights::Flag;
+using ChatRestriction = MTPDchatBannedRights::Flag;
+using ChatAdminRights = MTPDchatAdminRights::Flags;
+using ChatRestrictions = MTPDchatBannedRights::Flags;
+
 namespace Ui {
 class EmptyUserpic;
 } // namespace Ui
@@ -30,22 +35,12 @@ namespace Data {
 
 class Session;
 class GroupCall;
+class CloudImageView;
 
 int PeerColorIndex(PeerId peerId);
 int PeerColorIndex(int32 bareId);
 style::color PeerUserpicColor(PeerId peerId);
 PeerId FakePeerIdForJustName(const QString &name);
-
-} // namespace Data
-
-using ChatAdminRight = MTPDchatAdminRights::Flag;
-using ChatRestriction = MTPDchatBannedRights::Flag;
-using ChatAdminRights = MTPDchatAdminRights::Flags;
-using ChatRestrictions = MTPDchatBannedRights::Flags;
-
-namespace Data {
-
-class CloudImageView;
 
 class RestrictionCheckResult {
 public:
@@ -386,6 +381,19 @@ public:
 	}
 	void setLoadedStatus(LoadedStatus status);
 
+	[[nodiscard]] TimeId myMessagesTTL() const {
+		return _ttlMyPeriod;
+	}
+	[[nodiscard]] TimeId peerMessagesTTL() const {
+		return _ttlPeerPeriod;
+	}
+	[[nodiscard]] bool oneSideTTL() const {
+		return _ttlOneSide;
+	}
+	[[nodiscard]] TimeId messagesTTL() const;
+	void setMessagesTTL(TimeId myPeriod, TimeId peerPeriod, bool oneSide);
+	void applyMessagesTTL(const MTPPeerHistoryTTL &ttl);
+
 	[[nodiscard]] Data::GroupCall *groupCall() const;
 
 	const PeerId id;
@@ -429,6 +437,10 @@ private:
 	base::flat_set<QChar> _nameFirstLetters;
 
 	crl::time _lastFullUpdate = 0;
+
+	TimeId _ttlMyPeriod = 0;
+	TimeId _ttlPeerPeriod = 0;
+	bool _ttlOneSide = false;
 	bool _hasPinnedMessages = false;
 
 	Settings _settings = { kSettingsUnknown };

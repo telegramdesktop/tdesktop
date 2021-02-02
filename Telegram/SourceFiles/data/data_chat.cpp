@@ -84,6 +84,11 @@ bool ChatData::canEditPreHistoryHidden() const {
 	return amCreator();
 }
 
+bool ChatData::canDeleteMessages() const {
+	return amCreator()
+		|| (adminRights() & AdminRight::f_delete_messages);
+}
+
 bool ChatData::canAddMembers() const {
 	return amIn() && !amRestricted(Restriction::f_invite_users);
 }
@@ -372,6 +377,9 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 		chat->clearGroupCall();
 	}
 
+	if (const auto ttl = update.vttl()) {
+		chat->applyMessagesTTL(*ttl);
+	}
 	if (const auto info = update.vbot_info()) {
 		for (const auto &item : info->v) {
 			item.match([&](const MTPDbotInfo &data) {

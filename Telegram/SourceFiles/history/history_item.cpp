@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/crash_reports.h"
 #include "base/unixtime.h"
+#include "api/api_text_entities.h"
 #include "data/data_scheduled_messages.h" // kScheduledUntilOnlineTimestamp
 #include "data/data_changes.h"
 #include "data/data_session.h"
@@ -490,6 +491,52 @@ void HistoryItem::applyEditionToHistoryCleared() {
 		).c_messageService());
 }
 
+void HistoryItem::applySentMessage(const MTPDmessage &data) {
+	updateSentContent({
+		qs(data.vmessage()),
+		Api::EntitiesFromMTP(
+			&history()->session(),
+			data.ventities().value_or_empty())
+	}, data.vmedia());
+	updateReplyMarkup(data.vreply_markup());
+	updateForwardedInfo(data.vfwd_from());
+	setViewsCount(data.vviews().value_or(-1));
+	if (const auto replies = data.vreplies()) {
+		setReplies(*replies);
+	} else {
+		clearReplies();
+	}
+	setForwardsCount(data.vforwards().value_or(-1));
+	if (const auto reply = data.vreply_to()) {
+		reply->match([&](const MTPDmessageReplyHeader &data) {
+			setReplyToTop(
+				data.vreply_to_top_id().value_or(
+					data.vreply_to_msg_id().v));
+		});
+	}
+	setPostAuthor(data.vpost_author().value_or_empty());
+	contributeToSlowmode(data.vdate().v);
+	indexAsNewItem();
+	history()->owner().requestItemTextRefresh(this);
+	history()->owner().updateDependentMessages(this);
+}
+
+void HistoryItem::applySentMessage(
+		const QString &text,
+		const MTPDupdateShortSentMessage &data,
+		bool wasAlready) {
+	updateSentContent({
+		text,
+		Api::EntitiesFromMTP(
+			&history()->session(),
+			data.ventities().value_or_empty())
+		}, data.vmedia());
+	contributeToSlowmode(data.vdate().v);
+	if (!wasAlready) {
+		indexAsNewItem();
+	}
+}
+
 void HistoryItem::indexAsNewItem() {
 	if (IsServerMsgId(id)) {
 		addToUnreadMentions(UnreadMentionType::New);
@@ -629,9 +676,7 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 	}
 	if (!out()) {
 		if (const auto chat = peer->asChat()) {
-			if (!chat->amCreator()
-				&& !(chat->adminRights()
-					& ChatAdminRight::f_delete_messages)) {
+			if (!chat->canDeleteMessages()) {
 				return false;
 			}
 		} else if (peer->isUser()) {

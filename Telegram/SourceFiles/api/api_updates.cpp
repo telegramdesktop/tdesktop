@@ -1331,14 +1331,7 @@ void Updates::applyUpdates(
 						item->id,
 						ApiWrap::RequestMessageDataCallback());
 				}
-				item->updateSentContent({
-					sent.text,
-					Api::EntitiesFromMTP(&session(), list.value_or_empty())
-				}, d.vmedia());
-				item->contributeToSlowmode(d.vdate().v);
-				if (!wasAlready) {
-					item->indexAsNewItem();
-				}
+				item->applySentMessage(sent.text, d, wasAlready);
 			}
 		}
 
@@ -1829,7 +1822,14 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updatePeerHistoryTTL: {
 		const auto &d = update.c_updatePeerHistoryTTL();
-		// #TODO ttl
+		const auto peerId = peerFromMTP(d.vpeer());
+		if (const auto peer = session().data().peerLoaded(peerId)) {
+			if (const auto ttl = d.vttl()) {
+				peer->applyMessagesTTL(*ttl);
+			} else {
+				peer->setMessagesTTL(0, 0, false);
+			}
+		}
 	} break;
 
 	case mtpc_updateNewEncryptedMessage: {
