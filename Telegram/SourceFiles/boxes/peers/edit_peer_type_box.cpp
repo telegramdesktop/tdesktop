@@ -186,20 +186,20 @@ void Controller::createContent() {
 		_wrap->add(createUsernameEdit());
 	}
 
-	//using namespace Settings; // #TODO links
-	//AddSkip(_wrap.get());
-	//_wrap->add(EditPeerInfoBox::CreateButton(
-	//	_wrap.get(),
-	//	tr::lng_group_invite_manage(),
-	//	rpl::single(QString()),
-	//	[=] { Ui::show(
-	//		Box(ManageInviteLinksBox, _peer),
-	//		Ui::LayerOption::KeepOther);
-	//	},
-	//	st::manageGroupButton,
-	//	&st::infoIconInviteLinks));
-	//AddSkip(_wrap.get());
-	//AddDividerText(_wrap.get(), tr::lng_group_invite_manage_about());
+	using namespace Settings;
+	AddSkip(_wrap.get());
+	_wrap->add(EditPeerInfoBox::CreateButton(
+		_wrap.get(),
+		tr::lng_group_invite_manage(),
+		rpl::single(QString()),
+		[=] { Ui::show(
+			Box(ManageInviteLinksBox, _peer),
+			Ui::LayerOption::KeepOther);
+		},
+		st::manageGroupButton,
+		&st::infoIconInviteLinks));
+	AddSkip(_wrap.get());
+	AddDividerText(_wrap.get(), tr::lng_group_invite_manage_about());
 
 	if (_linkOnly) {
 		_controls.inviteLinkWrap->show(anim::type::instant);
@@ -564,9 +564,8 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkBlock() {
 	if (_privacySavedValue) {
 		AddSkip(container);
 
-		AddSubsectionTitle(container, tr::lng_create_invite_link_title());
+		AddSubsectionTitle(container, tr::lng_create_permanent_link_title());
 	}
-	// tr::lng_create_permanent_link_title()); // #TODO links
 	AddPermanentLinkBlock(container, _peer);
 
 	AddSkip(container);
@@ -576,16 +575,6 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkBlock() {
 		((_peer->isMegagroup() || _peer->asChat())
 			? tr::lng_group_invite_about_permanent_group()
 			: tr::lng_group_invite_about_permanent_channel()));
-
-	if (_peer->wasFullUpdated()) {
-		const auto link = _peer->isChat()
-			? _peer->asChat()->inviteLink()
-			: _peer->asChannel()->inviteLink();
-		if (link.isEmpty()) {
-			// #TODO links remove this auto-export link.
-			_peer->session().api().inviteLinks().revokePermanent(_peer);
-		}
-	}
 
 	return result;
 }

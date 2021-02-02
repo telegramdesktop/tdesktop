@@ -441,8 +441,10 @@ Controller::Controller(not_null<PeerData*> peer, bool revoked)
 				delegate()->peerListRefreshRows();
 			}
 		} else if (update.was.isEmpty()) {
-			prependRow(*update.now, now);
-			delegate()->peerListRefreshRows();
+			if (!update.now->permanent || update.now->revoked) {
+				prependRow(*update.now, now);
+				delegate()->peerListRefreshRows();
+			}
 		} else {
 			updateRow(*update.now, now);
 		}
@@ -581,6 +583,8 @@ void Controller::updateRow(const InviteLinkData &data, TimeId now) {
 		real->update(data, now);
 		checkExpiringTimer(real);
 		delegate()->peerListUpdateRow(row);
+	} else if (_revoked) {
+		prependRow(data, now);
 	}
 }
 

@@ -332,7 +332,7 @@ private:
 	void showEditLinkedChatBox();
 	void fillPrivacyTypeButton();
 	void fillLinkedChatButton();
-	void fillInviteLinkButton();
+	//void fillInviteLinkButton();
 	void fillSignaturesButton();
 	void fillHistoryVisibilityButton();
 	void fillManageSection();
@@ -798,20 +798,20 @@ void Controller::fillLinkedChatButton() {
 		[=] { showEditLinkedChatBox(); });
 	_linkedChatUpdates.fire_copy(*_linkedChatSavedValue);
 }
-
-void Controller::fillInviteLinkButton() {
-	Expects(_controls.buttonsLayout != nullptr);
-
-	const auto buttonCallback = [=] {
-		Ui::show(Box<EditPeerTypeBox>(_peer), Ui::LayerOption::KeepOther);
-	};
-
-	AddButtonWithText(
-		_controls.buttonsLayout,
-		tr::lng_profile_invite_link_section(),
-		rpl::single(QString()), //Empty text.
-		buttonCallback);
-}
+//
+//void Controller::fillInviteLinkButton() {
+//	Expects(_controls.buttonsLayout != nullptr);
+//
+//	const auto buttonCallback = [=] {
+//		Ui::show(Box<EditPeerTypeBox>(_peer), Ui::LayerOption::KeepOther);
+//	};
+//
+//	AddButtonWithText(
+//		_controls.buttonsLayout,
+//		tr::lng_profile_invite_link_section(),
+//		rpl::single(QString()), //Empty text.
+//		buttonCallback);
+//}
 
 void Controller::fillSignaturesButton() {
 	Expects(_controls.buttonsLayout != nullptr);
@@ -959,8 +959,8 @@ void Controller::fillManageSection() {
 
 	if (canEditUsername) {
 		fillPrivacyTypeButton();
-	} else if (canEditInviteLinks) {
-		fillInviteLinkButton();
+	//} else if (canEditInviteLinks) {
+	//	fillInviteLinkButton();
 	}
 	if (canViewOrEditLinkedChat) {
 		fillLinkedChatButton();
@@ -995,29 +995,29 @@ void Controller::fillManageSection() {
 			[=] { ShowEditPermissions(_navigation, _peer); },
 			st::infoIconPermissions);
 	}
-	//if (canEditInviteLinks) { // #TODO links
-	//	AddButtonWithCount(
-	//		_controls.buttonsLayout,
-	//		tr::lng_manage_peer_invite_links(),
-	//		Info::Profile::MigratedOrMeValue(
-	//			_peer
-	//		) | rpl::map([=](not_null<PeerData*> peer) {
-	//			peer->session().api().inviteLinks().requestLinks(peer);
-	//			return peer->session().changes().peerUpdates(
-	//				peer,
-	//				Data::PeerUpdate::Flag::InviteLinks
-	//			) | rpl::map([=] {
-	//				return peer->session().api().inviteLinks().links(
-	//					peer).count;
-	//			});
-	//		}) | rpl::flatten_latest(
-	//		) | ToPositiveNumberString(),
-	//		[=] { Ui::show(
-	//			Box(ManageInviteLinksBox, _peer),
-	//			Ui::LayerOption::KeepOther);
-	//		},
-	//		st::infoIconInviteLinks);
-	//}
+	if (canEditInviteLinks) {
+		AddButtonWithCount(
+			_controls.buttonsLayout,
+			tr::lng_manage_peer_invite_links(),
+			Info::Profile::MigratedOrMeValue(
+				_peer
+			) | rpl::map([=](not_null<PeerData*> peer) {
+				peer->session().api().inviteLinks().requestLinks(peer);
+				return peer->session().changes().peerUpdates(
+					peer,
+					Data::PeerUpdate::Flag::InviteLinks
+				) | rpl::map([=] {
+					return peer->session().api().inviteLinks().links(
+						peer).count;
+				});
+			}) | rpl::flatten_latest(
+			) | ToPositiveNumberString(),
+			[=] { Ui::show(
+				Box(ManageInviteLinksBox, _peer),
+				Ui::LayerOption::KeepOther);
+			},
+			st::infoIconInviteLinks);
+	}
 	if (canViewAdmins) {
 		AddButtonWithCount(
 			_controls.buttonsLayout,

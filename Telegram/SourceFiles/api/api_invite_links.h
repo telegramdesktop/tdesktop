@@ -43,10 +43,10 @@ struct InviteLinkUpdate {
 	QString was;
 	std::optional<InviteLink> now;
 };
-// #TODO links
-//[[nodiscard]] JoinedByLinkSlice ParseJoinedByLinkSlice(
-//	not_null<PeerData*> peer,
-//	const MTPmessages_ChatInviteImporters &slice);
+
+[[nodiscard]] JoinedByLinkSlice ParseJoinedByLinkSlice(
+	not_null<PeerData*> peer,
+	const MTPmessages_ChatInviteImporters &slice);
 
 class InviteLinks final {
 public:
@@ -73,7 +73,7 @@ public:
 		Fn<void(Link)> done = nullptr);
 	void revokePermanent(
 		not_null<PeerData*> peer,
-		Fn<void(Link)> done = nullptr);
+		Fn<void()> done = nullptr);
 	void destroy(
 		not_null<PeerData*> peer,
 		const QString &link,
@@ -124,10 +124,9 @@ private:
 		}
 	};
 
-	// #TODO links
-	//[[nodiscard]] Links parseSlice(
-	//	not_null<PeerData*> peer,
-	//	const MTPmessages_ExportedChatInvites &slice) const;
+	[[nodiscard]] Links parseSlice(
+		not_null<PeerData*> peer,
+		const MTPmessages_ExportedChatInvites &slice) const;
 	[[nodiscard]] Link parse(
 		not_null<PeerData*> peer,
 		const MTPExportedChatInvite &invite) const;
