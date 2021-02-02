@@ -478,6 +478,7 @@ void OverlayWidget::updateGeometry() {
 
 void OverlayWidget::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
+	OverlayParent::resizeEvent(e);
 }
 
 void OverlayWidget::updateControlsGeometry() {
