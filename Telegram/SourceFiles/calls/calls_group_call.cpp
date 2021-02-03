@@ -668,6 +668,7 @@ void GroupCall::createAndStartController() {
 		.initialOutputDeviceId = _audioOutputId.toStdString(),
 		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
 			settings.callAudioBackend()),
+		.enableRadioMode = cRadioMode(),
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");

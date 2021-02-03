@@ -178,6 +178,7 @@ bool gRepeaterReplyToOrigMsg = false;
 bool gDisableCloudDraftSync = false;
 bool gShowPhoneNumber = true;
 bool gShowScheduledButton = false;
+bool gRadioMode = false;
 
 int gNetSpeedBoost = 0;
 int gNetRequestsCount = 2;

@@ -237,6 +237,10 @@ namespace EnhancedSettings {
 			cSetShowScheduledButton(v);
 		});
 
+		ReadBoolOption(settings, "radio_mode", [&](auto v) {
+			cSetRadioMode(v);
+		});
+
       return true;
     }
 
@@ -262,6 +266,7 @@ namespace EnhancedSettings {
         settings.insert(qsl("repeater_reply_to_orig_msg"), false);
         settings.insert(qsl("disable_cloud_draft_sync"), false);
 		settings.insert(qsl("show_scheduled_button"), false);
+		settings.insert(qsl("radio_mode"), false);
 
         auto document = QJsonDocument();
         document.setObject(settings);
@@ -293,6 +298,7 @@ namespace EnhancedSettings {
         settings.insert(qsl("repeater_reply_to_orig_msg"), cRepeaterReplyToOrigMsg());
         settings.insert(qsl("disable_cloud_draft_sync"), cDisableCloudDraftSync());
 		settings.insert(qsl("show_scheduled_button"), cShowScheduledButton());
+		settings.insert(qsl("radio_mode"), cRadioMode());
 
         auto document = QJsonDocument();
         document.setObject(settings);

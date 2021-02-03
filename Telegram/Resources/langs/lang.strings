@@ -2614,6 +2614,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_disable_cloud_draft_sync" = "Disable Cloud Draft Sync To Local";
 "lng_settings_show_phone_number" = "Show Phone Number";
 "lng_settings_show_scheduled_button" = "Always Show Scheduled Button";
+"lng_settings_voice_chat" = "Voice Chat";
+"lng_settings_radio_mode" = "Radio mode";
 "lng_settings_restart_hint" = "WARNING: Changing options marked with \"*\" will take effect immediately with restart.";
 
 "lng_settings_always_delete_for" = "Auto check delete message for";
@@ -2633,6 +2635,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_net_boost_restart_desc" = "You'll need to restart app to change network boost.\n\nRestart now?";
 "lng_show_messages_id_desc" = "Warning: the changes will take effect immediately with restart.";
 "lng_show_emoji_button_as_text_desc" = "Note: If you can't see a emoji button, please turn on this option.";
+"lng_radio_mode_desc" = "Note: Radio mode is an experimental feature for stream music through voice chat without audio processing.";
+"lng_radio_mode_hint" = "Radio mode is enabled! Re-join a voice chat if you're already joined.";
 
 "lng_chat_restriction_reason" = "Restriction Reason";
 "lng_copy_restriction_reason" = "Copy Restriction Reason";

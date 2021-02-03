@@ -5,6 +5,7 @@ For license and copyright information please follow this link:
 https://github.com/TDesktop-x64/tdesktop/blob/dev/LEGAL
 */
 #include <base/timer_rpl.h>
+#include <ui/toast/toast.h>
 #include "settings/settings_enhanced.h"
 
 #include "settings/settings_common.h"
@@ -105,11 +106,11 @@ namespace Settings {
 
         if (cShowRepeaterOption()) {
             AddButton(
-                inner,
-                tr::lng_settings_repeater_reply_to_orig_msg(),
-                st::settingsButton
+                    inner,
+                    tr::lng_settings_repeater_reply_to_orig_msg(),
+                    st::settingsButton
             )->toggleOn(
-                rpl::single(cRepeaterReplyToOrigMsg())
+                    rpl::single(cRepeaterReplyToOrigMsg())
             )->toggledChanges(
             ) | rpl::filter([=](bool toggled) {
                 return (toggled != cRepeaterReplyToOrigMsg());
@@ -200,6 +201,39 @@ namespace Settings {
         AddSkip(container);
     }
 
+    void SetupEnhancedVoiceChat(not_null<Ui::VerticalLayout *> container) {
+        AddDivider(container);
+        AddSkip(container);
+        AddSubsectionTitle(container, tr::lng_settings_voice_chat());
+
+        const auto wrap = container->add(
+                object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+                        container,
+                        object_ptr<Ui::VerticalLayout>(container)));
+        const auto inner = wrap->entity();
+
+        AddButton(
+                inner,
+                tr::lng_settings_radio_mode(),
+                st::settingsButton
+        )->toggleOn(
+                rpl::single(cRadioMode())
+        )->toggledChanges(
+        ) | rpl::filter([=](bool toggled) {
+            return (toggled != cRadioMode());
+        }) | rpl::start_with_next([=](bool toggled) {
+			if (toggled) {
+				Ui::Toast::Show(tr::lng_radio_mode_hint(tr::now));
+			}
+            cSetRadioMode(toggled);
+            EnhancedSettings::Write();
+        }, container->lifetime());
+
+        AddDividerText(inner, tr::lng_radio_mode_desc());
+
+        AddSkip(container);
+    }
+
     Enhanced::Enhanced(
             QWidget *parent,
             not_null<Window::SessionController *> controller)
@@ -213,6 +247,7 @@ namespace Settings {
         SetupEnhancedNetwork(content);
         SetupEnhancedMessages(content);
         SetupEnhancedButton(content);
+        SetupEnhancedVoiceChat(content);
 
         Ui::ResizeFitChild(this, content);
     }

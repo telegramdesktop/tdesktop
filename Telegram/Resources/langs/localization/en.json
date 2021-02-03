@@ -18,11 +18,15 @@
     "lng_settings_repeater_reply_to_orig_msg": "Reply to original message",
     "lng_settings_disable_cloud_draft_sync": "Disable Cloud Draft Sync To Local",
     "lng_settings_show_scheduled_button": "Always Show Scheduled Button",
+    "lng_settings_voice_chat": "Voice Chat",
+    "lng_settings_radio_mode": "Radio mode",
     "lng_settings_restart_hint": "WARNING: Changing options with colored will take effect immediately with restart.",
 
     "lng_net_speed_boost_title": "Network speed boost",
     "lng_net_speed_boost_desc": "Warning: changing this parameter to high values on slow networks can make even worse. Use at your own risk.",
     "lng_show_emoji_button_as_text_desc": "Note: If you can't see a emoji button, please turn on this option.",
+    "lng_radio_mode_desc": "Note: Radio mode is an experimental feature for stream music through voice chat without audio processing.",
+    "lng_radio_mode_hint": "Radio mode is enabled! Re-join a voice chat if you're already joined.",
 
     "lng_net_speed_boost_default": "Disabled",
     "lng_net_speed_boost_slight": "Slight",
