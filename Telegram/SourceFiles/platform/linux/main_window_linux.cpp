@@ -932,6 +932,12 @@ void MainWindow::updateGlobalMenuHook() {
 #else // DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 void MainWindow::createGlobalMenu() {
+	const auto ensureWindowShown = [=] {
+		if (isHidden()) {
+			showFromTray();
+		}
+	};
+
 	psMainMenu = new QMenu(this);
 
 	auto file = psMainMenu->addMenu(tr::lng_mac_menu_file(tr::now));
@@ -1061,20 +1067,32 @@ void MainWindow::createGlobalMenu() {
 
 	psAddContact = tools->addAction(
 		tr::lng_mac_menu_add_contact(tr::now),
-		App::wnd(),
-		[=] { App::wnd()->showAddContact(); });
+		this,
+		[=] {
+			Expects(sessionController() != nullptr);
+			ensureWindowShown();
+			sessionController()->showAddContact();
+		});
 
 	tools->addSeparator();
 
 	psNewGroup = tools->addAction(
 		tr::lng_mac_menu_new_group(tr::now),
-		App::wnd(),
-		[=] { App::wnd()->showNewGroup(); });
+		this,
+		[=] {
+			Expects(sessionController() != nullptr);
+			ensureWindowShown();
+			sessionController()->showNewGroup();
+		});
 
 	psNewChannel = tools->addAction(
 		tr::lng_mac_menu_new_channel(tr::now),
-		App::wnd(),
-		[=] { App::wnd()->showNewChannel(); });
+		this,
+		[=] {
+			Expects(sessionController() != nullptr);
+			ensureWindowShown();
+			sessionController()->showNewChannel();
+		});
 
 	auto help = psMainMenu->addMenu(tr::lng_linux_menu_help(tr::now));
 

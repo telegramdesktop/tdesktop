@@ -113,7 +113,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 		box->addLeftButton(
 			tr::lng_profile_add_contact(),
-			[=] { controller->widget()->showAddContact(); });
+			[=] { controller->showAddContact(); });
 	};
 	return Box<PeerListBox>(
 		std::make_unique<ContactsBoxController>(

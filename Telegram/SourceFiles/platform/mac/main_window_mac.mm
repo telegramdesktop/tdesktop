@@ -684,6 +684,12 @@ void MainWindow::initShadows() {
 }
 
 void MainWindow::createGlobalMenu() {
+	const auto ensureWindowShown = [=] {
+		if (isHidden()) {
+			showFromTray();
+		}
+	};
+
 	auto main = psMainMenu.addMenu(qsl("Telegram"));
 	auto about = main->addAction(tr::lng_mac_menu_about_telegram(tr::now, lt_telegram, qsl("Telegram")));
 	connect(about, &QAction::triggered, about, [] {
@@ -738,16 +744,40 @@ void MainWindow::createGlobalMenu() {
 		}
 		Ui::show(PrepareContactsBox(sessionController()));
 	}));
-	psAddContact = window->addAction(tr::lng_mac_menu_add_contact(tr::now), App::wnd(), [=] {
-		App::wnd()->showAddContact();
-	});
+	{
+		auto callback = [=] {
+			Expects(sessionController() != nullptr);
+			ensureWindowShown();
+			sessionController()->showAddContact();
+		};
+		psAddContact = window->addAction(
+			tr::lng_mac_menu_add_contact(tr::now),
+			this,
+			std::move(callback));
+	}
 	window->addSeparator();
-	psNewGroup = window->addAction(tr::lng_mac_menu_new_group(tr::now), App::wnd(), [=] {
-		App::wnd()->showNewGroup();
-	});
-	psNewChannel = window->addAction(tr::lng_mac_menu_new_channel(tr::now), App::wnd(), [=] {
-		App::wnd()->showNewChannel();
-	});
+	{
+		auto callback = [=] {
+			Expects(sessionController() != nullptr);
+			ensureWindowShown();
+			sessionController()->showNewGroup();
+		};
+		psNewGroup = window->addAction(
+			tr::lng_mac_menu_new_group(tr::now),
+			this,
+			std::move(callback));
+	}
+	{
+		auto callback = [=] {
+			Expects(sessionController() != nullptr);
+			ensureWindowShown();
+			sessionController()->showNewChannel();
+		};
+		psNewChannel = window->addAction(
+			tr::lng_mac_menu_new_channel(tr::now),
+			this,
+			std::move(callback));
+	}
 	window->addSeparator();
 	psShowTelegram = window->addAction(tr::lng_mac_menu_show(tr::now), App::wnd(), [=] {
 		showFromTray();

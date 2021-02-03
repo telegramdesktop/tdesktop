@@ -2281,7 +2281,7 @@ void InnerWidget::refreshEmptyLabel() {
 	resizeEmptyLabel();
 	_empty->setClickHandlerFilter([=](const auto &...) {
 		if (_emptyState == EmptyState::NoContacts) {
-			App::wnd()->showAddContact();
+			_controller->showAddContact();
 		} else if (_emptyState == EmptyState::EmptyFolder) {
 			editOpenedFilter();
 		}

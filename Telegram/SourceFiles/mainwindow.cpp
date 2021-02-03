@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "mainwidget.h"
 #include "boxes/confirm_box.h"
-#include "boxes/add_contact_box.h"
 #include "boxes/connection_box.h"
 #include "storage/storage_account.h"
 #include "storage/localstorage.h"
@@ -667,42 +666,6 @@ void MainWindow::updateTrayMenu(bool force) {
 	notificationAction->setText(notificationActionText);
 
 	psTrayMenuUpdated();
-}
-
-void MainWindow::showAddContact() {
-	if (isHidden()) {
-		showFromTray();
-	}
-
-	if (const auto controller = sessionController()) {
-		Ui::show(
-			Box<AddContactBox>(&controller->session()),
-			Ui::LayerOption::KeepOther);
-	}
-}
-
-void MainWindow::showNewGroup() {
-	if (isHidden()) {
-		showFromTray();
-	}
-
-	if (const auto controller = sessionController()) {
-		Ui::show(
-			Box<GroupInfoBox>(controller, GroupInfoBox::Type::Group),
-			Ui::LayerOption::KeepOther);
-	}
-}
-
-void MainWindow::showNewChannel() {
-	if (isHidden()) {
-		showFromTray();
-	}
-
-	if (const auto controller = sessionController()) {
-		Ui::show(
-			Box<GroupInfoBox>(controller, GroupInfoBox::Type::Channel),
-			Ui::LayerOption::KeepOther);
-	}
 }
 
 void MainWindow::showLogoutConfirmation() {

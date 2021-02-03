@@ -325,6 +325,10 @@ public:
 		Dialogs::Key chat,
 		QDate requestedDate);
 
+	void showAddContact();
+	void showNewGroup();
+	void showNewChannel();
+
 	void showPassportForm(const Passport::FormRequest &request);
 	void clearPassportForm();
 
