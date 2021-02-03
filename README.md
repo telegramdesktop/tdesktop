@@ -6,13 +6,13 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ## Project Goal
 
-Provide Windows 64bit build with some enhancements. *(Linux build is a PLUS!)*
+Provide Windows 64bit build with some enhancements. *(Linux/Mac build is a PLUS!)*
 
 Cause official Telegram Desktop do not provide Windows 64bit build, so [Project TDesktop x64](https://github.com/TDesktop-x64) is aimed at provide Windows native x64 build(with few enhancements) to everybody.
 
 ## Roadmap
 
-1. Drop Windows 32bit support in 1 September.
+1. Drop Windows 32bit support when Telegram support Group Video Calling **(After stable release)**.
 
 ## Features 
 
@@ -55,6 +55,7 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 35. Disable Cloud Draft Sync To Local
 36. Always Show Scheduled Button option
 37. Mark All Chats As Read for "All Chats" Folder
+38. Voice Chat Radio mode
 
 ## Supported systems
 
@@ -84,6 +85,7 @@ Then your language translation filename is `en.json` or something like that.
 
 * [Visual Studio 2019 x64][msvc_x64]
 * [CMake on GNU/Linux][cmake]
+* [Xcode 12][xcode]
 
 ## Links
 
@@ -93,6 +95,7 @@ Then your language translation filename is `en.json` or something like that.
 [//]: # (LINKS)
 [license]: LICENSE
 [msvc_x64]: docs/building-msvc_x64.md
+[xcode]: docs/building-xcode.md
 [cmake]: docs/building-cmake.md
 [preview_image]: https://github.com/TDesktop-x64/tdesktop/blob/dev/docs/assets/preview.png "Preview of Telegram Desktop x64"
 [preview_image_url]: https://raw.githubusercontent.com/TDesktop-x64/tdesktop/dev/docs/assets/preview.png
