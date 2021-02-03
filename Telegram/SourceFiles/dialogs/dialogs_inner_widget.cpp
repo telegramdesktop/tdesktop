@@ -414,7 +414,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	const auto r = e->rect();
-	if (App::wnd()->contentOverlapped(this, r)) {
+	if (_controller->widget()->contentOverlapped(this, r)) {
 		return;
 	}
 	const auto activeEntry = _controller->activeChatEntryCurrent();

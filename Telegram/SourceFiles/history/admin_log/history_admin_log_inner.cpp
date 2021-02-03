@@ -1515,7 +1515,7 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 		if (_selectedItem && !_pressWasInactive) {
 			if (_selectedText.from == _selectedText.to) {
 				_selectedItem = nullptr;
-				App::wnd()->setInnerFocus();
+				_controller->widget()->setInnerFocus();
 			}
 		}
 	}

@@ -1392,7 +1392,7 @@ void HistoryInner::mouseActionFinish(
 			auto sel = _selected.cbegin()->second;
 			if (sel != FullSelection && sel.from == sel.to) {
 				_selected.clear();
-				App::wnd()->setInnerFocus();
+				_controller->widget()->setInnerFocus();
 			}
 		}
 	}

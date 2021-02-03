@@ -711,7 +711,7 @@ void Widget::animationCallback() {
 		updateControlsVisibility(true);
 
 		if (!_filter->hasFocus()) {
-			if (App::wnd()) App::wnd()->setInnerFocus();
+			controller()->widget()->setInnerFocus();
 		}
 	}
 }
@@ -957,7 +957,7 @@ void Widget::onChooseByDrag() {
 }
 
 void Widget::showMainMenu() {
-	App::wnd()->showMainMenu();
+	controller()->widget()->showMainMenu();
 }
 
 void Widget::searchMessages(
@@ -1704,7 +1704,9 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 }
 
 void Widget::paintEvent(QPaintEvent *e) {
-	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
+	if (controller()->widget()->contentOverlapped(this, e)) {
+		return;
+	}
 
 	Painter p(this);
 	QRect r(e->rect());

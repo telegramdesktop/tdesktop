@@ -2254,7 +2254,7 @@ void ListWidget::mouseActionFinish(
 		} else if (_selectedTextItem && !_pressWasInactive) {
 			if (_selectedTextRange.from == _selectedTextRange.to) {
 				clearTextSelection();
-				App::wnd()->setInnerFocus();
+				_controller->widget()->setInnerFocus();
 			}
 		}
 	}

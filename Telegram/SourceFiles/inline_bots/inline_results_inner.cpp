@@ -713,14 +713,14 @@ void Inner::updateSelected() {
 			_pressed = _selected;
 			if (row >= 0 && col >= 0) {
 				auto layout = _rows.at(row).items.at(col);
-				if (const auto w = App::wnd()) {
-					if (const auto previewDocument = layout->getPreviewDocument()) {
-						w->showMediaPreview(
-							Data::FileOrigin(),
-							previewDocument);
-					} else if (auto previewPhoto = layout->getPreviewPhoto()) {
-						w->showMediaPreview(Data::FileOrigin(), previewPhoto);
-					}
+				if (const auto previewDocument = layout->getPreviewDocument()) {
+					_controller->widget()->showMediaPreview(
+						Data::FileOrigin(),
+						previewDocument);
+				} else if (auto previewPhoto = layout->getPreviewPhoto()) {
+					_controller->widget()->showMediaPreview(
+						Data::FileOrigin(),
+						previewPhoto);
 				}
 			}
 		}
@@ -740,12 +740,14 @@ void Inner::showPreview() {
 	int row = _pressed / MatrixRowShift, col = _pressed % MatrixRowShift;
 	if (row < _rows.size() && col < _rows.at(row).items.size()) {
 		auto layout = _rows.at(row).items.at(col);
-		if (const auto w = App::wnd()) {
-			if (const auto previewDocument = layout->getPreviewDocument()) {
-				_previewShown = w->showMediaPreview(Data::FileOrigin(), previewDocument);
-			} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
-				_previewShown = w->showMediaPreview(Data::FileOrigin(), previewPhoto);
-			}
+		if (const auto previewDocument = layout->getPreviewDocument()) {
+			_previewShown = _controller->widget()->showMediaPreview(
+				Data::FileOrigin(),
+				previewDocument);
+		} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
+			_previewShown = _controller->widget()->showMediaPreview(
+				Data::FileOrigin(),
+				previewPhoto);
 		}
 	}
 }

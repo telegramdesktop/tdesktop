@@ -858,8 +858,8 @@ void Editor::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		if (!_select->getQuery().isEmpty()) {
 			_select->clearQuery();
-		} else if (auto window = App::wnd()) {
-			window->setInnerFocus();
+		} else {
+			_window->widget()->setInnerFocus();
 		}
 	} else if (e->key() == Qt::Key_Down) {
 		_inner->selectSkip(1);
@@ -904,10 +904,8 @@ void Editor::closeWithConfirmation() {
 }
 
 void Editor::closeEditor() {
-	if (const auto window = App::wnd()) {
-		window->showRightColumn(nullptr);
-		Background()->clearEditingTheme();
-	}
+	_window->widget()->showRightColumn(nullptr);
+	Background()->clearEditingTheme();
 }
 
 } // namespace Theme
