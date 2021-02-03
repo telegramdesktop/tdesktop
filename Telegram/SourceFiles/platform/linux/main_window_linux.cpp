@@ -1043,8 +1043,11 @@ void MainWindow::createGlobalMenu() {
 
 	auto prefs = edit->addAction(
 		tr::lng_mac_menu_preferences(tr::now),
-		App::wnd(),
-		[=] { App::wnd()->showSettings(); },
+		this,
+		[=] {
+			ensureWindowShown();
+			controller().showSettings();
+		},
 		QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
 
 	prefs->setMenuRole(QAction::PreferencesRole);

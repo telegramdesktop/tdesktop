@@ -289,6 +289,11 @@ void MainWindow::setupIntro(Intro::EnterPoint point) {
 
 	destroyLayer();
 	auto created = object_ptr<Intro::Widget>(bodyWidget(), &account(), point);
+	created->showSettingsRequested(
+	) | rpl::start_with_next([=] {
+		showSettings();
+	}, created->lifetime());
+
 	clearWidgets();
 	_intro = std::move(created);
 	if (_passcodeLock) {
@@ -342,9 +347,6 @@ void MainWindow::setupMain() {
 }
 
 void MainWindow::showSettings() {
-	if (isHidden()) {
-		showFromTray();
-	}
 	if (_passcodeLock) {
 		return;
 	}

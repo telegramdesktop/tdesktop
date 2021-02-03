@@ -930,8 +930,8 @@ void MainMenu::refreshMenu() {
 			_controller->session().supportTemplates().reload();
 		}, &st::mainMenuReload, &st::mainMenuReloadOver);
 	}
-	_menu->addAction(tr::lng_menu_settings(tr::now), [] {
-		App::wnd()->showSettings();
+	_menu->addAction(tr::lng_menu_settings(tr::now), [=] {
+		controller->showSettings();
 	}, &st::mainMenuSettings, &st::mainMenuSettingsOver);
 
 	_nightThemeAction = std::make_shared<QPointer<QAction>>();

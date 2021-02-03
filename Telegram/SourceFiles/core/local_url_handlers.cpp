@@ -346,6 +346,7 @@ bool ResolveSettings(
 	if (!controller) {
 		return false;
 	}
+	controller->window().activate();
 	const auto section = match->captured(1).mid(1).toLower();
 	if (section.isEmpty()) {
 		controller->window().showSettings();

@@ -229,12 +229,6 @@ void searchByHashtag(const QString &tag, PeerData *inPeer) {
 	}
 }
 
-void showSettings() {
-	if (auto w = App::wnd()) {
-		w->showSettings();
-	}
-}
-
 } // namespace App
 
 namespace Ui {

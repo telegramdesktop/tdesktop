@@ -699,10 +699,18 @@ void MainWindow::createGlobalMenu() {
 	about->setMenuRole(QAction::AboutQtRole);
 
 	main->addSeparator();
-	QAction *prefs = main->addAction(tr::lng_mac_menu_preferences(tr::now), App::wnd(), [=] {
-		App::wnd()->showSettings();
-	}, QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
-	prefs->setMenuRole(QAction::PreferencesRole);
+	{
+		auto callback = [=] {
+			ensureWindowShown();
+			controller().showSettings();
+		};
+		main->addAction(
+			tr::lng_mac_menu_preferences(tr::now),
+			this,
+			std::move(callback),
+			QKeySequence(Qt::ControlModifier | Qt::Key_Comma))
+		->setMenuRole(QAction::PreferencesRole);
+	}
 
 	QMenu *file = psMainMenu.addMenu(tr::lng_mac_menu_file(tr::now));
 	psLogout = file->addAction(tr::lng_mac_menu_logout(tr::now));

@@ -121,8 +121,6 @@ Widget::Widget(
 
 	_next->entity()->setClickedCallback([=] { getStep()->submit(); });
 
-	_settings->entity()->setClickedCallback([] { App::wnd()->showSettings(); });
-
 	if (_changeLanguage) {
 		_changeLanguage->finishAnimating();
 	}
@@ -151,6 +149,10 @@ Widget::Widget(
 			checkUpdateStatus();
 		}, lifetime());
 	}
+}
+
+rpl::producer<> Widget::showSettingsRequested() const {
+	return _settings->entity()->clicks() | rpl::to_empty;
 }
 
 not_null<Media::Player::FloatDelegate*> Widget::floatPlayerDelegate() {
