@@ -800,9 +800,10 @@ void MainWindow::createGlobalMenu() {
 			std::move(callback));
 	}
 	window->addSeparator();
-	psShowTelegram = window->addAction(tr::lng_mac_menu_show(tr::now), App::wnd(), [=] {
-		showFromTray();
-	});
+	psShowTelegram = window->addAction(
+		tr::lng_mac_menu_show(tr::now),
+		this,
+		[=] { showFromTray(); });
 
 	updateGlobalMenu();
 }
@@ -864,7 +865,9 @@ void MainWindow::psMacClearFormat() {
 }
 
 void MainWindow::updateGlobalMenuHook() {
-	if (!App::wnd() || !positionInited()) return;
+	if (!positionInited()) {
+		return;
+	}
 
 	auto focused = QApplication::focusWidget();
 	bool canUndo = false, canRedo = false, canCut = false, canCopy = false, canPaste = false, canDelete = false, canSelectAll = false;
@@ -895,7 +898,7 @@ void MainWindow::updateGlobalMenuHook() {
 
 	_canApplyMarkdown = canApplyMarkdown;
 
-	App::wnd()->updateIsActive();
+	updateIsActive();
 	const auto logged = (sessionController() != nullptr);
 	const auto inactive = !logged || controller().locked();
 	const auto support = logged && account().session().supportMode();
@@ -911,7 +914,7 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psAddContact, inactive);
 	ForceDisabled(psNewGroup, inactive || support);
 	ForceDisabled(psNewChannel, inactive || support);
-	ForceDisabled(psShowTelegram, App::wnd()->isActive());
+	ForceDisabled(psShowTelegram, isActive());
 
 	ForceDisabled(psBold, !canApplyMarkdown);
 	ForceDisabled(psItalic, !canApplyMarkdown);
