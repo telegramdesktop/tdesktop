@@ -1107,12 +1107,9 @@ void MainWindow::createGlobalMenu() {
 			tr::now,
 			lt_telegram,
 			qsl("Telegram")),
-		[] {
-			if (App::wnd() && App::wnd()->isHidden()) {
-				App::wnd()->showFromTray();
-			}
-
-			Ui::show(Box<AboutBox>());
+		[=] {
+			ensureWindowShown();
+			controller().show(Box<AboutBox>());
 		});
 
 	about->setMenuRole(QAction::AboutQtRole);

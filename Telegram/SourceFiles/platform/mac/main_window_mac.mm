@@ -691,12 +691,19 @@ void MainWindow::createGlobalMenu() {
 	};
 
 	auto main = psMainMenu.addMenu(qsl("Telegram"));
-	auto about = main->addAction(tr::lng_mac_menu_about_telegram(tr::now, lt_telegram, qsl("Telegram")));
-	connect(about, &QAction::triggered, about, [] {
-		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
-		Ui::show(Box<AboutBox>());
-	});
-	about->setMenuRole(QAction::AboutQtRole);
+	{
+		auto callback = [=] {
+			ensureWindowShown();
+			controller().show(Box<AboutBox>());
+		};
+		main->addAction(
+			tr::lng_mac_menu_about_telegram(
+				tr::now,
+				lt_telegram,
+				qsl("Telegram")),
+			std::move(callback))
+		->setMenuRole(QAction::AboutQtRole);
+	}
 
 	main->addSeparator();
 	{
