@@ -670,39 +670,6 @@ void MainWindow::updateTrayMenu(bool force) {
 	psTrayMenuUpdated();
 }
 
-void MainWindow::showLogoutConfirmation() {
-	if (isHidden()) {
-		showFromTray();
-	}
-
-	const auto account = Core::App().passcodeLocked()
-		? nullptr
-		: sessionController()
-		? &sessionController()->session().account()
-		: nullptr;
-	const auto weak = base::make_weak(account);
-	const auto callback = [=] {
-		if (account && !weak) {
-			return;
-		}
-		if (account
-			&& account->sessionExists()
-			&& Core::App().exportManager().inProgress(&account->session())) {
-			Ui::hideLayer();
-			Core::App().exportManager().stopWithConfirmation([=] {
-				Core::App().logout(account);
-			});
-		} else {
-			Core::App().logout(account);
-		}
-	};
-	Ui::show(Box<ConfirmBox>(
-		tr::lng_sure_logout(tr::now),
-		tr::lng_settings_logout(tr::now),
-		st::attentionBoxButton,
-		callback));
-}
-
 bool MainWindow::takeThirdSectionFromLayer() {
 	return _layer ? _layer->takeToThirdSection() : false;
 }

@@ -46,6 +46,8 @@ public:
 	void setupIntro();
 	void setupMain();
 
+	void showLogoutConfirmation();
+
 	void showSettings();
 
 	[[nodiscard]] int verticalShadowTop() const;
