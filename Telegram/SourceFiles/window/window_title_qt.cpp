@@ -13,8 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "core/core_settings.h"
 #include "core/application.h"
+#include "styles/style_widgets.h"
 #include "styles/style_window.h"
-#include "styles/style_calls.h" // st::callShadow
 
 #include <QtCore/QCoreApplication>
 #include <QtGui/QGuiApplication>

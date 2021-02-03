@@ -108,9 +108,9 @@ private:
 	const std::unique_ptr<Ui::Window> _window;
 	std::unique_ptr<Incoming> _incoming;
 
-#ifdef Q_OS_WIN
+#ifndef Q_OS_MAC
 	std::unique_ptr<Ui::Platform::TitleControls> _controls;
-#endif // Q_OS_WIN
+#endif // !Q_OS_MAC
 
 	QSize _incomingFrameSize;
 

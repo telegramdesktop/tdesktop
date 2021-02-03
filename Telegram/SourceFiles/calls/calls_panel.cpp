@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_signal_bars.h"
 #include "calls/calls_userpic.h"
 #include "calls/calls_video_bubble.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/call_button.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -44,10 +45,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat.h"
-
-#ifdef Q_OS_WIN
-#include "ui/platform/win/ui_window_title_win.h"
-#endif // Q_OS_WIN
 
 #include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QApplication>
@@ -189,12 +186,12 @@ Panel::Panel(not_null<Call*> call)
 : _call(call)
 , _user(call->user())
 , _window(std::make_unique<Ui::Window>(Core::App().getModalParent()))
-#ifdef Q_OS_WIN
+#ifndef Q_OS_MAC
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
-	_window.get(),
+	_window->body(),
 	st::callTitle,
 	[=](bool maximized) { toggleFullScreen(maximized); }))
-#endif // Q_OS_WIN
+#endif // !Q_OS_MAC
 , _bodySt(&st::callBodyLayout)
 , _answerHangupRedial(widget(), st::callAnswer, &st::callHangup)
 , _decline(widget(), object_ptr<Ui::CallButton>(widget(), st::callHangup))
@@ -270,11 +267,11 @@ void Panel::initWindow() {
 		if (!widget()->rect().contains(widgetPoint)) {
 			return Flag::None | Flag(0);
 		}
-#ifdef Q_OS_WIN
+#ifndef Q_OS_MAC
 		if (_controls->geometry().contains(widgetPoint)) {
 			return Flag::None | Flag(0);
 		}
-#endif // Q_OS_WIN
+#endif // !Q_OS_MAC
 		const auto buttonWidth = st::callCancel.button.width;
 		const auto buttonsWidth = buttonWidth * 4;
 		const auto inControls = (_fingerprint
@@ -595,9 +592,9 @@ void Panel::initLayout() {
 		updateControlsGeometry();
 	}, widget()->lifetime());
 
-#ifdef Q_OS_WIN
+#ifndef Q_OS_MAC
 	_controls->raise();
-#endif // Q_OS_WIN
+#endif // !Q_OS_MAC
 }
 
 void Panel::showControls() {
@@ -669,10 +666,10 @@ void Panel::updateControlsGeometry() {
 		refreshIncomingGeometry();
 	}
 	if (_fingerprint) {
-#ifdef Q_OS_WIN
+#ifndef Q_OS_MAC
 		const auto minRight = _controls->geometry().width()
 			+ st::callFingerprintTop;
-#else // Q_OS_WIN
+#else // !Q_OS_MAC
 		const auto minRight = 0;
 #endif // _controls
 		const auto desired = (widget()->width() - _fingerprint->width()) / 2;
