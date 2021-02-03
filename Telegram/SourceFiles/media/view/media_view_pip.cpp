@@ -28,9 +28,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/text/format_values.h"
 #include "window/window_controller.h"
+#include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_media_view.h"
-#include "styles/style_calls.h" // st::callShadow
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>

@@ -35,8 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h" // session->content()->windowShown().
 #include "facades.h"
 #include "app.h"
+#include "styles/style_widgets.h"
 #include "styles/style_window.h"
-#include "styles/style_calls.h" // st::callShadow
 
 #include <QtWidgets/QDesktopWidget>
 #include <QtCore/QMimeData>

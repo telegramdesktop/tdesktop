@@ -110,9 +110,9 @@ private:
 	const std::unique_ptr<Ui::Window> _window;
 	const std::unique_ptr<Ui::LayerManager> _layerBg;
 
-#ifdef Q_OS_WIN
+#ifndef Q_OS_MAC
 	std::unique_ptr<Ui::Platform::TitleControls> _controls;
-#endif // Q_OS_WIN
+#endif // !Q_OS_MAC
 
 	rpl::lifetime _callLifetime;
 

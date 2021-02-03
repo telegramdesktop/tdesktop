@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_common.h"
 #include "calls/calls_group_members.h"
 #include "calls/calls_group_settings.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/window.h"
 #include "ui/widgets/call_button.h"
@@ -37,10 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h" // api().kickParticipant.
 #include "styles/style_calls.h"
 #include "styles/style_layers.h"
-
-#ifdef Q_OS_WIN
-#include "ui/platform/win/ui_window_title_win.h"
-#endif // Q_OS_WIN
 
 #include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QApplication>
@@ -304,11 +301,11 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 , _peer(call->peer())
 , _window(std::make_unique<Ui::Window>(Core::App().getModalParent()))
 , _layerBg(std::make_unique<Ui::LayerManager>(_window->body()))
-#ifdef Q_OS_WIN
+#ifndef Q_OS_MAC
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
-	_window.get(),
+	_window->body(),
 	st::groupCallTitle))
-#endif // Q_OS_WIN
+#endif // !Q_OS_MAC
 , _members(widget(), call)
 , _settings(widget(), st::groupCallSettings)
 , _mute(std::make_unique<Ui::CallMuteButton>(
@@ -749,9 +746,9 @@ void GroupPanel::kickMemberSure(not_null<UserData*> user) {
 void GroupPanel::initLayout() {
 	initGeometry();
 
-#ifdef Q_OS_WIN
+#ifndef Q_OS_MAC
 	_controls->raise();
-#endif // Q_OS_WIN
+#endif // !Q_OS_MAC
 }
 
 void GroupPanel::showControls() {
@@ -783,14 +780,12 @@ int GroupPanel::computeMembersListTop() const {
 }
 
 std::optional<QRect> GroupPanel::computeTitleRect() const {
-#ifdef Q_OS_WIN
+#ifdef Q_OS_MAC
+	return QRect(70, 0, widget()->width() - 70, 28);
+#else // Q_OS_MAC
 	const auto controls = _controls->geometry();
 	return QRect(0, 0, controls.x(), controls.height());
-#elif defined Q_OS_MAC // Q_OS_WIN
-	return QRect(70, 0, widget()->width() - 70, 28);
-#else // Q_OS_WIN || Q_OS_MAC
-	return std::nullopt;
-#endif // Q_OS_WIN || Q_OS_MAC
+#endif // !Q_OS_MAC
 }
 
 void GroupPanel::updateControlsGeometry() {
