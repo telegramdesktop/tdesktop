@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_calls.h" // st::callShadow
 
 #include <QtCore/QCoreApplication>
+#include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
 
 namespace Window {
@@ -76,7 +77,7 @@ TitleWidgetQt::TitleWidgetQt(QWidget *parent)
 }
 
 TitleWidgetQt::~TitleWidgetQt() {
-	window()->windowHandle()->unsetCursor();
+	restoreCursor();
 
 	if (!_windowWasFrameless) {
 		toggleFramelessWindow(false);
@@ -259,6 +260,10 @@ bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 				return startResize(edges);
 			}
 		}
+	} else if (e->type() == QEvent::Leave) {
+		if (obj->isWidgetType() && window() == static_cast<QWidget*>(obj)) {
+			restoreCursor();
+		}
 	} else if (e->type() == QEvent::Move
 		|| e->type() == QEvent::Resize) {
 		if (obj->isWidgetType() && window() == static_cast<QWidget*>(obj)) {
@@ -365,18 +370,35 @@ Qt::Edges TitleWidgetQt::edgesFromPos(const QPoint &pos) const {
 }
 
 void TitleWidgetQt::updateCursor(Qt::Edges edges) {
+	if (!edges) {
+		restoreCursor();
+		return;
+	} else if (!QGuiApplication::overrideCursor()) {
+		_cursorOverriden = false;
+	}
+
+	if (!_cursorOverriden) {
+		_cursorOverriden = true;
+		QGuiApplication::setOverrideCursor(QCursor());
+	}
+
 	if (((edges & Qt::LeftEdge) && (edges & Qt::TopEdge))
 		|| ((edges & Qt::RightEdge) && (edges & Qt::BottomEdge))) {
-		window()->windowHandle()->setCursor(QCursor(Qt::SizeFDiagCursor));
+		QGuiApplication::changeOverrideCursor(QCursor(Qt::SizeFDiagCursor));
 	} else if (((edges & Qt::LeftEdge) && (edges & Qt::BottomEdge))
 		|| ((edges & Qt::RightEdge) && (edges & Qt::TopEdge))) {
-		window()->windowHandle()->setCursor(QCursor(Qt::SizeBDiagCursor));
+		QGuiApplication::changeOverrideCursor(QCursor(Qt::SizeBDiagCursor));
 	} else if ((edges & Qt::LeftEdge) || (edges & Qt::RightEdge)) {
-		window()->windowHandle()->setCursor(QCursor(Qt::SizeHorCursor));
+		QGuiApplication::changeOverrideCursor(QCursor(Qt::SizeHorCursor));
 	} else if ((edges & Qt::TopEdge) || (edges & Qt::BottomEdge)) {
-		window()->windowHandle()->setCursor(QCursor(Qt::SizeVerCursor));
-	} else {
-		window()->windowHandle()->unsetCursor();
+		QGuiApplication::changeOverrideCursor(QCursor(Qt::SizeVerCursor));
+	}
+}
+
+void TitleWidgetQt::restoreCursor() {
+	if (_cursorOverriden) {
+		_cursorOverriden = false;
+		QGuiApplication::restoreOverrideCursor();
 	}
 }
 
