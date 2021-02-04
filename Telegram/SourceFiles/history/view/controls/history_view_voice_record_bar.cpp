@@ -1602,7 +1602,7 @@ void VoiceRecordBar::installListenStateFilter() {
 				_listen->playPause();
 				return Result::Cancel;
 			}
-			if (isEnter) {
+			if (isEnter && !_warningShown) {
 				requestToSendWithOptions({});
 				return Result::Cancel;
 			}
@@ -1633,6 +1633,7 @@ void VoiceRecordBar::showDiscardBox(
 			hideAnimated();
 		}
 		close();
+		_warningShown = false;
 		if (callback) {
 			callback();
 		}
@@ -1644,6 +1645,7 @@ void VoiceRecordBar::showDiscardBox(
 		tr::lng_record_lock_discard(tr::now),
 		st::attentionBoxButton,
 		std::move(sure)));
+	_warningShown = true;
 }
 
 } // namespace HistoryView::Controls
