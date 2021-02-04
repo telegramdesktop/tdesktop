@@ -616,7 +616,7 @@ MainMenu::MainMenu(
 		qsl("https://desktop.telegram.org")));
 	_telegram->setLinksTrusted();
 	_version->setRichText(textcmdLink(1, tr::lng_settings_current_version(tr::now, lt_version, currentVersionText())) + QChar(' ') + QChar(8211) + QChar(' ') + textcmdLink(2, tr::lng_menu_about(tr::now)));
-	_version->setLink(1, std::make_shared<UrlClickHandler>(qsl("https://desktop.telegram.org/changelog")));
+	_version->setLink(1, std::make_shared<UrlClickHandler>(Core::App().changelogLink()));
 	_version->setLink(2, std::make_shared<LambdaClickHandler>([] { Ui::show(Box<AboutBox>()); }));
 
 	_controller->session().downloaderTaskFinished(

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "core/click_handler_types.h"
 #include "core/update_checker.h"
+#include "core/application.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -109,7 +110,7 @@ void AboutBox::showVersionHistory() {
 
 		Ui::show(Box<InformBox>("The link to the current private alpha version of Telegram Desktop was copied to the clipboard."));
 	} else {
-		UrlClickHandler::Open(qsl("https://desktop.telegram.org/changelog"));
+		UrlClickHandler::Open(Core::App().changelogLink());
 	}
 }
 

@@ -764,6 +764,39 @@ bool Application::openInternalUrl(const QString &url, QVariant context) {
 	return openCustomUrl("internal:", InternalUrlHandlers(), url, context);
 }
 
+QString Application::changelogLink() const {
+	const auto base = u"https://desktop.telegram.org/changelog"_q;
+	const auto languages = {
+		"id",
+		"de",
+		"fr",
+		"nl",
+		"pl",
+		"tr",
+		"uk",
+		"fa",
+		"ru",
+		"ms",
+		"es",
+		"it",
+		"uz",
+		"pt-br",
+		"be",
+		"ar",
+		"ko",
+	};
+	const auto current = _langpack->id().replace("-raw", "");
+	if (current.isEmpty()) {
+		return base;
+	}
+	for (const auto language : languages) {
+		if (current == language || current.split(u'-')[0] == language) {
+			return base + "?setln=" + language;
+		}
+	}
+	return base;
+}
+
 bool Application::openCustomUrl(
 		const QString &protocol,
 		const std::vector<LocalUrlHandler> &handlers,

@@ -185,7 +185,7 @@ void Changelogs::addLocalLogs() {
 			lt_changes,
 			tr::lng_new_version_minor(tr::now),
 			lt_link,
-			qsl("https://desktop.telegram.org/changelog"));
+			Core::App().changelogLink());
 		addLocalLog(text.trimmed());
 	}
 }
