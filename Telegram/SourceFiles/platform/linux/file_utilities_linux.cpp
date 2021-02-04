@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_gtk_integration.h"
 #include "platform/linux/specific_linux.h"
 
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#include "platform/linux/linux_xdp_file_dialog.h"
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
 #include <QtGui/QDesktopServices>
 
 extern "C" {
@@ -77,6 +81,18 @@ bool Get(
 	if (parent) {
 		parent = parent->window();
 	}
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	if (XDP::Use(type)) {
+		return XDP::Get(
+			parent,
+			files,
+			remoteContent,
+			caption,
+			filter,
+			type,
+			startFile);
+	}
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	if (const auto integration = GtkIntegration::Instance()) {
 		if (integration->fileDialogSupported()
 			&& integration->useFileDialog(type)) {

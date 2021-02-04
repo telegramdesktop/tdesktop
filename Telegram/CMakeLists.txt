@@ -840,6 +840,8 @@ PRIVATE
     platform/linux/linux_open_with_dialog.h
     platform/linux/linux_wayland_integration.cpp
     platform/linux/linux_wayland_integration.h
+    platform/linux/linux_xdp_file_dialog.cpp
+    platform/linux/linux_xdp_file_dialog.h
     platform/linux/linux_xlib_helper.cpp
     platform/linux/linux_xlib_helper.h
     platform/linux/file_utilities_linux.cpp
@@ -1132,6 +1134,8 @@ if (LINUX AND DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
         platform/linux/linux_gsd_media_keys.h
         platform/linux/linux_notification_service_watcher.cpp
         platform/linux/linux_notification_service_watcher.h
+        platform/linux/linux_xdp_file_dialog.cpp
+        platform/linux/linux_xdp_file_dialog.h
         platform/linux/notifications_manager_linux.cpp
     )
 

@@ -640,24 +640,10 @@ bool Supported() {
 }
 
 bool Use(Type type) {
-	// use gtk file dialog on gtk-based desktop environments
-	// or if QT_QPA_PLATFORMTHEME=(gtk2|gtk3)
-	// or if portals are used and operation is to open folder
-	// and portal doesn't support folder choosing
-	const auto sandboxedOrCustomPortal = InFlatpak()
-		|| InSnap()
-		|| UseXDGDesktopPortal();
-
-	const auto neededForPortal = (type == Type::ReadFolder)
-		&& !CanOpenDirectoryWithPortal();
-
-	const auto neededNonForced = DesktopEnvironment::IsGtkBased()
-		|| (sandboxedOrCustomPortal && neededForPortal);
-
-	const auto excludeNonForced = sandboxedOrCustomPortal && !neededForPortal;
-
 	return IsGtkIntegrationForced()
-		|| (neededNonForced && !excludeNonForced);
+		|| DesktopEnvironment::IsGtkBased()
+		// use as a fallback for portal dialog
+		|| UseXDGDesktopPortal();
 }
 
 bool Get(

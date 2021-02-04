@@ -29,8 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QDesktopWidget>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
-#include <QtCore/QVersionNumber>
-#include <QtCore/QLibraryInfo>
 #include <QtGui/QWindow>
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -596,18 +594,16 @@ bool AreQtPluginsBundled() {
 bool UseXDGDesktopPortal() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	static const auto Result = [&] {
-		const auto onlyIn = AreQtPluginsBundled()
-			// it is handled by Qt for flatpak and snap
-			&& !InFlatpak()
-			&& !InSnap();
+		if (InFlatpak() || InSnap()) {
+			return true;
+		}
 
 		const auto envVar = qEnvironmentVariableIsSet("TDESKTOP_USE_PORTAL");
 		const auto portalPresent = IsXDGDesktopPortalPresent();
 		const auto neededForKde = DesktopEnvironment::IsKDE()
 			&& IsXDGDesktopPortalKDEPresent();
 
-		return onlyIn
-			&& portalPresent
+		return portalPresent
 			&& (neededForKde || envVar);
 	}();
 
@@ -620,12 +616,7 @@ bool UseXDGDesktopPortal() {
 bool CanOpenDirectoryWithPortal() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	static const auto Result = [&] {
-#ifdef DESKTOP_APP_QT_PATCHED
 		return FileChooserPortalVersion() >= 3;
-#else // DESKTOP_APP_QT_PATCHED
-		return QLibraryInfo::version() >= QVersionNumber(5, 15, 0)
-			&& FileChooserPortalVersion() >= 3;
-#endif // !DESKTOP_APP_QT_PATCHED
 	}();
 
 	return Result;
@@ -1037,14 +1028,12 @@ void start() {
 	}
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	// this can give us a chance to use
-	// a proper file dialog for current session
+	// Tell the user when XDP file dialog is used
 	DEBUG_LOG(("Checking for XDG Desktop Portal..."));
 	if (IsXDGDesktopPortalPresent()) {
 		DEBUG_LOG(("XDG Desktop Portal is present!"));
 		if (UseXDGDesktopPortal()) {
 			LOG(("Using XDG Desktop Portal."));
-			qputenv("QT_QPA_PLATFORMTHEME", "xdgdesktopportal");
 		} else {
 			DEBUG_LOG(("Not using XDG Desktop Portal."));
 		}
