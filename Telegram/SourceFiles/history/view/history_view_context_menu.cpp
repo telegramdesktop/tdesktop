@@ -57,6 +57,7 @@ namespace {
 
 // If we can't cloud-export link for such time we export it locally.
 constexpr auto kExportLocalTimeout = crl::time(1000);
+constexpr auto kRescheduleLimit = 20;
 
 //void AddToggleGroupingAction( // #feed
 //		not_null<Ui::PopupMenu*> menu,
@@ -458,6 +459,9 @@ bool AddRescheduleAction(
 		if (!request.overSelection || request.selectedItems.empty()) {
 			return false;
 		}
+		if (request.selectedItems.size() > kRescheduleLimit) {
+			return false;
+		}
 		return true;
 	}();
 	if (!goodSingle && !goodMany) {
@@ -492,7 +496,7 @@ bool AddRescheduleAction(
 					options.removeWebPageId = true;
 				}
 				Api::RescheduleMessage(item, options);
-				// Increase the scheduled date by 1ms to keep the order.
+				// Increase the scheduled date by 1s to keep the order.
 				options.scheduled += 1;
 			}
 		};
