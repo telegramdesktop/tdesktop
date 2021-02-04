@@ -1088,12 +1088,15 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (lnkPhoto) {
 			const auto photo = lnkPhoto->photo();
-			_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
-				savePhotoToFile(photo);
-			}));
-			_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
-				copyContextImage(photo);
-			});
+			const auto media = photo->activeMediaView();
+			if (!photo->isNull() && media && media->loaded()) {
+				_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
+					savePhotoToFile(photo);
+				}));
+				_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
+					copyContextImage(photo);
+				});
+			}
 			if (photo->hasAttachedStickers()) {
 				const auto controller = _controller;
 				auto callback = [=] {

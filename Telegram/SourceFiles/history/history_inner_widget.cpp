@@ -1579,12 +1579,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	};
 	const auto addPhotoActions = [&](not_null<PhotoData*> photo) {
-		_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
-			savePhotoToFile(photo);
-		}));
-		_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
-			copyContextImage(photo);
-		});
+		const auto media = photo->activeMediaView();
+		if (!photo->isNull() && media && media->loaded()) {
+			_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
+				savePhotoToFile(photo);
+			}));
+			_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
+				copyContextImage(photo);
+			});
+		}
 		if (photo->hasAttachedStickers()) {
 			_menu->addAction(tr::lng_context_attached_stickers(tr::now), [=] {
 				session->api().attachedStickers().requestAttachedStickerSets(
