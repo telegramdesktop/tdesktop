@@ -101,7 +101,7 @@ MenuSpeedItem::MenuSpeedItem(
 	const auto speedString = [=](float64 value) {
 		return u"%1: %2x"_q
 			.arg(tr::lng_mediaview_playback_speed(tr::now))
-			.arg(computeSpeed(value));
+			.arg(QString::number(computeSpeed(value), 'f', 2));
 	};
 
 	_slider->setAlwaysDisplayMarker(true);
@@ -142,6 +142,7 @@ MenuSpeedItem::MenuSpeedItem(
 
 		const auto value = _slider->value();
 
+		p.setPen(selected ? st.itemFgOver : st.itemFg);
 		p.setFont(st.itemStyle.font);
 		p.drawText(_textRect, speedString(value), style::al_left);
 	}, lifetime());
