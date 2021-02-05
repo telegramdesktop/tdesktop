@@ -110,7 +110,6 @@ private:
 
 	rpl::event_stream<> _accept;
 	rpl::event_stream<> _reject;
-	rpl::lifetime _lifetime;
 
 };
 
@@ -208,16 +207,17 @@ void QGtkDialog::exec() {
 	} else {
 		// block input to the window, allow input to other GTK dialogs
 		QEventLoop loop;
+		rpl::lifetime lifetime;
 
 		accept(
-		) | rpl::start_with_next([=, &loop] {
+		) | rpl::start_with_next([&] {
 			loop.quit();
-		}, _lifetime);
+		}, lifetime);
 
 		reject(
-		) | rpl::start_with_next([=, &loop] {
+		) | rpl::start_with_next([&] {
 			loop.quit();
-		}, _lifetime);
+		}, lifetime);
 
 		loop.exec();
 	}
