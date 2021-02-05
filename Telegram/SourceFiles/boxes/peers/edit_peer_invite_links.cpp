@@ -883,13 +883,20 @@ void ManageInviteLinksBox(
 		permanentFromList->events());
 	AddDivider(container);
 
+	auto otherHeader = (Ui::SlideWrap<>*)nullptr;
 	if (admin->isSelf()) {
 		const auto add = AddCreateLinkButton(container);
 		add->setClickedCallback([=] {
 			EditLink(peer, InviteLinkData{ .admin = admin });
 		});
 	} else {
-		AddSubsectionTitle(container, tr::lng_group_invite_other_list());
+		otherHeader = container->add(object_ptr<Ui::SlideWrap<>>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				tr::lng_group_invite_other_list(),
+				st::settingsSubsectionTitle),
+			st::inviteLinkRevokedTitlePadding));
 	}
 
 	auto [list, newPermanent] = AddLinksList(container, peer, admin, false);
@@ -957,7 +964,10 @@ void ManageInviteLinksBox(
 		admins->heightValue(),
 		revoked->heightValue()
 	) | rpl::start_with_next([=](int list, int admins, int revoked) {
-		dividerAbout->toggle(!list, anim::type::instant);
+		if (otherHeader) {
+			otherHeader->toggle(list > 0, anim::type::instant);
+		}
+		dividerAbout->toggle(!list && !otherHeader, anim::type::instant);
 		adminsDivider->toggle(admins > 0 && list > 0, anim::type::instant);
 		adminsHeader->toggle(admins > 0, anim::type::instant);
 		revokedDivider->toggle(revoked > 0 && (list > 0 || admins > 0), anim::type::instant);
