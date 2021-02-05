@@ -508,6 +508,12 @@ PRIVATE
     dialogs/dialogs_search_from_controllers.h
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
+    editor/photo_editor.cpp
+    editor/photo_editor.h
+    editor/photo_editor_content.cpp
+    editor/photo_editor_content.h
+    editor/photo_editor_controls.cpp
+    editor/photo_editor_controls.h
     export/export_manager.cpp
     export/export_manager.h
     export/view/export_view_content.cpp
