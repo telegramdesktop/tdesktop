@@ -115,7 +115,8 @@ private:
 
 class GtkFileDialog : public QDialog {
 public:
-	GtkFileDialog(QWidget *parent = nullptr,
+	GtkFileDialog(
+		QWidget *parent = nullptr,
 		const QString &caption = QString(),
 		const QString &directory = QString(),
 		const QString &filter = QString());
