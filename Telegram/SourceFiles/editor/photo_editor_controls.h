@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+namespace Ui {
+class IconButton;
+} // namespace Ui
+
 namespace Editor {
 
 class HorizontalContainer;
@@ -22,6 +26,8 @@ public:
 private:
 
 	const base::unique_qptr<HorizontalContainer> _buttonsContainer;
+	const base::unique_qptr<Ui::IconButton> _rotateButton;
+	const base::unique_qptr<Ui::IconButton> _flipButton;
 
 };
 

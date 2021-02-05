@@ -30,6 +30,7 @@ set(style_files
     media/view/media_view.style
     overview/overview.style
     window/window.style
+    editor/editor.style
 )
 
 set(dependent_style_files

@@ -8,6 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_controls.h"
 
 #include "ui/cached_round_corners.h"
+#include "ui/widgets/buttons.h"
+#include "styles/style_editor.h"
+
 namespace Editor {
 
 class HorizontalContainer final : public Ui::RpWidget {
@@ -40,9 +43,27 @@ PhotoEditorControls::PhotoEditorControls(
 	not_null<Ui::RpWidget*> parent,
 	bool doneControls)
 : RpWidget(parent)
-, _buttonsContainer(base::make_unique_q<HorizontalContainer>(this)) {
+, _buttonsContainer(base::make_unique_q<HorizontalContainer>(this))
+, _rotateButton(base::make_unique_q<Ui::IconButton>(
+	_buttonsContainer,
+	st::photoEditorRotateButton))
+, _flipButton(base::make_unique_q<Ui::IconButton>(
+	_buttonsContainer,
+	st::photoEditorFlipButton)) {
 
 	_buttonsContainer->updateChildrenPosition();
+
+	paintRequest(
+	) | rpl::start_with_next([=](const QRect &clip) {
+		Painter p(this);
+
+		Ui::FillRoundRect(
+			p,
+			_buttonsContainer->geometry(),
+			st::mediaviewSaveMsgBg,
+			Ui::MediaviewSaveCorners);
+
+	}, lifetime());
 
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &size) {
