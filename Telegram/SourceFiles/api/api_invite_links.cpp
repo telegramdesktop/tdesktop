@@ -362,7 +362,7 @@ void InviteLinks::destroyAllRevoked(
 				callback();
 			}
 		}
-		_allRevokedDestroyed.fire_copy(peer);
+		_allRevokedDestroyed.fire({ peer, admin });
 	}).fail([=](const RPCError &error) {
 	}).send();
 }
@@ -452,19 +452,20 @@ rpl::producer<JoinedByLinkSlice> InviteLinks::joinedFirstSliceValue(
 }
 
 auto InviteLinks::updates(
-		not_null<PeerData*> peer) const -> rpl::producer<Update> {
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin) const -> rpl::producer<Update> {
 	return _updates.events() | rpl::filter([=](const Update &update) {
-		return update.peer == peer;
+		return update.peer == peer && update.admin == admin;
 	});
 }
 
 rpl::producer<> InviteLinks::allRevokedDestroyed(
-		not_null<PeerData*> peer) const {
-	using namespace rpl::mappers;
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin) const {
 	return _allRevokedDestroyed.events(
-	) | rpl::filter(
-		_1 == peer
-	) | rpl::to_empty;
+	) | rpl::filter([=](const AllRevokedDestroyed &which) {
+		return which.peer == peer && which.admin == admin;
+	}) | rpl::to_empty;
 }
 
 void InviteLinks::requestJoinedFirstSlice(LinkKey key) {

@@ -105,9 +105,11 @@ public:
 		not_null<PeerData*> peer,
 		const QString &link) const;
 	[[nodiscard]] rpl::producer<Update> updates(
-		not_null<PeerData*> peer) const;
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin) const;
 	[[nodiscard]] rpl::producer<> allRevokedDestroyed(
-		not_null<PeerData*> peer) const;
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin) const;
 
 	void requestMoreLinks(
 		not_null<PeerData*> peer,
@@ -189,7 +191,12 @@ private:
 		std::vector<Fn<void()>>> _deleteRevokedCallbacks;
 
 	rpl::event_stream<Update> _updates;
-	rpl::event_stream<not_null<PeerData*>> _allRevokedDestroyed;
+
+	struct AllRevokedDestroyed {
+		not_null<PeerData*> peer;
+		not_null<UserData*> admin;
+	};
+	rpl::event_stream<AllRevokedDestroyed> _allRevokedDestroyed;
 
 };
 

@@ -466,7 +466,8 @@ LinksController::LinksController(
 	}, _lifetime);
 
 	peer->session().api().inviteLinks().updates(
-		peer
+		peer,
+		admin
 	) | rpl::start_with_next([=](const Api::InviteLinkUpdate &update) {
 		const auto now = base::unixtime::now();
 		if (!update.now || update.now->revoked != _revoked) {
@@ -485,7 +486,8 @@ LinksController::LinksController(
 
 	if (_revoked) {
 		peer->session().api().inviteLinks().allRevokedDestroyed(
-			peer
+			peer,
+			admin
 		) | rpl::start_with_next([=] {
 			_requesting = false;
 			_allLoaded = true;
@@ -621,6 +623,7 @@ void LinksController::updateRow(const InviteLinkData &data, TimeId now) {
 		delegate()->peerListUpdateRow(row);
 	} else if (_revoked) {
 		prependRow(data, now);
+		delegate()->peerListRefreshRows();
 	}
 }
 

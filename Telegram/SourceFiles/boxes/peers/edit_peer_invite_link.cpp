@@ -583,7 +583,8 @@ void ShowInviteLinkBox(
 			? tr::lng_manage_peer_link_permanent()
 			: tr::lng_manage_peer_link_invite());
 		peer->session().api().inviteLinks().updates(
-			peer
+			peer,
+			link.admin
 		) | rpl::start_with_next([=](const Api::InviteLinkUpdate &update) {
 			if (update.was == link.link
 				&& (!update.now || (!link.revoked && update.now->revoked))) {
