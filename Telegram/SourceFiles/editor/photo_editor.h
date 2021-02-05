@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+#include "base/unique_qptr.h"
+
 namespace Editor {
 
 class PhotoEditorContent;
@@ -21,6 +23,9 @@ public:
 		std::shared_ptr<QPixmap> photo);
 
 private:
+
+	base::unique_qptr<PhotoEditorContent> _content;
+	base::unique_qptr<PhotoEditorControls> _controls;
 
 };
 

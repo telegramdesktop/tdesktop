@@ -15,7 +15,13 @@ namespace Editor {
 PhotoEditor::PhotoEditor(
 	not_null<Ui::RpWidget*> parent,
 	std::shared_ptr<QPixmap> photo)
-: RpWidget(parent) {
+: RpWidget(parent)
+, _content(base::make_unique_q<PhotoEditorContent>(this, photo))
+, _controls(base::make_unique_q<PhotoEditorControls>(this)) {
+	sizeValue(
+	) | rpl::start_with_next([=](const QSize &size) {
+		_content->resize(size);
+	}, lifetime());
 }
 
 } // namespace Editor

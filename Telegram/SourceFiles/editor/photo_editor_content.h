@@ -19,6 +19,8 @@ public:
 
 private:
 
+	QRect _imageRect;
+
 };
 
 } // namespace Editor
