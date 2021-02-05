@@ -1002,18 +1002,18 @@ void Controller::fillManageSection() {
 			Info::Profile::MigratedOrMeValue(
 				_peer
 			) | rpl::map([=](not_null<PeerData*> peer) {
-				peer->session().api().inviteLinks().requestLinks(peer);
+				peer->session().api().inviteLinks().requestMyLinks(peer);
 				return peer->session().changes().peerUpdates(
 					peer,
 					Data::PeerUpdate::Flag::InviteLinks
 				) | rpl::map([=] {
-					return peer->session().api().inviteLinks().links(
+					return peer->session().api().inviteLinks().myLinks(
 						peer).count;
 				});
 			}) | rpl::flatten_latest(
 			) | ToPositiveNumberString(),
 			[=] { Ui::show(
-				Box(ManageInviteLinksBox, _peer),
+				Box(ManageInviteLinksBox, _peer, _peer->session().user()),
 				Ui::LayerOption::KeepOther);
 			},
 			st::infoIconInviteLinks);

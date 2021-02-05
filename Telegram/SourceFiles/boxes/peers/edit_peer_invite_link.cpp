@@ -102,7 +102,7 @@ void AddHeaderBlock(
 		ShareInviteLinkBox(peer, link);
 	});
 	const auto revokeLink = crl::guard(weak, [=] {
-		RevokeLink(peer, link);
+		RevokeLink(peer, data.admin, data.link);
 	});
 
 	const auto createMenu = [=] {
@@ -285,33 +285,44 @@ Main::Session &SingleRowController::session() const {
 
 void AddPermanentLinkBlock(
 		not_null<Ui::VerticalLayout*> container,
-		not_null<PeerData*> peer) {
-	const auto computePermanentLink = [=] {
-		const auto &links = peer->session().api().inviteLinks().links(
-			peer).links;
-		const auto link = links.empty() ? nullptr : &links.front();
-		return (link && link->permanent && !link->revoked) ? link : nullptr;
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
+		rpl::producer<Api::InviteLink> fromList) {
+	struct LinkData {
+		QString link;
+		int usage = 0;
 	};
-	auto value = peer->session().changes().peerFlagsValue(
-		peer,
-		Data::PeerUpdate::Flag::InviteLinks
-	) | rpl::map([=] {
-		const auto link = computePermanentLink();
-		return link
-			? std::make_tuple(link->link, link->usage)
-			: std::make_tuple(QString(), 0);
-	}) | rpl::distinct_until_changed(
-	) | rpl::start_spawning(container->lifetime());
-
+	const auto value = container->lifetime().make_state<
+		rpl::variable<LinkData>
+	>();
+	if (admin->isSelf()) {
+		*value = peer->session().changes().peerFlagsValue(
+			peer,
+			Data::PeerUpdate::Flag::InviteLinks
+		) | rpl::map([=] {
+			const auto &links = peer->session().api().inviteLinks().myLinks(
+				peer).links;
+			const auto link = links.empty() ? nullptr : &links.front();
+			return (link && link->permanent && !link->revoked)
+				? LinkData{ link->link, link->usage }
+				: LinkData();
+		});
+	} else {
+		*value = std::move(
+			fromList
+		) | rpl::map([](const Api::InviteLink &link) {
+			return LinkData{ link.link, link.usage };
+		});
+	}
 	const auto weak = Ui::MakeWeak(container);
 	const auto copyLink = crl::guard(weak, [=] {
-		if (const auto link = computePermanentLink()) {
-			CopyInviteLink(link->link);
+		if (const auto current = value->current(); !current.link.isEmpty()) {
+			CopyInviteLink(current.link);
 		}
 	});
 	const auto shareLink = crl::guard(weak, [=] {
-		if (const auto link = computePermanentLink()) {
-			ShareInviteLinkBox(peer, link->link);
+		if (const auto current = value->current(); !current.link.isEmpty()) {
+			ShareInviteLinkBox(peer, current.link);
 		}
 	});
 	const auto revokeLink = crl::guard(weak, [=] {
@@ -322,18 +333,23 @@ void AddPermanentLinkBlock(
 					(*box)->closeBox();
 				}
 			};
-			peer->session().api().inviteLinks().revokePermanent(peer, close);
+			peer->session().api().inviteLinks().revokePermanent(
+				peer,
+				admin,
+				value->current().link,
+				close);
 		});
 		*box = Ui::show(
 			Box<ConfirmBox>(tr::lng_group_invite_about_new(tr::now), done),
 			Ui::LayerOption::KeepOther);
 	});
 
-	auto link = rpl::duplicate(
-		value
-	) | rpl::map([=](QString link, int usage) {
+	auto link = value->value(
+	) | rpl::map([=](const LinkData &data) {
 		const auto prefix = qstr("https://");
-		return link.startsWith(prefix) ? link.mid(prefix.size()) : link;
+		return data.link.startsWith(prefix)
+			? data.link.mid(prefix.size())
+			: data.link;
 	});
 	const auto createMenu = [=] {
 		auto result = base::make_unique_q<Ui::PopupMenu>(container);
@@ -389,13 +405,12 @@ void AddPermanentLinkBlock(
 			.userpics = state->cachedUserpics
 		};
 	};
-	std::move(
-		value
-	) | rpl::map([=](QString link, int usage) {
+	value->value(
+	) | rpl::map([=](const LinkData &data) {
 		return peer->session().api().inviteLinks().joinedFirstSliceValue(
 			peer,
-			link,
-			usage);
+			data.link,
+			data.usage);
 	}) | rpl::flatten_latest(
 	) | rpl::start_with_next([=](const Api::JoinedByLinkSlice &slice) {
 		auto list = std::vector<HistoryView::UserpicInRow>();
@@ -540,7 +555,10 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 		Ui::LayerOption::KeepOther);
 }
 
-void RevokeLink(not_null<PeerData*> peer, const QString &link) {
+void RevokeLink(
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
+		const QString &link) {
 	const auto box = std::make_shared<QPointer<ConfirmBox>>();
 	const auto revoke = [=] {
 		const auto done = [=](const LinkData &data) {
@@ -548,7 +566,7 @@ void RevokeLink(not_null<PeerData*> peer, const QString &link) {
 				(*box)->closeBox();
 			}
 		};
-		peer->session().api().inviteLinks().revoke(peer, link, done);
+		peer->session().api().inviteLinks().revoke(peer, admin, link, done);
 	};
 	*box = Ui::show(
 		Box<ConfirmBox>(

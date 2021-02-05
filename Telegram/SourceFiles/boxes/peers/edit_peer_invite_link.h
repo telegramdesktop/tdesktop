@@ -21,11 +21,16 @@ class VerticalLayout;
 
 void AddPermanentLinkBlock(
 	not_null<Ui::VerticalLayout*> container,
-	not_null<PeerData*> peer);
+	not_null<PeerData*> peer,
+	not_null<UserData*> admin,
+	rpl::producer<Api::InviteLink> fromList);
 
 void CopyInviteLink(const QString &link);
 void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link);
-void RevokeLink(not_null<PeerData*> peer, const QString &link);
+void RevokeLink(
+	not_null<PeerData*> peer,
+	not_null<UserData*> admin,
+	const QString &link);
 
 void ShowInviteLinkBox(
 	not_null<PeerData*> peer,

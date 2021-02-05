@@ -40,6 +40,7 @@ struct JoinedByLinkSlice {
 
 struct InviteLinkUpdate {
 	not_null<PeerData*> peer;
+	not_null<UserData*> admin;
 	QString was;
 	std::optional<InviteLink> now;
 };
@@ -63,32 +64,38 @@ public:
 		int usageLimit = 0);
 	void edit(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const QString &link,
 		TimeId expireDate,
 		int usageLimit,
 		Fn<void(Link)> done = nullptr);
 	void revoke(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const QString &link,
 		Fn<void(Link)> done = nullptr);
 	void revokePermanent(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
+		const QString &link,
 		Fn<void()> done = nullptr);
 	void destroy(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const QString &link,
 		Fn<void()> done = nullptr);
 	void destroyAllRevoked(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		Fn<void()> done = nullptr);
 
-	void setPermanent(
+	void setMyPermanent(
 		not_null<PeerData*> peer,
 		const MTPExportedChatInvite &invite);
-	void clearPermanent(not_null<PeerData*> peer);
+	void clearMyPermanent(not_null<PeerData*> peer);
 
-	void requestLinks(not_null<PeerData*> peer);
-	[[nodiscard]] const Links &links(not_null<PeerData*> peer) const;
+	void requestMyLinks(not_null<PeerData*> peer);
+	[[nodiscard]] const Links &myLinks(not_null<PeerData*> peer) const;
 
 	[[nodiscard]] rpl::producer<JoinedByLinkSlice> joinedFirstSliceValue(
 		not_null<PeerData*> peer,
@@ -104,6 +111,7 @@ public:
 
 	void requestMoreLinks(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		TimeId lastDate,
 		const QString &lastLink,
 		bool revoked,
@@ -135,6 +143,7 @@ private:
 	[[nodiscard]] const Link *lookupPermanent(const Links &links) const;
 	Link prepend(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const MTPExportedChatInvite &invite);
 	void notify(not_null<PeerData*> peer);
 
@@ -144,6 +153,7 @@ private:
 
 	void performEdit(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const QString &link,
 		Fn<void(Link)> done,
 		bool revoke,

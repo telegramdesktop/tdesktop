@@ -776,11 +776,11 @@ void ApplyChannelUpdate(
 			next->v - channel->slowmodeSeconds());
 	}
 	if (const auto invite = update.vexported_invite()) {
-		channel->session().api().inviteLinks().setPermanent(
+		channel->session().api().inviteLinks().setMyPermanent(
 			channel,
 			*invite);
 	} else {
-		channel->session().api().inviteLinks().clearPermanent(channel);
+		channel->session().api().inviteLinks().clearMyPermanent(channel);
 	}
 	if (const auto location = update.vlocation()) {
 		channel->setLocation(*location);

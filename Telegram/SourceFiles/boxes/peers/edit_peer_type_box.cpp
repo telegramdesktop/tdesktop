@@ -193,7 +193,7 @@ void Controller::createContent() {
 		tr::lng_group_invite_manage(),
 		rpl::single(QString()),
 		[=] { Ui::show(
-			Box(ManageInviteLinksBox, _peer),
+			Box(ManageInviteLinksBox, _peer, _peer->session().user()),
 			Ui::LayerOption::KeepOther);
 		},
 		st::manageGroupButton,
@@ -566,7 +566,11 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkBlock() {
 
 		AddSubsectionTitle(container, tr::lng_create_permanent_link_title());
 	}
-	AddPermanentLinkBlock(container, _peer);
+	AddPermanentLinkBlock(
+		container,
+		_peer,
+		_peer->session().user(),
+		nullptr);
 
 	AddSkip(container);
 

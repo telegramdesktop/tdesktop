@@ -1216,6 +1216,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_custom_limit" = "Enter custom limit";
 "lng_group_invite_usage_any" = "No limit";
 "lng_group_invite_usage_custom" = "Custom";
+"lng_group_invite_other_title" = "Invite links created by other admins";
+"lng_group_invite_other_count#one" = "{count} invite link";
+"lng_group_invite_other_count#other" = "{count} invite links";
+"lng_group_invite_permanent_other" = "Permanent link of this admin";
+"lng_group_invite_other_list" = "Invite links created by this admin";
 
 "lng_channel_public_link_copied" = "Link copied to clipboard.";
 "lng_context_about_private_link" = "This link will only work for members of this chat.";

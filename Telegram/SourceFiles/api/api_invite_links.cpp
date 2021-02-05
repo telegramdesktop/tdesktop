@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_invite_links.h"
 
 #include "data/data_peer.h"
+#include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
@@ -103,7 +104,7 @@ void InviteLinks::performCreate(
 		MTP_int(usageLimit)
 	)).done([=](const MTPExportedChatInvite &result) {
 		const auto callbacks = _createCallbacks.take(peer);
-		const auto link = prepend(peer, result);
+		const auto link = prepend(peer, peer->session().user(), result);
 		if (callbacks) {
 			for (const auto &callback : *callbacks) {
 				callback(link);
@@ -135,6 +136,7 @@ auto InviteLinks::lookupPermanent(const Links &links) const -> const Link* {
 
 auto InviteLinks::prepend(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const MTPExportedChatInvite &invite) -> Link {
 	const auto link = parse(peer, invite);
 	auto i = _firstSlices.find(peer);
@@ -144,7 +146,10 @@ auto InviteLinks::prepend(
 	auto &links = i->second;
 	const auto permanent = lookupPermanent(links);
 	const auto hadPermanent = (permanent != nullptr);
-	auto updateOldPermanent = Update{ .peer = peer };
+	auto updateOldPermanent = Update{
+		.peer = peer,
+		.admin = admin,
+	};
 	if (link.permanent && hadPermanent) {
 		updateOldPermanent.was = permanent->link;
 		updateOldPermanent.now = *permanent;
@@ -171,21 +176,34 @@ auto InviteLinks::prepend(
 	if (updateOldPermanent.now) {
 		_updates.fire(std::move(updateOldPermanent));
 	}
-	_updates.fire(Update{ .peer = peer, .now = link });
+	_updates.fire(Update{
+		.peer = peer,
+		.admin = admin,
+		.now = link
+	});
 	return link;
 }
 
 void InviteLinks::edit(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const QString &link,
 		TimeId expireDate,
 		int usageLimit,
 		Fn<void(Link)> done) {
-	performEdit(peer, link, std::move(done), false, expireDate, usageLimit);
+	performEdit(
+		peer,
+		admin,
+		link,
+		std::move(done),
+		false,
+		expireDate,
+		usageLimit);
 }
 
 void InviteLinks::performEdit(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const QString &link,
 		Fn<void(Link)> done,
 		bool revoke,
@@ -200,15 +218,6 @@ void InviteLinks::performEdit(
 			i->second.push_back(std::move(done));
 		}
 		return;
-	}
-
-	if (const auto permanent = revoke ? lookupPermanent(peer) : nullptr) {
-		if (permanent->link == link) {
-			// In case of revoking a permanent link
-			// we should just create a new one instead.
-			performCreate(peer, std::move(done), true);
-			return;
-		}
 	}
 
 	auto &callbacks = _editCallbacks[key];
@@ -252,13 +261,14 @@ void InviteLinks::performEdit(
 			}
 			_updates.fire(Update{
 				.peer = peer,
+				.admin = admin,
 				.was = key.link,
 				.now = link,
 			});
 
 			using Replaced = MTPDmessages_exportedChatInviteReplaced;
 			if constexpr (Replaced::Is<decltype(data)>()) {
-				prepend(peer, data.vnew_invite());
+				prepend(peer, admin, data.vnew_invite());
 			}
 		});
 	}).fail([=](const RPCError &error) {
@@ -268,17 +278,22 @@ void InviteLinks::performEdit(
 
 void InviteLinks::revoke(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const QString &link,
 		Fn<void(Link)> done) {
-	performEdit(peer, link, std::move(done), true);
+	performEdit(peer, admin, link, std::move(done), true);
 }
 
 void InviteLinks::revokePermanent(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
+		const QString &link,
 		Fn<void()> done) {
 	const auto callback = [=](auto&&) { done(); };
-	if (const auto permanent = lookupPermanent(peer)) {
-		performEdit(peer, permanent->link, callback, true);
+	if (!link.isEmpty()) {
+		performEdit(peer, admin, link, callback, true);
+	} else if (!admin->isSelf()) {
+		crl::on_main(&peer->session(), done);
 	} else {
 		performCreate(peer, callback, true);
 	}
@@ -286,6 +301,7 @@ void InviteLinks::revokePermanent(
 
 void InviteLinks::destroy(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const QString &link,
 		Fn<void()> done) {
 	const auto key = LinkKey{ peer, link };
@@ -314,6 +330,7 @@ void InviteLinks::destroy(
 		}
 		_updates.fire(Update{
 			.peer = peer,
+			.admin = admin,
 			.was = key.link,
 		});
 	}).fail([=](const RPCError &error) {
@@ -323,6 +340,7 @@ void InviteLinks::destroy(
 
 void InviteLinks::destroyAllRevoked(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		Fn<void()> done) {
 	if (const auto i = _deleteRevokedCallbacks.find(peer)
 		; i != end(_deleteRevokedCallbacks)) {
@@ -337,7 +355,7 @@ void InviteLinks::destroyAllRevoked(
 	}
 	_api->request(MTPmessages_DeleteRevokedExportedChatInvites(
 		peer->input,
-		MTP_inputUserSelf()
+		admin->inputUser
 	)).done([=](const MTPBool &result) {
 		if (const auto callbacks = _deleteRevokedCallbacks.take(peer)) {
 			for (const auto &callback : *callbacks) {
@@ -349,7 +367,7 @@ void InviteLinks::destroyAllRevoked(
 	}).send();
 }
 
-void InviteLinks::requestLinks(not_null<PeerData*> peer) {
+void InviteLinks::requestMyLinks(not_null<PeerData*> peer) {
 	if (_firstSliceRequests.contains(peer)) {
 		return;
 	}
@@ -469,7 +487,7 @@ void InviteLinks::requestJoinedFirstSlice(LinkKey key) {
 	_firstJoinedRequests.emplace(key, requestId);
 }
 
-void InviteLinks::setPermanent(
+void InviteLinks::setMyPermanent(
 		not_null<PeerData*> peer,
 		const MTPExportedChatInvite &invite) {
 	auto link = parse(peer, invite);
@@ -483,13 +501,17 @@ void InviteLinks::setPermanent(
 		i = _firstSlices.emplace(peer).first;
 	}
 	auto &links = i->second;
-	auto updateOldPermanent = Update{ .peer = peer };
+	auto updateOldPermanent = Update{
+		.peer = peer,
+		.admin = peer->session().user(),
+	};
 	if (const auto permanent = lookupPermanent(links)) {
 		if (permanent->link == link.link) {
 			if (permanent->usage != link.usage) {
 				permanent->usage = link.usage;
 				_updates.fire(Update{
 					.peer = peer,
+					.admin = peer->session().user(),
 					.was = link.link,
 					.now = *permanent
 				});
@@ -512,10 +534,14 @@ void InviteLinks::setPermanent(
 	if (updateOldPermanent.now) {
 		_updates.fire(std::move(updateOldPermanent));
 	}
-	_updates.fire(Update{ .peer = peer, .now = link });
+	_updates.fire(Update{
+		.peer = peer,
+		.admin = peer->session().user(),
+		.now = link
+	});
 }
 
-void InviteLinks::clearPermanent(not_null<PeerData*> peer) {
+void InviteLinks::clearMyPermanent(not_null<PeerData*> peer) {
 	auto i = _firstSlices.find(peer);
 	if (i == end(_firstSlices)) {
 		return;
@@ -526,7 +552,10 @@ void InviteLinks::clearPermanent(not_null<PeerData*> peer) {
 		return;
 	}
 
-	auto updateOldPermanent = Update{ .peer = peer };
+	auto updateOldPermanent = Update{
+		.peer = peer,
+		.admin = peer->session().user()
+	};
 	updateOldPermanent.was = permanent->link;
 	updateOldPermanent.now = *permanent;
 	updateOldPermanent.now->revoked = true;
@@ -549,7 +578,7 @@ void InviteLinks::notify(not_null<PeerData*> peer) {
 		Data::PeerUpdate::Flag::InviteLinks);
 }
 
-auto InviteLinks::links(not_null<PeerData*> peer) const -> const Links & {
+auto InviteLinks::myLinks(not_null<PeerData*> peer) const -> const Links & {
 	static const auto kEmpty = Links();
 	const auto i = _firstSlices.find(peer);
 	return (i != end(_firstSlices)) ? i->second : kEmpty;
@@ -596,6 +625,7 @@ auto InviteLinks::parse(
 
 void InviteLinks::requestMoreLinks(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		TimeId lastDate,
 		const QString &lastLink,
 		bool revoked,
@@ -605,14 +635,12 @@ void InviteLinks::requestMoreLinks(
 		MTP_flags(Flag::f_offset_link
 			| (revoked ? Flag::f_revoked : Flag(0))),
 		peer->input,
-		MTP_inputUserSelf(),
+		admin->inputUser,
 		MTP_int(lastDate),
 		MTP_string(lastLink),
 		MTP_int(kPerPage)
 	)).done([=](const MTPmessages_ExportedChatInvites &result) {
-		auto slice = parseSlice(peer, result);
-		RemovePermanent(slice);
-		done(std::move(slice));
+		done(parseSlice(peer, result));
 	}).fail([=](const RPCError &error) {
 		done(Links());
 	}).send();

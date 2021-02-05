@@ -390,9 +390,9 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 		chat->setUserpicPhoto(MTP_photoEmpty(MTP_long(0)));
 	}
 	if (const auto invite = update.vexported_invite()) {
-		chat->session().api().inviteLinks().setPermanent(chat, *invite);
+		chat->session().api().inviteLinks().setMyPermanent(chat, *invite);
 	} else {
-		chat->session().api().inviteLinks().clearPermanent(chat);
+		chat->session().api().inviteLinks().clearMyPermanent(chat);
 	}
 	if (const auto pinned = update.vpinned_msg_id()) {
 		SetTopPinnedMessageId(chat, pinned->v);
