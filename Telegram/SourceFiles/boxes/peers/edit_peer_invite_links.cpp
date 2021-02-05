@@ -341,7 +341,16 @@ crl::time Row::updateExpireIn() const {
 
 QString Row::generateName() {
 	auto result = _data.link;
-	return result.replace(qstr("https://"), QString());
+	return result.replace(
+		qstr("https://"),
+		QString()
+	).replace(
+		qstr("t.me/+"),
+		QString()
+	).replace(
+		qstr("t.me/joinchat/"),
+		QString()
+	);
 }
 
 QString Row::generateShortName() {
@@ -393,7 +402,12 @@ public:
 	LinksController(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
+		int count,
 		bool revoked);
+
+	[[nodiscard]] rpl::producer<int> fullCountValue() const {
+		return _count.value();
+	}
 
 	void prepare() override;
 	void loadMoreRows() override;
@@ -434,6 +448,7 @@ private:
 	const not_null<PeerData*> _peer;
 	const not_null<UserData*> _admin;
 	const bool _revoked = false;
+	rpl::variable<int> _count;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	QString _offsetLink;
@@ -453,10 +468,12 @@ private:
 LinksController::LinksController(
 	not_null<PeerData*> peer,
 	not_null<UserData*> admin,
+	int count,
 	bool revoked)
 : _peer(peer)
 , _admin(admin)
 , _revoked(revoked)
+, _count(count)
 , _updateExpiringTimer([=] { expiringProgressTimer(); }) {
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
@@ -475,7 +492,9 @@ LinksController::LinksController(
 				delegate()->peerListRefreshRows();
 			}
 		} else if (update.was.isEmpty()) {
-			if (!update.now->permanent || update.now->revoked) {
+			if (update.now->permanent && !update.now->revoked) {
+				_permanentFound.fire_copy(*update.now);
+			} else {
 				prependRow(*update.now, now);
 				delegate()->peerListRefreshRows();
 			}
@@ -547,6 +566,9 @@ void LinksController::appendSlice(const InviteLinksSlice &slice) {
 	if (slice.links.size() >= slice.count) {
 		_allLoaded = true;
 	}
+	const auto rowsCount = delegate()->peerListFullRowsCount();
+	const auto minimalCount = _revoked ? rowsCount : (rowsCount + 1);
+	_count = _allLoaded ? minimalCount : std::max(slice.count, minimalCount);
 	delegate()->peerListRefreshRows();
 }
 
@@ -797,7 +819,7 @@ void AdminsController::loadMoreRows() {
 
 void AdminsController::rowClicked(not_null<PeerListRow*> row) {
 	Ui::show(
-		Box(ManageInviteLinksBox, _peer, row->peer()->asUser()),
+		Box(ManageInviteLinksBox, _peer, row->peer()->asUser(), 0, 0),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -816,13 +838,14 @@ void AdminsController::appendRow(not_null<UserData*> user, int count) {
 
 struct LinksList {
 	not_null<Ui::RpWidget*> widget;
-	rpl::producer<InviteLinkData> permanentFound;
+	not_null<LinksController*> controller;
 };
 
 LinksList AddLinksList(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
+		int count,
 		bool revoked) {
 	auto &lifetime = container->lifetime();
 	const auto delegate = lifetime.make_state<
@@ -831,6 +854,7 @@ LinksList AddLinksList(
 	const auto controller = lifetime.make_state<LinksController>(
 		peer,
 		admin,
+		count,
 		revoked);
 	controller->setStyleOverrides(&st::inviteLinkList);
 	const auto content = container->add(object_ptr<PeerListContent>(
@@ -839,7 +863,7 @@ LinksList AddLinksList(
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 
-	return { content, controller->permanentFound() };
+	return { content, controller };
 }
 
 not_null<Ui::RpWidget*> AddAdminsList(
@@ -866,7 +890,9 @@ not_null<Ui::RpWidget*> AddAdminsList(
 void ManageInviteLinksBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<PeerData*> peer,
-		not_null<UserData*> admin) {
+		not_null<UserData*> admin,
+		int count,
+		int revokedCount) {
 	using namespace Settings;
 
 	box->setTitle(tr::lng_group_invite_title());
@@ -875,6 +901,22 @@ void ManageInviteLinksBox(
 	const auto permanentFromList = box->lifetime().make_state<
 		rpl::event_stream<InviteLinkData>
 	>();
+	const auto countValue = box->lifetime().make_state<rpl::variable<int>>(
+		count);
+
+	if (!admin->isSelf()) {
+		auto status = countValue->value() | rpl::map([](int count) {
+			// #TODO links
+			return (count == 1)
+				? "1 link"
+				: QString::number(count) + " links";
+		});
+		AddSinglePeerRow(
+			container,
+			admin,
+			std::move(status));
+	}
+
 	AddSubsectionTitle(container, tr::lng_create_permanent_link_title());
 	AddPermanentLinkBlock(
 		container,
@@ -899,10 +941,15 @@ void ManageInviteLinksBox(
 			st::inviteLinkRevokedTitlePadding));
 	}
 
-	auto [list, newPermanent] = AddLinksList(container, peer, admin, false);
+	auto [list, controller] = AddLinksList(
+		container,
+		peer,
+		admin,
+		count,
+		false);
+	*countValue = controller->fullCountValue();
 
-	std::move(
-		newPermanent
+	controller->permanentFound(
 	) | rpl::start_with_next([=](InviteLinkData &&data) {
 		permanentFromList->fire(std::move(data));
 	}, container->lifetime());
@@ -940,7 +987,12 @@ void ManageInviteLinksBox(
 			tr::lng_group_invite_revoked_title(),
 			st::settingsSubsectionTitle),
 		st::inviteLinkRevokedTitlePadding));
-	const auto revoked = AddLinksList(container, peer, admin, true).widget;
+	const auto revoked = AddLinksList(
+		container,
+		peer,
+		admin,
+		revokedCount,
+		true).widget;
 
 	const auto deleteAll = Ui::CreateChild<Ui::LinkButton>(
 		container.get(),

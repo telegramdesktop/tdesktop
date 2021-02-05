@@ -193,7 +193,7 @@ void Controller::createContent() {
 		tr::lng_group_invite_manage(),
 		rpl::single(QString()),
 		[=] { Ui::show(
-			Box(ManageInviteLinksBox, _peer, _peer->session().user()),
+			Box(ManageInviteLinksBox, _peer, _peer->session().user(), 0, 0),
 			Ui::LayerOption::KeepOther);
 		},
 		st::manageGroupButton,

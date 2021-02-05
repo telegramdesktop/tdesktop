@@ -928,6 +928,9 @@ peerListWithInviteViaLink: PeerList(peerListBox) {
 		0px,
 		membersMarginBottom);
 }
+peerListSingleRow: PeerList(peerListBox) {
+	padding: margins(0px, 0px, 0px, 0px);
+}
 
 scheduleHeight: 95px;
 scheduleDateTop: 38px;

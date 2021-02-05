@@ -115,19 +115,19 @@ void InviteLinks::performCreate(
 	}).send();
 }
 
-auto InviteLinks::lookupPermanent(not_null<PeerData*> peer) -> Link* {
+auto InviteLinks::lookupMyPermanent(not_null<PeerData*> peer) -> Link* {
 	auto i = _firstSlices.find(peer);
-	return (i != end(_firstSlices)) ? lookupPermanent(i->second) : nullptr;
+	return (i != end(_firstSlices)) ? lookupMyPermanent(i->second) : nullptr;
 }
 
-auto InviteLinks::lookupPermanent(Links &links) -> Link* {
+auto InviteLinks::lookupMyPermanent(Links &links) -> Link* {
 	const auto first = links.links.begin();
 	return (first != end(links.links) && first->permanent && !first->revoked)
 		? &*first
 		: nullptr;
 }
 
-auto InviteLinks::lookupPermanent(const Links &links) const -> const Link* {
+auto InviteLinks::lookupMyPermanent(const Links &links) const -> const Link* {
 	const auto first = links.links.begin();
 	return (first != end(links.links) && first->permanent && !first->revoked)
 		? &*first
@@ -139,12 +139,29 @@ auto InviteLinks::prepend(
 		not_null<UserData*> admin,
 		const MTPExportedChatInvite &invite) -> Link {
 	const auto link = parse(peer, invite);
+	if (admin->isSelf()) {
+		prependMyToFirstSlice(peer, admin, link);
+	}
+	_updates.fire(Update{
+		.peer = peer,
+		.admin = admin,
+		.now = link
+	});
+	return link;
+}
+
+void InviteLinks::prependMyToFirstSlice(
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
+		const Link &link) {
+	Expects(admin->isSelf());
+
 	auto i = _firstSlices.find(peer);
 	if (i == end(_firstSlices)) {
 		i = _firstSlices.emplace(peer).first;
 	}
 	auto &links = i->second;
-	const auto permanent = lookupPermanent(links);
+	const auto permanent = lookupMyPermanent(links);
 	const auto hadPermanent = (permanent != nullptr);
 	auto updateOldPermanent = Update{
 		.peer = peer,
@@ -176,12 +193,6 @@ auto InviteLinks::prepend(
 	if (updateOldPermanent.now) {
 		_updates.fire(std::move(updateOldPermanent));
 	}
-	_updates.fire(Update{
-		.peer = peer,
-		.admin = admin,
-		.now = link
-	});
-	return link;
 }
 
 void InviteLinks::edit(
@@ -383,14 +394,14 @@ void InviteLinks::requestMyLinks(not_null<PeerData*> peer) {
 		auto slice = parseSlice(peer, result);
 		auto i = _firstSlices.find(peer);
 		const auto permanent = (i != end(_firstSlices))
-			? lookupPermanent(i->second)
+			? lookupMyPermanent(i->second)
 			: nullptr;
 		if (!permanent) {
 			BringPermanentToFront(slice);
 			const auto j = _firstSlices.emplace_or_assign(
 				peer,
 				std::move(slice)).first;
-			if (const auto permanent = lookupPermanent(j->second)) {
+			if (const auto permanent = lookupMyPermanent(j->second)) {
 				editPermanentLink(peer, permanent->link);
 			}
 		} else {
@@ -506,7 +517,7 @@ void InviteLinks::setMyPermanent(
 		.peer = peer,
 		.admin = peer->session().user(),
 	};
-	if (const auto permanent = lookupPermanent(links)) {
+	if (const auto permanent = lookupMyPermanent(links)) {
 		if (permanent->link == link.link) {
 			if (permanent->usage != link.usage) {
 				permanent->usage = link.usage;
@@ -548,7 +559,7 @@ void InviteLinks::clearMyPermanent(not_null<PeerData*> peer) {
 		return;
 	}
 	auto &links = i->second;
-	const auto permanent = lookupPermanent(links);
+	const auto permanent = lookupMyPermanent(links);
 	if (!permanent) {
 		return;
 	}
@@ -590,7 +601,7 @@ auto InviteLinks::parseSlice(
 		const MTPmessages_ExportedChatInvites &slice) const -> Links {
 	auto i = _firstSlices.find(peer);
 	const auto permanent = (i != end(_firstSlices))
-		? lookupPermanent(i->second)
+		? lookupMyPermanent(i->second)
 		: nullptr;
 	auto result = Links();
 	slice.match([&](const MTPDmessages_exportedChatInvites &data) {

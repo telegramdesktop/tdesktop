@@ -140,13 +140,17 @@ private:
 	[[nodiscard]] Link parse(
 		not_null<PeerData*> peer,
 		const MTPExportedChatInvite &invite) const;
-	[[nodiscard]] Link *lookupPermanent(not_null<PeerData*> peer);
-	[[nodiscard]] Link *lookupPermanent(Links &links);
-	[[nodiscard]] const Link *lookupPermanent(const Links &links) const;
+	[[nodiscard]] Link *lookupMyPermanent(not_null<PeerData*> peer);
+	[[nodiscard]] Link *lookupMyPermanent(Links &links);
+	[[nodiscard]] const Link *lookupMyPermanent(const Links &links) const;
 	Link prepend(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
 		const MTPExportedChatInvite &invite);
+	void prependMyToFirstSlice(
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
+		const Link &link);
 	void notify(not_null<PeerData*> peer);
 
 	void editPermanentLink(

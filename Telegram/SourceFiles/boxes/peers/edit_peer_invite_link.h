@@ -19,6 +19,11 @@ namespace Ui {
 class VerticalLayout;
 } // namespace Ui
 
+void AddSinglePeerRow(
+	not_null<Ui::VerticalLayout*> container,
+	not_null<PeerData*> peer,
+	rpl::producer<QString> status);
+
 void AddPermanentLinkBlock(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,

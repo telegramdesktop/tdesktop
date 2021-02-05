@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "settings/settings_common.h"
 #include "mtproto/sender.h"
+#include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
 #include <QtGui/QGuiApplication>
@@ -75,7 +76,9 @@ private:
 
 class SingleRowController final : public PeerListController {
 public:
-	SingleRowController(not_null<PeerData*> peer, TimeId date);
+	SingleRowController(
+		not_null<PeerData*> peer,
+		rpl::producer<QString> status);
 
 	void prepare() override;
 	void loadMoreRows() override;
@@ -84,7 +87,8 @@ public:
 
 private:
 	const not_null<PeerData*> _peer;
-	TimeId _date = 0;
+	rpl::producer<QString> _status;
+	rpl::lifetime _lifetime;
 
 };
 
@@ -164,23 +168,15 @@ void AddHeader(
 		} else {
 			AddDivider(container);
 		}
+		AddSkip(container);
 	}
-	AddSkip(container);
 	AddSubsectionTitle(
 		container,
 		tr::lng_group_invite_created_by());
-
-	const auto delegate = container->lifetime().make_state<
-		PeerListContentDelegateSimple
-	>();
-	const auto controller = container->lifetime().make_state<
-		SingleRowController
-	>(data.admin, data.date);
-	const auto content = container->add(object_ptr<PeerListContent>(
+	AddSinglePeerRow(
 		container,
-		controller));
-	delegate->setContent(content);
-	controller->setDelegate(delegate);
+		data.admin,
+		rpl::single(langDateTime(base::unixtime::parse(data.date))));
 }
 
 Controller::Controller(not_null<PeerData*> peer, const LinkData &data)
@@ -258,14 +254,19 @@ Main::Session &Controller::session() const {
 
 SingleRowController::SingleRowController(
 	not_null<PeerData*> peer,
-	TimeId date)
+	rpl::producer<QString> status)
 : _peer(peer)
-, _date(date) {
+, _status(std::move(status)) {
 }
 
 void SingleRowController::prepare() {
 	auto row = std::make_unique<PeerListRow>(_peer);
-	row->setCustomStatus(langDateTime(base::unixtime::parse(_date)));
+	const auto raw = row.get();
+	std::move(
+		_status
+	) | rpl::start_with_next([=](const QString &status) {
+		raw->setCustomStatus(status);
+	}, _lifetime);
 	delegate()->peerListAppendRow(std::move(row));
 	delegate()->peerListRefreshRows();
 }
@@ -282,6 +283,24 @@ Main::Session &SingleRowController::session() const {
 }
 
 } // namespace
+
+void AddSinglePeerRow(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<PeerData*> peer,
+		rpl::producer<QString> status) {
+	const auto delegate = container->lifetime().make_state<
+		PeerListContentDelegateSimple
+	>();
+	const auto controller = container->lifetime().make_state<
+		SingleRowController
+	>(peer, std::move(status));
+	controller->setStyleOverrides(&st::peerListSingleRow);
+	const auto content = container->add(object_ptr<PeerListContent>(
+		container,
+		controller));
+	delegate->setContent(content);
+	controller->setDelegate(delegate);
+}
 
 void AddPermanentLinkBlock(
 		not_null<Ui::VerticalLayout*> container,

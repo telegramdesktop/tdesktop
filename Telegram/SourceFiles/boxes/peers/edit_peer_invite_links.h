@@ -14,4 +14,6 @@ class PeerData;
 void ManageInviteLinksBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<PeerData*> peer,
-	not_null<UserData*> admin);
+	not_null<UserData*> admin,
+	int count,
+	int revokedCount);

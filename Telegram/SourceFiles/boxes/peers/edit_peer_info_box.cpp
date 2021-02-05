@@ -1073,24 +1073,26 @@ void Controller::fillManageSection() {
 			st::infoIconPermissions);
 	}
 	if (canEditInviteLinks) {
+		auto count = Info::Profile::MigratedOrMeValue(
+			_peer
+		) | rpl::map([=](not_null<PeerData*> peer) {
+			peer->session().api().inviteLinks().requestMyLinks(peer);
+			return peer->session().changes().peerUpdates(
+				peer,
+				Data::PeerUpdate::Flag::InviteLinks
+			) | rpl::map([=] {
+				return peer->session().api().inviteLinks().myLinks(
+					peer).count;
+			});
+		}) | rpl::flatten_latest(
+		) | rpl::start_spawning(_controls.buttonsLayout->lifetime());
+
 		AddButtonWithCount(
 			_controls.buttonsLayout,
 			tr::lng_manage_peer_invite_links(),
-			Info::Profile::MigratedOrMeValue(
-				_peer
-			) | rpl::map([=](not_null<PeerData*> peer) {
-				peer->session().api().inviteLinks().requestMyLinks(peer);
-				return peer->session().changes().peerUpdates(
-					peer,
-					Data::PeerUpdate::Flag::InviteLinks
-				) | rpl::map([=] {
-					return peer->session().api().inviteLinks().myLinks(
-						peer).count;
-				});
-			}) | rpl::flatten_latest(
-			) | ToPositiveNumberString(),
+			rpl::duplicate(count) | ToPositiveNumberString(),
 			[=] { Ui::show(
-				Box(ManageInviteLinksBox, _peer, _peer->session().user()),
+				Box(ManageInviteLinksBox, _peer, _peer->session().user(), 0, 0),
 				Ui::LayerOption::KeepOther);
 			},
 			st::infoIconInviteLinks);
