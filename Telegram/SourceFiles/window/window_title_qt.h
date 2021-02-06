@@ -51,6 +51,7 @@ private:
 
 	void toggleFramelessWindow(bool enabled);
 	bool hasShadow() const;
+	Ui::IconButton *controlWidget(Control control) const;
 	QMargins resizeArea() const;
 	Qt::Edges edgesFromPos(const QPoint &pos) const;
 	void updateCursor(Qt::Edges edges);
