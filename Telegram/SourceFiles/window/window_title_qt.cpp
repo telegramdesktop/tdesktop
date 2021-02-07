@@ -27,6 +27,16 @@ namespace {
 	return st::callShadow.extend;
 }
 
+template <typename T>
+void RemoveDuplicates(std::vector<T> &v) {
+	auto end = v.end();
+	for (auto it = v.begin(); it != end; ++it) {
+		end = std::remove(it + 1, end, *it);
+	}
+
+	v.erase(end, v.end());
+}
+
 } // namespace
 
 TitleWidgetQt::TitleWidgetQt(QWidget *parent)
@@ -181,9 +191,11 @@ void TitleWidgetQt::updateControlsPosition() {
 void TitleWidgetQt::updateControlsPositionBySide(
 		const std::vector<Control> &controls,
 		bool right) {
-	const auto preparedControls = right
+	auto preparedControls = right
 		? (ranges::view::reverse(controls) | ranges::to_vector)
 		: controls;
+
+	RemoveDuplicates(preparedControls);
 
 	auto position = 0;
 	for (const auto &control : preparedControls) {
