@@ -988,8 +988,8 @@ void MainMenu::refreshMenu() {
 			st::mainMenu,
 			tr::lng_settings_show_phone_number(tr::now),
 			std::move(phoneCallback),
-			&st::mainMenuNightMode,
-			&st::mainMenuNightModeOver);
+			&st::mainMenuCalls,
+			&st::mainMenuCallsOver);
 	auto action2 = _menu->addAction(std::move(item2));
 	*_showPhoneAction = action2;
 	action2->setCheckable(true);
