@@ -29,6 +29,21 @@ PhotoEditor::PhotoEditor(
 			- style::margins(0, contentRect.height(), 0, 0);
 		_controls->setGeometry(controlsRect);
 	}, lifetime());
+
+	_controls->rotateRequests(
+	) | rpl::start_with_next([=](int angle) {
+		_modifications.angle += 90;
+		if (_modifications.angle >= 360) {
+			_modifications.angle -= 360;
+		}
+		_content->applyModifications(_modifications);
+	}, lifetime());
+
+	_controls->flipRequests(
+	) | rpl::start_with_next([=] {
+		_modifications.flipped = !_modifications.flipped;
+		_content->applyModifications(_modifications);
+	}, lifetime());
 }
 
 } // namespace Editor

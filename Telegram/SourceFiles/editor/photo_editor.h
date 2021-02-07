@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+#include "editor/photo_editor_common.h"
+
 #include "base/unique_qptr.h"
 
 namespace Editor {
@@ -23,6 +25,8 @@ public:
 		std::shared_ptr<QPixmap> photo);
 
 private:
+
+	PhotoModifications _modifications;
 
 	base::unique_qptr<PhotoEditorContent> _content;
 	base::unique_qptr<PhotoEditorControls> _controls;

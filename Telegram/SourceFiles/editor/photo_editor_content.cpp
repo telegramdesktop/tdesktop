@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_content.h"
 
+#include "media/view/media_view_pip.h"
+
 namespace Editor {
 
 PhotoEditorContent::PhotoEditorContent(
@@ -14,23 +16,33 @@ PhotoEditorContent::PhotoEditorContent(
 	std::shared_ptr<QPixmap> photo)
 : RpWidget(parent) {
 
-	sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	rpl::combine(
+		_modifications.value(),
+		sizeValue()
+	) | rpl::start_with_next([=](
+			const PhotoModifications &mods, const QSize &size) {
+		const auto rotatedSize =
+			Media::View::FlipSizeByRotation(size, mods.angle);
 		const auto imageSize = [&] {
 			const auto originalSize = photo->size() / cIntRetinaFactor();
-			if ((originalSize.width() > size.width())
-				&& (originalSize.height() > size.height())) {
+			if ((originalSize.width() > rotatedSize.width())
+				|| (originalSize.height() > rotatedSize.height())) {
 				return originalSize.scaled(
-					size,
+					rotatedSize,
 					Qt::KeepAspectRatio);
 			}
 			return originalSize;
 		}();
 		_imageRect = QRect(
-			QPoint(
-				(size.width() - imageSize.width()) / 2,
-				(size.height() - imageSize.height()) / 2),
+			QPoint(-imageSize.width() / 2, -imageSize.height() / 2),
 			imageSize);
+
+		_imageMatrix.reset();
+		_imageMatrix.translate(size.width() / 2, size.height() / 2);
+		if (mods.flipped) {
+			_imageMatrix.scale(-1, 1);
+		}
+		_imageMatrix.rotate(mods.angle);
 	}, lifetime());
 
 	paintRequest(
@@ -38,8 +50,17 @@ PhotoEditorContent::PhotoEditorContent(
 		Painter p(this);
 
 		p.fillRect(clip, Qt::transparent);
-		p.drawPixmap(_imageRect, *photo, photo->rect());
+
+		p.setMatrix(_imageMatrix);
+
+		p.drawPixmap(_imageRect, *photo);
 	}, lifetime());
+}
+
+void PhotoEditorContent::applyModifications(
+		PhotoModifications modifications) {
+	_modifications = std::move(modifications);
+	update();
 }
 
 } // namespace Editor

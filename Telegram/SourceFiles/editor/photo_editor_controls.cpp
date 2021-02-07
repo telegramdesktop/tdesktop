@@ -75,4 +75,13 @@ PhotoEditorControls::PhotoEditorControls(
 	}, lifetime());
 
 }
+
+rpl::producer<int> PhotoEditorControls::rotateRequests() const {
+	return _rotateButton->clicks() | rpl::map([] { return 90; });
+}
+
+rpl::producer<> PhotoEditorControls::flipRequests() const {
+	return _flipButton->clicks() | rpl::to_empty;
+}
+
 } // namespace Editor

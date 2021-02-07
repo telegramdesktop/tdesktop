@@ -23,6 +23,9 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		bool doneControls = true);
 
+	[[nodiscard]] rpl::producer<int> rotateRequests() const;
+	[[nodiscard]] rpl::producer<> flipRequests() const;
+
 private:
 
 	const base::unique_qptr<HorizontalContainer> _buttonsContainer;
