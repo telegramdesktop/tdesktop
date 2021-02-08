@@ -83,6 +83,9 @@ settingsSubsectionTitle: FlatLabel(defaultFlatLabel) {
 	textFg: windowActiveTextFg;
 	minWidth: 240px;
 }
+settingsSubsectionTitleRight: FlatLabel(settingsSubsectionTitle) {
+	minWidth: 0px;
+}
 settingsSubsectionTitlePadding: margins(22px, 7px, 10px, 9px);
 settingsBackgroundPadding: margins(22px, 11px, 10px, 12px);
 settingsTileSkip: 15px;

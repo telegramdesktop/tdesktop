@@ -296,7 +296,6 @@ void PeerListController::setDescriptionText(const QString &text) {
 	if (text.isEmpty()) {
 		setDescription(nullptr);
 	} else {
-		const auto &st = _listSt ? *_listSt : st::peerListBox;
 		setDescription(object_ptr<Ui::FlatLabel>(nullptr, text, computeListSt().about));
 	}
 }
@@ -338,6 +337,10 @@ int PeerListController::contentWidth() const {
 
 rpl::producer<int> PeerListController::boxHeightValue() const {
 	return rpl::single(st::boxMaxListHeight);
+}
+
+int PeerListController::descriptionTopSkipMin() const {
+	return computeListSt().item.height;
 }
 
 void PeerListBox::addSelectItem(
@@ -959,6 +962,7 @@ int PeerListContent::fullRowsCount() const {
 
 not_null<PeerListRow*> PeerListContent::rowAt(int index) const {
 	Expects(index >= 0 && index < _rows.size());
+
 	return _rows[index].get();
 }
 
@@ -1128,7 +1132,10 @@ int PeerListContent::resizeGetHeight(int newWidth) {
 			_aboveHeight = _aboveSearchWidget->height();
 		}
 	}
-	const auto labelTop = rowsTop() + qMax(1, shownRowsCount()) * _rowHeight;
+	const auto labelTop = rowsTop()
+		+ std::max(
+			shownRowsCount() * _rowHeight,
+			_controller->descriptionTopSkipMin());
 	const auto labelWidth = newWidth - 2 * st::contactsPadding.left();
 	if (_description) {
 		_description->resizeToWidth(labelWidth);

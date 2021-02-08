@@ -429,29 +429,30 @@ public:
 	virtual void restoreState(
 		std::unique_ptr<PeerListState> state);
 
-	virtual int contentWidth() const;
-	virtual rpl::producer<int> boxHeightValue() const;
+	[[nodiscard]] virtual int contentWidth() const;
+	[[nodiscard]] virtual rpl::producer<int> boxHeightValue() const;
+	[[nodiscard]] virtual int descriptionTopSkipMin() const;
 
-	bool isRowSelected(not_null<PeerListRow*> row) {
+	[[nodiscard]] bool isRowSelected(not_null<PeerListRow*> row) {
 		return delegate()->peerListIsRowChecked(row);
 	}
 
 	virtual bool searchInLocal() {
 		return true;
 	}
-	bool hasComplexSearch() const;
+	[[nodiscard]] bool hasComplexSearch() const;
 	void search(const QString &query);
 
 	void peerListSearchAddRow(not_null<PeerData*> peer) override;
 	void peerListSearchRefreshRows() override;
 
-	virtual bool respectSavedMessagesChat() const {
+	[[nodiscard]] virtual bool respectSavedMessagesChat() const {
 		return false;
 	}
 
-	virtual rpl::producer<int> onlineCountValue() const;
+	[[nodiscard]] virtual rpl::producer<int> onlineCountValue() const;
 
-	rpl::lifetime &lifetime() {
+	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
 
