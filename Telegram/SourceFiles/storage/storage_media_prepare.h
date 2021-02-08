@@ -42,5 +42,8 @@ Ui::PreparedList PrepareMediaFromImage(
 	QByteArray &&content,
 	int previewWidth);
 void PrepareDetails(Ui::PreparedFile &file, int previewWidth);
+void UpdateImageDetails(Ui::PreparedFile &file, int previewWidth);
+
+void ApplyModifications(const Ui::PreparedList &list);
 
 } // namespace Storage

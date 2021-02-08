@@ -46,4 +46,12 @@ PhotoEditor::PhotoEditor(
 	}, lifetime());
 }
 
+void PhotoEditor::save() {
+	_done.fire_copy(_modifications);
+}
+
+rpl::producer<PhotoModifications> PhotoEditor::done() const {
+	return _done.events();
+}
+
 } // namespace Editor

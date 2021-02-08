@@ -12,6 +12,18 @@ namespace Editor {
 struct PhotoModifications {
 	int angle = 0;
 	bool flipped = false;
+
+	[[nodiscard]] bool empty() const {
+		return !angle && !flipped;
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return !empty();
+	}
+
 };
+
+[[nodiscard]] QImage ImageModified(
+	QImage image,
+	const PhotoModifications &mods);
 
 } // namespace Editor

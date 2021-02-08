@@ -976,6 +976,9 @@ void SendFilesBox::send(
 	for (auto &block : _blocks) {
 		block.applyAlbumOrder();
 	}
+
+	Storage::ApplyModifications(_list);
+
 	_confirmed = true;
 	if (_confirmedCallback) {
 		auto caption = (_caption && !_caption->isHidden())

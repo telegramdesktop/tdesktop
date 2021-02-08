@@ -24,12 +24,17 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<QPixmap> photo);
 
+	void save();
+	rpl::producer<PhotoModifications> done() const;
+
 private:
 
 	PhotoModifications _modifications;
 
 	base::unique_qptr<PhotoEditorContent> _content;
 	base::unique_qptr<PhotoEditorControls> _controls;
+
+	rpl::event_stream<PhotoModifications> _done;
 
 };
 

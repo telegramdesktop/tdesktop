@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_single_media_preview.h"
 
+#include "editor/photo_editor_common.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/widgets/buttons.h"
 #include "core/mime_type.h"
@@ -32,7 +33,7 @@ SingleMediaPreview *SingleMediaPreview::Create(
 	bool animationPreview = false;
 	if (const auto image = std::get_if<PreparedFileInformation::Image>(
 			&file.information->media)) {
-		preview = image->data;
+		preview = Editor::ImageModified(image->data, image->modifications);
 		animated = animationPreview = image->animated;
 	} else if (const auto video = std::get_if<PreparedFileInformation::Video>(
 			&file.information->media)) {
