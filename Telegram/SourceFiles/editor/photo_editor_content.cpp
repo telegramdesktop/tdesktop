@@ -13,8 +13,10 @@ namespace Editor {
 
 PhotoEditorContent::PhotoEditorContent(
 	not_null<Ui::RpWidget*> parent,
-	std::shared_ptr<QPixmap> photo)
-: RpWidget(parent) {
+	std::shared_ptr<QPixmap> photo,
+	PhotoModifications modifications)
+: RpWidget(parent)
+, _modifications(modifications) {
 
 	rpl::combine(
 		_modifications.value(),

@@ -22,7 +22,8 @@ class PhotoEditor final : public Ui::RpWidget {
 public:
 	PhotoEditor(
 		not_null<Ui::RpWidget*> parent,
-		std::shared_ptr<QPixmap> photo);
+		std::shared_ptr<QPixmap> photo,
+		PhotoModifications modifications);
 
 	void save();
 	rpl::producer<PhotoModifications> done() const;

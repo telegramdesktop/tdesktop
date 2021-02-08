@@ -17,7 +17,8 @@ class PhotoEditorContent final : public Ui::RpWidget {
 public:
 	PhotoEditorContent(
 		not_null<Ui::RpWidget*> parent,
-		std::shared_ptr<QPixmap> photo);
+		std::shared_ptr<QPixmap> photo,
+		PhotoModifications modifications);
 
 	void applyModifications(PhotoModifications modifications);
 
