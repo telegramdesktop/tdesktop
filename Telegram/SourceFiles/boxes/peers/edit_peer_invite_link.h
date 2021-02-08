@@ -19,6 +19,8 @@ namespace Ui {
 class VerticalLayout;
 } // namespace Ui
 
+[[nodiscard]] bool IsExpiredLink(const Api::InviteLink &data, TimeId now);
+
 void AddSinglePeerRow(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
@@ -36,6 +38,9 @@ void RevokeLink(
 	not_null<PeerData*> peer,
 	not_null<UserData*> admin,
 	const QString &link);
+void EditLink(
+	not_null<PeerData*> peer,
+	const Api::InviteLink &data);
 
 void ShowInviteLinkBox(
 	not_null<PeerData*> peer,

@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "api/api_invite_links.h"
-#include "ui/boxes/edit_invite_link.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
@@ -156,71 +155,50 @@ private:
 }
 
 [[nodiscard]] QString ComputeStatus(const InviteLinkData &link, TimeId now) {
+	const auto expired = IsExpiredLink(link, now);
+	const auto revoked = link.revoked;
 	auto result = link.usage
 		? tr::lng_group_invite_joined(tr::now, lt_count_decimal, link.usage)
+		: (!expired && !revoked && link.usageLimit > 0)
+		? tr::lng_group_invite_can_join(
+			tr::now,
+			lt_count_decimal,
+			link.usageLimit)
 		: tr::lng_group_invite_no_joined(tr::now);
 	const auto add = [&](const QString &text) {
 		result += QString::fromUtf8(" \xE2\xB8\xB1 ") + text;
 	};
-	if (link.revoked) {
-		add(tr::lng_group_invite_link_revoked(tr::now));
-	} else if ((link.usageLimit > 0 && link.usage >= link.usageLimit)
-		|| (link.expireDate > 0 && now >= link.expireDate)) {
+	if (revoked) {
+		return result;
+	} else if (expired) {
 		add(tr::lng_group_invite_link_expired(tr::now));
+		return result;
+	}
+	if (link.usage > 0 && link.usageLimit > link.usage) {
+		result += ", " + tr::lng_group_invite_remaining(
+			tr::now,
+			lt_count_decimal,
+			link.usageLimit - link.usage);
+	}
+	if (link.expireDate > now) {
+		const auto left = (link.expireDate - now);
+		if (left >= 86400) {
+			add(tr::lng_group_invite_days_left(
+				tr::now,
+				lt_count,
+				left / 86400));
+		} else {
+			const auto time = base::unixtime::parse(link.expireDate).time();
+			add(time.toString(Qt::SystemLocaleLongDate));
+		}
 	}
 	return result;
 }
 
-void EditLink(
-		not_null<PeerData*> peer,
-		const InviteLinkData &data) {
-	const auto creating = data.link.isEmpty();
-	const auto box = std::make_shared<QPointer<Ui::GenericBox>>();
-	using Fields = Ui::InviteLinkFields;
-	const auto done = [=](Fields result) {
-		const auto finish = [=](Api::InviteLink finished) {
-			if (creating) {
-				ShowInviteLinkBox(peer, finished);
-			}
-			if (*box) {
-				(*box)->closeBox();
-			}
-		};
-		if (creating) {
-			Assert(data.admin->isSelf());
-			peer->session().api().inviteLinks().create(
-				peer,
-				finish,
-				result.expireDate,
-				result.usageLimit);
-		} else {
-			peer->session().api().inviteLinks().edit(
-				peer,
-				data.admin,
-				result.link,
-				result.expireDate,
-				result.usageLimit,
-				finish);
-		}
-	};
-	*box = Ui::show(
-		(creating
-			? Box(Ui::CreateInviteLinkBox, done)
-			: Box(
-				Ui::EditInviteLinkBox,
-				Fields{
-					.link = data.link,
-					.expireDate = data.expireDate,
-					.usageLimit = data.usageLimit
-				},
-				done)),
-		Ui::LayerOption::KeepOther);
-}
-
 void DeleteLink(
-	not_null<PeerData*> peer,
-	not_null<UserData*> admin,
-	const QString &link) {
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
+		const QString &link) {
 	const auto box = std::make_shared<QPointer<ConfirmBox>>();
 	const auto sure = [=] {
 		const auto finish = [=] {

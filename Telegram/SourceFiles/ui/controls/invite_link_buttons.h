@@ -17,6 +17,10 @@ void AddCopyShareLinkButtons(
 	Fn<void()> copyLink,
 	Fn<void()> shareLink);
 
+void AddReactivateLinkButton(
+	not_null<VerticalLayout*> container,
+	Fn<void()> editLink);
+
 struct JoinedCountContent {
 	int count = 0;
 	QImage userpics;

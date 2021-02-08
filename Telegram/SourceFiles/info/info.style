@@ -868,6 +868,7 @@ inviteLinkShare: RoundButton(inviteLinkCopy) {
 	icon: icon {{ "info/edit/links_share", activeButtonFg }};
 	iconOver: icon {{ "info/edit/links_share", activeButtonFgOver }};
 }
+inviteLinkReactivate: inviteLinkShare;
 inviteLinkUserpics: GroupCallUserpics {
 	size: 28px;
 	shift: 6px;

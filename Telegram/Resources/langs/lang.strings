@@ -943,6 +943,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_link_type" = "Link type";
 "lng_manage_peer_link_permanent" = "Permanent link";
 "lng_manage_peer_link_invite" = "Invite link";
+"lng_manage_peer_link_expired" = "Expired link";
 "lng_manage_private_group_title" = "Private";
 "lng_manage_public_group_title" = "Public";
 "lng_manage_private_peer_title" = "Private";
@@ -1186,9 +1187,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_copy" = "Copy Link";
 "lng_group_invite_share" = "Share Link";
 "lng_group_invite_revoke" = "Revoke Link";
+"lng_group_invite_reactivate" = "Reactivate Link";
 "lng_group_invite_no_joined" = "No one joined yet";
-"lng_group_invite_joined#one" = "{count} person joined";
-"lng_group_invite_joined#other" = "{count} people joined";
+"lng_group_invite_joined#one" = "{count} joined";
+"lng_group_invite_joined#other" = "{count} joined";
+"lng_group_invite_remaining#one" = "{count} remaining";
+"lng_group_invite_remaining#other" = "{count} remaining";
+"lng_group_invite_can_join#one" = "{count} can join";
+"lng_group_invite_can_join#other" = "{count} can join";
+"lng_group_invite_days_left#one" = "{count} day left";
+"lng_group_invite_days_left#other" = "{count} days left";
 "lng_group_invite_about_permanent_group" = "Anyone who has Telegram installed will be able to join your group by following this link.";
 "lng_group_invite_about_permanent_channel" = "Anyone who has Telegram installed will be able to join your channel by following this link.";
 "lng_group_invite_manage" = "Manage Invite Links";
@@ -1197,7 +1205,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_add" = "Create a New Link";
 "lng_group_invite_add_about" = "You can generate invite links that will expire after they've been used.";
 "lng_group_invite_expires_at" = "This link expires {when}.";
-"lng_group_invite_expired_already" = "This link has expired.";
 "lng_group_invite_created_by" = "Link created by";
 "lng_group_invite_context_copy" = "Copy";
 "lng_group_invite_context_share" = "Share";
@@ -1210,7 +1217,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_revoked_title" = "Revoked links";
 "lng_group_invite_revoke_about" = "Are you sure you want to revoke that invite link?";
 "lng_group_invite_link_expired" = "Expired";
-"lng_group_invite_link_revoked" = "Revoked";
 "lng_group_invite_edit_title" = "Edit Link";
 "lng_group_invite_new_title" = "New Link";
 "lng_group_invite_expire_title" = "Limit by time period";
@@ -1228,6 +1234,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_other_count#other" = "{count} invite links";
 "lng_group_invite_permanent_other" = "Permanent link of this admin";
 "lng_group_invite_other_list" = "Invite links created by this admin";
+"lng_group_invite_expired_about" = "The time limit for this link has expired.";
+"lng_group_invite_used_about" = "This link reached its usage limit.";
+"lng_group_invite_can_join_via_link#one" = "{count} person can join via this link.";
+"lng_group_invite_can_join_via_link#other" = "{count} people can join via this link.";
 
 "lng_channel_public_link_copied" = "Link copied to clipboard.";
 "lng_context_about_private_link" = "This link will only work for members of this chat.";

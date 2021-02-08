@@ -61,6 +61,20 @@ void AddCopyShareLinkButtons(
 	}, wrap->lifetime());
 }
 
+
+void AddReactivateLinkButton(
+		not_null<VerticalLayout*> container,
+		Fn<void()> editLink) {
+	const auto button = container->add(
+		object_ptr<RoundButton>(
+			container,
+			tr::lng_group_invite_reactivate(),
+			st::inviteLinkReactivate),
+		st::inviteLinkButtonsPadding);
+	button->setTextTransform(RoundButton::TextTransform::NoTransform);
+	button->setClickedCallback(editLink);
+}
+
 not_null<AbstractButton*> AddJoinedCountButton(
 		not_null<VerticalLayout*> container,
 		rpl::producer<JoinedCountContent> content,

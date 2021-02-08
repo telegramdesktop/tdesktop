@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/abstract_button.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
+#include "ui/boxes/edit_invite_link.h"
 #include "boxes/share_box.h"
 #include "history/view/history_view_group_call_tracker.h" // GenerateUs...
 #include "history/history_message.h" // GetErrorTextForSending.
@@ -38,7 +39,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "mtproto/sender.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h" // st::boxDividerLabel.
 #include "styles/style_info.h"
+#include "styles/style_settings.h" // st::settingsDividerLabelPadding.
 
 #include <QtGui/QGuiApplication>
 
@@ -58,6 +61,8 @@ public:
 	void rowClicked(not_null<PeerListRow*> row) override;
 	Main::Session &session() const override;
 
+	//rpl::producer<int> boxHeightValue() const override;
+
 private:
 	void appendSlice(const Api::JoinedByLinkSlice &slice);
 	[[nodiscard]] object_ptr<Ui::RpWidget> prepareHeader();
@@ -68,6 +73,8 @@ private:
 	mtpRequestId _requestId = 0;
 	std::optional<Api::JoinedByLinkUser> _lastUser;
 	bool _allLoaded = false;
+
+	Ui::RpWidget *_headerWidget = nullptr;
 
 	MTP::Sender _api;
 	rpl::lifetime _lifetime;
@@ -108,6 +115,9 @@ void AddHeaderBlock(
 	const auto revokeLink = crl::guard(weak, [=] {
 		RevokeLink(peer, data.admin, data.link);
 	});
+	const auto editLink = crl::guard(weak, [=] {
+		EditLink(peer, data);
+	});
 
 	const auto createMenu = [=] {
 		auto result = base::make_unique_q<Ui::PopupMenu>(container);
@@ -117,6 +127,9 @@ void AddHeaderBlock(
 		result->addAction(
 			tr::lng_group_invite_context_share(tr::now),
 			shareLink);
+		result->addAction(
+			tr::lng_group_invite_context_edit(tr::now),
+			editLink);
 		result->addAction(
 			tr::lng_group_invite_context_revoke(tr::now),
 			revokeLink);
@@ -137,34 +150,43 @@ void AddHeaderBlock(
 	label->clicks(
 	) | rpl::start_with_next(copyLink, label->lifetime());
 
-	if ((data.expireDate <= 0 || now < data.expireDate)
-		&& (data.usageLimit <= 0 || data.usage < data.usageLimit)) {
-		AddCopyShareLinkButtons(
-			container,
-			copyLink,
-			shareLink);
+	if (IsExpiredLink(data, now)) {
+		AddReactivateLinkButton(container, editLink);
+	} else {
+		AddCopyShareLinkButtons(container, copyLink, shareLink);
 	}
 }
 
 void AddHeader(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
-		const LinkData &data) {
+		const LinkData &data,
+		TimeId now) {
 	using namespace Settings;
-
 	if (!data.revoked && !data.permanent) {
-		const auto now = base::unixtime::now();
 		AddHeaderBlock(container, peer, data, now);
 		AddSkip(container, st::inviteLinkJoinedRowPadding.bottom() * 2);
-		if (data.expireDate > 0) {
-			AddDividerText(
+		const auto timeExpired = (data.expireDate > 0)
+			&& (data.expireDate <= now);
+		const auto usageExpired = (data.usageLimit > 0)
+			&& (data.usageLimit <= data.usage);
+		if (data.expireDate > 0 || usageExpired) {
+			container->add(object_ptr<Ui::DividerLabel>(
 				container,
-				(data.expireDate > now
-					? tr::lng_group_invite_expires_at(
-						lt_when,
-						rpl::single(langDateTime(
-							base::unixtime::parse(data.expireDate))))
-					: tr::lng_group_invite_expired_already()));
+				object_ptr<Ui::FlatLabel>(
+					container,
+					(timeExpired
+						? tr::lng_group_invite_expired_about()
+						: usageExpired
+						? tr::lng_group_invite_used_about()
+						: tr::lng_group_invite_expires_at(
+							lt_when,
+							rpl::single(langDateTime(
+								base::unixtime::parse(data.expireDate))))),
+					(timeExpired
+						? st::boxAttentionDividerLabel
+						: st::boxDividerLabel)),
+				st::settingsDividerLabelPadding));
 		} else {
 			AddDivider(container);
 		}
@@ -177,6 +199,7 @@ void AddHeader(
 		container,
 		data.admin,
 		rpl::single(langDateTime(base::unixtime::parse(data.date))));
+	AddSkip(container, st::membersMarginBottom);
 }
 
 Controller::Controller(not_null<PeerData*> peer, const LinkData &data)
@@ -188,9 +211,11 @@ Controller::Controller(not_null<PeerData*> peer, const LinkData &data)
 object_ptr<Ui::RpWidget> Controller::prepareHeader() {
 	using namespace Settings;
 
+	const auto now = base::unixtime::now();
+
 	auto result = object_ptr<Ui::VerticalLayout>((QWidget*)nullptr);
 	const auto container = result.data();
-	AddHeader(container, _peer, _data);
+	AddHeader(container, _peer, _data, now);
 	AddDivider(container);
 	AddSkip(container);
 	AddSubsectionTitle(
@@ -200,11 +225,20 @@ object_ptr<Ui::RpWidget> Controller::prepareHeader() {
 				lt_count,
 				rpl::single(float64(_data.usage)))
 			: tr::lng_group_invite_no_joined()));
+
+	_headerWidget = result.data();
 	return result;
 }
 
 void Controller::prepare() {
 	delegate()->peerListSetAboveWidget(prepareHeader());
+	if (!_data.usage && _data.usageLimit > 0) {
+		setDescriptionText(
+			tr::lng_group_invite_can_join_via_link(
+				tr::now,
+				lt_count,
+				_data.usageLimit));
+	}
 	_allLoaded = (_data.usage == 0);
 	const auto &inviteLinks = _peer->session().api().inviteLinks();
 	const auto slice = inviteLinks.joinedFirstSliceLoaded(_peer, _data.link);
@@ -252,6 +286,12 @@ Main::Session &Controller::session() const {
 	return _peer->session();
 }
 
+//rpl::producer<int> Controller::boxHeightValue() const {
+//	Expects(_headerWidget != nullptr);
+//
+//	return _headerWidget->heightValue();
+//}
+
 SingleRowController::SingleRowController(
 	not_null<PeerData*> peer,
 	rpl::producer<QString> status)
@@ -283,6 +323,11 @@ Main::Session &SingleRowController::session() const {
 }
 
 } // namespace
+
+bool IsExpiredLink(const Api::InviteLink &data, TimeId now) {
+	return (data.expireDate > 0 && data.expireDate <= now)
+		|| (data.usageLimit > 0 && data.usageLimit <= data.usage);
+}
 
 void AddSinglePeerRow(
 		not_null<Ui::VerticalLayout*> container,
@@ -394,10 +439,7 @@ void AddPermanentLinkBlock(
 	label->clicks(
 	) | rpl::start_with_next(copyLink, label->lifetime());
 
-	AddCopyShareLinkButtons(
-		container,
-		copyLink,
-		shareLink);
+	AddCopyShareLinkButtons(container, copyLink, shareLink);
 
 	struct JoinedState {
 		QImage cachedUserpics;
@@ -574,6 +616,52 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 		Ui::LayerOption::KeepOther);
 }
 
+void EditLink(
+		not_null<PeerData*> peer,
+		const Api::InviteLink &data) {
+	const auto creating = data.link.isEmpty();
+	const auto box = std::make_shared<QPointer<Ui::GenericBox>>();
+	using Fields = Ui::InviteLinkFields;
+	const auto done = [=](Fields result) {
+		const auto finish = [=](Api::InviteLink finished) {
+			if (creating) {
+				ShowInviteLinkBox(peer, finished);
+			}
+			if (*box) {
+				(*box)->closeBox();
+			}
+		};
+		if (creating) {
+			Assert(data.admin->isSelf());
+			peer->session().api().inviteLinks().create(
+				peer,
+				finish,
+				result.expireDate,
+				result.usageLimit);
+		} else {
+			peer->session().api().inviteLinks().edit(
+				peer,
+				data.admin,
+				result.link,
+				result.expireDate,
+				result.usageLimit,
+				finish);
+		}
+	};
+	*box = Ui::show(
+		(creating
+			? Box(Ui::CreateInviteLinkBox, done)
+			: Box(
+				Ui::EditInviteLinkBox,
+				Fields{
+					.link = data.link,
+					.expireDate = data.expireDate,
+					.usageLimit = data.usageLimit
+				},
+				done)),
+		Ui::LayerOption::KeepOther);
+}
+
 void RevokeLink(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
@@ -597,8 +685,11 @@ void RevokeLink(
 void ShowInviteLinkBox(
 		not_null<PeerData*> peer,
 		const Api::InviteLink &link) {
+	const auto now = base::unixtime::now();
 	auto initBox = [=](not_null<Ui::BoxContent*> box) {
-		box->setTitle((link.permanent && !link.revoked)
+		box->setTitle(IsExpiredLink(link, now)
+			? tr::lng_manage_peer_link_expired()
+			: (link.permanent && !link.revoked)
 			? tr::lng_manage_peer_link_permanent()
 			: tr::lng_manage_peer_link_invite());
 		peer->session().api().inviteLinks().updates(
@@ -622,7 +713,7 @@ void ShowInviteLinkBox(
 		Ui::show(Box([=](not_null<Ui::GenericBox*> box) {
 			initBox(box);
 			const auto container = box->verticalLayout();
-			AddHeader(container, peer, link);
+			AddHeader(container, peer, link, now);
 		}), Ui::LayerOption::KeepOther);
 	}
 }

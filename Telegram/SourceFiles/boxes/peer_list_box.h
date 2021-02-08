@@ -430,6 +430,7 @@ public:
 		std::unique_ptr<PeerListState> state);
 
 	virtual int contentWidth() const;
+	virtual rpl::producer<int> boxHeightValue() const;
 
 	bool isRowSelected(not_null<PeerListRow*> row) {
 		return delegate()->peerListIsRowChecked(row);

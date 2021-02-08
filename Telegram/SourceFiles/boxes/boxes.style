@@ -960,3 +960,7 @@ scheduleTimeSeparator: FlatLabel(defaultFlatLabel) {
 	}
 }
 scheduleTimeSeparatorPadding: margins(2px, 0px, 2px, 0px);
+
+boxAttentionDividerLabel: FlatLabel(boxDividerLabel) {
+	textFg: boxTextFgError;
+}

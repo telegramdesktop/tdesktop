@@ -125,7 +125,11 @@ void PeerListBox::prepare() {
 
 	_controller->setDelegate(this);
 
-	setDimensions(_controller->contentWidth(), st::boxMaxListHeight);
+	_controller->boxHeightValue(
+	) | rpl::start_with_next([=](int height) {
+		setDimensions(_controller->contentWidth(), height);
+	}, lifetime());
+
 	if (_select) {
 		_select->finishAnimating();
 		Ui::SendPendingMoveResizeEvents(_select);
@@ -330,6 +334,10 @@ void PeerListController::restoreState(
 
 int PeerListController::contentWidth() const {
 	return st::boxWideWidth;
+}
+
+rpl::producer<int> PeerListController::boxHeightValue() const {
+	return rpl::single(st::boxMaxListHeight);
 }
 
 void PeerListBox::addSelectItem(
