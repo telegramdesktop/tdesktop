@@ -508,6 +508,8 @@ PRIVATE
     dialogs/dialogs_search_from_controllers.h
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
+    editor/editor_crop.cpp
+    editor/editor_crop.h
     editor/photo_editor.cpp
     editor/photo_editor.h
     editor/photo_editor_common.cpp

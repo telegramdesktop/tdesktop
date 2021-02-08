@@ -7,15 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_content.h"
 
+#include "editor/editor_crop.h"
 #include "media/view/media_view_pip.h"
 
 namespace Editor {
+
+using Media::View::FlipSizeByRotation;
+using Media::View::RotatedRect;
 
 PhotoEditorContent::PhotoEditorContent(
 	not_null<Ui::RpWidget*> parent,
 	std::shared_ptr<QPixmap> photo,
 	PhotoModifications modifications)
 : RpWidget(parent)
+, _crop(base::make_unique_q<Crop>(this, modifications, photo->size()))
+, _photo(photo)
 , _modifications(modifications) {
 
 	rpl::combine(
@@ -23,14 +29,20 @@ PhotoEditorContent::PhotoEditorContent(
 		sizeValue()
 	) | rpl::start_with_next([=](
 			const PhotoModifications &mods, const QSize &size) {
-		const auto rotatedSize =
-			Media::View::FlipSizeByRotation(size, mods.angle);
+		if (size.isEmpty()) {
+			return;
+		}
 		const auto imageSize = [&] {
-			const auto originalSize = photo->size() / cIntRetinaFactor();
-			if ((originalSize.width() > rotatedSize.width())
-				|| (originalSize.height() > rotatedSize.height())) {
+			const auto rotatedSize =
+				FlipSizeByRotation(size, mods.angle);
+			const auto m = _crop->cropMargins();
+			const auto sizeForCrop = rotatedSize
+				- QSize(m.left() + m.right(), m.top() + m.bottom());
+			const auto originalSize = photo->size();
+			if ((originalSize.width() > sizeForCrop.width())
+				|| (originalSize.height() > sizeForCrop.height())) {
 				return originalSize.scaled(
-					rotatedSize,
+					sizeForCrop,
 					Qt::KeepAspectRatio);
 			}
 			return originalSize;
@@ -45,6 +57,11 @@ PhotoEditorContent::PhotoEditorContent(
 			_imageMatrix.scale(-1, 1);
 		}
 		_imageMatrix.rotate(mods.angle);
+
+		_crop->applyTransform(
+			_imageMatrix.mapRect(_imageRect) + _crop->cropMargins(),
+			mods.angle,
+			mods.flipped);
 	}, lifetime());
 
 	paintRequest(
@@ -63,6 +80,10 @@ void PhotoEditorContent::applyModifications(
 		PhotoModifications modifications) {
 	_modifications = std::move(modifications);
 	update();
+}
+
+QRect PhotoEditorContent::cropRect() const {
+	return _crop->saveCropRect(_imageRect, _photo->rect());
 }
 
 } // namespace Editor

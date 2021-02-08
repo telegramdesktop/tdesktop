@@ -20,7 +20,11 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 	if (mods.angle) {
 		transform.rotate(mods.angle);
 	}
-	return image.transformed(transform);
+	auto newImage = image.transformed(transform);
+	if (mods.crop.isValid()) {
+		newImage = newImage.copy(mods.crop);
+	}
+	return newImage;
 }
 
 } // namespace Editor

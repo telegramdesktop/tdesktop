@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Editor {
 
+class Crop;
+
 class PhotoEditorContent final : public Ui::RpWidget {
 public:
 	PhotoEditorContent(
@@ -21,8 +23,12 @@ public:
 		PhotoModifications modifications);
 
 	void applyModifications(PhotoModifications modifications);
+	[[nodiscard]] QRect cropRect() const;
 
 private:
+
+	const base::unique_qptr<Crop> _crop;
+	const std::shared_ptr<QPixmap> _photo;
 
 	rpl::variable<PhotoModifications> _modifications;
 

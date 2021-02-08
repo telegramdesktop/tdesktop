@@ -52,6 +52,7 @@ PhotoEditor::PhotoEditor(
 }
 
 void PhotoEditor::save() {
+	_modifications.crop = _content->cropRect();
 	_done.fire_copy(_modifications);
 }
 

@@ -12,9 +12,10 @@ namespace Editor {
 struct PhotoModifications {
 	int angle = 0;
 	bool flipped = false;
+	QRect crop;
 
 	[[nodiscard]] bool empty() const {
-		return !angle && !flipped;
+		return !angle && !flipped && !crop.isValid();
 	}
 	[[nodiscard]] explicit operator bool() const {
 		return !empty();
