@@ -377,10 +377,15 @@ void GroupCall::applySelfInCallLocally() {
 	const auto lastActive = (i != end(participants))
 		? i->lastActive
 		: TimeId(0);
+	const auto volume = (i != end(participants))
+		? i->volume
+		: Group::kDefaultVolume;
 	const auto canSelfUnmute = (muted() != MuteState::ForceMuted);
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (lastActive ? Flag::f_active_date : Flag(0))
 		| (_mySsrc ? Flag(0) : Flag::f_left)
+		| Flag::f_volume // Without flag the volume is reset to 100%.
+		| Flag::f_volume_by_admin // Self volume can only be set by admin.
 		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0));
 	call->applyUpdateChecked(
 		MTP_updateGroupCallParticipants(
@@ -393,7 +398,7 @@ void GroupCall::applySelfInCallLocally() {
 					MTP_int(date),
 					MTP_int(lastActive),
 					MTP_int(_mySsrc),
-					MTP_int(Group::kDefaultVolume))), // volume
+					MTP_int(volume))),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -410,6 +415,9 @@ void GroupCall::applyParticipantLocally(
 	using Flag = MTPDgroupCallParticipant::Flag;
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| Flag::f_volume // Without flag the volume is reset to 100%.
+		| ((participant->applyVolumeFromMin && !volume)
+			? Flag::f_volume_by_admin
+			: Flag(0))
 		| (participant->lastActive ? Flag::f_active_date : Flag(0))
 		| (!mute
 			? Flag(0)
