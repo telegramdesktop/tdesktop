@@ -33,3 +33,12 @@ PUBLIC
     desktop-app::lib_base
     desktop-app::lib_tl
 )
+
+if (CMAKE_SYSTEM_PROCESSOR STREQUAL "mips64")
+    # Sometimes final linking may fail with error "relocation truncated to fit"
+    # due to large scheme size.
+    target_compile_options(td_scheme
+    PRIVATE
+        -mxgot
+    )
+endif()
