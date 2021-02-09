@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_invite_links.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "ui/layers/generic_box.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -36,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_changes.h"
 #include "base/unixtime.h"
+#include "boxes/peers/edit_peer_info_box.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
 #include "facades.h" // Ui::showChatsList
@@ -650,6 +652,37 @@ void DeleteMessagesBox::prepare() {
 	}
 	_text.create(this, rpl::single(std::move(details)), st::boxLabel);
 
+	if (_wipeHistoryJustClear
+		&& _wipeHistoryPeer
+		&& (_wipeHistoryPeer->isUser()
+			|| _wipeHistoryPeer->isMegagroup()
+			|| _wipeHistoryPeer->isChat())) {
+		_autoDeleteSettings.create(
+			this,
+			tr::lng_edit_auto_delete_settings(tr::now),
+			st::boxLinkButton);
+		const auto peer = _wipeHistoryPeer;
+		const auto callback = crl::guard(&peer->session(), [=](TimeId period) {
+			using Flag = MTPmessages_SetHistoryTTL::Flag;
+			peer->session().api().request(MTPmessages_SetHistoryTTL(
+				MTP_flags(peer->oneSideTTL() ? Flag::f_pm_oneside : Flag(0)),
+				peer->input,
+				MTP_int(period)
+			)).done([=](const MTPUpdates &result) {
+				peer->session().api().applyUpdates(result);
+			}).fail([=](const RPCError &error) {
+			}).send();
+		});
+		_autoDeleteSettings->setClickedCallback([=] {
+			getDelegate()->show(
+				Box(
+					AutoDeleteSettingsBox,
+					_wipeHistoryPeer->myMessagesTTL(),
+					callback),
+				Ui::LayerOption(0));
+		});
+	}
+
 	addButton(
 		deleteText->value(),
 		[=] { deleteAndClear(); },
@@ -668,6 +701,9 @@ void DeleteMessagesBox::prepare() {
 		}
 	} else if (_revoke) {
 		fullHeight += st::boxMediumSkip + _revoke->heightNoMargins();
+	}
+	if (_autoDeleteSettings) {
+		fullHeight += st::boxMediumSkip + _autoDeleteSettings->height();
 	}
 	setDimensions(st::boxWidth, fullHeight);
 }
@@ -791,8 +827,8 @@ void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
 	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
+	auto top = _text->bottomNoMargins() + st::boxMediumSkip;
 	if (_moderateFrom) {
-		auto top = _text->bottomNoMargins() + st::boxMediumSkip;
 		if (_banUser) {
 			_banUser->moveToLeft(st::boxPadding.left(), top);
 			top += _banUser->heightNoMargins() + st::boxLittleSkip;
@@ -801,11 +837,17 @@ void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
 		top += _reportSpam->heightNoMargins() + st::boxLittleSkip;
 		if (_deleteAll) {
 			_deleteAll->moveToLeft(st::boxPadding.left(), top);
+			top += _deleteAll->heightNoMargins() + st::boxLittleSkip;
 		}
 	} else if (_revoke) {
 		const auto availableWidth = width() - 2 * st::boxPadding.left();
 		_revoke->resizeToNaturalWidth(availableWidth);
-		_revoke->moveToLeft(st::boxPadding.left(), _text->bottomNoMargins() + st::boxMediumSkip);
+		_revoke->moveToLeft(st::boxPadding.left(), top);
+		top += _revoke->heightNoMargins() + st::boxLittleSkip;
+	}
+	if (_autoDeleteSettings) {
+		top += st::boxMediumSkip - st::boxLittleSkip;
+		_autoDeleteSettings->moveToLeft(st::boxPadding.left(), top);
 	}
 }
 

@@ -899,36 +899,9 @@ void Controller::fillSetMessagesTTLButton() {
 		_ttlSavedValue = value;
 	});
 	const auto buttonCallback = [=] {
-		Ui::show(Box([=](not_null<Ui::GenericBox*> box) {
-			const auto options = {
-				tr::lng_manage_messages_ttl_never(tr::now),
-				tr::lng_manage_messages_ttl_after1(tr::now),
-				tr::lng_manage_messages_ttl_after2(tr::now),
-				u"5 seconds"_q, AssertIsDebug()
-			};
-			const auto initial = !*_ttlSavedValue
-				? 0
-				: (*_ttlSavedValue == 5) AssertIsDebug()
-				? 3 AssertIsDebug()
-				: (*_ttlSavedValue < 3 * 86400)
-				? 1
-				: 2;
-			const auto callback = [=](int option) {
-				boxCallback(!option
-					? 0
-					: (option == 1)
-					? 86400
-					: (option == 3) AssertIsDebug()
-					? 5 AssertIsDebug()
-					: 7 * 86400);
-			};
-			SingleChoiceBox(box, {
-				.title = tr::lng_manage_messages_ttl_title(),
-				.options = options,
-				.initialSelection = initial,
-				.callback = callback,
-			});
-		}), Ui::LayerOption::KeepOther);
+		Ui::show(
+			Box(AutoDeleteSettingsBox, *_ttlSavedValue, boxCallback),
+			Ui::LayerOption::KeepOther);
 	};
 	AddButtonWithText(
 		_controls.buttonsLayout,
@@ -1640,6 +1613,42 @@ void Controller::deleteChannel() {
 }
 
 } // namespace
+
+
+void AutoDeleteSettingsBox(
+		not_null<Ui::GenericBox*> box,
+		TimeId ttlPeriod,
+		Fn<void(TimeId)> callback) {
+	const auto options = {
+		tr::lng_manage_messages_ttl_never(tr::now),
+		tr::lng_manage_messages_ttl_after1(tr::now),
+		tr::lng_manage_messages_ttl_after2(tr::now),
+		u"5 seconds"_q, AssertIsDebug()
+	};
+	const auto initial = !ttlPeriod
+		? 0
+		: (ttlPeriod == 5) AssertIsDebug()
+		? 3 AssertIsDebug()
+		: (ttlPeriod < 3 * 86400)
+		? 1
+		: 2;
+	const auto callbackFromOption = [=](int option) {
+		const auto period = !option
+			? 0
+			: (option == 1)
+			? 86400
+			: (option == 3) AssertIsDebug()
+			? 5 AssertIsDebug()
+			: 7 * 86400;
+		callback(period);
+	};
+	SingleChoiceBox(box, {
+		.title = tr::lng_manage_messages_ttl_title(),
+		.options = options,
+		.initialSelection = initial,
+		.callback = callbackFromOption,
+	});
+}
 
 EditPeerInfoBox::EditPeerInfoBox(
 	QWidget*,

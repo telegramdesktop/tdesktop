@@ -23,6 +23,11 @@ class VerticalLayout;
 class SettingsButton;
 } // namespace Ui
 
+void AutoDeleteSettingsBox(
+	not_null<Ui::GenericBox*> box,
+	TimeId ttlPeriod,
+	Fn<void(TimeId)> callback);
+
 class EditPeerInfoBox : public Ui::BoxContent {
 public:
 	EditPeerInfoBox(

@@ -1696,6 +1696,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_delete_for_me_chat_hint#other" = "This will delete them just for you, not for other participants of the chat.";
 "lng_delete_for_me_hint#one" = "This will delete it just for you.";
 "lng_delete_for_me_hint#other" = "This will delete them just for you.";
+"lng_edit_auto_delete_settings" = "Edit Auto-Delete Settings";
 "lng_selected_unsend_about_user_one" = "You can also delete the message you sent from {user}'s inbox by checking \"Unsend my messages\".";
 "lng_selected_unsend_about_user#one" = "You can also delete the {count} message you sent from {user}'s inbox by checking \"Unsend my messages\".";
 "lng_selected_unsend_about_user#other" = "You can also delete the {count} messages you sent from {user}'s inbox by checking \"Unsend my messages\".";
