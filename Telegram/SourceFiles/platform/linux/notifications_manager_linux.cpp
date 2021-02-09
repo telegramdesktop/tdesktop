@@ -722,13 +722,13 @@ void Create(Window::Notifications::System *system) {
 		using ManagerType = Window::Notifications::ManagerType;
 		if ((Core::App().settings().nativeNotifications() && Supported())
 			|| Enforced()) {
-			if (*system->managerType() != ManagerType::Native) {
+			if (!system->managerType().has_value()
+				|| *system->managerType() != ManagerType::Native) {
 				system->setManager(std::make_unique<Manager>(system));
 			}
-		} else {
-			if (*system->managerType() != ManagerType::Default) {
-				system->setManager(nullptr);
-			}
+		} else if (!system->managerType().has_value()
+			|| *system->managerType() != ManagerType::Default) {
+			system->setManager(nullptr);
 		}
 	};
 
