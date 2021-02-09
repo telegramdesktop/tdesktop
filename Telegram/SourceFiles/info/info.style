@@ -914,6 +914,9 @@ inviteLinkList: PeerList(defaultPeerList) {
 	item: inviteLinkListItem;
 	padding: margins(0px, 4px, 0px, 4px);
 }
+inviteLinkAdminsList: PeerList(peerListBox) {
+	padding: margins(0px, 4px, 0px, membersMarginBottom);
+}
 inviteLinkIconSkip: 7px;
 inviteLinkIconStroke: 2px;
 inviteLinkIcon: icon {{ "info/edit/links_link", mediaviewFileExtFg }};

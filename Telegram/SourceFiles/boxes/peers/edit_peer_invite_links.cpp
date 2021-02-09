@@ -855,7 +855,7 @@ not_null<Ui::RpWidget*> AddAdminsList(
 	const auto controller = lifetime.make_state<AdminsController>(
 		peer,
 		admin);
-	controller->setStyleOverrides(&st::inviteLinkList);
+	controller->setStyleOverrides(&st::inviteLinkAdminsList);
 	const auto content = container->add(object_ptr<PeerListContent>(
 		container,
 		controller));
