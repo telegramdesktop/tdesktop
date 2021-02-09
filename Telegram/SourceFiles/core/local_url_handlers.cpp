@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/language_box.h"
 #include "passport/passport_form_controller.h"
 #include "window/window_session_controller.h"
+#include "ui/toast/toast.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_cloud_themes.h"
@@ -39,6 +40,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "app.h"
+
+#include <QtGui/QGuiApplication>
 
 namespace Core {
 namespace {
@@ -433,6 +436,23 @@ bool OpenMediaTimestamp(
 	return false;
 }
 
+bool ShowInviteLink(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto base64link = match->captured(1).toLatin1();
+	const auto link = QString::fromUtf8(QByteArray::fromBase64(base64link));
+	if (link.isEmpty()) {
+		return false;
+	}
+	QGuiApplication::clipboard()->setText(link);
+	Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
+	return true;
+}
+
 } // namespace
 
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
@@ -506,6 +526,10 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			qsl("^media_timestamp/?\\?base=([a-zA-Z0-9\\.\\_\\-]+)&t=(\\d+)(&|$)"),
 			OpenMediaTimestamp
+		},
+		{
+			qsl("^show_invite_link/?\\?link=([a-zA-Z0-9_\\+\\/\\=\\-]+)(&|$)"),
+			ShowInviteLink
 		},
 	};
 	return Result;

@@ -238,8 +238,8 @@ void InviteLinks::performEdit(
 	using Flag = MTPmessages_EditExportedChatInvite::Flag;
 	_api->request(MTPmessages_EditExportedChatInvite(
 		MTP_flags((revoke ? Flag::f_revoked : Flag(0))
-			| ((!revoke && expireDate) ? Flag::f_expire_date : Flag(0))
-			| ((!revoke && usageLimit) ? Flag::f_usage_limit : Flag(0))),
+			| (!revoke ? Flag::f_expire_date : Flag(0))
+			| (!revoke ? Flag::f_usage_limit : Flag(0))),
 		peer->input,
 		MTP_string(link),
 		MTP_int(expireDate),

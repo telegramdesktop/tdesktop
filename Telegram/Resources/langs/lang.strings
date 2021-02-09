@@ -2134,6 +2134,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_deleted_message" = "{from} deleted message:";
 "lng_admin_log_participant_joined" = "{from} joined the group";
 "lng_admin_log_participant_joined_channel" = "{from} joined the channel";
+"lng_admin_log_participant_joined_by_link" = "{from} joined the group via {link}";
+"lng_admin_log_participant_joined_by_link_channel" = "{from} joined the channel via {link}";
+"lng_admin_log_revoke_invite_link" = "{from} revoked invite link {link}";
+"lng_admin_log_delete_invite_link" = "{from} deleted invite link {link}";
 "lng_admin_log_participant_left" = "{from} left the group";
 "lng_admin_log_participant_left_channel" = "{from} left the channel";
 "lng_admin_log_stopped_poll" = "{from} stopped poll:";
@@ -2160,7 +2164,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_unmuted_participant" = "{from} unmuted {user} in a voice chat";
 "lng_admin_log_allowed_unmute_self" = "{from} allowed new voice chat members to speak";
 "lng_admin_log_disallowed_unmute_self" = "{from} started muting new voice chat members";
+"lng_admin_log_participant_volume" = "{from} changed voice chat volume for {user} to {percent}";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
+"lng_admin_log_messages_ttl_set" = "{from} enabled messages auto-delete after {duration}";
+"lng_admin_log_messages_ttl_changed" = "{from} changed messages auto-delete period from {previous} to {duration}";
+"lng_admin_log_messages_ttl_removed" = "{from} disabled messages auto-deletion after {duration}";
+"lng_admin_log_edited_invite_link" = "edited invite link {link}";
+"lng_admin_log_invite_link_expire_date" = "Expire date: {previous} -> {limit}";
+"lng_admin_log_invite_link_usage_limit" = "Usage limit: {previous} -> {limit}";
 "lng_admin_log_restricted_forever" = "indefinitely";
 "lng_admin_log_restricted_until" = "until {date}";
 "lng_admin_log_banned_view_messages" = "Read messages";
