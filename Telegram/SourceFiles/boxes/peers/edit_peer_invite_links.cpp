@@ -691,6 +691,7 @@ void LinksController::rowPaintIcon(
 		}
 		Unexpected("Color in LinksController::rowPaintIcon.");
 	}();
+	const auto stroke = st::inviteLinkIconStroke;
 	auto &icon = _icons[int(color)];
 	if (icon.isNull()) {
 		icon = QImage(
@@ -703,12 +704,17 @@ void LinksController::rowPaintIcon(
 		p.setPen(Qt::NoPen);
 		p.setBrush(*bg);
 		auto hq = PainterHighQualityEnabler(p);
-		p.drawEllipse(0, 0, inner, inner);
-		st::inviteLinkIcon.paintInCenter(p, { 0, 0, inner, inner });
+		auto rect = QRect(0, 0, inner, inner);
+		if (color == Color::Expiring || color == Color::ExpireSoon) {
+			rect = rect.marginsRemoved({ stroke, stroke, stroke, stroke });
+		}
+		p.drawEllipse(rect);
+		(color == Color::Revoked
+			? st::inviteLinkRevokedIcon
+			: st::inviteLinkIcon).paintInCenter(p, { 0, 0, inner, inner });
 	}
 	p.drawImage(x + skip, y + skip, icon);
 	if (progress >= 0. && progress < 1.) {
-		const auto stroke = st::inviteLinkIconStroke;
 		auto hq = PainterHighQualityEnabler(p);
 		auto pen = QPen((*bg)->c);
 		pen.setWidth(stroke);
@@ -716,7 +722,7 @@ void LinksController::rowPaintIcon(
 		p.setPen(pen);
 		p.setBrush(Qt::NoBrush);
 
-		const auto margins = 1.5 * stroke;
+		const auto margins = .5 * stroke;
 		p.drawArc(QRectF(x + skip, y + skip, inner, inner).marginsAdded({
 			margins,
 			margins,

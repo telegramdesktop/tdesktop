@@ -1229,11 +1229,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_custom_limit" = "Enter custom limit";
 "lng_group_invite_usage_any" = "No limit";
 "lng_group_invite_usage_custom" = "Custom";
-"lng_group_invite_other_title" = "Invite links created by other admins";
+"lng_group_invite_other_title" = "Links created by other admins";
 "lng_group_invite_other_count#one" = "{count} invite link";
 "lng_group_invite_other_count#other" = "{count} invite links";
 "lng_group_invite_permanent_other" = "Permanent link of this admin";
-"lng_group_invite_other_list" = "Invite links created by this admin";
+"lng_group_invite_other_list" = "Links created by this admin";
 "lng_group_invite_expired_about" = "The time limit for this link has expired.";
 "lng_group_invite_used_about" = "This link reached its usage limit.";
 "lng_group_invite_can_join_via_link#one" = "{count} person can join via this link.";

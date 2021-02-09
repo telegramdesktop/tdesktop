@@ -865,9 +865,11 @@ void ShowInviteLinkBox(
 				return;
 			}
 			const auto now = base::unixtime::now();
-			box->setTitle(IsExpiredLink(link, now)
+			box->setTitle(link.revoked
+				? tr::lng_manage_peer_link_invite()
+				: IsExpiredLink(link, now)
 				? tr::lng_manage_peer_link_expired()
-				: (link.permanent && !link.revoked)
+				: link.permanent
 				? tr::lng_manage_peer_link_permanent()
 				: tr::lng_manage_peer_link_invite());
 		}, box->lifetime());
