@@ -21,6 +21,10 @@ void AddReactivateLinkButton(
 	not_null<VerticalLayout*> container,
 	Fn<void()> editLink);
 
+void AddDeleteLinkButton(
+	not_null<VerticalLayout*> container,
+	Fn<void()> deleteLink);
+
 struct JoinedCountContent {
 	int count = 0;
 	QImage userpics;

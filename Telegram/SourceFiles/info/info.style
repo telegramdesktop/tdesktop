@@ -872,6 +872,10 @@ inviteLinkReactivate: RoundButton(inviteLinkCopy) {
 	icon: icon {{ "info/edit/links_reactivate", activeButtonFg }};
 	iconOver: icon {{ "info/edit/links_reactivate", activeButtonFgOver }};
 }
+inviteLinkDelete: RoundButton(inviteLinkCopy) {
+	icon: icon {{ "info/edit/links_delete", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_delete", activeButtonFgOver }};
+}
 inviteLinkUserpics: GroupCallUserpics {
 	size: 28px;
 	shift: 6px;

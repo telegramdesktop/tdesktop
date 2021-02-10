@@ -195,28 +195,6 @@ private:
 	return result;
 }
 
-void DeleteLink(
-		not_null<PeerData*> peer,
-		not_null<UserData*> admin,
-		const QString &link) {
-	const auto box = std::make_shared<QPointer<ConfirmBox>>();
-	const auto sure = [=] {
-		const auto finish = [=] {
-			if (*box) {
-				(*box)->closeBox();
-			}
-		};
-		peer->session().api().inviteLinks().destroy(
-			peer,
-			admin,
-			link,
-			finish);
-	};
-	*box = Ui::show(
-		Box<ConfirmBox>(tr::lng_group_invite_delete_sure(tr::now), sure),
-		Ui::LayerOption::KeepOther);
-}
-
 void DeleteAllRevoked(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin) {

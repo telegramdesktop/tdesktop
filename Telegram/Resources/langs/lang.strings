@@ -1188,6 +1188,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_share" = "Share Link";
 "lng_group_invite_revoke" = "Revoke Link";
 "lng_group_invite_reactivate" = "Reactivate Link";
+"lng_group_invite_delete" = "Delete Link";
 "lng_group_invite_no_joined" = "No one joined yet";
 "lng_group_invite_joined#one" = "{count} joined";
 "lng_group_invite_joined#other" = "{count} joined";

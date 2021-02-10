@@ -137,6 +137,7 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	using namespace Settings;
 
 	const auto current = _data.current();
+	const auto revoked = current.revoked;
 	const auto link = current.link;
 	const auto admin = current.admin;
 	const auto weak = Ui::MakeWeak(container);
@@ -152,21 +153,30 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	const auto editLink = crl::guard(weak, [=] {
 		EditLink(_peer, _data.current());
 	});
+	const auto deleteLink = [=] {
+		DeleteLink(_peer, admin, link);
+	};
 
 	const auto createMenu = [=] {
 		auto result = base::make_unique_q<Ui::PopupMenu>(container);
-		result->addAction(
-			tr::lng_group_invite_context_copy(tr::now),
-			copyLink);
-		result->addAction(
-			tr::lng_group_invite_context_share(tr::now),
-			shareLink);
-		result->addAction(
-			tr::lng_group_invite_context_edit(tr::now),
-			editLink);
-		result->addAction(
-			tr::lng_group_invite_context_revoke(tr::now),
-			revokeLink);
+		if (revoked) {
+			result->addAction(
+				tr::lng_group_invite_context_delete(tr::now),
+				deleteLink);
+		} else {
+			result->addAction(
+				tr::lng_group_invite_context_copy(tr::now),
+				copyLink);
+			result->addAction(
+				tr::lng_group_invite_context_share(tr::now),
+				shareLink);
+			result->addAction(
+				tr::lng_group_invite_context_edit(tr::now),
+				editLink);
+			result->addAction(
+				tr::lng_group_invite_context_revoke(tr::now),
+				revokeLink);
+		}
 		return result;
 	};
 
@@ -197,6 +207,9 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 
 	AddReactivateLinkButton(reactivateWrap->entity(), editLink);
 	AddCopyShareLinkButtons(copyShareWrap->entity(), copyLink, shareLink);
+	if (revoked) {
+		AddDeleteLinkButton(container, deleteLink);
+	}
 
 	AddSkip(container, st::inviteLinkJoinedRowPadding.bottom() * 2);
 
@@ -242,19 +255,19 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	) | rpl::start_with_next([=](const LinkData &data) {
 		const auto now = base::unixtime::now();
 		const auto expired = IsExpiredLink(data, now);
-		reactivateWrap->toggle(expired, anim::type::instant);
-		copyShareWrap->toggle(!expired, anim::type::instant);
+		reactivateWrap->toggle(!revoked && expired, anim::type::instant);
+		copyShareWrap->toggle(!revoked && !expired, anim::type::instant);
 
 		const auto timeExpired = (data.expireDate > 0)
 			&& (data.expireDate <= now);
 		const auto usageExpired = (data.usageLimit > 0)
 			&& (data.usageLimit <= data.usage);
-		redLabelWrap->toggle(timeExpired, anim::type::instant);
+		redLabelWrap->toggle(!revoked && timeExpired, anim::type::instant);
 		grayLabelWrap->toggle(
-			!timeExpired && (data.expireDate > 0 || usageExpired),
+			!revoked && !timeExpired && (data.expireDate > 0 || usageExpired),
 			anim::type::instant);
 		justDividerWrap->toggle(
-			!data.expireDate && !expired,
+			revoked || (!data.expireDate && !expired),
 			anim::type::instant);
 	}, lifetime());
 }
@@ -266,7 +279,8 @@ void Controller::prepare() {
 	const auto container = header.data();
 
 	const auto current = _data.current();
-	if (!current.revoked && !current.permanent) {
+	const auto revoked = current.revoked;
+	if (revoked || !current.permanent) {
 		addHeaderBlock(container);
 	}
 	AddSubsectionTitle(
@@ -296,7 +310,7 @@ void Controller::prepare() {
 		const auto now = base::unixtime::now();
 		const auto timeExpired = (data.expireDate > 0)
 			&& (data.expireDate <= now);
-		if (!data.usage && data.usageLimit > 0 && !timeExpired) {
+		if (!revoked && !data.usage && data.usageLimit > 0 && !timeExpired) {
 			auto description = object_ptr<Ui::FlatLabel>(
 				nullptr,
 				tr::lng_group_invite_can_join_via_link(
@@ -320,7 +334,7 @@ void Controller::prepare() {
 			delegate()->peerListSetDescription(nullptr);
 		}
 		listHeaderWrap->toggle(
-			data.usage || (data.usageLimit > 0 && !timeExpired),
+			!revoked && (data.usage || (data.usageLimit > 0 && !timeExpired)),
 			anim::type::instant);
 		delegate()->peerListRefreshRows();
 		return data.usage
@@ -351,7 +365,7 @@ void Controller::prepare() {
 			(data.usageLimit && (data.usageLimit <= data.usage)
 				? std::make_optional(st::boxTextFgError->c)
 				: std::nullopt));
-		if (!data.usage && data.usageLimit > 0) {
+		if (revoked || (!data.usage && data.usageLimit > 0)) {
 			remaining->hide();
 		} else {
 			remaining->show();
@@ -836,6 +850,28 @@ void RevokeLink(
 		Ui::LayerOption::KeepOther);
 }
 
+void DeleteLink(
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
+		const QString &link) {
+	const auto box = std::make_shared<QPointer<ConfirmBox>>();
+	const auto sure = [=] {
+		const auto finish = [=] {
+			if (*box) {
+				(*box)->closeBox();
+			}
+		};
+		peer->session().api().inviteLinks().destroy(
+			peer,
+			admin,
+			link,
+			finish);
+	};
+	*box = Ui::show(
+		Box<ConfirmBox>(tr::lng_group_invite_delete_sure(tr::now), sure),
+		Ui::LayerOption::KeepOther);
+}
+
 void ShowInviteLinkBox(
 		not_null<PeerData*> peer,
 		const Api::InviteLink &link) {
@@ -851,9 +887,7 @@ void ShowInviteLinkBox(
 	}) | rpl::map([=](const Api::InviteLinkUpdate &update) {
 		return update.now ? *update.now : LinkData{ .admin = admin };
 	});
-	auto data = revoked
-		? rpl::single(link) | rpl::type_erased()
-		: rpl::single(link) | rpl::then(std::move(updates));
+	auto data = rpl::single(link) | rpl::then(std::move(updates));
 
 	auto initBox = [=, data = rpl::duplicate(data)](
 			not_null<Ui::BoxContent*> box) {

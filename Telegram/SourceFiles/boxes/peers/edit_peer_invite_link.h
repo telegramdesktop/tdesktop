@@ -41,6 +41,10 @@ void RevokeLink(
 void EditLink(
 	not_null<PeerData*> peer,
 	const Api::InviteLink &data);
+void DeleteLink(
+	not_null<PeerData*> peer,
+	not_null<UserData*> admin,
+	const QString &link);
 
 void ShowInviteLinkBox(
 	not_null<PeerData*> peer,
