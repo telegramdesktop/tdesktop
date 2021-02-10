@@ -2089,6 +2089,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_filter_messages_edited" = "Edited messages";
 "lng_admin_log_filter_messages_pinned" = "Pinned messages";
 "lng_admin_log_filter_voice_chats" = "Voice chat";
+"lng_admin_log_filter_invite_links" = "Invite links";
 "lng_admin_log_filter_members_removed" = "Leaving members";
 "lng_admin_log_filter_all_admins" = "All users and admins";
 "lng_admin_log_about" = "What is this?";
