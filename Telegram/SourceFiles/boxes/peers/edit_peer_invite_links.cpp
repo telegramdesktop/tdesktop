@@ -867,12 +867,9 @@ void ManageInviteLinksBox(
 		count);
 
 	if (!admin->isSelf()) {
-		auto status = countValue->value() | rpl::map([](int count) {
-			// #TODO links
-			return (count == 1)
-				? "1 link"
-				: QString::number(count) + " links";
-		});
+		auto status = tr::lng_group_invite_links_count(
+			lt_count,
+			countValue->value() | tr::to_count());
 		AddSinglePeerRow(
 			container,
 			admin,
