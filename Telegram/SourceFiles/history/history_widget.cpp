@@ -3996,7 +3996,7 @@ void HistoryWidget::moveFieldControls() {
 // (_botStart|_unblock|_joinChannel|_muteUnmute)
 
 	auto buttonsBottom = bottom - _attachToggle->height();
-	auto left = 0;
+	auto left = st::historySendRight;
 	_attachToggle->moveToLeft(left, buttonsBottom); left += _attachToggle->width();
 	_field->moveToLeft(left, bottom - _field->height() - st::historySendPadding);
 	auto right = st::historySendRight;

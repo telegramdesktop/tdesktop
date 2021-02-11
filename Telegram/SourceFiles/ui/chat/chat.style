@@ -281,22 +281,21 @@ historyContactStatusMinSkip: 16px;
 
 historySendIcon: icon {{ "send_control_send", historySendIconFg }};
 historySendIconOver: icon {{ "send_control_send", historySendIconFgOver }};
-historySendIconPosition: point(11px, 11px);
-historySendSize: size(46px, 46px);
+historySendIconPosition: point(10px, 11px);
+historySendSize: size(44px, 46px);
 historyScheduleIcon: icon {{ "send_control_schedule", historyComposeAreaBg }};
-historyScheduleIconPosition: point(8px, 8px);
-historyEditSaveIcon: icon {{ "send_control_save", historySendIconFg, point(3px, 7px) }};
-historyEditSaveIconOver: icon {{ "send_control_save", historySendIconFgOver, point(3px, 7px) }};
+historyScheduleIconPosition: point(7px, 8px);
+historyEditSaveIcon: icon {{ "send_control_save", historySendIconFg, point(2px, 7px) }};
+historyEditSaveIconOver: icon {{ "send_control_save", historySendIconFgOver, point(2px, 7px) }};
 
-historyAttach: IconButton {
-	width: 46px;
+historyAttach: IconButton(defaultIconButton) {
+	width: 44px;
 	height: 46px;
 
-	icon: icon {{ "send_control_attach", historyComposeIconFg }};
-	iconOver: icon {{ "send_control_attach", historyComposeIconFgOver }};
-	iconPosition: point(11px, 11px);
+	icon: icon {{ "chat/input_attach", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_attach", historyComposeIconFgOver }};
 
-	rippleAreaPosition: point(3px, 3px);
+	rippleAreaPosition: point(2px, 3px);
 	rippleAreaSize: 40px;
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;
@@ -306,15 +305,13 @@ historyAttach: IconButton {
 historyAttachEmoji: IconButton(historyAttach) {
 	icon: icon {{ "send_control_emoji", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_emoji", historyComposeIconFgOver }};
-	iconPosition: point(-1px, -1px);
 }
 historyMessagesTTL: IconButton(historyAttach) {
-	icon: icon {{ "chat/send_control_autodelete_1d", historyComposeIconFg }};
-	iconOver: icon {{ "chat/send_control_autodelete_1d", historyComposeIconFgOver }};
-	iconPosition: point(-1px, -1px);
+	icon: icon {{ "chat/input_autodelete_1d", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_autodelete_1d", historyComposeIconFgOver }};
 }
-historyMessagesTTL2Icon: icon {{ "chat/send_control_autodelete_7d", historyComposeIconFg }};
-historyMessagesTTL2IconOver: icon {{ "chat/send_control_autodelete_7d", historyComposeIconFgOver }};
+historyMessagesTTL2Icon: icon {{ "chat/input_autodelete_7d", historyComposeIconFg }};
+historyMessagesTTL2IconOver: icon {{ "chat/input_autodelete_7d", historyComposeIconFgOver }};
 historyAttachEmojiFgActive: windowActiveTextFg;
 historyAttachEmojiActive: icon {{ "send_control_emoji", historyAttachEmojiFgActive }};
 historyAttachEmojiTooltipDelta: 4px;
@@ -327,28 +324,26 @@ historyEmojiCircleFg: historyComposeIconFg;
 historyEmojiCircleFgOver: historyComposeIconFgOver;
 historyEmojiCirclePart: 3.5;
 historyBotKeyboardShow: IconButton(historyAttach) {
-	icon: icon {{ "send_control_bot_keyboard", historyComposeIconFg }};
-	iconOver: icon {{ "send_control_bot_keyboard", historyComposeIconFgOver }};
+	icon: icon {{ "chat/input_bot_keyboard", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_bot_keyboard", historyComposeIconFgOver }};
 }
 historyBotKeyboardHide: IconButton(historyAttach) {
-	icon: icon {{ "send_control_bot_keyboard_hide", historyComposeIconFg }};
-	iconOver: icon {{ "send_control_bot_keyboard_hide", historyComposeIconFgOver }};
-	iconPosition: point(11px, 16px);
+	icon: icon {{ "chat/input_bot_keyboard_hide", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_bot_keyboard_hide", historyComposeIconFgOver }};
 }
 historyBotCommandStart: IconButton(historyAttach) {
-	icon: icon {{ "send_control_bot_command", historyComposeIconFg }};
-	iconOver: icon {{ "send_control_bot_command", historyComposeIconFgOver }};
+	icon: icon {{ "chat/input_bot_command", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_bot_command", historyComposeIconFgOver }};
 }
 historyScheduledToggle: IconButton(historyAttach) {
 	icon: icon {
-		{ "send_control_scheduled", historyComposeIconFg },
-		{ "send_control_scheduled_dot", attentionButtonFg }
+		{ "chat/input_scheduled", historyComposeIconFg },
+		{ "chat/input_scheduled_dot", attentionButtonFg }
 	};
 	iconOver: icon {
-		{ "send_control_scheduled", historyComposeIconFgOver },
-		{ "send_control_scheduled_dot", attentionButtonFg }
+		{ "chat/input_scheduled", historyComposeIconFgOver },
+		{ "chat/input_scheduled_dot", attentionButtonFg }
 	};
-	iconPosition: point(-1px, -1px);
 }
 
 historyRecordVoiceFg: historyComposeIconFg;
@@ -358,8 +353,8 @@ historyRecordVoiceFgActive: windowBgActive;
 historyRecordVoiceFgActiveIcon: windowFgActive;
 historyRecordVoiceShowDuration: 120;
 historyRecordVoiceDuration: 120;
-historyRecordVoice: icon {{ "send_control_record", historyRecordVoiceFg }};
-historyRecordVoiceOver: icon {{ "send_control_record", historyRecordVoiceFgOver }};
+historyRecordVoice: icon {{ "chat/input_record", historyRecordVoiceFg }};
+historyRecordVoiceOver: icon {{ "chat/input_record", historyRecordVoiceFgOver }};
 historyRecordVoiceActive: icon {{ "send_control_record_active", historyRecordVoiceFgActiveIcon }};
 historyRecordSendIconPosition: point(2px, 0px);
 historyRecordVoiceRippleBgActive: lightButtonBgOver;
@@ -410,6 +405,7 @@ historyRecordLockRippleMargin: margins(6px, 6px, 6px, 6px);
 historyRecordDelete: IconButton(historyAttach) {
 	icon: icon {{ "info_media_delete", historyComposeIconFg }};
 	iconOver: icon {{ "info_media_delete", historyComposeIconFgOver }};
+	iconPosition: point(10px, 11px);
 }
 historyRecordWaveformRightSkip: 10px;
 historyRecordWaveformBgMargins: margins(5px, 7px, 5px, 7px);
@@ -422,13 +418,13 @@ historyRecordCancelButtonWidth: 100px;
 historyRecordCancelButtonFg: lightButtonFg;
 
 historySilentToggle: IconButton(historyBotKeyboardShow) {
-	icon: icon {{ "send_control_silent_off", historyComposeIconFg }};
-	iconOver: icon {{ "send_control_silent_off", historyComposeIconFgOver }};
+	icon: icon {{ "chat/input_silent", historyComposeIconFg }};
+	iconOver: icon {{ "chat/input_silent", historyComposeIconFgOver }};
 }
 
 historySilentToggleCrossLine: CrossLineAnimation {
 	fg: historyComposeIconFg;
-	icon: icon {{ "send_control_silent_off", historyComposeIconFg }};
+	icon: icon {{ "chat/input_silent", historyComposeIconFg }};
 	startPosition: point(5px, 3px);
 	endPosition: point(21px, 18px);
 	stroke: 2px;

@@ -1047,6 +1047,7 @@ void ComposeControls::init() {
 }
 
 void ComposeControls::orderControls() {
+	_voiceRecordBar->raise();
 	_send->raise();
 }
 
@@ -1764,7 +1765,7 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 
 	const auto buttonsTop = size.height() - _attachToggle->height();
 
-	auto left = 0;
+	auto left = st::historySendRight;
 	_attachToggle->moveToLeft(left, buttonsTop);
 	left += _attachToggle->width();
 	_field->moveToLeft(
@@ -1844,6 +1845,7 @@ void ComposeControls::updateMessagesTTLShown() {
 		updateControlsGeometry(_wrap->size());
 	} else if (shown && !_ttlInfo) {
 		_ttlInfo = std::make_unique<Controls::TTLButton>(_wrap.get(), peer);
+		orderControls();
 		updateControlsVisibility();
 		updateControlsGeometry(_wrap->size());
 	}
