@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "history/admin_log/history_admin_log_section.h"
+#include "history/view/controls/history_view_ttl_button.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -315,7 +316,6 @@ private:
 		std::optional<QString> title;
 		std::optional<QString> description;
 		std::optional<bool> hiddenPreHistory;
-		std::optional<TimeId> messagesTTL;
 		std::optional<bool> signatures;
 		std::optional<ChannelData*> linkedChat;
 	};
@@ -351,7 +351,6 @@ private:
 	bool validateTitle(Saving &to) const;
 	bool validateDescription(Saving &to) const;
 	bool validateHistoryVisibility(Saving &to) const;
-	bool validateMessagesTTL(Saving &to) const;
 	bool validateSignatures(Saving &to) const;
 
 	void save();
@@ -360,7 +359,6 @@ private:
 	void saveTitle();
 	void saveDescription();
 	void saveHistoryVisibility();
-	void saveMessagesTTL();
 	void saveSignatures();
 	void savePhoto();
 	void pushSaveStage(FnMut<void()> &&lambda);
@@ -377,7 +375,6 @@ private:
 	void migrate(not_null<ChannelData*> channel);
 
 	std::optional<Privacy> _privacySavedValue;
-	std::optional<TimeId> _ttlSavedValue;
 	std::optional<ChannelData*> _linkedChatSavedValue;
 	ChannelData *_linkedChatOriginalValue = nullptr;
 	bool _channelHasLocationOriginalValue = false;
@@ -889,36 +886,30 @@ void Controller::fillHistoryVisibilityButton() {
 void Controller::fillSetMessagesTTLButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
-	_ttlSavedValue = _peer->messagesTTL();
+	auto label = _peer->session().changes().peerFlagsValue(
+		_peer,
+		Data::PeerUpdate::Flag::MessagesTTL
+	) | rpl::map([=] {
+		const auto period = _peer->messagesTTL();
+		return !period
+			? tr::lng_manage_messages_ttl_never()
+			: (period == 5) // for debugging
+			? rpl::single<QString>("5 seconds") // for debugging
+			: (period < 3 * 86400)
+			? tr::lng_manage_messages_ttl_after1()
+			: tr::lng_manage_messages_ttl_after2();
+	}) | rpl::flatten_latest();
 
-	const auto updateMessagesTTL =
-		std::make_shared<rpl::event_stream<TimeId>>();
-
-	const auto boxCallback = crl::guard(this, [=](TimeId value) {
-		updateMessagesTTL->fire_copy(value);
-		_ttlSavedValue = value;
-	});
 	const auto buttonCallback = [=] {
 		Ui::show(
-			Box(AutoDeleteSettingsBox, *_ttlSavedValue, boxCallback),
+			Box(HistoryView::Controls::AutoDeleteSettingsBox, _peer),
 			Ui::LayerOption::KeepOther);
 	};
 	AddButtonWithText(
 		_controls.buttonsLayout,
 		tr::lng_manage_messages_ttl_title(),
-		updateMessagesTTL->events(
-		) | rpl::map([](TimeId value) {
-			return !value
-				? tr::lng_manage_messages_ttl_never()
-				: (value == 5) AssertIsDebug()
-				? rpl::single<QString>("5 seconds") AssertIsDebug()
-				: (value < 3 * 86400)
-				? tr::lng_manage_messages_ttl_after1()
-				: tr::lng_manage_messages_ttl_after2();
-		}) | rpl::flatten_latest(),
+		std::move(label),
 		buttonCallback);
-
-	updateMessagesTTL->fire_copy(*_ttlSavedValue);
 }
 
 void Controller::fillManageSection() {
@@ -945,9 +936,11 @@ void Controller::fillManageSection() {
 			: chat->canEditPreHistoryHidden();
 	}();
 	const auto canSetMessagesTTL = [&] {
+		// Leave this entry point only for channels for now.
+		// Groups and users have their entry point in 'Clear History' box.
 		return isChannel
-			? channel->canDeleteMessages()
-			: chat->canDeleteMessages();
+			&& !channel->isMegagroup()
+			&& channel->canDeleteMessages();
 	}();
 
 	const auto canEditPermissions = [&] {
@@ -1184,7 +1177,6 @@ std::optional<Controller::Saving> Controller::validate() const {
 		&& validateTitle(result)
 		&& validateDescription(result)
 		&& validateHistoryVisibility(result)
-		&& validateMessagesTTL(result)
 		&& validateSignatures(result)) {
 		return result;
 	}
@@ -1252,14 +1244,6 @@ bool Controller::validateHistoryVisibility(Saving &to) const {
 	return true;
 }
 
-bool Controller::validateMessagesTTL(Saving &to) const {
-	if (!_ttlSavedValue) {
-		return true;
-	}
-	to.messagesTTL = _ttlSavedValue;
-	return true;
-}
-
 bool Controller::validateSignatures(Saving &to) const {
 	if (!_signaturesSavedValue.has_value()) {
 		return true;
@@ -1281,7 +1265,6 @@ void Controller::save() {
 		pushSaveStage([=] { saveTitle(); });
 		pushSaveStage([=] { saveDescription(); });
 		pushSaveStage([=] { saveHistoryVisibility(); });
-		pushSaveStage([=] { saveMessagesTTL(); });
 		pushSaveStage([=] { saveSignatures(); });
 		pushSaveStage([=] { savePhoto(); });
 		continueSave();
@@ -1489,24 +1472,6 @@ void Controller::saveHistoryVisibility() {
 		[=] { cancelSave(); });
 }
 
-void Controller::saveMessagesTTL() {
-	if (!_savingData.messagesTTL
-		|| *_savingData.messagesTTL == _peer->messagesTTL()) {
-		return continueSave();
-	}
-	using Flag = MTPmessages_SetHistoryTTL::Flag;
-	_api.request(MTPmessages_SetHistoryTTL(
-		MTP_flags(_peer->oneSideTTL() ? Flag::f_pm_oneside : Flag(0)),
-		_peer->input,
-		MTP_int(*_savingData.messagesTTL)
-	)).done([=](const MTPUpdates &result) {
-		_peer->session().api().applyUpdates(result);
-		continueSave();
-	}).fail([=](const RPCError &error) {
-		cancelSave();
-	}).send();
-}
-
 void Controller::togglePreHistoryHidden(
 		not_null<ChannelData*> channel,
 		bool hidden,
@@ -1614,41 +1579,6 @@ void Controller::deleteChannel() {
 
 } // namespace
 
-
-void AutoDeleteSettingsBox(
-		not_null<Ui::GenericBox*> box,
-		TimeId ttlPeriod,
-		Fn<void(TimeId)> callback) {
-	const auto options = {
-		tr::lng_manage_messages_ttl_never(tr::now),
-		tr::lng_manage_messages_ttl_after1(tr::now),
-		tr::lng_manage_messages_ttl_after2(tr::now),
-		u"5 seconds"_q, AssertIsDebug()
-	};
-	const auto initial = !ttlPeriod
-		? 0
-		: (ttlPeriod == 5) AssertIsDebug()
-		? 3 AssertIsDebug()
-		: (ttlPeriod < 3 * 86400)
-		? 1
-		: 2;
-	const auto callbackFromOption = [=](int option) {
-		const auto period = !option
-			? 0
-			: (option == 1)
-			? 86400
-			: (option == 3) AssertIsDebug()
-			? 5 AssertIsDebug()
-			: 7 * 86400;
-		callback(period);
-	};
-	SingleChoiceBox(box, {
-		.title = tr::lng_manage_messages_ttl_title(),
-		.options = options,
-		.initialSelection = initial,
-		.callback = callbackFromOption,
-	});
-}
 
 EditPeerInfoBox::EditPeerInfoBox(
 	QWidget*,

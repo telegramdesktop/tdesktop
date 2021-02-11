@@ -7,15 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/text/text_entity.h"
+#include "ui/layers/generic_box.h"
 
 namespace Ui {
 
-struct MultilineToastArgs {
-	TextWithEntities text;
-	crl::time duration = 0;
-};
-
-void ShowMultilineToast(MultilineToastArgs &&args);
+void AutoDeleteSettingsBox(
+	not_null<Ui::GenericBox*> box,
+	TimeId ttlMyPeriod,
+	TimeId ttlPeerPeriod,
+	bool ttlOneSide,
+	std::optional<QString> userFirstName,
+	Fn<void(TimeId, bool)> callback);
 
 } // namespace Ui

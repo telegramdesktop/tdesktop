@@ -971,7 +971,7 @@ void PeerData::applyMessagesTTL(const MTPPeerHistoryTTL &ttl) {
 	ttl.match([&](const MTPDpeerHistoryTTL &data) {
 		setMessagesTTL(
 			data.vttl_period().v,
-			data.vttl_period().v,
+			0,
 			false);
 	}, [&](const MTPDpeerHistoryTTLPM &data) {
 		setMessagesTTL(

@@ -858,6 +858,7 @@ void ManageInviteLinksBox(
 	using namespace Settings;
 
 	box->setTitle(tr::lng_group_invite_title());
+	box->setWidth(st::boxWideWidth);
 
 	const auto container = box->verticalLayout();
 	const auto permanentFromList = box->lifetime().make_state<

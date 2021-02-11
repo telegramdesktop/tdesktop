@@ -9,7 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/buttons.h"
 
+namespace Ui {
+class GenericBox;
+} // namespace Ui
+
 namespace HistoryView::Controls {
+
+void AutoDeleteSettingsBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<PeerData*> peer);
 
 class TTLButton final {
 public:

@@ -64,6 +64,8 @@ PRIVATE
     platform/mac/file_bookmark_mac.mm
     platform/platform_file_bookmark.h
 
+    ui/boxes/auto_delete_settings.cpp
+    ui/boxes/auto_delete_settings.h
     ui/boxes/calendar_box.cpp
     ui/boxes/calendar_box.h
     ui/boxes/choose_date_time.cpp

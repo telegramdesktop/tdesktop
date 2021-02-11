@@ -37,7 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_changes.h"
 #include "base/unixtime.h"
-#include "boxes/peers/edit_peer_info_box.h"
+#include "history/view/controls/history_view_ttl_button.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
 #include "facades.h" // Ui::showChatsList
@@ -657,28 +657,16 @@ void DeleteMessagesBox::prepare() {
 		&& (_wipeHistoryPeer->isUser()
 			|| _wipeHistoryPeer->isMegagroup()
 			|| _wipeHistoryPeer->isChat())) {
+		_wipeHistoryPeer->updateFull();
 		_autoDeleteSettings.create(
 			this,
 			tr::lng_edit_auto_delete_settings(tr::now),
 			st::boxLinkButton);
-		const auto peer = _wipeHistoryPeer;
-		const auto callback = crl::guard(&peer->session(), [=](TimeId period) {
-			using Flag = MTPmessages_SetHistoryTTL::Flag;
-			peer->session().api().request(MTPmessages_SetHistoryTTL(
-				MTP_flags(peer->oneSideTTL() ? Flag::f_pm_oneside : Flag(0)),
-				peer->input,
-				MTP_int(period)
-			)).done([=](const MTPUpdates &result) {
-				peer->session().api().applyUpdates(result);
-			}).fail([=](const RPCError &error) {
-			}).send();
-		});
 		_autoDeleteSettings->setClickedCallback([=] {
 			getDelegate()->show(
 				Box(
-					AutoDeleteSettingsBox,
-					_wipeHistoryPeer->myMessagesTTL(),
-					callback),
+					HistoryView::Controls::AutoDeleteSettingsBox,
+					_wipeHistoryPeer),
 				Ui::LayerOption(0));
 		});
 	}
@@ -703,7 +691,7 @@ void DeleteMessagesBox::prepare() {
 		fullHeight += st::boxMediumSkip + _revoke->heightNoMargins();
 	}
 	if (_autoDeleteSettings) {
-		fullHeight += st::boxMediumSkip + _autoDeleteSettings->height();
+		fullHeight += st::boxMediumSkip + _autoDeleteSettings->height() + st::boxLittleSkip;
 	}
 	setDimensions(st::boxWidth, fullHeight);
 }

@@ -99,18 +99,22 @@ MenuSpeedItem::MenuSpeedItem(
 		return anim::interpolate(kMinSpeed, kMaxSpeed, value) / 100.;
 	};
 	const auto speedString = [=](float64 value) {
-		return u"%1: %2x"_q
-			.arg(tr::lng_mediaview_playback_speed(tr::now))
-			.arg(QString::number(computeSpeed(value), 'f', 2));
+		return tr::lng_mediaview_playback_speed(
+			tr::now,
+			lt_speed,
+			QString::number(computeSpeed(value), 'f', 2) + 'x');
 	};
 
 	_slider->setAlwaysDisplayMarker(true);
 	_slider->setValue((std::round(startSpeed * 100.) - kMinSpeed)
 		/ (kMaxSpeed - kMinSpeed));
 
-	_slider->addDivider(
-		kSpeedStickedValues[1].first,
-		st::speedSliderDividerSize);
+	for (const auto &sticked : kSpeedStickedValues) {
+		_slider->addDivider(sticked.first, st::speedSliderDividerSize);
+	}
+	//_slider->addDivider(
+	//	kSpeedStickedValues[1].first,
+	//	st::speedSliderDividerSize);
 
 	{
 		const auto goodWidth = st.itemPadding.left()
