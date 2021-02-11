@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
+#include "ui/controls/delete_message_context_action.h"
 #include "ui/ui_utility.h"
 #include "chat_helpers/send_context_menu.h"
 #include "boxes/confirm_box.h"
@@ -740,15 +741,19 @@ bool AddDeleteMessageAction(
 			Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 		}
 	});
-	const auto text = [&] {
-		if (const auto message = item->toHistoryMessage()) {
-			if (message->uploading()) {
-				return tr::lng_context_cancel_upload;
-			}
+	if (const auto message = item->toHistoryMessage()) {
+		if (message->uploading()) {
+			menu->addAction(
+				tr::lng_context_cancel_upload(tr::now),
+				callback);
+			return true;
 		}
-		return tr::lng_context_delete_msg;
-	}()(tr::now);
-	menu->addAction(text, callback);
+	}
+	menu->addAction(Ui::DeleteMessageContextAction(
+		menu->menu(),
+		callback,
+		item->ttlDestroyAt(),
+		[=] { delete menu; }));
 	return true;
 }
 

@@ -877,3 +877,6 @@ defaultSliderForTTL: SliderForTTL {
 	dashOff: 5px;
 }
 ttlDividerLabelPadding: margins(22px, 10px, 22px, 19px);
+
+ttlItemPadding: margins(0px, 4px, 0px, 5px);
+ttlItemTimerFont: font(11px);

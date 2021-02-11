@@ -1414,7 +1414,7 @@ void MembersController::addMuteActionsToContextMenu(
 			: rpl::never<Group::ParticipantState>() | rpl::type_erased();
 
 		auto volumeItem = base::make_unique_q<MenuVolumeItem>(
-			menu,
+			menu->menu(),
 			st::groupCallPopupMenu.menu,
 			otherParticipantStateValue,
 			row->volume(),

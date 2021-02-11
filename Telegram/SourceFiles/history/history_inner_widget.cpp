@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_options.h"
+#include "ui/controls/delete_message_context_action.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "ui/inactive_press.h"
@@ -1690,9 +1691,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					});
 				}
 				if (item->canDelete()) {
-					_menu->addAction(tr::lng_context_delete_msg(tr::now), [=] {
-						deleteItem(itemId);
-					});
+					_menu->addAction(Ui::DeleteMessageContextAction(
+						_menu->menu(),
+						[=] { deleteItem(itemId); },
+						item->ttlDestroyAt(),
+						[=] { _menu = nullptr; }));
 				}
 				if (!blockSender && item->suggestReport()) {
 					_menu->addAction(tr::lng_context_report_msg(tr::now), [=] {
@@ -1822,9 +1825,18 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					});
 				}
 				if (canDelete) {
-					_menu->addAction((msg && msg->uploading()) ? tr::lng_context_cancel_upload(tr::now) : tr::lng_context_delete_msg(tr::now), [=] {
+					const auto callback = [=] {
 						deleteAsGroup(itemId);
-					});
+					};
+					if (msg && msg->uploading()) {
+						_menu->addAction(tr::lng_context_cancel_upload(tr::now), callback);
+					} else {
+						_menu->addAction(Ui::DeleteMessageContextAction(
+							_menu->menu(),
+							callback,
+							item->ttlDestroyAt(),
+							[=] { _menu = nullptr; }));
+					}
 				}
 				if (!canBlockSender && canReport) {
 					_menu->addAction(tr::lng_context_report_msg(tr::now), [=] {

@@ -94,6 +94,8 @@ PRIVATE
     ui/chat/message_bar.h
     ui/chat/pinned_bar.cpp
     ui/chat/pinned_bar.h
+    ui/controls/delete_message_context_action.cpp
+    ui/controls/delete_message_context_action.h
     ui/controls/emoji_button.cpp
     ui/controls/emoji_button.h
     ui/controls/invite_link_buttons.cpp

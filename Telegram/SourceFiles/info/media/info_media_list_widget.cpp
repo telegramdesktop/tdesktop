@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/controls/delete_message_context_action.h"
 #include "ui/ui_utility.h"
 #include "ui/inactive_press.h"
 #include "lang/lang_keys.h"
@@ -1414,11 +1415,11 @@ void ListWidget::showContextMenu(
 					}));
 			}
 			if (item->canDelete()) {
-				_contextMenu->addAction(
-					tr::lng_context_delete_msg(tr::now),
-					crl::guard(this, [this, universalId] {
-						deleteItem(universalId);
-					}));
+				_contextMenu->addAction(Ui::DeleteMessageContextAction(
+					_contextMenu->menu(),
+					[=] { deleteItem(universalId); },
+					item->ttlDestroyAt(),
+					[=] { _contextMenu = nullptr; }));
 			}
 		}
 		_contextMenu->addAction(

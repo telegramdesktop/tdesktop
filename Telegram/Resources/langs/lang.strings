@@ -1613,6 +1613,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_send_now_msg" = "Send now";
 "lng_context_reschedule" = "Reschedule";
 "lng_context_delete_msg" = "Delete Message";
+"lng_context_auto_delete_in" = "auto-delete in {duration}";
 "lng_context_select_msg" = "Select Message";
 "lng_context_report_msg" = "Report Message";
 "lng_context_pin_msg" = "Pin Message";
