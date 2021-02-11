@@ -982,6 +982,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_messages_ttl_after2" = "After 7 days";
 "lng_manage_messages_ttl_about" = "Turning on this setting will make auto-delete messages from this group after the selected period.";
 "lng_manage_messages_ttl_about_channel" = "Turning on this setting will make auto-delete messages from this channel after the selected period.";
+"lng_ttl_about_tooltip" = "Messages in this chat will auto-delete in {duration}.";
+"lng_ttl_about_duration1" = "24 hours";
+"lng_ttl_about_duration2" = "7 days";
 
 "lng_report_title" = "Report channel";
 "lng_report_group_title" = "Report group";

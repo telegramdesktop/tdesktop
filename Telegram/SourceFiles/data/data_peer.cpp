@@ -955,9 +955,16 @@ void PeerData::setMessagesTTL(
 		TimeId myPeriod,
 		TimeId peerPeriod,
 		bool oneSide) {
-	_ttlMyPeriod = myPeriod;
-	_ttlPeerPeriod = peerPeriod;
-	_ttlOneSide = oneSide;
+	if (_ttlMyPeriod != myPeriod
+		|| _ttlPeerPeriod != peerPeriod
+		|| _ttlOneSide != oneSide) {
+		_ttlMyPeriod = myPeriod;
+		_ttlPeerPeriod = peerPeriod;
+		_ttlOneSide = oneSide;
+		session().changes().peerUpdated(
+			this,
+			Data::PeerUpdate::Flag::MessagesTTL);
+	}
 }
 
 void PeerData::applyMessagesTTL(const MTPPeerHistoryTTL &ttl) {

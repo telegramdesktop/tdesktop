@@ -308,6 +308,13 @@ historyAttachEmoji: IconButton(historyAttach) {
 	iconOver: icon {{ "send_control_emoji", historyComposeIconFgOver }};
 	iconPosition: point(-1px, -1px);
 }
+historyMessagesTTL: IconButton(historyAttach) {
+	icon: icon {{ "chat/send_control_autodelete_1d", historyComposeIconFg }};
+	iconOver: icon {{ "chat/send_control_autodelete_1d", historyComposeIconFgOver }};
+	iconPosition: point(-1px, -1px);
+}
+historyMessagesTTL2Icon: icon {{ "chat/send_control_autodelete_7d", historyComposeIconFg }};
+historyMessagesTTL2IconOver: icon {{ "chat/send_control_autodelete_7d", historyComposeIconFgOver }};
 historyAttachEmojiFgActive: windowActiveTextFg;
 historyAttachEmojiActive: icon {{ "send_control_emoji", historyAttachEmojiFgActive }};
 historyAttachEmojiTooltipDelta: 4px;

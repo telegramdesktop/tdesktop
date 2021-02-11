@@ -99,6 +99,7 @@ class GroupCallTracker;
 namespace Controls {
 class RecordLock;
 class VoiceRecordBar;
+class TTLButton;
 } // namespace Controls
 } // namespace HistoryView
 
@@ -483,6 +484,7 @@ private:
 		int wasScrollTop,
 		int nowScrollTop);
 
+	void checkMessagesTTL();
 	void setupGroupCallTracker();
 
 	void sendInlineResult(InlineBots::ResultSelected result);
@@ -692,6 +694,7 @@ private:
 	object_ptr<Ui::IconButton> _botCommandStart;
 	object_ptr<Ui::SilentToggle> _silent = { nullptr };
 	object_ptr<Ui::IconButton> _scheduled = { nullptr };
+	std::unique_ptr<HistoryView::Controls::TTLButton> _ttlInfo;
 	const std::unique_ptr<VoiceRecordBar> _voiceRecordBar;
 	bool _cmdStartShown = false;
 	object_ptr<Ui::InputField> _field;

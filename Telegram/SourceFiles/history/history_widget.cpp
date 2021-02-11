@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 //#include "history/feed/history_feed_section.h" // #feed
 #include "history/view/controls/history_view_voice_record_bar.h"
+#include "history/view/controls/history_view_ttl_button.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_scheduled_section.h"
@@ -589,6 +590,7 @@ HistoryWidget::HistoryWidget(
 		| UpdateFlag::Slowmode
 		| UpdateFlag::BotStartToken
 		| UpdateFlag::PinnedMessages
+		| UpdateFlag::MessagesTTL
 	) | rpl::filter([=](const Data::PeerUpdate &update) {
 		if (_migrated && update.peer.get() == _migrated->peer) {
 			if (_pinnedTracker
@@ -637,6 +639,9 @@ HistoryWidget::HistoryWidget(
 		}
 		if (_pinnedTracker && (flags & UpdateFlag::PinnedMessages)) {
 			checkPinnedBarState();
+		}
+		if (flags & UpdateFlag::MessagesTTL) {
+			checkMessagesTTL();
 		}
 	}, lifetime());
 
@@ -1267,6 +1272,7 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 }
 
 void HistoryWidget::orderWidgets() {
+	_voiceRecordBar->raise();
 	_send->raise();
 	if (_contactStatus) {
 		_contactStatus->raise();
@@ -1942,6 +1948,7 @@ void HistoryWidget::showHistory(
 
 		setupPinnedTracker();
 		setupGroupCallTracker();
+		checkMessagesTTL();
 		if (_history->scrollTopItem
 			|| (_migrated && _migrated->scrollTopItem)
 			|| _history->isReadyFor(_showAtMsgId)) {
@@ -1995,6 +2002,7 @@ void HistoryWidget::showHistory(
 	} else {
 		refreshTopBarActiveChat();
 		updateTopBarSelection();
+		checkMessagesTTL();
 
 		clearFieldText();
 		doneShow();
@@ -2206,6 +2214,9 @@ void HistoryWidget::updateControlsVisibility() {
 		if (_scheduled) {
 			_scheduled->hide();
 		}
+		if (_ttlInfo) {
+			_ttlInfo->hide();
+		}
 		_kbScroll->hide();
 		_fieldBarCancel->hide();
 		_attachToggle->hide();
@@ -2268,6 +2279,9 @@ void HistoryWidget::updateControlsVisibility() {
 		if (_scheduled) {
 			_scheduled->show();
 		}
+		if (_ttlInfo) {
+			_ttlInfo->show();
+		}
 		updateFieldPlaceholder();
 
 		if (_editMsgId || _replyToId || readyToForward() || (_previewData && _previewData->pendingTill >= 0) || _kbReplyTo) {
@@ -2295,6 +2309,9 @@ void HistoryWidget::updateControlsVisibility() {
 		}
 		if (_scheduled) {
 			_scheduled->hide();
+		}
+		if (_ttlInfo) {
+			_ttlInfo->hide();
 		}
 		_kbScroll->hide();
 		_fieldBarCancel->hide();
@@ -2491,23 +2508,6 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		LOG(("API Error: received messages.messagesNotModified! (HistoryWidget::messagesReceived)"));
 	} break;
 	}
-
-	const auto ExtractFirstId = [&] {
-		return histList->empty() ? -1 : IdFromMessage(histList->front());
-	};
-	const auto ExtractLastId = [&] {
-		return histList->empty() ? -1 : IdFromMessage(histList->back());
-	};
-	const auto PeerString = [](PeerId peerId) {
-		if (peerIsUser(peerId)) {
-			return QString("User-%1").arg(peerToUser(peerId));
-		} else if (peerIsChat(peerId)) {
-			return QString("Chat-%1").arg(peerToChat(peerId));
-		} else if (peerIsChannel(peerId)) {
-			return QString("Channel-%1").arg(peerToChannel(peerId));
-		}
-		return QString("Bad-%1").arg(peerId);
-	};
 
 	if (_preloadRequest == requestId) {
 		auto to = toMigrated ? _migrated : _history;
@@ -3992,7 +3992,7 @@ void HistoryWidget::moveFieldControls() {
 	}
 
 // _attachToggle --------- _inlineResults -------------------------------------- _tabbedPanel --------- _fieldBarCancel
-// (_attachDocument|_attachPhoto) _field (_scheduled) (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) _send
+// (_attachDocument|_attachPhoto) _field (_ttlInfo) (_scheduled) (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) _send
 // (_botStart|_unblock|_joinChannel|_muteUnmute)
 
 	auto buttonsBottom = bottom - _attachToggle->height();
@@ -4015,6 +4015,10 @@ void HistoryWidget::moveFieldControls() {
 	}
 	if (_scheduled) {
 		_scheduled->moveToRight(right, buttonsBottom);
+		right += _scheduled->width();
+	}
+	if (_ttlInfo) {
+		_ttlInfo->move(width() - right - _ttlInfo->width(), buttonsBottom);
 	}
 
 	_fieldBarCancel->moveToRight(0, _field->y() - st::historySendPadding - _fieldBarCancel->height());
@@ -4046,6 +4050,7 @@ void HistoryWidget::updateFieldSize() {
 	if (_cmdStartShown) fieldWidth -= _botCommandStart->width();
 	if (_silent) fieldWidth -= _silent->width();
 	if (_scheduled) fieldWidth -= _scheduled->width();
+	if (_ttlInfo) fieldWidth -= _ttlInfo->width();
 
 	if (_field->width() != fieldWidth) {
 		_field->resize(fieldWidth, _field->height());
@@ -5402,6 +5407,23 @@ void HistoryWidget::checkPinnedBarState() {
 
 	if (_a_show.animating()) {
 		_pinnedBar->hide();
+	}
+}
+
+void HistoryWidget::checkMessagesTTL() {
+	if (!_peer || !_peer->messagesTTL()) {
+		if (_ttlInfo) {
+			_ttlInfo = nullptr;
+			updateControlsGeometry();
+			updateControlsVisibility();
+		}
+	} else if (!_ttlInfo) {
+		_ttlInfo = std::make_unique<HistoryView::Controls::TTLButton>(
+			this,
+			_peer);
+		orderWidgets();
+		updateControlsGeometry();
+		updateControlsVisibility();
 	}
 }
 
