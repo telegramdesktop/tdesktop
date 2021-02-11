@@ -2373,4 +2373,27 @@ void ComposeControls::applyInlineBotQuery(
 	}
 }
 
+Fn<void()> ComposeControls::restoreTextCallback(
+		const QString &insertTextOnCancel) const {
+	const auto cursor = _field->textCursor();
+	const auto position = cursor.position();
+	const auto anchor = cursor.anchor();
+	const auto text = getTextWithAppliedMarkdown();
+
+	_field->setTextWithTags({});
+
+	return crl::guard(_field, [=] {
+		_field->setTextWithTags(text);
+		auto cursor = _field->textCursor();
+		cursor.setPosition(anchor);
+		if (position != anchor) {
+			cursor.setPosition(position, QTextCursor::KeepAnchor);
+		}
+		_field->setTextCursor(cursor);
+		if (!insertTextOnCancel.isEmpty()) {
+			_field->textCursor().insertText(insertTextOnCancel);
+		}
+	});
+}
+
 } // namespace HistoryView

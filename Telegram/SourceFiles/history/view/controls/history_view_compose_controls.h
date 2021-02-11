@@ -172,6 +172,8 @@ public:
 	void applyDraft(
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
 
+	Fn<void()> restoreTextCallback(const QString &insertTextOnCancel) const;
+
 private:
 	enum class TextUpdateEvent {
 		SaveDraft = (1 << 0),

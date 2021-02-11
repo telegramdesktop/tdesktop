@@ -350,21 +350,16 @@ bool ScheduledWidget::confirmSendingFiles(
 		return false;
 	}
 
-	//const auto cursor = _field->textCursor();
-	//const auto position = cursor.position();
-	//const auto anchor = cursor.anchor();
-	const auto text = _composeControls->getTextWithAppliedMarkdown();//_field->getTextWithTags();
 	using SendLimit = SendFilesBox::SendLimit;
 	auto box = Box<SendFilesBox>(
 		controller(),
 		std::move(list),
-		text,
+		_composeControls->getTextWithAppliedMarkdown(),
 		_history->peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
 		CanScheduleUntilOnline(_history->peer)
 			? Api::SendType::ScheduledToUser
 			: Api::SendType::Scheduled,
 		SendMenu::Type::Disabled);
-	//_field->setTextWithTags({});
 
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Ui::PreparedList &&list,
@@ -379,18 +374,8 @@ bool ScheduledWidget::confirmSendingFiles(
 			options,
 			ctrlShiftEnter);
 	}));
-	//box->setCancelledCallback(crl::guard(this, [=] {
-	//	_field->setTextWithTags(text);
-	//	auto cursor = _field->textCursor();
-	//	cursor.setPosition(anchor);
-	//	if (position != anchor) {
-	//		cursor.setPosition(position, QTextCursor::KeepAnchor);
-	//	}
-	//	_field->setTextCursor(cursor);
-	//	if (!insertTextOnCancel.isEmpty()) {
-	//		_field->textCursor().insertText(insertTextOnCancel);
-	//	}
-	//}));
+	box->setCancelledCallback(_composeControls->restoreTextCallback(
+		insertTextOnCancel));
 
 	//ActivateWindow(controller());
 	const auto shown = Ui::show(std::move(box));
