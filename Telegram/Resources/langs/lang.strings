@@ -2014,6 +2014,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_slowmode_no_many" = "Slow mode is enabled. You can't send more than one message at a time.";
 "lng_slowmode_too_long" = "Sorry, this text is too long to send as one message.\n\nSlow mode is enabled. You can't send more than one message at a time.";
 
+"lng_rights_gigagroup_title" = "Broadcast group";
+"lng_rights_gigagroup_convert" = "Convert to Broadcast Group";
+"lng_rights_gigagroup_about" = "Broadcast groups can have over 200,000 members, but only admins can send messages in them.";
+"lng_gigagroup_convert_title" = "Broadcast Groups";
+"lng_gigagroup_convert_feature1" = "No limit on the number of members.";
+"lng_gigagroup_convert_feature2" = "Only admins can send messages.";
+"lng_gigagroup_convert_feature3" = "Can't be turned back into a regular group.";
+"lng_gigagroup_convert_sure" = "Convert";
+"lng_gigagroup_warning_title" = "Are you sure?";
+"lng_gigagroup_warning" = "Regular members of the group (non-admins) will **irrevocably** lose their right to post messages in the group.\n\nThis action **can't** be undone.";
+
 "lng_rights_channel_info" = "Change channel info";
 "lng_rights_channel_post" = "Post messages";
 "lng_rights_channel_edit" = "Edit messages of others";

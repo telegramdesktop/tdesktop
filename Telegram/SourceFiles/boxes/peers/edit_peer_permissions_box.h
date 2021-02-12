@@ -39,6 +39,7 @@ protected:
 private:
 	Fn<int()> addSlowmodeSlider(not_null<Ui::VerticalLayout*> container);
 	void addSlowmodeLabels(not_null<Ui::VerticalLayout*> container);
+	void addSuggestGigagroup(not_null<Ui::VerticalLayout*> container);
 	void addBannedButtons(not_null<Ui::VerticalLayout*> container);
 
 	const not_null<Window::SessionNavigation*> _navigation;
