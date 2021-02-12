@@ -74,7 +74,7 @@ stickersFeaturedUnreadBg: msgFileInBg;
 stickersFeaturedUnreadSize: 5px;
 stickersFeaturedUnreadSkip: 5px;
 stickersFeaturedUnreadTop: 7px;
-stickersFeaturedInstalled: icon {{ "send_control_save", lightButtonFg }};
+stickersFeaturedInstalled: icon {{ "chat/input_save", lightButtonFg }};
 
 stickersMaxHeight: 320px;
 stickersPadding: margins(19px, 13px, 19px, 13px);

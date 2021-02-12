@@ -127,7 +127,7 @@ void SendButton::paintSave(Painter &p, bool over) {
 	const auto &saveIcon = over
 		? st::historyEditSaveIconOver
 		: st::historyEditSaveIcon;
-	saveIcon.paint(p, st::historySendIconPosition, width());
+	saveIcon.paintInCenter(p, rect());
 }
 
 void SendButton::paintCancel(Painter &p, bool over) {
