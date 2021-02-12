@@ -749,6 +749,7 @@ HistoryService::HistoryService(
 		data.vdate().v,
 		data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0)) {
 	createFromMtp(data);
+	applyTTL(data);
 }
 
 HistoryService::HistoryService(
@@ -763,6 +764,7 @@ HistoryService::HistoryService(
 		data.vdate().v,
 		data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0)) {
 	createFromMtp(data);
+	applyTTL(data);
 }
 
 HistoryService::HistoryService(

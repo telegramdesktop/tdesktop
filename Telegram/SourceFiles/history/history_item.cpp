@@ -809,6 +809,41 @@ bool HistoryItem::canUpdateDate() const {
 	return isScheduled();
 }
 
+void HistoryItem::applyTTL(const MTPDmessage &data) {
+	if (const auto period = data.vttl_period()) {
+		if (period->v > 0) {
+			applyTTL(data.vdate().v + period->v);
+		}
+	}
+}
+
+void HistoryItem::applyTTL(const MTPDmessageService &data) {
+	if (const auto period = data.vttl_period()) {
+		if (period->v > 0) {
+			applyTTL(data.vdate().v + period->v);
+		}
+	}
+}
+
+void HistoryItem::applyTTL(TimeId destroyAt) {
+	const auto previousDestroyAt = std::exchange(_ttlDestroyAt, destroyAt);
+	if (previousDestroyAt) {
+		history()->owner().unregisterMessageTTL(previousDestroyAt, this);
+	}
+	if (!_ttlDestroyAt) {
+		return;
+	} else if (base::unixtime::now() >= _ttlDestroyAt) {
+		const auto session = &history()->session();
+		crl::on_main(session, [session, id = fullId()]{
+			if (const auto item = session->data().message(id)) {
+				item->destroy();
+			}
+		});
+	} else {
+		history()->owner().registerMessageTTL(_ttlDestroyAt, this);
+	}
+}
+
 void HistoryItem::sendFailed() {
 	Expects(_clientFlags & MTPDmessage_ClientFlag::f_sending);
 	Expects(!(_clientFlags & MTPDmessage_ClientFlag::f_failed));
@@ -957,7 +992,9 @@ void HistoryItem::drawInDialog(
 	p.restoreTextPalette();
 }
 
-HistoryItem::~HistoryItem() = default;
+HistoryItem::~HistoryItem() {
+	applyTTL(0);
+}
 
 QDateTime ItemDateTime(not_null<const HistoryItem*> item) {
 	return base::unixtime::parse(item->date());

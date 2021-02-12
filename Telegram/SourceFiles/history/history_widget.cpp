@@ -3716,8 +3716,8 @@ bool HistoryWidget::isJoinChannel() const {
 
 bool HistoryWidget::isMuteUnmute() const {
 	return _peer
-		&& ((_peer->isBroadcast()
-			&& !_peer->asChannel()->canPublish())
+		&& ((_peer->isBroadcast() && !_peer->asChannel()->canPublish())
+			|| (_peer->isGigagroup() && !_peer->asChannel()->canWrite())
 			|| _peer->isRepliesChat());
 }
 

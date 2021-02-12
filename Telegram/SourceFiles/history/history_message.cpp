@@ -525,11 +525,7 @@ HistoryMessage::HistoryMessage(
 			MessageGroupId::FromRaw(history->peer->id, groupedId->v));
 	}
 
-	if (const auto period = data.vttl_period()) {
-		if (period->v > 0) {
-			applyTTL(data.vdate().v + period->v);
-		}
-	}
+	applyTTL(data);
 }
 
 HistoryMessage::HistoryMessage(
@@ -566,6 +562,8 @@ HistoryMessage::HistoryMessage(
 	}, [](const auto &) {
 		Unexpected("Service message action type in HistoryMessage.");
 	});
+
+	applyTTL(data);
 }
 
 HistoryMessage::HistoryMessage(
@@ -1403,25 +1401,6 @@ void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 	}
 }
 
-void HistoryMessage::applyTTL(TimeId destroyAt) {
-	const auto previousDestroyAt = std::exchange(_ttlDestroyAt, destroyAt);
-	if (previousDestroyAt) {
-		history()->owner().unregisterMessageTTL(previousDestroyAt, this);
-	}
-	if (!_ttlDestroyAt) {
-		return;
-	} else if (base::unixtime::now() >= _ttlDestroyAt) {
-		const auto session = &history()->session();
-		crl::on_main(session, [session, id = fullId()]{
-			if (const auto item = session->data().message(id)) {
-				item->destroy();
-			}
-		});
-	} else {
-		history()->owner().registerMessageTTL(_ttlDestroyAt, this);
-	}
-}
-
 void HistoryMessage::updateSentContent(
 		const TextWithEntities &textWithEntities,
 		const MTPMessageMedia *media) {
@@ -1927,7 +1906,6 @@ std::unique_ptr<HistoryView::Element> HistoryMessage::createView(
 }
 
 HistoryMessage::~HistoryMessage() {
-	applyTTL(0);
 	_media.reset();
 	clearSavedMedia();
 	if (auto reply = Get<HistoryMessageReply>()) {
