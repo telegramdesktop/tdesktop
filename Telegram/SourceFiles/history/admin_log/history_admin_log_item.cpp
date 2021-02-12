@@ -68,7 +68,8 @@ MTPMessage PrepareLogMessage(
 	}, [&](const MTPDmessageService &data) {
 		const auto removeFlags = MTPDmessageService::Flag::f_out
 			| MTPDmessageService::Flag::f_post
-			| MTPDmessageService::Flag::f_reply_to;
+			| MTPDmessageService::Flag::f_reply_to
+			| MTPDmessageService::Flag::f_ttl_period;
 		return MTP_messageService(
 			MTP_flags(data.vflags().v & ~removeFlags),
 			MTP_int(newId),
@@ -76,7 +77,8 @@ MTPMessage PrepareLogMessage(
 			data.vpeer_id(),
 			MTPMessageReplyHeader(),
 			MTP_int(newDate),
-			data.vaction());
+			data.vaction(),
+			MTPint()); // ttl_period
 	}, [&](const MTPDmessage &data) {
 		const auto removeFlags = MTPDmessage::Flag::f_out
 			| MTPDmessage::Flag::f_post

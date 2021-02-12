@@ -48,7 +48,8 @@ MTPMessage PrepareMessage(const MTPMessage &message, MsgId id) {
 			data.vpeer_id(),
 			data.vreply_to() ? *data.vreply_to() : MTPMessageReplyHeader(),
 			data.vdate(),
-			data.vaction());
+			data.vaction(),
+			MTP_int(data.vttl_period().value_or_empty()));
 	}, [&](const MTPDmessage &data) {
 		return MTP_message(
 			MTP_flags(data.vflags().v | MTPDmessage::Flag::f_from_scheduled),

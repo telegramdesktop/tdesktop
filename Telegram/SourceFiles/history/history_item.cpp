@@ -487,7 +487,8 @@ void HistoryItem::applyEditionToHistoryCleared() {
 			peerToMTP(history()->peer->id),
 			MTPMessageReplyHeader(),
 			MTP_int(date()),
-			MTP_messageActionHistoryClear()
+			MTP_messageActionHistoryClear(),
+			MTPint() // ttl_period
 		).c_messageService());
 }
 

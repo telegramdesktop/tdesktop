@@ -143,7 +143,10 @@ void ReportBox::report() {
 		return;
 	}
 
-	if (_reasonOtherText && _reasonOtherText->getLastText().trimmed().isEmpty()) {
+	const auto text = _reasonOtherText
+		? _reasonOtherText->getLastText().trimmed()
+		: QString();
+	if (_reasonOtherText && text.isEmpty()) {
 		_reasonOtherText->showError();
 		return;
 	}
@@ -155,7 +158,7 @@ void ReportBox::report() {
 		case Reason::Violence: return MTP_inputReportReasonViolence();
 		case Reason::ChildAbuse: return MTP_inputReportReasonChildAbuse();
 		case Reason::Pornography: return MTP_inputReportReasonPornography();
-		case Reason::Other: return MTP_inputReportReasonOther(MTP_string(_reasonOtherText->getLastText()));
+		case Reason::Other: return MTP_inputReportReasonOther();
 		}
 		Unexpected("Bad reason group value.");
 	}();
@@ -167,7 +170,8 @@ void ReportBox::report() {
 		_requestId = _api.request(MTPmessages_Report(
 			_peer->input,
 			MTP_vector<MTPint>(ids),
-			reason
+			reason,
+			MTP_string(text)
 		)).done([=](const MTPBool &result) {
 			reportDone(result);
 		}).fail([=](const RPCError &error) {
@@ -176,7 +180,8 @@ void ReportBox::report() {
 	} else {
 		_requestId = _api.request(MTPaccount_ReportPeer(
 			_peer->input,
-			reason
+			reason,
+			MTP_string(text)
 		)).done([=](const MTPBool &result) {
 			reportDone(result);
 		}).fail([=](const RPCError &error) {

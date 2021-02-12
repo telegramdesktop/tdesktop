@@ -182,6 +182,7 @@ void AppConfig::dismissSuggestion(const QString &key) {
 		return;
 	}
 	_api->request(MTPhelp_DismissSuggestion(
+		MTP_inputPeerEmpty(),
 		MTP_string(key)
 	)).send();
 }

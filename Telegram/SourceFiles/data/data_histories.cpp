@@ -607,6 +607,7 @@ void Histories::deleteAllMessages(
 			}).send();
 		} else if (channel) {
 			return session().api().request(MTPchannels_DeleteHistory(
+				MTP_flags(0),
 				channel->inputChannel,
 				MTP_int(deleteTillId)
 			)).done([=](const MTPBool &result) {
