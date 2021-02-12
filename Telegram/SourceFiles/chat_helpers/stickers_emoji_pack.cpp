@@ -247,7 +247,7 @@ void EmojiPack::applySet(const MTPDmessages_stickerSet &data) {
 			was.erase(i);
 		}
 	}
-	for (const auto &[emoji, Document] : was) {
+	for (const auto &[emoji, document] : was) {
 		refreshItems(emoji);
 	}
 }
@@ -260,6 +260,13 @@ void EmojiPack::refreshAll() {
 
 void EmojiPack::refreshItems(EmojiPtr emoji) {
 	const auto i = _items.find(IsolatedEmoji{ { emoji } });
+	if (!emoji->colored()) {
+		if (const auto count = emoji->variantsCount()) {
+			for (auto i = 0; i != count; ++i) {
+				refreshItems(emoji->variant(i + 1));
+			}
+		}
+	}
 	if (i == end(_items)) {
 		return;
 	}
