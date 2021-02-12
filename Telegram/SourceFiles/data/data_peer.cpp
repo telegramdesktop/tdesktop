@@ -757,11 +757,15 @@ bool PeerData::isFake() const {
 }
 
 bool PeerData::isMegagroup() const {
-	return isChannel() ? asChannel()->isMegagroup() : false;
+	return isChannel() && asChannel()->isMegagroup();
 }
 
 bool PeerData::isBroadcast() const {
-	return isChannel() ? asChannel()->isBroadcast() : false;
+	return isChannel() && asChannel()->isBroadcast();
+}
+
+bool PeerData::isGigagroup() const {
+	return isChannel() && asChannel()->isGigagroup();
 }
 
 bool PeerData::isRepliesChat() const {

@@ -454,6 +454,7 @@ bool ChannelData::canEditInformation() const {
 
 bool ChannelData::canEditPermissions() const {
 	return isMegagroup()
+		&& !isGigagroup()
 		&& ((adminRights() & AdminRight::f_ban_users) || amCreator());
 }
 

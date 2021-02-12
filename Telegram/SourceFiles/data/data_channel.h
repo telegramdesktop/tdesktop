@@ -96,6 +96,7 @@ public:
 		| MTPDchannel::Flag::f_scam
 		| MTPDchannel::Flag::f_fake
 		| MTPDchannel::Flag::f_megagroup
+		| MTPDchannel::Flag::f_gigagroup
 		| MTPDchannel::Flag::f_restricted
 		| MTPDchannel::Flag::f_signatures
 		| MTPDchannel::Flag::f_username
@@ -232,6 +233,9 @@ public:
 	}
 	[[nodiscard]] bool isBroadcast() const {
 		return flags() & MTPDchannel::Flag::f_broadcast;
+	}
+	[[nodiscard]] bool isGigagroup() const {
+		return flags() & MTPDchannel::Flag::f_gigagroup;
 	}
 	[[nodiscard]] bool hasUsername() const {
 		return flags() & MTPDchannel::Flag::f_username;

@@ -156,6 +156,7 @@ public:
 	[[nodiscard]] bool isFake() const;
 	[[nodiscard]] bool isMegagroup() const;
 	[[nodiscard]] bool isBroadcast() const;
+	[[nodiscard]] bool isGigagroup() const;
 	[[nodiscard]] bool isRepliesChat() const;
 	[[nodiscard]] bool sharedMediaInfo() const {
 		return isSelf() || isRepliesChat();

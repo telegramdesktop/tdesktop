@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/box_content_divider.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
@@ -34,7 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kSlowmodeValues = 7;
-constexpr auto kSuggestGigagroupThreshold = 199000;
+constexpr auto kSuggestGigagroupThreshold = 1; AssertIsDebug(199000);
 
 int SlowmodeDelayByIndex(int index) {
 	Expects(index >= 0 && index < kSlowmodeValues);
@@ -551,7 +552,7 @@ void EditPeerPermissionsBox::addSuggestGigagroup(
 			channel->inputChannel
 		)).done([=](const MTPUpdates &result) {
 			channel->session().api().applyUpdates(result);
-			Ui::hideLayer();
+			Ui::hideSettingsAndLayer();
 		}).fail([=](const RPCError &error) {
 			*converting = false;
 		}).send();
@@ -565,13 +566,9 @@ void EditPeerPermissionsBox::addSuggestGigagroup(
 			box->addRow(
 				object_ptr<Ui::FlatLabel>(
 					box,
-					tr::lng_gigagroup_warning(),
-					st::defaultFlatLabel),
-				style::margins(
-					st::boxRowPadding.left(),
-					st::boxLittleSkip,
-					st::boxRowPadding.right(),
-					st::boxLittleSkip));
+					tr::lng_gigagroup_warning(
+					) | Ui::Text::ToRichLangValue(),
+					st::infoAboutGigagroup));
 			box->addButton(tr::lng_gigagroup_convert_sure(), convertSure);
 			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 		}));
@@ -583,11 +580,13 @@ void EditPeerPermissionsBox::addSuggestGigagroup(
 		getDelegate()->show(Box([=](not_null<Ui::GenericBox*> box) {
 			box->setTitle(tr::lng_gigagroup_convert_title());
 			const auto addFeature = [&](rpl::producer<QString> text) {
+				using namespace rpl::mappers;
+				const auto prefix = QString::fromUtf8("\xE2\x80\xA2 ");
 				box->addRow(
 					object_ptr<Ui::FlatLabel>(
 						box,
-						std::move(text),
-						st::defaultFlatLabel),
+						std::move(text) | rpl::map(prefix + _1),
+						st::infoAboutGigagroup),
 					style::margins(
 						st::boxRowPadding.left(),
 						st::boxLittleSkip,
