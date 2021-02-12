@@ -45,7 +45,7 @@ public:
 	void setName(const QString &newName);
 
 	void invalidateParticipants();
-	bool noParticipantInfo() const {
+	[[nodiscard]] bool noParticipantInfo() const {
 		return (count > 0 || amIn()) && participants.empty();
 	}
 
@@ -58,10 +58,10 @@ public:
 	void removeFlags(MTPDchat::Flags which) {
 		_flags.remove(which);
 	}
-	auto flags() const {
+	[[nodiscard]] auto flags() const {
 		return _flags.current();
 	}
-	auto flagsValue() const {
+	[[nodiscard]] auto flagsValue() const {
 		return _flags.value();
 	}
 
@@ -74,58 +74,58 @@ public:
 	void removeFullFlags(MTPDchatFull::Flags which) {
 		_fullFlags.remove(which);
 	}
-	auto fullFlags() const {
+	[[nodiscard]] auto fullFlags() const {
 		return _fullFlags.current();
 	}
-	auto fullFlagsValue() const {
+	[[nodiscard]] auto fullFlagsValue() const {
 		return _fullFlags.value();
 	}
 
-	auto adminRights() const {
+	[[nodiscard]] auto adminRights() const {
 		return _adminRights.current();
 	}
-	auto adminRightsValue() const {
+	[[nodiscard]] auto adminRightsValue() const {
 		return _adminRights.value();
 	}
 	void setAdminRights(const MTPChatAdminRights &rights);
-	bool hasAdminRights() const {
+	[[nodiscard]] bool hasAdminRights() const {
 		return (adminRights() != 0);
 	}
 
-	auto defaultRestrictions() const {
+	[[nodiscard]] auto defaultRestrictions() const {
 		return _defaultRestrictions.current();
 	}
-	auto defaultRestrictionsValue() const {
+	[[nodiscard]] auto defaultRestrictionsValue() const {
 		return _defaultRestrictions.value();
 	}
 	void setDefaultRestrictions(const MTPChatBannedRights &rights);
 
-	bool isForbidden() const {
+	[[nodiscard]] bool isForbidden() const {
 		return flags() & MTPDchat_ClientFlag::f_forbidden;
 	}
-	bool amIn() const {
+	[[nodiscard]] bool amIn() const {
 		return !isForbidden()
 			&& !isDeactivated()
 			&& !haveLeft()
 			&& !wasKicked();
 	}
-	bool haveLeft() const {
+	[[nodiscard]] bool haveLeft() const {
 		return flags() & MTPDchat::Flag::f_left;
 	}
-	bool wasKicked() const {
+	[[nodiscard]] bool wasKicked() const {
 		return flags() & MTPDchat::Flag::f_kicked;
 	}
-	bool amCreator() const {
+	[[nodiscard]] bool amCreator() const {
 		return flags() & MTPDchat::Flag::f_creator;
 	}
-	bool isDeactivated() const {
+	[[nodiscard]] bool isDeactivated() const {
 		return flags() & MTPDchat::Flag::f_deactivated;
 	}
-	bool isMigrated() const {
+	[[nodiscard]] bool isMigrated() const {
 		return flags() & MTPDchat::Flag::f_migrated_to;
 	}
 
-	static AdminRights DefaultAdminRights();
+	[[nodiscard]] AdminRights defaultAdminRights(not_null<UserData*> user);
 
 	// Like in ChannelData.
 	bool canWrite() const;

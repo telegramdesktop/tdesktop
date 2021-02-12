@@ -329,15 +329,21 @@ Main::Session &AddSpecialBoxController::session() const {
 }
 
 void AddSpecialBoxController::subscribeToMigration() {
+	const auto chat = _peer->asChat();
+	if (!chat) {
+		return;
+	}
 	SubscribeToMigration(
-		_peer,
+		chat,
 		lifetime(),
-		[=](not_null<ChannelData*> channel) { migrate(channel); });
+		[=](not_null<ChannelData*> channel) { migrate(chat, channel); });
 }
 
-void AddSpecialBoxController::migrate(not_null<ChannelData*> channel) {
+void AddSpecialBoxController::migrate(
+		not_null<ChatData*> chat,
+		not_null<ChannelData*> channel) {
 	_peer = channel;
-	_additional.migrate(channel);
+	_additional.migrate(chat, channel);
 }
 
 std::unique_ptr<PeerListRow> AddSpecialBoxController::createSearchRow(

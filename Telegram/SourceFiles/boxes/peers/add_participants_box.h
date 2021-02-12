@@ -121,7 +121,7 @@ private:
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 
 	void subscribeToMigration();
-	void migrate(not_null<ChannelData*> channel);
+	void migrate(not_null<ChatData*> chat, not_null<ChannelData*> channel);
 
 	not_null<PeerData*> _peer;
 	MTP::Sender _api;

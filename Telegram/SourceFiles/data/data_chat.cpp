@@ -48,14 +48,17 @@ void ChatData::setPhoto(PhotoId photoId, const MTPChatPhoto &photo) {
 	});
 }
 
-auto ChatData::DefaultAdminRights() -> AdminRights {
+auto ChatData::defaultAdminRights(not_null<UserData*> user) -> AdminRights {
+	const auto isCreator = (creator == user->bareId())
+		|| (user->isSelf() && amCreator());
 	using Flag = AdminRight;
 	return Flag::f_change_info
 		| Flag::f_delete_messages
 		| Flag::f_ban_users
 		| Flag::f_invite_users
 		| Flag::f_pin_messages
-		| Flag::f_manage_call;
+		| Flag::f_manage_call
+		| (isCreator ? Flag::f_add_admins : Flag(0));
 }
 
 bool ChatData::canWrite() const {
@@ -335,7 +338,7 @@ void ApplyChatUpdate(
 	}
 	if (user->isSelf()) {
 		chat->setAdminRights(MTP_chatAdminRights(mtpIsTrue(update.vis_admin())
-			? MTP_flags(ChatData::DefaultAdminRights())
+			? MTP_flags(chat->defaultAdminRights(user))
 			: MTP_flags(0)));
 	}
 	if (mtpIsTrue(update.vis_admin())) {
@@ -457,7 +460,7 @@ void ApplyChatUpdate(
 				chat->admins.emplace(user);
 				if (user->isSelf()) {
 					chat->setAdminRights(MTP_chatAdminRights(
-						MTP_flags(ChatData::DefaultAdminRights())));
+						MTP_flags(chat->defaultAdminRights(user))));
 				}
 			}, [](const MTPDchatParticipant &) {
 			});
