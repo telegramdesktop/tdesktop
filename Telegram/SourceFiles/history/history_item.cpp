@@ -775,7 +775,7 @@ void HistoryItem::sendFailed() {
 }
 
 bool HistoryItem::needCheck() const {
-	return out() || (id < 0 && history()->peer->isSelf());
+	return (out() && !isEmpty()) || (id < 0 && history()->peer->isSelf());
 }
 
 bool HistoryItem::unread() const {
