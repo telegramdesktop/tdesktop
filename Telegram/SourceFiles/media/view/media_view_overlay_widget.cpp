@@ -473,10 +473,21 @@ void OverlayWidget::updateGeometry() {
 	if (geometry() == available) {
 		return;
 	}
+	DEBUG_LOG(("Viewer Pos: Setting %1, %2, %3, %4")
+		.arg(available.x())
+		.arg(available.y())
+		.arg(available.width())
+		.arg(available.height()));
 	setGeometry(available);
 }
 
 void OverlayWidget::resizeEvent(QResizeEvent *e) {
+	const auto newGeometry = geometry();
+	DEBUG_LOG(("Viewer Pos: Resized to %1, %2, %3, %4")
+		.arg(newGeometry.x())
+		.arg(newGeometry.y())
+		.arg(newGeometry.width())
+		.arg(newGeometry.height()));
 	updateControlsGeometry();
 	OverlayParent::resizeEvent(e);
 }
