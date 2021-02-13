@@ -38,3 +38,5 @@ photoEditorRedoButton: IconButton(historyAttach) {
 	icon: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFg }};
 	iconOver: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgOver }};
 }
+
+photoEditorTextButtonPadding: margins(10px, 0px, 10px, 0px);

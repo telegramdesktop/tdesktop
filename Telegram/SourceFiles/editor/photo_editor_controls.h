@@ -15,6 +15,7 @@ class IconButton;
 
 namespace Editor {
 
+class EdgeButton;
 class HorizontalContainer;
 
 class PhotoEditorControls final : public Ui::RpWidget {
@@ -29,10 +30,13 @@ public:
 
 private:
 
+	const style::color &_bg;
 	const base::unique_qptr<HorizontalContainer> _buttonsContainer;
 	const base::unique_qptr<Ui::IconButton> _rotateButton;
 	const base::unique_qptr<Ui::IconButton> _flipButton;
 	const base::unique_qptr<Ui::IconButton> _paintModeButton;
+	const base::unique_qptr<EdgeButton> _cancel;
+	const base::unique_qptr<EdgeButton> _done;
 
 };
 
