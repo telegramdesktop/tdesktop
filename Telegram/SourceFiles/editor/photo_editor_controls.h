@@ -25,12 +25,14 @@ public:
 
 	[[nodiscard]] rpl::producer<int> rotateRequests() const;
 	[[nodiscard]] rpl::producer<> flipRequests() const;
+	[[nodiscard]] rpl::producer<> paintModeRequests() const;
 
 private:
 
 	const base::unique_qptr<HorizontalContainer> _buttonsContainer;
 	const base::unique_qptr<Ui::IconButton> _rotateButton;
 	const base::unique_qptr<Ui::IconButton> _flipButton;
+	const base::unique_qptr<Ui::IconButton> _paintModeButton;
 
 };
 

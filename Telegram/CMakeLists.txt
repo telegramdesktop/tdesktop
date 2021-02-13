@@ -510,6 +510,8 @@ PRIVATE
     dialogs/dialogs_widget.h
     editor/editor_crop.cpp
     editor/editor_crop.h
+    editor/editor_paint.cpp
+    editor/editor_paint.h
     editor/photo_editor.cpp
     editor/photo_editor.h
     editor/photo_editor_common.cpp

@@ -7,19 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QGraphicsScene>
+
 namespace Editor {
+
+enum class PhotoEditorMode {
+	Transform,
+	Paint,
+};
 
 struct PhotoModifications {
 	int angle = 0;
 	bool flipped = false;
 	QRect crop;
+	std::shared_ptr<QGraphicsScene> paint = nullptr;
 
-	[[nodiscard]] bool empty() const {
-		return !angle && !flipped && !crop.isValid();
-	}
-	[[nodiscard]] explicit operator bool() const {
-		return !empty();
-	}
+	[[nodiscard]] bool empty() const;
+	[[nodiscard]] explicit operator bool() const;
+	~PhotoModifications();
 
 };
 

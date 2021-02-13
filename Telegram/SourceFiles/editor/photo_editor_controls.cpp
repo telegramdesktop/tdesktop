@@ -49,6 +49,9 @@ PhotoEditorControls::PhotoEditorControls(
 	st::photoEditorRotateButton))
 , _flipButton(base::make_unique_q<Ui::IconButton>(
 	_buttonsContainer,
+	st::photoEditorFlipButton))
+, _paintModeButton(base::make_unique_q<Ui::IconButton>(
+	_buttonsContainer,
 	st::photoEditorFlipButton)) {
 
 	_buttonsContainer->updateChildrenPosition();
@@ -82,6 +85,10 @@ rpl::producer<int> PhotoEditorControls::rotateRequests() const {
 
 rpl::producer<> PhotoEditorControls::flipRequests() const {
 	return _flipButton->clicks() | rpl::to_empty;
+}
+
+rpl::producer<> PhotoEditorControls::paintModeRequests() const {
+	return _paintModeButton->clicks() | rpl::to_empty;
 }
 
 } // namespace Editor

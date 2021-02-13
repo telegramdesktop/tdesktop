@@ -18,11 +18,11 @@ PhotoEditor::PhotoEditor(
 	std::shared_ptr<QPixmap> photo,
 	PhotoModifications modifications)
 : RpWidget(parent)
-, _modifications(modifications)
+, _modifications(std::move(modifications))
 , _content(base::make_unique_q<PhotoEditorContent>(
 	this,
 	photo,
-	modifications))
+	_modifications))
 , _controls(base::make_unique_q<PhotoEditorControls>(this)) {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &size) {
@@ -49,10 +49,16 @@ PhotoEditor::PhotoEditor(
 		_modifications.flipped = !_modifications.flipped;
 		_content->applyModifications(_modifications);
 	}, lifetime());
+
+	_controls->paintModeRequests(
+	) | rpl::start_with_next([=] {
+		_content->applyMode(PhotoEditorMode::Paint);
+	}, lifetime());
+	_content->applyMode(PhotoEditorMode::Transform);
 }
 
 void PhotoEditor::save() {
-	_modifications.crop = _content->cropRect();
+	_content->save(_modifications);
 	_done.fire_copy(_modifications);
 }
 

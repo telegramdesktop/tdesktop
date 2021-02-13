@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_content.h"
 
 #include "editor/editor_crop.h"
+#include "editor/editor_paint.h"
 #include "media/view/media_view_pip.h"
 
 namespace Editor {
@@ -20,6 +21,7 @@ PhotoEditorContent::PhotoEditorContent(
 	std::shared_ptr<QPixmap> photo,
 	PhotoModifications modifications)
 : RpWidget(parent)
+, _paint(base::make_unique_q<Paint>(this, modifications, photo->size()))
 , _crop(base::make_unique_q<Crop>(this, modifications, photo->size()))
 , _photo(photo)
 , _modifications(modifications) {
@@ -58,10 +60,12 @@ PhotoEditorContent::PhotoEditorContent(
 		}
 		_imageMatrix.rotate(mods.angle);
 
+		const auto geometry = _imageMatrix.mapRect(_imageRect);
 		_crop->applyTransform(
-			_imageMatrix.mapRect(_imageRect) + _crop->cropMargins(),
+			geometry + _crop->cropMargins(),
 			mods.angle,
 			mods.flipped);
+		_paint->applyTransform(geometry, mods.angle, mods.flipped);
 	}, lifetime());
 
 	paintRequest(
@@ -82,8 +86,17 @@ void PhotoEditorContent::applyModifications(
 	update();
 }
 
-QRect PhotoEditorContent::cropRect() const {
-	return _crop->saveCropRect(_imageRect, _photo->rect());
+void PhotoEditorContent::save(PhotoModifications &modifications) {
+	modifications.crop = _crop->saveCropRect(_imageRect, _photo->rect());
+	if (!modifications.paint) {
+		modifications.paint = _paint->saveScene();
+	}
+}
+
+void PhotoEditorContent::applyMode(PhotoEditorMode mode) {
+	_crop->setVisible(mode == PhotoEditorMode::Transform);
+	_paint->applyMode(mode);
+	_mode = mode;
 }
 
 } // namespace Editor

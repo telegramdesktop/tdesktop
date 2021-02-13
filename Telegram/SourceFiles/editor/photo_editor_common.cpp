@@ -13,6 +13,12 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 	if (!mods) {
 		return image;
 	}
+	if (mods.paint) {
+		Painter p(&image);
+		PainterHighQualityEnabler hq(p);
+
+		mods.paint->render(&p, image.rect());
+	}
 	QTransform transform;
 	if (mods.flipped) {
 		transform.scale(-1, 1);
@@ -25,6 +31,20 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 		newImage = newImage.copy(mods.crop);
 	}
 	return newImage;
+}
+
+bool PhotoModifications::empty() const {
+	return !angle && !flipped && !crop.isValid();
+}
+
+PhotoModifications::operator bool() const {
+	return !empty();
+}
+
+PhotoModifications::~PhotoModifications() {
+	if (paint && (paint.use_count() == 1)) {
+		paint->deleteLater();
+	}
 }
 
 } // namespace Editor
