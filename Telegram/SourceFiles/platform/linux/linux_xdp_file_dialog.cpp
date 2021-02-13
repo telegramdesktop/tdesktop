@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/linux_xdp_file_dialog.h"
 
+#include "platform/platform_file_utilities.h"
 #include "platform/linux/specific_linux.h"
 #include "storage/localstorage.h"
 #include "base/qt_adapters.h"
@@ -68,6 +69,12 @@ bool Get(
 		const QString &filter,
 		Type type,
 		QString startFile) {
+	static const auto docRegExp = QRegularExpression("^/run/user/\\d+/doc");
+	if (cDialogLastPath().isEmpty()
+		|| cDialogLastPath().contains(docRegExp)) {
+		InitLastPath();
+	}
+
 	XDPFileDialog dialog(parent, caption, QString(), filter);
 
 	dialog.setModal(true);
@@ -85,15 +92,10 @@ bool Get(
 	if (startFile.isEmpty() || startFile.at(0) != '/') {
 		startFile = cDialogLastPath() + '/' + startFile;
 	}
+	dialog.setDirectory(QFileInfo(startFile).absoluteDir().absolutePath());
 	dialog.selectFile(startFile);
 
 	int res = dialog.exec();
-
-	QString path = dialog.directory().path();
-	if (path != cDialogLastPath()) {
-		cSetDialogLastPath(path);
-		Local::writeSettings();
-	}
 
 	if (res == QDialog::Accepted) {
 		QStringList selectedFilesStrings;
@@ -107,6 +109,18 @@ bool Get(
 		} else {
 			files = selectedFilesStrings.mid(0, 1);
 		}
+
+		QString path = files.isEmpty()
+			? QString()
+			: QFileInfo(files.back()).absoluteDir().absolutePath();
+
+		if (!path.isEmpty()
+			&& !path.contains(docRegExp)
+			&& path != cDialogLastPath()) {
+			cSetDialogLastPath(path);
+			Local::writeSettings();
+		}
+
 		return true;
 	}
 
