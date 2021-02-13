@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/linux_gtk_file_dialog.h"
 
+#include "platform/platform_file_utilities.h"
 #include "platform/linux/linux_gtk_integration_p.h"
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_desktop_environment.h"
@@ -655,6 +656,10 @@ bool Get(
 		const QString &filter,
 		Type type,
 		QString startFile) {
+	if (cDialogLastPath().isEmpty()) {
+		InitLastPath();
+	}
+
 	GtkFileDialog dialog(parent, caption, QString(), filter);
 
 	dialog.setModal(true);
