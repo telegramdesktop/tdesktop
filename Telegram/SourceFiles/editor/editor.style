@@ -13,11 +13,28 @@ using "ui/chat/chat.style";
 
 photoEditorControlsHeight: 100px;
 
+photoEditorButtonIconFg: historyComposeIconFg;
+photoEditorButtonIconFgOver: historyComposeIconFgOver;
+
+photoEditorButtonIconFgActive: historyComposeIconFgOver;
+
 photoEditorRotateButton: IconButton(historyAttach) {
-	icon: icon {{ "send_control_attach", historyComposeIconFg }};
-	iconOver: icon {{ "send_control_attach", historyComposeIconFgOver }};
+	icon: icon {{ "photo_editor/rotate", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/rotate", photoEditorButtonIconFgOver }};
 }
 photoEditorFlipButton: IconButton(historyAttach) {
-	icon: icon {{ "send_control_attach", historyComposeIconFg }};
-	iconOver: icon {{ "send_control_attach", historyComposeIconFgOver }};
+	icon: icon {{ "photo_editor/flip", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/flip", photoEditorButtonIconFgOver }};
+}
+photoEditorPaintModeButton: IconButton(historyAttach) {
+	icon: icon {{ "photo_editor/paint", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/paint", photoEditorButtonIconFgOver }};
+}
+photoEditorUndoButton: IconButton(historyAttach) {
+	icon: icon {{ "photo_editor/undo", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/undo", photoEditorButtonIconFgOver }};
+}
+photoEditorRedoButton: IconButton(historyAttach) {
+	icon: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgOver }};
 }

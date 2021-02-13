@@ -52,7 +52,7 @@ PhotoEditorControls::PhotoEditorControls(
 	st::photoEditorFlipButton))
 , _paintModeButton(base::make_unique_q<Ui::IconButton>(
 	_buttonsContainer,
-	st::photoEditorFlipButton)) {
+	st::photoEditorPaintModeButton)) {
 
 	_buttonsContainer->updateChildrenPosition();
 
