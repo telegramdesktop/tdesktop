@@ -2425,6 +2425,7 @@ void OverlayWidget::displayFinished() {
 	updateControls();
 	if (isHidden()) {
 		Ui::Platform::UpdateOverlayed(this);
+		moveToScreen();
 		if (Platform::IsLinux()) {
 			showFullScreen();
 		} else {
