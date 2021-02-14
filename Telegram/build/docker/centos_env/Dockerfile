@@ -601,7 +601,7 @@ RUN cmake3 -B out/Release . \
 	-DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
 	-DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include
 
-RUN cmake3 --build out/Release -- -j8
+RUN cmake3 --build out/Release -- -j$(nproc)
 
 RUN cmake3 -B out/Debug . \
 	-DCMAKE_BUILD_TYPE=Debug \
@@ -611,7 +611,7 @@ RUN cmake3 -B out/Debug . \
 	-DTG_OWT_OPUS_INCLUDE_PATH=/usr/local/include/opus \
 	-DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include
 
-RUN cmake3 --build out/Debug -- -j8
+RUN cmake3 --build out/Debug -- -j$(nproc)
 
 FROM builder
 
