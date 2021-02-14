@@ -1540,9 +1540,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			});
 		}
 		const auto repliesCount = item->repliesCount();
-		const auto withReplies = IsServerMsgId(item->id)
-			&& (repliesCount > 0);
-		if (withReplies && item->history()->peer->isMegagroup()) {
+		const auto isThread = IsServerMsgId(item->id)
+			&& ((repliesCount > 0) || IsServerMsgId(item->replyToTop()));
+		if (isThread && item->history()->peer->isMegagroup()) {
 			const auto rootId = repliesCount ? item->id : item->replyToTop();
 			const auto phrase = (repliesCount > 0)
 				? tr::lng_replies_view(

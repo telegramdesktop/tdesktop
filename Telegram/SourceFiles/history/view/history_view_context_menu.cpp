@@ -570,8 +570,8 @@ bool AddViewRepliesAction(
 		return false;
 	}
 	const auto repliesCount = item->repliesCount();
-	const auto withReplies = (repliesCount > 0);
-	if (!withReplies || !item->history()->peer->isMegagroup()) {
+	const auto isThread = (repliesCount > 0) || IsServerMsgId(item->replyToTop());
+	if (!isThread || !item->history()->peer->isMegagroup()) {
 		return false;
 	}
 	const auto rootId = repliesCount ? item->id : item->replyToTop();
