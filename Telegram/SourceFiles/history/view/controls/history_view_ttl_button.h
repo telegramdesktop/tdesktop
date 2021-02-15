@@ -23,6 +23,10 @@ class TTLButton final {
 public:
 	TTLButton(not_null<QWidget*> parent, not_null<PeerData*> peer);
 
+	[[nodiscard]] not_null<PeerData*> peer() const {
+		return _peer;
+	}
+
 	void show();
 	void hide();
 	void move(int x, int y);
@@ -30,6 +34,7 @@ public:
 	[[nodiscard]] int width() const;
 
 private:
+	const not_null<PeerData*> _peer;
 	Ui::IconButton _button;
 
 };

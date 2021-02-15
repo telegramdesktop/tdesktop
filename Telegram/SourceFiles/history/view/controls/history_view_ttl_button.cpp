@@ -92,7 +92,8 @@ void AutoDeleteSettingsBox(
 }
 
 TTLButton::TTLButton(not_null<QWidget*> parent, not_null<PeerData*> peer)
-: _button(parent, st::historyMessagesTTL) {
+: _peer(peer)
+, _button(parent, st::historyMessagesTTL) {
 	_button.setClickedCallback([=] {
 		const auto canEdit = peer->isUser()
 			|| (peer->isChat()

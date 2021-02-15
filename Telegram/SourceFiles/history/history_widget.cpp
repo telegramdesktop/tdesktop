@@ -5417,7 +5417,7 @@ void HistoryWidget::checkMessagesTTL() {
 			updateControlsGeometry();
 			updateControlsVisibility();
 		}
-	} else if (!_ttlInfo) {
+	} else if (!_ttlInfo || _ttlInfo->peer() != _peer) {
 		_ttlInfo = std::make_unique<HistoryView::Controls::TTLButton>(
 			this,
 			_peer);
