@@ -35,7 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kSlowmodeValues = 7;
-constexpr auto kSuggestGigagroupThreshold = 1; AssertIsDebug(199000);
+constexpr auto kSuggestGigagroupThreshold = 199000;
 
 int SlowmodeDelayByIndex(int index) {
 	Expects(index >= 0 && index < kSlowmodeValues);
@@ -553,6 +553,7 @@ void EditPeerPermissionsBox::addSuggestGigagroup(
 		)).done([=](const MTPUpdates &result) {
 			channel->session().api().applyUpdates(result);
 			Ui::hideSettingsAndLayer();
+			Ui::Toast::Show(tr::lng_gigagroup_done(tr::now));
 		}).fail([=](const RPCError &error) {
 			*converting = false;
 		}).send();

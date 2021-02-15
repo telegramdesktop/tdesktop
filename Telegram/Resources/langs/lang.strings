@@ -2025,6 +2025,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gigagroup_convert_sure" = "Convert";
 "lng_gigagroup_warning_title" = "Are you sure?";
 "lng_gigagroup_warning" = "Regular members of the group (non-admins) will **irrevocably** lose their right to post messages in the group.\n\nThis action **can't** be undone.";
+"lng_gigagroup_done" = "Your group can now have more than 200,000 members.";
 
 "lng_rights_channel_info" = "Change channel info";
 "lng_rights_channel_post" = "Post messages";
