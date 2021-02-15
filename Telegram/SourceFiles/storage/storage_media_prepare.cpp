@@ -40,7 +40,7 @@ bool ValidPhotoForAlbum(
 		const QString &mime) {
 	if (image.animated
 		|| Core::IsMimeSticker(mime)
-		|| !mime.startsWith(u"image/")) {
+		|| (!mime.isEmpty() && !mime.startsWith(u"image/"))) {
 		return false;
 	}
 	const auto width = image.data.width();
