@@ -1063,8 +1063,8 @@ void finish() {
 }
 
 void InstallLauncher(bool force) {
-	static const auto DisabledByEnv = qEnvironmentVariableIsSet(
-		"TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION");
+	static const auto DisabledByEnv = !qEnvironmentVariableIsEmpty(
+		"DESKTOPINTEGRATION");
 
 	// don't update desktop file for alpha version or if updater is disabled
 	if ((cAlphaVersion() || Core::UpdaterDisabled() || DisabledByEnv)
