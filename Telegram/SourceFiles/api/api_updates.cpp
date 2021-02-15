@@ -1824,11 +1824,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updatePeerHistoryTTL();
 		const auto peerId = peerFromMTP(d.vpeer());
 		if (const auto peer = session().data().peerLoaded(peerId)) {
-			if (const auto ttl = d.vttl()) {
-				peer->applyMessagesTTL(*ttl);
-			} else {
-				peer->setMessagesTTL(0, 0, false);
-			}
+			peer->setMessagesTTL(d.vttl_period().value_or_empty());
 		}
 	} break;
 

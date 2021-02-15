@@ -371,6 +371,31 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareInvitedToCallText(action.vusers().v, linkCallId);
 	};
 
+	auto prepareSetMessagesTTL = [this](const MTPDmessageActionSetMessagesTTL &action) {
+		auto result = PreparedText{};
+		const auto period = action.vperiod().v;
+		const auto duration = (period == 5) AssertIsDebug()
+			? u"5 seconds"_q AssertIsDebug()
+			: (period < 3 * 86400)
+			? tr::lng_ttl_about_duration1(tr::now)
+			: tr::lng_ttl_about_duration2(tr::now);
+		if (isPost()) {
+			if (!period) {
+				result.text = tr::lng_action_ttl_removed_channel(tr::now);
+			} else {
+				result.text = tr::lng_action_ttl_changed_channel(tr::now, lt_duration, duration);
+			}
+		} else {
+			result.links.push_back(fromLink());
+			if (!period) {
+				result.text = tr::lng_action_ttl_removed(tr::now, lt_from, fromLinkText());
+			} else {
+				result.text = tr::lng_action_ttl_changed(tr::now, lt_from, fromLinkText(), lt_duration, duration);
+			}
+		}
+		return result;
+	};
+
 	const auto messageText = action.match([&](
 		const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -424,6 +449,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareGroupCall(data);
 	}, [&](const MTPDmessageActionInviteToGroupCall &data) {
 		return prepareInviteToGroupCall(data);
+	}, [&](const MTPDmessageActionSetMessagesTTL &data) {
+		return prepareSetMessagesTTL(data);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedText{ tr::lng_message_empty(tr::now) };
 	});

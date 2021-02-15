@@ -382,18 +382,8 @@ public:
 	}
 	void setLoadedStatus(LoadedStatus status);
 
-	[[nodiscard]] TimeId myMessagesTTL() const {
-		return _ttlMyPeriod;
-	}
-	[[nodiscard]] TimeId peerMessagesTTL() const {
-		return _ttlPeerPeriod;
-	}
-	[[nodiscard]] bool oneSideTTL() const {
-		return _ttlOneSide;
-	}
 	[[nodiscard]] TimeId messagesTTL() const;
-	void setMessagesTTL(TimeId myPeriod, TimeId peerPeriod, bool oneSide);
-	void applyMessagesTTL(const MTPPeerHistoryTTL &ttl);
+	void setMessagesTTL(TimeId period);
 
 	[[nodiscard]] Data::GroupCall *groupCall() const;
 
@@ -439,9 +429,7 @@ private:
 
 	crl::time _lastFullUpdate = 0;
 
-	TimeId _ttlMyPeriod = 0;
-	TimeId _ttlPeerPeriod = 0;
-	bool _ttlOneSide = false;
+	TimeId _ttlPeriod = 0;
 	bool _hasPinnedMessages = false;
 
 	Settings _settings = { kSettingsUnknown };

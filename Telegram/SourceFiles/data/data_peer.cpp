@@ -950,39 +950,16 @@ void PeerData::setLoadedStatus(LoadedStatus status) {
 }
 
 TimeId PeerData::messagesTTL() const {
-	return (_ttlMyPeriod && _ttlPeerPeriod)
-		? std::min(_ttlMyPeriod, _ttlPeerPeriod)
-		: std::max(_ttlMyPeriod, _ttlPeerPeriod);
+	return _ttlPeriod;
 }
 
-void PeerData::setMessagesTTL(
-		TimeId myPeriod,
-		TimeId peerPeriod,
-		bool oneSide) {
-	if (_ttlMyPeriod != myPeriod
-		|| _ttlPeerPeriod != peerPeriod
-		|| _ttlOneSide != oneSide) {
-		_ttlMyPeriod = myPeriod;
-		_ttlPeerPeriod = peerPeriod;
-		_ttlOneSide = oneSide;
+void PeerData::setMessagesTTL(TimeId period) {
+	if (_ttlPeriod != period) {
+		_ttlPeriod = period;
 		session().changes().peerUpdated(
 			this,
 			Data::PeerUpdate::Flag::MessagesTTL);
 	}
-}
-
-void PeerData::applyMessagesTTL(const MTPPeerHistoryTTL &ttl) {
-	ttl.match([&](const MTPDpeerHistoryTTL &data) {
-		setMessagesTTL(
-			data.vttl_period().v,
-			0,
-			false);
-	}, [&](const MTPDpeerHistoryTTLPM &data) {
-		setMessagesTTL(
-			data.vmy_ttl_period().value_or_empty(),
-			data.vpeer_ttl_period().value_or_empty(),
-			data.is_my_oneside());
-	});
 }
 
 namespace Data {

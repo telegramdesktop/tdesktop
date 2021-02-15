@@ -1128,6 +1128,8 @@ ServiceAction ParseServiceAction(
 			content.userIds.push_back(user.v);
 		}
 		result.content = content;
+	}, [&](const MTPDmessageActionSetMessagesTTL &data) {
+		// #TODO ttl
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

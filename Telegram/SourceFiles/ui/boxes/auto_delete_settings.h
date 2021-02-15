@@ -13,10 +13,8 @@ namespace Ui {
 
 void AutoDeleteSettingsBox(
 	not_null<Ui::GenericBox*> box,
-	TimeId ttlMyPeriod,
-	TimeId ttlPeerPeriod,
-	bool ttlOneSide,
-	std::optional<QString> userFirstName,
-	Fn<void(TimeId, bool)> callback);
+	TimeId ttlPeriod,
+	rpl::producer<QString> about,
+	Fn<void(TimeId)> callback);
 
 } // namespace Ui

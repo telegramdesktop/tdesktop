@@ -186,60 +186,53 @@ object_ptr<Ui::RpWidget> CreateSliderForTTL(
 
 void AutoDeleteSettingsBox(
 		not_null<Ui::GenericBox*> box,
-		TimeId ttlMyPeriod,
-		TimeId ttlPeerPeriod,
-		bool ttlOneSide,
-		std::optional<QString> userFirstName,
-		Fn<void(TimeId, bool)> callback) {
+		TimeId ttlPeriod,
+		rpl::producer<QString> about,
+		Fn<void(TimeId)> callback) {
 	box->setTitle(tr::lng_manage_messages_ttl_title());
 	box->setWidth(st::boxWideWidth);
 
 	struct State {
-		TimeId my = 0;
-		bool oneSide = false;
-		rpl::event_stream<rpl::producer<QString>> aboutTexts;
-		Fn<void()> update;
+		TimeId period = 0;
 	};
 
 	const auto state = box->lifetime().make_state<State>(State{
-		.my = ttlMyPeriod,
-		.oneSide = ttlOneSide,
+		.period = ttlPeriod,
 	});
 
 	const auto options = std::vector<QString>{
+		tr::lng_manage_messages_ttl_never(tr::now),
 		u"5 seconds"_q, AssertIsDebug()
 		tr::lng_manage_messages_ttl_after1(tr::now),
 		tr::lng_manage_messages_ttl_after2(tr::now),
-		tr::lng_manage_messages_ttl_never(tr::now),
 	};
 	const auto periodToIndex = [&](TimeId period) {
 		return !period
-			? 3
+			? 0
 			: (period == 5) AssertIsDebug()
-			? 0 AssertIsDebug()
+			? 1 AssertIsDebug()
 			: (period < 3 * 86400)
-			? 1
-			: 2;
+			? 2
+			: 3;
 	};
 	const auto indexToPeriod = [&](int index) {
 		return !index
-			? 5 AssertIsDebug()
+			? 0
 			: (index == 1) AssertIsDebug()
-			? 86400
+			? 5 AssertIsDebug()
 			: (index == 2)
-			? 7 * 86400
-			: 0;
+			? 86400
+			: 7 * 86400;
 	};
 	const auto sliderCallback = [=](int index) {
-		state->my = indexToPeriod(index);
-		state->update();
+		state->period = indexToPeriod(index);
 	};
 	const auto slider = box->addRow(
 		CreateSliderForTTL(
 			box,
 			options | ranges::to_vector,
-			periodToIndex(ttlPeerPeriod),
-			periodToIndex(ttlMyPeriod),
+			options.size() - 1,
+			periodToIndex(ttlPeriod),
 			sliderCallback),
 		{
 			st::boxRowPadding.left(),
@@ -247,72 +240,21 @@ void AutoDeleteSettingsBox(
 			st::boxRowPadding.right(),
 			st::boxMediumSkip });
 
-	const auto bothSides = userFirstName
-		? box->addRow(
-			object_ptr<Ui::Checkbox>(
-				box,
-				tr::lng_ttl_also_checkbox(tr::now, lt_user, *userFirstName),
-				!ttlOneSide),
-			{
-				st::boxRowPadding.left(),
-				0,
-				st::boxRowPadding.right(),
-				st::boxMediumSkip })
-		: nullptr;
-
 	const auto description = box->addRow(
 		object_ptr<Ui::DividerLabel>(
 			box,
 			object_ptr<Ui::FlatLabel>(
 				box,
-				state->aboutTexts.events() | rpl::flatten_latest(),
+				std::move(about),
 				st::boxDividerLabel),
 			st::ttlDividerLabelPadding),
 		style::margins());
 
-	if (bothSides) {
-		bothSides->checkedChanges(
-		) | rpl::start_with_next([=](bool checked) {
-			state->oneSide = !checked;
-			state->update();
-		}, bothSides->lifetime());
-	}
-
-	state->update = [=] {
-		const auto his = ttlPeerPeriod;
-		const auto wrap = [](TimeId period) {
-			Expects(period > 0);
-
-			return (period == 5) AssertIsDebug()
-				? rpl::single(u"5 seconds"_q) AssertIsDebug()
-				: (period < 3 * 86400)
-				? tr::lng_ttl_about_duration1()
-				: tr::lng_ttl_about_duration2();
-		};
-		state->aboutTexts.fire(((!state->my && !his) || !userFirstName)
-			? tr::lng_ttl_edit_about()
-			: (his > 0 && (!state->my || his < state->my))
-			? tr::lng_ttl_edit_about_other(
-				lt_user,
-				rpl::single(*userFirstName),
-				lt_duration,
-				wrap(his))
-			: state->oneSide
-			? tr::lng_ttl_edit_about_you_only(lt_duration, wrap(state->my))
-			: tr::lng_ttl_edit_about_you(
-				lt_duration,
-				wrap(state->my),
-				lt_user,
-				rpl::single(*userFirstName)));
-	};
-	state->update();
-
 	box->addButton(tr::lng_settings_save(), [=] {
-		const auto period = state->my;
-		const auto oneSide = state->oneSide;
+		const auto period = state->period;
 		box->closeBox();
 
-		callback(period, oneSide);
+		callback(period);
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }

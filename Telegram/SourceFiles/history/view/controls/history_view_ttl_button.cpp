@@ -40,23 +40,11 @@ void ShowAutoDeleteToast(not_null<PeerData*> peer) {
 		: (period < 3 * 86400)
 		? tr::lng_ttl_about_duration1(tr::now)
 		: tr::lng_ttl_about_duration2(tr::now);
-	auto rich = Ui::Text::Bold(
-		tr::lng_ttl_about_tooltip_on_title(tr::now, lt_duration, duration)
-	).append('\n');
-
-	const auto myPeriod = peer->myMessagesTTL();
-	rich.append((period == myPeriod)
-		? tr::lng_ttl_about_tooltip(tr::now, lt_duration, duration)
-		: (myPeriod
-			? tr::lng_ttl_about_tooltip_no_longer
-			: tr::lng_ttl_about_tooltip_no_cancel)(
-				tr::now,
-				lt_user,
-				peer->shortName(),
-				lt_duration,
-				duration));
+	const auto text = peer->isBroadcast()
+		? tr::lng_ttl_about_tooltip_channel(tr::now, lt_duration, duration)
+		: tr::lng_ttl_about_tooltip(tr::now, lt_duration, duration);
 	Ui::ShowMultilineToast({
-		.text = std::move(rich),
+		.text = { text },
 		.duration = kToastDuration,
 	});
 }
@@ -66,27 +54,20 @@ void AutoDeleteSettingsBox(
 		not_null<PeerData*> peer) {
 	struct State {
 		TimeId savingPeriod = 0;
-		bool savingOneSide = false;
 		mtpRequestId savingRequestId = 0;
 		QPointer<Ui::GenericBox> weak;
 	};
 	const auto state = std::make_shared<State>(State{ .weak = box.get() });
-	auto callback = [=](TimeId period, bool oneSide) {
+	auto callback = [=](TimeId period) {
 		auto &api = peer->session().api();
 		if (state->savingRequestId) {
-			if (period == state->savingPeriod
-				&& oneSide == state->savingOneSide) {
+			if (period == state->savingPeriod) {
 				return;
 			}
 			api.request(state->savingRequestId).cancel();
 		}
 		state->savingPeriod = period;
-		state->savingOneSide = oneSide;
-		using Flag = MTPmessages_SetHistoryTTL::Flag;
 		state->savingRequestId = api.request(MTPmessages_SetHistoryTTL(
-			MTP_flags((oneSide && peer->isUser())
-				? Flag::f_pm_oneside
-				: Flag(0)),
 			peer->input,
 			MTP_int(period)
 		)).done([=](const MTPUpdates &result) {
@@ -101,12 +82,12 @@ void AutoDeleteSettingsBox(
 	};
 	Ui::AutoDeleteSettingsBox(
 		box,
-		peer->myMessagesTTL(),
-		peer->peerMessagesTTL(),
-		peer->oneSideTTL(),
+		peer->messagesTTL(),
 		(peer->isUser()
-			? std::make_optional(peer->shortName())
-			: std::nullopt),
+			? tr::lng_ttl_edit_about(lt_user, rpl::single(peer->shortName()))
+			: peer->isBroadcast()
+			? tr::lng_ttl_edit_about_channel()
+			: tr::lng_ttl_edit_about_group()),
 		std::move(callback));
 }
 

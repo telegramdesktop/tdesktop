@@ -977,23 +977,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_history_visibility_hidden_legacy" = "New members won't see more than 100 previous messages.";
 
 "lng_manage_messages_ttl_title" = "Auto-delete messages";
-"lng_manage_messages_ttl_never" = "Never";
-"lng_manage_messages_ttl_after1" = "After 24 hours";
-"lng_manage_messages_ttl_after2" = "After 7 days";
-"lng_manage_messages_ttl_about" = "Turning on this setting will make auto-delete messages from this group after the selected period.";
-"lng_manage_messages_ttl_about_channel" = "Turning on this setting will make auto-delete messages from this channel after the selected period.";
+"lng_manage_messages_ttl_never" = "Off";
+"lng_manage_messages_ttl_after1" = "24 hours";
+"lng_manage_messages_ttl_after2" = "7 days";
 
 "lng_ttl_edit_title" = "Auto-delete messages in this chat";
-"lng_ttl_edit_about" = "Automatically delete new messages sent in this chat after a certain period of time.";
-"lng_ttl_edit_about_other" = "{user} has set messages to auto-delete in {duration} for both of you.";
-"lng_ttl_edit_about_you" = "You have set messages to auto-delete in {duration} for both you and {user}.";
-"lng_ttl_edit_about_you_only" = "You have set messages to auto-delete in {duration} only for yourself.";
-"lng_ttl_also_checkbox" = "Also delete for {user}";
-"lng_ttl_about_tooltip_on_title" = "Auto-delete On – {duration}";
-"lng_ttl_about_tooltip" = "Messages in this chat will auto-delete in {duration}.";
-"lng_ttl_about_tooltip_no_longer" = "{user} has set messages to auto-delete in {duration}. You can't make this interval longer.";
-"lng_ttl_about_tooltip_no_cancel" = "{user} has set messages to auto-delete in {duration}. You can't cancel this.";
-"lng_ttl_about_tooltip_off" = "Auto-delete is now Off.";
+"lng_ttl_edit_about" = "Automatically delete new messages after a certain period of time for you and {user}.";
+"lng_ttl_edit_about_group" = "Automatically delete new messages sent in this chat after a certain period of time.";
+"lng_ttl_edit_about_channel" = "Automatically delete new messages sent in this channel after a certain period of time.";
+"lng_ttl_edit_save" = "Confirm";
+"lng_ttl_about_tooltip" = "New messages in this chat will be automatically deleted in {duration}.";
+"lng_ttl_about_tooltip_channel" = "New messages in this chat will be automatically deleted in {duration}.";
+"lng_ttl_about_tooltip_off" = "Auto-delete is now disabled.";
 "lng_ttl_about_duration1" = "24 hours";
 "lng_ttl_about_duration2" = "7 days";
 
@@ -1117,6 +1112,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_changed_title" = "{from} changed group name to «{title}»";
 "lng_action_changed_title_channel" = "Channel name was changed to «{title}»";
 "lng_action_created_chat" = "{from} created group «{title}»";
+"lng_action_ttl_changed" = "{from} has set messages to auto-delete in {duration}";
+"lng_action_ttl_changed_channel" = "New messages will auto-delete in {duration}";
+"lng_action_ttl_removed" = "{from} has set messages not to auto-delete";
+"lng_action_ttl_removed_channel" = "New messages will not auto-delete";
 "lng_action_created_channel" = "Channel created";
 "lng_action_pinned_message" = "{from} pinned «{text}»";
 "lng_action_pinned_media" = "{from} pinned {media}";

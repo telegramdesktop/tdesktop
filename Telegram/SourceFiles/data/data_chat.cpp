@@ -377,9 +377,7 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 		chat->clearGroupCall();
 	}
 
-	if (const auto ttl = update.vttl()) {
-		chat->applyMessagesTTL(*ttl);
-	}
+	chat->setMessagesTTL(update.vttl_period().value_or_empty());
 	if (const auto info = update.vbot_info()) {
 		for (const auto &item : info->v) {
 			item.match([&](const MTPDbotInfo &data) {
