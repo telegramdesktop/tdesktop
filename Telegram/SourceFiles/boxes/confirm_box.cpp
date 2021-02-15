@@ -583,9 +583,20 @@ void DeleteMessagesBox::prepare() {
 	auto deleteText = lifetime().make_state<rpl::variable<QString>>();
 	*deleteText = tr::lng_box_delete();
 	auto deleteStyle = &st::defaultBoxButton;
+	auto canDelete = true;
 	if (const auto peer = _wipeHistoryPeer) {
 		if (_wipeHistoryJustClear) {
-			details.text = peer->isSelf()
+			const auto isChannel = peer->isBroadcast();
+			const auto isPublicGroup = peer->isMegagroup()
+				&& peer->asChannel()->isPublic();
+			if (isChannel || isPublicGroup) {
+				canDelete = false;
+			}
+			details.text = isChannel
+				? tr::lng_no_clear_history_channel(tr::now)
+				: isPublicGroup
+				? tr::lng_no_clear_history_group(tr::now)
+				: peer->isSelf()
 				? tr::lng_sure_delete_saved_messages(tr::now)
 				: peer->isUser()
 				? tr::lng_sure_delete_history(tr::now, lt_contact, peer->name)
@@ -671,11 +682,15 @@ void DeleteMessagesBox::prepare() {
 		});
 	}
 
-	addButton(
-		deleteText->value(),
-		[=] { deleteAndClear(); },
-		*deleteStyle);
-	addButton(tr::lng_cancel(), [=] { closeBox(); });
+	if (canDelete) {
+		addButton(
+			deleteText->value(),
+			[=] { deleteAndClear(); },
+			*deleteStyle);
+		addButton(tr::lng_cancel(), [=] { closeBox(); });
+	} else {
+		addButton(tr::lng_about_done(), [=] { closeBox(); });
+	}
 
 	auto fullHeight = st::boxPadding.top() + _text->height() + st::boxPadding.bottom();
 	if (_moderateFrom) {

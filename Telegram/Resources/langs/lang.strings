@@ -1073,6 +1073,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sure_leave_group" = "Are you sure you want to leave this group?";
 "lng_sure_delete_group" = "Are you sure, you want to delete this group? All members will be removed and all messages will be lost.";
 "lng_sure_delete_saved_messages" = "Are you sure, you want to delete all your saved messages?\n\nThis action cannot be undone.";
+"lng_no_clear_history_channel" = "In channels you can enable auto-delete for messages.";
+"lng_no_clear_history_group" = "In public groups you can enable auto-delete for messages.";
 
 "lng_message_empty" = "Empty Message";
 "lng_message_unsupported" = "This message is not supported by your version of Telegram Desktop. Please update to the latest version in Settings, or install it from {link}";

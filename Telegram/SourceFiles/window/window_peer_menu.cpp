@@ -582,7 +582,8 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 		}
 	}
 	if (channel->amIn()) {
-		if (isGroup && !channel->isPublic()) {
+		if ((isGroup && !channel->isPublic())
+			|| channel->canDeleteMessages()) {
 			_addAction(
 				tr::lng_profile_clear_history(tr::now),
 				ClearHistoryHandler(channel));
