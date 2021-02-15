@@ -595,7 +595,7 @@ void Histories::deleteAllMessages(
 		};
 		const auto chat = peer->asChat();
 		const auto channel = peer->asChannel();
-		if (revoke && channel && channel->canDelete()) {
+		if (!justClear && revoke && channel && channel->canDelete()) {
 			return session().api().request(MTPchannels_DeleteChannel(
 				channel->inputChannel
 			)).done([=](const MTPUpdates &result) {
@@ -606,8 +606,11 @@ void Histories::deleteAllMessages(
 			//	}
 			}).send();
 		} else if (channel) {
+			const auto flags = revoke
+				? MTPchannels_DeleteHistory::Flag::f_for_everyone
+				: MTPchannels_DeleteHistory::Flag(0);
 			return session().api().request(MTPchannels_DeleteHistory(
-				MTP_flags(0),
+				MTP_flags(flags),
 				channel->inputChannel,
 				MTP_int(deleteTillId)
 			)).done([=](const MTPBool &result) {

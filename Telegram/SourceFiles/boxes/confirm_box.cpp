@@ -748,8 +748,6 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 				tr::now,
 				lt_user,
 				user->firstName);
-		} else if (_wipeHistoryJustClear) {
-			return std::nullopt;
 		} else {
 			result.checkbox = tr::lng_delete_for_everyone_check(tr::now);
 		}
