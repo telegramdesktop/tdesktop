@@ -65,6 +65,7 @@ namespace Ui {
 class ResizeArea;
 class PlainShadow;
 class DropdownMenu;
+enum class ReportReason;
 template <typename Widget>
 class SlideWrap;
 } // namespace Ui
@@ -209,6 +210,12 @@ public:
 	bool contentOverlapped(const QRect &globalRect);
 
 	void searchInChat(Dialogs::Key chat);
+
+	void showChooseReportMessages(
+		not_null<PeerData*> peer,
+		Ui::ReportReason reason,
+		Fn<void(MessageIdsList)> done);
+	void clearChooseReportMessages();
 
 	void ui_showPeerHistory(
 		PeerId peer,

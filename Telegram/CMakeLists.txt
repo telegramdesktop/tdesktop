@@ -240,8 +240,6 @@ PRIVATE
     boxes/photo_crop_box.h
     boxes/rate_call_box.cpp
     boxes/rate_call_box.h
-    boxes/report_box.cpp
-    boxes/report_box.h
     boxes/self_destruction_box.cpp
     boxes/self_destruction_box.h
     boxes/send_files_box.cpp

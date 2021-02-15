@@ -73,6 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_webpage_preview.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_contact_status.h"
+#include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_pinned_tracker.h"
 #include "history/view/history_view_pinned_section.h"
 #include "history/view/history_view_pinned_bar.h"
@@ -102,6 +103,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "apiwrap.h"
 #include "base/qthelp_regex.h"
+#include "ui/boxes/report_box.h"
 #include "ui/chat/pinned_bar.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/widgets/popup_menu.h"
@@ -111,6 +113,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_peer_menu.h"
@@ -196,6 +199,7 @@ HistoryWidget::HistoryWidget(
 	this,
 	tr::lng_channel_mute(tr::now).toUpper(),
 	st::historyComposeButton)
+, _reportMessages(this, QString(), st::historyComposeButton)
 , _attachToggle(this, st::historyAttach)
 , _tabbedSelectorToggle(this, st::historyAttachEmoji)
 , _botKeyboardShow(this, st::historyBotKeyboardShow)
@@ -242,6 +246,7 @@ HistoryWidget::HistoryWidget(
 	_botStart->addClickHandler([=] { sendBotStartCommand(); });
 	_joinChannel->addClickHandler([=] { joinChannel(); });
 	_muteUnmute->addClickHandler([=] { toggleMuteUnmute(); });
+	_reportMessages->addClickHandler([=] { reportSelectedMessages(); });
 	connect(
 		_field,
 		&Ui::InputField::submitted,
@@ -373,6 +378,7 @@ HistoryWidget::HistoryWidget(
 	_botStart->hide();
 	_joinChannel->hide();
 	_muteUnmute->hide();
+	_reportMessages->hide();
 
 	initVoiceRecordBar();
 
@@ -686,6 +692,10 @@ HistoryWidget::HistoryWidget(
 	_topBar->clearSelectionRequest(
 	) | rpl::start_with_next([=] {
 		clearSelected();
+	}, _topBar->lifetime());
+	_topBar->cancelChooseForReportRequest(
+	) | rpl::start_with_next([=] {
+		setChooseReportMessagesDetails({}, nullptr);
 	}, _topBar->lifetime());
 
 	session().api().sendActions(
@@ -1743,6 +1753,9 @@ void HistoryWidget::showHistory(
 	if (startBot) {
 		showAtMsgId = ShowAtTheEndMsgId;
 	}
+	if (showAtMsgId != ShowForChooseMessagesMsgId) {
+		_chooseForReport = nullptr;
+	}
 
 	clearHighlightMessages();
 	hideInfoTooltip(anim::type::instant);
@@ -1753,7 +1766,17 @@ void HistoryWidget::showHistory(
 			if (showAtMsgId == ShowAtUnreadMsgId
 				&& insideJumpToEndInsteadOfToUnread()) {
 				showAtMsgId = ShowAtTheEndMsgId;
+			} else if (showAtMsgId == ShowForChooseMessagesMsgId) {
+				if (_chooseForReport) {
+					_chooseForReport->active = true;
+					_list->setChooseReportReason(_chooseForReport->reason);
+					updateControlsVisibility();
+					updateControlsGeometry();
+					updateTopBarChooseForReport();
+				}
+				return;
 			}
+			_list->clearChooseReportReason();
 			if (!IsServerMsgId(showAtMsgId)
 				&& !IsServerMsgId(-showAtMsgId)) {
 				// To end or to unread.
@@ -1918,6 +1941,12 @@ void HistoryWidget::showHistory(
 
 		refreshTopBarActiveChat();
 		updateTopBarSelection();
+		if (showAtMsgId == ShowForChooseMessagesMsgId) {
+			showAtMsgId = ShowAtUnreadMsgId;
+			if (_chooseForReport) {
+				_chooseForReport->active = true;
+			}
+		}
 
 		if (_channel) {
 			updateNotifyControls();
@@ -1943,6 +1972,11 @@ void HistoryWidget::showHistory(
 		_list = _scroll->setOwnedWidget(
 			object_ptr<HistoryInner>(this, _scroll, controller(), _history));
 		_list->show();
+
+		if (_chooseForReport && _chooseForReport->active) {
+			_list->setChooseReportReason(_chooseForReport->reason);
+		}
+		updateTopBarChooseForReport();
 
 		_updateHistoryItems.cancel();
 
@@ -2168,8 +2202,18 @@ void HistoryWidget::updateControlsVisibility() {
 	if (_contactStatus) {
 		_contactStatus->show();
 	}
-	if (!editingMessage() && (isBlocked() || isJoinChannel() || isMuteUnmute() || isBotStart())) {
-		if (isBlocked()) {
+	if (!editingMessage() && (isBlocked() || isJoinChannel() || isMuteUnmute() || isBotStart() || isReportMessages())) {
+		if (isReportMessages()) {
+			_unblock->hide();
+			_joinChannel->hide();
+			_muteUnmute->hide();
+			_botStart->hide();
+			if (_reportMessages->isHidden()) {
+				_reportMessages->clearState();
+				_reportMessages->show();
+			}
+		} else if (isBlocked()) {
+			_reportMessages->hide();
 			_joinChannel->hide();
 			_muteUnmute->hide();
 			_botStart->hide();
@@ -2178,6 +2222,7 @@ void HistoryWidget::updateControlsVisibility() {
 				_unblock->show();
 			}
 		} else if (isJoinChannel()) {
+			_reportMessages->hide();
 			_unblock->hide();
 			_muteUnmute->hide();
 			_botStart->hide();
@@ -2186,6 +2231,7 @@ void HistoryWidget::updateControlsVisibility() {
 				_joinChannel->show();
 			}
 		} else if (isMuteUnmute()) {
+			_reportMessages->hide();
 			_unblock->hide();
 			_joinChannel->hide();
 			_botStart->hide();
@@ -2194,6 +2240,7 @@ void HistoryWidget::updateControlsVisibility() {
 				_muteUnmute->show();
 			}
 		} else if (isBotStart()) {
+			_reportMessages->hide();
 			_unblock->hide();
 			_joinChannel->hide();
 			_muteUnmute->hide();
@@ -2244,6 +2291,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_botStart->hide();
 		_joinChannel->hide();
 		_muteUnmute->hide();
+		_reportMessages->hide();
 		_send->show();
 		updateSendButtonType();
 
@@ -2303,6 +2351,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_botStart->hide();
 		_joinChannel->hide();
 		_muteUnmute->hide();
+		_reportMessages->hide();
 		_attachToggle->hide();
 		if (_silent) {
 			_silent->hide();
@@ -3268,6 +3317,24 @@ void HistoryWidget::toggleMuteUnmute() {
 	session().data().updateNotifySettings(_peer, muteForSeconds);
 }
 
+void HistoryWidget::reportSelectedMessages() {
+	if (!_list || !_chooseForReport || !_list->getSelectionState().count) {
+		return;
+	}
+	const auto ids = _list->getSelectedItems();
+	const auto peer = _peer;
+	const auto reason = _chooseForReport->reason;
+	const auto box = std::make_shared<QPointer<Ui::GenericBox>>();
+	const auto send = [=](const QString &text) {
+		HistoryView::SendReport(peer, reason, text, ids);
+		controller()->clearChooseReportMessages();
+		if (*box) {
+			(*box)->closeBox();
+		}
+	};
+	*box = controller()->window().show(Box(Ui::ReportDetailsBox, send));
+}
+
 History *HistoryWidget::history() const {
 	return _history;
 }
@@ -3706,6 +3773,10 @@ bool HistoryWidget::isBotStart() const {
 	return false;
 }
 
+bool HistoryWidget::isReportMessages() const {
+	return _peer && _chooseForReport && _chooseForReport->active;
+}
+
 bool HistoryWidget::isBlocked() const {
 	return _peer && _peer->isUser() && _peer->asUser()->isBlocked();
 }
@@ -3993,7 +4064,7 @@ void HistoryWidget::moveFieldControls() {
 
 // _attachToggle --------- _inlineResults -------------------------------------- _tabbedPanel --------- _fieldBarCancel
 // (_attachDocument|_attachPhoto) _field (_ttlInfo) (_scheduled) (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) _send
-// (_botStart|_unblock|_joinChannel|_muteUnmute)
+// (_botStart|_unblock|_joinChannel|_muteUnmute|_reportMessages)
 
 	auto buttonsBottom = bottom - _attachToggle->height();
 	auto left = st::historySendRight;
@@ -4037,8 +4108,8 @@ void HistoryWidget::moveFieldControls() {
 	_botStart->setGeometry(fullWidthButtonRect);
 	_unblock->setGeometry(fullWidthButtonRect);
 	_joinChannel->setGeometry(fullWidthButtonRect);
-
 	_muteUnmute->setGeometry(fullWidthButtonRect);
+	_reportMessages->setGeometry(fullWidthButtonRect);
 }
 
 void HistoryWidget::updateFieldSize() {
@@ -4406,13 +4477,19 @@ void HistoryWidget::handleHistoryChange(not_null<const History*> history) {
 			const auto botStart = isBotStart();
 			const auto joinChannel = isJoinChannel();
 			const auto muteUnmute = isMuteUnmute();
+			const auto reportMessages = isReportMessages();
 			const auto update = false
-				|| (_unblock->isHidden() == unblock)
-				|| (!unblock && _botStart->isHidden() == botStart)
-				|| (!unblock
+				|| (_reportMessages->isHidden() == reportMessages)
+				|| (!reportMessages && _unblock->isHidden() == unblock)
+				|| (!reportMessages
+					&& !unblock
+					&& _botStart->isHidden() == botStart)
+				|| (!reportMessages
+					&& !unblock
 					&& !botStart
 					&& _joinChannel->isHidden() == joinChannel)
-				|| (!unblock
+				|| (!reportMessages
+					&& !unblock
 					&& !botStart
 					&& !joinChannel
 					&& _muteUnmute->isHidden() == muteUnmute);
@@ -4667,7 +4744,7 @@ void HistoryWidget::updateHistoryGeometry(
 	if (_contactStatus) {
 		newScrollHeight -= _contactStatus->height();
 	}
-	if (!editingMessage() && (isBlocked() || isBotStart() || isJoinChannel() || isMuteUnmute())) {
+	if (!editingMessage() && (isBlocked() || isBotStart() || isJoinChannel() || isMuteUnmute() || isReportMessages())) {
 		newScrollHeight -= _unblock->height();
 	} else {
 		if (editingMessage() || _canSendMessages) {
@@ -5424,6 +5501,28 @@ void HistoryWidget::checkMessagesTTL() {
 		orderWidgets();
 		updateControlsGeometry();
 		updateControlsVisibility();
+	}
+}
+
+void HistoryWidget::setChooseReportMessagesDetails(
+		Ui::ReportReason reason,
+		Fn<void(MessageIdsList)> callback) {
+	if (!callback) {
+		const auto refresh = _chooseForReport && _chooseForReport->active;
+		_chooseForReport = nullptr;
+		if (_list) {
+			_list->clearChooseReportReason();
+		}
+		if (refresh) {
+			updateControlsVisibility();
+			updateControlsGeometry();
+			updateTopBarChooseForReport();
+		}
+	} else {
+		_chooseForReport = std::make_unique<ChooseMessagesForReport>(
+			ChooseMessagesForReport{
+				.reason = reason,
+				.callback = std::move(callback) });
 	}
 }
 
@@ -6209,6 +6308,18 @@ MessageIdsList HistoryWidget::getSelectedItems() const {
 	return _list ? _list->getSelectedItems() : MessageIdsList();
 }
 
+void HistoryWidget::updateTopBarChooseForReport() {
+	if (_chooseForReport && _chooseForReport->active) {
+		_topBar->showChooseMessagesForReport(
+			_chooseForReport->reason);
+	} else {
+		_topBar->clearChooseMessagesForReport();
+	}
+	updateTopBarSelection();
+	updateControlsVisibility();
+	updateControlsGeometry();
+}
+
 void HistoryWidget::updateTopBarSelection() {
 	if (!_list) {
 		_topBar->showSelected(HistoryView::TopBarWidget::SelectedState {});
@@ -6216,8 +6327,25 @@ void HistoryWidget::updateTopBarSelection() {
 	}
 
 	auto selectedState = _list->getSelectionState();
-	_nonEmptySelection = (selectedState.count > 0) || selectedState.textSelected;
+	_nonEmptySelection = (selectedState.count > 0)
+		|| selectedState.textSelected;
 	_topBar->showSelected(selectedState);
+
+	const auto transparent = Qt::WA_TransparentForMouseEvents;
+	if (selectedState.count == 0) {
+		_reportMessages->clearState();
+		_reportMessages->setAttribute(transparent);
+		_reportMessages->setColorOverride(st::windowSubTextFg->c);
+	} else if (_reportMessages->testAttribute(transparent)) {
+		_reportMessages->setAttribute(transparent, false);
+		_reportMessages->setColorOverride(std::nullopt);
+	}
+	_reportMessages->setText(Ui::Text::Upper(selectedState.count
+		? tr::lng_report_messages_count(
+			tr::now,
+			lt_count,
+			selectedState.count)
+		: tr::lng_report_messages_none(tr::now)));
 	updateControlsVisibility();
 	updateHistoryGeometry();
 	if (!Ui::isLayerShown() && !Core::App().passcodeLocked()) {

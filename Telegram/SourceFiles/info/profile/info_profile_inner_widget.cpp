@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
-#include "boxes/report_box.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "apiwrap.h"

@@ -68,6 +68,7 @@ class PinnedBar;
 class GroupCallBar;
 struct PreparedList;
 class SendFilesWay;
+enum class ReportReason;
 namespace Toast {
 class Instance;
 } // namespace Toast
@@ -141,6 +142,7 @@ public:
 
 	bool isItemCompletelyHidden(HistoryItem *item) const;
 	void updateTopBarSelection();
+	void updateTopBarChooseForReport();
 
 	void loadMessages();
 	void loadMessagesDown();
@@ -230,6 +232,9 @@ public:
 	void applyDraft(
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
 	void showHistory(const PeerId &peer, MsgId showAtMsgId, bool reload = false);
+	void setChooseReportMessagesDetails(
+		Ui::ReportReason reason,
+		Fn<void(MessageIdsList)> callback);
 	void clearAllLoadRequests();
 	void clearDelayedShowAtRequest();
 	void clearDelayedShowAt();
@@ -313,6 +318,11 @@ private:
 		ScrollChangeType type;
 		int value;
 	};
+	struct ChooseMessagesForReport {
+		Ui::ReportReason reason = {};
+		Fn<void(MessageIdsList)> callback;
+		bool active = false;
+	};
 	enum class TextUpdateEvent {
 		SaveDraft = (1 << 0),
 		SendTyping = (1 << 1),
@@ -377,6 +387,7 @@ private:
 
 	[[nodiscard]] int computeMaxFieldHeight() const;
 	void toggleMuteUnmute();
+	void reportSelectedMessages();
 	void toggleKeyboard(bool manual = true);
 	void startBotCommand();
 	void hidePinnedMessage();
@@ -572,6 +583,7 @@ private:
 	bool isBlocked() const;
 	bool isJoinChannel() const;
 	bool isMuteUnmute() const;
+	bool isReportMessages() const;
 	bool updateCmdStartShown();
 	void updateSendButtonType();
 	bool showRecordButton() const;
@@ -687,6 +699,7 @@ private:
 	object_ptr<Ui::FlatButton> _botStart;
 	object_ptr<Ui::FlatButton> _joinChannel;
 	object_ptr<Ui::FlatButton> _muteUnmute;
+	object_ptr<Ui::FlatButton> _reportMessages;
 	object_ptr<Ui::IconButton> _attachToggle;
 	object_ptr<Ui::EmojiButton> _tabbedSelectorToggle;
 	object_ptr<Ui::IconButton> _botKeyboardShow;
@@ -740,6 +753,7 @@ private:
 	base::Timer _saveCloudDraftTimer;
 
 	base::weak_ptr<Ui::Toast::Instance> _topToast;
+	std::unique_ptr<ChooseMessagesForReport> _chooseForReport;
 
 	object_ptr<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;

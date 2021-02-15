@@ -749,6 +749,13 @@ topBarSearch: IconButton {
 		color: windowBgOver;
 	}
 }
+topBarCloseChoose: IconButton(topBarSearch) {
+	width: 56px;
+	icon: icon {{ "info_close", boxTitleCloseFg }};
+	iconOver: icon {{ "info_close", boxTitleCloseFgOver }};
+	iconPosition: point(10px, -1px);
+	rippleAreaPosition: point(7px, 7px);
+}
 topBarSkip: -5px;
 topBarCallSkip: -1px;
 topBarMenuToggle: IconButton(topBarSearch) {

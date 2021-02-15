@@ -72,6 +72,8 @@ PRIVATE
     ui/boxes/choose_date_time.h
     ui/boxes/edit_invite_link.cpp
     ui/boxes/edit_invite_link.h
+    ui/boxes/report_box.cpp
+    ui/boxes/report_box.h
     ui/chat/attach/attach_album_thumbnail.cpp
     ui/chat/attach/attach_album_thumbnail.h
     ui/chat/attach/attach_album_preview.cpp

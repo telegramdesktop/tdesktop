@@ -1414,6 +1414,18 @@ void MainWidget::ctrlEnterSubmitUpdated() {
 	_history->updateFieldSubmitSettings();
 }
 
+void MainWidget::showChooseReportMessages(
+		not_null<PeerData*> peer,
+		Ui::ReportReason reason,
+		Fn<void(MessageIdsList)> done) {
+	_history->setChooseReportMessagesDetails(reason, std::move(done));
+	ui_showPeerHistory(peer->id, SectionShow(), ShowForChooseMessagesMsgId);
+}
+
+void MainWidget::clearChooseReportMessages() {
+	_history->setChooseReportMessagesDetails({}, nullptr);
+}
+
 void MainWidget::ui_showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,

@@ -11,10 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/mute_settings_box.h"
 #include "boxes/add_contact_box.h"
-#include "boxes/report_box.h"
 #include "boxes/create_poll_box.h"
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/peers/edit_contact_box.h"
+#include "ui/boxes/report_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/labels.h"
@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_message.h" // GetErrorTextForSending.
+#include "history/view/history_view_context_menu.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "support/support_helper.h"
@@ -604,8 +605,8 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 		const auto needReport = !channel->amCreator()
 			&& (!isGroup || channel->isPublic());
 		if (needReport) {
-			_addAction(tr::lng_profile_report(tr::now), [channel] {
-				Ui::show(Box<ReportBox>(channel));
+			_addAction(tr::lng_profile_report(tr::now), [=] {
+				HistoryView::ShowReportPeerBox(navigation, channel);
 			});
 		}
 	}
@@ -972,6 +973,21 @@ void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user) {
 			user->session().api().sendBotStart(user);
 		}
 	});
+}
+
+void BlockSenderFromRepliesBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<SessionController*> controller,
+		FullMsgId id) {
+	const auto item = controller->session().data().message(id);
+	Assert(item != nullptr);
+
+	PeerMenuBlockUserBox(
+		box,
+		&controller->window(),
+		item->senderOriginal(),
+		true,
+		Window::ClearReply{ id });
 }
 
 QPointer<Ui::RpWidget> ShowForwardMessagesBox(

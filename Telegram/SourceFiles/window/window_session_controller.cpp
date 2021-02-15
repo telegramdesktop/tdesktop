@@ -1073,6 +1073,17 @@ void SessionController::clearPassportForm() {
 	_passportForm = nullptr;
 }
 
+void SessionController::showChooseReportMessages(
+		not_null<PeerData*> peer,
+		Ui::ReportReason reason,
+		Fn<void(MessageIdsList)> done) {
+	content()->showChooseReportMessages(peer, reason, std::move(done));
+}
+
+void SessionController::clearChooseReportMessages() {
+	content()->clearChooseReportMessages();
+}
+
 void SessionController::updateColumnLayout() {
 	content()->updateColumnLayout();
 }
