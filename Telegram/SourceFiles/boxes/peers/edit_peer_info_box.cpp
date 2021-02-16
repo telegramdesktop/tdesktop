@@ -29,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "history/admin_log/history_admin_log_section.h"
-#include "history/view/controls/history_view_ttl_button.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -337,7 +336,6 @@ private:
 	//void fillInviteLinkButton();
 	void fillSignaturesButton();
 	void fillHistoryVisibilityButton();
-	void fillSetMessagesTTLButton();
 	void fillManageSection();
 
 	void submitTitle();
@@ -883,35 +881,6 @@ void Controller::fillHistoryVisibilityButton() {
 	refreshHistoryVisibility();
 }
 
-void Controller::fillSetMessagesTTLButton() {
-	Expects(_controls.buttonsLayout != nullptr);
-
-	auto label = _peer->session().changes().peerFlagsValue(
-		_peer,
-		Data::PeerUpdate::Flag::MessagesTTL
-	) | rpl::map([=] {
-		const auto period = _peer->messagesTTL();
-		return !period
-			? tr::lng_manage_messages_ttl_never()
-			: (period == 5) // for debugging
-			? rpl::single<QString>("5 seconds") // for debugging
-			: (period < 3 * 86400)
-			? tr::lng_manage_messages_ttl_after1()
-			: tr::lng_manage_messages_ttl_after2();
-	}) | rpl::flatten_latest();
-
-	const auto buttonCallback = [=] {
-		Ui::show(
-			Box(HistoryView::Controls::AutoDeleteSettingsBox, _peer),
-			Ui::LayerOption::KeepOther);
-	};
-	AddButtonWithText(
-		_controls.buttonsLayout,
-		tr::lng_manage_messages_ttl_title(),
-		std::move(label),
-		buttonCallback);
-}
-
 void Controller::fillManageSection() {
 	Expects(_controls.buttonsLayout != nullptr);
 
@@ -934,13 +903,6 @@ void Controller::fillManageSection() {
 		return isChannel
 			? channel->canEditPreHistoryHidden()
 			: chat->canEditPreHistoryHidden();
-	}();
-	const auto canSetMessagesTTL = [&] {
-		// Leave this entry point only for channels for now.
-		// Groups and users have their entry point in 'Clear History' box.
-		return isChannel
-			&& !channel->isMegagroup()
-			&& channel->canDeleteMessages();
 	}();
 
 	const auto canEditPermissions = [&] {
@@ -1007,9 +969,6 @@ void Controller::fillManageSection() {
 	if (canEditPreHistoryHidden) {
 		fillHistoryVisibilityButton();
 	}
-	if (canSetMessagesTTL) {
-		fillSetMessagesTTLButton();
-	}
 	if (canEditSignatures) {
 		fillSignaturesButton();
 	}
@@ -1017,8 +976,7 @@ void Controller::fillManageSection() {
 		|| canEditSignatures
 		//|| canEditInviteLinks
 		|| canViewOrEditLinkedChat
-		|| canEditUsername
-		|| canSetMessagesTTL) {
+		|| canEditUsername) {
 		AddSkip(
 			_controls.buttonsLayout,
 			st::editPeerTopButtonsLayoutSkip,
