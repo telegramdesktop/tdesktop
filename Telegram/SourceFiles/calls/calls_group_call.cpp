@@ -252,7 +252,7 @@ void GroupCall::start() {
 		hangup();
 		if (error.type() == u"GROUPCALL_ANONYMOUS_FORBIDDEN"_q) {
 			Ui::ShowMultilineToast({
-				.text = tr::lng_group_call_no_anonymous(tr::now),
+				.text = { tr::lng_group_call_no_anonymous(tr::now) },
 			});
 		}
 	}).send();
@@ -368,13 +368,13 @@ void GroupCall::rejoin() {
 
 				hangup();
 				Ui::ShowMultilineToast({
-					.text = (type == u"GROUPCALL_ANONYMOUS_FORBIDDEN"_q
+					.text = { type == u"GROUPCALL_ANONYMOUS_FORBIDDEN"_q
 						? tr::lng_group_call_no_anonymous(tr::now)
 						: type == u"GROUPCALL_PARTICIPANTS_TOO_MUCH"_q
 						? tr::lng_group_call_too_many(tr::now)
 						: type == u"GROUPCALL_FORBIDDEN"_q
 						? tr::lng_group_not_accessible(tr::now)
-						: Lang::Hard::ServerError()),
+						: Lang::Hard::ServerError() },
 				});
 			}).send();
 		});

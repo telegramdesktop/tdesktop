@@ -940,7 +940,7 @@ void SessionController::startOrJoinGroupCall(
 	const auto channel = peer->asChannel();
 	if (channel && channel->amAnonymous()) {
 		Ui::ShowMultilineToast({
-			.text = tr::lng_group_call_no_anonymous(tr::now),
+			.text = { tr::lng_group_call_no_anonymous(tr::now) },
 		});
 		return;
 	}

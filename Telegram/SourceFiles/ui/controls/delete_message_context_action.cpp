@@ -48,7 +48,6 @@ private:
 	const TimeId _destroyAt = 0;
 	const Fn<void()> _destroyByTimerCallback;
 	const crl::time _startedAt = 0;
-	crl::time _lastCheckAt = 0;
 	base::Timer _refreshTimer;
 
 	Text::String _text;
