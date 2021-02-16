@@ -18,6 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Editor {
 namespace {
 
+constexpr auto kMaxBrush = 25.;
+constexpr auto kMinBrush = 1.;
+
 constexpr auto kViewStyle = "QGraphicsView {\
 		background-color: transparent;\
 		border: 0px\
@@ -115,9 +118,6 @@ void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
 
 void Paint::initDrawing() {
 	using Result = base::EventFilterResult;
-
-	_brushData.size = 10;
-	_brushData.color = Qt::red;
 
 	auto callback = [=](not_null<QEvent*> event) {
 		const auto type = event->type();
@@ -247,6 +247,12 @@ std::vector<QGraphicsItem*> Paint::groups(Qt::SortOrder order) const {
 	return ranges::views::all(
 		items
 	) | ranges::views::filter(GroupsFilter) | ranges::to_vector;
+}
+
+void Paint::applyBrush(const Brush &brush) {
+	_brushData.color = brush.color;
+	_brushData.size =
+		(kMinBrush + float64(kMaxBrush - kMinBrush) * brush.sizeRatio);
 }
 
 } // namespace Editor

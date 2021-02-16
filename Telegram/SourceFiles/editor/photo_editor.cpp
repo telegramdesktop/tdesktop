@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor.h"
 
+#include "editor/color_picker.h"
 #include "editor/photo_editor_content.h"
 #include "editor/photo_editor_controls.h"
 #include "editor/undo_controller.h"
@@ -26,9 +27,13 @@ PhotoEditor::PhotoEditor(
 	photo,
 	_modifications,
 	_undoController))
-, _controls(base::make_unique_q<PhotoEditorControls>(this, _undoController)) {
+, _controls(base::make_unique_q<PhotoEditorControls>(this, _undoController))
+, _colorPicker(std::make_unique<ColorPicker>(this)) {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &size) {
+		if (size.isEmpty()) {
+			return;
+		}
 		const auto geometry = QRect(QPoint(), size);
 		const auto contentRect = geometry
 			- style::margins(0, 0, 0, st::photoEditorControlsHeight);
@@ -36,12 +41,17 @@ PhotoEditor::PhotoEditor(
 		const auto controlsRect = geometry
 			- style::margins(0, contentRect.height(), 0, 0);
 		_controls->setGeometry(controlsRect);
+
+		_colorPicker->moveLine(QPoint(
+			controlsRect.x() + controlsRect.width() / 2,
+			controlsRect.y() + st::photoEditorColorPickerTopSkip));
 	}, lifetime());
 
 	_mode.value(
 	) | rpl::start_with_next([=](const PhotoEditorMode &mode) {
 		_content->applyMode(mode);
 		_controls->applyMode(mode);
+		_colorPicker->setVisible(mode.mode == PhotoEditorMode::Mode::Paint);
 	}, lifetime());
 
 	_controls->rotateRequests(
@@ -85,6 +95,11 @@ PhotoEditor::PhotoEditor(
 				.action = PhotoEditorMode::Action::Discard,
 			};
 		}
+	}, lifetime());
+
+	_colorPicker->brushValue(
+	) | rpl::start_with_next([=](const Brush &brush) {
+		_content->applyBrush(brush);
 	}, lifetime());
 }
 

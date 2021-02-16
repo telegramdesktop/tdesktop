@@ -27,6 +27,7 @@ public:
 
 	void applyModifications(PhotoModifications modifications);
 	void applyMode(const PhotoEditorMode &mode);
+	void applyBrush(const Brush &brush);
 	void save(PhotoModifications &modifications);
 
 private:

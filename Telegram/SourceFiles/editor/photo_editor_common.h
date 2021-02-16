@@ -36,6 +36,11 @@ struct PhotoModifications {
 
 };
 
+struct Brush {
+	float sizeRatio = 0.;
+	QColor color;
+};
+
 [[nodiscard]] QImage ImageModified(
 	QImage image,
 	const PhotoModifications &mods);

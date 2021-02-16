@@ -94,6 +94,9 @@ void PhotoEditorContent::applyModifications(
 void PhotoEditorContent::save(PhotoModifications &modifications) {
 	modifications.crop = _crop->saveCropRect(_imageRect, _photo->rect());
 	_paint->keepResult();
+	if (!modifications.paint) {
+		modifications.paint = _paint->saveScene();
+	}
 }
 
 void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
@@ -111,6 +114,10 @@ void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
 		_paint->keepResult();
 	}
 	_mode = mode;
+}
+
+void PhotoEditorContent::applyBrush(const Brush &brush) {
+	_paint->applyBrush(brush);
 }
 
 } // namespace Editor

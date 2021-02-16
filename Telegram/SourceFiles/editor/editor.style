@@ -12,6 +12,7 @@ using "ui/widgets/widgets.style";
 using "ui/chat/chat.style";
 
 photoEditorControlsHeight: 100px;
+photoEditorControlsTopSkip: 50px;
 
 photoEditorButtonIconFg: historyComposeIconFg;
 photoEditorButtonIconFgOver: historyComposeIconFgOver;
@@ -44,3 +45,13 @@ photoEditorUndoButtonInactive: icon {{ "photo_editor/undo", photoEditorButtonIco
 photoEditorRedoButtonInactive: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgInactive }};
 
 photoEditorTextButtonPadding: margins(10px, 0px, 10px, 0px);
+
+photoEditorColorPickerTopSkip: 20px;
+photoEditorColorPickerWidth: 250px;
+photoEditorColorPickerLineHeight: 20px;
+photoEditorColorPickerCanvasHeight: 300px;
+photoEditorColorPickerCircleSize: 24px;
+photoEditorColorPickerCircleBigSize: 50px;
+
+photoEditorColorPickerCircleSkip: 50px;
+

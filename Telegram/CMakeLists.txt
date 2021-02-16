@@ -508,6 +508,8 @@ PRIVATE
     dialogs/dialogs_search_from_controllers.h
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
+    editor/color_picker.cpp
+    editor/color_picker.h
     editor/editor_crop.cpp
     editor/editor_crop.h
     editor/editor_paint.cpp

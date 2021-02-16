@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Editor {
 
+class ColorPicker;
 class PhotoEditorContent;
 class PhotoEditorControls;
 class UndoController;
@@ -37,6 +38,7 @@ private:
 
 	base::unique_qptr<PhotoEditorContent> _content;
 	base::unique_qptr<PhotoEditorControls> _controls;
+	const std::unique_ptr<ColorPicker> _colorPicker;
 
 	rpl::variable<PhotoEditorMode> _mode = PhotoEditorMode{
 		.mode = PhotoEditorMode::Mode::Transform,

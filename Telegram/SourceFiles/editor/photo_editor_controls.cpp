@@ -192,6 +192,8 @@ PhotoEditorControls::PhotoEditorControls(
 
 	}, lifetime());
 
+	const auto &buttonsTop = st::photoEditorControlsTopSkip;
+
 	rpl::combine(
 		sizeValue(),
 		_mode.value()
@@ -208,10 +210,10 @@ PhotoEditorControls::PhotoEditorControls(
 
 		current->moveToLeft(
 			(size.width() - current->width()) / 2,
-			0);
+			buttonsTop);
 
-		_cancel->moveToLeft(current->x() - _cancel->width(), 0);
-		_done->moveToLeft(current->x() + current->width(), 0);
+		_cancel->moveToLeft(current->x() - _cancel->width(), buttonsTop);
+		_done->moveToLeft(current->x() + current->width(), buttonsTop);
 
 	}, lifetime());
 

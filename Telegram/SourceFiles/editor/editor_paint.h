@@ -30,6 +30,7 @@ public:
 	[[nodiscard]] std::shared_ptr<QGraphicsScene> saveScene() const;
 
 	void applyTransform(QRect geometry, int angle, bool flipped);
+	void applyBrush(const Brush &brush);
 	void cancel();
 	void keepResult();
 	void updateUndoState();
