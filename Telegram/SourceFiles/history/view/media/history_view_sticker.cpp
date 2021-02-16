@@ -273,6 +273,12 @@ void Sticker::refreshLink() {
 		_link = std::make_shared<LambdaClickHandler>([document = _data] {
 			StickerSetBox::Show(App::wnd()->sessionController(), document);
 		});
+	} else if (sticker
+		&& !_parent->data()->isSending()
+		&& !_parent->data()->hasFailed()) {
+		_link = std::make_shared<DocumentOpenClickHandler>(
+			_data,
+			_parent->data()->fullId());
 	}
 }
 

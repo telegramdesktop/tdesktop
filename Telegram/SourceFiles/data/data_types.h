@@ -325,12 +325,7 @@ enum DocumentType {
 };
 
 inline constexpr auto kStickerSideSize = 512;
-
-[[nodiscard]] inline bool GoodStickerDimensions(int width, int height) {
-	return (width > 0 && width <= kStickerSideSize)
-		&& (height > 0 && height <= kStickerSideSize)
-		&& (width == kStickerSideSize || height == kStickerSideSize);
-}
+[[nodiscard]] bool GoodStickerDimensions(int width, int height);
 
 using MediaKey = QPair<uint64, uint64>;
 
