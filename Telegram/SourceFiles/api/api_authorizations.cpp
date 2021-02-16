@@ -128,9 +128,19 @@ void Authorizations::requestTerminate(
 	const auto send = [&](auto request) {
 		_api.request(
 			std::move(request)
-		).done(
-			std::move(done)
-		).fail(
+		).done([=, done = std::move(done)](const MTPBool &result) {
+			done(result);
+			if (mtpIsTrue(result)) {
+				if (hash) {
+					_list.erase(
+						ranges::remove(_list, *hash, &Entry::hash),
+						end(_list));
+				} else {
+					_list.clear();
+				}
+				_listChanges.fire({});
+			}
+		}).fail(
 			std::move(fail)
 		).send();
 	};

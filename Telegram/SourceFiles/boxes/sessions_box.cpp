@@ -262,13 +262,13 @@ void SessionsContent::terminateOne(uint64 hash) {
 	const auto weak = Ui::MakeWeak(this);
 	auto callback = [=] {
 		auto done = crl::guard(weak, [=](const MTPBool &result) {
+			if (mtpIsFalse(result)) {
+				return;
+			}
 			_inner->terminatingOne(hash, false);
-			const auto getHash = [](const Entry &entry) {
-				return entry.hash;
-			};
 			const auto removeByHash = [&](std::vector<Entry> &list) {
 				list.erase(
-					ranges::remove(list, hash, getHash),
+					ranges::remove(list, hash, &Entry::hash),
 					end(list));
 			};
 			removeByHash(_data.incomplete);
