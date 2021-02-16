@@ -292,6 +292,8 @@ public:
 	virtual void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) {
 	}
+	[[nodiscard]] virtual bool toggleSelectionByHandlerClick(
+		const ClickHandlerPtr &handler) const;
 
 	struct VerticalRepaintRange {
 		int top = 0;

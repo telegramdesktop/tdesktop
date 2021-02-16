@@ -42,7 +42,7 @@ void ReportReasonBox(
 	const auto add = [&](Reason reason, tr::phrase<> text) {
 		const auto layout = box->verticalLayout();
 		const auto button = layout->add(
-			object_ptr<Ui::SettingsButton>(layout, text()));
+			object_ptr<SettingsButton>(layout, text()));
 		button->setClickedCallback([=] {
 			done(reason);
 		});
@@ -63,7 +63,7 @@ void ReportDetailsBox(
 		not_null<GenericBox*> box,
 		Fn<void(QString)> done) {
 	box->addRow(
-		object_ptr<Ui::FlatLabel>(
+		object_ptr<FlatLabel>(
 			box, // #TODO reports
 			tr::lng_report_details_about(),
 			st::boxLabel),
@@ -73,20 +73,23 @@ void ReportDetailsBox(
 			st::boxRowPadding.right(),
 			st::boxPadding.bottom() });
 	const auto details = box->addRow(
-		object_ptr<Ui::InputField>(
+		object_ptr<InputField>(
 			box,
 			st::newGroupDescription,
-			Ui::InputField::Mode::MultiLine,
+			InputField::Mode::MultiLine,
 			tr::lng_report_details(),
 			QString()));
 	details->setMaxLength(kReportReasonLengthMax);
 	box->setFocusCallback([=] {
 		details->setFocusFast();
 	});
-	box->addButton(tr::lng_report_button(), [=] {
+
+	const auto submit = [=] {
 		const auto text = details->getLastText();
 		done(text);
-	});
+	};
+	QObject::connect(details, &InputField::submitted, submit);
+	box->addButton(tr::lng_report_button(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 

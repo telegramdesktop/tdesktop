@@ -1323,10 +1323,8 @@ void HistoryInner::mouseActionFinish(
 			&& inSelectionMode()
 			&& button != Qt::RightButton) {
 			if (const auto view = _mouseActionItem->mainView()) {
-				if (const auto media = view->media()) {
-					if (media->toggleSelectionByHandlerClick(activated)) {
-						activated = nullptr;
-					}
+				if (view->toggleSelectionByHandlerClick(activated)) {
+					activated = nullptr;
 				}
 			}
 		}

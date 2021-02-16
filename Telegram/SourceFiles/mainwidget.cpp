@@ -1419,7 +1419,10 @@ void MainWidget::showChooseReportMessages(
 		Ui::ReportReason reason,
 		Fn<void(MessageIdsList)> done) {
 	_history->setChooseReportMessagesDetails(reason, std::move(done));
-	ui_showPeerHistory(peer->id, SectionShow(), ShowForChooseMessagesMsgId);
+	ui_showPeerHistory(
+		peer->id,
+		SectionShow::Way::Forward,
+		ShowForChooseMessagesMsgId);
 }
 
 void MainWidget::clearChooseReportMessages() {

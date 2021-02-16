@@ -105,6 +105,8 @@ public:
 	bool displayEditedBadge() const override;
 	TimeId displayedEditDate() const override;
 	HistoryMessageReply *displayedReply() const override;
+	bool toggleSelectionByHandlerClick(
+		const ClickHandlerPtr &handler) const override;
 	int infoWidth() const override;
 
 	VerticalRepaintRange verticalRepaintRange() const override;

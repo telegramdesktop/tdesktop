@@ -1753,9 +1753,6 @@ void HistoryWidget::showHistory(
 	if (startBot) {
 		showAtMsgId = ShowAtTheEndMsgId;
 	}
-	if (showAtMsgId != ShowForChooseMessagesMsgId) {
-		_chooseForReport = nullptr;
-	}
 
 	clearHighlightMessages();
 	hideInfoTooltip(anim::type::instant);
@@ -1768,6 +1765,7 @@ void HistoryWidget::showHistory(
 				showAtMsgId = ShowAtTheEndMsgId;
 			} else if (showAtMsgId == ShowForChooseMessagesMsgId) {
 				if (_chooseForReport) {
+					clearSelected();
 					_chooseForReport->active = true;
 					_list->setChooseReportReason(_chooseForReport->reason);
 					updateControlsVisibility();
@@ -1776,7 +1774,6 @@ void HistoryWidget::showHistory(
 				}
 				return;
 			}
-			_list->clearChooseReportReason();
 			if (!IsServerMsgId(showAtMsgId)
 				&& !IsServerMsgId(-showAtMsgId)) {
 				// To end or to unread.
@@ -1939,14 +1936,16 @@ void HistoryWidget::showHistory(
 		}
 		_history->setFakeUnreadWhileOpened(true);
 
-		refreshTopBarActiveChat();
-		updateTopBarSelection();
-		if (showAtMsgId == ShowForChooseMessagesMsgId) {
-			showAtMsgId = ShowAtUnreadMsgId;
+		if (_showAtMsgId == ShowForChooseMessagesMsgId) {
+			_showAtMsgId = ShowAtUnreadMsgId;
 			if (_chooseForReport) {
 				_chooseForReport->active = true;
 			}
+		} else {
+			_chooseForReport = nullptr;
 		}
+		refreshTopBarActiveChat();
+		updateTopBarSelection();
 
 		if (_channel) {
 			updateNotifyControls();
@@ -2034,6 +2033,7 @@ void HistoryWidget::showHistory(
 		unreadCountUpdated(); // set _historyDown badge.
 		showAboutTopPromotion();
 	} else {
+		_chooseForReport = nullptr;
 		refreshTopBarActiveChat();
 		updateTopBarSelection();
 		checkMessagesTTL();
@@ -3325,9 +3325,13 @@ void HistoryWidget::reportSelectedMessages() {
 	const auto peer = _peer;
 	const auto reason = _chooseForReport->reason;
 	const auto box = std::make_shared<QPointer<Ui::GenericBox>>();
+	const auto weak = Ui::MakeWeak(_list.data());
 	const auto send = [=](const QString &text) {
+		if (weak) {
+			clearSelected();
+			controller()->clearChooseReportMessages();
+		}
 		HistoryView::SendReport(peer, reason, text, ids);
-		controller()->clearChooseReportMessages();
 		if (*box) {
 			(*box)->closeBox();
 		}
@@ -5514,6 +5518,7 @@ void HistoryWidget::setChooseReportMessagesDetails(
 			_list->clearChooseReportReason();
 		}
 		if (refresh) {
+			clearSelected();
 			updateControlsVisibility();
 			updateControlsGeometry();
 			updateTopBarChooseForReport();
@@ -6260,7 +6265,9 @@ void HistoryWidget::confirmDeleteSelected() {
 }
 
 void HistoryWidget::escape() {
-	if (_nonEmptySelection && _list) {
+	if (_chooseForReport) {
+		controller()->clearChooseReportMessages();
+	} else if (_nonEmptySelection && _list) {
 		clearSelected();
 	} else if (_isInlineBot) {
 		cancelInlineBot();

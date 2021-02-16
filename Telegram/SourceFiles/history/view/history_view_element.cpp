@@ -736,6 +736,11 @@ HistoryMessageReply *Element::displayedReply() const {
 	return nullptr;
 }
 
+bool Element::toggleSelectionByHandlerClick(
+	const ClickHandlerPtr &handler) const {
+	return false;
+}
+
 bool Element::hasVisibleText() const {
 	return false;
 }
