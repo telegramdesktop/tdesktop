@@ -31,7 +31,7 @@
 27. User Bio clickable
 28. `tg://openmessage` and `tg://user` clickable
 29. Show user total sent messages when you're deleting a message
-30. Shortcut for Fast Forward/Copy messages (ALT+F/ALF+C)
+30. Shortcut for Fast Forward/Copy messages (ALT+F/ALT+C)
 31. Always delete message option(Group/Person/Both)
 32. Show Phone Number option
 33. View Channel Button in Group Info widget
