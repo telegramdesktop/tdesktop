@@ -374,8 +374,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareSetMessagesTTL = [this](const MTPDmessageActionSetMessagesTTL &action) {
 		auto result = PreparedText{};
 		const auto period = action.vperiod().v;
-		const auto duration = (period == 5) AssertIsDebug()
-			? u"5 seconds"_q AssertIsDebug()
+		const auto duration = (period == 5)
+			? u"5 seconds"_q
 			: (period < 3 * 86400)
 			? tr::lng_ttl_about_duration1(tr::now)
 			: tr::lng_ttl_about_duration2(tr::now);

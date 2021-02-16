@@ -190,7 +190,6 @@ void AutoDeleteSettingsBox(
 		rpl::producer<QString> about,
 		Fn<void(TimeId)> callback) {
 	box->setTitle(tr::lng_manage_messages_ttl_title());
-	box->setWidth(st::boxWideWidth);
 
 	struct State {
 		TimeId period = 0;
@@ -202,25 +201,25 @@ void AutoDeleteSettingsBox(
 
 	const auto options = std::vector<QString>{
 		tr::lng_manage_messages_ttl_never(tr::now),
-		u"5 seconds"_q, AssertIsDebug()
+		//u"5 seconds"_q, AssertIsDebug()
 		tr::lng_manage_messages_ttl_after1(tr::now),
 		tr::lng_manage_messages_ttl_after2(tr::now),
 	};
 	const auto periodToIndex = [&](TimeId period) {
 		return !period
 			? 0
-			: (period == 5) AssertIsDebug()
-			? 1 AssertIsDebug()
+			//: (period == 5) AssertIsDebug()
+			//? 1 AssertIsDebug()
 			: (period < 3 * 86400)
-			? 2
-			: 3;
+			? 1
+			: 2;
 	};
 	const auto indexToPeriod = [&](int index) {
 		return !index
 			? 0
-			: (index == 1) AssertIsDebug()
-			? 5 AssertIsDebug()
-			: (index == 2)
+			//: (index == 1) AssertIsDebug()
+			//? 5 AssertIsDebug()
+			: (index == 1)
 			? 86400
 			: 7 * 86400;
 	};

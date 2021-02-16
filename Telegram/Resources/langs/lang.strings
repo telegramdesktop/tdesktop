@@ -981,7 +981,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_messages_ttl_after1" = "24 hours";
 "lng_manage_messages_ttl_after2" = "7 days";
 
-"lng_ttl_edit_title" = "Auto-delete messages in this chat";
 "lng_ttl_edit_about" = "Automatically delete new messages after a certain period of time for you and {user}.";
 "lng_ttl_edit_about_group" = "Automatically delete new messages sent in this chat after a certain period of time.";
 "lng_ttl_edit_about_channel" = "Automatically delete new messages sent in this channel after a certain period of time.";

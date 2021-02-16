@@ -666,8 +666,10 @@ void DeleteMessagesBox::prepare() {
 	if (_wipeHistoryJustClear
 		&& _wipeHistoryPeer
 		&& (_wipeHistoryPeer->isUser()
-			|| _wipeHistoryPeer->isMegagroup()
-			|| _wipeHistoryPeer->isChat())) {
+			|| (_wipeHistoryPeer->isChat()
+				&& _wipeHistoryPeer->asChat()->canDeleteMessages())
+			|| (_wipeHistoryPeer->isChannel()
+				&& _wipeHistoryPeer->asChannel()->canDeleteMessages()))) {
 		_wipeHistoryPeer->updateFull();
 		_autoDeleteSettings.create(
 			this,
