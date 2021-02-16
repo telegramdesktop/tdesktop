@@ -170,12 +170,14 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 			result->addAction(
 				tr::lng_group_invite_context_share(tr::now),
 				shareLink);
-			result->addAction(
-				tr::lng_group_invite_context_edit(tr::now),
-				editLink);
-			result->addAction(
-				tr::lng_group_invite_context_revoke(tr::now),
-				revokeLink);
+			if (!admin->isBot()) {
+				result->addAction(
+					tr::lng_group_invite_context_edit(tr::now),
+					editLink);
+				result->addAction(
+					tr::lng_group_invite_context_revoke(tr::now),
+					revokeLink);
+			}
 		}
 		return result;
 	};
@@ -255,7 +257,9 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	) | rpl::start_with_next([=](const LinkData &data) {
 		const auto now = base::unixtime::now();
 		const auto expired = IsExpiredLink(data, now);
-		reactivateWrap->toggle(!revoked && expired, anim::type::instant);
+		reactivateWrap->toggle(
+			!revoked && expired && !admin->isBot(),
+			anim::type::instant);
 		copyShareWrap->toggle(!revoked && !expired, anim::type::instant);
 
 		const auto timeExpired = (data.expireDate > 0)
@@ -591,9 +595,11 @@ void AddPermanentLinkBlock(
 		result->addAction(
 			tr::lng_group_invite_context_share(tr::now),
 			shareLink);
-		result->addAction(
-			tr::lng_group_invite_context_revoke(tr::now),
-			revokeLink);
+		if (!admin->isBot()) {
+			result->addAction(
+				tr::lng_group_invite_context_revoke(tr::now),
+				revokeLink);
+		}
 		return result;
 	};
 	const auto label = container->lifetime().make_state<Ui::InviteLinkLabel>(
