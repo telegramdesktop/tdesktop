@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor.h"
 
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "editor/color_picker.h"
 #include "editor/photo_editor_content.h"
 #include "editor/photo_editor_controls.h"
@@ -14,6 +16,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_editor.h"
 
 namespace Editor {
+namespace {
+
+constexpr auto kPrecision = 100000;
+
+[[nodiscard]] QByteArray Serialize(const Brush &brush) {
+	auto result = QByteArray();
+	auto stream = QDataStream(&result, QIODevice::WriteOnly);
+	stream.setVersion(QDataStream::Qt_5_3);
+	stream << qint32(brush.sizeRatio * kPrecision) << brush.color;
+	stream.device()->close();
+
+	return result;
+}
+
+[[nodiscard]] Brush Deserialize(const QByteArray &data) {
+	auto stream = QDataStream(data);
+	auto result = Brush();
+	auto size = qint32(0);
+	stream >> size >> result.color;
+	result.sizeRatio = size / float(kPrecision);
+	return (stream.status() != QDataStream::Ok)
+		? Brush()
+		: result;
+}
+
+} // namespace
 
 PhotoEditor::PhotoEditor(
 	not_null<Ui::RpWidget*> parent,
@@ -28,7 +56,10 @@ PhotoEditor::PhotoEditor(
 	_modifications,
 	_undoController))
 , _controls(base::make_unique_q<PhotoEditorControls>(this, _undoController))
-, _colorPicker(std::make_unique<ColorPicker>(this)) {
+, _colorPicker(std::make_unique<ColorPicker>(
+	this,
+	Deserialize(Core::App().settings().photoEditorBrush()))) {
+
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &size) {
 		if (size.isEmpty()) {
@@ -97,9 +128,18 @@ PhotoEditor::PhotoEditor(
 		}
 	}, lifetime());
 
-	_colorPicker->brushValue(
+	rpl::single(
+		Deserialize(Core::App().settings().photoEditorBrush())
+	) | rpl::then(
+		_colorPicker->saveBrushRequests()
 	) | rpl::start_with_next([=](const Brush &brush) {
 		_content->applyBrush(brush);
+
+		const auto serialized = Serialize(brush);
+		if (Core::App().settings().photoEditorBrush() != serialized) {
+			Core::App().settings().setPhotoEditorBrush(serialized);
+			Core::App().saveSettingsDelayed();
+		}
 	}, lifetime());
 }
 
