@@ -152,6 +152,10 @@ Application::Application(not_null<Launcher*> launcher)
 }
 
 Application::~Application() {
+	if (_saveSettingsTimer && _saveSettingsTimer->isActive()) {
+		Local::writeSettings();
+	}
+
 	// Depend on activeWindow() for now :(
 	Shortcuts::Finish();
 
@@ -465,7 +469,9 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 }
 
 void Application::saveSettingsDelayed(crl::time delay) {
-	_saveSettingsTimer.callOnce(delay);
+	if (_saveSettingsTimer) {
+		_saveSettingsTimer->callOnce(delay);
+	}
 }
 
 void Application::saveSettings() {
@@ -533,7 +539,7 @@ void Application::badMtprotoConfigurationError() {
 
 void Application::startLocalStorage() {
 	Local::start();
-	_saveSettingsTimer.setCallback([=] { saveSettings(); });
+	_saveSettingsTimer.emplace([=] { saveSettings(); });
 }
 
 void Application::startEmojiImageLoader() {

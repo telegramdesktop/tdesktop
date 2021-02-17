@@ -368,7 +368,7 @@ private:
 	crl::time _shouldLockAt = 0;
 	base::Timer _autoLockTimer;
 
-	base::Timer _saveSettingsTimer;
+	std::optional<base::Timer> _saveSettingsTimer;
 
 	struct LeaveSubscription {
 		LeaveSubscription(
