@@ -351,29 +351,33 @@ QMargins TitleWidgetQt::resizeArea() const {
 }
 
 Qt::Edges TitleWidgetQt::edgesFromPos(const QPoint &pos) const {
-	if (pos.x() <= resizeArea().left()) {
-		if (pos.y() <= resizeArea().top()) {
+	const auto area = resizeArea();
+
+	if (area.isNull()) {
+		return Qt::Edges();
+	} else if (pos.x() <= area.left()) {
+		if (pos.y() <= area.top()) {
 			return Qt::LeftEdge | Qt::TopEdge;
-		} else if (pos.y() >= (window()->height() - resizeArea().bottom())) {
+		} else if (pos.y() >= (window()->height() - area.bottom())) {
 			return Qt::LeftEdge | Qt::BottomEdge;
 		}
 
 		return Qt::LeftEdge;
-	} else if (pos.x() >= (window()->width() - resizeArea().right())) {
-		if (pos.y() <= resizeArea().top()) {
+	} else if (pos.x() >= (window()->width() - area.right())) {
+		if (pos.y() <= area.top()) {
 			return Qt::RightEdge | Qt::TopEdge;
-		} else if (pos.y() >= (window()->height() - resizeArea().bottom())) {
+		} else if (pos.y() >= (window()->height() - area.bottom())) {
 			return Qt::RightEdge | Qt::BottomEdge;
 		}
 
 		return Qt::RightEdge;
-	} else if (pos.y() <= resizeArea().top()) {
+	} else if (pos.y() <= area.top()) {
 		return Qt::TopEdge;
-	} else if (pos.y() >= (window()->height() - resizeArea().bottom())) {
+	} else if (pos.y() >= (window()->height() - area.bottom())) {
 		return Qt::BottomEdge;
-	} else {
-		return Qt::Edges();
 	}
+
+	return Qt::Edges();
 }
 
 void TitleWidgetQt::updateCursor(Qt::Edges edges) {
