@@ -268,8 +268,11 @@ if %BuildUWP% neq 0 (
   mkdir "%DeployPath%"
 
   move "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\"
-  move "%ReleasePath%\%BinaryName%.x86.appx" "%DeployPath%\"
-  move "%ReleasePath%\%BinaryName%.x64.appx" "%DeployPath%\"
+  if %Build64% equ 0 (
+    move "%ReleasePath%\%BinaryName%.x86.appx" "%DeployPath%\"
+  ) else (
+    move "%ReleasePath%\%BinaryName%.x64.appx" "%DeployPath%\"
+  )
   move "%ReleasePath%\%BinaryName%.exe" "%DeployPath%\"
 
   if "%AlphaBetaParam%" equ "" (
