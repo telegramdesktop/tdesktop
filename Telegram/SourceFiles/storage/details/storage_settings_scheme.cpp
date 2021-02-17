@@ -725,7 +725,9 @@ bool ReadSetting(
 		auto position = TWindowPos();
 		stream >> position.x >> position.y >> position.w >> position.h;
 		stream >> position.moncrc >> position.maximized;
-		stream >> position.scale;
+		if (version >= 2005009) {
+			stream >> position.scale;
+		}
 		if (!CheckStreamStatus(stream)) return false;
 
 		DEBUG_LOG(("Window Pos: Read from storage %1, %2, %3, %4 (scale %5%, maximized %6)")
