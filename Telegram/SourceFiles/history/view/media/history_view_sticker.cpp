@@ -274,8 +274,13 @@ void Sticker::refreshLink() {
 			StickerSetBox::Show(App::wnd()->sessionController(), document);
 		});
 	} else if (sticker
+		&& (_data->dimensions.width() > kStickerSideSize
+			|| _data->dimensions.height() > kStickerSideSize)
 		&& !_parent->data()->isSending()
 		&& !_parent->data()->hasFailed()) {
+		// In case we have a .webp file that is displayed as a sticker, but
+		// that doesn't fit in 512x512, we assume it may be a regular large
+		// .webp image and we allow to open it in media viewer.
 		_link = std::make_shared<DocumentOpenClickHandler>(
 			_data,
 			_parent->data()->fullId());
