@@ -3098,7 +3098,10 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 	const auto r = e->rect();
 	const auto region = e->region();
 	const auto contentShown = _photo || documentContentShown();
-	const auto bgRegion = contentShown
+	const auto opaqueContentShown = contentShown
+		&& (!_document
+			|| (!_document->isVideoMessage() && !_document->sticker()));
+	const auto bgRegion = opaqueContentShown
 		? (region - contentRect())
 		: region;
 
@@ -3385,9 +3388,9 @@ void OverlayWidget::paintTransformedStaticContent(Painter &p) {
 	const auto rect = contentRect();
 
 	PainterHighQualityEnabler hq(p);
-	if ((!_document || !_documentMedia->getStickerLarge())
-		&& (_staticContent.isNull()
-			|| _staticContent.hasAlpha())) {
+	if ((!_document
+		|| (!_document->sticker() && !_document->isVideoMessage()))
+		&& (_staticContent.isNull() || _staticContent.hasAlpha())) {
 		p.fillRect(rect, _transparentBrush);
 	}
 	if (_staticContent.isNull()) {
