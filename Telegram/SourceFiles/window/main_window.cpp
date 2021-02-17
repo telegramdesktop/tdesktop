@@ -292,7 +292,7 @@ void MainWindow::handleVisibleChanged(bool visible) {
 			setWindowState(Qt::WindowMaximized);
 		}
 	} else {
-		_maximizedBeforeHide = cWindowPos().maximized;
+		_maximizedBeforeHide = Core::App().settings().windowPosition().maximized;
 	}
 
 	handleVisibleChangedHook(visible);
@@ -424,8 +424,9 @@ void MainWindow::initSize() {
 		return;
 	}
 
-	auto position = cWindowPos();
-	DEBUG_LOG(("Window Pos: Initializing first %1, %2, %3, %4 (scale %5%, maximized %6)")
+	auto position = Core::App().settings().windowPosition();
+	DEBUG_LOG(("Window Pos: Initializing first %1, %2, %3, %4 "
+		"(scale %5%, maximized %6)")
 		.arg(position.x)
 		.arg(position.y)
 		.arg(position.w)
@@ -625,7 +626,7 @@ void MainWindow::savePosition(Qt::WindowState state) {
 		return;
 	}
 
-	auto savedPosition = cWindowPos();
+	const auto &savedPosition = Core::App().settings().windowPosition();
 	auto realPosition = savedPosition;
 
 	if (state == Qt::WindowMaximized) {
@@ -657,7 +658,11 @@ void MainWindow::savePosition(Qt::WindowState state) {
 		}
 		if (chosen) {
 			auto screenGeometry = chosen->geometry();
-			DEBUG_LOG(("Window Pos: Screen found, geometry: %1, %2, %3, %4").arg(screenGeometry.x()).arg(screenGeometry.y()).arg(screenGeometry.width()).arg(screenGeometry.height()));
+			DEBUG_LOG(("Window Pos: Screen found, geometry: %1, %2, %3, %4"
+				).arg(screenGeometry.x()
+				).arg(screenGeometry.y()
+				).arg(screenGeometry.width()
+				).arg(screenGeometry.height()));
 			realPosition.x -= screenGeometry.x();
 			realPosition.y -= screenGeometry.y();
 			realPosition.moncrc = screenNameChecksum(chosen->name());
@@ -678,8 +683,8 @@ void MainWindow::savePosition(Qt::WindowState state) {
 				.arg(realPosition.h)
 				.arg(realPosition.scale)
 				.arg(Logs::b(realPosition.maximized)));
-			cSetWindowPos(realPosition);
-			Local::writeSettings();
+			Core::App().settings().setWindowPosition(realPosition);
+			Core::App().saveSettingsDelayed();
 		}
 	}
 }

@@ -721,16 +721,16 @@ bool ReadSetting(
 		context.legacyRead = true;
 	} break;
 
-	case dbiWindowPosition: {
-		auto position = TWindowPos();
+	case dbiWindowPositionOld: {
+		auto position = Core::WindowPosition();
+		if (!CheckStreamStatus(stream)) {
+			return false;
+		}
 		stream >> position.x >> position.y >> position.w >> position.h;
 		stream >> position.moncrc >> position.maximized;
-		if (version >= 2005009) {
-			stream >> position.scale;
-		}
 		if (!CheckStreamStatus(stream)) return false;
 
-		DEBUG_LOG(("Window Pos: Read from storage %1, %2, %3, %4 (scale %5%, maximized %6)")
+		DEBUG_LOG(("Window Pos: Read from legacy storage %1, %2, %3, %4 (scale %5%, maximized %6)")
 			.arg(position.x)
 			.arg(position.y)
 			.arg(position.w)
@@ -738,7 +738,8 @@ bool ReadSetting(
 			.arg(position.scale)
 			.arg(Logs::b(position.maximized)));
 
-		cSetWindowPos(position);
+		Core::App().settings().setWindowPosition(position);
+		context.legacyRead = true;
 	} break;
 
 	case dbiLoggedPhoneNumberOld: { // deprecated

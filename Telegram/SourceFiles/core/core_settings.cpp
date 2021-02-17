@@ -17,6 +17,52 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 
 namespace Core {
+namespace {
+
+[[nodiscard]] WindowPosition Deserialize(const QByteArray &data) {
+	QDataStream stream(data);
+	stream.setVersion(QDataStream::Qt_5_1);
+
+	auto result = WindowPosition();
+	stream
+		>> result.x
+		>> result.y
+		>> result.w
+		>> result.h
+		>> result.moncrc
+		>> result.maximized
+		>> result.scale;
+	return result;
+}
+
+[[nodiscard]] QByteArray Serialize(const WindowPosition &position) {
+	auto result = QByteArray();
+	const auto size = 7 * sizeof(qint32);
+	result.reserve(size);
+	{
+		QDataStream stream(&result, QIODevice::WriteOnly);
+		stream.setVersion(QDataStream::Qt_5_1);
+		stream
+			<< qint32(position.x)
+			<< qint32(position.y)
+			<< qint32(position.w)
+			<< qint32(position.h)
+			<< qint32(position.moncrc)
+			<< qint32(position.maximized)
+			<< qint32(position.scale);
+	}
+	DEBUG_LOG(("Window Pos: Writing to storage %1, %2, %3, %4"
+		" (scale %5%, maximized %6)")
+		.arg(position.x)
+		.arg(position.y)
+		.arg(position.w)
+		.arg(position.h)
+		.arg(position.scale)
+		.arg(Logs::b(position.maximized)));
+	return result;
+}
+
+} // namespace
 
 Settings::Settings()
 : _sendSubmitWay(Ui::InputSubmitSettings::Enter)
@@ -27,6 +73,8 @@ Settings::Settings()
 
 QByteArray Settings::serialize() const {
 	const auto themesAccentColors = _themesAccentColors.serialize();
+	const auto windowPosition = Serialize(_windowPosition);
+
 	auto size = Serialize::bytearraySize(themesAccentColors)
 		+ sizeof(qint32) * 5
 		+ Serialize::stringSize(_downloadPath.current())
@@ -40,6 +88,7 @@ QByteArray Settings::serialize() const {
 		size += Serialize::stringSize(key) + Serialize::stringSize(value);
 	}
 	size += Serialize::bytearraySize(_videoPipGeometry);
+	size += Serialize::bytearraySize(windowPosition);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -115,7 +164,8 @@ QByteArray Settings::serialize() const {
 			<< _groupCallPushToTalkShortcut
 			<< qint64(_groupCallPushToTalkDelay)
 			<< qint32(0) // Call audio backend
-			<< qint32(_disableCalls ? 1 : 0);
+			<< qint32(_disableCalls ? 1 : 0)
+			<< windowPosition;
 	}
 	return result;
 }
@@ -188,6 +238,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint64 groupCallPushToTalkDelay = _groupCallPushToTalkDelay;
 	qint32 callAudioBackend = 0;
 	qint32 disableCalls = _disableCalls ? 1 : 0;
+	QByteArray windowPosition;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -289,6 +340,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> disableCalls;
 	}
+	if (!stream.atEnd()) {
+		stream >> windowPosition;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -389,6 +443,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_groupCallPushToTalkShortcut = groupCallPushToTalkShortcut;
 	_groupCallPushToTalkDelay = groupCallPushToTalkDelay;
 	_disableCalls = (disableCalls == 1);
+	if (!windowPosition.isEmpty()) {
+		_windowPosition = Deserialize(windowPosition);
+	}
 }
 
 bool Settings::chatWide() const {

@@ -68,18 +68,6 @@ inline const QString &cDialogHelperPathFinal() {
 
 DeclareSetting(bool, AutoUpdate);
 
-struct TWindowPos {
-	TWindowPos() = default;
-
-	int32 moncrc = 0;
-	int maximized = 0;
-	int scale = 0;
-	int x = 0;
-	int y = 0;
-	int w = 0;
-	int h = 0;
-};
-DeclareSetting(TWindowPos, WindowPos);
 DeclareSetting(bool, SeenTrayTooltip);
 DeclareSetting(bool, RestartingUpdate);
 DeclareSetting(bool, Restarting);

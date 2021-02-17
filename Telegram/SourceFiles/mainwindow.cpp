@@ -170,7 +170,7 @@ void MainWindow::createTrayIconMenu() {
 void MainWindow::applyInitialWorkMode() {
 	Global::RefWorkMode().setForced(Global::WorkMode().value(), true);
 
-	if (cWindowPos().maximized) {
+	if (Core::App().settings().windowPosition().maximized) {
 		DEBUG_LOG(("Window Pos: First show, setting maximized."));
 		setWindowState(Qt::WindowMaximized);
 	}
