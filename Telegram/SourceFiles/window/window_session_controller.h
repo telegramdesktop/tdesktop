@@ -330,6 +330,11 @@ public:
 	void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
 	void cancelUploadLayer(not_null<HistoryItem*> item);
 
+	void showLayer(
+		std::unique_ptr<Ui::LayerWidget> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated = anim::type::normal);
+
 	void showSpecialLayer(
 		object_ptr<Ui::LayerWidget> &&layer,
 		anim::type animated = anim::type::normal);

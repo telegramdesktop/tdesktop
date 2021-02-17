@@ -547,4 +547,4 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-} // namespace Info
+} // namespace Settings
