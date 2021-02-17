@@ -628,6 +628,9 @@ void SetupNotificationsContent(
 			? tr::lng_settings_alert_mac
 			: tr::lng_settings_alert_linux)(tr::now),
 		settings.flashBounceNotify());
+	const auto autoHiding = addCheckbox(
+		tr::lng_settings_autohide_notifications(tr::now),
+		settings.autoHideNotifications());
 
 	AddSkip(container, st::settingsCheckboxesSkip);
 	AddDivider(container);
@@ -796,6 +799,14 @@ void SetupNotificationsContent(
 		Core::App().settings().setFlashBounceNotify(checked);
 		changed(Change::FlashBounceEnabled);
 	}, flashbounce->lifetime());
+
+	autoHiding->checkedChanges(
+	) | rpl::filter([](bool checked) {
+		return (checked != Core::App().settings().autoHideNotifications());
+	}) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setAutoHideNotifications(checked);
+		changed(Change::AutoHideEnabled);
+	}, autoHiding->lifetime());
 
 	muted->checkedChanges(
 	) | rpl::filter([=](bool checked) {

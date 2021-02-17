@@ -129,6 +129,12 @@ public:
 	void setFlashBounceNotify(bool value) {
 		_flashBounceNotify = value;
 	}
+	[[nodiscard]] bool autoHideNotifications() const {
+		return _autoHideNotifications;
+	}
+	void setAutoHideNotifications(bool value) {
+		_autoHideNotifications = value;
+	}
 	[[nodiscard]] DBINotifyView notifyView() const {
 		return _notifyView;
 	}
@@ -536,6 +542,7 @@ private:
 	bool _soundNotify = true;
 	bool _desktopNotify = true;
 	bool _flashBounceNotify = true;
+	bool _autoHideNotifications = false;
 	DBINotifyView _notifyView = dbinvShowPreview;
 	std::optional<bool> _nativeNotifications;
 	int _notificationsCount = 3;

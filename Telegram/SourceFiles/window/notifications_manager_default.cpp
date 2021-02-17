@@ -41,6 +41,8 @@ namespace Notifications {
 namespace Default {
 namespace {
 
+constexpr auto kAutoHideInterval = crl::time(2000);
+
 int notificationMaxHeight() {
 	return st::notifyMinHeight + st::notifyReplyArea.heightMax + st::notifyBorderWidth;
 }
@@ -663,6 +665,13 @@ void Notification::prepareActionsCache() {
 
 bool Notification::checkLastInput(bool hasReplyingNotifications) {
 	if (!_waitingForInput) return true;
+	if (Core::App().settings().autoHideNotifications()) {
+		if ((crl::now() - _started > kAutoHideInterval) && !hasReplyingNotifications) {
+			startHiding();
+			_waitingForInput = false;
+			return true;
+		}
+	}
 
 	const auto waitForUserInput = base::Platform::LastUserInputTimeSupported()
 		? (Core::App().lastNonIdleTime() <= _started)
