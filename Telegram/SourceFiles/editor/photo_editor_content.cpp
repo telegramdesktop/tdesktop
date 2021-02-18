@@ -39,13 +39,13 @@ PhotoEditorContent::PhotoEditorContent(
 		if (size.isEmpty()) {
 			return;
 		}
-		const auto imageSize = [&] {
+		const auto imageSizeF = [&] {
 			const auto rotatedSize =
 				FlipSizeByRotation(size, mods.angle);
 			const auto m = _crop->cropMargins();
 			const auto sizeForCrop = rotatedSize
 				- QSize(m.left() + m.right(), m.top() + m.bottom());
-			const auto originalSize = photo->size();
+			const auto originalSize = QSizeF(photo->size());
 			if ((originalSize.width() > sizeForCrop.width())
 				|| (originalSize.height() > sizeForCrop.height())) {
 				return originalSize.scaled(
@@ -54,6 +54,7 @@ PhotoEditorContent::PhotoEditorContent(
 			}
 			return originalSize;
 		}();
+		const auto imageSize = QSize(imageSizeF.width(), imageSizeF.height());
 		_imageRect = QRect(
 			QPoint(-imageSize.width() / 2, -imageSize.height() / 2),
 			imageSize);
@@ -69,7 +70,7 @@ PhotoEditorContent::PhotoEditorContent(
 		_crop->applyTransform(
 			geometry + _crop->cropMargins(),
 			mods.angle,
-			mods.flipped);
+			mods.flipped, imageSizeF);
 		_paint->applyTransform(geometry, mods.angle, mods.flipped);
 	}, lifetime());
 
@@ -92,7 +93,7 @@ void PhotoEditorContent::applyModifications(
 }
 
 void PhotoEditorContent::save(PhotoModifications &modifications) {
-	modifications.crop = _crop->saveCropRect(_imageRect, _photo->rect());
+	modifications.crop = _crop->saveCropRect();
 	_paint->keepResult();
 	if (!modifications.paint) {
 		modifications.paint = _paint->saveScene();

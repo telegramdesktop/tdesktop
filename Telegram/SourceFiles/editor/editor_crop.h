@@ -22,11 +22,12 @@ public:
 		const PhotoModifications &modifications,
 		const QSize &imageSize);
 
-	void applyTransform(QRect geometry, int angle, bool flipped);
-	[[nodiscard]] QRect innerRect() const;
-	[[nodiscard]] QRect saveCropRect(
-		const QRect &from,
-		const QRect &to);
+	void applyTransform(
+		const QRect &geometry,
+		int angle,
+		bool flipped,
+		const QSizeF &scaledImageSize);
+	[[nodiscard]] QRect saveCropRect();
 	[[nodiscard]] style::margins cropMargins() const;
 
 protected:
@@ -36,7 +37,7 @@ protected:
 
 private:
 	struct InfoAtDown {
-		QRect rect;
+		QRectF rect;
 		Qt::Edges edge = 0;
 		QPoint point;
 
@@ -48,17 +49,12 @@ private:
 		} borders;
 	};
 
-	[[nodiscard]] QRectF resizedCropRect(
-		const QRectF &from,
-		const QRectF &to);
-
 	void paintPoints(Painter &p);
 
 	void updateEdges();
 	[[nodiscard]] QPoint pointOfEdge(Qt::Edges e) const;
-	void setCropRect(QRect &&rect);
-	void setCropRectPaint(QRect &&rect);
-	void rotate(bool clockwise = true);
+	void setCropPaint(QRectF &&rect);
+	void convertCropPaintToOriginal();
 
 	void computeDownState(const QPoint &p);
 	void clearDownState();
@@ -71,15 +67,18 @@ private:
 	const style::margins _innerMargins;
 	const QPoint _offset;
 	const QMarginsF _edgePointMargins;
+	const QSize _imageSize;
 
 	base::flat_map<Qt::Edges, QRectF> _edges;
 
-	// Is translated with the inner indentation.
-	QRect _cropRectPaint;
-	// Is not.
-	QRect _cropRect;
+	struct {
+		float64 w = 0.;
+		float64 h = 0.;
+	} _ratio;
 
-	QRect _innerRect;
+	QRectF _cropPaint;
+	QRectF _cropOriginal;
+	QRectF _innerRect;
 
 	QPainterPath _painterPath;
 

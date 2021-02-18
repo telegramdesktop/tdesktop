@@ -19,6 +19,9 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 
 		mods.paint->render(&p, image.rect());
 	}
+	auto cropped = mods.crop.isValid()
+		? image.copy(mods.crop)
+		: image;
 	QTransform transform;
 	if (mods.flipped) {
 		transform.scale(-1, 1);
@@ -26,11 +29,7 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 	if (mods.angle) {
 		transform.rotate(mods.angle);
 	}
-	auto newImage = image.transformed(transform);
-	if (mods.crop.isValid()) {
-		newImage = newImage.copy(mods.crop);
-	}
-	return newImage;
+	return cropped.transformed(transform);
 }
 
 bool PhotoModifications::empty() const {
