@@ -895,16 +895,16 @@ void MainMenu::parentResized() {
 
 void MainMenu::refreshMenu() {
 	_menu->clearActions();
+	const auto controller = _controller;
 	if (!_controller->session().supportMode()) {
-		const auto controller = _controller;
-		_menu->addAction(tr::lng_create_group_title(tr::now), [] {
-			App::wnd()->showNewGroup();
+		_menu->addAction(tr::lng_create_group_title(tr::now), [=] {
+			controller->showNewGroup();
 		}, &st::mainMenuNewGroup, &st::mainMenuNewGroupOver);
-		_menu->addAction(tr::lng_create_supergroup_title(tr::now), [] {
-			App::wnd()->showNewSupergroup();
+		_menu->addAction(tr::lng_create_supergroup_title(tr::now), [=] {
+			controller->showNewSupergroup();
 		}, &st::mainMenuNewGroup, &st::mainMenuNewGroupOver);
-		_menu->addAction(tr::lng_create_channel_title(tr::now), [] {
-			App::wnd()->showNewChannel();
+		_menu->addAction(tr::lng_create_channel_title(tr::now), [=] {
+			controller->showNewChannel();
 		}, &st::mainMenuNewChannel, &st::mainMenuNewChannelOver);
 		_menu->addAction(tr::lng_menu_contacts(tr::now), [=] {
 			Ui::show(PrepareContactsBox(controller));

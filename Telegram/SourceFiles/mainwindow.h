@@ -53,10 +53,6 @@ public:
 	void setupMain();
 
 	void showSettings();
-	void showAddContact();
-	void showNewGroup();
-	void showNewSupergroup();
-	void showNewChannel();
 
 	void setInnerFocus();
 
