@@ -28,7 +28,8 @@ public:
 		PhotoModifications modifications);
 
 	void save();
-	rpl::producer<PhotoModifications> done() const;
+	rpl::producer<PhotoModifications> doneRequests() const;
+	rpl::producer<> cancelRequests() const;
 
 private:
 
@@ -45,6 +46,7 @@ private:
 		.action = PhotoEditorMode::Action::None,
 	};
 	rpl::event_stream<PhotoModifications> _done;
+	rpl::event_stream<> _cancel;
 
 };
 

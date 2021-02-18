@@ -110,28 +110,31 @@ PhotoEditor::PhotoEditor(
 
 	_controls->doneRequests(
 	) | rpl::start_with_next([=] {
-		if (_mode.current().mode == PhotoEditorMode::Mode::Paint) {
+		const auto mode = _mode.current().mode;
+		if (mode == PhotoEditorMode::Mode::Paint) {
 			_mode = PhotoEditorMode{
 				.mode = PhotoEditorMode::Mode::Transform,
 				.action = PhotoEditorMode::Action::Save,
 			};
+		} else if (mode == PhotoEditorMode::Mode::Transform) {
+			save();
 		}
 	}, lifetime());
 
 	_controls->cancelRequests(
 	) | rpl::start_with_next([=] {
-		if (_mode.current().mode == PhotoEditorMode::Mode::Paint) {
+		const auto mode = _mode.current().mode;
+		if (mode == PhotoEditorMode::Mode::Paint) {
 			_mode = PhotoEditorMode{
 				.mode = PhotoEditorMode::Mode::Transform,
 				.action = PhotoEditorMode::Action::Discard,
 			};
+		} else if (mode == PhotoEditorMode::Mode::Transform) {
+			_cancel.fire({});
 		}
 	}, lifetime());
 
-	rpl::single(
-		Deserialize(Core::App().settings().photoEditorBrush())
-	) | rpl::then(
-		_colorPicker->saveBrushRequests()
+	_colorPicker->saveBrushRequests(
 	) | rpl::start_with_next([=](const Brush &brush) {
 		_content->applyBrush(brush);
 
@@ -148,8 +151,12 @@ void PhotoEditor::save() {
 	_done.fire_copy(_modifications);
 }
 
-rpl::producer<PhotoModifications> PhotoEditor::done() const {
+rpl::producer<PhotoModifications> PhotoEditor::doneRequests() const {
 	return _done.events();
+}
+
+rpl::producer<> PhotoEditor::cancelRequests() const {
+	return _cancel.events();
 }
 
 } // namespace Editor

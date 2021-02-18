@@ -308,7 +308,7 @@ void ColorPicker::setVisible(bool visible) {
 }
 
 rpl::producer<Brush> ColorPicker::saveBrushRequests() const {
-	return _saveBrushRequests.events();
+	return _saveBrushRequests.events_starting_with_copy(_brush);
 }
 
 int ColorPicker::colorToPosition(const QColor &color) const {

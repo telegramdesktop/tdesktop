@@ -186,9 +186,13 @@ PhotoEditorControls::PhotoEditorControls(
 	) | rpl::start_with_next([=](const QRect &clip) {
 		Painter p(this);
 
+		const auto &current = _transformButtons->isHidden()
+			? _paintButtons
+			: _transformButtons;
+
 		p.setPen(Qt::NoPen);
 		p.setBrush(_bg);
-		p.drawRect(_transformButtons->geometry());
+		p.drawRect(current->geometry());
 
 	}, lifetime());
 
