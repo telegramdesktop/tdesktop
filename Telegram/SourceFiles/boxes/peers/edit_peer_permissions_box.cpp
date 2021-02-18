@@ -773,7 +773,7 @@ EditFlagsControl<MTPDchatBannedRights::Flags> CreateEditRestrictions(
 
 EditFlagsControl<MTPDchatAdminRights::Flags> CreateEditAdminRights(
 		QWidget *parent,
-	rpl::producer<QString> header,
+		rpl::producer<QString> header,
 		MTPDchatAdminRights::Flags rights,
 		std::map<MTPDchatAdminRights::Flags, QString> disabledMessages,
 		bool isGroup,
