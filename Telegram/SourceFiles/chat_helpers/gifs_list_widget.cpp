@@ -1078,16 +1078,14 @@ void GifsListWidget::updateSelected() {
 			_pressed = _selected;
 			if (row >= 0 && col >= 0) {
 				auto layout = _rows[row].items[col];
-				if (const auto w = App::wnd()) {
-					if (const auto previewDocument = layout->getPreviewDocument()) {
-						w->showMediaPreview(
-							Data::FileOriginSavedGifs(),
-							previewDocument);
-					} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
-						w->showMediaPreview(
-							Data::FileOrigin(),
-							previewPhoto);
-					}
+				if (const auto previewDocument = layout->getPreviewDocument()) {
+					controller()->widget()->showMediaPreview(
+						Data::FileOriginSavedGifs(),
+						previewDocument);
+				} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
+					controller()->widget()->showMediaPreview(
+						Data::FileOrigin(),
+						previewPhoto);
 				}
 			}
 		}
@@ -1104,16 +1102,14 @@ void GifsListWidget::showPreview() {
 	int row = _pressed / MatrixRowShift, col = _pressed % MatrixRowShift;
 	if (row < _rows.size() && col < _rows[row].items.size()) {
 		auto layout = _rows[row].items[col];
-		if (const auto w = App::wnd()) {
-			if (const auto previewDocument = layout->getPreviewDocument()) {
-				_previewShown = w->showMediaPreview(
-					Data::FileOriginSavedGifs(),
-					previewDocument);
-			} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
-				_previewShown = w->showMediaPreview(
-					Data::FileOrigin(),
-					previewPhoto);
-			}
+		if (const auto previewDocument = layout->getPreviewDocument()) {
+			_previewShown = controller()->widget()->showMediaPreview(
+				Data::FileOriginSavedGifs(),
+				previewDocument);
+		} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
+			_previewShown = controller()->widget()->showMediaPreview(
+				Data::FileOrigin(),
+				previewPhoto);
 		}
 	}
 }

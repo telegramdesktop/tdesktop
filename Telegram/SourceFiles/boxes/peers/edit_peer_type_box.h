@@ -37,9 +37,14 @@ public:
 		not_null<PeerData*> peer,
 		bool useLocationPhrases,
 		std::optional<FnMut<void(Privacy, QString)>> savedCallback,
-		Privacy privacySaved,
+		std::optional<Privacy> privacySaved,
 		std::optional<QString> usernameSaved,
 		std::optional<rpl::producer<QString>> usernameError = {});
+
+	// For invite link only.
+	EditPeerTypeBox(
+		QWidget*,
+		not_null<PeerData*> peer);
 
 protected:
 	void prepare() override;
@@ -50,7 +55,7 @@ private:
 	bool _useLocationPhrases = false;
 	std::optional<FnMut<void(Privacy, QString)>> _savedCallback;
 
-	Privacy _privacySavedValue = Privacy();
+	std::optional<Privacy> _privacySavedValue;
 	std::optional<QString> _usernameSavedValue;
 	std::optional<rpl::producer<QString>> _usernameError;
 

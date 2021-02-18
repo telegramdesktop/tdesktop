@@ -301,3 +301,5 @@ pipCloseIcon: icon {{ "player_pip_close", mediaviewPlaybackIconFg }};
 pipCloseIconOver: icon {{ "player_pip_close", mediaviewPlaybackIconFgOver }};
 pipEnlargeIcon: icon {{ "player_pip_enlarge", mediaviewPlaybackIconFg }};
 pipEnlargeIconOver: icon {{ "player_pip_enlarge", mediaviewPlaybackIconFgOver }};
+
+speedSliderDividerSize: size(2px, 8px);

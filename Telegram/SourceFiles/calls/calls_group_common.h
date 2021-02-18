@@ -19,6 +19,7 @@ struct MuteRequest {
 	bool mute = false;
 	bool locallyOnly = false;
 };
+
 struct VolumeRequest {
 	not_null<UserData*> user;
 	int volume = kDefaultVolume;

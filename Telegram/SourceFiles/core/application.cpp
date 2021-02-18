@@ -153,6 +153,10 @@ Application::Application(not_null<Launcher*> launcher)
 }
 
 Application::~Application() {
+	if (_saveSettingsTimer && _saveSettingsTimer->isActive()) {
+		Local::writeSettings();
+	}
+
 	// Depend on activeWindow() for now :(
 	Shortcuts::Finish();
 
@@ -468,7 +472,9 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 }
 
 void Application::saveSettingsDelayed(crl::time delay) {
-	_saveSettingsTimer.callOnce(delay);
+	if (_saveSettingsTimer) {
+		_saveSettingsTimer->callOnce(delay);
+	}
 }
 
 void Application::saveSettings() {
@@ -536,7 +542,7 @@ void Application::badMtprotoConfigurationError() {
 
 void Application::startLocalStorage() {
 	Local::start();
-	_saveSettingsTimer.setCallback([=] { saveSettings(); });
+	_saveSettingsTimer.emplace([=] { saveSettings(); });
 }
 
 void Application::startEmojiImageLoader() {
@@ -765,6 +771,39 @@ bool Application::openLocalUrl(const QString &url, QVariant context) {
 
 bool Application::openInternalUrl(const QString &url, QVariant context) {
 	return openCustomUrl("internal:", InternalUrlHandlers(), url, context);
+}
+
+QString Application::changelogLink() const {
+	const auto base = u"https://desktop.telegram.org/changelog"_q;
+	const auto languages = {
+		"id",
+		"de",
+		"fr",
+		"nl",
+		"pl",
+		"tr",
+		"uk",
+		"fa",
+		"ru",
+		"ms",
+		"es",
+		"it",
+		"uz",
+		"pt-br",
+		"be",
+		"ar",
+		"ko",
+	};
+	const auto current = _langpack->id().replace("-raw", "");
+	if (current.isEmpty()) {
+		return base;
+	}
+	for (const auto language : languages) {
+		if (current == language || current.split(u'-')[0] == language) {
+			return base + "?setln=" + language;
+		}
+	}
+	return base;
 }
 
 bool Application::openCustomUrl(

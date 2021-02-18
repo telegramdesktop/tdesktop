@@ -151,6 +151,7 @@ QByteArray SerializeList(const std::vector<QByteArray> &values) {
 	}
 	return QByteArray();
 }
+
 QByteArray MakeLinks(const QByteArray &value) {
 	const auto domain = QByteArray("https://telegram.org/");
 	auto result = QByteArray();
@@ -188,27 +189,6 @@ QByteArray MakeLinks(const QByteArray &value) {
 		result.append(value.mid(offset));
 	}
 	return result;
-}
-
-void SerializeMultiline(
-		QByteArray &appendTo,
-		const QByteArray &value,
-		int newline) {
-	const auto data = value.data();
-	auto offset = 0;
-	do {
-		appendTo.append("> ");
-		const auto win = (newline > 0 && *(data + newline - 1) == '\r');
-		if (win) --newline;
-		appendTo.append(data + offset, newline - offset).append(kLineBreak);
-		if (win) ++newline;
-		offset = newline + 1;
-		newline = value.indexOf('\n', offset);
-	} while (newline > 0);
-	if (const auto size = value.size(); size > offset) {
-		appendTo.append("> ");
-		appendTo.append(data + offset, size - offset).append(kLineBreak);
-	}
 }
 
 QByteArray JoinList(
@@ -292,31 +272,6 @@ QByteArray FormatText(
 		}
 		Unexpected("Type in text entities serialization.");
 	}) | ranges::to_vector);
-}
-
-QByteArray SerializeKeyValue(
-		std::vector<std::pair<QByteArray, QByteArray>> &&values) {
-	auto result = QByteArray();
-	for (const auto &[key, value] : values) {
-		if (value.isEmpty()) {
-			continue;
-		}
-		result.append(key);
-		if (const auto newline = value.indexOf('\n'); newline >= 0) {
-			result.append(':').append(kLineBreak);
-			SerializeMultiline(result, value, newline);
-		} else {
-			result.append(": ").append(value).append(kLineBreak);
-		}
-	}
-	return result;
-}
-
-QByteArray SerializeBlockquote(
-		std::vector<std::pair<QByteArray, QByteArray>> &&values) {
-	return "<blockquote>"
-		+ SerializeKeyValue(std::move(values))
-		+ "</blockquote>";
 }
 
 Data::Utf8String FormatUsername(const Data::Utf8String &username) {
@@ -766,7 +721,9 @@ QByteArray HtmlWriter::Wrap::pushUserpic(const UserpicData &userpic) {
 			"line-height: " + size));
 		auto character = [](const QByteArray &from) {
 			const auto utf = QString::fromUtf8(from).trimmed();
-			return utf.isEmpty() ? QByteArray() : utf.mid(0, 1).toUtf8();
+			return utf.isEmpty()
+				? QByteArray()
+				: SerializeString(utf.mid(0, 1).toUtf8());
 		};
 		result.append(character(userpic.firstName));
 		result.append(character(userpic.lastName));
@@ -997,16 +954,20 @@ auto HtmlWriter::Wrap::pushMessage(
 	const auto serviceText = v::match(message.action.content, [&](
 			const ActionChatCreate &data) {
 		return serviceFrom
-			+ " created group &laquo;" + data.title + "&raquo;"
+			+ " created group &laquo;"
+			+ SerializeString(data.title)
+			+ "&raquo;"
 			+ (data.userIds.empty()
 				? QByteArray()
 				: " with members " + peers.wrapUserNames(data.userIds));
 	}, [&](const ActionChatEditTitle &data) {
 		return isChannel
-			? ("Channel title changed to &laquo;" + data.title + "&raquo;")
+			? ("Channel title changed to &laquo;"
+				+ SerializeString(data.title)
+				+ "&raquo;")
 			: (serviceFrom
-				+ " changed group title to &laquo;"
-				+ data.title
+				+ " fchanged group title to &laquo;"
+				+ SerializeString(data.title)
 				+ "&raquo;");
 	}, [&](const ActionChatEditPhoto &data) {
 		return isChannel
@@ -1029,14 +990,16 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ " joined group by link from "
 			+ peers.wrapUserName(data.inviterId);
 	}, [&](const ActionChannelCreate &data) {
-		return "Channel &laquo;" + data.title + "&raquo; created";
+		return "Channel &laquo;"
+			+ SerializeString(data.title)
+			+ "&raquo; created";
 	}, [&](const ActionChatMigrateTo &data) {
 		return serviceFrom
 			+ " converted this group to a supergroup";
 	}, [&](const ActionChannelMigrateFrom &data) {
 		return serviceFrom
 			+ " converted a basic group to this supergroup "
-			+ "&laquo;" + data.title + "&raquo;";
+			+ "&laquo;" + SerializeString(data.title) + "&raquo;";
 	}, [&](const ActionPinMessage &data) {
 		return serviceFrom
 			+ " pinned "
@@ -1062,7 +1025,7 @@ auto HtmlWriter::Wrap::pushMessage(
 		return data.message;
 	}, [&](const ActionBotAllowed &data) {
 		return "You allowed this bot to message you when you logged in on "
-			+ data.domain;
+			+ SerializeString(data.domain);
 	}, [&](const ActionSecureValuesSent &data) {
 		auto list = std::vector<QByteArray>();
 		for (const auto type : data.types) {

@@ -827,6 +827,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_delete_contact" = "Delete";
 "lng_profile_set_group_photo" = "Set Photo";
 "lng_profile_add_participant" = "Add Members";
+"lng_profile_add_via_link" = "Invite via Link";
 "lng_profile_view_channel" = "View Channel";
 "lng_profile_view_discussion" = "View discussion";
 "lng_profile_join_channel" = "Join Channel";
@@ -1589,6 +1590,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_copy_selected_items" = "Copy Selected as Text";
 "lng_context_forward_selected" = "Forward Selected";
 "lng_context_send_now_selected" = "Send selected now";
+"lng_context_reschedule_selected" = "Reschedule Selected";
 "lng_context_delete_selected" = "Delete Selected";
 "lng_context_clear_selection" = "Clear Selection";
 "lng_send_image_empty" = "Could not send an empty file: {name}";
@@ -1729,7 +1731,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_downloads" = "Downloads";
 "lng_mediaview_video_loading" = "Loading - {percent}";
 "lng_mediaview_playback_speed" = "Playback speed";
-"lng_mediaview_playback_speed_normal" = "Normal";
 "lng_mediaview_rotate_video" = "Rotate video";
 
 "lng_theme_preview_title" = "Theme Preview";

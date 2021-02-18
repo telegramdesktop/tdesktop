@@ -91,7 +91,7 @@ enum {
 	dbiDesktopNotifyOld = 0x0b,
 	dbiAutoUpdate = 0x0c,
 	dbiLastUpdateCheck = 0x0d,
-	dbiWindowPosition = 0x0e,
+	dbiWindowPositionOld = 0x0e,
 	dbiConnectionTypeOld = 0x0f,
 	// 0x10 reserved
 	dbiDefaultAttach = 0x11,

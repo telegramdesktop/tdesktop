@@ -1159,11 +1159,7 @@ void PeerListContent::enterEventHook(QEvent *e) {
 
 void PeerListContent::leaveEventHook(QEvent *e) {
 	setMouseTracking(false);
-	if (_mouseSelection) {
-		setSelected(Selected());
-		_mouseSelection = false;
-		_lastMousePosition = std::nullopt;
-	}
+	mouseLeftGeometry();
 }
 
 void PeerListContent::mouseMoveEvent(QMouseEvent *e) {
@@ -1503,6 +1499,14 @@ bool PeerListContent::hasPressed() const {
 
 void PeerListContent::clearSelection() {
 	setSelected(Selected());
+}
+
+void PeerListContent::mouseLeftGeometry() {
+	if (_mouseSelection) {
+		setSelected(Selected());
+		_mouseSelection = false;
+		_lastMousePosition = std::nullopt;
+	}
 }
 
 void PeerListContent::loadProfilePhotos() {

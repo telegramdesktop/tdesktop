@@ -107,8 +107,6 @@ public:
 		not_null<PhotoData*> photo);
 	void hideMediaPreview();
 
-	void showLogoutConfirmation();
-
 	void updateControlsGeometry() override;
 
 protected:

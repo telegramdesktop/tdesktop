@@ -225,7 +225,7 @@ Fn<void(
 					const MTPDchatAdminRights &data) {
 				return data.vflags().v;
 			});
-			if (flags == ChatData::DefaultAdminRights() && rank.isEmpty()) {
+			if (flags == chat->defaultAdminRights(user) && rank.isEmpty()) {
 				saveChatAdmin(true);
 			} else if (!flags) {
 				saveChatAdmin(false);
@@ -360,7 +360,9 @@ bool ParticipantsAdditionalData::canRemoveUser(
 	if (canRestrictUser(user)) {
 		return true;
 	} else if (const auto chat = _peer->asChat()) {
-		return !user->isSelf() && chat->invitedByMe.contains(user);
+		return !user->isSelf()
+			&& chat->invitedByMe.contains(user)
+			&& (chat->amCreator() || !_admins.contains(user));
 	}
 	return false;
 }
@@ -371,7 +373,7 @@ auto ParticipantsAdditionalData::adminRights(
 	if (const auto chat = _peer->asChat()) {
 		return _admins.contains(user)
 			? std::make_optional(MTPChatAdminRights(MTP_chatAdminRights(
-				MTP_flags(ChatData::DefaultAdminRights()))))
+				MTP_flags(chat->defaultAdminRights(user)))))
 			: std::nullopt;
 	}
 	const auto i = _adminRights.find(user);
@@ -672,14 +674,16 @@ UserData *ParticipantsAdditionalData::applyBanned(
 	return user;
 }
 
-void ParticipantsAdditionalData::migrate(not_null<ChannelData*> channel) {
+void ParticipantsAdditionalData::migrate(
+		not_null<ChatData*> chat,
+		not_null<ChannelData*> channel) {
 	_peer = channel;
 	fillFromChannel(channel);
 
 	for (const auto user : _admins) {
 		_adminRights.emplace(
 			user,
-			MTP_chatAdminRights(MTP_flags(ChatData::DefaultAdminRights())));
+			MTP_chatAdminRights(MTP_flags(chat->defaultAdminRights(user))));
 		if (channel->amCreator()) {
 			_adminCanEdit.emplace(user);
 		}
@@ -1900,15 +1904,21 @@ void ParticipantsBoxController::refreshCustomStatus(
 }
 
 void ParticipantsBoxController::subscribeToMigration() {
+	const auto chat = _peer->asChat();
+	if (!chat) {
+		return;
+	}
 	SubscribeToMigration(
-		_peer,
+		chat,
 		lifetime(),
-		[=](not_null<ChannelData*> channel) { migrate(channel); });
+		[=](not_null<ChannelData*> channel) { migrate(chat, channel); });
 }
 
-void ParticipantsBoxController::migrate(not_null<ChannelData*> channel) {
+void ParticipantsBoxController::migrate(
+		not_null<ChatData*> chat,
+		not_null<ChannelData*> channel) {
 	_peer = channel;
-	_additional.migrate(channel);
+	_additional.migrate(chat, channel);
 	subscribeToCreatorChange(channel);
 }
 

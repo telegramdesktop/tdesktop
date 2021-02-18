@@ -47,6 +47,10 @@ void DiscreteSlider::setActiveSectionFast(int index) {
 void DiscreteSlider::finishAnimating() {
 	_a_left.stop();
 	update();
+	_callbackAfterMs = 0;
+	if (_timerId >= 0) {
+		activateCallback();
+	}
 }
 
 void DiscreteSlider::setSelectOnPress(bool selectOnPress) {

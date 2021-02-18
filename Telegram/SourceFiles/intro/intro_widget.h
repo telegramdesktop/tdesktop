@@ -99,6 +99,8 @@ public:
 
 	void setInnerFocus();
 
+	[[nodiscard]] rpl::producer<> showSettingsRequested() const;
+
 	~Widget();
 
 protected:

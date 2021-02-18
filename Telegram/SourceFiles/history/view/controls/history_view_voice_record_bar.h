@@ -143,6 +143,8 @@ private:
 
 	Fn<bool()> _startRecordingFilter;
 
+	bool _warningShown = false;
+
 	rpl::variable<bool> _recording = false;
 	rpl::variable<bool> _inField = false;
 	rpl::variable<bool> _lockShowing = false;

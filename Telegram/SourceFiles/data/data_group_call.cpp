@@ -276,17 +276,31 @@ void GroupCall::applyParticipantsSlice(
 				&& ((was ? was->speaking : false)
 					|| (!amInCall
 						&& (lastActive + speakingAfterActive > now)));
-			const auto defaultVolume = Calls::Group::kDefaultVolume;
+			const auto volume = (was
+				&& !was->applyVolumeFromMin
+				&& data.is_min())
+				? was->volume
+				: data.vvolume().value_or(Calls::Group::kDefaultVolume);
+			const auto applyVolumeFromMin = (was && data.is_min())
+				? was->applyVolumeFromMin
+				: (data.is_min() || data.is_volume_by_admin());
+			const auto mutedByMe = (was && data.is_min())
+				? was->mutedByMe
+				: data.is_muted_by_you();
+			const auto onlyMinLoaded = data.is_min()
+				&& (!was || was->onlyMinLoaded);
 			const auto value = Participant{
 				.user = user,
 				.date = data.vdate().v,
 				.lastActive = lastActive,
 				.ssrc = uint32(data.vsource().v),
-				.volume = data.vvolume().value_or(defaultVolume),
+				.volume = volume,
+				.applyVolumeFromMin = applyVolumeFromMin,
 				.speaking = canSelfUnmute && (was ? was->speaking : false),
 				.muted = data.is_muted(),
-				.mutedByMe = data.is_muted_by_you(),
+				.mutedByMe = mutedByMe,
 				.canSelfUnmute = canSelfUnmute,
+				.onlyMinLoaded = onlyMinLoaded,
 			};
 			if (i == end(_participants)) {
 				_userBySsrc.emplace(value.ssrc, user);
@@ -358,11 +372,13 @@ void GroupCall::applyActiveUpdate(
 			not_null{ userLoaded },
 			&Participant::user)
 		: _participants.end();
-	if (i == end(_participants)) {
+	const auto notFound = (i == end(_participants));
+	const auto loadByUserId = notFound || i->onlyMinLoaded;
+	if (loadByUserId) {
 		_unknownSpokenUids[userId] = when;
 		requestUnknownParticipants();
-		return;
-	} else if (!i->canSelfUnmute) {
+	}
+	if (notFound || !i->canSelfUnmute) {
 		return;
 	}
 	const auto was = std::make_optional(*i);

@@ -2113,12 +2113,9 @@ bool Message::displayForwardedFrom() const {
 			}
 		}
 		const auto media = this->media();
-		return item->Has<HistoryMessageVia>()
-			|| !media
+		return !media
 			|| !media->isDisplayed()
-			|| !media->hideForwardedFrom()
-			|| (forwarded->originalSender
-				&& forwarded->originalSender->isChannel());
+			|| !media->hideForwardedFrom();
 	}
 	return false;
 }

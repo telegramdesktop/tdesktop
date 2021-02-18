@@ -120,7 +120,7 @@ PasscodeLockWidget::PasscodeLockWidget(
 
 	_submit->setClickedCallback([=] { submit(); });
 	_logout->setClickedCallback([=] {
-		window->widget()->showLogoutConfirmation();
+		window->showLogoutConfirmation();
 	});
 }
 

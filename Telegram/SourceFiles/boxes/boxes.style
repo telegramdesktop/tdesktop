@@ -906,6 +906,29 @@ pollResultsShowMore: SettingsButton(defaultSettingsButton) {
 	ripple: defaultRippleAnimation;
 }
 
+inviteViaLinkButton: SettingsButton(defaultSettingsButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	font: font(14px semibold);
+
+	height: 20px;
+	padding: margins(74px, 8px, 8px, 9px);
+
+	ripple: defaultRippleAnimation;
+}
+inviteViaLinkIcon: icon {{ "info/edit/group_manage_links", lightButtonFg }};
+inviteViaLinkIconPosition: point(23px, 2px);
+peerListWithInviteViaLink: PeerList(peerListBox) {
+	padding: margins(
+		0px,
+		0px,
+		0px,
+		membersMarginBottom);
+}
+
 scheduleHeight: 95px;
 scheduleDateTop: 38px;
 scheduleDateField: InputField(defaultInputField) {

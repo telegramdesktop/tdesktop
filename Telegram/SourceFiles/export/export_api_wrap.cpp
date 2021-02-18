@@ -399,7 +399,8 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
 					MTP_int(0),
 					MTP_bytes()));
 		} else if (result.type() == qstr("LOCATION_INVALID")
-			|| result.type() == qstr("VERSION_INVALID")) {
+			|| result.type() == qstr("VERSION_INVALID")
+			|| result.type() == qstr("LOCATION_NOT_AVAILABLE")) {
 			filePartUnavailable();
 		} else if (result.code() == 400
 			&& result.type().startsWith(qstr("FILE_REFERENCE_"))) {

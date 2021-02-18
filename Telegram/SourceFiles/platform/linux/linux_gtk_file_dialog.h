@@ -18,13 +18,13 @@ using Type = ::FileDialog::internal::Type;
 bool Supported();
 bool Use(Type type = Type::ReadFile);
 bool Get(
-		QPointer<QWidget> parent,
-		QStringList &files,
-		QByteArray &remoteContent,
-		const QString &caption,
-		const QString &filter,
-		Type type,
-		QString startFile);
+	QPointer<QWidget> parent,
+	QStringList &files,
+	QByteArray &remoteContent,
+	const QString &caption,
+	const QString &filter,
+	Type type,
+	QString startFile);
 
 } // namespace Gtk
 } // namespace FileDialog

@@ -57,6 +57,7 @@ public:
 	void updatePlayback(const Player::TrackState &state);
 	void setLoadingProgress(int ready, int total);
 	void setInFullScreen(bool inFullScreen);
+	[[nodiscard]] bool hasMenu() const;
 
 	~PlaybackControls();
 
@@ -84,7 +85,6 @@ private:
 	void updatePlayPauseResumeState(const Player::TrackState &state);
 	void updateTimeTexts(const Player::TrackState &state);
 	void refreshTimeTexts();
-	void validateSpeedMenuStyle();
 	void showMenu();
 
 	not_null<Delegate*> _delegate;
@@ -112,7 +112,7 @@ private:
 	object_ptr<Ui::LabelSimple> _toPlayLeft;
 	object_ptr<Ui::LabelSimple> _downloadProgress = { nullptr };
 
-	style::PopupMenu _speedMenuStyle;
+	const style::PopupMenu &_menuStyle;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	std::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
 

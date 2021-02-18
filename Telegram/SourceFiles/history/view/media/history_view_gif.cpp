@@ -155,11 +155,11 @@ QSize Gif::countOptimalSize() {
 	_thumbh = th;
 	auto maxWidth = qMax(tw, st::minPhotoSize);
 	auto minHeight = qMax(th, st::minPhotoSize);
-	accumulate_max(maxWidth, _parent->minWidthForMedia());
 	if (!activeCurrentStreamed()) {
 		accumulate_max(maxWidth, gifMaxStatusWidth(_data) + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	}
 	if (_parent->hasBubble()) {
+		accumulate_max(maxWidth, _parent->minWidthForMedia());
 		if (!_caption.isEmpty()) {
 			auto captionw = maxWidth - st::msgPadding.left() - st::msgPadding.right();
 			minHeight += st::mediaCaptionSkip + _caption.countHeight(captionw);
@@ -212,11 +212,11 @@ QSize Gif::countCurrentSize(int newWidth) {
 
 	newWidth = qMax(tw, st::minPhotoSize);
 	auto newHeight = qMax(th, st::minPhotoSize);
-	accumulate_max(newWidth, _parent->minWidthForMedia());
 	if (!activeCurrentStreamed()) {
 		accumulate_max(newWidth, gifMaxStatusWidth(_data) + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	}
 	if (_parent->hasBubble()) {
+		accumulate_max(newWidth, _parent->minWidthForMedia());
 		if (!_caption.isEmpty()) {
 			auto captionw = newWidth - st::msgPadding.left() - st::msgPadding.right();
 			newHeight += st::mediaCaptionSkip + _caption.countHeight(captionw);

@@ -208,10 +208,10 @@ EditAdminBox::EditAdminBox(
 , _oldRank(rank) {
 }
 
-MTPChatAdminRights EditAdminBox::Defaults(not_null<PeerData*> peer) {
-	const auto defaultRights = peer->isChat()
-		? ChatData::DefaultAdminRights()
-		: peer->isMegagroup()
+MTPChatAdminRights EditAdminBox::defaultRights() const {
+	const auto flags = peer()->isChat()
+		? peer()->asChat()->defaultAdminRights(user())
+		: peer()->isMegagroup()
 		? (Flag::f_change_info
 			| Flag::f_delete_messages
 			| Flag::f_ban_users
@@ -223,7 +223,7 @@ MTPChatAdminRights EditAdminBox::Defaults(not_null<PeerData*> peer) {
 			| Flag::f_edit_messages
 			| Flag::f_delete_messages
 			| Flag::f_invite_users);
-	return MTP_chatAdminRights(MTP_flags(defaultRights));
+	return MTP_chatAdminRights(MTP_flags(flags));
 }
 
 void EditAdminBox::prepare() {
@@ -242,7 +242,7 @@ void EditAdminBox::prepare() {
 
 	const auto chat = peer()->asChat();
 	const auto channel = peer()->asChannel();
-	const auto prepareRights = hadRights ? _oldRights : Defaults(peer());
+	const auto prepareRights = hadRights ? _oldRights : defaultRights();
 	const auto disabledByDefaults = (channel && !channel->isMegagroup())
 		? MTPDchatAdminRights::Flags(0)
 		: DisabledByDefaultRestrictions(peer());
@@ -264,12 +264,12 @@ void EditAdminBox::prepare() {
 			result.emplace(
 				disabledByDefaults,
 				tr::lng_rights_permission_for_all(tr::now));
-			if (const auto channel = peer()->asChannel()) {
-				if (amCreator() && user()->isSelf()) {
-					result.emplace(
-						~Flag::f_anonymous,
-						tr::lng_rights_permission_cant_edit(tr::now));
-				} else if (!channel->amCreator()) {
+			if (amCreator() && user()->isSelf()) {
+				result.emplace(
+					~Flag::f_anonymous,
+					tr::lng_rights_permission_cant_edit(tr::now));
+			} else if (const auto channel = peer()->asChannel()) {
+				if (!channel->amCreator()) {
 					result.emplace(
 						~channel->adminRights(),
 						tr::lng_rights_permission_cant_edit(tr::now));
@@ -611,9 +611,9 @@ void EditRestrictedBox::prepare() {
 	const auto defaultRestrictions = chat
 		? chat->defaultRestrictions()
 		: channel->defaultRestrictions();
-	const auto prepareRights = (_oldRights.c_chatBannedRights().vflags().v
+	const auto prepareRights = _oldRights.c_chatBannedRights().vflags().v
 		? _oldRights
-		: Defaults(peer()));
+		: defaultRights();
 	const auto prepareFlags = FixDependentRestrictions(
 		prepareRights.c_chatBannedRights().vflags().v
 		| defaultRestrictions
@@ -680,7 +680,7 @@ void EditRestrictedBox::prepare() {
 	}
 }
 
-MTPChatBannedRights EditRestrictedBox::Defaults(not_null<PeerData*> peer) {
+MTPChatBannedRights EditRestrictedBox::defaultRights() const {
 	return MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
 }
 

@@ -101,7 +101,7 @@ public:
 	[[nodiscard]] UserData *adminPromotedBy(not_null<UserData*> user) const;
 	[[nodiscard]] UserData *restrictedBy(not_null<UserData*> user) const;
 
-	void migrate(not_null<ChannelData*> channel);
+	void migrate(not_null<ChatData*> chat, not_null<ChannelData*> channel);
 
 private:
 	UserData *applyCreator(const MTPDchannelParticipantCreator &data);
@@ -242,7 +242,7 @@ private:
 	void recomputeTypeFor(not_null<UserData*> user);
 
 	void subscribeToMigration();
-	void migrate(not_null<ChannelData*> channel);
+	void migrate(not_null<ChatData*> chat, not_null<ChannelData*> channel);
 	void subscribeToCreatorChange(not_null<ChannelData*> channel);
 	void fullListRefresh();
 

@@ -230,12 +230,6 @@ void searchByHashtag(const QString &tag, PeerData *inPeer, UserData *from) {
 	}
 }
 
-void showSettings() {
-	if (auto w = App::wnd()) {
-		w->showSettings();
-	}
-}
-
 } // namespace App
 
 namespace Ui {

@@ -324,7 +324,7 @@ bool MainWindow::initSizeFromSystem() {
 	if (!screen) {
 		return false;
 	}
-	setGeometry(screen->geometry());
+	setGeometry(screen->availableGeometry());
 	return true;
 }
 

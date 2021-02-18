@@ -263,6 +263,7 @@ public:
 	virtual void peerListSetAboveWidget(object_ptr<TWidget> aboveWidget) = 0;
 	virtual void peerListSetAboveSearchWidget(object_ptr<TWidget> aboveWidget) = 0;
 	virtual void peerListSetBelowWidget(object_ptr<TWidget> belowWidget) = 0;
+	virtual void peerListMouseLeftGeometry() = 0;
 	virtual void peerListSetSearchMode(PeerListSearchMode mode) = 0;
 	virtual void peerListAppendRow(std::unique_ptr<PeerListRow> row) = 0;
 	virtual void peerListAppendSearchRow(std::unique_ptr<PeerListRow> row) = 0;
@@ -543,6 +544,8 @@ public:
 	void setHideEmpty(bool hide);
 	void refreshRows();
 
+	void mouseLeftGeometry();
+
 	void setSearchMode(PeerListSearchMode mode);
 	void changeCheckState(
 		not_null<PeerListRow*> row,
@@ -805,6 +808,9 @@ public:
 	}
 	void peerListSetSearchMode(PeerListSearchMode mode) override {
 		_content->setSearchMode(mode);
+	}
+	void peerListMouseLeftGeometry() override {
+		_content->mouseLeftGeometry();
 	}
 	void peerListSortRows(
 			Fn<bool(const PeerListRow &a, const PeerListRow &b)> compare) override {

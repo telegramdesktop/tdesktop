@@ -800,9 +800,7 @@ bool HistoryService::updateDependencyItem() {
 }
 
 bool HistoryService::needCheck() const {
-	return out()
-		&& ((GetDependentData() != nullptr)
-			|| Has<HistoryServiceSelfDestruct>());
+	return out() && !isEmpty();
 }
 
 QString HistoryService::inDialogsText(DrawInDialog way) const {

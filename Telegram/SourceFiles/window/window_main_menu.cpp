@@ -617,7 +617,7 @@ MainMenu::MainMenu(
 		qsl("https://github.com/TDesktop-x64/tdesktop")));
 	_telegram->setLinksTrusted();
 	_version->setRichText(textcmdLink(1, tr::lng_settings_current_version(tr::now, lt_version, currentVersionText())) + QChar(' ') + QChar(8211) + QChar(' ') + textcmdLink(2, tr::lng_menu_about(tr::now)));
-	_version->setLink(1, std::make_shared<UrlClickHandler>(qsl("https://desktop.telegram.org/changelog")));
+	_version->setLink(1, std::make_shared<UrlClickHandler>(Core::App().changelogLink()));
 	_version->setLink(2, std::make_shared<LambdaClickHandler>([] { Ui::show(Box<AboutBox>()); }));
 
 	_controller->session().downloaderTaskFinished(
@@ -915,8 +915,8 @@ void MainMenu::refreshMenu() {
 			}, &st::mainMenuCalls, &st::mainMenuCallsOver);
 		}
 	} else {
-		_menu->addAction(tr::lng_profile_add_contact(tr::now), [] {
-			App::wnd()->showAddContact();
+		_menu->addAction(tr::lng_profile_add_contact(tr::now), [=] {
+			controller->showAddContact();
 		}, &st::mainMenuContacts, &st::mainMenuContactsOver);
 
 		const auto fix = std::make_shared<QPointer<QAction>>();
@@ -934,8 +934,8 @@ void MainMenu::refreshMenu() {
 			_controller->session().supportTemplates().reload();
 		}, &st::mainMenuReload, &st::mainMenuReloadOver);
 	}
-	_menu->addAction(tr::lng_menu_settings(tr::now), [] {
-		App::wnd()->showSettings();
+	_menu->addAction(tr::lng_menu_settings(tr::now), [=] {
+		controller->showSettings();
 	}, &st::mainMenuSettings, &st::mainMenuSettingsOver);
 
 	_nightThemeAction = std::make_shared<QPointer<QAction>>();

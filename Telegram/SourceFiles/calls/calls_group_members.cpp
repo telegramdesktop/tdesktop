@@ -194,7 +194,7 @@ private:
 			st::groupCallStatusSpeakerArcsAnimation,
 			kSpeakerThreshold,
 			volume,
-			Ui::Paint::ArcsAnimation::HorizontalDirection::Right)) {
+			Ui::Paint::ArcsAnimation::Direction::Right)) {
 		}
 		const style::icon &speaker;
 		const std::unique_ptr<Ui::Paint::ArcsAnimation> arcs;

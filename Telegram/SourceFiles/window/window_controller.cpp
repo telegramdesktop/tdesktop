@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "export/export_manager.h"
 #include "platform/platform_window_title.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -327,6 +328,35 @@ QPoint Controller::getPointForCallPanelCenter() const {
 	return _widget.isActive()
 		? _widget.geometry().center()
 		: _widget.windowHandle()->screen()->geometry().center();
+}
+
+void Controller::showLogoutConfirmation() {
+	const auto account = Core::App().passcodeLocked()
+		? nullptr
+		: sessionController()
+		? &sessionController()->session().account()
+		: nullptr;
+	const auto weak = base::make_weak(account);
+	const auto callback = [=] {
+		if (account && !weak) {
+			return;
+		}
+		if (account
+			&& account->sessionExists()
+			&& Core::App().exportManager().inProgress(&account->session())) {
+			Ui::hideLayer();
+			Core::App().exportManager().stopWithConfirmation([=] {
+				Core::App().logout(account);
+			});
+		} else {
+			Core::App().logout(account);
+		}
+	};
+	show(Box<ConfirmBox>(
+		tr::lng_sure_logout(tr::now),
+		tr::lng_settings_logout(tr::now),
+		st::attentionBoxButton,
+		callback));
 }
 
 } // namespace Window

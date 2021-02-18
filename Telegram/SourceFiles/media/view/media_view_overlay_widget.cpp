@@ -197,8 +197,7 @@ void PaintImageProfile(QPainter &p, const QImage &image, QRect rect, QRect fill)
 	});
 }
 
-QPixmap PrepareStaticImage(const QString &path) {
-	auto image = App::readImage(path, nullptr, false);
+QPixmap PrepareStaticImage(QImage image) {
 #if defined Q_OS_MAC && !defined OS_MAC_OLD
 	if (image.width() > kMaxDisplayImageSize
 		|| image.height() > kMaxDisplayImageSize) {
@@ -210,6 +209,14 @@ QPixmap PrepareStaticImage(const QString &path) {
 	}
 #endif // Q_OS_MAC && !OS_MAC_OLD
 	return App::pixmapFromImageInPlace(std::move(image));
+}
+
+QPixmap PrepareStaticImage(const QString &path) {
+	return PrepareStaticImage(App::readImage(path, nullptr, false));
+}
+
+QPixmap PrepareStaticImage(const QByteArray &bytes) {
+	return PrepareStaticImage(App::readImage(bytes, nullptr, false));
 }
 
 } // namespace
@@ -450,15 +457,13 @@ void OverlayWidget::moveToScreen() {
 			.arg(screenList.indexOf(activeWindowScreen)));
 		windowHandle()->setScreen(activeWindowScreen);
 		DEBUG_LOG(("Viewer Pos: New actual screen: %1")
-			.arg(windowHandle()
-				? screenList.indexOf(windowHandle()->screen())
-				: -2));
+			.arg(screenList.indexOf(windowHandle()->screen())));
 	}
 	updateGeometry();
 }
 
 void OverlayWidget::updateGeometry() {
-	if (Platform::IsLinux()) {
+	if (Platform::IsWayland()) {
 		return;
 	}
 	const auto screen = windowHandle() && windowHandle()->screen()
@@ -468,11 +473,23 @@ void OverlayWidget::updateGeometry() {
 	if (geometry() == available) {
 		return;
 	}
+	DEBUG_LOG(("Viewer Pos: Setting %1, %2, %3, %4")
+		.arg(available.x())
+		.arg(available.y())
+		.arg(available.width())
+		.arg(available.height()));
 	setGeometry(available);
 }
 
 void OverlayWidget::resizeEvent(QResizeEvent *e) {
+	const auto newGeometry = geometry();
+	DEBUG_LOG(("Viewer Pos: Resized to %1, %2, %3, %4")
+		.arg(newGeometry.x())
+		.arg(newGeometry.y())
+		.arg(newGeometry.width())
+		.arg(newGeometry.height()));
 	updateControlsGeometry();
+	OverlayParent::resizeEvent(e);
 }
 
 void OverlayWidget::updateControlsGeometry() {
@@ -1269,6 +1286,7 @@ void OverlayWidget::activateControls() {
 void OverlayWidget::onHideControls(bool force) {
 	if (!force) {
 		if (!_dropdown->isHidden()
+			|| (_streamed && _streamed->controls.hasMenu())
 			|| _menu
 			|| _mousePressed
 			|| (_fullScreenVideo
@@ -1323,9 +1341,7 @@ void OverlayWidget::handleVisibleChanged(bool visible) {
 	if (visible) {
 		const auto screenList = QGuiApplication::screens();
 		DEBUG_LOG(("Viewer Pos: Shown, screen number: %1")
-			.arg(windowHandle()
-				? screenList.indexOf(windowHandle()->screen())
-				: -2));
+			.arg(screenList.indexOf(windowHandle()->screen())));
 
 		moveToScreen();
 	}
@@ -2308,6 +2324,11 @@ void OverlayWidget::displayDocument(
 						_staticContent = PrepareStaticImage(path);
 						_touchbarDisplay.fire(TouchBarItemType::Photo);
 					}
+				} else if (!_documentMedia->bytes().isEmpty()) {
+					_staticContent = PrepareStaticImage(_documentMedia->bytes());
+					if (!_staticContent.isNull()) {
+						_touchbarDisplay.fire(TouchBarItemType::Photo);
+					}
 				}
 				location.accessDisable();
 			}
@@ -2415,6 +2436,7 @@ void OverlayWidget::displayFinished() {
 	updateControls();
 	if (isHidden()) {
 		Ui::Platform::UpdateOverlayed(this);
+		moveToScreen();
 		if (Platform::IsLinux()) {
 			showFullScreen();
 		} else {
@@ -3076,7 +3098,10 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 	const auto r = e->rect();
 	const auto region = e->region();
 	const auto contentShown = _photo || documentContentShown();
-	const auto bgRegion = contentShown
+	const auto opaqueContentShown = contentShown
+		&& (!_document
+			|| (!_document->isVideoMessage() && !_document->sticker()));
+	const auto bgRegion = opaqueContentShown
 		? (region - contentRect())
 		: region;
 
@@ -3363,9 +3388,9 @@ void OverlayWidget::paintTransformedStaticContent(Painter &p) {
 	const auto rect = contentRect();
 
 	PainterHighQualityEnabler hq(p);
-	if ((!_document || !_documentMedia->getStickerLarge())
-		&& (_staticContent.isNull()
-			|| _staticContent.hasAlpha())) {
+	if ((!_document
+		|| (!_document->sticker() && !_document->isVideoMessage()))
+		&& (_staticContent.isNull() || _staticContent.hasAlpha())) {
 		p.fillRect(rect, _transparentBrush);
 	}
 	if (_staticContent.isNull()) {

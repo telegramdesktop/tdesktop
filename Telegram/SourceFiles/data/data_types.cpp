@@ -168,3 +168,12 @@ TimeId DateFromMessage(const MTPmessage &message) {
 		return message.vdate().v;
 	});
 }
+
+bool GoodStickerDimensions(int width, int height) {
+	// Show all .webp (except very large ones) as stickers,
+	// allow to open them in media viewer to see details.
+	constexpr auto kLargetsStickerSide = 2560;
+	return (width > 0)
+		&& (height > 0)
+		&& (width * height <= kLargetsStickerSide * kLargetsStickerSide);
+}

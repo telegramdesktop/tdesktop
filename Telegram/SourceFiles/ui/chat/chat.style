@@ -418,8 +418,14 @@ historySilentToggle: IconButton(historyBotKeyboardShow) {
 	icon: icon {{ "send_control_silent_off", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_silent_off", historyComposeIconFgOver }};
 }
-historySilentToggleOn: icon {{ "send_control_silent_on", historyComposeIconFg }};
-historySilentToggleOnOver: icon {{ "send_control_silent_on", historyComposeIconFgOver }};
+
+historySilentToggleCrossLine: CrossLineAnimation {
+	fg: historyComposeIconFg;
+	icon: icon {{ "send_control_silent_off", historyComposeIconFg }};
+	startPosition: point(5px, 3px);
+	endPosition: point(21px, 18px);
+	stroke: 2px;
+}
 
 historyReplySkip: 51px;
 historyReplyNameFg: windowActiveTextFg;

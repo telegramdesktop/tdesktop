@@ -91,6 +91,7 @@ public:
 	bool customHighlight() const override {
 		return true;
 	}
+	bool hideForwardedFrom() const override;
 
 	void stopAnimation() override;
 	void checkAnimation() override;
