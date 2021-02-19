@@ -64,9 +64,6 @@
 [submodule "Telegram/ThirdParty/hunspell"]
 	path = Telegram/ThirdParty/hunspell
 	url = https://github.com/hunspell/hunspell
-[submodule "Telegram/ThirdParty/materialdecoration"]
-	path = Telegram/ThirdParty/materialdecoration
-	url = https://github.com/desktop-app/materialdecoration.git
 [submodule "Telegram/ThirdParty/range-v3"]
 	path = Telegram/ThirdParty/range-v3
 	url = https://github.com/ericniebler/range-v3.git

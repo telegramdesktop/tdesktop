@@ -654,10 +654,6 @@ void start() {
 		"this may lead to font issues.");
 #endif // DESKTOP_APP_USE_PACKAGED_FONTS
 
-	if (AreQtPluginsBundled()) {
-		qputenv("QT_WAYLAND_DECORATION", "material");
-	}
-
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	// Tell the user when XDP file dialog is used
 	DEBUG_LOG(("Checking for XDG Desktop Portal..."));
