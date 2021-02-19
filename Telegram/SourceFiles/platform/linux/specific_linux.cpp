@@ -253,7 +253,7 @@ QString EscapeShellInLauncher(const QString &content) {
 QString FlatpakID() {
 	static const auto Result = [] {
 		if (!qEnvironmentVariableIsEmpty("FLATPAK_ID")) {
-			return QString::fromLatin1(qgetenv("FLATPAK_ID"));
+			return qEnvironmentVariable("FLATPAK_ID");
 		} else {
 			return GetLauncherBasename();
 		}
