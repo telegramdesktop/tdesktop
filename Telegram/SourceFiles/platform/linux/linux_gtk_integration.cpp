@@ -71,13 +71,6 @@ void DarkModeChanged() {
 	});
 }
 
-void DecorationLayoutChanged() {
-	Core::Sandbox::Instance().customEnterFromEventLoop([] {
-		Core::App().settings().setWindowControlsLayout(
-			WindowControlsLayout());
-	});
-}
-
 } // namespace
 
 GtkIntegration::GtkIntegration() {
@@ -182,10 +175,6 @@ void GtkIntegration::load() {
 	}
 
 	if (BaseGtkIntegration::Instance()->checkVersion(3, 12, 0)) {
-		BaseGtkIntegration::Instance()->connectToSetting(
-			"gtk-decoration-layout",
-			DecorationLayoutChanged);
-
 		BaseGtkIntegration::Instance()->connectToSetting(
 			"gtk-decoration-layout",
 			Ui::Platform::NotifyTitleControlsLayoutChanged);

@@ -38,9 +38,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_updates.h"
 #include "settings/settings_intro.h"
-#include "platform/platform_specific.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
+#include "ui/platform/ui_platform_utility.h"
 #include "base/call_delayed.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
@@ -111,7 +111,7 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 
 	setAttribute(Qt::WA_NoSystemBackground);
 
-	if (Platform::WindowsNeedShadow()) {
+	if (Ui::Platform::WindowExtentsSupported()) {
 		setAttribute(Qt::WA_TranslucentBackground);
 	} else {
 		setAttribute(Qt::WA_OpaquePaintEvent);

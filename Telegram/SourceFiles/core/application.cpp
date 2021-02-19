@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h"
 #include "core/launcher.h"
 #include "core/ui_integration.h"
-#include "core/core_settings.h"
 #include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/stickers_emoji_image_loader.h"
 #include "base/platform/base_platform_info.h"
@@ -211,8 +210,6 @@ void Application::run() {
 		App::quit();
 		return;
 	}
-
-	Core::App().settings().setWindowControlsLayout(Platform::WindowControlsLayout());
 
 	_translator = std::make_unique<Lang::Translator>();
 	QCoreApplication::instance()->installTranslator(_translator.get());
