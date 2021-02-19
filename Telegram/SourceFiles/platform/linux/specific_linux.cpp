@@ -8,7 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/specific_linux.h"
 
 #include "base/platform/base_platform_info.h"
-#include "base/platform/linux/base_xcb_utilities_linux.h"
+#include "base/platform/linux/base_linux_xcb_utilities.h"
+#include "base/platform/linux/base_linux_gtk_integration.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_gtk_integration.h"
 #include "platform/linux/linux_wayland_integration.h"
@@ -60,6 +61,7 @@ extern "C" {
 #include <iostream>
 
 using namespace Platform;
+using BaseGtkIntegration = base::Platform::GtkIntegration;
 using Platform::internal::WaylandIntegration;
 using Platform::internal::GtkIntegration;
 
@@ -67,8 +69,6 @@ Q_DECLARE_METATYPE(QMargins);
 
 namespace Platform {
 namespace {
-
-constexpr auto kIgnoreGtkIncompatibility = "TDESKTOP_I_KNOW_ABOUT_GTK_INCOMPATIBILITY"_cs;
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
 constexpr auto kIconName = "telegram"_cs;
@@ -79,8 +79,6 @@ constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_c
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 
 constexpr auto kXCBFrameExtentsAtomName = "_GTK_FRAME_EXTENTS"_cs;
-
-QStringList PlatformThemes;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 std::unique_ptr<internal::NotificationServiceWatcher> NSWInstance;
@@ -562,27 +560,6 @@ bool InSnap() {
 	return Result;
 }
 
-bool IsStaticBinary() {
-#ifdef DESKTOP_APP_USE_PACKAGED
-		return false;
-#else // DESKTOP_APP_USE_PACKAGED
-		return true;
-#endif // !DESKTOP_APP_USE_PACKAGED
-}
-
-bool IsGtkIntegrationForced() {
-	static const auto Result = [&] {
-		if (!GtkIntegration::Instance()) {
-			return false;
-		}
-
-		return PlatformThemes.contains(qstr("gtk3"), Qt::CaseInsensitive)
-			|| PlatformThemes.contains(qstr("gtk2"), Qt::CaseInsensitive);
-	}();
-
-	return Result;
-}
-
 bool AreQtPluginsBundled() {
 #if !defined DESKTOP_APP_USE_PACKAGED || defined DESKTOP_APP_USE_PACKAGED_LAZY
 	return true;
@@ -719,7 +696,7 @@ QImage GetImageFromClipboard() {
 }
 
 std::optional<bool> IsDarkMode() {
-	const auto integration = GtkIntegration::Instance();
+	const auto integration = BaseGtkIntegration::Instance();
 	if (!integration) {
 		return std::nullopt;
 	}
@@ -832,7 +809,7 @@ bool WindowsNeedShadow() {
 
 Window::ControlsLayout WindowControlsLayout() {
 	const auto gtkResult = []() -> std::optional<Window::ControlsLayout> {
-		const auto integration = GtkIntegration::Instance();
+		const auto integration = BaseGtkIntegration::Instance();
 		if (!integration || !integration->checkVersion(3, 12, 0)) {
 			return std::nullopt;
 		}
@@ -962,53 +939,15 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
-	PlatformThemes = QString::fromUtf8(qgetenv("QT_QPA_PLATFORMTHEME"))
-		.split(':', base::QStringSkipEmptyParts);
-
 	LOG(("Launcher filename: %1").arg(GetLauncherFilename()));
 
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
 
-	// if gtk integration and qgtk3/qgtk2 platformtheme (or qgtk2 style)
-	// is used at the same time, the app will crash
-	if (GtkIntegration::Instance()
-		&& !IsStaticBinary()
-		&& !qEnvironmentVariableIsSet(
-			kIgnoreGtkIncompatibility.utf8())) {
-		g_warning(
-			"Unfortunately, GTK integration "
-			"conflicts with qgtk2 platformtheme and style. "
-			"Therefore, QT_QPA_PLATFORMTHEME "
-			"and QT_STYLE_OVERRIDE will be unset.");
-
-		g_message(
-			"This can be ignored by setting %s environment variable "
-			"to any value, however, if qgtk2 theme or style is used, "
-			"this will lead to a crash.",
-			kIgnoreGtkIncompatibility.utf8().constData());
-
-		g_message(
-			"GTK integration can be disabled by setting %s to any value. "
-			"Keep in mind that this will lead to clipboard issues "
-			"and tdesktop will be unable to get settings from GTK "
-			"(such as decoration layout, dark mode & more).",
-			internal::kDisableGtkIntegration.utf8().constData());
-
-		qunsetenv("QT_QPA_PLATFORMTHEME");
-		qunsetenv("QT_STYLE_OVERRIDE");
-
-		// Don't allow qgtk3 to init gtk earlier than us
-		if (DesktopEnvironment::IsGtkBased()) {
-			QApplication::setDesktopSettingsAware(false);
-		}
-	}
-
-	if (!GtkIntegration::Instance()) {
-		g_warning(
-			"GTK integration was disabled on build or in runtime. "
-			"This will lead to clipboard issues and a lack of some features "
-			"(like Auto-Night Mode or system window controls layout).");
+	if (const auto integration = BaseGtkIntegration::Instance()) {
+		integration->prepareEnvironment();
+	} else {
+		g_warning("GTK integration is disabled, some feature unavailable. ");
 	}
 
 #ifdef DESKTOP_APP_USE_PACKAGED_RLOTTIE
@@ -1227,13 +1166,17 @@ void start() {
 	DEBUG_LOG(("Icon theme: %1").arg(QIcon::themeName()));
 	DEBUG_LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
 
+	if (const auto integration = BaseGtkIntegration::Instance()) {
+		integration->load();
+	}
+
 	if (const auto integration = GtkIntegration::Instance()) {
 		integration->load();
 	}
 
 	// wait for interface announce to know if native window frame is supported
-	if (const auto waylandIntegration = WaylandIntegration::Instance()) {
-		waylandIntegration->waitForInterfaceAnnounce();
+	if (const auto integration = WaylandIntegration::Instance()) {
+		integration->waitForInterfaceAnnounce();
 	}
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION

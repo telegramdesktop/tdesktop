@@ -642,7 +642,7 @@ bool Supported() {
 }
 
 bool Use(Type type) {
-	return IsGtkIntegrationForced()
+	return qEnvironmentVariableIsSet("TDESKTOP_USE_GTK_FILE_DIALOG")
 		|| DesktopEnvironment::IsGtkBased()
 		// use as a fallback for portal dialog
 		|| UseXDGDesktopPortal();
