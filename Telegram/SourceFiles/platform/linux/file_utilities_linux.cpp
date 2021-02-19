@@ -29,7 +29,7 @@ namespace File {
 
 void UnsafeOpenUrl(const QString &url) {
 	if (!g_app_info_launch_default_for_uri(
-		url.toUtf8(),
+		url.toUtf8().constData(),
 		nullptr,
 		nullptr)) {
 		QDesktopServices::openUrl(url);
@@ -57,7 +57,10 @@ void UnsafeLaunch(const QString &filepath) {
 	const auto absolutePath = QFileInfo(filepath).absoluteFilePath();
 
 	if (!g_app_info_launch_default_for_uri(
-		g_filename_to_uri(absolutePath.toUtf8(), nullptr, nullptr),
+		g_filename_to_uri(
+			absolutePath.toUtf8().constData(),
+			nullptr,
+			nullptr),
 		nullptr,
 		nullptr)) {
 		if (!UnsafeShowOpenWith(filepath)) {

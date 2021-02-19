@@ -107,7 +107,7 @@ PreparedFileThumbnail FinalizeFileThumbnail(
 		bool isSticker) {
 	prepared.name = isSticker ? qsl("thumb.webp") : qsl("thumb.jpg");
 	if (FileThumbnailUploadRequired(filemime, filesize)) {
-		const auto format = QByteArray(isSticker ? "WEBP" : "JPG");
+		const auto format = isSticker ? "WEBP" : "JPG";
 		auto buffer = QBuffer(&prepared.bytes);
 		prepared.image.save(&buffer, format, kThumbnailQuality);
 	}
