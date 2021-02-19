@@ -583,16 +583,16 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 		}
 	}
 	if (channel->amIn()) {
+		auto text = isGroup
+			? tr::lng_profile_leave_group(tr::now)
+			: tr::lng_profile_leave_channel(tr::now);
+		_addAction(text, DeleteAndLeaveHandler(channel));
 		if ((isGroup && !channel->isPublic())
 			|| channel->canDeleteMessages()) {
 			_addAction(
 				tr::lng_profile_clear_history(tr::now),
 				ClearHistoryHandler(channel));
 		}
-		auto text = isGroup
-			? tr::lng_profile_leave_group(tr::now)
-			: tr::lng_profile_leave_channel(tr::now);
-		_addAction(text, DeleteAndLeaveHandler(channel));
 	} else {
 		auto text = isGroup
 			? tr::lng_profile_join_group(tr::now)

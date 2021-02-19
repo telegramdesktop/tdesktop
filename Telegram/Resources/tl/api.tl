@@ -1568,7 +1568,7 @@ channels.editBanned#72796912 channel:InputChannel user_id:InputUser banned_right
 channels.getAdminLog#33ddf480 flags:# channel:InputChannel q:string events_filter:flags.0?ChannelAdminLogEventsFilter admins:flags.1?Vector<InputUser> max_id:long min_id:long limit:int = channels.AdminLogResults;
 channels.setStickers#ea8ca4f9 channel:InputChannel stickerset:InputStickerSet = Bool;
 channels.readMessageContents#eab5dc38 channel:InputChannel id:Vector<int> = Bool;
-channels.deleteHistory#bda41f3f flags:# for_everyone:flags.0?true channel:InputChannel max_id:int = Bool;
+channels.deleteHistory#af369d42 channel:InputChannel max_id:int = Bool;
 channels.togglePreHistoryHidden#eabbb94c channel:InputChannel enabled:Bool = Updates;
 channels.getLeftChannels#8341ecc0 offset:int = messages.Chats;
 channels.getGroupsForDiscussion#f5dad378 = messages.Chats;

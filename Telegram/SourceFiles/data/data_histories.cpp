@@ -606,11 +606,7 @@ void Histories::deleteAllMessages(
 			//	}
 			}).send();
 		} else if (channel) {
-			const auto flags = revoke
-				? MTPchannels_DeleteHistory::Flag::f_for_everyone
-				: MTPchannels_DeleteHistory::Flag(0);
 			return session().api().request(MTPchannels_DeleteHistory(
-				MTP_flags(flags),
 				channel->inputChannel,
 				MTP_int(deleteTillId)
 			)).done([=](const MTPBool &result) {
