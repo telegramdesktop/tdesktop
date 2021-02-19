@@ -7,24 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <QtCore/QLibrary>
-
 extern "C" {
 #undef signals
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 #define signals public
 } // extern "C"
-
-#if defined DESKTOP_APP_USE_PACKAGED && !defined DESKTOP_APP_USE_PACKAGED_LAZY
-#define LINK_TO_GTK
-#endif // DESKTOP_APP_USE_PACKAGED && !DESKTOP_APP_USE_PACKAGED_LAZY
-
-#ifdef LINK_TO_GTK
-#define LOAD_GTK_SYMBOL(lib, name, func) (func = ::func)
-#else // LINK_TO_GTK
-#define LOAD_GTK_SYMBOL Platform::Gtk::LoadSymbol
-#endif // !LINK_TO_GTK
 
 // To be able to compile with gtk-2.0 headers as well
 typedef struct _GdkMonitor GdkMonitor;
@@ -33,24 +21,6 @@ typedef struct _GtkAppChooser GtkAppChooser;
 namespace Platform {
 namespace Gtk {
 
-template <typename Function>
-bool LoadSymbol(QLibrary &lib, const char *name, Function &func) {
-	func = nullptr;
-	if (!lib.isLoaded()) {
-		return false;
-	}
-
-	func = reinterpret_cast<Function>(lib.resolve(name));
-	if (func) {
-		return true;
-	}
-	LOG(("Error: failed to load '%1' function!").arg(name));
-	return false;
-}
-
-inline gboolean (*gtk_init_check)(int *argc, char ***argv) = nullptr;
-inline const gchar* (*gtk_check_version)(guint required_major, guint required_minor, guint required_micro) = nullptr;
-inline GtkSettings* (*gtk_settings_get_default)(void) = nullptr;
 inline void (*gtk_widget_show)(GtkWidget *widget) = nullptr;
 inline void (*gtk_widget_hide)(GtkWidget *widget) = nullptr;
 inline GdkWindow* (*gtk_widget_get_window)(GtkWidget *widget) = nullptr;
@@ -90,7 +60,6 @@ inline GtkWidget* (*gtk_image_new)(void) = nullptr;
 inline void (*gtk_image_set_from_pixbuf)(GtkImage *image, GdkPixbuf *pixbuf) = nullptr;
 inline GtkWidget* (*gtk_app_chooser_dialog_new)(GtkWindow *parent, GtkDialogFlags flags, GFile *file) = nullptr;
 inline GAppInfo* (*gtk_app_chooser_get_app_info)(GtkAppChooser *self) = nullptr;
-inline void (*gdk_set_allowed_backends)(const gchar *backends) = nullptr;
 inline void (*gdk_window_set_modal_hint)(GdkWindow *window, gboolean modal) = nullptr;
 inline void (*gdk_window_focus)(GdkWindow *window, guint32 timestamp) = nullptr;
 

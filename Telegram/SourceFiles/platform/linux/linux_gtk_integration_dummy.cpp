@@ -24,25 +24,6 @@ bool GtkIntegration::loaded() const {
 	return false;
 }
 
-bool GtkIntegration::checkVersion(uint major, uint minor, uint micro) const {
-	return false;
-}
-
-std::optional<bool> GtkIntegration::getBoolSetting(
-		const QString &propertyName) const {
-	return std::nullopt;
-}
-
-std::optional<int> GtkIntegration::getIntSetting(
-		const QString &propertyName) const {
-	return std::nullopt;
-}
-
-std::optional<QString> GtkIntegration::getStringSetting(
-		const QString &propertyName) const {
-	return std::nullopt;
-}
-
 std::optional<int> GtkIntegration::scaleFactor() const {
 	return std::nullopt;
 }

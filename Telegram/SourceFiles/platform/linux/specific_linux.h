@@ -17,9 +17,7 @@ namespace Platform {
 
 bool InFlatpak();
 bool InSnap();
-bool IsStaticBinary();
 bool AreQtPluginsBundled();
-bool IsGtkIntegrationForced();
 bool UseXDGDesktopPortal();
 bool CanOpenDirectoryWithPortal();
 bool IsNotificationServiceActivatable();
