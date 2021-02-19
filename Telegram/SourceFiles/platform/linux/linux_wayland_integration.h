@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-class QWindow;
-
 namespace Platform {
 namespace internal {
 
