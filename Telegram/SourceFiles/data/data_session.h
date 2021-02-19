@@ -327,6 +327,10 @@ public:
 		const Dialogs::Key &key1,
 		const Dialogs::Key &key2);
 
+	void setSuggestToGigagroup(not_null<ChannelData*> group, bool suggest);
+	[[nodiscard]] bool suggestToGigagroup(
+		not_null<ChannelData*> group) const;
+
 	void registerMessage(not_null<HistoryItem*> item);
 	void unregisterMessage(not_null<HistoryItem*> item);
 
@@ -930,6 +934,7 @@ private:
 
 	rpl::event_stream<not_null<WebPageData*>> _webpageUpdates;
 	rpl::event_stream<not_null<ChannelData*>> _channelDifferenceTooLong;
+	base::flat_set<not_null<ChannelData*>> _suggestToGigagroup;
 
 	base::flat_multi_map<TimeId, not_null<PollData*>> _pollsClosings;
 	base::Timer _pollsClosingTimer;

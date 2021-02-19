@@ -314,6 +314,68 @@ ChatAdminRights AdminRightsForOwnershipTransfer(bool isGroup) {
 	return result;
 }
 
+Fn<void()> AboutGigagroupCallback(not_null<ChannelData*> channel) {
+	const auto converting = std::make_shared<bool>();
+	const auto convertSure = [=] {
+		if (*converting) {
+			return;
+		}
+		*converting = true;
+		channel->session().api().request(MTPchannels_ConvertToGigagroup(
+			channel->inputChannel
+		)).done([=](const MTPUpdates &result) {
+			channel->session().api().applyUpdates(result);
+			Ui::hideSettingsAndLayer();
+			Ui::Toast::Show(tr::lng_gigagroup_done(tr::now));
+		}).fail([=](const RPCError &error) {
+			*converting = false;
+		}).send();
+	};
+	const auto convertWarn = [=] {
+		if (*converting) {
+			return;
+		}
+		Ui::show(Box([=](not_null<Ui::GenericBox*> box) {
+			box->setTitle(tr::lng_gigagroup_warning_title());
+			box->addRow(
+				object_ptr<Ui::FlatLabel>(
+					box,
+					tr::lng_gigagroup_warning(
+					) | Ui::Text::ToRichLangValue(),
+					st::infoAboutGigagroup));
+			box->addButton(tr::lng_gigagroup_convert_sure(), convertSure);
+			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		}), Ui::LayerOption::KeepOther);
+	};
+	return [=] {
+		if (*converting) {
+			return;
+		}
+		Ui::show(Box([=](not_null<Ui::GenericBox*> box) {
+			box->setTitle(tr::lng_gigagroup_convert_title());
+			const auto addFeature = [&](rpl::producer<QString> text) {
+				using namespace rpl::mappers;
+				const auto prefix = QString::fromUtf8("\xE2\x80\xA2 ");
+				box->addRow(
+					object_ptr<Ui::FlatLabel>(
+						box,
+						std::move(text) | rpl::map(prefix + _1),
+						st::infoAboutGigagroup),
+					style::margins(
+						st::boxRowPadding.left(),
+						st::boxLittleSkip,
+						st::boxRowPadding.right(),
+						st::boxLittleSkip));
+			};
+			addFeature(tr::lng_gigagroup_convert_feature1());
+			addFeature(tr::lng_gigagroup_convert_feature2());
+			addFeature(tr::lng_gigagroup_convert_feature3());
+			box->addButton(tr::lng_gigagroup_convert_sure(), convertWarn);
+			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		}), Ui::LayerOption::KeepOther);
+	};
+}
+
 EditPeerPermissionsBox::EditPeerPermissionsBox(
 	QWidget*,
 	not_null<Window::SessionNavigation*> navigation,
@@ -541,71 +603,11 @@ void EditPeerPermissionsBox::addSuggestGigagroup(
 			tr::lng_rights_gigagroup_title(),
 			st::rightsHeaderLabel),
 		st::rightsHeaderMargin);
-	const auto channel = _peer->asChannel();
-	const auto converting = std::make_shared<bool>();
-	const auto convertSure = [=] {
-		if (*converting) {
-			return;
-		}
-		*converting = true;
-		channel->session().api().request(MTPchannels_ConvertToGigagroup(
-			channel->inputChannel
-		)).done([=](const MTPUpdates &result) {
-			channel->session().api().applyUpdates(result);
-			Ui::hideSettingsAndLayer();
-			Ui::Toast::Show(tr::lng_gigagroup_done(tr::now));
-		}).fail([=](const RPCError &error) {
-			*converting = false;
-		}).send();
-	};
-	const auto convertWarn = [=] {
-		if (*converting) {
-			return;
-		}
-		getDelegate()->show(Box([=](not_null<Ui::GenericBox*> box) {
-			box->setTitle(tr::lng_gigagroup_warning_title());
-			box->addRow(
-				object_ptr<Ui::FlatLabel>(
-					box,
-					tr::lng_gigagroup_warning(
-					) | Ui::Text::ToRichLangValue(),
-					st::infoAboutGigagroup));
-			box->addButton(tr::lng_gigagroup_convert_sure(), convertSure);
-			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-		}));
-	};
-	const auto convert = [=] {
-		if (*converting) {
-			return;
-		}
-		getDelegate()->show(Box([=](not_null<Ui::GenericBox*> box) {
-			box->setTitle(tr::lng_gigagroup_convert_title());
-			const auto addFeature = [&](rpl::producer<QString> text) {
-				using namespace rpl::mappers;
-				const auto prefix = QString::fromUtf8("\xE2\x80\xA2 ");
-				box->addRow(
-					object_ptr<Ui::FlatLabel>(
-						box,
-						std::move(text) | rpl::map(prefix + _1),
-						st::infoAboutGigagroup),
-					style::margins(
-						st::boxRowPadding.left(),
-						st::boxLittleSkip,
-						st::boxRowPadding.right(),
-						st::boxLittleSkip));
-			};
-			addFeature(tr::lng_gigagroup_convert_feature1());
-			addFeature(tr::lng_gigagroup_convert_feature2());
-			addFeature(tr::lng_gigagroup_convert_feature3());
-			box->addButton(tr::lng_gigagroup_convert_sure(), convertWarn);
-			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-		}));
-	};
 	container->add(EditPeerInfoBox::CreateButton(
 		container,
 		tr::lng_rights_gigagroup_convert(),
 		rpl::single(QString()),
-		convert,
+		AboutGigagroupCallback(_peer->asChannel()),
 		st::peerPermissionsButton));
 
 	container->add(

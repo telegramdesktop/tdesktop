@@ -2049,6 +2049,20 @@ MsgId Session::nextLocalMessageId() {
 	return _localMessageIdCounter++;
 }
 
+void Session::setSuggestToGigagroup(
+		not_null<ChannelData*> group,
+		bool suggest) {
+	if (suggest) {
+		_suggestToGigagroup.emplace(group);
+	} else {
+		_suggestToGigagroup.remove(group);
+	}
+}
+
+bool Session::suggestToGigagroup(not_null<ChannelData*> group) const {
+	return _suggestToGigagroup.contains(group);
+}
+
 HistoryItem *Session::message(ChannelId channelId, MsgId itemId) const {
 	if (!itemId) {
 		return nullptr;

@@ -739,6 +739,16 @@ void ApplyChannelUpdate(
 		const MTPDchannelFull &update) {
 	const auto session = &channel->session();
 
+	if (channel->isMegagroup()) {
+		const auto suggestions = update.vpending_suggestions().value_or_empty();
+		channel->owner().setSuggestToGigagroup(
+			channel,
+			ranges::contains(
+				suggestions,
+				"convert_to_gigagroup"_q,
+				&MTPstring::v));
+	}
+
 	channel->setAvailableMinId(update.vavailable_min_id().value_or_empty());
 	auto canViewAdmins = channel->canViewAdmins();
 	auto canViewMembers = channel->canViewMembers();

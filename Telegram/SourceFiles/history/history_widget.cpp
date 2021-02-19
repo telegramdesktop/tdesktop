@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "boxes/share_box.h"
 #include "boxes/edit_caption_box.h"
+#include "boxes/peers/edit_peer_permissions_box.h" // ShowAboutGigagroup.
 #include "core/file_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
@@ -3446,6 +3447,36 @@ void HistoryWidget::doneShow() {
 	checkHistoryActivation();
 	controller()->widget()->setInnerFocus();
 	_preserveScrollTop = false;
+	checkSuggestToGigagroup();
+}
+
+void HistoryWidget::checkSuggestToGigagroup() {
+	const auto group = _peer ? _peer->asMegagroup() : nullptr;
+	if (!group || !group->owner().suggestToGigagroup(group)) {
+		return;
+	}
+	InvokeQueued(_list, [=] {
+		if (!Ui::isLayerShown()) {
+			group->owner().setSuggestToGigagroup(group, false);
+			group->session().api().request(MTPhelp_DismissSuggestion(
+				group->input,
+				MTP_string("convert_to_gigagroup")
+			)).send();
+			Ui::show(Box([=](not_null<Ui::GenericBox*> box) {
+				box->setTitle(tr::lng_gigagroup_suggest_title());
+				box->addRow(
+					object_ptr<Ui::FlatLabel>(
+						box,
+						tr::lng_gigagroup_suggest_text(
+						) | Ui::Text::ToRichLangValue(),
+						st::infoAboutGigagroup));
+				box->addButton(
+					tr::lng_gigagroup_suggest_more(),
+					AboutGigagroupCallback(group));
+				box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+			}));
+		}
+	});
 }
 
 void HistoryWidget::finishAnimating() {
@@ -6183,6 +6214,7 @@ void HistoryWidget::fullPeerUpdated(PeerData *peer) {
 		_list->updateBotInfo();
 
 		handlePeerUpdate();
+		checkSuggestToGigagroup();
 	}
 	if (updateCmdStartShown()) {
 		refresh = true;

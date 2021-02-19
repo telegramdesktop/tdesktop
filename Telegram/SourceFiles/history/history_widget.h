@@ -330,6 +330,8 @@ private:
 	using TextUpdateEvents = base::flags<TextUpdateEvent>;
 	friend inline constexpr bool is_flag_type(TextUpdateEvent) { return true; };
 
+	void checkSuggestToGigagroup();
+
 	void initTabbedSelector();
 	void initVoiceRecordBar();
 	void refreshTabbedPanel();

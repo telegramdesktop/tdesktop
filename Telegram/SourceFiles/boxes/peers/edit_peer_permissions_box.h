@@ -49,6 +49,9 @@ private:
 
 };
 
+[[nodiscard]] Fn<void()> AboutGigagroupCallback(
+	not_null<ChannelData*> channel);
+
 template <typename Flags>
 struct EditFlagsControl {
 	object_ptr<Ui::RpWidget> widget;
