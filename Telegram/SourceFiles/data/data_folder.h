@@ -58,6 +58,7 @@ public:
 	bool chatListMessageKnown() const override;
 	void requestChatListMessage() override;
 	const QString &chatListName() const override;
+	const QString &chatListNameSortKey() const override;
 	const base::flat_set<QString> &chatListNameWords() const override;
 	const base::flat_set<QChar> &chatListFirstLetters() const override;
 
@@ -102,6 +103,7 @@ private:
 	QString _name;
 	base::flat_set<QString> _nameWords;
 	base::flat_set<QChar> _nameFirstLetters;
+	QString _chatListNameSortKey;
 
 	std::vector<not_null<History*>> _lastHistories;
 	HistoryItem *_chatListMessage = nullptr;

@@ -50,7 +50,8 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 	&owner->session(),
 	FilterId(),
 	owner->session().serverConfig().pinnedDialogsInFolderMax.value())
-, _name(tr::lng_archived_name(tr::now)) {
+, _name(tr::lng_archived_name(tr::now))
+, _chatListNameSortKey(owner->nameSortKey(_name)) {
 	indexNameParts();
 
 	session().changes().peerUpdates(
@@ -406,6 +407,10 @@ const base::flat_set<QString> &Folder::chatListNameWords() const {
 
 const base::flat_set<QChar> &Folder::chatListFirstLetters() const {
 	return _nameFirstLetters;
+}
+
+const QString &Folder::chatListNameSortKey() const {
+	return _chatListNameSortKey;
 }
 
 } // namespace Data
