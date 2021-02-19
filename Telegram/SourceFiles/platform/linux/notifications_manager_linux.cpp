@@ -590,11 +590,7 @@ void NotificationData::setImage(const QString &imagePath) {
 		g_variant_new_from_data(
 			G_VARIANT_TYPE("ay"),
 			_image.constBits(),
-#if QT_VERSION < QT_VERSION_CHECK(5, 10, 0)
-			_image.byteCount(),
-#else // Qt < 5.10.0
 			_image.sizeInBytes(),
-#endif // Qt >= 5.10.0
 			true,
 			nullptr,
 			nullptr)));
