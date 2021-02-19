@@ -33,17 +33,5 @@ bool WaylandIntegration::supportsXdgDecoration() {
 	return false;
 }
 
-bool WaylandIntegration::startMove(QWindow *window) {
-	return false;
-}
-
-bool WaylandIntegration::startResize(QWindow *window, Qt::Edges edges) {
-	return false;
-}
-
-bool WaylandIntegration::showWindowMenu(QWindow *window) {
-	return false;
-}
-
 } // namespace internal
 } // namespace Platform

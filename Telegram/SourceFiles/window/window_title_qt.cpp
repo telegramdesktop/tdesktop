@@ -7,12 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_title_qt.h"
 
-#include "platform/platform_specific.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
-#include "core/core_settings.h"
-#include "core/application.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
@@ -66,7 +63,7 @@ TitleWidgetQt::TitleWidgetQt(QWidget *parent)
 	});
 	_close->setPointerCursor(false);
 
-	Core::App().settings().windowControlsLayoutChanges(
+	Ui::Platform::TitleControlsLayoutChanged(
 	) | rpl::start_with_next([=] {
 		updateControlsPosition();
 	}, lifetime());
@@ -94,7 +91,7 @@ TitleWidgetQt::~TitleWidgetQt() {
 	}
 
 	if (_extentsSet) {
-		Platform::UnsetWindowExtents(window()->windowHandle());
+		Ui::Platform::UnsetWindowExtents(window()->windowHandle());
 	}
 }
 
@@ -116,7 +113,7 @@ void TitleWidgetQt::init() {
 
 bool TitleWidgetQt::hasShadow() const {
 	const auto center = window()->geometry().center();
-	return Platform::WindowsNeedShadow()
+	return Ui::Platform::WindowExtentsSupported()
 		&& Ui::Platform::TranslucentWindowsSupported(center);
 }
 
@@ -145,19 +142,19 @@ void TitleWidgetQt::toggleFramelessWindow(bool enabled) {
 
 void TitleWidgetQt::updateWindowExtents() {
 	if (hasShadow()) {
-		Platform::SetWindowExtents(
+		Ui::Platform::SetWindowExtents(
 			window()->windowHandle(),
 			resizeArea() * cIntRetinaFactor());
 
 		_extentsSet = true;
 	} else if (_extentsSet) {
-		Platform::UnsetWindowExtents(window()->windowHandle());
+		Ui::Platform::UnsetWindowExtents(window()->windowHandle());
 		_extentsSet = false;
 	}
 }
 
 void TitleWidgetQt::updateControlsPosition() {
-	const auto controlsLayout = Core::App().settings().windowControlsLayout();
+	const auto controlsLayout = Ui::Platform::TitleControlsLayout();
 	const auto controlsLeft = controlsLayout.left;
 	const auto controlsRight = controlsLayout.right;
 
@@ -223,7 +220,7 @@ void TitleWidgetQt::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton) {
 		_mousePressed = true;
 	} else if (e->button() == Qt::RightButton) {
-		Platform::ShowWindowMenu(window()->windowHandle());
+		Ui::Platform::ShowWindowMenu(window()->windowHandle());
 	}
 }
 
@@ -235,7 +232,7 @@ void TitleWidgetQt::mouseReleaseEvent(QMouseEvent *e) {
 
 void TitleWidgetQt::mouseMoveEvent(QMouseEvent *e) {
 	if (_mousePressed) {
-		startMove();
+		window()->windowHandle()->startSystemMove();
 	}
 }
 
@@ -264,7 +261,7 @@ bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 			if (e->type() == QEvent::MouseButtonPress
 				&& mouseEvent->button() == Qt::LeftButton
 				&& edges) {
-				return startResize(edges);
+				return window()->windowHandle()->startSystemResize(edges);
 			}
 		}
 	} else if (e->type() == QEvent::Leave) {
@@ -411,34 +408,6 @@ void TitleWidgetQt::restoreCursor() {
 		_cursorOverriden = false;
 		QGuiApplication::restoreOverrideCursor();
 	}
-}
-
-bool TitleWidgetQt::startMove() {
-	if (Platform::StartSystemMove(window()->windowHandle())) {
-		return true;
-	}
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-	if (window()->windowHandle()->startSystemMove()) {
-		return true;
-	}
-#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
-
-	return false;
-}
-
-bool TitleWidgetQt::startResize(Qt::Edges edges) {
-	if (Platform::StartSystemResize(window()->windowHandle(), edges)) {
-		return true;
-	}
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-	if (window()->windowHandle()->startSystemResize(edges)) {
-		return true;
-	}
-#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
-
-	return false;
 }
 
 } // namespace Window

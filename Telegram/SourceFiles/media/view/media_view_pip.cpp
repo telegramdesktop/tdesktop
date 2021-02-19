@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "core/application.h"
-#include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/widgets/buttons.h"
@@ -724,17 +723,9 @@ void PipPanel::startSystemDrag() {
 
 	const auto stateEdges = RectPartToQtEdges(*_dragState);
 	if (stateEdges) {
-		if (!Platform::StartSystemResize(windowHandle(), stateEdges)) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-			windowHandle()->startSystemResize(stateEdges);
-#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
-		}
+		windowHandle()->startSystemResize(stateEdges);
 	} else {
-		if (!Platform::StartSystemMove(windowHandle())) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-			windowHandle()->startSystemMove();
-#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
-		}
+		windowHandle()->startSystemMove();
 	}
 }
 

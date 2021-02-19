@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "platform/platform_window_title.h"
+#include "platform/linux/linux_wayland_integration.h"
 #include "base/object_ptr.h"
 
 namespace Window {
@@ -21,8 +22,15 @@ void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palet
 
 namespace Platform {
 
-bool AllowNativeWindowFrameToggle();
-object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent);
+inline bool AllowNativeWindowFrameToggle() {
+	const auto waylandIntegration = internal::WaylandIntegration::Instance();
+	return !waylandIntegration
+			|| waylandIntegration->supportsXdgDecoration();
+}
+
+inline object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
+	return object_ptr<Window::TitleWidgetQt>(parent);
+}
 
 inline bool NativeTitleRequiresShadow() {
 	return false;

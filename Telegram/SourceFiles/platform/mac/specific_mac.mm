@@ -203,16 +203,6 @@ void IgnoreApplicationActivationRightNow() {
 	objc_ignoreApplicationActivationRightNow();
 }
 
-Window::ControlsLayout WindowControlsLayout() {
-	return Window::ControlsLayout{
-		.left = {
-			Window::Control::Close,
-			Window::Control::Minimize,
-			Window::Control::Maximize,
-		}
-	};
-}
-
 } // namespace Platform
 
 void psNewVersion() {

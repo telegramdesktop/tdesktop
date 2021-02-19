@@ -26,32 +26,12 @@ inline QImage GetImageFromClipboard() {
 	return {};
 }
 
-inline bool StartSystemMove(QWindow *window) {
-	return false;
-}
-
-inline bool StartSystemResize(QWindow *window, Qt::Edges edges) {
-	return false;
-}
-
 inline bool TrayIconSupported() {
 	return true;
 }
 
 inline bool SkipTaskbarSupported() {
 	return true;
-}
-
-inline bool SetWindowExtents(QWindow *window, const QMargins &extents) {
-	return false;
-}
-
-inline bool UnsetWindowExtents(QWindow *window) {
-	return false;
-}
-
-inline bool WindowsNeedShadow() {
-	return false;
 }
 
 namespace ThirdParty {

@@ -92,18 +92,6 @@ if (LINUX)
         )
     endif()
 
-    if (DESKTOP_APP_USE_PACKAGED
-        AND NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
-        AND Qt5WaylandClient_VERSION VERSION_LESS 5.13.0)
-        find_package(PkgConfig REQUIRED)
-        pkg_check_modules(WAYLAND_CLIENT REQUIRED wayland-client)
-
-        target_include_directories(Telegram
-        PRIVATE
-            ${WAYLAND_CLIENT_INCLUDE_DIRS}
-        )
-    endif()
-
     if (NOT DESKTOP_APP_DISABLE_GTK_INTEGRATION)
         find_package(PkgConfig REQUIRED)
 
@@ -852,7 +840,6 @@ PRIVATE
     platform/linux/notifications_manager_linux.h
     platform/linux/specific_linux.cpp
     platform/linux/specific_linux.h
-    platform/linux/window_title_linux.cpp
     platform/linux/window_title_linux.h
     platform/mac/file_utilities_mac.mm
     platform/mac/file_utilities_mac.h
@@ -1057,7 +1044,6 @@ PRIVATE
     window/window_connecting_widget.h
     window/window_controller.cpp
     window/window_controller.h
-    window/window_controls_layout.h
     window/window_filters_menu.cpp
     window/window_filters_menu.h
     window/window_history_hider.cpp
