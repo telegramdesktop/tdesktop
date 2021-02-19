@@ -665,7 +665,9 @@ void DeleteMessagesBox::prepare() {
 
 	if (_wipeHistoryJustClear
 		&& _wipeHistoryPeer
-		&& (_wipeHistoryPeer->isUser()
+		&& ((_wipeHistoryPeer->isUser()
+			&& !_wipeHistoryPeer->isSelf()
+			&& !_wipeHistoryPeer->isNotificationsUser())
 			|| (_wipeHistoryPeer->isChat()
 				&& _wipeHistoryPeer->asChat()->canDeleteMessages())
 			|| (_wipeHistoryPeer->isChannel()
