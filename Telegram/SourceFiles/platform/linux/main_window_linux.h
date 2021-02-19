@@ -79,7 +79,6 @@ private:
 	base::unique_qptr<Ui::PopupMenu> _trayIconMenuXEmbed;
 
 	void updateIconCounters();
-	void updateWaylandDecorationColors();
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	StatusNotifierItem *_sniTrayIcon = nullptr;
