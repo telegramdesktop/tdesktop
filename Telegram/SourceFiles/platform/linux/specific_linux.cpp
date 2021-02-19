@@ -69,8 +69,6 @@ using BaseGtkIntegration = base::Platform::GtkIntegration;
 using Platform::internal::WaylandIntegration;
 using Platform::internal::GtkIntegration;
 
-Q_DECLARE_METATYPE(QMargins);
-
 namespace Platform {
 namespace {
 
