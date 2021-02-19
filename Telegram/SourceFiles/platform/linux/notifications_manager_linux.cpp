@@ -363,10 +363,10 @@ NotificationData::NotificationData(
 
 			_notificationRepliedSignalId = g_dbus_connection_signal_subscribe(
 				_dbusConnection,
-				kService.utf8(),
-				kInterface.utf8(),
+				kService.utf8().constData(),
+				kInterface.utf8().constData(),
 				"NotificationReplied",
-				kObjectPath.utf8(),
+				kObjectPath.utf8().constData(),
 				nullptr,
 				G_DBUS_SIGNAL_FLAGS_NONE,
 				signalEmitted,
@@ -380,10 +380,10 @@ NotificationData::NotificationData(
 
 		_actionInvokedSignalId = g_dbus_connection_signal_subscribe(
 			_dbusConnection,
-			kService.utf8(),
-			kInterface.utf8(),
+			kService.utf8().constData(),
+			kInterface.utf8().constData(),
 			"ActionInvoked",
-			kObjectPath.utf8(),
+			kObjectPath.utf8().constData(),
 			nullptr,
 			G_DBUS_SIGNAL_FLAGS_NONE,
 			signalEmitted,
@@ -420,14 +420,14 @@ NotificationData::NotificationData(
 
 	_hints.emplace(
 		qsl("desktop-entry"),
-		g_variant_new_string(GetLauncherBasename().toUtf8()));
+		g_variant_new_string(GetLauncherBasename().toUtf8().constData()));
 
 	_notificationClosedSignalId = g_dbus_connection_signal_subscribe(
 		_dbusConnection,
-		kService.utf8(),
-		kInterface.utf8(),
+		kService.utf8().constData(),
+		kInterface.utf8().constData(),
 		"NotificationClosed",
-		kObjectPath.utf8(),
+		kObjectPath.utf8().constData(),
 		nullptr,
 		G_DBUS_SIGNAL_FLAGS_NONE,
 		signalEmitted,
@@ -497,9 +497,9 @@ void NotificationData::show() {
 
 	g_dbus_connection_call(
 		_dbusConnection,
-		kService.utf8(),
-		kObjectPath.utf8(),
-		kInterface.utf8(),
+		kService.utf8().constData(),
+		kObjectPath.utf8().constData(),
+		kInterface.utf8().constData(),
 		"Notify",
 		g_variant_new(
 			"(susssasa{sv}i)",
@@ -559,9 +559,9 @@ void NotificationData::notificationShown(
 void NotificationData::close() {
 	g_dbus_connection_call(
 		_dbusConnection,
-		kService.utf8(),
-		kObjectPath.utf8(),
-		kInterface.utf8(),
+		kService.utf8().constData(),
+		kObjectPath.utf8().constData(),
+		kInterface.utf8().constData(),
 		"CloseNotification",
 		g_variant_new("(u)", _notificationId),
 		nullptr,

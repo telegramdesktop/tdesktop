@@ -537,9 +537,9 @@ void MainWindow::initHook() {
 		G_BUS_TYPE_SESSION,
 		G_DBUS_PROXY_FLAGS_NONE,
 		nullptr,
-		kSNIWatcherService.utf8(),
-		kSNIWatcherObjectPath.utf8(),
-		kSNIWatcherInterface.utf8(),
+		kSNIWatcherService.utf8().constData(),
+		kSNIWatcherObjectPath.utf8().constData(),
+		kSNIWatcherInterface.utf8().constData(),
 		nullptr,
 		nullptr);
 

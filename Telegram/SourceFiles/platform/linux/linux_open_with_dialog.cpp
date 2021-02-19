@@ -49,7 +49,7 @@ private:
 };
 
 OpenWithDialog::OpenWithDialog(const QString &filepath)
-: _gfileInstance(g_file_new_for_path(filepath.toUtf8()))
+: _gfileInstance(g_file_new_for_path(filepath.toUtf8().constData()))
 , _gtkWidget(gtk_app_chooser_dialog_new(
 		nullptr,
 		GTK_DIALOG_MODAL,

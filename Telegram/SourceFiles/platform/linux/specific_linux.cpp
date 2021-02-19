@@ -743,7 +743,7 @@ void RegisterCustomScheme(bool force) {
 		.arg(neededCommandlineBuilder);
 
 	auto currentAppInfo = g_app_info_get_default_for_type(
-		kHandlerTypeName.utf8(),
+		kHandlerTypeName.utf8().constData(),
 		true);
 
 	if (currentAppInfo) {
@@ -758,7 +758,7 @@ void RegisterCustomScheme(bool force) {
 	}
 
 	auto registeredAppInfoList = g_app_info_get_recommended_for_type(
-		kHandlerTypeName.utf8());
+		kHandlerTypeName.utf8().constData());
 
 	for (auto l = registeredAppInfoList; l != nullptr; l = l->next) {
 		const auto currentRegisteredAppInfo = reinterpret_cast<GAppInfo*>(
@@ -781,15 +781,15 @@ void RegisterCustomScheme(bool force) {
 	}
 
 	auto newAppInfo = g_app_info_create_from_commandline(
-		neededCommandlineBuilder.toUtf8(),
-		AppName.utf8(),
+		neededCommandlineBuilder.toUtf8().constData(),
+		AppName.utf8().constData(),
 		G_APP_INFO_CREATE_SUPPORTS_URIS,
 		&error);
 
 	if (newAppInfo) {
 		g_app_info_set_as_default_for_type(
 			newAppInfo,
-			kHandlerTypeName.utf8(),
+			kHandlerTypeName.utf8().constData(),
 			&error);
 
 		g_object_unref(newAppInfo);
