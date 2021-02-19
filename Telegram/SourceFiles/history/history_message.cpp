@@ -1391,12 +1391,15 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 
 void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 	if (message.vaction().type() == mtpc_messageActionHistoryClear) {
+		const auto wasGrouped = history()->owner().groups().isGrouped(this);
 		setReplyMarkup(nullptr);
 		refreshMedia(nullptr);
 		setEmptyText();
 		setViewsCount(-1);
 		setForwardsCount(-1);
-
+		if (wasGrouped) {
+			history()->owner().groups().unregisterMessage(this);
+		}
 		finishEditionToEmpty();
 	}
 }
