@@ -39,6 +39,7 @@ public:
 
 	[[nodiscard]] rpl::producer<> deleteRequests() const;
 	[[nodiscard]] rpl::producer<> editRequests() const;
+	[[nodiscard]] rpl::producer<> modifyRequests() const;
 
 private:
 	void paintEvent(QPaintEvent *e) override;
@@ -64,6 +65,8 @@ private:
 	object_ptr<IconButton> _editMedia = { nullptr };
 	object_ptr<IconButton> _deleteMedia = { nullptr };
 	RoundRect _buttonsRect;
+
+	rpl::event_stream<> _modifyRequests;
 
 };
 

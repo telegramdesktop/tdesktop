@@ -76,6 +76,8 @@ SingleMediaPreview::SingleMediaPreview(
 	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupButtonMediaDelete);
 
 	preparePreview(preview, animatedPreviewPath);
+
+	Ui::AddPhotoEditorMenu(this, [=] { _modifyRequests.fire({}); });
 }
 
 SingleMediaPreview::~SingleMediaPreview() = default;
@@ -86,6 +88,10 @@ rpl::producer<> SingleMediaPreview::deleteRequests() const {
 
 rpl::producer<> SingleMediaPreview::editRequests() const {
 	return _editMedia->clicks() | rpl::to_empty;
+}
+
+rpl::producer<> SingleMediaPreview::modifyRequests() const {
+	return _modifyRequests.events();
 }
 
 void SingleMediaPreview::preparePreview(

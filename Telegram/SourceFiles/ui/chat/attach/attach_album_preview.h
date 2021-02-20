@@ -35,6 +35,8 @@ public:
 		return _thumbChanged.events();
 	}
 
+	rpl::producer<int> thumbModified() const;
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -89,6 +91,7 @@ private:
 
 	rpl::event_stream<int> _thumbDeleted;
 	rpl::event_stream<int> _thumbChanged;
+	rpl::event_stream<int> _thumbModified;
 
 	mutable Animations::Simple _thumbsHeightAnimation;
 	mutable Animations::Simple _shrinkAnimation;

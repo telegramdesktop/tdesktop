@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
+class RpWidget;
 class SendFilesWay;
 
 struct PreparedFileInformation {
@@ -136,5 +137,7 @@ struct PreparedGroup {
 [[nodiscard]] bool ValidateThumbDimensions(int width, int height);
 
 [[nodiscard]] QPixmap PrepareSongCoverForThumbnail(QImage image, int size);
+
+void AddPhotoEditorMenu(not_null<Ui::RpWidget*> parent, Fn<void()> callback);
 
 } // namespace Ui

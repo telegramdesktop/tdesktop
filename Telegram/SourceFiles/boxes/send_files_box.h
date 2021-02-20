@@ -102,6 +102,7 @@ private:
 
 		[[nodiscard]] rpl::producer<int> itemDeleteRequest() const;
 		[[nodiscard]] rpl::producer<int> itemReplaceRequest() const;
+		[[nodiscard]] rpl::producer<int> itemModifyRequest() const;
 
 		void setSendWay(Ui::SendFilesWay way);
 		void applyAlbumOrder();

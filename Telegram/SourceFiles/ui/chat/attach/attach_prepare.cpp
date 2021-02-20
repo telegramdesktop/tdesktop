@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_prepare.h"
 
+#include "ui/rp_widget.h"
+#include "ui/widgets/popup_menu.h"
+
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/image/image_prepare.h"
 #include "ui/ui_utility.h"
@@ -271,6 +274,18 @@ QPixmap PrepareSongCoverForThumbnail(QImage image, int size) {
 		size,
 		size,
 		&st::songCoverOverlayFg));
+}
+
+void AddPhotoEditorMenu(not_null<Ui::RpWidget*> parent, Fn<void()> callback) {
+	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
+	parent->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::ContextMenu) {
+			*menu = base::make_unique_q<Ui::PopupMenu>(parent);
+			(*menu)->addAction("Photo Editor", callback);
+			(*menu)->popup(QCursor::pos());
+		}
+	}, parent->lifetime());
 }
 
 } // namespace Ui

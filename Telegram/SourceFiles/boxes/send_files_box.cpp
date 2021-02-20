@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "confirm_box.h"
+#include "editor/photo_editor_layer_widget.h"
 #include "history/history_drag_area.h"
 #include "history/view/history_view_schedule_box.h"
 #include "core/file_utilities.h"
@@ -184,6 +185,22 @@ rpl::producer<int> SendFilesBox::Block::itemReplaceRequest() const {
 	} else {
 		const auto single = static_cast<Ui::SingleFilePreview*>(preview);
 		return single->editRequests() | rpl::map([from] { return from; });
+	}
+}
+
+rpl::producer<int> SendFilesBox::Block::itemModifyRequest() const {
+	using namespace rpl::mappers;
+
+	const auto preview = _preview.get();
+	const auto from = _from;
+	if (_isAlbum) {
+		const auto album = static_cast<Ui::AlbumPreview*>(preview);
+		return album->thumbModified() | rpl::map(_1 + from);
+	} else if (_isSingleMedia) {
+		const auto media = static_cast<Ui::SingleMediaPreview*>(preview);
+		return media->modifyRequests() | rpl::map_to(from);
+	} else {
+		return rpl::never<int>();
 	}
 }
 
@@ -600,6 +617,41 @@ void SendFilesBox::pushBlock(int from, int till) {
 			tr::lng_choose_file(tr::now),
 			FileDialog::AllOrImagesFilter(),
 			crl::guard(this, callback));
+	}, widget->lifetime());
+
+	const auto pp = std::make_shared<QPixmap>();
+	block.itemModifyRequest(
+	) | rpl::start_with_next([=, controller = _controller](int index) {
+		auto &file = _list.files[index];
+		if (file.type != Ui::PreparedFile::Type::Photo) {
+			return;
+		}
+		using Image = Ui::PreparedFileInformation::Image;
+		const auto image = std::get_if<Image>(&file.information->media);
+		if (!image) {
+			return;
+		}
+
+		*pp = QPixmap::fromImage(
+			image->data,
+			Qt::ColorOnly);
+
+		auto callback = [=](const Editor::PhotoModifications &mods) {
+			image->modifications = mods;
+			Storage::UpdateImageDetails(
+				_list.files[index],
+				st::sendMediaPreviewSize);
+			refreshAllAfterChanges(from);
+		};
+
+		controller->showLayer(
+			std::make_unique<Editor::LayerWidget>(
+				this,
+				&controller->window(),
+				pp,
+				image->modifications,
+				std::move(callback)),
+			Ui::LayerOption::KeepOther);
 	}, widget->lifetime());
 }
 

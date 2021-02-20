@@ -30,6 +30,10 @@ AlbumPreview::AlbumPreview(
 	prepareThumbs(items);
 	updateSize();
 	updateFileRows();
+
+	AddPhotoEditorMenu(this, [=] {
+		_thumbModified.fire(thumbIndex(thumbUnderCursor()));
+	});
 }
 
 AlbumPreview::~AlbumPreview() = default;
@@ -489,6 +493,10 @@ void AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 		_suggestedThumb = nullptr;
 		update();
 	}
+}
+
+rpl::producer<int> AlbumPreview::thumbModified() const {
+	return _thumbModified.events();
 }
 
 } // namespace Ui
