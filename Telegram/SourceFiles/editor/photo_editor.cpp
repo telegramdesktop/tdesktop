@@ -45,7 +45,7 @@ constexpr auto kPrecision = 100000;
 
 PhotoEditor::PhotoEditor(
 	not_null<Ui::RpWidget*> parent,
-	std::shared_ptr<QPixmap> photo,
+	std::shared_ptr<Image> photo,
 	PhotoModifications modifications)
 : RpWidget(parent)
 , _modifications(std::move(modifications))

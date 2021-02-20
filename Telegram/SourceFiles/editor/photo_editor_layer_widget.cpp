@@ -14,13 +14,13 @@ namespace Editor {
 LayerWidget::LayerWidget(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::Controller*> window,
-	std::shared_ptr<QPixmap> photo,
+	std::shared_ptr<Image> photo,
 	PhotoModifications modifications,
 	Fn<void(PhotoModifications)> &&doneCallback)
 : Ui::LayerWidget(parent)
 , _content(base::make_unique_q<PhotoEditor>(
 	this,
-	std::move(photo),
+	photo,
 	std::move(modifications))) {
 
 	paintRequest(

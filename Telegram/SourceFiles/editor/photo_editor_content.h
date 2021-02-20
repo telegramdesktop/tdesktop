@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 
 #include "editor/photo_editor_common.h"
+#include "ui/image/image.h"
 
 namespace Editor {
 
@@ -21,7 +22,7 @@ class PhotoEditorContent final : public Ui::RpWidget {
 public:
 	PhotoEditorContent(
 		not_null<Ui::RpWidget*> parent,
-		std::shared_ptr<QPixmap> photo,
+		std::shared_ptr<Image> photo,
 		PhotoModifications modifications,
 		std::shared_ptr<UndoController> undoController);
 
@@ -32,9 +33,10 @@ public:
 
 private:
 
+	const QSize _photoSize;
 	const base::unique_qptr<Paint> _paint;
 	const base::unique_qptr<Crop> _crop;
-	const std::shared_ptr<QPixmap> _photo;
+	const std::shared_ptr<Image> _photo;
 
 	rpl::variable<PhotoModifications> _modifications;
 

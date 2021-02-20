@@ -619,22 +619,17 @@ void SendFilesBox::pushBlock(int from, int till) {
 			crl::guard(this, callback));
 	}, widget->lifetime());
 
-	const auto pp = std::make_shared<QPixmap>();
 	block.itemModifyRequest(
 	) | rpl::start_with_next([=, controller = _controller](int index) {
 		auto &file = _list.files[index];
 		if (file.type != Ui::PreparedFile::Type::Photo) {
 			return;
 		}
-		using Image = Ui::PreparedFileInformation::Image;
-		const auto image = std::get_if<Image>(&file.information->media);
+		using ImageInfo = Ui::PreparedFileInformation::Image;
+		const auto image = std::get_if<ImageInfo>(&file.information->media);
 		if (!image) {
 			return;
 		}
-
-		*pp = QPixmap::fromImage(
-			image->data,
-			Qt::ColorOnly);
 
 		auto callback = [=](const Editor::PhotoModifications &mods) {
 			image->modifications = mods;
@@ -643,12 +638,13 @@ void SendFilesBox::pushBlock(int from, int till) {
 				st::sendMediaPreviewSize);
 			refreshAllAfterChanges(from);
 		};
-
+		auto copy = image->data;
+		const auto fileImage = std::make_shared<Image>(std::move(copy));
 		controller->showLayer(
 			std::make_unique<Editor::LayerWidget>(
 				this,
 				&controller->window(),
-				pp,
+				fileImage,
 				image->modifications,
 				std::move(callback)),
 			Ui::LayerOption::KeepOther);

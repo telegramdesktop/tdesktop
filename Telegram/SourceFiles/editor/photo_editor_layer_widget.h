@@ -9,8 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/layers/layer_widget.h"
 
-#include "editor/photo_editor_common.h"
 #include "base/unique_qptr.h"
+#include "editor/photo_editor_common.h"
+#include "ui/image/image.h"
 
 namespace Window {
 class Controller;
@@ -25,7 +26,7 @@ public:
 	LayerWidget(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::Controller*> window,
-		std::shared_ptr<QPixmap> photo,
+		std::shared_ptr<Image> photo,
 		PhotoModifications modifications,
 		Fn<void(PhotoModifications)> &&doneCallback);
 

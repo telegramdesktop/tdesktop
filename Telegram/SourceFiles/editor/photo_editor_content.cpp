@@ -18,17 +18,18 @@ using Media::View::RotatedRect;
 
 PhotoEditorContent::PhotoEditorContent(
 	not_null<Ui::RpWidget*> parent,
-	std::shared_ptr<QPixmap> photo,
+	std::shared_ptr<Image> photo,
 	PhotoModifications modifications,
 	std::shared_ptr<UndoController> undoController)
 : RpWidget(parent)
+, _photoSize(photo->size())
 , _paint(base::make_unique_q<Paint>(
 	this,
 	modifications,
-	photo->size(),
+	_photoSize,
 	std::move(undoController)))
-, _crop(base::make_unique_q<Crop>(this, modifications, photo->size()))
-, _photo(photo)
+, _crop(base::make_unique_q<Crop>(this, modifications, _photoSize))
+, _photo(std::move(photo))
 , _modifications(modifications) {
 
 	rpl::combine(
@@ -45,7 +46,7 @@ PhotoEditorContent::PhotoEditorContent(
 			const auto m = _crop->cropMargins();
 			const auto sizeForCrop = rotatedSize
 				- QSize(m.left() + m.right(), m.top() + m.bottom());
-			const auto originalSize = QSizeF(photo->size());
+			const auto originalSize = QSizeF(_photoSize);
 			if ((originalSize.width() > sizeForCrop.width())
 				|| (originalSize.height() > sizeForCrop.height())) {
 				return originalSize.scaled(
@@ -82,7 +83,9 @@ PhotoEditorContent::PhotoEditorContent(
 
 		p.setMatrix(_imageMatrix);
 
-		p.drawPixmap(_imageRect, *photo);
+		p.drawPixmap(
+			_imageRect,
+			_photo->pix(_imageRect.width(), _imageRect.height()));
 	}, lifetime());
 }
 

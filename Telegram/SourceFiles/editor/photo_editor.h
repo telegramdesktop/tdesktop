@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
-#include "editor/photo_editor_common.h"
-
 #include "base/unique_qptr.h"
+#include "editor/photo_editor_common.h"
+#include "ui/image/image.h"
 
 namespace Editor {
 
@@ -24,7 +24,7 @@ class PhotoEditor final : public Ui::RpWidget {
 public:
 	PhotoEditor(
 		not_null<Ui::RpWidget*> parent,
-		std::shared_ptr<QPixmap> photo,
+		std::shared_ptr<Image> photo,
 		PhotoModifications modifications);
 
 	void save();
