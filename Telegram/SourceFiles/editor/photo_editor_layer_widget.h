@@ -13,11 +13,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_common.h"
 #include "ui/image/image.h"
 
+namespace Ui {
+struct PreparedFile;
+} // namespace Ui
+
 namespace Window {
 class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Editor {
+
+void OpenWithPreparedFile(
+	not_null<Ui::RpWidget*> parent,
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::PreparedFile*> file,
+	int previewWidth,
+	Fn<void()> &&doneCallback);
 
 class PhotoEditor;
 

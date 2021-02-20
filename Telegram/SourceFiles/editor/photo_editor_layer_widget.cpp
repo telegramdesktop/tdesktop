@@ -8,8 +8,45 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_layer_widget.h"
 
 #include "editor/photo_editor.h"
+#include "storage/storage_media_prepare.h"
+#include "ui/chat/attach/attach_prepare.h"
+#include "window/window_session_controller.h"
 
 namespace Editor {
+
+void OpenWithPreparedFile(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::PreparedFile*> file,
+		int previewWidth,
+		Fn<void()> &&doneCallback) {
+
+	if (file->type != Ui::PreparedFile::Type::Photo) {
+		return;
+	}
+	using ImageInfo = Ui::PreparedFileInformation::Image;
+	const auto image = std::get_if<ImageInfo>(&file->information->media);
+	if (!image) {
+		return;
+	}
+
+	auto callback = [=, done = std::move(doneCallback)](
+			const PhotoModifications &mods) {
+		image->modifications = mods;
+		Storage::UpdateImageDetails(*file, previewWidth);
+		done();
+	};
+	auto copy = image->data;
+	const auto fileImage = std::make_shared<Image>(std::move(copy));
+	controller->showLayer(
+		std::make_unique<LayerWidget>(
+			parent,
+			&controller->window(),
+			fileImage,
+			image->modifications,
+			std::move(callback)),
+		Ui::LayerOption::KeepOther);
+}
 
 LayerWidget::LayerWidget(
 	not_null<Ui::RpWidget*> parent,
@@ -38,7 +75,7 @@ LayerWidget::LayerWidget(
 	_content->doneRequests(
 	) | rpl::start_with_next([=, done = std::move(doneCallback)](
 			const PhotoModifications &mods) {
-		doneCallback(mods);
+		done(mods);
 		closeLayer();
 	}, lifetime());
 

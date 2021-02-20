@@ -166,7 +166,11 @@ void Paint::initDrawing() {
 }
 
 std::shared_ptr<QGraphicsScene> Paint::saveScene() const {
-	return _scene;
+	return _scene->items().empty()
+		? nullptr
+		: ranges::none_of(_scene->items(), &QGraphicsItem::isVisible)
+		? nullptr
+		: _scene;
 }
 
 void Paint::cancel() {

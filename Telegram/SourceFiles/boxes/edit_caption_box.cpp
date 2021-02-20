@@ -64,6 +64,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_chat.h"
 
+#include "editor/photo_editor_layer_widget.h"
+
 #include <QtCore/QMimeData>
 
 namespace {
@@ -402,6 +404,47 @@ EditCaptionBox::EditCaptionBox(
 	) | rpl::start_with_next([=] {
 		closeBox();
 	}, lifetime());
+
+	AddPhotoEditorMenu(this, [=, _controller = controller] {
+		const auto previewWidth = st::sendMediaPreviewSize;
+		if (!_preparedList.files.empty()) {
+			Editor::OpenWithPreparedFile(
+				this,
+				controller,
+				&_preparedList.files.front(),
+				previewWidth,
+				[=] { updateEditPreview(); });
+		} else {
+			auto callback = [=](const Editor::PhotoModifications &mods) {
+				if (!mods) {
+					return;
+				}
+				auto copy = computeImage()->original();
+				_preparedList = Storage::PrepareMediaFromImage(
+					std::move(copy),
+					QByteArray(),
+					previewWidth);
+
+				using ImageInfo = Ui::PreparedFileInformation::Image;
+				auto &file = _preparedList.files.front();
+				const auto image = std::get_if<ImageInfo>(
+					&file.information->media);
+
+				image->modifications = mods;
+				Storage::UpdateImageDetails(file, previewWidth);
+				updateEditPreview();
+			};
+			const auto fileImage = std::make_shared<Image>(*computeImage());
+			controller->showLayer(
+				std::make_unique<Editor::LayerWidget>(
+					this,
+					&controller->window(),
+					fileImage,
+					Editor::PhotoModifications(),
+					std::move(callback)),
+				Ui::LayerOption::KeepOther);
+		}
+	});
 }
 
 EditCaptionBox::~EditCaptionBox() = default;
@@ -1047,6 +1090,8 @@ void EditCaptionBox::save() {
 		auto action = Api::SendAction(item->history());
 		action.options = options;
 		action.replaceMediaOf = item->fullId().msg;
+
+		Storage::ApplyModifications(_preparedList);
 
 		_controller->session().api().editMedia(
 			std::move(_preparedList),

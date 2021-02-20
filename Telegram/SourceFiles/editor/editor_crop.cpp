@@ -294,7 +294,10 @@ style::margins Crop::cropMargins() const {
 }
 
 QRect Crop::saveCropRect() {
-	return _cropOriginal.toRect();
+	const auto savedCrop = _cropOriginal.toRect();
+	return (!savedCrop.topLeft().isNull() || (savedCrop.size() != _imageSize))
+		? savedCrop
+		: QRect();
 }
 
 } // namespace Editor

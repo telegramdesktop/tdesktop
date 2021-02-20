@@ -33,7 +33,7 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 }
 
 bool PhotoModifications::empty() const {
-	return !angle && !flipped && !crop.isValid();
+	return !angle && !flipped && !crop.isValid() && !paint;
 }
 
 PhotoModifications::operator bool() const {
