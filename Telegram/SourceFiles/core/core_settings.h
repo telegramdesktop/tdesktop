@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "window/themes/window_themes_embedded.h"
-#include "window/window_controls_layout.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "platform/platform_notifications_manager.h"
 
@@ -503,18 +502,6 @@ public:
 	[[nodiscard]] rpl::producer<bool> systemDarkModeEnabledChanges() const {
 		return _systemDarkModeEnabled.changes();
 	}
-	void setWindowControlsLayout(Window::ControlsLayout value) {
-		_windowControlsLayout = value;
-	}
-	[[nodiscard]] Window::ControlsLayout windowControlsLayout() const {
-		return _windowControlsLayout.current();
-	}
-	[[nodiscard]] rpl::producer<Window::ControlsLayout> windowControlsLayoutValue() const {
-		return _windowControlsLayout.value();
-	}
-	[[nodiscard]] rpl::producer<Window::ControlsLayout> windowControlsLayoutChanges() const {
-		return _windowControlsLayout.changes();
-	}
 	[[nodiscard]] const WindowPosition &windowPosition() const {
 		return _windowPosition;
 	}
@@ -602,7 +589,6 @@ private:
 	rpl::variable<bool> _nativeWindowFrame = false;
 	rpl::variable<std::optional<bool>> _systemDarkMode = std::nullopt;
 	rpl::variable<bool> _systemDarkModeEnabled = false;
-	rpl::variable<Window::ControlsLayout> _windowControlsLayout;
 	WindowPosition _windowPosition; // per-window
 
 	bool _tabbedReplacedWithInfo = false; // per-window

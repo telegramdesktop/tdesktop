@@ -642,7 +642,10 @@ std::pair<QString, QSize> WriteImageThumb(
 		? largePath.mid(0, firstDot) + postfix + largePath.mid(firstDot)
 		: largePath + postfix;
 	const auto result = Output::File::PrepareRelativePath(basePath, thumb);
-	if (!image.save(basePath + result, finalFormat, finalQuality)) {
+	if (!image.save(
+		basePath + result,
+		finalFormat.constData(),
+		finalQuality)) {
 		return {};
 	}
 	return { result, finalSize };

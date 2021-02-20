@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "window/window_title.h"
-#include "window/window_controls_layout.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "base/object_ptr.h"
 
 namespace style {
@@ -24,6 +24,8 @@ namespace Window {
 
 class TitleWidgetQt : public TitleWidget {
 public:
+	using Control = Ui::Platform::TitleControls::Control;
+
 	TitleWidgetQt(QWidget *parent);
 	~TitleWidgetQt();
 
@@ -56,8 +58,6 @@ private:
 	Qt::Edges edgesFromPos(const QPoint &pos) const;
 	void updateCursor(Qt::Edges edges);
 	void restoreCursor();
-	bool startMove();
-	bool startResize(Qt::Edges edges);
 
 	const style::WindowTitle &_st;
 	object_ptr<Ui::IconButton> _minimize;

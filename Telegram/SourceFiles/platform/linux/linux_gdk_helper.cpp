@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/linux_gdk_helper.h"
 
+#include "base/platform/linux/base_linux_gtk_integration_p.h"
 #include "platform/linux/linux_gtk_integration_p.h"
 
 extern "C" {

@@ -55,7 +55,7 @@ std::variant<ReadScanError, QByteArray> ProcessImage(QByteArray &&bytes) {
 	auto result = QByteArray();
 	{
 		QBuffer buffer(&result);
-		if (!image.save(&buffer, QByteArray("JPG"), kJpegQuality)) {
+		if (!image.save(&buffer, "JPG", kJpegQuality)) {
 			return ReadScanError::Unknown;
 		}
 		base::take(image);

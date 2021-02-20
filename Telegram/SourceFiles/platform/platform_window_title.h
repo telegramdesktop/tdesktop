@@ -36,17 +36,11 @@ void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRe
 namespace Platform {
 
 inline bool AllowNativeWindowFrameToggle() {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
 	return true;
-#else // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
-	return false;
-#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
 }
 
 inline object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
-	return AllowNativeWindowFrameToggle()
-		? object_ptr<Window::TitleWidgetQt>(parent)
-		: object_ptr<Window::TitleWidgetQt>{ nullptr };
+	return object_ptr<Window::TitleWidgetQt>(parent);
 }
 
 inline bool NativeTitleRequiresShadow() {

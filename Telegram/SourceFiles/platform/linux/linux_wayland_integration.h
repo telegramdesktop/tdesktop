@@ -17,9 +17,6 @@ public:
 	static WaylandIntegration *Instance();
 	void waitForInterfaceAnnounce();
 	bool supportsXdgDecoration();
-	bool startMove(QWindow *window);
-	bool startResize(QWindow *window, Qt::Edges edges);
-	bool showWindowMenu(QWindow *window);
 
 private:
 	WaylandIntegration();

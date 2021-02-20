@@ -312,28 +312,6 @@ bool AutostartSupported() {
 	return !IsWindowsStoreBuild();
 }
 
-bool ShowWindowMenu(QWindow *window) {
-	const auto pos = QCursor::pos();
-
-	SendMessage(
-		HWND(window->winId()),
-		WM_SYSCOMMAND,
-		SC_MOUSEMENU,
-		MAKELPARAM(pos.x(), pos.y()));
-
-	return true;
-}
-
-Window::ControlsLayout WindowControlsLayout() {
-	return Window::ControlsLayout{
-		.right = {
-			Window::Control::Minimize,
-			Window::Control::Maximize,
-			Window::Control::Close,
-		}
-	};
-}
-
 } // namespace Platform
 
 namespace {

@@ -103,9 +103,9 @@ GSDMediaKeys::GSDMediaKeys() {
 
 	auto reply = g_dbus_connection_call_sync(
 		_dbusConnection,
-		_service.toUtf8(),
-		_objectPath.toUtf8(),
-		_interface.toUtf8(),
+		_service.toUtf8().constData(),
+		_objectPath.toUtf8().constData(),
+		_interface.toUtf8().constData(),
 		"GrabMediaPlayerKeys",
 		g_variant_new(
 			"(su)",
@@ -127,10 +127,10 @@ GSDMediaKeys::GSDMediaKeys() {
 
 	_signalId = g_dbus_connection_signal_subscribe(
 		_dbusConnection,
-		_service.toUtf8(),
-		_interface.toUtf8(),
+		_service.toUtf8().constData(),
+		_interface.toUtf8().constData(),
 		"MediaPlayerKeyPressed",
-		_objectPath.toUtf8(),
+		_objectPath.toUtf8().constData(),
 		nullptr,
 		G_DBUS_SIGNAL_FLAGS_NONE,
 		KeyPressed,
@@ -150,9 +150,9 @@ GSDMediaKeys::~GSDMediaKeys() {
 	if (_grabbed) {
 		auto reply = g_dbus_connection_call_sync(
 			_dbusConnection,
-			_service.toUtf8(),
-			_objectPath.toUtf8(),
-			_interface.toUtf8(),
+			_service.toUtf8().constData(),
+			_objectPath.toUtf8().constData(),
+			_interface.toUtf8().constData(),
 			"ReleaseMediaPlayerKeys",
 			g_variant_new(
 				"(s)",

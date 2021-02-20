@@ -346,7 +346,7 @@ HitTestResult MainWindow::hitTest(const QPoint &p) const {
 
 bool MainWindow::hasShadow() const {
 	const auto center = geometry().center();
-	return Platform::WindowsNeedShadow()
+	return Ui::Platform::WindowExtentsSupported()
 		&& Ui::Platform::TranslucentWindowsSupported(center)
 		&& _title;
 }

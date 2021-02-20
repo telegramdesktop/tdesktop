@@ -92,19 +92,7 @@ if (LINUX)
         )
     endif()
 
-    if (DESKTOP_APP_USE_PACKAGED
-        AND NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
-        AND Qt5WaylandClient_VERSION VERSION_LESS 5.13.0)
-        find_package(PkgConfig REQUIRED)
-        pkg_check_modules(WAYLAND_CLIENT REQUIRED wayland-client)
-
-        target_include_directories(Telegram
-        PRIVATE
-            ${WAYLAND_CLIENT_INCLUDE_DIRS}
-        )
-    endif()
-
-    if (NOT TDESKTOP_DISABLE_GTK_INTEGRATION)
+    if (NOT DESKTOP_APP_DISABLE_GTK_INTEGRATION)
         find_package(PkgConfig REQUIRED)
 
         if (DESKTOP_APP_USE_PACKAGED AND NOT DESKTOP_APP_USE_PACKAGED_LAZY)
@@ -846,8 +834,6 @@ PRIVATE
     platform/linux/linux_wayland_integration.h
     platform/linux/linux_xdp_file_dialog.cpp
     platform/linux/linux_xdp_file_dialog.h
-    platform/linux/linux_xlib_helper.cpp
-    platform/linux/linux_xlib_helper.h
     platform/linux/file_utilities_linux.cpp
     platform/linux/file_utilities_linux.h
     platform/linux/launcher_linux.cpp
@@ -858,7 +844,6 @@ PRIVATE
     platform/linux/notifications_manager_linux.h
     platform/linux/specific_linux.cpp
     platform/linux/specific_linux.h
-    platform/linux/window_title_linux.cpp
     platform/linux/window_title_linux.h
     platform/mac/file_utilities_mac.mm
     platform/mac/file_utilities_mac.h
@@ -1065,7 +1050,6 @@ PRIVATE
     window/window_connecting_widget.h
     window/window_controller.cpp
     window/window_controller.h
-    window/window_controls_layout.h
     window/window_filters_menu.cpp
     window/window_filters_menu.h
     window/window_history_hider.cpp
@@ -1134,7 +1118,7 @@ if (NOT LINUX)
     )
 endif()
 
-if (LINUX AND DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
+if (DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
     remove_target_sources(Telegram ${src_loc}
         platform/linux/linux_gsd_media_keys.cpp
         platform/linux/linux_gsd_media_keys.h
@@ -1151,12 +1135,12 @@ if (LINUX AND DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
     )
 endif()
 
-if (LINUX AND DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
+if (DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
     remove_target_sources(Telegram ${src_loc} platform/linux/linux_wayland_integration.cpp)
     nice_target_sources(Telegram ${src_loc} PRIVATE platform/linux/linux_wayland_integration_dummy.cpp)
 endif()
 
-if (LINUX AND TDESKTOP_DISABLE_GTK_INTEGRATION)
+if (DESKTOP_APP_DISABLE_GTK_INTEGRATION)
     remove_target_sources(Telegram ${src_loc}
         platform/linux/linux_gdk_helper.cpp
         platform/linux/linux_gdk_helper.h
@@ -1166,8 +1150,6 @@ if (LINUX AND TDESKTOP_DISABLE_GTK_INTEGRATION)
         platform/linux/linux_gtk_integration.cpp
         platform/linux/linux_open_with_dialog.cpp
         platform/linux/linux_open_with_dialog.h
-        platform/linux/linux_xlib_helper.cpp
-        platform/linux/linux_xlib_helper.h
     )
 
     nice_target_sources(Telegram ${src_loc}

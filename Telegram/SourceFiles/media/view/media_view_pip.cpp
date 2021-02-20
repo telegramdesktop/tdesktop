@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "core/application.h"
-#include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/widgets/buttons.h"
@@ -31,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 #include "styles/style_media_view.h"
+#include "base/qt_adapters.h"
 
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
@@ -49,14 +49,7 @@ constexpr auto kMsInSecond = 1000;
 }
 
 [[nodiscard]] QRect ScreenFromPosition(QPoint point) {
-	const auto screen = [&]() -> QScreen* {
-		for (const auto screen : QGuiApplication::screens()) {
-			if (screen->geometry().contains(point)) {
-				return screen;
-			}
-		}
-		return nullptr;
-	}();
+	const auto screen = base::QScreenNearestTo(point);
 	const auto use = screen ? screen : QGuiApplication::primaryScreen();
 	return use
 		? use->availableGeometry()
@@ -724,17 +717,9 @@ void PipPanel::startSystemDrag() {
 
 	const auto stateEdges = RectPartToQtEdges(*_dragState);
 	if (stateEdges) {
-		if (!Platform::StartSystemResize(windowHandle(), stateEdges)) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-			windowHandle()->startSystemResize(stateEdges);
-#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
-		}
+		windowHandle()->startSystemResize(stateEdges);
 	} else {
-		if (!Platform::StartSystemMove(windowHandle())) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0) || defined DESKTOP_APP_QT_PATCHED
-			windowHandle()->startSystemMove();
-#endif // Qt >= 5.15 || DESKTOP_APP_QT_PATCHED
-		}
+		windowHandle()->startSystemMove();
 	}
 }
 

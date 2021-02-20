@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "base/platform/base_platform_info.h"
-#include "base/platform/linux/base_xcb_utilities_linux.h"
+#include "base/platform/linux/base_linux_xcb_utilities.h"
 #include "base/call_delayed.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
@@ -537,9 +537,9 @@ void MainWindow::initHook() {
 		G_BUS_TYPE_SESSION,
 		G_DBUS_PROXY_FLAGS_NONE,
 		nullptr,
-		kSNIWatcherService.utf8(),
-		kSNIWatcherObjectPath.utf8(),
-		kSNIWatcherInterface.utf8(),
+		kSNIWatcherService.utf8().constData(),
+		kSNIWatcherObjectPath.utf8().constData(),
+		kSNIWatcherInterface.utf8().constData(),
 		nullptr,
 		nullptr);
 
@@ -601,12 +601,6 @@ void MainWindow::initHook() {
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	LOG(("System tray available: %1").arg(Logs::b(trayAvailable())));
-
-	updateWaylandDecorationColors();
-	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
-		updateWaylandDecorationColors();
-	}, lifetime());
 }
 
 bool MainWindow::hasTrayIcon() const {
@@ -894,26 +888,6 @@ void MainWindow::updateIconCounters() {
 	if (trayIcon && IsIconRegenerationNeeded(counter, muted)) {
 		trayIcon->setIcon(TrayIconGen(counter, muted));
 	}
-}
-
-void MainWindow::updateWaylandDecorationColors() {
-	windowHandle()->setProperty(
-		"__material_decoration_backgroundColor",
-		st::titleBgActive->c);
-
-	windowHandle()->setProperty(
-		"__material_decoration_foregroundColor",
-		st::titleFgActive->c);
-
-	windowHandle()->setProperty(
-		"__material_decoration_backgroundInactiveColor",
-		st::titleBg->c);
-	windowHandle()->setProperty(
-		"__material_decoration_foregroundInactiveColor",
-		st::titleFg->c);
-
-	// Trigger a QtWayland client-side decoration update
-	windowHandle()->resize(windowHandle()->size());
 }
 
 void MainWindow::initTrayMenuHook() {
