@@ -29,6 +29,7 @@ class FadeWrap;
 
 namespace Window {
 class ConnectionState;
+class Controller;
 } // namespace Window
 
 namespace Intro {
@@ -42,6 +43,9 @@ enum class CallStatus {
 };
 
 struct Data {
+	// Required for the UserpicButton.
+	const not_null<Window::Controller*> controller;
+
 	QString country;
 	QString phone;
 	QByteArray phoneHash;
@@ -91,6 +95,7 @@ class Widget
 public:
 	Widget(
 		QWidget *parent,
+		not_null<Window::Controller*> controller,
 		not_null<Main::Account*> account,
 		EnterPoint point);
 

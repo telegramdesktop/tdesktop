@@ -294,7 +294,11 @@ void MainWindow::setupIntro(Intro::EnterPoint point) {
 	auto bg = animated ? grabInner() : QPixmap();
 
 	destroyLayer();
-	auto created = object_ptr<Intro::Widget>(bodyWidget(), &account(), point);
+	auto created = object_ptr<Intro::Widget>(
+		bodyWidget(),
+		&controller(),
+		&account(),
+		point);
 	created->showSettingsRequested(
 	) | rpl::start_with_next([=] {
 		showSettings();

@@ -63,10 +63,12 @@ using namespace ::Intro::details;
 
 Widget::Widget(
 	QWidget *parent,
+	not_null<Window::Controller*> controller,
 	not_null<Main::Account*> account,
 	EnterPoint point)
 : RpWidget(parent)
 , _account(account)
+, _data(details::Data{ .controller = controller })
 , _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton))
 , _settings(
 	this,
