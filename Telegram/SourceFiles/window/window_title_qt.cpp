@@ -144,7 +144,7 @@ void TitleWidgetQt::updateWindowExtents() {
 	if (hasShadow()) {
 		Ui::Platform::SetWindowExtents(
 			window()->windowHandle(),
-			resizeArea() * cIntRetinaFactor());
+			resizeArea());
 
 		_extentsSet = true;
 	} else if (_extentsSet) {
