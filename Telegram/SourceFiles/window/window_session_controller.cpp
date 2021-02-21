@@ -1206,7 +1206,7 @@ void SessionController::showLayer(
 		std::unique_ptr<Ui::LayerWidget> &&layer,
 		Ui::LayerOptions options,
 		anim::type animated) {
-	widget()->showLayer(std::move(layer), options, animated);
+	_window->showLayer(std::move(layer), options, animated);
 }
 
 void SessionController::removeLayerBlackout() {

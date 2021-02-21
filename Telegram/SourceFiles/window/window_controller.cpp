@@ -277,6 +277,13 @@ void Controller::showToast(const QString &text) {
 	Ui::Toast::Show(_widget.bodyWidget(), text);
 }
 
+void Controller::showLayer(
+		std::unique_ptr<Ui::LayerWidget> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated) {
+	_widget.showLayer(std::move(layer), options, animated);
+}
+
 void Controller::showBox(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options,

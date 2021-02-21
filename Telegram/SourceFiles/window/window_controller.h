@@ -69,6 +69,10 @@ public:
 		return result;
 	}
 	void showToast(const QString &text);
+	void showLayer(
+		std::unique_ptr<Ui::LayerWidget> &&layer,
+		Ui::LayerOptions options,
+		anim::type animated = anim::type::normal);
 
 	void showRightColumn(object_ptr<TWidget> widget);
 	void sideBarChanged();
