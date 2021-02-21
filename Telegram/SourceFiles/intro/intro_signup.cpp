@@ -29,6 +29,7 @@ SignupWidget::SignupWidget(
 : Step(parent, account, data)
 , _photo(
 	this,
+	data->controller,
 	tr::lng_settings_crop_profile(tr::now),
 	Ui::UserpicButton::Role::ChangePhoto,
 	st::defaultUserpicButton)
