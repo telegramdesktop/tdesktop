@@ -211,6 +211,7 @@ void Crop::computeDownState(const QPoint &p) {
 		.rect = crop,
 		.edge = edge,
 		.point = (p - PointOfEdge(edge, crop)),
+		.cropRatio = (_cropOriginal.width() / _cropOriginal.height()),
 		.borders = InfoAtDown::Borders{
 			.left = iLeft - cLeft,
 			.right = iRight - cRight,
@@ -218,6 +219,26 @@ void Crop::computeDownState(const QPoint &p) {
 			.bottom = iBottom - cBottom,
 		}
 	};
+	if (_keepAspectRatio && (edge != kEAll)) {
+		const auto hasLeft = (edge & Qt::LeftEdge);
+		const auto hasTop = (edge & Qt::TopEdge);
+
+		const auto xSign = hasLeft ? -1 : 1;
+		const auto ySign = hasTop ? -1 : 1;
+
+		auto &xSide = (hasLeft ? _down.borders.left : _down.borders.right);
+		auto &ySide = (hasTop ? _down.borders.top : _down.borders.bottom);
+
+		const auto min = std::abs(std::min(xSign * xSide, ySign * ySide));
+		const auto xIsMin = ((xSign * xSide) < (ySign * ySide));
+		xSide = xSign * min;
+		ySide = ySign * min;
+		if (!xIsMin) {
+			xSide *= _down.cropRatio;
+		} else {
+			ySide /= _down.cropRatio;
+		}
+	}
 }
 
 void Crop::clearDownState() {
@@ -232,28 +253,35 @@ void Crop::performCrop(const QPoint &pos) {
 	const auto hasRight = (pressedEdge & Qt::RightEdge);
 	const auto hasBottom = (pressedEdge & Qt::BottomEdge);
 	const auto diff = [&] {
-		const auto diff = pos - PointOfEdge(pressedEdge, crop) - _down.point;
-		const auto hFactor = hasLeft ? 1 : -1;
-		const auto vFactor = hasTop ? 1 : -1;
+		auto diff = pos - PointOfEdge(pressedEdge, crop) - _down.point;
+		const auto xFactor = hasLeft ? 1 : -1;
+		const auto yFactor = hasTop ? 1 : -1;
 		const auto &borders = _down.borders;
+		const auto &cropRatio = _down.cropRatio;
+		if (_keepAspectRatio) {
+			const auto diffSign = xFactor * yFactor;
+			diff = (cropRatio != 1.)
+				? QPoint(diff.x(), (1. / cropRatio) * diff.x() * diffSign)
+				// For square/circle.
+				: ((diff.x() * xFactor) < (diff.y() * yFactor))
+				? QPoint(diff.x(), diff.x() * diffSign)
+				: QPoint(diff.y() * diffSign, diff.y());
+		}
 
-		const auto hMin = int(
-			hFactor * crop.width() - hFactor * st::cropMinSize);
-		const auto vMin = int(
-			vFactor * crop.height() - vFactor * st::cropMinSize);
+		const auto &minSize = st::cropMinSize;
+		const auto xMin = int(xFactor * crop.width()
+			- xFactor * minSize * ((cropRatio > 1.) ? cropRatio : 1.));
+		const auto yMin = int(yFactor * crop.height()
+			- yFactor * minSize * ((cropRatio < 1.) ? (1. / cropRatio) : 1.));
 
 		const auto x = std::clamp(
 			diff.x(),
-			hasLeft ? borders.left : hMin,
-			hasLeft ? hMin : borders.right);
+			hasLeft ? borders.left : xMin,
+			hasLeft ? xMin : borders.right);
 		const auto y = std::clamp(
 			diff.y(),
-			hasTop ? borders.top : vMin,
-			hasTop ? vMin : borders.bottom);
-		if (_keepAspectRatio) {
-			const auto minDiff = std::min(std::abs(x), std::abs(y));
-			return QPoint(minDiff * hFactor, minDiff * vFactor);
-		}
+			hasTop ? borders.top : yMin,
+			hasTop ? yMin : borders.bottom);
 		return QPoint(x, y);
 	}();
 	setCropPaint(crop - QMargins(

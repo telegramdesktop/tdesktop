@@ -41,6 +41,7 @@ private:
 		QRectF rect;
 		Qt::Edges edge = 0;
 		QPoint point;
+		float64 cropRatio = 0.;
 
 		struct Borders {
 			int left = 0;
