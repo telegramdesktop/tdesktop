@@ -20,7 +20,8 @@ PhotoEditorContent::PhotoEditorContent(
 	not_null<Ui::RpWidget*> parent,
 	std::shared_ptr<Image> photo,
 	PhotoModifications modifications,
-	std::shared_ptr<UndoController> undoController)
+	std::shared_ptr<UndoController> undoController,
+	EditorData data)
 : RpWidget(parent)
 , _photoSize(photo->size())
 , _paint(base::make_unique_q<Paint>(
@@ -28,7 +29,11 @@ PhotoEditorContent::PhotoEditorContent(
 	modifications,
 	_photoSize,
 	std::move(undoController)))
-, _crop(base::make_unique_q<Crop>(this, modifications, _photoSize))
+, _crop(base::make_unique_q<Crop>(
+	this,
+	modifications,
+	_photoSize,
+	std::move(data)))
 , _photo(std::move(photo))
 , _modifications(modifications) {
 

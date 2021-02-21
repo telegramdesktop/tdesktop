@@ -36,6 +36,16 @@ struct PhotoModifications {
 
 };
 
+struct EditorData {
+	enum class CropType {
+		Rect,
+		Ellipse,
+	};
+
+	CropType cropType = CropType::Rect;
+	bool keepAspectRatio = false;
+};
+
 struct Brush {
 	float sizeRatio = 0.;
 	QColor color;

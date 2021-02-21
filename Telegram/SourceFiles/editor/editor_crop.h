@@ -20,7 +20,8 @@ public:
 	Crop(
 		not_null<Ui::RpWidget*> parent,
 		const PhotoModifications &modifications,
-		const QSize &imageSize);
+		const QSize &imageSize,
+		EditorData type);
 
 	void applyTransform(
 		const QRect &geometry,
@@ -68,6 +69,7 @@ private:
 	const QPoint _offset;
 	const QMarginsF _edgePointMargins;
 	const QSize _imageSize;
+	const EditorData _data;
 
 	base::flat_map<Qt::Edges, QRectF> _edges;
 

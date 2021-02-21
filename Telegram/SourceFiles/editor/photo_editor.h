@@ -25,7 +25,8 @@ public:
 	PhotoEditor(
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<Image> photo,
-		PhotoModifications modifications);
+		PhotoModifications modifications,
+		EditorData data = EditorData());
 
 	void save();
 	rpl::producer<PhotoModifications> doneRequests() const;

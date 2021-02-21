@@ -24,7 +24,8 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<Image> photo,
 		PhotoModifications modifications,
-		std::shared_ptr<UndoController> undoController);
+		std::shared_ptr<UndoController> undoController,
+		EditorData data);
 
 	void applyModifications(PhotoModifications modifications);
 	void applyMode(const PhotoEditorMode &mode);

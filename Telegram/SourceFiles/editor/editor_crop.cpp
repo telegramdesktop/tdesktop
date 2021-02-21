@@ -44,7 +44,8 @@ QSizeF FlipSizeByRotation(const QSizeF &size, int angle) {
 Crop::Crop(
 	not_null<Ui::RpWidget*> parent,
 	const PhotoModifications &modifications,
-	const QSize &imageSize)
+	const QSize &imageSize,
+	EditorData data)
 : RpWidget(parent)
 , _pointSize(st::cropPointSize)
 , _pointSizeH(_pointSize / 2.)
@@ -53,11 +54,13 @@ Crop::Crop(
 , _offset(_innerMargins.left(), _innerMargins.top())
 , _edgePointMargins(_pointSizeH, _pointSizeH, -_pointSizeH, -_pointSizeH)
 , _imageSize(imageSize)
+, _data(std::move(data))
 , _cropOriginal(modifications.crop.isValid()
 	? modifications.crop
 	: QRectF(QPoint(), _imageSize))
 , _angle(modifications.angle)
-, _flipped(modifications.flipped) {
+, _flipped(modifications.flipped)
+, _keepAspectRatio(_data.keepAspectRatio) {
 
 	setMouseTracking(true);
 
@@ -140,7 +143,11 @@ void Crop::setCropPaint(QRectF &&rect) {
 
 	_painterPath.clear();
 	_painterPath.addRect(_innerRect);
-	_painterPath.addRect(_cropPaint);
+	if (_data.cropType == EditorData::CropType::Ellipse) {
+		_painterPath.addEllipse(_cropPaint);
+	} else {
+		_painterPath.addRect(_cropPaint);
+	}
 }
 
 void Crop::convertCropPaintToOriginal() {

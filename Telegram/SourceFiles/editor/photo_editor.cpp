@@ -46,7 +46,8 @@ constexpr auto kPrecision = 100000;
 PhotoEditor::PhotoEditor(
 	not_null<Ui::RpWidget*> parent,
 	std::shared_ptr<Image> photo,
-	PhotoModifications modifications)
+	PhotoModifications modifications,
+	EditorData data)
 : RpWidget(parent)
 , _modifications(std::move(modifications))
 , _undoController(std::make_shared<UndoController>())
@@ -54,7 +55,8 @@ PhotoEditor::PhotoEditor(
 	this,
 	photo,
 	_modifications,
-	_undoController))
+	_undoController,
+	std::move(data)))
 , _controls(base::make_unique_q<PhotoEditorControls>(this, _undoController))
 , _colorPicker(std::make_unique<ColorPicker>(
 	this,

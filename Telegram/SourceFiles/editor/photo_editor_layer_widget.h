@@ -40,7 +40,8 @@ public:
 		not_null<Window::Controller*> window,
 		std::shared_ptr<Image> photo,
 		PhotoModifications modifications,
-		Fn<void(PhotoModifications)> &&doneCallback);
+		Fn<void(PhotoModifications)> &&doneCallback,
+		EditorData data = EditorData());
 
 	void parentResized() override;
 	bool closeByOutsideClick() const override;

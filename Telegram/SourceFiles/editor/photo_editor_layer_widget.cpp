@@ -53,12 +53,14 @@ LayerWidget::LayerWidget(
 	not_null<Window::Controller*> window,
 	std::shared_ptr<Image> photo,
 	PhotoModifications modifications,
-	Fn<void(PhotoModifications)> &&doneCallback)
+	Fn<void(PhotoModifications)> &&doneCallback,
+	EditorData data)
 : Ui::LayerWidget(parent)
 , _content(base::make_unique_q<PhotoEditor>(
 	this,
 	photo,
-	std::move(modifications))) {
+	std::move(modifications),
+	std::move(data))) {
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
