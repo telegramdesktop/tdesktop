@@ -22,8 +22,6 @@ using BaseGtkIntegration = base::Platform::GtkIntegration;
 
 namespace {
 
-bool Loaded = false;
-
 QLibrary &Library() {
 	return BaseGtkIntegration::Instance()->library();
 }
@@ -57,7 +55,8 @@ GtkIntegration *GtkIntegration::Instance() {
 }
 
 void GtkIntegration::load() {
-	Expects(!loaded());
+	static bool Loaded = false;
+	Expects(!Loaded);
 
 	if (!BaseGtkIntegration::Instance()->loaded()) {
 		return;
@@ -134,13 +133,8 @@ void GtkIntegration::load() {
 	Loaded = true;
 }
 
-bool GtkIntegration::loaded() const {
-	return Loaded;
-}
-
 std::optional<int> GtkIntegration::scaleFactor() const {
-	if (!loaded()
-		|| (gdk_display_get_default == nullptr)
+	if ((gdk_display_get_default == nullptr)
 		|| (gdk_display_get_monitor == nullptr)
 		|| (gdk_display_get_primary_monitor == nullptr)
 		|| (gdk_monitor_get_scale_factor == nullptr)) {
