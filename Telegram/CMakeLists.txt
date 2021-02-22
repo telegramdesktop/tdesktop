@@ -73,7 +73,6 @@ PRIVATE
 if (LINUX)
     target_link_libraries(Telegram
     PRIVATE
-        desktop-app::external_xcb
         desktop-app::external_glib
     )
 
@@ -82,6 +81,13 @@ if (LINUX)
         PRIVATE
             desktop-app::external_statusnotifieritem
             desktop-app::external_dbusmenu_qt
+        )
+    endif()
+
+    if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)
+        target_link_libraries(Telegram
+        PRIVATE
+            desktop-app::external_xcb
         )
     endif()
 
@@ -97,17 +103,19 @@ if (LINUX)
 
         if (DESKTOP_APP_USE_PACKAGED AND NOT DESKTOP_APP_USE_PACKAGED_LAZY)
             pkg_check_modules(GTK3 REQUIRED IMPORTED_TARGET gtk+-3.0)
-            pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
+            target_link_libraries(Telegram PRIVATE PkgConfig::GTK3)
 
-            target_link_libraries(Telegram
-            PRIVATE
-                PkgConfig::GTK3
-                PkgConfig::X11
-            )
+            if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)
+                pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
+                target_link_libraries(Telegram PRIVATE PkgConfig::X11)
+            endif()
         else()
             pkg_search_module(GTK REQUIRED gtk+-3.0 gtk+-2.0)
             target_include_directories(Telegram PRIVATE ${GTK_INCLUDE_DIRS})
-            target_link_libraries(Telegram PRIVATE X11)
+
+            if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)
+                target_link_libraries(Telegram PRIVATE X11)
+            endif()
         endif()
     endif()
 endif()

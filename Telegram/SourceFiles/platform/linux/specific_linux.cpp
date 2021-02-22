@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/specific_linux.h"
 
 #include "base/platform/base_platform_info.h"
-#include "base/platform/linux/base_linux_xcb_utilities.h"
 #include "base/platform/linux/base_linux_gtk_integration.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "platform/linux/linux_desktop_environment.h"
@@ -23,6 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "core/update_checker.h"
 #include "window/window_controller.h"
+
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
+#include "base/platform/linux/base_linux_xcb_utilities.h"
+#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "platform/linux/linux_notification_service_watcher.h"
@@ -577,8 +580,12 @@ bool TrayIconSupported() {
 }
 
 bool SkipTaskbarSupported() {
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	return !IsWayland()
 		&& base::Platform::XCB::IsSupportedByWM("_NET_WM_STATE_SKIP_TASKBAR");
+#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
+
+	return false;
 }
 
 } // namespace Platform

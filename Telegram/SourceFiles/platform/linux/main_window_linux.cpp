@@ -24,18 +24,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "base/platform/base_platform_info.h"
-#include "base/platform/linux/base_linux_xcb_utilities.h"
 #include "base/call_delayed.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
 #include "facades.h"
 #include "app.h"
 
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
+#include "base/platform/linux/base_linux_xcb_utilities.h"
+#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
+
 #include <QtCore/QSize>
+#include <QtCore/QTemporaryFile>
 #include <QtGui/QWindow>
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include <QtCore/QTemporaryFile>
 #include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusConnectionInterface>
@@ -82,6 +85,7 @@ base::flat_map<int, QImage> TrayIconImageBack;
 QIcon TrayIcon;
 QString TrayIconThemeName, TrayIconName;
 
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 bool XCBSkipTaskbar(QWindow *window, bool set) {
 	const auto connection = base::Platform::XCB::GetConnectionFromQt();
 	if (!connection) {
@@ -131,11 +135,14 @@ bool XCBSkipTaskbar(QWindow *window, bool set) {
 
 	return true;
 }
+#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 bool SkipTaskbar(QWindow *window, bool set) {
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	if (!IsWayland()) {
 		return XCBSkipTaskbar(window, set);
 	}
+#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 	return false;
 }
