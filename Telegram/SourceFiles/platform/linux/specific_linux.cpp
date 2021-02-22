@@ -110,14 +110,14 @@ QStringList ListDBusActivatableNames() {
 	return Result;
 }
 
-void PortalAutostart(bool autostart, bool silent = false) {
+void PortalAutostart(bool start, bool silent = false) {
 	if (cExeName().isEmpty()) {
 		return;
 	}
 
 	QVariantMap options;
 	options["reason"] = tr::lng_settings_auto_start(tr::now);
-	options["autostart"] = autostart;
+	options["autostart"] = start;
 	options["commandline"] = QStringList{
 		cExeName(),
 		qsl("-workdir"),
@@ -610,7 +610,7 @@ void psActivateProcess(uint64 pid) {
 
 namespace {
 
-QString getHomeDir() {
+QString GetHomeDir() {
 	const auto home = QString(g_get_home_dir());
 
 	if (!home.isEmpty() && !home.endsWith('/')) {
@@ -620,12 +620,39 @@ QString getHomeDir() {
 	return home;
 }
 
+#ifdef __HAIKU__
+void HaikuAutostart(bool start) {
+	const auto home = GetHomeDir();
+	if (home.isEmpty()) {
+		return;
+	}
+
+	QFile file(home + "config/settings/boot/launch/telegram-desktop");
+	if (start) {
+		if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+			QTextStream out(&file);
+			out
+				<< "#!/bin/bash" << Qt::endl
+				<< "cd /system/apps" << Qt::endl
+				<< "./Telegram -autostart" << " &" << Qt::endl;
+			file.close();
+			file.setPermissions(file.permissions()
+				| QFileDevice::ExeOwner
+				| QFileDevice::ExeGroup
+				| QFileDevice::ExeOther);
+		}
+	} else {
+		file.remove();
+	}
+}
+#endif // __HAIKU__
+
 } // namespace
 
 QString psAppDataPath() {
 	// Previously we used ~/.TelegramDesktop, so look there first.
 	// If we find data there, we should still use it.
-	auto home = getHomeDir();
+	auto home = GetHomeDir();
 	if (!home.isEmpty()) {
 		auto oldPath = home + qsl(".TelegramDesktop/");
 		auto oldSettingsBase = oldPath + qsl("tdata/settings");
@@ -870,6 +897,9 @@ bool OpenSystemSettings(SystemSettingsType type) {
 		} else if (DesktopEnvironment::IsMATE()) {
 			add("mate-volume-control");
 		}
+#ifdef __HAIKU__
+		add("Media");
+#endif // __ HAIKU__
 		add("pavucontrol-qt");
 		add("pavucontrol");
 		add("alsamixergui");
@@ -930,11 +960,18 @@ void finish() {
 } // namespace Platform
 
 void psNewVersion() {
+#ifndef __HAIKU__
 	Platform::InstallLauncher();
+#endif // __HAIKU__
 	Platform::RegisterCustomScheme();
 }
 
 void psAutoStart(bool start, bool silent) {
+#ifdef __HAIKU__
+	HaikuAutostart(start);
+	return;
+#endif // __HAIKU__
+
 	if (InFlatpak()) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 		PortalAutostart(start, silent);
