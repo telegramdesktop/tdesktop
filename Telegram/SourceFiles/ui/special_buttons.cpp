@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
-#include "boxes/photo_crop_box.h"
 #include "boxes/confirm_box.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "media/streaming/media_streaming_instance.h"

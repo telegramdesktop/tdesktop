@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/undo_controller.h"
 #include "base/event_filter.h"
-#include "styles/style_boxes.h"
 
 #include <QGraphicsItemGroup>
 #include <QGraphicsSceneMouseEvent>

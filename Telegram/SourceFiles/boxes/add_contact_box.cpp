@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "boxes/confirm_box.h"
 #include "boxes/confirm_phone_box.h" // ExtractPhonePrefix.
-#include "boxes/photo_crop_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/peers/edit_participant_box.h"

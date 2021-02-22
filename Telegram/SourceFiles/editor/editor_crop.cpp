@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_crop.h"
 
-#include "styles/style_boxes.h"
+#include "styles/style_editor.h"
 
 namespace Editor {
 namespace {
@@ -47,7 +47,7 @@ Crop::Crop(
 	const QSize &imageSize,
 	EditorData data)
 : RpWidget(parent)
-, _pointSize(st::cropPointSize)
+, _pointSize(st::photoEditorCropPointSize)
 , _pointSizeH(_pointSize / 2.)
 , _innerMargins(QMarginsF(_pointSizeH, _pointSizeH, _pointSizeH, _pointSizeH)
 	.toMargins())
@@ -108,7 +108,7 @@ void Crop::applyTransform(
 			-cropHolderRotated.y() + _offset.y());
 
 	// Check boundaries.
-	const auto min = float64(st::cropMinSize);
+	const auto min = float64(st::photoEditorCropMinSize);
 	if ((cropPaint.width() < min) || (cropPaint.height() < min)) {
 		cropPaint.setWidth(std::max(min, cropPaint.width()));
 		cropPaint.setHeight(std::max(min, cropPaint.height()));
@@ -268,7 +268,7 @@ void Crop::performCrop(const QPoint &pos) {
 				: QPoint(diff.y() * diffSign, diff.y());
 		}
 
-		const auto &minSize = st::cropMinSize;
+		const auto &minSize = st::photoEditorCropMinSize;
 		const auto xMin = int(xFactor * crop.width()
 			- xFactor * minSize * ((cropRatio > 1.) ? cropRatio : 1.));
 		const auto yMin = int(yFactor * crop.height()

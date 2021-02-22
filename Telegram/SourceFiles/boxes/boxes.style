@@ -76,10 +76,6 @@ defaultFeedUserpicButton: FeedUserpicButton {
 	innerPart: defaultUserpicButton;
 }
 
-cropPointSize: 10px;
-cropSkip: 13px;
-cropMinSize: 20px;
-
 confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 	align: align(center);
 	minWidth: 320px;

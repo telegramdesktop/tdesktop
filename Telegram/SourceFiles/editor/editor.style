@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 
-using "boxes/boxes.style";
 using "ui/widgets/widgets.style";
 using "ui/chat/chat.style";
 
@@ -55,3 +54,5 @@ photoEditorColorPickerCircleBigSize: 50px;
 
 photoEditorColorPickerCircleSkip: 50px;
 
+photoEditorCropPointSize: 10px;
+photoEditorCropMinSize: 20px;
