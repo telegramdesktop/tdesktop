@@ -54,6 +54,10 @@ enum class MuteState {
 	});
 }
 
+[[nodiscard]] bool IsGroupCallAdmin(
+	not_null<PeerData*> peer,
+	not_null<UserData*> user);
+
 struct LevelUpdate {
 	uint32 ssrc = 0;
 	float value = 0.;

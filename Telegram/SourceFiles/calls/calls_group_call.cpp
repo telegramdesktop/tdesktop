@@ -74,6 +74,28 @@ constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 
 } // namespace
 
+[[nodiscard]] bool IsGroupCallAdmin(
+		not_null<PeerData*> peer,
+		not_null<UserData*> user) {
+	if (const auto chat = peer->asChat()) {
+		return chat->admins.contains(user)
+			|| (chat->creator == user->bareId());
+	} else if (const auto group = peer->asMegagroup()) {
+		if (const auto mgInfo = group->mgInfo.get()) {
+			if (mgInfo->creator == user) {
+				return true;
+			}
+			const auto i = mgInfo->lastAdmins.find(user);
+			if (i == mgInfo->lastAdmins.end()) {
+				return false;
+			}
+			const auto &rights = i->second.rights;
+			return rights.c_chatAdminRights().is_manage_call();
+		}
+	}
+	return false;
+}
+
 GroupCall::GroupCall(
 	not_null<Delegate*> delegate,
 	not_null<PeerData*> peer,
@@ -410,7 +432,12 @@ void GroupCall::applyParticipantLocally(
 	if (!participant || !participant->ssrc) {
 		return;
 	}
-	const auto canSelfUnmute = participant->canSelfUnmute;
+	const auto canManageCall = _peer->canManageGroupCall();
+	const auto isMuted = participant->muted || (mute && canManageCall);
+	const auto canSelfUnmute = !canManageCall
+		? participant->canSelfUnmute
+		: (!mute || IsGroupCallAdmin(_peer, user));
+	const auto isMutedByYou = mute && !canManageCall;
 	const auto mutedCount = 0/*participant->mutedCount*/;
 	using Flag = MTPDgroupCallParticipant::Flag;
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
@@ -419,11 +446,8 @@ void GroupCall::applyParticipantLocally(
 			? Flag::f_volume_by_admin
 			: Flag(0))
 		| (participant->lastActive ? Flag::f_active_date : Flag(0))
-		| (!mute
-			? Flag(0)
-			: _peer->canManageGroupCall()
-			? Flag::f_muted
-			: Flag::f_muted_by_you);
+		| (isMuted ? Flag::f_muted : Flag(0))
+		| (isMutedByYou ? Flag::f_muted_by_you : Flag(0));
 	_peer->groupCall()->applyUpdateChecked(
 		MTP_updateGroupCallParticipants(
 			inputCall(),

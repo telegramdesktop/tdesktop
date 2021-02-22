@@ -366,11 +366,7 @@ void Row::updateState(const Data::GroupCall::Participant *participant) {
 		setSpeaking(false);
 	} else if (!participant->muted
 		|| (participant->sounding && participant->ssrc != 0)) {
-		setState(participant->mutedByMe
-			? State::MutedByMe
-			: (participant->sounding || participant->speaking)
-			? State::Active
-			: State::Inactive);
+		setState(participant->mutedByMe ? State::MutedByMe : State::Active);
 		setSounding(participant->sounding && participant->ssrc != 0);
 		setSpeaking(participant->speaking && participant->ssrc != 0);
 	} else if (participant->canSelfUnmute) {
@@ -1287,26 +1283,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		st::groupCallPopupMenu);
 
 	const auto muteState = real->state();
-	const auto admin = [&] {
-		if (const auto chat = _peer->asChat()) {
-			return chat->admins.contains(user)
-				|| (chat->creator == user->bareId());
-		} else if (const auto group = _peer->asMegagroup()) {
-			if (const auto mgInfo = group->mgInfo.get()) {
-				if (mgInfo->creator == user) {
-					return true;
-				}
-				const auto i = mgInfo->lastAdmins.find(user);
-				if (i == mgInfo->lastAdmins.end()) {
-					return false;
-				}
-				const auto &rights = i->second.rights;
-				return rights.c_chatAdminRights().is_manage_call();
-			}
-		}
-		return false;
-	}();
-
+	const auto admin = IsGroupCallAdmin(_peer, user);
 	const auto session = &user->session();
 	const auto getCurrentWindow = [=]() -> Window::SessionController* {
 		if (const auto window = Core::App().activeWindow()) {
