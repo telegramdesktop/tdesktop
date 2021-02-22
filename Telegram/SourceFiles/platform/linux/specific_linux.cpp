@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_xcb_utilities.h"
 #include "base/platform/linux/base_linux_gtk_integration.h"
+#include "ui/platform/ui_platform_utility.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_gtk_integration.h"
 #include "platform/linux/linux_wayland_integration.h"
@@ -17,9 +18,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
+#include "core/sandbox.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "core/update_checker.h"
 #include "window/window_controller.h"
-#include "core/application.h"
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "platform/linux/linux_notification_service_watcher.h"
@@ -345,6 +348,28 @@ bool GenerateDesktopFile(
 		}
 		return false;
 	}
+}
+
+void SetGtkScaleFactor() {
+	const auto integration = GtkIntegration::Instance();
+	const auto ratio = Core::Sandbox::Instance().devicePixelRatio();
+	if (!integration || ratio > 1.) {
+		return;
+	}
+
+	const auto scaleFactor = integration->scaleFactor().value_or(1);
+	if (scaleFactor == 1) {
+		return;
+	}
+
+	LOG(("GTK scale factor: %1").arg(scaleFactor));
+	cSetScreenScale(style::CheckScale(scaleFactor * 100));
+}
+
+void DarkModeChanged() {
+	Core::Sandbox::Instance().customEnterFromEventLoop([] {
+		Core::App().settings().setSystemDarkMode(IsDarkMode());
+	});
 }
 
 } // namespace
@@ -851,15 +876,30 @@ bool OpenSystemSettings(SystemSettingsType type) {
 namespace ThirdParty {
 
 void start() {
-	DEBUG_LOG(("Icon theme: %1").arg(QIcon::themeName()));
-	DEBUG_LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
-
 	if (const auto integration = BaseGtkIntegration::Instance()) {
 		integration->load();
 	}
 
 	if (const auto integration = GtkIntegration::Instance()) {
 		integration->load();
+	}
+
+	SetGtkScaleFactor();
+
+	BaseGtkIntegration::Instance()->connectToSetting(
+		"gtk-theme-name",
+		DarkModeChanged);
+
+	if (BaseGtkIntegration::Instance()->checkVersion(3, 0, 0)) {
+		BaseGtkIntegration::Instance()->connectToSetting(
+			"gtk-application-prefer-dark-theme",
+			DarkModeChanged);
+	}
+
+	if (BaseGtkIntegration::Instance()->checkVersion(3, 12, 0)) {
+		BaseGtkIntegration::Instance()->connectToSetting(
+			"gtk-decoration-layout",
+			Ui::Platform::NotifyTitleControlsLayoutChanged);
 	}
 
 	// wait for interface announce to know if native window frame is supported
