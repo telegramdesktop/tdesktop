@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_information.h"
 
+#include "editor/photo_editor_layer_widget.h"
 #include "settings/settings_common.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
@@ -63,38 +64,13 @@ void SetupPhoto(
 		st::settingsInfoPhotoSet);
 	upload->setFullRadius(true);
 	upload->addClickHandler([=] {
-		const auto filter = FileDialog::ImagesOrAllFilter();
-		const auto callback = [=](const FileDialog::OpenResult &result) {
-			if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
-				return;
-			}
-
-			const auto image = result.remoteContent.isEmpty()
-				? App::readImage(result.paths.front())
-				: App::readImage(result.remoteContent);
-			if (image.isNull()
-				|| image.width() > 10 * image.height()
-				|| image.height() > 10 * image.width()) {
-				controller->show(Box<InformBox>(tr::lng_bad_photo(tr::now)));
-				return;
-			}
-
-			auto box = Box<PhotoCropBox>(
-				image,
-				tr::lng_settings_crop_profile(tr::now));
-			box->ready(
-			) | rpl::start_with_next([=](QImage &&image) {
-				self->session().api().uploadPeerPhoto(
-					self,
-					std::move(image));
-			}, box->lifetime());
-			controller->show(std::move(box));
+		auto callback = [=](QImage &&image) {
+			self->session().api().uploadPeerPhoto(self, std::move(image));
 		};
-		FileDialog::GetOpenPath(
+		Editor::PrepareProfilePhoto(
 			upload,
-			tr::lng_choose_image(tr::now),
-			filter,
-			crl::guard(upload, callback));
+			&controller->window(),
+			std::move(callback));
 	});
 	rpl::combine(
 		wrap->widthValue(),

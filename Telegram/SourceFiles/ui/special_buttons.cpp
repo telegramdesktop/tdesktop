@@ -29,9 +29,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/confirm_box.h"
+#include "editor/photo_editor_layer_widget.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_document.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -67,74 +69,6 @@ QPixmap CreateSquarePixmap(int width, Callback &&paintCallback) {
 	}
 	return App::pixmapFromImageInPlace(std::move(image));
 };
-
-template <typename Callback>
-void SuggestPhoto(
-		const QImage &image,
-		const QString &title,
-		Callback &&callback) {
-	auto badAspect = [](int a, int b) {
-		return (a >= 10 * b);
-	};
-	if (image.isNull()
-		|| badAspect(image.width(), image.height())
-		|| badAspect(image.height(), image.width())) {
-		Ui::show(
-			Box<InformBox>(tr::lng_bad_photo(tr::now)),
-			Ui::LayerOption::KeepOther);
-		return;
-	}
-
-	const auto box = Ui::show(
-		Box<PhotoCropBox>(image, title),
-		Ui::LayerOption::KeepOther);
-	box->ready(
-	) | rpl::start_with_next(
-		std::forward<Callback>(callback),
-		box->lifetime());
-}
-
-template <typename Callback>
-void SuggestPhotoFile(
-		const FileDialog::OpenResult &result,
-		const QString &title,
-		Callback &&callback) {
-	if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
-		return;
-	}
-
-	auto image = [&] {
-		if (!result.remoteContent.isEmpty()) {
-			return App::readImage(result.remoteContent);
-		} else if (!result.paths.isEmpty()) {
-			return App::readImage(result.paths.front());
-		}
-		return QImage();
-	}();
-	SuggestPhoto(
-		image,
-		title,
-		std::forward<Callback>(callback));
-}
-
-template <typename Callback>
-void ShowChoosePhotoBox(
-		QPointer<QWidget> parent,
-		const QString &title,
-		Callback &&callback) {
-	auto filter = FileDialog::ImagesOrAllFilter();
-	auto handleChosenPhoto = [
-		title,
-		callback = std::forward<Callback>(callback)
-	](auto &&result) mutable {
-		SuggestPhotoFile(result, title, std::move(callback));
-	};
-	FileDialog::GetOpenPath(
-		parent,
-		tr::lng_choose_image(tr::now),
-		filter,
-		std::move(handleChosenPhoto));
-}
 
 } // namespace
 
@@ -183,11 +117,33 @@ void HistoryDownButton::setUnreadCount(int unreadCount) {
 
 UserpicButton::UserpicButton(
 	QWidget *parent,
+	not_null<Window::Controller*> window,
+	not_null<PeerData*> peer,
+	Role role,
+	const style::UserpicButton &st)
+: RippleButton(parent, st.changeButton.ripple)
+, _st(st)
+, _controller(window->sessionController())
+, _window(window)
+, _peer(peer)
+, _cropTitle(CropTitle(peer))
+, _role(role) {
+	Expects(_role == Role::ChangePhoto);
+
+	_waiting = false;
+	prepare();
+}
+
+UserpicButton::UserpicButton(
+	QWidget *parent,
+	not_null<Window::Controller*> window,
 	const QString &cropTitle,
 	Role role,
 	const style::UserpicButton &st)
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
+, _controller(window->sessionController())
+, _window(window)
 , _cropTitle(cropTitle)
 , _role(role) {
 	Expects(_role == Role::ChangePhoto);
@@ -205,6 +161,7 @@ UserpicButton::UserpicButton(
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
 , _controller(controller)
+, _window(&controller->window())
 , _peer(peer)
 , _cropTitle(CropTitle(_peer))
 , _role(role) {
@@ -246,7 +203,7 @@ void UserpicButton::setClickHandlerByRole() {
 		addClickHandler(App::LambdaDelayed(
 			_st.changeButton.ripple.hideDuration,
 			this,
-			[this] { changePhotoLazy(); }));
+			[=] { changePhotoLocally(); }));
 		break;
 
 	case Role::OpenPhoto:
@@ -265,18 +222,20 @@ void UserpicButton::setClickHandlerByRole() {
 	}
 }
 
-void UserpicButton::changePhotoLazy() {
-	auto callback = crl::guard(
+void UserpicButton::changePhotoLocally(bool requestToUpload) {
+	if (!_window) {
+		return;
+	}
+	auto callback = [=](QImage &&image) {
+		setImage(std::move(image));
+		if (requestToUpload) {
+			_uploadPhotoRequests.fire({});
+		}
+	};
+	Editor::PrepareProfilePhoto(
 		this,
-		[this](QImage &&image) { setImage(std::move(image)); });
-	ShowChoosePhotoBox(this, _cropTitle, std::move(callback));
-}
-
-void UserpicButton::uploadNewPeerPhoto() {
-	auto callback = crl::guard(this, [=](QImage &&image) {
-		_peer->session().api().uploadPeerPhoto(_peer, std::move(image));
-	});
-	ShowChoosePhotoBox(this, _cropTitle, std::move(callback));
+		_window,
+		std::move(callback));
 }
 
 void UserpicButton::openPeerPhoto() {
@@ -284,7 +243,7 @@ void UserpicButton::openPeerPhoto() {
 	Expects(_controller != nullptr);
 
 	if (_changeOverlayEnabled && _cursorInChangeOverlay) {
-		uploadNewPeerPhoto();
+		changePhotoLocally(true);
 		return;
 	}
 
@@ -772,6 +731,10 @@ void UserpicButton::prepareUserpicPixmap() {
 	_userpicUniqueKey = _userpicHasImage
 		? _peer->userpicUniqueKey(_userpicView)
 		: InMemoryKey();
+}
+
+rpl::producer<> UserpicButton::uploadPhotoRequests() const {
+	return _uploadPhotoRequests.events();
 }
 
 SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)

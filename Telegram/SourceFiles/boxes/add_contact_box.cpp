@@ -466,6 +466,7 @@ void GroupInfoBox::prepare() {
 
 	_photo.create(
 		this,
+		&_navigation->parentController()->window(),
 		((_type == Type::Channel)
 			? tr::lng_create_channel_crop
 			: tr::lng_create_group_crop)(tr::now),

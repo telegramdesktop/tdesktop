@@ -31,6 +31,11 @@ void OpenWithPreparedFile(
 	int previewWidth,
 	Fn<void()> &&doneCallback);
 
+void PrepareProfilePhoto(
+	not_null<Ui::RpWidget*> parent,
+	not_null<Window::Controller*> controller,
+	Fn<void(QImage &&image)> &&doneCallback);
+
 class PhotoEditor;
 
 class LayerWidget : public Ui::LayerWidget {

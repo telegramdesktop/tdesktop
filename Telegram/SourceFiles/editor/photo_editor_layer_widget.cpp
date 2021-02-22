@@ -7,12 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_layer_widget.h"
 
+#include "app.h" // readImage
+#include "boxes/confirm_box.h" // InformBox
 #include "editor/photo_editor.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "styles/style_boxes.h"
 
 namespace Editor {
+namespace {
+
+constexpr auto kProfilePhotoSize = 640;
+
+} // namespace
 
 void OpenWithPreparedFile(
 		not_null<Ui::RpWidget*> parent,
@@ -46,6 +55,80 @@ void OpenWithPreparedFile(
 			image->modifications,
 			std::move(callback)),
 		Ui::LayerOption::KeepOther);
+}
+
+void PrepareProfilePhoto(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Window::Controller*> controller,
+		Fn<void(QImage &&image)> &&doneCallback) {
+	const auto resizeToMinSize = [=](
+			QImage &&image,
+			Qt::AspectRatioMode mode) {
+		const auto &minSize = kProfilePhotoSize;
+		if ((image.width() < minSize) || (image.height() < minSize)) {
+			return image.scaled(
+				minSize,
+				minSize,
+				mode,
+				Qt::SmoothTransformation);
+		}
+		return std::move(image);
+	};
+
+	const auto callback = [=, done = std::move(doneCallback)](
+			const FileDialog::OpenResult &result) {
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+			return;
+		}
+
+		auto image = result.remoteContent.isEmpty()
+			? App::readImage(result.paths.front())
+			: App::readImage(result.remoteContent);
+		if (image.isNull()
+			|| (image.width() > (10 * image.height()))
+			|| (image.height() > (10 * image.width()))) {
+			controller->show(Box<InformBox>(tr::lng_bad_photo(tr::now)));
+			return;
+		}
+		image = resizeToMinSize(
+			std::move(image),
+			Qt::KeepAspectRatioByExpanding);
+		const auto fileImage = std::make_shared<Image>(std::move(image));
+
+		auto applyModifications = [=, done = std::move(done)](
+				const PhotoModifications &mods) {
+			done(resizeToMinSize(
+				ImageModified(fileImage->original(), mods),
+				Qt::KeepAspectRatio));
+		};
+
+		auto crop = [&] {
+			const auto &i = fileImage;
+			const auto minSide = std::min(i->width(), i->height());
+			return QRect(
+				(i->width() - minSide) / 2,
+				(i->height() - minSide) / 2,
+				minSide,
+				minSide);
+		}();
+
+		controller->showLayer(
+			std::make_unique<LayerWidget>(
+				parent,
+				controller,
+				fileImage,
+				PhotoModifications{ .crop = std::move(crop) },
+				std::move(applyModifications),
+				EditorData{
+					.cropType = EditorData::CropType::Ellipse,
+					.keepAspectRatio = true, }),
+			Ui::LayerOption::KeepOther);
+	};
+	FileDialog::GetOpenPath(
+		parent.get(),
+		tr::lng_choose_image(tr::now),
+		FileDialog::ImagesOrAllFilter(),
+		crl::guard(parent, callback));
 }
 
 LayerWidget::LayerWidget(
