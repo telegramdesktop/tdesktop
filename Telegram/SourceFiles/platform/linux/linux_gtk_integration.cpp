@@ -13,11 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_gtk_file_dialog.h"
 #include "platform/linux/linux_open_with_dialog.h"
-#include "platform/linux/specific_linux.h"
-#include "ui/platform/ui_platform_utility.h"
-#include "core/sandbox.h"
-#include "core/core_settings.h"
-#include "core/application.h"
 
 namespace Platform {
 namespace internal {
@@ -45,30 +40,6 @@ bool GetImageFromClipboardSupported() {
 		&& (gdk_pixbuf_get_rowstride != nullptr)
 		&& (gdk_pixbuf_get_has_alpha != nullptr)
 		&& (gdk_atom_intern != nullptr);
-}
-
-void SetScaleFactor() {
-	Core::Sandbox::Instance().customEnterFromEventLoop([] {
-		const auto integration = GtkIntegration::Instance();
-		const auto ratio = Core::Sandbox::Instance().devicePixelRatio();
-		if (!integration || ratio > 1.) {
-			return;
-		}
-
-		const auto scaleFactor = integration->scaleFactor().value_or(1);
-		if (scaleFactor == 1) {
-			return;
-		}
-
-		LOG(("GTK scale factor: %1").arg(scaleFactor));
-		cSetScreenScale(style::CheckScale(scaleFactor * 100));
-	});
-}
-
-void DarkModeChanged() {
-	Core::Sandbox::Instance().customEnterFromEventLoop([] {
-		Core::App().settings().setSystemDarkMode(IsDarkMode());
-	});
 }
 
 } // namespace
@@ -161,24 +132,6 @@ void GtkIntegration::load() {
 	LOAD_GTK_SYMBOL(Library(), "gtk_app_chooser_get_type", gtk_app_chooser_get_type);
 
 	Loaded = true;
-
-	SetScaleFactor();
-
-	BaseGtkIntegration::Instance()->connectToSetting(
-		"gtk-theme-name",
-		DarkModeChanged);
-
-	if (BaseGtkIntegration::Instance()->checkVersion(3, 0, 0)) {
-		BaseGtkIntegration::Instance()->connectToSetting(
-			"gtk-application-prefer-dark-theme",
-			DarkModeChanged);
-	}
-
-	if (BaseGtkIntegration::Instance()->checkVersion(3, 12, 0)) {
-		BaseGtkIntegration::Instance()->connectToSetting(
-			"gtk-decoration-layout",
-			Ui::Platform::NotifyTitleControlsLayoutChanged);
-	}
 }
 
 bool GtkIntegration::loaded() const {
