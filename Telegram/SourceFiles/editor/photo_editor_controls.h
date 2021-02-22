@@ -26,6 +26,7 @@ public:
 	PhotoEditorControls(
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<UndoController> undoController,
+		const PhotoModifications modifications,
 		bool doneControls = true);
 
 	[[nodiscard]] rpl::producer<int> rotateRequests() const;
@@ -52,6 +53,8 @@ private:
 
 	const base::unique_qptr<EdgeButton> _cancel;
 	const base::unique_qptr<EdgeButton> _done;
+
+	bool _flipped;
 
 	rpl::variable<PhotoEditorMode> _mode;
 

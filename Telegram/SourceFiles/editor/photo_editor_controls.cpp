@@ -135,6 +135,7 @@ void HorizontalContainer::updateChildrenPosition() {
 PhotoEditorControls::PhotoEditorControls(
 	not_null<Ui::RpWidget*> parent,
 	std::shared_ptr<UndoController> undoController,
+	const PhotoModifications modifications,
 	bool doneControls)
 : RpWidget(parent)
 , _bg(st::mediaviewSaveMsgBg)
@@ -173,7 +174,8 @@ PhotoEditorControls::PhotoEditorControls(
 	false,
 	_bg,
 	st::lightButtonFg,
-	st::photoEditorRotateButton.ripple)) {
+	st::photoEditorRotateButton.ripple))
+, _flipped(modifications.flipped) {
 
 	_transformButtons->updateChildrenPosition();
 	_paintButtons->updateChildrenPosition();
@@ -240,6 +242,14 @@ PhotoEditorControls::PhotoEditorControls(
 			? &st::photoEditorUndoButtonInactive
 			: &st::photoEditorRedoButtonInactive);
 	}, lifetime());
+
+	_flipButton->clicks(
+	) | rpl::start_with_next([=] {
+		_flipped = !_flipped;
+		_flipButton->setIconOverride(_flipped
+			? &st::photoEditorFlipButton.iconOver
+			: nullptr);
+	}, _flipButton->lifetime());
 
 }
 

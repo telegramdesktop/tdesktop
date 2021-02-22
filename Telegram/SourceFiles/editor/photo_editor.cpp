@@ -57,7 +57,10 @@ PhotoEditor::PhotoEditor(
 	_modifications,
 	_undoController,
 	std::move(data)))
-, _controls(base::make_unique_q<PhotoEditorControls>(this, _undoController))
+, _controls(base::make_unique_q<PhotoEditorControls>(
+	this,
+	_undoController,
+	_modifications))
 , _colorPicker(std::make_unique<ColorPicker>(
 	this,
 	Deserialize(Core::App().settings().photoEditorBrush()))) {
