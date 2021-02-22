@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "platform/platform_file_utilities.h"
 #include "base/platform/base_platform_info.h"
+#include "base/platform/base_platform_file_utilities.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/media/history_view_gif.h"
@@ -1714,10 +1715,16 @@ bool IsIpRevealingName(const QString &filepath) {
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
 	}();
+	static const auto kMimeTypes = [] {
+		const auto joined = u"text/html image/svg+xml"_q;
+		const auto list = joined.split(' ');
+		return base::flat_set<QString>(list.begin(), list.end());
+	}();
 
 	return ranges::binary_search(
 		kExtensions,
-		FileExtension(filepath).toLower());
+		FileExtension(filepath).toLower()
+	) || base::Platform::IsNonExtensionMimeFrom(filepath, kMimeTypes);
 }
 
 base::binary_guard ReadImageAsync(
