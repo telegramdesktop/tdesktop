@@ -1045,6 +1045,9 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		if (savedFrom && savedFrom->isChannel()) {
 			mask |= HistoryMessageSigned::Bit();
 		}
+	} else if ((_history->peer->isSelf() || _history->peer->isRepliesChat())
+		&& !config.authorOriginal.isEmpty()) {
+		mask |= HistoryMessageSigned::Bit();
 	}
 	if (config.editDate != TimeId(0)) {
 		mask |= HistoryMessageEdited::Bit();
