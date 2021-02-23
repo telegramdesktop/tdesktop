@@ -46,6 +46,40 @@ bool InhibitionSupported = false;
 std::optional<ServerInformation> CurrentServerInformation;
 QStringList CurrentCapabilities;
 
+void StartServiceAsync(
+		Fn<void()> callback,
+		const Glib::RefPtr<Gio::Cancellable> &cancellable = Glib::RefPtr<Gio::Cancellable>()) {
+	try {
+		const auto connection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
+
+		base::Platform::DBus::StartServiceByNameAsync(
+			connection,
+			std::string(kService),
+			[=](Fn<base::Platform::DBus::StartReply()> result) {
+				try {
+					result(); // get the error if any
+				} catch (const Glib::Error &e) {
+					LOG(("Native Notification Error: %1").arg(
+						QString::fromStdString(e.what())));
+				} catch (const std::exception &e) {
+					LOG(("Native Notification Error: %1").arg(
+						QString::fromStdString(e.what())));
+				}
+
+				crl::on_main([=] { callback(); });
+			},
+			cancellable);
+
+			return;
+	} catch (const Glib::Error &e) {
+		LOG(("Native Notification Error: %1").arg(
+			QString::fromStdString(e.what())));
+	}
+
+	crl::on_main([=] { callback(); });
+}
+
 bool GetServiceRegistered() {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
@@ -125,7 +159,7 @@ void GetServerInformation(
 						QString::fromStdString(e.what())));
 				}
 
-				crl::on_main([=] { callback({}); });
+				crl::on_main([=] { callback(std::nullopt); });
 			},
 			std::string(kService));
 
@@ -244,6 +278,11 @@ bool Inhibited() {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
+		// a hack for snap's activation restriction
+		base::Platform::DBus::StartServiceByName(
+			connection,
+			std::string(kService));
+
 		auto reply = connection->call_sync(
 			std::string(kObjectPath),
 			std::string(kPropertiesInterface),
@@ -336,6 +375,7 @@ public:
 
 private:
 	Glib::RefPtr<Gio::DBus::Connection> _dbusConnection;
+	Glib::RefPtr<Gio::Cancellable> _cancellable;
 	base::weak_ptr<Manager> _manager;
 
 	Glib::ustring _title;
@@ -350,12 +390,12 @@ private:
 	uint _notificationClosedSignalId = 0;
 	NotificationId _id;
 
+	void notificationShown(
+		const Glib::RefPtr<Gio::AsyncResult> &result);
+
 	void notificationClosed(uint id, uint reason);
 	void actionInvoked(uint id, const Glib::ustring &actionName);
 	void notificationReplied(uint id, const Glib::ustring &text);
-
-	void notificationShown(
-		const Glib::RefPtr<Gio::AsyncResult> &result);
 
 	void signalEmitted(
 		const Glib::RefPtr<Gio::DBus::Connection> &connection,
@@ -376,7 +416,8 @@ NotificationData::NotificationData(
 	const QString &msg,
 	NotificationId id,
 	bool hideReplyButton)
-: _manager(manager)
+: _cancellable(Gio::Cancellable::create())
+, _manager(manager)
 , _title(title.toStdString())
 , _imageKey(GetImageKey(CurrentServerInformationValue().specVersion))
 , _id(id) {
@@ -475,6 +516,10 @@ NotificationData::NotificationData(
 }
 
 NotificationData::~NotificationData() {
+	if (_cancellable) {
+		_cancellable->cancel();
+	}
+
 	if (_dbusConnection) {
 		if (_actionInvokedSignalId != 0) {
 			_dbusConnection->signal_unsubscribe(_actionInvokedSignalId);
@@ -491,7 +536,8 @@ NotificationData::~NotificationData() {
 }
 
 void NotificationData::show() {
-	try {
+	// a hack for snap's activation restriction
+	StartServiceAsync([=] {
 		const auto iconName = _imageKey.empty()
 			|| _hints.find(_imageKey) == end(_hints)
 				? Glib::ustring(GetIconName().toStdString())
@@ -513,16 +559,7 @@ void NotificationData::show() {
 			}),
 			sigc::mem_fun(this, &NotificationData::notificationShown),
 			std::string(kService));
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-
-		const auto manager = _manager;
-		const auto my = _id;
-		crl::on_main(manager, [=] {
-			manager->clearNotification(my);
-		});
-	}
+	}, _cancellable);
 }
 
 void NotificationData::notificationShown(
@@ -549,20 +586,15 @@ void NotificationData::notificationShown(
 }
 
 void NotificationData::close() {
-	try {
-		_dbusConnection->call(
-			std::string(kObjectPath),
-			std::string(kInterface),
-			"CloseNotification",
-			base::Platform::MakeGlibVariant(std::tuple{
-				_notificationId,
-			}),
-			{},
-			std::string(kService));
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	}
+	_dbusConnection->call(
+		std::string(kObjectPath),
+		std::string(kInterface),
+		"CloseNotification",
+		base::Platform::MakeGlibVariant(std::tuple{
+			_notificationId,
+		}),
+		{},
+		std::string(kService));
 }
 
 void NotificationData::setImage(const QString &imagePath) {
@@ -710,8 +742,6 @@ bool ByDefault() {
 }
 
 void Create(Window::Notifications::System *system) {
-	ServiceRegistered = GetServiceRegistered();
-
 	const auto managerSetter = [=] {
 		using ManagerType = Window::Notifications::ManagerType;
 		if ((Core::App().settings().nativeNotifications() && Supported())
@@ -726,13 +756,39 @@ void Create(Window::Notifications::System *system) {
 		}
 	};
 
-	if (!ServiceRegistered) {
-		CurrentServerInformation = std::nullopt;
-		CurrentCapabilities = QStringList{};
-		InhibitionSupported = false;
-		managerSetter();
-		return;
-	}
+	const auto counter = std::make_shared<int>(3);
+	const auto oneReady = [=] {
+		if (!--*counter) {
+			managerSetter();
+		}
+	};
+
+	const auto serviceActivated = [=] {
+		ServiceRegistered = GetServiceRegistered();
+
+		if (!ServiceRegistered) {
+			CurrentServerInformation = std::nullopt;
+			CurrentCapabilities = QStringList{};
+			InhibitionSupported = false;
+			managerSetter();
+			return;
+		}
+
+		GetServerInformation([=](const std::optional<ServerInformation> &result) {
+			CurrentServerInformation = result;
+			oneReady();
+		});
+
+		GetCapabilities([=](const QStringList &result) {
+			CurrentCapabilities = result;
+			oneReady();
+		});
+
+		GetInhibitionSupported([=](bool result) {
+			InhibitionSupported = result;
+			oneReady();
+		});
+	};
 
 	// There are some asserts that manager is not nullptr,
 	// avoid crashes until some real manager is created
@@ -741,27 +797,8 @@ void Create(Window::Notifications::System *system) {
 		system->setManager(std::make_unique<DummyManager>(system));
 	}
 
-	const auto counter = std::make_shared<int>(3);
-	const auto oneReady = [=] {
-		if (!--*counter) {
-			managerSetter();
-		}
-	};
-
-	GetServerInformation([=](const std::optional<ServerInformation> &result) {
-		CurrentServerInformation = result;
-		oneReady();
-	});
-
-	GetCapabilities([=](const QStringList &result) {
-		CurrentCapabilities = result;
-		oneReady();
-	});
-
-	GetInhibitionSupported([=](bool result) {
-		InhibitionSupported = result;
-		oneReady();
-	});
+	// snap doesn't allow access when the daemon is not running :(
+	StartServiceAsync(serviceActivated);
 }
 
 class Manager::Private {
