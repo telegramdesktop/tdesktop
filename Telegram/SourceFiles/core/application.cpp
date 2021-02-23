@@ -137,17 +137,6 @@ Application::Application(not_null<Launcher*> launcher)
 			UpdateChecker().setMtproto(session);
 		}
 	}, _lifetime);
-
-	_domain->activeValue(
-	) | rpl::filter(rpl::mappers::_1 != nullptr
-	) | rpl::take(1) | rpl::start_with_next([=] {
-		if (_window) {
-			// Global::DesktopNotify is used in updateTrayMenu.
-			// This should be called when user settings are read.
-			// Right now after they are read the startMtp() is called.
-			_window->widget()->updateTrayMenu();
-		}
-	}, _lifetime);
 }
 
 Application::~Application() {

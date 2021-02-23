@@ -90,7 +90,7 @@ public:
 	// Returns how much could the window get extended.
 	int tryToExtendWidthBy(int addToWidth);
 
-	virtual void updateTrayMenu(bool force = false) {
+	virtual void updateTrayMenu() {
 	}
 	virtual void fixOrder() {
 	}

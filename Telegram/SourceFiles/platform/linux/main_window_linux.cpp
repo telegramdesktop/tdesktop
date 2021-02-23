@@ -628,11 +628,6 @@ void MainWindow::psShowTrayMenu() {
 }
 
 void MainWindow::psTrayMenuUpdated() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (_sniTrayIcon && trayIconMenu) {
-		_sniTrayIcon->setContextMenu(trayIconMenu);
-	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -692,7 +687,6 @@ void MainWindow::attachToSNITrayIcon() {
 				handleTrayIconActication(QSystemTrayIcon::MiddleClick);
 			});
 	});
-	updateTrayMenu();
 }
 
 void MainWindow::sniSignalEmitted(
@@ -804,6 +798,7 @@ void MainWindow::psSetupTrayIcon() {
 				this);
 
 			_sniTrayIcon->setTitle(AppName.utf16());
+			_sniTrayIcon->setContextMenu(trayIconMenu);
 			setSNITrayIcon(counter, muted);
 
 			attachToSNITrayIcon();
