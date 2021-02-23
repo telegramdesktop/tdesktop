@@ -385,6 +385,12 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			} else {
 				result.text = tr::lng_action_ttl_changed_channel(tr::now, lt_duration, duration);
 			}
+		} else if (_from->isSelf()) {
+			if (!period) {
+				result.text = tr::lng_action_ttl_removed_you(tr::now);
+			} else {
+				result.text = tr::lng_action_ttl_changed_you(tr::now, lt_duration, duration);
+			}
 		} else {
 			result.links.push_back(fromLink());
 			if (!period) {

@@ -1120,8 +1120,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_changed_title_channel" = "Channel name was changed to «{title}»";
 "lng_action_created_chat" = "{from} created group «{title}»";
 "lng_action_ttl_changed" = "{from} has set messages to auto-delete in {duration}";
+"lng_action_ttl_changed_you" = "You set messages to auto-delete in {duration}";
 "lng_action_ttl_changed_channel" = "New messages will auto-delete in {duration}";
 "lng_action_ttl_removed" = "{from} has set messages not to auto-delete";
+"lng_action_ttl_removed_you" = "You disabled the auto-delete timer";
 "lng_action_ttl_removed_channel" = "New messages will not auto-delete";
 "lng_action_created_channel" = "Channel created";
 "lng_action_pinned_message" = "{from} pinned «{text}»";
