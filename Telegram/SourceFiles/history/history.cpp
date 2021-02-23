@@ -62,6 +62,7 @@ History::History(not_null<Data::Session*> owner, PeerId peerId)
 , peer(owner->peer(peerId))
 , cloudDraftTextCache(st::dialogsTextWidthMin)
 , _mute(owner->notifyIsMuted(peer))
+, _chatListNameSortKey(owner->nameSortKey(peer->name))
 , _sendActionPainter(this) {
 	if (const auto user = peer->asUser()) {
 		if (user->isBot()) {
@@ -2017,6 +2018,14 @@ bool History::chatListMessageKnown() const {
 
 const QString &History::chatListName() const {
 	return peer->name;
+}
+
+const QString &History::chatListNameSortKey() const {
+	return _chatListNameSortKey;
+}
+
+void History::refreshChatListNameSortKey() {
+	_chatListNameSortKey = owner().nameSortKey(peer->name);
 }
 
 const base::flat_set<QString> &History::chatListNameWords() const {

@@ -17,7 +17,6 @@ public:
 	static GtkIntegration *Instance();
 
 	void load();
-	[[nodiscard]] bool loaded() const;
 
 	[[nodiscard]] std::optional<int> scaleFactor() const;
 

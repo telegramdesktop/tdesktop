@@ -28,6 +28,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_entity.h"
+#include "ui/boxes/report_box.h"
+#include "ui/layers/generic_box.h"
+#include "ui/controls/delete_message_context_action.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "ui/inactive_press.h"
@@ -36,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/notifications_manager.h"
 #include "boxes/confirm_box.h"
-#include "boxes/report_box.h"
 #include "boxes/sticker_set_box.h"
 #include "chat_helpers/message_field.h"
 #include "history/history_widget.h"
@@ -1061,15 +1063,13 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 
 	if (ClickHandler::getPressed()) {
 		_mouseAction = MouseAction::PrepareDrag;
-	} else if (!_selected.empty()) {
-		if (_selected.cbegin()->second == FullSelection) {
-			if (_dragStateItem
-				&& _selected.find(_dragStateItem) != _selected.cend()
-				&& App::hoveredItem()) {
-				_mouseAction = MouseAction::PrepareDrag; // start items drag
-			} else if (!_pressWasInactive) {
-				_mouseAction = MouseAction::PrepareSelect; // start items select
-			}
+	} else if (inSelectionMode()) {
+		if (_dragStateItem
+			&& _selected.find(_dragStateItem) != _selected.cend()
+			&& App::hoveredItem()) {
+			_mouseAction = MouseAction::PrepareDrag; // start items drag
+		} else if (!_pressWasInactive) {
+			_mouseAction = MouseAction::PrepareSelect; // start items select
 		}
 	}
 	if (_mouseAction == MouseAction::None && mouseActionView) {
@@ -1322,12 +1322,13 @@ void HistoryInner::mouseActionFinish(
 	} else if (_mouseActionItem) {
 		// if we are in selecting items mode perhaps we want to
 		// toggle selection instead of activating the pressed link
-		if (_mouseAction == MouseAction::PrepareDrag && !_pressWasInactive && !_selected.empty() && _selected.cbegin()->second == FullSelection && button != Qt::RightButton) {
+		if (_mouseAction == MouseAction::PrepareDrag
+			&& !_pressWasInactive
+			&& inSelectionMode()
+			&& button != Qt::RightButton) {
 			if (const auto view = _mouseActionItem->mainView()) {
-				if (const auto media = view->media()) {
-					if (media->toggleSelectionByHandlerClick(activated)) {
-						activated = nullptr;
-					}
+				if (view->toggleSelectionByHandlerClick(activated)) {
+					activated = nullptr;
 				}
 			}
 		}
@@ -1360,8 +1361,7 @@ void HistoryInner::mouseActionFinish(
 	}
 	if ((_mouseAction == MouseAction::PrepareSelect)
 		&& !_pressWasInactive
-		&& !_selected.empty()
-		&& (_selected.cbegin()->second == FullSelection)) {
+		&& inSelectionMode()) {
 		changeSelectionAsGroup(
 			&_selected,
 			_mouseActionItem,
@@ -1378,8 +1378,7 @@ void HistoryInner::mouseActionFinish(
 		} else if ((i == _selected.cend())
 			&& !_dragStateItem->serviceMsg()
 			&& (_dragStateItem->id > 0)
-			&& !_selected.empty()
-			&& _selected.cbegin()->second == FullSelection) {
+			&& inSelectionMode()) {
 			if (_selected.size() < MaxSelectedItems) {
 				_selected.emplace(_dragStateItem, FullSelection);
 				repaintItem(_mouseActionItem);
@@ -1749,9 +1748,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					}
 				}
 				if (item->canDelete()) {
-					_menu->addAction(tr::lng_context_delete_msg(tr::now), [=] {
-						deleteItem(itemId);
-					});
+					_menu->addAction(Ui::DeleteMessageContextAction(
+						_menu->menu(),
+						[=] { deleteItem(itemId); },
+						item->ttlDestroyAt(),
+						[=] { _menu = nullptr; }));
 				}
 				if (!blockSender && item->suggestReport()) {
 					_menu->addAction(tr::lng_context_report_msg(tr::now), [=] {
@@ -1930,9 +1931,18 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					}
 				}
 				if (canDelete) {
-					_menu->addAction((msg && msg->uploading()) ? tr::lng_context_cancel_upload(tr::now) : tr::lng_context_delete_msg(tr::now), [=] {
+					const auto callback = [=] {
 						deleteAsGroup(itemId);
-					});
+					};
+					if (msg && msg->uploading()) {
+						_menu->addAction(tr::lng_context_cancel_upload(tr::now), callback);
+					} else {
+						_menu->addAction(Ui::DeleteMessageContextAction(
+							_menu->menu(),
+							callback,
+							item->ttlDestroyAt(),
+							[=] { _menu = nullptr; }));
+					}
 				}
 				if (!canBlockSender && canReport) {
 					_menu->addAction(tr::lng_context_report_msg(tr::now), [=] {
@@ -2615,6 +2625,8 @@ bool HistoryInner::inSelectionMode() const {
 		&& _dragSelFrom
 		&& _dragSelTo) {
 		return true;
+	} else if (_chooseForReportReason.has_value()) {
+		return true;
 	}
 	return false;
 }
@@ -3089,6 +3101,14 @@ int HistoryInner::historyDrawTop() const {
 	return (top >= 0) ? (top + _historySkipHeight) : -1;
 }
 
+void HistoryInner::setChooseReportReason(Ui::ReportReason reason) {
+	_chooseForReportReason = reason;
+}
+
+void HistoryInner::clearChooseReportReason() {
+	_chooseForReportReason = std::nullopt;
+}
+
 // -1 if should not be visible, -2 if bad history()
 int HistoryInner::itemTop(const HistoryItem *item) const {
 	if (!item) {
@@ -3346,25 +3366,24 @@ void HistoryInner::deleteAsGroup(FullMsgId itemId) {
 }
 
 void HistoryInner::reportItem(FullMsgId itemId) {
-	Ui::show(Box<ReportBox>(_peer, MessageIdsList(1, itemId)));
+	HistoryView::ShowReportItemsBox(_peer, { 1, itemId });
 }
 
 void HistoryInner::reportAsGroup(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
 		const auto group = session().data().groups().find(item);
-		if (!group) {
-			return reportItem(itemId);
-		}
-		Ui::show(Box<ReportBox>(
+		HistoryView::ShowReportItemsBox(
 			_peer,
-			session().data().itemsToIds(group->items)));
+			(group
+				? session().data().itemsToIds(group->items)
+				: MessageIdsList{ 1, itemId }));
 	}
 }
 
 void HistoryInner::blockSenderItem(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
 		Ui::show(Box(
-			BlockSenderFromRepliesBox,
+			Window::BlockSenderFromRepliesBox,
 			_controller,
 			itemId));
 	}

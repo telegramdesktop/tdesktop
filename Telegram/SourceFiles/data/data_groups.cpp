@@ -65,8 +65,8 @@ void Groups::unregisterMessage(not_null<const HistoryItem*> item) {
 }
 
 void Groups::refreshMessage(
-	not_null<HistoryItem*> item,
-	bool justRefreshViews) {
+		not_null<HistoryItem*> item,
+		bool justRefreshViews) {
 	if (!isGrouped(item)) {
 		unregisterMessage(item);
 		return;

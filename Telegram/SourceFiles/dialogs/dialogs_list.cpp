@@ -62,20 +62,18 @@ not_null<Row*> List::addByName(Key key) {
 void List::adjustByName(not_null<Row*> row) {
 	Expects(row->pos() >= 0 && row->pos() < _rows.size());
 
-	const auto &name = row->entry()->chatListName();
+	const auto &key = row->entry()->chatListNameSortKey();
 	const auto index = row->pos();
 	const auto i = _rows.begin() + index;
 	const auto before = std::find_if(i + 1, _rows.end(), [&](Row *row) {
-		const auto &greater = row->entry()->chatListName();
-		return greater.compare(name, Qt::CaseInsensitive) >= 0;
+		return row->entry()->chatListNameSortKey().compare(key) >= 0;
 	});
 	if (before != i + 1) {
 		rotate(i, i + 1, before);
 	} else if (i != _rows.begin()) {
 		const auto from = std::make_reverse_iterator(i);
 		const auto after = std::find_if(from, _rows.rend(), [&](Row *row) {
-			const auto &less = row->entry()->chatListName();
-			return less.compare(name, Qt::CaseInsensitive) <= 0;
+			return row->entry()->chatListNameSortKey().compare(key) <= 0;
 		}).base();
 		if (after != i) {
 			rotate(after, i, i + 1);

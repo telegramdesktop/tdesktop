@@ -20,10 +20,6 @@ GtkIntegration *GtkIntegration::Instance() {
 void GtkIntegration::load() {
 }
 
-bool GtkIntegration::loaded() const {
-	return false;
-}
-
 std::optional<int> GtkIntegration::scaleFactor() const {
 	return std::nullopt;
 }

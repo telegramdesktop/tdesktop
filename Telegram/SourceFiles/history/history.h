@@ -365,6 +365,7 @@ public:
 	bool chatListMessageKnown() const override;
 	void requestChatListMessage() override;
 	const QString &chatListName() const override;
+	const QString &chatListNameSortKey() const override;
 	const base::flat_set<QString> &chatListNameWords() const override;
 	const base::flat_set<QChar> &chatListFirstLetters() const override;
 	void loadUserpic() override;
@@ -374,6 +375,8 @@ public:
 		int x,
 		int y,
 		int size) const override;
+
+	void refreshChatListNameSortKey();
 
 	void setFakeChatListMessageFrom(const MTPmessages_Messages &data);
 	void checkChatListMessageRemoved(not_null<HistoryItem*> item);
@@ -565,6 +568,8 @@ private:
 	// for a group that migrated to a supergroup. Then _lastMessage can
 	// be a migrate message, but _chatListMessage should be the one before.
 	std::optional<HistoryItem*> _chatListMessage;
+
+	QString _chatListNameSortKey;
 
 	bool _unreadMark = false;
 	bool _fakeUnreadWhileOpened = false;

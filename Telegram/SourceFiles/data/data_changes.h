@@ -50,46 +50,47 @@ struct PeerUpdate {
 		None = 0,
 
 		// Common flags
-		Name              = (1 << 0),
-		Username          = (1 << 1),
-		Photo             = (1 << 2),
-		About             = (1 << 3),
-		Notifications     = (1 << 4),
-		Migration         = (1 << 5),
-		UnavailableReason = (1 << 6),
-		PinnedMessages    = (1 << 7),
-		IsBlocked         = (1 << 8),
+		Name              = (1U << 0),
+		Username          = (1U << 1),
+		Photo             = (1U << 2),
+		About             = (1U << 3),
+		Notifications     = (1U << 4),
+		Migration         = (1U << 5),
+		UnavailableReason = (1U << 6),
+		PinnedMessages    = (1U << 7),
+		IsBlocked         = (1U << 8),
+		MessagesTTL       = (1U << 9),
 
 		// For users
-		CanShareContact   = (1 << 9),
-		IsContact         = (1 << 10),
-		PhoneNumber       = (1 << 11),
-		OnlineStatus      = (1 << 12),
-		BotCommands       = (1 << 13),
-		BotCanBeInvited   = (1 << 14),
-		BotStartToken     = (1 << 15),
-		CommonChats       = (1 << 16),
-		HasCalls          = (1 << 17),
-		SupportInfo       = (1 << 18),
-		IsBot             = (1 << 19),
+		CanShareContact   = (1U << 10),
+		IsContact         = (1U << 11),
+		PhoneNumber       = (1U << 12),
+		OnlineStatus      = (1U << 13),
+		BotCommands       = (1U << 14),
+		BotCanBeInvited   = (1U << 15),
+		BotStartToken     = (1U << 16),
+		CommonChats       = (1U << 17),
+		HasCalls          = (1U << 18),
+		SupportInfo       = (1U << 19),
+		IsBot             = (1U << 20),
 
 		// For chats and channels
-		InviteLinks       = (1 << 20),
-		Members           = (1 << 21),
-		Admins            = (1 << 22),
-		BannedUsers       = (1 << 23),
-		Rights            = (1 << 24),
+		InviteLinks       = (1U << 21),
+		Members           = (1U << 22),
+		Admins            = (1U << 23),
+		BannedUsers       = (1U << 24),
+		Rights            = (1U << 25),
 
 		// For channels
-		ChannelAmIn       = (1 << 25),
-		StickersSet       = (1 << 26),
-		ChannelLinkedChat = (1 << 27),
-		ChannelLocation   = (1 << 28),
-		Slowmode          = (1 << 29),
-		GroupCall         = (1 << 30),
+		ChannelAmIn       = (1U << 26),
+		StickersSet       = (1U << 27),
+		ChannelLinkedChat = (1U << 28),
+		ChannelLocation   = (1U << 29),
+		Slowmode          = (1U << 30),
+		GroupCall         = (1U << 31),
 
 		// For iteration
-		LastUsedBit       = (1 << 30),
+		LastUsedBit       = (1U << 31),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -103,22 +104,22 @@ struct HistoryUpdate {
 	enum class Flag : uint32 {
 		None = 0,
 
-		IsPinned       = (1 << 0),
-		UnreadView     = (1 << 1),
-		TopPromoted    = (1 << 2),
-		Folder         = (1 << 3),
-		UnreadMentions = (1 << 4),
-		LocalMessages  = (1 << 5),
-		ChatOccupied   = (1 << 6),
-		MessageSent    = (1 << 7),
-		ScheduledSent  = (1 << 8),
-		ForwardDraft   = (1 << 9),
-		OutboxRead     = (1 << 10),
-		BotKeyboard    = (1 << 11),
-		CloudDraft     = (1 << 12),
-		LocalDraftSet  = (1 << 13),
+		IsPinned       = (1U << 0),
+		UnreadView     = (1U << 1),
+		TopPromoted    = (1U << 2),
+		Folder         = (1U << 3),
+		UnreadMentions = (1U << 4),
+		LocalMessages  = (1U << 5),
+		ChatOccupied   = (1U << 6),
+		MessageSent    = (1U << 7),
+		ScheduledSent  = (1U << 8),
+		ForwardDraft   = (1U << 9),
+		OutboxRead     = (1U << 10),
+		BotKeyboard    = (1U << 11),
+		CloudDraft     = (1U << 12),
+		LocalDraftSet  = (1U << 13),
 
-		LastUsedBit    = (1 << 13),
+		LastUsedBit    = (1U << 13),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -132,16 +133,16 @@ struct MessageUpdate {
 	enum class Flag : uint32 {
 		None = 0,
 
-		Edited           = (1 << 0),
-		Destroyed        = (1 << 1),
-		DialogRowRepaint = (1 << 2),
-		DialogRowRefresh = (1 << 3),
-		NewAdded         = (1 << 4),
-		ReplyMarkup      = (1 << 5),
-		BotCallbackSent  = (1 << 6),
-		NewMaybeAdded    = (1 << 7),
+		Edited           = (1U << 0),
+		Destroyed        = (1U << 1),
+		DialogRowRepaint = (1U << 2),
+		DialogRowRefresh = (1U << 3),
+		NewAdded         = (1U << 4),
+		ReplyMarkup      = (1U << 5),
+		BotCallbackSent  = (1U << 6),
+		NewMaybeAdded    = (1U << 7),
 
-		LastUsedBit      = (1 << 7),
+		LastUsedBit      = (1U << 7),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -155,9 +156,9 @@ struct EntryUpdate {
 	enum class Flag : uint32 {
 		None = 0,
 
-		Repaint = (1 << 0),
+		Repaint = (1U << 0),
 
-		LastUsedBit = (1 << 0),
+		LastUsedBit = (1U << 0),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

@@ -928,6 +928,9 @@ peerListWithInviteViaLink: PeerList(peerListBox) {
 		0px,
 		membersMarginBottom);
 }
+peerListSingleRow: PeerList(peerListBox) {
+	padding: margins(0px, 0px, 0px, 0px);
+}
 
 scheduleHeight: 95px;
 scheduleDateTop: 38px;
@@ -957,3 +960,7 @@ scheduleTimeSeparator: FlatLabel(defaultFlatLabel) {
 	}
 }
 scheduleTimeSeparatorPadding: margins(2px, 0px, 2px, 0px);
+
+boxAttentionDividerLabel: FlatLabel(boxDividerLabel) {
+	textFg: boxTextFgError;
+}

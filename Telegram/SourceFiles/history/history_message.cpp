@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_message.h"
 
 #include "base/openssl_help.h"
+#include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -524,6 +525,8 @@ HistoryMessage::HistoryMessage(
 		setGroupId(
 			MessageGroupId::FromRaw(history->peer->id, groupedId->v));
 	}
+
+	applyTTL(data);
 }
 
 HistoryMessage::HistoryMessage(
@@ -560,6 +563,8 @@ HistoryMessage::HistoryMessage(
 	}, [](const auto &) {
 		Unexpected("Service message action type in HistoryMessage.");
 	});
+
+	applyTTL(data);
 }
 
 HistoryMessage::HistoryMessage(
@@ -968,6 +973,29 @@ bool HistoryMessage::updateDependencyItem() {
 	return true;
 }
 
+void HistoryMessage::applySentMessage(const MTPDmessage &data) {
+	HistoryItem::applySentMessage(data);
+
+	if (const auto period = data.vttl_period(); period && period->v > 0) {
+		applyTTL(data.vdate().v + period->v);
+	} else {
+		applyTTL(0);
+	}
+}
+
+void HistoryMessage::applySentMessage(
+		const QString &text,
+		const MTPDupdateShortSentMessage &data,
+		bool wasAlready) {
+	HistoryItem::applySentMessage(text, data, wasAlready);
+
+	if (const auto period = data.vttl_period(); period && period->v > 0) {
+		applyTTL(data.vdate().v + period->v);
+	} else {
+		applyTTL(0);
+	}
+}
+
 bool HistoryMessage::allowsForward() const {
 	if (id < 0 || !isHistoryEntry()) {
 		return false;
@@ -1353,17 +1381,26 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 		clearReplies();
 	}
 
+	if (const auto period = message.vttl_period(); period && period->v > 0) {
+		applyTTL(message.vdate().v + period->v);
+	} else {
+		applyTTL(0);
+	}
+
 	finishEdition(keyboardTop);
 }
 
 void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 	if (message.vaction().type() == mtpc_messageActionHistoryClear) {
+		const auto wasGrouped = history()->owner().groups().isGrouped(this);
 		setReplyMarkup(nullptr);
 		refreshMedia(nullptr);
 		setEmptyText();
 		setViewsCount(-1);
 		setForwardsCount(-1);
-
+		if (wasGrouped) {
+			history()->owner().groups().unregisterMessage(this);
+		}
 		finishEditionToEmpty();
 	}
 }

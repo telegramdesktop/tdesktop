@@ -750,6 +750,13 @@ topBarSearch: IconButton {
 		color: windowBgOver;
 	}
 }
+topBarCloseChoose: IconButton(topBarSearch) {
+	width: 56px;
+	icon: icon {{ "info_close", boxTitleCloseFg }};
+	iconOver: icon {{ "info_close", boxTitleCloseFgOver }};
+	iconPosition: point(10px, -1px);
+	rippleAreaPosition: point(7px, 7px);
+}
 topBarSkip: -5px;
 topBarCallSkip: -1px;
 topBarMenuToggle: IconButton(topBarSearch) {
@@ -877,6 +884,14 @@ inviteLinkShare: RoundButton(inviteLinkCopy) {
 	icon: icon {{ "info/edit/links_share", activeButtonFg }};
 	iconOver: icon {{ "info/edit/links_share", activeButtonFgOver }};
 }
+inviteLinkReactivate: RoundButton(inviteLinkCopy) {
+	icon: icon {{ "info/edit/links_reactivate", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_reactivate", activeButtonFgOver }};
+}
+inviteLinkDelete: RoundButton(inviteLinkCopy) {
+	icon: icon {{ "info/edit/links_delete", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_delete", activeButtonFgOver }};
+}
 inviteLinkUserpics: GroupCallUserpics {
 	size: 28px;
 	shift: 6px;
@@ -887,7 +902,7 @@ inviteLinkUserpicsSkip: 8px;
 inviteLinkJoinedFont: font(14px);
 inviteLinkJoinedRowPadding: margins(0px, 18px, 0px, 8px);
 
-inviteLinkCreateSkip: 8px;
+inviteLinkCreateSkip: 10px;
 inviteLinkCreate: SettingsButton(defaultSettingsButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
@@ -897,7 +912,7 @@ inviteLinkCreate: SettingsButton(defaultSettingsButton) {
 	font: semiboldFont;
 
 	height: 20px;
-	padding: margins(58px, 7px, 12px, 5px);
+	padding: margins(60px, 7px, 12px, 5px);
 
 	toggle: infoProfileToggle;
 	toggleOver: infoProfileToggleOver;
@@ -906,25 +921,39 @@ inviteLinkCreate: SettingsButton(defaultSettingsButton) {
 	ripple: defaultRippleAnimation;
 }
 inviteLinkCreateIcon: icon {{ "info/edit/roundbtn_plus", windowFgActive }};
-inviteLinkCreateIconSize: 20px;
+inviteLinkCreateIconSize: 18px;
 inviteLinkListItem: PeerListItem(defaultPeerListItem) {
 	button: OutlineButton(defaultPeerListButton) {
 		font: normalFont;
 		padding: margins(11px, 5px, 11px, 5px);
 	}
 	height: 52px;
-	photoPosition: point(8px, 6px);
-	namePosition: point(58px, 6px);
-	statusPosition: point(58px, 25px);
-	photoSize: 40px;
+	photoPosition: point(9px, 4px);
+	namePosition: point(60px, 6px);
+	statusPosition: point(60px, 26px);
+	photoSize: 44px;
 }
 inviteLinkList: PeerList(defaultPeerList) {
 	item: inviteLinkListItem;
-	padding: margins(0px, 4px, 0px, 4px);
+	padding: margins(0px, 4px, 0px, 0px);
+}
+inviteLinkAdminsList: PeerList(inviteLinkList) {
+	item: PeerListItem(inviteLinkListItem) {
+		photoPosition: point(16px, 9px);
+		namePosition: point(62px, 6px);
+		statusPosition: point(62px, 26px);
+		photoSize: 34px;
+	}
+	padding: margins(0px, 5px, 0px, 6px);
 }
 inviteLinkIconSkip: 7px;
 inviteLinkIconStroke: 2px;
 inviteLinkIcon: icon {{ "info/edit/links_link", mediaviewFileExtFg }};
+inviteLinkRevokedIcon: icon {{ "info/edit/links_revoked", mediaviewFileExtFg }};
 inviteLinkThreeDotsSkip: 12px;
-inviteLinkRevokedTitlePadding: margins(22px, 16px, 10px, 9px);
+inviteLinkRevokedTitlePadding: margins(22px, 16px, 10px, 4px);
 inviteLinkLimitMargin: margins(22px, 8px, 22px, 8px);
+
+infoAboutGigagroup: FlatLabel(defaultFlatLabel) {
+	minWidth: 274px;
+}

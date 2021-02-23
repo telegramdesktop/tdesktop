@@ -69,6 +69,7 @@ namespace HistoryView {
 
 namespace Controls {
 class VoiceRecordBar;
+class TTLButton;
 } // namespace Controls
 
 class FieldHeader;
@@ -201,6 +202,7 @@ private:
 	void initKeyHandler();
 	void updateSubmitSettings();
 	void updateSendButtonType();
+	void updateMessagesTTLShown();
 	void updateHeight();
 	void updateWrappingVisibility();
 	void updateControlsVisibility();
@@ -286,6 +288,7 @@ private:
 	const not_null<Ui::InputField*> _field;
 	const not_null<Ui::IconButton*> _botCommandStart;
 	std::unique_ptr<Ui::SilentToggle> _silent;
+	std::unique_ptr<Controls::TTLButton> _ttlInfo;
 
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;

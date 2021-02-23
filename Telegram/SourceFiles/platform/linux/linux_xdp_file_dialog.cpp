@@ -12,21 +12,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "base/qt_adapters.h"
 
-#include <QtCore/qeventloop.h>
-
-#include <QtDBus/QtDBus>
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusPendingCall>
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
+#include <QDBusMetaType>
 
+#include <QEventLoop>
 #include <QFile>
 #include <QMetaType>
 #include <QMimeType>
 #include <QMimeDatabase>
 #include <QRandomGenerator>
 #include <QWindow>
+#include <QRegularExpression>
 
 namespace Platform {
 namespace FileDialog {

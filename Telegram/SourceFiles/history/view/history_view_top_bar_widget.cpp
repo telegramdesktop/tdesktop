@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/toasts/common_toasts.h"
+#include "ui/boxes/report_box.h" // Ui::ReportReason
 #include "ui/special_buttons.h"
 #include "ui/unread_badge.h"
 #include "ui/ui_utility.h"
@@ -68,6 +69,7 @@ TopBarWidget::TopBarWidget(
 , _savedMessages(this, cShowEmojiButtonAsText() ? tr::lng_forward_to_saved_message_text() : tr::lng_forward_to_saved_message_emoji(), st::defaultActiveButton)
 , _oldForward(this, cShowEmojiButtonAsText() ? tr::lng_selected_forward_text_classic() : tr::lng_selected_forward_emoji_classic(), st::defaultActiveButton)
 , _back(this, st::historyTopBarBack)
+, _cancelChoose(this, st::topBarCloseChoose)
 , _call(this, st::topBarCall)
 , _groupCall(this, st::topBarGroupCall)
 , _search(this, st::topBarSearch)
@@ -114,6 +116,8 @@ TopBarWidget::TopBarWidget(
 	_menuToggle->setClickedCallback([=] { showMenu(); });
 	_infoToggle->setClickedCallback([=] { toggleInfoSection(); });
 	_back->addClickHandler([=] { backClicked(); });
+	_cancelChoose->setClickedCallback(
+		[=] { _cancelChooseForReport.fire({}); });
 
 	rpl::combine(
 		_controller->activeChatValue(),
@@ -248,6 +252,34 @@ void TopBarWidget::groupCall() {
 	}
 }
 
+void TopBarWidget::showChooseMessagesForReport(Ui::ReportReason reason) {
+	setChooseForReportReason(reason);
+}
+
+void TopBarWidget::clearChooseMessagesForReport() {
+	setChooseForReportReason(std::nullopt);
+}
+
+void TopBarWidget::setChooseForReportReason(
+		std::optional<Ui::ReportReason> reason) {
+	if (_chooseForReportReason == reason) {
+		return;
+	}
+	const auto wasNoReason = !_chooseForReportReason;
+	_chooseForReportReason = reason;
+	const auto nowNoReason = !_chooseForReportReason;
+	updateControlsVisibility();
+	updateControlsGeometry();
+	update();
+	if (wasNoReason != nowNoReason && _selectedCount > 0) {
+		toggleSelectedControls(false);
+		finishAnimating();
+	}
+	setCursor((nowNoReason && !_selectedCount)
+		? style::cur_pointer
+		: style::cur_default);
+}
+
 void TopBarWidget::showMenu() {
 	if (!_activeChat.key || _menu) {
 		return;
@@ -342,8 +374,8 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 	}
 	Painter p(this);
 
-	auto hasSelected = (_selectedCount > 0);
-	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.value(hasSelected ? 1. : 0.));
+	auto selectedButtonsTop = countSelectedButtonsTop(
+		_selectedShown.value(showSelectedActions() ? 1. : 0.));
 
 	p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBg);
 	if (selectedButtonsTop < 0) {
@@ -360,6 +392,34 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	auto nametop = st::topBarArrowPadding.top();
 	auto statustop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
 	auto availableWidth = width() - _rightTaken - nameleft;
+
+	if (_chooseForReportReason) {
+		const auto text = [&] {
+			using Reason = Ui::ReportReason;
+			switch (*_chooseForReportReason) {
+			case Reason::Spam: return tr::lng_report_reason_spam(tr::now);
+			case Reason::Violence:
+				return tr::lng_report_reason_violence(tr::now);
+			case Reason::ChildAbuse:
+				return tr::lng_report_reason_child_abuse(tr::now);
+			case Reason::Pornography:
+				return tr::lng_report_reason_pornography(tr::now);
+			}
+			Unexpected("reason in TopBarWidget::paintTopBar.");
+		}();
+		p.setPen(st::dialogsNameFg);
+		p.setFont(st::semiboldFont);
+		p.drawTextLeft(nameleft, nametop, width(), text);
+
+		p.setFont(st::dialogsTextFont);
+		p.setPen(st::historyStatusFg);
+		p.drawTextLeft(
+			nameleft,
+			statustop,
+			width(),
+			tr::lng_report_select_messages(tr::now));
+		return;
+	}
 
 	const auto history = _activeChat.key.history();
 	const auto folder = _activeChat.key.folder();
@@ -500,7 +560,8 @@ QRect TopBarWidget::getMembersShowAreaGeometry() const {
 void TopBarWidget::mousePressEvent(QMouseEvent *e) {
 	auto handleClick = (e->button() == Qt::LeftButton)
 		&& (e->pos().y() < st::topBarHeight)
-		&& (!_selectedCount);
+		&& !_selectedCount
+		&& !_chooseForReportReason;
 	if (handleClick) {
 		if (_animatingMode && _back->rect().contains(e->pos())) {
 			backClicked();
@@ -634,14 +695,16 @@ void TopBarWidget::updateSearchVisibility() {
 	const auto historyMode = (_activeChat.section == Section::History);
 	const auto smallDialogsColumn = _activeChat.key.folder()
 		&& (width() < _back->width() + _search->width());
-	_search->setVisible(historyMode && !smallDialogsColumn);
+	_search->setVisible(historyMode
+		&& !smallDialogsColumn
+		&& !_chooseForReportReason);
 }
 
 void TopBarWidget::updateControlsGeometry() {
 	if (!_activeChat.key) {
 		return;
 	}
-	auto hasSelected = (_selectedCount > 0);
+	auto hasSelected = showSelectedActions();
 	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.value(hasSelected ? 1. : 0.));
 	auto otherButtonsTop = selectedButtonsTop + st::topBarHeight;
 	auto buttonsLeft = st::topBarActionSkip + (Adaptive::OneColumn() ? 0 : st::lineWidth);
@@ -690,7 +753,11 @@ void TopBarWidget::updateControlsGeometry() {
 	_delete->moveToLeft(buttonsLeft, selectedButtonsTop);
 	_clear->moveToRight(st::topBarActionSkip, selectedButtonsTop);
 
-	if (_back->isHidden()) {
+	if (!_cancelChoose->isHidden()) {
+		_leftTaken = 0;
+		_cancelChoose->moveToLeft(_leftTaken, otherButtonsTop);
+		_leftTaken += _cancelChoose->width();
+	} else if (_back->isHidden()) {
 		_leftTaken = st::topBarArrowPadding.right();
 	} else {
 		const auto smallDialogsColumn = _activeChat.key.folder()
@@ -766,12 +833,13 @@ void TopBarWidget::updateControlsVisibility() {
 	auto backVisible = Adaptive::OneColumn()
 		|| !_controller->content()->stackIsEmpty()
 		|| _activeChat.key.folder();
-	_back->setVisible(backVisible);
+	_back->setVisible(backVisible && !_chooseForReportReason);
+	_cancelChoose->setVisible(_chooseForReportReason.has_value());
 	if (_info) {
-		_info->setVisible(Adaptive::OneColumn());
+		_info->setVisible(Adaptive::OneColumn() && !_chooseForReportReason);
 	}
 	if (_unreadBadge) {
-		_unreadBadge->show();
+		_unreadBadge->setVisible(!_chooseForReportReason);
 	}
 	const auto section = _activeChat.section;
 	const auto historyMode = (section == Section::History);
@@ -782,7 +850,7 @@ void TopBarWidget::updateControlsVisibility() {
 			? hasPollsMenu
 			: historyMode);
 	updateSearchVisibility();
-	_menuToggle->setVisible(hasMenu);
+	_menuToggle->setVisible(hasMenu && !_chooseForReportReason);
 	const auto isAdmin = [&] {
 		if (const auto peer = _activeChat.key.peer()) {
 			if (peer->isMegagroup() || peer->isChannel()) {
@@ -812,7 +880,8 @@ void TopBarWidget::updateControlsVisibility() {
 	_infoToggle->setVisible(historyMode
 		&& !_activeChat.key.folder()
 		&& !Adaptive::OneColumn()
-		&& _controller->canShowThirdSection());
+		&& _controller->canShowThirdSection()
+		&& !_chooseForReportReason);
 	const auto callsEnabled = [&] {
 		if (const auto peer = _activeChat.key.peer()) {
 			if (const auto user = peer->asUser()) {
@@ -821,7 +890,9 @@ void TopBarWidget::updateControlsVisibility() {
 		}
 		return false;
 	}();
-	_call->setVisible(historyMode && callsEnabled);
+	_call->setVisible(historyMode
+		&& callsEnabled
+		&& !_chooseForReportReason);
 	const auto groupCallsEnabled = [&] {
 		if (const auto peer = _activeChat.key.peer()) {
 			if (peer->canManageGroupCall()) {
@@ -833,10 +904,12 @@ void TopBarWidget::updateControlsVisibility() {
 		}
 		return false;
 	}();
-	_groupCall->setVisible(historyMode && groupCallsEnabled);
+	_groupCall->setVisible(historyMode
+		&& groupCallsEnabled
+		&& !_chooseForReportReason);
 
 	if (_membersShowArea) {
-		_membersShowArea->show();
+		_membersShowArea->setVisible(!_chooseForReportReason);
 	}
 	updateControlsGeometry();
 }
@@ -908,19 +981,27 @@ void TopBarWidget::showSelected(SelectedState state) {
 		_canSendNow = canSendNow;
 		updateControlsVisibility();
 	}
-	if (wasSelected != hasSelected) {
+	if (wasSelected != hasSelected && !_chooseForReportReason) {
 		setCursor(hasSelected ? style::cur_default : style::cur_pointer);
 
 		updateMembersShowArea();
-		_selectedShown.start(
-			[this] { selectedShowCallback(); },
-			hasSelected ? 0. : 1.,
-			hasSelected ? 1. : 0.,
-			st::slideWrapDuration,
-			anim::easeOutCirc);
+		toggleSelectedControls(hasSelected);
 	} else {
 		updateControlsGeometry();
 	}
+}
+
+void TopBarWidget::toggleSelectedControls(bool shown) {
+	_selectedShown.start(
+		[this] { selectedShowCallback(); },
+		shown ? 0. : 1.,
+		shown ? 1. : 0.,
+		st::slideWrapDuration,
+		anim::easeOutCirc);
+}
+
+bool TopBarWidget::showSelectedActions() const {
+	return (_selectedCount > 0) && !_chooseForReportReason;
 }
 
 void TopBarWidget::selectedShowCallback() {

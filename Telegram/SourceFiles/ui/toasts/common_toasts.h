@@ -13,6 +13,7 @@ namespace Ui {
 
 struct MultilineToastArgs {
 	TextWithEntities text;
+	crl::time duration = 0;
 };
 
 void ShowMultilineToast(MultilineToastArgs &&args);

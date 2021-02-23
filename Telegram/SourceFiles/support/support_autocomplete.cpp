@@ -322,7 +322,8 @@ AdminLog::OwnedItem GenerateContactItem(
 		MTP_string(),
 		MTP_long(0),
 		//MTPMessageReactions(),
-		MTPVector<MTPRestrictionReason>());
+		MTPVector<MTPRestrictionReason>(),
+		MTPint()); // ttl_period
 	const auto item = history->makeMessage(
 		message.c_message(),
 		MTPDmessage_ClientFlag::f_fake_history_item);

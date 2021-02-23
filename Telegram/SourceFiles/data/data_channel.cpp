@@ -476,6 +476,7 @@ bool ChannelData::canEditInformation() const {
 
 bool ChannelData::canEditPermissions() const {
 	return isMegagroup()
+		&& !isGigagroup()
 		&& ((adminRights() & AdminRight::f_ban_users) || amCreator());
 }
 
@@ -760,6 +761,16 @@ void ApplyChannelUpdate(
 		const MTPDchannelFull &update) {
 	const auto session = &channel->session();
 
+	if (channel->isMegagroup()) {
+		const auto suggestions = update.vpending_suggestions().value_or_empty();
+		channel->owner().setSuggestToGigagroup(
+			channel,
+			ranges::contains(
+				suggestions,
+				"convert_to_gigagroup"_q,
+				&MTPstring::v));
+	}
+
 	channel->setAvailableMinId(update.vavailable_min_id().value_or_empty());
 	auto canViewAdmins = channel->canViewAdmins();
 	auto canViewMembers = channel->canViewMembers();
@@ -771,6 +782,7 @@ void ApplyChannelUpdate(
 		channel->clearGroupCall();
 	}
 
+	channel->setMessagesTTL(update.vttl_period().value_or_empty());
 	channel->setFullFlags(update.vflags().v);
 	channel->setUserpicPhoto(update.vchat_photo());
 	if (const auto migratedFrom = update.vmigrated_from_chat_id()) {
@@ -798,11 +810,11 @@ void ApplyChannelUpdate(
 			next->v - channel->slowmodeSeconds());
 	}
 	if (const auto invite = update.vexported_invite()) {
-		channel->session().api().inviteLinks().setPermanent(
+		channel->session().api().inviteLinks().setMyPermanent(
 			channel,
 			*invite);
 	} else {
-		channel->session().api().inviteLinks().clearPermanent(channel);
+		channel->session().api().inviteLinks().clearMyPermanent(channel);
 	}
 	if (const auto location = update.vlocation()) {
 		channel->setLocation(*location);

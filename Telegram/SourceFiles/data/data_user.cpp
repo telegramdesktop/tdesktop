@@ -256,6 +256,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		MTP_inputNotifyPeer(user->input),
 		update.vnotify_settings());
 
+	user->setMessagesTTL(update.vttl_period().value_or_empty());
 	if (const auto info = update.vbot_info()) {
 		user->setBotInfo(*info);
 	} else {

@@ -304,7 +304,8 @@ bool SendDice(Api::MessageToSend &message) {
 			MTP_string(messagePostAuthor),
 			MTPlong(),
 			//MTPMessageReactions(),
-			MTPVector<MTPRestrictionReason>()),
+			MTPVector<MTPRestrictionReason>(),
+			MTPint()), // ttl_period
 		clientFlags,
 		NewMessageType::Unread);
 
@@ -453,7 +454,8 @@ void SendConfirmedFile(
 			MTP_string(messagePostAuthor),
 			MTP_long(groupId),
 			//MTPMessageReactions(),
-			MTPVector<MTPRestrictionReason>());
+			MTPVector<MTPRestrictionReason>(),
+			MTPint()); // ttl_period
 
 		if (itemToEdit) {
 			itemToEdit->savePreviousMedia();
@@ -491,7 +493,8 @@ void SendConfirmedFile(
 			MTP_string(messagePostAuthor),
 			MTP_long(groupId),
 			//MTPMessageReactions(),
-			MTPVector<MTPRestrictionReason>());
+			MTPVector<MTPRestrictionReason>(),
+			MTPint()); // ttl_period
 
 		if (itemToEdit) {
 			itemToEdit->savePreviousMedia();
@@ -533,7 +536,8 @@ void SendConfirmedFile(
 				MTP_string(messagePostAuthor),
 				MTP_long(groupId),
 				//MTPMessageReactions(),
-				MTPVector<MTPRestrictionReason>()),
+				MTPVector<MTPRestrictionReason>(),
+				MTPint()), // ttl_period
 			clientFlags,
 			NewMessageType::Unread);
 		// Voices can't be edited.

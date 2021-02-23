@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
+#include "boxes/single_choice_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_type_box.h"
@@ -307,7 +308,7 @@ private:
 		Ui::UserpicButton *photo = nullptr;
 		rpl::lifetime initialPhotoImageWaiting;
 		Ui::VerticalLayout *buttonsLayout = nullptr;
-		Ui::SlideWrap<Ui::RpWidget> *historyVisibilityWrap = nullptr;
+		Ui::SlideWrap<> *historyVisibilityWrap = nullptr;
 	};
 	struct Saving {
 		std::optional<QString> username;
@@ -326,13 +327,13 @@ private:
 	object_ptr<Ui::RpWidget> createStickersEdit();
 
 	bool canEditInformation() const;
-	void refreshHistoryVisibility(anim::type animated = anim::type::normal);
+	void refreshHistoryVisibility();
 	void showEditPeerTypeBox(
 		std::optional<rpl::producer<QString>> error = {});
 	void showEditLinkedChatBox();
 	void fillPrivacyTypeButton();
 	void fillLinkedChatButton();
-	void fillInviteLinkButton();
+	//void fillInviteLinkButton();
 	void fillSignaturesButton();
 	void fillHistoryVisibilityButton();
 	void fillManageSection();
@@ -629,7 +630,7 @@ bool Controller::canEditInformation() const {
 	return false;
 }
 
-void Controller::refreshHistoryVisibility(anim::type animated) {
+void Controller::refreshHistoryVisibility() {
 	if (!_controls.historyVisibilityWrap) {
 		return;
 	}
@@ -637,8 +638,8 @@ void Controller::refreshHistoryVisibility(anim::type animated) {
 		(_privacySavedValue != Privacy::HasUsername
 			&& !_channelHasLocationOriginalValue
 			&& (!_linkedChatSavedValue || !*_linkedChatSavedValue)),
-		animated);
-};
+		anim::type::instant);
+}
 
 void Controller::showEditPeerTypeBox(
 		std::optional<rpl::producer<QString>> error) {
@@ -799,20 +800,20 @@ void Controller::fillLinkedChatButton() {
 		[=] { showEditLinkedChatBox(); });
 	_linkedChatUpdates.fire_copy(*_linkedChatSavedValue);
 }
-
-void Controller::fillInviteLinkButton() {
-	Expects(_controls.buttonsLayout != nullptr);
-
-	const auto buttonCallback = [=] {
-		Ui::show(Box<EditPeerTypeBox>(_peer), Ui::LayerOption::KeepOther);
-	};
-
-	AddButtonWithText(
-		_controls.buttonsLayout,
-		tr::lng_profile_invite_link_section(),
-		rpl::single(QString()), //Empty text.
-		buttonCallback);
-}
+//
+//void Controller::fillInviteLinkButton() {
+//	Expects(_controls.buttonsLayout != nullptr);
+//
+//	const auto buttonCallback = [=] {
+//		Ui::show(Box<EditPeerTypeBox>(_peer), Ui::LayerOption::KeepOther);
+//	};
+//
+//	AddButtonWithText(
+//		_controls.buttonsLayout,
+//		tr::lng_profile_invite_link_section(),
+//		rpl::single(QString()), //Empty text.
+//		buttonCallback);
+//}
 
 void Controller::fillSignaturesButton() {
 	Expects(_controls.buttonsLayout != nullptr);
@@ -878,7 +879,7 @@ void Controller::fillHistoryVisibilityButton() {
 
 	updateHistoryVisibility->fire_copy(*_historyVisibilitySavedValue);
 
-	refreshHistoryVisibility(anim::type::instant);
+	refreshHistoryVisibility();
 }
 
 void Controller::fillManageSection() {
@@ -927,7 +928,7 @@ void Controller::fillManageSection() {
 	}();
 	const auto canViewKicked = [&] {
 		return isChannel
-			? (!channel->isMegagroup())
+			? (channel->isBroadcast() || channel->isGigagroup())
 			: false;
 	}();
 	const auto hasRecentActions = [&] {
@@ -963,21 +964,21 @@ void Controller::fillManageSection() {
 
 	if (canEditUsername) {
 		fillPrivacyTypeButton();
-	} else if (canEditInviteLinks) {
-		fillInviteLinkButton();
+	//} else if (canEditInviteLinks) {
+	//	fillInviteLinkButton();
 	}
 	if (canViewOrEditLinkedChat) {
 		fillLinkedChatButton();
 	}
-	if (canEditSignatures) {
-		fillSignaturesButton();
-	}
 	if (canEditPreHistoryHidden) {
 		fillHistoryVisibilityButton();
 	}
+	if (canEditSignatures) {
+		fillSignaturesButton();
+	}
 	if (canEditPreHistoryHidden
 		|| canEditSignatures
-		|| canEditInviteLinks
+		//|| canEditInviteLinks
 		|| canViewOrEditLinkedChat
 		|| canEditUsername) {
 		AddSkip(
@@ -999,29 +1000,49 @@ void Controller::fillManageSection() {
 			[=] { ShowEditPermissions(_navigation, _peer); },
 			st::infoIconPermissions);
 	}
-	//if (canEditInviteLinks) { // #TODO links
-	//	AddButtonWithCount(
-	//		_controls.buttonsLayout,
-	//		tr::lng_manage_peer_invite_links(),
-	//		Info::Profile::MigratedOrMeValue(
-	//			_peer
-	//		) | rpl::map([=](not_null<PeerData*> peer) {
-	//			peer->session().api().inviteLinks().requestLinks(peer);
-	//			return peer->session().changes().peerUpdates(
-	//				peer,
-	//				Data::PeerUpdate::Flag::InviteLinks
-	//			) | rpl::map([=] {
-	//				return peer->session().api().inviteLinks().links(
-	//					peer).count;
-	//			});
-	//		}) | rpl::flatten_latest(
-	//		) | ToPositiveNumberString(),
-	//		[=] { Ui::show(
-	//			Box(ManageInviteLinksBox, _peer),
-	//			Ui::LayerOption::KeepOther);
-	//		},
-	//		st::infoIconInviteLinks);
-	//}
+	if (canEditInviteLinks
+		&& (canEditUsername
+			|| !_peer->isChannel()
+			|| !_peer->asChannel()->hasUsername())) {
+		auto count = Info::Profile::MigratedOrMeValue(
+			_peer
+		) | rpl::map([=](not_null<PeerData*> peer) {
+			peer->session().api().inviteLinks().requestMyLinks(peer);
+			return peer->session().changes().peerUpdates(
+				peer,
+				Data::PeerUpdate::Flag::InviteLinks
+			) | rpl::map([=] {
+				return peer->session().api().inviteLinks().myLinks(
+					peer).count;
+			});
+		}) | rpl::flatten_latest(
+		) | rpl::start_spawning(_controls.buttonsLayout->lifetime());
+
+		const auto wrap = _controls.buttonsLayout->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				_controls.buttonsLayout,
+				object_ptr<Ui::VerticalLayout>(
+					_controls.buttonsLayout)));
+		AddButtonWithCount(
+			wrap->entity(),
+			tr::lng_manage_peer_invite_links(),
+			rpl::duplicate(count) | ToPositiveNumberString(),
+			[=] { Ui::show(
+				Box(ManageInviteLinksBox, _peer, _peer->session().user(), 0, 0),
+				Ui::LayerOption::KeepOther);
+			},
+			st::infoIconInviteLinks);
+
+		if (_privacySavedValue) {
+			_privacyTypeUpdates.events_starting_with_copy(
+				*_privacySavedValue
+			) | rpl::start_with_next([=](Privacy flag) {
+				wrap->toggle(
+					flag != Privacy::HasUsername,
+					anim::type::instant);
+			}, wrap->lifetime());
+		}
+	}
 	if (canViewAdmins) {
 		AddButtonWithCount(
 			_controls.buttonsLayout,
@@ -1567,6 +1588,7 @@ void Controller::upgradeWithConfirmation() {
 }
 
 } // namespace
+
 
 EditPeerInfoBox::EditPeerInfoBox(
 	QWidget*,

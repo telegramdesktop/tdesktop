@@ -2184,16 +2184,10 @@ void ListWidget::mouseActionFinish(
 	repaintItem(pressState.itemId);
 
 	const auto toggleByHandler = [&](const ClickHandlerPtr &handler) {
-		if (_overElement) {
-			// If we are in selecting items mode perhaps we want to
-			// toggle selection instead of activating the pressed link.
-			if (const auto media = _overElement->media()) {
-				if (media->toggleSelectionByHandlerClick(handler)) {
-					return true;
-				}
-			}
-		}
-		return false;
+		// If we are in selecting items mode perhaps we want to
+		// toggle selection instead of activating the pressed link.
+		return _overElement
+			&& _overElement->toggleSelectionByHandlerClick(handler);
 	};
 
 	auto activated = ClickHandler::unpressed();

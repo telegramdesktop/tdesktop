@@ -595,7 +595,7 @@ void Histories::deleteAllMessages(
 		};
 		const auto chat = peer->asChat();
 		const auto channel = peer->asChannel();
-		if (revoke && channel && channel->canDelete()) {
+		if (!justClear && revoke && channel && channel->canDelete()) {
 			return session().api().request(MTPchannels_DeleteChannel(
 				channel->inputChannel
 			)).done([=](const MTPUpdates &result) {

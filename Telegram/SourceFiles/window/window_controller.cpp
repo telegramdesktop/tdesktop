@@ -258,6 +258,7 @@ void Controller::showSettings() {
 
 int Controller::verticalShadowTop() const {
 	return (Platform::NativeTitleRequiresShadow()
+		&& Platform::AllowNativeWindowFrameToggle()
 		&& Core::App().settings().nativeWindowFrame())
 		? st::lineWidth
 		: 0;

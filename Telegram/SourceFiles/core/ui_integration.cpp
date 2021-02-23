@@ -18,9 +18,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
+#include "main/main_app_config.h"
 #include "mainwindow.h"
 
 namespace Core {
+namespace {
+
+QString UrlWithAutoLoginToken(const QString &url) {
+	const auto &config = Core::App().activeAccount().appConfig();
+	const auto token = config.get<QString>("autologin_token", {});
+	const auto domains = config.get<std::vector<QString>>(
+		"autologin_domains",
+		{});
+	if (domains.empty()
+		|| token.isEmpty()
+		|| !url.startsWith("https://", Qt::CaseInsensitive)) {
+		return url;
+	}
+	auto parsed = QUrl(url);
+	if (!parsed.isValid()) {
+		return url;
+	} else if (!ranges::contains(domains, parsed.host().toLower())) {
+		return url;
+	}
+	const auto added = "autologin_token=" + token;
+	parsed.setQuery(parsed.hasQuery()
+		? (parsed.query() + '&' + added)
+		: added);
+	return QString::fromUtf8(parsed.toEncoded());
+}
+
+} // namespace
 
 void UiIntegration::postponeCall(FnMut<void()> &&callable) {
 	Sandbox::Instance().postponeCall(std::move(callable));
@@ -151,7 +179,7 @@ bool UiIntegration::handleUrlClick(
 		return true;
 	}
 
-	File::OpenUrl(url);
+	File::OpenUrl(UrlWithAutoLoginToken(url));
 	return true;
 
 }

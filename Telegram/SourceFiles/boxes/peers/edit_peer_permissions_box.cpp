@@ -11,18 +11,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/layers/generic_box.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/box_content_divider.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "window/window_session_controller.h"
+#include "main/main_session.h"
 #include "mainwindow.h"
+#include "apiwrap.h"
 #include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -31,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kSlowmodeValues = 7;
+constexpr auto kSuggestGigagroupThreshold = 199000;
 
 int SlowmodeDelayByIndex(int index) {
 	Expects(index >= 0 && index < kSlowmodeValues);
@@ -309,6 +314,68 @@ ChatAdminRights AdminRightsForOwnershipTransfer(bool isGroup) {
 	return result;
 }
 
+Fn<void()> AboutGigagroupCallback(not_null<ChannelData*> channel) {
+	const auto converting = std::make_shared<bool>();
+	const auto convertSure = [=] {
+		if (*converting) {
+			return;
+		}
+		*converting = true;
+		channel->session().api().request(MTPchannels_ConvertToGigagroup(
+			channel->inputChannel
+		)).done([=](const MTPUpdates &result) {
+			channel->session().api().applyUpdates(result);
+			Ui::hideSettingsAndLayer();
+			Ui::Toast::Show(tr::lng_gigagroup_done(tr::now));
+		}).fail([=](const RPCError &error) {
+			*converting = false;
+		}).send();
+	};
+	const auto convertWarn = [=] {
+		if (*converting) {
+			return;
+		}
+		Ui::show(Box([=](not_null<Ui::GenericBox*> box) {
+			box->setTitle(tr::lng_gigagroup_warning_title());
+			box->addRow(
+				object_ptr<Ui::FlatLabel>(
+					box,
+					tr::lng_gigagroup_warning(
+					) | Ui::Text::ToRichLangValue(),
+					st::infoAboutGigagroup));
+			box->addButton(tr::lng_gigagroup_convert_sure(), convertSure);
+			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		}), Ui::LayerOption::KeepOther);
+	};
+	return [=] {
+		if (*converting) {
+			return;
+		}
+		Ui::show(Box([=](not_null<Ui::GenericBox*> box) {
+			box->setTitle(tr::lng_gigagroup_convert_title());
+			const auto addFeature = [&](rpl::producer<QString> text) {
+				using namespace rpl::mappers;
+				const auto prefix = QString::fromUtf8("\xE2\x80\xA2 ");
+				box->addRow(
+					object_ptr<Ui::FlatLabel>(
+						box,
+						std::move(text) | rpl::map(prefix + _1),
+						st::infoAboutGigagroup),
+					style::margins(
+						st::boxRowPadding.left(),
+						st::boxLittleSkip,
+						st::boxRowPadding.right(),
+						st::boxLittleSkip));
+			};
+			addFeature(tr::lng_gigagroup_convert_feature1());
+			addFeature(tr::lng_gigagroup_convert_feature2());
+			addFeature(tr::lng_gigagroup_convert_feature3());
+			box->addButton(tr::lng_gigagroup_convert_sure(), convertWarn);
+			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		}), Ui::LayerOption::KeepOther);
+	};
+}
+
 EditPeerPermissionsBox::EditPeerPermissionsBox(
 	QWidget*,
 	not_null<Window::SessionNavigation*> navigation,
@@ -369,6 +436,14 @@ void EditPeerPermissionsBox::prepare() {
 	inner->add(std::move(checkboxes));
 
 	const auto getSlowmodeSeconds = addSlowmodeSlider(inner);
+
+	if (const auto channel = _peer->asChannel()) {
+		if (channel->amCreator()
+			&& channel->membersCount() >= kSuggestGigagroupThreshold) {
+			addSuggestGigagroup(inner);
+		}
+	}
+
 	addBannedButtons(inner);
 
 	_value = [=, rights = getRestrictions]() -> Result {
@@ -518,6 +593,32 @@ void EditPeerPermissionsBox::addSlowmodeLabels(
 			label->moveToLeft(left, 0, outer);
 		}, label->lifetime());
 	}
+}
+
+void EditPeerPermissionsBox::addSuggestGigagroup(
+		not_null<Ui::VerticalLayout*> container) {
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			tr::lng_rights_gigagroup_title(),
+			st::rightsHeaderLabel),
+		st::rightsHeaderMargin);
+	container->add(EditPeerInfoBox::CreateButton(
+		container,
+		tr::lng_rights_gigagroup_convert(),
+		rpl::single(QString()),
+		AboutGigagroupCallback(_peer->asChannel()),
+		st::peerPermissionsButton));
+
+	container->add(
+		object_ptr<Ui::DividerLabel>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				tr::lng_rights_gigagroup_about(),
+				st::boxDividerLabel),
+			st::proxyAboutPadding),
+		style::margins(0, st::infoProfileSkip, 0, st::infoProfileSkip));
 }
 
 void EditPeerPermissionsBox::addBannedButtons(
@@ -674,7 +775,7 @@ EditFlagsControl<MTPDchatBannedRights::Flags> CreateEditRestrictions(
 
 EditFlagsControl<MTPDchatAdminRights::Flags> CreateEditAdminRights(
 		QWidget *parent,
-	rpl::producer<QString> header,
+		rpl::producer<QString> header,
 		MTPDchatAdminRights::Flags rights,
 		std::map<MTPDchatAdminRights::Flags, QString> disabledMessages,
 		bool isGroup,

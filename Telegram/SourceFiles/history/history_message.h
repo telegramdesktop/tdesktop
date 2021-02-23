@@ -188,6 +188,12 @@ public:
 		return replyToId();
 	}
 
+	void applySentMessage(const MTPDmessage &data) override;
+	void applySentMessage(
+		const QString &text,
+		const MTPDupdateShortSentMessage &data,
+		bool wasAlready) override;
+
 	// dynamic_cast optimization.
 	[[nodiscard]] HistoryMessage *toHistoryMessage() override {
 		return this;

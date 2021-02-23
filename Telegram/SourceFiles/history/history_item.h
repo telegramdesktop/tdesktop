@@ -259,6 +259,12 @@ public:
 	}
 	[[nodiscard]] virtual Storage::SharedMediaTypesMask sharedMediaTypes() const = 0;
 
+	virtual void applySentMessage(const MTPDmessage &data);
+	virtual void applySentMessage(
+		const QString &text,
+		const MTPDupdateShortSentMessage &data,
+		bool wasAlready);
+
 	void indexAsNewItem();
 
 	[[nodiscard]] virtual QString notificationHeader() const {
@@ -390,6 +396,10 @@ public:
 	void updateDate(TimeId newDate);
 	[[nodiscard]] bool canUpdateDate() const;
 
+	[[nodiscard]] TimeId ttlDestroyAt() const {
+		return _ttlDestroyAt;
+	}
+
 	virtual ~HistoryItem();
 
 	MsgId id;
@@ -418,6 +428,10 @@ protected:
 
 	void setGroupId(MessageGroupId groupId);
 
+	void applyTTL(const MTPDmessage &data);
+	void applyTTL(const MTPDmessageService &data);
+	void applyTTL(TimeId destroyAt);
+
 	Ui::Text::String _text = { st::msgMinWidth };
 	int _textWidth = -1;
 	int _textHeight = 0;
@@ -431,7 +445,9 @@ protected:
 	std::unique_ptr<Data::Media> _media;
 
 private:
+
 	TimeId _date = 0;
+	TimeId _ttlDestroyAt = 0;
 
 	HistoryView::Element *_mainView = nullptr;
 	friend class HistoryView::Element;

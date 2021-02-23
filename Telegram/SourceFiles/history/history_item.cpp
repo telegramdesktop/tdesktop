@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/crash_reports.h"
 #include "base/unixtime.h"
+#include "api/api_text_entities.h"
 #include "data/data_scheduled_messages.h" // kScheduledUntilOnlineTimestamp
 #include "data/data_changes.h"
 #include "data/data_session.h"
@@ -486,8 +487,55 @@ void HistoryItem::applyEditionToHistoryCleared() {
 			peerToMTP(history()->peer->id),
 			MTPMessageReplyHeader(),
 			MTP_int(date()),
-			MTP_messageActionHistoryClear()
+			MTP_messageActionHistoryClear(),
+			MTPint() // ttl_period
 		).c_messageService());
+}
+
+void HistoryItem::applySentMessage(const MTPDmessage &data) {
+	updateSentContent({
+		qs(data.vmessage()),
+		Api::EntitiesFromMTP(
+			&history()->session(),
+			data.ventities().value_or_empty())
+	}, data.vmedia());
+	updateReplyMarkup(data.vreply_markup());
+	updateForwardedInfo(data.vfwd_from());
+	setViewsCount(data.vviews().value_or(-1));
+	if (const auto replies = data.vreplies()) {
+		setReplies(*replies);
+	} else {
+		clearReplies();
+	}
+	setForwardsCount(data.vforwards().value_or(-1));
+	if (const auto reply = data.vreply_to()) {
+		reply->match([&](const MTPDmessageReplyHeader &data) {
+			setReplyToTop(
+				data.vreply_to_top_id().value_or(
+					data.vreply_to_msg_id().v));
+		});
+	}
+	setPostAuthor(data.vpost_author().value_or_empty());
+	contributeToSlowmode(data.vdate().v);
+	indexAsNewItem();
+	history()->owner().requestItemTextRefresh(this);
+	history()->owner().updateDependentMessages(this);
+}
+
+void HistoryItem::applySentMessage(
+		const QString &text,
+		const MTPDupdateShortSentMessage &data,
+		bool wasAlready) {
+	updateSentContent({
+		text,
+		Api::EntitiesFromMTP(
+			&history()->session(),
+			data.ventities().value_or_empty())
+		}, data.vmedia());
+	contributeToSlowmode(data.vdate().v);
+	if (!wasAlready) {
+		indexAsNewItem();
+	}
 }
 
 void HistoryItem::indexAsNewItem() {
@@ -629,9 +677,7 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 	}
 	if (!out()) {
 		if (const auto chat = peer->asChat()) {
-			if (!chat->amCreator()
-				&& !(chat->adminRights()
-					& ChatAdminRight::f_delete_messages)) {
+			if (!chat->canDeleteMessages()) {
 				return false;
 			}
 		} else if (peer->isUser()) {
@@ -761,6 +807,41 @@ void HistoryItem::updateDate(TimeId newDate) {
 
 bool HistoryItem::canUpdateDate() const {
 	return isScheduled();
+}
+
+void HistoryItem::applyTTL(const MTPDmessage &data) {
+	if (const auto period = data.vttl_period()) {
+		if (period->v > 0) {
+			applyTTL(data.vdate().v + period->v);
+		}
+	}
+}
+
+void HistoryItem::applyTTL(const MTPDmessageService &data) {
+	if (const auto period = data.vttl_period()) {
+		if (period->v > 0) {
+			applyTTL(data.vdate().v + period->v);
+		}
+	}
+}
+
+void HistoryItem::applyTTL(TimeId destroyAt) {
+	const auto previousDestroyAt = std::exchange(_ttlDestroyAt, destroyAt);
+	if (previousDestroyAt) {
+		history()->owner().unregisterMessageTTL(previousDestroyAt, this);
+	}
+	if (!_ttlDestroyAt) {
+		return;
+	} else if (base::unixtime::now() >= _ttlDestroyAt) {
+		const auto session = &history()->session();
+		crl::on_main(session, [session, id = fullId()]{
+			if (const auto item = session->data().message(id)) {
+				item->destroy();
+			}
+		});
+	} else {
+		history()->owner().registerMessageTTL(_ttlDestroyAt, this);
+	}
 }
 
 void HistoryItem::sendFailed() {
@@ -911,7 +992,9 @@ void HistoryItem::drawInDialog(
 	p.restoreTextPalette();
 }
 
-HistoryItem::~HistoryItem() = default;
+HistoryItem::~HistoryItem() {
+	applyTTL(0);
+}
 
 QDateTime ItemDateTime(not_null<const HistoryItem*> item) {
 	return base::unixtime::parse(item->date());

@@ -940,7 +940,7 @@ void SessionController::startOrJoinGroupCall(
 	const auto channel = peer->asChannel();
 	if (channel && channel->amAnonymous()) {
 		Ui::ShowMultilineToast({
-			.text = tr::lng_group_call_no_anonymous(tr::now),
+			.text = { tr::lng_group_call_no_anonymous(tr::now) },
 		});
 		return;
 	}
@@ -1071,6 +1071,17 @@ void SessionController::showPassportForm(const Passport::FormRequest &request) {
 
 void SessionController::clearPassportForm() {
 	_passportForm = nullptr;
+}
+
+void SessionController::showChooseReportMessages(
+		not_null<PeerData*> peer,
+		Ui::ReportReason reason,
+		Fn<void(MessageIdsList)> done) {
+	content()->showChooseReportMessages(peer, reason, std::move(done));
+}
+
+void SessionController::clearChooseReportMessages() {
+	content()->clearChooseReportMessages();
 }
 
 void SessionController::updateColumnLayout() {

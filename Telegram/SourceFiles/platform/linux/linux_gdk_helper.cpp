@@ -10,11 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_gtk_integration_p.h"
 #include "platform/linux/linux_gtk_integration_p.h"
 
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 extern "C" {
 #undef signals
 #include <gdk/gdkx.h>
 #define signals public
 } // extern "C"
+#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 namespace Platform {
 namespace internal {
@@ -29,6 +31,7 @@ enum class GtkLoaded {
 
 GtkLoaded gdk_helper_loaded = GtkLoaded::GtkNone;
 
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 // To be able to compile with gtk-3.0 headers as well
 #define GdkDrawable GdkWindow
 
@@ -57,8 +60,10 @@ f_gdk_x11_display_get_xdisplay gdk_x11_display_get_xdisplay = nullptr;
 
 using f_gdk_x11_window_get_xid = Window(*)(GdkWindow *window);
 f_gdk_x11_window_get_xid gdk_x11_window_get_xid = nullptr;
+#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 bool GdkHelperLoadGtk2(QLibrary &lib) {
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 #ifdef LINK_TO_GTK
 	return false;
 #else // LINK_TO_GTK
@@ -66,14 +71,21 @@ bool GdkHelperLoadGtk2(QLibrary &lib) {
 	if (!LOAD_GTK_SYMBOL(lib, "gdk_x11_drawable_get_xid", gdk_x11_drawable_get_xid)) return false;
 	return true;
 #endif // !LINK_TO_GTK
+#else // !DESKTOP_APP_DISABLE_X11_INTEGRATION
+	return false;
+#endif // DESKTOP_APP_DISABLE_X11_INTEGRATION
 }
 
 bool GdkHelperLoadGtk3(QLibrary &lib) {
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	if (!LOAD_GTK_SYMBOL(lib, "gdk_x11_window_get_type", gdk_x11_window_get_type)) return false;
 	if (!LOAD_GTK_SYMBOL(lib, "gdk_window_get_display", gdk_window_get_display)) return false;
 	if (!LOAD_GTK_SYMBOL(lib, "gdk_x11_display_get_xdisplay", gdk_x11_display_get_xdisplay)) return false;
 	if (!LOAD_GTK_SYMBOL(lib, "gdk_x11_window_get_xid", gdk_x11_window_get_xid)) return false;
 	return true;
+#else // !DESKTOP_APP_DISABLE_X11_INTEGRATION
+	return false;
+#endif // DESKTOP_APP_DISABLE_X11_INTEGRATION
 }
 
 void GdkHelperLoad(QLibrary &lib) {
@@ -86,10 +98,15 @@ void GdkHelperLoad(QLibrary &lib) {
 }
 
 bool GdkHelperLoaded() {
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	return gdk_helper_loaded != GtkLoaded::GtkNone;
+#else // !DESKTOP_APP_DISABLE_X11_INTEGRATION
+	return true;
+#endif // DESKTOP_APP_DISABLE_X11_INTEGRATION
 }
 
 void XSetTransientForHint(GdkWindow *window, quintptr winId) {
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	if (gdk_helper_loaded == GtkLoaded::Gtk2) {
 		::XSetTransientForHint(gdk_x11_drawable_get_xdisplay(window),
 							   gdk_x11_drawable_get_xid(window),
@@ -101,6 +118,7 @@ void XSetTransientForHint(GdkWindow *window, quintptr winId) {
 								   winId);
 		}
 	}
+#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 }
 
 } // namespace internal

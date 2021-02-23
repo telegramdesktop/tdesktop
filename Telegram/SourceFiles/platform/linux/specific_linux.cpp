@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/specific_linux.h"
 
 #include "base/platform/base_platform_info.h"
-#include "base/platform/linux/base_linux_xcb_utilities.h"
 #include "base/platform/linux/base_linux_gtk_integration.h"
+#include "ui/platform/ui_platform_utility.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_gtk_integration.h"
 #include "platform/linux/linux_wayland_integration.h"
@@ -17,9 +17,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
+#include "core/sandbox.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "core/update_checker.h"
 #include "window/window_controller.h"
-#include "core/application.h"
+
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
+#include "base/platform/linux/base_linux_xcb_utilities.h"
+#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "platform/linux/linux_notification_service_watcher.h"
@@ -63,8 +69,6 @@ using BaseGtkIntegration = base::Platform::GtkIntegration;
 using Platform::internal::WaylandIntegration;
 using Platform::internal::GtkIntegration;
 
-Q_DECLARE_METATYPE(QMargins);
-
 namespace Platform {
 namespace {
 
@@ -104,14 +108,14 @@ QStringList ListDBusActivatableNames() {
 	return Result;
 }
 
-void PortalAutostart(bool autostart, bool silent = false) {
+void PortalAutostart(bool start, bool silent = false) {
 	if (cExeName().isEmpty()) {
 		return;
 	}
 
 	QVariantMap options;
 	options["reason"] = tr::lng_settings_auto_start(tr::now);
-	options["autostart"] = autostart;
+	options["autostart"] = start;
 	options["commandline"] = QStringList{
 		cExeName(),
 		qsl("-workdir"),
@@ -347,6 +351,28 @@ bool GenerateDesktopFile(
 	}
 }
 
+void SetGtkScaleFactor() {
+	const auto integration = GtkIntegration::Instance();
+	const auto ratio = Core::Sandbox::Instance().devicePixelRatio();
+	if (!integration || ratio > 1.) {
+		return;
+	}
+
+	const auto scaleFactor = integration->scaleFactor().value_or(1);
+	if (scaleFactor == 1) {
+		return;
+	}
+
+	LOG(("GTK scale factor: %1").arg(scaleFactor));
+	cSetScreenScale(style::CheckScale(scaleFactor * 100));
+}
+
+void DarkModeChanged() {
+	Core::Sandbox::Instance().customEnterFromEventLoop([] {
+		Core::App().settings().setSystemDarkMode(IsDarkMode());
+	});
+}
+
 } // namespace
 
 void SetWatchingMediaKeys(bool watching) {
@@ -551,8 +577,12 @@ bool TrayIconSupported() {
 }
 
 bool SkipTaskbarSupported() {
+#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	return !IsWayland()
 		&& base::Platform::XCB::IsSupportedByWM("_NET_WM_STATE_SKIP_TASKBAR");
+#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
+
+	return false;
 }
 
 } // namespace Platform
@@ -577,7 +607,7 @@ void psActivateProcess(uint64 pid) {
 
 namespace {
 
-QString getHomeDir() {
+QString GetHomeDir() {
 	const auto home = QString(g_get_home_dir());
 
 	if (!home.isEmpty() && !home.endsWith('/')) {
@@ -587,12 +617,39 @@ QString getHomeDir() {
 	return home;
 }
 
+#ifdef __HAIKU__
+void HaikuAutostart(bool start) {
+	const auto home = GetHomeDir();
+	if (home.isEmpty()) {
+		return;
+	}
+
+	QFile file(home + "config/settings/boot/launch/telegram-desktop");
+	if (start) {
+		if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+			QTextStream out(&file);
+			out
+				<< "#!/bin/bash" << Qt::endl
+				<< "cd /system/apps" << Qt::endl
+				<< "./Telegram -autostart" << " &" << Qt::endl;
+			file.close();
+			file.setPermissions(file.permissions()
+				| QFileDevice::ExeOwner
+				| QFileDevice::ExeGroup
+				| QFileDevice::ExeOther);
+		}
+	} else {
+		file.remove();
+	}
+}
+#endif // __HAIKU__
+
 } // namespace
 
 QString psAppDataPath() {
 	// Previously we used ~/.TelegramDesktop, so look there first.
 	// If we find data there, we should still use it.
-	auto home = getHomeDir();
+	auto home = GetHomeDir();
 	if (!home.isEmpty()) {
 		auto oldPath = home + qsl(".TelegramDesktop/");
 		auto oldSettingsBase = oldPath + qsl("tdata/settings");
@@ -837,6 +894,9 @@ bool OpenSystemSettings(SystemSettingsType type) {
 		} else if (DesktopEnvironment::IsMATE()) {
 			add("mate-volume-control");
 		}
+#ifdef __HAIKU__
+		add("Media");
+#endif // __ HAIKU__
 		add("pavucontrol-qt");
 		add("pavucontrol");
 		add("alsamixergui");
@@ -850,15 +910,30 @@ bool OpenSystemSettings(SystemSettingsType type) {
 namespace ThirdParty {
 
 void start() {
-	DEBUG_LOG(("Icon theme: %1").arg(QIcon::themeName()));
-	DEBUG_LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
-
 	if (const auto integration = BaseGtkIntegration::Instance()) {
 		integration->load();
 	}
 
 	if (const auto integration = GtkIntegration::Instance()) {
 		integration->load();
+	}
+
+	SetGtkScaleFactor();
+
+	BaseGtkIntegration::Instance()->connectToSetting(
+		"gtk-theme-name",
+		DarkModeChanged);
+
+	if (BaseGtkIntegration::Instance()->checkVersion(3, 0, 0)) {
+		BaseGtkIntegration::Instance()->connectToSetting(
+			"gtk-application-prefer-dark-theme",
+			DarkModeChanged);
+	}
+
+	if (BaseGtkIntegration::Instance()->checkVersion(3, 12, 0)) {
+		BaseGtkIntegration::Instance()->connectToSetting(
+			"gtk-decoration-layout",
+			Ui::Platform::NotifyTitleControlsLayoutChanged);
 	}
 
 	// wait for interface announce to know if native window frame is supported
@@ -882,11 +957,18 @@ void finish() {
 } // namespace Platform
 
 void psNewVersion() {
+#ifndef __HAIKU__
 	Platform::InstallLauncher();
+#endif // __HAIKU__
 	Platform::RegisterCustomScheme();
 }
 
 void psAutoStart(bool start, bool silent) {
+#ifdef __HAIKU__
+	HaikuAutostart(start);
+	return;
+#endif // __HAIKU__
+
 	if (InFlatpak()) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 		PortalAutostart(start, silent);

@@ -40,13 +40,14 @@ struct JoinedByLinkSlice {
 
 struct InviteLinkUpdate {
 	not_null<PeerData*> peer;
+	not_null<UserData*> admin;
 	QString was;
 	std::optional<InviteLink> now;
 };
-// #TODO links
-//[[nodiscard]] JoinedByLinkSlice ParseJoinedByLinkSlice(
-//	not_null<PeerData*> peer,
-//	const MTPmessages_ChatInviteImporters &slice);
+
+[[nodiscard]] JoinedByLinkSlice ParseJoinedByLinkSlice(
+	not_null<PeerData*> peer,
+	const MTPmessages_ChatInviteImporters &slice);
 
 class InviteLinks final {
 public:
@@ -63,32 +64,38 @@ public:
 		int usageLimit = 0);
 	void edit(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const QString &link,
 		TimeId expireDate,
 		int usageLimit,
 		Fn<void(Link)> done = nullptr);
 	void revoke(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const QString &link,
 		Fn<void(Link)> done = nullptr);
 	void revokePermanent(
 		not_null<PeerData*> peer,
-		Fn<void(Link)> done = nullptr);
+		not_null<UserData*> admin,
+		const QString &link,
+		Fn<void()> done = nullptr);
 	void destroy(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const QString &link,
 		Fn<void()> done = nullptr);
 	void destroyAllRevoked(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		Fn<void()> done = nullptr);
 
-	void setPermanent(
+	void setMyPermanent(
 		not_null<PeerData*> peer,
 		const MTPExportedChatInvite &invite);
-	void clearPermanent(not_null<PeerData*> peer);
+	void clearMyPermanent(not_null<PeerData*> peer);
 
-	void requestLinks(not_null<PeerData*> peer);
-	[[nodiscard]] const Links &links(not_null<PeerData*> peer) const;
+	void requestMyLinks(not_null<PeerData*> peer);
+	[[nodiscard]] const Links &myLinks(not_null<PeerData*> peer) const;
 
 	[[nodiscard]] rpl::producer<JoinedByLinkSlice> joinedFirstSliceValue(
 		not_null<PeerData*> peer,
@@ -98,12 +105,15 @@ public:
 		not_null<PeerData*> peer,
 		const QString &link) const;
 	[[nodiscard]] rpl::producer<Update> updates(
-		not_null<PeerData*> peer) const;
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin) const;
 	[[nodiscard]] rpl::producer<> allRevokedDestroyed(
-		not_null<PeerData*> peer) const;
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin) const;
 
 	void requestMoreLinks(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		TimeId lastDate,
 		const QString &lastLink,
 		bool revoked,
@@ -124,19 +134,23 @@ private:
 		}
 	};
 
-	// #TODO links
-	//[[nodiscard]] Links parseSlice(
-	//	not_null<PeerData*> peer,
-	//	const MTPmessages_ExportedChatInvites &slice) const;
+	[[nodiscard]] Links parseSlice(
+		not_null<PeerData*> peer,
+		const MTPmessages_ExportedChatInvites &slice) const;
 	[[nodiscard]] Link parse(
 		not_null<PeerData*> peer,
 		const MTPExportedChatInvite &invite) const;
-	[[nodiscard]] Link *lookupPermanent(not_null<PeerData*> peer);
-	[[nodiscard]] Link *lookupPermanent(Links &links);
-	[[nodiscard]] const Link *lookupPermanent(const Links &links) const;
+	[[nodiscard]] Link *lookupMyPermanent(not_null<PeerData*> peer);
+	[[nodiscard]] Link *lookupMyPermanent(Links &links);
+	[[nodiscard]] const Link *lookupMyPermanent(const Links &links) const;
 	Link prepend(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const MTPExportedChatInvite &invite);
+	void prependMyToFirstSlice(
+		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
+		const Link &link);
 	void notify(not_null<PeerData*> peer);
 
 	void editPermanentLink(
@@ -145,6 +159,7 @@ private:
 
 	void performEdit(
 		not_null<PeerData*> peer,
+		not_null<UserData*> admin,
 		const QString &link,
 		Fn<void(Link)> done,
 		bool revoke,
@@ -180,7 +195,12 @@ private:
 		std::vector<Fn<void()>>> _deleteRevokedCallbacks;
 
 	rpl::event_stream<Update> _updates;
-	rpl::event_stream<not_null<PeerData*>> _allRevokedDestroyed;
+
+	struct AllRevokedDestroyed {
+		not_null<PeerData*> peer;
+		not_null<UserData*> admin;
+	};
+	rpl::event_stream<AllRevokedDestroyed> _allRevokedDestroyed;
 
 };
 

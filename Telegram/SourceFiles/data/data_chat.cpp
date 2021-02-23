@@ -84,6 +84,11 @@ bool ChatData::canEditPreHistoryHidden() const {
 	return amCreator();
 }
 
+bool ChatData::canDeleteMessages() const {
+	return amCreator()
+		|| (adminRights() & AdminRight::f_delete_messages);
+}
+
 bool ChatData::canAddMembers() const {
 	return amIn() && !amRestricted(Restriction::f_invite_users);
 }
@@ -372,6 +377,7 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 		chat->clearGroupCall();
 	}
 
+	chat->setMessagesTTL(update.vttl_period().value_or_empty());
 	if (const auto info = update.vbot_info()) {
 		for (const auto &item : info->v) {
 			item.match([&](const MTPDbotInfo &data) {
@@ -390,9 +396,9 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 		chat->setUserpicPhoto(MTP_photoEmpty(MTP_long(0)));
 	}
 	if (const auto invite = update.vexported_invite()) {
-		chat->session().api().inviteLinks().setPermanent(chat, *invite);
+		chat->session().api().inviteLinks().setMyPermanent(chat, *invite);
 	} else {
-		chat->session().api().inviteLinks().clearPermanent(chat);
+		chat->session().api().inviteLinks().clearMyPermanent(chat);
 	}
 	if (const auto pinned = update.vpinned_msg_id()) {
 		SetTopPinnedMessageId(chat, pinned->v);

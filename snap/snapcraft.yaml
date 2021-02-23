@@ -5,6 +5,7 @@ icon: Telegram/Resources/art/icon512@2x.png
 base: core20
 grade: stable
 confinement: strict
+compression: lzo
 
 architectures:
   - build-on: amd64

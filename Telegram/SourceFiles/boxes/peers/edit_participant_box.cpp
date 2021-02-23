@@ -329,7 +329,7 @@ void EditAdminBox::prepare() {
 			if (!_saveCallback) {
 				return;
 			}
-			const auto newFlags = value()
+			const auto newFlags = (value() | ChatAdminRight::f_other)
 				& ((!channel || channel->amCreator())
 					? ~Flags(0)
 					: channel->adminRights());

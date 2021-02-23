@@ -24,6 +24,7 @@ class IconButton;
 class DropdownMenu;
 class UnreadBadge;
 class InfiniteRadialAnimation;
+enum class ReportReason;
 } // namespace Ui
 
 namespace Window {
@@ -69,6 +70,9 @@ public:
 	rpl::producer<> oldForwardSelectionRequest() const {
 		return _oldForwardSelection.events();
 	}
+	void showChooseMessagesForReport(Ui::ReportReason reason);
+	void clearChooseMessagesForReport();
+
 	rpl::producer<> forwardSelectionRequest() const {
 		return _forwardSelection.events();
 	}
@@ -86,6 +90,9 @@ public:
 	}
 	rpl::producer<> clearSelectionRequest() const {
 		return _clearSelection.events();
+	}
+	rpl::producer<> cancelChooseForReportRequest() const {
+		return _cancelChooseForReport.events();
 	}
 
 protected:
@@ -135,6 +142,9 @@ private:
 
 	void refreshUnreadBadge();
 	void updateUnreadBadge();
+	void setChooseForReportReason(std::optional<Ui::ReportReason> reason);
+	void toggleSelectedControls(bool shown);
+	[[nodiscard]] bool showSelectedActions() const;
 
 	const not_null<Window::SessionController*> _controller;
 	ActiveChat _activeChat;
@@ -152,6 +162,7 @@ private:
 	object_ptr<Ui::RoundButton> _forward, _sendNow, _delete, _forwardNoQuote, _savedMessages, _oldForward;
 
 	object_ptr<Ui::IconButton> _back;
+	object_ptr<Ui::IconButton> _cancelChoose;
 	object_ptr<Ui::UnreadBadge> _unreadBadge = { nullptr };
 	object_ptr<Ui::AbstractButton> _info = { nullptr };
 
@@ -175,6 +186,7 @@ private:
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _connecting;
 
 	SendActionPainter *_sendAction = nullptr;
+	std::optional<Ui::ReportReason> _chooseForReportReason;
 
 	base::Timer _onlineUpdater;
 
@@ -185,6 +197,7 @@ private:
 	rpl::event_stream<> _sendNowSelection;
 	rpl::event_stream<> _deleteSelection;
 	rpl::event_stream<> _clearSelection;
+	rpl::event_stream<> _cancelChooseForReport;
 
 	struct reqData {
 		int requestTime;

@@ -997,7 +997,8 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPstring(),
 				MTPlong(),
 				//MTPMessageReactions(),
-				MTPVector<MTPRestrictionReason>()),
+				MTPVector<MTPRestrictionReason>(),
+				MTP_int(d.vttl_period().value_or_empty())),
 			MTPDmessage_ClientFlags(),
 			NewMessageType::Unread);
 	} break;
@@ -1027,7 +1028,8 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				MTPstring(),
 				MTPlong(),
 				//MTPMessageReactions(),
-				MTPVector<MTPRestrictionReason>()),
+				MTPVector<MTPRestrictionReason>(),
+				MTP_int(d.vttl_period().value_or_empty())),
 			MTPDmessage_ClientFlags(),
 			NewMessageType::Unread);
 	} break;
@@ -1329,14 +1331,7 @@ void Updates::applyUpdates(
 						item->id,
 						ApiWrap::RequestMessageDataCallback());
 				}
-				item->updateSentContent({
-					sent.text,
-					Api::EntitiesFromMTP(&session(), list.value_or_empty())
-				}, d.vmedia());
-				item->contributeToSlowmode(d.vdate().v);
-				if (!wasAlready) {
-					item->indexAsNewItem();
-				}
+				item->applySentMessage(sent.text, d, wasAlready);
 			}
 		}
 
@@ -1822,6 +1817,14 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 					user,
 					Data::PeerUpdate::Flag::PhoneNumber);
 			}
+		}
+	} break;
+
+	case mtpc_updatePeerHistoryTTL: {
+		const auto &d = update.c_updatePeerHistoryTTL();
+		const auto peerId = peerFromMTP(d.vpeer());
+		if (const auto peer = session().data().peerLoaded(peerId)) {
+			peer->setMessagesTTL(d.vttl_period().value_or_empty());
 		}
 	} break;
 

@@ -11,10 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class PopupMenu;
+enum class ReportReason;
 } // namespace Ui
 
 namespace Window {
 class SessionNavigation;
+class SessionController;
 } // namespace Main
 
 namespace HistoryView {
@@ -55,4 +57,14 @@ void AddPollActions(
 	not_null<HistoryItem*> item,
 	Context context);
 
-} // namespace
+void ShowReportItemsBox(not_null<PeerData*> peer, MessageIdsList ids);
+void ShowReportPeerBox(
+	not_null<Window::SessionController*> window,
+	not_null<PeerData*> peer);
+void SendReport(
+	not_null<PeerData*> peer,
+	Ui::ReportReason reason,
+	const QString &comment,
+	MessageIdsList ids = {});
+
+} // namespace HistoryView

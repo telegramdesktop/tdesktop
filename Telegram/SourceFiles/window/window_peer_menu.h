@@ -86,6 +86,11 @@ void PeerMenuBlockUserBox(
 	std::variant<v::null_t, ClearChat, ClearReply> suggestClear);
 void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user);
 
+void BlockSenderFromRepliesBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionController*> controller,
+	FullMsgId id);
+
 void ToggleHistoryArchived(not_null<History*> history, bool archived);
 Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer);
 Fn<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer);

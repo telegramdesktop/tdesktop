@@ -64,12 +64,16 @@ PRIVATE
     platform/mac/file_bookmark_mac.mm
     platform/platform_file_bookmark.h
 
+    ui/boxes/auto_delete_settings.cpp
+    ui/boxes/auto_delete_settings.h
     ui/boxes/calendar_box.cpp
     ui/boxes/calendar_box.h
     ui/boxes/choose_date_time.cpp
     ui/boxes/choose_date_time.h
     ui/boxes/edit_invite_link.cpp
     ui/boxes/edit_invite_link.h
+    ui/boxes/report_box.cpp
+    ui/boxes/report_box.h
     ui/chat/attach/attach_album_thumbnail.cpp
     ui/chat/attach/attach_album_thumbnail.h
     ui/chat/attach/attach_album_preview.cpp
@@ -92,6 +96,8 @@ PRIVATE
     ui/chat/message_bar.h
     ui/chat/pinned_bar.cpp
     ui/chat/pinned_bar.h
+    ui/controls/delete_message_context_action.cpp
+    ui/controls/delete_message_context_action.h
     ui/controls/emoji_button.cpp
     ui/controls/emoji_button.h
     ui/controls/invite_link_buttons.cpp
