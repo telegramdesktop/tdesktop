@@ -4316,6 +4316,7 @@ void HistoryWidget::moveFieldControls() {
 			fullWidthButtonRect.height()));
 	} else {
 		_muteUnmute->setGeometry(fullWidthButtonRect);
+		_joinChannel->setGeometry(fullWidthButtonRect);
 		_reportMessages->setGeometry(fullWidthButtonRect);
 	}
 }
