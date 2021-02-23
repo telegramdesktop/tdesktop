@@ -524,6 +524,8 @@ PRIVATE
     editor/photo_editor_layer_widget.h
     editor/scene_item_base.cpp
     editor/scene_item_base.h
+    editor/stickers_panel_controller.cpp
+    editor/stickers_panel_controller.h
     editor/undo_controller.cpp
     editor/undo_controller.h
     export/export_manager.cpp
