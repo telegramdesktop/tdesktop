@@ -212,7 +212,7 @@ void QrBox(
 			st::boxLabel),
 		st::inviteLinkQrValuePadding);
 
-	box->addButton(
+	box->addLeftButton(
 		tr::lng_group_invite_context_copy(),
 		[=] { share(QrForShare(link)); });
 }
