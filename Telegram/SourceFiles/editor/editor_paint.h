@@ -16,7 +16,8 @@ class QGraphicsView;
 
 namespace Editor {
 
-class UndoController;
+struct Controllers;
+class ItemBase;
 
 // Paint control.
 class Paint final : public Ui::RpWidget {
@@ -25,7 +26,7 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		PhotoModifications &modifications,
 		const QSize &imageSize,
-		std::shared_ptr<UndoController> undoController);
+		std::shared_ptr<Controllers> controllers);
 
 	[[nodiscard]] std::shared_ptr<QGraphicsScene> saveScene() const;
 

@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_controls.h"
 
-#include "editor/undo_controller.h"
+#include "editor/controllers.h"
 #include "lang/lang_keys.h"
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/buttons.h"
@@ -134,7 +134,7 @@ void HorizontalContainer::updateChildrenPosition() {
 
 PhotoEditorControls::PhotoEditorControls(
 	not_null<Ui::RpWidget*> parent,
-	std::shared_ptr<UndoController> undoController,
+	std::shared_ptr<Controllers> controllers,
 	const PhotoModifications modifications,
 	bool doneControls)
 : RpWidget(parent)
@@ -223,11 +223,11 @@ PhotoEditorControls::PhotoEditorControls(
 
 	}, lifetime());
 
-	undoController->setPerformRequestChanges(rpl::merge(
+	controllers->undoController->setPerformRequestChanges(rpl::merge(
 		_undoButton->clicks() | rpl::map_to(Undo::Undo),
 		_redoButton->clicks() | rpl::map_to(Undo::Redo)));
 
-	undoController->canPerformChanges(
+	controllers->undoController->canPerformChanges(
 	) | rpl::start_with_next([=](const UndoController::EnableRequest &r) {
 		const auto isUndo = (r.command == Undo::Undo);
 		const auto &button = isUndo ? _undoButton : _redoButton;

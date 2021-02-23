@@ -10,9 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "editor/color_picker.h"
+#include "editor/controllers.h"
 #include "editor/photo_editor_content.h"
 #include "editor/photo_editor_controls.h"
-#include "editor/undo_controller.h"
+#include "window/window_controller.h"
 #include "styles/style_editor.h"
 
 namespace Editor {
@@ -45,21 +46,28 @@ constexpr auto kPrecision = 100000;
 
 PhotoEditor::PhotoEditor(
 	not_null<Ui::RpWidget*> parent,
+	not_null<Window::Controller*> controller,
 	std::shared_ptr<Image> photo,
 	PhotoModifications modifications,
 	EditorData data)
 : RpWidget(parent)
 , _modifications(std::move(modifications))
-, _undoController(std::make_shared<UndoController>())
+, _controllers(std::make_shared<Controllers>(
+	controller->sessionController()
+		? std::make_unique<StickersPanelController>(
+			this,
+			controller->sessionController())
+		: nullptr,
+	std::make_unique<UndoController>()))
 , _content(base::make_unique_q<PhotoEditorContent>(
 	this,
 	photo,
 	_modifications,
-	_undoController,
+	_controllers,
 	std::move(data)))
 , _controls(base::make_unique_q<PhotoEditorControls>(
 	this,
-	_undoController,
+	_controllers,
 	_modifications))
 , _colorPicker(std::make_unique<ColorPicker>(
 	this,

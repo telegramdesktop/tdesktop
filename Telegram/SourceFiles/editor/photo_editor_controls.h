@@ -19,13 +19,13 @@ namespace Editor {
 
 class EdgeButton;
 class HorizontalContainer;
-class UndoController;
+struct Controllers;
 
 class PhotoEditorControls final : public Ui::RpWidget {
 public:
 	PhotoEditorControls(
 		not_null<Ui::RpWidget*> parent,
-		std::shared_ptr<UndoController> undoController,
+		std::shared_ptr<Controllers> controllers,
 		const PhotoModifications modifications,
 		bool doneControls = true);
 

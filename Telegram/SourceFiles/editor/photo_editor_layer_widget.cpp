@@ -140,6 +140,7 @@ LayerWidget::LayerWidget(
 : Ui::LayerWidget(parent)
 , _content(base::make_unique_q<PhotoEditor>(
 	this,
+	window,
 	photo,
 	std::move(modifications),
 	std::move(data))) {

@@ -13,17 +13,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_common.h"
 #include "ui/image/image.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Editor {
 
 class ColorPicker;
 class PhotoEditorContent;
 class PhotoEditorControls;
-class UndoController;
+struct Controllers;
 
 class PhotoEditor final : public Ui::RpWidget {
 public:
 	PhotoEditor(
 		not_null<Ui::RpWidget*> parent,
+		not_null<Window::Controller*> controller,
 		std::shared_ptr<Image> photo,
 		PhotoModifications modifications,
 		EditorData data = EditorData());
@@ -36,7 +41,7 @@ private:
 
 	PhotoModifications _modifications;
 
-	const std::shared_ptr<UndoController> _undoController;
+	const std::shared_ptr<Controllers> _controllers;
 
 	base::unique_qptr<PhotoEditorContent> _content;
 	base::unique_qptr<PhotoEditorControls> _controls;

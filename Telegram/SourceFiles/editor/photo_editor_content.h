@@ -16,7 +16,7 @@ namespace Editor {
 
 class Crop;
 class Paint;
-class UndoController;
+struct Controllers;
 
 class PhotoEditorContent final : public Ui::RpWidget {
 public:
@@ -24,7 +24,7 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<Image> photo,
 		PhotoModifications modifications,
-		std::shared_ptr<UndoController> undoController,
+		std::shared_ptr<Controllers> controllers,
 		EditorData data);
 
 	void applyModifications(PhotoModifications modifications);

@@ -7,7 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_paint.h"
 
-#include "editor/undo_controller.h"
+#include "editor/scene_item_base.h"
+#include "editor/controllers.h"
 #include "base/event_filter.h"
 
 #include <QGraphicsItemGroup>
@@ -42,7 +43,7 @@ Paint::Paint(
 	not_null<Ui::RpWidget*> parent,
 	PhotoModifications &modifications,
 	const QSize &imageSize,
-	std::shared_ptr<UndoController> undoController)
+	std::shared_ptr<Controllers> controllers)
 : RpWidget(parent)
 , _scene(EnsureScene(modifications))
 , _view(base::make_unique_q<QGraphicsView>(_scene.get(), this))
@@ -61,7 +62,7 @@ Paint::Paint(
 	initDrawing();
 
 	// Undo / Redo.
-	undoController->performRequestChanges(
+	controllers->undoController->performRequestChanges(
 	) | rpl::start_with_next([=](const Undo &command) {
 		const auto isUndo = (command == Undo::Undo);
 
@@ -81,7 +82,7 @@ Paint::Paint(
 		_hasRedo = hasRedo();
 	}, lifetime());
 
-	undoController->setCanPerformChanges(rpl::merge(
+	controllers->undoController->setCanPerformChanges(rpl::merge(
 		_hasUndo.value() | rpl::map([](bool enable) {
 			return UndoController::EnableRequest{
 				.command = Undo::Undo,
