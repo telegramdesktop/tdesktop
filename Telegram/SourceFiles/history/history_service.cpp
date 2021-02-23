@@ -1045,6 +1045,7 @@ void HistoryService::applyEdition(const MTPDmessageService &message) {
 	UpdateComponents(0);
 
 	createFromMtp(message);
+	applyServiceDateEdition(message);
 
 	if (message.vaction().type() == mtpc_messageActionHistoryClear) {
 		removeMedia();
