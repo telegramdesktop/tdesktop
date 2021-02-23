@@ -525,6 +525,18 @@ void MainWindow::stateChangedHook(Qt::WindowState state) {
 
 void MainWindow::handleActiveChangedHook() {
 	InvokeQueued(this, [this] { _private->updateNativeTitle(); });
+
+	// On macOS just remove trayIcon menu if the window is not active.
+	// So we will activate the window on click instead of showing the menu.
+	if (isActiveForTrayMenu()) {
+		if (trayIcon
+			&& trayIconMenu
+			&& trayIcon->contextMenu() != trayIconMenu) {
+			trayIcon->setContextMenu(trayIconMenu);
+		}
+	} else if (trayIcon) {
+		trayIcon->setContextMenu(nullptr);
+	}
 }
 
 void MainWindow::initHook() {
@@ -555,16 +567,6 @@ void MainWindow::psShowTrayMenu() {
 }
 
 void MainWindow::psTrayMenuUpdated() {
-	// On macOS just remove trayIcon menu if the window is not active.
-	// So we will activate the window on click instead of showing the menu.
-	if (isActive()) {
-		if (trayIcon && trayIconMenu
-			&& trayIcon->contextMenu() != trayIconMenu) {
-			trayIcon->setContextMenu(trayIconMenu);
-		}
-	} else if (trayIcon) {
-		trayIcon->setContextMenu(nullptr);
-	}
 }
 
 void MainWindow::psSetupTrayIcon() {
@@ -573,6 +575,11 @@ void MainWindow::psSetupTrayIcon() {
 		trayIcon->setIcon(generateIconForTray(
 			Core::App().unreadBadge(),
 			Core::App().unreadBadgeMuted()));
+		if (isActiveForTrayMenu()) {
+			trayIcon->setContextMenu(trayIconMenu);
+		} else {
+			trayIcon->setContextMenu(nullptr);
+		}
 		attachToTrayIcon(trayIcon);
 	} else {
 		updateIconCounters();

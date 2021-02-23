@@ -59,5 +59,7 @@ private:
 
 };
 
+[[nodiscard]] QImage TelegramLogoImage();
+
 } // namespace details
 } // namespace Intro

@@ -195,6 +195,14 @@ TimeId HistoryItem::NewMessageDate(TimeId scheduled) {
 	return scheduled ? scheduled : base::unixtime::now();
 }
 
+void HistoryItem::applyServiceDateEdition(const MTPDmessageService &data) {
+	const auto date = data.vdate().v;
+	if (_date == date) {
+		return;
+	}
+	_date = date;
+}
+
 void HistoryItem::finishEdition(int oldKeyboardTop) {
 	_history->owner().requestItemViewRefresh(this);
 	invalidateChatListEntry();

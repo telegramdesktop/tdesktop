@@ -416,6 +416,7 @@ protected:
 	virtual void markMediaAsReadHook() {
 	}
 
+	void applyServiceDateEdition(const MTPDmessageService &data);
 	void finishEdition(int oldKeyboardTop);
 	void finishEditionToEmpty();
 

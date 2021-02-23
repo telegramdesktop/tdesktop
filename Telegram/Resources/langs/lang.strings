@@ -1120,8 +1120,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_changed_title_channel" = "Channel name was changed to «{title}»";
 "lng_action_created_chat" = "{from} created group «{title}»";
 "lng_action_ttl_changed" = "{from} has set messages to auto-delete in {duration}";
+"lng_action_ttl_changed_you" = "You set messages to auto-delete in {duration}";
 "lng_action_ttl_changed_channel" = "New messages will auto-delete in {duration}";
 "lng_action_ttl_removed" = "{from} has set messages not to auto-delete";
+"lng_action_ttl_removed_you" = "You disabled the auto-delete timer";
 "lng_action_ttl_removed_channel" = "New messages will not auto-delete";
 "lng_action_created_channel" = "Channel created";
 "lng_action_pinned_message" = "{from} pinned «{text}»";
@@ -1239,6 +1241,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_context_copy" = "Copy";
 "lng_group_invite_context_share" = "Share";
 "lng_group_invite_context_edit" = "Edit";
+"lng_group_invite_context_qr" = "Get QR Code";
 "lng_group_invite_context_revoke" = "Revoke";
 "lng_group_invite_context_delete" = "Delete";
 "lng_group_invite_context_delete_all" = "Delete all";
@@ -1268,6 +1271,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_used_about" = "This link reached its usage limit.";
 "lng_group_invite_can_join_via_link#one" = "{count} person can join via this link.";
 "lng_group_invite_can_join_via_link#other" = "{count} people can join via this link.";
+"lng_group_invite_qr_title" = "Invite by QR Code";
+"lng_group_invite_qr_about" = "Everyone on Telegram can scan this code to join your group.";
+"lng_group_invite_qr_copied" = "QR Code copied to clipboard.";
 
 "lng_channel_public_link_copied" = "Link copied to clipboard.";
 "lng_context_about_private_link" = "This link will only work for members of this chat.";
@@ -1728,6 +1734,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_delete_for_me_hint#one" = "This will delete it just for you.";
 "lng_delete_for_me_hint#other" = "This will delete them just for you.";
 "lng_edit_auto_delete_settings" = "Edit Auto-Delete Settings";
+"lng_enable_auto_delete" = "Enable Auto-Delete";
 "lng_selected_unsend_about_user_one" = "You can also delete the message you sent from {user}'s inbox by checking \"Unsend my messages\".";
 "lng_selected_unsend_about_user#one" = "You can also delete the {count} message you sent from {user}'s inbox by checking \"Unsend my messages\".";
 "lng_selected_unsend_about_user#other" = "You can also delete the {count} messages you sent from {user}'s inbox by checking \"Unsend my messages\".";

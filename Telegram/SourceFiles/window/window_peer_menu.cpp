@@ -558,6 +558,11 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 		if (channel->isBroadcast() || channel->isMegagroup()) {
 			if (const auto chat = channel->linkedChat()) {
 				_addAction(channel->isMegagroup() ? tr::lng_profile_view_channel(tr::now) : tr::lng_profile_view_discussion(tr::now), [=] {
+					if (channel->invitePeekExpires()) {
+						Ui::Toast::Show(
+							tr::lng_channel_invite_private(tr::now));
+						return;
+					}
 					navigation->showPeerHistory(
 						chat,
 						Window::SectionShow::Way::Forward);
