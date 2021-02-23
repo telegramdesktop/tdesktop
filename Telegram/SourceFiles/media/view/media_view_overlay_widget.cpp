@@ -2495,19 +2495,21 @@ bool OverlayWidget::initStreaming(bool continueStreaming) {
 void OverlayWidget::startStreamingPlayer() {
 	Expects(_streamed != nullptr);
 
-	if (!_streamed->instance.player().paused()
-		&& !_streamed->instance.player().finished()
-		&& !_streamed->instance.player().failed()) {
+	const auto &player = _streamed->instance.player();
+	if (player.playing()) {
 		if (!_streamed->withSound) {
 			return;
 		}
+		_pip = nullptr;
+	} else if (!player.paused() && !player.finished() && !player.failed()) {
 		_pip = nullptr;
 	} else if (_pip && _streamed->withSound) {
 		return;
 	}
 
 	const auto position = _document
-		? _document->session().settings().mediaLastPlaybackPosition(_document->id)
+		? _document->session().settings().mediaLastPlaybackPosition(
+			_document->id)
 		: _photo
 		? _photo->videoStartPosition()
 		: 0;
