@@ -1,3 +1,14 @@
+2.6 (23.02.21)
+
+- Set messages to auto-delete for everyone 24 hours or 7 days after sending.
+- Control auto-delete settings in any of your chats, as well as in groups and channels where you are an admin.
+- To enable auto-delete, right click on the chat in the chat list > Clear History > Enable Auto-Delete.
+- Create invite links that work for a limited time or a limited number of uses.
+- See which users joined using your, or your admins', invite links.
+- Turn any invite link into a QR code users can scan with their phone cameras.
+- To manage invite links, click ... > Manage Group/Channel > Invite Links.
+- Convert groups that have reached 200,000 members into unlimited Broadcast Groups.
+
 2.5.9 (17.02.21)
 
 - Add 'Invite via Link' button to Add Members box.
