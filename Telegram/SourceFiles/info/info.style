@@ -945,6 +945,11 @@ inviteLinkThreeDotsSkip: 12px;
 inviteLinkRevokedTitlePadding: margins(22px, 16px, 10px, 4px);
 inviteLinkLimitMargin: margins(22px, 8px, 22px, 8px);
 
+inviteLinkQrPixel: 8px;
+inviteLinkQrSkip: 24px;
+inviteLinkQrMargin: margins(0px, 0px, 0px, 13px);
+inviteLinkQrValuePadding: margins(22px, 0px, 22px, 12px);
+
 infoAboutGigagroup: FlatLabel(defaultFlatLabel) {
 	minWidth: 274px;
 }

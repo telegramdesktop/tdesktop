@@ -34,6 +34,7 @@ void AddPermanentLinkBlock(
 
 void CopyInviteLink(const QString &link);
 void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link);
+void InviteLinkQrBox(const QString &link);
 void RevokeLink(
 	not_null<PeerData*> peer,
 	not_null<UserData*> admin,

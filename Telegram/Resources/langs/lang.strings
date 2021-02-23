@@ -1232,6 +1232,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_context_copy" = "Copy";
 "lng_group_invite_context_share" = "Share";
 "lng_group_invite_context_edit" = "Edit";
+"lng_group_invite_context_qr" = "Get QR Code";
 "lng_group_invite_context_revoke" = "Revoke";
 "lng_group_invite_context_delete" = "Delete";
 "lng_group_invite_context_delete_all" = "Delete all";
@@ -1261,6 +1262,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_invite_used_about" = "This link reached its usage limit.";
 "lng_group_invite_can_join_via_link#one" = "{count} person can join via this link.";
 "lng_group_invite_can_join_via_link#other" = "{count} people can join via this link.";
+"lng_group_invite_qr_title" = "Invite by QR Code";
+"lng_group_invite_qr_about" = "Everyone on Telegram can scan this code to join your group.";
+"lng_group_invite_qr_copied" = "QR Code copied to clipboard.";
 
 "lng_channel_public_link_copied" = "Link copied to clipboard.";
 "lng_context_about_private_link" = "This link will only work for members of this chat.";

@@ -32,24 +32,6 @@ namespace Intro {
 namespace details {
 namespace {
 
-[[nodiscard]] QImage TelegramLogoImage() {
-	const auto size = QSize(st::introQrCenterSize, st::introQrCenterSize);
-	auto result = QImage(
-		size * style::DevicePixelRatio(),
-		QImage::Format_ARGB32_Premultiplied);
-	result.fill(Qt::transparent);
-	result.setDevicePixelRatio(style::DevicePixelRatio());
-	{
-		auto p = QPainter(&result);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setBrush(st::activeButtonBg);
-		p.setPen(Qt::NoPen);
-		p.drawEllipse(QRect(QPoint(), size));
-		st::introQrPlane.paintInCenter(p, QRect(QPoint(), size));
-	}
-	return result;
-}
-
 [[nodiscard]] QImage TelegramQrExact(const Qr::Data &data, int pixel) {
 	return Qr::Generate(data, pixel, st::windowFg->c);
 }
@@ -428,6 +410,24 @@ void QrWidget::finished() {
 
 void QrWidget::cancelled() {
 	api().request(base::take(_requestId)).cancel();
+}
+
+QImage TelegramLogoImage() {
+	const auto size = QSize(st::introQrCenterSize, st::introQrCenterSize);
+	auto result = QImage(
+		size * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
+	{
+		auto p = QPainter(&result);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(st::activeButtonBg);
+		p.setPen(Qt::NoPen);
+		p.drawEllipse(QRect(QPoint(), size));
+		st::introQrPlane.paintInCenter(p, QRect(QPoint(), size));
+	}
+	return result;
 }
 
 } // namespace details

@@ -38,17 +38,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "settings/settings_common.h"
 #include "mtproto/sender.h"
+#include "qr/qr_generate.h"
+#include "intro/intro_qr.h" // TelegramLogoImage
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h" // st::boxDividerLabel.
 #include "styles/style_info.h"
 #include "styles/style_settings.h"
 
 #include <QtGui/QGuiApplication>
+#include <QtCore/QMimeData>
 
 namespace {
 
 constexpr auto kFirstPage = 20;
 constexpr auto kPerPage = 100;
+constexpr auto kShareQrSize = 768;
+constexpr auto kShareQrPadding = 16;
 
 using LinkData = Api::InviteLink;
 
@@ -113,6 +118,105 @@ private:
 	return updated.link.isEmpty() || (!revoked && updated.revoked);
 }
 
+QImage QrExact(const Qr::Data &data, int pixel) {
+	const auto image = [](int size) {
+		auto result = QImage(
+			size,
+			size,
+			QImage::Format_ARGB32_Premultiplied);
+		result.fill(Qt::transparent);
+		{
+			QPainter p(&result);
+			const auto skip = size / 12;
+			const auto logoSize = size - 2 * skip;
+			p.drawImage(
+				skip,
+				skip,
+				Intro::details::TelegramLogoImage().scaled(
+					logoSize,
+					logoSize,
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation));
+		}
+		return result;
+	};
+	return Qr::ReplaceCenter(
+		Qr::Generate(data, pixel, st::windowFg->c),
+		image(Qr::ReplaceSize(data, pixel)));
+}
+
+QImage Qr(const Qr::Data &data, int pixel, int max = 0) {
+	Expects(data.size > 0);
+
+	if (max > 0 && data.size * pixel > max) {
+		pixel = std::max(max / data.size, 1);
+	}
+	return QrExact(data, pixel * style::DevicePixelRatio());
+}
+
+QImage Qr(const QString &text, int pixel, int max) {
+	return Qr(Qr::Encode(text), pixel, max);
+}
+
+QImage QrForShare(const QString &text) {
+	const auto data = Qr::Encode(text);
+	const auto size = (kShareQrSize - 2 * kShareQrPadding);
+	const auto image = QrExact(data, size / data.size);
+	auto result = QImage(
+		kShareQrPadding * 2 + image.width(),
+		kShareQrPadding * 2 + image.height(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::white);
+	{
+		auto p = QPainter(&result);
+		p.drawImage(kShareQrPadding, kShareQrPadding, image);
+	}
+	return result;
+}
+
+void QrBox(
+		not_null<Ui::GenericBox*> box,
+		const QString &link,
+		Fn<void(QImage)> share) {
+	box->setTitle(tr::lng_group_invite_qr_title());
+
+	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
+
+	const auto qr = Qr(
+		link,
+		st::inviteLinkQrPixel,
+		st::boxWidth - st::boxRowPadding.left() - st::boxRowPadding.right());
+	const auto size = qr.width() / style::DevicePixelRatio();
+	const auto height = st::inviteLinkQrSkip * 2 + size;
+	const auto container = box->addRow(
+		object_ptr<Ui::BoxContentDivider>(box, height),
+		st::inviteLinkQrMargin);
+	const auto button = Ui::CreateChild<Ui::AbstractButton>(container);
+	button->resize(size, size);
+	button->paintRequest(
+	) | rpl::start_with_next([=] {
+		QPainter(button).drawImage(QRect(0, 0, size, size), qr);
+	}, button->lifetime());
+	container->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		button->move((width - size) / 2, st::inviteLinkQrSkip);
+	}, button->lifetime());
+	button->setClickedCallback([=] {
+		share(QrForShare(link));
+	});
+
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_group_invite_qr_about(),
+			st::boxLabel),
+		st::inviteLinkQrValuePadding);
+
+	box->addButton(
+		tr::lng_group_invite_context_copy(),
+		[=] { share(QrForShare(link)); });
+}
+
 Controller::Controller(
 	not_null<PeerData*> peer,
 	not_null<UserData*> admin,
@@ -147,6 +251,9 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	const auto shareLink = crl::guard(weak, [=] {
 		ShareInviteLinkBox(_peer, link);
 	});
+	const auto getLinkQr = crl::guard(weak, [=] {
+		InviteLinkQrBox(link);
+	});
 	const auto revokeLink = crl::guard(weak, [=] {
 		RevokeLink(_peer, admin, link);
 	});
@@ -170,6 +277,9 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 			result->addAction(
 				tr::lng_group_invite_context_share(tr::now),
 				shareLink);
+			result->addAction(
+				tr::lng_group_invite_context_qr(tr::now),
+				getLinkQr);
 			if (!admin->isBot()) {
 				result->addAction(
 					tr::lng_group_invite_context_edit(tr::now),
@@ -473,12 +583,15 @@ SingleRowController::SingleRowController(
 
 void SingleRowController::prepare() {
 	auto row = std::make_unique<PeerListRow>(_peer);
+
 	const auto raw = row.get();
 	std::move(
 		_status
 	) | rpl::start_with_next([=](const QString &status) {
 		raw->setCustomStatus(status);
+		delegate()->peerListUpdateRow(raw);
 	}, _lifetime);
+
 	delegate()->peerListAppendRow(std::move(row));
 	delegate()->peerListRefreshRows();
 }
@@ -561,6 +674,11 @@ void AddPermanentLinkBlock(
 			ShareInviteLinkBox(peer, current.link);
 		}
 	});
+	const auto getLinkQr = crl::guard(weak, [=] {
+		if (const auto current = value->current(); !current.link.isEmpty()) {
+			InviteLinkQrBox(current.link);
+		}
+	});
 	const auto revokeLink = crl::guard(weak, [=] {
 		const auto box = std::make_shared<QPointer<ConfirmBox>>();
 		const auto done = crl::guard(weak, [=] {
@@ -595,6 +713,9 @@ void AddPermanentLinkBlock(
 		result->addAction(
 			tr::lng_group_invite_context_share(tr::now),
 			shareLink);
+		result->addAction(
+			tr::lng_group_invite_context_qr(tr::now),
+			getLinkQr);
 		if (!admin->isBot()) {
 			result->addAction(
 				tr::lng_group_invite_context_revoke(tr::now),
@@ -788,6 +909,16 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 			std::move(submitCallback),
 			std::move(filterCallback)),
 		Ui::LayerOption::KeepOther);
+}
+
+void InviteLinkQrBox(const QString &link) {
+	Ui::show(Box(QrBox, link, [=](const QImage &image) {
+		auto mime = std::make_unique<QMimeData>();
+		mime->setImageData(image);
+		QGuiApplication::clipboard()->setMimeData(mime.release());
+
+		Ui::Toast::Show(tr::lng_group_invite_qr_copied(tr::now));
+	}));
 }
 
 void EditLink(

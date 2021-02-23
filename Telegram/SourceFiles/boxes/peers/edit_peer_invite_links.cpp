@@ -572,6 +572,9 @@ base::unique_qptr<Ui::PopupMenu> LinksController::createRowContextMenu(
 		result->addAction(tr::lng_group_invite_context_share(tr::now), [=] {
 			ShareInviteLinkBox(_peer, link);
 		});
+		result->addAction(tr::lng_group_invite_context_qr(tr::now), [=] {
+			InviteLinkQrBox(link);
+		});
 		result->addAction(tr::lng_group_invite_context_edit(tr::now), [=] {
 			EditLink(_peer, data);
 		});
