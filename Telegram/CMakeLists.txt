@@ -522,6 +522,8 @@ PRIVATE
     editor/photo_editor_controls.h
     editor/photo_editor_layer_widget.cpp
     editor/photo_editor_layer_widget.h
+    editor/scene_item_base.cpp
+    editor/scene_item_base.h
     editor/undo_controller.cpp
     editor/undo_controller.h
     export/export_manager.cpp

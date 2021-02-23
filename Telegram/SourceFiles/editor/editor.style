@@ -56,3 +56,7 @@ photoEditorColorPickerCircleSkip: 50px;
 
 photoEditorCropPointSize: 10px;
 photoEditorCropMinSize: 20px;
+
+photoEditorItemHandleSize: 10px;
+photoEditorItemMinSize: 16px;
+photoEditorItemMaxSize: 512px;
