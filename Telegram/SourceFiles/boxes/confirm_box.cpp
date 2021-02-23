@@ -675,7 +675,9 @@ void DeleteMessagesBox::prepare() {
 		_wipeHistoryPeer->updateFull();
 		_autoDeleteSettings.create(
 			this,
-			tr::lng_edit_auto_delete_settings(tr::now),
+			(_wipeHistoryPeer->messagesTTL()
+				? tr::lng_edit_auto_delete_settings(tr::now)
+				: tr::lng_enable_auto_delete(tr::now)),
 			st::boxLinkButton);
 		_autoDeleteSettings->setClickedCallback([=] {
 			getDelegate()->show(
