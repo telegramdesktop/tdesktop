@@ -159,6 +159,11 @@ PhotoEditorControls::PhotoEditorControls(
 , _paintModeButtonActive(base::make_unique_q<Ui::IconButton>(
 	_paintButtons,
 	st::photoEditorPaintModeButton))
+, _stickersButton(controllers->stickersPanelController
+		? base::make_unique_q<Ui::IconButton>(
+			_paintButtons,
+			st::photoEditorStickersButton)
+		: nullptr)
 , _cancel(base::make_unique_q<EdgeButton>(
 	this,
 	tr::lng_cancel(tr::now),
@@ -242,6 +247,27 @@ PhotoEditorControls::PhotoEditorControls(
 			? &st::photoEditorUndoButtonInactive
 			: &st::photoEditorRedoButtonInactive);
 	}, lifetime());
+
+	if (_stickersButton) {
+		controllers->stickersPanelController->setShowRequestChanges(
+			_stickersButton->clicks(
+			) | rpl::map_to(std::optional<bool>(std::nullopt)));
+
+		controllers->stickersPanelController->setMoveRequestChanges(
+			_paintButtons->positionValue(
+			) | rpl::map([=](const QPoint &containerPos) {
+				return QPoint(
+					(x() + width()) / 2,
+					y() + containerPos.y() + _stickersButton->y());
+			}));
+
+		controllers->stickersPanelController->panelShown(
+		) | rpl::start_with_next([=](bool shown) {
+			_stickersButton->setIconOverride(shown
+				? &st::photoEditorStickersButton.iconOver
+				: nullptr);
+		}, _stickersButton->lifetime());
+	}
 
 	_flipButton->clicks(
 	) | rpl::start_with_next([=] {

@@ -95,6 +95,12 @@ Paint::Paint(
 				.enable = enable,
 			};
 		})));
+
+	if (controllers->stickersPanelController) {
+		controllers->stickersPanelController->setShowRequestChanges(
+			controllers->stickersPanelController->stickerChosen(
+			) | rpl::map_to(std::optional<bool>(false)));
+	}
 }
 
 void Paint::applyTransform(QRect geometry, int angle, bool flipped) {

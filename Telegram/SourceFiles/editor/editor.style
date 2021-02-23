@@ -39,6 +39,10 @@ photoEditorRedoButton: IconButton(historyAttach) {
 	icon: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFg }};
 	iconOver: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgOver }};
 }
+photoEditorStickersButton: IconButton(historyAttach) {
+	icon: icon {{ "settings_stickers", photoEditorButtonIconFg }};
+	iconOver: icon {{ "settings_stickers", photoEditorButtonIconFgOver }};
+}
 
 photoEditorUndoButtonInactive: icon {{ "photo_editor/undo", photoEditorButtonIconFgInactive }};
 photoEditorRedoButtonInactive: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgInactive }};

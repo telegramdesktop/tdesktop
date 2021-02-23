@@ -50,6 +50,7 @@ private:
 	const base::unique_qptr<Ui::IconButton> _undoButton;
 	const base::unique_qptr<Ui::IconButton> _redoButton;
 	const base::unique_qptr<Ui::IconButton> _paintModeButtonActive;
+	const base::unique_qptr<Ui::IconButton> _stickersButton;
 
 	const base::unique_qptr<EdgeButton> _cancel;
 	const base::unique_qptr<EdgeButton> _done;
