@@ -53,6 +53,7 @@ private:
 	std::vector<QGraphicsItem*> groups(
 		Qt::SortOrder order = Qt::DescendingOrder) const;
 
+	const std::shared_ptr<float64> _lastZ;
 	const std::shared_ptr<QGraphicsScene> _scene;
 	const base::unique_qptr<QGraphicsView> _view;
 	const QSize _imageSize;

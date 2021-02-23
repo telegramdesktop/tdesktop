@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_paint.h"
 
 #include "editor/scene_item_base.h"
+#include "editor/scene_item_sticker.h"
 #include "editor/controllers.h"
 #include "base/event_filter.h"
 
@@ -45,6 +46,7 @@ Paint::Paint(
 	const QSize &imageSize,
 	std::shared_ptr<Controllers> controllers)
 : RpWidget(parent)
+, _lastZ(std::make_shared<float64>(0.))
 , _scene(EnsureScene(modifications))
 , _view(base::make_unique_q<QGraphicsView>(_scene.get(), this))
 , _imageSize(imageSize) {
@@ -100,6 +102,18 @@ Paint::Paint(
 		controllers->stickersPanelController->setShowRequestChanges(
 			controllers->stickersPanelController->stickerChosen(
 			) | rpl::map_to(std::optional<bool>(false)));
+
+		controllers->stickersPanelController->stickerChosen(
+		) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+			const auto s = _scene->sceneRect().size();
+			const auto size = std::min(s.width(), s.height()) / 2;
+			const auto x = s.width() / 2;
+			const auto y = s.height() / 2;
+			const auto item = new ItemSticker(document, _lastZ, size, x, y);
+			item->setZValue((*_lastZ)++);
+			_scene->addItem(item);
+			_scene->clearSelection();
+		}, lifetime());
 	}
 }
 
@@ -172,6 +186,7 @@ void Paint::initDrawing() {
 }
 
 std::shared_ptr<QGraphicsScene> Paint::saveScene() const {
+	_scene->clearSelection();
 	return _scene->items().empty()
 		? nullptr
 		: ranges::none_of(_scene->items(), &QGraphicsItem::isVisible)
