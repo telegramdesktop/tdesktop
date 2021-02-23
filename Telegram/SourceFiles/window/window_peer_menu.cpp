@@ -552,6 +552,11 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 		if (channel->isBroadcast()) {
 			if (const auto chat = channel->linkedChat()) {
 				_addAction(tr::lng_profile_view_discussion(tr::now), [=] {
+					if (channel->invitePeekExpires()) {
+						Ui::Toast::Show(
+							tr::lng_channel_invite_private(tr::now));
+						return;
+					}
 					navigation->showPeerHistory(
 						chat,
 						Window::SectionShow::Way::Forward);
