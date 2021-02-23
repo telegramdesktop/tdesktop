@@ -280,7 +280,6 @@ void MainWindow::handleActiveChanged() {
 		Core::App().checkMediaViewActivation();
 	}
 	base::call_delayed(1, this, [this] {
-		updateTrayMenu();
 		handleActiveChangedHook();
 	});
 }
@@ -300,7 +299,6 @@ void MainWindow::handleVisibleChanged(bool visible) {
 
 void MainWindow::showFromTray() {
 	base::call_delayed(1, this, [this] {
-		updateTrayMenu();
 		updateGlobalMenu();
 	});
 	activate();
@@ -556,7 +554,6 @@ void MainWindow::attachToTrayIcon(not_null<QSystemTrayIcon*> icon) {
 			handleTrayIconActication(reason);
 		});
 	});
-	App::wnd()->updateTrayMenu();
 }
 
 void MainWindow::paintEvent(QPaintEvent *e) {
@@ -694,7 +691,6 @@ bool MainWindow::minimizeToTray() {
 
 	closeWithoutDestroy();
 	controller().updateIsActiveBlur();
-	updateTrayMenu();
 	updateGlobalMenu();
 	showTrayTooltip();
 	return true;

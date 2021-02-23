@@ -54,7 +54,6 @@ System::System()
 , _waitForAllGroupedTimer([=] { showGrouped(); }) {
 	subscribe(settingsChanged(), [=](ChangeType type) {
 		if (type == ChangeType::DesktopEnabled) {
-			App::wnd()->updateTrayMenu();
 			clearAll();
 		} else if (type == ChangeType::ViewParams) {
 			updateAll();
