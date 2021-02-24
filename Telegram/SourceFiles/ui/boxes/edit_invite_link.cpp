@@ -120,10 +120,10 @@ void EditInviteLinkBox(
 		int expireValue = 0;
 		int usageValue = 0;
 	};
-	const auto state = container->lifetime().make_state<State>(State{
+	const auto state = box->lifetime().make_state<State>(State{
 		.expireValue = expire,
 		.usageValue = usage
-		});
+	});
 	const auto regenerate = [=] {
 		expireGroup->setValue(state->expireValue);
 		usageGroup->setValue(state->usageValue);
