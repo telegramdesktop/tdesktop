@@ -1,3 +1,10 @@
+2.6.1 (24.02.21)
+
+- Fix time formatting in links.
+- Fix copy QR code in night mode.
+- Fix invite link sharing without a comment.
+- Fix crash in link editing on Linux.
+
 2.6 (23.02.21)
 
 - Set messages to auto-delete for everyone 24 hours or 7 days after sending.
