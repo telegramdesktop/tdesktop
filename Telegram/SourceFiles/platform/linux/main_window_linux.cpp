@@ -139,7 +139,7 @@ bool XCBSkipTaskbar(QWindow *window, bool set) {
 
 bool SkipTaskbar(QWindow *window, bool set) {
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-	if (!IsWayland()) {
+	if (IsX11()) {
 		return XCBSkipTaskbar(window, set);
 	}
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
