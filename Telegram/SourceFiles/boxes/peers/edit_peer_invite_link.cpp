@@ -881,6 +881,8 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 			for (auto &tag : comment.tags) {
 				tag.offset += add;
 			}
+		} else {
+			comment.text = link;
 		}
 		const auto owner = &peer->owner();
 		auto &api = peer->session().api();
