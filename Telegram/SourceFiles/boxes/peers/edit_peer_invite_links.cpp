@@ -166,7 +166,7 @@ private:
 			link.usageLimit)
 		: tr::lng_group_invite_no_joined(tr::now);
 	const auto add = [&](const QString &text) {
-		result += QString::fromUtf8(" \xE2\xB8\xB1 ") + text;
+		result += QString::fromUtf8(" \xE2\x80\xA2 ") + text;
 	};
 	if (revoked) {
 		return result;
@@ -189,8 +189,7 @@ private:
 				left / 86400));
 		} else {
 			const auto time = base::unixtime::parse(link.expireDate).time();
-			add(time.toString(QLocale::system().dateTimeFormat(
-				QLocale::LongFormat)));
+			add(QLocale::system().toString(time, QLocale::LongFormat));
 		}
 	}
 	return result;
