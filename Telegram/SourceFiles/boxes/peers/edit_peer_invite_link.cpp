@@ -118,7 +118,7 @@ private:
 	return updated.link.isEmpty() || (!revoked && updated.revoked);
 }
 
-QImage QrExact(const Qr::Data &data, int pixel) {
+QImage QrExact(const Qr::Data &data, int pixel, QColor color) {
 	const auto image = [](int size) {
 		auto result = QImage(
 			size,
@@ -141,7 +141,7 @@ QImage QrExact(const Qr::Data &data, int pixel) {
 		return result;
 	};
 	return Qr::ReplaceCenter(
-		Qr::Generate(data, pixel, st::windowFg->c),
+		Qr::Generate(data, pixel, color),
 		image(Qr::ReplaceSize(data, pixel)));
 }
 
@@ -151,7 +151,7 @@ QImage Qr(const Qr::Data &data, int pixel, int max = 0) {
 	if (max > 0 && data.size * pixel > max) {
 		pixel = std::max(max / data.size, 1);
 	}
-	return QrExact(data, pixel * style::DevicePixelRatio());
+	return QrExact(data, pixel * style::DevicePixelRatio(), st::windowFg->c);
 }
 
 QImage Qr(const QString &text, int pixel, int max) {
@@ -161,7 +161,7 @@ QImage Qr(const QString &text, int pixel, int max) {
 QImage QrForShare(const QString &text) {
 	const auto data = Qr::Encode(text);
 	const auto size = (kShareQrSize - 2 * kShareQrPadding);
-	const auto image = QrExact(data, size / data.size);
+	const auto image = QrExact(data, size / data.size, Qt::black);
 	auto result = QImage(
 		kShareQrPadding * 2 + image.width(),
 		kShareQrPadding * 2 + image.height(),
