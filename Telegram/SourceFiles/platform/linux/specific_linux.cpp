@@ -132,7 +132,7 @@ void PortalAutostart(bool start, bool silent = false) {
 
 	const auto parentWindowId = [&] {
 		if (const auto activeWindow = Core::App().activeWindow()) {
-			if (!IsWayland()) {
+			if (IsX11()) {
 				return qsl("x11:%1").arg(QString::number(
 					activeWindow->widget().get()->windowHandle()->winId(),
 					16));
@@ -579,7 +579,7 @@ bool TrayIconSupported() {
 
 bool SkipTaskbarSupported() {
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-	return !IsWayland()
+	return IsX11()
 		&& base::Platform::XCB::IsSupportedByWM("_NET_WM_STATE_SKIP_TASKBAR");
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
