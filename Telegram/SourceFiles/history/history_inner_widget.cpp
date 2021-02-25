@@ -1351,6 +1351,7 @@ void HistoryInner::mouseActionFinish(
 						? HistoryInner::ElementDelegate().get()
 						: nullptr;
 				},
+				.sessionWindow = base::make_weak(_controller.get()),
 			})
 		});
 		return;

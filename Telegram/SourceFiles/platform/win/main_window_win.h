@@ -89,6 +89,8 @@ protected:
 
 	bool initSizeFromSystem() override;
 
+	QRect computeDesktopRect() const override;
+
 	QTimer psUpdatedPositionTimer;
 
 private:

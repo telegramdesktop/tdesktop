@@ -32,6 +32,9 @@ class Track;
 } // namespace Media
 
 namespace Window {
+
+class SessionController;
+
 namespace Notifications {
 
 enum class ManagerType {
@@ -217,7 +220,9 @@ protected:
 	virtual void doClearFromSession(not_null<Main::Session*> session) = 0;
 	virtual void onBeforeNotificationActivated(NotificationId id) {
 	}
-	virtual void onAfterNotificationActivated(NotificationId id) {
+	virtual void onAfterNotificationActivated(
+		NotificationId id,
+		not_null<SessionController*> window) {
 	}
 	[[nodiscard]] virtual QString accountNameSeparator();
 

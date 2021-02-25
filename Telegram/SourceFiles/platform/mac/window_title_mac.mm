@@ -73,7 +73,7 @@ void TitleWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 }
 
 object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
-	if (auto window = qobject_cast<Platform::MainWindow*>(parent)) {
+	if (auto window = Core::App().activeWindow()) {
 		if (auto height = window->getCustomTitleHeight()) {
 			return object_ptr<TitleWidget>(window, height);
 		}
@@ -85,7 +85,7 @@ object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
 // account, with 100% scale and without "px" dimensions, because thats
 // how it will look in real launched macOS app.
 int PreviewTitleHeight() {
-	if (auto window = qobject_cast<Platform::MainWindow*>(App::wnd())) {
+	if (auto window = Core::App().activeWindow()) {
 		if (auto height = window->getCustomTitleHeight()) {
 			return height;
 		}

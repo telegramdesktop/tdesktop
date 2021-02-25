@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
+#include "window/window_controller.h"
 #include "base/platform/mac/base_utilities_mac.h"
 #include "base/platform/base_platform_info.h"
 #include "lang/lang_keys.h"
@@ -114,7 +115,11 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (BOOL) applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag {
-	if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
+	if (const auto window = Core::App().activeWindow()) {
+		if (window->widget()->isHidden()) {
+			window->widget()->showFromTray();
+		}
+	}
 	return YES;
 }
 
@@ -143,9 +148,9 @@ ApplicationDelegate *_sharedDelegate = nil;
 	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 		if (Core::IsAppLaunched() && !_ignoreActivation) {
 			Core::App().handleAppActivated();
-			if (auto window = App::wnd()) {
-				if (window->isHidden()) {
-					window->showFromTray();
+			if (auto window = Core::App().activeWindow()) {
+				if (window->widget()->isHidden()) {
+					window->widget()->showFromTray();
 				}
 			}
 		}

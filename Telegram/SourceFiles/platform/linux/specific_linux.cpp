@@ -545,7 +545,7 @@ std::optional<bool> IsDarkMode() {
 	if (integration->checkVersion(3, 0, 0)) {
 		const auto preferDarkTheme = integration->getBoolSetting(
 			qsl("gtk-application-prefer-dark-theme"));
-		
+
 		if (!preferDarkTheme.has_value()) {
 			return std::nullopt;
 		} else if (*preferDarkTheme) {
@@ -587,17 +587,6 @@ bool SkipTaskbarSupported() {
 }
 
 } // namespace Platform
-
-QRect psDesktopRect() {
-	static QRect _monitorRect;
-	static auto _monitorLastGot = 0LL;
-	auto tnow = crl::now();
-	if (tnow > _monitorLastGot + 1000LL || tnow < _monitorLastGot) {
-		_monitorLastGot = tnow;
-		_monitorRect = QApplication::desktop()->availableGeometry(App::wnd());
-	}
-	return _monitorRect;
-}
 
 void psWriteDump() {
 }
