@@ -155,33 +155,6 @@ private:
 	Ui::Animations::Simple _changeOverlayShown;
 
 };
-// // #feed
-//class FeedUserpicButton : public AbstractButton {
-//public:
-//	FeedUserpicButton(
-//		QWidget *parent,
-//		not_null<Window::SessionController*> controller,
-//		not_null<Data::Feed*> feed,
-//		const style::FeedUserpicButton &st);
-//
-//private:
-//	struct Part {
-//		not_null<ChannelData*> channel;
-//		base::unique_qptr<UserpicButton> button;
-//	};
-//
-//	void prepare();
-//	void checkParts();
-//	bool partsAreValid() const;
-//	void refreshParts();
-//	QPoint countInnerPosition() const;
-//
-//	const style::FeedUserpicButton &_st;
-//	not_null<Window::SessionController*> _controller;
-//	not_null<Data::Feed*> _feed;
-//	std::vector<Part> _parts;
-//
-//};
 
 class SilentToggle
 	: public Ui::RippleButton

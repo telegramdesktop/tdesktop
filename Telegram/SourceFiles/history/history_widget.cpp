@@ -64,7 +64,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_drag_area.h"
 #include "history/history_inner_widget.h"
 #include "history/history_item_components.h"
-//#include "history/feed/history_feed_section.h" // #feed
 #include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/controls/history_view_ttl_button.h"
 #include "history/view/history_view_service_message.h"

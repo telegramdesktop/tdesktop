@@ -2483,10 +2483,6 @@ auto MainWidget::thirdSectionForCurrentMainSection(
 		return std::make_shared<Info::Memento>(
 			peer,
 			Info::Memento::DefaultSection(peer));
-	//} else if (const auto feed = key.feed()) { // #feed
-	//	return std::make_shared<Info::Memento>(
-	//		feed,
-	//		Info::Memento::DefaultSection(key));
 	}
 	Unexpected("Key in MainWidget::thirdSectionForCurrentMainSection().");
 }

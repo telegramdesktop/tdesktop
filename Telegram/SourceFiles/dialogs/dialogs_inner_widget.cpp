@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_layout.h"
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
-//#include "history/feed/history_feed_section.h" // #feed
 #include "history/history.h"
 #include "history/history_item.h"
 #include "core/shortcuts.h"
@@ -829,8 +828,6 @@ void InnerWidget::paintSearchInChat(Painter &p) const {
 		} else {
 			paintSearchInPeer(p, peer, _searchInChatUserpic, top, _searchInChatText);
 		}
-	//} else if (const auto feed = _searchInChat.feed()) { // #feed
-	//	paintSearchInFeed(p, feed, top, fullWidth, _searchInChatText);
 	} else {
 		Unexpected("Empty Key in paintSearchInChat.");
 	}
@@ -912,19 +909,6 @@ void InnerWidget::paintSearchInReplies(
 	};
 	paintSearchInFilter(p, paintUserpic, top, nullptr, text);
 }
-
-//void InnerWidget::paintSearchInFeed( // #feed
-//		Painter &p,
-//		not_null<Data::Feed*> feed,
-//		int top,
-//		const Ui::Text::String &text) const {
-//	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
-//		feed->paintUserpicLeft(p, x, y, width(), size);
-//	};
-//	const auto icon = Layout::FeedTypeIcon(feed, false, false);
-//	paintSearchInFilter(p, paintUserpic, top, icon, text);
-//}
-//
 
 void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
 	const auto globalPosition = e->globalPos();
@@ -2374,8 +2358,6 @@ void InnerWidget::refreshSearchInChatLabel() {
 				return tr::lng_replies_messages(tr::now);
 			}
 			return peer->name;
-		//} else if (const auto feed = _searchInChat.feed()) { // #feed
-		//	return feed->chatListName();
 		}
 		return QString();
 	}();
@@ -2724,17 +2706,10 @@ ChosenRow InnerWidget::computeChosenRow() const {
 			};
 		} else if (base::in_range(_searchedSelected, 0, _searchResults.size())) {
 			const auto result = _searchResults[_searchedSelected].get();
-			//if (const auto feed = result->searchInChat().feed()) { // #feed
-			//	return {
-			//		feed,
-			//		result->item()->position()
-			//	};
-			//} else {
-				return {
-					result->item()->history(),
-					result->item()->position()
-				};
-			//}
+			return {
+				result->item()->history(),
+				result->item()->position()
+			};
 		}
 	}
 	return ChosenRow();

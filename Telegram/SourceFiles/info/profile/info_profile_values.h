@@ -68,7 +68,5 @@ enum class Badge {
 };
 rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer);
 
-//rpl::producer<int> FeedChannelsCountValue(not_null<Data::Feed*> feed); // #feed
-
 } // namespace Profile
 } // namespace Info

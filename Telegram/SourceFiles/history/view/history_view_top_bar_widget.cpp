@@ -553,10 +553,6 @@ void TopBarWidget::infoClicked() {
 		return;
 	} else if (key.folder()) {
 		_controller->closeFolder();
-	//} else if (const auto feed = _activeChat.feed()) { // #feed
-	//	_controller->showSection(std::make_shared<Info::Memento>(
-	//		feed,
-	//		Info::Section(Info::Section::Type::Profile)));
 	} else if (key.peer()->isSelf()) {
 		_controller->showSection(std::make_shared<Info::Memento>(
 			key.peer(),
@@ -645,13 +641,6 @@ void TopBarWidget::refreshInfoButton() {
 		info->showSavedMessagesOnSelf(true);
 		_info.destroy();
 		_info = std::move(info);
-	//} else if (const auto feed = _activeChat.feed()) { // #feed
-	//	_info.destroy();
-	//	_info = object_ptr<Ui::FeedUserpicButton>(
-	//		this,
-	//		_controller,
-	//		feed,
-	//		st::topBarFeedInfoButton);
 	}
 	if (_info) {
 		_info->setAttribute(Qt::WA_TransparentForMouseEvents);

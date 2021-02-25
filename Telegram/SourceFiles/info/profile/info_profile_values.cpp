@@ -401,21 +401,5 @@ rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer) {
 	return rpl::single(Badge::None);
 }
 
-// // #feed
-//rpl::producer<int> FeedChannelsCountValue(not_null<Data::Feed*> feed) {
-//	using Flag = Data::FeedUpdateFlag;
-//	return rpl::single(
-//		Data::FeedUpdate{ feed, Flag::Channels }
-//	) | rpl::then(
-//		feed->owner().feedUpdated()
-//	) | rpl::filter([=](const Data::FeedUpdate &update) {
-//		return (update.feed == feed) && (update.flag == Flag::Channels);
-//	}) | rpl::filter([=] {
-//		return feed->channelsLoaded();
-//	}) | rpl::map([=] {
-//		return int(feed->channels().size());
-//	}) | rpl::distinct_until_changed();
-//}
-
 } // namespace Profile
 } // namespace Info

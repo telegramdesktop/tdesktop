@@ -23,8 +23,6 @@ namespace Data {
 class Session;
 class Folder;
 
-//MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position); // #feed
-
 class Folder final : public Dialogs::Entry, public base::has_weak_ptr {
 public:
 	static constexpr auto kId = 1;
@@ -42,9 +40,6 @@ public:
 
 	void applyDialog(const MTPDdialogFolder &data);
 	void applyPinnedUpdate(const MTPDupdateDialogPinned &data);
-
-	//MessagePosition unreadPosition() const; // #feed
-	//rpl::producer<MessagePosition> unreadPositionChanges() const; // #feed
 
 	TimeId adjustedChatListTimeId() const override;
 

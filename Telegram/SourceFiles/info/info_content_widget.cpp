@@ -264,8 +264,6 @@ void ContentWidget::refreshSearchField(bool shown) {
 Key ContentMemento::key() const {
 	if (const auto peer = this->peer()) {
 		return Key(peer);
-	//} else if (const auto feed = this->feed()) { // #feed
-	//	return Key(feed);
 	} else if (const auto poll = this->poll()) {
 		return Key(poll, pollContextId());
 	} else {

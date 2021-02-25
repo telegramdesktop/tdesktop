@@ -388,8 +388,6 @@ PRIVATE
     data/data_drafts.h
     data/data_folder.cpp
     data/data_folder.h
-    # data/data_feed_messages.cpp
-    # data/data_feed_messages.h
     data/data_file_origin.cpp
     data/data_file_origin.h
     data/data_flags.h
@@ -490,8 +488,6 @@ PRIVATE
     history/admin_log/history_admin_log_item.h
     history/admin_log/history_admin_log_section.cpp
     history/admin_log/history_admin_log_section.h
-    # history/feed/history_feed_section.cpp
-    # history/feed/history_feed_section.h
     history/view/controls/compose_controls_common.h
     history/view/controls/history_view_compose_controls.cpp
     history/view/controls/history_view_compose_controls.h
@@ -610,22 +606,10 @@ PRIVATE
     info/info_top_bar.h
     info/info_wrap_widget.cpp
     info/info_wrap_widget.h
-    # info/channels/info_channels_widget.cpp
-    # info/channels/info_channels_widget.h
     info/common_groups/info_common_groups_inner_widget.cpp
     info/common_groups/info_common_groups_inner_widget.h
     info/common_groups/info_common_groups_widget.cpp
     info/common_groups/info_common_groups_widget.h
-    # info/feed/info_feed_channels.cpp
-    # info/feed/info_feed_channels.h
-    # info/feed/info_feed_channels_controllers.cpp
-    # info/feed/info_feed_channels_controllers.h
-    # info/feed/info_feed_cover.cpp
-    # info/feed/info_feed_cover.h
-    # info/feed/info_feed_profile_inner_widget.cpp
-    # info/feed/info_feed_profile_inner_widget.h
-    # info/feed/info_feed_profile_widget.cpp
-    # info/feed/info_feed_profile_widget.h
     info/media/info_media_buttons.h
     info/media/info_media_empty_widget.cpp
     info/media/info_media_empty_widget.h
@@ -976,8 +960,6 @@ PRIVATE
     storage/storage_domain.h
     storage/storage_facade.cpp
     storage/storage_facade.h
-    # storage/storage_feed_messages.cpp
-    # storage/storage_feed_messages.h
     storage/storage_media_prepare.cpp
     storage/storage_media_prepare.h
     storage/storage_shared_media.cpp

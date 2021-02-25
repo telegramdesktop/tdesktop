@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
-//#include "history/feed/history_feed_section.h" // #feed
 #include "history/view/history_view_top_bar_widget.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -862,21 +861,6 @@ bool Widget::onSearchMessages(bool searchCache) {
 				_searchQueries.emplace(_searchRequest, _searchQuery);
 				return _searchRequest;
 			});
-		//} else if (const auto feed = _searchInChat.feed()) { // #feed
-		//	const auto type = SearchRequestType::FromStart;
-		//	_searchRequest = session().api().request(MTPchannels_SearchFeed(
-		//		MTP_int(feed->id()),
-		//		MTP_string(_searchQuery),
-		//		MTP_int(0),
-		//		MTP_inputPeerEmpty(),
-		//		MTP_int(0),
-		//		MTP_int(SearchPerPage)
-		//	)).done([=](const MTPmessages_Messages &result) {
-		//		searchReceived(type, result, _searchRequest);
-		//	}).fail([=](const RPCError &error) {
-		//		searchFailed(type, error, _searchRequest);
-		//	}).send();
-		//	_searchQueries.emplace(_searchRequest, _searchQuery);
 		} else {
 			const auto type = SearchRequestType::FromStart;
 			const auto flags = session().settings().skipArchiveInSearch()
@@ -1037,27 +1021,6 @@ void Widget::onSearchMore() {
 				}
 				return _searchRequest;
 			});
-		//} else if (const auto feed = _searchInChat.feed()) { // #feed
-		//	const auto type = offsetId
-		//		? SearchRequestType::FromOffset
-		//		: SearchRequestType::FromStart;
-		//	_searchRequest = session().api().request(MTPchannels_SearchFeed(
-		//		MTP_int(feed->id()),
-		//		MTP_string(_searchQuery),
-		//		MTP_int(offsetDate),
-		//		offsetPeer
-		//			? offsetPeer->input
-		//			: MTP_inputPeerEmpty(),
-		//		MTP_int(offsetId),
-		//		MTP_int(SearchPerPage)),
-		//	)).done([=](const MTPmessages_Messages &result) {
-		//		searchReceived(type, result, _searchRequest);
-		//	}).fail([=](const RPCError &error) {
-		//		searchFailed(type, error, _searchRequest);
-		//	}).send();
-		//	if (!offsetId) {
-		//		_searchQueries.emplace(_searchRequest, _searchQuery);
-		//	}
 		} else {
 			const auto type = offsetId
 				? SearchRequestType::FromOffset
@@ -1777,8 +1740,6 @@ bool Widget::onCancelSearch() {
 		if (Adaptive::OneColumn()) {
 			if (const auto peer = _searchInChat.peer()) {
 				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
-			//} else if (const auto feed = _searchInChat.feed()) { // #feed
-			//	controller()->showSection(std::make_shared<HistoryFeed::Memento>(feed));
 			} else {
 				Unexpected("Empty key in onCancelSearch().");
 			}
@@ -1801,8 +1762,6 @@ void Widget::onCancelSearchInChat() {
 			&& _filter->getLastText().trimmed().isEmpty()) {
 			if (const auto peer = _searchInChat.peer()) {
 				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
-			//} else if (const auto feed = _searchInChat.feed()) { // #feed
-			//	controller()->showSection(std::make_shared<HistoryFeed::Memento>(feed));
 			} else {
 				Unexpected("Empty key in onCancelSearchInPeer().");
 			}

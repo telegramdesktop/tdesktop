@@ -352,7 +352,6 @@ infoIconInformation: icon {{ "info_information", infoIconFg }};
 infoIconMembers: icon {{ "info/edit/group_manage_members", infoIconFg, point(-2px, 0px) }};
 infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
 infoIconActions: icon {{ "info_actions", infoIconFg }};
-//infoIconFeed: icon {{ "info_feed", infoIconFg }};
 infoIconMediaPhoto: icon {{ "info_media_photo", infoIconFg }};
 infoIconMediaVideo: icon {{ "info_media_video", infoIconFg }};
 infoIconMediaFile: icon {{ "info_media_file", infoIconFg }};

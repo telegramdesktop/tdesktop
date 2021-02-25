@@ -144,7 +144,6 @@ private:
 	void startInjectingActivePeerProfiles();
 	void injectActiveProfile(Dialogs::Key key);
 	void injectActivePeerProfile(not_null<PeerData*> peer);
-	//void injectActiveFeedProfile(not_null<Data::Feed*> feed); // #feed
 	void injectActiveProfileMemento(
 		std::shared_ptr<ContentMemento> memento);
 	void checkBeforeClose(Fn<void()> close);

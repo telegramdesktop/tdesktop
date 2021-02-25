@@ -171,7 +171,6 @@ public:
 		not_null<History*> history,
 		bool archived,
 		Fn<void()> callback);
-	//void ungroupAllFromFeed(not_null<Data::Feed*> feed); // #feed
 
 	using RequestMessageDataCallback = Fn<void(ChannelData*, MsgId)>;
 	void requestMessageData(
@@ -189,11 +188,6 @@ public:
 	void requestMoreDialogsIfNeeded();
 	rpl::producer<bool> dialogsLoadMayBlockByDate() const;
 	rpl::producer<bool> dialogsLoadBlockedByDate() const;
-
-	//void applyFeedSources(const MTPDchannels_feedSources &data); // #feed
-	//void setFeedChannels(
-	//	not_null<Data::Feed*> feed,
-	//	const std::vector<not_null<ChannelData*>> &channels);
 
 	void requestWallPaper(
 		const QString &slug,
@@ -334,14 +328,6 @@ public:
 		not_null<UserData*> user,
 		PhotoId afterId);
 
-	//void requestFeedChannels( // #feed
-	//	not_null<Data::Feed*> feed);
-	//void requestFeedMessages(
-	//	not_null<Data::Feed*> feed,
-	//	Data::MessagePosition messageId,
-	//	SliceType slice);
-	//void saveDefaultFeedId(FeedId id, bool isDefaultFeedId);
-
 	void stickerSetInstalled(uint64 setId) {
 		_stickerSetInstalled.fire_copy(setId);
 	}
@@ -384,9 +370,6 @@ public:
 		const QString &lastName,
 		const SendAction &action);
 	void shareContact(not_null<UserData*> user, const SendAction &action);
-	//void readFeed( // #feed
-	//	not_null<Data::Feed*> feed,
-	//	Data::MessagePosition position);
 	void applyAffectedMessages(
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedMessages &result);
@@ -565,17 +548,11 @@ private:
 		const QVector<MTPChannelParticipant> &participants);
 
 	void jumpToHistoryDate(not_null<PeerData*> peer, const QDate &date);
-	//void jumpToFeedDate(not_null<Data::Feed*> feed, const QDate &date); // #feed
 	template <typename Callback>
 	void requestMessageAfterDate(
 		not_null<PeerData*> peer,
 		const QDate &date,
 		Callback &&callback);
-	//template <typename Callback> // #feed
-	//void requestMessageAfterDate(
-	//	not_null<Data::Feed*> feed,
-	//	const QDate &date,
-	//	Callback &&callback);
 
 	void sharedMediaDone(
 		not_null<PeerData*> peer,
@@ -588,13 +565,6 @@ private:
 		not_null<UserData*> user,
 		PhotoId photoId,
 		const MTPphotos_Photos &result);
-
-	//void feedChannelsDone(not_null<Data::Feed*> feed); // #feed
-	//void feedMessagesDone(
-	//	not_null<Data::Feed*> feed,
-	//	Data::MessagePosition messageId,
-	//	SliceType slice,
-	//	const MTPmessages_FeedMessages &result);
 
 	void sendSharedContact(
 		const QString &phone,
@@ -635,8 +605,6 @@ private:
 		Api::SendOptions options,
 		uint64 randomId);
 	FileLoadTo fileLoadTaskOptions(const SendAction &action) const;
-
-	//void readFeeds(); // #feed
 
 	void getTopPromotionDelayed(TimeId now, TimeId next);
 	void topPromotionDone(const MTPhelp_PromoData &proxy);
@@ -737,20 +705,6 @@ private:
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 
-	//base::flat_set<not_null<Data::Feed*>> _feedChannelsGetRequests; // #feed
-	//base::flat_map<
-	//	not_null<Data::Feed*>,
-	//	mtpRequestId> _feedChannelsSetRequests;
-	//base::flat_set<std::tuple<
-	//	not_null<Data::Feed*>,
-	//	Data::MessagePosition,
-	//	SliceType>> _feedMessagesRequests;
-	//base::flat_set<std::tuple<
-	//	not_null<Data::Feed*>,
-	//	Data::MessagePosition,
-	//	SliceType>> _feedMessagesRequestsPending;
-	//mtpRequestId _saveDefaultFeedIdRequest = 0;
-
 	std::unique_ptr<DialogsLoadState> _dialogsLoadState;
 	TimeId _dialogsLoadTill = 0;
 	rpl::variable<bool> _dialogsLoadMayBlockByDate = false;
@@ -768,11 +722,6 @@ private:
 	base::Observable<PeerData*> _fullPeerUpdated;
 
 	rpl::event_stream<uint64> _stickerSetInstalled;
-
-	// #feed
-	//base::flat_map<not_null<Data::Feed*>, crl::time> _feedReadsDelayed;
-	//base::flat_map<not_null<Data::Feed*>, mtpRequestId> _feedReadRequests;
-	//base::Timer _feedReadTimer;
 
 	mtpRequestId _topPromotionRequestId = 0;
 	std::pair<QString, uint32> _topPromotionKey;

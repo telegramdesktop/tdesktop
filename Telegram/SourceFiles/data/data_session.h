@@ -609,9 +609,6 @@ public:
 	[[nodiscard]] Folder *folderLoaded(FolderId id) const;
 	not_null<Folder*> processFolder(const MTPFolder &data);
 	not_null<Folder*> processFolder(const MTPDfolder &data);
-	//void setDefaultFeedId(FeedId id); // #feed
-	//FeedId defaultFeedId() const;
-	//rpl::producer<FeedId> defaultFeedIdValue() const;
 
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList(
 		Data::Folder *folder = nullptr);
@@ -940,7 +937,6 @@ private:
 	base::Timer _pollsClosingTimer;
 
 	base::flat_map<FolderId, std::unique_ptr<Folder>> _folders;
-	//rpl::variable<FeedId> _defaultFeedId = FeedId(); // #feed
 
 	std::unordered_map<
 		not_null<const HistoryItem*>,

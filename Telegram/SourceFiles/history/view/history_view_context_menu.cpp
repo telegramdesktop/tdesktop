@@ -61,17 +61,6 @@ namespace {
 constexpr auto kExportLocalTimeout = crl::time(1000);
 constexpr auto kRescheduleLimit = 20;
 
-//void AddToggleGroupingAction( // #feed
-//		not_null<Ui::PopupMenu*> menu,
-//		not_null<PeerData*> peer) {
-//	if (const auto channel = peer->asChannel()) {
-//		const auto grouped = (channel->feed() != nullptr);
-//		menu->addAction( // #feed
-//			grouped ? tr::lng_feed_ungroup(tr::now) : tr::lng_feed_group(tr::now),
-//			[=] { Window::ToggleChannelGrouping(channel, !grouped); });
-//	}
-//}
-
 MsgId ItemIdAcrossData(not_null<HistoryItem*> item) {
 	if (!item->isScheduled() || item->isSending() || item->hasFailed()) {
 		return item->id;
@@ -929,18 +918,6 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		AddPhotoActions(result, photo, list);
 	} else if (linkDocument) {
 		AddDocumentActions(result, document, itemId, list);
-	//} else if (linkPeer) { // #feed
-	//	const auto peer = linkPeer->peer();
-	//	if (peer->isChannel()
-	//		&& peer->asChannel()->feed() != nullptr
-	//		&& (list->delegate()->listContext() == Context::Feed)) {
-	//		Window::PeerMenuAddMuteAction(peer, [&](
-	//				const QString &text,
-	//				Fn<void()> handler) {
-	//			return result->addAction(text, handler);
-	//		});
-	//		AddToggleGroupingAction(result, linkPeer->peer());
-	//	}
 	} else if (poll) {
 		AddPollActions(result, poll, item, list->elementContext());
 	} else if (!request.overSelection && view && !hasSelection) {

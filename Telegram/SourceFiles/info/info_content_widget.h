@@ -120,8 +120,6 @@ public:
 	: _peer(peer)
 	, _migratedPeerId(migratedPeerId) {
 	}
-	//explicit ContentMemento(not_null<Data::Feed*> feed) : _feed(feed) { // #feed
-	//}
 	explicit ContentMemento(Settings::Tag settings);
 	ContentMemento(not_null<PollData*> poll, FullMsgId contextId)
 	: _poll(poll)
@@ -139,9 +137,6 @@ public:
 	PeerId migratedPeerId() const {
 		return _migratedPeerId;
 	}
-	//Data::Feed *feed() const { // #feed
-	//	return _feed;
-	//}
 	UserData *settingsSelf() const {
 		return _settingsSelf;
 	}
@@ -185,7 +180,6 @@ public:
 private:
 	PeerData * const _peer = nullptr;
 	const PeerId _migratedPeerId = 0;
-	//Data::Feed * const _feed = nullptr; // #feed
 	UserData * const _settingsSelf = nullptr;
 	PollData * const _poll = nullptr;
 	const FullMsgId _pollContextId;

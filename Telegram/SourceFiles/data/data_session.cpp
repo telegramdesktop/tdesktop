@@ -703,11 +703,6 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			}
 			channel->setFlags(data.vflags().v
 				| (callNotEmpty ? callFlag : MTPDchannel::Flag(0)));
-			//if (const auto feedId = data.vfeed_id()) { // #feed
-			//	channel->setFeed(feed(feedId->v));
-			//} else {
-			//	channel->clearFeed();
-			//}
 		}
 
 		channel->setName(
@@ -1193,7 +1188,6 @@ void Session::setupChannelLeavingViewer() {
 		if (channel->amIn()) {
 			channel->clearInvitePeek();
 		} else {
-//			channel->clearFeed(); // #feed
 			if (const auto history = historyLoaded(channel->id)) {
 				history->removeJoinedMessage();
 				history->updateChatListExistence();
@@ -3667,23 +3661,8 @@ not_null<Folder*> Session::processFolder(const MTPFolder &data) {
 }
 
 not_null<Folder*> Session::processFolder(const MTPDfolder &data) {
-	const auto result = folder(data.vid().v);
-	//data.vphoto();
-	//data.vtitle();
-	return result;
+	return folder(data.vid().v);
 }
-// // #feed
-//void Session::setDefaultFeedId(FeedId id) {
-//	_defaultFeedId = id;
-//}
-//
-//FeedId Session::defaultFeedId() const {
-//	return _defaultFeedId.current();
-//}
-//
-//rpl::producer<FeedId> Session::defaultFeedIdValue() const {
-//	return _defaultFeedId.value();
-//}
 
 not_null<Dialogs::MainList*> Session::chatsList(Data::Folder *folder) {
 	return folder ? folder->chatsList().get() : &_chatsList;

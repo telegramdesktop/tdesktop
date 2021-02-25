@@ -407,13 +407,6 @@ void PeerData::setUserpicChecked(
 	if (_userpicPhotoId != photoId || _userpic.location() != location) {
 		setUserpic(photoId, location);
 		session().changes().peerUpdated(this, UpdateFlag::Photo);
-		//if (const auto channel = asChannel()) { // #feed
-		//	if (const auto feed = channel->feed()) {
-		//		owner().notifyFeedUpdated(
-		//			feed,
-		//			Data::FeedUpdateFlag::ChannelPhoto);
-		//	}
-		//}
 	}
 }
 

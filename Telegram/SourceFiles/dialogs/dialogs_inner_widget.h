@@ -297,11 +297,6 @@ private:
 		Painter &p,
 		int top,
 		const Ui::Text::String &text) const;
-	//void paintSearchInFeed( // #feed
-	//	Painter &p,
-	//	not_null<Data::Feed*> feed,
-	//	int top,
-	//	const Ui::Text::String &text) const;
 	template <typename PaintUserpic>
 	void paintSearchInFilter(
 		Painter &p,

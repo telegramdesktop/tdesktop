@@ -38,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_helper.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
-//#include "info/feed/info_feed_channels_controllers.h" // #feed
 #include "info/profile/info_profile_values.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
@@ -539,15 +538,6 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	const auto isGroup = channel->isMegagroup();
 	const auto navigation = _controller;
-	//if (!isGroup) { // #feed
-	//	const auto feed = channel->feed();
-	//	const auto grouped = (feed != nullptr);
-	//	if (!grouped || feed->channels().size() > 1) {
-	//		_addAction( // #feed
-	//			(grouped ? tr::lng_feed_ungroup(tr::now) : tr::lng_feed_group(tr::now)),
-	//			[=] { ToggleChannelGrouping(channel, !grouped); });
-	//	}
-	//}
 	if (_request.section != Section::ChatsList) {
 		if (channel->isBroadcast()) {
 			if (const auto chat = channel->linkedChat()) {
@@ -718,38 +708,6 @@ void Filler::addTogglesForArchive() {
 		[folder = _folder] { return folder->chatsList(); },
 		_addAction);
 }
-//
-//void FolderFiller::addInfo() {
-//	const auto controller = _controller;
-//	const auto feed = _feed;
-//	_addAction(tr::lng_context_view_feed_info(tr::now), [=] {
-//		controller->showSection(std::make_shared<Info::Memento>(
-//			feed,
-//			Info::Section(Info::Section::Type::Profile)));
-//	});
-//}
-//
-//void FolderFiller::addNotifications() {
-//	const auto feed = _feed;
-//	_addAction(tr::lng_feed_notifications(tr::now), [=] {
-//		Info::FeedProfile::NotificationsController::Start(feed);
-//	});
-//}
-//
-//void FolderFiller::addSearch() {
-//	const auto feed = _feed;
-//	const auto controller = _controller;
-//	_addAction(tr::lng_profile_search_messages(tr::now), [=] {
-//		controller->content()->searchInChat(feed);
-//	});
-//}
-//
-//void FolderFiller::addUngroup() {
-//	const auto feed = _feed;
-//	//_addAction(tr::lng_feed_ungroup_all(tr::now), [=] { // #feed
-//	//	PeerMenuUngroupFeed(feed);
-//	//});
-//}
 
 } // namespace
 
@@ -1271,14 +1229,7 @@ void MenuAddMarkAsReadChatListAction(
 		tr::lng_context_mark_read(tr::now),
 		std::move(callback));
 }
-// #feed
-//void PeerMenuUngroupFeed(not_null<Data::Feed*> feed) {
-//	Ui::show(Box<ConfirmBox>(
-//		tr::lng_feed_sure_ungroup_all(tr::now),
-//		tr::lng_feed_ungroup_sure(tr::now),
-//		[=] { Ui::hideLayer(); feed->session().api().ungroupAllFromFeed(feed); }));
-//}
-//
+
 void ToggleHistoryArchived(not_null<History*> history, bool archived) {
 	const auto callback = [=] {
 		Ui::Toast::Show(Ui::Toast::Config{
