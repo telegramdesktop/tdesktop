@@ -428,7 +428,7 @@ bool OpenMediaTimestamp(
 			Core::App().showDocument(
 				document,
 				session->data().message(itemId));
-		} else if (document->isSong()) {
+		} else if (document->isSong() || document->isVoiceMessage()) {
 			Media::Player::instance()->play({ document, itemId });
 		}
 		return true;
