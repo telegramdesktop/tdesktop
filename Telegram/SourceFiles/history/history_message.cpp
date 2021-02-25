@@ -1498,7 +1498,10 @@ TextWithEntities HistoryMessage::withLocalEntities(
 		const auto document = reply->replyToDocumentId
 			? history()->owner().document(reply->replyToDocumentId).get()
 			: nullptr;
-		if (document && (document->isVideoFile() || document->isSong())) {
+		if (document
+			&& (document->isVideoFile()
+				|| document->isSong()
+				|| document->isVoiceMessage())) {
 			using namespace HistoryView;
 			const auto duration = document->getDuration();
 			const auto base = (duration > 0)
