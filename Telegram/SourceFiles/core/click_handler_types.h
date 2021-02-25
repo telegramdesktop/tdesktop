@@ -17,11 +17,16 @@ namespace HistoryView {
 class ElementDelegate;
 } // namespace HistoryView
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 [[nodiscard]] bool UrlRequiresConfirmation(const QUrl &url);
 
 struct ClickHandlerContext {
 	FullMsgId itemId;
 	Fn<HistoryView::ElementDelegate*()> elementDelegate;
+	base::weak_ptr<Window::SessionController> sessionWindow;
 };
 Q_DECLARE_METATYPE(ClickHandlerContext);
 

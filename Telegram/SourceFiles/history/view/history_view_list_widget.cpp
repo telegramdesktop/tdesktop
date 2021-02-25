@@ -2220,6 +2220,7 @@ void ListWidget::mouseActionFinish(
 						? (ElementDelegate*)weak
 						: nullptr;
 				},
+				.sessionWindow = base::make_weak(_controller.get()),
 			})
 		});
 		return;

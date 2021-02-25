@@ -59,8 +59,6 @@ QString psAppDataPath();
 void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
 
-QRect psDesktopRect();
-
 int psCleanup();
 int psFixPrevious();
 

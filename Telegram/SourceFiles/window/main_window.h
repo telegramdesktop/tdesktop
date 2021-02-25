@@ -37,10 +37,9 @@ QIcon CreateIcon(Main::Session *session = nullptr);
 void ConvertIconToBlack(QImage &image);
 
 class MainWindow : public Ui::RpWidget, protected base::Subscriber {
-	Q_OBJECT
-
 public:
 	explicit MainWindow(not_null<Controller*> controller);
+	virtual ~MainWindow();
 
 	[[nodiscard]] Window::Controller &controller() const {
 		return *_controller;
@@ -57,15 +56,17 @@ public:
 		showFromTray();
 	}
 
+	[[nodiscard]] QRect desktopRect() const;
+
 	void init();
-	HitTestResult hitTest(const QPoint &p) const;
+	[[nodiscard]] HitTestResult hitTest(const QPoint &p) const;
 
 	void updateIsActive();
 
-	bool isActive() const {
+	[[nodiscard]] bool isActive() const {
 		return _isActive;
 	}
-	virtual bool isActiveForTrayMenu() {
+	[[nodiscard]] virtual bool isActiveForTrayMenu() {
 		updateIsActive();
 		return isActive();
 	}
@@ -94,8 +95,9 @@ public:
 	}
 	virtual void fixOrder() {
 	}
-
-	virtual ~MainWindow();
+	virtual void setInnerFocus() {
+		setFocus();
+	}
 
 	Ui::RpWidget *bodyWidget() {
 		return _body.data();
@@ -121,7 +123,6 @@ public:
 
 	bool hasShadow() const;
 
-public slots:
 	bool minimizeToTray();
 	void updateGlobalMenu() {
 		updateGlobalMenuHook();
@@ -199,6 +200,8 @@ protected:
 		QSystemTrayIcon::ActivationReason reason) = 0;
 	void updateUnreadCounter();
 
+	virtual QRect computeDesktopRect() const;
+
 private:
 	void refreshTitleWidget();
 	void updateMinimumSize();
@@ -230,6 +233,9 @@ private:
 	rpl::event_stream<> _leaveEvents;
 
 	bool _maximizedBeforeHide = false;
+
+	mutable QRect _monitorRect;
+	mutable crl::time _monitorLastGot = 0;
 
 };
 

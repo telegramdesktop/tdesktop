@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "base/unixtime.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "mainwindow.h"
@@ -391,10 +392,10 @@ void System::showNext() {
 	const auto &settings = Core::App().settings();
 	if (alert) {
 		if (settings.flashBounceNotify() && !Platform::Notifications::SkipFlashBounce()) {
-			if (const auto widget = App::wnd()) {
-				if (const auto window = widget->windowHandle()) {
-					window->alert(kSystemAlertDuration);
-					// (window, SLOT(_q_clearAlert())); in the future.
+			if (const auto window = Core::App().activeWindow()) {
+				if (const auto handle = window->widget()->windowHandle()) {
+					handle->alert(kSystemAlertDuration);
+					// (handle, SLOT(_q_clearAlert())); in the future.
 				}
 			}
 		}
@@ -635,9 +636,9 @@ void Manager::notificationActivated(NotificationId id) {
 			} else {
 				openNotificationMessage(history, id.msgId);
 			}
+			onAfterNotificationActivated(id, window);
 		}
 	}
-	onAfterNotificationActivated(id);
 }
 
 void Manager::openNotificationMessage(
