@@ -34,6 +34,124 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "styles/style_chat.h"
 
+#include "webview/webview_embed.h"
+#include "ui/widgets/window.h"
+#include "ui/toast/toast.h"
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QJsonValue>
+
+namespace Api {
+
+void GetPaymentForm(not_null<const HistoryItem*> msg) {
+	const auto msgId = msg->id;
+	const auto session = &msg->history()->session();
+	session->api().request(MTPpayments_GetPaymentForm(
+		MTP_int(msgId)
+	)).done([=](const MTPpayments_PaymentForm &result) {
+		const auto window = new Ui::Window();
+		window->setGeometry({ 100, 100, 1280, 960 });
+		window->show();
+
+		const auto body = window->body();
+		const auto webview = new Webview::Window(window);
+		body->geometryValue(
+		) | rpl::start_with_next([=](QRect geometry) {
+			webview->widget()->setGeometry(geometry);
+		}, body->lifetime());
+
+		webview->bind("buy_callback", [=](const QByteArray &result) {
+			auto error = QJsonParseError{ 0, QJsonParseError::NoError };
+			const auto typeAndArguments = QJsonDocument::fromJson(
+				result,
+				&error);
+			if (error.error != QJsonParseError::NoError) {
+				LOG(("Payments Error: "
+					"Failed to parse buy_callback result, error: %1."
+					).arg(error.errorString()));
+				return;
+			} else if (!typeAndArguments.isArray()) {
+				LOG(("API Error: "
+					"Not an array received in buy_callback arguments."));
+				return;
+			}
+			const auto list = typeAndArguments.array();
+			if (list.at(0).toString() != "payment_form_submit") {
+				return;
+			} else if (!list.at(1).isString()) {
+				LOG(("API Error: "
+					"Not a string received in buy_callback result."));
+				return;
+			}
+
+			const auto document = QJsonDocument::fromJson(
+				list.at(1).toString().toUtf8(),
+				&error);
+			if (error.error != QJsonParseError::NoError) {
+				LOG(("Payments Error: "
+					"Failed to parse buy_callback arguments, error: %1."
+					).arg(error.errorString()));
+				return;
+			} else if (!document.isObject()) {
+				LOG(("API Error: "
+					"Not an object decoded in buy_callback result."));
+				return;
+			}
+			const auto root = document.object();
+			const auto title = root.value("title").toString();
+			const auto credentials = root.value("credentials");
+			if (!credentials.isObject()) {
+				LOG(("API Error: "
+					"Not an object received in payment credentials."));
+				return;
+			}
+			const auto serializedCredentials = QJsonDocument(
+				credentials.toObject()
+			).toJson(QJsonDocument::Compact);
+			session->api().request(MTPpayments_SendPaymentForm(
+				MTP_flags(0),
+				MTP_int(msgId),
+				MTPstring(), // requested_info_id
+				MTPstring(), // shipping_option_id,
+				MTP_inputPaymentCredentials(
+					MTP_flags(0),
+					MTP_dataJSON(MTP_bytes(serializedCredentials)))
+			)).done([=](const MTPpayments_PaymentResult &result) {
+				delete window;
+				App::wnd()->activate();
+				result.match([&](const MTPDpayments_paymentResult &data) {
+					session->api().applyUpdates(data.vupdates());
+				}, [&](const MTPDpayments_paymentVerificationNeeded &data) {
+					Ui::Toast::Show("payments.paymentVerificationNeeded");
+				});
+			}).fail([=](const RPCError &error) {
+				delete window;
+				App::wnd()->activate();
+				Ui::Toast::Show("payments.sendPaymentForm: " + error.type());
+			}).send();
+		});
+
+		webview->init("(function(){"
+			"window.TelegramWebviewProxy = {"
+				"postEvent: function(eventType, eventData) {"
+					"if (window.buy_callback) {"
+						"window.buy_callback(eventType, eventData);"
+					"}"
+				"}"
+			"};"
+		"}());");
+
+		const auto &data = result.c_payments_paymentForm();
+		webview->navigate(qs(data.vurl().v));
+	}).fail([=](const RPCError &error) {
+		App::wnd()->activate();
+		Ui::Toast::Show("payments.getPaymentForm: " + error.type());
+	}).send();
+}
+
+} // namespace Api
+
 namespace {
 
 [[nodiscard]] MainWidget *CheckMainWidget(not_null<Main::Session*> session) {
@@ -121,7 +239,8 @@ void activateBotCommand(
 	} break;
 
 	case ButtonType::Buy: {
-		Ui::show(Box<InformBox>(tr::lng_payments_not_supported(tr::now)));
+		Api::GetPaymentForm(msg);
+		//Ui::show(Box<InformBox>(tr::lng_payments_not_supported(tr::now)));
 	} break;
 
 	case ButtonType::Url: {
@@ -260,7 +379,7 @@ void showChatsList(not_null<Main::Session*> session) {
 	if (const auto m = CheckMainWidget(session)) {
 		m->ui_showPeerHistory(
 			0,
-			Window::SectionShow::Way::ClearStack,
+			::Window::SectionShow::Way::ClearStack,
 			0);
 	}
 }
@@ -277,7 +396,7 @@ void showPeerHistory(not_null<const PeerData*> peer, MsgId msgId) {
 	if (const auto m = CheckMainWidget(&peer->session())) {
 		m->ui_showPeerHistory(
 			peer->id,
-			Window::SectionShow::Way::ClearStack,
+			::Window::SectionShow::Way::ClearStack,
 			msgId);
 	}
 }
