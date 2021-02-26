@@ -19,6 +19,7 @@ add_subdirectory(lib_storage)
 add_subdirectory(lib_lottie)
 add_subdirectory(lib_qr)
 add_subdirectory(lib_webrtc)
+add_subdirectory(lib_webview)
 add_subdirectory(codegen)
 
 get_filename_component(src_loc SourceFiles REALPATH)
@@ -55,6 +56,8 @@ PRIVATE
     desktop-app::lib_storage
     desktop-app::lib_lottie
     desktop-app::lib_qr
+    desktop-app::lib_webview
+    desktop-app::lib_webview_wrap
     desktop-app::lib_ffmpeg
     desktop-app::external_lz4
     desktop-app::external_rlottie
