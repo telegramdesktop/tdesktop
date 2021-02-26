@@ -51,7 +51,12 @@ void GetPaymentForm(not_null<const HistoryItem*> msg) {
 		MTP_int(msgId)
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		const auto window = new Ui::Window();
-		window->setGeometry({ 100, 100, 1280, 960 });
+		window->setGeometry({
+			style::ConvertScale(100),
+			style::ConvertScale(100),
+			style::ConvertScale(640),
+			style::ConvertScale(480)
+		});
 		window->show();
 
 		window->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
