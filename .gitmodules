@@ -88,9 +88,6 @@
 [submodule "Telegram/ThirdParty/tgcalls"]
 	path = Telegram/ThirdParty/tgcalls
 	url = https://github.com/TelegramMessenger/tgcalls.git
-[submodule "Telegram/ThirdParty/webview"]
-	path = Telegram/ThirdParty/webview
-	url = https://github.com/desktop-app/webview.git
 [submodule "Telegram/lib_webview"]
 	path = Telegram/lib_webview
 	url = https://github.com/desktop-app/lib_webview.git
