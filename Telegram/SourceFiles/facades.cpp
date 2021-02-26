@@ -54,8 +54,16 @@ void GetPaymentForm(not_null<const HistoryItem*> msg) {
 		window->setGeometry({ 100, 100, 1280, 960 });
 		window->show();
 
+		window->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::Close) {
+				window->deleteLater();
+			}
+		}, window->lifetime());
+
 		const auto body = window->body();
-		const auto webview = new Webview::Window(window);
+		const auto webview = Ui::CreateChild<Webview::Window>(
+			window,
+			window);
 		body->geometryValue(
 		) | rpl::start_with_next([=](QRect geometry) {
 			webview->widget()->setGeometry(geometry);
@@ -118,12 +126,12 @@ void GetPaymentForm(not_null<const HistoryItem*> msg) {
 					MTP_flags(0),
 					MTP_dataJSON(MTP_bytes(serializedCredentials)))
 			)).done([=](const MTPpayments_PaymentResult &result) {
-				delete window;
-				App::wnd()->activate();
 				result.match([&](const MTPDpayments_paymentResult &data) {
+					delete window;
+					App::wnd()->activate();
 					session->api().applyUpdates(data.vupdates());
 				}, [&](const MTPDpayments_paymentVerificationNeeded &data) {
-					Ui::Toast::Show("payments.paymentVerificationNeeded");
+					webview->navigate(qs(data.vurl()));
 				});
 			}).fail([=](const RPCError &error) {
 				delete window;
@@ -143,7 +151,7 @@ void GetPaymentForm(not_null<const HistoryItem*> msg) {
 		"}());");
 
 		const auto &data = result.c_payments_paymentForm();
-		webview->navigate(qs(data.vurl().v));
+		webview->navigate(qs(data.vurl()));
 	}).fail([=](const RPCError &error) {
 		App::wnd()->activate();
 		Ui::Toast::Show("payments.getPaymentForm: " + error.type());
