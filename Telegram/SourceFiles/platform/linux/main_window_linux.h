@@ -18,11 +18,6 @@ class PopupMenu;
 class QTemporaryFile;
 class DBusMenuExporter;
 class StatusNotifierItem;
-
-typedef void* gpointer;
-typedef char gchar;
-typedef struct _GVariant GVariant;
-typedef struct _GDBusProxy GDBusProxy;
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 namespace Platform {
@@ -75,6 +70,8 @@ protected:
 		style::color color) = 0;
 
 private:
+	class Private;
+	const std::unique_ptr<Private> _private;
 	bool _sniAvailable = false;
 	base::unique_qptr<Ui::PopupMenu> _trayIconMenuXEmbed;
 
@@ -82,7 +79,7 @@ private:
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	StatusNotifierItem *_sniTrayIcon = nullptr;
-	GDBusProxy *_sniDBusProxy = nullptr;
+	uint _sniRegisteredSignalId = 0;
 	std::unique_ptr<QTemporaryFile> _trayIconFile;
 
 	bool _appMenuSupported = false;
@@ -137,13 +134,6 @@ private:
 	void psLinuxStrikeOut();
 	void psLinuxMonospace();
 	void psLinuxClearFormat();
-
-	static void sniSignalEmitted(
-		GDBusProxy *proxy,
-		gchar *sender_name,
-		gchar *signal_name,
-		GVariant *parameters,
-		gpointer user_data);
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 };

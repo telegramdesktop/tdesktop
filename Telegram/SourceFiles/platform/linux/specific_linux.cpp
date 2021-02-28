@@ -23,6 +23,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "window/window_controller.h"
 
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#include "base/platform/linux/base_linux_dbus_utilities.h"
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 #include "base/platform/linux/base_linux_xcb_utilities.h"
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
@@ -41,19 +45,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusConnection>
-#include <QtDBus/QDBusConnectionInterface>
 #include <QtDBus/QDBusMessage>
 #include <QtDBus/QDBusReply>
 #include <QtDBus/QDBusError>
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #include <glib.h>
-
-extern "C" {
-#undef signals
 #include <gio/gio.h>
-#define signals public
-} // extern "C"
+#include <glibmm.h>
+#include <giomm.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -82,31 +82,6 @@ constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 std::unique_ptr<internal::NotificationServiceWatcher> NSWInstance;
-
-QStringList ListDBusActivatableNames() {
-	static const auto Result = [&] {
-		const auto message = QDBusMessage::createMethodCall(
-			qsl("org.freedesktop.DBus"),
-			qsl("/org/freedesktop/DBus"),
-			qsl("org.freedesktop.DBus"),
-			qsl("ListActivatableNames"));
-
-		const QDBusReply<QStringList> reply = QDBusConnection::sessionBus()
-			.call(message);
-
-		if (reply.isValid()) {
-			return reply.value();
-		} else if (reply.error().type() != QDBusError::Disconnected) {
-			LOG(("ListActivatableNames Error: %1: %2")
-				.arg(reply.error().name())
-				.arg(reply.error().message()));
-		}
-
-		return QStringList{};
-	}();
-
-	return Result;
-}
 
 void PortalAutostart(bool start, bool silent = false) {
 	if (cExeName().isEmpty()) {
@@ -177,17 +152,23 @@ bool IsXDGDesktopPortalKDEPresent() {
 
 bool IsIBusPortalPresent() {
 	static const auto Result = [&] {
-		const auto interface = QDBusConnection::sessionBus().interface();
-		const auto activatableNames = ListDBusActivatableNames();
+		try {
+			const auto connection = Gio::DBus::Connection::get_sync(
+				Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-		const auto serviceRegistered = interface
-			&& interface->isServiceRegistered(
-				qsl("org.freedesktop.portal.IBus"));
+			const auto serviceRegistered = base::Platform::DBus::NameHasOwner(
+				connection,
+				"org.freedesktop.portal.IBus");
 
-		const auto serviceActivatable = activatableNames.contains(
-			qsl("org.freedesktop.portal.IBus"));
+			const auto serviceActivatable = ranges::contains(
+				base::Platform::DBus::ListActivatableNames(connection),
+				"org.freedesktop.portal.IBus");
 
-		return serviceRegistered || serviceActivatable;
+			return serviceRegistered || serviceActivatable;
+		} catch (...) {
+		}
+
+		return false;
 	}();
 
 	return Result;
@@ -443,17 +424,6 @@ bool CanOpenDirectoryWithPortal() {
 	return false;
 }
 
-bool IsNotificationServiceActivatable() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	static const auto Result = ListDBusActivatableNames().contains(
-		qsl("org.freedesktop.Notifications"));
-
-	return Result;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	return false;
-}
-
 QString AppRuntimeDirectory() {
 	static const auto Result = [&] {
 		auto runtimeDir = QStandardPaths::writableLocation(
@@ -598,8 +568,7 @@ void psActivateProcess(uint64 pid) {
 namespace {
 
 QString GetHomeDir() {
-	const auto home = QString(g_get_home_dir());
-
+	const auto home = QString::fromStdString(Glib::get_home_dir());
 	if (!home.isEmpty() && !home.endsWith('/')) {
 		return home + '/';
 	}
@@ -681,6 +650,9 @@ void start() {
 
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
+
+	Glib::init();
+	Gio::init();
 
 	if (const auto integration = BaseGtkIntegration::Instance()) {
 		integration->prepareEnvironment();
@@ -775,75 +747,65 @@ void InstallLauncher(bool force) {
 }
 
 void RegisterCustomScheme(bool force) {
-	if (cExeName().isEmpty()) {
-		return;
-	}
-
-	GError *error = nullptr;
-
-	const auto neededCommandlineBuilder = qsl("%1 -workdir %2 --").arg(
-		QString(EscapeShell(QFile::encodeName(cExeDir() + cExeName()))),
-		QString(EscapeShell(QFile::encodeName(cWorkingDir()))));
-
-	const auto neededCommandline = qsl("%1 %u")
-		.arg(neededCommandlineBuilder);
-
-	auto currentAppInfo = g_app_info_get_default_for_type(
-		kHandlerTypeName.utf8().constData(),
-		true);
-
-	if (currentAppInfo) {
-		const auto currentCommandline = QString(
-			g_app_info_get_commandline(currentAppInfo));
-
-		g_object_unref(currentAppInfo);
-
-		if (currentCommandline == neededCommandline) {
+	try {
+		if (cExeName().isEmpty()) {
 			return;
 		}
-	}
 
-	auto registeredAppInfoList = g_app_info_get_recommended_for_type(
-		kHandlerTypeName.utf8().constData());
+		const auto neededCommandlineBuilder = qsl("%1 -workdir %2 --").arg(
+			QString(EscapeShell(QFile::encodeName(cExeDir() + cExeName()))),
+			QString(EscapeShell(QFile::encodeName(cWorkingDir()))));
 
-	for (auto l = registeredAppInfoList; l != nullptr; l = l->next) {
-		const auto currentRegisteredAppInfo = reinterpret_cast<GAppInfo*>(
-			l->data);
+		const auto neededCommandline = qsl("%1 %u")
+			.arg(neededCommandlineBuilder);
 
-		const auto currentAppInfoId = QString(
-			g_app_info_get_id(currentRegisteredAppInfo));
+		const auto currentAppInfo = Gio::AppInfo::get_default_for_type(
+			std::string(kHandlerTypeName),
+			true);
 
-		const auto currentCommandline = QString(
-			g_app_info_get_commandline(currentRegisteredAppInfo));
+		if (currentAppInfo) {
+			const auto currentCommandline = QString::fromStdString(
+				currentAppInfo->get_commandline());
 
-		if (currentCommandline == neededCommandline
-			&& currentAppInfoId.startsWith(qsl("userapp-"))) {
-			g_app_info_delete(currentRegisteredAppInfo);
+			if (currentCommandline == neededCommandline) {
+				return;
+			}
 		}
-	}
 
-	if (registeredAppInfoList) {
-		g_list_free_full(registeredAppInfoList, g_object_unref);
-	}
+		auto registeredAppInfoList = g_app_info_get_recommended_for_type(
+			kHandlerTypeName.utf8().constData());
 
-	auto newAppInfo = g_app_info_create_from_commandline(
-		neededCommandlineBuilder.toUtf8().constData(),
-		AppName.utf8().constData(),
-		G_APP_INFO_CREATE_SUPPORTS_URIS,
-		&error);
+		for (auto l = registeredAppInfoList; l != nullptr; l = l->next) {
+			const auto currentRegisteredAppInfo = reinterpret_cast<GAppInfo*>(
+				l->data);
 
-	if (newAppInfo) {
-		g_app_info_set_as_default_for_type(
-			newAppInfo,
-			kHandlerTypeName.utf8().constData(),
-			&error);
+			const auto currentAppInfoId = QString(
+				g_app_info_get_id(currentRegisteredAppInfo));
 
-		g_object_unref(newAppInfo);
-	}
+			const auto currentCommandline = QString(
+				g_app_info_get_commandline(currentRegisteredAppInfo));
 
-	if (error) {
-		LOG(("App Error: %1").arg(error->message));
-		g_error_free(error);
+			if (currentCommandline == neededCommandline
+				&& currentAppInfoId.startsWith(qsl("userapp-"))) {
+				g_app_info_delete(currentRegisteredAppInfo);
+			}
+		}
+
+		if (registeredAppInfoList) {
+			g_list_free_full(registeredAppInfoList, g_object_unref);
+		}
+
+		const auto newAppInfo = Gio::AppInfo::create_from_commandline(
+			neededCommandlineBuilder.toStdString(),
+			std::string(AppName),
+			Gio::AppInfoCreateFlags::APP_INFO_CREATE_SUPPORTS_URIS);
+
+		if (newAppInfo) {
+			newAppInfo->set_as_default_for_type(
+				std::string(kHandlerTypeName));
+		}
+	} catch (const Glib::Error &e) {
+		LOG(("App Error: %1").arg(QString::fromStdString(e.what())));
 	}
 }
 

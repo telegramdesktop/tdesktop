@@ -12,9 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 extern "C" {
-#undef signals
 #include <gdk/gdkx.h>
-#define signals public
 } // extern "C"
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
