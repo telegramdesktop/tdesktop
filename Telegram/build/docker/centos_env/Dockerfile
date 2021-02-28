@@ -458,6 +458,52 @@ RUN DESTDIR="$LibrariesPath/xkbcommon-cache" meson install -C build
 WORKDIR ..
 RUN rm -rf libxkbcommon
 
+FROM builder AS mm-common
+RUN git clone -b 1.0.2 --depth=1 $GIT/GNOME/mm-common.git
+
+WORKDIR mm-common
+RUN NOCONFIGURE=1 ./autogen.sh
+RUN ./configure --enable-network
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/mm-common-cache" install
+
+WORKDIR ..
+RUN rm -rf mm-common
+
+FROM builder AS libsigcplusplus
+COPY --from=mm-common ${LibrariesPath}/mm-common-cache /
+
+RUN git clone -b 2.10.6 --depth=1 $GIT/libsigcplusplus/libsigcplusplus.git
+
+WORKDIR libsigcplusplus
+ENV ACLOCAL_PATH="/usr/local/share/aclocal"
+RUN NOCONFIGURE=1 ./autogen.sh
+RUN ./configure --enable-maintainer-mode --enable-static --disable-documentation
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/libsigcplusplus-cache" install
+
+WORKDIR ..
+RUN rm -rf libsigcplusplus
+
+FROM patches AS glibmm
+COPY --from=mm-common ${LibrariesPath}/mm-common-cache /
+COPY --from=libsigcplusplus ${LibrariesPath}/libsigcplusplus-cache /
+RUN yum -y install perl-XML-Parser
+
+# equals to glib version of Ubuntu 14.04
+RUN git clone -b 2.40.0 --depth=1 $GIT/GNOME/glibmm.git
+
+WORKDIR glibmm
+RUN git apply ../patches/glibmm.patch
+ENV ACLOCAL_PATH="/usr/local/share/aclocal"
+RUN NOCONFIGURE=1 ./autogen.sh
+RUN ./configure --enable-maintainer-mode --enable-static --disable-documentation
+RUN make -j$(nproc)
+RUN make DESTDIR="$LibrariesPath/glibmm-cache" install
+
+WORKDIR ..
+RUN rm -rf glibmm
+
 FROM patches AS qt
 
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
@@ -636,6 +682,8 @@ COPY --from=ffmpeg ${LibrariesPath}/ffmpeg-cache /
 COPY --from=openal ${LibrariesPath}/openal-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 COPY --from=xkbcommon ${LibrariesPath}/xkbcommon-cache /
+COPY --from=libsigcplusplus ${LibrariesPath}/libsigcplusplus-cache /
+COPY --from=glibmm ${LibrariesPath}/glibmm-cache /
 COPY --from=qt ${LibrariesPath}/qt-cache /
 COPY --from=kwayland ${LibrariesPath}/kwayland-cache /
 COPY --from=breakpad ${LibrariesPath}/breakpad breakpad

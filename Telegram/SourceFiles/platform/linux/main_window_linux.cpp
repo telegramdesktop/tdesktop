@@ -30,6 +30,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "app.h"
 
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#include "base/platform/linux/base_linux_dbus_utilities.h"
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 #include "base/platform/linux/base_linux_xcb_utilities.h"
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
@@ -41,7 +45,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusConnection>
-#include <QtDBus/QDBusConnectionInterface>
 #include <QtDBus/QDBusServiceWatcher>
 #include <QtDBus/QDBusMessage>
 #include <QtDBus/QDBusReply>
@@ -52,11 +55,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <statusnotifieritem.h>
 #include <dbusmenuexporter.h>
 
-extern "C" {
-#undef signals
-#include <gio/gio.h>
-#define signals public
-} // extern "C"
+#include <glibmm.h>
+#include <giomm.h>
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 namespace Platform {
@@ -337,19 +337,23 @@ bool IsIndicatorApplication() {
 	// save the icon to a temp file
 	// and set the icon name to that filename.
 	static const auto Result = [] {
-		const auto interface = QDBusConnection::sessionBus().interface();
+		try {
+			const auto connection = Gio::DBus::Connection::get_sync(
+				Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-		if (!interface) {
-			return false;
+			const auto ubuntuIndicator = base::Platform::DBus::NameHasOwner(
+				connection,
+				"com.canonical.indicator.application");
+
+			const auto ayatanaIndicator = base::Platform::DBus::NameHasOwner(
+				connection,
+				"org.ayatana.indicator.application");
+
+			return ubuntuIndicator || ayatanaIndicator;
+		} catch (...) {
 		}
 
-		const auto ubuntuIndicator = interface->isServiceRegistered(
-			qsl("com.canonical.indicator.application"));
-
-		const auto ayatanaIndicator = interface->isServiceRegistered(
-			qsl("org.ayatana.indicator.application"));
-
-		return ubuntuIndicator || ayatanaIndicator;
+		return false;
 	}();
 
 	return Result;
@@ -461,13 +465,17 @@ quint32 djbStringHash(QString string) {
 }
 
 bool IsAppMenuSupported() {
-	const auto interface = QDBusConnection::sessionBus().interface();
+	try {
+		const auto connection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-	if (!interface) {
-		return false;
+		return base::Platform::DBus::NameHasOwner(
+			connection,
+			std::string(kAppMenuService));
+	} catch (...) {
 	}
 
-	return interface->isServiceRegistered(kAppMenuService.utf16());
+	return false;
 }
 
 void RegisterAppMenu(uint winId, const QString &menuPath) {
@@ -527,8 +535,16 @@ void ForceDisabled(QAction *action, bool disabled) {
 
 } // namespace
 
+class MainWindow::Private {
+public:
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+};
+
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
-: Window::MainWindow(controller) {
+: Window::MainWindow(controller)
+, _private(std::make_unique<Private>()) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	qDBusRegisterMetaType<ToolTip>();
 	qDBusRegisterMetaType<IconPixmap>();
@@ -540,22 +556,31 @@ void MainWindow::initHook() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	_sniAvailable = IsSNIAvailable();
 
-	_sniDBusProxy = g_dbus_proxy_new_for_bus_sync(
-		G_BUS_TYPE_SESSION,
-		G_DBUS_PROXY_FLAGS_NONE,
-		nullptr,
-		kSNIWatcherService.utf8().constData(),
-		kSNIWatcherObjectPath.utf8().constData(),
-		kSNIWatcherInterface.utf8().constData(),
-		nullptr,
-		nullptr);
+	try {
+		_private->dbusConnection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-	if (_sniDBusProxy) {
-		g_signal_connect(
-			_sniDBusProxy,
-			"g-signal",
-			G_CALLBACK(sniSignalEmitted),
-			nullptr);
+		_sniRegisteredSignalId = _private->dbusConnection->signal_subscribe(
+			[](
+				const Glib::RefPtr<Gio::DBus::Connection> &connection,
+				const Glib::ustring &sender_name,
+				const Glib::ustring &object_path,
+				const Glib::ustring &interface_name,
+				const Glib::ustring &signal_name,
+				const Glib::VariantContainerBase &parameters) {
+				if (signal_name == "StatusNotifierHostRegistered") {
+					crl::on_main([] {
+						if (const auto window = App::wnd()) {
+							window->handleSNIHostRegistered();
+						}
+					});
+				}
+			},
+			std::string(kSNIWatcherService),
+			std::string(kSNIWatcherInterface),
+			"StatusNotifierHostRegistered",
+			std::string(kSNIWatcherObjectPath));
+	} catch (...) {
 	}
 
 	auto sniWatcher = new QDBusServiceWatcher(
@@ -687,21 +712,6 @@ void MainWindow::attachToSNITrayIcon() {
 				handleTrayIconActication(QSystemTrayIcon::MiddleClick);
 			});
 	});
-}
-
-void MainWindow::sniSignalEmitted(
-		GDBusProxy *proxy,
-		gchar *sender_name,
-		gchar *signal_name,
-		GVariant *parameters,
-		gpointer user_data) {
-	if (signal_name == qstr("StatusNotifierHostRegistered")) {
-		crl::on_main([] {
-			if (const auto window = App::wnd()) {
-				window->handleSNIHostRegistered();
-			}
-		});
-	}
 }
 
 void MainWindow::handleSNIHostRegistered() {
@@ -1241,6 +1251,10 @@ void MainWindow::handleVisibleChangedHook(bool visible) {
 
 MainWindow::~MainWindow() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	if (_sniRegisteredSignalId != 0) {
+		_private->dbusConnection->signal_unsubscribe(_sniRegisteredSignalId);
+	}
+
 	delete _sniTrayIcon;
 
 	if (_appMenuSupported) {
@@ -1249,10 +1263,6 @@ MainWindow::~MainWindow() {
 
 	delete _mainMenuExporter;
 	delete psMainMenu;
-
-	if (_sniDBusProxy) {
-		g_object_unref(_sniDBusProxy);
-	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 

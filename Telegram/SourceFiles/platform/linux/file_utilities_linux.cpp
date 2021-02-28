@@ -16,11 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QDesktopServices>
 
-extern "C" {
-#undef signals
-#include <gio/gio.h>
-#define signals public
-} // extern "C"
+#include <glibmm.h>
+#include <giomm.h>
 
 using Platform::internal::GtkIntegration;
 
@@ -28,12 +25,15 @@ namespace Platform {
 namespace File {
 
 void UnsafeOpenUrl(const QString &url) {
-	if (!g_app_info_launch_default_for_uri(
-		url.toUtf8().constData(),
-		nullptr,
-		nullptr)) {
-		QDesktopServices::openUrl(url);
+	try {
+		if (Gio::AppInfo::launch_default_for_uri(url.toStdString())) {
+			return;
+		}
+	} catch (const Glib::Error &e) {
+		LOG(("App Error: %1").arg(QString::fromStdString(e.what())));
 	}
+
+	QDesktopServices::openUrl(url);
 }
 
 void UnsafeOpenEmailLink(const QString &email) {
@@ -46,27 +46,27 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 	}
 
 	if (const auto integration = GtkIntegration::Instance()) {
-		const auto absolutePath = QFileInfo(filepath).absoluteFilePath();
-		return integration->showOpenWithDialog(absolutePath);
+		return integration->showOpenWithDialog(filepath);
 	}
 
 	return false;
 }
 
 void UnsafeLaunch(const QString &filepath) {
-	const auto absolutePath = QFileInfo(filepath).absoluteFilePath();
-
-	if (!g_app_info_launch_default_for_uri(
-		g_filename_to_uri(
-			absolutePath.toUtf8().constData(),
-			nullptr,
-			nullptr),
-		nullptr,
-		nullptr)) {
-		if (!UnsafeShowOpenWith(filepath)) {
-			QDesktopServices::openUrl(QUrl::fromLocalFile(filepath));
+	try {
+		if (Gio::AppInfo::launch_default_for_uri(
+			Glib::filename_to_uri(filepath.toStdString()))) {
+			return;
 		}
+	} catch (const Glib::Error &e) {
+		LOG(("App Error: %1").arg(QString::fromStdString(e.what())));
 	}
+
+	if (UnsafeShowOpenWith(filepath)) {
+		return;
+	}
+
+	QDesktopServices::openUrl(QUrl::fromLocalFile(filepath));
 }
 
 } // namespace File

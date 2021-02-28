@@ -8,10 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 extern "C" {
-#undef signals
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
-#define signals public
 } // extern "C"
 
 // To be able to compile with gtk-2.0 headers as well
