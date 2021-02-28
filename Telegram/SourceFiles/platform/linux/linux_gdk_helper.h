@@ -10,10 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class QLibrary;
 
 extern "C" {
-#undef signals
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
-#define signals public
 } // extern "C"
 
 namespace Platform {

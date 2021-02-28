@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-typedef struct _GDBusConnection GDBusConnection;
-
 namespace Platform {
 namespace internal {
 
@@ -24,12 +22,8 @@ public:
 	~GSDMediaKeys();
 
 private:
-	GDBusConnection *_dbusConnection = nullptr;
-	QString _service;
-	QString _objectPath;
-	QString _interface;
-	uint _signalId = 0;
-	bool _grabbed = false;
+	class Private;
+	const std::unique_ptr<Private> _private;
 };
 
 } // namespace internal

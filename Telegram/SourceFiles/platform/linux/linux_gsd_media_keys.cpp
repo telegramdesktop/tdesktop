@@ -9,15 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/sandbox.h"
 #include "media/player/media_player_instance.h"
+#include "base/platform/linux/base_linux_glibmm_helper.h"
+#include "base/platform/linux/base_linux_dbus_utilities.h"
 
-#include <QtDBus/QDBusConnection>
-#include <QtDBus/QDBusConnectionInterface>
-
-extern "C" {
-#undef signals
-#include <gio/gio.h>
-#define signals public
-} // extern "C"
+#include <glibmm.h>
+#include <giomm.h>
 
 namespace Platform {
 namespace internal {
@@ -31,149 +27,137 @@ constexpr auto kMATEObjectPath = "/org/mate/SettingsDaemon/MediaKeys"_cs;
 constexpr auto kInterface = kService;
 constexpr auto kMATEInterface = "org.mate.SettingsDaemon.MediaKeys"_cs;
 
-void KeyPressed(
-		GDBusConnection *connection,
-		const gchar *sender_name,
-		const gchar *object_path,
-		const gchar *interface_name,
-		const gchar *signal_name,
-		GVariant *parameters,
-		gpointer user_data) {
-	gchar *appUtf8;
-	gchar *keyUtf8;
-	g_variant_get(parameters, "(ss)", &appUtf8, &keyUtf8);
-	const auto app = QString::fromUtf8(appUtf8);
-	const auto key = QString::fromUtf8(keyUtf8);
-	g_free(keyUtf8);
-	g_free(appUtf8);
-
-	if (app != QCoreApplication::applicationName()) {
-		return;
-	}
-
-	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-		if (key == qstr("Play")) {
-			Media::Player::instance()->playPause();
-		} else if (key == qstr("Stop")) {
-			Media::Player::instance()->stop();
-		} else if (key == qstr("Next")) {
-			Media::Player::instance()->next();
-		} else if (key == qstr("Previous")) {
-			Media::Player::instance()->previous();
-		}
-	});
-}
-
 } // namespace
 
-GSDMediaKeys::GSDMediaKeys() {
-	GError *error = nullptr;
-	const auto interface = QDBusConnection::sessionBus().interface();
+class GSDMediaKeys::Private : public sigc::trackable {
+public:
+	Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
 
-	if (!interface) {
-		return;
+	Glib::ustring service;
+	Glib::ustring objectPath;
+	Glib::ustring interface;
+	uint signalId = 0;
+	bool grabbed = false;
+
+	void keyPressed(
+		const Glib::RefPtr<Gio::DBus::Connection> &connection,
+		const Glib::ustring &sender_name,
+		const Glib::ustring &object_path,
+		const Glib::ustring &interface_name,
+		const Glib::ustring &signal_name,
+		const Glib::VariantContainerBase &parameters);
+};
+
+void GSDMediaKeys::Private::keyPressed(
+		const Glib::RefPtr<Gio::DBus::Connection> &connection,
+		const Glib::ustring &sender_name,
+		const Glib::ustring &object_path,
+		const Glib::ustring &interface_name,
+		const Glib::ustring &signal_name,
+		const Glib::VariantContainerBase &parameters) {
+	try {
+		auto parametersCopy = parameters;
+
+		const auto app = base::Platform::GlibVariantCast<Glib::ustring>(
+			parametersCopy.get_child(0));
+
+		const auto key = base::Platform::GlibVariantCast<Glib::ustring>(
+			parametersCopy.get_child(1));
+
+		if (app != QCoreApplication::applicationName().toStdString()) {
+			return;
+		}
+
+		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+			if (key == "Play") {
+				Media::Player::instance()->playPause();
+			} else if (key == "Stop") {
+				Media::Player::instance()->stop();
+			} else if (key == "Next") {
+				Media::Player::instance()->next();
+			} else if (key == "Previous") {
+				Media::Player::instance()->previous();
+			}
+		});
+	} catch (...) {
 	}
+}
 
-	if (interface->isServiceRegistered(kService.utf16())) {
-		_service = kService.utf16();
-		_objectPath = kObjectPath.utf16();
-		_interface = kInterface.utf16();
-	} else if (interface->isServiceRegistered(kOldService.utf16())) {
-		_service = kOldService.utf16();
-		_objectPath = kObjectPath.utf16();
-		_interface = kInterface.utf16();
-	} else if (interface->isServiceRegistered(kMATEService.utf16())) {
-		_service = kMATEService.utf16();
-		_objectPath = kMATEObjectPath.utf16();
-		_interface = kMATEInterface.utf16();
-	} else {
-		return;
+GSDMediaKeys::GSDMediaKeys()
+: _private(std::make_unique<Private>()) {
+	try {
+		_private->dbusConnection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
+
+		if (base::Platform::DBus::NameHasOwner(
+			_private->dbusConnection,
+			std::string(kService))) {
+			_private->service = std::string(kService);
+			_private->objectPath = std::string(kObjectPath);
+			_private->interface = std::string(kInterface);
+		} else if (base::Platform::DBus::NameHasOwner(
+			_private->dbusConnection,
+			std::string(kOldService))) {
+			_private->service = std::string(kOldService);
+			_private->objectPath = std::string(kObjectPath);
+			_private->interface = std::string(kInterface);
+		} else if (base::Platform::DBus::NameHasOwner(
+			_private->dbusConnection,
+			std::string(kMATEService))) {
+			_private->service = std::string(kMATEService);
+			_private->objectPath = std::string(kMATEObjectPath);
+			_private->interface = std::string(kMATEInterface);
+		} else {
+			return;
+		}
+
+		_private->dbusConnection->call_sync(
+			_private->objectPath,
+			_private->interface,
+			"GrabMediaPlayerKeys",
+			base::Platform::MakeGlibVariant(std::tuple{
+				Glib::ustring(
+					QCoreApplication::applicationName()
+						.toStdString()),
+				uint(0),
+			}),
+			_private->service);
+
+		_private->grabbed = true;
+
+		_private->signalId = _private->dbusConnection->signal_subscribe(
+			sigc::mem_fun(_private.get(), &Private::keyPressed),
+			_private->service,
+			_private->interface,
+			"MediaPlayerKeyPressed",
+			_private->objectPath);
+	} catch (...) {
 	}
-
-	_dbusConnection = g_bus_get_sync(
-		G_BUS_TYPE_SESSION,
-		nullptr,
-		&error);
-
-	if (error) {
-		LOG(("GSD Media Keys Error: %1").arg(error->message));
-		g_error_free(error);
-		return;
-	}
-
-	auto reply = g_dbus_connection_call_sync(
-		_dbusConnection,
-		_service.toUtf8().constData(),
-		_objectPath.toUtf8().constData(),
-		_interface.toUtf8().constData(),
-		"GrabMediaPlayerKeys",
-		g_variant_new(
-			"(su)",
-			QCoreApplication::applicationName().toUtf8().constData(),
-			0),
-		nullptr,
-		G_DBUS_CALL_FLAGS_NONE,
-		-1,
-		nullptr,
-		&error);
-
-	if (!error) {
-		_grabbed = true;
-		g_variant_unref(reply);
-	} else {
-		LOG(("GSD Media Keys Error: %1").arg(error->message));
-		g_error_free(error);
-	}
-
-	_signalId = g_dbus_connection_signal_subscribe(
-		_dbusConnection,
-		_service.toUtf8().constData(),
-		_interface.toUtf8().constData(),
-		"MediaPlayerKeyPressed",
-		_objectPath.toUtf8().constData(),
-		nullptr,
-		G_DBUS_SIGNAL_FLAGS_NONE,
-		KeyPressed,
-		nullptr,
-		nullptr);
 }
 
 GSDMediaKeys::~GSDMediaKeys() {
-	GError *error = nullptr;
-
-	if (_signalId != 0) {
-		g_dbus_connection_signal_unsubscribe(
-			_dbusConnection,
-			_signalId);
-	}
-
-	if (_grabbed) {
-		auto reply = g_dbus_connection_call_sync(
-			_dbusConnection,
-			_service.toUtf8().constData(),
-			_objectPath.toUtf8().constData(),
-			_interface.toUtf8().constData(),
-			"ReleaseMediaPlayerKeys",
-			g_variant_new(
-				"(s)",
-				QCoreApplication::applicationName().toUtf8().constData()),
-			nullptr,
-			G_DBUS_CALL_FLAGS_NONE,
-			-1,
-			nullptr,
-			&error);
-
-		if (!error) {
-			_grabbed = false;
-			g_variant_unref(reply);
-		} else {
-			LOG(("GSD Media Keys Error: %1").arg(error->message));
-			g_error_free(error);
+	if (_private->dbusConnection) {
+		if (_private->signalId != 0) {
+			_private->dbusConnection->signal_unsubscribe(_private->signalId);
 		}
-	}
 
-	if (_dbusConnection) {
-		g_object_unref(_dbusConnection);
+		if (_private->grabbed) {
+			try {
+				_private->dbusConnection->call_sync(
+					_private->objectPath,
+					_private->interface,
+					"ReleaseMediaPlayerKeys",
+					base::Platform::MakeGlibVariant(std::tuple{
+						Glib::ustring(
+							QCoreApplication::applicationName()
+								.toStdString())
+					}),
+					_private->service);
+
+				_private->grabbed = false;
+			} catch (...) {
+			}
+		}
 	}
 }
 

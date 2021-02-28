@@ -20,7 +20,6 @@ bool InSnap();
 bool AreQtPluginsBundled();
 bool UseXDGDesktopPortal();
 bool CanOpenDirectoryWithPortal();
-bool IsNotificationServiceActivatable();
 
 QString AppRuntimeDirectory();
 QString GetLauncherBasename();
