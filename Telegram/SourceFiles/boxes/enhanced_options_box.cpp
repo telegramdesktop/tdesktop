@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -127,4 +128,38 @@ void AlwaysDeleteBox::save() {
     EnhancedSettings::Write();
     Global::RefAlwaysDeleteChanged().notify();
     closeBox();
+}
+
+RadioController::RadioController(QWidget *parent)
+: _url(this, st::defaultInputField, tr::lng_formatting_link_url())
+{
+}
+
+void RadioController::prepare() {
+	setTitle(tr::lng_settings_radio_controller());
+
+	addButton(tr::lng_settings_save(), [=] { save(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
+
+	_url->setText(cRadioController());
+
+	setDimensions(st::boxWidth, _url->height());
+}
+
+void RadioController::setInnerFocus() {
+	_url->setFocusFast();
+}
+
+void RadioController::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
+
+	int32 w = st::boxWidth - st::boxPadding.left() - st::boxPadding.right();
+	_url->resize(w, _url->height());
+	_url->moveToLeft(st::boxPadding.left(), 0);
+}
+
+void RadioController::save() {
+	cSetRadioController(_url->getLastText().trimmed());
+	EnhancedSettings::Write();
+	closeBox();
 }

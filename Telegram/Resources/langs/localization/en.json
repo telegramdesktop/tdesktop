@@ -20,6 +20,7 @@
     "lng_settings_show_scheduled_button": "Always show scheduled button",
     "lng_settings_voice_chat": "Voice Chat",
     "lng_settings_radio_mode": "Radio mode",
+    "lng_settings_radio_controller": "Radio controller",
     "lng_settings_restart_hint": "WARNING: Changing options that are colored in red will take effect only after the app restarts.",
 
     "lng_net_speed_boost_title": "Network speed boost",
@@ -27,6 +28,7 @@
     "lng_show_emoji_button_as_text_desc": "Note: If you can't see an emoji button, please turn on this option.",
     "lng_radio_mode_desc": "Note: Radio mode is an experimental feature for streaming music through voice chat without audio filtering/processing.",
     "lng_radio_mode_hint": "Radio mode is enabled! Re-join a voice chat if you're already joined.",
+    "lng_radio_controller_desc": "Note: Radio controller is an experimental bot for controlling your music streaming session.",
 
     "lng_net_speed_boost_default": "Disabled",
     "lng_net_speed_boost_slight": "Slight",

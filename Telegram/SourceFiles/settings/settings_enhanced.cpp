@@ -231,6 +231,16 @@ namespace Settings {
 
         AddDividerText(inner, tr::lng_radio_mode_desc());
 
+		AddButton(
+				inner,
+				tr::lng_settings_radio_controller(),
+				st::settingsButton
+		)->addClickHandler([=] {
+			Ui::show(Box<RadioController>());
+		});
+
+		AddDividerText(inner, tr::lng_radio_controller_desc());
+
         AddSkip(container);
     }
 

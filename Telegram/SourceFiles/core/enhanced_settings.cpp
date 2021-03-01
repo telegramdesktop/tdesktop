@@ -241,6 +241,10 @@ namespace EnhancedSettings {
 			cSetRadioMode(v);
 		});
 
+		ReadStringOption(settings, "radio_controller", [&](auto v) {
+			cSetRadioController(v);
+		});
+
       return true;
     }
 
@@ -267,6 +271,7 @@ namespace EnhancedSettings {
         settings.insert(qsl("disable_cloud_draft_sync"), false);
 		settings.insert(qsl("show_scheduled_button"), false);
 		settings.insert(qsl("radio_mode"), false);
+		settings.insert(qsl("radio_controller"), "");
 
         auto document = QJsonDocument();
         document.setObject(settings);
@@ -299,6 +304,7 @@ namespace EnhancedSettings {
         settings.insert(qsl("disable_cloud_draft_sync"), cDisableCloudDraftSync());
 		settings.insert(qsl("show_scheduled_button"), cShowScheduledButton());
 		settings.insert(qsl("radio_mode"), cRadioMode());
+		settings.insert(qsl("radio_controller"), cRadioController());
 
         auto document = QJsonDocument();
         document.setObject(settings);

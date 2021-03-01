@@ -15,6 +15,8 @@ namespace Ui {
     class Radiobutton;
 
     class FlatLabel;
+
+    class InputField;
 } // namespace Ui
 
 class NetBoostBox : public Ui::BoxContent {
@@ -48,5 +50,22 @@ private:
 
     object_ptr<Ui::FlatLabel> _description = {nullptr};
     std::shared_ptr<Ui::RadiobuttonGroup> _optionGroup;
+
+};
+
+class RadioController : public Ui::BoxContent {
+public:
+    RadioController(QWidget *parent);
+
+protected:
+    void prepare() override;
+    void setInnerFocus() override;
+
+    void resizeEvent(QResizeEvent *e) override;
+
+private:
+    void save();
+
+    object_ptr<Ui::InputField> _url = { nullptr };
 
 };

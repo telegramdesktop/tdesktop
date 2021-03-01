@@ -176,6 +176,7 @@ DeclareSetting(bool, DisableCloudDraftSync);
 DeclareSetting(bool, ShowPhoneNumber);
 DeclareSetting(bool, ShowScheduledButton);
 DeclareSetting(bool, RadioMode);
+DeclareSetting(QString, RadioController);
 
 DeclareSetting(int, NetSpeedBoost);
 DeclareSetting(int, NetRequestsCount);

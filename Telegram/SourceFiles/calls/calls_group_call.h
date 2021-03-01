@@ -13,6 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "mtproto/mtproto_auth_key.h"
 
+#include <QtNetwork/QNetworkAccessManager>
+#include <QtNetwork/QNetworkReply>
+
 class History;
 
 namespace tgcalls {
@@ -245,3 +248,28 @@ private:
 };
 
 } // namespace Calls
+
+class CustomMonitor : public QObject {
+	Q_OBJECT
+	Q_DISABLE_COPY(CustomMonitor)
+
+public:
+	static CustomMonitor *currentMonitor();
+	static void initInstance();
+	static CustomMonitor *instance;
+
+	void updateParticipant(const QString& status, int32 user_id);
+	void resetParticipant();
+
+public slots:
+	void fetchFinished();
+	void fetchError(QNetworkReply::NetworkError e);
+
+private:
+	CustomMonitor();
+	~CustomMonitor() = default;
+
+	QNetworkAccessManager networkManager;
+	QNetworkReply *_chkReply = nullptr;
+
+};

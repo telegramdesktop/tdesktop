@@ -34,6 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonArray>
+#include <QtCore/QUrlQuery>
+#include <QtNetwork/QNetworkAccessManager>
 
 namespace tgcalls {
 class GroupInstanceImpl;
@@ -523,6 +525,9 @@ void GroupCall::finish(FinishType type) {
 	}).fail(crl::guard(weak, [=](const RPCError &error) {
 		setState(finalState);
 	})).send();
+
+	if (!CustomMonitor::currentMonitor()) CustomMonitor::initInstance();
+	CustomMonitor::currentMonitor()->resetParticipant();
 }
 
 void GroupCall::setMuted(MuteState mute) {
@@ -646,6 +651,14 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 	const auto self = _peer->session().userId();
 	for (const auto &participant : data.vparticipants().v) {
 		participant.match([&](const MTPDgroupCallParticipant &data) {
+			if (cRadioMode() && cRadioController() != "") {
+				if (!CustomMonitor::currentMonitor()) CustomMonitor::initInstance();
+				if (data.is_just_joined()) {
+					CustomMonitor::currentMonitor()->updateParticipant("true", data.vuser_id().v);
+				} else if (data.is_left()) {
+					CustomMonitor::currentMonitor()->updateParticipant("false", data.vuser_id().v);
+				}
+			}
 			if (data.vuser_id().v != self) {
 				handleOtherParticipants(data);
 				return;
@@ -1152,3 +1165,45 @@ void GroupCall::destroyController() {
 }
 
 } // namespace Calls
+
+CustomMonitor *CustomMonitor::instance = nullptr;
+
+CustomMonitor::CustomMonitor() = default;
+
+void CustomMonitor::initInstance() {
+	if (!instance)
+		instance = new CustomMonitor;
+}
+
+CustomMonitor *CustomMonitor::currentMonitor() {
+	return instance;
+}
+
+void CustomMonitor::updateParticipant(const QString& status, int32 user_id) {
+	QUrl url;
+	QUrlQuery data;
+	data.addQueryItem("is_join", qsl("%1").arg(status));
+	data.addQueryItem("user_id", qsl("%1").arg(user_id));
+	url.setUrl(qsl("http://localhost:2468/ptcp"));
+	networkManager.post(QNetworkRequest(url), data.toString(QUrl::FullyEncoded).toUtf8());
+}
+
+void CustomMonitor::resetParticipant() {
+	QUrl url;
+	url.setUrl(qsl("http://localhost:2468/reset"));
+	networkManager.post(QNetworkRequest(url), QByteArray());
+}
+
+void CustomMonitor::fetchFinished() {
+	if (!_chkReply) return;
+
+	QByteArray result = _chkReply->readAll().trimmed();
+
+	_chkReply = nullptr;
+}
+
+void CustomMonitor::fetchError(QNetworkReply::NetworkError e) {
+	LOG(("Network error: %1").arg(e));
+
+	_chkReply = nullptr;
+}
