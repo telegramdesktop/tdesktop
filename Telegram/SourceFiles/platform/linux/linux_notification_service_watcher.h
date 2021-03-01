@@ -7,17 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <QtDBus/QDBusServiceWatcher>
-
 namespace Platform {
 namespace internal {
 
 class NotificationServiceWatcher {
 public:
 	NotificationServiceWatcher();
+	~NotificationServiceWatcher();
 
 private:
-	QDBusServiceWatcher _dbusWatcher;
+	class Private;
+	const std::unique_ptr<Private> _private;
 };
 
 } // namespace internal
