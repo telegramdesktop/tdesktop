@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/specific_linux.h"
 
+#include "base/openssl_help.h"
 #include "base/platform/base_platform_info.h"
+#include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_gtk_integration.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "platform/linux/linux_desktop_environment.h"
@@ -47,13 +49,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtDBus/QDBusConnection>
 #include <QtDBus/QDBusMessage>
 #include <QtDBus/QDBusReply>
-#include <QtDBus/QDBusError>
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
+#include <private/qguiapplication_p.h>
 #include <glib.h>
 #include <gio/gio.h>
 #include <glibmm.h>
 #include <giomm.h>
+
+// must be after undefs
+#include "base/platform/linux/base_linux_glibmm_helper.h"
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -83,54 +88,120 @@ constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 std::unique_ptr<internal::NotificationServiceWatcher> NSWInstance;
 
-void PortalAutostart(bool start, bool silent = false) {
+class PortalAutostart : public QWindow {
+public:
+	PortalAutostart(bool start, bool silent = false);
+};
+
+PortalAutostart::PortalAutostart(bool start, bool silent) {
 	if (cExeName().isEmpty()) {
 		return;
 	}
 
-	QVariantMap options;
-	options["reason"] = tr::lng_settings_auto_start(tr::now);
-	options["autostart"] = start;
-	options["commandline"] = QStringList{
-		cExeName(),
-		qsl("-workdir"),
-		cWorkingDir(),
-		qsl("-autostart")
-	};
-	options["dbus-activatable"] = false;
+	try {
+		const auto connection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-	auto message = QDBusMessage::createMethodCall(
-		kXDGDesktopPortalService.utf16(),
-		kXDGDesktopPortalObjectPath.utf16(),
-		qsl("org.freedesktop.portal.Background"),
-		qsl("RequestBackground"));
-
-	const auto parentWindowId = [&] {
-		if (const auto activeWindow = Core::App().activeWindow()) {
-			if (IsX11()) {
-				return qsl("x11:%1").arg(QString::number(
-					activeWindow->widget().get()->windowHandle()->winId(),
-					16));
+		const auto parentWindowId = [&]() -> Glib::ustring {
+			std::stringstream result;
+			if (const auto activeWindow = Core::App().activeWindow()) {
+				if (IsX11()) {
+					result
+						<< "x11:" 
+						<< std::hex
+						<< activeWindow
+							->widget()
+							.get()
+							->windowHandle()
+							->winId();
+				}
 			}
+			return result.str();
+		}();
+
+		const auto handleToken = Glib::ustring("tdesktop")
+			+ std::to_string(openssl::RandomValue<uint>());
+
+		std::map<Glib::ustring, Glib::VariantBase> options;
+		options["handle_token"] = Glib::Variant<Glib::ustring>::create(
+			handleToken);
+		options["reason"] = Glib::Variant<Glib::ustring>::create(
+			tr::lng_settings_auto_start(tr::now).toStdString());
+		options["autostart"] = Glib::Variant<bool>::create(start);
+		options["commandline"] = Glib::Variant<std::vector<
+			Glib::ustring
+		>>::create({
+			cExeName().toStdString(),
+			"-workdir",
+			cWorkingDir().toStdString(),
+			"-autostart",
+		});
+		options["dbus-activatable"] = Glib::Variant<bool>::create(false);
+
+		auto uniqueName = connection->get_unique_name();
+		uniqueName.erase(0, 1);
+		uniqueName.replace(uniqueName.find('.'), 1, 1, '_');
+
+		const auto requestPath = Glib::ustring(
+				"/org/freedesktop/portal/desktop/request/")
+			+ uniqueName
+			+ '/'
+			+ handleToken;
+		
+		QEventLoop loop;
+
+		const auto signalId = connection->signal_subscribe(
+			[&](
+				const Glib::RefPtr<Gio::DBus::Connection> &connection,
+				const Glib::ustring &sender_name,
+				const Glib::ustring &object_path,
+				const Glib::ustring &interface_name,
+				const Glib::ustring &signal_name,
+				const Glib::VariantContainerBase &parameters) {
+				try {
+					auto parametersCopy = parameters;
+
+					const auto response = base::Platform::GlibVariantCast<
+						uint>(parametersCopy.get_child(0));
+					
+					if (response && !silent) {
+						LOG(("Portal Autostart Error: Request denied"));
+					}
+				} catch (const std::exception &e) {
+					if (!silent) {
+						LOG(("Portal Autostart Error: %1").arg(
+							QString::fromStdString(e.what())));
+					}
+				}
+
+				loop.quit();
+			},
+			std::string(kXDGDesktopPortalService),
+			"org.freedesktop.portal.Request",
+			"Response",
+			requestPath);
+
+		connection->call_sync(
+			std::string(kXDGDesktopPortalObjectPath),
+			"org.freedesktop.portal.Background",
+			"RequestBackground",
+			base::Platform::MakeGlibVariant(std::tuple{
+				parentWindowId,
+				options,
+			}),
+			std::string(kXDGDesktopPortalService));
+
+		if (signalId != 0) {
+			QGuiApplicationPrivate::showModalWindow(this);
+			loop.exec();
+			QGuiApplicationPrivate::hideModalWindow(this);
+			connection->signal_unsubscribe(signalId);
 		}
-		return QString();
-	}();
-
-	message.setArguments({
-		parentWindowId,
-		options
-	});
-
-	if (silent) {
-		QDBusConnection::sessionBus().send(message);
-		return;
-	}
-
-	const QDBusError error = QDBusConnection::sessionBus().call(message);
-	if (error.isValid()) {
-		LOG(("Flatpak Autostart Error: %1: %2")
-			.arg(error.name())
-			.arg(error.message()));
+	} catch (const Glib::Error &e) {
+		if (!silent) {
+			LOG(("Portal Autostart Error: %1").arg(
+				QString::fromStdString(e.what())));
+		}
 	}
 }
 
