@@ -44,21 +44,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QProcess>
 #include <QtGui/QWindow>
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include <QtDBus/QDBusInterface>
-#include <QtDBus/QDBusConnection>
-#include <QtDBus/QDBusMessage>
-#include <QtDBus/QDBusReply>
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
 #include <private/qguiapplication_p.h>
 #include <glib.h>
 #include <gio/gio.h>
 #include <glibmm.h>
 #include <giomm.h>
-
-// must be after undefs
-#include "base/platform/linux/base_linux_glibmm_helper.h"
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -83,6 +73,8 @@ constexpr auto kHandlerTypeName = "x-scheme-handler/tg"_cs;
 
 constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
 constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
+constexpr auto kXDGDesktopPortalKDEService = "org.freedesktop.impl.portal.desktop.kde"_cs;
+constexpr auto kIBusPortalService = "org.freedesktop.portal.IBus"_cs;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -206,17 +198,49 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 }
 
 bool IsXDGDesktopPortalPresent() {
-	static const auto Result = QDBusInterface(
-		kXDGDesktopPortalService.utf16(),
-		kXDGDesktopPortalObjectPath.utf16()).isValid();
+	static const auto Result = [&] {
+		try {
+			const auto connection = Gio::DBus::Connection::get_sync(
+				Gio::DBus::BusType::BUS_TYPE_SESSION);
+
+			const auto serviceRegistered = base::Platform::DBus::NameHasOwner(
+				connection,
+				std::string(kXDGDesktopPortalService));
+
+			const auto serviceActivatable = ranges::contains(
+				base::Platform::DBus::ListActivatableNames(connection),
+				Glib::ustring(std::string(kXDGDesktopPortalService)));
+
+			return serviceRegistered || serviceActivatable;
+		} catch (...) {
+		}
+
+		return false;
+	}();
 
 	return Result;
 }
 
 bool IsXDGDesktopPortalKDEPresent() {
-	static const auto Result = QDBusInterface(
-		qsl("org.freedesktop.impl.portal.desktop.kde"),
-		kXDGDesktopPortalObjectPath.utf16()).isValid();
+	static const auto Result = [&] {
+		try {
+			const auto connection = Gio::DBus::Connection::get_sync(
+				Gio::DBus::BusType::BUS_TYPE_SESSION);
+
+			const auto serviceRegistered = base::Platform::DBus::NameHasOwner(
+				connection,
+				std::string(kXDGDesktopPortalKDEService));
+
+			const auto serviceActivatable = ranges::contains(
+				base::Platform::DBus::ListActivatableNames(connection),
+				Glib::ustring(std::string(kXDGDesktopPortalKDEService)));
+
+			return serviceRegistered || serviceActivatable;
+		} catch (...) {
+		}
+
+		return false;
+	}();
 
 	return Result;
 }
@@ -229,11 +253,11 @@ bool IsIBusPortalPresent() {
 
 			const auto serviceRegistered = base::Platform::DBus::NameHasOwner(
 				connection,
-				"org.freedesktop.portal.IBus");
+				std::string(kIBusPortalService));
 
 			const auto serviceActivatable = ranges::contains(
 				base::Platform::DBus::ListActivatableNames(connection),
-				"org.freedesktop.portal.IBus");
+				Glib::ustring(std::string(kIBusPortalService)));
 
 			return serviceRegistered || serviceActivatable;
 		} catch (...) {
@@ -247,27 +271,30 @@ bool IsIBusPortalPresent() {
 
 uint FileChooserPortalVersion() {
 	static const auto Result = [&]() -> uint {
-		auto message = QDBusMessage::createMethodCall(
-			kXDGDesktopPortalService.utf16(),
-			kXDGDesktopPortalObjectPath.utf16(),
-			kPropertiesInterface.utf16(),
-			qsl("Get"));
+		try {
+			const auto connection = Gio::DBus::Connection::get_sync(
+				Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-		message.setArguments({
-			qsl("org.freedesktop.portal.FileChooser"),
-			qsl("version")
-		});
+			auto reply = connection->call_sync(
+				std::string(kXDGDesktopPortalObjectPath),
+				std::string(kPropertiesInterface),
+				"Get",
+				base::Platform::MakeGlibVariant(std::tuple{
+					Glib::ustring("org.freedesktop.portal.FileChooser"),
+					Glib::ustring("version"),
+				}),
+				std::string(kXDGDesktopPortalService));
 
-		const QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(
-			message);
-
-		if (reply.isValid()) {
-			return reply.value().toUInt();
+			return base::Platform::GlibVariantCast<uint>(
+				base::Platform::GlibVariantCast<Glib::VariantBase>(
+					reply.get_child(0)));
+		} catch (const Glib::Error &e) {
+			LOG(("Error getting FileChooser portal version: %1")
+				.arg(QString::fromStdString(e.what())));
+		} catch (const std::exception &e) {
+			LOG(("Error getting FileChooser portal version: %1")
+				.arg(QString::fromStdString(e.what())));
 		}
-
-		LOG(("Error getting FileChooser portal version: %1: %2")
-			.arg(reply.error().name())
-			.arg(reply.error().message()));
 
 		return 0;
 	}();
