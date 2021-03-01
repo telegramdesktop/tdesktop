@@ -10,62 +10,63 @@ https://github.com/TDesktop-x64/tdesktop/blob/dev/LEGAL
 #include "boxes/abstract_box.h"
 
 namespace Ui {
-    class RadiobuttonGroup;
+	class RadiobuttonGroup;
 
-    class Radiobutton;
+	class Radiobutton;
 
-    class FlatLabel;
+	class FlatLabel;
 
-    class InputField;
+	class InputField;
 } // namespace Ui
 
 class NetBoostBox : public Ui::BoxContent {
 public:
-    NetBoostBox(QWidget *parent);
+	NetBoostBox(QWidget *parent);
 
-    static QString BoostLabel(int boost);
+	static QString BoostLabel(int boost);
 
 protected:
-    void prepare() override;
+	void prepare() override;
 
 private:
-    void save();
+	void save();
 
-    object_ptr<Ui::FlatLabel> _description = {nullptr};
-    std::shared_ptr<Ui::RadiobuttonGroup> _boostGroup;
+	object_ptr<Ui::FlatLabel> _description = {nullptr};
+	std::shared_ptr<Ui::RadiobuttonGroup> _boostGroup;
 
 };
 
 class AlwaysDeleteBox : public Ui::BoxContent {
 public:
-    AlwaysDeleteBox(QWidget *parent);
+	AlwaysDeleteBox(QWidget *parent);
 
-    static QString DeleteLabel(int option);
+	static QString DeleteLabel(int option);
 
 protected:
-    void prepare() override;
+	void prepare() override;
 
 private:
-    void save();
+	void save();
 
-    object_ptr<Ui::FlatLabel> _description = {nullptr};
-    std::shared_ptr<Ui::RadiobuttonGroup> _optionGroup;
+	object_ptr<Ui::FlatLabel> _description = {nullptr};
+	std::shared_ptr<Ui::RadiobuttonGroup> _optionGroup;
 
 };
 
 class RadioController : public Ui::BoxContent {
 public:
-    RadioController(QWidget *parent);
+	RadioController(QWidget *parent);
 
 protected:
-    void prepare() override;
-    void setInnerFocus() override;
+	void prepare() override;
 
-    void resizeEvent(QResizeEvent *e) override;
+	void setInnerFocus() override;
+
+	void resizeEvent(QResizeEvent *e) override;
 
 private:
-    void save();
+	void save();
 
-    object_ptr<Ui::InputField> _url = { nullptr };
+	object_ptr<Ui::InputField> _url = {nullptr};
 
 };

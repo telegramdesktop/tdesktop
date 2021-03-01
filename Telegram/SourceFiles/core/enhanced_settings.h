@@ -10,37 +10,37 @@ https://github.com/TDesktop-x64/tdesktop/blob/dev/LEGAL
 
 namespace EnhancedSettings {
 
-    class Manager : public QObject {
-    Q_OBJECT
+	class Manager : public QObject {
+	Q_OBJECT
 
-    public:
-        Manager();
+	public:
+		Manager();
 
-        void fill();
+		void fill();
 
-        void write(bool force = false);
+		void write(bool force = false);
 
-    public slots:
+	public slots:
 
-        void writeTimeout();
+		void writeTimeout();
 
-    private:
-        void writeDefaultFile();
+	private:
+		void writeDefaultFile();
 
-        void writeCurrentSettings();
+		void writeCurrentSettings();
 
-        bool readCustomFile();
+		bool readCustomFile();
 
-        void writing();
+		void writing();
 
-        QTimer _jsonWriteTimer;
+		QTimer _jsonWriteTimer;
 
-    };
+	};
 
-    void Start();
+	void Start();
 
-    void Write();
+	void Write();
 
-    void Finish();
+	void Finish();
 
 } // namespace EnhancedSettings

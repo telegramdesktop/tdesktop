@@ -21,118 +21,117 @@ NetBoostBox::NetBoostBox(QWidget *parent) {
 }
 
 void NetBoostBox::prepare() {
-    setTitle(tr::lng_net_speed_boost_title());
+	setTitle(tr::lng_net_speed_boost_title());
 
-    addButton(tr::lng_settings_save(), [=] { save(); });
-    addButton(tr::lng_cancel(), [=] { closeBox(); });
+	addButton(tr::lng_settings_save(), [=] { save(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
-    auto y = st::boxOptionListPadding.top();
-    _description.create(
-            this,
-            tr::lng_net_speed_boost_desc(tr::now),
-            st::boxLabel);
-    _description->moveToLeft(st::boxPadding.left(), y);
+	auto y = st::boxOptionListPadding.top();
+	_description.create(
+			this,
+			tr::lng_net_speed_boost_desc(tr::now),
+			st::boxLabel);
+	_description->moveToLeft(st::boxPadding.left(), y);
 
-    y += _description->height() + st::boxMediumSkip;
+	y += _description->height() + st::boxMediumSkip;
 
-    _boostGroup = std::make_shared<Ui::RadiobuttonGroup>(cNetSpeedBoost());
+	_boostGroup = std::make_shared<Ui::RadiobuttonGroup>(cNetSpeedBoost());
 
-    for (int i = 0; i <= 3; i++) {
-        const auto button = Ui::CreateChild<Ui::Radiobutton>(
-                this,
-                _boostGroup,
-                i,
-                BoostLabel(i),
-                st::autolockButton);
-        button->moveToLeft(st::boxPadding.left(), y);
-        y += button->heightNoMargins() + st::boxOptionListSkip;
-    }
-    showChildren();
-    setDimensions(st::boxWidth, y);
+	for (int i = 0; i <= 3; i++) {
+		const auto button = Ui::CreateChild<Ui::Radiobutton>(
+				this,
+				_boostGroup,
+				i,
+				BoostLabel(i),
+				st::autolockButton);
+		button->moveToLeft(st::boxPadding.left(), y);
+		y += button->heightNoMargins() + st::boxOptionListSkip;
+	}
+	showChildren();
+	setDimensions(st::boxWidth, y);
 }
 
 QString NetBoostBox::BoostLabel(int boost) {
-    switch (boost) {
-        case 0:
-            return tr::lng_net_speed_boost_default(tr::now);
-        case 1:
-            return tr::lng_net_speed_boost_slight(tr::now);
-        case 2:
-            return tr::lng_net_speed_boost_medium(tr::now);
-        case 3:
-            return tr::lng_net_speed_boost_big(tr::now);
-        default:
-            Unexpected("Boost in NetBoostBox::BoostLabel.");
-    }
+	switch (boost) {
+		case 0:
+			return tr::lng_net_speed_boost_default(tr::now);
+		case 1:
+			return tr::lng_net_speed_boost_slight(tr::now);
+		case 2:
+			return tr::lng_net_speed_boost_medium(tr::now);
+		case 3:
+			return tr::lng_net_speed_boost_big(tr::now);
+		default:
+			Unexpected("Boost in NetBoostBox::BoostLabel.");
+	}
 }
 
 void NetBoostBox::save() {
-    const auto changeBoost = [=] {
-        SetNetworkBoost(_boostGroup->value());
-        EnhancedSettings::Write();
-        App::restart();
-    };
+	const auto changeBoost = [=] {
+		SetNetworkBoost(_boostGroup->value());
+		EnhancedSettings::Write();
+		App::restart();
+	};
 
-    const auto box = std::make_shared<QPointer<BoxContent>>();
+	const auto box = std::make_shared<QPointer<BoxContent>>();
 
-    *box = getDelegate()->show(
-            Box<ConfirmBox>(
-                    tr::lng_net_boost_restart_desc(tr::now),
-                    tr::lng_settings_restart_now(tr::now),
-                    tr::lng_cancel(tr::now),
-                    changeBoost));
+	*box = getDelegate()->show(
+			Box<ConfirmBox>(
+					tr::lng_net_boost_restart_desc(tr::now),
+					tr::lng_settings_restart_now(tr::now),
+					tr::lng_cancel(tr::now),
+					changeBoost));
 }
 
 AlwaysDeleteBox::AlwaysDeleteBox(QWidget *parent) {
 }
 
 void AlwaysDeleteBox::prepare() {
-    setTitle(tr::lng_settings_always_delete_for());
+	setTitle(tr::lng_settings_always_delete_for());
 
-    addButton(tr::lng_box_ok(), [=] { closeBox(); });
+	addButton(tr::lng_box_ok(), [=] { closeBox(); });
 
-    auto y = st::boxOptionListPadding.top();
-    _optionGroup = std::make_shared<Ui::RadiobuttonGroup>(cAlwaysDeleteFor());
+	auto y = st::boxOptionListPadding.top();
+	_optionGroup = std::make_shared<Ui::RadiobuttonGroup>(cAlwaysDeleteFor());
 
-    for (int i = 0; i <= 3; i++) {
-        const auto button = Ui::CreateChild<Ui::Radiobutton>(
-                this,
-                _optionGroup,
-                i,
-                DeleteLabel(i),
-                st::autolockButton);
-        button->moveToLeft(st::boxPadding.left(), y);
-        y += button->heightNoMargins() + st::boxOptionListSkip;
-    }
-    _optionGroup->setChangedCallback([=](int value) { save(); });
-    setDimensions(st::boxWidth, y);
+	for (int i = 0; i <= 3; i++) {
+		const auto button = Ui::CreateChild<Ui::Radiobutton>(
+				this,
+				_optionGroup,
+				i,
+				DeleteLabel(i),
+				st::autolockButton);
+		button->moveToLeft(st::boxPadding.left(), y);
+		y += button->heightNoMargins() + st::boxOptionListSkip;
+	}
+	_optionGroup->setChangedCallback([=](int value) { save(); });
+	setDimensions(st::boxWidth, y);
 }
 
 QString AlwaysDeleteBox::DeleteLabel(int boost) {
-    switch (boost) {
-        case 0:
-            return tr::lng_settings_delete_disabled(tr::now);
-        case 1:
-            return tr::lng_settings_delete_for_group(tr::now);
-        case 2:
-            return tr::lng_settings_delete_for_person(tr::now);
-        case 3:
-            return tr::lng_settings_delete_for_both(tr::now);
-        default:
-            Unexpected("Delete in AlwaysDeleteBox::DeleteLabel.");
-    }
+	switch (boost) {
+		case 0:
+			return tr::lng_settings_delete_disabled(tr::now);
+		case 1:
+			return tr::lng_settings_delete_for_group(tr::now);
+		case 2:
+			return tr::lng_settings_delete_for_person(tr::now);
+		case 3:
+			return tr::lng_settings_delete_for_both(tr::now);
+		default:
+			Unexpected("Delete in AlwaysDeleteBox::DeleteLabel.");
+	}
 }
 
 void AlwaysDeleteBox::save() {
-    SetAlwaysDelete(_optionGroup->value());
-    EnhancedSettings::Write();
-    Global::RefAlwaysDeleteChanged().notify();
-    closeBox();
+	SetAlwaysDelete(_optionGroup->value());
+	EnhancedSettings::Write();
+	Global::RefAlwaysDeleteChanged().notify();
+	closeBox();
 }
 
 RadioController::RadioController(QWidget *parent)
-: _url(this, st::defaultInputField, tr::lng_formatting_link_url())
-{
+		: _url(this, st::defaultInputField, tr::lng_formatting_link_url()) {
 }
 
 void RadioController::prepare() {
