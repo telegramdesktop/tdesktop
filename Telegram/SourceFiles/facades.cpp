@@ -35,6 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 
 #include "webview/webview_embed.h"
+#include "webview/webview_interface.h"
+#include "core/local_url_handlers.h"
 #include "ui/widgets/window.h"
 #include "ui/toast/toast.h"
 #include <QJsonDocument>
@@ -66,38 +68,42 @@ void GetPaymentForm(not_null<const HistoryItem*> msg) {
 		}, window->lifetime());
 
 		const auto body = window->body();
+		body->paintRequest(
+		) | rpl::start_with_next([=](QRect clip) {
+			QPainter(body).fillRect(clip, st::windowBg);
+		}, body->lifetime());
+
 		const auto webview = Ui::CreateChild<Webview::Window>(
 			window,
 			window);
+		if (!webview->widget()) {
+			delete window;
+			Ui::show(Box<InformBox>(
+				tr::lng_payments_not_supported(tr::now)));
+			return;
+		}
+
 		body->geometryValue(
 		) | rpl::start_with_next([=](QRect geometry) {
 			webview->widget()->setGeometry(geometry);
 		}, body->lifetime());
 
-		webview->bind("buy_callback", [=](const QByteArray &result) {
-			auto error = QJsonParseError{ 0, QJsonParseError::NoError };
-			const auto typeAndArguments = QJsonDocument::fromJson(
-				result,
-				&error);
-			if (error.error != QJsonParseError::NoError) {
+		webview->setMessageHandler([=](const QJsonDocument &message) {
+			if (!message.isArray()) {
 				LOG(("Payments Error: "
-					"Failed to parse buy_callback result, error: %1."
-					).arg(error.errorString()));
-				return;
-			} else if (!typeAndArguments.isArray()) {
-				LOG(("API Error: "
 					"Not an array received in buy_callback arguments."));
 				return;
 			}
-			const auto list = typeAndArguments.array();
+			const auto list = message.array();
 			if (list.at(0).toString() != "payment_form_submit") {
 				return;
 			} else if (!list.at(1).isString()) {
-				LOG(("API Error: "
+				LOG(("Payments Error: "
 					"Not a string received in buy_callback result."));
 				return;
 			}
 
+			auto error = QJsonParseError();
 			const auto document = QJsonDocument::fromJson(
 				list.at(1).toString().toUtf8(),
 				&error);
@@ -107,7 +113,7 @@ void GetPaymentForm(not_null<const HistoryItem*> msg) {
 					).arg(error.errorString()));
 				return;
 			} else if (!document.isObject()) {
-				LOG(("API Error: "
+				LOG(("Payments Error: "
 					"Not an object decoded in buy_callback result."));
 				return;
 			}
@@ -115,7 +121,7 @@ void GetPaymentForm(not_null<const HistoryItem*> msg) {
 			const auto title = root.value("title").toString();
 			const auto credentials = root.value("credentials");
 			if (!credentials.isObject()) {
-				LOG(("API Error: "
+				LOG(("Payments Error: "
 					"Not an object received in payment credentials."));
 				return;
 			}
@@ -145,15 +151,21 @@ void GetPaymentForm(not_null<const HistoryItem*> msg) {
 			}).send();
 		});
 
-		webview->init("(function(){"
-			"window.TelegramWebviewProxy = {"
-				"postEvent: function(eventType, eventData) {"
-					"if (window.buy_callback) {"
-						"window.buy_callback(eventType, eventData);"
-					"}"
-				"}"
-			"};"
-		"}());");
+		webview->setNavigationHandler([=](const QString &uri) {
+			if (Core::TryConvertUrlToLocal(uri) != uri) {
+				window->deleteLater();
+				App::wnd()->activate();
+			}
+		});
+
+		webview->init(R"(
+window.TelegramWebviewProxy = {
+	postEvent: function(eventType, eventData) {
+		if (window.external && window.external.invoke) {
+			window.external.invoke(JSON.stringify([eventType, eventData]));
+		}
+	}
+};)");
 
 		const auto &data = result.c_payments_paymentForm();
 		webview->navigate(qs(data.vurl()));
@@ -252,8 +264,12 @@ void activateBotCommand(
 	} break;
 
 	case ButtonType::Buy: {
-		Api::GetPaymentForm(msg);
-		//Ui::show(Box<InformBox>(tr::lng_payments_not_supported(tr::now)));
+		if (Webview::Supported()) {
+			Api::GetPaymentForm(msg);
+		} else {
+			Ui::show(Box<InformBox>(
+				tr::lng_payments_not_supported(tr::now)));
+		}
 	} break;
 
 	case ButtonType::Url: {
