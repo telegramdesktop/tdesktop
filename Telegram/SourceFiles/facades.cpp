@@ -152,10 +152,12 @@ void GetPaymentForm(not_null<const HistoryItem*> msg) {
 		});
 
 		webview->setNavigationHandler([=](const QString &uri) {
-			if (Core::TryConvertUrlToLocal(uri) != uri) {
-				window->deleteLater();
-				App::wnd()->activate();
+			if (Core::TryConvertUrlToLocal(uri) == uri) {
+				return true;
 			}
+			window->deleteLater();
+			App::wnd()->activate();
+			return false;
 		});
 
 		webview->init(R"(
