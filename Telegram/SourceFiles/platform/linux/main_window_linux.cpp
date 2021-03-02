@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+#include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
@@ -43,12 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusConnection>
-#include <QtDBus/QDBusServiceWatcher>
 #include <QtDBus/QDBusMessage>
-#include <QtDBus/QDBusReply>
-#include <QtDBus/QDBusError>
 #include <QtDBus/QDBusObjectPath>
 #include <QtDBus/QDBusMetaType>
 
@@ -414,50 +411,65 @@ std::unique_ptr<QTemporaryFile> TrayIconFile(
 }
 
 bool UseUnityCounter() {
-	static const auto Result = QDBusInterface(
-		"com.canonical.Unity",
-		"/").isValid();
+	static const auto Result = [&] {
+		try {
+			const auto connection = Gio::DBus::Connection::get_sync(
+				Gio::DBus::BusType::BUS_TYPE_SESSION);
+
+			return base::Platform::DBus::NameHasOwner(
+				connection,
+				"com.canonical.Unity");
+		} catch (...) {
+		}
+
+		return false;
+	}();
 
 	return Result;
 }
 
 bool IsSNIAvailable() {
-	auto message = QDBusMessage::createMethodCall(
-		kSNIWatcherService.utf16(),
-		kSNIWatcherObjectPath.utf16(),
-		kPropertiesInterface.utf16(),
-		qsl("Get"));
+	try {
+		const auto connection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-	message.setArguments({
-		kSNIWatcherInterface.utf16(),
-		qsl("IsStatusNotifierHostRegistered")
-	});
+		auto reply = connection->call_sync(
+			std::string(kSNIWatcherObjectPath),
+			std::string(kPropertiesInterface),
+			"Get",
+			base::Platform::MakeGlibVariant(std::tuple{
+				Glib::ustring(std::string(kSNIWatcherInterface)),
+				Glib::ustring("IsStatusNotifierHostRegistered"),
+			}),
+			std::string(kSNIWatcherService));
 
-	const QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(
-		message);
+		return base::Platform::GlibVariantCast<bool>(
+			base::Platform::GlibVariantCast<Glib::VariantBase>(
+				reply.get_child(0)));
+	} catch (const Glib::Error &e) {
+		static const auto NotSupportedErrors = {
+			"org.freedesktop.DBus.Error.Disconnected",
+			"org.freedesktop.DBus.Error.ServiceUnknown",
+		};
 
-	if (reply.isValid()) {
-		return reply.value().toBool();
+		const auto errorName = Gio::DBus::ErrorUtils::get_remote_error(e);
+		if (ranges::contains(NotSupportedErrors, errorName)) {
+			return false;
+		}
+
+		LOG(("SNI Error: %1")
+			.arg(QString::fromStdString(e.what())));
+	} catch (const std::exception &e) {
+		LOG(("SNI Error: %1")
+			.arg(QString::fromStdString(e.what())));
 	}
-
-	switch (reply.error().type()) {
-	case QDBusError::Disconnected:
-	case QDBusError::ServiceUnknown:
-		return false;
-	default:
-		break;
-	}
-
-	LOG(("SNI Error: %1: %2")
-		.arg(reply.error().name())
-		.arg(reply.error().message()));
 
 	return false;
 }
 
-quint32 djbStringHash(QString string) {
-	quint32 hash = 5381;
-	QByteArray chars = string.toLatin1();
+uint djbStringHash(const std::string &string) {
+	uint hash = 5381;
+	const auto chars = QByteArray::fromStdString(string.data());
 	for(int i = 0; i < chars.length(); i++){
 		hash = (hash << 5) + hash + chars[i];
 	}
@@ -478,6 +490,8 @@ bool IsAppMenuSupported() {
 	return false;
 }
 
+// This call must be made from the same bus connection as DBusMenuExporter
+// So it must use QDBusConnection
 void RegisterAppMenu(uint winId, const QString &menuPath) {
 	auto message = QDBusMessage::createMethodCall(
 		kAppMenuService.utf16(),
@@ -493,6 +507,8 @@ void RegisterAppMenu(uint winId, const QString &menuPath) {
 	QDBusConnection::sessionBus().send(message);
 }
 
+// This call must be made from the same bus connection as DBusMenuExporter
+// So it must use QDBusConnection
 void UnregisterAppMenu(uint winId) {
 	auto message = QDBusMessage::createMethodCall(
 		kAppMenuService.utf16(),
@@ -555,6 +571,7 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 void MainWindow::initHook() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	_sniAvailable = IsSNIAvailable();
+	_appMenuSupported = IsAppMenuSupported();
 
 	try {
 		_private->dbusConnection = Gio::DBus::Connection::get_sync(
@@ -580,44 +597,34 @@ void MainWindow::initHook() {
 			std::string(kSNIWatcherInterface),
 			"StatusNotifierHostRegistered",
 			std::string(kSNIWatcherObjectPath));
+
+		_sniWatcherId = base::Platform::DBus::RegisterServiceWatcher(
+			_private->dbusConnection,
+			std::string(kSNIWatcherService),
+			[=](
+				const Glib::ustring &service,
+				const Glib::ustring &oldOwner,
+				const Glib::ustring &newOwner) {
+				handleSNIOwnerChanged(
+					QString::fromStdString(service),
+					QString::fromStdString(oldOwner),
+					QString::fromStdString(newOwner));
+			});
+
+		_appMenuWatcherId = base::Platform::DBus::RegisterServiceWatcher(
+			_private->dbusConnection,
+			std::string(kAppMenuService),
+			[=](
+				const Glib::ustring &service,
+				const Glib::ustring &oldOwner,
+				const Glib::ustring &newOwner) {
+				handleAppMenuOwnerChanged(
+					QString::fromStdString(service),
+					QString::fromStdString(oldOwner),
+					QString::fromStdString(newOwner));
+			});
 	} catch (...) {
 	}
-
-	auto sniWatcher = new QDBusServiceWatcher(
-		kSNIWatcherService.utf16(),
-		QDBusConnection::sessionBus(),
-		QDBusServiceWatcher::WatchForOwnerChange,
-		this);
-
-	connect(
-		sniWatcher,
-		&QDBusServiceWatcher::serviceOwnerChanged,
-		this,
-		[=](
-			const QString &service,
-			const QString &oldOwner,
-			const QString &newOwner) {
-			handleSNIOwnerChanged(service, oldOwner, newOwner);
-		});
-
-	_appMenuSupported = IsAppMenuSupported();
-
-	auto appMenuWatcher = new QDBusServiceWatcher(
-		kAppMenuService.utf16(),
-		QDBusConnection::sessionBus(),
-		QDBusServiceWatcher::WatchForOwnerChange,
-		this);
-
-	connect(
-		appMenuWatcher,
-		&QDBusServiceWatcher::serviceOwnerChanged,
-		this,
-		[=](
-			const QString &service,
-			const QString &oldOwner,
-			const QString &newOwner) {
-			handleAppMenuOwnerChanged(service, oldOwner, newOwner);
-		});
 
 	if (_appMenuSupported) {
 		LOG(("Using D-Bus global menu."));
@@ -866,30 +873,39 @@ void MainWindow::updateIconCounters() {
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	if (UseUnityCounter()) {
-		const auto launcherUrl = "application://" + GetLauncherFilename();
-		// Gnome requires that count is a 64bit integer
-		const qint64 counterSlice = std::min(counter, 9999);
-		QVariantMap dbusUnityProperties;
+		const auto launcherUrl = Glib::ustring(
+			"application://" + GetLauncherFilename().toStdString());
+		const auto counterSlice = std::min(counter, 9999);
+		std::map<Glib::ustring, Glib::VariantBase> dbusUnityProperties;
 
 		if (counterSlice > 0) {
-			dbusUnityProperties["count"] = counterSlice;
-			dbusUnityProperties["count-visible"] = true;
+			// According to the spec, it should be of 'x' D-Bus signature,
+			// which corresponds to gint64 (signed long) type with glib
+			// https://wiki.ubuntu.com/Unity/LauncherAPI#Low_level_DBus_API:_com.canonical.Unity.LauncherEntry
+			dbusUnityProperties["count"] = Glib::Variant<long>::create(
+				counterSlice);
+			dbusUnityProperties["count-visible"] =
+				Glib::Variant<bool>::create(true);
 		} else {
-			dbusUnityProperties["count-visible"] = false;
+			dbusUnityProperties["count-visible"] = 
+				Glib::Variant<bool>::create(false);
 		}
 
-		auto signal = QDBusMessage::createSignal(
-			"/com/canonical/unity/launcherentry/"
-				+ QString::number(djbStringHash(launcherUrl)),
-			"com.canonical.Unity.LauncherEntry",
-			"Update");
-
-		signal.setArguments({
-			launcherUrl,
-			dbusUnityProperties
-		});
-
-		QDBusConnection::sessionBus().send(signal);
+		try {
+			if (_private->dbusConnection) {
+				_private->dbusConnection->emit_signal(
+					"/com/canonical/unity/launcherentry/"
+						+ std::to_string(djbStringHash(launcherUrl)),
+					"com.canonical.Unity.LauncherEntry",
+					"Update",
+					{},
+					base::Platform::MakeGlibVariant(std::tuple{
+						launcherUrl,
+						dbusUnityProperties,
+					}));
+			}
+		} catch (...) {
+		}
 	}
 
 	if (_sniTrayIcon) {
@@ -1251,8 +1267,21 @@ void MainWindow::handleVisibleChangedHook(bool visible) {
 
 MainWindow::~MainWindow() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (_sniRegisteredSignalId != 0) {
-		_private->dbusConnection->signal_unsubscribe(_sniRegisteredSignalId);
+	if (_private->dbusConnection) {
+		if (_sniRegisteredSignalId != 0) {
+			_private->dbusConnection->signal_unsubscribe(
+				_sniRegisteredSignalId);
+		}
+
+		if (_sniWatcherId != 0) {
+			_private->dbusConnection->signal_unsubscribe(
+				_sniWatcherId);
+		}
+
+		if (_appMenuWatcherId != 0) {
+			_private->dbusConnection->signal_unsubscribe(
+				_appMenuWatcherId);
+		}
 	}
 
 	delete _sniTrayIcon;
