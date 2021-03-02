@@ -621,7 +621,9 @@ std::optional<bool> IsDarkMode() {
 		}
 	}
 
-	const auto themeName = integration->getStringSetting(qsl("gtk-theme-name"));
+	const auto themeName = integration->getStringSetting(
+		qsl("gtk-theme-name"));
+
 	if (!themeName.has_value()) {
 		return std::nullopt;
 	} else if (themeName->toLower().contains(qsl("-dark"))) {
@@ -951,7 +953,9 @@ bool OpenSystemSettings(SystemSettingsType type) {
 		add("pavucontrol");
 		add("alsamixergui");
 		return ranges::any_of(options, [](const Command &command) {
-			return QProcess::startDetached(command.command, command.arguments);
+			return QProcess::startDetached(
+				command.command,
+				command.arguments);
 		});
 	}
 	return true;
