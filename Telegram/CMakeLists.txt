@@ -57,7 +57,6 @@ PRIVATE
     desktop-app::lib_lottie
     desktop-app::lib_qr
     desktop-app::lib_webview
-    desktop-app::lib_webview_wrap
     desktop-app::lib_ffmpeg
     desktop-app::external_lz4
     desktop-app::external_rlottie
@@ -73,7 +72,12 @@ PRIVATE
     desktop-app::external_xxhash
 )
 
-if (LINUX)
+if (WIN32)
+    target_link_libraries(Telegram
+    PRIVATE
+        desktop-app::lib_webview_winrt
+    )
+elseif (LINUX)
     target_link_libraries(Telegram
     PRIVATE
         desktop-app::external_glibmm
