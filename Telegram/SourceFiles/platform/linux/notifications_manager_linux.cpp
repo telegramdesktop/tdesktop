@@ -20,13 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 
 #include <QtCore/QVersionNumber>
-#include <QtDBus/QDBusConnection>
-#include <QtDBus/QDBusMessage>
-#include <QtDBus/QDBusPendingCall>
-#include <QtDBus/QDBusPendingCallWatcher>
-#include <QtDBus/QDBusPendingReply>
-#include <QtDBus/QDBusReply>
-#include <QtDBus/QDBusError>
 
 #include <glibmm.h>
 #include <giomm.h>
@@ -71,112 +64,158 @@ bool GetServiceRegistered() {
 }
 
 void GetServerInformation(
-		Fn<void(std::optional<ServerInformation>)> callback) {
-	using ServerInformationReply = QDBusPendingReply<
-		QString,
-		QString,
-		QString,
-		QString>;
+		Fn<void(const std::optional<ServerInformation> &)> callback) {
+	try {
+		const auto connection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-	const auto message = QDBusMessage::createMethodCall(
-		kService.utf16(),
-		kObjectPath.utf16(),
-		kInterface.utf16(),
-		qsl("GetServerInformation"));
+		connection->call(
+			std::string(kObjectPath),
+			std::string(kInterface),
+			"GetServerInformation",
+			{},
+			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
+				try {
+					auto reply = connection->call_finish(result);
 
-	const auto async = QDBusConnection::sessionBus().asyncCall(message);
-	auto watcher = new QDBusPendingCallWatcher(async);
+					const auto name = base::Platform::GlibVariantCast<
+						Glib::ustring>(reply.get_child(0));
 
-	const auto finished = [=](QDBusPendingCallWatcher *call) {
-		const ServerInformationReply reply = *call;
+					const auto vendor = base::Platform::GlibVariantCast<
+						Glib::ustring>(reply.get_child(1));
 
-		if (reply.isValid()) {
-			crl::on_main([=] {
-				callback(ServerInformation{
-					reply.argumentAt<0>(),
-					reply.argumentAt<1>(),
-					QVersionNumber::fromString(reply.argumentAt<2>()),
-					QVersionNumber::fromString(reply.argumentAt<3>()),
-				});
-			});
-		} else {
-			LOG(("Native Notification Error: %1: %2")
-				.arg(reply.error().name())
-				.arg(reply.error().message()));
+					const auto version = base::Platform::GlibVariantCast<
+						Glib::ustring>(reply.get_child(2));
 
-			crl::on_main([=] { callback(std::nullopt); });
-		}
+					const auto specVersion = base::Platform::GlibVariantCast<
+						Glib::ustring>(reply.get_child(3));
 
-		call->deleteLater();
-	};
+					crl::on_main([=] {
+						callback(ServerInformation{
+							QString::fromStdString(name),
+							QString::fromStdString(vendor),
+							QVersionNumber::fromString(
+								QString::fromStdString(version)),
+							QVersionNumber::fromString(
+								QString::fromStdString(specVersion)),
+						});
+					});
 
-	QObject::connect(watcher, &QDBusPendingCallWatcher::finished, finished);
+					return;
+				} catch (const Glib::Error &e) {
+					LOG(("Native Notification Error: %1").arg(
+						QString::fromStdString(e.what())));
+				} catch (const std::exception &e) {
+					LOG(("Native Notification Error: %1").arg(
+						QString::fromStdString(e.what())));
+				}
+					
+				crl::on_main([=] { callback({}); });
+			},
+			std::string(kService));
+
+			return;
+	} catch (const Glib::Error &e) {
+		LOG(("Native Notification Error: %1").arg(
+			QString::fromStdString(e.what())));
+	}
+		
+	crl::on_main([=] { callback(std::nullopt); });
 }
 
-void GetCapabilities(Fn<void(QStringList)> callback) {
-	const auto message = QDBusMessage::createMethodCall(
-		kService.utf16(),
-		kObjectPath.utf16(),
-		kInterface.utf16(),
-		qsl("GetCapabilities"));
+void GetCapabilities(Fn<void(const QStringList &)> callback) {
+	try {
+		const auto connection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-	const auto async = QDBusConnection::sessionBus().asyncCall(message);
-	auto watcher = new QDBusPendingCallWatcher(async);
+		connection->call(
+			std::string(kObjectPath),
+			std::string(kInterface),
+			"GetCapabilities",
+			{},
+			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
+				try {
+					auto reply = connection->call_finish(result);
 
-	const auto finished = [=](QDBusPendingCallWatcher *call) {
-		const QDBusPendingReply<QStringList> reply = *call;
+					QStringList value;
+					ranges::transform(
+						base::Platform::GlibVariantCast<
+							std::vector<Glib::ustring>>(reply.get_child(0)),
+						ranges::back_inserter(value),
+						QString::fromStdString);
 
-		if (reply.isValid()) {
-			crl::on_main([=] { callback(reply.value()); });
-		} else {
-			LOG(("Native Notification Error: %1: %2")
-				.arg(reply.error().name())
-				.arg(reply.error().message()));
+					crl::on_main([=] {
+						callback(value);
+					});
 
-			crl::on_main([=] { callback({}); });
-		}
+					return;
+				} catch (const Glib::Error &e) {
+					LOG(("Native Notification Error: %1").arg(
+						QString::fromStdString(e.what())));
+				} catch (const std::exception &e) {
+					LOG(("Native Notification Error: %1").arg(
+						QString::fromStdString(e.what())));
+				}
+					
+				crl::on_main([=] { callback({}); });
+			},
+			std::string(kService));
 
-		call->deleteLater();
-	};
-
-	QObject::connect(watcher, &QDBusPendingCallWatcher::finished, finished);
+			return;
+	} catch (const Glib::Error &e) {
+		LOG(("Native Notification Error: %1").arg(
+			QString::fromStdString(e.what())));
+	}
+		
+	crl::on_main([=] { callback({}); });
 }
 
 void GetInhibitionSupported(Fn<void(bool)> callback) {
-	auto message = QDBusMessage::createMethodCall(
-		kService.utf16(),
-		kObjectPath.utf16(),
-		kPropertiesInterface.utf16(),
-		qsl("Get"));
+	try {
+		const auto connection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-	message.setArguments({
-		kInterface.utf16(),
-		qsl("Inhibited")
-	});
+		connection->call(
+			std::string(kObjectPath),
+			std::string(kPropertiesInterface),
+			"Get",
+			base::Platform::MakeGlibVariant(std::tuple{
+				Glib::ustring(std::string(kInterface)),
+				Glib::ustring("Inhibited"),
+			}),
+			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
+				try {
+					connection->call_finish(result);
 
-	const auto async = QDBusConnection::sessionBus().asyncCall(message);
-	auto watcher = new QDBusPendingCallWatcher(async);
+					crl::on_main([=] {
+						callback(true);
+					});
 
-	static const auto DontLogErrors = {
-		QDBusError::NoError,
-		QDBusError::InvalidArgs,
-		QDBusError::UnknownProperty,
-	};
+					return;
+				} catch (const Glib::Error &e) {
+					static const auto DontLogErrors = {
+						"org.freedesktop.DBus.Error.InvalidArgs",
+						"org.freedesktop.DBus.Error.UnknownMethod",
+					};
 
-	const auto finished = [=](QDBusPendingCallWatcher *call) {
-		const auto error = QDBusPendingReply<QVariant>(*call).error();
+					const auto errorName = Gio::DBus::ErrorUtils::get_remote_error(e);
+					if (!ranges::contains(DontLogErrors, errorName)) {
+						LOG(("Native Notification Error: %1").arg(
+							QString::fromStdString(e.what())));
+					}
+				}
+					
+				crl::on_main([=] { callback(false); });
+			},
+			std::string(kService));
 
-		if (!ranges::contains(DontLogErrors, error.type())) {
-			LOG(("Native Notification Error: %1: %2")
-				.arg(error.name())
-				.arg(error.message()));
-		}
-
-		crl::on_main([=] { callback(!error.isValid()); });
-		call->deleteLater();
-	};
-
-	QObject::connect(watcher, &QDBusPendingCallWatcher::finished, finished);
+			return;
+	} catch (const Glib::Error &e) {
+		LOG(("Native Notification Error: %1").arg(
+			QString::fromStdString(e.what())));
+	}
+		
+	crl::on_main([=] { callback(false); });
 }
 
 bool Inhibited() {
@@ -186,27 +225,30 @@ bool Inhibited() {
 		return false;
 	}
 
-	auto message = QDBusMessage::createMethodCall(
-		kService.utf16(),
-		kObjectPath.utf16(),
-		kPropertiesInterface.utf16(),
-		qsl("Get"));
+	try {
+		const auto connection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-	message.setArguments({
-		kInterface.utf16(),
-		qsl("Inhibited")
-	});
+		auto reply = connection->call_sync(
+			std::string(kObjectPath),
+			std::string(kPropertiesInterface),
+			"Get",
+			base::Platform::MakeGlibVariant(std::tuple{
+				Glib::ustring(std::string(kInterface)),
+				Glib::ustring("Inhibited"),
+			}),
+			std::string(kService));
 
-	const QDBusReply<QVariant> reply = QDBusConnection::sessionBus().call(
-		message);
-
-	if (reply.isValid()) {
-		return reply.value().toBool();
+		return base::Platform::GlibVariantCast<bool>(
+			base::Platform::GlibVariantCast<Glib::VariantBase>(
+				reply.get_child(0)));
+	} catch (const Glib::Error &e) {
+		LOG(("Native Notification Error: %1").arg(
+			QString::fromStdString(e.what())));
+	} catch (const std::exception &e) {
+		LOG(("Native Notification Error: %1").arg(
+			QString::fromStdString(e.what())));
 	}
-
-	LOG(("Native Notification Error: %1: %2")
-			.arg(reply.error().name())
-			.arg(reply.error().message()));
 
 	return false;
 }
@@ -691,12 +733,12 @@ void Create(Window::Notifications::System *system) {
 		}
 	};
 
-	GetServerInformation([=](std::optional<ServerInformation> result) {
+	GetServerInformation([=](const std::optional<ServerInformation> &result) {
 		CurrentServerInformation = result;
 		oneReady();
 	});
 
-	GetCapabilities([=](QStringList result) {
+	GetCapabilities([=](const QStringList &result) {
 		CurrentCapabilities = result;
 		oneReady();
 	});
