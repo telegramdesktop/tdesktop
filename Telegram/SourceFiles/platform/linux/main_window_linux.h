@@ -80,6 +80,8 @@ private:
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	StatusNotifierItem *_sniTrayIcon = nullptr;
 	uint _sniRegisteredSignalId = 0;
+	uint _sniWatcherId = 0;
+	uint _appMenuWatcherId = 0;
 	std::unique_ptr<QTemporaryFile> _trayIconFile;
 
 	bool _appMenuSupported = false;
