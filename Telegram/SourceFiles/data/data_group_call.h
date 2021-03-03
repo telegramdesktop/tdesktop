@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 
-class UserData;
 class PeerData;
 
 class ApiWrap;
@@ -33,7 +32,7 @@ public:
 	void setPeer(not_null<PeerData*> peer);
 
 	struct Participant {
-		not_null<UserData*> user;
+		not_null<PeerData*> peer;
 		TimeId date = 0;
 		TimeId lastActive = 0;
 		uint32 ssrc = 0;
@@ -57,7 +56,7 @@ public:
 		-> const std::vector<Participant> &;
 	void requestParticipants();
 	[[nodiscard]] bool participantsLoaded() const;
-	[[nodiscard]] UserData *userBySsrc(uint32 ssrc) const;
+	[[nodiscard]] PeerData *participantPeerBySsrc(uint32 ssrc) const;
 
 	[[nodiscard]] rpl::producer<> participantsSliceAdded();
 	[[nodiscard]] rpl::producer<ParticipantUpdate> participantUpdated() const;
@@ -68,9 +67,9 @@ public:
 		const MTPDupdateGroupCallParticipants &update);
 	void applyLastSpoke(uint32 ssrc, LastSpokeTimes when, crl::time now);
 	void applyActiveUpdate(
-		UserId userId,
+		PeerId participantPeerId,
 		LastSpokeTimes when,
-		UserData *userLoaded);
+		PeerData *participantPeerLoaded);
 
 	[[nodiscard]] int fullCount() const;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
@@ -108,15 +107,15 @@ private:
 	mtpRequestId _reloadRequestId = 0;
 
 	std::vector<Participant> _participants;
-	base::flat_map<uint32, not_null<UserData*>> _userBySsrc;
-	base::flat_map<not_null<UserData*>, crl::time> _speakingByActiveFinishes;
+	base::flat_map<uint32, not_null<PeerData*>> _participantPeerBySsrc;
+	base::flat_map<not_null<PeerData*>, crl::time> _speakingByActiveFinishes;
 	base::Timer _speakingByActiveFinishTimer;
 	QString _nextOffset;
 	rpl::variable<int> _fullCount = 0;
 
 	base::flat_map<uint32, LastSpokeTimes> _unknownSpokenSsrcs;
-	base::flat_map<UserId, LastSpokeTimes> _unknownSpokenUids;
-	mtpRequestId _unknownUsersRequestId = 0;
+	base::flat_map<PeerId, LastSpokeTimes> _unknownSpokenPeerIds;
+	mtpRequestId _unknownParticipantPeersRequestId = 0;
 
 	rpl::event_stream<ParticipantUpdate> _participantUpdates;
 	rpl::event_stream<> _participantsSliceAdded;

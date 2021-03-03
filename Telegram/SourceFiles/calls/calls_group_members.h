@@ -42,8 +42,8 @@ public:
 		-> rpl::producer<Group::MuteRequest>;
 	[[nodiscard]] auto changeVolumeRequests() const
 		-> rpl::producer<Group::VolumeRequest>;
-	[[nodiscard]] auto kickMemberRequests() const
-		-> rpl::producer<not_null<UserData*>>;
+	[[nodiscard]] auto kickParticipantRequests() const
+		-> rpl::producer<not_null<PeerData*>>;
 	[[nodiscard]] rpl::producer<> addMembersRequests() const {
 		return _addMemberRequests.events();
 	}
