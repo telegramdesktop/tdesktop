@@ -88,6 +88,8 @@ LocationKey ComputeLocationKey(const Data::FileLocation &value) {
 		result.type |= (9ULL << 24);
 		result.type |= (uint64(uint32(data.vlocal_id().v)) << 32);
 		result.id = data.vvolume_id().v;
+	}, [&](const MTPDinputGroupCallStream &data) {
+		result.type = (10ULL << 24);
 	});
 	return result;
 }

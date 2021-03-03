@@ -41,10 +41,13 @@ void UrlAuthBox::Activate(
 	const auto buttonId = button->buttonId;
 	const auto url = QString::fromUtf8(button->data);
 
+	using Flag = MTPmessages_RequestUrlAuth::Flag;
 	button->requestId = session->api().request(MTPmessages_RequestUrlAuth(
+		MTP_flags(Flag::f_peer | Flag::f_msg_id | Flag::f_button_id),
 		inputPeer,
 		MTP_int(itemId.msg),
-		MTP_int(buttonId)
+		MTP_int(buttonId),
+		MTPstring() // #TODO auth url
 	)).done([=](const MTPUrlAuthResult &result) {
 		const auto button = HistoryMessageMarkupButton::Get(
 			&session->data(),
@@ -111,11 +114,14 @@ void UrlAuthBox::Request(
 		} else if (const auto msg = session->data().message(itemId)) {
 			const auto allowWrite = (result == Result::AuthAndAllowWrite);
 			using Flag = MTPmessages_AcceptUrlAuth::Flag;
+			const auto flags = (allowWrite ? Flag::f_write_allowed : Flag(0))
+				| (Flag::f_peer | Flag::f_msg_id | Flag::f_button_id);
 			session->api().request(MTPmessages_AcceptUrlAuth(
-				MTP_flags(allowWrite ? Flag::f_write_allowed : Flag(0)),
+				MTP_flags(flags),
 				inputPeer,
 				MTP_int(itemId.msg),
-				MTP_int(buttonId)
+				MTP_int(buttonId),
+				MTPstring() // #TODO auth url
 			)).done([=](const MTPUrlAuthResult &result) {
 				const auto to = result.match(
 				[&](const MTPDurlAuthResultAccepted &data) {

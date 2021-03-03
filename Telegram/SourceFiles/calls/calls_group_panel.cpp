@@ -520,9 +520,11 @@ void GroupPanel::initWithCall(GroupCall *call) {
 		}
 	}, _callLifetime);
 
-	_members->kickMemberRequests(
-	) | rpl::start_with_next([=](not_null<UserData*> user) {
-		kickMember(user);
+	_members->kickParticipantRequests(
+	) | rpl::start_with_next([=](not_null<PeerData*> participantPeer) {
+		if (const auto user = participantPeer->asUser()) {
+			kickMember(user); // #TODO calls kick
+		}
 	}, _callLifetime);
 
 	_members->addMembersRequests(
@@ -570,7 +572,9 @@ void GroupPanel::addMembers() {
 	}
 	auto alreadyIn = _peer->owner().invitedToCallUsers(real->id());
 	for (const auto &participant : real->participants()) {
-		alreadyIn.emplace(participant.user);
+		if (const auto user = participant.peer->asUser()) {
+			alreadyIn.emplace(user);
+		}
 	}
 	alreadyIn.emplace(_peer->session().user());
 	auto controller = std::make_unique<InviteController>(

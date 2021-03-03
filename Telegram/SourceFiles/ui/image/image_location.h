@@ -59,6 +59,7 @@ public:
 		Photo           = 0x05,
 		PeerPhoto       = 0x06,
 		StickerSetThumb = 0x07,
+		GroupCallStream = 0x08,
 	};
 
 	StorageFileLocation() = default;

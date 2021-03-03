@@ -946,9 +946,9 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 	};
 
-	auto groupCallParticipantUser = [&](const MTPGroupCallParticipant &data) {
+	auto groupCallParticipantPeer = [&](const MTPGroupCallParticipant &data) {
 		return data.match([&](const MTPDgroupCallParticipant &data) {
-			return history->owner().user(data.vuser_id().v);
+			return history->owner().peer(peerFromMTP(data.vpeer()));
 		});
 	};
 
@@ -966,29 +966,29 @@ void GenerateItems(
 	};
 
 	auto createParticipantMute = [&](const MTPDchannelAdminLogEventActionParticipantMute &data) {
-		const auto user = groupCallParticipantUser(data.vparticipant());
-		const auto userLink = user->createOpenLink();
-		const auto userLinkText = textcmdLink(2, user->name);
+		const auto participantPeer = groupCallParticipantPeer(data.vparticipant());
+		const auto participantPeerLink = participantPeer->createOpenLink();
+		const auto participantPeerLinkText = textcmdLink(2, participantPeer->name);
 		auto text = tr::lng_admin_log_muted_participant(
 			tr::now,
 			lt_from,
 			fromLinkText,
 			lt_user,
-			userLinkText);
-		addServiceMessageWithLink(text, userLink);
+			participantPeerLinkText);
+		addServiceMessageWithLink(text, participantPeerLink);
 	};
 
 	auto createParticipantUnmute = [&](const MTPDchannelAdminLogEventActionParticipantUnmute &data) {
-		const auto user = groupCallParticipantUser(data.vparticipant());
-		const auto userLink = user->createOpenLink();
-		const auto userLinkText = textcmdLink(2, user->name);
+		const auto participantPeer = groupCallParticipantPeer(data.vparticipant());
+		const auto participantPeerLink = participantPeer->createOpenLink();
+		const auto participantPeerLinkText = textcmdLink(2, participantPeer->name);
 		auto text = tr::lng_admin_log_unmuted_participant(
 			tr::now,
 			lt_from,
 			fromLinkText,
 			lt_user,
-			userLinkText);
-		addServiceMessageWithLink(text, userLink);
+			participantPeerLinkText);
+		addServiceMessageWithLink(text, participantPeerLink);
 	};
 
 	auto createToggleGroupCallSetting = [&](const MTPDchannelAdminLogEventActionToggleGroupCallSetting &data) {
@@ -1069,9 +1069,9 @@ void GenerateItems(
 	};
 
 	auto createParticipantVolume = [&](const MTPDchannelAdminLogEventActionParticipantVolume &data) {
-		const auto user = groupCallParticipantUser(data.vparticipant());
-		const auto userLink = user->createOpenLink();
-		const auto userLinkText = textcmdLink(2, user->name);
+		const auto participantPeer = groupCallParticipantPeer(data.vparticipant());
+		const auto participantPeerLink = participantPeer->createOpenLink();
+		const auto participantPeerLinkText = textcmdLink(2, participantPeer->name);
 		const auto volume = data.vparticipant().match([&](
 				const MTPDgroupCallParticipant &data) {
 			return data.vvolume().value_or(10000);
@@ -1082,10 +1082,10 @@ void GenerateItems(
 			lt_from,
 			fromLinkText,
 			lt_user,
-			userLinkText,
+			participantPeerLinkText,
 			lt_percent,
 			volumeText);
-		addServiceMessageWithLink(text, userLink);
+		addServiceMessageWithLink(text, participantPeerLink);
 	};
 
 	auto createChangeHistoryTTL = [&](const MTPDchannelAdminLogEventActionChangeHistoryTTL &data) {

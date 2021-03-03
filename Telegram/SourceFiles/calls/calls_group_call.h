@@ -56,7 +56,7 @@ enum class MuteState {
 
 [[nodiscard]] bool IsGroupCallAdmin(
 	not_null<PeerData*> peer,
-	not_null<UserData*> user);
+	not_null<PeerData*> participantPeer);
 
 struct LevelUpdate {
 	uint32 ssrc = 0;
@@ -194,11 +194,11 @@ private:
 	void playConnectingSoundOnce();
 
 	void editParticipant(
-		not_null<UserData*> user,
+		not_null<PeerData*> participantPeer,
 		bool mute,
 		std::optional<int> volume);
 	void applyParticipantLocally(
-		not_null<UserData*> user,
+		not_null<PeerData*> participantPeer,
 		bool mute,
 		std::optional<int> volume);
 

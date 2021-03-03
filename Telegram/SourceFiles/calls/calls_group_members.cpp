@@ -91,7 +91,9 @@ public:
 
 class Row final : public PeerListRow {
 public:
-	Row(not_null<RowDelegate*> delegate, not_null<UserData*> user);
+	Row(
+		not_null<RowDelegate*> delegate,
+		not_null<PeerData*> participantPeer);
 
 	enum class State {
 		Active,
@@ -266,8 +268,8 @@ public:
 	}
 	[[nodiscard]] rpl::producer<MuteRequest> toggleMuteRequests() const;
 	[[nodiscard]] rpl::producer<VolumeRequest> changeVolumeRequests() const;
-	[[nodiscard]] auto kickMemberRequests() const
-		-> rpl::producer<not_null<UserData*>>;
+	[[nodiscard]] auto kickParticipantRequests() const
+		-> rpl::producer<not_null<PeerData*>>;
 
 	bool rowCanMuteMembers() override;
 	void rowUpdateRow(not_null<Row*> row) override;
@@ -284,7 +286,7 @@ private:
 	[[nodiscard]] std::unique_ptr<Row> createRow(
 		const Data::GroupCall::Participant &participant);
 	[[nodiscard]] std::unique_ptr<Row> createInvitedRow(
-		not_null<UserData*> user);
+		not_null<PeerData*> participantPeer);
 
 	void prepareRows(not_null<Data::GroupCall*> real);
 	//void repaintByTimer();
@@ -294,8 +296,8 @@ private:
 		not_null<PeerListRow*> row);
 	void addMuteActionsToContextMenu(
 		not_null<Ui::PopupMenu*> menu,
-		not_null<UserData*> user,
-		bool userIsCallAdmin,
+		not_null<PeerData*> participantPeer,
+		bool participantIsCallAdmin,
 		not_null<Row*> row);
 	void setupListChangeViewers(not_null<GroupCall*> call);
 	void subscribeToChanges(not_null<Data::GroupCall*> real);
@@ -308,7 +310,7 @@ private:
 	void removeRow(not_null<Row*> row);
 	void updateRowLevel(not_null<Row*> row, float level);
 	void checkSpeakingRowPosition(not_null<Row*> row);
-	Row *findRow(not_null<UserData*> user) const;
+	Row *findRow(not_null<PeerData*> participantPeer) const;
 
 	[[nodiscard]] Data::GroupCall *resolvedRealCall() const;
 	void appendInvitedUsers();
@@ -323,7 +325,7 @@ private:
 
 	rpl::event_stream<MuteRequest> _toggleMuteRequests;
 	rpl::event_stream<VolumeRequest> _changeVolumeRequests;
-	rpl::event_stream<not_null<UserData*>> _kickMemberRequests;
+	rpl::event_stream<not_null<PeerData*>> _kickParticipantRequests;
 	rpl::variable<int> _fullCount = 1;
 	rpl::variable<int> _fullCountMin = 0;
 	rpl::variable<int> _fullCountMax = std::numeric_limits<int>::max();
@@ -345,8 +347,10 @@ private:
 
 };
 
-Row::Row(not_null<RowDelegate*> delegate, not_null<UserData*> user)
-: PeerListRow(user)
+Row::Row(
+	not_null<RowDelegate*> delegate,
+	not_null<PeerData*> participantPeer)
+: PeerListRow(participantPeer)
 , _delegate(delegate) {
 	refreshStatus();
 }
@@ -872,11 +876,13 @@ void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	) | rpl::start_with_next([=](const Update &update) {
 		Expects(update.was.has_value() || update.now.has_value());
 
-		const auto user = update.was ? update.was->user : update.now->user;
+		const auto participantPeer = update.was
+			? update.was->peer
+			: update.now->peer;
 		if (!update.now) {
-			if (const auto row = findRow(user)) {
-				const auto owner = &user->owner();
-				if (user->isSelf()) {
+			if (const auto row = findRow(participantPeer)) {
+				const auto owner = &participantPeer->owner();
+				if (participantPeer->isSelf()) {
 					updateRow(row, nullptr);
 				} else {
 					removeRow(row);
@@ -918,7 +924,7 @@ void MembersController::updateRow(
 		const Data::GroupCall::Participant &now) {
 	auto reorderIfInvitedBeforeIndex = 0;
 	auto countChange = 0;
-	if (const auto row = findRow(now.user)) {
+	if (const auto row = findRow(now.peer)) {
 		if (now.speaking && (!was || !was->speaking)) {
 			checkSpeakingRowPosition(row);
 		}
@@ -1047,8 +1053,9 @@ void MembersController::updateRowLevel(
 	row->updateLevel(level);
 }
 
-Row *MembersController::findRow(not_null<UserData*> user) const {
-	return static_cast<Row*>(delegate()->peerListFindRow(user->id));
+Row *MembersController::findRow(not_null<PeerData*> participantPeer) const {
+	return static_cast<Row*>(
+		delegate()->peerListFindRow(participantPeer->id));
 }
 
 Data::GroupCall *MembersController::resolvedRealCall() const {
@@ -1094,16 +1101,16 @@ void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
 	auto count = delegate()->peerListFullRowsCount();
 	for (auto i = 0; i != count;) {
 		auto row = delegate()->peerListRowAt(i);
-		auto user = row->peer()->asUser();
-		if (user->isSelf()) {
+		auto participantPeer = row->peer();
+		if (participantPeer->isSelf()) { // #TODO calls add self even if channel
 			foundSelf = true;
 			++i;
 			continue;
 		}
 		const auto contains = ranges::contains(
 			participants,
-			not_null{ user },
-			&Data::GroupCall::Participant::user);
+			participantPeer,
+			&Data::GroupCall::Participant::peer);
 		if (contains) {
 			++fullCountMin;
 			++i;
@@ -1117,8 +1124,8 @@ void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
 		const auto self = _peer->session().user();
 		const auto i = ranges::find(
 			participants,
-			_peer->session().user(),
-			&Data::GroupCall::Participant::user);
+			self,
+			&Data::GroupCall::Participant::peer);
 		auto row = (i != end(participants)) ? createRow(*i) : createSelfRow();
 		if (row) {
 			if (row->state() != Row::State::Invited) {
@@ -1223,9 +1230,9 @@ void MembersController::rowPaintIcon(
 	_inactiveCrossLine.paint(p, left, top, crossProgress, iconColor);
 }
 
-auto MembersController::kickMemberRequests() const
--> rpl::producer<not_null<UserData*>>{
-	return _kickMemberRequests.events();
+auto MembersController::kickParticipantRequests() const
+-> rpl::producer<not_null<PeerData*>>{
+	return _kickParticipantRequests.events();
 }
 
 void MembersController::rowClicked(not_null<PeerListRow*> row) {
@@ -1235,7 +1242,7 @@ void MembersController::rowClicked(not_null<PeerListRow*> row) {
 		}
 		auto saved = base::take(_menu);
 		for (const auto peer : base::take(_menuCheckRowsAfterHidden)) {
-			if (const auto row = findRow(peer->asUser())) {
+			if (const auto row = findRow(peer)) {
 				if (row->speaking()) {
 					checkSpeakingRowPosition(row);
 				}
@@ -1270,21 +1277,19 @@ base::unique_qptr<Ui::PopupMenu> MembersController::rowContextMenu(
 base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) {
-	Expects(row->peer()->isUser());
-
+	const auto participantPeer = row->peer();
 	const auto real = static_cast<Row*>(row.get());
-	if (row->peer()->isSelf()
+	if (participantPeer->isSelf()
 		&& (!_peer->canManageGroupCall() || !real->ssrc())) {
 		return nullptr;
 	}
-	const auto user = row->peer()->asUser();
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		parent,
 		st::groupCallPopupMenu);
 
 	const auto muteState = real->state();
-	const auto admin = IsGroupCallAdmin(_peer, user);
-	const auto session = &user->session();
+	const auto admin = IsGroupCallAdmin(_peer, participantPeer);
+	const auto session = &_peer->session();
 	const auto getCurrentWindow = [=]() -> Window::SessionController* {
 		if (const auto window = Core::App().activeWindow()) {
 			if (const auto controller = window->sessionController()) {
@@ -1319,25 +1324,25 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 	};
 	const auto showProfile = [=] {
 		performOnMainWindow([=](not_null<Window::SessionController*> window) {
-			window->showPeerInfo(user);
+			window->showPeerInfo(participantPeer);
 		});
 	};
 	const auto showHistory = [=] {
 		performOnMainWindow([=](not_null<Window::SessionController*> window) {
 			window->showPeerHistory(
-				user,
+				participantPeer,
 				Window::SectionShow::Way::Forward);
 		});
 	};
 	const auto removeFromGroup = crl::guard(this, [=] {
-		_kickMemberRequests.fire_copy(user);
+		_kickParticipantRequests.fire_copy(participantPeer);
 	});
 
 	if (real->ssrc() != 0) {
-		addMuteActionsToContextMenu(result, user, admin, real);
+		addMuteActionsToContextMenu(result, participantPeer, admin, real);
 	}
 
-	if (!user->isSelf()) {
+	if (!participantPeer->isSelf()) { // #TODO calls correct check self
 		result->addAction(
 			tr::lng_context_view_profile(tr::now),
 			showProfile);
@@ -1345,13 +1350,17 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 			tr::lng_context_send_message(tr::now),
 			showHistory);
 		const auto canKick = [&] {
+			const auto user = participantPeer->asUser();
 			if (static_cast<Row*>(row.get())->state() == Row::State::Invited) {
 				return false;
 			} else if (const auto chat = _peer->asChat()) {
 				return chat->amCreator()
-					|| (chat->canBanMembers() && !chat->admins.contains(user));
+					|| (user
+						&& chat->canBanMembers()
+						&& !chat->admins.contains(user)); // #TODO calls can kick
 			} else if (const auto group = _peer->asMegagroup()) {
-				return group->canRestrictUser(user);
+				return group->amCreator()
+					|| (user && group->canRestrictUser(user)); // #TODO calls can kick
 			}
 			return false;
 		}();
@@ -1366,8 +1375,8 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 
 void MembersController::addMuteActionsToContextMenu(
 		not_null<Ui::PopupMenu*> menu,
-		not_null<UserData*> user,
-		bool userIsCallAdmin,
+		not_null<PeerData*> participantPeer,
+		bool participantIsCallAdmin,
 		not_null<Row*> row) {
 	const auto muteString = [=] {
 		return (_peer->canManageGroupCall()
@@ -1383,7 +1392,7 @@ void MembersController::addMuteActionsToContextMenu(
 
 	const auto toggleMute = crl::guard(this, [=](bool mute, bool local) {
 		_toggleMuteRequests.fire(Group::MuteRequest{
-			.user = user,
+			.peer = participantPeer,
 			.mute = mute,
 			.locallyOnly = local,
 		});
@@ -1392,7 +1401,7 @@ void MembersController::addMuteActionsToContextMenu(
 			int volume,
 			bool local) {
 		_changeVolumeRequests.fire(Group::VolumeRequest{
-			.user = user,
+			.peer = participantPeer,
 			.volume = std::clamp(volume, 1, Group::kMaxVolume),
 			.locallyOnly = local,
 		});
@@ -1404,12 +1413,12 @@ void MembersController::addMuteActionsToContextMenu(
 
 	auto mutesFromVolume = rpl::never<bool>() | rpl::type_erased();
 
-	if (!isMuted || user->isSelf()) {
+	if (!isMuted || participantPeer->isSelf()) {
 		const auto call = _call.get();
 		auto otherParticipantStateValue = call
 			? call->otherParticipantStateValue(
 				) | rpl::filter([=](const Group::ParticipantState &data) {
-					return data.user == user;
+					return data.peer == participantPeer;
 				})
 			: rpl::never<Group::ParticipantState>() | rpl::type_erased();
 
@@ -1437,7 +1446,7 @@ void MembersController::addMuteActionsToContextMenu(
 
 		volumeItem->toggleMuteLocallyRequests(
 		) | rpl::start_with_next([=](bool muted) {
-			if (!user->isSelf()) {
+			if (!participantPeer->isSelf()) { // #TODO calls check self
 				toggleMute(muted, true);
 			}
 		}, volumeItem->lifetime());
@@ -1449,7 +1458,7 @@ void MembersController::addMuteActionsToContextMenu(
 
 		volumeItem->changeVolumeLocallyRequests(
 		) | rpl::start_with_next([=](int volume) {
-			if (!user->isSelf()) {
+			if (!participantPeer->isSelf()) { // #TODO calls check self
 				changeVolume(volume, true);
 			}
 		}, volumeItem->lifetime());
@@ -1459,9 +1468,9 @@ void MembersController::addMuteActionsToContextMenu(
 
 	const auto muteAction = [&]() -> QAction* {
 		if (muteState == Row::State::Invited
-			|| user->isSelf()
+			|| participantPeer->isSelf() // #TODO calls check self
 			|| (muteState == Row::State::Muted
-				&& userIsCallAdmin
+				&& participantIsCallAdmin
 				&& _peer->canManageGroupCall())) {
 			return nullptr;
 		}
@@ -1486,7 +1495,7 @@ void MembersController::addMuteActionsToContextMenu(
 }
 
 std::unique_ptr<Row> MembersController::createSelfRow() {
-	const auto self = _peer->session().user();
+	const auto self = _peer->session().user(); // #TODO calls check self
 	auto result = std::make_unique<Row>(this, self);
 	updateRow(result.get(), nullptr);
 	return result;
@@ -1494,17 +1503,17 @@ std::unique_ptr<Row> MembersController::createSelfRow() {
 
 std::unique_ptr<Row> MembersController::createRow(
 		const Data::GroupCall::Participant &participant) {
-	auto result = std::make_unique<Row>(this, participant.user);
+	auto result = std::make_unique<Row>(this, participant.peer);
 	updateRow(result.get(), &participant);
 	return result;
 }
 
 std::unique_ptr<Row> MembersController::createInvitedRow(
-		not_null<UserData*> user) {
-	if (findRow(user)) {
+		not_null<PeerData*> participantPeer) {
+	if (findRow(participantPeer)) {
 		return nullptr;
 	}
-	auto result = std::make_unique<Row>(this, user);
+	auto result = std::make_unique<Row>(this, participantPeer);
 	updateRow(result.get(), nullptr);
 	return result;
 }
@@ -1538,10 +1547,10 @@ auto GroupMembers::changeVolumeRequests() const
 		_listController.get())->changeVolumeRequests();
 }
 
-auto GroupMembers::kickMemberRequests() const
--> rpl::producer<not_null<UserData*>> {
+auto GroupMembers::kickParticipantRequests() const
+-> rpl::producer<not_null<PeerData*>> {
 	return static_cast<MembersController*>(
-		_listController.get())->kickMemberRequests();
+		_listController.get())->kickParticipantRequests();
 }
 
 int GroupMembers::desiredHeight() const {
