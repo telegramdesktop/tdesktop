@@ -127,7 +127,7 @@ public:
 	// Used to emit error(...) with no real code from the server.
 	static constexpr auto kErrorCodeOther = -499;
 
-signals:
+Q_SIGNALS:
 	void receivedData();
 	void receivedSome(); // to stop restart timer
 

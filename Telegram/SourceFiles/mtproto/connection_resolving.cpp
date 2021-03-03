@@ -134,7 +134,7 @@ bool ResolvingConnection::refreshChild() {
 void ResolvingConnection::emitError(int errorCode) {
 	_ipIndex = -1;
 	_child = nullptr;
-	emit error(errorCode);
+	error(errorCode);
 }
 
 void ResolvingConnection::handleError(int errorCode) {
@@ -151,7 +151,7 @@ void ResolvingConnection::handleError(int errorCode) {
 
 void ResolvingConnection::handleDisconnected() {
 	if (_connected) {
-		emit disconnected();
+		disconnected();
 	} else {
 		handleError(kErrorCodeOther);
 	}
@@ -164,7 +164,7 @@ void ResolvingConnection::handleReceivedData() {
 		my.push_back(std::move(item));
 	}
 	his.clear();
-	emit receivedData();
+	receivedData();
 }
 
 void ResolvingConnection::handleConnected() {
@@ -178,7 +178,7 @@ void ResolvingConnection::handleConnected() {
 			instance->setGoodProxyDomain(host, good);
 		});
 	}
-	emit connected();
+	connected();
 }
 
 crl::time ResolvingConnection::pingTime() const {

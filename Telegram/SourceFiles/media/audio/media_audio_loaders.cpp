@@ -143,7 +143,7 @@ void Loaders::setStoppedState(Mixer::Track *track, State state) {
 }
 
 void Loaders::emitError(AudioMsgId::Type type) {
-	emit error(clear(type));
+	error(clear(type));
 }
 
 void Loaders::onLoad(const AudioMsgId &audio) {
@@ -319,7 +319,7 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 		return;
 	}
 
-	emit needToCheck();
+	needToCheck();
 }
 
 AudioPlayerLoader *Loaders::setupLoader(
@@ -332,7 +332,7 @@ AudioPlayerLoader *Loaders::setupLoader(
 
 	auto track = mixer()->trackForType(audio.type());
 	if (!track || track->state.id != audio || !track->loading) {
-		emit error(audio);
+		error(audio);
 		LOG(("Audio Error: trying to load part of audio, that is not current at the moment"));
 		err = SetupErrorNotPlaying;
 		return nullptr;
@@ -363,7 +363,7 @@ AudioPlayerLoader *Loaders::setupLoader(
 			if (!track->externalData) {
 				clear(audio.type());
 				track->state.state = State::StoppedAtError;
-				emit error(audio);
+				error(audio);
 				LOG(("Audio Error: video sound data not ready"));
 				return nullptr;
 			}

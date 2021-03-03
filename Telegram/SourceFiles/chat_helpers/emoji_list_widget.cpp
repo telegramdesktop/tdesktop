@@ -672,14 +672,14 @@ void EmojiListWidget::showPicker() {
 		if (rtl()) coef = 1. - coef;
 		_picker->move(qRound(xmax * coef), y);
 
-		emit disableScroll(true);
+		disableScroll(true);
 	}
 }
 
 void EmojiListWidget::pickerHidden() {
 	_pickerSel = -1;
 	update();
-	emit disableScroll(false);
+	disableScroll(false);
 
 	_lastMousePos = QCursor::pos();
 	updateSelected();
