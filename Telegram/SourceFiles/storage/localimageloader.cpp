@@ -299,7 +299,7 @@ void TaskQueue::wakeThread() {
 		_thread->start();
 	}
 	if (_stopTimer) _stopTimer->stop();
-	emit taskAdded();
+	taskAdded();
 }
 
 void TaskQueue::cancelTask(TaskId id) {
@@ -393,7 +393,7 @@ void TaskQueueWorker::onTaskAdded() {
 				}
 			}
 			if (emitTaskProcessed) {
-				emit taskProcessed();
+				taskProcessed();
 			}
 		}
 		QCoreApplication::processEvents();

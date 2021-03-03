@@ -208,7 +208,7 @@ public:
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
-signals:
+Q_SIGNALS:
 	void proxyDomainResolved(
 		QString host,
 		QStringList ips,

@@ -1126,7 +1126,7 @@ void NetworkSettingsWindow::onSave() {
 		_portInput.setFocus();
 		return;
 	}
-	emit saved(host, port.toUInt(), username, password);
+	saved(host, port.toUInt(), username, password);
 	close();
 }
 

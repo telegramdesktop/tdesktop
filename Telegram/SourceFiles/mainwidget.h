@@ -235,7 +235,7 @@ public:
 		Fn<void()> callback,
 		const SectionShow &params) const;
 
-public slots:
+public Q_SLOTS:
 	void inlineResultLoadProgress(FileLoader *loader);
 	void inlineResultLoadFailed(FileLoader *loader, bool started);
 

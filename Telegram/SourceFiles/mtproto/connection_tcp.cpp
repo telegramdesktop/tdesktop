@@ -284,7 +284,7 @@ void TcpConnection::socketRead() {
 
 	if (!_socket || !_socket->isConnected()) {
 		LOG(("MTP Error: Socket not connected in socketRead()"));
-		emit error(kErrorCodeOther);
+		error(kErrorCodeOther);
 		return;
 	}
 
@@ -323,7 +323,7 @@ void TcpConnection::socketRead() {
 					TCP_LOG(("TCP Info: not enough %1 for packet! read %2"
 						).arg(_leftBytes
 						).arg(_readBytes));
-					emit receivedSome();
+					receivedSome();
 				}
 			} else {
 				auto available = full.subspan(0, _readBytes);
@@ -336,7 +336,7 @@ void TcpConnection::socketRead() {
 					} else if (packetSize <= 0) {
 						LOG(("TCP Error: bad packet size in 4 bytes: %1"
 							).arg(packetSize));
-						emit error(kErrorCodeOther);
+						error(kErrorCodeOther);
 						return;
 					} else if (available.size() >= packetSize) {
 						socketPacket(available.subspan(0, packetSize));
@@ -361,14 +361,14 @@ void TcpConnection::socketRead() {
 							).arg(_leftBytes
 							).arg(packetSize
 							).arg(available.size()));
-						emit receivedSome();
+						receivedSome();
 						break;
 					}
 				}
 			}
 		} else if (readCount < 0) {
 			LOG(("TCP Error: socket read return %1").arg(readCount));
-			emit error(kErrorCodeOther);
+			error(kErrorCodeOther);
 			return;
 		} else {
 			TCP_LOG(("TCP Info: no bytes read, but bytes available was true..."));
@@ -421,7 +421,7 @@ void TcpConnection::socketConnected() {
 
 void TcpConnection::socketDisconnected() {
 	if (_status == Status::Waiting || _status == Status::Ready) {
-		emit disconnected();
+		disconnected();
 	}
 }
 
@@ -568,7 +568,7 @@ void TcpConnection::connectToServer(
 
 	_socket->syncTimeRequests(
 	) | rpl::start_with_next([=] {
-		emit syncTimeRequest();
+		syncTimeRequest();
 	}, _lifetime);
 
 	_socket->connectToHost(_address, _port);
@@ -589,7 +589,7 @@ void TcpConnection::socketPacket(bytes::const_span bytes) {
 	const auto data = parsePacket(bytes);
 	if (data.size() == 1) {
 		if (data[0] != 0) {
-			emit error(data[0]);
+			error(data[0]);
 		} else {
 			// nop
 		}
@@ -597,7 +597,7 @@ void TcpConnection::socketPacket(bytes::const_span bytes) {
 		// new quickack?..
 	} else if (_status == Status::Ready) {
 		_receivedQueue.push_back(data);
-		emit receivedData();
+		receivedData();
 	} else if (_status == Status::Waiting) {
 		if (const auto res_pq = readPQFakeReply(data)) {
 			const auto &data = res_pq->c_resPQ();
@@ -606,16 +606,16 @@ void TcpConnection::socketPacket(bytes::const_span bytes) {
 				_status = Status::Ready;
 				_connectedLifetime.destroy();
 				_pingTime = (crl::now() - _pingTime);
-				emit connected();
+				connected();
 			} else {
 				DEBUG_LOG(("Connection Error: "
 					"Wrong nonce received in TCP fake pq-responce"));
-				emit error(kErrorCodeOther);
+				error(kErrorCodeOther);
 			}
 		} else {
 			DEBUG_LOG(("Connection Error: "
 				"Could not parse TCP fake pq-responce"));
-			emit error(kErrorCodeOther);
+			error(kErrorCodeOther);
 		}
 	}
 }
@@ -660,7 +660,7 @@ void TcpConnection::socketError() {
 		return;
 	}
 
-	emit error(kErrorCodeOther);
+	error(kErrorCodeOther);
 }
 
 TcpConnection::~TcpConnection() = default;

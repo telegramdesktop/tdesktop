@@ -163,11 +163,11 @@ void HttpConnection::requestFinished(QNetworkReply *reply) {
 
 		mtpBuffer data = handleResponse(reply);
 		if (data.size() == 1) {
-			emit error(data[0]);
+			error(data[0]);
 		} else if (!data.isEmpty()) {
 			if (_status == Status::Ready) {
 				_receivedQueue.push_back(data);
-				emit receivedData();
+				receivedData();
 			} else if (const auto res_pq = readPQFakeReply(data)) {
 				const auto &data = res_pq->c_resPQ();
 				if (data.vnonce() == _checkNonce) {
@@ -176,16 +176,16 @@ void HttpConnection::requestFinished(QNetworkReply *reply) {
 						).arg(_address));
 					_status = Status::Ready;
 					_pingTime = crl::now() - _pingTime;
-					emit connected();
+					connected();
 				} else {
 					DEBUG_LOG(("Connection Error: "
 						"Wrong nonce received in HTTP fake pq-responce"));
-					emit error(kErrorCodeOther);
+					error(kErrorCodeOther);
 				}
 			} else {
 				DEBUG_LOG(("Connection Error: "
 					"Could not parse HTTP fake pq-responce"));
-				emit error(kErrorCodeOther);
+				error(kErrorCodeOther);
 			}
 		}
 	} else {
@@ -193,7 +193,7 @@ void HttpConnection::requestFinished(QNetworkReply *reply) {
 			return;
 		}
 
-		emit error(handleError(reply));
+		error(handleError(reply));
 	}
 }
 

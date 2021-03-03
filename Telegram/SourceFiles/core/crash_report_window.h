@@ -106,7 +106,7 @@ public:
 		return _lifetime;
 	}
 
-public slots:
+public Q_SLOTS:
 	void onViewReport();
 	void onSaveReport();
 	void onSendReport();
@@ -214,10 +214,10 @@ class NetworkSettingsWindow : public PreLaunchWindow {
 public:
 	NetworkSettingsWindow(QWidget *parent, QString host, quint32 port, QString username, QString password);
 
-signals:
+Q_SIGNALS:
 	void saved(QString host, quint32 port, QString username, QString password);
 
-public slots:
+public Q_SLOTS:
 	void onSave();
 
 protected:

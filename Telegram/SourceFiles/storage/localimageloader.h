@@ -144,10 +144,10 @@ public:
 
 	~TaskQueue();
 
-signals:
+Q_SIGNALS:
 	void taskAdded();
 
-public slots:
+public Q_SLOTS:
 	void onTaskProcessed();
 	void stop();
 
@@ -173,10 +173,10 @@ public:
 	TaskQueueWorker(TaskQueue *queue) : _queue(queue) {
 	}
 
-signals:
+Q_SIGNALS:
 	void taskProcessed();
 
-public slots:
+public Q_SLOTS:
 	void onTaskAdded();
 
 private:

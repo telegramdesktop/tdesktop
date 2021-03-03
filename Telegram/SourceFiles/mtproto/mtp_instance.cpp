@@ -386,7 +386,7 @@ void Instance::Private::applyDomainIps(
 			session->refreshOptions();
 		}
 	}
-	emit _instance->proxyDomainResolved(host, ips, expireAt);
+	_instance->proxyDomainResolved(host, ips, expireAt);
 }
 
 void Instance::Private::setGoodProxyDomain(

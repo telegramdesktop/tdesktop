@@ -29,11 +29,11 @@ public:
 		return _chosenIso;
 	}
 
-public slots:
+public Q_SLOTS:
 	void onChooseCode(const QString &code);
 	bool onChooseCountry(const QString &country);
 
-signals:
+Q_SIGNALS:
 	void codeChanged(const QString &code);
 
 protected:
@@ -66,7 +66,7 @@ public:
 	CountrySelectBox(QWidget*);
 	CountrySelectBox(QWidget*, const QString &iso, Type type);
 
-signals:
+Q_SIGNALS:
 	void countryChosen(const QString &iso);
 
 protected:
@@ -106,7 +106,7 @@ public:
 
 	~Inner();
 
-signals:
+Q_SIGNALS:
 	void countryChosen(const QString &iso);
 	void mustScrollTo(int ymin, int ymax);
 

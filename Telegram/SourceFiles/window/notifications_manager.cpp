@@ -402,8 +402,8 @@ void System::showNext() {
 		if (settings.soundNotify() && !Platform::Notifications::SkipAudio()) {
 			ensureSoundCreated();
 			_soundTrack->playOnce();
-			emit Media::Player::mixer()->suppressAll(_soundTrack->getLengthMs());
-			emit Media::Player::mixer()->faderOnTimer();
+			Media::Player::mixer()->suppressAll(_soundTrack->getLengthMs());
+			Media::Player::mixer()->faderOnTimer();
 		}
 	}
 
