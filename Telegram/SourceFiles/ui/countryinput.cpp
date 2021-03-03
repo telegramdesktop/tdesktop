@@ -136,7 +136,7 @@ bool CountryInput::onChooseCountry(const QString &iso) {
 	if (info) {
 		_chosenIso = LastValidISO = info->iso2;
 		setText(QString::fromUtf8(info->name));
-		emit codeChanged(info->code);
+		codeChanged(info->code);
 		update();
 		return true;
 	}
@@ -432,7 +432,7 @@ void CountrySelectBox::Inner::selectSkip(int32 dir) {
 		_selected = cur;
 	}
 	if (_selected >= 0) {
-		emit mustScrollTo(st::countriesSkip + _selected * _rowHeight, st::countriesSkip + (_selected + 1) * _rowHeight);
+		mustScrollTo(st::countriesSkip + _selected * _rowHeight, st::countriesSkip + (_selected + 1) * _rowHeight);
 	}
 	update();
 }
@@ -445,7 +445,7 @@ void CountrySelectBox::Inner::selectSkipPage(int32 h, int32 dir) {
 
 void CountrySelectBox::Inner::chooseCountry() {
 	const auto &list = current();
-	emit countryChosen((_selected >= 0 && _selected < list.size())
+	countryChosen((_selected >= 0 && _selected < list.size())
 		? QString(list[_selected]->iso2)
 		: QString());
 }

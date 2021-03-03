@@ -36,10 +36,10 @@ public:
 
 	~GroupMembersWidget();
 
-signals:
+Q_SIGNALS:
 	void onlineCountUpdated(int onlineCount);
 
-private slots:
+private Q_SLOTS:
 	void onUpdateOnlineDisplay();
 
 private:

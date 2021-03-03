@@ -89,10 +89,10 @@ public:
 
 	~Widget();
 
-signals:
+Q_SIGNALS:
 	void cancelled();
 
-public slots:
+public Q_SLOTS:
 	void onDraggingScrollDelta(int delta);
 
 	void onListScroll();
@@ -108,7 +108,7 @@ public slots:
 
 	void onChooseByDrag();
 
-private slots:
+private Q_SLOTS:
 	void onDraggingScrollTimer();
 
 protected:

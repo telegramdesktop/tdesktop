@@ -114,7 +114,7 @@ public:
 		return _secureFailed.events();
 	}
 
-public slots:
+public Q_SLOTS:
 	void unpause();
 	void sendNext();
 	void stopSessions();

@@ -720,13 +720,13 @@ void Widget::escape() {
 		controller()->closeFolder();
 	} else if (!onCancelSearch()) {
 		if (controller()->activeChatEntryCurrent().key) {
-			emit cancelled();
+			cancelled();
 		} else if (controller()->activeChatsFilterCurrent()) {
 			controller()->setActiveChatsFilter(FilterId(0));
 		}
 	} else if (!_searchInChat && !controller()->selectingPeer()) {
 		if (controller()->activeChatEntryCurrent().key) {
-			emit cancelled();
+			cancelled();
 		}
 	}
 }
@@ -1770,7 +1770,7 @@ void Widget::onCancelSearchInChat() {
 	}
 	applyFilterUpdate(true);
 	if (!Adaptive::OneColumn() && !controller()->selectingPeer()) {
-		emit cancelled();
+		cancelled();
 	}
 }
 

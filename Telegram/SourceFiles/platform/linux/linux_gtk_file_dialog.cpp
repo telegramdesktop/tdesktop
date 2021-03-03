@@ -456,7 +456,7 @@ QString GtkFileDialog::selectedNameFilter() const {
 }
 
 void GtkFileDialog::onAccepted() {
-	emit accept();
+	accept();
 
 //	QString filter = selectedNameFilter();
 //	if (filter.isEmpty())
@@ -469,7 +469,7 @@ void GtkFileDialog::onAccepted() {
 }
 
 void GtkFileDialog::onRejected() {
-	emit reject();
+	reject();
 
 //
 }
@@ -566,7 +566,7 @@ void GtkFileDialog::applyOptions() {
 
 void GtkFileDialog::setNameFilters(const QStringList &filters) {
 	GtkDialog *gtkDialog = d->gtkDialog();
-	foreach (GtkFileFilter *filter, _filters)
+	Q_FOREACH (GtkFileFilter *filter, _filters)
 		gtk_file_chooser_remove_filter(gtk_file_chooser_cast(gtkDialog), filter);
 
 	_filters.clear();

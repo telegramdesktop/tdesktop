@@ -39,7 +39,7 @@ public:
 
 	class Private;
 
-public slots:
+public Q_SLOTS:
 	void psMacUndo();
 	void psMacRedo();
 	void psMacCut();

@@ -112,7 +112,7 @@ public:
 	rpl::producer<BotCommandChosen> botCommandChosen() const;
 	rpl::producer<StickerChosen> stickerChosen() const;
 
-public slots:
+public Q_SLOTS:
 	void showAnimated();
 	void hideAnimated();
 

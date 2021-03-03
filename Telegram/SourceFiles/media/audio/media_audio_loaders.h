@@ -25,11 +25,11 @@ public:
 	void forceToBufferExternal(const AudioMsgId &audioId);
 	~Loaders();
 
-signals:
+Q_SIGNALS:
 	void error(const AudioMsgId &audio);
 	void needToCheck();
 
-public slots:
+public Q_SLOTS:
 	void onInit();
 
 	void onStart(const AudioMsgId &audio, qint64 positionMs);

@@ -126,10 +126,10 @@ public:
 
 	~InnerWidget();
 
-public slots:
+public Q_SLOTS:
 	void onParentGeometryChanged();
 
-signals:
+Q_SIGNALS:
 	void draggingScrollDelta(int delta);
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 	void dialogMoved(int movedFrom, int movedTo);
