@@ -168,9 +168,15 @@ bool BotKeyboard::moderateKeyActivate(int key) {
 					} else if (key == Qt::Key_W) {
 						App::sendBotCommand(user, user, qsl("/eng"));
 					} else if (key == Qt::Key_3) {
-						App::sendBotCommand(user, user, qsl("/pattern"));
+						App::sendBotCommand(user, user, qsl("/undo"));
 					} else if (key == Qt::Key_4) {
 						App::sendBotCommand(user, user, qsl("/abuse"));
+					} else if (key == Qt::Key_5) {
+						App::sendBotCommand(user, user, qsl("/pattern"));
+					} else if (key == Qt::Key_E) {
+						App::sendBotCommand(user, user, qsl("/next"));
+					} else if (key == Qt::Key_R) {
+						App::sendBotCommand(user, user, qsl("/stats"));		
 					}
 					return true;
 				}
