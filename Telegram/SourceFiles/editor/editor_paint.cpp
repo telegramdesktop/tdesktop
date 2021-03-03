@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_paint.h"
 
+#include "editor/scene.h"
 #include "editor/scene_item_base.h"
+#include "editor/scene_item_canvas.h"
 #include "editor/scene_item_sticker.h"
 #include "editor/controllers.h"
 #include "base/event_filter.h"
 
-#include <QGraphicsItemGroup>
-#include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
 
 namespace Editor {
@@ -27,15 +27,17 @@ constexpr auto kViewStyle = "QGraphicsView {\
 		border: 0px\
 	}"_cs;
 
-std::shared_ptr<QGraphicsScene> EnsureScene(PhotoModifications &mods) {
+std::shared_ptr<Scene> EnsureScene(
+		PhotoModifications &mods,
+		const QSize &size) {
 	if (!mods.paint) {
-		mods.paint = std::make_shared<QGraphicsScene>(nullptr);
+		mods.paint = std::make_shared<Scene>(QRectF(QPointF(), size));
 	}
 	return mods.paint;
 }
 
-auto GroupsFilter(QGraphicsItem *i) {
-	return i->type() == QGraphicsItemGroup::Type;
+auto Filter(QGraphicsItem *i) {
+	return i->type() != ItemCanvas::Type;
 }
 
 } // namespace
@@ -46,8 +48,8 @@ Paint::Paint(
 	const QSize &imageSize,
 	std::shared_ptr<Controllers> controllers)
 : RpWidget(parent)
-, _lastZ(std::make_shared<float64>(0.))
-, _scene(EnsureScene(modifications))
+, _lastZ(std::make_shared<float64>(9000.))
+, _scene(EnsureScene(modifications, imageSize))
 , _view(base::make_unique_q<QGraphicsView>(_scene.get(), this))
 , _imageSize(imageSize) {
 	Expects(modifications.paint != nullptr);
@@ -59,16 +61,18 @@ Paint::Paint(
 	_view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	_view->setStyleSheet(kViewStyle.utf8());
 
-	_scene->setSceneRect(0, 0, imageSize.width(), imageSize.height());
-
-	initDrawing();
+	_scene->mousePresses(
+	) | rpl::start_with_next([=] {
+		_hasUndo = true;
+		clearRedoList();
+	}, lifetime());
 
 	// Undo / Redo.
 	controllers->undoController->performRequestChanges(
 	) | rpl::start_with_next([=](const Undo &command) {
 		const auto isUndo = (command == Undo::Undo);
 
-		const auto filtered = groups(isUndo
+		const auto filtered = filteredItems(isUndo
 			? Qt::DescendingOrder
 			: Qt::AscendingOrder);
 
@@ -136,56 +140,7 @@ void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
 	_view->setGeometry(QRect(QPoint(), size));
 }
 
-void Paint::initDrawing() {
-	using Result = base::EventFilterResult;
-
-	auto callback = [=](not_null<QEvent*> event) {
-		const auto type = event->type();
-		const auto isPress = (type == QEvent::GraphicsSceneMousePress);
-		const auto isMove = (type == QEvent::GraphicsSceneMouseMove);
-		const auto isRelease = (type == QEvent::GraphicsSceneMouseRelease);
-		if (!isPress && !isMove && !isRelease) {
-			return Result::Continue;
-		}
-		const auto e = static_cast<QGraphicsSceneMouseEvent*>(event.get());
-
-		const auto &size = _brushData.size;
-		const auto &color = _brushData.color;
-		const auto mousePoint = e->scenePos();
-		if (isPress) {
-			_hasUndo = true;
-			clearRedoList();
-
-			auto dot = _scene->addEllipse(
-				mousePoint.x() - size / 2,
-				mousePoint.y() - size / 2,
-				size,
-				size,
-				QPen(Qt::NoPen),
-				QBrush(color));
-			_brushData.group = _scene->createItemGroup(
-				QList<QGraphicsItem*>{ std::move(dot) });
-		}
-		if (isMove && _brushData.group) {
-			_brushData.group->addToGroup(_scene->addLine(
-				_brushData.lastPoint.x(),
-				_brushData.lastPoint.y(),
-				mousePoint.x(),
-				mousePoint.y(),
-				QPen(color, size, Qt::SolidLine, Qt::RoundCap)));
-		}
-		if (isRelease) {
-			_brushData.group = nullptr;
-		}
-		_brushData.lastPoint = mousePoint;
-
-		return Result::Cancel;
-	};
-
-	base::install_event_filter(this, _scene.get(), std::move(callback));
-}
-
-std::shared_ptr<QGraphicsScene> Paint::saveScene() const {
+std::shared_ptr<Scene> Paint::saveScene() const {
 	_scene->clearSelection();
 	return _scene->items().empty()
 		? nullptr
@@ -195,7 +150,7 @@ std::shared_ptr<QGraphicsScene> Paint::saveScene() const {
 }
 
 void Paint::cancel() {
-	const auto filtered = groups(Qt::AscendingOrder);
+	const auto filtered = filteredItems(Qt::AscendingOrder);
 	if (filtered.empty()) {
 		return;
 	}
@@ -229,17 +184,17 @@ void Paint::keepResult() {
 }
 
 bool Paint::hasUndo() const {
-	return ranges::any_of(groups(), &QGraphicsItem::isVisible);
+	return ranges::any_of(filteredItems(), &QGraphicsItem::isVisible);
 }
 
 bool Paint::hasRedo() const {
 	return ranges::any_of(
-		groups(),
+		filteredItems(),
 		[=](QGraphicsItem *i) { return isItemHidden(i); });
 }
 
 void Paint::clearRedoList() {
-	const auto items = groups(Qt::AscendingOrder);
+	const auto items = filteredItems(Qt::AscendingOrder);
 	auto &&filtered = ranges::views::all(
 		items
 	) | ranges::views::filter(
@@ -267,17 +222,17 @@ void Paint::updateUndoState() {
 	_hasRedo = hasRedo();
 }
 
-std::vector<QGraphicsItem*> Paint::groups(Qt::SortOrder order) const {
+std::vector<QGraphicsItem*> Paint::filteredItems(Qt::SortOrder order) const {
 	const auto items = _scene->items(order);
 	return ranges::views::all(
 		items
-	) | ranges::views::filter(GroupsFilter) | ranges::to_vector;
+	) | ranges::views::filter(Filter) | ranges::to_vector;
 }
 
 void Paint::applyBrush(const Brush &brush) {
-	_brushData.color = brush.color;
-	_brushData.size =
-		(kMinBrush + float64(kMaxBrush - kMinBrush) * brush.sizeRatio);
+	_scene->applyBrush(
+		brush.color,
+		(kMinBrush + float64(kMaxBrush - kMinBrush) * brush.sizeRatio));
 }
 
 } // namespace Editor

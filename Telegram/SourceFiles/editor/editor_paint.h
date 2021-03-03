@@ -11,13 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/photo_editor_common.h"
 
-class QGraphicsItemGroup;
+class QGraphicsItem;
 class QGraphicsView;
 
 namespace Editor {
 
 struct Controllers;
 class ItemBase;
+class Scene;
 
 // Paint control.
 class Paint final : public Ui::RpWidget {
@@ -28,7 +29,7 @@ public:
 		const QSize &imageSize,
 		std::shared_ptr<Controllers> controllers);
 
-	[[nodiscard]] std::shared_ptr<QGraphicsScene> saveScene() const;
+	[[nodiscard]] std::shared_ptr<Scene> saveScene() const;
 
 	void applyTransform(QRect geometry, int angle, bool flipped);
 	void applyBrush(const Brush &brush);
@@ -42,7 +43,6 @@ private:
 		bool undid = false;
 	};
 
-	void initDrawing();
 	bool hasUndo() const;
 	bool hasRedo() const;
 	void clearRedoList();
@@ -50,24 +50,16 @@ private:
 	bool isItemToRemove(not_null<QGraphicsItem*> item) const;
 	bool isItemHidden(not_null<QGraphicsItem*> item) const;
 
-	std::vector<QGraphicsItem*> groups(
+	std::vector<QGraphicsItem*> filteredItems(
 		Qt::SortOrder order = Qt::DescendingOrder) const;
 
 	const std::shared_ptr<float64> _lastZ;
-	const std::shared_ptr<QGraphicsScene> _scene;
+	const std::shared_ptr<Scene> _scene;
 	const base::unique_qptr<QGraphicsView> _view;
 	const QSize _imageSize;
 
 	std::vector<SavedItem> _previousItems;
 	QList<QGraphicsItem*> _itemsToRemove;
-
-	struct {
-		QPointF lastPoint;
-
-		float size = 1.;
-		QColor color;
-		QGraphicsItemGroup *group;
-	} _brushData;
 
 	rpl::variable<bool> _hasUndo = true;
 	rpl::variable<bool> _hasRedo = true;

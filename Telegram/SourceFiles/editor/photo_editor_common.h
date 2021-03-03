@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <QGraphicsScene>
-
 namespace Editor {
+
+class Scene;
 
 struct PhotoEditorMode {
 	enum class Mode {
@@ -28,7 +28,7 @@ struct PhotoModifications {
 	int angle = 0;
 	bool flipped = false;
 	QRect crop;
-	std::shared_ptr<QGraphicsScene> paint = nullptr;
+	std::shared_ptr<Scene> paint = nullptr;
 
 	[[nodiscard]] bool empty() const;
 	[[nodiscard]] explicit operator bool() const;

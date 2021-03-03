@@ -523,8 +523,14 @@ PRIVATE
     editor/photo_editor_controls.h
     editor/photo_editor_layer_widget.cpp
     editor/photo_editor_layer_widget.h
+    editor/scene.cpp
+    editor/scene.h
     editor/scene_item_base.cpp
     editor/scene_item_base.h
+    editor/scene_item_canvas.cpp
+    editor/scene_item_canvas.h
+    editor/scene_item_line.cpp
+    editor/scene_item_line.h
     editor/scene_item_sticker.cpp
     editor/scene_item_sticker.h
     editor/stickers_panel_controller.cpp

@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_common.h"
 
+#include "editor/scene.h"
+
 namespace Editor {
 
 QImage ImageModified(QImage image, const PhotoModifications &mods) {
