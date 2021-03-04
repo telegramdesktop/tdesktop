@@ -18,7 +18,7 @@ RUN yum -y install git cmake3 meson ninja-build autoconf automake libtool \
 	zlib-devel gtk2-devel gtk3-devel libdrm-devel fontconfig-devel \
 	freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
 	pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel \
-	pkgconfig bison yasm file which xorg-x11-util-macros \
+	webkitgtk4-devel pkgconfig bison yasm file which xorg-x11-util-macros \
 	devtoolset-8-make devtoolset-8-gcc devtoolset-8-gcc-c++ \
 	devtoolset-8-binutils
 
