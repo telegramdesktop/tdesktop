@@ -242,7 +242,11 @@ namespace EnhancedSettings {
 		});
 
 		ReadStringOption(settings, "radio_controller", [&](auto v) {
-			cSetRadioController(v);
+			if (v == "") {
+				cSetRadioController("http://localhost:2468");
+			} else {
+				cSetRadioController(v);
+			}
 		});
 
 		return true;
@@ -271,7 +275,7 @@ namespace EnhancedSettings {
 		settings.insert(qsl("disable_cloud_draft_sync"), false);
 		settings.insert(qsl("show_scheduled_button"), false);
 		settings.insert(qsl("radio_mode"), false);
-		settings.insert(qsl("radio_controller"), "");
+		settings.insert(qsl("radio_controller"), "http://localhost:2468");
 
 		auto document = QJsonDocument();
 		document.setObject(settings);

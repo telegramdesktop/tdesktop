@@ -158,7 +158,11 @@ void RadioController::resizeEvent(QResizeEvent *e) {
 }
 
 void RadioController::save() {
-	cSetRadioController(_url->getLastText().trimmed());
+	auto host = _url->getLastText().trimmed();
+	if (host == "") {
+		host = "http://localhost:2468";
+	}
+	cSetRadioController(host);
 	EnhancedSettings::Write();
 	closeBox();
 }
