@@ -887,7 +887,7 @@ void MainWindow::updateIconCounters() {
 			dbusUnityProperties["count-visible"] =
 				Glib::Variant<bool>::create(true);
 		} else {
-			dbusUnityProperties["count-visible"] = 
+			dbusUnityProperties["count-visible"] =
 				Glib::Variant<bool>::create(false);
 		}
 

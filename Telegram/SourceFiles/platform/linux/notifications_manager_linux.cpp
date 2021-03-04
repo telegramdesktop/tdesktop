@@ -109,7 +109,7 @@ void GetServerInformation(
 					LOG(("Native Notification Error: %1").arg(
 						QString::fromStdString(e.what())));
 				}
-					
+
 				crl::on_main([=] { callback({}); });
 			},
 			std::string(kService));
@@ -119,7 +119,7 @@ void GetServerInformation(
 		LOG(("Native Notification Error: %1").arg(
 			QString::fromStdString(e.what())));
 	}
-		
+
 	crl::on_main([=] { callback(std::nullopt); });
 }
 
@@ -156,7 +156,7 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 					LOG(("Native Notification Error: %1").arg(
 						QString::fromStdString(e.what())));
 				}
-					
+
 				crl::on_main([=] { callback({}); });
 			},
 			std::string(kService));
@@ -166,7 +166,7 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 		LOG(("Native Notification Error: %1").arg(
 			QString::fromStdString(e.what())));
 	}
-		
+
 	crl::on_main([=] { callback({}); });
 }
 
@@ -204,7 +204,7 @@ void GetInhibitionSupported(Fn<void(bool)> callback) {
 							QString::fromStdString(e.what())));
 					}
 				}
-					
+
 				crl::on_main([=] { callback(false); });
 			},
 			std::string(kService));
@@ -214,7 +214,7 @@ void GetInhibitionSupported(Fn<void(bool)> callback) {
 		LOG(("Native Notification Error: %1").arg(
 			QString::fromStdString(e.what())));
 	}
-		
+
 	crl::on_main([=] { callback(false); });
 }
 

@@ -32,7 +32,7 @@ public:
 		const QString &filter,
 		FileDialogType type,
 		QString startFile) const;
-	
+
 	[[nodiscard]] bool showOpenWithDialog(const QString &filepath) const;
 
 	[[nodiscard]] QImage getImageFromClipboard() const;
