@@ -99,7 +99,7 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 			if (const auto activeWindow = Core::App().activeWindow()) {
 				if (IsX11()) {
 					result
-						<< "x11:" 
+						<< "x11:"
 						<< std::hex
 						<< activeWindow
 							->widget()
@@ -139,7 +139,7 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 			+ uniqueName
 			+ '/'
 			+ handleToken;
-		
+
 		QEventLoop loop;
 
 		const auto signalId = connection->signal_subscribe(
@@ -155,7 +155,7 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 
 					const auto response = base::Platform::GlibVariantCast<
 						uint>(parametersCopy.get_child(0));
-					
+
 					if (response && !silent) {
 						LOG(("Portal Autostart Error: Request denied"));
 					}
