@@ -271,6 +271,11 @@ void GroupCall::applyParticipantsSlice(
 				}
 				return;
 			}
+			if (const auto about = data.vabout()) {
+				if (const auto channel = participantPeer->asChannel()) {
+					channel->setAbout(qs(*about));
+				}
+			}
 			const auto was = (i != end(_participants))
 				? std::make_optional(*i)
 				: std::nullopt;
