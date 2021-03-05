@@ -115,6 +115,7 @@ public:
 	void join(const MTPInputGroupCall &inputCall);
 	void handleUpdate(const MTPGroupCall &call);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
+	void changeTitle(const QString &title);
 
 	void setMuted(MuteState mute);
 	[[nodiscard]] MuteState muted() const {

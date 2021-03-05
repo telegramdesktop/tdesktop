@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/level_meter.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -84,6 +85,28 @@ void SaveCallJoinMuted(
 			QString::number(delay / 1000., 'f', 2));
 }
 
+void EditGroupCallTitleBox(
+		not_null<Ui::GenericBox*> box,
+		const QString &placeholder,
+		const QString &title,
+		Fn<void(QString)> done) {
+	box->setTitle(tr::lng_group_call_edit_title());
+	const auto input = box->addRow(object_ptr<Ui::InputField>(
+		box,
+		st::groupCallField,
+		rpl::single(placeholder),
+		title));
+	box->setFocusCallback([=] {
+		input->setFocusFast();
+	});
+	box->addButton(tr::lng_settings_save(), [=] {
+		const auto result = input->getLastText();
+		box->closeBox();
+		done(result);
+	});
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
 } // namespace
 
 void GroupCallSettingsBox(
@@ -119,6 +142,7 @@ void GroupCallSettingsBox(
 	const auto canChangeJoinMuted = (goodReal && real->canChangeJoinMuted());
 	const auto addCheck = (peer->canManageGroupCall() && canChangeJoinMuted);
 	const auto addEditJoinAs = (call->possibleJoinAs().size() > 1);
+	const auto addEditTitle = peer->canManageGroupCall();
 	if (addCheck || addEditJoinAs) {
 		AddSkip(layout);
 	}
@@ -126,6 +150,12 @@ void GroupCallSettingsBox(
 		? AddButton(
 			layout,
 			tr::lng_group_call_display_as_header(),
+			st::groupCallSettingsButton).get()
+		: nullptr;
+	const auto editTitle = (goodReal && addEditTitle)
+		? AddButton(
+			layout,
+			tr::lng_group_call_edit_title(),
 			st::groupCallSettingsButton).get()
 		: nullptr;
 	if (editJoinAs) {
@@ -143,6 +173,18 @@ void GroupCallSettingsBox(
 				showBox,
 				callback,
 				call->joinAs());
+		});
+	}
+	if (editTitle) {
+		editTitle->setClickedCallback([=] {
+			const auto done = [=](const QString &title) {
+				call->changeTitle(title);
+			};
+			box->getDelegate()->show(Box(
+				EditGroupCallTitleBox,
+				peer->name,
+				goodReal ? real->title() : QString(),
+				done));
 		});
 	}
 	const auto muteJoined = addCheck

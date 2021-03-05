@@ -28,6 +28,15 @@ public:
 	[[nodiscard]] uint64 id() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] MTPInputGroupCall input() const;
+	[[nodiscard]] QString title() const {
+		return _title.current();
+	}
+	[[nodiscard]] rpl::producer<QString> titleValue() const {
+		return _title.value();
+	}
+	void setTitle(const QString &title) {
+		_title = title;
+	}
 
 	void setPeer(not_null<PeerData*> peer);
 
@@ -105,6 +114,7 @@ private:
 	int _version = 0;
 	mtpRequestId _participantsRequestId = 0;
 	mtpRequestId _reloadRequestId = 0;
+	rpl::variable<QString> _title;
 
 	std::vector<Participant> _participants;
 	base::flat_map<uint32, not_null<PeerData*>> _participantPeerBySsrc;
