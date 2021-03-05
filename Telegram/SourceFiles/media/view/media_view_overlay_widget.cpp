@@ -481,13 +481,20 @@ void OverlayWidget::updateGeometry() {
 	setGeometry(available);
 }
 
+void OverlayWidget::moveEvent(QMoveEvent *e) {
+	const auto newPos = e->pos();
+	DEBUG_LOG(("Viewer Pos: Moved to %1, %2")
+		.arg(newPos.x())
+		.arg(newPos.y()));
+	moveToScreen();
+	OverlayParent::moveEvent(e);
+}
+
 void OverlayWidget::resizeEvent(QResizeEvent *e) {
-	const auto newGeometry = geometry();
-	DEBUG_LOG(("Viewer Pos: Resized to %1, %2, %3, %4")
-		.arg(newGeometry.x())
-		.arg(newGeometry.y())
-		.arg(newGeometry.width())
-		.arg(newGeometry.height()));
+	const auto newSize = e->size();
+	DEBUG_LOG(("Viewer Pos: Resized to %1, %2")
+		.arg(newSize.width())
+		.arg(newSize.height()));
 	updateControlsGeometry();
 	OverlayParent::resizeEvent(e);
 }
