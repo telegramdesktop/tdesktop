@@ -175,10 +175,12 @@ void GroupCall::applyUpdate(const MTPGroupCall &update) {
 
 void GroupCall::applyCall(const MTPGroupCall &call, bool force) {
 	call.match([&](const MTPDgroupCall &data) {
+		if (!_version) {
+			_version = data.vversion().v;
+		}
 		const auto title = qs(data.vtitle().value_or_empty());
-		const auto changed = (_version != data.vversion().v)
+		const auto changed = (_joinMuted != data.is_join_muted())
 			|| (_fullCount.current() != data.vparticipants_count().v)
-			|| (_joinMuted != data.is_join_muted())
 			|| (_canChangeJoinMuted != data.is_can_change_join_muted())
 			|| (_title.current() != title);
 		if (!force && !changed) {
@@ -189,7 +191,6 @@ void GroupCall::applyCall(const MTPGroupCall &call, bool force) {
 		}
 		_joinMuted = data.is_join_muted();
 		_canChangeJoinMuted = data.is_can_change_join_muted();
-		_version = data.vversion().v;
 		_fullCount = data.vparticipants_count().v;
 		_title = title;
 		changePeerEmptyCallFlag();
