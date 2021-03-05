@@ -246,7 +246,6 @@ void GroupCall::playConnectingSoundOnce() {
 
 void GroupCall::start() {
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
-		MTP_flags(MTPphone_CreateGroupCall::Flag::f_join_as),
 		_peer->input,
 		_joinAs->input,
 		MTP_int(openssl::RandomValue<int32>())
@@ -321,7 +320,7 @@ void GroupCall::rejoin() {
 	_mySsrc = 0;
 	setState(State::Joining);
 	createAndStartController();
-	applySelfInCallLocally();
+	applyMeInCallLocally();
 	LOG(("Call Info: Requesting join payload."));
 
 	const auto weak = base::make_weak(this);
@@ -353,10 +352,9 @@ void GroupCall::rejoin() {
 			const auto wasMuteState = muted();
 			using Flag = MTPphone_JoinGroupCall::Flag;
 			_api.request(MTPphone_JoinGroupCall(
-				MTP_flags(Flag::f_join_as
-					| (wasMuteState != MuteState::Active
-						? Flag::f_muted
-						: Flag(0))),
+				MTP_flags((wasMuteState != MuteState::Active)
+					? Flag::f_muted
+					: Flag(0)),
 				inputCall(),
 				_joinAs->input,
 				MTP_dataJSON(MTP_bytes(json))
@@ -365,7 +363,7 @@ void GroupCall::rejoin() {
 				setState(_instanceConnected
 					? State::Joined
 					: State::Connecting);
-				applySelfInCallLocally();
+				applyMeInCallLocally();
 				maybeSendMutedUpdate(wasMuteState);
 				_peer->session().api().applyUpdates(updates);
 			}).fail([=](const RPCError &error) {
@@ -392,17 +390,16 @@ void GroupCall::rejoin() {
 	});
 }
 
-void GroupCall::applySelfInCallLocally() {
+void GroupCall::applyMeInCallLocally() {
 	const auto call = _peer->groupCall();
 	if (!call || call->id() != _id) {
 		return;
 	}
 	using Flag = MTPDgroupCallParticipant::Flag;
 	const auto &participants = call->participants();
-	const auto self = _peer->session().user();
 	const auto i = ranges::find(
 		participants,
-		self,
+		_joinAs,
 		&Data::GroupCall::Participant::peer);
 	const auto date = (i != end(participants))
 		? i->date
@@ -428,12 +425,13 @@ void GroupCall::applySelfInCallLocally() {
 				1,
 				MTP_groupCallParticipant(
 					MTP_flags(flags),
-					peerToMTP(self->id), // #TODO calls channel or self
+					peerToMTP(_joinAs->id),
 					MTP_int(date),
 					MTP_int(lastActive),
 					MTP_int(_mySsrc),
 					MTP_int(volume),
-					MTPstring())), // #TODO calls about
+					MTPstring(), // #TODO calls about
+					MTPlong())), // #TODO calls raise hand rating
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -460,7 +458,8 @@ void GroupCall::applyParticipantLocally(
 			: Flag(0))
 		| (participant->lastActive ? Flag::f_active_date : Flag(0))
 		| (isMuted ? Flag::f_muted : Flag(0))
-		| (isMutedByYou ? Flag::f_muted_by_you : Flag(0)); // #TODO calls self?
+		| (isMutedByYou ? Flag::f_muted_by_you : Flag(0))
+		| (participantPeer == _joinAs ? Flag::f_self : Flag(0));
 	_peer->groupCall()->applyUpdateChecked(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
@@ -473,7 +472,8 @@ void GroupCall::applyParticipantLocally(
 					MTP_int(participant->lastActive),
 					MTP_int(participant->ssrc),
 					MTP_int(volume.value_or(participant->volume)),
-					MTPstring())), // #TODO calls about
+					MTPstring(), // #TODO calls about
+					MTPlong())), // #TODO calls raise hand rating
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -547,7 +547,7 @@ void GroupCall::setMuted(MuteState mute) {
 		const auto nowMuted = (muted() == MuteState::Muted)
 			|| (muted() == MuteState::PushToTalk);
 		if (wasMuted != nowMuted) {
-			applySelfInCallLocally();
+			applyMeInCallLocally();
 		}
 	};
 	if (mute == MuteState::Active || mute == MuteState::PushToTalk) {
@@ -667,15 +667,15 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 				handleOtherParticipants(data);
 				return;
 			}
-			if (data.is_left() && data.vsource().v == _mySsrc) {
+			if (data.is_left() && data.vsource().value_or_empty() == _mySsrc) {
 				// I was removed from the call, rejoin.
 				LOG(("Call Info: Rejoin after got 'left' with my ssrc."));
 				setState(State::Joining);
 				rejoin();
-			} else if (!data.is_left() && data.vsource().v != _mySsrc) {
+			} else if (!data.is_left() && data.vsource().value_or_empty() != _mySsrc) {
 				// I joined from another device, hangup.
 				LOG(("Call Info: Hangup after '!left' with ssrc %1, my %2."
-					).arg(data.vsource().v
+					).arg(data.vsource().value_or_empty()
 					).arg(_mySsrc));
 				_mySsrc = 0;
 				hangup();
@@ -785,17 +785,17 @@ void GroupCall::audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data) {
 		const auto ssrc = ssrcOrZero ? ssrcOrZero : _mySsrc;
 		const auto level = value.level;
 		const auto voice = value.voice;
-		const auto self = (ssrc == _mySsrc);
+		const auto me = (ssrc == _mySsrc);
 		_levelUpdates.fire(LevelUpdate{
 			.ssrc = ssrc,
 			.value = level,
 			.voice = voice,
-			.self = self
+			.me = me
 		});
 		if (level <= kSpeakLevelThreshold) {
 			continue;
 		}
-		if (self
+		if (me
 			&& voice
 			&& (!_lastSendProgressUpdate
 				|| _lastSendProgressUpdate + kUpdateSendActionEach < now)) {
@@ -912,8 +912,9 @@ void GroupCall::sendMutedUpdate() {
 	_updateMuteRequestId = _api.request(MTPphone_EditGroupCallParticipant(
 		MTP_flags((muted() != MuteState::Active) ? Flag::f_muted : Flag(0)),
 		inputCall(),
-		MTP_inputPeerSelf(),
-		MTP_int(100000) // volume
+		_joinAs->input,
+		MTP_int(100000), // volume
+		MTPBool() // #TODO calls raise_hand
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
 		_peer->session().api().applyUpdates(result);
@@ -977,7 +978,8 @@ void GroupCall::editParticipant(
 		MTP_flags(flags),
 		inputCall(),
 		participantPeer->input,
-		MTP_int(std::clamp(volume.value_or(0), 1, Group::kMaxVolume))
+		MTP_int(std::clamp(volume.value_or(0), 1, Group::kMaxVolume)),
+		MTPBool() // #TODO calls raise_hand
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {

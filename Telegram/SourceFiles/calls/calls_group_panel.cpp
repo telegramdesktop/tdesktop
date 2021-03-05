@@ -501,7 +501,7 @@ void GroupPanel::initWithCall(GroupCall *call) {
 
 	call->levelUpdates(
 	) | rpl::filter([=](const LevelUpdate &update) {
-		return update.self;
+		return update.me;
 	}) | rpl::start_with_next([=](const LevelUpdate &update) {
 		_mute->setLevel(update.value);
 	}, _callLifetime);

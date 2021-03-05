@@ -56,7 +56,6 @@ public:
 		-> const std::vector<Participant> &;
 	void requestParticipants();
 	[[nodiscard]] bool participantsLoaded() const;
-	[[nodiscard]] PeerData *participantPeerBySsrc(uint32 ssrc) const;
 
 	[[nodiscard]] rpl::producer<> participantsSliceAdded();
 	[[nodiscard]] rpl::producer<ParticipantUpdate> participantUpdated() const;
@@ -97,6 +96,7 @@ private:
 	void requestUnknownParticipants();
 	void changePeerEmptyCallFlag();
 	void checkFinishSpeakingByActive();
+	[[nodiscard]] PeerData *participantPeerBySsrc(uint32 ssrc) const;
 
 	const uint64 _id = 0;
 	const uint64 _accessHash = 0;

@@ -82,6 +82,7 @@ void ListController::prepare() {
 		delegate()->peerListAppendRow(std::move(row));
 		if (peer == _selected) {
 			delegate()->peerListSetRowChecked(raw, true);
+			raw->finishCheckedAnimation();
 		}
 	}
 	delegate()->peerListRefreshRows();
@@ -136,9 +137,7 @@ void ChooseJoinAsBox(
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 	box->addButton(tr::lng_continue(), [=] {
-		const auto selected = controller->selected();
-		box->closeBox();
-		done(selected);
+		done(controller->selected());
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
@@ -184,8 +183,12 @@ void ChooseJoinAsProcess::start(
 	const auto finish = [=](not_null<PeerData*> joinAs) {
 		const auto peer = _request->peer;
 		const auto done = std::move(_request->done);
+		const auto box = _request->box;
 		_request = nullptr;
 		done(peer, joinAs);
+		if (const auto strong = box.data()) {
+			strong->closeBox();
+		}
 	};
 	using Flag = MTPchannels_GetAdminedPublicChannels::Flag;
 	_request->id = session->api().request(
@@ -217,7 +220,7 @@ void ChooseJoinAsProcess::start(
 				? not_null(loaded)
 				: self;
 		}();
-		Ui::show(
+		_request->box = Ui::show(
 			Box(
 				ChooseJoinAsBox,
 				_request->context,
@@ -225,6 +228,11 @@ void ChooseJoinAsProcess::start(
 				selected,
 				crl::guard(&_request->guard, finish)),
 			Ui::LayerOption::KeepOther);
+
+		_request->box->boxClosing(
+		) | rpl::start_with_next([=] {
+			_request = nullptr;
+		}, _request->lifetime);
 	}).fail([=](const RPCError &error) {
 		finish(session->user());
 	}).send();
