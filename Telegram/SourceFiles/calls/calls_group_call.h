@@ -39,6 +39,8 @@ namespace Group {
 struct MuteRequest;
 struct VolumeRequest;
 struct ParticipantState;
+struct JoinInfo;
+struct RejoinEvent;
 } // namespace Group
 
 enum class MuteState {
@@ -88,9 +90,8 @@ public:
 
 	GroupCall(
 		not_null<Delegate*> delegate,
-		not_null<PeerData*> peer,
-		const MTPInputGroupCall &inputCall,
-		not_null<PeerData*> joinAs);
+		Group::JoinInfo info,
+		const MTPInputGroupCall &inputCall);
 	~GroupCall();
 
 	[[nodiscard]] uint64 id() const {
@@ -102,10 +103,15 @@ public:
 	[[nodiscard]] not_null<PeerData*> joinAs() const {
 		return _joinAs;
 	}
+	[[nodiscard]] auto possibleJoinAs() const
+	-> const std::vector<not_null<PeerData*>>& {
+		return _possibleJoinAs;
+	}
 
 	void start();
 	void hangup();
 	void discard();
+	void rejoinAs(Group::JoinInfo info);
 	void join(const MTPInputGroupCall &inputCall);
 	void handleUpdate(const MTPGroupCall &call);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
@@ -141,6 +147,9 @@ public:
 
 	[[nodiscard]] rpl::producer<LevelUpdate> levelUpdates() const {
 		return _levelUpdates.events();
+	}
+	[[nodiscard]] rpl::producer<Group::RejoinEvent> rejoinEvents() const {
+		return _rejoinEvents.events();
 	}
 	static constexpr auto kSpeakLevelThreshold = 0.2;
 
@@ -211,10 +220,12 @@ private:
 	const not_null<Delegate*> _delegate;
 	not_null<PeerData*> _peer; // Can change in legacy group migration.
 	not_null<History*> _history; // Can change in legacy group migration.
-	not_null<PeerData*> _joinAs;
 	MTP::Sender _api;
 	rpl::variable<State> _state = State::Creating;
 	bool _instanceConnected = false;
+
+	not_null<PeerData*> _joinAs;
+	std::vector<not_null<PeerData*>> _possibleJoinAs;
 
 	rpl::variable<MuteState> _muted = MuteState::Muted;
 	bool _acceptFields = false;
@@ -230,6 +241,7 @@ private:
 	std::unique_ptr<tgcalls::GroupInstanceImpl> _instance;
 	rpl::event_stream<LevelUpdate> _levelUpdates;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
+	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
 	base::Timer _lastSpokeCheckTimer;
 	base::Timer _checkJoinedTimer;
 

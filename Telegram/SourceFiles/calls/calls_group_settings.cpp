@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "calls/calls_group_call.h"
 #include "calls/calls_group_panel.h" // LeaveGroupCallBox.
+#include "calls/calls_group_common.h"
 #include "calls/calls_instance.h"
+#include "calls/calls_choose_join_as.h"
 #include "ui/widgets/level_meter.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/buttons.h"
@@ -100,6 +102,7 @@ void GroupCallSettingsBox(
 		float micLevel = 0.;
 		Ui::Animations::Simple micLevelAnimation;
 		base::Timer levelUpdateTimer;
+		Group::ChooseJoinAsProcess joinAsProcess;
 		bool generatingLink = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
@@ -115,8 +118,32 @@ void GroupCallSettingsBox(
 	const auto joinMuted = goodReal ? real->joinMuted() : false;
 	const auto canChangeJoinMuted = (goodReal && real->canChangeJoinMuted());
 	const auto addCheck = (peer->canManageGroupCall() && canChangeJoinMuted);
-	if (addCheck) {
+	const auto addEditJoinAs = (call->possibleJoinAs().size() > 1);
+	if (addCheck || addEditJoinAs) {
 		AddSkip(layout);
+	}
+	const auto editJoinAs = addEditJoinAs
+		? AddButton(
+			layout,
+			tr::lng_group_call_display_as_header(),
+			st::groupCallSettingsButton).get()
+		: nullptr;
+	if (editJoinAs) {
+		editJoinAs->setClickedCallback([=] {
+			const auto context = Group::ChooseJoinAsProcess::Context::Switch;
+			const auto callback = [=](Group::JoinInfo info) {
+				call->rejoinAs(info);
+			};
+			auto showBox = [=](object_ptr<Ui::BoxContent> next) {
+				box->getDelegate()->show(std::move(next));
+			};
+			state->joinAsProcess.start(
+				peer,
+				context,
+				showBox,
+				callback,
+				call->joinAs());
+		});
 	}
 	const auto muteJoined = addCheck
 		? AddButton(
@@ -124,7 +151,7 @@ void GroupCallSettingsBox(
 			tr::lng_group_call_new_muted(),
 			st::groupCallSettingsButton)->toggleOn(rpl::single(joinMuted))
 		: nullptr;
-	if (addCheck) {
+	if (addCheck || addEditJoinAs) {
 		AddSkip(layout);
 	}
 

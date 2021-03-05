@@ -16,15 +16,17 @@ namespace Platform {
 enum class PermissionType;
 } // namespace Platform
 
-namespace Media {
-namespace Audio {
+namespace Media::Audio {
 class Track;
-} // namespace Audio
-} // namespace Media
+} // namespace Media::Audio
 
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Calls::Group {
+struct JoinInfo;
+} // namespace Calls::Group
 
 namespace Calls {
 
@@ -42,9 +44,6 @@ public:
 
 	void startOutgoingCall(not_null<UserData*> user, bool video);
 	void startOrJoinGroupCall(not_null<PeerData*> peer);
-	void startOrJoinGroupCall(
-		not_null<PeerData*> peer,
-		not_null<PeerData*> joinAs);
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
@@ -107,9 +106,8 @@ private:
 	void destroyCall(not_null<Call*> call);
 
 	void createGroupCall(
-		not_null<PeerData*> peer,
-		const MTPInputGroupCall &inputCall,
-		not_null<PeerData*> joinAs);
+		Group::JoinInfo info,
+		const MTPInputGroupCall &inputCall);
 	void destroyGroupCall(not_null<GroupCall*> call);
 
 	void requestPermissionOrFail(
@@ -150,7 +148,7 @@ private:
 
 	base::flat_map<QString, std::unique_ptr<Media::Audio::Track>> _tracks;
 
-	ChooseJoinAsProcess _chooseJoinAs;
+	Group::ChooseJoinAsProcess _chooseJoinAs;
 
 };
 

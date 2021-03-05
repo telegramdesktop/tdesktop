@@ -79,7 +79,7 @@ void GroupCall::requestParticipants() {
 	}
 	_participantsRequestId = api().request(MTPphone_GetGroupParticipants(
 		input(),
-		MTP_vector<MTPint>(), // ids
+		MTP_vector<MTPInputPeer>(), // ids
 		MTP_vector<MTPint>(), // ssrcs
 		MTP_string(_nextOffset),
 		MTP_int(kRequestPerPage)
@@ -296,7 +296,7 @@ void GroupCall::applyParticipantsSlice(
 				.peer = participantPeer,
 				.date = data.vdate().v,
 				.lastActive = lastActive,
-				.ssrc = uint32(data.vsource().value_or_empty()),
+				.ssrc = uint32(data.vsource().v),
 				.volume = volume,
 				.applyVolumeFromMin = applyVolumeFromMin,
 				.speaking = canSelfUnmute && (was ? was->speaking : false),
@@ -469,7 +469,7 @@ void GroupCall::requestUnknownParticipants() {
 		}
 		return result;
 	}();
-	const auto peerIds = [&] {
+	const auto participantPeerIds = [&] {
 		if (_unknownSpokenPeerIds.size() + ssrcs.size() < kRequestPerPage) {
 			return base::take(_unknownSpokenPeerIds);
 		}
@@ -478,8 +478,9 @@ void GroupCall::requestUnknownParticipants() {
 		if (available > 0) {
 			result.reserve(available);
 			while (result.size() < available) {
-				const auto [userId, when] = _unknownSpokenPeerIds.back();
-				result.emplace(userId, when);
+				const auto &back = _unknownSpokenPeerIds.back();
+				const auto [participantPeerId, when] = back;
+				result.emplace(participantPeerId, when);
 				_unknownSpokenPeerIds.erase(_unknownSpokenPeerIds.end() - 1);
 			}
 		}
@@ -490,16 +491,23 @@ void GroupCall::requestUnknownParticipants() {
 	for (const auto [ssrc, when] : ssrcs) {
 		ssrcInputs.push_back(MTP_int(ssrc));
 	}
-	auto uidInputs = QVector<MTPint>();
-	uidInputs.reserve(peerIds.size());
-	for (const auto [peerId, when] : peerIds) {
-		Assert(peerIsUser(peerId)); // #TODO calls
-		uidInputs.push_back(MTP_int(peerToUser(peerId)));
+	auto peerInputs = QVector<MTPInputPeer>();
+	peerInputs.reserve(participantPeerIds.size());
+	for (const auto [participantPeerId, when] : participantPeerIds) {
+		if (const auto userId = peerToUser(participantPeerId)) {
+			peerInputs.push_back(
+				MTP_inputPeerUser(MTP_int(userId), MTP_long(0)));
+		} else if (const auto chatId = peerToChat(participantPeerId)) {
+			peerInputs.push_back(MTP_inputPeerChat(MTP_int(chatId)));
+		} else if (const auto channelId = peerToChannel(participantPeerId)) {
+			peerInputs.push_back(
+				MTP_inputPeerChannel(MTP_int(channelId), MTP_long(0)));
+		}
 	}
 	_unknownParticipantPeersRequestId = api().request(
 		MTPphone_GetGroupParticipants(
 			input(),
-			MTP_vector<MTPint>(uidInputs),
+			MTP_vector<MTPInputPeer>(peerInputs),
 			MTP_vector<MTPint>(ssrcInputs),
 			MTP_string(QString()),
 			MTP_int(kRequestPerPage)
@@ -517,17 +525,17 @@ void GroupCall::requestUnknownParticipants() {
 			applyLastSpoke(ssrc, when, now);
 			_unknownSpokenSsrcs.remove(ssrc);
 		}
-		for (const auto [peerId, when] : peerIds) {
-			if (const auto participantPeer = _peer->owner().peerLoaded(peerId)) {
+		for (const auto [id, when] : participantPeerIds) {
+			if (const auto participantPeer = _peer->owner().peerLoaded(id)) {
 				const auto isParticipant = ranges::contains(
 					_participants,
 					not_null{ participantPeer },
 					&Participant::peer);
 				if (isParticipant) {
-					applyActiveUpdate(peerId, when, participantPeer);
+					applyActiveUpdate(id, when, participantPeer);
 				}
 			}
-			_unknownSpokenPeerIds.remove(peerId);
+			_unknownSpokenPeerIds.remove(id);
 		}
 		requestUnknownParticipants();
 	}).fail([=](const RPCError &error) {
@@ -535,8 +543,8 @@ void GroupCall::requestUnknownParticipants() {
 		for (const auto [ssrc, when] : ssrcs) {
 			_unknownSpokenSsrcs.remove(ssrc);
 		}
-		for (const auto [peerId, when] : peerIds) {
-			_unknownSpokenPeerIds.remove(peerId);
+		for (const auto [participantPeerId, when] : participantPeerIds) {
+			_unknownSpokenPeerIds.remove(participantPeerId);
 		}
 		requestUnknownParticipants();
 	}).send();

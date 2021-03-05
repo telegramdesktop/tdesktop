@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
+#include "base/object_ptr.h"
 
 class PeerData;
 
@@ -15,7 +16,9 @@ namespace Ui {
 class BoxContent;
 } // namespace Ui
 
-namespace Calls {
+namespace Calls::Group {
+
+struct JoinInfo;
 
 class ChooseJoinAsProcess final {
 public:
@@ -31,12 +34,15 @@ public:
 	void start(
 		not_null<PeerData*> peer,
 		Context context,
-		Fn<void(not_null<PeerData*> peer, not_null<PeerData*> joinAs)> done);
+		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
+		Fn<void(JoinInfo)> done,
+		PeerData *currentJoinAs = nullptr);
 
 private:
 	struct ChannelsListRequest {
 		not_null<PeerData*> peer;
-		Fn<void(not_null<PeerData*>, not_null<PeerData*>)> done;
+		Fn<void(object_ptr<Ui::BoxContent>)> showBox;
+		Fn<void(JoinInfo)> done;
 		base::has_weak_ptr guard;
 		QPointer<Ui::BoxContent> box;
 		rpl::lifetime lifetime;
@@ -47,4 +53,4 @@ private:
 
 };
 
-} // namespace Calls
+} // namespace Calls::Group
