@@ -705,6 +705,10 @@ void PeerListRow::setCheckedInternal(bool checked, anim::type animated) {
 	_checkbox->setChecked(checked, animated);
 }
 
+void PeerListRow::finishCheckedAnimation() {
+	_checkbox->setChecked(_checkbox->checked(), anim::type::instant);
+}
+
 PeerListContent::PeerListContent(
 	QWidget *parent,
 	not_null<PeerListController*> controller)

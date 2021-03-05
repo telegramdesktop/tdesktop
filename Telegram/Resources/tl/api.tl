@@ -1207,7 +1207,7 @@ groupCall#c0c2052e flags:# join_muted:flags.1?true can_change_join_muted:flags.2
 
 inputGroupCall#d8aa840f id:long access_hash:long = InputGroupCall;
 
-groupCallParticipant#d27d3adf flags:# muted:flags.0?true left:flags.1?true can_self_unmute:flags.2?true just_joined:flags.4?true versioned:flags.5?true min:flags.8?true muted_by_you:flags.9?true volume_by_admin:flags.10?true self:flags.12?true peer:Peer date:int active_date:flags.3?int source:int volume:flags.7?int about:flags.11?string = GroupCallParticipant;
+groupCallParticipant#7c48057b flags:# muted:flags.0?true left:flags.1?true can_self_unmute:flags.2?true just_joined:flags.4?true versioned:flags.5?true min:flags.8?true muted_by_you:flags.9?true volume_by_admin:flags.10?true self:flags.12?true peer:Peer date:int active_date:flags.3?int source:flags.12?int volume:flags.7?int about:flags.11?string raise_hand_rating:flags.13?long = GroupCallParticipant;
 
 phone.groupCall#9e727aad call:GroupCall participants:Vector<GroupCallParticipant> participants_next_offset:string chats:Vector<Chat> users:Vector<User> = phone.GroupCall;
 
@@ -1611,8 +1611,8 @@ phone.discardCall#b2cbc1c0 flags:# video:flags.0?true peer:InputPhoneCall durati
 phone.setCallRating#59ead627 flags:# user_initiative:flags.0?true peer:InputPhoneCall rating:int comment:string = Updates;
 phone.saveCallDebug#277add7e peer:InputPhoneCall debug:DataJSON = Bool;
 phone.sendSignalingData#ff7a9383 peer:InputPhoneCall data:bytes = Bool;
-phone.createGroupCall#1fd59252 flags:# peer:InputPeer join_as:flags.0?InputPeer random_id:int = Updates;
-phone.joinGroupCall#2e8166b8 flags:# muted:flags.0?true call:InputGroupCall join_as:flags.1?InputPeer params:DataJSON = Updates;
+phone.createGroupCall#7c068f5 peer:InputPeer join_as:InputPeer random_id:int = Updates;
+phone.joinGroupCall#3633a5b0 flags:# muted:flags.0?true call:InputGroupCall join_as:InputPeer params:DataJSON = Updates;
 phone.leaveGroupCall#500377f9 call:InputGroupCall source:int = Updates;
 phone.inviteToGroupCall#7b393160 call:InputGroupCall users:Vector<InputUser> = Updates;
 phone.discardGroupCall#7a777135 call:InputGroupCall = Updates;
@@ -1621,7 +1621,7 @@ phone.getGroupCall#c7cb017 call:InputGroupCall = phone.GroupCall;
 phone.getGroupParticipants#c9f1d285 call:InputGroupCall ids:Vector<int> sources:Vector<int> offset:string limit:int = phone.GroupParticipants;
 phone.checkGroupCall#b74a7bea call:InputGroupCall source:int = Bool;
 phone.toggleGroupCallRecord#c02a66d7 flags:# start:flags.0?true call:InputGroupCall title:flags.1?string = Updates;
-phone.editGroupCallParticipant#4713e7a3 flags:# muted:flags.0?true call:InputGroupCall participant:InputPeer volume:flags.1?int = Updates;
+phone.editGroupCallParticipant#d975eb80 flags:# muted:flags.0?true call:InputGroupCall participant:InputPeer volume:flags.1?int raise_hand:flags.2?Bool = Updates;
 phone.editGroupCallTitle#1ca6ac0a call:InputGroupCall title:string = Updates;
 
 langpack.getLangPack#f2f2330a lang_pack:string lang_code:string = LangPackDifference;

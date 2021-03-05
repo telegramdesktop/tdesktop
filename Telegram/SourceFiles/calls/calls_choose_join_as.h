@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class PeerData;
 
+namespace Ui {
+class BoxContent;
+} // namespace Ui
+
 namespace Calls {
 
 class ChooseJoinAsProcess final {
@@ -34,6 +38,7 @@ private:
 		not_null<PeerData*> peer;
 		Fn<void(not_null<PeerData*>, not_null<PeerData*>)> done;
 		base::has_weak_ptr guard;
+		QPointer<Ui::BoxContent> box;
 		rpl::lifetime lifetime;
 		Context context = Context();
 		mtpRequestId id = 0;

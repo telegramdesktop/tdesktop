@@ -296,7 +296,7 @@ void GroupCall::applyParticipantsSlice(
 				.peer = participantPeer,
 				.date = data.vdate().v,
 				.lastActive = lastActive,
-				.ssrc = uint32(data.vsource().v),
+				.ssrc = uint32(data.vsource().value_or_empty()),
 				.volume = volume,
 				.applyVolumeFromMin = applyVolumeFromMin,
 				.speaking = canSelfUnmute && (was ? was->speaking : false),

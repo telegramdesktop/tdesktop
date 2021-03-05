@@ -62,7 +62,7 @@ struct LevelUpdate {
 	uint32 ssrc = 0;
 	float value = 0.;
 	bool voice = false;
-	bool self = false;
+	bool me = false;
 };
 
 class GroupCall final : public base::has_weak_ptr {
@@ -98,6 +98,9 @@ public:
 	}
 	[[nodiscard]] not_null<PeerData*> peer() const {
 		return _peer;
+	}
+	[[nodiscard]] not_null<PeerData*> joinAs() const {
+		return _joinAs;
 	}
 
 	void start();
@@ -179,7 +182,7 @@ private:
 	void sendMutedUpdate();
 	void updateInstanceMuteState();
 	void updateInstanceVolumes();
-	void applySelfInCallLocally();
+	void applyMeInCallLocally();
 	void rejoin();
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
