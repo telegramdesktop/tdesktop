@@ -60,12 +60,26 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 }
 
 void Instance::startOrJoinGroupCall(not_null<PeerData*> peer) {
+	const auto context = peer->groupCall()
+		? ChooseJoinAsProcess::Context::Join
+		: ChooseJoinAsProcess::Context::Create;
+	_chooseJoinAs.start(peer, context, [=](
+			not_null<PeerData*> peer,
+			not_null<PeerData*> joinAs) {
+		startOrJoinGroupCall(peer, joinAs);
+	});
+}
+
+void Instance::startOrJoinGroupCall(
+		not_null<PeerData*> peer,
+		not_null<PeerData*> joinAs) {
 	destroyCurrentCall();
 
 	const auto call = peer->groupCall();
 	createGroupCall(
 		peer,
-		call ? call->input() : MTP_inputGroupCall(MTPlong(), MTPlong()));
+		call ? call->input() : MTP_inputGroupCall(MTPlong(), MTPlong()),
+		joinAs);
 }
 
 void Instance::callFinished(not_null<Call*> call) {
@@ -195,13 +209,15 @@ void Instance::destroyGroupCall(not_null<GroupCall*> call) {
 
 void Instance::createGroupCall(
 		not_null<PeerData*> peer,
-		const MTPInputGroupCall &inputCall) {
+		const MTPInputGroupCall &inputCall,
+		not_null<PeerData*> joinAs) {
 	destroyCurrentCall();
 
 	auto call = std::make_unique<GroupCall>(
 		getGroupCallDelegate(),
 		peer,
-		inputCall);
+		inputCall,
+		joinAs);
 	const auto raw = call.get();
 
 	peer->session().account().sessionChanges(

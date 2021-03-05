@@ -103,10 +103,12 @@ constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 GroupCall::GroupCall(
 	not_null<Delegate*> delegate,
 	not_null<PeerData*> peer,
-	const MTPInputGroupCall &inputCall)
+	const MTPInputGroupCall &inputCall,
+	not_null<PeerData*> joinAs)
 : _delegate(delegate)
 , _peer(peer)
 , _history(peer->owner().history(peer))
+, _joinAs(joinAs)
 , _api(&peer->session().mtp())
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
@@ -244,9 +246,9 @@ void GroupCall::playConnectingSoundOnce() {
 
 void GroupCall::start() {
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
-		MTP_flags(0),
+		MTP_flags(MTPphone_CreateGroupCall::Flag::f_join_as),
 		_peer->input,
-		MTPInputPeer(), // #TODO calls join_as
+		_joinAs->input,
 		MTP_int(openssl::RandomValue<int32>())
 	)).done([=](const MTPUpdates &result) {
 		_acceptFields = true;
@@ -351,11 +353,12 @@ void GroupCall::rejoin() {
 			const auto wasMuteState = muted();
 			using Flag = MTPphone_JoinGroupCall::Flag;
 			_api.request(MTPphone_JoinGroupCall(
-				MTP_flags((wasMuteState != MuteState::Active)
-					? Flag::f_muted
-					: Flag(0)),
+				MTP_flags(Flag::f_join_as
+					| (wasMuteState != MuteState::Active
+						? Flag::f_muted
+						: Flag(0))),
 				inputCall(),
-				MTPInputPeer(), // #TODO calls join_as
+				_joinAs->input,
 				MTP_dataJSON(MTP_bytes(json))
 			)).done([=](const MTPUpdates &updates) {
 				_mySsrc = ssrc;

@@ -89,7 +89,8 @@ public:
 	GroupCall(
 		not_null<Delegate*> delegate,
 		not_null<PeerData*> peer,
-		const MTPInputGroupCall &inputCall);
+		const MTPInputGroupCall &inputCall,
+		not_null<PeerData*> joinAs);
 	~GroupCall();
 
 	[[nodiscard]] uint64 id() const {
@@ -207,6 +208,7 @@ private:
 	const not_null<Delegate*> _delegate;
 	not_null<PeerData*> _peer; // Can change in legacy group migration.
 	not_null<History*> _history; // Can change in legacy group migration.
+	not_null<PeerData*> _joinAs;
 	MTP::Sender _api;
 	rpl::variable<State> _state = State::Creating;
 	bool _instanceConnected = false;

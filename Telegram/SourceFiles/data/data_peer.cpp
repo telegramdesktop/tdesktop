@@ -920,6 +920,15 @@ Data::GroupCall *PeerData::groupCall() const {
 	return nullptr;
 }
 
+PeerId PeerData::groupCallDefaultJoinAs() const {
+	if (const auto chat = asChat()) {
+		return chat->groupCallDefaultJoinAs();
+	} else if (const auto group = asMegagroup()) {
+		return group->groupCallDefaultJoinAs();
+	}
+	return 0;
+}
+
 void PeerData::setIsBlocked(bool is) {
 	const auto status = is
 		? BlockStatus::Blocked

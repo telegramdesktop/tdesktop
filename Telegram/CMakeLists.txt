@@ -263,6 +263,8 @@ PRIVATE
     calls/calls_box_controller.h
     calls/calls_call.cpp
     calls/calls_call.h
+    calls/calls_choose_join_as.cpp
+    calls/calls_choose_join_as.h
     calls/calls_group_call.cpp
     calls/calls_group_call.h
     calls/calls_group_common.h

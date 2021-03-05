@@ -170,6 +170,8 @@ public:
 	}
 	void setGroupCall(const MTPInputGroupCall &call);
 	void clearGroupCall();
+	void setGroupCallDefaultJoinAs(PeerId peerId);
+	[[nodiscard]] PeerId groupCallDefaultJoinAs() const;
 
 	// Still public data members.
 	const MTPint inputChat;
@@ -195,6 +197,7 @@ private:
 	int _version = 0;
 
 	std::unique_ptr<Data::GroupCall> _call;
+	PeerId _callDefaultJoinAs = 0;
 
 	ChannelData *_migratedTo = nullptr;
 	rpl::lifetime _lifetime;
