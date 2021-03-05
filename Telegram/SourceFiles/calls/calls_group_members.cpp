@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h" // Data::CanWriteValue.
 #include "data/data_session.h" // Data::Session::invitedToCallUsers.
 #include "settings/settings_common.h" // Settings::CreateButton.
+#include "info/profile/info_profile_values.h" // Info::Profile::AboutValue.
 #include "ui/paint/arcs.h"
 #include "ui/paint/blobs.h"
 #include "ui/widgets/buttons.h"
@@ -104,6 +105,7 @@ public:
 		Invited,
 	};
 
+	void setAbout(const QString &about);
 	void setSkipLevelUpdate(bool value);
 	void updateState(const Data::GroupCall::Participant *participant);
 	void updateLevel(float level);
@@ -234,6 +236,7 @@ private:
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
 	Ui::Animations::Simple _arcsAnimation; // For volume arcs animation.
+	QString _aboutText;
 	uint32 _ssrc = 0;
 	int _volume = Group::kDefaultVolume;
 	bool _sounding = false;
@@ -356,6 +359,9 @@ Row::Row(
 : PeerListRow(participantPeer)
 , _delegate(delegate) {
 	refreshStatus();
+	if (const auto channel = participantPeer->asChannel()) {
+		_aboutText = channel->about();
+	}
 }
 
 void Row::setSkipLevelUpdate(bool value) {
@@ -656,6 +662,14 @@ void Row::paintStatusIcon(
 	p.restore();
 }
 
+void Row::setAbout(const QString &about) {
+	if (_aboutText == about) {
+		return;
+	}
+	_aboutText = about;
+	_delegate->rowUpdateRow(this);
+}
+
 void Row::paintStatusText(
 		Painter &p,
 		const style::PeerListItem &st,
@@ -665,7 +679,12 @@ void Row::paintStatusText(
 		int outerWidth,
 		bool selected) {
 	const auto &font = st::normalFont;
-	if (_state != State::Invited && _state != State::MutedByMe) {
+	const auto about = (_state == State::Inactive || _state == State::Muted)
+		? _aboutText
+		: QString();
+	if (_aboutText.isEmpty()
+		&& _state != State::Invited
+		&& _state != State::MutedByMe) {
 		p.save();
 		paintStatusIcon(p, st, font, selected);
 		const auto translatedWidth = statusIconWidth();
@@ -693,6 +712,8 @@ void Row::paintStatusText(
 		outerWidth,
 		(_state == State::MutedByMe
 			? tr::lng_group_call_muted_by_me_status(tr::now)
+			: !_aboutText.isEmpty()
+			? font->m.elidedText(_aboutText, Qt::ElideRight, availableWidth)
 			: _delegate->rowIsMe(peer())
 			? tr::lng_status_connecting(tr::now)
 			: tr::lng_group_call_invited_status(tr::now)));
@@ -817,6 +838,16 @@ MembersController::MembersController(
 		}
 		return true;
 	});
+
+	_peer->session().changes().peerUpdates(
+		Data::PeerUpdate::Flag::About
+	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+		if (const auto channel = update.peer->asChannel()) {
+			if (const auto row = findRow(channel)) {
+				row->setAbout(channel->about());
+			}
+		}
+	}, _lifetime);
 }
 
 MembersController::~MembersController() {
