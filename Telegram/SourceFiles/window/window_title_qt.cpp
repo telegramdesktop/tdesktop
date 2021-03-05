@@ -255,6 +255,10 @@ bool TitleWidgetQt::eventFilter(QObject *obj, QEvent *e) {
 
 			if (e->type() == QEvent::MouseMove
 				&& mouseEvent->buttons() == Qt::NoButton) {
+				if (_mousePressed) {
+					_mousePressed = false;
+				}
+
 				updateCursor(edges);
 			}
 
