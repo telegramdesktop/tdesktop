@@ -705,6 +705,22 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 	}
 }
 
+void GroupCall::changeTitle(const QString &title) {
+	const auto real = _peer->groupCall();
+	if (!real || real->id() != _id || real->title() == title) {
+		return;
+	}
+
+	real->setTitle(title);
+	_api.request(MTPphone_EditGroupCallTitle(
+		inputCall(),
+		MTP_string(title)
+	)).done([=](const MTPUpdates &result) {
+		_peer->session().api().applyUpdates(result);
+	}).fail([=](const RPCError &error) {
+	}).send();
+}
+
 void GroupCall::createAndStartController() {
 	const auto &settings = Core::App().settings();
 

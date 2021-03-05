@@ -19,6 +19,7 @@ class Image;
 namespace Data {
 class PhotoMedia;
 class CloudImageView;
+class GroupCall;
 } // namespace Data
 
 namespace Ui {
@@ -100,6 +101,9 @@ private:
 	[[nodiscard]] int computeMembersListTop() const;
 	[[nodiscard]] std::optional<QRect> computeTitleRect() const;
 	void refreshTitle();
+	void refreshTitleGeometry();
+	void setupRealCallViewers(not_null<GroupCall*> call);
+	void subscribeToChanges(not_null<Data::GroupCall*> real);
 
 	void migrate(not_null<ChannelData*> channel);
 	void subscribeToPeerChanges();
@@ -119,6 +123,7 @@ private:
 	object_ptr<Ui::FlatLabel> _title = { nullptr };
 	object_ptr<Ui::FlatLabel> _subtitle = { nullptr };
 	object_ptr<GroupMembers> _members;
+	rpl::variable<QString> _titleText;
 
 	object_ptr<Ui::CallButton> _settings;
 	std::unique_ptr<Ui::CallMuteButton> _mute;

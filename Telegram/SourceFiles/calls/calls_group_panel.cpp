@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_group_call.h"
 #include "data/data_session.h"
+#include "data/data_changes.h"
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "boxes/peers/edit_participants_box.h"
@@ -324,6 +325,7 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 		_peer,
 		_window->lifetime(),
 		[=](not_null<ChannelData*> channel) { migrate(channel); });
+	setupRealCallViewers(call);
 
 	initWindow();
 	initWidget();
@@ -333,6 +335,22 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 }
 
 GroupPanel::~GroupPanel() = default;
+
+void GroupPanel::setupRealCallViewers(not_null<GroupCall*> call) {
+	const auto peer = call->peer();
+	peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::GroupCall
+	) | rpl::map([=] {
+		return peer->groupCall();
+	}) | rpl::filter([=](Data::GroupCall *real) {
+		return _call && real && (real->id() == _call->id());
+	}) | rpl::take(
+		1
+	) | rpl::start_with_next([=](not_null<Data::GroupCall*> real) {
+		subscribeToChanges(real);
+	}, _window->lifetime());
+}
 
 bool GroupPanel::isActive() const {
 	return _window->isActiveWindow()
@@ -563,6 +581,10 @@ void GroupPanel::initWithCall(GroupCall *call) {
 				: Ui::CallMuteButtonType::Active),
 		});
 	}, _callLifetime);
+}
+
+void GroupPanel::subscribeToChanges(not_null<Data::GroupCall*> real) {
+	_titleText = real->titleValue();
 }
 
 void GroupPanel::addMembers() {
@@ -829,32 +851,26 @@ void GroupPanel::updateControlsGeometry() {
 }
 
 void GroupPanel::refreshTitle() {
-	if (const auto titleRect = computeTitleRect()) {
+	if (computeTitleRect().has_value()) {
 		if (!_title) {
+			auto text = rpl::combine(
+				Info::Profile::NameValue(_peer),
+				_titleText.value()
+			) | rpl::map([=](
+					const TextWithEntities &name,
+					const QString &title) {
+				return title.isEmpty() ? name.text : title;
+			}) | rpl::after_next([=] {
+				refreshTitleGeometry();
+			});
 			_title.create(
 				widget(),
-				Info::Profile::NameValue(_peer),
+				rpl::duplicate(text),
 				st::groupCallTitleLabel);
 			_title->show();
 			_title->setAttribute(Qt::WA_TransparentForMouseEvents);
 		}
-		const auto best = _title->naturalWidth();
-		const auto from = (widget()->width() - best) / 2;
-		const auto top = st::groupCallTitleTop;
-		const auto left = titleRect->x();
-		if (from >= left && from + best <= left + titleRect->width()) {
-			_title->resizeToWidth(best);
-			_title->moveToLeft(from, top);
-		} else if (titleRect->width() < best) {
-			_title->resizeToWidth(titleRect->width());
-			_title->moveToLeft(left, top);
-		} else if (from < left) {
-			_title->resizeToWidth(best);
-			_title->moveToLeft(left, top);
-		} else {
-			_title->resizeToWidth(best);
-			_title->moveToLeft(left + titleRect->width() - best, top);
-		}
+		refreshTitleGeometry();
 	} else if (_title) {
 		_title.destroy();
 	}
@@ -877,6 +893,30 @@ void GroupPanel::refreshTitle() {
 	_subtitle->moveToLeft(
 		(widget()->width() - _subtitle->width()) / 2,
 		top);
+}
+
+void GroupPanel::refreshTitleGeometry() {
+	const auto titleRect = computeTitleRect();
+	if (!_title || !titleRect) {
+		return;
+	}
+	const auto best = _title->naturalWidth();
+	const auto from = (widget()->width() - best) / 2;
+	const auto top = st::groupCallTitleTop;
+	const auto left = titleRect->x();
+	if (from >= left && from + best <= left + titleRect->width()) {
+		_title->resizeToWidth(best);
+		_title->moveToLeft(from, top);
+	} else if (titleRect->width() < best) {
+		_title->resizeToWidth(titleRect->width());
+		_title->moveToLeft(left, top);
+	} else if (from < left) {
+		_title->resizeToWidth(best);
+		_title->moveToLeft(left, top);
+	} else {
+		_title->resizeToWidth(best);
+		_title->moveToLeft(left + titleRect->width() - best, top);
+	}
 }
 
 void GroupPanel::paint(QRect clip) {

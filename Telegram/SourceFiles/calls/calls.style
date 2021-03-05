@@ -505,6 +505,27 @@ groupCallMultiSelect: MultiSelect(defaultMultiSelect) {
 	}
 }
 
+groupCallField: InputField(defaultInputField) {
+	textMargins: margins(2px, 7px, 2px, 0px);
+
+	textBg: transparent;
+	textFg: groupCallMembersFg;
+
+	placeholderFg: groupCallMemberNotJoinedStatus;
+	placeholderFgActive: groupCallMemberNotJoinedStatus;
+	placeholderFgError: groupCallMemberNotJoinedStatus;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+	heightMin: 32px;
+
+	borderFg: inputBorderFg;
+	borderFgActive: groupCallMemberInactiveStatus;
+	borderFgError: activeLineFgError;
+
+	menu: groupCallPopupMenu;
+}
+
 groupCallMembersTop: 62px;
 groupCallTitleTop: 14px;
 groupCallSubtitleTop: 33px;
