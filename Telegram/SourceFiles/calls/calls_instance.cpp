@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_instance.h"
 
+#include "calls/calls_group_common.h"
 #include "mtproto/mtproto_dh_utils.h"
 #include "core/application.h"
 #include "main/main_session.h"
@@ -61,25 +62,16 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 
 void Instance::startOrJoinGroupCall(not_null<PeerData*> peer) {
 	const auto context = peer->groupCall()
-		? ChooseJoinAsProcess::Context::Join
-		: ChooseJoinAsProcess::Context::Create;
-	_chooseJoinAs.start(peer, context, [=](
-			not_null<PeerData*> peer,
-			not_null<PeerData*> joinAs) {
-		startOrJoinGroupCall(peer, joinAs);
+		? Group::ChooseJoinAsProcess::Context::Join
+		: Group::ChooseJoinAsProcess::Context::Create;
+	_chooseJoinAs.start(peer, context, [=](object_ptr<Ui::BoxContent> box) {
+		Ui::show(std::move(box), Ui::LayerOption::KeepOther);
+	}, [=](Group::JoinInfo info) {
+		const auto call = info.peer->groupCall();
+		createGroupCall(
+			std::move(info),
+			call ? call->input() : MTP_inputGroupCall(MTPlong(), MTPlong()));
 	});
-}
-
-void Instance::startOrJoinGroupCall(
-		not_null<PeerData*> peer,
-		not_null<PeerData*> joinAs) {
-	destroyCurrentCall();
-
-	const auto call = peer->groupCall();
-	createGroupCall(
-		peer,
-		call ? call->input() : MTP_inputGroupCall(MTPlong(), MTPlong()),
-		joinAs);
 }
 
 void Instance::callFinished(not_null<Call*> call) {
@@ -208,19 +200,17 @@ void Instance::destroyGroupCall(not_null<GroupCall*> call) {
 }
 
 void Instance::createGroupCall(
-		not_null<PeerData*> peer,
-		const MTPInputGroupCall &inputCall,
-		not_null<PeerData*> joinAs) {
+		Group::JoinInfo info,
+		const MTPInputGroupCall &inputCall) {
 	destroyCurrentCall();
 
 	auto call = std::make_unique<GroupCall>(
 		getGroupCallDelegate(),
-		peer,
-		inputCall,
-		joinAs);
+		std::move(info),
+		inputCall);
 	const auto raw = call.get();
 
-	peer->session().account().sessionChanges(
+	info.peer->session().account().sessionChanges(
 	) | rpl::start_with_next([=] {
 		destroyGroupCall(raw);
 	}, raw->lifetime());

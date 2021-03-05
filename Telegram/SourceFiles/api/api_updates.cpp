@@ -240,16 +240,16 @@ Updates::Updates(not_null<Main::Session*> session)
 	) | rpl::filter([](not_null<PeerData*> peer) {
 		return peer->isChat() || peer->isMegagroup();
 	}) | rpl::start_with_next([=](not_null<PeerData*> peer) {
-		if (const auto users = _pendingSpeakingCallMembers.take(peer)) {
+		if (const auto list = _pendingSpeakingCallParticipants.take(peer)) {
 			if (const auto call = peer->groupCall()) {
-				for (const auto [userId, when] : *users) {
+				for (const auto [participantPeerId, when] : *list) {
 					call->applyActiveUpdate(
-						userId,
+						participantPeerId,
 						Data::LastSpokeTimes{
 							.anything = when,
 							.voice = when
 						},
-						peer->owner().userLoaded(userId));
+						peer->owner().peerLoaded(participantPeerId));
 				}
 			}
 		}
@@ -915,16 +915,16 @@ bool Updates::isQuitPrevent() {
 void Updates::handleSendActionUpdate(
 		PeerId peerId,
 		MsgId rootId,
-		UserId userId,
+		PeerId fromId,
 		const MTPSendMessageAction &action) {
 	const auto history = session().data().historyLoaded(peerId);
 	if (!history) {
 		return;
 	}
 	const auto peer = history->peer;
-	const auto user = (userId == session().userId())
+	const auto from = (fromId == session().userPeerId())
 		? session().user().get()
-		: session().data().userLoaded(userId);
+		: session().data().peerLoaded(fromId);
 	const auto isSpeakingInCall = (action.type()
 		== mtpc_speakingInGroupCallAction);
 	if (isSpeakingInCall) {
@@ -935,9 +935,9 @@ void Updates::handleSendActionUpdate(
 		const auto now = crl::now();
 		if (call) {
 			call->applyActiveUpdate(
-				userId,
+				fromId,
 				Data::LastSpokeTimes{ .anything = now, .voice = now },
-				user);
+				from);
 		} else {
 			const auto chat = peer->asChat();
 			const auto channel = peer->asChannel();
@@ -945,13 +945,15 @@ void Updates::handleSendActionUpdate(
 				? (chat->flags() & MTPDchat::Flag::f_call_active)
 				: (channel->flags() & MTPDchannel::Flag::f_call_active);
 			if (active) {
-				_pendingSpeakingCallMembers.emplace(
-					peer).first->second[userId] = now;
-				session().api().requestFullPeer(peer);
+				_pendingSpeakingCallParticipants.emplace(
+					peer).first->second[fromId] = now;
+				if (peerIsUser(fromId)) {
+					session().api().requestFullPeer(peer);
+				}
 			}
 		}
 	}
-	if (!user || user->isSelf()) {
+	if (!from || !from->isUser() || from->isSelf()) {
 		return;
 	}
 	const auto when = requestingDifference()
@@ -960,7 +962,7 @@ void Updates::handleSendActionUpdate(
 	session().data().registerSendAction(
 		history,
 		rootId,
-		user,
+		from->asUser(),
 		action,
 		when);
 }
@@ -1642,19 +1644,21 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateChatUserTyping: {
 		auto &d = update.c_updateChatUserTyping();
+		const auto fromId = peerFromMTP(d.vfrom_id());
 		handleSendActionUpdate(
 			peerFromChat(d.vchat_id()),
 			0,
-			d.vuser_id().v,
+			fromId,
 			d.vaction());
 	} break;
 
 	case mtpc_updateChannelUserTyping: {
 		const auto &d = update.c_updateChannelUserTyping();
+		const auto fromId = peerFromMTP(d.vfrom_id());
 		handleSendActionUpdate(
 			peerFromChannel(d.vchannel_id()),
 			d.vtop_msg_id().value_or_empty(),
-			d.vuser_id().v,
+			fromId,
 			d.vaction());
 	} break;
 

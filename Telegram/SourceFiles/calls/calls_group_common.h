@@ -34,4 +34,15 @@ struct ParticipantState {
 	bool locallyOnly = false;
 };
 
+struct RejoinEvent {
+	not_null<PeerData*> wasJoinAs;
+	not_null<PeerData*> nowJoinAs;
+};
+
+struct JoinInfo {
+	not_null<PeerData*> peer;
+	not_null<PeerData*> joinAs;
+	std::vector<not_null<PeerData*>> possibleJoinAs;
+};
+
 } // namespace Calls::Group

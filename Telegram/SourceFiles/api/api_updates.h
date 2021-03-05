@@ -125,7 +125,7 @@ private:
 	void handleSendActionUpdate(
 		PeerId peerId,
 		MsgId rootId,
-		UserId userId,
+		PeerId fromId,
 		const MTPSendMessageAction &action);
 
 	const not_null<Main::Session*> _session;
@@ -168,7 +168,7 @@ private:
 	base::flat_map<int, ActiveChatTracker> _activeChats;
 	base::flat_map<
 		not_null<PeerData*>,
-		base::flat_map<UserId, crl::time>> _pendingSpeakingCallMembers;
+		base::flat_map<PeerId, crl::time>> _pendingSpeakingCallParticipants;
 
 	mtpRequestId _onlineRequest = 0;
 	base::Timer _idleFinishTimer;

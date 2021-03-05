@@ -102,14 +102,14 @@ constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 
 GroupCall::GroupCall(
 	not_null<Delegate*> delegate,
-	not_null<PeerData*> peer,
-	const MTPInputGroupCall &inputCall,
-	not_null<PeerData*> joinAs)
+	Group::JoinInfo info,
+	const MTPInputGroupCall &inputCall)
 : _delegate(delegate)
-, _peer(peer)
-, _history(peer->owner().history(peer))
-, _joinAs(joinAs)
-, _api(&peer->session().mtp())
+, _peer(info.peer)
+, _history(_peer->owner().history(_peer))
+, _api(&_peer->session().mtp())
+, _joinAs(info.joinAs)
+, _possibleJoinAs(std::move(info.possibleJoinAs))
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
 , _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
@@ -247,7 +247,6 @@ void GroupCall::playConnectingSoundOnce() {
 void GroupCall::start() {
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
 		_peer->input,
-		_joinAs->input,
 		MTP_int(openssl::RandomValue<int32>())
 	)).done([=](const MTPUpdates &result) {
 		_acceptFields = true;
@@ -499,6 +498,21 @@ void GroupCall::discard() {
 	}).send();
 }
 
+void GroupCall::rejoinAs(Group::JoinInfo info) {
+	_possibleJoinAs = std::move(info.possibleJoinAs);
+	if (info.joinAs == _joinAs) {
+		return;
+	}
+	const auto event = Group::RejoinEvent{
+		.wasJoinAs = _joinAs,
+		.nowJoinAs = info.joinAs,
+	};
+	_joinAs = info.joinAs;
+	setState(State::Joining);
+	rejoin();
+	_rejoinEvents.fire_copy(event);
+}
+
 void GroupCall::finish(FinishType type) {
 	Expects(type != FinishType::None);
 
@@ -667,15 +681,15 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 				handleOtherParticipants(data);
 				return;
 			}
-			if (data.is_left() && data.vsource().value_or_empty() == _mySsrc) {
+			if (data.is_left() && data.vsource().v == _mySsrc) {
 				// I was removed from the call, rejoin.
 				LOG(("Call Info: Rejoin after got 'left' with my ssrc."));
 				setState(State::Joining);
 				rejoin();
-			} else if (!data.is_left() && data.vsource().value_or_empty() != _mySsrc) {
+			} else if (!data.is_left() && data.vsource().v != _mySsrc) {
 				// I joined from another device, hangup.
 				LOG(("Call Info: Hangup after '!left' with ssrc %1, my %2."
-					).arg(data.vsource().value_or_empty()
+					).arg(data.vsource().v
 					).arg(_mySsrc));
 				_mySsrc = 0;
 				hangup();

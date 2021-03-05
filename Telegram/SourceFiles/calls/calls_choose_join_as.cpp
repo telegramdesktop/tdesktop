@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_choose_join_as.h"
 
+#include "calls/calls_group_common.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
@@ -18,8 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "boxes/peer_list_box.h"
 #include "styles/style_boxes.h"
+#include "styles/style_calls.h"
 
-namespace Calls {
+namespace Calls::Group {
 namespace {
 
 using Context = ChooseJoinAsProcess::Context;
@@ -107,9 +109,8 @@ not_null<PeerData*> ListController::selected() const {
 void ChooseJoinAsBox(
 		not_null<Ui::GenericBox*> box,
 		Context context,
-		std::vector<not_null<PeerData*>> list,
-		not_null<PeerData*> selected,
-		Fn<void(not_null<PeerData*>)> done) {
+		JoinInfo info,
+		Fn<void(JoinInfo)> done) {
 	box->setTitle([&] {
 		switch (context) {
 		case Context::Create: return tr::lng_group_call_start_as_header();
@@ -121,23 +122,31 @@ void ChooseJoinAsBox(
 	box->addRow(object_ptr<Ui::FlatLabel>(
 		box,
 		tr::lng_group_call_join_as_about(),
-		st::confirmPhoneAboutLabel));
+		(context == Context::Switch
+			? st::groupCallBoxLabel
+			: st::confirmPhoneAboutLabel)));
 
 	auto &lifetime = box->lifetime();
 	const auto delegate = lifetime.make_state<
 		PeerListContentDelegateSimple
 	>();
 	const auto controller = lifetime.make_state<ListController>(
-		std::move(list),
-		selected);
-	//controller->setStyleOverrides();
+		info.possibleJoinAs,
+		info.joinAs);
+	if (context == Context::Switch) {
+		controller->setStyleOverrides(
+			&st::groupCallInviteMembersList,
+			&st::groupCallMultiSelect);
+	}
 	const auto content = box->addRow(
 		object_ptr<PeerListContent>(box, controller),
 		style::margins());
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 	box->addButton(tr::lng_continue(), [=] {
-		done(controller->selected());
+		auto copy = info;
+		copy.joinAs = controller->selected();
+		done(std::move(copy));
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
@@ -153,13 +162,16 @@ ChooseJoinAsProcess::~ChooseJoinAsProcess() {
 void ChooseJoinAsProcess::start(
 		not_null<PeerData*> peer,
 		Context context,
-		Fn<void(not_null<PeerData*>, not_null<PeerData*>)> done) {
+		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
+		Fn<void(JoinInfo)> done,
+		PeerData *currentJoinAs) {
 	Expects(done != nullptr);
 
 	const auto session = &peer->session();
 	if (_request) {
 		const auto already = _request->peer;
 		_request->context = context;
+		_request->showBox = std::move(showBox);
 		_request->done = std::move(done);
 		if (already == peer) {
 			return;
@@ -173,6 +185,7 @@ void ChooseJoinAsProcess::start(
 	_request = std::make_unique<ChannelsListRequest>(
 		ChannelsListRequest{
 			.peer = peer,
+			.showBox = std::move(showBox),
 			.done = std::move(done),
 			.context = context });
 	session->account().sessionChanges(
@@ -180,12 +193,12 @@ void ChooseJoinAsProcess::start(
 		_request = nullptr;
 	}, _request->lifetime);
 
-	const auto finish = [=](not_null<PeerData*> joinAs) {
+	const auto finish = [=](JoinInfo info) {
 		const auto peer = _request->peer;
 		const auto done = std::move(_request->done);
 		const auto box = _request->box;
 		_request = nullptr;
-		done(peer, joinAs);
+		done(std::move(info));
 		if (const auto strong = box.data()) {
 			strong->closeBox();
 		}
@@ -200,8 +213,9 @@ void ChooseJoinAsProcess::start(
 		});
 		const auto peer = _request->peer;
 		const auto self = peer->session().user();
+		auto info = JoinInfo{ .peer = peer, .joinAs = self };
 		if (chats.size() == 1) {
-			finish(self);
+			finish(info);
 			return;
 		}
 		auto list = std::vector<not_null<PeerData*>>();
@@ -210,8 +224,8 @@ void ChooseJoinAsProcess::start(
 		for (const auto &chat : chats) {
 			list.push_back(session->data().processChat(chat));
 		}
-		const auto selectedId = peer->groupCallDefaultJoinAs();
-		const auto selected = [&]() -> not_null<PeerData*> {
+		const auto selected = [&]() -> PeerData* {
+			const auto selectedId = peer->groupCallDefaultJoinAs();
 			if (!selectedId) {
 				return self;
 			}
@@ -220,22 +234,27 @@ void ChooseJoinAsProcess::start(
 				? not_null(loaded)
 				: self;
 		}();
-		_request->box = Ui::show(
-			Box(
-				ChooseJoinAsBox,
-				_request->context,
-				std::move(list),
-				selected,
-				crl::guard(&_request->guard, finish)),
-			Ui::LayerOption::KeepOther);
 
-		_request->box->boxClosing(
+		info.joinAs = currentJoinAs ? currentJoinAs : selected;
+		info.possibleJoinAs = std::move(list);
+		auto box = Box(
+			ChooseJoinAsBox,
+			context,
+			std::move(info),
+			crl::guard(&_request->guard, finish));
+		box->boxClosing(
 		) | rpl::start_with_next([=] {
 			_request = nullptr;
 		}, _request->lifetime);
+
+		_request->box = box.data();
+		_request->showBox(std::move(box));
 	}).fail([=](const RPCError &error) {
-		finish(session->user());
+		finish({
+			.peer = _request->peer,
+			.joinAs = _request->peer->session().user(),
+		});
 	}).send();
 }
 
-} // namespace Calls
+} // namespace Calls::Group

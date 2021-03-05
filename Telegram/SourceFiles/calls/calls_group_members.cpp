@@ -855,6 +855,29 @@ void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
 			updateRowLevel(i->second, update.value);
 		}
 	}, _lifetime);
+
+	call->rejoinEvents(
+	) | rpl::start_with_next([=](const Group::RejoinEvent &event) {
+		const auto guard = gsl::finally([&] {
+			delegate()->peerListRefreshRows();
+		});
+		if (const auto row = findRow(event.wasJoinAs)) {
+			if (row->state() != Row::State::Invited) {
+				if (const auto min = _fullCountMin.current()) {
+					_fullCountMin = min - 1;
+				}
+			}
+			removeRow(row);
+		}
+		if (findRow(event.nowJoinAs)) {
+			return;
+		} else if (auto row = createRowForMe()) {
+			if (row->state() != Row::State::Invited) {
+				_fullCountMin = _fullCountMin.current() + 1;
+			}
+			delegate()->peerListAppendRow(std::move(row));
+		}
+	}, _lifetime);
 }
 
 void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
