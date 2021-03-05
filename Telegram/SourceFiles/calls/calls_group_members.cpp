@@ -1346,21 +1346,26 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		result->addAction(
 			tr::lng_context_view_profile(tr::now),
 			showProfile);
-		result->addAction(
-			tr::lng_context_send_message(tr::now),
-			showHistory);
+		if (participantPeer->isUser()) {
+			result->addAction(
+				tr::lng_context_send_message(tr::now),
+				showHistory);
+		}
 		const auto canKick = [&] {
 			const auto user = participantPeer->asUser();
+			if (!user) {
+				return false; // #TODO calls can kick
+			}
 			if (static_cast<Row*>(row.get())->state() == Row::State::Invited) {
 				return false;
 			} else if (const auto chat = _peer->asChat()) {
 				return chat->amCreator()
 					|| (user
 						&& chat->canBanMembers()
-						&& !chat->admins.contains(user)); // #TODO calls can kick
+						&& !chat->admins.contains(user));
 			} else if (const auto group = _peer->asMegagroup()) {
 				return group->amCreator()
-					|| (user && group->canRestrictUser(user)); // #TODO calls can kick
+					|| (user && group->canRestrictUser(user));
 			}
 			return false;
 		}();

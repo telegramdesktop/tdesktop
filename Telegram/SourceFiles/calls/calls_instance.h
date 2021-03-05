@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "calls/calls_call.h"
 #include "calls/calls_group_call.h"
+#include "calls/calls_choose_join_as.h"
 
 namespace Platform {
 enum class PermissionType;
@@ -41,6 +42,9 @@ public:
 
 	void startOutgoingCall(not_null<UserData*> user, bool video);
 	void startOrJoinGroupCall(not_null<PeerData*> peer);
+	void startOrJoinGroupCall(
+		not_null<PeerData*> peer,
+		not_null<PeerData*> joinAs);
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
@@ -104,7 +108,8 @@ private:
 
 	void createGroupCall(
 		not_null<PeerData*> peer,
-		const MTPInputGroupCall &inputCall);
+		const MTPInputGroupCall &inputCall,
+		not_null<PeerData*> joinAs);
 	void destroyGroupCall(not_null<GroupCall*> call);
 
 	void requestPermissionOrFail(
@@ -144,6 +149,8 @@ private:
 	std::unique_ptr<GroupPanel> _currentGroupCallPanel;
 
 	base::flat_map<QString, std::unique_ptr<Media::Audio::Track>> _tracks;
+
+	ChooseJoinAsProcess _chooseJoinAs;
 
 };
 

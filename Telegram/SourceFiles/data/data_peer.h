@@ -386,6 +386,7 @@ public:
 	void setMessagesTTL(TimeId period);
 
 	[[nodiscard]] Data::GroupCall *groupCall() const;
+	[[nodiscard]] PeerId groupCallDefaultJoinAs() const;
 
 	const PeerId id;
 	QString name;

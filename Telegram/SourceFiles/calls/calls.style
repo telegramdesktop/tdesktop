@@ -730,8 +730,8 @@ groupCallTitleCloseIconOver: icon {
 };
 groupCallTitle: WindowTitle(defaultWindowTitle) {
 	height: 0px;
-	bg: transparent;
-	bgActive: transparent;
+	bg: groupCallBg;
+	bgActive: groupCallBg;
 	fg: transparent;
 	fgActive: transparent;
 	minimize: IconButton(groupCallTitleButton) {

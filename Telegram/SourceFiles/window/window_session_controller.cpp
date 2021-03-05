@@ -949,7 +949,8 @@ void SessionController::startOrJoinGroupCall(
 		})));
 	};
 	if (!confirmedLeaveOther && calls.inCall()) {
-		// Do you want to leave your active voice chat to join a voice chat in this group?
+		// Do you want to leave your active voice chat
+		// to join a voice chat in this group?
 		confirm(
 			tr::lng_call_leave_to_other_sure(tr::now),
 			tr::lng_call_bar_hangup(tr::now));
@@ -961,10 +962,6 @@ void SessionController::startOrJoinGroupCall(
 				tr::lng_group_call_leave_to_other_sure(tr::now),
 				tr::lng_group_call_leave(tr::now));
 		}
-	} else if (!confirmedLeaveOther && !peer->groupCall()) {
-		confirm(
-			tr::lng_group_call_create_sure(tr::now),
-			tr::lng_continue(tr::now));
 	} else {
 		calls.startOrJoinGroupCall(peer);
 	}

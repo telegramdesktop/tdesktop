@@ -260,9 +260,9 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	const auto editLink = crl::guard(weak, [=] {
 		EditLink(_peer, _data.current());
 	});
-	const auto deleteLink = [=] {
+	const auto deleteLink = crl::guard(weak, [=] {
 		DeleteLink(_peer, admin, link);
-	};
+	});
 
 	const auto createMenu = [=] {
 		auto result = base::make_unique_q<Ui::PopupMenu>(container);

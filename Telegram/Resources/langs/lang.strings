@@ -1984,6 +1984,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_mac_accessibility" = "Please allow **Accessibility** for Telegram in Privacy Settings.\n\nApp restart may be required.";
 "lng_group_call_mac_settings" = "Open Settings";
 
+"lng_group_call_start_as_header" = "Start Voice Chat as...";
+"lng_group_call_join_as_header" = "Join Voice Chat as...";
+"lng_group_call_display_as_header" = "Display me as...";
+"lng_group_call_join_as_about" = "Choose whether you want to be displayed as your personal account or as your channel.";
+"lng_group_call_join_as_personal" = "personal account";
+"lng_group_call_edit_title" = "Edit voice chat title";
+"lng_group_call_switch_done" = "Members of this voice chat will now see you as **{user}**";
+"lng_group_call_edit_title_header" = "Voice chat title";
+"lng_group_call_recording_start" = "Start recording";
+"lng_group_call_recording_stop" = "Stop recording";
+"lng_group_call_recording_started" = "Voice chat recording started.";
+"lng_group_call_recording_stopped" = "Voice chat recording stopped.";
+
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 
 "lng_player_message_today" = "Today at {time}";
