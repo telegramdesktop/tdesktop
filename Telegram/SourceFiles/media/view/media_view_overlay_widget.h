@@ -170,6 +170,7 @@ private:
 	};
 
 	void paintEvent(QPaintEvent *e) override;
+	void moveEvent(QMoveEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 	void keyPressEvent(QKeyEvent *e) override;
