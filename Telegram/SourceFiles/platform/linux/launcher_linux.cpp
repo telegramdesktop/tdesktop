@@ -66,7 +66,7 @@ void Launcher::initHook() {
 				AppName.utf16().replace(' ', '_'));
 		}
 
-		return qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME) ".desktop");
+		return qsl(QT_STRINGIFY(TDESKTOP_LAUNCHER_BASENAME) ".desktop");
 	}());
 }
 
