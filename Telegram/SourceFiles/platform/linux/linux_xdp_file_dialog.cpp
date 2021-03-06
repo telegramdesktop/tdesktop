@@ -440,6 +440,8 @@ void XDPFileDialog::openPortal() {
 	} catch (const Glib::Error &e) {
 		LOG(("XDP File Dialog Error: %1").arg(
 			QString::fromStdString(e.what())));
+
+		_reject.fire({});
 	}
 }
 
@@ -619,6 +621,8 @@ void XDPFileDialog::gotResponse(
 	} catch (const std::exception &e) {
 		LOG(("XDP File Dialog Error: %1").arg(
 			QString::fromStdString(e.what())));
+
+		_reject.fire({});
 	}
 }
 
