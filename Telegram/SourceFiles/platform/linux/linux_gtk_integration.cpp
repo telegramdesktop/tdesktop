@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_gtk_integration_p.h"
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_gtk_file_dialog.h"
-#include "platform/linux/linux_open_with_dialog.h"
+#include "platform/linux/linux_gtk_open_with_dialog.h"
 
 namespace Platform {
 namespace internal {
@@ -185,7 +185,7 @@ bool GtkIntegration::getFileDialog(
 }
 
 bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
-	return File::internal::ShowOpenWithDialog(filepath);
+	return File::internal::ShowGtkOpenWithDialog(filepath);
 }
 
 QImage GtkIntegration::getImageFromClipboard() const {
