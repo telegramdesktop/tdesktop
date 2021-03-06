@@ -172,6 +172,12 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 			"Response",
 			requestPath);
 
+		const auto signalGuard = gsl::finally([&] {
+			if (signalId != 0) {
+				connection->signal_unsubscribe(signalId);
+			}
+		});
+
 		connection->call_sync(
 			std::string(kXDGDesktopPortalObjectPath),
 			"org.freedesktop.portal.Background",
@@ -186,7 +192,6 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 			QGuiApplicationPrivate::showModalWindow(this);
 			loop.exec();
 			QGuiApplicationPrivate::hideModalWindow(this);
-			connection->signal_unsubscribe(signalId);
 		}
 	} catch (const Glib::Error &e) {
 		if (!silent) {
