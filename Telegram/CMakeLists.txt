@@ -815,14 +815,16 @@ PRIVATE
     platform/linux/linux_gtk_integration_p.h
     platform/linux/linux_gtk_integration.cpp
     platform/linux/linux_gtk_integration.h
+    platform/linux/linux_gtk_open_with_dialog.cpp
+    platform/linux/linux_gtk_open_with_dialog.h
     platform/linux/linux_notification_service_watcher.cpp
     platform/linux/linux_notification_service_watcher.h
-    platform/linux/linux_open_with_dialog.cpp
-    platform/linux/linux_open_with_dialog.h
     platform/linux/linux_wayland_integration.cpp
     platform/linux/linux_wayland_integration.h
     platform/linux/linux_xdp_file_dialog.cpp
     platform/linux/linux_xdp_file_dialog.h
+    platform/linux/linux_xdp_open_with_dialog.cpp
+    platform/linux/linux_xdp_open_with_dialog.h
     platform/linux/file_utilities_linux.cpp
     platform/linux/file_utilities_linux.h
     platform/linux/launcher_linux.cpp
@@ -1111,6 +1113,8 @@ if (DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
         platform/linux/linux_notification_service_watcher.h
         platform/linux/linux_xdp_file_dialog.cpp
         platform/linux/linux_xdp_file_dialog.h
+        platform/linux/linux_xdp_open_with_dialog.cpp
+        platform/linux/linux_xdp_open_with_dialog.h
         platform/linux/notifications_manager_linux.cpp
     )
 
@@ -1133,8 +1137,8 @@ if (DESKTOP_APP_DISABLE_GTK_INTEGRATION)
         platform/linux/linux_gtk_file_dialog.h
         platform/linux/linux_gtk_integration_p.h
         platform/linux/linux_gtk_integration.cpp
-        platform/linux/linux_open_with_dialog.cpp
-        platform/linux/linux_open_with_dialog.h
+        platform/linux/linux_gtk_open_with_dialog.cpp
+        platform/linux/linux_gtk_open_with_dialog.h
     )
 
     nice_target_sources(Telegram ${src_loc}

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "platform/linux/linux_xdp_file_dialog.h"
+#include "platform/linux/linux_xdp_open_with_dialog.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #include <QtGui/QDesktopServices>
@@ -41,6 +42,12 @@ void UnsafeOpenEmailLink(const QString &email) {
 }
 
 bool UnsafeShowOpenWith(const QString &filepath) {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	if (internal::ShowXDPOpenWithDialog(filepath)) {
+		return true;
+	}
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
 	if (InFlatpak() || InSnap()) {
 		return false;
 	}
