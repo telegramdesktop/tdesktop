@@ -72,9 +72,7 @@ constexpr auto kHandlerTypeName = "x-scheme-handler/tg"_cs;
 
 constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
 constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
-constexpr auto kXDGDesktopPortalKDEService = "org.freedesktop.impl.portal.desktop.kde"_cs;
 constexpr auto kIBusPortalService = "org.freedesktop.portal.IBus"_cs;
-constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 std::unique_ptr<internal::NotificationServiceWatcher> NSWInstance;
@@ -201,54 +199,6 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 	}
 }
 
-bool IsXDGDesktopPortalPresent() {
-	static const auto Result = [&] {
-		try {
-			const auto connection = Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-			const auto serviceRegistered = base::Platform::DBus::NameHasOwner(
-				connection,
-				std::string(kXDGDesktopPortalService));
-
-			const auto serviceActivatable = ranges::contains(
-				base::Platform::DBus::ListActivatableNames(connection),
-				Glib::ustring(std::string(kXDGDesktopPortalService)));
-
-			return serviceRegistered || serviceActivatable;
-		} catch (...) {
-		}
-
-		return false;
-	}();
-
-	return Result;
-}
-
-bool IsXDGDesktopPortalKDEPresent() {
-	static const auto Result = [&] {
-		try {
-			const auto connection = Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-			const auto serviceRegistered = base::Platform::DBus::NameHasOwner(
-				connection,
-				std::string(kXDGDesktopPortalKDEService));
-
-			const auto serviceActivatable = ranges::contains(
-				base::Platform::DBus::ListActivatableNames(connection),
-				Glib::ustring(std::string(kXDGDesktopPortalKDEService)));
-
-			return serviceRegistered || serviceActivatable;
-		} catch (...) {
-		}
-
-		return false;
-	}();
-
-	return Result;
-}
-
 bool IsIBusPortalPresent() {
 	static const auto Result = [&] {
 		try {
@@ -268,39 +218,6 @@ bool IsIBusPortalPresent() {
 		}
 
 		return false;
-	}();
-
-	return Result;
-}
-
-uint FileChooserPortalVersion() {
-	static const auto Result = [&]() -> uint {
-		try {
-			const auto connection = Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-			auto reply = connection->call_sync(
-				std::string(kXDGDesktopPortalObjectPath),
-				std::string(kPropertiesInterface),
-				"Get",
-				base::Platform::MakeGlibVariant(std::tuple{
-					Glib::ustring("org.freedesktop.portal.FileChooser"),
-					Glib::ustring("version"),
-				}),
-				std::string(kXDGDesktopPortalService));
-
-			return base::Platform::GlibVariantCast<uint>(
-				base::Platform::GlibVariantCast<Glib::VariantBase>(
-					reply.get_child(0)));
-		} catch (const Glib::Error &e) {
-			LOG(("Error getting FileChooser portal version: %1")
-				.arg(QString::fromStdString(e.what())));
-		} catch (const std::exception &e) {
-			LOG(("Error getting FileChooser portal version: %1")
-				.arg(QString::fromStdString(e.what())));
-		}
-
-		return 0;
 	}();
 
 	return Result;
@@ -484,40 +401,6 @@ bool AreQtPluginsBundled() {
 #else // !DESKTOP_APP_USE_PACKAGED || DESKTOP_APP_USE_PACKAGED_LAZY
 	return false;
 #endif // DESKTOP_APP_USE_PACKAGED && !DESKTOP_APP_USE_PACKAGED_LAZY
-}
-
-bool UseXDGDesktopPortal() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	static const auto Result = [&] {
-		if (InFlatpak() || InSnap()) {
-			return true;
-		}
-
-		const auto envVar = qEnvironmentVariableIsSet("TDESKTOP_USE_PORTAL");
-		const auto portalPresent = IsXDGDesktopPortalPresent();
-		const auto neededForKde = DesktopEnvironment::IsKDE()
-			&& IsXDGDesktopPortalKDEPresent();
-
-		return portalPresent
-			&& (neededForKde || envVar);
-	}();
-
-	return Result;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	return false;
-}
-
-bool CanOpenDirectoryWithPortal() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	static const auto Result = [&] {
-		return FileChooserPortalVersion() >= 3;
-	}();
-
-	return Result;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	return false;
 }
 
 QString AppRuntimeDirectory() {
@@ -792,19 +675,6 @@ void start() {
 #endif // DESKTOP_APP_USE_PACKAGED_FONTS
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	// Tell the user when XDP file dialog is used
-	DEBUG_LOG(("Checking for XDG Desktop Portal..."));
-	if (IsXDGDesktopPortalPresent()) {
-		DEBUG_LOG(("XDG Desktop Portal is present!"));
-		if (UseXDGDesktopPortal()) {
-			LOG(("Using XDG Desktop Portal."));
-		} else {
-			DEBUG_LOG(("Not using XDG Desktop Portal."));
-		}
-	} else {
-		DEBUG_LOG(("XDG Desktop Portal is not present :("));
-	}
-
 	// IBus has changed its socket path several times
 	// and each change should be synchronized with Qt.
 	// Moreover, the last time Qt changed the path,
