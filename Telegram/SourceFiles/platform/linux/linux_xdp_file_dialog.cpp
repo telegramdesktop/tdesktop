@@ -288,6 +288,9 @@ void XDPFileDialog::openPortal() {
 		if (!_selectedFiles.empty()) {
 			options["current_file"] = Glib::Variant<std::string>::create(
 				_selectedFiles[0] + '\0');
+
+			options["current_name"] = Glib::Variant<Glib::ustring>::create(
+				Glib::path_get_basename(_selectedFiles[0]));
 		}
 	}
 
