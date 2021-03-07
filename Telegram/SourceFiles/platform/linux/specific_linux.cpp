@@ -26,16 +26,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "base/platform/linux/base_linux_dbus_utilities.h"
+#include "platform/linux/linux_notification_service_watcher.h"
+#include "platform/linux/linux_gsd_media_keys.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 #include "base/platform/linux/base_linux_xcb_utilities.h"
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include "platform/linux/linux_notification_service_watcher.h"
-#include "platform/linux/linux_gsd_media_keys.h"
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>
