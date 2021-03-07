@@ -263,27 +263,6 @@ QString FlatpakID() {
 	return Result;
 }
 
-bool RunShellCommand(const QString &program, const QStringList &arguments) {
-	const auto result = QProcess::execute(program, arguments);
-
-	const auto command = qsl("%1 %2")
-		.arg(program)
-		.arg(arguments.join(' '));
-
-	if (result) {
-		DEBUG_LOG(("App Error: command failed, code: %1, command: %2")
-			.arg(result)
-			.arg(command));
-
-		return false;
-	}
-
-	DEBUG_LOG(("App Info: command succeeded, command: %1")
-		.arg(command));
-
-	return true;
-}
-
 bool GenerateDesktopFile(
 		const QString &targetPath,
 		const QString &args,
@@ -727,7 +706,7 @@ void InstallLauncher(bool force) {
 		}
 	}
 
-	RunShellCommand("update-desktop-database", {
+	QProcess::execute("update-desktop-database", {
 		applicationsPath
 	});
 }
