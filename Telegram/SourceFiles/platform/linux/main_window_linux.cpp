@@ -469,9 +469,8 @@ bool IsSNIAvailable() {
 
 uint djbStringHash(const std::string &string) {
 	uint hash = 5381;
-	const auto chars = QByteArray::fromStdString(string.data());
-	for(int i = 0; i < chars.length(); i++){
-		hash = (hash << 5) + hash + chars[i];
+	for (const auto &curChar : string) {
+		hash = (hash << 5) + hash + curChar;
 	}
 	return hash;
 }
