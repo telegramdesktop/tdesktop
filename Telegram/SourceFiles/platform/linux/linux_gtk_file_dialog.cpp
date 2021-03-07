@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_gtk_integration_p.h"
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_desktop_environment.h"
-#include "platform/linux/specific_linux.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "base/qt_adapters.h"
@@ -641,9 +640,7 @@ bool Supported() {
 
 bool Use(Type type) {
 	return qEnvironmentVariableIsSet("TDESKTOP_USE_GTK_FILE_DIALOG")
-		|| DesktopEnvironment::IsGtkBased()
-		// use as a fallback for portal dialog
-		|| UseXDGDesktopPortal();
+		|| DesktopEnvironment::IsGtkBased();
 }
 
 bool Get(

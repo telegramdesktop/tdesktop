@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_xdp_file_dialog.h"
 
 #include "platform/platform_file_utilities.h"
+#include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/specific_linux.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_glibmm_helper.h"
@@ -27,6 +28,11 @@ namespace Platform {
 namespace FileDialog {
 namespace XDP {
 namespace {
+
+constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
+constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
+constexpr auto kXDGDesktopPortalFileChooserInterface = "org.freedesktop.portal.FileChooser"_cs;
+constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 
 const char *filterRegExp =
 "^(.*)\\(([a-zA-Z0-9_.,*? +;#\\-\\[\\]@\\{\\}/!<>\\$%&=^~:\\|]*)\\)$";
@@ -65,6 +71,46 @@ auto MakeFilterList(const QString &filter) {
 		});
 
 	return result;
+}
+
+std::optional<uint> FileChooserPortalVersion() {
+	try {
+		const auto connection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
+
+		auto reply = connection->call_sync(
+			std::string(kXDGDesktopPortalObjectPath),
+			std::string(kPropertiesInterface),
+			"Get",
+			base::Platform::MakeGlibVariant(std::tuple{
+				Glib::ustring(
+					std::string(kXDGDesktopPortalFileChooserInterface)),
+				Glib::ustring("version"),
+			}),
+			std::string(kXDGDesktopPortalService));
+
+		return base::Platform::GlibVariantCast<uint>(
+			base::Platform::GlibVariantCast<Glib::VariantBase>(
+				reply.get_child(0)));
+	} catch (const Glib::Error &e) {
+		static const auto NotSupportedErrors = {
+			"org.freedesktop.DBus.Error.Disconnected",
+			"org.freedesktop.DBus.Error.ServiceUnknown",
+		};
+
+		const auto errorName = Gio::DBus::ErrorUtils::get_remote_error(e);
+		if (ranges::contains(NotSupportedErrors, errorName)) {
+			return std::nullopt;
+		}
+
+		LOG(("XDP File Dialog Error: %1").arg(
+			QString::fromStdString(e.what())));
+	} catch (const std::exception &e) {
+		LOG(("XDP File Dialog Error: %1").arg(
+			QString::fromStdString(e.what())));
+	}
+
+	return std::nullopt;
 }
 
 // This is a patched copy of file dialog from qxdgdesktopportal theme plugin.
@@ -364,8 +410,8 @@ void XDPFileDialog::openPortal() {
 		_cancellable = Gio::Cancellable::create();
 
 		_dbusConnection->call(
-			"/org/freedesktop/portal/desktop",
-			"org.freedesktop.portal.FileChooser",
+			std::string(kXDGDesktopPortalObjectPath),
+			std::string(kXDGDesktopPortalFileChooserInterface),
 			_acceptMode == QFileDialog::AcceptSave
 				? "SaveFile"
 				: "OpenFile",
@@ -387,7 +433,7 @@ void XDPFileDialog::openPortal() {
 				}
 			},
 			_cancellable,
-			"org.freedesktop.portal.Desktop");
+			std::string(kXDGDesktopPortalService));
 	} catch (const Glib::Error &e) {
 		LOG(("XDP File Dialog Error: %1").arg(
 			QString::fromStdString(e.what())));
@@ -584,8 +630,19 @@ rpl::producer<> XDPFileDialog::rejected() {
 } // namespace
 
 bool Use(Type type) {
-	return UseXDGDesktopPortal()
-		&& (type != Type::ReadFolder || CanOpenDirectoryWithPortal());
+	static const auto ShouldUse = [&] {
+		const auto envVar = qEnvironmentVariableIsSet("TDESKTOP_USE_PORTAL");
+		const auto confined = InFlatpak() || InSnap();
+		const auto notGtkBased = !DesktopEnvironment::IsGtkBased();
+
+		return confined || notGtkBased || envVar;
+	}();
+
+	static const auto Version = FileChooserPortalVersion();
+
+	return ShouldUse
+		&& Version.has_value()
+		&& (type != Type::ReadFolder || *Version >= 3);
 }
 
 bool Get(
