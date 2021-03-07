@@ -18,8 +18,6 @@ namespace Platform {
 bool InFlatpak();
 bool InSnap();
 bool AreQtPluginsBundled();
-bool UseXDGDesktopPortal();
-bool CanOpenDirectoryWithPortal();
 
 QString AppRuntimeDirectory();
 QString GetLauncherBasename();
