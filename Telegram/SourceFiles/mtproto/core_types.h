@@ -42,6 +42,7 @@ constexpr auto kLogoutDcShift = 0x02;
 constexpr auto kUpdaterDcShift = 0x03;
 constexpr auto kExportDcShift = 0x04;
 constexpr auto kExportMediaDcShift = 0x05;
+constexpr auto kGroupCallStreamDcShift = 0x06;
 constexpr auto kMaxMediaDcCount = 0x10;
 constexpr auto kBaseDownloadDcShift = 0x10;
 constexpr auto kBaseUploadDcShift = 0x20;

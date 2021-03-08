@@ -226,9 +226,14 @@ void ChooseJoinAsProcess::start(
 			return list;
 		});
 		if (list.empty()) {
+			// #TODO calls in case of anonymous group admin show lng_group_call_no_anonymous
 			_request->showToast("No way to join this voice chat :(");
 			return;
-		} else if (list.size() == 1 && list.front() == self) {
+		} else if (list.size() == 1
+			&& list.front() == self
+			&& (!peer->isChannel()
+				|| !peer->asChannel()->amAnonymous()
+				|| (peer->isBroadcast() && !peer->canWrite()))) {
 			info.possibleJoinAs = std::move(list);
 			finish(info);
 			return;

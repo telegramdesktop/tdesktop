@@ -5589,7 +5589,7 @@ void HistoryWidget::setupGroupCallTracker() {
 	Expects(_history != nullptr);
 
 	const auto peer = _history->peer;
-	if (!peer->asMegagroup() && !peer->asChat()) {
+	if (!peer->isChannel() && !peer->isChat()) {
 		_groupCallTracker = nullptr;
 		_groupCallBar = nullptr;
 		return;
@@ -5622,12 +5622,12 @@ void HistoryWidget::setupGroupCallTracker() {
 	) | rpl::start_with_next([=] {
 		const auto peer = _history->peer;
 		const auto channel = peer->asChannel();
-		if (channel && channel->amAnonymous()) {
+		/*if (channel && channel->amAnonymous()) { // #TODO calls
 			Ui::ShowMultilineToast({
 				.text = { tr::lng_group_call_no_anonymous(tr::now) },
 			});
 			return;
-		} else if (peer->groupCall()) {
+		} else */if (peer->groupCall()) {
 			controller()->startOrJoinGroupCall(peer);
 		}
 	}, _groupCallBar->lifetime());
