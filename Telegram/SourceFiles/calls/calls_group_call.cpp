@@ -29,15 +29,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_media_devices.h"
 #include "webrtc/webrtc_create_adm.h"
 
-#include <tgcalls/group/GroupInstanceImpl.h>
+#include <tgcalls/group/GroupInstanceCustomImpl.h>
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonArray>
-
-namespace tgcalls {
-class GroupInstanceImpl;
-} // namespace tgcalls
 
 namespace Calls {
 namespace {
@@ -303,6 +299,8 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 			}
 		}
 	}, _lifetime);
+
+	addParticipantsToInstance();
 
 	SubscribeToMigration(_peer, _lifetime, [=](not_null<ChannelData*> group) {
 		_peer = group;
@@ -636,7 +634,12 @@ void GroupCall::handleUpdate(const MTPGroupCall &call) {
 						.relPort = readString(object, "relPort"),
 					});
 				}
-				_instance->setJoinResponsePayload(payload);
+				_instance->setConnectionMode(
+					tgcalls::GroupConnectionMode::GroupConnectionModeRtc);
+				_instance->setJoinResponsePayload(payload, {});
+				_instancePayloadsDone = true;
+
+				addParticipantsToInstance();
 			});
 		}
 	}, [&](const MTPDgroupCallDiscarded &data) {
@@ -645,6 +648,45 @@ void GroupCall::handleUpdate(const MTPGroupCall &call) {
 			hangup();
 		}
 	});
+}
+
+void GroupCall::addParticipantsToInstance() {
+	const auto real = _peer->groupCall();
+	if (!real || (real->id() != _id) || !_instancePayloadsDone) {
+		return;
+	}
+	for (const auto &participant : real->participants()) {
+		prepareParticipantForAdding(participant);
+	}
+	addPreparedParticipants();
+}
+
+void GroupCall::prepareParticipantForAdding(
+		const Data::GroupCallParticipant &participant) {
+	_preparedParticipants.push_back(tgcalls::GroupParticipantDescription());
+	auto &added = _preparedParticipants.back();
+	added.audioSsrc = participant.ssrc;
+	_unresolvedSsrcs.remove(added.audioSsrc);
+}
+
+void GroupCall::addPreparedParticipants() {
+	_addPreparedParticipantsScheduled = false;
+	if (!_preparedParticipants.empty()) {
+		_instance->addParticipants(base::take(_preparedParticipants));
+	}
+	if (const auto real = _peer->groupCall(); real && real->id() == _id) {
+		if (!_unresolvedSsrcs.empty()) {
+			real->resolveParticipants(base::take(_unresolvedSsrcs));
+		}
+	}
+}
+
+void GroupCall::addPreparedParticipantsDelayed() {
+	if (_addPreparedParticipantsScheduled) {
+		return;
+	}
+	_addPreparedParticipantsScheduled = true;
+	crl::on_main(this, [=] { addPreparedParticipants(); });
 }
 
 void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
@@ -751,6 +793,12 @@ void GroupCall::createAndStartController() {
 		.initialOutputDeviceId = _audioOutputId.toStdString(),
 		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
 			settings.callAudioBackend()),
+		.participantDescriptionsRequired = [=](
+				const std::vector<uint32_t> &ssrcs) {
+			crl::on_main(weak, [=] {
+				requestParticipantsInformation(ssrcs);
+			});
+		},
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
@@ -768,13 +816,42 @@ void GroupCall::createAndStartController() {
 	}
 
 	LOG(("Call Info: Creating group instance"));
-	_instance = std::make_unique<tgcalls::GroupInstanceImpl>(
+	_instancePayloadsDone = false;
+	_instance = std::make_unique<tgcalls::GroupInstanceCustomImpl>(
 		std::move(descriptor));
 
 	updateInstanceMuteState();
 	updateInstanceVolumes();
 
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
+}
+
+void GroupCall::requestParticipantsInformation(
+		const std::vector<uint32_t> &ssrcs) {
+	const auto real = _peer->groupCall();
+	if (!real || real->id() != _id || !_instancePayloadsDone) {
+		for (const auto ssrc : ssrcs) {
+			_unresolvedSsrcs.emplace(ssrc);
+		}
+		return;
+	}
+
+	const auto &existing = real->participants();
+	for (const auto ssrc : ssrcs) {
+		const auto participantPeer = real->participantPeerBySsrc(ssrc);
+		if (!participantPeer) {
+			_unresolvedSsrcs.emplace(ssrc);
+			continue;
+		}
+		const auto i = ranges::find(
+			existing,
+			not_null{ participantPeer },
+			&Data::GroupCall::Participant::peer);
+		Assert(i != end(existing));
+
+		prepareParticipantForAdding(*i);
+	}
+	addPreparedParticipants();
 }
 
 void GroupCall::updateInstanceMuteState() {

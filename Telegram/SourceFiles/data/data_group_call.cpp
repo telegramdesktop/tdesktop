@@ -378,6 +378,16 @@ void GroupCall::applyLastSpoke(
 	}
 }
 
+void GroupCall::resolveParticipants(const base::flat_set<uint32> &ssrcs) {
+	if (ssrcs.empty()) {
+		return;
+	}
+	for (const auto ssrc : ssrcs) {
+		_unknownSpokenSsrcs.emplace(ssrc, LastSpokeTimes());
+	}
+	requestUnknownParticipants();
+}
+
 void GroupCall::applyActiveUpdate(
 		PeerId participantPeerId,
 		LastSpokeTimes when,
@@ -531,7 +541,9 @@ void GroupCall::requestUnknownParticipants() {
 		_unknownParticipantPeersRequestId = 0;
 		const auto now = crl::now();
 		for (const auto [ssrc, when] : ssrcs) {
-			applyLastSpoke(ssrc, when, now);
+			if (when.voice || when.anything) {
+				applyLastSpoke(ssrc, when, now);
+			}
 			_unknownSpokenSsrcs.remove(ssrc);
 		}
 		for (const auto [id, when] : participantPeerIds) {
