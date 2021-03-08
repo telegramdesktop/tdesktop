@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_gtk_integration.h"
-#include "ui/platform/ui_platform_utility.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_gtk_integration.h"
 #include "platform/linux/linux_wayland_integration.h"
@@ -446,12 +445,6 @@ void SetGtkScaleFactor() {
 	cSetScreenScale(style::CheckScale(scaleFactor * 100));
 }
 
-void DarkModeChanged() {
-	Core::Sandbox::Instance().customEnterFromEventLoop([] {
-		Core::App().settings().setSystemDarkMode(IsDarkMode());
-	});
-}
-
 } // namespace
 
 void SetWatchingMediaKeys(bool watching) {
@@ -605,6 +598,27 @@ QImage GetImageFromClipboard() {
 }
 
 std::optional<bool> IsDarkMode() {
+	if (static auto Once = false; !std::exchange(Once, true)) {
+		const auto integration = BaseGtkIntegration::Instance();
+		if (integration) {
+			const auto onChanged = [] {
+				Core::Sandbox::Instance().customEnterFromEventLoop([] {
+					Core::App().settings().setSystemDarkMode(IsDarkMode());
+				});
+			};
+
+			integration->connectToSetting(
+				"gtk-theme-name",
+				onChanged);
+
+			if (integration->checkVersion(3, 0, 0)) {
+				integration->connectToSetting(
+					"gtk-application-prefer-dark-theme",
+					onChanged);
+			}
+		}
+	}
+
 	const auto integration = BaseGtkIntegration::Instance();
 	if (!integration) {
 		return std::nullopt;
@@ -973,22 +987,6 @@ void start() {
 	}
 
 	SetGtkScaleFactor();
-
-	BaseGtkIntegration::Instance()->connectToSetting(
-		"gtk-theme-name",
-		DarkModeChanged);
-
-	if (BaseGtkIntegration::Instance()->checkVersion(3, 0, 0)) {
-		BaseGtkIntegration::Instance()->connectToSetting(
-			"gtk-application-prefer-dark-theme",
-			DarkModeChanged);
-	}
-
-	if (BaseGtkIntegration::Instance()->checkVersion(3, 12, 0)) {
-		BaseGtkIntegration::Instance()->connectToSetting(
-			"gtk-decoration-layout",
-			Ui::Platform::NotifyTitleControlsLayoutChanged);
-	}
 
 	// wait for interface announce to know if native window frame is supported
 	if (const auto integration = WaylandIntegration::Instance()) {
