@@ -15,11 +15,7 @@ class ItemLine : public NumberedItem {
 public:
 	enum { Type = UserType + 5 };
 
-	ItemLine(
-		const QPainterPath &path,
-		const QSize &size,
-		const QColor &brushColor,
-		float brushSize);
+	ItemLine(const QPixmap &&pixmap);
 	QRectF boundingRect() const override;
 	void paint(
 		QPainter *p,
@@ -33,8 +29,8 @@ protected:
 		const QPainterPath &,
 		Qt::ItemSelectionMode) const override;
 private:
-	const QRectF _rect;
 	const QPixmap _pixmap;
+	const QRectF _rect;
 
 };
 

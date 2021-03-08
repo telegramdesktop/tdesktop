@@ -9,13 +9,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QGraphicsItem>
 
+class QGraphicsSceneMouseEvent;
+
 namespace Editor {
 
 class ItemCanvas : public QGraphicsItem {
 public:
 	enum { Type = UserType + 6 };
 
+	struct Content {
+		QPixmap pixmap;
+		QPointF position;
+	};
+
 	ItemCanvas();
+	~ItemCanvas();
+
+	void applyBrush(const QColor &color, float size);
+	void clearPixmap();
 
 	QRectF boundingRect() const override;
 	void paint(
@@ -24,7 +35,12 @@ public:
 		QWidget *widget) override;
 	int type() const override;
 
-	[[nodiscard]] rpl::producer<not_null<QPainter*>> paintRequest() const;
+	void handleMousePressEvent(not_null<QGraphicsSceneMouseEvent*> event);
+	void handleMouseReleaseEvent(not_null<QGraphicsSceneMouseEvent*> event);
+	void handleMouseMoveEvent(not_null<QGraphicsSceneMouseEvent*> event);
+
+	[[nodiscard]] rpl::producer<Content> grabContentRequests() const;
+
 protected:
 	bool collidesWithItem(
 		const QGraphicsItem *,
@@ -34,7 +50,28 @@ protected:
 		const QPainterPath &,
 		Qt::ItemSelectionMode) const override;
 private:
-	rpl::event_stream<not_null<QPainter*>> _paintRequest;
+	void computeContentRect(const QPointF &p);
+	void drawLine(const QPointF &currentPoint, const QPointF &lastPoint);
+
+	bool _drawing = false;
+
+	std::unique_ptr<PainterHighQualityEnabler> _hq;
+	std::unique_ptr<Painter> _p;
+
+	QRectF _rectToUpdate;
+	QRectF _contentRect;
+	QMarginsF _brushMargins;
+
+	QPointF _lastPoint;
+
+	QPixmap _pixmap;
+
+	struct {
+		float size = 1.;
+		QColor color;
+	} _brushData;
+
+	rpl::event_stream<Content> _grabContentRequests;
 
 };
 

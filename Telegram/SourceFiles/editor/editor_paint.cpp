@@ -63,6 +63,11 @@ Paint::Paint(
 		clearRedoList();
 	}, lifetime());
 
+	_scene->addsItem(
+	) | rpl::start_with_next([=] {
+		updateUndoState();
+	}, lifetime());
+
 	// Undo / Redo.
 	controllers->undoController->performRequestChanges(
 	) | rpl::start_with_next([=](const Undo &command) {

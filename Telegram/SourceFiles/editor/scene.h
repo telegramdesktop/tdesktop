@@ -12,8 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QGraphicsScene>
 
 class QGraphicsSceneMouseEvent;
-class QGraphicsSceneMouseEvent;
-class QGraphicsSceneMouseEvent;
 
 namespace Ui {
 class RpWidget;
@@ -33,6 +31,7 @@ public:
 	[[nodiscard]] std::vector<QGraphicsItem*> items(
 		Qt::SortOrder order = Qt::DescendingOrder) const;
 	void addItem(not_null<NumberedItem*> item);
+	[[nodiscard]] rpl::producer<> addsItem() const;
 	[[nodiscard]] rpl::producer<> mousePresses() const;
 
 protected:
@@ -40,24 +39,13 @@ protected:
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
 private:
-	void clearPath();
-	void addLineItem();
-
 	const not_null<ItemCanvas*> _canvas;
 
-	QPainterPath _path;
-	bool _drawing = false;
-
 	float64 _lastLineZ = 0.;
-
 	int _itemNumber = 0;
 
-	struct {
-		float size = 1.;
-		QColor color;
-	} _brushData;
-
 	rpl::event_stream<> _mousePresses;
+	rpl::event_stream<> _addsItem;
 	rpl::lifetime _lifetime;
 
 };

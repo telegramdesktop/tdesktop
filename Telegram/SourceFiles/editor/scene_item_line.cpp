@@ -10,35 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QGraphicsScene>
 
 namespace Editor {
-namespace {
 
-QPixmap PathToPixmap(
-		const QPainterPath &path,
-		const QSize &size,
-		const QColor &brushColor,
-		float brushSize) {
-	auto pixmap = QPixmap(size);
-	pixmap.setDevicePixelRatio(cRetinaFactor());
-	pixmap.fill(Qt::transparent);
-	Painter p(&pixmap);
-	p.setPen(QPen(brushColor, brushSize));
-	p.drawPath(path);
-	return pixmap;
-}
-
-} // namespace
-
-ItemLine::ItemLine(
-	const QPainterPath &path,
-	const QSize &size,
-	const QColor &brushColor,
-	float brushSize)
-: _pixmap(PathToPixmap(path, size, brushColor, brushSize)) {
-	Expects(path.capacity() > 0);
+ItemLine::ItemLine(const QPixmap &&pixmap)
+: _pixmap(std::move(pixmap))
+, _rect(QPointF(), _pixmap.size() / cRetinaFactor()) {
 }
 
 QRectF ItemLine::boundingRect() const {
-	return scene()->sceneRect();
+	return _rect;
 }
 
 void ItemLine::paint(
