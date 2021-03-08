@@ -904,7 +904,7 @@ bool PeerData::canManageGroupCall() const {
 	if (const auto chat = asChat()) {
 		return chat->amCreator()
 			|| (chat->adminRights() & ChatAdminRight::f_manage_call);
-	} else if (const auto group = asMegagroup()) {
+	} else if (const auto group = asChannel()) {
 		return group->amCreator()
 			|| (group->adminRights() & ChatAdminRight::f_manage_call);
 	}
@@ -914,7 +914,7 @@ bool PeerData::canManageGroupCall() const {
 Data::GroupCall *PeerData::groupCall() const {
 	if (const auto chat = asChat()) {
 		return chat->groupCall();
-	} else if (const auto group = asMegagroup()) {
+	} else if (const auto group = asChannel()) {
 		return group->groupCall();
 	}
 	return nullptr;
@@ -923,7 +923,7 @@ Data::GroupCall *PeerData::groupCall() const {
 PeerId PeerData::groupCallDefaultJoinAs() const {
 	if (const auto chat = asChat()) {
 		return chat->groupCallDefaultJoinAs();
-	} else if (const auto group = asMegagroup()) {
+	} else if (const auto group = asChannel()) {
 		return group->groupCallDefaultJoinAs();
 	}
 	return 0;

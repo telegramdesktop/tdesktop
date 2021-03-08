@@ -175,17 +175,34 @@ public:
 	}
 
 private:
+	class LoadPartTask;
+
+public:
+	void broadcastPartStart(std::shared_ptr<LoadPartTask> task);
+	void broadcastPartCancel(not_null<LoadPartTask*> task);
+
+private:
 	using GlobalShortcutValue = base::GlobalShortcutValue;
+
+	struct LoadingPart {
+		std::shared_ptr<LoadPartTask> task;
+		mtpRequestId requestId = 0;
+	};
 
 	enum class FinishType {
 		None,
 		Ended,
 		Failed,
 	};
+	enum class InstanceMode {
+		None,
+		Rtc,
+		Stream,
+	};
 
 	void handleRequestError(const RPCError &error);
 	void handleControllerError(const QString &error);
-	void createAndStartController();
+	void ensureControllerCreated();
 	void destroyController();
 
 	void setState(State state);
@@ -199,6 +216,7 @@ private:
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
 	void setInstanceConnected(bool connected);
+	void setInstanceMode(InstanceMode mode);
 	void checkLastSpoke();
 	void pushToTalkCancel();
 
@@ -233,10 +251,13 @@ private:
 	MTP::Sender _api;
 	rpl::variable<State> _state = State::Creating;
 	bool _instanceConnected = false;
-	bool _instancePayloadsDone = false;
+	InstanceMode _instanceMode = InstanceMode::None;
 	base::flat_set<uint32> _unresolvedSsrcs;
 	std::vector<tgcalls::GroupParticipantDescription> _preparedParticipants;
 	bool _addPreparedParticipantsScheduled = false;
+
+	MTP::DcId _broadcastDcId = 0;
+	base::flat_map<not_null<LoadPartTask*>, LoadingPart> _broadcastParts;
 
 	not_null<PeerData*> _joinAs;
 	std::vector<not_null<PeerData*>> _possibleJoinAs;
