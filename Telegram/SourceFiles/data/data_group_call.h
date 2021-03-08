@@ -20,6 +20,21 @@ struct LastSpokeTimes {
 	crl::time voice = 0;
 };
 
+struct GroupCallParticipant {
+	not_null<PeerData*> peer;
+	TimeId date = 0;
+	TimeId lastActive = 0;
+	uint32 ssrc = 0;
+	int volume = 0;
+	bool applyVolumeFromMin = true;
+	bool sounding = false;
+	bool speaking = false;
+	bool muted = false;
+	bool mutedByMe = false;
+	bool canSelfUnmute = false;
+	bool onlyMinLoaded = false;
+};
+
 class GroupCall final {
 public:
 	GroupCall(not_null<PeerData*> peer, uint64 id, uint64 accessHash);
@@ -40,20 +55,7 @@ public:
 
 	void setPeer(not_null<PeerData*> peer);
 
-	struct Participant {
-		not_null<PeerData*> peer;
-		TimeId date = 0;
-		TimeId lastActive = 0;
-		uint32 ssrc = 0;
-		int volume = 0;
-		bool applyVolumeFromMin = true;
-		bool sounding = false;
-		bool speaking = false;
-		bool muted = false;
-		bool mutedByMe = false;
-		bool canSelfUnmute = false;
-		bool onlyMinLoaded = false;
-	};
+	using Participant = GroupCallParticipant;
 	struct ParticipantUpdate {
 		std::optional<Participant> was;
 		std::optional<Participant> now;
@@ -65,6 +67,7 @@ public:
 		-> const std::vector<Participant> &;
 	void requestParticipants();
 	[[nodiscard]] bool participantsLoaded() const;
+	[[nodiscard]] PeerData *participantPeerBySsrc(uint32 ssrc) const;
 
 	[[nodiscard]] rpl::producer<> participantsSliceAdded();
 	[[nodiscard]] rpl::producer<ParticipantUpdate> participantUpdated() const;
@@ -78,6 +81,8 @@ public:
 		PeerId participantPeerId,
 		LastSpokeTimes when,
 		PeerData *participantPeerLoaded);
+
+	void resolveParticipants(const base::flat_set<uint32> &ssrcs);
 
 	[[nodiscard]] int fullCount() const;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
@@ -105,7 +110,6 @@ private:
 	void requestUnknownParticipants();
 	void changePeerEmptyCallFlag();
 	void checkFinishSpeakingByActive();
-	[[nodiscard]] PeerData *participantPeerBySsrc(uint32 ssrc) const;
 
 	const uint64 _id = 0;
 	const uint64 _accessHash = 0;

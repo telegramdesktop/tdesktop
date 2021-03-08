@@ -16,8 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 
 namespace tgcalls {
-class GroupInstanceImpl;
+class GroupInstanceCustomImpl;
 struct GroupLevelsUpdate;
+struct GroupParticipantDescription;
 } // namespace tgcalls
 
 namespace base {
@@ -31,6 +32,7 @@ class MediaDevices;
 
 namespace Data {
 struct LastSpokeTimes;
+struct GroupCallParticipant;
 } // namespace Data
 
 namespace Calls {
@@ -207,6 +209,13 @@ private:
 	void stopConnectingSound();
 	void playConnectingSoundOnce();
 
+	void requestParticipantsInformation(const std::vector<uint32_t> &ssrcs);
+	void addParticipantsToInstance();
+	void prepareParticipantForAdding(
+		const Data::GroupCallParticipant &participant);
+	void addPreparedParticipants();
+	void addPreparedParticipantsDelayed();
+
 	void editParticipant(
 		not_null<PeerData*> participantPeer,
 		bool mute,
@@ -224,6 +233,10 @@ private:
 	MTP::Sender _api;
 	rpl::variable<State> _state = State::Creating;
 	bool _instanceConnected = false;
+	bool _instancePayloadsDone = false;
+	base::flat_set<uint32> _unresolvedSsrcs;
+	std::vector<tgcalls::GroupParticipantDescription> _preparedParticipants;
+	bool _addPreparedParticipantsScheduled = false;
 
 	not_null<PeerData*> _joinAs;
 	std::vector<not_null<PeerData*>> _possibleJoinAs;
@@ -239,7 +252,7 @@ private:
 	mtpRequestId _createRequestId = 0;
 	mtpRequestId _updateMuteRequestId = 0;
 
-	std::unique_ptr<tgcalls::GroupInstanceImpl> _instance;
+	std::unique_ptr<tgcalls::GroupInstanceCustomImpl> _instance;
 	rpl::event_stream<LevelUpdate> _levelUpdates;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
