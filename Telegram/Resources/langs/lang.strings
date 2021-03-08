@@ -1929,6 +1929,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_you_are_live" = "You are Live";
 "lng_group_call_force_muted" = "Muted by admin";
 "lng_group_call_force_muted_sub" = "You are in Listen Only mode";
+"lng_group_call_raise_hand_tip" = "Click if you want to speak";
+"lng_group_call_raised_hand" = "You asked to speak";
+"lng_group_call_raised_hand_sub" = "We let the speakers know";
 "lng_group_call_connecting" = "Connecting...";
 "lng_group_call_leave" = "Leave";
 "lng_group_call_leave_title" = "Leave voice chat";
