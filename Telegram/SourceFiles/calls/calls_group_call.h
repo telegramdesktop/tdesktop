@@ -50,6 +50,7 @@ enum class MuteState {
 	PushToTalk,
 	Muted,
 	ForceMuted,
+	RaisedHand,
 };
 
 [[nodiscard]] inline auto MapPushToTalkToActive() {
@@ -120,6 +121,7 @@ public:
 	void changeTitle(const QString &title);
 
 	void setMuted(MuteState mute);
+	void setMutedAndUpdate(MuteState mute);
 	[[nodiscard]] MuteState muted() const {
 		return _muted.current();
 	}
@@ -263,6 +265,7 @@ private:
 	std::vector<not_null<PeerData*>> _possibleJoinAs;
 
 	rpl::variable<MuteState> _muted = MuteState::Muted;
+	bool _initialMuteStateSent = false;
 	bool _acceptFields = false;
 
 	rpl::event_stream<Group::ParticipantState> _otherParticipantStateValue;

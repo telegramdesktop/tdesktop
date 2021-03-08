@@ -471,13 +471,15 @@ void GroupPanel::initControls() {
 	) | rpl::filter([=](Qt::MouseButton button) {
 		return (button == Qt::LeftButton) && (_call != nullptr);
 	}) | rpl::start_with_next([=] {
-		if (_call->muted() == MuteState::ForceMuted) {
-			_mute->shake();
-		} else {
-			_call->setMuted((_call->muted() == MuteState::Muted)
-				? MuteState::Active
-				: MuteState::Muted);
-		}
+		const auto oldState = _call->muted();
+		const auto newState = (oldState == MuteState::ForceMuted)
+			? MuteState::RaisedHand
+			: (oldState == MuteState::RaisedHand)
+			? MuteState::ForceMuted
+			: (oldState == MuteState::Muted)
+			? MuteState::Active
+			: MuteState::Muted;
+		_call->setMutedAndUpdate(newState);
 	}, _mute->lifetime());
 
 	_hangup->setClickedCallback([=] { endCall(); });
@@ -562,13 +564,17 @@ void GroupPanel::initWithCall(GroupCall *call) {
 				? tr::lng_group_call_connecting(tr::now)
 				: mute == MuteState::ForceMuted
 				? tr::lng_group_call_force_muted(tr::now)
+				: mute == MuteState::RaisedHand
+				? tr::lng_group_call_raised_hand(tr::now)
 				: mute == MuteState::Muted
 				? tr::lng_group_call_unmute(tr::now)
 				: tr::lng_group_call_you_are_live(tr::now)),
 			.subtext = (connecting
 				? QString()
 				: mute == MuteState::ForceMuted
-				? tr::lng_group_call_force_muted_sub(tr::now)
+				? tr::lng_group_call_raise_hand_tip(tr::now)
+				: mute == MuteState::RaisedHand
+				? tr::lng_group_call_raised_hand_sub(tr::now)
 				: mute == MuteState::Muted
 				? tr::lng_group_call_unmute_sub(tr::now)
 				: QString()),
@@ -576,6 +582,8 @@ void GroupPanel::initWithCall(GroupCall *call) {
 				? Ui::CallMuteButtonType::Connecting
 				: mute == MuteState::ForceMuted
 				? Ui::CallMuteButtonType::ForceMuted
+				: mute == MuteState::RaisedHand
+				? Ui::CallMuteButtonType::RaisedHand
 				: mute == MuteState::Muted
 				? Ui::CallMuteButtonType::Muted
 				: Ui::CallMuteButtonType::Active),

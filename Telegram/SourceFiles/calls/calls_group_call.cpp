@@ -173,7 +173,8 @@ GroupCall::GroupCall(
 		if (_instance) {
 			updateInstanceMuteState();
 		}
-		if (_mySsrc) {
+		if (_mySsrc && !_initialMuteStateSent) {
+			_initialMuteStateSent = true;
 			maybeSendMutedUpdate(previous);
 		}
 	}, _lifetime);
@@ -371,6 +372,7 @@ void GroupCall::rejoin() {
 	}
 
 	_mySsrc = 0;
+	_initialMuteStateSent = false;
 	setState(State::Joining);
 	ensureControllerCreated();
 	setInstanceMode(InstanceMode::None);
@@ -464,7 +466,8 @@ void GroupCall::applyMeInCallLocally() {
 	const auto volume = (i != end(participants))
 		? i->volume
 		: Group::kDefaultVolume;
-	const auto canSelfUnmute = (muted() != MuteState::ForceMuted);
+	const auto canSelfUnmute = (muted() != MuteState::ForceMuted)
+		&& (muted() != MuteState::RaisedHand);
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (lastActive ? Flag::f_active_date : Flag(0))
 		| (_mySsrc ? Flag(0) : Flag::f_left)
@@ -612,10 +615,12 @@ void GroupCall::setMuted(MuteState mute) {
 	const auto set = [=] {
 		const auto wasMuted = (muted() == MuteState::Muted)
 			|| (muted() == MuteState::PushToTalk);
+		const auto wasRaiseHand = (muted() == MuteState::RaisedHand);
 		_muted = mute;
 		const auto nowMuted = (muted() == MuteState::Muted)
 			|| (muted() == MuteState::PushToTalk);
-		if (wasMuted != nowMuted) {
+		const auto nowRaiseHand = (muted() == MuteState::RaisedHand);
+		if (wasMuted != nowMuted || wasRaiseHand != nowRaiseHand) {
 			applyMeInCallLocally();
 		}
 	};
@@ -623,6 +628,15 @@ void GroupCall::setMuted(MuteState mute) {
 		_delegate->groupCallRequestPermissionsOrFail(crl::guard(this, set));
 	} else {
 		set();
+	}
+}
+
+void GroupCall::setMutedAndUpdate(MuteState mute) {
+	const auto was = muted();
+	const auto send = _initialMuteStateSent;
+	setMuted(mute);
+	if (send) {
+		maybeSendMutedUpdate(was);
 	}
 }
 
@@ -814,12 +828,15 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 				hangup();
 			}
 			if (data.is_muted() && !data.is_can_self_unmute()) {
-				setMuted(MuteState::ForceMuted);
+				setMuted(data.vraise_hand_rating().value_or_empty()
+					? MuteState::RaisedHand
+					: MuteState::ForceMuted);
 			} else if (_instanceMode == InstanceMode::Stream) {
 				LOG(("Call Info: Rejoin after unforcemute in stream mode."));
 				setState(State::Joining);
 				rejoin();
-			} else if (muted() == MuteState::ForceMuted) {
+			} else if (muted() == MuteState::ForceMuted
+				|| muted() == MuteState::RaisedHand) {
 				setMuted(MuteState::Muted);
 			} else if (data.is_muted() && muted() != MuteState::Muted) {
 				setMuted(MuteState::Muted);
@@ -1176,23 +1193,28 @@ void GroupCall::maybeSendMutedUpdate(MuteState previous) {
 	const auto now = muted();
 	const auto wasActive = (previous == MuteState::Active);
 	const auto nowActive = (now == MuteState::Active);
-	if (now == MuteState::ForceMuted
-		|| previous == MuteState::ForceMuted
-		|| (nowActive == wasActive)) {
-		return;
+	if ((wasActive && now == MuteState::Muted)
+		|| (nowActive
+			&& (previous == MuteState::Muted
+				|| previous == MuteState::PushToTalk))
+		|| (now == MuteState::ForceMuted
+			&& previous == MuteState::RaisedHand)
+		|| (now == MuteState::RaisedHand
+			&& previous == MuteState::ForceMuted)) {
+		sendMutedUpdate();
 	}
-	sendMutedUpdate();
 }
 
 void GroupCall::sendMutedUpdate() {
 	_api.request(_updateMuteRequestId).cancel();
 	using Flag = MTPphone_EditGroupCallParticipant::Flag;
 	_updateMuteRequestId = _api.request(MTPphone_EditGroupCallParticipant(
-		MTP_flags((muted() != MuteState::Active) ? Flag::f_muted : Flag(0)),
+		MTP_flags(((muted() != MuteState::Active) ? Flag::f_muted : Flag(0))
+			| Flag::f_raise_hand),
 		inputCall(),
 		_joinAs->input,
 		MTP_int(100000), // volume
-		MTPBool() // #TODO calls raise_hand
+		MTP_bool(muted() == MuteState::RaisedHand)
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
 		_peer->session().api().applyUpdates(result);
@@ -1364,6 +1386,7 @@ void GroupCall::applyGlobalShortcutChanges() {
 
 void GroupCall::pushToTalk(bool pressed, crl::time delay) {
 	if (muted() == MuteState::ForceMuted
+		|| muted() == MuteState::RaisedHand
 		|| muted() == MuteState::Active) {
 		return;
 	} else if (pressed) {
