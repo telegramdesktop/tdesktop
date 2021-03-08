@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "media/audio/media_audio_track.h"
 #include "platform/platform_specific.h"
+#include "ui/toast/toast.h"
 #include "base/unixtime.h"
 #include "mainwidget.h"
 #include "mtproto/mtproto_config.h"
@@ -66,6 +67,8 @@ void Instance::startOrJoinGroupCall(not_null<PeerData*> peer) {
 		: Group::ChooseJoinAsProcess::Context::Create;
 	_chooseJoinAs.start(peer, context, [=](object_ptr<Ui::BoxContent> box) {
 		Ui::show(std::move(box), Ui::LayerOption::KeepOther);
+	}, [=](QString text) {
+		Ui::Toast::Show(text);
 	}, [=](Group::JoinInfo info) {
 		const auto call = info.peer->groupCall();
 		createGroupCall(

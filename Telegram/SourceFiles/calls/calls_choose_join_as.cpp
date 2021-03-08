@@ -163,20 +163,18 @@ void ChooseJoinAsProcess::start(
 		not_null<PeerData*> peer,
 		Context context,
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
+		Fn<void(QString)> showToast,
 		Fn<void(JoinInfo)> done,
 		PeerData *currentJoinAs) {
 	Expects(done != nullptr);
 
 	const auto session = &peer->session();
 	if (_request) {
-		const auto already = _request->peer;
-		_request->context = context;
-		_request->showBox = std::move(showBox);
-		_request->done = std::move(done);
-		if (already == peer) {
-			return;
-		} else if (&already->session() == session) {
-			_request->peer = peer;
+		if (_request->peer == peer) {
+			_request->context = context;
+			_request->showBox = std::move(showBox);
+			_request->showToast = std::move(showToast);
+			_request->done = std::move(done);
 			return;
 		}
 		session->api().request(_request->id).cancel();
@@ -186,6 +184,7 @@ void ChooseJoinAsProcess::start(
 		ChannelsListRequest{
 			.peer = peer,
 			.showBox = std::move(showBox),
+			.showToast = std::move(showToast),
 			.done = std::move(done),
 			.context = context });
 	session->account().sessionChanges(
@@ -204,39 +203,52 @@ void ChooseJoinAsProcess::start(
 		}
 	};
 	using Flag = MTPchannels_GetAdminedPublicChannels::Flag;
-	_request->id = session->api().request(
-		MTPchannels_GetAdminedPublicChannels(
-			MTP_flags(Flag::f_for_groupcall))
-	).done([=](const MTPmessages_Chats &result) {
-		const auto &chats = result.match([](const auto &data) {
-			return data.vchats().v;
-		});
+	_request->id = session->api().request(MTPphone_GetGroupCallJoinAs(
+		_request->peer->input
+	)).done([=](const MTPphone_JoinAsPeers &result) {
 		const auto peer = _request->peer;
 		const auto self = peer->session().user();
 		auto info = JoinInfo{ .peer = peer, .joinAs = self };
-		if (chats.size() == 1) {
+		auto list = result.match([&](const MTPDphone_joinAsPeers &data) {
+			session->data().processUsers(data.vusers());
+			session->data().processChats(data.vchats());
+			const auto &peers = data.vpeers().v;
+			auto list = std::vector<not_null<PeerData*>>();
+			list.reserve(peers.size());
+			for (const auto &peer : peers) {
+				const auto peerId = peerFromMTP(peer);
+				if (const auto peer = session->data().peerLoaded(peerId)) {
+					if (!ranges::contains(list, not_null{ peer })) {
+						list.push_back(peer);
+					}
+				}
+			}
+			return list;
+		});
+		if (list.empty()) {
+			_request->showToast("No way to join this voice chat :(");
+			return;
+		} else if (list.size() == 1 && list.front() == self) {
+			info.possibleJoinAs = std::move(list);
 			finish(info);
 			return;
 		}
-		auto list = std::vector<not_null<PeerData*>>();
-		list.reserve(chats.size() + 1);
-		list.push_back(self);
-		for (const auto &chat : chats) {
-			list.push_back(session->data().processChat(chat));
-		}
-		const auto selected = [&]() -> PeerData* {
+		info.joinAs = [&]() -> not_null<PeerData*> {
 			const auto selectedId = peer->groupCallDefaultJoinAs();
 			if (!selectedId) {
 				return self;
 			}
 			const auto loaded = session->data().peerLoaded(selectedId);
-			return (loaded && ranges::contains(list, not_null{ loaded }))
+			return (currentJoinAs && ranges::contains(list, not_null{ currentJoinAs }))
+				? not_null(currentJoinAs)
+				: (loaded && ranges::contains(list, not_null{ loaded }))
 				? not_null(loaded)
-				: self;
+				: ranges::contains(list, self)
+				? self
+				: list.front();
 		}();
-
-		info.joinAs = currentJoinAs ? currentJoinAs : selected;
 		info.possibleJoinAs = std::move(list);
+
 		auto box = Box(
 			ChooseJoinAsBox,
 			context,

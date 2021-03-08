@@ -35,6 +35,7 @@ public:
 		not_null<PeerData*> peer,
 		Context context,
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
+		Fn<void(QString)> showToast,
 		Fn<void(JoinInfo)> done,
 		PeerData *currentJoinAs = nullptr);
 
@@ -42,6 +43,7 @@ private:
 	struct ChannelsListRequest {
 		not_null<PeerData*> peer;
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox;
+		Fn<void(QString)> showToast;
 		Fn<void(JoinInfo)> done;
 		base::has_weak_ptr guard;
 		QPointer<Ui::BoxContent> box;

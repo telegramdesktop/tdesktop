@@ -92,7 +92,7 @@ inputPhotoFileLocation#40181ffe id:long access_hash:long file_reference:bytes th
 inputPhotoLegacyFileLocation#d83466f3 id:long access_hash:long file_reference:bytes volume_id:long local_id:int secret:long = InputFileLocation;
 inputPeerPhotoFileLocation#27d69997 flags:# big:flags.0?true peer:InputPeer volume_id:long local_id:int = InputFileLocation;
 inputStickerSetThumb#dbaeae9 stickerset:InputStickerSet volume_id:long local_id:int = InputFileLocation;
-inputGroupCallStream#d1cc2a5f call:InputGroupCall date:int = InputFileLocation;
+inputGroupCallStream#bba51639 call:InputGroupCall time_ms:long scale:int = InputFileLocation;
 
 peerUser#9db1bc6d user_id:int = Peer;
 peerChat#bad0e5bb chat_id:int = Peer;
@@ -1240,6 +1240,8 @@ messages.chatAdminsWithInvites#b69b72d7 admins:Vector<ChatAdminWithInvites> user
 
 messages.checkedHistoryImportPeer#a24de717 confirm_text:string = messages.CheckedHistoryImportPeer;
 
+phone.joinAsPeers#afe5623f peers:Vector<Peer> chats:Vector<Chat> users:Vector<User> = phone.JoinAsPeers;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -1623,6 +1625,7 @@ phone.checkGroupCall#b74a7bea call:InputGroupCall source:int = Bool;
 phone.toggleGroupCallRecord#c02a66d7 flags:# start:flags.0?true call:InputGroupCall title:flags.1?string = Updates;
 phone.editGroupCallParticipant#d975eb80 flags:# muted:flags.0?true call:InputGroupCall participant:InputPeer volume:flags.1?int raise_hand:flags.2?Bool = Updates;
 phone.editGroupCallTitle#1ca6ac0a call:InputGroupCall title:string = Updates;
+phone.getGroupCallJoinAs#ef7c213a peer:InputPeer = phone.JoinAsPeers;
 
 langpack.getLangPack#f2f2330a lang_pack:string lang_code:string = LangPackDifference;
 langpack.getStrings#efea3803 lang_pack:string lang_code:string keys:Vector<string> = Vector<LangPackString>;

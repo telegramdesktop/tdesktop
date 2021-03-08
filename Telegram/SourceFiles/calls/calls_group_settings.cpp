@@ -164,13 +164,18 @@ void GroupCallSettingsBox(
 			const auto callback = [=](Group::JoinInfo info) {
 				call->rejoinAs(info);
 			};
-			auto showBox = [=](object_ptr<Ui::BoxContent> next) {
+			const auto showBox = [=](object_ptr<Ui::BoxContent> next) {
 				box->getDelegate()->show(std::move(next));
+			};
+			const auto showToast = [=](QString text) {
+				const auto container = box->getDelegate()->outerContainer();
+				Ui::Toast::Show(container, text);
 			};
 			state->joinAsProcess.start(
 				peer,
 				context,
 				showBox,
+				showToast,
 				callback,
 				call->joinAs());
 		});
