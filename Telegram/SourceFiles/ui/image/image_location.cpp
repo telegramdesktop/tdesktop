@@ -172,7 +172,8 @@ StorageFileLocation::StorageFileLocation(
 			_id = data.vid().v;
 			_accessHash = data.vaccess_hash().v;
 		});
-		_localId = data.vdate().v;
+		_volumeId = data.vtime_ms().v;
+		_localId = data.vscale().v;
 	});
 }
 
@@ -260,6 +261,7 @@ MTPInputFileLocation StorageFileLocation::tl(int32 self) const {
 	case Type::GroupCallStream:
 		return MTP_inputGroupCallStream(
 			MTP_inputGroupCall(MTP_long(_id), MTP_long(_accessHash)),
+			MTP_long(_volumeId),
 			MTP_int(_localId));
 
 	}
@@ -372,7 +374,7 @@ bool StorageFileLocation::valid() const {
 		return (_dcId != 0) && (_id != 0);
 
 	case Type::GroupCallStream:
-		return (_dcId != 0) && (_id != 0) && (_localId != 0);
+		return (_dcId != 0) && (_id != 0) && (_volumeId != 0);
 	}
 	return false;
 }
@@ -419,7 +421,10 @@ Storage::Cache::Key StorageFileLocation::cacheKey() const {
 
 	case Type::GroupCallStream:
 		return Key{
-			shifted | sliced | (uint64(uint32(_localId)) << 16),
+			(shifted
+				| sliced
+				| (uint32(_localId) << 16)
+				| (_volumeId << 20)),
 			_id };
 	}
 	return Key();
