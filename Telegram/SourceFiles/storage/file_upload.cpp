@@ -153,12 +153,9 @@ const QString &Uploader::File::filename() const {
 }
 
 Uploader::Uploader(not_null<ApiWrap*> api)
-: _api(api) {
-	nextTimer.setSingleShot(true);
-	connect(&nextTimer, SIGNAL(timeout()), this, SLOT(sendNext()));
-	stopSessionsTimer.setSingleShot(true);
-	connect(&stopSessionsTimer, SIGNAL(timeout()), this, SLOT(stopSessions()));
-
+: _api(api)
+, _nextTimer([=] { sendNext(); })
+, _stopSessionsTimer([=] { stopSessions(); }) {
 	const auto session = &_api->session();
 	photoReady(
 	) | rpl::start_with_next([=](const UploadedPhoto &data) {
@@ -423,16 +420,16 @@ void Uploader::sendNext() {
 		return;
 	}
 
-	bool stopping = stopSessionsTimer.isActive();
+	const auto stopping = _stopSessionsTimer.isActive();
 	if (queue.empty()) {
 		if (!stopping) {
-			stopSessionsTimer.start(kKillSessionTimeout);
+			_stopSessionsTimer.callOnce(kKillSessionTimeout);
 		}
 		return;
 	}
 
 	if (stopping) {
-		stopSessionsTimer.stop();
+		_stopSessionsTimer.cancel();
 	}
 	auto i = uploadingId.msg ? queue.find(uploadingId) : queue.begin();
 	if (!uploadingId.msg) {
@@ -625,7 +622,7 @@ void Uploader::sendNext() {
 
 		parts.erase(part);
 	}
-	nextTimer.start(kUploadRequestInterval);
+	_nextTimer.callOnce(kUploadRequestInterval);
 }
 
 void Uploader::cancel(const FullMsgId &msgId) {
@@ -666,7 +663,7 @@ void Uploader::clear() {
 		_api->instance().stopSession(MTP::uploadDcId(i));
 		sentSizes[i] = 0;
 	}
-	stopSessionsTimer.stop();
+	_stopSessionsTimer.cancel();
 }
 
 void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
