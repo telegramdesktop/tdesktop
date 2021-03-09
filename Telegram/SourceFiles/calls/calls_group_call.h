@@ -119,6 +119,7 @@ public:
 	void handleUpdate(const MTPGroupCall &call);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
 	void changeTitle(const QString &title);
+	void toggleRecording(bool enabled, const QString &title);
 
 	void setMuted(MuteState mute);
 	void setMutedAndUpdate(MuteState mute);

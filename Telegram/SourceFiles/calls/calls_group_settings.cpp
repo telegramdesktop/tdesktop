@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/global_shortcuts.h"
 #include "base/platform/base_platform_info.h"
+#include "base/unixtime.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_group_call.h"
@@ -100,9 +101,62 @@ void EditGroupCallTitleBox(
 		input->setFocusFast();
 	});
 	box->addButton(tr::lng_settings_save(), [=] {
-		const auto result = input->getLastText();
+		const auto result = input->getLastText().trimmed();
 		box->closeBox();
 		done(result);
+	});
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
+void StartGroupCallRecordingBox(
+		not_null<Ui::GenericBox*> box,
+		const QString &title,
+		Fn<void(QString)> done) {
+	box->setTitle(tr::lng_group_call_recording_start());
+
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box.get(),
+			tr::lng_group_call_recording_start_sure(),
+			st::groupCallBoxLabel));
+
+	const auto input = box->addRow(object_ptr<Ui::InputField>(
+		box,
+		st::groupCallField,
+		tr::lng_group_call_recording_start_field(),
+		title));
+	box->setFocusCallback([=] {
+		input->setFocusFast();
+	});
+	box->addButton(tr::lng_group_call_recording_start_button(), [=] {
+		const auto result = input->getLastText().trimmed();
+		if (result.isEmpty()) {
+			input->showError();
+			return;
+		}
+		box->closeBox();
+		done(result);
+	});
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
+void StopGroupCallRecordingBox(
+		not_null<Ui::GenericBox*> box,
+		Fn<void(QString)> done) {
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box.get(),
+			tr::lng_group_call_recording_stop_sure(),
+			st::groupCallBoxLabel),
+		style::margins(
+			st::boxRowPadding.left(),
+			st::boxPadding.top(),
+			st::boxRowPadding.right(),
+			st::boxPadding.bottom()));
+
+	box->addButton(tr::lng_box_ok(), [=] {
+		box->closeBox();
+		done(QString());
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
@@ -141,8 +195,9 @@ void GroupCallSettingsBox(
 	const auto joinMuted = goodReal ? real->joinMuted() : false;
 	const auto canChangeJoinMuted = (goodReal && real->canChangeJoinMuted());
 	const auto addCheck = (peer->canManageGroupCall() && canChangeJoinMuted);
-	const auto addEditJoinAs = (call->possibleJoinAs().size() > 1);
-	const auto addEditTitle = peer->canManageGroupCall();
+	const auto addEditJoinAs = (call->possibleJoinAs().size() > 1); // #TODO calls when to show
+	const auto addEditTitle = peer->canManageGroupCall() && goodReal;
+	const auto addEditRecording = peer->canManageGroupCall() && goodReal;
 	if (addCheck || addEditJoinAs) {
 		AddSkip(layout);
 	}
@@ -152,12 +207,44 @@ void GroupCallSettingsBox(
 			tr::lng_group_call_display_as_header(),
 			st::groupCallSettingsButton).get()
 		: nullptr;
-	const auto editTitle = (goodReal && addEditTitle)
+	const auto editTitle = addEditTitle
 		? AddButton(
 			layout,
 			tr::lng_group_call_edit_title(),
 			st::groupCallSettingsButton).get()
 		: nullptr;
+	const auto recordStartDate = goodReal ? real->recordStartDate() : 0;
+	auto recordingLabel = [&] {
+		return ;
+	};
+	const auto editRecording = !addEditRecording
+		? nullptr
+		: !recordStartDate
+		? AddButton(
+			layout,
+			tr::lng_group_call_recording_start(),
+			st::groupCallSettingsButton).get()
+		: AddButtonWithLabel(
+			layout,
+			tr::lng_group_call_recording_stop(),
+			base::timer_each(
+				crl::time(1000)
+			) | rpl::map([=] {
+				const auto now = base::unixtime::now();
+				const auto elapsed = std::max(now - recordStartDate, 0);
+				const auto hours = elapsed / 3600;
+				const auto minutes = (elapsed % 3600) / 60;
+				const auto seconds = (elapsed % 60);
+				return hours
+					? QString("%1:%2:%3"
+					).arg(hours
+					).arg(minutes, 2, 10, QChar('0')
+					).arg(seconds, 2, 10, QChar('0'))
+					: QString("%1:%2"
+					).arg(minutes
+					).arg(seconds, 2, 10, QChar('0'));
+			}),
+			st::groupCallSettingsButton).get();
 	if (editJoinAs) {
 		editJoinAs->setClickedCallback([=] {
 			const auto context = Group::ChooseJoinAsProcess::Context::Switch;
@@ -184,12 +271,37 @@ void GroupCallSettingsBox(
 		editTitle->setClickedCallback([=] {
 			const auto done = [=](const QString &title) {
 				call->changeTitle(title);
+				box->closeBox();
 			};
 			box->getDelegate()->show(Box(
 				EditGroupCallTitleBox,
 				peer->name,
-				goodReal ? real->title() : QString(),
+				real->title(),
 				done));
+		});
+	}
+	if (editRecording) {
+		editRecording->setClickedCallback([=] {
+			const auto done = [=](QString title) {
+				call->toggleRecording(!recordStartDate, title);
+				const auto container = box->getDelegate()->outerContainer();
+				Ui::Toast::Show(
+					container,
+					(recordStartDate
+						? tr::lng_group_call_recording_stopped(tr::now)
+						: tr::lng_group_call_recording_started(tr::now)));
+				box->closeBox();
+			};
+			if (recordStartDate) {
+				box->getDelegate()->show(Box(
+					StopGroupCallRecordingBox,
+					done));
+			} else {
+				box->getDelegate()->show(Box(
+					StartGroupCallRecordingBox,
+					real->title(),
+					done));
+			}
 		});
 	}
 	const auto muteJoined = addCheck

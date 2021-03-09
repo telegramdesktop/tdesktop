@@ -179,10 +179,12 @@ void GroupCall::applyCall(const MTPGroupCall &call, bool force) {
 			_version = data.vversion().v;
 		}
 		const auto title = qs(data.vtitle().value_or_empty());
+		const auto recordDate = data.vrecord_start_date().value_or_empty();
 		const auto changed = (_joinMuted != data.is_join_muted())
 			|| (_fullCount.current() != data.vparticipants_count().v)
 			|| (_canChangeJoinMuted != data.is_can_change_join_muted())
-			|| (_title.current() != title);
+			|| (_title.current() != title)
+			|| (_recordStartDate != recordDate);
 		if (!force && !changed) {
 			return;
 		} else if (!force && _version > data.vversion().v) {
@@ -193,6 +195,7 @@ void GroupCall::applyCall(const MTPGroupCall &call, bool force) {
 		_canChangeJoinMuted = data.is_can_change_join_muted();
 		_fullCount = data.vparticipants_count().v;
 		_title = title;
+		_recordStartDate = recordDate;
 		changePeerEmptyCallFlag();
 	}, [&](const MTPDgroupCallDiscarded &data) {
 		const auto id = _id;
