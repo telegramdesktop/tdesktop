@@ -86,81 +86,6 @@ void SaveCallJoinMuted(
 			QString::number(delay / 1000., 'f', 2));
 }
 
-void EditGroupCallTitleBox(
-		not_null<Ui::GenericBox*> box,
-		const QString &placeholder,
-		const QString &title,
-		Fn<void(QString)> done) {
-	box->setTitle(tr::lng_group_call_edit_title());
-	const auto input = box->addRow(object_ptr<Ui::InputField>(
-		box,
-		st::groupCallField,
-		rpl::single(placeholder),
-		title));
-	box->setFocusCallback([=] {
-		input->setFocusFast();
-	});
-	box->addButton(tr::lng_settings_save(), [=] {
-		const auto result = input->getLastText().trimmed();
-		box->closeBox();
-		done(result);
-	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
-
-void StartGroupCallRecordingBox(
-		not_null<Ui::GenericBox*> box,
-		const QString &title,
-		Fn<void(QString)> done) {
-	box->setTitle(tr::lng_group_call_recording_start());
-
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box.get(),
-			tr::lng_group_call_recording_start_sure(),
-			st::groupCallBoxLabel));
-
-	const auto input = box->addRow(object_ptr<Ui::InputField>(
-		box,
-		st::groupCallField,
-		tr::lng_group_call_recording_start_field(),
-		title));
-	box->setFocusCallback([=] {
-		input->setFocusFast();
-	});
-	box->addButton(tr::lng_group_call_recording_start_button(), [=] {
-		const auto result = input->getLastText().trimmed();
-		if (result.isEmpty()) {
-			input->showError();
-			return;
-		}
-		box->closeBox();
-		done(result);
-	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
-
-void StopGroupCallRecordingBox(
-		not_null<Ui::GenericBox*> box,
-		Fn<void(QString)> done) {
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box.get(),
-			tr::lng_group_call_recording_stop_sure(),
-			st::groupCallBoxLabel),
-		style::margins(
-			st::boxRowPadding.left(),
-			st::boxPadding.top(),
-			st::boxRowPadding.right(),
-			st::boxPadding.bottom()));
-
-	box->addButton(tr::lng_box_ok(), [=] {
-		box->closeBox();
-		done(QString());
-	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
-
 } // namespace
 
 void GroupCallSettingsBox(
@@ -179,7 +104,6 @@ void GroupCallSettingsBox(
 		float micLevel = 0.;
 		Ui::Animations::Simple micLevelAnimation;
 		base::Timer levelUpdateTimer;
-		Group::ChooseJoinAsProcess joinAsProcess;
 		bool generatingLink = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
@@ -195,122 +119,8 @@ void GroupCallSettingsBox(
 	const auto joinMuted = goodReal ? real->joinMuted() : false;
 	const auto canChangeJoinMuted = (goodReal && real->canChangeJoinMuted());
 	const auto addCheck = (peer->canManageGroupCall() && canChangeJoinMuted);
-	const auto addEditJoinAs = (call->possibleJoinAs().size() > 1); // #TODO calls when to show
-	const auto addEditTitle = peer->canManageGroupCall() && goodReal;
-	const auto addEditRecording = peer->canManageGroupCall() && goodReal;
-	if (addCheck || addEditJoinAs) {
+	if (addCheck) {
 		AddSkip(layout);
-	}
-	const auto editJoinAs = addEditJoinAs
-		? AddButton(
-			layout,
-			tr::lng_group_call_display_as_header(),
-			st::groupCallSettingsButton).get()
-		: nullptr;
-	const auto editTitle = addEditTitle
-		? AddButton(
-			layout,
-			tr::lng_group_call_edit_title(),
-			st::groupCallSettingsButton).get()
-		: nullptr;
-	static const auto ToDurationFrom = [](TimeId startDate) {
-		return [=] {
-			const auto now = base::unixtime::now();
-			const auto elapsed = std::max(now - startDate, 0);
-			const auto hours = elapsed / 3600;
-			const auto minutes = (elapsed % 3600) / 60;
-			const auto seconds = (elapsed % 60);
-			return hours
-				? QString("%1:%2:%3"
-				).arg(hours
-				).arg(minutes, 2, 10, QChar('0')
-				).arg(seconds, 2, 10, QChar('0'))
-				: QString("%1:%2"
-				).arg(minutes
-				).arg(seconds, 2, 10, QChar('0'));
-		};
-	};
-	static const auto ToRecordDuration = [](TimeId startDate) {
-		return !startDate
-			? (rpl::single(QString()) | rpl::type_erased())
-			: rpl::single(
-				rpl::empty_value()
-			) | rpl::then(base::timer_each(
-				crl::time(1000)
-			)) | rpl::map(ToDurationFrom(startDate));
-	};
-	using namespace rpl::mappers;
-	const auto editRecording = !addEditRecording
-		? nullptr
-		: AddButtonWithLabel(
-			layout,
-			rpl::conditional(
-				real->recordStartDateValue() | rpl::map(!!_1),
-				tr::lng_group_call_recording_stop(),
-				tr::lng_group_call_recording_start()),
-			real->recordStartDateValue(
-			) | rpl::map(
-				ToRecordDuration
-			) | rpl::flatten_latest(),
-			st::groupCallSettingsButton).get();
-	if (editJoinAs) {
-		editJoinAs->setClickedCallback([=] {
-			const auto context = Group::ChooseJoinAsProcess::Context::Switch;
-			const auto callback = [=](Group::JoinInfo info) {
-				call->rejoinAs(info);
-			};
-			const auto showBox = [=](object_ptr<Ui::BoxContent> next) {
-				box->getDelegate()->show(std::move(next));
-			};
-			const auto showToast = [=](QString text) {
-				const auto container = box->getDelegate()->outerContainer();
-				Ui::Toast::Show(container, text);
-			};
-			state->joinAsProcess.start(
-				peer,
-				context,
-				showBox,
-				showToast,
-				callback,
-				call->joinAs());
-		});
-	}
-	if (editTitle) {
-		editTitle->setClickedCallback([=] {
-			const auto done = [=](const QString &title) {
-				call->changeTitle(title);
-				box->closeBox();
-			};
-			box->getDelegate()->show(Box(
-				EditGroupCallTitleBox,
-				peer->name,
-				real->title(),
-				done));
-		});
-	}
-	if (editRecording) {
-		editRecording->setClickedCallback([=] {
-			const auto real = peer->groupCall();
-			const auto id = call->id();
-			if (!real || real->id() != id) {
-				return;
-			}
-			const auto recordStartDate = real->recordStartDate();
-			const auto done = [=](QString title) {
-				call->toggleRecording(!recordStartDate, title);
-				box->closeBox();
-			};
-			if (recordStartDate) {
-				box->getDelegate()->show(Box(
-					StopGroupCallRecordingBox,
-					done));
-			} else {
-				box->getDelegate()->show(Box(
-					StartGroupCallRecordingBox,
-					real->title(),
-					done));
-			}
-		});
 	}
 	const auto muteJoined = addCheck
 		? AddButton(
@@ -318,7 +128,7 @@ void GroupCallSettingsBox(
 			tr::lng_group_call_new_muted(),
 			st::groupCallSettingsButton)->toggleOn(rpl::single(joinMuted))
 		: nullptr;
-	if (addCheck || addEditJoinAs) {
+	if (addCheck) {
 		AddSkip(layout);
 	}
 
