@@ -21,7 +21,6 @@ public:
 	[[nodiscard]] std::optional<int> scaleFactor() const;
 
 	using FileDialogType = ::FileDialog::internal::Type;
-	[[nodiscard]] bool fileDialogSupported() const;
 	[[nodiscard]] bool useFileDialog(
 		FileDialogType type = FileDialogType::ReadFile) const;
 	[[nodiscard]] bool getFileDialog(

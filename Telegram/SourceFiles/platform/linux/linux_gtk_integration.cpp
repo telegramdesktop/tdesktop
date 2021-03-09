@@ -158,10 +158,6 @@ std::optional<int> GtkIntegration::scaleFactor() const {
 	return gdk_monitor_get_scale_factor(monitor);
 }
 
-bool GtkIntegration::fileDialogSupported() const {
-	return FileDialog::Gtk::Supported();
-}
-
 bool GtkIntegration::useFileDialog(FileDialogType type) const {
 	return FileDialog::Gtk::Use(type);
 }

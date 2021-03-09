@@ -104,8 +104,7 @@ bool Get(
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	if (const auto integration = GtkIntegration::Instance()) {
-		if (integration->fileDialogSupported()
-			&& integration->useFileDialog(type)) {
+		if (integration->useFileDialog(type)) {
 			return integration->getFileDialog(
 				parent,
 				files,
