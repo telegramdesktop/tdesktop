@@ -1923,6 +1923,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_title" = "Voice Chat";
 "lng_group_call_active" = "speaking";
 "lng_group_call_inactive" = "listening";
+"lng_group_call_raised_hand_status" = "wants to speak";
 "lng_group_call_settings" = "Settings";
 "lng_group_call_unmute" = "Unmute";
 "lng_group_call_unmute_sub" = "or hold spacebar to talk";

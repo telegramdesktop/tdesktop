@@ -79,16 +79,20 @@ class Row;
 
 class RowDelegate {
 public:
+	struct IconState {
+		float64 speaking = 0.;
+		float64 active = 0.;
+		float64 muted = 0.;
+		bool mutedByMe = false;
+		bool raisedHand = false;
+	};
 	virtual bool rowIsMe(not_null<PeerData*> participantPeer) = 0;
 	virtual bool rowCanMuteMembers() = 0;
 	virtual void rowUpdateRow(not_null<Row*> row) = 0;
 	virtual void rowPaintIcon(
 		Painter &p,
 		QRect rect,
-		float64 speaking,
-		float64 active,
-		float64 muted,
-		bool mutedByMe) = 0;
+		IconState state) = 0;
 };
 
 class Row final : public PeerListRow {
@@ -101,6 +105,7 @@ public:
 		Active,
 		Inactive,
 		Muted,
+		RaisedHand,
 		MutedByMe,
 		Invited,
 	};
@@ -281,10 +286,7 @@ public:
 	void rowPaintIcon(
 		Painter &p,
 		QRect rect,
-		float64 speaking,
-		float64 active,
-		float64 muted,
-		bool mutedByMe) override;
+		IconState state) override;
 
 private:
 	[[nodiscard]] std::unique_ptr<Row> createRowForMe();
@@ -383,14 +385,19 @@ void Row::updateState(const Data::GroupCall::Participant *participant) {
 		setSounding(participant->sounding && participant->ssrc != 0);
 		setSpeaking(participant->speaking && participant->ssrc != 0);
 	} else if (participant->canSelfUnmute) {
-		setState(participant->mutedByMe ? State::MutedByMe : State::Inactive);
+		setState(participant->mutedByMe
+			? State::MutedByMe
+			: State::Inactive);
 		setSounding(false);
 		setSpeaking(false);
 	} else {
-		setState(State::Muted);
+		setState(participant->raisedHandRating
+			? State::RaisedHand
+			: State::Muted);
 		setSounding(false);
 		setSpeaking(false);
 	}
+	refreshStatus();
 }
 
 void Row::setSpeaking(bool speaking) {
@@ -406,7 +413,8 @@ void Row::setSpeaking(bool speaking) {
 
 	if (!_speaking
 		|| (_state == State::MutedByMe)
-		|| (_state == State::Muted)) {
+		|| (_state == State::Muted)
+		|| (_state == State::RaisedHand)) {
 		_statusIcon = nullptr;
 	} else if (!_statusIcon) {
 		_statusIcon = std::make_unique<StatusIcon>(
@@ -456,7 +464,6 @@ void Row::setSounding(bool sounding) {
 		_blobsAnimation->lastTime = crl::now();
 		updateLevel(GroupCall::kSpeakLevelThreshold);
 	}
-	refreshStatus();
 }
 
 void Row::setState(State state) {
@@ -464,10 +471,12 @@ void Row::setState(State state) {
 		return;
 	}
 	const auto wasActive = (_state == State::Active);
-	const auto wasMuted = (_state == State::Muted);
+	const auto wasMuted = (_state == State::Muted)
+		|| (_state == State::RaisedHand);
 	_state = state;
 	const auto nowActive = (_state == State::Active);
-	const auto nowMuted = (_state == State::Muted);
+	const auto nowMuted = (_state == State::Muted)
+		|| (_state == State::RaisedHand);
 	if (nowActive != wasActive) {
 		_activeAnimation.start(
 			[=] { _delegate->rowUpdateRow(this); },
@@ -679,7 +688,9 @@ void Row::paintStatusText(
 		int outerWidth,
 		bool selected) {
 	const auto &font = st::normalFont;
-	const auto about = (_state == State::Inactive || _state == State::Muted)
+	const auto about = (_state == State::Inactive
+		|| _state == State::Muted
+		|| _state == State::RaisedHand)
 		? _aboutText
 		: QString();
 	if (_aboutText.isEmpty()
@@ -752,12 +763,17 @@ void Row::paintAction(
 		}
 	}
 	const auto speaking = _speakingAnimation.value(_speaking ? 1. : 0.);
-	const auto active = _activeAnimation.value(
-		(_state == State::Active) ? 1. : 0.);
+	const auto active = _activeAnimation.value((_state == State::Active) ? 1. : 0.);
 	const auto muted = _mutedAnimation.value(
-		(_state == State::Muted) ? 1. : 0.);
+		(_state == State::Muted || _state == State::RaisedHand) ? 1. : 0.);
 	const auto mutedByMe = (_state == State::MutedByMe);
-	_delegate->rowPaintIcon(p, iconRect, speaking, active, muted, mutedByMe);
+	_delegate->rowPaintIcon(p, iconRect, {
+		.speaking = speaking,
+		.active = active,
+		.muted = muted,
+		.mutedByMe = (_state == State::MutedByMe),
+		.raisedHand = (_state == State::RaisedHand),
+	});
 }
 
 void Row::refreshStatus() {
@@ -766,6 +782,8 @@ void Row::refreshStatus() {
 			? u"%1% %2"_q
 				.arg(std::round(_volume / 100.))
 				.arg(tr::lng_group_call_active(tr::now))
+			: (_state == State::RaisedHand)
+			? tr::lng_group_call_raised_hand_status(tr::now)
 			: tr::lng_group_call_inactive(tr::now)),
 		_speaking);
 }
@@ -1260,24 +1278,25 @@ void MembersController::rowUpdateRow(not_null<Row*> row) {
 void MembersController::rowPaintIcon(
 		Painter &p,
 		QRect rect,
-		float64 speaking,
-		float64 active,
-		float64 muted,
-		bool mutedByMe) {
+		IconState state) {
 	const auto &greenIcon = st::groupCallMemberColoredCrossLine.icon;
 	const auto left = rect.x() + (rect.width() - greenIcon.width()) / 2;
 	const auto top = rect.y() + (rect.height() - greenIcon.height()) / 2;
-	if (speaking == 1. && !mutedByMe) {
+	if (state.speaking == 1. && !state.mutedByMe) {
 		// Just green icon, no cross, no coloring.
 		greenIcon.paintInCenter(p, rect);
 		return;
-	} else if (speaking == 0.) {
-		if (active == 1.) {
+	} else if (state.speaking == 0.) {
+		if (state.active == 1.) {
 			// Just gray icon, no cross, no coloring.
 			st::groupCallMemberInactiveCrossLine.icon.paintInCenter(p, rect);
 			return;
-		} else if (active == 0.) {
-			if (muted == 1.) {
+		} else if (state.active == 0.) {
+			if (state.muted == 1.) {
+				if (state.raisedHand) {
+					st::groupCallMemberRaisedHand.paintInCenter(p, rect);
+					return;
+				}
 				// Red crossed icon, colorized once, cached as last frame.
 				_coloredCrossLine.paint(
 					p,
@@ -1286,7 +1305,7 @@ void MembersController::rowPaintIcon(
 					1.,
 					st::groupCallMemberMutedIcon->c);
 				return;
-			} else if (muted == 0.) {
+			} else if (state.muted == 0.) {
 				// Gray crossed icon, no coloring, cached as last frame.
 				_inactiveCrossLine.paint(p, left, top, 1.);
 				return;
@@ -1295,17 +1314,18 @@ void MembersController::rowPaintIcon(
 	}
 	const auto activeInactiveColor = anim::color(
 		st::groupCallMemberInactiveIcon,
-		(mutedByMe
+		(state.mutedByMe
 			? st::groupCallMemberMutedIcon
 			: st::groupCallMemberActiveIcon),
-		speaking);
+		state.speaking);
 	const auto iconColor = anim::color(
 		activeInactiveColor,
 		st::groupCallMemberMutedIcon,
-		muted);
+		state.muted);
 
-	// Don't use caching of the last frame, because 'muted' may animate color.
-	const auto crossProgress = std::min(1. - active, 0.9999);
+	// Don't use caching of the last frame,
+	// because 'muted' may animate color.
+	const auto crossProgress = std::min(1. - state.active, 0.9999);
 	_inactiveCrossLine.paint(p, left, top, crossProgress, iconColor);
 }
 
@@ -1493,6 +1513,7 @@ void MembersController::addMuteActionsToContextMenu(
 
 	const auto muteState = row->state();
 	const auto isMuted = (muteState == Row::State::Muted)
+		|| (muteState == Row::State::RaisedHand)
 		|| (muteState == Row::State::MutedByMe);
 
 	auto mutesFromVolume = rpl::never<bool>() | rpl::type_erased();
@@ -1553,7 +1574,7 @@ void MembersController::addMuteActionsToContextMenu(
 	const auto muteAction = [&]() -> QAction* {
 		if (muteState == Row::State::Invited
 			|| isMe(participantPeer)
-			|| (muteState == Row::State::Muted
+			|| (muteState == Row::State::Inactive
 				&& participantIsCallAdmin
 				&& _peer->canManageGroupCall())) {
 			return nullptr;
@@ -1561,6 +1582,7 @@ void MembersController::addMuteActionsToContextMenu(
 		auto callback = [=] {
 			const auto state = row->state();
 			const auto muted = (state == Row::State::Muted)
+				|| (state == Row::State::RaisedHand)
 				|| (state == Row::State::MutedByMe);
 			toggleMute(!muted, false);
 		};
