@@ -381,6 +381,10 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 }
 
 void GroupCall::rejoin() {
+	rejoin(_joinAs);
+}
+
+void GroupCall::rejoin(not_null<PeerData*> as) {
 	if (state() != State::Joining
 		&& state() != State::Joined
 		&& state() != State::Connecting) {
@@ -394,6 +398,8 @@ void GroupCall::rejoin() {
 	setInstanceMode(InstanceMode::None);
 	applyMeInCallLocally();
 	LOG(("Call Info: Requesting join payload."));
+
+	_joinAs = as;
 
 	const auto weak = base::make_weak(this);
 	_instance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
@@ -429,6 +435,7 @@ void GroupCall::rejoin() {
 					: Flag(0)),
 				inputCall(),
 				_joinAs->input,
+				MTPstring(), // #TODO calls invite_hash
 				MTP_dataJSON(MTP_bytes(json))
 			)).done([=](const MTPUpdates &updates) {
 				_mySsrc = ssrc;
@@ -581,9 +588,8 @@ void GroupCall::rejoinAs(Group::JoinInfo info) {
 		.wasJoinAs = _joinAs,
 		.nowJoinAs = info.joinAs,
 	};
-	_joinAs = info.joinAs;
 	setState(State::Joining);
-	rejoin();
+	rejoin(info.joinAs);
 	_rejoinEvents.fire_copy(event);
 }
 

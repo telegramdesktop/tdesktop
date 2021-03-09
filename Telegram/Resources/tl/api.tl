@@ -1242,6 +1242,8 @@ messages.checkedHistoryImportPeer#a24de717 confirm_text:string = messages.Checke
 
 phone.joinAsPeers#afe5623f peers:Vector<Peer> chats:Vector<Chat> users:Vector<User> = phone.JoinAsPeers;
 
+phone.exportedGroupCallInvite#204bd158 link:string = phone.ExportedGroupCallInvite;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -1614,11 +1616,11 @@ phone.setCallRating#59ead627 flags:# user_initiative:flags.0?true peer:InputPhon
 phone.saveCallDebug#277add7e peer:InputPhoneCall debug:DataJSON = Bool;
 phone.sendSignalingData#ff7a9383 peer:InputPhoneCall data:bytes = Bool;
 phone.createGroupCall#bd3dabe0 peer:InputPeer random_id:int = Updates;
-phone.joinGroupCall#3633a5b0 flags:# muted:flags.0?true call:InputGroupCall join_as:InputPeer params:DataJSON = Updates;
+phone.joinGroupCall#b132ff7b flags:# muted:flags.0?true call:InputGroupCall join_as:InputPeer invite_hash:flags.1?string params:DataJSON = Updates;
 phone.leaveGroupCall#500377f9 call:InputGroupCall source:int = Updates;
 phone.inviteToGroupCall#7b393160 call:InputGroupCall users:Vector<InputUser> = Updates;
 phone.discardGroupCall#7a777135 call:InputGroupCall = Updates;
-phone.toggleGroupCallSettings#74bbb43d flags:# call:InputGroupCall join_muted:flags.0?Bool = Updates;
+phone.toggleGroupCallSettings#74bbb43d flags:# reset_invite_hash:flags.1?true call:InputGroupCall join_muted:flags.0?Bool = Updates;
 phone.getGroupCall#c7cb017 call:InputGroupCall = phone.GroupCall;
 phone.getGroupParticipants#c558d8ab call:InputGroupCall ids:Vector<InputPeer> sources:Vector<int> offset:string limit:int = phone.GroupParticipants;
 phone.checkGroupCall#b74a7bea call:InputGroupCall source:int = Bool;
@@ -1626,6 +1628,7 @@ phone.toggleGroupCallRecord#c02a66d7 flags:# start:flags.0?true call:InputGroupC
 phone.editGroupCallParticipant#d975eb80 flags:# muted:flags.0?true call:InputGroupCall participant:InputPeer volume:flags.1?int raise_hand:flags.2?Bool = Updates;
 phone.editGroupCallTitle#1ca6ac0a call:InputGroupCall title:string = Updates;
 phone.getGroupCallJoinAs#ef7c213a peer:InputPeer = phone.JoinAsPeers;
+phone.exportGroupCallInvite#e6aa647f flags:# can_self_unmute:flags.0?true call:InputGroupCall = phone.ExportedGroupCallInvite;
 
 langpack.getLangPack#f2f2330a lang_pack:string lang_code:string = LangPackDifference;
 langpack.getStrings#efea3803 lang_pack:string lang_code:string keys:Vector<string> = Vector<LangPackString>;
