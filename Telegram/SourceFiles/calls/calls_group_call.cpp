@@ -188,7 +188,8 @@ GroupCall::GroupCall(
 		if (_instance) {
 			updateInstanceMuteState();
 		}
-		if (_mySsrc && !_initialMuteStateSent) {
+		if (_mySsrc
+			&& (!_initialMuteStateSent || state == MuteState::Active)) {
 			_initialMuteStateSent = true;
 			maybeSendMutedUpdate(previous);
 		}
@@ -648,7 +649,10 @@ void GroupCall::setMuted(MuteState mute) {
 
 void GroupCall::setMutedAndUpdate(MuteState mute) {
 	const auto was = muted();
-	const auto send = _initialMuteStateSent;
+
+	// Active state is sent from _muted changes,
+	// because it may be set delayed, after permissions request, not now.
+	const auto send = _initialMuteStateSent && (mute != MuteState::Active);
 	setMuted(mute);
 	if (send) {
 		maybeSendMutedUpdate(was);
@@ -1238,28 +1242,30 @@ void GroupCall::setInstanceMode(InstanceMode mode) {
 }
 
 void GroupCall::maybeSendMutedUpdate(MuteState previous) {
-	// Send only Active <-> !Active changes.
+	// Send Active <-> !Active or ForceMuted <-> RaisedHand changes.
 	const auto now = muted();
-	const auto wasActive = (previous == MuteState::Active);
-	const auto nowActive = (now == MuteState::Active);
-	if ((wasActive && now == MuteState::Muted)
-		|| (nowActive
+	if ((previous == MuteState::Active && now == MuteState::Muted)
+		|| (now == MuteState::Active
 			&& (previous == MuteState::Muted
-				|| previous == MuteState::PushToTalk))
-		|| (now == MuteState::ForceMuted
-			&& previous == MuteState::RaisedHand)
+				|| previous == MuteState::PushToTalk))) {
+		sendSelfUpdate(SendUpdateType::Mute);
+	} else if ((now == MuteState::ForceMuted
+		&& previous == MuteState::RaisedHand)
 		|| (now == MuteState::RaisedHand
 			&& previous == MuteState::ForceMuted)) {
-		sendMutedUpdate();
+		sendSelfUpdate(SendUpdateType::RaiseHand);
 	}
 }
 
-void GroupCall::sendMutedUpdate() {
+void GroupCall::sendSelfUpdate(SendUpdateType type) {
 	_api.request(_updateMuteRequestId).cancel();
 	using Flag = MTPphone_EditGroupCallParticipant::Flag;
 	_updateMuteRequestId = _api.request(MTPphone_EditGroupCallParticipant(
-		MTP_flags(((muted() != MuteState::Active) ? Flag::f_muted : Flag(0))
-			| Flag::f_raise_hand),
+		MTP_flags((type == SendUpdateType::RaiseHand)
+			? Flag::f_raise_hand
+			: (muted() != MuteState::Active)
+			? Flag::f_muted
+			: Flag(0)),
 		inputCall(),
 		_joinAs->input,
 		MTP_int(100000), // volume

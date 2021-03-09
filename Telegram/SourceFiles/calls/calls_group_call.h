@@ -202,6 +202,10 @@ private:
 		Rtc,
 		Stream,
 	};
+	enum class SendUpdateType {
+		Mute,
+		RaiseHand,
+	};
 
 	void handleRequestError(const RPCError &error);
 	void handleControllerError(const QString &error);
@@ -211,7 +215,7 @@ private:
 	void setState(State state);
 	void finish(FinishType type);
 	void maybeSendMutedUpdate(MuteState previous);
-	void sendMutedUpdate();
+	void sendSelfUpdate(SendUpdateType type);
 	void updateInstanceMuteState();
 	void updateInstanceVolumes();
 	void applyMeInCallLocally();
