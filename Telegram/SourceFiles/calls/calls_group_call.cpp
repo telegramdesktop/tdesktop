@@ -876,6 +876,29 @@ void GroupCall::changeTitle(const QString &title) {
 	}).send();
 }
 
+void GroupCall::toggleRecording(bool enabled, const QString &title) {
+	const auto real = _peer->groupCall();
+	if (!real || real->id() != _id) {
+		return;
+	}
+
+	const auto already = (real->recordStartDate() != 0);
+	if (already == enabled) {
+		return;
+	}
+
+	using Flag = MTPphone_ToggleGroupCallRecord::Flag;
+	_api.request(MTPphone_ToggleGroupCallRecord(
+		MTP_flags((enabled ? Flag::f_start : Flag(0))
+			| (title.isEmpty() ? Flag(0) : Flag::f_title)),
+		inputCall(),
+		MTP_string(title)
+	)).done([=](const MTPUpdates &result) {
+		_peer->session().api().applyUpdates(result);
+	}).fail([=](const RPCError &error) {
+	}).send();
+}
+
 void GroupCall::ensureControllerCreated() {
 	if (_instance) {
 		return;

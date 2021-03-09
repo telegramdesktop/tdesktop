@@ -53,6 +53,9 @@ public:
 	void setTitle(const QString &title) {
 		_title = title;
 	}
+	[[nodiscard]] TimeId recordStartDate() const {
+		return _recordStartDate;
+	}
 
 	void setPeer(not_null<PeerData*> peer);
 
@@ -127,6 +130,7 @@ private:
 	base::Timer _speakingByActiveFinishTimer;
 	QString _nextOffset;
 	rpl::variable<int> _fullCount = 0;
+	TimeId _recordStartDate = 0;
 
 	base::flat_map<uint32, LastSpokeTimes> _unknownSpokenSsrcs;
 	base::flat_map<PeerId, LastSpokeTimes> _unknownSpokenPeerIds;
