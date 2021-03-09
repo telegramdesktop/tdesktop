@@ -33,6 +33,7 @@ struct SendAction {
 	MsgId replyTo = 0;
 	bool clearDraft = true;
 	bool generateLocal = true;
+	MsgId replaceMediaOf = 0;
 };
 
 struct MessageToSend {

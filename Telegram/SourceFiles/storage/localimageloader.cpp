@@ -494,8 +494,7 @@ FileLoadTask::FileLoadTask(
 	SendMediaType type,
 	const FileLoadTo &to,
 	const TextWithTags &caption,
-	std::shared_ptr<SendingAlbum> album,
-	MsgId msgIdToEdit)
+	std::shared_ptr<SendingAlbum> album)
 : _id(openssl::RandomValue<uint64>())
 , _session(session)
 , _dcId(session->mainDcId())
@@ -505,10 +504,9 @@ FileLoadTask::FileLoadTask(
 , _content(content)
 , _information(std::move(information))
 , _type(type)
-, _caption(caption)
-, _msgIdToEdit(msgIdToEdit) {
+, _caption(caption) {
 	Expects(to.options.scheduled
-		|| (_msgIdToEdit == 0 || IsServerMsgId(_msgIdToEdit)));
+		|| (to.replaceMediaOf == 0 || IsServerMsgId(to.replaceMediaOf)));
 }
 
 FileLoadTask::FileLoadTask(
@@ -689,8 +687,6 @@ void FileLoadTask::process(Args &&args) {
 		_to,
 		_caption,
 		_album);
-
-	_result->edit = (_msgIdToEdit > 0);
 
 	QString filename, filemime;
 	qint64 filesize = 0;
@@ -993,12 +989,7 @@ void FileLoadTask::finish() {
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
 	} else if (const auto session = _session.get()) {
-		const auto fullId = _msgIdToEdit
-			? std::make_optional(FullMsgId(
-				peerToChannel(_to.peer),
-				_msgIdToEdit))
-			: std::nullopt;
-		Api::SendConfirmedFile(session, _result, fullId);
+		Api::SendConfirmedFile(session, _result);
 	}
 }
 

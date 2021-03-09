@@ -469,7 +469,7 @@ void Uploader::sendNext() {
 					? uploadingData.file->to.options
 					: Api::SendOptions();
 				const auto edit = uploadingData.file &&
-					uploadingData.file->edit;
+					uploadingData.file->to.replaceMediaOf;
 				if (uploadingData.type() == SendMediaType::Photo) {
 					auto photoFilename = uploadingData.filename();
 					if (!photoFilename.endsWith(qstr(".jpg"), Qt::CaseInsensitive)) {

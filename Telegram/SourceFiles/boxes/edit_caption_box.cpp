@@ -1045,13 +1045,13 @@ void EditCaptionBox::save() {
 	if (!_preparedList.files.empty()) {
 		auto action = Api::SendAction(item->history());
 		action.options = options;
+		action.replaceMediaOf = item->fullId().msg;
 
 		_controller->session().api().editMedia(
 			std::move(_preparedList),
 			(!_asFile && _photo) ? SendMediaType::Photo : SendMediaType::File,
 			_field->getTextWithAppliedMarkdown(),
-			action,
-			item->fullId().msg);
+			action);
 		closeBox();
 		return;
 	}

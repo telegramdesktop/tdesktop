@@ -3834,8 +3834,7 @@ void ApiWrap::editMedia(
 		Ui::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
-		const SendAction &action,
-		MsgId msgIdToEdit) {
+		const SendAction &action) {
 	if (list.files.empty()) return;
 
 	auto &file = list.files.front();
@@ -3847,9 +3846,7 @@ void ApiWrap::editMedia(
 		std::move(file.information),
 		type,
 		to,
-		caption,
-		nullptr,
-		msgIdToEdit));
+		caption));
 }
 
 void ApiWrap::sendFiles(
@@ -4490,7 +4487,11 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 
 FileLoadTo ApiWrap::fileLoadTaskOptions(const SendAction &action) const {
 	const auto peer = action.history->peer;
-	return FileLoadTo(peer->id, action.options, action.replyTo);
+	return FileLoadTo(
+		peer->id,
+		action.options,
+		action.replyTo,
+		action.replaceMediaOf);
 }
 
 void ApiWrap::uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image) {

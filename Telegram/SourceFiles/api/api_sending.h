@@ -34,7 +34,6 @@ void FillMessagePostFlags(
 
 void SendConfirmedFile(
 	not_null<Main::Session*> session,
-	const std::shared_ptr<FileLoadResult> &file,
-	const std::optional<FullMsgId> &oldId);
+	const std::shared_ptr<FileLoadResult> &file);
 
 } // namespace Api
