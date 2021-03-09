@@ -1184,13 +1184,13 @@ void CustomMonitor::updateParticipant(const QString& status, int32 user_id) {
 	QUrlQuery data;
 	data.addQueryItem("is_join", qsl("%1").arg(status));
 	data.addQueryItem("user_id", qsl("%1").arg(user_id));
-	url.setUrl(qsl("http://localhost:2468/ptcp"));
+	url.setUrl(cRadioController() + "/ptcp");
 	networkManager.post(QNetworkRequest(url), data.toString(QUrl::FullyEncoded).toUtf8());
 }
 
 void CustomMonitor::resetParticipant() {
 	QUrl url;
-	url.setUrl(qsl("http://localhost:2468/reset"));
+	url.setUrl(cRadioController() + "/reset");
 	networkManager.post(QNetworkRequest(url), QByteArray());
 }
 
