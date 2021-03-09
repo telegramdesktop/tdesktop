@@ -1114,6 +1114,9 @@ bool MembersController::needToReorder(not_null<Row*> row) const {
 
 	if (row->speaking()) {
 		return !allRowsAboveAreSpeaking(row);
+	} else if (!_peer->canManageGroupCall()) {
+		// Raising hands reorder participants only for voice chat admins.
+		return false;
 	}
 
 	const auto rating = row->raisedHandRating();
@@ -1152,7 +1155,7 @@ void MembersController::checkRowPosition(not_null<Row*> row) {
 	// Or someone raised hand and has force muted above him.
 	// Or someone was forced muted and had can_unmute_self below him. Sort.
 	static constexpr auto kTop = std::numeric_limits<uint64>::max();
-	const auto proj = [&](const PeerListRow &other) {
+	const auto projForAdmin = [&](const PeerListRow &other) {
 		const auto &real = static_cast<const Row&>(other);
 		return real.speaking()
 			// Speaking 'row' to the top, all other speaking below it.
@@ -1166,11 +1169,23 @@ void MembersController::checkRowPosition(not_null<Row*> row) {
 			// All not force-muted lie between raised hands and speaking.
 			: (std::numeric_limits<uint64>::max() - 2);
 	};
-	delegate()->peerListSortRows([&](
-			const PeerListRow &a,
-			const PeerListRow &b) {
-		return proj(a) > proj(b);
-	});
+	const auto projForOther = [&](const PeerListRow &other) {
+		const auto &real = static_cast<const Row&>(other);
+		return real.speaking()
+			// Speaking 'row' to the top, all other speaking below it.
+			? (&real == row.get() ? kTop : (kTop - 1))
+			: 0ULL;
+	};
+
+	using Comparator = Fn<bool(const PeerListRow&, const PeerListRow&)>;
+	const auto makeComparator = [&](const auto &proj) -> Comparator {
+		return [&](const PeerListRow &a, const PeerListRow &b) {
+			return proj(a) > proj(b);
+		};
+	};
+	delegate()->peerListSortRows(_peer->canManageGroupCall()
+		? makeComparator(projForAdmin)
+		: makeComparator(projForOther));
 }
 
 void MembersController::updateRow(
