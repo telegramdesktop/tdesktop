@@ -427,7 +427,7 @@ void GroupPanel::initWindow() {
 			0,
 			0,
 			widget()->width(),
-			computeMembersListTop());
+			st::groupCallMembersTop);
 		return titleRect.contains(widgetPoint)
 			? (Flag::Move | Flag::Maximize)
 			: Flag::None;
@@ -593,6 +593,46 @@ void GroupPanel::initWithCall(GroupCall *call) {
 
 void GroupPanel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	_titleText = real->titleValue();
+
+	const auto validateRecordingMark = [=](bool recording) {
+		if (!recording && _recordingMark) {
+			_recordingMark.destroy();
+		} else if (recording && !_recordingMark) {
+			_recordingMark.create(widget());
+			const auto size = st::groupCallRecordingMark;
+			const auto skip = st::groupCallRecordingMarkSkip;
+			_recordingMark->resize(size + 2 * skip, size + 2 * skip);
+			_recordingMark->setClickedCallback([=] {
+				Ui::Toast::Show(
+					widget(),
+					tr::lng_group_call_is_recorded(tr::now));
+			});
+			_recordingMark->paintRequest(
+			) | rpl::start_with_next([=] {
+				auto p = QPainter(_recordingMark.data());
+				auto hq = PainterHighQualityEnabler(p);
+				p.setPen(Qt::NoPen);
+				p.setBrush(st::groupCallMemberMutedIcon);
+				p.drawEllipse(skip, skip, size, size);
+			}, _recordingMark->lifetime());
+		}
+		refreshTitleGeometry();
+	};
+
+	using namespace rpl::mappers;
+	real->recordStartDateChanges(
+	) | rpl::map(
+		_1 != 0
+	) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool recorded) {
+		validateRecordingMark(recorded);
+		Ui::Toast::Show(
+			widget(),
+			(recorded
+				? tr::lng_group_call_recording_started(tr::now)
+				: tr::lng_group_call_recording_stopped(tr::now)));
+	}, _callLifetime);
+	validateRecordingMark(real->recordStartDate() != 0);
 }
 
 void GroupPanel::addMembers() {
@@ -805,20 +845,17 @@ void GroupPanel::initGeometry() {
 	updateControlsGeometry();
 }
 
-int GroupPanel::computeMembersListTop() const {
-	if (computeTitleRect().has_value()) {
-		return st::groupCallMembersTop;
-	}
-	return st::groupCallMembersTop
-		- (st::groupCallSubtitleTop - st::groupCallTitleTop);
-}
-
-std::optional<QRect> GroupPanel::computeTitleRect() const {
+QRect GroupPanel::computeTitleRect() const {
+	const auto skip = st::groupCallTitleTop;
+	const auto width = widget()->width();
 #ifdef Q_OS_MAC
-	return QRect(70, 0, widget()->width() - 70, 28);
+	return QRect(70, 0, width - skip - 70, 28);
 #else // Q_OS_MAC
 	const auto controls = _controls->geometry();
-	return QRect(0, 0, controls.x(), controls.height());
+	const auto right = controls.x() + controls.width() + skip;
+	return (controls.center().x() < width / 2)
+		? QRect(right, 0, width - right - skip, controls.height())
+		: QRect(skip, 0, controls.x() - 2 * skip, controls.height());
 #endif // !Q_OS_MAC
 }
 
@@ -839,7 +876,7 @@ void GroupPanel::updateControlsGeometry() {
 		st::groupCallMembersWidthMax);
 	const auto muteTop = widget()->height() - st::groupCallMuteBottomSkip;
 	const auto buttonsTop = widget()->height() - st::groupCallButtonBottomSkip;
-	const auto membersTop = computeMembersListTop();
+	const auto membersTop = st::groupCallMembersTop;
 	const auto availableHeight = muteTop
 		- membersTop
 		- st::groupCallMembersMargin.bottom();
@@ -859,29 +896,25 @@ void GroupPanel::updateControlsGeometry() {
 }
 
 void GroupPanel::refreshTitle() {
-	if (computeTitleRect().has_value()) {
-		if (!_title) {
-			auto text = rpl::combine(
-				Info::Profile::NameValue(_peer),
-				_titleText.value()
-			) | rpl::map([=](
-					const TextWithEntities &name,
-					const QString &title) {
-				return title.isEmpty() ? name.text : title;
-			}) | rpl::after_next([=] {
-				refreshTitleGeometry();
-			});
-			_title.create(
-				widget(),
-				rpl::duplicate(text),
-				st::groupCallTitleLabel);
-			_title->show();
-			_title->setAttribute(Qt::WA_TransparentForMouseEvents);
-		}
-		refreshTitleGeometry();
-	} else if (_title) {
-		_title.destroy();
+	if (!_title) {
+		auto text = rpl::combine(
+			Info::Profile::NameValue(_peer),
+			_titleText.value()
+		) | rpl::map([=](
+				const TextWithEntities &name,
+				const QString &title) {
+			return title.isEmpty() ? name.text : title;
+		}) | rpl::after_next([=] {
+			refreshTitleGeometry();
+		});
+		_title.create(
+			widget(),
+			rpl::duplicate(text),
+			st::groupCallTitleLabel);
+		_title->show();
+		_title->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
+	refreshTitleGeometry();
 	if (!_subtitle) {
 		_subtitle.create(
 			widget(),
@@ -904,26 +937,41 @@ void GroupPanel::refreshTitle() {
 }
 
 void GroupPanel::refreshTitleGeometry() {
-	const auto titleRect = computeTitleRect();
-	if (!_title || !titleRect) {
+	if (!_title) {
 		return;
 	}
+	const auto fullRect = computeTitleRect();
+	const auto recordingWidth = 2 * st::groupCallRecordingMarkSkip
+		+ st::groupCallRecordingMark;
+	const auto titleRect = _recordingMark
+		? QRect(
+			fullRect.x(),
+			fullRect.y(),
+			fullRect.width() - _recordingMark->width(),
+			fullRect.height())
+		: fullRect;
 	const auto best = _title->naturalWidth();
 	const auto from = (widget()->width() - best) / 2;
 	const auto top = st::groupCallTitleTop;
-	const auto left = titleRect->x();
-	if (from >= left && from + best <= left + titleRect->width()) {
+	const auto left = titleRect.x();
+	if (from >= left && from + best <= left + titleRect.width()) {
 		_title->resizeToWidth(best);
 		_title->moveToLeft(from, top);
-	} else if (titleRect->width() < best) {
-		_title->resizeToWidth(titleRect->width());
+	} else if (titleRect.width() < best) {
+		_title->resizeToWidth(titleRect.width());
 		_title->moveToLeft(left, top);
 	} else if (from < left) {
 		_title->resizeToWidth(best);
 		_title->moveToLeft(left, top);
 	} else {
 		_title->resizeToWidth(best);
-		_title->moveToLeft(left + titleRect->width() - best, top);
+		_title->moveToLeft(left + titleRect.width() - best, top);
+	}
+	if (_recordingMark) {
+		const auto markTop = top + st::groupCallRecordingMarkTop;
+		_recordingMark->move(
+			_title->x() + _title->width(),
+			markTop - st::groupCallRecordingMarkSkip);
 	}
 }
 

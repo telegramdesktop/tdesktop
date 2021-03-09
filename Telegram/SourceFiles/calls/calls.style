@@ -560,6 +560,9 @@ groupCallTitleLabel: FlatLabel(groupCallSubtitleLabel) {
 }
 groupCallAddButtonPosition: point(10px, 7px);
 groupCallMembersWidthMax: 360px;
+groupCallRecordingMark: 6px;
+groupCallRecordingMarkSkip: 4px;
+groupCallRecordingMarkTop: 6px;
 
 groupCallActiveButton: IconButton {
 	width: 36px;

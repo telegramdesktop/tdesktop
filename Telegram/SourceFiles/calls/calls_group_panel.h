@@ -23,6 +23,7 @@ class GroupCall;
 } // namespace Data
 
 namespace Ui {
+class AbstractButton;
 class CallButton;
 class CallMuteButton;
 class IconButton;
@@ -98,8 +99,7 @@ private:
 	void addMembers();
 	void kickMember(not_null<UserData*> user);
 	void kickMemberSure(not_null<UserData*> user);
-	[[nodiscard]] int computeMembersListTop() const;
-	[[nodiscard]] std::optional<QRect> computeTitleRect() const;
+	[[nodiscard]] QRect computeTitleRect() const;
 	void refreshTitle();
 	void refreshTitleGeometry();
 	void setupRealCallViewers(not_null<GroupCall*> call);
@@ -122,6 +122,7 @@ private:
 
 	object_ptr<Ui::FlatLabel> _title = { nullptr };
 	object_ptr<Ui::FlatLabel> _subtitle = { nullptr };
+	object_ptr<Ui::AbstractButton> _recordingMark = { nullptr };
 	object_ptr<GroupMembers> _members;
 	rpl::variable<QString> _titleText;
 
