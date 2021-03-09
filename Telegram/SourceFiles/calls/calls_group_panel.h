@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/object_ptr.h"
 #include "calls/calls_group_call.h"
+#include "calls/calls_choose_join_as.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
@@ -24,6 +25,7 @@ class GroupCall;
 
 namespace Ui {
 class AbstractButton;
+class DropdownMenu;
 class CallButton;
 class CallMuteButton;
 class IconButton;
@@ -96,6 +98,8 @@ private:
 
 	void endCall();
 
+	void showMainMenu();
+	void chooseJoinAs();
 	void addMembers();
 	void kickMember(not_null<UserData*> user);
 	void kickMemberSure(not_null<UserData*> user);
@@ -123,8 +127,12 @@ private:
 	object_ptr<Ui::FlatLabel> _title = { nullptr };
 	object_ptr<Ui::FlatLabel> _subtitle = { nullptr };
 	object_ptr<Ui::AbstractButton> _recordingMark = { nullptr };
+	object_ptr<Ui::IconButton> _menuToggle = { nullptr };
+	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
+	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<GroupMembers> _members;
 	rpl::variable<QString> _titleText;
+	Group::ChooseJoinAsProcess _joinAsProcess;
 
 	object_ptr<Ui::CallButton> _settings;
 	std::unique_ptr<Ui::CallMuteButton> _mute;

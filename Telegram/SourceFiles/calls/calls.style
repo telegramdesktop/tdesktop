@@ -428,6 +428,17 @@ groupCallPopupMenu: PopupMenu(defaultPopupMenu) {
 	animation: groupCallPanelAnimation;
 }
 
+groupCallInnerDropdown: InnerDropdown(defaultInnerDropdown) {
+	shadow: groupCallMenuShadow;
+	animation: groupCallPanelAnimation;
+	bg: groupCallMenuBg;
+	scroll: defaultSolidScroll;
+	scrollPadding: margins(0px, 8px, 0px, 8px);
+}
+groupCallDropdownMenu: DropdownMenu(defaultDropdownMenu) {
+	wrap: groupCallInnerDropdown;
+	menu: groupCallMenu;
+}
 groupCallMembersListItem: PeerListItem(defaultPeerListItem) {
 	button: OutlineButton(defaultPeerListButton) {
 		textBg: groupCallMembersBg;
@@ -526,9 +537,9 @@ groupCallField: InputField(defaultInputField) {
 	menu: groupCallPopupMenu;
 }
 
-groupCallMembersTop: 62px;
-groupCallTitleTop: 14px;
-groupCallSubtitleTop: 33px;
+groupCallMembersTop: 51px;
+groupCallTitleTop: 8px;
+groupCallSubtitleTop: 26px;
 
 groupCallMembersMargin: margins(16px, 16px, 16px, 28px);
 groupCallAddMember: SettingsButton(defaultSettingsButton) {
@@ -562,7 +573,29 @@ groupCallAddButtonPosition: point(10px, 7px);
 groupCallMembersWidthMax: 360px;
 groupCallRecordingMark: 6px;
 groupCallRecordingMarkSkip: 4px;
-groupCallRecordingMarkTop: 6px;
+groupCallRecordingMarkTop: 8px;
+
+groupCallMenuTogglePosition: point(13px, 8px);
+groupCallMenuToggle: IconButton {
+	width: 36px;
+	height: 36px;
+
+	icon: icon {{ "info/edit/dotsmini", groupCallMemberInactiveIcon }};
+	iconOver: icon {{ "info/edit/dotsmini", groupCallMemberInactiveIcon }};
+	iconPosition: point(6px, 6px);
+
+	rippleAreaPosition: point(3px, 3px);
+	rippleAreaSize: 30px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: groupCallMembersBg;
+	}
+}
+groupCallJoinAsToggle: UserpicButton(defaultUserpicButton) {
+	size: size(36px, 36px);
+	photoSize: 30px;
+	photoPosition: point(3px, 3px);
+}
+groupCallMenuPosition: point(-1px, 29px);
 
 groupCallActiveButton: IconButton {
 	width: 36px;

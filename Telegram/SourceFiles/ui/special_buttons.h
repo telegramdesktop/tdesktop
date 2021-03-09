@@ -73,7 +73,7 @@ public:
 		const style::UserpicButton &st);
 	UserpicButton(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller,
+		not_null<::Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		Role role,
 		const style::UserpicButton &st);
@@ -132,7 +132,7 @@ private:
 	void uploadNewPeerPhoto();
 
 	const style::UserpicButton &_st;
-	Window::SessionController *_controller = nullptr;
+	::Window::SessionController *_controller = nullptr;
 	PeerData *_peer = nullptr;
 	std::shared_ptr<Data::CloudImageView> _userpicView;
 	QString _cropTitle;
