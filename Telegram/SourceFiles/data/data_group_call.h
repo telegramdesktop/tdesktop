@@ -24,6 +24,7 @@ struct GroupCallParticipant {
 	not_null<PeerData*> peer;
 	TimeId date = 0;
 	TimeId lastActive = 0;
+	uint64 raisedHandRating = 0;
 	uint32 ssrc = 0;
 	int volume = 0;
 	bool applyVolumeFromMin = true;

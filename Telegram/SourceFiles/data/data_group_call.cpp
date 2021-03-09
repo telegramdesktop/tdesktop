@@ -301,10 +301,13 @@ void GroupCall::applyParticipantsSlice(
 				: data.is_muted_by_you();
 			const auto onlyMinLoaded = data.is_min()
 				&& (!was || was->onlyMinLoaded);
+			const auto raisedHandRating
+				= data.vraise_hand_rating().value_or_empty();
 			const auto value = Participant{
 				.peer = participantPeer,
 				.date = data.vdate().v,
 				.lastActive = lastActive,
+				.raisedHandRating = raisedHandRating,
 				.ssrc = uint32(data.vsource().v),
 				.volume = volume,
 				.applyVolumeFromMin = applyVolumeFromMin,
