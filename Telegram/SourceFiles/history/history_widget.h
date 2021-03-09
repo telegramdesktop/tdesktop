@@ -89,9 +89,6 @@ class TabbedSelector;
 
 namespace Storage {
 enum class MimeDataState;
-struct UploadedPhoto;
-struct UploadedDocument;
-struct UploadedThumbDocument;
 } // namespace Storage
 
 namespace HistoryView {

@@ -489,7 +489,7 @@ Fn<void()> SavePreparedTheme(
 		Fn<void(SaveErrorType,QString)> fail) {
 	Expects(window->account().sessionExists());
 
-	using Storage::UploadedThumbDocument;
+	using Storage::UploadedDocument;
 	struct State {
 		FullMsgId id;
 		bool generating = false;
@@ -572,11 +572,11 @@ Fn<void()> SavePreparedTheme(
 		}).send();
 	};
 
-	const auto uploadTheme = [=](const UploadedThumbDocument &data) {
+	const auto uploadTheme = [=](const UploadedDocument &data) {
 		state->requestId = api->request(MTPaccount_UploadTheme(
 			MTP_flags(MTPaccount_UploadTheme::Flag::f_thumb),
 			data.file,
-			data.thumb,
+			*data.thumb,
 			MTP_string(state->filename),
 			MTP_string("application/x-tgtheme-tdesktop")
 		)).done([=](const MTPDocument &result) {
@@ -598,10 +598,10 @@ Fn<void()> SavePreparedTheme(
 		state->filename = media.filename;
 		state->themeContent = theme;
 
-		session->uploader().thumbDocumentReady(
-		) | rpl::filter([=](const UploadedThumbDocument &data) {
-			return data.fullId == state->id;
-		}) | rpl::start_with_next([=](const UploadedThumbDocument &data) {
+		session->uploader().documentReady(
+		) | rpl::filter([=](const UploadedDocument &data) {
+			return (data.fullId == state->id) && data.thumb.has_value();
+		}) | rpl::start_with_next([=](const UploadedDocument &data) {
 			uploadTheme(data);
 		}, state->lifetime);
 

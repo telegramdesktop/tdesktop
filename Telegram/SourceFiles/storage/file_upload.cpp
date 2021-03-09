@@ -177,24 +177,6 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 			Api::EditMessageWithUploadedDocument(
 				item,
 				data.file,
-				std::nullopt,
-				data.options);
-		} else {
-			_api->sendUploadedDocument(
-				data.fullId,
-				data.file,
-				std::nullopt,
-				data.options);
-		}
-	}, _lifetime);
-
-	thumbDocumentReady(
-	) | rpl::start_with_next([=](const UploadedThumbDocument &data) {
-		if (data.edit) {
-			const auto item = session->data().message(data.fullId);
-			Api::EditMessageWithUploadedDocument(
-				item,
-				data.file,
 				data.thumb,
 				data.options);
 		} else {
@@ -205,7 +187,6 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 				data.options);
 		}
 	}, _lifetime);
-
 
 	photoProgress(
 	) | rpl::start_with_next([=](const FullMsgId &fullId) {
@@ -500,31 +481,28 @@ void Uploader::sendNext() {
 							MTP_int(uploadingData.docPartsCount),
 							MTP_string(uploadingData.filename()),
 							MTP_bytes(docMd5));
-					if (uploadingData.partsCount) {
+					const auto thumb = [&]() -> std::optional<MTPInputFile> {
+						if (!uploadingData.partsCount) {
+							return std::nullopt;
+						}
 						const auto thumbFilename = uploadingData.file
 							? uploadingData.file->thumbname
 							: (qsl("thumb.") + uploadingData.media.thumbExt);
 						const auto thumbMd5 = uploadingData.file
 							? uploadingData.file->thumbmd5
 							: uploadingData.media.jpeg_md5;
-						const auto thumb = MTP_inputFile(
+						return MTP_inputFile(
 							MTP_long(uploadingData.thumbId()),
 							MTP_int(uploadingData.partsCount),
 							MTP_string(thumbFilename),
 							MTP_bytes(thumbMd5));
-						_thumbDocumentReady.fire({
-							uploadingId,
-							options,
-							file,
-							thumb,
-							edit });
-					} else {
-						_documentReady.fire({
-							uploadingId,
-							options,
-							file,
-							edit });
-					}
+					}();
+					_documentReady.fire({
+						uploadingId,
+						options,
+						file,
+						thumb,
+						edit });
 				} else if (uploadingData.type() == SendMediaType::Secure) {
 					_secureReady.fire({
 						uploadingId,
