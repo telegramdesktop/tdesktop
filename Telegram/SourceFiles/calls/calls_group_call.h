@@ -18,6 +18,7 @@ class History;
 namespace tgcalls {
 class GroupInstanceCustomImpl;
 struct GroupLevelsUpdate;
+struct GroupNetworkState;
 struct GroupParticipantDescription;
 } // namespace tgcalls
 
@@ -222,7 +223,7 @@ private:
 	void rejoin();
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
-	void setInstanceConnected(bool connected);
+	void setInstanceConnected(tgcalls::GroupNetworkState networkState);
 	void setInstanceMode(InstanceMode mode);
 	void checkLastSpoke();
 	void pushToTalkCancel();

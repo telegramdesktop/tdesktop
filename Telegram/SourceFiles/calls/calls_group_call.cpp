@@ -914,8 +914,8 @@ void GroupCall::ensureControllerCreated() {
 	tgcalls::GroupInstanceDescriptor descriptor = {
 		.config = tgcalls::GroupConfig{
 		},
-		.networkStateUpdated = [=](bool connected) {
-			crl::on_main(weak, [=] { setInstanceConnected(connected); });
+		.networkStateUpdated = [=](tgcalls::GroupNetworkState networkState) {
+			crl::on_main(weak, [=] { setInstanceConnected(networkState); });
 		},
 		.audioLevelsUpdated = [=](const tgcalls::GroupLevelsUpdate &data) {
 			const auto &updates = data.updates;
@@ -1213,13 +1213,18 @@ void GroupCall::checkJoined() {
 	}).send();
 }
 
-void GroupCall::setInstanceConnected(bool connected) {
+void GroupCall::setInstanceConnected(
+		tgcalls::GroupNetworkState networkState) {
+	const auto connected = networkState.isConnected;
 	if (_instanceConnected == connected) {
 		return;
 	}
 	_instanceConnected = connected;
 	if (state() == State::Connecting && connected) {
 		setState(State::Joined);
+		if (networkState.isTransitioningFromBroadcastToRtc) {
+			// #TODO calls play sound?..
+		}
 	} else if (state() == State::Joined && !connected) {
 		setState(State::Connecting);
 	}
@@ -1238,7 +1243,7 @@ void GroupCall::setInstanceMode(InstanceMode mode) {
 		case InstanceMode::Stream: return Mode::GroupConnectionModeBroadcast;
 		}
 		Unexpected("Mode in GroupCall::setInstanceMode.");
-	}());
+	}(), true);
 }
 
 void GroupCall::maybeSendMutedUpdate(MuteState previous) {
