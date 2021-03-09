@@ -15,7 +15,6 @@ namespace Gtk {
 
 using Type = ::FileDialog::internal::Type;
 
-bool Supported();
 bool Use(Type type = Type::ReadFile);
 bool Get(
 	QPointer<QWidget> parent,
