@@ -213,37 +213,45 @@ void GroupCallSettingsBox(
 			tr::lng_group_call_edit_title(),
 			st::groupCallSettingsButton).get()
 		: nullptr;
-	const auto recordStartDate = goodReal ? real->recordStartDate() : 0;
-	auto recordingLabel = [&] {
-		return ;
+	static const auto ToDurationFrom = [](TimeId startDate) {
+		return [=] {
+			const auto now = base::unixtime::now();
+			const auto elapsed = std::max(now - startDate, 0);
+			const auto hours = elapsed / 3600;
+			const auto minutes = (elapsed % 3600) / 60;
+			const auto seconds = (elapsed % 60);
+			return hours
+				? QString("%1:%2:%3"
+				).arg(hours
+				).arg(minutes, 2, 10, QChar('0')
+				).arg(seconds, 2, 10, QChar('0'))
+				: QString("%1:%2"
+				).arg(minutes
+				).arg(seconds, 2, 10, QChar('0'));
+		};
 	};
+	static const auto ToRecordDuration = [](TimeId startDate) {
+		return !startDate
+			? (rpl::single(QString()) | rpl::type_erased())
+			: rpl::single(
+				rpl::empty_value()
+			) | rpl::then(base::timer_each(
+				crl::time(1000)
+			)) | rpl::map(ToDurationFrom(startDate));
+	};
+	using namespace rpl::mappers;
 	const auto editRecording = !addEditRecording
 		? nullptr
-		: !recordStartDate
-		? AddButton(
-			layout,
-			tr::lng_group_call_recording_start(),
-			st::groupCallSettingsButton).get()
 		: AddButtonWithLabel(
 			layout,
-			tr::lng_group_call_recording_stop(),
-			base::timer_each(
-				crl::time(1000)
-			) | rpl::map([=] {
-				const auto now = base::unixtime::now();
-				const auto elapsed = std::max(now - recordStartDate, 0);
-				const auto hours = elapsed / 3600;
-				const auto minutes = (elapsed % 3600) / 60;
-				const auto seconds = (elapsed % 60);
-				return hours
-					? QString("%1:%2:%3"
-					).arg(hours
-					).arg(minutes, 2, 10, QChar('0')
-					).arg(seconds, 2, 10, QChar('0'))
-					: QString("%1:%2"
-					).arg(minutes
-					).arg(seconds, 2, 10, QChar('0'));
-			}),
+			rpl::conditional(
+				real->recordStartDateValue() | rpl::map(!!_1),
+				tr::lng_group_call_recording_stop(),
+				tr::lng_group_call_recording_start()),
+			real->recordStartDateValue(
+			) | rpl::map(
+				ToRecordDuration
+			) | rpl::flatten_latest(),
 			st::groupCallSettingsButton).get();
 	if (editJoinAs) {
 		editJoinAs->setClickedCallback([=] {
@@ -282,14 +290,14 @@ void GroupCallSettingsBox(
 	}
 	if (editRecording) {
 		editRecording->setClickedCallback([=] {
+			const auto real = peer->groupCall();
+			const auto id = call->id();
+			if (!real || real->id() != id) {
+				return;
+			}
+			const auto recordStartDate = real->recordStartDate();
 			const auto done = [=](QString title) {
 				call->toggleRecording(!recordStartDate, title);
-				const auto container = box->getDelegate()->outerContainer();
-				Ui::Toast::Show(
-					container,
-					(recordStartDate
-						? tr::lng_group_call_recording_stopped(tr::now)
-						: tr::lng_group_call_recording_started(tr::now)));
 				box->closeBox();
 			};
 			if (recordStartDate) {

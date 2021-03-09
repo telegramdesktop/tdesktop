@@ -2004,7 +2004,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_recording_stop_sure" = "Do you want to stop recording this chat?";
 "lng_group_call_recording_start_field" = "Recording Title";
 "lng_group_call_recording_start_button" = "Start";
-"lng_group_call_is_recorded" = "Voice chat is being recorded";
+"lng_group_call_is_recorded" = "Voice chat is being recorded.";
 "lng_group_call_can_speak_here" = "You can now speak.";
 "lng_group_call_can_speak" = "You can now speak in **{chat}**.";
 

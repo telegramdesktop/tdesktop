@@ -184,7 +184,7 @@ void GroupCall::applyCall(const MTPGroupCall &call, bool force) {
 			|| (_fullCount.current() != data.vparticipants_count().v)
 			|| (_canChangeJoinMuted != data.is_can_change_join_muted())
 			|| (_title.current() != title)
-			|| (_recordStartDate != recordDate);
+			|| (_recordStartDate.current() != recordDate);
 		if (!force && !changed) {
 			return;
 		} else if (!force && _version > data.vversion().v) {

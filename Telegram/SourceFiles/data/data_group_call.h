@@ -54,7 +54,13 @@ public:
 		_title = title;
 	}
 	[[nodiscard]] TimeId recordStartDate() const {
-		return _recordStartDate;
+		return _recordStartDate.current();
+	}
+	[[nodiscard]] rpl::producer<TimeId> recordStartDateValue() const {
+		return _recordStartDate.value();
+	}
+	[[nodiscard]] rpl::producer<TimeId> recordStartDateChanges() const {
+		return _recordStartDate.changes();
 	}
 
 	void setPeer(not_null<PeerData*> peer);
@@ -130,7 +136,7 @@ private:
 	base::Timer _speakingByActiveFinishTimer;
 	QString _nextOffset;
 	rpl::variable<int> _fullCount = 0;
-	TimeId _recordStartDate = 0;
+	rpl::variable<TimeId> _recordStartDate = 0;
 
 	base::flat_map<uint32, LastSpokeTimes> _unknownSpokenSsrcs;
 	base::flat_map<PeerId, LastSpokeTimes> _unknownSpokenPeerIds;
