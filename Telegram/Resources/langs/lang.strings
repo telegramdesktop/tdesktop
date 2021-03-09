@@ -356,7 +356,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_native_frame" = "Use system window frame";
 "lng_settings_auto_start" = "Launch Telegram when system starts";
 "lng_settings_start_min" = "Launch minimized";
-"lng_settings_add_sendto" = "Place Telegram in \"Send to\" menu";
+"lng_settings_add_sendto" = "Place Telegram in “Send to” menu";
 "lng_settings_section_scale" = "Interface Scale";
 "lng_settings_scale_auto" = "Auto ({cur})";
 
@@ -498,12 +498,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_download_path_default" = "Default folder";
 "lng_download_path_clear" = "Clear all";
 "lng_download_path_header" = "Choose download path";
-"lng_download_path_default_radio" = "Telegram folder in system «Downloads»";
+"lng_download_path_default_radio" = "Telegram folder in system “Downloads”";
 "lng_download_path_temp_radio" = "Temp folder, cleared on logout or uninstall";
 "lng_download_path_dir_radio" = "Custom folder, cleared only manually";
 "lng_download_path_choose" = "Choose download path";
 "lng_sure_clear_downloads" = "Do you want to remove all downloaded files from temp folder? It is done automatically on logout or program uninstall.";
-"lng_download_path_failed" = "File download could not be started.\n\nThis might be because the download location you've selected is invalid. Try changing the \"Download path\" in Settings.";
+"lng_download_path_failed" = "File download could not be started.\n\nThis might be because the download location you've selected is invalid. Try changing the “Download path” in Settings.";
 "lng_download_path_settings" = "Settings";
 "lng_download_finish_failed" = "File download could not be finished.\n\nWould you like to try again?";
 "lng_download_path_clearing" = "Clearing...";
@@ -967,7 +967,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_linked_channel_about" = "{channel} is linking the group as its discussion board.";
 "lng_manage_linked_channel_unlink" = "Unlink channel";
 "lng_manage_linked_channel_posted" = "All new messages posted in this channel are forwarded to the group.";
-"lng_manage_discussion_group_warning" = "\"Chat history for new members\" will be switched to **Visible**.";
+"lng_manage_discussion_group_warning" = "“Chat history for new members” will be switched to **Visible**.";
 
 "lng_manage_history_visibility_title" = "Chat history for new members";
 "lng_manage_history_visibility_shown" = "Visible";
@@ -1049,7 +1049,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_create_private_group_about" = "People can only join if they were invited or have an invite link";
 "lng_create_permanent_link_title" = "Permanent link";
 "lng_create_invite_link_title" = "Invite link";
-"lng_create_invite_link_about" = "People can join if they were invited, have an invite link, or from \"Groups nearby\"";
+"lng_create_invite_link_about" = "People can join if they were invited, have an invite link, or from “Groups nearby”";
 
 "lng_create_group_skip" = "Skip";
 
@@ -1071,8 +1071,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_sure_delete_contact" = "Are you sure you want to delete {contact} from your contact list?";
 "lng_sure_delete_history" = "Are you sure you want to delete all message history with {contact}?\n\nThis action cannot be undone.";
-"lng_sure_delete_group_history" = "Are you sure, you want to delete all message history in «{group}»?\n\nThis action cannot be undone.";
-"lng_sure_delete_and_exit" = "Are you sure, you want to delete all message history and leave «{group}»?\n\nThis action cannot be undone.";
+"lng_sure_delete_group_history" = "Are you sure, you want to delete all message history in “{group}”?\n\nThis action cannot be undone.";
+"lng_sure_delete_and_exit" = "Are you sure, you want to delete all message history and leave “{group}”?\n\nThis action cannot be undone.";
 "lng_sure_leave_channel" = "Are you sure you want to leave\nthis channel?";
 "lng_sure_delete_channel" = "Are you sure you want to delete this channel? All members will be removed and all messages will be lost.";
 "lng_sure_leave_group" = "Are you sure you want to leave this group?";
@@ -1116,9 +1116,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_removed_photo_channel" = "Channel photo removed";
 "lng_action_changed_photo" = "{from} updated group photo";
 "lng_action_changed_photo_channel" = "Channel photo updated";
-"lng_action_changed_title" = "{from} changed group name to «{title}»";
-"lng_action_changed_title_channel" = "Channel name was changed to «{title}»";
-"lng_action_created_chat" = "{from} created group «{title}»";
+"lng_action_changed_title" = "{from} changed group name to “{title}”";
+"lng_action_changed_title_channel" = "Channel name was changed to “{title}”";
+"lng_action_created_chat" = "{from} created group “{title}”";
 "lng_action_ttl_changed" = "{from} has set messages to auto-delete in {duration}";
 "lng_action_ttl_changed_you" = "You set messages to auto-delete in {duration}";
 "lng_action_ttl_changed_channel" = "New messages will auto-delete in {duration}";
@@ -1126,7 +1126,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_ttl_removed_you" = "You disabled the auto-delete timer";
 "lng_action_ttl_removed_channel" = "New messages will not auto-delete";
 "lng_action_created_channel" = "Channel created";
-"lng_action_pinned_message" = "{from} pinned «{text}»";
+"lng_action_pinned_message" = "{from} pinned “{text}”";
 "lng_action_pinned_media" = "{from} pinned {media}";
 "lng_action_pinned_media_photo" = "a photo";
 "lng_action_pinned_media_video" = "a video";
@@ -1139,7 +1139,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_pinned_media_location" = "a location mark";
 "lng_action_pinned_media_sticker" = "a sticker";
 "lng_action_pinned_media_emoji_sticker" = "a {emoji} sticker";
-"lng_action_pinned_media_game" = "the game «{game}»";
+"lng_action_pinned_media_game" = "the game “{game}”";
 "lng_action_game_score#one" = "{from} scored {count} in {game}";
 "lng_action_game_score#other" = "{from} scored {count} in {game}";
 "lng_action_game_you_scored#one" = "You scored {count} in {game}";
@@ -1187,8 +1187,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_full" = "Sorry, this group is full.";
 
 "lng_channels_too_much_public_about" = "Sorry, you have reserved too many public usernames. You can revoke the link from one of your older groups or channels.";
-"lng_channels_too_much_public_revoke_confirm_group" = "Are you sure you want to revoke the link {link}?\n\nThe group «{group}» will become private.";
-"lng_channels_too_much_public_revoke_confirm_channel" = "Are you sure you want to revoke the link {link}?\n\nThe channel «{group}» will become private.";
+"lng_channels_too_much_public_revoke_confirm_group" = "Are you sure you want to revoke the link {link}?\n\nThe group “{group}” will become private.";
+"lng_channels_too_much_public_revoke_confirm_channel" = "Are you sure you want to revoke the link {link}?\n\nThe channel “{group}” will become private.";
 "lng_channels_too_much_public_revoke" = "Revoke";
 "lng_channels_too_much_public_other" = "Sorry, the target user has too many public groups or channels already. Please ask them to make one of their existing groups or channels private first.";
 "lng_channels_too_much_located_other" = "Sorry, the target user has too many location-based groups already. Please ask them to delete or transfer one of their existing ones first.";
@@ -1368,7 +1368,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stickers_installed_tab" = "Stickers";
 "lng_stickers_featured_tab" = "Trending";
 "lng_stickers_archived_tab" = "Archived";
-"lng_stickers_remove_pack" = "Remove «{sticker_pack}»?";
+"lng_stickers_remove_pack" = "Remove “{sticker_pack}”?";
 "lng_stickers_add_pack" = "Add stickers";
 "lng_stickers_share_pack" = "Share Stickers";
 "lng_stickers_not_found" = "Sticker pack not found.";
@@ -1518,13 +1518,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_choose_group" = "Select a Group";
 "lng_bot_no_groups" = "You have no groups";
 "lng_bot_groups_not_found" = "No groups found";
-"lng_bot_sure_invite" = "Add the bot to «{group}»?";
+"lng_bot_sure_invite" = "Add the bot to “{group}”?";
 "lng_bot_already_in_group" = "The bot is already a member of the group.";
 "lng_bot_choose_chat" = "Select a chat";
 "lng_bot_no_chats" = "You have no chats";
 "lng_bot_chats_not_found" = "No chats found";
 "lng_bot_sure_share_game" = "Share the game with {user}?";
-"lng_bot_sure_share_game_group" = "Share the game with «{group}»?";
+"lng_bot_sure_share_game_group" = "Share the game with “{group}”?";
 
 "lng_typing" = "typing";
 "lng_user_typing" = "{user} is typing";
@@ -1728,12 +1728,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_delete_for_me_hint#other" = "This will delete them just for you.";
 "lng_edit_auto_delete_settings" = "Edit Auto-Delete Settings";
 "lng_enable_auto_delete" = "Enable Auto-Delete";
-"lng_selected_unsend_about_user_one" = "You can also delete the message you sent from {user}'s inbox by checking \"Unsend my messages\".";
-"lng_selected_unsend_about_user#one" = "You can also delete the {count} message you sent from {user}'s inbox by checking \"Unsend my messages\".";
-"lng_selected_unsend_about_user#other" = "You can also delete the {count} messages you sent from {user}'s inbox by checking \"Unsend my messages\".";
-"lng_selected_unsend_about_group_one" = "You can also delete the message you sent from the inboxes of other group members by checking \"Unsend my messages\".";
-"lng_selected_unsend_about_group#one" = "You can also delete the {count} message you sent from the inboxes of other group members by checking \"Unsend my messages\".";
-"lng_selected_unsend_about_group#other" = "You can also delete the {count} messages you sent from the inboxes of other group members by checking \"Unsend my messages\".";
+"lng_selected_unsend_about_user_one" = "You can also delete the message you sent from {user}'s inbox by checking “Unsend my messages”.";
+"lng_selected_unsend_about_user#one" = "You can also delete the {count} message you sent from {user}'s inbox by checking “Unsend my messages”.";
+"lng_selected_unsend_about_user#other" = "You can also delete the {count} messages you sent from {user}'s inbox by checking “Unsend my messages”.";
+"lng_selected_unsend_about_group_one" = "You can also delete the message you sent from the inboxes of other group members by checking “Unsend my messages”.";
+"lng_selected_unsend_about_group#one" = "You can also delete the {count} message you sent from the inboxes of other group members by checking “Unsend my messages”.";
+"lng_selected_unsend_about_group#other" = "You can also delete the {count} messages you sent from the inboxes of other group members by checking “Unsend my messages”.";
 "lng_delete_for_everyone_check" = "Delete for everyone";
 "lng_delete_for_other_check" = "Also delete for {user}";
 "lng_delete_for_other_my" = "Unsend my messages";
@@ -1831,7 +1831,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_choose_image" = "Choose background image";
 "lng_theme_editor_save_palette" = "Save palette file";
 "lng_theme_editor_choose_name" = "Save theme file";
-"lng_theme_editor_error" = "The editor encountered an error :( See 'log.txt' for details.";
+"lng_theme_editor_error" = "The editor encountered an error :( See ‘log.txt’ for details.";
 "lng_theme_editor_sure_close" = "Are you sure you want to close the editor? Your changes won't be saved.";
 "lng_theme_editor_need_auth" = "You need to log in to save your theme.";
 "lng_theme_editor_need_unlock" = "You need to unlock Telegram to save your theme.";
@@ -1942,9 +1942,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_muted_by_me_status" = "muted by me";
 "lng_group_call_invite_title" = "Invite members";
 "lng_group_call_invite_button" = "Invite";
-"lng_group_call_add_to_group_one" = "{user} isn't a member of «{group}» yet. Add them to the group?";
-"lng_group_call_add_to_group_some" = "Some of those users aren't members of «{group}» yet. Add them to the group?";
-"lng_group_call_add_to_group_all" = "Those users aren't members of «{group}» yet. Add them to the group?";
+"lng_group_call_add_to_group_one" = "{user} isn't a member of “{group}” yet. Add them to the group?";
+"lng_group_call_add_to_group_some" = "Some of those users aren't members of “{group}” yet. Add them to the group?";
+"lng_group_call_add_to_group_all" = "Those users aren't members of “{group}” yet. Add them to the group?";
 "lng_group_call_invite_members" = "Group members";
 "lng_group_call_invite_search_results" = "Search results";
 "lng_group_call_new_muted" = "Mute new members";
@@ -2143,14 +2143,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_about_text_channel" = "This is a list of all service actions taken by the channel's admins in the last 48 hours.";
 "lng_admin_log_no_results_title" = "No actions found";
 "lng_admin_log_no_results_text" = "No recent actions that match your query have been found.";
-"lng_admin_log_no_results_search_text" = "No recent actions that contain '{query}' have been found.";
+"lng_admin_log_no_results_search_text" = "No recent actions that contain ‘{query}’ have been found.";
 "lng_admin_log_no_events_title" = "No actions yet";
 "lng_admin_log_no_events_text" = "There were no service actions\ntaken by the group's members\nand admins in the last 48 hours.";
 "lng_admin_log_no_events_text_channel" = "There were no service actions\ntaken by the channels's admins\nin the last 48 hours.";
 
 "lng_admin_log_empty_text" = "Empty";
-"lng_admin_log_changed_title_group" = "{from} changed group name to «{title}»";
-"lng_admin_log_changed_title_channel" = "{from} changed channel name to «{title}»";
+"lng_admin_log_changed_title_group" = "{from} changed group name to “{title}”";
+"lng_admin_log_changed_title_channel" = "{from} changed channel name to “{title}”";
 "lng_admin_log_changed_description_group" = "{from} edited group description:";
 "lng_admin_log_removed_description_group" = "{from} removed group description";
 "lng_admin_log_changed_description_channel" = "{from} edited channel description:";
@@ -2197,9 +2197,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_changed_stickers_group" = "{from} changed the group's {sticker_set}";
 "lng_admin_log_changed_stickers_set" = "sticker set";
 "lng_admin_log_removed_stickers_group" = "{from} removed the group's sticker set";
-"lng_admin_log_changed_linked_chat" = "{from} changed the discussion group to «{chat}»";
+"lng_admin_log_changed_linked_chat" = "{from} changed the discussion group to “{chat}”";
 "lng_admin_log_removed_linked_chat" = "{from} removed the discussion group";
-"lng_admin_log_changed_linked_channel" = "{from} changed the linked channel to «{chat}»";
+"lng_admin_log_changed_linked_channel" = "{from} changed the linked channel to “{chat}”";
 "lng_admin_log_removed_linked_channel" = "{from} removed the linked channel";
 "lng_admin_log_changed_location_chat" = "{from} changed the group location to {address}";
 "lng_admin_log_removed_location_chat" = "{from} removed the group location";
@@ -2217,8 +2217,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_messages_ttl_changed" = "{from} changed messages auto-delete period from {previous} to {duration}";
 "lng_admin_log_messages_ttl_removed" = "{from} disabled messages auto-deletion after {duration}";
 "lng_admin_log_edited_invite_link" = "edited invite link {link}";
-"lng_admin_log_invite_link_expire_date" = "Expire date: {previous} -> {limit}";
-"lng_admin_log_invite_link_usage_limit" = "Usage limit: {previous} -> {limit}";
+"lng_admin_log_invite_link_expire_date" = "Expire date: {previous} → {limit}";
+"lng_admin_log_invite_link_usage_limit" = "Usage limit: {previous} → {limit}";
 "lng_admin_log_restricted_forever" = "indefinitely";
 "lng_admin_log_restricted_until" = "until {date}";
 "lng_admin_log_banned_view_messages" = "Read messages";
@@ -2454,9 +2454,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_suggest_title" = "Data export ready";
 "lng_export_suggest_text" = "You can now download the data you requested. Start exporting data?";
 "lng_export_suggest_cancel" = "Not now";
-"lng_export_about_telegram" = "Here is all the data you requested. Remember: we don’t use your data for ad targeting, we don’t sell it to others, and we’re not part of any “family of companies.”\n\nTelegram only keeps the information it needs to function as a feature-rich cloud service – for example, your cloud chats so that you can access them from any devices without using third-party backups, or your contacts so that you can rely on your existing social graph when messaging people on Telegram.\n\nCheck out Settings > Privacy & Security on Telegram's mobile apps for relevant settings.";
+"lng_export_about_telegram" = "Here is all the data you requested. Remember: we don't use your data for ad targeting, we don't sell it to others, and we're not part of any “family of companies.”\n\nTelegram only keeps the information it needs to function as a feature-rich cloud service – for example, your cloud chats so that you can access them from any devices without using third-party backups, or your contacts so that you can rely on your existing social graph when messaging people on Telegram.\n\nCheck out Settings > Privacy & Security on Telegram's mobile apps for relevant settings.";
 "lng_export_about_contacts" = "If you allow access, your contacts are continuously synced with Telegram. Thanks to this, you can easily switch to Telegram without losing your existing social graph – and connect with friends across all your devices. We use data about your contacts to let you know when they join Telegram. We also use it to make sure that you see the names you have in your phone book instead of the screen names people choose for themselves.\n\nYou can disable contact syncing or delete your stored contacts in Settings > Privacy & Security on Telegram's mobile apps.";
-"lng_export_about_frequent" = "This rating shows which people you are likelier to message frequently. Telegram uses this data to populate the 'People' box at the top of the Search section. This rating is also calculated for inline bots so that the app can suggest the bots you are most likely to use in the attachment menu (or when you start a new message with \"@\").\n\nTo delete this data, go to Settings > Privacy & Security and disable 'Suggest Frequent Contacts' (requires Telegram for iOS v.4.8.3 or Telegram for Android v.4.8.10 or higher).";
+"lng_export_about_frequent" = "This rating shows which people you are likelier to message frequently. Telegram uses this data to populate the ‘People’ box at the top of the Search section. This rating is also calculated for inline bots so that the app can suggest the bots you are most likely to use in the attachment menu (or when you start a new message with \"@\").\n\nTo delete this data, go to Settings > Privacy & Security and disable ‘Suggest Frequent Contacts’ (requires Telegram for iOS v.4.8.3 or Telegram for Android v.4.8.10 or higher).";
 "lng_export_about_sessions" = "We store session info to display your connected devices in Settings > Privacy & Security > Active Sessions.";
 "lng_export_about_web_sessions" = "We store this to display the websites where you logged in using authentication via Telegram. This information is shown in Settings > Privacy & Security > Active Sessions.";
 "lng_export_about_chats" = "This page lists all chats from this export and where to look for their data.";
@@ -2605,13 +2605,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mac_choose_program_menu" = "Other...";
 
 "lng_mac_choose_app" = "Choose Application";
-"lng_mac_choose_text" = "Choose an application to open the document \"{file}\".";
+"lng_mac_choose_text" = "Choose an application to open the document “{file}”.";
 "lng_mac_enable_filter" = "Enable:";
 "lng_mac_recommended_apps" = "Recommended Applications";
 "lng_mac_all_apps" = "All Applications";
 "lng_mac_always_open_with" = "Always Open With";
-"lng_mac_this_app_can_open" = "This application can open \"{file}\".";
-"lng_mac_not_known_app" = "It's not known if this application can open \"{file}\".";
+"lng_mac_this_app_can_open" = "This application can open “{file}”.";
+"lng_mac_not_known_app" = "It's not known if this application can open “{file}”.";
 
 "lng_mac_menu_services" = "Services";
 "lng_mac_menu_hide_telegram" = "Hide {telegram}";
