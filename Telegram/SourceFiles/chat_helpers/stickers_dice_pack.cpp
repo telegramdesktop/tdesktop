@@ -125,7 +125,7 @@ void DicePack::generateLocal(int index, const QString &name) {
 		QByteArray(),
 		nullptr,
 		SendMediaType::File,
-		FileLoadTo(0, {}, 0),
+		FileLoadTo(0, {}, 0, 0),
 		{});
 	task.process({ .generateGoodThumbnail = false });
 	const auto result = task.peekResult();

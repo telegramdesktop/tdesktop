@@ -394,8 +394,7 @@ public:
 		Ui::PreparedList &&list,
 		SendMediaType type,
 		TextWithTags &&caption,
-		const SendAction &action,
-		MsgId msgIdToEdit);
+		const SendAction &action);
 
 	void sendUploadedPhoto(
 		FullMsgId localId,
