@@ -74,11 +74,15 @@ class GroupCall::LoadPartTask final : public tgcalls::BroadcastPartTask {
 public:
 	LoadPartTask(
 		base::weak_ptr<GroupCall> call,
-		TimeId date,
+		int64 time,
+		int64 period,
 		Fn<void(tgcalls::BroadcastPart&&)> done);
 
-	[[nodiscard]] TimeId date() const {
-		return _date;
+	[[nodiscard]] int64 time() const {
+		return _time;
+	}
+	[[nodiscard]] int32 scale() const {
+		return _scale;
 	}
 
 	void done(tgcalls::BroadcastPart &&part);
@@ -86,7 +90,8 @@ public:
 
 private:
 	const base::weak_ptr<GroupCall> _call;
-	const TimeId _date = 0;
+	const int64 _time = 0;
+	const int32 _scale = 0;
 	Fn<void(tgcalls::BroadcastPart &&)> _done;
 	QMutex _mutex;
 
@@ -120,10 +125,20 @@ private:
 
 GroupCall::LoadPartTask::LoadPartTask(
 	base::weak_ptr<GroupCall> call,
-	TimeId date,
+	int64 time,
+	int64 period,
 	Fn<void(tgcalls::BroadcastPart &&)> done)
 : _call(std::move(call))
-, _date(date ? date : base::unixtime::now())
+, _time(time ? time : (base::unixtime::now() * int64(1000)))
+, _scale([&] {
+	switch (period) {
+	case 1000: return 0;
+	case 500: return 1;
+	case 250: return 2;
+	case 125: return 3;
+	}
+	Unexpected("Period in LoadPartTask.");
+}())
 , _done(std::move(done)) {
 }
 
@@ -901,11 +916,13 @@ void GroupCall::ensureControllerCreated() {
 			});
 		},
 		.requestBroadcastPart = [=](
-				int32_t date,
+				int64_t time,
+				int64_t period,
 				std::function<void(tgcalls::BroadcastPart &&)> done) {
 			auto result = std::make_shared<LoadPartTask>(
 				weak,
-				date,
+				time,
+				period,
 				std::move(done));
 			crl::on_main(weak, [=]() mutable {
 				broadcastPartStart(std::move(result));
@@ -940,7 +957,8 @@ void GroupCall::ensureControllerCreated() {
 
 void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 	const auto raw = task.get();
-	const auto date = raw->date();
+	const auto time = raw->time();
+	const auto scale = raw->scale();
 	const auto finish = [=](tgcalls::BroadcastPart &&part) {
 		raw->done(std::move(part));
 		_broadcastParts.erase(raw);
@@ -950,8 +968,8 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 		MTP_flags(0),
 		MTP_inputGroupCallStream(
 			inputCall(),
-			MTP_long(uint64(date) * 1000),
-			MTP_int(0)),
+			MTP_long(time),
+			MTP_int(scale)),
 		MTP_int(0),
 		MTP_int(128 * 1024)
 	)).done([=](const MTPupload_File &result) {
@@ -960,26 +978,34 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 			auto bytes = std::vector<uint8_t>(size);
 			memcpy(bytes.data(), data.vbytes().v.constData(), size);
 			finish({
-				.timestamp = date,
-				.responseTimestamp = date + 1., // #TODO calls extract from mtproto
+				.timestampMilliseconds = time,
+				.responseTimestamp = (time / 1000.) + 1., // #TODO calls extract from mtproto
 				.status = Status::Success,
 				.oggData = std::move(bytes),
 			});
 		}, [&](const MTPDupload_fileCdnRedirect &data) {
 			LOG(("Voice Chat Stream Error: fileCdnRedirect received."));
 			finish({
-				.timestamp = date,
-				.responseTimestamp = date + 1., // #TODO calls extract from mtproto
-				.status = Status::TooOld,
+				.timestampMilliseconds = time,
+				.responseTimestamp = (time / 1000.) + 1., // #TODO calls extract from mtproto
+				.status = Status::ResyncNeeded,
 			});
 		});
 	}).fail([=](const RPCError &error) {
-		const auto status = MTP::isTemporaryError(error)
+		if (error.type() == u"GROUPCALL_JOIN_MISSING"_q) {
+			for (const auto &[task, part] : _broadcastParts) {
+				_api.request(part.requestId).cancel();
+			}
+			setState(State::Joining);
+			rejoin();
+			return;
+		}
+		const auto status = MTP::isFloodError(error)
 			? Status::NotReady
-			: Status::TooOld;
+			: Status::ResyncNeeded;
 		finish({
-			.timestamp = date,
-			.responseTimestamp = date + 1., // #TODO calls extract from mtproto
+			.timestampMilliseconds = time,
+			.responseTimestamp = (time / 1000.) + 1., // #TODO calls extract from mtproto
 			.status = status,
 		});
 	}).handleAllErrors().toDC(

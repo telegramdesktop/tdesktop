@@ -125,7 +125,7 @@ PRIVATE
 target_link_libraries(lib_tgcalls
 PRIVATE
     desktop-app::external_webrtc
-    desktop-app::external_opus
+    desktop-app::external_ffmpeg
 )
 
 target_compile_definitions(lib_tgcalls
