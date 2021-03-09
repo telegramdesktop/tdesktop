@@ -51,7 +51,7 @@ ItemBase::ItemBase(std::shared_ptr<float64> zPtr, int size, int x, int y)
 	Qt::DashLine,
 	Qt::SquareCap,
 	Qt::RoundJoin)
-, _size(size) {
+, _horizontalSize(size) {
 	setFlags(QGraphicsItem::ItemIsMovable
 		| QGraphicsItem::ItemIsSelectable
 		| QGraphicsItem::ItemIsFocusable);
@@ -64,7 +64,9 @@ QRectF ItemBase::boundingRect() const {
 }
 
 QRectF ItemBase::innerRect() const {
-	return QRectF(-_size / 2, -_size / 2, _size, _size);
+	const auto &hSize = _horizontalSize;
+	const auto &vSize = _verticalSize;
+	return QRectF(-hSize / 2, -vSize / 2, hSize, vSize);
 }
 
 void ItemBase::paint(
@@ -96,10 +98,11 @@ void ItemBase::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 		const auto dx = int(2.0 * p.x());
 		const auto dy = int(2.0 * p.y());
 		prepareGeometryChange();
-		_size = std::clamp(
+		_horizontalSize = std::clamp(
 			(dx > dy ? dx : dy),
 			st::photoEditorItemMinSize,
 			st::photoEditorItemMaxSize);
+		updateVerticalSize();
 
 		// Rotate.
 		const auto origin = mapToScene(boundingRect().center());
@@ -149,7 +152,7 @@ int ItemBase::type() const {
 
 QRectF ItemBase::rightHandleRect() const {
 	return QRectF(
-		(_size / 2) - (_handleSize / 2),
+		(_horizontalSize / 2) - (_handleSize / 2),
 		0 - (_handleSize / 2),
 		_handleSize,
 		_handleSize);
@@ -157,7 +160,7 @@ QRectF ItemBase::rightHandleRect() const {
 
 QRectF ItemBase::leftHandleRect() const {
 	return QRectF(
-		(-_size / 2) - (_handleSize / 2),
+		(-_horizontalSize / 2) - (_handleSize / 2),
 		0 - (_handleSize / 2),
 		_handleSize,
 		_handleSize);
@@ -167,8 +170,17 @@ bool ItemBase::isHandling() const {
 	return _handle != HandleType::None;
 }
 
-int ItemBase::size() const {
-	return _size;
+float64 ItemBase::size() const {
+	return _horizontalSize;
+}
+
+void ItemBase::updateVerticalSize() {
+	_verticalSize = _horizontalSize * _aspectRatio;
+}
+
+void ItemBase::setAspectRatio(float64 aspectRatio) {
+	_aspectRatio = aspectRatio;
+	updateVerticalSize();
 }
 
 ItemBase::HandleType ItemBase::handleType(const QPointF &pos) const {

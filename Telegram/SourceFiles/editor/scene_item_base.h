@@ -48,13 +48,17 @@ protected:
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 
 	QRectF innerRect() const;
-	int size() const;
+	float64 size() const;
+	float64 horizontalSize() const;
+	float64 verticalSize() const;
+	void setAspectRatio(float64 aspectRatio);
 
 private:
 	HandleType handleType(const QPointF &pos) const;
 	QRectF rightHandleRect() const;
 	QRectF leftHandleRect() const;
 	bool isHandling() const;
+	void updateVerticalSize();
 
 	const std::shared_ptr<float64> _lastZ;
 	const int _handleSize;
@@ -63,7 +67,9 @@ private:
 	const QPen _selectPenInactive;
 	const QPen _handlePen;
 
-	int _size;
+	float64 _horizontalSize = 0;
+	float64 _verticalSize = 0;
+	float64 _aspectRatio = 1.0;
 	HandleType _handle = HandleType::None;
 
 };

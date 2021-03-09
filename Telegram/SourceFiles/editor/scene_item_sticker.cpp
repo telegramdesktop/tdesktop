@@ -37,6 +37,11 @@ ItemSticker::ItemSticker(
 		return;
 	}
 	const auto updateThumbnail = [=] {
+		const auto guard = gsl::finally([&] {
+			setAspectRatio(_pixmap.isNull()
+				? 1.0
+				: (_pixmap.height() / float64(_pixmap.width())));
+		});
 		if (stickerData->animated) {
 			_lottie.player = ChatHelpers::LottiePlayerFromDocument(
 				_mediaView.get(),
@@ -73,7 +78,6 @@ ItemSticker::ItemSticker(
 				update();
 			}
 		}, _loadingLifetime);
-		return;
 	}
 }
 
