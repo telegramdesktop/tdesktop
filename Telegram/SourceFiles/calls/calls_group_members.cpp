@@ -127,8 +127,14 @@ public:
 	[[nodiscard]] bool speaking() const {
 		return _speaking;
 	}
+	[[nodiscard]] crl::time speakingLastTime() const {
+		return _speakingLastTime;
+	}
 	[[nodiscard]] int volume() const {
 		return _volume;
+	}
+	[[nodiscard]] uint64 raisedHandRating() const {
+		return _raisedHandRating;
 	}
 
 	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
@@ -242,6 +248,8 @@ private:
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
 	Ui::Animations::Simple _arcsAnimation; // For volume arcs animation.
 	QString _aboutText;
+	crl::time _speakingLastTime = 0;
+	uint64 _raisedHandRating = 0;
 	uint32 _ssrc = 0;
 	int _volume = Group::kDefaultVolume;
 	bool _sounding = false;
@@ -317,7 +325,12 @@ private:
 		const Data::GroupCall::Participant *participant);
 	void removeRow(not_null<Row*> row);
 	void updateRowLevel(not_null<Row*> row, float level);
-	void checkSpeakingRowPosition(not_null<Row*> row);
+	void checkRowPosition(not_null<Row*> row);
+	[[nodiscard]] bool needToReorder(not_null<Row*> row) const;
+	[[nodiscard]] bool allRowsAboveAreSpeaking(not_null<Row*> row) const;
+	[[nodiscard]] bool allRowsAboveMoreImportantThanHand(
+		not_null<Row*> row,
+		uint64 raiseHandRating) const;
 	Row *findRow(not_null<PeerData*> participantPeer) const;
 
 	[[nodiscard]] Data::GroupCall *resolvedRealCall() const;
@@ -379,21 +392,23 @@ void Row::updateState(const Data::GroupCall::Participant *participant) {
 		setState(State::Invited);
 		setSounding(false);
 		setSpeaking(false);
+		_raisedHandRating = 0;
 	} else if (!participant->muted
 		|| (participant->sounding && participant->ssrc != 0)) {
 		setState(participant->mutedByMe ? State::MutedByMe : State::Active);
 		setSounding(participant->sounding && participant->ssrc != 0);
 		setSpeaking(participant->speaking && participant->ssrc != 0);
+		_raisedHandRating = 0;
 	} else if (participant->canSelfUnmute) {
 		setState(participant->mutedByMe
 			? State::MutedByMe
 			: State::Inactive);
 		setSounding(false);
 		setSpeaking(false);
+		_raisedHandRating = 0;
 	} else {
-		setState(participant->raisedHandRating
-			? State::RaisedHand
-			: State::Muted);
+		_raisedHandRating = participant->raisedHandRating;
+		setState(_raisedHandRating ? State::RaisedHand : State::Muted);
 		setSounding(false);
 		setSpeaking(false);
 	}
@@ -507,12 +522,19 @@ void Row::setVolume(int volume) {
 void Row::updateLevel(float level) {
 	Expects(_blobsAnimation != nullptr);
 
+	const auto spoke = (level >= GroupCall::kSpeakLevelThreshold)
+		? crl::now()
+		: crl::time();
+	if (spoke && _speaking) {
+		_speakingLastTime = spoke;
+	}
+
 	if (_skipLevelUpdate) {
 		return;
 	}
 
-	if (level >= GroupCall::kSpeakLevelThreshold) {
-		_blobsAnimation->lastSoundingUpdateTime = crl::now();
+	if (spoke) {
+		_blobsAnimation->lastSoundingUpdateTime = spoke;
 	}
 	_blobsAnimation->blobs.setLevel(level);
 }
@@ -1003,14 +1025,16 @@ void MembersController::updateRow(
 	auto reorderIfInvitedBeforeIndex = 0;
 	auto countChange = 0;
 	if (const auto row = findRow(now.peer)) {
-		if (now.speaking && (!was || !was->speaking)) {
-			checkSpeakingRowPosition(row);
-		}
 		if (row->state() == Row::State::Invited) {
 			reorderIfInvitedBeforeIndex = row->absoluteIndex();
 			countChange = 1;
 		}
 		updateRow(row, &now);
+		if ((now.speaking && (!was || !was->speaking))
+			|| (now.raisedHandRating != (was ? was->raisedHandRating : 0))
+			|| (!now.canSelfUnmute && was && was->canSelfUnmute)) {
+			checkRowPosition(row);
+		}
 	} else if (auto row = createRow(now)) {
 		if (row->speaking()) {
 			delegate()->peerListPrependRow(std::move(row));
@@ -1045,39 +1069,107 @@ void MembersController::updateRow(
 	}
 }
 
-void MembersController::checkSpeakingRowPosition(not_null<Row*> row) {
-	if (_menu) {
-		// Don't reorder rows while we show the popup menu.
-		_menuCheckRowsAfterHidden.emplace(row->peer());
-		return;
-	}
-	// Check if there are non-speaking rows above this one.
+bool MembersController::allRowsAboveAreSpeaking(not_null<Row*> row) const {
 	const auto count = delegate()->peerListFullRowsCount();
 	for (auto i = 0; i != count; ++i) {
 		const auto above = delegate()->peerListRowAt(i);
 		if (above == row) {
 			// All rows above are speaking.
-			return;
+			return true;
 		} else if (!static_cast<Row*>(above.get())->speaking()) {
 			break;
 		}
 	}
-	// Someone started speaking and has a non-speaking row above him. Sort.
-	const auto proj = [&](const PeerListRow &other) {
-		if (&other == row.get()) {
-			// Bring this new one to the top.
-			return 0;
-		} else if (static_cast<const Row&>(other).speaking()) {
-			// Bring all the speaking ones below him.
-			return 1;
-		} else {
-			return 2;
+	return false;
+}
+
+bool MembersController::allRowsAboveMoreImportantThanHand(
+		not_null<Row*> row,
+		uint64 raiseHandRating) const {
+	Expects(raiseHandRating > 0);
+
+	const auto count = delegate()->peerListFullRowsCount();
+	for (auto i = 0; i != count; ++i) {
+		const auto above = delegate()->peerListRowAt(i);
+		if (above == row) {
+			// All rows above are 'more important' than this raised hand.
+			return true;
 		}
+		const auto real = static_cast<Row*>(above.get());
+		const auto state = real->state();
+		if (state == Row::State::Muted
+			|| (state == Row::State::RaisedHand
+				&& real->raisedHandRating() < raiseHandRating)) {
+			break;
+		}
+	}
+	return false;
+}
+
+bool MembersController::needToReorder(not_null<Row*> row) const {
+	// All reorder cases:
+	// - bring speaking up
+	// - bring raised hand up
+	// - bring muted down
+
+	if (row->speaking()) {
+		return !allRowsAboveAreSpeaking(row);
+	}
+
+	const auto rating = row->raisedHandRating();
+	if (!rating && row->state() != Row::State::Muted) {
+		return false;
+	}
+	if (rating > 0 && !allRowsAboveMoreImportantThanHand(row, rating)) {
+		return true;
+	}
+	const auto index = row->absoluteIndex();
+	if (index + 1 == delegate()->peerListFullRowsCount()) {
+		// Last one, can't bring lower.
+		return false;
+	}
+	const auto next = delegate()->peerListRowAt(index + 1);
+	const auto state = static_cast<Row*>(next.get())->state();
+	if ((state != Row::State::Muted) && (state != Row::State::RaisedHand)) {
+		return true;
+	}
+	if (!rating && static_cast<Row*>(next.get())->raisedHandRating()) {
+		return true;
+	}
+	return false;
+}
+
+void MembersController::checkRowPosition(not_null<Row*> row) {
+	if (_menu) {
+		// Don't reorder rows while we show the popup menu.
+		_menuCheckRowsAfterHidden.emplace(row->peer());
+		return;
+	} else if (!needToReorder(row)) {
+		return;
+	}
+
+	// Someone started speaking and has a non-speaking row above him.
+	// Or someone raised hand and has force muted above him.
+	// Or someone was forced muted and had can_unmute_self below him. Sort.
+	static constexpr auto kTop = std::numeric_limits<uint64>::max();
+	const auto proj = [&](const PeerListRow &other) {
+		const auto &real = static_cast<const Row&>(other);
+		return real.speaking()
+			// Speaking 'row' to the top, all other speaking below it.
+			? (&real == row.get() ? kTop : (kTop - 1))
+			: (real.raisedHandRating() > 0)
+			// Then all raised hands sorted by rating.
+			? real.raisedHandRating()
+			: (real.state() == Row::State::Muted)
+			// All force muted at the bottom, but 'row' still above others.
+			? (&real == row.get() ? 1ULL : 0ULL)
+			// All not force-muted lie between raised hands and speaking.
+			: (std::numeric_limits<uint64>::max() - 2);
 	};
 	delegate()->peerListSortRows([&](
 			const PeerListRow &a,
 			const PeerListRow &b) {
-		return proj(a) < proj(b);
+		return proj(a) > proj(b);
 	});
 }
 
@@ -1342,9 +1434,7 @@ void MembersController::rowClicked(not_null<PeerListRow*> row) {
 		auto saved = base::take(_menu);
 		for (const auto peer : base::take(_menuCheckRowsAfterHidden)) {
 			if (const auto row = findRow(peer)) {
-				if (row->speaking()) {
-					checkSpeakingRowPosition(row);
-				}
+				checkRowPosition(row);
 			}
 		}
 		_menu = std::move(saved);
