@@ -221,6 +221,7 @@ private:
 	void updateInstanceVolumes();
 	void applyMeInCallLocally();
 	void rejoin();
+	void rejoin(not_null<PeerData*> as);
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
 	void setInstanceConnected(tgcalls::GroupNetworkState networkState);
