@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/scene_item_base.h"
 
+#include "editor/scene.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_editor.h"
@@ -179,9 +180,8 @@ void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(nullptr);
 	_menu->addAction(tr::lng_selected_delete(tr::now), [=] {
-		if (scene()) {
-			scene()->removeItem(this); // Scene loses ownership of item.
-			delete this;
+		if (const auto s = static_cast<Scene*>(scene())) {
+			s->removeItem(this);
 		}
 	});
 

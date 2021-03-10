@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene_item_canvas.h"
 #include "editor/scene_item_sticker.h"
 #include "editor/controllers.h"
-#include "base/event_filter.h"
+#include "lottie/lottie_single_player.h"
 
 #include <QGraphicsView>
 
@@ -37,6 +37,8 @@ std::shared_ptr<Scene> EnsureScene(
 }
 
 } // namespace
+
+using ItemPtr = Scene::ItemPtr;
 
 Paint::Paint(
 	not_null<Ui::RpWidget*> parent,
@@ -71,7 +73,7 @@ Paint::Paint(
 			? Qt::DescendingOrder
 			: Qt::AscendingOrder);
 
-		auto proj = [&](QGraphicsItem *i) {
+		auto proj = [&](const ItemPtr &i) {
 			return isUndo ? i->isVisible() : isItemHidden(i);
 		};
 		const auto it = ranges::find_if(filtered, std::move(proj));
@@ -108,7 +110,7 @@ Paint::Paint(
 			const auto size = std::min(s.width(), s.height()) / 2;
 			const auto x = s.width() / 2;
 			const auto y = s.height() / 2;
-			const auto item = new ItemSticker(
+			const auto item = std::make_shared<ItemSticker>(
 				document,
 				_zoom.value(),
 				_lastZ,
@@ -169,13 +171,13 @@ void Paint::cancel() {
 		return;
 	}
 
-	for (const auto &group : filtered) {
+	for (const auto &item : filtered) {
 		const auto it = ranges::find(
 			_previousItems,
-			group,
+			item,
 			&SavedItem::item);
 		if (it == end(_previousItems)) {
-			_scene->removeItem(group);
+			_scene->removeItem(item);
 		} else {
 			it->item->setVisible(!it->undid);
 		}
@@ -188,11 +190,12 @@ void Paint::keepResult() {
 	for (const auto &item : _itemsToRemove) {
 		_scene->removeItem(item);
 	}
+	_itemsToRemove.clear();
 
 	const auto items = _scene->items();
 	_previousItems = ranges::views::all(
 		items
-	) | ranges::views::transform([=](QGraphicsItem *i) -> SavedItem {
+	) | ranges::views::transform([=](ItemPtr i) -> SavedItem {
 		return { i, !i->isVisible() };
 	}) | ranges::to_vector;
 }
@@ -204,7 +207,7 @@ bool Paint::hasUndo() const {
 bool Paint::hasRedo() const {
 	return ranges::any_of(
 		_scene->items(),
-		[=](QGraphicsItem *i) { return isItemHidden(i); });
+		[=](const ItemPtr &i) { return isItemHidden(i); });
 }
 
 void Paint::clearRedoList() {
@@ -212,10 +215,10 @@ void Paint::clearRedoList() {
 	auto &&filtered = ranges::views::all(
 		items
 	) | ranges::views::filter(
-		[=](QGraphicsItem *i) { return isItemHidden(i); }
+		[=](const ItemPtr &i) { return isItemHidden(i); }
 	);
 
-	ranges::for_each(std::move(filtered), [&](QGraphicsItem *item) {
+	ranges::for_each(std::move(filtered), [&](ItemPtr item) {
 		item->hide();
 		_itemsToRemove.push_back(item);
 	});
@@ -223,12 +226,12 @@ void Paint::clearRedoList() {
 	_hasRedo = false;
 }
 
-bool Paint::isItemHidden(not_null<QGraphicsItem*> item) const {
+bool Paint::isItemHidden(const ItemPtr &item) const {
 	return !item->isVisible() && !isItemToRemove(item);
 }
 
-bool Paint::isItemToRemove(not_null<QGraphicsItem*> item) const {
-	return ranges::contains(_itemsToRemove, item.get());
+bool Paint::isItemToRemove(const ItemPtr &item) const {
+	return ranges::contains(_itemsToRemove, item);
 }
 
 void Paint::updateUndoState() {

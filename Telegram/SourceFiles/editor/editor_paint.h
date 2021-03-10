@@ -39,7 +39,7 @@ public:
 
 private:
 	struct SavedItem {
-		QGraphicsItem *item;
+		std::shared_ptr<QGraphicsItem> item;
 		bool undid = false;
 	};
 
@@ -47,8 +47,8 @@ private:
 	bool hasRedo() const;
 	void clearRedoList();
 
-	bool isItemToRemove(not_null<QGraphicsItem*> item) const;
-	bool isItemHidden(not_null<QGraphicsItem*> item) const;
+	bool isItemToRemove(const std::shared_ptr<QGraphicsItem> &item) const;
+	bool isItemHidden(const std::shared_ptr<QGraphicsItem> &item) const;
 
 	const std::shared_ptr<float64> _lastZ;
 	const std::shared_ptr<Scene> _scene;
@@ -56,7 +56,7 @@ private:
 	const QSize _imageSize;
 
 	std::vector<SavedItem> _previousItems;
-	QList<QGraphicsItem*> _itemsToRemove;
+	std::vector<std::shared_ptr<QGraphicsItem>> _itemsToRemove;
 
 	rpl::variable<bool> _hasUndo = true;
 	rpl::variable<bool> _hasRedo = true;

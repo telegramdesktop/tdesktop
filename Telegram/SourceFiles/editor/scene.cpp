@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Editor {
 namespace {
 
+using ItemPtr = Scene::ItemPtr;
+
 bool SkipMouseEvent(not_null<QGraphicsSceneMouseEvent*> event) {
 	return event->isAccepted() || (event->button() == Qt::RightButton);
 }
@@ -25,23 +27,42 @@ bool SkipMouseEvent(not_null<QGraphicsSceneMouseEvent*> event) {
 
 Scene::Scene(const QRectF &rect)
 : QGraphicsScene(rect)
-, _canvas(new ItemCanvas) {
-	QGraphicsScene::addItem(_canvas);
+, _canvas(std::make_shared<ItemCanvas>()) {
+	QGraphicsScene::addItem(_canvas.get());
 	_canvas->clearPixmap();
 
 	_canvas->grabContentRequests(
 	) | rpl::start_with_next([=](ItemCanvas::Content &&content) {
-		const auto item = new ItemLine(std::move(content.pixmap));
+		const auto item = std::make_shared<ItemLine>(
+			std::move(content.pixmap));
 		item->setPos(content.position);
 		addItem(item);
 		_canvas->setZValue(++_lastLineZ);
 	}, _lifetime);
 }
 
-void Scene::addItem(not_null<NumberedItem*> item) {
+void Scene::addItem(std::shared_ptr<NumberedItem> item) {
+	if (!item) {
+		return;
+	}
 	item->setNumber(_itemNumber++);
-	QGraphicsScene::addItem(item);
+	QGraphicsScene::addItem(item.get());
+	_items.push_back(std::move(item));
 	_addsItem.fire({});
+}
+
+void Scene::removeItem(not_null<QGraphicsItem*> item) {
+	const auto it = ranges::find_if(_items, [&](const ItemPtr &i) {
+		return i.get() == item;
+	});
+	if (it == end(_items)) {
+		return;
+	}
+	removeItem(*it);
+}
+
+void Scene::removeItem(const ItemPtr &item) {
+	_items.erase(ranges::remove(_items, item), end(_items));
 }
 
 void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
@@ -81,23 +102,19 @@ rpl::producer<> Scene::addsItem() const {
 	return _addsItem.events();
 }
 
-std::vector<QGraphicsItem*> Scene::items(Qt::SortOrder order) const {
-	using Item = QGraphicsItem;
-	auto rawItems = QGraphicsScene::items();
+std::vector<ItemPtr> Scene::items(
+		Qt::SortOrder order) const {
+	auto copyItems = _items;
 
-	auto filteredItems = ranges::views::all(
-		rawItems
-	) | ranges::views::filter([](Item *i) {
-		return i->type() != ItemCanvas::Type;
-	}) | ranges::to_vector;
-
-	ranges::sort(filteredItems, [&](not_null<Item*> a, not_null<Item*> b) {
-		const auto numA = qgraphicsitem_cast<NumberedItem*>(a)->number();
-		const auto numB = qgraphicsitem_cast<NumberedItem*>(b)->number();
+	ranges::sort(copyItems, [&](ItemPtr a, ItemPtr b) {
+		const auto numA = qgraphicsitem_cast<NumberedItem*>(
+			a.get())->number();
+		const auto numB = qgraphicsitem_cast<NumberedItem*>(
+			b.get())->number();
 		return (order == Qt::AscendingOrder) ? (numA < numB) : (numA > numB);
 	});
 
-	return filteredItems;
+	return copyItems;
 }
 
 std::vector<MTPInputDocument> Scene::attachedStickers() const {
@@ -105,14 +122,20 @@ std::vector<MTPInputDocument> Scene::attachedStickers() const {
 
 	return ranges::views::all(
 		allItems
-	) | ranges::views::filter([](QGraphicsItem *i) {
+	) | ranges::views::filter([](const ItemPtr &i) {
 		return i->isVisible() && (i->type() == ItemSticker::Type);
-	}) | ranges::views::transform([](QGraphicsItem *i) {
-		return qgraphicsitem_cast<ItemSticker*>(i)->sticker();
+	}) | ranges::views::transform([](const ItemPtr &i) {
+		return qgraphicsitem_cast<ItemSticker*>(i.get())->sticker();
 	}) | ranges::to_vector;
 }
 
 Scene::~Scene() {
+	// Prevent destroying by scene of all items.
+	QGraphicsScene::removeItem(_canvas.get());
+	for (const auto &item : items()) {
+		// Scene loses ownership of an item.
+		QGraphicsScene::removeItem(item.get());
+	}
 }
 
 } // namespace Editor

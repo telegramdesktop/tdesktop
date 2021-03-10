@@ -24,13 +24,17 @@ class NumberedItem;
 
 class Scene final : public QGraphicsScene {
 public:
+	using ItemPtr = std::shared_ptr<QGraphicsItem>;
+
 	Scene(const QRectF &rect);
 	~Scene();
 	void applyBrush(const QColor &color, float size);
 
-	[[nodiscard]] std::vector<QGraphicsItem*> items(
+	[[nodiscard]] std::vector<ItemPtr> items(
 		Qt::SortOrder order = Qt::DescendingOrder) const;
-	void addItem(not_null<NumberedItem*> item);
+	void addItem(std::shared_ptr<NumberedItem> item);
+	void removeItem(not_null<QGraphicsItem*> item);
+	void removeItem(const ItemPtr &item);
 	[[nodiscard]] rpl::producer<> addsItem() const;
 	[[nodiscard]] rpl::producer<> mousePresses() const;
 
@@ -40,7 +44,9 @@ protected:
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
 private:
-	const not_null<ItemCanvas*> _canvas;
+	const std::shared_ptr<ItemCanvas> _canvas;
+
+	std::vector<ItemPtr> _items;
 
 	float64 _lastLineZ = 0.;
 	int _itemNumber = 0;
