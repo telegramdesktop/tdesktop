@@ -439,6 +439,15 @@ groupCallDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 	wrap: groupCallInnerDropdown;
 	menu: groupCallMenu;
 }
+groupCallMembersListCheck: RoundCheckbox(defaultPeerListCheck) {
+	border: groupCallMembersBg;
+	bgActive: groupCallActiveFg;
+	check: icon {{ "default_checkbox_check", groupCallMembersFg, point(3px, 6px) }};
+}
+groupCallMembersListCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+	selectFg: groupCallActiveFg;
+	check: groupCallMembersListCheck;
+}
 groupCallMembersListItem: PeerListItem(defaultPeerListItem) {
 	button: OutlineButton(defaultPeerListButton) {
 		textBg: groupCallMembersBg;
@@ -453,14 +462,7 @@ groupCallMembersListItem: PeerListItem(defaultPeerListItem) {
 		ripple: groupCallRipple;
 	}
 	disabledCheckFg: groupCallMemberNotJoinedStatus;
-	checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
-		selectFg: groupCallActiveFg;
-		check: RoundCheckbox(defaultPeerListCheck) {
-			border: groupCallMembersBg;
-			bgActive: groupCallActiveFg;
-			check: icon {{ "default_checkbox_check", groupCallMembersFg, point(3px, 6px) }};
-		}
-	}
+	checkbox: groupCallMembersListCheckbox;
 	height: 52px;
 	photoPosition: point(12px, 6px);
 	namePosition: point(63px, 7px);
@@ -483,13 +485,46 @@ groupCallInviteDividerLabel: FlatLabel(defaultFlatLabel) {
 	textFg: groupCallMemberNotJoinedStatus;
 }
 groupCallInviteDividerPadding: margins(17px, 7px, 17px, 7px);
-
+groupCallInviteMembersListItem: PeerListItem(groupCallMembersListItem) {
+	statusFg: groupCallMemberNotJoinedStatus;
+	statusFgOver: groupCallMemberNotJoinedStatus;
+	statusFgActive: groupCallMemberInactiveStatus;
+}
 groupCallInviteMembersList: PeerList(groupCallMembersList) {
 	padding: margins(0px, 10px, 0px, 10px);
-	item: PeerListItem(groupCallMembersListItem) {
-		statusFg: groupCallMemberNotJoinedStatus;
-		statusFgOver: groupCallMemberNotJoinedStatus;
-		statusFgActive: groupCallMemberInactiveStatus;
+	item: groupCallInviteMembersListItem;
+}
+groupCallJoinAsList: PeerList(groupCallInviteMembersList) {
+	item: PeerListItem(groupCallInviteMembersListItem) {
+		height: 56px;
+		checkbox: RoundImageCheckbox(groupCallMembersListCheckbox) {
+			check: RoundCheckbox(groupCallMembersListCheck) {
+				size: 0px;
+			}
+			imageRadius: 19px;
+			imageSmallRadius: 15px;
+			selectFg: groupCallMemberInactiveStatus;
+		}
+		photoSize: 38px;
+		photoPosition: point(24px, 9px);
+		namePosition: point(73px, 9px);
+		statusPosition: point(73px, 28px);
+	}
+}
+peerListJoinAsList: PeerList(peerListBox) {
+	item: PeerListItem(peerListBoxItem) {
+		height: 56px;
+		checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+			check: RoundCheckbox(defaultRoundCheckbox) {
+				size: 0px;
+			}
+			imageRadius: 19px;
+			imageSmallRadius: 15px;
+		}
+		photoSize: 38px;
+		photoPosition: point(24px, 9px);
+		namePosition: point(73px, 9px);
+		statusPosition: point(73px, 28px);
 	}
 }
 groupCallMultiSelect: MultiSelect(defaultMultiSelect) {
@@ -730,6 +765,10 @@ groupCallSettingsAttentionButton: SettingsButton(groupCallSettingsButton) {
 	textFgOver: attentionButtonFgOver;
 }
 groupCallBoxLabel: FlatLabel(boxLabel) {
+	textFg: groupCallMembersFg;
+}
+groupCallJoinAsLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 282px;
 	textFg: groupCallMembersFg;
 }
 

@@ -123,7 +123,7 @@ void ChooseJoinAsBox(
 		box,
 		tr::lng_group_call_join_as_about(),
 		(context == Context::Switch
-			? st::groupCallBoxLabel
+			? st::groupCallJoinAsLabel
 			: st::confirmPhoneAboutLabel)));
 
 	auto &lifetime = box->lifetime();
@@ -135,8 +135,12 @@ void ChooseJoinAsBox(
 		info.joinAs);
 	if (context == Context::Switch) {
 		controller->setStyleOverrides(
-			&st::groupCallInviteMembersList,
+			&st::groupCallJoinAsList,
 			&st::groupCallMultiSelect);
+	} else {
+		controller->setStyleOverrides(
+			&st::peerListJoinAsList,
+			nullptr);
 	}
 	const auto content = box->addRow(
 		object_ptr<PeerListContent>(box, controller),
