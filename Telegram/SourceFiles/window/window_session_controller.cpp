@@ -151,7 +151,7 @@ void SessionNavigation::resolveChannelById(
 		return;
 	}
 	const auto fail = [=] {
-		Ui::show(Box<InformBox>(tr::lng_error_post_link_invalid(tr::now)));
+		Ui::Toast::Show(tr::lng_error_post_link_invalid(tr::now));
 	};
 	_session->api().request(base::take(_resolveRequestId)).cancel();
 	_resolveRequestId = _session->api().request(MTPchannels_GetChannels(
@@ -175,6 +175,21 @@ void SessionNavigation::resolveChannelById(
 void SessionNavigation::showPeerByLinkResolved(
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info) {
+	if (info.voicechatHash && peer->isChannel()) {
+		const auto hash = *info.voicechatHash;
+		_session->api().request(base::take(_resolveRequestId)).cancel();
+		_resolveRequestId = _session->api().request(
+			MTPchannels_GetFullChannel(peer->asChannel()->inputChannel)
+		).done([=](const MTPmessages_ChatFull &result) {
+			_session->api().processFullPeer(peer, result);
+			if (const auto call = peer->groupCall()) {
+				parentController()->startOrJoinGroupCall(peer, hash);
+			} else {
+				Ui::Toast::Show(tr::lng_error_post_link_invalid(tr::now));
+			}
+		}).send();
+		return;
+	}
 	auto params = SectionShow{
 		SectionShow::Way::Forward
 	};
@@ -933,6 +948,7 @@ void SessionController::closeThirdSection() {
 
 void SessionController::startOrJoinGroupCall(
 		not_null<PeerData*> peer,
+		QString joinHash,
 		bool confirmedLeaveOther) {
 	//const auto channel = peer->asChannel(); // #TODO calls
 	//if (channel && channel->amAnonymous()) {
@@ -945,7 +961,7 @@ void SessionController::startOrJoinGroupCall(
 	const auto confirm = [&](QString text, QString button) {
 		Ui::show(Box<ConfirmBox>(text, button, crl::guard(this, [=] {
 			Ui::hideLayer();
-			startOrJoinGroupCall(peer, true);
+			startOrJoinGroupCall(peer, joinHash, true);
 		})));
 	};
 	if (!confirmedLeaveOther && calls.inCall()) {
@@ -956,14 +972,14 @@ void SessionController::startOrJoinGroupCall(
 			tr::lng_call_bar_hangup(tr::now));
 	} else if (!confirmedLeaveOther && calls.inGroupCall()) {
 		if (calls.currentGroupCall()->peer() == peer) {
-			calls.activateCurrentCall();
+			calls.activateCurrentCall(joinHash);
 		} else {
 			confirm(
 				tr::lng_group_call_leave_to_other_sure(tr::now),
 				tr::lng_group_call_leave(tr::now));
 		}
 	} else {
-		calls.startOrJoinGroupCall(peer);
+		calls.startOrJoinGroupCall(peer, joinHash);
 	}
 }
 

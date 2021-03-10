@@ -190,7 +190,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		.bottomWidget = std::move(bottom),
 		.stMultiSelect = &st::groupCallMultiSelect,
 		.stComment = &st::groupCallShareBoxComment,
-		.stItem = &st::groupCallShareBoxList });
+		.st = &st::groupCallShareBoxList });
 	*box = result.data();
 	return result;
 }

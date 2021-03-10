@@ -177,6 +177,7 @@ GroupCall::GroupCall(
 , _api(&_peer->session().mtp())
 , _joinAs(info.joinAs)
 , _possibleJoinAs(std::move(info.possibleJoinAs))
+, _joinHash(info.joinHash)
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
 , _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
@@ -390,6 +391,15 @@ void GroupCall::rejoin() {
 	rejoin(_joinAs);
 }
 
+void GroupCall::rejoinWithHash(const QString &hash) {
+	if (!hash.isEmpty()
+		&& (muted() == MuteState::ForceMuted
+			|| muted() == MuteState::RaisedHand)) {
+		_joinHash = hash;
+		rejoin();
+	}
+}
+
 void GroupCall::rejoin(not_null<PeerData*> as) {
 	if (state() != State::Joining
 		&& state() != State::Joined
@@ -436,12 +446,14 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 			const auto wasMuteState = muted();
 			using Flag = MTPphone_JoinGroupCall::Flag;
 			_api.request(MTPphone_JoinGroupCall(
-				MTP_flags((wasMuteState != MuteState::Active)
+				MTP_flags((wasMuteState != MuteState::Active
 					? Flag::f_muted
-					: Flag(0)),
+					: Flag(0)) | (_joinHash.isEmpty()
+						? Flag(0)
+						: Flag::f_invite_hash)),
 				inputCall(),
 				_joinAs->input,
-				MTPstring(), // #TODO calls invite_hash
+				MTP_string(_joinHash),
 				MTP_dataJSON(MTP_bytes(json))
 			)).done([=](const MTPUpdates &updates) {
 				_mySsrc = ssrc;
