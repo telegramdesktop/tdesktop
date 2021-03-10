@@ -627,7 +627,7 @@ void start() {
 	if (const auto integration = BaseGtkIntegration::Instance()) {
 		integration->prepareEnvironment();
 	} else {
-		g_warning("GTK integration is disabled, some feature unavailable. ");
+		g_warning("GTK integration is disabled, some feature unavailable.");
 	}
 
 #ifdef DESKTOP_APP_USE_PACKAGED_RLOTTIE
