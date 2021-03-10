@@ -242,7 +242,7 @@ namespace EnhancedSettings {
 		});
 
 		ReadStringOption(settings, "radio_controller", [&](auto v) {
-			if (v == "") {
+			if (v.isNull()) {
 				cSetRadioController("http://localhost:2468");
 			} else {
 				cSetRadioController(v);
