@@ -415,6 +415,10 @@ groupCallMenu: Menu(defaultMenu) {
 		color: groupCallMenuBgRipple;
 	}
 }
+groupCallFinishMenu: Menu(groupCallMenu) {
+	itemFg: groupCallMemberMutedIcon;
+	itemFgOver: groupCallMemberMutedIcon;
+}
 groupCallMenuShadow: Shadow(defaultEmptyShadow) {
 	fallback: groupCallMenuBg;
 }
@@ -427,6 +431,9 @@ groupCallPopupMenu: PopupMenu(defaultPopupMenu) {
 	menu: groupCallMenu;
 	animation: groupCallPanelAnimation;
 }
+
+groupCallRecordingTimerPadding: margins(0px, 4px, 0px, 4px);
+groupCallRecordingTimerFont: font(12px);
 
 groupCallInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	shadow: groupCallMenuShadow;
