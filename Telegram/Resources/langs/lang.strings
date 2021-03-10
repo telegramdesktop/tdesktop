@@ -2767,6 +2767,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_remove_sure" = "This will remove the folder, your chats will not be deleted.";
 "lng_filters_remove_yes" = "Remove";
 
+"lng_photo_editor_menu_delete" = "Delete";
+"lng_photo_editor_menu_flip" = "Flip";
+"lng_photo_editor_menu_duplicate" = "Duplicate";
+
 // Wnd specific
 
 "lng_wnd_choose_program_menu" = "Choose Default Program...";

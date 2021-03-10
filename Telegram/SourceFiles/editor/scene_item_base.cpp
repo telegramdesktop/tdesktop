@@ -179,10 +179,13 @@ void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 	}
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(nullptr);
-	_menu->addAction(tr::lng_selected_delete(tr::now), [=] {
+	_menu->addAction(tr::lng_photo_editor_menu_delete(tr::now), [=] {
 		if (const auto s = static_cast<Scene*>(scene())) {
 			s->removeItem(this);
 		}
+	});
+	_menu->addAction(tr::lng_photo_editor_menu_flip(tr::now), [=] {
+		setFlip(!flipped());
 	});
 
 	_menu->popup(event->screenPos());
@@ -231,6 +234,20 @@ ItemBase::HandleType ItemBase::handleType(const QPointF &pos) const {
 		: leftHandleRect().contains(pos)
 		? HandleType::Left
 		: HandleType::None;
+}
+
+bool ItemBase::flipped() const {
+	return _flipped;
+}
+
+void ItemBase::setFlip(bool value) {
+	if (_flipped != value) {
+		performFlip();
+		_flipped = value;
+	}
+}
+
+void ItemBase::performFlip() {
 }
 
 } // namespace Editor

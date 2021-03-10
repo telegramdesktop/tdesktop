@@ -47,6 +47,9 @@ public:
 		const QStyleOptionGraphicsItem *option,
 		QWidget *widget) override;
 	int type() const override;
+
+	bool flipped() const;
+	void setFlip(bool value);
 protected:
 	enum HandleType {
 		None,
@@ -66,6 +69,7 @@ protected:
 	float64 verticalSize() const;
 	void setAspectRatio(float64 aspectRatio);
 
+	virtual void performFlip();
 private:
 	HandleType handleType(const QPointF &pos) const;
 	QRectF rightHandleRect() const;
@@ -87,6 +91,8 @@ private:
 	float64 _verticalSize = 0;
 	float64 _aspectRatio = 1.0;
 	HandleType _handle = HandleType::None;
+
+	bool _flipped = false;
 
 	rpl::lifetime _lifetime;
 

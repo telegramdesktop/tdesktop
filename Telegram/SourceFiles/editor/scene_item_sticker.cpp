@@ -97,4 +97,8 @@ int ItemSticker::type() const {
 	return Type;
 }
 
+void ItemSticker::performFlip() {
+	_pixmap = _pixmap.transformed(QTransform().scale(-1, 1));
+}
+
 } // namespace Editor

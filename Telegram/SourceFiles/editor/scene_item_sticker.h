@@ -36,6 +36,8 @@ public:
 		QWidget *widget) override;
 	MTPInputDocument sticker() const;
 	int type() const override;
+protected:
+	void performFlip() override;
 private:
 	const not_null<DocumentData*> _document;
 	const std::shared_ptr<Data::DocumentMedia> _mediaView;
