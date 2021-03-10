@@ -168,7 +168,13 @@ ShareBox::ShareBox(QWidget*, Descriptor &&descriptor)
 		Ui::InputField::Mode::MultiLine,
 		tr::lng_photos_comment()),
 	st::shareCommentPadding)
+, _bottomWidget(std::move(_descriptor.bottomWidget))
 , _searchTimer([=] { searchByUsername(); }) {
+	if (_bottomWidget) {
+		_bottomWidget->setParent(this);
+		_bottomWidget->resizeToWidth(st::boxWideWidth);
+		_bottomWidget->show();
+	}
 }
 
 void ShareBox::prepareCommentField() {
@@ -179,9 +185,14 @@ void ShareBox::prepareCommentField() {
 	rpl::combine(
 		heightValue(),
 		_comment->heightValue(),
-		_1 - _2
-	) | rpl::start_with_next([=](int top) {
-		_comment->moveToLeft(0, top);
+		(_bottomWidget
+			? _bottomWidget->heightValue()
+			: (rpl::single(0) | rpl::type_erased()))
+	) | rpl::start_with_next([=](int height, int comment, int bottom) {
+		_comment->moveToLeft(0, height - bottom - comment);
+		if (_bottomWidget) {
+			_bottomWidget->moveToLeft(0, height - bottom);
+		}
 	}, _comment->lifetime());
 
 	const auto field = _comment->entity();
@@ -210,6 +221,9 @@ void ShareBox::prepareCommentField() {
 		InitSpellchecker(_descriptor.navigation->parentController(), field);
 	}
 	Ui::SendPendingMoveResizeEvents(_comment);
+	if (_bottomWidget) {
+		Ui::SendPendingMoveResizeEvents(_bottomWidget);
+	}
 }
 
 void ShareBox::prepare() {
@@ -251,7 +265,11 @@ void ShareBox::prepare() {
 			_inner->selectActive();
 		}
 	});
-	_comment->heightValue(
+	rpl::combine(
+		_comment->heightValue(),
+		(_bottomWidget
+			? _bottomWidget->heightValue()
+			: rpl::single(0) | rpl::type_erased())
 	) | rpl::start_with_next([=] {
 		updateScrollSkips();
 	}, _comment->lifetime());
@@ -283,7 +301,8 @@ int ShareBox::getTopScrollSkip() const {
 }
 
 int ShareBox::getBottomScrollSkip() const {
-	return _comment->isHidden() ? 0 : _comment->height();
+	return (_comment->isHidden() ? 0 : _comment->height())
+		+ (_bottomWidget ? _bottomWidget->height() : 0);
 }
 
 int ShareBox::contentHeight() const {

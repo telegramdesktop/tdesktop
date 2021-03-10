@@ -68,6 +68,7 @@ public:
 		Window::SessionNavigation *navigation = nullptr;
 		Fn<void(not_null<Ui::InputField*>)> initSpellchecker;
 		Fn<void(not_null<Ui::InputField*>)> initEditLink;
+		object_ptr<Ui::RpWidget> bottomWidget = { nullptr };
 	};
 	ShareBox(QWidget*, Descriptor &&descriptor);
 
@@ -113,6 +114,7 @@ private:
 
 	object_ptr<Ui::MultiSelect> _select;
 	object_ptr<Ui::SlideWrap<Ui::InputField>> _comment;
+	object_ptr<Ui::RpWidget> _bottomWidget;
 
 	class Inner;
 	QPointer<Inner> _inner;
