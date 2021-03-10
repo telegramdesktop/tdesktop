@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_panel.h"
 #include "data/data_peer.h"
 #include "data/data_group_call.h"
+#include "info/profile/info_profile_values.h" // Info::Profile::NameValue.
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/menu/menu.h"
 #include "ui/widgets/menu/menu_action.h"
@@ -133,9 +134,45 @@ void StopGroupCallRecordingBox(
 		)) | rpl::map(ToDurationFrom(startDate));
 }
 
-class ActionWithTimer final : public Ui::Menu::ItemBase {
+class JoinAsAction final : public Ui::Menu::ItemBase {
 public:
-	ActionWithTimer(
+	JoinAsAction(
+		not_null<Ui::RpWidget*> parent,
+		const style::Menu &st,
+		not_null<PeerData*> peer,
+		Fn<void()> callback);
+
+	bool isEnabled() const override;
+	not_null<QAction*> action() const override;
+
+	void handleKeyPress(not_null<QKeyEvent*> e) override;
+
+protected:
+	QPoint prepareRippleStartPosition() const override;
+	QImage prepareRippleMask() const override;
+
+	int contentHeight() const override;
+
+private:
+	void prepare();
+	void paint(Painter &p);
+
+	const not_null<QAction*> _dummyAction;
+	const style::Menu &_st;
+	const not_null<PeerData*> _peer;
+	std::shared_ptr<Data::CloudImageView> _userpicView;
+
+	Ui::Text::String _text;
+	Ui::Text::String _name;
+	int _textWidth = 0;
+	int _nameWidth = 0;
+	const int _height = 0;
+
+};
+
+class RecordingAction final : public Ui::Menu::ItemBase {
+public:
+	RecordingAction(
 		not_null<Ui::RpWidget*> parent,
 		const style::Menu &st,
 		rpl::producer<QString> text,
@@ -179,7 +216,126 @@ TextParseOptions MenuTextOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-ActionWithTimer::ActionWithTimer(
+JoinAsAction::JoinAsAction(
+	not_null<Ui::RpWidget*> parent,
+	const style::Menu &st,
+	not_null<PeerData*> peer,
+	Fn<void()> callback)
+: ItemBase(parent, st)
+, _dummyAction(new QAction(parent))
+, _st(st)
+, _peer(peer)
+, _height(st::groupCallJoinAsPadding.top()
+	+ st::groupCallJoinAsPhotoSize
+	+ st::groupCallJoinAsPadding.bottom()) {
+	setAcceptBoth(true);
+	initResizeHook(parent->sizeValue());
+	setClickedCallback(std::move(callback));
+
+	paintRequest(
+	) | rpl::start_with_next([=] {
+		Painter p(this);
+		paint(p);
+	}, lifetime());
+
+	enableMouseSelecting();
+	prepare();
+}
+
+void JoinAsAction::paint(Painter &p) {
+	const auto selected = isSelected();
+	const auto height = contentHeight();
+	if (selected && _st.itemBgOver->c.alpha() < 255) {
+		p.fillRect(0, 0, width(), height, _st.itemBg);
+	}
+	p.fillRect(0, 0, width(), height, selected ? _st.itemBgOver : _st.itemBg);
+	if (isEnabled()) {
+		paintRipple(p, 0, 0);
+	}
+
+	const auto &padding = st::groupCallJoinAsPadding;
+	_peer->paintUserpic(
+		p,
+		_userpicView,
+		padding.left(),
+		padding.top(),
+		st::groupCallJoinAsPhotoSize);
+	const auto textLeft = padding.left()
+		+ st::groupCallJoinAsPhotoSize
+		+ padding.left();
+	p.setPen(selected ? _st.itemFgOver : _st.itemFg);
+	_text.drawLeftElided(
+		p,
+		textLeft,
+		st::groupCallJoinAsTextTop,
+		_textWidth,
+		width());
+	p.setPen(selected ? _st.itemFgShortcutOver : _st.itemFgShortcut);
+	_name.drawLeftElided(
+		p,
+		textLeft,
+		st::groupCallJoinAsNameTop,
+		_nameWidth,
+		width());
+}
+
+void JoinAsAction::prepare() {
+	rpl::combine(
+		tr::lng_group_call_display_as_header(),
+		Info::Profile::NameValue(_peer)
+	) | rpl::start_with_next([=](QString text, TextWithEntities name) {
+		const auto &padding = st::groupCallJoinAsPadding;
+		_text.setMarkedText(_st.itemStyle, { text }, MenuTextOptions);
+		_name.setMarkedText(_st.itemStyle, name, MenuTextOptions);
+		const auto textWidth = _text.maxWidth();
+		const auto nameWidth = _name.maxWidth();
+		const auto textLeft = padding.left()
+			+ st::groupCallJoinAsPhotoSize
+			+ padding.left();
+		const auto w = std::clamp(
+			(textLeft
+				+ std::max(textWidth, nameWidth)
+				+ padding.right()),
+			_st.widthMin,
+			_st.widthMax);
+		setMinWidth(w);
+		_textWidth = w - textLeft - padding.right();
+		_nameWidth = w - textLeft - padding.right();
+		update();
+	}, lifetime());
+}
+
+bool JoinAsAction::isEnabled() const {
+	return true;
+}
+
+not_null<QAction*> JoinAsAction::action() const {
+	return _dummyAction;
+}
+
+QPoint JoinAsAction::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos());
+}
+
+QImage JoinAsAction::prepareRippleMask() const {
+	return Ui::RippleAnimation::rectMask(size());
+}
+
+int JoinAsAction::contentHeight() const {
+	return _height;
+}
+
+void JoinAsAction::handleKeyPress(not_null<QKeyEvent*> e) {
+	if (!isSelected()) {
+		return;
+	}
+	const auto key = e->key();
+	if (key == Qt::Key_Enter || key == Qt::Key_Return) {
+		setClicked(Ui::Menu::TriggeredSource::Keyboard);
+	}
+}
+
+RecordingAction::RecordingAction(
 	not_null<Ui::RpWidget*> parent,
 	const style::Menu &st,
 	rpl::producer<QString> text,
@@ -220,7 +376,7 @@ ActionWithTimer::ActionWithTimer(
 	prepare(std::move(text));
 }
 
-void ActionWithTimer::paint(Painter &p) {
+void RecordingAction::paint(Painter &p) {
 	const auto selected = isSelected();
 	const auto height = contentHeight();
 	if (selected && _st.itemBgOver->c.alpha() < 255) {
@@ -250,7 +406,7 @@ void ActionWithTimer::paint(Painter &p) {
 	}
 }
 
-void ActionWithTimer::refreshElapsedText() {
+void RecordingAction::refreshElapsedText() {
 	const auto now = base::unixtime::now();
 	const auto elapsed = std::max(now - _startAt, 0);
 	const auto text = !_startAt
@@ -272,7 +428,7 @@ void ActionWithTimer::refreshElapsedText() {
 	_refreshTimer.callOnce(nextCall);
 }
 
-void ActionWithTimer::prepare(rpl::producer<QString> text) {
+void RecordingAction::prepare(rpl::producer<QString> text) {
 	refreshElapsedText();
 
 	const auto &padding = _st.itemPadding;
@@ -291,37 +447,34 @@ void ActionWithTimer::prepare(rpl::producer<QString> text) {
 
 	std::move(text) | rpl::start_with_next([=](QString text) {
 		const auto &padding = _st.itemPadding;
-		_text.setMarkedText(
-			_st.itemStyle,
-			{ text },
-			MenuTextOptions);
+		_text.setMarkedText(_st.itemStyle, { text }, MenuTextOptions);
 		const auto textWidth = _text.maxWidth();
 		_textWidth = w - padding.left() - padding.right();
 		update();
 	}, lifetime());
 }
 
-bool ActionWithTimer::isEnabled() const {
+bool RecordingAction::isEnabled() const {
 	return true;
 }
 
-not_null<QAction*> ActionWithTimer::action() const {
+not_null<QAction*> RecordingAction::action() const {
 	return _dummyAction;
 }
 
-QPoint ActionWithTimer::prepareRippleStartPosition() const {
+QPoint RecordingAction::prepareRippleStartPosition() const {
 	return mapFromGlobal(QCursor::pos());
 }
 
-QImage ActionWithTimer::prepareRippleMask() const {
+QImage RecordingAction::prepareRippleMask() const {
 	return Ui::RippleAnimation::rectMask(size());
 }
 
-int ActionWithTimer::contentHeight() const {
+int RecordingAction::contentHeight() const {
 	return _startAt ? _bigHeight : _smallHeight;
 }
 
-void ActionWithTimer::handleKeyPress(not_null<QKeyEvent*> e) {
+void RecordingAction::handleKeyPress(not_null<QKeyEvent*> e) {
 	if (!isSelected()) {
 		return;
 	}
@@ -331,12 +484,23 @@ void ActionWithTimer::handleKeyPress(not_null<QKeyEvent*> e) {
 	}
 }
 
-base::unique_qptr<Ui::Menu::ItemBase> RecordingAction(
+base::unique_qptr<Ui::Menu::ItemBase> MakeJoinAsAction(
+		not_null<Ui::Menu::Menu*> menu,
+		not_null<PeerData*> peer,
+		Fn<void()> callback) {
+	return base::make_unique_q<JoinAsAction>(
+		menu,
+		menu->st(),
+		peer,
+		std::move(callback));
+}
+
+base::unique_qptr<Ui::Menu::ItemBase> MakeRecordingAction(
 		not_null<Ui::Menu::Menu*> menu,
 		rpl::producer<TimeId> startDate,
 		Fn<void()> callback) {
 	using namespace rpl::mappers;
-	return base::make_unique_q<ActionWithTimer>(
+	return base::make_unique_q<RecordingAction>(
 		menu,
 		menu->st(),
 		rpl::conditional(
@@ -347,7 +511,7 @@ base::unique_qptr<Ui::Menu::ItemBase> RecordingAction(
 		std::move(callback));
 }
 
-base::unique_qptr<Ui::Menu::ItemBase> FinishAction(
+base::unique_qptr<Ui::Menu::ItemBase> MakeFinishAction(
 		not_null<Ui::Menu::Menu*> menu,
 		Fn<void()> callback) {
 	return base::make_unique_q<Ui::Menu::Action>(
@@ -442,9 +606,10 @@ void FillMenu(
 	const auto addEditTitle = peer->canManageGroupCall();
 	const auto addEditRecording = peer->canManageGroupCall();
 	if (addEditJoinAs) {
-		menu->addAction(
-			tr::lng_group_call_display_as_header(tr::now),
-			chooseJoinAs);
+		menu->addAction(MakeJoinAsAction(
+			menu->menu(),
+			call->joinAs(),
+			chooseJoinAs));
 		menu->addSeparator();
 	}
 	if (addEditTitle) {
@@ -486,7 +651,7 @@ void FillMenu(
 					done));
 			}
 		};
-		menu->addAction(RecordingAction(
+		menu->addAction(MakeRecordingAction(
 			menu->menu(),
 			real->recordStartDateValue(),
 			handler));
@@ -496,7 +661,7 @@ void FillMenu(
 			showBox(Box(SettingsBox, strong));
 		}
 	});
-	menu->addAction(FinishAction(menu->menu(), [=] {
+	menu->addAction(MakeFinishAction(menu->menu(), [=] {
 		if (const auto strong = weak.get()) {
 			showBox(Box(
 				LeaveBox,
