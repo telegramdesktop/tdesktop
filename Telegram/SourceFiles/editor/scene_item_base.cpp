@@ -152,9 +152,9 @@ void ItemBase::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 	setZValue((*_lastZ)++);
 	if (event->button() == Qt::LeftButton) {
 		_handle = handleType(event->pos());
-		if (isHandling()) {
-			setCursor(Qt::ClosedHandCursor);
-		}
+	}
+	if (isHandling()) {
+		setCursor(Qt::ClosedHandCursor);
 	} else {
 		QGraphicsItem::mousePressEvent(event);
 	}
