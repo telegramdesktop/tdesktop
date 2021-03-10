@@ -20,6 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "lang/lang_keys.h"
+#include "boxes/share_box.h"
+#include "history/history_message.h" // GetErrorTextForSending.
+#include "data/data_histories.h"
+#include "data/data_session.h"
 #include "base/timer_rpl.h"
 #include "base/event_filter.h"
 #include "base/global_shortcuts.h"
@@ -86,6 +90,97 @@ void SaveCallJoinMuted(
 			QString::number(delay / 1000., 'f', 2));
 }
 
+object_ptr<ShareBox> ShareInviteLinkBox(
+		not_null<PeerData*> peer,
+		const QString &linkSpeaker,
+		const QString &linkListener,
+		Fn<void(QString)> showToast) {
+	const auto session = &peer->session();
+	const auto sending = std::make_shared<bool>();
+	const auto box = std::make_shared<QPointer<ShareBox>>();
+
+	const auto currentLink = [=] {
+		return linkListener;
+	};
+	auto copyCallback = [=] {
+		QGuiApplication::clipboard()->setText(currentLink());
+		showToast(tr::lng_group_invite_copied(tr::now));
+	};
+	auto submitCallback = [=](
+			std::vector<not_null<PeerData*>> &&result,
+			TextWithTags &&comment,
+			Api::SendOptions options) {
+		if (*sending || result.empty()) {
+			return;
+		}
+
+		const auto error = [&] {
+			for (const auto peer : result) {
+				const auto error = GetErrorTextForSending(
+					peer,
+					{},
+					comment);
+				if (!error.isEmpty()) {
+					return std::make_pair(error, peer);
+				}
+			}
+			return std::make_pair(QString(), result.front());
+		}();
+		if (!error.first.isEmpty()) {
+			auto text = TextWithEntities();
+			if (result.size() > 1) {
+				text.append(
+					Ui::Text::Bold(error.second->name)
+				).append("\n\n");
+			}
+			text.append(error.first);
+			if (const auto weak = *box) {
+				//weak->getDelegate()->show(
+				//	Box(ConfirmBox, text, nullptr, nullptr));
+			}
+			return;
+		}
+
+		*sending = true;
+		const auto link = currentLink();
+		if (!comment.text.isEmpty()) {
+			comment.text = link + "\n" + comment.text;
+			const auto add = link.size() + 1;
+			for (auto &tag : comment.tags) {
+				tag.offset += add;
+			}
+		} else {
+			comment.text = link;
+		}
+		const auto owner = &peer->owner();
+		auto &api = peer->session().api();
+		auto &histories = owner->histories();
+		const auto requestType = Data::Histories::RequestType::Send;
+		for (const auto peer : result) {
+			const auto history = owner->history(peer);
+			auto message = ApiWrap::MessageToSend(history);
+			message.textWithTags = comment;
+			message.action.options = options;
+			message.action.clearDraft = false;
+			api.sendMessage(std::move(message));
+		}
+		if (*box) {
+			(*box)->closeBox();
+		}
+		showToast(tr::lng_share_done(tr::now));
+	};
+	auto filterCallback = [](PeerData *peer) {
+		return peer->canWrite();
+	};
+	auto result = Box<ShareBox>(ShareBox::Descriptor{
+		.session = &peer->session(),
+		.copyCallback = std::move(copyCallback),
+		.submitCallback = std::move(submitCallback),
+		.filterCallback = std::move(filterCallback) });
+	*box = result.data();
+	return result;
+}
+
 } // namespace
 
 void SettingsBox(
@@ -104,6 +199,8 @@ void SettingsBox(
 		float micLevel = 0.;
 		Ui::Animations::Simple micLevelAnimation;
 		base::Timer levelUpdateTimer;
+		QString linkSpeaker;
+		QString linkListener;
 		bool generatingLink = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
@@ -408,50 +505,108 @@ void SettingsBox(
 	//AddDivider(layout);
 	//AddSkip(layout);
 
-	const auto lookupLink = [=] {
-		if (const auto group = peer->asMegagroup()) {
-			return group->hasUsername()
-				? group->session().createInternalLinkFull(group->username)
-				: group->inviteLink();
-		} else if (const auto chat = peer->asChat()) {
-			return chat->inviteLink();
-		}
-		return QString();
-	};
-	const auto canCreateLink = [&] {
-		if (const auto chat = peer->asChat()) {
-			return chat->canHaveInviteLink();
-		} else if (const auto group = peer->asMegagroup()) {
-			return group->canHaveInviteLink();
-		}
-		return false;
-	};
-	if (!lookupLink().isEmpty() || canCreateLink()) {
-		const auto copyLink = [=] {
-			const auto link = lookupLink();
-			if (link.isEmpty()) {
+	auto shareLink = Fn<void()>();
+	if (peer->isChannel()
+		&& peer->asChannel()->hasUsername()
+		&& peer->canManageGroupCall()
+		&& goodReal) {
+		const auto input = real->input();
+		const auto shareReady = [=] {
+			if (state->linkSpeaker.isEmpty()
+				|| state->linkListener.isEmpty()) {
 				return false;
 			}
-			QGuiApplication::clipboard()->setText(link);
-			if (weakBox) {
+			const auto showToast = crl::guard(box, [=](QString text) {
 				Ui::Toast::Show(
 					box->getDelegate()->outerContainer(),
-					tr::lng_create_channel_link_copied(tr::now));
-			}
+					text);
+			});
+			box->getDelegate()->show(ShareInviteLinkBox(
+				peer,
+				state->linkSpeaker,
+				state->linkListener,
+				showToast));
 			return true;
 		};
+		shareLink = [=] {
+			if (shareReady() || state->generatingLink) {
+				return;
+			}
+			state->generatingLink = true;
+			// #TODO calls cancel requests on box close
+			peer->session().api().request(MTPphone_ExportGroupCallInvite(
+				MTP_flags(0),
+				input
+			)).done(crl::guard(box, [=](
+					const MTPphone_ExportedGroupCallInvite &result) {
+				result.match([&](
+						const MTPDphone_exportedGroupCallInvite &data) {
+					state->linkListener = qs(data.vlink());
+					shareReady();
+				});
+			})).send();
+			peer->session().api().request(MTPphone_ExportGroupCallInvite(
+				MTP_flags(
+					MTPphone_ExportGroupCallInvite::Flag::f_can_self_unmute),
+				input
+			)).done(crl::guard(box, [=](
+					const MTPphone_ExportedGroupCallInvite &result) {
+				result.match([&](
+						const MTPDphone_exportedGroupCallInvite &data) {
+					state->linkSpeaker = qs(data.vlink());
+					shareReady();
+				});
+			})).send();
+		};
+	} else {
+		const auto lookupLink = [=] {
+			if (const auto group = peer->asMegagroup()) {
+				return group->hasUsername()
+					? group->session().createInternalLinkFull(group->username)
+					: group->inviteLink();
+			} else if (const auto chat = peer->asChat()) {
+				return chat->inviteLink();
+			}
+			return QString();
+		};
+		const auto canCreateLink = [&] {
+			if (const auto chat = peer->asChat()) {
+				return chat->canHaveInviteLink();
+			} else if (const auto group = peer->asMegagroup()) {
+				return group->canHaveInviteLink();
+			}
+			return false;
+		};
+		if (!lookupLink().isEmpty() || canCreateLink()) {
+			const auto copyLink = [=] {
+				const auto link = lookupLink();
+				if (link.isEmpty()) {
+					return false;
+				}
+				QGuiApplication::clipboard()->setText(link);
+				if (weakBox) {
+					Ui::Toast::Show(
+						box->getDelegate()->outerContainer(),
+						tr::lng_create_channel_link_copied(tr::now));
+				}
+				return true;
+			};
+			shareLink = [=] {
+				if (!copyLink() && !state->generatingLink) {
+					state->generatingLink = true;
+					peer->session().api().inviteLinks().create(
+						peer,
+						crl::guard(layout, [=](auto&&) { copyLink(); }));
+				}
+			};
+		}
+	}
+	if (shareLink) {
 		AddButton(
 			layout,
 			tr::lng_group_call_share(),
 			st::groupCallSettingsButton
-		)->addClickHandler([=] {
-			if (!copyLink() && !state->generatingLink) {
-				state->generatingLink = true;
-				peer->session().api().inviteLinks().create(
-					peer,
-					crl::guard(layout, [=](auto&&) { copyLink(); }));
-			}
-		});
+		)->addClickHandler(std::move(shareLink));
 	}
 
 	if (peer->canManageGroupCall()) {

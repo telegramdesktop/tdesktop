@@ -46,7 +46,7 @@ class ShareBox::Inner final : public Ui::RpWidget, private base::Subscriber {
 public:
 	Inner(
 		QWidget *parent,
-		not_null<Window::SessionNavigation*> navigation,
+		not_null<Main::Session*> session,
 		ShareBox::FilterCallback &&filterCallback);
 
 	void setPeerSelectedChangedCallback(
@@ -121,7 +121,7 @@ private:
 
 	void refresh();
 
-	const not_null<Window::SessionNavigation*> _navigation;
+	const not_null<Main::Session*> _session;
 
 	float64 _columnSkip = 0.;
 	float64 _rowWidthReal = 0.;
@@ -153,17 +153,9 @@ private:
 
 };
 
-ShareBox::ShareBox(
-	QWidget*,
-	not_null<Window::SessionNavigation*> navigation,
-	CopyCallback &&copyCallback,
-	SubmitCallback &&submitCallback,
-	FilterCallback &&filterCallback)
-: _navigation(navigation)
-, _api(&_navigation->session().mtp())
-, _copyCallback(std::move(copyCallback))
-, _submitCallback(std::move(submitCallback))
-, _filterCallback(std::move(filterCallback))
+ShareBox::ShareBox(QWidget*, Descriptor &&descriptor)
+: _descriptor(std::move(descriptor))
+, _api(&_descriptor.session->mtp())
 , _select(
 	this,
 	st::defaultMultiSelect,
@@ -202,11 +194,21 @@ void ShareBox::prepareCommentField() {
 	field->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
-	field->setEditLinkCallback(
-		DefaultEditLinkCallback(_navigation->parentController(), field));
+	if (_descriptor.initEditLink) {
+		_descriptor.initEditLink(field);
+	} else if (_descriptor.navigation) {
+		field->setEditLinkCallback(
+			DefaultEditLinkCallback(
+				_descriptor.navigation->parentController(),
+				field));
+	}
 	field->setSubmitSettings(Core::App().settings().sendSubmitWay());
 
-	InitSpellchecker(_navigation->parentController(), field);
+	if (_descriptor.initSpellchecker) {
+		_descriptor.initSpellchecker(field);
+	} else if (_descriptor.navigation) {
+		InitSpellchecker(_descriptor.navigation->parentController(), field);
+	}
 	Ui::SendPendingMoveResizeEvents(_comment);
 }
 
@@ -221,8 +223,8 @@ void ShareBox::prepare() {
 	_inner = setInnerWidget(
 		object_ptr<Inner>(
 			this,
-			_navigation,
-			std::move(_filterCallback)),
+			_descriptor.session,
+			std::move(_descriptor.filterCallback)),
 		getTopScrollSkip(),
 		getBottomScrollSkip());
 
@@ -234,7 +236,7 @@ void ShareBox::prepare() {
 		applyFilterUpdate(query);
 	});
 	_select->setItemRemovedCallback([=](uint64 itemId) {
-		if (const auto peer = _navigation->session().data().peerLoaded(itemId)) {
+		if (const auto peer = _descriptor.session->data().peerLoaded(itemId)) {
 			_inner->peerUnselected(peer);
 			selectedChanged();
 			update();
@@ -271,7 +273,7 @@ void ShareBox::prepare() {
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_comment->entity(),
-		&_navigation->session());
+		_descriptor.session);
 
 	_select->raise();
 }
@@ -351,8 +353,8 @@ void ShareBox::peopleDone(
 		switch (result.type()) {
 		case mtpc_contacts_found: {
 			auto &found = result.c_contacts_found();
-			_navigation->session().data().processUsers(found.vusers());
-			_navigation->session().data().processChats(found.vchats());
+			_descriptor.session->data().processUsers(found.vusers());
+			_descriptor.session->data().processChats(found.vchats());
 			_inner->peopleReceived(
 				query,
 				found.vmy_results().v,
@@ -429,7 +431,7 @@ void ShareBox::createButtons() {
 			[=] { return sendMenuType(); },
 			[=] { submitSilent(); },
 			[=] { submitScheduled(); });
-	} else if (_copyCallback) {
+	} else if (_descriptor.copyCallback) {
 		addButton(tr::lng_share_copy_link(), [=] { copyLink(); });
 	}
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
@@ -463,8 +465,8 @@ void ShareBox::innerSelectedChanged(PeerData *peer, bool checked) {
 }
 
 void ShareBox::submit(Api::SendOptions options) {
-	if (_submitCallback) {
-		_submitCallback(
+	if (const auto onstack = _descriptor.submitCallback) {
+		onstack(
 			_inner->selected(),
 			_comment->entity()->getTextWithAppliedMarkdown(),
 			options);
@@ -485,8 +487,8 @@ void ShareBox::submitScheduled() {
 }
 
 void ShareBox::copyLink() {
-	if (_copyCallback) {
-		_copyCallback();
+	if (const auto onstack = _descriptor.copyCallback) {
+		onstack();
 	}
 }
 
@@ -522,10 +524,10 @@ void ShareBox::scrollAnimationCallback() {
 
 ShareBox::Inner::Inner(
 	QWidget *parent,
-	not_null<Window::SessionNavigation*> navigation,
+	not_null<Main::Session*> session,
 	ShareBox::FilterCallback &&filterCallback)
 : RpWidget(parent)
-, _navigation(navigation)
+, _session(session)
 , _filterCallback(std::move(filterCallback))
 , _chatsIndexed(
 	std::make_unique<Dialogs::IndexedList>(
@@ -534,7 +536,7 @@ ShareBox::Inner::Inner(
 	_rowHeight = st::shareRowHeight;
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	const auto self = _navigation->session().user();
+	const auto self = session->user();
 	if (_filterCallback(self)) {
 		_chatsIndexed->addToEnd(self->owner().history(self));
 	}
@@ -548,30 +550,30 @@ ShareBox::Inner::Inner(
 			}
 		}
 	};
-	addList(_navigation->session().data().chatsList()->indexed());
+	addList(_session->data().chatsList()->indexed());
 	const auto id = Data::Folder::kId;
-	if (const auto folder = _navigation->session().data().folderLoaded(id)) {
+	if (const auto folder = _session->data().folderLoaded(id)) {
 		addList(folder->chatsList()->indexed());
 	}
-	addList(_navigation->session().data().contactsNoChatsList());
+	addList(_session->data().contactsNoChatsList());
 
 	_filter = qsl("a");
 	updateFilter();
 
-	_navigation->session().changes().peerUpdates(
+	_session->changes().peerUpdates(
 		Data::PeerUpdate::Flag::Photo
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		updateChat(update.peer);
 	}, lifetime());
 
-	_navigation->session().changes().realtimeNameUpdates(
+	_session->changes().realtimeNameUpdates(
 	) | rpl::start_with_next([=](const Data::NameUpdate &update) {
 		_chatsIndexed->peerNameChanged(
 			update.peer,
 			update.oldFirstLetters);
 	}, lifetime());
 
-	_navigation->session().downloaderTaskFinished(
+	_session->downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
@@ -1030,8 +1032,8 @@ void ShareBox::Inner::peopleReceived(
 	d_byUsernameFiltered.reserve(already + my.size() + people.size());
 	const auto feedList = [&](const QVector<MTPPeer> &list) {
 		for (const auto &data : list) {
-			if (const auto peer = _navigation->session().data().peerLoaded(peerFromMTP(data))) {
-				const auto history = _navigation->session().data().historyLoaded(peer);
+			if (const auto peer = _session->data().peerLoaded(peerFromMTP(data))) {
+				const auto history = _session->data().historyLoaded(peer);
 				if (!_filterCallback(peer)) {
 					continue;
 				} else if (history && _chatsIndexed->getRow(history)) {

@@ -350,11 +350,12 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 	auto copyLinkCallback = canCopyLink
 		? Fn<void()>(std::move(copyCallback))
 		: Fn<void()>();
-	Ui::show(Box<ShareBox>(
-		App::wnd()->sessionController(),
-		std::move(copyLinkCallback),
-		std::move(submitCallback),
-		std::move(filterCallback)));
+	Ui::show(Box<ShareBox>(ShareBox::Descriptor{
+		.session = session,
+		.copyCallback = std::move(copyLinkCallback),
+		.submitCallback = std::move(submitCallback),
+		.filterCallback = std::move(filterCallback),
+		.navigation = App::wnd()->sessionController() }));
 }
 
 Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(

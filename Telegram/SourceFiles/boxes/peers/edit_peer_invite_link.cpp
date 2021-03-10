@@ -905,11 +905,12 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 		return peer->canWrite();
 	};
 	*box = Ui::show(
-		Box<ShareBox>(
-			App::wnd()->sessionController(),
-			std::move(copyCallback),
-			std::move(submitCallback),
-			std::move(filterCallback)),
+		Box<ShareBox>(ShareBox::Descriptor{
+			.session = &peer->session(),
+			.copyCallback = std::move(copyCallback),
+			.submitCallback = std::move(submitCallback),
+			.filterCallback = [](auto peer) { return peer->canWrite(); },
+			.navigation = App::wnd()->sessionController() }),
 		Ui::LayerOption::KeepOther);
 }
 

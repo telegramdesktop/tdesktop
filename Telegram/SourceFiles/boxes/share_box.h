@@ -60,12 +60,16 @@ public:
 		Api::SendOptions)>;
 	using FilterCallback = Fn<bool(PeerData*)>;
 
-	ShareBox(
-		QWidget*,
-		not_null<Window::SessionNavigation*> navigation,
-		CopyCallback &&copyCallback,
-		SubmitCallback &&submitCallback,
-		FilterCallback &&filterCallback);
+	struct Descriptor {
+		not_null<Main::Session*> session;
+		CopyCallback copyCallback;
+		SubmitCallback submitCallback;
+		FilterCallback filterCallback;
+		Window::SessionNavigation *navigation = nullptr;
+		Fn<void(not_null<Ui::InputField*>)> initSpellchecker;
+		Fn<void(not_null<Ui::InputField*>)> initEditLink;
+	};
+	ShareBox(QWidget*, Descriptor &&descriptor);
 
 protected:
 	void prepare() override;
@@ -104,12 +108,8 @@ private:
 		mtpRequestId requestId);
 	void peopleFail(const RPCError &error, mtpRequestId requestId);
 
-	const not_null<Window::SessionNavigation*> _navigation;
+	Descriptor _descriptor;
 	MTP::Sender _api;
-
-	CopyCallback _copyCallback;
-	SubmitCallback _submitCallback;
-	FilterCallback _filterCallback;
 
 	object_ptr<Ui::MultiSelect> _select;
 	object_ptr<Ui::SlideWrap<Ui::InputField>> _comment;
