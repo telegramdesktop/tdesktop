@@ -7,11 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/unique_qptr.h"
+
 #include <QGraphicsItem>
 
 class QGraphicsSceneHoverEvent;
 class QGraphicsSceneMouseEvent;
 class QStyleOptionGraphicsItem;
+
+namespace Ui {
+class PopupMenu;
+} // namespace Ui
 
 namespace Editor {
 
@@ -51,6 +57,7 @@ protected:
 	void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
 	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
+	void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
 
 	QRectF contentRect() const;
 	QRectF innerRect() const;
@@ -70,6 +77,8 @@ private:
 	const QPen _selectPen;
 	const QPen _selectPenInactive;
 	const QPen _handlePen;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	float64 _scaledHandleSize = 1.0;
 	QMarginsF _scaledInnerMargins;
