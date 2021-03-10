@@ -14,6 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/round_checkbox.h"
 #include "mtproto/sender.h"
 
+namespace style {
+struct MultiSelect;
+struct InputField;
+struct PeerList;
+} // namespace style
+
 namespace SendMenu {
 enum class Type;
 } // namespace SendMenu
@@ -69,6 +75,9 @@ public:
 		Fn<void(not_null<Ui::InputField*>)> initSpellchecker;
 		Fn<void(not_null<Ui::InputField*>)> initEditLink;
 		object_ptr<Ui::RpWidget> bottomWidget = { nullptr };
+		const style::MultiSelect *stMultiSelect = nullptr;
+		const style::InputField *stComment = nullptr;
+		const style::PeerList *st = nullptr;
 	};
 	ShareBox(QWidget*, Descriptor &&descriptor);
 

@@ -215,17 +215,23 @@ localStorageLimitMargin: margins(22px, 5px, 20px, 10px);
 shareRowsTop: 12px;
 shareRowHeight: 108px;
 sharePhotoTop: 6px;
-sharePhotoCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
-	imageRadius: 28px;
-	imageSmallRadius: 24px;
+shareBoxListItem: PeerListItem(defaultPeerListItem) {
+	nameStyle: TextStyle(defaultTextStyle) {
+		font: font(11px);
+		linkFont: font(11px);
+		linkFontOver: font(11px);
+	}
+	nameFg: windowFg;
+	nameFgChecked: windowActiveTextFg;
+	checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+		imageRadius: 28px;
+		imageSmallRadius: 24px;
+	}
 }
-shareNameStyle: TextStyle(defaultTextStyle) {
-	font: font(11px);
-	linkFont: font(11px);
-	linkFontOver: font(11px);
+shareBoxList: PeerList(defaultPeerList) {
+	bg: boxBg;
+	item: shareBoxListItem;
 }
-shareNameFg: windowFg;
-shareNameActiveFg: windowActiveTextFg;
 shareNameTop: 6px;
 shareColumnSkip: 6px;
 shareActivateDuration: 150;

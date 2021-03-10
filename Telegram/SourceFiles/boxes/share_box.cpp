@@ -44,10 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ShareBox::Inner final : public Ui::RpWidget, private base::Subscriber {
 public:
-	Inner(
-		QWidget *parent,
-		not_null<Main::Session*> session,
-		ShareBox::FilterCallback &&filterCallback);
+	Inner(QWidget *parent, const Descriptor &descriptor);
 
 	void setPeerSelectedChangedCallback(
 		Fn<void(PeerData *peer, bool selected)> callback);
@@ -84,7 +81,10 @@ protected:
 
 private:
 	struct Chat {
-		Chat(PeerData *peer, Fn<void()> updateCallback);
+		Chat(
+			PeerData *peer,
+			const style::PeerListItem &st,
+			Fn<void()> updateCallback);
 
 		PeerData *peer;
 		Ui::RoundImageCheckbox checkbox;
@@ -121,7 +121,8 @@ private:
 
 	void refresh();
 
-	const not_null<Main::Session*> _session;
+	const Descriptor &_descriptor;
+	const style::PeerList &_st;
 
 	float64 _columnSkip = 0.;
 	float64 _rowWidthReal = 0.;
@@ -133,7 +134,6 @@ private:
 	int _active = -1;
 	int _upon = -1;
 
-	ShareBox::FilterCallback _filterCallback;
 	std::unique_ptr<Dialogs::IndexedList> _chatsIndexed;
 	QString _filter;
 	std::vector<not_null<Dialogs::Row*>> _filtered;
@@ -158,13 +158,17 @@ ShareBox::ShareBox(QWidget*, Descriptor &&descriptor)
 , _api(&_descriptor.session->mtp())
 , _select(
 	this,
-	st::defaultMultiSelect,
+	(_descriptor.stMultiSelect
+		? *_descriptor.stMultiSelect
+		: st::defaultMultiSelect),
 	tr::lng_participant_filter())
 , _comment(
 	this,
 	object_ptr<Ui::InputField>(
 		this,
-		st::shareComment,
+		(_descriptor.stComment
+			? *_descriptor.stComment
+			: st::shareComment),
 		Ui::InputField::Mode::MultiLine,
 		tr::lng_photos_comment()),
 	st::shareCommentPadding)
@@ -235,10 +239,7 @@ void ShareBox::prepare() {
 	setTitle(tr::lng_share_title());
 
 	_inner = setInnerWidget(
-		object_ptr<Inner>(
-			this,
-			_descriptor.session,
-			std::move(_descriptor.filterCallback)),
+		object_ptr<Inner>(this, _descriptor),
 		getTopScrollSkip(),
 		getBottomScrollSkip());
 
@@ -541,13 +542,10 @@ void ShareBox::scrollAnimationCallback() {
 	//scrollArea()->scrollToY(scrollTop);
 }
 
-ShareBox::Inner::Inner(
-	QWidget *parent,
-	not_null<Main::Session*> session,
-	ShareBox::FilterCallback &&filterCallback)
+ShareBox::Inner::Inner(QWidget *parent, const Descriptor &descriptor)
 : RpWidget(parent)
-, _session(session)
-, _filterCallback(std::move(filterCallback))
+, _descriptor(descriptor)
+, _st(_descriptor.st ? *_descriptor.st : st::shareBoxList)
 , _chatsIndexed(
 	std::make_unique<Dialogs::IndexedList>(
 		Dialogs::SortMode::Add)) {
@@ -555,44 +553,44 @@ ShareBox::Inner::Inner(
 	_rowHeight = st::shareRowHeight;
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	const auto self = session->user();
-	if (_filterCallback(self)) {
+	const auto self = _descriptor.session->user();
+	if (_descriptor.filterCallback(self)) {
 		_chatsIndexed->addToEnd(self->owner().history(self));
 	}
 	const auto addList = [&](not_null<Dialogs::IndexedList*> list) {
 		for (const auto row : list->all()) {
 			if (const auto history = row->history()) {
 				if (!history->peer->isSelf()
-					&& _filterCallback(history->peer)) {
+					&& _descriptor.filterCallback(history->peer)) {
 					_chatsIndexed->addToEnd(history);
 				}
 			}
 		}
 	};
-	addList(_session->data().chatsList()->indexed());
+	addList(_descriptor.session->data().chatsList()->indexed());
 	const auto id = Data::Folder::kId;
-	if (const auto folder = _session->data().folderLoaded(id)) {
+	if (const auto folder = _descriptor.session->data().folderLoaded(id)) {
 		addList(folder->chatsList()->indexed());
 	}
-	addList(_session->data().contactsNoChatsList());
+	addList(_descriptor.session->data().contactsNoChatsList());
 
 	_filter = qsl("a");
 	updateFilter();
 
-	_session->changes().peerUpdates(
+	_descriptor.session->changes().peerUpdates(
 		Data::PeerUpdate::Flag::Photo
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		updateChat(update.peer);
 	}, lifetime());
 
-	_session->changes().realtimeNameUpdates(
+	_descriptor.session->changes().realtimeNameUpdates(
 	) | rpl::start_with_next([=](const Data::NameUpdate &update) {
 		_chatsIndexed->peerNameChanged(
 			update.peer,
 			update.oldFirstLetters);
 	}, lifetime());
 
-	_session->downloaderTaskFinished(
+	_descriptor.session->downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
@@ -661,7 +659,7 @@ void ShareBox::Inner::updateChatName(
 		: peer->isRepliesChat()
 		? tr::lng_replies_messages(tr::now)
 		: peer->name;
-	chat->name.setText(st::shareNameStyle, text, Ui::NameTextOptions());
+	chat->name.setText(_st.item.nameStyle, text, Ui::NameTextOptions());
 }
 
 void ShareBox::Inner::repaintChatAtIndex(int index) {
@@ -784,7 +782,7 @@ auto ShareBox::Inner::getChat(not_null<Dialogs::Row*> row)
 	}
 	const auto [i, ok] = _dataMap.emplace(
 		peer,
-		std::make_unique<Chat>(peer, [=] { repaintChat(peer); }));
+		std::make_unique<Chat>(peer, _st.item, [=] { repaintChat(peer); }));
 	updateChatName(i->second.get(), peer);
 	row->attached = i->second.get();
 	return i->second.get();
@@ -815,23 +813,26 @@ void ShareBox::Inner::paintChat(
 	auto y = _rowsTop + (index / _columnCount) * _rowHeight;
 
 	auto outerWidth = width();
-	auto photoLeft = (_rowWidth - (st::sharePhotoCheckbox.imageRadius * 2)) / 2;
+	auto photoLeft = (_rowWidth - (_st.item.checkbox.imageRadius * 2)) / 2;
 	auto photoTop = st::sharePhotoTop;
 	chat->checkbox.paint(p, x + photoLeft, y + photoTop, outerWidth);
 
 	auto nameActive = chat->nameActive.value((index == _active) ? 1. : 0.);
-	p.setPen(anim::pen(st::shareNameFg, st::shareNameActiveFg, nameActive));
+	p.setPen(anim::pen(_st.item.nameFg, _st.item.nameFgChecked, nameActive));
 
 	auto nameWidth = (_rowWidth - st::shareColumnSkip);
 	auto nameLeft = st::shareColumnSkip / 2;
-	auto nameTop = photoTop + st::sharePhotoCheckbox.imageRadius * 2 + st::shareNameTop;
+	auto nameTop = photoTop + _st.item.checkbox.imageRadius * 2 + st::shareNameTop;
 	chat->name.drawLeftElided(p, x + nameLeft, y + nameTop, nameWidth, outerWidth, 2, style::al_top, 0, -1, 0, true);
 }
 
-ShareBox::Inner::Chat::Chat(PeerData *peer, Fn<void()> updateCallback)
+ShareBox::Inner::Chat::Chat(
+	PeerData *peer,
+	const style::PeerListItem &st,
+	Fn<void()> updateCallback)
 : peer(peer)
-, checkbox(st::sharePhotoCheckbox, updateCallback, PaintUserpicCallback(peer, true))
-, name(st::sharePhotoCheckbox.imageRadius * 2) {
+, checkbox(st.checkbox, updateCallback, PaintUserpicCallback(peer, true))
+, name(st.checkbox.imageRadius * 2) {
 }
 
 void ShareBox::Inner::paintEvent(QPaintEvent *e) {
@@ -839,7 +840,7 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 
 	auto r = e->rect();
 	p.setClipRect(r);
-	p.fillRect(r, st::boxBg);
+	p.fillRect(r, _st.bg);
 	auto yFrom = r.y(), yTo = r.y() + r.height();
 	auto rowFrom = yFrom / _rowHeight;
 	auto rowTo = (yTo + _rowHeight - 1) / _rowHeight;
@@ -857,7 +858,7 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 			}
 		} else {
 			p.setFont(st::noContactsFont);
-			p.setPen(st::noContactsColor);
+			p.setPen(_st.about.textFg);
 			p.drawText(
 				rect().marginsRemoved(st::boxPadding),
 				tr::lng_bot_no_chats(tr::now),
@@ -868,7 +869,7 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 			&& _byUsernameFiltered.empty()
 			&& !_searching) {
 			p.setFont(st::noContactsFont);
-			p.setPen(st::noContactsColor);
+			p.setPen(_st.about.textFg);
 			p.drawText(
 				rect().marginsRemoved(st::boxPadding),
 				tr::lng_bot_chats_not_found(tr::now),
@@ -924,7 +925,7 @@ void ShareBox::Inner::updateUpon(const QPoint &pos) {
 	auto left = _rowsLeft + qFloor(column * _rowWidthReal) + st::shareColumnSkip / 2;
 	auto top = _rowsTop + row * _rowHeight + st::sharePhotoTop;
 	auto xupon = (x >= left) && (x < left + (_rowWidth - st::shareColumnSkip));
-	auto yupon = (y >= top) && (y < top + st::sharePhotoCheckbox.imageRadius * 2 + st::shareNameTop + st::shareNameStyle.font->height * 2);
+	auto yupon = (y >= top) && (y < top + _st.item.checkbox.imageRadius * 2 + st::shareNameTop + _st.item.nameStyle.font->height * 2);
 	auto upon = (xupon && yupon) ? (row * _columnCount + column) : -1;
 	if (upon >= displayedChatsCount()) {
 		upon = -1;
@@ -944,8 +945,8 @@ void ShareBox::Inner::selectActive() {
 }
 
 void ShareBox::Inner::resizeEvent(QResizeEvent *e) {
-	_columnSkip = (width() - _columnCount * st::sharePhotoCheckbox.imageRadius * 2) / float64(_columnCount + 1);
-	_rowWidthReal = st::sharePhotoCheckbox.imageRadius * 2 + _columnSkip;
+	_columnSkip = (width() - _columnCount * _st.item.checkbox.imageRadius * 2) / float64(_columnCount + 1);
+	_rowWidthReal = _st.item.checkbox.imageRadius * 2 + _columnSkip;
 	_rowsLeft = qFloor(_columnSkip / 2);
 	_rowWidth = qFloor(_rowWidthReal);
 	update();
@@ -1051,9 +1052,10 @@ void ShareBox::Inner::peopleReceived(
 	d_byUsernameFiltered.reserve(already + my.size() + people.size());
 	const auto feedList = [&](const QVector<MTPPeer> &list) {
 		for (const auto &data : list) {
-			if (const auto peer = _session->data().peerLoaded(peerFromMTP(data))) {
-				const auto history = _session->data().historyLoaded(peer);
-				if (!_filterCallback(peer)) {
+			if (const auto peer = _descriptor.session->data().peerLoaded(
+				peerFromMTP(data))) {
+				const auto history = _descriptor.session->data().historyLoaded(peer);
+				if (!_descriptor.filterCallback(peer)) {
 					continue;
 				} else if (history && _chatsIndexed->getRow(history)) {
 					continue;
@@ -1063,6 +1065,7 @@ void ShareBox::Inner::peopleReceived(
 				_byUsernameFiltered.push_back(peer);
 				d_byUsernameFiltered.push_back(std::make_unique<Chat>(
 					peer,
+					_st.item,
 					[=] { repaintChat(peer); }));
 				updateChatName(d_byUsernameFiltered.back().get(), peer);
 			}
