@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Editor {
 namespace {
 
+constexpr auto kSnapAngle = 45.;
+
 auto Normalized(float64 angle) {
 	return angle
 		+ ((std::abs(angle) < 360) ? 0 : (-360 * (angle < 0 ? -1 : 1)));
@@ -107,17 +109,20 @@ void ItemBase::paint(
 void ItemBase::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 	if (isHandling()) {
 		const auto mousePos = event->pos();
+		const auto shift = event->modifiers().testFlag(Qt::ShiftModifier);
 		const auto isLeft = (_handle == HandleType::Left);
-		// Resize.
-		const auto p = isLeft ? (mousePos * -1) : mousePos;
-		const auto dx = int(2.0 * p.x());
-		const auto dy = int(2.0 * p.y());
-		prepareGeometryChange();
-		_horizontalSize = std::clamp(
-			(dx > dy ? dx : dy),
-			st::photoEditorItemMinSize,
-			st::photoEditorItemMaxSize);
-		updateVerticalSize();
+		if (!shift) {
+			// Resize.
+			const auto p = isLeft ? (mousePos * -1) : mousePos;
+			const auto dx = int(2.0 * p.x());
+			const auto dy = int(2.0 * p.y());
+			prepareGeometryChange();
+			_horizontalSize = std::clamp(
+				(dx > dy ? dx : dy),
+				st::photoEditorItemMinSize,
+				st::photoEditorItemMaxSize);
+			updateVerticalSize();
+		}
 
 		// Rotate.
 		const auto origin = mapToScene(boundingRect().center());
@@ -126,7 +131,9 @@ void ItemBase::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 		const auto diff = pos - origin;
 		const auto angle = Normalized((isLeft ? 180 : 0)
 			+ (std::atan2(diff.y(), diff.x()) * 180 / M_PI));
-		setRotation(angle);
+		setRotation(shift
+			? (std::round(angle / kSnapAngle) * kSnapAngle) // Snap rotation.
+			: angle);
 	} else {
 		QGraphicsItem::mouseMoveEvent(event);
 	}
