@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/level_meter.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_utilities.h"
@@ -99,8 +100,16 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 	const auto sending = std::make_shared<bool>();
 	const auto box = std::make_shared<QPointer<ShareBox>>();
 
+	auto bottom = object_ptr<Ui::PaddingWrap<Ui::Checkbox>>(
+		nullptr,
+		object_ptr<Ui::Checkbox>(
+			nullptr,
+			tr::lng_group_call_share_listener(tr::now),
+			true),
+		style::margins(16, 16, 16, 16));// #TODO calls style
+	const auto listenerCheckbox = bottom->entity();
 	const auto currentLink = [=] {
-		return linkListener;
+		return listenerCheckbox->checked() ? linkListener : linkSpeaker;
 	};
 	auto copyCallback = [=] {
 		QGuiApplication::clipboard()->setText(currentLink());
@@ -176,7 +185,8 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		.session = &peer->session(),
 		.copyCallback = std::move(copyCallback),
 		.submitCallback = std::move(submitCallback),
-		.filterCallback = std::move(filterCallback) });
+		.filterCallback = std::move(filterCallback),
+		.bottomWidget = std::move(bottom) });
 	*box = result.data();
 	return result;
 }
