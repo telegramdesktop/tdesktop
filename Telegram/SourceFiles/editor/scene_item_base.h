@@ -29,7 +29,12 @@ class ItemBase : public NumberedItem {
 public:
 	enum { Type = UserType + 1 };
 
-	ItemBase(std::shared_ptr<float64> zPtr, int size, int x, int y);
+	ItemBase(
+		rpl::producer<float64> zoomValue,
+		std::shared_ptr<float64> zPtr,
+		int size,
+		int x,
+		int y);
 	QRectF boundingRect() const override;
 	void paint(
 		QPainter *p,
@@ -47,6 +52,7 @@ protected:
 	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 
+	QRectF contentRect() const;
 	QRectF innerRect() const;
 	float64 size() const;
 	float64 horizontalSize() const;
@@ -61,16 +67,19 @@ private:
 	void updateVerticalSize();
 
 	const std::shared_ptr<float64> _lastZ;
-	const int _handleSize;
-	const QMargins _innerMargins;
 	const QPen _selectPen;
 	const QPen _selectPenInactive;
 	const QPen _handlePen;
+
+	float64 _scaledHandleSize = 1.0;
+	QMarginsF _scaledInnerMargins;
 
 	float64 _horizontalSize = 0;
 	float64 _verticalSize = 0;
 	float64 _aspectRatio = 1.0;
 	HandleType _handle = HandleType::None;
+
+	rpl::lifetime _lifetime;
 
 };
 

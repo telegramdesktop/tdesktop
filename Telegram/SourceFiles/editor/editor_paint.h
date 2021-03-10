@@ -61,6 +61,8 @@ private:
 	rpl::variable<bool> _hasUndo = true;
 	rpl::variable<bool> _hasRedo = true;
 
+	rpl::variable<float64> _zoom = 0.;
+
 };
 
 } // namespace Editor

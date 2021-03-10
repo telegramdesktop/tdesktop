@@ -25,6 +25,7 @@ public:
 
 	ItemSticker(
 		not_null<DocumentData*> document,
+		rpl::producer<float64> zoomValue,
 		std::shared_ptr<float64> zPtr,
 		int size,
 		int x,
@@ -38,7 +39,6 @@ public:
 private:
 	const not_null<DocumentData*> _document;
 	const std::shared_ptr<Data::DocumentMedia> _mediaView;
-	const QMarginsF _thumbnailMargins;
 
 	struct {
 		std::unique_ptr<Lottie::SinglePlayer> player;

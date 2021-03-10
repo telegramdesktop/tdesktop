@@ -36,14 +36,13 @@ void NumberedItem::setNumber(int number) {
 	_number = number;
 }
 
-ItemBase::ItemBase(std::shared_ptr<float64> zPtr, int size, int x, int y)
+ItemBase::ItemBase(
+	rpl::producer<float64> zoomValue,
+	std::shared_ptr<float64> zPtr,
+	int size,
+	int x,
+	int y)
 : _lastZ(zPtr)
-, _handleSize(st::photoEditorItemHandleSize)
-, _innerMargins(
-	_handleSize / 2,
-	_handleSize / 2,
-	_handleSize / 2,
-	_handleSize / 2)
 , _selectPen(QBrush(Qt::white), 1, Qt::DashLine, Qt::SquareCap, Qt::RoundJoin)
 , _selectPenInactive(
 	QBrush(Qt::gray),
@@ -57,10 +56,26 @@ ItemBase::ItemBase(std::shared_ptr<float64> zPtr, int size, int x, int y)
 		| QGraphicsItem::ItemIsFocusable);
 	setAcceptHoverEvents(true);
 	setPos(x, y);
+
+	const auto &handleSize = st::photoEditorItemHandleSize;
+	std::move(
+		zoomValue
+	) | rpl::start_with_next([=](float64 zoom) {
+		_scaledHandleSize = handleSize / zoom;
+		_scaledInnerMargins = QMarginsF(
+			_scaledHandleSize,
+			_scaledHandleSize,
+			_scaledHandleSize,
+			_scaledHandleSize) * 0.5;
+	}, _lifetime);
 }
 
 QRectF ItemBase::boundingRect() const {
-	return innerRect() + _innerMargins;
+	return innerRect() + _scaledInnerMargins;
+}
+
+QRectF ItemBase::contentRect() const {
+	return innerRect() - _scaledInnerMargins;
 }
 
 QRectF ItemBase::innerRect() const {
@@ -152,18 +167,18 @@ int ItemBase::type() const {
 
 QRectF ItemBase::rightHandleRect() const {
 	return QRectF(
-		(_horizontalSize / 2) - (_handleSize / 2),
-		0 - (_handleSize / 2),
-		_handleSize,
-		_handleSize);
+		(_horizontalSize / 2) - (_scaledHandleSize / 2),
+		0 - (_scaledHandleSize / 2),
+		_scaledHandleSize,
+		_scaledHandleSize);
 }
 
 QRectF ItemBase::leftHandleRect() const {
 	return QRectF(
-		(-_horizontalSize / 2) - (_handleSize / 2),
-		0 - (_handleSize / 2),
-		_handleSize,
-		_handleSize);
+		(-_horizontalSize / 2) - (_scaledHandleSize / 2),
+		0 - (_scaledHandleSize / 2),
+		_scaledHandleSize,
+		_scaledHandleSize);
 }
 
 bool ItemBase::isHandling() const {

@@ -114,7 +114,13 @@ Paint::Paint(
 			const auto size = std::min(s.width(), s.height()) / 2;
 			const auto x = s.width() / 2;
 			const auto y = s.height() / 2;
-			const auto item = new ItemSticker(document, _lastZ, size, x, y);
+			const auto item = new ItemSticker(
+				document,
+				_zoom.value(),
+				_lastZ,
+				size,
+				x,
+				y);
 			item->setZValue((*_lastZ)++);
 			_scene->addItem(item);
 			_scene->clearSelection();
@@ -139,6 +145,8 @@ void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
 
 	_view->setTransform(QTransform().scale(ratioW, ratioH).rotate(angle));
 	_view->setGeometry(QRect(QPoint(), size));
+
+	_zoom = size.width() / float64(_scene->sceneRect().width());
 }
 
 std::shared_ptr<Scene> Paint::saveScene() const {

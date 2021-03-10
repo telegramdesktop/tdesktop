@@ -24,14 +24,14 @@ namespace {
 
 ItemSticker::ItemSticker(
 	not_null<DocumentData*> document,
+	rpl::producer<float64> zoomValue,
 	std::shared_ptr<float64> zPtr,
 	int size,
 	int x,
 	int y)
-: ItemBase(std::move(zPtr), size, x, y)
+: ItemBase(std::move(zoomValue), std::move(zPtr), size, x, y)
 , _document(document)
-, _mediaView(_document->createMediaView())
-, _thumbnailMargins(st::photoEditorItemStickerPadding) {
+, _mediaView(_document->createMediaView()) {
 	const auto stickerData = document->sticker();
 	if (!stickerData) {
 		return;
@@ -85,7 +85,7 @@ void ItemSticker::paint(
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *w) {
-	p->drawPixmap((innerRect() - _thumbnailMargins).toRect(), _pixmap);
+	p->drawPixmap(contentRect().toRect(), _pixmap);
 	ItemBase::paint(p, option, w);
 }
 

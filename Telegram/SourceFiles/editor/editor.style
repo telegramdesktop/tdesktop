@@ -64,5 +64,3 @@ photoEditorCropMinSize: 20px;
 photoEditorItemHandleSize: 10px;
 photoEditorItemMinSize: 32px;
 photoEditorItemMaxSize: 512px;
-
-photoEditorItemStickerPadding: margins(5px, 5px, 5px, 5px);
