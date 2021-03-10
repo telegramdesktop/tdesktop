@@ -580,6 +580,8 @@ void GroupPanel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 			widget(),
 			(recorded
 				? tr::lng_group_call_recording_started(tr::now)
+				: (_call && _call->recordingStoppedByMe())
+				? tr::lng_group_call_recording_saved(tr::now)
 				: tr::lng_group_call_recording_stopped(tr::now)));
 	}, widget()->lifetime());
 	validateRecordingMark(real->recordStartDate() != 0);
