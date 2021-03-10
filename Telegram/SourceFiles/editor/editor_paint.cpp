@@ -57,12 +57,6 @@ Paint::Paint(
 	_view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	_view->setStyleSheet(kViewStyle.utf8());
 
-	_scene->mousePresses(
-	) | rpl::start_with_next([=] {
-		_hasUndo = true;
-		clearRedoList();
-	}, lifetime());
-
 	_scene->addsItem(
 	) | rpl::start_with_next([=] {
 		updateUndoState();
@@ -126,6 +120,17 @@ Paint::Paint(
 			_scene->clearSelection();
 		}, lifetime());
 	}
+
+	rpl::merge(
+		controllers->stickersPanelController
+			? controllers->stickersPanelController->stickerChosen(
+				) | rpl::to_empty
+			: rpl::never<>(),
+		_scene->mousePresses()
+	) | rpl::start_with_next([=] {
+		_hasUndo = true;
+		clearRedoList();
+	}, lifetime());
 }
 
 void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
