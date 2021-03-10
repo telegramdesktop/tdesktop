@@ -112,6 +112,7 @@ void ActionWithTimer::paint(Painter &p) {
 		_textWidth,
 		width());
 
+	p.setFont(st::ttlItemTimerFont);
 	p.setPen(selected ? _st.itemFgShortcutOver : _st.itemFgShortcut);
 	p.drawTextLeft(
 		_st.itemPadding.left(),

@@ -13,9 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_group_call.h"
 #include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/menu/menu.h"
+#include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/layers/generic_box.h"
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
@@ -130,6 +133,235 @@ void StopGroupCallRecordingBox(
 		)) | rpl::map(ToDurationFrom(startDate));
 }
 
+class ActionWithTimer final : public Ui::Menu::ItemBase {
+public:
+	ActionWithTimer(
+		not_null<Ui::RpWidget*> parent,
+		const style::Menu &st,
+		rpl::producer<QString> text,
+		rpl::producer<TimeId> startAtValues,
+		Fn<void()> callback);
+
+	bool isEnabled() const override;
+	not_null<QAction*> action() const override;
+
+	void handleKeyPress(not_null<QKeyEvent*> e) override;
+
+protected:
+	QPoint prepareRippleStartPosition() const override;
+	QImage prepareRippleMask() const override;
+
+	int contentHeight() const override;
+
+private:
+	void prepare(rpl::producer<QString> text);
+	void refreshElapsedText();
+	void paint(Painter &p);
+
+	const not_null<QAction*> _dummyAction;
+	const style::Menu &_st;
+	TimeId _startAt = 0;
+	crl::time _startedAt = 0;
+	base::Timer _refreshTimer;
+
+	Ui::Text::String _text;
+	int _textWidth = 0;
+	QString _elapsedText;
+	const int _smallHeight = 0;
+	const int _bigHeight = 0;
+
+};
+
+TextParseOptions MenuTextOptions = {
+	TextParseLinks | TextParseRichText, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+
+ActionWithTimer::ActionWithTimer(
+	not_null<Ui::RpWidget*> parent,
+	const style::Menu &st,
+	rpl::producer<QString> text,
+	rpl::producer<TimeId> startAtValues,
+	Fn<void()> callback)
+: ItemBase(parent, st)
+, _dummyAction(new QAction(parent))
+, _st(st)
+, _refreshTimer([=] { refreshElapsedText(); })
+, _smallHeight(st.itemPadding.top()
+	+ _st.itemStyle.font->height
+	+ st.itemPadding.bottom())
+, _bigHeight(st::groupCallRecordingTimerPadding.top()
+	+ _st.itemStyle.font->height
+	+ st::groupCallRecordingTimerFont->height
+	+ st::groupCallRecordingTimerPadding.bottom()) {
+	std::move(
+		startAtValues
+	) | rpl::start_with_next([=](TimeId startAt) {
+		_startAt = startAt;
+		_startedAt = crl::now();
+		_refreshTimer.cancel();
+		refreshElapsedText();
+		resize(width(), contentHeight());
+	}, lifetime());
+
+	setAcceptBoth(true);
+	initResizeHook(parent->sizeValue());
+	setClickedCallback(std::move(callback));
+
+	paintRequest(
+	) | rpl::start_with_next([=] {
+		Painter p(this);
+		paint(p);
+	}, lifetime());
+
+	enableMouseSelecting();
+	prepare(std::move(text));
+}
+
+void ActionWithTimer::paint(Painter &p) {
+	const auto selected = isSelected();
+	const auto height = contentHeight();
+	if (selected && _st.itemBgOver->c.alpha() < 255) {
+		p.fillRect(0, 0, width(), height, _st.itemBg);
+	}
+	p.fillRect(0, 0, width(), height, selected ? _st.itemBgOver : _st.itemBg);
+	if (isEnabled()) {
+		paintRipple(p, 0, 0);
+	}
+	const auto smallTop = st::groupCallRecordingTimerPadding.top();
+	const auto textTop = _startAt ? smallTop : _st.itemPadding.top();
+	p.setPen(selected ? _st.itemFgOver : _st.itemFg);
+	_text.drawLeftElided(
+		p,
+		_st.itemPadding.left(),
+		textTop,
+		_textWidth,
+		width());
+	if (_startAt) {
+		p.setFont(st::groupCallRecordingTimerFont);
+		p.setPen(selected ? _st.itemFgShortcutOver : _st.itemFgShortcut);
+		p.drawTextLeft(
+			_st.itemPadding.left(),
+			smallTop + _st.itemStyle.font->height,
+			width(),
+			_elapsedText);
+	}
+}
+
+void ActionWithTimer::refreshElapsedText() {
+	const auto now = base::unixtime::now();
+	const auto elapsed = std::max(now - _startAt, 0);
+	const auto text = !_startAt
+		? QString()
+		: (elapsed >= 3600)
+		? QString("%1:%2:%3"
+		).arg(elapsed / 3600
+		).arg((elapsed % 3600) / 60, 2, 10, QChar('0')
+		).arg(elapsed % 60, 2, 10, QChar('0'))
+		: QString("%1:%2"
+		).arg(elapsed / 60
+		).arg(elapsed % 60, 2, 10, QChar('0'));
+	if (_elapsedText != text) {
+		_elapsedText = text;
+		update();
+	}
+
+	const auto nextCall = crl::time(500) - ((crl::now() - _startedAt) % 500);
+	_refreshTimer.callOnce(nextCall);
+}
+
+void ActionWithTimer::prepare(rpl::producer<QString> text) {
+	refreshElapsedText();
+
+	const auto &padding = _st.itemPadding;
+	const auto textWidth1 = _st.itemStyle.font->width(
+		tr::lng_group_call_recording_start(tr::now));
+	const auto textWidth2 = _st.itemStyle.font->width(
+		tr::lng_group_call_recording_stop(tr::now));
+	const auto maxWidth = st::groupCallRecordingTimerFont->width("23:59:59");
+	const auto w = std::clamp(
+		(padding.left()
+			+ std::max({ textWidth1, textWidth2, maxWidth })
+			+ padding.right()),
+		_st.widthMin,
+		_st.widthMax);
+	setMinWidth(w);
+
+	std::move(text) | rpl::start_with_next([=](QString text) {
+		const auto &padding = _st.itemPadding;
+		_text.setMarkedText(
+			_st.itemStyle,
+			{ text },
+			MenuTextOptions);
+		const auto textWidth = _text.maxWidth();
+		_textWidth = w - padding.left() - padding.right();
+		update();
+	}, lifetime());
+}
+
+bool ActionWithTimer::isEnabled() const {
+	return true;
+}
+
+not_null<QAction*> ActionWithTimer::action() const {
+	return _dummyAction;
+}
+
+QPoint ActionWithTimer::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos());
+}
+
+QImage ActionWithTimer::prepareRippleMask() const {
+	return Ui::RippleAnimation::rectMask(size());
+}
+
+int ActionWithTimer::contentHeight() const {
+	return _startAt ? _bigHeight : _smallHeight;
+}
+
+void ActionWithTimer::handleKeyPress(not_null<QKeyEvent*> e) {
+	if (!isSelected()) {
+		return;
+	}
+	const auto key = e->key();
+	if (key == Qt::Key_Enter || key == Qt::Key_Return) {
+		setClicked(Ui::Menu::TriggeredSource::Keyboard);
+	}
+}
+
+base::unique_qptr<Ui::Menu::ItemBase> RecordingAction(
+		not_null<Ui::Menu::Menu*> menu,
+		rpl::producer<TimeId> startDate,
+		Fn<void()> callback) {
+	using namespace rpl::mappers;
+	return base::make_unique_q<ActionWithTimer>(
+		menu,
+		menu->st(),
+		rpl::conditional(
+			rpl::duplicate(startDate) | rpl::map(!!_1),
+			tr::lng_group_call_recording_stop(),
+			tr::lng_group_call_recording_start()),
+		rpl::duplicate(startDate),
+		std::move(callback));
+}
+
+base::unique_qptr<Ui::Menu::ItemBase> FinishAction(
+		not_null<Ui::Menu::Menu*> menu,
+		Fn<void()> callback) {
+	return base::make_unique_q<Ui::Menu::Action>(
+		menu,
+		st::groupCallFinishMenu,
+		Ui::Menu::CreateAction(
+			menu,
+			tr::lng_group_call_end(tr::now),
+			std::move(callback)),
+		nullptr,
+		nullptr);
+
+}
+
 } // namespace
 
 void LeaveBox(
@@ -232,10 +464,7 @@ void FillMenu(
 		});
 	}
 	if (addEditRecording) {
-		const auto label = (real->recordStartDate() != 0)
-			? tr::lng_group_call_recording_stop(tr::now)
-			: tr::lng_group_call_recording_start(tr::now);
-		const auto action = menu->addAction(label, [=] {
+		const auto handler = [=] {
 			const auto real = resolveReal();
 			if (!real) {
 				return;
@@ -256,27 +485,18 @@ void FillMenu(
 					real->title(),
 					done));
 			}
-		});
-		rpl::combine(
+		};
+		menu->addAction(RecordingAction(
+			menu->menu(),
 			real->recordStartDateValue(),
-			tr::lng_group_call_recording_stop(),
-			tr::lng_group_call_recording_start()
-		) | rpl::map([=](TimeId startDate, QString stop, QString start) {
-			using namespace rpl::mappers;
-			return startDate
-				? ToRecordDuration(
-					startDate
-				) | rpl::map(stop + '\t' + _1) : rpl::single(start);
-		}) | rpl::flatten_latest() | rpl::start_with_next([=](QString text) {
-			action->setText(text);
-		}, menu->lifetime());
+			handler));
 	}
 	menu->addAction(tr::lng_group_call_settings(tr::now), [=] {
 		if (const auto strong = weak.get()) {
 			showBox(Box(SettingsBox, strong));
 		}
 	});
-	menu->addAction(tr::lng_group_call_end(tr::now), [=] {
+	menu->addAction(FinishAction(menu->menu(), [=] {
 		if (const auto strong = weak.get()) {
 			showBox(Box(
 				LeaveBox,
@@ -284,7 +504,7 @@ void FillMenu(
 				true,
 				BoxContext::GroupCallPanel));
 		}
-	});
+	}));
 
 }
 
