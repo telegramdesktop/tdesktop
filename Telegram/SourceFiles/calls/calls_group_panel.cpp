@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_common.h"
 #include "calls/calls_group_members.h"
 #include "calls/calls_group_settings.h"
+#include "calls/calls_group_menu.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/window.h"
@@ -34,8 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "main/main_session.h"
 #include "base/event_filter.h"
-#include "base/unixtime.h"
-#include "base/timer_rpl.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/peer_lists_box.h"
@@ -142,81 +141,6 @@ private:
 	return result;
 }
 
-void EditGroupCallTitleBox(
-		not_null<Ui::GenericBox*> box,
-		const QString &placeholder,
-		const QString &title,
-		Fn<void(QString)> done) {
-	box->setTitle(tr::lng_group_call_edit_title());
-	const auto input = box->addRow(object_ptr<Ui::InputField>(
-		box,
-		st::groupCallField,
-		rpl::single(placeholder),
-		title));
-	box->setFocusCallback([=] {
-		input->setFocusFast();
-	});
-	box->addButton(tr::lng_settings_save(), [=] {
-		const auto result = input->getLastText().trimmed();
-		box->closeBox();
-		done(result);
-	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
-
-void StartGroupCallRecordingBox(
-		not_null<Ui::GenericBox*> box,
-		const QString &title,
-		Fn<void(QString)> done) {
-	box->setTitle(tr::lng_group_call_recording_start());
-
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box.get(),
-			tr::lng_group_call_recording_start_sure(),
-			st::groupCallBoxLabel));
-
-	const auto input = box->addRow(object_ptr<Ui::InputField>(
-		box,
-		st::groupCallField,
-		tr::lng_group_call_recording_start_field(),
-		title));
-	box->setFocusCallback([=] {
-		input->setFocusFast();
-	});
-	box->addButton(tr::lng_group_call_recording_start_button(), [=] {
-		const auto result = input->getLastText().trimmed();
-		if (result.isEmpty()) {
-			input->showError();
-			return;
-		}
-		box->closeBox();
-		done(result);
-	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
-
-void StopGroupCallRecordingBox(
-		not_null<Ui::GenericBox*> box,
-		Fn<void(QString)> done) {
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box.get(),
-			tr::lng_group_call_recording_stop_sure(),
-			st::groupCallBoxLabel),
-		style::margins(
-			st::boxRowPadding.left(),
-			st::boxPadding.top(),
-			st::boxRowPadding.right(),
-			st::boxPadding.bottom()));
-
-	box->addButton(tr::lng_box_ok(), [=] {
-		box->closeBox();
-		done(QString());
-	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
-
 InviteController::InviteController(
 	not_null<PeerData*> peer,
 	base::flat_set<not_null<UserData*>> alreadyIn)
@@ -321,61 +245,6 @@ std::unique_ptr<PeerListRow> InviteContactsController::createRow(
 }
 
 } // namespace
-
-void LeaveGroupCallBox(
-		not_null<Ui::GenericBox*> box,
-		not_null<GroupCall*> call,
-		bool discardChecked,
-		BoxContext context) {
-	box->setTitle(tr::lng_group_call_leave_title());
-	const auto inCall = (context == BoxContext::GroupCallPanel);
-	box->addRow(object_ptr<Ui::FlatLabel>(
-		box.get(),
-		tr::lng_group_call_leave_sure(),
-		(inCall ? st::groupCallBoxLabel : st::boxLabel)));
-	const auto discard = call->peer()->canManageGroupCall()
-		? box->addRow(object_ptr<Ui::Checkbox>(
-			box.get(),
-			tr::lng_group_call_end(),
-			discardChecked,
-			(inCall ? st::groupCallCheckbox : st::defaultBoxCheckbox),
-			(inCall ? st::groupCallCheck : st::defaultCheck)),
-			style::margins(
-				st::boxRowPadding.left(),
-				st::boxRowPadding.left(),
-				st::boxRowPadding.right(),
-				st::boxRowPadding.bottom()))
-		: nullptr;
-	const auto weak = base::make_weak(call.get());
-	box->addButton(tr::lng_group_call_leave(), [=] {
-		const auto discardCall = (discard && discard->checked());
-		box->closeBox();
-
-		if (!weak) {
-			return;
-		} else if (discardCall) {
-			call->discard();
-		} else {
-			call->hangup();
-		}
-	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
-
-void GroupCallConfirmBox(
-		not_null<Ui::GenericBox*> box,
-		const QString &text,
-		rpl::producer<QString> button,
-		Fn<void()> callback) {
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box.get(),
-			text,
-			st::groupCallBoxLabel),
-		st::boxPadding);
-	box->addButton(std::move(button), callback);
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-}
 
 GroupPanel::GroupPanel(not_null<GroupCall*> call)
 : _call(call)
@@ -540,10 +409,10 @@ void GroupPanel::endCall() {
 		return;
 	}
 	_layerBg->showBox(Box(
-		LeaveGroupCallBox,
+		Group::LeaveBox,
 		_call,
 		false,
-		BoxContext::GroupCallPanel));
+		Group::BoxContext::GroupCallPanel));
 }
 
 void GroupPanel::initControls() {
@@ -565,7 +434,7 @@ void GroupPanel::initControls() {
 	_hangup->setClickedCallback([=] { endCall(); });
 	_settings->setClickedCallback([=] {
 		if (_call) {
-			_layerBg->showBox(Box(GroupCallSettingsBox, _call));
+			_layerBg->showBox(Box(Group::SettingsBox, _call));
 		}
 	});
 
@@ -716,8 +585,7 @@ void GroupPanel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	validateRecordingMark(real->recordStartDate() != 0);
 
 	const auto showMenu = _peer->canManageGroupCall();
-	const auto showUserpic = !showMenu
-		&& (_call->possibleJoinAs().size() > 1); // #TODO calls when to show
+	const auto showUserpic = !showMenu && _call->showChooseJoinAs();
 	if (showMenu) {
 		_joinAsToggle.destroy();
 		if (!_menuToggle) {
@@ -775,11 +643,17 @@ void GroupPanel::chooseJoinAs() {
 }
 
 void GroupPanel::showMainMenu() {
-	const auto real = _peer->groupCall();
-	if (_menu || !_call || !real || real->id() != _call->id()) {
+	if (_menu || !_call) {
 		return;
 	}
 	_menu.create(widget(), st::groupCallDropdownMenu);
+	Group::FillMenu(
+		_menu.data(),
+		_peer,
+		_call,
+		[=] { chooseJoinAs(); },
+		[=](auto box) { _layerBg->showBox(std::move(box)); });
+
 	const auto raw = _menu.data();
 	raw->setHiddenCallback([=] {
 		raw->deleteLater();
@@ -799,109 +673,6 @@ void GroupPanel::showMainMenu() {
 		}
 	});
 	_menuToggle->installEventFilter(_menu);
-
-	const auto addEditJoinAs = (_call->possibleJoinAs().size() > 1); // #TODO calls when to show
-	const auto addEditTitle = _peer->canManageGroupCall();
-	const auto addEditRecording = _peer->canManageGroupCall();
-	if (addEditJoinAs) {
-		_menu->addAction(tr::lng_group_call_display_as_header(tr::now), [=] {
-			chooseJoinAs();
-		});
-	}
-	if (addEditTitle) {
-		_menu->addAction(tr::lng_group_call_edit_title(tr::now), [=] {
-			const auto done = [=](const QString &title) {
-				if (_call) {
-					_call->changeTitle(title);
-				}
-			};
-			_layerBg->showBox(Box(
-				EditGroupCallTitleBox,
-				_peer->name,
-				real->title(),
-				done));
-		});
-	}
-	if (addEditRecording) {
-		const auto action = _menu->addAction((real->recordStartDate() != 0)
-				? tr::lng_group_call_recording_stop(tr::now)
-				: tr::lng_group_call_recording_start(tr::now), [=] {
-			const auto real = _peer->groupCall();
-			const auto id = _call ? _call->id() : 0;
-			if (!real || real->id() != id) {
-				return;
-			}
-			const auto recordStartDate = real->recordStartDate();
-			const auto done = [=](QString title) {
-				if (_call) {
-					_call->toggleRecording(!recordStartDate, title);
-				}
-			};
-			if (recordStartDate) {
-				_layerBg->showBox(Box(
-					StopGroupCallRecordingBox,
-					done));
-			} else {
-				_layerBg->showBox(Box(
-					StartGroupCallRecordingBox,
-					real->title(),
-					done));
-			}
-		});
-		static const auto ToDurationFrom = [](TimeId startDate) {
-			return [=] {
-				const auto now = base::unixtime::now();
-				const auto elapsed = std::max(now - startDate, 0);
-				const auto hours = elapsed / 3600;
-				const auto minutes = (elapsed % 3600) / 60;
-				const auto seconds = (elapsed % 60);
-				return hours
-					? QString("%1:%2:%3"
-					).arg(hours
-					).arg(minutes, 2, 10, QChar('0')
-					).arg(seconds, 2, 10, QChar('0'))
-					: QString("%1:%2"
-					).arg(minutes
-					).arg(seconds, 2, 10, QChar('0'));
-			};
-		};
-		static const auto ToRecordDuration = [](TimeId startDate) {
-			return !startDate
-				? (rpl::single(QString()) | rpl::type_erased())
-				: rpl::single(
-					rpl::empty_value()
-				) | rpl::then(base::timer_each(
-					crl::time(1000)
-				)) | rpl::map(ToDurationFrom(startDate));
-		};
-		rpl::combine(
-			real->recordStartDateValue(),
-			tr::lng_group_call_recording_stop(),
-			tr::lng_group_call_recording_start()
-		) | rpl::map([=](TimeId startDate, QString stop, QString start) {
-			using namespace rpl::mappers;
-			return startDate
-				? ToRecordDuration(
-					startDate
-				) | rpl::map(stop + '\t' + _1) : rpl::single(start);
-		}) | rpl::flatten_latest() | rpl::start_with_next([=](QString text) {
-			action->setText(text);
-		}, _menu->lifetime());
-	}
-	_menu->addAction(tr::lng_group_call_settings(tr::now), [=] {
-		if (_call) {
-			_layerBg->showBox(Box(GroupCallSettingsBox, _call));
-		}
-	});
-	_menu->addAction(tr::lng_group_call_end(tr::now), [=] {
-		if (_call) {
-			_layerBg->showBox(Box(
-				LeaveGroupCallBox,
-				_call,
-				true,
-				BoxContext::GroupCallPanel));
-		}
-	});
 
 	const auto x = st::groupCallMenuPosition.x();
 	const auto y = st::groupCallMenuPosition.y();
@@ -1014,7 +785,7 @@ void GroupPanel::addMembers() {
 			finish();
 		};
 		auto box = Box(
-			GroupCallConfirmBox,
+			Group::ConfirmBox,
 			text,
 			tr::lng_participant_invite(),
 			[=] { inviteWithAdd(users, nonMembers, finishWithConfirm); });

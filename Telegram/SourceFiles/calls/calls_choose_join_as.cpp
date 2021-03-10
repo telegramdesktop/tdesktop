@@ -147,7 +147,10 @@ void ChooseJoinAsBox(
 		style::margins());
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
-	box->addButton(tr::lng_continue(), [=] {
+	auto next = (context == Context::Switch)
+		? tr::lng_settings_save()
+		: tr::lng_continue();
+	box->addButton(std::move(next), [=] {
 		auto copy = info;
 		copy.joinAs = controller->selected();
 		done(std::move(copy));
@@ -230,8 +233,7 @@ void ChooseJoinAsProcess::start(
 			return list;
 		});
 		if (list.empty()) {
-			// #TODO calls in case of anonymous group admin show lng_group_call_no_anonymous
-			_request->showToast("No way to join this voice chat :(");
+			_request->showToast(Lang::Hard::ServerError());
 			return;
 		} else if (list.size() == 1
 			&& list.front() == self
