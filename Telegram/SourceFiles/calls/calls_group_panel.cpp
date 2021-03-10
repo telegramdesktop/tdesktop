@@ -655,6 +655,10 @@ void GroupPanel::showMainMenu() {
 		_call,
 		[=] { chooseJoinAs(); },
 		[=](auto box) { _layerBg->showBox(std::move(box)); });
+	if (_menu->empty()) {
+		_menu.destroy();
+		return;
+	}
 
 	const auto raw = _menu.data();
 	raw->setHiddenCallback([=] {

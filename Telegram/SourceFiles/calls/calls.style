@@ -440,7 +440,7 @@ groupCallInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	animation: groupCallPanelAnimation;
 	bg: groupCallMenuBg;
 	scroll: defaultSolidScroll;
-	scrollPadding: margins(0px, 8px, 0px, 8px);
+	scrollPadding: margins(0px, 4px, 0px, 4px);
 }
 groupCallDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 	wrap: groupCallInnerDropdown;
@@ -567,7 +567,7 @@ groupCallField: InputField(defaultInputField) {
 	placeholderFg: groupCallMemberNotJoinedStatus;
 	placeholderFgActive: groupCallMemberNotJoinedStatus;
 	placeholderFgError: groupCallMemberNotJoinedStatus;
-	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
 	placeholderScale: 0.;
 	placeholderFont: normalFont;
 	heightMin: 32px;
@@ -778,6 +778,10 @@ groupCallJoinAsLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 282px;
 	textFg: groupCallMembersFg;
 }
+groupCallJoinAsTextTop: 4px;
+groupCallJoinAsNameTop: 23px;
+groupCallJoinAsPadding: margins(12px, 8px, 12px, 7px);
+groupCallJoinAsPhotoSize: 30px;
 
 groupCallRowBlobMinRadius: 27px;
 groupCallRowBlobMaxRadius: 29px;
