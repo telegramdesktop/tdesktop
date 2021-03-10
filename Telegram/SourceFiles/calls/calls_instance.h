@@ -43,7 +43,9 @@ public:
 	~Instance();
 
 	void startOutgoingCall(not_null<UserData*> user, bool video);
-	void startOrJoinGroupCall(not_null<PeerData*> peer);
+	void startOrJoinGroupCall(
+		not_null<PeerData*> peer,
+		const QString &joinHash = QString());
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
@@ -57,7 +59,7 @@ public:
 	[[nodiscard]] bool inGroupCall() const;
 	[[nodiscard]] bool hasActivePanel(
 		not_null<Main::Session*> session) const;
-	bool activateCurrentCall();
+	bool activateCurrentCall(const QString &joinHash = QString());
 	bool minimizeCurrentActiveCall();
 	bool closeCurrentActiveCall();
 	auto getVideoCapture()

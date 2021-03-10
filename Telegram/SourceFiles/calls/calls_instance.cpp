@@ -61,7 +61,9 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 	}), video);
 }
 
-void Instance::startOrJoinGroupCall(not_null<PeerData*> peer) {
+void Instance::startOrJoinGroupCall(
+		not_null<PeerData*> peer,
+		const QString &joinHash) {
 	const auto context = peer->groupCall()
 		? Group::ChooseJoinAsProcess::Context::Join
 		: Group::ChooseJoinAsProcess::Context::Create;
@@ -71,6 +73,7 @@ void Instance::startOrJoinGroupCall(not_null<PeerData*> peer) {
 		Ui::Toast::Show(text);
 	}, [=](Group::JoinInfo info) {
 		const auto call = info.peer->groupCall();
+		info.joinHash = joinHash;
 		createGroupCall(
 			std::move(info),
 			call ? call->input() : MTP_inputGroupCall(MTPlong(), MTPlong()));
@@ -486,11 +489,14 @@ bool Instance::hasActivePanel(not_null<Main::Session*> session) const {
 	return false;
 }
 
-bool Instance::activateCurrentCall() {
+bool Instance::activateCurrentCall(const QString &joinHash) {
 	if (inCall()) {
 		_currentCallPanel->showAndActivate();
 		return true;
 	} else if (inGroupCall()) {
+		if (!joinHash.isEmpty()) {
+			_currentGroupCall->rejoinWithHash(joinHash);
+		}
 		_currentGroupCallPanel->showAndActivate();
 		return true;
 	}

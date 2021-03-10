@@ -43,6 +43,7 @@ struct JoinInfo {
 	not_null<PeerData*> peer;
 	not_null<PeerData*> joinAs;
 	std::vector<not_null<PeerData*>> possibleJoinAs;
+	QString joinHash;
 };
 
 } // namespace Calls::Group

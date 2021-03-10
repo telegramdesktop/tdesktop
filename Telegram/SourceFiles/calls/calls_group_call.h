@@ -113,6 +113,7 @@ public:
 	void hangup();
 	void discard();
 	void rejoinAs(Group::JoinInfo info);
+	void rejoinWithHash(const QString &hash);
 	void join(const MTPInputGroupCall &inputCall);
 	void handleUpdate(const MTPGroupCall &call);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
@@ -271,6 +272,7 @@ private:
 
 	not_null<PeerData*> _joinAs;
 	std::vector<not_null<PeerData*>> _possibleJoinAs;
+	QString _joinHash;
 
 	rpl::variable<MuteState> _muted = MuteState::Muted;
 	bool _initialMuteStateSent = false;

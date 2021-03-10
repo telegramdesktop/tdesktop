@@ -299,6 +299,9 @@ bool ResolveUsername(
 			}
 			: Navigation::RepliesByLinkInfo{ v::null },
 		.startToken = startToken,
+		.voicechatHash = (params.contains(u"voicechat"_q)
+			? std::make_optional(params.value(u"voicechat"_q))
+			: std::nullopt),
 		.clickFromMessageId = fromMessageId,
 	});
 	return true;
