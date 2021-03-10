@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_settings.h"
 
 #include "calls/calls_group_call.h"
-#include "calls/calls_group_panel.h" // LeaveGroupCallBox.
+#include "calls/calls_group_menu.h" // LeaveBox.
 #include "calls/calls_group_common.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_choose_join_as.h"
@@ -44,7 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QGuiApplication>
 
-namespace Calls {
+namespace Calls::Group {
 namespace {
 
 constexpr auto kDelaysCount = 201;
@@ -88,7 +88,7 @@ void SaveCallJoinMuted(
 
 } // namespace
 
-void GroupCallSettingsBox(
+void SettingsBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<GroupCall*> call) {
 	using namespace Settings;
@@ -462,7 +462,7 @@ void GroupCallSettingsBox(
 		)->addClickHandler([=] {
 			if (const auto call = weakCall.get()) {
 				box->getDelegate()->show(Box(
-					LeaveGroupCallBox,
+					LeaveBox,
 					call,
 					true,
 					BoxContext::GroupCallPanel));
@@ -495,4 +495,4 @@ void GroupCallSettingsBox(
 	});
 }
 
-} // namespace Calls
+} // namespace Calls::Group

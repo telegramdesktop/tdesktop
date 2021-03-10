@@ -407,7 +407,7 @@ groupCallMenu: Menu(defaultMenu) {
 	itemFgShortcutOver: groupCallMemberNotJoinedStatus;
 	itemFgShortcutDisabled: groupCallMemberNotJoinedStatus;
 
-	separatorFg: groupCallMemberNotJoinedStatus;
+	separatorFg: groupCallMenuBgOver;
 
 	arrow: icon {{ "dropdown_submenu_arrow", groupCallMemberNotJoinedStatus }};
 

@@ -55,17 +55,6 @@ class SignalBars;
 
 class GroupMembers;
 
-enum class BoxContext {
-	GroupCallPanel,
-	MainWindow,
-};
-
-void LeaveGroupCallBox(
-	not_null<Ui::GenericBox*> box,
-	not_null<GroupCall*> call,
-	bool discardChecked,
-	BoxContext context);
-
 class GroupPanel final {
 public:
 	GroupPanel(not_null<GroupCall*> call);

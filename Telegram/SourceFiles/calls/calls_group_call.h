@@ -107,10 +107,7 @@ public:
 	[[nodiscard]] not_null<PeerData*> joinAs() const {
 		return _joinAs;
 	}
-	[[nodiscard]] auto possibleJoinAs() const
-	-> const std::vector<not_null<PeerData*>>& {
-		return _possibleJoinAs;
-	}
+	[[nodiscard]] bool showChooseJoinAs() const;
 
 	void start();
 	void hangup();

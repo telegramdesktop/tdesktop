@@ -1838,12 +1838,6 @@ rpl::producer<int> GroupMembers::fullCountValue() const {
 		_listController.get())->fullCountValue();
 }
 
-//tr::lng_chat_status_members(
-//	lt_count_decimal,
-//	controller->fullCountValue() | tr::to_count(),
-//	Ui::Text::Upper
-//),
-
 void GroupMembers::setupList() {
 	_listController->setStyleOverrides(&st::groupCallMembersList);
 	_list = _scroll->setOwnedWidget(object_ptr<ListWidget>(

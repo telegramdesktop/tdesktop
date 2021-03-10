@@ -313,6 +313,12 @@ void GroupCall::playConnectingSoundOnce() {
 	_delegate->groupCallPlaySound(Delegate::GroupCallSound::Connecting);
 }
 
+bool GroupCall::showChooseJoinAs() const {
+	return (_possibleJoinAs.size() > 1)
+		|| (_possibleJoinAs.size() == 1
+			&& !_possibleJoinAs.front()->isSelf());
+}
+
 void GroupCall::start() {
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
 		_peer->input,
