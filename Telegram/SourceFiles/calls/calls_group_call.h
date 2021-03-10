@@ -118,6 +118,9 @@ public:
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
 	void changeTitle(const QString &title);
 	void toggleRecording(bool enabled, const QString &title);
+	[[nodiscard]] bool recordingStoppedByMe() const {
+		return _recordingStoppedByMe;
+	}
 
 	void setMuted(MuteState mute);
 	void setMutedAndUpdate(MuteState mute);
@@ -261,6 +264,7 @@ private:
 	base::flat_set<uint32> _unresolvedSsrcs;
 	std::vector<tgcalls::GroupParticipantDescription> _preparedParticipants;
 	bool _addPreparedParticipantsScheduled = false;
+	bool _recordingStoppedByMe = false;
 
 	MTP::DcId _broadcastDcId = 0;
 	base::flat_map<not_null<LoadPartTask*>, LoadingPart> _broadcastParts;

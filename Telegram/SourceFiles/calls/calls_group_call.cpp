@@ -903,6 +903,9 @@ void GroupCall::toggleRecording(bool enabled, const QString &title) {
 		return;
 	}
 
+	if (!enabled) {
+		_recordingStoppedByMe = true;
+	}
 	using Flag = MTPphone_ToggleGroupCallRecord::Flag;
 	_api.request(MTPphone_ToggleGroupCallRecord(
 		MTP_flags((enabled ? Flag::f_start : Flag(0))
@@ -911,7 +914,9 @@ void GroupCall::toggleRecording(bool enabled, const QString &title) {
 		MTP_string(title)
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
+		_recordingStoppedByMe = false;
 	}).fail([=](const RPCError &error) {
+		_recordingStoppedByMe = false;
 	}).send();
 }
 
