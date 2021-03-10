@@ -241,6 +241,22 @@ namespace Settings {
 
 		AddDividerText(inner, tr::lng_radio_controller_desc());
 
+		AddButton(
+				inner,
+				tr::lng_settings_auto_unmute(),
+				st::settingsButton
+		)->toggleOn(
+				rpl::single(cAutoUnmute())
+		)->toggledChanges(
+		) | rpl::filter([=](bool toggled) {
+			return (toggled != cAutoUnmute());
+		}) | rpl::start_with_next([=](bool toggled) {
+			cSetAutoUnmute(toggled);
+			EnhancedSettings::Write();
+		}, container->lifetime());
+
+		AddDividerText(inner, tr::lng_auto_unmute_desc());
+
 		AddSkip(container);
 	}
 

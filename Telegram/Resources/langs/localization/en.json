@@ -21,6 +21,7 @@
     "lng_settings_voice_chat": "Voice Chat",
     "lng_settings_radio_mode": "Radio mode",
     "lng_settings_radio_controller": "Radio controller",
+    "lng_settings_auto_unmute": "Auto unmute",
     "lng_settings_restart_hint": "WARNING: Changing options that are colored in red will take effect only after the app restarts.",
 
     "lng_net_speed_boost_title": "Network speed boost",
@@ -29,6 +30,7 @@
     "lng_radio_mode_desc": "Note: Radio mode is an experimental feature for streaming music through voice chat without audio filtering/processing.",
     "lng_radio_mode_hint": "Radio mode is enabled! Re-join a voice chat if you're already joined.",
     "lng_radio_controller_desc": "Note: Radio controller is an experimental bot for controlling your music streaming session.",
+    "lng_auto_unmute_desc": "Note: Auto unmute when you've joined the voice chat.",
 
     "lng_net_speed_boost_default": "Disabled",
     "lng_net_speed_boost_slight": "Slight",

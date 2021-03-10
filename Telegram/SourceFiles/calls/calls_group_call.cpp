@@ -359,6 +359,7 @@ void GroupCall::rejoin() {
 				applySelfInCallLocally();
 				maybeSendMutedUpdate(wasMuteState);
 				_peer->session().api().applyUpdates(updates);
+				if (cAutoUnmute()) setMuted(MuteState::Active);
 			}).fail([=](const RPCError &error) {
 				const auto type = error.type();
 				LOG(("Call Error: Could not join, error: %1").arg(type));

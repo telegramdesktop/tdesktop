@@ -249,6 +249,10 @@ namespace EnhancedSettings {
 			}
 		});
 
+		ReadBoolOption(settings, "auto_unmute", [&](auto v) {
+			cSetRadioMode(v);
+		});
+
 		return true;
 	}
 
@@ -276,6 +280,7 @@ namespace EnhancedSettings {
 		settings.insert(qsl("show_scheduled_button"), false);
 		settings.insert(qsl("radio_mode"), false);
 		settings.insert(qsl("radio_controller"), "http://localhost:2468");
+		settings.insert(qsl("auto_unmute"), false);
 
 		auto document = QJsonDocument();
 		document.setObject(settings);
@@ -309,6 +314,7 @@ namespace EnhancedSettings {
 		settings.insert(qsl("show_scheduled_button"), cShowScheduledButton());
 		settings.insert(qsl("radio_mode"), cRadioMode());
 		settings.insert(qsl("radio_controller"), cRadioController());
+		settings.insert(qsl("auto_unmute"), cAutoUnmute());
 
 		auto document = QJsonDocument();
 		document.setObject(settings);
