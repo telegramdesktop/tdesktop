@@ -579,7 +579,9 @@ void ConfirmBox(
 			text,
 			st::groupCallBoxLabel),
 		st::boxPadding);
-	box->addButton(std::move(button), callback);
+	if (callback) {
+		box->addButton(std::move(button), callback);
+	}
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 

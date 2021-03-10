@@ -1951,7 +1951,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_add_to_group_all" = "Those users aren't members of «{group}» yet. Add them to the group?";
 "lng_group_call_invite_members" = "Group members";
 "lng_group_call_invite_search_results" = "Search results";
-"lng_group_call_new_muted" = "Mute new members";
+"lng_group_call_new_muted" = "Mute new participants";
 "lng_group_call_speakers" = "Speakers";
 "lng_group_call_microphone" = "Microphone";
 "lng_group_call_push_to_talk" = "Push to Talk Shortcut";
@@ -1961,6 +1961,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_ptt_delay_s" = "{amount}s";
 "lng_group_call_ptt_delay" = "Push to Talk release delay: {delay}";
 "lng_group_call_share" = "Share Invite Link";
+"lng_group_call_share_listener" = "Mute joined by this link";
 "lng_group_call_end" = "End Voice Chat";
 "lng_group_call_join" = "Join";
 "lng_group_call_invite_done_user" = "You invited {user} to the voice chat.";
