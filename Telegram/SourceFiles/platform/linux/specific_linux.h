@@ -17,7 +17,6 @@ namespace Platform {
 
 bool InFlatpak();
 bool InSnap();
-bool AreQtPluginsBundled();
 
 QString AppRuntimeDirectory();
 QString GetLauncherBasename();

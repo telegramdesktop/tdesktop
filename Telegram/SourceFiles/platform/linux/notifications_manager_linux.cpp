@@ -50,13 +50,27 @@ bool GetServiceRegistered() {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-		static const auto activatable = ranges::contains(
-			base::Platform::DBus::ListActivatableNames(connection),
-			Glib::ustring(std::string(kService)));
+		const auto hasOwner = [&] {
+			try {
+				return base::Platform::DBus::NameHasOwner(
+					connection,
+					std::string(kService));
+			} catch (...) {
+				return false;
+			}
+		}();
 
-		return base::Platform::DBus::NameHasOwner(
-				connection,
-				std::string(kService)) || activatable;
+		static const auto activatable = [&] {
+			try {
+				return ranges::contains(
+					base::Platform::DBus::ListActivatableNames(connection),
+					Glib::ustring(std::string(kService)));
+			} catch (...) {
+				return false;
+			}
+		}();
+
+		return hasOwner || activatable;
 	} catch (...) {
 	}
 
