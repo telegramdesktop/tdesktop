@@ -105,8 +105,9 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		object_ptr<Ui::Checkbox>(
 			nullptr,
 			tr::lng_group_call_share_listener(tr::now),
-			true),
-		style::margins(16, 16, 16, 16));// #TODO calls style
+			true,
+			st::groupCallCheckbox),
+		st::groupCallShareMutedMargin);
 	const auto listenerCheckbox = bottom->entity();
 	const auto currentLink = [=] {
 		return listenerCheckbox->checked() ? linkListener : linkSpeaker;
@@ -186,7 +187,10 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		.copyCallback = std::move(copyCallback),
 		.submitCallback = std::move(submitCallback),
 		.filterCallback = std::move(filterCallback),
-		.bottomWidget = std::move(bottom) });
+		.bottomWidget = std::move(bottom),
+		.stMultiSelect = &st::groupCallMultiSelect,
+		.stComment = &st::groupCallShareBoxComment,
+		.stItem = &st::groupCallShareBoxList });
 	*box = result.data();
 	return result;
 }

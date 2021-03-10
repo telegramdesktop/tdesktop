@@ -557,7 +557,6 @@ groupCallMultiSelect: MultiSelect(defaultMultiSelect) {
 		ripple: groupCallRipple;
 	}
 }
-
 groupCallField: InputField(defaultInputField) {
 	textMargins: margins(2px, 7px, 2px, 0px);
 
@@ -577,6 +576,22 @@ groupCallField: InputField(defaultInputField) {
 	borderFgError: activeLineFgError;
 
 	menu: groupCallPopupMenu;
+}
+groupCallShareBoxComment: InputField(groupCallField) {
+	textMargins: margins(8px, 8px, 8px, 6px);
+	heightMin: 36px;
+	heightMax: 72px;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	border: 0px;
+	borderActive: 0px;
+}
+groupCallShareBoxList: PeerList(groupCallMembersList) {
+	item: PeerListItem(groupCallMembersListItem) {
+		checkbox: RoundImageCheckbox(groupCallMembersListCheckbox) {
+			imageRadius: 28px;
+			imageSmallRadius: 24px;
+		}
+	}
 }
 
 groupCallMembersTop: 51px;
@@ -912,6 +927,8 @@ groupCallStatusSpeakerArcsAnimation: ArcsAnimation(groupCallSpeakerArcsAnimation
 	deltaWidth: 4px;
 	startHeight: 1px;
 }
+
+groupCallShareMutedMargin: margins(16px, 16px, 16px, 8px);
 
 callTopBarMuteCrossLine: CrossLineAnimation {
 	fg: callBarFg;
