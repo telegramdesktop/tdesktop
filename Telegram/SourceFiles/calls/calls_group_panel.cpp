@@ -283,7 +283,11 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 	showAndActivate();
 }
 
-GroupPanel::~GroupPanel() = default;
+GroupPanel::~GroupPanel() {
+	if (_menu) {
+		_menu.destroy();
+	}
+}
 
 void GroupPanel::setupRealCallViewers(not_null<GroupCall*> call) {
 	const auto peer = call->peer();

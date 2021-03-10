@@ -374,9 +374,7 @@ Row::Row(
 : PeerListRow(participantPeer)
 , _delegate(delegate) {
 	refreshStatus();
-	if (const auto channel = participantPeer->asChannel()) {
-		_aboutText = channel->about();
-	}
+	_aboutText = participantPeer->about();
 }
 
 void Row::setSkipLevelUpdate(bool value) {
@@ -882,10 +880,8 @@ MembersController::MembersController(
 	_peer->session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::About
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
-		if (const auto channel = update.peer->asChannel()) {
-			if (const auto row = findRow(channel)) {
-				row->setAbout(channel->about());
-			}
+		if (const auto row = findRow(update.peer)) {
+			row->setAbout(update.peer->about());
 		}
 	}, _lifetime);
 }
@@ -1681,7 +1677,10 @@ void MembersController::addMuteActionsToContextMenu(
 			|| isMe(participantPeer)
 			|| (muteState == Row::State::Inactive
 				&& participantIsCallAdmin
-				&& _peer->canManageGroupCall())) {
+				&& _peer->canManageGroupCall())
+			|| (isMuted
+				&& !_peer->canManageGroupCall()
+				&& muteState != Row::State::MutedByMe)) {
 			return nullptr;
 		}
 		auto callback = [=] {
@@ -1800,13 +1799,18 @@ rpl::producer<int> GroupMembers::desiredHeightValue() const {
 void GroupMembers::setupAddMember(not_null<GroupCall*> call) {
 	using namespace rpl::mappers;
 
-	_canAddMembers = Data::CanWriteValue(call->peer().get());
-	SubscribeToMigration(
-		call->peer(),
-		lifetime(),
-		[=](not_null<ChannelData*> channel) {
-			_canAddMembers = Data::CanWriteValue(channel.get());
-		});
+	const auto peer = call->peer();
+	if (peer->isBroadcast()) {
+		_canAddMembers = false; // #TODO calls invite members?
+	} else {
+		_canAddMembers = Data::CanWriteValue(peer.get());
+		SubscribeToMigration(
+			peer,
+			lifetime(),
+			[=](not_null<ChannelData*> channel) {
+				_canAddMembers = Data::CanWriteValue(channel.get());
+			});
+	}
 
 	_canAddMembers.value(
 	) | rpl::start_with_next([=](bool can) {
