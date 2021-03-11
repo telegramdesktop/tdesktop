@@ -38,6 +38,12 @@ public:
 	int type() const override;
 protected:
 	void performFlip() override;
+	std::shared_ptr<ItemBase> duplicate(
+		rpl::producer<float64> zoomValue,
+		std::shared_ptr<float64> zPtr,
+		int size,
+		int x,
+		int y) const override;
 private:
 	const not_null<DocumentData*> _document;
 	const std::shared_ptr<Data::DocumentMedia> _mediaView;

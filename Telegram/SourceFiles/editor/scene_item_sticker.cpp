@@ -101,4 +101,19 @@ void ItemSticker::performFlip() {
 	_pixmap = _pixmap.transformed(QTransform().scale(-1, 1));
 }
 
+std::shared_ptr<ItemBase> ItemSticker::duplicate(
+		rpl::producer<float64> zoomValue,
+		std::shared_ptr<float64> zPtr,
+		int size,
+		int x,
+		int y) const {
+	return std::make_shared<ItemSticker>(
+		_document,
+		std::move(zoomValue),
+		std::move(zPtr),
+		size,
+		x,
+		y);
+}
+
 } // namespace Editor

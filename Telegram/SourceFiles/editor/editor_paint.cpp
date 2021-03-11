@@ -117,7 +117,6 @@ Paint::Paint(
 				size,
 				x,
 				y);
-			item->setZValue((*_lastZ)++);
 			_scene->addItem(item);
 			_scene->clearSelection();
 		}, lifetime());

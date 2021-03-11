@@ -70,6 +70,12 @@ protected:
 	void setAspectRatio(float64 aspectRatio);
 
 	virtual void performFlip();
+	virtual std::shared_ptr<ItemBase> duplicate(
+		rpl::producer<float64> zoomValue,
+		std::shared_ptr<float64> zPtr,
+		int size,
+		int x,
+		int y) const = 0;
 private:
 	HandleType handleType(const QPointF &pos) const;
 	QRectF rightHandleRect() const;
@@ -94,6 +100,7 @@ private:
 
 	bool _flipped = false;
 
+	rpl::variable<float64> _zoom;
 	rpl::lifetime _lifetime;
 
 };

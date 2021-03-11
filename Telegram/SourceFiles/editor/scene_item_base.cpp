@@ -56,16 +56,17 @@ ItemBase::ItemBase(
 	Qt::DashLine,
 	Qt::SquareCap,
 	Qt::RoundJoin)
-, _horizontalSize(size) {
+, _horizontalSize(size)
+, _zoom(std::move(zoomValue)) {
 	setFlags(QGraphicsItem::ItemIsMovable
 		| QGraphicsItem::ItemIsSelectable
 		| QGraphicsItem::ItemIsFocusable);
 	setAcceptHoverEvents(true);
 	setPos(x, y);
+	setZValue((*_lastZ)++);
 
 	const auto &handleSize = st::photoEditorItemHandleSize;
-	std::move(
-		zoomValue
+	_zoom.value(
 	) | rpl::start_with_next([=](float64 zoom) {
 		_scaledHandleSize = handleSize / zoom;
 		_scaledInnerMargins = QMarginsF(
@@ -186,6 +187,21 @@ void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 	});
 	_menu->addAction(tr::lng_photo_editor_menu_flip(tr::now), [=] {
 		setFlip(!flipped());
+	});
+	_menu->addAction(tr::lng_photo_editor_menu_duplicate(tr::now), [=] {
+		if (const auto s = static_cast<Scene*>(scene())) {
+			const auto newItem = duplicate(
+				_zoom.value(),
+				_lastZ,
+				_horizontalSize,
+				scenePos().x() + _horizontalSize / 3,
+				scenePos().y() + _verticalSize / 3);
+			newItem->setFlip(flipped());
+			newItem->setRotation(rotation());
+			s->clearSelection();
+			newItem->setSelected(true);
+			s->addItem(newItem);
+		}
 	});
 
 	_menu->popup(event->screenPos());
