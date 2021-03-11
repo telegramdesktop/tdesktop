@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "lang/lang_keys.h"
 #include "platform/platform_specific.h"
+#include "boxes/url_auth_box.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
@@ -24,28 +25,63 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Core {
 namespace {
 
-QString UrlWithAutoLoginToken(const QString &url) {
+const auto kGoodPrefix = u"https://"_q;
+const auto kBadPrefix = u"http://"_q;
+
+[[nodiscard]] QUrl UrlForAutoLogin(const QString &url) {
+	return (url.startsWith(kGoodPrefix, Qt::CaseInsensitive)
+		|| url.startsWith(kBadPrefix, Qt::CaseInsensitive))
+		? QUrl(url)
+		: QUrl();
+}
+
+[[nodiscard]] QString DomainForAutoLogin(const QUrl &url) {
+	return url.isValid() ? url.host().toLower() : QString();
+}
+
+[[nodiscard]] QString UrlWithAutoLoginToken(
+		const QString &url,
+		QUrl parsed,
+		const QString &domain) {
 	const auto &config = Core::App().activeAccount().appConfig();
 	const auto token = config.get<QString>("autologin_token", {});
 	const auto domains = config.get<std::vector<QString>>(
 		"autologin_domains",
 		{});
-	if (domains.empty()
-		|| token.isEmpty()
-		|| !url.startsWith("https://", Qt::CaseInsensitive)) {
-		return url;
-	}
-	auto parsed = QUrl(url);
-	if (!parsed.isValid()) {
-		return url;
-	} else if (!ranges::contains(domains, parsed.host().toLower())) {
+	if (token.isEmpty()
+		|| domain.isEmpty()
+		|| !ranges::contains(domains, domain)) {
 		return url;
 	}
 	const auto added = "autologin_token=" + token;
 	parsed.setQuery(parsed.hasQuery()
 		? (parsed.query() + '&' + added)
 		: added);
+	if (url.startsWith(kBadPrefix, Qt::CaseInsensitive)) {
+		parsed.setScheme("https");
+	}
 	return QString::fromUtf8(parsed.toEncoded());
+}
+
+[[nodiscard]] bool BotAutoLogin(
+		const QString &url,
+		const QString &domain,
+		QVariant context) {
+	auto &account = Core::App().activeAccount();
+	const auto &config = account.appConfig();
+	const auto domains = config.get<std::vector<QString>>(
+		"url_auth_domains",
+		{});
+	if (!account.sessionExists()
+		|| domain.isEmpty()
+		|| !ranges::contains(domains, domain)) {
+		return false;
+	}
+	const auto good = url.startsWith(kBadPrefix, Qt::CaseInsensitive)
+		? (kGoodPrefix + url.mid(kBadPrefix.size()))
+		: url;
+	UrlAuthBox::Activate(&account.session(), good, context);
+	return true;
 }
 
 } // namespace
@@ -179,7 +215,12 @@ bool UiIntegration::handleUrlClick(
 		return true;
 	}
 
-	File::OpenUrl(UrlWithAutoLoginToken(url));
+	auto parsed = UrlForAutoLogin(url);
+	const auto domain = DomainForAutoLogin(parsed);
+	const auto skip = context.value<ClickHandlerContext>().skipBotAutoLogin;
+	if (skip || !BotAutoLogin(url, domain, context)) {
+		File::OpenUrl(UrlWithAutoLoginToken(url, std::move(parsed), domain));
+	}
 	return true;
 
 }
