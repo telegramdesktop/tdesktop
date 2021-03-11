@@ -22,6 +22,10 @@ public:
 		not_null<const HistoryItem*> message,
 		int row,
 		int column);
+	static void Activate(
+		not_null<Main::Session*> session,
+		const QString &url,
+		QVariant context);
 
 protected:
 	void prepare() override;
@@ -32,6 +36,11 @@ private:
 		not_null<const HistoryItem*> message,
 		int row,
 		int column);
+	static void Request(
+		const MTPDurlAuthResultRequest &request,
+		not_null<Main::Session*> session,
+		const QString &url,
+		QVariant context);
 
 	enum class Result {
 		None,

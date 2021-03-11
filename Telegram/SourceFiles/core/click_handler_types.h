@@ -27,6 +27,7 @@ struct ClickHandlerContext {
 	FullMsgId itemId;
 	Fn<HistoryView::ElementDelegate*()> elementDelegate;
 	base::weak_ptr<Window::SessionController> sessionWindow;
+	bool skipBotAutoLogin = false;
 };
 Q_DECLARE_METATYPE(ClickHandlerContext);
 
