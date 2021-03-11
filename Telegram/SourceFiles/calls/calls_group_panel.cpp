@@ -12,10 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_settings.h"
 #include "calls/calls_group_menu.h"
 #include "ui/platform/ui_platform_window_title.h"
+#include "ui/controls/call_mute_button.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/window.h"
 #include "ui/widgets/call_button.h"
-#include "ui/widgets/call_mute_button.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/input_fields.h"
@@ -428,7 +428,7 @@ void GroupPanel::initControls() {
 		const auto newState = (oldState == MuteState::ForceMuted)
 			? MuteState::RaisedHand
 			: (oldState == MuteState::RaisedHand)
-			? MuteState::ForceMuted
+			? MuteState::RaisedHand
 			: (oldState == MuteState::Muted)
 			? MuteState::Active
 			: MuteState::Muted;
