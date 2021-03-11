@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "history/history_location_manager.h" // LocationClickHandler.
-#include "history/view/history_view_context_menu.h"
+#include "history/view/history_view_context_menu.h" // HistoryView::ShowReportPeerBox
 #include "boxes/abstract_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_box.h"
