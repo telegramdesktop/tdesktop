@@ -97,11 +97,6 @@ bool copyFile(const char *from, const char *to) {
 		fclose(ffrom);
 		return false;
 	}
-	static const int BufSize = 65536;
-	char buf[BufSize];
-	while (size_t size = fread(buf, 1, BufSize, ffrom)) {
-		fwrite(buf, 1, size, fto);
-	}
 
 	struct stat fst; // from http://stackoverflow.com/questions/5486774/keeping-fileowner-and-permissions-after-copying-file-in-c
 	//let's say this wont fail since you already worked OK on that fp
@@ -110,6 +105,21 @@ bool copyFile(const char *from, const char *to) {
 		fclose(fto);
 		return false;
 	}
+
+	ssize_t copied = sendfile(
+		fileno(ffrom),
+		fileno(fto),
+		nullptr,
+		fst.st_size);
+
+	if (copied == -1) {
+		static const int BufSize = 65536;
+		char buf[BufSize];
+		while (size_t size = fread(buf, 1, BufSize, ffrom)) {
+			fwrite(buf, 1, size, fto);
+		}
+	}
+
 	//update to the same uid/gid
 	if (fchown(fileno(fto), fst.st_uid, fst.st_gid) != 0) {
 		fclose(ffrom);
