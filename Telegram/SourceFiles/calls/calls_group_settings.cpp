@@ -100,17 +100,21 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 	const auto sending = std::make_shared<bool>();
 	const auto box = std::make_shared<QPointer<ShareBox>>();
 
-	auto bottom = object_ptr<Ui::PaddingWrap<Ui::Checkbox>>(
-		nullptr,
-		object_ptr<Ui::Checkbox>(
+	auto bottom = linkSpeaker.isEmpty()
+		? nullptr
+		: object_ptr<Ui::PaddingWrap<Ui::Checkbox>>(
 			nullptr,
-			tr::lng_group_call_share_listener(tr::now),
-			true,
-			st::groupCallCheckbox),
-		st::groupCallShareMutedMargin);
-	const auto listenerCheckbox = bottom->entity();
+			object_ptr<Ui::Checkbox>(
+				nullptr,
+				tr::lng_group_call_share_listener(tr::now),
+				true,
+				st::groupCallCheckbox),
+			st::groupCallShareMutedMargin);
+	const auto listenerCheckbox = bottom ? bottom->entity() : nullptr;
 	const auto currentLink = [=] {
-		return listenerCheckbox->checked() ? linkListener : linkSpeaker;
+		return (!listenerCheckbox || listenerCheckbox->checked())
+			? linkListener
+			: linkSpeaker;
 	};
 	auto copyCallback = [=] {
 		QGuiApplication::clipboard()->setText(currentLink());
@@ -206,6 +210,14 @@ void SettingsBox(
 	const auto weakBox = Ui::MakeWeak(box);
 
 	struct State {
+		State(not_null<Main::Session*> session) : session(session) {
+		}
+		~State() {
+			session->api().request(linkListenerRequestId).cancel();
+			session->api().request(linkSpeakerRequestId).cancel();
+		}
+
+		not_null<Main::Session*> session;
 		rpl::event_stream<QString> outputNameStream;
 		rpl::event_stream<QString> inputNameStream;
 		std::unique_ptr<Webrtc::AudioInputTester> micTester;
@@ -213,13 +225,14 @@ void SettingsBox(
 		float micLevel = 0.;
 		Ui::Animations::Simple micLevelAnimation;
 		base::Timer levelUpdateTimer;
-		QString linkSpeaker;
+		std::optional<QString> linkSpeaker;
 		QString linkListener;
 		bool generatingLink = false;
+		mtpRequestId linkListenerRequestId = 0;
+		mtpRequestId linkSpeakerRequestId = 0;
 	};
-	const auto state = box->lifetime().make_state<State>();
-
 	const auto peer = call->peer();
+	const auto state = box->lifetime().make_state<State>(&peer->session());
 	const auto real = peer->groupCall();
 	const auto id = call->id();
 	const auto goodReal = (real && real->id() == id);
@@ -519,14 +532,17 @@ void SettingsBox(
 	//AddDivider(layout);
 	//AddSkip(layout);
 
+	if (!peer->canManageGroupCall()) {
+		state->linkSpeaker = QString();
+	}
+
 	auto shareLink = Fn<void()>();
 	if (peer->isChannel()
 		&& peer->asChannel()->hasUsername()
-		&& peer->canManageGroupCall()
 		&& goodReal) {
 		const auto input = real->input();
 		const auto shareReady = [=] {
-			if (state->linkSpeaker.isEmpty()
+			if (!state->linkSpeaker.has_value()
 				|| state->linkListener.isEmpty()) {
 				return false;
 			}
@@ -537,7 +553,7 @@ void SettingsBox(
 			});
 			box->getDelegate()->show(ShareInviteLinkBox(
 				peer,
-				state->linkSpeaker,
+				*state->linkSpeaker,
 				state->linkListener,
 				showToast));
 			return true;
@@ -547,30 +563,42 @@ void SettingsBox(
 				return;
 			}
 			state->generatingLink = true;
-			// #TODO calls cancel requests on box close
-			peer->session().api().request(MTPphone_ExportGroupCallInvite(
-				MTP_flags(0),
-				input
-			)).done(crl::guard(box, [=](
+
+			state->linkListenerRequestId = peer->session().api().request(
+				MTPphone_ExportGroupCallInvite(
+					MTP_flags(0),
+					input
+				)
+			).done(crl::guard(box, [=](
 					const MTPphone_ExportedGroupCallInvite &result) {
+				state->linkListenerRequestId = 0;
 				result.match([&](
 						const MTPDphone_exportedGroupCallInvite &data) {
 					state->linkListener = qs(data.vlink());
 					shareReady();
 				});
 			})).send();
-			peer->session().api().request(MTPphone_ExportGroupCallInvite(
-				MTP_flags(
-					MTPphone_ExportGroupCallInvite::Flag::f_can_self_unmute),
-				input
-			)).done(crl::guard(box, [=](
-					const MTPphone_ExportedGroupCallInvite &result) {
-				result.match([&](
-						const MTPDphone_exportedGroupCallInvite &data) {
-					state->linkSpeaker = qs(data.vlink());
+
+			if (!state->linkSpeaker.has_value()) {
+				using Flag = MTPphone_ExportGroupCallInvite::Flag;
+				state->linkSpeakerRequestId = peer->session().api().request(
+						MTPphone_ExportGroupCallInvite(
+					MTP_flags(Flag::f_can_self_unmute),
+					input
+				)).done(crl::guard(box, [=](
+						const MTPphone_ExportedGroupCallInvite &result) {
+					state->linkSpeakerRequestId = 0;
+					result.match([&](
+							const MTPDphone_exportedGroupCallInvite &data) {
+						state->linkSpeaker = qs(data.vlink());
+						shareReady();
+					});
+				})).fail([=] {
+					state->linkSpeakerRequestId = 0;
+					state->linkSpeaker = QString();
 					shareReady();
-				});
-			})).send();
+				}).send();
+			}
 		};
 	} else {
 		const auto lookupLink = [=] {
