@@ -532,6 +532,7 @@ WORKDIR ..
 # I couldn't make it work with direct ./configure call :(
 RUN echo './configure -prefix '$'\"''$QT_PREFIX'$'\"'' \
 	-release \
+	-force-debug-info \
 	-opensource \
 	-confirm-license \
 	-xcb \
