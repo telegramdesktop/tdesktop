@@ -31,8 +31,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mtproto/mtproto_config.h"
 #include "boxes/rate_call_box.h"
-#include "tgcalls/VideoCaptureInterface.h"
 #include "app.h"
+
+#include <tgcalls/VideoCaptureInterface.h>
+#include <tgcalls/StaticThreads.h>
 
 namespace Calls {
 namespace {
@@ -585,6 +587,7 @@ std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::getVideoCapture() {
 	}
 	auto result = std::shared_ptr<tgcalls::VideoCaptureInterface>(
 		tgcalls::VideoCaptureInterface::Create(
+			tgcalls::StaticThreads::getThreads(),
 			Core::App().settings().callVideoInputDeviceId().toStdString()));
 	_videoCapture = result;
 	return result;
