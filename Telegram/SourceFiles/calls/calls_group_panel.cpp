@@ -496,7 +496,7 @@ void GroupPanel::initWithCall(GroupCall *call) {
 	_members->kickParticipantRequests(
 	) | rpl::start_with_next([=](not_null<PeerData*> participantPeer) {
 		if (const auto user = participantPeer->asUser()) {
-			kickMember(user); // #TODO calls kick
+			kickMember(user);
 		}
 	}, _callLifetime);
 
