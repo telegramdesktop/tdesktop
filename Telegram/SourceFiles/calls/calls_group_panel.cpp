@@ -825,7 +825,7 @@ void GroupPanel::addMembers() {
 		};
 		auto box = Box(
 			Group::ConfirmBox,
-			text,
+			TextWithEntities{ text },
 			tr::lng_participant_invite(),
 			[=] { inviteWithAdd(users, nonMembers, finishWithConfirm); });
 		*shared = box.data();

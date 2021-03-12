@@ -34,7 +34,7 @@ void LeaveBox(
 
 void ConfirmBox(
 	not_null<Ui::GenericBox*> box,
-	const QString &text,
+	const TextWithEntities &text,
 	rpl::producer<QString> button,
 	Fn<void()> callback);
 
