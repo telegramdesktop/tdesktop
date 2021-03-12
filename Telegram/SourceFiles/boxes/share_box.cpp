@@ -173,6 +173,9 @@ ShareBox::ShareBox(QWidget*, Descriptor &&descriptor)
 		tr::lng_photos_comment()),
 	st::shareCommentPadding)
 , _bottomWidget(std::move(_descriptor.bottomWidget))
+, _copyLinkText(_descriptor.copyLinkText
+	? std::move(_descriptor.copyLinkText)
+	: tr::lng_share_copy_link())
 , _searchTimer([=] { searchByUsername(); }) {
 	if (_bottomWidget) {
 		_bottomWidget->setParent(this);
@@ -452,7 +455,7 @@ void ShareBox::createButtons() {
 			[=] { submitSilent(); },
 			[=] { submitScheduled(); });
 	} else if (_descriptor.copyCallback) {
-		addButton(tr::lng_share_copy_link(), [=] { copyLink(); });
+		addButton(_copyLinkText.value(), [=] { copyLink(); });
 	}
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 }
