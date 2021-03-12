@@ -1554,9 +1554,9 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		const auto canKick = [&] {
 			const auto user = participantPeer->asUser();
 			if (!user) {
-				return false; // #TODO calls can kick
-			}
-			if (static_cast<Row*>(row.get())->state() == Row::State::Invited) {
+				return false;
+			} else if (static_cast<Row*>(row.get())->state()
+				== Row::State::Invited) {
 				return false;
 			} else if (const auto chat = _peer->asChat()) {
 				return chat->amCreator()
@@ -1801,7 +1801,7 @@ void GroupMembers::setupAddMember(not_null<GroupCall*> call) {
 
 	const auto peer = call->peer();
 	if (peer->isBroadcast()) {
-		_canAddMembers = false; // #TODO calls invite members?
+		_canAddMembers = false;
 	} else {
 		_canAddMembers = Data::CanWriteValue(peer.get());
 		SubscribeToMigration(

@@ -950,13 +950,6 @@ void SessionController::startOrJoinGroupCall(
 		not_null<PeerData*> peer,
 		QString joinHash,
 		bool confirmedLeaveOther) {
-	//const auto channel = peer->asChannel(); // #TODO calls
-	//if (channel && channel->amAnonymous()) {
-	//	Ui::ShowMultilineToast({
-	//		.text = { tr::lng_group_call_no_anonymous(tr::now) },
-	//	});
-	//	return;
-	//}
 	auto &calls = Core::App().calls();
 	const auto confirm = [&](QString text, QString button) {
 		Ui::show(Box<ConfirmBox>(text, button, crl::guard(this, [=] {

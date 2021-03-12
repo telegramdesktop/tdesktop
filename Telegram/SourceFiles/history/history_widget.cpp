@@ -5622,12 +5622,7 @@ void HistoryWidget::setupGroupCallTracker() {
 	) | rpl::start_with_next([=] {
 		const auto peer = _history->peer;
 		const auto channel = peer->asChannel();
-		/*if (channel && channel->amAnonymous()) { // #TODO calls
-			Ui::ShowMultilineToast({
-				.text = { tr::lng_group_call_no_anonymous(tr::now) },
-			});
-			return;
-		} else */if (peer->groupCall()) {
+		if (peer->groupCall()) {
 			controller()->startOrJoinGroupCall(peer);
 		}
 	}, _groupCallBar->lifetime());

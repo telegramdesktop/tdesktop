@@ -68,6 +68,10 @@ constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 	return (i != end(participants)) ? &*i : nullptr;
 }
 
+[[nodiscard]] double TimestampFromMsgId(mtpMsgId msgId) {
+	return msgId / double(1ULL << 32);
+}
+
 } // namespace
 
 class GroupCall::LoadPartTask final : public tgcalls::BroadcastPartTask {
@@ -102,7 +106,7 @@ private:
 		not_null<PeerData*> participantPeer) {
 	const auto user = participantPeer->asUser();
 	if (!user) {
-		return false; // #TODO calls
+		return false;
 	}
 	if (const auto chat = peer->asChat()) {
 		return chat->admins.contains(user)
@@ -509,13 +513,17 @@ void GroupCall::applyMeInCallLocally() {
 		: Group::kDefaultVolume;
 	const auto canSelfUnmute = (muted() != MuteState::ForceMuted)
 		&& (muted() != MuteState::RaisedHand);
+	const auto raisedHandRating = (i != end(participants))
+		? i->raisedHandRating
+		: uint64(0);
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (lastActive ? Flag::f_active_date : Flag(0))
 		| (_mySsrc ? Flag(0) : Flag::f_left)
 		| Flag::f_self
 		| Flag::f_volume // Without flag the volume is reset to 100%.
 		| Flag::f_volume_by_admin // Self volume can only be set by admin.
-		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0));
+		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0))
+		| (raisedHandRating > 0 ? Flag::f_raise_hand_rating : Flag(0));
 	call->applyUpdateChecked(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
@@ -528,8 +536,8 @@ void GroupCall::applyMeInCallLocally() {
 					MTP_int(lastActive),
 					MTP_int(_mySsrc),
 					MTP_int(volume),
-					MTPstring(), // #TODO calls about
-					MTPlong())), // #TODO calls raise hand rating
+					MTPstring(), // Don't update about text in local updates.
+					MTP_long(raisedHandRating))),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -557,7 +565,10 @@ void GroupCall::applyParticipantLocally(
 		| (participant->lastActive ? Flag::f_active_date : Flag(0))
 		| (isMuted ? Flag::f_muted : Flag(0))
 		| (isMutedByYou ? Flag::f_muted_by_you : Flag(0))
-		| (participantPeer == _joinAs ? Flag::f_self : Flag(0));
+		| (participantPeer == _joinAs ? Flag::f_self : Flag(0))
+		| (participant->raisedHandRating
+			? Flag::f_raise_hand_rating
+			: Flag(0));
 	_peer->groupCall()->applyUpdateChecked(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
@@ -570,8 +581,8 @@ void GroupCall::applyParticipantLocally(
 					MTP_int(participant->lastActive),
 					MTP_int(participant->ssrc),
 					MTP_int(volume.value_or(participant->volume)),
-					MTPstring(), // #TODO calls about
-					MTPlong())), // #TODO calls raise hand rating
+					MTPstring(), // Don't update about text in local updates.
+					MTP_long(participant->raisedHandRating))),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -1028,14 +1039,16 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 			MTP_int(scale)),
 		MTP_int(0),
 		MTP_int(128 * 1024)
-	)).done([=](const MTPupload_File &result) {
+	)).done([=](
+			const MTPupload_File &result,
+			const MTP::Response &response) {
 		result.match([&](const MTPDupload_file &data) {
 			const auto size = data.vbytes().v.size();
 			auto bytes = std::vector<uint8_t>(size);
 			memcpy(bytes.data(), data.vbytes().v.constData(), size);
 			finish({
 				.timestampMilliseconds = time,
-				.responseTimestamp = (time / 1000.) + 1., // #TODO calls extract from mtproto
+				.responseTimestamp = TimestampFromMsgId(response.outerMsgId),
 				.status = Status::Success,
 				.oggData = std::move(bytes),
 			});
@@ -1043,11 +1056,11 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 			LOG(("Voice Chat Stream Error: fileCdnRedirect received."));
 			finish({
 				.timestampMilliseconds = time,
-				.responseTimestamp = (time / 1000.) + 1., // #TODO calls extract from mtproto
+				.responseTimestamp = TimestampFromMsgId(response.outerMsgId),
 				.status = Status::ResyncNeeded,
 			});
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const RPCError &error, const MTP::Response &response) {
 		if (error.type() == u"GROUPCALL_JOIN_MISSING"_q) {
 			for (const auto &[task, part] : _broadcastParts) {
 				_api.request(part.requestId).cancel();
@@ -1061,7 +1074,7 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 			: Status::ResyncNeeded;
 		finish({
 			.timestampMilliseconds = time,
-			.responseTimestamp = (time / 1000.) + 1., // #TODO calls extract from mtproto
+			.responseTimestamp = TimestampFromMsgId(response.outerMsgId),
 			.status = status,
 		});
 	}).handleAllErrors().toDC(
@@ -1368,7 +1381,7 @@ void GroupCall::editParticipant(
 		inputCall(),
 		participantPeer->input,
 		MTP_int(std::clamp(volume.value_or(0), 1, Group::kMaxVolume)),
-		MTPBool() // #TODO calls raise_hand
+		MTPBool()
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 	}).fail([=](const RPCError &error) {
