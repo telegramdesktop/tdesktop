@@ -33,7 +33,7 @@ void ToggleExistingMedia(
 			if (mtpIsTrue(result)) {
 				done();
 			}
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			if (error.code() == 400
 				&& error.type().startsWith(u"FILE_REFERENCE_"_q)) {
 				auto refreshed = [=](const Data::UpdatedFileReferences &d) {

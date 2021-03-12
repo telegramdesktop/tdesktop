@@ -266,7 +266,7 @@ void Call::startOutgoing() {
 		const auto &config = _user->session().serverConfig();
 		_discardByTimeoutTimer.callOnce(config.callReceiveTimeoutMs);
 		handleUpdate(phoneCall);
-	}).fail([this](const RPCError &error) {
+	}).fail([this](const MTP::Error &error) {
 		handleRequestError(error);
 	}).send();
 }
@@ -281,7 +281,7 @@ void Call::startIncoming() {
 		if (_state.current() == State::Starting) {
 			setState(State::WaitingIncoming);
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		handleRequestError(error);
 	}).send();
 }
@@ -340,7 +340,7 @@ void Call::actuallyAnswer() {
 		}
 
 		handleUpdate(call.vphone_call());
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		handleRequestError(error);
 	}).send();
 }
@@ -456,7 +456,7 @@ void Call::sendSignalingData(const QByteArray &data) {
 		if (!mtpIsTrue(result)) {
 			finish(FinishType::Failed);
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		handleRequestError(error);
 	}).send();
 }
@@ -686,7 +686,7 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 		}
 
 		createAndStartController(call.vphone_call().c_phoneCall());
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		handleRequestError(error);
 	}).send();
 }
@@ -1052,7 +1052,7 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 		// updates being handled, but in a guarded way.
 		crl::on_main(weak, [=] { setState(finalState); });
 		session->api().applyUpdates(result);
-	}).fail(crl::guard(weak, [this, finalState](const RPCError &error) {
+	}).fail(crl::guard(weak, [this, finalState](const MTP::Error &error) {
 		setState(finalState);
 	})).send();
 }
@@ -1069,7 +1069,7 @@ void Call::setFailedQueued(const QString &error) {
 	});
 }
 
-void Call::handleRequestError(const RPCError &error) {
+void Call::handleRequestError(const MTP::Error &error) {
 	if (error.type() == qstr("USER_PRIVACY_RESTRICTED")) {
 		Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, _user->name)));
 	} else if (error.type() == qstr("PARTICIPANT_VERSION_OUTDATED")) {

@@ -1061,7 +1061,7 @@ void EditCaptionBox::save() {
 		closeBox();
 	});
 
-	const auto fail = crl::guard(this, [=](const RPCError &error) {
+	const auto fail = crl::guard(this, [=](const MTP::Error &error) {
 		_saveRequestId = 0;
 		const auto &type = error.type();
 		if (ranges::contains(Api::kDefaultEditMessagesErrors, type)) {

@@ -78,7 +78,7 @@ protected:
 private:
 	void submit();
 	void sendPhoneDone(const MTPauth_SentCode &result, const QString &phoneNumber);
-	void sendPhoneFail(const RPCError &error, const QString &phoneNumber);
+	void sendPhoneFail(const MTP::Error &error, const QString &phoneNumber);
 	void showError(const QString &text);
 	void hideError() {
 		showError(QString());
@@ -114,7 +114,7 @@ private:
 	void submit();
 	void sendCall();
 	void updateCall();
-	void sendCodeFail(const RPCError &error);
+	void sendCodeFail(const MTP::Error &error);
 	void showError(const QString &text);
 	void hideError() {
 		showError(QString());
@@ -180,7 +180,7 @@ void ChangePhoneBox::EnterPhone::submit() {
 		MTP_codeSettings(MTP_flags(0))
 	)).done([=](const MTPauth_SentCode &result) {
 		sendPhoneDone(result, phoneNumber);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		sendPhoneFail(error, phoneNumber);
 	}).handleFloodErrors().send();
 }
@@ -222,9 +222,9 @@ void ChangePhoneBox::EnterPhone::sendPhoneDone(
 		Ui::LayerOption::KeepOther);
 }
 
-void ChangePhoneBox::EnterPhone::sendPhoneFail(const RPCError &error, const QString &phoneNumber) {
+void ChangePhoneBox::EnterPhone::sendPhoneFail(const MTP::Error &error, const QString &phoneNumber) {
 	_requestId = 0;
-	if (MTP::isFloodError(error)) {
+	if (MTP::IsFloodError(error)) {
 		showError(tr::lng_flood_error(tr::now));
 	} else if (error.type() == qstr("PHONE_NUMBER_INVALID")) {
 		showError(tr::lng_bad_phone(tr::now));
@@ -320,7 +320,7 @@ void ChangePhoneBox::EnterCode::submit() {
 			Ui::hideLayer();
 		}
 		Ui::Toast::Show(tr::lng_change_phone_success(tr::now));
-	}).fail(crl::guard(this, [=](const RPCError &error) {
+	}).fail(crl::guard(this, [=](const MTP::Error &error) {
 		sendCodeFail(error);
 	})).handleFloodErrors().send();
 }
@@ -354,9 +354,9 @@ void ChangePhoneBox::EnterCode::showError(const QString &text) {
 	}
 }
 
-void ChangePhoneBox::EnterCode::sendCodeFail(const RPCError &error) {
+void ChangePhoneBox::EnterCode::sendCodeFail(const MTP::Error &error) {
 	_requestId = 0;
-	if (MTP::isFloodError(error)) {
+	if (MTP::IsFloodError(error)) {
 		showError(tr::lng_flood_error(tr::now));
 	} else if (error.type() == qstr("PHONE_CODE_EMPTY") || error.type() == qstr("PHONE_CODE_INVALID")) {
 		showError(tr::lng_bad_code(tr::now));

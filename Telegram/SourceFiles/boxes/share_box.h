@@ -116,7 +116,7 @@ private:
 	void peopleDone(
 		const MTPcontacts_Found &result,
 		mtpRequestId requestId);
-	void peopleFail(const RPCError &error, mtpRequestId requestId);
+	void peopleFail(const MTP::Error &error, mtpRequestId requestId);
 
 	Descriptor _descriptor;
 	MTP::Sender _api;

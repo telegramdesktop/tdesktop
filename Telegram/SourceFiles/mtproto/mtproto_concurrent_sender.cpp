@@ -8,23 +8,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_concurrent_sender.h"
 
 #include "mtproto/mtp_instance.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/mtproto_response.h"
 #include "mtproto/facade.h"
 
 namespace MTP {
 
 class ConcurrentSender::HandlerMaker final {
 public:
-	static ::MTP::DoneHandler MakeDone(
+	static DoneHandler MakeDone(
 		not_null<ConcurrentSender*> sender,
 		Fn<void(FnMut<void()>)> runner);
-	static ::MTP::FailHandler MakeFail(
+	static FailHandler MakeFail(
 		not_null<ConcurrentSender*> sender,
 		Fn<void(FnMut<void()>)> runner,
 		FailSkipPolicy skipPolicy);
 };
 
-::MTP::DoneHandler ConcurrentSender::HandlerMaker::MakeDone(
+DoneHandler ConcurrentSender::HandlerMaker::MakeDone(
 		not_null<ConcurrentSender*> sender,
 		Fn<void(FnMut<void()>)> runner) {
 	return [
@@ -42,7 +42,7 @@ public:
 	};
 }
 
-::MTP::FailHandler ConcurrentSender::HandlerMaker::MakeFail(
+FailHandler ConcurrentSender::HandlerMaker::MakeFail(
 		not_null<ConcurrentSender*> sender,
 		Fn<void(FnMut<void()>)> runner,
 		FailSkipPolicy skipPolicy) {
@@ -50,14 +50,13 @@ public:
 		weak = base::make_weak(sender.get()),
 		runner = std::move(runner),
 		skipPolicy
-	](const RPCError &error, const Response &response) mutable {
+	](const Error &error, const Response &response) mutable {
 		if (skipPolicy == FailSkipPolicy::Simple) {
-			if (MTP::isDefaultHandledError(error)) {
+			if (IsDefaultHandledError(error)) {
 				return false;
 			}
 		} else if (skipPolicy == FailSkipPolicy::HandleFlood) {
-			if (MTP::isDefaultHandledError(error)
-				&& !MTP::isFloodError(error)) {
+			if (IsDefaultHandledError(error) && !IsFloodError(error)) {
 				return false;
 			}
 		}
@@ -160,7 +159,7 @@ void ConcurrentSender::senderRequestDone(
 		if (!handlers->done(requestId, result)) {
 			handlers->fail(
 				requestId,
-				RPCError::Local(
+				Error::Local(
 					"RESPONSE_PARSE_FAILED",
 					"ConcurrentSender::senderRequestDone"));
 		}
@@ -169,7 +168,7 @@ void ConcurrentSender::senderRequestDone(
 
 void ConcurrentSender::senderRequestFail(
 		mtpRequestId requestId,
-		const RPCError &error) {
+		const Error &error) {
 	if (auto handlers = _requests.take(requestId)) {
 		handlers->fail(requestId, error);
 	}

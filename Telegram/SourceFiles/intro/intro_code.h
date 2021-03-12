@@ -74,14 +74,14 @@ private:
 	void updateControlsGeometry();
 
 	void codeSubmitDone(const MTPauth_Authorization &result);
-	void codeSubmitFail(const RPCError &error);
+	void codeSubmitFail(const MTP::Error &error);
 
 	void showCodeError(rpl::producer<QString> text);
 	void callDone(const MTPauth_SentCode &v);
 	void gotPassword(const MTPaccount_Password &result);
 
 	void noTelegramCodeDone(const MTPauth_SentCode &result);
-	void noTelegramCodeFail(const RPCError &result);
+	void noTelegramCodeFail(const MTP::Error &result);
 
 	void stopCheck();
 

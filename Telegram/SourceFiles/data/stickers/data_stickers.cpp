@@ -545,7 +545,7 @@ void Stickers::requestSetToPushFaved(not_null<DocumentData*> document) {
 			}
 		}
 		addAnyway(std::move(list));
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		// Perhaps this is a deleted sticker pack. Add anyway.
 		addAnyway({});
 	}).send();

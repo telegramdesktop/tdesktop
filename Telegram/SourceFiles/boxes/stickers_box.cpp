@@ -778,7 +778,7 @@ void StickersBox::installSet(uint64 setId) {
 			MTP_boolFalse()
 		)).done([=](const MTPmessages_StickerSetInstallResult &result) {
 			installDone(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			installFail(error, setId);
 		}).send();
 
@@ -793,7 +793,7 @@ void StickersBox::installDone(const MTPmessages_StickerSetInstallResult &result)
 	}
 }
 
-void StickersBox::installFail(const RPCError &error, uint64 setId) {
+void StickersBox::installFail(const MTP::Error &error, uint64 setId) {
 	const auto &sets = session().data().stickers().sets();
 	const auto it = sets.find(setId);
 	if (it == sets.cend()) {
@@ -1765,7 +1765,7 @@ void StickersBox::Inner::handleMegagroupSetAddressChange() {
 			setMegagroupSelectedSet(MTP_inputStickerSetID(
 				MTP_long(set->id),
 				MTP_long(set->access)));
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			_megagroupSetRequestId = 0;
 			setMegagroupSelectedSet(MTP_inputStickerSetEmpty());
 		}).send();

@@ -340,7 +340,7 @@ bool ShareBox::searchByUsername(bool searchCache) {
 				MTP_int(SearchPeopleLimit)
 			)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
 				peopleDone(result, requestId);
-			}).fail([=](const RPCError &error, mtpRequestId requestId) {
+			}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 				peopleFail(error, requestId);
 			}).send();
 			_peopleQueries.insert(_peopleRequest, _peopleQuery);
@@ -386,7 +386,7 @@ void ShareBox::peopleDone(
 	}
 }
 
-void ShareBox::peopleFail(const RPCError &error, mtpRequestId requestId) {
+void ShareBox::peopleFail(const MTP::Error &error, mtpRequestId requestId) {
 	if (_peopleRequest == requestId) {
 		_peopleRequest = 0;
 		_peopleFull = true;

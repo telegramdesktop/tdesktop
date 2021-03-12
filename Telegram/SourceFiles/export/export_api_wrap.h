@@ -37,7 +37,7 @@ class ApiWrap {
 public:
 	ApiWrap(QPointer<MTP::Instance> weak, Fn<void(FnMut<void()>)> runner);
 
-	rpl::producer<RPCError> errors() const;
+	rpl::producer<MTP::Error> errors() const;
 	rpl::producer<Output::Result> ioErrors() const;
 
 	struct StartInfo {
@@ -203,7 +203,7 @@ private:
 		const Data::FileLocation &location,
 		int offset);
 
-	void error(const RPCError &error);
+	void error(const MTP::Error &error);
 	void error(const QString &text);
 	void ioError(const Output::Result &result);
 
@@ -226,7 +226,7 @@ private:
 	std::unique_ptr<ChatProcess> _chatProcess;
 	QVector<MTPMessageRange> _splits;
 
-	rpl::event_stream<RPCError> _errors;
+	rpl::event_stream<MTP::Error> _errors;
 	rpl::event_stream<Output::Result> _ioErrors;
 
 };

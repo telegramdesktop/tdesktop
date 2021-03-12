@@ -266,7 +266,7 @@ void Histories::requestDialogEntry(not_null<Data::Folder*> folder) {
 	)).done([=](const MTPmessages_PeerDialogs &result) {
 		applyPeerDialogs(result);
 		_dialogFolderRequests.remove(folder);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_dialogFolderRequests.remove(folder);
 	}).send();
 }
@@ -346,7 +346,7 @@ void Histories::sendDialogRequests() {
 	)).done([=](const MTPmessages_PeerDialogs &result) {
 		applyPeerDialogs(result);
 		finalize();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		finalize();
 	}).send();
 }
@@ -426,7 +426,7 @@ void Histories::requestFakeChatListMessage(
 			_fakeChatListRequests.erase(history);
 			history->setFakeChatListMessageFrom(result);
 			finish();
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			_fakeChatListRequests.erase(history);
 			history->setFakeChatListMessageFrom(MTP_messages_messages(
 				MTP_vector<MTPMessage>(0),
@@ -510,7 +510,7 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 				MTP_int(tillId)
 			)).done([=](const MTPBool &result) {
 				finished();
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				finished();
 			}).send();
 		} else {
@@ -520,7 +520,7 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 			)).done([=](const MTPmessages_AffectedMessages &result) {
 				session().api().applyAffectedMessages(history->peer, result);
 				finished();
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				finished();
 			}).send();
 		}
@@ -565,7 +565,7 @@ void Histories::deleteMessages(
 			finish();
 			history->requestChatListMessage();
 		};
-		const auto fail = [=](const RPCError &error) {
+		const auto fail = [=](const MTP::Error &error) {
 			finish();
 		};
 		if (const auto channel = history->peer->asChannel()) {
@@ -590,7 +590,7 @@ void Histories::deleteAllMessages(
 		bool revoke) {
 	sendRequest(history, RequestType::Delete, [=](Fn<void()> finish) {
 		const auto peer = history->peer;
-		const auto fail = [=](const RPCError &error) {
+		const auto fail = [=](const MTP::Error &error) {
 			finish();
 		};
 		const auto chat = peer->asChat();
@@ -600,7 +600,7 @@ void Histories::deleteAllMessages(
 				channel->inputChannel
 			)).done([=](const MTPUpdates &result) {
 				session().api().applyUpdates(result);
-			//}).fail([=](const RPCError &error) {
+			//}).fail([=](const MTP::Error &error) {
 			//	if (error.type() == qstr("CHANNEL_TOO_LARGE")) {
 			//		Ui::show(Box<InformBox>(tr::lng_cant_delete_channel(tr::now)));
 			//	}
@@ -617,7 +617,7 @@ void Histories::deleteAllMessages(
 				chat->inputChat
 			)).done([=](const MTPBool &result) {
 				finish();
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				if (error.type() == "PEER_ID_INVALID") {
 					// Try to join and delete,
 					// while delete fails for non-joined.

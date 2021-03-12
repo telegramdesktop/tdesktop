@@ -51,7 +51,7 @@ void AppConfig::refresh() {
 			DEBUG_LOG(("getAppConfig result handled."));
 		}
 		_refreshed.fire({});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		refreshDelayed();
 	}).send();

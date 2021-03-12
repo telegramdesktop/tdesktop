@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/facade.h"
 #include "mtproto/mtproto_auth_key.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/mtproto_response.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "base/openssl_help.h"
@@ -521,7 +521,7 @@ mtpRequestId DownloadMtprotoTask::sendRequest(
 			MTP_int(limit)
 		)).done([=](const MTPupload_CdnFile &result, mtpRequestId id) {
 			cdnPartLoaded(result, id);
-		}).fail([=](const RPCError &error, mtpRequestId id) {
+		}).fail([=](const MTP::Error &error, mtpRequestId id) {
 			cdnPartFailed(error, id);
 		}).toDC(shiftedDcId).send();
 	}
@@ -534,7 +534,7 @@ mtpRequestId DownloadMtprotoTask::sendRequest(
 			MTP_int(limit)
 		)).done([=](const MTPupload_WebFile &result, mtpRequestId id) {
 			webPartLoaded(result, id);
-		}).fail([=](const RPCError &error, mtpRequestId id) {
+		}).fail([=](const MTP::Error &error, mtpRequestId id) {
 			partFailed(error, id);
 		}).toDC(shiftedDcId).send();
 	}, [&](const GeoPointLocation &location) {
@@ -554,7 +554,7 @@ mtpRequestId DownloadMtprotoTask::sendRequest(
 			MTP_int(limit)
 		)).done([=](const MTPupload_WebFile &result, mtpRequestId id) {
 			webPartLoaded(result, id);
-		}).fail([=](const RPCError &error, mtpRequestId id) {
+		}).fail([=](const MTP::Error &error, mtpRequestId id) {
 			partFailed(error, id);
 		}).toDC(shiftedDcId).send();
 	}, [&](const StorageFileLocation &location) {
@@ -566,7 +566,7 @@ mtpRequestId DownloadMtprotoTask::sendRequest(
 			MTP_int(limit)
 		)).done([=](const MTPupload_File &result, mtpRequestId id) {
 			normalPartLoaded(result, id);
-		}).fail([=](const RPCError &error, mtpRequestId id) {
+		}).fail([=](const MTP::Error &error, mtpRequestId id) {
 			normalPartFailed(reference, error, id);
 		}).toDC(shiftedDcId).send();
 	});
@@ -594,7 +594,7 @@ void DownloadMtprotoTask::requestMoreCdnFileHashes() {
 		MTP_int(requestData.offset)
 	)).done([=](const MTPVector<MTPFileHash> &result, mtpRequestId id) {
 		getCdnFileHashesDone(result, id);
-	}).fail([=](const RPCError &error, mtpRequestId id) {
+	}).fail([=](const MTP::Error &error, mtpRequestId id) {
 		cdnPartFailed(error, id);
 	}).toDC(shiftedDcId).send();
 	placeSentRequest(_cdnHashesRequestId, requestData);
@@ -649,7 +649,7 @@ void DownloadMtprotoTask::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequ
 			data.vrequest_token()
 		)).done([=](const MTPVector<MTPFileHash> &result, mtpRequestId id) {
 			reuploadDone(result, id);
-		}).fail([=](const RPCError &error, mtpRequestId id) {
+		}).fail([=](const MTP::Error &error, mtpRequestId id) {
 			cdnPartFailed(error, id);
 		}).toDC(shiftedDcId).send();
 		placeSentRequest(requestId, requestData);
@@ -880,9 +880,9 @@ void DownloadMtprotoTask::partLoaded(
 
 bool DownloadMtprotoTask::normalPartFailed(
 		QByteArray fileReference,
-		const RPCError &error,
+		const MTP::Error &error,
 		mtpRequestId requestId) {
-	if (MTP::isDefaultHandledError(error)) {
+	if (MTP::IsDefaultHandledError(error)) {
 		return false;
 	}
 	if (error.code() == 400
@@ -898,9 +898,9 @@ bool DownloadMtprotoTask::normalPartFailed(
 }
 
 bool DownloadMtprotoTask::partFailed(
-		const RPCError &error,
+		const MTP::Error &error,
 		mtpRequestId requestId) {
-	if (MTP::isDefaultHandledError(error)) {
+	if (MTP::IsDefaultHandledError(error)) {
 		return false;
 	}
 	cancelOnFail();
@@ -908,9 +908,9 @@ bool DownloadMtprotoTask::partFailed(
 }
 
 bool DownloadMtprotoTask::cdnPartFailed(
-		const RPCError &error,
+		const MTP::Error &error,
 		mtpRequestId requestId) {
-	if (MTP::isDefaultHandledError(error)) {
+	if (MTP::IsDefaultHandledError(error)) {
 		return false;
 	}
 

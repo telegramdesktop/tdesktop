@@ -192,7 +192,7 @@ public:
 	void requestWallPaper(
 		const QString &slug,
 		Fn<void(const Data::WallPaper &)> done,
-		Fn<void(const RPCError &)> fail);
+		Fn<void(const MTP::Error &)> fail);
 
 	void requestFullPeer(not_null<PeerData*> peer);
 	void requestPeer(not_null<PeerData*> peer);
@@ -227,7 +227,7 @@ public:
 	void checkChatInvite(
 		const QString &hash,
 		FnMut<void(const MTPChatInvite &)> done,
-		Fn<void(const RPCError &)> fail);
+		Fn<void(const MTP::Error &)> fail);
 	void importChatInvite(const QString &hash);
 
 	void requestChannelMembersForAdd(
@@ -243,7 +243,7 @@ public:
 	void migrateChat(
 		not_null<ChatData*> chat,
 		FnMut<void(not_null<ChannelData*>)> done,
-		Fn<void(const RPCError &)> fail = nullptr);
+		Fn<void(const MTP::Error &)> fail = nullptr);
 
 	void markMediaRead(const base::flat_set<not_null<HistoryItem*>> &items);
 	void markMediaRead(not_null<HistoryItem*> item);
@@ -416,7 +416,7 @@ public:
 		not_null<InlineBots::Result*> data,
 		const SendAction &action);
 	void sendMessageFail(
-		const RPCError &error,
+		const MTP::Error &error,
 		not_null<PeerData*> peer,
 		uint64 randomId = 0,
 		FullMsgId itemId = FullMsgId());
@@ -453,7 +453,7 @@ public:
 		const PollData &data,
 		const SendAction &action,
 		Fn<void()> done,
-		Fn<void(const RPCError &error)> fail);
+		Fn<void(const MTP::Error &error)> fail);
 	void sendPollVotes(
 		FullMsgId itemId,
 		const std::vector<QByteArray> &options);
@@ -628,7 +628,7 @@ private:
 	void migrateDone(
 		not_null<PeerData*> peer,
 		not_null<ChannelData*> channel);
-	void migrateFail(not_null<PeerData*> peer, const RPCError &error);
+	void migrateFail(not_null<PeerData*> peer, const MTP::Error &error);
 
 	not_null<Main::Session*> _session;
 
@@ -742,11 +742,11 @@ private:
 
 	mtpRequestId _checkInviteRequestId = 0;
 	FnMut<void(const MTPChatInvite &result)> _checkInviteDone;
-	Fn<void(const RPCError &error)> _checkInviteFail;
+	Fn<void(const MTP::Error &error)> _checkInviteFail;
 
 	struct MigrateCallbacks {
 		FnMut<void(not_null<ChannelData*>)> done;
-		Fn<void(const RPCError&)> fail;
+		Fn<void(const MTP::Error&)> fail;
 	};
 	base::flat_map<
 		not_null<PeerData*>,
@@ -786,7 +786,7 @@ private:
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;
 	Fn<void(const Data::WallPaper &)> _wallPaperDone;
-	Fn<void(const RPCError &)> _wallPaperFail;
+	Fn<void(const MTP::Error &)> _wallPaperFail;
 
 	mtpRequestId _contactSignupSilentRequestId = 0;
 	std::optional<bool> _contactSignupSilent;

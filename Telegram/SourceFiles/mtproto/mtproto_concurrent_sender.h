@@ -20,10 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #define MTP_SENDER_USE_GENERIC_HANDLERS
 #endif // !_DEBUG
 
-class RPCError;
 
 namespace MTP {
 
+class Error;
 class Instance;
 
 class ConcurrentSender : public base::has_weak_ptr {
@@ -35,15 +35,9 @@ class ConcurrentSender : public base::has_weak_ptr {
 	auto with_instance(Method &&method)
 	-> std::enable_if_t<is_callable_v<Method, not_null<Instance*>>>;
 
-	using DoneHandler = FnMut<bool(
-		mtpRequestId requestId,
-		bytes::const_span result)>;
-	using FailHandler = FnMut<void(
-		mtpRequestId requestId,
-		const RPCError &error)>;
 	struct Handlers {
-		DoneHandler done;
-		FailHandler fail;
+		FnMut<bool(mtpRequestId requestId, bytes::const_span result)> done;
+		FnMut<void(mtpRequestId requestId, const Error &error)> fail;
 	};
 
 	enum class FailSkipPolicy {
@@ -120,9 +114,9 @@ public:
 			FnMut<void(Result &&)> &&handler);
 		[[nodiscard]] SpecificRequestBuilder &fail(Fn<void()> &&handler);
 		[[nodiscard]] SpecificRequestBuilder &fail(
-			Fn<void(mtpRequestId, const RPCError &)> &&handler);
+			Fn<void(mtpRequestId, const Error &)> &&handler);
 		[[nodiscard]] SpecificRequestBuilder &fail(
-			Fn<void(const RPCError &)> &&handler);
+			Fn<void(const Error &)> &&handler);
 #else // !MTP_SENDER_USE_GENERIC_HANDLERS
 		template <typename Handler>
 		[[nodiscard]] SpecificRequestBuilder &done(Handler &&handler);
@@ -185,7 +179,7 @@ private:
 		bytes::const_span result);
 	void senderRequestFail(
 		mtpRequestId requestId,
-		const RPCError &error);
+		const Error &error);
 	void senderRequestCancel(mtpRequestId requestId);
 	void senderRequestCancelAll();
 	void senderRequestDetach(mtpRequestId requestId);
@@ -280,11 +274,11 @@ auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
 
 template <typename Request>
 auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
-	Fn<void(const RPCError &)> &&handler
+	Fn<void(const Error &)> &&handler
 ) -> SpecificRequestBuilder & {
 	setFailHandler([handler = std::move(handler)](
 			mtpRequestId requestId,
-			const RPCError &error) {
+			const Error &error) {
 		handler(error);
 	});
 	return *this;
@@ -292,7 +286,7 @@ auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
 
 template <typename Request>
 auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
-	Fn<void(mtpRequestId, const RPCError &)> &&handler
+	Fn<void(mtpRequestId, const Error &)> &&handler
 ) -> SpecificRequestBuilder & {
 	setFailHandler(std::move(handler));
 	return *this;
@@ -304,7 +298,7 @@ auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
 ) -> SpecificRequestBuilder & {
 	setFailHandler([handler = std::move(handler)](
 			mtpRequestId requestId,
-			const RPCError &error) {
+			const Error &error) {
 		handler();
 	});
 	return *this;
@@ -353,10 +347,10 @@ auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
 	constexpr auto takesFull = rpl::details::is_callable_plain_v<
 		Handler,
 		mtpRequestId,
-		RPCError>;
+		Error>;
 	constexpr auto takesError = rpl::details::is_callable_plain_v<
 		Handler,
-		RPCError>;
+		Error>;
 	constexpr auto takesNone = rpl::details::is_callable_plain_v<Handler>;
 
 	if constexpr (takesFull) {
@@ -364,13 +358,13 @@ auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
 	} else if constexpr (takesError) {
 		setFailHandler([handler = std::forward<Handler>(handler)](
 				mtpRequestId requestId,
-				const RPCError &error) {
+				const Error &error) {
 			handler(error);
 		});
 	} else if constexpr (takesNone) {
 		setFailHandler([handler = std::forward<Handler>(handler)](
 				mtpRequestId requestId,
-				const RPCError &error) {
+				const Error &error) {
 			handler();
 		});
 	} else {

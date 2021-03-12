@@ -166,7 +166,7 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 	api().request(MTPmessages_GetDialogFilters(
 	)).done([=](const MTPVector<MTPDialogFilter> &result) {
 		createSession(user, photo, result.v);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		createSession(user, photo, QVector<MTPDialogFilter>());
 	}).send();
 }

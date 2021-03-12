@@ -452,7 +452,7 @@ void Controller::checkUsernameAvailability() {
 		} else {
 			showUsernameGood();
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_checkUsernameRequestId = 0;
 		const auto &type = error.type();
 		_usernameState = UsernameState::Normal;

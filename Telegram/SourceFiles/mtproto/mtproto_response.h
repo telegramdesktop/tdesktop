@@ -9,10 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flat_set.h"
 
-class RPCError {
+namespace MTP {
+
+class Error {
 public:
-	explicit RPCError(const MTPrpcError &error);
-	explicit RPCError(const mtpBuffer &reply);
+	explicit Error(const MTPrpcError &error);
+	explicit Error(const mtpBuffer &reply);
 
 	enum {
 		NoError,
@@ -23,7 +25,7 @@ public:
 	[[nodiscard]] const QString &type() const;
 	[[nodiscard]] const QString &description() const;
 
-	[[nodiscard]] static RPCError Local(
+	[[nodiscard]] static Error Local(
 		const QString &type,
 		const QString &description);
 	[[nodiscard]] static MTPrpcError MTPLocal(
@@ -36,18 +38,16 @@ private:
 
 };
 
-namespace MTP {
-
-inline bool isFloodError(const RPCError &error) {
+inline bool IsFloodError(const Error &error) {
 	return error.type().startsWith(qstr("FLOOD_WAIT_"));
 }
 
-inline bool isTemporaryError(const RPCError &error) {
-	return error.code() < 0 || error.code() >= 500 || isFloodError(error);
+inline bool IsTemporaryError(const Error &error) {
+	return error.code() < 0 || error.code() >= 500 || IsFloodError(error);
 }
 
-inline bool isDefaultHandledError(const RPCError &error) {
-	return isTemporaryError(error);
+inline bool IsDefaultHandledError(const Error &error) {
+	return IsTemporaryError(error);
 }
 
 struct Response {
@@ -57,7 +57,7 @@ struct Response {
 };
 
 using DoneHandler = FnMut<bool(const Response&)>;
-using FailHandler = Fn<bool(const RPCError&, const Response&)>;
+using FailHandler = Fn<bool(const Error&, const Response&)>;
 
 struct ResponseHandler {
 	DoneHandler done;

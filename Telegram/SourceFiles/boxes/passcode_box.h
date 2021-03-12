@@ -55,7 +55,7 @@ public:
 	rpl::producer<> passwordReloadNeeded() const;
 	rpl::producer<> clearUnconfirmedPassword() const;
 
-	bool handleCustomCheckError(const RPCError &error);
+	bool handleCustomCheckError(const MTP::Error &error);
 
 protected:
 	void prepare() override;
@@ -81,18 +81,18 @@ private:
 	bool onlyCheckCurrent() const;
 
 	void setPasswordDone(const QByteArray &newPasswordBytes);
-	void setPasswordFail(const RPCError &error);
+	void setPasswordFail(const MTP::Error &error);
 	void setPasswordFail(
 		const QByteArray &newPasswordBytes,
 		const QString &email,
-		const RPCError &error);
+		const MTP::Error &error);
 	void validateEmail(
 		const QString &email,
 		int codeLength,
 		const QByteArray &newPasswordBytes);
 
 	void recoverStarted(const MTPauth_PasswordRecovery &result);
-	void recoverStartFail(const RPCError &error);
+	void recoverStartFail(const MTP::Error &error);
 
 	void recover();
 	void submitOnlyCheckCloudPassword(const QString &oldPassword);
@@ -189,7 +189,7 @@ private:
 	void submit();
 	void codeChanged();
 	void codeSubmitDone(const MTPauth_Authorization &result);
-	void codeSubmitFail(const RPCError &error);
+	void codeSubmitFail(const MTP::Error &error);
 
 	MTP::Sender _api;
 	mtpRequestId _submitRequest = 0;
@@ -216,6 +216,6 @@ struct RecoveryEmailValidation {
 	const QString &pattern);
 
 [[nodiscard]] object_ptr<Ui::GenericBox> PrePasswordErrorBox(
-	const RPCError &error,
+	const MTP::Error &error,
 	not_null<Main::Session*> session,
 	TextWithEntities &&about);

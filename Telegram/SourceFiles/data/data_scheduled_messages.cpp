@@ -383,7 +383,7 @@ void ScheduledMessages::request(not_null<History*> history) {
 			MTP_int(hash))
 	).done([=](const MTPmessages_Messages &result) {
 		parse(history, result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_requests.remove(history);
 	}).send();
 }

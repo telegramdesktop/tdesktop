@@ -1235,7 +1235,7 @@ void HistoryWidget::updateInlineBotQuery() {
 				MTP_string(username)
 			)).done([=](const MTPcontacts_ResolvedPeer &result) {
 				inlineBotResolveDone(result);
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				inlineBotResolveFail(error, username);
 			}).send();
 		} else {
@@ -2476,7 +2476,7 @@ void HistoryWidget::unreadCountUpdated() {
 	}
 }
 
-void HistoryWidget::messagesFailed(const RPCError &error, int requestId) {
+void HistoryWidget::messagesFailed(const MTP::Error &error, int requestId) {
 	if (error.type() == qstr("CHANNEL_PRIVATE")
 		&& _peer->isChannel()
 		&& _peer->asChannel()->invitePeekExpires()) {
@@ -2714,7 +2714,7 @@ void HistoryWidget::firstLoadMessages() {
 		)).done([=](const MTPmessages_Messages &result) {
 			messagesReceived(history->peer, result, _firstLoadRequest);
 			finish();
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			messagesFailed(error, _firstLoadRequest);
 			finish();
 		}).send();
@@ -2765,7 +2765,7 @@ void HistoryWidget::loadMessages() {
 		)).done([=](const MTPmessages_Messages &result) {
 			messagesReceived(history->peer, result, _preloadRequest);
 			finish();
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			messagesFailed(error, _preloadRequest);
 			finish();
 		}).send();
@@ -2816,7 +2816,7 @@ void HistoryWidget::loadMessagesDown() {
 		)).done([=](const MTPmessages_Messages &result) {
 			messagesReceived(history->peer, result, _preloadDownRequest);
 			finish();
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			messagesFailed(error, _preloadDownRequest);
 			finish();
 		}).send();
@@ -2880,7 +2880,7 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 		)).done([=](const MTPmessages_Messages &result) {
 			messagesReceived(history->peer, result, _delayedShowAtRequest);
 			finish();
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			messagesFailed(error, _delayedShowAtRequest);
 			finish();
 		}).send();
@@ -3105,7 +3105,7 @@ void HistoryWidget::saveEditMsg() {
 		}
 	};
 
-	const auto fail = [=](const RPCError &error, mtpRequestId requestId) {
+	const auto fail = [=](const MTP::Error &error, mtpRequestId requestId) {
 		if (const auto editDraft = history->localEditDraft()) {
 			if (editDraft->saveRequestId == requestId) {
 				editDraft->saveRequestId = 0;
@@ -3785,7 +3785,7 @@ void HistoryWidget::inlineBotResolveDone(
 }
 
 void HistoryWidget::inlineBotResolveFail(
-		const RPCError &error,
+		const MTP::Error &error,
 		const QString &username) {
 	_inlineBotResolveRequestId = 0;
 	if (username == _inlineBotUsername) {

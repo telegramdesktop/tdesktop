@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/details/mtproto_serialized_request.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/mtproto_response.h"
 
 namespace MTP {
 namespace details {
@@ -104,7 +104,7 @@ public:
 
 	void setUpdatesHandler(Fn<void(const Response&)> handler);
 	void setGlobalFailHandler(
-		Fn<void(const RPCError&, const Response&)> handler);
+		Fn<void(const Error&, const Response&)> handler);
 	void setStateChangedHandler(
 		Fn<void(ShiftedDcId shiftedDcId, int32 state)> handler);
 	void setSessionResetHandler(Fn<void(ShiftedDcId shiftedDcId)> handler);
@@ -121,7 +121,7 @@ public:
 	bool rpcErrorOccured(
 		const Response &response,
 		const FailHandler &onFail,
-		const RPCError &err);
+		const Error &err);
 
 	// Thread-safe.
 	bool isKeysDestroyer() const;

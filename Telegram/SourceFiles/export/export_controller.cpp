@@ -138,7 +138,7 @@ ControllerObject::ControllerObject(
 : _api(mtproto, weak.runner())
 , _state(PasswordCheckState{}) {
 	_api.errors(
-	) | rpl::start_with_next([=](const RPCError &error) {
+	) | rpl::start_with_next([=](const MTP::Error &error) {
 		setState(ApiErrorState{ error });
 	}, _lifetime);
 
@@ -211,7 +211,7 @@ bool ControllerObject::ioCatchError(Output::Result result) {
 //	//)).done([=](const MTPaccount_Password &result) {
 //	//	_passwordRequestId = 0;
 //	//	passwordStateDone(result);
-//	//}).fail([=](const RPCError &error) {
+//	//}).fail([=](const MTP::Error &error) {
 //	//	apiError(error);
 //	//}).send();
 //}

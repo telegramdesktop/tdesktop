@@ -209,7 +209,7 @@ private:
 		RaiseHand,
 	};
 
-	void handleRequestError(const RPCError &error);
+	void handleRequestError(const MTP::Error &error);
 	void handleControllerError(const QString &error);
 	void ensureControllerCreated();
 	void destroyController();

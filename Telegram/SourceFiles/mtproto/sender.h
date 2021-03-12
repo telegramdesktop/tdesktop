@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/variant.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/mtproto_response.h"
 #include "mtproto/mtp_instance.h"
 #include "mtproto/facade.h"
 
@@ -28,9 +28,9 @@ class Sender {
 			HandleAll,
 		};
 		using FailPlainHandler = Fn<void()>;
-		using FailErrorHandler = Fn<void(const RPCError&)>;
-		using FailRequestIdHandler = Fn<void(const RPCError&, mtpRequestId)>;
-		using FailFullHandler = Fn<void(const RPCError&, const Response&)>;
+		using FailErrorHandler = Fn<void(const Error&)>;
+		using FailRequestIdHandler = Fn<void(const Error&, mtpRequestId)>;
+		using FailFullHandler = Fn<void(const Error&, const Response&)>;
 
 		template <typename ...Args>
 		static constexpr bool IsCallable
@@ -83,13 +83,13 @@ class Sender {
 				sender,
 				handler = std::forward<Handler>(handler),
 				skipPolicy
-			](const RPCError &error, const Response &response) {
+			](const Error &error, const Response &response) {
 				if (skipPolicy == FailSkipPolicy::Simple) {
-					if (isDefaultHandledError(error)) {
+					if (IsDefaultHandledError(error)) {
 						return false;
 					}
 				} else if (skipPolicy == FailSkipPolicy::HandleFlood) {
-					if (isDefaultHandledError(error) && !isFloodError(error)) {
+					if (IsDefaultHandledError(error) && !IsFloodError(error)) {
 						return false;
 					}
 				}
@@ -101,17 +101,17 @@ class Sender {
 					return true;
 				} else if constexpr (IsCallable<
 						Handler,
-						const RPCError&,
+						const Error&,
 						const Response&>) {
 					onstack(error, response);
 				} else if constexpr (IsCallable<
 						Handler,
-						const RPCError&,
+						const Error&,
 						mtpRequestId>) {
 					onstack(error, response.requestId);
 				} else if constexpr (IsCallable<
 						Handler,
-						const RPCError&>) {
+						const Error&>) {
 					onstack(error);
 				} else if constexpr (IsCallable<Handler>) {
 					onstack();
@@ -252,14 +252,14 @@ public:
 
 		[[nodiscard]] SpecificRequestBuilder &fail(
 			Fn<void(
-				const RPCError &error,
+				const Error &error,
 				mtpRequestId requestId)> callback) noexcept {
 			setFailHandler(std::move(callback));
 			return *this;
 		}
 		[[nodiscard]] SpecificRequestBuilder &fail(
 			Fn<void(
-				const RPCError &error,
+				const Error &error,
 				const Response &response)> callback) noexcept {
 			setFailHandler(std::move(callback));
 			return *this;
@@ -270,7 +270,7 @@ public:
 			return *this;
 		}
 		[[nodiscard]] SpecificRequestBuilder &fail(
-				Fn<void(const RPCError &error)> callback) noexcept {
+				Fn<void(const Error &error)> callback) noexcept {
 			setFailHandler(std::move(callback));
 			return *this;
 		}

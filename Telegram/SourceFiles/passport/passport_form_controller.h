@@ -496,7 +496,7 @@ private:
 	QString getPlainTextFromValue(not_null<const Value*> value) const;
 	void startPhoneVerification(not_null<Value*> value);
 	void startEmailVerification(not_null<Value*> value);
-	void valueSaveShowError(not_null<Value*> value, const RPCError &error);
+	void valueSaveShowError(not_null<Value*> value, const MTP::Error &error);
 	void valueSaveFailed(not_null<Value*> value);
 	void requestPhoneCall(not_null<Value*> value);
 	void verificationError(

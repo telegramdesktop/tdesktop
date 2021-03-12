@@ -153,7 +153,7 @@ void SaveDefaultRestrictions(
 		api->clearModifyRequest(key);
 		api->applyUpdates(result);
 		done();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		api->clearModifyRequest(key);
 		if (error.type() != qstr("CHAT_NOT_MODIFIED")) {
 			return;
@@ -186,7 +186,7 @@ void SaveSlowmodeSeconds(
 		api->applyUpdates(result);
 		channel->setSlowmodeSeconds(seconds);
 		done();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		api->clearModifyRequest(key);
 		if (error.type() != qstr("CHAT_NOT_MODIFIED")) {
 			return;
@@ -235,7 +235,7 @@ void ShowEditPermissions(
 		const auto api = &peer->session().api();
 		api->migrateChat(chat, [=](not_null<ChannelData*> channel) {
 			save(channel, result);
-		}, [=](const RPCError &error) {
+		}, [=](const MTP::Error &error) {
 			*saving = false;
 		});
 	}, box->lifetime());
@@ -278,7 +278,7 @@ void ShowEditInviteLinks(
 		const auto api = &peer->session().api();
 		api->migrateChat(chat, [=](not_null<ChannelData*> channel) {
 			save(channel, result);
-		}, [=](const RPCError &error) {
+		}, [=](const MTP::Error &error) {
 			*saving = false;
 		});
 	}, box->lifetime());
@@ -716,7 +716,7 @@ void Controller::showEditLinkedChatBox() {
 				std::move(chats),
 				callback),
 			Ui::LayerOption::KeepOther);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_linkedChatsRequestId = 0;
 	}).send();
 }
@@ -1290,7 +1290,7 @@ void Controller::saveUsername() {
 			TextUtilities::SingleLine(channel->name),
 			*_savingData.username);
 		continueSave();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
 		if (type == qstr("USERNAME_NOT_MODIFIED")) {
 			channel->setName(
@@ -1343,7 +1343,7 @@ void Controller::saveLinkedChat() {
 	)).done([=](const MTPBool &result) {
 		channel->setLinkedChat(*_savingData.linkedChat);
 		continueSave();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
 		cancelSave();
 	}).send();
@@ -1358,7 +1358,7 @@ void Controller::saveTitle() {
 		_peer->session().api().applyUpdates(result);
 		continueSave();
 	};
-	const auto onFail = [=](const RPCError &error) {
+	const auto onFail = [=](const MTP::Error &error) {
 		const auto &type = error.type();
 		if (type == qstr("CHAT_NOT_MODIFIED")
 			|| type == qstr("CHAT_TITLE_NOT_MODIFIED")) {
@@ -1411,7 +1411,7 @@ void Controller::saveDescription() {
 		MTP_string(*_savingData.description)
 	)).done([=](const MTPBool &result) {
 		successCallback();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
 		if (type == qstr("CHAT_ABOUT_NOT_MODIFIED")) {
 			successCallback();
@@ -1469,7 +1469,7 @@ void Controller::togglePreHistoryHidden(
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
 		apply();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
 			apply();
 		} else {
@@ -1491,7 +1491,7 @@ void Controller::saveSignatures() {
 	)).done([=](const MTPUpdates &result) {
 		channel->session().api().applyUpdates(result);
 		continueSave();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
 			continueSave();
 		} else {
@@ -1546,7 +1546,7 @@ void Controller::deleteChannel() {
 		channel->inputChannel
 	)).done([=](const MTPUpdates &result) {
 		session->api().applyUpdates(result);
-	//}).fail([=](const RPCError &error) {
+	//}).fail([=](const MTP::Error &error) {
 	//	if (error.type() == qstr("CHANNEL_TOO_LARGE")) {
 	//		Ui::show(Box<InformBox>(tr::lng_cant_delete_channel(tr::now)));
 	//	}

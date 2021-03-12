@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "data/data_pts_waiter.h"
 
-class RPCError;
 struct HistoryMessageMarkupButton;
 class MainWindow;
 class ConfirmBox;
@@ -24,6 +23,10 @@ class StackItem;
 struct FileLoadResult;
 class History;
 class Image;
+
+namespace MTP {
+class Error;
+} // namespace MTP
 
 namespace Api {
 struct SendAction;
@@ -321,7 +324,7 @@ private:
 		QVector<MTPint> ids,
 		const MTPmessages_MessageViews &result,
 		mtpRequestId requestId);
-	void viewsIncrementFail(const RPCError &error, mtpRequestId requestId);
+	void viewsIncrementFail(const MTP::Error &error, mtpRequestId requestId);
 
 	void refreshResizeAreas();
 	template <typename MoveCallback, typename FinishCallback>

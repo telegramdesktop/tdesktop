@@ -55,7 +55,7 @@ void AttachedStickers::request(
 		Ui::show(
 			Box<StickerSetBox>(strongController, setId),
 			Ui::LayerOption::KeepOther);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 	}).send();

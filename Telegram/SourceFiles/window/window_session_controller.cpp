@@ -134,7 +134,7 @@ void SessionNavigation::resolveUsername(
 		if (const auto peerId = peerFromMTP(d.vpeer())) {
 			done(_session->data().peer(peerId));
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_resolveRequestId = 0;
 		if (error.code() == 400) {
 			Ui::show(Box<InformBox>(
@@ -167,7 +167,7 @@ void SessionNavigation::resolveChannelById(
 				fail();
 			}
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		fail();
 	}).send();
 }
@@ -338,7 +338,7 @@ void SessionNavigation::showRepliesForMessage(
 					commentId));
 			}
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_showingRepliesRequestId = 0;
 		if (error.type() == u"CHANNEL_PRIVATE"_q
 			|| error.type() == u"USER_BANNED_IN_CHANNEL"_q) {

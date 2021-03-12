@@ -183,7 +183,7 @@ private:
 	using FileLocation = MTP::DedicatedLoader::Location;
 
 	using Checker::fail;
-	Fn<void(const RPCError &error)> failHandler();
+	Fn<void(const MTP::Error &error)> failHandler();
 
 	void gotMessage(const MTPmessages_Messages &result);
 	std::optional<FileLocation> parseMessage(
@@ -1002,8 +1002,8 @@ auto MtpChecker::validateLatestLocation(
 	return (availableVersion <= myVersion) ? FileLocation() : location;
 }
 
-Fn<void(const RPCError &error)> MtpChecker::failHandler() {
-	return [=](const RPCError &error) {
+Fn<void(const MTP::Error &error)> MtpChecker::failHandler() {
+	return [=](const MTP::Error &error) {
 		LOG(("Update Error: MTP check failed with '%1'"
 			).arg(QString::number(error.code()) + ':' + error.type()));
 		fail();
