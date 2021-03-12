@@ -281,6 +281,30 @@ GroupPanel::GroupPanel(not_null<GroupCall*> call)
 	initControls();
 	initLayout();
 	showAndActivate();
+
+	call->allowedToSpeakNotifications(
+	) | rpl::start_with_next([=] {
+		if (isActive()) {
+			Ui::Toast::Show(
+				widget(),
+				tr::lng_group_call_can_speak_here(tr::now));
+		} else {
+			const auto real = _peer->groupCall();
+			const auto name = (real
+				&& (real->id() == call->id())
+				&& !real->title().isEmpty())
+				? real->title()
+				: _peer->name;
+			Ui::Toast::Show(Ui::Toast::Config{
+				.text = tr::lng_group_call_can_speak(
+					tr::now,
+					lt_chat,
+					Ui::Text::WithEntities(name),
+					Ui::Text::RichLangValue),
+				.st = &st::defaultToast,
+			});
+		}
+	}, widget()->lifetime());
 }
 
 GroupPanel::~GroupPanel() {
@@ -507,13 +531,18 @@ void GroupPanel::initWithCall(GroupCall *call) {
 		}
 	}, _callLifetime);
 
+	using namespace rpl::mappers;
 	rpl::combine(
 		_call->mutedValue() | MapPushToTalkToActive(),
-		_call->connectingValue()
+		_call->instanceStateValue()
 	) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](MuteState mute, bool connecting) {
+	) | rpl::filter(
+		_2 != GroupCall::InstanceState::TransitionToRtc
+	) | rpl::start_with_next([=](
+			MuteState mute,
+			GroupCall::InstanceState state) {
 		_mute->setState(Ui::CallMuteButtonState{
-			.text = (connecting
+			.text = (state == GroupCall::InstanceState::Disconnected
 				? tr::lng_group_call_connecting(tr::now)
 				: mute == MuteState::ForceMuted
 				? tr::lng_group_call_force_muted(tr::now)
@@ -522,7 +551,7 @@ void GroupPanel::initWithCall(GroupCall *call) {
 				: mute == MuteState::Muted
 				? tr::lng_group_call_unmute(tr::now)
 				: tr::lng_group_call_you_are_live(tr::now)),
-			.subtext = (connecting
+			.subtext = (state == GroupCall::InstanceState::Disconnected
 				? QString()
 				: mute == MuteState::ForceMuted
 				? tr::lng_group_call_raise_hand_tip(tr::now)
@@ -531,7 +560,7 @@ void GroupPanel::initWithCall(GroupCall *call) {
 				: mute == MuteState::Muted
 				? tr::lng_group_call_unmute_sub(tr::now)
 				: QString()),
-			.type = (connecting
+			.type = (state == GroupCall::InstanceState::Disconnected
 				? Ui::CallMuteButtonType::Connecting
 				: mute == MuteState::ForceMuted
 				? Ui::CallMuteButtonType::ForceMuted

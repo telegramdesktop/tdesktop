@@ -201,6 +201,17 @@ GroupCall::GroupCall(
 		}
 	}, _lifetime);
 
+	_instanceState.value(
+	) | rpl::filter([=] {
+		return _hadJoinedState;
+	}) | rpl::start_with_next([=](InstanceState state) {
+		if (state == InstanceState::Disconnected) {
+			playConnectingSound();
+		} else {
+			stopConnectingSound();
+		}
+	}, _lifetime);
+
 	checkGlobalShortcutAvailability();
 
 	const auto id = inputCall.c_inputGroupCall().vid().v;
@@ -269,12 +280,6 @@ void GroupCall::setState(State state) {
 		if (const auto call = _peer->groupCall(); call && call->id() == _id) {
 			call->setInCall();
 		}
-	} else if (state == State::Connecting || state == State::Joining) {
-		if (_hadJoinedState) {
-			playConnectingSound();
-		}
-	} else {
-		stopConnectingSound();
 	}
 
 	if (false
@@ -462,9 +467,10 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				MTP_dataJSON(MTP_bytes(json))
 			)).done([=](const MTPUpdates &updates) {
 				_mySsrc = ssrc;
-				setState(_instanceConnected
-					? State::Joined
-					: State::Connecting);
+				setState((_instanceState.current()
+					== InstanceState::Disconnected)
+					? State::Connecting
+					: State::Joined);
 				applyMeInCallLocally();
 				maybeSendMutedUpdate(wasMuteState);
 				_peer->session().api().applyUpdates(updates);
@@ -903,6 +909,9 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 			} else if (muted() == MuteState::ForceMuted
 				|| muted() == MuteState::RaisedHand) {
 				setMuted(MuteState::Muted);
+				if (!_instanceTransitioning) {
+					notifyAboutAllowedToSpeak();
+				}
 			} else if (data.is_muted() && muted() != MuteState::Muted) {
 				setMuted(MuteState::Muted);
 			}
@@ -1269,19 +1278,37 @@ void GroupCall::checkJoined() {
 
 void GroupCall::setInstanceConnected(
 		tgcalls::GroupNetworkState networkState) {
-	const auto connected = networkState.isConnected;
-	if (_instanceConnected == connected) {
+	const auto inTransit = networkState.isTransitioningFromBroadcastToRtc;
+	const auto instanceState = !networkState.isConnected
+		? InstanceState::Disconnected
+		: inTransit
+		? InstanceState::TransitionToRtc
+		: InstanceState::Connected;
+	const auto connected = (instanceState != InstanceState::Disconnected);
+	if (_instanceState.current() == instanceState
+		&& _instanceTransitioning == inTransit) {
 		return;
 	}
-	_instanceConnected = connected;
+	const auto nowCanSpeak = connected
+		&& _instanceTransitioning
+		&& !inTransit
+		&& (muted() == MuteState::Muted);
+	_instanceTransitioning = inTransit;
+	_instanceState = instanceState;
 	if (state() == State::Connecting && connected) {
 		setState(State::Joined);
-		if (networkState.isTransitioningFromBroadcastToRtc) {
-			// #TODO calls play sound?..
-		}
 	} else if (state() == State::Joined && !connected) {
 		setState(State::Connecting);
 	}
+	if (nowCanSpeak) {
+		notifyAboutAllowedToSpeak();
+	}
+}
+
+void GroupCall::notifyAboutAllowedToSpeak() {
+	_delegate->groupCallPlaySound(
+		Delegate::GroupCallSound::AllowedToSpeak);
+	_allowedToSpeakNotifications.fire({});
 }
 
 void GroupCall::setInstanceMode(InstanceMode mode) {
@@ -1342,13 +1369,9 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 	}).send();
 }
 
-rpl::producer<bool> GroupCall::connectingValue() const {
+auto GroupCall::instanceStateValue() const -> rpl::producer<InstanceState> {
 	using namespace rpl::mappers;
-	return _state.value() | rpl::map(
-		_1 == State::Creating
-		|| _1 == State::Joining
-		|| _1 == State::Connecting
-	) | rpl::distinct_until_changed();
+	return _instanceState.value();
 }
 
 void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
