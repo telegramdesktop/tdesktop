@@ -13,90 +13,61 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP {
 
-class ConcurrentSender::RPCDoneHandler : public RPCAbstractDoneHandler {
+class ConcurrentSender::HandlerMaker final {
 public:
-	RPCDoneHandler(
+	static ::MTP::DoneHandler MakeDone(
 		not_null<ConcurrentSender*> sender,
 		Fn<void(FnMut<void()>)> runner);
-
-	bool operator()(
-		mtpRequestId requestId,
-		const mtpPrime *from,
-		const mtpPrime *end) override;
-
-private:
-	base::weak_ptr<ConcurrentSender> _weak;
-	Fn<void(FnMut<void()>)> _runner;
-
-};
-
-class ConcurrentSender::RPCFailHandler : public RPCAbstractFailHandler {
-public:
-	RPCFailHandler(
+	static ::MTP::FailHandler MakeFail(
 		not_null<ConcurrentSender*> sender,
 		Fn<void(FnMut<void()>)> runner,
 		FailSkipPolicy skipPolicy);
-
-	bool operator()(
-		mtpRequestId requestId,
-		const RPCError &error) override;
-
-private:
-	base::weak_ptr<ConcurrentSender> _weak;
-	Fn<void(FnMut<void()>)> _runner;
-	FailSkipPolicy _skipPolicy = FailSkipPolicy::Simple;
-
 };
 
-ConcurrentSender::RPCDoneHandler::RPCDoneHandler(
-	not_null<ConcurrentSender*> sender,
-	Fn<void(FnMut<void()>)> runner)
-: _weak(sender)
-, _runner(std::move(runner)) {
+::MTP::DoneHandler ConcurrentSender::HandlerMaker::MakeDone(
+		not_null<ConcurrentSender*> sender,
+		Fn<void(FnMut<void()>)> runner) {
+	return [
+		weak = base::make_weak(sender.get()),
+		runner = std::move(runner)
+	](const Response &response) mutable {
+		runner([=]() mutable {
+			if (const auto strong = weak.get()) {
+				strong->senderRequestDone(
+					response.requestId,
+					bytes::make_span(response.reply));
+			}
+		});
+		return true;
+	};
 }
 
-bool ConcurrentSender::RPCDoneHandler::operator()(
-		mtpRequestId requestId,
-		const mtpPrime *from,
-		const mtpPrime *end) {
-	auto response = gsl::make_span(
-		from,
-		end - from);
-	_runner([=, weak = _weak, moved = bytes::make_vector(response)]() mutable {
-		if (const auto strong = weak.get()) {
-			strong->senderRequestDone(requestId, std::move(moved));
+::MTP::FailHandler ConcurrentSender::HandlerMaker::MakeFail(
+		not_null<ConcurrentSender*> sender,
+		Fn<void(FnMut<void()>)> runner,
+		FailSkipPolicy skipPolicy) {
+	return [
+		weak = base::make_weak(sender.get()),
+		runner = std::move(runner),
+		skipPolicy
+	](const RPCError &error, const Response &response) mutable {
+		if (skipPolicy == FailSkipPolicy::Simple) {
+			if (MTP::isDefaultHandledError(error)) {
+				return false;
+			}
+		} else if (skipPolicy == FailSkipPolicy::HandleFlood) {
+			if (MTP::isDefaultHandledError(error)
+				&& !MTP::isFloodError(error)) {
+				return false;
+			}
 		}
-	});
-	return true;
-}
-
-ConcurrentSender::RPCFailHandler::RPCFailHandler(
-	not_null<ConcurrentSender*> sender,
-	Fn<void(FnMut<void()>)> runner,
-	FailSkipPolicy skipPolicy)
-: _weak(sender)
-, _runner(std::move(runner))
-, _skipPolicy(skipPolicy) {
-}
-
-bool ConcurrentSender::RPCFailHandler::operator()(
-		mtpRequestId requestId,
-		const RPCError &error) {
-	if (_skipPolicy == FailSkipPolicy::Simple) {
-		if (MTP::isDefaultHandledError(error)) {
-			return false;
-		}
-	} else if (_skipPolicy == FailSkipPolicy::HandleFlood) {
-		if (MTP::isDefaultHandledError(error) && !MTP::isFloodError(error)) {
-			return false;
-		}
-	}
-	_runner([=, weak = _weak, error = error]() mutable {
-		if (const auto strong = weak.get()) {
-			strong->senderRequestFail(requestId, std::move(error));
-		}
-	});
-	return true;
+		runner([=, requestId = response.requestId]() mutable {
+			if (const auto strong = weak.get()) {
+				strong->senderRequestFail(requestId, error);
+			}
+		});
+		return true;
+	};
 }
 
 template <typename Method>
@@ -147,8 +118,8 @@ mtpRequestId ConcurrentSender::RequestBuilder::send() {
 	_sender->with_instance([
 		=,
 		request = std::move(_serialized),
-		done = std::make_shared<RPCDoneHandler>(_sender, _sender->_runner),
-		fail = std::make_shared<RPCFailHandler>(
+		done = HandlerMaker::MakeDone(_sender, _sender->_runner),
+		fail = HandlerMaker::MakeFail(
 			_sender,
 			_sender->_runner,
 			_failSkipPolicy)
@@ -156,7 +127,7 @@ mtpRequestId ConcurrentSender::RequestBuilder::send() {
 		instance->sendSerialized(
 			requestId,
 			std::move(request),
-			RPCResponseHandler(std::move(done), std::move(fail)),
+			ResponseHandler{ std::move(done), std::move(fail) },
 			dcId,
 			msCanWait,
 			afterRequestId);
@@ -198,9 +169,9 @@ void ConcurrentSender::senderRequestDone(
 
 void ConcurrentSender::senderRequestFail(
 		mtpRequestId requestId,
-		RPCError &&error) {
+		const RPCError &error) {
 	if (auto handlers = _requests.take(requestId)) {
-		handlers->fail(requestId, std::move(error));
+		handlers->fail(requestId, error);
 	}
 }
 

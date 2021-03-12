@@ -203,7 +203,7 @@ private:
 		const Data::FileLocation &location,
 		int offset);
 
-	void error(RPCError &&error);
+	void error(const RPCError &error);
 	void error(const QString &text);
 	void ioError(const Output::Result &result);
 

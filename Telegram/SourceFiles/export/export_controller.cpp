@@ -138,8 +138,8 @@ ControllerObject::ControllerObject(
 : _api(mtproto, weak.runner())
 , _state(PasswordCheckState{}) {
 	_api.errors(
-	) | rpl::start_with_next([=](RPCError &&error) {
-		setState(ApiErrorState{ std::move(error) });
+	) | rpl::start_with_next([=](const RPCError &error) {
+		setState(ApiErrorState{ error });
 	}, _lifetime);
 
 	_api.ioErrors(

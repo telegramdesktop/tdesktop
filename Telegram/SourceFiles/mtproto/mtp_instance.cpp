@@ -119,7 +119,7 @@ public:
 	void sendRequest(
 		mtpRequestId requestId,
 		SerializedRequest &&request,
-		RPCResponseHandler &&callbacks,
+		ResponseHandler &&callbacks,
 		ShiftedDcId shiftedDcId,
 		crl::time msCanWait,
 		bool needsLayer,
@@ -129,23 +129,30 @@ public:
 	void storeRequest(
 		mtpRequestId requestId,
 		const SerializedRequest &request,
-		RPCResponseHandler &&callbacks);
+		ResponseHandler &&callbacks);
 	SerializedRequest getRequest(mtpRequestId requestId);
-	void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
-	bool hasCallbacks(mtpRequestId requestId);
-	void globalCallback(const mtpPrime *from, const mtpPrime *end);
+	[[nodiscard]] bool hasCallback(mtpRequestId requestId) const;
+	void processCallback(const Response &response);
+	void processUpdate(const Response &message);
 
 	void onStateChange(ShiftedDcId shiftedDcId, int32 state);
 	void onSessionReset(ShiftedDcId shiftedDcId);
 
 	// return true if need to clean request data
-	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
-	inline bool rpcErrorOccured(mtpRequestId requestId, const RPCResponseHandler &handler, const RPCError &err) {
-		return rpcErrorOccured(requestId, handler.onFail, err);
+	bool rpcErrorOccured(
+		const Response &response,
+		const FailHandler &onFail,
+		const RPCError &error);
+	inline bool rpcErrorOccured(
+			const Response &response,
+			const ResponseHandler &handler,
+			const RPCError &error) {
+		return rpcErrorOccured(response, handler.fail, error);
 	}
 
-	void setUpdatesHandler(RPCDoneHandlerPtr onDone);
-	void setGlobalFailHandler(RPCFailHandlerPtr onFail);
+	void setUpdatesHandler(Fn<void(const Response&)> handler);
+	void setGlobalFailHandler(
+		Fn<void(const RPCError&, const Response&)> handler);
 	void setStateChangedHandler(Fn<void(ShiftedDcId shiftedDcId, int32 state)> handler);
 	void setSessionResetHandler(Fn<void(ShiftedDcId shiftedDcId)> handler);
 	void clearGlobalHandlers();
@@ -170,11 +177,15 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
-	void importDone(const MTPauth_Authorization &result, mtpRequestId requestId);
-	bool importFail(const RPCError &error, mtpRequestId requestId);
-	void exportDone(const MTPauth_ExportedAuthorization &result, mtpRequestId requestId);
-	bool exportFail(const RPCError &error, mtpRequestId requestId);
-	bool onErrorDefault(mtpRequestId requestId, const RPCError &error);
+	void importDone(
+		const MTPauth_Authorization &result,
+		const Response &response);
+	bool importFail(const RPCError &error, const Response &response);
+	void exportDone(
+		const MTPauth_ExportedAuthorization &result,
+		const Response &response);
+	bool exportFail(const RPCError &error, const Response &response);
+	bool onErrorDefault(const RPCError &error, const Response &response);
 
 	void unpaused();
 
@@ -245,8 +256,8 @@ private:
 	// holds target dcWithShift for auth export request
 	std::map<mtpRequestId, ShiftedDcId> _authExportRequests;
 
-	std::map<mtpRequestId, RPCResponseHandler> _parserMap;
-	QMutex _parserMapLock;
+	std::map<mtpRequestId, ResponseHandler> _parserMap;
+	mutable QMutex _parserMapLock;
 
 	std::map<mtpRequestId, SerializedRequest> _requestMap;
 	QReadWriteLock _requestMapLock;
@@ -259,7 +270,8 @@ private:
 
 	std::map<DcId, std::vector<mtpRequestId>> _authWaiters;
 
-	RPCResponseHandler _globalHandler;
+	Fn<void(const Response&)> _updatesHandler;
+	Fn<void(const RPCError&, const Response&)> _globalFailHandler;
 	Fn<void(ShiftedDcId shiftedDcId, int32 state)> _stateChangedHandler;
 	Fn<void(ShiftedDcId shiftedDcId)> _sessionResetHandler;
 
@@ -450,8 +462,10 @@ void Instance::Private::requestConfig() {
 	_configLoader = std::make_unique<ConfigLoader>(
 		_instance,
 		_userPhone,
-		rpcDone([=](const MTPConfig &result) { configLoadDone(result); }),
-		rpcFail([=](const RPCError &error) { return configLoadFail(error); }));
+		[=](const MTPConfig &result) { configLoadDone(result); },
+		[=](const RPCError &error, const Response &) {
+			return configLoadFail(error);
+		});
 	_configLoader->load();
 }
 
@@ -647,12 +661,13 @@ void Instance::Private::reInitConnection(DcId dcId) {
 }
 
 void Instance::Private::logout(Fn<void()> done) {
-	_instance->send(MTPauth_LogOut(), rpcDone([=] {
-		done();
-	}), rpcFail([=] {
+	_instance->send(MTPauth_LogOut(), [=](Response) {
 		done();
 		return true;
-	}));
+	}, [=](const RPCError&, Response) {
+		done();
+		return true;
+	});
 	logoutGuestDcs();
 }
 
@@ -667,12 +682,14 @@ void Instance::Private::logoutGuestDcs() {
 			continue;
 		}
 		const auto shiftedDcId = MTP::logoutDcId(dcId);
-		const auto requestId = _instance->send(MTPauth_LogOut(), rpcDone([=](
-				mtpRequestId requestId) {
-			logoutGuestDone(requestId);
-		}), rpcFail([=](mtpRequestId requestId) {
-			return logoutGuestDone(requestId);
-		}), shiftedDcId);
+		const auto requestId = _instance->send(MTPauth_LogOut(), [=](
+				const Response &response) {
+			logoutGuestDone(response.requestId);
+			return true;
+		}, [=](const RPCError &, const Response &response) {
+			logoutGuestDone(response.requestId);
+			return true;
+		}, shiftedDcId);
 		_logoutGuestRequestIds.emplace(shiftedDcId, requestId);
 	}
 }
@@ -932,7 +949,7 @@ void Instance::Private::checkDelayedRequests() {
 void Instance::Private::sendRequest(
 		mtpRequestId requestId,
 		SerializedRequest &&request,
-		RPCResponseHandler &&callbacks,
+		ResponseHandler &&callbacks,
 		ShiftedDcId shiftedDcId,
 		crl::time msCanWait,
 		bool needsLayer,
@@ -980,8 +997,8 @@ void Instance::Private::unregisterRequest(mtpRequestId requestId) {
 void Instance::Private::storeRequest(
 		mtpRequestId requestId,
 		const SerializedRequest &request,
-		RPCResponseHandler &&callbacks) {
-	if (callbacks.onDone || callbacks.onFail) {
+		ResponseHandler &&callbacks) {
+	if (callbacks.done || callbacks.fail) {
 		QMutexLocker locker(&_parserMapLock);
 		_parserMap.emplace(requestId, std::move(callbacks));
 	}
@@ -1003,53 +1020,58 @@ SerializedRequest Instance::Private::getRequest(mtpRequestId requestId) {
 	return result;
 }
 
+bool Instance::Private::hasCallback(mtpRequestId requestId) const {
+	QMutexLocker locker(&_parserMapLock);
+	auto it = _parserMap.find(requestId);
+	return (it != _parserMap.cend());
+}
 
-void Instance::Private::execCallback(
-		mtpRequestId requestId,
-		const mtpPrime *from,
-		const mtpPrime *end) {
-	RPCResponseHandler h;
+void Instance::Private::processCallback(const Response &response) {
+	const auto requestId = response.requestId;
+	ResponseHandler handler;
 	{
 		QMutexLocker locker(&_parserMapLock);
 		auto it = _parserMap.find(requestId);
 		if (it != _parserMap.cend()) {
-			h = it->second;
+			handler = std::move(it->second);
 			_parserMap.erase(it);
 
 			DEBUG_LOG(("RPC Info: found parser for request %1, trying to parse response...").arg(requestId));
 		}
 	}
-	if (h.onDone || h.onFail) {
+	if (handler.done || handler.fail) {
 		const auto handleError = [&](const RPCError &error) {
 			DEBUG_LOG(("RPC Info: "
 				"error received, code %1, type %2, description: %3"
 				).arg(error.code()
 				).arg(error.type()
 				).arg(error.description()));
-			if (rpcErrorOccured(requestId, h, error)) {
+			if (rpcErrorOccured(response, handler, error)) {
 				unregisterRequest(requestId);
 			} else {
 				QMutexLocker locker(&_parserMapLock);
-				_parserMap.emplace(requestId, h);
+				_parserMap.emplace(requestId, std::move(handler));
 			}
 		};
 
-		if (from >= end) {
+		auto from = response.reply.constData();
+		if (response.reply.isEmpty()) {
 			handleError(RPCError::Local(
 				"RESPONSE_PARSE_FAILED",
 				"Empty response."));
 		} else if (*from == mtpc_rpc_error) {
 			auto error = MTPRpcError();
-			handleError(error.read(from, end) ? error : RPCError::Local(
-				"RESPONSE_PARSE_FAILED",
-				"Error parse failed."));
-		} else {
-			if (h.onDone) {
-				if (!(*h.onDone)(requestId, from, end)) {
-					handleError(RPCError::Local(
+			handleError(
+				RPCError(error.read(from, from + response.reply.size())
+					? error
+					: RPCError::MTPLocal(
 						"RESPONSE_PARSE_FAILED",
-						"Response parse failed."));
-				}
+						"Error parse failed.")));
+		} else {
+			if (handler.done && !handler.done(response)) {
+				handleError(RPCError::Local(
+					"RESPONSE_PARSE_FAILED",
+					"Response parse failed."));
 			}
 			unregisterRequest(requestId);
 		}
@@ -1059,18 +1081,10 @@ void Instance::Private::execCallback(
 	}
 }
 
-bool Instance::Private::hasCallbacks(mtpRequestId requestId) {
-	QMutexLocker locker(&_parserMapLock);
-	auto it = _parserMap.find(requestId);
-	return (it != _parserMap.cend());
-}
-
-void Instance::Private::globalCallback(const mtpPrime *from, const mtpPrime *end) {
-	if (!_globalHandler.onDone) {
-		return;
+void Instance::Private::processUpdate(const Response &message) {
+	if (_updatesHandler) {
+		_updatesHandler(message);
 	}
-	// Handle updates.
-	[[maybe_unused]] bool result = (*_globalHandler.onDone)(0, from, end);
 }
 
 void Instance::Private::onStateChange(ShiftedDcId dcWithShift, int32 state) {
@@ -1085,25 +1099,40 @@ void Instance::Private::onSessionReset(ShiftedDcId dcWithShift) {
 	}
 }
 
-bool Instance::Private::rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err) { // return true if need to clean request data
-	if (isDefaultHandledError(err)) {
-		if (onFail && (*onFail)(requestId, err)) {
+bool Instance::Private::rpcErrorOccured(
+		const Response &response,
+		const FailHandler &onFail,
+		const RPCError &error) { // return true if need to clean request data
+	if (isDefaultHandledError(error)) {
+		if (onFail && onFail(error, response)) {
 			return true;
 		}
 	}
 
-	if (onErrorDefault(requestId, err)) {
+	if (onErrorDefault(error, response)) {
 		return false;
 	}
-	LOG(("RPC Error: request %1 got fail with code %2, error %3%4").arg(requestId).arg(err.code()).arg(err.type()).arg(err.description().isEmpty() ? QString() : QString(": %1").arg(err.description())));
-	onFail && (*onFail)(requestId, err);
+	LOG(("RPC Error: request %1 got fail with code %2, error %3%4"
+		).arg(response.requestId
+		).arg(error.code()
+		).arg(error.type()
+		).arg(error.description().isEmpty()
+			? QString()
+			: QString(": %1").arg(error.description())));
+	if (onFail) {
+		onFail(error, response);
+	}
 	return true;
 }
 
-void Instance::Private::importDone(const MTPauth_Authorization &result, mtpRequestId requestId) {
-	const auto shiftedDcId = queryRequestByDc(requestId);
+void Instance::Private::importDone(
+		const MTPauth_Authorization &result,
+		const Response &response) {
+	const auto shiftedDcId = queryRequestByDc(response.requestId);
 	if (!shiftedDcId) {
-		LOG(("MTP Error: auth import request not found in requestsByDC, requestId: %1").arg(requestId));
+		LOG(("MTP Error: "
+			"auth import request not found in requestsByDC, requestId: %1"
+			).arg(response.requestId));
 		//
 		// Don't log out on export/import problems, perhaps this is a server side error.
 		//
@@ -1111,8 +1140,8 @@ void Instance::Private::importDone(const MTPauth_Authorization &result, mtpReque
 		//	"AUTH_IMPORT_FAIL",
 		//	QString("did not find import request in requestsByDC, "
 		//		"request %1").arg(requestId));
-		//if (_globalHandler.onFail && hasAuthorization()) {
-		//	(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
+		//if (_globalFailHandler && hasAuthorization()) {
+		//	_globalFailHandler(error, response); // auth failed in main dc
 		//}
 		return;
 	}
@@ -1144,22 +1173,30 @@ void Instance::Private::importDone(const MTPauth_Authorization &result, mtpReque
 	}
 }
 
-bool Instance::Private::importFail(const RPCError &error, mtpRequestId requestId) {
-	if (isDefaultHandledError(error)) return false;
+bool Instance::Private::importFail(
+		const RPCError &error,
+		const Response &response) {
+	if (isDefaultHandledError(error)) {
+		return false;
+	}
 
 	//
 	// Don't log out on export/import problems, perhaps this is a server side error.
 	//
-	//if (_globalHandler.onFail && hasAuthorization()) {
-	//	(*_globalHandler.onFail)(requestId, error); // auth import failed
+	//if (_globalFailHandler && hasAuthorization()) {
+	//	_globalFailHandler(error, response); // auth import failed
 	//}
 	return true;
 }
 
-void Instance::Private::exportDone(const MTPauth_ExportedAuthorization &result, mtpRequestId requestId) {
-	auto it = _authExportRequests.find(requestId);
+void Instance::Private::exportDone(
+		const MTPauth_ExportedAuthorization &result,
+		const Response &response) {
+	auto it = _authExportRequests.find(response.requestId);
 	if (it == _authExportRequests.cend()) {
-		LOG(("MTP Error: auth export request target dcWithShift not found, requestId: %1").arg(requestId));
+		LOG(("MTP Error: "
+			"auth export request target dcWithShift not found, requestId: %1"
+			).arg(response.requestId));
 		//
 		// Don't log out on export/import problems, perhaps this is a server side error.
 		//
@@ -1167,46 +1204,62 @@ void Instance::Private::exportDone(const MTPauth_ExportedAuthorization &result, 
 		//	"AUTH_IMPORT_FAIL",
 		//	QString("did not find target dcWithShift, request %1"
 		//	).arg(requestId));
-		//if (_globalHandler.onFail && hasAuthorization()) {
-		//	(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
+		//if (_globalFailHandler && hasAuthorization()) {
+		//	_globalFailHandler(error, response); // auth failed in main dc
 		//}
 		return;
 	}
 
 	auto &data = result.c_auth_exportedAuthorization();
-	_instance->send(MTPauth_ImportAuthorization(data.vid(), data.vbytes()), rpcDone([this](const MTPauth_Authorization &result, mtpRequestId requestId) {
-		importDone(result, requestId);
-	}), rpcFail([this](const RPCError &error, mtpRequestId requestId) {
-		return importFail(error, requestId);
-	}), it->second);
-	_authExportRequests.erase(requestId);
+	_instance->send(MTPauth_ImportAuthorization(
+		data.vid(),
+		data.vbytes()
+	), [this](const Response &response) {
+		auto result = MTPauth_Authorization();
+		auto from = response.reply.constData();
+		if (!result.read(from, from + response.reply.size())) {
+			return false;
+		}
+		importDone(result, response);
+		return true;
+	}, [this](const RPCError &error, const Response &response) {
+		return importFail(error, response);
+	}, it->second);
+	_authExportRequests.erase(response.requestId);
 }
 
-bool Instance::Private::exportFail(const RPCError &error, mtpRequestId requestId) {
-	if (isDefaultHandledError(error)) return false;
+bool Instance::Private::exportFail(
+		const RPCError &error,
+		const Response &response) {
+	if (isDefaultHandledError(error)) {
+		return false;
+	}
 
-	auto it = _authExportRequests.find(requestId);
+	auto it = _authExportRequests.find(response.requestId);
 	if (it != _authExportRequests.cend()) {
 		_authWaiters[BareDcId(it->second)].clear();
 	}
 	//
 	// Don't log out on export/import problems, perhaps this is a server side error.
 	//
-	//if (_globalHandler.onFail && hasAuthorization()) {
-	//	(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
+	//if (_globalFailHandler && hasAuthorization()) {
+	//	_globalFailHandler(error, response); // auth failed in main dc
 	//}
 	return true;
 }
 
-bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &error) {
-	auto &err(error.type());
-	auto code = error.code();
-	if (!isFloodError(error) && err != qstr("AUTH_KEY_UNREGISTERED")) {
+bool Instance::Private::onErrorDefault(
+		const RPCError &error,
+		const Response &response) {
+	const auto requestId = response.requestId;
+	const auto &type = error.type();
+	const auto code = error.code();
+	if (!isFloodError(error) && type != qstr("AUTH_KEY_UNREGISTERED")) {
 		int breakpoint = 0;
 	}
-	auto badGuestDc = (code == 400) && (err == qsl("FILE_ID_INVALID"));
+	auto badGuestDc = (code == 400) && (type == qsl("FILE_ID_INVALID"));
 	QRegularExpressionMatch m;
-	if ((m = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(err)).hasMatch()) {
+	if ((m = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(type)).hasMatch()) {
 		if (!requestId) return false;
 
 		auto dcWithShift = ShiftedDcId(0);
@@ -1228,11 +1281,19 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 				//DEBUG_LOG(("MTP Info: importing auth to dc %1").arg(newdcWithShift));
 				//auto &waiters(_authWaiters[newdcWithShift]);
 				//if (waiters.empty()) {
-				//	auto exportRequestId = _instance->send(MTPauth_ExportAuthorization(MTP_int(newdcWithShift)), rpcDone([this](const MTPauth_ExportedAuthorization &result, mtpRequestId requestId) {
-				//		exportDone(result, requestId);
-				//	}), rpcFail([this](const RPCError &error, mtpRequestId requestId) {
-				//		return exportFail(error, requestId);
-				//	}));
+				//	auto exportRequestId = _instance->send(MTPauth_ExportAuthorization(
+				//		MTP_int(newdcWithShift)
+				//	), [this](const Response &response) {
+				//		auto result = MTPauth_ExportedAuthorization();
+				//		auto from = response.reply.constData();
+				//		if (!result.read(from, from + response.reply.size())) {
+				//			return false;
+				//		}
+				//		exportDone(result, response);
+				//		return true;
+				//	}, [this](const RPCError &error, const Response &response) {
+				//		return exportFail(error, response);
+				//	});
 				//	_authExportRequests.emplace(exportRequestId, newdcWithShift);
 				//}
 				//waiters.push_back(requestId);
@@ -1260,7 +1321,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 			(dcWithShift < 0) ? -newdcWithShift : newdcWithShift);
 		session->sendPrepared(request);
 		return true;
-	} else if (code < 0 || code >= 500 || (m = QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(err)).hasMatch()) {
+	} else if (code < 0 || code >= 500 || (m = QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(type)).hasMatch()) {
 		if (!requestId) return false;
 
 		int32 secs = 1;
@@ -1286,7 +1347,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 		checkDelayedRequests();
 
 		return true;
-	} else if ((code == 401 && err != "AUTH_KEY_PERM_EMPTY")
+	} else if ((code == 401 && type != qstr("AUTH_KEY_PERM_EMPTY"))
 		|| (badGuestDc && _badGuestDcRequests.find(requestId) == _badGuestDcRequests.cend())) {
 		auto dcWithShift = ShiftedDcId(0);
 		if (const auto shiftedDcId = queryRequestByDc(requestId)) {
@@ -1296,26 +1357,36 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 		}
 		auto newdc = BareDcId(qAbs(dcWithShift));
 		if (!newdc || newdc == mainDcId()) {
-			if (!badGuestDc && _globalHandler.onFail) {
-				(*_globalHandler.onFail)(requestId, error); // auth failed in main dc
+			if (!badGuestDc && _globalFailHandler) {
+				_globalFailHandler(error, response); // auth failed in main dc
 			}
 			return false;
 		}
 
-		DEBUG_LOG(("MTP Info: importing auth to dcWithShift %1").arg(dcWithShift));
+		DEBUG_LOG(("MTP Info: importing auth to dcWithShift %1"
+			).arg(dcWithShift));
 		auto &waiters(_authWaiters[newdc]);
 		if (!waiters.size()) {
-			auto exportRequestId = _instance->send(MTPauth_ExportAuthorization(MTP_int(newdc)), rpcDone([this](const MTPauth_ExportedAuthorization &result, mtpRequestId requestId) {
-				exportDone(result, requestId);
-			}), rpcFail([this](const RPCError &error, mtpRequestId requestId) {
-				return exportFail(error, requestId);
-			}));
+			auto exportRequestId = _instance->send(MTPauth_ExportAuthorization(
+				MTP_int(newdc)
+			), [this](const Response &response) {
+				auto result = MTPauth_ExportedAuthorization();
+				auto from = response.reply.constData();
+				if (!result.read(from, from + response.reply.size())) {
+					return false;
+				}
+				exportDone(result, response);
+				return true;
+			}, [this](const RPCError &error, const Response &response) {
+				return exportFail(error, response);
+			});
 			_authExportRequests.emplace(exportRequestId, abs(dcWithShift));
 		}
 		waiters.push_back(requestId);
 		if (badGuestDc) _badGuestDcRequests.insert(requestId);
 		return true;
-	} else if (err == qstr("CONNECTION_NOT_INITED") || err == qstr("CONNECTION_LAYER_INVALID")) {
+	} else if (type == qstr("CONNECTION_NOT_INITED")
+		|| type == qstr("CONNECTION_LAYER_INVALID")) {
 		SerializedRequest request;
 		{
 			QReadLocker locker(&_requestMapLock);
@@ -1338,9 +1409,9 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 		request->needsLayer = true;
 		session->sendPrepared(request);
 		return true;
-	} else if (err == qstr("CONNECTION_LANG_CODE_INVALID")) {
+	} else if (type == qstr("CONNECTION_LANG_CODE_INVALID")) {
 		Lang::CurrentCloudManager().resetToDefault();
-	} else if (err == qstr("MSG_WAIT_FAILED")) {
+	} else if (type == qstr("MSG_WAIT_FAILED")) {
 		SerializedRequest request;
 		{
 			QReadLocker locker(&_requestMapLock);
@@ -1514,15 +1585,16 @@ void Instance::Private::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
 	if (dcOptions().dcType(shiftedDcId) == DcType::Cdn) {
 		performKeyDestroy(shiftedDcId);
 	} else {
-		_instance->send(MTPauth_LogOut(), rpcDone([=](const MTPBool &) {
+		_instance->send(MTPauth_LogOut(), [=](const Response &) {
 			performKeyDestroy(shiftedDcId);
-		}), rpcFail([=](const RPCError &error) {
+			return true;
+		}, [=](const RPCError &error, const Response &) {
 			if (isDefaultHandledError(error)) {
 				return false;
 			}
 			performKeyDestroy(shiftedDcId);
 			return true;
-		}), shiftedDcId);
+		}, shiftedDcId);
 	}
 }
 
@@ -1539,21 +1611,29 @@ void Instance::Private::keyWasPossiblyDestroyed(ShiftedDcId shiftedDcId) {
 void Instance::Private::performKeyDestroy(ShiftedDcId shiftedDcId) {
 	Expects(isKeysDestroyer());
 
-	_instance->send(MTPDestroy_auth_key(), rpcDone([=](const MTPDestroyAuthKeyRes &result) {
-		switch (result.type()) {
-		case mtpc_destroy_auth_key_ok: LOG(("MTP Info: key %1 destroyed.").arg(shiftedDcId)); break;
-		case mtpc_destroy_auth_key_fail: {
-			LOG(("MTP Error: key %1 destruction fail, leave it for now.").arg(shiftedDcId));
-			killSession(shiftedDcId);
-		} break;
-		case mtpc_destroy_auth_key_none: LOG(("MTP Info: key %1 already destroyed.").arg(shiftedDcId)); break;
+	_instance->send(MTPDestroy_auth_key(), [=](const Response &response) {
+		auto result = MTPDestroyAuthKeyRes();
+		auto from = response.reply.constData();
+		if (!result.read(from, from + response.reply.size())) {
+			return false;
 		}
-		_instance->keyWasPossiblyDestroyed(shiftedDcId);
-	}), rpcFail([=](const RPCError &error) {
-		LOG(("MTP Error: key %1 destruction resulted in error: %2").arg(shiftedDcId).arg(error.type()));
+		result.match([&](const MTPDdestroy_auth_key_ok &) {
+			LOG(("MTP Info: key %1 destroyed.").arg(shiftedDcId));
+		}, [&](const MTPDdestroy_auth_key_fail &) {
+			LOG(("MTP Error: key %1 destruction fail, leave it for now."
+				).arg(shiftedDcId));
+			killSession(shiftedDcId);
+		}, [&](const MTPDdestroy_auth_key_none &) {
+			LOG(("MTP Info: key %1 already destroyed.").arg(shiftedDcId));
+		});
 		_instance->keyWasPossiblyDestroyed(shiftedDcId);
 		return true;
-	}), shiftedDcId);
+	}, [=](const RPCError &error, const Response &response) {
+		LOG(("MTP Error: key %1 destruction resulted in error: %2"
+			).arg(shiftedDcId).arg(error.type()));
+		_instance->keyWasPossiblyDestroyed(shiftedDcId);
+		return true;
+	}, shiftedDcId);
 }
 
 void Instance::Private::completedKeyDestroy(ShiftedDcId shiftedDcId) {
@@ -1582,27 +1662,31 @@ void Instance::Private::keyDestroyedOnServer(
 	restart(shiftedDcId);
 }
 
-void Instance::Private::setUpdatesHandler(RPCDoneHandlerPtr onDone) {
-	_globalHandler.onDone = onDone;
+void Instance::Private::setUpdatesHandler(
+		Fn<void(const Response&)> handler) {
+	_updatesHandler = std::move(handler);
 }
 
-void Instance::Private::setGlobalFailHandler(RPCFailHandlerPtr onFail) {
-	_globalHandler.onFail = onFail;
+void Instance::Private::setGlobalFailHandler(
+		Fn<void(const RPCError&, const Response&)> handler) {
+	_globalFailHandler = std::move(handler);
 }
 
-void Instance::Private::setStateChangedHandler(Fn<void(ShiftedDcId shiftedDcId, int32 state)> handler) {
+void Instance::Private::setStateChangedHandler(
+		Fn<void(ShiftedDcId shiftedDcId, int32 state)> handler) {
 	_stateChangedHandler = std::move(handler);
 }
 
-void Instance::Private::setSessionResetHandler(Fn<void(ShiftedDcId shiftedDcId)> handler) {
+void Instance::Private::setSessionResetHandler(
+		Fn<void(ShiftedDcId shiftedDcId)> handler) {
 	_sessionResetHandler = std::move(handler);
 }
 
 void Instance::Private::clearGlobalHandlers() {
-	setUpdatesHandler(RPCDoneHandlerPtr());
-	setGlobalFailHandler(RPCFailHandlerPtr());
-	setStateChangedHandler(Fn<void(ShiftedDcId,int32)>());
-	setSessionResetHandler(Fn<void(ShiftedDcId)>());
+	setUpdatesHandler(nullptr);
+	setGlobalFailHandler(nullptr);
+	setStateChangedHandler(nullptr);
+	setSessionResetHandler(nullptr);
 }
 
 void Instance::Private::prepareToDestroy() {
@@ -1806,19 +1890,22 @@ QString Instance::systemVersion() const {
 	return _private->systemVersion();
 }
 
-void Instance::setUpdatesHandler(RPCDoneHandlerPtr onDone) {
-	_private->setUpdatesHandler(onDone);
+void Instance::setUpdatesHandler(Fn<void(const Response&)> handler) {
+	_private->setUpdatesHandler(std::move(handler));
 }
 
-void Instance::setGlobalFailHandler(RPCFailHandlerPtr onFail) {
-	_private->setGlobalFailHandler(onFail);
+void Instance::setGlobalFailHandler(
+		Fn<void(const RPCError&, const Response&)> handler) {
+	_private->setGlobalFailHandler(std::move(handler));
 }
 
-void Instance::setStateChangedHandler(Fn<void(ShiftedDcId shiftedDcId, int32 state)> handler) {
+void Instance::setStateChangedHandler(
+		Fn<void(ShiftedDcId shiftedDcId, int32 state)> handler) {
 	_private->setStateChangedHandler(std::move(handler));
 }
 
-void Instance::setSessionResetHandler(Fn<void(ShiftedDcId shiftedDcId)> handler) {
+void Instance::setSessionResetHandler(
+		Fn<void(ShiftedDcId shiftedDcId)> handler) {
 	_private->setSessionResetHandler(std::move(handler));
 }
 
@@ -1834,20 +1921,23 @@ void Instance::onSessionReset(ShiftedDcId shiftedDcId) {
 	_private->onSessionReset(shiftedDcId);
 }
 
-void Instance::execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) {
-	_private->execCallback(requestId, from, end);
+bool Instance::hasCallback(mtpRequestId requestId) const {
+	return _private->hasCallback(requestId);
 }
 
-bool Instance::hasCallbacks(mtpRequestId requestId) {
-	return _private->hasCallbacks(requestId);
+void Instance::processCallback(const Response &response) {
+	_private->processCallback(response);
 }
 
-void Instance::globalCallback(const mtpPrime *from, const mtpPrime *end) {
-	_private->globalCallback(from, end);
+void Instance::processUpdate(const Response &message) {
+	_private->processUpdate(message);
 }
 
-bool Instance::rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err) {
-	return _private->rpcErrorOccured(requestId, onFail, err);
+bool Instance::rpcErrorOccured(
+		const Response &response,
+		const FailHandler &onFail,
+		const RPCError &error) {
+	return _private->rpcErrorOccured(response, onFail, error);
 }
 
 bool Instance::isKeysDestroyer() const {
@@ -1865,7 +1955,7 @@ void Instance::keyDestroyedOnServer(ShiftedDcId shiftedDcId, uint64 keyId) {
 void Instance::sendRequest(
 		mtpRequestId requestId,
 		SerializedRequest &&request,
-		RPCResponseHandler &&callbacks,
+		ResponseHandler &&callbacks,
 		ShiftedDcId shiftedDcId,
 		crl::time msCanWait,
 		bool needsLayer,
