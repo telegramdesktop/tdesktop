@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_create_adm.h"
 
 #include <tgcalls/group/GroupInstanceCustomImpl.h>
+#include <tgcalls/StaticThreads.h>
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
@@ -710,7 +711,6 @@ void GroupCall::handleUpdate(const MTPGroupCall &call) {
 			data.vstream_dc_id().value_or_empty());
 		if (const auto params = data.vparams()) {
 			params->match([&](const MTPDdataJSON &data) {
-				using ConnectionMode = tgcalls::GroupConnectionMode;
 				auto error = QJsonParseError{ 0, QJsonParseError::NoError };
 				const auto document = QJsonDocument::fromJson(
 					data.vdata().v,
@@ -952,6 +952,7 @@ void GroupCall::ensureControllerCreated() {
 	const auto weak = base::make_weak(this);
 	const auto myLevel = std::make_shared<tgcalls::GroupLevelValue>();
 	tgcalls::GroupInstanceDescriptor descriptor = {
+		.threads = tgcalls::StaticThreads::getThreads(),
 		.config = tgcalls::GroupConfig{
 		},
 		.networkStateUpdated = [=](tgcalls::GroupNetworkState networkState) {

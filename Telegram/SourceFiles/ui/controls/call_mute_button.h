@@ -124,7 +124,6 @@ private:
 
 	rpl::variable<CallMuteButtonState> _state;
 	float _level = 0.;
-	float64 _crossLineProgress = 0.;
 	QRect _muteIconRect;
 	HandleMouseState _handleMouseState = HandleMouseState::Enabled;
 

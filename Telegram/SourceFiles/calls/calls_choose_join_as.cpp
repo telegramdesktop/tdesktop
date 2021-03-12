@@ -209,7 +209,6 @@ void ChooseJoinAsProcess::start(
 			strong->closeBox();
 		}
 	};
-	using Flag = MTPchannels_GetAdminedPublicChannels::Flag;
 	_request->id = session->api().request(MTPphone_GetGroupCallJoinAs(
 		_request->peer->input
 	)).done([=](const MTPphone_JoinAsPeers &result) {

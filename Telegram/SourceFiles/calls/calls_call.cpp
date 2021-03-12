@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <tgcalls/Instance.h>
 #include <tgcalls/VideoCaptureInterface.h>
+#include <tgcalls/StaticThreads.h>
 
 namespace tgcalls {
 class InstanceImpl;

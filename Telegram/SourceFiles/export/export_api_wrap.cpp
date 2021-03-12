@@ -301,7 +301,7 @@ auto ApiWrap::RequestBuilder<Request>::fail(
 		auto &silence_warning = _builder.fail([
 			common = base::take(_commonFailHandler),
 			specific = std::move(handler)
-		](const MTP::Error &error) mutable {
+		](const MTP::Error &error) {
 			if (!specific(error)) {
 				common(error);
 			}
