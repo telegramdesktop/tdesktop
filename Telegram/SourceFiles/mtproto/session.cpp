@@ -225,13 +225,6 @@ void Session::start() {
 		_shiftedDcId);
 }
 
-bool Session::rpcErrorOccured(
-		mtpRequestId requestId,
-		const RPCFailHandlerPtr &onFail,
-		const RPCError &error) { // return true if need to clean request data
-	return _instance->rpcErrorOccured(requestId, onFail, error);
-}
-
 void Session::restart() {
 	if (_killed) {
 		DEBUG_LOG(("Session Error: can't restart a killed session"));
@@ -560,25 +553,17 @@ void Session::tryToReceive() {
 	}
 	while (true) {
 		auto lock = QWriteLocker(_data->haveReceivedMutex());
-		const auto responses = base::take(_data->haveReceivedResponses());
-		const auto updates = base::take(_data->haveReceivedUpdates());
+		const auto messages = base::take(_data->haveReceivedMessages());
 		lock.unlock();
-		if (responses.empty() && updates.empty()) {
+		if (messages.empty()) {
 			break;
 		}
-		for (const auto &[requestId, response] : responses) {
-			_instance->execCallback(
-				requestId,
-				response.constData(),
-				response.constData() + response.size());
-		}
-
-		// Call globalCallback only in main session.
-		if (_shiftedDcId == BareDcId(_shiftedDcId)) {
-			for (const auto &update : updates) {
-				_instance->globalCallback(
-					update.constData(),
-					update.constData() + update.size());
+		for (const auto &message : messages) {
+			if (message.requestId) {
+				_instance->processCallback(message);
+			} else if (_shiftedDcId == BareDcId(_shiftedDcId)) {
+				// Process updates only in main session.
+				_instance->processUpdate(message);
 			}
 		}
 	}

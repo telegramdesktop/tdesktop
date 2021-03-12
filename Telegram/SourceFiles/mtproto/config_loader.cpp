@@ -27,8 +27,8 @@ constexpr auto kSpecialRequestTimeoutMs = 6000; // 4 seconds timeout for it to w
 ConfigLoader::ConfigLoader(
 	not_null<Instance*> instance,
 	const QString &phone,
-	RPCDoneHandlerPtr onDone,
-	RPCFailHandlerPtr onFail)
+	Fn<void(const MTPConfig &result)> onDone,
+	FailHandler onFail)
 : _instance(instance)
 , _phone(phone)
 , _doneHandler(onDone)
@@ -50,9 +50,18 @@ void ConfigLoader::load() {
 }
 
 mtpRequestId ConfigLoader::sendRequest(ShiftedDcId shiftedDcId) {
+	auto done = [done = _doneHandler](const Response &response) {
+		auto from = response.reply.constData();
+		auto result = MTPConfig();
+		if (!result.read(from, from + response.reply.size())) {
+			return false;
+		}
+		done(result);
+		return true;
+	};
 	return _instance->send(
 		MTPhelp_GetConfig(),
-		base::duplicate(_doneHandler),
+		std::move(done),
 		base::duplicate(_failHandler),
 		shiftedDcId);
 }
@@ -191,11 +200,17 @@ void ConfigLoader::sendSpecialRequest() {
 		endpoint->secret);
 	_specialEnumRequest = _instance->send(
 		MTPhelp_GetConfig(),
-		rpcDone([weak](const MTPConfig &result) {
+		[weak](const Response &response) {
+			auto result = MTPConfig();
+			auto from = response.reply.constData();
+			if (!result.read(from, from + response.reply.size())) {
+				return false;
+			}
 			if (const auto strong = weak.get()) {
 				strong->specialConfigLoaded(result);
 			}
-		}),
+			return true;
+		},
 		base::duplicate(_failHandler),
 		_specialEnumCurrent);
 	_triedSpecialEndpoints.push_back(*endpoint);

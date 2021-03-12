@@ -157,7 +157,7 @@ void EditMessageWithUploadedMedia(
 void RescheduleMessage(
 		not_null<HistoryItem*> item,
 		SendOptions options) {
-	const auto empty = [](const auto &r) {};
+	const auto empty = [] {};
 	EditMessage(item, options, empty, empty);
 }
 

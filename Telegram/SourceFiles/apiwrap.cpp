@@ -390,7 +390,7 @@ void ApiWrap::acceptTerms(bytes::const_span id) {
 void ApiWrap::checkChatInvite(
 		const QString &hash,
 		FnMut<void(const MTPChatInvite &)> done,
-		FnMut<void(const RPCError &)> fail) {
+		Fn<void(const RPCError &)> fail) {
 	request(base::take(_checkInviteRequestId)).cancel();
 	_checkInviteRequestId = request(MTPmessages_CheckChatInvite(
 		MTP_string(hash)
@@ -1227,7 +1227,7 @@ void ApiWrap::requestPeerSettings(not_null<PeerData*> peer) {
 void ApiWrap::migrateChat(
 		not_null<ChatData*> chat,
 		FnMut<void(not_null<ChannelData*>)> done,
-		FnMut<void(const RPCError &)> fail) {
+		Fn<void(const RPCError &)> fail) {
 	const auto callback = [&] {
 		return MigrateCallbacks{ std::move(done), std::move(fail) };
 	};

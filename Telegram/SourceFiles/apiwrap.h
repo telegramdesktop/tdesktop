@@ -227,7 +227,7 @@ public:
 	void checkChatInvite(
 		const QString &hash,
 		FnMut<void(const MTPChatInvite &)> done,
-		FnMut<void(const RPCError &)> fail);
+		Fn<void(const RPCError &)> fail);
 	void importChatInvite(const QString &hash);
 
 	void requestChannelMembersForAdd(
@@ -243,7 +243,7 @@ public:
 	void migrateChat(
 		not_null<ChatData*> chat,
 		FnMut<void(not_null<ChannelData*>)> done,
-		FnMut<void(const RPCError &)> fail = nullptr);
+		Fn<void(const RPCError &)> fail = nullptr);
 
 	void markMediaRead(const base::flat_set<not_null<HistoryItem*>> &items);
 	void markMediaRead(not_null<HistoryItem*> item);
@@ -742,11 +742,11 @@ private:
 
 	mtpRequestId _checkInviteRequestId = 0;
 	FnMut<void(const MTPChatInvite &result)> _checkInviteDone;
-	FnMut<void(const RPCError &error)> _checkInviteFail;
+	Fn<void(const RPCError &error)> _checkInviteFail;
 
 	struct MigrateCallbacks {
 		FnMut<void(not_null<ChannelData*>)> done;
-		FnMut<void(const RPCError&)> fail;
+		Fn<void(const RPCError&)> fail;
 	};
 	base::flat_map<
 		not_null<PeerData*>,

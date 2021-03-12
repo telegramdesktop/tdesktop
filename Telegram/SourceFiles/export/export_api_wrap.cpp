@@ -249,26 +249,26 @@ public:
 
 	RequestBuilder(
 		Original &&builder,
-		FnMut<void(RPCError&&)> commonFailHandler);
+		Fn<void(const RPCError&)> commonFailHandler);
 
 	[[nodiscard]] RequestBuilder &done(FnMut<void()> &&handler);
 	[[nodiscard]] RequestBuilder &done(
 		FnMut<void(Response &&)> &&handler);
 	[[nodiscard]] RequestBuilder &fail(
-		FnMut<bool(const RPCError &)> &&handler);
+		Fn<bool(const RPCError&)> &&handler);
 
 	mtpRequestId send();
 
 private:
 	Original _builder;
-	FnMut<void(RPCError&&)> _commonFailHandler;
+	Fn<void(const RPCError&)> _commonFailHandler;
 
 };
 
 template <typename Request>
 ApiWrap::RequestBuilder<Request>::RequestBuilder(
 	Original &&builder,
-	FnMut<void(RPCError&&)> commonFailHandler)
+	Fn<void(const RPCError&)> commonFailHandler)
 : _builder(std::move(builder))
 , _commonFailHandler(std::move(commonFailHandler)) {
 }
@@ -295,15 +295,15 @@ auto ApiWrap::RequestBuilder<Request>::done(
 
 template <typename Request>
 auto ApiWrap::RequestBuilder<Request>::fail(
-	FnMut<bool(const RPCError &)> &&handler
+	Fn<bool(const RPCError &)> &&handler
 ) -> RequestBuilder& {
 	if (handler) {
 		auto &silence_warning = _builder.fail([
 			common = base::take(_commonFailHandler),
 			specific = std::move(handler)
-		](RPCError &&error) mutable {
+		](const RPCError &error) mutable {
 			if (!specific(error)) {
-				common(std::move(error));
+				common(error);
 			}
 		});
 	}
@@ -364,7 +364,7 @@ auto ApiWrap::mainRequest(Request &&request) {
 
 	return RequestBuilder<MTPInvokeWithTakeout<Request>>(
 		std::move(original),
-		[=](RPCError &&result) { error(std::move(result)); });
+		[=](const RPCError &result) { error(result); });
 }
 
 template <typename Request>
@@ -391,7 +391,7 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
 			location.data,
 			MTP_int(offset),
 			MTP_int(kFileChunkSize))
-	)).fail([=](RPCError &&result) {
+	)).fail([=](const RPCError &result) {
 		if (result.type() == qstr("TAKEOUT_FILE_EMPTY")
 			&& _otherDataProcess != nullptr) {
 			filePartDone(
@@ -688,11 +688,11 @@ void ApiWrap::startMainSession(FnMut<void()> done) {
 				return data.vid().v;
 			});
 			done();
-		}).fail([=](RPCError &&result) {
-			error(std::move(result));
+		}).fail([=](const RPCError &result) {
+			error(result);
 		}).toDC(MTP::ShiftDcId(0, MTP::kExportDcShift)).send();
-	}).fail([=](RPCError &&result) {
-		error(std::move(result));
+	}).fail([=](const RPCError &result) {
+		error(result);
 	}).send();
 }
 
@@ -1945,12 +1945,13 @@ void ApiWrap::filePartUnavailable() {
 	base::take(_fileProcess)->done(QString());
 }
 
-void ApiWrap::error(RPCError &&error) {
-	_errors.fire(std::move(error));
+void ApiWrap::error(const RPCError &error) {
+	_errors.fire_copy(error);
 }
 
 void ApiWrap::error(const QString &text) {
-	error(MTP_rpc_error(MTP_int(0), MTP_string("API_ERROR: " + text)));
+	error(RPCError(
+		MTP_rpc_error(MTP_int(0), MTP_string("API_ERROR: " + text))));
 }
 
 void ApiWrap::ioError(const Output::Result &result) {

@@ -9,6 +9,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QRegularExpression>
 
+namespace {
+
+[[nodiscard]] MTPrpcError ParseError(const mtpBuffer &reply) {
+	auto result = MTPRpcError();
+	auto from = reply.constData();
+	return result.read(from, from + reply.size())
+		? result
+		: RPCError::MTPLocal(
+			"RESPONSE_PARSE_FAILED",
+			"Error parse failed.");
+}
+
+} // namespace
+
 RPCError::RPCError(const MTPrpcError &error)
 : _code(error.c_rpc_error().verror_code().v) {
 	QString text = qs(error.c_rpc_error().verror_message());
@@ -29,4 +43,38 @@ RPCError::RPCError(const MTPrpcError &error)
 			_description = "Bad rpc error received, text = '" + text + '\'';
 		}
 	}
+}
+
+RPCError::RPCError(const mtpBuffer &reply) : RPCError(ParseError(reply)) {
+}
+
+int32 RPCError::code() const {
+	return _code;
+}
+
+const QString &RPCError::type() const {
+	return _type;
+}
+
+const QString &RPCError::description() const {
+	return _description;
+}
+
+MTPrpcError RPCError::MTPLocal(
+		const QString &type,
+		const QString &description) {
+	return MTP_rpc_error(
+		MTP_int(0),
+		MTP_bytes(
+			("CLIENT_"
+				+ type
+				+ (description.length()
+					? (": " + description)
+					: QString())).toUtf8()));
+}
+
+RPCError RPCError::Local(
+		const QString &type,
+		const QString &description) {
+	return RPCError(MTPLocal(type, description));
 }
