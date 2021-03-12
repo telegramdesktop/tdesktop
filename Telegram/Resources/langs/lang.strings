@@ -1961,7 +1961,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_ptt_delay_s" = "{amount}s";
 "lng_group_call_ptt_delay" = "Push to Talk release delay: {delay}";
 "lng_group_call_share" = "Share Invite Link";
-"lng_group_call_share_listener" = "Mute joined by this link";
+"lng_group_call_share_speaker" = "Users with this link can speak";
+"lng_group_call_copy_speaker_link" = "Copy Speaker Link";
+"lng_group_call_copy_listener_link" = "Copy Listener Link";
 "lng_group_call_end" = "End Voice Chat";
 "lng_group_call_join" = "Join";
 "lng_group_call_invite_done_user" = "You invited {user} to the voice chat.";

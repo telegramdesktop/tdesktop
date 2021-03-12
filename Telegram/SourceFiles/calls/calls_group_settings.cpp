@@ -106,13 +106,13 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 			nullptr,
 			object_ptr<Ui::Checkbox>(
 				nullptr,
-				tr::lng_group_call_share_listener(tr::now),
+				tr::lng_group_call_share_speaker(tr::now),
 				true,
 				st::groupCallCheckbox),
 			st::groupCallShareMutedMargin);
-	const auto listenerCheckbox = bottom ? bottom->entity() : nullptr;
+	const auto speakerCheckbox = bottom ? bottom->entity() : nullptr;
 	const auto currentLink = [=] {
-		return (!listenerCheckbox || listenerCheckbox->checked())
+		return (!speakerCheckbox || !speakerCheckbox->checked())
 			? linkListener
 			: linkSpeaker;
 	};
@@ -192,6 +192,12 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		.submitCallback = std::move(submitCallback),
 		.filterCallback = std::move(filterCallback),
 		.bottomWidget = std::move(bottom),
+		.copyLinkText = rpl::conditional(
+			(speakerCheckbox
+				? speakerCheckbox->checkedValue()
+				: rpl::single(false)),
+			tr::lng_group_call_copy_speaker_link(),
+			tr::lng_group_call_copy_listener_link()),
 		.stMultiSelect = &st::groupCallMultiSelect,
 		.stComment = &st::groupCallShareBoxComment,
 		.st = &st::groupCallShareBoxList });

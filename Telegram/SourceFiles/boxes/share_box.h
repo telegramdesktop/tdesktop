@@ -75,6 +75,7 @@ public:
 		Fn<void(not_null<Ui::InputField*>)> initSpellchecker;
 		Fn<void(not_null<Ui::InputField*>)> initEditLink;
 		object_ptr<Ui::RpWidget> bottomWidget = { nullptr };
+		rpl::producer<QString> copyLinkText;
 		const style::MultiSelect *stMultiSelect = nullptr;
 		const style::InputField *stComment = nullptr;
 		const style::PeerList *st = nullptr;
@@ -129,6 +130,7 @@ private:
 	QPointer<Inner> _inner;
 
 	bool _hasSelected = false;
+	rpl::variable<QString> _copyLinkText;
 
 	base::Timer _searchTimer;
 	QString _peopleQuery;
