@@ -19,8 +19,6 @@ bool InFlatpak();
 bool InSnap();
 
 QString AppRuntimeDirectory();
-QString GetLauncherBasename();
-QString GetLauncherFilename();
 QString GetIconName();
 
 void InstallLauncher(bool force = false);

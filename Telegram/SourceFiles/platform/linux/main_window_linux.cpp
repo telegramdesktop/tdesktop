@@ -873,7 +873,8 @@ void MainWindow::updateIconCounters() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	if (UseUnityCounter()) {
 		const auto launcherUrl = Glib::ustring(
-			"application://" + GetLauncherFilename().toStdString());
+			"application://"
+				+ QGuiApplication::desktopFileName().toStdString());
 		const auto counterSlice = std::min(counter, 9999);
 		std::map<Glib::ustring, Glib::VariantBase> dbusUnityProperties;
 
