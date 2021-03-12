@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 
 #include <QtCore/QVersionNumber>
+#include <QtGui/QGuiApplication>
 
 #include <glibmm.h>
 #include <giomm.h>
@@ -463,7 +464,7 @@ NotificationData::NotificationData(
 	_hints["category"] = Glib::Variant<Glib::ustring>::create("im.received");
 
 	_hints["desktop-entry"] = Glib::Variant<Glib::ustring>::create(
-		GetLauncherBasename().toStdString());
+		QGuiApplication::desktopFileName().chopped(8).toStdString());
 
 	_notificationClosedSignalId = _dbusConnection->signal_subscribe(
 		sigc::mem_fun(this, &NotificationData::signalEmitted),

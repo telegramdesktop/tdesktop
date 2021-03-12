@@ -256,7 +256,7 @@ QString FlatpakID() {
 		if (!qEnvironmentVariableIsEmpty("FLATPAK_ID")) {
 			return qEnvironmentVariable("FLATPAK_ID");
 		} else {
-			return GetLauncherBasename();
+			return cExeName();
 		}
 	}();
 
@@ -275,7 +275,7 @@ bool GenerateDesktopFile(
 	if (!QDir(targetPath).exists()) QDir().mkpath(targetPath);
 
 	const auto sourceFile = kDesktopFile.utf16();
-	const auto targetFile = targetPath + GetLauncherFilename();
+	const auto targetFile = targetPath + QGuiApplication::desktopFileName();
 
 	QString fileText;
 
@@ -405,37 +405,6 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 	} else {
 		return idealSocketPath;
 	}
-}
-
-QString GetLauncherBasename() {
-	static const auto Result = [&] {
-		if (!Core::UpdaterDisabled() && !cExeName().isEmpty()) {
-			const auto appimagePath = qsl("file://%1%2")
-				.arg(cExeDir())
-				.arg(cExeName())
-				.toUtf8();
-
-			char md5Hash[33] = { 0 };
-			hashMd5Hex(
-				appimagePath.constData(),
-				appimagePath.size(),
-				md5Hash);
-
-			return qsl("appimagekit_%1-%2")
-				.arg(md5Hash)
-				.arg(AppName.utf16().replace(' ', '_'));
-		}
-
-		return qsl(MACRO_TO_STRING(TDESKTOP_LAUNCHER_BASENAME));
-	}();
-
-	return Result;
-}
-
-QString GetLauncherFilename() {
-	static const auto Result = GetLauncherBasename()
-		+ qsl(".desktop");
-	return Result;
 }
 
 QString GetIconName() {
@@ -616,7 +585,7 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
-	LOG(("Launcher filename: %1").arg(GetLauncherFilename()));
+	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
@@ -873,7 +842,7 @@ void psAutoStart(bool start, bool silent) {
 		if (start) {
 			GenerateDesktopFile(autostart, qsl("-autostart"), silent);
 		} else {
-			QFile::remove(autostart + GetLauncherFilename());
+			QFile::remove(autostart + QGuiApplication::desktopFileName());
 		}
 	}
 }
