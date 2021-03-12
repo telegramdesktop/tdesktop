@@ -492,6 +492,15 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 	});
 }
 
+[[nodiscard]] uint64 FindLocalRaisedHandRating(
+		const std::vector<Data::GroupCallParticipant> &list) {
+	const auto i = ranges::max_element(
+		list,
+		ranges::less(),
+		&Data::GroupCallParticipant::raisedHandRating);
+	return (i == end(list)) ? 1 : (i->raisedHandRating + 1);
+}
+
 void GroupCall::applyMeInCallLocally() {
 	const auto call = _peer->groupCall();
 	if (!call || call->id() != _id) {
@@ -514,9 +523,11 @@ void GroupCall::applyMeInCallLocally() {
 		: Group::kDefaultVolume;
 	const auto canSelfUnmute = (muted() != MuteState::ForceMuted)
 		&& (muted() != MuteState::RaisedHand);
-	const auto raisedHandRating = (i != end(participants))
+	const auto raisedHandRating = (muted() != MuteState::RaisedHand)
+		? uint64(0)
+		: (i != end(participants))
 		? i->raisedHandRating
-		: uint64(0);
+		: FindLocalRaisedHandRating(participants);
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (lastActive ? Flag::f_active_date : Flag(0))
 		| (_mySsrc ? Flag(0) : Flag::f_left)

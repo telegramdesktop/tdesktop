@@ -1479,10 +1479,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		not_null<PeerListRow*> row) {
 	const auto participantPeer = row->peer();
 	const auto real = static_cast<Row*>(row.get());
-	if (isMe(participantPeer)
-		&& (!_peer->canManageGroupCall() || !real->ssrc())) {
-		return nullptr;
-	}
+
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		parent,
 		st::groupCallPopupMenu);
@@ -1538,11 +1535,25 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		_kickParticipantRequests.fire_copy(participantPeer);
 	});
 
-	if (real->ssrc() != 0) {
+	if (real->ssrc() != 0
+		&& (!isMe(participantPeer) || _peer->canManageGroupCall())) {
 		addMuteActionsToContextMenu(result, participantPeer, admin, real);
 	}
 
-	if (!isMe(participantPeer)) {
+	if (isMe(participantPeer)) {
+		if (const auto strong = _call.get()
+			; strong && strong->muted() == MuteState::RaisedHand) {
+			const auto removeHand = [=] {
+				if (const auto strong = _call.get()
+					; strong && strong->muted() == MuteState::RaisedHand) {
+					strong->setMutedAndUpdate(MuteState::ForceMuted);
+				}
+			};
+			result->addAction(
+				tr::lng_group_call_context_remove_hand(tr::now),
+				removeHand);
+		}
+	} else {
 		result->addAction(
 			tr::lng_context_view_profile(tr::now),
 			showProfile);
@@ -1574,6 +1585,9 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 				tr::lng_context_remove_from_group(tr::now),
 				removeFromGroup);
 		}
+	}
+	if (result->empty()) {
+		return nullptr;
 	}
 	return result;
 }
