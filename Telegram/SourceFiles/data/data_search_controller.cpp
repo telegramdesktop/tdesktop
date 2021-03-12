@@ -391,7 +391,7 @@ void SearchController::requestMore(
 				parsed.noSkipRange,
 				parsed.fullCount);
 			finish();
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			finish();
 		}).send();
 	});

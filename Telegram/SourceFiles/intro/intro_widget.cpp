@@ -491,7 +491,7 @@ void Widget::resetAccount() {
 					StackAction::Replace,
 					Animate::Forward);
 			}
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			_resetRequest = 0;
 
 			const auto &type = error.type();

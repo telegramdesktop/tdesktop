@@ -103,7 +103,7 @@ void GroupCall::requestParticipants() {
 		_participantsSliceAdded.fire({});
 		_participantsRequestId = 0;
 		changePeerEmptyCallFlag();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_fullCount = _participants.size();
 		_allReceived = true;
 		_participantsRequestId = 0;
@@ -236,7 +236,7 @@ void GroupCall::reload() {
 			_participantsSliceAdded.fire({});
 		});
 		_reloadRequestId = 0;
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_reloadRequestId = 0;
 	}).send();
 }
@@ -563,7 +563,7 @@ void GroupCall::requestUnknownParticipants() {
 			_unknownSpokenPeerIds.remove(id);
 		}
 		requestUnknownParticipants();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_unknownParticipantPeersRequestId = 0;
 		for (const auto [ssrc, when] : ssrcs) {
 			_unknownSpokenSsrcs.remove(ssrc);

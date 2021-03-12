@@ -485,7 +485,7 @@ void AddSpecialBoxController::loadMoreRows() {
 			setDescriptionText(tr::lng_blocked_list_not_found(tr::now));
 		}
 		delegate()->peerListRefreshRows();
-	}).fail([this](const RPCError &error) {
+	}).fail([this](const MTP::Error &error) {
 		_loadRequestId = 0;
 	}).send();
 }
@@ -520,7 +520,7 @@ bool AddSpecialBoxController::checkInfoLoaded(
 		channel->owner().processUsers(participant.vusers());
 		_additional.applyParticipant(participant.vparticipant());
 		callback();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_additional.setExternal(user);
 		callback();
 	}).send();
@@ -976,7 +976,7 @@ void AddSpecialBoxSearchController::requestParticipants() {
 			const MTPchannels_ChannelParticipants &result,
 			mtpRequestId requestId) {
 		searchParticipantsDone(requestId, result, perPage);
-	}).fail([=](const RPCError &error, mtpRequestId requestId) {
+	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			_participantsLoaded = true;
@@ -1059,7 +1059,7 @@ void AddSpecialBoxSearchController::requestGlobal() {
 		MTP_int(perPage)
 	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
 		searchGlobalDone(requestId, result);
-	}).fail([=](const RPCError &error, mtpRequestId requestId) {
+	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			_globalLoaded = true;

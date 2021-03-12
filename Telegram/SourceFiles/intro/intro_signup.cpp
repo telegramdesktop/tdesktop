@@ -117,8 +117,8 @@ void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 	finish(d.vuser(), _photo->takeResultImage());
 }
 
-void SignupWidget::nameSubmitFail(const RPCError &error) {
-	if (MTP::isFloodError(error)) {
+void SignupWidget::nameSubmitFail(const MTP::Error &error) {
+	if (MTP::IsFloodError(error)) {
 		showError(tr::lng_flood_error());
 		if (_invertOrder) {
 			_first->setFocus();
@@ -192,7 +192,7 @@ void SignupWidget::submit() {
 			MTP_string(_lastName)
 		)).done([=](const MTPauth_Authorization &result) {
 			nameSubmitDone(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			nameSubmitFail(error);
 		}).handleFloodErrors().send();
 	};

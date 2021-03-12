@@ -321,7 +321,7 @@ void SetupHelp(
 						Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 					}
 				});
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				*requestId = 0;
 			}).send();
 		});

@@ -245,7 +245,7 @@ void Instance::refreshDhConfig() {
 		} else {
 			callFailed(call);
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		const auto call = weak.get();
 		if (!call) {
 			return;
@@ -304,7 +304,7 @@ void Instance::refreshServerConfig(not_null<Main::Session*> session) {
 
 		const auto &json = result.c_dataJSON().vdata().v;
 		UpdateConfig(std::string(json.data(), json.size()));
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_serverConfigRequestSession = nullptr;
 	}).send();
 }

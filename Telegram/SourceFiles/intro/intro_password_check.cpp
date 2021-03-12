@@ -133,8 +133,8 @@ void PasswordCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorizatio
 	finish(d.vuser());
 }
 
-void PasswordCheckWidget::pwdSubmitFail(const RPCError &error) {
-	if (MTP::isFloodError(error)) {
+void PasswordCheckWidget::pwdSubmitFail(const MTP::Error &error) {
+	if (MTP::IsFloodError(error)) {
 		_sentRequest = 0;
 		showError(tr::lng_flood_error());
 		_pwdField->showError();
@@ -213,7 +213,7 @@ void PasswordCheckWidget::passwordChecked() {
 		MTPauth_CheckPassword(check.result)
 	).done([=](const MTPauth_Authorization &result) {
 		pwdSubmitDone(false, result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		pwdSubmitFail(error);
 	}).handleFloodErrors().send();
 }
@@ -222,8 +222,8 @@ void PasswordCheckWidget::serverError() {
 	showError(rpl::single(Lang::Hard::ServerError()));
 }
 
-void PasswordCheckWidget::codeSubmitFail(const RPCError &error) {
-	if (MTP::isFloodError(error)) {
+void PasswordCheckWidget::codeSubmitFail(const MTP::Error &error) {
+	if (MTP::IsFloodError(error)) {
 		showError(tr::lng_flood_error());
 		_codeField->showError();
 		return;
@@ -258,7 +258,7 @@ void PasswordCheckWidget::recoverStarted(const MTPauth_PasswordRecovery &result)
 	updateDescriptionText();
 }
 
-void PasswordCheckWidget::recoverStartFail(const RPCError &error) {
+void PasswordCheckWidget::recoverStartFail(const MTP::Error &error) {
 	_pwdField->show();
 	_pwdHint->show();
 	_codeField->hide();
@@ -287,7 +287,7 @@ void PasswordCheckWidget::toRecover() {
 				MTPauth_RequestPasswordRecovery()
 			).done([=](const MTPauth_PasswordRecovery &result) {
 				recoverStarted(result);
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				recoverStartFail(error);
 			}).send();
 		}
@@ -343,7 +343,7 @@ void PasswordCheckWidget::submit() {
 				MTPauth_RecoverPassword(MTP_string(code))
 			).done([=](const MTPauth_Authorization &result) {
 				pwdSubmitDone(true, result);
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				codeSubmitFail(error);
 			}).handleFloodErrors().send();
 		});

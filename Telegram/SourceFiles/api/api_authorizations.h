@@ -30,7 +30,7 @@ public:
 	void cancelCurrentRequest();
 	void requestTerminate(
 		Fn<void(const MTPBool &result)> &&done,
-		Fn<void(const RPCError &error)> &&fail,
+		Fn<void(const MTP::Error &error)> &&fail,
 		std::optional<uint64> hash = std::nullopt);
 
 	[[nodiscard]] crl::time lastReceivedTime();

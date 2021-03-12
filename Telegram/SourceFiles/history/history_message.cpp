@@ -330,7 +330,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 						Ui::hideLayer();
 					}
 					finish();
-				}).fail([=](const RPCError &error) {
+				}).fail([=](const MTP::Error &error) {
 					finish();
 				}).afterRequest(history->sendRequestId).send();
 				return history->sendRequestId;

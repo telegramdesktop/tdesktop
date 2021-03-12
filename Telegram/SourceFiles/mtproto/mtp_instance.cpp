@@ -142,17 +142,17 @@ public:
 	bool rpcErrorOccured(
 		const Response &response,
 		const FailHandler &onFail,
-		const RPCError &error);
+		const Error &error);
 	inline bool rpcErrorOccured(
 			const Response &response,
 			const ResponseHandler &handler,
-			const RPCError &error) {
+			const Error &error) {
 		return rpcErrorOccured(response, handler.fail, error);
 	}
 
 	void setUpdatesHandler(Fn<void(const Response&)> handler);
 	void setGlobalFailHandler(
-		Fn<void(const RPCError&, const Response&)> handler);
+		Fn<void(const Error&, const Response&)> handler);
 	void setStateChangedHandler(Fn<void(ShiftedDcId shiftedDcId, int32 state)> handler);
 	void setSessionResetHandler(Fn<void(ShiftedDcId shiftedDcId)> handler);
 	void clearGlobalHandlers();
@@ -180,12 +180,12 @@ private:
 	void importDone(
 		const MTPauth_Authorization &result,
 		const Response &response);
-	bool importFail(const RPCError &error, const Response &response);
+	bool importFail(const Error &error, const Response &response);
 	void exportDone(
 		const MTPauth_ExportedAuthorization &result,
 		const Response &response);
-	bool exportFail(const RPCError &error, const Response &response);
-	bool onErrorDefault(const RPCError &error, const Response &response);
+	bool exportFail(const Error &error, const Response &response);
+	bool onErrorDefault(const Error &error, const Response &response);
 
 	void unpaused();
 
@@ -204,7 +204,7 @@ private:
 
 	void requestConfigIfExpired();
 	void configLoadDone(const MTPConfig &result);
-	bool configLoadFail(const RPCError &error);
+	bool configLoadFail(const Error &error);
 
 	std::optional<ShiftedDcId> queryRequestByDc(
 		mtpRequestId requestId) const;
@@ -271,7 +271,7 @@ private:
 	std::map<DcId, std::vector<mtpRequestId>> _authWaiters;
 
 	Fn<void(const Response&)> _updatesHandler;
-	Fn<void(const RPCError&, const Response&)> _globalFailHandler;
+	Fn<void(const Error&, const Response&)> _globalFailHandler;
 	Fn<void(ShiftedDcId shiftedDcId, int32 state)> _stateChangedHandler;
 	Fn<void(ShiftedDcId shiftedDcId)> _sessionResetHandler;
 
@@ -463,7 +463,7 @@ void Instance::Private::requestConfig() {
 		_instance,
 		_userPhone,
 		[=](const MTPConfig &result) { configLoadDone(result); },
-		[=](const RPCError &error, const Response &) {
+		[=](const Error &error, const Response &) {
 			return configLoadFail(error);
 		});
 	_configLoader->load();
@@ -664,7 +664,7 @@ void Instance::Private::logout(Fn<void()> done) {
 	_instance->send(MTPauth_LogOut(), [=](Response) {
 		done();
 		return true;
-	}, [=](const RPCError&, Response) {
+	}, [=](const Error&, Response) {
 		done();
 		return true;
 	});
@@ -686,7 +686,7 @@ void Instance::Private::logoutGuestDcs() {
 				const Response &response) {
 			logoutGuestDone(response.requestId);
 			return true;
-		}, [=](const RPCError &, const Response &response) {
+		}, [=](const Error &, const Response &response) {
 			logoutGuestDone(response.requestId);
 			return true;
 		}, shiftedDcId);
@@ -879,8 +879,8 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	requestConfigIfExpired();
 }
 
-bool Instance::Private::configLoadFail(const RPCError &error) {
-	if (isDefaultHandledError(error)) return false;
+bool Instance::Private::configLoadFail(const Error &error) {
+	if (IsDefaultHandledError(error)) return false;
 
 	//	loadingConfig = false;
 	LOG(("MTP Error: failed to get config!"));
@@ -1040,7 +1040,7 @@ void Instance::Private::processCallback(const Response &response) {
 		}
 	}
 	if (handler.done || handler.fail) {
-		const auto handleError = [&](const RPCError &error) {
+		const auto handleError = [&](const Error &error) {
 			DEBUG_LOG(("RPC Info: "
 				"error received, code %1, type %2, description: %3"
 				).arg(error.code()
@@ -1056,20 +1056,20 @@ void Instance::Private::processCallback(const Response &response) {
 
 		auto from = response.reply.constData();
 		if (response.reply.isEmpty()) {
-			handleError(RPCError::Local(
+			handleError(Error::Local(
 				"RESPONSE_PARSE_FAILED",
 				"Empty response."));
 		} else if (*from == mtpc_rpc_error) {
 			auto error = MTPRpcError();
 			handleError(
-				RPCError(error.read(from, from + response.reply.size())
+				Error(error.read(from, from + response.reply.size())
 					? error
-					: RPCError::MTPLocal(
+					: Error::MTPLocal(
 						"RESPONSE_PARSE_FAILED",
 						"Error parse failed.")));
 		} else {
 			if (handler.done && !handler.done(response)) {
-				handleError(RPCError::Local(
+				handleError(Error::Local(
 					"RESPONSE_PARSE_FAILED",
 					"Response parse failed."));
 			}
@@ -1102,8 +1102,8 @@ void Instance::Private::onSessionReset(ShiftedDcId dcWithShift) {
 bool Instance::Private::rpcErrorOccured(
 		const Response &response,
 		const FailHandler &onFail,
-		const RPCError &error) { // return true if need to clean request data
-	if (isDefaultHandledError(error)) {
+		const Error &error) { // return true if need to clean request data
+	if (IsDefaultHandledError(error)) {
 		if (onFail && onFail(error, response)) {
 			return true;
 		}
@@ -1136,7 +1136,7 @@ void Instance::Private::importDone(
 		//
 		// Don't log out on export/import problems, perhaps this is a server side error.
 		//
-		//const auto error = RPCError::Local(
+		//const auto error = Error::Local(
 		//	"AUTH_IMPORT_FAIL",
 		//	QString("did not find import request in requestsByDC, "
 		//		"request %1").arg(requestId));
@@ -1174,9 +1174,9 @@ void Instance::Private::importDone(
 }
 
 bool Instance::Private::importFail(
-		const RPCError &error,
+		const Error &error,
 		const Response &response) {
-	if (isDefaultHandledError(error)) {
+	if (IsDefaultHandledError(error)) {
 		return false;
 	}
 
@@ -1200,7 +1200,7 @@ void Instance::Private::exportDone(
 		//
 		// Don't log out on export/import problems, perhaps this is a server side error.
 		//
-		//const auto error = RPCError::Local(
+		//const auto error = Error::Local(
 		//	"AUTH_IMPORT_FAIL",
 		//	QString("did not find target dcWithShift, request %1"
 		//	).arg(requestId));
@@ -1222,16 +1222,16 @@ void Instance::Private::exportDone(
 		}
 		importDone(result, response);
 		return true;
-	}, [this](const RPCError &error, const Response &response) {
+	}, [this](const Error &error, const Response &response) {
 		return importFail(error, response);
 	}, it->second);
 	_authExportRequests.erase(response.requestId);
 }
 
 bool Instance::Private::exportFail(
-		const RPCError &error,
+		const Error &error,
 		const Response &response) {
-	if (isDefaultHandledError(error)) {
+	if (IsDefaultHandledError(error)) {
 		return false;
 	}
 
@@ -1249,12 +1249,12 @@ bool Instance::Private::exportFail(
 }
 
 bool Instance::Private::onErrorDefault(
-		const RPCError &error,
+		const Error &error,
 		const Response &response) {
 	const auto requestId = response.requestId;
 	const auto &type = error.type();
 	const auto code = error.code();
-	if (!isFloodError(error) && type != qstr("AUTH_KEY_UNREGISTERED")) {
+	if (!IsFloodError(error) && type != qstr("AUTH_KEY_UNREGISTERED")) {
 		int breakpoint = 0;
 	}
 	auto badGuestDc = (code == 400) && (type == qsl("FILE_ID_INVALID"));
@@ -1291,7 +1291,7 @@ bool Instance::Private::onErrorDefault(
 				//		}
 				//		exportDone(result, response);
 				//		return true;
-				//	}, [this](const RPCError &error, const Response &response) {
+				//	}, [this](const Error &error, const Response &response) {
 				//		return exportFail(error, response);
 				//	});
 				//	_authExportRequests.emplace(exportRequestId, newdcWithShift);
@@ -1377,7 +1377,7 @@ bool Instance::Private::onErrorDefault(
 				}
 				exportDone(result, response);
 				return true;
-			}, [this](const RPCError &error, const Response &response) {
+			}, [this](const Error &error, const Response &response) {
 				return exportFail(error, response);
 			});
 			_authExportRequests.emplace(exportRequestId, abs(dcWithShift));
@@ -1588,8 +1588,8 @@ void Instance::Private::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
 		_instance->send(MTPauth_LogOut(), [=](const Response &) {
 			performKeyDestroy(shiftedDcId);
 			return true;
-		}, [=](const RPCError &error, const Response &) {
-			if (isDefaultHandledError(error)) {
+		}, [=](const Error &error, const Response &) {
+			if (IsDefaultHandledError(error)) {
 				return false;
 			}
 			performKeyDestroy(shiftedDcId);
@@ -1628,7 +1628,7 @@ void Instance::Private::performKeyDestroy(ShiftedDcId shiftedDcId) {
 		});
 		_instance->keyWasPossiblyDestroyed(shiftedDcId);
 		return true;
-	}, [=](const RPCError &error, const Response &response) {
+	}, [=](const Error &error, const Response &response) {
 		LOG(("MTP Error: key %1 destruction resulted in error: %2"
 			).arg(shiftedDcId).arg(error.type()));
 		_instance->keyWasPossiblyDestroyed(shiftedDcId);
@@ -1668,7 +1668,7 @@ void Instance::Private::setUpdatesHandler(
 }
 
 void Instance::Private::setGlobalFailHandler(
-		Fn<void(const RPCError&, const Response&)> handler) {
+		Fn<void(const Error&, const Response&)> handler) {
 	_globalFailHandler = std::move(handler);
 }
 
@@ -1895,7 +1895,7 @@ void Instance::setUpdatesHandler(Fn<void(const Response&)> handler) {
 }
 
 void Instance::setGlobalFailHandler(
-		Fn<void(const RPCError&, const Response&)> handler) {
+		Fn<void(const Error&, const Response&)> handler) {
 	_private->setGlobalFailHandler(std::move(handler));
 }
 
@@ -1936,7 +1936,7 @@ void Instance::processUpdate(const Response &message) {
 bool Instance::rpcErrorOccured(
 		const Response &response,
 		const FailHandler &onFail,
-		const RPCError &error) {
+		const Error &error) {
 	return _private->rpcErrorOccured(response, onFail, error);
 }
 

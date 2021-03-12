@@ -150,7 +150,7 @@ void SendExistingMedia(
 			)).done([=](const MTPUpdates &result) {
 				api->applyUpdates(result, randomId);
 				finish();
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				if (error.code() == 400
 					&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
 					api->refreshFileReference(origin, [=](const auto &result) {
@@ -324,7 +324,7 @@ bool SendDice(Api::MessageToSend &message) {
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result, randomId);
 			finish();
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			api->sendMessageFail(error, peer, randomId, newId);
 			finish();
 		}).afterRequest(history->sendRequestId

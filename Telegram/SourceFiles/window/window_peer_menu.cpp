@@ -813,7 +813,7 @@ void PeerMenuCreatePoll(
 		const auto api = &peer->session().api();
 		api->createPoll(result.poll, action, crl::guard(box, [=] {
 			box->closeBox();
-		}), crl::guard(box, [=](const RPCError &error) {
+		}), crl::guard(box, [=](const MTP::Error &error) {
 			*lock = false;
 			box->submitFailed(tr::lng_attach_failed(tr::now));
 		}));
@@ -1036,7 +1036,7 @@ QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
 			MTP_vector<MTPint>(ids)
 		)).done([=](const MTPUpdates &result) {
 			session->api().applyUpdates(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			session->api().sendMessageFail(error, history->peer);
 		}).send();
 		if (callback) {

@@ -122,7 +122,7 @@ private:
 	QPixmap grabContentCache();
 
 	void installDone(const MTPmessages_StickerSetInstallResult &result);
-	void installFail(const RPCError &error, uint64 setId);
+	void installFail(const MTP::Error &error, uint64 setId);
 
 	void preloadArchivedSets();
 	void requestArchivedSets();

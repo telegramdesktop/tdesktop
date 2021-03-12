@@ -853,7 +853,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 					_searchInHistoryRequest = 0;
 					searchReceived(type, result, _searchRequest);
 					finish();
-				}).fail([=](const RPCError &error) {
+				}).fail([=](const MTP::Error &error) {
 					_searchInHistoryRequest = 0;
 					searchFailed(type, error, _searchRequest);
 					finish();
@@ -880,7 +880,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 				MTP_int(SearchPerPage)
 			)).done([=](const MTPmessages_Messages &result) {
 				searchReceived(type, result, _searchRequest);
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				searchFailed(type, error, _searchRequest);
 			}).send();
 			_searchQueries.emplace(_searchRequest, _searchQuery);
@@ -904,7 +904,7 @@ bool Widget::onSearchMessages(bool searchCache) {
 				MTP_int(SearchPeopleLimit)
 			)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
 				peerSearchReceived(result, requestId);
-			}).fail([=](const RPCError &error, mtpRequestId requestId) {
+			}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 				peopleFailed(error, requestId);
 			}).send();
 			_peerSearchQueries.emplace(_peerSearchRequest, _peerSearchQuery);
@@ -1011,7 +1011,7 @@ void Widget::onSearchMore() {
 					searchReceived(type, result, _searchRequest);
 					_searchInHistoryRequest = 0;
 					finish();
-				}).fail([=](const RPCError &error) {
+				}).fail([=](const MTP::Error &error) {
 					searchFailed(type, error, _searchRequest);
 					_searchInHistoryRequest = 0;
 					finish();
@@ -1044,7 +1044,7 @@ void Widget::onSearchMore() {
 				MTP_int(SearchPerPage)
 			)).done([=](const MTPmessages_Messages &result) {
 				searchReceived(type, result, _searchRequest);
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				searchFailed(type, error, _searchRequest);
 			}).send();
 			if (!offsetId) {
@@ -1084,7 +1084,7 @@ void Widget::onSearchMore() {
 				searchReceived(type, result, _searchRequest);
 				_searchInHistoryRequest = 0;
 				finish();
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				searchFailed(type, error, _searchRequest);
 				_searchInHistoryRequest = 0;
 				finish();
@@ -1233,7 +1233,7 @@ void Widget::peerSearchReceived(
 
 void Widget::searchFailed(
 		SearchRequestType type,
-		const RPCError &error,
+		const MTP::Error &error,
 		mtpRequestId requestId) {
 	if (error.type() == qstr("SEARCH_QUERY_EMPTY")) {
 		searchReceived(
@@ -1253,7 +1253,7 @@ void Widget::searchFailed(
 	}
 }
 
-void Widget::peopleFailed(const RPCError &error, mtpRequestId requestId) {
+void Widget::peopleFailed(const MTP::Error &error, mtpRequestId requestId) {
 	if (_peerSearchRequest == requestId) {
 		_peerSearchRequest = 0;
 		_peerSearchFull = true;

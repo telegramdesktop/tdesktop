@@ -1001,7 +1001,7 @@ void GifsListWidget::sendInlineRequest() {
 		MTP_string(nextOffset)
 	)).done([this](const MTPmessages_BotResults &result) {
 		inlineResultsDone(result);
-	}).fail([this](const RPCError &error) {
+	}).fail([this](const MTP::Error &error) {
 		// show error?
 		_footer->setLoading(false);
 		_inlineRequestId = 0;

@@ -176,7 +176,7 @@ void PhoneWidget::submit() {
 		MTP_codeSettings(MTP_flags(0))
 	)).done([=](const MTPauth_SentCode &result) {
 		phoneSubmitDone(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		phoneSubmitFail(error);
 	}).handleFloodErrors().send();
 }
@@ -222,8 +222,8 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	goNext<CodeWidget>();
 }
 
-void PhoneWidget::phoneSubmitFail(const RPCError &error) {
-	if (MTP::isFloodError(error)) {
+void PhoneWidget::phoneSubmitFail(const MTP::Error &error) {
+	if (MTP::IsFloodError(error)) {
 		stopCheck();
 		_sentRequest = 0;
 		showPhoneError(tr::lng_flood_error());

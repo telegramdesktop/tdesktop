@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/data/export_data_types.h"
 #include "export/output/export_output_result.h"
 #include "export/output/export_output_file.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/mtproto_response.h"
 #include "base/value_ordering.h"
 #include "base/bytes.h"
 #include <set>
@@ -249,26 +249,26 @@ public:
 
 	RequestBuilder(
 		Original &&builder,
-		Fn<void(const RPCError&)> commonFailHandler);
+		Fn<void(const MTP::Error&)> commonFailHandler);
 
 	[[nodiscard]] RequestBuilder &done(FnMut<void()> &&handler);
 	[[nodiscard]] RequestBuilder &done(
 		FnMut<void(Response &&)> &&handler);
 	[[nodiscard]] RequestBuilder &fail(
-		Fn<bool(const RPCError&)> &&handler);
+		Fn<bool(const MTP::Error&)> &&handler);
 
 	mtpRequestId send();
 
 private:
 	Original _builder;
-	Fn<void(const RPCError&)> _commonFailHandler;
+	Fn<void(const MTP::Error&)> _commonFailHandler;
 
 };
 
 template <typename Request>
 ApiWrap::RequestBuilder<Request>::RequestBuilder(
 	Original &&builder,
-	Fn<void(const RPCError&)> commonFailHandler)
+	Fn<void(const MTP::Error&)> commonFailHandler)
 : _builder(std::move(builder))
 , _commonFailHandler(std::move(commonFailHandler)) {
 }
@@ -295,13 +295,13 @@ auto ApiWrap::RequestBuilder<Request>::done(
 
 template <typename Request>
 auto ApiWrap::RequestBuilder<Request>::fail(
-	Fn<bool(const RPCError &)> &&handler
+	Fn<bool(const MTP::Error &)> &&handler
 ) -> RequestBuilder& {
 	if (handler) {
 		auto &silence_warning = _builder.fail([
 			common = base::take(_commonFailHandler),
 			specific = std::move(handler)
-		](const RPCError &error) mutable {
+		](const MTP::Error &error) mutable {
 			if (!specific(error)) {
 				common(error);
 			}
@@ -364,7 +364,7 @@ auto ApiWrap::mainRequest(Request &&request) {
 
 	return RequestBuilder<MTPInvokeWithTakeout<Request>>(
 		std::move(original),
-		[=](const RPCError &result) { error(result); });
+		[=](const MTP::Error &result) { error(result); });
 }
 
 template <typename Request>
@@ -391,7 +391,7 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
 			location.data,
 			MTP_int(offset),
 			MTP_int(kFileChunkSize))
-	)).fail([=](const RPCError &result) {
+	)).fail([=](const MTP::Error &result) {
 		if (result.type() == qstr("TAKEOUT_FILE_EMPTY")
 			&& _otherDataProcess != nullptr) {
 			filePartDone(
@@ -418,7 +418,7 @@ ApiWrap::ApiWrap(QPointer<MTP::Instance> weak, Fn<void(FnMut<void()>)> runner)
 , _fileCache(std::make_unique<LoadedFileCache>(kLocationCacheSize)) {
 }
 
-rpl::producer<RPCError> ApiWrap::errors() const {
+rpl::producer<MTP::Error> ApiWrap::errors() const {
 	return _errors.events();
 }
 
@@ -688,10 +688,10 @@ void ApiWrap::startMainSession(FnMut<void()> done) {
 				return data.vid().v;
 			});
 			done();
-		}).fail([=](const RPCError &result) {
+		}).fail([=](const MTP::Error &result) {
 			error(result);
 		}).toDC(MTP::ShiftDcId(0, MTP::kExportDcShift)).send();
-	}).fail([=](const RPCError &result) {
+	}).fail([=](const MTP::Error &result) {
 		error(result);
 	}).send();
 }
@@ -1454,7 +1454,7 @@ void ApiWrap::requestChatMessages(
 			MTP_int(0), // max_id
 			MTP_int(0), // min_id
 			MTP_int(0)  // hash
-		)).fail([=](const RPCError &error) {
+		)).fail([=](const MTP::Error &error) {
 			Expects(_chatProcess != nullptr);
 
 			if (error.type() == qstr("CHANNEL_PRIVATE")) {
@@ -1875,7 +1875,7 @@ void ApiWrap::filePartRefreshReference(int offset) {
 			MTP_vector<MTPInputMessage>(
 				1,
 				MTP_inputMessageID(MTP_int(origin.messageId)))
-		)).fail([=](const RPCError &error) {
+		)).fail([=](const MTP::Error &error) {
 			filePartUnavailable();
 			return true;
 		}).done([=](const MTPmessages_Messages &result) {
@@ -1886,7 +1886,7 @@ void ApiWrap::filePartRefreshReference(int offset) {
 			MTP_vector<MTPInputMessage>(
 				1,
 				MTP_inputMessageID(MTP_int(origin.messageId)))
-		)).fail([=](const RPCError &error) {
+		)).fail([=](const MTP::Error &error) {
 			filePartUnavailable();
 			return true;
 		}).done([=](const MTPmessages_Messages &result) {
@@ -1945,12 +1945,12 @@ void ApiWrap::filePartUnavailable() {
 	base::take(_fileProcess)->done(QString());
 }
 
-void ApiWrap::error(const RPCError &error) {
+void ApiWrap::error(const MTP::Error &error) {
 	_errors.fire_copy(error);
 }
 
 void ApiWrap::error(const QString &text) {
-	error(RPCError(
+	error(MTP::Error(
 		MTP_rpc_error(MTP_int(0), MTP_string("API_ERROR: " + text))));
 }
 

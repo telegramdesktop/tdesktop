@@ -697,7 +697,7 @@ void InnerWidget::preloadMore(Direction direction) {
 		if (!loadedFlag) {
 			addEvents(direction, results.vevents().v);
 		}
-	}).fail([this, &requestId, &loadedFlag](const RPCError &error) {
+	}).fail([this, &requestId, &loadedFlag](const MTP::Error &error) {
 		requestId = 0;
 		loadedFlag = true;
 		update();
@@ -1326,7 +1326,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 						MTP_int(0));
 					editRestrictions(hasAdminRights, bannedRights);
 				}
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				auto bannedRights = MTP_chatBannedRights(
 					MTP_flags(0),
 					MTP_int(0));

@@ -398,7 +398,7 @@ void Updates::feedChannelDifference(
 
 void Updates::channelDifferenceFail(
 		not_null<ChannelData*> channel,
-		const RPCError &error) {
+		const MTP::Error &error) {
 	LOG(("RPC Error in getChannelDifference: %1 %2: %3"
 		).arg(error.code()
 		).arg(error.type()
@@ -556,7 +556,7 @@ void Updates::feedDifference(
 	feedUpdateVector(other, true);
 }
 
-void Updates::differenceFail(const RPCError &error) {
+void Updates::differenceFail(const MTP::Error &error) {
 	LOG(("RPC Error in getDifference: %1 %2: %3"
 		).arg(error.code()
 		).arg(error.type()
@@ -643,7 +643,7 @@ void Updates::getDifference() {
 		MTP_int(_updatesQts)
 	)).done([=](const MTPupdates_Difference &result) {
 		differenceDone(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		differenceFail(error);
 	}).send();
 }
@@ -678,7 +678,7 @@ void Updates::getChannelDifference(
 		MTP_int(kChannelGetDifferenceLimit)
 	)).done([=](const MTPupdates_ChannelDifference &result) {
 		channelDifferenceDone(channel, result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		channelDifferenceFail(channel, error);
 	}).send();
 }
@@ -742,7 +742,7 @@ void Updates::channelRangeDifferenceSend(
 	)).done([=](const MTPupdates_ChannelDifference &result) {
 		_rangeDifferenceRequests.remove(channel);
 		channelRangeDifferenceDone(channel, range, result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_rangeDifferenceRequests.remove(channel);
 	}).send();
 	_rangeDifferenceRequests.emplace(channel, requestId);
@@ -862,7 +862,7 @@ void Updates::updateOnline(bool gotOtherOffline) {
 				MTP_bool(!isOnline)
 			)).done([=](const MTPBool &result) {
 				Core::App().quitPreventFinished();
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				Core::App().quitPreventFinished();
 			}).send();
 		}

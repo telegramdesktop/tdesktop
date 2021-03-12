@@ -298,7 +298,7 @@ void QrWidget::refreshCode() {
 		MTP_vector<MTPint>(0)
 	)).done([=](const MTPauth_LoginToken &result) {
 		handleTokenResult(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		showTokenError(error);
 	}).send();
 }
@@ -321,7 +321,7 @@ void QrWidget::handleTokenResult(const MTPauth_LoginToken &result) {
 	});
 }
 
-void QrWidget::showTokenError(const RPCError &error) {
+void QrWidget::showTokenError(const MTP::Error &error) {
 	_requestId = 0;
 	if (error.type() == qstr("SESSION_PASSWORD_NEEDED")) {
 		sendCheckPasswordRequest();
@@ -345,7 +345,7 @@ void QrWidget::importTo(MTP::DcId dcId, const QByteArray &token) {
 		MTP_bytes(token)
 	)).done([=](const MTPauth_LoginToken &result) {
 		handleTokenResult(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		showTokenError(error);
 	}).toDC(dcId).send();
 }
@@ -391,7 +391,7 @@ void QrWidget::sendCheckPasswordRequest() {
 			getData()->pwdNotEmptyPassport = data.is_has_secure_values();
 			goReplace<PasswordCheckWidget>(Animate::Forward);
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		showTokenError(error);
 	}).send();
 }

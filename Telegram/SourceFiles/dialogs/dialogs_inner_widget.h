@@ -14,7 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/object_ptr.h"
 
-class RPCError;
+namespace MTP {
+class Error;
+} // namespace MTP
 
 namespace Main {
 class Session;

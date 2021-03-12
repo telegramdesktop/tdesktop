@@ -10,9 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_pts_waiter.h"
 #include "base/timer.h"
 
-class RPCError;
 class ApiWrap;
 class History;
+
+namespace MTP {
+class Error;
+} // namespace MTP
 
 namespace Main {
 class Session;
@@ -89,7 +92,7 @@ private:
 		not_null<ChannelData*> channel,
 		ChannelDifferenceRequest from = ChannelDifferenceRequest::Unknown);
 	void differenceDone(const MTPupdates_Difference &result);
-	void differenceFail(const RPCError &error);
+	void differenceFail(const MTP::Error &error);
 	void feedDifference(
 		const MTPVector<MTPUser> &users,
 		const MTPVector<MTPChat> &chats,
@@ -102,7 +105,7 @@ private:
 		const MTPupdates_ChannelDifference &diff);
 	void channelDifferenceFail(
 		not_null<ChannelData*> channel,
-		const RPCError &error);
+		const MTP::Error &error);
 	void failDifferenceStartTimerFor(ChannelData *channel);
 	void feedChannelDifference(const MTPDupdates_channelDifference &data);
 

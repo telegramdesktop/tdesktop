@@ -250,7 +250,7 @@ private:
 	void applyInlineBotQuery(UserData *bot, const QString &query);
 
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
-	void inlineBotResolveFail(const RPCError &error, const QString &username);
+	void inlineBotResolveFail(const MTP::Error &error, const QString &username);
 
 	[[nodiscard]] Data::DraftKey draftKey(
 		DraftType type = DraftType::Normal) const;

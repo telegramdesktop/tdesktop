@@ -123,7 +123,7 @@ private:
 	struct File;
 
 	void partLoaded(const MTPBool &result, mtpRequestId requestId);
-	void partFailed(const RPCError &error, mtpRequestId requestId);
+	void partFailed(const MTP::Error &error, mtpRequestId requestId);
 
 	void processPhotoProgress(const FullMsgId &msgId);
 	void processPhotoFailed(const FullMsgId &msgId);

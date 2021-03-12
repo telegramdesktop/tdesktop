@@ -75,7 +75,7 @@ void SendRequest(
 				lt_user,
 				first));
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 	}).send();
 }
 

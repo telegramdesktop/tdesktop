@@ -275,7 +275,7 @@ void SessionsContent::terminateOne(uint64 hash) {
 			removeByHash(_data.list);
 			_inner->showData(_data);
 		});
-		auto fail = crl::guard(weak, [=](const RPCError &error) {
+		auto fail = crl::guard(weak, [=](const MTP::Error &error) {
 			_inner->terminatingOne(hash, false);
 		});
 		_authorizations->requestTerminate(
@@ -296,7 +296,7 @@ void SessionsContent::terminateAll() {
 		});
 		_authorizations->requestTerminate(
 			[=](const MTPBool &result) { reset(); },
-			[=](const RPCError &result) { reset(); });
+			[=](const MTP::Error &result) { reset(); });
 		_loading = true;
 	};
 	terminate(std::move(callback), tr::lng_settings_reset_sure(tr::now));

@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "base/unique_qptr.h"
 
-class RPCError;
+namespace MTP {
+class Error;
+} // namespace MTP
 
 namespace Ui {
 class FlatLabel;
@@ -94,7 +96,7 @@ private:
 	not_null<Ui::InputField*> addRankInput();
 	void transferOwnership();
 	void transferOwnershipChecked();
-	bool handleTransferPasswordError(const RPCError &error);
+	bool handleTransferPasswordError(const MTP::Error &error);
 	void requestTransferPassword(not_null<ChannelData*> channel);
 	void sendTransferRequestFrom(
 		QPointer<PasscodeBox> box,

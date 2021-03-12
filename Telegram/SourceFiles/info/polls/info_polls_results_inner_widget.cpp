@@ -298,7 +298,7 @@ void ListController::loadMoreRows() {
 			delegate()->peerListRefreshRows();
 		}
 		_loadRequestId = 0;
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_loadRequestId = 0;
 	}).send();
 }

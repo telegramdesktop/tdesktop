@@ -220,7 +220,7 @@ void EmojiPack::refresh() {
 		result.match([&](const MTPDmessages_stickerSet &data) {
 			applySet(data);
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		refreshDelayed();
 	}).send();

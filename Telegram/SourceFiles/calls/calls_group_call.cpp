@@ -332,7 +332,7 @@ void GroupCall::start() {
 		_acceptFields = true;
 		_peer->session().api().applyUpdates(result);
 		_acceptFields = false;
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		LOG(("Call Error: Could not create, error: %1"
 			).arg(error.type()));
 		hangup();
@@ -467,7 +467,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				applyMeInCallLocally();
 				maybeSendMutedUpdate(wasMuteState);
 				_peer->session().api().applyUpdates(updates);
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
 				LOG(("Call Error: Could not join, error: %1").arg(type));
 
@@ -603,7 +603,7 @@ void GroupCall::discard() {
 		// updates being handled, but in a guarded way.
 		crl::on_main(this, [=] { hangup(); });
 		_peer->session().api().applyUpdates(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		hangup();
 	}).send();
 }
@@ -657,7 +657,7 @@ void GroupCall::finish(FinishType type) {
 		// updates being handled, but in a guarded way.
 		crl::on_main(weak, [=] { setState(finalState); });
 		session->api().applyUpdates(result);
-	}).fail(crl::guard(weak, [=](const RPCError &error) {
+	}).fail(crl::guard(weak, [=](const MTP::Error &error) {
 		setState(finalState);
 	})).send();
 }
@@ -911,7 +911,7 @@ void GroupCall::changeTitle(const QString &title) {
 		MTP_string(title)
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 	}).send();
 }
 
@@ -938,7 +938,7 @@ void GroupCall::toggleRecording(bool enabled, const QString &title) {
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 		_recordingStoppedByMe = false;
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_recordingStoppedByMe = false;
 	}).send();
 }
@@ -1060,7 +1060,7 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 				.status = Status::ResyncNeeded,
 			});
 		});
-	}).fail([=](const RPCError &error, const MTP::Response &response) {
+	}).fail([=](const MTP::Error &error, const MTP::Response &response) {
 		if (error.type() == u"GROUPCALL_JOIN_MISSING"_q) {
 			for (const auto &[task, part] : _broadcastParts) {
 				_api.request(part.requestId).cancel();
@@ -1069,7 +1069,7 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 			rejoin();
 			return;
 		}
-		const auto status = MTP::isFloodError(error)
+		const auto status = MTP::IsFloodError(error)
 			? Status::NotReady
 			: Status::ResyncNeeded;
 		finish({
@@ -1248,7 +1248,7 @@ void GroupCall::checkJoined() {
 		} else if (state() == State::Connecting) {
 			_checkJoinedTimer.callOnce(kCheckJoinedTimeout);
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		LOG(("Call Info: Rejoin after error '%1' in checkGroupCall."
 			).arg(error.type()));
 		rejoin();
@@ -1320,7 +1320,7 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
 		_peer->session().api().applyUpdates(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_updateMuteRequestId = 0;
 		if (error.type() == u"GROUPCALL_FORBIDDEN"_q) {
 			LOG(("Call Info: Rejoin after error '%1' in editGroupCallMember."
@@ -1384,7 +1384,7 @@ void GroupCall::editParticipant(
 		MTPBool()
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"GROUPCALL_FORBIDDEN"_q) {
 			LOG(("Call Info: Rejoin after error '%1' in editGroupCallMember."
 				).arg(error.type()));
@@ -1529,7 +1529,7 @@ void GroupCall::setAudioDuckingEnabled(bool enabled) {
 	}
 }
 
-void GroupCall::handleRequestError(const RPCError &error) {
+void GroupCall::handleRequestError(const MTP::Error &error) {
 	//if (error.type() == qstr("USER_PRIVACY_RESTRICTED")) {
 	//	Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, _user->name)));
 	//} else if (error.type() == qstr("PARTICIPANT_VERSION_OUTDATED")) {

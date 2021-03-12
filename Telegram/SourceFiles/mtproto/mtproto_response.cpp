@@ -5,10 +5,11 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/mtproto_response.h"
 
 #include <QtCore/QRegularExpression>
 
+namespace MTP {
 namespace {
 
 [[nodiscard]] MTPrpcError ParseError(const mtpBuffer &reply) {
@@ -16,14 +17,12 @@ namespace {
 	auto from = reply.constData();
 	return result.read(from, from + reply.size())
 		? result
-		: RPCError::MTPLocal(
-			"RESPONSE_PARSE_FAILED",
-			"Error parse failed.");
+		: Error::MTPLocal("RESPONSE_PARSE_FAILED", "Error parse failed.");
 }
 
 } // namespace
 
-RPCError::RPCError(const MTPrpcError &error)
+Error::Error(const MTPrpcError &error)
 : _code(error.c_rpc_error().verror_code().v) {
 	QString text = qs(error.c_rpc_error().verror_message());
 	if (_code < 0 || _code >= 500) {
@@ -45,22 +44,22 @@ RPCError::RPCError(const MTPrpcError &error)
 	}
 }
 
-RPCError::RPCError(const mtpBuffer &reply) : RPCError(ParseError(reply)) {
+Error::Error(const mtpBuffer &reply) : Error(ParseError(reply)) {
 }
 
-int32 RPCError::code() const {
+int32 Error::code() const {
 	return _code;
 }
 
-const QString &RPCError::type() const {
+const QString &Error::type() const {
 	return _type;
 }
 
-const QString &RPCError::description() const {
+const QString &Error::description() const {
 	return _description;
 }
 
-MTPrpcError RPCError::MTPLocal(
+MTPrpcError Error::MTPLocal(
 		const QString &type,
 		const QString &description) {
 	return MTP_rpc_error(
@@ -73,8 +72,10 @@ MTPrpcError RPCError::MTPLocal(
 					: QString())).toUtf8()));
 }
 
-RPCError RPCError::Local(
+Error Error::Local(
 		const QString &type,
 		const QString &description) {
-	return RPCError(MTPLocal(type, description));
+	return Error(MTPLocal(type, description));
 }
+
+} // namespace MTP

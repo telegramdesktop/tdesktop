@@ -785,7 +785,7 @@ bool BackgroundPreviewBox::Start(
 		Ui::show(Box<BackgroundPreviewBox>(
 			controller,
 			result.withUrlParams(params)));
-	}), [](const RPCError &error) {
+	}), [](const MTP::Error &error) {
 		Ui::show(Box<InformBox>(tr::lng_background_bad_link(tr::now)));
 	});
 	return true;

@@ -399,7 +399,7 @@ void EmojiKeywords::LangPack::refresh() {
 			_requestId = 0;
 			_lastRefreshTime = crl::now();
 			applyDifference(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			_requestId = 0;
 			_lastRefreshTime = crl::now();
 		}).send();
@@ -670,7 +670,7 @@ void EmojiKeywords::refreshRemoteList() {
 			});
 		}) | ranges::to_vector);
 		_langsRequestId = 0;
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_langsRequestId = 0;
 	}).send();
 }

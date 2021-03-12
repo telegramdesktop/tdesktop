@@ -1335,7 +1335,7 @@ void MainWidget::viewsIncrement() {
 			MTP_bool(true)
 		)).done([=](const MTPmessages_MessageViews &result, mtpRequestId requestId) {
 			viewsIncrementDone(ids, result, requestId);
-		}).fail([=](const RPCError &error, mtpRequestId requestId) {
+		}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 			viewsIncrementFail(error, requestId);
 		}).afterDelay(5).send();
 
@@ -1382,7 +1382,7 @@ void MainWidget::viewsIncrementDone(
 	}
 }
 
-void MainWidget::viewsIncrementFail(const RPCError &error, mtpRequestId requestId) {
+void MainWidget::viewsIncrementFail(const MTP::Error &error, mtpRequestId requestId) {
 	for (auto i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
 		if (i->second == requestId) {
 			_viewsIncrementRequests.erase(i);

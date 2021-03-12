@@ -771,7 +771,7 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 				+ st::defaultToast.durationFadeOut),
 			this,
 			[=] { cancel(); });
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_submitRequestId = 0;
 		if (handleAppUpdateError(error.type())) {
 		} else if (AcceptErrorRequiresRestart(error.type())) {
@@ -894,7 +894,7 @@ void FormController::submitPassword(
 				bytes::make_span(password),
 				0); // secure_secret_id
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_passwordCheckRequestId = 0;
 		if (error.type() == qstr("SRP_ID_INVALID")) {
 			handleSrpIdInvalid(_passwordCheckRequestId);
@@ -902,7 +902,7 @@ void FormController::submitPassword(
 			// Force reload and show form.
 			_password = PasswordSettings();
 			reloadPassword();
-		} else if (MTP::isFloodError(error)) {
+		} else if (MTP::IsFloodError(error)) {
 			_passwordError.fire(tr::lng_flood_error(tr::now));
 		} else if (error.type() == qstr("PASSWORD_HASH_INVALID")
 			|| error.type() == qstr("SRP_PASSWORD_CHANGED")) {
@@ -973,7 +973,7 @@ void FormController::checkSavedPasswordSettings(
 			session().data().forgetPassportCredentials();
 			showForm();
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_passwordCheckRequestId = 0;
 		if (error.type() != qstr("SRP_ID_INVALID")
 			|| !handleSrpIdInvalid(_passwordCheckRequestId)) {
@@ -1013,7 +1013,7 @@ void FormController::recoverPassword() {
 		) | rpl::start_with_next([=] {
 			box->closeBox();
 		}, box->lifetime());
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_recoverRequestId = 0;
 		_view->show(Box<InformBox>(Lang::Hard::ServerError()
 			+ '\n'
@@ -1038,7 +1038,7 @@ void FormController::cancelPassword() {
 	)).done([=](const MTPBool &result) {
 		_passwordRequestId = 0;
 		reloadPassword();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_passwordRequestId = 0;
 		reloadPassword();
 	}).send();
@@ -1118,7 +1118,7 @@ void FormController::resetSecret(
 	)).done([=](const MTPBool &result) {
 		_saveSecretRequestId = 0;
 		generateSecret(password);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_saveSecretRequestId = 0;
 		if (error.type() != qstr("SRP_ID_INVALID")
 			|| !handleSrpIdInvalid(_saveSecretRequestId)) {
@@ -1651,7 +1651,7 @@ void FormController::verify(
 			)).done([=](const MTPBool &result) {
 				savePlainTextValue(nonconst);
 				clearValueVerification(nonconst);
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				nonconst->verification.requestId = 0;
 				if (error.type() == qstr("PHONE_CODE_INVALID")) {
 					verificationError(
@@ -1668,7 +1668,7 @@ void FormController::verify(
 			)).done([=](const MTPBool &result) {
 				savePlainTextValue(nonconst);
 				clearValueVerification(nonconst);
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				nonconst->verification.requestId = 0;
 				if (error.type() == qstr("CODE_INVALID")) {
 					verificationError(
@@ -1896,7 +1896,7 @@ void FormController::deleteValueEdit(not_null<const Value*> value) {
 	)).done([=](const MTPBool &result) {
 		resetValue(*nonconst);
 		_valueSaveFinished.fire_copy(value);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		nonconst->saveRequestId = 0;
 		valueSaveShowError(nonconst, error);
 	}).send();
@@ -2049,7 +2049,7 @@ void FormController::sendSaveRequest(
 		value->fillDataFrom(std::move(refreshed));
 
 		_valueSaveFinished.fire_copy(value);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		value->saveRequestId = 0;
 		const auto code = error.type();
 		if (handleAppUpdateError(code)) {
@@ -2161,7 +2161,7 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 		} break;
 		}
 		_verificationNeeded.fire_copy(value);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		value->verification.requestId = 0;
 		valueSaveShowError(value, error);
 	}).send();
@@ -2179,7 +2179,7 @@ void FormController::startEmailVerification(not_null<Value*> value) {
 			? data.vlength().v
 			: -1;
 		_verificationNeeded.fire_copy(value);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		valueSaveShowError(value, error);
 	}).send();
 }
@@ -2200,7 +2200,7 @@ void FormController::requestPhoneCall(not_null<Value*> value) {
 
 void FormController::valueSaveShowError(
 		not_null<Value*> value,
-		const RPCError &error) {
+		const MTP::Error &error) {
 	_view->show(Box<InformBox>(
 		Lang::Hard::SecureSaveError() + "\n" + error.type()));
 	valueSaveFailed(value);
@@ -2265,7 +2265,7 @@ void FormController::saveSecret(
 		for (const auto &callback : base::take(_secretCallbacks)) {
 			callback();
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_saveSecretRequestId = 0;
 		if (error.type() != qstr("SRP_ID_INVALID")
 			|| !handleSrpIdInvalid(_saveSecretRequestId)) {
@@ -2296,7 +2296,7 @@ void FormController::requestForm() {
 	)).done([=](const MTPaccount_AuthorizationForm &result) {
 		_formRequestId = 0;
 		formDone(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		formFail(error.type());
 	}).send();
 }
@@ -2503,7 +2503,7 @@ void FormController::requestConfig() {
 		_configRequestId = 0;
 		ConfigInstance() = ParseConfig(result);
 		showForm();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_configRequestId = 0;
 		showForm();
 	}).send();
@@ -2578,7 +2578,7 @@ void FormController::requestPassword() {
 	)).done([=](const MTPaccount_Password &result) {
 		_passwordRequestId = 0;
 		passwordDone(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		formFail(error.type());
 	}).send();
 }

@@ -423,7 +423,7 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 	_mtp->setUpdatesHandler([=](const MTP::Response &message) {
 		checkForUpdates(message) || checkForNewSession(message);
 	});
-	_mtp->setGlobalFailHandler([=](const RPCError &, const MTP::Response &) {
+	_mtp->setGlobalFailHandler([=](const MTP::Error &, const MTP::Response &) {
 		if (const auto session = maybeSession()) {
 			crl::on_main(session, [=] { logOut(); });
 		}

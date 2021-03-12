@@ -19,11 +19,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/timer.h"
 
-class RPCError;
 struct FileLoadResult;
 struct SendingAlbum;
 enum class SendMediaType;
 class MessageLinksParser;
+
+namespace MTP {
+class Error;
+} // namespace MTP
 
 namespace Data {
 enum class PreviewState : char;
@@ -526,7 +529,7 @@ private:
 	void requestPreview();
 	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
 	void messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, int requestId);
-	void messagesFailed(const RPCError &error, int requestId);
+	void messagesFailed(const MTP::Error &error, int requestId);
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
@@ -577,7 +580,7 @@ private:
 	void handleSupportSwitch(not_null<History*> updated);
 
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
-	void inlineBotResolveFail(const RPCError &error, const QString &username);
+	void inlineBotResolveFail(const MTP::Error &error, const QString &username);
 
 	bool isRecording() const;
 

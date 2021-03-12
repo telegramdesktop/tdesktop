@@ -586,7 +586,7 @@ void Uploader::sendNext() {
 				MTP_bytes(toSend)
 			)).done([=](const MTPBool &result, mtpRequestId requestId) {
 				partLoaded(result, requestId);
-			}).fail([=](const RPCError &error, mtpRequestId requestId) {
+			}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 				partFailed(error, requestId);
 			}).toDC(MTP::uploadDcId(todc)).send();
 		} else {
@@ -596,7 +596,7 @@ void Uploader::sendNext() {
 				MTP_bytes(toSend)
 			)).done([=](const MTPBool &result, mtpRequestId requestId) {
 				partLoaded(result, requestId);
-			}).fail([=](const RPCError &error, mtpRequestId requestId) {
+			}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 				partFailed(error, requestId);
 			}).toDC(MTP::uploadDcId(todc)).send();
 		}
@@ -615,7 +615,7 @@ void Uploader::sendNext() {
 			MTP_bytes(part.value())
 		)).done([=](const MTPBool &result, mtpRequestId requestId) {
 			partLoaded(result, requestId);
-		}).fail([=](const RPCError &error, mtpRequestId requestId) {
+		}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 			partFailed(error, requestId);
 		}).toDC(MTP::uploadDcId(todc)).send();
 		requestsSent.emplace(requestId, part.value());
@@ -734,7 +734,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 	sendNext();
 }
 
-void Uploader::partFailed(const RPCError &error, mtpRequestId requestId) {
+void Uploader::partFailed(const MTP::Error &error, mtpRequestId requestId) {
 	// failed to upload current file
 	if ((requestsSent.find(requestId) != requestsSent.cend())
 		|| (docRequestsSent.find(requestId) != docRequestsSent.cend())) {

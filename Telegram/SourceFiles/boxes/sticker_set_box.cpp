@@ -272,7 +272,7 @@ StickerSetBox::Inner::Inner(
 		_input
 	)).done([=](const MTPmessages_StickerSet &result) {
 		gotSet(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_loaded = true;
 		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 	}).send();
@@ -758,7 +758,7 @@ void StickerSetBox::Inner::install() {
 		MTP_bool(false)
 	)).done([=](const MTPmessages_StickerSetInstallResult &result) {
 		installDone(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 	}).send();
 }

@@ -179,11 +179,11 @@ private:
 	void save();
 
 	void updateDone(const MTPBool &result);
-	void updateFail(const RPCError &error);
+	void updateFail(const MTP::Error &error);
 
 	void checkDone(const MTPBool &result);
-	void checkFail(const RPCError &error);
-	void firstCheckFail(const RPCError &error);
+	void checkFail(const MTP::Error &error);
+	void firstCheckFail(const MTP::Error &error);
 
 	void updateMaxHeight();
 
@@ -229,7 +229,7 @@ private:
 	void submit();
 	void save();
 	void saveSelfDone(const MTPUser &user);
-	void saveSelfFail(const RPCError &error);
+	void saveSelfFail(const MTP::Error &error);
 
 	const not_null<UserData*> _user;
 	MTP::Sender _api;
