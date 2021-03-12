@@ -339,9 +339,9 @@ public:
 	}
 	void clearDrafts();
 	Data::Draft *createCloudDraft(const Data::Draft *fromDraft);
-	bool skipCloudDraft(const QString &text, MsgId replyTo, TimeId date) const;
-	void setSentDraftText(const QString &text);
-	void clearSentDraftText(const QString &text);
+	bool skipCloudDraftUpdate(TimeId date) const;
+	void startSavingCloudDraft();
+	void finishSavingCloudDraft(TimeId savedAt);
 	void takeLocalDraft(not_null<History*> from);
 	void applyCloudDraft();
 	void draftSavedToCloud();
@@ -584,8 +584,8 @@ private:
 	std::unique_ptr<BuildingBlock> _buildingFrontBlock;
 
 	Data::HistoryDrafts _drafts;
-	std::optional<QString> _lastSentDraftText;
-	TimeId _lastSentDraftTime = 0;
+	TimeId _acceptCloudDraftsAfter = 0;
+	int _savingCloudDraftRequests = 0;
 	MessageIdsList _forwardDraft;
 
 	QString _topPromotedMessage;

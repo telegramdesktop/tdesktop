@@ -50,7 +50,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kNewBlockEachMessage = 50;
-constexpr auto kSkipCloudDraftsFor = TimeId(3);
+constexpr auto kSkipCloudDraftsFor = TimeId(2);
+constexpr auto kSendingDraftTime = TimeId(-1);
 
 using UpdateFlag = Data::HistoryUpdate::Flag;
 
@@ -299,27 +300,21 @@ Data::Draft *History::createCloudDraft(const Data::Draft *fromDraft) {
 	return cloudDraft();
 }
 
-bool History::skipCloudDraft(const QString &text, MsgId replyTo, TimeId date) const {
-	if (Data::draftStringIsEmpty(text)
-		&& !replyTo
-		&& date > 0
-		&& date <= _lastSentDraftTime + kSkipCloudDraftsFor) {
-		return true;
-	} else if (_lastSentDraftText && *_lastSentDraftText == text) {
-		return true;
-	}
-	return false;
+bool History::skipCloudDraftUpdate(TimeId date) const {
+	return (_savingCloudDraftRequests > 0)
+		|| (date < _acceptCloudDraftsAfter);
 }
 
-void History::setSentDraftText(const QString &text) {
-	_lastSentDraftText = text;
+void History::startSavingCloudDraft() {
+	++_savingCloudDraftRequests;
 }
 
-void History::clearSentDraftText(const QString &text) {
-	if (_lastSentDraftText && *_lastSentDraftText == text) {
-		_lastSentDraftText = std::nullopt;
+void History::finishSavingCloudDraft(TimeId savedAt) {
+	if (_savingCloudDraftRequests > 0) {
+		--_savingCloudDraftRequests;
 	}
-	accumulate_max(_lastSentDraftTime, base::unixtime::now());
+	const auto acceptAfter = savedAt + kSkipCloudDraftsFor;
+	_acceptCloudDraftsAfter = std::max(_acceptCloudDraftsAfter, acceptAfter);
 }
 
 void History::applyCloudDraft() {
