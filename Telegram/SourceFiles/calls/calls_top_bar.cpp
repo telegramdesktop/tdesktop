@@ -57,14 +57,14 @@ constexpr auto kHideBlobsDuration = crl::time(500);
 constexpr auto kBlobLevelDuration = crl::time(250);
 constexpr auto kBlobUpdateInterval = crl::time(100);
 
-auto BarStateFromMuteState(MuteState state, bool connecting) {
-	return (connecting
+auto BarStateFromMuteState(MuteState state, GroupCall::InstanceState instanceState) {
+	return (instanceState == GroupCall::InstanceState::Disconnected)
 		? BarState::Connecting
 		: (state == MuteState::ForceMuted || state == MuteState::RaisedHand)
 		? BarState::ForceMuted
-		: state == MuteState::Muted
+		: (state == MuteState::Muted)
 		? BarState::Muted
-		: BarState::Active);
+		: BarState::Active;
 };
 
 auto LinearBlobs() {
@@ -293,17 +293,20 @@ void TopBar::initControls() {
 			_call
 				? mapToState(_call->muted())
 				: _groupCall->muted(),
-			false));
+			GroupCall::InstanceState::Connected));
+	using namespace rpl::mappers;
 	auto muted = _call
 		? rpl::combine(
 			_call->mutedValue() | rpl::map(mapToState),
-			rpl::single(false)) | rpl::type_erased()
+			rpl::single(GroupCall::InstanceState::Connected)
+		) | rpl::type_erased()
 		: rpl::combine(
 			(_groupCall->mutedValue()
 				| MapPushToTalkToActive()
 				| rpl::distinct_until_changed()
 				| rpl::type_erased()),
-			_groupCall->connectingValue());
+			_groupCall->instanceStateValue()
+		) | rpl::filter(_2 != GroupCall::InstanceState::TransitionToRtc);
 	std::move(
 		muted
 	) | rpl::map(
@@ -465,9 +468,14 @@ void TopBar::initBlobsUnder(
 	auto hideBlobs = rpl::combine(
 		rpl::single(anim::Disabled()) | rpl::then(anim::Disables()),
 		Core::App().appDeactivatedValue(),
-		group->connectingValue()
-	) | rpl::map([](bool animDisabled, bool hide, bool connecting) {
-		return connecting || animDisabled || hide;
+		group->instanceStateValue()
+	) | rpl::map([](
+			bool animDisabled,
+			bool hide,
+			GroupCall::InstanceState instanceState) {
+		return (instanceState == GroupCall::InstanceState::Disconnected)
+			|| animDisabled
+			|| hide;
 	});
 
 	std::move(
@@ -557,7 +565,12 @@ void TopBar::subscribeToMembersChanges(not_null<GroupCall*> call) {
 		return call && real && (real->id() == call->id());
 	}) | rpl::take(
 		1
-	) | rpl::map([=](not_null<Data::GroupCall*> real) {
+	) | rpl::before_next([=](not_null<Data::GroupCall*> real) {
+		real->titleValue() | rpl::start_with_next([=] {
+			updateInfoLabels();
+		}, lifetime());
+	}) | rpl::map([=](not_null<Data::GroupCall*> real) {
+
 		return HistoryView::GroupCallTracker::ContentByCall(
 			real,
 			st::groupCallTopBarUserpics.size);
@@ -616,9 +629,12 @@ void TopBar::setInfoLabels() {
 		_shortInfoLabel->setText(shortName.toUpper());
 	} else if (const auto group = _groupCall.get()) {
 		const auto peer = group->peer();
+		const auto real = peer->groupCall();
 		const auto name = peer->name;
 		const auto text = _isGroupConnecting.current()
 			? tr::lng_group_call_connecting(tr::now)
+			: (real && real->id() == group->id() && !real->title().isEmpty())
+			? real->title().toUpper()
 			: name.toUpper();
 		_fullInfoLabel->setText(text);
 		_shortInfoLabel->setText(text);

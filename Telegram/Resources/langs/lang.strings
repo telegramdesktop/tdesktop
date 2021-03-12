@@ -2002,7 +2002,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_recording_stop" = "Stop recording";
 "lng_group_call_recording_started" = "Voice chat recording started.";
 "lng_group_call_recording_stopped" = "Voice chat recording stopped.";
-"lng_group_call_recording_saved" = "Audio saved to Saved Messages";
+"lng_group_call_recording_saved" = "Audio saved to Saved Messages.";
 "lng_group_call_recording_start_sure" = "Do you want to start recording this chat and save the result into an audio file?\n\nOther members will see the chat is being recorded.";
 "lng_group_call_recording_stop_sure" = "Do you want to stop recording this chat?";
 "lng_group_call_recording_start_field" = "Recording Title";

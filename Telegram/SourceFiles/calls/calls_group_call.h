@@ -85,6 +85,7 @@ public:
 		enum class GroupCallSound {
 			Started,
 			Connecting,
+			AllowedToSpeak,
 			Ended,
 		};
 		virtual void groupCallPlaySound(GroupCallSound sound) = 0;
@@ -151,13 +152,22 @@ public:
 	[[nodiscard]] rpl::producer<State> stateValue() const {
 		return _state.value();
 	}
-	[[nodiscard]] rpl::producer<bool> connectingValue() const;
+
+	enum class InstanceState {
+		Disconnected,
+		TransitionToRtc,
+		Connected,
+	};
+	[[nodiscard]] rpl::producer<InstanceState> instanceStateValue() const;
 
 	[[nodiscard]] rpl::producer<LevelUpdate> levelUpdates() const {
 		return _levelUpdates.events();
 	}
 	[[nodiscard]] rpl::producer<Group::RejoinEvent> rejoinEvents() const {
 		return _rejoinEvents.events();
+	}
+	[[nodiscard]] rpl::producer<> allowedToSpeakNotifications() const {
+		return _allowedToSpeakNotifications.events();
 	}
 	static constexpr auto kSpeakLevelThreshold = 0.2;
 
@@ -232,6 +242,7 @@ private:
 
 	void checkGlobalShortcutAvailability();
 	void checkJoined();
+	void notifyAboutAllowedToSpeak();
 
 	void playConnectingSound();
 	void stopConnectingSound();
@@ -260,7 +271,9 @@ private:
 	not_null<History*> _history; // Can change in legacy group migration.
 	MTP::Sender _api;
 	rpl::variable<State> _state = State::Creating;
-	bool _instanceConnected = false;
+	rpl::variable<InstanceState> _instanceState
+		= InstanceState::Disconnected;
+	bool _instanceTransitioning = false;
 	InstanceMode _instanceMode = InstanceMode::None;
 	base::flat_set<uint32> _unresolvedSsrcs;
 	std::vector<tgcalls::GroupParticipantDescription> _preparedParticipants;
@@ -290,6 +303,7 @@ private:
 	rpl::event_stream<LevelUpdate> _levelUpdates;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
+	rpl::event_stream<> _allowedToSpeakNotifications;
 	base::Timer _lastSpokeCheckTimer;
 	base::Timer _checkJoinedTimer;
 
