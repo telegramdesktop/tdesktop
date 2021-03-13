@@ -545,26 +545,20 @@ CallMuteButton::IconState CallMuteButton::initialState() {
 	_icons[0].emplace(Lottie::IconDescriptor{
 		.path = u":/gui/icons/calls/hand_muted_active.json"_q,
 		.color = st::groupCallIconFg,
-		//.sizeOverride = st::groupCallMuteButtonIconSize,
+		.sizeOverride = st::groupCallMuteButtonIconSize,
 		.frame = 22,
 	});
 	_icons[1].emplace(Lottie::IconDescriptor{
 		.path = u":/gui/icons/calls/active_hand.json"_q,
 		.color = st::groupCallIconFg,
-		//.sizeOverride = st::groupCallMuteButtonIconSize,
-		.frame = 1,
+		.sizeOverride = st::groupCallMuteButtonIconSize,
+		.frame = 0,
 	});
 	_icons[2].emplace(Lottie::IconDescriptor{
-		.path = u":/gui/icons/calls/raised_hand_1.json"_q,
+		.path = u":/gui/icons/calls/raised_hand.json"_q,
 		.color = st::groupCallIconFg,
-		//.sizeOverride = st::groupCallMuteButtonIconSize,
-		.frame = 1,
-	});
-	_icons[3].emplace(Lottie::IconDescriptor{
-		.path = u":/gui/icons/calls/raised_hand_2.json"_q,
-		.color = st::groupCallIconFg,
-		//.sizeOverride = st::groupCallMuteButtonIconSize,
-		.frame = 1,
+		.sizeOverride = st::groupCallMuteButtonIconSize,
+		.frame = 0,
 	});
 	return iconStateFrom(_state.current().type);
 }
@@ -667,7 +661,7 @@ CallMuteButton::IconState CallMuteButton::iconStateFrom(
 }
 
 CallMuteButton::IconState CallMuteButton::randomWavingState() {
-	switch (openssl::RandomValue<uint32>() % 7) {
+	switch (openssl::RandomValue<uint32>() % 5) {
 	case 0: return {
 		.icon = &*_icons[2],
 		.frameFrom = 0,
@@ -685,17 +679,9 @@ CallMuteButton::IconState CallMuteButton::randomWavingState() {
 		.frameFrom = 420,
 		.frameTo = 540 };
 	case 4: return {
-		.icon = &*_icons[3],
-		.frameFrom = 0,
-		.frameTo = 240 };
-	case 5: return {
-		.icon = &*_icons[3],
-		.frameFrom = 240,
-		.frameTo = 480 };
-	case 6: return {
-		.icon = &*_icons[3],
-		.frameFrom = 480,
-		.frameTo = 660 };
+		.icon = &*_icons[2],
+		.frameFrom = 540,
+		.frameTo = 720 };
 	}
 	Unexpected("Value in CallMuteButton::randomWavingState.");
 }
