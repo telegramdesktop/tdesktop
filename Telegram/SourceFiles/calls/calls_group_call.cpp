@@ -1437,7 +1437,7 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 	const auto owner = &_peer->owner();
 	const auto &invited = owner->invitedToCallUsers(_id);
 	const auto &participants = real->participants();
-	auto &&toInvite = users | ranges::view::filter([&](
+	auto &&toInvite = users | ranges::views::filter([&](
 			not_null<UserData*> user) {
 		return !invited.contains(user) && !ranges::contains(
 			participants,

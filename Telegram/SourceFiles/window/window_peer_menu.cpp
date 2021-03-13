@@ -1067,13 +1067,13 @@ void PeerMenuAddChannelMembers(
 				const QVector<MTPChannelParticipant> &list) {
 			auto already = (
 				list
-			) | ranges::view::transform([](const MTPChannelParticipant &p) {
+			) | ranges::views::transform([](const MTPChannelParticipant &p) {
 				return p.match([](const auto &data) {
 					return data.vuser_id().v;
 				});
-			}) | ranges::view::transform([&](UserId userId) {
+			}) | ranges::views::transform([&](UserId userId) {
 				return channel->owner().userLoaded(userId);
-			}) | ranges::view::filter([](UserData *user) {
+			}) | ranges::views::filter([](UserData *user) {
 				return (user != nullptr);
 			}) | ranges::to_vector;
 

@@ -637,7 +637,7 @@ bool PanelEditDocument::validate() {
 		error = firsttop.y();
 	}
 	auto first = QPointer<PanelDetailsRow>();
-	for (const auto &[i, field] : ranges::view::reverse(_details)) {
+	for (const auto &[i, field] : ranges::views::reverse(_details)) {
 		const auto &row = _scheme.rows[i];
 		if (row.valueClass == Scheme::ValueClass::Additional
 			&& !_additionalShown) {

@@ -156,9 +156,9 @@ bool Folder::applyChatListMessage(HistoryItem *item) {
 }
 
 void Folder::computeChatListMessage() {
-	auto &&items = ranges::view::all(
+	auto &&items = ranges::views::all(
 		*_chatsList.indexed()
-	) | ranges::view::filter([](not_null<Dialogs::Row*> row) {
+	) | ranges::views::filter([](not_null<Dialogs::Row*> row) {
 		return row->entry()->chatListMessage() != nullptr;
 	});
 	const auto chatListDate = [](not_null<Dialogs::Row*> row) {
@@ -187,13 +187,13 @@ void Folder::reorderLastHistories() {
 	};
 	_lastHistories.erase(_lastHistories.begin(), _lastHistories.end());
 	_lastHistories.reserve(kShowChatNamesCount + 1);
-	auto &&histories = ranges::view::all(
+	auto &&histories = ranges::views::all(
 		*_chatsList.indexed()
-	) | ranges::view::transform([](not_null<Dialogs::Row*> row) {
+	) | ranges::views::transform([](not_null<Dialogs::Row*> row) {
 		return row->history();
-	}) | ranges::view::filter([](History *history) {
+	}) | ranges::views::filter([](History *history) {
 		return (history != nullptr);
-	}) | ranges::view::transform([](History *history) {
+	}) | ranges::views::transform([](History *history) {
 		return not_null<History*>(history);
 	});
 	for (const auto history : histories) {

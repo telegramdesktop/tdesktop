@@ -510,11 +510,11 @@ bool TopBar::searchMode() const {
 }
 
 MessageIdsList TopBar::collectItems() const {
-	return ranges::view::all(
+	return ranges::views::all(
 		_selectedItems.list
-	) | ranges::view::transform([](auto &&item) {
+	) | ranges::views::transform([](auto &&item) {
 		return item.msgId;
-	}) | ranges::view::filter([&](FullMsgId msgId) {
+	}) | ranges::views::filter([&](FullMsgId msgId) {
 		return _navigation->session().data().message(msgId) != nullptr;
 	}) | ranges::to_vector;
 }

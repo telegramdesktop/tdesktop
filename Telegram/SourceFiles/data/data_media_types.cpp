@@ -1271,9 +1271,9 @@ TextForMimeData MediaPoll::clipboardText() const {
 		+ _poll->question
 		+ qstr(" ]")
 		+ ranges::accumulate(
-			ranges::view::all(
+			ranges::views::all(
 				_poll->answers
-			) | ranges::view::transform([](const PollAnswer &answer) {
+			) | ranges::views::transform([](const PollAnswer &answer) {
 				return "\n- " + answer.text;
 			}),
 			QString());

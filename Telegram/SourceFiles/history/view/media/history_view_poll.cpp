@@ -105,10 +105,10 @@ void CountNicePercent(
 	PercentCounterItem ItemsStorage[PollData::kMaxOptions];
 	const auto items = gsl::make_span(ItemsStorage).subspan(0, count);
 	auto left = 100;
-	auto &&zipped = ranges::view::zip(
+	auto &&zipped = ranges::views::zip(
 		votes,
 		items,
-		ranges::view::ints(0, int(items.size())));
+		ranges::views::ints(0, int(items.size())));
 	for (auto &&[votes, item, index] : zipped) {
 		item.index = index;
 		item.percent = (votes * 100) / total;
@@ -248,9 +248,9 @@ QSize Poll::countOptimalSize() {
 			+ st::historyPollAnswerPadding.right());
 	}
 
-	const auto answersHeight = ranges::accumulate(ranges::view::all(
+	const auto answersHeight = ranges::accumulate(ranges::views::all(
 		_answers
-	) | ranges::view::transform([](const Answer &answer) {
+	) | ranges::views::transform([](const Answer &answer) {
 		return st::historyPollAnswerPadding.top()
 			+ answer.text.minHeight()
 			+ st::historyPollAnswerPadding.bottom();
@@ -307,9 +307,9 @@ int Poll::countAnswerTop(
 	}
 	tshift += _question.countHeight(innerWidth) + st::historyPollSubtitleSkip;
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
-	auto &&answers = ranges::view::zip(
+	auto &&answers = ranges::views::zip(
 		_answers,
-		ranges::view::ints(0, int(_answers.size())));
+		ranges::views::ints(0, int(_answers.size())));
 	const auto i = ranges::find(
 		_answers,
 		&answer,
@@ -345,9 +345,9 @@ QSize Poll::countCurrentSize(int newWidth) {
 		- st::msgPadding.left()
 		- st::msgPadding.right();
 
-	const auto answersHeight = ranges::accumulate(ranges::view::all(
+	const auto answersHeight = ranges::accumulate(ranges::views::all(
 		_answers
-	) | ranges::view::transform([&](const Answer &answer) {
+	) | ranges::views::transform([&](const Answer &answer) {
 		return countAnswerHeight(answer, innerWidth);
 	}), 0);
 
@@ -477,16 +477,16 @@ void Poll::solutionToggled(
 }
 
 void Poll::updateRecentVoters() {
-	auto &&sliced = ranges::view::all(
+	auto &&sliced = ranges::views::all(
 		_poll->recentVoters
-	) | ranges::view::take(kShowRecentVotersCount);
+	) | ranges::views::take(kShowRecentVotersCount);
 	const auto changed = !ranges::equal(
 		_recentVoters,
 		sliced,
 		ranges::equal_to(),
 		&RecentVoter::user);
 	if (changed) {
-		auto updated = ranges::view::all(
+		auto updated = ranges::views::all(
 			sliced
 		) | ranges::views::transform([](not_null<UserData*> user) {
 			return RecentVoter{ user };
@@ -518,15 +518,15 @@ void Poll::updateAnswers() {
 		&Answer::option,
 		&PollAnswer::option);
 	if (!changed) {
-		auto &&answers = ranges::view::zip(_answers, _poll->answers);
+		auto &&answers = ranges::views::zip(_answers, _poll->answers);
 		for (auto &&[answer, original] : answers) {
 			answer.fillData(_poll, original);
 		}
 		return;
 	}
-	_answers = ranges::view::all(
+	_answers = ranges::views::all(
 		_poll->answers
-	) | ranges::view::transform([&](const PollAnswer &answer) {
+	) | ranges::views::transform([&](const PollAnswer &answer) {
 		auto result = Answer();
 		result.option = answer.option;
 		result.fillData(_poll, answer);
@@ -583,9 +583,9 @@ void Poll::toggleMultiOption(const QByteArray &option) {
 }
 
 void Poll::sendMultiOptions() {
-	auto chosen = _answers | ranges::view::filter(
+	auto chosen = _answers | ranges::views::filter(
 		&Answer::selected
-	) | ranges::view::transform(
+	) | ranges::views::transform(
 		&Answer::option
 	) | ranges::to_vector;
 	if (!chosen.empty()) {
@@ -697,9 +697,9 @@ void Poll::updateAnswerVotes() {
 	int VotesStorage[kMaxCount] = { 0 };
 
 	ranges::copy(
-		ranges::view::all(
+		ranges::views::all(
 			_poll->answers
-		) | ranges::view::transform(&PollAnswer::votes),
+		) | ranges::views::transform(&PollAnswer::votes),
 		ranges::begin(VotesStorage));
 
 	CountNicePercent(
@@ -707,7 +707,7 @@ void Poll::updateAnswerVotes() {
 		totalVotes,
 		gsl::make_span(PercentsStorage).subspan(0, count));
 
-	auto &&answers = ranges::view::zip(
+	auto &&answers = ranges::views::zip(
 		_answers,
 		_poll->answers,
 		PercentsStorage);
@@ -756,9 +756,9 @@ void Poll::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 		resetAnswersAnimation();
 	}
 
-	auto &&answers = ranges::view::zip(
+	auto &&answers = ranges::views::zip(
 		_answers,
-		ranges::view::ints(0, int(_answers.size())));
+		ranges::views::ints(0, int(_answers.size())));
 	for (const auto &[answer, index] : answers) {
 		const auto animation = _answersAnimation
 			? &_answersAnimation->data[index]
@@ -1292,7 +1292,7 @@ void Poll::startAnswersAnimation() const {
 	}
 
 	const auto show = showVotes();
-	auto &&both = ranges::view::zip(_answers, _answersAnimation->data);
+	auto &&both = ranges::views::zip(_answers, _answersAnimation->data);
 	for (auto &&[answer, data] : both) {
 		data.percent.start(show ? float64(answer.votesPercent) : 0.);
 		data.filling.start(show ? answer.filling : 0.);

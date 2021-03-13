@@ -107,7 +107,7 @@ void Authorizations::reload() {
 		result.match([&](const MTPDaccount_authorizations &auths) {
 			_list = (
 				auths.vauthorizations().v
-			) | ranges::view::transform([](const MTPAuthorization &d) {
+			) | ranges::views::transform([](const MTPAuthorization &d) {
 				return ParseEntry(d.c_authorization());
 			}) | ranges::to<List>;
 			_listChanges.fire({});

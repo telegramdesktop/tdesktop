@@ -326,9 +326,9 @@ void Members::addMember() {
 		AddParticipantsBoxController::Start(_controller, chat);
 	} else if (const auto channel = _peer->asChannel()) {
 		const auto state = _listController->saveState();
-		const auto users = ranges::view::all(
+		const auto users = ranges::views::all(
 			state->list
-		) | ranges::view::transform([](not_null<PeerData*> peer) {
+		) | ranges::views::transform([](not_null<PeerData*> peer) {
 			return peer->asUser();
 		}) | ranges::to_vector;
 		AddParticipantsBoxController::Start(

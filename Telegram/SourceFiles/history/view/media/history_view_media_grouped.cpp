@@ -62,11 +62,11 @@ GroupedMedia::GroupedMedia(
 	const std::vector<std::unique_ptr<Data::Media>> &medias)
 : Media(parent)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
-	const auto truncated = ranges::view::all(
+	const auto truncated = ranges::views::all(
 		medias
-	) | ranges::view::transform([](const std::unique_ptr<Data::Media> &v) {
+	) | ranges::views::transform([](const std::unique_ptr<Data::Media> &v) {
 		return v.get();
-	}) | ranges::view::take(kMaxSize);
+	}) | ranges::views::take(kMaxSize);
 	const auto result = applyGroup(truncated);
 
 	Ensures(result);
@@ -77,11 +77,11 @@ GroupedMedia::GroupedMedia(
 	const std::vector<not_null<HistoryItem*>> &items)
 : Media(parent)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
-	const auto medias = ranges::view::all(
+	const auto medias = ranges::views::all(
 		items
-	) | ranges::view::transform([](not_null<HistoryItem*> item) {
+	) | ranges::views::transform([](not_null<HistoryItem*> item) {
 		return item->media();
-	}) | ranges::view::take(kMaxSize);
+	}) | ranges::views::take(kMaxSize);
 	const auto result = applyGroup(medias);
 
 	Ensures(result);

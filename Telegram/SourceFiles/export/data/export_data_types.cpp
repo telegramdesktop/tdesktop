@@ -546,9 +546,9 @@ Poll ParsePoll(const MTPDmessageMediaPoll &data) {
 		result.id = poll.vid().v;
 		result.question = ParseString(poll.vquestion());
 		result.closed = poll.is_closed();
-		result.answers = ranges::view::all(
+		result.answers = ranges::views::all(
 			poll.vanswers().v
-		) | ranges::view::transform([](const MTPPollAnswer &answer) {
+		) | ranges::views::transform([](const MTPPollAnswer &answer) {
 			return answer.match([](const MTPDpollAnswer &answer) {
 				auto result = Poll::Answer();
 				result.text = ParseString(answer.vtext());
@@ -1334,15 +1334,15 @@ ContactsList ParseContactsList(const MTPVector<MTPSavedContact> &data) {
 }
 
 std::vector<int> SortedContactsIndices(const ContactsList &data) {
-	const auto names = ranges::view::all(
+	const auto names = ranges::views::all(
 		data.list
-	) | ranges::view::transform([](const Data::ContactInfo &info) {
+	) | ranges::views::transform([](const Data::ContactInfo &info) {
 		return (QString::fromUtf8(info.firstName)
 			+ ' '
 			+ QString::fromUtf8(info.lastName)).toLower();
 	}) | ranges::to_vector;
 
-	auto indices = ranges::view::ints(0, int(data.list.size()))
+	auto indices = ranges::views::ints(0, int(data.list.size()))
 		| ranges::to_vector;
 	ranges::sort(indices, [&](int i, int j) {
 		return names[i] < names[j];

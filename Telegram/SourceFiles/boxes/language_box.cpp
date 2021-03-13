@@ -424,11 +424,11 @@ void Rows::remove(not_null<Row*> row) {
 
 void Rows::restore(not_null<Row*> row) {
 	row->removed = false;
-	Local::saveRecentLanguages(ranges::view::all(
+	Local::saveRecentLanguages(ranges::views::all(
 		_rows
-	) | ranges::view::filter([](const Row &row) {
+	) | ranges::views::filter([](const Row &row) {
 		return !row.removed;
-	}) | ranges::view::transform([](const Row &row) {
+	}) | ranges::views::transform([](const Row &row) {
 		return row.data;
 	}) | ranges::to_vector);
 }

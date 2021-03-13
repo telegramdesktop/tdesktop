@@ -308,9 +308,9 @@ FieldAutocomplete::StickerRows FieldAutocomplete::getStickerSuggestions() {
 		_emoji,
 		_stickersSeed
 	);
-	auto result = ranges::view::all(
+	auto result = ranges::views::all(
 		list
-	) | ranges::view::transform([](not_null<DocumentData*> sticker) {
+	) | ranges::views::transform([](not_null<DocumentData*> sticker) {
 		return StickerSuggestion{
 			sticker,
 			sticker->createMediaView()

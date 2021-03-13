@@ -139,8 +139,8 @@ QImage ConvertFrame(
 			- storage.width();
 		const auto deltaFrom = (frame->linesize[0] / sizeof(uint32))
 			- frame->width;
-		for (const auto y : ranges::view::ints(0, frame->height)) {
-			for (const auto x : ranges::view::ints(0, frame->width)) {
+		for (const auto y : ranges::views::ints(0, frame->height)) {
+			for (const auto x : ranges::views::ints(0, frame->width)) {
 				// Wipe out possible alpha values.
 				*to++ = 0xFF000000U | *from++;
 			}

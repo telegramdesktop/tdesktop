@@ -101,9 +101,9 @@ void Calls::setupContent() {
 			st::settingsButton
 		)->addClickHandler([=] {
 			const auto &devices = GetVideoInputList();
-			const auto options = ranges::view::concat(
-				ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
-				devices | ranges::view::transform(&VideoInput::name)
+			const auto options = ranges::views::concat(
+				ranges::views::single(tr::lng_settings_call_device_default(tr::now)),
+				devices | ranges::views::transform(&VideoInput::name)
 			) | ranges::to_vector;
 			const auto i = ranges::find(
 				devices,
@@ -375,9 +375,9 @@ object_ptr<Ui::GenericBox> ChooseAudioOutputBox(
 		const style::Radio *radioSt) {
 	const auto &settings = Core::App().settings();
 	const auto list = GetAudioOutputList(settings.callAudioBackend());
-	const auto options = ranges::view::concat(
-		ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
-		list | ranges::view::transform(&AudioOutput::name)
+	const auto options = ranges::views::concat(
+		ranges::views::single(tr::lng_settings_call_device_default(tr::now)),
+		list | ranges::views::transform(&AudioOutput::name)
 	) | ranges::to_vector;
 	const auto i = ranges::find(
 		list,
@@ -411,9 +411,9 @@ object_ptr<Ui::GenericBox> ChooseAudioInputBox(
 		const style::Radio *radioSt) {
 	const auto &settings = Core::App().settings();
 	const auto list = GetAudioInputList(settings.callAudioBackend());
-	const auto options = ranges::view::concat(
-		ranges::view::single(tr::lng_settings_call_device_default(tr::now)),
-		list | ranges::view::transform(&AudioInput::name)
+	const auto options = ranges::views::concat(
+		ranges::views::single(tr::lng_settings_call_device_default(tr::now)),
+		list | ranges::views::transform(&AudioInput::name)
 	) | ranges::to_vector;
 	const auto i = ranges::find(
 		list,

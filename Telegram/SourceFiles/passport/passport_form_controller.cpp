@@ -464,9 +464,9 @@ int Value::whatNotFilled() const {
 
 void Value::saveInEdit(not_null<Main::Session*> session) {
 	const auto saveList = [&](FileType type) {
-		filesInEdit(type) = ranges::view::all(
+		filesInEdit(type) = ranges::views::all(
 			files(type)
-		) | ranges::view::transform([=](const File &file) {
+		) | ranges::views::transform([=](const File &file) {
 			return EditFile(session, this, type, file, nullptr);
 		}) | ranges::to_vector;
 	};
@@ -2541,7 +2541,7 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 			value.nativeNames = requested.nativeNames;
 		}
 		_form.request.push_back(row.values
-			| ranges::view::transform([](const RequestedValue &value) {
+			| ranges::views::transform([](const RequestedValue &value) {
 				return value.type;
 			}) | ranges::to_vector);
 	}

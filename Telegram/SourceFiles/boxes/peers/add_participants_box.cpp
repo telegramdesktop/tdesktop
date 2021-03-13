@@ -219,9 +219,9 @@ bool AddParticipantsBoxController::inviteSelectedUsers(
 	Expects(_peer != nullptr);
 
 	const auto rows = box->collectSelectedRows();
-	const auto users = ranges::view::all(
+	const auto users = ranges::views::all(
 		rows
-	) | ranges::view::transform([](not_null<PeerData*> peer) {
+	) | ranges::views::transform([](not_null<PeerData*> peer) {
 		Expects(peer->isUser());
 		Expects(!peer->isSelf());
 
