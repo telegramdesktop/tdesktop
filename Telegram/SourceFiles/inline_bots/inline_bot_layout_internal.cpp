@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "data/stickers/data_stickers.h"
-#include "chat_helpers/gifs_list_widget.h" // ChatHelpers::DeleteSavedGif
+#include "chat_helpers/gifs_list_widget.h" // ChatHelpers::AddGifAction
 #include "chat_helpers/stickers_lottie.h"
 #include "inline_bots/inline_bot_result.h"
 #include "lottie/lottie_single_player.h"
@@ -127,7 +127,9 @@ void Gif::setPosition(int32 position) {
 }
 
 void DeleteSavedGifClickHandler::onClickImpl() const {
-	ChatHelpers::DeleteSavedGif(_data);
+	ChatHelpers::AddGifAction(
+		[](QString, Fn<void()> &&done) { done(); },
+		_data);
 }
 
 int Gif::resizeGetHeight(int width) {
