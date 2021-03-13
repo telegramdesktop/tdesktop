@@ -1022,7 +1022,7 @@ void Application::unregisterLeaveSubscription(not_null<QWidget*> widget) {
 #ifdef Q_OS_MAC
 	_leaveSubscriptions = std::move(
 		_leaveSubscriptions
-	) | ranges::action::remove_if([&](const LeaveSubscription &subscription) {
+	) | ranges::actions::remove_if([&](const LeaveSubscription &subscription) {
 		auto pointer = subscription.pointer.data();
 		return !pointer || (pointer == widget);
 	});

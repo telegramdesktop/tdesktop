@@ -142,7 +142,7 @@ uint64 ComputeFingerprint(bytes::const_span authKey) {
 }
 
 [[nodiscard]] QVector<MTPstring> CollectVersionsForApi() {
-	return WrapVersions(tgcalls::Meta::Versions() | ranges::action::reverse);
+	return WrapVersions(tgcalls::Meta::Versions() | ranges::actions::reverse);
 }
 
 [[nodiscard]] Webrtc::VideoState StartVideoState(bool enabled) {
