@@ -338,6 +338,8 @@ HistoryWidget::HistoryWidget(
 			: _keyboard->moderateKeyActivate(key);
 	});
 
+	_fieldAutocomplete->setSendMenuType([=] { return sendMenuType(); });
+
 	if (_supportAutocomplete) {
 		supportInitAutocomplete();
 	}
@@ -1265,6 +1267,7 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 			});
 			_inlineResults->setCurrentDialogsEntryState(
 				computeDialogsEntryState());
+			_inlineResults->setSendMenuType([=] { return sendMenuType(); });
 			_inlineResults->requesting(
 			) | rpl::start_with_next([=](bool requesting) {
 				_tabbedSelectorToggle->setLoading(requesting);
