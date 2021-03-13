@@ -194,7 +194,7 @@ void Float::paintEvent(QPaintEvent *e) {
 	const auto progress = playback ? playback->value() : 1.;
 	if (progress > 0.) {
 		auto pen = st::historyVideoMessageProgressFg->p;
-		auto was = p.pen();
+		//auto was = p.pen();
 		pen.setWidth(st::radialLine);
 		pen.setCapStyle(Qt::RoundCap);
 		p.setPen(pen);

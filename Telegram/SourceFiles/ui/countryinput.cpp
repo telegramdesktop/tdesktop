@@ -31,7 +31,7 @@ CountryInput::CountryInput(QWidget *parent, const style::InputField &st) : TWidg
 	auto availableWidth = width() - _st.textMargins.left() - _st.textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1;
 	auto placeholderFont = _st.placeholderFont->f;
 	placeholderFont.setStyleStrategy(QFont::PreferMatch);
-	auto metrics = QFontMetrics(placeholderFont);
+	//auto metrics = QFontMetrics(placeholderFont);
 	auto placeholder = QString();// metrics.elidedText(tr::lng_country_fake_ph(tr::now), Qt::ElideRight, availableWidth);
 	if (!placeholder.isNull()) {
 		_placeholderPath.addText(0, QFontMetrics(placeholderFont).ascent(), placeholderFont, placeholder);

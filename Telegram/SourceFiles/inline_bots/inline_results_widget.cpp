@@ -213,7 +213,7 @@ void Widget::startShowAnimation() {
 		showChildren();
 		auto image = grabForPanelAnimation();
 		_a_opacity = base::take(opacityAnimation);
-		_cache = base::take(_cache);
+		_cache = base::take(cache);
 
 		_showAnimation = std::make_unique<Ui::PanelAnimation>(st::emojiPanAnimation, Ui::PanelAnimation::Origin::BottomLeft);
 		auto inner = rect().marginsRemoved(st::emojiPanMargins);

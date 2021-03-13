@@ -1669,7 +1669,6 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 
 		auto rFrom = originalRequest->constData() + 8;
 		const auto rEnd = originalRequest->constData() + originalRequest->size();
-		auto toAck = QVector<MTPlong>();
 		if (mtpTypeId(*rFrom) == mtpc_msgs_state_req) {
 			MTPMsgsStateReq request;
 			if (!request.read(rFrom, rEnd)) {

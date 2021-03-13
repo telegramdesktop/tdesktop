@@ -406,7 +406,6 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				mrows.push_back({ i->second });
 			}
 		} else if (_channel && _channel->isMegagroup()) {
-			QMultiMap<int32, UserData*> ordered;
 			if (_channel->lastParticipantsRequestNeeded()) {
 				_channel->session().api().requestLastParticipants(_channel);
 			} else {
