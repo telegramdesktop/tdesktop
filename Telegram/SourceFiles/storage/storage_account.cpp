@@ -1578,7 +1578,7 @@ void Account::writeStickerSets(
 			continue;
 		}
 
-		for (const auto sticker : raw->stickers) {
+		for (const auto sticker : std::as_const(raw->stickers)) {
 			size += Serialize::Document::sizeInStream(sticker);
 		}
 

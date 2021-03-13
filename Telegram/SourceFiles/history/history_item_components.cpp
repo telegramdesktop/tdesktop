@@ -757,7 +757,7 @@ bool ReplyKeyboard::selectedAnimationCallback(crl::time now) {
 }
 
 void ReplyKeyboard::clearSelection() {
-	for (const auto [relativeIndex, time] : _animations) {
+	for (const auto &[relativeIndex, time] : _animations) {
 		const auto index = std::abs(relativeIndex) - 1;
 		const auto row = (index / MatrixRowShift);
 		const auto col = index % MatrixRowShift;

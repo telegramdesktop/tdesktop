@@ -511,12 +511,12 @@ void GroupCall::requestUnknownParticipants() {
 	}();
 	auto ssrcInputs = QVector<MTPint>();
 	ssrcInputs.reserve(ssrcs.size());
-	for (const auto [ssrc, when] : ssrcs) {
+	for (const auto &[ssrc, when] : ssrcs) {
 		ssrcInputs.push_back(MTP_int(ssrc));
 	}
 	auto peerInputs = QVector<MTPInputPeer>();
 	peerInputs.reserve(participantPeerIds.size());
-	for (const auto [participantPeerId, when] : participantPeerIds) {
+	for (const auto &[participantPeerId, when] : participantPeerIds) {
 		if (const auto userId = peerToUser(participantPeerId)) {
 			peerInputs.push_back(
 				MTP_inputPeerUser(MTP_int(userId), MTP_long(0)));
@@ -544,13 +544,13 @@ void GroupCall::requestUnknownParticipants() {
 		});
 		_unknownParticipantPeersRequestId = 0;
 		const auto now = crl::now();
-		for (const auto [ssrc, when] : ssrcs) {
+		for (const auto &[ssrc, when] : ssrcs) {
 			if (when.voice || when.anything) {
 				applyLastSpoke(ssrc, when, now);
 			}
 			_unknownSpokenSsrcs.remove(ssrc);
 		}
-		for (const auto [id, when] : participantPeerIds) {
+		for (const auto &[id, when] : participantPeerIds) {
 			if (const auto participantPeer = _peer->owner().peerLoaded(id)) {
 				const auto isParticipant = ranges::contains(
 					_participants,
@@ -565,10 +565,10 @@ void GroupCall::requestUnknownParticipants() {
 		requestUnknownParticipants();
 	}).fail([=](const MTP::Error &error) {
 		_unknownParticipantPeersRequestId = 0;
-		for (const auto [ssrc, when] : ssrcs) {
+		for (const auto &[ssrc, when] : ssrcs) {
 			_unknownSpokenSsrcs.remove(ssrc);
 		}
-		for (const auto [participantPeerId, when] : participantPeerIds) {
+		for (const auto &[participantPeerId, when] : participantPeerIds) {
 			_unknownSpokenPeerIds.remove(participantPeerId);
 		}
 		requestUnknownParticipants();

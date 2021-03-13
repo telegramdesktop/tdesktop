@@ -1642,7 +1642,7 @@ TextForMimeData ListWidget::getSelectedText() const {
 		wrapItem(group->items.back(), HistoryGroupText(group));
 	};
 
-	for (const auto [itemId, data] : selected) {
+	for (const auto &[itemId, data] : selected) {
 		if (const auto item = session().data().message(itemId)) {
 			if (const auto group = session().data().groups().find(item)) {
 				if (groups.contains(group)) {

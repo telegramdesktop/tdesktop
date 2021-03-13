@@ -384,7 +384,7 @@ void Instance::Private::applyDomainIps(
 			return true;
 		}
 		current.erase(i, end(current));
-		for (const auto &ip : copy) {
+		for (const auto &ip : std::as_const(copy)) {
 			proxy.resolvedIPs.push_back(ip);
 		}
 		return true;

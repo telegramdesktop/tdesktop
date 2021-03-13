@@ -558,7 +558,7 @@ void PanelEditDocument::updateCommonError() {
 
 void PanelEditDocument::focusInEvent(QFocusEvent *e) {
 	crl::on_main(this, [=] {
-		for (const auto [index, row] : _details) {
+		for (const auto &[index, row] : _details) {
 			if (row->setFocusFast()) {
 				return;
 			}
@@ -590,7 +590,7 @@ void PanelEditDocument::updateControlsGeometry() {
 
 PanelEditDocument::Result PanelEditDocument::collect() const {
 	auto result = Result();
-	for (const auto [i, field] : _details) {
+	for (const auto &[i, field] : _details) {
 		const auto &row = _scheme.rows[i];
 		auto &fields = (row.valueClass == Scheme::ValueClass::Scans)
 			? result.filesData
@@ -637,7 +637,7 @@ bool PanelEditDocument::validate() {
 		error = firsttop.y();
 	}
 	auto first = QPointer<PanelDetailsRow>();
-	for (const auto [i, field] : ranges::view::reverse(_details)) {
+	for (const auto &[i, field] : ranges::view::reverse(_details)) {
 		const auto &row = _scheme.rows[i];
 		if (row.valueClass == Scheme::ValueClass::Additional
 			&& !_additionalShown) {

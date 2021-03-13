@@ -51,7 +51,7 @@ JoinedByLinkSlice ParseJoinedByLinkSlice(
 		owner.processUsers(data.vusers());
 		result.count = data.vcount().v;
 		result.users.reserve(data.vimporters().v.size());
-		for (const auto importer : data.vimporters().v) {
+		for (const auto &importer : data.vimporters().v) {
 			importer.match([&](const MTPDchatInviteImporter &data) {
 				result.users.push_back({
 					.user = owner.user(data.vuser_id().v),
