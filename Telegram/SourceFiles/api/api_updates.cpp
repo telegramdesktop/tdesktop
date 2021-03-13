@@ -557,10 +557,10 @@ void Updates::feedDifference(
 }
 
 void Updates::differenceFail(const MTP::Error &error) {
-	LOG(("RPC Error in getDifference: %1 %2: %3"
-		).arg(error.code()
-		).arg(error.type()
-		).arg(error.description()));
+	LOG(("RPC Error in getDifference: %1 %2: %3").arg(
+		QString::number(error.code()),
+		error.type(),
+		error.description()));
 	failDifferenceStartTimerFor(nullptr);
 }
 
