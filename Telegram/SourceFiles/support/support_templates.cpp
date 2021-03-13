@@ -378,10 +378,10 @@ QString FormatUpdateNotification(const QString &path, const Delta &delta) {
 	if (!delta.added.empty()) {
 		result += qstr("-------- Added --------\n\n");
 		for (const auto question : delta.added) {
-			result += qsl("Q: %1\nK: %2\nA: %3\n\n"
-			).arg(question->question
-			).arg(question->originalKeys.join(qsl(", "))
-			).arg(question->value.trimmed());
+			result += qsl("Q: %1\nK: %2\nA: %3\n\n").arg(
+				question->question,
+				question->originalKeys.join(qsl(", ")),
+				question->value.trimmed());
 		}
 	}
 	if (!delta.changed.empty()) {

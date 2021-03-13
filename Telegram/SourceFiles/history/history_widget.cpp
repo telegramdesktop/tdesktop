@@ -2497,7 +2497,11 @@ void HistoryWidget::messagesFailed(const MTP::Error &error, int requestId) {
 		return;
 	}
 
-	LOG(("RPC Error: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
+	LOG(("RPC Error: %1 %2: %3").arg(
+		QString::number(error.code()),
+		error.type(),
+		error.description()));
+
 	if (_preloadRequest == requestId) {
 		_preloadRequest = 0;
 	} else if (_preloadDownRequest == requestId) {

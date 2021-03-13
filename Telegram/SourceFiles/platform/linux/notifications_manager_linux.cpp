@@ -395,13 +395,13 @@ NotificationData::NotificationData(
 	if (capabilities.contains(qsl("body-markup"))) {
 		_body = subtitle.isEmpty()
 			? msg.toHtmlEscaped().toStdString()
-			: qsl("<b>%1</b>\n%2")
-				.arg(subtitle.toHtmlEscaped())
-				.arg(msg.toHtmlEscaped()).toStdString();
+			: qsl("<b>%1</b>\n%2").arg(
+				subtitle.toHtmlEscaped(),
+				msg.toHtmlEscaped()).toStdString();
 	} else {
 		_body = subtitle.isEmpty()
 			? msg.toStdString()
-			: qsl("%1\n%2").arg(subtitle).arg(msg).toStdString();
+			: qsl("%1\n%2").arg(subtitle, msg).toStdString();
 	}
 
 	if (capabilities.contains("actions")) {
