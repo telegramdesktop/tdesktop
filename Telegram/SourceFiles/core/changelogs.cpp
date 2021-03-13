@@ -113,6 +113,10 @@ std::map<int, const char*> BetaLogs() {
 		"in Recent Actions and channel comments.\n"
 
 		"- Bug and crash fixes.\n"
+	},
+	{
+		2006002,
+		"- Fix text disappearing because of cloud drafts sync.\n"
 	}
 	};
 };
