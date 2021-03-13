@@ -221,7 +221,7 @@ bool EditorBlock::feedCopy(const QString &name, const QString &copyOf) {
 		}
 		addRow(name, copyOf, row->value());
 	} else {
-		LOG(("Theme Warning: Skipping value '%1: %2' (expected a color value in #rrggbb or #rrggbbaa or a previously defined key in the color scheme)").arg(name).arg(copyOf));
+		LOG(("Theme Warning: Skipping value '%1: %2' (expected a color value in #rrggbb or #rrggbbaa or a previously defined key in the color scheme)").arg(name, copyOf));
 	}
 	return true;
 }

@@ -155,7 +155,7 @@ bool FileParser::readKeyValue(const char *&from, const char *end) {
 QByteArray FileParser::ReadFile(const QString &absolutePath, const QString &relativePath) {
 	QFile file(QFileInfo(relativePath).exists() ? relativePath : absolutePath);
 	if (!file.open(QIODevice::ReadOnly)) {
-		Ui::Integration::Instance().writeLogEntry(u"Lang Error: Could not open file at '%1' ('%2')"_q.arg(relativePath).arg(absolutePath));
+		Ui::Integration::Instance().writeLogEntry(u"Lang Error: Could not open file at '%1' ('%2')"_q.arg(relativePath, absolutePath));
 		return QByteArray();
 	}
 	if (file.size() > kLangFileLimit) {
@@ -166,7 +166,7 @@ QByteArray FileParser::ReadFile(const QString &absolutePath, const QString &rela
 	constexpr auto kCodecMagicSize = 3;
 	auto codecMagic = file.read(kCodecMagicSize);
 	if (codecMagic.size() < kCodecMagicSize) {
-		Ui::Integration::Instance().writeLogEntry(u"Lang Error: Found bad file at '%1' ('%2')"_q.arg(relativePath).arg(absolutePath));
+		Ui::Integration::Instance().writeLogEntry(u"Lang Error: Found bad file at '%1' ('%2')"_q.arg(relativePath, absolutePath));
 		return QByteArray();
 	}
 	file.seek(0);
@@ -177,11 +177,11 @@ QByteArray FileParser::ReadFile(const QString &absolutePath, const QString &rela
 		stream.setCodec("UTF-16");
 		auto string = stream.readAll();
 		if (stream.status() != QTextStream::Ok) {
-			Ui::Integration::Instance().writeLogEntry(u"Lang Error: Could not read UTF-16 data from '%1' ('%2')"_q.arg(relativePath).arg(absolutePath));
+			Ui::Integration::Instance().writeLogEntry(u"Lang Error: Could not read UTF-16 data from '%1' ('%2')"_q.arg(relativePath, absolutePath));
 			return QByteArray();
 		}
 		if (string.isEmpty()) {
-			Ui::Integration::Instance().writeLogEntry(u"Lang Error: Empty UTF-16 content in '%1' ('%2')"_q.arg(relativePath).arg(absolutePath));
+			Ui::Integration::Instance().writeLogEntry(u"Lang Error: Empty UTF-16 content in '%1' ('%2')"_q.arg(relativePath, absolutePath));
 			return QByteArray();
 		}
 		return string.toUtf8();
@@ -197,7 +197,7 @@ QByteArray FileParser::ReadFile(const QString &absolutePath, const QString &rela
 		data = data.mid(3); // skip UTF-8 BOM
 	}
 	if (data.isEmpty()) {
-		Ui::Integration::Instance().writeLogEntry(u"Lang Error: Empty UTF-8 content in '%1' ('%2')"_q.arg(relativePath).arg(absolutePath));
+		Ui::Integration::Instance().writeLogEntry(u"Lang Error: Empty UTF-8 content in '%1' ('%2')"_q.arg(relativePath, absolutePath));
 		return QByteArray();
 	}
 	return data;

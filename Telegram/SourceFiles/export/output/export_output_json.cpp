@@ -150,9 +150,9 @@ QByteArray SerializeText(
 
 	context.nesting.push_back(Context::kArray);
 
-	const auto text = ranges::view::all(
+	const auto text = ranges::views::all(
 		data
-	) | ranges::view::transform([&](const Data::TextPart &part) {
+	) | ranges::views::transform([&](const Data::TextPart &part) {
 		if (part.type == Type::Text) {
 			return SerializeString(part.text);
 		}
@@ -615,9 +615,9 @@ QByteArray SerializeMessage(
 		}));
 	}, [&](const Poll &data) {
 		context.nesting.push_back(Context::kObject);
-		const auto answers = ranges::view::all(
+		const auto answers = ranges::views::all(
 			data.answers
-		) | ranges::view::transform([&](const Poll::Answer &answer) {
+		) | ranges::views::transform([&](const Poll::Answer &answer) {
 			context.nesting.push_back(Context::kArray);
 			auto result = SerializeObject(context, {
 				{ "text", SerializeString(answer.text) },

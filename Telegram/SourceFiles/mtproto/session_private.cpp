@@ -1701,7 +1701,11 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 		auto &ids = data.vmsg_ids().v;
 		auto &states = data.vinfo().v;
 
-		DEBUG_LOG(("Message Info: msgs all info received, msgId %1, reqMsgIds: %2, states %3").arg(msgId).arg(LogIdsVector(ids)).arg(Logs::mb(states.data(), states.length()).str()));
+		DEBUG_LOG(("Message Info: msgs all info received, msgId %1, reqMsgIds: %2, states %3").arg(
+			QString::number(msgId),
+			LogIdsVector(ids),
+			Logs::mb(states.data(), states.length()).str()));
+
 		handleMsgsStates(ids, states);
 	} return HandleResult::Success;
 
@@ -2271,8 +2275,9 @@ void SessionPrivate::onConnected(
 		_testConnections,
 		[&](const TestConnection &test) { return test.priority > my; });
 	if (j != end(_testConnections)) {
-		DEBUG_LOG(("MTP Info: connection %1 succeed, "
-			"waiting for %2.").arg(i->data->tag()).arg(j->data->tag()));
+		DEBUG_LOG(("MTP Info: connection %1 succeed, waiting for %2.").arg(
+			i->data->tag(),
+			j->data->tag()));
 		_waitForBetterTimer.callOnce(kWaitForBetterTimeout);
 	} else {
 		DEBUG_LOG(("MTP Info: connection through IPv4 succeed."));

@@ -632,9 +632,9 @@ bool Call::handleSignalingData(
 	if (data.vphone_call_id().v != _id || !_instance) {
 		return false;
 	}
-	auto prepared = ranges::view::all(
+	auto prepared = ranges::views::all(
 		data.vdata().v
-	) | ranges::view::transform([](char byte) {
+	) | ranges::views::transform([](char byte) {
 		return static_cast<uint8_t>(byte);
 	}) | ranges::to_vector;
 	_instance->receiveSignalingData(std::move(prepared));
@@ -819,9 +819,9 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		return data.vlibrary_versions().v;
 	}).value(0, MTP_bytes(kDefaultVersion)).v;
 
-	LOG(("Call Info: Creating instance with version '%1', allowP2P: %2"
-		).arg(QString::fromUtf8(version)
-		).arg(Logs::b(descriptor.config.enableP2P)));
+	LOG(("Call Info: Creating instance with version '%1', allowP2P: %2").arg(
+		QString::fromUtf8(version),
+		Logs::b(descriptor.config.enableP2P)));
 	_instance = tgcalls::Meta::Create(
 		version.toStdString(),
 		std::move(descriptor));

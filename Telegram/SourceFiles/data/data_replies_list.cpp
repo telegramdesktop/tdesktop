@@ -204,7 +204,7 @@ void RepliesList::injectRootMessage(not_null<Viewer*> viewer) {
 	injectRootDivider(root, slice);
 
 	if (const auto group = _history->owner().groups().find(root)) {
-		for (const auto item : ranges::view::reverse(group->items)) {
+		for (const auto item : ranges::views::reverse(group->items)) {
 			slice->ids.push_back(item->fullId());
 		}
 		viewer->injectedForRoot = group->items.size();

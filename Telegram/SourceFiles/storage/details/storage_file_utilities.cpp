@@ -283,9 +283,9 @@ void FileWriteDescriptor::finish() {
 			return;
 		}
 		QFile::remove(safe);
-		LOG(("Storage Error: Could not rename '%1' to '%2', removing."
-			).arg(simple
-			).arg(safe));
+		LOG(("Storage Error: Could not rename '%1' to '%2', removing.").arg(
+			simple,
+			safe));
 	}
 }
 
@@ -360,9 +360,9 @@ bool ReadFile(
 			continue;
 		}
 		if (memcmp(magic, TdfMagic, TdfMagicLen)) {
-			DEBUG_LOG(("App Info: bad magic %1 in '%2'"
-				).arg(Logs::mb(magic, TdfMagicLen).str()
-				).arg(name));
+			DEBUG_LOG(("App Info: bad magic %1 in '%2'").arg(
+				Logs::mb(magic, TdfMagicLen).str(),
+				name));
 			continue;
 		}
 

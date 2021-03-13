@@ -1051,9 +1051,9 @@ void ProxyBox::addLabel(
 ProxiesBoxController::ProxiesBoxController(not_null<Main::Account*> account)
 : _account(account)
 , _saveTimer([] { Local::writeSettings(); }) {
-	_list = ranges::view::all(
+	_list = ranges::views::all(
 		Global::ProxiesList()
-	) | ranges::view::transform([&](const ProxyData &proxy) {
+	) | ranges::views::transform([&](const ProxyData &proxy) {
 		return Item{ ++_idCounter, proxy };
 	}) | ranges::to_vector;
 

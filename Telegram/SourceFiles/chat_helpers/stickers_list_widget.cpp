@@ -201,9 +201,9 @@ private:
 auto StickersListWidget::PrepareStickers(
 	const QVector<DocumentData*> &pack)
 -> std::vector<Sticker> {
-	return ranges::view::all(
+	return ranges::views::all(
 		pack
-	) | ranges::view::transform([](DocumentData *document) {
+	) | ranges::views::transform([](DocumentData *document) {
 		return Sticker{ document };
 	}) | ranges::to_vector;
 }

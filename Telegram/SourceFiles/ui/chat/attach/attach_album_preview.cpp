@@ -85,14 +85,14 @@ std::vector<int> AlbumPreview::defaultOrder(int count) const {
 	if (count < 0) {
 		count = _order.size();
 	}
-	return ranges::view::ints(0, count) | ranges::to_vector;
+	return ranges::views::ints(0, count) | ranges::to_vector;
 }
 
 void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 	_order = defaultOrder(items.size());
-	_itemsShownDimensions = ranges::view::all(
+	_itemsShownDimensions = ranges::views::all(
 		_order
-	) | ranges::view::transform([&](int index) {
+	) | ranges::views::transform([&](int index) {
 		return items[index].shownDimensions;
 	}) | ranges::to_vector;
 
@@ -108,9 +108,9 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 			[=] { deleteThumbByIndex(thumbIndex(thumbUnderCursor())); }));
 	}
 	_thumbsHeight = countLayoutHeight(layout);
-	_photosHeight = ranges::accumulate(ranges::view::all(
+	_photosHeight = ranges::accumulate(ranges::views::all(
 		_thumbs
-	) | ranges::view::transform([](const auto &thumb) {
+	) | ranges::views::transform([](const auto &thumb) {
 		return thumb->photoHeight();
 	}), 0) + (count - 1) * st::sendMediaRowSkip;
 

@@ -1333,9 +1333,9 @@ void ApiWrap::appendChatsSlice(
 	const auto goodByTypes = [&](const Data::DialogInfo &info) {
 		return ((types & SettingsFromDialogsType(info.type)) != 0);
 	};
-	auto filtered = ranges::view::all(
+	auto filtered = ranges::views::all(
 		from
-	) | ranges::view::filter([&](const Data::DialogInfo &info) {
+	) | ranges::views::filter([&](const Data::DialogInfo &info) {
 		if (goodByTypes(info)) {
 			return true;
 		} else if (info.migratedToChannelId

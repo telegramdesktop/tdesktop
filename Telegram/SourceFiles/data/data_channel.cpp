@@ -924,7 +924,7 @@ void ApplyMegagroupAdmins(
 	auto adding = base::flat_map<UserId, QString>();
 	auto admins = ranges::make_subrange(
 		list.begin(), list.end()
-	) | ranges::view::transform([](const MTPChannelParticipant &p) {
+	) | ranges::views::transform([](const MTPChannelParticipant &p) {
 		const auto userId = p.match([](const auto &data) {
 			return data.vuser_id().v;
 		});

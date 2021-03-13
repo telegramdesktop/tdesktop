@@ -748,9 +748,9 @@ void DcOptions::FilterIfHasWithFlag(Variants &variants, Flag flag) {
 	for (auto &byAddress : variants.data) {
 		for (auto &list : byAddress) {
 			if (has(list)) {
-				list = ranges::view::all(
+				list = ranges::views::all(
 					list
-				) | ranges::view::filter(
+				) | ranges::views::filter(
 					is
 				) | ranges::to_vector;
 			}

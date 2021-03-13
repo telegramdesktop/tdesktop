@@ -15,7 +15,7 @@ namespace {
 
 QString GetEnv(const char *name) {
 	auto value = qEnvironmentVariable(name);
-	LOG(("Getting DE, %1: '%2'").arg(name).arg(value));
+	LOG(("Getting DE, %1: '%2'").arg(name, value));
 	return value;
 }
 

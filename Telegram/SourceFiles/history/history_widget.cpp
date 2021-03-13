@@ -2637,7 +2637,11 @@ void HistoryWidget::messagesFailed(const MTP::Error &error, int requestId) {
 		return;
 	}
 
-	LOG(("RPC Error: %1 %2: %3").arg(error.code()).arg(error.type()).arg(error.description()));
+	LOG(("RPC Error: %1 %2: %3").arg(
+		QString::number(error.code()),
+		error.type(),
+		error.description()));
+
 	if (_preloadRequest == requestId) {
 		_preloadRequest = 0;
 	} else if (_preloadDownRequest == requestId) {
@@ -5315,9 +5319,9 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		if (readyToForward()) {
 			const auto items = std::move(_toForward);
 			session().data().cancelForwarding(_history);
-			auto list = ranges::view::all(
+			auto list = ranges::views::all(
 				items
-			) | ranges::view::transform(
+			) | ranges::views::transform(
 				&HistoryItem::fullId
 			) | ranges::to_vector;
 			Window::ShowForwardMessagesBox(controller(), std::move(list));

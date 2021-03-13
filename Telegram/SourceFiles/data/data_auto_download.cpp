@@ -24,7 +24,7 @@ constexpr auto kVersion = char(2);
 
 template <typename Enum>
 auto enums_view(int from, int till) {
-	using namespace ranges::view;
+	using namespace ranges::views;
 	return ints(from, till) | transform([](int index) {
 		return static_cast<Enum>(index);
 	});

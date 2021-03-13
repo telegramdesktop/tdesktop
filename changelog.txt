@@ -1,3 +1,7 @@
+2.6.2 beta (13.03.21)
+
+- Fix text disappearing because of cloud drafts sync.
+
 2.6.1 (24.02.21)
 
 - Fix time formatting in links.

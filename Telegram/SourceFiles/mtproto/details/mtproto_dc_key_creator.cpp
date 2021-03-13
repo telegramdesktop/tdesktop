@@ -380,7 +380,7 @@ void DcKeyCreator::dhParamsAnswered(
 
 		if (data.vserver_nonce() != attempt->data.server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in server_DH_params_ok)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&data.vserver_nonce(), 16).str()).arg(Logs::mb(&attempt->data.server_nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&data.vserver_nonce(), 16).str(), Logs::mb(&attempt->data.server_nonce, 16).str()));
 			return failed();
 		}
 
@@ -426,12 +426,12 @@ void DcKeyCreator::dhParamsAnswered(
 		const auto &dh_inner_data(dh_inner.c_server_DH_inner_data());
 		if (dh_inner_data.vnonce() != attempt->data.nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in server_DH_inner_data)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&dh_inner_data.vnonce(), 16).str()).arg(Logs::mb(&attempt->data.nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&dh_inner_data.vnonce(), 16).str(), Logs::mb(&attempt->data.nonce, 16).str()));
 			return failed();
 		}
 		if (dh_inner_data.vserver_nonce() != attempt->data.server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in server_DH_inner_data)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&dh_inner_data.vserver_nonce(), 16).str()).arg(Logs::mb(&attempt->data.server_nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&dh_inner_data.vserver_nonce(), 16).str(), Logs::mb(&attempt->data.server_nonce, 16).str()));
 			return failed();
 		}
 		const auto sha1Buffer = openssl::Sha1(
@@ -443,7 +443,7 @@ void DcKeyCreator::dhParamsAnswered(
 			openssl::kSha1Size);
 		if (bytes::compare(sha1Dec, sha1Buffer)) {
 			LOG(("AuthKey Error: sha1 hash of encrypted part did not match!"));
-			DEBUG_LOG(("AuthKey Error: sha1 did not match, server_nonce: %1, new_nonce %2, encrypted data %3").arg(Logs::mb(&attempt->data.server_nonce, 16).str()).arg(Logs::mb(&attempt->data.new_nonce, 16).str()).arg(Logs::mb(encDHStr.constData(), encDHLen).str()));
+			DEBUG_LOG(("AuthKey Error: sha1 did not match, server_nonce: %1, new_nonce %2, encrypted data %3").arg(Logs::mb(&attempt->data.server_nonce, 16).str(), Logs::mb(&attempt->data.new_nonce, 16).str(), Logs::mb(encDHStr.constData(), encDHLen).str()));
 			return failed();
 		}
 		base::unixtime::update(dh_inner_data.vserver_time().v);
@@ -466,12 +466,12 @@ void DcKeyCreator::dhParamsAnswered(
 
 		if (data.vserver_nonce() != attempt->data.server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in server_DH_params_fail)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&data.vserver_nonce(), 16).str()).arg(Logs::mb(&attempt->data.server_nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&data.vserver_nonce(), 16).str(), Logs::mb(&attempt->data.server_nonce, 16).str()));
 			return failed();
 		}
 		if (data.vnew_nonce_hash() != NonceDigest(bytes::object_as_span(&attempt->data.new_nonce))) {
 			LOG(("AuthKey Error: received new_nonce_hash did not match!"));
-			DEBUG_LOG(("AuthKey Error: received new_nonce_hash: %1, new_nonce: %2").arg(Logs::mb(&data.vnew_nonce_hash(), 16).str()).arg(Logs::mb(&attempt->data.new_nonce, 32).str()));
+			DEBUG_LOG(("AuthKey Error: received new_nonce_hash: %1, new_nonce: %2").arg(Logs::mb(&data.vnew_nonce_hash(), 16).str(), Logs::mb(&attempt->data.new_nonce, 32).str()));
 			return failed();
 		}
 		LOG(("AuthKey Error: server_DH_params_fail received!"));
@@ -535,18 +535,18 @@ void DcKeyCreator::dhClientParamsAnswered(
 	data.match([&](const MTPDdh_gen_ok &data) {
 		if (data.vnonce() != attempt->data.nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_ok)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&data.vnonce(), 16).str()).arg(Logs::mb(&attempt->data.nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&data.vnonce(), 16).str(), Logs::mb(&attempt->data.nonce, 16).str()));
 			return failed();
 		}
 		if (data.vserver_nonce() != attempt->data.server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_ok)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&data.vserver_nonce(), 16).str()).arg(Logs::mb(&attempt->data.server_nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&data.vserver_nonce(), 16).str(), Logs::mb(&attempt->data.server_nonce, 16).str()));
 			return failed();
 		}
 		attempt->data.new_nonce_buf[32] = bytes::type(1);
 		if (data.vnew_nonce_hash1() != NonceDigest(attempt->data.new_nonce_buf)) {
 			LOG(("AuthKey Error: received new_nonce_hash1 did not match!"));
-			DEBUG_LOG(("AuthKey Error: received new_nonce_hash1: %1, new_nonce_buf: %2").arg(Logs::mb(&data.vnew_nonce_hash1(), 16).str()).arg(Logs::mb(attempt->data.new_nonce_buf.data(), 41).str()));
+			DEBUG_LOG(("AuthKey Error: received new_nonce_hash1: %1, new_nonce_buf: %2").arg(Logs::mb(&data.vnew_nonce_hash1(), 16).str(), Logs::mb(attempt->data.new_nonce_buf.data(), 41).str()));
 			return failed();
 		}
 
@@ -557,19 +557,19 @@ void DcKeyCreator::dhClientParamsAnswered(
 	}, [&](const MTPDdh_gen_retry &data) {
 		if (data.vnonce() != attempt->data.nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_retry)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&data.vnonce(), 16).str()).arg(Logs::mb(&attempt->data.nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&data.vnonce(), 16).str(), Logs::mb(&attempt->data.nonce, 16).str()));
 			return failed();
 		}
 		if (data.vserver_nonce() != attempt->data.server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_retry)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&data.vserver_nonce(), 16).str()).arg(Logs::mb(&attempt->data.server_nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&data.vserver_nonce(), 16).str(), Logs::mb(&attempt->data.server_nonce, 16).str()));
 			return failed();
 		}
 		attempt->data.new_nonce_buf[32] = bytes::type(2);
 		uchar sha1Buffer[20];
 		if (data.vnew_nonce_hash2() != NonceDigest(attempt->data.new_nonce_buf)) {
 			LOG(("AuthKey Error: received new_nonce_hash2 did not match!"));
-			DEBUG_LOG(("AuthKey Error: received new_nonce_hash2: %1, new_nonce_buf: %2").arg(Logs::mb(&data.vnew_nonce_hash2(), 16).str()).arg(Logs::mb(attempt->data.new_nonce_buf.data(), 41).str()));
+			DEBUG_LOG(("AuthKey Error: received new_nonce_hash2: %1, new_nonce_buf: %2").arg(Logs::mb(&data.vnew_nonce_hash2(), 16).str(), Logs::mb(attempt->data.new_nonce_buf.data(), 41).str()));
 			return failed();
 		}
 		attempt->data.retry_id = attempt->data.auth_key_aux_hash;
@@ -577,19 +577,19 @@ void DcKeyCreator::dhClientParamsAnswered(
 	}, [&](const MTPDdh_gen_fail &data) {
 		if (data.vnonce() != attempt->data.nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in dh_gen_fail)!"));
-			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&data.vnonce(), 16).str()).arg(Logs::mb(&attempt->data.nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&data.vnonce(), 16).str(), Logs::mb(&attempt->data.nonce, 16).str()));
 			return failed();
 		}
 		if (data.vserver_nonce() != attempt->data.server_nonce) {
 			LOG(("AuthKey Error: received server_nonce <> sent server_nonce (in dh_gen_fail)!"));
-			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&data.vserver_nonce(), 16).str()).arg(Logs::mb(&attempt->data.server_nonce, 16).str()));
+			DEBUG_LOG(("AuthKey Error: received server_nonce: %1, sent server_nonce: %2").arg(Logs::mb(&data.vserver_nonce(), 16).str(), Logs::mb(&attempt->data.server_nonce, 16).str()));
 			return failed();
 		}
 		attempt->data.new_nonce_buf[32] = bytes::type(3);
 		uchar sha1Buffer[20];
 		if (data.vnew_nonce_hash3() != NonceDigest(attempt->data.new_nonce_buf)) {
 			LOG(("AuthKey Error: received new_nonce_hash3 did not match!"));
-			DEBUG_LOG(("AuthKey Error: received new_nonce_hash3: %1, new_nonce_buf: %2").arg(Logs::mb(&data.vnew_nonce_hash3(), 16).str()).arg(Logs::mb(attempt->data.new_nonce_buf.data(), 41).str()));
+			DEBUG_LOG(("AuthKey Error: received new_nonce_hash3: %1, new_nonce_buf: %2").arg(Logs::mb(&data.vnew_nonce_hash3(), 16).str(), Logs::mb(attempt->data.new_nonce_buf.data(), 41).str()));
 			return failed();
 		}
 		LOG(("AuthKey Error: dh_gen_fail received!"));

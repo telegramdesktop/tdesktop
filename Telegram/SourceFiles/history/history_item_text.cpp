@@ -135,11 +135,11 @@ TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
 		}
 	}
 	auto caption = [&] {
-		auto &&nonempty = ranges::view::all(
+		auto &&nonempty = ranges::views::all(
 			group->items
-		) | ranges::view::filter(
+		) | ranges::views::filter(
 			hasCaption
-		) | ranges::view::take(2);
+		) | ranges::views::take(2);
 		auto first = nonempty.begin();
 		auto end = nonempty.end();
 		if (first == end) {

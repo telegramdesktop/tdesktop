@@ -406,9 +406,9 @@ bool InitializeFromCache(
 
 bool InitializeFromSaved(Saved &&saved) {
 	if (saved.object.content.size() < 4) {
-		LOG(("Theme Error: Could not load theme from '%1' (%2)"
-			).arg(saved.object.pathRelative
-			).arg(saved.object.pathAbsolute));
+		LOG(("Theme Error: Could not load theme from '%1' (%2)").arg(
+			saved.object.pathRelative,
+			saved.object.pathAbsolute));
 		return false;
 	}
 

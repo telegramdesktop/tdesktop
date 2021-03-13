@@ -72,10 +72,10 @@ void ResolvingConnection::setChild(ConnectionPointer &&child) {
 		&AbstractConnection::disconnected,
 		this,
 		&ResolvingConnection::handleDisconnected);
-	DEBUG_LOG(("Resolving Info: dc:%1 proxy '%2' got new child '%3'"
-		).arg(_protocolDcId
-		).arg(_proxy.host + ':' + QString::number(_proxy.port)
-		).arg((_ipIndex >= 0 && _ipIndex < _proxy.resolvedIPs.size())
+	DEBUG_LOG(("Resolving Info: dc:%1 proxy '%2' got new child '%3'").arg(
+		QString::number(_protocolDcId),
+		_proxy.host + ':' + QString::number(_proxy.port),
+		(_ipIndex >= 0 && _ipIndex < _proxy.resolvedIPs.size())
 			? _proxy.resolvedIPs[_ipIndex]
 			: _proxy.host));
 	if (_protocolDcId) {
@@ -227,10 +227,10 @@ void ResolvingConnection::connectToServer(
 	_port = port;
 	_protocolSecret = protocolSecret;
 	_protocolDcId = protocolDcId;
-	DEBUG_LOG(("Resolving Info: dc:%1 proxy '%2' connects a child '%3'"
-		).arg(_protocolDcId
-		).arg(_proxy.host +':' + QString::number(_proxy.port)
-		).arg((_ipIndex >= 0 && _ipIndex < _proxy.resolvedIPs.size())
+	DEBUG_LOG(("Resolving Info: dc:%1 proxy '%2' connects a child '%3'").arg(
+		QString::number(_protocolDcId),
+		_proxy.host +':' + QString::number(_proxy.port),
+		(_ipIndex >= 0 && _ipIndex < _proxy.resolvedIPs.size())
 			? _proxy.resolvedIPs[_ipIndex]
 			: _proxy.host));
 	return _child->connectToServer(

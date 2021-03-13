@@ -46,9 +46,9 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 		return version;
 	}();
 
-	result.name = QString("%1%2")
-		.arg(appName)
-		.arg(appVer.isEmpty() ? QString() : (' ' + appVer));
+	result.name = QString("%1%2").arg(
+		appName,
+		appVer.isEmpty() ? QString() : (' ' + appVer));
 
 	const auto country = qs(data.vcountry());
 	const auto platform = qs(data.vplatform());
@@ -61,10 +61,10 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 	result.activeTime = data.vdate_active().v
 		? data.vdate_active().v
 		: data.vdate_created().v;
-	result.info = QString("%1, %2%3")
-		.arg(qs(data.vdevice_model()))
-		.arg(platform.isEmpty() ? QString() : platform + ' ')
-		.arg(qs(data.vsystem_version()));
+	result.info = QString("%1, %2%3").arg(
+		qs(data.vdevice_model()),
+		platform.isEmpty() ? QString() : platform + ' ',
+		qs(data.vsystem_version()));
 	result.ip = qs(data.vip())
 		+ (country.isEmpty()
 			? QString()
@@ -107,7 +107,7 @@ void Authorizations::reload() {
 		result.match([&](const MTPDaccount_authorizations &auths) {
 			_list = (
 				auths.vauthorizations().v
-			) | ranges::view::transform([](const MTPAuthorization &d) {
+			) | ranges::views::transform([](const MTPAuthorization &d) {
 				return ParseEntry(d.c_authorization());
 			}) | ranges::to<List>;
 			_listChanges.fire({});

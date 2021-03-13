@@ -109,9 +109,9 @@ auto SuggestionsWidget::getRowsByQuery() const -> std::vector<Row> {
 		return {};
 	}
 	using Entry = ChatHelpers::EmojiKeywords::Result;
-	auto result = ranges::view::all(
+	auto result = ranges::views::all(
 		list
-	) | ranges::view::transform([](const Entry &result) {
+	) | ranges::views::transform([](const Entry &result) {
 		return Row(result.emoji, result.replacement);
 	}) | ranges::to_vector;
 
