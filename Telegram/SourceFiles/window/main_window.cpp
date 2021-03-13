@@ -658,8 +658,8 @@ void MainWindow::savePosition(Qt::WindowState state) {
 		auto centerY = realPosition.y + realPosition.h / 2;
 		int minDelta = 0;
 		QScreen *chosen = nullptr;
-		auto screens = QGuiApplication::screens();
-		for (auto screen : QGuiApplication::screens()) {
+		const auto screens = QGuiApplication::screens();
+		for (auto screen : screens) {
 			auto delta = (screen->geometry().center() - QPoint(centerX, centerY)).manhattanLength();
 			if (!chosen || delta < minDelta) {
 				minDelta = delta;

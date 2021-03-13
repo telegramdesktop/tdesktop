@@ -695,8 +695,6 @@ bool PasscodeBox::handleCustomCheckError(const MTP::Error &error) {
 
 void PasscodeBox::sendClearCloudPassword(
 		const Core::CloudPasswordResult &check) {
-	const auto newPasswordData = QByteArray();
-	const auto newPasswordHash = QByteArray();
 	const auto hint = QString();
 	const auto email = QString();
 	const auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_algo
