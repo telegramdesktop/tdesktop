@@ -114,7 +114,7 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-private slots:
+private Q_SLOTS:
 	void onHideControls(bool force = false);
 
 	void onScreenResized(int screen);
@@ -170,6 +170,7 @@ private:
 	};
 
 	void paintEvent(QPaintEvent *e) override;
+	void moveEvent(QMoveEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 	void keyPressEvent(QKeyEvent *e) override;

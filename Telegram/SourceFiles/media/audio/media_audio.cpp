@@ -240,7 +240,7 @@ bool AttachToDevice() {
 
 	if (auto m = Player::mixer()) {
 		m->reattachTracks();
-		emit m->faderOnTimer();
+		m->faderOnTimer();
 	}
 
 	crl::on_main([] {
@@ -693,28 +693,28 @@ void Mixer::destroyEffectsOnClose() {
 }
 
 void Mixer::onError(const AudioMsgId &audio) {
-	emit stoppedOnError(audio);
+	stoppedOnError(audio);
 
 	QMutexLocker lock(&AudioMutex);
 	auto type = audio.type();
 	if (type == AudioMsgId::Type::Voice) {
 		if (auto current = trackForType(type)) {
 			if (current->state.id == audio) {
-				emit unsuppressSong();
+				unsuppressSong();
 			}
 		}
 	}
 }
 
 void Mixer::onStopped(const AudioMsgId &audio) {
-	emit updated(audio);
+	updated(audio);
 
 	QMutexLocker lock(&AudioMutex);
 	auto type = audio.type();
 	if (type == AudioMsgId::Type::Voice) {
 		if (auto current = trackForType(type)) {
 			if (current->state.id == audio) {
-				emit unsuppressSong();
+				unsuppressSong();
 			}
 		}
 	}
@@ -843,8 +843,8 @@ void Mixer::play(
 				stopped = current->state.id;
 			}
 			if (current->state.id) {
-				emit loaderOnCancel(current->state.id);
-				emit faderOnTimer();
+				loaderOnCancel(current->state.id);
+				faderOnTimer();
 			}
 			if (type != AudioMsgId::Type::Video) {
 				auto foundCurrent = currentIndex(type);
@@ -875,13 +875,13 @@ void Mixer::play(
 			? State::Starting
 			: State::Playing;
 		current->loading = true;
-		emit loaderOnStart(current->state.id, positionMs);
+		loaderOnStart(current->state.id, positionMs);
 		if (type == AudioMsgId::Type::Voice) {
-			emit suppressSong();
+			suppressSong();
 		}
 	}
 	if (stopped) {
-		emit updated(stopped);
+		updated(stopped);
 	}
 }
 
@@ -975,7 +975,7 @@ void Mixer::pause(const AudioMsgId &audio, bool fast) {
 			track->state.state = fast ? State::Paused : State::Pausing;
 			resetFadeStartPosition(type);
 			if (type == AudioMsgId::Type::Voice) {
-				emit unsuppressSong();
+				unsuppressSong();
 			}
 		} break;
 
@@ -996,12 +996,12 @@ void Mixer::pause(const AudioMsgId &audio, bool fast) {
 			}
 		}
 
-		emit faderOnTimer();
+		faderOnTimer();
 
 		track->lastUpdateWhen = 0;
 		track->lastUpdatePosition = 0;
 	}
-	if (current) emit updated(current);
+	if (current) updated(current);
 }
 
 void Mixer::resume(const AudioMsgId &audio, bool fast) {
@@ -1050,14 +1050,14 @@ void Mixer::resume(const AudioMsgId &audio, bool fast) {
 					if (!checkCurrentALError(type)) return;
 				}
 				if (type == AudioMsgId::Type::Voice) {
-					emit suppressSong();
+					suppressSong();
 				}
 			}
 		} break;
 		}
-		emit faderOnTimer();
+		faderOnTimer();
 	}
-	if (current) emit updated(current);
+	if (current) updated(current);
 }
 //
 // Right now all the music is played in the streaming player.
@@ -1141,13 +1141,13 @@ void Mixer::stop(const AudioMsgId &audio) {
 		current = audio;
 		fadedStop(type);
 		if (type == AudioMsgId::Type::Voice) {
-			emit unsuppressSong();
+			unsuppressSong();
 		} else if (type == AudioMsgId::Type::Video) {
 			track->clear();
-			emit loaderOnCancel(audio);
+			loaderOnCancel(audio);
 		}
 	}
-	if (current) emit updated(current);
+	if (current) updated(current);
 }
 
 void Mixer::stop(const AudioMsgId &audio, State state) {
@@ -1167,12 +1167,12 @@ void Mixer::stop(const AudioMsgId &audio, State state) {
 		current = audio;
 		setStoppedState(track, state);
 		if (type == AudioMsgId::Type::Voice) {
-			emit unsuppressSong();
+			unsuppressSong();
 		} else if (type == AudioMsgId::Type::Video) {
 			track->clear();
 		}
 	}
-	if (current) emit updated(current);
+	if (current) updated(current);
 }
 
 void Mixer::stopAndClear() {
@@ -1187,17 +1187,17 @@ void Mixer::stopAndClear() {
 		}
 	}
 	if (current_song) {
-		emit updated(current_song->state.id);
+		updated(current_song->state.id);
 	}
 	if (current_audio) {
-		emit updated(current_audio->state.id);
+		updated(current_audio->state.id);
 	}
 	{
 		QMutexLocker lock(&AudioMutex);
 		auto clearAndCancel = [this](AudioMsgId::Type type, int index) {
 			auto track = trackForType(type, index);
 			if (track->state.id) {
-				emit loaderOnCancel(track->state.id);
+				loaderOnCancel(track->state.id);
 			}
 			track->clear();
 		};
@@ -1226,7 +1226,7 @@ void Mixer::setStoppedState(Track *current, State state) {
 		alSourcef(current->stream.source, AL_GAIN, 1);
 	}
 	if (current->state.id) {
-		emit loaderOnCancel(current->state.id);
+		loaderOnCancel(current->state.id);
 	}
 }
 
@@ -1353,10 +1353,10 @@ void Fader::onTimer() {
 		if (IsStopped(track->state.state) || track->state.state == State::Paused || !track->isStreamCreated()) return;
 
 		auto emitSignals = updateOnePlayback(track, hasPlaying, hasFading, volumeMultiplier, suppressGainChanged);
-		if (emitSignals & EmitError) emit error(track->state.id);
-		if (emitSignals & EmitStopped) emit audioStopped(track->state.id);
-		if (emitSignals & EmitPositionUpdated) emit playPositionUpdated(track->state.id);
-		if (emitSignals & EmitNeedToPreload) emit needToPreload(track->state.id);
+		if (emitSignals & EmitError) error(track->state.id);
+		if (emitSignals & EmitStopped) audioStopped(track->state.id);
+		if (emitSignals & EmitPositionUpdated) playPositionUpdated(track->state.id);
+		if (emitSignals & EmitNeedToPreload) needToPreload(track->state.id);
 	};
 	auto suppressGainForMusic = ComputeVolume(AudioMsgId::Type::Song);
 	auto suppressGainForMusicChanged = volumeChangedSong || _volumeChangedSong;

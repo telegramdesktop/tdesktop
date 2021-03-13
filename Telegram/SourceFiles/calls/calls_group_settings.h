@@ -10,11 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 
 namespace Calls {
-
 class GroupCall;
+} // namespace Calls
 
-void GroupCallSettingsBox(
+namespace Calls::Group {
+
+void SettingsBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<GroupCall*> call);
 
-} // namespace Calls
+} // namespace Calls::Group

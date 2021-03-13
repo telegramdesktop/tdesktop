@@ -1577,7 +1577,7 @@ void ComposeControls::inlineBotResolveDone(
 }
 
 void ComposeControls::inlineBotResolveFail(
-		const RPCError &error,
+		const MTP::Error &error,
 		const QString &username) {
 	_inlineBotResolveRequestId = 0;
 	if (username == _inlineBotUsername) {
@@ -2360,7 +2360,7 @@ void ComposeControls::updateInlineBotQuery() {
 				MTPcontacts_ResolveUsername(MTP_string(username))
 			).done([=](const MTPcontacts_ResolvedPeer &result) {
 				inlineBotResolveDone(result);
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				inlineBotResolveFail(error, username);
 			}).send();
 		} else {

@@ -1932,12 +1932,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_title" = "Voice Chat";
 "lng_group_call_active" = "speaking";
 "lng_group_call_inactive" = "listening";
+"lng_group_call_raised_hand_status" = "wants to speak";
 "lng_group_call_settings" = "Settings";
 "lng_group_call_unmute" = "Unmute";
 "lng_group_call_unmute_sub" = "or hold spacebar to talk";
 "lng_group_call_you_are_live" = "You are Live";
 "lng_group_call_force_muted" = "Muted by admin";
 "lng_group_call_force_muted_sub" = "You are in Listen Only mode";
+"lng_group_call_raise_hand_tip" = "Click if you want to speak";
+"lng_group_call_raised_hand" = "You asked to speak";
+"lng_group_call_raised_hand_sub" = "We let the speakers know";
 "lng_group_call_connecting" = "Connecting...";
 "lng_group_call_leave" = "Leave";
 "lng_group_call_leave_title" = "Leave voice chat";
@@ -1956,7 +1960,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_add_to_group_all" = "Those users aren't members of «{group}» yet. Add them to the group?";
 "lng_group_call_invite_members" = "Group members";
 "lng_group_call_invite_search_results" = "Search results";
-"lng_group_call_new_muted" = "Mute new members";
+"lng_group_call_new_muted" = "Mute new participants";
 "lng_group_call_speakers" = "Speakers";
 "lng_group_call_microphone" = "Microphone";
 "lng_group_call_push_to_talk" = "Push to Talk Shortcut";
@@ -1966,6 +1970,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_ptt_delay_s" = "{amount}s";
 "lng_group_call_ptt_delay" = "Push to Talk release delay: {delay}";
 "lng_group_call_share" = "Share Invite Link";
+"lng_group_call_share_speaker" = "Users with this link can speak";
+"lng_group_call_copy_speaker_link" = "Copy Speaker Link";
+"lng_group_call_copy_listener_link" = "Copy Listener Link";
 "lng_group_call_end" = "End Voice Chat";
 "lng_group_call_join" = "Join";
 "lng_group_call_invite_done_user" = "You invited {user} to the voice chat.";
@@ -1978,6 +1985,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_too_many" = "Sorry, there are too many members in this voice chat. Please try again later.";
 "lng_group_call_context_mute" = "Mute";
 "lng_group_call_context_unmute" = "Allow to speak";
+"lng_group_call_context_remove_hand" = "Cancel request to speak";
 "lng_group_call_context_mute_for_me" = "Mute for me";
 "lng_group_call_context_unmute_for_me" = "Unmute for me";
 "lng_group_call_duration_days#one" = "{count} day";
@@ -1992,6 +2000,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_mac_input" = "Please allow **Input Monitoring** for Telegram in Privacy Settings.";
 "lng_group_call_mac_accessibility" = "Please allow **Accessibility** for Telegram in Privacy Settings.\n\nApp restart may be required.";
 "lng_group_call_mac_settings" = "Open Settings";
+
+"lng_group_call_start_as_header" = "Start Voice Chat as...";
+"lng_group_call_join_as_header" = "Join Voice Chat as...";
+"lng_group_call_display_as_header" = "Display me as...";
+"lng_group_call_join_as_about" = "Choose whether you want to be displayed as your personal account or as your channel.";
+"lng_group_call_join_as_personal" = "personal account";
+"lng_group_call_edit_title" = "Edit voice chat title";
+"lng_group_call_switch_done" = "Members of this voice chat will now see you as **{user}**";
+"lng_group_call_edit_title_header" = "Voice chat title";
+"lng_group_call_recording_start" = "Start recording";
+"lng_group_call_recording_stop" = "Stop recording";
+"lng_group_call_recording_started" = "Voice chat recording started.";
+"lng_group_call_recording_stopped" = "Voice chat recording stopped.";
+"lng_group_call_recording_saved" = "Audio saved to Saved Messages.";
+"lng_group_call_recording_start_sure" = "Do you want to start recording this chat and save the result into an audio file?\n\nOther members will see the chat is being recorded.";
+"lng_group_call_recording_stop_sure" = "Do you want to stop recording this chat?";
+"lng_group_call_recording_start_field" = "Recording Title";
+"lng_group_call_recording_start_button" = "Start";
+"lng_group_call_is_recorded" = "Voice chat is being recorded.";
+"lng_group_call_can_speak_here" = "You can now speak.";
+"lng_group_call_can_speak" = "You can now speak in **{chat}**.";
 
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 
@@ -2246,34 +2275,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_admin_pin_messages" = "Pin messages";
 "lng_admin_log_admin_manage_calls" = "Manage voice chats";
 "lng_admin_log_admin_add_admins" = "Add new admins";
-
-// #feed
-//"lng_feed_name" = "Feed";
-//"lng_feed_show_next" = "Show Next";
-
-//"lng_feed_group" = "Group in feed";
-//"lng_feed_ungroup" = "Ungroup from feed";
-//"lng_feed_channel_added" = "Channel added to your feed.";
-//"lng_feed_channel_removed" = "Channel removed from your feed.";
-//"lng_feed_no_messages" = "No messages in this feed yet";
-//"lng_feed_channels#one" = "{count} channel";
-//"lng_feed_channels#other" = "{count} channels";
-//"lng_feed_notifications" = "Feed notifications";
-//"lng_feed_ungroup_all" = "Ungroup all channels";
-//"lng_feed_sure_ungroup_all" = "Are you sure you want to ungroup all channels from this feed?";
-//"lng_feed_ungroup_sure" = "Ungroup";
-//"lng_feed_create_new" = "New feed";
-//"lng_feed_too_few_channels#one" = "You need at least {count} channel to create a feed.";
-//"lng_feed_too_few_channels#other" = "You need at least {count} channels to create a feed.";
-//"lng_feed_select_more_channels#one" = "Select {count} channel or more.";
-//"lng_feed_select_more_channels#other" = "Select {count} channels or more.";
-//"lng_feed_create" = "Create";
-//"lng_feed_edit_title" = "Edit feed";
-//"lng_feed_channels_not_found" = "No channels found";
-
-//"lng_info_feed_title" = "Feed Info";
-//"lng_info_feed_is_default" = "Group new channels";
-//"lng_info_feed_channels" = "Channels";
 
 "lng_terms_signup" = "By signing up,\nyou agree to the {link}.";
 "lng_terms_signup_link" = "Terms of Service";

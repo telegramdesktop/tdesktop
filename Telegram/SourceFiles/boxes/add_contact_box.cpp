@@ -586,7 +586,7 @@ void GroupInfoBox::createGroup(
 
 		Ui::hideLayer(); // Destroys 'this'.
 		ChatCreateDone(navigation, std::move(image), result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_creationRequestId = 0;
 		if (error.type() == qstr("NO_CHAT_TITLE")) {
 			auto weak = Ui::MakeWeak(this);
@@ -703,7 +703,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 			LOG(("API Error: channel not found in updates (GroupInfoBox::creationDone)"));
 			closeBox();
 		}
-	}).fail([this](const RPCError &error) {
+	}).fail([this](const MTP::Error &error) {
 		_creationRequestId = 0;
 		if (error.type() == "NO_CHAT_TITLE") {
 			_title->setFocus();
@@ -824,7 +824,7 @@ void SetupChannelBox::prepare() {
 	_checkRequestId = _api.request(MTPchannels_CheckUsername(
 		_channel->inputChannel,
 		MTP_string("preston")
-	)).fail([=](const RPCError &error) {
+	)).fail([=](const MTP::Error &error) {
 		firstCheckFail(error);
 	}).send();
 
@@ -983,7 +983,7 @@ void SetupChannelBox::save() {
 			MTP_string(_sentUsername)
 		)).done([=](const MTPBool &result) {
 			updateDone(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			updateFail(error);
 		}).send();
 	};
@@ -1055,7 +1055,7 @@ void SetupChannelBox::check() {
 			MTP_string(link)
 		)).done([=](const MTPBool &result) {
 			checkDone(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			checkFail(error);
 		}).send();
 	}
@@ -1095,7 +1095,7 @@ void SetupChannelBox::updateDone(const MTPBool &result) {
 	closeBox();
 }
 
-void SetupChannelBox::updateFail(const RPCError &error) {
+void SetupChannelBox::updateFail(const MTP::Error &error) {
 	_saveRequestId = 0;
 	QString err(error.type());
 	if (err == "USERNAME_NOT_MODIFIED"
@@ -1130,7 +1130,7 @@ void SetupChannelBox::checkDone(const MTPBool &result) {
 	}
 }
 
-void SetupChannelBox::checkFail(const RPCError &error) {
+void SetupChannelBox::checkFail(const MTP::Error &error) {
 	_checkRequestId = 0;
 	QString err(error.type());
 	if (err == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
@@ -1171,7 +1171,7 @@ void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
 		Ui::LayerOption::KeepOther);
 }
 
-void SetupChannelBox::firstCheckFail(const RPCError &error) {
+void SetupChannelBox::firstCheckFail(const MTP::Error &error) {
 	_checkRequestId = 0;
 	const auto &type = error.type();
 	if (type == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
@@ -1281,7 +1281,7 @@ void EditNameBox::save() {
 		MTPstring()
 	)).done([=](const MTPUser &result) {
 		saveSelfDone(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		saveSelfFail(error);
 	}).send();
 }
@@ -1291,7 +1291,7 @@ void EditNameBox::saveSelfDone(const MTPUser &user) {
 	closeBox();
 }
 
-void EditNameBox::saveSelfFail(const RPCError &error) {
+void EditNameBox::saveSelfFail(const MTP::Error &error) {
 	auto err = error.type();
 	auto first = TextUtilities::SingleLine(_first->getLastText().trimmed());
 	auto last = TextUtilities::SingleLine(_last->getLastText().trimmed());

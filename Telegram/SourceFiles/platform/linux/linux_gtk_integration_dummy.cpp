@@ -24,10 +24,6 @@ std::optional<int> GtkIntegration::scaleFactor() const {
 	return std::nullopt;
 }
 
-bool GtkIntegration::fileDialogSupported() const {
-	return false;
-}
-
 bool GtkIntegration::useFileDialog(FileDialogType type) const {
 	return false;
 }

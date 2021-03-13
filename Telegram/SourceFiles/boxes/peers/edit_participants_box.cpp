@@ -59,7 +59,7 @@ void RemoveAdmin(
 		if (onDone) {
 			onDone();
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		if (onFail) {
 			onFail();
 		}
@@ -80,7 +80,7 @@ void AddChatParticipant(
 		if (onDone) {
 			onDone();
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		ShowAddParticipantsError(error.type(), chat, { 1, user });
 		if (onFail) {
 			onFail();
@@ -104,7 +104,7 @@ void SaveChatAdmin(
 		if (onDone) {
 			onDone();
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
 		if (retryOnNotParticipant
 			&& isAdmin
@@ -137,7 +137,7 @@ void SaveChannelAdmin(
 		if (onDone) {
 			onDone();
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		ShowAddParticipantsError(error.type(), channel, { 1, user });
 		if (onFail) {
 			onFail();
@@ -162,7 +162,7 @@ void SaveChannelRestriction(
 		if (onDone) {
 			onDone();
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		if (onFail) {
 			onFail();
 		}
@@ -183,7 +183,7 @@ void SaveChatParticipantKick(
 		if (onDone) {
 			onDone();
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		if (onFail) {
 			onFail();
 		}
@@ -1337,7 +1337,7 @@ void ParticipantsBoxController::loadMoreRows() {
 			_onlineSorter->sort();
 		}
 		delegate()->peerListRefreshRows();
-	}).fail([this](const RPCError &error) {
+	}).fail([this](const MTP::Error &error) {
 		_loadRequestId = 0;
 	}).send();
 }
@@ -2082,7 +2082,7 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 			const MTPchannels_ChannelParticipants &result,
 			mtpRequestId requestId) {
 		searchDone(requestId, result, perPage);
-	}).fail([=](const RPCError &error, mtpRequestId requestId) {
+	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			_allLoaded = true;

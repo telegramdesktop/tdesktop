@@ -260,9 +260,9 @@ void Controller::addHeaderBlock(not_null<Ui::VerticalLayout*> container) {
 	const auto editLink = crl::guard(weak, [=] {
 		EditLink(_peer, _data.current());
 	});
-	const auto deleteLink = [=] {
+	const auto deleteLink = crl::guard(weak, [=] {
 		DeleteLink(_peer, admin, link);
-	};
+	});
 
 	const auto createMenu = [=] {
 		auto result = base::make_unique_q<Ui::PopupMenu>(container);
@@ -525,7 +525,7 @@ void Controller::loadMoreRows() {
 		auto slice = Api::ParseJoinedByLinkSlice(_peer, result);
 		_allLoaded = slice.users.empty();
 		appendSlice(slice);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		_allLoaded = true;
 	}).send();
@@ -905,12 +905,12 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 		return peer->canWrite();
 	};
 	*box = Ui::show(
-		Box<ShareBox>(
-			App::wnd()->sessionController(),
-			std::move(copyCallback),
-			std::move(submitCallback),
-			std::move(filterCallback),
-			tr::lng_profile_invite_link_section()),
+		Box<ShareBox>(ShareBox::Descriptor{
+			.session = &peer->session(),
+			.copyCallback = std::move(copyCallback),
+			.submitCallback = std::move(submitCallback),
+			.filterCallback = [](auto peer) { return peer->canWrite(); },
+			.navigation = App::wnd()->sessionController() }),
 		Ui::LayerOption::KeepOther);
 }
 

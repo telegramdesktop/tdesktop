@@ -668,7 +668,7 @@ void EditColorBox::Field::changeValue(int delta) {
 		setText(QString::number(newValue));
 		setFocus();
 		selectAll();
-		emit changed();
+		changed();
 	}
 }
 

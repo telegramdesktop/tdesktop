@@ -287,7 +287,7 @@ bool EventFilter::mainWindowEvent(
 				} else if (wParam == SIZE_MINIMIZED) {
 					state = Qt::WindowMinimized;
 				}
-				emit _window->windowHandle()->windowStateChanged(state);
+				_window->windowHandle()->windowStateChanged(state);
 			} else {
 				_window->positionUpdated();
 			}

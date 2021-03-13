@@ -36,7 +36,9 @@ protected:
 	void doClearFromHistory(not_null<History*> history) override;
 	void doClearFromSession(not_null<Main::Session*> session) override;
 	void onBeforeNotificationActivated(NotificationId id) override;
-	void onAfterNotificationActivated(NotificationId id) override;
+	void onAfterNotificationActivated(
+		NotificationId id,
+		not_null<Window::SessionController*> window) override;
 
 private:
 	class Private;

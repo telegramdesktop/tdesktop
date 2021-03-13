@@ -59,6 +59,9 @@
     <file alias="day-blue.tdesktop-theme">../../day-blue.tdesktop-theme</file>
     <file alias="night.tdesktop-theme">../../night.tdesktop-theme</file>
     <file alias="night-green.tdesktop-theme">../../night-green.tdesktop-theme</file>
+    <file alias="icons/calls/active_hand.json">../../icons/calls/active_hand.json</file>
+    <file alias="icons/calls/hand_muted_active.json">../../icons/calls/hand_muted_active.json</file>
+    <file alias="icons/calls/raised_hand.json">../../icons/calls/raised_hand.json</file>
   </qresource>
   <qresource prefix="/qt-project.org">
     <file>../qmime/freedesktop.org.xml</file>

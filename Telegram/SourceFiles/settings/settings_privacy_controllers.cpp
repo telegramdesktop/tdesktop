@@ -246,7 +246,7 @@ void BlockedBoxController::loadMoreRows() {
 		} break;
 		default: Unexpected("Bad type() in MTPcontacts_GetBlocked() result.");
 		}
-	}).fail([this](const RPCError &error) {
+	}).fail([this](const MTP::Error &error) {
 		_loadRequestId = 0;
 	}).send();
 }

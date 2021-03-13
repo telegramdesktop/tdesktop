@@ -299,6 +299,9 @@ bool ResolveUsername(
 			}
 			: Navigation::RepliesByLinkInfo{ v::null },
 		.startToken = startToken,
+		.voicechatHash = (params.contains(u"voicechat"_q)
+			? std::make_optional(params.value(u"voicechat"_q))
+			: std::nullopt),
 		.clickFromMessageId = fromMessageId,
 	});
 	return true;
@@ -480,7 +483,7 @@ bool OpenMediaTimestamp(
 			Core::App().showDocument(
 				document,
 				session->data().message(itemId));
-		} else if (document->isSong()) {
+		} else if (document->isSong() || document->isVoiceMessage()) {
 			Media::Player::instance()->play({ document, itemId });
 		}
 		return true;

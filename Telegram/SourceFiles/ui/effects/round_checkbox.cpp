@@ -298,7 +298,10 @@ RoundCheckbox::RoundCheckbox(const style::RoundCheckbox &st, Fn<void()> updateCa
 }
 
 void RoundCheckbox::paint(Painter &p, int x, int y, int outerWidth, float64 masterScale) {
-	if (!_checkedProgress.animating() && !_checked && !_displayInactive) {
+	if (!_st.size
+		|| (!_checkedProgress.animating()
+			&& !_checked
+			&& !_displayInactive)) {
 		return;
 	}
 
@@ -431,10 +434,11 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
 		p.drawEllipse(style::rtlrect(x, y, _st.imageRadius * 2, _st.imageRadius * 2, outerWidth));
 		p.setOpacity(1.);
 	}
-
-	auto iconLeft = x + 2 * _st.imageRadius + _st.selectWidth - _st.check.size;
-	auto iconTop = y + 2 * _st.imageRadius + _st.selectWidth - _st.check.size;
-	_check.paint(p, iconLeft, iconTop, outerWidth);
+	if (_st.check.size > 0) {
+		auto iconLeft = x + 2 * _st.imageRadius + _st.selectWidth - _st.check.size;
+		auto iconTop = y + 2 * _st.imageRadius + _st.selectWidth - _st.check.size;
+		_check.paint(p, iconLeft, iconTop, outerWidth);
+	}
 }
 
 float64 RoundImageCheckbox::checkedAnimationRatio() const {

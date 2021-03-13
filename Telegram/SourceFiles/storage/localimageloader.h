@@ -144,10 +144,10 @@ public:
 
 	~TaskQueue();
 
-signals:
+Q_SIGNALS:
 	void taskAdded();
 
-public slots:
+public Q_SLOTS:
 	void onTaskProcessed();
 	void stop();
 
@@ -173,10 +173,10 @@ public:
 	TaskQueueWorker(TaskQueue *queue) : _queue(queue) {
 	}
 
-signals:
+Q_SIGNALS:
 	void taskProcessed();
 
-public slots:
+public Q_SLOTS:
 	void onTaskAdded();
 
 private:
@@ -212,14 +212,20 @@ struct SendingAlbum {
 };
 
 struct FileLoadTo {
-	FileLoadTo(const PeerId &peer, Api::SendOptions options, MsgId replyTo)
+	FileLoadTo(
+		const PeerId &peer,
+		Api::SendOptions options,
+		MsgId replyTo,
+		MsgId replaceMediaOf)
 	: peer(peer)
 	, options(options)
-	, replyTo(replyTo) {
+	, replyTo(replyTo)
+	, replaceMediaOf(replaceMediaOf) {
 	}
 	PeerId peer;
 	Api::SendOptions options;
 	MsgId replyTo;
+	MsgId replaceMediaOf;
 };
 
 struct FileLoadResult {
@@ -261,8 +267,6 @@ struct FileLoadResult {
 	PreparedPhotoThumbs photoThumbs;
 	TextWithTags caption;
 
-	bool edit = false;
-
 	void setFileData(const QByteArray &filedata);
 	void setThumbData(const QByteArray &thumbdata);
 
@@ -287,8 +291,7 @@ public:
 		SendMediaType type,
 		const FileLoadTo &to,
 		const TextWithTags &caption,
-		std::shared_ptr<SendingAlbum> album = nullptr,
-		MsgId msgIdToEdit = 0);
+		std::shared_ptr<SendingAlbum> album = nullptr);
 	FileLoadTask(
 		not_null<Main::Session*> session,
 		const QByteArray &voice,
@@ -346,7 +349,6 @@ private:
 	VoiceWaveform _waveform;
 	SendMediaType _type;
 	TextWithTags _caption;
-	MsgId _msgIdToEdit = 0;
 
 	std::shared_ptr<FileLoadResult> _result;
 

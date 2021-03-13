@@ -330,7 +330,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 						Ui::hideLayer();
 					}
 					finish();
-				}).fail([=](const RPCError &error) {
+				}).fail([=](const MTP::Error &error) {
 					finish();
 				}).afterRequest(history->sendRequestId).send();
 				return history->sendRequestId;
@@ -350,12 +350,12 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 	auto copyLinkCallback = canCopyLink
 		? Fn<void()>(std::move(copyCallback))
 		: Fn<void()>();
-	Ui::show(Box<ShareBox>(
-		App::wnd()->sessionController(),
-		std::move(copyLinkCallback),
-		std::move(submitCallback),
-		std::move(filterCallback),
-		tr::lng_share_title()));
+	Ui::show(Box<ShareBox>(ShareBox::Descriptor{
+		.session = session,
+		.copyCallback = std::move(copyLinkCallback),
+		.submitCallback = std::move(submitCallback),
+		.filterCallback = std::move(filterCallback),
+		.navigation = App::wnd()->sessionController() }));
 }
 
 Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
@@ -1499,7 +1499,10 @@ TextWithEntities HistoryMessage::withLocalEntities(
 		const auto document = reply->replyToDocumentId
 			? history()->owner().document(reply->replyToDocumentId).get()
 			: nullptr;
-		if (document && (document->isVideoFile() || document->isSong())) {
+		if (document
+			&& (document->isVideoFile()
+				|| document->isSong()
+				|| document->isVoiceMessage())) {
 			using namespace HistoryView;
 			const auto duration = document->getDuration();
 			const auto base = (duration > 0)

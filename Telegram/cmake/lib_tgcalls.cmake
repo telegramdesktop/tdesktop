@@ -47,6 +47,8 @@ PRIVATE
     Message.h
     NetworkManager.cpp
     NetworkManager.h
+    StaticThreads.cpp
+    StaticThreads.h
     ThreadLocalObject.h
     VideoCaptureInterface.cpp
     VideoCaptureInterface.h
@@ -54,8 +56,12 @@ PRIVATE
     VideoCaptureInterfaceImpl.h
     VideoCapturerInterface.h
 
-    group/GroupInstanceImpl.cpp
-    group/GroupInstanceImpl.h
+    group/GroupInstanceCustomImpl.cpp
+    group/GroupInstanceCustomImpl.h
+    group/GroupNetworkManager.cpp
+    group/GroupNetworkManager.h
+    group/StreamingPart.cpp
+    group/StreamingPart.h
 
     platform/PlatformInterface.h
 
@@ -119,6 +125,7 @@ PRIVATE
 target_link_libraries(lib_tgcalls
 PRIVATE
     desktop-app::external_webrtc
+    desktop-app::external_ffmpeg
 )
 
 target_compile_definitions(lib_tgcalls

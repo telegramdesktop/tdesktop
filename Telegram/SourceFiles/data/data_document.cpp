@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "platform/platform_file_utilities.h"
 #include "base/platform/base_platform_info.h"
-#include "base/platform/base_platform_file_utilities.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/media/history_view_gif.h"
@@ -49,6 +48,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 
 #include <QtCore/QBuffer>
+#include <QtCore/QMimeType>
+#include <QtCore/QMimeDatabase>
 
 namespace {
 
@@ -1724,7 +1725,10 @@ bool IsIpRevealingName(const QString &filepath) {
 	return ranges::binary_search(
 		kExtensions,
 		FileExtension(filepath).toLower()
-	) || base::Platform::IsNonExtensionMimeFrom(filepath, kMimeTypes);
+	) || ranges::binary_search(
+		kMimeTypes,
+		QMimeDatabase().mimeTypeForFile(QFileInfo(filepath)).name()
+	);
 }
 
 base::binary_guard ReadImageAsync(

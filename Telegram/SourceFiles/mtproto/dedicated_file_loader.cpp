@@ -119,7 +119,7 @@ void WeakInstance::die() {
 		if (_instance) {
 			_instance->cancel(requestId);
 		}
-		fail(RPCError::Local(
+		fail(Error::Local(
 			"UNAVAILABLE",
 			"MTP instance is not available."));
 	}
@@ -134,9 +134,9 @@ bool WeakInstance::removeRequest(mtpRequestId requestId) {
 }
 
 void WeakInstance::reportUnavailable(
-		Fn<void(const RPCError &error)> callback) {
+		Fn<void(const Error &error)> callback) {
 	InvokeQueued(this, [=] {
-		callback(RPCError::Local(
+		callback(Error::Local(
 			"UNAVAILABLE",
 			"MTP instance is not available."));
 	});
@@ -360,8 +360,8 @@ void DedicatedLoader::gotPart(int offset, const MTPupload_File &result) {
 	sendRequest();
 }
 
-Fn<void(const RPCError &)> DedicatedLoader::failHandler() {
-	return [=](const RPCError &error) {
+Fn<void(const Error &)> DedicatedLoader::failHandler() {
+	return [=](const Error &error) {
 		LOG(("Update Error: MTP load failed with '%1'"
 			).arg(QString::number(error.code()) + ':' + error.type()));
 		threadSafeFailed();
@@ -411,7 +411,7 @@ void ResolveChannel(
 			failed();
 		}
 	};
-	const auto failHandler = [=](const RPCError &error) {
+	const auto failHandler = [=](const Error &error) {
 		LOG(("Dedicated MTP Error: Resolve failed with '%1'"
 			).arg(QString::number(error.code()) + ':' + error.type()));
 		fail();
@@ -447,7 +447,7 @@ void StartDedicatedLoader(
 				*file)
 			: nullptr);
 	};
-	const auto failHandler = [=](const RPCError &error) {
+	const auto failHandler = [=](const Error &error) {
 		LOG(("Update Error: MTP check failed with '%1'"
 			).arg(QString::number(error.code()) + ':' + error.type()));
 		ready(nullptr);

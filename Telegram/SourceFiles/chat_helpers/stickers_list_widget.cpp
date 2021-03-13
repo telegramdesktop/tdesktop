@@ -1045,7 +1045,7 @@ void StickersListWidget::preloadMoreOfficial() {
 		});
 		resizeToWidth(width());
 		update();
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 	}).send();
 }
 
@@ -1215,7 +1215,7 @@ void StickersListWidget::sendSearchRequest() {
 		MTP_int(hash)
 	)).done([=](const MTPmessages_FoundStickerSets &result) {
 		searchResultsDone(result);
-	}).fail([this](const RPCError &error) {
+	}).fail([this](const MTP::Error &error) {
 		// show error?
 		_footer->setLoading(false);
 		_searchRequestId = 0;
@@ -2551,7 +2551,7 @@ auto StickersListWidget::collectRecentStickers() -> std::vector<Sticker> {
 	};
 
 	if (cloudCount > 0) {
-		for (const auto document : cloudIt->second->stickers) {
+		for (const auto document : std::as_const(cloudIt->second->stickers)) {
 			add(document, false);
 		}
 	}
@@ -2559,7 +2559,7 @@ auto StickersListWidget::collectRecentStickers() -> std::vector<Sticker> {
 		add(recentSticker.first, false);
 	}
 	if (customCount > 0) {
-		for (const auto document : customIt->second->stickers) {
+		for (const auto document : std::as_const(customIt->second->stickers)) {
 			add(document, true);
 		}
 	}
@@ -3066,7 +3066,7 @@ void StickersListWidget::sendInstallRequest(
 			session().data().stickers().applyArchivedResult(
 				result.c_messages_stickerSetInstallResultArchive());
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		notInstalledLocally(setId);
 		session().data().stickers().undoInstallLocally(setId);
 	}).send();

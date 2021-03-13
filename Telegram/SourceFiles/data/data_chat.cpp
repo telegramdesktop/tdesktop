@@ -237,6 +237,14 @@ void ChatData::clearGroupCall() {
 		| MTPDchat::Flag::f_call_not_empty);
 }
 
+void ChatData::setGroupCallDefaultJoinAs(PeerId peerId) {
+	_callDefaultJoinAs = peerId;
+}
+
+PeerId ChatData::groupCallDefaultJoinAs() const {
+	return _callDefaultJoinAs;
+}
+
 namespace Data {
 
 void ApplyChatUpdate(
@@ -375,6 +383,11 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 		chat->setGroupCall(*call);
 	} else {
 		chat->clearGroupCall();
+	}
+	if (const auto as = update.vgroupcall_default_join_as()) {
+		chat->setGroupCallDefaultJoinAs(peerFromMTP(*as));
+	} else {
+		chat->setGroupCallDefaultJoinAs(0);
 	}
 
 	chat->setMessagesTTL(update.vttl_period().value_or_empty());

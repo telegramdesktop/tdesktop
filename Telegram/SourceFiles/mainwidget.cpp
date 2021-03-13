@@ -1335,7 +1335,7 @@ void MainWidget::viewsIncrement() {
 			MTP_bool(true)
 		)).done([=](const MTPmessages_MessageViews &result, mtpRequestId requestId) {
 			viewsIncrementDone(ids, result, requestId);
-		}).fail([=](const RPCError &error, mtpRequestId requestId) {
+		}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 			viewsIncrementFail(error, requestId);
 		}).afterDelay(5).send();
 
@@ -1382,7 +1382,7 @@ void MainWidget::viewsIncrementDone(
 	}
 }
 
-void MainWidget::viewsIncrementFail(const RPCError &error, mtpRequestId requestId) {
+void MainWidget::viewsIncrementFail(const MTP::Error &error, mtpRequestId requestId) {
 	for (auto i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
 		if (i->second == requestId) {
 			_viewsIncrementRequests.erase(i);
@@ -1591,8 +1591,8 @@ void MainWidget::ui_showPeerHistory(
 					animationParams);
 			} else {
 				_history->show();
-				crl::on_main(App::wnd(), [] {
-					App::wnd()->setInnerFocus();
+				crl::on_main(this, [=] {
+					_controller->widget()->setInnerFocus();
 				});
 			}
 		}
@@ -1948,11 +1948,10 @@ void MainWidget::showBackFromStack(
 
 	if (selectingPeer()) {
 		return;
-	}
-	if (_stack.empty()) {
+	} else if (_stack.empty()) {
 		_controller->clearSectionStack(params);
-		crl::on_main(App::wnd(), [] {
-			App::wnd()->setInnerFocus();
+		crl::on_main(this, [=] {
+			_controller->widget()->setInnerFocus();
 		});
 		return;
 	}
@@ -2236,7 +2235,7 @@ void MainWidget::showAll() {
 	updateControlsGeometry();
 	floatPlayerCheckVisibility();
 
-	App::wnd()->checkHistoryActivation();
+	_controller->widget()->checkHistoryActivation();
 }
 
 void MainWidget::resizeEvent(QResizeEvent *e) {
@@ -2483,10 +2482,6 @@ auto MainWidget::thirdSectionForCurrentMainSection(
 		return std::make_shared<Info::Memento>(
 			peer,
 			Info::Memento::DefaultSection(peer));
-	//} else if (const auto feed = key.feed()) { // #feed
-	//	return std::make_shared<Info::Memento>(
-	//		feed,
-	//		Info::Memento::DefaultSection(key));
 	}
 	Unexpected("Key in MainWidget::thirdSectionForCurrentMainSection().");
 }
@@ -2724,7 +2719,7 @@ void MainWidget::activate() {
 	} else if (!_mainSection) {
 		if (_hider) {
 			_dialogs->setInnerFocus();
-		} else if (App::wnd() && !Ui::isLayerShown()) {
+		} else if (!Ui::isLayerShown()) {
 			if (!cSendPaths().isEmpty()) {
 				const auto interpret = qstr("interpret://");
 				const auto path = cSendPaths()[0];
@@ -2746,7 +2741,7 @@ void MainWidget::activate() {
 			}
 		}
 	}
-	App::wnd()->fixOrder();
+	_controller->widget()->fixOrder();
 }
 
 bool MainWidget::isActive() const {

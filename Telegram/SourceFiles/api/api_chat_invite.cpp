@@ -75,7 +75,7 @@ void CheckChatInvite(
 				}
 			}
 		});
-	}, [=](const RPCError &error) {
+	}, [=](const MTP::Error &error) {
 		if (error.code() != 400) {
 			return;
 		}

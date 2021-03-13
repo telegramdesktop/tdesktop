@@ -545,7 +545,7 @@ Fn<void()> SavePreparedTheme(
 			MTPInputThemeSettings()
 		)).done([=](const MTPTheme &result) {
 			finish(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			fail(SaveErrorType::Other, error.type());
 		}).send();
 	};
@@ -568,7 +568,7 @@ Fn<void()> SavePreparedTheme(
 			MTPInputThemeSettings()
 		)).done([=](const MTPTheme &result) {
 			finish(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			fail(SaveErrorType::Other, error.type());
 		}).send();
 	};
@@ -586,7 +586,7 @@ Fn<void()> SavePreparedTheme(
 			} else {
 				updateTheme(result);
 			}
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			fail(SaveErrorType::Other, error.type());
 		}).send();
 	};
@@ -635,7 +635,7 @@ Fn<void()> SavePreparedTheme(
 			MTPInputThemeSettings()
 		)).done([=](const MTPTheme &result) {
 			save();
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			if (error.type() == qstr("THEME_FILE_INVALID")) {
 				save();
 			} else {
@@ -771,7 +771,7 @@ void SaveTheme(
 			result.match([&](const MTPDtheme &data) {
 				save(CloudTheme::Parse(&window->account().session(), data));
 			});
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			save(CloudTheme());
 		}).send();
 	} else {

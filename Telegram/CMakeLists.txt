@@ -73,6 +73,7 @@ PRIVATE
 if (LINUX)
     target_link_libraries(Telegram
     PRIVATE
+        desktop-app::external_glibmm
         desktop-app::external_glib
     )
 
@@ -264,11 +265,15 @@ PRIVATE
     calls/calls_box_controller.h
     calls/calls_call.cpp
     calls/calls_call.h
+    calls/calls_choose_join_as.cpp
+    calls/calls_choose_join_as.h
     calls/calls_group_call.cpp
     calls/calls_group_call.h
     calls/calls_group_common.h
     calls/calls_group_members.cpp
     calls/calls_group_members.h
+    calls/calls_group_menu.cpp
+    calls/calls_group_menu.h
     calls/calls_group_panel.cpp
     calls/calls_group_panel.h
     calls/calls_group_settings.cpp
@@ -392,8 +397,6 @@ PRIVATE
     data/data_drafts.h
     data/data_folder.cpp
     data/data_folder.h
-    # data/data_feed_messages.cpp
-    # data/data_feed_messages.h
     data/data_file_origin.cpp
     data/data_file_origin.h
     data/data_flags.h
@@ -494,8 +497,6 @@ PRIVATE
     history/admin_log/history_admin_log_item.h
     history/admin_log/history_admin_log_section.cpp
     history/admin_log/history_admin_log_section.h
-    # history/feed/history_feed_section.cpp
-    # history/feed/history_feed_section.h
     history/view/controls/compose_controls_common.h
     history/view/controls/history_view_compose_controls.cpp
     history/view/controls/history_view_compose_controls.h
@@ -614,22 +615,10 @@ PRIVATE
     info/info_top_bar.h
     info/info_wrap_widget.cpp
     info/info_wrap_widget.h
-    # info/channels/info_channels_widget.cpp
-    # info/channels/info_channels_widget.h
     info/common_groups/info_common_groups_inner_widget.cpp
     info/common_groups/info_common_groups_inner_widget.h
     info/common_groups/info_common_groups_widget.cpp
     info/common_groups/info_common_groups_widget.h
-    # info/feed/info_feed_channels.cpp
-    # info/feed/info_feed_channels.h
-    # info/feed/info_feed_channels_controllers.cpp
-    # info/feed/info_feed_channels_controllers.h
-    # info/feed/info_feed_cover.cpp
-    # info/feed/info_feed_cover.h
-    # info/feed/info_feed_profile_inner_widget.cpp
-    # info/feed/info_feed_profile_inner_widget.h
-    # info/feed/info_feed_profile_widget.cpp
-    # info/feed/info_feed_profile_widget.h
     info/media/info_media_buttons.h
     info/media/info_media_empty_widget.cpp
     info/media/info_media_empty_widget.h
@@ -834,14 +823,16 @@ PRIVATE
     platform/linux/linux_gtk_integration_p.h
     platform/linux/linux_gtk_integration.cpp
     platform/linux/linux_gtk_integration.h
+    platform/linux/linux_gtk_open_with_dialog.cpp
+    platform/linux/linux_gtk_open_with_dialog.h
     platform/linux/linux_notification_service_watcher.cpp
     platform/linux/linux_notification_service_watcher.h
-    platform/linux/linux_open_with_dialog.cpp
-    platform/linux/linux_open_with_dialog.h
     platform/linux/linux_wayland_integration.cpp
     platform/linux/linux_wayland_integration.h
     platform/linux/linux_xdp_file_dialog.cpp
     platform/linux/linux_xdp_file_dialog.h
+    platform/linux/linux_xdp_open_with_dialog.cpp
+    platform/linux/linux_xdp_open_with_dialog.h
     platform/linux/file_utilities_linux.cpp
     platform/linux/file_utilities_linux.h
     platform/linux/launcher_linux.cpp
@@ -982,8 +973,6 @@ PRIVATE
     storage/storage_domain.h
     storage/storage_facade.cpp
     storage/storage_facade.h
-    # storage/storage_feed_messages.cpp
-    # storage/storage_feed_messages.h
     storage/storage_media_prepare.cpp
     storage/storage_media_prepare.h
     storage/storage_shared_media.cpp
@@ -1134,6 +1123,8 @@ if (DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
         platform/linux/linux_notification_service_watcher.h
         platform/linux/linux_xdp_file_dialog.cpp
         platform/linux/linux_xdp_file_dialog.h
+        platform/linux/linux_xdp_open_with_dialog.cpp
+        platform/linux/linux_xdp_open_with_dialog.h
         platform/linux/notifications_manager_linux.cpp
     )
 
@@ -1156,8 +1147,8 @@ if (DESKTOP_APP_DISABLE_GTK_INTEGRATION)
         platform/linux/linux_gtk_file_dialog.h
         platform/linux/linux_gtk_integration_p.h
         platform/linux/linux_gtk_integration.cpp
-        platform/linux/linux_open_with_dialog.cpp
-        platform/linux/linux_open_with_dialog.h
+        platform/linux/linux_gtk_open_with_dialog.cpp
+        platform/linux/linux_gtk_open_with_dialog.h
     )
 
     nice_target_sources(Telegram ${src_loc}

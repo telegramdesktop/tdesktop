@@ -8,9 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "base/timer.h"
 #include "mtproto/facade.h"
-
-#include <QtCore/QTimer>
 
 class ApiWrap;
 struct FileLoadResult;
@@ -64,8 +63,6 @@ struct UploadSecureDone {
 };
 
 class Uploader final : public QObject {
-	Q_OBJECT
-
 public:
 	explicit Uploader(not_null<ApiWrap*> api);
 	~Uploader();
@@ -114,7 +111,6 @@ public:
 		return _secureFailed.events();
 	}
 
-public slots:
 	void unpause();
 	void sendNext();
 	void stopSessions();
@@ -123,7 +119,7 @@ private:
 	struct File;
 
 	void partLoaded(const MTPBool &result, mtpRequestId requestId);
-	void partFailed(const RPCError &error, mtpRequestId requestId);
+	void partFailed(const MTP::Error &error, mtpRequestId requestId);
 
 	void processPhotoProgress(const FullMsgId &msgId);
 	void processPhotoFailed(const FullMsgId &msgId);
@@ -148,7 +144,7 @@ private:
 	FullMsgId _pausedId;
 	std::map<FullMsgId, File> queue;
 	std::map<FullMsgId, File> uploaded;
-	QTimer nextTimer, stopSessionsTimer;
+	base::Timer _nextTimer, _stopSessionsTimer;
 
 	rpl::event_stream<UploadedPhoto> _photoReady;
 	rpl::event_stream<UploadedDocument> _documentReady;

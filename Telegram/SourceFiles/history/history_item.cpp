@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
-//#include "storage/storage_feed_messages.h" // #feed
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "media/audio/media_audio.h"
@@ -558,13 +557,6 @@ void HistoryItem::indexAsNewItem() {
 				_history->peer->setHasPinnedMessages(true);
 			}
 		}
-		//if (const auto channel = history()->peer->asChannel()) { // #feed
-		//	if (const auto feed = channel->feed()) {
-		//		_history->session().storage().add(Storage::FeedMessagesAddNew(
-		//			feed->id(),
-		//			position()));
-		//	}
-		//}
 	}
 }
 

@@ -54,7 +54,7 @@ public:
 
 	void showSettings();
 
-	void setInnerFocus();
+	void setInnerFocus() override;
 
 	MainWidget *sessionContent() const;
 

@@ -34,7 +34,6 @@ class Memento final : public Window::SectionMemento {
 public:
 	explicit Memento(not_null<PeerData*> peer);
 	Memento(not_null<PeerData*> peer, Section section);
-	//Memento(not_null<Data::Feed*> feed, Section section); // #feed
 	Memento(Settings::Tag settings, Section section);
 	Memento(not_null<PollData*> poll, FullMsgId contextId);
 	explicit Memento(std::vector<std::shared_ptr<ContentMemento>> stack);
@@ -61,9 +60,7 @@ public:
 	}
 
 	static Section DefaultSection(not_null<PeerData*> peer);
-	//static Section DefaultSection(Dialogs::Key key); // #feed
 	static std::shared_ptr<Memento> Default(not_null<PeerData*> peer);
-	//static Memento Default(Dialogs::Key key); // #feed
 
 	~Memento();
 
@@ -71,9 +68,6 @@ private:
 	static std::vector<std::shared_ptr<ContentMemento>> DefaultStack(
 		not_null<PeerData*> peer,
 		Section section);
-	//static std::vector<std::shared_ptr<ContentMemento>> DefaultStack( // #feed
-	//	not_null<Data::Feed*> feed,
-	//	Section section);
 	static std::vector<std::shared_ptr<ContentMemento>> DefaultStack(
 		Settings::Tag settings,
 		Section section);
@@ -81,9 +75,6 @@ private:
 		not_null<PollData*> poll,
 		FullMsgId contextId);
 
-	//static std::shared_ptr<ContentMemento> DefaultContent( // #feed
-	//	not_null<Data::Feed*> feed,
-	//	Section section);
 	static std::shared_ptr<ContentMemento> DefaultContent(
 		not_null<PeerData*> peer,
 		Section section);

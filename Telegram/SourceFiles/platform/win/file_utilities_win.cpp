@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/application.h"
 #include "core/crash_reports.h"
+#include "window/window_controller.h"
 #include "app.h"
 
 #include <QtWidgets/QFileDialog>
@@ -139,12 +140,12 @@ bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition) {
 		return false;
 	}
 
-	auto window = App::wnd();
+	auto window = Core::App().activeWindow();
 	if (!window) {
 		return false;
 	}
 
-	auto parentHWND = window->psHwnd();
+	auto parentHWND = window->widget()->psHwnd();
 	auto wstringPath = QDir::toNativeSeparators(filepath).toStdWString();
 
 	auto result = false;

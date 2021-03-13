@@ -150,7 +150,7 @@ void SendExistingMedia(
 			)).done([=](const MTPUpdates &result) {
 				api->applyUpdates(result, randomId);
 				finish();
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				if (error.code() == 400
 					&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
 					api->refreshFileReference(origin, [=](const auto &result) {
@@ -324,7 +324,7 @@ bool SendDice(Api::MessageToSend &message) {
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result, randomId);
 			finish();
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			api->sendMessageFail(error, peer, randomId, newId);
 			finish();
 		}).afterRequest(history->sendRequestId
@@ -344,13 +344,15 @@ void FillMessagePostFlags(
 
 void SendConfirmedFile(
 		not_null<Main::Session*> session,
-		const std::shared_ptr<FileLoadResult> &file,
-		const std::optional<FullMsgId> &oldId) {
-	const auto isEditing = oldId.has_value();
+		const std::shared_ptr<FileLoadResult> &file) {
+	const auto isEditing = file->to.replaceMediaOf != 0;
 	const auto channelId = peerToChannel(file->to.peer);
 
-	const auto newId = oldId.value_or(
-		FullMsgId(channelId, session->data().nextLocalMessageId()));
+	const auto newId = FullMsgId(
+		channelId,
+		isEditing
+			? file->to.replaceMediaOf
+			: session->data().nextLocalMessageId());
 	auto groupId = file->album ? file->album->groupId : uint64(0);
 	if (file->album) {
 		const auto proj = [](const SendingAlbum::Item &item) {
@@ -361,7 +363,6 @@ void SendConfirmedFile(
 
 		it->msgId = newId;
 	}
-	file->edit = isEditing;
 	session->uploader().upload(newId, file);
 
 	const auto itemToEdit = isEditing

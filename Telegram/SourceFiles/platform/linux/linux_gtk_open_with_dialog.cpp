@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "platform/linux/linux_open_with_dialog.h"
+#include "platform/linux/linux_gtk_open_with_dialog.h"
 
 #include "platform/linux/linux_gtk_integration_p.h"
 #include "platform/linux/linux_gdk_helper.h"
@@ -21,7 +21,7 @@ namespace {
 
 using namespace Platform::Gtk;
 
-bool OpenWithDialogSupported() {
+bool Supported() {
 	return Platform::internal::GdkHelperLoaded()
 		&& (gtk_app_chooser_dialog_new != nullptr)
 		&& (gtk_app_chooser_get_app_info != nullptr)
@@ -32,15 +32,15 @@ bool OpenWithDialogSupported() {
 		&& (gtk_widget_destroy != nullptr);
 }
 
-class OpenWithDialog : public QWindow {
+class GtkOpenWithDialog : public QWindow {
 public:
-	OpenWithDialog(const QString &filepath);
-	~OpenWithDialog();
+	GtkOpenWithDialog(const QString &filepath);
+	~GtkOpenWithDialog();
 
 	bool exec();
 
 private:
-	static void handleResponse(OpenWithDialog *dialog, int responseId);
+	static void handleResponse(GtkOpenWithDialog *dialog, int responseId);
 
 	GFile *_gfileInstance = nullptr;
 	GtkWidget *_gtkWidget = nullptr;
@@ -48,7 +48,7 @@ private:
 	std::optional<bool> _result;
 };
 
-OpenWithDialog::OpenWithDialog(const QString &filepath)
+GtkOpenWithDialog::GtkOpenWithDialog(const QString &filepath)
 : _gfileInstance(g_file_new_for_path(filepath.toUtf8().constData()))
 , _gtkWidget(gtk_app_chooser_dialog_new(
 		nullptr,
@@ -61,12 +61,12 @@ OpenWithDialog::OpenWithDialog(const QString &filepath)
 		this);
 }
 
-OpenWithDialog::~OpenWithDialog() {
+GtkOpenWithDialog::~GtkOpenWithDialog() {
 	gtk_widget_destroy(_gtkWidget);
 	g_object_unref(_gfileInstance);
 }
 
-bool OpenWithDialog::exec() {
+bool GtkOpenWithDialog::exec() {
 	gtk_widget_realize(_gtkWidget);
 
 	if (const auto activeWindow = Core::App().activeWindow()) {
@@ -86,7 +86,7 @@ bool OpenWithDialog::exec() {
 	return *_result;
 }
 
-void OpenWithDialog::handleResponse(OpenWithDialog *dialog, int responseId) {
+void GtkOpenWithDialog::handleResponse(GtkOpenWithDialog *dialog, int responseId) {
 	GAppInfo *chosenAppInfo = nullptr;
 	dialog->_result = true;
 
@@ -119,12 +119,12 @@ void OpenWithDialog::handleResponse(OpenWithDialog *dialog, int responseId) {
 
 } // namespace
 
-bool ShowOpenWithDialog(const QString &filepath) {
-	if (!OpenWithDialogSupported()) {
+bool ShowGtkOpenWithDialog(const QString &filepath) {
+	if (!Supported()) {
 		return false;
 	}
 
-	return OpenWithDialog(filepath).exec();
+	return GtkOpenWithDialog(filepath).exec();
 }
 
 } // namespace internal

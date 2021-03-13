@@ -597,7 +597,7 @@ void ScheduledWidget::edit(
 		}
 	};
 
-	const auto fail = [=](const RPCError &error, mtpRequestId requestId) {
+	const auto fail = [=](const MTP::Error &error, mtpRequestId requestId) {
 		if (requestId == *saveEditMsgRequestId) {
 			*saveEditMsgRequestId = 0;
 		}

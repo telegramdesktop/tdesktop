@@ -120,7 +120,7 @@ void CloudThemes::reloadCurrent() {
 		MTP_long(fields.documentId)
 	)).done([=](const MTPTheme &result) {
 		applyUpdate(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_reloadCurrentTimer.callOnce(kReloadTimeout);
 	}).send();
 }
@@ -149,7 +149,7 @@ void CloudThemes::resolve(
 		MTP_long(0)
 	)).done([=](const MTPTheme &result) {
 		showPreview(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		if (error.type() == qstr("THEME_FORMAT_INVALID")) {
 			Ui::show(Box<InformBox>(
 				tr::lng_theme_no_desktop(tr::now)));
@@ -261,7 +261,7 @@ void CloudThemes::refresh() {
 			_updates.fire({});
 		}, [](const MTPDaccount_themesNotModified &) {
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_refreshRquestId = 0;
 	}).send();
 }

@@ -17,14 +17,8 @@ namespace Platform {
 
 bool InFlatpak();
 bool InSnap();
-bool AreQtPluginsBundled();
-bool UseXDGDesktopPortal();
-bool CanOpenDirectoryWithPortal();
-bool IsNotificationServiceActivatable();
 
 QString AppRuntimeDirectory();
-QString GetLauncherBasename();
-QString GetLauncherFilename();
 QString GetIconName();
 
 void InstallLauncher(bool force = false);
@@ -47,8 +41,6 @@ void psActivateProcess(uint64 pid = 0);
 QString psAppDataPath();
 void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
-
-QRect psDesktopRect();
 
 int psCleanup();
 int psFixPrevious();

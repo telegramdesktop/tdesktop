@@ -131,7 +131,7 @@ void RateCallBox::send() {
 	)).done([=](const MTPUpdates &updates) {
 		_session->api().applyUpdates(updates);
 		closeBox();
-	}).fail([=](const RPCError &error) { closeBox(); }).send();
+	}).fail([=](const MTP::Error &error) { closeBox(); }).send();
 }
 
 void RateCallBox::updateMaxHeight() {

@@ -112,7 +112,7 @@ void Authorizations::reload() {
 			}) | ranges::to<List>;
 			_listChanges.fire({});
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 	}).send();
 }
@@ -123,7 +123,7 @@ void Authorizations::cancelCurrentRequest() {
 
 void Authorizations::requestTerminate(
 		Fn<void(const MTPBool &result)> &&done,
-		Fn<void(const RPCError &error)> &&fail,
+		Fn<void(const MTP::Error &error)> &&fail,
 		std::optional<uint64> hash) {
 	const auto send = [&](auto request) {
 		_api.request(

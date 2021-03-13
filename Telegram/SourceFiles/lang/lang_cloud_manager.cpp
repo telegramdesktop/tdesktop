@@ -226,7 +226,7 @@ void CloudManager::requestLangPackDifference(Pack pack) {
 		)).done([=](const MTPLangPackDifference &result) {
 			packRequestId(pack) = 0;
 			applyLangPackDifference(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			packRequestId(pack) = 0;
 		}).send();
 	} else {
@@ -236,7 +236,7 @@ void CloudManager::requestLangPackDifference(Pack pack) {
 		)).done([=](const MTPLangPackDifference &result) {
 			packRequestId(pack) = 0;
 			applyLangPackDifference(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			packRequestId(pack) = 0;
 		}).send();
 	}
@@ -314,7 +314,7 @@ void CloudManager::requestLanguageList() {
 			_languagesChanged.notify();
 		}
 		_languagesRequestId = 0;
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_languagesRequestId = 0;
 	}).send();
 }
@@ -453,7 +453,7 @@ void CloudManager::sendSwitchingToLanguageRequest() {
 				Ui::show(Box<NotReadyBox>(data));
 			}
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_switchingToLanguageRequest = 0;
 		if (error.type() == "LANG_CODE_NOT_SUPPORTED") {
 			Ui::show(Box<InformBox>(tr::lng_language_not_found(tr::now)));
@@ -500,7 +500,7 @@ void CloudManager::switchToLanguage(const Language &data) {
 					tr::lng_cancel(tr::now),
 					[=] { performSwitchAndRestart(data); }),
 				Ui::LayerOption::KeepOther);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			_getKeysForSwitchRequestId = 0;
 		}).send();
 	}

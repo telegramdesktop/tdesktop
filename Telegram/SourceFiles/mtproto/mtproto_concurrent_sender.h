@@ -20,10 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #define MTP_SENDER_USE_GENERIC_HANDLERS
 #endif // !_DEBUG
 
-class RPCError;
 
 namespace MTP {
 
+class Error;
 class Instance;
 
 class ConcurrentSender : public base::has_weak_ptr {
@@ -35,15 +35,9 @@ class ConcurrentSender : public base::has_weak_ptr {
 	auto with_instance(Method &&method)
 	-> std::enable_if_t<is_callable_v<Method, not_null<Instance*>>>;
 
-	using DoneHandler = FnMut<bool(
-		mtpRequestId requestId,
-		bytes::const_span result)>;
-	using FailHandler = FnMut<void(
-		mtpRequestId requestId,
-		RPCError &&error)>;
 	struct Handlers {
-		DoneHandler done;
-		FailHandler fail;
+		FnMut<bool(mtpRequestId requestId, bytes::const_span result)> done;
+		FnMut<void(mtpRequestId requestId, const Error &error)> fail;
 	};
 
 	enum class FailSkipPolicy {
@@ -95,7 +89,7 @@ public:
 	template <typename Request>
 	class SpecificRequestBuilder : public RequestBuilder {
 	public:
-		using Response = typename Request::ResponseType;
+		using Result = typename Request::ResponseType;
 
 		SpecificRequestBuilder(
 			const SpecificRequestBuilder &other) = delete;
@@ -115,18 +109,14 @@ public:
 		// Allow code completion to show response type.
 		[[nodiscard]] SpecificRequestBuilder &done(FnMut<void()> &&handler);
 		[[nodiscard]] SpecificRequestBuilder &done(
-			FnMut<void(mtpRequestId)> &&handler);
+			FnMut<void(mtpRequestId, Result &&)> &&handler);
 		[[nodiscard]] SpecificRequestBuilder &done(
-			FnMut<void(mtpRequestId, Response &&)> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &done(FnMut<void(
-			Response &&)> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &fail(FnMut<void()> &&handler);
+			FnMut<void(Result &&)> &&handler);
+		[[nodiscard]] SpecificRequestBuilder &fail(Fn<void()> &&handler);
 		[[nodiscard]] SpecificRequestBuilder &fail(
-			FnMut<void(mtpRequestId)> &&handler);
+			Fn<void(mtpRequestId, const Error &)> &&handler);
 		[[nodiscard]] SpecificRequestBuilder &fail(
-			FnMut<void(mtpRequestId, RPCError &&)> &&handler);
-		[[nodiscard]] SpecificRequestBuilder &fail(
-			FnMut<void(RPCError &&)> &&handler);
+			Fn<void(const Error &)> &&handler);
 #else // !MTP_SENDER_USE_GENERIC_HANDLERS
 		template <typename Handler>
 		[[nodiscard]] SpecificRequestBuilder &done(Handler &&handler);
@@ -178,10 +168,8 @@ public:
 	~ConcurrentSender();
 
 private:
-	class RPCDoneHandler;
-	friend class RPCDoneHandler;
-	class RPCFailHandler;
-	friend class RPCFailHandler;
+	class HandlerMaker;
+	friend class HandlerMaker;
 	friend class RequestBuilder;
 	friend class SentRequestWrap;
 
@@ -191,7 +179,7 @@ private:
 		bytes::const_span result);
 	void senderRequestFail(
 		mtpRequestId requestId,
-		RPCError &&error);
+		const Error &error);
 	void senderRequestCancel(mtpRequestId requestId);
 	void senderRequestCancelAll();
 	void senderRequestDetach(mtpRequestId requestId);
@@ -202,7 +190,7 @@ private:
 
 };
 
-template <typename Response, typename InvokeFullDone>
+template <typename Result, typename InvokeFullDone>
 void ConcurrentSender::RequestBuilder::setDoneHandler(
 	InvokeFullDone &&invoke
 ) noexcept {
@@ -211,11 +199,11 @@ void ConcurrentSender::RequestBuilder::setDoneHandler(
 			bytes::const_span result) mutable {
 		auto from = reinterpret_cast<const mtpPrime*>(result.data());
 		const auto end = from + result.size() / sizeof(mtpPrime);
-		Response data;
+		Result data;
 		if (!data.read(from, end)) {
 			return false;
 		}
-		std::move(handler)(requestId, std::move(data));
+		handler(requestId, std::move(data));
 		return true;
 	};
 }
@@ -254,33 +242,21 @@ auto ConcurrentSender::SpecificRequestBuilder<Request>::afterDelay(
 // Allow code completion to show response type.
 template <typename Request>
 auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
-	FnMut<void(Response &&)> &&handler
+	FnMut<void(Result &&)> &&handler
 ) -> SpecificRequestBuilder & {
-	setDoneHandler<Response>([handler = std::move(handler)](
+	setDoneHandler<Result>([handler = std::move(handler)](
 			mtpRequestId requestId,
-			Response &&result) mutable {
-		std::move(handler)(std::move(result));
+			Result &&result) mutable {
+		handler(std::move(result));
 	});
 	return *this;
 }
 
 template <typename Request>
 auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
-	FnMut<void(mtpRequestId, Response &&)> &&handler
+	FnMut<void(mtpRequestId, Result &&)> &&handler
 ) -> SpecificRequestBuilder & {
-	setDoneHandler<Response>(std::move(handler));
-	return *this;
-}
-
-template <typename Request>
-auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
-	FnMut<void(mtpRequestId)> &&handler
-) -> SpecificRequestBuilder & {
-	setDoneHandler<Response>([handler = std::move(handler)](
-			mtpRequestId requestId,
-			Response &&result) mutable {
-		std::move(handler)(requestId);
-	});
+	setDoneHandler<Result>(std::move(handler));
 	return *this;
 }
 
@@ -288,9 +264,9 @@ template <typename Request>
 auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
 	FnMut<void()> &&handler
 ) -> SpecificRequestBuilder & {
-	setDoneHandler<Response>([handler = std::move(handler)](
+	setDoneHandler<Result>([handler = std::move(handler)](
 			mtpRequestId requestId,
-			Response &&result) mutable {
+			Result &&result) mutable {
 		std::move(handler)();
 	});
 	return *this;
@@ -298,19 +274,19 @@ auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
 
 template <typename Request>
 auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
-	FnMut<void(RPCError &&)> &&handler
+	Fn<void(const Error &)> &&handler
 ) -> SpecificRequestBuilder & {
 	setFailHandler([handler = std::move(handler)](
 			mtpRequestId requestId,
-			RPCError &&error) mutable {
-		std::move(handler)(std::move(error));
+			const Error &error) {
+		handler(error);
 	});
 	return *this;
 }
 
 template <typename Request>
 auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
-	FnMut<void(mtpRequestId, RPCError &&)> &&handler
+	Fn<void(mtpRequestId, const Error &)> &&handler
 ) -> SpecificRequestBuilder & {
 	setFailHandler(std::move(handler));
 	return *this;
@@ -318,24 +294,12 @@ auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
 
 template <typename Request>
 auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
-	FnMut<void(mtpRequestId)> &&handler
+	Fn<void()> &&handler
 ) -> SpecificRequestBuilder & {
 	setFailHandler([handler = std::move(handler)](
 			mtpRequestId requestId,
-			RPCError &&error) mutable {
-		std::move(handler)(requestId);
-	});
-	return *this;
-}
-
-template <typename Request>
-auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
-	FnMut<void()> &&handler
-) -> SpecificRequestBuilder & {
-	setFailHandler([handler = std::move(handler)](
-			mtpRequestId requestId,
-			RPCError &&error) mutable {
-		std::move(handler)();
+			const Error &error) {
+		handler();
 	});
 	return *this;
 }
@@ -345,38 +309,29 @@ template <typename Handler>
 auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
 	Handler &&handler
 ) -> SpecificRequestBuilder & {
-	using Response = typename Request::ResponseType;
+	using Result = typename Request::ResponseType;
 	constexpr auto takesFull = rpl::details::is_callable_plain_v<
 		Handler,
 		mtpRequestId,
-		Response>;
+		Result>;
 	constexpr auto takesResponse = rpl::details::is_callable_plain_v<
 		Handler,
-		Response>;
-	constexpr auto takesRequestId = rpl::details::is_callable_plain_v<
-		Handler,
-		mtpRequestId>;
+		Result>;
 	constexpr auto takesNone = rpl::details::is_callable_plain_v<Handler>;
 
 	if constexpr (takesFull) {
-		setDoneHandler<Response>(std::forward<Handler>(handler));
+		setDoneHandler<Result>(std::forward<Handler>(handler));
 	} else if constexpr (takesResponse) {
-		setDoneHandler<Response>([handler = std::forward<Handler>(handler)](
+		setDoneHandler<Result>([handler = std::forward<Handler>(handler)](
 				mtpRequestId requestId,
-				Response &&result) mutable {
-			std::move(handler)(std::move(result));
-		});
-	} else if constexpr (takesRequestId) {
-		setDoneHandler<Response>([handler = std::forward<Handler>(handler)](
-				mtpRequestId requestId,
-				Response &&result) mutable {
-			std::move(handler)(requestId);
+				Result &&result) mutable {
+			handler(std::move(result));
 		});
 	} else if constexpr (takesNone) {
-		setDoneHandler<Response>([handler = std::forward<Handler>(handler)](
+		setDoneHandler<Result>([handler = std::forward<Handler>(handler)](
 				mtpRequestId requestId,
-				Response &&result) mutable {
-			std::move(handler)();
+				Result &&result) mutable {
+			handler();
 		});
 	} else {
 		static_assert(false_t(Handler{}), "Bad done handler.");
@@ -392,13 +347,10 @@ auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
 	constexpr auto takesFull = rpl::details::is_callable_plain_v<
 		Handler,
 		mtpRequestId,
-		RPCError>;
+		Error>;
 	constexpr auto takesError = rpl::details::is_callable_plain_v<
 		Handler,
-		RPCError>;
-	constexpr auto takesRequestId = rpl::details::is_callable_plain_v<
-		Handler,
-		mtpRequestId>;
+		Error>;
 	constexpr auto takesNone = rpl::details::is_callable_plain_v<Handler>;
 
 	if constexpr (takesFull) {
@@ -406,20 +358,14 @@ auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
 	} else if constexpr (takesError) {
 		setFailHandler([handler = std::forward<Handler>(handler)](
 				mtpRequestId requestId,
-				RPCError &&error) mutable {
-			std::move(handler)(std::move(error));
-		});
-	} else if constexpr (takesRequestId) {
-		setFailHandler([handler = std::forward<Handler>(handler)](
-				mtpRequestId requestId,
-				RPCError &&error) mutable {
-			std::move(handler)(requestId);
+				const Error &error) {
+			handler(error);
 		});
 	} else if constexpr (takesNone) {
 		setFailHandler([handler = std::forward<Handler>(handler)](
 				mtpRequestId requestId,
-				RPCError &&error) mutable {
-			std::move(handler)();
+				const Error &error) {
+			handler();
 		});
 	} else {
 		static_assert(false_t(Handler{}), "Bad fail handler.");

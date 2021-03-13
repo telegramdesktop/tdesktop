@@ -10,34 +10,75 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "main/main_domain.h"
 #include "window/notifications_manager.h"
-#include "platform/linux/specific_linux.h"
+#include "base/platform/linux/base_linux_glibmm_helper.h"
+#include "base/platform/linux/base_linux_dbus_utilities.h"
 
-#include <QtDBus/QDBusConnection>
+#include <glibmm.h>
+#include <giomm.h>
 
 namespace Platform {
 namespace internal {
+namespace {
+
+constexpr auto kNotificationService = "org.freedesktop.Notifications"_cs;
+
+bool IsNotificationServiceActivatable() {
+	static const auto Result = [] {
+		try {
+			const auto connection = Gio::DBus::Connection::get_sync(
+				Gio::DBus::BusType::BUS_TYPE_SESSION);
+
+			return ranges::contains(
+				base::Platform::DBus::ListActivatableNames(connection),
+				Glib::ustring(std::string(kNotificationService)));
+		} catch (...) {
+		}
+
+		return false;
+	}();
+
+	return Result;
+}
+
+} // namespace
+
+class NotificationServiceWatcher::Private {
+public:
+	Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
+	uint signalId = 0;
+};
 
 NotificationServiceWatcher::NotificationServiceWatcher()
-: _dbusWatcher(
-		qsl("org.freedesktop.Notifications"),
-		QDBusConnection::sessionBus(),
-		QDBusServiceWatcher::WatchForOwnerChange) {
-	const auto signal = &QDBusServiceWatcher::serviceOwnerChanged;
-	QObject::connect(&_dbusWatcher, signal, [=](
-			const QString &service,
-			const QString &oldOwner,
-			const QString &newOwner) {
-		crl::on_main([=] {
-			if (!Core::App().domain().started()) {
-				return;
-			} else if (IsNotificationServiceActivatable()
-				&& newOwner.isEmpty()) {
-				return;
-			}
+: _private(std::make_unique<Private>()) {
+	try {
+		_private->dbusConnection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-			Core::App().notifications().createManager();
-		});
-	});
+		_private->signalId = base::Platform::DBus::RegisterServiceWatcher(
+			_private->dbusConnection,
+			std::string(kNotificationService),
+			[](
+				const Glib::ustring &service,
+				const Glib::ustring &oldOwner,
+				const Glib::ustring &newOwner) {
+				if (!Core::App().domain().started()
+					|| (IsNotificationServiceActivatable()
+						&& newOwner.empty())) {
+					return;
+				}
+
+				crl::on_main([] {
+					Core::App().notifications().createManager();
+				});
+			});
+	} catch (...) {
+	}
+}
+
+NotificationServiceWatcher::~NotificationServiceWatcher() {
+	if (_private->dbusConnection && _private->signalId != 0) {
+		_private->dbusConnection->signal_unsubscribe(_private->signalId);
+	}
 }
 
 } // namespace internal

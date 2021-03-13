@@ -117,7 +117,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByChannel(
 		} else {
 			fail();
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		fail();
 	}).send();
 
@@ -154,7 +154,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupById(
 				fail();
 			}
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		fail();
 	}).send();
 
@@ -198,7 +198,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByUsername(
 				fail();
 			}
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		fail();
 	}).send();
 

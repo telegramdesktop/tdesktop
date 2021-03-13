@@ -420,18 +420,14 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 
 	_mtpFields.mainDcId = _mtp->mainDcId();
 
-	_mtp->setUpdatesHandler(::rpcDone([=](
-			const mtpPrime *from,
-			const mtpPrime *end) {
-		return checkForUpdates(from, end)
-			|| checkForNewSession(from, end);
-	}));
-	_mtp->setGlobalFailHandler(::rpcFail([=](const RPCError &error) {
+	_mtp->setUpdatesHandler([=](const MTP::Response &message) {
+		checkForUpdates(message) || checkForNewSession(message);
+	});
+	_mtp->setGlobalFailHandler([=](const MTP::Error &, const MTP::Response &) {
 		if (const auto session = maybeSession()) {
 			crl::on_main(session, [=] { logOut(); });
 		}
-		return true;
-	}));
+	});
 	_mtp->setStateChangedHandler([=](MTP::ShiftedDcId dc, int32 state) {
 		if (dc == _mtp->mainDcId()) {
 			Global::RefConnectionTypeChanged().notify();
@@ -468,18 +464,20 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 	_mtpValue = _mtp.get();
 }
 
-bool Account::checkForUpdates(const mtpPrime *from, const mtpPrime *end) {
+bool Account::checkForUpdates(const MTP::Response &message) {
 	auto updates = MTPUpdates();
-	if (!updates.read(from, end)) {
+	auto from = message.reply.constData();
+	if (!updates.read(from, from + message.reply.size())) {
 		return false;
 	}
 	_mtpUpdates.fire(std::move(updates));
 	return true;
 }
 
-bool Account::checkForNewSession(const mtpPrime *from, const mtpPrime *end) {
+bool Account::checkForNewSession(const MTP::Response &message) {
 	auto newSession = MTPNewSession();
-	if (!newSession.read(from, end)) {
+	auto from = message.reply.constData();
+	if (!newSession.read(from, from + message.reply.size())) {
 		return false;
 	}
 	_mtpNewSessionCreated.fire({});

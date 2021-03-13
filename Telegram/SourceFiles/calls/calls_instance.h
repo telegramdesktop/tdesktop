@@ -10,20 +10,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "calls/calls_call.h"
 #include "calls/calls_group_call.h"
+#include "calls/calls_choose_join_as.h"
 
 namespace Platform {
 enum class PermissionType;
 } // namespace Platform
 
-namespace Media {
-namespace Audio {
+namespace Media::Audio {
 class Track;
-} // namespace Audio
-} // namespace Media
+} // namespace Media::Audio
 
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Calls::Group {
+struct JoinInfo;
+} // namespace Calls::Group
 
 namespace Calls {
 
@@ -40,7 +43,9 @@ public:
 	~Instance();
 
 	void startOutgoingCall(not_null<UserData*> user, bool video);
-	void startOrJoinGroupCall(not_null<PeerData*> peer);
+	void startOrJoinGroupCall(
+		not_null<PeerData*> peer,
+		const QString &joinHash = QString());
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
@@ -54,7 +59,7 @@ public:
 	[[nodiscard]] bool inGroupCall() const;
 	[[nodiscard]] bool hasActivePanel(
 		not_null<Main::Session*> session) const;
-	bool activateCurrentCall();
+	bool activateCurrentCall(const QString &joinHash = QString());
 	bool minimizeCurrentActiveCall();
 	bool closeCurrentActiveCall();
 	auto getVideoCapture()
@@ -103,7 +108,7 @@ private:
 	void destroyCall(not_null<Call*> call);
 
 	void createGroupCall(
-		not_null<PeerData*> peer,
+		Group::JoinInfo info,
 		const MTPInputGroupCall &inputCall);
 	void destroyGroupCall(not_null<GroupCall*> call);
 
@@ -144,6 +149,8 @@ private:
 	std::unique_ptr<GroupPanel> _currentGroupCallPanel;
 
 	base::flat_map<QString, std::unique_ptr<Media::Audio::Track>> _tracks;
+
+	Group::ChooseJoinAsProcess _chooseJoinAs;
 
 };
 

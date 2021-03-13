@@ -46,19 +46,31 @@ constexpr auto kSearchBotUsername = "gif"_cs;
 
 } // namespace
 
-void DeleteSavedGif(not_null<DocumentData*> document) {
-	auto &data = document->owner();
-	Api::ToggleSavedGif(
-		document,
-		Data::FileOriginSavedGifs(),
-		false);
-
-	const auto index = data.stickers().savedGifs().indexOf(document);
-	if (index >= 0) {
-		data.stickers().savedGifsRef().remove(index);
-		document->session().local().writeSavedGifs();
+void AddGifAction(
+		Fn<void(QString, Fn<void()> &&)> callback,
+		not_null<DocumentData*> document) {
+	if (!document->isGifv()) {
+		return;
 	}
-	data.stickers().notifySavedGifsUpdated();
+	auto &data = document->owner();
+	const auto index = data.stickers().savedGifs().indexOf(document);
+	const auto saved = (index >= 0);
+	const auto text = (saved
+		? tr::lng_context_delete_gif
+		: tr::lng_context_save_gif)(tr::now);
+	callback(text, [=] {
+		Api::ToggleSavedGif(
+			document,
+			Data::FileOriginSavedGifs(),
+			!saved);
+
+		auto &data = document->owner();
+		if (saved) {
+			data.stickers().savedGifsRef().remove(index);
+			document->session().local().writeSavedGifs();
+		}
+		data.stickers().notifySavedGifsUpdated();
+	});
 }
 
 class GifsListWidget::Footer : public TabbedSelector::InnerFooter {
@@ -381,23 +393,18 @@ void GifsListWidget::fillContextMenu(
 		SendMenu::DefaultSilentCallback(send),
 		SendMenu::DefaultScheduleCallback(this, type, send));
 
-	[&] {
-		const auto row = _selected / MatrixRowShift;
-		const auto column = _selected % MatrixRowShift;
-		if (row >= _rows.size() || column >= _rows[row].items.size()) {
-			return;
-		}
+	if (!(row >= _rows.size() || column >= _rows[row].items.size())) {
 		const auto item = _rows[row].items[column];
-		if (const auto document = item->getDocument()) {
-			auto &data = document->owner();
-			if (data.stickers().savedGifs().indexOf(document) < 0) {
-				return;
-			}
-			menu->addAction(tr::lng_context_delete_gif(tr::now), [=] {
-				ChatHelpers::DeleteSavedGif(document);
-			});
+		const auto document = item->getDocument()
+			? item->getDocument() // Saved GIF.
+			: item->getPreviewDocument(); // Searched GIF.
+		if (document) {
+			auto callback = [&](const QString &text, Fn<void()> &&done) {
+				menu->addAction(text, std::move(done));
+			};
+			AddGifAction(std::move(callback), document);
 		}
-	}();
+	};
 }
 
 void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {
@@ -1001,7 +1008,7 @@ void GifsListWidget::sendInlineRequest() {
 		MTP_string(nextOffset)
 	)).done([this](const MTPmessages_BotResults &result) {
 		inlineResultsDone(result);
-	}).fail([this](const RPCError &error) {
+	}).fail([this](const MTP::Error &error) {
 		// show error?
 		_footer->setLoading(false);
 		_inlineRequestId = 0;

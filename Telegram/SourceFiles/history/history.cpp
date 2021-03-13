@@ -39,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "storage/storage_account.h"
-//#include "storage/storage_feed_messages.h" // #feed
 #include "support/support_helper.h"
 #include "ui/image/image.h"
 #include "ui/text/text_options.h"
@@ -51,7 +50,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kNewBlockEachMessage = 50;
-constexpr auto kSkipCloudDraftsFor = TimeId(3);
+constexpr auto kSkipCloudDraftsFor = TimeId(2);
+constexpr auto kSendingDraftTime = TimeId(-1);
 
 using UpdateFlag = Data::HistoryUpdate::Flag;
 
@@ -159,13 +159,6 @@ void History::checkChatListMessageRemoved(not_null<HistoryItem*> item) {
 	}
 	setChatListMessageUnknown();
 	refreshChatListMessage();
-	//if (const auto channel = peer->asChannel()) { // #feed
-	//	if (const auto feed = channel->feed()) {
-	//		// Must be after history->chatListMessage() is updated.
-	//		// Otherwise feed last message will be this value again.
-	//		feed->messageRemoved(item);
-	//	}
-	//}
 }
 
 void History::itemVanished(not_null<HistoryItem*> item) {
@@ -307,27 +300,21 @@ Data::Draft *History::createCloudDraft(const Data::Draft *fromDraft) {
 	return cloudDraft();
 }
 
-bool History::skipCloudDraft(const QString &text, MsgId replyTo, TimeId date) const {
-	if (Data::draftStringIsEmpty(text)
-		&& !replyTo
-		&& date > 0
-		&& date <= _lastSentDraftTime + kSkipCloudDraftsFor) {
-		return true;
-	} else if (_lastSentDraftText && *_lastSentDraftText == text) {
-		return true;
-	}
-	return false;
+bool History::skipCloudDraftUpdate(TimeId date) const {
+	return (_savingCloudDraftRequests > 0)
+		|| (date < _acceptCloudDraftsAfter);
 }
 
-void History::setSentDraftText(const QString &text) {
-	_lastSentDraftText = text;
+void History::startSavingCloudDraft() {
+	++_savingCloudDraftRequests;
 }
 
-void History::clearSentDraftText(const QString &text) {
-	if (_lastSentDraftText && *_lastSentDraftText == text) {
-		_lastSentDraftText = std::nullopt;
+void History::finishSavingCloudDraft(TimeId savedAt) {
+	if (_savingCloudDraftRequests > 0) {
+		--_savingCloudDraftRequests;
 	}
-	accumulate_max(_lastSentDraftTime, base::unixtime::now());
+	const auto acceptAfter = savedAt + kSkipCloudDraftsFor;
+	_acceptCloudDraftsAfter = std::max(_acceptCloudDraftsAfter, acceptAfter);
 }
 
 void History::applyCloudDraft() {
@@ -2165,26 +2152,11 @@ void History::setNotLoadedAtBottom() {
 
 	session().storage().invalidate(
 		Storage::SharedMediaInvalidateBottom(peer->id));
-	//if (const auto channel = peer->asChannel()) { // #feed
-	//	if (const auto feed = channel->feed()) {
-	//		session().storage().invalidate(
-	//			Storage::FeedMessagesInvalidateBottom(
-	//				feed->id()));
-	//	}
-	//}
 }
 
 void History::clearSharedMedia() {
 	session().storage().remove(
 		Storage::SharedMediaRemoveAll(peer->id));
-	//if (const auto channel = peer->asChannel()) { // #feed
-	//	if (const auto feed = channel->feed()) {
-	//		session().storage().remove(
-	//			Storage::FeedMessagesRemoveAll(
-	//				feed->id(),
-	//				channel->bareId()));
-	//	}
-	//}
 }
 
 void History::setLastServerMessage(HistoryItem *item) {
@@ -2415,15 +2387,6 @@ bool History::lastServerMessageKnown() const {
 
 void History::updateChatListExistence() {
 	Entry::updateChatListExistence();
-	//if (const auto channel = peer->asChannel()) { // #feed
-	//	if (!channel->feed()) {
-	//		// After ungrouping from a feed we need to load dialog.
-	//		requestChatListMessage();
-	//		if (!unreadCountKnown()) {
-	//			owner().histories().requestDialogEntry(this);
-	//		}
-	//	}
-	//}
 }
 
 bool History::useTopPromotion() const {
@@ -2456,8 +2419,6 @@ bool History::shouldBeInChatList() const {
 	} else if (const auto channel = peer->asChannel()) {
 		if (!channel->amIn()) {
 			return isTopPromoted();
-		//} else if (const auto feed = channel->feed()) { // #feed
-		//	return !feed->needUpdateInChatList();
 		}
 	} else if (const auto chat = peer->asChat()) {
 		return chat->amIn()
@@ -3077,12 +3038,6 @@ void History::clear(ClearType type) {
 		_loadedAtTop = _loadedAtBottom = _lastMessage.has_value();
 		clearSharedMedia();
 		clearLastKeyboard();
-		if (const auto channel = peer->asChannel()) {
-			//if (const auto feed = channel->feed()) { // #feed
-			//	// Should be after resetting the _lastMessage.
-			//	feed->historyCleared(this);
-			//}
-		}
 	}
 
 	if (const auto chat = peer->asChat()) {

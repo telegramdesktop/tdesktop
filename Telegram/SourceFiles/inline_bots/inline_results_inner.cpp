@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_results_inner.h"
 
 #include "api/api_common.h"
+#include "chat_helpers/gifs_list_widget.h" // ChatHelpers::AddGifAction
 #include "chat_helpers/send_context_menu.h" // SendMenu::FillSendMenu
 #include "data/data_file_origin.h"
 #include "data/data_user.h"
@@ -304,6 +305,14 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 		type,
 		SendMenu::DefaultSilentCallback(send),
 		SendMenu::DefaultScheduleCallback(this, type, send));
+
+	auto item = _rows[row].items[column];
+	if (const auto previewDocument = item->getPreviewDocument()) {
+		auto callback = [&](const QString &text, Fn<void()> &&done) {
+			_menu->addAction(text, std::move(done));
+		};
+		ChatHelpers::AddGifAction(std::move(callback), previewDocument);
+	}
 
 	if (!_menu->empty()) {
 		_menu->popup(QCursor::pos());

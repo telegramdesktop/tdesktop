@@ -63,7 +63,6 @@ void PeerMenuShareContactBox(
 void PeerMenuAddChannelMembers(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel);
-//void PeerMenuUngroupFeed(not_null<Data::Feed*> feed); // #feed
 void PeerMenuCreatePoll(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "storage/localstorage.h"
+#include "window/window_controller.h"
 #include "mainwindow.h"
 #include "history/history_location_manager.h"
 #include "base/platform/mac/base_utilities_mac.h"
@@ -36,17 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <mach-o/dyld.h>
 #include <AVFoundation/AVFoundation.h>
 
-QRect psDesktopRect() {
-	static QRect _monitorRect;
-	static crl::time _monitorLastGot = 0;
-	auto tnow = crl::now();
-	if (tnow > _monitorLastGot + 1000 || tnow < _monitorLastGot) {
-		_monitorLastGot = tnow;
-		_monitorRect = QApplication::desktop()->availableGeometry(App::wnd());
-	}
-	return _monitorRect;
-}
-
 void psWriteDump() {
 #ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
 	double v = objc_appkitVersion();
@@ -56,7 +46,8 @@ void psWriteDump() {
 
 void psActivateProcess(uint64 pid) {
 	if (!pid) {
-		objc_activateProgram(App::wnd() ? App::wnd()->winId() : 0);
+		const auto window = Core::App().activeWindow();
+		objc_activateProgram(window ? window->widget()->winId() : 0);
 	}
 }
 

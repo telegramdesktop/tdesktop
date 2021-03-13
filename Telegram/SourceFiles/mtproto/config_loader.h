@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "base/bytes.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/mtproto_response.h"
 
 namespace MTP {
 
@@ -25,8 +25,8 @@ public:
 	ConfigLoader(
 		not_null<Instance*> instance,
 		const QString &phone,
-		RPCDoneHandlerPtr onDone,
-		RPCFailHandlerPtr onFail);
+		Fn<void(const MTPConfig &result)> onDone,
+		FailHandler onFail);
 	~ConfigLoader();
 
 	void load();
@@ -68,8 +68,8 @@ private:
 	mtpRequestId _specialEnumRequest = 0;
 	QString _phone;
 
-	RPCDoneHandlerPtr _doneHandler;
-	RPCFailHandlerPtr _failHandler;
+	Fn<void(const MTPConfig &result)> _doneHandler;
+	FailHandler _failHandler;
 
 };
 

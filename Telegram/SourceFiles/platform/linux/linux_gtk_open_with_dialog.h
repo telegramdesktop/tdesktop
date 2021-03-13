@@ -11,7 +11,7 @@ namespace Platform {
 namespace File {
 namespace internal {
 
-bool ShowOpenWithDialog(const QString &filepath);
+bool ShowGtkOpenWithDialog(const QString &filepath);
 
 } // namespace internal
 } // namespace File

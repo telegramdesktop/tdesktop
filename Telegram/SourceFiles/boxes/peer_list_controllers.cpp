@@ -54,7 +54,7 @@ void ShareBotGame(not_null<UserData*> bot, not_null<PeerData*> chat) {
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result, randomId);
 			finish();
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			api->sendMessageFail(error, chat);
 			finish();
 		}).afterRequest(
@@ -195,7 +195,7 @@ void PeerListGlobalSearchController::searchOnServer() {
 		MTP_int(SearchPeopleLimit)
 	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
 		searchDone(result, requestId);
-	}).fail([=](const RPCError &error, mtpRequestId requestId) {
+	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			delegate()->peerListSearchRefreshRows();

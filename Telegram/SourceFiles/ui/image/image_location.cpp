@@ -166,6 +166,14 @@ StorageFileLocation::StorageFileLocation(
 		});
 		_volumeId = data.vvolume_id().v;
 		_localId = data.vlocal_id().v;
+	}, [&](const MTPDinputGroupCallStream &data) {
+		_type = Type::GroupCallStream;
+		data.vcall().match([&](const MTPDinputGroupCall &data) {
+			_id = data.vid().v;
+			_accessHash = data.vaccess_hash().v;
+		});
+		_volumeId = data.vtime_ms().v;
+		_localId = data.vscale().v;
 	});
 }
 
@@ -247,6 +255,12 @@ MTPInputFileLocation StorageFileLocation::tl(int32 self) const {
 	case Type::StickerSetThumb:
 		return MTP_inputStickerSetThumb(
 			MTP_inputStickerSetID(MTP_long(_id), MTP_long(_accessHash)),
+			MTP_long(_volumeId),
+			MTP_int(_localId));
+
+	case Type::GroupCallStream:
+		return MTP_inputGroupCallStream(
+			MTP_inputGroupCall(MTP_long(_id), MTP_long(_accessHash)),
 			MTP_long(_volumeId),
 			MTP_int(_localId));
 
@@ -358,6 +372,9 @@ bool StorageFileLocation::valid() const {
 	case Type::PeerPhoto:
 	case Type::StickerSetThumb:
 		return (_dcId != 0) && (_id != 0);
+
+	case Type::GroupCallStream:
+		return (_dcId != 0) && (_id != 0) && (_volumeId != 0);
 	}
 	return false;
 }
@@ -401,6 +418,14 @@ Storage::Cache::Key StorageFileLocation::cacheKey() const {
 
 	case Type::Takeout:
 		return Key{ shifted, 0 };
+
+	case Type::GroupCallStream:
+		return Key{
+			(shifted
+				| sliced
+				| (uint32(_localId) << 16)
+				| (_volumeId << 20)),
+			_id };
 	}
 	return Key();
 }
@@ -443,6 +468,7 @@ Storage::Cache::Key StorageFileLocation::bigFileBaseCacheKey() const {
 	case Type::Encrypted:
 	case Type::Secure:
 	case Type::Takeout:
+	case Type::GroupCallStream:
 		Unexpected("Not implemented file location type.");
 
 	};
@@ -522,6 +548,11 @@ bool operator==(const StorageFileLocation &a, const StorageFileLocation &b) {
 			&& (a._volumeId == b._volumeId)
 			&& (a._localId == b._localId)
 			&& (a._id == b._id);
+
+	case Type::GroupCallStream:
+		return (a._dcId == b._dcId)
+			&& (a._id == b._id)
+			&& (a._localId == b._localId);
 	};
 	Unexpected("Type in StorageFileLocation::operator==.");
 }
@@ -573,6 +604,10 @@ bool operator<(const StorageFileLocation &a, const StorageFileLocation &b) {
 	case Type::StickerSetThumb:
 		return std::tie(a._id, a._localId, a._volumeId, a._dcId)
 			< std::tie(b._id, b._localId, b._volumeId, b._dcId);
+
+	case Type::GroupCallStream:
+		return std::tie(a._id, a._localId, a._dcId)
+			< std::tie(b._id, b._localId, b._dcId);
 	};
 	Unexpected("Type in StorageFileLocation::operator==.");
 }

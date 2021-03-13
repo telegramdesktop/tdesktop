@@ -463,7 +463,7 @@ void Launcher::processArguments() {
 	auto parseResult = QMap<QByteArray, QStringList>();
 	auto parsingKey = QByteArray();
 	auto parsingFormat = KeyFormat::NoValues;
-	for (const auto &argument : _arguments) {
+	for (const auto &argument : std::as_const(_arguments)) {
 		switch (parsingFormat) {
 		case KeyFormat::OneValue: {
 			parseResult[parsingKey] = QStringList(argument.mid(0, 8192));

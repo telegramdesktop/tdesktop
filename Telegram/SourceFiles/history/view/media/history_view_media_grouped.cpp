@@ -285,6 +285,8 @@ void GroupedMedia::draw(
 		const QRect &clip,
 		TextSelection selection,
 		crl::time ms) const {
+	auto wasCache = false;
+	auto nowCache = false;
 	const auto groupPadding = groupedPadding();
 	const auto fullSelection = (selection == FullSelection);
 	const auto textSelection = (_mode == Mode::Column)
@@ -305,6 +307,9 @@ void GroupedMedia::draw(
 		const auto highlightOpacity = (_mode == Mode::Grid)
 			? _parent->highlightOpacity(part.item)
 			: 0.;
+		if (!part.cache.isNull()) {
+			wasCache = true;
+		}
 		part.content->drawGrouped(
 			p,
 			clip,
@@ -316,6 +321,12 @@ void GroupedMedia::draw(
 			highlightOpacity,
 			&part.cacheKey,
 			&part.cache);
+		if (!part.cache.isNull()) {
+			nowCache = true;
+		}
+	}
+	if (nowCache && !wasCache) {
+		history()->owner().registerHeavyViewPart(_parent);
 	}
 
 	// date
@@ -661,7 +672,7 @@ void GroupedMedia::checkAnimation() {
 
 bool GroupedMedia::hasHeavyPart() const {
 	for (const auto &part : _parts) {
-		if (part.content->hasHeavyPart()) {
+		if (!part.cache.isNull() || part.content->hasHeavyPart()) {
 			return true;
 		}
 	}
@@ -671,6 +682,8 @@ bool GroupedMedia::hasHeavyPart() const {
 void GroupedMedia::unloadHeavyPart() {
 	for (const auto &part : _parts) {
 		part.content->unloadHeavyPart();
+		part.cacheKey = 0;
+		part.cache = QPixmap();
 	}
 }
 

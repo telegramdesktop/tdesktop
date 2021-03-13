@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "platform/platform_window_title.h"
 #include "base/platform/base_platform_info.h"
-#include "base/platform/base_platform_process.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "history/history.h"
 #include "window/themes/window_theme.h"
@@ -219,6 +218,15 @@ void MainWindow::updateWindowIcon() {
 	setWindowIcon(_icon);
 }
 
+QRect MainWindow::desktopRect() const {
+	const auto now = crl::now();
+	if (!_monitorLastGot || now >= _monitorLastGot + crl::time(1000)) {
+		_monitorLastGot = now;
+		_monitorRect = computeDesktopRect();
+	}
+	return _monitorRect;
+}
+
 void MainWindow::init() {
 	Expects(!windowHandle());
 
@@ -315,16 +323,8 @@ void MainWindow::activate() {
 	setWindowState(windowState() & ~Qt::WindowMinimized);
 	setVisible(true);
 	psActivateProcess();
-	// allow to focus even if X11 native code is disabled
-#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-	if (Platform::IsX11()) {
-		base::Platform::ActivateThisProcessWindow(winId());
-	} else
-#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
-	{
-		raise();
-		activateWindow();
-	}
+	raise();
+	activateWindow();
 	controller().updateIsActiveFocus();
 	if (wasHidden) {
 		if (const auto session = sessionController()) {
@@ -621,6 +621,10 @@ void MainWindow::updateUnreadCounter() {
 	unreadCounterChangedHook();
 }
 
+QRect MainWindow::computeDesktopRect() const {
+	return QApplication::desktop()->availableGeometry(this);
+}
+
 void MainWindow::savePosition(Qt::WindowState state) {
 	if (state == Qt::WindowActive) {
 		state = windowHandle()->windowState();
@@ -707,8 +711,9 @@ bool MainWindow::minimizeToTray() {
 
 void MainWindow::reActivateWindow() {
 #if defined Q_OS_UNIX && !defined Q_OS_MAC
+	const auto weak = Ui::MakeWeak(this);
 	const auto reActivate = [=] {
-		if (const auto w = App::wnd()) {
+		if (const auto w = weak.data()) {
 			if (auto f = QApplication::focusWidget()) {
 				f->clearFocus();
 			}
@@ -732,8 +737,8 @@ void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 		_rightColumn->setParent(this);
 		_rightColumn->show();
 		_rightColumn->setFocus();
-	} else if (App::wnd()) {
-		App::wnd()->setInnerFocus();
+	} else {
+		setInnerFocus();
 	}
 	const auto nowRightWidth = _rightColumn ? _rightColumn->width() : 0;
 	const auto wasMaximized = isMaximized();
@@ -786,7 +791,7 @@ int MainWindow::tryToExtendWidthBy(int addToWidth) {
 
 void MainWindow::launchDrag(std::unique_ptr<QMimeData> data) {
 	auto weak = QPointer<MainWindow>(this);
-	auto drag = std::make_unique<QDrag>(App::wnd());
+	auto drag = std::make_unique<QDrag>(this);
 	drag->setMimeData(data.release());
 	drag->exec(Qt::CopyAction);
 

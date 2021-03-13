@@ -151,6 +151,7 @@ public:
 		MsgId messageId = ShowAtUnreadMsgId;
 		RepliesByLinkInfo repliesInfo;
 		QString startToken;
+		std::optional<QString> voicechatHash;
 		FullMsgId clickFromMessageId;
 	};
 	void showPeerByLink(const PeerByLinkInfo &info);
@@ -299,6 +300,7 @@ public:
 
 	void startOrJoinGroupCall(
 		not_null<PeerData*> peer,
+		QString joinHash = QString(),
 		bool confirmedLeaveOther = false);
 
 	void showSection(

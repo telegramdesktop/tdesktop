@@ -120,7 +120,17 @@ private:
 		bool needAnyResponse);
 	mtpRequestId wasSent(mtpMsgId msgId) const;
 
-	[[nodiscard]] HandleResult handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime);
+	struct OuterInfo {
+		mtpMsgId outerMsgId = 0;
+		uint64 serverSalt = 0;
+		int32 serverTime = 0;
+		bool badTime = false;
+	};
+	[[nodiscard]] HandleResult handleOneReceived(
+		const mtpPrime *from,
+		const mtpPrime *end,
+		uint64 msgId,
+		OuterInfo info);
 	[[nodiscard]] HandleResult handleBindResponse(
 		mtpMsgId requestMsgId,
 		const mtpBuffer &response);
@@ -137,7 +147,7 @@ private:
 		const bytes::vector &protocolSecret);
 
 	// if badTime received - search for ids in sessionData->haveSent and sessionData->wereAcked and sync time/salt, return true if found
-	bool requestsFixTimeSalt(const QVector<MTPlong> &ids, int32 serverTime, uint64 serverSalt);
+	bool requestsFixTimeSalt(const QVector<MTPlong> &ids, const OuterInfo &info);
 
 	// if we had a confirmed fast request use its unixtime as a correct one.
 	void correctUnixtimeByFastRequest(

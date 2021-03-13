@@ -444,7 +444,7 @@ void EditAdminBox::transferOwnership() {
 		channel,
 		MTP_inputUserEmpty(),
 		MTP_inputCheckPasswordEmpty()
-	)).fail([=](const RPCError &error) {
+	)).fail([=](const MTP::Error &error) {
 		_checkTransferRequestId = 0;
 		if (!handleTransferPasswordError(error)) {
 			getDelegate()->show(Box<ConfirmBox>(
@@ -461,7 +461,7 @@ void EditAdminBox::transferOwnership() {
 	}).send();
 }
 
-bool EditAdminBox::handleTransferPasswordError(const RPCError &error) {
+bool EditAdminBox::handleTransferPasswordError(const MTP::Error &error) {
 	const auto session = &user()->session();
 	auto about = tr::lng_rights_transfer_check_about(
 		tr::now,
@@ -533,7 +533,7 @@ void EditAdminBox::sendTransferRequestFrom(
 				lt_user,
 				user->shortName()));
 		Ui::hideLayer();
-	}).fail(crl::guard(this, [=](const RPCError &error) {
+	}).fail(crl::guard(this, [=](const MTP::Error &error) {
 		if (weak) {
 			_transferRequestId = 0;
 		}

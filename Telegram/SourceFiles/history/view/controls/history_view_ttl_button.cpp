@@ -76,7 +76,7 @@ void AutoDeleteSettingsBox(
 			if (const auto strong = state->weak.data()) {
 				strong->closeBox();
 			}
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			state->savingRequestId = 0;
 		}).send();
 	};

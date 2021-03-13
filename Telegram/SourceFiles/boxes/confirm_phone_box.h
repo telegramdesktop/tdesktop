@@ -121,12 +121,12 @@ private:
 	void checkPhoneAndHash();
 
 	void sendCodeDone(const MTPauth_SentCode &result);
-	void sendCodeFail(const RPCError &error);
+	void sendCodeFail(const MTP::Error &error);
 
 	void callDone(const MTPauth_SentCode &result);
 
 	void confirmDone(const MTPBool &result);
-	void confirmFail(const RPCError &error);
+	void confirmFail(const MTP::Error &error);
 
 	QString getPhone() const {
 		return _phone;

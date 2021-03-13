@@ -1045,13 +1045,13 @@ void EditCaptionBox::save() {
 	if (!_preparedList.files.empty()) {
 		auto action = Api::SendAction(item->history());
 		action.options = options;
+		action.replaceMediaOf = item->fullId().msg;
 
 		_controller->session().api().editMedia(
 			std::move(_preparedList),
 			(!_asFile && _photo) ? SendMediaType::Photo : SendMediaType::File,
 			_field->getTextWithAppliedMarkdown(),
-			action,
-			item->fullId().msg);
+			action);
 		closeBox();
 		return;
 	}
@@ -1061,7 +1061,7 @@ void EditCaptionBox::save() {
 		closeBox();
 	});
 
-	const auto fail = crl::guard(this, [=](const RPCError &error) {
+	const auto fail = crl::guard(this, [=](const MTP::Error &error) {
 		_saveRequestId = 0;
 		const auto &type = error.type();
 		if (ranges::contains(Api::kDefaultEditMessagesErrors, type)) {

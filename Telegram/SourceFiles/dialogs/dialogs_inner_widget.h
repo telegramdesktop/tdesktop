@@ -14,7 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/object_ptr.h"
 
-class RPCError;
+namespace MTP {
+class Error;
+} // namespace MTP
 
 namespace Main {
 class Session;
@@ -126,10 +128,10 @@ public:
 
 	~InnerWidget();
 
-public slots:
+public Q_SLOTS:
 	void onParentGeometryChanged();
 
-signals:
+Q_SIGNALS:
 	void draggingScrollDelta(int delta);
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 	void dialogMoved(int movedFrom, int movedTo);
@@ -297,11 +299,6 @@ private:
 		Painter &p,
 		int top,
 		const Ui::Text::String &text) const;
-	//void paintSearchInFeed( // #feed
-	//	Painter &p,
-	//	not_null<Data::Feed*> feed,
-	//	int top,
-	//	const Ui::Text::String &text) const;
 	template <typename PaintUserpic>
 	void paintSearchInFilter(
 		Painter &p,

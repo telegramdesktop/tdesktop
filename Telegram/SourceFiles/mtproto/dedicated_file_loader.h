@@ -19,11 +19,11 @@ class WeakInstance : private QObject, private base::Subscriber {
 public:
 	explicit WeakInstance(base::weak_ptr<Main::Session> session);
 
-	template <typename T>
+	template <typename Request>
 	void send(
-		const T &request,
-		Fn<void(const typename T::ResponseType &result)> done,
-		Fn<void(const RPCError &error)> fail,
+		const Request &request,
+		Fn<void(const typename Request::ResponseType &result)> done,
+		Fn<void(const Error &error)> fail,
 		ShiftedDcId dcId = 0);
 
 	[[nodiscard]] base::weak_ptr<Main::Session> session() const;
@@ -35,11 +35,11 @@ public:
 private:
 	void die();
 	bool removeRequest(mtpRequestId requestId);
-	void reportUnavailable(Fn<void(const RPCError &error)> callback);
+	void reportUnavailable(Fn<void(const Error &error)> callback);
 
 	base::weak_ptr<Main::Session> _session;
 	Instance *_instance = nullptr;
-	std::map<mtpRequestId, Fn<void(const RPCError &)>> _requests;
+	std::map<mtpRequestId, Fn<void(const Error &)>> _requests;
 	rpl::lifetime _lifetime;
 
 };
@@ -133,7 +133,7 @@ private:
 	void startLoading() override;
 	void sendRequest();
 	void gotPart(int offset, const MTPupload_File &result);
-	Fn<void(const RPCError &)> failHandler();
+	Fn<void(const Error &)> failHandler();
 
 	static constexpr auto kRequestsCount = 2;
 	static constexpr auto kNextRequestDelay = crl::time(20);
@@ -162,39 +162,44 @@ void StartDedicatedLoader(
 	const QString &folder,
 	Fn<void(std::unique_ptr<DedicatedLoader>)> ready);
 
-template <typename T>
+template <typename Request>
 void WeakInstance::send(
-		const T &request,
-		Fn<void(const typename T::ResponseType &result)> done,
-		Fn<void(const RPCError &error)> fail,
+		const Request &request,
+		Fn<void(const typename Request::ResponseType &result)> done,
+		Fn<void(const Error &error)> fail,
 		MTP::ShiftedDcId dcId) {
-	using Response = typename T::ResponseType;
+	using Result = typename Request::ResponseType;
 	if (!valid()) {
 		reportUnavailable(fail);
 		return;
 	}
 	const auto onDone = crl::guard((QObject*)this, [=](
-			const Response &result,
-			mtpRequestId requestId) {
-		if (removeRequest(requestId)) {
-			done(result);
-		}
-	});
-	const auto onFail = crl::guard((QObject*)this, [=](
-			const RPCError &error,
-			mtpRequestId requestId) {
-		if (MTP::isDefaultHandledError(error)) {
+			const Response &response) {
+		auto result = Result();
+		auto from = response.reply.constData();
+		if (!result.read(from, from + response.reply.size())) {
 			return false;
 		}
-		if (removeRequest(requestId)) {
+		if (removeRequest(response.requestId)) {
+			done(result);
+		}
+		return true;
+	});
+	const auto onFail = crl::guard((QObject*)this, [=](
+			const Error &error,
+			const Response &response) {
+		if (MTP::IsDefaultHandledError(error)) {
+			return false;
+		}
+		if (removeRequest(response.requestId)) {
 			fail(error);
 		}
 		return true;
 	});
 	const auto requestId = _instance->send(
 		request,
-		rpcDone(onDone),
-		rpcFail(onFail),
+		std::move(onDone),
+		std::move(onFail),
 		dcId);
 	_requests.emplace(requestId, fail);
 }

@@ -56,7 +56,7 @@ jobs:
       GIT: "https://github.com"
       PREFIX: "/usr/local/macos"
       MACOSX_DEPLOYMENT_TARGET: "10.12"
-      XZ: "xz-5.2.4"
+      XZ: "xz-5.2.5"
       QT: "5_15_2"
       OPENSSL_VER: "1_1_1"
       QT_PREFIX: "/usr/local/desktop-app/Qt-5.15.2"
@@ -82,6 +82,9 @@ jobs:
           sudo chown -R `whoami`:admin /usr/local/share
           brew install automake fdk-aac lame libass libtool libvorbis libvpx \
           ninja opus sdl shtool texi2html theora x264 xvid yasm pkg-config
+
+          # Disable spotlight.
+          sudo mdutil -a -i off
 
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
@@ -142,7 +145,7 @@ jobs:
           cd mozjpeg
           cmake -B build . \
           -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_INSTALL_PREFIX=/usr/local/macos \
+          -DCMAKE_INSTALL_PREFIX=$PREFIX \
           -DWITH_JPEG8=ON \
           -DPNG_SUPPORTED=OFF
           cmake --build build -j$(nproc)
@@ -350,7 +353,7 @@ jobs:
       - name: FFmpeg install.
         run: |
           cd $LibrariesPath
-          #List of files from cmake/external/ffmpeg/CMakeLists.txt.
+          # List of files from cmake/external/ffmpeg/CMakeLists.txt.
           copyLib() {
             mkdir -p ffmpeg/$1
             \cp -fR ffmpeg-cache/lib/$1.a ffmpeg/$1/$1.a
@@ -361,17 +364,15 @@ jobs:
           copyLib libswscale
           copyLib libavutil
 
-          sudo cp -R ffmpeg-cache/. /usr/local/
+          sudo cp -R ffmpeg-cache/. $PREFIX
           sudo cp -R ffmpeg-cache/include/. ffmpeg/
 
       - name: OpenAL Soft.
         run: |
           cd $LibrariesPath
 
-          git clone $GIT/kcat/openal-soft.git
-          cd openal-soft
-          git checkout 3970252da9
-          cd build
+          git clone --branch capture_with_webrtc $GIT/telegramdesktop/openal-soft.git
+          cd openal-soft/build
 
           CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake \
           -D CMAKE_INSTALL_PREFIX:PATH=$PREFIX \
@@ -462,9 +463,9 @@ jobs:
           -nomake examples \
           -nomake tests \
           -platform macx-clang \
-          -I "/usr/local/macos/include" \
-          LIBJPEG_LIBS="/usr/local/macos/lib/libjpeg.a" \
-          ZLIB_LIBS="/usr/local/macos/lib/libz.a"
+          -I "$PREFIX/include" \
+          LIBJPEG_LIBS="$PREFIX/lib/libjpeg.a" \
+          ZLIB_LIBS="$PREFIX/lib/libz.a"
 
           make -j$(nproc)
           sudo make install
@@ -486,12 +487,13 @@ jobs:
           git clone --recursive $GIT/desktop-app/tg_owt.git
           mkdir -p tg_owt/out/Debug
           cd tg_owt/out/Debug
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+          cmake -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
           -DTG_OWT_SPECIAL_TARGET=mac \
-          -DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/macos/include \
+          -DTG_OWT_LIBJPEG_INCLUDE_PATH=$PREFIX/include \
           -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_$OPENSSL_VER/include \
           -DTG_OWT_OPUS_INCLUDE_PATH=$PREFIX/include/opus \
-          -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include \
+          -DTG_OWT_FFMPEG_INCLUDE_PATH=$PREFIX/include \
           ../..
           ninja
 

@@ -607,7 +607,7 @@ MainMenu::MainMenu(
 
 	parentResized();
 	_menu->setTriggeredCallback([](const Ui::Menu::CallbackData &data) {
-		emit data.action->triggered();
+		data.action->triggered();
 	});
 	refreshMenu();
 	refreshBackground();

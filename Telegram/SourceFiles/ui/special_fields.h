@@ -17,11 +17,11 @@ class CountryCodeInput : public MaskedInputField {
 public:
 	CountryCodeInput(QWidget *parent, const style::InputField &st);
 
-public slots:
+public Q_SLOTS:
 	void startErasing(QKeyEvent *e);
 	void codeSelected(const QString &code);
 
-signals:
+Q_SIGNALS:
 	void codeChanged(const QString &code);
 	void addedToNumber(const QString &added);
 
@@ -43,11 +43,11 @@ class PhonePartInput : public MaskedInputField {
 public:
 	PhonePartInput(QWidget *parent, const style::InputField &st);
 
-public slots:
+public Q_SLOTS:
 	void addedToNumber(const QString &added);
 	void onChooseCode(const QString &code);
 
-signals:
+Q_SIGNALS:
 	void voidBackspace(QKeyEvent *e);
 
 protected:

@@ -491,12 +491,12 @@ void Widget::resetAccount() {
 					StackAction::Replace,
 					Animate::Forward);
 			}
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			_resetRequest = 0;
 
 			const auto &type = error.type();
 			if (type.startsWith(qstr("2FA_CONFIRM_WAIT_"))) {
-				const auto seconds = type.mid(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
+				const auto seconds = type.midRef(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
 				const auto days = (seconds + 59) / 86400;
 				const auto hours = ((seconds + 59) % 86400) / 3600;
 				const auto minutes = ((seconds + 59) % 3600) / 60;

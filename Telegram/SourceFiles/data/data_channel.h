@@ -411,6 +411,8 @@ public:
 	void migrateCall(std::unique_ptr<Data::GroupCall> call);
 	void setGroupCall(const MTPInputGroupCall &call);
 	void clearGroupCall();
+	void setGroupCallDefaultJoinAs(PeerId peerId);
+	[[nodiscard]] PeerId groupCallDefaultJoinAs() const;
 
 	// Still public data members.
 	uint64 access = 0;
@@ -461,6 +463,7 @@ private:
 	std::optional<ChannelData*> _linkedChat;
 
 	std::unique_ptr<Data::GroupCall> _call;
+	PeerId _callDefaultJoinAs = 0;
 
 	int _slowmodeSeconds = 0;
 	TimeId _slowmodeLastMessage = 0;

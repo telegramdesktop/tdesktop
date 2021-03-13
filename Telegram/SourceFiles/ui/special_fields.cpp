@@ -40,7 +40,7 @@ void CountryCodeInput::codeSelected(const QString &code) {
 	_nosignal = true;
 	correctValue(wasText, wasCursor, newText, newCursor);
 	_nosignal = false;
-	emit changed();
+	changed();
 }
 
 void CountryCodeInput::correctValue(
@@ -83,10 +83,10 @@ void CountryCodeInput::correctValue(
 	setCorrectedText(now, nowCursor, newText, newPos);
 
 	if (!_nosignal && was != newText) {
-		emit codeChanged(newText.mid(1));
+		codeChanged(newText.mid(1));
 	}
 	if (!addToNumber.isEmpty()) {
-		emit addedToNumber(addToNumber);
+		addedToNumber(addToNumber);
 	}
 }
 
@@ -112,7 +112,7 @@ void PhonePartInput::paintAdditionalPlaceholder(Painter &p) {
 
 void PhonePartInput::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Backspace && getLastText().isEmpty()) {
-		emit voidBackspace(e);
+		voidBackspace(e);
 	} else {
 		MaskedInputField::keyPressEvent(e);
 	}
@@ -204,7 +204,7 @@ void PhonePartInput::onChooseCode(const QString &code) {
 	_additionalPlaceholder = QString();
 	if (!_pattern.isEmpty()) {
 		_additionalPlaceholder.reserve(20);
-		for (const auto part : _pattern) {
+		for (const auto part : std::as_const(_pattern)) {
 			_additionalPlaceholder.append(' ');
 			_additionalPlaceholder.append(QString(part, QChar(0x2212)));
 		}

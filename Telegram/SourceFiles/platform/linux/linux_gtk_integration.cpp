@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/linux_gtk_integration_p.h"
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_gtk_file_dialog.h"
-#include "platform/linux/linux_open_with_dialog.h"
+#include "platform/linux/linux_gtk_open_with_dialog.h"
 
 namespace Platform {
 namespace internal {
@@ -158,10 +158,6 @@ std::optional<int> GtkIntegration::scaleFactor() const {
 	return gdk_monitor_get_scale_factor(monitor);
 }
 
-bool GtkIntegration::fileDialogSupported() const {
-	return FileDialog::Gtk::Supported();
-}
-
 bool GtkIntegration::useFileDialog(FileDialogType type) const {
 	return FileDialog::Gtk::Use(type);
 }
@@ -185,7 +181,7 @@ bool GtkIntegration::getFileDialog(
 }
 
 bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
-	return File::internal::ShowOpenWithDialog(filepath);
+	return File::internal::ShowGtkOpenWithDialog(filepath);
 }
 
 QImage GtkIntegration::getImageFromClipboard() const {

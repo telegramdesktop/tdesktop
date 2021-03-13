@@ -75,6 +75,7 @@ parts:
       - python
       - libasound2-dev
       - libglib2.0-dev
+      - libglibmm-2.4-dev
       - libgtk-3-dev
       - liblzma-dev
       - libopus-dev
@@ -88,6 +89,7 @@ parts:
     stage-packages:
       - libasound2
       - libglib2.0-0
+      - libglibmm-2.4-1v5
       - libgtk-3-0
       - liblzma5
       - libopus0
@@ -402,6 +404,8 @@ parts:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/bin
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/mkspecs
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/examples
+      # Allow tdesktop's custom try-portal-and-fallback logic to work
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/plugins/platformthemes
       - -./usr/lib/qt5
       - -./usr/share
     after:

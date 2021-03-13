@@ -152,7 +152,7 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
-public slots:
+public Q_SLOTS:
 	void onParentGeometryChanged();
 
 	void onTouchSelect();

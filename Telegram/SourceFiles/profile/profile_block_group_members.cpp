@@ -256,7 +256,7 @@ void GroupMembersWidget::updateOnlineCount() {
 	}
 	if (_onlineCount != newOnlineCount) {
 		_onlineCount = newOnlineCount;
-		emit onlineCountUpdated(_onlineCount);
+		onlineCountUpdated(_onlineCount);
 	}
 }
 

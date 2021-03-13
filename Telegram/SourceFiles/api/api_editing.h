@@ -8,7 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 class HistoryItem;
-class RPCError;
+
+namespace MTP {
+class Error;
+} // namespace MTP
 
 namespace Api {
 
@@ -40,13 +43,13 @@ mtpRequestId EditCaption(
 	const TextWithEntities &caption,
 	SendOptions options,
 	Fn<void(const MTPUpdates &)> done,
-	Fn<void(const RPCError &)> fail);
+	Fn<void(const MTP::Error &)> fail);
 
 mtpRequestId EditTextMessage(
 	not_null<HistoryItem*> item,
 	const TextWithEntities &caption,
 	SendOptions options,
 	Fn<void(const MTPUpdates &, mtpRequestId requestId)> done,
-	Fn<void(const RPCError &, mtpRequestId requestId)> fail);
+	Fn<void(const MTP::Error &, mtpRequestId requestId)> fail);
 
 } // namespace Api

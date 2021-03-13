@@ -14,12 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
-//#include "history/feed/history_feed_section.h" // #feed
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "base/unixtime.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "mainwindow.h"
@@ -392,18 +392,18 @@ void System::showNext() {
 	const auto &settings = Core::App().settings();
 	if (alert) {
 		if (settings.flashBounceNotify() && !Platform::Notifications::SkipFlashBounce()) {
-			if (const auto widget = App::wnd()) {
-				if (const auto window = widget->windowHandle()) {
-					window->alert(kSystemAlertDuration);
-					// (window, SLOT(_q_clearAlert())); in the future.
+			if (const auto window = Core::App().activeWindow()) {
+				if (const auto handle = window->widget()->windowHandle()) {
+					handle->alert(kSystemAlertDuration);
+					// (handle, SLOT(_q_clearAlert())); in the future.
 				}
 			}
 		}
 		if (settings.soundNotify() && !Platform::Notifications::SkipAudio()) {
 			ensureSoundCreated();
 			_soundTrack->playOnce();
-			emit Media::Player::mixer()->suppressAll(_soundTrack->getLengthMs());
-			emit Media::Player::mixer()->faderOnTimer();
+			Media::Player::mixer()->suppressAll(_soundTrack->getLengthMs());
+			Media::Player::mixer()->faderOnTimer();
 		}
 	}
 
@@ -636,9 +636,9 @@ void Manager::notificationActivated(NotificationId id) {
 			} else {
 				openNotificationMessage(history, id.msgId);
 			}
+			onAfterNotificationActivated(id, window);
 		}
 	}
-	onAfterNotificationActivated(id);
 }
 
 void Manager::openNotificationMessage(
@@ -656,17 +656,8 @@ void Manager::openNotificationMessage(
 		}
 		return true;
 	}();
-	//const auto messageFeed = [&] { // #feed
-	//	if (const auto channel = history->peer->asChannel()) {
-	//		return channel->feed();
-	//	}
-	//	return (Data::Feed*)nullptr;
-	//}();
 	if (openExactlyMessage) {
 		Ui::showPeerHistory(history, messageId);
-	//} else if (messageFeed) { // #feed
-	//	App::wnd()->sessionController()->showSection(
-	//		std::make_shared<HistoryFeed::Memento>(messageFeed));
 	} else {
 		Ui::showPeerHistory(history, ShowAtUnreadMsgId);
 	}

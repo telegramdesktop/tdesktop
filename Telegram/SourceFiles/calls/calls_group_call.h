@@ -19,8 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 
 namespace tgcalls {
-class GroupInstanceImpl;
+class GroupInstanceCustomImpl;
 struct GroupLevelsUpdate;
+struct GroupNetworkState;
+struct GroupParticipantDescription;
 } // namespace tgcalls
 
 namespace base {
@@ -34,6 +36,7 @@ class MediaDevices;
 
 namespace Data {
 struct LastSpokeTimes;
+struct GroupCallParticipant;
 } // namespace Data
 
 namespace Calls {
@@ -42,6 +45,8 @@ namespace Group {
 struct MuteRequest;
 struct VolumeRequest;
 struct ParticipantState;
+struct JoinInfo;
+struct RejoinEvent;
 } // namespace Group
 
 enum class MuteState {
@@ -49,6 +54,7 @@ enum class MuteState {
 	PushToTalk,
 	Muted,
 	ForceMuted,
+	RaisedHand,
 };
 
 [[nodiscard]] inline auto MapPushToTalkToActive() {
@@ -59,13 +65,13 @@ enum class MuteState {
 
 [[nodiscard]] bool IsGroupCallAdmin(
 	not_null<PeerData*> peer,
-	not_null<UserData*> user);
+	not_null<PeerData*> participantPeer);
 
 struct LevelUpdate {
 	uint32 ssrc = 0;
 	float value = 0.;
 	bool voice = false;
-	bool self = false;
+	bool me = false;
 };
 
 class GroupCall final : public base::has_weak_ptr {
@@ -82,6 +88,7 @@ public:
 		enum class GroupCallSound {
 			Started,
 			Connecting,
+			AllowedToSpeak,
 			Ended,
 		};
 		virtual void groupCallPlaySound(GroupCallSound sound) = 0;
@@ -91,7 +98,7 @@ public:
 
 	GroupCall(
 		not_null<Delegate*> delegate,
-		not_null<PeerData*> peer,
+		Group::JoinInfo info,
 		const MTPInputGroupCall &inputCall);
 	~GroupCall();
 
@@ -101,15 +108,27 @@ public:
 	[[nodiscard]] not_null<PeerData*> peer() const {
 		return _peer;
 	}
+	[[nodiscard]] not_null<PeerData*> joinAs() const {
+		return _joinAs;
+	}
+	[[nodiscard]] bool showChooseJoinAs() const;
 
 	void start();
 	void hangup();
 	void discard();
+	void rejoinAs(Group::JoinInfo info);
+	void rejoinWithHash(const QString &hash);
 	void join(const MTPInputGroupCall &inputCall);
 	void handleUpdate(const MTPGroupCall &call);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
+	void changeTitle(const QString &title);
+	void toggleRecording(bool enabled, const QString &title);
+	[[nodiscard]] bool recordingStoppedByMe() const {
+		return _recordingStoppedByMe;
+	}
 
 	void setMuted(MuteState mute);
+	void setMutedAndUpdate(MuteState mute);
 	[[nodiscard]] MuteState muted() const {
 		return _muted.current();
 	}
@@ -136,10 +155,22 @@ public:
 	[[nodiscard]] rpl::producer<State> stateValue() const {
 		return _state.value();
 	}
-	[[nodiscard]] rpl::producer<bool> connectingValue() const;
+
+	enum class InstanceState {
+		Disconnected,
+		TransitionToRtc,
+		Connected,
+	};
+	[[nodiscard]] rpl::producer<InstanceState> instanceStateValue() const;
 
 	[[nodiscard]] rpl::producer<LevelUpdate> levelUpdates() const {
 		return _levelUpdates.events();
+	}
+	[[nodiscard]] rpl::producer<Group::RejoinEvent> rejoinEvents() const {
+		return _rejoinEvents.events();
+	}
+	[[nodiscard]] rpl::producer<> allowedToSpeakNotifications() const {
+		return _allowedToSpeakNotifications.events();
 	}
 	static constexpr auto kSpeakLevelThreshold = 0.2;
 
@@ -162,46 +193,77 @@ public:
 	}
 
 private:
+	class LoadPartTask;
+
+public:
+	void broadcastPartStart(std::shared_ptr<LoadPartTask> task);
+	void broadcastPartCancel(not_null<LoadPartTask*> task);
+
+private:
 	using GlobalShortcutValue = base::GlobalShortcutValue;
+
+	struct LoadingPart {
+		std::shared_ptr<LoadPartTask> task;
+		mtpRequestId requestId = 0;
+	};
 
 	enum class FinishType {
 		None,
 		Ended,
 		Failed,
 	};
+	enum class InstanceMode {
+		None,
+		Rtc,
+		Stream,
+	};
+	enum class SendUpdateType {
+		Mute,
+		RaiseHand,
+	};
 
-	void handleRequestError(const RPCError &error);
+	void handleRequestError(const MTP::Error &error);
 	void handleControllerError(const QString &error);
-	void createAndStartController();
+	void ensureControllerCreated();
 	void destroyController();
 
 	void setState(State state);
 	void finish(FinishType type);
 	void maybeSendMutedUpdate(MuteState previous);
-	void sendMutedUpdate();
+	void sendSelfUpdate(SendUpdateType type);
 	void updateInstanceMuteState();
 	void updateInstanceVolumes();
-	void applySelfInCallLocally();
+	void applyMeInCallLocally();
 	void rejoin();
+	void rejoin(not_null<PeerData*> as);
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
-	void setInstanceConnected(bool connected);
+	void setInstanceConnected(tgcalls::GroupNetworkState networkState);
+	void setInstanceMode(InstanceMode mode);
 	void checkLastSpoke();
 	void pushToTalkCancel();
 
 	void checkGlobalShortcutAvailability();
 	void checkJoined();
+	void notifyAboutAllowedToSpeak();
 
 	void playConnectingSound();
 	void stopConnectingSound();
 	void playConnectingSoundOnce();
 
+	void requestParticipantsInformation(const std::vector<uint32_t> &ssrcs);
+	void addParticipantsToInstance();
+	void prepareParticipantForAdding(
+		const Data::GroupCallParticipant &participant);
+	void addPreparedParticipants();
+	void addPreparedParticipantsDelayed();
+
 	void editParticipant(
-		not_null<UserData*> user,
+		not_null<PeerData*> participantPeer,
 		bool mute,
 		std::optional<int> volume);
 	void applyParticipantLocally(
-		not_null<UserData*> user,
+		not_null<PeerData*> participantPeer,
 		bool mute,
 		std::optional<int> volume);
 
@@ -212,9 +274,24 @@ private:
 	not_null<History*> _history; // Can change in legacy group migration.
 	MTP::Sender _api;
 	rpl::variable<State> _state = State::Creating;
-	bool _instanceConnected = false;
+	rpl::variable<InstanceState> _instanceState
+		= InstanceState::Disconnected;
+	bool _instanceTransitioning = false;
+	InstanceMode _instanceMode = InstanceMode::None;
+	base::flat_set<uint32> _unresolvedSsrcs;
+	std::vector<tgcalls::GroupParticipantDescription> _preparedParticipants;
+	bool _addPreparedParticipantsScheduled = false;
+	bool _recordingStoppedByMe = false;
+
+	MTP::DcId _broadcastDcId = 0;
+	base::flat_map<not_null<LoadPartTask*>, LoadingPart> _broadcastParts;
+
+	not_null<PeerData*> _joinAs;
+	std::vector<not_null<PeerData*>> _possibleJoinAs;
+	QString _joinHash;
 
 	rpl::variable<MuteState> _muted = MuteState::Muted;
+	bool _initialMuteStateSent = false;
 	bool _acceptFields = false;
 
 	rpl::event_stream<Group::ParticipantState> _otherParticipantStateValue;
@@ -225,9 +302,11 @@ private:
 	mtpRequestId _createRequestId = 0;
 	mtpRequestId _updateMuteRequestId = 0;
 
-	std::unique_ptr<tgcalls::GroupInstanceImpl> _instance;
+	std::unique_ptr<tgcalls::GroupInstanceCustomImpl> _instance;
 	rpl::event_stream<LevelUpdate> _levelUpdates;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
+	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
+	rpl::event_stream<> _allowedToSpeakNotifications;
 	base::Timer _lastSpokeCheckTimer;
 	base::Timer _checkJoinedTimer;
 
