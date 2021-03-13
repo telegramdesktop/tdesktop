@@ -108,7 +108,7 @@ public:
 	void fetchCustomLangPack(QString langPackId, QString langPackBaseId);
 	void loadDefaultLangFile();
 
-public slots:
+public Q_SLOTS:
 	void fetchFinished();
 	void fetchError(QNetworkReply::NetworkError e);
 

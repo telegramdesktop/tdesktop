@@ -1106,7 +1106,7 @@ void TopBarWidget::updateOnlineDisplay() {
 						updateMembersShowArea();
 					}
 					lastChatRequest[QString::number(chat->bareId())].memberCount = count;
-				}).fail([=](const RPCError &error) {
+				}).fail([=](const MTP::Error &error) {
 					// if failed, then no any changes :)
 				}).send();
 				lastChatRequest[QString::number(chat->bareId())].requestTime = now;
@@ -1139,7 +1139,7 @@ void TopBarWidget::updateOnlineDisplay() {
 						updateMembersShowArea();
 					}
 					lastChatRequest[QString::number(channel->bareId())].memberCount = count;
-				}).fail([=](const RPCError &error) {
+				}).fail([=](const MTP::Error &error) {
 					// if failed, then no any changes :)
 				}).send();
 				lastChatRequest[QString::number(channel->bareId())].requestTime = now;

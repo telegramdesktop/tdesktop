@@ -71,7 +71,6 @@ public:
 		CopyCallback copyCallback;
 		SubmitCallback submitCallback;
 		FilterCallback filterCallback;
-		rpl::producer<QString> title;
 		Window::SessionNavigation *navigation = nullptr;
 		Fn<void(not_null<Ui::InputField*>)> initSpellchecker;
 		Fn<void(not_null<Ui::InputField*>)> initEditLink;
@@ -80,6 +79,7 @@ public:
 		const style::MultiSelect *stMultiSelect = nullptr;
 		const style::InputField *stComment = nullptr;
 		const style::PeerList *st = nullptr;
+		rpl::producer<QString> title;
 	};
 	ShareBox(QWidget*, Descriptor &&descriptor);
 

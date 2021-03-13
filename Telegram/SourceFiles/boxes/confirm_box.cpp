@@ -659,7 +659,7 @@ void DeleteMessagesBox::prepare() {
 					if (count > 0) {
 						_deleteAll->setText(tr::lng_delete_all_from(tr::now) + QString(" (%1)").arg(count));
 					}
-				}).fail([=](const RPCError &error) {
+				}).fail([=](const MTP::Error &error) {
 					// if failed, then no any changes :)
 				}).send();
 			}

@@ -20,7 +20,7 @@ namespace EnhancedSettings {
 
 		void write(bool force = false);
 
-	public slots:
+	public Q_SLOTS:
 
 		void writeTimeout();
 

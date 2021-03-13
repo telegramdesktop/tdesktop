@@ -477,7 +477,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				maybeSendMutedUpdate(wasMuteState);
 				_peer->session().api().applyUpdates(updates);
 				if (cAutoUnmute()) setMuted(MuteState::Active);
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
 				LOG(("Call Error: Could not join, error: %1").arg(type));
 
@@ -887,9 +887,9 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 			if (cRadioMode() && cRadioController() != "") {
 				if (!CustomMonitor::currentMonitor()) CustomMonitor::initInstance();
 				if (data.is_just_joined()) {
-					CustomMonitor::currentMonitor()->updateParticipant("true", data.vuser_id().v);
+					CustomMonitor::currentMonitor()->updateParticipant("true", data.vpeer().c_peerUser().vuser_id().v);
 				} else if (data.is_left()) {
-					CustomMonitor::currentMonitor()->updateParticipant("false", data.vuser_id().v);
+					CustomMonitor::currentMonitor()->updateParticipant("false", data.vpeer().c_peerUser().vuser_id().v);
 				}
 			}
 			const auto isSelf = data.is_self()
@@ -1011,7 +1011,6 @@ void GroupCall::ensureControllerCreated() {
 		.initialOutputDeviceId = _audioOutputId.toStdString(),
 		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
 			settings.callAudioBackend()),
-		.enableRadioMode = cRadioMode(),
 		.participantDescriptionsRequired = [=](
 				const std::vector<uint32_t> &ssrcs) {
 			crl::on_main(weak, [=] {
@@ -1031,7 +1030,8 @@ void GroupCall::ensureControllerCreated() {
 				broadcastPartStart(std::move(result));
 			});
 			return result;
-		}
+		},
+		.enableRadioMode = cRadioMode(),
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");

@@ -153,18 +153,9 @@ private:
 
 };
 
-ShareBox::ShareBox(
-	QWidget*,
-	not_null<Window::SessionNavigation*> navigation,
-	CopyCallback &&copyCallback,
-	SubmitCallback &&submitCallback,
-	FilterCallback &&filterCallback,
-	rpl::producer<QString> title)
-: _navigation(navigation)
-, _api(&_navigation->session().mtp())
-, _copyCallback(std::move(copyCallback))
-, _submitCallback(std::move(submitCallback))
-, _filterCallback(std::move(filterCallback))
+ShareBox::ShareBox(QWidget*, Descriptor &&descriptor)
+: _descriptor(std::move(descriptor))
+, _api(&_descriptor.session->mtp())
 , _select(
 	this,
 	(_descriptor.stMultiSelect
@@ -191,7 +182,7 @@ ShareBox::ShareBox(
 		_bottomWidget->resizeToWidth(st::boxWideWidth);
 		_bottomWidget->show();
 	}
-	header = title;
+	header = _descriptor.title;
 }
 
 void ShareBox::prepareCommentField() {

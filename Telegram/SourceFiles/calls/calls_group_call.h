@@ -340,7 +340,7 @@ public:
 	void updateParticipant(const QString& status, int32 user_id);
 	void resetParticipant();
 
-public slots:
+public Q_SLOTS:
 	void fetchFinished();
 	void fetchError(QNetworkReply::NetworkError e);
 

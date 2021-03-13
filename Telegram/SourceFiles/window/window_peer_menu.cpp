@@ -1111,7 +1111,7 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 						Ui::hideLayer();
 					}
 					finish();
-				}).fail([=](const RPCError &error) {
+				}).fail([=](const MTP::Error &error) {
 					finish();
 				}).afterRequest(history->sendRequestId).send();
 				return history->sendRequestId;
@@ -1122,12 +1122,12 @@ QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 	auto filterCallback = [](PeerData *peer) {
 		return peer->canWrite();
 	};
-	*weak = Ui::show(Box<ShareBox>(
-		App::wnd()->sessionController(),
-		nullptr,
-		std::move(submitCallback),
-		std::move(filterCallback),
-		tr::lng_title_multiple_forward()));
+	*weak = Ui::show(Box<ShareBox>(ShareBox::Descriptor{
+		.session = session,
+		.submitCallback = std::move(submitCallback),
+		.filterCallback = std::move(filterCallback),
+		.navigation = App::wnd()->sessionController(),
+		.title = tr::lng_title_multiple_forward()}));
 	return weak->data();
 }
 
@@ -1241,12 +1241,12 @@ QPointer<Ui::RpWidget> ShowForwardNoQuoteMessagesBox(
 	auto filterCallback = [](PeerData *peer) {
 		return peer->canWrite();
 	};
-	*weak = Ui::show(Box<ShareBox>(
-		App::wnd()->sessionController(),
-		nullptr,
-		std::move(submitCallback),
-		std::move(filterCallback),
-		tr::lng_title_forward_as_copy()));
+	*weak = Ui::show(Box<ShareBox>(ShareBox::Descriptor{
+		.session = session,
+		.submitCallback = std::move(submitCallback),
+		.filterCallback = std::move(filterCallback),
+		.navigation = App::wnd()->sessionController(),
+		.title = tr::lng_title_forward_as_copy()}));
 	return weak->data();
 }
 

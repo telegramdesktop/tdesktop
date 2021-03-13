@@ -1379,7 +1379,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 						MTP_int(0));
 					editRestrictions(hasAdminRights, bannedRights);
 				}
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				auto bannedRights = MTP_chatBannedRights(
 					MTP_flags(0),
 					MTP_int(0));
