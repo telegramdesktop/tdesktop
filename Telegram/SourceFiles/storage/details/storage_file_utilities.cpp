@@ -38,15 +38,15 @@ QString ToFilePart(FileKey val) {
 
 bool KeyAlreadyUsed(QString &name) {
 	name += '0';
-	if (QFileInfo(name).exists()) {
+	if (QFileInfo::exists(name)) {
 		return true;
 	}
 	name[name.size() - 1] = '1';
-	if (QFileInfo(name).exists()) {
+	if (QFileInfo::exists(name)) {
 		return true;
 	}
 	name[name.size() - 1] = 's';
-	if (QFileInfo(name).exists()) {
+	if (QFileInfo::exists(name)) {
 		return true;
 	}
 	return false;
@@ -319,7 +319,7 @@ bool ReadFile(
 	// detect order of read attempts
 	QString toTry[2];
 	const auto modern = base + 's';
-	if (QFileInfo(modern).exists()) {
+	if (QFileInfo::exists(modern)) {
 		toTry[0] = modern;
 	} else {
 		// Legacy way.

@@ -153,7 +153,7 @@ bool FileParser::readKeyValue(const char *&from, const char *end) {
 }
 
 QByteArray FileParser::ReadFile(const QString &absolutePath, const QString &relativePath) {
-	QFile file(QFileInfo(relativePath).exists() ? relativePath : absolutePath);
+	QFile file(QFileInfo::exists(relativePath) ? relativePath : absolutePath);
 	if (!file.open(QIODevice::ReadOnly)) {
 		Ui::Integration::Instance().writeLogEntry(u"Lang Error: Could not open file at '%1' ('%2')"_q.arg(relativePath, absolutePath));
 		return QByteArray();
