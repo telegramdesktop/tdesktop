@@ -2628,14 +2628,14 @@ MessageIdsList HistoryInner::getSelectedItems() const {
 	auto result = ranges::make_subrange(
 		_selected.begin(),
 		_selected.end()
-	) | view::filter([](const auto &selected) {
+	) | views::filter([](const auto &selected) {
 		const auto item = selected.first;
 		return item && item->toHistoryMessage() && (item->id > 0);
-	}) | view::transform([](const auto &selected) {
+	}) | views::transform([](const auto &selected) {
 		return selected.first->fullId();
 	}) | to_vector;
 
-	result |= action::sort(ordered_less{}, [](const FullMsgId &msgId) {
+	result |= actions::sort(ordered_less{}, [](const FullMsgId &msgId) {
 		return msgId.channel ? msgId.msg : (msgId.msg - ServerMaxMsgId);
 	});
 	return result;
