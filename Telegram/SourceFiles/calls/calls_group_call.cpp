@@ -431,7 +431,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 	_instance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
 		crl::on_main(weak, [=, payload = std::move(payload)]{
 			auto fingerprints = QJsonArray();
-			for (const auto print : payload.fingerprints) {
+			for (const auto &print : payload.fingerprints) {
 				auto object = QJsonObject();
 				object.insert("hash", QString::fromStdString(print.hash));
 				object.insert("setup", QString::fromStdString(print.setup));

@@ -1896,7 +1896,7 @@ void Session::processMessages(
 		const auto id = IdFromMessage(message);
 		indices.emplace((uint64(uint32(id)) << 32) | uint64(i), i);
 	}
-	for (const auto [position, index] : indices) {
+	for (const auto &[position, index] : indices) {
 		addNewMessage(
 			data[index],
 			MTPDmessage_ClientFlags(),

@@ -75,7 +75,7 @@ void DicePack::applySet(const MTPDmessages_stickerSet &data) {
 	if (isSlotMachine) {
 		return;
 	}
-	for (const auto pack : data.vpacks().v) {
+	for (const auto &pack : data.vpacks().v) {
 		pack.match([&](const MTPDstickerPack &data) {
 			const auto emoji = qs(data.vemoticon());
 			if (emoji.isEmpty()) {

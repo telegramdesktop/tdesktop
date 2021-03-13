@@ -852,7 +852,7 @@ MembersController::MembersController(
 		if (!(hide && _soundingAnimationHideLastTime)) {
 			_soundingAnimationHideLastTime = hide ? crl::now() : 0;
 		}
-		for (const auto [_, row] : _soundingRowBySsrc) {
+		for (const auto &[_, row] : _soundingRowBySsrc) {
 			if (hide) {
 				updateRowLevel(row, 0.);
 			}
@@ -870,7 +870,7 @@ MembersController::MembersController(
 			_soundingAnimation.stop();
 			return false;
 		}
-		for (const auto [ssrc, row] : _soundingRowBySsrc) {
+		for (const auto &[ssrc, row] : _soundingRowBySsrc) {
 			row->updateBlobAnimation(now);
 			delegate()->peerListUpdateRow(row);
 		}

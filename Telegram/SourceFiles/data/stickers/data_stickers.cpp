@@ -420,7 +420,7 @@ bool Stickers::isFaved(not_null<const DocumentData*> document) {
 	if (it == sets.cend()) {
 		return false;
 	}
-	for (const auto sticker : it->second->stickers) {
+	for (const auto sticker : std::as_const(it->second->stickers)) {
 		if (sticker == document) {
 			return true;
 		}
@@ -902,7 +902,7 @@ void Stickers::featuredSetsReceived(
 
 	if (!setsToRequest.empty()) {
 		auto &api = session().api();
-		for (const auto [setId, accessHash] : setsToRequest) {
+		for (const auto &[setId, accessHash] : setsToRequest) {
 			api.scheduleStickerSetRequest(setId, accessHash);
 		}
 		api.requestStickerSets();

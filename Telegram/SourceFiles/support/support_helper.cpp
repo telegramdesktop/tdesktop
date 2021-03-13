@@ -576,11 +576,11 @@ QString InterpretSendPath(
 	auto caption = QString();
 	for (const auto &line : lines) {
 		if (line.startsWith(qstr("from: "))) {
-			if (window->session().userId() != line.mid(qstr("from: ").size()).toInt()) {
+			if (window->session().userId() != line.midRef(qstr("from: ").size()).toInt()) {
 				return "App Error: Wrong current user.";
 			}
 		} else if (line.startsWith(qstr("channel: "))) {
-			const auto channelId = line.mid(qstr("channel: ").size()).toInt();
+			const auto channelId = line.midRef(qstr("channel: ").size()).toInt();
 			toId = peerFromChannel(channelId);
 		} else if (line.startsWith(qstr("file: "))) {
 			const auto path = line.mid(qstr("file: ").size());

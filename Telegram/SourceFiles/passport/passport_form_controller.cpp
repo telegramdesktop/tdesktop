@@ -1175,7 +1175,7 @@ void FormController::fillErrors() {
 			}
 		}
 	};
-	for (const auto &error : _form.pendingErrors) {
+	for (const auto &error : std::as_const(_form.pendingErrors)) {
 		error.match([&](const MTPDsecureValueError &data) {
 			if (const auto value = find(data.vtype())) {
 				if (CanHaveErrors(value->type)) {
@@ -1306,7 +1306,7 @@ void FormController::decryptValue(Value &value) const {
 		}
 		const auto fields = DeserializeData(decrypted);
 		value.data.parsed.fields.clear();
-		for (const auto [key, text] : fields) {
+		for (const auto &[key, text] : fields) {
 			value.data.parsed.fields[key] = { text };
 		}
 	}

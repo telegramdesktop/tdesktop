@@ -2551,7 +2551,7 @@ auto StickersListWidget::collectRecentStickers() -> std::vector<Sticker> {
 	};
 
 	if (cloudCount > 0) {
-		for (const auto document : cloudIt->second->stickers) {
+		for (const auto document : std::as_const(cloudIt->second->stickers)) {
 			add(document, false);
 		}
 	}
@@ -2559,7 +2559,7 @@ auto StickersListWidget::collectRecentStickers() -> std::vector<Sticker> {
 		add(recentSticker.first, false);
 	}
 	if (customCount > 0) {
-		for (const auto document : customIt->second->stickers) {
+		for (const auto document : std::as_const(customIt->second->stickers)) {
 			add(document, true);
 		}
 	}

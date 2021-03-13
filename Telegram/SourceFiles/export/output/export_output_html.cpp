@@ -804,7 +804,7 @@ QByteArray HtmlWriter::Wrap::pushGenericListEntry(
 		result.append(SerializeString(subname));
 		result.append(popTag());
 	}
-	for (const auto detail : details) {
+	for (const auto &detail : details) {
 		result.append(pushDiv("details_entry details"));
 		result.append(SerializeString(detail));
 		result.append(popTag());

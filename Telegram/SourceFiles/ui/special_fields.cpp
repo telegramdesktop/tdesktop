@@ -204,7 +204,7 @@ void PhonePartInput::onChooseCode(const QString &code) {
 	_additionalPlaceholder = QString();
 	if (!_pattern.isEmpty()) {
 		_additionalPlaceholder.reserve(20);
-		for (const auto part : _pattern) {
+		for (const auto part : std::as_const(_pattern)) {
 			_additionalPlaceholder.append(' ');
 			_additionalPlaceholder.append(QString(part, QChar(0x2212)));
 		}
