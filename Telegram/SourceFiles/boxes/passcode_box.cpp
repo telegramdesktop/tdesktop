@@ -405,7 +405,7 @@ void PasscodeBox::setPasswordFail(
 		const MTP::Error &error) {
 	const auto prefix = qstr("EMAIL_UNCONFIRMED_");
 	if (error.type().startsWith(prefix)) {
-		const auto codeLength = error.type().mid(prefix.size()).toInt();
+		const auto codeLength = error.type().midRef(prefix.size()).toInt();
 
 		closeReplacedBy();
 		_setRequest = 0;

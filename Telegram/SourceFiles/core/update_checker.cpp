@@ -830,7 +830,7 @@ void HttpLoaderActor::sendRequest() {
 
 void HttpLoaderActor::gotMetaData() {
 	const auto pairs = _reply->rawHeaderPairs();
-	for (const auto pair : pairs) {
+	for (const auto &pair : pairs) {
 		if (QString::fromUtf8(pair.first).toLower() == "content-range") {
 			const auto m = QRegularExpression(qsl("/(\\d+)([^\\d]|$)")).match(QString::fromUtf8(pair.second));
 			if (m.hasMatch()) {
@@ -979,7 +979,7 @@ auto MtpChecker::parseText(const QByteArray &text) const
 			return false;
 		}
 		bestLocation.username = full.mid(start + 1, post - start - 1);
-		bestLocation.postId = full.mid(post + 1).toInt();
+		bestLocation.postId = full.midRef(post + 1).toInt();
 		if (bestLocation.username.isEmpty() || !bestLocation.postId) {
 			LOG(("Update Error: MTP entry '%1' is bad for version %2."
 				).arg(full

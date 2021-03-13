@@ -242,7 +242,7 @@ Updates::Updates(not_null<Main::Session*> session)
 	}) | rpl::start_with_next([=](not_null<PeerData*> peer) {
 		if (const auto list = _pendingSpeakingCallParticipants.take(peer)) {
 			if (const auto call = peer->groupCall()) {
-				for (const auto [participantPeerId, when] : *list) {
+				for (const auto &[participantPeerId, when] : *list) {
 					call->applyActiveUpdate(
 						participantPeerId,
 						Data::LastSpokeTimes{
