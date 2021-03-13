@@ -476,7 +476,6 @@ void Widget::handleSongUpdate(const TrackState &state) {
 }
 
 void Widget::updateTimeText(const TrackState &state) {
-	QString time;
 	qint64 position = 0, length = 0, display = 0;
 	const auto frequency = state.frequency;
 	const auto document = state.id.audio();

@@ -464,7 +464,6 @@ void Rows::showMenu(int index) {
 			Fn<void()> callback) {
 		return _menu->addAction(text, std::move(callback));
 	};
-	const auto id = row->data.id;
 	if (canShare(row)) {
 		addAction(tr::lng_proxy_edit_share(tr::now), [=] { share(row); });
 	}
