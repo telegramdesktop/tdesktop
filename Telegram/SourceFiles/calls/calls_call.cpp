@@ -819,9 +819,9 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		return data.vlibrary_versions().v;
 	}).value(0, MTP_bytes(kDefaultVersion)).v;
 
-	LOG(("Call Info: Creating instance with version '%1', allowP2P: %2"
-		).arg(QString::fromUtf8(version)
-		).arg(Logs::b(descriptor.config.enableP2P)));
+	LOG(("Call Info: Creating instance with version '%1', allowP2P: %2").arg(
+		QString::fromUtf8(version),
+		Logs::b(descriptor.config.enableP2P)));
 	_instance = tgcalls::Meta::Create(
 		version.toStdString(),
 		std::move(descriptor));

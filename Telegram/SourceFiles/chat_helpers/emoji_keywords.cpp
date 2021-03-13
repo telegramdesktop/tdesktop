@@ -261,8 +261,9 @@ void ApplyDifference(
 			}) | ranges::view::filter([&](const LangPackEmoji &entry) {
 				if (!entry.emoji) {
 					LOG(("API Warning: emoji %1 is not supported, word: %2."
-						).arg(entry.text
-						).arg(word));
+						).arg(
+							entry.text,
+							word));
 				}
 				return (entry.emoji != nullptr);
 			});
@@ -419,9 +420,9 @@ void EmojiKeywords::LangPack::applyDifference(
 		const auto version = data.vversion().v;
 		const auto &keywords = data.vkeywords().v;
 		if (code != _id) {
-			LOG(("API Error: Bad lang_code for emoji keywords %1 -> %2"
-				).arg(_id
-				).arg(code));
+			LOG(("API Error: Bad lang_code for emoji keywords %1 -> %2").arg(
+				_id,
+				code));
 			_data.version = 0;
 			_state = State::Refreshed;
 			return;

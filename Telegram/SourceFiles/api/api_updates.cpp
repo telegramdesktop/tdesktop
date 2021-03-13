@@ -399,10 +399,10 @@ void Updates::feedChannelDifference(
 void Updates::channelDifferenceFail(
 		not_null<ChannelData*> channel,
 		const MTP::Error &error) {
-	LOG(("RPC Error in getChannelDifference: %1 %2: %3"
-		).arg(error.code()
-		).arg(error.type()
-		).arg(error.description()));
+	LOG(("RPC Error in getChannelDifference: %1 %2: %3").arg(
+		QString::number(error.code()),
+		error.type(),
+		error.description()));
 	failDifferenceStartTimerFor(channel);
 }
 

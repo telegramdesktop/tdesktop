@@ -51,10 +51,9 @@ void Launcher::initHook() {
 	QApplication::setAttribute(Qt::AA_DisableSessionManager, true);
 	QApplication::setDesktopFileName([] {
 		if (!Core::UpdaterDisabled() && !cExeName().isEmpty()) {
-			const auto appimagePath = qsl("file://%1%2")
-				.arg(cExeDir())
-				.arg(cExeName())
-				.toUtf8();
+			const auto appimagePath = qsl("file://%1%2").arg(
+				cExeDir(),
+				cExeName()).toUtf8();
 
 			char md5Hash[33] = { 0 };
 			hashMd5Hex(

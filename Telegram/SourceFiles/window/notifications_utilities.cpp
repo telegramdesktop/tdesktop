@@ -60,9 +60,9 @@ QString CachedUserpics::get(
 		} else {
 			v.until = 0;
 		}
-		v.path = u"%1tdata/temp/%2.png"_q
-			.arg(cWorkingDir())
-			.arg(QString::number(openssl::RandomValue<uint64>(), 16));
+		v.path = u"%1tdata/temp/%2.png"_q.arg(
+			cWorkingDir(),
+			QString::number(openssl::RandomValue<uint64>(), 16));
 		if (key.first || key.second) {
 			if (peer->isSelf()) {
 				const auto method = (_type == Type::Rounded)

@@ -36,7 +36,7 @@ auto Location(const QString &url) {
 
 auto JsonUrl(not_null<SongData*> song) {
 	return QString("https://itunes.apple.com/search?term=" \
-		"%1 %2&entity=song&limit=4").arg(song->performer).arg(song->title);
+		"%1 %2&entity=song&limit=4").arg(song->performer, song->title);
 }
 
 // Dummy JSON responce.

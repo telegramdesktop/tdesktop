@@ -290,9 +290,9 @@ void CloudManager::applyLangPackDifference(
 		}
 	} else {
 		LOG(("Lang Warning: "
-			"Ignoring update for '%1' because our language is '%2'"
-			).arg(langpackId
-			).arg(_langpack.id()));
+			"Ignoring update for '%1' because our language is '%2'").arg(
+			langpackId,
+			_langpack.id()));
 	}
 }
 

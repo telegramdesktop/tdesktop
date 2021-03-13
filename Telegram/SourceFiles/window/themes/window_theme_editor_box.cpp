@@ -284,9 +284,9 @@ void ImportFromFile(
 			name,
 			ColorHexString(color->c));
 		if (data == "error") {
-			LOG(("Theme Error: could not adjust '%1: %2' in content"
-				).arg(QString::fromLatin1(name)
-				).arg(QString::fromLatin1(ColorHexString(color->c))));
+			LOG(("Theme Error: could not adjust '%1: %2' in content").arg(
+				QString::fromLatin1(name),
+				QString::fromLatin1(ColorHexString(color->c))));
 			return QByteArray();
 		}
 	}

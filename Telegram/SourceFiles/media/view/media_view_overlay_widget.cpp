@@ -174,7 +174,7 @@ void PaintImageProfile(QPainter &p, const QImage &image, QRect rect, QRect fill)
 				}
 			}
 			push();
-			LOG(("FRAME (%1): %2 (copies: %3)").arg(label).arg(times.join(' ')).arg(copies));
+			LOG(("FRAME (%1): %2 (copies: %3)").arg(label, times.join(' ')).arg(copies));
 			times = QStringList();
 			now = crl::now();
 		};

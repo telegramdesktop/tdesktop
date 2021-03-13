@@ -1443,9 +1443,9 @@ bool History::unreadCountRefreshNeeded(MsgId readTillId) const {
 
 std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 	if (isEmpty() || !folderKnown()) {
-		DEBUG_LOG(("Reading: countStillUnreadLocal unknown %1 and %2."
-			).arg(Logs::b(isEmpty())
-			).arg(Logs::b(folderKnown())));
+		DEBUG_LOG(("Reading: countStillUnreadLocal unknown %1 and %2.").arg(
+			Logs::b(isEmpty()),
+			Logs::b(folderKnown())));
 		return std::nullopt;
 	}
 	if (_inboxReadBefore) {
@@ -1478,10 +1478,10 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 		}
 	}
 	const auto minimalServerId = minMsgId();
-	DEBUG_LOG(("Reading: check at end loaded from %1 loaded %2 - %3"
-		).arg(minimalServerId
-		).arg(Logs::b(loadedAtBottom())
-		).arg(Logs::b(loadedAtTop())));
+	DEBUG_LOG(("Reading: check at end loaded from %1 loaded %2 - %3").arg(
+		QString::number(minimalServerId),
+		Logs::b(loadedAtBottom()),
+		Logs::b(loadedAtTop())));
 	if (!loadedAtBottom()
 		|| (!loadedAtTop() && !minimalServerId)
 		|| minimalServerId > readTillId) {

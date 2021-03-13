@@ -611,7 +611,7 @@ void Editor::Inner::applyEditing(const QString &name, const QString &copyOf, QCo
 	auto plainValue = copyOf.isEmpty() ? ColorHexString(value) : copyOf.toLatin1();
 	auto newContent = ReplaceValueInPaletteContent(_paletteContent, plainName, plainValue);
 	if (newContent == "error") {
-		LOG(("Theme Error: could not replace '%1: %2' in content").arg(name).arg(copyOf.isEmpty() ? QString::fromLatin1(ColorHexString(value)) : copyOf));
+		LOG(("Theme Error: could not replace '%1: %2' in content").arg(name, copyOf.isEmpty() ? QString::fromLatin1(ColorHexString(value)) : copyOf));
 		error();
 		return;
 	}
