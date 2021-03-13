@@ -549,7 +549,7 @@ void writeDebug(const char *file, int32 line, const QString &v) {
 		file = found + 1;
 	}
 
-	QString msg(QString("%1 %2 (%3 : %4)\n").arg(_logsEntryStart(), v, file, line));
+	QString msg(QString("%1 %2 (%3 : %4)\n").arg(_logsEntryStart(), v, file, QString::number(line)));
 	_logsWrite(LogDataDebug, msg);
 
 #ifdef Q_OS_WIN
