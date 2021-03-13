@@ -55,7 +55,7 @@ QString _logsEntryStart() {
 
 	const auto tm = QDateTime::currentDateTime();
 
-	return QString("[%1 %2-%3]").arg(tm.toString("hh:mm:ss.zzz")).arg(QString("%1").arg(threadId, 2, 10, QChar('0'))).arg(++index, 7, 10, QChar('0'));
+	return QString("[%1 %2-%3]").arg(tm.toString("hh:mm:ss.zzz"), QString("%1").arg(threadId, 2, 10, QChar('0'))).arg(++index, 7, 10, QChar('0'));
 }
 
 class LogsDataFields {
@@ -136,12 +136,12 @@ private:
 					return false;
 				}
 				if (!QFile(files[type]->fileName()).copy(to->fileName())) { // don't close files[type] yet
-					LOG(("Could not copy '%1' to '%2' to start new logging!").arg(files[type]->fileName()).arg(to->fileName()));
+					LOG(("Could not copy '%1' to '%2' to start new logging!").arg(files[type]->fileName(), to->fileName()));
 					return false;
 				}
 				if (to->open(mode | QIODevice::Append)) {
 					std::swap(files[type], to);
-					LOG(("Moved logging from '%1' to '%2'!").arg(to->fileName()).arg(files[type]->fileName()));
+					LOG(("Moved logging from '%1' to '%2'!").arg(to->fileName(), files[type]->fileName()));
 					to->remove();
 
 					LogsStartIndexChosen = -1;
@@ -152,7 +152,7 @@ private:
 						QString oldlog = cWorkingDir() + *i, oldlogend = i->mid(qstr("log_start").size());
 						if (oldlogend.size() == 1 + qstr(".txt").size() && oldlogend.at(0).isDigit() && oldlogend.midRef(1) == qstr(".txt")) {
 							bool removed = QFile(*i).remove();
-							LOG(("Old start log '%1' found, deleted: %2").arg(*i).arg(Logs::b(removed)));
+							LOG(("Old start log '%1' found, deleted: %2").arg(*i, Logs::b(removed)));
 						}
 					}
 
@@ -266,7 +266,7 @@ bool DebugModeEnabled = false;
 void MoveOldDataFiles(const QString &wasDir) {
 	QFile data(wasDir + "data"), dataConfig(wasDir + "data_config"), tdataConfig(wasDir + "tdata/config");
 	if (data.exists() && dataConfig.exists() && !QFileInfo(cWorkingDir() + "data").exists() && !QFileInfo(cWorkingDir() + "data_config").exists()) { // move to home dir
-		LOG(("Copying data to home dir '%1' from '%2'").arg(cWorkingDir()).arg(wasDir));
+		LOG(("Copying data to home dir '%1' from '%2'").arg(cWorkingDir(), wasDir));
 		if (data.copy(cWorkingDir() + "data")) {
 			LOG(("Copied 'data' to home dir"));
 			if (dataConfig.copy(cWorkingDir() + "data_config")) {
@@ -419,7 +419,7 @@ void start(not_null<Core::Launcher*> launcher) {
 		).arg(Logs::b(cInstallBetaVersion())
 		).arg(cAlphaVersion()
 		).arg(Logs::b(DebugEnabled())));
-	LOG(("Executable dir: %1, name: %2").arg(cExeDir()).arg(cExeName()));
+	LOG(("Executable dir: %1, name: %2").arg(cExeDir(), cExeName()));
 	LOG(("Initial working dir: %1").arg(initialWorkingDir));
 	LOG(("Working dir: %1").arg(cWorkingDir()));
 	LOG(("Command line: %1").arg(launcher->argumentsString()));
@@ -530,7 +530,7 @@ void writeMain(const QString &v) {
 	QString msg(QString("[%1.%2.%3 %4:%5:%6] %7\n").arg(tm.tm_year + 1900).arg(tm.tm_mon + 1, 2, 10, QChar('0')).arg(tm.tm_mday, 2, 10, QChar('0')).arg(tm.tm_hour, 2, 10, QChar('0')).arg(tm.tm_min, 2, 10, QChar('0')).arg(tm.tm_sec, 2, 10, QChar('0')).arg(v));
 	_logsWrite(LogDataMain, msg);
 
-	QString debugmsg(QString("%1 %2\n").arg(_logsEntryStart()).arg(v));
+	QString debugmsg(QString("%1 %2\n").arg(_logsEntryStart(), v));
 	_logsWrite(LogDataDebug, debugmsg);
 }
 
@@ -549,7 +549,7 @@ void writeDebug(const char *file, int32 line, const QString &v) {
 		file = found + 1;
 	}
 
-	QString msg(QString("%1 %2 (%3 : %4)\n").arg(_logsEntryStart()).arg(v).arg(file).arg(line));
+	QString msg(QString("%1 %2 (%3 : %4)\n").arg(_logsEntryStart(), v, file, line));
 	_logsWrite(LogDataDebug, msg);
 
 #ifdef Q_OS_WIN
@@ -562,7 +562,7 @@ void writeDebug(const char *file, int32 line, const QString &v) {
 }
 
 void writeTcp(const QString &v) {
-	QString msg(QString("%1 %2\n").arg(_logsEntryStart()).arg(v));
+	QString msg(QString("%1 %2\n").arg(_logsEntryStart(), v));
 	_logsWrite(LogDataTcp, msg);
 }
 

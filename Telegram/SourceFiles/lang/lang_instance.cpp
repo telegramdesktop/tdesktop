@@ -92,7 +92,7 @@ void ValueParser::appendToResult(const char *nextBegin) {
 bool ValueParser::logError(const QString &text) {
 	_failed = true;
 	auto loggedKey = (_currentTag.size() > 0) ? (_key + QString(':') + _currentTag) : QString(_key);
-	LOG(("Lang Error: %1 (key '%2')").arg(text).arg(loggedKey));
+	LOG(("Lang Error: %1 (key '%2')").arg(text, loggedKey));
 	return false;
 }
 

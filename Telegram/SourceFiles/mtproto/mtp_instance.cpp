@@ -1042,10 +1042,10 @@ void Instance::Private::processCallback(const Response &response) {
 	if (handler.done || handler.fail) {
 		const auto handleError = [&](const Error &error) {
 			DEBUG_LOG(("RPC Info: "
-				"error received, code %1, type %2, description: %3"
-				).arg(error.code()
-				).arg(error.type()
-				).arg(error.description()));
+				"error received, code %1, type %2, description: %3").arg(
+					QString::number(error.code()),
+					error.type(),
+					error.description()));
 			if (rpcErrorOccured(response, handler, error)) {
 				unregisterRequest(requestId);
 			} else {
@@ -1112,11 +1112,11 @@ bool Instance::Private::rpcErrorOccured(
 	if (onErrorDefault(error, response)) {
 		return false;
 	}
-	LOG(("RPC Error: request %1 got fail with code %2, error %3%4"
-		).arg(response.requestId
-		).arg(error.code()
-		).arg(error.type()
-		).arg(error.description().isEmpty()
+	LOG(("RPC Error: request %1 got fail with code %2, error %3%4").arg(
+		QString::number(response.requestId),
+		QString::number(error.code()),
+		error.type(),
+		error.description().isEmpty()
 			? QString()
 			: QString(": %1").arg(error.description())));
 	if (onFail) {

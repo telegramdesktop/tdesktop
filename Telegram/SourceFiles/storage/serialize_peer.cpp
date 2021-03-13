@@ -338,7 +338,7 @@ QString peekUserPhone(int streamAppVersion, QDataStream &stream) {
 	QString first, last, phone;
 	stream >> first >> last >> phone;
 	DEBUG_LOG(("peekUserPhone.data: %1 %2 %3"
-		).arg(first).arg(last).arg(phone));
+		).arg(first, last, phone));
 	return phone;
 }
 
