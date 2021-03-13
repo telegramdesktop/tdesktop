@@ -762,11 +762,11 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 		return result;
 	}
 
-	const auto items = ranges::view::all(
+	const auto items = ranges::views::all(
 		_ids
-	) | ranges::view::transform([&](FullMsgId id) {
+	) | ranges::views::transform([&](FullMsgId id) {
 		return peer->owner().message(id);
-	}) | ranges::view::filter([](HistoryItem *item) {
+	}) | ranges::views::filter([](HistoryItem *item) {
 		return (item != nullptr);
 	}) | ranges::to_vector;
 
@@ -783,7 +783,7 @@ auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 		return !item->canDeleteForEveryone(now);
 	};
 	const auto canRevokeAll = ranges::none_of(items, cannotRevoke);
-	auto outgoing = items | ranges::view::filter(&HistoryItem::out);
+	auto outgoing = items | ranges::views::filter(&HistoryItem::out);
 	const auto canRevokeOutgoingCount = canRevokeAll
 		? -1
 		: ranges::count_if(outgoing, canRevoke);

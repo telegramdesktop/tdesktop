@@ -422,9 +422,9 @@ QString PeerData::computeUnavailableReason() const {
 	const auto skip = config.get<std::vector<QString>>(
 		"ignore_restriction_reasons",
 		std::vector<QString>());
-	auto &&filtered = ranges::view::all(
+	auto &&filtered = ranges::views::all(
 		list
-	) | ranges::view::filter([&](const Data::UnavailableReason &reason) {
+	) | ranges::views::filter([&](const Data::UnavailableReason &reason) {
 		return !ranges::contains(skip, reason.reason);
 	});
 	const auto first = filtered.begin();

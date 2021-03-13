@@ -1196,7 +1196,7 @@ void ParticipantsBoxController::rebuildChatAdmins(
 		return;
 	}
 
-	auto list = ranges::view::all(chat->admins) | ranges::to_vector;
+	auto list = ranges::views::all(chat->admins) | ranges::to_vector;
 	if (const auto creator = chat->owner().userLoaded(chat->creator)) {
 		list.emplace_back(creator);
 	}

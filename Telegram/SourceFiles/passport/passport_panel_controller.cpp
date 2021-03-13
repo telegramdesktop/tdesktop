@@ -1005,11 +1005,11 @@ void PanelController::requestScopeFilesType(int index) {
 				[=](int documentIndex) {
 					editWithUpload(index, documentIndex);
 				},
-				ranges::view::all(
+				ranges::views::all(
 					_scopes[index].documents
-				) | ranges::view::transform([](auto value) {
+				) | ranges::views::transform([](auto value) {
 					return value->type;
-				}) | ranges::view::transform([](Value::Type type) {
+				}) | ranges::views::transform([](Value::Type type) {
 					switch (type) {
 					case Value::Type::Passport:
 						return tr::lng_passport_identity_passport(tr::now);
@@ -1028,11 +1028,11 @@ void PanelController::requestScopeFilesType(int index) {
 				[=](int documentIndex) {
 					editWithUpload(index, documentIndex);
 				},
-				ranges::view::all(
+				ranges::views::all(
 					_scopes[index].documents
-				) | ranges::view::transform([](auto value) {
+				) | ranges::views::transform([](auto value) {
 					return value->type;
-				}) | ranges::view::transform([](Value::Type type) {
+				}) | ranges::views::transform([](Value::Type type) {
 					switch (type) {
 					case Value::Type::UtilityBill:
 						return tr::lng_passport_address_bill(tr::now);

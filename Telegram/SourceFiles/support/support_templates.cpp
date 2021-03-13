@@ -730,14 +730,14 @@ auto Templates::query(const QString &text) const -> std::vector<Question> {
 			return (a.first.second < b.first.second);
 		}
 	};
-	const auto good = narrowed->second | ranges::view::transform(
+	const auto good = narrowed->second | ranges::views::transform(
 		pairById
-	) | ranges::view::filter([](const Pair &pair) {
+	) | ranges::views::filter([](const Pair &pair) {
 		return pair.second > 0;
 	}) | ranges::to_vector | ranges::action::stable_sort(sorter);
-	return good | ranges::view::transform([&](const Pair &pair) {
+	return good | ranges::views::transform([&](const Pair &pair) {
 		return questionById(pair.first);
-	}) | ranges::view::take(kQueryLimit) | ranges::to_vector;
+	}) | ranges::views::take(kQueryLimit) | ranges::to_vector;
 }
 
 } // namespace Support

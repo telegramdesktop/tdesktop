@@ -3108,9 +3108,9 @@ void InnerWidget::setupShortcuts() {
 
 		const auto filters = &session().data().chatsFilters().list();
 		if (const auto filtersCount = int(filters->size())) {
-			auto &&folders = ranges::view::zip(
+			auto &&folders = ranges::views::zip(
 				Shortcuts::kShowFolder,
-				ranges::view::ints(0, ranges::unreachable));
+				ranges::views::ints(0, ranges::unreachable));
 
 			for (const auto [command, index] : folders) {
 				const auto select = (command == Command::ShowFolderLast)
@@ -3134,9 +3134,9 @@ void InnerWidget::setupShortcuts() {
 			Command::ChatPinned4,
 			Command::ChatPinned5,
 		};
-		auto &&pinned = ranges::view::zip(
+		auto &&pinned = ranges::views::zip(
 			kPinned,
-			ranges::view::ints(0, ranges::unreachable));
+			ranges::views::ints(0, ranges::unreachable));
 		for (const auto [command, index] : pinned) {
 			request->check(command) && request->handle([=, index = index] {
 				const auto list = (_filterId

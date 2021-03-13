@@ -305,11 +305,11 @@ void Histories::sendDialogRequests() {
 	if (_dialogRequestsPending.empty()) {
 		return;
 	}
-	const auto histories = ranges::view::all(
+	const auto histories = ranges::views::all(
 		_dialogRequestsPending
-	) | ranges::view::transform([](const auto &pair) {
+	) | ranges::views::transform([](const auto &pair) {
 		return pair.first;
-	}) | ranges::view::filter([&](not_null<History*> history) {
+	}) | ranges::views::filter([&](not_null<History*> history) {
 		const auto state = lookup(history);
 		if (!state) {
 			return true;

@@ -220,9 +220,9 @@ QByteArray JoinList(
 QByteArray FormatText(
 		const std::vector<Data::TextPart> &data,
 		const QString &internalLinksDomain) {
-	return JoinList(QByteArray(), ranges::view::all(
+	return JoinList(QByteArray(), ranges::views::all(
 		data
-	) | ranges::view::transform([&](const Data::TextPart &part) {
+	) | ranges::views::transform([&](const Data::TextPart &part) {
 		const auto text = SerializeString(part.text);
 		using Type = Data::TextPart::Type;
 		switch (part.type) {

@@ -178,7 +178,7 @@ void DownloadDictionaryInBackground(
 }
 
 void AddExceptions() {
-	const auto exceptions = ranges::view::all(
+	const auto exceptions = ranges::views::all(
 		kExceptions
 	) | ranges::views::transform([](const auto &word) {
 		return word.utf16();
@@ -326,7 +326,7 @@ rpl::producer<QString> ButtonManageDictsState(
 			return QString();
 		}
 		const auto dicts = Core::App().settings().dictionariesEnabled();
-		const auto filtered = ranges::view::all(
+		const auto filtered = ranges::views::all(
 			dicts
 		) | ranges::views::filter(
 			DictionaryExists

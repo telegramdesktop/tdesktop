@@ -32,9 +32,9 @@ QString ComposeFolderListEntryText(not_null<Data::Folder*> folder) {
 
 	const auto throwAwayLastName = (list.size() > 1)
 		&& (count == list.size() + 1);
-	auto &&peers = ranges::view::all(
+	auto &&peers = ranges::views::all(
 		list
-	) | ranges::view::take(
+	) | ranges::views::take(
 		list.size() - (throwAwayLastName ? 1 : 0)
 	);
 	const auto wrapName = [](not_null<History*> history) {

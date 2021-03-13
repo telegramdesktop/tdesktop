@@ -372,9 +372,9 @@ void Manager::fillDefaults() {
 	set(qsl("ctrl+4"), Command::ChatPinned4);
 	set(qsl("ctrl+5"), Command::ChatPinned5);
 
-	auto &&folders = ranges::view::zip(
+	auto &&folders = ranges::views::zip(
 		kShowFolder,
-		ranges::view::ints(1, ranges::unreachable));
+		ranges::views::ints(1, ranges::unreachable));
 
 	for (const auto [command, index] : folders) {
 		set(qsl("%1+%2").arg(ctrl).arg(index), command);

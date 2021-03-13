@@ -1125,9 +1125,9 @@ const base::flat_set<not_null<HistoryItem*>> &History::localMessages() {
 }
 
 HistoryItem *History::latestSendingMessage() const {
-	auto sending = ranges::view::all(
+	auto sending = ranges::views::all(
 		_localMessages
-	) | ranges::view::filter([](not_null<HistoryItem*> item) {
+	) | ranges::views::filter([](not_null<HistoryItem*> item) {
 		return item->isSending();
 	});
 	const auto i = ranges::max_element(sending, ranges::less(), [](
@@ -1287,7 +1287,7 @@ void History::addItemsToLists(
 		// lastParticipants are displayed in Profile as members list.
 		markupSenders = &peer->asChannel()->mgInfo->markupSenders;
 	}
-	for (const auto item : ranges::view::reverse(items)) {
+	for (const auto item : ranges::views::reverse(items)) {
 		item->addToUnreadMentions(UnreadMentionType::Existing);
 		if (item->from()->id) {
 			if (lastAuthors) { // chats
@@ -1400,8 +1400,8 @@ void History::calculateFirstUnreadMessage() {
 	if (!unreadCount() || !trackUnreadMessages()) {
 		return;
 	}
-	for (const auto &block : ranges::view::reverse(blocks)) {
-		for (const auto &message : ranges::view::reverse(block->messages)) {
+	for (const auto &block : ranges::views::reverse(blocks)) {
+		for (const auto &message : ranges::views::reverse(block->messages)) {
 			const auto item = message->data();
 			if (!IsServerMsgId(item->id)) {
 				continue;
@@ -1488,8 +1488,8 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 		return std::nullopt;
 	}
 	auto result = 0;
-	for (const auto &block : ranges::view::reverse(blocks)) {
-		for (const auto &message : ranges::view::reverse(block->messages)) {
+	for (const auto &block : ranges::views::reverse(blocks)) {
+		for (const auto &message : ranges::views::reverse(block->messages)) {
 			const auto item = message->data();
 			if (IsServerMsgId(item->id)) {
 				if (item->id <= readTillId) {
@@ -2250,9 +2250,9 @@ auto History::computeChatListMessageFromLast() const
 			return std::nullopt;
 		}
 		const auto before = [&]() -> HistoryItem* {
-			for (const auto &block : ranges::view::reverse(blocks)) {
+			for (const auto &block : ranges::views::reverse(blocks)) {
 				const auto &messages = block->messages;
-				for (const auto &item : ranges::view::reverse(messages)) {
+				for (const auto &item : ranges::views::reverse(messages)) {
 					if (item->data() != last) {
 						return item->data();
 					}
@@ -2653,8 +2653,8 @@ MsgId History::minMsgId() const {
 }
 
 MsgId History::maxMsgId() const {
-	for (const auto &block : ranges::view::reverse(blocks)) {
-		for (const auto &message : ranges::view::reverse(block->messages)) {
+	for (const auto &block : ranges::views::reverse(blocks)) {
+		for (const auto &message : ranges::views::reverse(block->messages)) {
 			const auto item = message->data();
 			if (IsServerMsgId(item->id)) {
 				return item->id;
@@ -2679,8 +2679,8 @@ HistoryItem *History::lastEditableMessage() const {
 		return nullptr;
 	}
 	const auto now = base::unixtime::now();
-	for (const auto &block : ranges::view::reverse(blocks)) {
-		for (const auto &message : ranges::view::reverse(block->messages)) {
+	for (const auto &block : ranges::views::reverse(blocks)) {
+		for (const auto &message : ranges::views::reverse(block->messages)) {
 			const auto item = message->data();
 			if (item->allowsEdit(now)) {
 				return owner().groups().findItemToEdit(item);
@@ -2922,8 +2922,8 @@ auto History::findFirstDisplayed() const -> Element* {
 }
 
 auto History::findLastNonEmpty() const -> Element* {
-	for (const auto &block : ranges::view::reverse(blocks)) {
-		for (const auto &element : ranges::view::reverse(block->messages)) {
+	for (const auto &block : ranges::views::reverse(blocks)) {
+		for (const auto &element : ranges::views::reverse(block->messages)) {
 			if (!element->data()->isEmpty()) {
 				return element.get();
 			}
@@ -2933,8 +2933,8 @@ auto History::findLastNonEmpty() const -> Element* {
 }
 
 auto History::findLastDisplayed() const -> Element* {
-	for (const auto &block : ranges::view::reverse(blocks)) {
-		for (const auto &element : ranges::view::reverse(block->messages)) {
+	for (const auto &block : ranges::views::reverse(blocks)) {
+		for (const auto &element : ranges::views::reverse(block->messages)) {
 			if (!element->data()->isEmpty() && !element->isHidden()) {
 				return element.get();
 			}

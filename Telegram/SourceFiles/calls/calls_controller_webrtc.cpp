@@ -51,9 +51,9 @@ using namespace Webrtc;
 			encryptionKey.value.size()),
 		.outgoing = encryptionKey.isOutgoing,
 		.primary = ConvertEndpoint(endpoints.front()),
-		.alternatives = endpoints | ranges::view::drop(
+		.alternatives = endpoints | ranges::views::drop(
 			1
-		) | ranges::view::transform(ConvertEndpoint) | ranges::to_vector,
+		) | ranges::views::transform(ConvertEndpoint) | ranges::to_vector,
 		.maxLayer = config.maxApiLayer,
 		.allowP2P = config.enableP2P,
 		.sendSignalingData = std::move(sendSignalingData),

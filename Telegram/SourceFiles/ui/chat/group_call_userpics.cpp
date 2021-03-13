@@ -141,7 +141,7 @@ GroupCallUserpics::~GroupCallUserpics() = default;
 void GroupCallUserpics::paint(Painter &p, int x, int y, int size) {
 	const auto factor = style::DevicePixelRatio();
 	const auto &minScale = kUserpicMinScale;
-	for (auto &userpic : ranges::view::reverse(_list)) {
+	for (auto &userpic : ranges::views::reverse(_list)) {
 		const auto shown = userpic.shownAnimation.value(
 			userpic.hiding ? 0. : 1.);
 		if (shown == 0.) {
