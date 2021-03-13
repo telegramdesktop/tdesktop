@@ -887,9 +887,13 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 			if (cRadioMode() && cRadioController() != "") {
 				if (!CustomMonitor::currentMonitor()) CustomMonitor::initInstance();
 				if (data.is_just_joined()) {
-					CustomMonitor::currentMonitor()->updateParticipant("true", data.vpeer().c_peerUser().vuser_id().v);
+					if (data.vpeer().type() == mtpc_peerUser) {
+						CustomMonitor::currentMonitor()->updateParticipant("true", data.vpeer().c_peerUser().vuser_id().v);
+					}
 				} else if (data.is_left()) {
-					CustomMonitor::currentMonitor()->updateParticipant("false", data.vpeer().c_peerUser().vuser_id().v);
+					if (data.vpeer().type() == mtpc_peerUser) {
+						CustomMonitor::currentMonitor()->updateParticipant("false", data.vpeer().c_peerUser().vuser_id().v);
+					}
 				}
 			}
 			const auto isSelf = data.is_self()
