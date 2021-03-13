@@ -1039,9 +1039,9 @@ void SetupDefaultThemes(
 	};
 
 	auto checks = base::flat_map<Type,not_null<Check*>>();
-	auto buttons = ranges::view::all(
+	auto buttons = ranges::views::all(
 		kSchemesList
-	) | ranges::view::transform([&](const Scheme &scheme) {
+	) | ranges::views::transform([&](const Scheme &scheme) {
 		auto check = std::make_unique<Check>(
 			ColorsFromScheme(scheme),
 			false);

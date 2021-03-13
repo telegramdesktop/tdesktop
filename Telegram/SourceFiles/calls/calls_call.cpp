@@ -632,9 +632,9 @@ bool Call::handleSignalingData(
 	if (data.vphone_call_id().v != _id || !_instance) {
 		return false;
 	}
-	auto prepared = ranges::view::all(
+	auto prepared = ranges::views::all(
 		data.vdata().v
-	) | ranges::view::transform([](char byte) {
+	) | ranges::views::transform([](char byte) {
 		return static_cast<uint8_t>(byte);
 	}) | ranges::to_vector;
 	_instance->receiveSignalingData(std::move(prepared));

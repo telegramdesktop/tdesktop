@@ -105,17 +105,17 @@ Layouter::Layouter(
 }
 
 std::vector<float64> Layouter::CountRatios(const std::vector<QSize> &sizes) {
-	return ranges::view::all(
+	return ranges::views::all(
 		sizes
-	) | ranges::view::transform([](const QSize &size) {
+	) | ranges::views::transform([](const QSize &size) {
 		return size.width() / float64(size.height());
 	}) | ranges::to_vector;
 }
 
 std::string Layouter::CountProportions(const std::vector<float64> &ratios) {
-	return ranges::view::all(
+	return ranges::views::all(
 		ratios
-	) | ranges::view::transform([](float64 ratio) {
+	) | ranges::views::transform([](float64 ratio) {
 		return (ratio > 1.2) ? 'w' : (ratio < 0.8) ? 'n' : 'q';
 	}) | ranges::to<std::string>();
 }
@@ -438,9 +438,9 @@ ComplexLayouter::ComplexLayouter(
 std::vector<float64> ComplexLayouter::CropRatios(
 		const std::vector<float64> &ratios,
 		float64 averageRatio) {
-	return ranges::view::all(
+	return ranges::views::all(
 		ratios
-	) | ranges::view::transform([&](float64 ratio) {
+	) | ranges::views::transform([&](float64 ratio) {
 		constexpr auto kMaxRatio = 2.75;
 		constexpr auto kMinRatio = 0.6667;
 		return (averageRatio > 1.1)

@@ -248,9 +248,9 @@ void BackgroundBox::Inner::updatePapers() {
 	_over = _overDown = Selection();
 
 	_papers = _session->data().wallpapers(
-	) | ranges::view::filter([](const Data::WallPaper &paper) {
+	) | ranges::views::filter([](const Data::WallPaper &paper) {
 		return !paper.isPattern() || paper.backgroundColor().has_value();
-	}) | ranges::view::transform([](const Data::WallPaper &paper) {
+	}) | ranges::views::transform([](const Data::WallPaper &paper) {
 		return Paper{ paper };
 	}) | ranges::to_vector;
 	sortPapers();
@@ -268,7 +268,7 @@ void BackgroundBox::Inner::resizeToContentAndPreload() {
 			+ st::backgroundPadding));
 
 	const auto preload = kBackgroundsInRow * 3;
-	for (const auto &paper : _papers | ranges::view::take(preload)) {
+	for (const auto &paper : _papers | ranges::views::take(preload)) {
 		if (!paper.data.localThumbnail() && !paper.dataMedia) {
 			if (const auto document = paper.data.document()) {
 				paper.dataMedia = document->createMediaView();

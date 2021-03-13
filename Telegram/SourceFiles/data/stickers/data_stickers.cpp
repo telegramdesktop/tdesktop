@@ -787,9 +787,9 @@ void Stickers::featuredSetsReceived(
 		const QVector<MTPStickerSetCovered> &list,
 		const QVector<MTPlong> &unread,
 		int32 hash) {
-	auto &&unreadIds = ranges::view::all(
+	auto &&unreadIds = ranges::views::all(
 		unread
-	) | ranges::view::transform([](const MTPlong &id) {
+	) | ranges::views::transform([](const MTPlong &id) {
 		return id.v;
 	});
 	const auto unreadMap = base::flat_set<uint64>{
@@ -1098,9 +1098,9 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 		std::greater<>(),
 		&StickerWithDate::date);
 
-	return ranges::view::all(
+	return ranges::views::all(
 		result
-	) | ranges::view::transform([](const StickerWithDate &data) {
+	) | ranges::views::transform([](const StickerWithDate &data) {
 		return data.document;
 	}) | ranges::to_vector;
 }

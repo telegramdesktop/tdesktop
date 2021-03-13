@@ -111,7 +111,7 @@ bool PreparedList::canBeSentInSlowmodeWith(const PreparedList &other) const {
 	}
 
 	using Type = PreparedFile::Type;
-	auto &&all = ranges::view::concat(files, other.files);
+	auto &&all = ranges::views::concat(files, other.files);
 	const auto has = [&](Type type) {
 		return ranges::contains(all, type, &PreparedFile::type);
 	};

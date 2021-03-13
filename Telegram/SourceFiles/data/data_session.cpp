@@ -114,9 +114,9 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 // need to find an "-all" tag in {full}, otherwise ignore this restriction.
 std::vector<UnavailableReason> ExtractUnavailableReasons(
 		const QVector<MTPRestrictionReason> &restrictions) {
-	return ranges::view::all(
+	return ranges::views::all(
 		restrictions
-	) | ranges::view::filter([](const MTPRestrictionReason &restriction) {
+	) | ranges::views::filter([](const MTPRestrictionReason &restriction) {
 		return restriction.match([&](const MTPDrestrictionReason &data) {
 			const auto platform = qs(data.vplatform());
 			return false
@@ -127,7 +127,7 @@ std::vector<UnavailableReason> ExtractUnavailableReasons(
 #endif // OS_MAC_STORE || OS_WIN_STORE
 				|| (platform == qstr("all"));
 		});
-	}) | ranges::view::transform([](const MTPRestrictionReason &restriction) {
+	}) | ranges::views::transform([](const MTPRestrictionReason &restriction) {
 		return restriction.match([&](const MTPDrestrictionReason &data) {
 			return UnavailableReason{ qs(data.vreason()), qs(data.vtext()) };
 		});
@@ -1667,22 +1667,22 @@ rpl::producer<not_null<UserData*>> Session::megagroupParticipantAdded(
 
 HistoryItemsList Session::idsToItems(
 		const MessageIdsList &ids) const {
-	return ranges::view::all(
+	return ranges::views::all(
 		ids
-	) | ranges::view::transform([&](const FullMsgId &fullId) {
+	) | ranges::views::transform([&](const FullMsgId &fullId) {
 		return message(fullId);
-	}) | ranges::view::filter([](HistoryItem *item) {
+	}) | ranges::views::filter([](HistoryItem *item) {
 		return item != nullptr;
-	}) | ranges::view::transform([](HistoryItem *item) {
+	}) | ranges::views::transform([](HistoryItem *item) {
 		return not_null<HistoryItem*>(item);
 	}) | ranges::to_vector;
 }
 
 MessageIdsList Session::itemsToIds(
 		const HistoryItemsList &items) const {
-	return ranges::view::all(
+	return ranges::views::all(
 		items
-	) | ranges::view::transform([](not_null<HistoryItem*> item) {
+	) | ranges::views::transform([](not_null<HistoryItem*> item) {
 		return item->fullId();
 	}) | ranges::to_vector;
 }

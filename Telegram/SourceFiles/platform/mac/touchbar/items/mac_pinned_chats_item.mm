@@ -632,9 +632,9 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 	};
 
 	const auto updatePinnedChats = [=] {
-		_pins = ranges::view::zip(
+		_pins = ranges::views::zip(
 			_session->data().pinnedChatsOrder(nullptr, FilterId()),
-			ranges::view::ints(0, ranges::unreachable)
+			ranges::views::ints(0, ranges::unreachable)
 		) | ranges::views::transform([=](const auto &pair) {
 			const auto index = pair.second;
 			auto peer = pair.first.history()->peer;

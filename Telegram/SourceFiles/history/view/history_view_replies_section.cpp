@@ -1706,7 +1706,7 @@ void RepliesWidget::readTill(not_null<HistoryItem*> item) {
 }
 
 void RepliesWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
-	const auto reversed = ranges::view::reverse(items);
+	const auto reversed = ranges::views::reverse(items);
 	const auto good = ranges::find_if(reversed, [](auto item) {
 		return IsServerMsgId(item->id);
 	});

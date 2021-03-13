@@ -77,16 +77,16 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 		| (poll.is_quiz() ? Flag::Quiz : Flag(0));
 	const auto newCloseDate = poll.vclose_date().value_or_empty();
 	const auto newClosePeriod = poll.vclose_period().value_or_empty();
-	auto newAnswers = ranges::view::all(
+	auto newAnswers = ranges::views::all(
 		poll.vanswers().v
-	) | ranges::view::transform([](const MTPPollAnswer &data) {
+	) | ranges::views::transform([](const MTPPollAnswer &data) {
 		return data.match([](const MTPDpollAnswer &answer) {
 			auto result = PollAnswer();
 			result.option = answer.voption().v;
 			result.text = qs(answer.vtext());
 			return result;
 		});
-	}) | ranges::view::take(
+	}) | ranges::views::take(
 		kMaxOptions
 	) | ranges::to_vector;
 
@@ -141,14 +141,14 @@ bool PollData::applyResults(const MTPPollResults &results) {
 				&MTPint::v);
 			if (recentChanged) {
 				changed = true;
-				recentVoters = ranges::view::all(
+				recentVoters = ranges::views::all(
 					recent->v
-				) | ranges::view::transform([&](MTPint userId) {
+				) | ranges::views::transform([&](MTPint userId) {
 					const auto user = _owner->user(userId.v);
 					return user->isMinimalLoaded() ? user.get() : nullptr;
-				}) | ranges::view::filter([](UserData *user) {
+				}) | ranges::views::filter([](UserData *user) {
 					return user != nullptr;
-				}) | ranges::view::transform([](UserData *user) {
+				}) | ranges::views::transform([](UserData *user) {
 					return not_null<UserData*>(user);
 				}) | ranges::to_vector;
 			}

@@ -837,15 +837,15 @@ void GroupPanel::addMembers() {
 		box->addButton(tr::lng_group_call_invite_button(), [=] {
 			const auto rows = box->collectSelectedRows();
 
-			const auto users = ranges::view::all(
+			const auto users = ranges::views::all(
 				rows
-			) | ranges::view::transform([](not_null<PeerData*> peer) {
+			) | ranges::views::transform([](not_null<PeerData*> peer) {
 				return not_null<UserData*>(peer->asUser());
 			}) | ranges::to_vector;
 
-			const auto nonMembers = ranges::view::all(
+			const auto nonMembers = ranges::views::all(
 				users
-			) | ranges::view::filter([&](not_null<UserData*> user) {
+			) | ranges::views::filter([&](not_null<UserData*> user) {
 				return !controller->hasRowFor(user);
 			}) | ranges::to_vector;
 

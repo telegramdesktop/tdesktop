@@ -1649,7 +1649,7 @@ void DocumentData::collectLocalData(not_null<DocumentData*> local) {
 namespace Data {
 
 QString FileExtension(const QString &filepath) {
-	const auto reversed = ranges::view::reverse(filepath);
+	const auto reversed = ranges::views::reverse(filepath);
 	const auto last = ranges::find_first_of(reversed, ".\\/");
 	if (last == reversed.end() || *last != '.') {
 		return QString();

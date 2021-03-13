@@ -906,7 +906,7 @@ void ApiWrap::updateDialogsOffset(
 	auto lastDate = TimeId(0);
 	auto lastPeer = PeerId(0);
 	auto lastMsgId = MsgId(0);
-	for (const auto &dialog : ranges::view::reverse(dialogs)) {
+	for (const auto &dialog : ranges::views::reverse(dialogs)) {
 		dialog.match([&](const auto &dialog) {
 			const auto peer = peerFromMTP(dialog.vpeer());
 			const auto messageId = dialog.vtop_message().v;
@@ -919,7 +919,7 @@ void ApiWrap::updateDialogsOffset(
 			if (!lastMsgId) {
 				lastMsgId = messageId;
 			}
-			for (const auto &message : ranges::view::reverse(messages)) {
+			for (const auto &message : ranges::views::reverse(messages)) {
 				if (IdFromMessage(message) == messageId
 					&& PeerFromMessage(message) == peer) {
 					if (const auto date = DateFromMessage(message)) {

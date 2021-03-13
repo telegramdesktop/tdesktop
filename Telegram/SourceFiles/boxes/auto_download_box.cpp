@@ -158,15 +158,15 @@ void AutoDownloadBox::setupContent() {
 	};
 
 	addButton(tr::lng_connection_save(), [=] {
-		auto &&values = ranges::view::concat(
+		auto &&values = ranges::views::concat(
 			*downloadValues,
 			*autoPlayValues);
-		auto allowMore = values | ranges::view::filter([&](Pair pair) {
+		auto allowMore = values | ranges::views::filter([&](Pair pair) {
 			const auto [type, enabled] = pair;
 			const auto value = enabled ? limitByType(type) : 0;
 			const auto old = settings->bytesLimit(_source, type);
 			return (old < value);
-		}) | ranges::view::transform([](Pair pair) {
+		}) | ranges::views::transform([](Pair pair) {
 			return pair.first;
 		});
 		const auto less = ranges::any_of(*autoPlayValues, [&](Pair pair) {

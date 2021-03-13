@@ -212,7 +212,7 @@ template <int Size>
 auto Reader::StackIntVector<Size>::values() const {
 	using namespace rpl::mappers;
 
-	return ranges::view::all(_storage) | ranges::view::take_while(_1 >= 0);
+	return ranges::views::all(_storage) | ranges::views::take_while(_1 >= 0);
 }
 
 struct Reader::CacheHelper {
@@ -1057,9 +1057,9 @@ void Reader::pruneDoneDownloaderRequests() {
 }
 
 void Reader::sendDownloaderRequests() {
-	auto &&offsets = ranges::view::all(
+	auto &&offsets = ranges::views::all(
 		_offsetsForDownloader
-	) | ranges::view::take(kDownloaderRequestsLimit);
+	) | ranges::views::take(kDownloaderRequestsLimit);
 	for (const auto offset : offsets) {
 		if ((!_cacheHelper || !downloaderWaitForCachedSlice(offset))
 			&& _downloaderOffsetsRequested.emplace(offset).second) {
