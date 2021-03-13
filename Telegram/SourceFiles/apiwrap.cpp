@@ -115,7 +115,7 @@ using DocumentFileLocationId = Data::DocumentFileLocationId;
 using UpdatedFileReferences = Data::UpdatedFileReferences;
 
 [[nodiscard]] TimeId UnixtimeFromMsgId(mtpMsgId msgId) {
-	return TimeId(msgId << 32);
+	return TimeId(msgId >> 32);
 }
 
 } // namespace
