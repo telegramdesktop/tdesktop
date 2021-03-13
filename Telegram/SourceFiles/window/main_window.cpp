@@ -220,7 +220,7 @@ void MainWindow::updateWindowIcon() {
 
 QRect MainWindow::desktopRect() const {
 	const auto now = crl::now();
-	if (now >= _monitorLastGot && now <= _monitorLastGot + crl::time(1000)) {
+	if (!_monitorLastGot || now >= _monitorLastGot + crl::time(1000)) {
 		_monitorLastGot = now;
 		_monitorRect = computeDesktopRect();
 	}
