@@ -140,7 +140,7 @@ private:
 	std::unique_ptr<InfiniteRadialAnimation> _radial;
 	const base::flat_map<CallMuteButtonType, anim::gradient_colors> _colors;
 
-	std::array<std::optional<Lottie::Icon>, 4> _icons;
+	std::array<std::optional<Lottie::Icon>, 3> _icons;
 	IconState _iconState;
 	std::optional<IconState> _scheduledState;
 
