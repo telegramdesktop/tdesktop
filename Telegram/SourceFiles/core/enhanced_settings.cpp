@@ -250,7 +250,7 @@ namespace EnhancedSettings {
 		});
 
 		ReadBoolOption(settings, "auto_unmute", [&](auto v) {
-			cSetRadioMode(v);
+			cSetAutoUnmute(v);
 		});
 
 		return true;
