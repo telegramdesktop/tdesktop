@@ -36,10 +36,6 @@ std::shared_ptr<Scene> EnsureScene(
 	return mods.paint;
 }
 
-auto Filter(QGraphicsItem *i) {
-	return i->type() != ItemCanvas::Type;
-}
-
 } // namespace
 
 Paint::Paint(
@@ -72,7 +68,7 @@ Paint::Paint(
 	) | rpl::start_with_next([=](const Undo &command) {
 		const auto isUndo = (command == Undo::Undo);
 
-		const auto filtered = filteredItems(isUndo
+		const auto filtered = _scene->items(isUndo
 			? Qt::DescendingOrder
 			: Qt::AscendingOrder);
 
@@ -150,7 +146,7 @@ std::shared_ptr<Scene> Paint::saveScene() const {
 }
 
 void Paint::cancel() {
-	const auto filtered = filteredItems(Qt::AscendingOrder);
+	const auto filtered = _scene->items(Qt::AscendingOrder);
 	if (filtered.empty()) {
 		return;
 	}
@@ -184,17 +180,17 @@ void Paint::keepResult() {
 }
 
 bool Paint::hasUndo() const {
-	return ranges::any_of(filteredItems(), &QGraphicsItem::isVisible);
+	return ranges::any_of(_scene->items(), &QGraphicsItem::isVisible);
 }
 
 bool Paint::hasRedo() const {
 	return ranges::any_of(
-		filteredItems(),
+		_scene->items(),
 		[=](QGraphicsItem *i) { return isItemHidden(i); });
 }
 
 void Paint::clearRedoList() {
-	const auto items = filteredItems(Qt::AscendingOrder);
+	const auto items = _scene->items(Qt::AscendingOrder);
 	auto &&filtered = ranges::views::all(
 		items
 	) | ranges::views::filter(
@@ -220,13 +216,6 @@ bool Paint::isItemToRemove(not_null<QGraphicsItem*> item) const {
 void Paint::updateUndoState() {
 	_hasUndo = hasUndo();
 	_hasRedo = hasRedo();
-}
-
-std::vector<QGraphicsItem*> Paint::filteredItems(Qt::SortOrder order) const {
-	const auto items = _scene->items(order);
-	return ranges::views::all(
-		items
-	) | ranges::views::filter(Filter) | ranges::to_vector;
 }
 
 void Paint::applyBrush(const Brush &brush) {

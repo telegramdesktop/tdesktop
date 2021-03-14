@@ -15,7 +15,17 @@ class QStyleOptionGraphicsItem;
 
 namespace Editor {
 
-class ItemBase : public QGraphicsItem {
+class NumberedItem : public QGraphicsItem {
+public:
+	using QGraphicsItem::QGraphicsItem;
+
+	void setNumber(int number);
+	[[nodiscard]] int number() const;
+private:
+	int _number = 0;
+};
+
+class ItemBase : public NumberedItem {
 public:
 	enum { Type = UserType + 1 };
 

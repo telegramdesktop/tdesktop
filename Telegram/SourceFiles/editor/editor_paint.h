@@ -50,9 +50,6 @@ private:
 	bool isItemToRemove(not_null<QGraphicsItem*> item) const;
 	bool isItemHidden(not_null<QGraphicsItem*> item) const;
 
-	std::vector<QGraphicsItem*> filteredItems(
-		Qt::SortOrder order = Qt::DescendingOrder) const;
-
 	const std::shared_ptr<float64> _lastZ;
 	const std::shared_ptr<Scene> _scene;
 	const base::unique_qptr<QGraphicsView> _view;

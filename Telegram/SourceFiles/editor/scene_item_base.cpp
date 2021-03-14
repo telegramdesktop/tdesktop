@@ -28,6 +28,14 @@ QPen PenStyled(QPen pen, Qt::PenStyle style) {
 
 } // namespace
 
+int NumberedItem::number() const {
+	return _number;
+}
+
+void NumberedItem::setNumber(int number) {
+	_number = number;
+}
+
 ItemBase::ItemBase(std::shared_ptr<float64> zPtr, int size, int x, int y)
 : _lastZ(zPtr)
 , _handleSize(st::photoEditorItemHandleSize)

@@ -22,7 +22,7 @@ Scene::Scene(const QRectF &rect)
 , _canvas(new ItemCanvas) {
 	clearPath();
 
-	addItem(_canvas);
+	QGraphicsScene::addItem(_canvas);
 
 	_canvas->paintRequest(
 	) | rpl::start_with_next([=](not_null<QPainter*> p) {
@@ -31,6 +31,11 @@ Scene::Scene(const QRectF &rect)
 		p->setPen(QPen(_brushData.color, _brushData.size));
 		p->drawPath(_path);
 	}, _lifetime);
+}
+
+void Scene::addItem(not_null<NumberedItem*> item) {
+	item->setNumber(_itemNumber++);
+	QGraphicsScene::addItem(item);
 }
 
 void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
@@ -91,6 +96,25 @@ void Scene::clearPath() {
 
 rpl::producer<> Scene::mousePresses() const {
 	return _mousePresses.events();
+}
+
+std::vector<QGraphicsItem*> Scene::items(Qt::SortOrder order) const {
+	using Item = QGraphicsItem;
+	auto rawItems = QGraphicsScene::items();
+
+	auto filteredItems = ranges::views::all(
+		rawItems
+	) | ranges::views::filter([](Item *i) {
+		return i->type() != ItemCanvas::Type;
+	}) | ranges::to_vector;
+
+	ranges::sort(filteredItems, [&](not_null<Item*> a, not_null<Item*> b) {
+		const auto numA = qgraphicsitem_cast<NumberedItem*>(a)->number();
+		const auto numB = qgraphicsitem_cast<NumberedItem*>(b)->number();
+		return (order == Qt::AscendingOrder) ? (numA < numB) : (numA > numB);
+	});
+
+	return filteredItems;
 }
 
 Scene::~Scene() {

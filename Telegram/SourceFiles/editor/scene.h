@@ -22,6 +22,7 @@ class RpWidget;
 namespace Editor {
 
 class ItemCanvas;
+class NumberedItem;
 
 class Scene final : public QGraphicsScene {
 public:
@@ -29,6 +30,9 @@ public:
 	~Scene();
 	void applyBrush(const QColor &color, float size);
 
+	[[nodiscard]] std::vector<QGraphicsItem*> items(
+		Qt::SortOrder order = Qt::DescendingOrder) const;
+	void addItem(not_null<NumberedItem*> item);
 	[[nodiscard]] rpl::producer<> mousePresses() const;
 
 protected:
@@ -45,6 +49,8 @@ private:
 	bool _drawing = false;
 
 	float64 _lastLineZ = 0.;
+
+	int _itemNumber = 0;
 
 	struct {
 		float size = 1.;

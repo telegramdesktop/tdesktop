@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <QGraphicsItem>
+#include "editor/scene_item_base.h"
 
 namespace Editor {
 
-class ItemLine : public QGraphicsItem {
+class ItemLine : public NumberedItem {
 public:
 	enum { Type = UserType + 5 };
 
