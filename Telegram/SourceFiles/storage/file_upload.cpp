@@ -161,12 +161,17 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 	) | rpl::start_with_next([=](const UploadedPhoto &data) {
 		if (data.edit) {
 			const auto item = session->data().message(data.fullId);
-			Api::EditMessageWithUploadedPhoto(item, data.file, data.options);
+			Api::EditMessageWithUploadedPhoto(
+				item,
+				data.file,
+				data.options,
+				data.attachedStickers);
 		} else {
 			_api->sendUploadedPhoto(
 				data.fullId,
 				data.file,
-				data.options);
+				data.options,
+				data.attachedStickers);
 		}
 	}, _lifetime);
 
@@ -178,13 +183,15 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 				item,
 				data.file,
 				data.thumb,
-				data.options);
+				data.options,
+				data.attachedStickers);
 		} else {
 			_api->sendUploadedDocument(
 				data.fullId,
 				data.file,
 				data.thumb,
-				data.options);
+				data.options,
+				data.attachedStickers);
 		}
 	}, _lifetime);
 
@@ -448,6 +455,9 @@ void Uploader::sendNext() {
 					: Api::SendOptions();
 				const auto edit = uploadingData.file &&
 					uploadingData.file->to.replaceMediaOf;
+				const auto attachedStickers = uploadingData.file
+					? uploadingData.file->attachedStickers
+					: std::vector<MTPInputDocument>();
 				if (uploadingData.type() == SendMediaType::Photo) {
 					auto photoFilename = uploadingData.filename();
 					if (!photoFilename.endsWith(qstr(".jpg"), Qt::CaseInsensitive)) {
@@ -464,7 +474,12 @@ void Uploader::sendNext() {
 						MTP_int(uploadingData.partsCount),
 						MTP_string(photoFilename),
 						MTP_bytes(md5));
-					_photoReady.fire({ uploadingId, options, file, edit });
+					_photoReady.fire({
+						uploadingId,
+						options,
+						file,
+						edit,
+						attachedStickers });
 				} else if (uploadingData.type() == SendMediaType::File
 					|| uploadingData.type() == SendMediaType::ThemeFile
 					|| uploadingData.type() == SendMediaType::Audio) {
@@ -502,7 +517,8 @@ void Uploader::sendNext() {
 						options,
 						file,
 						thumb,
-						edit });
+						edit,
+						attachedStickers });
 				} else if (uploadingData.type() == SendMediaType::Secure) {
 					_secureReady.fire({
 						uploadingId,

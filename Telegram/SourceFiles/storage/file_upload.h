@@ -33,6 +33,7 @@ struct UploadedPhoto {
 	Api::SendOptions options;
 	MTPInputFile file;
 	bool edit = false;
+	std::vector<MTPInputDocument> attachedStickers;
 };
 
 struct UploadedDocument {
@@ -41,6 +42,7 @@ struct UploadedDocument {
 	MTPInputFile file;
 	std::optional<MTPInputFile> thumb;
 	bool edit = false;
+	std::vector<MTPInputDocument> attachedStickers;
 };
 
 struct UploadSecureProgress {

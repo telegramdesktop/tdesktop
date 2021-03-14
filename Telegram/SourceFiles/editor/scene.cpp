@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/scene_item_canvas.h"
 #include "editor/scene_item_line.h"
+#include "editor/scene_item_sticker.h"
 #include "ui/rp_widget.h"
 
 #include <QGraphicsSceneMouseEvent>
@@ -97,6 +98,18 @@ std::vector<QGraphicsItem*> Scene::items(Qt::SortOrder order) const {
 	});
 
 	return filteredItems;
+}
+
+std::vector<MTPInputDocument> Scene::attachedStickers() const {
+	const auto allItems = items();
+
+	return ranges::views::all(
+		allItems
+	) | ranges::views::filter([](QGraphicsItem *i) {
+		return i->isVisible() && (i->type() == ItemSticker::Type);
+	}) | ranges::views::transform([](QGraphicsItem *i) {
+		return qgraphicsitem_cast<ItemSticker*>(i)->sticker();
+	}) | ranges::to_vector;
 }
 
 Scene::~Scene() {

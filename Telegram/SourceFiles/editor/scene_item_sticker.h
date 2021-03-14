@@ -21,7 +21,7 @@ namespace Editor {
 
 class ItemSticker : public ItemBase {
 public:
-	enum { Type = ItemBase::Type + 1 };
+	enum { Type = ItemBase::Type + 2 };
 
 	ItemSticker(
 		not_null<DocumentData*> document,
@@ -33,6 +33,8 @@ public:
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *widget) override;
+	MTPInputDocument sticker() const;
+	int type() const override;
 private:
 	const not_null<DocumentData*> _document;
 	const std::shared_ptr<Data::DocumentMedia> _mediaView;

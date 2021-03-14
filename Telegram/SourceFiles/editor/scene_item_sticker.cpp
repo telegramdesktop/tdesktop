@@ -85,4 +85,12 @@ void ItemSticker::paint(
 	ItemBase::paint(p, option, w);
 }
 
+MTPInputDocument ItemSticker::sticker() const {
+	return _document->mtpInput();
+}
+
+int ItemSticker::type() const {
+	return Type;
+}
+
 } // namespace Editor

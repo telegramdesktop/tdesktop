@@ -267,6 +267,8 @@ struct FileLoadResult {
 	PreparedPhotoThumbs photoThumbs;
 	TextWithTags caption;
 
+	std::vector<MTPInputDocument> attachedStickers;
+
 	void setFileData(const QByteArray &filedata);
 	void setThumbData(const QByteArray &thumbdata);
 

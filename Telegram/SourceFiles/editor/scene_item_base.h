@@ -35,6 +35,7 @@ public:
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *widget) override;
+	int type() const override;
 protected:
 	enum HandleType {
 		None,
@@ -46,7 +47,6 @@ protected:
 	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 
-	int type() const override;
 	QRectF innerRect() const;
 	int size() const;
 
