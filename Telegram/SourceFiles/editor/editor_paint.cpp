@@ -29,6 +29,10 @@ std::shared_ptr<QGraphicsScene> EnsureScene(PhotoModifications &mods) {
 	return mods.paint;
 }
 
+auto FilterItems(QGraphicsItem *i) {
+	return i->type() == QGraphicsItemGroup::Type;
+}
+
 } // namespace
 
 Paint::Paint(
@@ -38,7 +42,8 @@ Paint::Paint(
 : RpWidget(parent)
 , _scene(EnsureScene(modifications))
 , _view(base::make_unique_q<QGraphicsView>(_scene.get(), this))
-, _imageSize(imageSize) {
+, _imageSize(imageSize)
+, _startItemsCount(itemsCount()) {
 	Expects(modifications.paint != nullptr);
 
 	_view->show();
@@ -49,7 +54,6 @@ Paint::Paint(
 	_scene->setSceneRect(0, 0, imageSize.width(), imageSize.height());
 
 	initDrawing();
-
 }
 
 void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
@@ -120,14 +124,38 @@ void Paint::initDrawing() {
 	base::install_event_filter(this, _scene.get(), std::move(callback));
 }
 
-void Paint::applyMode(PhotoEditorMode mode) {
-	setAttribute(
-		Qt::WA_TransparentForMouseEvents,
-		mode == PhotoEditorMode::Transform);
-}
-
 std::shared_ptr<QGraphicsScene> Paint::saveScene() const {
 	return _scene;
+}
+
+void Paint::cancel() {
+	const auto items = _scene->items(Qt::AscendingOrder);
+	const auto filtered = ranges::views::all(
+		items
+	) | ranges::views::filter(FilterItems) | ranges::to_vector;
+
+	if (filtered.empty()) {
+		return;
+	}
+
+	for (auto i = 0; i < filtered.size(); i++) {
+		const auto &item = filtered[i];
+		if (i < _startItemsCount) {
+			if (!item->isVisible()) {
+				item->show();
+			}
+		} else {
+			_scene->removeItem(item);
+		}
+	}
+}
+
+void Paint::keepResult() {
+	_startItemsCount = itemsCount();
+}
+
+int Paint::itemsCount() const {
+	return ranges::count_if(_scene->items(), FilterItems);
 }
 
 } // namespace Editor

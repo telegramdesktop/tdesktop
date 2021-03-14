@@ -35,6 +35,12 @@ PhotoEditor::PhotoEditor(
 		_controls->setGeometry(controlsRect);
 	}, lifetime());
 
+	_mode.value(
+	) | rpl::start_with_next([=](const PhotoEditorMode &mode) {
+		_content->applyMode(mode);
+		_controls->applyMode(mode);
+	}, lifetime());
+
 	_controls->rotateRequests(
 	) | rpl::start_with_next([=](int angle) {
 		_modifications.angle += 90;
@@ -52,9 +58,31 @@ PhotoEditor::PhotoEditor(
 
 	_controls->paintModeRequests(
 	) | rpl::start_with_next([=] {
-		_content->applyMode(PhotoEditorMode::Paint);
+		_mode = PhotoEditorMode{
+			.mode = PhotoEditorMode::Mode::Paint,
+			.action = PhotoEditorMode::Action::None,
+		};
 	}, lifetime());
-	_content->applyMode(PhotoEditorMode::Transform);
+
+	_controls->doneRequests(
+	) | rpl::start_with_next([=] {
+		if (_mode.current().mode == PhotoEditorMode::Mode::Paint) {
+			_mode = PhotoEditorMode{
+				.mode = PhotoEditorMode::Mode::Transform,
+				.action = PhotoEditorMode::Action::Save,
+			};
+		}
+	}, lifetime());
+
+	_controls->cancelRequests(
+	) | rpl::start_with_next([=] {
+		if (_mode.current().mode == PhotoEditorMode::Mode::Paint) {
+			_mode = PhotoEditorMode{
+				.mode = PhotoEditorMode::Mode::Transform,
+				.action = PhotoEditorMode::Action::Discard,
+			};
+		}
+	}, lifetime());
 }
 
 void PhotoEditor::save() {

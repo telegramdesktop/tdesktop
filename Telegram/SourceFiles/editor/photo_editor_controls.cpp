@@ -136,15 +136,25 @@ PhotoEditorControls::PhotoEditorControls(
 	bool doneControls)
 : RpWidget(parent)
 , _bg(st::mediaviewSaveMsgBg)
-, _buttonsContainer(base::make_unique_q<HorizontalContainer>(this))
+, _transformButtons(base::make_unique_q<HorizontalContainer>(this))
+, _paintButtons(base::make_unique_q<HorizontalContainer>(this))
 , _rotateButton(base::make_unique_q<Ui::IconButton>(
-	_buttonsContainer,
+	_transformButtons,
 	st::photoEditorRotateButton))
 , _flipButton(base::make_unique_q<Ui::IconButton>(
-	_buttonsContainer,
+	_transformButtons,
 	st::photoEditorFlipButton))
 , _paintModeButton(base::make_unique_q<Ui::IconButton>(
-	_buttonsContainer,
+	_transformButtons,
+	st::photoEditorPaintModeButton))
+, _undoButton(base::make_unique_q<Ui::IconButton>(
+	_paintButtons,
+	st::photoEditorUndoButton))
+, _redoButton(base::make_unique_q<Ui::IconButton>(
+	_paintButtons,
+	st::photoEditorRedoButton))
+, _paintModeButtonActive(base::make_unique_q<Ui::IconButton>(
+	_paintButtons,
 	st::photoEditorPaintModeButton))
 , _cancel(base::make_unique_q<EdgeButton>(
 	this,
@@ -163,7 +173,12 @@ PhotoEditorControls::PhotoEditorControls(
 	st::lightButtonFg,
 	st::photoEditorRotateButton.ripple)) {
 
-	_buttonsContainer->updateChildrenPosition();
+	_transformButtons->updateChildrenPosition();
+	_paintButtons->updateChildrenPosition();
+
+	_paintModeButtonActive->setIconOverride(
+		&st::photoEditorPaintModeButton.iconOver);
+	_paintModeButtonActive->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
@@ -171,21 +186,30 @@ PhotoEditorControls::PhotoEditorControls(
 
 		p.setPen(Qt::NoPen);
 		p.setBrush(_bg);
-		p.drawRect(_buttonsContainer->geometry());
+		p.drawRect(_transformButtons->geometry());
 
 	}, lifetime());
 
-	sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	rpl::combine(
+		sizeValue(),
+		_mode.value()
+	) | rpl::start_with_next([=](
+			const QSize &size,
+			const PhotoEditorMode &mode) {
+		if (size.isEmpty()) {
+			return;
+		}
 
-		_buttonsContainer->moveToLeft(
-			(size.width() - _buttonsContainer->width()) / 2,
+		const auto &current = _transformButtons->isHidden()
+			? _paintButtons
+			: _transformButtons;
+
+		current->moveToLeft(
+			(size.width() - current->width()) / 2,
 			0);
 
-		_cancel->moveToLeft(_buttonsContainer->x() - _cancel->width(), 0);
-		_done->moveToLeft(
-			_buttonsContainer->x() + _buttonsContainer->width(),
-			0);
+		_cancel->moveToLeft(current->x() - _cancel->width(), 0);
+		_done->moveToLeft(current->x() + current->width(), 0);
 
 	}, lifetime());
 
@@ -201,6 +225,21 @@ rpl::producer<> PhotoEditorControls::flipRequests() const {
 
 rpl::producer<> PhotoEditorControls::paintModeRequests() const {
 	return _paintModeButton->clicks() | rpl::to_empty;
+}
+
+rpl::producer<> PhotoEditorControls::doneRequests() const {
+	return _done->clicks() | rpl::to_empty;
+}
+
+rpl::producer<> PhotoEditorControls::cancelRequests() const {
+	return _cancel->clicks() | rpl::to_empty;
+}
+
+void PhotoEditorControls::applyMode(const PhotoEditorMode &mode) {
+	using Mode = PhotoEditorMode::Mode;
+	_transformButtons->setVisible(mode.mode == Mode::Transform);
+	_paintButtons->setVisible(mode.mode == Mode::Paint);
+	_mode = mode;
 }
 
 } // namespace Editor

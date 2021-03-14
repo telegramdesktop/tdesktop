@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+#include "editor/photo_editor_common.h"
+
 namespace Ui {
 class IconButton;
 } // namespace Ui
@@ -27,16 +29,29 @@ public:
 	[[nodiscard]] rpl::producer<int> rotateRequests() const;
 	[[nodiscard]] rpl::producer<> flipRequests() const;
 	[[nodiscard]] rpl::producer<> paintModeRequests() const;
+	[[nodiscard]] rpl::producer<> doneRequests() const;
+	[[nodiscard]] rpl::producer<> cancelRequests() const;
+
+	void applyMode(const PhotoEditorMode &mode);
 
 private:
 
 	const style::color &_bg;
-	const base::unique_qptr<HorizontalContainer> _buttonsContainer;
+	const base::unique_qptr<HorizontalContainer> _transformButtons;
+	const base::unique_qptr<HorizontalContainer> _paintButtons;
+
 	const base::unique_qptr<Ui::IconButton> _rotateButton;
 	const base::unique_qptr<Ui::IconButton> _flipButton;
 	const base::unique_qptr<Ui::IconButton> _paintModeButton;
+
+	const base::unique_qptr<Ui::IconButton> _undoButton;
+	const base::unique_qptr<Ui::IconButton> _redoButton;
+	const base::unique_qptr<Ui::IconButton> _paintModeButtonActive;
+
 	const base::unique_qptr<EdgeButton> _cancel;
 	const base::unique_qptr<EdgeButton> _done;
+
+	rpl::variable<PhotoEditorMode> _mode;
 
 };
 

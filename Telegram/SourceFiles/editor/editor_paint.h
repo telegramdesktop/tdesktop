@@ -27,14 +27,18 @@ public:
 	[[nodiscard]] std::shared_ptr<QGraphicsScene> saveScene() const;
 
 	void applyTransform(QRect geometry, int angle, bool flipped);
-	void applyMode(PhotoEditorMode mode);
+	void cancel();
+	void keepResult();
 
 private:
 	void initDrawing();
+	int itemsCount() const;
 
 	const std::shared_ptr<QGraphicsScene> _scene;
 	const base::unique_qptr<QGraphicsView> _view;
 	const QSize _imageSize;
+
+	int _startItemsCount = 0;
 
 	struct {
 		QPointF lastPoint;

@@ -11,9 +11,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Editor {
 
-enum class PhotoEditorMode {
-	Transform,
-	Paint,
+struct PhotoEditorMode {
+	enum class Mode {
+		Transform,
+		Paint,
+	} mode = Mode::Transform;
+
+	enum class Action {
+		None,
+		Save,
+		Discard,
+	} action = Action::None;
 };
 
 struct PhotoModifications {

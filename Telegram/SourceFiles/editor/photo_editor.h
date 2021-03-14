@@ -35,6 +35,10 @@ private:
 	base::unique_qptr<PhotoEditorContent> _content;
 	base::unique_qptr<PhotoEditorControls> _controls;
 
+	rpl::variable<PhotoEditorMode> _mode = PhotoEditorMode{
+		.mode = PhotoEditorMode::Mode::Transform,
+		.action = PhotoEditorMode::Action::None,
+	};
 	rpl::event_stream<PhotoModifications> _done;
 
 };

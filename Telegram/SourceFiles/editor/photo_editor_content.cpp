@@ -93,9 +93,17 @@ void PhotoEditorContent::save(PhotoModifications &modifications) {
 	}
 }
 
-void PhotoEditorContent::applyMode(PhotoEditorMode mode) {
-	_crop->setVisible(mode == PhotoEditorMode::Transform);
-	_paint->applyMode(mode);
+void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
+	const auto isTransform = (mode.mode == PhotoEditorMode::Mode::Transform);
+	_crop->setVisible(isTransform);
+
+	_paint->setAttribute(Qt::WA_TransparentForMouseEvents, isTransform);
+
+	if (mode.action == PhotoEditorMode::Action::Discard) {
+		_paint->cancel();
+	} else if (mode.action == PhotoEditorMode::Action::Save) {
+		_paint->keepResult();
+	}
 	_mode = mode;
 }
 
