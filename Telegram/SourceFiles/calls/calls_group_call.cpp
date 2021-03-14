@@ -476,7 +476,6 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				applyMeInCallLocally();
 				maybeSendMutedUpdate(wasMuteState);
 				_peer->session().api().applyUpdates(updates);
-				if (cAutoUnmute()) setMuted(MuteState::Active);
 			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
 				LOG(("Call Error: Could not join, error: %1").arg(type));
@@ -1321,6 +1320,9 @@ void GroupCall::setInstanceConnected(
 	}
 	if (nowCanSpeak) {
 		notifyAboutAllowedToSpeak();
+	}
+	if (cAutoUnmute() && _instanceState.current() == InstanceState::Connected) {
+		setMutedAndUpdate(MuteState::Active);
 	}
 }
 
