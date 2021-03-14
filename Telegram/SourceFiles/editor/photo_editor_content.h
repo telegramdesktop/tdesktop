@@ -15,13 +15,15 @@ namespace Editor {
 
 class Crop;
 class Paint;
+class UndoController;
 
 class PhotoEditorContent final : public Ui::RpWidget {
 public:
 	PhotoEditorContent(
 		not_null<Ui::RpWidget*> parent,
 		std::shared_ptr<QPixmap> photo,
-		PhotoModifications modifications);
+		PhotoModifications modifications,
+		std::shared_ptr<UndoController> undoController);
 
 	void applyModifications(PhotoModifications modifications);
 	void applyMode(const PhotoEditorMode &mode);

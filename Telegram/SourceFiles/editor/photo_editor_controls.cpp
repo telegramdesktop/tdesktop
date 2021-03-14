@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_controls.h"
 
+#include "editor/undo_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/buttons.h"
@@ -133,6 +134,7 @@ void HorizontalContainer::updateChildrenPosition() {
 
 PhotoEditorControls::PhotoEditorControls(
 	not_null<Ui::RpWidget*> parent,
+	std::shared_ptr<UndoController> undoController,
 	bool doneControls)
 : RpWidget(parent)
 , _bg(st::mediaviewSaveMsgBg)
@@ -211,6 +213,26 @@ PhotoEditorControls::PhotoEditorControls(
 		_cancel->moveToLeft(current->x() - _cancel->width(), 0);
 		_done->moveToLeft(current->x() + current->width(), 0);
 
+	}, lifetime());
+
+	undoController->setPerformRequestChanges(rpl::merge(
+		_undoButton->clicks() | rpl::map_to(Undo::Undo),
+		_redoButton->clicks() | rpl::map_to(Undo::Redo)));
+
+	undoController->canPerformChanges(
+	) | rpl::start_with_next([=](const UndoController::EnableRequest &r) {
+		const auto isUndo = (r.command == Undo::Undo);
+		const auto &button = isUndo ? _undoButton : _redoButton;
+		button->setAttribute(Qt::WA_TransparentForMouseEvents, !r.enable);
+		if (!r.enable) {
+			button->clearState();
+		}
+
+		button->setIconOverride(r.enable
+			? nullptr
+			: isUndo
+			? &st::photoEditorUndoButtonInactive
+			: &st::photoEditorRedoButtonInactive);
 	}, lifetime());
 
 }

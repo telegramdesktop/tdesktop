@@ -19,9 +19,14 @@ using Media::View::RotatedRect;
 PhotoEditorContent::PhotoEditorContent(
 	not_null<Ui::RpWidget*> parent,
 	std::shared_ptr<QPixmap> photo,
-	PhotoModifications modifications)
+	PhotoModifications modifications,
+	std::shared_ptr<UndoController> undoController)
 : RpWidget(parent)
-, _paint(base::make_unique_q<Paint>(this, modifications, photo->size()))
+, _paint(base::make_unique_q<Paint>(
+	this,
+	modifications,
+	photo->size(),
+	std::move(undoController)))
 , _crop(base::make_unique_q<Crop>(this, modifications, photo->size()))
 , _photo(photo)
 , _modifications(modifications) {
@@ -88,9 +93,7 @@ void PhotoEditorContent::applyModifications(
 
 void PhotoEditorContent::save(PhotoModifications &modifications) {
 	modifications.crop = _crop->saveCropRect(_imageRect, _photo->rect());
-	if (!modifications.paint) {
-		modifications.paint = _paint->saveScene();
-	}
+	_paint->keepResult();
 }
 
 void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
@@ -98,6 +101,9 @@ void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
 	_crop->setVisible(isTransform);
 
 	_paint->setAttribute(Qt::WA_TransparentForMouseEvents, isTransform);
+	if (!isTransform) {
+		_paint->updateUndoState();
+	}
 
 	if (mode.action == PhotoEditorMode::Action::Discard) {
 		_paint->cancel();

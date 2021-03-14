@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/photo_editor_content.h"
 #include "editor/photo_editor_controls.h"
+#include "editor/undo_controller.h"
 #include "styles/style_editor.h"
 
 namespace Editor {
@@ -19,11 +20,13 @@ PhotoEditor::PhotoEditor(
 	PhotoModifications modifications)
 : RpWidget(parent)
 , _modifications(std::move(modifications))
+, _undoController(std::make_shared<UndoController>())
 , _content(base::make_unique_q<PhotoEditorContent>(
 	this,
 	photo,
-	_modifications))
-, _controls(base::make_unique_q<PhotoEditorControls>(this)) {
+	_modifications,
+	_undoController))
+, _controls(base::make_unique_q<PhotoEditorControls>(this, _undoController)) {
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &size) {
 		const auto geometry = QRect(QPoint(), size);

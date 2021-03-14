@@ -520,6 +520,8 @@ PRIVATE
     editor/photo_editor_content.h
     editor/photo_editor_controls.cpp
     editor/photo_editor_controls.h
+    editor/undo_controller.cpp
+    editor/undo_controller.h
     export/export_manager.cpp
     export/export_manager.h
     export/view/export_view_content.cpp

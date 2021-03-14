@@ -16,29 +16,47 @@ class QGraphicsView;
 
 namespace Editor {
 
+class UndoController;
+
 // Paint control.
 class Paint final : public Ui::RpWidget {
 public:
 	Paint(
 		not_null<Ui::RpWidget*> parent,
 		PhotoModifications &modifications,
-		const QSize &imageSize);
+		const QSize &imageSize,
+		std::shared_ptr<UndoController> undoController);
 
 	[[nodiscard]] std::shared_ptr<QGraphicsScene> saveScene() const;
 
 	void applyTransform(QRect geometry, int angle, bool flipped);
 	void cancel();
 	void keepResult();
+	void updateUndoState();
 
 private:
+	struct SavedItem {
+		QGraphicsItem *item;
+		bool undid = false;
+	};
+
 	void initDrawing();
-	int itemsCount() const;
+	bool hasUndo() const;
+	bool hasRedo() const;
+	void clearRedoList();
+
+	bool isItemToRemove(not_null<QGraphicsItem*> item) const;
+	bool isItemHidden(not_null<QGraphicsItem*> item) const;
+
+	std::vector<QGraphicsItem*> groups(
+		Qt::SortOrder order = Qt::DescendingOrder) const;
 
 	const std::shared_ptr<QGraphicsScene> _scene;
 	const base::unique_qptr<QGraphicsView> _view;
 	const QSize _imageSize;
 
-	int _startItemsCount = 0;
+	std::vector<SavedItem> _previousItems;
+	QList<QGraphicsItem*> _itemsToRemove;
 
 	struct {
 		QPointF lastPoint;
@@ -47,6 +65,9 @@ private:
 		QColor color;
 		QGraphicsItemGroup *group;
 	} _brushData;
+
+	rpl::variable<bool> _hasUndo = true;
+	rpl::variable<bool> _hasRedo = true;
 
 };
 

@@ -17,6 +17,7 @@ photoEditorButtonIconFg: historyComposeIconFg;
 photoEditorButtonIconFgOver: historyComposeIconFgOver;
 
 photoEditorButtonIconFgActive: historyComposeIconFgOver;
+photoEditorButtonIconFgInactive: menuFgDisabled;
 
 photoEditorRotateButton: IconButton(historyAttach) {
 	icon: icon {{ "photo_editor/rotate", photoEditorButtonIconFg }};
@@ -38,5 +39,8 @@ photoEditorRedoButton: IconButton(historyAttach) {
 	icon: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFg }};
 	iconOver: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgOver }};
 }
+
+photoEditorUndoButtonInactive: icon {{ "photo_editor/undo", photoEditorButtonIconFgInactive }};
+photoEditorRedoButtonInactive: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgInactive }};
 
 photoEditorTextButtonPadding: margins(10px, 0px, 10px, 0px);

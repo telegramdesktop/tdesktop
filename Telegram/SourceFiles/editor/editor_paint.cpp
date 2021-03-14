@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_paint.h"
 
+#include "editor/undo_controller.h"
 #include "base/event_filter.h"
 #include "styles/style_boxes.h"
 
@@ -29,7 +30,7 @@ std::shared_ptr<QGraphicsScene> EnsureScene(PhotoModifications &mods) {
 	return mods.paint;
 }
 
-auto FilterItems(QGraphicsItem *i) {
+auto GroupsFilter(QGraphicsItem *i) {
 	return i->type() == QGraphicsItemGroup::Type;
 }
 
@@ -38,13 +39,15 @@ auto FilterItems(QGraphicsItem *i) {
 Paint::Paint(
 	not_null<Ui::RpWidget*> parent,
 	PhotoModifications &modifications,
-	const QSize &imageSize)
+	const QSize &imageSize,
+	std::shared_ptr<UndoController> undoController)
 : RpWidget(parent)
 , _scene(EnsureScene(modifications))
 , _view(base::make_unique_q<QGraphicsView>(_scene.get(), this))
-, _imageSize(imageSize)
-, _startItemsCount(itemsCount()) {
+, _imageSize(imageSize) {
 	Expects(modifications.paint != nullptr);
+
+	keepResult();
 
 	_view->show();
 	_view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -54,6 +57,41 @@ Paint::Paint(
 	_scene->setSceneRect(0, 0, imageSize.width(), imageSize.height());
 
 	initDrawing();
+
+	// Undo / Redo.
+	undoController->performRequestChanges(
+	) | rpl::start_with_next([=](const Undo &command) {
+		const auto isUndo = (command == Undo::Undo);
+
+		const auto filtered = groups(isUndo
+			? Qt::DescendingOrder
+			: Qt::AscendingOrder);
+
+		auto proj = [&](QGraphicsItem *i) {
+			return isUndo ? i->isVisible() : isItemHidden(i);
+		};
+		const auto it = ranges::find_if(filtered, std::move(proj));
+		if (it != filtered.end()) {
+			(*it)->setVisible(!isUndo);
+		}
+
+		_hasUndo = hasUndo();
+		_hasRedo = hasRedo();
+	}, lifetime());
+
+	undoController->setCanPerformChanges(rpl::merge(
+		_hasUndo.value() | rpl::map([](bool enable) {
+			return UndoController::EnableRequest{
+				.command = Undo::Undo,
+				.enable = enable,
+			};
+		}),
+		_hasRedo.value() | rpl::map([](bool enable) {
+			return UndoController::EnableRequest{
+				.command = Undo::Redo,
+				.enable = enable,
+			};
+		})));
 }
 
 void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
@@ -95,6 +133,9 @@ void Paint::initDrawing() {
 		const auto &color = _brushData.color;
 		const auto mousePoint = e->scenePos();
 		if (isPress) {
+			_hasUndo = true;
+			clearRedoList();
+
 			auto dot = _scene->addEllipse(
 				mousePoint.x() - size / 2,
 				mousePoint.y() - size / 2,
@@ -129,33 +170,83 @@ std::shared_ptr<QGraphicsScene> Paint::saveScene() const {
 }
 
 void Paint::cancel() {
-	const auto items = _scene->items(Qt::AscendingOrder);
-	const auto filtered = ranges::views::all(
-		items
-	) | ranges::views::filter(FilterItems) | ranges::to_vector;
-
+	const auto filtered = groups(Qt::AscendingOrder);
 	if (filtered.empty()) {
 		return;
 	}
 
-	for (auto i = 0; i < filtered.size(); i++) {
-		const auto &item = filtered[i];
-		if (i < _startItemsCount) {
-			if (!item->isVisible()) {
-				item->show();
-			}
+	for (const auto &group : filtered) {
+		const auto it = ranges::find(
+			_previousItems,
+			group,
+			&SavedItem::item);
+		if (it == end(_previousItems)) {
+			_scene->removeItem(group);
 		} else {
-			_scene->removeItem(item);
+			it->item->setVisible(!it->undid);
 		}
 	}
+
+	_itemsToRemove.clear();
 }
 
 void Paint::keepResult() {
-	_startItemsCount = itemsCount();
+	for (const auto &item : _itemsToRemove) {
+		_scene->removeItem(item);
+	}
+
+	const auto items = _scene->items();
+	_previousItems = ranges::views::all(
+		items
+	) | ranges::views::transform([=](QGraphicsItem *i) -> SavedItem {
+		return { i, !i->isVisible() };
+	}) | ranges::to_vector;
 }
 
-int Paint::itemsCount() const {
-	return ranges::count_if(_scene->items(), FilterItems);
+bool Paint::hasUndo() const {
+	return ranges::any_of(groups(), &QGraphicsItem::isVisible);
+}
+
+bool Paint::hasRedo() const {
+	return ranges::any_of(
+		groups(),
+		[=](QGraphicsItem *i) { return isItemHidden(i); });
+}
+
+void Paint::clearRedoList() {
+	const auto items = groups(Qt::AscendingOrder);
+	auto &&filtered = ranges::views::all(
+		items
+	) | ranges::views::filter(
+		[=](QGraphicsItem *i) { return isItemHidden(i); }
+	);
+
+	ranges::for_each(std::move(filtered), [&](QGraphicsItem *item) {
+		item->hide();
+		_itemsToRemove.push_back(item);
+	});
+
+	_hasRedo = false;
+}
+
+bool Paint::isItemHidden(not_null<QGraphicsItem*> item) const {
+	return !item->isVisible() && !isItemToRemove(item);
+}
+
+bool Paint::isItemToRemove(not_null<QGraphicsItem*> item) const {
+	return ranges::contains(_itemsToRemove, item.get());
+}
+
+void Paint::updateUndoState() {
+	_hasUndo = hasUndo();
+	_hasRedo = hasRedo();
+}
+
+std::vector<QGraphicsItem*> Paint::groups(Qt::SortOrder order) const {
+	const auto items = _scene->items(order);
+	return ranges::views::all(
+		items
+	) | ranges::views::filter(GroupsFilter) | ranges::to_vector;
 }
 
 } // namespace Editor

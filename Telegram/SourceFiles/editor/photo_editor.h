@@ -17,6 +17,7 @@ namespace Editor {
 
 class PhotoEditorContent;
 class PhotoEditorControls;
+class UndoController;
 
 class PhotoEditor final : public Ui::RpWidget {
 public:
@@ -31,6 +32,8 @@ public:
 private:
 
 	PhotoModifications _modifications;
+
+	const std::shared_ptr<UndoController> _undoController;
 
 	base::unique_qptr<PhotoEditorContent> _content;
 	base::unique_qptr<PhotoEditorControls> _controls;
