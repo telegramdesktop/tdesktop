@@ -951,7 +951,7 @@ QRect GroupPanel::computeTitleRect() const {
 			: 0);
 	const auto width = widget()->width();
 #ifdef Q_OS_MAC
-	return QRect(70, 0, width - skip - 70, 28);
+	return QRect(70, 0, width - remove - 70, 28);
 #else // Q_OS_MAC
 	const auto controls = _controls->geometry();
 	const auto right = controls.x() + controls.width() + skip;
