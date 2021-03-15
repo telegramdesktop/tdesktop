@@ -604,7 +604,7 @@ void StickersBox::refreshTabs() {
 	if (!_tabs) return;
 
 	_tabIndices.clear();
-	auto sections = QStringList();
+	auto sections = std::vector<QString>();
 	sections.push_back(tr::lng_stickers_installed_tab(tr::now).toUpper());
 	_tabIndices.push_back(Section::Installed);
 	if (!session().data().stickers().featuredSetsOrder().isEmpty()) {

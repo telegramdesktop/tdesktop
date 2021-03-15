@@ -62,8 +62,8 @@ void DiscreteSlider::addSection(const QString &label) {
 	resizeToWidth(width());
 }
 
-void DiscreteSlider::setSections(const QStringList &labels) {
-	Assert(!labels.isEmpty());
+void DiscreteSlider::setSections(const std::vector<QString> &labels) {
+	Assert(!labels.empty());
 
 	_sections.clear();
 	for (const auto &label : labels) {

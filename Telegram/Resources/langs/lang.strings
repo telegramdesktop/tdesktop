@@ -1379,6 +1379,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_switch_stickers" = "Stickers";
 "lng_switch_emoji" = "Emoji";
 "lng_switch_gifs" = "GIFs";
+"lng_switch_masks" = "Masks";
 "lng_stickers_featured_add" = "Add";
 "lng_gifs_search" = "Search GIFs";
 "lng_gifs_no_saved" = "You have no saved GIFs yet.";

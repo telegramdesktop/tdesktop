@@ -20,7 +20,7 @@ public:
 	DiscreteSlider(QWidget *parent);
 
 	void addSection(const QString &label);
-	void setSections(const QStringList &labels);
+	void setSections(const std::vector<QString> &labels);
 	int activeSection() const {
 		return _activeIndex;
 	}
