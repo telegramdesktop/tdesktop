@@ -224,7 +224,7 @@ void Instance::createGroupCall(
 		destroyGroupCall(raw);
 	}, raw->lifetime());
 
-	_currentGroupCallPanel = std::make_unique<GroupPanel>(raw);
+	_currentGroupCallPanel = std::make_unique<Group::Panel>(raw);
 	_currentGroupCall = std::move(call);
 	_currentGroupCallChanges.fire_copy(raw);
 }
