@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_settings.h"
 #include "calls/calls_group_menu.h"
 #include "ui/platform/ui_platform_window_title.h"
+#include "ui/platform/ui_platform_utility.h"
 #include "ui/controls/call_mute_button.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/window.h"
@@ -911,6 +912,13 @@ void GroupPanel::initLayout() {
 
 #ifndef Q_OS_MAC
 	_controls->raise();
+
+	Ui::Platform::TitleControlsLayoutChanged(
+	) | rpl::start_with_next([=] {
+		// _menuToggle geometry depends on _controls arrangement.
+		crl::on_main(widget(), [=] { updateControlsGeometry(); });
+	}, widget()->lifetime());
+
 #endif // !Q_OS_MAC
 }
 
