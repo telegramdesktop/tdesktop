@@ -2600,7 +2600,7 @@ void ApiWrap::clearWebPageRequests() {
 void ApiWrap::resolveWebPages() {
 	auto ids = QVector<MTPInputMessage>(); // temp_req_id = -1
 	using IndexAndMessageIds = QPair<int32, QVector<MTPInputMessage>>;
-	using MessageIdsByChannel = QMap<ChannelData*, IndexAndMessageIds>;
+	using MessageIdsByChannel = base::flat_map<ChannelData*, IndexAndMessageIds>;
 	MessageIdsByChannel idsByChannel; // temp_req_id = -index - 2
 
 	ids.reserve(_webPagesPending.size());
@@ -2617,18 +2617,18 @@ void ApiWrap::resolveWebPages() {
 					auto channel = item->history()->peer->asChannel();
 					auto channelMap = idsByChannel.find(channel);
 					if (channelMap == idsByChannel.cend()) {
-						channelMap = idsByChannel.insert(
+						channelMap = idsByChannel.emplace(
 							channel,
 							IndexAndMessageIds(
 								idsByChannel.size(),
 								QVector<MTPInputMessage>(
 									1,
-									MTP_inputMessageID(MTP_int(item->id)))));
+									MTP_inputMessageID(MTP_int(item->id))))).first;
 					} else {
-						channelMap.value().second.push_back(
+						channelMap->second.second.push_back(
 							MTP_inputMessageID(MTP_int(item->id)));
 					}
-					i.value() = -channelMap.value().first - 2;
+					i.value() = -channelMap->second.first - 2;
 				}
 			}
 		} else {
@@ -2648,10 +2648,10 @@ void ApiWrap::resolveWebPages() {
 	}
 	QVector<mtpRequestId> reqsByIndex(idsByChannel.size(), 0);
 	for (auto i = idsByChannel.cbegin(), e = idsByChannel.cend(); i != e; ++i) {
-		reqsByIndex[i.value().first] = request(MTPchannels_GetMessages(
-			i.key()->inputChannel,
-			MTP_vector<MTPInputMessage>(i.value().second)
-		)).done([=, channel = i.key()](
+		reqsByIndex[i->second.first] = request(MTPchannels_GetMessages(
+			i->first->inputChannel,
+			MTP_vector<MTPInputMessage>(i->second.second)
+		)).done([=, channel = i->first](
 				const MTPmessages_Messages &result,
 				mtpRequestId requestId) {
 			gotWebPages(channel, result, requestId);
