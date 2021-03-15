@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "base/qthelp_url.h"
 #include "base/unixtime.h"
+#include "base/platform/base_platform_info.h"
 #include "zlib.h"
 
 namespace MTP {
@@ -79,6 +80,25 @@ using namespace details;
 		idsStr += QString(", %2").arg(id);
 	}
 	return idsStr + "]";
+}
+
+[[nodiscard]] QString ComputeAppVersion() {
+	return QString::fromLatin1(AppVersionStr) + ([] {
+#if defined OS_MAC_STORE
+		return u" Mac App Store"_q;
+#elif defined OS_WIN_STORE // OS_MAC_STORE
+		return (Platform::IsWindows64Bit() ? u" x64"_q : QString())
+			+ u" Microsoft Store"_q;
+#elif defined Q_OS_UNIX && !defined Q_OS_MAC // OS_MAC_STORE || OS_WIN_STORE
+		return Platform::InFlatpak()
+			? u" Flatpak"_q
+			: Platform::InSnap()
+			? u" Snap"_q
+			: QString();
+#else // OS_MAC_STORE || OS_WIN_STORE || (defined Q_OS_UNIX && !defined Q_OS_MAC)
+		return Platform::IsWindows64Bit() ? u" x64"_q : QString();
+#endif // OS_MAC_STORE || OS_WIN_STORE || (defined Q_OS_UNIX && !defined Q_OS_MAC)
+	})();
 }
 
 void WrapInvokeAfter(
@@ -632,26 +652,7 @@ void SessionPrivate::tryToSend() {
 		const auto systemVersion = (_currentDcType == DcType::Cdn)
 			? "n/a"
 			: _instance->systemVersion();
-#if defined OS_MAC_STORE
-		const auto appVersion = QString::fromLatin1(AppVersionStr)
-			+ " Mac App Store";
-#elif defined OS_WIN_STORE // OS_MAC_STORE
-		const auto appVersion = QString::fromLatin1(AppVersionStr)
-			+ " Microsoft Store";
-#elif defined Q_OS_UNIX && !defined Q_OS_MAC // OS_MAC_STORE || OS_WIN_STORE
-		const auto appVersion = [] {
-			if (Platform::InFlatpak()) {
-				return QString::fromLatin1(AppVersionStr)
-					+ " Flatpak";
-			} else if (Platform::InSnap()) {
-				return QString::fromLatin1(AppVersionStr)
-					+ " Snap";
-			}
-			return QString::fromLatin1(AppVersionStr);
-		}();
-#else // OS_MAC_STORE || OS_WIN_STORE || (defined Q_OS_UNIX && !defined Q_OS_MAC)
-		const auto appVersion = QString::fromLatin1(AppVersionStr);
-#endif // OS_MAC_STORE || OS_WIN_STORE || (defined Q_OS_UNIX && !defined Q_OS_MAC)
+		const auto appVersion = ComputeAppVersion();
 		const auto proxyType = _options->proxy.type;
 		const auto mtprotoProxy = (proxyType == ProxyData::Type::Mtproto);
 		const auto clientProxyFields = mtprotoProxy
