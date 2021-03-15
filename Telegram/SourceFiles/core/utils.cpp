@@ -517,7 +517,7 @@ QString translitLetterRusEng(QChar letter, QChar next, int32 &toSkip) {
 		fastLetterRusEng.insert(QString::fromUtf8("ч").at(0), qsl("ch"));
 		fastLetterRusEng.insert(QString::fromUtf8("ш").at(0), qsl("sh"));
 		fastLetterRusEng.insert(QString::fromUtf8("щ").at(0), qsl("sch"));
-		fastLetterRusEng.insert(QString::fromUtf8("ъ").at(0), qsl(""));
+		fastLetterRusEng.insert(QString::fromUtf8("ъ").at(0), QString());
 		fastLetterRusEng.insert(QString::fromUtf8("э").at(0), qsl("e"));
 		fastLetterRusEng.insert(QString::fromUtf8("ю").at(0), qsl("yu"));
 		fastLetterRusEng.insert(QString::fromUtf8("я").at(0), qsl("ya"));
@@ -526,7 +526,7 @@ QString translitLetterRusEng(QChar letter, QChar next, int32 &toSkip) {
 		fastLetterRusEng.insert(QString::fromUtf8("и").at(0), qsl("i"));
 		fastLetterRusEng.insert(QString::fromUtf8("к").at(0), qsl("k"));
 		fastLetterRusEng.insert(QString::fromUtf8("ы").at(0), qsl("y"));
-		fastLetterRusEng.insert(QString::fromUtf8("ь").at(0), qsl(""));
+		fastLetterRusEng.insert(QString::fromUtf8("ь").at(0), QString());
 	}
 	QHash<QChar, QString>::const_iterator j = fastLetterRusEng.constFind(letter);
 	if (j != fastLetterRusEng.cend()) {
