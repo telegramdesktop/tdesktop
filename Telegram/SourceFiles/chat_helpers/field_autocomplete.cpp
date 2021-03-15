@@ -436,7 +436,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 	} else if (_type == Type::BotCommands) {
 		bool listAllSuggestions = _filter.isEmpty();
 		bool hasUsername = _filter.indexOf('@') > 0;
-		QMap<UserData*, bool> bots;
+		base::flat_map<UserData*, bool> bots;
 		int32 cnt = 0;
 		if (_chat) {
 			if (_chat->noParticipantInfo()) {
@@ -451,7 +451,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					if (user->botInfo->commands.isEmpty()) {
 						continue;
 					}
-					bots.insert(user, true);
+					bots.emplace(user, true);
 					cnt += user->botInfo->commands.size();
 				}
 			}
@@ -460,7 +460,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				_user->session().api().requestFullPeer(_user);
 			}
 			cnt = _user->botInfo->commands.size();
-			bots.insert(_user, true);
+			bots.emplace(_user, true);
 		} else if (_channel && _channel->isMegagroup()) {
 			if (_channel->mgInfo->bots.empty()) {
 				if (!_channel->mgInfo->botStatus) {
@@ -476,7 +476,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					if (user->botInfo->commands.isEmpty()) {
 						continue;
 					}
-					bots.insert(user, true);
+					bots.emplace(user, true);
 					cnt += user->botInfo->commands.size();
 				}
 			}
@@ -510,9 +510,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					}
 				}
 			}
-			if (!bots.isEmpty()) {
-				for (QMap<UserData*, bool>::const_iterator i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
-					UserData *user = i.key();
+			if (!bots.empty()) {
+				for (auto i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
+					UserData *user = i->first;
 					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
 						if (!listAllSuggestions) {
 							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
