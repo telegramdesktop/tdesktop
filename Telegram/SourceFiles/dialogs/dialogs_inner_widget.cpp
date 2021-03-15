@@ -782,7 +782,7 @@ void InnerWidget::paintPeerSearchResult(
 	QRect tr(nameleft, st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip, namewidth, st::dialogsTextFont->height);
 	p.setFont(st::dialogsTextFont);
 	QString username = peer->userName();
-	if (!active && username.toLower().startsWith(_peerSearchQuery)) {
+	if (!active && username.startsWith(_peerSearchQuery, Qt::CaseInsensitive)) {
 		auto first = '@' + username.mid(0, _peerSearchQuery.size());
 		auto second = username.mid(_peerSearchQuery.size());
 		auto w = st::dialogsTextFont->width(first);
