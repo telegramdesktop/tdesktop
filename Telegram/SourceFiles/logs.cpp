@@ -151,7 +151,7 @@ private:
 					for (QStringList::const_iterator i = oldlogs.cbegin(), e = oldlogs.cend(); i != e; ++i) {
 						QString oldlog = cWorkingDir() + *i, oldlogend = i->mid(qstr("log_start").size());
 						if (oldlogend.size() == 1 + qstr(".txt").size() && oldlogend.at(0).isDigit() && oldlogend.midRef(1) == qstr(".txt")) {
-							bool removed = QFile(*i).remove();
+							bool removed = QFile(oldlog).remove();
 							LOG(("Old start log '%1' found, deleted: %2").arg(*i, Logs::b(removed)));
 						}
 					}
@@ -265,7 +265,7 @@ bool DebugModeEnabled = false;
 
 void MoveOldDataFiles(const QString &wasDir) {
 	QFile data(wasDir + "data"), dataConfig(wasDir + "data_config"), tdataConfig(wasDir + "tdata/config");
-	if (data.exists() && dataConfig.exists() && !QFileInfo(cWorkingDir() + "data").exists() && !QFileInfo(cWorkingDir() + "data_config").exists()) { // move to home dir
+	if (data.exists() && dataConfig.exists() && !QFileInfo::exists(cWorkingDir() + "data") && !QFileInfo::exists(cWorkingDir() + "data_config")) { // move to home dir
 		LOG(("Copying data to home dir '%1' from '%2'").arg(cWorkingDir(), wasDir));
 		if (data.copy(cWorkingDir() + "data")) {
 			LOG(("Copied 'data' to home dir"));
