@@ -1795,8 +1795,6 @@ void MainWidget::showNewSection(
 		Ui::hideSettingsAndLayer();
 	}
 
-	QPixmap animCache;
-
 	_controller->dialogsListFocused().set(false, true);
 	_a_dialogsWidth.stop();
 
