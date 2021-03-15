@@ -151,7 +151,9 @@ void SessionNavigation::resolveChannelById(
 		return;
 	}
 	const auto fail = [=] {
-		Ui::Toast::Show(tr::lng_error_post_link_invalid(tr::now));
+		Ui::ShowMultilineToast({
+			.text = { tr::lng_error_post_link_invalid(tr::now) }
+		});
 	};
 	_session->api().request(base::take(_resolveRequestId)).cancel();
 	_resolveRequestId = _session->api().request(MTPchannels_GetChannels(
@@ -185,7 +187,9 @@ void SessionNavigation::showPeerByLinkResolved(
 			if (const auto call = peer->groupCall()) {
 				parentController()->startOrJoinGroupCall(peer, hash);
 			} else {
-				Ui::Toast::Show(tr::lng_error_post_link_invalid(tr::now));
+				Ui::ShowMultilineToast({
+					.text = { tr::lng_group_invite_bad_link(tr::now) }
+				});
 			}
 		}).send();
 		return;
