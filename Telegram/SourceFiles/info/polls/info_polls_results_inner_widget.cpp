@@ -317,14 +317,14 @@ void ListController::collapse() {
 		return;
 	}
 	const auto remove = count - (kFirstPage - kLeavePreloaded);
-	ranges::action::reverse(_preloaded);
+	ranges::actions::reverse(_preloaded);
 	_preloaded.reserve(_preloaded.size() + remove);
 	for (auto i = 0; i != remove; ++i) {
 		const auto row = delegate()->peerListRowAt(count - i - 1);
 		_preloaded.push_back(row->peer()->asUser());
 		delegate()->peerListRemoveRow(row);
 	}
-	ranges::action::reverse(_preloaded);
+	ranges::actions::reverse(_preloaded);
 
 	delegate()->peerListRefreshRows();
 	const auto now = count - remove;

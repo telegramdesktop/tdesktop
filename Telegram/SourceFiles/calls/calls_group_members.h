@@ -19,19 +19,19 @@ class GroupCall;
 } // namespace Data
 
 namespace Calls {
+class GroupCall;
+} // namespace Calls
 
-namespace Group {
+namespace Calls::Group {
+
 struct VolumeRequest;
 struct MuteRequest;
-} // namespace Group
 
-class GroupCall;
-
-class GroupMembers final
+class Members final
 	: public Ui::RpWidget
 	, private PeerListContentDelegate {
 public:
-	GroupMembers(
+	Members(
 		not_null<QWidget*> parent,
 		not_null<GroupCall*> call);
 

@@ -48,17 +48,14 @@ struct CallSignalBars;
 struct CallBodyLayout;
 } // namespace style
 
-namespace Calls {
+namespace Calls::Group {
 
-class Userpic;
-class SignalBars;
+class Members;
 
-class GroupMembers;
-
-class GroupPanel final {
+class Panel final {
 public:
-	GroupPanel(not_null<GroupCall*> call);
-	~GroupPanel();
+	Panel(not_null<GroupCall*> call);
+	~Panel();
 
 	[[nodiscard]] bool isActive() const;
 	void minimize();
@@ -119,9 +116,9 @@ private:
 	object_ptr<Ui::IconButton> _menuToggle = { nullptr };
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
-	object_ptr<GroupMembers> _members;
+	object_ptr<Members> _members;
 	rpl::variable<QString> _titleText;
-	Group::ChooseJoinAsProcess _joinAsProcess;
+	ChooseJoinAsProcess _joinAsProcess;
 
 	object_ptr<Ui::CallButton> _settings;
 	std::unique_ptr<Ui::CallMuteButton> _mute;
@@ -131,4 +128,4 @@ private:
 
 };
 
-} // namespace Calls
+} // namespace Calls::Group

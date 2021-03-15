@@ -250,7 +250,6 @@ QString ExtractFilename(const QString &url) {
 
 bool UnpackUpdate(const QString &filepath) {
 	QFile input(filepath);
-	QByteArray packed;
 	if (!input.open(QIODevice::ReadOnly)) {
 		LOG(("Update Error: cant read updates file!"));
 		return false;

@@ -566,7 +566,6 @@ int32 StickerSetBox::Inner::stickerFromGlobalPos(const QPoint &p) const {
 }
 
 void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
-	QRect r(e->rect());
 	Painter p(this);
 
 	if (_elements.empty()) {

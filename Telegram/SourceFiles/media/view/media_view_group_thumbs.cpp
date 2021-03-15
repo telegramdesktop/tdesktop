@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "ui/image/image.h"
 #include "main/main_session.h"
+#include "core/crash_reports.h"
 #include "app.h"
 #include "styles/style_media_view.h"
 
@@ -36,6 +37,42 @@ int Round(float64 value) {
 
 using Context = GroupThumbs::Context;
 using Key = GroupThumbs::Key;
+
+[[nodiscard]] QString DebugSerializeMsgId(FullMsgId itemId) {
+	return QString("msg%1_%2").arg(itemId.channel).arg(itemId.msg);
+}
+
+[[nodiscard]] QString DebugSerializePeer(PeerId peerId) {
+	return peerIsUser(peerId)
+		? QString("user%1").arg(peerToUser(peerId))
+		: peerIsChat(peerId)
+		? QString("chat%1").arg(peerToChat(peerId))
+		: QString("channel%1").arg(peerToChannel(peerId));
+}
+
+[[nodiscard]] QString DebugSerializeKey(const Key &key) {
+	return v::match(key, [&](PhotoId photoId) {
+		return QString("photo%1").arg(photoId);
+	}, [](FullMsgId itemId) {
+		return DebugSerializeMsgId(itemId);
+	}, [&](GroupThumbs::CollageKey key) {
+		return QString("collage%1").arg(key.index);
+	});
+}
+
+[[nodiscard]] QString DebugSerializeContext(const Context &context) {
+	return v::match(context, [](PeerId peerId) {
+		return DebugSerializePeer(peerId);
+	}, [](MessageGroupId groupId) {
+		return QString("group_%1_%2"
+		).arg(DebugSerializePeer(groupId.peer)
+		).arg(groupId.value);
+	}, [](FullMsgId item) {
+		return DebugSerializeMsgId(item);
+	}, [](v::null_t) -> QString {
+		return "null";
+	});
+}
 
 Data::FileOrigin ComputeFileOrigin(const Key &key, const Context &context) {
 	return v::match(key, [&](PhotoId photoId) {
@@ -475,6 +512,37 @@ void GroupThumbs::RefreshFromSlice(
 }
 
 template <typename Slice>
+void ValidateSlice(
+		const Slice &slice,
+		const Context &context,
+		int from,
+		int index,
+		int till) {
+	auto keys = base::flat_set<Key>();
+	for (auto i = from; i != till; ++i) {
+		const auto key = ComputeKey(slice, i);
+		if (keys.contains(key)) {
+			// All items should be unique!
+			auto strings = QStringList();
+			strings.reserve(till - from);
+			for (auto i = from; i != till; ++i) {
+				strings.push_back(DebugSerializeKey(ComputeKey(slice, i)));
+			}
+			CrashReports::SetAnnotation(
+				"keys",
+				QString("%1:%2-(%3)-%4:"
+				).arg(DebugSerializeContext(context)
+				).arg(from
+				).arg(index
+				).arg(till) + strings.join(","));
+			Unexpected("Bad slice in GroupThumbs.");
+		} else {
+			keys.emplace(key);
+		}
+	}
+}
+
+template <typename Slice>
 void GroupThumbs::fillItems(
 		const Slice &slice,
 		int from,
@@ -486,6 +554,10 @@ void GroupThumbs::fillItems(
 
 	const auto current = (index - from);
 	const auto old = base::take(_items);
+
+	if (Logs::DebugEnabled()) {
+		ValidateSlice(slice, _context, from, index, till);
+	}
 
 	markCacheStale();
 	_items.reserve(till - from);
@@ -514,12 +586,16 @@ void GroupThumbs::animateAliveItems(int current) {
 }
 
 void GroupThumbs::fillDyingItems(const std::vector<not_null<Thumb*>> &old) {
+	Expects(_cache.size() >= _items.size());
+
 	_dying.reserve(_cache.size() - _items.size());
 	animatePreviouslyAlive(old);
 	markRestAsDying();
 }
 
 void GroupThumbs::markRestAsDying() {
+	Expects(_cache.size() >= _items.size());
+
 	_dying.reserve(_cache.size() - _items.size());
 	for (const auto &cacheItem : _cache) {
 		const auto &thumb = cacheItem.second;

@@ -2014,7 +2014,7 @@ void ListWidget::performDrag() {
 	}
 
 	TextWithEntities sel;
-	QList<QUrl> urls;
+	//QList<QUrl> urls;
 	if (uponSelected) {
 //		sel = getSelectedText();
 	} else if (pressedHandler) {

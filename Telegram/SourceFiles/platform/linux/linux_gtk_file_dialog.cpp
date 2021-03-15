@@ -147,6 +147,8 @@ private:
 	rpl::event_stream<> _accept;
 	rpl::event_stream<> _reject;
 
+	bool _destroyedConnected = false;
+
 };
 
 class GtkFileDialog : public QDialog {
@@ -261,8 +263,9 @@ void QGtkDialog::exec() {
 }
 
 void QGtkDialog::show(Qt::WindowFlags flags, Qt::WindowModality modality, QWindow *parent) {
-	connect(parent, &QWindow::destroyed, this, [=] { onParentWindowDestroyed(); },
-			Qt::UniqueConnection);
+	if (!std::exchange(_destroyedConnected, true)) {
+		connect(parent, &QWindow::destroyed, this, [=] { onParentWindowDestroyed(); });
+	}
 	setParent(parent);
 	setFlags(flags);
 	setModality(modality);

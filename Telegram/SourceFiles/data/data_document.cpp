@@ -213,7 +213,7 @@ QString FileNameUnsafe(
 	}
 	QString nameBase = path + nameStart;
 	name = nameBase + extension;
-	for (int i = 0; QFileInfo(name).exists(); ++i) {
+	for (int i = 0; QFileInfo::exists(name); ++i) {
 		name = nameBase + QString(" (%1)").arg(i + 2) + extension;
 	}
 

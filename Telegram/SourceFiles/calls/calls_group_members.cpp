@@ -37,7 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_calls.h"
 
-namespace Calls {
+namespace Calls::Group {
 namespace {
 
 constexpr auto kBlobsEnterDuration = crl::time(250);
@@ -1747,8 +1747,7 @@ std::unique_ptr<Row> MembersController::createInvitedRow(
 
 } // namespace
 
-
-GroupMembers::GroupMembers(
+Members::Members(
 	not_null<QWidget*> parent,
 	not_null<GroupCall*> call)
 : RpWidget(parent)
@@ -1762,25 +1761,25 @@ GroupMembers::GroupMembers(
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
 }
 
-auto GroupMembers::toggleMuteRequests() const
+auto Members::toggleMuteRequests() const
 -> rpl::producer<Group::MuteRequest> {
 	return static_cast<MembersController*>(
 		_listController.get())->toggleMuteRequests();
 }
 
-auto GroupMembers::changeVolumeRequests() const
+auto Members::changeVolumeRequests() const
 -> rpl::producer<Group::VolumeRequest> {
 	return static_cast<MembersController*>(
 		_listController.get())->changeVolumeRequests();
 }
 
-auto GroupMembers::kickParticipantRequests() const
+auto Members::kickParticipantRequests() const
 -> rpl::producer<not_null<PeerData*>> {
 	return static_cast<MembersController*>(
 		_listController.get())->kickParticipantRequests();
 }
 
-int GroupMembers::desiredHeight() const {
+int Members::desiredHeight() const {
 	const auto top = _addMember ? _addMember->height() : 0;
 	auto count = [&] {
 		if (const auto call = _call.get()) {
@@ -1798,7 +1797,7 @@ int GroupMembers::desiredHeight() const {
 		+ (use ? st::lineWidth : 0);
 }
 
-rpl::producer<int> GroupMembers::desiredHeightValue() const {
+rpl::producer<int> Members::desiredHeightValue() const {
 	const auto controller = static_cast<MembersController*>(
 		_listController.get());
 	return rpl::combine(
@@ -1810,12 +1809,28 @@ rpl::producer<int> GroupMembers::desiredHeightValue() const {
 	});
 }
 
-void GroupMembers::setupAddMember(not_null<GroupCall*> call) {
+void Members::setupAddMember(not_null<GroupCall*> call) {
 	using namespace rpl::mappers;
 
 	const auto peer = call->peer();
-	if (peer->isBroadcast()) {
-		_canAddMembers = false;
+	if (const auto channel = peer->asBroadcast()) {
+		_canAddMembers = rpl::single(
+			false
+		) | rpl::then(peer->session().changes().peerFlagsValue(
+			peer,
+			Data::PeerUpdate::Flag::GroupCall
+		) | rpl::map([=] {
+			return peer->groupCall();
+		}) | rpl::filter([=](Data::GroupCall *real) {
+			const auto call = _call.get();
+			return call && real && (real->id() == call->id());
+		}) | rpl::take(
+			1
+		) | rpl::map([=] {
+			return Data::PeerFlagValue(
+				channel,
+				MTPDchannel::Flag::f_username);
+		}) | rpl::flatten_latest());
 	} else {
 		_canAddMembers = Data::CanWriteValue(peer.get());
 		SubscribeToMigration(
@@ -1851,12 +1866,12 @@ void GroupMembers::setupAddMember(not_null<GroupCall*> call) {
 	}, lifetime());
 }
 
-rpl::producer<int> GroupMembers::fullCountValue() const {
+rpl::producer<int> Members::fullCountValue() const {
 	return static_cast<MembersController*>(
 		_listController.get())->fullCountValue();
 }
 
-void GroupMembers::setupList() {
+void Members::setupList() {
 	_listController->setStyleOverrides(&st::groupCallMembersList);
 	_list = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
@@ -1877,11 +1892,11 @@ void GroupMembers::setupList() {
 	updateControlsGeometry();
 }
 
-void GroupMembers::resizeEvent(QResizeEvent *e) {
+void Members::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 }
 
-void GroupMembers::resizeToList() {
+void Members::resizeToList() {
 	if (!_list) {
 		return;
 	}
@@ -1898,7 +1913,7 @@ void GroupMembers::resizeToList() {
 	}
 }
 
-void GroupMembers::updateControlsGeometry() {
+void Members::updateControlsGeometry() {
 	if (!_list) {
 		return;
 	}
@@ -1912,7 +1927,7 @@ void GroupMembers::updateControlsGeometry() {
 	_list->resizeToWidth(width());
 }
 
-void GroupMembers::setupFakeRoundCorners() {
+void Members::setupFakeRoundCorners() {
 	const auto size = st::roundRadiusLarge;
 	const auto full = 3 * size;
 	const auto imagePartSize = size * cIntRetinaFactor();
@@ -1975,40 +1990,40 @@ void GroupMembers::setupFakeRoundCorners() {
 	}, lifetime());
 }
 
-void GroupMembers::peerListSetTitle(rpl::producer<QString> title) {
+void Members::peerListSetTitle(rpl::producer<QString> title) {
 }
 
-void GroupMembers::peerListSetAdditionalTitle(rpl::producer<QString> title) {
+void Members::peerListSetAdditionalTitle(rpl::producer<QString> title) {
 }
 
-void GroupMembers::peerListSetHideEmpty(bool hide) {
+void Members::peerListSetHideEmpty(bool hide) {
 }
 
-bool GroupMembers::peerListIsRowChecked(not_null<PeerListRow*> row) {
+bool Members::peerListIsRowChecked(not_null<PeerListRow*> row) {
 	return false;
 }
 
-void GroupMembers::peerListScrollToTop() {
+void Members::peerListScrollToTop() {
 }
 
-int GroupMembers::peerListSelectedRowsCount() {
+int Members::peerListSelectedRowsCount() {
 	return 0;
 }
 
-void GroupMembers::peerListAddSelectedPeerInBunch(not_null<PeerData*> peer) {
-	Unexpected("Item selection in Calls::GroupMembers.");
+void Members::peerListAddSelectedPeerInBunch(not_null<PeerData*> peer) {
+	Unexpected("Item selection in Calls::Members.");
 }
 
-void GroupMembers::peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) {
-	Unexpected("Item selection in Calls::GroupMembers.");
+void Members::peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) {
+	Unexpected("Item selection in Calls::Members.");
 }
 
-void GroupMembers::peerListFinishSelectedRowsBunch() {
+void Members::peerListFinishSelectedRowsBunch() {
 }
 
-void GroupMembers::peerListSetDescription(
+void Members::peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) {
 	description.destroy();
 }
 
-} // namespace Calls
+} // namespace Calls::Group

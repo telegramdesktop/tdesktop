@@ -387,9 +387,9 @@ QString FormatUpdateNotification(const QString &path, const Delta &delta) {
 	if (!delta.changed.empty()) {
 		result += qstr("-------- Modified --------\n\n");
 		for (const auto question : delta.changed) {
-			result += qsl("Q: %1\nA: %2\n\n"
-			).arg(question->question
-			).arg(question->value.trimmed());
+			result += qsl("Q: %1\nA: %2\n\n").arg(
+				question->question,
+				question->value.trimmed());
 		}
 	}
 	if (!delta.removed.empty()) {
@@ -734,7 +734,7 @@ auto Templates::query(const QString &text) const -> std::vector<Question> {
 		pairById
 	) | ranges::views::filter([](const Pair &pair) {
 		return pair.second > 0;
-	}) | ranges::to_vector | ranges::action::stable_sort(sorter);
+	}) | ranges::to_vector | ranges::actions::stable_sort(sorter);
 	return good | ranges::views::transform([&](const Pair &pair) {
 		return questionById(pair.first);
 	}) | ranges::views::take(kQueryLimit) | ranges::to_vector;

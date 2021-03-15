@@ -348,7 +348,7 @@ QImage TabbedPanel::grabForAnimation() {
 	_a_show = base::take(showAnimation);
 	_showAnimation = base::take(showAnimationData);
 	_a_opacity = base::take(opacityAnimation);
-	_cache = base::take(_cache);
+	_cache = base::take(cache);
 
 	return result;
 }
