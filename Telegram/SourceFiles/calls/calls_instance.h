@@ -26,12 +26,12 @@ class Session;
 
 namespace Calls::Group {
 struct JoinInfo;
+class Panel;
 } // namespace Calls::Group
 
 namespace Calls {
 
 class Panel;
-class GroupPanel;
 
 class Instance
 	: private Call::Delegate
@@ -146,7 +146,7 @@ private:
 
 	std::unique_ptr<GroupCall> _currentGroupCall;
 	rpl::event_stream<GroupCall*> _currentGroupCallChanges;
-	std::unique_ptr<GroupPanel> _currentGroupCallPanel;
+	std::unique_ptr<Group::Panel> _currentGroupCallPanel;
 
 	base::flat_map<QString, std::unique_ptr<Media::Audio::Track>> _tracks;
 
