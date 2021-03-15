@@ -366,7 +366,7 @@ void ShareBox::peopleDone(
 	auto query = _peopleQuery;
 
 	auto i = _peopleQueries.find(requestId);
-	if (i != _peopleQueries.cend()) {
+	if (i != _peopleQueries.end()) {
 		query = i.value();
 		_peopleCache[query] = result;
 		_peopleQueries.erase(i);

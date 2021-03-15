@@ -589,7 +589,7 @@ void Manager::start(Reader *reader) {
 void Manager::update(Reader *reader) {
 	QMutexLocker lock(&_readerPointersMutex);
 	auto i = _readerPointers.find(reader);
-	if (i == _readerPointers.cend()) {
+	if (i == _readerPointers.end()) {
 		_readerPointers.insert(reader, QAtomicInt(1));
 	} else {
 		i->storeRelease(1);
@@ -614,7 +614,7 @@ Manager::ReaderPointers::iterator Manager::unsafeFindReaderPointer(ReaderPrivate
 	ReaderPointers::iterator it = _readerPointers.find(reader->_interface);
 
 	// could be a new reader which was realloced in the same address
-	return (it == _readerPointers.cend() || it.key()->_private == reader) ? it : _readerPointers.end();
+	return (it == _readerPointers.end() || it.key()->_private == reader) ? it : _readerPointers.end();
 }
 
 Manager::ReaderPointers::const_iterator Manager::constUnsafeFindReaderPointer(ReaderPrivate *reader) const {
@@ -634,20 +634,20 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, c
 	QMutexLocker lock(&_readerPointersMutex);
 	auto it = unsafeFindReaderPointer(reader);
 	if (result == ProcessResult::Error) {
-		if (it != _readerPointers.cend()) {
+		if (it != _readerPointers.end()) {
 			it.key()->error();
 			callback(it.key(), NotificationReinit);
 			_readerPointers.erase(it);
 		}
 		return false;
 	} else if (result == ProcessResult::Finished) {
-		if (it != _readerPointers.cend()) {
+		if (it != _readerPointers.end()) {
 			it.key()->finished();
 			callback(it.key(), NotificationReinit);
 		}
 		return false;
 	}
-	if (it == _readerPointers.cend()) {
+	if (it == _readerPointers.end()) {
 		return false;
 	}
 
@@ -741,7 +741,7 @@ void Manager::process() {
 		for (auto it = _readerPointers.begin(), e = _readerPointers.end(); it != e; ++it) {
 			if (it->loadAcquire() && it.key()->_private != nullptr) {
 				auto i = _readers.find(it.key()->_private);
-				if (i == _readers.cend()) {
+				if (i == _readers.end()) {
 					_readers.insert(it.key()->_private, 0);
 				} else {
 					i.value() = ms;

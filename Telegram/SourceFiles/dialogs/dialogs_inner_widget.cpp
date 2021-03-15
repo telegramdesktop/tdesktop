@@ -2665,7 +2665,7 @@ bool InnerWidget::chooseHashtag() {
 	const auto &hashtag = _hashtagResults[_hashtagSelected];
 	if (_hashtagDeleteSelected) {
 		auto recent = cRecentSearchHashtags();
-		for (auto i = recent.begin(); i != recent.cend();) {
+		for (auto i = recent.begin(); i != recent.end();) {
 			if (i->first == hashtag->tag) {
 				i = recent.erase(i);
 			} else {

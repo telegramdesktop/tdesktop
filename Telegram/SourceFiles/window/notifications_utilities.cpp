@@ -47,7 +47,7 @@ QString CachedUserpics::get(
 		std::shared_ptr<Data::CloudImageView> &view) {
 	auto ms = crl::now();
 	auto i = _images.find(key);
-	if (i != _images.cend()) {
+	if (i != _images.end()) {
 		if (i->until) {
 			i->until = ms + kNotifyDeletePhotoAfterMs;
 			clearInMs(-kNotifyDeletePhotoAfterMs);

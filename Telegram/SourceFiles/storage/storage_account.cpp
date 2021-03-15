@@ -1368,7 +1368,7 @@ void Account::writeFileLocation(MediaKey location, const Core::FileLocation &loc
 		}
 
 		const auto i = _fileLocationPairs.find(local.fname);
-		if (i != _fileLocationPairs.cend()) {
+		if (i != _fileLocationPairs.end()) {
 			if (i.value().second == local) {
 				if (i.value().first != location) {
 					_fileLocationAliases.insert(location, i.value().first);

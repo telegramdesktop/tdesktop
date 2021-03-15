@@ -1068,7 +1068,7 @@ void FieldAutocomplete::Inner::mousePressEvent(QMouseEvent *e) {
 			if (_mrows->empty()) {
 				QString toRemove = _hrows->at(_sel);
 				RecentHashtagPack &recent(cRefRecentWriteHashtags());
-				for (RecentHashtagPack::iterator i = recent.begin(); i != recent.cend();) {
+				for (RecentHashtagPack::iterator i = recent.begin(); i != recent.end();) {
 					if (i->first == toRemove) {
 						i = recent.erase(i);
 						removed = true;

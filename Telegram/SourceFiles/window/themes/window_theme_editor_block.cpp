@@ -228,7 +228,7 @@ bool EditorBlock::feedCopy(const QString &name, const QString &copyOf) {
 
 void EditorBlock::removeRow(const QString &name, bool removeCopyReferences) {
 	auto it = _indices.find(name);
-	Assert(it != _indices.cend());
+	Assert(it != _indices.end());
 
 	auto index = it.value();
 	for (auto i = index + 1, count = static_cast<int>(_data.size()); i != count; ++i) {
@@ -266,7 +266,7 @@ void EditorBlock::removeFromSearch(const Row &row) {
 	auto index = findRowIndex(&row);
 	for_const (auto ch, row.searchStartChars()) {
 		auto it = _searchIndex.find(ch);
-		if (it != _searchIndex.cend()) {
+		if (it != _searchIndex.end()) {
 			it->remove(index);
 			if (it->isEmpty()) {
 				_searchIndex.erase(it);

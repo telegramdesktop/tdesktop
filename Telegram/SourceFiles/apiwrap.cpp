@@ -571,7 +571,7 @@ QVector<MTPInputMessage> ApiWrap::collectMessageIds(const MessageDataRequests &r
 ApiWrap::MessageDataRequests *ApiWrap::messageDataRequests(ChannelData *channel, bool onlyExisting) {
 	if (channel) {
 		auto i = _channelMessageDataRequests.find(channel);
-		if (i == _channelMessageDataRequests.cend()) {
+		if (i == _channelMessageDataRequests.end()) {
 			if (onlyExisting) {
 				return nullptr;
 			}
@@ -599,7 +599,7 @@ void ApiWrap::resolveMessageDatas() {
 			request.requestId = requestId;
 		}
 	}
-	for (auto j = _channelMessageDataRequests.begin(); j != _channelMessageDataRequests.cend();) {
+	for (auto j = _channelMessageDataRequests.begin(); j != _channelMessageDataRequests.end();) {
 		if (j->isEmpty()) {
 			j = _channelMessageDataRequests.erase(j);
 			continue;
@@ -661,7 +661,7 @@ void ApiWrap::finalizeMessageDataRequest(
 		mtpRequestId requestId) {
 	auto requests = messageDataRequests(channel, true);
 	if (requests) {
-		for (auto i = requests->begin(); i != requests->cend();) {
+		for (auto i = requests->begin(); i != requests->end();) {
 			if (i.value().requestId == requestId) {
 				for_const (auto &callback, i.value().callbacks) {
 					callback(channel, i.key());
@@ -1144,7 +1144,7 @@ void ApiWrap::gotChatFull(
 
 	if (req) {
 		const auto i = _fullPeerRequests.find(peer);
-		if (i != _fullPeerRequests.cend() && i.value() == req) {
+		if (i != _fullPeerRequests.end() && i.value() == req) {
 			_fullPeerRequests.erase(i);
 		}
 	}
@@ -1167,7 +1167,7 @@ void ApiWrap::gotUserFull(
 
 	if (req) {
 		const auto i = _fullPeerRequests.find(user);
-		if (i != _fullPeerRequests.cend() && i.value() == req) {
+		if (i != _fullPeerRequests.end() && i.value() == req) {
 			_fullPeerRequests.erase(i);
 		}
 	}
@@ -2605,7 +2605,7 @@ void ApiWrap::resolveWebPages() {
 
 	ids.reserve(_webPagesPending.size());
 	int32 t = base::unixtime::now(), m = INT_MAX;
-	for (auto i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
+	for (auto i = _webPagesPending.begin(); i != _webPagesPending.end(); ++i) {
 		if (i.value() > 0) continue;
 		if (i.key()->pendingTill <= t) {
 			const auto item = _session->data().findWebPageItem(i.key());
@@ -2852,7 +2852,7 @@ void ApiWrap::refreshFileReference(
 
 void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req) {
 	WebPageData::ApplyChanges(_session, channel, result);
-	for (auto i = _webPagesPending.begin(); i != _webPagesPending.cend();) {
+	for (auto i = _webPagesPending.begin(); i != _webPagesPending.end();) {
 		if (i.value() == req) {
 			if (i.key()->pendingTill > 0) {
 				i.key()->pendingTill = -1;
