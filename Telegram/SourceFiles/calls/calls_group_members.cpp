@@ -1206,7 +1206,7 @@ void MembersController::checkRowPosition(not_null<Row*> row) {
 	};
 	delegate()->peerListSortRows(_peer->canManageGroupCall()
 		? makeComparator(projForAdmin)
-		: makeComparator(projForOther));
+		: makeComparator(projForAdmin));
 }
 
 void MembersController::updateRow(
@@ -1426,8 +1426,10 @@ void MembersController::scheduleRaisedHandStatusRemove() {
 				static_cast<Row*>(row)->clearRaisedHandStatus();
 			}
 			i = _raisedHandStatusRemoveAt.erase(i);
-		} else if (!waiting || waiting > (i->second - now)) {
-			waiting = i->second - now;
+		} else {
+			if (!waiting || waiting > (i->second - now)) {
+				waiting = i->second - now;
+			}
 			++i;
 		}
 	}

@@ -476,7 +476,7 @@ void Panel::initControls() {
 		}
 	});
 
-	_settings->setText(tr::lng_menu_settings());
+	_settings->setText(tr::lng_group_call_settings());
 	_hangup->setText(tr::lng_group_call_leave());
 
 	_members->desiredHeightValue(
