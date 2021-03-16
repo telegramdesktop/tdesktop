@@ -488,10 +488,12 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				: result->nameOrPhone;
 
 			result->setName(fname, lname, pname, uname);
-			if (const auto photo = data.vphoto()) {
-				result->setPhoto(*photo);
-			} else {
-				result->setPhoto(MTP_userProfilePhotoEmpty());
+			if (!minimal || data.is_apply_min_photo()) {
+				if (const auto photo = data.vphoto()) {
+					result->setPhoto(*photo);
+				} else {
+					result->setPhoto(MTP_userProfilePhotoEmpty());
+				}
 			}
 			if (const auto accessHash = data.vaccess_hash()) {
 				result->setAccessHash(accessHash->v);
