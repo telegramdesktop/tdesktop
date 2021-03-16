@@ -240,15 +240,34 @@ void ChooseJoinAsProcess::start(
 		if (list.empty()) {
 			_request->showToast(Lang::Hard::ServerError());
 			return;
-		} else if (!changingJoinAsFrom
-			&& list.size() == 1
-			&& list.front() == self
+		}
+		info.joinAs = [&]() -> not_null<PeerData*> {
+			const auto loaded = selectedId
+				? session->data().peerLoaded(selectedId)
+				: nullptr;
+			return (changingJoinAsFrom
+				&& ranges::contains(list, not_null{ changingJoinAsFrom }))
+				? not_null(changingJoinAsFrom)
+				: (loaded && ranges::contains(list, not_null{ loaded }))
+				? not_null(loaded)
+				: ranges::contains(list, self)
+				? self
+				: list.front();
+		}();
+		info.possibleJoinAs = std::move(list);
+
+		const auto onlyByMe = (info.possibleJoinAs.size() == 1)
+			&& (info.possibleJoinAs.front() == self)
 			&& (!peer->isChannel()
 				|| !peer->asChannel()->amAnonymous()
-				|| (peer->isBroadcast() && !peer->canWrite()))) {
-			info.possibleJoinAs = std::move(list);
-			if (context != Context::JoinWithConfirm
-				|| (selectedId && self->id == selectedId)) {
+				|| (peer->isBroadcast() && !peer->canWrite()));
+
+		// We already joined this voice chat, just rejoin with the same.
+		const auto byAlreadyUsed = selectedId
+			&& (info.joinAs->id == selectedId);
+
+		if (!changingJoinAsFrom && (onlyByMe || byAlreadyUsed)) {
+			if (context != Context::JoinWithConfirm) {
 				finish(info);
 				return;
 			}
@@ -271,28 +290,6 @@ void ChooseJoinAsProcess::start(
 
 			_request->box = box.data();
 			_request->showBox(std::move(box));
-			return;
-		}
-		info.joinAs = [&]() -> not_null<PeerData*> {
-			const auto loaded = selectedId
-				? session->data().peerLoaded(selectedId)
-				: nullptr;
-			return (changingJoinAsFrom
-				&& ranges::contains(list, not_null{ changingJoinAsFrom }))
-				? not_null(changingJoinAsFrom)
-				: (loaded && ranges::contains(list, not_null{ loaded }))
-				? not_null(loaded)
-				: ranges::contains(list, self)
-				? self
-				: list.front();
-		}();
-		info.possibleJoinAs = std::move(list);
-
-		if (!changingJoinAsFrom
-			&& selectedId
-			&& info.joinAs->id == selectedId) {
-			// We already joined this voice chat, just rejoin with the same.
-			finish(info);
 			return;
 		}
 		auto box = Box(
