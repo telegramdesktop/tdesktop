@@ -14,6 +14,7 @@ namespace Ui {
 struct MultilineToastArgs {
 	TextWithEntities text;
 	crl::time duration = 0;
+	QWidget *parentOverride = nullptr;
 };
 
 void ShowMultilineToast(MultilineToastArgs &&args);

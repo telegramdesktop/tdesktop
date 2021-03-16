@@ -117,7 +117,16 @@ std::map<int, const char*> BetaLogs() {
 	{
 		2006002,
 		"- Fix text disappearing because of cloud drafts sync.\n"
-	}
+	},
+	{
+		2006003,
+		"- Fix audio device selection in voice chats.\n"
+
+		"- Fix blinking self profile photo "
+		"in case the profile photo privacy is used.\n"
+
+		"- Fix voice chat admin menu on macOS.\n"
+	},
 	};
 };
 

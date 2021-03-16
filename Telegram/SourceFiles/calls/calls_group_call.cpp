@@ -428,6 +428,11 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 	LOG(("Call Info: Requesting join payload."));
 
 	_joinAs = as;
+	if (const auto chat = _peer->asChat()) {
+		chat->setGroupCallDefaultJoinAs(_joinAs->id);
+	} else if (const auto channel = _peer->asChannel()) {
+		channel->setGroupCallDefaultJoinAs(_joinAs->id);
+	}
 
 	const auto weak = base::make_weak(this);
 	_instance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
@@ -902,18 +907,22 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 				handleOtherParticipants(data);
 				return;
 			}
-			if (data.is_left() && data.vsource().v == _mySsrc) {
-				// I was removed from the call, rejoin.
-				LOG(("Call Info: Rejoin after got 'left' with my ssrc."));
-				setState(State::Joining);
-				rejoin();
-			} else if (!data.is_left() && data.vsource().v != _mySsrc) {
+			if (data.is_left()) {
+				if (data.vsource().v == _mySsrc) {
+					// I was removed from the call, rejoin.
+					LOG(("Call Info: Rejoin after got 'left' with my ssrc."));
+					setState(State::Joining);
+					rejoin();
+				}
+				return;
+			} else if (data.vsource().v != _mySsrc) {
 				// I joined from another device, hangup.
 				LOG(("Call Info: Hangup after '!left' with ssrc %1, my %2."
 					).arg(data.vsource().v
 					).arg(_mySsrc));
 				_mySsrc = 0;
 				hangup();
+				return;
 			}
 			if (data.is_muted() && !data.is_can_self_unmute()) {
 				setMuted(data.vraise_hand_rating().value_or_empty()
@@ -942,12 +951,12 @@ void GroupCall::changeTitle(const QString &title) {
 		return;
 	}
 
-	real->setTitle(title);
 	_api.request(MTPphone_EditGroupCallTitle(
 		inputCall(),
 		MTP_string(title)
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
+		_titleChanged.fire({});
 	}).fail([=](const MTP::Error &error) {
 	}).send();
 }
@@ -1388,11 +1397,6 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 			rejoin();
 		}
 	}).send();
-}
-
-auto GroupCall::instanceStateValue() const -> rpl::producer<InstanceState> {
-	using namespace rpl::mappers;
-	return _instanceState.value();
 }
 
 void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {

@@ -65,8 +65,11 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 
 void Instance::startOrJoinGroupCall(
 		not_null<PeerData*> peer,
-		const QString &joinHash) {
-	const auto context = peer->groupCall()
+		const QString &joinHash,
+		bool confirmNeeded) {
+	const auto context = confirmNeeded
+		? Group::ChooseJoinAsProcess::Context::JoinWithConfirm
+		: peer->groupCall()
 		? Group::ChooseJoinAsProcess::Context::Join
 		: Group::ChooseJoinAsProcess::Context::Create;
 	_chooseJoinAs.start(peer, context, [=](object_ptr<Ui::BoxContent> box) {

@@ -531,8 +531,8 @@ void SettingsBox(
 		&& peer->asChannel()->hasUsername()
 		&& goodReal) {
 		const auto showBox = crl::guard(box, [=](
-				object_ptr<Ui::BoxContent> box) {
-			box->getDelegate()->show(std::move(box));
+				object_ptr<Ui::BoxContent> next) {
+			box->getDelegate()->show(std::move(next));
 		});
 		const auto showToast = crl::guard(box, [=](QString text) {
 			Ui::Toast::Show(

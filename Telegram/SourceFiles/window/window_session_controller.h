@@ -298,10 +298,15 @@ public:
 	void resizeForThirdSection();
 	void closeThirdSection();
 
+	enum class GroupCallJoinConfirm {
+		None,
+		IfNowInAnother,
+		Always,
+	};
 	void startOrJoinGroupCall(
 		not_null<PeerData*> peer,
 		QString joinHash = QString(),
-		bool confirmedLeaveOther = false);
+		GroupCallJoinConfirm confirm = GroupCallJoinConfirm::IfNowInAnother);
 
 	void showSection(
 		std::shared_ptr<SectionMemento> memento,

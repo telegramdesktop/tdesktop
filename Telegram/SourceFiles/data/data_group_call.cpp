@@ -212,6 +212,22 @@ void GroupCall::applyCall(const MTPGroupCall &call, bool force) {
 	});
 }
 
+void GroupCall::processFullCall(const MTPphone_GroupCall &call) {
+	call.match([&](const MTPDphone_groupCall &data) {
+		_peer->owner().processUsers(data.vusers());
+		_peer->owner().processChats(data.vchats());
+		_participants.clear();
+		_speakingByActiveFinishes.clear();
+		_participantPeerBySsrc.clear();
+		applyParticipantsSlice(
+			data.vparticipants().v,
+			ApplySliceSource::SliceLoaded);
+		applyCall(data.vcall(), true);
+		_allReceived = (_fullCount.current() == _participants.size());
+		_participantsSliceAdded.fire({});
+	});
+}
+
 void GroupCall::reload() {
 	if (_reloadRequestId) {
 		return;
@@ -222,19 +238,7 @@ void GroupCall::reload() {
 	_reloadRequestId = api().request(
 		MTPphone_GetGroupCall(input())
 	).done([=](const MTPphone_GroupCall &result) {
-		result.match([&](const MTPDphone_groupCall &data) {
-			_peer->owner().processUsers(data.vusers());
-			_peer->owner().processChats(data.vchats());
-			_participants.clear();
-			_speakingByActiveFinishes.clear();
-			_participantPeerBySsrc.clear();
-			applyParticipantsSlice(
-				data.vparticipants().v,
-				ApplySliceSource::SliceLoaded);
-			applyCall(data.vcall(), true);
-			_allReceived = (_fullCount.current() == _participants.size());
-			_participantsSliceAdded.fire({});
-		});
+		processFullCall(result);
 		_reloadRequestId = 0;
 	}).fail([=](const MTP::Error &error) {
 		_reloadRequestId = 0;

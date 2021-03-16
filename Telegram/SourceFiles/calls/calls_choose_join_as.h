@@ -28,6 +28,7 @@ public:
 	enum class Context {
 		Create,
 		Join,
+		JoinWithConfirm,
 		Switch,
 	};
 
@@ -37,7 +38,7 @@ public:
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
 		Fn<void(QString)> showToast,
 		Fn<void(JoinInfo)> done,
-		PeerData *currentJoinAs = nullptr);
+		PeerData *changingJoinAsFrom = nullptr);
 
 private:
 	struct ChannelsListRequest {

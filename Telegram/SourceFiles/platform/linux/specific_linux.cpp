@@ -465,7 +465,7 @@ std::optional<bool> IsDarkMode() {
 
 	if (!themeName.has_value()) {
 		return std::nullopt;
-	} else if (themeName->toLower().contains(qsl("-dark"))) {
+	} else if (themeName->contains(qsl("-dark"), Qt::CaseInsensitive)) {
 		return true;
 	}
 

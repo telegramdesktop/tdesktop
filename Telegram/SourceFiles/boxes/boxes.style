@@ -111,7 +111,7 @@ confirmInviteUserName: FlatLabel(defaultFlatLabel) {
 confirmInviteUserNameTop: 227px;
 
 confirmPhoneAboutLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 282px;
+	minWidth: 272px;
 }
 confirmPhoneCodeField: InputField(defaultInputField) {
 }

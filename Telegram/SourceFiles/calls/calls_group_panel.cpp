@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/special_buttons.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::Value.
 #include "core/application.h"
@@ -53,6 +54,8 @@ namespace Calls::Group {
 namespace {
 
 constexpr auto kSpacePushToTalkDelay = crl::time(250);
+constexpr auto kRecordingAnimationDuration = crl::time(1200);
+constexpr auto kRecordingOpacity = 0.6;
 
 class InviteController final : public ParticipantsBoxController {
 public:
@@ -282,6 +285,8 @@ Panel::Panel(not_null<GroupCall*> call)
 	initControls();
 	initLayout();
 	showAndActivate();
+	setupJoinAsChangedToasts();
+	setupTitleChangedToasts();
 
 	call->allowedToSpeakNotifications(
 	) | rpl::start_with_next([=] {
@@ -300,8 +305,8 @@ Panel::Panel(not_null<GroupCall*> call)
 				.text = tr::lng_group_call_can_speak(
 					tr::now,
 					lt_chat,
-					Ui::Text::WithEntities(name),
-					Ui::Text::RichLangValue),
+					Ui::Text::Bold(name),
+					Ui::Text::WithEntities),
 				.st = &st::defaultToast,
 			});
 		}
@@ -406,7 +411,11 @@ void Panel::initWindow() {
 			0,
 			widget()->width(),
 			st::groupCallMembersTop);
-		return titleRect.contains(widgetPoint)
+		return (titleRect.contains(widgetPoint)
+			&& (!_menuToggle || !_menuToggle->geometry().contains(widgetPoint))
+			&& (!_menu || !_menu->geometry().contains(widgetPoint))
+			&& (!_recordingMark || !_recordingMark->geometry().contains(widgetPoint))
+			&& (!_joinAsToggle || !_joinAsToggle->geometry().contains(widgetPoint)))
 			? (Flag::Move | Flag::Maximize)
 			: Flag::None;
 	});
@@ -591,6 +600,46 @@ void Panel::initWithCall(GroupCall *call) {
 	}, _callLifetime);
 }
 
+void Panel::setupJoinAsChangedToasts() {
+	_call->rejoinEvents(
+	) | rpl::filter([](RejoinEvent event) {
+		return (event.wasJoinAs != event.nowJoinAs);
+	}) | rpl::map([=] {
+		return _call->stateValue() | rpl::filter([](State state) {
+			return (state == State::Joined);
+		}) | rpl::take(1);
+	}) | rpl::flatten_latest() | rpl::start_with_next([=] {
+		Ui::ShowMultilineToast(Ui::MultilineToastArgs{
+			.text = tr::lng_group_call_join_as_changed(
+				tr::now,
+				lt_name,
+				Ui::Text::Bold(_call->joinAs()->name),
+				Ui::Text::WithEntities),
+			.parentOverride = widget(),
+		});
+	}, widget()->lifetime());
+}
+
+void Panel::setupTitleChangedToasts() {
+	_call->titleChanged(
+	) | rpl::filter([=] {
+		return _peer->groupCall() && _peer->groupCall()->id() == _call->id();
+	}) | rpl::map([=] {
+		return _peer->groupCall()->title().isEmpty()
+			? _peer->name
+			: _peer->groupCall()->title();
+	}) | rpl::start_with_next([=](const QString &title) {
+		Ui::ShowMultilineToast(Ui::MultilineToastArgs{
+			.text = tr::lng_group_call_title_changed(
+				tr::now,
+				lt_title,
+				Ui::Text::Bold(title),
+				Ui::Text::WithEntities),
+			.parentOverride = widget(),
+		});
+	}, widget()->lifetime());
+}
+
 void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	_titleText = real->titleValue();
 
@@ -598,8 +647,14 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 		if (!recording && _recordingMark) {
 			_recordingMark.destroy();
 		} else if (recording && !_recordingMark) {
+			struct State {
+				Ui::Animations::Simple animation;
+				base::Timer timer;
+				bool opaque = true;
+			};
 			_recordingMark.create(widget());
 			_recordingMark->show();
+			const auto state = _recordingMark->lifetime().make_state<State>();
 			const auto size = st::groupCallRecordingMark;
 			const auto skip = st::groupCallRecordingMarkSkip;
 			_recordingMark->resize(size + 2 * skip, size + 2 * skip);
@@ -608,12 +663,27 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 					widget(),
 					tr::lng_group_call_is_recorded(tr::now));
 			});
+			const auto animate = [=] {
+				const auto opaque = state->opaque;
+				state->opaque = !opaque;
+				state->animation.start(
+					[=] { _recordingMark->update(); },
+					opaque ? 1. : kRecordingOpacity,
+					opaque ? kRecordingOpacity : 1.,
+					kRecordingAnimationDuration);
+			};
+			state->timer.setCallback(animate);
+			state->timer.callEach(kRecordingAnimationDuration);
+			animate();
+
 			_recordingMark->paintRequest(
 			) | rpl::start_with_next([=] {
 				auto p = QPainter(_recordingMark.data());
 				auto hq = PainterHighQualityEnabler(p);
 				p.setPen(Qt::NoPen);
 				p.setBrush(st::groupCallMemberMutedIcon);
+				p.setOpacity(state->animation.value(
+					state->opaque ? 1. : kRecordingOpacity));
 				p.drawEllipse(skip, skip, size, size);
 			}, _recordingMark->lifetime());
 		}
@@ -665,6 +735,7 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 			_joinAsToggle->setClickedCallback([=] {
 				chooseJoinAs();
 			});
+			updateControlsGeometry();
 		}, widget()->lifetime());
 	} else {
 		_menuToggle.destroy();

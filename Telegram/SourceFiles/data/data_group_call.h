@@ -99,6 +99,7 @@ public:
 
 	void setInCall();
 	void reload();
+	void processFullCall(const MTPphone_GroupCall &call);
 
 	void setJoinMutedLocally(bool muted);
 	[[nodiscard]] bool joinMuted() const;
