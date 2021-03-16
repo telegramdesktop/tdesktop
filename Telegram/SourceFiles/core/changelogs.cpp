@@ -130,6 +130,8 @@ std::map<int, const char*> BetaLogs() {
 	{
 		2006004,
 		"- Fix freeze in voice chats.\n"
+
+		"- Make default interface scale 110% on macOS Retina screens.\n"
 	},
 	};
 };

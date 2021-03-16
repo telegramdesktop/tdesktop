@@ -210,7 +210,7 @@ void Sandbox::setupScreenScale() {
 		}
 		style::SetDevicePixelRatio(int(ratio));
 		if (Platform::IsMac() && ratio == 2.) {
-			cSetScreenScale(120); // 120% for Retina screens by default.
+			cSetScreenScale(110); // 110% for Retina screens by default.
 		} else {
 			cSetScreenScale(style::kScaleDefault);
 		}
