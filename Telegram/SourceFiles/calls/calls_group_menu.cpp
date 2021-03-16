@@ -31,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls::Group {
 namespace {
 
+constexpr auto kMaxGroupCallLength = 40;
+
 void EditGroupCallTitleBox(
 		not_null<Ui::GenericBox*> box,
 		const QString &placeholder,
@@ -42,6 +44,7 @@ void EditGroupCallTitleBox(
 		st::groupCallField,
 		rpl::single(placeholder),
 		title));
+	input->setMaxLength(kMaxGroupCallLength);
 	box->setFocusCallback([=] {
 		input->setFocusFast();
 	});
