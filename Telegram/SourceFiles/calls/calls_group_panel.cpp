@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/special_buttons.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::Value.
 #include "core/application.h"
@@ -284,6 +285,8 @@ Panel::Panel(not_null<GroupCall*> call)
 	initControls();
 	initLayout();
 	showAndActivate();
+	setupJoinAsChangedToasts();
+	setupTitleChangedToasts();
 
 	call->allowedToSpeakNotifications(
 	) | rpl::start_with_next([=] {
@@ -595,6 +598,46 @@ void Panel::initWithCall(GroupCall *call) {
 				: Ui::CallMuteButtonType::Active),
 		});
 	}, _callLifetime);
+}
+
+void Panel::setupJoinAsChangedToasts() {
+	_call->rejoinEvents(
+	) | rpl::filter([](RejoinEvent event) {
+		return (event.wasJoinAs != event.nowJoinAs);
+	}) | rpl::map([=] {
+		return _call->stateValue() | rpl::filter([](State state) {
+			return (state == State::Joined);
+		}) | rpl::take(1);
+	}) | rpl::flatten_latest() | rpl::start_with_next([=] {
+		Ui::ShowMultilineToast({
+			.parentOverride = widget(),
+			.text = tr::lng_group_call_join_as_changed(
+				tr::now,
+				lt_name,
+				Ui::Text::Bold(_call->joinAs()->name),
+				Ui::Text::WithEntities),
+		});
+	}, widget()->lifetime());
+}
+
+void Panel::setupTitleChangedToasts() {
+	_call->titleChanged(
+	) | rpl::filter([=] {
+		return _peer->groupCall() && _peer->groupCall()->id() == _call->id();
+	}) | rpl::map([=] {
+		return _peer->groupCall()->title().isEmpty()
+			? _peer->name
+			: _peer->groupCall()->title();
+	}) | rpl::start_with_next([=](const QString &title) {
+		Ui::ShowMultilineToast({
+			.parentOverride = widget(),
+			.text = tr::lng_group_call_title_changed(
+				tr::now,
+				lt_title,
+				Ui::Text::Bold(title),
+				Ui::Text::WithEntities),
+		});
+	}, widget()->lifetime());
 }
 
 void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
