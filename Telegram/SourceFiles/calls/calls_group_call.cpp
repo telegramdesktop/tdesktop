@@ -890,18 +890,22 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 				handleOtherParticipants(data);
 				return;
 			}
-			if (data.is_left() && data.vsource().v == _mySsrc) {
-				// I was removed from the call, rejoin.
-				LOG(("Call Info: Rejoin after got 'left' with my ssrc."));
-				setState(State::Joining);
-				rejoin();
-			} else if (!data.is_left() && data.vsource().v != _mySsrc) {
+			if (data.is_left()) {
+				if (data.vsource().v == _mySsrc) {
+					// I was removed from the call, rejoin.
+					LOG(("Call Info: Rejoin after got 'left' with my ssrc."));
+					setState(State::Joining);
+					rejoin();
+				}
+				return;
+			} else if (data.vsource().v != _mySsrc) {
 				// I joined from another device, hangup.
 				LOG(("Call Info: Hangup after '!left' with ssrc %1, my %2."
 					).arg(data.vsource().v
 					).arg(_mySsrc));
 				_mySsrc = 0;
 				hangup();
+				return;
 			}
 			if (data.is_muted() && !data.is_can_self_unmute()) {
 				setMuted(data.vraise_hand_rating().value_or_empty()
