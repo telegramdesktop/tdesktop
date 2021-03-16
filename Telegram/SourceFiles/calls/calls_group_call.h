@@ -158,7 +158,12 @@ public:
 		TransitionToRtc,
 		Connected,
 	};
-	[[nodiscard]] rpl::producer<InstanceState> instanceStateValue() const;
+	[[nodiscard]] InstanceState instanceState() const {
+		return _instanceState.current();
+	}
+	[[nodiscard]] rpl::producer<InstanceState> instanceStateValue() const {
+		return _instanceState.value();
+	}
 
 	[[nodiscard]] rpl::producer<LevelUpdate> levelUpdates() const {
 		return _levelUpdates.events();
@@ -168,6 +173,9 @@ public:
 	}
 	[[nodiscard]] rpl::producer<> allowedToSpeakNotifications() const {
 		return _allowedToSpeakNotifications.events();
+	}
+	[[nodiscard]] rpl::producer<> titleChanged() const {
+		return _titleChanged.events();
 	}
 	static constexpr auto kSpeakLevelThreshold = 0.2;
 
@@ -304,6 +312,7 @@ private:
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
 	rpl::event_stream<> _allowedToSpeakNotifications;
+	rpl::event_stream<> _titleChanged;
 	base::Timer _lastSpokeCheckTimer;
 	base::Timer _checkJoinedTimer;
 

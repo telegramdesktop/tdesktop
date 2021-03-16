@@ -76,6 +76,8 @@ private:
 	void initWithCall(GroupCall *call);
 	void initLayout();
 	void initGeometry();
+	void setupJoinAsChangedToasts();
+	void setupTitleChangedToasts();
 
 	bool handleClose();
 

@@ -930,12 +930,12 @@ void GroupCall::changeTitle(const QString &title) {
 		return;
 	}
 
-	real->setTitle(title);
 	_api.request(MTPphone_EditGroupCallTitle(
 		inputCall(),
 		MTP_string(title)
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
+		_titleChanged.fire({});
 	}).fail([=](const MTP::Error &error) {
 	}).send();
 }
@@ -1372,11 +1372,6 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 			rejoin();
 		}
 	}).send();
-}
-
-auto GroupCall::instanceStateValue() const -> rpl::producer<InstanceState> {
-	using namespace rpl::mappers;
-	return _instanceState.value();
 }
 
 void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {

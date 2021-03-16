@@ -2013,6 +2013,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_is_recorded" = "Voice chat is being recorded.";
 "lng_group_call_can_speak_here" = "You can now speak.";
 "lng_group_call_can_speak" = "You can now speak in {chat}.";
+"lng_group_call_title_changed" = "Voice chat title changed to {title}";
+"lng_group_call_join_as_changed" = "Members of this voice chat will now see you as {name}";
 
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 
