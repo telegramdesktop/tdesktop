@@ -223,10 +223,12 @@ UserpicButton::UserpicButton(
 , _peer(peer)
 , _cropTitle(CropTitle(_peer))
 , _role(role) {
-	Expects(_role != Role::OpenProfile);
+	Expects(_role != Role::OpenProfile && _role != Role::OpenPhoto);
 
 	_waiting = false;
+	processPeerPhoto();
 	prepare();
+	setupPeerViewers();
 }
 
 void UserpicButton::prepare() {
@@ -432,8 +434,10 @@ void UserpicButton::paintUserpicFrame(Painter &p, QPoint photoPosition) {
 	if (_streamed
 		&& _streamed->player().ready()
 		&& !_streamed->player().videoSize().isEmpty()) {
-		const auto paused = _controller->isGifPausedAtLeastFor(
-			Window::GifPauseReason::RoundPlaying);
+		const auto paused = _controller
+			? _controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::RoundPlaying)
+			: false;
 		auto request = Media::Streaming::FrameRequest();
 		auto size = QSize{ _st.photoSize, _st.photoSize };
 		request.outer = size * cIntRetinaFactor();

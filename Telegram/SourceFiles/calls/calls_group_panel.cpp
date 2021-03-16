@@ -735,6 +735,7 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 			_joinAsToggle->setClickedCallback([=] {
 				chooseJoinAs();
 			});
+			updateControlsGeometry();
 		}, widget()->lifetime());
 	} else {
 		_menuToggle.destroy();
