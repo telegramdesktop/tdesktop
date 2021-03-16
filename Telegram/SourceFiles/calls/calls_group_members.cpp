@@ -47,6 +47,7 @@ constexpr auto kMinorBlobFactor = 0.9f;
 constexpr auto kUserpicMinScale = 0.8;
 constexpr auto kMaxLevel = 1.;
 constexpr auto kWideScale = 5;
+constexpr auto kKeepRaisedHandStatusDuration = 3 * crl::time(1000);
 
 const auto kSpeakerThreshold = std::vector<float>{
 	Group::kDefaultVolume * 0.1f / Group::kMaxVolume,
@@ -89,6 +90,7 @@ public:
 	virtual bool rowIsMe(not_null<PeerData*> participantPeer) = 0;
 	virtual bool rowCanMuteMembers() = 0;
 	virtual void rowUpdateRow(not_null<Row*> row) = 0;
+	virtual void rowScheduleRaisedHandStatusRemove(not_null<Row*> row) = 0;
 	virtual void rowPaintIcon(
 		Painter &p,
 		QRect rect,
@@ -115,6 +117,7 @@ public:
 	void updateState(const Data::GroupCall::Participant *participant);
 	void updateLevel(float level);
 	void updateBlobAnimation(crl::time now);
+	void clearRaisedHandStatus();
 	[[nodiscard]] State state() const {
 		return _state;
 	}
@@ -254,6 +257,7 @@ private:
 	int _volume = Group::kDefaultVolume;
 	bool _sounding = false;
 	bool _speaking = false;
+	bool _raisedHandStatus = false;
 	bool _skipLevelUpdate = false;
 
 };
@@ -291,6 +295,7 @@ public:
 	bool rowIsMe(not_null<PeerData*> participantPeer) override;
 	bool rowCanMuteMembers() override;
 	void rowUpdateRow(not_null<Row*> row) override;
+	void rowScheduleRaisedHandStatusRemove(not_null<Row*> row) override;
 	void rowPaintIcon(
 		Painter &p,
 		QRect rect,
@@ -335,6 +340,7 @@ private:
 
 	[[nodiscard]] Data::GroupCall *resolvedRealCall() const;
 	void appendInvitedUsers();
+	void scheduleRaisedHandStatusRemove();
 
 	const base::weak_ptr<GroupCall> _call;
 	not_null<PeerData*> _peer;
@@ -354,6 +360,9 @@ private:
 	not_null<QWidget*> _menuParent;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	base::flat_set<not_null<PeerData*>> _menuCheckRowsAfterHidden;
+
+	base::flat_map<PeerListRowId, crl::time> _raisedHandStatusRemoveAt;
+	base::Timer _raisedHandStatusRemoveTimer;
 
 	base::flat_map<uint32, not_null<Row*>> _soundingRowBySsrc;
 	Ui::Animations::Basic _soundingAnimation;
@@ -479,6 +488,15 @@ void Row::setSounding(bool sounding) {
 	}
 }
 
+void Row::clearRaisedHandStatus() {
+	if (!_raisedHandStatus) {
+		return;
+	}
+	_raisedHandStatus = false;
+	refreshStatus();
+	_delegate->rowUpdateRow(this);
+}
+
 void Row::setState(State state) {
 	if (_state == state) {
 		return;
@@ -486,10 +504,16 @@ void Row::setState(State state) {
 	const auto wasActive = (_state == State::Active);
 	const auto wasMuted = (_state == State::Muted)
 		|| (_state == State::RaisedHand);
+	const auto wasRaisedHand = (_state == State::RaisedHand);
 	_state = state;
 	const auto nowActive = (_state == State::Active);
 	const auto nowMuted = (_state == State::Muted)
 		|| (_state == State::RaisedHand);
+	const auto nowRaisedHand = (_state == State::RaisedHand);
+	if (!wasRaisedHand && nowRaisedHand) {
+		_raisedHandStatus = true;
+		_delegate->rowScheduleRaisedHandStatusRemove(this);
+	}
 	if (nowActive != wasActive) {
 		_activeAnimation.start(
 			[=] { _delegate->rowUpdateRow(this); },
@@ -710,10 +734,10 @@ void Row::paintStatusText(
 	const auto &font = st::normalFont;
 	const auto about = (_state == State::Inactive
 		|| _state == State::Muted
-		|| _state == State::RaisedHand)
+		|| (_state == State::RaisedHand && !_raisedHandStatus))
 		? _aboutText
 		: QString();
-	if (_aboutText.isEmpty()
+	if (about.isEmpty()
 		&& _state != State::Invited
 		&& _state != State::MutedByMe) {
 		p.save();
@@ -743,8 +767,8 @@ void Row::paintStatusText(
 		outerWidth,
 		(_state == State::MutedByMe
 			? tr::lng_group_call_muted_by_me_status(tr::now)
-			: !_aboutText.isEmpty()
-			? font->m.elidedText(_aboutText, Qt::ElideRight, availableWidth)
+			: !about.isEmpty()
+			? font->m.elidedText(about, Qt::ElideRight, availableWidth)
 			: _delegate->rowIsMe(peer())
 			? tr::lng_status_connecting(tr::now)
 			: tr::lng_group_call_invited_status(tr::now)));
@@ -802,7 +826,7 @@ void Row::refreshStatus() {
 			? u"%1% %2"_q
 				.arg(std::round(_volume / 100.))
 				.arg(tr::lng_group_call_active(tr::now))
-			: (_state == State::RaisedHand)
+			: _raisedHandStatus
 			? tr::lng_group_call_raised_hand_status(tr::now)
 			: tr::lng_group_call_inactive(tr::now)),
 		_speaking);
@@ -833,6 +857,7 @@ MembersController::MembersController(
 : _call(call)
 , _peer(call->peer())
 , _menuParent(menuParent)
+, _raisedHandStatusRemoveTimer([=] { scheduleRaisedHandStatusRemove(); })
 , _inactiveCrossLine(st::groupCallMemberInactiveCrossLine)
 , _coloredCrossLine(st::groupCallMemberColoredCrossLine) {
 	setupListChangeViewers(call);
@@ -1376,6 +1401,42 @@ bool MembersController::rowCanMuteMembers() {
 
 void MembersController::rowUpdateRow(not_null<Row*> row) {
 	delegate()->peerListUpdateRow(row);
+}
+
+void MembersController::rowScheduleRaisedHandStatusRemove(
+		not_null<Row*> row) {
+	const auto id = row->peer()->id;
+	const auto when = crl::now() + kKeepRaisedHandStatusDuration;
+	const auto i = _raisedHandStatusRemoveAt.find(id);
+	if (i != _raisedHandStatusRemoveAt.end()) {
+		i->second = when;
+	} else {
+		_raisedHandStatusRemoveAt.emplace(id, when);
+	}
+	scheduleRaisedHandStatusRemove();
+}
+
+void MembersController::scheduleRaisedHandStatusRemove() {
+	auto waiting = crl::time(0);
+	const auto now = crl::now();
+	for (auto i = begin(_raisedHandStatusRemoveAt)
+		; i != end(_raisedHandStatusRemoveAt);) {
+		if (i->second <= now) {
+			if (const auto row = delegate()->peerListFindRow(i->first)) {
+				static_cast<Row*>(row)->clearRaisedHandStatus();
+			}
+			i = _raisedHandStatusRemoveAt.erase(i);
+		} else if (!waiting || waiting > (i->second - now)) {
+			waiting = i->second - now;
+			++i;
+		}
+	}
+	if (waiting > 0) {
+		if (!_raisedHandStatusRemoveTimer.isActive()
+			|| _raisedHandStatusRemoveTimer.remainingTime() > waiting) {
+			_raisedHandStatusRemoveTimer.callOnce(waiting);
+		}
+	}
 }
 
 void MembersController::rowPaintIcon(
