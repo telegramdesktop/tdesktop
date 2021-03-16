@@ -127,6 +127,10 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Fix voice chat admin menu on macOS.\n"
 	},
+	{
+		2006004,
+		"- Fix freeze in voice chats.\n"
+	},
 	};
 };
 

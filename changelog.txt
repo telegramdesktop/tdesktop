@@ -1,3 +1,7 @@
+2.6.4 beta (16.03.21)
+
+- Fix freeze in voice chats.
+
 2.6.3 beta (16.03.21)
 
 - Fix audio device selection in voice chats.
