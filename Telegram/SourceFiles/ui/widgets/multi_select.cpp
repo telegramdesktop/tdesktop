@@ -277,7 +277,7 @@ bool MultiSelect::eventFilter(QObject *o, QEvent *e) {
 		e->ignore();
 		return true;
 	}
-	return false;
+	return RpWidget::eventFilter(o, e);
 }
 
 void MultiSelect::scrollTo(int activeTop, int activeBottom) {

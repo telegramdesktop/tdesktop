@@ -415,7 +415,7 @@ bool TabbedPanel::eventFilter(QObject *obj, QEvent *e) {
 	} else if (e->type() == QEvent::Leave) {
 		otherLeave();
 	}
-	return false;
+	return Ui::RpWidget::eventFilter(obj, e);
 }
 
 void TabbedPanel::showFromSelector() {

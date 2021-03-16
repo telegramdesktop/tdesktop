@@ -1033,7 +1033,7 @@ bool Notification::eventFilter(QObject *o, QEvent *e) {
 			}
 		}
 	}
-	return false;
+	return Widget::eventFilter(o, e);
 }
 
 void Notification::stopHiding() {

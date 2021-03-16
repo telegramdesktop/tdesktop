@@ -440,7 +440,7 @@ bool FilterIconPanel::eventFilter(QObject *obj, QEvent *e) {
 	} else if (e->type() == QEvent::Leave) {
 		otherLeave();
 	}
-	return false;
+	return RpWidget::eventFilter(obj, e);
 }
 
 style::margins FilterIconPanel::innerPadding() const {
