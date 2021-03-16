@@ -45,7 +45,8 @@ public:
 	void startOutgoingCall(not_null<UserData*> user, bool video);
 	void startOrJoinGroupCall(
 		not_null<PeerData*> peer,
-		const QString &joinHash = QString());
+		const QString &joinHash = QString(),
+		bool confirmNeeded = false);
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);

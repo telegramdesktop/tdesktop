@@ -302,8 +302,8 @@ Panel::Panel(not_null<GroupCall*> call)
 				.text = tr::lng_group_call_can_speak(
 					tr::now,
 					lt_chat,
-					Ui::Text::WithEntities(name),
-					Ui::Text::RichLangValue),
+					Ui::Text::Bold(name),
+					Ui::Text::WithEntities),
 				.st = &st::defaultToast,
 			});
 		}
