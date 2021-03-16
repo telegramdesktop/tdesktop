@@ -1329,9 +1329,9 @@ void GroupCall::setInstanceConnected(
 	}
 	if (nowCanSpeak) {
 		notifyAboutAllowedToSpeak();
-	}
-	if (cAutoUnmute() && _instanceState.current() == InstanceState::Connected) {
-		setMutedAndUpdate(MuteState::Active);
+		if (cAutoUnmute() && _instanceState.current() == InstanceState::Connected) {
+			setMutedAndUpdate(MuteState::Active);
+		}
 	}
 }
 
