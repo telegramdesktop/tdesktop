@@ -53,6 +53,8 @@ namespace Calls::Group {
 namespace {
 
 constexpr auto kSpacePushToTalkDelay = crl::time(250);
+constexpr auto kRecordingAnimationDuration = crl::time(1200);
+constexpr auto kRecordingOpacity = 0.6;
 
 class InviteController final : public ParticipantsBoxController {
 public:
@@ -602,8 +604,14 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 		if (!recording && _recordingMark) {
 			_recordingMark.destroy();
 		} else if (recording && !_recordingMark) {
+			struct State {
+				Ui::Animations::Simple animation;
+				base::Timer timer;
+				bool opaque = true;
+			};
 			_recordingMark.create(widget());
 			_recordingMark->show();
+			const auto state = _recordingMark->lifetime().make_state<State>();
 			const auto size = st::groupCallRecordingMark;
 			const auto skip = st::groupCallRecordingMarkSkip;
 			_recordingMark->resize(size + 2 * skip, size + 2 * skip);
@@ -612,12 +620,27 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 					widget(),
 					tr::lng_group_call_is_recorded(tr::now));
 			});
+			const auto animate = [=] {
+				const auto opaque = state->opaque;
+				state->opaque = !opaque;
+				state->animation.start(
+					[=] { _recordingMark->update(); },
+					opaque ? 1. : kRecordingOpacity,
+					opaque ? kRecordingOpacity : 1.,
+					kRecordingAnimationDuration);
+			};
+			state->timer.setCallback(animate);
+			state->timer.callEach(kRecordingAnimationDuration);
+			animate();
+
 			_recordingMark->paintRequest(
 			) | rpl::start_with_next([=] {
 				auto p = QPainter(_recordingMark.data());
 				auto hq = PainterHighQualityEnabler(p);
 				p.setPen(Qt::NoPen);
 				p.setBrush(st::groupCallMemberMutedIcon);
+				p.setOpacity(state->animation.value(
+					state->opaque ? 1. : kRecordingOpacity));
 				p.drawEllipse(skip, skip, size, size);
 			}, _recordingMark->lifetime());
 		}
