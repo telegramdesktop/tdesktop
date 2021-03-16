@@ -114,6 +114,7 @@ void ChooseJoinAsBox(
 		Context context,
 		JoinInfo info,
 		Fn<void(JoinInfo)> done) {
+	box->setWidth(st::groupCallJoinAsWidth);
 	box->setTitle([&] {
 		switch (context) {
 		case Context::Create: return tr::lng_group_call_start_as_header();
