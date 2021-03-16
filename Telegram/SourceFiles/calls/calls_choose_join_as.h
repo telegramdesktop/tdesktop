@@ -28,6 +28,7 @@ public:
 	enum class Context {
 		Create,
 		Join,
+		JoinWithConfirm,
 		Switch,
 	};
 

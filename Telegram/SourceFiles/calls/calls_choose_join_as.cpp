@@ -12,12 +12,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
+#include "data/data_group_call.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/text_utilities.h"
 #include "boxes/peer_list_box.h"
+#include "boxes/confirm_box.h"
 #include "styles/style_boxes.h"
 #include "styles/style_calls.h"
 
@@ -114,7 +117,8 @@ void ChooseJoinAsBox(
 	box->setTitle([&] {
 		switch (context) {
 		case Context::Create: return tr::lng_group_call_start_as_header();
-		case Context::Join: return tr::lng_group_call_join_as_header();
+		case Context::Join:
+		case Context::JoinWithConfirm: return tr::lng_group_call_join_as_header();
 		case Context::Switch: return tr::lng_group_call_display_as_header();
 		}
 		Unexpected("Context in ChooseJoinAsBox.");
@@ -231,19 +235,43 @@ void ChooseJoinAsProcess::start(
 			}
 			return list;
 		});
+		const auto selectedId = peer->groupCallDefaultJoinAs();
 		if (list.empty()) {
 			_request->showToast(Lang::Hard::ServerError());
 			return;
-		} else if (list.size() == 1
+		} else if (!changingJoinAsFrom
+			&& list.size() == 1
 			&& list.front() == self
 			&& (!peer->isChannel()
 				|| !peer->asChannel()->amAnonymous()
 				|| (peer->isBroadcast() && !peer->canWrite()))) {
 			info.possibleJoinAs = std::move(list);
-			finish(info);
+			if (context != Context::JoinWithConfirm
+				|| (selectedId && self->id == selectedId)) {
+				finish(info);
+				return;
+			}
+			const auto real = peer->groupCall();
+			const auto name = (real && !real->title().isEmpty())
+				? real->title()
+				: peer->name;
+			auto box = Box<::ConfirmBox>(
+				tr::lng_group_call_join_confirm(
+					tr::now,
+					lt_chat,
+					Ui::Text::Bold(name),
+					Ui::Text::WithEntities),
+				tr::lng_group_call_join(tr::now),
+				crl::guard(&_request->guard, [=] { finish(info); }));
+			box->boxClosing(
+			) | rpl::start_with_next([=] {
+				_request = nullptr;
+			}, _request->lifetime);
+
+			_request->box = box.data();
+			_request->showBox(std::move(box));
 			return;
 		}
-		const auto selectedId = peer->groupCallDefaultJoinAs();
 		info.joinAs = [&]() -> not_null<PeerData*> {
 			const auto loaded = selectedId
 				? session->data().peerLoaded(selectedId)

@@ -1966,6 +1966,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_copy_listener_link" = "Copy Listener Link";
 "lng_group_call_end" = "End Voice Chat";
 "lng_group_call_join" = "Join";
+"lng_group_call_join_confirm" = "Do you want to join the voice chat {chat}?";
 "lng_group_call_invite_done_user" = "You invited {user} to the voice chat.";
 "lng_group_call_invite_done_many#one" = "You invited **{count} member** to the voice chat.";
 "lng_group_call_invite_done_many#other" = "You invited **{count} members** to the voice chat.";
@@ -2011,7 +2012,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_recording_start_button" = "Start";
 "lng_group_call_is_recorded" = "Voice chat is being recorded.";
 "lng_group_call_can_speak_here" = "You can now speak.";
-"lng_group_call_can_speak" = "You can now speak in **{chat}**.";
+"lng_group_call_can_speak" = "You can now speak in {chat}.";
 
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 
