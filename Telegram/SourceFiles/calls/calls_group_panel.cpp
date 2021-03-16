@@ -406,7 +406,11 @@ void Panel::initWindow() {
 			0,
 			widget()->width(),
 			st::groupCallMembersTop);
-		return titleRect.contains(widgetPoint)
+		return (titleRect.contains(widgetPoint)
+			&& (!_menuToggle || !_menuToggle->geometry().contains(widgetPoint))
+			&& (!_menu || !_menu->geometry().contains(widgetPoint))
+			&& (!_recordingMark || !_recordingMark->geometry().contains(widgetPoint))
+			&& (!_joinAsToggle || !_joinAsToggle->geometry().contains(widgetPoint)))
 			? (Flag::Move | Flag::Maximize)
 			: Flag::None;
 	});
