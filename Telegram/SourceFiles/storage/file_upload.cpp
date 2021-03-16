@@ -622,7 +622,7 @@ void Uploader::sendNext() {
 
 		parts.erase(part);
 	}
-	_nextTimer.callOnce(kUploadRequestInterval);
+	_nextTimer.callOnce(crl::time(cNetUploadRequestInterval()));
 }
 
 void Uploader::cancel(const FullMsgId &msgId) {
