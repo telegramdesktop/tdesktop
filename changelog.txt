@@ -1,3 +1,9 @@
+2.6.3 beta (16.03.21)
+
+- Fix audio device selection in voice chats.
+- Fix blinking self profile photo in case the profile photo privacy is used.
+- Fix voice chat admin menu on macOS.
+
 2.6.2 beta (13.03.21)
 
 - Fix text disappearing because of cloud drafts sync.
