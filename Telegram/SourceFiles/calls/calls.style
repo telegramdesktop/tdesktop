@@ -792,9 +792,10 @@ groupCallBoxLabel: FlatLabel(boxLabel) {
 	textFg: groupCallMembersFg;
 }
 groupCallJoinAsLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 282px;
+	minWidth: 272px;
 	textFg: groupCallMembersFg;
 }
+groupCallJoinAsWidth: 330px;
 groupCallJoinAsTextTop: 4px;
 groupCallJoinAsNameTop: 23px;
 groupCallJoinAsPadding: margins(12px, 8px, 12px, 7px);
