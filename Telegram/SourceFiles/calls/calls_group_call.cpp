@@ -426,6 +426,11 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 	LOG(("Call Info: Requesting join payload."));
 
 	_joinAs = as;
+	if (const auto chat = _peer->asChat()) {
+		chat->setGroupCallDefaultJoinAs(_joinAs->id);
+	} else if (const auto channel = _peer->asChannel()) {
+		channel->setGroupCallDefaultJoinAs(_joinAs->id);
+	}
 
 	const auto weak = base::make_weak(this);
 	_instance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {

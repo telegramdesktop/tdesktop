@@ -172,7 +172,7 @@ void ChooseJoinAsProcess::start(
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
 		Fn<void(QString)> showToast,
 		Fn<void(JoinInfo)> done,
-		PeerData *currentJoinAs) {
+		PeerData *changingJoinAsFrom) {
 	Expects(done != nullptr);
 
 	const auto session = &peer->session();
@@ -243,14 +243,14 @@ void ChooseJoinAsProcess::start(
 			finish(info);
 			return;
 		}
+		const auto selectedId = peer->groupCallDefaultJoinAs();
 		info.joinAs = [&]() -> not_null<PeerData*> {
-			const auto selectedId = peer->groupCallDefaultJoinAs();
-			if (!selectedId) {
-				return self;
-			}
-			const auto loaded = session->data().peerLoaded(selectedId);
-			return (currentJoinAs && ranges::contains(list, not_null{ currentJoinAs }))
-				? not_null(currentJoinAs)
+			const auto loaded = selectedId
+				? session->data().peerLoaded(selectedId)
+				: nullptr;
+			return (changingJoinAsFrom
+				&& ranges::contains(list, not_null{ changingJoinAsFrom }))
+				? not_null(changingJoinAsFrom)
 				: (loaded && ranges::contains(list, not_null{ loaded }))
 				? not_null(loaded)
 				: ranges::contains(list, self)
@@ -259,6 +259,13 @@ void ChooseJoinAsProcess::start(
 		}();
 		info.possibleJoinAs = std::move(list);
 
+		if (!changingJoinAsFrom
+			&& selectedId
+			&& info.joinAs->id == selectedId) {
+			// We already joined this voice chat, just rejoin with the same.
+			finish(info);
+			return;
+		}
 		auto box = Box(
 			ChooseJoinAsBox,
 			context,
