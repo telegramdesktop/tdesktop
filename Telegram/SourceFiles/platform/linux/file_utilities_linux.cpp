@@ -39,7 +39,7 @@ void UnsafeOpenUrl(const QString &url) {
 		return;
 	}
 
-	QProcess::execute(qsl("xdg-open"), { url });
+	QProcess::startDetached(qsl("xdg-open"), { url });
 }
 
 void UnsafeOpenEmailLink(const QString &email) {
@@ -83,7 +83,7 @@ void UnsafeLaunch(const QString &filepath) {
 		return;
 	}
 
-	QProcess::execute(qsl("xdg-open"), { qUrlPath.toEncoded() });
+	QProcess::startDetached(qsl("xdg-open"), { qUrlPath.toEncoded() });
 }
 
 } // namespace File
