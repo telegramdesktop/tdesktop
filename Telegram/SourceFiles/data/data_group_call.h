@@ -137,7 +137,7 @@ private:
 	mtpRequestId _reloadRequestId = 0;
 	rpl::variable<QString> _title;
 
-	base::flat_map<std::pair<int,bool>, MTPUpdate> _queuedUpdates;
+	base::flat_multi_map<std::pair<int,bool>, MTPUpdate> _queuedUpdates;
 	base::Timer _reloadByQueuedUpdatesTimer;
 
 	std::vector<Participant> _participants;

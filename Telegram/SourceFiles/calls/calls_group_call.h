@@ -116,8 +116,8 @@ public:
 	void rejoinAs(Group::JoinInfo info);
 	void rejoinWithHash(const QString &hash);
 	void join(const MTPInputGroupCall &inputCall);
-	void handleUpdate(const MTPGroupCall &call);
-	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
+	void handleUpdate(const MTPUpdate &update);
+	void handlePossibleCreateOrJoinResponse(const MTPDupdateGroupCall &data);
 	void changeTitle(const QString &title);
 	void toggleRecording(bool enabled, const QString &title);
 	[[nodiscard]] bool recordingStoppedByMe() const {
@@ -227,6 +227,9 @@ private:
 		RaiseHand,
 	};
 
+	void handlePossibleCreateOrJoinResponse(const MTPDgroupCall &data);
+	void handleUpdate(const MTPDupdateGroupCall &data);
+	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
 	void handleRequestError(const MTP::Error &error);
 	void handleControllerError(const QString &error);
 	void ensureControllerCreated();

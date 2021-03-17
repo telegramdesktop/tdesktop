@@ -427,28 +427,23 @@ void Instance::handleGroupCallUpdate(
 	} else {
 		applyGroupCallUpdateChecked(session, update);
 	}
+
+	if (_currentGroupCall
+		&& (&_currentGroupCall->peer()->session() == session)) {
+		update.match([&](const MTPDupdateGroupCall &data) {
+			_currentGroupCall->handlePossibleCreateOrJoinResponse(data);
+		}, [](const auto &) {
+		});
+	}
 }
 
 void Instance::applyGroupCallUpdateChecked(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update) {
-	if (!_currentGroupCall
-		|| (&_currentGroupCall->peer()->session() != session)) {
-		return;
+	if (_currentGroupCall
+		&& (&_currentGroupCall->peer()->session() == session)) {
+		_currentGroupCall->handleUpdate(update);
 	}
-
-	update.match([&](const MTPDupdateGroupCall &data) {
-		_currentGroupCall->handleUpdate(data.vcall());
-	}, [&](const MTPDupdateGroupCallParticipants &data) {
-		const auto callId = data.vcall().match([](const auto &data) {
-			return data.vid().v;
-		});
-		if (_currentGroupCall->id() == callId) {
-			_currentGroupCall->handleUpdate(data);
-		}
-	}, [](const auto &) {
-		Unexpected("Type in Instance::applyGroupCallUpdateChecked.");
-	});
 }
 
 void Instance::handleSignalingData(
