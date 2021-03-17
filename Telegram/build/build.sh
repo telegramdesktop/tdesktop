@@ -138,9 +138,16 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
 
   echo "Copying from docker result folder."
   cp "$ReleasePath/root/$BinaryName" "$ReleasePath/$BinaryName"
-  cp "$ReleasePath/root/$BinaryName.sym" "$ReleasePath/$BinaryName.sym"
   cp "$ReleasePath/root/Updater" "$ReleasePath/Updater"
   cp "$ReleasePath/root/Packer" "$ReleasePath/Packer"
+
+  echo "Dumping debug symbols.."
+  "$ReleasePath/dump_syms" "$ReleasePath/$BinaryName" > "$ReleasePath/$BinaryName.sym"
+  echo "Done!"
+
+  echo "Stripping the executable.."
+  strip -s "$ReleasePath/$BinaryName"
+  echo "Done!"
 
   echo "Preparing version $AppVersionStrFull, executing Packer.."
   cd "$ReleasePath"
