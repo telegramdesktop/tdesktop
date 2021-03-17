@@ -1,6 +1,11 @@
+2.6.5 beta (17.03.21)
+
+- Improvements and fixes in new voice chat features.
+
 2.6.4 beta (16.03.21)
 
 - Fix freeze in voice chats.
+- Make default interface scale 110% on macOS Retina screens.
 
 2.6.3 beta (16.03.21)
 
