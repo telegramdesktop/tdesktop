@@ -277,13 +277,13 @@ void Updates::checkLastUpdate(bool afterSleep) {
 
 void Updates::feedUpdateVector(
 		const MTPVector<MTPUpdate> &updates,
-		bool skipMessageIds) {
+		SkipUpdatePolicy policy) {
 	auto list = updates.v;
-	const auto needsSorting = ranges::contains(
+	const auto hasGroupCallParticipantUpdates = ranges::contains(
 		list,
 		mtpc_updateGroupCallParticipants,
 		&MTPUpdate::type);
-	if (needsSorting) {
+	if (hasGroupCallParticipantUpdates) {
 		ranges::stable_sort(list, std::less<>(), [](const MTPUpdate &entry) {
 			if (entry.type() == mtpc_updateGroupCallParticipants) {
 				return 0;
@@ -291,9 +291,15 @@ void Updates::feedUpdateVector(
 				return 1;
 			}
 		});
+	} else if (policy == SkipUpdatePolicy::SkipExceptGroupCallParticipants) {
+		return;
 	}
 	for (const auto &entry : std::as_const(list)) {
-		if (skipMessageIds && entry.type() == mtpc_updateMessageID) {
+		const auto type = entry.type();
+		if ((policy == SkipUpdatePolicy::SkipMessageIds
+			&& type == mtpc_updateMessageID)
+			|| (policy == SkipUpdatePolicy::SkipExceptGroupCallParticipants
+				&& type != mtpc_updateGroupCallParticipants)) {
 			continue;
 		}
 		feedUpdate(entry);
@@ -406,7 +412,9 @@ void Updates::feedChannelDifference(
 	session().data().processMessages(
 		data.vnew_messages(),
 		NewMessageType::Unread);
-	feedUpdateVector(data.vother_updates(), true);
+	feedUpdateVector(
+		data.vother_updates(),
+		SkipUpdatePolicy::SkipMessageIds);
 	_handlingChannelDifference = false;
 }
 
@@ -567,7 +575,7 @@ void Updates::feedDifference(
 	session().data().processChats(chats);
 	feedMessageIds(other);
 	session().data().processMessages(msgs, NewMessageType::Unread);
-	feedUpdateVector(other, true);
+	feedUpdateVector(other, SkipUpdatePolicy::SkipMessageIds);
 }
 
 void Updates::differenceFail(const MTP::Error &error) {
@@ -824,7 +832,30 @@ void Updates::mtpUpdateReceived(const MTPUpdates &updates) {
 	if (!requestingDifference()
 		|| HasForceLogoutNotification(updates)) {
 		applyUpdates(updates);
+	} else {
+		applyGroupCallParticipantUpdates(updates);
 	}
+}
+
+void Updates::applyGroupCallParticipantUpdates(const MTPUpdates &updates) {
+	updates.match([&](const MTPDupdates &data) {
+		session().data().processUsers(data.vusers());
+		session().data().processChats(data.vchats());
+		feedUpdateVector(
+			data.vupdates(),
+			SkipUpdatePolicy::SkipExceptGroupCallParticipants);
+	}, [&](const MTPDupdatesCombined &data) {
+		session().data().processUsers(data.vusers());
+		session().data().processChats(data.vchats());
+		feedUpdateVector(
+			data.vupdates(),
+			SkipUpdatePolicy::SkipExceptGroupCallParticipants);
+	}, [&](const MTPDupdateShort &data) {
+		if (data.vupdate().type() == mtpc_updateGroupCallParticipants) {
+			feedUpdate(data.vupdate());
+		}
+	}, [](const auto &) {
+	});
 }
 
 int32 Updates::pts() const {

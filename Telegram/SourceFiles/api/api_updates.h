@@ -66,6 +66,12 @@ private:
 		AfterFail,
 	};
 
+	enum class SkipUpdatePolicy {
+		SkipNone,
+		SkipMessageIds,
+		SkipExceptGroupCallParticipants,
+	};
+
 	struct ActiveChatTracker {
 		PeerData *peer = nullptr;
 		rpl::lifetime lifetime;
@@ -113,11 +119,13 @@ private:
 	void mtpNewSessionCreated();
 	void feedUpdateVector(
 		const MTPVector<MTPUpdate> &updates,
-		bool skipMessageIds = false);
+		SkipUpdatePolicy policy = SkipUpdatePolicy::SkipNone);
 	// Doesn't call sendHistoryChangeNotifications itself.
 	void feedMessageIds(const MTPVector<MTPUpdate> &updates);
 	// Doesn't call sendHistoryChangeNotifications itself.
 	void feedUpdate(const MTPUpdate &update);
+
+	void applyGroupCallParticipantUpdates(const MTPUpdates &updates);
 
 	bool whenGetDiffChanged(
 		ChannelData *channel,
