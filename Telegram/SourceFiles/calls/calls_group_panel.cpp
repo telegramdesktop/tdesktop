@@ -1132,7 +1132,9 @@ void Panel::refreshTitle() {
 			widget(),
 			tr::lng_group_call_members(
 				lt_count_decimal,
-				_members->fullCountValue() | tr::to_count()),
+				_members->fullCountValue() | rpl::map([](int value) {
+					return (value > 0) ? float64(value) : 1.;
+				})),
 			st::groupCallSubtitleLabel);
 		_subtitle->show();
 		_subtitle->setAttribute(Qt::WA_TransparentForMouseEvents);
