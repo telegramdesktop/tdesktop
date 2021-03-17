@@ -250,6 +250,7 @@ private:
 
 	void checkGlobalShortcutAvailability();
 	void checkJoined();
+	void checkFirstTimeJoined();
 	void notifyAboutAllowedToSpeak();
 
 	void playConnectingSound();
