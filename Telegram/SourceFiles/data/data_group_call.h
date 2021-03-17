@@ -104,6 +104,7 @@ public:
 	void setJoinMutedLocally(bool muted);
 	[[nodiscard]] bool joinMuted() const;
 	[[nodiscard]] bool canChangeJoinMuted() const;
+	[[nodiscard]] bool joinedToTop() const;
 
 private:
 	enum class ApplySliceSource {
@@ -158,6 +159,7 @@ private:
 	bool _joinMuted = false;
 	bool _canChangeJoinMuted = true;
 	bool _allParticipantsLoaded = false;
+	bool _joinedToTop = false;
 
 };
 

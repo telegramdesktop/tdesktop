@@ -262,6 +262,7 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 	}
 	_joinMuted = data.is_join_muted();
 	_canChangeJoinMuted = data.is_can_change_join_muted();
+	_joinedToTop = !data.is_join_date_asc();
 	setServerParticipantsCount(data.vparticipants_count().v);
 	changePeerEmptyCallFlag();
 	_title = qs(data.vtitle().value_or_empty());
@@ -736,6 +737,10 @@ bool GroupCall::joinMuted() const {
 
 bool GroupCall::canChangeJoinMuted() const {
 	return _canChangeJoinMuted;
+}
+
+bool GroupCall::joinedToTop() const {
+	return _joinedToTop;
 }
 
 ApiWrap &GroupCall::api() const {

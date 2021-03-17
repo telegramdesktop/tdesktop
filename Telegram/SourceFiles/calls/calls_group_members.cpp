@@ -1024,40 +1024,67 @@ void MembersController::appendInvitedUsers() {
 void MembersController::updateRow(
 		const std::optional<Data::GroupCall::Participant> &was,
 		const Data::GroupCall::Participant &now) {
-	auto reorderIfInvitedBeforeIndex = 0;
+	auto reorderIfInvitedBefore = 0;
+	auto checkPosition = (Row*)nullptr;
+	auto addedToBottom = (Row*)nullptr;
 	if (const auto row = findRow(now.peer)) {
 		if (row->state() == Row::State::Invited) {
-			reorderIfInvitedBeforeIndex = row->absoluteIndex();
+			reorderIfInvitedBefore = row->absoluteIndex();
 		}
 		updateRow(row, &now);
 		if ((now.speaking && (!was || !was->speaking))
 			|| (now.raisedHandRating != (was ? was->raisedHandRating : 0))
 			|| (!now.canSelfUnmute && was && was->canSelfUnmute)) {
-			checkRowPosition(row);
+			checkPosition = row;
 		}
 	} else if (auto row = createRow(now)) {
 		if (row->speaking()) {
 			delegate()->peerListPrependRow(std::move(row));
 		} else {
-			reorderIfInvitedBeforeIndex = delegate()->peerListFullRowsCount();
+			reorderIfInvitedBefore = delegate()->peerListFullRowsCount();
+			if (now.raisedHandRating != 0) {
+				checkPosition = row.get();
+			} else {
+				addedToBottom = row.get();
+			}
 			delegate()->peerListAppendRow(std::move(row));
 		}
 		delegate()->peerListRefreshRows();
 	}
 	static constexpr auto kInvited = Row::State::Invited;
 	const auto reorder = [&] {
-		const auto count = reorderIfInvitedBeforeIndex;
+		const auto count = reorderIfInvitedBefore;
 		if (count <= 0) {
 			return false;
 		}
 		const auto row = delegate()->peerListRowAt(
-			reorderIfInvitedBeforeIndex - 1).get();
+			reorderIfInvitedBefore - 1).get();
 		return (static_cast<Row*>(row)->state() == kInvited);
 	}();
 	if (reorder) {
 		delegate()->peerListPartitionRows([](const PeerListRow &row) {
 			return static_cast<const Row&>(row).state() != kInvited;
 		});
+	}
+	if (checkPosition) {
+		checkRowPosition(checkPosition);
+	} else if (addedToBottom) {
+		const auto real = resolvedRealCall();
+		if (real && real->joinedToTop()) {
+			const auto proj = [&](const PeerListRow &other) {
+				const auto &real = static_cast<const Row&>(other);
+				return real.speaking()
+					? 2
+					: (&real == addedToBottom)
+					? 1
+					: 0;
+			};
+			delegate()->peerListSortRows([&](
+					const PeerListRow &a,
+					const PeerListRow &b) {
+				return proj(a) > proj(b);
+			});
+		}
 	}
 }
 
@@ -1159,7 +1186,7 @@ void MembersController::checkRowPosition(not_null<Row*> row) {
 			// All force muted at the bottom, but 'row' still above others.
 			? (&real == row.get() ? 1ULL : 0ULL)
 			// All not force-muted lie between raised hands and speaking.
-			: (std::numeric_limits<uint64>::max() - 2);
+			: (kTop - 2);
 	};
 	const auto projForOther = [&](const PeerListRow &other) {
 		const auto &real = static_cast<const Row&>(other);
