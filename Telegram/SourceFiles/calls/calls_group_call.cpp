@@ -543,7 +543,7 @@ void GroupCall::applyMeInCallLocally() {
 		| Flag::f_volume_by_admin // Self volume can only be set by admin.
 		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0))
 		| (raisedHandRating > 0 ? Flag::f_raise_hand_rating : Flag(0));
-	call->applyUpdateChecked(
+	call->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
 			MTP_vector<MTPGroupCallParticipant>(
@@ -588,7 +588,7 @@ void GroupCall::applyParticipantLocally(
 		| (participant->raisedHandRating
 			? Flag::f_raise_hand_rating
 			: Flag(0));
-	_peer->groupCall()->applyUpdateChecked(
+	_peer->groupCall()->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
 			MTP_vector<MTPGroupCallParticipant>(

@@ -354,8 +354,6 @@ private:
 	rpl::event_stream<VolumeRequest> _changeVolumeRequests;
 	rpl::event_stream<not_null<PeerData*>> _kickParticipantRequests;
 	rpl::variable<int> _fullCount = 1;
-	rpl::variable<int> _fullCountMin = 0;
-	rpl::variable<int> _fullCountMax = std::numeric_limits<int>::max();
 
 	not_null<QWidget*> _menuParent;
 	base::unique_qptr<Ui::PopupMenu> _menu;
@@ -954,19 +952,11 @@ void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
 			delegate()->peerListRefreshRows();
 		});
 		if (const auto row = findRow(event.wasJoinAs)) {
-			if (row->state() != Row::State::Invited) {
-				if (const auto min = _fullCountMin.current()) {
-					_fullCountMin = min - 1;
-				}
-			}
 			removeRow(row);
 		}
 		if (findRow(event.nowJoinAs)) {
 			return;
 		} else if (auto row = createRowForMe()) {
-			if (row->state() != Row::State::Invited) {
-				_fullCountMin = _fullCountMin.current() + 1;
-			}
 			delegate()->peerListAppendRow(std::move(row));
 		}
 	}, _lifetime);
@@ -976,13 +966,7 @@ void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	_realCallRawValue = real;
 	_realId = real->id();
 
-	_fullCount = rpl::combine(
-		real->fullCountValue(),
-		_fullCountMin.value(),
-		_fullCountMax.value()
-	) | rpl::map([](int value, int min, int max) {
-		return std::max(std::clamp(value, min, max), 1);
-	});
+	_fullCount = real->fullCountValue();
 
 	real->participantsSliceAdded(
 	) | rpl::start_with_next([=] {
@@ -1003,9 +987,6 @@ void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
 				if (isMe(participantPeer)) {
 					updateRow(row, nullptr);
 				} else {
-					if (const auto min = _fullCountMin.current()) {
-						_fullCountMin = min - 1;
-					}
 					removeRow(row);
 					delegate()->peerListRefreshRows();
 				}
@@ -1044,11 +1025,9 @@ void MembersController::updateRow(
 		const std::optional<Data::GroupCall::Participant> &was,
 		const Data::GroupCall::Participant &now) {
 	auto reorderIfInvitedBeforeIndex = 0;
-	auto countChange = 0;
 	if (const auto row = findRow(now.peer)) {
 		if (row->state() == Row::State::Invited) {
 			reorderIfInvitedBeforeIndex = row->absoluteIndex();
-			countChange = 1;
 		}
 		updateRow(row, &now);
 		if ((now.speaking && (!was || !was->speaking))
@@ -1064,7 +1043,6 @@ void MembersController::updateRow(
 			delegate()->peerListAppendRow(std::move(row));
 		}
 		delegate()->peerListRefreshRows();
-		countChange = 1;
 	}
 	static constexpr auto kInvited = Row::State::Invited;
 	const auto reorder = [&] {
@@ -1080,13 +1058,6 @@ void MembersController::updateRow(
 		delegate()->peerListPartitionRows([](const PeerListRow &row) {
 			return static_cast<const Row&>(row).state() != kInvited;
 		});
-	}
-	if (countChange) {
-		const auto fullCountMin = _fullCountMin.current() + countChange;
-		if (_fullCountMax.current() < fullCountMin) {
-			_fullCountMax = fullCountMin;
-		}
-		_fullCountMin = fullCountMin;
 	}
 }
 
@@ -1206,7 +1177,7 @@ void MembersController::checkRowPosition(not_null<Row*> row) {
 	};
 	delegate()->peerListSortRows(_peer->canManageGroupCall()
 		? makeComparator(projForAdmin)
-		: makeComparator(projForAdmin));
+		: makeComparator(projForOther));
 }
 
 void MembersController::updateRow(
@@ -1243,11 +1214,6 @@ void MembersController::updateRow(
 		_soundingAnimation.stop();
 	}
 
-	if (!participant && wasInChat) {
-		if (const auto min = _fullCountMin.current()) {
-			_fullCountMin = min - 1;
-		}
-	}
 	delegate()->peerListUpdateRow(row);
 }
 
@@ -1293,7 +1259,6 @@ void MembersController::prepare() {
 		; real && call && real->id() == call->id()) {
 		prepareRows(real);
 	} else if (auto row = createRowForMe()) {
-		_fullCountMin = (row->state() == Row::State::Invited) ? 0 : 1;
 		delegate()->peerListAppendRow(std::move(row));
 		delegate()->peerListRefreshRows();
 	}
@@ -1314,7 +1279,6 @@ void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
 	auto foundMe = false;
 	auto changed = false;
 	const auto &participants = real->participants();
-	auto fullCountMin = 0;
 	auto count = delegate()->peerListFullRowsCount();
 	for (auto i = 0; i != count;) {
 		auto row = delegate()->peerListRowAt(i);
@@ -1329,7 +1293,6 @@ void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
 			participantPeer,
 			&Data::GroupCall::Participant::peer);
 		if (contains) {
-			++fullCountMin;
 			++i;
 		} else {
 			changed = true;
@@ -1348,9 +1311,6 @@ void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
 				? createRow(*i)
 				: createRowForMe();
 			if (row) {
-				if (row->state() != Row::State::Invited) {
-					++fullCountMin;
-				}
 				changed = true;
 				delegate()->peerListAppendRow(std::move(row));
 			}
@@ -1358,20 +1318,12 @@ void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
 	}
 	for (const auto &participant : participants) {
 		if (auto row = createRow(participant)) {
-			++fullCountMin;
 			changed = true;
 			delegate()->peerListAppendRow(std::move(row));
 		}
 	}
 	if (changed) {
 		delegate()->peerListRefreshRows();
-		if (_fullCountMax.current() < fullCountMin) {
-			_fullCountMax = fullCountMin;
-		}
-		_fullCountMin = fullCountMin;
-		if (real->participantsLoaded()) {
-			_fullCountMax = fullCountMin;
-		}
 	}
 }
 

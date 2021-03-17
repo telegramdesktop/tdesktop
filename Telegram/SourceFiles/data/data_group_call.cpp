@@ -22,9 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
-constexpr auto kRequestPerPage = 30;
+constexpr auto kRequestPerPage = 50;
 constexpr auto kSpeakingAfterActive = crl::time(6000);
 constexpr auto kActiveAfterJoined = crl::time(1000);
+constexpr auto kWaitForUpdatesTimeout = 3 * crl::time(1000);
 
 } // namespace
 
@@ -35,6 +36,7 @@ GroupCall::GroupCall(
 : _id(id)
 , _accessHash(accessHash)
 , _peer(peer)
+, _reloadByQueuedUpdatesTimer([=] { reload(); })
 , _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); }) {
 }
 
@@ -71,10 +73,7 @@ auto GroupCall::participants() const
 void GroupCall::requestParticipants() {
 	if (_participantsRequestId || _reloadRequestId) {
 		return;
-	} else if (_participants.size() >= _fullCount.current() && _allReceived) {
-		return;
-	} else if (_allReceived) {
-		reload();
+	} else if (_allParticipantsLoaded) {
 		return;
 	}
 	_participantsRequestId = api().request(MTPphone_GetGroupParticipants(
@@ -91,24 +90,27 @@ void GroupCall::requestParticipants() {
 			applyParticipantsSlice(
 				data.vparticipants().v,
 				ApplySliceSource::SliceLoaded);
-			_fullCount = data.vcount().v;
-			if (!_allReceived
-				&& (data.vparticipants().v.size() < kRequestPerPage)) {
-				_allReceived = true;
+			setServerParticipantsCount(data.vcount().v);
+			if (data.vparticipants().v.isEmpty()) {
+				_allParticipantsLoaded = true;
 			}
-			if (_allReceived) {
-				_fullCount = _participants.size();
-			}
+			computeParticipantsCount();
+			_participantsSliceAdded.fire({});
+			_participantsRequestId = 0;
+			processQueuedUpdates();
 		});
-		_participantsSliceAdded.fire({});
-		_participantsRequestId = 0;
-		changePeerEmptyCallFlag();
 	}).fail([=](const MTP::Error &error) {
-		_fullCount = _participants.size();
-		_allReceived = true;
+		setServerParticipantsCount(_participants.size());
+		_allParticipantsLoaded = true;
+		computeParticipantsCount();
 		_participantsRequestId = 0;
-		changePeerEmptyCallFlag();
+		processQueuedUpdates();
 	}).send();
+}
+
+void GroupCall::setServerParticipantsCount(int count) {
+	_serverParticipantsCount = count;
+	changePeerEmptyCallFlag();
 }
 
 void GroupCall::changePeerEmptyCallFlag() {
@@ -118,7 +120,7 @@ void GroupCall::changePeerEmptyCallFlag() {
 	constexpr auto channelFlag = MTPDchannel::Flag::f_call_not_empty;
 	if (_peer->groupCall() != this) {
 		return;
-	} else if (fullCount() > 0) {
+	} else if (_serverParticipantsCount > 0) {
 		if (chat && !(chat->flags() & chatFlag)) {
 			chat->addFlags(chatFlag);
 			chat->session().changes().peerUpdated(
@@ -152,7 +154,7 @@ rpl::producer<int> GroupCall::fullCountValue() const {
 }
 
 bool GroupCall::participantsLoaded() const {
-	return _allReceived;
+	return _allParticipantsLoaded;
 }
 
 PeerData *GroupCall::participantPeerBySsrc(uint32 ssrc) const {
@@ -169,46 +171,52 @@ auto GroupCall::participantUpdated() const
 	return _participantUpdates.events();
 }
 
-void GroupCall::applyUpdate(const MTPGroupCall &update) {
-	applyCall(update, false);
+void GroupCall::enqueueUpdate(const MTPUpdate &update) {
+	update.match([&](const MTPDupdateGroupCall &updateData) {
+		updateData.vcall().match([&](const MTPDgroupCall &data) {
+			const auto version = data.vversion().v;
+			if (!_version || _version == version) {
+				applyUpdate(update);
+			} else if (_version < version) {
+				_queuedUpdates.emplace(std::pair{ version, false }, update);
+			}
+		}, [&](const MTPDgroupCallDiscarded &data) {
+			applyUpdate(update);
+		});
+	}, [&](const MTPDupdateGroupCallParticipants &updateData) {
+		const auto version = updateData.vversion().v;
+		const auto proj = [](const MTPGroupCallParticipant &data) {
+			return data.match([&](const MTPDgroupCallParticipant &data) {
+				return data.is_versioned();
+			});
+		};
+		const auto increment = ranges::contains(
+			updateData.vparticipants().v,
+			true,
+			proj);
+		const auto required = increment ? (version - 1) : version;
+		if (_version == required) {
+			applyUpdate(update);
+		} else if (_version < required) {
+			_queuedUpdates.emplace(std::pair{ version, increment }, update);
+		}
+	}, [](const auto &) {
+		Unexpected("Type in GroupCall::enqueueUpdate.");
+	});
+	processQueuedUpdates();
 }
 
-void GroupCall::applyCall(const MTPGroupCall &call, bool force) {
-	call.match([&](const MTPDgroupCall &data) {
-		if (!_version) {
-			_version = data.vversion().v;
-		}
-		const auto title = qs(data.vtitle().value_or_empty());
-		const auto recordDate = data.vrecord_start_date().value_or_empty();
-		const auto changed = (_joinMuted != data.is_join_muted())
-			|| (_fullCount.current() != data.vparticipants_count().v)
-			|| (_canChangeJoinMuted != data.is_can_change_join_muted())
-			|| (_title.current() != title)
-			|| (_recordStartDate.current() != recordDate);
-		if (!force && !changed) {
-			return;
-		} else if (!force && _version > data.vversion().v) {
-			reload();
-			return;
-		}
-		_joinMuted = data.is_join_muted();
-		_canChangeJoinMuted = data.is_can_change_join_muted();
-		_fullCount = data.vparticipants_count().v;
-		_title = title;
-		_recordStartDate = recordDate;
-		changePeerEmptyCallFlag();
-	}, [&](const MTPDgroupCallDiscarded &data) {
-		const auto id = _id;
-		const auto peer = _peer;
-		crl::on_main(&peer->session(), [=] {
-			if (peer->groupCall() && peer->groupCall()->id() == id) {
-				if (const auto chat = peer->asChat()) {
-					chat->clearGroupCall();
-				} else if (const auto channel = peer->asChannel()) {
-					channel->clearGroupCall();
-				}
+void GroupCall::discard() {
+	const auto id = _id;
+	const auto peer = _peer;
+	crl::on_main(&peer->session(), [=] {
+		if (peer->groupCall() && peer->groupCall()->id() == id) {
+			if (const auto chat = peer->asChat()) {
+				chat->clearGroupCall();
+			} else if (const auto channel = peer->asChannel()) {
+				channel->clearGroupCall();
 			}
-		});
+		}
 	});
 }
 
@@ -216,16 +224,125 @@ void GroupCall::processFullCall(const MTPphone_GroupCall &call) {
 	call.match([&](const MTPDphone_groupCall &data) {
 		_peer->owner().processUsers(data.vusers());
 		_peer->owner().processChats(data.vchats());
-		_participants.clear();
-		_speakingByActiveFinishes.clear();
-		_participantPeerBySsrc.clear();
+		const auto &participants = data.vparticipants().v;
+		const auto nextOffset = qs(data.vparticipants_next_offset());
+		data.vcall().match([&](const MTPDgroupCall &data) {
+			if (data.vversion().v == _version
+				&& data.vparticipants_count().v == _serverParticipantsCount
+				&& (_serverParticipantsCount >= _participants.size())
+				&& (!_allParticipantsLoaded
+					|| _serverParticipantsCount == _participants.size())) {
+				return;
+			}
+			_participants.clear();
+			_speakingByActiveFinishes.clear();
+			_participantPeerBySsrc.clear();
+			_allParticipantsLoaded = false;
+
+			applyParticipantsSlice(
+				participants,
+				ApplySliceSource::SliceLoaded);
+			_nextOffset = nextOffset;
+
+			applyCallFields(data);
+
+			_participantsSliceAdded.fire({});
+		}, [&](const MTPDgroupCallDiscarded &data) {
+			discard();
+		});
+		processQueuedUpdates();
+	});
+}
+
+void GroupCall::applyCallFields(const MTPDgroupCall &data) {
+	_version = data.vversion().v;
+	if (!_version) {
+		LOG(("API Error: Got zero version in groupCall."));
+		_version = 1;
+	}
+	_joinMuted = data.is_join_muted();
+	_canChangeJoinMuted = data.is_can_change_join_muted();
+	setServerParticipantsCount(data.vparticipants_count().v);
+	changePeerEmptyCallFlag();
+	_title = qs(data.vtitle().value_or_empty());
+	_recordStartDate = data.vrecord_start_date().value_or_empty();
+	_allParticipantsLoaded
+		= (_serverParticipantsCount == _participants.size());
+	computeParticipantsCount();
+	processQueuedUpdates();
+}
+
+void GroupCall::applyLocalUpdate(
+		const MTPDupdateGroupCallParticipants &update) {
+	applyParticipantsSlice(
+		update.vparticipants().v,
+		ApplySliceSource::UpdateReceived);
+}
+
+void GroupCall::applyUpdate(const MTPUpdate &update) {
+	update.match([&](const MTPDupdateGroupCall &data) {
+		data.vcall().match([&](const MTPDgroupCall &data) {
+			applyCallFields(data);
+		}, [&](const MTPDgroupCallDiscarded &data) {
+			discard();
+		});
+	}, [&](const MTPDupdateGroupCallParticipants &data) {
+		_version = data.vversion().v;
+		if (!_version) {
+			LOG(("API Error: "
+				"Got zero version in updateGroupCallParticipants."));
+			_version = 1;
+		}
 		applyParticipantsSlice(
 			data.vparticipants().v,
-			ApplySliceSource::SliceLoaded);
-		applyCall(data.vcall(), true);
-		_allReceived = (_fullCount.current() == _participants.size());
-		_participantsSliceAdded.fire({});
+			ApplySliceSource::UpdateReceived);
+	}, [](const auto &) {
+		Unexpected("Type in GroupCall::processQueuedUpdates.");
 	});
+	Core::App().calls().applyGroupCallUpdateChecked(
+		&_peer->session(),
+		update);
+}
+
+void GroupCall::processQueuedUpdates() {
+	if (!_version) {
+		return;
+	}
+
+	const auto size = _queuedUpdates.size();
+	while (!_queuedUpdates.empty()) {
+		const auto &entry = _queuedUpdates.front();
+		const auto version = entry.first.first;
+		const auto versionIncremented = entry.first.second;
+		if ((version < _version)
+			|| (version == _version && versionIncremented)) {
+			_queuedUpdates.erase(_queuedUpdates.begin());
+		} else if (version == _version
+			|| (version == _version + 1 && versionIncremented)) {
+			const auto update = entry.second;
+			_queuedUpdates.erase(_queuedUpdates.begin());
+			applyUpdate(update);
+		} else {
+			break;
+		}
+	}
+	if (_queuedUpdates.empty()) {
+		const auto server = _serverParticipantsCount;
+		const auto local = int(_participants.size());
+		if (server < local
+			|| (_allParticipantsLoaded && server > local)) {
+			reload();
+		}
+	} else if (_queuedUpdates.size() != size
+		|| !_reloadByQueuedUpdatesTimer.isActive()) {
+		_reloadByQueuedUpdatesTimer.callOnce(kWaitForUpdatesTimeout);
+	}
+}
+
+void GroupCall::computeParticipantsCount() {
+	_fullCount = _allParticipantsLoaded
+		? int(_participants.size())
+		: std::max(int(_participants.size()), _serverParticipantsCount);
 }
 
 void GroupCall::reload() {
@@ -235,6 +352,10 @@ void GroupCall::reload() {
 		api().request(_participantsRequestId).cancel();
 		_participantsRequestId = 0;
 	}
+
+	_queuedUpdates.clear();
+	_reloadByQueuedUpdatesTimer.cancel();
+
 	_reloadRequestId = api().request(
 		MTPphone_GetGroupCall(input())
 	).done([=](const MTPphone_GroupCall &result) {
@@ -252,7 +373,6 @@ void GroupCall::applyParticipantsSlice(
 	const auto now = base::unixtime::now();
 	const auto speakingAfterActive = TimeId(kSpeakingAfterActive / 1000);
 
-	auto changedCount = _fullCount.current();
 	for (const auto &participant : list) {
 		participant.match([&](const MTPDgroupCallParticipant &data) {
 			const auto participantPeerId = peerFromMTP(data.vpeer());
@@ -274,8 +394,8 @@ void GroupCall::applyParticipantsSlice(
 						_participantUpdates.fire(std::move(update));
 					}
 				}
-				if (changedCount > _participants.size()) {
-					--changedCount;
+				if (_serverParticipantsCount > 0) {
+					--_serverParticipantsCount;
 				}
 				return;
 			}
@@ -338,7 +458,7 @@ void GroupCall::applyParticipantsSlice(
 				*i = value;
 			}
 			if (data.is_just_joined()) {
-				++changedCount;
+				++_serverParticipantsCount;
 			}
 			if (sliceSource != ApplySliceSource::SliceLoaded) {
 				_participantUpdates.fire({
@@ -349,8 +469,8 @@ void GroupCall::applyParticipantsSlice(
 		});
 	}
 	if (sliceSource == ApplySliceSource::UpdateReceived) {
-		_fullCount = changedCount;
 		changePeerEmptyCallFlag();
+		computeParticipantsCount();
 	}
 }
 
@@ -542,6 +662,7 @@ void GroupCall::requestUnknownParticipants() {
 	).done([=](const MTPphone_GroupParticipants &result) {
 		result.match([&](const MTPDphone_groupParticipants &data) {
 			_peer->owner().processUsers(data.vusers());
+			_peer->owner().processChats(data.vchats());
 			applyParticipantsSlice(
 				data.vparticipants().v,
 				ApplySliceSource::UnknownLoaded);
@@ -603,41 +724,6 @@ bool GroupCall::inCall() const {
 	return (current != nullptr)
 		&& (current->id() == _id)
 		&& (current->state() == Calls::GroupCall::State::Joined);
-}
-
-void GroupCall::applyUpdate(const MTPDupdateGroupCallParticipants &update) {
-	const auto version = update.vversion().v;
-	const auto applyUpdate = [&] {
-		if (version < _version) {
-			return false;
-		}
-		auto versionShouldIncrement = false;
-		for (const auto &participant : update.vparticipants().v) {
-			const auto versioned = participant.match([&](
-					const MTPDgroupCallParticipant &data) {
-				return data.is_versioned();
-			});
-			if (versioned) {
-				versionShouldIncrement = true;
-				break;
-			}
-		}
-		return versionShouldIncrement
-			? (version == _version + 1)
-			: (version == _version);
-	}();
-	if (!applyUpdate) {
-		return;
-	}
-	_version = version;
-	applyUpdateChecked(update);
-}
-
-void GroupCall::applyUpdateChecked(
-		const MTPDupdateGroupCallParticipants &update) {
-	applyParticipantsSlice(
-		update.vparticipants().v,
-		ApplySliceSource::UpdateReceived);
 }
 
 void GroupCall::setJoinMutedLocally(bool muted) {

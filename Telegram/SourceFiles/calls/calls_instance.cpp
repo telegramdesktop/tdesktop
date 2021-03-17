@@ -323,9 +323,9 @@ void Instance::handleUpdate(
 	}, [&](const MTPDupdatePhoneCallSignalingData &data) {
 		handleSignalingData(session, data);
 	}, [&](const MTPDupdateGroupCall &data) {
-		handleGroupCallUpdate(session, data.vcall());
+		handleGroupCallUpdate(session, update);
 	}, [&](const MTPDupdateGroupCallParticipants &data) {
-		handleGroupCallUpdate(session, data);
+		handleGroupCallUpdate(session, update);
 	}, [](const auto &) {
 		Unexpected("Update type in Calls::Instance::handleUpdate.");
 	});
@@ -410,33 +410,45 @@ void Instance::handleCallUpdate(
 
 void Instance::handleGroupCallUpdate(
 		not_null<Main::Session*> session,
-		const MTPGroupCall &call) {
-	const auto callId = call.match([](const auto &data) {
-		return data.vid().v;
+		const MTPUpdate &update) {
+	const auto callId = update.match([](const MTPDupdateGroupCall &data) {
+		return data.vcall().match([](const auto &data) {
+			return data.vid().v;
+		});
+	}, [](const MTPDupdateGroupCallParticipants &data) {
+		return data.vcall().match([&](const MTPDinputGroupCall &data) {
+			return data.vid().v;
+		});
+	}, [](const auto &) -> uint64 {
+		Unexpected("Type in Instance::handleGroupCallUpdate.");
 	});
 	if (const auto existing = session->data().groupCall(callId)) {
-		existing->applyUpdate(call);
-	}
-	if (_currentGroupCall
-		&& (&_currentGroupCall->peer()->session() == session)) {
-		_currentGroupCall->handleUpdate(call);
+		existing->enqueueUpdate(update);
+	} else {
+		applyGroupCallUpdateChecked(session, update);
 	}
 }
 
-void Instance::handleGroupCallUpdate(
+void Instance::applyGroupCallUpdateChecked(
 		not_null<Main::Session*> session,
-		const MTPDupdateGroupCallParticipants &update) {
-	const auto callId = update.vcall().match([](const auto &data) {
-		return data.vid().v;
+		const MTPUpdate &update) {
+	if (!_currentGroupCall
+		|| (&_currentGroupCall->peer()->session() != session)) {
+		return;
+	}
+
+	update.match([&](const MTPDupdateGroupCall &data) {
+		_currentGroupCall->handleUpdate(data.vcall());
+	}, [&](const MTPDupdateGroupCallParticipants &data) {
+		const auto callId = data.vcall().match([](const auto &data) {
+			return data.vid().v;
+		});
+		if (_currentGroupCall->id() == callId) {
+			_currentGroupCall->handleUpdate(data);
+		}
+	}, [](const auto &) {
+		Unexpected("Type in Instance::applyGroupCallUpdateChecked.");
 	});
-	if (const auto existing = session->data().groupCall(callId)) {
-		existing->applyUpdate(update);
-	}
-	if (_currentGroupCall
-		&& (&_currentGroupCall->peer()->session() == session)
-		&& (_currentGroupCall->id() == callId)) {
-		_currentGroupCall->handleUpdate(update);
-	}
 }
 
 void Instance::handleSignalingData(
