@@ -128,7 +128,7 @@ jobs:
         shell: bash
         run: |
           echo "Find any version of Python 2."
-          p=`ls /c/hostedtoolcache/windows/python | grep 2 | tail -1`
+          p=`ls /c/hostedtoolcache/windows/python | grep "^2" | tail -1`
           if [ -z "$p" ]; then
             echo "Python 2 is not found."
             exit 1
@@ -409,6 +409,7 @@ jobs:
           -D TDESKTOP_API_TEST=ON ^
           -D DESKTOP_APP_USE_PACKAGED=OFF ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
+          -D DESKTOP_APP_NO_PDB=ON ^
           %TDESKTOP_BUILD_DEFINE% ^
           -DCMAKE_SYSTEM_VERSION=%SDK%
 

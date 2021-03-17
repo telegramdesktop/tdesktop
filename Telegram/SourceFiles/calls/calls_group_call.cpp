@@ -274,11 +274,6 @@ void GroupCall::setState(State state) {
 
 	if (state == State::Joined) {
 		stopConnectingSound();
-		if (!_hadJoinedState) {
-			_hadJoinedState = true;
-			applyGlobalShortcutChanges();
-			_delegate->groupCallPlaySound(Delegate::GroupCallSound::Started);
-		}
 		if (const auto call = _peer->groupCall(); call && call->id() == _id) {
 			call->setInCall();
 		}
@@ -481,6 +476,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				applyMeInCallLocally();
 				maybeSendMutedUpdate(wasMuteState);
 				_peer->session().api().applyUpdates(updates);
+				checkFirstTimeJoined();
 			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
 				LOG(("Call Error: Could not join, error: %1").arg(type));
@@ -549,7 +545,7 @@ void GroupCall::applyMeInCallLocally() {
 		| Flag::f_volume_by_admin // Self volume can only be set by admin.
 		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0))
 		| (raisedHandRating > 0 ? Flag::f_raise_hand_rating : Flag(0));
-	call->applyUpdateChecked(
+	call->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
 			MTP_vector<MTPGroupCallParticipant>(
@@ -594,7 +590,7 @@ void GroupCall::applyParticipantLocally(
 		| (participant->raisedHandRating
 			? Flag::f_raise_hand_rating
 			: Flag(0));
-	_peer->groupCall()->applyUpdateChecked(
+	_peer->groupCall()->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
 			MTP_vector<MTPGroupCallParticipant>(
@@ -1333,9 +1329,24 @@ void GroupCall::setInstanceConnected(
 			setMutedAndUpdate(MuteState::Active);
 		}
 	}
+	if (!_hadJoinedState && state() == State::Joined) {
+		checkFirstTimeJoined();
+	}
+}
+
+void GroupCall::checkFirstTimeJoined() {
+	if (_hadJoinedState || state() != State::Joined) {
+		return;
+	}
+	_hadJoinedState = true;
+	applyGlobalShortcutChanges();
+	_delegate->groupCallPlaySound(Delegate::GroupCallSound::Started);
 }
 
 void GroupCall::notifyAboutAllowedToSpeak() {
+	if (!_hadJoinedState) {
+		return;
+	}
 	_delegate->groupCallPlaySound(
 		Delegate::GroupCallSound::AllowedToSpeak);
 	_allowedToSpeakNotifications.fire({});

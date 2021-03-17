@@ -50,6 +50,12 @@ public:
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
+
+	// Called by Data::GroupCall when it is appropriate by the 'version'.
+	void applyGroupCallUpdateChecked(
+		not_null<Main::Session*> session,
+		const MTPUpdate &update);
+
 	void showInfoPanel(not_null<Call*> call);
 	void showInfoPanel(not_null<GroupCall*> call);
 	[[nodiscard]] Call *currentCall() const;
@@ -130,10 +136,7 @@ private:
 		const MTPDupdatePhoneCallSignalingData &data);
 	void handleGroupCallUpdate(
 		not_null<Main::Session*> session,
-		const MTPGroupCall &call);
-	void handleGroupCallUpdate(
-		not_null<Main::Session*> session,
-		const MTPDupdateGroupCallParticipants &update);
+		const MTPUpdate &update);
 
 	DhConfig _dhConfig;
 
