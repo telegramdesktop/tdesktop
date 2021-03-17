@@ -278,11 +278,25 @@ void Updates::checkLastUpdate(bool afterSleep) {
 void Updates::feedUpdateVector(
 		const MTPVector<MTPUpdate> &updates,
 		bool skipMessageIds) {
-	for (const auto &update : updates.v) {
-		if (skipMessageIds && update.type() == mtpc_updateMessageID) {
+	auto list = updates.v;
+	const auto needsSorting = ranges::contains(
+		list,
+		mtpc_updateGroupCallParticipants,
+		&MTPUpdate::type);
+	if (needsSorting) {
+		ranges::stable_sort(list, std::less<>(), [](const MTPUpdate &entry) {
+			if (entry.type() == mtpc_updateGroupCallParticipants) {
+				return 0;
+			} else {
+				return 1;
+			}
+		});
+	}
+	for (const auto &entry : std::as_const(list)) {
+		if (skipMessageIds && entry.type() == mtpc_updateMessageID) {
 			continue;
 		}
-		feedUpdate(update);
+		feedUpdate(entry);
 	}
 	session().data().sendHistoryChangeNotifications();
 }
