@@ -609,13 +609,13 @@ void Panel::setupJoinAsChangedToasts() {
 			return (state == State::Joined);
 		}) | rpl::take(1);
 	}) | rpl::flatten_latest() | rpl::start_with_next([=] {
-		Ui::ShowMultilineToast(Ui::MultilineToastArgs{
+		Ui::ShowMultilineToast({
+			.parentOverride = widget(),
 			.text = tr::lng_group_call_join_as_changed(
 				tr::now,
 				lt_name,
 				Ui::Text::Bold(_call->joinAs()->name),
 				Ui::Text::WithEntities),
-			.parentOverride = widget(),
 		});
 	}, widget()->lifetime());
 }
@@ -629,13 +629,13 @@ void Panel::setupTitleChangedToasts() {
 			? _peer->name
 			: _peer->groupCall()->title();
 	}) | rpl::start_with_next([=](const QString &title) {
-		Ui::ShowMultilineToast(Ui::MultilineToastArgs{
+		Ui::ShowMultilineToast({
+			.parentOverride = widget(),
 			.text = tr::lng_group_call_title_changed(
 				tr::now,
 				lt_title,
 				Ui::Text::Bold(title),
 				Ui::Text::WithEntities),
-			.parentOverride = widget(),
 		});
 	}, widget()->lifetime());
 }
