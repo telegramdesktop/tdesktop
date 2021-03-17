@@ -19,10 +19,10 @@ RUN yum -y install git cmake3 meson ninja-build autoconf automake libtool \
 	freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
 	pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel \
 	webkitgtk4-devel pkgconfig bison yasm file which xorg-x11-util-macros \
-	devtoolset-8-make devtoolset-8-gcc devtoolset-8-gcc-c++ \
-	devtoolset-8-binutils
+	devtoolset-9-make devtoolset-9-gcc devtoolset-9-gcc-c++ \
+	devtoolset-9-binutils
 
-SHELL [ "scl", "enable", "devtoolset-8", "--", "bash", "-c" ]
+SHELL [ "scl", "enable", "devtoolset-9", "--", "bash", "-c" ]
 RUN ln -s cmake3 /usr/bin/cmake
 
 ENV LibrariesPath /usr/src/Libraries
@@ -597,7 +597,7 @@ RUN git checkout bc8fb886
 RUN git clone https://chromium.googlesource.com/linux-syscall-support.git src/third_party/lss
 
 WORKDIR src/third_party/lss
-RUN git checkout a91633d1
+RUN git checkout 8048ece
 WORKDIR ${LibrariesPath}
 
 ENV BreakpadCache ${LibrariesPath}/breakpad-cache

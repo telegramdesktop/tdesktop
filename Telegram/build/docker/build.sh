@@ -16,7 +16,7 @@ if [ ! -d "$FullScriptPath/../../../../DesktopPrivate" ]; then
 fi
 
 Run () {
-  scl enable devtoolset-8 -- "$@"
+  scl enable devtoolset-9 -- "$@"
 }
 
 HomePath="$FullScriptPath/../.."
