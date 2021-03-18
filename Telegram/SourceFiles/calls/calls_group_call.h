@@ -309,6 +309,7 @@ private:
 	uint64 _id = 0;
 	uint64 _accessHash = 0;
 	uint32 _mySsrc = 0;
+	base::flat_set<uint32> _mySsrcs;
 	mtpRequestId _createRequestId = 0;
 	mtpRequestId _updateMuteRequestId = 0;
 
