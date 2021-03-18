@@ -402,6 +402,7 @@ RUN make -j$(nproc)
 RUN make DESTDIR="$LibrariesPath/ffmpeg-cache" install
 
 FROM builder AS openal
+ADD https://api.github.com/repos/telegramdesktop/openal-soft/git/refs/heads/fix_pulse_default openal-soft-version.json
 RUN git clone -b fix_pulse_default --depth=1 $GIT/telegramdesktop/openal-soft.git
 
 WORKDIR openal-soft
