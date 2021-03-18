@@ -141,6 +141,12 @@ std::map<int, const char*> BetaLogs() {
 		2006007,
 		"- Improve voice chat participants list updating.\n"
 	},
+	{
+		2006008,
+		"- Fix connecting and getting allowed to speak on voice chats.\n"
+
+		"- MPRIS support on Linux.\n"
+	},
 	};
 };
 
