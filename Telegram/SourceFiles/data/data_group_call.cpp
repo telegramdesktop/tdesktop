@@ -378,7 +378,12 @@ void GroupCall::reload() {
 		"Reloading with queued: %1"
 		).arg(_queuedUpdates.size()));
 
-	_queuedUpdates.clear();
+	while (!_queuedUpdates.empty()) {
+		const auto &entry = _queuedUpdates.front();
+		const auto update = entry.second;
+		_queuedUpdates.erase(_queuedUpdates.begin());
+		applyUpdate(update);
+	}
 	_reloadByQueuedUpdatesTimer.cancel();
 
 	_reloadRequestId = api().request(
