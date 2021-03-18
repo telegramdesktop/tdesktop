@@ -593,6 +593,9 @@ void start() {
 	Glib::init();
 	Gio::init();
 
+	Glib::set_prgname(cExeName().toStdString());
+	Glib::set_application_name(std::string(AppName));
+
 	if (const auto integration = BaseGtkIntegration::Instance()) {
 		integration->prepareEnvironment();
 	} else {
