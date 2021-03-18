@@ -471,6 +471,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				MTP_dataJSON(MTP_bytes(json))
 			)).done([=](const MTPUpdates &updates) {
 				_mySsrc = ssrc;
+				_mySsrcs.emplace(ssrc);
 				setState((_instanceState.current()
 					== InstanceState::Disconnected)
 					? State::Connecting
@@ -732,9 +733,7 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 			join(MTP_inputGroupCall(data.vid(), data.vaccess_hash()));
 		}
 		return;
-	} else if (_id != data.vid().v
-		|| _accessHash != data.vaccess_hash().v
-		|| !_instance) {
+	} else if (_id != data.vid().v || !_instance) {
 		return;
 	}
 	const auto streamDcId = MTP::BareDcId(
@@ -923,18 +922,27 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 			if (data.is_left()) {
 				if (data.vsource().v == _mySsrc) {
 					// I was removed from the call, rejoin.
-					LOG(("Call Info: Rejoin after got 'left' with my ssrc."));
+					LOG(("Call Info: "
+						"Rejoin after got 'left' with my ssrc."));
 					setState(State::Joining);
 					rejoin();
 				}
 				return;
 			} else if (data.vsource().v != _mySsrc) {
-				// I joined from another device, hangup.
-				LOG(("Call Info: Hangup after '!left' with ssrc %1, my %2."
-					).arg(data.vsource().v
-					).arg(_mySsrc));
-				_mySsrc = 0;
-				hangup();
+				if (!_mySsrcs.contains(data.vsource().v)) {
+					// I joined from another device, hangup.
+					LOG(("Call Info: "
+						"Hangup after '!left' with ssrc %1, my %2."
+						).arg(data.vsource().v
+						).arg(_mySsrc));
+					_mySsrc = 0;
+					hangup();
+				} else {
+					LOG(("Call Info: "
+						"Some old 'self' with '!left' and ssrc %1, my %2."
+						).arg(data.vsource().v
+						).arg(_mySsrc));
+				}
 				return;
 			}
 			if (data.is_muted() && !data.is_can_self_unmute()) {

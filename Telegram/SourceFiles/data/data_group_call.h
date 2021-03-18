@@ -113,6 +113,11 @@ private:
 		UnknownLoaded,
 		UpdateReceived,
 	};
+	enum class QueuedType : uint8 {
+		VersionedParticipant,
+		Participant,
+		Call,
+	};
 	[[nodiscard]] ApiWrap &api() const;
 
 	void discard();
@@ -124,7 +129,7 @@ private:
 	void changePeerEmptyCallFlag();
 	void checkFinishSpeakingByActive();
 	void applyCallFields(const MTPDgroupCall &data);
-	void applyUpdate(const MTPUpdate &update);
+	void applyEnqueuedUpdate(const MTPUpdate &update);
 	void setServerParticipantsCount(int count);
 	void computeParticipantsCount();
 	void processQueuedUpdates();
@@ -144,7 +149,9 @@ private:
 	mtpRequestId _reloadRequestId = 0;
 	rpl::variable<QString> _title;
 
-	base::flat_multi_map<std::pair<int,bool>, MTPUpdate> _queuedUpdates;
+	base::flat_multi_map<
+		std::pair<int, QueuedType>,
+		MTPUpdate> _queuedUpdates;
 	base::Timer _reloadByQueuedUpdatesTimer;
 	std::optional<MTPphone_GroupCall> _savedFull;
 
@@ -168,6 +175,7 @@ private:
 	bool _canChangeJoinMuted = true;
 	bool _allParticipantsLoaded = false;
 	bool _joinedToTop = false;
+	bool _applyingQueuedUpdates = false;
 
 };
 

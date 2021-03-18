@@ -202,21 +202,23 @@ void GroupCall::enqueueUpdate(const MTPUpdate &update) {
 	update.match([&](const MTPDupdateGroupCall &updateData) {
 		updateData.vcall().match([&](const MTPDgroupCall &data) {
 			const auto version = data.vversion().v;
-			if (!_version || _version == version) {
+			if (!_applyingQueuedUpdates
+				&& (!_version || _version == version)) {
 				DEBUG_LOG(("Group Call Participants: "
 					"Apply updateGroupCall %1 -> %2"
 					).arg(_version
 					).arg(version));
-				applyUpdate(update);
-			} else if (_version < version) {
+				applyEnqueuedUpdate(update);
+			} else if (!_version || _version <= version) {
 				DEBUG_LOG(("Group Call Participants: "
 					"Queue updateGroupCall %1 -> %2"
 					).arg(_version
 					).arg(version));
-				_queuedUpdates.emplace(std::pair{ version, false }, update);
+				const auto type = QueuedType::Call;
+				_queuedUpdates.emplace(std::pair{ version, type }, update);
 			}
 		}, [&](const MTPDgroupCallDiscarded &data) {
-			applyUpdate(update);
+			discard();
 		});
 	}, [&](const MTPDupdateGroupCallParticipants &updateData) {
 		const auto version = updateData.vversion().v;
@@ -230,19 +232,22 @@ void GroupCall::enqueueUpdate(const MTPUpdate &update) {
 			true,
 			proj);
 		const auto required = increment ? (version - 1) : version;
-		if (_version == required) {
+		if (!_applyingQueuedUpdates && (_version == required)) {
 			DEBUG_LOG(("Group Call Participants: "
 				"Apply updateGroupCallParticipant %1 (%2)"
 				).arg(_version
 				).arg(Logs::b(increment)));
-			applyUpdate(update);
-		} else if (_version < required) {
+			applyEnqueuedUpdate(update);
+		} else if (_version <= required) {
 			DEBUG_LOG(("Group Call Participants: "
 				"Queue updateGroupCallParticipant %1 -> %2 (%3)"
 				).arg(_version
 				).arg(version
 				).arg(Logs::b(increment)));
-			_queuedUpdates.emplace(std::pair{ version, increment }, update);
+			const auto type = increment
+				? QueuedType::VersionedParticipant
+				: QueuedType::Participant;
+			_queuedUpdates.emplace(std::pair{ version, type }, update);
 		}
 	}, [](const auto &) {
 		Unexpected("Type in GroupCall::enqueueUpdate.");
@@ -327,12 +332,16 @@ void GroupCall::applyLocalUpdate(
 		ApplySliceSource::UpdateReceived);
 }
 
-void GroupCall::applyUpdate(const MTPUpdate &update) {
+void GroupCall::applyEnqueuedUpdate(const MTPUpdate &update) {
+	Expects(!_applyingQueuedUpdates);
+
+	_applyingQueuedUpdates = true;
+	const auto guard = gsl::finally([&] { _applyingQueuedUpdates = false; });
+
 	update.match([&](const MTPDupdateGroupCall &data) {
 		data.vcall().match([&](const MTPDgroupCall &data) {
 			applyCallFields(data);
 			computeParticipantsCount();
-			processQueuedUpdates();
 		}, [&](const MTPDgroupCallDiscarded &data) {
 			discard();
 		});
@@ -351,7 +360,7 @@ void GroupCall::applyUpdate(const MTPUpdate &update) {
 			data.vparticipants().v,
 			ApplySliceSource::UpdateReceived);
 	}, [](const auto &) {
-		Unexpected("Type in GroupCall::processQueuedUpdates.");
+		Unexpected("Type in GroupCall::applyEnqueuedUpdate.");
 	});
 	Core::App().calls().applyGroupCallUpdateChecked(
 		&_peer->session(),
@@ -359,7 +368,7 @@ void GroupCall::applyUpdate(const MTPUpdate &update) {
 }
 
 void GroupCall::processQueuedUpdates() {
-	if (!_version) {
+	if (!_version || _applyingQueuedUpdates) {
 		return;
 	}
 
@@ -367,15 +376,16 @@ void GroupCall::processQueuedUpdates() {
 	while (!_queuedUpdates.empty()) {
 		const auto &entry = _queuedUpdates.front();
 		const auto version = entry.first.first;
-		const auto versionIncremented = entry.first.second;
+		const auto type = entry.first.second;
+		const auto incremented = (type == QueuedType::VersionedParticipant);
 		if ((version < _version)
-			|| (version == _version && versionIncremented)) {
+			|| (version == _version && incremented)) {
 			_queuedUpdates.erase(_queuedUpdates.begin());
 		} else if (version == _version
-			|| (version == _version + 1 && versionIncremented)) {
+			|| (version == _version + 1 && incremented)) {
 			const auto update = entry.second;
 			_queuedUpdates.erase(_queuedUpdates.begin());
-			applyUpdate(update);
+			applyEnqueuedUpdate(update);
 		} else {
 			break;
 		}
@@ -395,7 +405,7 @@ void GroupCall::computeParticipantsCount() {
 }
 
 void GroupCall::reload() {
-	if (_reloadRequestId) {
+	if (_reloadRequestId || _applyingQueuedUpdates) {
 		return;
 	} else if (_participantsRequestId) {
 		api().request(_participantsRequestId).cancel();
@@ -410,7 +420,7 @@ void GroupCall::reload() {
 		const auto &entry = _queuedUpdates.front();
 		const auto update = entry.second;
 		_queuedUpdates.erase(_queuedUpdates.begin());
-		applyUpdate(update);
+		applyEnqueuedUpdate(update);
 	}
 	_reloadByQueuedUpdatesTimer.cancel();
 
