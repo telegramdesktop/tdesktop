@@ -535,7 +535,10 @@ void ValidateSlice(
 				).arg(from
 				).arg(index
 				).arg(till) + strings.join(","));
-			Unexpected("Bad slice in GroupThumbs.");
+			if (Logs::DebugEnabled()) {
+				Unexpected("Bad slice in GroupThumbs.");
+			}
+			break;
 		} else {
 			keys.emplace(key);
 		}
@@ -555,9 +558,7 @@ void GroupThumbs::fillItems(
 	const auto current = (index - from);
 	const auto old = base::take(_items);
 
-	if (Logs::DebugEnabled()) {
-		ValidateSlice(slice, _context, from, index, till);
-	}
+	ValidateSlice(slice, _context, from, index, till);
 
 	markCacheStale();
 	_items.reserve(till - from);

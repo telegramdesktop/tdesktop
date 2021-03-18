@@ -137,6 +137,10 @@ std::map<int, const char*> BetaLogs() {
 		2006005,
 		"- Improvements and fixes in new voice chat features.\n"
 	},
+	{
+		2006007,
+		"- Improve voice chat participants list updating.\n"
+	},
 	};
 };
 
