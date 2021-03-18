@@ -176,8 +176,16 @@ void GroupCall::enqueueUpdate(const MTPUpdate &update) {
 		updateData.vcall().match([&](const MTPDgroupCall &data) {
 			const auto version = data.vversion().v;
 			if (!_version || _version == version) {
+				DEBUG_LOG(("Group Call Participants: "
+					"Apply updateGroupCall %1 -> %2"
+					).arg(_version
+					).arg(version));
 				applyUpdate(update);
 			} else if (_version < version) {
+				DEBUG_LOG(("Group Call Participants: "
+					"Queue updateGroupCall %1 -> %2"
+					).arg(_version
+					).arg(version));
 				_queuedUpdates.emplace(std::pair{ version, false }, update);
 			}
 		}, [&](const MTPDgroupCallDiscarded &data) {
@@ -196,8 +204,17 @@ void GroupCall::enqueueUpdate(const MTPUpdate &update) {
 			proj);
 		const auto required = increment ? (version - 1) : version;
 		if (_version == required) {
+			DEBUG_LOG(("Group Call Participants: "
+				"Apply updateGroupCallParticipant %1 (%2)"
+				).arg(_version
+				).arg(Logs::b(increment)));
 			applyUpdate(update);
 		} else if (_version < required) {
+			DEBUG_LOG(("Group Call Participants: "
+				"Queue updateGroupCallParticipant %1 -> %2 (%3)"
+				).arg(_version
+				).arg(version
+				).arg(Logs::b(increment)));
 			_queuedUpdates.emplace(std::pair{ version, increment }, update);
 		}
 	}, [](const auto &) {
@@ -255,6 +272,10 @@ void GroupCall::processFullCall(const MTPphone_GroupCall &call) {
 }
 
 void GroupCall::applyCallFields(const MTPDgroupCall &data) {
+	DEBUG_LOG(("Group Call Participants: "
+		"Set from groupCall %1 -> %2"
+		).arg(_version
+		).arg(data.vversion().v));
 	_version = data.vversion().v;
 	if (!_version) {
 		LOG(("API Error: Got zero version in groupCall."));
@@ -288,6 +309,10 @@ void GroupCall::applyUpdate(const MTPUpdate &update) {
 			discard();
 		});
 	}, [&](const MTPDupdateGroupCallParticipants &data) {
+		DEBUG_LOG(("Group Call Participants: "
+			"Set from updateGroupCallParticipants %1 -> %2"
+			).arg(_version
+			).arg(data.vversion().v));
 		_version = data.vversion().v;
 		if (!_version) {
 			LOG(("API Error: "
@@ -328,12 +353,7 @@ void GroupCall::processQueuedUpdates() {
 		}
 	}
 	if (_queuedUpdates.empty()) {
-		const auto server = _serverParticipantsCount;
-		const auto local = int(_participants.size());
-		if (server < local
-			|| (_allParticipantsLoaded && server > local)) {
-			reload();
-		}
+		_reloadByQueuedUpdatesTimer.cancel();
 	} else if (_queuedUpdates.size() != size
 		|| !_reloadByQueuedUpdatesTimer.isActive()) {
 		_reloadByQueuedUpdatesTimer.callOnce(kWaitForUpdatesTimeout);
@@ -353,6 +373,10 @@ void GroupCall::reload() {
 		api().request(_participantsRequestId).cancel();
 		_participantsRequestId = 0;
 	}
+
+	DEBUG_LOG(("Group Call Participants: "
+		"Reloading with queued: %1"
+		).arg(_queuedUpdates.size()));
 
 	_queuedUpdates.clear();
 	_reloadByQueuedUpdatesTimer.cancel();
