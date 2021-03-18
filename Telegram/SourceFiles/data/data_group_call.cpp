@@ -218,7 +218,7 @@ void GroupCall::enqueueUpdate(const MTPUpdate &update) {
 				_queuedUpdates.emplace(std::pair{ version, type }, update);
 			}
 		}, [&](const MTPDgroupCallDiscarded &data) {
-			discard();
+			discard(data);
 		});
 	}, [&](const MTPDupdateGroupCallParticipants &updateData) {
 		const auto version = updateData.vversion().v;
@@ -255,7 +255,7 @@ void GroupCall::enqueueUpdate(const MTPUpdate &update) {
 	processQueuedUpdates();
 }
 
-void GroupCall::discard() {
+void GroupCall::discard(const MTPDgroupCallDiscarded &data) {
 	const auto id = _id;
 	const auto peer = _peer;
 	crl::on_main(&peer->session(), [=] {
@@ -267,6 +267,14 @@ void GroupCall::discard() {
 			}
 		}
 	});
+	Core::App().calls().applyGroupCallUpdateChecked(
+		&peer->session(),
+		MTP_updateGroupCall(
+			MTP_int(peer->bareId()),
+			MTP_groupCallDiscarded(
+				data.vid(),
+				data.vaccess_hash(),
+				data.vduration())));
 }
 
 void GroupCall::processFullCallUsersChats(const MTPphone_GroupCall &call) {
@@ -293,7 +301,7 @@ void GroupCall::processFullCallFields(const MTPphone_GroupCall &call) {
 
 			applyCallFields(data);
 		}, [&](const MTPDgroupCallDiscarded &data) {
-			discard();
+			discard(data);
 		});
 	});
 }
@@ -343,7 +351,7 @@ void GroupCall::applyEnqueuedUpdate(const MTPUpdate &update) {
 			applyCallFields(data);
 			computeParticipantsCount();
 		}, [&](const MTPDgroupCallDiscarded &data) {
-			discard();
+			discard(data);
 		});
 	}, [&](const MTPDupdateGroupCallParticipants &data) {
 		DEBUG_LOG(("Group Call Participants: "

@@ -722,7 +722,8 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 		const MTPDupdateGroupCall &data) {
 	data.vcall().match([&](const MTPDgroupCall &data) {
 		handlePossibleCreateOrJoinResponse(data);
-	}, [](const MTPDgroupCallDiscarded &data) {
+	}, [&](const MTPDgroupCallDiscarded &data) {
+		handlePossibleDiscarded(data);
 	});
 }
 
@@ -815,6 +816,14 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 	});
 }
 
+void GroupCall::handlePossibleDiscarded(const MTPDgroupCallDiscarded &data) {
+	if (data.vid().v == _id) {
+		LOG(("Call Info: Hangup after groupCallDiscarded."));
+		_mySsrc = 0;
+		hangup();
+	}
+}
+
 void GroupCall::addParticipantsToInstance() {
 	const auto real = _peer->groupCall();
 	if (!real
@@ -869,10 +878,7 @@ void GroupCall::handleUpdate(const MTPUpdate &update) {
 void GroupCall::handleUpdate(const MTPDupdateGroupCall &data) {
 	data.vcall().match([](const MTPDgroupCall &) {
 	}, [&](const MTPDgroupCallDiscarded &data) {
-		if (data.vid().v == _id) {
-			_mySsrc = 0;
-			hangup();
-		}
+		handlePossibleDiscarded(data);
 	});
 }
 
@@ -1129,7 +1135,8 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 			});
 		});
 	}).fail([=](const MTP::Error &error, const MTP::Response &response) {
-		if (error.type() == u"GROUPCALL_JOIN_MISSING"_q) {
+		if (error.type() == u"GROUPCALL_JOIN_MISSING"_q
+			|| error.type() == u"GROUPCALL_FORBIDDEN"_q) {
 			for (const auto &[task, part] : _broadcastParts) {
 				_api.request(part.requestId).cancel();
 			}
