@@ -16,7 +16,7 @@ if [ ! -d "$FullScriptPath/../../../../DesktopPrivate" ]; then
 fi
 
 Run () {
-  scl enable devtoolset-8 -- "$@"
+  scl enable devtoolset-9 -- "$@"
 }
 
 HomePath="$FullScriptPath/../.."
@@ -86,17 +86,8 @@ if [ "$BadCount" != "0" ]; then
 Error "Bad GCC usages found: $BadCount"
 fi
 
-echo "Dumping debug symbols.."
-/dump_syms "$ReleasePath/$BinaryName" > "$ReleasePath/$BinaryName.sym"
-echo "Done!"
-
-echo "Stripping the executable.."
-strip -s "$ReleasePath/$BinaryName"
-echo "Done!"
-
 rm -rf "$ReleasePath/root"
 mkdir "$ReleasePath/root"
 mv "$ReleasePath/$BinaryName" "$ReleasePath/root/"
-mv "$ReleasePath/$BinaryName.sym" "$ReleasePath/root/"
 mv "$ReleasePath/Updater" "$ReleasePath/root/"
 mv "$ReleasePath/Packer" "$ReleasePath/root/"

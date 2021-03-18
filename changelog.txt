@@ -1,3 +1,7 @@
+2.6.7 beta (18.03.21)
+
+- Improve voice chat participants list updating.
+
 2.6.6 beta (18.03.21)
 
 - Fix joining popular voice chats.

@@ -27,6 +27,12 @@ constexpr auto kSpeakingAfterActive = crl::time(6000);
 constexpr auto kActiveAfterJoined = crl::time(1000);
 constexpr auto kWaitForUpdatesTimeout = 3 * crl::time(1000);
 
+[[nodiscard]] QString ExtractNextOffset(const MTPphone_GroupCall &call) {
+	return call.match([&](const MTPDphone_groupCall &data) {
+		return qs(data.vparticipants_next_offset());
+	});
+}
+
 } // namespace
 
 GroupCall::GroupCall(
@@ -50,6 +56,10 @@ uint64 GroupCall::id() const {
 	return _id;
 }
 
+bool GroupCall::loaded() const {
+	return _version > 0;
+}
+
 not_null<PeerData*> GroupCall::peer() const {
 	return _peer;
 }
@@ -71,18 +81,24 @@ auto GroupCall::participants() const
 }
 
 void GroupCall::requestParticipants() {
-	if (_participantsRequestId || _reloadRequestId) {
-		return;
-	} else if (_allParticipantsLoaded) {
-		return;
+	if (!_savedFull) {
+		if (_participantsRequestId || _reloadRequestId) {
+			return;
+		} else if (_allParticipantsLoaded) {
+			return;
+		}
 	}
 	_participantsRequestId = api().request(MTPphone_GetGroupParticipants(
 		input(),
 		MTP_vector<MTPInputPeer>(), // ids
 		MTP_vector<MTPint>(), // ssrcs
-		MTP_string(_nextOffset),
+		MTP_string(_savedFull
+			? ExtractNextOffset(*_savedFull)
+			: _nextOffset),
 		MTP_int(kRequestPerPage)
 	)).done([=](const MTPphone_GroupParticipants &result) {
+		_participantsRequestId = 0;
+		processSavedFullCall();
 		result.match([&](const MTPDphone_groupParticipants &data) {
 			_nextOffset = qs(data.vnext_offset());
 			_peer->owner().processUsers(data.vusers());
@@ -94,18 +110,29 @@ void GroupCall::requestParticipants() {
 			if (data.vparticipants().v.isEmpty()) {
 				_allParticipantsLoaded = true;
 			}
-			computeParticipantsCount();
-			_participantsSliceAdded.fire({});
-			_participantsRequestId = 0;
-			processQueuedUpdates();
+			finishParticipantsSliceRequest();
 		});
 	}).fail([=](const MTP::Error &error) {
+		_participantsRequestId = 0;
+		processSavedFullCall();
 		setServerParticipantsCount(_participants.size());
 		_allParticipantsLoaded = true;
-		computeParticipantsCount();
-		_participantsRequestId = 0;
-		processQueuedUpdates();
+		finishParticipantsSliceRequest();
 	}).send();
+}
+
+void GroupCall::processSavedFullCall() {
+	if (!_savedFull) {
+		return;
+	}
+	_reloadRequestId = 0;
+	processFullCallFields(*base::take(_savedFull));
+}
+
+void GroupCall::finishParticipantsSliceRequest() {
+	computeParticipantsCount();
+	processQueuedUpdates();
+	_participantsSliceAdded.fire({});
 }
 
 void GroupCall::setServerParticipantsCount(int count) {
@@ -176,8 +203,16 @@ void GroupCall::enqueueUpdate(const MTPUpdate &update) {
 		updateData.vcall().match([&](const MTPDgroupCall &data) {
 			const auto version = data.vversion().v;
 			if (!_version || _version == version) {
+				DEBUG_LOG(("Group Call Participants: "
+					"Apply updateGroupCall %1 -> %2"
+					).arg(_version
+					).arg(version));
 				applyUpdate(update);
 			} else if (_version < version) {
+				DEBUG_LOG(("Group Call Participants: "
+					"Queue updateGroupCall %1 -> %2"
+					).arg(_version
+					).arg(version));
 				_queuedUpdates.emplace(std::pair{ version, false }, update);
 			}
 		}, [&](const MTPDgroupCallDiscarded &data) {
@@ -196,8 +231,17 @@ void GroupCall::enqueueUpdate(const MTPUpdate &update) {
 			proj);
 		const auto required = increment ? (version - 1) : version;
 		if (_version == required) {
+			DEBUG_LOG(("Group Call Participants: "
+				"Apply updateGroupCallParticipant %1 (%2)"
+				).arg(_version
+				).arg(Logs::b(increment)));
 			applyUpdate(update);
 		} else if (_version < required) {
+			DEBUG_LOG(("Group Call Participants: "
+				"Queue updateGroupCallParticipant %1 -> %2 (%3)"
+				).arg(_version
+				).arg(version
+				).arg(Logs::b(increment)));
 			_queuedUpdates.emplace(std::pair{ version, increment }, update);
 		}
 	}, [](const auto &) {
@@ -220,20 +264,18 @@ void GroupCall::discard() {
 	});
 }
 
-void GroupCall::processFullCall(const MTPphone_GroupCall &call) {
+void GroupCall::processFullCallUsersChats(const MTPphone_GroupCall &call) {
 	call.match([&](const MTPDphone_groupCall &data) {
 		_peer->owner().processUsers(data.vusers());
 		_peer->owner().processChats(data.vchats());
+	});
+}
+
+void GroupCall::processFullCallFields(const MTPphone_GroupCall &call) {
+	call.match([&](const MTPDphone_groupCall &data) {
 		const auto &participants = data.vparticipants().v;
 		const auto nextOffset = qs(data.vparticipants_next_offset());
 		data.vcall().match([&](const MTPDgroupCall &data) {
-			if (data.vversion().v == _version
-				&& data.vparticipants_count().v == _serverParticipantsCount
-				&& (_serverParticipantsCount >= _participants.size())
-				&& (!_allParticipantsLoaded
-					|| _serverParticipantsCount == _participants.size())) {
-				return;
-			}
 			_participants.clear();
 			_speakingByActiveFinishes.clear();
 			_participantPeerBySsrc.clear();
@@ -245,16 +287,23 @@ void GroupCall::processFullCall(const MTPphone_GroupCall &call) {
 			_nextOffset = nextOffset;
 
 			applyCallFields(data);
-
-			_participantsSliceAdded.fire({});
 		}, [&](const MTPDgroupCallDiscarded &data) {
 			discard();
 		});
-		processQueuedUpdates();
 	});
 }
 
+void GroupCall::processFullCall(const MTPphone_GroupCall &call) {
+	processFullCallUsersChats(call);
+	processFullCallFields(call);
+	finishParticipantsSliceRequest();
+}
+
 void GroupCall::applyCallFields(const MTPDgroupCall &data) {
+	DEBUG_LOG(("Group Call Participants: "
+		"Set from groupCall %1 -> %2"
+		).arg(_version
+		).arg(data.vversion().v));
 	_version = data.vversion().v;
 	if (!_version) {
 		LOG(("API Error: Got zero version in groupCall."));
@@ -269,8 +318,6 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 	_recordStartDate = data.vrecord_start_date().value_or_empty();
 	_allParticipantsLoaded
 		= (_serverParticipantsCount == _participants.size());
-	computeParticipantsCount();
-	processQueuedUpdates();
 }
 
 void GroupCall::applyLocalUpdate(
@@ -284,10 +331,16 @@ void GroupCall::applyUpdate(const MTPUpdate &update) {
 	update.match([&](const MTPDupdateGroupCall &data) {
 		data.vcall().match([&](const MTPDgroupCall &data) {
 			applyCallFields(data);
+			computeParticipantsCount();
+			processQueuedUpdates();
 		}, [&](const MTPDgroupCallDiscarded &data) {
 			discard();
 		});
 	}, [&](const MTPDupdateGroupCallParticipants &data) {
+		DEBUG_LOG(("Group Call Participants: "
+			"Set from updateGroupCallParticipants %1 -> %2"
+			).arg(_version
+			).arg(data.vversion().v));
 		_version = data.vversion().v;
 		if (!_version) {
 			LOG(("API Error: "
@@ -328,12 +381,7 @@ void GroupCall::processQueuedUpdates() {
 		}
 	}
 	if (_queuedUpdates.empty()) {
-		const auto server = _serverParticipantsCount;
-		const auto local = int(_participants.size());
-		if (server < local
-			|| (_allParticipantsLoaded && server > local)) {
-			reload();
-		}
+		_reloadByQueuedUpdatesTimer.cancel();
 	} else if (_queuedUpdates.size() != size
 		|| !_reloadByQueuedUpdatesTimer.isActive()) {
 		_reloadByQueuedUpdatesTimer.callOnce(kWaitForUpdatesTimeout);
@@ -354,17 +402,45 @@ void GroupCall::reload() {
 		_participantsRequestId = 0;
 	}
 
-	_queuedUpdates.clear();
+	DEBUG_LOG(("Group Call Participants: "
+		"Reloading with queued: %1"
+		).arg(_queuedUpdates.size()));
+
+	while (!_queuedUpdates.empty()) {
+		const auto &entry = _queuedUpdates.front();
+		const auto update = entry.second;
+		_queuedUpdates.erase(_queuedUpdates.begin());
+		applyUpdate(update);
+	}
 	_reloadByQueuedUpdatesTimer.cancel();
 
 	_reloadRequestId = api().request(
 		MTPphone_GetGroupCall(input())
 	).done([=](const MTPphone_GroupCall &result) {
-		processFullCall(result);
+		if (requestParticipantsAfterReload(result)) {
+			_savedFull = result;
+			processFullCallUsersChats(result);
+			requestParticipants();
+			return;
+		}
 		_reloadRequestId = 0;
+		processFullCall(result);
 	}).fail([=](const MTP::Error &error) {
 		_reloadRequestId = 0;
 	}).send();
+}
+
+bool GroupCall::requestParticipantsAfterReload(
+		const MTPphone_GroupCall &call) const {
+	return call.match([&](const MTPDphone_groupCall &data) {
+		const auto received = data.vparticipants().v.size();
+		const auto size = data.vcall().match([&](const MTPDgroupCall &data) {
+			return data.vparticipants_count().v;
+		}, [](const auto &) {
+			return 0;
+		});
+		return (received < size) && (received < _participants.size());
+	});
 }
 
 void GroupCall::applyParticipantsSlice(

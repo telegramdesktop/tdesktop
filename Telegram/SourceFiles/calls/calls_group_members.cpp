@@ -1597,7 +1597,11 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		}
 	} else {
 		result->addAction(
-			tr::lng_context_view_profile(tr::now),
+			(participantPeer->isUser()
+				? tr::lng_context_view_profile(tr::now)
+				: participantPeer->isBroadcast()
+				? tr::lng_context_view_channel(tr::now)
+				: tr::lng_context_view_group(tr::now)),
 			showProfile);
 		if (participantPeer->isUser()) {
 			result->addAction(

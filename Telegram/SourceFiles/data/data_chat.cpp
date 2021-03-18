@@ -52,7 +52,8 @@ auto ChatData::defaultAdminRights(not_null<UserData*> user) -> AdminRights {
 	const auto isCreator = (creator == user->bareId())
 		|| (user->isSelf() && amCreator());
 	using Flag = AdminRight;
-	return Flag::f_change_info
+	return Flag::f_other
+		| Flag::f_change_info
 		| Flag::f_delete_messages
 		| Flag::f_ban_users
 		| Flag::f_invite_users
