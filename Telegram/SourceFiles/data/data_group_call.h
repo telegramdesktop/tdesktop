@@ -120,7 +120,7 @@ private:
 	};
 	[[nodiscard]] ApiWrap &api() const;
 
-	void discard();
+	void discard(const MTPDgroupCallDiscarded &data);
 	[[nodiscard]] bool inCall() const;
 	void applyParticipantsSlice(
 		const QVector<MTPGroupCallParticipant> &list,

@@ -228,6 +228,7 @@ private:
 	};
 
 	void handlePossibleCreateOrJoinResponse(const MTPDgroupCall &data);
+	void handlePossibleDiscarded(const MTPDgroupCallDiscarded &data);
 	void handleUpdate(const MTPDupdateGroupCall &data);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
 	void handleRequestError(const MTP::Error &error);
