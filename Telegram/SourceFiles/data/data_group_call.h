@@ -42,6 +42,7 @@ public:
 	~GroupCall();
 
 	[[nodiscard]] uint64 id() const;
+	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] MTPInputGroupCall input() const;
 	[[nodiscard]] QString title() const {
@@ -127,6 +128,12 @@ private:
 	void setServerParticipantsCount(int count);
 	void computeParticipantsCount();
 	void processQueuedUpdates();
+	void processFullCallUsersChats(const MTPphone_GroupCall &call);
+	void processFullCallFields(const MTPphone_GroupCall &call);
+	[[nodiscard]] bool requestParticipantsAfterReload(
+		const MTPphone_GroupCall &call) const;
+	void processSavedFullCall();
+	void finishParticipantsSliceRequest();
 
 	const uint64 _id = 0;
 	const uint64 _accessHash = 0;
@@ -139,6 +146,7 @@ private:
 
 	base::flat_multi_map<std::pair<int,bool>, MTPUpdate> _queuedUpdates;
 	base::Timer _reloadByQueuedUpdatesTimer;
+	std::optional<MTPphone_GroupCall> _savedFull;
 
 	std::vector<Participant> _participants;
 	base::flat_map<uint32, not_null<PeerData*>> _participantPeerBySsrc;
