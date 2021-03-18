@@ -39,6 +39,8 @@ apps:
       - unity7
       - wayland
       - x11
+    slots:
+      - tdesktop-mpris
 
 plugs:
   # Support for common GTK themes
@@ -56,6 +58,11 @@ plugs:
     interface: content
     target: $SNAP/data-dir/sounds
     default-provider: gtk-common-themes
+
+slots:
+  tdesktop-mpris:
+    interface: mpris
+    name: tdesktop
 
 layout:
   /usr/share/alsa:
