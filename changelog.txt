@@ -1,3 +1,8 @@
+2.6.8 beta (18.03.21)
+
+- Fix connecting and getting allowed to speak on voice chats.
+- MPRIS support on Linux.
+
 2.6.7 beta (18.03.21)
 
 - Improve voice chat participants list updating.
