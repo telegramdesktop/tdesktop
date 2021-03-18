@@ -280,6 +280,7 @@ private:
 
 	const not_null<Delegate*> _delegate;
 	not_null<PeerData*> _peer; // Can change in legacy group migration.
+	rpl::event_stream<PeerData*> _peerStream;
 	not_null<History*> _history; // Can change in legacy group migration.
 	MTP::Sender _api;
 	rpl::variable<State> _state = State::Creating;

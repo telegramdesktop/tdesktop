@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_common.h"
 #include "main/main_session.h"
 #include "api/api_send_progress.h"
+#include "api/api_updates.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_hardcoded.h"
@@ -387,8 +388,11 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 
 	addParticipantsToInstance();
 
+	_peer->session().updates().addActiveChat(
+		_peerStream.events_starting_with_copy(_peer));
 	SubscribeToMigration(_peer, _lifetime, [=](not_null<ChannelData*> group) {
 		_peer = group;
+		_peerStream.fire_copy(group);
 	});
 }
 
