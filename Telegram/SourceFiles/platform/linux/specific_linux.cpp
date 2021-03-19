@@ -72,6 +72,10 @@ constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
 constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
 constexpr auto kIBusPortalService = "org.freedesktop.portal.IBus"_cs;
 
+constexpr auto kSnapcraftSettingsService = "io.snapcraft.Settings"_cs;
+constexpr auto kSnapcraftSettingsObjectPath = "/io/snapcraft/Settings"_cs;
+constexpr auto kSnapcraftSettingsInterface = kSnapcraftSettingsService;
+
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 std::unique_ptr<internal::NotificationServiceWatcher> NSWInstance;
 
@@ -194,6 +198,68 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 			LOG(("Portal Autostart Error: %1").arg(
 				QString::fromStdString(e.what())));
 		}
+	}
+}
+
+class SnapDefaultHandler : public QWindow {
+public:
+	SnapDefaultHandler(const QString &protocol);
+};
+
+SnapDefaultHandler::SnapDefaultHandler(const QString &protocol) {
+	try {
+		const auto connection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
+
+		auto reply = connection->call_sync(
+			std::string(kSnapcraftSettingsObjectPath),
+			std::string(kSnapcraftSettingsInterface),
+			"GetSub",
+			base::Platform::MakeGlibVariant(std::tuple{
+				Glib::ustring("default-url-scheme-handler"),
+				Glib::ustring(protocol.toStdString()),
+			}),
+			std::string(kSnapcraftSettingsService));
+
+		const auto currentHandler = base::Platform::GlibVariantCast<
+			Glib::ustring>(reply.get_child(0));
+
+		const auto expectedHandler = qEnvironmentVariable("SNAP_NAME")
+			+ qsl(".desktop");
+
+		if (currentHandler == expectedHandler.toStdString()) {
+			return;
+		}
+
+		QEventLoop loop;
+
+		connection->call(
+			std::string(kSnapcraftSettingsObjectPath),
+			std::string(kSnapcraftSettingsInterface),
+			"SetSub",
+			base::Platform::MakeGlibVariant(std::tuple{
+				Glib::ustring("default-url-scheme-handler"),
+				Glib::ustring(protocol.toStdString()),
+				Glib::ustring(expectedHandler.toStdString()),
+			}),
+			[&](const Glib::RefPtr<Gio::AsyncResult> &result) {
+				try {
+					connection->call_finish(result);
+				} catch (const Glib::Error &e) {
+					LOG(("Snap Default Handler Error: %1").arg(
+						QString::fromStdString(e.what())));
+				}
+
+				loop.quit();
+			},
+			std::string(kSnapcraftSettingsService));
+
+		QGuiApplicationPrivate::showModalWindow(this);
+		loop.exec();
+		QGuiApplicationPrivate::hideModalWindow(this);
+	} catch (const Glib::Error &e) {
+		LOG(("Snap Default Handler Error: %1").arg(
+			QString::fromStdString(e.what())));
 	}
 }
 
@@ -688,6 +754,11 @@ void InstallLauncher(bool force) {
 
 void RegisterCustomScheme(bool force) {
 	try {
+		if (InSnap()) {
+			SnapDefaultHandler(qsl("tg"));
+			return;
+		}
+
 		if (cExeName().isEmpty()) {
 			return;
 		}
