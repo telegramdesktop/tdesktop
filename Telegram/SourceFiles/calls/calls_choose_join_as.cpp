@@ -163,6 +163,37 @@ void ChooseJoinAsBox(
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
+[[nodiscard]] TextWithEntities CreateOrJoinConfirmation(
+		not_null<PeerData*> peer,
+		ChooseJoinAsProcess::Context context,
+		bool joinAsAlreadyUsed) {
+	const auto existing = peer->groupCall();
+	if (!existing) {
+		return { peer->isBroadcast()
+			? tr::lng_group_call_create_sure_channel(tr::now)
+			: tr::lng_group_call_create_sure(tr::now) };
+	}
+	const auto channel = peer->asChannel();
+	const auto anonymouseAdmin = channel
+		&& ((channel->isMegagroup() && channel->amAnonymous())
+			|| (channel->isBroadcast()
+				&& (channel->amCreator()
+					|| channel->hasAdminRights())));
+	if (anonymouseAdmin && !joinAsAlreadyUsed) {
+		return { tr::lng_group_call_join_sure_personal(tr::now) };
+	} else if (context != ChooseJoinAsProcess::Context::JoinWithConfirm) {
+		return {};
+	}
+	const auto name = !existing->title().isEmpty()
+		? existing->title()
+		: peer->name;
+	return tr::lng_group_call_join_confirm(
+		tr::now,
+		lt_chat,
+		Ui::Text::Bold(name),
+		Ui::Text::WithEntities);
+}
+
 } // namespace
 
 ChooseJoinAsProcess::~ChooseJoinAsProcess() {
@@ -257,31 +288,27 @@ void ChooseJoinAsProcess::start(
 		info.possibleJoinAs = std::move(list);
 
 		const auto onlyByMe = (info.possibleJoinAs.size() == 1)
-			&& (info.possibleJoinAs.front() == self)
-			&& (!peer->isChannel()
-				|| !peer->asChannel()->amAnonymous()
-				|| (peer->isBroadcast() && !peer->canWrite()));
+			&& (info.possibleJoinAs.front() == self);
 
 		// We already joined this voice chat, just rejoin with the same.
 		const auto byAlreadyUsed = selectedId
-			&& (info.joinAs->id == selectedId);
+			&& (info.joinAs->id == selectedId)
+			&& (peer->groupCall() != nullptr);
 
 		if (!changingJoinAsFrom && (onlyByMe || byAlreadyUsed)) {
-			if (context != Context::JoinWithConfirm) {
+			const auto confirmation = CreateOrJoinConfirmation(
+				peer,
+				context,
+				byAlreadyUsed);
+			if (confirmation.text.isEmpty()) {
 				finish(info);
 				return;
 			}
-			const auto real = peer->groupCall();
-			const auto name = (real && !real->title().isEmpty())
-				? real->title()
-				: peer->name;
 			auto box = Box<::ConfirmBox>(
-				tr::lng_group_call_join_confirm(
-					tr::now,
-					lt_chat,
-					Ui::Text::Bold(name),
-					Ui::Text::WithEntities),
-				tr::lng_group_call_join(tr::now),
+				confirmation,
+				(peer->groupCall()
+					? tr::lng_group_call_join(tr::now)
+					: tr::lng_create_group_create(tr::now)),
 				crl::guard(&_request->guard, [=] { finish(info); }));
 			box->boxClosing(
 			) | rpl::start_with_next([=] {
