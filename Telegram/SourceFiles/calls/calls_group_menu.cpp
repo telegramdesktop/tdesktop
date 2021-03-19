@@ -517,16 +517,10 @@ base::unique_qptr<Ui::Menu::ItemBase> MakeRecordingAction(
 base::unique_qptr<Ui::Menu::ItemBase> MakeFinishAction(
 		not_null<Ui::Menu::Menu*> menu,
 		Fn<void()> callback) {
-	return base::make_unique_q<Ui::Menu::Action>(
+	return MakeAttentionAction(
 		menu,
-		st::groupCallFinishMenu,
-		Ui::Menu::CreateAction(
-			menu,
-			tr::lng_group_call_end(tr::now),
-			std::move(callback)),
-		nullptr,
-		nullptr);
-
+		tr::lng_group_call_end(tr::now),
+		std::move(callback));
 }
 
 } // namespace
@@ -675,6 +669,21 @@ void FillMenu(
 				BoxContext::GroupCallPanel));
 		}
 	}));
+}
+
+base::unique_qptr<Ui::Menu::ItemBase> MakeAttentionAction(
+		not_null<Ui::Menu::Menu*> menu,
+		const QString &text,
+		Fn<void()> callback) {
+	return base::make_unique_q<Ui::Menu::Action>(
+		menu,
+		st::groupCallFinishMenu,
+		Ui::Menu::CreateAction(
+			menu,
+			text,
+			std::move(callback)),
+		nullptr,
+		nullptr);
 
 }
 
