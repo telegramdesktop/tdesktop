@@ -143,9 +143,6 @@ public:
 	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
 	void stopLastActionRipple() override;
 
-	int nameIconWidth() const override {
-		return 0;
-	}
 	QSize actionSize() const override {
 		return QSize(
 			st::groupCallActiveButton.width,
