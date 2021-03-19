@@ -421,6 +421,7 @@ void AddSpecialBoxController::rebuildChatRows(not_null<ChatData*> chat) {
 	auto count = delegate()->peerListFullRowsCount();
 	for (auto i = 0; i != count;) {
 		auto row = delegate()->peerListRowAt(i);
+		Assert(row->peer()->isUser());
 		auto user = row->peer()->asUser();
 		if (participants.contains(user)) {
 			++i;
@@ -492,11 +493,16 @@ void AddSpecialBoxController::loadMoreRows() {
 }
 
 void AddSpecialBoxController::rowClicked(not_null<PeerListRow*> row) {
-	auto user = row->peer()->asUser();
+	const auto participant = row->peer();
+	const auto user = participant->asUser();
 	switch (_role) {
-	case Role::Admins: return showAdmin(user);
-	case Role::Restricted: return showRestricted(user);
-	case Role::Kicked: return kickUser(user);
+	case Role::Admins:
+		Assert(user != nullptr);
+		return showAdmin(user);
+	case Role::Restricted:
+		Assert(user != nullptr);
+		return showRestricted(user);
+	case Role::Kicked: return kickUser(participant);
 	}
 	Unexpected("Role in AddSpecialBoxController::rowClicked()");
 }
@@ -724,9 +730,7 @@ void AddSpecialBoxController::showRestricted(
 	// Finally edit the restricted.
 	const auto currentRights = restrictedRights
 		? *restrictedRights
-		: MTPChatBannedRights(MTP_chatBannedRights(
-			MTP_flags(0),
-			MTP_int(0)));
+		: ChannelData::EmptyRestrictedRights(user);
 	auto box = Box<EditRestrictedBox>(
 		_peer,
 		user,
@@ -839,9 +843,7 @@ void AddSpecialBoxController::kickUser(
 	const auto restrictedRights = _additional.restrictedRights(participant);
 	const auto currentRights = restrictedRights
 		? *restrictedRights
-		: MTPChatBannedRights(MTP_chatBannedRights(
-			MTP_flags(0),
-			MTP_int(0)));
+		: ChannelData::EmptyRestrictedRights(participant);
 
 	const auto done = crl::guard(this, [=](
 			const MTPChatBannedRights &newRights) {
@@ -855,7 +857,7 @@ void AddSpecialBoxController::kickUser(
 		participant,
 		done,
 		fail);
-	callback(currentRights, ChannelData::KickedRestrictedRights());
+	callback(currentRights, ChannelData::KickedRestrictedRights(participant));
 }
 
 bool AddSpecialBoxController::appendRow(not_null<PeerData*> participant) {

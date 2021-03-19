@@ -84,7 +84,7 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 				return it->second.rights;
 			}
 		}
-		return MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
+		return ChannelData::EmptyRestrictedRights(user);
 	}();
 
 	const auto peer = this->peer();

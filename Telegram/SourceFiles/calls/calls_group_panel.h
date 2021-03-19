@@ -89,8 +89,8 @@ private:
 	void showMainMenu();
 	void chooseJoinAs();
 	void addMembers();
-	void kickMember(not_null<UserData*> user);
-	void kickMemberSure(not_null<UserData*> user);
+	void kickParticipant(not_null<PeerData*> participantPeer);
+	void kickParticipantSure(not_null<PeerData*> participantPeer);
 	[[nodiscard]] QRect computeTitleRect() const;
 	void refreshTitle();
 	void refreshTitleGeometry();

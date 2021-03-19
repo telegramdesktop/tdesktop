@@ -530,9 +530,7 @@ void Panel::initWithCall(GroupCall *call) {
 
 	_members->kickParticipantRequests(
 	) | rpl::start_with_next([=](not_null<PeerData*> participantPeer) {
-		if (const auto user = participantPeer->asUser()) {
-			kickMember(user);
-		}
+		kickParticipant(participantPeer);
 	}, _callLifetime);
 
 	const auto showBox = [=](object_ptr<Ui::BoxContent> next) {
@@ -955,15 +953,22 @@ void Panel::addMembers() {
 	_layerBg->showBox(Box<PeerListsBox>(std::move(controllers), initBox));
 }
 
-void Panel::kickMember(not_null<UserData*> user) {
+void Panel::kickParticipant(not_null<PeerData*> participantPeer) {
 	_layerBg->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box.get(),
-				tr::lng_profile_sure_kick(
-					tr::now,
-					lt_user,
-					user->firstName),
+				(!participantPeer->isUser()
+					? tr::lng_group_call_remove_channel(
+						tr::now,
+						lt_channel,
+						participantPeer->name)
+					: (_peer->isBroadcast()
+						? tr::lng_profile_sure_kick_channel
+						: tr::lng_profile_sure_kick)(
+						tr::now,
+						lt_user,
+						participantPeer->asUser()->firstName)),
 				st::groupCallBoxLabel),
 			style::margins(
 				st::boxRowPadding.left(),
@@ -972,26 +977,29 @@ void Panel::kickMember(not_null<UserData*> user) {
 				st::boxPadding.bottom()));
 		box->addButton(tr::lng_box_remove(), [=] {
 			box->closeBox();
-			kickMemberSure(user);
+			kickParticipantSure(participantPeer);
 		});
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	}));
 }
 
-void Panel::kickMemberSure(not_null<UserData*> user) {
+void Panel::kickParticipantSure(not_null<PeerData*> participantPeer) {
 	if (const auto chat = _peer->asChat()) {
-		chat->session().api().kickParticipant(chat, user);
+		chat->session().api().kickParticipant(chat, participantPeer);
 	} else if (const auto channel = _peer->asChannel()) {
-		const auto currentRestrictedRights = [&]() -> MTPChatBannedRights {
-			const auto it = channel->mgInfo->lastRestricted.find(user);
-			return (it != channel->mgInfo->lastRestricted.cend())
-				? it->second.rights
-				: MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
+		const auto currentRestrictedRights = [&] {
+			const auto user = participantPeer->asUser();
+			if (!channel->mgInfo || !user) {
+				return ChannelData::EmptyRestrictedRights(participantPeer);
+			}
+			const auto i = channel->mgInfo->lastRestricted.find(user);
+			return (i != channel->mgInfo->lastRestricted.cend())
+				? i->second.rights
+				: ChannelData::EmptyRestrictedRights(participantPeer);
 		}();
-
 		channel->session().api().kickParticipant(
 			channel,
-			user,
+			participantPeer,
 			currentRestrictedRights);
 	}
 }

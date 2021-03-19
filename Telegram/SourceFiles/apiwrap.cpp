@@ -1522,9 +1522,6 @@ void ApiWrap::applyLastParticipantsList(
 
 	auto botStatus = channel->mgInfo->botStatus;
 	const auto emptyAdminRights = MTP_chatAdminRights(MTP_flags(0));
-	const auto emptyRestrictedRights = MTP_chatBannedRights(
-		MTP_flags(0),
-		MTP_int(0));
 	for (const auto &p : list) {
 		const auto participantId = p.match([](
 				const MTPDchannelParticipantBanned &data) {
@@ -1532,6 +1529,11 @@ void ApiWrap::applyLastParticipantsList(
 		}, [](const auto &data) {
 			return peerFromUser(data.vuser_id());
 		});
+		if (!participantId) {
+			continue;
+		}
+		const auto participant = _session->data().peer(participantId);
+		const auto user = participant->asUser();
 		const auto adminCanEdit = (p.type() == mtpc_channelParticipantAdmin)
 			? p.c_channelParticipantAdmin().is_can_edit()
 			: (p.type() == mtpc_channelParticipantCreator)
@@ -1544,13 +1546,7 @@ void ApiWrap::applyLastParticipantsList(
 			: emptyAdminRights;
 		const auto restrictedRights = (p.type() == mtpc_channelParticipantBanned)
 			? p.c_channelParticipantBanned().vbanned_rights()
-			: emptyRestrictedRights;
-		if (!participantId) {
-			continue;
-		}
-
-		const auto participant = _session->data().peer(participantId);
-		const auto user = participant->asUser();
+			: ChannelData::EmptyRestrictedRights(participant);
 		if (p.type() == mtpc_channelParticipantCreator) {
 			Assert(user != nullptr);
 			const auto &creator = p.c_channelParticipantCreator();
@@ -1730,7 +1726,7 @@ void ApiWrap::kickParticipant(
 	const auto kick = KickRequest(channel, participant);
 	if (_kickRequests.contains(kick)) return;
 
-	const auto rights = ChannelData::KickedRestrictedRights();
+	const auto rights = ChannelData::KickedRestrictedRights(participant);
 	const auto requestId = request(MTPchannels_EditBanned(
 		channel->inputChannel,
 		participant->input,
@@ -1758,7 +1754,7 @@ void ApiWrap::unblockParticipant(
 	const auto requestId = request(MTPchannels_EditBanned(
 		channel->inputChannel,
 		participant->input,
-		MTP_chatBannedRights(MTP_flags(0), MTP_int(0))
+		ChannelData::EmptyRestrictedRights(participant)
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 

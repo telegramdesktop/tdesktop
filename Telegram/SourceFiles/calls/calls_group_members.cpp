@@ -1570,7 +1570,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 				Window::SectionShow::Way::Forward);
 		});
 	};
-	const auto removeFromGroup = crl::guard(this, [=] {
+	const auto removeFromVoiceChat = crl::guard(this, [=] {
 		_kickParticipantRequests.fire_copy(participantPeer);
 	});
 
@@ -1607,9 +1607,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		}
 		const auto canKick = [&] {
 			const auto user = participantPeer->asUser();
-			if (!user) {
-				return false;
-			} else if (static_cast<Row*>(row.get())->state()
+			if (static_cast<Row*>(row.get())->state()
 				== Row::State::Invited) {
 				return false;
 			} else if (const auto chat = _peer->asChat()) {
@@ -1617,16 +1615,15 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 					|| (user
 						&& chat->canBanMembers()
 						&& !chat->admins.contains(user));
-			} else if (const auto group = _peer->asMegagroup()) {
-				return group->amCreator()
-					|| (user && group->canRestrictUser(user));
+			} else if (const auto channel = _peer->asChannel()) {
+				return channel->canRestrictParticipant(participantPeer);
 			}
 			return false;
 		}();
 		if (canKick) {
 			result->addAction(
-				tr::lng_context_remove_from_group(tr::now),
-				removeFromGroup);
+				tr::lng_group_call_context_remove(tr::now),
+				removeFromVoiceChat);
 		}
 	}
 	if (result->empty()) {
