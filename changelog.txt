@@ -1,3 +1,15 @@
+2.7 (19.03.21)
+
+- Start limitless Voice Chats in Groups and Channels.
+- Host discussions that can be listened to by millions of people simultaneously.
+- Record voice chats to share or publish in Channels later.
+- See that a chat is being recorded from the red dot next to its title.
+- See user bio texts right from the list of participants.
+- Raise your hand to show admins you want to speak.
+- Create separate Voice Chat Invite Links for listeners or speakers.
+- Change the title of your Voice Chat to give people an idea of the current topic.
+- Join Voice Chats as one of your Channels to hide your personal account.
+
 2.6.8 beta (18.03.21)
 
 - Fix connecting and getting allowed to speak on voice chats.

@@ -558,7 +558,7 @@ void GroupThumbs::fillItems(
 	const auto current = (index - from);
 	const auto old = base::take(_items);
 
-	ValidateSlice(slice, _context, from, index, till);
+	//ValidateSlice(slice, _context, from, index, till);
 
 	markCacheStale();
 	_items.reserve(till - from);
@@ -587,17 +587,21 @@ void GroupThumbs::animateAliveItems(int current) {
 }
 
 void GroupThumbs::fillDyingItems(const std::vector<not_null<Thumb*>> &old) {
-	Expects(_cache.size() >= _items.size());
+	//Expects(_cache.size() >= _items.size());
 
-	_dying.reserve(_cache.size() - _items.size());
+	if (_cache.size() >= _items.size()) {
+		_dying.reserve(_cache.size() - _items.size());
+	}
 	animatePreviouslyAlive(old);
 	markRestAsDying();
 }
 
 void GroupThumbs::markRestAsDying() {
-	Expects(_cache.size() >= _items.size());
+	//Expects(_cache.size() >= _items.size());
 
-	_dying.reserve(_cache.size() - _items.size());
+	if (_cache.size() >= _items.size()) {
+		_dying.reserve(_cache.size() - _items.size());
+	}
 	for (const auto &cacheItem : _cache) {
 		const auto &thumb = cacheItem.second;
 		const auto state = thumb->state();
