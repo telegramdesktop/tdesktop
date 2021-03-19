@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "calls/calls_group_call.h"
 #include "calls/calls_group_common.h"
+#include "calls/calls_group_menu.h"
 #include "calls/calls_volume_item.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -1621,9 +1622,10 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 			return false;
 		}();
 		if (canKick) {
-			result->addAction(
+			result->addAction(MakeAttentionAction(
+				result->menu(),
 				tr::lng_group_call_context_remove(tr::now),
-				removeFromVoiceChat);
+				removeFromVoiceChat));
 		}
 	}
 	if (result->empty()) {
