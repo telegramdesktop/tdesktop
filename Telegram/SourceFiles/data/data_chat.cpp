@@ -156,10 +156,11 @@ void ChatData::setAdminRights(const MTPChatAdminRights &rights) {
 }
 
 void ChatData::setDefaultRestrictions(const MTPChatBannedRights &rights) {
-	if (rights.c_chatBannedRights().vflags().v == defaultRestrictions()) {
+	const auto restrictionFlags = Data::ChatBannedRightsFlags(rights);
+	if (restrictionFlags == defaultRestrictions()) {
 		return;
 	}
-	_defaultRestrictions.set(rights.c_chatBannedRights().vflags().v);
+	_defaultRestrictions.set(restrictionFlags);
 	session().changes().peerUpdated(this, UpdateFlag::Rights);
 }
 

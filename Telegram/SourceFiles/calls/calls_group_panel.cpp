@@ -82,7 +82,7 @@ private:
 	[[nodiscard]] bool isAlreadyIn(not_null<UserData*> user) const;
 
 	std::unique_ptr<PeerListRow> createRow(
-		not_null<UserData*> user) const override;
+		not_null<PeerData*> participant) const override;
 
 	not_null<PeerData*> _peer;
 	const base::flat_set<not_null<UserData*>> _alreadyIn;
@@ -190,8 +190,9 @@ bool InviteController::isAlreadyIn(not_null<UserData*> user) const {
 }
 
 std::unique_ptr<PeerListRow> InviteController::createRow(
-		not_null<UserData*> user) const {
-	if (user->isSelf() || user->isBot()) {
+		not_null<PeerData*> participant) const {
+	const auto user = participant->asUser();
+	if (!user || user->isSelf() || user->isBot()) {
 		return nullptr;
 	}
 	auto result = std::make_unique<PeerListRow>(user);

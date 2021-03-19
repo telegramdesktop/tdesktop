@@ -220,7 +220,7 @@ public:
 		const MTPChatAdminRights &newRights,
 		const QString &rank);
 	void applyEditBanned(
-		not_null<UserData*> user,
+		not_null<PeerData*> participant,
 		const MTPChatBannedRights &oldRights,
 		const MTPChatBannedRights &newRights);
 

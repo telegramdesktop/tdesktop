@@ -1526,8 +1526,11 @@ void ApiWrap::applyLastParticipantsList(
 		MTP_flags(0),
 		MTP_int(0));
 	for (const auto &p : list) {
-		const auto userId = p.match([](const auto &data) {
-			return data.vuser_id().v;
+		const auto participantId = p.match([](
+				const MTPDchannelParticipantBanned &data) {
+			return peerFromMTP(data.vpeer());
+		}, [](const auto &data) {
+			return peerFromUser(data.vuser_id());
 		});
 		const auto adminCanEdit = (p.type() == mtpc_channelParticipantAdmin)
 			? p.c_channelParticipantAdmin().is_can_edit()
@@ -1542,27 +1545,32 @@ void ApiWrap::applyLastParticipantsList(
 		const auto restrictedRights = (p.type() == mtpc_channelParticipantBanned)
 			? p.c_channelParticipantBanned().vbanned_rights()
 			: emptyRestrictedRights;
-		if (!userId) {
+		if (!participantId) {
 			continue;
 		}
 
-		auto user = _session->data().user(userId);
+		const auto participant = _session->data().peer(participantId);
+		const auto user = participant->asUser();
 		if (p.type() == mtpc_channelParticipantCreator) {
+			Assert(user != nullptr);
 			const auto &creator = p.c_channelParticipantCreator();
 			const auto rank = qs(creator.vrank().value_or_empty());
 			channel->mgInfo->creator = user;
 			channel->mgInfo->creatorRank = rank;
 			if (!channel->mgInfo->admins.empty()) {
-				Data::ChannelAdminChanges(channel).add(userId, rank);
+				Data::ChannelAdminChanges(channel).add(
+					peerToUser(participantId),
+					rank);
 			}
 		}
-		if (!base::contains(channel->mgInfo->lastParticipants, user)) {
+		if (user
+			&& !base::contains(channel->mgInfo->lastParticipants, user)) {
 			channel->mgInfo->lastParticipants.push_back(user);
 			if (adminRights.c_chatAdminRights().vflags().v) {
 				channel->mgInfo->lastAdmins.emplace(
 					user,
 					MegagroupInfo::Admin{ adminRights, adminCanEdit });
-			} else if (restrictedRights.c_chatBannedRights().vflags().v != 0) {
+			} else if (Data::ChatBannedRightsFlags(restrictedRights) != 0) {
 				channel->mgInfo->lastRestricted.emplace(
 					user,
 					MegagroupInfo::Restricted{ restrictedRights });
@@ -1607,22 +1615,27 @@ void ApiWrap::applyBotsList(
 	auto botStatus = channel->mgInfo->botStatus;
 	auto keyboardBotFound = !history || !history->lastKeyboardFrom;
 	for (const auto &p : list) {
-		const auto userId = p.match([](const auto &data) {
-			return data.vuser_id().v;
+		const auto participantId = p.match([](
+				const MTPDchannelParticipantBanned &data) {
+			return peerFromMTP(data.vpeer());
+		}, [](const auto &data) {
+			return peerFromUser(data.vuser_id());
 		});
-		if (!userId) {
+		if (!participantId) {
 			continue;
 		}
 
-		auto user = _session->data().user(userId);
-		if (user->isBot()) {
+		const auto participant = _session->data().peer(participantId);
+		const auto user = participant->asUser();
+		if (user && user->isBot()) {
 			channel->mgInfo->bots.insert(user);
 			botStatus = 2;// (botStatus > 0/* || !i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
 			if (!user->botInfo->inited) {
 				needBotsInfos = true;
 			}
 		}
-		if (!keyboardBotFound && user->id == history->lastKeyboardFrom) {
+		if (!keyboardBotFound
+			&& participant->id == history->lastKeyboardFrom) {
 			keyboardBotFound = true;
 		}
 	}
@@ -1657,7 +1670,7 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 	_selfParticipantRequests.emplace(channel);
 	request(MTPchannels_GetParticipant(
 		channel->inputChannel,
-		MTP_inputUserSelf()
+		MTP_inputPeerSelf()
 	)).done([=](const MTPchannels_ChannelParticipant &result) {
 		_selfParticipantRequests.erase(channel);
 		result.match([&](const MTPDchannels_channelParticipant &data) {
@@ -1698,11 +1711,13 @@ void ApiWrap::requestSelfParticipant(not_null<ChannelData*> channel) {
 
 void ApiWrap::kickParticipant(
 		not_null<ChatData*> chat,
-		not_null<UserData*> user) {
+		not_null<PeerData*> participant) {
+	Expects(participant->isUser());
+
 	request(MTPmessages_DeleteChatUser(
 		MTP_flags(0),
 		chat->inputChat,
-		user->inputUser
+		participant->asUser()->inputUser
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 	}).send();
@@ -1710,21 +1725,21 @@ void ApiWrap::kickParticipant(
 
 void ApiWrap::kickParticipant(
 		not_null<ChannelData*> channel,
-		not_null<UserData*> user,
+		not_null<PeerData*> participant,
 		const MTPChatBannedRights &currentRights) {
-	const auto kick = KickRequest(channel, user);
+	const auto kick = KickRequest(channel, participant);
 	if (_kickRequests.contains(kick)) return;
 
 	const auto rights = ChannelData::KickedRestrictedRights();
 	const auto requestId = request(MTPchannels_EditBanned(
 		channel->inputChannel,
-		user->inputUser,
+		participant->input,
 		rights
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 
-		_kickRequests.remove(KickRequest(channel, user));
-		channel->applyEditBanned(user, currentRights, rights);
+		_kickRequests.remove(KickRequest(channel, participant));
+		channel->applyEditBanned(participant, currentRights, rights);
 	}).fail([this, kick](const MTP::Error &error) {
 		_kickRequests.remove(kick);
 	}).send();
@@ -1734,20 +1749,20 @@ void ApiWrap::kickParticipant(
 
 void ApiWrap::unblockParticipant(
 		not_null<ChannelData*> channel,
-		not_null<UserData*> user) {
-	const auto kick = KickRequest(channel, user);
+		not_null<PeerData*> participant) {
+	const auto kick = KickRequest(channel, participant);
 	if (_kickRequests.contains(kick)) {
 		return;
 	}
 
 	const auto requestId = request(MTPchannels_EditBanned(
 		channel->inputChannel,
-		user->inputUser,
+		participant->input,
 		MTP_chatBannedRights(MTP_flags(0), MTP_int(0))
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 
-		_kickRequests.remove(KickRequest(channel, user));
+		_kickRequests.remove(KickRequest(channel, participant));
 		if (channel->kickedCount() > 0) {
 			channel->setKickedCount(channel->kickedCount() - 1);
 		} else {
@@ -3183,12 +3198,18 @@ void ApiWrap::refreshChannelAdmins(
 		const QVector<MTPChannelParticipant> &participants) {
 	Data::ChannelAdminChanges changes(channel);
 	for (const auto &p : participants) {
-		const auto userId = p.match([](const auto &data) {
-			return data.vuser_id().v;
+		const auto participantId = p.match([](
+				const MTPDchannelParticipantBanned &data) {
+			return peerFromMTP(data.vpeer());
+		}, [](const auto &data) {
+			return peerFromUser(data.vuser_id());
 		});
+		const auto userId = peerToUser(participantId);
 		p.match([&](const MTPDchannelParticipantAdmin &data) {
+			Assert(peerIsUser(participantId));
 			changes.add(userId, qs(data.vrank().value_or_empty()));
 		}, [&](const MTPDchannelParticipantCreator &data) {
+			Assert(peerIsUser(participantId));
 			const auto rank = qs(data.vrank().value_or_empty());
 			if (const auto info = channel->mgInfo.get()) {
 				info->creator = channel->owner().userLoaded(userId);
@@ -3196,7 +3217,9 @@ void ApiWrap::refreshChannelAdmins(
 			}
 			changes.add(userId, rank);
 		}, [&](const auto &data) {
-			changes.remove(userId);
+			if (userId) {
+				changes.remove(userId);
+			}
 		});
 	}
 }
