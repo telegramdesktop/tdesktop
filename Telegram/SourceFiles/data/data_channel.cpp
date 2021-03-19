@@ -188,7 +188,13 @@ void ChannelData::setKickedCount(int newKickedCount) {
 	}
 }
 
-MTPChatBannedRights ChannelData::KickedRestrictedRights() {
+MTPChatBannedRights ChannelData::EmptyRestrictedRights(
+		not_null<PeerData*> participant) {
+	return MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
+}
+
+MTPChatBannedRights ChannelData::KickedRestrictedRights(
+		not_null<PeerData*> participant) {
 	using Flag = MTPDchatBannedRights::Flag;
 	const auto flags = Flag::f_view_messages
 		| Flag::f_send_messages
@@ -199,7 +205,7 @@ MTPChatBannedRights ChannelData::KickedRestrictedRights() {
 		| Flag::f_send_games
 		| Flag::f_send_inline;
 	return MTP_chatBannedRights(
-		MTP_flags(flags),
+		MTP_flags(participant->isUser() ? flags : Flag::f_view_messages),
 		MTP_int(std::numeric_limits<int32>::max()));
 }
 
@@ -494,7 +500,7 @@ bool ChannelData::canDelete() const {
 }
 
 bool ChannelData::canEditLastAdmin(not_null<UserData*> user) const {
-	// Duplicated in ParticipantsBoxController::canEditAdmin :(
+	// Duplicated in ParticipantsAdditionalData::canEditAdmin :(
 	if (mgInfo) {
 		auto i = mgInfo->lastAdmins.find(user);
 		if (i != mgInfo->lastAdmins.cend()) {
@@ -506,7 +512,7 @@ bool ChannelData::canEditLastAdmin(not_null<UserData*> user) const {
 }
 
 bool ChannelData::canEditAdmin(not_null<UserData*> user) const {
-	// Duplicated in ParticipantsBoxController::canEditAdmin :(
+	// Duplicated in ParticipantsAdditionalData::canEditAdmin :(
 	if (user->isSelf()) {
 		return false;
 	} else if (amCreator()) {
@@ -517,14 +523,17 @@ bool ChannelData::canEditAdmin(not_null<UserData*> user) const {
 	return adminRights() & AdminRight::f_add_admins;
 }
 
-bool ChannelData::canRestrictUser(not_null<UserData*> user) const {
-	// Duplicated in ParticipantsBoxController::canRestrictUser :(
-	if (user->isSelf()) {
+bool ChannelData::canRestrictParticipant(
+		not_null<PeerData*> participant) const {
+	// Duplicated in ParticipantsAdditionalData::canRestrictParticipant :(
+	if (participant->isSelf()) {
 		return false;
 	} else if (amCreator()) {
 		return true;
-	} else if (!canEditLastAdmin(user)) {
-		return false;
+	} else if (const auto user = participant->asUser()) {
+		if (!canEditLastAdmin(user)) {
+			return false;
+		}
 	}
 	return adminRights() & AdminRight::f_ban_users;
 }

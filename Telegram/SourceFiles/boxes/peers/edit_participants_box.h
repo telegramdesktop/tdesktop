@@ -232,13 +232,13 @@ private:
 		not_null<PeerData*> participant);
 	void removeKickedWithRow(not_null<PeerData*> participant);
 	void removeKicked(not_null<PeerData*> participant);
-	void kickMember(not_null<PeerData*> participant);
-	void kickMemberSure(not_null<PeerData*> participant);
-	void unkickMember(not_null<UserData*> user);
+	void kickParticipant(not_null<PeerData*> participant);
+	void kickParticipantSure(not_null<PeerData*> participant);
+	void unkickParticipant(not_null<UserData*> user);
 	void removeAdmin(not_null<UserData*> user);
 	void removeAdminSure(not_null<UserData*> user);
 	bool appendRow(not_null<PeerData*> participant);
-	bool prependRow(not_null<UserData*> user);
+	bool prependRow(not_null<PeerData*> participant);
 	bool removeRow(not_null<PeerData*> participant);
 	void refreshCustomStatus(not_null<PeerListRow*> row) const;
 	bool feedMegagroupLastParticipants();

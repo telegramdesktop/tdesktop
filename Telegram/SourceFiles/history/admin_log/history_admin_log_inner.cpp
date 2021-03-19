@@ -1310,7 +1310,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 				Ui::LayerOption::KeepOther);
 		};
 		if (base::contains(_admins, user)) {
-			editRestrictions(true, MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+			editRestrictions(true, ChannelData::EmptyRestrictedRights(user));
 		} else {
 			_api.request(MTPchannels_GetParticipant(
 				_channel->inputChannel,
@@ -1327,15 +1327,11 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 				} else {
 					auto hasAdminRights = (type == mtpc_channelParticipantAdmin)
 						|| (type == mtpc_channelParticipantCreator);
-					auto bannedRights = MTP_chatBannedRights(
-						MTP_flags(0),
-						MTP_int(0));
+					auto bannedRights = ChannelData::EmptyRestrictedRights(user);
 					editRestrictions(hasAdminRights, bannedRights);
 				}
 			}).fail([=](const MTP::Error &error) {
-				auto bannedRights = MTP_chatBannedRights(
-					MTP_flags(0),
-					MTP_int(0));
+				auto bannedRights = ChannelData::EmptyRestrictedRights(user);
 				editRestrictions(false, bannedRights);
 			}).send();
 		}
