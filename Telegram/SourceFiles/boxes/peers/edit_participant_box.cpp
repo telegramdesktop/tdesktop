@@ -612,11 +612,11 @@ void EditRestrictedBox::prepare() {
 	const auto defaultRestrictions = chat
 		? chat->defaultRestrictions()
 		: channel->defaultRestrictions();
-	const auto prepareRights = _oldRights.c_chatBannedRights().vflags().v
+	const auto prepareRights = Data::ChatBannedRightsFlags(_oldRights)
 		? _oldRights
 		: defaultRights();
 	const auto prepareFlags = FixDependentRestrictions(
-		prepareRights.c_chatBannedRights().vflags().v
+		Data::ChatBannedRightsFlags(prepareRights)
 		| defaultRestrictions
 		| ((channel && channel->isPublic())
 			? (Flag::f_change_info | Flag::f_pin_messages)
@@ -647,7 +647,7 @@ void EditRestrictedBox::prepare() {
 		disabledMessages);
 	addControl(std::move(checkboxes), QMargins());
 
-	_until = prepareRights.c_chatBannedRights().vuntil_date().v;
+	_until = Data::ChatBannedRightsUntilDate(prepareRights);
 	addControl(object_ptr<Ui::BoxContentDivider>(this), st::rightsUntilMargin);
 	addControl(
 		object_ptr<Ui::FlatLabel>(
@@ -767,7 +767,7 @@ void EditRestrictedBox::createUntilVariants() {
 		}
 	};
 	auto addCurrentVariant = [&](TimeId from, TimeId to) {
-		auto oldUntil = _oldRights.c_chatBannedRights().vuntil_date().v;
+		auto oldUntil = Data::ChatBannedRightsUntilDate(_oldRights);
 		if (oldUntil < _until) {
 			addCustomVariant(oldUntil, from, to);
 		}

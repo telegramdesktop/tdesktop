@@ -80,7 +80,7 @@ public:
 		const MTPChatAdminRights &adminRights,
 		const QString &rank)>;
 	using BannedDoneCallback = Fn<void(
-		not_null<UserData*> user,
+		not_null<PeerData*> participant,
 		const MTPChatBannedRights &bannedRights)>;
 	AddSpecialBoxController(
 		not_null<PeerData*> peer,
@@ -101,7 +101,7 @@ public:
 
 private:
 	template <typename Callback>
-	bool checkInfoLoaded(not_null<UserData*> user, Callback callback);
+	bool checkInfoLoaded(not_null<PeerData*> participant, Callback callback);
 
 	void prepareChatRows(not_null<ChatData*> chat);
 	void rebuildChatRows(not_null<ChatData*> chat);
@@ -113,12 +113,13 @@ private:
 		const QString &rank);
 	void showRestricted(not_null<UserData*> user, bool sure = false);
 	void editRestrictedDone(
-		not_null<UserData*> user,
+		not_null<PeerData*> participant,
 		const MTPChatBannedRights &rights);
-	void kickUser(not_null<UserData*> user, bool sure = false);
-	bool appendRow(not_null<UserData*> user);
+	void kickUser(not_null<PeerData*> participant, bool sure = false);
+	bool appendRow(not_null<PeerData*> participant);
 	bool prependRow(not_null<UserData*> user);
-	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
+	std::unique_ptr<PeerListRow> createRow(
+		not_null<PeerData*> participant) const;
 
 	void subscribeToMigration();
 	void migrate(not_null<ChatData*> chat, not_null<ChannelData*> channel);

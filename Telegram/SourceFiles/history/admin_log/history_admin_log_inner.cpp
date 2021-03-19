@@ -432,8 +432,11 @@ void InnerWidget::requestAdmins() {
 			auto filtered = (
 				list
 			) | ranges::views::transform([&](const MTPChannelParticipant &p) {
-				const auto userId = p.match([](const auto &data) {
-					return data.vuser_id().v;
+				const auto participantId = p.match([](
+						const MTPDchannelParticipantBanned &data) {
+					return peerFromMTP(data.vpeer());
+				}, [](const auto &data) {
+					return peerFromUser(data.vuser_id());
 				});
 				const auto canEdit = p.match([](
 						const MTPDchannelParticipantAdmin &data) {
@@ -441,10 +444,13 @@ void InnerWidget::requestAdmins() {
 				}, [](const auto &) {
 					return false;
 				});
-				return std::make_pair(userId, canEdit);
+				return std::make_pair(participantId, canEdit);
 			}) | ranges::views::transform([&](auto &&pair) {
 				return std::make_pair(
-					session().data().userLoaded(pair.first),
+					(peerIsUser(pair.first)
+						? session().data().userLoaded(
+							peerToUser(pair.first))
+						: nullptr),
 					pair.second);
 			}) | ranges::views::filter([&](auto &&pair) {
 				return (pair.first != nullptr);
@@ -1308,7 +1314,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 		} else {
 			_api.request(MTPchannels_GetParticipant(
 				_channel->inputChannel,
-				user->inputUser
+				user->input
 			)).done([=](const MTPchannels_ChannelParticipant &result) {
 				Expects(result.type() == mtpc_channels_channelParticipant);
 
@@ -1352,8 +1358,7 @@ void InnerWidget::restrictUser(
 }
 
 void InnerWidget::restrictUserDone(not_null<UserData*> user, const MTPChatBannedRights &rights) {
-	Expects(rights.type() == mtpc_chatBannedRights);
-	if (rights.c_chatBannedRights().vflags().v) {
+	if (Data::ChatBannedRightsFlags(rights)) {
 		_admins.erase(std::remove(_admins.begin(), _admins.end(), user), _admins.end());
 		_adminsCanEdit.erase(std::remove(_adminsCanEdit.begin(), _adminsCanEdit.end(), user), _adminsCanEdit.end());
 	}

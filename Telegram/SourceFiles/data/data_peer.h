@@ -95,6 +95,11 @@ struct UnavailableReason {
 	}
 };
 
+[[nodiscard]] ChatRestrictions ChatBannedRightsFlags(
+	const MTPChatBannedRights &rights);
+[[nodiscard]] TimeId ChatBannedRightsUntilDate(
+	const MTPChatBannedRights &rights);
+
 } // namespace Data
 
 class PeerClickHandler : public ClickHandler {

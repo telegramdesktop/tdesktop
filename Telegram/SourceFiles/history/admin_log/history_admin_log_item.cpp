@@ -204,14 +204,11 @@ TextWithEntities GenerateAdminChangeText(
 QString GenerateBannedChangeText(
 		const MTPChatBannedRights *newRights,
 		const MTPChatBannedRights *prevRights) {
-	Expects(!newRights || newRights->type() == mtpc_chatBannedRights);
-	Expects(!prevRights || prevRights->type() == mtpc_chatBannedRights);
-
 	using Flag = MTPDchatBannedRights::Flag;
 	using Flags = MTPDchatBannedRights::Flags;
 
-	auto newFlags = newRights ? newRights->c_chatBannedRights().vflags().v : Flags(0);
-	auto prevFlags = prevRights ? prevRights->c_chatBannedRights().vflags().v : Flags(0);
+	auto newFlags = newRights ? Data::ChatBannedRightsFlags(*newRights) : Flags(0);
+	auto prevFlags = prevRights ? Data::ChatBannedRightsFlags(*prevRights) : Flags(0);
 	static auto phraseMap = std::map<Flags, tr::phrase<>>{
 		{ Flag::f_view_messages, tr::lng_admin_log_banned_view_messages },
 		{ Flag::f_send_messages, tr::lng_admin_log_banned_send_messages },
@@ -233,13 +230,11 @@ TextWithEntities GenerateBannedChangeText(
 		const TextWithEntities &user,
 		const MTPChatBannedRights *newRights,
 		const MTPChatBannedRights *prevRights) {
-	Expects(!newRights || newRights->type() == mtpc_chatBannedRights);
-
 	using Flag = MTPDchatBannedRights::Flag;
 	using Flags = MTPDchatBannedRights::Flags;
 
-	auto newFlags = newRights ? newRights->c_chatBannedRights().vflags().v : Flags(0);
-	auto newUntil = newRights ? newRights->c_chatBannedRights().vuntil_date().v : TimeId(0);
+	auto newFlags = newRights ? Data::ChatBannedRightsFlags(*newRights) : Flags(0);
+	auto newUntil = newRights ? Data::ChatBannedRightsUntilDate(*newRights) : TimeId(0);
 	auto indefinitely = ChannelData::IsRestrictedForever(newUntil);
 	if (newFlags & Flag::f_view_messages) {
 		return tr::lng_admin_log_banned(tr::now, lt_user, user, Ui::Text::WithEntities);
@@ -344,21 +339,23 @@ TextWithEntities GenerateInviteLinkChangeText(
 	return result;
 };
 
-auto GenerateUserString(
+auto GenerateParticipantString(
 		not_null<Main::Session*> session,
-		MTPint userId) {
+		PeerId peerId) {
 	// User name in "User name (@username)" format with entities.
-	auto user = session->data().user(userId.v);
-	auto name = TextWithEntities { user->name };
-	auto entityData = QString::number(user->id)
-		+ '.'
-		+ QString::number(user->accessHash());
-	name.entities.push_back({
-		EntityType::MentionName,
-		0,
-		name.text.size(),
-		entityData });
-	auto username = user->userName();
+	auto peer = session->data().peer(peerId);
+	auto name = TextWithEntities { peer->name };
+	if (const auto user = peer->asUser()) {
+		auto entityData = QString::number(user->id)
+			+ '.'
+			+ QString::number(user->accessHash());
+		name.entities.push_back({
+			EntityType::MentionName,
+			0,
+			name.text.size(),
+			entityData });
+	}
+	auto username = peer->userName();
 	if (username.isEmpty()) {
 		return name;
 	}
@@ -386,10 +383,14 @@ auto GenerateParticipantChangeTextInner(
 		return tr::lng_admin_log_transferred(
 			tr::now,
 			lt_user,
-			GenerateUserString(&channel->session(), data.vuser_id()),
+			GenerateParticipantString(
+				&channel->session(),
+				peerFromUser(data.vuser_id())),
 			Ui::Text::WithEntities);
 	}, [&](const MTPDchannelParticipantAdmin &data) {
-		auto user = GenerateUserString(&channel->session(), data.vuser_id());
+		const auto user = GenerateParticipantString(
+			&channel->session(),
+			peerFromUser(data.vuser_id()));
 		return GenerateAdminChangeText(
 			channel,
 			user,
@@ -398,7 +399,9 @@ auto GenerateParticipantChangeTextInner(
 				? &oldParticipant->c_channelParticipantAdmin().vadmin_rights()
 				: nullptr);
 	}, [&](const MTPDchannelParticipantBanned &data) {
-		auto user = GenerateUserString(&channel->session(), data.vuser_id());
+		const auto user = GenerateParticipantString(
+			&channel->session(),
+			peerFromMTP(data.vpeer()));
 		return GenerateBannedChangeText(
 			user,
 			&data.vbanned_rights(),
@@ -406,7 +409,9 @@ auto GenerateParticipantChangeTextInner(
 				? &oldParticipant->c_channelParticipantBanned().vbanned_rights()
 				: nullptr);
 	}, [&](const auto &data) {
-		auto user = GenerateUserString(&channel->session(), data.vuser_id());
+		auto user = GenerateParticipantString(
+			&channel->session(),
+			peerFromUser(data.vuser_id()));
 		if (oldType == mtpc_channelParticipantAdmin) {
 			return GenerateAdminChangeText(
 				channel,

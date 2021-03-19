@@ -1068,11 +1068,16 @@ void PeerMenuAddChannelMembers(
 			auto already = (
 				list
 			) | ranges::views::transform([](const MTPChannelParticipant &p) {
-				return p.match([](const auto &data) {
-					return data.vuser_id().v;
+				return p.match([](const MTPDchannelParticipantBanned &data) {
+					return peerFromMTP(data.vpeer());
+				}, [](const auto &data) {
+					return peerFromUser(data.vuser_id());
 				});
-			}) | ranges::views::transform([&](UserId userId) {
-				return channel->owner().userLoaded(userId);
+			}) | ranges::views::transform([&](PeerId participantId) {
+				return peerIsUser(participantId)
+					? channel->owner().userLoaded(
+						peerToUser(participantId))
+					: nullptr;
 			}) | ranges::views::filter([](UserData *user) {
 				return (user != nullptr);
 			}) | ranges::to_vector;
