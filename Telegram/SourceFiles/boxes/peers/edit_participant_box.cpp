@@ -222,7 +222,8 @@ MTPChatAdminRights EditAdminBox::defaultRights() const {
 			| Flag::f_post_messages
 			| Flag::f_edit_messages
 			| Flag::f_delete_messages
-			| Flag::f_invite_users);
+			| Flag::f_invite_users
+			| Flag::f_manage_call);
 	return MTP_chatAdminRights(MTP_flags(flags));
 }
 
