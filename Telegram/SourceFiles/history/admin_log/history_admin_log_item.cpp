@@ -227,6 +227,7 @@ QString GenerateBannedChangeText(
 }
 
 TextWithEntities GenerateBannedChangeText(
+		PeerId participantId,
 		const TextWithEntities &user,
 		const MTPChatBannedRights *newRights,
 		const MTPChatBannedRights *prevRights) {
@@ -235,9 +236,12 @@ TextWithEntities GenerateBannedChangeText(
 
 	auto newFlags = newRights ? Data::ChatBannedRightsFlags(*newRights) : Flags(0);
 	auto newUntil = newRights ? Data::ChatBannedRightsUntilDate(*newRights) : TimeId(0);
+	auto prevFlags = prevRights ? Data::ChatBannedRightsFlags(*prevRights) : Flags(0);
 	auto indefinitely = ChannelData::IsRestrictedForever(newUntil);
 	if (newFlags & Flag::f_view_messages) {
 		return tr::lng_admin_log_banned(tr::now, lt_user, user, Ui::Text::WithEntities);
+	} else if (newFlags == 0 && (prevFlags & Flag::f_view_messages) && !peerIsUser(participantId)) {
+		return tr::lng_admin_log_unbanned(tr::now, lt_user, user, Ui::Text::WithEntities);
 	}
 	auto untilText = indefinitely
 		? tr::lng_admin_log_restricted_forever(tr::now)
@@ -341,9 +345,9 @@ TextWithEntities GenerateInviteLinkChangeText(
 
 auto GenerateParticipantString(
 		not_null<Main::Session*> session,
-		PeerId peerId) {
+		PeerId participantId) {
 	// User name in "User name (@username)" format with entities.
-	auto peer = session->data().peer(peerId);
+	auto peer = session->data().peer(participantId);
 	auto name = TextWithEntities { peer->name };
 	if (const auto user = peer->asUser()) {
 		auto entityData = QString::number(user->id)
@@ -378,6 +382,25 @@ auto GenerateParticipantChangeTextInner(
 		const MTPChannelParticipant &participant,
 		const MTPChannelParticipant *oldParticipant) {
 	const auto oldType = oldParticipant ? oldParticipant->type() : 0;
+	const auto generateOther = [&](PeerId participantId) {
+		auto user = GenerateParticipantString(
+			&channel->session(),
+			participantId);
+		if (oldType == mtpc_channelParticipantAdmin) {
+			return GenerateAdminChangeText(
+				channel,
+				user,
+				nullptr,
+				&oldParticipant->c_channelParticipantAdmin().vadmin_rights());
+		} else if (oldType == mtpc_channelParticipantBanned) {
+			return GenerateBannedChangeText(
+				participantId,
+				user,
+				nullptr,
+				&oldParticipant->c_channelParticipantBanned().vbanned_rights());
+		}
+		return tr::lng_admin_log_invited(tr::now, lt_user, user, Ui::Text::WithEntities);
+	};
 	return participant.match([&](const MTPDchannelParticipantCreator &data) {
 		// No valid string here :(
 		return tr::lng_admin_log_transferred(
@@ -395,36 +418,25 @@ auto GenerateParticipantChangeTextInner(
 			channel,
 			user,
 			&data.vadmin_rights(),
-			(oldType == mtpc_channelParticipantAdmin)
+			(oldType == mtpc_channelParticipantAdmin
 				? &oldParticipant->c_channelParticipantAdmin().vadmin_rights()
-				: nullptr);
+				: nullptr));
 	}, [&](const MTPDchannelParticipantBanned &data) {
+		const auto participantId = peerFromMTP(data.vpeer());
 		const auto user = GenerateParticipantString(
 			&channel->session(),
-			peerFromMTP(data.vpeer()));
+			participantId);
 		return GenerateBannedChangeText(
+			participantId,
 			user,
 			&data.vbanned_rights(),
-			(oldType == mtpc_channelParticipantBanned)
+			(oldType == mtpc_channelParticipantBanned
 				? &oldParticipant->c_channelParticipantBanned().vbanned_rights()
-				: nullptr);
+				: nullptr));
+	}, [&](const MTPDchannelParticipantLeft &data) {
+		return generateOther(peerFromMTP(data.vpeer()));
 	}, [&](const auto &data) {
-		auto user = GenerateParticipantString(
-			&channel->session(),
-			peerFromUser(data.vuser_id()));
-		if (oldType == mtpc_channelParticipantAdmin) {
-			return GenerateAdminChangeText(
-				channel,
-				user,
-				nullptr,
-				&oldParticipant->c_channelParticipantAdmin().vadmin_rights());
-		} else if (oldType == mtpc_channelParticipantBanned) {
-			return GenerateBannedChangeText(
-				user,
-				nullptr,
-				&oldParticipant->c_channelParticipantBanned().vbanned_rights());
-		}
-		return tr::lng_admin_log_invited(tr::now, lt_user, user, Ui::Text::WithEntities);
+		return generateOther(peerFromUser(data.vuser_id()));
 	});
 }
 
