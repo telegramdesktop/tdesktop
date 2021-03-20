@@ -55,7 +55,7 @@ jobs:
 
     defaults:
       run:
-        shell: scl enable devtoolset-8 -- bash --noprofile --norc -eo pipefail {0}
+        shell: scl enable devtoolset-9 -- bash --noprofile --norc -eo pipefail {0}
 
     strategy:
       matrix:
