@@ -1,3 +1,9 @@
+2.7.1 (20.03.21)
+
+- Fix editing 'Manage Voice Chats' rights for channel admins.
+- Fix verification check display in voice chat participants list.
+- Allow removing and blocking channels from voice chats.
+
 2.7 (19.03.21)
 
 - Start limitless Voice Chats in Groups and Channels.
