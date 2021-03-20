@@ -249,14 +249,16 @@ public:
 	void markMediaRead(not_null<HistoryItem*> item);
 
 	void requestSelfParticipant(not_null<ChannelData*> channel);
-	void kickParticipant(not_null<ChatData*> chat, not_null<UserData*> user);
+	void kickParticipant(
+		not_null<ChatData*> chat,
+		not_null<PeerData*> participant);
 	void kickParticipant(
 		not_null<ChannelData*> channel,
-		not_null<UserData*> user,
+		not_null<PeerData*> participant,
 		const MTPChatBannedRights &currentRights);
 	void unblockParticipant(
 		not_null<ChannelData*> channel,
-		not_null<UserData*> user);
+		not_null<PeerData*> participant);
 	void deleteAllFromUser(
 		not_null<ChannelData*> channel,
 		not_null<UserData*> from);
@@ -657,7 +659,7 @@ private:
 
 	using KickRequest = std::pair<
 		not_null<ChannelData*>,
-		not_null<UserData*>>;
+		not_null<PeerData*>>;
 	base::flat_map<KickRequest, mtpRequestId> _kickRequests;
 
 	base::flat_set<not_null<ChannelData*>> _selfParticipantRequests;

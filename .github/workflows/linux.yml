@@ -55,7 +55,7 @@ jobs:
 
     defaults:
       run:
-        shell: scl enable devtoolset-8 -- bash --noprofile --norc -eo pipefail {0}
+        shell: scl enable devtoolset-9 -- bash --noprofile --norc -eo pipefail {0}
 
     strategy:
       matrix:
@@ -65,6 +65,8 @@ jobs:
           - "DESKTOP_APP_DISABLE_X11_INTEGRATION"
           - "DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION"
           - "DESKTOP_APP_DISABLE_GTK_INTEGRATION"
+          - "LIBTGVOIP_DISABLE_ALSA"
+          - "LIBTGVOIP_DISABLE_PULSEAUDIO"
 
     env:
       UPLOAD_ARTIFACT: "false"

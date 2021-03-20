@@ -1172,4 +1172,16 @@ std::optional<int> ResolvePinnedCount(
 		: std::nullopt;
 }
 
+ChatRestrictions ChatBannedRightsFlags(const MTPChatBannedRights &rights) {
+	return rights.match([](const MTPDchatBannedRights &data) {
+		return data.vflags().v;
+	});
+}
+
+TimeId ChatBannedRightsUntilDate(const MTPChatBannedRights &rights) {
+	return rights.match([](const MTPDchatBannedRights &data) {
+		return data.vuntil_date().v;
+	});
+}
+
 } // namespace Data

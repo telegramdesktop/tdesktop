@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/layer_manager.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
-#include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/special_buttons.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::Value.
@@ -82,7 +81,7 @@ private:
 	[[nodiscard]] bool isAlreadyIn(not_null<UserData*> user) const;
 
 	std::unique_ptr<PeerListRow> createRow(
-		not_null<UserData*> user) const override;
+		not_null<PeerData*> participant) const override;
 
 	not_null<PeerData*> _peer;
 	const base::flat_set<not_null<UserData*>> _alreadyIn;
@@ -190,8 +189,9 @@ bool InviteController::isAlreadyIn(not_null<UserData*> user) const {
 }
 
 std::unique_ptr<PeerListRow> InviteController::createRow(
-		not_null<UserData*> user) const {
-	if (user->isSelf() || user->isBot()) {
+		not_null<PeerData*> participant) const {
+	const auto user = participant->asUser();
+	if (!user || user->isSelf() || user->isBot()) {
 		return nullptr;
 	}
 	auto result = std::make_unique<PeerListRow>(user);
@@ -291,9 +291,10 @@ Panel::Panel(not_null<GroupCall*> call)
 	call->allowedToSpeakNotifications(
 	) | rpl::start_with_next([=] {
 		if (isActive()) {
-			Ui::Toast::Show(
-				widget(),
-				tr::lng_group_call_can_speak_here(tr::now));
+			Ui::ShowMultilineToast({
+				.parentOverride = widget(),
+				.text = { tr::lng_group_call_can_speak_here(tr::now) },
+			});
 		} else {
 			const auto real = _peer->groupCall();
 			const auto name = (real
@@ -301,13 +302,12 @@ Panel::Panel(not_null<GroupCall*> call)
 				&& !real->title().isEmpty())
 				? real->title()
 				: _peer->name;
-			Ui::Toast::Show(Ui::Toast::Config{
+			Ui::ShowMultilineToast({
 				.text = tr::lng_group_call_can_speak(
 					tr::now,
 					lt_chat,
 					Ui::Text::Bold(name),
 					Ui::Text::WithEntities),
-				.st = &st::defaultToast,
 			});
 		}
 	}, widget()->lifetime());
@@ -529,16 +529,17 @@ void Panel::initWithCall(GroupCall *call) {
 
 	_members->kickParticipantRequests(
 	) | rpl::start_with_next([=](not_null<PeerData*> participantPeer) {
-		if (const auto user = participantPeer->asUser()) {
-			kickMember(user);
-		}
+		kickParticipant(participantPeer);
 	}, _callLifetime);
 
 	const auto showBox = [=](object_ptr<Ui::BoxContent> next) {
 		_layerBg->showBox(std::move(next));
 	};
 	const auto showToast = [=](QString text) {
-		Ui::Toast::Show(widget(), text);
+		Ui::ShowMultilineToast({
+			.parentOverride = widget(),
+			.text = { text },
+		});
 	};
 	auto [shareLinkCallback, shareLinkLifetime] = ShareInviteLinkAction(
 		_peer,
@@ -659,9 +660,10 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 			const auto skip = st::groupCallRecordingMarkSkip;
 			_recordingMark->resize(size + 2 * skip, size + 2 * skip);
 			_recordingMark->setClickedCallback([=] {
-				Ui::Toast::Show(
-					widget(),
-					tr::lng_group_call_is_recorded(tr::now));
+				Ui::ShowMultilineToast({
+					.parentOverride = widget(),
+					.text = { tr::lng_group_call_is_recorded(tr::now) },
+				});
 			});
 			const auto animate = [=] {
 				const auto opaque = state->opaque;
@@ -697,13 +699,16 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool recorded) {
 		validateRecordingMark(recorded);
-		Ui::Toast::Show(
-			widget(),
-			(recorded
-				? tr::lng_group_call_recording_started(tr::now)
+		Ui::ShowMultilineToast({
+			.parentOverride = widget(),
+			.text = (recorded
+				? tr::lng_group_call_recording_started
 				: (_call && _call->recordingStoppedByMe())
-				? tr::lng_group_call_recording_saved(tr::now)
-				: tr::lng_group_call_recording_stopped(tr::now)));
+				? tr::lng_group_call_recording_saved
+				: tr::lng_group_call_recording_stopped)(
+					tr::now,
+					Ui::Text::RichLangValue),
+		});
 	}, widget()->lifetime());
 	validateRecordingMark(real->recordStartDate() != 0);
 
@@ -755,7 +760,10 @@ void Panel::chooseJoinAs() {
 		_layerBg->showBox(std::move(next));
 	};
 	const auto showToast = [=](QString text) {
-		Ui::Toast::Show(widget(), text);
+		Ui::ShowMultilineToast({
+			.parentOverride = widget(),
+			.text = { text },
+		});
 	};
 	_joinAsProcess.start(
 		_peer,
@@ -849,28 +857,24 @@ void Panel::addMembers() {
 		}
 		const auto result = call->inviteUsers(users);
 		if (const auto user = std::get_if<not_null<UserData*>>(&result)) {
-			Ui::Toast::Show(
-				widget(),
-				Ui::Toast::Config{
-					.text = tr::lng_group_call_invite_done_user(
-						tr::now,
-						lt_user,
-						Ui::Text::Bold((*user)->firstName),
-						Ui::Text::WithEntities),
-					.st = &st::defaultToast,
-				});
+			Ui::ShowMultilineToast({
+				.parentOverride = widget(),
+				.text = tr::lng_group_call_invite_done_user(
+					tr::now,
+					lt_user,
+					Ui::Text::Bold((*user)->firstName),
+					Ui::Text::WithEntities),
+			});
 		} else if (const auto count = std::get_if<int>(&result)) {
 			if (*count > 0) {
-				Ui::Toast::Show(
-					widget(),
-					Ui::Toast::Config{
-						.text = tr::lng_group_call_invite_done_many(
-							tr::now,
-							lt_count,
-							*count,
-							Ui::Text::RichLangValue),
-						.st = &st::defaultToast,
-					});
+				Ui::ShowMultilineToast({
+					.parentOverride = widget(),
+					.text = tr::lng_group_call_invite_done_many(
+						tr::now,
+						lt_count,
+						*count,
+						Ui::Text::RichLangValue),
+				});
 			}
 		} else {
 			Unexpected("Result in GroupCall::inviteUsers.");
@@ -954,15 +958,22 @@ void Panel::addMembers() {
 	_layerBg->showBox(Box<PeerListsBox>(std::move(controllers), initBox));
 }
 
-void Panel::kickMember(not_null<UserData*> user) {
+void Panel::kickParticipant(not_null<PeerData*> participantPeer) {
 	_layerBg->showBox(Box([=](not_null<Ui::GenericBox*> box) {
 		box->addRow(
 			object_ptr<Ui::FlatLabel>(
 				box.get(),
-				tr::lng_profile_sure_kick(
-					tr::now,
-					lt_user,
-					user->firstName),
+				(!participantPeer->isUser()
+					? tr::lng_group_call_remove_channel(
+						tr::now,
+						lt_channel,
+						participantPeer->name)
+					: (_peer->isBroadcast()
+						? tr::lng_profile_sure_kick_channel
+						: tr::lng_profile_sure_kick)(
+						tr::now,
+						lt_user,
+						participantPeer->asUser()->firstName)),
 				st::groupCallBoxLabel),
 			style::margins(
 				st::boxRowPadding.left(),
@@ -971,26 +982,29 @@ void Panel::kickMember(not_null<UserData*> user) {
 				st::boxPadding.bottom()));
 		box->addButton(tr::lng_box_remove(), [=] {
 			box->closeBox();
-			kickMemberSure(user);
+			kickParticipantSure(participantPeer);
 		});
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	}));
 }
 
-void Panel::kickMemberSure(not_null<UserData*> user) {
+void Panel::kickParticipantSure(not_null<PeerData*> participantPeer) {
 	if (const auto chat = _peer->asChat()) {
-		chat->session().api().kickParticipant(chat, user);
+		chat->session().api().kickParticipant(chat, participantPeer);
 	} else if (const auto channel = _peer->asChannel()) {
-		const auto currentRestrictedRights = [&]() -> MTPChatBannedRights {
-			const auto it = channel->mgInfo->lastRestricted.find(user);
-			return (it != channel->mgInfo->lastRestricted.cend())
-				? it->second.rights
-				: MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
+		const auto currentRestrictedRights = [&] {
+			const auto user = participantPeer->asUser();
+			if (!channel->mgInfo || !user) {
+				return ChannelData::EmptyRestrictedRights(participantPeer);
+			}
+			const auto i = channel->mgInfo->lastRestricted.find(user);
+			return (i != channel->mgInfo->lastRestricted.cend())
+				? i->second.rights
+				: ChannelData::EmptyRestrictedRights(participantPeer);
 		}();
-
 		channel->session().api().kickParticipant(
 			channel,
-			user,
+			participantPeer,
 			currentRestrictedRights);
 	}
 }

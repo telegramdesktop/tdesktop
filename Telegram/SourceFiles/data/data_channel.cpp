@@ -189,7 +189,13 @@ void ChannelData::setKickedCount(int newKickedCount) {
 	}
 }
 
-MTPChatBannedRights ChannelData::KickedRestrictedRights() {
+MTPChatBannedRights ChannelData::EmptyRestrictedRights(
+		not_null<PeerData*> participant) {
+	return MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
+}
+
+MTPChatBannedRights ChannelData::KickedRestrictedRights(
+		not_null<PeerData*> participant) {
 	using Flag = MTPDchatBannedRights::Flag;
 	const auto flags = Flag::f_view_messages
 		| Flag::f_send_messages
@@ -200,7 +206,7 @@ MTPChatBannedRights ChannelData::KickedRestrictedRights() {
 		| Flag::f_send_games
 		| Flag::f_send_inline;
 	return MTP_chatBannedRights(
-		MTP_flags(flags),
+		MTP_flags(participant->isUser() ? flags : Flag::f_view_messages),
 		MTP_int(std::numeric_limits<int32>::max()));
 }
 
@@ -268,11 +274,17 @@ void ChannelData::applyEditAdmin(
 	session().changes().peerUpdated(this, UpdateFlag::Admins);
 }
 
-void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights) {
+void ChannelData::applyEditBanned(
+		not_null<PeerData*> participant,
+		const MTPChatBannedRights &oldRights,
+		const MTPChatBannedRights &newRights) {
 	auto flags = UpdateFlag::BannedUsers | UpdateFlag::None;
-	auto isKicked = (newRights.c_chatBannedRights().vflags().v & MTPDchatBannedRights::Flag::f_view_messages);
-	auto isRestricted = !isKicked && (newRights.c_chatBannedRights().vflags().v != 0);
-	if (mgInfo) {
+	auto isKicked = Data::ChatBannedRightsFlags(newRights)
+		& ChatRestriction::f_view_messages;
+	auto isRestricted = !isKicked
+		&& (Data::ChatBannedRightsFlags(newRights) != 0);
+	const auto user = participant->asUser();
+	if (mgInfo && user) {
 		// If rights are empty - still remove admin? TODO check
 		if (mgInfo->lastAdmins.contains(user)) {
 			mgInfo->lastAdmins.remove(user);
@@ -285,7 +297,9 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChatBannedR
 		auto it = mgInfo->lastRestricted.find(user);
 		if (isRestricted) {
 			if (it == mgInfo->lastRestricted.cend()) {
-				mgInfo->lastRestricted.emplace(user, MegagroupInfo::Restricted { newRights });
+				mgInfo->lastRestricted.emplace(
+					user,
+					MegagroupInfo::Restricted { newRights });
 				setRestrictedCount(restrictedCount() + 1);
 			} else {
 				it->second.rights = newRights;
@@ -298,7 +312,9 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChatBannedR
 				}
 			}
 			if (isKicked) {
-				auto i = ranges::find(mgInfo->lastParticipants, user);
+				auto i = ranges::find(
+					mgInfo->lastParticipants,
+					not_null{ user });
 				if (i != mgInfo->lastParticipants.end()) {
 					mgInfo->lastParticipants.erase(i);
 				}
@@ -320,9 +336,9 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChatBannedR
 			}
 		}
 		Data::ChannelAdminChanges(this).remove(peerToUser(user->id));
-	} else {
+	} else if (!mgInfo) {
 		if (isKicked) {
-			if (membersCount() > 1) {
+			if (user && membersCount() > 1) {
 				setMembersCount(membersCount() - 1);
 				flags |= UpdateFlag::Members;
 			}
@@ -506,7 +522,7 @@ bool ChannelData::canDelete() const {
 }
 
 bool ChannelData::canEditLastAdmin(not_null<UserData*> user) const {
-	// Duplicated in ParticipantsBoxController::canEditAdmin :(
+	// Duplicated in ParticipantsAdditionalData::canEditAdmin :(
 	if (mgInfo) {
 		auto i = mgInfo->lastAdmins.find(user);
 		if (i != mgInfo->lastAdmins.cend()) {
@@ -518,7 +534,7 @@ bool ChannelData::canEditLastAdmin(not_null<UserData*> user) const {
 }
 
 bool ChannelData::canEditAdmin(not_null<UserData*> user) const {
-	// Duplicated in ParticipantsBoxController::canEditAdmin :(
+	// Duplicated in ParticipantsAdditionalData::canEditAdmin :(
 	if (user->isSelf()) {
 		return false;
 	} else if (amCreator()) {
@@ -529,14 +545,17 @@ bool ChannelData::canEditAdmin(not_null<UserData*> user) const {
 	return adminRights() & AdminRight::f_add_admins;
 }
 
-bool ChannelData::canRestrictUser(not_null<UserData*> user) const {
-	// Duplicated in ParticipantsBoxController::canRestrictUser :(
-	if (user->isSelf()) {
+bool ChannelData::canRestrictParticipant(
+		not_null<PeerData*> participant) const {
+	// Duplicated in ParticipantsAdditionalData::canRestrictParticipant :(
+	if (participant->isSelf()) {
 		return false;
 	} else if (amCreator()) {
 		return true;
-	} else if (!canEditLastAdmin(user)) {
-		return false;
+	} else if (const auto user = participant->asUser()) {
+		if (!canEditLastAdmin(user)) {
+			return false;
+		}
 	}
 	return adminRights() & AdminRight::f_ban_users;
 }
@@ -565,12 +584,14 @@ void ChannelData::setAdminRights(const MTPChatAdminRights &rights) {
 }
 
 void ChannelData::setRestrictions(const MTPChatBannedRights &rights) {
-	if (rights.c_chatBannedRights().vflags().v == restrictions()
-		&& rights.c_chatBannedRights().vuntil_date().v == _restrictedUntil) {
+	const auto restrictedFlags = Data::ChatBannedRightsFlags(rights);
+	const auto restrictedUntilDate = Data::ChatBannedRightsUntilDate(rights);
+	if (restrictedFlags == restrictions()
+		&& restrictedUntilDate == _restrictedUntil) {
 		return;
 	}
-	_restrictedUntil = rights.c_chatBannedRights().vuntil_date().v;
-	_restrictions.set(rights.c_chatBannedRights().vflags().v);
+	_restrictedUntil = restrictedUntilDate;
+	_restrictions.set(restrictedFlags);
 	if (isMegagroup()) {
 		const auto self = session().user();
 		if (hasRestrictions()) {
@@ -590,10 +611,11 @@ void ChannelData::setRestrictions(const MTPChatBannedRights &rights) {
 }
 
 void ChannelData::setDefaultRestrictions(const MTPChatBannedRights &rights) {
-	if (rights.c_chatBannedRights().vflags().v == defaultRestrictions()) {
+	const auto restrictionFlags = Data::ChatBannedRightsFlags(rights);
+	if (restrictionFlags == defaultRestrictions()) {
 		return;
 	}
-	_defaultRestrictions.set(rights.c_chatBannedRights().vflags().v);
+	_defaultRestrictions.set(restrictionFlags);
 	session().changes().peerUpdated(this, UpdateFlag::Rights);
 }
 
@@ -925,8 +947,13 @@ void ApplyMegagroupAdmins(
 	auto admins = ranges::make_subrange(
 		list.begin(), list.end()
 	) | ranges::views::transform([](const MTPChannelParticipant &p) {
-		const auto userId = p.match([](const auto &data) {
-			return data.vuser_id().v;
+		const auto participantId = p.match([](
+			const MTPDchannelParticipantBanned &data) {
+			return peerFromMTP(data.vpeer());
+		}, [](const MTPDchannelParticipantLeft &data) {
+			return peerFromMTP(data.vpeer());
+		}, [](const auto &data) {
+			return peerFromUser(data.vuser_id());
 		});
 		const auto rank = p.match([](const MTPDchannelParticipantAdmin &data) {
 			return qs(data.vrank().value_or_empty());
@@ -935,10 +962,13 @@ void ApplyMegagroupAdmins(
 		}, [](const auto &data) {
 			return QString();
 		});
-		return std::make_pair(userId, rank);
+		return std::make_pair(participantId, rank);
+	}) | ranges::views::filter([](const auto &pair) {
+		return peerIsUser(pair.first);
 	});
-	for (const auto &[userId, rank] : admins) {
-		adding.emplace(userId, rank);
+	for (const auto &[participantId, rank] : admins) {
+		Assert(peerIsUser(participantId));
+		adding.emplace(peerToUser(participantId), rank);
 	}
 	if (channel->mgInfo->creator) {
 		adding.emplace(

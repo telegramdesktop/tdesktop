@@ -1991,6 +1991,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_context_remove_hand" = "Cancel request to speak";
 "lng_group_call_context_mute_for_me" = "Mute for me";
 "lng_group_call_context_unmute_for_me" = "Unmute for me";
+"lng_group_call_context_remove" = "Remove";
+"lng_group_call_remove_channel" = "Remove {channel} from the voice chat?";
 "lng_group_call_duration_days#one" = "{count} day";
 "lng_group_call_duration_days#other" = "{count} days";
 "lng_group_call_duration_hours#one" = "{count} hour";
@@ -2233,6 +2235,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_stopped_poll" = "{from} stopped poll:";
 "lng_admin_log_invited" = "invited {user}";
 "lng_admin_log_banned" = "banned {user}";
+"lng_admin_log_unbanned" = "unbanned {user}";
 "lng_admin_log_restricted" = "changed restrictions for {user} {until}";
 "lng_admin_log_promoted" = "changed privileges for {user}";
 "lng_admin_log_transferred" = "transferred ownership to {user}";

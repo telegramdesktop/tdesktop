@@ -8,12 +8,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
+#include "base/unique_qptr.h"
 
 namespace Ui {
 class DropdownMenu;
 class GenericBox;
 class BoxContent;
 } // namespace Ui
+
+namespace Ui::Menu {
+class ItemBase;
+class Menu;
+} // namespace Ui::Menu
 
 namespace Calls {
 class GroupCall;
@@ -44,5 +50,10 @@ void FillMenu(
 	not_null<GroupCall*> call,
 	Fn<void()> chooseJoinAs,
 	Fn<void(object_ptr<Ui::BoxContent>)> showBox);
+
+[[nodiscard]] base::unique_qptr<Ui::Menu::ItemBase> MakeAttentionAction(
+	not_null<Ui::Menu::Menu*> menu,
+	const QString &text,
+	Fn<void()> callback);
 
 } // namespace Calls::Group

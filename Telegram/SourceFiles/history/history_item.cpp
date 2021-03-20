@@ -701,9 +701,11 @@ bool HistoryItem::suggestReport() const {
 }
 
 bool HistoryItem::suggestBanReport() const {
-	auto channel = history()->peer->asChannel();
-	auto fromUser = from()->asUser();
-	if (!channel || !fromUser || !channel->canRestrictUser(fromUser)) {
+	const auto channel = history()->peer->asChannel();
+	const auto fromUser = from()->asUser();
+	if (!channel
+		|| !fromUser
+		|| !channel->canRestrictParticipant(fromUser)) {
 		return false;
 	}
 	return !isPost() && !out();

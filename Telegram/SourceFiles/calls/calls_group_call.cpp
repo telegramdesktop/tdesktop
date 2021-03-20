@@ -1162,7 +1162,8 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 			rejoin();
 			return;
 		}
-		const auto status = MTP::IsFloodError(error)
+		const auto status = (MTP::IsFloodError(error)
+			|| error.type() == u"TIME_TOO_BIG"_q)
 			? Status::NotReady
 			: Status::ResyncNeeded;
 		finish({

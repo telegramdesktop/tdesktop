@@ -209,7 +209,10 @@ public:
 		return flags() & MTPDchannel::Flag::f_fake;
 	}
 
-	static MTPChatBannedRights KickedRestrictedRights();
+	static MTPChatBannedRights EmptyRestrictedRights(
+		not_null<PeerData*> participant);
+	static MTPChatBannedRights KickedRestrictedRights(
+		not_null<PeerData*> participant);
 	static constexpr auto kRestrictUntilForever = TimeId(INT_MAX);
 	[[nodiscard]] static bool IsRestrictedForever(TimeId until) {
 		return !until || (until == kRestrictUntilForever);
@@ -220,7 +223,7 @@ public:
 		const MTPChatAdminRights &newRights,
 		const QString &rank);
 	void applyEditBanned(
-		not_null<UserData*> user,
+		not_null<PeerData*> participant,
 		const MTPChatBannedRights &oldRights,
 		const MTPChatBannedRights &newRights);
 
@@ -311,7 +314,8 @@ public:
 	[[nodiscard]] bool canEditStickers() const;
 	[[nodiscard]] bool canDelete() const;
 	[[nodiscard]] bool canEditAdmin(not_null<UserData*> user) const;
-	[[nodiscard]] bool canRestrictUser(not_null<UserData*> user) const;
+	[[nodiscard]] bool canRestrictParticipant(
+		not_null<PeerData*> participant) const;
 
 	void setInviteLink(const QString &newInviteLink);
 	[[nodiscard]] QString inviteLink() const {

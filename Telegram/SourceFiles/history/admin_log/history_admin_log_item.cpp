@@ -204,14 +204,11 @@ TextWithEntities GenerateAdminChangeText(
 QString GenerateBannedChangeText(
 		const MTPChatBannedRights *newRights,
 		const MTPChatBannedRights *prevRights) {
-	Expects(!newRights || newRights->type() == mtpc_chatBannedRights);
-	Expects(!prevRights || prevRights->type() == mtpc_chatBannedRights);
-
 	using Flag = MTPDchatBannedRights::Flag;
 	using Flags = MTPDchatBannedRights::Flags;
 
-	auto newFlags = newRights ? newRights->c_chatBannedRights().vflags().v : Flags(0);
-	auto prevFlags = prevRights ? prevRights->c_chatBannedRights().vflags().v : Flags(0);
+	auto newFlags = newRights ? Data::ChatBannedRightsFlags(*newRights) : Flags(0);
+	auto prevFlags = prevRights ? Data::ChatBannedRightsFlags(*prevRights) : Flags(0);
 	static auto phraseMap = std::map<Flags, tr::phrase<>>{
 		{ Flag::f_view_messages, tr::lng_admin_log_banned_view_messages },
 		{ Flag::f_send_messages, tr::lng_admin_log_banned_send_messages },
@@ -230,19 +227,21 @@ QString GenerateBannedChangeText(
 }
 
 TextWithEntities GenerateBannedChangeText(
+		PeerId participantId,
 		const TextWithEntities &user,
 		const MTPChatBannedRights *newRights,
 		const MTPChatBannedRights *prevRights) {
-	Expects(!newRights || newRights->type() == mtpc_chatBannedRights);
-
 	using Flag = MTPDchatBannedRights::Flag;
 	using Flags = MTPDchatBannedRights::Flags;
 
-	auto newFlags = newRights ? newRights->c_chatBannedRights().vflags().v : Flags(0);
-	auto newUntil = newRights ? newRights->c_chatBannedRights().vuntil_date().v : TimeId(0);
+	auto newFlags = newRights ? Data::ChatBannedRightsFlags(*newRights) : Flags(0);
+	auto newUntil = newRights ? Data::ChatBannedRightsUntilDate(*newRights) : TimeId(0);
+	auto prevFlags = prevRights ? Data::ChatBannedRightsFlags(*prevRights) : Flags(0);
 	auto indefinitely = ChannelData::IsRestrictedForever(newUntil);
 	if (newFlags & Flag::f_view_messages) {
 		return tr::lng_admin_log_banned(tr::now, lt_user, user, Ui::Text::WithEntities);
+	} else if (newFlags == 0 && (prevFlags & Flag::f_view_messages) && !peerIsUser(participantId)) {
+		return tr::lng_admin_log_unbanned(tr::now, lt_user, user, Ui::Text::WithEntities);
 	}
 	auto untilText = indefinitely
 		? tr::lng_admin_log_restricted_forever(tr::now)
@@ -344,21 +343,23 @@ TextWithEntities GenerateInviteLinkChangeText(
 	return result;
 };
 
-auto GenerateUserString(
+auto GenerateParticipantString(
 		not_null<Main::Session*> session,
-		MTPint userId) {
+		PeerId participantId) {
 	// User name in "User name (@username)" format with entities.
-	auto user = session->data().user(userId.v);
-	auto name = TextWithEntities { user->name };
-	auto entityData = QString::number(user->id)
-		+ '.'
-		+ QString::number(user->accessHash());
-	name.entities.push_back({
-		EntityType::MentionName,
-		0,
-		name.text.size(),
-		entityData });
-	auto username = user->userName();
+	auto peer = session->data().peer(participantId);
+	auto name = TextWithEntities { peer->name };
+	if (const auto user = peer->asUser()) {
+		auto entityData = QString::number(user->id)
+			+ '.'
+			+ QString::number(user->accessHash());
+		name.entities.push_back({
+			EntityType::MentionName,
+			0,
+			name.text.size(),
+			entityData });
+	}
+	auto username = peer->userName();
 	if (username.isEmpty()) {
 		return name;
 	}
@@ -381,32 +382,10 @@ auto GenerateParticipantChangeTextInner(
 		const MTPChannelParticipant &participant,
 		const MTPChannelParticipant *oldParticipant) {
 	const auto oldType = oldParticipant ? oldParticipant->type() : 0;
-	return participant.match([&](const MTPDchannelParticipantCreator &data) {
-		// No valid string here :(
-		return tr::lng_admin_log_transferred(
-			tr::now,
-			lt_user,
-			GenerateUserString(&channel->session(), data.vuser_id()),
-			Ui::Text::WithEntities);
-	}, [&](const MTPDchannelParticipantAdmin &data) {
-		auto user = GenerateUserString(&channel->session(), data.vuser_id());
-		return GenerateAdminChangeText(
-			channel,
-			user,
-			&data.vadmin_rights(),
-			(oldType == mtpc_channelParticipantAdmin)
-				? &oldParticipant->c_channelParticipantAdmin().vadmin_rights()
-				: nullptr);
-	}, [&](const MTPDchannelParticipantBanned &data) {
-		auto user = GenerateUserString(&channel->session(), data.vuser_id());
-		return GenerateBannedChangeText(
-			user,
-			&data.vbanned_rights(),
-			(oldType == mtpc_channelParticipantBanned)
-				? &oldParticipant->c_channelParticipantBanned().vbanned_rights()
-				: nullptr);
-	}, [&](const auto &data) {
-		auto user = GenerateUserString(&channel->session(), data.vuser_id());
+	const auto generateOther = [&](PeerId participantId) {
+		auto user = GenerateParticipantString(
+			&channel->session(),
+			participantId);
 		if (oldType == mtpc_channelParticipantAdmin) {
 			return GenerateAdminChangeText(
 				channel,
@@ -415,11 +394,49 @@ auto GenerateParticipantChangeTextInner(
 				&oldParticipant->c_channelParticipantAdmin().vadmin_rights());
 		} else if (oldType == mtpc_channelParticipantBanned) {
 			return GenerateBannedChangeText(
+				participantId,
 				user,
 				nullptr,
 				&oldParticipant->c_channelParticipantBanned().vbanned_rights());
 		}
 		return tr::lng_admin_log_invited(tr::now, lt_user, user, Ui::Text::WithEntities);
+	};
+	return participant.match([&](const MTPDchannelParticipantCreator &data) {
+		// No valid string here :(
+		return tr::lng_admin_log_transferred(
+			tr::now,
+			lt_user,
+			GenerateParticipantString(
+				&channel->session(),
+				peerFromUser(data.vuser_id())),
+			Ui::Text::WithEntities);
+	}, [&](const MTPDchannelParticipantAdmin &data) {
+		const auto user = GenerateParticipantString(
+			&channel->session(),
+			peerFromUser(data.vuser_id()));
+		return GenerateAdminChangeText(
+			channel,
+			user,
+			&data.vadmin_rights(),
+			(oldType == mtpc_channelParticipantAdmin
+				? &oldParticipant->c_channelParticipantAdmin().vadmin_rights()
+				: nullptr));
+	}, [&](const MTPDchannelParticipantBanned &data) {
+		const auto participantId = peerFromMTP(data.vpeer());
+		const auto user = GenerateParticipantString(
+			&channel->session(),
+			participantId);
+		return GenerateBannedChangeText(
+			participantId,
+			user,
+			&data.vbanned_rights(),
+			(oldType == mtpc_channelParticipantBanned
+				? &oldParticipant->c_channelParticipantBanned().vbanned_rights()
+				: nullptr));
+	}, [&](const MTPDchannelParticipantLeft &data) {
+		return generateOther(peerFromMTP(data.vpeer()));
+	}, [&](const auto &data) {
+		return generateOther(peerFromUser(data.vuser_id()));
 	});
 }
 
