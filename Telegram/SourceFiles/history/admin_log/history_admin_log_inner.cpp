@@ -1350,7 +1350,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 				tr::lng_box_remove(tr::now),
 				crl::guard(this, [=] {
 					if (weak) {
-						weak->restrictUser(user, currentRights, ChannelData::KickedRestrictedRights());
+						weak->restrictUser(user, currentRights, ChannelData::KickedRestrictedRights(user));
 					}
 					if (*weakBox) {
 						(*weakBox)->closeBox();
@@ -1365,7 +1365,7 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 		} else {
 			_api.request(MTPchannels_GetParticipant(
 				_channel->inputChannel,
-				user->inputUser
+				user->input
 			)).done([=](const MTPchannels_ChannelParticipant &result) {
 				Expects(result.type() == mtpc_channels_channelParticipant);
 
