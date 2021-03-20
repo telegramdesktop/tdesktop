@@ -659,7 +659,7 @@ void GroupCall::applyActiveUpdate(
 
 void GroupCall::checkFinishSpeakingByActive() {
 	const auto now = crl::now();
-	auto nearest = 0;
+	auto nearest = crl::time(0);
 	auto stop = std::vector<not_null<PeerData*>>();
 	for (auto i = begin(_speakingByActiveFinishes)
 		; i != end(_speakingByActiveFinishes);) {
