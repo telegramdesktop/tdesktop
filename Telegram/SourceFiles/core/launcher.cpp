@@ -108,7 +108,7 @@ void ComputeExternalUpdater() {
 		while (!fileStream.atEnd()) {
 			const auto path = fileStream.readLine();
 
-			if (path == (cWorkingDir() + cExeName())) {
+			if (path == (cExeDir() + cExeName())) {
 				SetUpdaterDisabledAtStartup();
 				return;
 			}
