@@ -701,11 +701,13 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 		validateRecordingMark(recorded);
 		Ui::ShowMultilineToast({
 			.parentOverride = widget(),
-			.text = { recorded
-				? tr::lng_group_call_recording_started(tr::now)
+			.text = (recorded
+				? tr::lng_group_call_recording_started
 				: (_call && _call->recordingStoppedByMe())
-				? tr::lng_group_call_recording_saved(tr::now)
-				: tr::lng_group_call_recording_stopped(tr::now) },
+				? tr::lng_group_call_recording_saved
+				: tr::lng_group_call_recording_stopped)(
+					tr::now,
+					Ui::Text::RichLangValue),
 		});
 	}, widget()->lifetime());
 	validateRecordingMark(real->recordStartDate() != 0);
