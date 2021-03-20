@@ -435,6 +435,8 @@ void InnerWidget::requestAdmins() {
 				const auto participantId = p.match([](
 						const MTPDchannelParticipantBanned &data) {
 					return peerFromMTP(data.vpeer());
+				}, [](const MTPDchannelParticipantLeft &data) {
+					return peerFromMTP(data.vpeer());
 				}, [](const auto &data) {
 					return peerFromUser(data.vuser_id());
 				});

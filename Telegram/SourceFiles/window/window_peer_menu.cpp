@@ -1070,6 +1070,8 @@ void PeerMenuAddChannelMembers(
 			) | ranges::views::transform([](const MTPChannelParticipant &p) {
 				return p.match([](const MTPDchannelParticipantBanned &data) {
 					return peerFromMTP(data.vpeer());
+				}, [](const MTPDchannelParticipantLeft &data) {
+					return peerFromMTP(data.vpeer());
 				}, [](const auto &data) {
 					return peerFromUser(data.vuser_id());
 				});
