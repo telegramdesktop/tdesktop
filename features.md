@@ -40,3 +40,4 @@
 36. Always Show Scheduled Button option
 37. Mark All Chats As Read for "All Chats" Folder
 38. [Voice Chat Radio mode](https://t.me/tg_x64/238)
+39. [Auto unmute option](https://t.me/tg_x64/266)
