@@ -27,6 +27,9 @@ if (NOT TGVOIP_FOUND)
         init_target(lib_tgvoip_bundled cxx_std_14) # Can't use std::optional::value on macOS.
     endif()
 
+    option(LIBTGVOIP_DISABLE_ALSA "Disable libtgvoip's ALSA backend (Linux only)." OFF)
+    option(LIBTGVOIP_DISABLE_PULSEAUDIO "Disable libtgvoip's PulseAudio backend (Linux only)." OFF)
+
     set(tgvoip_loc ${third_party_loc}/libtgvoip)
 
     nice_target_sources(lib_tgvoip_bundled ${tgvoip_loc}
@@ -180,15 +183,36 @@ if (NOT TGVOIP_FOUND)
     )
 
     if (LINUX)
-        find_package(PkgConfig REQUIRED)
-        find_package(ALSA REQUIRED)
-        pkg_check_modules(PULSE REQUIRED libpulse)
+        if (NOT LIBTGVOIP_DISABLE_ALSA)
+            find_package(ALSA REQUIRED)
+            target_include_directories(lib_tgvoip_bundled PRIVATE ${ALSA_INCLUDE_DIRS})
+        else()
+            remove_target_sources(lib_tgvoip_bundled ${tgvoip_loc}
+                os/linux/AudioInputALSA.cpp
+                os/linux/AudioInputALSA.h
+                os/linux/AudioOutputALSA.cpp
+                os/linux/AudioOutputALSA.h
+            )
 
-        target_include_directories(lib_tgvoip_bundled
-        PRIVATE
-            ${ALSA_INCLUDE_DIRS}
-            ${PULSE_INCLUDE_DIRS}
-        )
+            target_compile_definitions(lib_tgvoip_bundled PRIVATE WITHOUT_ALSA)
+        endif()
+
+        if (NOT LIBTGVOIP_DISABLE_PULSEAUDIO)
+            find_package(PkgConfig REQUIRED)
+            pkg_check_modules(PULSE REQUIRED libpulse)
+            target_include_directories(lib_tgvoip_bundled PRIVATE ${PULSE_INCLUDE_DIRS})
+        else()
+            remove_target_sources(lib_tgvoip_bundled ${tgvoip_loc}
+                os/linux/AudioOutputPulse.cpp
+                os/linux/AudioOutputPulse.h
+                os/linux/AudioInputPulse.cpp
+                os/linux/AudioInputPulse.h
+                os/linux/AudioPulse.cpp
+                os/linux/AudioPulse.h
+            )
+
+            target_compile_definitions(lib_tgvoip_bundled PRIVATE WITHOUT_PULSE)
+        endif()
 
         target_link_libraries(lib_tgvoip_bundled
         PRIVATE
