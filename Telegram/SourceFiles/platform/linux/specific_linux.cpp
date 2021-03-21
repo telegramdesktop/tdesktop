@@ -754,10 +754,12 @@ void InstallLauncher(bool force) {
 
 void RegisterCustomScheme(bool force) {
 	try {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 		if (InSnap()) {
 			SnapDefaultHandler(qsl("tg"));
 			return;
 		}
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 		if (cExeName().isEmpty()) {
 			return;
