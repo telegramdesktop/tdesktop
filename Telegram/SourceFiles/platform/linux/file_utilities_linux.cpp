@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/linux/linux_gtk_integration.h"
 #include "platform/linux/specific_linux.h"
+#include "storage/localstorage.h"
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "platform/linux/linux_xdp_file_dialog.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QProcess>
 #include <QtGui/QDesktopServices>
+#include <QtWidgets/QFileDialog>
 
 #include <glibmm.h>
 #include <giomm.h>
@@ -89,6 +91,73 @@ void UnsafeLaunch(const QString &filepath) {
 } // namespace File
 
 namespace FileDialog {
+namespace {
+
+using Type = ::FileDialog::internal::Type;
+
+bool GetQt(
+		QPointer<QWidget> parent,
+		QStringList &files,
+		QByteArray &remoteContent,
+		const QString &caption,
+		const QString &filter,
+		Type type,
+		QString startFile) {
+	if (cDialogLastPath().isEmpty()) {
+		InitLastPath();
+	}
+
+	QFileDialog dialog(parent, caption, QString(), filter);
+
+	dialog.setOptions(QFileDialog::DontUseNativeDialog);
+	dialog.setModal(true);
+	if (type == Type::ReadFile || type == Type::ReadFiles) {
+		dialog.setFileMode((type == Type::ReadFiles)
+			? QFileDialog::ExistingFiles
+			: QFileDialog::ExistingFile);
+		dialog.setAcceptMode(QFileDialog::AcceptOpen);
+	} else if (type == Type::ReadFolder) {
+		dialog.setAcceptMode(QFileDialog::AcceptOpen);
+		dialog.setFileMode(QFileDialog::Directory);
+		dialog.setOption(QFileDialog::ShowDirsOnly);
+	} else {
+		dialog.setFileMode(QFileDialog::AnyFile);
+		dialog.setAcceptMode(QFileDialog::AcceptSave);
+	}
+	if (startFile.isEmpty() || startFile.at(0) != '/') {
+		startFile = cDialogLastPath() + '/' + startFile;
+	}
+	dialog.setDirectory(QFileInfo(startFile).absoluteDir().absolutePath());
+	if (type == Type::WriteFile) {
+		dialog.selectFile(startFile);
+	}
+
+	const auto res = dialog.exec();
+
+	if (type != Type::ReadFolder) {
+		// Save last used directory for all queries except directory choosing.
+		const auto path = dialog.directory().absolutePath();
+		if (!path.isEmpty() && path != cDialogLastPath()) {
+			cSetDialogLastPath(path);
+			Local::writeSettings();
+		}
+	}
+
+	if (res == QDialog::Accepted) {
+		if (type == Type::ReadFiles) {
+			files = dialog.selectedFiles();
+		} else {
+			files = dialog.selectedFiles().mid(0, 1);
+		}
+		return true;
+	}
+
+	files = QStringList();
+	remoteContent = QByteArray();
+	return false;
+}
+
+}
 
 bool Get(
 		QPointer<QWidget> parent,
@@ -124,6 +193,18 @@ bool Get(
 				type,
 				startFile);
 		}
+	}
+	// avoid situation when portals don't work
+	// and Qt tries to use portals as well
+	if (InFlatpak() || InSnap()) {
+		return GetQt(
+			parent,
+			files,
+			remoteContent,
+			caption,
+			filter,
+			type,
+			startFile);
 	}
 	return ::FileDialog::internal::GetDefault(
 		parent,
