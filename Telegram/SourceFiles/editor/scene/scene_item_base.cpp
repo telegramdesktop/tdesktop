@@ -74,6 +74,10 @@ ItemBase::ItemBase(
 			_scaledHandleSize,
 			_scaledHandleSize,
 			_scaledHandleSize) * 0.5;
+		_sizeLimits = {
+			.min = int(st::photoEditorItemMinSize / zoom),
+			.max = int(st::photoEditorItemMaxSize / zoom),
+		};
 	}, _lifetime);
 }
 
@@ -124,8 +128,8 @@ void ItemBase::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 			prepareGeometryChange();
 			_horizontalSize = std::clamp(
 				(dx > dy ? dx : dy),
-				st::photoEditorItemMinSize,
-				st::photoEditorItemMaxSize);
+				_sizeLimits.min,
+				_sizeLimits.max);
 			updateVerticalSize();
 		}
 

@@ -90,6 +90,10 @@ private:
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
+	struct {
+		int min = 0.;
+		int max = 0.;
+	} _sizeLimits;
 	float64 _scaledHandleSize = 1.0;
 	QMarginsF _scaledInnerMargins;
 
