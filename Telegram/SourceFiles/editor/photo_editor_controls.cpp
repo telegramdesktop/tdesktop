@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_controls.h"
 
-#include "editor/controllers.h"
+#include "editor/controllers/controllers.h"
 #include "lang/lang_keys.h"
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/buttons.h"

@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "editor/color_picker.h"
-#include "editor/controllers.h"
+#include "editor/controllers/controllers.h"
 #include "editor/photo_editor_content.h"
 #include "editor/photo_editor_controls.h"
 #include "window/window_controller.h"

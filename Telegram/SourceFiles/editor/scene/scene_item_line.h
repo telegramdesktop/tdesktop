@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "editor/scene_item_base.h"
+#include "editor/scene/scene_item_base.h"
 
 namespace Editor {
 

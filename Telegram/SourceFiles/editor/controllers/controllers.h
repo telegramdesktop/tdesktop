@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "editor/stickers_panel_controller.h"
-#include "editor/undo_controller.h"
+#include "editor/controllers/stickers_panel_controller.h"
+#include "editor/controllers/undo_controller.h"
 
 namespace Editor {
 

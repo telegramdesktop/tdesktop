@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "editor/undo_controller.h"
+#include "editor/controllers/undo_controller.h"
 
 namespace Editor {
 namespace {

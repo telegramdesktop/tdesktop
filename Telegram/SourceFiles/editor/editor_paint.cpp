@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_paint.h"
 
-#include "editor/scene.h"
-#include "editor/scene_item_base.h"
-#include "editor/scene_item_canvas.h"
-#include "editor/scene_item_sticker.h"
-#include "editor/controllers.h"
+#include "editor/controllers/controllers.h"
+#include "editor/scene/scene.h"
+#include "editor/scene/scene_item_base.h"
+#include "editor/scene/scene_item_canvas.h"
+#include "editor/scene/scene_item_sticker.h"
 #include "lottie/lottie_single_player.h"
 
 #include <QGraphicsView>

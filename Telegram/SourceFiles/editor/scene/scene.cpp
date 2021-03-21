@@ -5,11 +5,11 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "editor/scene.h"
+#include "editor/scene/scene.h"
 
-#include "editor/scene_item_canvas.h"
-#include "editor/scene_item_line.h"
-#include "editor/scene_item_sticker.h"
+#include "editor/scene/scene_item_canvas.h"
+#include "editor/scene/scene_item_line.h"
+#include "editor/scene/scene_item_sticker.h"
 #include "ui/rp_widget.h"
 
 #include <QGraphicsSceneMouseEvent>

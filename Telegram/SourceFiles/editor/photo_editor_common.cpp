@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_common.h"
 
-#include "editor/scene.h"
+#include "editor/scene/scene.h"
 
 namespace Editor {
 

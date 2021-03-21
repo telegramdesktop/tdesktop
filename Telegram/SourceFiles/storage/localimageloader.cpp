@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "base/unixtime.h"
 #include "base/qt_adapters.h"
-#include "editor/scene.h" // Editor::Scene::attachedStickers
+#include "editor/scene/scene.h" // Editor::Scene::attachedStickers
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
 #include "mtproto/facade.h"
