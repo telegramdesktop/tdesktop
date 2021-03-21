@@ -55,13 +55,18 @@ private:
 	const base::unique_qptr<QGraphicsView> _view;
 	const QSize _imageSize;
 
+	struct {
+		int angle = 0;
+		bool flipped = false;
+		rpl::variable<float64> zoom = 0.;
+	} _transform;
+
 	std::vector<SavedItem> _previousItems;
 	std::vector<std::shared_ptr<QGraphicsItem>> _itemsToRemove;
 
 	rpl::variable<bool> _hasUndo = true;
 	rpl::variable<bool> _hasRedo = true;
 
-	rpl::variable<float64> _zoom = 0.;
 
 };
 

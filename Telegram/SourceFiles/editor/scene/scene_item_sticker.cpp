@@ -51,8 +51,8 @@ ItemSticker::ItemSticker(
 				Lottie::Quality::High);
 			_lottie.player->updates(
 			) | rpl::start_with_next([=] {
-				_pixmap = App::pixmapFromImageInPlace(
-					_lottie.player->frame());
+				updatePixmap(App::pixmapFromImageInPlace(
+					_lottie.player->frame()));
 				_lottie.player = nullptr;
 				_lottie.lifetime.destroy();
 				update();
@@ -63,11 +63,12 @@ ItemSticker::ItemSticker(
 		if (!sticker) {
 			return false;
 		}
-		_pixmap = sticker->pixNoCache(
+		auto pixmap = sticker->pixNoCache(
 			sticker->width() * cIntRetinaFactor(),
 			sticker->height() * cIntRetinaFactor(),
 			Images::Option::Smooth);
-		_pixmap.setDevicePixelRatio(cRetinaFactor());
+		pixmap.setDevicePixelRatio(cRetinaFactor());
+		updatePixmap(std::move(pixmap));
 		return true;
 	};
 	if (!updateThumbnail()) {
@@ -78,6 +79,15 @@ ItemSticker::ItemSticker(
 				update();
 			}
 		}, _loadingLifetime);
+	}
+}
+
+void ItemSticker::updatePixmap(QPixmap &&pixmap) {
+	_pixmap = std::move(pixmap);
+	if (flipped()) {
+		performFlip();
+	} else {
+		update();
 	}
 }
 
@@ -99,6 +109,7 @@ int ItemSticker::type() const {
 
 void ItemSticker::performFlip() {
 	_pixmap = _pixmap.transformed(QTransform().scale(-1, 1));
+	update();
 }
 
 std::shared_ptr<ItemBase> ItemSticker::duplicate(

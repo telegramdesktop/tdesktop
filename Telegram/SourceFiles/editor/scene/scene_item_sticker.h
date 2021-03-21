@@ -48,6 +48,8 @@ private:
 	const not_null<DocumentData*> _document;
 	const std::shared_ptr<Data::DocumentMedia> _mediaView;
 
+	void updatePixmap(QPixmap &&pixmap);
+
 	struct {
 		std::unique_ptr<Lottie::SinglePlayer> player;
 		rpl::lifetime lifetime;
