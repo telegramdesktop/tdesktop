@@ -592,6 +592,11 @@ void XDPFileDialog::gotResponse(
 			if (const auto i = results.find("uris"); i != end(results)) {
 				_selectedFiles = base::Platform::GlibVariantCast<
 					std::vector<Glib::ustring>>(i->second);
+
+				_directory = _selectedFiles.empty()
+					? Glib::ustring()
+					: Glib::ustring(
+						Glib::path_get_dirname(_selectedFiles.back()));
 			}
 
 			if (const auto i = results.find("current_filter");
@@ -688,7 +693,18 @@ bool Get(
 	dialog.setDirectory(QFileInfo(startFile).absoluteDir().absolutePath());
 	dialog.selectFile(startFile);
 
-	int res = dialog.exec();
+	const auto res = dialog.exec();
+
+	if (type != Type::ReadFolder) {
+		// Save last used directory for all queries except directory choosing.
+		const auto path = dialog.directory().path();
+		if (!path.isEmpty()
+			&& !path.contains(docRegExp)
+			&& path != cDialogLastPath()) {
+			cSetDialogLastPath(path);
+			Local::writeSettings();
+		}
+	}
 
 	if (res == QDialog::Accepted) {
 		QStringList selectedFilesStrings;
@@ -702,18 +718,6 @@ bool Get(
 		} else {
 			files = selectedFilesStrings.mid(0, 1);
 		}
-
-		QString path = files.isEmpty()
-			? QString()
-			: QFileInfo(files.back()).absoluteDir().absolutePath();
-
-		if (!path.isEmpty()
-			&& !path.contains(docRegExp)
-			&& path != cDialogLastPath()) {
-			cSetDialogLastPath(path);
-			Local::writeSettings();
-		}
-
 		return true;
 	}
 
