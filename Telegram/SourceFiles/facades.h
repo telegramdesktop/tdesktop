@@ -133,6 +133,8 @@ DeclareRefVar(base::Observable<void>, PeerChooseCancel);
 
 DeclareRefVar(base::Observable<void>, AlwaysDeleteChanged);
 
+DeclareRefVar(base::Observable<void>, BitrateChanged);
+
 } // namespace Global
 
 namespace Adaptive {

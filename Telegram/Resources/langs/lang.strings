@@ -2733,6 +2733,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_radio_controller_desc" = "Note: Radio controller is an experimental bot for controlling your music streaming session.";
 "lng_auto_unmute_desc" = "Note: Auto unmute when you've joined the voice chat.";
 
+"lng_bitrate_controller" = "Bitrate";
+"lng_bitrate_controller_desc" = "Warning: changing this parameter to high values may affect user on slow networks.";
+"lng_bitrate_controller_hint" = "Voice chat bitrate is changed! Rejoin a voice chat if you've already joined.";
+
+"lng_bitrate_controller_default" = "Default (32 Kbps)";
+"lng_bitrate_controller_64k" = "64 Kbps";
+"lng_bitrate_controller_96k" = "96 Kbps";
+"lng_bitrate_controller_128k" = "128 Kbps";
+"lng_bitrate_controller_160k" = "160 Kbps";
+"lng_bitrate_controller_192k" = "192 Kbps";
+"lng_bitrate_controller_256k" = "256 Kbps";
+"lng_bitrate_controller_320k" = "320 Kbps";
+
 "lng_chat_restriction_reason" = "Restriction Reason";
 "lng_copy_restriction_reason" = "Copy Restriction Reason";
 

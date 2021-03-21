@@ -70,3 +70,20 @@ private:
 	object_ptr<Ui::InputField> _url = {nullptr};
 
 };
+
+class BitrateController : public Ui::BoxContent {
+public:
+	BitrateController(QWidget *parent);
+
+	static QString BitrateLabel(int boost);
+
+protected:
+	void prepare() override;
+
+private:
+	void save();
+
+	object_ptr<Ui::FlatLabel> _description = {nullptr};
+	std::shared_ptr<Ui::RadiobuttonGroup> _bitrateGroup;
+
+};

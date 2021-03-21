@@ -1033,6 +1033,28 @@ void GroupCall::toggleRecording(bool enabled, const QString &title) {
 	}).send();
 }
 
+uint16_t getCustomBitrate() {
+	int option = cVoiceChatBitrate();
+	switch (option) {
+		case 1:
+			return 64;
+		case 2:
+			return 96;
+		case 3:
+			return 128;
+		case 4:
+			return 160;
+		case 5:
+			return 192;
+		case 6:
+			return 256;
+		case 7:
+			return 320;
+		default:
+			return 32;
+	}
+}
+
 void GroupCall::ensureControllerCreated() {
 	if (_instance) {
 		return;
@@ -1088,6 +1110,7 @@ void GroupCall::ensureControllerCreated() {
 			return result;
 		},
 		.enableRadioMode = cRadioMode(),
+		.customBitrate = getCustomBitrate(),
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");

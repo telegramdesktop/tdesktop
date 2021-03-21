@@ -184,6 +184,7 @@ DeclareSetting(int, NetRequestsCount);
 DeclareSetting(int, NetUploadSessionsCount);
 DeclareSetting(int, NetUploadRequestInterval);
 DeclareSetting(int, AlwaysDeleteFor);
+DeclareSetting(int, VoiceChatBitrate);
 
 inline void SetNetworkBoost(int boost) {
 	if (boost < 0) {
@@ -207,4 +208,14 @@ inline void SetAlwaysDelete(int option) {
  	} else {
  	 	cSetAlwaysDeleteFor(option);
  	}
+}
+
+inline void SetBitrate(int option) {
+	if (option < 0) {
+		cSetVoiceChatBitrate(0);
+	} else if (option > 7) {
+		cSetVoiceChatBitrate(7);
+	} else {
+		cSetVoiceChatBitrate(option);
+	}
 }

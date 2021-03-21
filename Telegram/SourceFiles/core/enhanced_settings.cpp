@@ -253,6 +253,14 @@ namespace EnhancedSettings {
 			cSetAutoUnmute(v);
 		});
 
+		ReadOption(settings, "bitrate", [&](auto v) {
+			if (v.isNull()) {
+				SetBitrate(0);
+			} else if (v.isDouble()) {
+				SetBitrate(v.toInt());
+			}
+		});
+
 		return true;
 	}
 
@@ -281,6 +289,7 @@ namespace EnhancedSettings {
 		settings.insert(qsl("radio_mode"), false);
 		settings.insert(qsl("radio_controller"), "http://localhost:2468");
 		settings.insert(qsl("auto_unmute"), false);
+		settings.insert(qsl("bitrate"), 0);
 
 		auto document = QJsonDocument();
 		document.setObject(settings);
@@ -315,6 +324,7 @@ namespace EnhancedSettings {
 		settings.insert(qsl("radio_mode"), cRadioMode());
 		settings.insert(qsl("radio_controller"), cRadioController());
 		settings.insert(qsl("auto_unmute"), cAutoUnmute());
+		settings.insert(qsl("bitrate"), cVoiceChatBitrate());
 
 		auto document = QJsonDocument();
 		document.setObject(settings);

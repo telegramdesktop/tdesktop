@@ -357,6 +357,8 @@ struct Data {
 	base::Observable<void> PeerChooseCancel;
 
 	base::Observable<void> AlwaysDeleteChanged;
+
+	base::Observable<void> BitrateChanged;
 };
 
 } // namespace internal
@@ -401,5 +403,7 @@ DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
 
 DefineRefVar(Global, base::Observable<void>, AlwaysDeleteChanged);
+
+DefineRefVar(Global, base::Observable<void>, BitrateChanged);
 
 } // namespace Global

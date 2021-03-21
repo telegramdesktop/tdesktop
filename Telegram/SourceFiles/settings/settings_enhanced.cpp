@@ -257,6 +257,23 @@ namespace Settings {
 
 		AddDividerText(inner, tr::lng_auto_unmute_desc());
 
+		auto value = rpl::single(
+				rpl::empty_value()
+		) | rpl::then(base::ObservableViewer(
+				Global::RefBitrateChanged()
+		)) | rpl::map([] {
+			return BitrateController::BitrateLabel(cVoiceChatBitrate());
+		});
+
+		AddButtonWithLabel(
+				container,
+				tr::lng_bitrate_controller(),
+				std::move(value),
+				st::settingsButton
+		)->addClickHandler([=] {
+			Ui::show(Box<BitrateController>());
+		});
+
 		AddSkip(container);
 	}
 

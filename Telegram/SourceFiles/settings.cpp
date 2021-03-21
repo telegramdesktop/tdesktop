@@ -180,6 +180,7 @@ bool gShowScheduledButton = false;
 bool gRadioMode = false;
 bool gAutoUnmute = false;
 QString gRadioController;
+int gVoiceChatBitrate = 0;
 
 int gNetSpeedBoost = 0;
 int gNetRequestsCount = 2;

@@ -5,6 +5,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include <facades.h>
+#include <ui/toast/toast.h>
 #include "boxes/enhanced_options_box.h"
 
 #include "lang/lang_keys.h"
@@ -164,5 +165,70 @@ void RadioController::save() {
 	}
 	cSetRadioController(host);
 	EnhancedSettings::Write();
+	closeBox();
+}
+
+BitrateController::BitrateController(QWidget *parent) {
+}
+
+void BitrateController::prepare() {
+	setTitle(tr::lng_bitrate_controller());
+
+	addButton(tr::lng_settings_save(), [=] { save(); });
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
+
+	auto y = st::boxOptionListPadding.top();
+	_description.create(
+			this,
+			tr::lng_bitrate_controller_desc(tr::now),
+			st::boxLabel);
+	_description->moveToLeft(st::boxPadding.left(), y);
+
+	y += _description->height() + st::boxMediumSkip;
+
+	_bitrateGroup = std::make_shared<Ui::RadiobuttonGroup>(cVoiceChatBitrate());
+
+	for (int i = 0; i <= 7; i++) {
+		const auto button = Ui::CreateChild<Ui::Radiobutton>(
+				this,
+				_bitrateGroup,
+				i,
+				BitrateLabel(i),
+				st::autolockButton);
+		button->moveToLeft(st::boxPadding.left(), y);
+		y += button->heightNoMargins() + st::boxOptionListSkip;
+	}
+	showChildren();
+	setDimensions(st::boxWidth, y);
+}
+
+QString BitrateController::BitrateLabel(int boost) {
+	switch (boost) {
+		case 0:
+			return tr::lng_bitrate_controller_default(tr::now);
+		case 1:
+			return tr::lng_bitrate_controller_64k(tr::now);
+		case 2:
+			return tr::lng_bitrate_controller_96k(tr::now);
+		case 3:
+			return tr::lng_bitrate_controller_128k(tr::now);
+		case 4:
+			return tr::lng_bitrate_controller_160k(tr::now);
+		case 5:
+			return tr::lng_bitrate_controller_192k(tr::now);
+		case 6:
+			return tr::lng_bitrate_controller_256k(tr::now);
+		case 7:
+			return tr::lng_bitrate_controller_320k(tr::now);
+		default:
+			Unexpected("Bitrate not found.");
+	}
+}
+
+void BitrateController::save() {
+	SetBitrate(_bitrateGroup->value());
+	EnhancedSettings::Write();
+	Global::RefBitrateChanged().notify();
+	Ui::Toast::Show(tr::lng_bitrate_controller_hint(tr::now));
 	closeBox();
 }
