@@ -82,11 +82,16 @@ private:
 	QRectF leftHandleRect() const;
 	bool isHandling() const;
 	void updateVerticalSize();
+	void updatePens(QPen pen);
 
 	const std::shared_ptr<float64> _lastZ;
-	const QPen _selectPen;
-	const QPen _selectPenInactive;
-	const QPen _handlePen;
+
+	struct {
+		QPen select;
+		QPen selectInactive;
+		QPen handle;
+		QPen handleInactive;
+	} _pens;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 

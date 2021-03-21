@@ -27,11 +27,6 @@ auto Normalized(float64 angle) {
 		+ ((std::abs(angle) < 360) ? 0 : (-360 * (angle < 0 ? -1 : 1)));
 }
 
-QPen PenStyled(QPen pen, Qt::PenStyle style) {
-	pen.setStyle(style);
-	return pen;
-}
-
 } // namespace
 
 int NumberedItem::number() const {
@@ -49,13 +44,6 @@ ItemBase::ItemBase(
 	int x,
 	int y)
 : _lastZ(zPtr)
-, _selectPen(QBrush(Qt::white), 1, Qt::DashLine, Qt::SquareCap, Qt::RoundJoin)
-, _selectPenInactive(
-	QBrush(Qt::gray),
-	1,
-	Qt::DashLine,
-	Qt::SquareCap,
-	Qt::RoundJoin)
 , _horizontalSize(size)
 , _zoom(std::move(zoomValue)) {
 	setFlags(QGraphicsItem::ItemIsMovable
@@ -78,6 +66,13 @@ ItemBase::ItemBase(
 			.min = int(st::photoEditorItemMinSize / zoom),
 			.max = int(st::photoEditorItemMaxSize / zoom),
 		};
+
+		updatePens(QPen(
+			QBrush(),
+			1 / zoom,
+			Qt::DashLine,
+			Qt::SquareCap,
+			Qt::RoundJoin));
 	}, _lifetime);
 }
 
@@ -103,13 +98,11 @@ void ItemBase::paint(
 		return;
 	}
 	PainterHighQualityEnabler hq(*p);
-	const auto &pen = (option->state & QStyle::State_HasFocus)
-		? _selectPen
-		: _selectPenInactive;
-	p->setPen(pen);
+	const auto hasFocus = (option->state & QStyle::State_HasFocus);
+	p->setPen(hasFocus ? _pens.select : _pens.selectInactive);
 	p->drawRect(innerRect());
 
-	p->setPen(PenStyled(pen, Qt::SolidLine));
+	p->setPen(hasFocus ? _pens.handle : _pens.handleInactive);
 	p->setBrush(st::photoEditorItemBaseHandleFg);
 	p->drawEllipse(rightHandleRect());
 	p->drawEllipse(leftHandleRect());
@@ -268,6 +261,21 @@ void ItemBase::setFlip(bool value) {
 }
 
 void ItemBase::performFlip() {
+}
+
+void ItemBase::updatePens(QPen pen) {
+	_pens = {
+		.select = pen,
+		.selectInactive = pen,
+		.handle = pen,
+		.handleInactive = pen,
+	};
+	_pens.select.setColor(Qt::white);
+	_pens.selectInactive.setColor(Qt::gray);
+	_pens.handle.setColor(Qt::white);
+	_pens.handleInactive.setColor(Qt::gray);
+	_pens.handle.setStyle(Qt::SolidLine);
+	_pens.handleInactive.setStyle(Qt::SolidLine);
 }
 
 } // namespace Editor
