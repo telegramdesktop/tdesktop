@@ -74,6 +74,7 @@ struct ProcessingState {
 	int itemIndex = 0;
 	int itemCount = 0;
 
+	uint64 bytesRandomId = 0;
 	FileType bytesType = FileType::None;
 	QString bytesName;
 	int bytesLoaded = 0;
@@ -136,6 +137,7 @@ public:
 	void startExport(
 		const Settings &settings,
 		const Environment &environment);
+	void skipFile(uint64 randomId);
 	void cancelExportFast();
 
 	rpl::lifetime &lifetime();

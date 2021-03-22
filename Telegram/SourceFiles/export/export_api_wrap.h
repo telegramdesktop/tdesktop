@@ -60,6 +60,7 @@ public:
 		FnMut<void(Data::File&&)> done);
 
 	struct DownloadProgress {
+		uint64 randomId = 0;
 		QString path;
 		int itemIndex = 0;
 		int ready = 0;
@@ -83,6 +84,7 @@ public:
 		FnMut<void()> done);
 
 	void finishExport(FnMut<void()> done);
+	void skipFile(uint64 randomId);
 	void cancelExportFast();
 
 	~ApiWrap();
