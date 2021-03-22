@@ -858,7 +858,7 @@ bool MainWidget::insertBotCommand(const QString &cmd) {
 	return _history->insertBotCommand(cmd);
 }
 
-void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat, UserData *from) {
+void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat, PeerData *from) {
 	_dialogs->searchMessages(query, inChat, from);
 	if (Adaptive::OneColumn()) {
 		Ui::showChatsList(&session());

@@ -82,7 +82,7 @@ public:
 
 	void scrollToEntry(const RowDescriptor &entry);
 
-	void searchMessages(const QString &query, Key inChat = {}, UserData *from = nullptr);
+	void searchMessages(const QString &query, Key inChat = {}, PeerData *from = nullptr);
 	void onSearchMore();
 
 	// Float player interface.

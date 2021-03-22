@@ -1583,8 +1583,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		const auto peer = item->history()->peer;
 		if (peer->isChat() || peer->isMegagroup()) {
+			const auto msgSigned = pinItem->mainView()->data()->Get<HistoryMessageSigned>();
 			_menu->addAction(tr::lng_context_show_messages_from(tr::now), [=] {
-				App::searchByHashtag(QString(), peer, item->from()->asUser());
+				App::searchByHashtag(msgSigned->author, peer, item->from()->asUser());
 			});
 		}
 	};

@@ -226,7 +226,7 @@ void searchByHashtag(const QString &tag, PeerData *inPeer, UserData *from) {
 			(inPeer && !inPeer->isUser())
 				? inPeer->owner().history(inPeer).get()
 				: Dialogs::Key(),
-			from);
+			from ? from : inPeer);
 	}
 }
 

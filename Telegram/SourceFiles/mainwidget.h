@@ -188,7 +188,7 @@ public:
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd);
 
-	void searchMessages(const QString& query, Dialogs::Key inChat, UserData* from);
+	void searchMessages(const QString& query, Dialogs::Key inChat, PeerData* from);
 
 	QPixmap cachedBackground(const QRect &forRect, int &x, int &y);
 	void updateScrollColors();

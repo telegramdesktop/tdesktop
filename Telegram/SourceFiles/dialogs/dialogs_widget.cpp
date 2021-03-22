@@ -947,7 +947,7 @@ void Widget::showMainMenu() {
 void Widget::searchMessages(
 		const QString &query,
 		Key inChat,
-		UserData *from) {
+		PeerData *from) {
 	auto inChatChanged = [&] {
 		if (inChat == _searchInChat) {
 			return false;
