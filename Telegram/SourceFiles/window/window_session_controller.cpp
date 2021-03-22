@@ -178,7 +178,19 @@ void SessionNavigation::resolveChannelById(
 void SessionNavigation::showPeerByLinkResolved(
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info) {
+	auto params = SectionShow{
+		SectionShow::Way::Forward
+	};
+	params.origin = SectionShow::OriginMessage{
+		info.clickFromMessageId
+	};
 	if (info.voicechatHash && peer->isChannel()) {
+		// First show the channel itself.
+		crl::on_main(this, [=] {
+			showPeerHistory(peer->id, params, ShowAtUnreadMsgId);
+		});
+
+		// Then try to join the voice chat.
 		const auto bad = [=] {
 			Ui::ShowMultilineToast({
 				.text = { tr::lng_group_invite_bad_link(tr::now) }
@@ -224,12 +236,6 @@ void SessionNavigation::showPeerByLinkResolved(
 		}).send();
 		return;
 	}
-	auto params = SectionShow{
-		SectionShow::Way::Forward
-	};
-	params.origin = SectionShow::OriginMessage{
-		info.clickFromMessageId
-	};
 	const auto &replies = info.repliesInfo;
 	if (const auto threadId = std::get_if<ThreadId>(&replies)) {
 		showRepliesForMessage(
