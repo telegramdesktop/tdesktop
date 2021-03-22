@@ -2474,6 +2474,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_state_chats_list" = "Processing chats...";
 "lng_export_state_chats" = "Chats";
 "lng_export_state_ready_progress" = "{ready} / {total}";
+"lng_export_skip_file" = "Skip this file";
 "lng_export_progress" = "You can close this window now. Please don't quit Telegram until the data export is completed.";
 "lng_export_stop" = "Stop";
 "lng_export_sure_stop" = "Are you sure you want to stop exporting your data?\n\nIf you do, you'll need to start over.";
