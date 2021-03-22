@@ -205,17 +205,17 @@ private:
 	};
 
 	struct StatusIcon {
-		StatusIcon(float volume)
-		: speaker(st::groupCallStatusSpeakerIcon)
-		, arcs(std::make_unique<Ui::Paint::ArcsAnimation>(
-			st::groupCallStatusSpeakerArcsAnimation,
-			kSpeakerThreshold,
-			volume,
-			Ui::Paint::ArcsAnimation::Direction::Right)) {
-		}
+		StatusIcon(bool shown, float volume);
+
 		const style::icon &speaker;
-		const std::unique_ptr<Ui::Paint::ArcsAnimation> arcs;
+		Ui::Paint::ArcsAnimation arcs;
+		Ui::Animations::Simple arcsAnimation;
+		Ui::Animations::Simple shownAnimation;
+		QString percent;
+		int percentWidth = 0;
 		int arcsWidth = 0;
+		int wasArcsWidth = 0;
+		bool shown = true;
 
 		rpl::lifetime lifetime;
 	};
@@ -247,7 +247,6 @@ private:
 	Ui::Animations::Simple _speakingAnimation; // For gray-red/green icon.
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
-	Ui::Animations::Simple _arcsAnimation; // For volume arcs animation.
 	QString _aboutText;
 	crl::time _speakingLastTime = 0;
 	uint64 _raisedHandRating = 0;
@@ -373,6 +372,26 @@ private:
 
 };
 
+[[nodiscard]] QString StatusPercentString(float volume) {
+	return QString::number(int(std::round(volume * 200))) + '%';
+}
+
+[[nodiscard]] int StatusPercentWidth(const QString &percent) {
+	return st::normalFont->width(percent);
+}
+
+Row::StatusIcon::StatusIcon(bool shown, float volume)
+: speaker(st::groupCallStatusSpeakerIcon)
+, arcs(
+	st::groupCallStatusSpeakerArcsAnimation,
+	kSpeakerThreshold,
+	volume,
+	Ui::Paint::ArcsAnimation::Direction::Right)
+, percent(StatusPercentString(volume))
+, percentWidth(StatusPercentWidth(percent))
+, shown(shown) {
+}
+
 Row::Row(
 	not_null<RowDelegate*> delegate,
 	not_null<PeerData*> participantPeer)
@@ -433,32 +452,30 @@ void Row::setSpeaking(bool speaking) {
 		|| (_state == State::MutedByMe)
 		|| (_state == State::Muted)
 		|| (_state == State::RaisedHand)) {
-		_statusIcon = nullptr;
+		if (_statusIcon) {
+			_statusIcon = nullptr;
+			_delegate->rowUpdateRow(this);
+		}
 	} else if (!_statusIcon) {
 		_statusIcon = std::make_unique<StatusIcon>(
+			(_volume != Group::kDefaultVolume),
 			(float)_volume / Group::kMaxVolume);
-		_statusIcon->arcs->setStrokeRatio(kArcsStrokeRatio);
-		_statusIcon->arcsWidth = _statusIcon->arcs->finishedWidth();
-
-		const auto wasArcsWidth = _statusIcon->lifetime.make_state<int>(0);
-
-		_statusIcon->arcs->startUpdateRequests(
+		_statusIcon->arcs.setStrokeRatio(kArcsStrokeRatio);
+		_statusIcon->arcsWidth = _statusIcon->arcs.finishedWidth();
+		_statusIcon->arcs.startUpdateRequests(
 		) | rpl::start_with_next([=] {
-			if (!_arcsAnimation.animating()) {
-				*wasArcsWidth = _statusIcon->arcsWidth;
+			if (!_statusIcon->arcsAnimation.animating()) {
+				_statusIcon->wasArcsWidth = _statusIcon->arcsWidth;
 			}
 			auto callback = [=](float64 value) {
-				if (_statusIcon) {
-					_statusIcon->arcs->update(crl::now());
-
-					_statusIcon->arcsWidth = anim::interpolate(
-						*wasArcsWidth,
-						_statusIcon->arcs->finishedWidth(),
-						value);
-				}
+				_statusIcon->arcs.update(crl::now());
+				_statusIcon->arcsWidth = anim::interpolate(
+					_statusIcon->wasArcsWidth,
+					_statusIcon->arcs.finishedWidth(),
+					value);
 				_delegate->rowUpdateRow(this);
 			};
-			_arcsAnimation.start(
+			_statusIcon->arcsAnimation.start(
 				std::move(callback),
 				0.,
 				1.,
@@ -533,7 +550,20 @@ void Row::setSsrc(uint32 ssrc) {
 void Row::setVolume(int volume) {
 	_volume = volume;
 	if (_statusIcon) {
-		_statusIcon->arcs->setValue((float)volume / Group::kMaxVolume);
+		const auto floatVolume = (float)volume / Group::kMaxVolume;
+		_statusIcon->arcs.setValue(floatVolume);
+		_statusIcon->percent = StatusPercentString(floatVolume);
+		_statusIcon->percentWidth = StatusPercentWidth(_statusIcon->percent);
+
+		const auto shown = (volume != Group::kDefaultVolume);
+		if (_statusIcon->shown != shown) {
+			_statusIcon->shown = shown;
+			_statusIcon->shownAnimation.start(
+				[=] { _delegate->rowUpdateRow(this); },
+				shown ? 0. : 1.,
+				shown ? 1. : 0.,
+				st::groupCallSpeakerArcsAnimation.duration);
+		}
 	}
 }
 
@@ -658,21 +688,20 @@ auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 }
 
 int Row::statusIconWidth() const {
-	if (!_statusIcon) {
+	if (!_statusIcon || !_speaking) {
 		return 0;
 	}
-	return _speaking
-		? (_statusIcon->speaker.width() + _statusIcon->arcsWidth)
-		: 0;
+	const auto shown = _statusIcon->shownAnimation.value(
+		_statusIcon->shown ? 1. : 0.);
+	const auto full = _statusIcon->speaker.width()
+		+ _statusIcon->arcsWidth
+		+ _statusIcon->percentWidth
+		+ st::normalFont->spacew;
+	return int(std::round(shown * full));
 }
 
 int Row::statusIconHeight() const {
-	if (!_statusIcon) {
-		return 0;
-	}
-	return _speaking
-		? _statusIcon->speaker.height()
-		: 0;
+	return (_statusIcon && _speaking) ? _statusIcon->speaker.height() : 0;
 }
 
 void Row::paintStatusIcon(
@@ -683,6 +712,12 @@ void Row::paintStatusIcon(
 	if (!_statusIcon) {
 		return;
 	}
+	const auto shown = _statusIcon->shownAnimation.value(
+		_statusIcon->shown ? 1. : 0.);
+	if (shown == 0.) {
+		return;
+	}
+
 	p.setFont(font);
 	const auto color = (_speaking
 		? st.statusFgActive
@@ -697,17 +732,34 @@ void Row::paintStatusIcon(
 		+ QPoint(
 			speakerRect.width() - st::groupCallStatusSpeakerArcsSkip,
 			speakerRect.height() / 2);
+	const auto fullWidth = speakerRect.width()
+		+ _statusIcon->arcsWidth
+		+ _statusIcon->percentWidth
+		+ st::normalFont->spacew;
 
-	const auto volume = std::round(_volume / 100.);
+	p.save();
+	if (shown < 1.) {
+		const auto centerx = speakerRect.x() + fullWidth / 2;
+		const auto centery = speakerRect.y() + speakerRect.height() / 2;
+		p.translate(centerx, centery);
+		p.scale(shown, shown);
+		p.translate(-centerx, -centery);
+	}
 	_statusIcon->speaker.paint(
 		p,
 		speakerRect.topLeft(),
 		speakerRect.width(),
 		color);
-
-	p.save();
 	p.translate(arcPosition);
-	_statusIcon->arcs->paint(p, color);
+	_statusIcon->arcs.paint(p, color);
+	p.translate(-arcPosition);
+	p.setFont(st::normalFont);
+	p.setPen(st.statusFgActive);
+	p.drawTextLeft(
+		st.statusPosition.x() + speakerRect.width() + _statusIcon->arcsWidth,
+		st.statusPosition.y(),
+		fullWidth,
+		_statusIcon->percent);
 	p.restore();
 }
 
@@ -736,11 +788,14 @@ void Row::paintStatusText(
 	if (about.isEmpty()
 		&& _state != State::Invited
 		&& _state != State::MutedByMe) {
-		p.save();
 		paintStatusIcon(p, st, font, selected);
+
 		const auto translatedWidth = statusIconWidth();
 		p.translate(translatedWidth, 0);
-		const auto guard = gsl::finally([&] { p.restore(); });
+		const auto guard = gsl::finally([&] {
+			p.translate(-translatedWidth, 0);
+		});
+
 		PeerListRow::paintStatusText(
 			p,
 			st,
@@ -819,9 +874,7 @@ void Row::paintAction(
 void Row::refreshStatus() {
 	setCustomStatus(
 		(_speaking
-			? u"%1% %2"_q
-				.arg(std::round(_volume / 100.))
-				.arg(tr::lng_group_call_active(tr::now))
+			? tr::lng_group_call_active(tr::now)
 			: _raisedHandStatus
 			? tr::lng_group_call_raised_hand_status(tr::now)
 			: tr::lng_group_call_inactive(tr::now)),
