@@ -514,7 +514,6 @@ void Launcher::processArguments() {
 			? style::kScaleAuto
 			: value;
 	}
-	gConfigScale = 110; AssertIsDebug();
 }
 
 int Launcher::executeApplication() {
