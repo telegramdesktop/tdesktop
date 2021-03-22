@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 #include <QtWidgets/QAction>
+#include <api/api_text_entities.h>
 
 namespace Window {
 namespace {
@@ -1203,29 +1204,83 @@ QPointer<Ui::RpWidget> ShowForwardNoQuoteMessagesBox(
 				api.sendMessage(std::move(message));
 			}
 
+			auto mediaAlbums = QMap<uint64, QVector<MTPInputSingleMedia>>();
+
+			for (const auto it : items) {
+				if (it->groupId().value == 0) continue;
+
+				const auto media = it->media();
+				if (media != nullptr && media->webpage() == nullptr) {
+					auto inputMedia = media->photo()
+									  ? MTP_inputMediaPhoto(MTP_flags(0), media->photo()->mtpInput(), MTPint())
+									  : MTP_inputMediaDocument(MTP_flags(0), media->document()->mtpInput(), MTPint(), MTPstring());
+					auto caption = it->originalText();
+					auto entities = Api::EntitiesToMTP(session, caption.entities, Api::ConvertOption::SkipLocal);
+					const auto flags = !entities.v.isEmpty() ? MTPDinputSingleMedia::Flag::f_entities : MTPDinputSingleMedia::Flag(0);
+					auto randomId = openssl::RandomValue<uint64>();
+
+					mediaAlbums[it->groupId().value].push_back(MTP_inputSingleMedia(
+							MTP_flags(flags),
+							inputMedia,
+							MTP_long(randomId),
+							MTP_string(caption.text),
+							entities));
+				}
+			}
+
+			if (!mediaAlbums.isEmpty()) {
+				for (const auto& album : mediaAlbums) {
+					const auto finalFlags = MTPmessages_SendMultiMedia::Flags(0)
+											| (options.silent
+											   ? MTPmessages_SendMultiMedia::Flag::f_silent
+											   : MTPmessages_SendMultiMedia::Flag(0))
+											| (options.scheduled
+											   ? MTPmessages_SendMultiMedia::Flag::f_schedule_date
+											   : MTPmessages_SendMultiMedia::Flag(0));
+
+					histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
+						const auto api = &item->history()->peer->session().api();
+						history->sendRequestId = session->api().request(MTPmessages_SendMultiMedia(
+								MTP_flags(finalFlags),
+								peer->input,
+								MTPint(),
+								MTP_vector<MTPInputSingleMedia>(album),
+								MTP_int(options.scheduled)
+						)).done([=](const MTPUpdates &result) {
+							//finish();
+						}).fail([=](const MTP::Error &error) {
+							//finish();
+						}).afterRequest(history->sendRequestId
+						).send();
+						return history->sendRequestId;
+					});
+				}
+			}
+
 			histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
 				const auto api = &item->history()->peer->session().api();
-				for (const auto item : items) {
-					if (item->media() != nullptr && item->media()->webpage() == nullptr) {
-						if (item->media()->document() != nullptr) {
-							const auto document = item->media()->document();
+				for (const auto it : items) {
+					if (it->groupId().value != 0) continue;
+					if (it->media() != nullptr && it->media()->webpage() == nullptr) {
+						if (it->media()->document() != nullptr) {
+							const auto document = it->media()->document();
 							auto message = ApiWrap::MessageToSend(history);
-							message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
+							message.textWithTags = { it->originalText().text, TextUtilities::ConvertEntitiesToTextTags(it->originalText().entities) };
 							message.action = Api::SendAction(history);
 							message.action.options.scheduled = options.scheduled;
 							Api::SendExistingDocument(std::move(message), document);
 						}
-						else if (item->media()->photo() != nullptr) {
-							const auto photo = item->media()->photo();
+						else if (it->media()->photo() != nullptr) {
+							const auto photo = it->media()->photo();
 							auto message = ApiWrap::MessageToSend(history);
-							message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
+							message.textWithTags = { it->originalText().text, TextUtilities::ConvertEntitiesToTextTags(it->originalText().entities) };
 							message.action = Api::SendAction(history);
 							message.action.options.scheduled = options.scheduled;
 							Api::SendExistingPhoto(std::move(message), photo);
 						}
 					} else {
 						auto message = ApiWrap::MessageToSend(history);
-						message.textWithTags = { item->originalText().text, TextUtilities::ConvertEntitiesToTextTags(item->originalText().entities) };
+						message.textWithTags = { it->originalText().text, TextUtilities::ConvertEntitiesToTextTags(it->originalText().entities) };
 						message.action = Api::SendAction(history);
 						message.action.options.scheduled = options.scheduled;
 						api->sendMessage(std::move(message));
