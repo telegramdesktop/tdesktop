@@ -625,8 +625,8 @@ void TopBar::setInfoLabels() {
 		const auto user = call->user();
 		const auto fullName = user->name;
 		const auto shortName = user->firstName;
-		_fullInfoLabel->setText(fullName.toUpper());
-		_shortInfoLabel->setText(shortName.toUpper());
+		_fullInfoLabel->setText(fullName);
+		_shortInfoLabel->setText(shortName);
 	} else if (const auto group = _groupCall.get()) {
 		const auto peer = group->peer();
 		const auto real = peer->groupCall();
@@ -634,8 +634,8 @@ void TopBar::setInfoLabels() {
 		const auto text = _isGroupConnecting.current()
 			? tr::lng_group_call_connecting(tr::now)
 			: (real && real->id() == group->id() && !real->title().isEmpty())
-			? real->title().toUpper()
-			: name.toUpper();
+			? real->title()
+			: name;
 		_fullInfoLabel->setText(text);
 		_shortInfoLabel->setText(text);
 	}
