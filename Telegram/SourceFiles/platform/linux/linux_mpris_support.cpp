@@ -96,7 +96,7 @@ auto CreateMetadata(const Media::Player::TrackState &state) {
 	if (!Media::Player::IsStoppedOrStopping(state.state)) {
 		result["mpris:trackid"] = Glib::wrap(g_variant_new_object_path(
 			kFakeTrackPath.utf8().constData()));
-		result["mpris:length"] = Glib::Variant<long>::create(
+		result["mpris:length"] = Glib::Variant<gint64>::create(
 			state.length * 1000);
 
 		const auto audioData = state.id.audio();
@@ -159,7 +159,7 @@ void HandleMethodCall(
 			} else if (method_name == "Previous") {
 				Media::Player::instance()->previous();
 			} else if (method_name == "Seek") {
-				const auto offset = base::Platform::GlibVariantCast<long>(
+				const auto offset = base::Platform::GlibVariantCast<gint64>(
 					parametersCopy.get_child(0));
 
 				const auto state = Media::Player::instance()->getState(
@@ -170,7 +170,7 @@ void HandleMethodCall(
 					float64(state.position * 1000 + offset)
 						/ (state.length * 1000));
 			} else if (method_name == "SetPosition") {
-				const auto position = base::Platform::GlibVariantCast<long>(
+				const auto position = base::Platform::GlibVariantCast<gint64>(
 					parametersCopy.get_child(1));
 
 				const auto state = Media::Player::instance()->getState(
@@ -251,7 +251,7 @@ void HandleGetProperty(
 			const auto state = Media::Player::instance()->getState(
 				kSongType);
 
-			property = Glib::Variant<long>::create(state.position * 1000);
+			property = Glib::Variant<gint64>::create(state.position * 1000);
 		} else if (property_name == "Rate") {
 			property = Glib::Variant<float64>::create(1.0);
 		} else if (property_name == "Volume") {
@@ -315,7 +315,7 @@ void PlayerPropertyChanged(
 	}
 }
 
-void Seeked(long position) {
+void Seeked(gint64 position) {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
@@ -348,7 +348,7 @@ public:
 
 	std::map<Glib::ustring, Glib::VariantBase> metadata;
 	Glib::ustring playbackStatus;
-	long position = 0;
+	gint64 position = 0;
 
 	rpl::lifetime lifetime;
 };
