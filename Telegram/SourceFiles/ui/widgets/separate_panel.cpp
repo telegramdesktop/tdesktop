@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/separate_panel.h"
 
-#include "window/main_window.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -17,26 +16,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/layers/layer_widget.h"
-#include "window/themes/window_theme.h"
-#include "core/application.h"
-#include "app.h"
 #include "styles/style_widgets.h"
 #include "styles/style_info.h"
 #include "styles/style_calls.h"
+#include "logs.h" // #TODO logs
 
 #include <QtGui/QWindow>
+#include <QtGui/QScreen>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QDesktopWidget>
 
 namespace Ui {
 
 SeparatePanel::SeparatePanel()
-: RpWidget(Core::App().getModalParent())
+: RpWidget(Ui::Integration::Instance().modalWindowParent())
 , _close(this, st::separatePanelClose)
 , _back(this, object_ptr<Ui::IconButton>(this, st::separatePanelBack))
 , _body(this) {
 	setMouseTracking(true);
-	setWindowIcon(Window::CreateIcon());
+	setWindowIcon(QGuiApplication::windowIcon());
 	initControls();
 	initLayout();
 }
@@ -156,13 +154,11 @@ void SeparatePanel::initLayout() {
 	setAttribute(Qt::WA_TranslucentBackground, true);
 
 	createBorderImage();
-	subscribe(Window::Theme::Background(), [=](
-			const Window::Theme::BackgroundUpdate &update) {
-		if (update.paletteChanged()) {
-			createBorderImage();
-			Ui::ForceFullRepaint(this);
-		}
-	});
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		createBorderImage();
+		Ui::ForceFullRepaint(this);
+	}, lifetime());
 
 	Ui::Platform::InitOnTopPanel(this);
 }
@@ -171,10 +167,10 @@ void SeparatePanel::createBorderImage() {
 	const auto shadowPadding = st::callShadow.extend;
 	const auto cacheSize = st::separatePanelBorderCacheSize;
 	auto cache = QImage(
-		cacheSize * cIntRetinaFactor(),
-		cacheSize * cIntRetinaFactor(),
+		cacheSize * style::DevicePixelRatio(),
+		cacheSize * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	cache.setDevicePixelRatio(cRetinaFactor());
+	cache.setDevicePixelRatio(style::DevicePixelRatio());
 	cache.fill(Qt::transparent);
 	{
 		Painter p(&cache);
@@ -190,7 +186,7 @@ void SeparatePanel::createBorderImage() {
 			st::callRadius,
 			st::callRadius);
 	}
-	_borderParts = App::pixmapFromImageInPlace(std::move(cache));
+	_borderParts = Ui::PixmapFromImage(std::move(cache));
 }
 
 void SeparatePanel::toggleOpacityAnimation(bool visible) {
@@ -347,7 +343,12 @@ void SeparatePanel::setInnerSize(QSize size) {
 }
 
 void SeparatePanel::initGeometry(QSize size) {
-	const auto center = Core::App().getPointForCallPanelCenter();
+	const auto active = QApplication::activeWindow();
+	const auto center = !active
+		? QGuiApplication::primaryScreen()->geometry().center()
+		: (active->isVisible() && active->isActiveWindow())
+		? active->geometry().center()
+		: active->windowHandle()->screen()->geometry().center();
 	_useTransparency = Ui::Platform::TranslucentWindowsSupported(center);
 	_padding = _useTransparency
 		? st::callShadow.extend
@@ -428,7 +429,7 @@ void SeparatePanel::paintEvent(QPaintEvent *e) {
 }
 
 void SeparatePanel::paintShadowBorder(Painter &p) const {
-	const auto factor = cIntRetinaFactor();
+	const auto factor = style::DevicePixelRatio();
 	const auto size = st::separatePanelBorderCacheSize;
 	const auto part1 = size / 3;
 	const auto part2 = size - part1;

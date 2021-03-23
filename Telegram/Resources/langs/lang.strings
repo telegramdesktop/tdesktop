@@ -1860,6 +1860,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_invoice_label_test" = "Test invoice";
 "lng_payments_receipt_button" = "Receipt";
 
+"lng_payments_checkout_title" = "Checkout";
+"lng_payments_total_label" = "Total";
+"lng_payments_pay_amount" = "Pay {amount}";
+//"lng_payments_payment_method" = "Payment Method"; // #TODO payments native
+"lng_payments_shipping_address" = "Shipping Information";
+"lng_payments_shipping_method" = "Shipping Method";
+"lng_payments_info_name" = "Name";
+"lng_payments_info_email" = "Email";
+"lng_payments_info_phone" = "Phone";
+"lng_payments_shipping_address_title" = "Shipping Address";
+"lng_payments_save_shipping_about" = "You can save your shipping information for future use.";
+//"lng_payments_payment_card" = "Payment Card"; // #TODO payments native
+//"lng_payments_cardholder_title" = "Cardholder";
+//"lng_payments_cardholder_about" = "Cardholder Name";
+//"lng_payments_billing_address" = "Billing Address";
+//"lng_payments_zip_code" = "Zip Code";
+//"lng_payments_save_payment_about" = "You can save your payment information for future use.";
+"lng_payments_save_information" = "Save Information";
+
 "lng_call_status_incoming" = "is calling you...";
 "lng_call_status_connecting" = "connecting...";
 "lng_call_status_exchanging" = "exchanging encryption keys...";

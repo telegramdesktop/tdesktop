@@ -22,7 +22,7 @@ class FadeWrapScaled;
 
 namespace Ui {
 
-class SeparatePanel : public Ui::RpWidget, private base::Subscriber {
+class SeparatePanel final : public Ui::RpWidget {
 public:
 	SeparatePanel();
 
