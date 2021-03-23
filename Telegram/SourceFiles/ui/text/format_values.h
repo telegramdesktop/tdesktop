@@ -24,7 +24,7 @@ inline constexpr auto FileStatusSizeFailed = 0x7FFFFFF2;
 [[nodiscard]] QString FormatPlayedText(qint64 played, qint64 duration);
 
 [[nodiscard]] QString FillAmountAndCurrency(
-	uint64 amount,
+	int64 amount,
 	const QString &currency);
 
 [[nodiscard]] QString ComposeNameString(

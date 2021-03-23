@@ -5,9 +5,8 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "passport/passport_panel_details_row.h"
+#include "passport/ui/passport_details_row.h"
 
-#include "passport/passport_panel_controller.h"
 #include "lang/lang_keys.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/widgets/input_fields.h"
@@ -15,17 +14,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/countryinput.h"
-#include "main/main_session.h"
-#include "data/data_user.h"
+#include "ui/layers/box_content.h"
+#include "ui/boxes/country_select_box.h"
 #include "data/data_countries.h"
 #include "styles/style_layers.h"
 #include "styles/style_passport.h"
 
-namespace Passport {
+#include <QtCore/QRegularExpression>
+
+namespace Passport::Ui {
 namespace {
 
-class PostcodeInput : public Ui::MaskedInputField {
+class PostcodeInput : public MaskedInputField {
 public:
 	PostcodeInput(
 		QWidget *parent,
@@ -103,7 +103,8 @@ class CountryRow : public PanelDetailsRow {
 public:
 	CountryRow(
 		QWidget *parent,
-		not_null<PanelController*> controller,
+		Fn<void(object_ptr<BoxContent>)> showBox,
+		const QString &defaultCountry,
 		const QString &label,
 		int maxLabelWidth,
 		const QString &value);
@@ -121,15 +122,16 @@ private:
 	void toggleError(bool shown);
 	void errorAnimationCallback();
 
-	not_null<PanelController*> _controller;
-	object_ptr<Ui::LinkButton> _link;
+	QString _defaultCountry;
+	Fn<void(object_ptr<BoxContent>)> _showBox;
+	object_ptr<LinkButton> _link;
 	rpl::variable<QString> _value;
 	bool _errorShown = false;
-	Ui::Animations::Simple _errorAnimation;
+	Animations::Simple _errorAnimation;
 
 };
 
-class DateInput final : public Ui::MaskedInputField {
+class DateInput final : public MaskedInputField {
 public:
 	using MaskedInputField::MaskedInputField;
 
@@ -191,21 +193,21 @@ private:
 	int number(const object_ptr<DateInput> &field) const;
 
 	object_ptr<DateInput> _day;
-	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _separator1;
+	object_ptr<PaddingWrap<FlatLabel>> _separator1;
 	object_ptr<DateInput> _month;
-	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _separator2;
+	object_ptr<PaddingWrap<FlatLabel>> _separator2;
 	object_ptr<DateInput> _year;
 	rpl::variable<QString> _value;
 
 	style::cursor _cursor = style::cur_default;
-	Ui::Animations::Simple _a_borderShown;
+	Animations::Simple _a_borderShown;
 	int _borderAnimationStart = 0;
-	Ui::Animations::Simple _a_borderOpacity;
+	Animations::Simple _a_borderOpacity;
 	bool _borderVisible = false;
 
-	Ui::Animations::Simple _a_error;
+	Animations::Simple _a_error;
 	bool _error = false;
-	Ui::Animations::Simple _a_focused;
+	Animations::Simple _a_focused;
 	bool _focused = false;
 
 };
@@ -238,18 +240,18 @@ private:
 	void hideGenderError();
 	void errorAnimationCallback();
 
-	std::unique_ptr<Ui::AbstractCheckView> createRadioView(
-		Ui::RadioView* &weak) const;
+	std::unique_ptr<AbstractCheckView> createRadioView(
+		RadioView* &weak) const;
 
-	std::shared_ptr<Ui::RadioenumGroup<Gender>> _group;
-	Ui::RadioView *_maleRadio = nullptr;
-	Ui::RadioView *_femaleRadio = nullptr;
-	object_ptr<Ui::Radioenum<Gender>> _male;
-	object_ptr<Ui::Radioenum<Gender>> _female;
+	std::shared_ptr<RadioenumGroup<Gender>> _group;
+	RadioView *_maleRadio = nullptr;
+	RadioView *_femaleRadio = nullptr;
+	object_ptr<Radioenum<Gender>> _male;
+	object_ptr<Radioenum<Gender>> _female;
 	rpl::variable<QString> _value;
 
 	bool _errorShown = false;
-	Ui::Animations::Simple _errorAnimation;
+	Animations::Simple _errorAnimation;
 
 };
 
@@ -308,12 +310,14 @@ QString CountryString(const QString &code) {
 
 CountryRow::CountryRow(
 	QWidget *parent,
-	not_null<PanelController*> controller,
+	Fn<void(object_ptr<BoxContent>)> showBox,
+	const QString &defaultCountry,
 	const QString &label,
 	int maxLabelWidth,
 	const QString &value)
 : PanelDetailsRow(parent, label, maxLabelWidth)
-, _controller(controller)
+, _defaultCountry(defaultCountry)
+, _showBox(std::move(showBox))
 , _link(this, CountryString(value), st::boxLinkButton)
 , _value(value) {
 	_value.changes(
@@ -380,20 +384,23 @@ void CountryRow::errorAnimationCallback() {
 void CountryRow::chooseCountry() {
 	const auto top = _value.current();
 	const auto name = Data::CountryNameByISO2(top);
-	const auto isoByPhone = Data::CountryISO2ByPhone(
-		_controller->bot()->session().user()->phone());
-	const auto box = _controller->show(Box<CountrySelectBox>(!name.isEmpty()
+	const auto country = !name.isEmpty()
 		? top
-		: !isoByPhone.isEmpty()
-		? isoByPhone
-		: Platform::SystemCountry(),
-		CountrySelectBox::Type::Countries));
-	connect(box, &CountrySelectBox::countryChosen, this, [=](QString iso) {
+		: !_defaultCountry.isEmpty()
+		? _defaultCountry
+		: Platform::SystemCountry();
+	auto box = Box<CountrySelectBox>(
+		country,
+		CountrySelectBox::Type::Countries);
+	const auto raw = box.data();
+	raw->countryChosen(
+	) | rpl::start_with_next([=](QString iso) {
 		_value = iso;
 		_link->setText(CountryString(iso));
 		hideCountryError();
-		box->closeBox();
-	});
+		raw->closeBox();
+	}, lifetime());
+	_showBox(std::move(box));
 }
 
 QDate ValidateDate(const QString &value) {
@@ -528,7 +535,7 @@ DateRow::DateRow(
 	GetDay(value))
 , _separator1(
 	this,
-	object_ptr<Ui::FlatLabel>(
+	object_ptr<FlatLabel>(
 		this,
 		QString(" / "),
 		st::passportDetailsSeparator),
@@ -540,7 +547,7 @@ DateRow::DateRow(
 	GetMonth(value))
 , _separator2(
 	this,
-	object_ptr<Ui::FlatLabel>(
+	object_ptr<FlatLabel>(
 		this,
 		QString(" / "),
 		st::passportDetailsSeparator),
@@ -552,7 +559,7 @@ DateRow::DateRow(
 	GetYear(value))
 , _value(valueCurrent()) {
 	const auto focused = [=](const object_ptr<DateInput> &field) {
-		return [this, pointer = Ui::MakeWeak(field.data())]{
+		return [this, pointer = MakeWeak(field.data())]{
 			_borderAnimationStart = pointer->borderAnimationStart()
 				+ pointer->x()
 				- _day->x();
@@ -565,15 +572,15 @@ DateRow::DateRow(
 	const auto changed = [=] {
 		_value = valueCurrent();
 	};
-	connect(_day, &Ui::MaskedInputField::focused, focused(_day));
-	connect(_month, &Ui::MaskedInputField::focused, focused(_month));
-	connect(_year, &Ui::MaskedInputField::focused, focused(_year));
-	connect(_day, &Ui::MaskedInputField::blurred, blurred);
-	connect(_month, &Ui::MaskedInputField::blurred, blurred);
-	connect(_year, &Ui::MaskedInputField::blurred, blurred);
-	connect(_day, &Ui::MaskedInputField::changed, changed);
-	connect(_month, &Ui::MaskedInputField::changed, changed);
-	connect(_year, &Ui::MaskedInputField::changed, changed);
+	connect(_day, &MaskedInputField::focused, focused(_day));
+	connect(_month, &MaskedInputField::focused, focused(_month));
+	connect(_year, &MaskedInputField::focused, focused(_year));
+	connect(_day, &MaskedInputField::blurred, blurred);
+	connect(_month, &MaskedInputField::blurred, blurred);
+	connect(_year, &MaskedInputField::blurred, blurred);
+	connect(_day, &MaskedInputField::changed, changed);
+	connect(_month, &MaskedInputField::changed, changed);
+	connect(_year, &MaskedInputField::changed, changed);
 	_day->setMaxValue(31);
 	_day->putNext() | rpl::start_with_next([=](QChar ch) {
 		putNext(_month, ch);
@@ -845,8 +852,8 @@ GenderRow::GenderRow(
 	const QString &value)
 : PanelDetailsRow(parent, label, maxLabelWidth)
 , _group(StringToGender(value).has_value()
-	? std::make_shared<Ui::RadioenumGroup<Gender>>(*StringToGender(value))
-	: std::make_shared<Ui::RadioenumGroup<Gender>>())
+	? std::make_shared<RadioenumGroup<Gender>>(*StringToGender(value))
+	: std::make_shared<RadioenumGroup<Gender>>())
 , _male(
 	this,
 	_group,
@@ -868,9 +875,9 @@ GenderRow::GenderRow(
 	});
 }
 
-std::unique_ptr<Ui::AbstractCheckView> GenderRow::createRadioView(
-		Ui::RadioView* &weak) const {
-	auto result = std::make_unique<Ui::RadioView>(st::defaultRadio, false);
+std::unique_ptr<AbstractCheckView> GenderRow::createRadioView(
+		RadioView* &weak) const {
+	auto result = std::make_unique<RadioView>(st::defaultRadio, false);
 	weak = result.get();
 	return result;
 }
@@ -959,8 +966,9 @@ PanelDetailsRow::PanelDetailsRow(
 
 object_ptr<PanelDetailsRow> PanelDetailsRow::Create(
 		QWidget *parent,
+		Fn<void(object_ptr<BoxContent>)> showBox,
+		const QString &defaultCountry,
 		Type type,
-		not_null<PanelController*> controller,
 		const QString &label,
 		int maxLabelWidth,
 		const QString &value,
@@ -969,7 +977,7 @@ object_ptr<PanelDetailsRow> PanelDetailsRow::Create(
 	auto result = [&]() -> object_ptr<PanelDetailsRow> {
 		switch (type) {
 		case Type::Text:
-			return object_ptr<AbstractTextRow<Ui::InputField>>(
+			return object_ptr<AbstractTextRow<InputField>>(
 				parent,
 				label,
 				maxLabelWidth,
@@ -985,7 +993,8 @@ object_ptr<PanelDetailsRow> PanelDetailsRow::Create(
 		case Type::Country:
 			return object_ptr<CountryRow>(
 				parent,
-				controller,
+				showBox,
+				defaultCountry,
 				label,
 				maxLabelWidth,
 				value);
@@ -1062,7 +1071,7 @@ void PanelDetailsRow::showError(std::optional<QString> error) {
 		if (!_error) {
 			_error.create(
 				this,
-				object_ptr<Ui::FlatLabel>(
+				object_ptr<FlatLabel>(
 					this,
 					*error,
 					st::passportVerifyErrorLabel));
@@ -1122,4 +1131,4 @@ void PanelDetailsRow::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(padding.left(), padding.top(), width(), _label);
 }
 
-} // namespace Passport
+} // namespace Passport::Ui

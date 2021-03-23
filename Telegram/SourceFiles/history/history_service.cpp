@@ -958,7 +958,9 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		UpdateComponents(HistoryServicePayment::Bit());
 		const auto amount = data.vtotal_amount().v;
 		const auto currency = qs(data.vcurrency());
-		Get<HistoryServicePayment>()->amount = Ui::FillAmountAndCurrency(amount, currency);
+		Get<HistoryServicePayment>()->amount = Ui::FillAmountAndCurrency(
+			amount,
+			currency);
 	} else if (message.vaction().type() == mtpc_messageActionGroupCall) {
 		const auto &data = message.vaction().c_messageActionGroupCall();
 		if (data.vduration()) {

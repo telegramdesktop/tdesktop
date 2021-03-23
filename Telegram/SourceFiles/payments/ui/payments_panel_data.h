@@ -11,7 +11,7 @@ namespace Payments::Ui {
 
 struct LabeledPrice {
 	QString label;
-	uint64 price = 0;
+	int64 price = 0;
 };
 
 struct Invoice {
@@ -36,6 +36,17 @@ struct Invoice {
 	}
 };
 
+struct ShippingOption {
+	QString id;
+	QString title;
+	std::vector<LabeledPrice> prices;
+};
+
+struct ShippingOptions {
+	std::vector<ShippingOption> list;
+	QString selectedId;
+};
+
 struct Address {
 	QString address1;
 	QString address2;
@@ -52,9 +63,21 @@ struct Address {
 	[[nodiscard]] explicit operator bool() const {
 		return valid();
 	}
+
+	inline bool operator==(const Address &other) const {
+		return (address1 == other.address1)
+			&& (address2 == other.address2)
+			&& (city == other.city)
+			&& (state == other.state)
+			&& (countryIso2 == other.countryIso2)
+			&& (postCode == other.postCode);
+	}
+	inline bool operator!=(const Address &other) const {
+		return !(*this == other);
+	}
 };
 
-struct SavedInformation {
+struct RequestedInformation {
 	QString name;
 	QString phone;
 	QString email;
@@ -69,6 +92,16 @@ struct SavedInformation {
 	[[nodiscard]] explicit operator bool() const {
 		return !empty();
 	}
+
+	inline bool operator==(const RequestedInformation &other) const {
+		return (name == other.name)
+			&& (phone == other.phone)
+			&& (email == other.email)
+			&& (shippingAddress == other.shippingAddress);
+	}
+	inline bool operator!=(const RequestedInformation &other) const {
+		return !(*this == other);
+	}
 };
 
 struct SavedCredentials {
@@ -81,6 +114,13 @@ struct SavedCredentials {
 	[[nodiscard]] explicit operator bool() const {
 		return valid();
 	}
+};
+
+enum class EditField {
+	ShippingInformation,
+	Name,
+	Email,
+	Phone,
 };
 
 } // namespace Payments::Ui
