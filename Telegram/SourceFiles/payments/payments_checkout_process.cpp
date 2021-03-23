@@ -95,11 +95,19 @@ not_null<Ui::PanelDelegate*> CheckoutProcess::panelDelegate() {
 
 void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 	v::match(update.data, [&](const FormReady &) {
-		_panel->showForm(_form->invoice());
-	}, [&](const FormError &error) {
+		showForm();
+	}, [&](const FormError &error) { // #TODO payments refactor errors
 		handleFormError(error);
+	}, [&](const ValidateError &error) {
+		handleValidateError(error);
 	}, [&](const SendError &error) {
 		handleSendError(error);
+	}, [&](const ValidateFinished &) {
+		showForm();
+		if (_submitState == SubmitState::Validation) {
+			_submitState = SubmitState::Validated;
+			panelSubmit();
+		}
 	}, [&](const VerificationNeeded &info) {
 		if (_webviewWindow) {
 			_webviewWindow->navigate(info.url);
@@ -130,8 +138,44 @@ void CheckoutProcess::handleFormError(const FormError &error) {
 	} else if (type == u"INVOICE_ALREADY_PAID"_q) {
 
 	}
-	App::wnd()->activate();
-	Ui::Toast::Show("payments.getPaymentForm: " + type);
+	if (_panel) {
+		_panel->showToast("payments.getPaymentForm: " + type);
+	} else {
+		App::wnd()->activate();
+		Ui::Toast::Show("payments.getPaymentForm: " + type);
+	}
+}
+
+void CheckoutProcess::handleValidateError(const ValidateError &error) {
+	// #TODO payments errors
+	const auto &type = error.type;
+	if (type == u"REQ_INFO_NAME_INVALID"_q) {
+
+	} else if (type == u"REQ_INFO_EMAIL_INVALID"_q) {
+
+	} else if (type == u"REQ_INFO_PHONE_INVALID"_q) {
+
+	} else if (type == u"ADDRESS_STREET_LINE1_INVALID"_q) {
+
+	} else if (type == u"ADDRESS_CITY_INVALID"_q) {
+
+	} else if (type == u"ADDRESS_STATE_INVALID"_q) {
+
+	} else if (type == u"ADDRESS_COUNTRY_INVALID"_q) {
+
+	} else if (type == u"ADDRESS_POSTCODE_INVALID"_q) {
+
+	} else if (type == u"SHIPPING_BOT_TIMEOUT"_q) {
+
+	} else if (type == u"SHIPPING_NOT_AVAILABLE"_q) {
+
+	}
+	if (_panel) {
+		_panel->showToast("payments.validateRequestedInfo: " + type);
+	} else {
+		App::wnd()->activate();
+		Ui::Toast::Show("payments.validateRequestedInfo: " + type);
+	}
 }
 
 void CheckoutProcess::handleSendError(const SendError &error) {
@@ -150,8 +194,12 @@ void CheckoutProcess::handleSendError(const SendError &error) {
 	} else if (type == u"BOT_PRECHECKOUT_FAILED"_q) {
 
 	}
-	App::wnd()->activate();
-	Ui::Toast::Show("payments.sendPaymentForm: " + type);
+	if (_panel) {
+		_panel->showToast("payments.sendPaymentForm: " + type);
+	} else {
+		App::wnd()->activate();
+		Ui::Toast::Show("payments.sendPaymentForm: " + type);
+	}
 }
 
 void CheckoutProcess::panelRequestClose() {
@@ -176,6 +224,26 @@ void CheckoutProcess::panelCloseSure() {
 }
 
 void CheckoutProcess::panelSubmit() {
+	if (_submitState == SubmitState::Validation
+		|| _submitState == SubmitState::Finishing) {
+		return;
+	}
+	const auto &invoice = _form->invoice();
+	const auto &options = _form->shippingOptions();
+	if (!options.list.empty() && options.selectedId.isEmpty()) {
+		chooseShippingOption();
+		return;
+	} else if (_submitState != SubmitState::Validated
+		&& options.list.empty()
+		&& (invoice.isShippingAddressRequested
+			|| invoice.isNameRequested
+			|| invoice.isEmailRequested
+			|| invoice.isPhoneRequested)) {
+		_submitState = SubmitState::Validation;
+		_form->validateInformation(_form->savedInformation());
+		return;
+	}
+	_submitState = SubmitState::Finishing;
 	_webviewWindow = std::make_unique<Ui::WebviewWindow>(
 		_form->details().url,
 		panelDelegate());
@@ -235,6 +303,64 @@ bool CheckoutProcess::panelWebviewNavigationAttempt(const QString &uri) {
 	panelCloseSure();
 	App::wnd()->activate();
 	return false;
+}
+
+void CheckoutProcess::panelEditShippingInformation() {
+	showEditInformation(Ui::EditField::ShippingInformation);
+}
+
+void CheckoutProcess::panelEditName() {
+	showEditInformation(Ui::EditField::Name);
+}
+
+void CheckoutProcess::panelEditEmail() {
+	showEditInformation(Ui::EditField::Email);
+}
+
+void CheckoutProcess::panelEditPhone() {
+	showEditInformation(Ui::EditField::Phone);
+}
+
+void CheckoutProcess::showForm() {
+	_panel->showForm(
+		_form->invoice(),
+		_form->savedInformation(),
+		_form->shippingOptions());
+}
+
+void CheckoutProcess::showEditInformation(Ui::EditField field) {
+	if (_submitState != SubmitState::None) {
+		return;
+	}
+	_panel->showEditInformation(
+		_form->invoice(),
+		_form->savedInformation(),
+		field);
+}
+
+void CheckoutProcess::chooseShippingOption() {
+	_panel->chooseShippingOption(_form->shippingOptions());
+}
+
+void CheckoutProcess::panelChooseShippingOption() {
+	if (_submitState != SubmitState::None) {
+		return;
+	}
+	chooseShippingOption();
+}
+
+void CheckoutProcess::panelChangeShippingOption(const QString &id) {
+	_form->setShippingOption(id);
+	showForm();
+}
+
+void CheckoutProcess::panelValidateInformation(
+		Ui::RequestedInformation data) {
+	_form->validateInformation(data);
+}
+
+void CheckoutProcess::panelShowBox(object_ptr<Ui::BoxContent> box) {
+	_panel->showBox(std::move(box));
 }
 
 } // namespace Payments

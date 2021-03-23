@@ -8,10 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/ui/payments_form_summary.h"
 
 #include "payments/ui/payments_panel_delegate.h"
+#include "passport/ui/passport_form_row.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/text/format_values.h"
 #include "lang/lang_keys.h"
 #include "styles/style_payments.h"
 #include "styles/style_passport.h"
@@ -19,22 +22,54 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Payments::Ui {
 
 using namespace ::Ui;
+using namespace Passport::Ui;
 
 class PanelDelegate;
 
 FormSummary::FormSummary(
 	QWidget *parent,
 	const Invoice &invoice,
+	const RequestedInformation &current,
+	const ShippingOptions &options,
 	not_null<PanelDelegate*> delegate)
 : _delegate(delegate)
+, _invoice(invoice)
+, _options(options)
+, _information(current)
 , _scroll(this, st::passportPanelScroll)
 , _topShadow(this)
 , _bottomShadow(this)
 , _submit(
 		this,
-		tr::lng_payments_pay_amount(lt_amount, rpl::single(QString("much"))),
+		tr::lng_payments_pay_amount(
+			lt_amount,
+			rpl::single(computeTotalAmount())),
 		st::passportPanelAuthorize) {
 	setupControls();
+}
+
+QString FormSummary::computeAmount(int64 amount) const {
+	return FillAmountAndCurrency(amount, _invoice.currency);
+}
+
+QString FormSummary::computeTotalAmount() const {
+	const auto total = ranges::accumulate(
+		_invoice.prices,
+		int64(0),
+		std::plus<>(),
+		&LabeledPrice::price);
+	const auto selected = ranges::find(
+		_options.list,
+		_options.selectedId,
+		&ShippingOption::id);
+	const auto shipping = (selected != end(_options.list))
+		? ranges::accumulate(
+			selected->prices,
+			int64(0),
+			std::plus<>(),
+			&LabeledPrice::price)
+		: int64(0);
+	return computeAmount(total + shipping);
 }
 
 void FormSummary::setupControls() {
@@ -63,6 +98,116 @@ not_null<Ui::RpWidget*> FormSummary::setupContent() {
 	) | rpl::start_with_next([=](int width) {
 		inner->resizeToWidth(width);
 	}, inner->lifetime());
+
+	for (const auto &price : _invoice.prices) {
+		inner->add(
+			object_ptr<Ui::FlatLabel>(
+				inner,
+				price.label + ": " + computeAmount(price.price),
+				st::passportFormPolicy),
+			st::paymentsFormPricePadding);
+	}
+	const auto selected = ranges::find(
+		_options.list,
+		_options.selectedId,
+		&ShippingOption::id);
+	if (selected != end(_options.list)) {
+		for (const auto &price : selected->prices) {
+			inner->add(
+				object_ptr<Ui::FlatLabel>(
+					inner,
+					price.label + ": " + computeAmount(price.price),
+					st::passportFormPolicy),
+				st::paymentsFormPricePadding);
+		}
+	}
+	inner->add(
+		object_ptr<Ui::FlatLabel>(
+			inner,
+			"Total: " + computeTotalAmount(),
+			st::passportFormHeader),
+		st::passportFormHeaderPadding);
+
+	inner->add(
+		object_ptr<Ui::BoxContentDivider>(
+			inner,
+			st::passportFormDividerHeight),
+		{ 0, 0, 0, st::passportFormHeaderPadding.top() });
+
+	if (_invoice.isShippingAddressRequested) {
+		const auto info = inner->add(object_ptr<FormRow>(inner));
+		info->addClickHandler([=] {
+			_delegate->panelEditShippingInformation();
+		});
+		auto list = QStringList();
+		const auto push = [&](const QString &value) {
+			if (!value.isEmpty()) {
+				list.push_back(value);
+			}
+		};
+		push(_information.shippingAddress.address1);
+		push(_information.shippingAddress.address2);
+		push(_information.shippingAddress.city);
+		push(_information.shippingAddress.state);
+		push(_information.shippingAddress.countryIso2);
+		push(_information.shippingAddress.postCode);
+		info->updateContent(
+			tr::lng_payments_shipping_address(tr::now),
+			(list.isEmpty() ? "enter pls" : list.join(", ")),
+			!list.isEmpty(),
+			false,
+			anim::type::instant);
+	}
+	if (!_options.list.empty()) {
+		const auto options = inner->add(object_ptr<FormRow>(inner));
+		options->addClickHandler([=] {
+			_delegate->panelChooseShippingOption();
+		});
+		options->updateContent(
+			tr::lng_payments_shipping_method(tr::now),
+			(selected != end(_options.list)
+				? selected->title
+				: "enter pls"),
+			(selected != end(_options.list)),
+			false,
+			anim::type::instant);
+	}
+	if (_invoice.isNameRequested) {
+		const auto name = inner->add(object_ptr<FormRow>(inner));
+		name->addClickHandler([=] { _delegate->panelEditName(); });
+		name->updateContent(
+			tr::lng_payments_info_name(tr::now),
+			(_information.name.isEmpty()
+				? "enter pls"
+				: _information.name),
+			!_information.name.isEmpty(),
+			false,
+			anim::type::instant);
+	}
+	if (_invoice.isEmailRequested) {
+		const auto email = inner->add(object_ptr<FormRow>(inner));
+		email->addClickHandler([=] { _delegate->panelEditEmail(); });
+		email->updateContent(
+			tr::lng_payments_info_email(tr::now),
+			(_information.email.isEmpty()
+				? "enter pls"
+				: _information.email),
+			!_information.email.isEmpty(),
+			false,
+			anim::type::instant);
+	}
+	if (_invoice.isPhoneRequested) {
+		const auto phone = inner->add(object_ptr<FormRow>(inner));
+		phone->addClickHandler([=] { _delegate->panelEditPhone(); });
+		phone->updateContent(
+			tr::lng_payments_info_email(tr::now),
+			(_information.phone.isEmpty()
+				? "enter pls"
+				: _information.phone),
+			!_information.phone.isEmpty(),
+			false,
+			anim::type::instant);
+	}
 
 	return inner;
 }

@@ -8,3 +8,5 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/basic.style";
 
 using "passport/passport.style";
+
+paymentsFormPricePadding: margins(22px, 7px, 22px, 6px);

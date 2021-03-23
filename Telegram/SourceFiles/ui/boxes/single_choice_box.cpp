@@ -5,11 +5,9 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "boxes/single_choice_box.h"
+#include "ui/boxes/single_choice_box.h"
 
 #include "lang/lang_keys.h"
-#include "storage/localstorage.h"
-#include "mainwindow.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"

@@ -125,7 +125,7 @@ QString FormatPlayedText(qint64 played, qint64 duration) {
 	return tr::lng_duration_played(tr::now, lt_played, FormatDurationText(played), lt_duration, FormatDurationText(duration));
 }
 
-QString FillAmountAndCurrency(uint64 amount, const QString &currency) {
+QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 	static const auto ShortCurrencyNames = QMap<QString, QString>{
 		{ u"USD"_q, QString::fromUtf8("\x24") },
 		{ u"GBP"_q, QString::fromUtf8("\xC2\xA3") },

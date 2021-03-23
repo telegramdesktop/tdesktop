@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
+
 namespace Ui {
 class SeparatePanel;
+class BoxContent;
 } // namespace Ui
 
 namespace Payments::Ui {
@@ -17,6 +20,9 @@ using namespace ::Ui;
 
 class PanelDelegate;
 struct Invoice;
+struct RequestedInformation;
+struct ShippingOptions;
+enum class EditField;
 
 class Panel final {
 public:
@@ -25,7 +31,18 @@ public:
 
 	void requestActivate();
 
-	void showForm(const Invoice &invoice);
+	void showForm(
+		const Invoice &invoice,
+		const RequestedInformation &current,
+		const ShippingOptions &options);
+	void showEditInformation(
+		const Invoice &invoice,
+		const RequestedInformation &current,
+		EditField field);
+	void chooseShippingOption(const ShippingOptions &options);
+
+	void showBox(object_ptr<Ui::BoxContent> box);
+	void showToast(const QString &text);
 
 private:
 	const not_null<PanelDelegate*> _delegate;

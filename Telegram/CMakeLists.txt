@@ -256,8 +256,6 @@ PRIVATE
     boxes/sessions_box.h
     boxes/share_box.cpp
     boxes/share_box.h
-    boxes/single_choice_box.cpp
-    boxes/single_choice_box.h
     boxes/sticker_set_box.cpp
     boxes/sticker_set_box.h
     boxes/stickers_box.cpp
@@ -390,8 +388,6 @@ PRIVATE
     data/data_cloud_file.h
     data/data_cloud_themes.cpp
     data/data_cloud_themes.h
-    data/data_countries.cpp
-    data/data_countries.h
     data/data_document.cpp
     data/data_document.h
     data/data_document_media.cpp
@@ -803,8 +799,6 @@ PRIVATE
     passport/passport_panel.h
     passport/passport_panel_controller.cpp
     passport/passport_panel_controller.h
-    passport/passport_panel_details_row.cpp
-    passport/passport_panel_details_row.h
     passport/passport_panel_edit_contact.cpp
     passport/passport_panel_edit_contact.h
     passport/passport_panel_edit_document.cpp
