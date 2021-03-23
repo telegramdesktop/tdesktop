@@ -31,153 +31,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/media/history_view_media.h"
+#include "payments/payments_checkout_process.h"
 #include "data/data_session.h"
 #include "styles/style_chat.h"
-
-#include "webview/webview_embed.h"
-#include "webview/webview_interface.h"
-#include "core/local_url_handlers.h"
-#include "ui/widgets/window.h"
-#include "ui/toast/toast.h"
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonArray>
-#include <QJsonValue>
-
-namespace Api {
-
-void GetPaymentForm(not_null<const HistoryItem*> msg) {
-	const auto msgId = msg->id;
-	const auto session = &msg->history()->session();
-	session->api().request(MTPpayments_GetPaymentForm(
-		MTP_int(msgId)
-	)).done([=](const MTPpayments_PaymentForm &result) {
-		const auto window = new Ui::Window();
-		window->setGeometry({
-			style::ConvertScale(100),
-			style::ConvertScale(100),
-			style::ConvertScale(640),
-			style::ConvertScale(480)
-		});
-		window->show();
-
-		window->events() | rpl::start_with_next([=](not_null<QEvent*> e) {
-			if (e->type() == QEvent::Close) {
-				window->deleteLater();
-			}
-		}, window->lifetime());
-
-		const auto body = window->body();
-		body->paintRequest(
-		) | rpl::start_with_next([=](QRect clip) {
-			QPainter(body).fillRect(clip, st::windowBg);
-		}, body->lifetime());
-
-		const auto webview = Ui::CreateChild<Webview::Window>(
-			window,
-			window);
-		if (!webview->widget()) {
-			delete window;
-			Ui::show(Box<InformBox>(
-				tr::lng_payments_not_supported(tr::now)));
-			return;
-		}
-
-		body->geometryValue(
-		) | rpl::start_with_next([=](QRect geometry) {
-			webview->widget()->setGeometry(geometry);
-		}, body->lifetime());
-
-		webview->setMessageHandler([=](const QJsonDocument &message) {
-			if (!message.isArray()) {
-				LOG(("Payments Error: "
-					"Not an array received in buy_callback arguments."));
-				return;
-			}
-			const auto list = message.array();
-			if (list.at(0).toString() != "payment_form_submit") {
-				return;
-			} else if (!list.at(1).isString()) {
-				LOG(("Payments Error: "
-					"Not a string received in buy_callback result."));
-				return;
-			}
-
-			auto error = QJsonParseError();
-			const auto document = QJsonDocument::fromJson(
-				list.at(1).toString().toUtf8(),
-				&error);
-			if (error.error != QJsonParseError::NoError) {
-				LOG(("Payments Error: "
-					"Failed to parse buy_callback arguments, error: %1."
-					).arg(error.errorString()));
-				return;
-			} else if (!document.isObject()) {
-				LOG(("Payments Error: "
-					"Not an object decoded in buy_callback result."));
-				return;
-			}
-			const auto root = document.object();
-			const auto title = root.value("title").toString();
-			const auto credentials = root.value("credentials");
-			if (!credentials.isObject()) {
-				LOG(("Payments Error: "
-					"Not an object received in payment credentials."));
-				return;
-			}
-			const auto serializedCredentials = QJsonDocument(
-				credentials.toObject()
-			).toJson(QJsonDocument::Compact);
-			session->api().request(MTPpayments_SendPaymentForm(
-				MTP_flags(0),
-				MTP_int(msgId),
-				MTPstring(), // requested_info_id
-				MTPstring(), // shipping_option_id,
-				MTP_inputPaymentCredentials(
-					MTP_flags(0),
-					MTP_dataJSON(MTP_bytes(serializedCredentials)))
-			)).done([=](const MTPpayments_PaymentResult &result) {
-				result.match([&](const MTPDpayments_paymentResult &data) {
-					delete window;
-					App::wnd()->activate();
-					session->api().applyUpdates(data.vupdates());
-				}, [&](const MTPDpayments_paymentVerificationNeeded &data) {
-					webview->navigate(qs(data.vurl()));
-				});
-			}).fail([=](const RPCError &error) {
-				delete window;
-				App::wnd()->activate();
-				Ui::Toast::Show("payments.sendPaymentForm: " + error.type());
-			}).send();
-		});
-
-		webview->setNavigationHandler([=](const QString &uri) {
-			if (Core::TryConvertUrlToLocal(uri) == uri) {
-				return true;
-			}
-			window->deleteLater();
-			App::wnd()->activate();
-			return false;
-		});
-
-		webview->init(R"(
-window.TelegramWebviewProxy = {
-	postEvent: function(eventType, eventData) {
-		if (window.external && window.external.invoke) {
-			window.external.invoke(JSON.stringify([eventType, eventData]));
-		}
-	}
-};)");
-
-		const auto &data = result.c_payments_paymentForm();
-		webview->navigate(qs(data.vurl()));
-	}).fail([=](const RPCError &error) {
-		App::wnd()->activate();
-		Ui::Toast::Show("payments.getPaymentForm: " + error.type());
-	}).send();
-}
-
-} // namespace Api
 
 namespace {
 
@@ -266,12 +122,7 @@ void activateBotCommand(
 	} break;
 
 	case ButtonType::Buy: {
-		if (Webview::Supported()) {
-			Api::GetPaymentForm(msg);
-		} else {
-			Ui::show(Box<InformBox>(
-				tr::lng_payments_not_supported(tr::now)));
-		}
+		Payments::CheckoutProcess::Start(msg);
 	} break;
 
 	case ButtonType::Url: {

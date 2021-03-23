@@ -46,6 +46,8 @@ public:
 	void startFontsEnd() override;
 	QString timeFormat() override;
 
+	QWidget *modalWindowParent() override;
+
 	std::shared_ptr<ClickHandler> createLinkHandler(
 		const EntityLinkData &data,
 		const std::any &context) override;

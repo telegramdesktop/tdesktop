@@ -815,6 +815,10 @@ PRIVATE
     passport/passport_panel_form.h
     passport/passport_panel_password.cpp
     passport/passport_panel_password.h
+    payments/payments_checkout_process.cpp
+    payments/payments_checkout_process.h
+    payments/payments_form.cpp
+    payments/payments_form.h
     platform/linux/linux_desktop_environment.cpp
     platform/linux/linux_desktop_environment.h
     platform/linux/linux_gdk_helper.cpp
@@ -1014,8 +1018,6 @@ PRIVATE
     ui/widgets/level_meter.h
     ui/widgets/multi_select.cpp
     ui/widgets/multi_select.h
-    ui/widgets/separate_panel.cpp
-    ui/widgets/separate_panel.h
     ui/countryinput.cpp
     ui/countryinput.h
     ui/empty_userpic.cpp
