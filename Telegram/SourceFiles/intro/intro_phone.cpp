@@ -61,8 +61,8 @@ PhoneWidget::PhoneWidget(
 	setErrorCentered(true);
 	setupQrLogin();
 
-	if (!_country->onChooseCountry(getData()->country)) {
-		_country->onChooseCountry(qsl("US"));
+	if (!_country->chooseCountry(getData()->country)) {
+		_country->chooseCountry(qsl("US"));
 	}
 	_changed = false;
 }
@@ -251,7 +251,7 @@ QString PhoneWidget::fullNumber() const {
 }
 
 void PhoneWidget::selectCountry(const QString &country) {
-	_country->onChooseCountry(country);
+	_country->chooseCountry(country);
 }
 
 void PhoneWidget::setInnerFocus() {

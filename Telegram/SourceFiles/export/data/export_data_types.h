@@ -660,7 +660,7 @@ Utf8String FormatDateTime(
 	QChar dateSeparator = QChar('.'),
 	QChar timeSeparator = QChar(':'),
 	QChar separator = QChar(' '));
-Utf8String FormatMoneyAmount(uint64 amount, const Utf8String &currency);
+Utf8String FormatMoneyAmount(int64 amount, const Utf8String &currency);
 Utf8String FormatFileSize(int64 size);
 Utf8String FormatDuration(int64 seconds);
 

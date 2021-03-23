@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "payments/ui/payments_panel_data.h"
+#include "mtproto/sender.h"
 
 namespace Main {
 class Session;
@@ -34,7 +35,13 @@ struct FormDetails {
 
 struct FormReady {};
 
+struct ValidateFinished {};
+
 struct FormError {
+	QString type;
+};
+
+struct ValidateError {
 	QString type;
 };
 
@@ -54,8 +61,10 @@ struct FormUpdate {
 	std::variant<
 		FormReady,
 		FormError,
+		ValidateError,
 		SendError,
 		VerificationNeeded,
+		ValidateFinished,
 		PaymentFinished> data;
 };
 
@@ -69,17 +78,22 @@ public:
 	[[nodiscard]] const FormDetails &details() const {
 		return _details;
 	}
-	[[nodiscard]] const Ui::SavedInformation &savedInformation() const {
+	[[nodiscard]] const Ui::RequestedInformation &savedInformation() const {
 		return _savedInformation;
 	}
 	[[nodiscard]] const Ui::SavedCredentials &savedCredentials() const {
 		return _savedCredentials;
+	}
+	[[nodiscard]] const Ui::ShippingOptions &shippingOptions() const {
+		return _shippingOptions;
 	}
 
 	[[nodiscard]] rpl::producer<FormUpdate> updates() const {
 		return _updates.events();
 	}
 
+	void validateInformation(const Ui::RequestedInformation &information);
+	void setShippingOption(const QString &id);
 	void send(const QByteArray &serializedCredentials);
 
 private:
@@ -90,14 +104,22 @@ private:
 	void processSavedInformation(const MTPDpaymentRequestedInfo &data);
 	void processSavedCredentials(
 		const MTPDpaymentSavedCredentialsCard &data);
+	void processShippingOptions(const QVector<MTPShippingOption> &data);
 
 	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
 	MsgId _msgId = 0;
 
 	Ui::Invoice _invoice;
 	FormDetails _details;
-	Ui::SavedInformation _savedInformation;
+	Ui::RequestedInformation _savedInformation;
 	Ui::SavedCredentials _savedCredentials;
+
+	Ui::RequestedInformation _validatedInformation;
+	mtpRequestId _validateRequestId = 0;
+
+	Ui::ShippingOptions _shippingOptions;
+	QString _requestedInformationId;
 
 	rpl::event_stream<FormUpdate> _updates;
 

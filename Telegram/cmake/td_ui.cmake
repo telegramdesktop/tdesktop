@@ -52,6 +52,9 @@ PRIVATE
     core/mime_type.cpp
     core/mime_type.h
 
+    data/data_countries.cpp
+    data/data_countries.h
+
     media/clip/media_clip_check_streaming.cpp
     media/clip/media_clip_check_streaming.h
     media/clip/media_clip_ffmpeg.cpp
@@ -61,6 +64,13 @@ PRIVATE
     media/clip/media_clip_reader.cpp
     media/clip/media_clip_reader.h
 
+    passport/ui/passport_details_row.cpp
+    passport/ui/passport_details_row.h
+    passport/ui/passport_form_row.cpp
+    passport/ui/passport_form_row.h
+
+    payments/ui/payments_edit_information.cpp
+    payments/ui/payments_edit_information.h
     payments/ui/payments_form_summary.cpp
     payments/ui/payments_form_summary.h
     payments/ui/payments_panel.cpp
@@ -80,10 +90,14 @@ PRIVATE
     ui/boxes/calendar_box.h
     ui/boxes/choose_date_time.cpp
     ui/boxes/choose_date_time.h
+    ui/boxes/country_select_box.cpp
+    ui/boxes/country_select_box.h
     ui/boxes/edit_invite_link.cpp
     ui/boxes/edit_invite_link.h
     ui/boxes/report_box.cpp
     ui/boxes/report_box.h
+    ui/boxes/single_choice_box.cpp
+    ui/boxes/single_choice_box.h
     ui/chat/attach/attach_album_thumbnail.cpp
     ui/chat/attach/attach_album_thumbnail.h
     ui/chat/attach/attach_album_preview.cpp

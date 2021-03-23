@@ -1820,7 +1820,7 @@ Utf8String FormatDateTime(
 	).toUtf8();
 }
 
-Utf8String FormatMoneyAmount(uint64 amount, const Utf8String &currency) {
+Utf8String FormatMoneyAmount(int64 amount, const Utf8String &currency) {
 	return Ui::FillAmountAndCurrency(
 		amount,
 		QString::fromUtf8(currency)).toUtf8();

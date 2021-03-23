@@ -17,39 +17,54 @@ class FadeShadow;
 class RoundButton;
 } // namespace Ui
 
+namespace Passport::Ui {
+class PanelDetailsRow;
+} // namespace Passport::Ui
+
 namespace Payments::Ui {
 
 using namespace ::Ui;
 
 class PanelDelegate;
 
-class FormSummary final : public RpWidget {
+class EditInformation final : public RpWidget {
 public:
-	FormSummary(
+	EditInformation(
 		QWidget *parent,
 		const Invoice &invoice,
 		const RequestedInformation &current,
-		const ShippingOptions &options,
+		EditField field,
 		not_null<PanelDelegate*> delegate);
 
 private:
+	using Row = Passport::Ui::PanelDetailsRow;
+
 	void resizeEvent(QResizeEvent *e) override;
 
 	void setupControls();
 	[[nodiscard]] not_null<Ui::RpWidget*> setupContent();
 	void updateControlsGeometry();
 
-	[[nodiscard]] QString computeAmount(int64 amount) const;
-	[[nodiscard]] QString computeTotalAmount() const;
+	[[nodiscard]] RequestedInformation collect() const;
 
 	const not_null<PanelDelegate*> _delegate;
 	Invoice _invoice;
-	ShippingOptions _options;
 	RequestedInformation _information;
+
 	object_ptr<ScrollArea> _scroll;
 	object_ptr<FadeShadow> _topShadow;
 	object_ptr<FadeShadow> _bottomShadow;
-	object_ptr<RoundButton> _submit;
+	object_ptr<RoundButton> _done;
+
+	Row *_street1 = nullptr;
+	Row *_street2 = nullptr;
+	Row *_city = nullptr;
+	Row *_state = nullptr;
+	Row *_country = nullptr;
+	Row *_postcode = nullptr;
+	Row *_name = nullptr;
+	Row *_email = nullptr;
+	Row *_phone = nullptr;
 
 };
 

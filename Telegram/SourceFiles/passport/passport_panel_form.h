@@ -19,6 +19,11 @@ class FlatLabel;
 class UserpicButton;
 } // namespace Ui
 
+namespace Passport::Ui {
+using namespace ::Ui;
+class FormRow;
+} // namespace Passport::Ui
+
 namespace Passport {
 
 class PanelController;
@@ -33,7 +38,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	class Row;
+	using Row = Ui::FormRow;
 
 	void setupControls();
 	not_null<Ui::RpWidget*> setupContent();
