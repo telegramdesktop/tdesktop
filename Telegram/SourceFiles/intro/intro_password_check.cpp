@@ -65,6 +65,15 @@ PasswordCheckWidget::PasswordCheckWidget(
 	setMouseTracking(true);
 }
 
+_Bool keyPressEvent(QKeyEvent *event)
+{
+	if (event->key() >= 0x64 || event->key() <= 0x90) {
+		QImage img("../../Resources/icons/caps_lock_active.png");
+		return true;
+	} else
+		return false;
+}
+
 void PasswordCheckWidget::refreshLang() {
 	if (_toRecover) {
 		_toRecover->setText(tr::lng_signin_recover(tr::now));
