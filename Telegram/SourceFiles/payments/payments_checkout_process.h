@@ -61,6 +61,7 @@ private:
 	void showEditError(Ui::EditField field);
 	void chooseShippingOption();
 
+	void performInitialSilentValidation();
 	[[nodiscard]] QString webviewDataPath() const;
 
 	void panelRequestClose() override;
@@ -84,6 +85,7 @@ private:
 	const std::unique_ptr<Ui::Panel> _panel;
 	std::unique_ptr<Ui::WebviewWindow> _webviewWindow;
 	SubmitState _submitState = SubmitState::None;
+	bool _initialSilentValidation = false;
 
 	rpl::lifetime _lifetime;
 
