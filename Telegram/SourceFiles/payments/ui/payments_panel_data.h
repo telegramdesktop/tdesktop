@@ -53,7 +53,7 @@ struct Address {
 	QString city;
 	QString state;
 	QString countryIso2;
-	QString postCode;
+	QString postcode;
 
 	[[nodiscard]] bool valid() const {
 		return !address1.isEmpty()
@@ -70,7 +70,7 @@ struct Address {
 			&& (city == other.city)
 			&& (state == other.state)
 			&& (countryIso2 == other.countryIso2)
-			&& (postCode == other.postCode);
+			&& (postcode == other.postcode);
 	}
 	inline bool operator!=(const Address &other) const {
 		return !(*this == other);
@@ -117,7 +117,11 @@ struct SavedCredentials {
 };
 
 enum class EditField {
-	ShippingInformation,
+	ShippingStreet,
+	ShippingCity,
+	ShippingState,
+	ShippingCountry,
+	ShippingPostcode,
 	Name,
 	Email,
 	Phone,

@@ -22,6 +22,7 @@ class PanelDelegate;
 class WebviewWindow final {
 public:
 	WebviewWindow(
+		const QString &userDataPath,
 		const QString &url,
 		not_null<PanelDelegate*> delegate);
 

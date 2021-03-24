@@ -101,7 +101,7 @@ void Panel::showBox(
 }
 
 void Panel::showToast(const QString &text) {
-	_widget->showToast(text);
+	_widget->showToast({ text });
 }
 
 Panel::~Panel() = default;

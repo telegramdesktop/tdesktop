@@ -21,6 +21,7 @@ using namespace ::Ui;
 class PanelDelegate;
 
 WebviewWindow::WebviewWindow(
+		const QString &userDataPath,
 		const QString &url,
 		not_null<PanelDelegate*> delegate) {
 	if (!url.startsWith("https://", Qt::CaseInsensitive)) {
@@ -49,9 +50,11 @@ WebviewWindow::WebviewWindow(
 		QPainter(body).fillRect(clip, st::windowBg);
 	}, body->lifetime());
 
+	const auto path =
 	_webview = Ui::CreateChild<Webview::Window>(
 		window,
-		window);
+		window,
+		Webview::WindowConfig{ .userDataPath = userDataPath });
 	if (!_webview->widget()) {
 		return;
 	}

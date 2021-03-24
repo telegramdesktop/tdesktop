@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/ui/payments_webview.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
+#include "storage/storage_domain.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "core/local_url_handlers.h" // TryConvertUrlToLocal.
@@ -19,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 // #TODO payments errors
 #include "mainwindow.h"
-#include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -80,6 +82,10 @@ CheckoutProcess::CheckoutProcess(
 	) | rpl::start_with_next([=](const FormUpdate &update) {
 		handleFormUpdate(update);
 	}, _lifetime);
+	_panel->backRequests(
+	) | rpl::start_with_next([=] {
+		showForm();
+	}, _panel->lifetime());
 }
 
 CheckoutProcess::~CheckoutProcess() {
@@ -96,12 +102,6 @@ not_null<Ui::PanelDelegate*> CheckoutProcess::panelDelegate() {
 void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 	v::match(update.data, [&](const FormReady &) {
 		showForm();
-	}, [&](const FormError &error) { // #TODO payments refactor errors
-		handleFormError(error);
-	}, [&](const ValidateError &error) {
-		handleValidateError(error);
-	}, [&](const SendError &error) {
-		handleSendError(error);
 	}, [&](const ValidateFinished &) {
 		showForm();
 		if (_submitState == SubmitState::Validation) {
@@ -113,6 +113,7 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 			_webviewWindow->navigate(info.url);
 		} else {
 			_webviewWindow = std::make_unique<Ui::WebviewWindow>(
+				webviewDataPath(),
 				info.url,
 				panelDelegate());
 			if (!_webviewWindow->shown()) {
@@ -125,80 +126,78 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		if (weak) {
 			panelCloseSure();
 		}
+	}, [&](const Error &error) {
+		handleError(error);
 	});
 }
 
-void CheckoutProcess::handleFormError(const FormError &error) {
-	// #TODO payments errors
-	const auto &type = error.type;
-	if (type == u"PROVIDER_ACCOUNT_INVALID"_q) {
-
-	} else if (type == u"PROVIDER_ACCOUNT_TIMEOUT"_q) {
-
-	} else if (type == u"INVOICE_ALREADY_PAID"_q) {
-
-	}
-	if (_panel) {
-		_panel->showToast("payments.getPaymentForm: " + type);
-	} else {
-		App::wnd()->activate();
-		Ui::Toast::Show("payments.getPaymentForm: " + type);
-	}
-}
-
-void CheckoutProcess::handleValidateError(const ValidateError &error) {
-	// #TODO payments errors
-	const auto &type = error.type;
-	if (type == u"REQ_INFO_NAME_INVALID"_q) {
-
-	} else if (type == u"REQ_INFO_EMAIL_INVALID"_q) {
-
-	} else if (type == u"REQ_INFO_PHONE_INVALID"_q) {
-
-	} else if (type == u"ADDRESS_STREET_LINE1_INVALID"_q) {
-
-	} else if (type == u"ADDRESS_CITY_INVALID"_q) {
-
-	} else if (type == u"ADDRESS_STATE_INVALID"_q) {
-
-	} else if (type == u"ADDRESS_COUNTRY_INVALID"_q) {
-
-	} else if (type == u"ADDRESS_POSTCODE_INVALID"_q) {
-
-	} else if (type == u"SHIPPING_BOT_TIMEOUT"_q) {
-
-	} else if (type == u"SHIPPING_NOT_AVAILABLE"_q) {
-
-	}
-	if (_panel) {
-		_panel->showToast("payments.validateRequestedInfo: " + type);
-	} else {
-		App::wnd()->activate();
-		Ui::Toast::Show("payments.validateRequestedInfo: " + type);
-	}
-}
-
-void CheckoutProcess::handleSendError(const SendError &error) {
-	// #TODO payments errors
-	const auto &type = error.type;
-	if (type == u"REQUESTED_INFO_INVALID"_q) {
-
-	} else if (type == u"SHIPPING_OPTION_INVALID"_q) {
-
-	} else if (type == u"PAYMENT_FAILED"_q) {
-
-	} else if (type == u"PAYMENT_CREDENTIALS_INVALID"_q) {
-
-	} else if (type == u"PAYMENT_CREDENTIALS_ID_INVALID"_q) {
-
-	} else if (type == u"BOT_PRECHECKOUT_FAILED"_q) {
-
-	}
-	if (_panel) {
-		_panel->showToast("payments.sendPaymentForm: " + type);
-	} else {
-		App::wnd()->activate();
-		Ui::Toast::Show("payments.sendPaymentForm: " + type);
+void CheckoutProcess::handleError(const Error &error) {
+	const auto showToast = [&](const TextWithEntities &text) {
+		if (_panel) {
+			_panel->requestActivate();
+			_panel->showToast(text);
+		} else {
+			App::wnd()->activate();
+			Ui::ShowMultilineToast({ .text = text });
+		}
+	};
+	const auto &id = error.id;
+	switch (error.type) {
+	case Error::Type::Form:
+		if (id == u"INVOICE_ALREADY_PAID"_q) {
+			showToast({ "Already Paid!" }); // #TODO payments errors message
+		} else if (true
+			|| id == u"PROVIDER_ACCOUNT_INVALID"_q
+			|| id == u"PROVIDER_ACCOUNT_TIMEOUT"_q) {
+			showToast({ "Error: " + id });
+		}
+		break;
+	case Error::Type::Validate:
+		if (_submitState == SubmitState::Validation) {
+			_submitState = SubmitState::None;
+		}
+		if (id == u"REQ_INFO_NAME_INVALID"_q) {
+			showEditError(Ui::EditField::Name);
+		} else if (id == u"REQ_INFO_EMAIL_INVALID"_q) {
+			showEditError(Ui::EditField::Email);
+		} else if (id == u"REQ_INFO_PHONE_INVALID"_q) {
+			showEditError(Ui::EditField::Phone);
+		} else if (id == u"ADDRESS_STREET_LINE1_INVALID"_q) {
+			showEditError(Ui::EditField::ShippingStreet);
+		} else if (id == u"ADDRESS_CITY_INVALID"_q) {
+			showEditError(Ui::EditField::ShippingCity);
+		} else if (id == u"ADDRESS_STATE_INVALID"_q) {
+			showEditError(Ui::EditField::ShippingState);
+		} else if (id == u"ADDRESS_COUNTRY_INVALID"_q) {
+			showEditError(Ui::EditField::ShippingCountry);
+		} else if (id == u"ADDRESS_POSTCODE_INVALID"_q) {
+			showEditError(Ui::EditField::ShippingPostcode);
+		} else if (id == u"SHIPPING_BOT_TIMEOUT"_q) {
+			showToast({ "Error: Bot Timeout!" }); // #TODO payments errors message
+		} else if (id == u"SHIPPING_NOT_AVAILABLE"_q) {
+			showToast({ "Error: Shipping to the selected country is not available!" }); // #TODO payments errors message
+		} else {
+			showToast({ "Error: " + id });
+		}
+		break;
+	case Error::Type::Send:
+		if (_submitState == SubmitState::Finishing) {
+			_submitState = SubmitState::None;
+		}
+		if (id == u"PAYMENT_FAILED"_q) {
+			showToast({ "Error: Payment Failed. Your card has not been billed." }); // #TODO payments errors message
+		} else if (id == u"BOT_PRECHECKOUT_FAILED"_q) {
+			showToast({ "Error: PreCheckout Failed. Your card has not been billed." }); // #TODO payments errors message
+		} else if (id == u"INVOICE_ALREADY_PAID"_q) {
+			showToast({ "Already Paid!" }); // #TODO payments errors message
+		} else if (id == u"REQUESTED_INFO_INVALID"_q
+			|| id == u"SHIPPING_OPTION_INVALID"_q
+			|| id == u"PAYMENT_CREDENTIALS_INVALID"_q
+			|| id == u"PAYMENT_CREDENTIALS_ID_INVALID"_q) {
+			showToast({ "Error: " + id + ". Your card has not been billed." });
+		}
+		break;
+	default: Unexpected("Error type in CheckoutProcess::handleError.");
 	}
 }
 
@@ -245,6 +244,7 @@ void CheckoutProcess::panelSubmit() {
 	}
 	_submitState = SubmitState::Finishing;
 	_webviewWindow = std::make_unique<Ui::WebviewWindow>(
+		webviewDataPath(),
 		_form->details().url,
 		panelDelegate());
 	if (!_webviewWindow->shown()) {
@@ -306,7 +306,7 @@ bool CheckoutProcess::panelWebviewNavigationAttempt(const QString &uri) {
 }
 
 void CheckoutProcess::panelEditShippingInformation() {
-	showEditInformation(Ui::EditField::ShippingInformation);
+	showEditInformation(Ui::EditField::ShippingStreet);
 }
 
 void CheckoutProcess::panelEditName() {
@@ -338,6 +338,16 @@ void CheckoutProcess::showEditInformation(Ui::EditField field) {
 		field);
 }
 
+void CheckoutProcess::showEditError(Ui::EditField field) {
+	if (_submitState != SubmitState::None) {
+		return;
+	}
+	_panel->showEditError(
+		_form->invoice(),
+		_form->savedInformation(),
+		field);
+}
+
 void CheckoutProcess::chooseShippingOption() {
 	_panel->chooseShippingOption(_form->shippingOptions());
 }
@@ -361,6 +371,10 @@ void CheckoutProcess::panelValidateInformation(
 
 void CheckoutProcess::panelShowBox(object_ptr<Ui::BoxContent> box) {
 	_panel->showBox(std::move(box));
+}
+
+QString CheckoutProcess::webviewDataPath() const {
+	return _session->domain().local().webviewDataPath();
 }
 
 } // namespace Payments

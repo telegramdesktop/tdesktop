@@ -10,3 +10,9 @@ using "ui/basic.style";
 using "passport/passport.style";
 
 paymentsFormPricePadding: margins(22px, 7px, 22px, 6px);
+paymentsPanelSubmit: RoundButton(passportPasswordSubmit) {
+	width: 0px;
+	height: 49px;
+	padding: margins(0px, -3px, 0px, 0px);
+	textTop: 16px;
+}

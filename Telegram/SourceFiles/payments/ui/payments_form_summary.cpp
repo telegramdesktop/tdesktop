@@ -44,7 +44,7 @@ FormSummary::FormSummary(
 		tr::lng_payments_pay_amount(
 			lt_amount,
 			rpl::single(computeTotalAmount())),
-		st::passportPanelAuthorize) {
+		st::paymentsPanelSubmit) {
 	setupControls();
 }
 
@@ -150,7 +150,7 @@ not_null<Ui::RpWidget*> FormSummary::setupContent() {
 		push(_information.shippingAddress.city);
 		push(_information.shippingAddress.state);
 		push(_information.shippingAddress.countryIso2);
-		push(_information.shippingAddress.postCode);
+		push(_information.shippingAddress.postcode);
 		info->updateContent(
 			tr::lng_payments_shipping_address(tr::now),
 			(list.isEmpty() ? "enter pls" : list.join(", ")),
@@ -200,7 +200,7 @@ not_null<Ui::RpWidget*> FormSummary::setupContent() {
 		const auto phone = inner->add(object_ptr<FormRow>(inner));
 		phone->addClickHandler([=] { _delegate->panelEditPhone(); });
 		phone->updateContent(
-			tr::lng_payments_info_email(tr::now),
+			tr::lng_payments_info_phone(tr::now),
 			(_information.phone.isEmpty()
 				? "enter pls"
 				: _information.phone),

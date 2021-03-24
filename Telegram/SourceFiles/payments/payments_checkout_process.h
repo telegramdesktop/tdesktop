@@ -26,9 +26,7 @@ namespace Payments {
 
 class Form;
 struct FormUpdate;
-struct FormError;
-struct SendError;
-struct ValidateError;
+struct Error;
 
 class CheckoutProcess final
 	: public base::has_weak_ptr
@@ -56,13 +54,14 @@ private:
 	[[nodiscard]] not_null<PanelDelegate*> panelDelegate();
 
 	void handleFormUpdate(const FormUpdate &update);
-	void handleFormError(const FormError &error);
-	void handleValidateError(const ValidateError &error);
-	void handleSendError(const SendError &error);
+	void handleError(const Error &error);
 
 	void showForm();
 	void showEditInformation(Ui::EditField field);
+	void showEditError(Ui::EditField field);
 	void chooseShippingOption();
+
+	[[nodiscard]] QString webviewDataPath() const;
 
 	void panelRequestClose() override;
 	void panelCloseSure() override;

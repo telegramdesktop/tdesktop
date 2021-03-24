@@ -36,14 +36,19 @@ public:
 		EditField field,
 		not_null<PanelDelegate*> delegate);
 
+	void showError(EditField field);
+	void setFocus(EditField field);
+
 private:
 	using Row = Passport::Ui::PanelDetailsRow;
 
 	void resizeEvent(QResizeEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
 
 	void setupControls();
 	[[nodiscard]] not_null<Ui::RpWidget*> setupContent();
 	void updateControlsGeometry();
+	[[nodiscard]] Row *controlForField(EditField field) const;
 
 	[[nodiscard]] RequestedInformation collect() const;
 
@@ -65,6 +70,8 @@ private:
 	Row *_name = nullptr;
 	Row *_email = nullptr;
 	Row *_phone = nullptr;
+
+	EditField _focusField = EditField::ShippingStreet;
 
 };
 

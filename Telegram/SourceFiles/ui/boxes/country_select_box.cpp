@@ -87,19 +87,24 @@ private:
 };
 
 CountrySelectBox::CountrySelectBox(QWidget*)
-: _select(this, st::defaultMultiSelect, tr::lng_country_ph()) {
+: CountrySelectBox(nullptr, QString(), Type::Phones) {
 }
 
 CountrySelectBox::CountrySelectBox(QWidget*, const QString &iso, Type type)
 : _type(type)
-, _select(this, st::defaultMultiSelect, tr::lng_country_ph()) {
+, _select(this, st::defaultMultiSelect, tr::lng_country_ph())
+, _ownedInner(this, type) {
 	if (Data::CountriesByISO2().contains(iso)) {
 		LastValidISO = iso;
 	}
 }
 
 rpl::producer<QString> CountrySelectBox::countryChosen() const {
-	return _inner->countryChosen();
+	Expects(_ownedInner != nullptr || _inner != nullptr);
+
+	return (_ownedInner
+		? _ownedInner.data()
+		: _inner.data())->countryChosen();
 }
 
 void CountrySelectBox::prepare() {
@@ -114,7 +119,7 @@ void CountrySelectBox::prepare() {
 	});
 
 	_inner = setInnerWidget(
-		object_ptr<Inner>(this, _type),
+		std::move(_ownedInner),
 		st::countriesScroll,
 		_select->height());
 
