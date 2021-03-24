@@ -367,7 +367,7 @@ void MPRISSupport::Private::updateTrackState(
 		const auto &item1,
 		const auto &item2) {
 		return item1.first == item2.first
-			&& item1.second.equal(item2.second);	
+			&& item1.second.equal(item2.second);
 	})) {
 		metadata = currentMetadata;
 		PlayerPropertyChanged(
