@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/fade_wrap.h"
-#include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/layers/layer_widget.h"
@@ -266,8 +266,11 @@ void SeparatePanel::showBox(
 	_layer->showBox(std::move(box), options, animated);
 }
 
-void SeparatePanel::showToast(const QString &text) {
-	Ui::Toast::Show(this, text);
+void SeparatePanel::showToast(const TextWithEntities &text) {
+	Ui::ShowMultilineToast({
+		.parentOverride = this,
+		.text = text,
+	});
 }
 
 void SeparatePanel::ensureLayerCreated() {

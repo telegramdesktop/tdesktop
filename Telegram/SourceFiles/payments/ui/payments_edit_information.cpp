@@ -48,6 +48,21 @@ EditInformation::EditInformation(
 	setupControls();
 }
 
+void EditInformation::setFocus(EditField field) {
+	_focusField = field;
+	if (const auto control = controlForField(field)) {
+		_scroll->ensureWidgetVisible(control);
+		control->setFocusFast();
+	}
+}
+
+void EditInformation::showError(EditField field) {
+	if (const auto control = controlForField(field)) {
+		_scroll->ensureWidgetVisible(control);
+		control->showError(QString());
+	}
+}
+
 void EditInformation::setupControls() {
 	const auto inner = setupContent();
 
@@ -175,7 +190,7 @@ not_null<RpWidget*> EditInformation::setupContent() {
 				Type::Postcode,
 				tr::lng_passport_postcode(tr::now),
 				maxLabelWidth,
-				_information.shippingAddress.postCode,
+				_information.shippingAddress.postcode,
 				QString(),
 				kMaxPostcodeSize));
 		//StreetValidate, // #TODO payments
@@ -230,6 +245,12 @@ void EditInformation::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 }
 
+void EditInformation::focusInEvent(QFocusEvent *e) {
+	if (const auto control = controlForField(_focusField)) {
+		control->setFocusFast();
+	}
+}
+
 void EditInformation::updateControlsGeometry() {
 	const auto submitTop = height() - _done->height();
 	_scroll->setGeometry(0, 0, width(), submitTop);
@@ -243,6 +264,20 @@ void EditInformation::updateControlsGeometry() {
 	_scroll->updateBars();
 }
 
+auto EditInformation::controlForField(EditField field) const -> Row* {
+	switch (field) {
+		case EditField::ShippingStreet: return _street1;
+		case EditField::ShippingCity: return _city;
+		case EditField::ShippingState: return _state;
+		case EditField::ShippingCountry: return _country;
+		case EditField::ShippingPostcode: return _postcode;
+		case EditField::Name: return _name;
+		case EditField::Email: return _email;
+		case EditField::Phone: return _phone;
+	}
+	Unexpected("Unknown field in EditInformation::controlForField.");
+}
+
 RequestedInformation EditInformation::collect() const {
 	return {
 		.name = _name ? _name->valueCurrent() : QString(),
@@ -254,7 +289,7 @@ RequestedInformation EditInformation::collect() const {
 			.city = _city ? _city->valueCurrent() : QString(),
 			.state = _state ? _state->valueCurrent() : QString(),
 			.countryIso2 = _country ? _country->valueCurrent() : QString(),
-			.postCode = _postcode ? _postcode->valueCurrent() : QString(),
+			.postcode = _postcode ? _postcode->valueCurrent() : QString(),
 		},
 	};
 }

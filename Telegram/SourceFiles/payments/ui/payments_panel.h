@@ -23,6 +23,7 @@ struct Invoice;
 struct RequestedInformation;
 struct ShippingOptions;
 enum class EditField;
+class EditInformation;
 
 class Panel final {
 public:
@@ -39,14 +40,23 @@ public:
 		const Invoice &invoice,
 		const RequestedInformation &current,
 		EditField field);
+	void showEditError(
+		const Invoice &invoice,
+		const RequestedInformation &current,
+		EditField field);
 	void chooseShippingOption(const ShippingOptions &options);
 
+	[[nodiscard]] rpl::producer<> backRequests() const;
+
 	void showBox(object_ptr<Ui::BoxContent> box);
-	void showToast(const QString &text);
+	void showToast(const TextWithEntities &text);
+
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	const not_null<PanelDelegate*> _delegate;
 	std::unique_ptr<SeparatePanel> _widget;
+	QPointer<EditInformation> _weakEditWidget;
 
 };
 

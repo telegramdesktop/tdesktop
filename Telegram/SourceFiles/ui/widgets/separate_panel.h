@@ -38,7 +38,7 @@ public:
 		object_ptr<Ui::BoxContent> box,
 		Ui::LayerOptions options,
 		anim::type animated);
-	void showToast(const QString &text);
+	void showToast(const TextWithEntities &text);
 	void destroyLayer();
 
 	rpl::producer<> backRequests() const;

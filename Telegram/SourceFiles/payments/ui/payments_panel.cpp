@@ -23,6 +23,7 @@ Panel::Panel(not_null<PanelDelegate*> delegate)
 , _widget(std::make_unique<SeparatePanel>()) {
 	_widget->setTitle(tr::lng_payments_checkout_title());
 	_widget->setInnerSize(st::passportPanelSize);
+	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 
 	_widget->closeRequests(
 	) | rpl::start_with_next([=] {
@@ -52,18 +53,37 @@ void Panel::showForm(
 			current,
 			options,
 			_delegate));
+	_widget->setBackAllowed(false);
 }
 
 void Panel::showEditInformation(
 		const Invoice &invoice,
 		const RequestedInformation &current,
 		EditField field) {
-	_widget->showInner(base::make_unique_q<EditInformation>(
+	auto edit = base::make_unique_q<EditInformation>(
 		_widget.get(),
 		invoice,
 		current,
 		field,
-		_delegate));
+		_delegate);
+	_weakEditWidget = edit.get();
+	_widget->showInner(std::move(edit));
+	_widget->setBackAllowed(true);
+	_weakEditWidget->setFocus(field);
+}
+
+void Panel::showEditError(
+		const Invoice &invoice,
+		const RequestedInformation &current,
+		EditField field) {
+	if (_weakEditWidget) {
+		_weakEditWidget->showError(field);
+	} else {
+		showEditInformation(invoice, current, field);
+		if (_weakEditWidget && field == EditField::ShippingCountry) {
+			_weakEditWidget->showError(field);
+		}
+	}
 }
 
 void Panel::chooseShippingOption(const ShippingOptions &options) {
@@ -89,6 +109,10 @@ void Panel::chooseShippingOption(const ShippingOptions &options) {
 	}));
 }
 
+rpl::producer<> Panel::backRequests() const {
+	return _widget->backRequests();
+}
+
 void Panel::showBox(object_ptr<Ui::BoxContent> box) {
 	_widget->showBox(
 		std::move(box),
@@ -96,8 +120,12 @@ void Panel::showBox(object_ptr<Ui::BoxContent> box) {
 		anim::type::normal);
 }
 
-void Panel::showToast(const QString &text) {
+void Panel::showToast(const TextWithEntities &text) {
 	_widget->showToast(text);
+}
+
+rpl::lifetime &Panel::lifetime() {
+	return _widget->lifetime();
 }
 
 } // namespace Payments::Ui

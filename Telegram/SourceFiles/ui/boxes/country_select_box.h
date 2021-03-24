@@ -46,6 +46,7 @@ private:
 	object_ptr<MultiSelect> _select;
 
 	class Inner;
+	object_ptr<Inner> _ownedInner;
 	QPointer<Inner> _inner;
 
 };
