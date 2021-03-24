@@ -101,8 +101,14 @@ not_null<Ui::PanelDelegate*> CheckoutProcess::panelDelegate() {
 
 void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 	v::match(update.data, [&](const FormReady &) {
-		showForm();
+		performInitialSilentValidation();
+		if (!_initialSilentValidation) {
+			showForm();
+		}
 	}, [&](const ValidateFinished &) {
+		if (_initialSilentValidation) {
+			_initialSilentValidation = false;
+		}
 		showForm();
 		if (_submitState == SubmitState::Validation) {
 			_submitState = SubmitState::Validated;
@@ -155,6 +161,11 @@ void CheckoutProcess::handleError(const Error &error) {
 	case Error::Type::Validate:
 		if (_submitState == SubmitState::Validation) {
 			_submitState = SubmitState::None;
+		}
+		if (_initialSilentValidation) {
+			_initialSilentValidation = false;
+			showForm();
+			return;
 		}
 		if (id == u"REQ_INFO_NAME_INVALID"_q) {
 			showEditError(Ui::EditField::Name);
@@ -371,6 +382,19 @@ void CheckoutProcess::panelValidateInformation(
 
 void CheckoutProcess::panelShowBox(object_ptr<Ui::BoxContent> box) {
 	_panel->showBox(std::move(box));
+}
+
+void CheckoutProcess::performInitialSilentValidation() {
+	const auto &invoice = _form->invoice();
+	const auto &saved = _form->savedInformation();
+	if ((invoice.isNameRequested && saved.name.isEmpty())
+		|| (invoice.isEmailRequested && saved.email.isEmpty())
+		|| (invoice.isPhoneRequested && saved.phone.isEmpty())
+		|| (invoice.isShippingAddressRequested && !saved.shippingAddress)) {
+		return;
+	}
+	_initialSilentValidation = true;
+	_form->validateInformation(saved);
 }
 
 QString CheckoutProcess::webviewDataPath() const {
