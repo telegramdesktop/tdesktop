@@ -34,25 +34,19 @@ struct FormDetails {
 };
 
 struct FormReady {};
-
 struct ValidateFinished {};
-
-struct FormError {
-	QString type;
+struct Error {
+	enum class Type {
+		Form,
+		Validate,
+		Send,
+	};
+	Type type = Type::Form;
+	QString id;
 };
-
-struct ValidateError {
-	QString type;
-};
-
-struct SendError {
-	QString type;
-};
-
 struct VerificationNeeded {
 	QString url;
 };
-
 struct PaymentFinished {
 	MTPUpdates updates;
 };
@@ -60,12 +54,10 @@ struct PaymentFinished {
 struct FormUpdate {
 	std::variant<
 		FormReady,
-		FormError,
-		ValidateError,
-		SendError,
 		VerificationNeeded,
 		ValidateFinished,
-		PaymentFinished> data;
+		PaymentFinished,
+		Error> data;
 };
 
 class Form final {

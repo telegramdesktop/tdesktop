@@ -22,7 +22,7 @@ namespace {
 			.city = qs(data.vcity()),
 			.state = qs(data.vstate()),
 			.countryIso2 = qs(data.vcountry_iso2()),
-			.postCode = qs(data.vpost_code()),
+			.postcode = qs(data.vpost_code()),
 		};
 	});
 }
@@ -60,7 +60,7 @@ namespace {
 			MTP_string(information.shippingAddress.city),
 			MTP_string(information.shippingAddress.state),
 			MTP_string(information.shippingAddress.countryIso2),
-			MTP_string(information.shippingAddress.postCode)));
+			MTP_string(information.shippingAddress.postcode)));
 }
 
 } // namespace
@@ -80,7 +80,7 @@ void Form::requestForm() {
 			processForm(data);
 		});
 	}).fail([=](const MTP::Error &error) {
-		_updates.fire({ FormError{ error.type() } });
+		_updates.fire({ Error{ Error::Type::Form, error.type() } });
 	}).send();
 }
 
@@ -180,7 +180,7 @@ void Form::send(const QByteArray &serializedCredentials) {
 			_updates.fire({ VerificationNeeded{ qs(data.vurl()) } });
 		});
 	}).fail([=](const MTP::Error &error) {
-		_updates.fire({ SendError{ error.type() } });
+		_updates.fire({ Error{ Error::Type::Send, error.type() } });
 	}).send();
 }
 
@@ -217,7 +217,7 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 		_updates.fire({ ValidateFinished{} });
 	}).fail([=](const MTP::Error &error) {
 		_validateRequestId = 0;
-		_updates.fire({ ValidateError{ error.type() } });
+		_updates.fire({ Error{ Error::Type::Validate, error.type() } });
 	}).send();
 }
 

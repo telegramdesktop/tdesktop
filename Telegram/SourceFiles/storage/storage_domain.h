@@ -44,6 +44,8 @@ public:
 	[[nodiscard]] int oldVersion() const;
 	void clearOldVersion();
 
+	[[nodiscard]] QString webviewDataPath() const;
+
 private:
 	enum class StartModernResult {
 		Success,
