@@ -1,7 +1,7 @@
 [Desktop Entry]
 Version=1.0
-Name=Telegram Desktop
-Comment=Official desktop version of Telegram messaging app
+Name=64Gram Desktop
+Comment=Unofficial desktop version of Telegram messaging app
 TryExec=telegram-desktop
 Exec=telegram-desktop -- %u
 Icon=telegram

@@ -1,5 +1,5 @@
 /*
-This file is part of Telegram Desktop,
+This file is part of 64Gram Desktop,
 the official desktop application for the Telegram messaging service.
 
 For license and copyright information please follow this link:
@@ -134,7 +134,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_join_channel_error" = "Sorry, you have joined too many channels and supergroups. Please leave some before joining this one.";
 "lng_migrate_error" = "This action will convert the group to a supergroup. Unfortunately, you are a member of too many supergroups and channels. Please leave some of the channels or groups you don't need before proceeding.";
 "lng_error_phone_flood" = "Sorry, you have deleted and re-created your account too many times recently. Please wait for a few days before signing up again.";
-"lng_error_start_minimized_passcoded" = "You have set a local passcode, so Telegram Desktop can't be launched minimised; it will ask you to enter your passcode before it can start working.";
+"lng_error_start_minimized_passcoded" = "You have set a local passcode, so 64Gram Desktop can't be launched minimised; it will ask you to enter your passcode before it can start working.";
 "lng_error_pinned_max#one" = "Sorry, you can pin no more than {count} chat to the top.";
 "lng_error_pinned_max#other" = "Sorry, you can pin no more than {count} chats to the top.";
 "lng_error_public_groups_denied" = "Unfortunately, you were banned from participating in public groups.\n{more_info}";
@@ -153,7 +153,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sure_enable_socks" = "Are you sure you want to enable this proxy?\n\nServer: {server}\nPort: {port}\n\nYou can change your proxy server later in the Settings (Connection Type).";
 "lng_sure_enable" = "Enable";
 "lng_proxy_invalid" = "The proxy link is invalid.";
-"lng_proxy_unsupported" = "Your Telegram Desktop version doesn't support this proxy type or the proxy link is invalid. Please update Telegram Desktop to the latest version.";
+"lng_proxy_unsupported" = "Your 64Gram Desktop version doesn't support this proxy type or the proxy link is invalid. Please update 64Gram Desktop to the latest version.";
 
 "lng_edit_deleted" = "This message was deleted";
 "lng_edit_too_long" = "Your message text is too long";
@@ -187,7 +187,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_caption_attach" = "Sorry, you can't attach a new media while you're editing your message.";
 "lng_edit_caption_voice" = "Sorry, you can't edit your message while you're having an unsent voice message.";
 
-"lng_intro_about" = "Welcome to the Official Telegram Desktop app.\nIt's fast and secure.";
+"lng_intro_about" = "Welcome to the Official 64Gram Desktop app.\nIt's fast and secure.";
 "lng_start_msgs" = "START MESSAGING";
 
 "lng_intro_next" = "NEXT";
@@ -477,7 +477,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_reverting#other" = "Reverting to the old theme in {count} seconds.";
 "lng_theme_keep_changes" = "Keep changes";
 "lng_theme_revert" = "Revert";
-"lng_theme_no_desktop" = "Sorry, this theme doesn't include a version for Telegram Desktop.";
+"lng_theme_no_desktop" = "Sorry, this theme doesn't include a version for 64Gram Desktop.";
 "lng_theme_share" = "Share";
 "lng_theme_edit" = "Edit";
 "lng_theme_delete" = "Delete";
@@ -559,7 +559,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_enter_first" = "Enter a passcode";
 "lng_passcode_enter_new" = "Enter new passcode";
 "lng_passcode_confirm_new" = "Re-enter new passcode";
-"lng_passcode_about" = "When a local passcode is set, a lock icon appears at the top of your chats list. Click it to lock the app.\n\nNote: if you forget your local passcode, you'll need to relogin in Telegram Desktop.";
+"lng_passcode_about" = "When a local passcode is set, a lock icon appears at the top of your chats list. Click it to lock the app.\n\nNote: if you forget your local passcode, you'll need to relogin in 64Gram Desktop.";
 "lng_passcode_differ" = "Passcodes are different";
 "lng_passcode_wrong" = "Wrong passcode";
 "lng_passcode_is_same" = "Passcode was not changed";
@@ -1082,7 +1082,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_no_clear_history_group" = "In public groups you can enable auto-delete for messages.";
 
 "lng_message_empty" = "Empty Message";
-"lng_message_unsupported" = "This message is not supported by your version of Telegram Desktop. Please update to the latest version in Settings, or install it from {link}";
+"lng_message_unsupported" = "This message is not supported by your version of 64Gram Desktop. Please update to the latest version in Settings, or install it from {link}";
 
 "lng_duration_seconds#one" = "{count} second";
 "lng_duration_seconds#other" = "{count} seconds";
@@ -1301,7 +1301,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cancel_edit_post_yes" = "Yes";
 "lng_cancel_edit_post_no" = "No";
 
-"lng_bot_share_location_unavailable" = "Sorry, location sharing is currently unavailable in Telegram Desktop.";
+"lng_bot_share_location_unavailable" = "Sorry, location sharing is currently unavailable in 64Gram Desktop.";
 "lng_bot_share_phone" = "Do you want to share your phone number with this bot?";
 "lng_bot_share_phone_confirm" = "Share";
 
@@ -1796,7 +1796,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Show all sessions and terminate that session.\n\nIf you think that somebody logged in to your account against your will, you can enable two-step verification in Settings.\n\nSincerely,\nThe Telegram Team";
 
-"lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
+"lng_new_version_wrap" = "64Gram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
@@ -1862,7 +1862,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_menu_import" = "Import theme";
 "lng_theme_editor_menu_show" = "Show palette file";
 
-"lng_payments_not_supported" = "Sorry, Telegram Desktop doesn't support payments yet. Please use one of our mobile apps to do this.";
+"lng_payments_not_supported" = "Sorry, 64Gram Desktop doesn't support payments yet. Please use one of our mobile apps to do this.";
 "lng_payments_receipt_label" = "Receipt";
 "lng_payments_receipt_label_test" = "Test receipt";
 "lng_payments_invoice_label" = "Invoice";
@@ -2001,7 +2001,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_duration_minutes#other" = "{count} minutes";
 "lng_group_call_duration_seconds#one" = "{count} second";
 "lng_group_call_duration_seconds#other" = "{count} seconds";
-"lng_group_call_mac_access" = "Telegram Desktop does not have access to system wide keyboard input required for Push to Talk.";
+"lng_group_call_mac_access" = "64Gram Desktop does not have access to system wide keyboard input required for Push to Talk.";
 "lng_group_call_mac_input" = "Please allow **Input Monitoring** for Telegram in Privacy Settings.";
 "lng_group_call_mac_accessibility" = "Please allow **Accessibility** for Telegram in Privacy Settings.\n\nApp restart may be required.";
 "lng_group_call_mac_settings" = "Open Settings";
@@ -2516,7 +2516,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_language_not_found" = "Sorry, this language pack doesn't exist.";
 "lng_language_already" = "You're already using this language pack. You can change your language back in Settings.";
 "lng_language_not_ready_title" = "Insufficient data";
-"lng_language_not_ready_about" = "Unfortunately, this custom language pack ({lang_name}) doesn't contain data for Telegram Desktop. You can contribute to this language pack using the {link}.";
+"lng_language_not_ready_about" = "Unfortunately, this custom language pack ({lang_name}) doesn't contain data for 64Gram Desktop. You can contribute to this language pack using the {link}.";
 "lng_language_not_ready_link" = "translations platform";
 
 "lng_launch_exe_warning" = "This file has a {extension} extension.\nAre you sure you want to run it?";
@@ -2571,8 +2571,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_outdated_title" = "PLEASE UPDATE YOUR OPERATING SYSTEM.";
 "lng_outdated_title_bits" = "PLEASE SWITCH TO 64 BIT OPERATING SYSTEM.";
-"lng_outdated_soon" = "Otherwise, Telegram Desktop will stop updating on {date}.";
-"lng_outdated_now" = "So that Telegram Desktop can update to newer versions.";
+"lng_outdated_soon" = "Otherwise, 64Gram Desktop will stop updating on {date}.";
+"lng_outdated_now" = "So that 64Gram Desktop can update to newer versions.";
 
 "lng_filters_all" = "All chats";
 "lng_filters_setup" = "Edit";
@@ -2686,7 +2686,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_mac_touchbar_favorite_stickers" = "Favorite stickers";
 
-"lng_intro_about2" = "Welcome to the Unofficial Telegram Desktop app.\nIt's fast and secure.";
+"lng_intro_about2" = "Welcome to the 64Gram Desktop app.\nIt's fast and secure.";
 "lng_profile_copy_id" = "Copy ID";
 "lng_profile_bot_id" = "Bot ID";
 "lng_profile_user_id" = "User ID";

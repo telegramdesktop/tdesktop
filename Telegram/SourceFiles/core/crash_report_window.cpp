@@ -36,7 +36,7 @@ PreLaunchWindow::PreLaunchWindow(QString title) {
 	setWindowIcon(Window::CreateIcon());
 	setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
 
-	setWindowTitle(title.isEmpty() ? qsl("Telegram") : title);
+	setWindowTitle(title.isEmpty() ? qsl("64Gram") : title);
 
 	QPalette p(palette());
 	p.setColor(QPalette::Window, QColor(255, 255, 255));
@@ -169,7 +169,7 @@ NotStartedWindow::NotStartedWindow()
 : _label(this)
 , _log(this)
 , _close(this) {
-	_label.setText(qsl("Could not start Telegram Desktop!\nYou can see complete log below:"));
+	_label.setText(qsl("Could not start 64Gram Desktop!\nYou can see complete log below:"));
 
 	_log.setPlainText(Logs::full());
 
@@ -305,9 +305,9 @@ LastCrashedWindow::LastCrashedWindow(
 	connect(&_networkSettings, SIGNAL(clicked()), this, SLOT(onNetworkSettings()));
 
 	if (_sendingState == SendingNoReport) {
-		_label.setText(qsl("Last time Telegram Desktop was not closed properly."));
+		_label.setText(qsl("Last time 64Gram Desktop was not closed properly."));
 	} else {
-		_label.setText(qsl("Last time Telegram Desktop crashed :("));
+		_label.setText(qsl("Last time 64Gram Desktop crashed :("));
 	}
 
 	if (_updaterData) {
@@ -366,7 +366,7 @@ LastCrashedWindow::LastCrashedWindow(
 	connect(&_showReport, SIGNAL(clicked()), this, SLOT(onViewReport()));
 	_saveReport.setText(qsl("SAVE TO FILE"));
 	connect(&_saveReport, SIGNAL(clicked()), this, SLOT(onSaveReport()));
-	_getApp.setText(qsl("GET THE LATEST VERSION OF TELEGRAM DESKTOP"));
+	_getApp.setText(qsl("GET THE LATEST VERSION OF 64GRAM DESKTOP"));
 	connect(&_getApp, SIGNAL(clicked()), this, SLOT(onGetApp()));
 
 	_send.setText(qsl("SEND CRASH REPORT"));
@@ -389,7 +389,7 @@ void LastCrashedWindow::onViewReport() {
 }
 
 void LastCrashedWindow::onSaveReport() {
-	QString to = QFileDialog::getSaveFileName(0, qsl("Telegram Crash Report"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + qsl("/report.telegramcrash"), qsl("Telegram crash report (*.telegramcrash)"));
+	QString to = QFileDialog::getSaveFileName(0, qsl("64Gram Crash Report"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + qsl("/report.telegramcrash"), qsl("64Gram crash report (*.telegramcrash)"));
 	if (!to.isEmpty()) {
 		QFile file(to);
 		if (file.open(QIODevice::WriteOnly)) {
@@ -786,7 +786,7 @@ void LastCrashedWindow::updateControls() {
 		h += _networkSettings.height() + padding;
 	}
 
-	QSize s(2 * padding + QFontMetrics(_label.font()).horizontalAdvance(qsl("Last time Telegram Desktop was not closed properly.")) + padding + _networkSettings.width(), h);
+	QSize s(2 * padding + QFontMetrics(_label.font()).horizontalAdvance(qsl("Last time 64Gram Desktop was not closed properly.")) + padding + _networkSettings.width(), h);
 	if (s == size()) {
 		resizeEvent(0);
 	} else {

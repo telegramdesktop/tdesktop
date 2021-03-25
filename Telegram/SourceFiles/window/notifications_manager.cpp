@@ -703,7 +703,7 @@ void NativeManager::doShowNotification(
 		&& (item->out() || peer->isSelf())
 		&& item->isFromScheduled();
 	const auto title = options.hideNameAndPhoto
-		? qsl("Telegram Desktop")
+		? qsl("64Gram Desktop")
 		: (scheduled && peer->isSelf())
 		? tr::lng_notification_reminder(tr::now)
 		: peer->name;

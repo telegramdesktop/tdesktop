@@ -129,7 +129,7 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 , _positionUpdatedTimer([=] { savePosition(); })
 , _outdated(CreateOutdatedBar(this))
 , _body(this)
-, _titleText(qsl("Telegram")) {
+, _titleText(qsl("64Gram")) {
 	subscribe(Theme::Background(), [=](
 			const Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
@@ -616,7 +616,7 @@ void MainWindow::updateUnreadCounter() {
 	}
 
 	const auto counter = Core::App().unreadBadge();
-	_titleText = (counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram");
+	_titleText = (counter > 0) ? qsl("64Gram (%1)").arg(counter) : qsl("64Gram");
 
 	unreadCounterChangedHook();
 }

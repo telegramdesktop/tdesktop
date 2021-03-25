@@ -613,7 +613,7 @@ MainMenu::MainMenu(
 	refreshBackground();
 
 	_telegram->setMarkedText(Ui::Text::Link(
-		qsl("Telegram Desktop"),
+		qsl("64Gram Desktop"),
 		qsl("https://github.com/TDesktop-x64/tdesktop")));
 	_telegram->setLinksTrusted();
 	_version->setRichText(textcmdLink(1, tr::lng_settings_current_version(tr::now, lt_version, currentVersionText())) + QChar(' ') + QChar(8211) + QChar(' ') + textcmdLink(2, tr::lng_menu_about(tr::now)));

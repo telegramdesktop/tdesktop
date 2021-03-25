@@ -1,9 +1,9 @@
-#define MyAppShortName "Telegram"
-#define MyAppName "Telegram Desktop"
-#define MyAppPublisher "Telegram FZ-LLC"
-#define MyAppURL "https://desktop.telegram.org"
+#define MyAppShortName "64Gram"
+#define MyAppName "64Gram Desktop"
+#define MyAppPublisher "64Gram"
+#define MyAppURL "https://github.com/TDesktop-x64"
 #define MyAppExeName "Telegram.exe"
-#define MyAppId "53F49750-6209-4FBF-9CA8-7A333C87D1ED"
+#define MyAppId "9DB6C981-7FD2-41B5-AEF2-20C933FD3F21"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -34,9 +34,9 @@ DisableProgramGroupPage=no
 #if MyBuildTarget == "win64"
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
-OutputBaseFilename=tsetup-x64.{#MyAppVersionFull}
+OutputBaseFilename=64Gram-setup-x64.{#MyAppVersionFull}
 #else
-OutputBaseFilename=tsetup.{#MyAppVersionFull}
+OutputBaseFilename=64Gram-setup.{#MyAppVersionFull}
 #endif
 
 [Languages]

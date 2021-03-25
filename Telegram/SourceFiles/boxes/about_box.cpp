@@ -39,7 +39,7 @@ rpl::producer<TextWithEntities> Text2() {
 		lt_gpl_link,
 		rpl::single(Ui::Text::Link(
 			"GNU GPL",
-			"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE")),
+			"https://github.com/TDesktop-x64/tdesktop/blob/dev/LICENSE")),
 		lt_github_link,
 		rpl::single(Ui::Text::Link(
 			"GitHub",
@@ -64,7 +64,7 @@ AboutBox::AboutBox(QWidget *parent)
 }
 
 void AboutBox::prepare() {
-	setTitle(rpl::single(qsl("Telegram Desktop")));
+	setTitle(rpl::single(qsl("64Gram Desktop")));
 
 	addButton(tr::lng_close(), [this] { closeBox(); });
 
