@@ -1864,6 +1864,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_total_label" = "Total";
 "lng_payments_pay_amount" = "Pay {amount}";
 "lng_payments_payment_method" = "Payment Method";
+"lng_payments_new_card" = "New Card...";
 "lng_payments_payment_method_ph" = "Enter your card details";
 "lng_payments_shipping_address" = "Shipping Information";
 "lng_payments_shipping_address_ph" = "Enter your shipping information";

@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "apiwrap.h"
+#include "stripe/stripe_api_client.h"
+#include "stripe/stripe_error.h"
+#include "stripe/stripe_token.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
@@ -67,6 +70,13 @@ namespace {
 			MTP_string(information.shippingAddress.postcode)));
 }
 
+[[nodiscard]] QString CardTitle(const Stripe::Card &card) {
+	// Like server stores saved_credentials title.
+	return Stripe::CardBrandToString(card.brand()).toLower()
+		+ " *"
+		+ card.last4();
+}
+
 } // namespace
 
 Form::Form(not_null<Main::Session*> session, FullMsgId itemId)
@@ -76,6 +86,8 @@ Form::Form(not_null<Main::Session*> session, FullMsgId itemId)
 	requestForm();
 }
 
+Form::~Form() = default;
+
 void Form::requestForm() {
 	_api.request(MTPpayments_GetPaymentForm(
 		MTP_int(_msgId)
@@ -84,7 +96,7 @@ void Form::requestForm() {
 			processForm(data);
 		});
 	}).fail([=](const MTP::Error &error) {
-		_updates.fire({ Error{ Error::Type::Form, error.type() } });
+		_updates.fire(Error{ Error::Type::Form, error.type() });
 	}).send();
 }
 
@@ -105,8 +117,8 @@ void Form::processForm(const MTPDpayments_paymentForm &data) {
 			processSavedCredentials(data);
 		});
 	}
-	fillNativePaymentInformation();
-	_updates.fire({ FormReady{} });
+	fillPaymentMethodInformation();
+	_updates.fire(FormReady{});
 }
 
 void Form::processInvoice(const MTPDinvoice &data) {
@@ -156,30 +168,32 @@ void Form::processSavedInformation(const MTPDpaymentRequestedInfo &data) {
 
 void Form::processSavedCredentials(
 		const MTPDpaymentSavedCredentialsCard &data) {
-	// #TODO payments not yet supported
+	// #TODO payments save
 	//_nativePayment.savedCredentials = SavedCredentials{
 	//	.id = qs(data.vid()),
 	//	.title = qs(data.vtitle()),
 	//};
-	refreshNativePaymentDetails();
+	refreshPaymentMethodDetails();
 }
 
-void Form::refreshNativePaymentDetails() {
-	const auto &saved = _nativePayment.savedCredentials;
-	const auto &entered = _nativePayment.newCredentials;
-	_nativePayment.details.credentialsTitle = entered
-		? entered.title
-		: saved.title;
-	_nativePayment.details.ready = entered || saved;
+void Form::refreshPaymentMethodDetails() {
+	const auto &saved = _paymentMethod.savedCredentials;
+	const auto &entered = _paymentMethod.newCredentials;
+	_paymentMethod.ui.title = entered ? entered.title : saved.title;
+	_paymentMethod.ui.ready = entered || saved;
 }
 
-void Form::fillNativePaymentInformation() {
-	auto saved = std::move(_nativePayment.savedCredentials);
-	auto entered = std::move(_nativePayment.newCredentials);
-	_nativePayment = NativePayment();
-	if (_details.nativeProvider != "stripe") {
-		return;
+void Form::fillPaymentMethodInformation() {
+	_paymentMethod.native = NativePaymentMethod();
+	_paymentMethod.ui.native = Ui::NativeMethodDetails();
+	_paymentMethod.ui.url = _details.url;
+	if (_details.nativeProvider == "stripe") {
+		fillStripeNativeMethod();
 	}
+	refreshPaymentMethodDetails();
+}
+
+void Form::fillStripeNativeMethod() {
 	auto error = QJsonParseError();
 	auto document = QJsonDocument::fromJson(
 		_details.nativeParamsJson,
@@ -202,22 +216,22 @@ void Form::fillNativePaymentInformation() {
 		LOG(("Payment Error: No publishable_key in native_params."));
 		return;
 	}
-	_nativePayment = NativePayment{
-		.type = NativePayment::Type::Stripe,
-		.stripePublishableKey = key,
-		.savedCredentials = std::move(saved),
-		.newCredentials = std::move(entered),
-		.details = Ui::NativePaymentDetails{
-			.supported = true,
-			.needCountry = value(u"need_country").toBool(),
-			.needZip = value(u"need_zip").toBool(),
-			.needCardholderName = value(u"need_cardholder_name").toBool(),
+	_paymentMethod.native = NativePaymentMethod{
+		.data = StripePaymentMethod{
+			.publishableKey = key,
 		},
 	};
-	refreshNativePaymentDetails();
+	_paymentMethod.ui.native = Ui::NativeMethodDetails{
+		.supported = true,
+		.needCountry = value(u"need_country").toBool(),
+		.needZip = value(u"need_zip").toBool(),
+		.needCardholderName = value(u"need_cardholder_name").toBool(),
+	};
 }
 
-void Form::send(const QByteArray &serializedCredentials) {
+void Form::submit() {
+	Expects(!_paymentMethod.newCredentials.data.isEmpty()); // #TODO payments save
+
 	using Flag = MTPpayments_SendPaymentForm::Flag;
 	_api.request(MTPpayments_SendPaymentForm(
 		MTP_flags((_requestedInformationId.isEmpty()
@@ -231,15 +245,15 @@ void Form::send(const QByteArray &serializedCredentials) {
 		MTP_string(_shippingOptions.selectedId),
 		MTP_inputPaymentCredentials(
 			MTP_flags(0),
-			MTP_dataJSON(MTP_bytes(serializedCredentials)))
+			MTP_dataJSON(MTP_bytes(_paymentMethod.newCredentials.data)))
 	)).done([=](const MTPpayments_PaymentResult &result) {
 		result.match([&](const MTPDpayments_paymentResult &data) {
-			_updates.fire({ PaymentFinished{ data.vupdates() } });
+			_updates.fire(PaymentFinished{ data.vupdates() });
 		}, [&](const MTPDpayments_paymentVerificationNeeded &data) {
-			_updates.fire({ VerificationNeeded{ qs(data.vurl()) } });
+			_updates.fire(VerificationNeeded{ qs(data.vurl()) });
 		});
 	}).fail([=](const MTP::Error &error) {
-		_updates.fire({ Error{ Error::Type::Send, error.type() } });
+		_updates.fire(Error{ Error::Type::Send, error.type() });
 	}).send();
 }
 
@@ -273,18 +287,76 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 			_shippingOptions.selectedId = _shippingOptions.list.front().id;
 		}
 		_savedInformation = _validatedInformation;
-		_updates.fire({ ValidateFinished{} });
+		_updates.fire(ValidateFinished{});
 	}).fail([=](const MTP::Error &error) {
 		_validateRequestId = 0;
-		_updates.fire({ Error{ Error::Type::Validate, error.type() } });
+		_updates.fire(Error{ Error::Type::Validate, error.type() });
 	}).send();
+}
+
+void Form::validateCard(const Ui::UncheckedCardDetails &details) {
+	Expects(!v::is_null(_paymentMethod.native.data));
+
+	const auto &native = _paymentMethod.native.data;
+	if (const auto stripe = std::get_if<StripePaymentMethod>(&native)) {
+		validateCard(*stripe, details);
+	} else {
+		Unexpected("Native payment provider in Form::validateCard.");
+	}
+}
+
+void Form::validateCard(
+		const StripePaymentMethod &method,
+		const Ui::UncheckedCardDetails &details) {
+	Expects(!method.publishableKey.isEmpty());
+
+	if (_stripe) {
+		return;
+	}
+	auto configuration = Stripe::PaymentConfiguration{
+		.publishableKey = method.publishableKey,
+		.companyName = "Telegram",
+	};
+	_stripe = std::make_unique<Stripe::APIClient>(std::move(configuration));
+	auto card = Stripe::CardParams{
+		.number = details.number,
+		.expMonth = details.expireMonth,
+		.expYear = details.expireYear,
+		.cvc = details.cvc,
+		.name = details.cardholderName,
+		.addressZip = details.addressZip,
+		.addressCountry = details.addressCountry,
+	};
+	_stripe->createTokenWithCard(std::move(card), crl::guard(this, [=](
+			Stripe::Token token,
+			Stripe::Error error) {
+		_stripe = nullptr;
+
+		if (error) {
+			LOG(("Stripe Error %1: %2 (%3)"
+				).arg(int(error.code())
+				).arg(error.description()
+				).arg(error.message()));
+			_updates.fire(Error{ Error::Type::Stripe, error.description() });
+		} else {
+			setPaymentCredentials({
+				.title = CardTitle(token.card()),
+				.data = QJsonDocument(QJsonObject{
+					{ "type", "card" },
+					{ "id", token.tokenId() },
+				}).toJson(QJsonDocument::Compact),
+				.saveOnServer = false, // #TODO payments save
+			});
+		}
+	}));
 }
 
 void Form::setPaymentCredentials(const NewCredentials &credentials) {
 	Expects(!credentials.empty());
 
-	_nativePayment.newCredentials = credentials;
-	refreshNativePaymentDetails();
+	_paymentMethod.newCredentials = credentials;
+	refreshPaymentMethodDetails();
+	_updates.fire(PaymentMethodUpdate{});
 }
 
 void Form::setShippingOption(const QString &id) {

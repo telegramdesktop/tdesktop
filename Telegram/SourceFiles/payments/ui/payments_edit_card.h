@@ -31,7 +31,7 @@ class EditCard final : public RpWidget {
 public:
 	EditCard(
 		QWidget *parent,
-		const NativePaymentDetails &native,
+		const NativeMethodDetails &native,
 		CardField field,
 		not_null<PanelDelegate*> delegate);
 
@@ -52,7 +52,7 @@ private:
 	[[nodiscard]] UncheckedCardDetails collect() const;
 
 	const not_null<PanelDelegate*> _delegate;
-	NativePaymentDetails _native;
+	NativeMethodDetails _native;
 
 	object_ptr<ScrollArea> _scroll;
 	object_ptr<FadeShadow> _topShadow;

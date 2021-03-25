@@ -28,6 +28,7 @@ public:
 
 	void setTitle(rpl::producer<QString> title);
 	void setInnerSize(QSize size);
+	[[nodiscard]] QRect innerGeometry() const;
 
 	void setHideOnDeactivate(bool hideOnDeactivate);
 	void showAndActivate();
@@ -41,9 +42,9 @@ public:
 	void showToast(const TextWithEntities &text);
 	void destroyLayer();
 
-	rpl::producer<> backRequests() const;
-	rpl::producer<> closeRequests() const;
-	rpl::producer<> closeEvents() const;
+	[[nodiscard]] rpl::producer<> backRequests() const;
+	[[nodiscard]] rpl::producer<> closeRequests() const;
+	[[nodiscard]] rpl::producer<> closeEvents() const;
 	void setBackAllowed(bool allowed);
 
 protected:

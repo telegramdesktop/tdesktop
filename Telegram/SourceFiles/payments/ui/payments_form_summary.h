@@ -29,7 +29,7 @@ public:
 		QWidget *parent,
 		const Invoice &invoice,
 		const RequestedInformation &current,
-		const NativePaymentDetails &native,
+		const PaymentMethodDetails &method,
 		const ShippingOptions &options,
 		not_null<PanelDelegate*> delegate);
 
@@ -45,7 +45,7 @@ private:
 
 	const not_null<PanelDelegate*> _delegate;
 	Invoice _invoice;
-	NativePaymentDetails _native;
+	PaymentMethodDetails _method;
 	ShippingOptions _options;
 	RequestedInformation _information;
 	object_ptr<ScrollArea> _scroll;

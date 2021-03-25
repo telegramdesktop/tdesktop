@@ -11,6 +11,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Stripe {
 
+Error::Code Error::code() const {
+	return _code;
+}
+
+QString Error::description() const {
+	return _description;
+}
+
+QString Error::message() const {
+	return _message;
+}
+
+QString Error::parameter() const {
+	return _parameter;
+}
+
+Error Error::None() {
+	return Error(Code::None, {}, {}, {});
+}
+
 Error Error::DecodedObjectFromResponse(QJsonObject object) {
 	const auto entry = object.value("error");
 	if (!entry.isObject()) {
@@ -78,6 +98,10 @@ Error Error::DecodedObjectFromResponse(QJsonObject object) {
 	} else {
 		return cardError(code);
 	}
+}
+
+bool Error::empty() const {
+	return (_code == Code::None);
 }
 
 } // namespace Stripe

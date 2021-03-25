@@ -344,6 +344,10 @@ void SeparatePanel::setInnerSize(QSize size) {
 	}
 }
 
+QRect SeparatePanel::innerGeometry() const {
+	return _body->geometry();
+}
+
 void SeparatePanel::initGeometry(QSize size) {
 	const auto active = QApplication::activeWindow();
 	const auto center = !active
