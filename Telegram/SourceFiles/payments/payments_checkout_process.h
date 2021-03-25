@@ -12,17 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 
-namespace Stripe {
-class APIClient;
-} // namespace Stripe
-
 namespace Main {
 class Session;
 } // namespace Main
 
 namespace Payments::Ui {
 class Panel;
-class WebviewWindow;
 enum class InformationField;
 } // namespace Payments::Ui
 
@@ -67,7 +62,6 @@ private:
 	void editPaymentMethod();
 
 	void performInitialSilentValidation();
-	[[nodiscard]] QString webviewDataPath() const;
 
 	void panelRequestClose() override;
 	void panelCloseSure() override;
@@ -87,11 +81,11 @@ private:
 	void panelValidateCard(Ui::UncheckedCardDetails data) override;
 	void panelShowBox(object_ptr<Ui::BoxContent> box) override;
 
+	QString panelWebviewDataPath() override;
+
 	const not_null<Main::Session*> _session;
 	const std::unique_ptr<Form> _form;
 	const std::unique_ptr<Ui::Panel> _panel;
-	std::unique_ptr<Ui::WebviewWindow> _webviewWindow;
-	std::unique_ptr<Stripe::APIClient> _stripe;
 	SubmitState _submitState = SubmitState::None;
 	bool _initialSilentValidation = false;
 

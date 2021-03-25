@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/separate_panel.h"
 #include "ui/boxes/single_choice_box.h"
 #include "lang/lang_keys.h"
+#include "webview/webview_embed.h"
 #include "styles/style_payments.h"
 #include "styles/style_passport.h"
 
@@ -37,7 +38,10 @@ Panel::Panel(not_null<PanelDelegate*> delegate)
 	}, _widget->lifetime());
 }
 
-Panel::~Panel() = default;
+Panel::~Panel() {
+	// Destroy _widget before _webview.
+	_widget = nullptr;
+}
 
 void Panel::requestActivate() {
 	_widget->showAndActivate();
@@ -46,14 +50,14 @@ void Panel::requestActivate() {
 void Panel::showForm(
 		const Invoice &invoice,
 		const RequestedInformation &current,
-		const NativePaymentDetails &native,
+		const PaymentMethodDetails &method,
 		const ShippingOptions &options) {
 	_widget->showInner(
 		base::make_unique_q<FormSummary>(
 			_widget.get(),
 			invoice,
 			current,
-			native,
+			method,
 			options,
 			_delegate));
 	_widget->setBackAllowed(false);
@@ -113,23 +117,84 @@ void Panel::chooseShippingOption(const ShippingOptions &options) {
 	}));
 }
 
-void Panel::choosePaymentMethod(const NativePaymentDetails &native) {
-	Expects(native.supported);
+void Panel::showEditPaymentMethod(const PaymentMethodDetails &method) {
+	if (method.native.supported) {
+		showEditCard(method.native, CardField::Number);
+	} else if (!showWebview(method.url, true)) {
+		// #TODO payments errors not supported
+	}
+}
 
-	if (!native.ready) {
-		showEditCard(native, CardField::Number);
+bool Panel::showWebview(const QString &url, bool allowBack) {
+	if (!_webview && !createWebview()) {
+		return false;
+	}
+	_webview->navigate(url);
+	_widget->setBackAllowed(allowBack);
+	return true;
+}
+
+bool Panel::createWebview() {
+	auto container = base::make_unique_q<RpWidget>(_widget.get());
+
+	container->setGeometry(_widget->innerGeometry());
+	container->show();
+
+	_webview = std::make_unique<Webview::Window>(
+		container.get(),
+		Webview::WindowConfig{
+			.userDataPath = _delegate->panelWebviewDataPath(),
+		});
+	const auto raw = _webview.get();
+	QObject::connect(container.get(), &QObject::destroyed, [=] {
+		if (_webview.get() == raw) {
+			_webview = nullptr;
+		}
+	});
+	if (!raw->widget()) {
+		return false;
+	}
+
+	container->geometryValue(
+	) | rpl::start_with_next([=](QRect geometry) {
+		raw->widget()->setGeometry(geometry);
+	}, container->lifetime());
+
+	raw->setMessageHandler([=](const QJsonDocument &message) {
+		_delegate->panelWebviewMessage(message);
+	});
+
+	raw->setNavigationHandler([=](const QString &uri) {
+		return _delegate->panelWebviewNavigationAttempt(uri);
+	});
+
+	raw->init(R"(
+window.TelegramWebviewProxy = {
+postEvent: function(eventType, eventData) {
+	if (window.external && window.external.invoke) {
+		window.external.invoke(JSON.stringify([eventType, eventData]));
+	}
+}
+};)");
+
+	_widget->showInner(std::move(container));
+	return true;
+}
+
+void Panel::choosePaymentMethod(const PaymentMethodDetails &method) {
+	if (!method.ready) {
+		showEditPaymentMethod(method);
 		return;
 	}
-	const auto title = native.credentialsTitle;
 	showBox(Box([=](not_null<Ui::GenericBox*> box) {
 		const auto save = [=](int option) {
 			if (option) {
-				showEditCard(native, CardField::Number);
+				showEditPaymentMethod(method);
 			}
 		};
 		SingleChoiceBox(box, {
 			.title = tr::lng_payments_payment_method(),
-			.options = { native.credentialsTitle, "New Card..." }, // #TODO payments lang
+			.options = { method.title, tr::lng_payments_new_card(tr::now) },
 			.initialSelection = 0,
 			.callback = save,
 		});
@@ -137,8 +202,10 @@ void Panel::choosePaymentMethod(const NativePaymentDetails &native) {
 }
 
 void Panel::showEditCard(
-		const NativePaymentDetails &native,
+		const NativeMethodDetails &native,
 		CardField field) {
+	Expects(native.supported);
+
 	auto edit = base::make_unique_q<EditCard>(
 		_widget.get(),
 		native,
@@ -151,7 +218,7 @@ void Panel::showEditCard(
 }
 
 void Panel::showCardError(
-		const NativePaymentDetails &native,
+		const NativeMethodDetails &native,
 		CardField field) {
 	if (_weakEditCard) {
 		_weakEditCard->showError(field);

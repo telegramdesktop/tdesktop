@@ -115,13 +115,18 @@ enum class InformationField {
 	Phone,
 };
 
-struct NativePaymentDetails {
-	QString credentialsTitle;
-	bool ready = false;
+struct NativeMethodDetails {
 	bool supported = false;
 	bool needCountry = false;
 	bool needZip = false;
 	bool needCardholderName = false;
+};
+
+struct PaymentMethodDetails {
+	QString title;
+	NativeMethodDetails native;
+	QString url;
+	bool ready = false;
 };
 
 enum class CardField {
