@@ -101,6 +101,7 @@ DocumentData *Document::readFromStreamHelper(
 		} else if (info) {
 			if (info->setId == Data::Stickers::DefaultSetId
 				|| info->setId == Data::Stickers::CloudRecentSetId
+				|| info->setId == Data::Stickers::CloudRecentAttachedSetId
 				|| info->setId == Data::Stickers::FavedSetId
 				|| info->setId == Data::Stickers::CustomSetId) {
 				typeOfSet = StickerSetTypeEmpty;

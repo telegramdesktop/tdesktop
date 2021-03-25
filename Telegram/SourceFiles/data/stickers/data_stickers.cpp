@@ -86,11 +86,11 @@ rpl::producer<> Stickers::updated() const {
 	return _updated.events();
 }
 
-void Stickers::notifyRecentUpdated() {
-	_recentUpdated.fire({});
+void Stickers::notifyRecentUpdated(Recent recent) {
+	_recentUpdated.fire(std::move(recent));
 }
 
-rpl::producer<> Stickers::recentUpdated() const {
+rpl::producer<Stickers::Recent> Stickers::recentUpdated() const {
 	return _recentUpdated.events();
 }
 
@@ -102,6 +102,7 @@ rpl::producer<> Stickers::savedGifsUpdated() const {
 	return _savedGifsUpdated.events();
 }
 
+// Increment attached sticker.
 void Stickers::incrementSticker(not_null<DocumentData*> document) {
 	if (!document->sticker()
 		|| document->sticker()->set.type() == mtpc_inputStickerSetEmpty) {
@@ -573,26 +574,41 @@ void Stickers::setFaved(not_null<DocumentData*> document, bool faved) {
 }
 
 void Stickers::setsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
-	auto &setsOrder = setsOrderRef();
+	const auto masksReceived = ranges::all_of(
+		data,
+		[](const MTPStickerSet &set) {
+			return set.c_stickerSet().is_masks();
+		});
+	auto &setsOrder = masksReceived
+		? maskSetsOrderRef()
+		: setsOrderRef();
 	setsOrder.clear();
+
+	using Flag = MTPDstickerSet::Flag;
+	using ClientFlag = MTPDstickerSet_ClientFlag;
 
 	auto &sets = setsRef();
 	QMap<uint64, uint64> setsToRequest;
 	for (auto &[id, set] : sets) {
-		if (!(set->flags & MTPDstickerSet::Flag::f_archived)) {
+		const auto archived = !!(set->flags & Flag::f_archived);
+		const auto masks = !!(set->flags & MTPDstickerSet::Flag::f_masks);
+		if (!archived && (masksReceived == masks)) {
 			// Mark for removing.
-			set->flags &= ~MTPDstickerSet::Flag::f_installed_date;
+			set->flags &= ~Flag::f_installed_date;
 			set->installDate = 0;
 		}
 	}
 	for (const auto &setData : data) {
-		if (setData.type() == mtpc_stickerSet) {
-			auto set = feedSet(setData.c_stickerSet());
-			if (!(set->flags & MTPDstickerSet::Flag::f_archived) || (set->flags & MTPDstickerSet::Flag::f_official)) {
-				setsOrder.push_back(set->id);
-				if (set->stickers.isEmpty() || (set->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
-					setsToRequest.insert(set->id, set->access);
-				}
+		if (setData.type() != mtpc_stickerSet) {
+			continue;
+		}
+		const auto set = feedSet(setData.c_stickerSet());
+		if (!(set->flags & Flag::f_archived)
+			|| (set->flags & Flag::f_official)) {
+			setsOrder.push_back(set->id);
+			if (set->stickers.isEmpty()
+				|| (set->flags & ClientFlag::f_not_loaded)) {
+				setsToRequest.insert(set->id, set->access);
 			}
 		}
 	}
@@ -600,10 +616,10 @@ void Stickers::setsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
 	auto &recent = getRecentPack();
 	for (auto it = sets.begin(); it != sets.end();) {
 		const auto set = it->second.get();
-		bool installed = (set->flags & MTPDstickerSet::Flag::f_installed_date);
-		bool featured = (set->flags & MTPDstickerSet_ClientFlag::f_featured);
-		bool special = (set->flags & MTPDstickerSet_ClientFlag::f_special);
-		bool archived = (set->flags & MTPDstickerSet::Flag::f_archived);
+		const auto installed = !!(set->flags & Flag::f_installed_date);
+		const auto featured = !!(set->flags & ClientFlag::f_featured);
+		const auto special = !!(set->flags & ClientFlag::f_special);
+		const auto archived = !!(set->flags & Flag::f_archived);
 		if (!installed) { // remove not mine sets from recent stickers
 			for (auto i = recent.begin(); i != recent.cend();) {
 				if (set->stickers.indexOf(i->first) >= 0) {
@@ -629,8 +645,14 @@ void Stickers::setsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
 		api.requestStickerSets();
 	}
 
-	session().local().writeInstalledStickers();
-	if (writeRecent) session().saveSettings();
+	if (masksReceived) {
+		session().local().writeInstalledMasks();
+	} else {
+		session().local().writeInstalledStickers();
+	}
+	if (writeRecent) {
+		session().saveSettings();
+	}
 
 	const auto counted = Api::CountStickersHash(&session());
 	if (counted != hash) {
@@ -705,7 +727,8 @@ void Stickers::specialSetReceived(
 		auto dates = std::vector<TimeId>();
 		auto dateIndex = 0;
 		auto datesAvailable = (items.size() == usageDates.size())
-			&& (setId == CloudRecentSetId);
+			&& ((setId == CloudRecentSetId)
+				|| (setId == CloudRecentAttachedSetId));
 
 		auto customIt = sets.find(CustomSetId);
 		auto pack = StickersPack();
@@ -767,6 +790,16 @@ void Stickers::specialSetReceived(
 				).arg(counted));
 		}
 		session().local().writeRecentStickers();
+	} break;
+	case CloudRecentAttachedSetId: {
+		const auto counted = Api::CountRecentStickersHash(&session(), true);
+		if (counted != hash) {
+			LOG(("API Error: "
+				"received recent attached stickers hash %1 "
+				"while counted hash is %2"
+				).arg(hash, counted));
+		}
+		session().local().writeRecentMasks();
 	} break;
 	case FavedSetId: {
 		const auto counted = Api::CountFavedStickersHash(&session());
@@ -1263,9 +1296,16 @@ StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
 		}
 	}
 
+	const auto isMasks = !!(set->flags & MTPDstickerSet::Flag::f_masks);
 	if (pack.isEmpty()) {
-		int removeIndex = setsOrder().indexOf(set->id);
-		if (removeIndex >= 0) setsOrderRef().removeAt(removeIndex);
+		const auto removeIndex = (isMasks
+			? maskSetsOrder()
+			: setsOrder()).indexOf(set->id);
+		if (removeIndex >= 0) {
+			(isMasks
+				? maskSetsOrderRef()
+				: setsOrderRef()).removeAt(removeIndex);
+		}
 		sets.remove(set->id);
 		set = nullptr;
 	} else {
@@ -1299,7 +1339,9 @@ StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
 
 	if (set) {
 		const auto isArchived = !!(set->flags & MTPDstickerSet::Flag::f_archived);
-		if (set->flags & MTPDstickerSet::Flag::f_installed_date) {
+		if (isMasks) {
+			session().local().writeInstalledMasks();
+		} else if (set->flags & MTPDstickerSet::Flag::f_installed_date) {
 			if (!isArchived) {
 				session().local().writeInstalledStickers();
 			}

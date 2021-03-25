@@ -566,7 +566,10 @@ void AppendEmojiPacks(
 	rpl::merge(
 		rpl::merge(
 			_session->data().stickers().updated(),
-			_session->data().stickers().recentUpdated()
+			_session->data().stickers().recentUpdated(
+			) | rpl::filter([](Data::Stickers::Recent recent) {
+				return (recent != Data::Stickers::Recent::Attached);
+			}) | rpl::to_empty
 		) | rpl::map_to(ScrubberItemType::Sticker),
 		rpl::merge(
 			Core::App().settings().recentEmojiUpdated(),

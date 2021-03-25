@@ -1857,9 +1857,14 @@ void ApiWrap::requestStickerSets() {
 		if (i.value().second) continue;
 
 		auto waitMs = (j == e) ? 0 : kSmallDelayMs;
-		i.value().second = request(MTPmessages_GetStickerSet(MTP_inputStickerSetID(MTP_long(i.key()), MTP_long(i.value().first)))).done([this, setId = i.key()](const MTPmessages_StickerSet &result) {
+		const auto id = MTP_inputStickerSetID(
+			MTP_long(i.key()),
+			MTP_long(i.value().first));
+		i.value().second = request(MTPmessages_GetStickerSet(
+			id
+		)).done([=, setId = i.key()](const MTPmessages_StickerSet &result) {
 			gotStickerSet(setId, result);
-		}).fail([this, setId = i.key()](const MTP::Error &error) {
+		}).fail([=, setId = i.key()](const MTP::Error &error) {
 			_stickerSetRequests.remove(setId);
 		}).afterDelay(waitMs).send();
 	}
@@ -1873,16 +1878,26 @@ void ApiWrap::saveStickerSets(
 	}
 	request(base::take(_stickersReorderRequestId)).cancel();
 	request(base::take(_stickersClearRecentRequestId)).cancel();
+	request(base::take(_stickersClearRecentAttachedRequestId)).cancel();
 
-	auto writeInstalled = true, writeRecent = false, writeCloudRecent = false, writeFaved = false, writeArchived = false;
+	auto writeInstalled = true,
+		writeRecent = false,
+		writeCloudRecent = false,
+		writeCloudRecentAttached = false,
+		writeFaved = false,
+		writeArchived = false;
 	auto &recent = _session->data().stickers().getRecentPack();
 	auto &sets = _session->data().stickers().setsRef();
 
 	_stickersOrder = localOrder;
 	for (const auto removedSetId : localRemoved) {
-		if (removedSetId == Data::Stickers::CloudRecentSetId) {
+		if ((removedSetId == Data::Stickers::CloudRecentSetId)
+			|| (removedSetId == Data::Stickers::CloudRecentAttachedSetId)) {
 			if (sets.remove(Data::Stickers::CloudRecentSetId) != 0) {
 				writeCloudRecent = true;
+			}
+			if (sets.remove(Data::Stickers::CloudRecentAttachedSetId) != 0) {
+				writeCloudRecentAttached = true;
 			}
 			if (sets.remove(Data::Stickers::CustomSetId)) {
 				writeInstalled = true;
@@ -1892,12 +1907,25 @@ void ApiWrap::saveStickerSets(
 				writeRecent = true;
 			}
 
-			_stickersClearRecentRequestId = request(MTPmessages_ClearRecentStickers(
-				MTP_flags(0)
-			)).done([this](const MTPBool &result) {
-				_stickersClearRecentRequestId = 0;
-			}).fail([this](const MTP::Error &error) {
-				_stickersClearRecentRequestId = 0;
+			const auto isAttached =
+				(removedSetId == Data::Stickers::CloudRecentAttachedSetId);
+			const auto flags = isAttached
+				? MTPmessages_ClearRecentStickers::Flag::f_attached
+				: MTPmessages_ClearRecentStickers::Flags(0);
+			auto &requestId = isAttached
+				? _stickersClearRecentAttachedRequestId
+				: _stickersClearRecentRequestId;
+			const auto finish = [=] {
+				(isAttached
+					? _stickersClearRecentAttachedRequestId
+					: _stickersClearRecentRequestId) = 0;
+			};
+			requestId = request(MTPmessages_ClearRecentStickers(
+				MTP_flags(flags)
+			)).done([=](const MTPBool &result) {
+				finish();
+			}).fail([=](const MTP::Error &error) {
+				finish();
 			}).send();
 			continue;
 		}
@@ -1994,11 +2022,24 @@ void ApiWrap::saveStickerSets(
 	}
 
 	auto &storage = local();
-	if (writeInstalled) storage.writeInstalledStickers();
-	if (writeRecent) session().saveSettings();
-	if (writeArchived) storage.writeArchivedStickers();
-	if (writeCloudRecent) storage.writeRecentStickers();
-	if (writeFaved) storage.writeFavedStickers();
+	if (writeInstalled) {
+		storage.writeInstalledStickers();
+	}
+	if (writeRecent) {
+		session().saveSettings();
+	}
+	if (writeArchived) {
+		storage.writeArchivedStickers();
+	}
+	if (writeCloudRecent) {
+		storage.writeRecentStickers();
+	}
+	if (writeCloudRecentAttached) {
+		storage.writeRecentMasks();
+	}
+	if (writeFaved) {
+		storage.writeFavedStickers();
+	}
 	_session->data().stickers().notifyUpdated();
 
 	if (_stickerSetDisenableRequests.empty()) {
@@ -2825,12 +2866,24 @@ void ApiWrap::refreshFileReference(
 	}, [&](Data::FileOriginPeerPhoto data) {
 		fail();
 	}, [&](Data::FileOriginStickerSet data) {
+		const auto isRecentAttached =
+			(data.setId == Data::Stickers::CloudRecentAttachedSetId);
 		if (data.setId == Data::Stickers::CloudRecentSetId
-			|| data.setId == Data::Stickers::RecentSetId) {
+			|| data.setId == Data::Stickers::RecentSetId
+			|| isRecentAttached) {
+			auto done = [=] { crl::on_main(_session, [=] {
+				if (isRecentAttached) {
+					local().writeRecentMasks();
+				} else {
+					local().writeRecentStickers();
+				}
+			}); };
 			request(MTPmessages_GetRecentStickers(
-				MTP_flags(0),
+				MTP_flags(isRecentAttached
+					? MTPmessages_GetRecentStickers::Flag::f_attached
+					: MTPmessages_GetRecentStickers::Flags(0)),
 				MTP_int(0)),
-				[=] { crl::on_main(_session, [=] { local().writeRecentStickers(); }); });
+				std::move(done));
 		} else if (data.setId == Data::Stickers::FavedSetId) {
 			request(MTPmessages_GetFavedStickers(MTP_int(0)),
 				[=] { crl::on_main(_session, [=] { local().writeFavedStickers(); }); });
@@ -2909,7 +2962,7 @@ void ApiWrap::stickersSaveOrder() {
 }
 
 void ApiWrap::updateStickers() {
-	auto now = crl::now();
+	const auto now = crl::now();
 	requestStickers(now);
 	requestRecentStickers(now);
 	requestFavedStickers(now);
@@ -2917,8 +2970,14 @@ void ApiWrap::updateStickers() {
 	requestSavedGifs(now);
 }
 
-void ApiWrap::requestRecentStickersForce() {
-	requestRecentStickersWithHash(0);
+void ApiWrap::updateMasks() {
+	const auto now = crl::now();
+	requestStickers(now, true);
+	requestRecentStickers(now, true);
+}
+
+void ApiWrap::requestRecentStickersForce(bool attached) {
+	requestRecentStickersWithHash(0, attached);
 }
 
 void ApiWrap::setGroupStickerSet(not_null<ChannelData*> megagroup, const MTPInputStickerSet &set) {
@@ -2977,17 +3036,29 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 	return nullptr;
 }
 
-void ApiWrap::requestStickers(TimeId now) {
-	if (!_session->data().stickers().updateNeeded(now)
-		|| _stickersUpdateRequest) {
+void ApiWrap::requestStickers(TimeId now, bool masks) {
+	const auto requestId = [=]() -> mtpRequestId & {
+		return masks
+			? _masksUpdateRequest
+			: _stickersUpdateRequest;
+	};
+	const auto needed = masks
+		? _session->data().stickers().masksUpdateNeeded(now)
+		: _session->data().stickers().updateNeeded(now);
+	if (!needed || requestId()) {
 		return;
 	}
-	auto onDone = [this](const MTPmessages_AllStickers &result) {
-		_session->data().stickers().setLastUpdate(crl::now());
-		_stickersUpdateRequest = 0;
+	const auto onDone = [=](const MTPmessages_AllStickers &result) {
+		if (masks) {
+			_session->data().stickers().setLastMasksUpdate(crl::now());
+		} else {
+			_session->data().stickers().setLastUpdate(crl::now());
+		}
+		requestId() = 0;
 
 		switch (result.type()) {
 		case mtpc_messages_allStickersNotModified: return;
+		case mtpc_messages_getMaskStickers:
 		case mtpc_messages_allStickers: {
 			auto &d = result.c_messages_allStickers();
 			_session->data().stickers().setsReceived(
@@ -2997,39 +3068,67 @@ void ApiWrap::requestStickers(TimeId now) {
 		default: Unexpected("Type in ApiWrap::stickersDone()");
 		}
 	};
-	_stickersUpdateRequest = request(MTPmessages_GetAllStickers(
-		MTP_int(Api::CountStickersHash(_session, true))
-	)).done(onDone).fail([=](const MTP::Error &error) {
-		LOG(("App Fail: Failed to get stickers!"));
+	const auto onFail = [=](const MTP::Error &error) {
+		LOG(("App Fail: Failed to get %1!"
+			).arg(masks ? "masks" : "stickers"));
 		onDone(MTP_messages_allStickersNotModified());
-	}).send();
+	};
+	auto hash = MTP_int(Api::CountStickersHash(_session, true));
+	requestId() = masks
+		? request(MTPmessages_GetMaskStickers(
+			std::move(hash))
+		).done(onDone).fail(onFail).send()
+		: request(MTPmessages_GetAllStickers(
+			std::move(hash))
+		).done(onDone).fail(onFail).send();
 }
 
-void ApiWrap::requestRecentStickers(TimeId now) {
-	if (!_session->data().stickers().recentUpdateNeeded(now)) {
+void ApiWrap::requestRecentStickers(TimeId now, bool attached) {
+	const auto needed = attached
+		? _session->data().stickers().recentAttachedUpdateNeeded(now)
+		: _session->data().stickers().recentUpdateNeeded(now);
+	if (!needed) {
 		return;
 	}
 	requestRecentStickersWithHash(
-		Api::CountRecentStickersHash(_session));
+		Api::CountRecentStickersHash(_session, attached), attached);
 }
 
-void ApiWrap::requestRecentStickersWithHash(int32 hash) {
-	if (_recentStickersUpdateRequest) {
+void ApiWrap::requestRecentStickersWithHash(int32 hash, bool attached) {
+	const auto requestId = [=]() -> mtpRequestId & {
+		return attached
+			? _recentAttachedStickersUpdateRequest
+			: _recentStickersUpdateRequest;
+	};
+	if (requestId()) {
 		return;
 	}
-	_recentStickersUpdateRequest = request(MTPmessages_GetRecentStickers(
-		MTP_flags(0),
+	const auto finish = [=] {
+		auto &stickers = _session->data().stickers();
+		if (attached) {
+			stickers.setLastRecentAttachedUpdate(crl::now());
+		} else {
+			stickers.setLastRecentUpdate(crl::now());
+		}
+		requestId() = 0;
+	};
+	const auto flags = attached
+		? MTPmessages_getRecentStickers::Flag::f_attached
+		: MTPmessages_getRecentStickers::Flags(0);
+	requestId() = request(MTPmessages_GetRecentStickers(
+		MTP_flags(flags),
 		MTP_int(hash)
 	)).done([=](const MTPmessages_RecentStickers &result) {
-		_session->data().stickers().setLastRecentUpdate(crl::now());
-		_recentStickersUpdateRequest = 0;
+		finish();
 
 		switch (result.type()) {
 		case mtpc_messages_recentStickersNotModified: return;
 		case mtpc_messages_recentStickers: {
 			auto &d = result.c_messages_recentStickers();
 			_session->data().stickers().specialSetReceived(
-				Data::Stickers::CloudRecentSetId,
+				attached
+					? Data::Stickers::CloudRecentAttachedSetId
+					: Data::Stickers::CloudRecentSetId,
 				tr::lng_recent_stickers(tr::now),
 				d.vstickers().v,
 				d.vhash().v,
@@ -3039,8 +3138,7 @@ void ApiWrap::requestRecentStickersWithHash(int32 hash) {
 		default: Unexpected("Type in ApiWrap::recentStickersDone()");
 		}
 	}).fail([=](const MTP::Error &error) {
-		_session->data().stickers().setLastRecentUpdate(crl::now());
-		_recentStickersUpdateRequest = 0;
+		finish();
 
 		LOG(("App Fail: Failed to get recent stickers!"));
 	}).send();

@@ -23,7 +23,7 @@ StickersPanelController::StickersPanelController(
 		object_ptr<ChatHelpers::TabbedSelector>(
 			nullptr,
 			controller,
-			ChatHelpers::TabbedSelector::Mode::Full))) {
+			ChatHelpers::TabbedSelector::Mode::MediaEditor))) {
 	_stickersPanel->setDesiredHeightValues(
 		1.,
 		st::emojiPanMinHeight / 2,

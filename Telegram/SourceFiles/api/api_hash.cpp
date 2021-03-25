@@ -61,10 +61,14 @@ int32 CountStickersHash(
 		: 0;
 }
 
-int32 CountRecentStickersHash(not_null<Main::Session*> session) {
+int32 CountRecentStickersHash(
+		not_null<Main::Session*> session,
+		bool attached) {
 	return CountSpecialStickerSetHash(
 		session,
-		Data::Stickers::CloudRecentSetId);
+		attached
+			? Data::Stickers::CloudRecentAttachedSetId
+			: Data::Stickers::CloudRecentSetId);
 }
 
 int32 CountFavedStickersHash(not_null<Main::Session*> session) {

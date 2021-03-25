@@ -423,7 +423,7 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 		case SelectorTab::Gifs:
 			return object_ptr<GifsListWidget>(this, _controller);
 		case SelectorTab::Masks:
-			return object_ptr<StickersListWidget>(this, _controller);
+			return object_ptr<StickersListWidget>(this, _controller, true);
 		}
 		Unexpected("Type in TabbedSelector::createTab.");
 	};
@@ -673,12 +673,17 @@ int TabbedSelector::marginBottom() const {
 }
 
 void TabbedSelector::refreshStickers() {
-	if (!hasStickersTab()) {
-		return;
+	if (hasStickersTab()) {
+		stickers()->refreshStickers();
+		if (isHidden() || _currentTabType != SelectorTab::Stickers) {
+			stickers()->preloadImages();
+		}
 	}
-	stickers()->refreshStickers();
-	if (isHidden() || _currentTabType != SelectorTab::Stickers) {
-		stickers()->preloadImages();
+	if (hasMasksTab()) {
+		masks()->refreshStickers();
+		if (isHidden() || _currentTabType != SelectorTab::Masks) {
+			masks()->preloadImages();
+		}
 	}
 }
 
@@ -737,6 +742,9 @@ void TabbedSelector::hideFinished() {
 void TabbedSelector::showStarted() {
 	if (hasStickersTab()) {
 		session().api().updateStickers();
+	}
+	if (hasMasksTab()) {
+		session().api().updateMasks();
 	}
 	currentTab()->widget()->refreshRecent();
 	currentTab()->widget()->preloadImages();

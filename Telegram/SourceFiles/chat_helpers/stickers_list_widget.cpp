@@ -896,10 +896,12 @@ bool StickersListWidget::Footer::iconsAnimationCallback(crl::time now) {
 
 StickersListWidget::StickersListWidget(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller)
+	not_null<Window::SessionController*> controller,
+	bool masks)
 : Inner(parent, controller)
 , _api(&controller->session().mtp())
 , _section(Section::Stickers)
+, _isMasks(masks)
 , _pathGradient(std::make_unique<Ui::PathShiftGradient>(
 	st::windowBgRipple,
 	st::windowBgOver,
@@ -935,7 +937,11 @@ StickersListWidget::StickersListWidget(
 	}, lifetime());
 
 	session().data().stickers().recentUpdated(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=](Data::Stickers::Recent recent) {
+		const auto attached = (recent == Data::Stickers::Recent::Attached);
+		if (attached != _isMasks) {
+			return;
+		}
 		refreshRecent();
 	}, lifetime());
 }
@@ -2377,12 +2383,12 @@ void StickersListWidget::refreshStickers() {
 void StickersListWidget::refreshMySets() {
 	auto wasSets = base::take(_mySets);
 	_favedStickersMap.clear();
-	_mySets.reserve(session().data().stickers().setsOrder().size() + 3);
+	_mySets.reserve(defaultSetsOrder().size() + 3);
 
 	refreshFavedStickers();
 	refreshRecentStickers(false);
 	refreshMegagroupStickers(GroupStickersPlace::Visible);
-	for (const auto setId : session().data().stickers().setsOrder()) {
+	for (const auto setId : defaultSetsOrder()) {
 		const auto externalLayout = false;
 		appendSet(_mySets, setId, externalLayout, AppendSkip::Archived);
 	}
@@ -2455,7 +2461,9 @@ void StickersListWidget::refreshSearchIndex() {
 }
 
 void StickersListWidget::refreshSettingsVisibility() {
-	const auto visible = (_section == Section::Stickers) && _mySets.empty();
+	const auto visible = (_section == Section::Stickers)
+		&& _mySets.empty()
+		&& !_isMasks;
 	_settings->setVisible(visible);
 }
 
@@ -2533,9 +2541,15 @@ auto StickersListWidget::collectRecentStickers() -> std::vector<Sticker> {
 	auto result = std::vector<Sticker>();
 
 	const auto &sets = session().data().stickers().sets();
-	const auto &recent = session().data().stickers().getRecentPack();
-	const auto customIt = sets.find(Data::Stickers::CustomSetId);
-	const auto cloudIt = sets.find(Data::Stickers::CloudRecentSetId);
+	const auto &recent = _isMasks
+		? RecentStickerPack()
+		: session().data().stickers().getRecentPack();
+	const auto customIt = _isMasks
+		? sets.cend()
+		: sets.find(Data::Stickers::CustomSetId);
+	const auto cloudIt = sets.find(_isMasks
+		? Data::Stickers::CloudRecentAttachedSetId
+		: Data::Stickers::CloudRecentSetId);
 	const auto customCount = (customIt != sets.cend())
 		? customIt->second->stickers.size()
 		: 0;
@@ -2621,6 +2635,9 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 }
 
 void StickersListWidget::refreshFavedStickers() {
+	if (_isMasks) {
+		return;
+	}
 	clearSelection();
 	const auto &sets = session().data().stickers().sets();
 	const auto it = sets.find(Data::Stickers::FavedSetId);
@@ -2648,7 +2665,7 @@ void StickersListWidget::refreshFavedStickers() {
 }
 
 void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
-	if (!_megagroupSet) {
+	if (!_megagroupSet || _isMasks) {
 		return;
 	}
 	auto canEdit = _megagroupSet->canEditStickers();
@@ -2851,7 +2868,8 @@ bool StickersListWidget::setHasTitle(const Set &set) const {
 	if (set.id == Data::Stickers::FavedSetId) {
 		return false;
 	} else if (set.id == Data::Stickers::RecentSetId) {
-		return !_mySets.empty() && _mySets[0].id == Data::Stickers::FavedSetId;
+		return !_mySets.empty()
+			&& (_isMasks || (_mySets[0].id == Data::Stickers::FavedSetId));
 	}
 	return true;
 }
@@ -3149,8 +3167,10 @@ void StickersListWidget::removeSet(uint64 setId) {
 				//	&& !(set->flags & MTPDstickerSet_ClientFlag::f_special)) {
 				//	sets.erase(it);
 				//}
-				int removeIndex = session().data().stickers().setsOrder().indexOf(_removingSetId);
-				if (removeIndex >= 0) session().data().stickers().setsOrderRef().removeAt(removeIndex);
+				int removeIndex = defaultSetsOrder().indexOf(_removingSetId);
+				if (removeIndex >= 0) {
+					defaultSetsOrderRef().removeAt(removeIndex);
+				}
 				refreshStickers();
 				session().local().writeInstalledStickers();
 				if (writeRecent) session().saveSettings();
@@ -3162,6 +3182,18 @@ void StickersListWidget::removeSet(uint64 setId) {
 			_checkForHide.fire({});
 		})));
 	}
+}
+
+const Data::StickersSetsOrder &StickersListWidget::defaultSetsOrder() const {
+	return !_isMasks
+		? session().data().stickers().setsOrder()
+		: session().data().stickers().maskSetsOrder();
+}
+
+Data::StickersSetsOrder &StickersListWidget::defaultSetsOrderRef() {
+	return !_isMasks
+		? session().data().stickers().setsOrderRef()
+		: session().data().stickers().maskSetsOrderRef();
 }
 
 StickersListWidget::~StickersListWidget() = default;

@@ -76,6 +76,7 @@ enum { // Local Storage Keys
 	lskExportSettings = 0x13, // no data
 	lskBackgroundOld = 0x14, // no data
 	lskSelfSerialized = 0x15, // serialized self
+	lskMasksKeys = 0x16, // no data
 };
 
 [[nodiscard]] FileKey ComputeDataNameKey(const QString &dataName) {
@@ -184,6 +185,8 @@ base::flat_set<QString> Account::collectGoodNames() const {
 		_recentHashtagsAndBotsKey,
 		_exportSettingsKey,
 		_trustedBotsKey,
+		_installedMasksKey,
+		_recentMasksKey,
 	};
 	auto result = base::flat_set<QString>{
 		"map0",
@@ -264,6 +267,7 @@ Account::ReadMapResult Account::readMapWith(
 	quint64 locationsKey = 0, reportSpamStatusesKey = 0, trustedBotsKey = 0;
 	quint64 recentStickersKeyOld = 0;
 	quint64 installedStickersKey = 0, featuredStickersKey = 0, recentStickersKey = 0, favedStickersKey = 0, archivedStickersKey = 0;
+	quint64 installedMasksKey = 0, recentMasksKey = 0;
 	quint64 savedGifsKey = 0;
 	quint64 legacyBackgroundKeyDay = 0, legacyBackgroundKeyNight = 0;
 	quint64 userSettingsKey = 0, recentHashtagsAndBotsKey = 0, exportSettingsKey = 0;
@@ -360,6 +364,9 @@ Account::ReadMapResult Account::readMapWith(
 		case lskExportSettings: {
 			map.stream >> exportSettingsKey;
 		} break;
+		case lskMasksKeys: {
+			map.stream >> installedMasksKey >> recentMasksKey;
+		} break;
 		default:
 			LOG(("App Error: unknown key type in encrypted map: %1").arg(keyType));
 			return ReadMapResult::Failed;
@@ -384,6 +391,8 @@ Account::ReadMapResult Account::readMapWith(
 	_favedStickersKey = favedStickersKey;
 	_archivedStickersKey = archivedStickersKey;
 	_savedGifsKey = savedGifsKey;
+	_installedMasksKey = installedMasksKey;
+	_recentMasksKey = recentMasksKey;
 	_legacyBackgroundKeyDay = legacyBackgroundKeyDay;
 	_legacyBackgroundKeyNight = legacyBackgroundKeyNight;
 	_settingsKey = userSettingsKey;
@@ -488,6 +497,9 @@ void Account::writeMap() {
 	if (_settingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_recentHashtagsAndBotsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_exportSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
+	if (_installedMasksKey || _recentMasksKey) {
+		mapSize += sizeof(quint32) + 2 * sizeof(quint64);
+	}
 
 	EncryptedDescriptor mapData(mapSize);
 	if (!self.isEmpty()) {
@@ -533,6 +545,12 @@ void Account::writeMap() {
 	if (_exportSettingsKey) {
 		mapData.stream << quint32(lskExportSettings) << quint64(_exportSettingsKey);
 	}
+	if (_installedMasksKey || _recentMasksKey) {
+		mapData.stream << quint32(lskMasksKeys);
+		mapData.stream
+			<< quint64(_installedMasksKey)
+			<< quint64(_recentMasksKey);
+	}
 	map.writeEncrypted(mapData, _localKey);
 
 	_mapChanged = false;
@@ -551,6 +569,8 @@ void Account::reset() {
 	_favedStickersKey = 0;
 	_archivedStickersKey = 0;
 	_savedGifsKey = 0;
+	_installedMasksKey = 0;
+	_recentMasksKey = 0;
 	_legacyBackgroundKeyDay = _legacyBackgroundKeyNight = 0;
 	_settingsKey = _recentHashtagsAndBotsKey = _exportSettingsKey = 0;
 	_oldMapVersion = 0;
@@ -1694,7 +1714,8 @@ void Account::readStickerSets(
 		} else if (setId == Data::Stickers::CustomSetId) {
 			setTitle = qsl("Custom stickers");
 			setFlags |= MTPDstickerSet_ClientFlag::f_special;
-		} else if (setId == Data::Stickers::CloudRecentSetId) {
+		} else if ((setId == Data::Stickers::CloudRecentSetId)
+				|| (setId == Data::Stickers::CloudRecentAttachedSetId)) {
 			setTitle = tr::lng_recent_stickers(tr::now);
 			setFlags |= MTPDstickerSet_ClientFlag::f_special;
 		} else if (setId == Data::Stickers::FavedSetId) {
@@ -1769,7 +1790,9 @@ void Account::readStickerSets(
 			if (datesCount != scnt) {
 				return failed();
 			}
-			const auto fillDates = (set->id == Data::Stickers::CloudRecentSetId)
+			const auto fillDates =
+				((set->id == Data::Stickers::CloudRecentSetId)
+					|| (set->id == Data::Stickers::CloudRecentAttachedSetId))
 				&& (set->stickers.size() == datesCount);
 			if (fillDates) {
 				set->dates.clear();
@@ -1852,7 +1875,9 @@ void Account::readStickerSets(
 
 void Account::writeInstalledStickers() {
 	writeStickerSets(_installedStickersKey, [](const Data::StickersSet &set) {
-		if (set.id == Data::Stickers::CloudRecentSetId || set.id == Data::Stickers::FavedSetId) { // separate files for them
+		if (set.id == Data::Stickers::CloudRecentSetId
+			|| set.id == Data::Stickers::FavedSetId
+			|| set.id == Data::Stickers::CloudRecentAttachedSetId) { // separate files for them
 			return StickerSetCheckResult::Skip;
 		} else if (set.flags & MTPDstickerSet_ClientFlag::f_special) {
 			if (set.stickers.isEmpty()) { // all other special are "installed"
@@ -1872,7 +1897,8 @@ void Account::writeInstalledStickers() {
 void Account::writeFeaturedStickers() {
 	writeStickerSets(_featuredStickersKey, [](const Data::StickersSet &set) {
 		if (set.id == Data::Stickers::CloudRecentSetId
-			|| set.id == Data::Stickers::FavedSetId) { // separate files for them
+			|| set.id == Data::Stickers::FavedSetId
+			|| set.id == Data::Stickers::CloudRecentAttachedSetId) { // separate files for them
 			return StickerSetCheckResult::Skip;
 		} else if (set.flags & MTPDstickerSet_ClientFlag::f_special) {
 			return StickerSetCheckResult::Skip;
@@ -1912,6 +1938,25 @@ void Account::writeArchivedStickers() {
 		}
 		return StickerSetCheckResult::Write;
 	}, _owner->session().data().stickers().archivedSetsOrder());
+}
+
+void Account::writeInstalledMasks() {
+	writeStickerSets(_installedMasksKey, [](const Data::StickersSet &set) {
+		if (!(set.flags & MTPDstickerSet::Flag::f_masks) || set.stickers.isEmpty()) {
+			return StickerSetCheckResult::Skip;
+		}
+		return StickerSetCheckResult::Write;
+	}, _owner->session().data().stickers().maskSetsOrder());
+}
+
+void Account::writeRecentMasks() {
+	writeStickerSets(_recentMasksKey, [](const Data::StickersSet &set) {
+		if (set.id != Data::Stickers::CloudRecentAttachedSetId
+			|| set.stickers.isEmpty()) {
+			return StickerSetCheckResult::Skip;
+		}
+		return StickerSetCheckResult::Write;
+	}, Data::StickersSetsOrder());
 }
 
 void Account::importOldRecentStickers() {
@@ -2069,6 +2114,10 @@ void Account::readRecentStickers() {
 	readStickerSets(_recentStickersKey);
 }
 
+void Account::readRecentMasks() {
+	readStickerSets(_recentMasksKey);
+}
+
 void Account::readFavedStickers() {
 	readStickerSets(_favedStickersKey);
 }
@@ -2079,6 +2128,13 @@ void Account::readArchivedStickers() {
 		readStickerSets(_archivedStickersKey, &_owner->session().data().stickers().archivedSetsOrderRef());
 		archivedStickersRead = true;
 	}
+}
+
+void Account::readInstalledMasks() {
+	readStickerSets(
+		_installedMasksKey,
+		&_owner->session().data().stickers().maskSetsOrderRef(),
+		MTPDstickerSet::Flag::f_installed_date);
 }
 
 void Account::writeSavedGifs() {

@@ -282,7 +282,8 @@ public:
 		const Data::StickersSetsOrder &localOrder,
 		const Data::StickersSetsOrder &localRemoved);
 	void updateStickers();
-	void requestRecentStickersForce();
+	void updateMasks();
+	void requestRecentStickersForce(bool attached = false);
 	void setGroupStickerSet(
 		not_null<ChannelData*> megagroup,
 		const MTPInputStickerSet &set);
@@ -547,9 +548,9 @@ private:
 	void stickerSetDisenabled(mtpRequestId requestId);
 	void stickersSaveOrder();
 
-	void requestStickers(TimeId now);
-	void requestRecentStickers(TimeId now);
-	void requestRecentStickersWithHash(int32 hash);
+	void requestStickers(TimeId now, bool masks = false);
+	void requestRecentStickers(TimeId now, bool attached = false);
+	void requestRecentStickersWithHash(int32 hash, bool attached = false);
 	void requestFavedStickers(TimeId now);
 	void requestFeaturedStickers(TimeId now);
 	void requestSavedGifs(TimeId now);
@@ -690,9 +691,12 @@ private:
 	Data::StickersSetsOrder _stickersOrder;
 	mtpRequestId _stickersReorderRequestId = 0;
 	mtpRequestId _stickersClearRecentRequestId = 0;
+	mtpRequestId _stickersClearRecentAttachedRequestId = 0;
 
 	mtpRequestId _stickersUpdateRequest = 0;
+	mtpRequestId _masksUpdateRequest = 0;
 	mtpRequestId _recentStickersUpdateRequest = 0;
+	mtpRequestId _recentAttachedStickersUpdateRequest = 0;
 	mtpRequestId _favedStickersUpdateRequest = 0;
 	mtpRequestId _featuredStickersUpdateRequest = 0;
 	mtpRequestId _savedGifsUpdateRequest = 0;

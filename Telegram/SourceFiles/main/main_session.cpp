@@ -134,8 +134,10 @@ Session::Session(
 		// Storage::Account uses Main::Account::session() in those methods.
 		// So they can't be called during Main::Session construction.
 		local().readInstalledStickers();
+		local().readInstalledMasks();
 		local().readFeaturedStickers();
 		local().readRecentStickers();
+		local().readRecentMasks();
 		local().readFavedStickers();
 		local().readSavedGifs();
 		data().stickers().notifyUpdated();

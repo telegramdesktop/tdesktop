@@ -118,6 +118,10 @@ public:
 	void readArchivedStickers();
 	void writeSavedGifs();
 	void readSavedGifs();
+	void writeInstalledMasks();
+	void writeRecentMasks();
+	void readInstalledMasks();
+	void readRecentMasks();
 
 	void writeRecentHashtagsAndBots();
 	void readRecentHashtagsAndBots();
@@ -255,6 +259,8 @@ private:
 	FileKey _settingsKey = 0;
 	FileKey _recentHashtagsAndBotsKey = 0;
 	FileKey _exportSettingsKey = 0;
+	FileKey _installedMasksKey = 0;
+	FileKey _recentMasksKey = 0;
 
 	qint64 _cacheTotalSizeLimit = 0;
 	qint64 _cacheBigFileTotalSizeLimit = 0;
