@@ -486,7 +486,6 @@ void OverlayWidget::moveEvent(QMoveEvent *e) {
 	DEBUG_LOG(("Viewer Pos: Moved to %1, %2")
 		.arg(newPos.x())
 		.arg(newPos.y()));
-	moveToScreen();
 	OverlayParent::moveEvent(e);
 }
 
