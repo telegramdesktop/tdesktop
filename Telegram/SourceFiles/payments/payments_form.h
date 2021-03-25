@@ -33,6 +33,50 @@ struct FormDetails {
 	}
 };
 
+struct SavedCredentials {
+	QString id;
+	QString title;
+
+	[[nodiscard]] bool valid() const {
+		return !id.isEmpty();
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return valid();
+	}
+};
+
+struct NewCredentials {
+	QString title;
+	QByteArray data;
+	bool saveOnServer = false;
+
+	[[nodiscard]] bool empty() const {
+		return data.isEmpty();
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return !empty();
+	}
+};
+
+struct NativePayment {
+	enum class Type {
+		None,
+		Stripe,
+	};
+	Type type = Type::None;
+	QString stripePublishableKey;
+	SavedCredentials savedCredentials;
+	NewCredentials newCredentials;
+	Ui::NativePaymentDetails details;
+
+	[[nodiscard]] bool valid() const {
+		return (type != Type::None);
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return valid();
+	}
+};
+
 struct FormReady {};
 struct ValidateFinished {};
 struct Error {
@@ -73,8 +117,8 @@ public:
 	[[nodiscard]] const Ui::RequestedInformation &savedInformation() const {
 		return _savedInformation;
 	}
-	[[nodiscard]] const Ui::SavedCredentials &savedCredentials() const {
-		return _savedCredentials;
+	[[nodiscard]] const NativePayment &nativePayment() const {
+		return _nativePayment;
 	}
 	[[nodiscard]] const Ui::ShippingOptions &shippingOptions() const {
 		return _shippingOptions;
@@ -85,6 +129,7 @@ public:
 	}
 
 	void validateInformation(const Ui::RequestedInformation &information);
+	void setPaymentCredentials(const NewCredentials &credentials);
 	void setShippingOption(const QString &id);
 	void send(const QByteArray &serializedCredentials);
 
@@ -97,6 +142,8 @@ private:
 	void processSavedCredentials(
 		const MTPDpaymentSavedCredentialsCard &data);
 	void processShippingOptions(const QVector<MTPShippingOption> &data);
+	void fillNativePaymentInformation();
+	void refreshNativePaymentDetails();
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
@@ -105,7 +152,7 @@ private:
 	Ui::Invoice _invoice;
 	FormDetails _details;
 	Ui::RequestedInformation _savedInformation;
-	Ui::SavedCredentials _savedCredentials;
+	NativePayment _nativePayment;
 
 	Ui::RequestedInformation _validatedInformation;
 	mtpRequestId _validateRequestId = 0;

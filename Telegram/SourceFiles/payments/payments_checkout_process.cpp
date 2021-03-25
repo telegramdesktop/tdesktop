@@ -18,6 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "core/local_url_handlers.h" // TryConvertUrlToLocal.
 #include "apiwrap.h"
+#include "stripe/stripe_api_client.h"
+#include "stripe/stripe_error.h"
+#include "stripe/stripe_token.h"
 
 // #TODO payments errors
 #include "mainwindow.h"
@@ -52,6 +55,13 @@ base::flat_map<not_null<Main::Session*>, SessionProcesses> Processes;
 		Processes.erase(session);
 	}, result.lifetime);
 	return result;
+}
+
+[[nodiscard]] QString CardTitle(const Stripe::Card &card) {
+	// Like server stores saved_credentials title.
+	return Stripe::CardBrandToString(card.brand()).toLower()
+		+ " *"
+		+ card.last4();
 }
 
 } // namespace
@@ -167,22 +177,23 @@ void CheckoutProcess::handleError(const Error &error) {
 			showForm();
 			return;
 		}
+		using Field = Ui::InformationField;
 		if (id == u"REQ_INFO_NAME_INVALID"_q) {
-			showEditError(Ui::EditField::Name);
+			showInformationError(Field::Name);
 		} else if (id == u"REQ_INFO_EMAIL_INVALID"_q) {
-			showEditError(Ui::EditField::Email);
+			showInformationError(Field::Email);
 		} else if (id == u"REQ_INFO_PHONE_INVALID"_q) {
-			showEditError(Ui::EditField::Phone);
+			showInformationError(Field::Phone);
 		} else if (id == u"ADDRESS_STREET_LINE1_INVALID"_q) {
-			showEditError(Ui::EditField::ShippingStreet);
+			showInformationError(Field::ShippingStreet);
 		} else if (id == u"ADDRESS_CITY_INVALID"_q) {
-			showEditError(Ui::EditField::ShippingCity);
+			showInformationError(Field::ShippingCity);
 		} else if (id == u"ADDRESS_STATE_INVALID"_q) {
-			showEditError(Ui::EditField::ShippingState);
+			showInformationError(Field::ShippingState);
 		} else if (id == u"ADDRESS_COUNTRY_INVALID"_q) {
-			showEditError(Ui::EditField::ShippingCountry);
+			showInformationError(Field::ShippingCountry);
 		} else if (id == u"ADDRESS_POSTCODE_INVALID"_q) {
-			showEditError(Ui::EditField::ShippingPostcode);
+			showInformationError(Field::ShippingPostcode);
 		} else if (id == u"SHIPPING_BOT_TIMEOUT"_q) {
 			showToast({ "Error: Bot Timeout!" }); // #TODO payments errors message
 		} else if (id == u"SHIPPING_NOT_AVAILABLE"_q) {
@@ -238,6 +249,7 @@ void CheckoutProcess::panelSubmit() {
 		|| _submitState == SubmitState::Finishing) {
 		return;
 	}
+	const auto &native = _form->nativePayment();
 	const auto &invoice = _form->invoice();
 	const auto &options = _form->shippingOptions();
 	if (!options.list.empty() && options.selectedId.isEmpty()) {
@@ -252,14 +264,23 @@ void CheckoutProcess::panelSubmit() {
 		_submitState = SubmitState::Validation;
 		_form->validateInformation(_form->savedInformation());
 		return;
+	} else if (native
+		&& !native.newCredentials
+		&& !native.savedCredentials) {
+		editPaymentMethod();
+		return;
 	}
 	_submitState = SubmitState::Finishing;
-	_webviewWindow = std::make_unique<Ui::WebviewWindow>(
-		webviewDataPath(),
-		_form->details().url,
-		panelDelegate());
-	if (!_webviewWindow->shown()) {
-		// #TODO payments errors
+	if (!native) {
+		_webviewWindow = std::make_unique<Ui::WebviewWindow>(
+			webviewDataPath(),
+			_form->details().url,
+			panelDelegate());
+		if (!_webviewWindow->shown()) {
+			// #TODO payments errors
+		}
+	} else if (native.newCredentials) {
+		_form->send(native.newCredentials.data);
 	}
 }
 
@@ -316,30 +337,82 @@ bool CheckoutProcess::panelWebviewNavigationAttempt(const QString &uri) {
 	return false;
 }
 
+void CheckoutProcess::panelEditPaymentMethod() {
+	if (_submitState != SubmitState::None
+		&& _submitState != SubmitState::Validated) {
+		return;
+	}
+	editPaymentMethod();
+}
+
+void CheckoutProcess::panelValidateCard(Ui::UncheckedCardDetails data) {
+	Expects(_form->nativePayment().type == NativePayment::Type::Stripe);
+	Expects(!_form->nativePayment().stripePublishableKey.isEmpty());
+
+	if (_stripe) {
+		return;
+	}
+	auto configuration = Stripe::PaymentConfiguration{
+		.publishableKey = _form->nativePayment().stripePublishableKey,
+		.companyName = "Telegram",
+	};
+	_stripe = std::make_unique<Stripe::APIClient>(std::move(configuration));
+	auto card = Stripe::CardParams{
+		.number = data.number,
+		.expMonth = data.expireMonth,
+		.expYear = data.expireYear,
+		.cvc = data.cvc,
+		.name = data.cardholderName,
+		.addressZip = data.addressZip,
+		.addressCountry = data.addressCountry,
+	};
+	_stripe->createTokenWithCard(std::move(card), crl::guard(this, [=](
+			Stripe::Token token,
+			Stripe::Error error) {
+		_stripe = nullptr;
+
+		if (error) {
+			int a = 0;
+			// #TODO payment errors
+		} else {
+			_form->setPaymentCredentials({
+				.title = CardTitle(token.card()),
+				.data = QJsonDocument(QJsonObject{
+					{ "type", "card" },
+					{ "id", token.tokenId() },
+				}).toJson(QJsonDocument::Compact),
+				.saveOnServer = false,
+			});
+			showForm();
+		}
+	}));
+}
+
 void CheckoutProcess::panelEditShippingInformation() {
-	showEditInformation(Ui::EditField::ShippingStreet);
+	showEditInformation(Ui::InformationField::ShippingStreet);
 }
 
 void CheckoutProcess::panelEditName() {
-	showEditInformation(Ui::EditField::Name);
+	showEditInformation(Ui::InformationField::Name);
 }
 
 void CheckoutProcess::panelEditEmail() {
-	showEditInformation(Ui::EditField::Email);
+	showEditInformation(Ui::InformationField::Email);
 }
 
 void CheckoutProcess::panelEditPhone() {
-	showEditInformation(Ui::EditField::Phone);
+	showEditInformation(Ui::InformationField::Phone);
 }
 
 void CheckoutProcess::showForm() {
 	_panel->showForm(
 		_form->invoice(),
 		_form->savedInformation(),
+		_form->nativePayment().details,
 		_form->shippingOptions());
 }
 
-void CheckoutProcess::showEditInformation(Ui::EditField field) {
+void CheckoutProcess::showEditInformation(Ui::InformationField field) {
 	if (_submitState != SubmitState::None) {
 		return;
 	}
@@ -349,11 +422,11 @@ void CheckoutProcess::showEditInformation(Ui::EditField field) {
 		field);
 }
 
-void CheckoutProcess::showEditError(Ui::EditField field) {
+void CheckoutProcess::showInformationError(Ui::InformationField field) {
 	if (_submitState != SubmitState::None) {
 		return;
 	}
-	_panel->showEditError(
+	_panel->showInformationError(
 		_form->invoice(),
 		_form->savedInformation(),
 		field);
@@ -361,6 +434,10 @@ void CheckoutProcess::showEditError(Ui::EditField field) {
 
 void CheckoutProcess::chooseShippingOption() {
 	_panel->chooseShippingOption(_form->shippingOptions());
+}
+
+void CheckoutProcess::editPaymentMethod() {
+	_panel->choosePaymentMethod(_form->nativePayment().details);
 }
 
 void CheckoutProcess::panelChooseShippingOption() {

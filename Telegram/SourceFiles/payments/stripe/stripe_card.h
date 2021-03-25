@@ -42,6 +42,24 @@ public:
 	[[nodiscard]] static Card DecodedObjectFromAPIResponse(
 		QJsonObject object);
 
+	[[nodiscard]] QString cardId() const;
+	[[nodiscard]] QString name() const;
+	[[nodiscard]] QString last4() const;
+	[[nodiscard]] QString dynamicLast4() const;
+	[[nodiscard]] CardBrand brand() const;
+	[[nodiscard]] CardFundingType funding() const;
+	[[nodiscard]] QString fingerprint() const;
+	[[nodiscard]] QString country() const;
+	[[nodiscard]] QString currency() const;
+	[[nodiscard]] quint32 expMonth() const;
+	[[nodiscard]] quint32 expYear() const;
+	[[nodiscard]] QString addressLine1() const;
+	[[nodiscard]] QString addressLine2() const;
+	[[nodiscard]] QString addressCity() const;
+	[[nodiscard]] QString addressState() const;
+	[[nodiscard]] QString addressZip() const;
+	[[nodiscard]] QString addressCountry() const;
+
 	[[nodiscard]] bool empty() const;
 	[[nodiscard]] explicit operator bool() const {
 		return !empty();

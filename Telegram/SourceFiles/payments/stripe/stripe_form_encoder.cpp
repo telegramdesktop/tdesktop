@@ -13,8 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Stripe {
 
 QByteArray FormEncoder::formEncodedDataForObject(
-		FormEncodable &object) {
-	const auto root = object.RootObjectName();
+		FormEncodable &&object) {
+	const auto root = object.rootObjectName();
 	const auto values = object.formFieldValues();
 	auto result = QByteArray();
 	auto keys = std::vector<QString>();

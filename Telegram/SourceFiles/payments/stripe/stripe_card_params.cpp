@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Stripe {
 
-QString CardParams::RootObjectName() const {
+QString CardParams::rootObjectName() {
 	return "card";
 }
 

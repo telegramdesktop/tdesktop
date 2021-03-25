@@ -65,7 +65,7 @@ void APIClient::createTokenWithCard(
 		CardParams card,
 		TokenCompletionCallback completion) {
 	createTokenWithData(
-		FormEncoder::formEncodedDataForObject(card),
+		FormEncoder::formEncodedDataForObject(MakeEncodable(card)),
 		std::move(completion));
 }
 

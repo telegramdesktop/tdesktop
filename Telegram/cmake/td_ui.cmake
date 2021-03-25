@@ -69,6 +69,8 @@ PRIVATE
     passport/ui/passport_form_row.cpp
     passport/ui/passport_form_row.h
 
+    payments/ui/payments_edit_card.cpp
+    payments/ui/payments_edit_card.h
     payments/ui/payments_edit_information.cpp
     payments/ui/payments_edit_information.h
     payments/ui/payments_form_summary.cpp

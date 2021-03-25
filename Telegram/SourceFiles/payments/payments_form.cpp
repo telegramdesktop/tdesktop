@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "apiwrap.h"
 
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
+#include <QtCore/QJsonValue>
+
 namespace Payments {
 namespace {
 
@@ -101,7 +105,7 @@ void Form::processForm(const MTPDpayments_paymentForm &data) {
 			processSavedCredentials(data);
 		});
 	}
-
+	fillNativePaymentInformation();
 	_updates.fire({ FormReady{} });
 }
 
@@ -152,10 +156,65 @@ void Form::processSavedInformation(const MTPDpaymentRequestedInfo &data) {
 
 void Form::processSavedCredentials(
 		const MTPDpaymentSavedCredentialsCard &data) {
-	_savedCredentials = Ui::SavedCredentials{
-		.id = qs(data.vid()),
-		.title = qs(data.vtitle()),
+	// #TODO payments not yet supported
+	//_nativePayment.savedCredentials = SavedCredentials{
+	//	.id = qs(data.vid()),
+	//	.title = qs(data.vtitle()),
+	//};
+	refreshNativePaymentDetails();
+}
+
+void Form::refreshNativePaymentDetails() {
+	const auto &saved = _nativePayment.savedCredentials;
+	const auto &entered = _nativePayment.newCredentials;
+	_nativePayment.details.credentialsTitle = entered
+		? entered.title
+		: saved.title;
+	_nativePayment.details.ready = entered || saved;
+}
+
+void Form::fillNativePaymentInformation() {
+	auto saved = std::move(_nativePayment.savedCredentials);
+	auto entered = std::move(_nativePayment.newCredentials);
+	_nativePayment = NativePayment();
+	if (_details.nativeProvider != "stripe") {
+		return;
+	}
+	auto error = QJsonParseError();
+	auto document = QJsonDocument::fromJson(
+		_details.nativeParamsJson,
+		&error);
+	if (error.error != QJsonParseError::NoError) {
+		LOG(("Payment Error: Could not decode native_params, error %1: %2"
+			).arg(error.error
+			).arg(error.errorString()));
+		return;
+	} else if (!document.isObject()) {
+		LOG(("Payment Error: Not an object in native_params."));
+		return;
+	}
+	const auto object = document.object();
+	const auto value = [&](QStringView key) {
+		return object.value(key);
 	};
+	const auto key = value(u"publishable_key").toString();
+	if (key.isEmpty()) {
+		LOG(("Payment Error: No publishable_key in native_params."));
+		return;
+	}
+	_nativePayment = NativePayment{
+		.type = NativePayment::Type::Stripe,
+		.stripePublishableKey = key,
+		.savedCredentials = std::move(saved),
+		.newCredentials = std::move(entered),
+		.details = Ui::NativePaymentDetails{
+			.supported = true,
+			.needCountry = value(u"need_country").toBool(),
+			.needZip = value(u"need_zip").toBool(),
+			.needCardholderName = value(u"need_cardholder_name").toBool(),
+		},
+	};
+	refreshNativePaymentDetails();
 }
 
 void Form::send(const QByteArray &serializedCredentials) {
@@ -219,6 +278,13 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 		_validateRequestId = 0;
 		_updates.fire({ Error{ Error::Type::Validate, error.type() } });
 	}).send();
+}
+
+void Form::setPaymentCredentials(const NewCredentials &credentials) {
+	Expects(!credentials.empty());
+
+	_nativePayment.newCredentials = credentials;
+	refreshNativePaymentDetails();
 }
 
 void Form::setShippingOption(const QString &id) {

@@ -10,25 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "stripe/stripe_decode.h"
 
 namespace Stripe {
+namespace {
 
-Card::Card(
-	QString id,
-	QString last4,
-	CardBrand brand,
-	quint32 expMonth,
-	quint32 expYear)
-: _cardId(id)
-, _last4(last4)
-, _brand(brand)
-, _expMonth(expMonth)
-, _expYear(expYear) {
-}
-
-Card Card::Empty() {
-	return Card(QString(), QString(), CardBrand::Unknown, 0, 0);
-}
-
-[[nodiscard]] CardBrand BrandFromString(const QString &brand) {
+CardBrand BrandFromString(const QString &brand) {
 	if (brand == "visa") {
 		return CardBrand::Visa;
 	} else if (brand == "american express") {
@@ -46,7 +30,7 @@ Card Card::Empty() {
 	}
 }
 
-[[nodiscard]] CardFundingType FundingFromString(const QString &funding) {
+CardFundingType FundingFromString(const QString &funding) {
 	if (funding == "credit") {
 		return CardFundingType::Credit;
 	} else if (funding == "debit") {
@@ -56,6 +40,25 @@ Card Card::Empty() {
 	} else {
 		return CardFundingType::Other;
 	}
+}
+
+} // namespace
+
+Card::Card(
+	QString id,
+	QString last4,
+	CardBrand brand,
+	quint32 expMonth,
+	quint32 expYear)
+: _cardId(id)
+, _last4(last4)
+, _brand(brand)
+, _expMonth(expMonth)
+, _expYear(expYear) {
+}
+
+Card Card::Empty() {
+	return Card(QString(), QString(), CardBrand::Unknown, 0, 0);
 }
 
 Card Card::DecodedObjectFromAPIResponse(QJsonObject object) {
@@ -80,7 +83,7 @@ Card Card::DecodedObjectFromAPIResponse(QJsonObject object) {
 	auto result = Card(cardId, last4, brand, expMonth, expYear);
 	result._name = string(u"name");
 	result._dynamicLast4 = string(u"dynamic_last4");
-	result._funding = FundingFromString(string(u"funding"));
+	result._funding = FundingFromString(string(u"funding").toLower());
 	result._fingerprint = string(u"fingerprint");
 	result._country = string(u"country");
 	result._currency = string(u"currency");
@@ -95,6 +98,74 @@ Card Card::DecodedObjectFromAPIResponse(QJsonObject object) {
 	//result._allResponseFields = object;
 
 	return result;
+}
+
+QString Card::cardId() const {
+	return _cardId;
+}
+
+QString Card::name() const {
+	return _name;
+}
+
+QString Card::last4() const {
+	return _last4;
+}
+
+QString Card::dynamicLast4() const {
+	return _dynamicLast4;
+}
+
+CardBrand Card::brand() const {
+	return _brand;
+}
+
+CardFundingType Card::funding() const {
+	return _funding;
+}
+
+QString Card::fingerprint() const {
+	return _fingerprint;
+}
+
+QString Card::country() const {
+	return _country;
+}
+
+QString Card::currency() const {
+	return _currency;
+}
+
+quint32 Card::expMonth() const {
+	return _expMonth;
+}
+
+quint32 Card::expYear() const {
+	return _expYear;
+}
+
+QString Card::addressLine1() const {
+	return _addressLine1;
+}
+
+QString Card::addressLine2() const {
+	return _addressLine2;
+}
+
+QString Card::addressCity() const {
+	return _addressCity;
+}
+
+QString Card::addressState() const {
+	return _addressState;
+}
+
+QString Card::addressZip() const {
+	return _addressZip;
+}
+
+QString Card::addressCountry() const {
+	return _addressCountry;
 }
 
 bool Card::empty() const {

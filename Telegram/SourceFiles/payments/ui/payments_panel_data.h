@@ -104,19 +104,7 @@ struct RequestedInformation {
 	}
 };
 
-struct SavedCredentials {
-	QString id;
-	QString title;
-
-	[[nodiscard]] bool valid() const {
-		return !id.isEmpty();
-	}
-	[[nodiscard]] explicit operator bool() const {
-		return valid();
-	}
-};
-
-enum class EditField {
+enum class InformationField {
 	ShippingStreet,
 	ShippingCity,
 	ShippingState,
@@ -125,6 +113,34 @@ enum class EditField {
 	Name,
 	Email,
 	Phone,
+};
+
+struct NativePaymentDetails {
+	QString credentialsTitle;
+	bool ready = false;
+	bool supported = false;
+	bool needCountry = false;
+	bool needZip = false;
+	bool needCardholderName = false;
+};
+
+enum class CardField {
+	Number,
+	CVC,
+	ExpireDate,
+	Name,
+	AddressCountry,
+	AddressZip,
+};
+
+struct UncheckedCardDetails {
+	QString number;
+	QString cvc;
+	uint32 expireYear = 0;
+	uint32 expireMonth = 0;
+	QString cardholderName;
+	QString addressCountry;
+	QString addressZip;
 };
 
 } // namespace Payments::Ui
