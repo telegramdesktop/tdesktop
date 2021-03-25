@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "payments/payments_form.h"
 #include "payments/ui/payments_panel.h"
-#include "payments/ui/payments_webview.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -17,10 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history.h"
 #include "core/local_url_handlers.h" // TryConvertUrlToLocal.
+#include "core/file_utilities.h" // File::OpenUrl.
 #include "apiwrap.h"
-#include "stripe/stripe_api_client.h"
-#include "stripe/stripe_error.h"
-#include "stripe/stripe_token.h"
 
 // #TODO payments errors
 #include "mainwindow.h"
@@ -55,13 +52,6 @@ base::flat_map<not_null<Main::Session*>, SessionProcesses> Processes;
 		Processes.erase(session);
 	}, result.lifetime);
 	return result;
-}
-
-[[nodiscard]] QString CardTitle(const Stripe::Card &card) {
-	// Like server stores saved_credentials title.
-	return Stripe::CardBrandToString(card.brand()).toLower()
-		+ " *"
-		+ card.last4();
 }
 
 } // namespace
@@ -110,7 +100,7 @@ not_null<Ui::PanelDelegate*> CheckoutProcess::panelDelegate() {
 }
 
 void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
-	v::match(update.data, [&](const FormReady &) {
+	v::match(update, [&](const FormReady &) {
 		performInitialSilentValidation();
 		if (!_initialSilentValidation) {
 			showForm();
@@ -124,17 +114,12 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 			_submitState = SubmitState::Validated;
 			panelSubmit();
 		}
+	}, [&](const PaymentMethodUpdate&) {
+		showForm();
 	}, [&](const VerificationNeeded &info) {
-		if (_webviewWindow) {
-			_webviewWindow->navigate(info.url);
-		} else {
-			_webviewWindow = std::make_unique<Ui::WebviewWindow>(
-				webviewDataPath(),
-				info.url,
-				panelDelegate());
-			if (!_webviewWindow->shown()) {
-				// #TODO payments errors
-			}
+		if (!_panel->showWebview(info.url, false)) {
+			File::OpenUrl(info.url);
+			panelCloseSure();
 		}
 	}, [&](const PaymentFinished &result) {
 		const auto weak = base::make_weak(this);
@@ -249,7 +234,7 @@ void CheckoutProcess::panelSubmit() {
 		|| _submitState == SubmitState::Finishing) {
 		return;
 	}
-	const auto &native = _form->nativePayment();
+	const auto &method = _form->paymentMethod();
 	const auto &invoice = _form->invoice();
 	const auto &options = _form->shippingOptions();
 	if (!options.list.empty() && options.selectedId.isEmpty()) {
@@ -264,24 +249,12 @@ void CheckoutProcess::panelSubmit() {
 		_submitState = SubmitState::Validation;
 		_form->validateInformation(_form->savedInformation());
 		return;
-	} else if (native
-		&& !native.newCredentials
-		&& !native.savedCredentials) {
+	} else if (!method.newCredentials && !method.savedCredentials) {
 		editPaymentMethod();
 		return;
 	}
 	_submitState = SubmitState::Finishing;
-	if (!native) {
-		_webviewWindow = std::make_unique<Ui::WebviewWindow>(
-			webviewDataPath(),
-			_form->details().url,
-			panelDelegate());
-		if (!_webviewWindow->shown()) {
-			// #TODO payments errors
-		}
-	} else if (native.newCredentials) {
-		_form->send(native.newCredentials.data);
-	}
+	_form->submit();
 }
 
 void CheckoutProcess::panelWebviewMessage(const QJsonDocument &message) {
@@ -321,19 +294,25 @@ void CheckoutProcess::panelWebviewMessage(const QJsonDocument &message) {
 			"Not an object received in payment credentials."));
 		return;
 	}
-	const auto serializedCredentials = QJsonDocument(
-		credentials.toObject()
-	).toJson(QJsonDocument::Compact);
-
-	_form->send(serializedCredentials);
+	crl::on_main(this, [=] {
+		_form->setPaymentCredentials(NewCredentials{
+			.title = title,
+			.data = QJsonDocument(
+				credentials.toObject()
+			).toJson(QJsonDocument::Compact),
+			.saveOnServer = false, // #TODO payments save
+		});
+	});
 }
 
 bool CheckoutProcess::panelWebviewNavigationAttempt(const QString &uri) {
 	if (Core::TryConvertUrlToLocal(uri) == uri) {
 		return true;
 	}
-	panelCloseSure();
-	App::wnd()->activate();
+	crl::on_main(this, [=] {
+		panelCloseSure();
+		App::wnd()->activate();
+	});
 	return false;
 }
 
@@ -346,46 +325,7 @@ void CheckoutProcess::panelEditPaymentMethod() {
 }
 
 void CheckoutProcess::panelValidateCard(Ui::UncheckedCardDetails data) {
-	Expects(_form->nativePayment().type == NativePayment::Type::Stripe);
-	Expects(!_form->nativePayment().stripePublishableKey.isEmpty());
-
-	if (_stripe) {
-		return;
-	}
-	auto configuration = Stripe::PaymentConfiguration{
-		.publishableKey = _form->nativePayment().stripePublishableKey,
-		.companyName = "Telegram",
-	};
-	_stripe = std::make_unique<Stripe::APIClient>(std::move(configuration));
-	auto card = Stripe::CardParams{
-		.number = data.number,
-		.expMonth = data.expireMonth,
-		.expYear = data.expireYear,
-		.cvc = data.cvc,
-		.name = data.cardholderName,
-		.addressZip = data.addressZip,
-		.addressCountry = data.addressCountry,
-	};
-	_stripe->createTokenWithCard(std::move(card), crl::guard(this, [=](
-			Stripe::Token token,
-			Stripe::Error error) {
-		_stripe = nullptr;
-
-		if (error) {
-			int a = 0;
-			// #TODO payment errors
-		} else {
-			_form->setPaymentCredentials({
-				.title = CardTitle(token.card()),
-				.data = QJsonDocument(QJsonObject{
-					{ "type", "card" },
-					{ "id", token.tokenId() },
-				}).toJson(QJsonDocument::Compact),
-				.saveOnServer = false,
-			});
-			showForm();
-		}
-	}));
+	_form->validateCard(data);
 }
 
 void CheckoutProcess::panelEditShippingInformation() {
@@ -408,7 +348,7 @@ void CheckoutProcess::showForm() {
 	_panel->showForm(
 		_form->invoice(),
 		_form->savedInformation(),
-		_form->nativePayment().details,
+		_form->paymentMethod().ui,
 		_form->shippingOptions());
 }
 
@@ -437,7 +377,7 @@ void CheckoutProcess::chooseShippingOption() {
 }
 
 void CheckoutProcess::editPaymentMethod() {
-	_panel->choosePaymentMethod(_form->nativePayment().details);
+	_panel->choosePaymentMethod(_form->paymentMethod().ui);
 }
 
 void CheckoutProcess::panelChooseShippingOption() {
@@ -474,7 +414,7 @@ void CheckoutProcess::performInitialSilentValidation() {
 	_form->validateInformation(saved);
 }
 
-QString CheckoutProcess::webviewDataPath() const {
+QString CheckoutProcess::panelWebviewDataPath() {
 	return _session->domain().local().webviewDataPath();
 }
 

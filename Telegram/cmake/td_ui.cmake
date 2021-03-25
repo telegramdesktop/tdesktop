@@ -79,8 +79,6 @@ PRIVATE
     payments/ui/payments_panel.h
     payments/ui/payments_panel_data.h
     payments/ui/payments_panel_delegate.h
-    payments/ui/payments_webview.cpp
-    payments/ui/payments_webview.h
 
     platform/mac/file_bookmark_mac.h
     platform/mac/file_bookmark_mac.mm

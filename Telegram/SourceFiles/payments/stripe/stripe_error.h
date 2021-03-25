@@ -42,14 +42,15 @@ public:
 	, _parameter(parameter) {
 	}
 
-	[[nodiscard]] static Error None() {
-		return Error(Code::None, QString(), QString());
-	}
+	[[nodiscard]] Code code() const;
+	[[nodiscard]] QString description() const;
+	[[nodiscard]] QString message() const;
+	[[nodiscard]] QString parameter() const;
+
+	[[nodiscard]] static Error None();
 	[[nodiscard]] static Error DecodedObjectFromResponse(QJsonObject object);
 
-	[[nodiscard]] bool empty() const {
-		return (_code == Code::None);
-	}
+	[[nodiscard]] bool empty() const;
 	[[nodiscard]] explicit operator bool() const {
 		return !empty();
 	}

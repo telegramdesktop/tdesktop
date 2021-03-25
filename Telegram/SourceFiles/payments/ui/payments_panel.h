@@ -14,6 +14,10 @@ class SeparatePanel;
 class BoxContent;
 } // namespace Ui
 
+namespace Webview {
+class Window;
+} // namespace Webview
+
 namespace Payments::Ui {
 
 using namespace ::Ui;
@@ -26,7 +30,8 @@ enum class InformationField;
 enum class CardField;
 class EditInformation;
 class EditCard;
-struct NativePaymentDetails;
+struct PaymentMethodDetails;
+struct NativeMethodDetails;
 
 class Panel final {
 public:
@@ -38,7 +43,7 @@ public:
 	void showForm(
 		const Invoice &invoice,
 		const RequestedInformation &current,
-		const NativePaymentDetails &native,
+		const PaymentMethodDetails &method,
 		const ShippingOptions &options);
 	void showEditInformation(
 		const Invoice &invoice,
@@ -48,14 +53,17 @@ public:
 		const Invoice &invoice,
 		const RequestedInformation &current,
 		InformationField field);
+	void showEditPaymentMethod(const PaymentMethodDetails &method);
 	void showEditCard(
-		const NativePaymentDetails &native,
+		const NativeMethodDetails &native,
 		CardField field);
 	void showCardError(
-		const NativePaymentDetails &native,
+		const NativeMethodDetails &native,
 		CardField field);
 	void chooseShippingOption(const ShippingOptions &options);
-	void choosePaymentMethod(const NativePaymentDetails &native);
+	void choosePaymentMethod(const PaymentMethodDetails &method);
+
+	bool showWebview(const QString &url, bool allowBack);
 
 	[[nodiscard]] rpl::producer<> backRequests() const;
 
@@ -65,8 +73,11 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	bool createWebview();
+
 	const not_null<PanelDelegate*> _delegate;
 	std::unique_ptr<SeparatePanel> _widget;
+	std::unique_ptr<Webview::Window> _webview;
 	QPointer<EditInformation> _weakEditInformation;
 	QPointer<EditCard> _weakEditCard;
 

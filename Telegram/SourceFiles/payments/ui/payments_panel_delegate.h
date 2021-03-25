@@ -42,6 +42,8 @@ public:
 	virtual void panelValidateInformation(RequestedInformation data) = 0;
 	virtual void panelValidateCard(Ui::UncheckedCardDetails data) = 0;
 	virtual void panelShowBox(object_ptr<BoxContent> box) = 0;
+
+	virtual QString panelWebviewDataPath() = 0;
 };
 
 } // namespace Payments::Ui

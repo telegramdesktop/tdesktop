@@ -35,7 +35,7 @@ constexpr auto kMaxPostcodeSize = 10;
 
 EditCard::EditCard(
 	QWidget *parent,
-	const NativePaymentDetails &native,
+	const NativeMethodDetails &native,
 	CardField field,
 	not_null<PanelDelegate*> delegate)
 : _delegate(delegate)
