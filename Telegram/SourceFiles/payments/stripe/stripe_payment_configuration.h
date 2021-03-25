@@ -16,8 +16,11 @@ namespace Stripe {
 struct PaymentConfiguration {
 	QString publishableKey;
 	// PaymentMethodType additionalPaymentMethods; // Apply Pay
-	BillingAddressFields requiredBillingAddressFields
-		= BillingAddressFields::None;
+
+	// TODO incomplete, not used.
+	//BillingAddressFields requiredBillingAddressFields
+	//	= BillingAddressFields::None;
+
 	QString companyName;
 	// QString appleMerchantIdentifier; // Apple Pay
 	// bool smsAutofillDisabled = true; // Mobile only

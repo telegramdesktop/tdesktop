@@ -14,11 +14,26 @@ namespace Stripe {
 
 class FormEncodable {
 public:
-	[[nodiscard]] virtual QString RootObjectName() const = 0;
+	[[nodiscard]] virtual QString rootObjectName() = 0;
+	[[nodiscard]] virtual std::map<QString, QString> formFieldValues() = 0;
+};
 
-	// TODO incomplete, not used: nested complex structures not supported.
-	[[nodiscard]] virtual std::map<QString, QString> formFieldValues() const
-		= 0;
+template <typename T>
+struct MakeEncodable final : FormEncodable {
+public:
+	MakeEncodable(const T &value) : _value(value) {
+	}
+
+	QString rootObjectName() override {
+		return _value.rootObjectName();
+	}
+	std::map<QString, QString> formFieldValues() override {
+		return _value.formFieldValues();
+	}
+
+private:
+	const T &_value;
+
 };
 
 } // namespace Stripe

@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 
+namespace Stripe {
+class APIClient;
+} // namespace Stripe
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -19,7 +23,7 @@ class Session;
 namespace Payments::Ui {
 class Panel;
 class WebviewWindow;
-enum class EditField;
+enum class InformationField;
 } // namespace Payments::Ui
 
 namespace Payments {
@@ -57,9 +61,10 @@ private:
 	void handleError(const Error &error);
 
 	void showForm();
-	void showEditInformation(Ui::EditField field);
-	void showEditError(Ui::EditField field);
+	void showEditInformation(Ui::InformationField field);
+	void showInformationError(Ui::InformationField field);
 	void chooseShippingOption();
+	void editPaymentMethod();
 
 	void performInitialSilentValidation();
 	[[nodiscard]] QString webviewDataPath() const;
@@ -70,6 +75,7 @@ private:
 	void panelWebviewMessage(const QJsonDocument &message) override;
 	bool panelWebviewNavigationAttempt(const QString &uri) override;
 
+	void panelEditPaymentMethod() override;
 	void panelEditShippingInformation() override;
 	void panelEditName() override;
 	void panelEditEmail() override;
@@ -78,12 +84,14 @@ private:
 	void panelChangeShippingOption(const QString &id) override;
 
 	void panelValidateInformation(Ui::RequestedInformation data) override;
+	void panelValidateCard(Ui::UncheckedCardDetails data) override;
 	void panelShowBox(object_ptr<Ui::BoxContent> box) override;
 
 	const not_null<Main::Session*> _session;
 	const std::unique_ptr<Form> _form;
 	const std::unique_ptr<Ui::Panel> _panel;
 	std::unique_ptr<Ui::WebviewWindow> _webviewWindow;
+	std::unique_ptr<Stripe::APIClient> _stripe;
 	SubmitState _submitState = SubmitState::None;
 	bool _initialSilentValidation = false;
 

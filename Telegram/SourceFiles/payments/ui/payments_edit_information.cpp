@@ -33,7 +33,7 @@ EditInformation::EditInformation(
 	QWidget *parent,
 	const Invoice &invoice,
 	const RequestedInformation &current,
-	EditField field,
+	InformationField field,
 	not_null<PanelDelegate*> delegate)
 : _delegate(delegate)
 , _invoice(invoice)
@@ -48,7 +48,7 @@ EditInformation::EditInformation(
 	setupControls();
 }
 
-void EditInformation::setFocus(EditField field) {
+void EditInformation::setFocus(InformationField field) {
 	_focusField = field;
 	if (const auto control = controlForField(field)) {
 		_scroll->ensureWidgetVisible(control);
@@ -56,7 +56,7 @@ void EditInformation::setFocus(EditField field) {
 	}
 }
 
-void EditInformation::showError(EditField field) {
+void EditInformation::showError(InformationField field) {
 	if (const auto control = controlForField(field)) {
 		_scroll->ensureWidgetVisible(control);
 		control->showError(QString());
@@ -264,16 +264,16 @@ void EditInformation::updateControlsGeometry() {
 	_scroll->updateBars();
 }
 
-auto EditInformation::controlForField(EditField field) const -> Row* {
+auto EditInformation::controlForField(InformationField field) const -> Row* {
 	switch (field) {
-		case EditField::ShippingStreet: return _street1;
-		case EditField::ShippingCity: return _city;
-		case EditField::ShippingState: return _state;
-		case EditField::ShippingCountry: return _country;
-		case EditField::ShippingPostcode: return _postcode;
-		case EditField::Name: return _name;
-		case EditField::Email: return _email;
-		case EditField::Phone: return _phone;
+	case InformationField::ShippingStreet: return _street1;
+	case InformationField::ShippingCity: return _city;
+	case InformationField::ShippingState: return _state;
+	case InformationField::ShippingCountry: return _country;
+	case InformationField::ShippingPostcode: return _postcode;
+	case InformationField::Name: return _name;
+	case InformationField::Email: return _email;
+	case InformationField::Phone: return _phone;
 	}
 	Unexpected("Unknown field in EditInformation::controlForField.");
 }

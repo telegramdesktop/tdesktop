@@ -33,11 +33,11 @@ public:
 		QWidget *parent,
 		const Invoice &invoice,
 		const RequestedInformation &current,
-		EditField field,
+		InformationField field,
 		not_null<PanelDelegate*> delegate);
 
-	void showError(EditField field);
-	void setFocus(EditField field);
+	void showError(InformationField field);
+	void setFocus(InformationField field);
 
 private:
 	using Row = Passport::Ui::PanelDetailsRow;
@@ -48,7 +48,7 @@ private:
 	void setupControls();
 	[[nodiscard]] not_null<Ui::RpWidget*> setupContent();
 	void updateControlsGeometry();
-	[[nodiscard]] Row *controlForField(EditField field) const;
+	[[nodiscard]] Row *controlForField(InformationField field) const;
 
 	[[nodiscard]] RequestedInformation collect() const;
 
@@ -71,7 +71,7 @@ private:
 	Row *_email = nullptr;
 	Row *_phone = nullptr;
 
-	EditField _focusField = EditField::ShippingStreet;
+	InformationField _focusField = InformationField::ShippingStreet;
 
 };
 

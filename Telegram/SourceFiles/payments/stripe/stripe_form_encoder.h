@@ -14,7 +14,7 @@ namespace Stripe {
 class FormEncoder {
 public:
 	[[nodiscard]] static QByteArray formEncodedDataForObject(
-		FormEncodable &object);
+		FormEncodable &&object);
 
 };
 

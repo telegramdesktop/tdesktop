@@ -11,11 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Stripe {
 
-class CardParams final : public FormEncodable {
-public:
-	QString RootObjectName() const override;
-	std::map<QString, QString> formFieldValues() const override;
-
+struct CardParams {
 	QString number;
 	quint32 expMonth = 0;
 	quint32 expYear = 0;
@@ -28,6 +24,9 @@ public:
 	QString addressZip;
 	QString addressCountry;
 	QString currency;
+
+	[[nodiscard]] static QString rootObjectName();
+	[[nodiscard]] std::map<QString, QString> formFieldValues() const;
 };
 
 } // namespace Stripe
