@@ -17,41 +17,56 @@ class FadeShadow;
 class RoundButton;
 } // namespace Ui
 
+namespace Passport::Ui {
+class PanelDetailsRow;
+} // namespace Passport::Ui
+
 namespace Payments::Ui {
 
 using namespace ::Ui;
 
 class PanelDelegate;
 
-class FormSummary final : public RpWidget {
+class EditCard final : public RpWidget {
 public:
-	FormSummary(
+	EditCard(
 		QWidget *parent,
-		const Invoice &invoice,
-		const RequestedInformation &current,
 		const NativePaymentDetails &native,
-		const ShippingOptions &options,
+		CardField field,
 		not_null<PanelDelegate*> delegate);
 
+	void showError(CardField field);
+	void setFocus(CardField field);
+
 private:
+	using Row = Passport::Ui::PanelDetailsRow;
+
 	void resizeEvent(QResizeEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
 
 	void setupControls();
 	[[nodiscard]] not_null<Ui::RpWidget*> setupContent();
 	void updateControlsGeometry();
+	[[nodiscard]] Row *controlForField(CardField field) const;
 
-	[[nodiscard]] QString computeAmount(int64 amount) const;
-	[[nodiscard]] QString computeTotalAmount() const;
+	[[nodiscard]] UncheckedCardDetails collect() const;
 
 	const not_null<PanelDelegate*> _delegate;
-	Invoice _invoice;
 	NativePaymentDetails _native;
-	ShippingOptions _options;
-	RequestedInformation _information;
+
 	object_ptr<ScrollArea> _scroll;
 	object_ptr<FadeShadow> _topShadow;
 	object_ptr<FadeShadow> _bottomShadow;
-	object_ptr<RoundButton> _submit;
+	object_ptr<RoundButton> _done;
+
+	Row *_number = nullptr;
+	Row *_cvc = nullptr;
+	Row *_expire = nullptr;
+	Row *_name = nullptr;
+	Row *_country = nullptr;
+	Row *_zip = nullptr;
+
+	CardField _focusField = CardField::Number;
 
 };
 

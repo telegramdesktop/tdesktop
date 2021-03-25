@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "payments/ui/payments_form_summary.h"
 #include "payments/ui/payments_edit_information.h"
+#include "payments/ui/payments_edit_card.h"
 #include "payments/ui/payments_panel_delegate.h"
 #include "ui/widgets/separate_panel.h"
 #include "ui/boxes/single_choice_box.h"
@@ -45,12 +46,14 @@ void Panel::requestActivate() {
 void Panel::showForm(
 		const Invoice &invoice,
 		const RequestedInformation &current,
+		const NativePaymentDetails &native,
 		const ShippingOptions &options) {
 	_widget->showInner(
 		base::make_unique_q<FormSummary>(
 			_widget.get(),
 			invoice,
 			current,
+			native,
 			options,
 			_delegate));
 	_widget->setBackAllowed(false);
@@ -59,29 +62,30 @@ void Panel::showForm(
 void Panel::showEditInformation(
 		const Invoice &invoice,
 		const RequestedInformation &current,
-		EditField field) {
+		InformationField field) {
 	auto edit = base::make_unique_q<EditInformation>(
 		_widget.get(),
 		invoice,
 		current,
 		field,
 		_delegate);
-	_weakEditWidget = edit.get();
+	_weakEditInformation = edit.get();
 	_widget->showInner(std::move(edit));
 	_widget->setBackAllowed(true);
-	_weakEditWidget->setFocus(field);
+	_weakEditInformation->setFocus(field);
 }
 
-void Panel::showEditError(
+void Panel::showInformationError(
 		const Invoice &invoice,
 		const RequestedInformation &current,
-		EditField field) {
-	if (_weakEditWidget) {
-		_weakEditWidget->showError(field);
+		InformationField field) {
+	if (_weakEditInformation) {
+		_weakEditInformation->showError(field);
 	} else {
 		showEditInformation(invoice, current, field);
-		if (_weakEditWidget && field == EditField::ShippingCountry) {
-			_weakEditWidget->showError(field);
+		if (_weakEditInformation
+			&& field == InformationField::ShippingCountry) {
+			_weakEditInformation->showError(field);
 		}
 	}
 }
@@ -107,6 +111,57 @@ void Panel::chooseShippingOption(const ShippingOptions &options) {
 			.callback = save,
 		});
 	}));
+}
+
+void Panel::choosePaymentMethod(const NativePaymentDetails &native) {
+	Expects(native.supported);
+
+	if (!native.ready) {
+		showEditCard(native, CardField::Number);
+		return;
+	}
+	const auto title = native.credentialsTitle;
+	showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto save = [=](int option) {
+			if (option) {
+				showEditCard(native, CardField::Number);
+			}
+		};
+		SingleChoiceBox(box, {
+			.title = tr::lng_payments_payment_method(),
+			.options = { native.credentialsTitle, "New Card..." }, // #TODO payments lang
+			.initialSelection = 0,
+			.callback = save,
+		});
+	}));
+}
+
+void Panel::showEditCard(
+		const NativePaymentDetails &native,
+		CardField field) {
+	auto edit = base::make_unique_q<EditCard>(
+		_widget.get(),
+		native,
+		field,
+		_delegate);
+	_weakEditCard = edit.get();
+	_widget->showInner(std::move(edit));
+	_widget->setBackAllowed(true);
+	_weakEditCard->setFocus(field);
+}
+
+void Panel::showCardError(
+		const NativePaymentDetails &native,
+		CardField field) {
+	if (_weakEditCard) {
+		_weakEditCard->showError(field);
+	} else {
+		showEditCard(native, field);
+		if (_weakEditCard
+			&& field == CardField::AddressCountry) {
+			_weakEditCard->showError(field);
+		}
+	}
 }
 
 rpl::producer<> Panel::backRequests() const {

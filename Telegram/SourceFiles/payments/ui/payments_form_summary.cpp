@@ -30,10 +30,12 @@ FormSummary::FormSummary(
 	QWidget *parent,
 	const Invoice &invoice,
 	const RequestedInformation &current,
+	const NativePaymentDetails &native,
 	const ShippingOptions &options,
 	not_null<PanelDelegate*> delegate)
 : _delegate(delegate)
 , _invoice(invoice)
+, _native(native)
 , _options(options)
 , _information(current)
 , _scroll(this, st::passportPanelScroll)
@@ -134,6 +136,20 @@ not_null<Ui::RpWidget*> FormSummary::setupContent() {
 			st::passportFormDividerHeight),
 		{ 0, 0, 0, st::passportFormHeaderPadding.top() });
 
+	if (_native.supported) {
+		const auto method = inner->add(object_ptr<FormRow>(inner));
+		method->addClickHandler([=] {
+			_delegate->panelEditPaymentMethod();
+		});
+		method->updateContent(
+			tr::lng_payments_payment_method(tr::now),
+			(_native.ready
+				? _native.credentialsTitle
+				: tr::lng_payments_payment_method_ph(tr::now)),
+			_native.ready,
+			false,
+			anim::type::instant);
+	}
 	if (_invoice.isShippingAddressRequested) {
 		const auto info = inner->add(object_ptr<FormRow>(inner));
 		info->addClickHandler([=] {
@@ -153,7 +169,9 @@ not_null<Ui::RpWidget*> FormSummary::setupContent() {
 		push(_information.shippingAddress.postcode);
 		info->updateContent(
 			tr::lng_payments_shipping_address(tr::now),
-			(list.isEmpty() ? "enter pls" : list.join(", ")),
+			(list.isEmpty()
+				? tr::lng_payments_shipping_address_ph(tr::now)
+				: list.join(", ")),
 			!list.isEmpty(),
 			false,
 			anim::type::instant);
@@ -167,7 +185,7 @@ not_null<Ui::RpWidget*> FormSummary::setupContent() {
 			tr::lng_payments_shipping_method(tr::now),
 			(selected != end(_options.list)
 				? selected->title
-				: "enter pls"),
+				: tr::lng_payments_shipping_method_ph(tr::now)),
 			(selected != end(_options.list)),
 			false,
 			anim::type::instant);
@@ -178,7 +196,7 @@ not_null<Ui::RpWidget*> FormSummary::setupContent() {
 		name->updateContent(
 			tr::lng_payments_info_name(tr::now),
 			(_information.name.isEmpty()
-				? "enter pls"
+				? tr::lng_payments_info_name_ph(tr::now)
 				: _information.name),
 			!_information.name.isEmpty(),
 			false,
@@ -190,7 +208,7 @@ not_null<Ui::RpWidget*> FormSummary::setupContent() {
 		email->updateContent(
 			tr::lng_payments_info_email(tr::now),
 			(_information.email.isEmpty()
-				? "enter pls"
+				? tr::lng_payments_info_email_ph(tr::now)
 				: _information.email),
 			!_information.email.isEmpty(),
 			false,
@@ -202,7 +220,7 @@ not_null<Ui::RpWidget*> FormSummary::setupContent() {
 		phone->updateContent(
 			tr::lng_payments_info_phone(tr::now),
 			(_information.phone.isEmpty()
-				? "enter pls"
+				? tr::lng_payments_info_phone_ph(tr::now)
 				: _information.phone),
 			!_information.phone.isEmpty(),
 			false,
