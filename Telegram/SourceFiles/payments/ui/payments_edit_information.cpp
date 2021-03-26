@@ -133,6 +133,8 @@ not_null<RpWidget*> EditInformation::setupContent() {
 			.type = FieldType::Country,
 			.placeholder = tr::lng_payments_address_country(),
 			.value = _information.shippingAddress.countryIso2,
+			.showBox = showBox,
+			.defaultCountry = _information.defaultCountry,
 			.required = true,
 		});
 		_postcode = add({

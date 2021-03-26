@@ -156,6 +156,8 @@ not_null<RpWidget*> EditCard::setupContent() {
 		_country = add({
 			.type = FieldType::Country,
 			.placeholder = tr::lng_payments_billing_country(),
+			.showBox = showBox,
+			.defaultCountry = _native.defaultCountry,
 			.required = true,
 		});
 	}

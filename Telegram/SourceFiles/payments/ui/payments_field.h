@@ -14,6 +14,7 @@ namespace Ui {
 class RpWidget;
 class InputField;
 class MaskedInputField;
+class BoxContent;
 } // namespace Ui
 
 namespace Payments::Ui {
@@ -34,6 +35,8 @@ struct FieldConfig {
 	FieldType type = FieldType::Text;
 	rpl::producer<QString> placeholder;
 	QString value;
+	Fn<void(object_ptr<BoxContent>)> showBox;
+	QString defaultCountry;
 	int maxLength = 0;
 	bool required = false;
 };
@@ -52,10 +55,14 @@ public:
 	void showError();
 
 private:
-	const FieldType _type = FieldType::Text;
+	void setupMaskedGeometry();
+	void setupCountry();
+
+	const FieldConfig _config;
 	const base::unique_qptr<RpWidget> _wrap;
 	InputField *_input = nullptr;
 	MaskedInputField *_masked = nullptr;
+	QString _countryIso2;
 
 };
 

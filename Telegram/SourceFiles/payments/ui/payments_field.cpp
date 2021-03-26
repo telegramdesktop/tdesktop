@@ -8,10 +8,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/ui/payments_field.h"
 
 #include "ui/widgets/input_fields.h"
+#include "ui/boxes/country_select_box.h"
+#include "data/data_countries.h"
+#include "base/platform/base_platform_info.h"
 #include "styles/style_payments.h"
 
 namespace Payments::Ui {
 namespace {
+
+[[nodiscard]] QString Parse(const FieldConfig &config) {
+	if (config.type == FieldType::Country) {
+		return Data::CountryNameByISO2(config.value);
+	}
+	return config.value;
+}
+
+[[nodiscard]] QString Format(
+		const FieldConfig &config,
+		const QString &parsed,
+		const QString &countryIso2) {
+	if (config.type == FieldType::Country) {
+		return countryIso2;
+	}
+	return parsed;
+}
 
 [[nodiscard]] bool UseMaskedField(FieldType type) {
 	switch (type) {
@@ -38,7 +58,7 @@ namespace {
 			parent,
 			st::paymentsField,
 			std::move(config.placeholder),
-			config.value);
+			Parse(config));
 	case FieldType::CardNumber:
 	case FieldType::CardExpireDate:
 	case FieldType::CardCVC:
@@ -76,7 +96,7 @@ namespace {
 			wrap.get(),
 			st::paymentsField,
 			std::move(config.placeholder),
-			config.value);
+			Parse(config));
 	}
 	Unexpected("FieldType in Payments::Ui::LookupMaskedField.");
 }
@@ -84,20 +104,16 @@ namespace {
 } // namespace
 
 Field::Field(QWidget *parent, FieldConfig &&config)
-: _type(config.type)
+: _config(config)
 , _wrap(CreateWrap(parent, config))
 , _input(LookupInputField(_wrap.get(), config))
-, _masked(LookupMaskedField(_wrap.get(), config)) {
+, _masked(LookupMaskedField(_wrap.get(), config))
+, _countryIso2(config.value) {
 	if (_masked) {
-		_wrap->resize(_masked->size());
-		_wrap->widthValue(
-		) | rpl::start_with_next([=](int width) {
-			_masked->resize(width, _masked->height());
-		}, _masked->lifetime());
-		_masked->heightValue(
-		) | rpl::start_with_next([=](int height) {
-			_wrap->resize(_wrap->width(), height);
-		}, _masked->lifetime());
+		setupMaskedGeometry();
+	}
+	if (_config.type == FieldType::Country) {
+		setupCountry();
 	}
 }
 
@@ -109,12 +125,60 @@ object_ptr<RpWidget> Field::ownedWidget() const {
 	return object_ptr<RpWidget>::fromRaw(_wrap.get());
 }
 
-[[nodiscard]] QString Field::value() const {
-	return _input ? _input->getLastText() : _masked->getLastText();
+QString Field::value() const {
+	return Format(
+		_config,
+		_input ? _input->getLastText() : _masked->getLastText(),
+		_countryIso2);
+}
+
+void Field::setupMaskedGeometry() {
+	Expects(_masked != nullptr);
+
+	_wrap->resize(_masked->size());
+	_wrap->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		_masked->resize(width, _masked->height());
+	}, _masked->lifetime());
+	_masked->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		_wrap->resize(_wrap->width(), height);
+	}, _masked->lifetime());
+}
+
+void Field::setupCountry() {
+	Expects(_config.type == FieldType::Country);
+	Expects(_masked != nullptr);
+
+	QObject::connect(_masked, &MaskedInputField::focused, [=] {
+		setFocus();
+
+		const auto name = Data::CountryNameByISO2(_countryIso2);
+		const auto country = !name.isEmpty()
+			? _countryIso2
+			: !_config.defaultCountry.isEmpty()
+			? _config.defaultCountry
+			: Platform::SystemCountry();
+		auto box = Box<CountrySelectBox>(
+			country,
+			CountrySelectBox::Type::Countries);
+		const auto raw = box.data();
+		raw->countryChosen(
+		) | rpl::start_with_next([=](QString iso2) {
+			_countryIso2 = iso2;
+			_masked->setText(Data::CountryNameByISO2(iso2));
+			_masked->hideError();
+			setFocus();
+			raw->closeBox();
+		}, _masked->lifetime());
+		_config.showBox(std::move(box));
+	});
 }
 
 void Field::setFocus() {
-	if (_input) {
+	if (_config.type == FieldType::Country) {
+		_wrap->setFocus();
+	} else if (_input) {
 		_input->setFocus();
 	} else {
 		_masked->setFocus();
@@ -122,7 +186,9 @@ void Field::setFocus() {
 }
 
 void Field::setFocusFast() {
-	if (_input) {
+	if (_config.type == FieldType::Country) {
+		setFocus();
+	} else if (_input) {
 		_input->setFocusFast();
 	} else {
 		_masked->setFocusFast();
@@ -130,7 +196,10 @@ void Field::setFocusFast() {
 }
 
 void Field::showError() {
-	if (_input) {
+	if (_config.type == FieldType::Country) {
+		setFocus();
+		_masked->showErrorNoFocus();
+	} else if (_input) {
 		_input->showError();
 	} else {
 		_masked->showError();

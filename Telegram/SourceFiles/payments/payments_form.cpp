@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_file_origin.h"
+#include "data/data_countries.h"
 #include "history/history_item.h"
 #include "stripe/stripe_api_client.h"
 #include "stripe/stripe_error.h"
@@ -269,6 +270,7 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 void Form::processSavedInformation(const MTPDpaymentRequestedInfo &data) {
 	const auto address = data.vshipping_address();
 	_savedInformation = Ui::RequestedInformation{
+		.defaultCountry = defaultCountry(),
 		.name = qs(data.vname().value_or_empty()),
 		.phone = qs(data.vphone().value_or_empty()),
 		.email = qs(data.vemail().value_or_empty()),
@@ -291,6 +293,11 @@ void Form::refreshPaymentMethodDetails() {
 	const auto &entered = _paymentMethod.newCredentials;
 	_paymentMethod.ui.title = entered ? entered.title : saved.title;
 	_paymentMethod.ui.ready = entered || saved;
+	_paymentMethod.ui.native.defaultCountry = defaultCountry();
+}
+
+QString Form::defaultCountry() const {
+	return Data::CountryISO2ByPhone(_session->user()->phone());
 }
 
 void Form::fillPaymentMethodInformation() {
@@ -375,6 +382,10 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 		_api.request(base::take(_validateRequestId)).cancel();
 	}
 	_validatedInformation = information;
+	if (const auto error = localInformationError(information)) {
+		_updates.fire_copy(error);
+		return;
+	}
 	_validateRequestId = _api.request(MTPpayments_ValidateRequestedInfo(
 		MTP_flags(0), // #TODO payments save information
 		MTP_int(_msgId.msg),
@@ -402,6 +413,30 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 		_validateRequestId = 0;
 		_updates.fire(Error{ Error::Type::Validate, error.type() });
 	}).send();
+}
+
+Error Form::localInformationError(
+		const Ui::RequestedInformation &information) const {
+	const auto error = [](const QString &id) {
+		return Error{ Error::Type::Validate, id };
+	};
+	if (_invoice.isShippingAddressRequested
+		&& !information.shippingAddress) {
+		return information.shippingAddress.address1.isEmpty()
+			? error(u"ADDRESS_STREET_LINE1_INVALID"_q)
+			: information.shippingAddress.city.isEmpty()
+			? error(u"ADDRESS_CITY_INVALID"_q)
+			: information.shippingAddress.countryIso2.isEmpty()
+			? error(u"ADDRESS_COUNTRY_INVALID"_q)
+			: (Unexpected("Shipping Address error."), Error());
+	} else if (_invoice.isNameRequested && information.name.isEmpty()) {
+		return error(u"REQ_INFO_NAME_INVALID"_q);
+	} else if (_invoice.isEmailRequested && information.email.isEmpty()) {
+		return error(u"REQ_INFO_EMAIL_INVALID"_q);
+	} else if (_invoice.isPhoneRequested && information.phone.isEmpty()) {
+		return error(u"REQ_INFO_PHONE_INVALID"_q);
+	}
+	return Error();
 }
 
 void Form::validateCard(const Ui::UncheckedCardDetails &details) {
