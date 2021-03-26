@@ -34,7 +34,7 @@ DisableProgramGroupPage=no
 #if MyBuildTarget == "win64"
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
-OutputBaseFilename=64Gram-setup-x64.{#MyAppVersionFull}
+OutputBaseFilename=64Gram-setup-x64-{#MyAppVersionFull}
 #else
 OutputBaseFilename=64Gram-setup.{#MyAppVersionFull}
 #endif
