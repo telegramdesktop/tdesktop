@@ -9,10 +9,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "main/main_session.h"
 #include "data/data_session.h"
-#include "apiwrap.h"
+#include "data/data_media_types.h"
+#include "data/data_user.h"
+#include "data/data_photo.h"
+#include "data/data_photo_media.h"
+#include "data/data_file_origin.h"
+#include "history/history_item.h"
 #include "stripe/stripe_api_client.h"
 #include "stripe/stripe_error.h"
 #include "stripe/stripe_token.h"
+#include "ui/image/image.h"
+#include "apiwrap.h"
+#include "styles/style_payments.h" // paymentsThumbnailSize.
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
@@ -82,15 +90,110 @@ namespace {
 Form::Form(not_null<Main::Session*> session, FullMsgId itemId)
 : _session(session)
 , _api(&_session->mtp())
-, _msgId(itemId.msg) {
+, _msgId(itemId) {
+	fillInvoiceFromMessage();
 	requestForm();
 }
 
 Form::~Form() = default;
 
+void Form::fillInvoiceFromMessage() {
+	if (const auto item = _session->data().message(_msgId)) {
+		if (const auto media = item->media()) {
+			if (const auto invoice = media->invoice()) {
+				_invoice.cover = Ui::Cover{
+					.title = invoice->title,
+					.description = invoice->description,
+				};
+				if (const auto photo = invoice->photo) {
+					loadThumbnail(photo);
+				}
+			}
+		}
+	}
+}
+
+void Form::loadThumbnail(not_null<PhotoData*> photo) {
+	Expects(!_thumbnailLoadProcess);
+
+	auto view = photo->createMediaView();
+	if (auto good = prepareGoodThumbnail(view); !good.isNull()) {
+		_invoice.cover.thumbnail = std::move(good);
+		return;
+	}
+	_thumbnailLoadProcess = std::make_unique<ThumbnailLoadProcess>();
+	if (auto blurred = prepareBlurredThumbnail(view); !blurred.isNull()) {
+		_invoice.cover.thumbnail = std::move(blurred);
+		_thumbnailLoadProcess->blurredSet = true;
+	} else {
+		_invoice.cover.thumbnail = prepareEmptyThumbnail();
+	}
+	_thumbnailLoadProcess->view = std::move(view);
+	photo->load(Data::PhotoSize::Thumbnail, _msgId);
+	_session->downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
+		const auto &view = _thumbnailLoadProcess->view;
+		if (auto good = prepareGoodThumbnail(view); !good.isNull()) {
+			_invoice.cover.thumbnail = std::move(good);
+			_thumbnailLoadProcess = nullptr;
+		} else if (_thumbnailLoadProcess->blurredSet) {
+			return;
+		} else if (auto blurred = prepareBlurredThumbnail(view)
+			; !blurred.isNull()) {
+			_invoice.cover.thumbnail = std::move(blurred);
+			_thumbnailLoadProcess->blurredSet = true;
+		} else {
+			return;
+		}
+		_updates.fire(ThumbnailUpdated{ _invoice.cover.thumbnail });
+	}, _thumbnailLoadProcess->lifetime);
+}
+
+QImage Form::prepareGoodThumbnail(
+		const std::shared_ptr<Data::PhotoMedia> &view) const {
+	using Size = Data::PhotoSize;
+	if (const auto large = view->image(Size::Large)) {
+		return prepareThumbnail(large);
+	} else if (const auto thumbnail = view->image(Size::Thumbnail)) {
+		return prepareThumbnail(thumbnail);
+	}
+	return QImage();
+}
+
+QImage Form::prepareBlurredThumbnail(
+		const std::shared_ptr<Data::PhotoMedia> &view) const {
+	if (const auto small = view->image(Data::PhotoSize::Small)) {
+		return prepareThumbnail(small, true);
+	} else if (const auto blurred = view->thumbnailInline()) {
+		return prepareThumbnail(blurred, true);
+	}
+	return QImage();
+}
+
+QImage Form::prepareThumbnail(
+		not_null<const Image*> image,
+		bool blurred) const {
+	auto result = image->original().scaled(
+		st::paymentsThumbnailSize * cIntRetinaFactor(),
+		Qt::KeepAspectRatio,
+		Qt::SmoothTransformation);
+	Images::prepareRound(result, ImageRoundRadius::Large);
+	result.setDevicePixelRatio(cRetinaFactor());
+	return result;
+}
+
+QImage Form::prepareEmptyThumbnail() const {
+	auto result = QImage(
+		st::paymentsThumbnailSize * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(cRetinaFactor());
+	result.fill(Qt::transparent);
+	return result;
+}
+
 void Form::requestForm() {
 	_api.request(MTPpayments_GetPaymentForm(
-		MTP_int(_msgId)
+		MTP_int(_msgId.msg)
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		result.match([&](const auto &data) {
 			processForm(data);
@@ -123,6 +226,8 @@ void Form::processForm(const MTPDpayments_paymentForm &data) {
 
 void Form::processInvoice(const MTPDinvoice &data) {
 	_invoice = Ui::Invoice{
+		.cover = std::move(_invoice.cover),
+
 		.prices = ParsePrices(data.vprices()),
 		.currency = qs(data.vcurrency()),
 
@@ -154,6 +259,11 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 		.canSaveCredentials = data.is_can_save_credentials(),
 		.passwordMissing = data.is_password_missing(),
 	};
+	if (_details.botId) {
+		if (const auto bot = _session->data().userLoaded(_details.botId)) {
+			_invoice.cover.seller = bot->name;
+		}
+	}
 }
 
 void Form::processSavedInformation(const MTPDpaymentRequestedInfo &data) {
@@ -240,7 +350,7 @@ void Form::submit() {
 			| (_shippingOptions.selectedId.isEmpty()
 				? Flag(0)
 				: Flag::f_shipping_option_id)),
-		MTP_int(_msgId),
+		MTP_int(_msgId.msg),
 		MTP_string(_requestedInformationId),
 		MTP_string(_shippingOptions.selectedId),
 		MTP_inputPaymentCredentials(
@@ -267,7 +377,7 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 	_validatedInformation = information;
 	_validateRequestId = _api.request(MTPpayments_ValidateRequestedInfo(
 		MTP_flags(0), // #TODO payments save information
-		MTP_int(_msgId),
+		MTP_int(_msgId.msg),
 		Serialize(information)
 	)).done([=](const MTPpayments_ValidatedRequestedInfo &result) {
 		_validateRequestId = 0;

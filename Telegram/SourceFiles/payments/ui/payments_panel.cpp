@@ -52,15 +52,22 @@ void Panel::showForm(
 		const RequestedInformation &current,
 		const PaymentMethodDetails &method,
 		const ShippingOptions &options) {
-	_widget->showInner(
-		base::make_unique_q<FormSummary>(
-			_widget.get(),
-			invoice,
-			current,
-			method,
-			options,
-			_delegate));
+	auto form = base::make_unique_q<FormSummary>(
+		_widget.get(),
+		invoice,
+		current,
+		method,
+		options,
+		_delegate);
+	_weakFormSummary = form.get();
+	_widget->showInner(std::move(form));
 	_widget->setBackAllowed(false);
+}
+
+void Panel::updateFormThumbnail(const QImage &thumbnail) {
+	if (_weakFormSummary) {
+		_weakFormSummary->updateThumbnail(thumbnail);
+	}
 }
 
 void Panel::showEditInformation(

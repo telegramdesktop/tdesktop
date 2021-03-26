@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_domain.h"
 #include "history/history_item.h"
 #include "history/history.h"
+#include "data/data_user.h" // UserData::isBot.
 #include "core/local_url_handlers.h" // TryConvertUrlToLocal.
 #include "core/file_utilities.h" // File::OpenUrl.
 #include "apiwrap.h"
@@ -105,6 +106,8 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		if (!_initialSilentValidation) {
 			showForm();
 		}
+	}, [&](const ThumbnailUpdated &data) {
+		_panel->updateFormThumbnail(data.thumbnail);
 	}, [&](const ValidateFinished &) {
 		if (_initialSilentValidation) {
 			_initialSilentValidation = false;
@@ -114,16 +117,16 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 			_submitState = SubmitState::Validated;
 			panelSubmit();
 		}
-	}, [&](const PaymentMethodUpdate&) {
+	}, [&](const PaymentMethodUpdate &) {
 		showForm();
-	}, [&](const VerificationNeeded &info) {
-		if (!_panel->showWebview(info.url, false)) {
-			File::OpenUrl(info.url);
+	}, [&](const VerificationNeeded &data) {
+		if (!_panel->showWebview(data.url, false)) {
+			File::OpenUrl(data.url);
 			panelCloseSure();
 		}
-	}, [&](const PaymentFinished &result) {
+	}, [&](const PaymentFinished &data) {
 		const auto weak = base::make_weak(this);
-		_session->api().applyUpdates(result.updates);
+		_session->api().applyUpdates(data.updates);
 		if (weak) {
 			panelCloseSure();
 		}
