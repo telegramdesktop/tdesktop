@@ -1866,7 +1866,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_payment_method" = "Payment Method";
 "lng_payments_new_card" = "New Card...";
 "lng_payments_shipping_address" = "Shipping Address";
-"lng_payments_receiver_information" = "Receiver";
 "lng_payments_address_street1" = "Address 1";
 "lng_payments_address_street2" = "Address 2";
 "lng_payments_address_city" = "City";
@@ -1878,7 +1877,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_info_name" = "Name";
 "lng_payments_info_email" = "Email";
 "lng_payments_info_phone" = "Phone";
-"lng_payments_shipping_address_title" = "Shipping Address";
+"lng_payments_shipping_address_title" = "Shipping Information";
 "lng_payments_save_shipping_about" = "You can save your shipping information for future use.";
 "lng_payments_card_title" = "New Card";
 "lng_payments_card_number" = "Card Number";

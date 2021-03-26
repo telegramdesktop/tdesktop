@@ -15,17 +15,16 @@ namespace Ui {
 class ScrollArea;
 class FadeShadow;
 class RoundButton;
+class InputField;
+class MaskedInputField;
 } // namespace Ui
-
-namespace Passport::Ui {
-class PanelDetailsRow;
-} // namespace Passport::Ui
 
 namespace Payments::Ui {
 
 using namespace ::Ui;
 
 class PanelDelegate;
+class Field;
 
 class EditInformation final : public RpWidget {
 public:
@@ -35,20 +34,20 @@ public:
 		const RequestedInformation &current,
 		InformationField field,
 		not_null<PanelDelegate*> delegate);
+	~EditInformation();
 
-	void showError(InformationField field);
 	void setFocus(InformationField field);
+	void setFocusFast(InformationField field);
+	void showError(InformationField field);
 
 private:
-	using Row = Passport::Ui::PanelDetailsRow;
-
 	void resizeEvent(QResizeEvent *e) override;
 	void focusInEvent(QFocusEvent *e) override;
 
 	void setupControls();
 	[[nodiscard]] not_null<Ui::RpWidget*> setupContent();
 	void updateControlsGeometry();
-	[[nodiscard]] Row *controlForField(InformationField field) const;
+	[[nodiscard]] Field *lookupField(InformationField field) const;
 
 	[[nodiscard]] RequestedInformation collect() const;
 
@@ -61,15 +60,15 @@ private:
 	object_ptr<FadeShadow> _bottomShadow;
 	object_ptr<RoundButton> _done;
 
-	Row *_street1 = nullptr;
-	Row *_street2 = nullptr;
-	Row *_city = nullptr;
-	Row *_state = nullptr;
-	Row *_country = nullptr;
-	Row *_postcode = nullptr;
-	Row *_name = nullptr;
-	Row *_email = nullptr;
-	Row *_phone = nullptr;
+	std::unique_ptr<Field> _street1;
+	std::unique_ptr<Field> _street2;
+	std::unique_ptr<Field> _city;
+	std::unique_ptr<Field> _state;
+	std::unique_ptr<Field> _country;
+	std::unique_ptr<Field> _postcode;
+	std::unique_ptr<Field> _name;
+	std::unique_ptr<Field> _email;
+	std::unique_ptr<Field> _phone;
 
 	InformationField _focusField = InformationField::ShippingStreet;
 
