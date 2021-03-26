@@ -15,6 +15,7 @@ namespace Ui {
 class ScrollArea;
 class FadeShadow;
 class RoundButton;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Payments::Ui {
@@ -33,15 +34,20 @@ public:
 		const ShippingOptions &options,
 		not_null<PanelDelegate*> delegate);
 
+	void updateThumbnail(const QImage &thumbnail);
+
 private:
 	void resizeEvent(QResizeEvent *e) override;
 
 	void setupControls();
 	[[nodiscard]] not_null<Ui::RpWidget*> setupContent();
+	void setupCover(not_null<VerticalLayout*> layout);
+	void setupPrices(not_null<VerticalLayout*> layout);
+	void setupSections(not_null<VerticalLayout*> layout);
 	void updateControlsGeometry();
 
-	[[nodiscard]] QString computeAmount(int64 amount) const;
-	[[nodiscard]] QString computeTotalAmount() const;
+	[[nodiscard]] QString formatAmount(int64 amount) const;
+	[[nodiscard]] int64 computeTotalAmount() const;
 
 	const not_null<PanelDelegate*> _delegate;
 	Invoice _invoice;
@@ -52,6 +58,7 @@ private:
 	object_ptr<FadeShadow> _topShadow;
 	object_ptr<FadeShadow> _bottomShadow;
 	object_ptr<RoundButton> _submit;
+	rpl::event_stream<QImage> _thumbnails;
 
 };
 

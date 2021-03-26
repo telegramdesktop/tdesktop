@@ -14,7 +14,16 @@ struct LabeledPrice {
 	int64 price = 0;
 };
 
+struct Cover {
+	QString title;
+	QString description;
+	QString seller;
+	QImage thumbnail;
+};
+
 struct Invoice {
+	Cover cover;
+
 	std::vector<LabeledPrice> prices;
 	QString currency;
 

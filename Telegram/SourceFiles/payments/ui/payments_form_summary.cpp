@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/ui/payments_form_summary.h"
 
 #include "payments/ui/payments_panel_delegate.h"
-#include "passport/ui/passport_form_row.h"
+#include "settings/settings_common.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Payments::Ui {
 
 using namespace ::Ui;
-using namespace Passport::Ui;
 
 class PanelDelegate;
 
@@ -45,16 +44,24 @@ FormSummary::FormSummary(
 		this,
 		tr::lng_payments_pay_amount(
 			lt_amount,
-			rpl::single(computeTotalAmount())),
+			rpl::single(formatAmount(computeTotalAmount()))),
 		st::paymentsPanelSubmit) {
 	setupControls();
 }
 
-QString FormSummary::computeAmount(int64 amount) const {
-	return FillAmountAndCurrency(amount, _invoice.currency);
+void FormSummary::updateThumbnail(const QImage &thumbnail) {
+	_invoice.cover.thumbnail = thumbnail;
+	_thumbnails.fire_copy(thumbnail);
 }
 
-QString FormSummary::computeTotalAmount() const {
+QString FormSummary::formatAmount(int64 amount) const {
+	const auto base = FillAmountAndCurrency(
+		std::abs(amount),
+		_invoice.currency);
+	return (amount > 0) ? base : (QString::fromUtf8("\xe2\x88\x92") + base);
+}
+
+int64 FormSummary::computeTotalAmount() const {
 	const auto total = ranges::accumulate(
 		_invoice.prices,
 		int64(0),
@@ -71,7 +78,7 @@ QString FormSummary::computeTotalAmount() const {
 			std::plus<>(),
 			&LabeledPrice::price)
 		: int64(0);
-	return computeAmount(total + shipping);
+	return total + shipping;
 }
 
 void FormSummary::setupControls() {
@@ -92,22 +99,125 @@ void FormSummary::setupControls() {
 		_1 + _2 < _3));
 }
 
-not_null<Ui::RpWidget*> FormSummary::setupContent() {
-	const auto inner = _scroll->setOwnedWidget(
-		object_ptr<Ui::VerticalLayout>(this));
+void FormSummary::setupCover(not_null<VerticalLayout*> layout) {
+	struct State {
+		QImage thumbnail;
+		FlatLabel *title = nullptr;
+		FlatLabel *description = nullptr;
+		FlatLabel *seller = nullptr;
+	};
 
-	_scroll->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		inner->resizeToWidth(width);
-	}, inner->lifetime());
+	const auto cover = layout->add(object_ptr<RpWidget>(layout));
+	const auto state = cover->lifetime().make_state<State>();
+	state->title = CreateChild<FlatLabel>(
+		cover,
+		_invoice.cover.title,
+		st::paymentsTitle);
+	state->description = CreateChild<FlatLabel>(
+		cover,
+		_invoice.cover.description,
+		st::paymentsDescription);
+	state->seller = CreateChild<FlatLabel>(
+		cover,
+		_invoice.cover.seller,
+		st::paymentsSeller);
+	cover->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		if (state->thumbnail.isNull()) {
+			return;
+		}
+		const auto &padding = st::paymentsCoverPadding;
+		const auto thumbnailSkip = st::paymentsThumbnailSize.width()
+			+ st::paymentsThumbnailSkip;
+		const auto left = padding.left();
+		const auto top = padding.top();
+		const auto rect = QRect(
+			QPoint(left, top),
+			state->thumbnail.size() / state->thumbnail.devicePixelRatio());
+		if (rect.intersects(clip)) {
+			QPainter(cover).drawImage(rect, state->thumbnail);
+		}
+	}, cover->lifetime());
+	rpl::combine(
+		cover->widthValue(),
+		_thumbnails.events_starting_with_copy(_invoice.cover.thumbnail)
+	) | rpl::start_with_next([=](int width, QImage &&thumbnail) {
+		const auto &padding = st::paymentsCoverPadding;
+		const auto thumbnailSkip = st::paymentsThumbnailSize.width()
+			+ st::paymentsThumbnailSkip;
+		const auto left = padding.left()
+			+ (thumbnail.isNull() ? 0 : thumbnailSkip);
+		const auto available = width
+			- padding.left()
+			- padding.right()
+			- (thumbnail.isNull() ? 0 : thumbnailSkip);
+		state->title->resizeToNaturalWidth(available);
+		state->title->moveToLeft(
+			left,
+			padding.top() + st::paymentsTitleTop);
+		state->description->resizeToNaturalWidth(available);
+		state->description->moveToLeft(
+			left,
+			(state->title->y()
+				+ state->title->height()
+				+ st::paymentsDescriptionTop));
+		state->seller->resizeToNaturalWidth(available);
+		state->seller->moveToLeft(
+			left,
+			(state->description->y()
+				+ state->description->height()
+				+ st::paymentsSellerTop));
+		const auto thumbnailHeight = padding.top()
+			+ (thumbnail.isNull()
+				? 0
+				: int(thumbnail.height() / thumbnail.devicePixelRatio()))
+			+ padding.bottom();
+		const auto height = state->seller->y()
+			+ state->seller->height()
+			+ padding.bottom();
+		cover->resize(width, std::max(thumbnailHeight, height));
+		state->thumbnail = std::move(thumbnail);
+		cover->update();
+	}, cover->lifetime());
+}
 
+void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
+	Settings::AddSkip(layout, st::paymentsPricesTopSkip);
+	const auto add = [&](
+			const QString &label,
+			int64 amount,
+			bool full = false) {
+		const auto &st = full
+			? st::paymentsFullPriceAmount
+			: st::paymentsPriceAmount;
+		const auto right = CreateChild<FlatLabel>(
+			layout.get(),
+			formatAmount(amount),
+			st);
+		const auto &padding = st::paymentsPricePadding;
+		const auto left = layout->add(
+			object_ptr<FlatLabel>(
+				layout,
+				label,
+				(full
+					? st::paymentsFullPriceLabel
+					: st::paymentsPriceLabel)),
+			style::margins(
+				padding.left(),
+				padding.top(),
+				(padding.right()
+					+ right->naturalWidth()
+					+ 2 * st.style.font->spacew),
+				padding.bottom()));
+		rpl::combine(
+			left->topValue(),
+			layout->widthValue()
+		) | rpl::start_with_next([=](int top, int width) {
+			right->moveToRight(st::paymentsPricePadding.right(), top, width);
+		}, right->lifetime());
+	};
 	for (const auto &price : _invoice.prices) {
-		inner->add(
-			object_ptr<Ui::FlatLabel>(
-				inner,
-				price.label + ": " + computeAmount(price.price),
-				st::passportFormPolicy),
-			st::paymentsFormPricePadding);
+		add(price.label, price.price);
 	}
 	const auto selected = ranges::find(
 		_options.list,
@@ -115,44 +225,35 @@ not_null<Ui::RpWidget*> FormSummary::setupContent() {
 		&ShippingOption::id);
 	if (selected != end(_options.list)) {
 		for (const auto &price : selected->prices) {
-			inner->add(
-				object_ptr<Ui::FlatLabel>(
-					inner,
-					price.label + ": " + computeAmount(price.price),
-					st::passportFormPolicy),
-				st::paymentsFormPricePadding);
+			add(price.label, price.price);
 		}
 	}
-	inner->add(
-		object_ptr<Ui::FlatLabel>(
-			inner,
-			"Total: " + computeTotalAmount(),
-			st::passportFormHeader),
-		st::passportFormHeaderPadding);
+	add(tr::lng_payments_total_label(tr::now), computeTotalAmount(), true);
+	Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
+}
 
-	inner->add(
-		object_ptr<Ui::BoxContentDivider>(
-			inner,
-			st::passportFormDividerHeight),
-		{ 0, 0, 0, st::passportFormHeaderPadding.top() });
+void FormSummary::setupSections(not_null<VerticalLayout*> layout) {
+	Settings::AddSkip(layout, st::paymentsSectionsTopSkip);
 
-	const auto method = inner->add(object_ptr<FormRow>(inner));
-	method->addClickHandler([=] {
-		_delegate->panelEditPaymentMethod();
-	});
-	method->updateContent(
-		tr::lng_payments_payment_method(tr::now),
-		(_method.ready
-			? _method.title
-			: tr::lng_payments_payment_method_ph(tr::now)),
-		_method.ready,
-		false,
-		anim::type::instant);
+	const auto add = [&](
+			rpl::producer<QString> title,
+			const QString &label,
+			const style::icon *icon,
+			Fn<void()> handler) {
+		Settings::AddButtonWithLabel(
+			layout,
+			std::move(title),
+			rpl::single(label),
+			st::paymentsSectionButton,
+			icon
+		)->addClickHandler(std::move(handler));
+	};
+	add(
+		tr::lng_payments_payment_method(),
+		_method.title,
+		&st::paymentsIconPaymentMethod,
+		[=] { _delegate->panelEditPaymentMethod(); });
 	if (_invoice.isShippingAddressRequested) {
-		const auto info = inner->add(object_ptr<FormRow>(inner));
-		info->addClickHandler([=] {
-			_delegate->panelEditShippingInformation();
-		});
 		auto list = QStringList();
 		const auto push = [&](const QString &value) {
 			if (!value.isEmpty()) {
@@ -165,65 +266,61 @@ not_null<Ui::RpWidget*> FormSummary::setupContent() {
 		push(_information.shippingAddress.state);
 		push(_information.shippingAddress.countryIso2);
 		push(_information.shippingAddress.postcode);
-		info->updateContent(
-			tr::lng_payments_shipping_address(tr::now),
-			(list.isEmpty()
-				? tr::lng_payments_shipping_address_ph(tr::now)
-				: list.join(", ")),
-			!list.isEmpty(),
-			false,
-			anim::type::instant);
+		add(
+			tr::lng_payments_shipping_address(),
+			list.join(", "),
+			&st::paymentsIconShippingAddress,
+			[=] { _delegate->panelEditShippingInformation(); });
 	}
 	if (!_options.list.empty()) {
-		const auto options = inner->add(object_ptr<FormRow>(inner));
-		options->addClickHandler([=] {
-			_delegate->panelChooseShippingOption();
-		});
-		options->updateContent(
-			tr::lng_payments_shipping_method(tr::now),
-			(selected != end(_options.list)
-				? selected->title
-				: tr::lng_payments_shipping_method_ph(tr::now)),
-			(selected != end(_options.list)),
-			false,
-			anim::type::instant);
+		const auto selected = ranges::find(
+			_options.list,
+			_options.selectedId,
+			&ShippingOption::id);
+		add(
+			tr::lng_payments_shipping_method(),
+			(selected != end(_options.list)) ? selected->title : QString(),
+			&st::paymentsIconShippingMethod,
+			[=] { _delegate->panelChooseShippingOption(); });
 	}
 	if (_invoice.isNameRequested) {
-		const auto name = inner->add(object_ptr<FormRow>(inner));
-		name->addClickHandler([=] { _delegate->panelEditName(); });
-		name->updateContent(
-			tr::lng_payments_info_name(tr::now),
-			(_information.name.isEmpty()
-				? tr::lng_payments_info_name_ph(tr::now)
-				: _information.name),
-			!_information.name.isEmpty(),
-			false,
-			anim::type::instant);
+		add(
+			tr::lng_payments_info_name(),
+			_information.name,
+			&st::paymentsIconName,
+			[=] { _delegate->panelEditName(); });
 	}
 	if (_invoice.isEmailRequested) {
-		const auto email = inner->add(object_ptr<FormRow>(inner));
-		email->addClickHandler([=] { _delegate->panelEditEmail(); });
-		email->updateContent(
-			tr::lng_payments_info_email(tr::now),
-			(_information.email.isEmpty()
-				? tr::lng_payments_info_email_ph(tr::now)
-				: _information.email),
-			!_information.email.isEmpty(),
-			false,
-			anim::type::instant);
+		add(
+			tr::lng_payments_info_email(),
+			_information.email,
+			&st::paymentsIconEmail,
+			[=] { _delegate->panelEditEmail(); });
 	}
 	if (_invoice.isPhoneRequested) {
-		const auto phone = inner->add(object_ptr<FormRow>(inner));
-		phone->addClickHandler([=] { _delegate->panelEditPhone(); });
-		phone->updateContent(
-			tr::lng_payments_info_phone(tr::now),
-			(_information.phone.isEmpty()
-				? tr::lng_payments_info_phone_ph(tr::now)
-				: _information.phone),
-			!_information.phone.isEmpty(),
-			false,
-			anim::type::instant);
+		add(
+			tr::lng_payments_info_phone(),
+			_information.phone,
+			&st::paymentsIconPhone,
+			[=] { _delegate->panelEditPhone(); });
 	}
+	Settings::AddSkip(layout, st::paymentsSectionsTopSkip);
+}
+
+not_null<RpWidget*> FormSummary::setupContent() {
+	const auto inner = _scroll->setOwnedWidget(
+		object_ptr<VerticalLayout>(this));
+
+	_scroll->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		inner->resizeToWidth(width);
+	}, inner->lifetime());
+
+	setupCover(inner);
+	Settings::AddDivider(inner);
+	setupPrices(inner);
+	Settings::AddDivider(inner);
+	setupSections(inner);
 
 	return inner;
 }

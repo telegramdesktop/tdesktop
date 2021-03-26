@@ -28,6 +28,7 @@ struct RequestedInformation;
 struct ShippingOptions;
 enum class InformationField;
 enum class CardField;
+class FormSummary;
 class EditInformation;
 class EditCard;
 struct PaymentMethodDetails;
@@ -45,6 +46,7 @@ public:
 		const RequestedInformation &current,
 		const PaymentMethodDetails &method,
 		const ShippingOptions &options);
+	void updateFormThumbnail(const QImage &thumbnail);
 	void showEditInformation(
 		const Invoice &invoice,
 		const RequestedInformation &current,
@@ -78,6 +80,7 @@ private:
 	const not_null<PanelDelegate*> _delegate;
 	std::unique_ptr<SeparatePanel> _widget;
 	std::unique_ptr<Webview::Window> _webview;
+	QPointer<FormSummary> _weakFormSummary;
 	QPointer<EditInformation> _weakEditInformation;
 	QPointer<EditCard> _weakEditCard;
 
