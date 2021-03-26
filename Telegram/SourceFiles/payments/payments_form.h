@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "mtproto/sender.h"
 
+class Image;
+
 namespace Stripe {
 class APIClient;
 } // namespace Stripe
@@ -18,6 +20,10 @@ class APIClient;
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Data {
+class PhotoMedia;
+} // namespace Data
 
 namespace Payments {
 
@@ -36,6 +42,12 @@ struct FormDetails {
 	[[nodiscard]] explicit operator bool() const {
 		return valid();
 	}
+};
+
+struct ThumbnailLoadProcess {
+	std::shared_ptr<Data::PhotoMedia> view;
+	bool blurredSet = false;
+	rpl::lifetime lifetime;
 };
 
 struct SavedCredentials {
@@ -88,6 +100,9 @@ struct PaymentMethod {
 };
 
 struct FormReady {};
+struct ThumbnailUpdated {
+	QImage thumbnail;
+};
 struct ValidateFinished {};
 struct PaymentMethodUpdate {};
 struct VerificationNeeded {
@@ -109,6 +124,7 @@ struct Error {
 
 struct FormUpdate : std::variant<
 	FormReady,
+	ThumbnailUpdated,
 	ValidateFinished,
 	PaymentMethodUpdate,
 	VerificationNeeded,
@@ -149,6 +165,18 @@ public:
 	void submit();
 
 private:
+	void fillInvoiceFromMessage();
+
+	void loadThumbnail(not_null<PhotoData*> photo);
+	[[nodiscard]] QImage prepareGoodThumbnail(
+		const std::shared_ptr<Data::PhotoMedia> &view) const;
+	[[nodiscard]] QImage prepareBlurredThumbnail(
+		const std::shared_ptr<Data::PhotoMedia> &view) const;
+	[[nodiscard]] QImage prepareThumbnail(
+		not_null<const Image*> image,
+		bool blurred = false) const;
+	[[nodiscard]] QImage prepareEmptyThumbnail() const;
+
 	void requestForm();
 	void processForm(const MTPDpayments_paymentForm &data);
 	void processInvoice(const MTPDinvoice &data);
@@ -167,9 +195,10 @@ private:
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
-	MsgId _msgId = 0;
+	FullMsgId _msgId;
 
 	Ui::Invoice _invoice;
+	std::unique_ptr<ThumbnailLoadProcess> _thumbnailLoadProcess;
 	FormDetails _details;
 	Ui::RequestedInformation _savedInformation;
 	PaymentMethod _paymentMethod;
