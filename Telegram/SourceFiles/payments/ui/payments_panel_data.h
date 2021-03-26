@@ -87,6 +87,8 @@ struct Address {
 };
 
 struct RequestedInformation {
+	QString defaultCountry;
+
 	QString name;
 	QString phone;
 	QString email;
@@ -125,6 +127,8 @@ enum class InformationField {
 };
 
 struct NativeMethodDetails {
+	QString defaultCountry;
+
 	bool supported = false;
 	bool needCountry = false;
 	bool needZip = false;

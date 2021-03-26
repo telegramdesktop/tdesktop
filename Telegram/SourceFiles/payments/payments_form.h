@@ -113,13 +113,21 @@ struct PaymentFinished {
 };
 struct Error {
 	enum class Type {
+		None,
 		Form,
 		Validate,
 		Stripe,
 		Send,
 	};
-	Type type = Type::Form;
+	Type type = Type::None;
 	QString id;
+
+	[[nodiscard]] bool empty() const {
+		return (type == Type::None);
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return !empty();
+	}
 };
 
 struct FormUpdate : std::variant<
@@ -188,10 +196,14 @@ private:
 	void fillPaymentMethodInformation();
 	void fillStripeNativeMethod();
 	void refreshPaymentMethodDetails();
+	[[nodiscard]] QString defaultCountry() const;
 
 	void validateCard(
 		const StripePaymentMethod &method,
 		const Ui::UncheckedCardDetails &details);
+
+	[[nodiscard]] Error localInformationError(
+		const Ui::RequestedInformation &information) const;
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
