@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/ui/payments_edit_information.h"
 
 #include "payments/ui/payments_panel_delegate.h"
-#include "passport/ui/passport_details_row.h"
+#include "payments/ui/payments_field.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -48,18 +48,28 @@ EditInformation::EditInformation(
 	setupControls();
 }
 
+EditInformation::~EditInformation() = default;
+
 void EditInformation::setFocus(InformationField field) {
 	_focusField = field;
-	if (const auto control = controlForField(field)) {
-		_scroll->ensureWidgetVisible(control);
+	if (const auto control = lookupField(field)) {
+		_scroll->ensureWidgetVisible(control->widget());
+		control->setFocus();
+	}
+}
+
+void EditInformation::setFocusFast(InformationField field) {
+	_focusField = field;
+	if (const auto control = lookupField(field)) {
+		_scroll->ensureWidgetVisible(control->widget());
 		control->setFocusFast();
 	}
 }
 
 void EditInformation::showError(InformationField field) {
-	if (const auto control = controlForField(field)) {
-		_scroll->ensureWidgetVisible(control);
-		control->showError(QString());
+	if (const auto control = lookupField(field)) {
+		_scroll->ensureWidgetVisible(control->widget());
+		control->showError();
 	}
 }
 
@@ -93,106 +103,44 @@ not_null<RpWidget*> EditInformation::setupContent() {
 	const auto showBox = [=](object_ptr<BoxContent> box) {
 		_delegate->panelShowBox(std::move(box));
 	};
-	using Type = Passport::Ui::PanelDetailsType;
-	auto maxLabelWidth = 0;
+	const auto add = [&](FieldConfig &&config) {
+		auto result = std::make_unique<Field>(inner, std::move(config));
+		inner->add(result->ownedWidget(), st::paymentsFieldPadding);
+		return result;
+	};
 	if (_invoice.isShippingAddressRequested) {
-		accumulate_max(
-			maxLabelWidth,
-			Row::LabelWidth(tr::lng_passport_street(tr::now)));
-		accumulate_max(
-			maxLabelWidth,
-			Row::LabelWidth(tr::lng_passport_city(tr::now)));
-		accumulate_max(
-			maxLabelWidth,
-			Row::LabelWidth(tr::lng_passport_state(tr::now)));
-		accumulate_max(
-			maxLabelWidth,
-			Row::LabelWidth(tr::lng_passport_country(tr::now)));
-		accumulate_max(
-			maxLabelWidth,
-			Row::LabelWidth(tr::lng_passport_postcode(tr::now)));
-	}
-	if (_invoice.isNameRequested) {
-		accumulate_max(
-			maxLabelWidth,
-			Row::LabelWidth(tr::lng_payments_info_name(tr::now)));
-	}
-	if (_invoice.isEmailRequested) {
-		accumulate_max(
-			maxLabelWidth,
-			Row::LabelWidth(tr::lng_payments_info_email(tr::now)));
-	}
-	if (_invoice.isPhoneRequested) {
-		accumulate_max(
-			maxLabelWidth,
-			Row::LabelWidth(tr::lng_payments_info_phone(tr::now)));
-	}
-	if (_invoice.isShippingAddressRequested) {
-		_street1 = inner->add(
-			Row::Create(
-				inner,
-				showBox,
-				QString(),
-				Type::Text,
-				tr::lng_passport_street(tr::now),
-				maxLabelWidth,
-				_information.shippingAddress.address1,
-				QString(),
-				kMaxStreetSize));
-		_street2 = inner->add(
-			Row::Create(
-				inner,
-				showBox,
-				QString(),
-				Type::Text,
-				tr::lng_passport_street(tr::now),
-				maxLabelWidth,
-				_information.shippingAddress.address2,
-				QString(),
-				kMaxStreetSize));
-		_city = inner->add(
-			Row::Create(
-				inner,
-				showBox,
-				QString(),
-				Type::Text,
-				tr::lng_passport_city(tr::now),
-				maxLabelWidth,
-				_information.shippingAddress.city,
-				QString(),
-				kMaxStreetSize));
-		_state = inner->add(
-			Row::Create(
-				inner,
-				showBox,
-				QString(),
-				Type::Text,
-				tr::lng_passport_state(tr::now),
-				maxLabelWidth,
-				_information.shippingAddress.state,
-				QString(),
-				kMaxStreetSize));
-		_country = inner->add(
-			Row::Create(
-				inner,
-				showBox,
-				QString(),
-				Type::Country,
-				tr::lng_passport_country(tr::now),
-				maxLabelWidth,
-				_information.shippingAddress.countryIso2,
-				QString()));
-		_postcode = inner->add(
-			Row::Create(
-				inner,
-				showBox,
-				QString(),
-				Type::Postcode,
-				tr::lng_passport_postcode(tr::now),
-				maxLabelWidth,
-				_information.shippingAddress.postcode,
-				QString(),
-				kMaxPostcodeSize));
+		_street1 = add({
+			.placeholder = tr::lng_payments_address_street1(),
+			.value = _information.shippingAddress.address1,
+			.maxLength = kMaxStreetSize,
+			.required = true,
+		});
+		_street2 = add({
+			.placeholder = tr::lng_payments_address_street2(),
+			.value = _information.shippingAddress.address2,
+			.maxLength = kMaxStreetSize,
+		});
+		_city = add({
+			.placeholder = tr::lng_payments_address_city(),
+			.value = _information.shippingAddress.city,
+			.required = true,
+		});
+		_state = add({
+			.placeholder = tr::lng_payments_address_state(),
+			.value = _information.shippingAddress.state,
+		});
+		_country = add({
+			.type = FieldType::Country,
+			.placeholder = tr::lng_payments_address_country(),
+			.value = _information.shippingAddress.countryIso2,
+			.required = true,
+		});
+		_postcode = add({
+			.placeholder = tr::lng_payments_address_postcode(),
+			.value = _information.shippingAddress.postcode,
+			.maxLength = kMaxPostcodeSize,
+			.required = true,
+		});
 		//StreetValidate, // #TODO payments
 		//CityValidate,
 		//CountryValidate,
@@ -200,43 +148,28 @@ not_null<RpWidget*> EditInformation::setupContent() {
 		//PostcodeValidate,
 	}
 	if (_invoice.isNameRequested) {
-		_name = inner->add(
-			Row::Create(
-				inner,
-				showBox,
-				QString(),
-				Type::Text,
-				tr::lng_payments_info_name(tr::now),
-				maxLabelWidth,
-				_information.name,
-				QString(),
-				kMaxNameSize));
+		_name = add({
+			.placeholder = tr::lng_payments_info_name(),
+			.value = _information.name,
+			.maxLength = kMaxNameSize,
+			.required = true,
+		});
 	}
 	if (_invoice.isEmailRequested) {
-		_email = inner->add(
-			Row::Create(
-				inner,
-				showBox,
-				QString(),
-				Type::Text,
-				tr::lng_payments_info_email(tr::now),
-				maxLabelWidth,
-				_information.email,
-				QString(),
-				kMaxEmailSize));
+		_email = add({
+			.placeholder = tr::lng_payments_info_email(),
+			.value = _information.email,
+			.maxLength = kMaxEmailSize,
+			.required = true,
+		});
 	}
 	if (_invoice.isPhoneRequested) {
-		_phone = inner->add(
-			Row::Create(
-				inner,
-				showBox,
-				QString(),
-				Type::Text,
-				tr::lng_payments_info_phone(tr::now),
-				maxLabelWidth,
-				_information.phone,
-				QString(),
-				kMaxPhoneSize));
+		_phone = add({
+			.placeholder = tr::lng_payments_info_phone(),
+			.value = _information.phone,
+			.maxLength = kMaxPhoneSize,
+			.required = true,
+		});
 	}
 	return inner;
 }
@@ -246,8 +179,8 @@ void EditInformation::resizeEvent(QResizeEvent *e) {
 }
 
 void EditInformation::focusInEvent(QFocusEvent *e) {
-	if (const auto control = controlForField(_focusField)) {
-		control->setFocusFast();
+	if (const auto control = lookupField(_focusField)) {
+		control->setFocus();
 	}
 }
 
@@ -264,32 +197,32 @@ void EditInformation::updateControlsGeometry() {
 	_scroll->updateBars();
 }
 
-auto EditInformation::controlForField(InformationField field) const -> Row* {
+auto EditInformation::lookupField(InformationField field) const -> Field* {
 	switch (field) {
-	case InformationField::ShippingStreet: return _street1;
-	case InformationField::ShippingCity: return _city;
-	case InformationField::ShippingState: return _state;
-	case InformationField::ShippingCountry: return _country;
-	case InformationField::ShippingPostcode: return _postcode;
-	case InformationField::Name: return _name;
-	case InformationField::Email: return _email;
-	case InformationField::Phone: return _phone;
+	case InformationField::ShippingStreet: return _street1.get();
+	case InformationField::ShippingCity: return _city.get();
+	case InformationField::ShippingState: return _state.get();
+	case InformationField::ShippingCountry: return _country.get();
+	case InformationField::ShippingPostcode: return _postcode.get();
+	case InformationField::Name: return _name.get();
+	case InformationField::Email: return _email.get();
+	case InformationField::Phone: return _phone.get();
 	}
-	Unexpected("Unknown field in EditInformation::controlForField.");
+	Unexpected("Unknown field in EditInformation::lookupField.");
 }
 
 RequestedInformation EditInformation::collect() const {
 	return {
-		.name = _name ? _name->valueCurrent() : QString(),
-		.phone = _phone ? _phone->valueCurrent() : QString(),
-		.email = _email ? _email->valueCurrent() : QString(),
+		.name = _name ? _name->value() : QString(),
+		.phone = _phone ? _phone->value() : QString(),
+		.email = _email ? _email->value() : QString(),
 		.shippingAddress = {
-			.address1 = _street1 ? _street1->valueCurrent() : QString(),
-			.address2 = _street2 ? _street2->valueCurrent() : QString(),
-			.city = _city ? _city->valueCurrent() : QString(),
-			.state = _state ? _state->valueCurrent() : QString(),
-			.countryIso2 = _country ? _country->valueCurrent() : QString(),
-			.postcode = _postcode ? _postcode->valueCurrent() : QString(),
+			.address1 = _street1 ? _street1->value() : QString(),
+			.address2 = _street2 ? _street2->value() : QString(),
+			.city = _city ? _city->value() : QString(),
+			.state = _state ? _state->value() : QString(),
+			.countryIso2 = _country ? _country->value() : QString(),
+			.postcode = _postcode ? _postcode->value() : QString(),
 		},
 	};
 }

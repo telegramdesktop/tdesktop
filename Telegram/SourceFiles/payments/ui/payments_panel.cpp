@@ -23,7 +23,6 @@ namespace Payments::Ui {
 Panel::Panel(not_null<PanelDelegate*> delegate)
 : _delegate(delegate)
 , _widget(std::make_unique<SeparatePanel>()) {
-	_widget->setTitle(tr::lng_payments_checkout_title());
 	_widget->setInnerSize(st::passportPanelSize);
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 
@@ -52,6 +51,7 @@ void Panel::showForm(
 		const RequestedInformation &current,
 		const PaymentMethodDetails &method,
 		const ShippingOptions &options) {
+	_widget->setTitle(tr::lng_payments_checkout_title());
 	auto form = base::make_unique_q<FormSummary>(
 		_widget.get(),
 		invoice,
@@ -74,6 +74,7 @@ void Panel::showEditInformation(
 		const Invoice &invoice,
 		const RequestedInformation &current,
 		InformationField field) {
+	_widget->setTitle(tr::lng_payments_shipping_address_title());
 	auto edit = base::make_unique_q<EditInformation>(
 		_widget.get(),
 		invoice,
@@ -83,7 +84,7 @@ void Panel::showEditInformation(
 	_weakEditInformation = edit.get();
 	_widget->showInner(std::move(edit));
 	_widget->setBackAllowed(true);
-	_weakEditInformation->setFocus(field);
+	_weakEditInformation->setFocusFast(field);
 }
 
 void Panel::showInformationError(
@@ -125,6 +126,7 @@ void Panel::chooseShippingOption(const ShippingOptions &options) {
 }
 
 void Panel::showEditPaymentMethod(const PaymentMethodDetails &method) {
+	_widget->setTitle(tr::lng_payments_card_title());
 	if (method.native.supported) {
 		showEditCard(method.native, CardField::Number);
 	} else if (!showWebview(method.url, true)) {
@@ -221,7 +223,7 @@ void Panel::showEditCard(
 	_weakEditCard = edit.get();
 	_widget->showInner(std::move(edit));
 	_widget->setBackAllowed(true);
-	_weakEditCard->setFocus(field);
+	_weakEditCard->setFocusFast(field);
 }
 
 void Panel::showCardError(
@@ -230,11 +232,12 @@ void Panel::showCardError(
 	if (_weakEditCard) {
 		_weakEditCard->showError(field);
 	} else {
-		showEditCard(native, field);
-		if (_weakEditCard
-			&& field == CardField::AddressCountry) {
-			_weakEditCard->showError(field);
-		}
+		// We cancelled card edit already.
+		//showEditCard(native, field);
+		//if (_weakEditCard
+		//	&& field == CardField::AddressCountry) {
+		//	_weakEditCard->showError(field);
+		//}
 	}
 }
 
