@@ -56,3 +56,14 @@ paymentsIconName: icon {{ "payments/payment_name", menuIconFg }};
 paymentsIconEmail: icon {{ "payments/payment_email", menuIconFg }};
 paymentsIconPhone: icon {{ "payments/payment_phone", menuIconFg }};
 paymentsIconShippingMethod: icon {{ "payments/payment_shipping", menuIconFg }};
+
+paymentsField: defaultInputField;
+paymentsFieldPadding: margins(28px, 0px, 28px, 2px);
+paymentsExpireCvcSkip: 34px;
+
+paymentsBillingInformationTitle: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: windowActiveTextFg;
+	minWidth: 240px;
+}
+paymentsBillingInformationTitlePadding: margins(28px, 26px, 28px, 1px);

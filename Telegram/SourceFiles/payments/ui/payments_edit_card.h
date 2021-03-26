@@ -17,15 +17,12 @@ class FadeShadow;
 class RoundButton;
 } // namespace Ui
 
-namespace Passport::Ui {
-class PanelDetailsRow;
-} // namespace Passport::Ui
-
 namespace Payments::Ui {
 
 using namespace ::Ui;
 
 class PanelDelegate;
+class Field;
 
 class EditCard final : public RpWidget {
 public:
@@ -35,19 +32,18 @@ public:
 		CardField field,
 		not_null<PanelDelegate*> delegate);
 
-	void showError(CardField field);
 	void setFocus(CardField field);
+	void setFocusFast(CardField field);
+	void showError(CardField field);
 
 private:
-	using Row = Passport::Ui::PanelDetailsRow;
-
 	void resizeEvent(QResizeEvent *e) override;
 	void focusInEvent(QFocusEvent *e) override;
 
 	void setupControls();
 	[[nodiscard]] not_null<Ui::RpWidget*> setupContent();
 	void updateControlsGeometry();
-	[[nodiscard]] Row *controlForField(CardField field) const;
+	[[nodiscard]] Field *lookupField(CardField field) const;
 
 	[[nodiscard]] UncheckedCardDetails collect() const;
 
@@ -59,12 +55,12 @@ private:
 	object_ptr<FadeShadow> _bottomShadow;
 	object_ptr<RoundButton> _done;
 
-	Row *_number = nullptr;
-	Row *_cvc = nullptr;
-	Row *_expire = nullptr;
-	Row *_name = nullptr;
-	Row *_country = nullptr;
-	Row *_zip = nullptr;
+	std::unique_ptr<Field> _number;
+	std::unique_ptr<Field> _cvc;
+	std::unique_ptr<Field> _expire;
+	std::unique_ptr<Field> _name;
+	std::unique_ptr<Field> _country;
+	std::unique_ptr<Field> _zip;
 
 	CardField _focusField = CardField::Number;
 

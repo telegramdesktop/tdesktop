@@ -87,6 +87,7 @@ CheckoutProcess::CheckoutProcess(
 	) | rpl::start_with_next([=] {
 		showForm();
 	}, _panel->lifetime());
+	showForm();
 }
 
 CheckoutProcess::~CheckoutProcess() {
@@ -156,7 +157,7 @@ void CheckoutProcess::handleError(const Error &error) {
 			showToast({ "Error: " + id });
 		}
 		break;
-	case Error::Type::Validate:
+	case Error::Type::Validate: {
 		if (_submitState == SubmitState::Validation) {
 			_submitState = SubmitState::None;
 		}
@@ -189,7 +190,21 @@ void CheckoutProcess::handleError(const Error &error) {
 		} else {
 			showToast({ "Error: " + id });
 		}
-		break;
+	} break;
+	case Error::Type::Stripe: {
+		using Field = Ui::CardField;
+		if (id == u"InvalidNumber"_q || id == u"IncorrectNumber"_q) {
+			showCardError(Field::Number);
+		} else if (id == u"InvalidCVC"_q || id == u"IncorrectCVC"_q) {
+			showCardError(Field::CVC);
+		} else if (id == u"InvalidExpiryMonth"_q
+			|| id == u"InvalidExpiryYear"_q
+			|| id == u"ExpiredCard"_q) {
+			showCardError(Field::ExpireDate);
+		} else {
+			showToast({ "Error: " + id });
+		}
+	} break;
 	case Error::Type::Send:
 		if (_submitState == SubmitState::Finishing) {
 			_submitState = SubmitState::None;
@@ -373,6 +388,13 @@ void CheckoutProcess::showInformationError(Ui::InformationField field) {
 		_form->invoice(),
 		_form->savedInformation(),
 		field);
+}
+
+void CheckoutProcess::showCardError(Ui::CardField field) {
+	if (_submitState != SubmitState::None) {
+		return;
+	}
+	_panel->showCardError(_form->paymentMethod().ui.native, field);
 }
 
 void CheckoutProcess::chooseShippingOption() {

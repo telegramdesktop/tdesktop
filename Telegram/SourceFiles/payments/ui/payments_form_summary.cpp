@@ -58,7 +58,7 @@ QString FormSummary::formatAmount(int64 amount) const {
 	const auto base = FillAmountAndCurrency(
 		std::abs(amount),
 		_invoice.currency);
-	return (amount > 0) ? base : (QString::fromUtf8("\xe2\x88\x92") + base);
+	return (amount < 0) ? (QString::fromUtf8("\xe2\x88\x92") + base) : base;
 }
 
 int64 FormSummary::computeTotalAmount() const {
@@ -87,6 +87,9 @@ void FormSummary::setupControls() {
 	_submit->addClickHandler([=] {
 		_delegate->panelSubmit();
 	});
+	if (!_invoice) {
+		_submit->hide();
+	}
 
 	using namespace rpl::mappers;
 
@@ -317,10 +320,12 @@ not_null<RpWidget*> FormSummary::setupContent() {
 	}, inner->lifetime());
 
 	setupCover(inner);
-	Settings::AddDivider(inner);
-	setupPrices(inner);
-	Settings::AddDivider(inner);
-	setupSections(inner);
+	if (_invoice) {
+		Settings::AddDivider(inner);
+		setupPrices(inner);
+		Settings::AddDivider(inner);
+		setupSections(inner);
+	}
 
 	return inner;
 }

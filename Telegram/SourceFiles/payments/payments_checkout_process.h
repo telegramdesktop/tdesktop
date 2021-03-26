@@ -19,6 +19,7 @@ class Session;
 namespace Payments::Ui {
 class Panel;
 enum class InformationField;
+enum class CardField;
 } // namespace Payments::Ui
 
 namespace Payments {
@@ -58,6 +59,7 @@ private:
 	void showForm();
 	void showEditInformation(Ui::InformationField field);
 	void showInformationError(Ui::InformationField field);
+	void showCardError(Ui::CardField field);
 	void chooseShippingOption();
 	void editPaymentMethod();
 

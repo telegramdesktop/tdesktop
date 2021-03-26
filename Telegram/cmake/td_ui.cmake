@@ -75,6 +75,8 @@ PRIVATE
     payments/ui/payments_edit_information.h
     payments/ui/payments_form_summary.cpp
     payments/ui/payments_form_summary.h
+    payments/ui/payments_field.cpp
+    payments/ui/payments_field.h
     payments/ui/payments_panel.cpp
     payments/ui/payments_panel.h
     payments/ui/payments_panel_data.h
