@@ -295,7 +295,6 @@ void Form::refreshPaymentMethodDetails() {
 	const auto &entered = _paymentMethod.newCredentials;
 	_paymentMethod.ui.title = entered ? entered.title : saved.title;
 	_paymentMethod.ui.ready = entered || saved;
-	_paymentMethod.ui.native.defaultPhone = defaultPhone();
 	_paymentMethod.ui.native.defaultCountry = defaultCountry();
 }
 
