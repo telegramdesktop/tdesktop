@@ -152,6 +152,7 @@ private:
 		~Row();
 
 		bool isRecentSet() const;
+		bool isMasksSet() const;
 
 		const not_null<StickersSet*> set;
 		DocumentData *sticker = nullptr;
@@ -997,6 +998,10 @@ bool StickersBox::Inner::Row::isRecentSet() const {
 		|| (set->id == Data::Stickers::CloudRecentAttachedSetId);
 }
 
+bool StickersBox::Inner::Row::isMasksSet() const {
+	return (set->flags & MTPDstickerSet::Flag::f_masks);
+}
+
 StickersBox::Inner::Inner(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
@@ -1247,7 +1252,11 @@ void StickersBox::Inner::paintRow(Painter &p, not_null<Row*> row, int index) {
 		}
 	}
 
-	auto statusText = (row->count > 0) ? tr::lng_stickers_count(tr::now, lt_count, row->count) : tr::lng_contacts_loading(tr::now);
+	const auto statusText = (row->count == 0)
+		? tr::lng_contacts_loading(tr::now)
+		: row->isMasksSet()
+		? tr::lng_masks_count(tr::now, lt_count, row->count)
+		: tr::lng_stickers_count(tr::now, lt_count, row->count);
 
 	p.setFont(st::contactsStatusFont);
 	p.setPen(st::contactsStatusFg);
