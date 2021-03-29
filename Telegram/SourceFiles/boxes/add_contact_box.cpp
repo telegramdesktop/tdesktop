@@ -268,7 +268,7 @@ AddContactBox::AddContactBox(
 	this,
 	st::defaultInputField,
 	tr::lng_contact_phone(),
-	ExtractPhonePrefix(session->user()->phone()),
+	Ui::ExtractPhonePrefix(session->user()->phone()),
 	phone)
 , _invertOrder(langFirstNameGoesSecond()) {
 	if (!phone.isEmpty()) {

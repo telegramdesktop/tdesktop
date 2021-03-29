@@ -30,8 +30,7 @@ constexpr auto kMaxPhoneCodeLength = 4;
 CountryCodeInput::CountryCodeInput(
 	QWidget *parent,
 	const style::InputField &st)
-: MaskedInputField(parent, st)
-, _nosignal(false) {
+: MaskedInputField(parent, st) {
 }
 
 void CountryCodeInput::startErasing(QKeyEvent *e) {
@@ -91,14 +90,15 @@ void CountryCodeInput::correctValue(
 	setCorrectedText(now, nowCursor, newText, newPos);
 
 	if (!_nosignal && was != newText) {
-		codeChanged(newText.mid(1));
+		_codeChanged.fire(newText.mid(1));
 	}
 	if (!addToNumber.isEmpty()) {
-		addedToNumber(addToNumber);
+		_addedToNumber.fire_copy(addToNumber);
 	}
 }
 
-PhonePartInput::PhonePartInput(QWidget *parent, const style::InputField &st) : MaskedInputField(parent, st/*, tr::lng_phone_ph(tr::now)*/) {
+PhonePartInput::PhonePartInput(QWidget *parent, const style::InputField &st)
+: MaskedInputField(parent, st/*, tr::lng_phone_ph(tr::now)*/) {
 }
 
 void PhonePartInput::paintAdditionalPlaceholder(Painter &p) {
@@ -119,8 +119,8 @@ void PhonePartInput::paintAdditionalPlaceholder(Painter &p) {
 }
 
 void PhonePartInput::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Backspace && getLastText().isEmpty()) {
-		voidBackspace(e);
+	if (e->key() == Qt::Key_Backspace && cursorPosition() == 0) {
+		_frontBackspaceEvent.fire_copy(e);
 	} else {
 		MaskedInputField::keyPressEvent(e);
 	}
@@ -204,7 +204,7 @@ void PhonePartInput::addedToNumber(const QString &added) {
 	startPlaceholderAnimation();
 }
 
-void PhonePartInput::onChooseCode(const QString &code) {
+void PhonePartInput::chooseCode(const QString &code) {
 	_pattern = phoneNumberParse(code);
 	if (!_pattern.isEmpty() && _pattern.at(0) == code.size()) {
 		_pattern.pop_front();
