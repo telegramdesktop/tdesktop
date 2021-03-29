@@ -341,12 +341,6 @@ public:
 		not_null<UserData*> user,
 		PhotoId afterId);
 
-	void stickerSetInstalled(uint64 setId) {
-		_stickerSetInstalled.fire_copy(setId);
-	}
-	auto stickerSetInstalled() const {
-		return _stickerSetInstalled.events();
-	}
 	void readFeaturedSetDelayed(uint64 setId);
 
 	void parseChannelParticipants(
@@ -735,8 +729,6 @@ private:
 	base::flat_map<uint64, std::shared_ptr<SendingAlbum>> _sendingAlbums;
 
 	base::Observable<PeerData*> _fullPeerUpdated;
-
-	rpl::event_stream<uint64> _stickerSetInstalled;
 
 	mtpRequestId _topPromotionRequestId = 0;
 	std::pair<QString, uint32> _topPromotionKey;

@@ -102,6 +102,14 @@ rpl::producer<> Stickers::savedGifsUpdated() const {
 	return _savedGifsUpdated.events();
 }
 
+void Stickers::notifyStickerSetInstalled(uint64 setId) {
+	_stickerSetInstalled.fire(std::move(setId));
+}
+
+rpl::producer<uint64> Stickers::stickerSetInstalled() const {
+	return _stickerSetInstalled.events();
+}
+
 // Increment attached sticker.
 void Stickers::incrementSticker(not_null<DocumentData*> document) {
 	if (!document->sticker()
@@ -513,7 +521,7 @@ void Stickers::setIsFaved(
 	}
 	session().local().writeFavedStickers();
 	notifyUpdated();
-	session().api().stickerSetInstalled(FavedSetId);
+	notifyStickerSetInstalled(FavedSetId);
 }
 
 void Stickers::requestSetToPushFaved(not_null<DocumentData*> document) {

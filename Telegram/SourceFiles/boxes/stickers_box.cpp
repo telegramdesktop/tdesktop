@@ -1691,7 +1691,8 @@ void StickersBox::Inner::saveGroupSet() {
 		: 0;
 	if (newId != oldId) {
 		session().api().setGroupStickerSet(_megagroupSet, _megagroupSetInput);
-		session().api().stickerSetInstalled(Data::Stickers::MegagroupSetId);
+		session().data().stickers().notifyStickerSetInstalled(
+			Data::Stickers::MegagroupSetId);
 	}
 }
 

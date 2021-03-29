@@ -388,8 +388,8 @@ TabbedSelector::TabbedSelector(
 	}
 
 	if (hasStickersTab()) {
-		session().api().stickerSetInstalled(
-		) | rpl::start_with_next([this](uint64 setId) {
+		session().data().stickers().stickerSetInstalled(
+		) | rpl::start_with_next([=](uint64 setId) {
 			_tabsSlider->setActiveSection(indexByType(SelectorTab::Stickers));
 			stickers()->showStickerSet(setId);
 			_showRequests.fire({});

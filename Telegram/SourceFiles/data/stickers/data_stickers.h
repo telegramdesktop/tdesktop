@@ -60,6 +60,8 @@ public:
 	[[nodiscard]] rpl::producer<Recent> recentUpdated() const;
 	void notifySavedGifsUpdated();
 	[[nodiscard]] rpl::producer<> savedGifsUpdated() const;
+	void notifyStickerSetInstalled(uint64 setId);
+	[[nodiscard]] rpl::producer<uint64> stickerSetInstalled() const;
 
 	void incrementSticker(not_null<DocumentData*> document);
 
@@ -225,6 +227,7 @@ private:
 	rpl::event_stream<> _updated;
 	rpl::event_stream<Recent> _recentUpdated;
 	rpl::event_stream<> _savedGifsUpdated;
+	rpl::event_stream<uint64> _stickerSetInstalled;
 	crl::time _lastUpdate = 0;
 	crl::time _lastRecentUpdate = 0;
 	crl::time _lastFavedUpdate = 0;

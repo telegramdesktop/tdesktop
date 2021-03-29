@@ -192,7 +192,8 @@ void StickerSetBox::prepare() {
 		if (_inner->isMasksSet()) {
 			Ui::Toast::Show(tr::lng_masks_installed(tr::now));
 		} else {
-			_controller->session().api().stickerSetInstalled(setId);
+			auto &stickers = _controller->session().data().stickers();
+			stickers.notifyStickerSetInstalled(setId);
 		}
 		closeBox();
 	}, lifetime());
