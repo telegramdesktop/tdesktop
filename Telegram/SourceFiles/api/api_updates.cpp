@@ -2141,25 +2141,37 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateStickerSetsOrder: {
 		auto &d = update.c_updateStickerSetsOrder();
-		if (!d.is_masks()) {
-			const auto &order = d.vorder().v;
-			const auto &sets = session().data().stickers().sets();
-			Data::StickersSetsOrder result;
-			for (const auto &item : order) {
-				if (sets.find(item.v) == sets.cend()) {
-					break;
-				}
-				result.push_back(item.v);
+		auto &stickers = session().data().stickers();
+		const auto isMasks = d.is_masks();
+		const auto &order = d.vorder().v;
+		const auto &sets = stickers.sets();
+		Data::StickersSetsOrder result;
+		for (const auto &item : order) {
+			if (sets.find(item.v) == sets.cend()) {
+				break;
 			}
-			if (result.size() != session().data().stickers().setsOrder().size()
-				|| result.size() != order.size()) {
-				session().data().stickers().setLastUpdate(0);
-				session().api().updateStickers();
+			result.push_back(item.v);
+		}
+		const auto localSize = isMasks
+			? stickers.maskSetsOrder().size()
+			: stickers.setsOrder().size();
+		if ((result.size() != localSize) || (result.size() != order.size())) {
+			if (isMasks) {
+				stickers.setLastMasksUpdate(0);
+				session().api().updateMasks();
 			} else {
-				session().data().stickers().setsOrderRef() = std::move(result);
-				session().local().writeInstalledStickers();
-				session().data().stickers().notifyUpdated();
+				stickers.setLastUpdate(0);
+				session().api().updateStickers();
 			}
+		} else {
+			if (isMasks) {
+				stickers.maskSetsOrderRef() = std::move(result);
+				session().local().writeInstalledMasks();
+			} else {
+				stickers.setsOrderRef() = std::move(result);
+				session().local().writeInstalledStickers();
+			}
+			stickers.notifyUpdated();
 		}
 	} break;
 
