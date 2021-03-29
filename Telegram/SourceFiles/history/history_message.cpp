@@ -857,7 +857,12 @@ MsgId HistoryMessage::computeRepliesInboxReadTillFull() const {
 		? history()->owner().historyLoaded(
 			peerFromChannel(views->commentsMegagroupId))
 		: history().get();
-	return group ? std::max(local, group->inboxReadTillId()) : local;
+	if (const auto megagroup = group->peer->asChannel()) {
+		if (megagroup->amIn()) {
+			return std::max(local, group->inboxReadTillId());
+		}
+	}
+	return local;
 }
 
 MsgId HistoryMessage::repliesOutboxReadTill() const {
@@ -891,7 +896,12 @@ MsgId HistoryMessage::computeRepliesOutboxReadTillFull() const {
 		? history()->owner().historyLoaded(
 			peerFromChannel(views->commentsMegagroupId))
 		: history().get();
-	return group ? std::max(local, group->outboxReadTillId()) : local;
+	if (const auto megagroup = group->peer->asChannel()) {
+		if (megagroup->amIn()) {
+			return std::max(local, group->outboxReadTillId());
+		}
+	}
+	return local;
 }
 
 void HistoryMessage::setRepliesMaxId(MsgId maxId) {
