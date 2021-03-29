@@ -1390,6 +1390,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_box_remove" = "Remove";
 
 "lng_stickers_installed_tab" = "Stickers";
+"lng_stickers_masks_tab" = "Masks";
 "lng_stickers_featured_tab" = "Trending";
 "lng_stickers_archived_tab" = "Archived";
 "lng_stickers_remove_pack" = "Remove «{sticker_pack}»?";
