@@ -441,19 +441,20 @@ bool AddRescheduleAction(
 		not_null<ListWidget*> list) {
 	const auto owner = &request.navigation->session().data();
 
-	const auto goodSingle = !(!HasEditMessageAction(request, list)
-		|| !request.item->isScheduled());
+	const auto goodSingle = HasEditMessageAction(request, list)
+		&& request.item->isScheduled();
 	const auto goodMany = [&] {
 		if (goodSingle) {
 			return false;
 		}
-		if (!request.overSelection || request.selectedItems.empty()) {
+		const auto &items = request.selectedItems;
+		if (!request.overSelection || items.empty()) {
 			return false;
 		}
-		if (request.selectedItems.size() > kRescheduleLimit) {
+		if (items.size() > kRescheduleLimit) {
 			return false;
 		}
-		return true;
+		return ranges::all_of(items, &SelectedItem::canSendNow);
 	}();
 	if (!goodSingle && !goodMany) {
 		return false;
@@ -476,8 +477,8 @@ bool AddRescheduleAction(
 		if (!firstItem) {
 			return;
 		}
-		list->cancelSelection();
 		const auto callback = [=](Api::SendOptions options) {
+			list->cancelSelection();
 			for (const auto &id : ids) {
 				const auto item = owner->message(id);
 				if (!item && !item->isScheduled()) {
