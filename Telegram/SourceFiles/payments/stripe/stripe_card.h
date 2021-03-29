@@ -20,6 +20,7 @@ enum class CardBrand {
 	Discover,
 	JCB,
 	DinersClub,
+	UnionPay,
 	Unknown,
 };
 

@@ -87,6 +87,7 @@ struct Address {
 };
 
 struct RequestedInformation {
+	QString defaultPhone;
 	QString defaultCountry;
 
 	QString name;
@@ -144,7 +145,7 @@ struct PaymentMethodDetails {
 
 enum class CardField {
 	Number,
-	CVC,
+	Cvc,
 	ExpireDate,
 	Name,
 	AddressCountry,

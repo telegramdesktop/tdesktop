@@ -28,7 +28,7 @@ QString LastValidISO;
 
 class CountrySelectBox::Inner : public TWidget {
 public:
-	Inner(QWidget *parent, Type type);
+	Inner(QWidget *parent, const QString &iso, Type type);
 	~Inner();
 
 	void updateFilter(QString filter = QString());
@@ -93,10 +93,7 @@ CountrySelectBox::CountrySelectBox(QWidget*)
 CountrySelectBox::CountrySelectBox(QWidget*, const QString &iso, Type type)
 : _type(type)
 , _select(this, st::defaultMultiSelect, tr::lng_country_ph())
-, _ownedInner(this, type) {
-	if (Data::CountriesByISO2().contains(iso)) {
-		LastValidISO = iso;
-	}
+, _ownedInner(this, iso, type) {
 }
 
 rpl::producer<QString> CountrySelectBox::countryChosen() const {
@@ -169,13 +166,20 @@ void CountrySelectBox::setInnerFocus() {
 	_select->setInnerFocus();
 }
 
-CountrySelectBox::Inner::Inner(QWidget *parent, Type type)
+CountrySelectBox::Inner::Inner(
+	QWidget *parent,
+	const QString &iso,
+	Type type)
 : TWidget(parent)
 , _type(type)
 , _rowHeight(st::countryRowHeight) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	const auto &byISO2 = Data::CountriesByISO2();
+
+	if (byISO2.contains(iso)) {
+		LastValidISO = iso;
+	}
 
 	_list.reserve(byISO2.size());
 	_namesList.reserve(byISO2.size());

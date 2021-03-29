@@ -166,23 +166,36 @@ void CheckoutProcess::handleError(const Error &error) {
 			showForm();
 			return;
 		}
-		using Field = Ui::InformationField;
+		using InfoField = Ui::InformationField;
+		using CardField = Ui::CardField;
 		if (id == u"REQ_INFO_NAME_INVALID"_q) {
-			showInformationError(Field::Name);
+			showInformationError(InfoField::Name);
 		} else if (id == u"REQ_INFO_EMAIL_INVALID"_q) {
-			showInformationError(Field::Email);
+			showInformationError(InfoField::Email);
 		} else if (id == u"REQ_INFO_PHONE_INVALID"_q) {
-			showInformationError(Field::Phone);
+			showInformationError(InfoField::Phone);
 		} else if (id == u"ADDRESS_STREET_LINE1_INVALID"_q) {
-			showInformationError(Field::ShippingStreet);
+			showInformationError(InfoField::ShippingStreet);
 		} else if (id == u"ADDRESS_CITY_INVALID"_q) {
-			showInformationError(Field::ShippingCity);
+			showInformationError(InfoField::ShippingCity);
 		} else if (id == u"ADDRESS_STATE_INVALID"_q) {
-			showInformationError(Field::ShippingState);
+			showInformationError(InfoField::ShippingState);
 		} else if (id == u"ADDRESS_COUNTRY_INVALID"_q) {
-			showInformationError(Field::ShippingCountry);
+			showInformationError(InfoField::ShippingCountry);
 		} else if (id == u"ADDRESS_POSTCODE_INVALID"_q) {
-			showInformationError(Field::ShippingPostcode);
+			showInformationError(InfoField::ShippingPostcode);
+		} else if (id == u"LOCAL_CARD_NUMBER_INVALID"_q) {
+			showCardError(CardField::Number);
+		} else if (id == u"LOCAL_CARD_EXPIRE_DATE_INVALID"_q) {
+			showCardError(CardField::ExpireDate);
+		} else if (id == u"LOCAL_CARD_CVC_INVALID"_q) {
+			showCardError(CardField::Cvc);
+		} else if (id == u"LOCAL_CARD_HOLDER_NAME_INVALID"_q) {
+			showCardError(CardField::Name);
+		} else if (id == u"LOCAL_CARD_BILLING_COUNTRY_INVALID"_q) {
+			showCardError(CardField::AddressCountry);
+		} else if (id == u"LOCAL_CARD_BILLING_ZIP_INVALID"_q) {
+			showCardError(CardField::AddressZip);
 		} else if (id == u"SHIPPING_BOT_TIMEOUT"_q) {
 			showToast({ "Error: Bot Timeout!" }); // #TODO payments errors message
 		} else if (id == u"SHIPPING_NOT_AVAILABLE"_q) {
@@ -196,11 +209,17 @@ void CheckoutProcess::handleError(const Error &error) {
 		if (id == u"InvalidNumber"_q || id == u"IncorrectNumber"_q) {
 			showCardError(Field::Number);
 		} else if (id == u"InvalidCVC"_q || id == u"IncorrectCVC"_q) {
-			showCardError(Field::CVC);
+			showCardError(Field::Cvc);
 		} else if (id == u"InvalidExpiryMonth"_q
 			|| id == u"InvalidExpiryYear"_q
 			|| id == u"ExpiredCard"_q) {
 			showCardError(Field::ExpireDate);
+		} else if (id == u"CardDeclined"_q) {
+			// #TODO payments errors message
+			showToast({ "Error: " + id });
+		} else if (id == u"ProcessingError"_q) {
+			// #TODO payments errors message
+			showToast({ "Error: " + id });
 		} else {
 			showToast({ "Error: " + id });
 		}

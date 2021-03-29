@@ -9,8 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/input_fields.h"
 #include "ui/boxes/country_select_box.h"
+#include "ui/ui_utility.h"
+#include "ui/special_fields.h"
 #include "data/data_countries.h"
 #include "base/platform/base_platform_info.h"
+#include "base/event_filter.h"
 #include "styles/style_payments.h"
 
 namespace Payments::Ui {
@@ -91,11 +94,17 @@ namespace {
 	case FieldType::CardExpireDate:
 	case FieldType::CardCVC:
 	case FieldType::Country:
-	case FieldType::Phone:
 		return CreateChild<MaskedInputField>(
 			wrap.get(),
 			st::paymentsField,
 			std::move(config.placeholder),
+			Parse(config));
+	case FieldType::Phone:
+		return CreateChild<PhoneInput>(
+			wrap.get(),
+			st::paymentsField,
+			std::move(config.placeholder),
+			ExtractPhonePrefix(config.defaultPhone),
 			Parse(config));
 	}
 	Unexpected("FieldType in Payments::Ui::LookupMaskedField.");
@@ -115,6 +124,10 @@ Field::Field(QWidget *parent, FieldConfig &&config)
 	if (_config.type == FieldType::Country) {
 		setupCountry();
 	}
+	if (const auto &validator = config.validator) {
+		setupValidator(validator);
+	}
+	setupFrontBackspace();
 }
 
 RpWidget *Field::widget() const {
@@ -130,6 +143,14 @@ QString Field::value() const {
 		_config,
 		_input ? _input->getLastText() : _masked->getLastText(),
 		_countryIso2);
+}
+
+rpl::producer<> Field::frontBackspace() const {
+	return _frontBackspace.events();
+}
+
+rpl::producer<> Field::finished() const {
+	return _finished.events();
 }
 
 void Field::setupMaskedGeometry() {
@@ -168,11 +189,134 @@ void Field::setupCountry() {
 			_countryIso2 = iso2;
 			_masked->setText(Data::CountryNameByISO2(iso2));
 			_masked->hideError();
-			setFocus();
 			raw->closeBox();
+		}, _masked->lifetime());
+		raw->boxClosing() | rpl::start_with_next([=] {
+			setFocus();
 		}, _masked->lifetime());
 		_config.showBox(std::move(box));
 	});
+}
+
+void Field::setupValidator(Fn<ValidateResult(ValidateRequest)> validator) {
+	Expects(validator != nullptr);
+
+	const auto state = [=]() -> State {
+		if (_masked) {
+			const auto position = _masked->cursorPosition();
+			const auto selectionStart = _masked->selectionStart();
+			const auto selectionEnd = _masked->selectionEnd();
+			return {
+				.value = value(),
+				.position = position,
+				.anchor = (selectionStart == selectionEnd
+					? position
+					: (selectionStart == position)
+					? selectionEnd
+					: selectionStart),
+			};
+		}
+		const auto cursor = _input->textCursor();
+		return {
+			.value = value(),
+			.position = cursor.position(),
+			.anchor = cursor.anchor(),
+		};
+	};
+	const auto save = [=] {
+		_was = state();
+	};
+	const auto setText = [=](const QString &text) {
+		if (_masked) {
+			_masked->setText(text);
+		} else {
+			_input->setText(text);
+		}
+	};
+	const auto setPosition = [=](int position) {
+		if (_masked) {
+			_masked->setCursorPosition(position);
+		} else {
+			auto cursor = _input->textCursor();
+			cursor.setPosition(position);
+			_input->setTextCursor(cursor);
+		}
+	};
+	const auto validate = [=] {
+		if (_validating) {
+			return;
+		}
+		_validating = true;
+		const auto guard = gsl::finally([&] {
+			_validating = false;
+			save();
+		});
+
+		const auto now = state();
+		const auto result = validator(ValidateRequest{
+			.wasValue = _was.value,
+			.wasPosition = _was.position,
+			.wasAnchor = _was.anchor,
+			.nowValue = now.value,
+			.nowPosition = now.position,
+		});
+		const auto changed = (result.value != now.value);
+		if (changed) {
+			setText(result.value);
+		}
+		if (changed || result.position != now.position) {
+			setPosition(result.position);
+		}
+		if (result.finished) {
+			_finished.fire({});
+		} else if (result.invalid) {
+			Ui::PostponeCall(
+				_masked ? (QWidget*)_masked : _input,
+				[=] { showErrorNoFocus(); });
+		}
+	};
+	if (_masked) {
+		QObject::connect(_masked, &QLineEdit::cursorPositionChanged, save);
+		QObject::connect(_masked, &MaskedInputField::changed, validate);
+	} else {
+		const auto raw = _input->rawTextEdit();
+		QObject::connect(raw, &QTextEdit::cursorPositionChanged, save);
+		QObject::connect(_input, &InputField::changed, validate);
+	}
+}
+
+void Field::setupFrontBackspace() {
+	const auto filter = [=](not_null<QEvent*> e) {
+		const auto frontBackspace = (e->type() == QEvent::KeyPress)
+			&& (static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Backspace)
+			&& (_masked
+				? (_masked->cursorPosition() == 0
+					&& _masked->selectionLength() == 0)
+				: (_input->textCursor().position() == 0
+					&& _input->textCursor().anchor() == 0));
+		if (frontBackspace) {
+			_frontBackspace.fire({});
+		}
+		return base::EventFilterResult::Continue;
+	};
+	if (_masked) {
+		base::install_event_filter(_masked, filter);
+	} else {
+		base::install_event_filter(_input->rawTextEdit(), filter);
+	}
+}
+
+void Field::setNextField(not_null<Field*> field) {
+	finished() | rpl::start_with_next([=] {
+		field->setFocus();
+	}, _masked ? _masked->lifetime() : _input->lifetime());
+}
+
+void Field::setPreviousField(not_null<Field*> field) {
+	frontBackspace(
+	) | rpl::start_with_next([=] {
+		field->setFocus();
+	}, _masked ? _masked->lifetime() : _input->lifetime());
 }
 
 void Field::setFocus() {
@@ -203,6 +347,14 @@ void Field::showError() {
 		_input->showError();
 	} else {
 		_masked->showError();
+	}
+}
+
+void Field::showErrorNoFocus() {
+	if (_input) {
+		_input->showErrorNoFocus();
+	} else {
+		_masked->showErrorNoFocus();
 	}
 }
 

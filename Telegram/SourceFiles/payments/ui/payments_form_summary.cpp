@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/text/format_values.h"
+#include "data/data_countries.h"
 #include "lang/lang_keys.h"
 #include "styles/style_payments.h"
 #include "styles/style_passport.h"
@@ -267,7 +268,8 @@ void FormSummary::setupSections(not_null<VerticalLayout*> layout) {
 		push(_information.shippingAddress.address2);
 		push(_information.shippingAddress.city);
 		push(_information.shippingAddress.state);
-		push(_information.shippingAddress.countryIso2);
+		push(Data::CountryNameByISO2(
+			_information.shippingAddress.countryIso2));
 		push(_information.shippingAddress.postcode);
 		add(
 			tr::lng_payments_shipping_address(),

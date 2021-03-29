@@ -90,6 +90,8 @@ private:
 
 };
 
+[[nodiscard]] QString ExtractPhonePrefix(const QString &phone);
+
 class PhoneInput : public MaskedInputField {
 public:
 	PhoneInput(
