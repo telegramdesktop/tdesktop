@@ -26,6 +26,8 @@ constexpr auto kMaxPostcodeSize = 10;
 constexpr auto kMaxNameSize = 64;
 constexpr auto kMaxEmailSize = 128;
 constexpr auto kMaxPhoneSize = 16;
+constexpr auto kMinCitySize = 2;
+constexpr auto kMaxCitySize = 64;
 
 } // namespace
 
@@ -112,18 +114,17 @@ not_null<RpWidget*> EditInformation::setupContent() {
 		_street1 = add({
 			.placeholder = tr::lng_payments_address_street1(),
 			.value = _information.shippingAddress.address1,
-			.maxLength = kMaxStreetSize,
-			.required = true,
+			.validator = RangeLengthValidator(1, kMaxStreetSize),
 		});
 		_street2 = add({
 			.placeholder = tr::lng_payments_address_street2(),
 			.value = _information.shippingAddress.address2,
-			.maxLength = kMaxStreetSize,
+			.validator = MaxLengthValidator(kMaxStreetSize),
 		});
 		_city = add({
 			.placeholder = tr::lng_payments_address_city(),
 			.value = _information.shippingAddress.city,
-			.required = true,
+			.validator = RangeLengthValidator(kMinCitySize, kMaxCitySize),
 		});
 		_state = add({
 			.placeholder = tr::lng_payments_address_state(),
@@ -133,44 +134,38 @@ not_null<RpWidget*> EditInformation::setupContent() {
 			.type = FieldType::Country,
 			.placeholder = tr::lng_payments_address_country(),
 			.value = _information.shippingAddress.countryIso2,
+			.validator = RequiredFinishedValidator(),
 			.showBox = showBox,
 			.defaultCountry = _information.defaultCountry,
-			.required = true,
 		});
 		_postcode = add({
 			.placeholder = tr::lng_payments_address_postcode(),
 			.value = _information.shippingAddress.postcode,
-			.maxLength = kMaxPostcodeSize,
-			.required = true,
+			.validator = RangeLengthValidator(1, kMaxPostcodeSize),
 		});
-		//StreetValidate, // #TODO payments
-		//CityValidate,
-		//CountryValidate,
-		//CountryFormat,
-		//PostcodeValidate,
 	}
 	if (_invoice.isNameRequested) {
 		_name = add({
 			.placeholder = tr::lng_payments_info_name(),
 			.value = _information.name,
-			.maxLength = kMaxNameSize,
-			.required = true,
+			.validator = RangeLengthValidator(1, kMaxNameSize),
 		});
 	}
 	if (_invoice.isEmailRequested) {
 		_email = add({
+			.type = FieldType::Email,
 			.placeholder = tr::lng_payments_info_email(),
 			.value = _information.email,
-			.maxLength = kMaxEmailSize,
-			.required = true,
+			.validator = RangeLengthValidator(1, kMaxEmailSize),
 		});
 	}
 	if (_invoice.isPhoneRequested) {
 		_phone = add({
+			.type = FieldType::Phone,
 			.placeholder = tr::lng_payments_info_phone(),
 			.value = _information.phone,
-			.maxLength = kMaxPhoneSize,
-			.required = true,
+			.validator = RangeLengthValidator(1, kMaxPhoneSize),
+			.defaultPhone = _information.defaultPhone,
 		});
 	}
 	return inner;
@@ -215,6 +210,8 @@ auto EditInformation::lookupField(InformationField field) const -> Field* {
 
 RequestedInformation EditInformation::collect() const {
 	return {
+		.defaultPhone = _information.defaultPhone,
+		.defaultCountry = _information.defaultCountry,
 		.name = _name ? _name->value() : QString(),
 		.phone = _phone ? _phone->value() : QString(),
 		.email = _email ? _email->value() : QString(),

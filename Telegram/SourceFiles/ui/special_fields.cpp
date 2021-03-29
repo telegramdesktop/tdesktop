@@ -7,15 +7,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/special_fields.h"
 
-#include "core/application.h"
 #include "lang/lang_keys.h"
 #include "data/data_countries.h" // Data::ValidPhoneCode
 #include "numbers.h"
+
+#include <QtCore/QRegularExpression>
 
 namespace Ui {
 namespace {
 
 constexpr auto kMaxUsernameLength = 32;
+
+// Rest of the phone number, without country code (seen 12 at least),
+// need more for service numbers.
+constexpr auto kMaxPhoneTailLength = 32;
+
+// Max length of country phone code.
+constexpr auto kMaxPhoneCodeLength = 4;
 
 } // namespace
 
@@ -130,7 +138,9 @@ void PhonePartInput::correctValue(
 			++digitCount;
 		}
 	}
-	if (digitCount > MaxPhoneTailLength) digitCount = MaxPhoneTailLength;
+	if (digitCount > kMaxPhoneTailLength) {
+		digitCount = kMaxPhoneTailLength;
+	}
 
 	bool inPart = !_pattern.isEmpty();
 	int curPart = -1, leftInPart = 0;
@@ -273,6 +283,14 @@ void UsernameInput::correctValue(
 	setCorrectedText(now, nowCursor, now.mid(from, len), newPos);
 }
 
+QString ExtractPhonePrefix(const QString &phone) {
+	const auto pattern = phoneNumberParse(phone);
+	if (!pattern.isEmpty()) {
+		return phone.mid(0, pattern[0]);
+	}
+	return QString();
+}
+
 PhoneInput::PhoneInput(
 	QWidget *parent,
 	const style::InputField &st,
@@ -324,7 +342,7 @@ void PhoneInput::correctValue(
 		QString &now,
 		int &nowCursor) {
 	auto digits = now;
-	digits.replace(QRegularExpression(qsl("[^\\d]")), QString());
+	digits.replace(QRegularExpression("[^\\d]"), QString());
 	_pattern = phoneNumberParse(digits);
 
 	QString newPlaceholder;
@@ -350,7 +368,7 @@ void PhoneInput::correctValue(
 	}
 
 	QString newText;
-	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount = qMin(digits.size(), MaxPhoneCodeLength + MaxPhoneTailLength);
+	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount = qMin(digits.size(), kMaxPhoneCodeLength + kMaxPhoneTailLength);
 
 	bool inPart = !_pattern.isEmpty(), plusFound = false;
 	int curPart = 0, leftInPart = inPart ? _pattern.at(curPart) : 0;

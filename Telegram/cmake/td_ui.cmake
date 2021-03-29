@@ -146,7 +146,9 @@ PRIVATE
     ui/cached_round_corners.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
-    
+    ui/special_fields.cpp
+    ui/special_fields.h
+
     ui/ui_pch.h
 )
 
@@ -163,4 +165,5 @@ PUBLIC
 PRIVATE
     desktop-app::lib_ffmpeg
     desktop-app::lib_webview
+    desktop-app::lib_stripe
 )

@@ -196,14 +196,23 @@ private:
 	void fillPaymentMethodInformation();
 	void fillStripeNativeMethod();
 	void refreshPaymentMethodDetails();
+	[[nodiscard]] QString defaultPhone() const;
 	[[nodiscard]] QString defaultCountry() const;
 
 	void validateCard(
 		const StripePaymentMethod &method,
 		const Ui::UncheckedCardDetails &details);
 
-	[[nodiscard]] Error localInformationError(
+	bool validateInformationLocal(
 		const Ui::RequestedInformation &information) const;
+	[[nodiscard]] Error informationErrorLocal(
+		const Ui::RequestedInformation &information) const;
+
+	bool validateCardLocal(
+		const Ui::UncheckedCardDetails &details) const;
+	[[nodiscard]] Error cardErrorLocal(
+		const Ui::UncheckedCardDetails &details) const;
+
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
