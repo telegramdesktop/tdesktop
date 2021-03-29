@@ -13,9 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 enum {
 	MaxSelectedItems = 100,
 
-	MaxPhoneCodeLength = 4, // max length of country phone code
-	MaxPhoneTailLength = 32, // rest of the phone number, without country code (seen 12 at least), need more for service numbers
-
 	LocalEncryptIterCount = 4000, // key derivation iteration count
 	LocalEncryptNoPwdIterCount = 4, // key derivation iteration count without pwd (not secure anyway)
 	LocalEncryptSaltSize = 32, // 256 bit

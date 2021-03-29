@@ -71,14 +71,6 @@ void ShowPhoneBannedError(const QString &phone) {
 		[=] { SendToBannedHelp(phone); close(); }));
 }
 
-QString ExtractPhonePrefix(const QString &phone) {
-	const auto pattern = phoneNumberParse(phone);
-	if (!pattern.isEmpty()) {
-		return phone.mid(0, pattern[0]);
-	}
-	return QString();
-}
-
 SentCodeField::SentCodeField(
 	QWidget *parent,
 	const style::InputField &st,

@@ -278,7 +278,8 @@ void PanelEditContact::setupControls(
 			wrap.data(),
 			fieldStyle,
 			std::move(fieldPlaceholder),
-			ExtractPhonePrefix(_controller->bot()->session().user()->phone()),
+			Ui::ExtractPhonePrefix(
+				_controller->bot()->session().user()->phone()),
 			data);
 	} else {
 		_field = Ui::CreateChild<Ui::MaskedInputField>(

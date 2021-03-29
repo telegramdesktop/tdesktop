@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "stripe/stripe_api_client.h"
 #include "stripe/stripe_error.h"
 #include "stripe/stripe_token.h"
+#include "stripe/stripe_card_validator.h"
 #include "ui/image/image.h"
 #include "apiwrap.h"
 #include "styles/style_payments.h" // paymentsThumbnailSize.
@@ -270,6 +271,7 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 void Form::processSavedInformation(const MTPDpaymentRequestedInfo &data) {
 	const auto address = data.vshipping_address();
 	_savedInformation = Ui::RequestedInformation{
+		.defaultPhone = defaultPhone(),
 		.defaultCountry = defaultCountry(),
 		.name = qs(data.vname().value_or_empty()),
 		.phone = qs(data.vphone().value_or_empty()),
@@ -293,11 +295,16 @@ void Form::refreshPaymentMethodDetails() {
 	const auto &entered = _paymentMethod.newCredentials;
 	_paymentMethod.ui.title = entered ? entered.title : saved.title;
 	_paymentMethod.ui.ready = entered || saved;
+	_paymentMethod.ui.native.defaultPhone = defaultPhone();
 	_paymentMethod.ui.native.defaultCountry = defaultCountry();
 }
 
+QString Form::defaultPhone() const {
+	return _session->user()->phone();
+}
+
 QString Form::defaultCountry() const {
-	return Data::CountryISO2ByPhone(_session->user()->phone());
+	return Data::CountryISO2ByPhone(defaultPhone());
 }
 
 void Form::fillPaymentMethodInformation() {
@@ -382,10 +389,16 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 		_api.request(base::take(_validateRequestId)).cancel();
 	}
 	_validatedInformation = information;
-	if (const auto error = localInformationError(information)) {
-		_updates.fire_copy(error);
+	if (!validateInformationLocal(information)) {
 		return;
 	}
+
+	Assert(!_invoice.isShippingAddressRequested
+		|| information.shippingAddress);
+	Assert(!_invoice.isNameRequested || !information.name.isEmpty());
+	Assert(!_invoice.isEmailRequested || !information.email.isEmpty());
+	Assert(!_invoice.isPhoneRequested || !information.phone.isEmpty());
+
 	_validateRequestId = _api.request(MTPpayments_ValidateRequestedInfo(
 		MTP_flags(0), // #TODO payments save information
 		MTP_int(_msgId.msg),
@@ -415,26 +428,43 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 	}).send();
 }
 
-Error Form::localInformationError(
+bool Form::validateInformationLocal(
 		const Ui::RequestedInformation &information) const {
-	const auto error = [](const QString &id) {
-		return Error{ Error::Type::Validate, id };
+	if (const auto error = informationErrorLocal(information)) {
+		_updates.fire_copy(error);
+		return false;
+	}
+	return true;
+}
+
+Error Form::informationErrorLocal(
+		const Ui::RequestedInformation &information) const {
+	auto errors = QStringList();
+	const auto push = [&](const QString &id) {
+		errors.push_back(id);
 	};
-	if (_invoice.isShippingAddressRequested
-		&& !information.shippingAddress) {
-		return information.shippingAddress.address1.isEmpty()
-			? error(u"ADDRESS_STREET_LINE1_INVALID"_q)
-			: information.shippingAddress.city.isEmpty()
-			? error(u"ADDRESS_CITY_INVALID"_q)
-			: information.shippingAddress.countryIso2.isEmpty()
-			? error(u"ADDRESS_COUNTRY_INVALID"_q)
-			: (Unexpected("Shipping Address error."), Error());
-	} else if (_invoice.isNameRequested && information.name.isEmpty()) {
-		return error(u"REQ_INFO_NAME_INVALID"_q);
-	} else if (_invoice.isEmailRequested && information.email.isEmpty()) {
-		return error(u"REQ_INFO_EMAIL_INVALID"_q);
-	} else if (_invoice.isPhoneRequested && information.phone.isEmpty()) {
-		return error(u"REQ_INFO_PHONE_INVALID"_q);
+	if (_invoice.isShippingAddressRequested) {
+		if (information.shippingAddress.address1.isEmpty()) {
+			push(u"ADDRESS_STREET_LINE1_INVALID"_q);
+		}
+		if (information.shippingAddress.city.isEmpty()) {
+			push(u"ADDRESS_CITY_INVALID"_q);
+		}
+		if (information.shippingAddress.countryIso2.isEmpty()) {
+			push(u"ADDRESS_COUNTRY_INVALID"_q);
+		}
+	}
+	if (_invoice.isNameRequested && information.name.isEmpty()) {
+		push(u"REQ_INFO_NAME_INVALID"_q);
+	}
+	if (_invoice.isEmailRequested && information.email.isEmpty()) {
+		push(u"REQ_INFO_EMAIL_INVALID"_q);
+	}
+	if (_invoice.isPhoneRequested && information.phone.isEmpty()) {
+		push(u"REQ_INFO_PHONE_INVALID"_q);
+	}
+	if (!errors.isEmpty()) {
+		return Error{ Error::Type::Validate, errors.front() };
 	}
 	return Error();
 }
@@ -442,12 +472,61 @@ Error Form::localInformationError(
 void Form::validateCard(const Ui::UncheckedCardDetails &details) {
 	Expects(!v::is_null(_paymentMethod.native.data));
 
+	if (!validateCardLocal(details)) {
+		return;
+	}
 	const auto &native = _paymentMethod.native.data;
 	if (const auto stripe = std::get_if<StripePaymentMethod>(&native)) {
 		validateCard(*stripe, details);
 	} else {
 		Unexpected("Native payment provider in Form::validateCard.");
 	}
+}
+
+bool Form::validateCardLocal(const Ui::UncheckedCardDetails &details) const {
+	if (auto error = cardErrorLocal(details)) {
+		_updates.fire(std::move(error));
+		return false;
+	}
+	return true;
+}
+
+Error Form::cardErrorLocal(const Ui::UncheckedCardDetails &details) const {
+	using namespace Stripe;
+
+	auto errors = QStringList();
+	const auto push = [&](const QString &id) {
+		errors.push_back(id);
+	};
+	const auto kValid = ValidationState::Valid;
+	if (ValidateCard(details.number).state != kValid) {
+		push(u"LOCAL_CARD_NUMBER_INVALID"_q);
+	}
+	if (ValidateParsedExpireDate(
+		details.expireMonth,
+		details.expireYear
+	) != kValid) {
+		push(u"LOCAL_CARD_EXPIRE_DATE_INVALID"_q);
+	}
+	if (ValidateCvc(details.number, details.cvc).state != kValid) {
+		push(u"LOCAL_CARD_CVC_INVALID"_q);
+	}
+	if (_paymentMethod.ui.native.needCardholderName
+		&& details.cardholderName.isEmpty()) {
+		push(u"LOCAL_CARD_HOLDER_NAME_INVALID"_q);
+	}
+	if (_paymentMethod.ui.native.needCountry
+		&& details.addressCountry.isEmpty()) {
+		push(u"LOCAL_CARD_BILLING_COUNTRY_INVALID"_q);
+	}
+	if (_paymentMethod.ui.native.needZip
+		&& details.addressZip.isEmpty()) {
+		push(u"LOCAL_CARD_BILLING_ZIP_INVALID"_q);
+	}
+	if (!errors.isEmpty()) {
+		return Error{ Error::Type::Validate, errors.front() };
+	}
+	return Error();
 }
 
 void Form::validateCard(

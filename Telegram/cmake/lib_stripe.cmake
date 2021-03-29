@@ -21,6 +21,8 @@ PRIVATE
     stripe/stripe_card.h
     stripe/stripe_card_params.cpp
     stripe/stripe_card_params.h
+    stripe/stripe_card_validator.cpp
+    stripe/stripe_card_validator.h
     stripe/stripe_decode.cpp
     stripe/stripe_decode.h
     stripe/stripe_error.cpp
