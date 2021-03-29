@@ -280,7 +280,8 @@ public:
 	void requestStickerSets();
 	void saveStickerSets(
 		const Data::StickersSetsOrder &localOrder,
-		const Data::StickersSetsOrder &localRemoved);
+		const Data::StickersSetsOrder &localRemoved,
+		bool setsMasks);
 	void updateStickers();
 	void updateMasks();
 	void requestRecentStickersForce(bool attached = false);
@@ -545,9 +546,6 @@ private:
 		mtpRequestId req);
 	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
 
-	void stickerSetDisenabled(mtpRequestId requestId);
-	void stickersSaveOrder();
-
 	void requestStickers(TimeId now, bool masks = false);
 	void requestRecentStickers(TimeId now, bool attached = false);
 	void requestRecentStickersWithHash(int32 hash, bool attached = false);
@@ -688,7 +686,8 @@ private:
 	base::Timer _draftsSaveTimer;
 
 	base::flat_set<mtpRequestId> _stickerSetDisenableRequests;
-	Data::StickersSetsOrder _stickersOrder;
+	base::flat_set<mtpRequestId> _maskSetDisenableRequests;
+	mtpRequestId _masksReorderRequestId = 0;
 	mtpRequestId _stickersReorderRequestId = 0;
 	mtpRequestId _stickersClearRecentRequestId = 0;
 	mtpRequestId _stickersClearRecentAttachedRequestId = 0;

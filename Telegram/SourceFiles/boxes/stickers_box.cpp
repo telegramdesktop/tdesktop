@@ -944,12 +944,14 @@ void StickersBox::saveChanges() {
 	if (const auto widget = _installed.widget()) {
 		session().api().saveStickerSets(
 			widget->getOrder(),
-			widget->getRemovedSets());
+			widget->getRemovedSets(),
+			false);
 	}
 	if (const auto widget = _masks.widget()) {
 		session().api().saveStickerSets(
 			widget->getOrder(),
-			widget->getRemovedSets());
+			widget->getRemovedSets(),
+			true);
 	}
 }
 
