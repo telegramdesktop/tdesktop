@@ -2176,8 +2176,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateStickerSets: {
+		// Can't determine is it masks or stickers, so update both.
 		session().data().stickers().setLastUpdate(0);
 		session().api().updateStickers();
+		session().data().stickers().setLastMasksUpdate(0);
+		session().api().updateMasks();
 	} break;
 
 	case mtpc_updateRecentStickers: {

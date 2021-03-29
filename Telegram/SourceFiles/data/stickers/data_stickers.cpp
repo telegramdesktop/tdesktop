@@ -1371,10 +1371,8 @@ void Stickers::newSetReceived(const MTPmessages_StickerSet &data) {
 		LOG(("API Error: "
 			"updateNewStickerSet with archived flag."));
 		return;
-	} else if (s.is_masks()) {
-		return;
 	}
-	auto &order = setsOrderRef();
+	auto &order = s.is_masks() ? maskSetsOrderRef() : setsOrderRef();
 	int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid().v);
 	if (currentIndex != insertAtIndex) {
 		if (currentIndex > 0) {
