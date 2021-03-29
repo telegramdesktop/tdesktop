@@ -354,24 +354,20 @@ void SessionNavigation::showRepliesForMessage(
 				if (const auto maxId = data.vmax_id()) {
 					item->setRepliesMaxId(maxId->v);
 				}
-				if (const auto readTill = data.vread_inbox_max_id()) {
-					item->setRepliesInboxReadTill(readTill->v);
-				}
-				if (const auto readTill = data.vread_outbox_max_id()) {
-					item->setRepliesOutboxReadTill(readTill->v);
-				}
+				item->setRepliesInboxReadTill(
+					data.vread_inbox_max_id().value_or_empty());
+				item->setRepliesOutboxReadTill(
+					data.vread_outbox_max_id().value_or_empty());
 				const auto post = _session->data().message(channelId, rootId);
 				if (post && item->history()->channelId() != channelId) {
 					post->setCommentsItemId(item->fullId());
 					if (const auto maxId = data.vmax_id()) {
 						post->setRepliesMaxId(maxId->v);
 					}
-					if (const auto readTill = data.vread_inbox_max_id()) {
-						post->setRepliesInboxReadTill(readTill->v);
-					}
-					if (const auto readTill = data.vread_outbox_max_id()) {
-						post->setRepliesOutboxReadTill(readTill->v);
-					}
+					post->setRepliesInboxReadTill(
+						data.vread_inbox_max_id().value_or_empty());
+					post->setRepliesOutboxReadTill(
+						data.vread_outbox_max_id().value_or_empty());
 				}
 				showSection(std::make_shared<HistoryView::RepliesMemento>(
 					item,
