@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "data/data_countries.h"
 #include "lang/lang_keys.h"
+#include "base/unixtime.h"
 #include "styles/style_payments.h"
 #include "styles/style_passport.h"
 
@@ -187,17 +188,14 @@ void FormSummary::setupCover(not_null<VerticalLayout*> layout) {
 
 void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 	Settings::AddSkip(layout, st::paymentsPricesTopSkip);
-	const auto add = [&](
+	const auto addRow = [&](
 			const QString &label,
-			int64 amount,
+			const QString &value,
 			bool full = false) {
 		const auto &st = full
 			? st::paymentsFullPriceAmount
 			: st::paymentsPriceAmount;
-		const auto right = CreateChild<FlatLabel>(
-			layout.get(),
-			formatAmount(amount),
-			st);
+		const auto right = CreateChild<FlatLabel>(layout.get(), value, st);
 		const auto &padding = st::paymentsPricePadding;
 		const auto left = layout->add(
 			object_ptr<FlatLabel>(
@@ -220,6 +218,12 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 			right->moveToRight(st::paymentsPricePadding.right(), top, width);
 		}, right->lifetime());
 	};
+	const auto add = [&](
+			const QString &label,
+			int64 amount,
+			bool full = false) {
+		addRow(label, formatAmount(amount), full);
+	};
 	for (const auto &price : _invoice.prices) {
 		add(price.label, price.price);
 	}
@@ -234,6 +238,15 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 	}
 	add(tr::lng_payments_total_label(tr::now), computeTotalAmount(), true);
 	Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
+	if (_invoice.receipt) {
+		Settings::AddDivider(layout);
+		Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
+		addRow(
+			tr::lng_payments_date_label(tr::now),
+			langDateTime(base::unixtime::parse(_invoice.receipt.date)),
+			true);
+		Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
+	}
 }
 
 void FormSummary::setupSections(not_null<VerticalLayout*> layout) {
@@ -244,13 +257,16 @@ void FormSummary::setupSections(not_null<VerticalLayout*> layout) {
 			const QString &label,
 			const style::icon *icon,
 			Fn<void()> handler) {
-		Settings::AddButtonWithLabel(
+		const auto button = Settings::AddButtonWithLabel(
 			layout,
 			std::move(title),
 			rpl::single(label),
 			st::paymentsSectionButton,
-			icon
-		)->addClickHandler(std::move(handler));
+			icon);
+		button->addClickHandler(std::move(handler));
+		if (_invoice.receipt) {
+			button->setAttribute(Qt::WA_TransparentForMouseEvents);
+		}
 	};
 	add(
 		tr::lng_payments_payment_method(),
