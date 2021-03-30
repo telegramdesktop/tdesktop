@@ -354,14 +354,19 @@ QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 		{ u"XPF"_q, 0 },
 		{ u"MRO"_q, 1 },
 	};
+
+	const auto prefix = (amount < 0)
+		? QString::fromUtf8("\xe2\x88\x92")
+		: QString();
+
 	const auto exponentIt = kExponents.find(currency);
 	const auto exponent = (exponentIt != end(kExponents))
 		? exponentIt->second
 		: 2;
-	const auto value = amount / std::pow(10., exponent);
+	const auto value = std::abs(amount) / std::pow(10., exponent);
 	const auto ruleIt = kRulesMap.find(currency);
 	if (ruleIt == end(kRulesMap)) {
-		return QLocale::system().toCurrencyString(value, currency);
+		return prefix + QLocale::system().toCurrencyString(value, currency);
 	}
 	const auto &rule = ruleIt->second;
 	const auto name = (*rule.international)
@@ -376,7 +381,7 @@ QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 		|| std::floor(value) != value)
 		? exponent
 		: 0;
-	result.append(FormatWithSeparators(
+	result.append(prefix).append(FormatWithSeparators(
 		value,
 		precision,
 		rule.decimal,

@@ -487,8 +487,9 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 	Assert(!_invoice.isEmailRequested || !information.email.isEmpty());
 	Assert(!_invoice.isPhoneRequested || !information.phone.isEmpty());
 
+	using Flag = MTPpayments_ValidateRequestedInfo::Flag;
 	_validateRequestId = _api.request(MTPpayments_ValidateRequestedInfo(
-		MTP_flags(0), // #TODO payments save information
+		MTP_flags(information.save ? Flag::f_save : Flag(0)),
 		_peer->input,
 		MTP_int(_msgId),
 		Serialize(information)
@@ -684,7 +685,8 @@ void Form::setTips(int64 value) {
 }
 
 void Form::processShippingOptions(const QVector<MTPShippingOption> &data) {
-	_shippingOptions = Ui::ShippingOptions{ ranges::views::all(
+	const auto currency = _invoice.currency;
+	_shippingOptions = Ui::ShippingOptions{ currency, ranges::views::all(
 		data
 	) | ranges::views::transform([](const MTPShippingOption &option) {
 		return option.match([](const MTPDshippingOption &data) {
@@ -695,6 +697,7 @@ void Form::processShippingOptions(const QVector<MTPShippingOption> &data) {
 			};
 		});
 	}) | ranges::to_vector };
+	_shippingOptions.currency = _invoice.currency;
 }
 
 } // namespace Payments

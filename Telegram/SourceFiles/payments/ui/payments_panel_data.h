@@ -70,6 +70,7 @@ struct ShippingOption {
 };
 
 struct ShippingOptions {
+	QString currency;
 	std::vector<ShippingOption> list;
 	QString selectedId;
 };
@@ -107,6 +108,7 @@ struct Address {
 struct RequestedInformation {
 	QString defaultPhone;
 	QString defaultCountry;
+	bool save = true;
 
 	QString name;
 	QString phone;

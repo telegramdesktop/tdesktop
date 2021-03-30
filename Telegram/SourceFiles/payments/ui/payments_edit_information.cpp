@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
 #include "lang/lang_keys.h"
@@ -168,6 +169,12 @@ not_null<RpWidget*> EditInformation::setupContent() {
 			.defaultPhone = _information.defaultPhone,
 		});
 	}
+	_save = inner->add(
+		object_ptr<Ui::Checkbox>(
+			inner,
+			tr::lng_payments_save_information(tr::now),
+			true),
+		st::paymentsSaveCheckboxPadding);
 	return inner;
 }
 
@@ -212,6 +219,7 @@ RequestedInformation EditInformation::collect() const {
 	return {
 		.defaultPhone = _information.defaultPhone,
 		.defaultCountry = _information.defaultCountry,
+		.save = _save->checked(),
 		.name = _name ? _name->value() : QString(),
 		.phone = _phone ? _phone->value() : QString(),
 		.email = _email ? _email->value() : QString(),
