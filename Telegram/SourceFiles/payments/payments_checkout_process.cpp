@@ -174,7 +174,8 @@ void CheckoutProcess::handleError(const Error &error) {
 		}
 		break;
 	case Error::Type::Validate: {
-		if (_submitState == SubmitState::Validation) {
+		if (_submitState == SubmitState::Validation
+			|| _submitState == SubmitState::Validated) {
 			_submitState = SubmitState::None;
 		}
 		if (_initialSilentValidation) {
@@ -281,7 +282,9 @@ void CheckoutProcess::panelCloseSure() {
 }
 
 void CheckoutProcess::panelSubmit() {
-	if (_submitState == SubmitState::Validation
+	if (_form->invoice().receipt.paid) {
+		panelCloseSure();
+	} else if (_submitState == SubmitState::Validation
 		|| _submitState == SubmitState::Finishing) {
 		return;
 	}

@@ -51,7 +51,7 @@ Result::Result(not_null<Main::Session*> session, const Creator &creator)
 std::unique_ptr<Result> Result::Create(
 		not_null<Main::Session*> session,
 		uint64 queryId,
-		const MTPBotInlineResult &mtpData) {
+		const MTPBotInlineResult &data) {
 	using Type = Result::Type;
 
 	const auto type = [&] {
@@ -69,7 +69,7 @@ std::unique_ptr<Result> Result::Create(
 			{ u"geo"_q, Type::Geo },
 			{ u"game"_q, Type::Game },
 		};
-		const auto type = mtpData.match([](const auto &data) {
+		const auto type = data.match([](const auto &data) {
 			return qs(data.vtype());
 		});
 		const auto i = kStringToTypeMap.find(type);
@@ -82,16 +82,13 @@ std::unique_ptr<Result> Result::Create(
 	auto result = std::make_unique<Result>(
 		session,
 		Creator{ queryId, type });
-	const MTPBotInlineMessage *message = nullptr;
-	switch (mtpData.type()) {
-	case mtpc_botInlineResult: {
-		const auto &r = mtpData.c_botInlineResult();
-		result->_id = qs(r.vid());
-		result->_title = qs(r.vtitle().value_or_empty());
-		result->_description = qs(r.vdescription().value_or_empty());
-		result->_url = qs(r.vurl().value_or_empty());
+	const auto message = data.match([&](const MTPDbotInlineResult &data) {
+		result->_id = qs(data.vid());
+		result->_title = qs(data.vtitle().value_or_empty());
+		result->_description = qs(data.vdescription().value_or_empty());
+		result->_url = qs(data.vurl().value_or_empty());
 		const auto thumbMime = [&] {
-			if (const auto thumb = r.vthumb()) {
+			if (const auto thumb = data.vthumb()) {
 				return thumb->match([&](const auto &data) {
 					return data.vmime_type().v;
 				});
@@ -99,7 +96,7 @@ std::unique_ptr<Result> Result::Create(
 			return QByteArray();
 		}();
 		const auto contentMime = [&] {
-			if (const auto content = r.vcontent()) {
+			if (const auto content = data.vcontent()) {
 				return content->match([&](const auto &data) {
 					return data.vmime_type().v;
 				});
@@ -109,49 +106,45 @@ std::unique_ptr<Result> Result::Create(
 		const auto imageThumb = !thumbMime.isEmpty()
 			&& (thumbMime != kVideoThumbMime);
 		const auto videoThumb = !thumbMime.isEmpty() && !imageThumb;
-		if (const auto content = r.vcontent()) {
+		if (const auto content = data.vcontent()) {
 			result->_content_url = GetContentUrl(*content);
 			if (result->_type == Type::Photo) {
 				result->_photo = session->data().photoFromWeb(
 					*content,
 					(imageThumb
-						? Images::FromWebDocument(*r.vthumb())
+						? Images::FromWebDocument(*data.vthumb())
 						: ImageLocation()));
 			} else if (contentMime != "text/html"_q) {
 				result->_document = session->data().documentFromWeb(
 					result->adjustAttributes(*content),
 					(imageThumb
-						? Images::FromWebDocument(*r.vthumb())
+						? Images::FromWebDocument(*data.vthumb())
 						: ImageLocation()),
 					(videoThumb
-						? Images::FromWebDocument(*r.vthumb())
+						? Images::FromWebDocument(*data.vthumb())
 						: ImageLocation()));
 			}
 		}
 		if (!result->_photo && !result->_document && imageThumb) {
 			result->_thumbnail.update(result->_session, ImageWithLocation{
-				.location = Images::FromWebDocument(*r.vthumb())
-			});
+				.location = Images::FromWebDocument(*data.vthumb())
+				});
 		}
-		message = &r.vsend_message();
-	} break;
-	case mtpc_botInlineMediaResult: {
-		const auto &r = mtpData.c_botInlineMediaResult();
-		result->_id = qs(r.vid());
-		result->_title = qs(r.vtitle().value_or_empty());
-		result->_description = qs(r.vdescription().value_or_empty());
-		if (const auto photo = r.vphoto()) {
+		return &data.vsend_message();
+	}, [&](const MTPDbotInlineMediaResult &data) {
+		result->_id = qs(data.vid());
+		result->_title = qs(data.vtitle().value_or_empty());
+		result->_description = qs(data.vdescription().value_or_empty());
+		if (const auto photo = data.vphoto()) {
 			result->_photo = session->data().processPhoto(*photo);
 		}
-		if (const auto document = r.vdocument()) {
+		if (const auto document = data.vdocument()) {
 			result->_document = session->data().processDocument(*document);
 		}
-		message = &r.vsend_message();
-	} break;
-	}
+		return &data.vsend_message();
+	});
 	if ((result->_photo && result->_photo->isNull())
-		|| (result->_document && result->_document->isNull())
-		|| !message) {
+		|| (result->_document && result->_document->isNull())) {
 		return nullptr;
 	}
 
@@ -248,7 +241,23 @@ std::unique_ptr<Result> Result::Create(
 			qs(data.vlast_name()),
 			qs(data.vphone_number()));
 	}, [&](const MTPDbotInlineMessageMediaInvoice &data) {
-		// #TODO payments
+		using Flag = MTPDmessageMediaInvoice::Flag;
+		const auto media = MTP_messageMediaInvoice(
+			MTP_flags((data.is_shipping_address_requested()
+				? Flag::f_shipping_address_requested
+				: Flag(0))
+				| (data.is_test() ? Flag::f_test : Flag(0))
+				| (data.vphoto() ? Flag::f_photo : Flag(0))),
+			data.vtitle(),
+			data.vdescription(),
+			data.vphoto() ? (*data.vphoto()) : MTPWebDocument(),
+			MTPint(), // receipt_msg_id
+			data.vcurrency(),
+			data.vtotal_amount(),
+			MTP_string(QString())); // start_param
+		result->sendData = std::make_unique<internal::SendInvoice>(
+			session,
+			media);
 	});
 
 	if (!result->sendData || !result->sendData->isValid()) {

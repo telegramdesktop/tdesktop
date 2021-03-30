@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
+#include "payments/payments_checkout_process.h" // CheckoutProcess::Start.
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 
@@ -522,18 +523,28 @@ bool HistoryService::updateDependent(bool force) {
 	}
 
 	if (!dependent->lnk) {
-		dependent->lnk = goToMessageClickHandler(history()->peer, dependent->msgId);
+		dependent->lnk = goToMessageClickHandler(
+			(dependent->peerId
+				? history()->owner().peer(dependent->peerId)
+				: history()->peer),
+			dependent->msgId);
 	}
 	auto gotDependencyItem = false;
 	if (!dependent->msg) {
-		dependent->msg = history()->owner().message(channelId(), dependent->msgId);
+		dependent->msg = history()->owner().message(
+			(dependent->peerId
+				? peerToChannel(dependent->peerId)
+				: channelId()),
+			dependent->msgId);
 		if (dependent->msg) {
 			if (dependent->msg->isEmpty()) {
 				// Really it is deleted.
 				dependent->msg = nullptr;
 				force = true;
 			} else {
-				history()->owner().registerDependentMessage(this, dependent->msg);
+				history()->owner().registerDependentMessage(
+					this,
+					dependent->msg);
 				gotDependencyItem = true;
 			}
 		}
@@ -749,14 +760,14 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 	auto payment = Get<HistoryServicePayment>();
 
 	auto invoiceTitle = [&] {
-		if (payment && payment->msg) {
+		if (payment->msg) {
 			if (const auto media = payment->msg->media()) {
 				if (const auto invoice = media->invoice()) {
-					return invoice->title;
+					return textcmdLink(1, invoice->title);
 				}
 			}
 			return tr::lng_deleted_message(tr::now);
-		} else if (payment && payment->msgId) {
+		} else if (payment->msgId) {
 			return tr::lng_contacts_loading(tr::now);
 		}
 		return QString();
@@ -766,6 +777,9 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 		result.text = tr::lng_action_payment_done(tr::now, lt_amount, payment->amount, lt_user, history()->peer->name);
 	} else {
 		result.text = tr::lng_action_payment_done_for(tr::now, lt_amount, payment->amount, lt_user, history()->peer->name, lt_invoice, invoiceTitle);
+		if (payment && payment->msg) {
+			result.links.push_back(payment->lnk);
+		}
 	}
 	return result;
 }
@@ -958,9 +972,16 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		UpdateComponents(HistoryServicePayment::Bit());
 		const auto amount = data.vtotal_amount().v;
 		const auto currency = qs(data.vcurrency());
-		Get<HistoryServicePayment>()->amount = Ui::FillAmountAndCurrency(
-			amount,
-			currency);
+		const auto payment = Get<HistoryServicePayment>();
+		const auto id = fullId();
+		const auto owner = &history()->owner();
+		payment->amount = Ui::FillAmountAndCurrency(amount, currency);
+		payment->invoiceLink = std::make_shared<LambdaClickHandler>([=] {
+			using namespace Payments;
+			if (const auto item = owner->message(id)) {
+				CheckoutProcess::Start(item, Mode::Receipt);
+			}
+		});
 	} else if (message.vaction().type() == mtpc_messageActionGroupCall) {
 		const auto &data = message.vaction().c_messageActionGroupCall();
 		if (data.vduration()) {
@@ -1020,21 +1041,22 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 	}
 	if (const auto replyTo = message.vreply_to()) {
 		replyTo->match([&](const MTPDmessageReplyHeader &data) {
-			const auto peer = data.vreply_to_peer_id()
+			const auto peerId = data.vreply_to_peer_id()
 				? peerFromMTP(*data.vreply_to_peer_id())
 				: history()->peer->id;
-			if (!peer || peer == history()->peer->id) {
-				if (message.vaction().type() == mtpc_messageActionPinMessage) {
-					UpdateComponents(HistoryServicePinned::Bit());
-				}
-				if (const auto dependent = GetDependentData()) {
-					dependent->msgId = data.vreply_to_msg_id().v;
-					if (!updateDependent()) {
-						history()->session().api().requestMessageData(
-							history()->peer->asChannel(),
-							dependent->msgId,
-							HistoryDependentItemCallback(this));
-					}
+			if (message.vaction().type() == mtpc_messageActionPinMessage) {
+				UpdateComponents(HistoryServicePinned::Bit());
+			}
+			if (const auto dependent = GetDependentData()) {
+				dependent->peerId = (peerId != history()->peer->id)
+					? peerId
+					: 0;
+				dependent->msgId = data.vreply_to_msg_id().v;
+				if (!updateDependent()) {
+					history()->session().api().requestMessageData(
+						history()->peer->asChannel(),
+						dependent->msgId,
+						HistoryDependentItemCallback(this));
 				}
 			}
 		});

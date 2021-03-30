@@ -523,7 +523,7 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 			if (!result.link
 				&& result.cursor == CursorState::Text
 				&& g.contains(point)) {
-				result.link = payment->lnk;
+				result.link = payment->invoiceLink;
 			}
 		}
 	} else if (media) {
