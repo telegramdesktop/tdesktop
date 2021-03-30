@@ -51,7 +51,9 @@ void Panel::showForm(
 		const RequestedInformation &current,
 		const PaymentMethodDetails &method,
 		const ShippingOptions &options) {
-	_widget->setTitle(tr::lng_payments_checkout_title());
+	_widget->setTitle(invoice.receipt
+		? tr::lng_payments_receipt_title()
+		: tr::lng_payments_checkout_title());
 	auto form = base::make_unique_q<FormSummary>(
 		_widget.get(),
 		invoice,

@@ -94,7 +94,11 @@ Form::Form(not_null<Main::Session*> session, FullMsgId itemId)
 , _api(&_session->mtp())
 , _msgId(itemId) {
 	fillInvoiceFromMessage();
-	requestForm();
+	if (_receiptMsgId) {
+		requestReceipt();
+	} else {
+		requestForm();
+	}
 }
 
 Form::~Form() = default;
@@ -103,10 +107,16 @@ void Form::fillInvoiceFromMessage() {
 	if (const auto item = _session->data().message(_msgId)) {
 		if (const auto media = item->media()) {
 			if (const auto invoice = media->invoice()) {
+				_receiptMsgId = FullMsgId(
+					_msgId.channel,
+					invoice->receiptMsgId);
 				_invoice.cover = Ui::Cover{
 					.title = invoice->title,
 					.description = invoice->description,
 				};
+				if (_receiptMsgId) {
+					_invoice.receipt.paid = true;
+				}
 				if (const auto photo = invoice->photo) {
 					loadThumbnail(photo);
 				}
@@ -205,6 +215,18 @@ void Form::requestForm() {
 	}).send();
 }
 
+void Form::requestReceipt() {
+	_api.request(MTPpayments_GetPaymentReceipt(
+		MTP_int(_receiptMsgId.msg)
+	)).done([=](const MTPpayments_PaymentReceipt &result) {
+		result.match([&](const auto &data) {
+			processReceipt(data);
+		});
+	}).fail([=](const MTP::Error &error) {
+		_updates.fire(Error{ Error::Type::Form, error.type() });
+	}).send();
+}
+
 void Form::processForm(const MTPDpayments_paymentForm &data) {
 	_session->data().processUsers(data.vusers());
 
@@ -222,6 +244,32 @@ void Form::processForm(const MTPDpayments_paymentForm &data) {
 			processSavedCredentials(data);
 		});
 	}
+	fillPaymentMethodInformation();
+	_updates.fire(FormReady{});
+}
+
+void Form::processReceipt(const MTPDpayments_paymentReceipt &data) {
+	_session->data().processUsers(data.vusers());
+
+	data.vinvoice().match([&](const auto &data) {
+		processInvoice(data);
+	});
+	processDetails(data);
+	if (const auto info = data.vinfo()) {
+		info->match([&](const auto &data) {
+			processSavedInformation(data);
+		});
+	}
+	if (const auto shipping = data.vshipping()) {
+		processShippingOptions({ *shipping });
+		if (!_shippingOptions.list.empty()) {
+			_shippingOptions.selectedId = _shippingOptions.list.front().id;
+		}
+	}
+	_paymentMethod.savedCredentials = SavedCredentials{
+		.id = "(used)",
+		.title = qs(data.vcredentials_title()),
+	};
 	fillPaymentMethodInformation();
 	_updates.fire(FormReady{});
 }
@@ -246,7 +294,6 @@ void Form::processInvoice(const MTPDinvoice &data) {
 }
 
 void Form::processDetails(const MTPDpayments_paymentForm &data) {
-	_session->data().processUsers(data.vusers());
 	const auto nativeParams = data.vnative_params();
 	auto nativeParamsJson = nativeParams
 		? nativeParams->match(
@@ -260,6 +307,25 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 		.providerId = data.vprovider_id().v,
 		.canSaveCredentials = data.is_can_save_credentials(),
 		.passwordMissing = data.is_password_missing(),
+	};
+	if (_details.botId) {
+		if (const auto bot = _session->data().userLoaded(_details.botId)) {
+			_invoice.cover.seller = bot->name;
+		}
+	}
+}
+
+void Form::processDetails(const MTPDpayments_paymentReceipt &data) {
+	_invoice.receipt = Ui::Receipt{
+		.date = data.vdate().v,
+		.totalAmount = *reinterpret_cast<const int64*>(
+			&data.vtotal_amount().v),
+		.currency = qs(data.vcurrency()),
+		.paid = true,
+	};
+	_details = FormDetails{
+		.botId = data.vbot_id().v,
+		.providerId = data.vprovider_id().v,
 	};
 	if (_details.botId) {
 		if (const auto bot = _session->data().userLoaded(_details.botId)) {

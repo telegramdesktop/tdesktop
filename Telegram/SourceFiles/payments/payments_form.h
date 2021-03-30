@@ -186,9 +186,12 @@ private:
 	[[nodiscard]] QImage prepareEmptyThumbnail() const;
 
 	void requestForm();
+	void requestReceipt();
 	void processForm(const MTPDpayments_paymentForm &data);
+	void processReceipt(const MTPDpayments_paymentReceipt &data);
 	void processInvoice(const MTPDinvoice &data);
 	void processDetails(const MTPDpayments_paymentForm &data);
+	void processDetails(const MTPDpayments_paymentReceipt &data);
 	void processSavedInformation(const MTPDpaymentRequestedInfo &data);
 	void processSavedCredentials(
 		const MTPDpaymentSavedCredentialsCard &data);
@@ -217,6 +220,7 @@ private:
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 	FullMsgId _msgId;
+	FullMsgId _receiptMsgId;
 
 	Ui::Invoice _invoice;
 	std::unique_ptr<ThumbnailLoadProcess> _thumbnailLoadProcess;
