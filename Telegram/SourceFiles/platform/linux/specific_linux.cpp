@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_gtk_integration.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_gtk_integration.h"
-#include "platform/linux/linux_wayland_integration.h"
 #include "base/qt_adapters.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -58,7 +57,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 using namespace Platform;
 using BaseGtkIntegration = base::Platform::GtkIntegration;
-using Platform::internal::WaylandIntegration;
 using Platform::internal::GtkIntegration;
 
 namespace Platform {
@@ -886,11 +884,6 @@ void start() {
 	}
 
 	SetGtkScaleFactor();
-
-	// wait for interface announce to know if native window frame is supported
-	if (const auto integration = WaylandIntegration::Instance()) {
-		integration->waitForInterfaceAnnounce();
-	}
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	NSWInstance = std::make_unique<internal::NotificationServiceWatcher>();

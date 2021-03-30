@@ -25,19 +25,14 @@ public:
 		return _registry;
 	}
 
-	[[nodiscard]] QEventLoop &interfacesLoop() {
-		return _interfacesLoop;
-	}
-
-	[[nodiscard]] bool interfacesAnnounced() const {
+	[[nodiscard]] std::atomic<bool> &interfacesAnnounced() {
 		return _interfacesAnnounced;
 	}
 
 private:
 	ConnectionThread _connection;
 	Registry _registry;
-	QEventLoop _interfacesLoop;
-	bool _interfacesAnnounced = false;
+	std::atomic<bool> _interfacesAnnounced = false;
 };
 
 WaylandIntegration::Private::Private() {
@@ -57,9 +52,6 @@ WaylandIntegration::Private::Private() {
 
 	connect(&_registry, &Registry::interfacesAnnounced, [=] {
 		_interfacesAnnounced = true;
-		if (_interfacesLoop.isRunning()) {
-			_interfacesLoop.quit();
-		}
 	});
 
 	_connection.initConnection();
@@ -78,9 +70,14 @@ WaylandIntegration *WaylandIntegration::Instance() {
 }
 
 void WaylandIntegration::waitForInterfaceAnnounce() {
-	Expects(!_private->interfacesLoop().isRunning());
 	if (!_private->interfacesAnnounced()) {
-		_private->interfacesLoop().exec();
+		QEventLoop loop;
+		QObject::connect(
+			&_private->registry(),
+			&Registry::interfacesAnnounced,
+			&loop,
+			&QEventLoop::quit);
+		loop.exec();
 	}
 }
 

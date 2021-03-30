@@ -24,6 +24,9 @@ namespace Platform {
 
 inline bool AllowNativeWindowFrameToggle() {
 	const auto waylandIntegration = internal::WaylandIntegration::Instance();
+	if (waylandIntegration) {
+		waylandIntegration->waitForInterfaceAnnounce();
+	}
 	return !waylandIntegration
 			|| waylandIntegration->supportsXdgDecoration();
 }
