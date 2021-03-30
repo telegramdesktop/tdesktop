@@ -62,7 +62,8 @@ public:
 	StickersBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
-		Section section);
+		Section section,
+		bool masks = false);
 	StickersBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
@@ -145,6 +146,7 @@ private:
 	object_ptr<CounterWidget> _unreadBadge = { nullptr };
 
 	Section _section;
+	const bool _isMasks;
 
 	Tab _installed;
 	Tab _masks;

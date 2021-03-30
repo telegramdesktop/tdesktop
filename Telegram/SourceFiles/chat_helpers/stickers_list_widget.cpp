@@ -128,6 +128,8 @@ public:
 
 	void clearHeavyData();
 
+	rpl::producer<> openSettingsRequests() const;
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -196,6 +198,8 @@ private:
 	object_ptr<Ui::InputField> _searchField = { nullptr };
 	object_ptr<Ui::CrossButton> _searchCancel = { nullptr };
 	QPointer<QWidget> _focusTakenFrom;
+
+	rpl::event_stream<> _openSettingsRequests;
 
 };
 
@@ -527,6 +531,10 @@ void StickersListWidget::Footer::resizeSearchControls() {
 	_searchCancel->moveToRight(st::gifsSearchCancelPosition.x(), st::gifsSearchCancelPosition.y());
 }
 
+rpl::producer<> StickersListWidget::Footer::openSettingsRequests() const {
+	return _openSettingsRequests.events();
+}
+
 void StickersListWidget::Footer::mousePressEvent(QMouseEvent *e) {
 	if (e->button() != Qt::LeftButton) {
 		return;
@@ -535,11 +543,7 @@ void StickersListWidget::Footer::mousePressEvent(QMouseEvent *e) {
 	updateSelected();
 
 	if (_iconOver == SpecialOver::Settings) {
-		_pan->controller()->show(Box<StickersBox>(
-			_pan->controller(),
-			(hasOnlyFeaturedSets()
-				? StickersBox::Section::Featured
-				: StickersBox::Section::Installed)));
+		_openSettingsRequests.fire({});
 	} else if (_iconOver == SpecialOver::Search) {
 		toggleSearch(true);
 	} else {
@@ -916,8 +920,10 @@ StickersListWidget::StickersListWidget(
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	_settings->addClickHandler([=] {
+		using Section = StickersBox::Section;
 		controller->show(
-			Box<StickersBox>(controller, StickersBox::Section::Installed));
+			Box<StickersBox>(controller, Section::Installed, _isMasks),
+			Ui::LayerOption::KeepOther);
 	});
 
 	session().downloaderTaskFinished(
@@ -967,6 +973,20 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 
 	auto result = object_ptr<Footer>(this);
 	_footer = result;
+
+	_footer->openSettingsRequests(
+	) | rpl::start_with_next([=] {
+		const auto onlyFeatured = _footer->hasOnlyFeaturedSets();
+		Ui::show(Box<StickersBox>(
+			controller(),
+			(onlyFeatured
+				? StickersBox::Section::Featured
+				: _isMasks
+				? StickersBox::Section::Masks
+				: StickersBox::Section::Installed),
+			onlyFeatured ? false : _isMasks),
+		Ui::LayerOption::KeepOther);
+	}, _footer->lifetime());
 	return result;
 }
 

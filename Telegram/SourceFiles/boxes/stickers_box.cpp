@@ -368,7 +368,8 @@ void StickersBox::Tab::saveScrollTop() {
 StickersBox::StickersBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
-	Section section)
+	Section section,
+	bool masks)
 : _controller(controller)
 , _api(&controller->session().mtp())
 , _tabs(this, st::stickersTabs)
@@ -376,10 +377,11 @@ StickersBox::StickersBox(
 	this,
 	controller->session().data().stickers().featuredSetsUnreadCountValue())
 , _section(section)
-, _installed(0, this, controller, Section::Installed)
-, _masks(1, this, controller, Section::Masks)
-, _featured(2, this, controller, Section::Featured)
-, _archived(3, this, controller, Section::Archived) {
+, _isMasks(masks)
+, _installed(_isMasks ? Tab() : Tab(0, this, controller, Section::Installed))
+, _masks(_isMasks ? Tab(0, this, controller, Section::Masks) : Tab())
+, _featured(_isMasks ? Tab() : Tab(1, this, controller, Section::Featured))
+, _archived((_isMasks ? 1 : 2), this, controller, Section::Archived) {
 	_tabs->setRippleTopRoundRadius(st::boxRadius);
 }
 
@@ -390,6 +392,7 @@ StickersBox::StickersBox(
 : _controller(controller)
 , _api(&controller->session().mtp())
 , _section(Section::Installed)
+, _isMasks(false)
 , _installed(0, this, controller, megagroup)
 , _megagroupSet(megagroup) {
 	_installed.widget()->scrollsToY(
@@ -405,6 +408,7 @@ StickersBox::StickersBox(
 : _controller(controller)
 , _api(&controller->session().mtp())
 , _section(Section::Attached)
+, _isMasks(false)
 , _attached(0, this, controller, Section::Attached)
 , _attachedSets(attachedSets) {
 }
@@ -621,21 +625,27 @@ void StickersBox::prepare() {
 }
 
 void StickersBox::refreshTabs() {
-	if (!_tabs) return;
+	if (!_tabs) {
+		return;
+	}
+
+	auto &stickers = session().data().stickers();
 
 	_tabIndices.clear();
 	auto sections = std::vector<QString>();
-	sections.push_back(tr::lng_stickers_installed_tab(tr::now).toUpper());
-	_tabIndices.push_back(Section::Installed);
-	if (!session().data().stickers().maskSetsOrder().isEmpty()) {
+	if (_installed.widget()) {
+		sections.push_back(tr::lng_stickers_installed_tab(tr::now).toUpper());
+		_tabIndices.push_back(Section::Installed);
+	}
+	if (!stickers.maskSetsOrder().isEmpty() && _masks.widget()) {
 		sections.push_back(tr::lng_stickers_masks_tab(tr::now).toUpper());
 		_tabIndices.push_back(Section::Masks);
 	}
-	if (!session().data().stickers().featuredSetsOrder().isEmpty()) {
+	if (!stickers.featuredSetsOrder().isEmpty() && _featured.widget()) {
 		sections.push_back(tr::lng_stickers_featured_tab(tr::now).toUpper());
 		_tabIndices.push_back(Section::Featured);
 	}
-	if (!session().data().stickers().archivedSetsOrder().isEmpty()) {
+	if (!stickers.archivedSetsOrder().isEmpty() && _archived.widget()) {
 		sections.push_back(tr::lng_stickers_archived_tab(tr::now).toUpper());
 		_tabIndices.push_back(Section::Archived);
 	}
@@ -701,7 +711,7 @@ void StickersBox::paintEvent(QPaintEvent *e) {
 void StickersBox::updateTabsGeometry() {
 	if (!_tabs) return;
 
-	const auto maxTabs = 4;
+	const auto maxTabs = _isMasks ? 2 : 3;
 
 	_tabs->resizeToWidth(_tabIndices.size() * width() / maxTabs);
 	_unreadBadge->setVisible(_tabIndices.contains(Section::Featured));
@@ -935,23 +945,30 @@ void StickersBox::rebuildList(Tab *tab) {
 }
 
 void StickersBox::saveChanges() {
+	const auto installed = _installed.widget();
+	const auto masks = _masks.widget();
+
 	// Make sure that our changes in other tabs are applied in the Installed tab.
-	rebuildList(&_installed);
-	rebuildList(&_masks);
+	if (installed) {
+		rebuildList(&_installed);
+	}
+	if (masks) {
+		rebuildList(&_masks);
+	}
 
 	if (_someArchivedLoaded) {
 		session().local().writeArchivedStickers();
 	}
-	if (const auto widget = _installed.widget()) {
+	if (installed) {
 		session().api().saveStickerSets(
-			widget->getOrder(),
-			widget->getRemovedSets(),
+			installed->getOrder(),
+			installed->getRemovedSets(),
 			false);
 	}
-	if (const auto widget = _masks.widget()) {
+	if (masks) {
 		session().api().saveStickerSets(
-			widget->getOrder(),
-			widget->getRemovedSets(),
+			masks->getOrder(),
+			masks->getRemovedSets(),
 			true);
 	}
 }
