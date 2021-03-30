@@ -57,10 +57,23 @@ base::flat_map<not_null<Main::Session*>, SessionProcesses> Processes;
 
 } // namespace
 
-void CheckoutProcess::Start(not_null<const HistoryItem*> item) {
+void CheckoutProcess::Start(not_null<const HistoryItem*> item, Mode mode) {
 	auto &processes = LookupSessionProcesses(item);
 	const auto session = &item->history()->session();
-	const auto id = item->fullId();
+	const auto media = item->media();
+	const auto invoice = media ? media->invoice() : nullptr;
+	if (mode == Mode::Payment && !invoice) {
+		return;
+	}
+	const auto id = (invoice && invoice->receiptMsgId)
+		? FullMsgId(item->history()->channelId(), invoice->receiptMsgId)
+		: item->fullId();
+	if (invoice) {
+		mode = invoice->receiptMsgId ? Mode::Receipt : Mode::Payment;
+	} else if (mode == Mode::Payment) {
+		LOG(("API Error: CheckoutProcess Payment start without invoice."));
+		return;
+	}
 	const auto i = processes.map.find(id);
 	if (i != end(processes.map)) {
 		i->second->requestActivate();
@@ -68,16 +81,21 @@ void CheckoutProcess::Start(not_null<const HistoryItem*> item) {
 	}
 	const auto j = processes.map.emplace(
 		id,
-		std::make_unique<CheckoutProcess>(session, id, PrivateTag{})).first;
+		std::make_unique<CheckoutProcess>(
+			item->history()->peer,
+			id.msg,
+			mode,
+			PrivateTag{})).first;
 	j->second->requestActivate();
 }
 
 CheckoutProcess::CheckoutProcess(
-	not_null<Main::Session*> session,
-	FullMsgId itemId,
+	not_null<PeerData*> peer,
+	MsgId itemId,
+	Mode mode,
 	PrivateTag)
-: _session(session)
-, _form(std::make_unique<Form>(session, itemId))
+: _session(&peer->session())
+, _form(std::make_unique<Form>(peer, itemId, (mode == Mode::Receipt)))
 , _panel(std::make_unique<Ui::Panel>(panelDelegate())) {
 	_form->updates(
 	) | rpl::start_with_next([=](const FormUpdate &update) {

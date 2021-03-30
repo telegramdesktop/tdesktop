@@ -39,10 +39,8 @@ public:
 
 	ChatData(not_null<Data::Session*> owner, PeerId id);
 
-	void setPhoto(const MTPChatPhoto &photo);
-	void setPhoto(PhotoId photoId, const MTPChatPhoto &photo);
-
 	void setName(const QString &newName);
+	void setPhoto(const MTPChatPhoto &photo);
 
 	void invalidateParticipants();
 	[[nodiscard]] bool noParticipantInfo() const {

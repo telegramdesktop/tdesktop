@@ -561,7 +561,8 @@ void GroupCall::applyMeInCallLocally() {
 					MTP_int(_mySsrc),
 					MTP_int(volume),
 					MTPstring(), // Don't update about text in local updates.
-					MTP_long(raisedHandRating))),
+					MTP_long(raisedHandRating),
+					MTPDataJSON())),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -606,7 +607,8 @@ void GroupCall::applyParticipantLocally(
 					MTP_int(participant->ssrc),
 					MTP_int(volume.value_or(participant->volume)),
 					MTPstring(), // Don't update about text in local updates.
-					MTP_long(participant->raisedHandRating))),
+					MTP_long(participant->raisedHandRating),
+					MTPDataJSON())),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 

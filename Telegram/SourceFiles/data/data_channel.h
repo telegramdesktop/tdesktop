@@ -126,10 +126,8 @@ public:
 
 	ChannelData(not_null<Data::Session*> owner, PeerId id);
 
-	void setPhoto(const MTPChatPhoto &photo);
-	void setPhoto(PhotoId photoId, const MTPChatPhoto &photo);
-
 	void setName(const QString &name, const QString &username);
+	void setPhoto(const MTPChatPhoto &photo);
 	void setAccessHash(uint64 accessHash);
 
 	void setFlags(MTPDchannel::Flags which) {

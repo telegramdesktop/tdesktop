@@ -49,25 +49,13 @@ std::tuple<const uint64 &, const uint64 &> value_ordering_helper(const LocationK
 LocationKey ComputeLocationKey(const Data::FileLocation &value) {
 	auto result = LocationKey();
 	result.type = value.dcId;
-	value.data.match([&](const MTPDinputFileLocation &data) {
-		result.type |= (1ULL << 24);
-		result.type |= (uint64(uint32(data.vlocal_id().v)) << 32);
-		result.id = data.vvolume_id().v;
-	}, [&](const MTPDinputDocumentFileLocation &data) {
+	value.data.match([&](const MTPDinputDocumentFileLocation &data) {
 		const auto letter = data.vthumb_size().v.isEmpty()
 			? char(0)
 			: data.vthumb_size().v[0];
 		result.type |= (2ULL << 24);
 		result.type |= (uint64(uint32(letter)) << 16);
 		result.id = data.vid().v;
-	}, [&](const MTPDinputSecureFileLocation &data) {
-		result.type |= (3ULL << 24);
-		result.id = data.vid().v;
-	}, [&](const MTPDinputEncryptedFileLocation &data) {
-		result.type |= (4ULL << 24);
-		result.id = data.vid().v;
-	}, [&](const MTPDinputTakeoutFileLocation &data) {
-		result.type |= (5ULL << 24);
 	}, [&](const MTPDinputPhotoFileLocation &data) {
 		const auto letter = data.vthumb_size().v.isEmpty()
 			? char(0)
@@ -75,22 +63,10 @@ LocationKey ComputeLocationKey(const Data::FileLocation &value) {
 		result.type |= (6ULL << 24);
 		result.type |= (uint64(uint32(letter)) << 16);
 		result.id = data.vid().v;
-	}, [&](const MTPDinputPeerPhotoFileLocation &data) {
-		const auto letter = data.is_big() ? char(1) : char(0);
-		result.type |= (7ULL << 24);
-		result.type |= (uint64(uint32(data.vlocal_id().v)) << 32);
-		result.type |= (uint64(uint32(letter)) << 16);
-		result.id = data.vvolume_id().v;
-	}, [&](const MTPDinputStickerSetThumb &data) {
-		result.type |= (8ULL << 24);
-		result.type |= (uint64(uint32(data.vlocal_id().v)) << 32);
-		result.id = data.vvolume_id().v;
-	}, [&](const MTPDinputPhotoLegacyFileLocation &data) {
-		result.type |= (9ULL << 24);
-		result.type |= (uint64(uint32(data.vlocal_id().v)) << 32);
-		result.id = data.vvolume_id().v;
-	}, [&](const MTPDinputGroupCallStream &data) {
-		result.type = (10ULL << 24);
+	}, [&](const MTPDinputTakeoutFileLocation &data) {
+		result.type |= (5ULL << 24);
+	}, [](const auto &data) {
+		Unexpected("File location type in Export::ComputeLocationKey.");
 	});
 	return result;
 }

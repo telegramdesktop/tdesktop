@@ -954,40 +954,25 @@ void History::applyServiceChanges(
 	} break;
 
 	case mtpc_messageActionChatEditPhoto: {
-		auto &d = action.c_messageActionChatEditPhoto();
+		const auto &d = action.c_messageActionChatEditPhoto();
 		d.vphoto().match([&](const MTPDphoto &data) {
-			const auto &sizes = data.vsizes().v;
-			if (!sizes.isEmpty()) {
-				auto photo = owner().processPhoto(data);
-				photo->peer = peer;
-				auto &smallSize = sizes.front();
-				auto &bigSize = sizes.back();
-				const MTPFileLocation *smallLoc = nullptr;
-				const MTPFileLocation *bigLoc = nullptr;
-				switch (smallSize.type()) {
-				case mtpc_photoSize: smallLoc = &smallSize.c_photoSize().vlocation(); break;
-				case mtpc_photoCachedSize: smallLoc = &smallSize.c_photoCachedSize().vlocation(); break;
-				}
-				switch (bigSize.type()) {
-				case mtpc_photoSize: bigLoc = &bigSize.c_photoSize().vlocation(); break;
-				case mtpc_photoCachedSize: bigLoc = &bigSize.c_photoCachedSize().vlocation(); break;
-				}
-				if (smallLoc && bigLoc) {
-					const auto chatPhoto = MTP_chatPhoto(
-						MTP_flags(photo->hasVideo()
-							? MTPDchatPhoto::Flag::f_has_video
-							: MTPDchatPhoto::Flag(0)),
-						*smallLoc,
-						*bigLoc,
-						data.vdc_id());
-					if (const auto chat = peer->asChat()) {
-						chat->setPhoto(photo->id, chatPhoto);
-					} else if (const auto channel = peer->asChannel()) {
-						channel->setPhoto(photo->id, chatPhoto);
-					}
-					peer->loadUserpic();
-				}
+			using Flag = MTPDchatPhoto::Flag;
+			const auto photo = owner().processPhoto(data);
+			photo->peer = peer;
+			const auto chatPhoto = MTP_chatPhoto(
+				MTP_flags((photo->hasVideo() ? Flag::f_has_video : Flag(0))
+					| (photo->inlineThumbnailBytes().isEmpty()
+						? Flag(0)
+						: Flag::f_stripped_thumb)),
+				MTP_long(photo->id),
+				MTP_bytes(photo->inlineThumbnailBytes()),
+				data.vdc_id());
+			if (const auto chat = peer->asChat()) {
+				chat->setPhoto(chatPhoto);
+			} else if (const auto channel = peer->asChannel()) {
+				channel->setPhoto(chatPhoto);
 			}
+			peer->loadUserpic();
 		}, [&](const MTPDphotoEmpty &data) {
 			if (const auto chat = peer->asChat()) {
 				chat->setPhoto(MTP_chatPhotoEmpty());
