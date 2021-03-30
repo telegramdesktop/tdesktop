@@ -110,7 +110,6 @@ rpl::producer<uint64> Stickers::stickerSetInstalled() const {
 	return _stickerSetInstalled.events();
 }
 
-// Increment attached sticker.
 void Stickers::incrementSticker(not_null<DocumentData*> document) {
 	if (!document->sticker()
 		|| document->sticker()->set.type() == mtpc_inputStickerSetEmpty) {

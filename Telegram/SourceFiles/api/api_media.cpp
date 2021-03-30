@@ -111,4 +111,16 @@ MTPInputMedia PrepareUploadedDocument(
 		MTP_int(0));
 }
 
+bool HasAttachedStickers(MTPInputMedia media) {
+	return media.match([&](const MTPDinputMediaUploadedPhoto &photo) -> bool {
+		return (photo.vflags().v
+			& MTPDinputMediaUploadedPhoto::Flag::f_stickers);
+	}, [&](const MTPDinputMediaUploadedDocument &document) -> bool {
+		return (document.vflags().v
+			& MTPDinputMediaUploadedDocument::Flag::f_stickers);
+	}, [](const auto &d) {
+		return false;
+	});
+}
+
 } // namespace Api

@@ -52,6 +52,10 @@ mtpRequestId EditMessage(
 		ConvertOption::SkipLocal);
 	const auto media = item->media();
 
+	const auto updateRecentStickers = inputMedia.has_value()
+		? Api::HasAttachedStickers(*inputMedia)
+		: false;
+
 	const auto emptyFlag = MTPmessages_EditMessage::Flag(0);
 	const auto flags = emptyFlag
 	| (!text.isEmpty() || media
@@ -96,6 +100,10 @@ mtpRequestId EditMessage(
 			apply();
 		} else {
 			apply();
+		}
+
+		if (updateRecentStickers) {
+			api->requestRecentStickersForce(true);
 		}
 	}).fail(
 		fail

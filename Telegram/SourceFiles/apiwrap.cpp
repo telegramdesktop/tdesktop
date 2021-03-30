@@ -4521,6 +4521,8 @@ void ApiWrap::sendMediaWithRandomId(
 		caption.entities,
 		Api::ConvertOption::SkipLocal);
 
+	const auto updateRecentStickers = Api::HasAttachedStickers(media);
+
 	const auto flags = MTPmessages_SendMedia::Flags(0)
 		| (replyTo
 			? MTPmessages_SendMedia::Flag::f_reply_to_msg_id
@@ -4553,6 +4555,10 @@ void ApiWrap::sendMediaWithRandomId(
 		)).done([=](const MTPUpdates &result) {
 			applyUpdates(result);
 			finish();
+
+			if (updateRecentStickers) {
+				requestRecentStickersForce(true);
+			}
 		}).fail([=](const MTP::Error &error) {
 			sendMessageFail(error, peer, randomId, itemId);
 			finish();

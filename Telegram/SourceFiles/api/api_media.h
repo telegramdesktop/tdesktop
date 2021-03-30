@@ -21,4 +21,6 @@ MTPInputMedia PrepareUploadedDocument(
 	const std::optional<MTPInputFile> &thumb,
 	std::vector<MTPInputDocument> attachedStickers);
 
+bool HasAttachedStickers(MTPInputMedia media);
+
 } // namespace Api
