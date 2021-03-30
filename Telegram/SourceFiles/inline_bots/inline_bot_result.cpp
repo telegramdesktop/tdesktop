@@ -149,10 +149,9 @@ std::unique_ptr<Result> Result::Create(
 		message = &r.vsend_message();
 	} break;
 	}
-	auto badAttachment = (result->_photo && result->_photo->isNull())
-		|| (result->_document && result->_document->isNull());
-
-	if (!message) {
+	if ((result->_photo && result->_photo->isNull())
+		|| (result->_document && result->_document->isNull())
+		|| !message) {
 		return nullptr;
 	}
 
@@ -170,107 +169,97 @@ std::unique_ptr<Result> Result::Create(
 		}
 	}
 
-	switch (message->type()) {
-	case mtpc_botInlineMessageMediaAuto: {
-		const auto &r = message->c_botInlineMessageMediaAuto();
-		const auto message = qs(r.vmessage());
+	message->match([&](const MTPDbotInlineMessageMediaAuto &data) {
+		const auto message = qs(data.vmessage());
 		const auto entities = Api::EntitiesFromMTP(
 			session,
-			r.ventities().value_or_empty());
+			data.ventities().value_or_empty());
 		if (result->_type == Type::Photo) {
-			if (!result->_photo) {
-				return nullptr;
+			if (result->_photo) {
+				result->sendData = std::make_unique<internal::SendPhoto>(
+					session,
+					result->_photo,
+					message,
+					entities);
+			} else {
+				LOG(("Inline Error: No 'photo' in media-auto, type=photo."));
 			}
-			result->sendData = std::make_unique<internal::SendPhoto>(
-				session,
-				result->_photo,
-				message,
-				entities);
 		} else if (result->_type == Type::Game) {
 			result->createGame(session);
 			result->sendData = std::make_unique<internal::SendGame>(
 				session,
 				result->_game);
 		} else {
-			if (!result->_document) {
-				return nullptr;
+			if (result->_document) {
+				result->sendData = std::make_unique<internal::SendFile>(
+					session,
+					result->_document,
+					message,
+					entities);
+			} else {
+				LOG(("Inline Error: No 'document' in media-auto, type=%1."
+					).arg(int(result->_type)));
 			}
-			result->sendData = std::make_unique<internal::SendFile>(
-				session,
-				result->_document,
-				message,
-				entities);
 		}
-		if (const auto markup = r.vreply_markup()) {
-			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(*markup);
-		}
-	} break;
-
-	case mtpc_botInlineMessageText: {
-		const auto &r = message->c_botInlineMessageText();
+	}, [&](const MTPDbotInlineMessageText &data) {
 		result->sendData = std::make_unique<internal::SendText>(
 			session,
-			qs(r.vmessage()),
-			Api::EntitiesFromMTP(session, r.ventities().value_or_empty()),
-			r.is_no_webpage());
-		if (const auto markup = r.vreply_markup()) {
-			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(*markup);
-		}
-	} break;
-
-	case mtpc_botInlineMessageMediaGeo: {
-		// #TODO layer 72 save period and send live location?..
-		auto &r = message->c_botInlineMessageMediaGeo();
-		if (r.vgeo().type() == mtpc_geoPoint) {
-			result->sendData = std::make_unique<internal::SendGeo>(
-				session,
-				r.vgeo().c_geoPoint());
-		} else {
-			badAttachment = true;
-		}
-		if (const auto markup = r.vreply_markup()) {
-			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(*markup);
-		}
-	} break;
-
-	case mtpc_botInlineMessageMediaVenue: {
-		auto &r = message->c_botInlineMessageMediaVenue();
-		if (r.vgeo().type() == mtpc_geoPoint) {
+			qs(data.vmessage()),
+			Api::EntitiesFromMTP(session, data.ventities().value_or_empty()),
+			data.is_no_webpage());
+	}, [&](const MTPDbotInlineMessageMediaGeo &data) {
+		data.vgeo().match([&](const MTPDgeoPoint &geo) {
+			if (const auto period = data.vperiod()) {
+				result->sendData = std::make_unique<internal::SendGeo>(
+					session,
+					geo,
+					period->v,
+					(data.vheading()
+						? std::make_optional(data.vheading()->v)
+						: std::nullopt),
+					(data.vproximity_notification_radius()
+						? std::make_optional(
+							data.vproximity_notification_radius()->v)
+						: std::nullopt));
+			} else {
+				result->sendData = std::make_unique<internal::SendGeo>(
+					session,
+					geo);
+			}
+		}, [&](const MTPDgeoPointEmpty &) {
+			LOG(("Inline Error: Empty 'geo' in media-geo."));
+		});
+	}, [&](const MTPDbotInlineMessageMediaVenue &data) {
+		data.vgeo().match([&](const MTPDgeoPoint &geo) {
 			result->sendData = std::make_unique<internal::SendVenue>(
 				session,
-				r.vgeo().c_geoPoint(),
-				qs(r.vvenue_id()),
-				qs(r.vprovider()),
-				qs(r.vtitle()),
-				qs(r.vaddress()));
-		} else {
-			badAttachment = true;
-		}
-		if (const auto markup = r.vreply_markup()) {
-			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(*markup);
-		}
-	} break;
-
-	case mtpc_botInlineMessageMediaContact: {
-		auto &r = message->c_botInlineMessageMediaContact();
+				geo,
+				qs(data.vvenue_id()),
+				qs(data.vprovider()),
+				qs(data.vtitle()),
+				qs(data.vaddress()));
+		}, [&](const MTPDgeoPointEmpty &) {
+			LOG(("Inline Error: Empty 'geo' in media-venue."));
+		});
+	}, [&](const MTPDbotInlineMessageMediaContact &data) {
 		result->sendData = std::make_unique<internal::SendContact>(
 			session,
-			qs(r.vfirst_name()),
-			qs(r.vlast_name()),
-			qs(r.vphone_number()));
-		if (const auto markup = r.vreply_markup()) {
-			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(*markup);
-		}
-	} break;
+			qs(data.vfirst_name()),
+			qs(data.vlast_name()),
+			qs(data.vphone_number()));
+	}, [&](const MTPDbotInlineMessageMediaInvoice &data) {
+		// #TODO payments
+	});
 
-	default: {
-		badAttachment = true;
-	} break;
-	}
-
-	if (badAttachment || !result->sendData || !result->sendData->isValid()) {
+	if (!result->sendData || !result->sendData->isValid()) {
 		return nullptr;
 	}
+
+	message->match([&](const auto &data) {
+		if (const auto markup = data.vreply_markup()) {
+			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(*markup);
+		}
+	});
 
 	if (const auto point = result->getLocationPoint()) {
 		const auto scale = 1 + (cScale() * cIntRetinaFactor()) / 200;
