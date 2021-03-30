@@ -149,9 +149,7 @@ void CheckoutProcess::handleError(const Error &error) {
 	const auto &id = error.id;
 	switch (error.type) {
 	case Error::Type::Form:
-		if (id == u"INVOICE_ALREADY_PAID"_q) {
-			showToast({ "Already Paid!" }); // #TODO payments errors message
-		} else if (true
+		if (true
 			|| id == u"PROVIDER_ACCOUNT_INVALID"_q
 			|| id == u"PROVIDER_ACCOUNT_TIMEOUT"_q) {
 			showToast({ "Error: " + id });
@@ -232,8 +230,6 @@ void CheckoutProcess::handleError(const Error &error) {
 			showToast({ "Error: Payment Failed. Your card has not been billed." }); // #TODO payments errors message
 		} else if (id == u"BOT_PRECHECKOUT_FAILED"_q) {
 			showToast({ "Error: PreCheckout Failed. Your card has not been billed." }); // #TODO payments errors message
-		} else if (id == u"INVOICE_ALREADY_PAID"_q) {
-			showToast({ "Already Paid!" }); // #TODO payments errors message
 		} else if (id == u"REQUESTED_INFO_INVALID"_q
 			|| id == u"SHIPPING_OPTION_INVALID"_q
 			|| id == u"PAYMENT_CREDENTIALS_INVALID"_q
@@ -448,7 +444,8 @@ void CheckoutProcess::panelShowBox(object_ptr<Ui::BoxContent> box) {
 void CheckoutProcess::performInitialSilentValidation() {
 	const auto &invoice = _form->invoice();
 	const auto &saved = _form->savedInformation();
-	if ((invoice.isNameRequested && saved.name.isEmpty())
+	if (invoice.receipt
+		|| (invoice.isNameRequested && saved.name.isEmpty())
 		|| (invoice.isEmailRequested && saved.email.isEmpty())
 		|| (invoice.isPhoneRequested && saved.phone.isEmpty())
 		|| (invoice.isShippingAddressRequested && !saved.shippingAddress)) {

@@ -21,11 +21,26 @@ struct Cover {
 	QImage thumbnail;
 };
 
+struct Receipt {
+	TimeId date = 0;
+	int64 totalAmount = 0;
+	QString currency;
+	bool paid = false;
+
+	[[nodiscard]] bool empty() const {
+		return !paid;
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return !empty();
+	}
+};
+
 struct Invoice {
 	Cover cover;
 
 	std::vector<LabeledPrice> prices;
 	QString currency;
+	Receipt receipt;
 
 	bool isNameRequested = false;
 	bool isPhoneRequested = false;
