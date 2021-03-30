@@ -10,6 +10,40 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 
 #include <QtCore/QLocale>
+#include <locale>
+#include <sstream>
+#include <iostream>
+
+[[nodiscard]] QString FormatWithSeparators(
+		double amount,
+		char decimal,
+		char thousands) {
+	Expects(decimal != 0);
+
+	// Thanks https://stackoverflow.com/a/5058949
+	struct FormattingHelper : std::numpunct<char> {
+		FormattingHelper(char decimal, char thousands)
+		: decimal(decimal)
+		, thousands(thousands) {
+		}
+
+		char do_decimal_point() const override { return decimal; }
+		char do_thousands_sep() const override { return thousands; }
+
+		char decimal = '.';
+		char thousands = ',';
+	};
+
+	auto stream = std::ostringstream();
+	auto helper = FormattingHelper(decimal, thousands ? thousands : '?');
+	stream.imbue(std::locale(stream.getloc(), &helper));
+	stream << std::fixed << amount;
+	auto result = QString::fromStdString(stream.str());
+	if (!thousands) {
+		result.replace('?', QString());
+	}
+	return result;
+}
 
 namespace Ui {
 
@@ -126,13 +160,168 @@ QString FormatPlayedText(qint64 played, qint64 duration) {
 }
 
 QString FillAmountAndCurrency(int64 amount, const QString &currency) {
-	static const auto ShortCurrencyNames = QMap<QString, QString>{
-		{ u"USD"_q, QString::fromUtf8("\x24") },
-		{ u"GBP"_q, QString::fromUtf8("\xC2\xA3") },
-		{ u"EUR"_q, QString::fromUtf8("\xE2\x82\xAC") },
-		{ u"JPY"_q, QString::fromUtf8("\xC2\xA5") },
+	struct Rule {
+		//const char *name = "";
+		//const char *native = "";
+		const char *international = "";
+		char thousands = ',';
+		char decimal = '.';
+		bool left = true;
+		bool space = false;
 	};
-	static const auto Denominators = QMap<QString, int>{
+	static const auto kRules = std::vector<std::pair<QString, Rule>>{
+		{ u"AED"_q, { "", ',', '.', true, true } },
+		{ u"AFN"_q, {} },
+		{ u"ALL"_q, { "", '.', ',', false } },
+		{ u"AMD"_q, { "", ',', '.', false, true } },
+		{ u"ARS"_q, { "", '.', ',', true, true } },
+		{ u"AUD"_q, { "AU$" } },
+		{ u"AZN"_q, { "", ' ', ',', false, true } },
+		{ u"BAM"_q, { "", '.', ',', false, true } },
+		{ u"BDT"_q, { "", ',', '.', true, true } },
+		{ u"BGN"_q, { "", ' ', ',', false, true } },
+		{ u"BND"_q, { "", '.', ',', } },
+		{ u"BOB"_q, { "", '.', ',', true, true } },
+		{ u"BRL"_q, { "R$", '.', ',', true, true } },
+		{ u"BHD"_q, { "", ',', '.', true, true } },
+		{ u"BYR"_q, { "", ' ', ',', false, true } },
+		{ u"CAD"_q, { "CA$" } },
+		{ u"CHF"_q, { "", '\'', '.', false, true } },
+		{ u"CLP"_q, { "", '.', ',', true, true } },
+		{ u"CNY"_q, { "\x43\x4E\xC2\xA5" } },
+		{ u"COP"_q, { "", '.', ',', true, true } },
+		{ u"CRC"_q, { "", '.', ',', } },
+		{ u"CZK"_q, { "", ' ', ',', false, true } },
+		{ u"DKK"_q, { "", '\0', ',', false, true } },
+		{ u"DOP"_q, {} },
+		{ u"DZD"_q, { "", ',', '.', true, true } },
+		{ u"EGP"_q, { "", ',', '.', true, true } },
+		{ u"EUR"_q, { "\xE2\x82\xAC", ' ', ',', false, true } },
+		{ u"GBP"_q, { "\xC2\xA3" } },
+		{ u"GEL"_q, { "", ' ', ',', false, true } },
+		{ u"GTQ"_q, {} },
+		{ u"HKD"_q, { "HK$" } },
+		{ u"HNL"_q, { "", ',', '.', true, true } },
+		{ u"HRK"_q, { "", '.', ',', false, true } },
+		{ u"HUF"_q, { "", ' ', ',', false, true } },
+		{ u"IDR"_q, { "", '.', ',', } },
+		{ u"ILS"_q, { "\xE2\x82\xAA", ',', '.', true, true } },
+		{ u"INR"_q, { "\xE2\x82\xB9" } },
+		{ u"ISK"_q, { "", '.', ',', false, true } },
+		{ u"JMD"_q, {} },
+		{ u"JPY"_q, { "\xC2\xA5" } },
+		{ u"KES"_q, {} },
+		{ u"KGS"_q, { "", ' ', '-', false, true } },
+		{ u"KRW"_q, { "\xE2\x82\xA9" } },
+		{ u"KZT"_q, { "", ' ', '-', } },
+		{ u"LBP"_q, { "", ',', '.', true, true } },
+		{ u"LKR"_q, { "", ',', '.', true, true } },
+		{ u"MAD"_q, { "", ',', '.', true, true } },
+		{ u"MDL"_q, { "", ',', '.', false, true } },
+		{ u"MNT"_q, { "", ' ', ',', } },
+		{ u"MUR"_q, {} },
+		{ u"MVR"_q, { "", ',', '.', false, true } },
+		{ u"MXN"_q, { "MX$" } },
+		{ u"MYR"_q, {} },
+		{ u"MZN"_q, {} },
+		{ u"NGN"_q, {} },
+		{ u"NIO"_q, { "", ',', '.', true, true } },
+		{ u"NOK"_q, { "", ' ', ',', true, true } },
+		{ u"NPR"_q, {} },
+		{ u"NZD"_q, { "NZ$" } },
+		{ u"PAB"_q, { "", ',', '.', true, true } },
+		{ u"PEN"_q, { "", ',', '.', true, true } },
+		{ u"PHP"_q, {} },
+		{ u"PKR"_q, {} },
+		{ u"PLN"_q, { "", ' ', ',', false, true } },
+		{ u"PYG"_q, { "", '.', ',', true, true } },
+		{ u"QAR"_q, { "", ',', '.', true, true } },
+		{ u"RON"_q, { "", '.', ',', false, true } },
+		{ u"RSD"_q, { "", '.', ',', false, true } },
+		{ u"RUB"_q, { "", ' ', ',', false, true } },
+		{ u"SAR"_q, { "", ',', '.', true, true } },
+		{ u"SEK"_q, { "", '.', ',', false, true } },
+		{ u"SGD"_q, {} },
+		{ u"THB"_q, { "\xE0\xB8\xBF" } },
+		{ u"TJS"_q, { "", ' ', ';', false, true } },
+		{ u"TRY"_q, { "", '.', ',', false, true } },
+		{ u"TTD"_q, {} },
+		{ u"TWD"_q, { "NT$" } },
+		{ u"TZS"_q, {} },
+		{ u"UAH"_q, { "", ' ', ',', false } },
+		{ u"UGX"_q, {} },
+		{ u"USD"_q, { "$" } },
+		{ u"UYU"_q, { "", '.', ',', true, true } },
+		{ u"UZS"_q, { "", ' ', ',', false, true } },
+		{ u"VND"_q, { "\xE2\x82\xAB", '.', ',', false, true } },
+		{ u"YER"_q, { "", ',', '.', true, true } },
+		{ u"ZAR"_q, { "", ',', '.', true, true } },
+		{ u"IRR"_q, { "", ',', '/', false, true } },
+		{ u"IQD"_q, { "", ',', '.', true, true } },
+		{ u"VEF"_q, { "", '.', ',', true, true } },
+		{ u"SYP"_q, { "", ',', '.', true, true } },
+
+		//{ u"VUV"_q, { "", ',', '.', false } },
+		//{ u"WST"_q, {} },
+		//{ u"XAF"_q, { "FCFA", ',', '.', false } },
+		//{ u"XCD"_q, {} },
+		//{ u"XOF"_q, { "CFA", ' ', ',', false } },
+		//{ u"XPF"_q, { "", ',', '.', false } },
+		//{ u"ZMW"_q, {} },
+		//{ u"ANG"_q, {} },
+		//{ u"RWF"_q, { "", ' ', ',', true, true } },
+		//{ u"PGK"_q, {} },
+		//{ u"TOP"_q, {} },
+		//{ u"SBD"_q, {} },
+		//{ u"SCR"_q, {} },
+		//{ u"SHP"_q, {} },
+		//{ u"SLL"_q, {} },
+		//{ u"SOS"_q, {} },
+		//{ u"SRD"_q, {} },
+		//{ u"STD"_q, {} },
+		//{ u"SVC"_q, {} },
+		//{ u"SZL"_q, {} },
+		//{ u"AOA"_q, {} },
+		//{ u"AWG"_q, {} },
+		//{ u"BBD"_q, {} },
+		//{ u"BIF"_q, { "", ',', '.', false } },
+		//{ u"BMD"_q, {} },
+		//{ u"BSD"_q, {} },
+		//{ u"BWP"_q, {} },
+		//{ u"BZD"_q, {} },
+		//{ u"CDF"_q, { "", ',', '.', false } },
+		//{ u"CVE"_q, {} },
+		//{ u"DJF"_q, { "", ',', '.', false } },
+		//{ u"ETB"_q, {} },
+		//{ u"FJD"_q, {} },
+		//{ u"FKP"_q, {} },
+		//{ u"GIP"_q, {} },
+		//{ u"GMD"_q, { "", ',', '.', false } },
+		//{ u"GNF"_q, { "", ',', '.', false } },
+		//{ u"GYD"_q, {} },
+		//{ u"HTG"_q, {} },
+		//{ u"KHR"_q, { "", ',', '.', false } },
+		//{ u"KMF"_q, { "", ',', '.', false } },
+		//{ u"KYD"_q, {} },
+		//{ u"LAK"_q, { "", ',', '.', false } },
+		//{ u"LRD"_q, {} },
+		//{ u"LSL"_q, { "", ',', '.', false } },
+		//{ u"MGA"_q, {} },
+		//{ u"MKD"_q, { "", '.', ',', false, true } },
+		//{ u"MOP"_q, {} },
+		//{ u"MWK"_q, {} },
+		//{ u"NAD"_q, {} },
+	};
+	static const auto kRulesMap = [] {
+		// flat_multi_map_pair_type lacks some required constructors :(
+		auto &&pairs = kRules | ranges::views::transform([](auto &&pair) {
+			return base::flat_multi_map_pair_type<QString, Rule>(
+				pair.first,
+				pair.second);
+		});
+		return base::flat_map<QString, Rule>(begin(pairs), end(pairs));
+	}();
+	static const auto kDenominators = base::flat_map<QString, int>{
 		{ u"CLF"_q, 10000 },
 		{ u"BHD"_q, 1000 },
 		{ u"IQD"_q, 1000 },
@@ -163,21 +352,31 @@ QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 		{ u"XPF"_q, 1 },
 		{ u"MRO"_q, 10 },
 	};
-	const auto currencyText = ShortCurrencyNames.value(currency, currency);
-	const auto denominator = Denominators.value(currency, 100);
-	const auto currencyValue = amount / float64(denominator);
-	const auto digits = [&] {
-		auto result = 0;
-		for (auto test = 1; test < denominator; test *= 10) {
-			++result;
-		}
-		return result;
-	}();
-	return QLocale::system().toCurrencyString(currencyValue, currencyText);
-	//auto amountBucks = amount / 100;
-	//auto amountCents = amount % 100;
-	//auto amountText = u"%1,%2").arg(amountBucks).arg(amountCents, 2, 10, QChar('0'));
-	//return currencyText + amountText;
+	const auto denominatorIt = kDenominators.find(currency);
+	const auto denominator = (denominatorIt != end(kDenominators))
+		? denominatorIt->second
+		: 100;
+	const auto value = amount / float64(denominator);
+	const auto ruleIt = kRulesMap.find(currency);
+	if (ruleIt == end(kRulesMap)) {
+		return QLocale::system().toCurrencyString(value, currency);
+	}
+	const auto &rule = ruleIt->second;
+	const auto name = (*rule.international)
+		? QString::fromUtf8(rule.international)
+		: currency;
+	auto result = QString();
+	if (rule.left) {
+		result.append(name);
+		if (rule.space) result.append(' ');
+	}
+	result.append(
+		FormatWithSeparators(value, rule.decimal, rule.thousands));
+	if (!rule.left) {
+		if (rule.space) result.append(' ');
+		result.append(name);
+	}
+	return result;
 }
 
 QString ComposeNameString(

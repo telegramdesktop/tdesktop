@@ -46,6 +46,7 @@ namespace {
 	case FieldType::CardCVC:
 	case FieldType::Country:
 	case FieldType::Phone:
+	case FieldType::PriceAmount:
 		return true;
 	}
 	Unexpected("FieldType in Payments::Ui::UseMaskedField.");
@@ -67,6 +68,7 @@ namespace {
 	case FieldType::CardCVC:
 	case FieldType::Country:
 	case FieldType::Phone:
+	case FieldType::PriceAmount:
 		return base::make_unique_q<RpWidget>(parent);
 	}
 	Unexpected("FieldType in Payments::Ui::CreateWrap.");
@@ -94,6 +96,7 @@ namespace {
 	case FieldType::CardExpireDate:
 	case FieldType::CardCVC:
 	case FieldType::Country:
+	case FieldType::PriceAmount:
 		return CreateChild<MaskedInputField>(
 			wrap.get(),
 			st::paymentsField,

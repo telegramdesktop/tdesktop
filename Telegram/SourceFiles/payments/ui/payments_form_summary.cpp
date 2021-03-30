@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "data/data_countries.h"
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
@@ -84,7 +85,7 @@ int64 FormSummary::computeTotalAmount() const {
 			std::plus<>(),
 			&LabeledPrice::price)
 		: int64(0);
-	return total + shipping;
+	return total + shipping + _invoice.tipsSelected;
 }
 
 void FormSummary::setupControls() {
@@ -193,12 +194,15 @@ void FormSummary::setupCover(not_null<VerticalLayout*> layout) {
 void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 	const auto addRow = [&](
 			const QString &label,
-			const QString &value,
+			const TextWithEntities &value,
 			bool full = false) {
 		const auto &st = full
 			? st::paymentsFullPriceAmount
 			: st::paymentsPriceAmount;
-		const auto right = CreateChild<FlatLabel>(layout.get(), value, st);
+		const auto right = CreateChild<FlatLabel>(
+			layout.get(),
+			rpl::single(value),
+			st);
 		const auto &padding = st::paymentsPricePadding;
 		const auto left = layout->add(
 			object_ptr<FlatLabel>(
@@ -220,13 +224,14 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 		) | rpl::start_with_next([=](int top, int width) {
 			right->moveToRight(st::paymentsPricePadding.right(), top, width);
 		}, right->lifetime());
+		return right;
 	};
 
 	Settings::AddSkip(layout, st::paymentsPricesTopSkip);
 	if (_invoice.receipt) {
 		addRow(
 			tr::lng_payments_date_label(tr::now),
-			langDateTime(base::unixtime::parse(_invoice.receipt.date)),
+			{ langDateTime(base::unixtime::parse(_invoice.receipt.date)) },
 			true);
 		Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
 		Settings::AddDivider(layout);
@@ -237,7 +242,7 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 			const QString &label,
 			int64 amount,
 			bool full = false) {
-		addRow(label, formatAmount(amount), full);
+		addRow(label, { formatAmount(amount) }, full);
 	};
 	for (const auto &price : _invoice.prices) {
 		add(price.label, price.price);
@@ -251,7 +256,27 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 			add(price.label, price.price);
 		}
 	}
-	add(tr::lng_payments_total_label(tr::now), computeTotalAmount(), true);
+
+	const auto computedTotal = computeTotalAmount();
+	const auto total = _invoice.receipt.paid
+		? _invoice.receipt.totalAmount
+		: computedTotal;
+	if (_invoice.receipt.paid) {
+		if (const auto tips = total - computedTotal) {
+			add(tr::lng_payments_tips_label(tr::now), tips);
+		}
+	} else if (_invoice.tipsMax > 0) {
+		const auto text = formatAmount(_invoice.tipsSelected);
+		const auto label = addRow(
+			tr::lng_payments_tips_label(tr::now),
+			Ui::Text::Link(text, "internal:edit_tips"));
+		label->setClickHandlerFilter([=](auto&&...) {
+			_delegate->panelChooseTips();
+			return false;
+		});
+	}
+
+	add(tr::lng_payments_total_label(tr::now), total, true);
 	Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
 }
 

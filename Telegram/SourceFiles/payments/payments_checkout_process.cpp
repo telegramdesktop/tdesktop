@@ -254,6 +254,8 @@ void CheckoutProcess::handleError(const Error &error) {
 			|| id == u"PAYMENT_CREDENTIALS_INVALID"_q
 			|| id == u"PAYMENT_CREDENTIALS_ID_INVALID"_q) {
 			showToast({ "Error: " + id + ". Your card has not been billed." });
+		} else {
+			showToast({ "Error: " + id });
 		}
 		break;
 	default: Unexpected("Error type in CheckoutProcess::handleError.");
@@ -284,6 +286,7 @@ void CheckoutProcess::panelCloseSure() {
 void CheckoutProcess::panelSubmit() {
 	if (_form->invoice().receipt.paid) {
 		panelCloseSure();
+		return;
 	} else if (_submitState == SubmitState::Validation
 		|| _submitState == SubmitState::Finishing) {
 		return;
@@ -437,6 +440,10 @@ void CheckoutProcess::chooseShippingOption() {
 	_panel->chooseShippingOption(_form->shippingOptions());
 }
 
+void CheckoutProcess::chooseTips() {
+	_panel->chooseTips(_form->invoice());
+}
+
 void CheckoutProcess::editPaymentMethod() {
 	_panel->choosePaymentMethod(_form->paymentMethod().ui);
 }
@@ -450,6 +457,18 @@ void CheckoutProcess::panelChooseShippingOption() {
 
 void CheckoutProcess::panelChangeShippingOption(const QString &id) {
 	_form->setShippingOption(id);
+	showForm();
+}
+
+void CheckoutProcess::panelChooseTips() {
+	if (_submitState != SubmitState::None) {
+		return;
+	}
+	chooseTips();
+}
+
+void CheckoutProcess::panelChangeTips(int64 value) {
+	_form->setTips(value);
 	showForm();
 }
 

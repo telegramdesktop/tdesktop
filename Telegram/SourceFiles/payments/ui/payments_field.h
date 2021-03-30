@@ -29,6 +29,7 @@ enum class FieldType {
 	Country,
 	Phone,
 	Email,
+	PriceAmount,
 };
 
 struct FieldValidateRequest {

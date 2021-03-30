@@ -173,6 +173,7 @@ public:
 	void validateCard(const Ui::UncheckedCardDetails &details);
 	void setPaymentCredentials(const NewCredentials &credentials);
 	void setShippingOption(const QString &id);
+	void setTips(int64 value);
 	void submit();
 
 private:

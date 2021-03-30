@@ -63,6 +63,7 @@ public:
 		const NativeMethodDetails &native,
 		CardField field);
 	void chooseShippingOption(const ShippingOptions &options);
+	void chooseTips(const Invoice &invoice);
 	void choosePaymentMethod(const PaymentMethodDetails &method);
 
 	bool showWebview(const QString &url, bool allowBack);
