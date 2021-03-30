@@ -67,6 +67,7 @@ private:
 	void showInformationError(Ui::InformationField field);
 	void showCardError(Ui::CardField field);
 	void chooseShippingOption();
+	void chooseTips();
 	void editPaymentMethod();
 
 	void performInitialSilentValidation();
@@ -84,6 +85,8 @@ private:
 	void panelEditPhone() override;
 	void panelChooseShippingOption() override;
 	void panelChangeShippingOption(const QString &id) override;
+	void panelChooseTips() override;
+	void panelChangeTips(int64 value) override;
 
 	void panelValidateInformation(Ui::RequestedInformation data) override;
 	void panelValidateCard(Ui::UncheckedCardDetails data) override;

@@ -45,6 +45,10 @@ namespace {
 	});
 }
 
+[[nodiscard]] int64 ParsePriceAmount(uint64 value) {
+	return *reinterpret_cast<const int64*>(&value);
+}
+
 [[nodiscard]] std::vector<Ui::LabeledPrice> ParsePrices(
 		const MTPVector<MTPLabeledPrice> &data) {
 	return ranges::views::all(
@@ -53,7 +57,7 @@ namespace {
 		return price.match([&](const MTPDlabeledPrice &data) {
 			return Ui::LabeledPrice{
 				.label = qs(data.vlabel()),
-				.price = *reinterpret_cast<const int64*>(&data.vamount().v),
+				.price = ParsePriceAmount(data.vamount().v),
 			};
 		});
 	}) | ranges::to_vector;
@@ -290,6 +294,10 @@ void Form::processInvoice(const MTPDinvoice &data) {
 		.cover = std::move(_invoice.cover),
 
 		.prices = ParsePrices(data.vprices()),
+		.tipsMin = ParsePriceAmount(data.vmin_tip_amount().value_or_empty()),
+		.tipsMax = ParsePriceAmount(data.vmax_tip_amount().value_or_empty()),
+		.tipsSelected = ParsePriceAmount(
+			data.vdefault_tip_amount().value_or_empty()),
 		.currency = qs(data.vcurrency()),
 
 		.isNameRequested = data.is_name_requested(),
@@ -330,8 +338,7 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 void Form::processDetails(const MTPDpayments_paymentReceipt &data) {
 	_invoice.receipt = Ui::Receipt{
 		.date = data.vdate().v,
-		.totalAmount = *reinterpret_cast<const int64*>(
-			&data.vtotal_amount().v),
+		.totalAmount = ParsePriceAmount(data.vtotal_amount().v),
 		.currency = qs(data.vcurrency()),
 		.paid = true,
 	};
@@ -440,7 +447,8 @@ void Form::submit() {
 			: Flag::f_requested_info_id)
 			| (_shippingOptions.selectedId.isEmpty()
 				? Flag(0)
-				: Flag::f_shipping_option_id)),
+				: Flag::f_shipping_option_id)
+			| (_invoice.tipsSelected ? Flag::f_tip_amount : Flag(0))),
 		MTP_long(_details.formId),
 		_peer->input,
 		MTP_int(_msgId),
@@ -449,7 +457,7 @@ void Form::submit() {
 		MTP_inputPaymentCredentials(
 			MTP_flags(0),
 			MTP_dataJSON(MTP_bytes(_paymentMethod.newCredentials.data))),
-		MTP_long(0) // #TODO payments tip_amount
+		MTP_long(_invoice.tipsSelected)
 	)).done([=](const MTPpayments_PaymentResult &result) {
 		result.match([&](const MTPDpayments_paymentResult &data) {
 			_updates.fire(PaymentFinished{ data.vupdates() });
@@ -666,6 +674,13 @@ void Form::setPaymentCredentials(const NewCredentials &credentials) {
 
 void Form::setShippingOption(const QString &id) {
 	_shippingOptions.selectedId = id;
+}
+
+void Form::setTips(int64 value) {
+	_invoice.tipsSelected = std::clamp(
+		value,
+		_invoice.tipsMin,
+		_invoice.tipsMax);
 }
 
 void Form::processShippingOptions(const QVector<MTPShippingOption> &data) {

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/ui/payments_edit_information.h"
 #include "payments/ui/payments_edit_card.h"
 #include "payments/ui/payments_panel_delegate.h"
+#include "payments/ui/payments_field.h"
 #include "ui/widgets/separate_panel.h"
 #include "ui/boxes/single_choice_box.h"
 #include "lang/lang_keys.h"
@@ -19,6 +20,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_passport.h"
 
 namespace Payments::Ui {
+namespace {
+
+[[nodiscard]] auto PriceAmountValidator(int64 min, int64 max) {
+	return [=](FieldValidateRequest request) {
+		return FieldValidateResult{
+			.value = request.nowValue,
+			.position = request.nowPosition,
+		};
+	};
+}
+
+} // namespace
 
 Panel::Panel(not_null<PanelDelegate*> delegate)
 : _delegate(delegate)
@@ -124,6 +137,40 @@ void Panel::chooseShippingOption(const ShippingOptions &options) {
 				: -1),
 			.callback = save,
 		});
+	}));
+}
+
+void Panel::chooseTips(const Invoice &invoice) {
+	const auto min = invoice.tipsMin;
+	const auto max = invoice.tipsMax;
+	const auto now = invoice.tipsSelected;
+	showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_payments_tips_title());
+
+		const auto row = box->lifetime().make_state<Field>(
+			box,
+			FieldConfig{
+				.type = FieldType::PriceAmount,
+				.placeholder = tr::lng_payments_tips_enter(),
+				.value = QString::number(now),
+				.validator = PriceAmountValidator(min, max),
+			});
+		box->setFocusCallback([=] {
+			row->setFocusFast();
+		});
+		box->addRow(row->ownedWidget());
+		box->addRow(object_ptr<FlatLabel>(box, "Min: " + QString::number(min), st::defaultFlatLabel));
+		box->addRow(object_ptr<FlatLabel>(box, "Max: " + QString::number(max), st::defaultFlatLabel));
+		box->addButton(tr::lng_settings_save(), [=] {
+			const auto value = row->value().toLongLong();
+			if (value < min || value > max) {
+				row->showError();
+			} else {
+				_delegate->panelChangeTips(value);
+				box->closeBox();
+			}
+		});
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	}));
 }
 

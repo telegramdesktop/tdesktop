@@ -38,6 +38,8 @@ public:
 	virtual void panelEditPhone() = 0;
 	virtual void panelChooseShippingOption() = 0;
 	virtual void panelChangeShippingOption(const QString &id) = 0;
+	virtual void panelChooseTips() = 0;
+	virtual void panelChangeTips(int64 value) = 0;
 
 	virtual void panelValidateInformation(RequestedInformation data) = 0;
 	virtual void panelValidateCard(Ui::UncheckedCardDetails data) = 0;

@@ -39,6 +39,9 @@ struct Invoice {
 	Cover cover;
 
 	std::vector<LabeledPrice> prices;
+	int64 tipsMin = 0;
+	int64 tipsMax = 0;
+	int64 tipsSelected = 0;
 	QString currency;
 	Receipt receipt;
 
@@ -53,7 +56,7 @@ struct Invoice {
 	bool emailSentToProvider = false;
 
 	[[nodiscard]] bool valid() const {
-		return !currency.isEmpty() && !prices.empty();
+		return !currency.isEmpty() && (!prices.empty() || tipsMax);
 	}
 	[[nodiscard]] explicit operator bool() const {
 		return valid();
