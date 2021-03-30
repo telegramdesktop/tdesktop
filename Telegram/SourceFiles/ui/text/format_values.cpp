@@ -14,42 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <sstream>
 #include <iostream>
 
-[[nodiscard]] QString FormatWithSeparators(
-		double amount,
-		char decimal,
-		char thousands) {
-	Expects(decimal != 0);
-
-	// Thanks https://stackoverflow.com/a/5058949
-	struct FormattingHelper : std::numpunct<char> {
-		FormattingHelper(char decimal, char thousands)
-		: decimal(decimal)
-		, thousands(thousands) {
-		}
-
-		char do_decimal_point() const override { return decimal; }
-		char do_thousands_sep() const override { return thousands; }
-
-		char decimal = '.';
-		char thousands = ',';
-	};
-
-	auto stream = std::ostringstream();
-	auto helper = FormattingHelper(decimal, thousands ? thousands : '?');
-	stream.imbue(std::locale(stream.getloc(), &helper));
-	stream << std::fixed << amount;
-	auto result = QString::fromStdString(stream.str());
-	if (!thousands) {
-		result.replace('?', QString());
-	}
-	return result;
-}
-
 namespace Ui {
-
 namespace {
 
-QString FormatTextWithReadyAndTotal(
+[[nodiscard]] QString FormatTextWithReadyAndTotal(
 		tr::phrase<lngtag_ready, lngtag_total, lngtag_mb> phrase,
 		qint64 ready,
 		qint64 total) {
@@ -75,6 +43,40 @@ QString FormatTextWithReadyAndTotal(
 		mb = u"B"_q;
 	}
 	return phrase(tr::now, lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
+}
+
+[[nodiscard]] QString FormatWithSeparators(
+		double amount,
+		int precision,
+		char decimal,
+		char thousands) {
+	Expects(decimal != 0);
+
+	// Thanks https://stackoverflow.com/a/5058949
+	struct FormattingHelper : std::numpunct<char> {
+		FormattingHelper(char decimal, char thousands)
+		: decimal(decimal)
+		, thousands(thousands) {
+		}
+
+		char do_decimal_point() const override { return decimal; }
+		char do_thousands_sep() const override { return thousands; }
+
+		char decimal = '.';
+		char thousands = ',';
+	};
+
+	auto stream = std::ostringstream();
+	stream.imbue(std::locale(
+		stream.getloc(),
+		new FormattingHelper(decimal, thousands ? thousands : '?')));
+	stream.precision(precision);
+	stream << std::fixed << amount;
+	auto result = QString::fromStdString(stream.str());
+	if (!thousands) {
+		result.replace('?', QString());
+	}
+	return result;
 }
 
 } // namespace
@@ -321,42 +323,42 @@ QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 		});
 		return base::flat_map<QString, Rule>(begin(pairs), end(pairs));
 	}();
-	static const auto kDenominators = base::flat_map<QString, int>{
-		{ u"CLF"_q, 10000 },
-		{ u"BHD"_q, 1000 },
-		{ u"IQD"_q, 1000 },
-		{ u"JOD"_q, 1000 },
-		{ u"KWD"_q, 1000 },
-		{ u"LYD"_q, 1000 },
-		{ u"OMR"_q, 1000 },
-		{ u"TND"_q, 1000 },
-		{ u"BIF"_q, 1 },
-		{ u"BYR"_q, 1 },
-		{ u"CLP"_q, 1 },
-		{ u"CVE"_q, 1 },
-		{ u"DJF"_q, 1 },
-		{ u"GNF"_q, 1 },
-		{ u"ISK"_q, 1 },
-		{ u"JPY"_q, 1 },
-		{ u"KMF"_q, 1 },
-		{ u"KRW"_q, 1 },
-		{ u"MGA"_q, 1 },
-		{ u"PYG"_q, 1 },
-		{ u"RWF"_q, 1 },
-		{ u"UGX"_q, 1 },
-		{ u"UYI"_q, 1 },
-		{ u"VND"_q, 1 },
-		{ u"VUV"_q, 1 },
-		{ u"XAF"_q, 1 },
-		{ u"XOF"_q, 1 },
-		{ u"XPF"_q, 1 },
-		{ u"MRO"_q, 10 },
+	static const auto kExponents = base::flat_map<QString, int>{
+		{ u"CLF"_q, 4 },
+		{ u"BHD"_q, 3 },
+		{ u"IQD"_q, 3 },
+		{ u"JOD"_q, 3 },
+		{ u"KWD"_q, 3 },
+		{ u"LYD"_q, 3 },
+		{ u"OMR"_q, 3 },
+		{ u"TND"_q, 3 },
+		{ u"BIF"_q, 0 },
+		{ u"BYR"_q, 0 },
+		{ u"CLP"_q, 0 },
+		{ u"CVE"_q, 0 },
+		{ u"DJF"_q, 0 },
+		{ u"GNF"_q, 0 },
+		{ u"ISK"_q, 0 },
+		{ u"JPY"_q, 0 },
+		{ u"KMF"_q, 0 },
+		{ u"KRW"_q, 0 },
+		{ u"MGA"_q, 0 },
+		{ u"PYG"_q, 0 },
+		{ u"RWF"_q, 0 },
+		{ u"UGX"_q, 0 },
+		{ u"UYI"_q, 0 },
+		{ u"VND"_q, 0 },
+		{ u"VUV"_q, 0 },
+		{ u"XAF"_q, 0 },
+		{ u"XOF"_q, 0 },
+		{ u"XPF"_q, 0 },
+		{ u"MRO"_q, 1 },
 	};
-	const auto denominatorIt = kDenominators.find(currency);
-	const auto denominator = (denominatorIt != end(kDenominators))
-		? denominatorIt->second
-		: 100;
-	const auto value = amount / float64(denominator);
+	const auto exponentIt = kExponents.find(currency);
+	const auto exponent = (exponentIt != end(kExponents))
+		? exponentIt->second
+		: 2;
+	const auto value = amount / std::pow(10., exponent);
 	const auto ruleIt = kRulesMap.find(currency);
 	if (ruleIt == end(kRulesMap)) {
 		return QLocale::system().toCurrencyString(value, currency);
@@ -370,8 +372,15 @@ QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 		result.append(name);
 		if (rule.space) result.append(' ');
 	}
-	result.append(
-		FormatWithSeparators(value, rule.decimal, rule.thousands));
+	const auto precision = (currency != u"IRR"_q
+		|| std::floor(value) != value)
+		? exponent
+		: 0;
+	result.append(FormatWithSeparators(
+		value,
+		precision,
+		rule.decimal,
+		rule.thousands));
 	if (!rule.left) {
 		if (rule.space) result.append(' ');
 		result.append(name);
