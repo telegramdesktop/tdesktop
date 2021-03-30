@@ -1888,7 +1888,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_billing_country" = "Country";
 "lng_payments_billing_zip_code" = "Zip Code";
 "lng_payments_save_payment_about" = "You can save your payment information for future use.";
-"lng_payments_save_information" = "Save Information";
+"lng_payments_save_information" = "Save Information for future use";
 "lng_payments_tips_label" = "Tips";
 "lng_payments_tips_title" = "Tips";
 "lng_payments_tips_enter" = "Enter tips amount";

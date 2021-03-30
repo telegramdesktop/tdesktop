@@ -13,11 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/ui/payments_panel_delegate.h"
 #include "payments/ui/payments_field.h"
 #include "ui/widgets/separate_panel.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/boxes/single_choice_box.h"
+#include "ui/text/format_values.h"
 #include "lang/lang_keys.h"
 #include "webview/webview_embed.h"
 #include "styles/style_payments.h"
 #include "styles/style_passport.h"
+#include "styles/style_layers.h"
 
 namespace Payments::Ui {
 namespace {
@@ -119,23 +122,69 @@ void Panel::showInformationError(
 
 void Panel::chooseShippingOption(const ShippingOptions &options) {
 	showBox(Box([=](not_null<Ui::GenericBox*> box) {
-		auto list = options.list | ranges::views::transform(
-			&ShippingOption::title
-		) | ranges::to_vector;
 		const auto i = ranges::find(
 			options.list,
 			options.selectedId,
 			&ShippingOption::id);
-		const auto save = [=](int option) {
-			_delegate->panelChangeShippingOption(options.list[option].id);
-		};
-		SingleChoiceBox(box, {
-			.title = tr::lng_payments_shipping_method(),
-			.options = list,
-			.initialSelection = (i != end(options.list)
-				? (i - begin(options.list))
-				: -1),
-			.callback = save,
+		const auto index = (i != end(options.list))
+			? (i - begin(options.list))
+			: -1;
+		const auto group = std::make_shared<Ui::RadiobuttonGroup>(index);
+
+		const auto layout = box->verticalLayout();
+		auto counter = 0;
+		for (const auto &option : options.list) {
+			const auto index = counter++;
+			const auto button = layout->add(
+				object_ptr<Ui::Radiobutton>(
+					layout,
+					group,
+					index,
+					QString(),
+					st::defaultBoxCheckbox,
+					st::defaultRadio),
+				st::paymentsShippingMargin);
+			const auto label = CreateChild<FlatLabel>(
+				layout.get(),
+				option.title,
+				st::paymentsShippingLabel);
+			const auto total = ranges::accumulate(
+				option.prices,
+				int64(0),
+				std::plus<>(),
+				&LabeledPrice::price);
+			const auto price = CreateChild<FlatLabel>(
+				layout.get(),
+				FillAmountAndCurrency(total, options.currency),
+				st::paymentsShippingPrice);
+			const auto area = CreateChild<AbstractButton>(layout.get());
+			area->setClickedCallback([=] { group->setValue(index); });
+			button->geometryValue(
+			) | rpl::start_with_next([=](QRect geometry) {
+				label->move(
+					geometry.topLeft() + st::paymentsShippingLabelPosition);
+				price->move(
+					geometry.topLeft() + st::paymentsShippingPricePosition);
+				const auto right = geometry.x()
+					+ st::paymentsShippingLabelPosition.x();
+				area->setGeometry(
+					right,
+					geometry.y(),
+					std::max(
+						label->x() + label->width() - right,
+						price->x() + price->width() - right),
+					price->y() + price->height() - geometry.y());
+			}, button->lifetime());
+		}
+
+		box->setTitle(tr::lng_payments_shipping_method());
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		group->setChangedCallback([=](int index) {
+			if (index >= 0) {
+				_delegate->panelChangeShippingOption(
+					options.list[index].id);
+				box->closeBox();
+			}
 		});
 	}));
 }

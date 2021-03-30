@@ -17,6 +17,7 @@ class FadeShadow;
 class RoundButton;
 class InputField;
 class MaskedInputField;
+class Checkbox;
 } // namespace Ui
 
 namespace Payments::Ui {
@@ -69,6 +70,7 @@ private:
 	std::unique_ptr<Field> _name;
 	std::unique_ptr<Field> _email;
 	std::unique_ptr<Field> _phone;
+	Checkbox *_save = nullptr;
 
 	InformationField _focusField = InformationField::ShippingStreet;
 

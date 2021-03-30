@@ -22,6 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_payments.h"
 #include "styles/style_passport.h"
 
+namespace App {
+QString formatPhone(QString phone); // #TODO
+} // namespace App
+
 namespace Payments::Ui {
 
 using namespace ::Ui;
@@ -62,10 +66,7 @@ void FormSummary::updateThumbnail(const QImage &thumbnail) {
 }
 
 QString FormSummary::formatAmount(int64 amount) const {
-	const auto base = FillAmountAndCurrency(
-		std::abs(amount),
-		_invoice.currency);
-	return (amount < 0) ? (QString::fromUtf8("\xe2\x88\x92") + base) : base;
+	return FillAmountAndCurrency(amount, _invoice.currency);
 }
 
 int64 FormSummary::computeTotalAmount() const {
@@ -352,7 +353,9 @@ void FormSummary::setupSections(not_null<VerticalLayout*> layout) {
 	if (_invoice.isPhoneRequested) {
 		add(
 			tr::lng_payments_info_phone(),
-			_information.phone,
+			(_information.phone.isEmpty()
+				? QString()
+				: App::formatPhone(_information.phone)),
 			&st::paymentsIconPhone,
 			[=] { _delegate->panelEditPhone(); });
 	}
