@@ -2101,7 +2101,11 @@ void ApiWrap::saveStickerSets(
 		session().saveSettings();
 	}
 	if (writeArchived) {
-		storage.writeArchivedStickers();
+		if (setsMasks) {
+			storage.writeArchivedMasks();
+		} else {
+			storage.writeArchivedStickers();
+		}
 	}
 	if (writeCloudRecent) {
 		storage.writeRecentStickers();

@@ -111,11 +111,13 @@ public:
 	void writeRecentStickers();
 	void writeFavedStickers();
 	void writeArchivedStickers();
+	void writeArchivedMasks();
 	void readInstalledStickers();
 	void readFeaturedStickers();
 	void readRecentStickers();
 	void readFavedStickers();
 	void readArchivedStickers();
+	void readArchivedMasks();
 	void writeSavedGifs();
 	void readSavedGifs();
 	void writeInstalledMasks();
@@ -252,6 +254,7 @@ private:
 	FileKey _recentStickersKey = 0;
 	FileKey _favedStickersKey = 0;
 	FileKey _archivedStickersKey = 0;
+	FileKey _archivedMasksKey = 0;
 	FileKey _savedGifsKey = 0;
 	FileKey _recentStickersKeyOld = 0;
 	FileKey _legacyBackgroundKeyDay = 0;

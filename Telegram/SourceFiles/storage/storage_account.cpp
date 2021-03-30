@@ -187,6 +187,7 @@ base::flat_set<QString> Account::collectGoodNames() const {
 		_trustedBotsKey,
 		_installedMasksKey,
 		_recentMasksKey,
+		_archivedMasksKey,
 	};
 	auto result = base::flat_set<QString>{
 		"map0",
@@ -267,7 +268,7 @@ Account::ReadMapResult Account::readMapWith(
 	quint64 locationsKey = 0, reportSpamStatusesKey = 0, trustedBotsKey = 0;
 	quint64 recentStickersKeyOld = 0;
 	quint64 installedStickersKey = 0, featuredStickersKey = 0, recentStickersKey = 0, favedStickersKey = 0, archivedStickersKey = 0;
-	quint64 installedMasksKey = 0, recentMasksKey = 0;
+	quint64 installedMasksKey = 0, recentMasksKey = 0, archivedMasksKey = 0;
 	quint64 savedGifsKey = 0;
 	quint64 legacyBackgroundKeyDay = 0, legacyBackgroundKeyNight = 0;
 	quint64 userSettingsKey = 0, recentHashtagsAndBotsKey = 0, exportSettingsKey = 0;
@@ -365,7 +366,10 @@ Account::ReadMapResult Account::readMapWith(
 			map.stream >> exportSettingsKey;
 		} break;
 		case lskMasksKeys: {
-			map.stream >> installedMasksKey >> recentMasksKey;
+			map.stream
+				>> installedMasksKey
+				>> recentMasksKey
+				>> archivedMasksKey;
 		} break;
 		default:
 			LOG(("App Error: unknown key type in encrypted map: %1").arg(keyType));
@@ -393,6 +397,7 @@ Account::ReadMapResult Account::readMapWith(
 	_savedGifsKey = savedGifsKey;
 	_installedMasksKey = installedMasksKey;
 	_recentMasksKey = recentMasksKey;
+	_archivedMasksKey = archivedMasksKey;
 	_legacyBackgroundKeyDay = legacyBackgroundKeyDay;
 	_legacyBackgroundKeyNight = legacyBackgroundKeyNight;
 	_settingsKey = userSettingsKey;
@@ -497,8 +502,8 @@ void Account::writeMap() {
 	if (_settingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_recentHashtagsAndBotsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_exportSettingsKey) mapSize += sizeof(quint32) + sizeof(quint64);
-	if (_installedMasksKey || _recentMasksKey) {
-		mapSize += sizeof(quint32) + 2 * sizeof(quint64);
+	if (_installedMasksKey || _recentMasksKey || _archivedMasksKey) {
+		mapSize += sizeof(quint32) + 3 * sizeof(quint64);
 	}
 
 	EncryptedDescriptor mapData(mapSize);
@@ -545,11 +550,12 @@ void Account::writeMap() {
 	if (_exportSettingsKey) {
 		mapData.stream << quint32(lskExportSettings) << quint64(_exportSettingsKey);
 	}
-	if (_installedMasksKey || _recentMasksKey) {
+	if (_installedMasksKey || _recentMasksKey || _archivedMasksKey) {
 		mapData.stream << quint32(lskMasksKeys);
 		mapData.stream
 			<< quint64(_installedMasksKey)
-			<< quint64(_recentMasksKey);
+			<< quint64(_recentMasksKey)
+			<< quint64(_archivedMasksKey);
 	}
 	map.writeEncrypted(mapData, _localKey);
 
@@ -571,6 +577,7 @@ void Account::reset() {
 	_savedGifsKey = 0;
 	_installedMasksKey = 0;
 	_recentMasksKey = 0;
+	_archivedMasksKey = 0;
 	_legacyBackgroundKeyDay = _legacyBackgroundKeyNight = 0;
 	_settingsKey = _recentHashtagsAndBotsKey = _exportSettingsKey = 0;
 	_oldMapVersion = 0;
@@ -1885,6 +1892,8 @@ void Account::writeInstalledStickers() {
 			}
 		} else if (!(set.flags & MTPDstickerSet::Flag::f_installed_date) || (set.flags & MTPDstickerSet::Flag::f_archived)) {
 			return StickerSetCheckResult::Skip;
+		} else if (set.flags & MTPDstickerSet::Flag::f_masks) {
+			return StickerSetCheckResult::Skip;
 		} else if (set.flags & MTPDstickerSet_ClientFlag::f_not_loaded) { // waiting to receive
 			return StickerSetCheckResult::Abort;
 		} else if (set.stickers.isEmpty()) {
@@ -1933,11 +1942,26 @@ void Account::writeFavedStickers() {
 
 void Account::writeArchivedStickers() {
 	writeStickerSets(_archivedStickersKey, [](const Data::StickersSet &set) {
+		if (set.flags & MTPDstickerSet::Flag::f_masks) {
+			return StickerSetCheckResult::Skip;
+		}
 		if (!(set.flags & MTPDstickerSet::Flag::f_archived) || set.stickers.isEmpty()) {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
 	}, _owner->session().data().stickers().archivedSetsOrder());
+}
+
+void Account::writeArchivedMasks() {
+	writeStickerSets(_archivedStickersKey, [](const Data::StickersSet &set) {
+		if (!(set.flags & MTPDstickerSet::Flag::f_masks)) {
+			return StickerSetCheckResult::Skip;
+		}
+		if (!(set.flags & MTPDstickerSet::Flag::f_archived) || set.stickers.isEmpty()) {
+			return StickerSetCheckResult::Skip;
+		}
+		return StickerSetCheckResult::Write;
+	}, _owner->session().data().stickers().archivedMaskSetsOrder());
 }
 
 void Account::writeInstalledMasks() {
@@ -2123,10 +2147,24 @@ void Account::readFavedStickers() {
 }
 
 void Account::readArchivedStickers() {
+	// TODO: refactor to support for multiple accounts.
 	static bool archivedStickersRead = false;
 	if (!archivedStickersRead) {
-		readStickerSets(_archivedStickersKey, &_owner->session().data().stickers().archivedSetsOrderRef());
+		readStickerSets(
+			_archivedStickersKey,
+			&_owner->session().data().stickers().archivedSetsOrderRef());
 		archivedStickersRead = true;
+	}
+}
+
+void Account::readArchivedMasks() {
+	// TODO: refactor to support for multiple accounts.
+	static bool archivedMasksRead = false;
+	if (!archivedMasksRead) {
+		readStickerSets(
+			_archivedMasksKey,
+			&_owner->session().data().stickers().archivedMaskSetsOrderRef());
+		archivedMasksRead = true;
 	}
 }
 

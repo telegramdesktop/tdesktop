@@ -90,7 +90,7 @@ public:
 
 	void saveGroupSet();
 
-	void rebuild();
+	void rebuild(bool masks);
 	void updateSize(int newWidth = 0);
 	void updateRows(); // refresh only pack cover stickers
 	bool appendSet(not_null<StickersSet*> set);
@@ -454,7 +454,7 @@ void StickersBox::getArchivedDone(
 	}
 
 	auto &stickers = result.c_messages_archivedStickers();
-	auto &archived = session().data().stickers().archivedSetsOrderRef();
+	auto &archived = archivedSetsOrderRef();
 	if (offsetId) {
 		auto index = archived.indexOf(offsetId);
 		if (index >= 0) {
@@ -521,7 +521,11 @@ void StickersBox::getArchivedDone(
 void StickersBox::prepare() {
 	if (_section == Section::Installed) {
 		if (_tabs) {
-			session().local().readArchivedStickers();
+			if (_isMasks) {
+				session().local().readArchivedMasks();
+			} else {
+				session().local().readArchivedStickers();
+			}
 		} else {
 			setTitle(tr::lng_stickers_group_set());
 		}
@@ -531,7 +535,7 @@ void StickersBox::prepare() {
 		setTitle(tr::lng_stickers_attached_sets());
 	}
 	if (_tabs) {
-		if (session().data().stickers().archivedSetsOrder().isEmpty()) {
+		if (archivedSetsOrder().isEmpty()) {
 			preloadArchivedSets();
 		}
 		setNoContentMargin(true);
@@ -645,7 +649,7 @@ void StickersBox::refreshTabs() {
 		sections.push_back(tr::lng_stickers_featured_tab(tr::now).toUpper());
 		_tabIndices.push_back(Section::Featured);
 	}
-	if (!stickers.archivedSetsOrder().isEmpty() && _archived.widget()) {
+	if (!archivedSetsOrder().isEmpty() && _archived.widget()) {
 		sections.push_back(tr::lng_stickers_archived_tab(tr::now).toUpper());
 		_tabIndices.push_back(Section::Archived);
 	}
@@ -672,7 +676,7 @@ void StickersBox::loadMoreArchived() {
 	}
 
 	uint64 lastId = 0;
-	const auto &order = session().data().stickers().archivedSetsOrder();
+	const auto &order = archivedSetsOrder();
 	const auto &sets = session().data().stickers().sets();
 	for (auto setIt = order.cend(), e = order.cbegin(); setIt != e;) {
 		--setIt;
@@ -684,8 +688,11 @@ void StickersBox::loadMoreArchived() {
 			}
 		}
 	}
+	const auto flags = _isMasks
+		? MTPmessages_GetArchivedStickers::Flag::f_masks
+		: MTPmessages_GetArchivedStickers::Flags(0);
 	_archivedRequestId = _api.request(MTPmessages_GetArchivedStickers(
-		MTP_flags(0),
+		MTP_flags(flags),
 		MTP_long(lastId),
 		MTP_int(kArchivedLimitPerPage)
 	)).done([=](const MTPmessages_ArchivedStickers &result) {
@@ -864,8 +871,11 @@ void StickersBox::preloadArchivedSets() {
 		return;
 	}
 	if (!_archivedRequestId) {
+		const auto flags = _isMasks
+			? MTPmessages_GetArchivedStickers::Flag::f_masks
+			: MTPmessages_GetArchivedStickers::Flags(0);
 		_archivedRequestId = _api.request(MTPmessages_GetArchivedStickers(
-			MTP_flags(0),
+			MTP_flags(flags),
 			MTP_long(0),
 			MTP_int(kArchivedLimitFirstRequest)
 		)).done([=](const MTPmessages_ArchivedStickers &result) {
@@ -881,7 +891,7 @@ void StickersBox::requestArchivedSets() {
 	}
 
 	const auto &sets = session().data().stickers().sets();
-	const auto &order = session().data().stickers().archivedSetsOrder();
+	const auto &order = archivedSetsOrder();
 	for (const auto setId : order) {
 		auto it = sets.find(setId);
 		if (it != sets.cend()) {
@@ -918,7 +928,7 @@ void StickersBox::handleStickersUpdated() {
 	} else {
 		_tab->widget()->updateRows();
 	}
-	if (session().data().stickers().archivedSetsOrder().isEmpty()) {
+	if (archivedSetsOrder().isEmpty()) {
 		preloadArchivedSets();
 	} else {
 		refreshTabs();
@@ -937,7 +947,7 @@ void StickersBox::rebuildList(Tab *tab) {
 		_localOrder = tab->widget()->getFullOrder();
 		_localRemoved = tab->widget()->getRemovedSets();
 	}
-	tab->widget()->rebuild();
+	tab->widget()->rebuild(_isMasks);
 	if ((tab == &_installed) || (tab == &_masks)) {
 		tab->widget()->setFullOrder(_localOrder);
 	}
@@ -957,7 +967,11 @@ void StickersBox::saveChanges() {
 	}
 
 	if (_someArchivedLoaded) {
-		session().local().writeArchivedStickers();
+		if (_isMasks) {
+			session().local().writeArchivedMasks();
+		} else {
+			session().local().writeArchivedStickers();
+		}
 	}
 	if (installed) {
 		session().api().saveStickerSets(
@@ -977,6 +991,18 @@ void StickersBox::setInnerFocus() {
 	if (_megagroupSet) {
 		_installed.widget()->setInnerFocus();
 	}
+}
+
+const Data::StickersSetsOrder &StickersBox::archivedSetsOrder() const {
+	return !_isMasks
+		? session().data().stickers().archivedSetsOrder()
+		: session().data().stickers().archivedMaskSetsOrder();
+}
+
+Data::StickersSetsOrder &StickersBox::archivedSetsOrderRef() {
+	return !_isMasks
+		? session().data().stickers().archivedSetsOrderRef()
+		: session().data().stickers().archivedMaskSetsOrderRef();
 }
 
 StickersBox::~StickersBox() = default;
@@ -1935,7 +1961,7 @@ void StickersBox::Inner::rebuildMegagroupSet() {
 	}
 }
 
-void StickersBox::Inner::rebuild() {
+void StickersBox::Inner::rebuild(bool masks) {
 	_itemsTop = st::membersMarginTop;
 
 	if (_megagroupSet) {
@@ -1959,7 +1985,9 @@ void StickersBox::Inner::rebuild() {
 		} else if (_section == Section::Featured) {
 			return session().data().stickers().featuredSetsOrder();
 		}
-		return session().data().stickers().archivedSetsOrder();
+		return masks
+			? session().data().stickers().archivedMaskSetsOrder()
+			: session().data().stickers().archivedSetsOrder();
 	})();
 	_rows.reserve(order.size() + 1);
 	_shiftingStartTimes.reserve(order.size() + 1);
@@ -1999,7 +2027,7 @@ void StickersBox::Inner::rebuild() {
 
 void StickersBox::Inner::setMegagroupSelectedSet(const MTPInputStickerSet &set) {
 	_megagroupSetInput = set;
-	rebuild();
+	rebuild(false);
 	_scrollsToY.fire(0);
 	updateSelected();
 }

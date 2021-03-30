@@ -134,6 +134,9 @@ private:
 		uint64 offsetId);
 	void showAttachedStickers();
 
+	const Data::StickersSetsOrder &archivedSetsOrder() const;
+	Data::StickersSetsOrder &archivedSetsOrderRef();
+
 	std::array<Inner*, 5> widgets() const;
 
 	const not_null<Window::SessionController*> _controller;

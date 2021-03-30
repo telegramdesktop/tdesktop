@@ -494,9 +494,13 @@ void StickerSetBox::Inner::installDone(
 
 	const bool wasArchived = (_setFlags & MTPDstickerSet::Flag::f_archived);
 	if (wasArchived) {
-		const auto index = stickers.archivedSetsOrderRef().indexOf(_setId);
+		const auto index = (isMasks
+			? stickers.archivedMaskSetsOrderRef()
+			: stickers.archivedSetsOrderRef()).indexOf(_setId);
 		if (index >= 0) {
-			stickers.archivedSetsOrderRef().removeAt(index);
+			(isMasks
+				? stickers.archivedMaskSetsOrderRef()
+				: stickers.archivedSetsOrderRef()).removeAt(index);
 		}
 	}
 	_setInstallDate = base::unixtime::now();
@@ -556,7 +560,11 @@ void StickerSetBox::Inner::installDone(
 	} else {
 		auto &storage = _controller->session().local();
 		if (wasArchived) {
-			storage.writeArchivedStickers();
+			if (isMasks) {
+				storage.writeArchivedMasks();
+			} else {
+				storage.writeArchivedStickers();
+			}
 		}
 		if (isMasks) {
 			storage.writeInstalledMasks();

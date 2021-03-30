@@ -152,6 +152,12 @@ public:
 	StickersSetsOrder &archivedSetsOrderRef() {
 		return _archivedSetsOrder;
 	}
+	const StickersSetsOrder &archivedMaskSetsOrder() const {
+		return _archivedMaskSetsOrder;
+	}
+	StickersSetsOrder &archivedMaskSetsOrderRef() {
+		return _archivedMaskSetsOrder;
+	}
 	const SavedGifs &savedGifs() const {
 		return _savedGifs;
 	}
@@ -241,6 +247,7 @@ private:
 	StickersSetsOrder _maskSetsOrder;
 	StickersSetsOrder _featuredSetsOrder;
 	StickersSetsOrder _archivedSetsOrder;
+	StickersSetsOrder _archivedMaskSetsOrder;
 	SavedGifs _savedGifs;
 
 };

@@ -263,10 +263,12 @@ void Stickers::checkSavedGif(not_null<HistoryItem*> item) {
 void Stickers::applyArchivedResult(
 		const MTPDmessages_stickerSetInstallResultArchive &d) {
 	auto &v = d.vsets().v;
-	auto &order = setsOrderRef();
 	StickersSetsOrder archived;
 	archived.reserve(v.size());
 	QMap<uint64, uint64> setsToRequest;
+
+	auto masksCount = 0;
+	auto stickersCount = 0;
 	for (const auto &stickerSet : v) {
 		const MTPDstickerSet *setData = nullptr;
 		switch (stickerSet.type()) {
@@ -288,7 +290,10 @@ void Stickers::applyArchivedResult(
 			if (set->stickers.isEmpty()) {
 				setsToRequest.insert(set->id, set->access);
 			}
-			auto index = order.indexOf(set->id);
+			const auto masks = !!(set->flags & MTPDstickerSet::Flag::f_masks);
+			(masks ? masksCount : stickersCount)++;
+			auto &order = masks ? maskSetsOrderRef() : setsOrderRef();
+			const auto index = order.indexOf(set->id);
 			if (index >= 0) {
 				order.removeAt(index);
 			}
@@ -301,8 +306,14 @@ void Stickers::applyArchivedResult(
 		}
 		session().api().requestStickerSets();
 	}
-	session().local().writeInstalledStickers();
-	session().local().writeArchivedStickers();
+	if (stickersCount) {
+		session().local().writeInstalledStickers();
+		session().local().writeArchivedStickers();
+	}
+	if (masksCount) {
+		session().local().writeInstalledMasks();
+		session().local().writeArchivedMasks();
+	}
 
 	Ui::Toast::Show(Ui::Toast::Config{
 		.text = { tr::lng_stickers_packs_archived(tr::now) },
@@ -360,12 +371,14 @@ void Stickers::installLocally(uint64 setId) {
 
 	const auto set = it->second.get();
 	auto flags = set->flags;
-	set->flags &= ~(MTPDstickerSet::Flag::f_archived | MTPDstickerSet_ClientFlag::f_unread);
+	set->flags &= ~(MTPDstickerSet::Flag::f_archived
+		| MTPDstickerSet_ClientFlag::f_unread);
 	set->flags |= MTPDstickerSet::Flag::f_installed_date;
 	set->installDate = base::unixtime::now();
 	auto changedFlags = flags ^ set->flags;
 
-	auto &order = setsOrderRef();
+	const auto masks = !!(flags & MTPDstickerSet::Flag::f_masks);
+	auto &order = masks ? maskSetsOrderRef() : setsOrderRef();
 	int insertAtIndex = 0, currentIndex = order.indexOf(setId);
 	if (currentIndex != insertAtIndex) {
 		if (currentIndex > 0) {
@@ -390,10 +403,17 @@ void Stickers::installLocally(uint64 setId) {
 		session().local().writeFeaturedStickers();
 	}
 	if (changedFlags & MTPDstickerSet::Flag::f_archived) {
-		auto index = archivedSetsOrderRef().indexOf(setId);
+		auto &archivedOrder = masks
+			? archivedMaskSetsOrderRef()
+			: archivedSetsOrderRef();
+		const auto index = archivedOrder.indexOf(setId);
 		if (index >= 0) {
-			archivedSetsOrderRef().removeAt(index);
-			session().local().writeArchivedStickers();
+			archivedOrder.removeAt(index);
+			if (masks) {
+				session().local().writeArchivedMasks();
+			} else {
+				session().local().writeArchivedStickers();
+			}
 		}
 	}
 	notifyUpdated();
@@ -1234,13 +1254,17 @@ StickersSet *Stickers::feedSet(const MTPDstickerSet &data) {
 	const auto set = it->second.get();
 	auto changedFlags = (flags ^ set->flags);
 	if (changedFlags & MTPDstickerSet::Flag::f_archived) {
-		auto index = archivedSetsOrder().indexOf(set->id);
+		const auto masks = !!(set->flags & MTPDstickerSet::Flag::f_masks);
+		auto &archivedOrder = masks
+			? archivedMaskSetsOrderRef()
+			: archivedSetsOrderRef();
+		const auto index = archivedOrder.indexOf(set->id);
 		if (set->flags & MTPDstickerSet::Flag::f_archived) {
 			if (index < 0) {
-				archivedSetsOrderRef().push_front(set->id);
+				archivedOrder.push_front(set->id);
 			}
 		} else if (index >= 0) {
-			archivedSetsOrderRef().removeAt(index);
+			archivedOrder.removeAt(index);
 		}
 	}
 	return it->second.get();
@@ -1358,7 +1382,11 @@ StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
 			session().local().writeFeaturedStickers();
 		}
 		if (wasArchived != isArchived) {
-			session().local().writeArchivedStickers();
+			if (isMasks) {
+				session().local().writeArchivedMasks();
+			} else {
+				session().local().writeArchivedStickers();
+			}
 		}
 	}
 
