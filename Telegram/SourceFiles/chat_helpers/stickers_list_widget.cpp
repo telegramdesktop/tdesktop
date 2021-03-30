@@ -111,7 +111,9 @@ struct StickerIcon {
 
 class StickersListWidget::Footer : public TabbedSelector::InnerFooter {
 public:
-	explicit Footer(not_null<StickersListWidget*> parent);
+	explicit Footer(
+		not_null<StickersListWidget*> parent,
+		bool searchButtonVisible);
 
 	void preloadImages();
 	void validateSelectedIcon(
@@ -148,8 +150,7 @@ private:
 	};
 	using OverState = std::variant<SpecialOver, int>;
 
-	template <typename Callback>
-	void enumerateVisibleIcons(Callback callback);
+	void enumerateVisibleIcons(Fn<void(const StickerIcon &, int)> callback);
 
 	bool iconsAnimationCallback(crl::time now);
 	void setSelectedIcon(
@@ -173,6 +174,7 @@ private:
 	void scrollByWheelEvent(not_null<QWheelEvent*> e);
 
 	const not_null<StickersListWidget*> _pan;
+	const bool _searchButtonVisible = true;
 
 	static constexpr auto kVisibleIconsCount = 8;
 
@@ -245,15 +247,21 @@ void StickersListWidget::Sticker::ensureMediaCreated() {
 	documentMedia = document->createMediaView();
 }
 
-StickersListWidget::Footer::Footer(not_null<StickersListWidget*> parent)
+StickersListWidget::Footer::Footer(
+	not_null<StickersListWidget*> parent,
+	bool searchButtonVisible)
 : InnerFooter(parent)
 , _pan(parent)
+, _searchButtonVisible(searchButtonVisible)
 , _iconsAnimation([=](crl::time now) {
 	return iconsAnimationCallback(now);
 }) {
 	setMouseTracking(true);
 
-	_iconsLeft = _iconsRight = st::emojiCategorySkip + st::stickerIconWidth;
+	_iconsLeft = st::emojiCategorySkip + (_searchButtonVisible
+		? st::stickerIconWidth
+		: 0);
+	_iconsRight = st::emojiCategorySkip + st::stickerIconWidth;
 
 	_pan->session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
@@ -345,13 +353,17 @@ void StickersListWidget::Footer::returnFocus() {
 	}
 }
 
-template <typename Callback>
-void StickersListWidget::Footer::enumerateVisibleIcons(Callback callback) {
+void StickersListWidget::Footer::enumerateVisibleIcons(
+		Fn<void(const StickerIcon &, int)> callback) {
 	auto iconsX = qRound(_iconsX.current());
 	auto index = iconsX / st::stickerIconWidth;
 	auto x = _iconsLeft - (iconsX % st::stickerIconWidth);
 	auto first = floorclamp(iconsX, st::stickerIconWidth, 0, _icons.size());
-	auto last = ceilclamp(iconsX + width(), st::stickerIconWidth, 0, _icons.size());
+	auto last = ceilclamp(
+		iconsX + width(),
+		st::stickerIconWidth,
+		0,
+		_icons.size());
 	for (auto index = first; index != last; ++index) {
 		callback(_icons[index], x);
 		x += st::stickerIconWidth;
@@ -673,7 +685,8 @@ void StickersListWidget::Footer::updateSelected() {
 	const auto settingsLeft = width() - _iconsRight;
 	const auto searchLeft = _iconsLeft - st::stickerIconWidth;
 	auto newOver = OverState(SpecialOver::None);
-	if (x >= searchLeft
+	if (_searchButtonVisible
+		&& x >= searchLeft
 		&& x < searchLeft + st::stickerIconWidth
 		&& y >= _iconsTop
 		&& y < _iconsTop + st::emojiFooterHeight) {
@@ -757,12 +770,21 @@ bool StickersListWidget::Footer::hasOnlyFeaturedSets() const {
 
 void StickersListWidget::Footer::paintStickerSettingsIcon(Painter &p) const {
 	const auto settingsLeft = width() - _iconsRight;
-	st::stickersSettings.paint(p, settingsLeft + (st::stickerIconWidth - st::stickersSettings.width()) / 2, _iconsTop + st::emojiCategory.iconPosition.y(), width());
+	st::stickersSettings.paint(
+		p,
+		settingsLeft
+			+ (st::stickerIconWidth - st::stickersSettings.width()) / 2,
+		_iconsTop + st::emojiCategory.iconPosition.y(),
+		width());
 }
 
 void StickersListWidget::Footer::paintSearchIcon(Painter &p) const {
 	const auto searchLeft = _iconsLeft - st::stickerIconWidth;
-	st::stickersSearch.paint(p, searchLeft + (st::stickerIconWidth - st::stickersSearch.width()) / 2, _iconsTop + st::emojiCategory.iconPosition.y(), width());
+	st::stickersSearch.paint(
+		p,
+		searchLeft + (st::stickerIconWidth - st::stickersSearch.width()) / 2,
+		_iconsTop + st::emojiCategory.iconPosition.y(),
+		width());
 }
 
 void StickersListWidget::Footer::validateIconLottieAnimation(
@@ -971,7 +993,7 @@ rpl::producer<> StickersListWidget::checkForHide() const {
 object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 	Expects(_footer == nullptr);
 
-	auto result = object_ptr<Footer>(this);
+	auto result = object_ptr<Footer>(this, !_isMasks);
 	_footer = result;
 
 	_footer->openSettingsRequests(
@@ -2771,7 +2793,7 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 std::vector<StickerIcon> StickersListWidget::fillIcons() {
 	auto result = std::vector<StickerIcon>();
 	result.reserve(_mySets.size() + 1);
-	if (!_officialSets.empty()) {
+	if (!_officialSets.empty() && !_isMasks) {
 		result.emplace_back(Data::Stickers::FeaturedSetId);
 	}
 
