@@ -97,7 +97,18 @@ SendDataCommon::SentMTPMessageFields SendText::getSentMessageFields() const {
 
 SendDataCommon::SentMTPMessageFields SendGeo::getSentMessageFields() const {
 	SentMTPMessageFields result;
-	result.media = MTP_messageMediaGeo(_location.toMTP());
+	if (_period) {
+		using Flag = MTPDmessageMediaGeoLive::Flag;
+		result.media = MTP_messageMediaGeoLive(
+			MTP_flags((_heading ? Flag::f_heading : Flag(0))
+				| (_proximityNotificationRadius ? Flag::f_proximity_notification_radius : Flag(0))),
+			_location.toMTP(),
+			MTP_int(_heading.value_or(0)),
+			MTP_int(*_period),
+			MTP_int(_proximityNotificationRadius.value_or(0)));
+	} else {
+		result.media = MTP_messageMediaGeo(_location.toMTP());
+	}
 	return result;
 }
 

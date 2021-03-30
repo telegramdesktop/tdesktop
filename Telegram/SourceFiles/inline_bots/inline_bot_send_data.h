@@ -135,6 +135,18 @@ public:
 	: SendDataCommon(session)
 	, _location(point) {
 	}
+	SendGeo(
+		not_null<Main::Session*> session,
+		const MTPDgeoPoint &point,
+		int period,
+		std::optional<int> heading,
+		std::optional<int> proximityNotificationRadius)
+	: SendDataCommon(session)
+	, _location(point)
+	, _period(period)
+	, _heading(heading)
+	, _proximityNotificationRadius(proximityNotificationRadius){
+	}
 
 	bool isValid() const override {
 		return true;
@@ -151,6 +163,9 @@ public:
 
 private:
 	Data::LocationPoint _location;
+	std::optional<int> _period;
+	std::optional<int> _heading;
+	std::optional<int> _proximityNotificationRadius;
 
 };
 
