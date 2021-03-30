@@ -187,7 +187,6 @@ void FormSummary::setupCover(not_null<VerticalLayout*> layout) {
 }
 
 void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
-	Settings::AddSkip(layout, st::paymentsPricesTopSkip);
 	const auto addRow = [&](
 			const QString &label,
 			const QString &value,
@@ -218,6 +217,18 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 			right->moveToRight(st::paymentsPricePadding.right(), top, width);
 		}, right->lifetime());
 	};
+
+	Settings::AddSkip(layout, st::paymentsPricesTopSkip);
+	if (_invoice.receipt) {
+		Settings::AddDivider(layout);
+		Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
+		addRow(
+			tr::lng_payments_date_label(tr::now),
+			langDateTime(base::unixtime::parse(_invoice.receipt.date)),
+			true);
+		Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
+	}
+
 	const auto add = [&](
 			const QString &label,
 			int64 amount,
@@ -238,15 +249,6 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 	}
 	add(tr::lng_payments_total_label(tr::now), computeTotalAmount(), true);
 	Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
-	if (_invoice.receipt) {
-		Settings::AddDivider(layout);
-		Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
-		addRow(
-			tr::lng_payments_date_label(tr::now),
-			langDateTime(base::unixtime::parse(_invoice.receipt.date)),
-			true);
-		Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
-	}
 }
 
 void FormSummary::setupSections(not_null<VerticalLayout*> layout) {

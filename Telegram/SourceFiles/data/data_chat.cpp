@@ -37,12 +37,8 @@ ChatData::ChatData(not_null<Data::Session*> owner, PeerId id)
 }
 
 void ChatData::setPhoto(const MTPChatPhoto &photo) {
-	setPhoto(userpicPhotoId(), photo);
-}
-
-void ChatData::setPhoto(PhotoId photoId, const MTPChatPhoto &photo) {
 	photo.match([&](const MTPDchatPhoto &data) {
-		updateUserpic(photoId, data.vdc_id().v, data.vphoto_small());
+		updateUserpic(data.vphoto_id().v, data.vdc_id().v);
 	}, [&](const MTPDchatPhotoEmpty &) {
 		clearUserpic();
 	});

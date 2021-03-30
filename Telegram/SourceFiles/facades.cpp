@@ -122,7 +122,7 @@ void activateBotCommand(
 	} break;
 
 	case ButtonType::Buy: {
-		Payments::CheckoutProcess::Start(msg);
+		Payments::CheckoutProcess::Start(msg, Payments::Mode::Payment);
 	} break;
 
 	case ButtonType::Url: {

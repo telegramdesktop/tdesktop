@@ -404,10 +404,7 @@ protected:
 		const QString &newName,
 		const QString &newNameOrPhone,
 		const QString &newUsername);
-	void updateUserpic(
-		PhotoId photoId,
-		MTP::DcId dcId,
-		const MTPFileLocation &small);
+	void updateUserpic(PhotoId photoId, MTP::DcId dcId);
 	void clearUserpic();
 
 private:

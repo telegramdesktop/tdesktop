@@ -27,7 +27,10 @@ class PhotoMedia;
 
 namespace Payments {
 
+enum class Mode;
+
 struct FormDetails {
+	uint64 formId = 0;
 	QString url;
 	QString nativeProvider;
 	QByteArray nativeParamsJson;
@@ -143,7 +146,7 @@ struct FormUpdate : std::variant<
 
 class Form final : public base::has_weak_ptr {
 public:
-	Form(not_null<Main::Session*> session, FullMsgId itemId);
+	Form(not_null<PeerData*> peer, MsgId itemId, bool receipt);
 	~Form();
 
 	[[nodiscard]] const Ui::Invoice &invoice() const {
@@ -219,8 +222,9 @@ private:
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
-	FullMsgId _msgId;
-	FullMsgId _receiptMsgId;
+	not_null<PeerData*> _peer;
+	MsgId _msgId = 0;
+	bool _receiptMode = false;
 
 	Ui::Invoice _invoice;
 	std::unique_ptr<ThumbnailLoadProcess> _thumbnailLoadProcess;

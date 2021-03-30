@@ -79,7 +79,6 @@ PreparedFileThumbnail PrepareFileThumbnail(QImage &&original) {
 		: std::move(original);
 	result.mtpSize = MTP_photoSize(
 		MTP_string(),
-		MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
 		MTP_int(result.image.width()),
 		MTP_int(result.image.height()),
 		MTP_int(0));
@@ -210,7 +209,6 @@ SendMediaReady PreparePeerPhoto(MTP::DcId dcId, PeerId peerId, QImage &&image) {
 			QByteArray bytes = QByteArray()) {
 		photoSizes.push_back(MTP_photoSize(
 			MTP_string(type),
-			MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
 			MTP_int(image.width()),
 			MTP_int(image.height()), MTP_int(0)));
 		photoThumbs.emplace(type[0], PreparedPhotoThumb{
@@ -887,13 +885,13 @@ void FileLoadTask::process(Args &&args) {
 					writer.write(full);
 				}
 				photoThumbs.emplace('m', PreparedPhotoThumb{ .image = medium });
-				photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
+				photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
 
 				photoThumbs.emplace('y', PreparedPhotoThumb{
 					.image = full,
 					.bytes = filedata
 				});
-				photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
+				photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
 
 				photo = MTP_photo(
 					MTP_flags(0),

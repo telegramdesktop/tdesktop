@@ -28,17 +28,23 @@ class Form;
 struct FormUpdate;
 struct Error;
 
+enum class Mode {
+	Payment,
+	Receipt,
+};
+
 class CheckoutProcess final
 	: public base::has_weak_ptr
 	, private Ui::PanelDelegate {
 	struct PrivateTag {};
 
 public:
-	static void Start(not_null<const HistoryItem*> item);
+	static void Start(not_null<const HistoryItem*> item, Mode mode);
 
 	CheckoutProcess(
-		not_null<Main::Session*> session,
-		FullMsgId itemId,
+		not_null<PeerData*> peer,
+		MsgId itemId,
+		Mode mode,
 		PrivateTag);
 	~CheckoutProcess();
 

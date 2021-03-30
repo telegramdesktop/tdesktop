@@ -119,14 +119,14 @@ StorageFileLocation::StorageFileLocation(
 		const auto fillPeer = base::overload([&](
 				const MTPDinputPeerEmpty &data) {
 			_id = 0;
-		}, [&](const MTPDinputPeerSelf & data) {
+		}, [&](const MTPDinputPeerSelf &data) {
 			_id = peerFromUser(self);
-		}, [&](const MTPDinputPeerChat & data) {
+		}, [&](const MTPDinputPeerChat &data) {
 			_id = peerFromChat(data.vchat_id());
-		}, [&](const MTPDinputPeerUser & data) {
+		}, [&](const MTPDinputPeerUser &data) {
 			_id = peerFromUser(data.vuser_id());
 			_accessHash = data.vaccess_hash().v;
-		}, [&](const MTPDinputPeerChannel & data) {
+		}, [&](const MTPDinputPeerChannel &data) {
 			_id = peerFromChannel(data.vchannel_id());
 			_accessHash = data.vaccess_hash().v;
 		});
@@ -146,8 +146,8 @@ StorageFileLocation::StorageFileLocation(
 			_inMessagePeerId = -data.vchannel_id().v;
 			_inMessageId = data.vmsg_id().v;
 		});
-		_volumeId = data.vvolume_id().v;
-		_localId = data.vlocal_id().v;
+		_volumeId = data.vphoto_id().v;
+		_localId = 0;
 		_sizeLetter = data.is_big() ? 'c' : 'a';
 	}, [&](const MTPDinputStickerSetThumb &data) {
 		_type = Type::StickerSetThumb;
@@ -156,16 +156,11 @@ StorageFileLocation::StorageFileLocation(
 		}, [&](const MTPDinputStickerSetID &data) {
 			_id = data.vid().v;
 			_accessHash = data.vaccess_hash().v;
-		}, [&](const MTPDinputStickerSetShortName &data) {
-			Unexpected("inputStickerSetShortName in StorageFileLocation.");
-		}, [&](const MTPDinputStickerSetAnimatedEmoji &data) {
-			Unexpected(
-				"inputStickerSetAnimatedEmoji in StorageFileLocation.");
-		}, [&](const MTPDinputStickerSetDice &data) {
-			Unexpected("inputStickerSetDice in StorageFileLocation.");
+		}, [&](const auto &data) {
+			Unexpected("InputStickerSet type in StorageFileLocation.");
 		});
-		_volumeId = data.vvolume_id().v;
-		_localId = data.vlocal_id().v;
+		_volumeId = 0;
+		_localId = data.vthumb_version().v;
 	}, [&](const MTPDinputGroupCallStream &data) {
 		_type = Type::GroupCallStream;
 		data.vcall().match([&](const MTPDinputGroupCall &data) {
@@ -249,13 +244,11 @@ MTPInputFileLocation StorageFileLocation::tl(int32 self) const {
 				_inMessagePeerId,
 				_inMessageId,
 				self),
-			MTP_long(_volumeId),
-			MTP_int(_localId));
+			MTP_long(_volumeId));
 
 	case Type::StickerSetThumb:
 		return MTP_inputStickerSetThumb(
 			MTP_inputStickerSetID(MTP_long(_id), MTP_long(_accessHash)),
-			MTP_long(_volumeId),
 			MTP_int(_localId));
 
 	case Type::GroupCallStream:

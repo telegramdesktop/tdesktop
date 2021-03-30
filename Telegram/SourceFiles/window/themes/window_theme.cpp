@@ -461,7 +461,6 @@ SendMediaReady PrepareWallPaper(MTP::DcId dcId, const QImage &image) {
 	const auto push = [&](const char *type, QImage &&image) {
 		sizes.push_back(MTP_photoSize(
 			MTP_string(type),
-			MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
 			MTP_int(image.width()),
 			MTP_int(image.height()), MTP_int(0)));
 		thumbnails.emplace(

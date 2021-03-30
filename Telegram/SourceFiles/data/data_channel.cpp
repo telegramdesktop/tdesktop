@@ -77,12 +77,8 @@ ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 }
 
 void ChannelData::setPhoto(const MTPChatPhoto &photo) {
-	setPhoto(userpicPhotoId(), photo);
-}
-
-void ChannelData::setPhoto(PhotoId photoId, const MTPChatPhoto &photo) {
 	photo.match([&](const MTPDchatPhoto & data) {
-		updateUserpic(photoId, data.vdc_id().v, data.vphoto_small());
+		updateUserpic(data.vphoto_id().v, data.vdc_id().v);
 	}, [&](const MTPDchatPhotoEmpty &) {
 		clearUserpic();
 	});

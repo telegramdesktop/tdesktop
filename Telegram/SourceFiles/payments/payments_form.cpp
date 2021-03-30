@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_countries.h"
 #include "history/history_item.h"
+#include "history/history_service.h" // HistoryServicePayment.
 #include "stripe/stripe_api_client.h"
 #include "stripe/stripe_error.h"
 #include "stripe/stripe_token.h"
@@ -89,12 +90,15 @@ namespace {
 
 } // namespace
 
-Form::Form(not_null<Main::Session*> session, FullMsgId itemId)
-: _session(session)
+Form::Form(not_null<PeerData*> peer, MsgId itemId, bool receipt)
+: _session(&peer->session())
 , _api(&_session->mtp())
-, _msgId(itemId) {
+, _peer(peer)
+, _msgId(itemId)
+, _receiptMode(receipt) {
 	fillInvoiceFromMessage();
-	if (_receiptMsgId) {
+	if (_receiptMode) {
+		_invoice.receipt.paid = true;
 		requestReceipt();
 	} else {
 		requestForm();
@@ -104,22 +108,23 @@ Form::Form(not_null<Main::Session*> session, FullMsgId itemId)
 Form::~Form() = default;
 
 void Form::fillInvoiceFromMessage() {
-	if (const auto item = _session->data().message(_msgId)) {
-		if (const auto media = item->media()) {
-			if (const auto invoice = media->invoice()) {
-				_receiptMsgId = FullMsgId(
-					_msgId.channel,
-					invoice->receiptMsgId);
-				_invoice.cover = Ui::Cover{
-					.title = invoice->title,
-					.description = invoice->description,
-				};
-				if (_receiptMsgId) {
-					_invoice.receipt.paid = true;
+	const auto id = FullMsgId(peerToChannel(_peer->id), _msgId);
+	if (const auto item = _session->data().message(id)) {
+		const auto media = [&] {
+			if (const auto payment = item->Get<HistoryServicePayment>()) {
+				if (payment->msg) {
+					return payment->msg->media();
 				}
-				if (const auto photo = invoice->photo) {
-					loadThumbnail(photo);
-				}
+			}
+			return item->media();
+		}();
+		if (const auto invoice = media ? media->invoice() : nullptr) {
+			_invoice.cover = Ui::Cover{
+				.title = invoice->title,
+				.description = invoice->description,
+			};
+			if (const auto photo = invoice->photo) {
+				loadThumbnail(photo);
 			}
 		}
 	}
@@ -141,7 +146,9 @@ void Form::loadThumbnail(not_null<PhotoData*> photo) {
 		_invoice.cover.thumbnail = prepareEmptyThumbnail();
 	}
 	_thumbnailLoadProcess->view = std::move(view);
-	photo->load(Data::PhotoSize::Thumbnail, _msgId);
+	photo->load(
+		Data::PhotoSize::Thumbnail,
+		FullMsgId(peerToChannel(_peer->id), _msgId));
 	_session->downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
 		const auto &view = _thumbnailLoadProcess->view;
@@ -205,7 +212,10 @@ QImage Form::prepareEmptyThumbnail() const {
 
 void Form::requestForm() {
 	_api.request(MTPpayments_GetPaymentForm(
-		MTP_int(_msgId.msg)
+		MTP_flags(0),
+		_peer->input,
+		MTP_int(_msgId),
+		MTP_dataJSON(MTP_string(QString()))
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		result.match([&](const auto &data) {
 			processForm(data);
@@ -217,7 +227,8 @@ void Form::requestForm() {
 
 void Form::requestReceipt() {
 	_api.request(MTPpayments_GetPaymentReceipt(
-		MTP_int(_receiptMsgId.msg)
+		_peer->input,
+		MTP_int(_msgId)
 	)).done([=](const MTPpayments_PaymentReceipt &result) {
 		result.match([&](const auto &data) {
 			processReceipt(data);
@@ -300,6 +311,7 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 			[&](const MTPDdataJSON &data) { return data.vdata().v; })
 		: QByteArray();
 	_details = FormDetails{
+		.formId = data.vform_id().v,
 		.url = qs(data.vurl()),
 		.nativeProvider = qs(data.vnative_provider().value_or_empty()),
 		.nativeParamsJson = std::move(nativeParamsJson),
@@ -429,12 +441,15 @@ void Form::submit() {
 			| (_shippingOptions.selectedId.isEmpty()
 				? Flag(0)
 				: Flag::f_shipping_option_id)),
-		MTP_int(_msgId.msg),
+		MTP_long(_details.formId),
+		_peer->input,
+		MTP_int(_msgId),
 		MTP_string(_requestedInformationId),
 		MTP_string(_shippingOptions.selectedId),
 		MTP_inputPaymentCredentials(
 			MTP_flags(0),
-			MTP_dataJSON(MTP_bytes(_paymentMethod.newCredentials.data)))
+			MTP_dataJSON(MTP_bytes(_paymentMethod.newCredentials.data))),
+		MTP_long(0) // #TODO payments tip_amount
 	)).done([=](const MTPpayments_PaymentResult &result) {
 		result.match([&](const MTPDpayments_paymentResult &data) {
 			_updates.fire(PaymentFinished{ data.vupdates() });
@@ -466,7 +481,8 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 
 	_validateRequestId = _api.request(MTPpayments_ValidateRequestedInfo(
 		MTP_flags(0), // #TODO payments save information
-		MTP_int(_msgId.msg),
+		_peer->input,
+		MTP_int(_msgId),
 		Serialize(information)
 	)).done([=](const MTPpayments_ValidatedRequestedInfo &result) {
 		_validateRequestId = 0;
