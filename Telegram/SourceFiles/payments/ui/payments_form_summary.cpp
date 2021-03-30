@@ -43,11 +43,15 @@ FormSummary::FormSummary(
 , _topShadow(this)
 , _bottomShadow(this)
 , _submit(
-		this,
-		tr::lng_payments_pay_amount(
+	this,
+	(_invoice.receipt.paid
+		? tr::lng_about_done()
+		: tr::lng_payments_pay_amount(
 			lt_amount,
-			rpl::single(formatAmount(computeTotalAmount()))),
-		st::paymentsPanelSubmit) {
+			rpl::single(formatAmount(computeTotalAmount())))),
+	(_invoice.receipt.paid
+		? st::passportPanelSaveValue
+		: st::paymentsPanelSubmit)) {
 	setupControls();
 }
 
@@ -220,12 +224,12 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 
 	Settings::AddSkip(layout, st::paymentsPricesTopSkip);
 	if (_invoice.receipt) {
-		Settings::AddDivider(layout);
-		Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
 		addRow(
 			tr::lng_payments_date_label(tr::now),
 			langDateTime(base::unixtime::parse(_invoice.receipt.date)),
 			true);
+		Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
+		Settings::AddDivider(layout);
 		Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
 	}
 

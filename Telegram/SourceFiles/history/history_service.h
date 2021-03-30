@@ -14,6 +14,7 @@ class Service;
 } // namespace HistoryView
 
 struct HistoryServiceDependentData {
+	PeerId peerId = 0;
 	MsgId msgId = 0;
 	HistoryItem *msg = nullptr;
 	ClickHandlerPtr lnk;
@@ -34,6 +35,7 @@ struct HistoryServicePayment
 : public RuntimeComponent<HistoryServicePayment, HistoryItem>
 , public HistoryServiceDependentData {
 	QString amount;
+	ClickHandlerPtr invoiceLink;
 };
 
 struct HistoryServiceSelfDestruct

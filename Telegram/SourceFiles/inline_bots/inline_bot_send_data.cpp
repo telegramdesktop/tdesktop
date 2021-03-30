@@ -264,5 +264,15 @@ QString SendGame::getErrorOnSend(
 	return error.value_or(QString());
 }
 
+auto SendInvoice::getSentMessageFields() const -> SentMTPMessageFields {
+	SentMTPMessageFields result;
+	result.media = _media;
+	return result;
+}
+
+QString SendInvoice::getLayoutDescription(const Result *owner) const {
+	return qs(_media.c_messageMediaInvoice().vdescription());
+}
+
 } // namespace internal
 } // namespace InlineBots
