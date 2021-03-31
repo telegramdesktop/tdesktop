@@ -154,6 +154,7 @@ struct NativeMethodDetails {
 	bool needCountry = false;
 	bool needZip = false;
 	bool needCardholderName = false;
+	bool canSaveInformation = false;
 };
 
 struct PaymentMethodDetails {
@@ -161,6 +162,7 @@ struct PaymentMethodDetails {
 	NativeMethodDetails native;
 	QString url;
 	bool ready = false;
+	bool canSaveInformation = false;
 };
 
 enum class CardField {

@@ -56,6 +56,7 @@ public:
 	rpl::producer<> clearUnconfirmedPassword() const;
 
 	bool handleCustomCheckError(const MTP::Error &error);
+	bool handleCustomCheckError(const QString &type);
 
 protected:
 	void prepare() override;
@@ -82,6 +83,7 @@ private:
 
 	void setPasswordDone(const QByteArray &newPasswordBytes);
 	void setPasswordFail(const MTP::Error &error);
+	void setPasswordFail(const QString &type);
 	void setPasswordFail(
 		const QByteArray &newPasswordBytes,
 		const QString &email,

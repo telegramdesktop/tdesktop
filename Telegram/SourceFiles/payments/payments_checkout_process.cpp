@@ -16,8 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history.h"
 #include "data/data_user.h" // UserData::isBot.
+#include "boxes/passcode_box.h"
 #include "core/local_url_handlers.h" // TryConvertUrlToLocal.
 #include "core/file_utilities.h" // File::OpenUrl.
+#include "core/core_cloud_password.h" // Core::CloudPasswordState
+#include "lang/lang_keys.h"
 #include "apiwrap.h"
 
 #include <QJsonDocument>
@@ -104,11 +107,19 @@ CheckoutProcess::CheckoutProcess(
 	) | rpl::start_with_next([=](const FormUpdate &update) {
 		handleFormUpdate(update);
 	}, _lifetime);
+
 	_panel->backRequests(
 	) | rpl::start_with_next([=] {
 		panelCancelEdit();
 	}, _panel->lifetime());
 	showForm();
+
+	if (mode == Mode::Payment) {
+		_session->api().passwordState(
+		) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
+			_form->setHasPassword(!!state.request);
+		}, _lifetime);
+	}
 }
 
 CheckoutProcess::~CheckoutProcess() {
@@ -132,6 +143,9 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		if (!_initialSilentValidation) {
 			showForm();
 		}
+		if (_form->paymentMethod().savedCredentials) {
+			_session->api().reloadPasswordState();
+		}
 	}, [&](const ThumbnailUpdated &data) {
 		_panel->updateFormThumbnail(data.thumbnail);
 	}, [&](const ValidateFinished &) {
@@ -139,12 +153,19 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 			_initialSilentValidation = false;
 		}
 		showForm();
-		if (_submitState == SubmitState::Validation) {
-			_submitState = SubmitState::Validated;
+		const auto submitted = (_submitState == SubmitState::Validating);
+		_submitState = SubmitState::Validated;
+		if (submitted) {
 			panelSubmit();
 		}
-	}, [&](const PaymentMethodUpdate &) {
+	}, [&](const PaymentMethodUpdate &data) {
 		showForm();
+		if (data.requestNewPassword) {
+			requestSetPassword();
+		}
+	}, [&](const TmpPasswordRequired &) {
+		_submitState = SubmitState::Validated;
+		requestPassword();
 	}, [&](const VerificationNeeded &data) {
 		if (!_panel->showWebview(data.url, false)) {
 			File::OpenUrl(data.url);
@@ -176,7 +197,7 @@ void CheckoutProcess::handleError(const Error &error) {
 		}
 		break;
 	case Error::Type::Validate: {
-		if (_submitState == SubmitState::Validation
+		if (_submitState == SubmitState::Validating
 			|| _submitState == SubmitState::Validated) {
 			_submitState = SubmitState::None;
 		}
@@ -243,9 +264,19 @@ void CheckoutProcess::handleError(const Error &error) {
 			showToast({ "Error: " + id });
 		}
 	} break;
+	case Error::Type::TmpPassword:
+		if (const auto box = _enterPasswordBox.data()) {
+			if (!box->handleCustomCheckError(id)) {
+				showToast({ "Error: Could not generate tmp password." });
+			}
+		}
+		break;
 	case Error::Type::Send:
+		if (const auto box = _enterPasswordBox.data()) {
+			box->closeBox();
+		}
 		if (_submitState == SubmitState::Finishing) {
-			_submitState = SubmitState::None;
+			_submitState = SubmitState::Validated;
 		}
 		if (id == u"PAYMENT_FAILED"_q) {
 			showToast({ "Error: Payment Failed. Your card has not been billed." }); // #TODO payments errors message
@@ -256,6 +287,8 @@ void CheckoutProcess::handleError(const Error &error) {
 			|| id == u"PAYMENT_CREDENTIALS_INVALID"_q
 			|| id == u"PAYMENT_CREDENTIALS_ID_INVALID"_q) {
 			showToast({ "Error: " + id + ". Your card has not been billed." });
+		} else if (id == u"TMP_PASSWORD_INVALID"_q) {
+			// #TODO payments save
 		} else {
 			showToast({ "Error: " + id });
 		}
@@ -301,7 +334,7 @@ void CheckoutProcess::panelSubmit() {
 	if (_form->invoice().receipt.paid) {
 		closeAndReactivate();
 		return;
-	} else if (_submitState == SubmitState::Validation
+	} else if (_submitState == SubmitState::Validating
 		|| _submitState == SubmitState::Finishing) {
 		return;
 	}
@@ -310,25 +343,25 @@ void CheckoutProcess::panelSubmit() {
 	const auto &options = _form->shippingOptions();
 	if (!options.list.empty() && options.selectedId.isEmpty()) {
 		chooseShippingOption();
-		return;
 	} else if (_submitState != SubmitState::Validated
 		&& options.list.empty()
 		&& (invoice.isShippingAddressRequested
 			|| invoice.isNameRequested
 			|| invoice.isEmailRequested
 			|| invoice.isPhoneRequested)) {
-		_submitState = SubmitState::Validation;
+		_submitState = SubmitState::Validating;
 		_form->validateInformation(_form->savedInformation());
-		return;
 	} else if (!method.newCredentials && !method.savedCredentials) {
 		editPaymentMethod();
-		return;
+	} else {
+		_submitState = SubmitState::Finishing;
+		_form->submit();
 	}
-	_submitState = SubmitState::Finishing;
-	_form->submit();
 }
 
-void CheckoutProcess::panelWebviewMessage(const QJsonDocument &message) {
+void CheckoutProcess::panelWebviewMessage(
+		const QJsonDocument &message,
+		bool saveInformation) {
 	if (!message.isArray()) {
 		LOG(("Payments Error: "
 			"Not an array received in buy_callback arguments."));
@@ -371,7 +404,7 @@ void CheckoutProcess::panelWebviewMessage(const QJsonDocument &message) {
 			.data = QJsonDocument(
 				credentials.toObject()
 			).toJson(QJsonDocument::Compact),
-			.saveOnServer = false, // #TODO payments save
+			.saveOnServer = saveInformation,
 		});
 	});
 }
@@ -399,8 +432,10 @@ void CheckoutProcess::panelEditPaymentMethod() {
 	editPaymentMethod();
 }
 
-void CheckoutProcess::panelValidateCard(Ui::UncheckedCardDetails data) {
-	_form->validateCard(data);
+void CheckoutProcess::panelValidateCard(
+		Ui::UncheckedCardDetails data,
+		bool saveInformation) {
+	_form->validateCard(data, saveInformation);
 }
 
 void CheckoutProcess::panelEditShippingInformation() {
@@ -466,6 +501,70 @@ void CheckoutProcess::editPaymentMethod() {
 	_panel->choosePaymentMethod(_form->paymentMethod().ui);
 }
 
+void CheckoutProcess::requestSetPassword() {
+	_session->api().reloadPasswordState();
+	_panel->askSetPassword();
+}
+
+void CheckoutProcess::requestPassword() {
+	getPasswordState([=](const Core::CloudPasswordState &state) {
+		auto fields = PasscodeBox::CloudFields::From(state);
+		fields.customTitle = tr::lng_payments_password_title();
+		fields.customDescription = tr::lng_payments_password_description(
+			tr::now,
+			lt_card,
+			_form->paymentMethod().savedCredentials.title);
+		fields.customSubmitButton = tr::lng_payments_password_submit();
+		fields.customCheckCallback = [=](
+				const Core::CloudPasswordResult &result) {
+			_form->submit(result);
+		};
+		auto owned = Box<PasscodeBox>(_session, fields);
+		_enterPasswordBox = owned.data();
+		_panel->showBox(std::move(owned));
+	});
+}
+
+void CheckoutProcess::panelSetPassword() {
+	getPasswordState([=](const Core::CloudPasswordState &state) {
+		if (state.request) {
+			return;
+		}
+		auto owned = Box<PasscodeBox>(
+			_session,
+			PasscodeBox::CloudFields::From(state));
+		const auto box = owned.data();
+
+		rpl::merge(
+			box->newPasswordSet() | rpl::to_empty,
+			box->passwordReloadNeeded()
+		) | rpl::start_with_next([=] {
+			_session->api().reloadPasswordState();
+		}, box->lifetime());
+
+		box->clearUnconfirmedPassword(
+		) | rpl::start_with_next([=] {
+			_session->api().clearUnconfirmedPassword();
+		}, box->lifetime());
+
+		_panel->showBox(std::move(owned));
+	});
+}
+
+void CheckoutProcess::getPasswordState(
+		Fn<void(const Core::CloudPasswordState&)> callback) {
+	Expects(callback != nullptr);
+
+	if (_gettingPasswordState) {
+		return;
+	}
+	_session->api().passwordState(
+	) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
+		_gettingPasswordState.destroy();
+		callback(state);
+	}, _gettingPasswordState);
+}
+
 void CheckoutProcess::panelChooseShippingOption() {
 	if (_submitState != SubmitState::None) {
 		return;
@@ -492,6 +591,9 @@ void CheckoutProcess::panelChangeTips(int64 value) {
 
 void CheckoutProcess::panelValidateInformation(
 		Ui::RequestedInformation data) {
+	if (_submitState == SubmitState::Validated) {
+		_submitState = SubmitState::None;
+	}
 	_form->validateInformation(data);
 }
 

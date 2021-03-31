@@ -11,10 +11,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 
 class HistoryItem;
+class PasscodeBox;
+
+namespace Core {
+class CloudPasswordState;
+} // namespace Core
 
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Ui {
+class GenericBox;
+} // namespace Ui
 
 namespace Payments::Ui {
 class Panel;
@@ -55,7 +64,7 @@ public:
 private:
 	enum class SubmitState {
 		None,
-		Validation,
+		Validating,
 		Validated,
 		Finishing,
 	};
@@ -77,13 +86,22 @@ private:
 	void chooseTips();
 	void editPaymentMethod();
 
+	void requestSetPassword();
+	void requestSetPasswordSure(QPointer<Ui::GenericBox> old);
+	void requestPassword();
+	void getPasswordState(
+		Fn<void(const Core::CloudPasswordState&)> callback);
+
 	void performInitialSilentValidation();
 
 	void panelRequestClose() override;
 	void panelCloseSure() override;
 	void panelSubmit() override;
-	void panelWebviewMessage(const QJsonDocument &message) override;
+	void panelWebviewMessage(
+		const QJsonDocument &message,
+		bool saveInformation) override;
 	bool panelWebviewNavigationAttempt(const QString &uri) override;
+	void panelSetPassword() override;
 
 	void panelCancelEdit() override;
 	void panelEditPaymentMethod() override;
@@ -97,7 +115,9 @@ private:
 	void panelChangeTips(int64 value) override;
 
 	void panelValidateInformation(Ui::RequestedInformation data) override;
-	void panelValidateCard(Ui::UncheckedCardDetails data) override;
+	void panelValidateCard(
+		Ui::UncheckedCardDetails data,
+		bool saveInformation) override;
 	void panelShowBox(object_ptr<Ui::BoxContent> box) override;
 
 	QString panelWebviewDataPath() override;
@@ -105,10 +125,12 @@ private:
 	const not_null<Main::Session*> _session;
 	const std::unique_ptr<Form> _form;
 	const std::unique_ptr<Ui::Panel> _panel;
+	QPointer<PasscodeBox> _enterPasswordBox;
 	Fn<void()> _reactivate;
 	SubmitState _submitState = SubmitState::None;
 	bool _initialSilentValidation = false;
 
+	rpl::lifetime _gettingPasswordState;
 	rpl::lifetime _lifetime;
 
 };

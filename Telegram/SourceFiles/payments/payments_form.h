@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class Image;
 
+namespace Core {
+struct CloudPasswordResult;
+} // namespace Core
+
 namespace Stripe {
 class APIClient;
 } // namespace Stripe
@@ -107,10 +111,13 @@ struct ThumbnailUpdated {
 	QImage thumbnail;
 };
 struct ValidateFinished {};
-struct PaymentMethodUpdate {};
+struct PaymentMethodUpdate {
+	bool requestNewPassword = false;
+};
 struct VerificationNeeded {
 	QString url;
 };
+struct TmpPasswordRequired {};
 struct PaymentFinished {
 	MTPUpdates updates;
 };
@@ -120,6 +127,7 @@ struct Error {
 		Form,
 		Validate,
 		Stripe,
+		TmpPassword,
 		Send,
 	};
 	Type type = Type::None;
@@ -139,6 +147,7 @@ struct FormUpdate : std::variant<
 	ValidateFinished,
 	PaymentMethodUpdate,
 	VerificationNeeded,
+	TmpPasswordRequired,
 	PaymentFinished,
 	Error> {
 	using variant::variant;
@@ -170,11 +179,15 @@ public:
 	}
 
 	void validateInformation(const Ui::RequestedInformation &information);
-	void validateCard(const Ui::UncheckedCardDetails &details);
+	void validateCard(
+		const Ui::UncheckedCardDetails &details,
+		bool saveInformation);
 	void setPaymentCredentials(const NewCredentials &credentials);
+	void setHasPassword(bool has);
 	void setShippingOption(const QString &id);
 	void setTips(int64 value);
 	void submit();
+	void submit(const Core::CloudPasswordResult &result);
 
 private:
 	void fillInvoiceFromMessage();
@@ -208,7 +221,8 @@ private:
 
 	void validateCard(
 		const StripePaymentMethod &method,
-		const Ui::UncheckedCardDetails &details);
+		const Ui::UncheckedCardDetails &details,
+		bool saveInformation);
 
 	bool validateInformationLocal(
 		const Ui::RequestedInformation &information) const;
@@ -235,6 +249,7 @@ private:
 
 	Ui::RequestedInformation _validatedInformation;
 	mtpRequestId _validateRequestId = 0;
+	mtpRequestId _passwordRequestId = 0;
 
 	std::unique_ptr<Stripe::APIClient> _stripe;
 
