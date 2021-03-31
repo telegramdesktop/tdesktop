@@ -47,7 +47,7 @@ struct FieldValidateResult {
 	bool finished = false;
 };
 
-[[nodiscard]] auto RangeLengthValidator(int minLength, int maxLength) {
+[[nodiscard]] inline auto RangeLengthValidator(int minLength, int maxLength) {
 	return [=](FieldValidateRequest request) {
 		return FieldValidateResult{
 			.value = request.nowValue,
@@ -58,15 +58,15 @@ struct FieldValidateResult {
 	};
 }
 
-[[nodiscard]] auto MaxLengthValidator(int maxLength) {
+[[nodiscard]] inline auto MaxLengthValidator(int maxLength) {
 	return RangeLengthValidator(0, maxLength);
 }
 
-[[nodiscard]] auto RequiredValidator() {
+[[nodiscard]] inline auto RequiredValidator() {
 	return RangeLengthValidator(1, std::numeric_limits<int>::max());
 }
 
-[[nodiscard]] auto RequiredFinishedValidator() {
+[[nodiscard]] inline auto RequiredFinishedValidator() {
 	return [=](FieldValidateRequest request) {
 		return FieldValidateResult{
 			.value = request.nowValue,
