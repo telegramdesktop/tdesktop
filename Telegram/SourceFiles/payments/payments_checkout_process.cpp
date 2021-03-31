@@ -106,7 +106,7 @@ CheckoutProcess::CheckoutProcess(
 	}, _lifetime);
 	_panel->backRequests(
 	) | rpl::start_with_next([=] {
-		showForm();
+		panelCancelEdit();
 	}, _panel->lifetime());
 	showForm();
 }
@@ -383,6 +383,13 @@ bool CheckoutProcess::panelWebviewNavigationAttempt(const QString &uri) {
 	}
 	crl::on_main(this, [=] { closeAndReactivate(); });
 	return false;
+}
+
+void CheckoutProcess::panelCancelEdit() {
+	if (_submitState != SubmitState::None) {
+		return;
+	}
+	showForm();
 }
 
 void CheckoutProcess::panelEditPaymentMethod() {

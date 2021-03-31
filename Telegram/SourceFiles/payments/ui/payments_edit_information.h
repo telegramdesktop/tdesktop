@@ -59,7 +59,8 @@ private:
 	object_ptr<ScrollArea> _scroll;
 	object_ptr<FadeShadow> _topShadow;
 	object_ptr<FadeShadow> _bottomShadow;
-	object_ptr<RoundButton> _done;
+	object_ptr<RoundButton> _submit;
+	object_ptr<RoundButton> _cancel;
 
 	std::unique_ptr<Field> _street1;
 	std::unique_ptr<Field> _street2;

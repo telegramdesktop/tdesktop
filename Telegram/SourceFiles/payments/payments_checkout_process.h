@@ -85,6 +85,7 @@ private:
 	void panelWebviewMessage(const QJsonDocument &message) override;
 	bool panelWebviewNavigationAttempt(const QString &uri) override;
 
+	void panelCancelEdit() override;
 	void panelEditPaymentMethod() override;
 	void panelEditShippingInformation() override;
 	void panelEditName() override;

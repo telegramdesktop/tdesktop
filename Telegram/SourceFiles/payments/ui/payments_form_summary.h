@@ -58,6 +58,7 @@ private:
 	object_ptr<FadeShadow> _topShadow;
 	object_ptr<FadeShadow> _bottomShadow;
 	object_ptr<RoundButton> _submit;
+	object_ptr<RoundButton> _cancel;
 	rpl::event_stream<QImage> _thumbnails;
 
 };

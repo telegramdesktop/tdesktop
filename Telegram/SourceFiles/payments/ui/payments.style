@@ -9,12 +9,13 @@ using "ui/basic.style";
 
 using "info/info.style";
 
+paymentsPanelButton: defaultBoxButton;
 paymentsPanelSubmit: RoundButton(defaultActiveButton) {
-	width: 0px;
-	height: 49px;
-	padding: margins(0px, -3px, 0px, 0px);
-	textTop: 16px;
+	width: -36px;
+	height: 36px;
+	font: boxButtonFont;
 }
+paymentsPanelPadding: margins(8px, 12px, 15px, 12px);
 
 paymentsCoverPadding: margins(26px, 0px, 26px, 13px);
 paymentsDescription: FlatLabel(defaultFlatLabel) {
