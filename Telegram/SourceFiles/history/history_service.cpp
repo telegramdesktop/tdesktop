@@ -28,8 +28,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_group_call.h" // Data::GroupCall::id().
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "calls/calls_instance.h" // Core::App().calls().joinGroupCall.
 #include "window/notifications_manager.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
 #include "payments/payments_checkout_process.h" // CheckoutProcess::Start.
@@ -976,10 +978,16 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		const auto id = fullId();
 		const auto owner = &history()->owner();
 		payment->amount = Ui::FillAmountAndCurrency(amount, currency);
-		payment->invoiceLink = std::make_shared<LambdaClickHandler>([=] {
+		payment->invoiceLink = std::make_shared<LambdaClickHandler>([=](
+				ClickContext context) {
 			using namespace Payments;
+			const auto my = context.other.value<ClickHandlerContext>();
+			const auto weak = my.sessionWindow;
 			if (const auto item = owner->message(id)) {
-				CheckoutProcess::Start(item, Mode::Receipt);
+				CheckoutProcess::Start(
+					item,
+					Mode::Receipt,
+					crl::guard(weak, [=] { weak->window().activate(); }));
 			}
 		});
 	} else if (message.vaction().type() == mtpc_messageActionGroupCall) {

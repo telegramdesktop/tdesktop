@@ -39,16 +39,18 @@ class CheckoutProcess final
 	struct PrivateTag {};
 
 public:
-	static void Start(not_null<const HistoryItem*> item, Mode mode);
+	static void Start(
+		not_null<const HistoryItem*> item,
+		Mode mode,
+		Fn<void()> reactivate);
 
 	CheckoutProcess(
 		not_null<PeerData*> peer,
 		MsgId itemId,
 		Mode mode,
+		Fn<void()> reactivate,
 		PrivateTag);
 	~CheckoutProcess();
-
-	void requestActivate();
 
 private:
 	enum class SubmitState {
@@ -58,6 +60,11 @@ private:
 		Finishing,
 	};
 	[[nodiscard]] not_null<PanelDelegate*> panelDelegate();
+
+	void setReactivateCallback(Fn<void()> reactivate);
+	void requestActivate();
+	void closeAndReactivate();
+	void close();
 
 	void handleFormUpdate(const FormUpdate &update);
 	void handleError(const Error &error);
@@ -97,6 +104,7 @@ private:
 	const not_null<Main::Session*> _session;
 	const std::unique_ptr<Form> _form;
 	const std::unique_ptr<Ui::Panel> _panel;
+	Fn<void()> _reactivate;
 	SubmitState _submitState = SubmitState::None;
 	bool _initialSilentValidation = false;
 

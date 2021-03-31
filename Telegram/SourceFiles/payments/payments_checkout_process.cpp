@@ -20,10 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h" // File::OpenUrl.
 #include "apiwrap.h"
 
-// #TODO payments errors
-#include "mainwindow.h"
-#include "ui/toasts/common_toasts.h"
-
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -57,7 +53,10 @@ base::flat_map<not_null<Main::Session*>, SessionProcesses> Processes;
 
 } // namespace
 
-void CheckoutProcess::Start(not_null<const HistoryItem*> item, Mode mode) {
+void CheckoutProcess::Start(
+		not_null<const HistoryItem*> item,
+		Mode mode,
+		Fn<void()> reactivate) {
 	auto &processes = LookupSessionProcesses(item);
 	const auto session = &item->history()->session();
 	const auto media = item->media();
@@ -76,6 +75,7 @@ void CheckoutProcess::Start(not_null<const HistoryItem*> item, Mode mode) {
 	}
 	const auto i = processes.map.find(id);
 	if (i != end(processes.map)) {
+		i->second->setReactivateCallback(std::move(reactivate));
 		i->second->requestActivate();
 		return;
 	}
@@ -85,6 +85,7 @@ void CheckoutProcess::Start(not_null<const HistoryItem*> item, Mode mode) {
 			item->history()->peer,
 			id.msg,
 			mode,
+			std::move(reactivate),
 			PrivateTag{})).first;
 	j->second->requestActivate();
 }
@@ -93,10 +94,12 @@ CheckoutProcess::CheckoutProcess(
 	not_null<PeerData*> peer,
 	MsgId itemId,
 	Mode mode,
+	Fn<void()> reactivate,
 	PrivateTag)
 : _session(&peer->session())
 , _form(std::make_unique<Form>(peer, itemId, (mode == Mode::Receipt)))
-, _panel(std::make_unique<Ui::Panel>(panelDelegate())) {
+, _panel(std::make_unique<Ui::Panel>(panelDelegate()))
+, _reactivate(std::move(reactivate)) {
 	_form->updates(
 	) | rpl::start_with_next([=](const FormUpdate &update) {
 		handleFormUpdate(update);
@@ -109,6 +112,10 @@ CheckoutProcess::CheckoutProcess(
 }
 
 CheckoutProcess::~CheckoutProcess() {
+}
+
+void CheckoutProcess::setReactivateCallback(Fn<void()> reactivate) {
+	_reactivate = std::move(reactivate);
 }
 
 void CheckoutProcess::requestActivate() {
@@ -141,13 +148,14 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 	}, [&](const VerificationNeeded &data) {
 		if (!_panel->showWebview(data.url, false)) {
 			File::OpenUrl(data.url);
-			panelCloseSure();
+			close();
 		}
 	}, [&](const PaymentFinished &data) {
 		const auto weak = base::make_weak(this);
 		_session->api().applyUpdates(data.updates);
 		if (weak) {
-			panelCloseSure();
+			closeAndReactivate();
+			if (_reactivate) _reactivate();
 		}
 	}, [&](const Error &error) {
 		handleError(error);
@@ -156,13 +164,8 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 
 void CheckoutProcess::handleError(const Error &error) {
 	const auto showToast = [&](const TextWithEntities &text) {
-		if (_panel) {
-			_panel->requestActivate();
-			_panel->showToast(text);
-		} else {
-			App::wnd()->activate();
-			Ui::ShowMultilineToast({ .text = text });
-		}
+		_panel->requestActivate();
+		_panel->showToast(text);
 	};
 	const auto &id = error.id;
 	switch (error.type) {
@@ -267,6 +270,18 @@ void CheckoutProcess::panelRequestClose() {
 }
 
 void CheckoutProcess::panelCloseSure() {
+	closeAndReactivate();
+}
+
+void CheckoutProcess::closeAndReactivate() {
+	const auto reactivate = std::move(_reactivate);
+	close();
+	if (reactivate) {
+		reactivate();
+	}
+}
+
+void CheckoutProcess::close() {
 	const auto i = Processes.find(_session);
 	if (i == end(Processes)) {
 		return;
@@ -285,7 +300,7 @@ void CheckoutProcess::panelCloseSure() {
 
 void CheckoutProcess::panelSubmit() {
 	if (_form->invoice().receipt.paid) {
-		panelCloseSure();
+		closeAndReactivate();
 		return;
 	} else if (_submitState == SubmitState::Validation
 		|| _submitState == SubmitState::Finishing) {
@@ -366,10 +381,7 @@ bool CheckoutProcess::panelWebviewNavigationAttempt(const QString &uri) {
 	if (Core::TryConvertUrlToLocal(uri) == uri) {
 		return true;
 	}
-	crl::on_main(this, [=] {
-		panelCloseSure();
-		App::wnd()->activate();
-	});
+	crl::on_main(this, [=] { closeAndReactivate(); });
 	return false;
 }
 
