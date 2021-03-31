@@ -116,8 +116,8 @@ void Form::fillInvoiceFromMessage() {
 	if (const auto item = _session->data().message(id)) {
 		const auto media = [&] {
 			if (const auto payment = item->Get<HistoryServicePayment>()) {
-				if (payment->msg) {
-					return payment->msg->media();
+				if (const auto invoice = payment->msg) {
+					return invoice->media();
 				}
 			}
 			return item->media();
@@ -346,6 +346,20 @@ void Form::processDetails(const MTPDpayments_paymentReceipt &data) {
 		.botId = data.vbot_id().v,
 		.providerId = data.vprovider_id().v,
 	};
+	if (_invoice.cover.title.isEmpty()
+		&& _invoice.cover.description.isEmpty()
+		&& _invoice.cover.thumbnail.isNull()
+		&& !_thumbnailLoadProcess) {
+		_invoice.cover = Ui::Cover{
+			.title = qs(data.vtitle()),
+			.description = qs(data.vdescription()),
+		};
+		if (const auto web = data.vphoto()) {
+			if (const auto photo = _session->data().photoFromWeb(*web, {})) {
+				loadThumbnail(photo);
+			}
+		}
+	}
 	if (_details.botId) {
 		if (const auto bot = _session->data().userLoaded(_details.botId)) {
 			_invoice.cover.seller = bot->name;

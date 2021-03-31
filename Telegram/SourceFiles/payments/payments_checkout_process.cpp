@@ -155,7 +155,6 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		_session->api().applyUpdates(data.updates);
 		if (weak) {
 			closeAndReactivate();
-			if (_reactivate) _reactivate();
 		}
 	}, [&](const Error &error) {
 		handleError(error);
