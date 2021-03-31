@@ -36,59 +36,59 @@ constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 constexpr auto kSongType = AudioMsgId::Type::Song;
 
 constexpr auto kIntrospectionXML = R"INTROSPECTION(<node>
-		<interface name='org.mpris.MediaPlayer2'>
-			<method name='Raise'/>
-			<method name='Quit'/>
-			<property name='CanQuit' type='b' access='read'/>
-			<property name='CanRaise' type='b' access='read'/>
-			<property name='HasTrackList' type='b' access='read'/>
-			<property name='Identity' type='s' access='read'/>
-			<property name='DesktopEntry' type='s' access='read'/>
-			<property name='SupportedUriSchemes' type='as' access='read'/>
-			<property name='SupportedMimeTypes' type='as' access='read'/>
-			<property name='Fullscreen' type='b' access='readwrite'/>
-			<property name='CanSetFullscreen' type='b' access='read'/>
-		</interface>
-	</node>)INTROSPECTION"_cs;
+	<interface name='org.mpris.MediaPlayer2'>
+		<method name='Raise'/>
+		<method name='Quit'/>
+		<property name='CanQuit' type='b' access='read'/>
+		<property name='CanRaise' type='b' access='read'/>
+		<property name='HasTrackList' type='b' access='read'/>
+		<property name='Identity' type='s' access='read'/>
+		<property name='DesktopEntry' type='s' access='read'/>
+		<property name='SupportedUriSchemes' type='as' access='read'/>
+		<property name='SupportedMimeTypes' type='as' access='read'/>
+		<property name='Fullscreen' type='b' access='readwrite'/>
+		<property name='CanSetFullscreen' type='b' access='read'/>
+	</interface>
+</node>)INTROSPECTION"_cs;
 
 constexpr auto kPlayerIntrospectionXML = R"INTROSPECTION(<node>
-		<interface name='org.mpris.MediaPlayer2.Player'>
-			<method name='Next'/>
-			<method name='Previous'/>
-			<method name='Pause'/>
-			<method name='PlayPause'/>
-			<method name='Stop'/>
-			<method name='Play'/>
-			<method name='Seek'>
-				<arg direction='in' name='Offset' type='x'/>
-			</method>
-			<method name='SetPosition'>
-				<arg direction='in' name='TrackId' type='o'/>
-				<arg direction='in' name='Position' type='x'/>
-			</method>
-			<method name='OpenUri'>
-				<arg direction='in' name='Uri' type='s'/>
-			</method>
-			<signal name='Seeked'>
-				<arg name='Position' type='x'/>
-			</signal>
-			<property name='PlaybackStatus' type='s' access='read'/>
-			<property name='Rate' type='d' access='readwrite'/>
-			<property name='Metadata' type='a{sv}' access='read'>
-				<annotation name="org.qtproject.QtDBus.QtTypeName" value="QVariantMap"/>
-			</property>
-			<property name='Volume' type='d' access='readwrite'/>
-			<property name='Position' type='x' access='read'/>
-			<property name='MinimumRate' type='d' access='read'/>
-			<property name='MaximumRate' type='d' access='read'/>
-			<property name='CanGoNext' type='b' access='read'/>
-			<property name='CanGoPrevious' type='b' access='read'/>
-			<property name='CanPlay' type='b' access='read'/>
-			<property name='CanPause' type='b' access='read'/>
-			<property name='CanSeek' type='b' access='read'/>
-			<property name='CanControl' type='b' access='read'/>
-		</interface>
-	</node>)INTROSPECTION"_cs;
+	<interface name='org.mpris.MediaPlayer2.Player'>
+		<method name='Next'/>
+		<method name='Previous'/>
+		<method name='Pause'/>
+		<method name='PlayPause'/>
+		<method name='Stop'/>
+		<method name='Play'/>
+		<method name='Seek'>
+			<arg direction='in' name='Offset' type='x'/>
+		</method>
+		<method name='SetPosition'>
+			<arg direction='in' name='TrackId' type='o'/>
+			<arg direction='in' name='Position' type='x'/>
+		</method>
+		<method name='OpenUri'>
+			<arg direction='in' name='Uri' type='s'/>
+		</method>
+		<signal name='Seeked'>
+			<arg name='Position' type='x'/>
+		</signal>
+		<property name='PlaybackStatus' type='s' access='read'/>
+		<property name='Rate' type='d' access='readwrite'/>
+		<property name='Metadata' type='a{sv}' access='read'>
+			<annotation name="org.qtproject.QtDBus.QtTypeName" value="QVariantMap"/>
+		</property>
+		<property name='Volume' type='d' access='readwrite'/>
+		<property name='Position' type='x' access='read'/>
+		<property name='MinimumRate' type='d' access='read'/>
+		<property name='MaximumRate' type='d' access='read'/>
+		<property name='CanGoNext' type='b' access='read'/>
+		<property name='CanGoPrevious' type='b' access='read'/>
+		<property name='CanPlay' type='b' access='read'/>
+		<property name='CanPause' type='b' access='read'/>
+		<property name='CanSeek' type='b' access='read'/>
+		<property name='CanControl' type='b' access='read'/>
+	</interface>
+</node>)INTROSPECTION"_cs;
 
 auto CreateMetadata(const Media::Player::TrackState &state) {
 	std::map<Glib::ustring, Glib::VariantBase> result;
