@@ -118,6 +118,7 @@ public:
 	void refreshSentMedia(const MTPMessageMedia *media);
 	void returnSavedMedia() override;
 	void setMedia(const MTPMessageMedia &media);
+	void checkBuyButton() override;
 	[[nodiscard]] static std::unique_ptr<Data::Media> CreateMedia(
 		not_null<HistoryMessage*> item,
 		const MTPMessageMedia &media);

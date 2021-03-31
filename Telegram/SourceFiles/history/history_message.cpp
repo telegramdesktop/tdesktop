@@ -1215,6 +1215,10 @@ void HistoryMessage::returnSavedMedia() {
 
 void HistoryMessage::setMedia(const MTPMessageMedia &media) {
 	_media = CreateMedia(this, media);
+	checkBuyButton();
+}
+
+void HistoryMessage::checkBuyButton() {
 	if (const auto invoice = _media ? _media->invoice() : nullptr) {
 		if (invoice->receiptMsgId) {
 			replaceBuyWithReceiptInMarkup();
@@ -1341,11 +1345,18 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 }
 
 void HistoryMessage::replaceBuyWithReceiptInMarkup() {
-	if (auto markup = inlineReplyMarkup()) {
+	if (const auto markup = inlineReplyMarkup()) {
 		for (auto &row : markup->rows) {
 			for (auto &button : row) {
 				if (button.type == HistoryMessageMarkupButton::Type::Buy) {
-					button.text = tr::lng_payments_receipt_button(tr::now);
+					const auto receipt = tr::lng_payments_receipt_button(tr::now);
+					if (button.text != receipt) {
+						button.text = receipt;
+						if (markup->inlineKeyboard) {
+							markup->inlineKeyboard = nullptr;
+							history()->owner().requestItemResize(this);
+						}
+					}
 				}
 			}
 		}

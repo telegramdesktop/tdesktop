@@ -62,6 +62,7 @@ struct Invoice {
 	QString title;
 	QString description;
 	PhotoData *photo = nullptr;
+	bool isMultipleAllowed = false;
 	bool isTest = false;
 };
 
@@ -83,6 +84,8 @@ public:
 	virtual const Invoice *invoice() const;
 	virtual Data::CloudImage *location() const;
 	virtual PollData *poll() const;
+
+	virtual void setInvoiceReceiptId(MsgId id);
 
 	virtual bool uploading() const;
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
@@ -381,6 +384,7 @@ public:
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
 	const Invoice *invoice() const override;
+	void setInvoiceReceiptId(MsgId id) override;
 
 	bool hasReplyPreview() const override;
 	Image *replyPreview() const override;
