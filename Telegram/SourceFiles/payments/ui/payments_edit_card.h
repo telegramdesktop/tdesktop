@@ -15,6 +15,7 @@ namespace Ui {
 class ScrollArea;
 class FadeShadow;
 class RoundButton;
+class Checkbox;
 } // namespace Ui
 
 namespace Payments::Ui {
@@ -62,6 +63,7 @@ private:
 	std::unique_ptr<Field> _name;
 	std::unique_ptr<Field> _country;
 	std::unique_ptr<Field> _zip;
+	Checkbox *_save = nullptr;
 
 	CardField _focusField = CardField::Number;
 

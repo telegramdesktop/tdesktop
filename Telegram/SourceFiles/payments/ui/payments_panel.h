@@ -10,8 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 
 namespace Ui {
+class RpWidget;
 class SeparatePanel;
 class BoxContent;
+class Checkbox;
 } // namespace Ui
 
 namespace Webview {
@@ -65,6 +67,7 @@ public:
 	void chooseShippingOption(const ShippingOptions &options);
 	void chooseTips(const Invoice &invoice);
 	void choosePaymentMethod(const PaymentMethodDetails &method);
+	void askSetPassword();
 
 	bool showWebview(const QString &url, bool allowBack);
 
@@ -81,6 +84,8 @@ private:
 	const not_null<PanelDelegate*> _delegate;
 	std::unique_ptr<SeparatePanel> _widget;
 	std::unique_ptr<Webview::Window> _webview;
+	std::unique_ptr<RpWidget> _webviewBottom;
+	QPointer<Checkbox> _saveWebviewInformation;
 	QPointer<FormSummary> _weakFormSummary;
 	QPointer<EditInformation> _weakEditInformation;
 	QPointer<EditCard> _weakEditCard;

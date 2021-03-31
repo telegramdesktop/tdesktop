@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_lock_widgets.h"
 #include "window/themes/window_theme.h"
 //#include "platform/platform_specific.h"
+#include "base/unixtime.h"
 #include "calls/calls_instance.h"
 #include "support/support_helper.h"
 #include "facades.h"
@@ -43,6 +44,7 @@ namespace Main {
 namespace {
 
 constexpr auto kLegacyCallsPeerToPeerNobody = 4;
+constexpr auto kTmpPasswordReserveTime = TimeId(10);
 
 [[nodiscard]] QString ValidatedInternalLinksDomain(
 		not_null<const Session*> session) {
@@ -153,6 +155,20 @@ Session::Session(
 	_api->requestNotifySettings(MTP_inputNotifyUsers());
 	_api->requestNotifySettings(MTP_inputNotifyChats());
 	_api->requestNotifySettings(MTP_inputNotifyBroadcasts());
+}
+
+void Session::setTmpPassword(const QByteArray &password, TimeId validUntil) {
+	if (_tmpPassword.isEmpty() || validUntil > _tmpPasswordValidUntil) {
+		_tmpPassword = password;
+		_tmpPasswordValidUntil = validUntil;
+	}
+}
+
+QByteArray Session::validTmpPassword() const {
+	return (_tmpPasswordValidUntil
+		>= base::unixtime::now() + kTmpPasswordReserveTime)
+		? _tmpPassword
+		: QByteArray();
 }
 
 // Can be called only right before ~Session.

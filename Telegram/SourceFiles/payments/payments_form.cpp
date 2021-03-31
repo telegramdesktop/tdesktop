@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "stripe/stripe_card_validator.h"
 #include "ui/image/image.h"
 #include "apiwrap.h"
+#include "core/core_cloud_password.h"
 #include "styles/style_payments.h" // paymentsThumbnailSize.
 
 #include <QtCore/QJsonDocument>
@@ -31,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Payments {
 namespace {
+
+constexpr auto kPasswordPeriod = 15 * TimeId(60);
 
 [[nodiscard]] Ui::Address ParseAddress(const MTPPostAddress &address) {
 	return address.match([](const MTPDpostAddress &data) {
@@ -381,11 +384,10 @@ void Form::processSavedInformation(const MTPDpaymentRequestedInfo &data) {
 
 void Form::processSavedCredentials(
 		const MTPDpaymentSavedCredentialsCard &data) {
-	// #TODO payments save
-	//_nativePayment.savedCredentials = SavedCredentials{
-	//	.id = qs(data.vid()),
-	//	.title = qs(data.vtitle()),
-	//};
+	_paymentMethod.savedCredentials = SavedCredentials{
+		.id = qs(data.vid()),
+		.title = qs(data.vtitle()),
+	};
 	refreshPaymentMethodDetails();
 }
 
@@ -395,6 +397,9 @@ void Form::refreshPaymentMethodDetails() {
 	_paymentMethod.ui.title = entered ? entered.title : saved.title;
 	_paymentMethod.ui.ready = entered || saved;
 	_paymentMethod.ui.native.defaultCountry = defaultCountry();
+	_paymentMethod.ui.canSaveInformation
+		= _paymentMethod.ui.native.canSaveInformation
+		= _details.canSaveCredentials || _details.passwordMissing;
 }
 
 QString Form::defaultPhone() const {
@@ -452,7 +457,16 @@ void Form::fillStripeNativeMethod() {
 }
 
 void Form::submit() {
-	Expects(!_paymentMethod.newCredentials.data.isEmpty()); // #TODO payments save
+	Expects(_paymentMethod.newCredentials
+		|| _paymentMethod.savedCredentials);
+
+	const auto password = _paymentMethod.newCredentials
+		? QByteArray()
+		: _session->validTmpPassword();
+	if (!_paymentMethod.newCredentials && password.isEmpty()) {
+		_updates.fire(TmpPasswordRequired{});
+		return;
+	}
 
 	using Flag = MTPpayments_SendPaymentForm::Flag;
 	_api.request(MTPpayments_SendPaymentForm(
@@ -468,9 +482,16 @@ void Form::submit() {
 		MTP_int(_msgId),
 		MTP_string(_requestedInformationId),
 		MTP_string(_shippingOptions.selectedId),
-		MTP_inputPaymentCredentials(
-			MTP_flags(0),
-			MTP_dataJSON(MTP_bytes(_paymentMethod.newCredentials.data))),
+		(_paymentMethod.newCredentials
+			? MTP_inputPaymentCredentials(
+				MTP_flags((_paymentMethod.newCredentials.saveOnServer
+					&& _details.canSaveCredentials)
+					? MTPDinputPaymentCredentials::Flag::f_save
+					: MTPDinputPaymentCredentials::Flag(0)),
+				MTP_dataJSON(MTP_bytes(_paymentMethod.newCredentials.data)))
+			: MTP_inputPaymentCredentialsSaved(
+				MTP_string(_paymentMethod.savedCredentials.id),
+				MTP_bytes(password))),
 		MTP_long(_invoice.tipsSelected)
 	)).done([=](const MTPpayments_PaymentResult &result) {
 		result.match([&](const MTPDpayments_paymentResult &data) {
@@ -480,6 +501,27 @@ void Form::submit() {
 		});
 	}).fail([=](const MTP::Error &error) {
 		_updates.fire(Error{ Error::Type::Send, error.type() });
+	}).send();
+}
+
+void Form::submit(const Core::CloudPasswordResult &result) {
+	if (_passwordRequestId) {
+		return;
+	}
+	_passwordRequestId = _api.request(MTPaccount_GetTmpPassword(
+		result.result,
+		MTP_int(kPasswordPeriod)
+	)).done([=](const MTPaccount_TmpPassword &result) {
+		_passwordRequestId = 0;
+		result.match([&](const MTPDaccount_tmpPassword &data) {
+			_session->setTmpPassword(
+				data.vtmp_password().v,
+				data.vvalid_until().v);
+			submit();
+		});
+	}).fail([=](const MTP::Error &error) {
+		_passwordRequestId = 0;
+		_updates.fire(Error{ Error::Type::TmpPassword, error.type() });
 	}).send();
 }
 
@@ -573,7 +615,9 @@ Error Form::informationErrorLocal(
 	return Error();
 }
 
-void Form::validateCard(const Ui::UncheckedCardDetails &details) {
+void Form::validateCard(
+		const Ui::UncheckedCardDetails &details,
+		bool saveInformation) {
 	Expects(!v::is_null(_paymentMethod.native.data));
 
 	if (!validateCardLocal(details)) {
@@ -581,7 +625,7 @@ void Form::validateCard(const Ui::UncheckedCardDetails &details) {
 	}
 	const auto &native = _paymentMethod.native.data;
 	if (const auto stripe = std::get_if<StripePaymentMethod>(&native)) {
-		validateCard(*stripe, details);
+		validateCard(*stripe, details, saveInformation);
 	} else {
 		Unexpected("Native payment provider in Form::validateCard.");
 	}
@@ -635,7 +679,8 @@ Error Form::cardErrorLocal(const Ui::UncheckedCardDetails &details) const {
 
 void Form::validateCard(
 		const StripePaymentMethod &method,
-		const Ui::UncheckedCardDetails &details) {
+		const Ui::UncheckedCardDetails &details,
+		bool saveInformation) {
 	Expects(!method.publishableKey.isEmpty());
 
 	if (_stripe) {
@@ -673,7 +718,7 @@ void Form::validateCard(
 					{ "type", "card" },
 					{ "id", token.tokenId() },
 				}).toJson(QJsonDocument::Compact),
-				.saveOnServer = false, // #TODO payments save
+				.saveOnServer = saveInformation,
 			});
 		}
 	}));
@@ -683,8 +728,17 @@ void Form::setPaymentCredentials(const NewCredentials &credentials) {
 	Expects(!credentials.empty());
 
 	_paymentMethod.newCredentials = credentials;
+	const auto requestNewPassword = credentials.saveOnServer
+		&& !_details.canSaveCredentials
+		&& _details.passwordMissing;
 	refreshPaymentMethodDetails();
-	_updates.fire(PaymentMethodUpdate{});
+	_updates.fire(PaymentMethodUpdate{ requestNewPassword });
+}
+
+void Form::setHasPassword(bool has) {
+	if (_details.passwordMissing) {
+		_details.canSaveCredentials = has;
+	}
 }
 
 void Form::setShippingOption(const QString &id) {

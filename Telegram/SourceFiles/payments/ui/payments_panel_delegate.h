@@ -28,8 +28,11 @@ public:
 	virtual void panelRequestClose() = 0;
 	virtual void panelCloseSure() = 0;
 	virtual void panelSubmit() = 0;
-	virtual void panelWebviewMessage(const QJsonDocument &message) = 0;
+	virtual void panelWebviewMessage(
+		const QJsonDocument &message,
+		bool saveInformation) = 0;
 	virtual bool panelWebviewNavigationAttempt(const QString &uri) = 0;
+	virtual void panelSetPassword() = 0;
 
 	virtual void panelCancelEdit() = 0;
 	virtual void panelEditPaymentMethod() = 0;
@@ -43,7 +46,9 @@ public:
 	virtual void panelChangeTips(int64 value) = 0;
 
 	virtual void panelValidateInformation(RequestedInformation data) = 0;
-	virtual void panelValidateCard(Ui::UncheckedCardDetails data) = 0;
+	virtual void panelValidateCard(
+		Ui::UncheckedCardDetails data,
+		bool saveInformation) = 0;
 	virtual void panelShowBox(object_ptr<BoxContent> box) = 0;
 
 	virtual QString panelWebviewDataPath() = 0;

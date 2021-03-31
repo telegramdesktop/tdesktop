@@ -229,6 +229,18 @@ void Panel::showEditPaymentMethod(const PaymentMethodDetails &method) {
 		showEditCard(method.native, CardField::Number);
 	} else if (!showWebview(method.url, true)) {
 		// #TODO payments errors not supported
+	} else if (method.canSaveInformation) {
+		const auto &padding = st::paymentsPanelPadding;
+		_saveWebviewInformation = CreateChild<Checkbox>(
+			_webviewBottom.get(),
+			tr::lng_payments_save_information(tr::now),
+			false);
+		const auto height = padding.top()
+			+ _saveWebviewInformation->heightNoMargins()
+			+ padding.bottom();
+		_saveWebviewInformation->moveToLeft(padding.right(), padding.top());
+		_saveWebviewInformation->show();
+		_webviewBottom->resize(_webviewBottom->width(), height);
 	}
 }
 
@@ -244,7 +256,17 @@ bool Panel::showWebview(const QString &url, bool allowBack) {
 bool Panel::createWebview() {
 	auto container = base::make_unique_q<RpWidget>(_widget.get());
 
-	container->setGeometry(_widget->innerGeometry());
+	_webviewBottom = std::make_unique<RpWidget>(_widget.get());
+	const auto bottom = _webviewBottom.get();
+	bottom->show();
+
+	bottom->heightValue(
+	) | rpl::start_with_next([=, raw = container.get()](int height) {
+		const auto inner = _widget->innerGeometry();
+		bottom->move(inner.x(), inner.y() + inner.height() - height);
+		raw->resize(inner.width(), inner.height() - height);
+		bottom->resizeToWidth(inner.width());
+	}, bottom->lifetime());
 	container->show();
 
 	_webview = std::make_unique<Webview::Window>(
@@ -257,6 +279,9 @@ bool Panel::createWebview() {
 		if (_webview.get() == raw) {
 			_webview = nullptr;
 		}
+		if (_webviewBottom.get() == bottom) {
+			_webviewBottom = nullptr;
+		}
 	});
 	if (!raw->widget()) {
 		return false;
@@ -268,7 +293,9 @@ bool Panel::createWebview() {
 	}, container->lifetime());
 
 	raw->setMessageHandler([=](const QJsonDocument &message) {
-		_delegate->panelWebviewMessage(message);
+		const auto save = _saveWebviewInformation
+			&& _saveWebviewInformation->checked();
+		_delegate->panelWebviewMessage(message, save);
 	});
 
 	raw->setNavigationHandler([=](const QString &uri) {
@@ -305,6 +332,22 @@ void Panel::choosePaymentMethod(const PaymentMethodDetails &method) {
 			.initialSelection = 0,
 			.callback = save,
 		});
+	}));
+}
+
+void Panel::askSetPassword() {
+	showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box.get(),
+				tr::lng_payments_need_password(),
+				st::boxLabel),
+			st::boxPadding);
+		box->addButton(tr::lng_continue(), [=] {
+			_delegate->panelSetPassword();
+			box->closeBox();
+		});
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	}));
 }
 

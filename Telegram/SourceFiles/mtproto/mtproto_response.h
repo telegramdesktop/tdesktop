@@ -38,8 +38,12 @@ private:
 
 };
 
+inline bool IsFloodError(const QString &type) {
+	return type.startsWith(qstr("FLOOD_WAIT_"));
+}
+
 inline bool IsFloodError(const Error &error) {
-	return error.type().startsWith(qstr("FLOOD_WAIT_"));
+	return IsFloodError(error.type());
 }
 
 inline bool IsTemporaryError(const Error &error) {
