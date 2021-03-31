@@ -103,6 +103,8 @@ public:
 
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
+	void dependencyItemRemoved(HistoryItem *dependency) override;
+
 	bool needCheck() const override;
 	bool serviceMsg() const override {
 		return true;

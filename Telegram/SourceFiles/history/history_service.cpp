@@ -768,9 +768,9 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 					return textcmdLink(1, invoice->title);
 				}
 			}
-			return tr::lng_deleted_message(tr::now);
+			return QString();// tr::lng_deleted_message(tr::now);
 		} else if (payment->msgId) {
-			return tr::lng_contacts_loading(tr::now);
+			return QString();// tr::lng_contacts_loading(tr::now);
 		}
 		return QString();
 	}();
@@ -1062,7 +1062,10 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 				dependent->msgId = data.vreply_to_msg_id().v;
 				if (!updateDependent()) {
 					history()->session().api().requestMessageData(
-						history()->peer->asChannel(),
+						(peerIsChannel(dependent->peerId)
+							? history()->owner().channel(
+								peerToChannel(dependent->peerId)).get()
+							: history()->peer->asChannel()),
 						dependent->msgId,
 						HistoryDependentItemCallback(this));
 				}
@@ -1139,9 +1142,18 @@ void HistoryService::updateText(PreparedText &&text) {
 void HistoryService::clearDependency() {
 	if (const auto dependent = GetDependentData()) {
 		if (dependent->msg) {
-			history()->owner().unregisterDependentMessage(this, dependent->msg);
+			history()->owner().unregisterDependentMessage(
+				this,
+				dependent->msg);
+			dependent->msg = nullptr;
+			dependent->msgId = 0;
 		}
 	}
+}
+
+void HistoryService::dependencyItemRemoved(HistoryItem *dependency) {
+	clearDependency();
+	updateDependentText();
 }
 
 HistoryService::~HistoryService() {
