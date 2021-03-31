@@ -44,10 +44,14 @@ EditInformation::EditInformation(
 , _scroll(this, st::passportPanelScroll)
 , _topShadow(this)
 , _bottomShadow(this)
-, _done(
+, _submit(
+	this,
+	tr::lng_settings_save(),
+	st::paymentsPanelButton)
+, _cancel(
 		this,
-		tr::lng_about_done(),
-		st::passportPanelSaveValue) {
+		tr::lng_cancel(),
+		st::paymentsPanelButton) {
 	setupControls();
 }
 
@@ -79,8 +83,11 @@ void EditInformation::showError(InformationField field) {
 void EditInformation::setupControls() {
 	const auto inner = setupContent();
 
-	_done->addClickHandler([=] {
+	_submit->addClickHandler([=] {
 		_delegate->panelValidateInformation(collect());
+	});
+	_cancel->addClickHandler([=] {
+		_delegate->panelCancelEdit();
 	});
 
 	using namespace rpl::mappers;
@@ -189,14 +196,20 @@ void EditInformation::focusInEvent(QFocusEvent *e) {
 }
 
 void EditInformation::updateControlsGeometry() {
-	const auto submitTop = height() - _done->height();
-	_scroll->setGeometry(0, 0, width(), submitTop);
+	const auto &padding = st::paymentsPanelPadding;
+	const auto buttonsHeight = padding.top()
+		+ _cancel->height()
+		+ padding.bottom();
+	const auto buttonsTop = height() - buttonsHeight;
+	_scroll->setGeometry(0, 0, width(), buttonsTop);
 	_topShadow->resizeToWidth(width());
 	_topShadow->moveToLeft(0, 0);
 	_bottomShadow->resizeToWidth(width());
-	_bottomShadow->moveToLeft(0, submitTop - st::lineWidth);
-	_done->setFullWidth(width());
-	_done->moveToLeft(0, submitTop);
+	_bottomShadow->moveToLeft(0, buttonsTop - st::lineWidth);
+	auto right = padding.right();
+	_submit->moveToRight(right, buttonsTop + padding.top());
+	right += _submit->width() + padding.left();
+	_cancel->moveToRight(right, buttonsTop + padding.top());
 
 	_scroll->updateBars();
 }

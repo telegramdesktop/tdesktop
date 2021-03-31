@@ -372,7 +372,7 @@ QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 	const auto name = (*rule.international)
 		? QString::fromUtf8(rule.international)
 		: currency;
-	auto result = QString();
+	auto result = prefix;
 	if (rule.left) {
 		result.append(name);
 		if (rule.space) result.append(' ');
@@ -381,7 +381,7 @@ QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 		|| std::floor(value) != value)
 		? exponent
 		: 0;
-	result.append(prefix).append(FormatWithSeparators(
+	result.append(FormatWithSeparators(
 		value,
 		precision,
 		rule.decimal,

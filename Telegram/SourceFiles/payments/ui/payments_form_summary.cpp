@@ -47,16 +47,20 @@ FormSummary::FormSummary(
 , _scroll(this, st::passportPanelScroll)
 , _topShadow(this)
 , _bottomShadow(this)
-, _submit(
-	this,
-	(_invoice.receipt.paid
-		? tr::lng_about_done()
-		: tr::lng_payments_pay_amount(
+, _submit(_invoice.receipt.paid
+	? object_ptr<RoundButton>(nullptr)
+	: object_ptr<RoundButton>(
+		this,
+		tr::lng_payments_pay_amount(
 			lt_amount,
-			rpl::single(formatAmount(computeTotalAmount())))),
-	(_invoice.receipt.paid
-		? st::passportPanelSaveValue
-		: st::paymentsPanelSubmit)) {
+			rpl::single(formatAmount(computeTotalAmount()))),
+		st::paymentsPanelSubmit))
+, _cancel(
+		this,
+		(_invoice.receipt.paid
+			? tr::lng_about_done()
+			: tr::lng_cancel()),
+		st::paymentsPanelButton) {
 	setupControls();
 }
 
@@ -92,11 +96,19 @@ int64 FormSummary::computeTotalAmount() const {
 void FormSummary::setupControls() {
 	const auto inner = setupContent();
 
-	_submit->addClickHandler([=] {
-		_delegate->panelSubmit();
+	if (_submit) {
+		_submit->addClickHandler([=] {
+			_delegate->panelSubmit();
+		});
+	}
+	_cancel->addClickHandler([=] {
+		_delegate->panelRequestClose();
 	});
 	if (!_invoice) {
-		_submit->hide();
+		if (_submit) {
+			_submit->hide();
+		}
+		_cancel->hide();
 	}
 
 	using namespace rpl::mappers;
@@ -387,14 +399,22 @@ void FormSummary::resizeEvent(QResizeEvent *e) {
 }
 
 void FormSummary::updateControlsGeometry() {
-	const auto submitTop = height() - _submit->height();
-	_scroll->setGeometry(0, 0, width(), submitTop);
+	const auto &padding = st::paymentsPanelPadding;
+	const auto buttonsHeight = padding.top()
+		+ _cancel->height()
+		+ padding.bottom();
+	const auto buttonsTop = height() - buttonsHeight;
+	_scroll->setGeometry(0, 0, width(), buttonsTop);
 	_topShadow->resizeToWidth(width());
 	_topShadow->moveToLeft(0, 0);
 	_bottomShadow->resizeToWidth(width());
-	_bottomShadow->moveToLeft(0, submitTop - st::lineWidth);
-	_submit->setFullWidth(width());
-	_submit->moveToLeft(0, submitTop);
+	_bottomShadow->moveToLeft(0, buttonsTop - st::lineWidth);
+	auto right = padding.right();
+	if (_submit) {
+		_submit->moveToRight(right, buttonsTop + padding.top());
+		right += _submit->width() + padding.left();
+	}
+	_cancel->moveToRight(right, buttonsTop + padding.top());
 
 	_scroll->updateBars();
 }

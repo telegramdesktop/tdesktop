@@ -31,6 +31,7 @@ public:
 	virtual void panelWebviewMessage(const QJsonDocument &message) = 0;
 	virtual bool panelWebviewNavigationAttempt(const QString &uri) = 0;
 
+	virtual void panelCancelEdit() = 0;
 	virtual void panelEditPaymentMethod() = 0;
 	virtual void panelEditShippingInformation() = 0;
 	virtual void panelEditName() = 0;
