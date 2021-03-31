@@ -65,8 +65,8 @@ bool GdkHelperLoadGtk2(QLibrary &lib) {
 #ifdef LINK_TO_GTK
 	return false;
 #else // LINK_TO_GTK
-	if (!LOAD_GTK_SYMBOL(lib, "gdk_x11_drawable_get_xdisplay", gdk_x11_drawable_get_xdisplay)) return false;
-	if (!LOAD_GTK_SYMBOL(lib, "gdk_x11_drawable_get_xid", gdk_x11_drawable_get_xid)) return false;
+	if (!LOAD_GTK_SYMBOL(lib, gdk_x11_drawable_get_xdisplay)) return false;
+	if (!LOAD_GTK_SYMBOL(lib, gdk_x11_drawable_get_xid)) return false;
 	return true;
 #endif // !LINK_TO_GTK
 #else // !DESKTOP_APP_DISABLE_X11_INTEGRATION
@@ -76,10 +76,10 @@ bool GdkHelperLoadGtk2(QLibrary &lib) {
 
 bool GdkHelperLoadGtk3(QLibrary &lib) {
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-	if (!LOAD_GTK_SYMBOL(lib, "gdk_x11_window_get_type", gdk_x11_window_get_type)) return false;
-	if (!LOAD_GTK_SYMBOL(lib, "gdk_window_get_display", gdk_window_get_display)) return false;
-	if (!LOAD_GTK_SYMBOL(lib, "gdk_x11_display_get_xdisplay", gdk_x11_display_get_xdisplay)) return false;
-	if (!LOAD_GTK_SYMBOL(lib, "gdk_x11_window_get_xid", gdk_x11_window_get_xid)) return false;
+	if (!LOAD_GTK_SYMBOL(lib, gdk_x11_window_get_type)) return false;
+	if (!LOAD_GTK_SYMBOL(lib, gdk_window_get_display)) return false;
+	if (!LOAD_GTK_SYMBOL(lib, gdk_x11_display_get_xdisplay)) return false;
+	if (!LOAD_GTK_SYMBOL(lib, gdk_x11_window_get_xid)) return false;
 	return true;
 #else // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 	return false;
