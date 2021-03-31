@@ -11,13 +11,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
+#include "data/data_file_origin.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "core/sandbox.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "main/main_domain.h"
+#include "main/main_account.h"
+#include "main/main_session.h"
 #include "mainwindow.h"
 #include "app.h"
 
+#include <QtCore/QBuffer>
 #include <QtGui/QGuiApplication>
 
 #include <glibmm.h>
@@ -90,34 +96,57 @@ constexpr auto kPlayerIntrospectionXML = R"INTROSPECTION(<node>
 	</interface>
 </node>)INTROSPECTION"_cs;
 
-auto CreateMetadata(const Media::Player::TrackState &state) {
+auto CreateMetadata(
+		const Media::Player::TrackState &state,
+		Data::DocumentMedia *trackView) {
 	std::map<Glib::ustring, Glib::VariantBase> result;
 
-	if (!Media::Player::IsStoppedOrStopping(state.state)) {
-		result["mpris:trackid"] = Glib::wrap(g_variant_new_object_path(
-			kFakeTrackPath.utf8().constData()));
-		result["mpris:length"] = Glib::Variant<gint64>::create(
-			state.length * 1000);
+	if (Media::Player::IsStoppedOrStopping(state.state)) {
+		return result;
+	}
 
-		const auto audioData = state.id.audio();
-		if (audioData) {
-			result["xesam:title"] = Glib::Variant<
-				Glib::ustring
-			>::create(audioData->filename().toStdString());
+	result["mpris:trackid"] = Glib::wrap(g_variant_new_object_path(
+		kFakeTrackPath.utf8().constData()));
+	result["mpris:length"] = Glib::Variant<gint64>::create(
+		state.length * 1000);
 
-			if (audioData->isSong()) {
-				const auto songData = audioData->song();
-				if (!songData->performer.isEmpty()) {
-					result["xesam:artist"] = Glib::Variant<
-						std::vector<Glib::ustring>
-					>::create({ songData->performer.toStdString() });
-				}
-				if (!songData->performer.isEmpty()) {
-					result["xesam:title"] = Glib::Variant<
-						Glib::ustring
-					>::create(songData->title.toStdString());
-				}
+	const auto audioData = state.id.audio();
+	if (audioData) {
+		result["xesam:title"] = Glib::Variant<
+			Glib::ustring
+		>::create(audioData->filename().toStdString());
+
+		if (audioData->isSong()) {
+			const auto songData = audioData->song();
+			if (!songData->performer.isEmpty()) {
+				result["xesam:artist"] = Glib::Variant<
+					std::vector<Glib::ustring>
+				>::create({ songData->performer.toStdString() });
 			}
+			if (!songData->performer.isEmpty()) {
+				result["xesam:title"] = Glib::Variant<
+					Glib::ustring
+				>::create(songData->title.toStdString());
+			}
+		}
+	}
+
+	if (trackView) {
+		trackView->thumbnailWanted(Data::FileOrigin());
+		if (trackView->thumbnail()) {
+			QByteArray thumbnailData;
+			QBuffer thumbnailBuffer(&thumbnailData);
+			trackView->thumbnail()->original().save(
+				&thumbnailBuffer,
+				"JPG",
+				87);
+
+			result["mpris:artUrl"] = Glib::Variant<
+				Glib::ustring
+			>::create("data:image/jpeg;base64,"
+				+ thumbnailData
+					.toBase64()
+					.toStdString());
 		}
 	}
 
@@ -237,8 +266,16 @@ void HandleGetProperty(
 			const auto state = Media::Player::instance()->getState(
 				kSongType);
 
+			const auto trackView = [&]() -> std::shared_ptr<Data::DocumentMedia> {
+				const auto audioData = state.id.audio();
+				if (audioData && audioData->isSongWithCover()) {
+					return audioData->activeMediaView();
+				}
+				return nullptr;
+			}();
+
 			property = base::Platform::MakeGlibVariant(
-				CreateMetadata(state));
+				CreateMetadata(state, trackView.get()));
 		} else if (property_name == "MinimumRate") {
 			property = Glib::Variant<float64>::create(1.0);
 		} else if (property_name == "PlaybackStatus") {
@@ -346,9 +383,12 @@ public:
 	uint registerId = 0;
 	uint playerRegisterId = 0;
 
-	std::map<Glib::ustring, Glib::VariantBase> metadata;
 	Glib::ustring playbackStatus;
 	gint64 position = 0;
+
+	DocumentData *audioData = nullptr;
+	std::shared_ptr<Data::DocumentMedia> trackView;
+	Image *thumbnail = nullptr;
 
 	rpl::lifetime lifetime;
 };
@@ -359,22 +399,34 @@ void MPRISSupport::Private::updateTrackState(
 		return;
 	}
 
-	const auto currentMetadata = CreateMetadata(state);
+	const auto currentAudioData = state.id.audio();
 	const auto currentPosition = state.position * 1000;
 	const auto currentPlaybackStatus = PlaybackStatus(state.state);
 
-	if (!ranges::equal(currentMetadata, metadata, [&](
-		const auto &item1,
-		const auto &item2) {
-		return item1.first == item2.first
-			&& item1.second.equal(item2.second);
-	})) {
-		metadata = currentMetadata;
+	if (currentAudioData != audioData) {
+		audioData = currentAudioData;
+		if (audioData && audioData->isSongWithCover()) {
+			trackView = audioData->createMediaView();
+			thumbnail = trackView->thumbnail();
+		} else {
+			trackView = nullptr;
+			thumbnail = nullptr;
+		}
+
 		PlayerPropertyChanged(
 			"Metadata",
 			Glib::Variant<
 				std::map<Glib::ustring, Glib::VariantBase>
-			>::create(metadata));
+			>::create(CreateMetadata(state, trackView.get())));
+	}
+
+	if (trackView && (trackView->thumbnail() != thumbnail)) {
+		thumbnail = trackView->thumbnail();
+		PlayerPropertyChanged(
+			"Metadata",
+			Glib::Variant<
+				std::map<Glib::ustring, Glib::VariantBase>
+			>::create(CreateMetadata(state, trackView.get())));
 	}
 
 	if (currentPlaybackStatus != playbackStatus) {
@@ -422,6 +474,12 @@ MPRISSupport::MPRISSupport()
 
 		_private->updateTrackState(
 			Media::Player::instance()->getState(kSongType));
+
+		Core::App().domain().active().session().downloaderTaskFinished(
+		) | rpl::start_with_next([=] {
+			_private->updateTrackState(
+				Media::Player::instance()->getState(kSongType));
+		}, _private->lifetime);
 
 		Media::Player::instance()->updatedNotifier(
 		) | rpl::start_with_next([=](
