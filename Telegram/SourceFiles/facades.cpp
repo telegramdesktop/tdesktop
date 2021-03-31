@@ -122,7 +122,10 @@ void activateBotCommand(
 	} break;
 
 	case ButtonType::Buy: {
-		Payments::CheckoutProcess::Start(msg, Payments::Mode::Payment);
+		Payments::CheckoutProcess::Start(
+			msg,
+			Payments::Mode::Payment,
+			crl::guard(App::wnd(), [] { App::wnd()->activate(); }));
 	} break;
 
 	case ButtonType::Url: {
