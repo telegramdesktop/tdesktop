@@ -89,6 +89,8 @@ public:
 		not_null<Ui::PopupMenu*> menu,
 		SendMenu::Type type) override;
 
+	bool mySetsEmpty() const;
+
 	~StickersListWidget();
 
 protected:

@@ -641,7 +641,7 @@ void StickersBox::refreshTabs() {
 		sections.push_back(tr::lng_stickers_installed_tab(tr::now).toUpper());
 		_tabIndices.push_back(Section::Installed);
 	}
-	if (!stickers.maskSetsOrder().isEmpty() && _masks.widget()) {
+	if (_masks.widget()) {
 		sections.push_back(tr::lng_stickers_masks_tab(tr::now).toUpper());
 		_tabIndices.push_back(Section::Masks);
 	}

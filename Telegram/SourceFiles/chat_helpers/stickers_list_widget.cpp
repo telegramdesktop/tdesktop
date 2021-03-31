@@ -3237,6 +3237,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 			if (writeRecent) {
 				session().saveSettings();
 			}
+			session().data().stickers().notifyUpdated();
 		}
 		_removingSetId = 0;
 		_checkForHide.fire({});
@@ -3256,6 +3257,10 @@ Data::StickersSetsOrder &StickersListWidget::defaultSetsOrderRef() {
 	return !_isMasks
 		? session().data().stickers().setsOrderRef()
 		: session().data().stickers().maskSetsOrderRef();
+}
+
+bool StickersListWidget::mySetsEmpty() const {
+	return _mySets.empty();
 }
 
 StickersListWidget::~StickersListWidget() = default;

@@ -496,11 +496,19 @@ rpl::producer<> TabbedSelector::slideFinished() const {
 	return _slideFinished.events();
 }
 
-void TabbedSelector::resizeEvent(QResizeEvent *e) {
-	if (_tabsSlider) {
-		_tabsSlider->resizeToWidth(width());
-		_tabsSlider->moveToLeft(0, 0);
+void TabbedSelector::updateTabsSliderGeometry() {
+	if (!_tabsSlider) {
+		return;
 	}
+	const auto w = mediaEditor() && hasMasksTab() && masks()->mySetsEmpty()
+		? width() / 2
+		: width();
+	_tabsSlider->resizeToWidth(w);
+	_tabsSlider->moveToLeft(0, 0);
+}
+
+void TabbedSelector::resizeEvent(QResizeEvent *e) {
+	updateTabsSliderGeometry();
 	if (_topShadow && _tabsSlider) {
 		_topShadow->setGeometry(
 			_tabsSlider->x(),
@@ -680,9 +688,16 @@ void TabbedSelector::refreshStickers() {
 		}
 	}
 	if (hasMasksTab()) {
-		masks()->refreshStickers();
+		const auto masksList = masks();
+		masksList->refreshStickers();
 		if (isHidden() || _currentTabType != SelectorTab::Masks) {
-			masks()->preloadImages();
+			masksList->preloadImages();
+		}
+
+		fillTabsSliderSections();
+		updateTabsSliderGeometry();
+		if (hasStickersTab() && masksList->mySetsEmpty()) {
+			_tabsSlider->setActiveSection(indexByType(SelectorTab::Stickers));
 		}
 	}
 }
@@ -869,9 +884,27 @@ void TabbedSelector::setRoundRadius(int radius) {
 void TabbedSelector::createTabsSlider() {
 	_tabsSlider.create(this, st::emojiTabs);
 
+	fillTabsSliderSections();
+
+	_tabsSlider->setActiveSectionFast(indexByType(_currentTabType));
+	_tabsSlider->sectionActivated(
+	) | rpl::start_with_next([=] {
+		switchTab();
+	}, lifetime());
+}
+
+void TabbedSelector::fillTabsSliderSections() {
+	if (!_tabsSlider) {
+		return;
+	}
+
 	const auto sections = ranges::views::all(
 		_tabs
-	) | ranges::views::transform([=](const Tab &tab) {
+	) | ranges::views::filter([&](const Tab &tab) {
+		return (tab.type() == SelectorTab::Masks)
+			? !masks()->mySetsEmpty()
+			: true;
+	}) | ranges::views::transform([&](const Tab &tab) {
 		return [type = tab.type()] {
 			switch (type) {
 			case SelectorTab::Emoji:
@@ -886,12 +919,6 @@ void TabbedSelector::createTabsSlider() {
 		}()(tr::now).toUpper();
 	}) | ranges::to_vector;
 	_tabsSlider->setSections(sections);
-
-	_tabsSlider->setActiveSectionFast(indexByType(_currentTabType));
-	_tabsSlider->sectionActivated(
-	) | rpl::start_with_next([=] {
-		switchTab();
-	}, lifetime());
 }
 
 bool TabbedSelector::hasSectionIcons() const {

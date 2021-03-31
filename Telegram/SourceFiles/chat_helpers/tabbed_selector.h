@@ -198,6 +198,8 @@ private:
 	bool hasSectionIcons() const;
 	void setWidgetToScrollArea();
 	void createTabsSlider();
+	void fillTabsSliderSections();
+	void updateTabsSliderGeometry();
 	void switchTab();
 
 	not_null<Tab*> getTab(int index);
