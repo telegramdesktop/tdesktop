@@ -120,7 +120,7 @@ void Panel::chooseShippingOption(const ShippingOptions &options) {
 			.title = tr::lng_payments_shipping_method(),
 			.options = list,
 			.initialSelection = (i != end(options.list)
-				? (i - begin(options.list))
+				? int(i - begin(options.list))
 				: -1),
 			.callback = save,
 		});
