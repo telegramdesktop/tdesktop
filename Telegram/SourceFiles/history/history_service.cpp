@@ -765,6 +765,10 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 		if (payment->msg) {
 			if (const auto media = payment->msg->media()) {
 				if (const auto invoice = media->invoice()) {
+					if (!invoice->isMultipleAllowed
+						&& !invoice->receiptMsgId) {
+						media->setInvoiceReceiptId(id);
+					}
 					return textcmdLink(1, invoice->title);
 				}
 			}

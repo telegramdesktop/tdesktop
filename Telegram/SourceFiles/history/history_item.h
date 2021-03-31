@@ -76,6 +76,8 @@ public:
 	virtual MsgId dependencyMsgId() const {
 		return 0;
 	}
+	virtual void checkBuyButton() {
+	}
 	[[nodiscard]] virtual bool notificationReady() const {
 		return true;
 	}

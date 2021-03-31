@@ -80,19 +80,20 @@ constexpr auto kFastRevokeRestriction = 24 * 60 * TimeId(60);
 [[nodiscard]] Invoice ComputeInvoiceData(
 		not_null<HistoryItem*> item,
 		const MTPDmessageMediaInvoice &data) {
-	auto result = Invoice();
-	result.isTest = data.is_test();
-	result.amount = data.vtotal_amount().v;
-	result.currency = qs(data.vcurrency());
-	result.description = qs(data.vdescription());
-	result.title = TextUtilities::SingleLine(qs(data.vtitle()));
-	result.receiptMsgId = data.vreceipt_msg_id().value_or_empty();
-	if (const auto photo = data.vphoto()) {
-		result.photo = item->history()->owner().photoFromWeb(
-			*photo,
-			ImageLocation());
-	}
-	return result;
+	return {
+		.receiptMsgId = data.vreceipt_msg_id().value_or_empty(),
+		.amount = data.vtotal_amount().v,
+		.currency = qs(data.vcurrency()),
+		.title = TextUtilities::SingleLine(qs(data.vtitle())),
+		.description = qs(data.vdescription()),
+		.photo = (data.vphoto()
+			? item->history()->owner().photoFromWeb(
+				*data.vphoto(),
+				ImageLocation())
+			: nullptr),
+		.isMultipleAllowed = item->history()->isChannel(), // #TODO payments
+		.isTest = data.is_test(),
+	};
 }
 
 [[nodiscard]] QString WithCaptionDialogsText(
@@ -186,6 +187,10 @@ Data::CloudImage *Media::location() const {
 
 PollData *Media::poll() const {
 	return nullptr;
+}
+
+void Media::setInvoiceReceiptId(MsgId id) {
+	Unexpected("Media::setInvoiceReceiptId.");
 }
 
 bool Media::uploading() const {
@@ -1188,6 +1193,11 @@ std::unique_ptr<Media> MediaInvoice::clone(not_null<HistoryItem*> parent) {
 
 const Invoice *MediaInvoice::invoice() const {
 	return &_invoice;
+}
+
+void MediaInvoice::setInvoiceReceiptId(MsgId id) {
+	_invoice.receiptMsgId = id;
+	parent()->checkBuyButton();
 }
 
 bool MediaInvoice::hasReplyPreview() const {
