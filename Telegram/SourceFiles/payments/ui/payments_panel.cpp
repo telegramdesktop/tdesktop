@@ -56,7 +56,8 @@ void Panel::showForm(
 		const RequestedInformation &current,
 		const PaymentMethodDetails &method,
 		const ShippingOptions &options) {
-	_widget->setTitle(invoice.receipt
+	_testMode = invoice.isTest;
+	setTitle(invoice.receipt
 		? tr::lng_payments_receipt_title()
 		: tr::lng_payments_checkout_title());
 	auto form = base::make_unique_q<FormSummary>(
@@ -81,7 +82,7 @@ void Panel::showEditInformation(
 		const Invoice &invoice,
 		const RequestedInformation &current,
 		InformationField field) {
-	_widget->setTitle(tr::lng_payments_shipping_address_title());
+	setTitle(tr::lng_payments_shipping_address_title());
 	auto edit = base::make_unique_q<EditInformation>(
 		_widget.get(),
 		invoice,
@@ -240,7 +241,7 @@ void Panel::showEditPaymentMethod(const PaymentMethodDetails &method) {
 		: tr::lng_payments_processed_by(
 			lt_provider,
 			rpl::single(method.provider));
-	_widget->setTitle(tr::lng_payments_card_title());
+	setTitle(tr::lng_payments_card_title());
 	if (method.native.supported) {
 		showEditCard(method.native, CardField::Number);
 	} else if (!showWebview(method.url, true, std::move(bottomText))) {
@@ -416,6 +417,15 @@ void Panel::showCardError(
 		//	&& field == CardField::AddressCountry) {
 		//	_weakEditCard->showError(field);
 		//}
+	}
+}
+
+void Panel::setTitle(rpl::producer<QString> title) {
+	using namespace rpl::mappers;
+	if (_testMode) {
+		_widget->setTitle(std::move(title) | rpl::map(_1 + " (Test)"));
+	} else {
+		_widget->setTitle(std::move(title));
 	}
 }
 
