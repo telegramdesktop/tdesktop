@@ -39,7 +39,7 @@ struct Invoice {
 	Cover cover;
 
 	std::vector<LabeledPrice> prices;
-	int64 tipsMin = 0;
+	std::vector<int64> suggestedTips;
 	int64 tipsMax = 0;
 	int64 tipsSelected = 0;
 	QString currency;

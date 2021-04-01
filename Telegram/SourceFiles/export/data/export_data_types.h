@@ -466,6 +466,14 @@ struct ActionInviteToGroupCall {
 	std::vector<int32> userIds;
 };
 
+struct ActionSetMessagesTTL {
+	TimeId period = 0;
+};
+
+struct ActionGroupCallScheduled {
+	TimeId date = 0;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -492,7 +500,9 @@ struct ServiceAction {
 		ActionPhoneNumberRequest,
 		ActionGeoProximityReached,
 		ActionGroupCall,
-		ActionInviteToGroupCall> content;
+		ActionInviteToGroupCall,
+		ActionSetMessagesTTL,
+		ActionGroupCallScheduled> content;
 };
 
 ServiceAction ParseServiceAction(

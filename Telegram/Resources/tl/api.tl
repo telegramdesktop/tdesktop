@@ -68,7 +68,7 @@ inputMediaVenue#c13d1c11 geo_point:InputGeoPoint title:string address:string pro
 inputMediaPhotoExternal#e5bbfe1a flags:# url:string ttl_seconds:flags.0?int = InputMedia;
 inputMediaDocumentExternal#fb52dc99 flags:# url:string ttl_seconds:flags.0?int = InputMedia;
 inputMediaGame#d33f43f3 id:InputGame = InputMedia;
-inputMediaInvoice#f4e096c3 flags:# title:string description:string photo:flags.0?InputWebDocument invoice:Invoice payload:bytes provider:string provider_data:DataJSON start_param:string = InputMedia;
+inputMediaInvoice#f4e096c3 flags:# multiple_allowed:flags.1?true can_forward:flags.2?true title:string description:string photo:flags.0?InputWebDocument invoice:Invoice payload:bytes provider:string provider_data:DataJSON start_param:string = InputMedia;
 inputMediaGeoLive#971fa843 flags:# stopped:flags.0?true geo_point:InputGeoPoint heading:flags.2?int period:flags.1?int proximity_notification_radius:flags.3?int = InputMedia;
 inputMediaPoll#f94e5f1 flags:# poll:Poll correct_answers:flags.0?Vector<bytes> solution:flags.1?string solution_entities:flags.1?Vector<MessageEntity> = InputMedia;
 inputMediaDice#e66fbf7b emoticon:string = InputMedia;
@@ -186,6 +186,7 @@ messageActionGeoProximityReached#98e0d697 from_id:Peer to_id:Peer distance:int =
 messageActionGroupCall#7a0d7f42 flags:# call:InputGroupCall duration:flags.0?int = MessageAction;
 messageActionInviteToGroupCall#76b9f11a call:InputGroupCall users:Vector<int> = MessageAction;
 messageActionSetMessagesTTL#aa1afbfd period:int = MessageAction;
+messageActionGroupCallScheduled#b3a07661 call:InputGroupCall schedule_date:int = MessageAction;
 
 dialog#2c171f72 flags:# pinned:flags.2?true unread_mark:flags.3?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage folder_id:flags.4?int = Dialog;
 dialogFolder#71bd134c flags:# pinned:flags.2?true folder:Folder peer:Peer top_message:int unread_muted_peers_count:int unread_unmuted_peers_count:int unread_muted_messages_count:int unread_unmuted_messages_count:int = Dialog;
@@ -648,7 +649,7 @@ inputBotInlineMessageMediaGeo#96929a85 flags:# geo_point:InputGeoPoint heading:f
 inputBotInlineMessageMediaVenue#417bbf11 flags:# geo_point:InputGeoPoint title:string address:string provider:string venue_id:string venue_type:string reply_markup:flags.2?ReplyMarkup = InputBotInlineMessage;
 inputBotInlineMessageMediaContact#a6edbffd flags:# phone_number:string first_name:string last_name:string vcard:string reply_markup:flags.2?ReplyMarkup = InputBotInlineMessage;
 inputBotInlineMessageGame#4b425864 flags:# reply_markup:flags.2?ReplyMarkup = InputBotInlineMessage;
-inputBotInlineMessageMediaInvoice#d5348d85 flags:# title:string description:string photo:flags.0?InputWebDocument invoice:Invoice payload:bytes provider:string provider_data:DataJSON start_param:string reply_markup:flags.2?ReplyMarkup = InputBotInlineMessage;
+inputBotInlineMessageMediaInvoice#d5348d85 flags:# multiple_allowed:flags.1?true can_forward:flags.3?true title:string description:string photo:flags.0?InputWebDocument invoice:Invoice payload:bytes provider:string provider_data:DataJSON start_param:string reply_markup:flags.2?ReplyMarkup = InputBotInlineMessage;
 
 inputBotInlineResult#88bf9319 flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb:flags.4?InputWebDocument content:flags.5?InputWebDocument send_message:InputBotInlineMessage = InputBotInlineResult;
 inputBotInlineResultPhoto#a8d864a7 id:string type:string photo:InputPhoto send_message:InputBotInlineMessage = InputBotInlineResult;
@@ -794,7 +795,7 @@ dataJSON#7d748d04 data:string = DataJSON;
 
 labeledPrice#cb296bf8 label:string amount:long = LabeledPrice;
 
-invoice#24b6f6cd flags:# test:flags.0?true name_requested:flags.1?true phone_requested:flags.2?true email_requested:flags.3?true shipping_address_requested:flags.4?true flexible:flags.5?true phone_to_provider:flags.6?true email_to_provider:flags.7?true multiple_allowed:flags.9?true can_forward:flags.10?true currency:string prices:Vector<LabeledPrice> min_tip_amount:flags.8?long max_tip_amount:flags.8?long default_tip_amount:flags.8?long = Invoice;
+invoice#cd886e0 flags:# test:flags.0?true name_requested:flags.1?true phone_requested:flags.2?true email_requested:flags.3?true shipping_address_requested:flags.4?true flexible:flags.5?true phone_to_provider:flags.6?true email_to_provider:flags.7?true currency:string prices:Vector<LabeledPrice> max_tip_amount:flags.8?long suggested_tip_amounts:flags.8?Vector<long> = Invoice;
 
 paymentCharge#ea02c27e id:string provider_charge_id:string = PaymentCharge;
 
@@ -1203,7 +1204,7 @@ peerBlocked#e8fd8014 peer_id:Peer date:int = PeerBlocked;
 stats.messageStats#8999f295 views_graph:StatsGraph = stats.MessageStats;
 
 groupCallDiscarded#7780bcb4 id:long access_hash:long duration:int = GroupCall;
-groupCall#c0c2052e flags:# join_muted:flags.1?true can_change_join_muted:flags.2?true join_date_asc:flags.6?true id:long access_hash:long participants_count:int params:flags.0?DataJSON title:flags.3?string stream_dc_id:flags.4?int record_start_date:flags.5?int version:int = GroupCall;
+groupCall#c95c6654 flags:# join_muted:flags.1?true can_change_join_muted:flags.2?true join_date_asc:flags.6?true schedule_start_subscribed:flags.8?true id:long access_hash:long participants_count:int params:flags.0?DataJSON title:flags.3?string stream_dc_id:flags.4?int record_start_date:flags.5?int schedule_date:flags.7?int version:int = GroupCall;
 
 inputGroupCall#d8aa840f id:long access_hash:long = InputGroupCall;
 
@@ -1615,7 +1616,7 @@ phone.discardCall#b2cbc1c0 flags:# video:flags.0?true peer:InputPhoneCall durati
 phone.setCallRating#59ead627 flags:# user_initiative:flags.0?true peer:InputPhoneCall rating:int comment:string = Updates;
 phone.saveCallDebug#277add7e peer:InputPhoneCall debug:DataJSON = Bool;
 phone.sendSignalingData#ff7a9383 peer:InputPhoneCall data:bytes = Bool;
-phone.createGroupCall#bd3dabe0 peer:InputPeer random_id:int = Updates;
+phone.createGroupCall#48cdc6d8 flags:# peer:InputPeer random_id:int title:flags.0?string schedule_date:flags.1?int = Updates;
 phone.joinGroupCall#b132ff7b flags:# muted:flags.0?true call:InputGroupCall join_as:InputPeer invite_hash:flags.1?string params:DataJSON = Updates;
 phone.leaveGroupCall#500377f9 call:InputGroupCall source:int = Updates;
 phone.inviteToGroupCall#7b393160 call:InputGroupCall users:Vector<InputUser> = Updates;
@@ -1629,6 +1630,9 @@ phone.editGroupCallParticipant#d975eb80 flags:# muted:flags.0?true call:InputGro
 phone.editGroupCallTitle#1ca6ac0a call:InputGroupCall title:string = Updates;
 phone.getGroupCallJoinAs#ef7c213a peer:InputPeer = phone.JoinAsPeers;
 phone.exportGroupCallInvite#e6aa647f flags:# can_self_unmute:flags.0?true call:InputGroupCall = phone.ExportedGroupCallInvite;
+phone.toggleGroupCallStartSubscription#219c34e6 call:InputGroupCall subscribed:Bool = Updates;
+phone.startScheduledGroupCall#5680e342 call:InputGroupCall = Updates;
+phone.saveDefaultGroupCallJoinAs#575e1f8c peer:InputPeer join_as:InputPeer = Bool;
 
 langpack.getLangPack#f2f2330a lang_pack:string lang_code:string = LangPackDifference;
 langpack.getStrings#efea3803 lang_pack:string lang_code:string keys:Vector<string> = Vector<LangPackString>;

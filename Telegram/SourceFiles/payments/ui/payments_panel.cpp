@@ -179,7 +179,6 @@ void Panel::chooseShippingOption(const ShippingOptions &options) {
 }
 
 void Panel::chooseTips(const Invoice &invoice) {
-	const auto min = invoice.tipsMin;
 	const auto max = invoice.tipsMax;
 	const auto now = invoice.tipsSelected;
 	const auto currency = invoice.currency;
@@ -223,9 +222,7 @@ void Panel::chooseTips(const Invoice &invoice) {
 		errorWrap->hide(anim::type::instant);
 		box->addButton(tr::lng_settings_save(), [=] {
 			const auto value = row->value().toLongLong();
-			if (value < min) {
-				row->showError();
-			} else if (value > max) {
+			if (value > max) {
 				row->showError();
 				errorWrap->show(anim::type::normal);
 			} else {

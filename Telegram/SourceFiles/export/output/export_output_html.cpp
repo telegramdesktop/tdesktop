@@ -1082,15 +1082,37 @@ auto HtmlWriter::Wrap::pushMessage(
 	}, [&](const ActionPhoneNumberRequest &data) {
 		return serviceFrom + " requested your phone number";
 	}, [&](const ActionGroupCall &data) {
-		return "Group call"
-			+ (data.duration
-				? (" (" + QString::number(data.duration) + " seconds)")
-				: QString()).toUtf8();
+		const auto durationText = (data.duration
+			? (" (" + QString::number(data.duration) + " seconds)")
+			: QString()).toUtf8();
+		return isChannel
+			? ("Voice chat" + durationText)
+			: (serviceFrom + " started voice chat" + durationText);
 	}, [&](const ActionInviteToGroupCall &data) {
 		return serviceFrom
 			+ " invited "
 			+ peers.wrapUserNames(data.userIds)
 			+ " to the voice chat";
+	}, [&](const ActionSetMessagesTTL &data) {
+		const auto periodText = (data.period == 7 * 86400)
+			? "7 days"
+			: (data.period == 86400)
+			? "24 hours"
+			: QByteArray();
+		return isChannel
+			? (data.period
+				? "New messages will auto-delete in " + periodText
+				: "New messages will not auto-delete")
+			: (data.period
+				? (serviceFrom
+					+ " has set messages to auto-delete in " + periodText)
+				: (serviceFrom
+					+ " has set messages not to auto-delete"));
+	}, [&](const ActionGroupCallScheduled &data) {
+		const auto dateText = FormatDateTime(data.date);
+		return isChannel
+			? "Voice chat is scheduled " + dateText
+			: (serviceFrom + " scheduled voice chat " + dateText);
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
