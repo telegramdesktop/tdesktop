@@ -98,7 +98,9 @@ public:
 	[[nodiscard]] QString value() const;
 	[[nodiscard]] rpl::producer<> frontBackspace() const;
 	[[nodiscard]] rpl::producer<> finished() const;
+	[[nodiscard]] rpl::producer<> submitted() const;
 
+	void activate();
 	void setFocus();
 	void setFocusFast();
 	void showError();
@@ -120,17 +122,21 @@ private:
 	void setupCountry();
 	void setupValidator(Fn<ValidateResult(ValidateRequest)> validator);
 	void setupFrontBackspace();
+	void setupSubmit();
 
 	const FieldConfig _config;
 	const base::unique_qptr<RpWidget> _wrap;
 	rpl::event_stream<> _frontBackspace;
 	rpl::event_stream<> _finished;
+	rpl::event_stream<> _submitted;
 	rpl::event_stream<> _textPossiblyChanged; // Must be above _masked.
 	InputField *_input = nullptr;
 	MaskedInputField *_masked = nullptr;
+	Field *_nextField = nullptr;
 	QString _countryIso2;
 	State _was;
 	bool _validating = false;
+	bool _valid = true;
 
 };
 

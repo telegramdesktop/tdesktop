@@ -430,6 +430,7 @@ Field::Field(QWidget *parent, FieldConfig &&config)
 		setupValidator(MoneyValidator(LookupCurrencyRule(config.currency)));
 	}
 	setupFrontBackspace();
+	setupSubmit();
 }
 
 RpWidget *Field::widget() const {
@@ -453,6 +454,10 @@ rpl::producer<> Field::frontBackspace() const {
 
 rpl::producer<> Field::finished() const {
 	return _finished.events();
+}
+
+rpl::producer<> Field::submitted() const {
+	return _submitted.events();
 }
 
 void Field::setupMaskedGeometry() {
@@ -492,6 +497,13 @@ void Field::setupCountry() {
 			_masked->setText(Data::CountryNameByISO2(iso2));
 			_masked->hideError();
 			raw->closeBox();
+			if (!iso2.isEmpty()) {
+				if (_nextField) {
+					_nextField->activate();
+				} else {
+					_submitted.fire({});
+				}
+			}
 		}, _masked->lifetime());
 		raw->boxClosing() | rpl::start_with_next([=] {
 			setFocus();
@@ -563,6 +575,8 @@ void Field::setupValidator(Fn<ValidateResult(ValidateRequest)> validator) {
 			.nowValue = now.value,
 			.nowPosition = now.position,
 		});
+		_valid = result.finished || !result.invalid;
+
 		const auto changed = (result.value != now.value);
 		if (changed) {
 			setText(result.value);
@@ -609,7 +623,26 @@ void Field::setupFrontBackspace() {
 	}
 }
 
+void Field::setupSubmit() {
+	const auto submitted = [=] {
+		if (!_valid) {
+			showError();
+		} else if (_nextField) {
+			_nextField->activate();
+		} else {
+			_submitted.fire({});
+		}
+	};
+	if (_masked) {
+		QObject::connect(_masked, &MaskedInputField::submitted, submitted);
+	} else {
+		QObject::connect(_input, &InputField::submitted, submitted);
+	}
+}
+
 void Field::setNextField(not_null<Field*> field) {
+	_nextField = field;
+
 	finished() | rpl::start_with_next([=] {
 		field->setFocus();
 	}, _masked ? _masked->lifetime() : _input->lifetime());
@@ -622,13 +655,19 @@ void Field::setPreviousField(not_null<Field*> field) {
 	}, _masked ? _masked->lifetime() : _input->lifetime());
 }
 
-void Field::setFocus() {
-	if (_config.type == FieldType::Country) {
-		_wrap->setFocus();
-	} else if (_input) {
+void Field::activate() {
+	if (_input) {
 		_input->setFocus();
 	} else {
 		_masked->setFocus();
+	}
+}
+
+void Field::setFocus() {
+	if (_config.type == FieldType::Country) {
+		_wrap->setFocus();
+	} else {
+		activate();
 	}
 }
 
