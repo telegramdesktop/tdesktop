@@ -1293,7 +1293,7 @@ void MembersController::updateRowLevel(
 
 Row *MembersController::findRow(not_null<PeerData*> participantPeer) const {
 	return static_cast<Row*>(
-		delegate()->peerListFindRow(participantPeer->id));
+		delegate()->peerListFindRow(participantPeer->id.value));
 }
 
 Main::Session &MembersController::session() const {
@@ -1402,7 +1402,7 @@ void MembersController::rowUpdateRow(not_null<Row*> row) {
 
 void MembersController::rowScheduleRaisedHandStatusRemove(
 		not_null<Row*> row) {
-	const auto id = row->peer()->id;
+	const auto id = row->id();
 	const auto when = crl::now() + kKeepRaisedHandStatusDuration;
 	const auto i = _raisedHandStatusRemoveAt.find(id);
 	if (i != _raisedHandStatusRemoveAt.end()) {

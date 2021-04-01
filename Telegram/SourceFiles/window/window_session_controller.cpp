@@ -160,7 +160,7 @@ void SessionNavigation::resolveChannelById(
 	_resolveRequestId = _session->api().request(MTPchannels_GetChannels(
 		MTP_vector<MTPInputChannel>(
 			1,
-			MTP_inputChannel(MTP_int(channelId), MTP_long(0)))
+			MTP_inputChannel(MTP_int(channelId.bare), MTP_long(0))) // #TODO ids
 	)).done([=](const MTPmessages_Chats &result) {
 		result.match([&](const auto &data) {
 			const auto peer = _session->data().processChats(data.vchats());

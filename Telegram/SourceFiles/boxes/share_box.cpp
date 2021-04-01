@@ -254,7 +254,7 @@ void ShareBox::prepare() {
 		applyFilterUpdate(query);
 	});
 	_select->setItemRemovedCallback([=](uint64 itemId) {
-		if (const auto peer = _descriptor.session->data().peerLoaded(itemId)) {
+		if (const auto peer = _descriptor.session->data().peerLoaded(PeerId(itemId))) {
 			_inner->peerUnselected(peer);
 			selectedChanged();
 			update();
@@ -469,7 +469,7 @@ void ShareBox::addPeerToMultiSelect(PeerData *peer, bool skipAnimation) {
 	using AddItemWay = Ui::MultiSelect::AddItemWay;
 	auto addItemWay = skipAnimation ? AddItemWay::SkipAnimation : AddItemWay::Default;
 	_select->addItem(
-		peer->id,
+		peer->id.value,
 		peer->isSelf() ? tr::lng_saved_short(tr::now) : peer->shortName(),
 		st::activeButtonBg,
 		PaintUserpicCallback(peer, true),
@@ -481,7 +481,7 @@ void ShareBox::innerSelectedChanged(PeerData *peer, bool checked) {
 		addPeerToMultiSelect(peer);
 		_select->clearQuery();
 	} else {
-		_select->removeItem(peer->id);
+		_select->removeItem(peer->id.value);
 	}
 	selectedChanged();
 	update();
@@ -1107,25 +1107,25 @@ QString AppendShareGameScoreUrl(
 		not_null<Main::Session*> session,
 		const QString &url,
 		const FullMsgId &fullId) {
-	auto shareHashData = QByteArray(0x10, Qt::Uninitialized);
-	auto shareHashDataInts = reinterpret_cast<int32*>(shareHashData.data());
+	auto shareHashData = QByteArray(0x20, Qt::Uninitialized);
+	auto shareHashDataInts = reinterpret_cast<uint64*>(shareHashData.data());
 	auto channel = fullId.channel
 		? session->data().channelLoaded(fullId.channel)
 		: static_cast<ChannelData*>(nullptr);
-	auto channelAccessHash = channel ? channel->access : 0ULL;
+	auto channelAccessHash = uint64(channel ? channel->access : 0);
 	auto channelAccessHashInts = reinterpret_cast<int32*>(&channelAccessHash);
-	shareHashDataInts[0] = session->userId();
-	shareHashDataInts[1] = fullId.channel;
+	shareHashDataInts[0] = session->userId().bare;
+	shareHashDataInts[1] = fullId.channel.bare;
 	shareHashDataInts[2] = fullId.msg;
-	shareHashDataInts[3] = channelAccessHashInts[0];
+	shareHashDataInts[3] = channelAccessHash;
 
 	// Count SHA1() of data.
 	auto key128Size = 0x10;
 	auto shareHashEncrypted = QByteArray(key128Size + shareHashData.size(), Qt::Uninitialized);
 	hashSha1(shareHashData.constData(), shareHashData.size(), shareHashEncrypted.data());
 
-	// Mix in channel access hash to the first 64 bits of SHA1 of data.
-	*reinterpret_cast<uint64*>(shareHashEncrypted.data()) ^= *reinterpret_cast<uint64*>(channelAccessHashInts);
+	//// Mix in channel access hash to the first 64 bits of SHA1 of data.
+	//*reinterpret_cast<uint64*>(shareHashEncrypted.data()) ^= channelAccessHash;
 
 	// Encrypt data.
 	if (!session->local().encrypt(shareHashData.constData(), shareHashEncrypted.data() + key128Size, shareHashData.size(), shareHashEncrypted.constData())) {
@@ -1157,7 +1157,7 @@ void ShareGameScoreByHash(
 	auto key128Size = 0x10;
 
 	auto hashEncrypted = QByteArray::fromBase64(hash.toLatin1(), QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
-	if (hashEncrypted.size() <= key128Size || (hashEncrypted.size() % 0x10) != 0) {
+	if (hashEncrypted.size() <= key128Size || (hashEncrypted.size() != key128Size + 0x20)) {
 		Ui::show(Box<InformBox>(tr::lng_confirm_phone_link_invalid(tr::now)));
 		return;
 	}
@@ -1172,37 +1172,46 @@ void ShareGameScoreByHash(
 	char dataSha1[20] = { 0 };
 	hashSha1(hashData.constData(), hashData.size(), dataSha1);
 
-	// Mix out channel access hash from the first 64 bits of SHA1 of data.
-	auto channelAccessHash = *reinterpret_cast<uint64*>(hashEncrypted.data()) ^ *reinterpret_cast<uint64*>(dataSha1);
+	//// Mix out channel access hash from the first 64 bits of SHA1 of data.
+	//auto channelAccessHash = *reinterpret_cast<uint64*>(hashEncrypted.data()) ^ *reinterpret_cast<uint64*>(dataSha1);
 
-	// Check next 64 bits of SHA1() of data.
-	auto skipSha1Part = sizeof(channelAccessHash);
-	if (memcmp(dataSha1 + skipSha1Part, hashEncrypted.constData() + skipSha1Part, key128Size - skipSha1Part) != 0) {
+	//// Check next 64 bits of SHA1() of data.
+	//auto skipSha1Part = sizeof(channelAccessHash);
+	//if (memcmp(dataSha1 + skipSha1Part, hashEncrypted.constData() + skipSha1Part, key128Size - skipSha1Part) != 0) {
+	//	Ui::show(Box<InformBox>(tr::lng_share_wrong_user(tr::now)));
+	//	return;
+	//}
+
+	// Check 128 bits of SHA1() of data.
+	if (memcmp(dataSha1, hashEncrypted.constData(), key128Size) != 0) {
 		Ui::show(Box<InformBox>(tr::lng_share_wrong_user(tr::now)));
 		return;
 	}
 
-	auto hashDataInts = reinterpret_cast<int32*>(hashData.data());
-	if (hashDataInts[0] != session->userId()) {
+	auto hashDataInts = reinterpret_cast<uint64*>(hashData.data());
+	if (hashDataInts[0] != session->userId().bare) {
 		Ui::show(Box<InformBox>(tr::lng_share_wrong_user(tr::now)));
 		return;
 	}
 
 	// Check first 32 bits of channel access hash.
-	auto channelAccessHashInts = reinterpret_cast<int32*>(&channelAccessHash);
-	if (channelAccessHashInts[0] != hashDataInts[3]) {
-		Ui::show(Box<InformBox>(tr::lng_share_wrong_user(tr::now)));
-		return;
-	}
+	auto channelAccessHash = hashDataInts[3];
+	//auto channelAccessHashInts = reinterpret_cast<int32*>(&channelAccessHash);
+	//if (channelAccessHashInts[0] != hashDataInts[3]) {
+	//	Ui::show(Box<InformBox>(tr::lng_share_wrong_user(tr::now)));
+	//	return;
+	//}
 
-	auto channelId = hashDataInts[1];
-	auto msgId = hashDataInts[2];
-	if (!channelId && channelAccessHash) {
+	if (((hashDataInts[1] >> 40) != 0)
+		|| ((hashDataInts[2] >> 32) != 0)
+		|| (!hashDataInts[1] && channelAccessHash)) {
 		// If there is no channel id, there should be no channel access_hash.
 		Ui::show(Box<InformBox>(tr::lng_share_wrong_user(tr::now)));
 		return;
 	}
 
+	auto channelId = ChannelId(hashDataInts[1]);
+	auto msgId = MsgId(hashDataInts[2]);
 	if (const auto item = session->data().message(channelId, msgId)) {
 		FastShareMessage(item);
 	} else {
@@ -1228,7 +1237,7 @@ void ShareGameScoreByHash(
 				MTP_vector<MTPInputChannel>(
 					1,
 					MTP_inputChannel(
-						MTP_int(channelId),
+						MTP_int(channelId.bare), // #TODO ids
 						MTP_long(channelAccessHash)))
 			)).done([=](const MTPmessages_Chats &result) {
 				result.match([&](const auto &data) {

@@ -3525,7 +3525,7 @@ HistoryItem *Session::findWebPageItem(not_null<WebPageData*> page) const {
 QString Session::findContactPhone(not_null<UserData*> contact) const {
 	const auto result = contact->phone();
 	return result.isEmpty()
-		? findContactPhone(contact->bareId())
+		? findContactPhone(peerToUser(contact->id))
 		: App::formatPhone(result);
 }
 
@@ -3970,7 +3970,7 @@ void Session::serviceNotification(
 				| MTPDuser::Flag::f_phone
 				| MTPDuser::Flag::f_status
 				| MTPDuser::Flag::f_verified),
-			MTP_int(peerToUser(PeerData::kServiceNotificationsId)),
+			MTP_int(peerToUser(PeerData::kServiceNotificationsId).bare), // #TODO ids
 			MTPlong(), // access_hash
 			MTP_string("Telegram"),
 			MTPstring(), // last_name

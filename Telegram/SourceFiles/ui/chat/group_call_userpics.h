@@ -18,7 +18,7 @@ namespace Ui {
 struct GroupCallUser {
 	QImage userpic;
 	std::pair<uint64, uint64> userpicKey = {};
-	int32 id = 0;
+	uint64 id = 0;
 	bool speaking = false;
 };
 

@@ -43,7 +43,7 @@ std::optional<StorageImageLocation> readLegacyStorageImageLocationOrTag(
 	return StorageImageLocation(
 		StorageFileLocation(
 			dc,
-			UserId(0),
+			UserId(0), // self
 			MTP_inputFileLocation(
 				MTP_long(volume),
 				MTP_int(local),
@@ -139,8 +139,8 @@ uint32 peerSize(not_null<PeerData*> peer) {
 	return result;
 }
 
-void writePeer(QDataStream &stream, PeerData *peer) {
-	stream << quint64(peer->id) << quint64(peer->userpicPhotoId());
+void writePeer(QDataStream &stream, not_null<PeerData*> peer) {
+	stream << SerializePeerId(peer->id) << quint64(peer->userpicPhotoId());
 	writeImageLocation(stream, peer->userpicLocation());
 	if (const auto user = peer->asUser()) {
 		stream
@@ -163,13 +163,15 @@ void writePeer(QDataStream &stream, PeerData *peer) {
 			<< qint32(user->isContact() ? 1 : 0)
 			<< qint32(user->isBot() ? user->botInfo->version : -1);
 	} else if (const auto chat = peer->asChat()) {
+		auto field1 = qint32(uint32(chat->creator.bare & 0xFFFFFFFFULL));
+		auto field2 = qint32(uint32(chat->creator.bare >> 32) << 8);
 		stream
 			<< chat->name
 			<< qint32(chat->count)
 			<< qint32(chat->date)
 			<< qint32(chat->version())
-			<< qint32(chat->creator)
-			<< qint32(0)
+			<< field1
+			<< field2
 			<< quint32(chat->flags())
 			<< chat->inviteLink();
 	} else if (const auto channel = peer->asChannel()) {
@@ -188,8 +190,9 @@ PeerData *readPeer(
 		not_null<Main::Session*> session,
 		int streamAppVersion,
 		QDataStream &stream) {
-	quint64 peerId = 0, photoId = 0;
-	stream >> peerId >> photoId;
+	quint64 peerIdSerialized = 0, photoId = 0;
+	stream >> peerIdSerialized >> photoId;
+	const auto peerId = DeserializePeerId(peerIdSerialized);
 	if (!peerId) {
 		return nullptr;
 	}
@@ -248,15 +251,20 @@ PeerData *readPeer(
 				user->input = MTP_inputPeerSelf();
 				user->inputUser = MTP_inputUserSelf();
 			} else {
-				user->input = MTP_inputPeerUser(MTP_int(peerToUser(user->id)), MTP_long(user->accessHash()));
-				user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long(user->accessHash()));
+				// #TODO ids
+				user->input = MTP_inputPeerUser(MTP_int(peerToUser(user->id).bare), MTP_long(user->accessHash()));
+				user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id).bare), MTP_long(user->accessHash()));
 			}
 		}
 	} else if (const auto chat = result->asChat()) {
 		QString name, inviteLink;
-		qint32 count, date, version, creator, oldForbidden;
+		qint32 count, date, version, field1, field2;
 		quint32 flagsData, flags;
-		stream >> name >> count >> date >> version >> creator >> oldForbidden >> flagsData >> inviteLink;
+		stream >> name >> count >> date >> version >> field1 >> field2 >> flagsData >> inviteLink;
+
+		const auto creator = UserId(
+			BareId(uint32(field1)) | (BareId(uint32(field2) >> 8) << 32));
+		const auto oldForbidden = ((uint32(field2) & 0xFF) == 1);
 
 		if (streamAppVersion >= 9012) {
 			flags = flagsData;
@@ -282,7 +290,8 @@ PeerData *readPeer(
 			chat->setFlags(MTPDchat::Flags::from_raw(flags));
 			chat->setInviteLink(inviteLink);
 
-			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
+			// #TODO ids
+			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id).bare));
 		}
 	} else if (const auto channel = result->asChannel()) {
 		QString name, inviteLink;
@@ -308,8 +317,9 @@ PeerData *readPeer(
 			channel->setFlags(MTPDchannel::Flags::from_raw(flags));
 			channel->setInviteLink(inviteLink);
 
-			channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
-			channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
+			// #TODO ids
+			channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id).bare), MTP_long(access));
+			channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id).bare), MTP_long(access));
 		}
 	}
 	if (apply) {
@@ -317,7 +327,7 @@ PeerData *readPeer(
 		const auto location = (userpic->valid() && userpic->isLegacy())
 			? userpic->convertToModern(
 				LocationType::PeerPhoto,
-				result->id,
+				result->id.value,
 				userpicAccessHash)
 			: *userpic;
 		result->setUserpic(photoId, location);
@@ -326,9 +336,10 @@ PeerData *readPeer(
 }
 
 QString peekUserPhone(int streamAppVersion, QDataStream &stream) {
-	quint64 peerId = 0, photoId = 0;
-	stream >> peerId >> photoId;
-	DEBUG_LOG(("peekUserPhone.id: %1").arg(peerId));
+	quint64 peerIdSerialized = 0, photoId = 0;
+	stream >> peerIdSerialized >> photoId;
+	const auto peerId = DeserializePeerId(peerIdSerialized);
+	DEBUG_LOG(("peekUserPhone.id: %1").arg(peerId.value));
 	if (!peerId
 		|| !peerIsUser(peerId)
 		|| !readStorageImageLocation(streamAppVersion, stream)) {

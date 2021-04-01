@@ -25,7 +25,7 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 
 ChatData::ChatData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
-, inputChat(MTP_int(bareId())) {
+, inputChat(MTP_int(peerToChat(id).bare)) {
 	_flags.changes(
 	) | rpl::start_with_next([=](const Flags::Change &change) {
 		if (change.diff & MTPDchat::Flag::f_call_not_empty) {
@@ -45,7 +45,7 @@ void ChatData::setPhoto(const MTPChatPhoto &photo) {
 }
 
 auto ChatData::defaultAdminRights(not_null<UserData*> user) -> AdminRights {
-	const auto isCreator = (creator == user->bareId())
+	const auto isCreator = (creator == peerToUser(user->id))
 		|| (user->isSelf() && amCreator());
 	using Flag = AdminRight;
 	return Flag::f_other
@@ -276,7 +276,7 @@ void ApplyChatUpdate(
 		chat->botStatus = 0;
 	} else {
 		chat->participants.emplace(user);
-		if (update.vinviter_id().v == session->userId()) {
+		if (UserId(update.vinviter_id()) == session->userId()) {
 			chat->invitedByMe.insert(user);
 		} else {
 			chat->invitedByMe.remove(user);
@@ -463,9 +463,9 @@ void ApplyChatUpdate(
 
 			const auto inviterId = participant.match([&](
 					const MTPDchatParticipantCreator &data) {
-				return 0;
+				return UserId(0);
 			}, [&](const auto &data) {
-				return data.vinviter_id().v;
+				return UserId(data.vinviter_id());
 			});
 			if (inviterId == selfUserId) {
 				chat->invitedByMe.insert(user);

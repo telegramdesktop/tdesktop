@@ -903,10 +903,11 @@ Window::Theme::Saved readThemeUsingKey(FileKey key) {
 	auto result = Saved();
 	auto &object = result.object;
 	auto &cache = result.cache;
+	auto field1 = qint32();
+	auto field2 = quint32();
 	theme.stream >> object.content;
 	theme.stream >> tag >> object.pathAbsolute;
 	if (tag == kThemeNewPathRelativeTag) {
-		auto creator = qint32();
 		theme.stream
 			>> object.pathRelative
 			>> object.cloud.id
@@ -914,8 +915,7 @@ Window::Theme::Saved readThemeUsingKey(FileKey key) {
 			>> object.cloud.slug
 			>> object.cloud.title
 			>> object.cloud.documentId
-			>> creator;
-		object.cloud.createdBy = creator;
+			>> field1;
 	} else {
 		object.pathRelative = tag;
 	}
@@ -947,18 +947,29 @@ Window::Theme::Saved readThemeUsingKey(FileKey key) {
 			}
 		}
 	}
+	int32 cachePaletteChecksum = 0;
+	int32 cacheContentChecksum = 0;
+	QByteArray cacheColors;
+	QByteArray cacheBackground;
+	theme.stream
+		>> cachePaletteChecksum
+		>> cacheContentChecksum
+		>> cacheColors
+		>> cacheBackground
+		>> field2;
 	if (!ignoreCache) {
-		quint32 backgroundIsTiled = 0;
-		theme.stream
-			>> cache.paletteChecksum
-			>> cache.contentChecksum
-			>> cache.colors
-			>> cache.background
-			>> backgroundIsTiled;
-		cache.tiled = (backgroundIsTiled == 1);
 		if (theme.stream.status() != QDataStream::Ok) {
 			return {};
 		}
+		cache.paletteChecksum = cachePaletteChecksum;
+		cache.contentChecksum = cacheContentChecksum;
+		cache.colors = std::move(cacheColors);
+		cache.background = std::move(cacheBackground);
+		cache.tiled = ((field2 & quint32(0xFF)) == 1);
+	}
+	if (tag == kThemeNewPathRelativeTag) {
+		object.cloud.createdBy = UserId(
+			((quint64(field2) >> 8) << 32) | quint64(quint32(field1)));
 	}
 	return result;
 }
@@ -1011,6 +1022,11 @@ void writeTheme(const Window::Theme::Saved &saved) {
 		+ Serialize::bytearraySize(cache.colors)
 		+ Serialize::bytearraySize(cache.background)
 		+ sizeof(quint32);
+	const auto bareCreatedById = object.cloud.createdBy.bare;
+	Assert((bareCreatedById & PeerId::kChatTypeMask) == bareCreatedById);
+	const auto field1 = qint32(quint32(bareCreatedById & 0xFFFFFFFFULL));
+	const auto field2 = quint32(cache.tiled ? 1 : 0)
+		| (quint32(bareCreatedById >> 32) << 8);
 	EncryptedDescriptor data(size);
 	data.stream
 		<< object.content
@@ -1022,12 +1038,12 @@ void writeTheme(const Window::Theme::Saved &saved) {
 		<< object.cloud.slug
 		<< object.cloud.title
 		<< object.cloud.documentId
-		<< qint32(object.cloud.createdBy)
+		<< field1
 		<< cache.paletteChecksum
 		<< cache.contentChecksum
 		<< cache.colors
 		<< cache.background
-		<< quint32(cache.tiled ? 1 : 0);
+		<< field2;
 
 	FileWriteDescriptor file(themeKey, _basePath);
 	file.writeEncrypted(data, SettingsKey);

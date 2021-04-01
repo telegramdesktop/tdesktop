@@ -302,7 +302,7 @@ void InviteController::itemDeselectedHook(not_null<PeerData*> peer) {
 }
 
 bool InviteController::hasRowFor(not_null<PeerData*> peer) const {
-	return (delegate()->peerListFindRow(peer->id) != nullptr);
+	return (delegate()->peerListFindRow(peer->id.value) != nullptr);
 }
 
 bool InviteController::isAlreadyIn(not_null<UserData*> user) const {
@@ -356,7 +356,7 @@ void InviteContactsController::prepareViewHook() {
 	std::move(
 		_discoveredInGroup
 	) | rpl::start_with_next([=](not_null<UserData*> user) {
-		if (auto row = delegate()->peerListFindRow(user->id)) {
+		if (auto row = delegate()->peerListFindRow(user->id.value)) {
 			delegate()->peerListRemoveRow(row);
 		}
 	}, _lifetime);

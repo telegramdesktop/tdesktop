@@ -232,7 +232,7 @@ rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
 QString UiIntegration::convertTagToMimeTag(const QString &tagId) {
 	if (TextUtilities::IsMentionLink(tagId)) {
 		if (const auto session = Core::App().activeAccount().maybeSession()) {
-			return tagId + ':' + QString::number(session->userId());
+			return tagId + ':' + QString::number(session->userId().bare);
 		}
 	}
 	return tagId;

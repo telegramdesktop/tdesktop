@@ -166,7 +166,7 @@ Image *ItemBase::getResultThumb(Data::FileOrigin origin) const {
 QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
 	if (_result->_type == Result::Type::Contact) {
 		auto result = Ui::EmptyUserpic(
-			Data::PeerUserpicColor(qHash(_result->_id)),
+			Data::PeerUserpicColor(FakeChatId(BareId(qHash(_result->_id)))),
 			_result->getLayoutTitle()
 		).generate(width);
 		if (result.height() != height * cIntRetinaFactor()) {

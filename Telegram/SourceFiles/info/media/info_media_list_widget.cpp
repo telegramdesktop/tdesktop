@@ -690,11 +690,9 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 FullMsgId ListWidget::computeFullId(
 		UniversalMsgId universalId) const {
 	Expects(universalId != 0);
-	auto peerChannel = [&] {
-		return _peer->isChannel() ? _peer->bareId() : NoChannel;
-	};
+
 	return (universalId > 0)
-		? FullMsgId(peerChannel(), universalId)
+		? FullMsgId(peerToChannel(_peer->id), universalId)
 		: FullMsgId(NoChannel, ServerMaxMsgId + universalId);
 }
 
@@ -799,8 +797,8 @@ bool ListWidget::isMyItem(not_null<const HistoryItem*> item) const {
 }
 
 bool ListWidget::isPossiblyMyId(FullMsgId fullId) const {
-	return (fullId.channel != 0)
-		? (_peer->isChannel() && _peer->bareId() == fullId.channel)
+	return fullId.channel
+		? (_peer->isChannel() && peerToChannel(_peer->id) == fullId.channel)
 		: (!_peer->isChannel() || _migrated);
 }
 

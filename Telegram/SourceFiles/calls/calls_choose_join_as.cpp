@@ -105,7 +105,7 @@ void ListController::rowClicked(not_null<PeerListRow*> row) {
 	if (peer == _selected) {
 		return;
 	}
-	const auto previous = delegate()->peerListFindRow(_selected->id);
+	const auto previous = delegate()->peerListFindRow(_selected->id.value);
 	Assert(previous != nullptr);
 	delegate()->peerListSetRowChecked(previous, false);
 	delegate()->peerListSetRowChecked(row, true);

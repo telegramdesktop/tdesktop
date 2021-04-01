@@ -791,7 +791,7 @@ bool HistoryMessage::checkCommentsLinkedChat(ChannelId id) const {
 		if (channel->linkedChatKnown()
 			|| !(channel->flags() & MTPDchannel::Flag::f_has_link)) {
 			const auto linked = channel->linkedChat();
-			if (!linked || linked->bareId() != id) {
+			if (!linked || peerToChannel(linked->id) != id) {
 				return false;
 			}
 		}
@@ -1108,7 +1108,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 						MTP_int(0),
 						MTP_int(0),
 						MTPVector<MTPPeer>(), // recent_repliers
-						MTP_int(linked->bareId()),
+						MTP_int(peerToChannel(linked->id).bare),
 						MTP_int(0), // max_id
 						MTP_int(0))); // read_max_id
 				}
@@ -1745,10 +1745,11 @@ void HistoryMessage::setReplies(const MTPMessageReplies &data) {
 			return result;
 		}();
 		const auto count = data.vreplies().v;
-		const auto channelId = data.vchannel_id().value_or_empty();
+		const auto channelId = ChannelId(
+			data.vchannel_id().value_or_empty());
 		const auto readTillId = data.vread_max_id()
 			? std::max(
-				{ views->repliesInboxReadTillId,  data.vread_max_id()->v, 1 })
+				{ views->repliesInboxReadTillId, data.vread_max_id()->v, 1 })
 			: views->repliesInboxReadTillId;
 		const auto maxId = data.vmax_id().value_or(views->repliesMaxId);
 		const auto countsChanged = (views->replies.count != count)

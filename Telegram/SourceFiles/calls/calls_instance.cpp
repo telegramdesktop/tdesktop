@@ -374,7 +374,7 @@ void Instance::handleCallUpdate(
 		const MTPPhoneCall &call) {
 	if (call.type() == mtpc_phoneCallRequested) {
 		auto &phoneCall = call.c_phoneCallRequested();
-		auto user = session->data().userLoaded(phoneCall.vadmin_id().v);
+		auto user = session->data().userLoaded(phoneCall.vadmin_id());
 		if (!user) {
 			LOG(("API Error: User not loaded for phoneCallRequested."));
 		} else if (user->isSelf()) {

@@ -971,7 +971,7 @@ void CopyPostLink(
 		Assert(channel != nullptr);
 		if (const auto rootId = item->replyToTop()) {
 			const auto root = item->history()->owner().message(
-				channel->bareId(),
+				peerToChannel(channel->id),
 				rootId);
 			const auto sender = root
 				? root->discussionPostOriginalSender()

@@ -48,8 +48,8 @@ QByteArray SessionSettings::serialize() const {
 		stream << qint32(kVersionTag) << qint32(kVersion);
 		stream << static_cast<qint32>(_selectorTab);
 		stream << qint32(_groupStickersSectionHidden.size());
-		for (auto peerId : _groupStickersSectionHidden) {
-			stream << quint64(peerId);
+		for (const auto peerId : _groupStickersSectionHidden) {
+			stream << SerializePeerId(peerId);
 		}
 		stream << qint32(_supportSwitch);
 		stream << qint32(_supportFixChatsOrder ? 1 : 0);
@@ -66,7 +66,7 @@ QByteArray SessionSettings::serialize() const {
 		}
 		stream << qint32(_hiddenPinnedMessages.size());
 		for (const auto &[key, value] : _hiddenPinnedMessages) {
-			stream << quint64(key) << qint32(value);
+			stream << SerializePeerId(key) << qint32(value);
 		}
 		stream << qint32(_dialogsFiltersEnabled ? 1 : 0);
 		stream << qint32(_supportAllSilent ? 1 : 0);
@@ -177,7 +177,8 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 						"Bad data for SessionSettings::addFromSerialized()"));
 					return;
 				}
-				groupStickersSectionHidden.insert(peerId);
+				groupStickersSectionHidden.emplace(
+					DeserializePeerId(peerId));
 			}
 		}
 	}
@@ -316,7 +317,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 						"Bad data for SessionSettings::addFromSerialized()"));
 					return;
 				}
-				hiddenPinnedMessages.emplace(key, value);
+				hiddenPinnedMessages.emplace(DeserializePeerId(key), value);
 			}
 		}
 	}

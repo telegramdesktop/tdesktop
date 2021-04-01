@@ -506,7 +506,7 @@ bool UserpicButton::createStreamingObjects(not_null<PhotoData*> photo) {
 	using namespace Media::Streaming;
 
 	const auto origin = _peer->isUser()
-		? Data::FileOriginUserPhoto(_peer->asUser()->bareId(), photo->id)
+		? Data::FileOriginUserPhoto(peerToUser(_peer->id), photo->id)
 		: Data::FileOrigin(Data::FileOriginPeerPhoto(_peer->id));
 	_streamed = std::make_unique<Instance>(
 		photo->owner().streaming().sharedDocument(photo, origin),

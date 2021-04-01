@@ -212,12 +212,12 @@ rpl::producer<> Session::downloaderTaskFinished() const {
 
 uint64 Session::uniqueId() const {
 	// See also Account::willHaveSessionUniqueId.
-	return uint64(uint32(userId()))
+	return userId().bare
 		| (mtp().isTestMode() ? 0x0100'0000'0000'0000ULL : 0ULL);
 }
 
 UserId Session::userId() const {
-	return _user->bareId();
+	return peerToUser(_user->id);
 }
 
 PeerId Session::userPeerId() const {
@@ -228,7 +228,7 @@ bool Session::validateSelf(const MTPUser &user) {
 	if (user.type() != mtpc_user || !user.c_user().is_self()) {
 		LOG(("API Error: bad self user received."));
 		return false;
-	} else if (user.c_user().vid().v != userId()) {
+	} else if (UserId(user.c_user().vid()) != userId()) {
 		LOG(("Auth Error: wrong self user received."));
 		crl::on_main(this, [=] { _account->logOut(); });
 		return false;

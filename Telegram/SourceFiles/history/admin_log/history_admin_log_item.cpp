@@ -350,7 +350,7 @@ auto GenerateParticipantString(
 	auto peer = session->data().peer(participantId);
 	auto name = TextWithEntities { peer->name };
 	if (const auto user = peer->asUser()) {
-		auto entityData = QString::number(user->id)
+		auto entityData = QString::number(user->id.value)
 			+ '.'
 			+ QString::number(user->accessHash());
 		name.entities.push_back({
