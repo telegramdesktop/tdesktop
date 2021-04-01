@@ -336,9 +336,14 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 		.canSaveCredentials = data.is_can_save_credentials(),
 		.passwordMissing = data.is_password_missing(),
 	};
-	if (_details.botId) {
-		if (const auto bot = _session->data().userLoaded(_details.botId)) {
+	if (const auto botId = _details.botId) {
+		if (const auto bot = _session->data().userLoaded(botId)) {
 			_invoice.cover.seller = bot->name;
+		}
+	}
+	if (const auto providerId = _details.providerId) {
+		if (const auto bot = _session->data().userLoaded(providerId)) {
+			_invoice.provider = bot->name;
 		}
 	}
 }
