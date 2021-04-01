@@ -497,6 +497,14 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("invite_to_group_call");
 		pushUserNames(data.userIds);
+	}, [&](const ActionSetMessagesTTL &data) {
+		pushActor();
+		pushAction("set_messages_ttl");
+		push("period", data.period);
+	}, [&](const ActionGroupCallScheduled &data) {
+		pushActor();
+		pushAction("group_call_scheduled");
+		push("schedule_date", data.date);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

@@ -405,6 +405,15 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareGroupCallScheduled = [this](const MTPDmessageActionGroupCallScheduled &action) {
+		const auto callId = CallIdFromInput(action.vcall());
+		const auto peer = history()->peer;
+		const auto linkCallId = PeerHasThisCall(peer, callId).value_or(false)
+			? callId
+			: 0;
+		return prepareStartedCallText(linkCallId);
+	};
+
 	const auto messageText = action.match([&](
 		const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -460,6 +469,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareInviteToGroupCall(data);
 	}, [&](const MTPDmessageActionSetMessagesTTL &data) {
 		return prepareSetMessagesTTL(data);
+	}, [&](const MTPDmessageActionGroupCallScheduled &data) {
+		return prepareGroupCallScheduled(data);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedText{ tr::lng_message_empty(tr::now) };
 	});

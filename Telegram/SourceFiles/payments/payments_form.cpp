@@ -293,14 +293,19 @@ void Form::processReceipt(const MTPDpayments_paymentReceipt &data) {
 }
 
 void Form::processInvoice(const MTPDinvoice &data) {
+	const auto suggested = data.vsuggested_tip_amounts().value_or_empty();
 	_invoice = Ui::Invoice{
 		.cover = std::move(_invoice.cover),
 
 		.prices = ParsePrices(data.vprices()),
-		.tipsMin = ParsePriceAmount(data.vmin_tip_amount().value_or_empty()),
+		.suggestedTips = ranges::views::all(
+			suggested
+		) | ranges::views::transform(
+			&MTPlong::v
+		) | ranges::views::transform(
+			ParsePriceAmount
+		) | ranges::to_vector,
 		.tipsMax = ParsePriceAmount(data.vmax_tip_amount().value_or_empty()),
-		.tipsSelected = ParsePriceAmount(
-			data.vdefault_tip_amount().value_or_empty()),
 		.currency = qs(data.vcurrency()),
 
 		.isNameRequested = data.is_name_requested(),
@@ -746,10 +751,7 @@ void Form::setShippingOption(const QString &id) {
 }
 
 void Form::setTips(int64 value) {
-	_invoice.tipsSelected = std::clamp(
-		value,
-		_invoice.tipsMin,
-		_invoice.tipsMax);
+	_invoice.tipsSelected = std::min(value, _invoice.tipsMax);
 }
 
 void Form::processShippingOptions(const QVector<MTPShippingOption> &data) {

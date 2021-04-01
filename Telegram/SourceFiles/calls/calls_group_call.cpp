@@ -328,8 +328,11 @@ bool GroupCall::showChooseJoinAs() const {
 
 void GroupCall::start() {
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
+		MTP_flags(0),
 		_peer->input,
-		MTP_int(openssl::RandomValue<int32>())
+		MTP_int(openssl::RandomValue<int32>()),
+		MTPstring(), // title
+		MTPint() // schedule_date
 	)).done([=](const MTPUpdates &result) {
 		_acceptFields = true;
 		_peer->session().api().applyUpdates(result);

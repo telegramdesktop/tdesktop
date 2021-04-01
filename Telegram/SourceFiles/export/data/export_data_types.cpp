@@ -1129,22 +1129,28 @@ ServiceAction ParseServiceAction(
 		}
 		result.content = content;
 	}, [&](const MTPDmessageActionSetMessagesTTL &data) {
-		// #TODO ttl
+		result.content = ActionSetMessagesTTL{
+			.period = data.vperiod().v,
+		};
+	}, [&](const MTPDmessageActionGroupCallScheduled &data) {
+		result.content = ActionGroupCallScheduled{
+			.date = data.vschedule_date().v,
+		};
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }
 
 File &Message::file() {
-	const auto service = &action.content;
-	if (const auto photo = std::get_if<ActionChatEditPhoto>(service)) {
+	const auto content = &action.content;
+	if (const auto photo = std::get_if<ActionChatEditPhoto>(content)) {
 		return photo->photo.image.file;
 	}
 	return media.file();
 }
 
 const File &Message::file() const {
-	const auto service = &action.content;
-	if (const auto photo = std::get_if<ActionChatEditPhoto>(service)) {
+	const auto content = &action.content;
+	if (const auto photo = std::get_if<ActionChatEditPhoto>(content)) {
 		return photo->photo.image.file;
 	}
 	return media.file();
