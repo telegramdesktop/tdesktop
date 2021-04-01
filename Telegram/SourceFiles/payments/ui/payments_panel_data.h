@@ -52,6 +52,7 @@ struct Invoice {
 	bool isFlexible = false;
 	bool isTest = false;
 
+	QString provider;
 	bool phoneSentToProvider = false;
 	bool emailSentToProvider = false;
 

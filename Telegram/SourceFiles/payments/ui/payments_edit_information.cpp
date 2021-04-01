@@ -176,6 +176,24 @@ not_null<RpWidget*> EditInformation::setupContent() {
 			.defaultPhone = _information.defaultPhone,
 		});
 	}
+	const auto emailToProvider = _invoice.isEmailRequested
+		&& _invoice.emailSentToProvider;
+	const auto phoneToProvider = _invoice.isPhoneRequested
+		&& _invoice.phoneSentToProvider;
+	if (emailToProvider || phoneToProvider) {
+		inner->add(
+			object_ptr<Ui::FlatLabel>(
+				inner,
+				((emailToProvider && phoneToProvider)
+					? tr::lng_payments_to_provider_phone_email
+					: emailToProvider
+					? tr::lng_payments_to_provider_email
+					: tr::lng_payments_to_provider_phone)(
+						lt_bot_name,
+						rpl::single(_invoice.provider)),
+				st::paymentsToProviderLabel),
+			st::paymentsToProviderPadding);
+	}
 	_save = inner->add(
 		object_ptr<Ui::Checkbox>(
 			inner,

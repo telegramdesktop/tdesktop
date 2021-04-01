@@ -1879,6 +1879,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_info_name" = "Name";
 "lng_payments_info_email" = "Email";
 "lng_payments_info_phone" = "Phone";
+"lng_payments_to_provider_phone_email" = "Phone and Email will be passed to {bot_name} as billing info.";
+"lng_payments_to_provider_email" = "Email will be passed to {bot_name} as billing info.";
+"lng_payments_to_provider_phone" = "Phone will be passed to {bot_name} as billing info.";
 "lng_payments_shipping_address_title" = "Shipping Information";
 "lng_payments_card_title" = "New Card";
 "lng_payments_card_number" = "Card Number";
