@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/input_fields.h"
 #include "ui/boxes/country_select_box.h"
+#include "ui/text/format_values.h"
 #include "ui/ui_utility.h"
 #include "ui/special_fields.h"
 #include "data/data_countries.h"
@@ -16,12 +17,190 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "styles/style_payments.h"
 
+#include <QtCore/QRegularExpression>
+
 namespace Payments::Ui {
 namespace {
+
+struct SimpleFieldState {
+	QString value;
+	int position = 0;
+};
+
+[[nodiscard]] char FieldThousandsSeparator(const CurrencyRule &rule) {
+	return (rule.thousands == '.' || rule.thousands == ',')
+		? ' '
+		: rule.thousands;
+}
+
+[[nodiscard]] QString RemoveNonNumbers(QString value) {
+	return value.replace(QRegularExpression("[^0-9]"), QString());
+}
+
+[[nodiscard]] SimpleFieldState CleanMoneyState(
+		const CurrencyRule &rule,
+		SimpleFieldState state) {
+	const auto withDecimal = state.value.replace(
+		QChar('.'),
+		rule.decimal
+	).replace(
+		QChar(','),
+		rule.decimal
+	);
+	const auto digitsLimit = 16 - rule.exponent;
+	const auto beforePosition = state.value.mid(0, state.position);
+	auto decimalPosition = withDecimal.lastIndexOf(rule.decimal);
+	if (decimalPosition < 0) {
+		state = {
+			.value = RemoveNonNumbers(state.value),
+			.position = RemoveNonNumbers(beforePosition).size(),
+		};
+	} else {
+		const auto onlyNumbersBeforeDecimal = RemoveNonNumbers(
+			state.value.mid(0, decimalPosition));
+		state = {
+			.value = (onlyNumbersBeforeDecimal
+				+ QChar(rule.decimal)
+				+ RemoveNonNumbers(state.value.mid(decimalPosition + 1))),
+			.position = (RemoveNonNumbers(beforePosition).size()
+				+ (state.position > decimalPosition ? 1 : 0)),
+		};
+		decimalPosition = onlyNumbersBeforeDecimal.size();
+		const auto maxLength = decimalPosition + 1 + rule.exponent;
+		if (state.value.size() > maxLength) {
+			state = {
+				.value = state.value.mid(0, maxLength),
+				.position = std::min(state.position, maxLength),
+			};
+		}
+	}
+	if (!state.value.isEmpty() && state.value[0] == QChar(rule.decimal)) {
+		state = {
+			.value = QChar('0') + state.value,
+			.position = state.position + 1,
+		};
+		if (decimalPosition >= 0) {
+			++decimalPosition;
+		}
+	}
+	auto skip = 0;
+	while (state.value.size() > skip + 1
+		&& state.value[skip] == QChar('0')
+		&& state.value[skip + 1] != QChar(rule.decimal)) {
+		++skip;
+	}
+	state = {
+		.value = state.value.mid(skip),
+		.position = std::max(state.position - skip, 0),
+	};
+	if (decimalPosition >= 0) {
+		Assert(decimalPosition >= skip);
+		decimalPosition -= skip;
+	}
+	if (decimalPosition > digitsLimit) {
+		state = {
+			.value = (state.value.mid(0, digitsLimit)
+				+ state.value.mid(decimalPosition)),
+			.position = (state.position > digitsLimit
+				? std::max(
+					state.position - (decimalPosition - digitsLimit),
+					digitsLimit)
+				: state.position),
+		};
+	}
+	return state;
+}
+
+[[nodiscard]] SimpleFieldState PostprocessMoneyResult(
+		const CurrencyRule &rule,
+		SimpleFieldState result) {
+	const auto position = result.value.indexOf(rule.decimal);
+	const auto from = (position >= 0) ? position : result.value.size();
+	for (auto insertAt = from - 3; insertAt > 0; insertAt -= 3) {
+		result.value.insert(insertAt, QChar(FieldThousandsSeparator(rule)));
+		if (result.position >= insertAt) {
+			++result.position;
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] bool IsBackspace(const FieldValidateRequest &request) {
+	return (request.wasAnchor == request.wasPosition)
+		&& (request.wasPosition == request.nowPosition + 1)
+		&& (request.wasValue.midRef(0, request.wasPosition - 1)
+			== request.nowValue.midRef(0, request.nowPosition))
+		&& (request.wasValue.midRef(request.wasPosition)
+			== request.nowValue.midRef(request.nowPosition));
+}
+
+[[nodiscard]] bool IsDelete(const FieldValidateRequest &request) {
+	return (request.wasAnchor == request.wasPosition)
+		&& (request.wasPosition == request.nowPosition)
+		&& (request.wasValue.midRef(0, request.wasPosition)
+			== request.nowValue.midRef(0, request.nowPosition))
+		&& (request.wasValue.midRef(request.wasPosition + 1)
+			== request.nowValue.midRef(request.nowPosition));
+}
+
+[[nodiscard]] auto MoneyValidator(const CurrencyRule &rule) {
+	return [=](FieldValidateRequest request) {
+		const auto realNowState = [&] {
+			const auto backspaced = IsBackspace(request);
+			const auto deleted = IsDelete(request);
+			if (!backspaced && !deleted) {
+				return CleanMoneyState(rule, {
+					.value = request.nowValue,
+					.position = request.nowPosition,
+				});
+			}
+			const auto realWasState = CleanMoneyState(rule, {
+				.value = request.wasValue,
+				.position = request.wasPosition,
+			});
+			const auto changedValue = deleted
+				? (realWasState.value.mid(0, realWasState.position)
+					+ realWasState.value.mid(realWasState.position + 1))
+				: (realWasState.position > 1)
+				? (realWasState.value.mid(0, realWasState.position - 1)
+					+ realWasState.value.mid(realWasState.position))
+				: realWasState.value.mid(realWasState.position);
+			return SimpleFieldState{
+				.value = changedValue,
+				.position = (deleted
+					? realWasState.position
+					: std::max(realWasState.position - 1, 0))
+			};
+		}();
+		const auto postprocessed = PostprocessMoneyResult(
+			rule,
+			realNowState);
+		return FieldValidateResult{
+			.value = postprocessed.value,
+			.position = postprocessed.position,
+		};
+	};
+}
 
 [[nodiscard]] QString Parse(const FieldConfig &config) {
 	if (config.type == FieldType::Country) {
 		return Data::CountryNameByISO2(config.value);
+	} else if (config.type == FieldType::Money) {
+		const auto amount = config.value.toLongLong();
+		if (!amount) {
+			return QString();
+		}
+		const auto rule = LookupCurrencyRule(config.currency);
+		const auto value = std::abs(amount) / std::pow(10., rule.exponent);
+		const auto precision = (!rule.stripDotZero
+			|| std::floor(value) != value)
+			? rule.exponent
+			: 0;
+		return FormatWithSeparators(
+			value,
+			precision,
+			rule.decimal,
+			FieldThousandsSeparator(rule));
 	}
 	return config.value;
 }
@@ -32,6 +211,20 @@ namespace {
 		const QString &countryIso2) {
 	if (config.type == FieldType::Country) {
 		return countryIso2;
+	} else if (config.type == FieldType::Money) {
+		const auto rule = LookupCurrencyRule(config.currency);
+		const auto real = QString(parsed).replace(
+			QChar(rule.decimal),
+			QChar('.')
+		).replace(
+			QChar(','),
+			QChar('.')
+		).replace(
+			QRegularExpression("[^0-9\\.]"),
+			QString()
+		).toDouble();
+		return QString::number(
+			int64(std::round(real * std::pow(10., rule.exponent))));
 	}
 	return parsed;
 }
@@ -46,7 +239,7 @@ namespace {
 	case FieldType::CardCVC:
 	case FieldType::Country:
 	case FieldType::Phone:
-	case FieldType::PriceAmount:
+	case FieldType::Money:
 		return true;
 	}
 	Unexpected("FieldType in Payments::Ui::UseMaskedField.");
@@ -68,7 +261,7 @@ namespace {
 	case FieldType::CardCVC:
 	case FieldType::Country:
 	case FieldType::Phone:
-	case FieldType::PriceAmount:
+	case FieldType::Money:
 		return base::make_unique_q<RpWidget>(parent);
 	}
 	Unexpected("FieldType in Payments::Ui::CreateWrap.");
@@ -82,9 +275,106 @@ namespace {
 		: static_cast<InputField*>(wrap.get());
 }
 
+[[nodiscard]] MaskedInputField *CreateMoneyField(
+		not_null<RpWidget*> wrap,
+		FieldConfig &config,
+		rpl::producer<> textPossiblyChanged) {
+	struct State {
+		CurrencyRule rule;
+		style::InputField st;
+		QString currencyText;
+		int currencySkip = 0;
+		FlatLabel *left = nullptr;
+		FlatLabel *right = nullptr;
+	};
+	const auto state = wrap->lifetime().make_state<State>(State{
+		.rule = LookupCurrencyRule(config.currency),
+		.st = st::paymentsField,
+	});
+	const auto &rule = state->rule;
+	state->currencySkip = rule.space ? state->st.font->spacew : 0;
+	state->currencyText = ((!rule.left && rule.space)
+		? QString(QChar(' '))
+		: QString()) + (*rule.international
+			? QString(rule.international)
+			: config.currency) + ((rule.left && rule.space)
+				? QString(QChar(' '))
+				: QString());
+	if (rule.left) {
+		state->left = CreateChild<FlatLabel>(
+			wrap.get(),
+			state->currencyText,
+			st::paymentsFieldAdditional);
+	}
+	state->right = CreateChild<FlatLabel>(
+		wrap.get(),
+		QString(),
+		st::paymentsFieldAdditional);
+	const auto leftSkip = state->left
+		? (state->left->naturalWidth() + state->currencySkip)
+		: 0;
+	const auto rightSkip = st::paymentsFieldAdditional.style.font->width(
+		QString(QChar(rule.decimal))
+		+ QString(QChar('0')).repeated(rule.exponent)
+		+ (rule.left ? QString() : state->currencyText));
+	state->st.textMargins += QMargins(leftSkip, 0, rightSkip, 0);
+	state->st.placeholderMargins -= QMargins(leftSkip, 0, rightSkip, 0);
+	const auto result = CreateChild<MaskedInputField>(
+		wrap.get(),
+		state->st,
+		std::move(config.placeholder),
+		Parse(config));
+	result->setPlaceholderHidden(true);
+	if (state->left) {
+		state->left->move(0, state->st.textMargins.top());
+	}
+	const auto updateRight = [=] {
+		const auto text = result->getLastText();
+		const auto width = state->st.font->width(text);
+		const auto rect = result->getTextRect();
+		const auto &rule = state->rule;
+		const auto symbol = QChar(rule.decimal);
+		const auto decimal = text.indexOf(symbol);
+		const auto zeros = (decimal >= 0)
+			? std::max(rule.exponent - (text.size() - decimal - 1), 0)
+			: rule.stripDotZero
+			? 0
+			: rule.exponent;
+		const auto valueDecimalSeparator = (decimal >= 0 || !zeros)
+			? QString()
+			: QString(symbol);
+		const auto zeroString = QString(QChar('0'));
+		const auto valueRightPart = (text.isEmpty() ? zeroString : QString())
+			+ valueDecimalSeparator
+			+ zeroString.repeated(zeros);
+		const auto right = valueRightPart
+			+ (rule.left ? QString() : state->currencyText);
+		state->right->setText(right);
+		state->right->setTextColorOverride(valueRightPart.isEmpty()
+			? std::nullopt
+			: std::make_optional(st::windowSubTextFg->c));
+		state->right->move(
+			(state->st.textMargins.left()
+				+ width
+				+ ((rule.left || !valueRightPart.isEmpty())
+					? 0
+					: state->currencySkip)),
+			state->st.textMargins.top());
+	};
+	std::move(
+		textPossiblyChanged
+	) | rpl::start_with_next(updateRight, result->lifetime());
+	if (state->left) {
+		state->left->raise();
+	}
+	state->right->raise();
+	return result;
+}
+
 [[nodiscard]] MaskedInputField *LookupMaskedField(
 		not_null<RpWidget*> wrap,
-		FieldConfig &config) {
+		FieldConfig &config,
+		rpl::producer<> textPossiblyChanged) {
 	if (!UseMaskedField(config.type)) {
 		return nullptr;
 	}
@@ -96,7 +386,6 @@ namespace {
 	case FieldType::CardExpireDate:
 	case FieldType::CardCVC:
 	case FieldType::Country:
-	case FieldType::PriceAmount:
 		return CreateChild<MaskedInputField>(
 			wrap.get(),
 			st::paymentsField,
@@ -109,6 +398,11 @@ namespace {
 			std::move(config.placeholder),
 			ExtractPhonePrefix(config.defaultPhone),
 			Parse(config));
+	case FieldType::Money:
+		return CreateMoneyField(
+			wrap,
+			config,
+			std::move(textPossiblyChanged));
 	}
 	Unexpected("FieldType in Payments::Ui::LookupMaskedField.");
 }
@@ -119,7 +413,10 @@ Field::Field(QWidget *parent, FieldConfig &&config)
 : _config(config)
 , _wrap(CreateWrap(parent, config))
 , _input(LookupInputField(_wrap.get(), config))
-, _masked(LookupMaskedField(_wrap.get(), config))
+, _masked(LookupMaskedField(
+	_wrap.get(),
+	config,
+	_textPossiblyChanged.events_starting_with({})))
 , _countryIso2(config.value) {
 	if (_masked) {
 		setupMaskedGeometry();
@@ -129,6 +426,8 @@ Field::Field(QWidget *parent, FieldConfig &&config)
 	}
 	if (const auto &validator = config.validator) {
 		setupValidator(validator);
+	} else if (config.type == FieldType::Money) {
+		setupValidator(MoneyValidator(LookupCurrencyRule(config.currency)));
 	}
 	setupFrontBackspace();
 }
@@ -210,7 +509,7 @@ void Field::setupValidator(Fn<ValidateResult(ValidateRequest)> validator) {
 			const auto selectionStart = _masked->selectionStart();
 			const auto selectionEnd = _masked->selectionEnd();
 			return {
-				.value = value(),
+				.value = _masked->getLastText(),
 				.position = position,
 				.anchor = (selectionStart == selectionEnd
 					? position
@@ -221,7 +520,7 @@ void Field::setupValidator(Fn<ValidateResult(ValidateRequest)> validator) {
 		}
 		const auto cursor = _input->textCursor();
 		return {
-			.value = value(),
+			.value = _input->getLastText(),
 			.position = cursor.position(),
 			.anchor = cursor.anchor(),
 		};
@@ -253,6 +552,7 @@ void Field::setupValidator(Fn<ValidateResult(ValidateRequest)> validator) {
 		const auto guard = gsl::finally([&] {
 			_validating = false;
 			save();
+			_textPossiblyChanged.fire({});
 		});
 
 		const auto now = state();

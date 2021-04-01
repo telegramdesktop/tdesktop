@@ -279,7 +279,9 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 			add(tr::lng_payments_tips_label(tr::now), tips);
 		}
 	} else if (_invoice.tipsMax > 0) {
-		const auto text = formatAmount(_invoice.tipsSelected);
+		const auto text = _invoice.tipsSelected
+			? formatAmount(_invoice.tipsSelected)
+			: tr::lng_payments_tips_add(tr::now);
 		const auto label = addRow(
 			tr::lng_payments_tips_label(tr::now),
 			Ui::Text::Link(text, "internal:edit_tips"));

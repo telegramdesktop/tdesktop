@@ -29,7 +29,7 @@ enum class FieldType {
 	Country,
 	Phone,
 	Email,
-	PriceAmount,
+	Money,
 };
 
 struct FieldValidateRequest {
@@ -83,6 +83,7 @@ struct FieldConfig {
 	QString value;
 	Fn<FieldValidateResult(FieldValidateRequest)> validator;
 	Fn<void(object_ptr<BoxContent>)> showBox;
+	QString currency;
 	QString defaultPhone;
 	QString defaultCountry;
 };
@@ -124,6 +125,7 @@ private:
 	const base::unique_qptr<RpWidget> _wrap;
 	rpl::event_stream<> _frontBackspace;
 	rpl::event_stream<> _finished;
+	rpl::event_stream<> _textPossiblyChanged; // Must be above _masked.
 	InputField *_input = nullptr;
 	MaskedInputField *_masked = nullptr;
 	QString _countryIso2;

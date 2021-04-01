@@ -59,6 +59,10 @@ paymentsIconPhone: icon {{ "payments/payment_phone", menuIconFg }};
 paymentsIconShippingMethod: icon {{ "payments/payment_shipping", menuIconFg }};
 
 paymentsField: defaultInputField;
+paymentsFieldAdditional: FlatLabel(defaultFlatLabel) {
+	style: boxTextStyle;
+}
+
 paymentsFieldPadding: margins(28px, 0px, 28px, 2px);
 paymentsSaveCheckboxPadding: margins(28px, 20px, 28px, 8px);
 paymentsExpireCvcSkip: 34px;
@@ -79,3 +83,9 @@ paymentsShippingPrice: FlatLabel(defaultFlatLabel) {
 }
 paymentsShippingLabelPosition: point(43px, 8px);
 paymentsShippingPricePosition: point(43px, 29px);
+
+paymentTipsErrorLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 275px;
+	textFg: boxTextFgError;
+}
+paymentTipsErrorPadding: margins(22px, 6px, 22px, 0px);
