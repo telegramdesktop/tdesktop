@@ -276,8 +276,18 @@ not_null<RpWidget*> EditCard::setupContent() {
 	const auto showBox = [=](object_ptr<BoxContent> box) {
 		_delegate->panelShowBox(std::move(box));
 	};
+	auto last = (Field*)nullptr;
+	const auto make = [&](QWidget *parent, FieldConfig &&config) {
+		auto result = std::make_unique<Field>(parent, std::move(config));
+		if (last) {
+			last->setNextField(result.get());
+			result->setPreviousField(last);
+		}
+		last = result.get();
+		return result;
+	};
 	const auto add = [&](FieldConfig &&config) {
-		auto result = std::make_unique<Field>(inner, std::move(config));
+		auto result = make(inner, std::move(config));
 		inner->add(result->ownedWidget(), st::paymentsFieldPadding);
 		return result;
 	};
@@ -291,12 +301,12 @@ not_null<RpWidget*> EditCard::setupContent() {
 			inner,
 			_number->widget()->height()),
 		st::paymentsFieldPadding);
-	_expire = std::make_unique<Field>(container, FieldConfig{
+	_expire = make(container, {
 		.type = FieldType::CardExpireDate,
 		.placeholder = rpl::single(u"MM / YY"_q),
 		.validator = ExpireDateValidator(),
 	});
-	_cvc = std::make_unique<Field>(container, FieldConfig{
+	_cvc = make(container, {
 		.type = FieldType::CardCVC,
 		.placeholder = rpl::single(u"CVC"_q),
 		.validator = CvcValidator([=] { return _number->value(); }),
@@ -317,15 +327,6 @@ not_null<RpWidget*> EditCard::setupContent() {
 			.placeholder = tr::lng_payments_card_holder(),
 			.validator = CardHolderNameValidator(),
 		});
-	}
-
-	_number->setNextField(_expire.get());
-	_expire->setPreviousField(_number.get());
-	_expire->setNextField(_cvc.get());
-	_cvc->setPreviousField(_expire.get());
-	if (_name) {
-		_cvc->setNextField(_name.get());
-		_name->setPreviousField(_cvc.get());
 	}
 
 	if (_native.needCountry || _native.needZip) {
@@ -366,6 +367,12 @@ not_null<RpWidget*> EditCard::setupContent() {
 				false),
 			st::paymentsSaveCheckboxPadding);
 	}
+
+	last->submitted(
+	) | rpl::start_with_next([=] {
+		_delegate->panelValidateCard(collect(), _save && _save->checked());
+	}, lifetime());
+
 	return inner;
 }
 

@@ -113,9 +113,15 @@ not_null<RpWidget*> EditInformation::setupContent() {
 	const auto showBox = [=](object_ptr<BoxContent> box) {
 		_delegate->panelShowBox(std::move(box));
 	};
+	auto last = (Field*)nullptr;
 	const auto add = [&](FieldConfig &&config) {
 		auto result = std::make_unique<Field>(inner, std::move(config));
 		inner->add(result->ownedWidget(), st::paymentsFieldPadding);
+		if (last) {
+			last->setNextField(result.get());
+			result->setPreviousField(last);
+		}
+		last = result.get();
 		return result;
 	};
 	if (_invoice.isShippingAddressRequested) {
@@ -200,6 +206,14 @@ not_null<RpWidget*> EditInformation::setupContent() {
 			tr::lng_payments_save_information(tr::now),
 			true),
 		st::paymentsSaveCheckboxPadding);
+
+	if (last) {
+		last->submitted(
+		) | rpl::start_with_next([=] {
+			_delegate->panelValidateInformation(collect());
+		}, lifetime());
+	}
+
 	return inner;
 }
 
