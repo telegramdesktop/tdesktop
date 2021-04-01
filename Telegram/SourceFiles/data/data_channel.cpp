@@ -48,7 +48,8 @@ void MegagroupInfo::setLocation(const ChannelLocation &location) {
 
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
-, inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0)))
+, inputChannel(
+	MTP_inputChannel(MTP_int(peerToChannel(id).bare), MTP_long(0)))
 , _ptsWaiter(&owner->session().updates()) {
 	_flags.changes(
 	) | rpl::start_with_next([=](const Flags::Change &change) {
@@ -90,8 +91,8 @@ void ChannelData::setName(const QString &newName, const QString &newUsername) {
 
 void ChannelData::setAccessHash(uint64 accessHash) {
 	access = accessHash;
-	input = MTP_inputPeerChannel(MTP_int(bareId()), MTP_long(accessHash));
-	inputChannel = MTP_inputChannel(MTP_int(bareId()), MTP_long(accessHash));
+	input = MTP_inputPeerChannel(MTP_int(peerToChannel(id).bare), MTP_long(accessHash)); // #TODO ids
+	inputChannel = MTP_inputChannel(MTP_int(peerToChannel(id).bare), MTP_long(accessHash));
 }
 
 void ChannelData::setInviteLink(const QString &newInviteLink) {
@@ -348,7 +349,7 @@ void ChannelData::markForbidden() {
 		MTP_flags(isMegagroup()
 			? MTPDchannelForbidden::Flag::f_megagroup
 			: MTPDchannelForbidden::Flag::f_broadcast),
-		MTP_int(bareId()),
+		MTP_int(peerToChannel(id).bare),
 		MTP_long(access),
 		MTP_string(name),
 		MTPint()));

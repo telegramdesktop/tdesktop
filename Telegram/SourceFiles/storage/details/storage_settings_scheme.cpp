@@ -1039,13 +1039,13 @@ bool ReadSetting(
 	} break;
 
 	case dbiHiddenPinnedMessagesOld: {
-		auto v = QMap<PeerId, MsgId>();
+		auto v = QMap<uint64, MsgId>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
 		for (auto i = v.begin(), e = v.end(); i != e; ++i) {
 			context.sessionSettings().setHiddenPinnedMessageId(
-				i.key(),
+				DeserializePeerId(i.key()),
 				i.value());
 		}
 		context.legacyRead = true;

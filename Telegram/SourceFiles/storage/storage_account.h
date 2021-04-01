@@ -195,13 +195,13 @@ private:
 	void readDraftCursorsLegacy(
 		PeerId peerId,
 		details::FileReadDescriptor &draft,
-		quint64 draftPeer,
+		quint64 draftPeerSerialized,
 		Data::HistoryDrafts &map);
 	void clearDraftCursors(PeerId peerId);
 	void readDraftsWithCursorsLegacy(
 		not_null<History*> history,
 		details::FileReadDescriptor &draft,
-		quint64 draftPeer);
+		quint64 draftPeerSerialized);
 
 	void writeStickerSet(
 		QDataStream &stream,

@@ -420,6 +420,8 @@ PRIVATE
     data/data_notify_settings.h
     data/data_peer.cpp
     data/data_peer.h
+    data/data_peer_id.cpp
+    data/data_peer_id.h
     data/data_peer_values.cpp
     data/data_peer_values.h
     data/data_photo.cpp

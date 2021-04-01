@@ -86,8 +86,8 @@ void PeerListBox::createMultiSelect() {
 		if (_controller->handleDeselectForeignRow(itemId)) {
 			return;
 		}
-		if (const auto peer = _controller->session().data().peerLoaded(itemId)) {
-			if (const auto row = peerListFindRow(peer->id)) {
+		if (const auto peer = _controller->session().data().peerLoaded(PeerId(itemId))) {
+			if (const auto row = peerListFindRow(itemId)) {
 				content()->changeCheckState(row, false, anim::type::normal);
 				update();
 			}
@@ -275,11 +275,11 @@ void PeerListController::search(const QString &query) {
 }
 
 void PeerListController::peerListSearchAddRow(not_null<PeerData*> peer) {
-	if (auto row = delegate()->peerListFindRow(peer->id)) {
-		Assert(row->id() == row->peer()->id);
+	if (auto row = delegate()->peerListFindRow(peer->id.value)) {
+		Assert(row->id() == row->peer()->id.value);
 		delegate()->peerListAppendFoundRow(row);
 	} else if (auto row = createSearchRow(peer)) {
-		Assert(row->id() == row->peer()->id);
+		Assert(row->id() == row->peer()->id.value);
 		delegate()->peerListAppendSearchRow(std::move(row));
 	}
 }
@@ -353,7 +353,7 @@ void PeerListBox::addSelectItem(
 		? tr::lng_replies_messages(tr::now)
 		: peer->shortName();
 	addSelectItem(
-		peer->id,
+		peer->id.value,
 		text,
 		PaintUserpicCallback(peer, respect),
 		animated);
@@ -420,7 +420,7 @@ auto PeerListBox::collectSelectedRows()
 		result.reserve(items.size());
 		for (const auto itemId : items) {
 			if (!_controller->isForeignRow(itemId)) {
-				result.push_back(_controller->session().data().peer(itemId));
+				result.push_back(_controller->session().data().peer(PeerId(itemId)));
 			}
 		}
 	}
@@ -428,7 +428,7 @@ auto PeerListBox::collectSelectedRows()
 }
 
 PeerListRow::PeerListRow(not_null<PeerData*> peer)
-: PeerListRow(peer, peer->id) {
+: PeerListRow(peer, peer->id.value) {
 }
 
 PeerListRow::PeerListRow(not_null<PeerData*> peer, PeerListRowId id)
@@ -800,7 +800,7 @@ void PeerListContent::addRowEntry(not_null<PeerListRow*> row) {
 		addToSearchIndex(row);
 	}
 	if (_controller->isRowSelected(row)) {
-		Assert(row->special() || row->id() == row->peer()->id);
+		Assert(row->special() || row->id() == row->peer()->id.value);
 		changeCheckState(row, true, anim::type::instant);
 	}
 }
@@ -1643,7 +1643,7 @@ void PeerListContent::restoreState(
 	auto searchWords = TextUtilities::PrepareSearchWords(query);
 	setSearchQuery(query, searchWords.join(' '));
 	for (auto peer : state->filterResults) {
-		if (auto existingRow = findRow(peer->id)) {
+		if (auto existingRow = findRow(peer->id.value)) {
 			_filterResults.push_back(existingRow);
 		} else if (auto row = _controller->createSearchRow(peer)) {
 			appendSearchRow(std::move(row));

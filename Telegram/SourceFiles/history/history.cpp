@@ -2499,7 +2499,7 @@ void History::dialogEntryApplied() {
 		addOlderSlice(QVector<MTPMessage>());
 		if (const auto channel = peer->asChannel()) {
 			const auto inviter = channel->inviter;
-			if (inviter > 0 && channel->amIn()) {
+			if (inviter && channel->amIn()) {
 				if (const auto from = owner().userLoaded(inviter)) {
 					insertJoinedMessage();
 				}
@@ -2511,7 +2511,7 @@ void History::dialogEntryApplied() {
 	if (chatListTimeId() != 0 && loadedAtBottom()) {
 		if (const auto channel = peer->asChannel()) {
 			const auto inviter = channel->inviter;
-			if (inviter > 0
+			if (inviter
 				&& chatListTimeId() <= channel->inviteDate
 				&& channel->amIn()) {
 				if (const auto from = owner().userLoaded(inviter)) {
@@ -2766,7 +2766,7 @@ HistoryService *History::insertJoinedMessage() {
 		return _joinedMessage;
 	}
 
-	const auto inviter = (peer->asChannel()->inviter > 0)
+	const auto inviter = peer->asChannel()->inviter
 		? owner().userLoaded(peer->asChannel()->inviter)
 		: nullptr;
 	if (!inviter) {
@@ -2837,7 +2837,7 @@ void History::checkLocalMessages() {
 	}
 	if (isChannel()
 		&& !_joinedMessage
-		&& (peer->asChannel()->inviter > 0)
+		&& peer->asChannel()->inviter
 		&& goodDate(peer->asChannel()->inviteDate)) {
 		insertJoinedMessage();
 	}

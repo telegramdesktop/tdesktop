@@ -42,8 +42,8 @@ struct UserPhotosRemoveOne {
 	UserPhotosRemoveOne(
 		UserId userId,
 		PhotoId photoId)
-		: userId(userId)
-		, photoId(photoId) {
+	: userId(userId)
+	, photoId(photoId) {
 	}
 
 	UserId userId = 0;

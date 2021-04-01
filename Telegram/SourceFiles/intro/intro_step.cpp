@@ -153,7 +153,7 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 		const auto raw = existing.get();
 		if (const auto session = raw->maybeSession()) {
 			if (raw->mtp().environment() == _account->mtp().environment()
-				&& user.c_user().vid().v == session->userId()) {
+				&& UserId(user.c_user().vid()) == session->userId()) {
 				_account->logOut();
 				crl::on_main(raw, [=] {
 					Core::App().domain().activate(raw);

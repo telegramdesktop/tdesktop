@@ -35,15 +35,17 @@ EntitiesInText EntitiesFromMTP(
 			case mtpc_messageEntityMention: { auto &d = entity.c_messageEntityMention(); result.push_back({ EntityType::Mention, d.voffset().v, d.vlength().v }); } break;
 			case mtpc_messageEntityMentionName: {
 				const auto &d = entity.c_messageEntityMentionName();
+				const auto userId = UserId(d.vuser_id());
 				const auto data = [&] {
 					if (session) {
-						if (const auto user = session->data().userLoaded(d.vuser_id().v)) {
+						if (const auto user = session->data().userLoaded(userId)) {
 							return MentionNameDataFromFields({
-								d.vuser_id().v,
-								user->accessHash() });
+								userId.bare,
+								user->accessHash()
+							});
 						}
 					}
-					return MentionNameDataFromFields(d.vuser_id().v);
+					return MentionNameDataFromFields(userId.bare);
 				}();
 				result.push_back({ EntityType::MentionName, d.voffset().v, d.vlength().v, data });
 			} break;
@@ -51,10 +53,11 @@ EntitiesInText EntitiesFromMTP(
 				const auto &d = entity.c_inputMessageEntityMentionName();
 				const auto data = [&] {
 					if (session && d.vuser_id().type() == mtpc_inputUserSelf) {
-						return MentionNameDataFromFields(session->userId());
+						return MentionNameDataFromFields(session->userId().bare);
 					} else if (d.vuser_id().type() == mtpc_inputUser) {
 						auto &user = d.vuser_id().c_inputUser();
-						return MentionNameDataFromFields({ user.vuser_id().v, user.vaccess_hash().v });
+						const auto userId = UserId(user.vuser_id());
+						return MentionNameDataFromFields({ userId.bare, user.vaccess_hash().v });
 					}
 					return QString();
 				}();
@@ -110,7 +113,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 		case EntityType::MentionName: {
 			auto inputUser = [&](const QString &data) -> MTPInputUser {
 				auto fields = MentionNameDataToFields(data);
-				if (session && fields.userId == session->userId()) {
+				if (session && fields.userId == session->userId().bare) {
 					return MTP_inputUserSelf();
 				} else if (fields.userId) {
 					return MTP_inputUser(MTP_int(fields.userId), MTP_long(fields.accessHash));

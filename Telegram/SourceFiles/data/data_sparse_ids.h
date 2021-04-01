@@ -119,9 +119,7 @@ private:
 			: !fullId.channel;
 	}
 	static FullMsgId ComputeId(PeerId peerId, MsgId msgId) {
-		return FullMsgId(
-			peerIsChannel(peerId) ? peerToBareInt(peerId) : 0,
-			msgId);
+		return FullMsgId(peerToChannel(peerId), msgId);
 	}
 	static FullMsgId ComputeId(const Key &key) {
 		return (key.universalId >= 0)

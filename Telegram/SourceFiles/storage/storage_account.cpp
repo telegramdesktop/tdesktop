@@ -276,10 +276,11 @@ Account::ReadMapResult Account::readMapWith(
 			map.stream >> count;
 			for (quint32 i = 0; i < count; ++i) {
 				FileKey key;
-				quint64 p;
-				map.stream >> key >> p;
-				draftsMap.emplace(p, key);
-				draftsNotReadMap.emplace(p, true);
+				quint64 peerIdSerialized;
+				map.stream >> key >> peerIdSerialized;
+				const auto peerId = DeserializePeerId(peerIdSerialized);
+				draftsMap.emplace(peerId, key);
+				draftsNotReadMap.emplace(peerId, true);
 			}
 		} break;
 		case lskSelfSerialized: {
@@ -290,9 +291,10 @@ Account::ReadMapResult Account::readMapWith(
 			map.stream >> count;
 			for (quint32 i = 0; i < count; ++i) {
 				FileKey key;
-				quint64 p;
-				map.stream >> key >> p;
-				draftCursorsMap.emplace(p, key);
+				quint64 peerIdSerialized;
+				map.stream >> key >> peerIdSerialized;
+				const auto peerId = DeserializePeerId(peerIdSerialized);
+				draftCursorsMap.emplace(peerId, key);
 			}
 		} break;
 		case lskLegacyImages:
@@ -494,13 +496,13 @@ void Account::writeMap() {
 	if (!_draftsMap.empty()) {
 		mapData.stream << quint32(lskDraft) << quint32(_draftsMap.size());
 		for (const auto &[key, value] : _draftsMap) {
-			mapData.stream << quint64(value) << quint64(key);
+			mapData.stream << quint64(value) << SerializePeerId(key);
 		}
 	}
 	if (!_draftCursorsMap.empty()) {
 		mapData.stream << quint32(lskDraftPosition) << quint32(_draftCursorsMap.size());
 		for (const auto &[key, value] : _draftCursorsMap) {
-			mapData.stream << quint64(value) << quint64(key);
+			mapData.stream << quint64(value) << SerializePeerId(key);
 		}
 	}
 	if (_locationsKey) {
@@ -1036,7 +1038,7 @@ void Account::writeDrafts(
 	EncryptedDescriptor data(size);
 	data.stream
 		<< quint64(kMultiDraftTag)
-		<< quint64(peerId)
+		<< SerializePeerId(peerId)
 		<< quint32(count);
 
 	const auto writeCallback = [&](
@@ -1102,7 +1104,7 @@ void Account::writeDraftCursors(
 	EncryptedDescriptor data(size);
 	data.stream
 		<< quint64(kMultiDraftTag)
-		<< quint64(peerId)
+		<< SerializePeerId(peerId)
 		<< quint32(count);
 
 	const auto writeCallback = [&](
@@ -1155,9 +1157,10 @@ void Account::readDraftCursors(PeerId peerId, Data::HistoryDrafts &map) {
 		readDraftCursorsLegacy(peerId, draft, tag, map);
 		return;
 	}
-	quint64 draftPeer = 0;
+	quint64 draftPeerSerialized = 0;
 	quint32 count = 0;
-	draft.stream >> draftPeer >> count;
+	draft.stream >> draftPeerSerialized >> count;
+	const auto draftPeer = DeserializePeerId(draftPeerSerialized);
 	if (!count || count > 1000 || draftPeer != peerId) {
 		clearDraftCursors(peerId);
 		return;
@@ -1174,15 +1177,16 @@ void Account::readDraftCursors(PeerId peerId, Data::HistoryDrafts &map) {
 void Account::readDraftCursorsLegacy(
 		PeerId peerId,
 		details::FileReadDescriptor &draft,
-		quint64 draftPeer,
+		quint64 draftPeerSerialized,
 		Data::HistoryDrafts &map) {
 	qint32 localPosition = 0, localAnchor = 0, localScroll = QFIXED_MAX;
 	qint32 editPosition = 0, editAnchor = 0, editScroll = QFIXED_MAX;
-	draft.stream >> draftPeer >> localPosition >> localAnchor >> localScroll;
+	draft.stream >> localPosition >> localAnchor >> localScroll;
 	if (!draft.stream.atEnd()) {
 		draft.stream >> editPosition >> editAnchor >> editScroll;
 	}
 
+	const auto draftPeer = DeserializePeerId(draftPeerSerialized);
 	if (draftPeer != peerId) {
 		clearDraftCursors(peerId);
 		return;
@@ -1237,8 +1241,9 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 		return;
 	}
 	quint32 count = 0;
-	quint64 draftPeer = 0;
-	draft.stream >> draftPeer >> count;
+	quint64 draftPeerSerialized = 0;
+	draft.stream >> draftPeerSerialized >> count;
+	const auto draftPeer = DeserializePeerId(draftPeerSerialized);
 	if (!count || count > 1000 || draftPeer != peerId) {
 		ClearKey(j->second, _basePath);
 		_draftsMap.erase(j);
@@ -1287,7 +1292,7 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 void Account::readDraftsWithCursorsLegacy(
 		not_null<History*> history,
 		details::FileReadDescriptor &draft,
-		quint64 draftPeer) {
+		quint64 draftPeerSerialized) {
 	TextWithTags msgData, editData;
 	QByteArray msgTagsSerialized, editTagsSerialized;
 	qint32 msgReplyTo = 0, msgPreviewCancelled = 0, editMsgId = 0, editPreviewCancelled = 0;
@@ -1309,6 +1314,7 @@ void Account::readDraftsWithCursorsLegacy(
 		}
 	}
 	const auto peerId = history->peer->id;
+	const auto draftPeer = DeserializePeerId(draftPeerSerialized);
 	if (draftPeer != peerId) {
 		const auto j = _draftsMap.find(peerId);
 		if (j != _draftsMap.cend()) {
@@ -2511,7 +2517,7 @@ void Account::writeTrustedBots() {
 	data.stream << qint32(_trustedBots.size());
 	for (const auto &[peerId, mask] : _trustedBots) {
 		// value: 8 bit mask, 56 bit bot peer_id.
-		auto value = quint64(peerId);
+		auto value = SerializePeerId(peerId);
 		Assert((value >> 56) == 0);
 		value |= (quint64(mask) << 56);
 		data.stream << value;
@@ -2539,7 +2545,8 @@ void Account::readTrustedBots() {
 		trusted.stream >> value;
 		const auto mask = base::flags<BotTrustFlag>::from_raw(
 			uchar(value >> 56));
-		const auto peerId = value & ~(0xFFULL << 56);
+		const auto peerIdSerialized = value & ~(0xFFULL << 56);
+		const auto peerId = DeserializePeerId(peerIdSerialized);
 		_trustedBots.emplace(peerId, mask);
 	}
 }

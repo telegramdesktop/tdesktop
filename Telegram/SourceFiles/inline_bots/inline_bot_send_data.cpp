@@ -59,7 +59,7 @@ void SendDataCommon::addToHistory(
 			peerToMTP(fromId),
 			peerToMTP(history->peer->id),
 			MTPMessageFwdHeader(),
-			MTP_int(viaBotId),
+			MTP_int(viaBotId.bare), // #TODO ids
 			replyHeader,
 			mtpDate,
 			fields.text,

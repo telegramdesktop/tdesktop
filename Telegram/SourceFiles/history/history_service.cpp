@@ -496,7 +496,7 @@ void HistoryService::applyAction(const MTPMessageAction &action) {
 		if (const auto channel = history()->peer->asMegagroup()) {
 			const auto selfUserId = history()->session().userId();
 			for (const auto &item : data.vusers().v) {
-				if (item.v == selfUserId) {
+				if (peerFromUser(item) == selfUserId) {
 					channel->mgInfo->joinedMessageFound = true;
 					break;
 				}

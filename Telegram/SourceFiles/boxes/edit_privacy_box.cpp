@@ -182,11 +182,11 @@ QVector<MTPInputPrivacyRule> EditPrivacyBox::collectResult() {
 		return result;
 	};
 	const auto collectInputChats = [](const auto &peers) {
-		auto result = QVector<MTPint>();
+		auto result = QVector<MTPint>(); // #TODO ids
 		result.reserve(peers.size());
 		for (const auto peer : peers) {
 			if (!peer->isUser()) {
-				result.push_back(MTP_int(peer->bareId()));
+				result.push_back(peerToBareMTPInt(peer->id));
 			}
 		}
 		return result;

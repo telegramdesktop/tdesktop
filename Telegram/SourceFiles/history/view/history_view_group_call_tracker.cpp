@@ -149,7 +149,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 			state->current.users.push_back({
 				.userpic = pic.toImage(),
 				.userpicKey = userpic.uniqueKey,
-				.id = userpic.peer->bareId(),
+				.id = userpic.peer->id.value,
 				.speaking = userpic.speaking,
 			});
 			if (userpic.peer->hasUserpic()

@@ -782,11 +782,12 @@ bool MediaContact::updateSentMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaContact) {
 		return false;
 	}
-	if (_contact.userId != media.c_messageMediaContact().vuser_id().v) {
+	const auto userId = UserId(media.c_messageMediaContact().vuser_id());
+	if (_contact.userId != userId) {
 		parent()->history()->owner().unregisterContactItem(
 			_contact.userId,
 			parent());
-		_contact.userId = media.c_messageMediaContact().vuser_id().v;
+		_contact.userId = userId;
 		parent()->history()->owner().registerContactItem(
 			_contact.userId,
 			parent());

@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_peer_id.h"
+
 class FileLoader;
 
 namespace Storage {
@@ -65,7 +67,7 @@ public:
 	StorageFileLocation() = default;
 	StorageFileLocation(
 		int32 dcId,
-		int32 self,
+		UserId self,
 		const MTPInputFileLocation &tl);
 
 	[[nodiscard]] StorageFileLocation convertToModern(
@@ -75,7 +77,7 @@ public:
 
 	[[nodiscard]] int32 dcId() const;
 	[[nodiscard]] uint64 objectId() const;
-	[[nodiscard]] MTPInputFileLocation tl(int32 self) const;
+	[[nodiscard]] MTPInputFileLocation tl(UserId self) const;
 
 	[[nodiscard]] QByteArray serialize() const;
 	[[nodiscard]] int serializeSize() const;
@@ -112,7 +114,7 @@ private:
 	uint64 _id = 0;
 	uint64 _accessHash = 0;
 	uint64 _volumeId = 0;
-	uint32 _inMessagePeerId = 0; // > 0 'userId', < 0 '-channelId'.
+	PeerId _inMessagePeerId = 0;
 	uint32 _inMessageId = 0;
 	QByteArray _fileReference;
 

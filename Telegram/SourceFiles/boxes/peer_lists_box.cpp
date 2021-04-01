@@ -46,7 +46,7 @@ auto PeerListsBox::collectSelectedRows()
 				return false;
 			}();
 			if (!foreign) {
-				result.push_back(session->data().peer(itemId));
+				result.push_back(session->data().peer(PeerId(itemId)));
 			}
 		}
 	}
@@ -108,10 +108,10 @@ void PeerListsBox::createMultiSelect() {
 			}
 		}
 		const auto session = &firstController()->session();
-		if (const auto peer = session->data().peerLoaded(itemId)) {
+		if (const auto peer = session->data().peerLoaded(PeerId(itemId))) {
 			const auto id = peer->id;
 			for (const auto &list : _lists) {
-				if (const auto row = list.delegate->peerListFindRow(id)) {
+				if (const auto row = list.delegate->peerListFindRow(id.value)) {
 					list.content->changeCheckState(
 						row,
 						false,
@@ -385,7 +385,7 @@ void PeerListsBox::addSelectItem(
 		not_null<PeerData*> peer,
 		anim::type animated) {
 	addSelectItem(
-		peer->id,
+		peer->id.value,
 		peer->shortName(),
 		PaintUserpicCallback(peer, false),
 		animated);

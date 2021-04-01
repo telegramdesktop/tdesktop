@@ -93,7 +93,7 @@ QString FieldTagMimeProcessor::tagFromMimeTag(const QString &mimeTag) {
 		const auto userId = _controller->session().userId();
 		auto match = QRegularExpression(":(\\d+)$").match(mimeTag);
 		if (!match.hasMatch()
-			|| match.capturedRef(1).toInt() != userId) {
+			|| match.capturedRef(1).toULongLong() != userId.bare) {
 			return QString();
 		}
 		return mimeTag.mid(0, mimeTag.size() - match.capturedLength());
@@ -249,7 +249,7 @@ TextWithEntities StripSupportHashtag(TextWithEntities &&text) {
 
 QString PrepareMentionTag(not_null<UserData*> user) {
 	return TextUtilities::kMentionTagStart
-		+ QString::number(user->bareId())
+		+ QString::number(user->id.value)
 		+ '.'
 		+ QString::number(user->accessHash());
 }

@@ -50,7 +50,7 @@ private:
 	std::unique_ptr<PeerListRow> createRow(not_null<PeerData*> peer);
 
 	struct SavedState : SavedStateBase {
-		int32 preloadGroupId = 0;
+		PeerId preloadGroupId = 0;
 		bool allLoaded = false;
 		bool wasLoading = false;
 	};
@@ -59,7 +59,7 @@ private:
 	not_null<UserData*> _user;
 	mtpRequestId _preloadRequestId = 0;
 	bool _allLoaded = false;
-	int32 _preloadGroupId = 0;
+	PeerId _preloadGroupId = 0;
 
 };
 
@@ -96,7 +96,9 @@ void ListController::loadMoreRows() {
 	}
 	_preloadRequestId = _api.request(MTPmessages_GetCommonChats(
 		_user->inputUser,
-		MTP_int(_preloadGroupId),
+		MTP_int(peerIsChat(_preloadGroupId)
+			? peerToChat(_preloadGroupId).bare
+			: peerToChannel(_preloadGroupId).bare), // #TODO ids
 		MTP_int(kCommonGroupsPerPage)
 	)).done([this](const MTPmessages_Chats &result) {
 		_preloadRequestId = 0;
@@ -112,7 +114,7 @@ void ListController::loadMoreRows() {
 						delegate()->peerListAppendRow(
 							createRow(peer));
 					}
-					_preloadGroupId = peer->bareId();
+					_preloadGroupId = peer->id;
 					_allLoaded = false;
 				}
 			}

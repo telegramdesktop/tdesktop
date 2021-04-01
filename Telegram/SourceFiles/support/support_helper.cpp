@@ -576,11 +576,13 @@ QString InterpretSendPath(
 	auto caption = QString();
 	for (const auto &line : lines) {
 		if (line.startsWith(qstr("from: "))) {
-			if (window->session().userId() != line.midRef(qstr("from: ").size()).toInt()) {
+			if (window->session().userId().bare
+				!= line.midRef(qstr("from: ").size()).toULongLong()) {
 				return "App Error: Wrong current user.";
 			}
 		} else if (line.startsWith(qstr("channel: "))) {
-			const auto channelId = line.midRef(qstr("channel: ").size()).toInt();
+			const auto channelId = line.midRef(
+				qstr("channel: ").size()).toULongLong();
 			toId = peerFromChannel(channelId);
 		} else if (line.startsWith(qstr("file: "))) {
 			const auto path = line.mid(qstr("file: ").size());
@@ -598,7 +600,8 @@ QString InterpretSendPath(
 	}
 	const auto history = window->session().data().historyLoaded(toId);
 	if (!history) {
-		return "App Error: Could not find channel with id: " + QString::number(peerToChannel(toId));
+		return "App Error: Could not find channel with id: "
+			+ QString::number(peerToChannel(toId).bare);
 	}
 	Ui::showPeerHistory(history, ShowAtUnreadMsgId);
 	history->session().api().sendFiles(

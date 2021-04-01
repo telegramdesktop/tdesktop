@@ -112,7 +112,7 @@ private:
 	}
 	if (const auto chat = peer->asChat()) {
 		return chat->admins.contains(user)
-			|| (chat->creator == user->bareId());
+			|| (chat->creator == peerToUser(user->id));
 	} else if (const auto group = peer->asChannel()) {
 		if (const auto mgInfo = group->mgInfo.get()) {
 			if (mgInfo->creator == user) {

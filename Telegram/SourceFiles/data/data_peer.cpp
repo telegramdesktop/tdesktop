@@ -54,14 +54,14 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 
 namespace Data {
 
-int PeerColorIndex(int32 bareId) {
-	const auto index = std::abs(bareId) % 7;
+int PeerColorIndex(BareId bareId) {
+	const auto index = bareId % 7;
 	const int map[] = { 0, 7, 4, 1, 6, 3, 5 };
 	return map[index];
 }
 
 int PeerColorIndex(PeerId peerId) {
-	return PeerColorIndex(peerToBareInt(peerId));
+	return PeerColorIndex(peerId.value & PeerId::kChatTypeMask);
 }
 
 style::color PeerUserpicColor(PeerId peerId) {
@@ -373,7 +373,7 @@ Data::FileOrigin PeerData::userpicOrigin() const {
 
 Data::FileOrigin PeerData::userpicPhotoOrigin() const {
 	return (isUser() && userpicPhotoId())
-		? Data::FileOriginUserPhoto(bareId(), userpicPhotoId())
+		? Data::FileOriginUserPhoto(peerToUser(id).bare, userpicPhotoId())
 		: Data::FileOrigin();
 }
 
@@ -383,7 +383,7 @@ void PeerData::updateUserpic(PhotoId photoId, MTP::DcId dcId) {
 		ImageLocation(
 			{ StorageFileLocation(
 				dcId,
-				isSelf() ? peerToUser(id) : 0,
+				isSelf() ? peerToUser(id) : UserId(),
 				MTP_inputPeerPhotoFileLocation(
 					MTP_flags(0),
 					input,

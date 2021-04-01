@@ -76,6 +76,15 @@ inline QString ToString(uint64 value) {
 	return QString::number(value);
 }
 
+template <uchar Shift>
+inline QString ToString(ChatIdType<Shift> value) {
+	return QString::number(value.bare);
+}
+
+inline QString ToString(PeerId value) {
+	return QString::number(value.value);
+}
+
 } // namespace details
 
 template <
