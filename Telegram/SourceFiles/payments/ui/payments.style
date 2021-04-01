@@ -28,6 +28,9 @@ paymentsTitle: FlatLabel(paymentsDescription) {
 paymentsSeller: FlatLabel(paymentsDescription) {
 	textFg: windowSubTextFg;
 }
+paymentsWebviewBottom: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
 paymentsPriceLabel: paymentsDescription;
 paymentsPriceAmount: defaultFlatLabel;
 paymentsFullPriceLabel: paymentsTitle;

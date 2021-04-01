@@ -405,6 +405,7 @@ void Form::refreshPaymentMethodDetails() {
 	const auto &saved = _paymentMethod.savedCredentials;
 	const auto &entered = _paymentMethod.newCredentials;
 	_paymentMethod.ui.title = entered ? entered.title : saved.title;
+	_paymentMethod.ui.provider = _invoice.provider;
 	_paymentMethod.ui.ready = entered || saved;
 	_paymentMethod.ui.native.defaultCountry = defaultCountry();
 	_paymentMethod.ui.canSaveInformation
