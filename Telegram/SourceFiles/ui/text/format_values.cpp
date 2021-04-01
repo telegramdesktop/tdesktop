@@ -45,40 +45,6 @@ namespace {
 	return phrase(tr::now, lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
 }
 
-[[nodiscard]] QString FormatWithSeparators(
-		double amount,
-		int precision,
-		char decimal,
-		char thousands) {
-	Expects(decimal != 0);
-
-	// Thanks https://stackoverflow.com/a/5058949
-	struct FormattingHelper : std::numpunct<char> {
-		FormattingHelper(char decimal, char thousands)
-		: decimal(decimal)
-		, thousands(thousands) {
-		}
-
-		char do_decimal_point() const override { return decimal; }
-		char do_thousands_sep() const override { return thousands; }
-
-		char decimal = '.';
-		char thousands = ',';
-	};
-
-	auto stream = std::ostringstream();
-	stream.imbue(std::locale(
-		stream.getloc(),
-		new FormattingHelper(decimal, thousands ? thousands : '?')));
-	stream.precision(precision);
-	stream << std::fixed << amount;
-	auto result = QString::fromStdString(stream.str());
-	if (!thousands) {
-		result.replace('?', QString());
-	}
-	return result;
-}
-
 } // namespace
 
 QString FormatSizeText(qint64 size) {
@@ -162,16 +128,37 @@ QString FormatPlayedText(qint64 played, qint64 duration) {
 }
 
 QString FillAmountAndCurrency(int64 amount, const QString &currency) {
-	struct Rule {
-		//const char *name = "";
-		//const char *native = "";
-		const char *international = "";
-		char thousands = ',';
-		char decimal = '.';
-		bool left = true;
-		bool space = false;
-	};
-	static const auto kRules = std::vector<std::pair<QString, Rule>>{
+	const auto rule = LookupCurrencyRule(currency);
+
+	const auto prefix = (amount < 0)
+		? QString::fromUtf8("\xe2\x88\x92")
+		: QString();
+	const auto value = std::abs(amount) / std::pow(10., rule.exponent);
+	const auto name = (*rule.international)
+		? QString::fromUtf8(rule.international)
+		: currency;
+	auto result = prefix;
+	if (rule.left) {
+		result.append(name);
+		if (rule.space) result.append(' ');
+	}
+	const auto precision = (!rule.stripDotZero || std::floor(value) != value)
+		? rule.exponent
+		: 0;
+	result.append(FormatWithSeparators(
+		value,
+		precision,
+		rule.decimal,
+		rule.thousands));
+	if (!rule.left) {
+		if (rule.space) result.append(' ');
+		result.append(name);
+	}
+	return result;
+}
+
+CurrencyRule LookupCurrencyRule(const QString &currency) {
+	static const auto kRules = std::vector<std::pair<QString, CurrencyRule>>{
 		{ u"AED"_q, { "", ',', '.', true, true } },
 		{ u"AFN"_q, {} },
 		{ u"ALL"_q, { "", '.', ',', false } },
@@ -185,11 +172,11 @@ QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 		{ u"BND"_q, { "", '.', ',', } },
 		{ u"BOB"_q, { "", '.', ',', true, true } },
 		{ u"BRL"_q, { "R$", '.', ',', true, true } },
-		{ u"BHD"_q, { "", ',', '.', true, true } },
-		{ u"BYR"_q, { "", ' ', ',', false, true } },
+		{ u"BHD"_q, { "", ',', '.', true, true, 3 } },
+		{ u"BYR"_q, { "", ' ', ',', false, true, 0 } },
 		{ u"CAD"_q, { "CA$" } },
 		{ u"CHF"_q, { "", '\'', '.', false, true } },
-		{ u"CLP"_q, { "", '.', ',', true, true } },
+		{ u"CLP"_q, { "", '.', ',', true, true, 0 } },
 		{ u"CNY"_q, { "\x43\x4E\xC2\xA5" } },
 		{ u"COP"_q, { "", '.', ',', true, true } },
 		{ u"CRC"_q, { "", '.', ',', } },
@@ -209,12 +196,12 @@ QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 		{ u"IDR"_q, { "", '.', ',', } },
 		{ u"ILS"_q, { "\xE2\x82\xAA", ',', '.', true, true } },
 		{ u"INR"_q, { "\xE2\x82\xB9" } },
-		{ u"ISK"_q, { "", '.', ',', false, true } },
+		{ u"ISK"_q, { "", '.', ',', false, true, 0 } },
 		{ u"JMD"_q, {} },
-		{ u"JPY"_q, { "\xC2\xA5" } },
+		{ u"JPY"_q, { "\xC2\xA5", ',', '.', true, false, 0 } },
 		{ u"KES"_q, {} },
 		{ u"KGS"_q, { "", ' ', '-', false, true } },
-		{ u"KRW"_q, { "\xE2\x82\xA9" } },
+		{ u"KRW"_q, { "\xE2\x82\xA9", ',', '.', true, false, 0 } },
 		{ u"KZT"_q, { "", ' ', '-', } },
 		{ u"LBP"_q, { "", ',', '.', true, true } },
 		{ u"LKR"_q, { "", ',', '.', true, true } },
@@ -236,7 +223,7 @@ QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 		{ u"PHP"_q, {} },
 		{ u"PKR"_q, {} },
 		{ u"PLN"_q, { "", ' ', ',', false, true } },
-		{ u"PYG"_q, { "", '.', ',', true, true } },
+		{ u"PYG"_q, { "", '.', ',', true, true, 0 } },
 		{ u"QAR"_q, { "", ',', '.', true, true } },
 		{ u"RON"_q, { "", '.', ',', false, true } },
 		{ u"RSD"_q, { "", '.', ',', false, true } },
@@ -251,27 +238,27 @@ QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 		{ u"TWD"_q, { "NT$" } },
 		{ u"TZS"_q, {} },
 		{ u"UAH"_q, { "", ' ', ',', false } },
-		{ u"UGX"_q, {} },
+		{ u"UGX"_q, { "", ',', '.', true, false, 0 } },
 		{ u"USD"_q, { "$" } },
 		{ u"UYU"_q, { "", '.', ',', true, true } },
 		{ u"UZS"_q, { "", ' ', ',', false, true } },
-		{ u"VND"_q, { "\xE2\x82\xAB", '.', ',', false, true } },
+		{ u"VND"_q, { "\xE2\x82\xAB", '.', ',', false, true, 0 } },
 		{ u"YER"_q, { "", ',', '.', true, true } },
 		{ u"ZAR"_q, { "", ',', '.', true, true } },
-		{ u"IRR"_q, { "", ',', '/', false, true } },
-		{ u"IQD"_q, { "", ',', '.', true, true } },
+		{ u"IRR"_q, { "", ',', '/', false, true, 2, true } },
+		{ u"IQD"_q, { "", ',', '.', true, true, 3 } },
 		{ u"VEF"_q, { "", '.', ',', true, true } },
 		{ u"SYP"_q, { "", ',', '.', true, true } },
 
-		//{ u"VUV"_q, { "", ',', '.', false } },
+		//{ u"VUV"_q, { "", ',', '.', false, false, 0 } },
 		//{ u"WST"_q, {} },
-		//{ u"XAF"_q, { "FCFA", ',', '.', false } },
+		//{ u"XAF"_q, { "FCFA", ',', '.', false, false, 0 } },
 		//{ u"XCD"_q, {} },
-		//{ u"XOF"_q, { "CFA", ' ', ',', false } },
-		//{ u"XPF"_q, { "", ',', '.', false } },
+		//{ u"XOF"_q, { "CFA", ' ', ',', false, false, 0 } },
+		//{ u"XPF"_q, { "", ',', '.', false, false, 0 } },
 		//{ u"ZMW"_q, {} },
 		//{ u"ANG"_q, {} },
-		//{ u"RWF"_q, { "", ' ', ',', true, true } },
+		//{ u"RWF"_q, { "", ' ', ',', true, true, 0 } },
 		//{ u"PGK"_q, {} },
 		//{ u"TOP"_q, {} },
 		//{ u"SBD"_q, {} },
@@ -286,109 +273,85 @@ QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 		//{ u"AOA"_q, {} },
 		//{ u"AWG"_q, {} },
 		//{ u"BBD"_q, {} },
-		//{ u"BIF"_q, { "", ',', '.', false } },
+		//{ u"BIF"_q, { "", ',', '.', false, false, 0 } },
 		//{ u"BMD"_q, {} },
 		//{ u"BSD"_q, {} },
 		//{ u"BWP"_q, {} },
 		//{ u"BZD"_q, {} },
 		//{ u"CDF"_q, { "", ',', '.', false } },
-		//{ u"CVE"_q, {} },
-		//{ u"DJF"_q, { "", ',', '.', false } },
+		//{ u"CVE"_q, { "", ',', '.', true, false, 0 } },
+		//{ u"DJF"_q, { "", ',', '.', false, false, 0 } },
 		//{ u"ETB"_q, {} },
 		//{ u"FJD"_q, {} },
 		//{ u"FKP"_q, {} },
 		//{ u"GIP"_q, {} },
 		//{ u"GMD"_q, { "", ',', '.', false } },
-		//{ u"GNF"_q, { "", ',', '.', false } },
+		//{ u"GNF"_q, { "", ',', '.', false, false, 0 } },
 		//{ u"GYD"_q, {} },
 		//{ u"HTG"_q, {} },
 		//{ u"KHR"_q, { "", ',', '.', false } },
-		//{ u"KMF"_q, { "", ',', '.', false } },
+		//{ u"KMF"_q, { "", ',', '.', false, false, 0 } },
 		//{ u"KYD"_q, {} },
 		//{ u"LAK"_q, { "", ',', '.', false } },
 		//{ u"LRD"_q, {} },
 		//{ u"LSL"_q, { "", ',', '.', false } },
-		//{ u"MGA"_q, {} },
+		//{ u"MGA"_q, { "", ',', '.', true, false, 0 } },
 		//{ u"MKD"_q, { "", '.', ',', false, true } },
 		//{ u"MOP"_q, {} },
 		//{ u"MWK"_q, {} },
 		//{ u"NAD"_q, {} },
+		//{ u"CLF"_q, { "", ',', '.', true, false, 4 } },
+		//{ u"JOD"_q, { "", ',', '.', true, false, 3 } },
+		//{ u"KWD"_q, { "", ',', '.', true, false, 3 } },
+		//{ u"LYD"_q, { "", ',', '.', true, false, 3 } },
+		//{ u"OMR"_q, { "", ',', '.', true, false, 3 } },
+		//{ u"TND"_q, { "", ',', '.', true, false, 3 } },
+		//{ u"UYI"_q, { "", ',', '.', true, false, 0 } },
+		//{ u"MRO"_q, { "", ',', '.', true, false, 1 } },
 	};
 	static const auto kRulesMap = [] {
 		// flat_multi_map_pair_type lacks some required constructors :(
-		auto &&pairs = kRules | ranges::views::transform([](auto &&pair) {
-			return base::flat_multi_map_pair_type<QString, Rule>(
+		auto &&list = kRules | ranges::views::transform([](auto &&pair) {
+			return base::flat_multi_map_pair_type<QString, CurrencyRule>(
 				pair.first,
 				pair.second);
 		});
-		return base::flat_map<QString, Rule>(begin(pairs), end(pairs));
+		return base::flat_map<QString, CurrencyRule>(begin(list), end(list));
 	}();
-	static const auto kExponents = base::flat_map<QString, int>{
-		{ u"CLF"_q, 4 },
-		{ u"BHD"_q, 3 },
-		{ u"IQD"_q, 3 },
-		{ u"JOD"_q, 3 },
-		{ u"KWD"_q, 3 },
-		{ u"LYD"_q, 3 },
-		{ u"OMR"_q, 3 },
-		{ u"TND"_q, 3 },
-		{ u"BIF"_q, 0 },
-		{ u"BYR"_q, 0 },
-		{ u"CLP"_q, 0 },
-		{ u"CVE"_q, 0 },
-		{ u"DJF"_q, 0 },
-		{ u"GNF"_q, 0 },
-		{ u"ISK"_q, 0 },
-		{ u"JPY"_q, 0 },
-		{ u"KMF"_q, 0 },
-		{ u"KRW"_q, 0 },
-		{ u"MGA"_q, 0 },
-		{ u"PYG"_q, 0 },
-		{ u"RWF"_q, 0 },
-		{ u"UGX"_q, 0 },
-		{ u"UYI"_q, 0 },
-		{ u"VND"_q, 0 },
-		{ u"VUV"_q, 0 },
-		{ u"XAF"_q, 0 },
-		{ u"XOF"_q, 0 },
-		{ u"XPF"_q, 0 },
-		{ u"MRO"_q, 1 },
+	const auto i = kRulesMap.find(currency);
+	return (i != end(kRulesMap)) ? i->second : CurrencyRule{};
+}
+
+[[nodiscard]] QString FormatWithSeparators(
+		double amount,
+		int precision,
+		char decimal,
+		char thousands) {
+	Expects(decimal != 0);
+
+	// Thanks https://stackoverflow.com/a/5058949
+	struct FormattingHelper : std::numpunct<char> {
+		FormattingHelper(char decimal, char thousands)
+		: decimal(decimal)
+		, thousands(thousands) {
+		}
+
+		char do_decimal_point() const override { return decimal; }
+		char do_thousands_sep() const override { return thousands; }
+
+		char decimal = '.';
+		char thousands = ',';
 	};
 
-	const auto prefix = (amount < 0)
-		? QString::fromUtf8("\xe2\x88\x92")
-		: QString();
-
-	const auto exponentIt = kExponents.find(currency);
-	const auto exponent = (exponentIt != end(kExponents))
-		? exponentIt->second
-		: 2;
-	const auto value = std::abs(amount) / std::pow(10., exponent);
-	const auto ruleIt = kRulesMap.find(currency);
-	if (ruleIt == end(kRulesMap)) {
-		return prefix + QLocale::system().toCurrencyString(value, currency);
-	}
-	const auto &rule = ruleIt->second;
-	const auto name = (*rule.international)
-		? QString::fromUtf8(rule.international)
-		: currency;
-	auto result = prefix;
-	if (rule.left) {
-		result.append(name);
-		if (rule.space) result.append(' ');
-	}
-	const auto precision = (currency != u"IRR"_q
-		|| std::floor(value) != value)
-		? exponent
-		: 0;
-	result.append(FormatWithSeparators(
-		value,
-		precision,
-		rule.decimal,
-		rule.thousands));
-	if (!rule.left) {
-		if (rule.space) result.append(' ');
-		result.append(name);
+	auto stream = std::ostringstream();
+	stream.imbue(std::locale(
+		stream.getloc(),
+		new FormattingHelper(decimal, thousands ? thousands : '?')));
+	stream.precision(precision);
+	stream << std::fixed << amount;
+	auto result = QString::fromStdString(stream.str());
+	if (!thousands) {
+		result.replace('?', QString());
 	}
 	return result;
 }

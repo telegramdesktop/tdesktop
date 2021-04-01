@@ -1891,9 +1891,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_password_title" = "Payment Confirmation";
 "lng_payments_password_description" = "Your card {card} is on file. To pay with this card, please enter your 2-Step-Verification password.";
 "lng_payments_password_submit" = "Pay";
-"lng_payments_tips_label" = "Tips";
-"lng_payments_tips_title" = "Tips";
-"lng_payments_tips_enter" = "Enter tips amount";
+"lng_payments_tips_label" = "Tip (Optional)";
+"lng_payments_tips_add" = "Add Tip";
+"lng_payments_tips_box_title" = "Add Tip";
+"lng_payments_tips_max" = "Max possible tip amount: {amount}";
 
 "lng_call_status_incoming" = "is calling you...";
 "lng_call_status_connecting" = "connecting...";

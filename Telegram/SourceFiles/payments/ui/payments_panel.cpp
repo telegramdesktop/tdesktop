@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/ui/payments_field.h"
 #include "ui/widgets/separate_panel.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/wrap/fade_wrap.h"
 #include "ui/boxes/single_choice_box.h"
 #include "ui/text/format_values.h"
 #include "lang/lang_keys.h"
@@ -23,18 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 
 namespace Payments::Ui {
-namespace {
-
-[[nodiscard]] auto PriceAmountValidator(int64 min, int64 max) {
-	return [=](FieldValidateRequest request) {
-		return FieldValidateResult{
-			.value = request.nowValue,
-			.position = request.nowPosition,
-		};
-	};
-}
-
-} // namespace
 
 Panel::Panel(not_null<PanelDelegate*> delegate)
 : _delegate(delegate)
@@ -193,27 +182,52 @@ void Panel::chooseTips(const Invoice &invoice) {
 	const auto min = invoice.tipsMin;
 	const auto max = invoice.tipsMax;
 	const auto now = invoice.tipsSelected;
+	const auto currency = invoice.currency;
 	showBox(Box([=](not_null<Ui::GenericBox*> box) {
-		box->setTitle(tr::lng_payments_tips_title());
-
+		box->setTitle(tr::lng_payments_tips_box_title());
 		const auto row = box->lifetime().make_state<Field>(
 			box,
 			FieldConfig{
-				.type = FieldType::PriceAmount,
-				.placeholder = tr::lng_payments_tips_enter(),
+				.type = FieldType::Money,
 				.value = QString::number(now),
-				.validator = PriceAmountValidator(min, max),
+				.currency = ([&]() -> QString {
+					static auto counter = 0;
+					switch (++counter % 9) {
+					case 0: return "USD";
+					case 1: return "EUR";
+					case 2: return "IRR";
+					case 3: return "BRL";
+					case 4: return "ALL";
+					case 5: return "AZN";
+					case 6: return "CHF";
+					case 7: return "DKK";
+					case 8: return "KZT";
+					}
+					return currency;
+				})(), // #TODO payments currency,
 			});
 		box->setFocusCallback([=] {
 			row->setFocusFast();
 		});
 		box->addRow(row->ownedWidget());
-		box->addRow(object_ptr<FlatLabel>(box, "Min: " + QString::number(min), st::defaultFlatLabel));
-		box->addRow(object_ptr<FlatLabel>(box, "Max: " + QString::number(max), st::defaultFlatLabel));
+		const auto errorWrap = box->addRow(
+			object_ptr<FadeWrap<FlatLabel>>(
+				box,
+				object_ptr<FlatLabel>(
+					box,
+					tr::lng_payments_tips_max(
+						lt_amount,
+						rpl::single(FillAmountAndCurrency(max, currency))),
+					st::paymentTipsErrorLabel)),
+			st::paymentTipsErrorPadding);
+		errorWrap->hide(anim::type::instant);
 		box->addButton(tr::lng_settings_save(), [=] {
 			const auto value = row->value().toLongLong();
-			if (value < min || value > max) {
+			if (value < min) {
 				row->showError();
+			} else if (value > max) {
+				row->showError();
+				errorWrap->show(anim::type::normal);
 			} else {
 				_delegate->panelChangeTips(value);
 				box->closeBox();

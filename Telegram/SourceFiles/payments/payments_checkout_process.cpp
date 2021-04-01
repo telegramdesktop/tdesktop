@@ -418,7 +418,8 @@ bool CheckoutProcess::panelWebviewNavigationAttempt(const QString &uri) {
 }
 
 void CheckoutProcess::panelCancelEdit() {
-	if (_submitState != SubmitState::None) {
+	if (_submitState != SubmitState::None
+		&& _submitState != SubmitState::Validated) {
 		return;
 	}
 	showForm();
@@ -463,7 +464,8 @@ void CheckoutProcess::showForm() {
 }
 
 void CheckoutProcess::showEditInformation(Ui::InformationField field) {
-	if (_submitState != SubmitState::None) {
+	if (_submitState != SubmitState::None
+		&& _submitState != SubmitState::Validated) {
 		return;
 	}
 	_panel->showEditInformation(
@@ -473,6 +475,8 @@ void CheckoutProcess::showEditInformation(Ui::InformationField field) {
 }
 
 void CheckoutProcess::showInformationError(Ui::InformationField field) {
+	Expects(_submitState != SubmitState::Validated);
+
 	if (_submitState != SubmitState::None) {
 		return;
 	}
@@ -483,7 +487,8 @@ void CheckoutProcess::showInformationError(Ui::InformationField field) {
 }
 
 void CheckoutProcess::showCardError(Ui::CardField field) {
-	if (_submitState != SubmitState::None) {
+	if (_submitState != SubmitState::None
+		&& _submitState != SubmitState::Validated) {
 		return;
 	}
 	_panel->showCardError(_form->paymentMethod().ui.native, field);
