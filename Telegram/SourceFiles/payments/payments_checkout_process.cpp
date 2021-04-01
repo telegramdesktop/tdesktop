@@ -566,7 +566,8 @@ void CheckoutProcess::getPasswordState(
 }
 
 void CheckoutProcess::panelChooseShippingOption() {
-	if (_submitState != SubmitState::None) {
+	if (_submitState != SubmitState::None
+		&& _submitState != SubmitState::Validated) {
 		return;
 	}
 	chooseShippingOption();
@@ -578,7 +579,8 @@ void CheckoutProcess::panelChangeShippingOption(const QString &id) {
 }
 
 void CheckoutProcess::panelChooseTips() {
-	if (_submitState != SubmitState::None) {
+	if (_submitState != SubmitState::None
+		&& _submitState != SubmitState::Validated) {
 		return;
 	}
 	chooseTips();

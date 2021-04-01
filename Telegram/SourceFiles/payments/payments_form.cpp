@@ -476,7 +476,7 @@ void Form::submit() {
 			| (_shippingOptions.selectedId.isEmpty()
 				? Flag(0)
 				: Flag::f_shipping_option_id)
-			| (_invoice.tipsSelected ? Flag::f_tip_amount : Flag(0))),
+			| (_invoice.tipsMax > 0 ? Flag::f_tip_amount : Flag(0))),
 		MTP_long(_details.formId),
 		_peer->input,
 		MTP_int(_msgId),
