@@ -126,6 +126,7 @@ void Form::fillInvoiceFromMessage() {
 			return item->media();
 		}();
 		if (const auto invoice = media ? media->invoice() : nullptr) {
+			_invoice.isTest = invoice->isTest;
 			_invoice.cover = Ui::Cover{
 				.title = invoice->title,
 				.description = invoice->description,

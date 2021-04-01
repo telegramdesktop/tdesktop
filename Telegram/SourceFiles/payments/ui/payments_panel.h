@@ -83,6 +83,7 @@ public:
 
 private:
 	bool createWebview();
+	void setTitle(rpl::producer<QString> title);
 
 	const not_null<PanelDelegate*> _delegate;
 	std::unique_ptr<SeparatePanel> _widget;
@@ -92,6 +93,7 @@ private:
 	QPointer<FormSummary> _weakFormSummary;
 	QPointer<EditInformation> _weakEditInformation;
 	QPointer<EditCard> _weakEditCard;
+	bool _testMode = false;
 
 };
 
