@@ -167,7 +167,10 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		_submitState = SubmitState::Validated;
 		requestPassword();
 	}, [&](const VerificationNeeded &data) {
-		if (!_panel->showWebview(data.url, false)) {
+		auto bottomText = tr::lng_payments_processed_by(
+			lt_provider,
+			rpl::single(_form->invoice().provider));
+		if (!_panel->showWebview(data.url, false, std::move(bottomText))) {
 			File::OpenUrl(data.url);
 			close();
 		}

@@ -189,7 +189,7 @@ not_null<RpWidget*> EditInformation::setupContent() {
 					: emailToProvider
 					? tr::lng_payments_to_provider_email
 					: tr::lng_payments_to_provider_phone)(
-						lt_bot_name,
+						lt_provider,
 						rpl::single(_invoice.provider)),
 				st::paymentsToProviderLabel),
 			st::paymentsToProviderPadding);

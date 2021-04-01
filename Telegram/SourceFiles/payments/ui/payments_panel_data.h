@@ -162,6 +162,7 @@ struct PaymentMethodDetails {
 	QString title;
 	NativeMethodDetails native;
 	QString url;
+	QString provider;
 	bool ready = false;
 	bool canSaveInformation = false;
 };

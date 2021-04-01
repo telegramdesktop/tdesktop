@@ -69,7 +69,10 @@ public:
 	void choosePaymentMethod(const PaymentMethodDetails &method);
 	void askSetPassword();
 
-	bool showWebview(const QString &url, bool allowBack);
+	bool showWebview(
+		const QString &url,
+		bool allowBack,
+		rpl::producer<QString> bottomText);
 
 	[[nodiscard]] rpl::producer<> backRequests() const;
 

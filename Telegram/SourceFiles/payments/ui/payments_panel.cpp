@@ -235,10 +235,15 @@ void Panel::chooseTips(const Invoice &invoice) {
 }
 
 void Panel::showEditPaymentMethod(const PaymentMethodDetails &method) {
+	auto bottomText = method.canSaveInformation
+		? rpl::producer<QString>()
+		: tr::lng_payments_processed_by(
+			lt_provider,
+			rpl::single(method.provider));
 	_widget->setTitle(tr::lng_payments_card_title());
 	if (method.native.supported) {
 		showEditCard(method.native, CardField::Number);
-	} else if (!showWebview(method.url, true)) {
+	} else if (!showWebview(method.url, true, std::move(bottomText))) {
 		// #TODO payments errors not supported
 	} else if (method.canSaveInformation) {
 		const auto &padding = st::paymentsPanelPadding;
@@ -255,12 +260,33 @@ void Panel::showEditPaymentMethod(const PaymentMethodDetails &method) {
 	}
 }
 
-bool Panel::showWebview(const QString &url, bool allowBack) {
+bool Panel::showWebview(
+		const QString &url,
+		bool allowBack,
+		rpl::producer<QString> bottomText) {
 	if (!_webview && !createWebview()) {
 		return false;
 	}
 	_webview->navigate(url);
 	_widget->setBackAllowed(allowBack);
+	if (bottomText) {
+		const auto &padding = st::paymentsPanelPadding;
+		const auto label = CreateChild<FlatLabel>(
+			_webviewBottom.get(),
+			std::move(bottomText),
+			st::paymentsWebviewBottom);
+		const auto height = padding.top()
+			+ label->heightNoMargins()
+			+ padding.bottom();
+		rpl::combine(
+			_webviewBottom->widthValue(),
+			label->widthValue()
+		) | rpl::start_with_next([=](int outerWidth, int width) {
+			label->move((outerWidth - width) / 2, padding.top());
+		}, label->lifetime());
+		label->show();
+		_webviewBottom->resize(_webviewBottom->width(), height);
+	}
 	return true;
 }
 
