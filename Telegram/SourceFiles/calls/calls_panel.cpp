@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/emoji_config.h"
 #include "core/application.h"
-#include "mainwindow.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -185,7 +184,6 @@ void Panel::Incoming::fillBottomShadow(QPainter &p) {
 Panel::Panel(not_null<Call*> call)
 : _call(call)
 , _user(call->user())
-, _window(std::make_unique<Ui::Window>(Core::App().getModalParent()))
 #ifndef Q_OS_MAC
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
 	_window->body(),

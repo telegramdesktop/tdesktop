@@ -31,8 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 SeparatePanel::SeparatePanel()
-: RpWidget(Core::App().getModalParent())
-, _close(this, st::separatePanelClose)
+: _close(this, st::separatePanelClose)
 , _back(this, object_ptr<Ui::IconButton>(this, st::separatePanelBack))
 , _body(this) {
 	setMouseTracking(true);

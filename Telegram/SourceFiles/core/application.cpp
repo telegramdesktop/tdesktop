@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/stickers_emoji_image_loader.h"
-#include "base/platform/base_platform_info.h"
 #include "base/platform/base_platform_last_input.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
@@ -976,13 +975,6 @@ void Application::notifyFileDialogShown(bool shown) {
 		_mediaView->notifyFileDialogShown(shown);
 	}
 }
-
-QWidget *Application::getModalParent() {
-	return (Platform::IsWayland() && activeWindow())
-		? activeWindow()->widget().get()
-		: nullptr;
-}
-
 
 void Application::checkMediaViewActivation() {
 	if (_mediaView && !_mediaView->isHidden()) {
