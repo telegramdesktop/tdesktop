@@ -397,17 +397,18 @@ void CodeWidget::submit() {
 }
 
 void CodeWidget::noTelegramCode() {
-	if (_noTelegramCodeRequestId) {
-		return;
-	}
-	_noTelegramCodeRequestId = api().request(MTPauth_ResendCode(
-		MTP_string(getData()->phone),
-		MTP_bytes(getData()->phoneHash)
-	)).done([=](const MTPauth_SentCode &result) {
-		noTelegramCodeDone(result);
-	}).fail([=](const MTP::Error &error) {
-		noTelegramCodeFail(error);
-	}).handleFloodErrors().send();
+	Ui::show(Box<InformBox>(tr::lng_code_register_phone(tr::now)));
+	//if (_noTelegramCodeRequestId) {
+	//	return;
+	//}
+	//_noTelegramCodeRequestId = api().request(MTPauth_ResendCode(
+	//	MTP_string(getData()->phone),
+	//	MTP_bytes(getData()->phoneHash)
+	//)).done([=](const MTPauth_SentCode &result) {
+	//	noTelegramCodeDone(result);
+	//}).fail([=](const MTP::Error &error) {
+	//	noTelegramCodeFail(error);
+	//}).handleFloodErrors().send();
 }
 
 void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
