@@ -78,6 +78,8 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 
+	void setVisibleHook(bool visible) override;
+
 private:
 	void setPositionDefault();
 	void setPositionOnScreen(Position position, QRect available);

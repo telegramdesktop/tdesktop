@@ -387,7 +387,17 @@ PipPanel::PipPanel(
 	Ui::Platform::InitOnTopPanel(this);
 	setMouseTracking(true);
 	resize(0, 0);
-	show();
+	hide();
+	createWinId();
+}
+
+void PipPanel::setVisibleHook(bool visible) {
+	PipParent::setVisibleHook(visible);
+
+	// workaround Qt's forced transient parent
+	if (visible) {
+		Ui::Platform::ClearTransientParent(this);
+	}
 }
 
 void PipPanel::setAspectRatio(QSize ratio) {
