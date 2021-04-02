@@ -199,10 +199,14 @@ void CheckoutProcess::handleError(const Error &error) {
 	const auto &id = error.id;
 	switch (error.type) {
 	case Error::Type::Form:
-		if (true
+		if (id == u"INVOICE_ALREADY_PAID"_q) {
+			_panel->showCriticalError({
+				tr::lng_payments_already_paid(tr::now)
+			});
+		} else if (true
 			|| id == u"PROVIDER_ACCOUNT_INVALID"_q
 			|| id == u"PROVIDER_ACCOUNT_TIMEOUT"_q) {
-			showToast({ "Error: " + id });
+			_panel->showCriticalError({ "Error: " + id });
 		}
 		break;
 	case Error::Type::Validate: {
@@ -246,9 +250,9 @@ void CheckoutProcess::handleError(const Error &error) {
 		} else if (id == u"LOCAL_CARD_BILLING_ZIP_INVALID"_q) {
 			showCardError(CardField::AddressZip);
 		} else if (id == u"SHIPPING_BOT_TIMEOUT"_q) {
-			showToast({ "Error: Bot Timeout!" }); // #TODO payments errors message
+			showToast({ "Error: Bot Timeout!" });
 		} else if (id == u"SHIPPING_NOT_AVAILABLE"_q) {
-			showToast({ "Error: Shipping to the selected country is not available!" }); // #TODO payments errors message
+			showToast({ tr::lng_payments_shipping_not_available(tr::now) });
 		} else {
 			showToast({ "Error: " + id });
 		}
@@ -264,11 +268,9 @@ void CheckoutProcess::handleError(const Error &error) {
 			|| id == u"ExpiredCard"_q) {
 			showCardError(Field::ExpireDate);
 		} else if (id == u"CardDeclined"_q) {
-			// #TODO payments errors message
-			showToast({ "Error: " + id });
+			showToast({ tr::lng_payments_card_declined(tr::now) });
 		} else if (id == u"ProcessingError"_q) {
-			// #TODO payments errors message
-			showToast({ "Error: " + id });
+			showToast({ "Sorry, a processing error occurred." });
 		} else {
 			showToast({ "Error: " + id });
 		}
@@ -287,17 +289,20 @@ void CheckoutProcess::handleError(const Error &error) {
 		if (_submitState == SubmitState::Finishing) {
 			_submitState = SubmitState::Validated;
 		}
-		if (id == u"PAYMENT_FAILED"_q) {
-			showToast({ "Error: Payment Failed. Your card has not been billed." }); // #TODO payments errors message
+		if (id == u"INVOICE_ALREADY_PAID"_q) {
+			showToast({ tr::lng_payments_already_paid(tr::now) });
+		} else if (id == u"PAYMENT_FAILED"_q) {
+			showToast({ tr::lng_payments_payment_failed(tr::now) });
 		} else if (id == u"BOT_PRECHECKOUT_FAILED"_q) {
-			showToast({ "Error: PreCheckout Failed. Your card has not been billed." }); // #TODO payments errors message
+			showToast({ tr::lng_payments_precheckout_failed(tr::now) });
 		} else if (id == u"REQUESTED_INFO_INVALID"_q
 			|| id == u"SHIPPING_OPTION_INVALID"_q
 			|| id == u"PAYMENT_CREDENTIALS_INVALID"_q
 			|| id == u"PAYMENT_CREDENTIALS_ID_INVALID"_q) {
+			showToast({ tr::lng_payments_payment_failed(tr::now) });
 			showToast({ "Error: " + id + ". Your card has not been billed." });
 		} else if (id == u"TMP_PASSWORD_INVALID"_q) {
-			// #TODO payments save
+			requestPassword();
 		} else {
 			showToast({ "Error: " + id });
 		}
@@ -572,6 +577,10 @@ void CheckoutProcess::panelSetPassword() {
 
 		_panel->showBox(std::move(owned));
 	});
+}
+
+void CheckoutProcess::panelOpenUrl(const QString &url) {
+	File::OpenUrl(url);
 }
 
 void CheckoutProcess::getPasswordState(

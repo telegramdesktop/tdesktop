@@ -9,6 +9,8 @@ using "ui/basic.style";
 
 using "info/info.style";
 
+paymentsPanelSize: size(392px, 600px);
+
 paymentsPanelButton: defaultBoxButton;
 paymentsPanelSubmit: RoundButton(defaultActiveButton) {
 	width: -36px;
@@ -116,3 +118,10 @@ paymentTipsErrorPadding: margins(22px, 6px, 22px, 0px);
 
 paymentsToProviderLabel: paymentsShippingPrice;
 paymentsToProviderPadding: margins(28px, 6px, 28px, 6px);
+
+paymentsCriticalError: FlatLabel(boxLabel) {
+	minWidth: 370px;
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+paymentsCriticalErrorPadding: margins(10px, 40px, 10px, 0px);

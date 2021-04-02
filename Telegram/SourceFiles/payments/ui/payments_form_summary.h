@@ -39,11 +39,13 @@ public:
 	void updateThumbnail(const QImage &thumbnail);
 	[[nodiscard]] rpl::producer<int> scrollTopValue() const;
 
+	bool showCriticalError(const TextWithEntities &text);
+
 private:
 	void resizeEvent(QResizeEvent *e) override;
 
 	void setupControls();
-	[[nodiscard]] not_null<Ui::RpWidget*> setupContent();
+	void setupContent(not_null<VerticalLayout*> layout);
 	void setupCover(not_null<VerticalLayout*> layout);
 	void setupPrices(not_null<VerticalLayout*> layout);
 	void setupSuggestedTips(not_null<VerticalLayout*> layout);
@@ -61,6 +63,7 @@ private:
 	ShippingOptions _options;
 	RequestedInformation _information;
 	object_ptr<ScrollArea> _scroll;
+	not_null<VerticalLayout*> _layout;
 	object_ptr<FadeShadow> _topShadow;
 	object_ptr<FadeShadow> _bottomShadow;
 	object_ptr<RoundButton> _submit;

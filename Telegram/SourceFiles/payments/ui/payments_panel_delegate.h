@@ -34,6 +34,7 @@ public:
 		bool saveInformation) = 0;
 	virtual bool panelWebviewNavigationAttempt(const QString &uri) = 0;
 	virtual void panelSetPassword() = 0;
+	virtual void panelOpenUrl(const QString &url) = 0;
 
 	virtual void panelCancelEdit() = 0;
 	virtual void panelEditPaymentMethod() = 0;

@@ -1855,6 +1855,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_menu_show" = "Show palette file";
 
 "lng_payments_not_supported" = "Sorry, Telegram Desktop doesn't support payments yet. Please use one of our mobile apps to do this.";
+"lng_payments_webview_no_card" = "Unfortunately, you can't add a new card with current system configuration.";
+"lng_payments_webview_no_use" = "Unfortunately, you can't use payments with current system configuration.";
+"lng_payments_webview_install_edge" = "Please install {link}.";
+"lng_payments_webview_install_webkit" = "Please install WebKitGTK 4 (webkit2gtk-4.0) using your package manager.";
+"lng_payments_webview_switch_mutter" = "Qt's window embedding doesn't work well with Mutter window manager. Please switch to another window manager or desktop environment.";
+"lng_payments_webview_switch_wayland" = "There is no way to embed WebView window on Wayland. Please switch to X11.";
 "lng_payments_sure_close" = "Are you sure you want to close this payment form? The changes you made will be lost.";
 "lng_payments_receipt_label" = "Receipt";
 "lng_payments_receipt_label_test" = "Test receipt";
@@ -1902,6 +1908,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_tips_label" = "Tip (Optional)";
 "lng_payments_tips_box_title" = "Add Tip";
 "lng_payments_tips_max" = "Max possible tip amount: {amount}";
+
+"lng_payments_shipping_not_available" = "Shipping to the selected country is not available.";
+"lng_payments_card_declined" = "Your card was declined.";
+"lng_payments_payment_failed" = "Payment failed. Your card has not been billed.";
+"lng_payments_precheckout_failed" = "The bot couldn't process your payment. Your card has not been billed.";
+"lng_payments_already_paid" = "You have already paid for this item.";
 
 "lng_call_status_incoming" = "is calling you...";
 "lng_call_status_connecting" = "connecting...";

@@ -76,6 +76,7 @@ FormSummary::FormSummary(
 , _options(options)
 , _information(current)
 , _scroll(this, st::passportPanelScroll)
+, _layout(_scroll->setOwnedWidget(object_ptr<VerticalLayout>(this)))
 , _topShadow(this)
 , _bottomShadow(this)
 , _submit(_invoice.receipt.paid
@@ -114,6 +115,20 @@ rpl::producer<int> FormSummary::scrollTopValue() const {
 	return _scroll->scrollTopValue();
 }
 
+bool FormSummary::showCriticalError(const TextWithEntities &text) {
+	if (_invoice
+		|| (_scroll->height() - _layout->height()
+			< st::paymentsPanelSize.height() / 2)) {
+		return false;
+	}
+	Settings::AddSkip(_layout.get(), st::paymentsPricesTopSkip);
+	_layout->add(object_ptr<FlatLabel>(
+		_layout.get(),
+		rpl::single(text),
+		st::paymentsCriticalError));
+	return true;
+}
+
 void FormSummary::updateThumbnail(const QImage &thumbnail) {
 	_invoice.cover.thumbnail = thumbnail;
 	_thumbnails.fire_copy(thumbnail);
@@ -149,7 +164,7 @@ int64 FormSummary::computeTotalAmount() const {
 }
 
 void FormSummary::setupControls() {
-	const auto inner = setupContent();
+	setupContent(_layout.get());
 
 	if (_submit) {
 		_submit->addClickHandler([=] {
@@ -173,7 +188,7 @@ void FormSummary::setupControls() {
 	_bottomShadow->toggleOn(rpl::combine(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue(),
-		inner->heightValue(),
+		_layout->heightValue(),
 		_1 + _2 < _3));
 }
 
@@ -533,24 +548,19 @@ void FormSummary::setupSections(not_null<VerticalLayout*> layout) {
 	Settings::AddSkip(layout, st::paymentsSectionsTopSkip);
 }
 
-not_null<RpWidget*> FormSummary::setupContent() {
-	const auto inner = _scroll->setOwnedWidget(
-		object_ptr<VerticalLayout>(this));
-
+void FormSummary::setupContent(not_null<VerticalLayout*> layout) {
 	_scroll->widthValue(
 	) | rpl::start_with_next([=](int width) {
-		inner->resizeToWidth(width);
-	}, inner->lifetime());
+		layout->resizeToWidth(width);
+	}, layout->lifetime());
 
-	setupCover(inner);
+	setupCover(layout);
 	if (_invoice) {
-		Settings::AddDivider(inner);
-		setupPrices(inner);
-		Settings::AddDivider(inner);
-		setupSections(inner);
+		Settings::AddDivider(layout);
+		setupPrices(layout);
+		Settings::AddDivider(layout);
+		setupSections(layout);
 	}
-
-	return inner;
 }
 
 void FormSummary::resizeEvent(QResizeEvent *e) {

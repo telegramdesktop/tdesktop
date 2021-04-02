@@ -17,10 +17,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/boxes/single_choice_box.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
 #include "webview/webview_embed.h"
+#include "webview/webview_interface.h"
 #include "styles/style_payments.h"
-#include "styles/style_passport.h"
 #include "styles/style_layers.h"
 
 namespace Payments::Ui {
@@ -28,7 +29,7 @@ namespace Payments::Ui {
 Panel::Panel(not_null<PanelDelegate*> delegate)
 : _delegate(delegate)
 , _widget(std::make_unique<SeparatePanel>()) {
-	_widget->setInnerSize(st::passportPanelSize);
+	_widget->setInnerSize(st::paymentsPanelSize);
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 
 	_widget->closeRequests(
@@ -56,6 +57,16 @@ void Panel::showForm(
 		const RequestedInformation &current,
 		const PaymentMethodDetails &method,
 		const ShippingOptions &options) {
+	if (invoice && !method.ready && !method.native.supported) {
+		const auto available = Webview::Availability();
+		if (available.error != Webview::Available::Error::None) {
+			showWebviewError(
+				tr::lng_payments_webview_no_use(tr::now),
+				available);
+			return;
+		}
+	}
+
 	_testMode = invoice.isTest;
 	setTitle(invoice.receipt
 		? tr::lng_payments_receipt_title()
@@ -250,7 +261,15 @@ void Panel::showEditPaymentMethod(const PaymentMethodDetails &method) {
 	if (method.native.supported) {
 		showEditCard(method.native, CardField::Number);
 	} else if (!showWebview(method.url, true, std::move(bottomText))) {
-		// #TODO payments errors not supported
+		const auto available = Webview::Availability();
+		if (available.error != Webview::Available::Error::None) {
+			showWebviewError(
+				tr::lng_payments_webview_no_card(tr::now),
+				available);
+		} else {
+			showCriticalError({ "Error: Could not initialize WebView." });
+		}
+		_widget->setBackAllowed(true);
 	} else if (method.canSaveInformation) {
 		const auto &padding = st::paymentsPanelPadding;
 		_saveWebviewInformation = CreateChild<Checkbox>(
@@ -485,6 +504,67 @@ void Panel::showBox(object_ptr<BoxContent> box) {
 
 void Panel::showToast(const TextWithEntities &text) {
 	_widget->showToast(text);
+}
+
+void Panel::showCriticalError(const TextWithEntities &text) {
+	if (!_weakFormSummary || !_weakFormSummary->showCriticalError(text)) {
+		auto error = base::make_unique_q<PaddingWrap<FlatLabel>>(
+			_widget.get(),
+			object_ptr<FlatLabel>(
+				_widget.get(),
+				rpl::single(text),
+				st::paymentsCriticalError),
+			st::paymentsCriticalErrorPadding);
+		error->entity()->setClickHandlerFilter([=](
+				const ClickHandlerPtr &handler,
+				Qt::MouseButton) {
+			const auto entity = handler->getTextEntity();
+			if (entity.type != EntityType::CustomUrl) {
+				return true;
+			}
+			_delegate->panelOpenUrl(entity.data);
+			return false;
+		});
+		_widget->showInner(std::move(error));
+	}
+}
+
+void Panel::showWebviewError(
+		const QString &text,
+		const Webview::Available &information) {
+	using Error = Webview::Available::Error;
+	Expects(information.error != Error::None);
+
+	auto rich = TextWithEntities{ text };
+	rich.append("\n\n");
+	switch (information.error) {
+	case Error::NoWebview2: {
+		const auto command = QString(QChar(TextCommand));
+		const auto text = tr::lng_payments_webview_install_edge(
+			tr::now,
+			lt_link,
+			command);
+		const auto parts = text.split(command);
+		rich.append(parts.value(0))
+			.append(Text::Link(
+				"Microsoft Edge WebView2 Runtime",
+				"https://go.microsoft.com/fwlink/p/?LinkId=2124703"))
+			.append(parts.value(1));
+	} break;
+	case Error::NoGtkOrWebkit2Gtk:
+		rich.append(tr::lng_payments_webview_install_webkit(tr::now));
+		break;
+	case Error::MutterWM:
+		rich.append(tr::lng_payments_webview_switch_mutter(tr::now));
+		break;
+	case Error::Wayland:
+		rich.append(tr::lng_payments_webview_switch_wayland(tr::now));
+		break;
+	default:
+		rich.append(QString::fromStdString(information.details));
+		break;
+	}
+	showCriticalError(rich);
 }
 
 rpl::lifetime &Panel::lifetime() {
