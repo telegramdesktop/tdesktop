@@ -216,6 +216,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_code_desc" = "We have sent you a message with activation\ncode to your phone. Please enter it below.";
 "lng_code_from_telegram" = "Please enter the code you've just received\nin your previous **Telegram** app.";
 "lng_code_no_telegram" = "Send code via SMS";
+"lng_code_register_phone" = "If you already signed up for Telegram, please enter the code which was sent to your mobile app.\n\nIf you haven’t signed up yet, please register from your phone or tablet first.";
 "lng_code_call" = "Telegram will call you in {minutes}:{seconds}";
 "lng_code_calling" = "Requesting a call from Telegram...";
 "lng_code_called" = "Telegram dialed your number";
@@ -1898,7 +1899,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_password_description" = "Your card {card} is on file. To pay with this card, please enter your 2-Step-Verification password.";
 "lng_payments_password_submit" = "Pay";
 "lng_payments_tips_label" = "Tip (Optional)";
-"lng_payments_tips_add" = "Add Tip";
 "lng_payments_tips_box_title" = "Add Tip";
 "lng_payments_tips_max" = "Max possible tip amount: {amount}";
 
