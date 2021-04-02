@@ -203,21 +203,7 @@ void Panel::chooseTips(const Invoice &invoice) {
 			FieldConfig{
 				.type = FieldType::Money,
 				.value = QString::number(now),
-				.currency = ([&]() -> QString {
-					static auto counter = 0;
-					switch (++counter % 9) {
-					case 0: return "USD";
-					case 1: return "EUR";
-					case 2: return "IRR";
-					case 3: return "BRL";
-					case 4: return "ALL";
-					case 5: return "AZN";
-					case 6: return "CHF";
-					case 7: return "DKK";
-					case 8: return "KZT";
-					}
-					return currency;
-				})(), // #TODO payments testing
+				.currency = currency,
 			});
 		box->setFocusCallback([=] {
 			row->setFocusFast();
