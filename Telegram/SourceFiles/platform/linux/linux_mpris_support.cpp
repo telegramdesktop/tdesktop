@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
-#include "app.h"
+#include "mainwidget.h"
 
 #include <QtCore/QBuffer>
 #include <QtGui/QGuiApplication>
@@ -174,9 +174,13 @@ void HandleMethodCall(
 			auto parametersCopy = parameters;
 
 			if (method_name == "Quit") {
-				App::quit();
+				if (const auto main = App::main()) {
+					main->closeBothPlayers();
+				}
 			} else if (method_name == "Raise") {
-				App::wnd()->showFromTray();
+				if (const auto window = App::wnd()) {
+					window->showFromTray();
+				}
 			} else if (method_name == "Next") {
 				Media::Player::instance()->next();
 			} else if (method_name == "Pause") {
