@@ -164,8 +164,8 @@ public:
 	[[nodiscard]] const FormDetails &details() const {
 		return _details;
 	}
-	[[nodiscard]] const Ui::RequestedInformation &savedInformation() const {
-		return _savedInformation;
+	[[nodiscard]] const Ui::RequestedInformation &information() const {
+		return _information;
 	}
 	[[nodiscard]] const PaymentMethod &paymentMethod() const {
 		return _paymentMethod;
@@ -173,6 +173,7 @@ public:
 	[[nodiscard]] const Ui::ShippingOptions &shippingOptions() const {
 		return _shippingOptions;
 	}
+	[[nodiscard]] bool hasChanges() const;
 
 	[[nodiscard]] rpl::producer<FormUpdate> updates() const {
 		return _updates.events();
@@ -234,7 +235,6 @@ private:
 	[[nodiscard]] Error cardErrorLocal(
 		const Ui::UncheckedCardDetails &details) const;
 
-
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 	not_null<PeerData*> _peer;
@@ -245,6 +245,7 @@ private:
 	std::unique_ptr<ThumbnailLoadProcess> _thumbnailLoadProcess;
 	FormDetails _details;
 	Ui::RequestedInformation _savedInformation;
+	Ui::RequestedInformation _information;
 	PaymentMethod _paymentMethod;
 
 	Ui::RequestedInformation _validatedInformation;

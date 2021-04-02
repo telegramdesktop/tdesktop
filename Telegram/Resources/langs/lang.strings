@@ -1855,6 +1855,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_menu_show" = "Show palette file";
 
 "lng_payments_not_supported" = "Sorry, Telegram Desktop doesn't support payments yet. Please use one of our mobile apps to do this.";
+"lng_payments_sure_close" = "Are you sure you want to close this payment form? The changes you made will be lost.";
 "lng_payments_receipt_label" = "Receipt";
 "lng_payments_receipt_label_test" = "Test receipt";
 "lng_payments_invoice_label" = "Invoice";

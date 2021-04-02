@@ -301,7 +301,11 @@ void CheckoutProcess::handleError(const Error &error) {
 }
 
 void CheckoutProcess::panelRequestClose() {
-	panelCloseSure(); // #TODO payments confirmation
+	if (_form->hasChanges()) {
+		_panel->showCloseConfirm();
+	} else {
+		panelCloseSure();
+	}
 }
 
 void CheckoutProcess::panelCloseSure() {
@@ -353,7 +357,7 @@ void CheckoutProcess::panelSubmit() {
 			|| invoice.isEmailRequested
 			|| invoice.isPhoneRequested)) {
 		_submitState = SubmitState::Validating;
-		_form->validateInformation(_form->savedInformation());
+		_form->validateInformation(_form->information());
 	} else if (!method.newCredentials && !method.savedCredentials) {
 		editPaymentMethod();
 	} else {
@@ -461,7 +465,7 @@ void CheckoutProcess::panelEditPhone() {
 void CheckoutProcess::showForm() {
 	_panel->showForm(
 		_form->invoice(),
-		_form->savedInformation(),
+		_form->information(),
 		_form->paymentMethod().ui,
 		_form->shippingOptions());
 }
@@ -473,7 +477,7 @@ void CheckoutProcess::showEditInformation(Ui::InformationField field) {
 	}
 	_panel->showEditInformation(
 		_form->invoice(),
-		_form->savedInformation(),
+		_form->information(),
 		field);
 }
 
@@ -485,7 +489,7 @@ void CheckoutProcess::showInformationError(Ui::InformationField field) {
 	}
 	_panel->showInformationError(
 		_form->invoice(),
-		_form->savedInformation(),
+		_form->information(),
 		field);
 }
 
@@ -613,7 +617,7 @@ void CheckoutProcess::panelShowBox(object_ptr<Ui::BoxContent> box) {
 
 void CheckoutProcess::performInitialSilentValidation() {
 	const auto &invoice = _form->invoice();
-	const auto &saved = _form->savedInformation();
+	const auto &saved = _form->information();
 	if (invoice.receipt
 		|| (invoice.isNameRequested && saved.name.isEmpty())
 		|| (invoice.isEmailRequested && saved.email.isEmpty())

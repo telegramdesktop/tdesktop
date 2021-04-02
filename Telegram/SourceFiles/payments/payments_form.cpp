@@ -383,7 +383,7 @@ void Form::processDetails(const MTPDpayments_paymentReceipt &data) {
 
 void Form::processSavedInformation(const MTPDpaymentRequestedInfo &data) {
 	const auto address = data.vshipping_address();
-	_savedInformation = Ui::RequestedInformation{
+	_savedInformation = _information = Ui::RequestedInformation{
 		.defaultPhone = defaultPhone(),
 		.defaultCountry = defaultCountry(),
 		.name = qs(data.vname().value_or_empty()),
@@ -578,12 +578,24 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 			&& _shippingOptions.list.size() == 1) {
 			_shippingOptions.selectedId = _shippingOptions.list.front().id;
 		}
-		_savedInformation = _validatedInformation;
+		_information = _validatedInformation;
+		if (_information.save) {
+			_savedInformation = _information;
+		}
 		_updates.fire(ValidateFinished{});
 	}).fail([=](const MTP::Error &error) {
 		_validateRequestId = 0;
 		_updates.fire(Error{ Error::Type::Validate, error.type() });
 	}).send();
+}
+
+bool Form::hasChanges() const {
+	const auto &information = _validateRequestId
+		? _validatedInformation
+		: _information;
+	return (information != _savedInformation)
+		|| (_stripe != nullptr)
+		|| !_paymentMethod.newCredentials.empty();
 }
 
 bool Form::validateInformationLocal(
