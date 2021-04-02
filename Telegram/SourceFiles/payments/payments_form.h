@@ -118,6 +118,10 @@ struct VerificationNeeded {
 	QString url;
 };
 struct TmpPasswordRequired {};
+struct BotTrustRequired {
+	not_null<UserData*> bot;
+	not_null<UserData*> provider;
+};
 struct PaymentFinished {
 	MTPUpdates updates;
 };
@@ -148,6 +152,7 @@ struct FormUpdate : std::variant<
 	PaymentMethodUpdate,
 	VerificationNeeded,
 	TmpPasswordRequired,
+	BotTrustRequired,
 	PaymentFinished,
 	Error> {
 	using variant::variant;
@@ -187,6 +192,7 @@ public:
 	void setHasPassword(bool has);
 	void setShippingOption(const QString &id);
 	void setTips(int64 value);
+	void trustBot();
 	void submit();
 	void submit(const Core::CloudPasswordResult &result);
 
