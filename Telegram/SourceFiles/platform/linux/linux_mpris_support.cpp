@@ -39,7 +39,6 @@ constexpr auto kFakeTrackPath = "/org/telegram/desktop/track/0"_cs;
 constexpr auto kInterface = "org.mpris.MediaPlayer2"_cs;
 constexpr auto kPlayerInterface = "org.mpris.MediaPlayer2.Player"_cs;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
-constexpr auto kSongType = AudioMsgId::Type::Song;
 
 constexpr auto kIntrospectionXML = R"INTROSPECTION(<node>
 	<interface name='org.mpris.MediaPlayer2'>
@@ -109,12 +108,16 @@ auto CreateMetadata(
 		kFakeTrackPath.utf8().constData()));
 	result["mpris:length"] = Glib::Variant<gint64>::create(
 		state.length * 1000);
+	result["xesam:title"] = Glib::Variant<Glib::ustring>::create(
+		"Unknown Track");
 
 	const auto audioData = state.id.audio();
 	if (audioData) {
-		result["xesam:title"] = Glib::Variant<
-			Glib::ustring
-		>::create(audioData->filename().toStdString());
+		if (!audioData->filename().isEmpty()) {
+			result["xesam:title"] = Glib::Variant<
+				Glib::ustring
+			>::create(audioData->filename().toStdString());
+		}
 
 		if (audioData->isSong()) {
 			const auto songData = audioData->song();
@@ -123,7 +126,7 @@ auto CreateMetadata(
 					std::vector<Glib::ustring>
 				>::create({ songData->performer.toStdString() });
 			}
-			if (!songData->performer.isEmpty()) {
+			if (!songData->title.isEmpty()) {
 				result["xesam:title"] = Glib::Variant<
 					Glib::ustring
 				>::create(songData->title.toStdString());
@@ -196,10 +199,10 @@ void HandleMethodCall(
 					parametersCopy.get_child(0));
 
 				const auto state = Media::Player::instance()->getState(
-					kSongType);
+					Media::Player::instance()->getActiveType());
 
 				Media::Player::instance()->finishSeeking(
-					kSongType,
+					Media::Player::instance()->getActiveType(),
 					float64(state.position * 1000 + offset)
 						/ (state.length * 1000));
 			} else if (method_name == "SetPosition") {
@@ -207,10 +210,10 @@ void HandleMethodCall(
 					parametersCopy.get_child(1));
 
 				const auto state = Media::Player::instance()->getState(
-					kSongType);
+					Media::Player::instance()->getActiveType());
 
 				Media::Player::instance()->finishSeeking(
-					kSongType,
+					Media::Player::instance()->getActiveType(),
 					float64(position) / (state.length * 1000));
 			} else if (method_name == "Stop") {
 				Media::Player::instance()->stop();
@@ -268,7 +271,7 @@ void HandleGetProperty(
 			property = Glib::Variant<float64>::create(1.0);
 		} else if (property_name == "Metadata") {
 			const auto state = Media::Player::instance()->getState(
-				kSongType);
+				Media::Player::instance()->getActiveType());
 
 			const auto trackView = [&]() -> std::shared_ptr<Data::DocumentMedia> {
 				const auto audioData = state.id.audio();
@@ -284,13 +287,13 @@ void HandleGetProperty(
 			property = Glib::Variant<float64>::create(1.0);
 		} else if (property_name == "PlaybackStatus") {
 			const auto state = Media::Player::instance()->getState(
-				kSongType);
+				Media::Player::instance()->getActiveType());
 
 			property = Glib::Variant<Glib::ustring>::create(
 				PlaybackStatus(state.state));
 		} else if (property_name == "Position") {
 			const auto state = Media::Player::instance()->getState(
-				kSongType);
+				Media::Player::instance()->getActiveType());
 
 			property = Glib::Variant<gint64>::create(state.position * 1000);
 		} else if (property_name == "Rate") {
@@ -399,10 +402,6 @@ public:
 
 void MPRISSupport::Private::updateTrackState(
 		const Media::Player::TrackState &state) {
-	if (state.id.type() != kSongType) {
-		return;
-	}
-
 	const auto currentAudioData = state.id.audio();
 	const auto currentPosition = state.position * 1000;
 	const auto currentPlaybackStatus = PlaybackStatus(state.state);
@@ -477,16 +476,20 @@ MPRISSupport::MPRISSupport()
 			InterfaceVTable);
 
 		_private->updateTrackState(
-			Media::Player::instance()->getState(kSongType));
+			Media::Player::instance()->getState(
+				Media::Player::instance()->getActiveType()));
 
 		Core::App().domain().active().session().downloaderTaskFinished(
 		) | rpl::start_with_next([=] {
 			_private->updateTrackState(
-				Media::Player::instance()->getState(kSongType));
+				Media::Player::instance()->getState(
+					Media::Player::instance()->getActiveType()));
 		}, _private->lifetime);
 
 		Media::Player::instance()->updatedNotifier(
-		) | rpl::start_with_next([=](
+		) | rpl::filter([=](const Media::Player::TrackState &state) {
+			return state.id.type() == Media::Player::instance()->getActiveType();
+		}) | rpl::start_with_next([=](
 				const Media::Player::TrackState &state) {
 			_private->updateTrackState(state);
 		}, _private->lifetime);
