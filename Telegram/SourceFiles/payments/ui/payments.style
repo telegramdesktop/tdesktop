@@ -49,6 +49,23 @@ paymentsPricesTopSkip: 12px;
 paymentsPricesBottomSkip: 13px;
 paymentsPricePadding: margins(28px, 6px, 28px, 5px);
 
+paymentsTipSkip: 8px;
+paymentsTipButton: RoundButton(defaultLightButton) {
+	textFg: paymentsTipActive;
+	textFgOver: paymentsTipActive;
+	textBgOver: transparent;
+
+	width: -16px;
+	height: 28px;
+	textTop: 5px;
+}
+paymentsTipChosen: RoundButton(paymentsTipButton) {
+	textFg: windowFgActive;
+	textFgOver: windowFgActive;
+	textBgOver: transparent;
+}
+paymentsTipButtonsPadding: margins(26px, 6px, 26px, 6px);
+
 paymentsSectionsTopSkip: 11px;
 paymentsSectionButton: SettingsButton(infoProfileButton) {
 	padding: margins(68px, 11px, 14px, 9px);

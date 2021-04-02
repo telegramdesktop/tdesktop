@@ -127,7 +127,10 @@ QString FormatPlayedText(qint64 played, qint64 duration) {
 	return tr::lng_duration_played(tr::now, lt_played, FormatDurationText(played), lt_duration, FormatDurationText(duration));
 }
 
-QString FillAmountAndCurrency(int64 amount, const QString &currency) {
+QString FillAmountAndCurrency(
+		int64 amount,
+		const QString &currency,
+		bool forceStripDotZero) {
 	const auto rule = LookupCurrencyRule(currency);
 
 	const auto prefix = (amount < 0)
@@ -142,7 +145,8 @@ QString FillAmountAndCurrency(int64 amount, const QString &currency) {
 		result.append(name);
 		if (rule.space) result.append(' ');
 	}
-	const auto precision = (!rule.stripDotZero || std::floor(value) != value)
+	const auto precision = ((!rule.stripDotZero && !forceStripDotZero)
+		|| std::floor(value) != value)
 		? rule.exponent
 		: 0;
 	result.append(FormatWithSeparators(

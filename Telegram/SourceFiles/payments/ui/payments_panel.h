@@ -91,6 +91,7 @@ private:
 	std::unique_ptr<RpWidget> _webviewBottom;
 	QPointer<Checkbox> _saveWebviewInformation;
 	QPointer<FormSummary> _weakFormSummary;
+	rpl::variable<int> _formScrollTop;
 	QPointer<EditInformation> _weakEditInformation;
 	QPointer<EditCard> _weakEditCard;
 	bool _testMode = false;
