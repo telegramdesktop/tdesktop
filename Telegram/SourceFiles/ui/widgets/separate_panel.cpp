@@ -129,8 +129,14 @@ void SeparatePanel::showAndActivate() {
 }
 
 void SeparatePanel::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape && _back->toggled()) {
-		_synteticBackRequests.fire({});
+	if (e->key() == Qt::Key_Escape) {
+		crl::on_main(this, [=] {
+			if (_back->toggled()) {
+				_synteticBackRequests.fire({});
+			} else {
+				_userCloseRequests.fire({});
+			}
+		});
 	}
 	return RpWidget::keyPressEvent(e);
 }
