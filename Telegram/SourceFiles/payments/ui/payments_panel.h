@@ -69,6 +69,7 @@ public:
 	void choosePaymentMethod(const PaymentMethodDetails &method);
 	void askSetPassword();
 	void showCloseConfirm();
+	void showWarning(const QString &bot, const QString &provider);
 
 	bool showWebview(
 		const QString &url,

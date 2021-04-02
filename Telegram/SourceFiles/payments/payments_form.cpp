@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "stripe/stripe_error.h"
 #include "stripe/stripe_token.h"
 #include "stripe/stripe_card_validator.h"
+#include "storage/storage_account.h"
 #include "ui/image/image.h"
 #include "apiwrap.h"
 #include "core/core_cloud_password.h"
@@ -478,6 +479,12 @@ void Form::submit() {
 	if (!_paymentMethod.newCredentials && password.isEmpty()) {
 		_updates.fire(TmpPasswordRequired{});
 		return;
+	} else if (!_session->local().isBotTrustedPayment(_details.botId)) {
+		_updates.fire(BotTrustRequired{
+			.bot = _session->data().user(_details.botId),
+			.provider = _session->data().user(_details.providerId),
+		});
+		return;
 	}
 
 	using Flag = MTPpayments_SendPaymentForm::Flag;
@@ -771,6 +778,10 @@ void Form::setShippingOption(const QString &id) {
 
 void Form::setTips(int64 value) {
 	_invoice.tipsSelected = std::min(value, _invoice.tipsMax);
+}
+
+void Form::trustBot() {
+	_session->local().markBotTrustedPayment(_details.botId);
 }
 
 void Form::processShippingOptions(const QVector<MTPShippingOption> &data) {

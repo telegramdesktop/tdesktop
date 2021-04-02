@@ -87,7 +87,6 @@ private:
 	void editPaymentMethod();
 
 	void requestSetPassword();
-	void requestSetPasswordSure(QPointer<Ui::GenericBox> old);
 	void requestPassword();
 	void getPasswordState(
 		Fn<void(const Core::CloudPasswordState&)> callback);
@@ -97,6 +96,7 @@ private:
 	void panelRequestClose() override;
 	void panelCloseSure() override;
 	void panelSubmit() override;
+	void panelTrustAndSubmit() override;
 	void panelWebviewMessage(
 		const QJsonDocument &message,
 		bool saveInformation) override;

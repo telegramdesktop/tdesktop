@@ -2509,8 +2509,12 @@ void Account::writeTrustedBots() {
 	quint32 size = sizeof(qint32) + _trustedBots.size() * sizeof(quint64);
 	EncryptedDescriptor data(size);
 	data.stream << qint32(_trustedBots.size());
-	for_const (auto botId, _trustedBots) {
-		data.stream << quint64(botId);
+	for (const auto &[peerId, mask] : _trustedBots) {
+		// value: 8 bit mask, 56 bit bot peer_id.
+		auto value = quint64(peerId);
+		Assert((value >> 56) == 0);
+		value |= (quint64(mask) << 56);
+		data.stream << value;
 	}
 
 	FileWriteDescriptor file(_trustedBotsKey, _basePath);
@@ -2531,25 +2535,61 @@ void Account::readTrustedBots() {
 	qint32 size = 0;
 	trusted.stream >> size;
 	for (int i = 0; i < size; ++i) {
-		quint64 botId = 0;
-		trusted.stream >> botId;
-		_trustedBots.insert(botId);
+		auto value = quint64();
+		trusted.stream >> value;
+		const auto mask = base::flags<BotTrustFlag>::from_raw(
+			uchar(value >> 56));
+		const auto peerId = value & ~(0xFFULL << 56);
+		_trustedBots.emplace(peerId, mask);
 	}
 }
 
-void Account::markBotTrusted(not_null<UserData*> bot) {
-	if (!isBotTrusted(bot)) {
-		_trustedBots.insert(bot->id);
-		writeTrustedBots();
+void Account::markBotTrustedOpenGame(PeerId botId) {
+	if (isBotTrustedOpenGame(botId)) {
+		return;
 	}
+	const auto i = _trustedBots.find(botId);
+	if (i == end(_trustedBots)) {
+		_trustedBots.emplace(botId, BotTrustFlag());
+	} else {
+		i->second &= ~BotTrustFlag::NoOpenGame;
+	}
+	writeTrustedBots();
 }
 
-bool Account::isBotTrusted(not_null<UserData*> bot) {
+bool Account::isBotTrustedOpenGame(PeerId botId) {
 	if (!_trustedBotsRead) {
 		readTrustedBots();
 		_trustedBotsRead = true;
 	}
-	return _trustedBots.contains(bot->id);
+	const auto i = _trustedBots.find(botId);
+	return (i != end(_trustedBots))
+		&& ((i->second & BotTrustFlag::NoOpenGame) == 0);
+}
+
+void Account::markBotTrustedPayment(PeerId botId) {
+	if (isBotTrustedPayment(botId)) {
+		return;
+	}
+	const auto i = _trustedBots.find(botId);
+	if (i == end(_trustedBots)) {
+		_trustedBots.emplace(
+			botId,
+			BotTrustFlag::NoOpenGame | BotTrustFlag::Payment);
+	} else {
+		i->second |= BotTrustFlag::Payment;
+	}
+	writeTrustedBots();
+}
+
+bool Account::isBotTrustedPayment(PeerId botId) {
+	if (!_trustedBotsRead) {
+		readTrustedBots();
+		_trustedBotsRead = true;
+	}
+	const auto i = _trustedBots.find(botId);
+	return (i != end(_trustedBots))
+		&& ((i->second & BotTrustFlag::Payment) != 0);
 }
 
 bool Account::encrypt(

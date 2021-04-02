@@ -86,12 +86,12 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 		open();
 	} else if (!_bot
 		|| _bot->isVerified()
-		|| _bot->session().local().isBotTrusted(_bot)) {
+		|| _bot->session().local().isBotTrustedOpenGame(_bot->id)) {
 		open();
 	} else {
 		const auto callback = [=, bot = _bot] {
 			Ui::hideLayer();
-			bot->session().local().markBotTrusted(bot);
+			bot->session().local().markBotTrustedOpenGame(bot->id);
 			open();
 		};
 		Ui::show(Box<ConfirmBox>(

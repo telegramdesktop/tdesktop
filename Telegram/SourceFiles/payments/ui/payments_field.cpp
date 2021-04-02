@@ -289,7 +289,7 @@ struct SimpleFieldState {
 	};
 	const auto state = wrap->lifetime().make_state<State>(State{
 		.rule = LookupCurrencyRule(config.currency),
-		.st = st::paymentsField,
+		.st = st::paymentsMoneyField,
 	});
 	const auto &rule = state->rule;
 	state->currencySkip = rule.space ? state->st.font->spacew : 0;

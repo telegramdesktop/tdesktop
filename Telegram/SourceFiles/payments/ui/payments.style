@@ -79,6 +79,10 @@ paymentsIconPhone: icon {{ "payments/payment_phone", menuIconFg }};
 paymentsIconShippingMethod: icon {{ "payments/payment_shipping", menuIconFg }};
 
 paymentsField: defaultInputField;
+paymentsMoneyField: InputField(paymentsField) {
+	textMargins: margins(0px, 4px, 0px, 4px);
+	heightMin: 30px;
+}
 paymentsFieldAdditional: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
 }

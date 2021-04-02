@@ -166,6 +166,12 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 	}, [&](const TmpPasswordRequired &) {
 		_submitState = SubmitState::Validated;
 		requestPassword();
+	}, [&](const BotTrustRequired &data) {
+		_submitState = SubmitState::Validated;
+		_panel->showWarning(data.bot->name, data.provider->name);
+		if (const auto box = _enterPasswordBox.data()) {
+			box->closeBox();
+		}
 	}, [&](const VerificationNeeded &data) {
 		auto bottomText = tr::lng_payments_processed_by(
 			lt_provider,
@@ -364,6 +370,11 @@ void CheckoutProcess::panelSubmit() {
 		_submitState = SubmitState::Finishing;
 		_form->submit();
 	}
+}
+
+void CheckoutProcess::panelTrustAndSubmit() {
+	_form->trustBot();
+	panelSubmit();
 }
 
 void CheckoutProcess::panelWebviewMessage(

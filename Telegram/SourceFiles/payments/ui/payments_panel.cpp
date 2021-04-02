@@ -409,6 +409,29 @@ void Panel::showCloseConfirm() {
 	}));
 }
 
+void Panel::showWarning(const QString &bot, const QString &provider) {
+	showBox(Box([=](not_null<GenericBox*> box) {
+		box->setTitle(tr::lng_payments_warning_title());
+		box->addRow(object_ptr<FlatLabel>(
+			box.get(),
+			tr::lng_payments_warning_body(
+				lt_bot1,
+				rpl::single(bot),
+				lt_provider,
+				rpl::single(provider),
+				lt_bot2,
+				rpl::single(bot),
+				lt_bot3,
+				rpl::single(bot)),
+			st::boxLabel));
+		box->addButton(tr::lng_continue(), [=] {
+			_delegate->panelTrustAndSubmit();
+			box->closeBox();
+		});
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}));
+}
+
 void Panel::showEditCard(
 		const NativeMethodDetails &native,
 		CardField field) {
