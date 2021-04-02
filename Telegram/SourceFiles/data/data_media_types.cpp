@@ -91,7 +91,6 @@ constexpr auto kFastRevokeRestriction = 24 * 60 * TimeId(60);
 				*data.vphoto(),
 				ImageLocation())
 			: nullptr),
-		.isMultipleAllowed = item->history()->isChannel(), // #TODO payments
 		.isTest = data.is_test(),
 	};
 }
@@ -187,10 +186,6 @@ Data::CloudImage *Media::location() const {
 
 PollData *Media::poll() const {
 	return nullptr;
-}
-
-void Media::setInvoiceReceiptId(MsgId id) {
-	Unexpected("Media::setInvoiceReceiptId.");
 }
 
 bool Media::uploading() const {
@@ -1193,11 +1188,6 @@ std::unique_ptr<Media> MediaInvoice::clone(not_null<HistoryItem*> parent) {
 
 const Invoice *MediaInvoice::invoice() const {
 	return &_invoice;
-}
-
-void MediaInvoice::setInvoiceReceiptId(MsgId id) {
-	_invoice.receiptMsgId = id;
-	parent()->checkBuyButton();
 }
 
 bool MediaInvoice::hasReplyPreview() const {

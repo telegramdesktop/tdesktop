@@ -18,6 +18,7 @@ class Checkbox;
 
 namespace Webview {
 class Window;
+struct Available;
 } // namespace Webview
 
 namespace Payments::Ui {
@@ -80,11 +81,15 @@ public:
 
 	void showBox(object_ptr<Ui::BoxContent> box);
 	void showToast(const TextWithEntities &text);
+	void showCriticalError(const TextWithEntities &text);
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	bool createWebview();
+	void showWebviewError(
+		const QString &text,
+		const Webview::Available &information);
 	void setTitle(rpl::producer<QString> title);
 
 	const not_null<PanelDelegate*> _delegate;

@@ -102,6 +102,7 @@ private:
 		bool saveInformation) override;
 	bool panelWebviewNavigationAttempt(const QString &uri) override;
 	void panelSetPassword() override;
+	void panelOpenUrl(const QString &url) override;
 
 	void panelCancelEdit() override;
 	void panelEditPaymentMethod() override;

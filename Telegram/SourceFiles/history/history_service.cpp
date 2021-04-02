@@ -776,16 +776,9 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 		if (payment->msg) {
 			if (const auto media = payment->msg->media()) {
 				if (const auto invoice = media->invoice()) {
-					if (!invoice->isMultipleAllowed
-						&& !invoice->receiptMsgId) {
-						media->setInvoiceReceiptId(id);
-					}
 					return textcmdLink(1, invoice->title);
 				}
 			}
-			return QString();// tr::lng_deleted_message(tr::now);
-		} else if (payment->msgId) {
-			return QString();// tr::lng_contacts_loading(tr::now);
 		}
 		return QString();
 	}();
