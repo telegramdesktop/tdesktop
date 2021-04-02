@@ -68,6 +68,7 @@ public:
 	void chooseTips(const Invoice &invoice);
 	void choosePaymentMethod(const PaymentMethodDetails &method);
 	void askSetPassword();
+	void showCloseConfirm();
 
 	bool showWebview(
 		const QString &url,

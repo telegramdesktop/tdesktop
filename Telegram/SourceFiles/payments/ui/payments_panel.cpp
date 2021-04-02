@@ -113,7 +113,7 @@ void Panel::showInformationError(
 }
 
 void Panel::chooseShippingOption(const ShippingOptions &options) {
-	showBox(Box([=](not_null<Ui::GenericBox*> box) {
+	showBox(Box([=](not_null<GenericBox*> box) {
 		const auto i = ranges::find(
 			options.list,
 			options.selectedId,
@@ -121,14 +121,14 @@ void Panel::chooseShippingOption(const ShippingOptions &options) {
 		const auto index = (i != end(options.list))
 			? (i - begin(options.list))
 			: -1;
-		const auto group = std::make_shared<Ui::RadiobuttonGroup>(index);
+		const auto group = std::make_shared<RadiobuttonGroup>(index);
 
 		const auto layout = box->verticalLayout();
 		auto counter = 0;
 		for (const auto &option : options.list) {
 			const auto index = counter++;
 			const auto button = layout->add(
-				object_ptr<Ui::Radiobutton>(
+				object_ptr<Radiobutton>(
 					layout,
 					group,
 					index,
@@ -185,7 +185,7 @@ void Panel::chooseTips(const Invoice &invoice) {
 	const auto max = invoice.tipsMax;
 	const auto now = invoice.tipsSelected;
 	const auto currency = invoice.currency;
-	showBox(Box([=](not_null<Ui::GenericBox*> box) {
+	showBox(Box([=](not_null<GenericBox*> box) {
 		box->setTitle(tr::lng_payments_tips_box_title());
 		const auto row = box->lifetime().make_state<Field>(
 			box,
@@ -363,7 +363,7 @@ void Panel::choosePaymentMethod(const PaymentMethodDetails &method) {
 		showEditPaymentMethod(method);
 		return;
 	}
-	showBox(Box([=](not_null<Ui::GenericBox*> box) {
+	showBox(Box([=](not_null<GenericBox*> box) {
 		const auto save = [=](int option) {
 			if (option) {
 				showEditPaymentMethod(method);
@@ -379,9 +379,9 @@ void Panel::choosePaymentMethod(const PaymentMethodDetails &method) {
 }
 
 void Panel::askSetPassword() {
-	showBox(Box([=](not_null<Ui::GenericBox*> box) {
+	showBox(Box([=](not_null<GenericBox*> box) {
 		box->addRow(
-			object_ptr<Ui::FlatLabel>(
+			object_ptr<FlatLabel>(
 				box.get(),
 				tr::lng_payments_need_password(),
 				st::boxLabel),
@@ -389,6 +389,21 @@ void Panel::askSetPassword() {
 		box->addButton(tr::lng_continue(), [=] {
 			_delegate->panelSetPassword();
 			box->closeBox();
+		});
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}));
+}
+
+void Panel::showCloseConfirm() {
+	showBox(Box([=](not_null<GenericBox*> box) {
+		box->addRow(
+			object_ptr<FlatLabel>(
+				box.get(),
+				tr::lng_payments_sure_close(),
+				st::boxLabel),
+			st::boxPadding);
+		box->addButton(tr::lng_close(), [=] {
+			_delegate->panelCloseSure();
 		});
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	}));
@@ -438,10 +453,10 @@ rpl::producer<> Panel::backRequests() const {
 	return _widget->backRequests();
 }
 
-void Panel::showBox(object_ptr<Ui::BoxContent> box) {
+void Panel::showBox(object_ptr<BoxContent> box) {
 	_widget->showBox(
 		std::move(box),
-		Ui::LayerOption::KeepOther,
+		LayerOption::KeepOther,
 		anim::type::normal);
 }
 
