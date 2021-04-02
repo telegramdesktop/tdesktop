@@ -27,6 +27,36 @@ QString formatPhone(QString phone); // #TODO
 } // namespace App
 
 namespace Payments::Ui {
+namespace {
+
+constexpr auto kLightOpacity = 0.1;
+constexpr auto kLightRippleOpacity = 0.11;
+constexpr auto kChosenOpacity = 0.8;
+constexpr auto kChosenRippleOpacity = 0.5;
+
+[[nodiscard]] Fn<QColor()> TransparentColor(
+		const style::color &c,
+		float64 opacity) {
+	return [&c, opacity] {
+		return QColor(
+			c->c.red(),
+			c->c.green(),
+			c->c.blue(),
+			c->c.alpha() * opacity);
+	};
+}
+
+[[nodiscard]] style::RoundButton TipButtonStyle(
+		const style::RoundButton &original,
+		const style::color &light,
+		const style::color &ripple) {
+	auto result = original;
+	result.textBg = light;
+	result.ripple.color = ripple;
+	return result;
+}
+
+} // namespace
 
 using namespace ::Ui;
 
@@ -38,7 +68,8 @@ FormSummary::FormSummary(
 	const RequestedInformation &current,
 	const PaymentMethodDetails &method,
 	const ShippingOptions &options,
-	not_null<PanelDelegate*> delegate)
+	not_null<PanelDelegate*> delegate,
+	int scrollTop)
 : _delegate(delegate)
 , _invoice(invoice)
 , _method(method)
@@ -56,12 +87,31 @@ FormSummary::FormSummary(
 			rpl::single(formatAmount(computeTotalAmount()))),
 		st::paymentsPanelSubmit))
 , _cancel(
-		this,
-		(_invoice.receipt.paid
-			? tr::lng_about_done()
-			: tr::lng_cancel()),
-		st::paymentsPanelButton) {
+	this,
+	(_invoice.receipt.paid
+		? tr::lng_about_done()
+		: tr::lng_cancel()),
+	st::paymentsPanelButton)
+, _tipLightBg(TransparentColor(st::paymentsTipActive, kLightOpacity))
+, _tipLightRipple(
+	TransparentColor(st::paymentsTipActive, kLightRippleOpacity))
+, _tipChosenBg(TransparentColor(st::paymentsTipActive, kChosenOpacity))
+, _tipChosenRipple(
+	TransparentColor(st::paymentsTipActive, kChosenRippleOpacity))
+, _tipButton(TipButtonStyle(
+	st::paymentsTipButton,
+	_tipLightBg.color(),
+	_tipLightRipple.color()))
+, _tipChosen(TipButtonStyle(
+	st::paymentsTipChosen,
+	_tipChosenBg.color(),
+	_tipChosenRipple.color()))
+, _initialScrollTop(scrollTop) {
 	setupControls();
+}
+
+rpl::producer<int> FormSummary::scrollTopValue() const {
+	return _scroll->scrollTopValue();
 }
 
 void FormSummary::updateThumbnail(const QImage &thumbnail) {
@@ -69,8 +119,13 @@ void FormSummary::updateThumbnail(const QImage &thumbnail) {
 	_thumbnails.fire_copy(thumbnail);
 }
 
-QString FormSummary::formatAmount(int64 amount) const {
-	return FillAmountAndCurrency(amount, _invoice.currency);
+QString FormSummary::formatAmount(
+		int64 amount,
+		bool forceStripDotZero) const {
+	return FillAmountAndCurrency(
+		amount,
+		_invoice.currency,
+		forceStripDotZero);
 }
 
 int64 FormSummary::computeTotalAmount() const {
@@ -279,9 +334,7 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 			add(tr::lng_payments_tips_label(tr::now), tips);
 		}
 	} else if (_invoice.tipsMax > 0) {
-		const auto text = _invoice.tipsSelected
-			? formatAmount(_invoice.tipsSelected)
-			: tr::lng_payments_tips_add(tr::now);
+		const auto text = formatAmount(_invoice.tipsSelected);
 		const auto label = addRow(
 			tr::lng_payments_tips_label(tr::now),
 			Ui::Text::Link(text, "internal:edit_tips"));
@@ -289,10 +342,114 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 			_delegate->panelChooseTips();
 			return false;
 		});
+		setupSuggestedTips(layout);
 	}
 
 	add(tr::lng_payments_total_label(tr::now), total, true);
 	Settings::AddSkip(layout, st::paymentsPricesBottomSkip);
+}
+
+void FormSummary::setupSuggestedTips(not_null<VerticalLayout*> layout) {
+	if (_invoice.suggestedTips.empty()) {
+		return;
+	}
+	struct Button {
+		RoundButton *widget = nullptr;
+		int minWidth = 0;
+	};
+	struct State {
+		std::vector<Button> buttons;
+		int maxWidth = 0;
+	};
+	const auto outer = layout->add(
+		object_ptr<RpWidget>(layout),
+		st::paymentsTipButtonsPadding);
+	const auto state = outer->lifetime().make_state<State>();
+	for (const auto amount : _invoice.suggestedTips) {
+		const auto text = formatAmount(amount, true);
+		const auto &st = (amount == _invoice.tipsSelected)
+			? _tipChosen
+			: _tipButton;
+		state->buttons.push_back(Button{
+			.widget = CreateChild<RoundButton>(
+				outer,
+				rpl::single(formatAmount(amount, true)),
+				st),
+		});
+		auto &button = state->buttons.back();
+		button.widget->show();
+		button.widget->setClickedCallback([=] {
+			_delegate->panelChangeTips(amount);
+		});
+		button.minWidth = button.widget->width();
+		state->maxWidth = std::max(state->maxWidth, button.minWidth);
+	}
+	outer->widthValue(
+	) | rpl::filter([=](int outerWidth) {
+		return outerWidth >= state->maxWidth;
+	}) | rpl::start_with_next([=](int outerWidth) {
+		const auto skip = st::paymentsTipSkip;
+		const auto &buttons = state->buttons;
+		auto left = outerWidth;
+		auto height = 0;
+		auto rowStart = 0;
+		auto rowEnd = 0;
+		auto buttonWidths = std::vector<float64>();
+		const auto layoutRow = [&] {
+			const auto count = rowEnd - rowStart;
+			if (!count) {
+				return;
+			}
+			buttonWidths.resize(count);
+			ranges::fill(buttonWidths, 0.);
+			auto available = float64(outerWidth - (count - 1) * skip);
+			auto zeros = count;
+			do {
+				const auto started = zeros;
+				const auto average = available / zeros;
+				for (auto i = 0; i != count; ++i) {
+					if (buttonWidths[i] > 0.) {
+						continue;
+					}
+					const auto min = buttons[rowStart + i].minWidth;
+					if (min > average) {
+						buttonWidths[i] = min;
+						available -= min;
+						--zeros;
+					}
+				}
+				if (started == zeros) {
+					for (auto i = 0; i != count; ++i) {
+						if (!buttonWidths[i]) {
+							buttonWidths[i] = average;
+						}
+					}
+					break;
+				}
+			} while (zeros > 0);
+			auto x = 0.;
+			for (auto i = 0; i != count; ++i) {
+				const auto button = buttons[rowStart + i].widget;
+				auto right = x + buttonWidths[i];
+				button->setFullWidth(int(std::round(right) - std::round(x)));
+				button->moveToLeft(int(std::round(x)), height, outerWidth);
+				x = right + skip;
+			}
+			height += buttons[0].widget->height() + skip;
+		};
+		for (const auto button : buttons) {
+			if (button.minWidth <= left) {
+				left -= button.minWidth + skip;
+				++rowEnd;
+				continue;
+			}
+			layoutRow();
+			rowStart = rowEnd++;
+			left = outerWidth - button.minWidth - skip;
+		}
+		layoutRow();
+		outer->resize(outerWidth, height - skip);
+	}, outer->lifetime());
 }
 
 void FormSummary::setupSections(not_null<VerticalLayout*> layout) {
@@ -419,6 +576,12 @@ void FormSummary::updateControlsGeometry() {
 	_cancel->moveToRight(right, buttonsTop + padding.top());
 
 	_scroll->updateBars();
+
+	if (buttonsTop > 0 && width() > 0) {
+		if (const auto top = base::take(_initialScrollTop)) {
+			_scroll->scrollToY(top);
+		}
+	}
 }
 
 } // namespace Payments::Ui

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "payments/ui/payments_panel_data.h"
 #include "base/object_ptr.h"
+#include "styles/style_widgets.h"
 
 namespace Ui {
 class ScrollArea;
@@ -32,9 +33,11 @@ public:
 		const RequestedInformation &current,
 		const PaymentMethodDetails &method,
 		const ShippingOptions &options,
-		not_null<PanelDelegate*> delegate);
+		not_null<PanelDelegate*> delegate,
+		int scrollTop);
 
 	void updateThumbnail(const QImage &thumbnail);
+	[[nodiscard]] rpl::producer<int> scrollTopValue() const;
 
 private:
 	void resizeEvent(QResizeEvent *e) override;
@@ -43,10 +46,13 @@ private:
 	[[nodiscard]] not_null<Ui::RpWidget*> setupContent();
 	void setupCover(not_null<VerticalLayout*> layout);
 	void setupPrices(not_null<VerticalLayout*> layout);
+	void setupSuggestedTips(not_null<VerticalLayout*> layout);
 	void setupSections(not_null<VerticalLayout*> layout);
 	void updateControlsGeometry();
 
-	[[nodiscard]] QString formatAmount(int64 amount) const;
+	[[nodiscard]] QString formatAmount(
+		int64 amount,
+		bool forceStripDotZero = false) const;
 	[[nodiscard]] int64 computeTotalAmount() const;
 
 	const not_null<PanelDelegate*> _delegate;
@@ -60,6 +66,14 @@ private:
 	object_ptr<RoundButton> _submit;
 	object_ptr<RoundButton> _cancel;
 	rpl::event_stream<QImage> _thumbnails;
+
+	style::complex_color _tipLightBg;
+	style::complex_color _tipLightRipple;
+	style::complex_color _tipChosenBg;
+	style::complex_color _tipChosenRipple;
+	style::RoundButton _tipButton;
+	style::RoundButton _tipChosen;
+	int _initialScrollTop = 0;
 
 };
 

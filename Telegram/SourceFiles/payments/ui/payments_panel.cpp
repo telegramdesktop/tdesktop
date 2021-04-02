@@ -66,10 +66,12 @@ void Panel::showForm(
 		current,
 		method,
 		options,
-		_delegate);
+		_delegate,
+		_formScrollTop.current());
 	_weakFormSummary = form.get();
 	_widget->showInner(std::move(form));
 	_widget->setBackAllowed(false);
+	_formScrollTop = _weakFormSummary->scrollTopValue();
 }
 
 void Panel::updateFormThumbnail(const QImage &thumbnail) {
@@ -204,7 +206,7 @@ void Panel::chooseTips(const Invoice &invoice) {
 					case 8: return "KZT";
 					}
 					return currency;
-				})(), // #TODO payments currency,
+				})(), // #TODO payments testing
 			});
 		box->setFocusCallback([=] {
 			row->setFocusFast();
@@ -221,7 +223,7 @@ void Panel::chooseTips(const Invoice &invoice) {
 					st::paymentTipsErrorLabel)),
 			st::paymentTipsErrorPadding);
 		errorWrap->hide(anim::type::instant);
-		box->addButton(tr::lng_settings_save(), [=] {
+		const auto submit = [=] {
 			const auto value = row->value().toLongLong();
 			if (value > max) {
 				row->showError();
@@ -230,7 +232,10 @@ void Panel::chooseTips(const Invoice &invoice) {
 				_delegate->panelChangeTips(value);
 				box->closeBox();
 			}
-		});
+		};
+		row->submitted(
+		) | rpl::start_with_next(submit, box->lifetime());
+		box->addButton(tr::lng_settings_save(), submit);
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	}));
 }

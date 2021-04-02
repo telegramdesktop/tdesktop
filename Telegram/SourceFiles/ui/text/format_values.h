@@ -35,7 +35,8 @@ struct CurrencyRule {
 
 [[nodiscard]] QString FillAmountAndCurrency(
 	int64 amount,
-	const QString &currency);
+	const QString &currency,
+	bool forceStripDotZero = false);
 [[nodiscard]] CurrencyRule LookupCurrencyRule(const QString &currency);
 [[nodiscard]] QString FormatWithSeparators(
 	double amount,
