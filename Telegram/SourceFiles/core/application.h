@@ -139,7 +139,6 @@ public:
 	bool minimizeActiveWindow();
 	[[nodiscard]] QWidget *getFileDialogParent();
 	void notifyFileDialogShown(bool shown);
-	[[nodiscard]] QWidget *getModalParent();
 	void checkSystemDarkMode();
 
 	// Media view interface.

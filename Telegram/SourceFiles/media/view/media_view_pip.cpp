@@ -373,8 +373,7 @@ QImage RotateFrameImage(QImage image, int rotation) {
 PipPanel::PipPanel(
 	QWidget *parent,
 	Fn<void(QPainter&, FrameRequest)> paint)
-: PipParent(Core::App().getModalParent())
-, _parent(parent)
+: _parent(parent)
 , _paint(std::move(paint)) {
 	setWindowFlags(Qt::Tool
 		| Qt::WindowStaysOnTopHint
