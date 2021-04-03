@@ -16,8 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "base/qt_adapters.h"
 
-#include <QtCore/QMimeType>
-#include <QtCore/QMimeDatabase>
 #include <QtGui/QWindow>
 #include <QtWidgets/QFileDialog>
 
@@ -282,7 +280,7 @@ void XDPFileDialog::openPortal() {
 	if (_acceptMode == QFileDialog::AcceptSave) {
 		if (!_directory.empty()) {
 			options["current_folder"] = Glib::Variant<std::string>::create(
-				_directory +'\0');
+				_directory + '\0');
 		}
 
 		if (!_selectedFiles.empty()) {
@@ -302,8 +300,12 @@ void XDPFileDialog::openPortal() {
 
 	if (!_mimeTypesFilters.empty()) {
 		for (const auto &mimeTypeFilter : _mimeTypesFilters) {
-			const auto mimeType = QMimeDatabase().mimeTypeForName(
-				QString::fromStdString(mimeTypeFilter));
+			auto mimeTypeUncertain = false;
+			const auto mimeType = Gio::content_type_guess(
+				mimeTypeFilter,
+				nullptr,
+				0,
+				mimeTypeUncertain);
 
 			// Creates e.g. (1, "image/png")
 			const auto filterCondition = FilterCondition{
@@ -313,7 +315,7 @@ void XDPFileDialog::openPortal() {
 
 			// Creates e.g. [("Images", [((1, "image/png"))])]
 			filterList.push_back({
-				mimeType.comment().toStdString(),
+				Gio::content_type_get_description(mimeType),
 				FilterConditionList{filterCondition},
 			});
 
@@ -326,18 +328,16 @@ void XDPFileDialog::openPortal() {
 		for (const auto &nameFilter : _nameFilters) {
 			// Do parsing:
 			// Supported format is ("Images (*.png *.jpg)")
-			const QRegularExpression regexp(
-				QString::fromLatin1(filterRegExp));
+			const auto regexp = Glib::Regex::create(filterRegExp);
 
-			const QRegularExpressionMatch match = regexp.match(
-				QString::fromStdString(nameFilter));
+			Glib::MatchInfo match;
+			regexp->match(nameFilter, match);
 
-			if (match.hasMatch()) {
-				const auto userVisibleName = match.captured(1).toStdString();
-				const auto filterStrings = QStringListToStd(
-					match.captured(2).split(
-						QLatin1Char(' '),
-						base::QStringSkipEmptyParts));
+			if (match.matches()) {
+				const auto userVisibleName = match.fetch(1);
+				const auto filterStrings = Glib::Regex::create(" ")->split(
+					match.fetch(2),
+					Glib::RegexMatchFlags::REGEX_MATCH_NOTEMPTY);
 
 				if (filterStrings.empty()) {
 					LOG((
