@@ -11,38 +11,54 @@ using "ui/widgets/widgets.style";
 using "ui/chat/chat.style";
 
 photoEditorControlsHeight: 100px;
-photoEditorControlsTopSkip: 50px;
+photoEditorControlsTopSkip: 40px;
 
-photoEditorButtonIconFg: historyComposeIconFg;
-photoEditorButtonIconFgOver: historyComposeIconFgOver;
+photoEditorButtonIconFg: mediaviewPipControlsFg;
+photoEditorButtonIconFgOver: mediaviewPipControlsFgOver;
 
-photoEditorButtonIconFgActive: historyComposeIconFgOver;
-photoEditorButtonIconFgInactive: menuFgDisabled;
+photoEditorButtonIconFgActive: lightButtonFg;
+photoEditorButtonIconFgInactive: mediaviewPipPlaybackInactive;
 
-photoEditorRotateButton: IconButton(historyAttach) {
+photoEditorRotateButton: IconButton(defaultIconButton) {
+	width: 56px;
+	height: 56px;
+
 	icon: icon {{ "photo_editor/rotate", photoEditorButtonIconFg }};
 	iconOver: icon {{ "photo_editor/rotate", photoEditorButtonIconFgOver }};
+
+	rippleAreaPosition: point(8px, 8px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
 }
-photoEditorFlipButton: IconButton(historyAttach) {
+photoEditorFlipButton: IconButton(photoEditorRotateButton) {
 	icon: icon {{ "photo_editor/flip", photoEditorButtonIconFg }};
 	iconOver: icon {{ "photo_editor/flip", photoEditorButtonIconFgOver }};
 }
-photoEditorPaintModeButton: IconButton(historyAttach) {
+photoEditorFlipIconActive: icon {{ "photo_editor/flip", photoEditorButtonIconFgActive }};
+
+photoEditorPaintModeButton: IconButton(photoEditorRotateButton) {
 	icon: icon {{ "photo_editor/paint", photoEditorButtonIconFg }};
 	iconOver: icon {{ "photo_editor/paint", photoEditorButtonIconFgOver }};
 }
-photoEditorUndoButton: IconButton(historyAttach) {
+photoEditorPaintIconActive: icon {{ "photo_editor/paint", photoEditorButtonIconFgActive }};
+
+photoEditorUndoButton: IconButton(photoEditorRotateButton) {
 	icon: icon {{ "photo_editor/undo", photoEditorButtonIconFg }};
 	iconOver: icon {{ "photo_editor/undo", photoEditorButtonIconFgOver }};
 }
-photoEditorRedoButton: IconButton(historyAttach) {
+
+photoEditorRedoButton: IconButton(photoEditorRotateButton) {
 	icon: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFg }};
 	iconOver: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgOver }};
 }
-photoEditorStickersButton: IconButton(historyAttach) {
+
+photoEditorStickersButton: IconButton(photoEditorRotateButton) {
 	icon: icon {{ "settings_stickers", photoEditorButtonIconFg }};
 	iconOver: icon {{ "settings_stickers", photoEditorButtonIconFgOver }};
 }
+photoEditorStickersIconActive: icon {{ "settings_stickers", photoEditorButtonIconFgActive }};
 
 photoEditorUndoButtonInactive: icon {{ "photo_editor/undo", photoEditorButtonIconFgInactive }};
 photoEditorRedoButtonInactive: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgInactive }};
@@ -51,7 +67,7 @@ photoEditorTextButtonPadding: margins(10px, 0px, 10px, 0px);
 
 photoEditorColorPickerTopSkip: 20px;
 photoEditorColorPickerWidth: 250px;
-photoEditorColorPickerLineHeight: 20px;
+photoEditorColorPickerLineHeight: 10px;
 photoEditorColorPickerCanvasHeight: 300px;
 photoEditorColorPickerCircleSize: 24px;
 photoEditorColorPickerCircleBigSize: 50px;

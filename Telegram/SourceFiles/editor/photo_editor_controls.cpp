@@ -138,7 +138,7 @@ PhotoEditorControls::PhotoEditorControls(
 	const PhotoModifications modifications,
 	bool doneControls)
 : RpWidget(parent)
-, _bg(st::mediaviewSaveMsgBg)
+, _bg(st::roundedBg)
 , _transformButtons(base::make_unique_q<HorizontalContainer>(this))
 , _paintButtons(base::make_unique_q<HorizontalContainer>(this))
 , _rotateButton(base::make_unique_q<Ui::IconButton>(
@@ -179,14 +179,15 @@ PhotoEditorControls::PhotoEditorControls(
 	false,
 	_bg,
 	st::lightButtonFg,
-	st::photoEditorRotateButton.ripple))
-, _flipped(modifications.flipped) {
+	st::photoEditorRotateButton.ripple)) {
 
 	_transformButtons->updateChildrenPosition();
 	_paintButtons->updateChildrenPosition();
 
-	_paintModeButtonActive->setIconOverride(
-		&st::photoEditorPaintModeButton.iconOver);
+	{
+		const auto icon = &st::photoEditorPaintIconActive;
+		_paintModeButtonActive->setIconOverride(icon, icon);
+	}
 	_paintModeButtonActive->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	paintRequest(
@@ -263,18 +264,21 @@ PhotoEditorControls::PhotoEditorControls(
 
 		controllers->stickersPanelController->panelShown(
 		) | rpl::start_with_next([=](bool shown) {
-			_stickersButton->setIconOverride(shown
-				? &st::photoEditorStickersButton.iconOver
-				: nullptr);
+			const auto icon = shown
+				? &st::photoEditorStickersIconActive
+				: nullptr;
+			_stickersButton->setIconOverride(icon, icon);
 		}, _stickersButton->lifetime());
 	}
 
-	_flipButton->clicks(
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::skip(modifications.flipped ? 0 : 1) | rpl::then(
+		_flipButton->clicks() | rpl::to_empty
 	) | rpl::start_with_next([=] {
 		_flipped = !_flipped;
-		_flipButton->setIconOverride(_flipped
-			? &st::photoEditorFlipButton.iconOver
-			: nullptr);
+		const auto icon = _flipped ? &st::photoEditorFlipIconActive : nullptr;
+		_flipButton->setIconOverride(icon, icon);
 	}, _flipButton->lifetime());
 
 }

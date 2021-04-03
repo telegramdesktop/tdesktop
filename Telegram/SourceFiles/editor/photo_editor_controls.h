@@ -55,7 +55,7 @@ private:
 	const base::unique_qptr<EdgeButton> _cancel;
 	const base::unique_qptr<EdgeButton> _done;
 
-	bool _flipped;
+	bool _flipped = false;
 
 	rpl::variable<PhotoEditorMode> _mode;
 
