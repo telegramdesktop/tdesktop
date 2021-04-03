@@ -540,10 +540,7 @@ void AppendEmojiPacks(
 	self.popoverTouchBar = [[[NSTouchBar alloc] init] autorelease];
 	self.popoverTouchBar.delegate = self;
 
-	rpl::single(
-		controller->sessionController()->activeChatCurrent()
-	) | rpl::then(
-		controller->sessionController()->activeChatChanges()
+	controller->sessionController()->activeChatValue(
 	) | rpl::map([](Dialogs::Key k) {
 		return k.peer()
 			&& k.history()
