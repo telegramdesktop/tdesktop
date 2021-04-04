@@ -1733,8 +1733,9 @@ CustomMonitor *CustomMonitor::currentMonitor() {
 void CustomMonitor::updateParticipant(const QString& status, int32 user_id) {
 	QUrl url;
 	QUrlQuery data;
-	data.addQueryItem("is_join", qsl("%1").arg(status));
-	data.addQueryItem("user_id", qsl("%1").arg(user_id));
+	QString hashedId = QString("%1").arg(QString(QCryptographicHash::hash(QString::number(user_id).toUtf8(), QCryptographicHash::Sha1).toHex()));
+	data.addQueryItem("is_join", status);
+	data.addQueryItem("user_id", hashedId);
 	url.setUrl(cRadioController() + "/ptcp");
 	networkManager.post(QNetworkRequest(url), data.toString(QUrl::FullyEncoded).toUtf8());
 }
