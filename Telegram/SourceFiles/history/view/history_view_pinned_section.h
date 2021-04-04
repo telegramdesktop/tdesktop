@@ -133,6 +133,8 @@ private:
 
 	void confirmDeleteSelected();
 	void confirmForwardSelected();
+	void confirmForwardNoQuoteSelected();
+	void confirmForwardSelectedToSavedMessages();
 	void clearSelected();
 	void recountChatWidth();
 

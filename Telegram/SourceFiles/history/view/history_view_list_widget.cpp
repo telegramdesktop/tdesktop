@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_list_widget.h"
 
 #include "base/unixtime.h"
+#include "history/history.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
@@ -2838,6 +2839,64 @@ void ConfirmForwardSelectedItems(not_null<ListWidget*> widget) {
 	auto ids = widget->getSelectedIds();
 	const auto weak = Ui::MakeWeak(widget);
 	Window::ShowForwardMessagesBox(widget->controller(), std::move(ids), [=] {
+		if (const auto strong = weak.data()) {
+			strong->cancelSelection();
+		}
+	});
+}
+
+void ConfirmForwardNoQuoteSelectedItems(not_null<ListWidget*> widget) {
+	const auto items = widget->getSelectedItems();
+	if (items.empty()) {
+		return;
+	}
+	for (const auto &item : items) {
+		if (!item.canForward) {
+			return;
+		}
+	}
+	auto ids = widget->getSelectedIds();
+	const auto weak = Ui::MakeWeak(widget);
+	Window::ShowForwardNoQuoteMessagesBox(widget->controller(), std::move(ids), [=] {
+		if (const auto strong = weak.data()) {
+			strong->cancelSelection();
+		}
+	});
+}
+
+MessageIdsList ExtractIdsList(const SelectedItems &items) {
+	return ranges::views::all(
+			items
+	) | ranges::views::transform(
+			&SelectedItem::msgId
+	) | ranges::to_vector;
+}
+
+void ConfirmForwardSelectedToSavedMessagesItems(not_null<ListWidget*> widget) {
+	const auto items = widget->getSelectedItems();
+	if (items.empty()) {
+		return;
+	}
+	for (const auto &item : items) {
+		if (!item.canForward) {
+			return;
+		}
+	}
+	const auto weak = Ui::MakeWeak(widget);
+
+	const auto itemsList = ExtractIdsList(items);
+	const auto item = App::wnd()->sessionController()->session().data().message(itemsList[0]);
+	const auto api = &item->history()->peer->session().api();
+	const auto session = &item->history()->peer->session();
+	const auto self = api->session().user()->asUser();
+	auto msgItems = session->data().idsToItems(itemsList);
+
+	auto action = Api::SendAction(item->history()->peer->owner().history(self));
+	action.clearDraft = false;
+	action.generateLocal = false;
+	api->forwardMessages(std::move(msgItems), action, [=] {
+		Ui::Toast::Show(tr::lng_share_done(tr::now));
+
 		if (const auto strong = weak.data()) {
 			strong->cancelSelection();
 		}

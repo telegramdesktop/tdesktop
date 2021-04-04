@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_channel.h"
+#include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "data/data_scheduled_messages.h"
 #include "core/file_utilities.h"
@@ -315,6 +316,39 @@ bool AddForwardSelectedAction(
 			ExtractIdsList(request.selectedItems),
 			callback);
 	});
+	menu->addAction(tr::lng_context_forward_selected_no_quote(tr::now), [=] {
+		const auto weak = Ui::MakeWeak(list);
+		const auto callback = [=] {
+			if (const auto strong = weak.data()) {
+				strong->cancelSelection();
+			}
+		};
+		Window::ShowForwardNoQuoteMessagesBox(
+				request.navigation,
+				ExtractIdsList(request.selectedItems),
+				callback);
+	});
+	menu->addAction(tr::lng_forward_to_saved_message(tr::now), [=] {
+		const auto weak = Ui::MakeWeak(list);
+		const auto callback = [=] {
+			if (const auto strong = weak.data()) {
+				strong->cancelSelection();
+			}
+		};
+		const auto items = ExtractIdsList(request.selectedItems);
+		const auto item = App::wnd()->sessionController()->session().data().message(items[0]);
+		const auto api = &item->history()->peer->session().api();
+		const auto session = &item->history()->peer->session();
+		const auto self = api->session().user()->asUser();
+		auto msgItems = session->data().idsToItems(items);
+
+		auto action = Api::SendAction(item->history()->peer->owner().history(self));
+		action.clearDraft = false;
+		action.generateLocal = false;
+		api->forwardMessages(std::move(msgItems), action, [] {
+			Ui::Toast::Show(tr::lng_share_done(tr::now));
+		});
+	});
 	return true;
 }
 
@@ -345,6 +379,15 @@ bool AddForwardMessageAction(
 				(asGroup
 					? owner->itemOrItsGroup(item)
 					: MessageIdsList{ 1, itemId }));
+		}
+	});
+	menu->addAction(tr::lng_context_forward_msg_no_quote(tr::now), [=] {
+		if (const auto item = owner->message(itemId)) {
+			Window::ShowForwardNoQuoteMessagesBox(
+					request.navigation,
+					(asGroup
+					 ? owner->itemOrItsGroup(item)
+					 : MessageIdsList{ 1, itemId }));
 		}
 	});
 	return true;

@@ -184,6 +184,14 @@ RepliesWidget::RepliesWidget(
 	) | rpl::start_with_next([=] {
 		confirmForwardSelected();
 	}, _topBar->lifetime());
+	_topBar->forwardNoQuoteSelectionRequest(
+	) | rpl::start_with_next([=] {
+		confirmForwardNoQuoteSelected();
+	}, _topBar->lifetime());
+	_topBar->savedMessagesSelectionRequest(
+	) | rpl::start_with_next([=] {
+		confirmForwardSelectedToSavedMessages();
+	}, _topBar->lifetime());
 	_topBar->clearSelectionRequest(
 	) | rpl::start_with_next([=] {
 		clearSelected();
@@ -1792,6 +1800,14 @@ void RepliesWidget::confirmDeleteSelected() {
 
 void RepliesWidget::confirmForwardSelected() {
 	ConfirmForwardSelectedItems(_inner);
+}
+
+void RepliesWidget::confirmForwardNoQuoteSelected() {
+	ConfirmForwardNoQuoteSelectedItems(_inner);
+}
+
+void RepliesWidget::confirmForwardSelectedToSavedMessages() {
+	ConfirmForwardSelectedToSavedMessagesItems(_inner);
 }
 
 void RepliesWidget::clearSelected() {

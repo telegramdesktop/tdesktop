@@ -121,6 +121,14 @@ PinnedWidget::PinnedWidget(
 	) | rpl::start_with_next([=] {
 		confirmForwardSelected();
 	}, _topBar->lifetime());
+	_topBar->forwardNoQuoteSelectionRequest(
+	) | rpl::start_with_next([=] {
+		confirmForwardNoQuoteSelected();
+	}, _topBar->lifetime());
+	_topBar->savedMessagesSelectionRequest(
+	) | rpl::start_with_next([=] {
+		confirmForwardSelectedToSavedMessages();
+	}, _topBar->lifetime());
 	_topBar->clearSelectionRequest(
 	) | rpl::start_with_next([=] {
 		clearSelected();
@@ -658,6 +666,14 @@ void PinnedWidget::confirmDeleteSelected() {
 
 void PinnedWidget::confirmForwardSelected() {
 	ConfirmForwardSelectedItems(_inner);
+}
+
+void PinnedWidget::confirmForwardNoQuoteSelected() {
+	ConfirmForwardNoQuoteSelectedItems(_inner);
+}
+
+void PinnedWidget::confirmForwardSelectedToSavedMessages() {
+	ConfirmForwardSelectedToSavedMessagesItems(_inner);
 }
 
 void PinnedWidget::clearSelected() {
