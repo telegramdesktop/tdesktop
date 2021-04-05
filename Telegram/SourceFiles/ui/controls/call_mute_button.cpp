@@ -102,21 +102,7 @@ auto MuteBlobs() {
 auto Colors() {
 	using Vector = std::vector<QColor>;
 	using Colors = anim::gradient_colors;
-	return base::flat_map<CallMuteButtonType, Colors>{
-		{
-			CallMuteButtonType::ForceMuted,
-			Colors(QGradientStops{
-				{ .0, st::groupCallForceMuted3->c },
-				{ .5, st::groupCallForceMuted2->c },
-				{ 1., st::groupCallForceMuted1->c } })
-		},
-		{
-			CallMuteButtonType::RaisedHand,
-			Colors(QGradientStops{
-				{ .0, st::groupCallForceMuted3->c },
-				{ .5, st::groupCallForceMuted2->c },
-				{ 1., st::groupCallForceMuted1->c } })
-		},
+	auto result = base::flat_map<CallMuteButtonType, Colors>{
 		{
 			CallMuteButtonType::Active,
 			Colors(Vector{ st::groupCallLive1->c, st::groupCallLive2->c })
@@ -130,6 +116,21 @@ auto Colors() {
 			Colors(Vector{ st::groupCallMuted1->c, st::groupCallMuted2->c })
 		},
 	};
+	const auto forceMutedColors = Colors(QGradientStops{
+		{ .0, st::groupCallForceMuted3->c },
+		{ .5, st::groupCallForceMuted2->c },
+		{ 1., st::groupCallForceMuted1->c } });
+	const auto forceMutedTypes = {
+		CallMuteButtonType::ForceMuted,
+		CallMuteButtonType::RaisedHand,
+		CallMuteButtonType::ScheduledCanStart,
+		CallMuteButtonType::ScheduledNotify,
+		CallMuteButtonType::ScheduledSilent,
+	};
+	for (const auto type : forceMutedTypes) {
+		result.emplace(type, forceMutedColors);
+	}
+	return result;
 }
 
 bool IsMuted(CallMuteButtonType type) {
@@ -143,7 +144,10 @@ bool IsConnecting(CallMuteButtonType type) {
 bool IsInactive(CallMuteButtonType type) {
 	return IsConnecting(type)
 		|| (type == CallMuteButtonType::ForceMuted)
-		|| (type == CallMuteButtonType::RaisedHand);
+		|| (type == CallMuteButtonType::RaisedHand)
+		|| (type == CallMuteButtonType::ScheduledCanStart)
+		|| (type == CallMuteButtonType::ScheduledNotify)
+		|| (type == CallMuteButtonType::ScheduledSilent);
 }
 
 auto Clamp(float64 value) {
@@ -585,6 +589,9 @@ CallMuteButton::IconState CallMuteButton::iconStateFrom(
 				.frameTo = 62,
 			};
 		} break;
+		case CallMuteButtonType::ScheduledCanStart: // #TODO voice chats
+		case CallMuteButtonType::ScheduledNotify:
+		case CallMuteButtonType::ScheduledSilent:
 		case CallMuteButtonType::ForceMuted:
 		case CallMuteButtonType::RaisedHand: {
 			return { // Active -> Hand
@@ -615,6 +622,9 @@ CallMuteButton::IconState CallMuteButton::iconStateFrom(
 				.frameTo = 22,
 			};
 		} break;
+		case CallMuteButtonType::ScheduledCanStart: // #TODO voice chats
+		case CallMuteButtonType::ScheduledNotify:
+		case CallMuteButtonType::ScheduledSilent:
 		case CallMuteButtonType::ForceMuted:
 		case CallMuteButtonType::RaisedHand: {
 			return { // Muted -> Hand
@@ -626,6 +636,9 @@ CallMuteButton::IconState CallMuteButton::iconStateFrom(
 		} break;
 		}
 	} break;
+	case CallMuteButtonType::ScheduledCanStart: // #TODO voice chats
+	case CallMuteButtonType::ScheduledNotify:
+	case CallMuteButtonType::ScheduledSilent:
 	case CallMuteButtonType::ForceMuted:
 	case CallMuteButtonType::RaisedHand: {
 		switch (current) {
@@ -645,6 +658,9 @@ CallMuteButton::IconState CallMuteButton::iconStateFrom(
 				.frameTo = 20,
 			};
 		} break;
+		case CallMuteButtonType::ScheduledCanStart: // #TODO voice chats
+		case CallMuteButtonType::ScheduledNotify:
+		case CallMuteButtonType::ScheduledSilent:
 		case CallMuteButtonType::ForceMuted:
 		case CallMuteButtonType::RaisedHand: {
 			return { // Hand
@@ -1015,6 +1031,9 @@ CallMuteButton::HandleMouseState CallMuteButton::HandleMouseStateFromType(
 		return HandleMouseState::Enabled;
 	case CallMuteButtonType::Connecting:
 		return HandleMouseState::Disabled;
+	case CallMuteButtonType::ScheduledCanStart:
+	case CallMuteButtonType::ScheduledNotify:
+	case CallMuteButtonType::ScheduledSilent:
 	case CallMuteButtonType::ForceMuted:
 	case CallMuteButtonType::RaisedHand:
 		return HandleMouseState::Enabled;
@@ -1098,7 +1117,10 @@ void CallMuteButton::overridesColors(
 		float64 progress) {
 	const auto forceMutedToConnecting = [](CallMuteButtonType &type) {
 		if (type == CallMuteButtonType::ForceMuted
-			|| type == CallMuteButtonType::RaisedHand) {
+			|| type == CallMuteButtonType::RaisedHand
+			|| type == CallMuteButtonType::ScheduledCanStart
+			|| type == CallMuteButtonType::ScheduledNotify
+			|| type == CallMuteButtonType::ScheduledSilent) {
 			type = CallMuteButtonType::Connecting;
 		}
 	};

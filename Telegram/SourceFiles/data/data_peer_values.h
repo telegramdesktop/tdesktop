@@ -111,6 +111,7 @@ inline auto PeerFullFlagValue(
 [[nodiscard]] rpl::producer<bool> CanWriteValue(ChannelData *channel);
 [[nodiscard]] rpl::producer<bool> CanWriteValue(not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> CanPinMessagesValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<bool> CanManageGroupCallValue(not_null<PeerData*> peer);
 
 [[nodiscard]] TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now);
 [[nodiscard]] crl::time OnlineChangeTimeout(TimeId online, TimeId now);

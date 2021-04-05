@@ -184,6 +184,7 @@ GroupCall::GroupCall(
 , _joinAs(info.joinAs)
 , _possibleJoinAs(std::move(info.possibleJoinAs))
 , _joinHash(info.joinHash)
+, _id(inputCall.c_inputGroupCall().vid().v)
 , _scheduleDate(info.scheduleDate)
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
@@ -216,14 +217,29 @@ GroupCall::GroupCall(
 
 	checkGlobalShortcutAvailability();
 
-	const auto id = inputCall.c_inputGroupCall().vid().v;
-	if (id) {
-		if (const auto call = _peer->groupCall(); call && call->id() == id) {
-			_scheduleDate = call->scheduleDate();
-			if (!_peer->canManageGroupCall() && call->joinMuted()) {
-				_muted = MuteState::ForceMuted;
-			}
+	if (const auto real = lookupReal()) {
+		subscribeToReal(real);
+		if (!_peer->canManageGroupCall() && real->joinMuted()) {
+			_muted = MuteState::ForceMuted;
 		}
+	} else {
+		_peer->session().changes().peerFlagsValue(
+			_peer,
+			Data::PeerUpdate::Flag::GroupCall
+		) | rpl::map([=] {
+			return lookupReal();
+		}) | rpl::filter([](Data::GroupCall *real) {
+			return real != nullptr;
+		}) | rpl::map([](Data::GroupCall *real) {
+			return not_null{ real };
+		}) | rpl::take(
+			1
+		) | rpl::start_with_next([=](not_null<Data::GroupCall*> call) {
+			subscribeToReal(real);
+			_realChanges.fire_copy(call);
+		}, _lifetime);
+	}
+	if (_id) {
 		join(inputCall);
 	} else {
 		start(info.scheduleDate);
@@ -248,6 +264,17 @@ GroupCall::GroupCall(
 
 GroupCall::~GroupCall() {
 	destroyController();
+}
+
+void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
+	real->scheduleDateValue(
+	) | rpl::start_with_next([=](TimeId date) {
+		const auto was = _scheduleDate;
+		_scheduleDate = date;
+		if (was && !date) {
+			join(inputCall());
+		}
+	}, _lifetime);
 }
 
 void GroupCall::checkGlobalShortcutAvailability() {
@@ -325,6 +352,18 @@ bool GroupCall::showChooseJoinAs() const {
 	return (_possibleJoinAs.size() > 1)
 		|| (_possibleJoinAs.size() == 1
 			&& !_possibleJoinAs.front()->isSelf());
+}
+
+Data::GroupCall *GroupCall::lookupReal() const {
+	const auto real = _peer->groupCall();
+	return (real && real->id() == _id) ? real : nullptr;
+}
+
+rpl::producer<not_null<Data::GroupCall*>> GroupCall::real() const {
+	if (const auto real = lookupReal()) {
+		return rpl::single(not_null{ real });
+	}
+	return _realChanges.events();
 }
 
 void GroupCall::start(TimeId scheduleDate) {
@@ -699,6 +738,29 @@ void GroupCall::finish(FinishType type) {
 	})).send();
 }
 
+void GroupCall::startScheduledNow() {
+	if (!lookupReal()) {
+		return;
+	}
+	_api.request(MTPphone_StartScheduledGroupCall(
+		inputCall()
+	)).done([=](const MTPUpdates &result) {
+		_peer->session().api().applyUpdates(result);
+	}).send();
+}
+
+void GroupCall::toggleScheduleStartSubscribed(bool subscribed) {
+	if (!lookupReal()) {
+		return;
+	}
+	_api.request(MTPphone_ToggleGroupCallStartSubscription(
+		inputCall(),
+		MTP_bool(subscribed)
+	)).done([=](const MTPUpdates &result) {
+		_peer->session().api().applyUpdates(result);
+	}).send();
+}
+
 void GroupCall::setMuted(MuteState mute) {
 	const auto set = [=] {
 		const auto wasMuted = (muted() == MuteState::Muted)
@@ -744,6 +806,8 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 		const MTPDgroupCall &data) {
 	if (const auto date = data.vschedule_date()) {
 		_scheduleDate = date->v;
+	} else {
+		_scheduleDate = 0;
 	}
 	if (_acceptFields) {
 		if (!_instance && !_id) {
@@ -841,10 +905,8 @@ void GroupCall::handlePossibleDiscarded(const MTPDgroupCallDiscarded &data) {
 }
 
 void GroupCall::addParticipantsToInstance() {
-	const auto real = _peer->groupCall();
-	if (!real
-		|| (real->id() != _id)
-		|| (_instanceMode == InstanceMode::None)) {
+	const auto real = lookupReal();
+	if (!real || (_instanceMode == InstanceMode::None)) {
 		return;
 	}
 	for (const auto &participant : real->participants()) {
@@ -866,7 +928,7 @@ void GroupCall::addPreparedParticipants() {
 	if (!_preparedParticipants.empty()) {
 		_instance->addParticipants(base::take(_preparedParticipants));
 	}
-	if (const auto real = _peer->groupCall(); real && real->id() == _id) {
+	if (const auto real = lookupReal()) {
 		if (!_unresolvedSsrcs.empty()) {
 			real->resolveParticipants(base::take(_unresolvedSsrcs));
 		}
@@ -989,8 +1051,8 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 }
 
 void GroupCall::changeTitle(const QString &title) {
-	const auto real = _peer->groupCall();
-	if (!real || real->id() != _id || real->title() == title) {
+	const auto real = lookupReal();
+	if (!real || real->title() == title) {
 		return;
 	}
 
@@ -1005,8 +1067,8 @@ void GroupCall::changeTitle(const QString &title) {
 }
 
 void GroupCall::toggleRecording(bool enabled, const QString &title) {
-	const auto real = _peer->groupCall();
-	if (!real || real->id() != _id) {
+	const auto real = lookupReal();
+	if (!real) {
 		return;
 	}
 
@@ -1185,10 +1247,8 @@ void GroupCall::broadcastPartCancel(not_null<LoadPartTask*> task) {
 
 void GroupCall::requestParticipantsInformation(
 		const std::vector<uint32_t> &ssrcs) {
-	const auto real = _peer->groupCall();
-	if (!real
-		|| (real->id() != _id)
-		|| (_instanceMode == InstanceMode::None)) {
+	const auto real = lookupReal();
+	if (!real || (_instanceMode == InstanceMode::None)) {
 		for (const auto ssrc : ssrcs) {
 			_unresolvedSsrcs.emplace(ssrc);
 		}
@@ -1222,8 +1282,8 @@ void GroupCall::updateInstanceMuteState() {
 }
 
 void GroupCall::updateInstanceVolumes() {
-	const auto real = _peer->groupCall();
-	if (!real || real->id() != _id) {
+	const auto real = lookupReal();
+	if (!real) {
 		return;
 	}
 
@@ -1299,8 +1359,8 @@ void GroupCall::audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data) {
 }
 
 void GroupCall::checkLastSpoke() {
-	const auto real = _peer->groupCall();
-	if (!real || real->id() != _id) {
+	const auto real = lookupReal();
+	if (!real) {
 		return;
 	}
 
@@ -1511,8 +1571,8 @@ void GroupCall::editParticipant(
 
 std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 		const std::vector<not_null<UserData*>> &users) {
-	const auto real = _peer->groupCall();
-	if (!real || real->id() != _id) {
+	const auto real = lookupReal();
+	if (!real) {
 		return 0;
 	}
 	const auto owner = &_peer->owner();
