@@ -63,6 +63,15 @@ public:
 	[[nodiscard]] rpl::producer<TimeId> recordStartDateChanges() const {
 		return _recordStartDate.changes();
 	}
+	[[nodiscard]] TimeId scheduleDate() const {
+		return _scheduleDate.current();
+	}
+	[[nodiscard]] rpl::producer<TimeId> scheduleDateValue() const {
+		return _scheduleDate.value();
+	}
+	[[nodiscard]] rpl::producer<TimeId> scheduleDateChanges() const {
+		return _scheduleDate.changes();
+	}
 
 	void setPeer(not_null<PeerData*> peer);
 
@@ -163,6 +172,7 @@ private:
 	int _serverParticipantsCount = 0;
 	rpl::variable<int> _fullCount = 0;
 	rpl::variable<TimeId> _recordStartDate = 0;
+	rpl::variable<TimeId> _scheduleDate = 0;
 
 	base::flat_map<uint32, LastSpokeTimes> _unknownSpokenSsrcs;
 	base::flat_map<PeerId, LastSpokeTimes> _unknownSpokenPeerIds;

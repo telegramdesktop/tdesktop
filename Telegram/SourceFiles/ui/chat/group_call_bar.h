@@ -21,6 +21,8 @@ struct GroupCallUser;
 class GroupCallUserpics;
 
 struct GroupCallBarContent {
+	QString title;
+	TimeId scheduleDate = 0;
 	int count = 0;
 	bool shown = false;
 	std::vector<GroupCallUser> users;

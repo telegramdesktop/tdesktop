@@ -73,15 +73,17 @@ private:
 	void initWindow();
 	void initWidget();
 	void initControls();
-	void initWithCall(GroupCall *call);
 	void initLayout();
 	void initGeometry();
+	void setupMembers();
 	void setupJoinAsChangedToasts();
 	void setupTitleChangedToasts();
+	void setupAllowedToSpeakToasts();
 
 	bool handleClose();
 
 	void updateControlsGeometry();
+	void updateMembersGeometry();
 	void showControls();
 
 	void endCall();
@@ -100,7 +102,7 @@ private:
 	void migrate(not_null<ChannelData*> channel);
 	void subscribeToPeerChanges();
 
-	GroupCall *_call = nullptr;
+	const not_null<GroupCall*> _call;
 	not_null<PeerData*> _peer;
 
 	const std::unique_ptr<Ui::Window> _window;
@@ -118,8 +120,9 @@ private:
 	object_ptr<Ui::IconButton> _menuToggle = { nullptr };
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
-	object_ptr<Members> _members;
+	object_ptr<Members> _members = { nullptr };
 	rpl::variable<QString> _titleText;
+	rpl::variable<TimeId> _scheduleDate;
 	ChooseJoinAsProcess _joinAsProcess;
 
 	object_ptr<Ui::CallButton> _settings;
