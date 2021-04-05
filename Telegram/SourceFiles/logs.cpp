@@ -132,11 +132,11 @@ private:
 
 				auto to = std::make_unique<QFile>(_logsFilePath(type, postfix));
 				if (to->exists() && !to->remove()) {
-					LOG(("Could not delete '%1' file to start new logging!").arg(to->fileName()));
+					LOG(("Could not delete '%1' file to start new logging: %2").arg(to->fileName(), to->errorString()));
 					return false;
 				}
 				if (!QFile(files[type]->fileName()).copy(to->fileName())) { // don't close files[type] yet
-					LOG(("Could not copy '%1' to '%2' to start new logging!").arg(files[type]->fileName(), to->fileName()));
+					LOG(("Could not copy '%1' to '%2' to start new logging: %3").arg(files[type]->fileName(), to->fileName(), to->errorString()));
 					return false;
 				}
 				if (to->open(mode | QIODevice::Append)) {
@@ -158,7 +158,7 @@ private:
 
 					return true;
 				}
-				LOG(("Could not open '%1' file to start new logging!").arg(to->fileName()));
+				LOG(("Could not open '%1' file to start new logging: %2").arg(to->fileName(), to->errorString()));
 				return false;
 			} else {
 				bool found = false;
@@ -209,7 +209,7 @@ NEW LOGGING INSTANCE STARTED!!!\n\
 
 			return true;
 		} else if (type != LogDataMain) {
-			LOG(("Could not open debug log '%1'!").arg(files[type]->fileName()));
+			LOG(("Could not open debug log '%1': %2").arg(files[type]->fileName(), files[type]->errorString()));
 		}
 		return false;
 	}
