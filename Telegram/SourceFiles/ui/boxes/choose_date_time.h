@@ -16,6 +16,7 @@ class RoundButton;
 struct ChooseDateTimeBoxDescriptor {
 	QPointer<RoundButton> submit;
 	Fn<TimeId()> collect;
+	rpl::producer<TimeId> values;
 };
 
 ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
@@ -23,6 +24,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 	rpl::producer<QString> title,
 	rpl::producer<QString> submit,
 	Fn<void(TimeId)> done,
-	TimeId time);
+	TimeId time,
+	rpl::producer<QString> description = nullptr);
 
 } // namespace Ui

@@ -572,36 +572,49 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		rpl::producer<QString> title,
 		rpl::producer<QString> submit,
 		Fn<void(TimeId)> done,
-		TimeId time) {
+		TimeId time,
+		rpl::producer<QString> description) {
+	struct State {
+		rpl::variable<QDate> date;
+		not_null<InputField*> day;
+		not_null<TimeInput*> time;
+		not_null<FlatLabel*> at;
+	};
 	box->setTitle(std::move(title));
 	box->setWidth(st::boxWideWidth);
 
-	const auto date = CreateChild<rpl::variable<QDate>>(
-		box.get(),
-		base::unixtime::parse(time).date());
 	const auto content = box->addRow(
 		object_ptr<FixedHeightWidget>(box, st::scheduleHeight));
-	const auto dayInput = CreateChild<InputField>(
-		content,
-		st::scheduleDateField);
-	const auto timeInput = CreateChild<TimeInput>(
-		content,
-		TimeString(time));
-	const auto at = CreateChild<FlatLabel>(
-		content,
-		tr::lng_schedule_at(),
-		st::scheduleAtLabel);
+	if (description) {
+		box->addRow(object_ptr<FlatLabel>(
+			box,
+			std::move(description),
+			st::boxLabel));
+	}
+	const auto state = box->lifetime().make_state<State>(State{
+		.date = base::unixtime::parse(time).date(),
+		.day = CreateChild<InputField>(
+			content,
+			st::scheduleDateField),
+		.time = CreateChild<TimeInput>(
+			content,
+			TimeString(time)),
+		.at = CreateChild<FlatLabel>(
+			content,
+			tr::lng_schedule_at(),
+			st::scheduleAtLabel),
+	});
 
-	date->value(
+	state->date.value(
 	) | rpl::start_with_next([=](QDate date) {
-		dayInput->setText(DayString(date));
-		timeInput->setFocusFast();
-	}, dayInput->lifetime());
+		state->day->setText(DayString(date));
+		state->time->setFocusFast();
+	}, state->day->lifetime());
 
 	const auto minDate = QDate::currentDate();
 	const auto maxDate = minDate.addYears(1).addDays(-1);
 
-	const auto &dayViewport = dayInput->rawTextEdit()->viewport();
+	const auto &dayViewport = state->day->rawTextEdit()->viewport();
 	base::install_event_filter(dayViewport, [=](not_null<QEvent*> event) {
 		if (event->type() == QEvent::Wheel) {
 			const auto e = static_cast<QWheelEvent*>(event.get());
@@ -609,8 +622,8 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 			if (!direction) {
 				return base::EventFilterResult::Continue;
 			}
-			const auto d = date->current().addDays(direction);
-			*date = std::clamp(d, minDate, maxDate);
+			const auto d = state->date.current().addDays(direction);
+			state->date = std::clamp(d, minDate, maxDate);
 			return base::EventFilterResult::Cancel;
 		}
 		return base::EventFilterResult::Continue;
@@ -619,19 +632,19 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 	content->widthValue(
 	) | rpl::start_with_next([=](int width) {
 		const auto paddings = width
-			- at->width()
+			- state->at->width()
 			- 2 * st::scheduleAtSkip
 			- st::scheduleDateWidth
 			- st::scheduleTimeWidth;
 		const auto left = paddings / 2;
-		dayInput->resizeToWidth(st::scheduleDateWidth);
-		dayInput->moveToLeft(left, st::scheduleDateTop, width);
-		at->moveToLeft(
+		state->day->resizeToWidth(st::scheduleDateWidth);
+		state->day->moveToLeft(left, st::scheduleDateTop, width);
+		state->at->moveToLeft(
 			left + st::scheduleDateWidth + st::scheduleAtSkip,
 			st::scheduleAtTop,
 			width);
-		timeInput->resizeToWidth(st::scheduleTimeWidth);
-		timeInput->moveToLeft(
+		state->time->resizeToWidth(st::scheduleTimeWidth);
+		state->time->moveToLeft(
 			width - left - st::scheduleTimeWidth,
 			st::scheduleDateTop,
 			width);
@@ -639,12 +652,12 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 
 	const auto calendar =
 		content->lifetime().make_state<QPointer<CalendarBox>>();
-	QObject::connect(dayInput, &InputField::focused, [=] {
+	QObject::connect(state->day, &InputField::focused, [=] {
 		if (*calendar) {
 			return;
 		}
 		const auto chosen = [=](QDate chosen) {
-			*date = chosen;
+			state->date = chosen;
 			(*calendar)->closeBox();
 		};
 		const auto finalize = [=](not_null<CalendarBox*> box) {
@@ -652,31 +665,28 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 			box->setMaxDate(maxDate);
 		};
 		*calendar = box->getDelegate()->show(Box<CalendarBox>(
-			date->current(),
-			date->current(),
+			state->date.current(),
+			state->date.current(),
 			crl::guard(box, chosen),
 			finalize));
 		(*calendar)->boxClosing(
-		) | rpl::start_with_next(crl::guard(timeInput, [=] {
-			timeInput->setFocusFast();
+		) | rpl::start_with_next(crl::guard(state->time, [=] {
+			state->time->setFocusFast();
 		}), (*calendar)->lifetime());
 	});
 
 	const auto collect = [=] {
-		const auto timeValue = timeInput->valueCurrent().split(':');
+		const auto timeValue = state->time->valueCurrent().split(':');
 		if (timeValue.size() != 2) {
-			timeInput->showError();
 			return 0;
 		}
 		const auto time = QTime(timeValue[0].toInt(), timeValue[1].toInt());
 		if (!time.isValid()) {
-			timeInput->showError();
 			return 0;
 		}
 		const auto result = base::unixtime::serialize(
-			QDateTime(date->current(), time));
+			QDateTime(state->date.current(), time));
 		if (result <= base::unixtime::now() + kMinimalSchedule) {
-			timeInput->showError();
 			return 0;
 		}
 		return result;
@@ -684,17 +694,27 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 	const auto save = [=] {
 		if (const auto result = collect()) {
 			done(result);
+		} else {
+			state->time->showError();
 		}
 	};
-	timeInput->submitRequests(
-	) | rpl::start_with_next(
-		save,
-		timeInput->lifetime());
+	state->time->submitRequests(
+	) | rpl::start_with_next(save, state->time->lifetime());
 
 	auto result = ChooseDateTimeBoxDescriptor();
-	box->setFocusCallback([=] { timeInput->setFocusFast(); });
+	box->setFocusCallback([=] { state->time->setFocusFast(); });
 	result.submit = box->addButton(std::move(submit), save);
-	result.collect = collect;
+	result.collect = [=] {
+		if (const auto result = collect()) {
+			return result;
+		}
+		state->time->showError();
+		return 0;
+	};
+	result.values = rpl::combine(
+		state->date.value(),
+		state->time->value()
+	) | rpl::map(collect);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 
 	return result;

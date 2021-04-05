@@ -329,6 +329,7 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 	changePeerEmptyCallFlag();
 	_title = qs(data.vtitle().value_or_empty());
 	_recordStartDate = data.vrecord_start_date().value_or_empty();
+	_scheduleDate = data.vschedule_date().value_or_empty();
 	_allParticipantsLoaded
 		= (_serverParticipantsCount == _participants.size());
 }

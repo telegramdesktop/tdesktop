@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "lang/lang_keys.h"
+#include "base/unixtime.h"
 #include "styles/style_chat.h"
 #include "styles/style_calls.h"
 #include "styles/style_info.h" // st::topBarArrowPadding, like TopBarWidget.
@@ -126,16 +127,59 @@ void GroupCallBar::paint(Painter &p) {
 	const auto titleTop = st::msgReplyPadding.top();
 	const auto textTop = titleTop + st::msgServiceNameFont->height;
 	const auto width = _inner->width();
+	const auto &font = st::defaultMessageBar.title.font;
 	p.setPen(st::defaultMessageBar.textFg);
-	p.setFont(st::defaultMessageBar.title.font);
-	p.drawTextLeft(left, titleTop, width, tr::lng_group_call_title(tr::now));
+	p.setFont(font);
+
+	const auto available = _join->x() - left;
+	const auto titleWidth = font->width(_content.title);
+	p.drawTextLeft(
+		left,
+		titleTop,
+		width,
+		(!_content.scheduleDate
+			? tr::lng_group_call_title(tr::now)
+			: _content.title.isEmpty()
+			? tr::lng_group_call_scheduled_title(tr::now)
+			: (titleWidth > available)
+			? font->elided(_content.title, available)
+			: _content.title));
 	p.setPen(st::historyStatusFg);
 	p.setFont(st::defaultMessageBar.text.font);
+	const auto when = [&] {
+		if (!_content.scheduleDate) {
+			return QString();
+		}
+		const auto parsed = base::unixtime::parse(_content.scheduleDate);
+		const auto date = parsed.date();
+		const auto time = parsed.time().toString(
+			QLocale::system().timeFormat(QLocale::ShortFormat));
+		const auto today = QDate::currentDate();
+		if (date == today) {
+			return tr::lng_group_call_starts_today(tr::now, lt_time, time);
+		} else if (date == today.addDays(1)) {
+			return tr::lng_group_call_starts_tomorrow(
+				tr::now,
+				lt_time,
+				time);
+		} else {
+			return tr::lng_group_call_starts_date(
+				tr::now,
+				lt_date,
+				langDayOfMonthFull(date),
+				lt_time,
+				time);
+		}
+	}();
 	p.drawTextLeft(
 		left,
 		textTop,
 		width,
-		(_content.count > 0
+		(_content.scheduleDate
+			? (_content.title.isEmpty()
+				? tr::lng_group_call_starts_short
+				: tr::lng_group_call_starts)(tr::now, lt_when, when)
+			: _content.count > 0
 			? tr::lng_group_call_members(tr::now, lt_count, _content.count)
 			: tr::lng_group_call_no_members(tr::now)));
 

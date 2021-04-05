@@ -184,6 +184,7 @@ GroupCall::GroupCall(
 , _joinAs(info.joinAs)
 , _possibleJoinAs(std::move(info.possibleJoinAs))
 , _joinHash(info.joinHash)
+, _scheduleDate(info.scheduleDate)
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
 , _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
@@ -218,14 +219,14 @@ GroupCall::GroupCall(
 	const auto id = inputCall.c_inputGroupCall().vid().v;
 	if (id) {
 		if (const auto call = _peer->groupCall(); call && call->id() == id) {
+			_scheduleDate = call->scheduleDate();
 			if (!_peer->canManageGroupCall() && call->joinMuted()) {
 				_muted = MuteState::ForceMuted;
 			}
 		}
-		_state = State::Joining;
 		join(inputCall);
 	} else {
-		start();
+		start(info.scheduleDate);
 	}
 
 	_mediaDevices->audioInputId(
@@ -326,13 +327,14 @@ bool GroupCall::showChooseJoinAs() const {
 			&& !_possibleJoinAs.front()->isSelf());
 }
 
-void GroupCall::start() {
+void GroupCall::start(TimeId scheduleDate) {
+	using Flag = MTPphone_CreateGroupCall::Flag;
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
-		MTP_flags(0),
+		MTP_flags(scheduleDate ? Flag::f_schedule_date : Flag(0)),
 		_peer->input,
 		MTP_int(openssl::RandomValue<int32>()),
 		MTPstring(), // title
-		MTPint() // schedule_date
+		MTP_int(scheduleDate)
 	)).done([=](const MTPUpdates &result) {
 		_acceptFields = true;
 		_peer->session().api().applyUpdates(result);
@@ -350,6 +352,15 @@ void GroupCall::start() {
 }
 
 void GroupCall::join(const MTPInputGroupCall &inputCall) {
+	inputCall.match([&](const MTPDinputGroupCall &data) {
+		_id = data.vid().v;
+		_accessHash = data.vaccess_hash().v;
+	});
+	if (_scheduleDate) {
+		setState(State::Waiting);
+		return;
+	}
+
 	setState(State::Joining);
 	if (const auto chat = _peer->asChat()) {
 		chat->setGroupCall(inputCall);
@@ -358,12 +369,7 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 	} else {
 		Unexpected("Peer type in GroupCall::join.");
 	}
-
-	inputCall.match([&](const MTPDinputGroupCall &data) {
-		_id = data.vid().v;
-		_accessHash = data.vaccess_hash().v;
-		rejoin();
-	});
+	rejoin();
 
 	using Update = Data::GroupCall::ParticipantUpdate;
 	_peer->groupCall()->participantUpdated(
@@ -646,8 +652,10 @@ void GroupCall::rejoinAs(Group::JoinInfo info) {
 		.wasJoinAs = _joinAs,
 		.nowJoinAs = info.joinAs,
 	};
-	setState(State::Joining);
-	rejoin(info.joinAs);
+	if (!_scheduleDate) {
+		setState(State::Joining);
+		rejoin(info.joinAs);
+	}
 	_rejoinEvents.fire_copy(event);
 }
 
@@ -734,6 +742,9 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 
 void GroupCall::handlePossibleCreateOrJoinResponse(
 		const MTPDgroupCall &data) {
+	if (const auto date = data.vschedule_date()) {
+		_scheduleDate = date->v;
+	}
 	if (_acceptFields) {
 		if (!_instance && !_id) {
 			join(MTP_inputGroupCall(data.vid(), data.vaccess_hash()));
