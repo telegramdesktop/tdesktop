@@ -320,6 +320,20 @@ rpl::producer<bool> CanPinMessagesValue(not_null<PeerData*> peer) {
 	Unexpected("Peer type in CanPinMessagesValue.");
 }
 
+rpl::producer<bool> CanManageGroupCallValue(not_null<PeerData*> peer) {
+	const auto flag = MTPDchatAdminRights::Flag::f_manage_call;
+	if (const auto chat = peer->asChat()) {
+		return chat->amCreator()
+			? (rpl::single(true) | rpl::type_erased())
+			: AdminRightValue(chat, flag);
+	} else if (const auto channel = peer->asChannel()) {
+		return channel->amCreator()
+			? (rpl::single(true) | rpl::type_erased())
+			: AdminRightValue(channel, flag);
+	}
+	return rpl::single(false);
+}
+
 TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now) {
 	if (user->isServiceUser() || user->isBot()) {
 		return -1;

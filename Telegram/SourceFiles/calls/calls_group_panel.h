@@ -79,6 +79,7 @@ private:
 	void setupJoinAsChangedToasts();
 	void setupTitleChangedToasts();
 	void setupAllowedToSpeakToasts();
+	void setupRealMuteButtonState(not_null<Data::GroupCall*> real);
 
 	bool handleClose();
 
@@ -96,7 +97,7 @@ private:
 	[[nodiscard]] QRect computeTitleRect() const;
 	void refreshTitle();
 	void refreshTitleGeometry();
-	void setupRealCallViewers(not_null<GroupCall*> call);
+	void setupRealCallViewers();
 	void subscribeToChanges(not_null<Data::GroupCall*> real);
 
 	void migrate(not_null<ChannelData*> channel);
@@ -121,8 +122,6 @@ private:
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<Members> _members = { nullptr };
-	rpl::variable<QString> _titleText;
-	rpl::variable<TimeId> _scheduleDate;
 	ChooseJoinAsProcess _joinAsProcess;
 
 	object_ptr<Ui::CallButton> _settings;

@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
+#include "data/data_peer_values.h"
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "boxes/peers/edit_participants_box.h"
@@ -259,14 +260,17 @@ Panel::Panel(not_null<GroupCall*> call)
 	_window->body(),
 	st::groupCallTitle))
 #endif // !Q_OS_MAC
-, _scheduleDate(call->scheduleDate())
 , _settings(widget(), st::groupCallSettings)
 , _mute(std::make_unique<Ui::CallMuteButton>(
 	widget(),
 	Core::App().appDeactivatedValue(),
 	Ui::CallMuteButtonState{
-		.text = tr::lng_group_call_connecting(tr::now),
-		.type = Ui::CallMuteButtonType::Connecting,
+		.text = (_call->scheduleDate()
+			? "Start Now" // #TODO voice chats
+			: tr::lng_group_call_connecting(tr::now)),
+		.type = (_call->scheduleDate()
+			? Ui::CallMuteButtonType::ScheduledCanStart
+			: Ui::CallMuteButtonType::Connecting),
 	}))
 , _hangup(widget(), st::groupCallHangup) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
@@ -277,7 +281,7 @@ Panel::Panel(not_null<GroupCall*> call)
 		_peer,
 		_window->lifetime(),
 		[=](not_null<ChannelData*> channel) { migrate(channel); });
-	setupRealCallViewers(call);
+	setupRealCallViewers();
 
 	initWindow();
 	initWidget();
@@ -295,17 +299,8 @@ Panel::~Panel() {
 	}
 }
 
-void Panel::setupRealCallViewers(not_null<GroupCall*> call) {
-	const auto peer = call->peer();
-	peer->session().changes().peerFlagsValue(
-		peer,
-		Data::PeerUpdate::Flag::GroupCall
-	) | rpl::map([=] {
-		return peer->groupCall();
-	}) | rpl::filter([=](Data::GroupCall *real) {
-		return real && (real->id() == _call->id());
-	}) | rpl::take(
-		1
+void Panel::setupRealCallViewers() {
+	_call->real(
 	) | rpl::start_with_next([=](not_null<Data::GroupCall*> real) {
 		subscribeToChanges(real);
 	}, _window->lifetime());
@@ -430,6 +425,15 @@ void Panel::initControls() {
 	) | rpl::filter([=](Qt::MouseButton button) {
 		return (button == Qt::LeftButton);
 	}) | rpl::start_with_next([=] {
+		if (_call->scheduleDate()) {
+			if (_peer->canManageGroupCall()) {
+				_call->startScheduledNow();
+			} else if (const auto real = _call->lookupReal()) {
+				_call->toggleScheduleStartSubscribed(
+					!real->scheduleStartSubscribed());
+			}
+			return;
+		}
 		const auto oldState = _call->muted();
 		const auto newState = (oldState == MuteState::ForceMuted)
 			? MuteState::RaisedHand
@@ -449,10 +453,6 @@ void Panel::initControls() {
 	_settings->setText(tr::lng_group_call_settings());
 	_hangup->setText(tr::lng_group_call_leave());
 
-	if (!_call->scheduleDate()) {
-		setupMembers();
-	}
-
 	_call->stateValue(
 	) | rpl::filter([](State state) {
 		return (state == State::HangingUp)
@@ -470,18 +470,38 @@ void Panel::initControls() {
 		_mute->setLevel(update.value);
 	}, _callLifetime);
 
+	_call->real(
+	) | rpl::start_with_next([=](not_null<Data::GroupCall*> real) {
+		setupRealMuteButtonState(real);
+	}, _callLifetime);
+}
+
+void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 	using namespace rpl::mappers;
 	rpl::combine(
 		_call->mutedValue() | MapPushToTalkToActive(),
-		_call->instanceStateValue()
+		_call->instanceStateValue(),
+		real->scheduleDateValue(),
+		real->scheduleStartSubscribedValue(),
+		Data::CanManageGroupCallValue(_peer)
 	) | rpl::distinct_until_changed(
 	) | rpl::filter(
 		_2 != GroupCall::InstanceState::TransitionToRtc
 	) | rpl::start_with_next([=](
 			MuteState mute,
-			GroupCall::InstanceState state) {
+			GroupCall::InstanceState state,
+			TimeId scheduleDate,
+			bool scheduleStartSubscribed,
+			bool canManage) {
+		using Type = Ui::CallMuteButtonType;
 		_mute->setState(Ui::CallMuteButtonState{
-			.text = (state == GroupCall::InstanceState::Disconnected
+			.text = (scheduleDate
+				? (canManage
+					? "Start Now" // #TODO voice chats
+					: scheduleStartSubscribed
+					? "Cancel Reminder"
+					: "Set Reminder")
+				: state == GroupCall::InstanceState::Disconnected
 				? tr::lng_group_call_connecting(tr::now)
 				: mute == MuteState::ForceMuted
 				? tr::lng_group_call_force_muted(tr::now)
@@ -490,7 +510,9 @@ void Panel::initControls() {
 				: mute == MuteState::Muted
 				? tr::lng_group_call_unmute(tr::now)
 				: tr::lng_group_call_you_are_live(tr::now)),
-			.subtext = (state == GroupCall::InstanceState::Disconnected
+			.subtext = (scheduleDate
+				? QString()
+				: state == GroupCall::InstanceState::Disconnected
 				? QString()
 				: mute == MuteState::ForceMuted
 				? tr::lng_group_call_raise_hand_tip(tr::now)
@@ -499,15 +521,21 @@ void Panel::initControls() {
 				: mute == MuteState::Muted
 				? tr::lng_group_call_unmute_sub(tr::now)
 				: QString()),
-			.type = (state == GroupCall::InstanceState::Disconnected
-				? Ui::CallMuteButtonType::Connecting
+			.type = (scheduleDate
+				? (canManage
+					? Type::ScheduledCanStart
+					: scheduleStartSubscribed
+					? Type::ScheduledNotify
+					: Type::ScheduledSilent)
+				: state == GroupCall::InstanceState::Disconnected
+				? Type::Connecting
 				: mute == MuteState::ForceMuted
-				? Ui::CallMuteButtonType::ForceMuted
+				? Type::ForceMuted
 				: mute == MuteState::RaisedHand
-				? Ui::CallMuteButtonType::RaisedHand
+				? Type::RaisedHand
 				: mute == MuteState::Muted
-				? Ui::CallMuteButtonType::Muted
-				: Ui::CallMuteButtonType::Active),
+				? Type::Muted
+				: Type::Active),
 		});
 	}, _callLifetime);
 }
@@ -590,8 +618,7 @@ void Panel::setupJoinAsChangedToasts() {
 void Panel::setupTitleChangedToasts() {
 	_call->titleChanged(
 	) | rpl::filter([=] {
-		const auto real = _peer->groupCall();
-		return real && (real->id() == _call->id());
+		return (_call->lookupReal() != nullptr);
 	}) | rpl::map([=] {
 		return _peer->groupCall()->title().isEmpty()
 			? _peer->name
@@ -617,10 +644,8 @@ void Panel::setupAllowedToSpeakToasts() {
 				.text = { tr::lng_group_call_can_speak_here(tr::now) },
 				});
 		} else {
-			const auto real = _peer->groupCall();
-			const auto name = (real
-				&& (real->id() == _call->id())
-				&& !real->title().isEmpty())
+			const auto real = _call->lookupReal();
+			const auto name = (real && !real->title().isEmpty())
 				? real->title()
 				: _peer->name;
 			Ui::ShowMultilineToast({
@@ -635,18 +660,6 @@ void Panel::setupAllowedToSpeakToasts() {
 }
 
 void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
-	if (!_members) {
-		real->scheduleDateValue(
-		) | rpl::filter([=](TimeId scheduleDate) {
-			return !scheduleDate;
-		}) | rpl::take(1) | rpl::start_with_next([=] {
-			setupMembers();
-		}, _callLifetime);
-	}
-
-	_titleText = real->titleValue();
-	_scheduleDate = real->scheduleDateValue();
-
 	const auto validateRecordingMark = [=](bool recording) {
 		if (!recording && _recordingMark) {
 			_recordingMark.destroy();
@@ -823,8 +836,8 @@ void Panel::showMainMenu() {
 }
 
 void Panel::addMembers() {
-	const auto real = _peer->groupCall();
-	if (!real || real->id() != _call->id()) {
+	const auto real = _call->lookupReal();
+	if (!real) {
 		return;
 	}
 	auto alreadyIn = _peer->owner().invitedToCallUsers(real->id());
@@ -1135,7 +1148,12 @@ void Panel::refreshTitle() {
 	if (!_title) {
 		auto text = rpl::combine(
 			Info::Profile::NameValue(_peer),
-			_titleText.value()
+			rpl::single(
+				QString()
+			) | rpl::then(_call->real(
+			) | rpl::map([=](not_null<Data::GroupCall*> real) {
+				return real->titleValue();
+			}) | rpl::flatten_latest())
 		) | rpl::map([=](
 				const TextWithEntities &name,
 				const QString &title) {
@@ -1154,15 +1172,24 @@ void Panel::refreshTitle() {
 	if (!_subtitle) {
 		_subtitle.create(
 			widget(),
-			_scheduleDate.value(
+			rpl::single(
+				_call->scheduleDate()
+			) | rpl::then(
+				_call->real(
+				) | rpl::map([=](not_null<Data::GroupCall*> real) {
+					return real->scheduleDateValue();
+				}) | rpl::flatten_latest()
 			) | rpl::map([=](TimeId scheduleDate) {
-				return scheduleDate
-					? tr::lng_group_call_scheduled_status()
-					: tr::lng_group_call_members(
-						lt_count_decimal,
-						_members->fullCountValue() | rpl::map([](int value) {
-							return (value > 0) ? float64(value) : 1.;
-						}));
+				if (scheduleDate) {
+					return tr::lng_group_call_scheduled_status();
+				} else if (!_members) {
+					setupMembers();
+				}
+				return tr::lng_group_call_members(
+					lt_count_decimal,
+					_members->fullCountValue() | rpl::map([](int value) {
+						return (value > 0) ? float64(value) : 1.;
+					}));
 			}) | rpl::flatten_latest(),
 			st::groupCallSubtitleLabel);
 		_subtitle->show();

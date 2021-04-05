@@ -34,6 +34,7 @@ class MediaDevices;
 namespace Data {
 struct LastSpokeTimes;
 struct GroupCallParticipant;
+class GroupCall;
 } // namespace Data
 
 namespace Calls {
@@ -113,6 +114,9 @@ public:
 		return _scheduleDate;
 	}
 
+	[[nodiscard]] Data::GroupCall *lookupReal() const;
+	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
+
 	void start(TimeId scheduleDate);
 	void hangup();
 	void discard();
@@ -126,6 +130,8 @@ public:
 	[[nodiscard]] bool recordingStoppedByMe() const {
 		return _recordingStoppedByMe;
 	}
+	void startScheduledNow();
+	void toggleScheduleStartSubscribed(bool subscribed);
 
 	void setMuted(MuteState mute);
 	void setMutedAndUpdate(MuteState mute);
@@ -249,6 +255,7 @@ private:
 	void applyMeInCallLocally();
 	void rejoin();
 	void rejoin(not_null<PeerData*> as);
+	void subscribeToReal(not_null<Data::GroupCall*> real);
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
 	void setInstanceConnected(tgcalls::GroupNetworkState networkState);
@@ -288,6 +295,7 @@ private:
 	rpl::event_stream<PeerData*> _peerStream;
 	not_null<History*> _history; // Can change in legacy group migration.
 	MTP::Sender _api;
+	rpl::event_stream<not_null<Data::GroupCall*>> _realChanges;
 	rpl::variable<State> _state = State::Creating;
 	rpl::variable<InstanceState> _instanceState
 		= InstanceState::Disconnected;

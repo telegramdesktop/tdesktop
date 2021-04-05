@@ -30,6 +30,9 @@ enum class CallMuteButtonType {
 	Muted,
 	ForceMuted,
 	RaisedHand,
+	ScheduledCanStart,
+	ScheduledSilent,
+	ScheduledNotify,
 };
 
 struct CallMuteButtonState {

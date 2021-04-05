@@ -75,7 +75,7 @@ private:
 
 	void updateControlsGeometry();
 
-	const base::weak_ptr<GroupCall> _call;
+	const not_null<GroupCall*> _call;
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<PeerListController> _listController;
 	object_ptr<Ui::SettingsButton> _addMember = { nullptr };
