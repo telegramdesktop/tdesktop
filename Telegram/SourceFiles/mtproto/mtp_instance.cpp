@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
 #include "base/timer.h"
+#include "base/network_reachability.h"
 #include "facades.h" // Proxies list.
 
 namespace MTP {
@@ -216,6 +217,7 @@ private:
 	const not_null<Instance*> _instance;
 	const Instance::Mode _mode = Instance::Mode::Normal;
 	const std::unique_ptr<Config> _config;
+	const std::shared_ptr<base::NetworkReachability> _networkReachability;
 
 	std::unique_ptr<QThread> _mainSessionThread;
 	std::unique_ptr<QThread> _otherSessionsThread;
@@ -296,7 +298,8 @@ Instance::Private::Private(
 : Sender(instance)
 , _instance(instance)
 , _mode(mode)
-, _config(std::move(fields.config)) {
+, _config(std::move(fields.config))
+, _networkReachability(base::NetworkReachability::Instance()) {
 	Expects(_config != nullptr);
 
 	const auto idealThreadPoolSize = QThread::idealThreadCount();
@@ -305,6 +308,11 @@ Instance::Private::Private(
 	details::unpaused(
 	) | rpl::start_with_next([=] {
 		unpaused();
+	}, _lifetime);
+
+	_networkReachability->availableChanges(
+	) | rpl::start_with_next([=](bool available) {
+		restart();
 	}, _lifetime);
 
 	_deviceModel = std::move(fields.deviceModel);
