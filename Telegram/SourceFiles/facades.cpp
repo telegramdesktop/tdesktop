@@ -221,12 +221,21 @@ void searchByHashtag(const QString &tag, PeerData *inPeer, UserData *from) {
 		}
 		Ui::hideSettingsAndLayer();
 		Core::App().hideMediaView();
-		m->searchMessages(
-			tag + ' ',
-			(inPeer && !inPeer->isUser())
-				? inPeer->owner().history(inPeer).get()
-				: Dialogs::Key(),
-			from ? from : inPeer);
+		if (tag.startsWith("#")) {
+			m->searchMessages(
+					tag + ' ',
+					(inPeer && !inPeer->isUser())
+					? inPeer->owner().history(inPeer).get()
+					: Dialogs::Key(),
+					from);
+		} else {
+			m->searchMessages(
+					tag + ' ',
+					(inPeer && !inPeer->isUser())
+					? inPeer->owner().history(inPeer).get()
+					: Dialogs::Key(),
+					from ? from : inPeer);
+		}
 	}
 }
 
