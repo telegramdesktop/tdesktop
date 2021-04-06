@@ -1098,8 +1098,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_invite_user_chat" = "the voice chat";
 "lng_action_invite_users_and_one" = "{accumulated}, {user}";
 "lng_action_invite_users_and_last" = "{accumulated} and {user}";
-"lng_action_group_call_started" = "{from} started {chat}";
-"lng_action_group_call_started_chat" = "a voice chat";
+"lng_action_group_call_started_group" = "{from} started a voice chat";
+"lng_action_group_call_started_channel" = "Voice chat started";
+"lng_action_group_call_scheduled_group" = "{from} scheduled a voice chat";
+"lng_action_group_call_scheduled_channel" = "Voice chat scheduled";
 "lng_action_group_call_finished" = "Voice chat finished ({duration})";
 "lng_action_add_user" = "{from} added {user}";
 "lng_action_add_users_many" = "{from} added {users}";
@@ -2073,6 +2075,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_starts_tomorrow" = "tomorrow at {time}";
 "lng_group_call_starts_date" = "{date} at {time}";
 "lng_group_call_starts_in" = "Starts in";
+"lng_group_call_starts_short_today" = "Today, {time}";
+"lng_group_call_starts_short_tomorrow" = "Tomorrow, {time}";
+"lng_group_call_starts_short_date" = "{date}, {time}";
 "lng_group_call_start_now" = "Start Now";
 "lng_group_call_set_reminder" = "Set Reminder";
 "lng_group_call_cancel_reminder" = "Cancel Reminder";

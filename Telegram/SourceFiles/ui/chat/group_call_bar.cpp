@@ -152,10 +152,10 @@ void GroupCallBar::refreshOpenBrush() {
 	if (_openBrushForWidth == width) {
 		return;
 	}
-	auto gradient = QLinearGradient(QPoint(width, 0), QPoint(-width, 0));
+	auto gradient = QLinearGradient(QPoint(width, 0), QPoint(0, 0));
 	gradient.setStops(QGradientStops{
 		{ 0.0, st::groupCallForceMutedBar1->c },
-		{ .35, st::groupCallForceMutedBar2->c },
+		{ .7, st::groupCallForceMutedBar2->c },
 		{ 1.0, st::groupCallForceMutedBar3->c }
 	});
 	_openBrushOverride = QBrush(std::move(gradient));
@@ -169,6 +169,7 @@ void GroupCallBar::refreshScheduledProcess() {
 		if (_scheduledProcess) {
 			_scheduledProcess = nullptr;
 			_open = nullptr;
+			_openBrushForWidth = 0;
 			_join = std::make_unique<RoundButton>(
 				_inner.get(),
 				tr::lng_group_call_join(),

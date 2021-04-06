@@ -945,3 +945,18 @@ callTopBarMuteCrossLine: CrossLineAnimation {
 	endPosition: point(26px, 23px);
 	stroke: 2px;
 }
+
+groupCallStartsIn: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(20px semibold);
+		linkFont: font(20px semibold);
+		linkFontOver: font(20px semibold underline);
+	}
+	textFg: groupCallMembersFg;
+}
+groupCallScheduledBodyHeight: 200px;
+groupCallStartsWhen: groupCallStartsIn;
+groupCallStartsInTop: 10px;
+groupCallStartsWhenTop: 160px;
+groupCallCountdownFont: font(64px semibold);
+groupCallCountdownTop: 52px;

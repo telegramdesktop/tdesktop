@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/chat/group_call_bar.h"
 #include "ui/layers/layer_manager.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -41,6 +42,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/peer_lists_box.h"
 #include "boxes/confirm_box.h"
+#include "base/unixtime.h"
+#include "base/timer_rpl.h"
 #include "app.h"
 #include "apiwrap.h" // api().kickParticipant.
 #include "styles/style_calls.h"
@@ -115,6 +118,122 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+[[nodiscard]] rpl::producer<QString> StartsWhenText(
+		rpl::producer<TimeId> date) {
+	return std::move(
+		date
+	) | rpl::map([](TimeId date) -> rpl::producer<QString> {
+		const auto parsedDate = base::unixtime::parse(date);
+		const auto dateDay = QDateTime(parsedDate.date(), QTime(0, 0));
+		const auto previousDay = QDateTime(
+			parsedDate.date().addDays(-1),
+			QTime(0, 0));
+		const auto now = QDateTime::currentDateTime();
+		const auto kDay = int64(24 * 60 * 60);
+		const auto tillTomorrow = int64(now.secsTo(previousDay));
+		const auto tillToday = tillTomorrow + kDay;
+		const auto tillAfter = tillToday + kDay;
+
+		const auto time = parsedDate.time().toString(
+			QLocale::system().timeFormat(QLocale::ShortFormat));
+		auto exact = tr::lng_group_call_starts_short_date(
+			lt_date,
+			rpl::single(langDayOfMonthFull(dateDay.date())),
+			lt_time,
+			rpl::single(time));
+		auto tomorrow = tr::lng_group_call_starts_short_tomorrow(
+			lt_time,
+			rpl::single(time));
+		auto today = tr::lng_group_call_starts_short_today(
+			lt_time,
+			rpl::single(time));
+
+		auto todayAndAfter = rpl::single(
+			std::move(today)
+		) | rpl::then(base::timer_once(
+			std::min(tillAfter, kDay) * crl::time(1000)
+		) | rpl::map([=] {
+			return rpl::duplicate(exact);
+		})) | rpl::flatten_latest();
+
+		auto tomorrowAndAfter = rpl::single(
+			std::move(tomorrow)
+		) | rpl::then(base::timer_once(
+			std::min(tillToday, kDay) * crl::time(1000)
+		) | rpl::map([=] {
+			return rpl::duplicate(todayAndAfter);
+		})) | rpl::flatten_latest();
+
+		auto full = rpl::single(
+			rpl::duplicate(exact)
+		) | rpl::then(base::timer_once(
+			tillTomorrow * crl::time(1000)
+		) | rpl::map([=] {
+			return rpl::duplicate(tomorrowAndAfter);
+		})) | rpl::flatten_latest();
+
+		if (tillTomorrow > 0) {
+			return std::move(full);
+		} else if (tillToday > 0) {
+			return std::move(tomorrowAndAfter);
+		} else if (tillAfter > 0) {
+			return std::move(todayAndAfter);
+		} else {
+			return std::move(exact);
+		}
+	}) | rpl::flatten_latest();
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> CreateGradientLabel(
+		QWidget *parent,
+		rpl::producer<QString> text) {
+	struct State {
+		QBrush brush;
+		QPainterPath path;
+	};
+	auto result = object_ptr<Ui::RpWidget>(parent);
+	const auto raw = result.data();
+	const auto state = raw->lifetime().make_state<State>();
+
+	std::move(
+		text
+	) | rpl::start_with_next([=](const QString &text) {
+		state->path = QPainterPath();
+		const auto &font = st::groupCallCountdownFont;
+		state->path.addText(0, font->ascent, font->f, text);
+		const auto width = font->width(text);
+		raw->resize(width, font->height);
+		auto gradient = QLinearGradient(QPoint(width, 0), QPoint());
+		gradient.setStops(QGradientStops{
+			{ 0.0, st::groupCallForceMutedBar1->c },
+			{ .7, st::groupCallForceMutedBar2->c },
+			{ 1.0, st::groupCallForceMutedBar3->c }
+		});
+		state->brush = QBrush(std::move(gradient));
+		raw->update();
+	}, raw->lifetime());
+
+	raw->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(raw);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto skip = st::groupCallWidth / 20;
+		const auto available = parent->width() - 2 * skip;
+		const auto full = raw->width();
+		if (available > 0 && full > available) {
+			const auto scale = available / float64(full);
+			const auto shift = raw->rect().center();
+			p.translate(shift);
+			p.scale(scale, scale);
+			p.translate(-shift);
+		}
+		p.setPen(Qt::NoPen);
+		p.setBrush(state->brush);
+		p.drawPath(state->path);
+	}, raw->lifetime());
+	return result;
+}
 
 [[nodiscard]] object_ptr<Ui::RpWidget> CreateSectionSubtitle(
 		QWidget *parent,
@@ -451,18 +570,23 @@ void Panel::initControls() {
 	});
 
 	_settings->setText(tr::lng_group_call_settings());
-	const auto scheduled = (_call->scheduleDate() != 0);
-	_hangup->setText(scheduled
+	const auto scheduleDate = _call->scheduleDate();
+	_hangup->setText(scheduleDate
 		? tr::lng_group_call_close()
 		: tr::lng_group_call_leave());
-	if (scheduled) {
-		_call->real(
+	if (scheduleDate) {
+		auto changes = _call->real(
 		) | rpl::map([=](not_null<Data::GroupCall*> real) {
 			return real->scheduleDateValue();
-		}) | rpl::flatten_latest() | rpl::filter([](TimeId date) {
+		}) | rpl::flatten_latest();
+		setupScheduledLabels(rpl::single(
+			scheduleDate
+		) | rpl::then(rpl::duplicate(changes)));
+		std::move(changes) | rpl::filter([](TimeId date) {
 			return (date == 0);
 		}) | rpl::take(1) | rpl::start_with_next([=] {
 			_hangup->setText(tr::lng_group_call_leave());
+			setupMembers();
 		}, _callLifetime);
 	}
 
@@ -553,8 +677,66 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 	}, _callLifetime);
 }
 
+void Panel::setupScheduledLabels(rpl::producer<TimeId> date) {
+	using namespace rpl::mappers;
+	_startsIn.create(
+		widget(),
+		tr::lng_group_call_starts_in(),
+		st::groupCallStartsIn);
+	date = std::move(date) | rpl::take_while(_1 != 0);
+	_startsWhen.create(
+		widget(),
+		StartsWhenText(rpl::duplicate(date)),
+		st::groupCallStartsWhen);
+	_countdown = CreateGradientLabel(widget(), std::move(
+		date
+	) | rpl::map([=](TimeId date) {
+		_countdownData = std::make_shared<Ui::GroupCallScheduledLeft>(date);
+		return _countdownData->text();
+	}) | rpl::flatten_latest());
+
+	const auto top = [=] {
+		const auto muteTop = widget()->height() - st::groupCallMuteBottomSkip;
+		const auto membersTop = st::groupCallMembersTop;
+		const auto height = st::groupCallScheduledBodyHeight;
+		return (membersTop + (muteTop - membersTop - height) / 2);
+	};
+	rpl::combine(
+		widget()->sizeValue(),
+		_startsIn->widthValue()
+	) | rpl::start_with_next([=](QSize size, int width) {
+		_startsIn->move(
+			(size.width() - width) / 2,
+			top() + st::groupCallStartsInTop);
+	}, _startsIn->lifetime());
+
+	rpl::combine(
+		widget()->sizeValue(),
+		_startsWhen->widthValue()
+	) | rpl::start_with_next([=](QSize size, int width) {
+		_startsWhen->move(
+			(size.width() - width) / 2,
+			top() + st::groupCallStartsWhenTop);
+	}, _startsWhen->lifetime());
+
+	rpl::combine(
+		widget()->sizeValue(),
+		_countdown->widthValue()
+	) | rpl::start_with_next([=](QSize size, int width) {
+		_countdown->move(
+			(size.width() - width) / 2,
+			top() + st::groupCallCountdownTop);
+	}, _startsWhen->lifetime());
+}
+
 void Panel::setupMembers() {
-	Expects(!_members);
+	if (_members) {
+		return;
+	}
+
+	_startsIn.destroy();
+	_countdown.destroy();
+	_startsWhen.destroy();
 
 	_members.create(widget(), _call);
 

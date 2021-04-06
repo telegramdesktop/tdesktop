@@ -38,6 +38,7 @@ class Window;
 class ScrollArea;
 class GenericBox;
 class LayerManager;
+class GroupCallScheduledLeft;
 namespace Platform {
 class TitleControls;
 } // namespace Platform
@@ -75,6 +76,7 @@ private:
 	void initControls();
 	void initLayout();
 	void initGeometry();
+	void setupScheduledLabels(rpl::producer<TimeId> date);
 	void setupMembers();
 	void setupJoinAsChangedToasts();
 	void setupTitleChangedToasts();
@@ -124,6 +126,7 @@ private:
 	object_ptr<Members> _members = { nullptr };
 	object_ptr<Ui::FlatLabel> _startsIn = { nullptr };
 	object_ptr<Ui::RpWidget> _countdown = { nullptr };
+	std::shared_ptr<Ui::GroupCallScheduledLeft> _countdownData;
 	object_ptr<Ui::FlatLabel> _startsWhen = { nullptr };
 	ChooseJoinAsProcess _joinAsProcess;
 

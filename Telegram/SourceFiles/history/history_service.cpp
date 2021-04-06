@@ -72,17 +72,6 @@ constexpr auto kPinnedMessageTextLimit = 16;
 	);
 }
 
-[[nodiscard]] std::optional<bool> PeerHasThisCall(
-		not_null<PeerData*> peer,
-		uint64 id) {
-	const auto call = peer->groupCall();
-	return call
-		? std::make_optional(call->id() == id)
-		: PeerCallKnown(peer)
-		? std::make_optional(false)
-		: std::nullopt;
-}
-
 [[nodiscard]] uint64 CallIdFromInput(const MTPInputGroupCall &data) {
 	return data.match([&](const MTPDinputGroupCall &data) {
 		return data.vid().v;
@@ -348,14 +337,30 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareGroupCall = [this](const MTPDmessageActionGroupCall &action) {
 		if (const auto duration = action.vduration()) {
-			return prepareDiscardedCallText(duration->v);
+			const auto seconds = duration->v;
+			const auto days = seconds / 86400;
+			const auto hours = seconds / 3600;
+			const auto minutes = seconds / 60;
+			auto text = (days > 1)
+				? tr::lng_group_call_duration_days(tr::now, lt_count, days)
+				: (hours > 1)
+				? tr::lng_group_call_duration_hours(tr::now, lt_count, hours)
+				: (minutes > 1)
+				? tr::lng_group_call_duration_minutes(tr::now, lt_count, minutes)
+				: tr::lng_group_call_duration_seconds(tr::now, lt_count, seconds);
+			return PreparedText{ tr::lng_action_group_call_finished(tr::now, lt_duration, text) };
 		}
-		const auto callId = CallIdFromInput(action.vcall());
-		const auto peer = history()->peer;
-		const auto linkCallId = PeerHasThisCall(peer, callId).value_or(false)
-			? callId
-			: 0;
-		return prepareStartedCallText(linkCallId);
+		auto result = PreparedText{};
+		if (history()->peer->isBroadcast()) {
+			result.text = tr::lng_action_group_call_started_channel(tr::now);
+		} else {
+			result.links.push_back(fromLink());
+			result.text = tr::lng_action_group_call_started_group(
+				tr::now,
+				lt_from,
+				fromLinkText());
+		}
+		return result;
 	};
 
 	auto prepareInviteToGroupCall = [this](const MTPDmessageActionInviteToGroupCall &action) {
@@ -406,12 +411,17 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareGroupCallScheduled = [this](const MTPDmessageActionGroupCallScheduled &action) {
-		const auto callId = CallIdFromInput(action.vcall());
-		const auto peer = history()->peer;
-		const auto linkCallId = PeerHasThisCall(peer, callId).value_or(false)
-			? callId
-			: 0;
-		return prepareStartedCallText(linkCallId);
+		auto result = PreparedText{};
+		if (history()->peer->isBroadcast()) {
+			result.text = tr::lng_action_group_call_scheduled_channel(tr::now);
+		} else {
+			result.links.push_back(fromLink());
+			result.text = tr::lng_action_group_call_scheduled_group(
+				tr::now,
+				lt_from,
+				fromLinkText());
+		}
+		return result;
 	};
 
 	const auto messageText = action.match([&](
@@ -575,41 +585,6 @@ bool HistoryService::updateDependent(bool force) {
 		Core::App().notifications().checkDelayed();
 	}
 	return (dependent->msg || !dependent->msgId);
-}
-
-HistoryService::PreparedText HistoryService::prepareDiscardedCallText(
-		int duration) {
-	const auto seconds = duration;
-	const auto days = seconds / 86400;
-	const auto hours = seconds / 3600;
-	const auto minutes = seconds / 60;
-	auto text = (days > 1)
-		? tr::lng_group_call_duration_days(tr::now, lt_count, days)
-		: (hours > 1)
-		? tr::lng_group_call_duration_hours(tr::now, lt_count, hours)
-		: (minutes > 1)
-		? tr::lng_group_call_duration_minutes(tr::now, lt_count, minutes)
-		: tr::lng_group_call_duration_seconds(tr::now, lt_count, seconds);
-	return PreparedText{ tr::lng_action_group_call_finished(tr::now, lt_duration, text) };
-}
-
-HistoryService::PreparedText HistoryService::prepareStartedCallText(
-		uint64 linkCallId) {
-	auto result = PreparedText{};
-	result.links.push_back(fromLink());
-	auto chatText = tr::lng_action_group_call_started_chat(tr::now);
-	if (linkCallId) {
-		const auto peer = history()->peer;
-		result.links.push_back(GroupCallClickHandler(peer, linkCallId));
-		chatText = textcmdLink(2, chatText);
-	}
-	result.text = tr::lng_action_group_call_started(
-		tr::now,
-		lt_from,
-		fromLinkText(),
-		lt_chat,
-		chatText);
-	return result;
 }
 
 HistoryService::PreparedText HistoryService::prepareInvitedToCallText(
@@ -973,11 +948,12 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 }
 
 void HistoryService::createFromMtp(const MTPDmessageService &message) {
-	if (message.vaction().type() == mtpc_messageActionGameScore) {
+	const auto type = message.vaction().type();
+	if (type == mtpc_messageActionGameScore) {
 		const auto &data = message.vaction().c_messageActionGameScore();
 		UpdateComponents(HistoryServiceGameScore::Bit());
 		Get<HistoryServiceGameScore>()->score = data.vscore().v;
-	} else if (message.vaction().type() == mtpc_messageActionPaymentSent) {
+	} else if (type == mtpc_messageActionPaymentSent) {
 		const auto &data = message.vaction().c_messageActionPaymentSent();
 		UpdateComponents(HistoryServicePayment::Bit());
 		const auto amount = data.vtotal_amount().v;
@@ -998,36 +974,24 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 					crl::guard(weak, [=] { weak->window().activate(); }));
 			}
 		});
-	} else if (message.vaction().type() == mtpc_messageActionGroupCall) {
-		const auto &data = message.vaction().c_messageActionGroupCall();
-		if (data.vduration()) {
+	} else if (type == mtpc_messageActionGroupCall
+		|| type == mtpc_messageActionGroupCallScheduled) {
+		const auto started = (type == mtpc_messageActionGroupCall);
+		const auto &callData = started
+			? message.vaction().c_messageActionGroupCall().vcall()
+			: message.vaction().c_messageActionGroupCallScheduled().vcall();
+		const auto duration = started
+			? message.vaction().c_messageActionGroupCall().vduration()
+			: tl::conditional<MTPint>();
+		if (duration) {
 			RemoveComponents(HistoryServiceOngoingCall::Bit());
 		} else {
 			UpdateComponents(HistoryServiceOngoingCall::Bit());
 			const auto call = Get<HistoryServiceOngoingCall>();
-			const auto id = CallIdFromInput(data.vcall());
-			call->lifetime.destroy();
-
-			const auto peer = history()->peer;
-			const auto has = PeerHasThisCall(peer, id);
-			if (!has.has_value()) {
-				PeerHasThisCallValue(
-					peer,
-					id
-				) | rpl::start_with_next([=](bool has) {
-					updateText(prepareStartedCallText(has ? id : 0));
-				}, call->lifetime);
-			} else if (*has) {
-				PeerHasThisCallValue(
-					peer,
-					id
-				) | rpl::skip(1) | rpl::start_with_next([=](bool has) {
-					Assert(!has);
-					updateText(prepareStartedCallText(0));
-				}, call->lifetime);
-			}
+			call->id = CallIdFromInput(callData);
+			call->link = GroupCallClickHandler(history()->peer, call->id);
 		}
-	} else if (message.vaction().type() == mtpc_messageActionInviteToGroupCall) {
+	} else if (type == mtpc_messageActionInviteToGroupCall) {
 		const auto &data = message.vaction().c_messageActionInviteToGroupCall();
 		const auto id = CallIdFromInput(data.vcall());
 		const auto peer = history()->peer;
@@ -1044,6 +1008,7 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		} else {
 			UpdateComponents(HistoryServiceOngoingCall::Bit());
 			const auto call = Get<HistoryServiceOngoingCall>();
+			call->id = id;
 			call->lifetime.destroy();
 
 			const auto users = data.vusers().v;
@@ -1206,4 +1171,15 @@ not_null<HistoryService*> GenerateJoinedMessage(
 		inviteDate,
 		GenerateJoinedText(history, inviter),
 		flags);
+}
+
+std::optional<bool> PeerHasThisCall(
+		not_null<PeerData*> peer,
+		uint64 id) {
+	const auto call = peer->groupCall();
+	return call
+		? std::make_optional(call->id() == id)
+		: PeerCallKnown(peer)
+		? std::make_optional(false)
+		: std::nullopt;
 }

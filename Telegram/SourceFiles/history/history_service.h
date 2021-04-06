@@ -52,6 +52,7 @@ struct HistoryServiceSelfDestruct
 struct HistoryServiceOngoingCall
 : public RuntimeComponent<HistoryServiceOngoingCall, HistoryItem> {
 	uint64 id = 0;
+	ClickHandlerPtr link;
 	rpl::lifetime lifetime;
 };
 
@@ -160,8 +161,6 @@ private:
 	PreparedText preparePinnedText();
 	PreparedText prepareGameScoreText();
 	PreparedText preparePaymentSentText();
-	PreparedText prepareDiscardedCallText(int duration);
-	PreparedText prepareStartedCallText(uint64 linkCallId);
 	PreparedText prepareInvitedToCallText(
 		const QVector<MTPint> &users,
 		uint64 linkCallId);
@@ -170,8 +169,11 @@ private:
 
 };
 
-not_null<HistoryService*> GenerateJoinedMessage(
+[[nodiscard]] not_null<HistoryService*> GenerateJoinedMessage(
 	not_null<History*> history,
 	TimeId inviteDate,
 	not_null<UserData*> inviter,
 	MTPDmessage::Flags flags);
+[[nodiscard]] std::optional<bool> PeerHasThisCall(
+	not_null<PeerData*> peer,
+	uint64 id);
