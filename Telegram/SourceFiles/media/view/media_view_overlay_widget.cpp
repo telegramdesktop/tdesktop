@@ -2217,6 +2217,9 @@ void OverlayWidget::showDocument(
 	displayDocument(document, context, cloud, continueStreaming);
 	preloadData(0);
 	activateControls();
+	if (_showAsPip && !videoIsGifOrUserpic()) {
+		switchToPip();
+	}
 }
 
 void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
@@ -2986,8 +2989,10 @@ void OverlayWidget::switchToPip() {
 	const auto document = _document;
 	const auto msgId = _msgid;
 	const auto closeAndContinue = [=] {
+		_showAsPip = false;
 		showDocument(document, document->owner().message(msgId), {}, true);
 	};
+	_showAsPip = true;
 	_pip = std::make_unique<PipWrap>(
 		this,
 		document,
