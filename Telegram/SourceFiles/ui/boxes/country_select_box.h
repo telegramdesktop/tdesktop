@@ -42,7 +42,6 @@ private:
 	void submit();
 	void applyFilterUpdate(const QString &query);
 
-	Type _type = Type::Phones;
 	object_ptr<MultiSelect> _select;
 
 	class Inner;
