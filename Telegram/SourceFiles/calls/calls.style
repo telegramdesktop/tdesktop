@@ -720,6 +720,11 @@ groupCallTopBarJoin: RoundButton(defaultActiveButton) {
 	height: 26px;
 	textTop: 4px;
 }
+groupCallTopBarOpen: RoundButton(groupCallTopBarJoin) {
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}
 groupCallBox: Box(defaultBox) {
 	button: RoundButton(defaultBoxButton) {
 		textFg: groupCallActiveFg;

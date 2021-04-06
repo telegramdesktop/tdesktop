@@ -152,17 +152,17 @@ void ScheduleGroupCallBox(
 		const auto now = base::unixtime::now();
 		const auto duration = (date - now);
 		if (duration >= 24 * 60 * 60) {
-			return tr::lng_signin_reset_days(
+			return tr::lng_group_call_duration_days(
 				tr::now,
 				lt_count,
 				duration / (24 * 60 * 60));
 		} else if (duration >= 60 * 60) {
-			return tr::lng_signin_reset_hours(
+			return tr::lng_group_call_duration_hours(
 				tr::now,
 				lt_count,
 				duration / (60 * 60));
 		}
-		return tr::lng_signin_reset_minutes(
+		return tr::lng_group_call_duration_minutes(
 			tr::now,
 			lt_count,
 			std::max(duration / 60, 1));

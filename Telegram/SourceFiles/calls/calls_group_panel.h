@@ -122,6 +122,9 @@ private:
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<Members> _members = { nullptr };
+	object_ptr<Ui::FlatLabel> _startsIn = { nullptr };
+	object_ptr<Ui::RpWidget> _countdown = { nullptr };
+	object_ptr<Ui::FlatLabel> _startsWhen = { nullptr };
 	ChooseJoinAsProcess _joinAsProcess;
 
 	object_ptr<Ui::CallButton> _settings;

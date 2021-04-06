@@ -234,9 +234,9 @@ GroupCall::GroupCall(
 			return not_null{ real };
 		}) | rpl::take(
 			1
-		) | rpl::start_with_next([=](not_null<Data::GroupCall*> call) {
+		) | rpl::start_with_next([=](not_null<Data::GroupCall*> real) {
 			subscribeToReal(real);
-			_realChanges.fire_copy(call);
+			_realChanges.fire_copy(real);
 		}, _lifetime);
 	}
 	if (_id) {

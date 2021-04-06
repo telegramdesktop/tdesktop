@@ -266,7 +266,7 @@ Panel::Panel(not_null<GroupCall*> call)
 	Core::App().appDeactivatedValue(),
 	Ui::CallMuteButtonState{
 		.text = (_call->scheduleDate()
-			? "Start Now" // #TODO voice chats
+			? tr::lng_group_call_start_now(tr::now)
 			: tr::lng_group_call_connecting(tr::now)),
 		.type = (_call->scheduleDate()
 			? Ui::CallMuteButtonType::ScheduledCanStart
@@ -451,7 +451,20 @@ void Panel::initControls() {
 	});
 
 	_settings->setText(tr::lng_group_call_settings());
-	_hangup->setText(tr::lng_group_call_leave());
+	const auto scheduled = (_call->scheduleDate() != 0);
+	_hangup->setText(scheduled
+		? tr::lng_group_call_close()
+		: tr::lng_group_call_leave());
+	if (scheduled) {
+		_call->real(
+		) | rpl::map([=](not_null<Data::GroupCall*> real) {
+			return real->scheduleDateValue();
+		}) | rpl::flatten_latest() | rpl::filter([](TimeId date) {
+			return (date == 0);
+		}) | rpl::take(1) | rpl::start_with_next([=] {
+			_hangup->setText(tr::lng_group_call_leave());
+		}, _callLifetime);
+	}
 
 	_call->stateValue(
 	) | rpl::filter([](State state) {
@@ -497,10 +510,10 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 		_mute->setState(Ui::CallMuteButtonState{
 			.text = (scheduleDate
 				? (canManage
-					? "Start Now" // #TODO voice chats
+					? tr::lng_group_call_start_now(tr::now)
 					: scheduleStartSubscribed
-					? "Cancel Reminder"
-					: "Set Reminder")
+					? tr::lng_group_call_cancel_reminder(tr::now)
+					: tr::lng_group_call_set_reminder(tr::now))
 				: state == GroupCall::InstanceState::Disconnected
 				? tr::lng_group_call_connecting(tr::now)
 				: mute == MuteState::ForceMuted

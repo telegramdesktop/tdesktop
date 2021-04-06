@@ -1025,12 +1025,15 @@ void History::applyServiceChanges(
 		}
 	} break;
 
-	case mtpc_messageActionGroupCall: {
-		const auto &d = action.c_messageActionGroupCall();
+	case mtpc_messageActionGroupCall:
+	case mtpc_messageActionGroupCallScheduled: {
+		const auto &call = (action.type() == mtpc_messageActionGroupCall)
+			? action.c_messageActionGroupCall().vcall()
+			: action.c_messageActionGroupCallScheduled().vcall();
 		if (const auto channel = peer->asChannel()) {
-			channel->setGroupCall(d.vcall());
+			channel->setGroupCall(call);
 		} else if (const auto chat = peer->asChat()) {
-			chat->setGroupCall(d.vcall());
+			chat->setGroupCall(call);
 		}
 	} break;
 	}

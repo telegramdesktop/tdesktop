@@ -1992,6 +1992,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_leave" = "Leave";
 "lng_group_call_leave_title" = "Leave voice chat";
 "lng_group_call_leave_sure" = "Are you sure you want to leave this voice chat?";
+"lng_group_call_close" = "Close";
+"lng_group_call_close_sure" = "Voice chat is scheduled. You can cancel it or just close this panel.";
+"lng_group_call_also_cancel" = "Cancel voice chat";
 "lng_group_call_leave_to_other_sure" = "Do you want to leave your active voice chat and join a voice chat in this group?";
 "lng_group_call_create_sure" = "Do you really want to start a voice chat in this group?";
 "lng_group_call_create_sure_channel" = "Are you sure you want to start a voice chat in this channel as your personal account?";
@@ -2022,6 +2025,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_copy_speaker_link" = "Copy Speaker Link";
 "lng_group_call_copy_listener_link" = "Copy Listener Link";
 "lng_group_call_end" = "End Voice Chat";
+"lng_group_call_cancel" = "Cancel Voice Chat";
 "lng_group_call_join" = "Join";
 "lng_group_call_join_confirm" = "Do you want to join the voice chat {chat}?";
 "lng_group_call_invite_done_user" = "You invited {user} to the voice chat.";
@@ -2069,6 +2073,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_starts_tomorrow" = "tomorrow at {time}";
 "lng_group_call_starts_date" = "{date} at {time}";
 "lng_group_call_starts_in" = "Starts in";
+"lng_group_call_start_now" = "Start Now";
 "lng_group_call_set_reminder" = "Set Reminder";
 "lng_group_call_cancel_reminder" = "Cancel Reminder";
 "lng_group_call_join_as_personal" = "personal account";

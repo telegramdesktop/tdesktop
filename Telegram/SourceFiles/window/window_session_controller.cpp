@@ -1003,6 +1003,8 @@ void SessionController::startOrJoinGroupCall(
 		&& calls.inGroupCall()) {
 		if (calls.currentGroupCall()->peer() == peer) {
 			calls.activateCurrentCall(joinHash);
+		} else if (calls.currentGroupCall()->scheduleDate()) {
+			calls.startOrJoinGroupCall(peer, joinHash);
 		} else {
 			askConfirmation(
 				tr::lng_group_call_leave_to_other_sure(tr::now),

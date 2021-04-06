@@ -21,16 +21,84 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
+GroupCallScheduledLeft::GroupCallScheduledLeft(TimeId date)
+: _date(date)
+, _datePrecise(computePreciseDate())
+, _timer([=] { update(); }) {
+	update();
+	base::unixtime::updates(
+	) | rpl::start_with_next([=] {
+		restart();
+	}, _lifetime);
+}
+
+crl::time GroupCallScheduledLeft::computePreciseDate() const {
+	return crl::now() + (_date - base::unixtime::now()) * crl::time(1000);
+}
+
+void GroupCallScheduledLeft::setDate(TimeId date) {
+	if (_date == date) {
+		return;
+	}
+	_date = date;
+	restart();
+}
+
+void GroupCallScheduledLeft::restart() {
+	_datePrecise = computePreciseDate();
+	_timer.cancel();
+	update();
+}
+
+rpl::producer<QString> GroupCallScheduledLeft::text() const {
+	return _text.value();
+}
+
+void GroupCallScheduledLeft::update() {
+	const auto now = crl::now();
+	const auto duration = (_datePrecise - now);
+	const auto left = crl::time(std::round(std::abs(duration) / 1000.));
+	constexpr auto kDay = 24 * 60 * 60;
+	if (left >= kDay) {
+		const auto days = ((left / kDay) + 1);
+		_text = tr::lng_group_call_duration_days(
+			tr::now,
+			lt_count,
+			(duration < 0) ? (-days) : days);
+	} else {
+		const auto hours = left / (60 * 60);
+		const auto minutes = (left % (60 * 60)) / 60;
+		const auto seconds = (left % 60);
+		if (hours > 0) {
+			_text = (duration < 0 ? u"\x2212%1:%2:%3"_q : u"%1:%2:%3"_q)
+				.arg(hours, 2, 10, QChar('0'))
+				.arg(minutes, 2, 10, QChar('0'))
+				.arg(seconds, 2, 10, QChar('0'));
+		} else {
+			_text = (duration < 0 && left > 0 ? u"\x2212%1:%2"_q : u"%1:%2"_q)
+				.arg(minutes, 2, 10, QChar('0'))
+				.arg(seconds, 2, 10, QChar('0'));
+		}
+	}
+	if (left >= kDay) {
+		_timer.callOnce((left % kDay) * crl::time(1000));
+	} else {
+		const auto fraction = (std::abs(duration) + 500) % 1000;
+		if (fraction < 400 || fraction > 600) {
+			const auto next = std::abs(duration) % 1000;
+			_timer.callOnce((duration < 0) ? (1000 - next) : next);
+		} else if (!_timer.isActive()) {
+			_timer.callEach(1000);
+		}
+	}
+}
+
 GroupCallBar::GroupCallBar(
 	not_null<QWidget*> parent,
 	rpl::producer<GroupCallBarContent> content,
 	rpl::producer<bool> &&hideBlobs)
 : _wrap(parent, object_ptr<RpWidget>(parent))
 , _inner(_wrap.entity())
-, _join(std::make_unique<RoundButton>(
-	_inner.get(),
-	tr::lng_group_call_join(),
-	st::groupCallTopBarJoin))
 , _shadow(std::make_unique<PlainShadow>(_wrap.parentWidget()))
 , _userpics(std::make_unique<GroupCallUserpics>(
 		st::historyGroupCallUserpics,
@@ -55,6 +123,7 @@ GroupCallBar::GroupCallBar(
 		_content = content;
 		_userpics->update(_content.users, !_wrap.isHidden());
 		_inner->update();
+		refreshScheduledProcess();
 	}, lifetime());
 
 	std::move(
@@ -75,6 +144,54 @@ GroupCallBar::GroupCallBar(
 }
 
 GroupCallBar::~GroupCallBar() = default;
+
+void GroupCallBar::refreshOpenBrush() {
+	Expects(_open != nullptr);
+
+	const auto width = _open->width();
+	if (_openBrushForWidth == width) {
+		return;
+	}
+	auto gradient = QLinearGradient(QPoint(width, 0), QPoint(-width, 0));
+	gradient.setStops(QGradientStops{
+		{ 0.0, st::groupCallForceMutedBar1->c },
+		{ .35, st::groupCallForceMutedBar2->c },
+		{ 1.0, st::groupCallForceMutedBar3->c }
+	});
+	_openBrushOverride = QBrush(std::move(gradient));
+	_openBrushForWidth = width;
+	_open->setBrushOverride(_openBrushOverride);
+}
+
+void GroupCallBar::refreshScheduledProcess() {
+	const auto date = _content.scheduleDate;
+	if (!date) {
+		if (_scheduledProcess) {
+			_scheduledProcess = nullptr;
+			_open = nullptr;
+			_join = std::make_unique<RoundButton>(
+				_inner.get(),
+				tr::lng_group_call_join(),
+				st::groupCallTopBarJoin);
+			setupRightButton(_join.get());
+		}
+		return;
+	} else if (!_scheduledProcess) {
+		_scheduledProcess = std::make_unique<GroupCallScheduledLeft>(date);
+		_join = nullptr;
+		_open = std::make_unique<RoundButton>(
+			_inner.get(),
+			_scheduledProcess->text(),
+			st::groupCallTopBarOpen);
+		setupRightButton(_open.get());
+		_open->widthValue(
+		) | rpl::start_with_next([=] {
+			refreshOpenBrush();
+		}, _open->lifetime());
+	} else {
+		_scheduledProcess->setDate(date);
+	}
+}
 
 void GroupCallBar::setupInner() {
 	_inner->resize(0, st::historyReplyHeight);
@@ -102,22 +219,26 @@ void GroupCallBar::setupInner() {
 		return rpl::empty_value();
 	}) | rpl::start_to_stream(_barClicks, _inner->lifetime());
 
-	rpl::combine(
-		_inner->widthValue(),
-		_join->widthValue()
-	) | rpl::start_with_next([=](int outerWidth, int) {
-		// Skip shadow of the bar above.
-		const auto top = (st::historyReplyHeight
-			- st::lineWidth
-			- _join->height()) / 2 + st::lineWidth;
-		_join->moveToRight(top, top, outerWidth);
-	}, _join->lifetime());
-
 	_wrap.geometryValue(
 	) | rpl::start_with_next([=](QRect rect) {
 		updateShadowGeometry(rect);
 		updateControlsGeometry(rect);
 	}, _inner->lifetime());
+}
+
+void GroupCallBar::setupRightButton(not_null<RoundButton*> button) {
+	rpl::combine(
+		_inner->widthValue(),
+		button->widthValue()
+	) | rpl::start_with_next([=](int outerWidth, int) {
+		// Skip shadow of the bar above.
+		const auto top = (st::historyReplyHeight
+			- st::lineWidth
+			- button->height()) / 2 + st::lineWidth;
+		button->moveToRight(top, top, outerWidth);
+	}, button->lifetime());
+
+	button->clicks() | rpl::start_to_stream(_joinClicks, button->lifetime());
 }
 
 void GroupCallBar::paint(Painter &p) {
@@ -131,7 +252,7 @@ void GroupCallBar::paint(Painter &p) {
 	p.setPen(st::defaultMessageBar.textFg);
 	p.setFont(font);
 
-	const auto available = _join->x() - left;
+	const auto available = (_join ? _join->x() : _open->x()) - left;
 	const auto titleWidth = font->width(_content.title);
 	p.drawTextLeft(
 		left,
@@ -279,7 +400,7 @@ rpl::producer<> GroupCallBar::barClicks() const {
 }
 
 rpl::producer<> GroupCallBar::joinClicks() const {
-	return _join->clicks() | rpl::to_empty;
+	return _joinClicks.events() | rpl::to_empty;
 }
 
 } // namespace Ui
