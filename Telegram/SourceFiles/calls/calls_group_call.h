@@ -255,6 +255,7 @@ private:
 	void applyMeInCallLocally();
 	void rejoin();
 	void rejoin(not_null<PeerData*> as);
+	void setJoinAs(not_null<PeerData*> as);
 	void subscribeToReal(not_null<Data::GroupCall*> real);
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);

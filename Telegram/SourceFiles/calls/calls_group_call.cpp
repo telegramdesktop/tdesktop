@@ -457,6 +457,15 @@ void GroupCall::rejoinWithHash(const QString &hash) {
 	}
 }
 
+void GroupCall::setJoinAs(not_null<PeerData*> as) {
+	_joinAs = as;
+	if (const auto chat = _peer->asChat()) {
+		chat->setGroupCallDefaultJoinAs(_joinAs->id);
+	} else if (const auto channel = _peer->asChannel()) {
+		channel->setGroupCallDefaultJoinAs(_joinAs->id);
+	}
+}
+
 void GroupCall::rejoin(not_null<PeerData*> as) {
 	if (state() != State::Joining
 		&& state() != State::Joined
@@ -472,12 +481,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 	applyMeInCallLocally();
 	LOG(("Call Info: Requesting join payload."));
 
-	_joinAs = as;
-	if (const auto chat = _peer->asChat()) {
-		chat->setGroupCallDefaultJoinAs(_joinAs->id);
-	} else if (const auto channel = _peer->asChannel()) {
-		channel->setGroupCallDefaultJoinAs(_joinAs->id);
-	}
+	setJoinAs(as);
 
 	const auto weak = base::make_weak(this);
 	_instance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
@@ -691,7 +695,13 @@ void GroupCall::rejoinAs(Group::JoinInfo info) {
 		.wasJoinAs = _joinAs,
 		.nowJoinAs = info.joinAs,
 	};
-	if (!_scheduleDate) {
+	if (_scheduleDate) {
+		setJoinAs(info.joinAs);
+		_api.request(MTPphone_SaveDefaultGroupCallJoinAs(
+			_peer->input,
+			_joinAs->input
+		)).send();
+	} else {
 		setState(State::Joining);
 		rejoin(info.joinAs);
 	}
