@@ -14,7 +14,7 @@ class HistoryItem;
 class PasscodeBox;
 
 namespace Core {
-class CloudPasswordState;
+struct CloudPasswordState;
 } // namespace Core
 
 namespace Main {

@@ -91,8 +91,7 @@ CountrySelectBox::CountrySelectBox(QWidget*)
 }
 
 CountrySelectBox::CountrySelectBox(QWidget*, const QString &iso, Type type)
-: _type(type)
-, _select(this, st::defaultMultiSelect, tr::lng_country_ph())
+: _select(this, st::defaultMultiSelect, tr::lng_country_ph())
 , _ownedInner(this, iso, type) {
 }
 

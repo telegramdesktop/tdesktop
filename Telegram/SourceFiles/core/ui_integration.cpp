@@ -126,10 +126,6 @@ QString UiIntegration::timeFormat() {
 	return cTimeFormat();
 }
 
-QWidget *UiIntegration::modalWindowParent() {
-	return Core::App().getModalParent();
-}
-
 std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		const EntityLinkData &data,
 		const std::any &context) {

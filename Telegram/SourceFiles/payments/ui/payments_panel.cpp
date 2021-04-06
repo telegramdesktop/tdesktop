@@ -130,7 +130,7 @@ void Panel::chooseShippingOption(const ShippingOptions &options) {
 			options.selectedId,
 			&ShippingOption::id);
 		const auto index = (i != end(options.list))
-			? (i - begin(options.list))
+			? int(i - begin(options.list))
 			: -1;
 		const auto group = std::make_shared<RadiobuttonGroup>(index);
 
