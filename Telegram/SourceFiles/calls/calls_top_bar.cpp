@@ -57,8 +57,13 @@ constexpr auto kHideBlobsDuration = crl::time(500);
 constexpr auto kBlobLevelDuration = crl::time(250);
 constexpr auto kBlobUpdateInterval = crl::time(100);
 
-auto BarStateFromMuteState(MuteState state, GroupCall::InstanceState instanceState) {
-	return (instanceState == GroupCall::InstanceState::Disconnected)
+auto BarStateFromMuteState(
+		MuteState state,
+		GroupCall::InstanceState instanceState,
+		TimeId scheduledDate) {
+	return scheduledDate
+		? BarState::ForceMuted
+		: (instanceState == GroupCall::InstanceState::Disconnected)
 		? BarState::Connecting
 		: (state == MuteState::ForceMuted || state == MuteState::RaisedHand)
 		? BarState::ForceMuted
@@ -293,19 +298,27 @@ void TopBar::initControls() {
 			_call
 				? mapToState(_call->muted())
 				: _groupCall->muted(),
-			GroupCall::InstanceState::Connected));
+			GroupCall::InstanceState::Connected,
+			_call ? TimeId(0) : _groupCall->scheduleDate()));
 	using namespace rpl::mappers;
 	auto muted = _call
 		? rpl::combine(
 			_call->mutedValue() | rpl::map(mapToState),
-			rpl::single(GroupCall::InstanceState::Connected)
+			rpl::single(GroupCall::InstanceState::Connected),
+			rpl::single(TimeId(0))
 		) | rpl::type_erased()
 		: rpl::combine(
 			(_groupCall->mutedValue()
 				| MapPushToTalkToActive()
 				| rpl::distinct_until_changed()
 				| rpl::type_erased()),
-			_groupCall->instanceStateValue()
+			_groupCall->instanceStateValue(),
+			rpl::single(
+				_groupCall->scheduleDate()
+			) | rpl::then(_groupCall->real(
+			) | rpl::map([](not_null<Data::GroupCall*> call) {
+				return call->scheduleDateValue();
+			}) | rpl::flatten_latest())
 		) | rpl::filter(_2 != GroupCall::InstanceState::TransitionToRtc);
 	std::move(
 		muted
