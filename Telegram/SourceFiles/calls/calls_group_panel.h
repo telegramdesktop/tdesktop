@@ -84,6 +84,7 @@ private:
 	void setupRealMuteButtonState(not_null<Data::GroupCall*> real);
 
 	bool handleClose();
+	void startScheduledNow();
 
 	void updateControlsGeometry();
 	void updateMembersGeometry();

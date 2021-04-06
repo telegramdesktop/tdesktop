@@ -184,6 +184,7 @@ void Panel::Incoming::fillBottomShadow(QPainter &p) {
 Panel::Panel(not_null<Call*> call)
 : _call(call)
 , _user(call->user())
+, _window(std::make_unique<Ui::Window>())
 #ifndef Q_OS_MAC
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
 	_window->body(),

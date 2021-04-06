@@ -125,6 +125,9 @@ GroupCallBar::GroupCallBar(
 		_inner->update();
 		refreshScheduledProcess();
 	}, lifetime());
+	if (!_open && !_join) {
+		refreshScheduledProcess();
+	}
 
 	std::move(
 		copy
@@ -170,13 +173,14 @@ void GroupCallBar::refreshScheduledProcess() {
 			_scheduledProcess = nullptr;
 			_open = nullptr;
 			_openBrushForWidth = 0;
+		}
+		if (!_join) {
 			_join = std::make_unique<RoundButton>(
 				_inner.get(),
 				tr::lng_group_call_join(),
 				st::groupCallTopBarJoin);
 			setupRightButton(_join.get());
 		}
-		return;
 	} else if (!_scheduledProcess) {
 		_scheduledProcess = std::make_unique<GroupCallScheduledLeft>(date);
 		_join = nullptr;
