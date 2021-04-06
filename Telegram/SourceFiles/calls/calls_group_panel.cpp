@@ -59,6 +59,7 @@ namespace {
 constexpr auto kSpacePushToTalkDelay = crl::time(250);
 constexpr auto kRecordingAnimationDuration = crl::time(1200);
 constexpr auto kRecordingOpacity = 0.6;
+constexpr auto kStartNoConfirmation = TimeId(10);
 
 class InviteController final : public ParticipantsBoxController {
 public:
@@ -373,6 +374,7 @@ std::unique_ptr<PeerListRow> InviteContactsController::createRow(
 Panel::Panel(not_null<GroupCall*> call)
 : _call(call)
 , _peer(call->peer())
+, _window(std::make_unique<Ui::Window>())
 , _layerBg(std::make_unique<Ui::LayerManager>(_window->body()))
 #ifndef Q_OS_MAC
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
@@ -539,6 +541,31 @@ void Panel::endCall() {
 		BoxContext::GroupCallPanel));
 }
 
+void Panel::startScheduledNow() {
+	const auto date = _call->scheduleDate();
+	const auto now = base::unixtime::now();
+	if (!date) {
+		return;
+	} else if (now + kStartNoConfirmation >= date) {
+		_call->startScheduledNow();
+	} else {
+		const auto box = std::make_shared<QPointer<Ui::GenericBox>>();
+		const auto done = [=] {
+			if (*box) {
+				(*box)->closeBox();
+			}
+			_call->startScheduledNow();
+		};
+		auto owned = Box(
+			ConfirmBox,
+			TextWithEntities{ tr::lng_group_call_start_now_sure(tr::now) },
+			tr::lng_group_call_start_now(),
+			done);
+		*box = owned.data();
+		_layerBg->showBox(std::move(owned));
+	}
+}
+
 void Panel::initControls() {
 	_mute->clicks(
 	) | rpl::filter([=](Qt::MouseButton button) {
@@ -546,7 +573,7 @@ void Panel::initControls() {
 	}) | rpl::start_with_next([=] {
 		if (_call->scheduleDate()) {
 			if (_peer->canManageGroupCall()) {
-				_call->startScheduledNow();
+				startScheduledNow();
 			} else if (const auto real = _call->lookupReal()) {
 				_call->toggleScheduleStartSubscribed(
 					!real->scheduleStartSubscribed());

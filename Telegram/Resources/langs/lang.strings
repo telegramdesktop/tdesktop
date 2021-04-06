@@ -2079,6 +2079,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_starts_short_tomorrow" = "Tomorrow, {time}";
 "lng_group_call_starts_short_date" = "{date}, {time}";
 "lng_group_call_start_now" = "Start Now";
+"lng_group_call_start_now_sure" = "Are you sure you want to start the voice chat now?";
 "lng_group_call_set_reminder" = "Set Reminder";
 "lng_group_call_cancel_reminder" = "Cancel Reminder";
 "lng_group_call_join_as_personal" = "personal account";
