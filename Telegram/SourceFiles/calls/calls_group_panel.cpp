@@ -739,6 +739,7 @@ void Panel::setupMembers() {
 	_startsWhen.destroy();
 
 	_members.create(widget(), _call);
+	_members->show();
 
 	_members->desiredHeightValue(
 	) | rpl::start_with_next([=] {
