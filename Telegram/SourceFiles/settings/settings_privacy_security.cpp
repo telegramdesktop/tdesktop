@@ -29,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/layers/generic_box.h"
 #include "calls/calls_instance.h"
 #include "core/core_cloud_password.h"
 #include "core/update_checker.h"
@@ -42,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "facades.h"
 #include "styles/style_settings.h"
+#include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
 #include <QtGui/QGuiApplication>
@@ -566,6 +569,83 @@ void SetupSelfDestruction(
 	AddSkip(container);
 }
 
+void ClearPaymentInfoBoxBuilder(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	box->setTitle(tr::lng_clear_payment_info_title());
+
+	const auto checkboxPadding = style::margins(
+		st::boxRowPadding.left(),
+		st::boxRowPadding.left(),
+		st::boxRowPadding.right(),
+		st::boxRowPadding.bottom());
+	const auto label = box->addRow(object_ptr<Ui::FlatLabel>(
+		box,
+		tr::lng_clear_payment_info_sure(),
+		st::boxLabel));
+	const auto shipping = box->addRow(
+		object_ptr<Ui::Checkbox>(
+			box,
+			tr::lng_clear_payment_info_shipping(tr::now),
+			true,
+			st::defaultBoxCheckbox),
+		checkboxPadding);
+	const auto payment = box->addRow(
+		object_ptr<Ui::Checkbox>(
+			box,
+			tr::lng_clear_payment_info_payment(tr::now),
+			true,
+			st::defaultBoxCheckbox),
+		checkboxPadding);
+
+	using Flags = MTPpayments_ClearSavedInfo::Flags;
+	const auto flags = box->lifetime().make_state<Flags>();
+
+	box->addButton(tr::lng_clear_payment_info_clear(), [=] {
+		using Flag = Flags::Enum;
+		*flags = (shipping->checked() ? Flag::f_info : Flag(0))
+			| (payment->checked() ? Flag::f_credentials : Flag(0));
+		delete label;
+		delete shipping;
+		delete payment;
+		box->addRow(object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_clear_payment_info_confirm(),
+			st::boxLabel));
+		box->clearButtons();
+		box->addButton(tr::lng_clear_payment_info_clear(), [=] {
+			session->api().request(MTPpayments_ClearSavedInfo(
+				MTP_flags(*flags)
+			)).send();
+			box->closeBox();
+		}, st::attentionBoxButton);
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}, st::attentionBoxButton);
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
+auto ClearPaymentInfoBox(not_null<Main::Session*> session) {
+	return Box(ClearPaymentInfoBoxBuilder, session);
+}
+
+void SetupBotsAndWebsites(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
+	AddSkip(container);
+	AddSubsectionTitle(container, tr::lng_settings_security_bots());
+
+	const auto session = &controller->session();
+	AddButton(
+		container,
+		tr::lng_settings_clear_payment_info(),
+		st::settingsButton
+	)->addClickHandler([=] {
+		Ui::show(ClearPaymentInfoBox(session));
+	});
+
+	AddSkip(container);
+}
+
 void SetupSessionsList(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
@@ -735,6 +815,8 @@ void PrivacySecurity::setupContent(
 	AddDivider(content);
 #endif // !OS_MAC_STORE && !OS_WIN_STORE
 	SetupSelfDestruction(controller, content, trigger());
+	AddDivider(content);
+	SetupBotsAndWebsites(controller, content);
 
 	Ui::ResizeFitChild(this, content);
 }
