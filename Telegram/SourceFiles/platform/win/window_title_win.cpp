@@ -18,11 +18,25 @@ namespace Platform {
 TitleWidget::TitleWidget(QWidget *parent)
 : Window::TitleWidget(parent)
 , _st(st::defaultWindowTitle)
+, _top(this, _st.top)
 , _minimize(this, _st.minimize)
 , _maximizeRestore(this, _st.maximize)
 , _close(this, _st.close)
 , _shadow(this, st::titleShadow)
 , _maximizedState(parent->window()->windowState() & Qt::WindowMaximized) {
+	_top->setClickedCallback([=] {
+		if (_topState) {
+			_topState = false;
+			window()->setWindowFlags(windowFlags());
+			window()->show();
+		} else {
+			_topState = true;
+			window()->setWindowFlags(Qt::WindowStaysOnTopHint);
+			window()->show();
+		}
+		updateButtonsState();
+	});
+	_top->setPointerCursor(false);
 	_minimize->setClickedCallback([=] {
 		window()->setWindowState(
 			window()->windowState() | Qt::WindowMinimized);
@@ -44,6 +58,7 @@ TitleWidget::TitleWidget(QWidget *parent)
 
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	resize(width(), _st.height);
+	updateButtonsState();
 }
 
 void TitleWidget::init() {
@@ -71,6 +86,8 @@ void TitleWidget::updateControlsPosition() {
 	_close->moveToRight(right, 0); right += _close->width();
 	_maximizeRestore->moveToRight(right, 0); right += _maximizeRestore->width();
 	_minimize->moveToRight(right, 0);
+	right += _minimize->width();
+	_top->moveToRight(right, 0);
 }
 
 void TitleWidget::resizeEvent(QResizeEvent *e) {
@@ -118,6 +135,14 @@ void TitleWidget::updateButtonsState() {
 		_activeState
 		? &_st.closeIconActiveOver
 		: nullptr);
+
+	const auto top = _activeState
+					 ? (_topState ? &_st.topIconActive : &_st.top2IconActive)
+					 : (_topState ? &_st.top.icon : &_st.top2Icon);
+	const auto topOver = _activeState
+						 ? (_topState ? &_st.topIconActiveOver : &_st.top2IconActiveOver)
+						 : (_topState ? &_st.top.iconOver : &_st.top2IconOver);
+	_top->setIconOverride(top, topOver);
 }
 
 Window::HitTestResult TitleWidget::hitTest(const QPoint &p) const {
@@ -125,6 +150,7 @@ Window::HitTestResult TitleWidget::hitTest(const QPoint &p) const {
 		|| (_minimize->geometry().contains(p))
 		|| (_maximizeRestore->geometry().contains(p))
 		|| (_close->geometry().contains(p))
+		|| (_top->geometry().contains(p))
 	) {
 		return Window::HitTestResult::SysButton;
 	} else if (rect().contains(p)) {

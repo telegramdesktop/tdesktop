@@ -383,6 +383,16 @@ callTitle: WindowTitle(defaultWindowTitle) {
 	}
 	closeIconActive: callTitleCloseIcon;
 	closeIconActiveOver: callTitleCloseIconOver;
+
+	// Dummy values.
+	top: IconButton(callTitleButton) {
+	}
+	topIconActive: callTitleMinimizeIcon;
+	topIconActiveOver: callTitleMinimizeIcon;
+	top2Icon: callTitleMinimizeIcon;
+	top2IconOver: callTitleMinimizeIcon;
+	top2IconActive: callTitleMinimizeIcon;
+	top2IconActiveOver: callTitleMinimizeIcon;
 }
 callTitleShadow: icon {{ "calls/calls_shadow_controls", windowShadowFg }};
 
@@ -882,6 +892,16 @@ groupCallTitle: WindowTitle(defaultWindowTitle) {
 	}
 	closeIconActive: groupCallTitleCloseIcon;
 	closeIconActiveOver: groupCallTitleCloseIconOver;
+
+	// Dummy values.
+	top: IconButton(callTitleButton) {
+	}
+	topIconActive: callTitleMinimizeIcon;
+	topIconActiveOver: callTitleMinimizeIcon;
+	top2Icon: callTitleMinimizeIcon;
+	top2IconOver: callTitleMinimizeIcon;
+	top2IconActive: callTitleMinimizeIcon;
+	top2IconActiveOver: callTitleMinimizeIcon;
 }
 
 groupCallMajorBlobIdleRadius: 2px;

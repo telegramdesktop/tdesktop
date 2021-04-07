@@ -735,13 +735,13 @@ void DeleteMessagesBox::prepare() {
 			fullHeight += st::boxLittleSkip + _deleteAll->heightNoMargins();
 		}
 		if (cAlwaysDeleteFor() == 1 || cAlwaysDeleteFor() == 3) {
-            _deleteAll->setChecked(true);
+			_deleteAll->setChecked(true);
 		}
 	} else if (_revoke) {
 		fullHeight += st::boxMediumSkip + _revoke->heightNoMargins();
-        if (cAlwaysDeleteFor() == 2 || cAlwaysDeleteFor() == 3) {
-            _revoke->setChecked(true);
-        }
+		if (cAlwaysDeleteFor() == 2 || cAlwaysDeleteFor() == 3) {
+			_revoke->setChecked(true);
+		}
 	}
 	if (_autoDeleteSettings) {
 		fullHeight += st::boxMediumSkip + _autoDeleteSettings->height() + st::boxLittleSkip;

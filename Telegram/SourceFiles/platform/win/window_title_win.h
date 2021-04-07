@@ -49,11 +49,13 @@ private:
 	void updateControlsPosition();
 
 	const style::WindowTitle &_st;
+	object_ptr<Ui::IconButton> _top;
 	object_ptr<Ui::IconButton> _minimize;
 	object_ptr<Ui::IconButton> _maximizeRestore;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow;
 
+	bool _topState = false;
 	bool _maximizedState = false;
 	bool _activeState = false;
 
