@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 
 class Image;
+class QJsonObject;
 
 namespace Core {
 struct CloudPasswordResult;
@@ -20,6 +21,10 @@ struct CloudPasswordResult;
 namespace Stripe {
 class APIClient;
 } // namespace Stripe
+
+namespace SmartGlocal {
+class APIClient;
+} // namespace SmartGlocal
 
 namespace Main {
 class Session;
@@ -86,10 +91,15 @@ struct StripePaymentMethod {
 	QString publishableKey;
 };
 
+struct SmartGlocalPaymentMethod {
+	QString publicToken;
+};
+
 struct NativePaymentMethod {
 	std::variant<
 		v::null_t,
-		StripePaymentMethod> data;
+		StripePaymentMethod,
+		SmartGlocalPaymentMethod> data;
 
 	[[nodiscard]] bool valid() const {
 		return !v::is_null(data);
@@ -131,6 +141,7 @@ struct Error {
 		Form,
 		Validate,
 		Stripe,
+		SmartGlocal,
 		TmpPassword,
 		Send,
 	};
@@ -221,13 +232,18 @@ private:
 		const MTPDpaymentSavedCredentialsCard &data);
 	void processShippingOptions(const QVector<MTPShippingOption> &data);
 	void fillPaymentMethodInformation();
-	void fillStripeNativeMethod();
+	void fillStripeNativeMethod(QJsonObject object);
+	void fillSmartGlocalNativeMethod(QJsonObject object);
 	void refreshPaymentMethodDetails();
 	[[nodiscard]] QString defaultPhone() const;
 	[[nodiscard]] QString defaultCountry() const;
 
 	void validateCard(
 		const StripePaymentMethod &method,
+		const Ui::UncheckedCardDetails &details,
+		bool saveInformation);
+	void validateCard(
+		const SmartGlocalPaymentMethod &method,
 		const Ui::UncheckedCardDetails &details,
 		bool saveInformation);
 
@@ -259,6 +275,7 @@ private:
 	mtpRequestId _passwordRequestId = 0;
 
 	std::unique_ptr<Stripe::APIClient> _stripe;
+	std::unique_ptr<SmartGlocal::APIClient> _smartglocal;
 
 	Ui::ShippingOptions _shippingOptions;
 	QString _requestedInformationId;

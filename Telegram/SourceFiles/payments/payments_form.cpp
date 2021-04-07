@@ -21,6 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "stripe/stripe_error.h"
 #include "stripe/stripe_token.h"
 #include "stripe/stripe_card_validator.h"
+#include "smartglocal/smartglocal_api_client.h"
+#include "smartglocal/smartglocal_error.h"
+#include "smartglocal/smartglocal_token.h"
 #include "storage/storage_account.h"
 #include "ui/image/image.h"
 #include "apiwrap.h"
@@ -94,6 +97,13 @@ constexpr auto kPasswordPeriod = 15 * TimeId(60);
 	return Stripe::CardBrandToString(card.brand()).toLower()
 		+ " *"
 		+ card.last4();
+}
+
+[[nodiscard]] QString CardTitle(const SmartGlocal::Card &card) {
+	// Like server stores saved_credentials title.
+	return card.type().toLower()
+		+ " *"
+		+ SmartGlocal::Last4(card);
 }
 
 } // namespace
@@ -427,33 +437,39 @@ void Form::fillPaymentMethodInformation() {
 	_paymentMethod.native = NativePaymentMethod();
 	_paymentMethod.ui.native = Ui::NativeMethodDetails();
 	_paymentMethod.ui.url = _details.url;
-	if (_details.nativeProvider == "stripe") {
-		fillStripeNativeMethod();
+	if (!_details.nativeProvider.isEmpty()) {
+		auto error = QJsonParseError();
+		auto document = QJsonDocument::fromJson(
+			_details.nativeParamsJson,
+			&error);
+		if (error.error != QJsonParseError::NoError) {
+			LOG(("Payment Error: Could not decode native_params, error %1: %2"
+				).arg(error.error
+				).arg(error.errorString()));
+		} else if (!document.isObject()) {
+			LOG(("Payment Error: Not an object in native_params."));
+		} else {
+			const auto object = document.object();
+			if (_details.nativeProvider == "stripe") {
+				fillStripeNativeMethod(object);
+			} else if (_details.nativeProvider == "smartglocal") {
+				fillSmartGlocalNativeMethod(object);
+			} else {
+				LOG(("Payment Error: Unknown native provider '%1'."
+					).arg(_details.nativeProvider));
+			}
+		}
 	}
 	refreshPaymentMethodDetails();
 }
 
-void Form::fillStripeNativeMethod() {
-	auto error = QJsonParseError();
-	auto document = QJsonDocument::fromJson(
-		_details.nativeParamsJson,
-		&error);
-	if (error.error != QJsonParseError::NoError) {
-		LOG(("Payment Error: Could not decode native_params, error %1: %2"
-			).arg(error.error
-			).arg(error.errorString()));
-		return;
-	} else if (!document.isObject()) {
-		LOG(("Payment Error: Not an object in native_params."));
-		return;
-	}
-	const auto object = document.object();
+void Form::fillStripeNativeMethod(QJsonObject object) {
 	const auto value = [&](QStringView key) {
 		return object.value(key);
 	};
 	const auto key = value(u"publishable_key").toString();
 	if (key.isEmpty()) {
-		LOG(("Payment Error: No publishable_key in native_params."));
+		LOG(("Payment Error: No publishable_key in stripe native_params."));
 		return;
 	}
 	_paymentMethod.native = NativePaymentMethod{
@@ -466,6 +482,29 @@ void Form::fillStripeNativeMethod() {
 		.needCountry = value(u"need_country").toBool(),
 		.needZip = value(u"need_zip").toBool(),
 		.needCardholderName = value(u"need_cardholder_name").toBool(),
+	};
+}
+
+void Form::fillSmartGlocalNativeMethod(QJsonObject object) {
+	const auto value = [&](QStringView key) {
+		return object.value(key);
+	};
+	const auto key = value(u"public_token").toString();
+	if (key.isEmpty()) {
+		LOG(("Payment Error: "
+			"No public_token in smartglocal native_params."));
+		return;
+	}
+	_paymentMethod.native = NativePaymentMethod{
+		.data = SmartGlocalPaymentMethod{
+			.publicToken = key,
+		},
+	};
+	_paymentMethod.ui.native = Ui::NativeMethodDetails{
+		.supported = true,
+		.needCountry = false,
+		.needZip = false,
+		.needCardholderName = false,
 	};
 }
 
@@ -602,6 +641,7 @@ bool Form::hasChanges() const {
 		: _information;
 	return (information != _savedInformation)
 		|| (_stripe != nullptr)
+		|| (_smartglocal != nullptr)
 		|| !_paymentMethod.newCredentials.empty();
 }
 
@@ -655,7 +695,10 @@ void Form::validateCard(
 		return;
 	}
 	const auto &native = _paymentMethod.native.data;
-	if (const auto stripe = std::get_if<StripePaymentMethod>(&native)) {
+	if (const auto smartglocal = std::get_if<SmartGlocalPaymentMethod>(
+			&native)) {
+		validateCard(*smartglocal, details, saveInformation);
+	} else if (const auto stripe = std::get_if<StripePaymentMethod>(&native)) {
 		validateCard(*stripe, details, saveInformation);
 	} else {
 		Unexpected("Native payment provider in Form::validateCard.");
@@ -748,6 +791,57 @@ void Form::validateCard(
 				.data = QJsonDocument(QJsonObject{
 					{ "type", "card" },
 					{ "id", token.tokenId() },
+				}).toJson(QJsonDocument::Compact),
+				.saveOnServer = saveInformation,
+			});
+		}
+	}));
+}
+
+void Form::validateCard(
+		const SmartGlocalPaymentMethod &method,
+		const Ui::UncheckedCardDetails &details,
+		bool saveInformation) {
+	Expects(!method.publicToken.isEmpty());
+
+	if (_smartglocal) {
+		return;
+	}
+	auto configuration = SmartGlocal::PaymentConfiguration{
+		.publicToken = method.publicToken,
+		.isTest = _invoice.isTest,
+	};
+	_smartglocal = std::make_unique<SmartGlocal::APIClient>(
+		std::move(configuration));
+	auto card = Stripe::CardParams{
+		.number = details.number,
+		.expMonth = details.expireMonth,
+		.expYear = details.expireYear,
+		.cvc = details.cvc,
+		.name = details.cardholderName,
+		.addressZip = details.addressZip,
+		.addressCountry = details.addressCountry,
+	};
+	_smartglocal->createTokenWithCard(std::move(card), crl::guard(this, [=](
+			SmartGlocal::Token token,
+			SmartGlocal::Error error) {
+		_smartglocal = nullptr;
+
+		if (error) {
+			LOG(("SmartGlocal Error %1: %2 (%3)"
+				).arg(int(error.code())
+				).arg(error.description()
+				).arg(error.message()));
+			_updates.fire(Error{
+				Error::Type::SmartGlocal,
+				error.description(),
+			});
+		} else {
+			setPaymentCredentials({
+				.title = CardTitle(token.card()),
+				.data = QJsonDocument(QJsonObject{
+					{ "token", token.tokenId() },
+					{ "type", "card" },
 				}).toJson(QJsonDocument::Compact),
 				.saveOnServer = saveInformation,
 			});
