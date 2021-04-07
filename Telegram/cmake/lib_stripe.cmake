@@ -33,6 +33,16 @@ PRIVATE
     stripe/stripe_payment_configuration.h
     stripe/stripe_token.cpp
     stripe/stripe_token.h
+
+    smartglocal/smartglocal_api_client.cpp
+    smartglocal/smartglocal_api_client.h
+    smartglocal/smartglocal_callbacks.h
+    smartglocal/smartglocal_card.cpp
+    smartglocal/smartglocal_card.h
+    smartglocal/smartglocal_error.cpp
+    smartglocal/smartglocal_error.h
+    smartglocal/smartglocal_token.cpp
+    smartglocal/smartglocal_token.h
     
     stripe/stripe_pch.h
 )

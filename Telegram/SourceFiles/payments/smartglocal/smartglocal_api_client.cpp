@@ -5,11 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "stripe/stripe_api_client.h"
+#include "smartglocal/smartglocal_api_client.h"
 
-#include "stripe/stripe_error.h"
-#include "stripe/stripe_token.h"
-#include "stripe/stripe_form_encoder.h"
+#include "smartglocal/smartglocal_error.h"
+#include "smartglocal/smartglocal_token.h"
 
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonDocument>
@@ -17,43 +16,44 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtNetwork/QNetworkReply>
 #include <crl/crl_on_main.h>
 
-namespace Stripe {
+#include <windows.h>
+#include <debugapi.h>
+
+namespace SmartGlocal {
 namespace {
 
-[[nodiscard]] QString APIURLBase() {
-	return "api.stripe.com/v1";
+[[nodiscard]] QString APIURLBase(bool isTest) {
+	return isTest
+		? "tgb-playground.smart-glocal.com/cds/v1"
+		: "tgb.smart-glocal.com/cds/v1";
 }
 
 [[nodiscard]] QString TokenEndpoint() {
-	return "tokens";
+	return "tokenize/card";
 }
 
-[[nodiscard]] QString StripeAPIVersion() {
-	return "2015-10-12";
-}
+[[nodiscard]] QByteArray ToJson(const Stripe::CardParams &card) {
+	const auto zero = QChar('0');
+	const auto month = QString("%1").arg(card.expMonth, 2, 10, zero);
+	const auto year = QString("%1").arg(card.expYear % 100, 2, 10, zero);
 
-[[nodiscard]] QString SDKVersion() {
-	return "9.1.0";
-}
-
-[[nodiscard]] QString StripeUserAgentDetails() {
-	const auto details = QJsonObject{
-		{ "lang", "objective-c" },
-		{ "bindings_version", SDKVersion() },
-	};
-	return QString::fromUtf8(
-		QJsonDocument(details).toJson(QJsonDocument::Compact));
+	return QJsonDocument(QJsonObject{
+		{ "card", QJsonObject{
+			{ "number", card.number },
+			{ "expiration_month", month },
+			{ "expiration_year", year },
+			{ "security_code", card.cvc },
+		} },
+	}).toJson(QJsonDocument::Compact);
 }
 
 } // namespace
 
 APIClient::APIClient(PaymentConfiguration configuration)
-: _apiUrl("https://" + APIURLBase())
+: _apiUrl("https://" + APIURLBase(configuration.isTest))
 , _configuration(configuration) {
 	_additionalHttpHeaders = {
-		{ "X-Stripe-User-Agent", StripeUserAgentDetails() },
-		{ "Stripe-Version", StripeAPIVersion() },
-		{ "Authorization", "Bearer " + _configuration.publishableKey },
+		{ "X-PUBLIC-TOKEN", _configuration.publicToken },
 	};
 }
 
@@ -62,11 +62,9 @@ APIClient::~APIClient() {
 }
 
 void APIClient::createTokenWithCard(
-		CardParams card,
+		Stripe::CardParams card,
 		TokenCompletionCallback completion) {
-	createTokenWithData(
-		FormEncoder::formEncodedDataForObject(MakeEncodable(card)),
-		std::move(completion));
+	createTokenWithData(ToJson(card), std::move(completion));
 }
 
 void APIClient::createTokenWithData(
@@ -74,6 +72,9 @@ void APIClient::createTokenWithData(
 		TokenCompletionCallback completion) {
 	const auto url = QUrl(_apiUrl + '/' + TokenEndpoint());
 	auto request = QNetworkRequest(url);
+	request.setHeader(
+		QNetworkRequest::ContentTypeHeader,
+		"application/json");
 	for (const auto &[name, value] : _additionalHttpHeaders) {
 		request.setRawHeader(name.toUtf8(), value.toUtf8());
 	}
@@ -133,7 +134,8 @@ void APIClient::createTokenWithData(
 			});
 			return;
 		}
-		auto token = Token::DecodedObjectFromAPIResponse(document.object());
+		auto token = Token::DecodedObjectFromAPIResponse(
+			document.object().value("data").toObject());
 		if (!token) {
 			finishWithError({
 				Error::Code::JsonFormat,
@@ -164,4 +166,4 @@ void APIClient::destroyReplyDelayed(std::unique_ptr<QNetworkReply> reply) {
 	});
 }
 
-} // namespace Stripe
+} // namespace SmartGlocal

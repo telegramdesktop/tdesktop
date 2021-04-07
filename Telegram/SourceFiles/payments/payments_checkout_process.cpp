@@ -272,8 +272,24 @@ void CheckoutProcess::handleError(const Error &error) {
 		} else if (id == u"ProcessingError"_q) {
 			showToast({ "Sorry, a processing error occurred." });
 		} else {
-			showToast({ "Error: " + id });
+			showToast({ "Stripe Error: " + id });
 		}
+	} break;
+	case Error::Type::SmartGlocal: {
+		//using Field = Ui::CardField;
+		//if (id == u"InvalidNumber"_q || id == u"IncorrectNumber"_q) {
+		//	showCardError(Field::Number);
+		//} else if (id == u"InvalidCVC"_q || id == u"IncorrectCVC"_q) {
+		//	showCardError(Field::Cvc);
+		//} else if (id == u"InvalidExpiryMonth"_q
+		//	|| id == u"InvalidExpiryYear"_q
+		//	|| id == u"ExpiredCard"_q) {
+		//	showCardError(Field::ExpireDate);
+		//} else if (id == u"CardDeclined"_q) {
+		//	showToast({ tr::lng_payments_card_declined(tr::now) });
+		//} else {
+			showToast({ "SmartGlocal Error: " + id });
+		//}
 	} break;
 	case Error::Type::TmpPassword:
 		if (const auto box = _enterPasswordBox.data()) {
