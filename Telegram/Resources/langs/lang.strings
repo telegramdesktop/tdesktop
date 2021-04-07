@@ -1995,8 +1995,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_leave_title" = "Leave voice chat";
 "lng_group_call_leave_sure" = "Are you sure you want to leave this voice chat?";
 "lng_group_call_close" = "Close";
-"lng_group_call_close_sure" = "Voice chat is scheduled. You can cancel it or just close this panel.";
-"lng_group_call_also_cancel" = "Cancel voice chat";
+"lng_group_call_close_sure" = "Voice chat is scheduled. You can abort it or just close this panel.";
+"lng_group_call_also_cancel" = "Abort voice chat";
 "lng_group_call_leave_to_other_sure" = "Do you want to leave your active voice chat and join a voice chat in this group?";
 "lng_group_call_create_sure" = "Do you really want to start a voice chat in this group?";
 "lng_group_call_create_sure_channel" = "Are you sure you want to start a voice chat in this channel as your personal account?";
@@ -2027,7 +2027,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_copy_speaker_link" = "Copy Speaker Link";
 "lng_group_call_copy_listener_link" = "Copy Listener Link";
 "lng_group_call_end" = "End Voice Chat";
-"lng_group_call_cancel" = "Cancel Voice Chat";
+"lng_group_call_cancel" = "Abort Voice Chat";
 "lng_group_call_join" = "Join";
 "lng_group_call_join_confirm" = "Do you want to join the voice chat {chat}?";
 "lng_group_call_invite_done_user" = "You invited {user} to the voice chat.";
@@ -2062,8 +2062,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_join_as_header" = "Join Voice Chat as...";
 "lng_group_call_display_as_header" = "Display me as...";
 "lng_group_call_join_as_about" = "Choose whether you want to be displayed as your personal account or as your channel.";
-"lng_group_call_or_schedule" = "Or you can {link}.";
-"lng_group_call_schedule" = "Schedule Voice Chat";
+"lng_group_call_or_schedule" = "You can also {link}.";
+"lng_group_call_schedule" = "schedule a voice chat";
 "lng_group_call_schedule_title" = "Schedule Voice Chat";
 "lng_group_call_schedule_notified_group" = "The members of the group will be notified that the voice chat will start in {duration}.";
 "lng_group_call_schedule_notified_channel" = "The subscribers of the channel will be notified that the voice chat will start in {duration}.";

@@ -556,11 +556,11 @@ void Panel::startScheduledNow() {
 			}
 			_call->startScheduledNow();
 		};
-		auto owned = Box(
-			ConfirmBox,
-			TextWithEntities{ tr::lng_group_call_start_now_sure(tr::now) },
-			tr::lng_group_call_start_now(),
-			done);
+		auto owned = ConfirmBox({
+			.text = { tr::lng_group_call_start_now_sure(tr::now) },
+			.button = tr::lng_group_call_start_now(),
+			.callback = done,
+		});
 		*box = owned.data();
 		_layerBg->showBox(std::move(owned));
 	}
@@ -1153,11 +1153,14 @@ void Panel::addMembers() {
 			}
 			finish();
 		};
-		auto box = Box(
-			ConfirmBox,
-			TextWithEntities{ text },
-			tr::lng_participant_invite(),
-			[=] { inviteWithAdd(users, nonMembers, finishWithConfirm); });
+		const auto done = [=] {
+			inviteWithAdd(users, nonMembers, finishWithConfirm);
+		};
+		auto box = ConfirmBox({
+			.text = { text },
+			.button = tr::lng_participant_invite(),
+			.callback = done,
+		});
 		*shared = box.data();
 		_layerBg->showBox(std::move(box));
 	};

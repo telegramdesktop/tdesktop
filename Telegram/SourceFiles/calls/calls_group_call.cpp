@@ -395,18 +395,17 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 		_id = data.vid().v;
 		_accessHash = data.vaccess_hash().v;
 	});
-	if (_scheduleDate) {
-		setState(State::Waiting);
-		return;
-	}
-
-	setState(State::Joining);
+	setState(_scheduleDate ? State::Waiting : State::Joining);
 	if (const auto chat = _peer->asChat()) {
 		chat->setGroupCall(inputCall);
 	} else if (const auto group = _peer->asChannel()) {
 		group->setGroupCall(inputCall);
 	} else {
 		Unexpected("Peer type in GroupCall::join.");
+	}
+
+	if (_scheduleDate) {
+		return;
 	}
 	rejoin();
 

@@ -9,6 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 #include "base/unique_qptr.h"
+#include "ui/layers/generic_box.h"
+
+namespace style {
+struct FlatLabel;
+} // namespace style
 
 namespace Ui {
 class DropdownMenu;
@@ -38,11 +43,19 @@ void LeaveBox(
 	bool discardChecked,
 	BoxContext context);
 
-void ConfirmBox(
-	not_null<Ui::GenericBox*> box,
-	const TextWithEntities &text,
-	rpl::producer<QString> button,
-	Fn<void()> callback);
+struct ConfirmBoxArgs {
+	TextWithEntities text;
+	rpl::producer<QString> button;
+	Fn<void()> callback;
+	const style::FlatLabel *st = nullptr;
+	Fn<bool(const ClickHandlerPtr&, Qt::MouseButton)> filter;
+};
+
+void ConfirmBoxBuilder(not_null<Ui::GenericBox*> box, ConfirmBoxArgs &&args);
+
+inline auto ConfirmBox(ConfirmBoxArgs &&args) {
+	return Box(ConfirmBoxBuilder, std::move(args));
+}
 
 void FillMenu(
 	not_null<Ui::DropdownMenu*> menu,
