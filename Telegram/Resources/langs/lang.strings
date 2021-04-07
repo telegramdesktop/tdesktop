@@ -454,6 +454,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_sensitive_title" = "Sensitive content";
 "lng_settings_sensitive_disable_filtering" = "Disable filtering";
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
+"lng_settings_security_bots" = "Bots and websites";
+"lng_settings_clear_payment_info" = "Clear Payment and Shipping Info";
+
+"lng_clear_payment_info_title" = "Clear payment info";
+"lng_clear_payment_info_sure" = "Are you sure you want to clear your payment and shipping info?";
+"lng_clear_payment_info_shipping" = "Shipping info";
+"lng_clear_payment_info_payment" = "Payment info";
+"lng_clear_payment_info_clear" = "Clear";
+"lng_clear_payment_info_confirm" = "Delete your shipping info and instruct all payment providers to remove your saved credit cards? Note that Telegram never stores your credit card data.";
 
 "lng_settings_auto_night_mode" = "Auto-Night mode";
 "lng_settings_auto_night_enabled" = "Match the system settings";
