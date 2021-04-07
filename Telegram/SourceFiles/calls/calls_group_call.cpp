@@ -244,6 +244,9 @@ GroupCall::GroupCall(
 	} else {
 		start(info.scheduleDate);
 	}
+	if (_scheduleDate) {
+		saveDefaultJoinAs(_joinAs);
+	}
 
 	_mediaDevices->audioInputId(
 	) | rpl::start_with_next([=](QString id) {
@@ -463,6 +466,14 @@ void GroupCall::setJoinAs(not_null<PeerData*> as) {
 	} else if (const auto channel = _peer->asChannel()) {
 		channel->setGroupCallDefaultJoinAs(_joinAs->id);
 	}
+}
+
+void GroupCall::saveDefaultJoinAs(not_null<PeerData*> as) {
+	setJoinAs(as);
+	_api.request(MTPphone_SaveDefaultGroupCallJoinAs(
+		_peer->input,
+		_joinAs->input
+	)).send();
 }
 
 void GroupCall::rejoin(not_null<PeerData*> as) {
@@ -695,11 +706,7 @@ void GroupCall::rejoinAs(Group::JoinInfo info) {
 		.nowJoinAs = info.joinAs,
 	};
 	if (_scheduleDate) {
-		setJoinAs(info.joinAs);
-		_api.request(MTPphone_SaveDefaultGroupCallJoinAs(
-			_peer->input,
-			_joinAs->input
-		)).send();
+		saveDefaultJoinAs(info.joinAs);
 	} else {
 		setState(State::Joining);
 		rejoin(info.joinAs);

@@ -685,13 +685,19 @@ groupCallMemberInvited: icon {{ "calls/group_calls_invited", groupCallMemberInac
 groupCallMemberInvitedPosition: point(2px, 12px);
 groupCallMemberRaisedHand: icon {{ "calls/group_calls_raised_hand", groupCallMemberInactiveStatus }};
 
+groupCallSettingsInner: IconButton(callButton) {
+	iconPosition: point(-1px, 22px);
+	icon: icon {{ "calls/call_settings", groupCallIconFg }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: callMuteRipple;
+	}
+}
 groupCallSettings: CallButton(callMicrophoneMute) {
-	button: IconButton(callButton) {
-		iconPosition: point(-1px, 22px);
-		icon: icon {{ "calls/call_settings", groupCallIconFg }};
-		ripple: RippleAnimation(defaultRippleAnimation) {
-			color: callMuteRipple;
-		}
+	button: groupCallSettingsInner;
+}
+groupCallShare: CallButton(groupCallSettings) {
+	button: IconButton(groupCallSettingsInner) {
+		icon: icon {{ "calls/group_calls_share", groupCallIconFg }};
 	}
 }
 groupCallHangup: CallButton(callHangup) {

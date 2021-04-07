@@ -74,6 +74,7 @@ private:
 	void initWindow();
 	void initWidget();
 	void initControls();
+	void initShareAction();
 	void initLayout();
 	void initGeometry();
 	void setupScheduledLabels(rpl::producer<TimeId> date);
@@ -89,6 +90,7 @@ private:
 	void updateControlsGeometry();
 	void updateMembersGeometry();
 	void showControls();
+	void refreshLeftButton();
 
 	void endCall();
 
@@ -131,9 +133,11 @@ private:
 	object_ptr<Ui::FlatLabel> _startsWhen = { nullptr };
 	ChooseJoinAsProcess _joinAsProcess;
 
-	object_ptr<Ui::CallButton> _settings;
+	object_ptr<Ui::CallButton> _settings = { nullptr };
+	object_ptr<Ui::CallButton> _share = { nullptr };
 	std::unique_ptr<Ui::CallMuteButton> _mute;
 	object_ptr<Ui::CallButton> _hangup;
+	Fn<void()> _shareLinkCallback;
 
 	rpl::lifetime _peerLifetime;
 

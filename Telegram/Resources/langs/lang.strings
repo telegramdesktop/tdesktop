@@ -1982,6 +1982,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_inactive" = "listening";
 "lng_group_call_raised_hand_status" = "wants to speak";
 "lng_group_call_settings" = "Settings";
+"lng_group_call_share_button" = "Share";
 "lng_group_call_unmute" = "Unmute";
 "lng_group_call_unmute_sub" = "or hold spacebar to talk";
 "lng_group_call_you_are_live" = "You are Live";
