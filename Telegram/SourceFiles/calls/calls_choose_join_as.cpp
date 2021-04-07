@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_choose_join_as.h"
 
 #include "calls/calls_group_common.h"
+#include "calls/calls_group_menu.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
@@ -21,10 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/choose_date_time.h"
 #include "ui/text/text_utilities.h"
 #include "boxes/peer_list_box.h"
-#include "boxes/confirm_box.h"
 #include "base/unixtime.h"
 #include "base/timer_rpl.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_calls.h"
 
 namespace Calls::Group {
@@ -230,10 +231,8 @@ void ChooseJoinAsBox(
 		label->setClickHandlerFilter([=](const auto&...) {
 			auto withJoinAs = info;
 			withJoinAs.joinAs = controller->selected();
-			box->getDelegate()->show(Box(
-				ScheduleGroupCallBox,
-				withJoinAs,
-				done));
+			box->getDelegate()->show(
+				Box(ScheduleGroupCallBox, withJoinAs, done));
 			return false;
 		});
 	}
@@ -378,7 +377,7 @@ void ChooseJoinAsProcess::start(
 			&& (peer->groupCall() != nullptr);
 
 		if (!changingJoinAsFrom && (onlyByMe || byAlreadyUsed)) {
-			const auto confirmation = CreateOrJoinConfirmation(
+			auto confirmation = CreateOrJoinConfirmation(
 				peer,
 				context,
 				byAlreadyUsed);
@@ -386,12 +385,36 @@ void ChooseJoinAsProcess::start(
 				finish(info);
 				return;
 			}
-			auto box = Box<::ConfirmBox>(
-				confirmation,
-				(peer->groupCall()
-					? tr::lng_group_call_join(tr::now)
-					: tr::lng_create_group_create(tr::now)),
-				crl::guard(&_request->guard, [=] { finish(info); }));
+			const auto creating = !peer->groupCall();
+			if (creating) {
+				confirmation
+					.append("\n\n")
+					.append(tr::lng_group_call_or_schedule(
+					tr::now,
+					lt_link,
+					Ui::Text::Link(tr::lng_group_call_schedule(tr::now)),
+					Ui::Text::WithEntities));
+			}
+			const auto guard = base::make_weak(&_request->guard);
+			const auto safeFinish = crl::guard(guard, [=] { finish(info); });
+			const auto filter = [=](const auto &...) {
+				if (guard) {
+					_request->showBox(Box(
+						ScheduleGroupCallBox,
+						info,
+						crl::guard(guard, finish)));
+				}
+				return false;
+			};
+			auto box = ConfirmBox({
+				.text = confirmation,
+				.button = (creating
+					? tr::lng_create_group_create()
+					: tr::lng_group_call_join()),
+				.callback = crl::guard(guard, [=] { finish(info); }),
+				.st = &st::boxLabel,
+				.filter = filter,
+			});
 			box->boxClosing(
 			) | rpl::start_with_next([=] {
 				_request = nullptr;

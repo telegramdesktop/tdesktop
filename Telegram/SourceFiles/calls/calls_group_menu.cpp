@@ -568,19 +568,20 @@ void LeaveBox(
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
-void ConfirmBox(
+void ConfirmBoxBuilder(
 		not_null<Ui::GenericBox*> box,
-		const TextWithEntities &text,
-		rpl::producer<QString> button,
-		Fn<void()> callback) {
-	box->addRow(
+		ConfirmBoxArgs &&args) {
+	const auto label = box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box.get(),
-			rpl::single(text),
-			st::groupCallBoxLabel),
+			rpl::single(args.text),
+			args.st ? *args.st : st::groupCallBoxLabel),
 		st::boxPadding);
-	if (callback) {
-		box->addButton(std::move(button), callback);
+	if (args.callback) {
+		box->addButton(std::move(args.button), std::move(args.callback));
+	}
+	if (args.filter) {
+		label->setClickHandlerFilter(std::move(args.filter));
 	}
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
