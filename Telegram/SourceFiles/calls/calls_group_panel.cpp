@@ -175,13 +175,13 @@ private:
 		})) | rpl::flatten_latest();
 
 		if (tillTomorrow > 0) {
-			return std::move(full);
+			return full;
 		} else if (tillToday > 0) {
-			return std::move(tomorrowAndAfter);
+			return tomorrowAndAfter;
 		} else if (tillAfter > 0) {
-			return std::move(todayAndAfter);
+			return todayAndAfter;
 		} else {
-			return std::move(exact);
+			return exact;
 		}
 	}) | rpl::flatten_latest();
 }
@@ -381,7 +381,6 @@ Panel::Panel(not_null<GroupCall*> call)
 	_window->body(),
 	st::groupCallTitle))
 #endif // !Q_OS_MAC
-, _settings(widget(), st::groupCallSettings)
 , _mute(std::make_unique<Ui::CallMuteButton>(
 	widget(),
 	Core::App().appDeactivatedValue(),
@@ -395,7 +394,6 @@ Panel::Panel(not_null<GroupCall*> call)
 	}))
 , _hangup(widget(), st::groupCallHangup) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
-	_settings->setColorOverrides(_mute->colorOverrides());
 	_layerBg->setHideByBackgroundClick(true);
 
 	SubscribeToMigration(
@@ -591,12 +589,11 @@ void Panel::initControls() {
 		_call->setMutedAndUpdate(newState);
 	}, _mute->lifetime());
 
-	_hangup->setClickedCallback([=] { endCall(); });
-	_settings->setClickedCallback([=] {
-		_layerBg->showBox(Box(SettingsBox, _call));
-	});
+	initShareAction();
+	refreshLeftButton();
 
-	_settings->setText(tr::lng_group_call_settings());
+	_hangup->setClickedCallback([=] { endCall(); });
+
 	const auto scheduleDate = _call->scheduleDate();
 	_hangup->setText(scheduleDate
 		? tr::lng_group_call_close()
@@ -606,12 +603,27 @@ void Panel::initControls() {
 		) | rpl::map([=](not_null<Data::GroupCall*> real) {
 			return real->scheduleDateValue();
 		}) | rpl::flatten_latest();
+
 		setupScheduledLabels(rpl::single(
 			scheduleDate
 		) | rpl::then(rpl::duplicate(changes)));
-		std::move(changes) | rpl::filter([](TimeId date) {
+
+		auto started = std::move(changes) | rpl::filter([](TimeId date) {
 			return (date == 0);
-		}) | rpl::take(1) | rpl::start_with_next([=] {
+		}) | rpl::take(1);
+
+		rpl::merge(
+			rpl::duplicate(started) | rpl::to_empty,
+			_peer->session().changes().peerFlagsValue(
+				_peer,
+				Data::PeerUpdate::Flag::Username
+			) | rpl::skip(1) | rpl::to_empty
+		) | rpl::start_with_next([=] {
+			refreshLeftButton();
+			updateControlsGeometry();
+		}, _callLifetime);
+
+		std::move(started) | rpl::start_with_next([=] {
 			_hangup->setText(tr::lng_group_call_leave());
 			setupMembers();
 		}, _callLifetime);
@@ -638,6 +650,53 @@ void Panel::initControls() {
 	) | rpl::start_with_next([=](not_null<Data::GroupCall*> real) {
 		setupRealMuteButtonState(real);
 	}, _callLifetime);
+}
+
+void Panel::refreshLeftButton() {
+	const auto share = _call->scheduleDate()
+		&& _peer->isBroadcast()
+		&& _peer->asChannel()->hasUsername();
+	if ((share && _share) || (!share && _settings)) {
+		return;
+	}
+	if (share) {
+		_settings.destroy();
+		_share.create(widget(), st::groupCallShare);
+		_share->setClickedCallback(_shareLinkCallback);
+		_share->setText(tr::lng_group_call_share_button());
+	} else {
+		_share.destroy();
+		_settings.create(widget(), st::groupCallSettings);
+		_settings->setClickedCallback([=] {
+			_layerBg->showBox(Box(SettingsBox, _call));
+		});
+		_settings->setText(tr::lng_group_call_settings());
+	}
+	const auto raw = _share ? _share.data() : _settings.data();
+	raw->show();
+	raw->setColorOverrides(_mute->colorOverrides());
+}
+
+void Panel::initShareAction() {
+	const auto showBox = [=](object_ptr<Ui::BoxContent> next) {
+		_layerBg->showBox(std::move(next));
+	};
+	const auto showToast = [=](QString text) {
+		Ui::ShowMultilineToast({
+			.parentOverride = widget(),
+			.text = { text },
+		});
+	};
+	auto [shareLinkCallback, shareLinkLifetime] = ShareInviteLinkAction(
+		_peer,
+		showBox,
+		showToast);
+	_shareLinkCallback = [=, callback = std::move(shareLinkCallback)] {
+		if (_call->lookupReal()) {
+			callback();
+		}
+	};
+	widget()->lifetime().add(std::move(shareLinkLifetime));
 }
 
 void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
@@ -792,26 +851,10 @@ void Panel::setupMembers() {
 		kickParticipant(participantPeer);
 	}, _callLifetime);
 
-	const auto showBox = [=](object_ptr<Ui::BoxContent> next) {
-		_layerBg->showBox(std::move(next));
-	};
-	const auto showToast = [=](QString text) {
-		Ui::ShowMultilineToast({
-			.parentOverride = widget(),
-			.text = { text },
-		});
-	};
-	auto [shareLinkCallback, shareLinkLifetime] = ShareInviteLinkAction(
-		_peer,
-		showBox,
-		showToast);
-	auto shareLink = std::move(shareLinkCallback);
-	_members->lifetime().add(std::move(shareLinkLifetime));
-
 	_members->addMembersRequests(
 	) | rpl::start_with_next([=] {
 		if (_peer->isBroadcast() && _peer->asChannel()->hasUsername()) {
-			shareLink();
+			_shareLinkCallback();
 		} else {
 			addMembers();
 		}
@@ -1304,18 +1347,24 @@ QRect Panel::computeTitleRect() const {
 }
 
 void Panel::updateControlsGeometry() {
-	if (widget()->size().isEmpty()) {
+	if (widget()->size().isEmpty() || (!_settings && !_share)) {
 		return;
 	}
 	const auto muteTop = widget()->height() - st::groupCallMuteBottomSkip;
 	const auto buttonsTop = widget()->height() - st::groupCallButtonBottomSkip;
 	const auto muteSize = _mute->innerSize().width();
 	const auto fullWidth = muteSize
-		+ 2 * _settings->width()
+		+ 2 * (_settings ? _settings : _share)->width()
 		+ 2 * st::groupCallButtonSkip;
 	_mute->moveInner({ (widget()->width() - muteSize) / 2, muteTop });
-	_settings->moveToLeft((widget()->width() - fullWidth) / 2, buttonsTop);
-	_hangup->moveToRight((widget()->width() - fullWidth) / 2, buttonsTop);
+	const auto leftButtonLeft = (widget()->width() - fullWidth) / 2;
+	if (_settings) {
+		_settings->moveToLeft(leftButtonLeft, buttonsTop);
+	}
+	if (_share) {
+		_share->moveToLeft(leftButtonLeft, buttonsTop);
+	}
+	_hangup->moveToRight(leftButtonLeft, buttonsTop);
 
 	updateMembersGeometry();
 	refreshTitle();

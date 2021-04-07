@@ -676,7 +676,7 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 		return true;
 	};
 	auto callback = [=] {
-		const auto real = peer->groupCall();
+		const auto real = peer->migrateToOrMe()->groupCall();
 		if (shareReady() || state->generatingLink || !real) {
 			return;
 		}
@@ -701,11 +701,11 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 			state->linkSpeakerRequestId = peer->session().api().request(
 				MTPphone_ExportGroupCallInvite(
 					MTP_flags(Flag::f_can_self_unmute),
-					real->input()
-				)).done([=](const MTPphone_ExportedGroupCallInvite &result) {
+					real->input())
+			).done([=](const MTPphone_ExportedGroupCallInvite &result) {
 				state->linkSpeakerRequestId = 0;
 				result.match([&](
-					const MTPDphone_exportedGroupCallInvite &data) {
+						const MTPDphone_exportedGroupCallInvite &data) {
 					state->linkSpeaker = qs(data.vlink());
 					shareReady();
 				});
