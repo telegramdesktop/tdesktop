@@ -357,6 +357,13 @@ bool GroupCall::showChooseJoinAs() const {
 			&& !_possibleJoinAs.front()->isSelf());
 }
 
+bool GroupCall::scheduleStartSubscribed() const {
+	if (const auto real = lookupReal()) {
+		return real->scheduleStartSubscribed();
+	}
+	return false;
+}
+
 Data::GroupCall *GroupCall::lookupReal() const {
 	const auto real = _peer->groupCall();
 	return (real && real->id() == _id) ? real : nullptr;
