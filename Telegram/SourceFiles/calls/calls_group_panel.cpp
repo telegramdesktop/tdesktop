@@ -388,9 +388,13 @@ Panel::Panel(not_null<GroupCall*> call)
 		.text = (_call->scheduleDate()
 			? tr::lng_group_call_start_now(tr::now)
 			: tr::lng_group_call_connecting(tr::now)),
-		.type = (_call->scheduleDate()
+		.type = (!_call->scheduleDate()
+			? Ui::CallMuteButtonType::Connecting
+			: _peer->canManageGroupCall()
 			? Ui::CallMuteButtonType::ScheduledCanStart
-			: Ui::CallMuteButtonType::Connecting),
+			: _call->scheduleStartSubscribed()
+			? Ui::CallMuteButtonType::ScheduledNotify
+			: Ui::CallMuteButtonType::ScheduledSilent),
 	}))
 , _hangup(widget(), st::groupCallHangup) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);

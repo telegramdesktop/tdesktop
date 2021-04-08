@@ -113,6 +113,7 @@ public:
 	[[nodiscard]] TimeId scheduleDate() const {
 		return _scheduleDate;
 	}
+	[[nodiscard]] bool scheduleStartSubscribed() const;
 
 	[[nodiscard]] Data::GroupCall *lookupReal() const;
 	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
