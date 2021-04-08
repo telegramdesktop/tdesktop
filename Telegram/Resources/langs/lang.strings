@@ -2803,4 +2803,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_forward_msg_no_quote" = "Forward as copy";
 "lng_forward_to_saved_message" = "Forward to Saved";
 
+"lng_pinned_message_show" = "Show pinned message";
+"lng_pinned_message_hide" = "Hide pinned message";
+
 // Keys finished

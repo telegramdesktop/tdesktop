@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_message.h" // GetErrorTextForSending.
+#include "history/history_widget.h"
 #include "history/view/history_view_context_menu.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -466,6 +467,18 @@ void Filler::addUserActions(not_null<UserData*> user) {
 				user->session().supportHelper().editInfo(controller, user);
 			});
 		}
+		if (user->hasPinnedMessages()) {
+			auto hasHidden = HistoryWidget::hasHiddenPinnedMessage(user);
+			if (hasHidden) {
+				_addAction(
+						tr::lng_pinned_message_show(tr::now),
+						[=] { PeerMenuUnhidePinnedMessage(user); });
+			} else {
+				_addAction(
+						tr::lng_pinned_message_hide(tr::now),
+						[=] { PeerMenuHidePinnedMessage(user); });
+			}
+		}
 		if (!user->isContact() && !user->isSelf() && !user->isBot()) {
 			_addAction(
 				tr::lng_info_add_as_contact(tr::now),
@@ -522,6 +535,18 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 				controller->showEditPeerBox(chat);
 			});
 		}
+		if (chat->hasPinnedMessages()) {
+			auto hasHidden = HistoryWidget::hasHiddenPinnedMessage(chat);
+			if (hasHidden) {
+				_addAction(
+						tr::lng_pinned_message_show(tr::now),
+						[=] { PeerMenuUnhidePinnedMessage(chat); });
+			} else {
+				_addAction(
+						tr::lng_pinned_message_hide(tr::now),
+						[=] { PeerMenuHidePinnedMessage(chat); });
+			}
+		}
 		if (chat->canAddMembers()) {
 			_addAction(
 				tr::lng_channel_add_members(tr::now),
@@ -567,6 +592,18 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 			_addAction(text, [=] {
 				navigation->showEditPeerBox(channel);
 			});
+		}
+		if (channel->hasPinnedMessages()) {
+			auto hasHidden = HistoryWidget::hasHiddenPinnedMessage(channel);
+			if (hasHidden) {
+				_addAction(
+						tr::lng_pinned_message_show(tr::now),
+						[=] { PeerMenuUnhidePinnedMessage(channel); });
+			} else {
+				_addAction(
+						tr::lng_pinned_message_hide(tr::now),
+						[=] { PeerMenuHidePinnedMessage(channel); });
+			}
 		}
 		if (channel->canAddMembers()) {
 			_addAction(
@@ -717,6 +754,20 @@ void Filler::addTogglesForArchive() {
 }
 
 } // namespace
+
+void PeerMenuHidePinnedMessage(not_null<PeerData*> peer) {
+	auto hidden = HistoryWidget::switchPinnedHidden(peer, true);
+	if (hidden) {
+		peer->session().changes().peerUpdated(peer, Data::PeerUpdate::Flag::PinnedMessages);
+	}
+}
+
+void PeerMenuUnhidePinnedMessage(not_null<PeerData*> peer) {
+	auto unhidden = HistoryWidget::switchPinnedHidden(peer, false);
+	if (unhidden) {
+		peer->session().changes().peerUpdated(peer, Data::PeerUpdate::Flag::PinnedMessages);
+	}
+}
 
 void PeerMenuExportChat(not_null<PeerData*> peer) {
 	Core::App().exportManager().start(peer);

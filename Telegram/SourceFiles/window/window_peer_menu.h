@@ -55,6 +55,8 @@ void MenuAddMarkAsReadChatListAction(
 	Fn<not_null<Dialogs::MainList*>()> &&list,
 	const PeerMenuCallback &addAction);
 
+void PeerMenuHidePinnedMessage(not_null<PeerData*> peer);
+void PeerMenuUnhidePinnedMessage(not_null<PeerData*> peer);
 void PeerMenuExportChat(not_null<PeerData*> peer);
 void PeerMenuDeleteContact(not_null<UserData*> user);
 void PeerMenuShareContactBox(
