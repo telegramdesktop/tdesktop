@@ -307,6 +307,9 @@ void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {
 		const auto guard = window();
 		Ui::hideLayer();
 		ActivateClickHandler(guard, activated, e->button());
+
+		// Keep the link alive, otherwise it is not activated.
+		crl::on_main([activated] {});
 		return;
 	}
 	BoxContent::mouseReleaseEvent(e);
