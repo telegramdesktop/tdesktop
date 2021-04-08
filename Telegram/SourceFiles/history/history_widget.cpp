@@ -5701,7 +5701,7 @@ void HistoryWidget::checkPinnedBarState() {
 		return (count > 1);
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool many) {
-		refreshPinnedBarButton(many);
+		refreshPinnedBarButton(true);
 	}, _pinnedBar->lifetime());
 
 	rpl::single(
