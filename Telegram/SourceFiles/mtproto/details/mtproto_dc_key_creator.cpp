@@ -502,8 +502,8 @@ void DcKeyCreator::dhClientParamsSend(not_null<Attempt*> attempt) {
 	AuthKey::FillData(attempt->authKey, computedAuthKey);
 
 	auto auth_key_sha = openssl::Sha1(attempt->authKey);
-	memcpy(&attempt->data.auth_key_aux_hash, auth_key_sha.data(), 8);
-	memcpy(&attempt->data.auth_key_hash, auth_key_sha.data() + 12, 8);
+	memcpy(&attempt->data.auth_key_aux_hash.v, auth_key_sha.data(), 8);
+	memcpy(&attempt->data.auth_key_hash.v, auth_key_sha.data() + 12, 8);
 
 	const auto client_dh_inner = MTP_client_DH_inner_data(
 		attempt->data.nonce,

@@ -142,7 +142,7 @@ void ScheduleGroupCallBox(
 	};
 	const auto max = [] {
 		return base::unixtime::serialize(
-			QDateTime(QDate::currentDate().addDays(8))) - 1;
+			QDateTime(QDate::currentDate().addDays(8), QTime(0, 0))) - 1;
 	};
 
 	// At least half an hour later, at zero minutes/seconds.
