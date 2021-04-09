@@ -290,6 +290,9 @@ private:
 		not_null<PeerData*> participantPeer,
 		bool mute,
 		std::optional<int> volume);
+	void applyQueuedSelfUpdates();
+	void applySelfUpdate(const MTPDgroupCallParticipant &data);
+	void applyOtherParticipantUpdate(const MTPDgroupCallParticipant &data);
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
@@ -321,6 +324,7 @@ private:
 	bool _acceptFields = false;
 
 	rpl::event_stream<Group::ParticipantState> _otherParticipantStateValue;
+	std::vector<MTPGroupCallParticipant> _queuedSelfUpdates;
 
 	uint64 _id = 0;
 	uint64 _accessHash = 0;
