@@ -106,6 +106,27 @@ constexpr auto kPasswordPeriod = 15 * TimeId(60);
 		+ SmartGlocal::Last4(card);
 }
 
+[[nodiscard]] QByteArray ThemeParams() {
+	const auto colors = std::vector<std::pair<QString, const style::color&>>{
+		{ "bg_color", st::windowBg },
+		{ "text_color", st::windowFg },
+		{ "hint_color", st::windowSubTextFg },
+		{ "link_color", st::windowActiveTextFg },
+		{ "button_color", st::windowBgActive },
+		{ "button_text_color", st::windowFgActive },
+	};
+	auto object = QJsonObject();
+	for (const auto &[name, color] : colors) {
+		const auto value = uint32(0xFF000000U)
+			| (uint32(color->c.red()) << 16)
+			| (uint32(color->c.green()) << 8)
+			| (uint32(color->c.blue()));
+		const auto int32value = *reinterpret_cast<const int32*>(&value);
+		object.insert(name, int32value);
+	}
+	return QJsonDocument(object).toJson(QJsonDocument::Compact);
+}
+
 } // namespace
 
 Form::Form(not_null<PeerData*> peer, MsgId itemId, bool receipt)
@@ -231,10 +252,10 @@ QImage Form::prepareEmptyThumbnail() const {
 
 void Form::requestForm() {
 	_api.request(MTPpayments_GetPaymentForm(
-		MTP_flags(0),
+		MTP_flags(MTPpayments_GetPaymentForm::Flag::f_theme_params),
 		_peer->input,
 		MTP_int(_msgId),
-		MTP_dataJSON(MTP_string(QString()))
+		MTP_dataJSON(MTP_bytes(ThemeParams()))
 	)).done([=](const MTPpayments_PaymentForm &result) {
 		result.match([&](const auto &data) {
 			processForm(data);
@@ -437,7 +458,10 @@ void Form::fillPaymentMethodInformation() {
 	_paymentMethod.native = NativePaymentMethod();
 	_paymentMethod.ui.native = Ui::NativeMethodDetails();
 	_paymentMethod.ui.url = _details.url;
-	if (!_details.nativeProvider.isEmpty()) {
+
+	//AssertIsDebug();
+	//static auto counter = 0; // #TODO payments test both native and webview.
+	if (!_details.nativeProvider.isEmpty()/* && ((++counter) % 2)*/) {
 		auto error = QJsonParseError();
 		auto document = QJsonDocument::fromJson(
 			_details.nativeParamsJson,
