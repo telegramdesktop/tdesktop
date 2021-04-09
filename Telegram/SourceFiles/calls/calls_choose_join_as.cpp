@@ -134,13 +134,32 @@ void ScheduleGroupCallBox(
 		: tr::lng_group_call_schedule_notified_group)(
 			lt_duration,
 			duration->value());
-	auto descriptor = Ui::ChooseDateTimeBox(
-		box,
-		tr::lng_group_call_schedule_title(),
-		tr::lng_schedule_button(),
-		send,
-		base::unixtime::now() + kDefaultScheduleDuration,
-		std::move(description));
+
+	const auto now = QDateTime::currentDateTime();
+	const auto min = [] {
+		return base::unixtime::serialize(
+			QDateTime::currentDateTime().addSecs(12));
+	};
+	const auto max = [] {
+		return base::unixtime::serialize(
+			QDateTime(QDate::currentDate().addDays(8))) - 1;
+	};
+
+	// At least half an hour later, at zero minutes/seconds.
+	const auto schedule = QDateTime(
+		now.date(),
+		QTime(now.time().hour(), 0)
+	).addSecs(60 * 60 * (now.time().minute() < 30 ? 1 : 2));
+
+	auto descriptor = Ui::ChooseDateTimeBox(box, {
+		.title = tr::lng_group_call_schedule_title(),
+		.submit = tr::lng_schedule_button(),
+		.done = send,
+		.min = min,
+		.time = base::unixtime::serialize(schedule),
+		.max = max,
+		.description = std::move(description),
+	});
 
 	using namespace rpl::mappers;
 	*duration = rpl::combine(

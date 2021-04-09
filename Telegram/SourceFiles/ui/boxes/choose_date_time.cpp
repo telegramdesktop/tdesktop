@@ -50,11 +50,10 @@ QString DayString(const QDate &date) {
 		QString::number(date.day()));
 }
 
-QString TimeString(TimeId time) {
-	const auto parsed = base::unixtime::parse(time).time();
+QString TimeString(QTime time) {
 	return QString("%1:%2"
-	).arg(parsed.hour()
-	).arg(parsed.minute(), 2, 10, QLatin1Char('0'));
+	).arg(time.hour()
+	).arg(time.minute(), 2, 10, QLatin1Char('0'));
 }
 
 int ProcessWheelEvent(not_null<QWheelEvent*> e) {
@@ -569,36 +568,33 @@ void TimeInput::startBorderAnimation() {
 
 ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		not_null<GenericBox*> box,
-		rpl::producer<QString> title,
-		rpl::producer<QString> submit,
-		Fn<void(TimeId)> done,
-		TimeId time,
-		rpl::producer<QString> description) {
+		ChooseDateTimeBoxArgs &&args) {
 	struct State {
 		rpl::variable<QDate> date;
 		not_null<InputField*> day;
 		not_null<TimeInput*> time;
 		not_null<FlatLabel*> at;
 	};
-	box->setTitle(std::move(title));
+	box->setTitle(std::move(args.title));
 	box->setWidth(st::boxWideWidth);
 
 	const auto content = box->addRow(
 		object_ptr<FixedHeightWidget>(box, st::scheduleHeight));
-	if (description) {
+	if (args.description) {
 		box->addRow(object_ptr<FlatLabel>(
 			box,
-			std::move(description),
+			std::move(args.description),
 			st::boxLabel));
 	}
+	const auto parsed = base::unixtime::parse(args.time);
 	const auto state = box->lifetime().make_state<State>(State{
-		.date = base::unixtime::parse(time).date(),
+		.date = parsed.date(),
 		.day = CreateChild<InputField>(
 			content,
 			st::scheduleDateField),
 		.time = CreateChild<TimeInput>(
 			content,
-			TimeString(time)),
+			TimeString(parsed.time())),
 		.at = CreateChild<FlatLabel>(
 			content,
 			tr::lng_schedule_at(),
@@ -611,8 +607,19 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		state->time->setFocusFast();
 	}, state->day->lifetime());
 
-	const auto minDate = QDate::currentDate();
-	const auto maxDate = minDate.addYears(1).addDays(-1);
+	const auto min = args.min ? args.min : [] {
+		return base::unixtime::now() + kMinimalSchedule;
+	};
+	const auto max = args.max ? args.max : [] {
+		return base::unixtime::serialize(
+			QDateTime::currentDateTime().addYears(1)) - 1;
+	};
+	const auto minDate = [=] {
+		return base::unixtime::parse(min()).date();
+	};
+	const auto maxDate = [=] {
+		return base::unixtime::parse(max()).date();
+	};
 
 	const auto &dayViewport = state->day->rawTextEdit()->viewport();
 	base::install_event_filter(dayViewport, [=](not_null<QEvent*> event) {
@@ -623,7 +630,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 				return base::EventFilterResult::Continue;
 			}
 			const auto d = state->date.current().addDays(direction);
-			state->date = std::clamp(d, minDate, maxDate);
+			state->date = std::clamp(d, minDate(), maxDate());
 			return base::EventFilterResult::Cancel;
 		}
 		return base::EventFilterResult::Continue;
@@ -661,8 +668,8 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 			(*calendar)->closeBox();
 		};
 		const auto finalize = [=](not_null<CalendarBox*> box) {
-			box->setMinDate(minDate);
-			box->setMaxDate(maxDate);
+			box->setMinDate(minDate());
+			box->setMaxDate(maxDate());
 		};
 		*calendar = box->getDelegate()->show(Box<CalendarBox>(
 			state->date.current(),
@@ -686,12 +693,12 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		}
 		const auto result = base::unixtime::serialize(
 			QDateTime(state->date.current(), time));
-		if (result <= base::unixtime::now() + kMinimalSchedule) {
+		if (result < min() || result > max()) {
 			return 0;
 		}
 		return result;
 	};
-	const auto save = [=] {
+	const auto save = [=, done = args.done] {
 		if (const auto result = collect()) {
 			done(result);
 		} else {
@@ -703,7 +710,7 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 
 	auto result = ChooseDateTimeBoxDescriptor();
 	box->setFocusCallback([=] { state->time->setFocusFast(); });
-	result.submit = box->addButton(std::move(submit), save);
+	result.submit = box->addButton(std::move(args.submit), save);
 	result.collect = [=] {
 		if (const auto result = collect()) {
 			return result;
