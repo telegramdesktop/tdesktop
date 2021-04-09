@@ -1111,8 +1111,8 @@ auto HtmlWriter::Wrap::pushMessage(
 	}, [&](const ActionGroupCallScheduled &data) {
 		const auto dateText = FormatDateTime(data.date);
 		return isChannel
-			? "Voice chat is scheduled " + dateText
-			: (serviceFrom + " scheduled voice chat " + dateText);
+			? "Voice chat scheduled for " + dateText
+			: (serviceFrom + " scheduled a voice chat for " + dateText);
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

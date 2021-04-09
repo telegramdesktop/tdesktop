@@ -164,6 +164,8 @@ private:
 	PreparedText prepareInvitedToCallText(
 		const QVector<MTPint> &users,
 		uint64 linkCallId);
+	PreparedText prepareCallScheduledText(
+		TimeId scheduleDate);
 
 	friend class HistoryView::Service;
 
