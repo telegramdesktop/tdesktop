@@ -2085,6 +2085,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_starts_tomorrow" = "tomorrow at {time}";
 "lng_group_call_starts_date" = "{date} at {time}";
 "lng_group_call_starts_in" = "Starts in";
+"lng_group_call_late_by" = "Late by";
 "lng_group_call_starts_short_today" = "Today, {time}";
 "lng_group_call_starts_short_tomorrow" = "Tomorrow, {time}";
 "lng_group_call_starts_short_date" = "{date}, {time}";

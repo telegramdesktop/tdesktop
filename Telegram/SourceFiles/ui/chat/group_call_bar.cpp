@@ -50,35 +50,46 @@ void GroupCallScheduledLeft::restart() {
 	update();
 }
 
-rpl::producer<QString> GroupCallScheduledLeft::text() const {
-	return _text.value();
+rpl::producer<QString> GroupCallScheduledLeft::text(Negative negative) const {
+	return (negative == Negative::Show)
+		? _text.value()
+		: _textNonNegative.value();
+}
+
+rpl::producer<bool> GroupCallScheduledLeft::late() const {
+	return _late.value();
 }
 
 void GroupCallScheduledLeft::update() {
 	const auto now = crl::now();
 	const auto duration = (_datePrecise - now);
 	const auto left = crl::time(std::round(std::abs(duration) / 1000.));
+	const auto late = (duration < 0) && (left > 0);
+	_late = late;
 	constexpr auto kDay = 24 * 60 * 60;
 	if (left >= kDay) {
 		const auto days = ((left / kDay) + 1);
-		_text = tr::lng_group_call_duration_days(
+		_textNonNegative = tr::lng_group_call_duration_days(
 			tr::now,
 			lt_count,
-			(duration < 0) ? (-days) : days);
+			days);
+		_text = late
+			? tr::lng_group_call_duration_days(tr::now, lt_count, -days)
+			: _textNonNegative.current();
 	} else {
 		const auto hours = left / (60 * 60);
 		const auto minutes = (left % (60 * 60)) / 60;
 		const auto seconds = (left % 60);
-		if (hours > 0) {
-			_text = (duration < 0 ? u"\x2212%1:%2:%3"_q : u"%1:%2:%3"_q)
+		_textNonNegative = (hours > 0)
+			? (u"%1:%2:%3"_q
 				.arg(hours, 2, 10, QChar('0'))
 				.arg(minutes, 2, 10, QChar('0'))
-				.arg(seconds, 2, 10, QChar('0'));
-		} else {
-			_text = (duration < 0 && left > 0 ? u"\x2212%1:%2"_q : u"%1:%2"_q)
+				.arg(seconds, 2, 10, QChar('0')))
+			: (u"%1:%2"_q
 				.arg(minutes, 2, 10, QChar('0'))
-				.arg(seconds, 2, 10, QChar('0'));
-		}
+				.arg(seconds, 2, 10, QChar('0')));
+		_text = (late ? QString(QChar(0x2212)) : QString())
+			+ _textNonNegative.current();
 	}
 	if (left >= kDay) {
 		_timer.callOnce((left % kDay) * crl::time(1000));
@@ -186,7 +197,7 @@ void GroupCallBar::refreshScheduledProcess() {
 		_join = nullptr;
 		_open = std::make_unique<RoundButton>(
 			_inner.get(),
-			_scheduledProcess->text(),
+			_scheduledProcess->text(GroupCallScheduledLeft::Negative::Show),
 			st::groupCallTopBarOpen);
 		setupRightButton(_open.get());
 		_open->widthValue(

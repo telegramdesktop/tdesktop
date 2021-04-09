@@ -31,11 +31,16 @@ struct GroupCallBarContent {
 
 class GroupCallScheduledLeft final {
 public:
+	enum class Negative {
+		Show,
+		Ignore,
+	};
 	explicit GroupCallScheduledLeft(TimeId date);
 
 	void setDate(TimeId date);
 
-	[[nodiscard]] rpl::producer<QString> text() const;
+	[[nodiscard]] rpl::producer<QString> text(Negative negative) const;
+	[[nodiscard]] rpl::producer<bool> late() const;
 
 private:
 	[[nodiscard]] crl::time computePreciseDate() const;
@@ -43,6 +48,8 @@ private:
 	void update();
 
 	rpl::variable<QString> _text;
+	rpl::variable<QString> _textNonNegative;
+	rpl::variable<bool> _late;
 	TimeId _date = 0;
 	crl::time _datePrecise = 0;
 	base::Timer _timer;
