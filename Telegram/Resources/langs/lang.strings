@@ -1109,8 +1109,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_invite_users_and_last" = "{accumulated} and {user}";
 "lng_action_group_call_started_group" = "{from} started a voice chat";
 "lng_action_group_call_started_channel" = "Voice chat started";
-"lng_action_group_call_scheduled_group" = "{from} scheduled a voice chat";
-"lng_action_group_call_scheduled_channel" = "Voice chat scheduled";
+"lng_action_group_call_scheduled_group" = "{from} scheduled a voice chat for {date}";
+"lng_action_group_call_scheduled_channel" = "Voice chat scheduled for {date}";
 "lng_action_group_call_finished" = "Voice chat finished ({duration})";
 "lng_action_add_user" = "{from} added {user}";
 "lng_action_add_users_many" = "{from} added {users}";

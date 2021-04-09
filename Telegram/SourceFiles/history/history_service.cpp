@@ -29,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h" // Data::GroupCall::id().
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "base/unixtime.h"
+#include "base/timer_rpl.h"
 #include "calls/calls_instance.h" // Core::App().calls().joinGroupCall.
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
@@ -410,20 +412,6 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	auto prepareGroupCallScheduled = [this](const MTPDmessageActionGroupCallScheduled &action) {
-		auto result = PreparedText{};
-		if (history()->peer->isBroadcast()) {
-			result.text = tr::lng_action_group_call_scheduled_channel(tr::now);
-		} else {
-			result.links.push_back(fromLink());
-			result.text = tr::lng_action_group_call_scheduled_group(
-				tr::now,
-				lt_from,
-				fromLinkText());
-		}
-		return result;
-	};
-
 	const auto messageText = action.match([&](
 		const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -480,7 +468,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	}, [&](const MTPDmessageActionSetMessagesTTL &data) {
 		return prepareSetMessagesTTL(data);
 	}, [&](const MTPDmessageActionGroupCallScheduled &data) {
-		return prepareGroupCallScheduled(data);
+		return prepareCallScheduledText(data.vschedule_date().v);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedText{ tr::lng_message_empty(tr::now) };
 	});
@@ -745,7 +733,8 @@ HistoryService::PreparedText HistoryService::prepareGameScoreText() {
 
 HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 	auto result = PreparedText {};
-	auto payment = Get<HistoryServicePayment>();
+	const auto payment = Get<HistoryServicePayment>();
+	Assert(payment != nullptr);
 
 	auto invoiceTitle = [&] {
 		if (payment->msg) {
@@ -762,9 +751,71 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 		result.text = tr::lng_action_payment_done(tr::now, lt_amount, payment->amount, lt_user, history()->peer->name);
 	} else {
 		result.text = tr::lng_action_payment_done_for(tr::now, lt_amount, payment->amount, lt_user, history()->peer->name, lt_invoice, invoiceTitle);
-		if (payment && payment->msg) {
+		if (payment->msg) {
 			result.links.push_back(payment->lnk);
 		}
+	}
+	return result;
+}
+
+HistoryService::PreparedText HistoryService::prepareCallScheduledText(
+		TimeId scheduleDate) {
+	const auto call = Get<HistoryServiceOngoingCall>();
+	Assert(call != nullptr);
+
+	const auto scheduled = base::unixtime::parse(scheduleDate);
+	const auto date = scheduled.date();
+	const auto now = QDateTime::currentDateTime();
+	const auto secsToDateAddDays = [&](int days) {
+		return now.secsTo(QDateTime(date.addDays(days), QTime(0, 0)));
+	};
+	auto result = PreparedText();
+	const auto prepareWithDate = [&](const QString &date) {
+		if (history()->peer->isBroadcast()) {
+			result.text = tr::lng_action_group_call_scheduled_channel(
+				tr::now,
+				lt_date,
+				date);
+		} else {
+			result.links.push_back(fromLink());
+			result.text = tr::lng_action_group_call_scheduled_group(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				lt_date,
+				date);
+		}
+	};
+	const auto time = scheduled.time().toString(cTimeFormat());
+	const auto prepareGeneric = [&] {
+		prepareWithDate(tr::lng_group_call_starts_date(
+			tr::now,
+			lt_date,
+			langDayOfMonthFull(date),
+			lt_time,
+			time));
+	};
+	auto nextIn = TimeId(0);
+	if (now.date().addDays(1) < scheduled.date()) {
+		nextIn = secsToDateAddDays(-1);
+		prepareGeneric();
+	} else if (now.date().addDays(1) == scheduled.date()) {
+		nextIn = secsToDateAddDays(0);
+		prepareWithDate(
+			tr::lng_group_call_starts_tomorrow(tr::now, lt_time, time));
+	} else if (now.date() == scheduled.date()) {
+		nextIn = secsToDateAddDays(1);
+		prepareWithDate(
+			tr::lng_group_call_starts_today(tr::now, lt_time, time));
+	} else {
+		prepareGeneric();
+	}
+	if (nextIn) {
+		call->lifetime = base::timer_once(
+			(nextIn + 2) * crl::time(1000)
+		) | rpl::start_with_next([=] {
+			updateText(prepareCallScheduledText(scheduleDate));
+		});
 	}
 	return result;
 }
