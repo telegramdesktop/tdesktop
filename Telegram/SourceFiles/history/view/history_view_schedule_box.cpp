@@ -76,14 +76,14 @@ void ScheduleBox(
 		box->closeBox();
 		copy(result);
 	};
-	auto descriptor = Ui::ChooseDateTimeBox(
-		box,
-		(type == SendMenu::Type::Reminder
+	auto descriptor = Ui::ChooseDateTimeBox(box, {
+		.title = (type == SendMenu::Type::Reminder
 			? tr::lng_remind_title()
 			: tr::lng_schedule_title()),
-		tr::lng_schedule_button(),
-		[=](TimeId result) { save(false, result); },
-		time);
+		.submit = tr::lng_schedule_button(),
+		.done = [=](TimeId result) { save(false, result); },
+		.time = time,
+	});
 
 	SendMenu::SetupMenuAndShortcuts(
 		descriptor.submit.data(),

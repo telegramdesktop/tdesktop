@@ -19,12 +19,18 @@ struct ChooseDateTimeBoxDescriptor {
 	rpl::producer<TimeId> values;
 };
 
+struct ChooseDateTimeBoxArgs {
+	rpl::producer<QString> title;
+	rpl::producer<QString> submit;
+	Fn<void(TimeId)> done;
+	Fn<TimeId()> min;
+	TimeId time = 0;
+	Fn<TimeId()> max;
+	rpl::producer<QString> description;
+};
+
 ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 	not_null<GenericBox*> box,
-	rpl::producer<QString> title,
-	rpl::producer<QString> submit,
-	Fn<void(TimeId)> done,
-	TimeId time,
-	rpl::producer<QString> description = nullptr);
+	ChooseDateTimeBoxArgs &&args);
 
 } // namespace Ui
