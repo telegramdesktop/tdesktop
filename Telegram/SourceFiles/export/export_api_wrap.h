@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/mtproto_concurrent_sender.h"
+#include "data/data_peer_id.h"
 
 namespace Export {
 namespace Data {
@@ -211,7 +212,7 @@ private:
 
 	MTP::ConcurrentSender _mtp;
 	std::optional<uint64> _takeoutId;
-	std::optional<int32> _selfId;
+	std::optional<UserId> _selfId;
 	Output::Stats *_stats = nullptr;
 
 	std::unique_ptr<Settings> _settings;

@@ -340,7 +340,6 @@ struct UserpicData {
 
 class PeersMap {
 public:
-	using PeerId = Data::PeerId;
 	using Peer = Data::Peer;
 	using User = Data::User;
 	using Chat = Data::Chat;
@@ -348,15 +347,14 @@ public:
 	PeersMap(const std::map<PeerId, Peer> &data);
 
 	const Peer &peer(PeerId peerId) const;
-	const User &user(int32 userId) const;
-	const Chat &chat(int32 chatId) const;
+	const User &user(UserId userId) const;
 
 	QByteArray wrapPeerName(PeerId peerId) const;
-	QByteArray wrapUserName(int32 userId) const;
-	QByteArray wrapUserNames(const std::vector<int32> &data) const;
+	QByteArray wrapUserName(UserId userId) const;
+	QByteArray wrapUserNames(const std::vector<UserId> &data) const;
 
 private:
-	const std::map<Data::PeerId, Data::Peer> &_data;
+	const std::map<PeerId, Data::Peer> &_data;
 
 };
 
@@ -380,19 +378,11 @@ auto PeersMap::peer(PeerId peerId) const -> const Peer & {
 	return empty;
 }
 
-auto PeersMap::user(int32 userId) const -> const User & {
-	if (const auto result = peer(Data::UserPeerId(userId)).user()) {
+auto PeersMap::user(UserId userId) const -> const User & {
+	if (const auto result = peer(peerFromUser(userId)).user()) {
 		return *result;
 	}
 	static auto empty = User();
-	return empty;
-}
-
-auto PeersMap::chat(int32 chatId) const -> const Chat & {
-	if (const auto result = peer(Data::ChatPeerId(chatId)).chat()) {
-		return *result;
-	}
-	static auto empty = Chat();
 	return empty;
 }
 
@@ -403,14 +393,14 @@ QByteArray PeersMap::wrapPeerName(PeerId peerId) const {
 		: SerializeString(result);
 }
 
-QByteArray PeersMap::wrapUserName(int32 userId) const {
+QByteArray PeersMap::wrapUserName(UserId userId) const {
 	const auto result = user(userId).name();
 	return result.isEmpty()
 		? QByteArray("Deleted Account")
 		: SerializeString(result);
 }
 
-QByteArray PeersMap::wrapUserNames(const std::vector<int32> &data) const {
+QByteArray PeersMap::wrapUserNames(const std::vector<UserId> &data) const {
 	auto list = std::vector<QByteArray>();
 	for (const auto userId : data) {
 		list.push_back(wrapUserName(userId));
@@ -469,12 +459,12 @@ struct HtmlWriter::MessageInfo {
 		Service,
 		Default,
 	};
-	int32 id = 0;
+	int id = 0;
 	Type type = Type::Service;
-	Data::PeerId fromId = 0;
-	int32 viaBotId = 0;
+	PeerId fromId = 0;
+	UserId viaBotId = 0;
 	TimeId date = 0;
-	Data::PeerId forwardedFromId = 0;
+	PeerId forwardedFromId = 0;
 	QString forwardedFromName;
 	bool forwarded = false;
 	bool showForwardedAsOriginal = false;
@@ -895,8 +885,7 @@ QByteArray HtmlWriter::Wrap::pushServiceMessage(
 	result.append(popTag());
 	if (photo) {
 		auto userpic = UserpicData();
-		userpic.colorIndex = Data::PeerColorIndex(
-			Data::BarePeerId(dialog.peerId));
+		userpic.colorIndex = Data::PeerColorIndex(dialog.peerId);
 		userpic.firstName = dialog.name;
 		userpic.lastName = dialog.lastName;
 		userpic.pixelSize = kServiceMessagePhotoSize;
@@ -1136,7 +1125,7 @@ auto HtmlWriter::Wrap::pushMessage(
 	auto forwardedUserpic = UserpicData();
 	if (message.forwarded) {
 		forwardedUserpic.colorIndex = message.forwardedFromId
-			? PeerColorIndex(BarePeerId(message.forwardedFromId))
+			? PeerColorIndex(message.forwardedFromId)
 			: PeerColorIndex(message.id);
 		forwardedUserpic.pixelSize = kHistoryUserpicSize;
 		if (message.forwardedFromId) {
@@ -1151,7 +1140,7 @@ auto HtmlWriter::Wrap::pushMessage(
 	if (message.showForwardedAsOriginal) {
 		userpic = forwardedUserpic;
 	} else {
-		userpic.colorIndex = PeerColorIndex(BarePeerId(fromPeerId));
+		userpic.colorIndex = PeerColorIndex(fromPeerId);
 		userpic.pixelSize = kHistoryUserpicSize;
 		FillUserpicNames(userpic, peers.peer(fromPeerId));
 	}
@@ -1805,7 +1794,7 @@ bool HtmlWriter::Wrap::forwardedNeedsWrap(
 	} else if (!message.forwardedFromId
 		|| message.forwardedFromId != previous->forwardedFromId) {
 		return true;
-	} else if (Data::IsChatPeerId(message.forwardedFromId)) {
+	} else if (!peerIsUser(message.forwardedFromId)) {
 		return true;
 	} else if (abs(message.forwardedDate - previous->forwardedDate)
 		> kJoinWithinSeconds) {
@@ -2203,7 +2192,7 @@ Result HtmlWriter::writeFrequentContacts(const Data::ContactsList &data) {
 				return {};
 			}();
 			auto userpic = UserpicData{
-				Data::PeerColorIndex(Data::BarePeerId(top.peer.id())),
+				Data::PeerColorIndex(top.peer.id()),
 				kEntryUserpicSize
 			};
 			userpic.firstName = name;
@@ -2558,7 +2547,7 @@ Result HtmlWriter::writeDialogEnd() {
 	auto userpic = UserpicData{
 		((_dialog.type == Type::Self || _dialog.type == Type::Replies)
 			? kSavedMessagesColorIndex
-			: Data::PeerColorIndex(Data::BarePeerId(_dialog.peerId))),
+			: Data::PeerColorIndex(_dialog.peerId)),
 		kEntryUserpicSize
 	};
 	userpic.firstName = NameString(_dialog);

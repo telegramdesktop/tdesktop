@@ -184,7 +184,7 @@ struct ApiWrap::ChatsProcess {
 
 	Data::DialogsInfo info;
 	int processedCount = 0;
-	std::map<Data::PeerId, int> indexByPeer;
+	std::map<PeerId, int> indexByPeer;
 };
 
 struct ApiWrap::LeftChannelsProcess : ChatsProcess {
@@ -651,7 +651,7 @@ void ApiWrap::startMainSession(FnMut<void()> done) {
 		for (const auto &user : result.v) {
 			user.match([&](const MTPDuser &data) {
 				if (data.is_self()) {
-					_selfId = data.vid().v;
+					_selfId.emplace(data.vid());
 				}
 			}, [&](const MTPDuserEmpty&) {
 			});
@@ -950,7 +950,7 @@ void ApiWrap::requestMessages(
 	Expects(_selfId.has_value());
 
 	_chatProcess = std::make_unique<ChatProcess>();
-	_chatProcess->context.selfPeerId = Data::UserPeerId(*_selfId);
+	_chatProcess->context.selfPeerId = peerFromUser(*_selfId);
 	_chatProcess->info = info;
 	_chatProcess->start = std::move(start);
 	_chatProcess->fileProgress = std::move(progress);
@@ -1342,7 +1342,7 @@ void ApiWrap::appendChatsSlice(
 	for (auto &info : filtered) {
 		const auto nextIndex = to.size();
 		if (info.migratedToChannelId) {
-			const auto toPeerId = Data::ChatPeerId(info.migratedToChannelId);
+			const auto toPeerId = PeerId(info.migratedToChannelId);
 			const auto i = process.indexByPeer.find(toPeerId);
 			if (i != process.indexByPeer.end()
 				&& Data::AddMigrateFromSlice(
@@ -1915,7 +1915,7 @@ void ApiWrap::filePartExtractReference(
 		Expects(_selfId.has_value());
 
 		auto context = Data::ParseMediaContext();
-		context.selfPeerId = Data::UserPeerId(*_selfId);
+		context.selfPeerId = peerFromUser(*_selfId);
 		const auto messages = Data::ParseMessagesSlice(
 			context,
 			data.vmessages(),
