@@ -548,6 +548,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				applyMeInCallLocally();
 				maybeSendMutedUpdate(wasMuteState);
 				_peer->session().api().applyUpdates(updates);
+				applyQueuedSelfUpdates();
 				checkFirstTimeJoined();
 			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
@@ -991,86 +992,100 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 		return;
 	}
 	const auto state = _state.current();
-	if (state != State::Joined && state != State::Connecting) {
-		return;
-	}
-
-	const auto handleOtherParticipants = [=](
-			const MTPDgroupCallParticipant &data) {
-		if (data.is_min()) {
-			// No real information about mutedByMe or my custom volume.
-			return;
-		}
-		const auto participantPeer = _peer->owner().peer(
-			peerFromMTP(data.vpeer()));
-		const auto participant = LookupParticipant(
-			_peer,
-			_id,
-			participantPeer);
-		if (!participant) {
-			return;
-		}
-		_otherParticipantStateValue.fire(Group::ParticipantState{
-			.peer = participantPeer,
-			.volume = data.vvolume().value_or_empty(),
-			.mutedByMe = data.is_muted_by_you(),
-		});
-	};
-
+	const auto joined = (state == State::Joined)
+		|| (state == State::Connecting);
 	for (const auto &participant : data.vparticipants().v) {
 		participant.match([&](const MTPDgroupCallParticipant &data) {
 			const auto isSelf = data.is_self()
 				|| (data.is_min()
 					&& peerFromMTP(data.vpeer()) == _joinAs->id);
 			if (!isSelf) {
-				handleOtherParticipants(data);
-				return;
-			}
-			if (data.is_left()) {
-				if (data.vsource().v == _mySsrc) {
-					// I was removed from the call, rejoin.
-					LOG(("Call Info: "
-						"Rejoin after got 'left' with my ssrc."));
-					setState(State::Joining);
-					rejoin();
-				}
-				return;
-			} else if (data.vsource().v != _mySsrc) {
-				if (!_mySsrcs.contains(data.vsource().v)) {
-					// I joined from another device, hangup.
-					LOG(("Call Info: "
-						"Hangup after '!left' with ssrc %1, my %2."
-						).arg(data.vsource().v
-						).arg(_mySsrc));
-					_mySsrc = 0;
-					hangup();
-				} else {
-					LOG(("Call Info: "
-						"Some old 'self' with '!left' and ssrc %1, my %2."
-						).arg(data.vsource().v
-						).arg(_mySsrc));
-				}
-				return;
-			}
-			if (data.is_muted() && !data.is_can_self_unmute()) {
-				setMuted(data.vraise_hand_rating().value_or_empty()
-					? MuteState::RaisedHand
-					: MuteState::ForceMuted);
-			} else if (_instanceMode == InstanceMode::Stream) {
-				LOG(("Call Info: Rejoin after unforcemute in stream mode."));
-				setState(State::Joining);
-				rejoin();
-			} else if (muted() == MuteState::ForceMuted
-				|| muted() == MuteState::RaisedHand) {
-				setMuted(MuteState::Muted);
-				if (!_instanceTransitioning) {
-					notifyAboutAllowedToSpeak();
-				}
-			} else if (data.is_muted() && muted() != MuteState::Muted) {
-				setMuted(MuteState::Muted);
+				applyOtherParticipantUpdate(data);
+			} else if (joined) {
+				applySelfUpdate(data);
+			} else {
+				_queuedSelfUpdates.push_back(participant);
 			}
 		});
 	}
+}
+
+void GroupCall::applyQueuedSelfUpdates() {
+	const auto weak = base::make_weak(this);
+	while (weak
+		&& !_queuedSelfUpdates.empty()
+		&& (_state.current() == State::Joined
+			|| _state.current() == State::Connecting)) {
+		const auto update = _queuedSelfUpdates.front();
+		_queuedSelfUpdates.erase(_queuedSelfUpdates.begin());
+		update.match([&](const MTPDgroupCallParticipant &data) {
+			applySelfUpdate(data);
+		});
+	}
+}
+
+void GroupCall::applySelfUpdate(const MTPDgroupCallParticipant &data) {
+	if (data.is_left()) {
+		if (data.vsource().v == _mySsrc) {
+			// I was removed from the call, rejoin.
+			LOG(("Call Info: "
+				"Rejoin after got 'left' with my ssrc."));
+			setState(State::Joining);
+			rejoin();
+		}
+		return;
+	} else if (data.vsource().v != _mySsrc) {
+		if (!_mySsrcs.contains(data.vsource().v)) {
+			// I joined from another device, hangup.
+			LOG(("Call Info: "
+				"Hangup after '!left' with ssrc %1, my %2."
+				).arg(data.vsource().v
+				).arg(_mySsrc));
+			_mySsrc = 0;
+			hangup();
+		} else {
+			LOG(("Call Info: "
+				"Some old 'self' with '!left' and ssrc %1, my %2."
+				).arg(data.vsource().v
+				).arg(_mySsrc));
+		}
+		return;
+	}
+	if (data.is_muted() && !data.is_can_self_unmute()) {
+		setMuted(data.vraise_hand_rating().value_or_empty()
+			? MuteState::RaisedHand
+			: MuteState::ForceMuted);
+	} else if (_instanceMode == InstanceMode::Stream) {
+		LOG(("Call Info: Rejoin after unforcemute in stream mode."));
+		setState(State::Joining);
+		rejoin();
+	} else if (muted() == MuteState::ForceMuted
+		|| muted() == MuteState::RaisedHand) {
+		setMuted(MuteState::Muted);
+		if (!_instanceTransitioning) {
+			notifyAboutAllowedToSpeak();
+		}
+	} else if (data.is_muted() && muted() != MuteState::Muted) {
+		setMuted(MuteState::Muted);
+	}
+}
+
+void GroupCall::applyOtherParticipantUpdate(
+		const MTPDgroupCallParticipant &data) {
+	if (data.is_min()) {
+		// No real information about mutedByMe or my custom volume.
+		return;
+	}
+	const auto participantPeer = _peer->owner().peer(
+		peerFromMTP(data.vpeer()));
+	if (!LookupParticipant(_peer, _id, participantPeer)) {
+		return;
+	}
+	_otherParticipantStateValue.fire(Group::ParticipantState{
+		.peer = participantPeer,
+		.volume = data.vvolume().value_or_empty(),
+		.mutedByMe = data.is_muted_by_you(),
+	});
 }
 
 void GroupCall::changeTitle(const QString &title) {
