@@ -769,21 +769,36 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 
 void Panel::setupScheduledLabels(rpl::producer<TimeId> date) {
 	using namespace rpl::mappers;
-	_startsIn.create(
-		widget(),
-		tr::lng_group_call_starts_in(),
-		st::groupCallStartsIn);
 	date = std::move(date) | rpl::take_while(_1 != 0);
 	_startsWhen.create(
 		widget(),
 		StartsWhenText(rpl::duplicate(date)),
 		st::groupCallStartsWhen);
-	_countdown = CreateGradientLabel(widget(), std::move(
+	auto countdownCreated = std::move(
 		date
 	) | rpl::map([=](TimeId date) {
 		_countdownData = std::make_shared<Ui::GroupCallScheduledLeft>(date);
-		return _countdownData->text();
+		return rpl::empty_value();
+	}) | rpl::start_spawning(widget()->lifetime());
+
+	_countdown = CreateGradientLabel(widget(), rpl::duplicate(
+		countdownCreated
+	) | rpl::map([=] {
+		return _countdownData->text(
+			Ui::GroupCallScheduledLeft::Negative::Ignore);
 	}) | rpl::flatten_latest());
+
+	_startsIn.create(
+		widget(),
+		rpl::conditional(
+			std::move(
+				countdownCreated
+			) | rpl::map(
+				[=] { return _countdownData->late(); }
+			) | rpl::flatten_latest(),
+			tr::lng_group_call_late_by(),
+			tr::lng_group_call_starts_in()),
+		st::groupCallStartsIn);
 
 	const auto top = [=] {
 		const auto muteTop = widget()->height() - st::groupCallMuteBottomSkip;

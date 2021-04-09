@@ -150,12 +150,7 @@ bool IsConnecting(CallMuteButtonType type) {
 }
 
 bool IsInactive(CallMuteButtonType type) {
-	return IsConnecting(type)
-		|| (type == CallMuteButtonType::ForceMuted)
-		|| (type == CallMuteButtonType::RaisedHand)
-		|| (type == CallMuteButtonType::ScheduledCanStart)
-		|| (type == CallMuteButtonType::ScheduledNotify)
-		|| (type == CallMuteButtonType::ScheduledSilent);
+	return IsConnecting(type);
 }
 
 auto Clamp(float64 value) {
@@ -744,7 +739,7 @@ void CallMuteButton::init() {
 		for (auto &[type, stops] : copy) {
 			auto firstColor = IsInactive(type)
 				? st::groupCallBg->c
-				: stops.stops[0].second;
+				: stops.stops[(stops.stops.size() - 1) / 2].second;
 			firstColor.setAlpha(kGlowAlpha);
 			stops.stops = QGradientStops{
 				{ 0., std::move(firstColor) },
@@ -1057,25 +1052,16 @@ void CallMuteButton::overridesColors(
 		CallMuteButtonType fromType,
 		CallMuteButtonType toType,
 		float64 progress) {
-	const auto forceMutedToConnecting = [](CallMuteButtonType &type) {
-		if (type == CallMuteButtonType::ForceMuted
-			|| type == CallMuteButtonType::RaisedHand
-			|| type == CallMuteButtonType::ScheduledCanStart
-			|| type == CallMuteButtonType::ScheduledNotify
-			|| type == CallMuteButtonType::ScheduledSilent) {
-			type = CallMuteButtonType::Connecting;
-		}
-	};
-	forceMutedToConnecting(toType);
-	forceMutedToConnecting(fromType);
 	const auto toInactive = IsInactive(toType);
 	const auto fromInactive = IsInactive(fromType);
 	if (toInactive && (progress == 1)) {
 		_colorOverrides.fire({ std::nullopt, std::nullopt });
 		return;
 	}
-	auto from = _colors.find(fromType)->second.stops[0].second;
-	auto to = _colors.find(toType)->second.stops[0].second;
+	const auto &fromStops = _colors.find(fromType)->second.stops;
+	const auto &toStops = _colors.find(toType)->second.stops;
+	auto from = fromStops[(fromStops.size() - 1) / 2].second;
+	auto to = toStops[(toStops.size() - 1) / 2].second;
 	auto fromRipple = from;
 	auto toRipple = to;
 	if (!toInactive) {
