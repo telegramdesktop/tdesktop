@@ -42,3 +42,4 @@
 38. [Voice Chat Radio mode](https://t.me/tg_x64/238)
 39. [Auto unmute option](https://t.me/tg_x64/266)
 40. Voice chat bitrate option
+41. Show/Hide pinned message
