@@ -16,9 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtNetwork/QNetworkReply>
 #include <crl/crl_on_main.h>
 
-#include <windows.h>
-#include <debugapi.h>
-
 namespace SmartGlocal {
 namespace {
 

@@ -142,7 +142,8 @@ private:
 			lt_date,
 			rpl::single(langDayOfMonthFull(dateDay.date())),
 			lt_time,
-			rpl::single(time));
+			rpl::single(time)
+		) | rpl::type_erased();
 		auto tomorrow = tr::lng_group_call_starts_short_tomorrow(
 			lt_time,
 			rpl::single(time));
@@ -156,7 +157,7 @@ private:
 			std::min(tillAfter, kDay) * crl::time(1000)
 		) | rpl::map([=] {
 			return rpl::duplicate(exact);
-		})) | rpl::flatten_latest();
+		})) | rpl::flatten_latest() | rpl::type_erased();
 
 		auto tomorrowAndAfter = rpl::single(
 			std::move(tomorrow)
@@ -164,7 +165,7 @@ private:
 			std::min(tillToday, kDay) * crl::time(1000)
 		) | rpl::map([=] {
 			return rpl::duplicate(todayAndAfter);
-		})) | rpl::flatten_latest();
+		})) | rpl::flatten_latest() | rpl::type_erased();
 
 		auto full = rpl::single(
 			rpl::duplicate(exact)
@@ -172,7 +173,7 @@ private:
 			tillTomorrow * crl::time(1000)
 		) | rpl::map([=] {
 			return rpl::duplicate(tomorrowAndAfter);
-		})) | rpl::flatten_latest();
+		})) | rpl::flatten_latest() | rpl::type_erased();
 
 		if (tillTomorrow > 0) {
 			return full;
