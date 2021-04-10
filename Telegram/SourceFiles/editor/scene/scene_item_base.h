@@ -23,8 +23,10 @@ namespace Editor {
 
 class NumberedItem : public QGraphicsItem {
 public:
+	enum { Type = UserType + 1 };
 	using QGraphicsItem::QGraphicsItem;
 
+	int type() const override;
 	void setNumber(int number);
 	[[nodiscard]] int number() const;
 private:
@@ -33,7 +35,6 @@ private:
 
 class ItemBase : public NumberedItem {
 public:
-	enum { Type = UserType + 1 };
 
 	ItemBase(
 		rpl::producer<float64> zoomValue,
@@ -46,7 +47,6 @@ public:
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *widget) override;
-	int type() const override;
 
 	bool flipped() const;
 	void setFlip(bool value);

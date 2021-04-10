@@ -107,10 +107,8 @@ std::vector<ItemPtr> Scene::items(
 	auto copyItems = _items;
 
 	ranges::sort(copyItems, [&](ItemPtr a, ItemPtr b) {
-		const auto numA = qgraphicsitem_cast<NumberedItem*>(
-			a.get())->number();
-		const auto numB = qgraphicsitem_cast<NumberedItem*>(
-			b.get())->number();
+		const auto numA = static_cast<NumberedItem*>(a.get())->number();
+		const auto numB = static_cast<NumberedItem*>(b.get())->number();
 		return (order == Qt::AscendingOrder) ? (numA < numB) : (numA > numB);
 	});
 
@@ -125,7 +123,7 @@ std::vector<MTPInputDocument> Scene::attachedStickers() const {
 	) | ranges::views::filter([](const ItemPtr &i) {
 		return i->isVisible() && (i->type() == ItemSticker::Type);
 	}) | ranges::views::transform([](const ItemPtr &i) {
-		return qgraphicsitem_cast<ItemSticker*>(i.get())->sticker();
+		return static_cast<ItemSticker*>(i.get())->sticker();
 	}) | ranges::to_vector;
 }
 

@@ -15,8 +15,6 @@ namespace Editor {
 
 class ItemCanvas : public QGraphicsItem {
 public:
-	enum { Type = UserType + 6 };
-
 	struct Content {
 		QPixmap pixmap;
 		QPointF position;
@@ -33,7 +31,6 @@ public:
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *widget) override;
-	int type() const override;
 
 	void handleMousePressEvent(not_null<QGraphicsSceneMouseEvent*> event);
 	void handleMouseReleaseEvent(not_null<QGraphicsSceneMouseEvent*> event);

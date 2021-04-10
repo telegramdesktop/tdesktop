@@ -13,8 +13,6 @@ namespace Editor {
 
 class ItemLine : public NumberedItem {
 public:
-	enum { Type = UserType + 5 };
-
 	ItemLine(const QPixmap &&pixmap);
 	QRectF boundingRect() const override;
 	void paint(

@@ -29,6 +29,10 @@ auto Normalized(float64 angle) {
 
 } // namespace
 
+int NumberedItem::type() const {
+	return NumberedItem::Type;
+}
+
 int NumberedItem::number() const {
 	return _number;
 }

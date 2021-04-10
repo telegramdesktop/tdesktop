@@ -195,10 +195,6 @@ rpl::producer<ItemCanvas::Content> ItemCanvas::grabContentRequests() const {
 	return _grabContentRequests.events();
 }
 
-int ItemCanvas::type() const {
-	return Type;
-}
-
 bool ItemCanvas::collidesWithItem(
 		const QGraphicsItem *,
 		Qt::ItemSelectionMode) const {
