@@ -61,6 +61,13 @@ protected:
 	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
+	void keyPressEvent(QKeyEvent *event) override;
+
+	using Action = void(ItemBase::*)();
+	void performForSelectedItems(Action action);
+	void actionFlip();
+	void actionDelete();
+	void actionDuplicate();
 
 	QRectF contentRect() const;
 	QRectF innerRect() const;
@@ -83,6 +90,7 @@ private:
 	bool isHandling() const;
 	void updateVerticalSize();
 	void updatePens(QPen pen);
+	void handleActionKey(not_null<QKeyEvent*> e);
 
 	const std::shared_ptr<float64> _lastZ;
 

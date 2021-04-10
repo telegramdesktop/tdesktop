@@ -22,6 +22,10 @@ namespace {
 
 constexpr auto kSnapAngle = 45.;
 
+const auto kDuplicateSequence = QKeySequence("ctrl+d");
+const auto kFlipSequence = QKeySequence("ctrl+s");
+const auto kDeleteSequence = QKeySequence("delete");
+
 auto Normalized(float64 angle) {
 	return angle
 		+ ((std::abs(angle) < 360) ? 0 : (-360 * (angle < 0 ? -1 : 1)));
@@ -175,41 +179,96 @@ void ItemBase::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 }
 
 void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
-	if (!isSelected() && scene()) {
+	if (scene()) {
 		scene()->clearSelection();
 		setSelected(true);
 	}
 
+	const auto add = [&](
+			auto base,
+			const QKeySequence &sequence,
+			Fn<void()> callback) {
+		// TODO: refactor.
+		const auto sequenceText = QChar('\t')
+			+ sequence.toString(QKeySequence::NativeText);
+		_menu->addAction(base(tr::now) + sequenceText, std::move(callback));
+	};
+
 	_menu = base::make_unique_q<Ui::PopupMenu>(nullptr);
-	_menu->addAction(tr::lng_photo_editor_menu_delete(tr::now), [=] {
-		if (const auto s = static_cast<Scene*>(scene())) {
-			s->removeItem(this);
-		}
-	});
-	_menu->addAction(tr::lng_photo_editor_menu_flip(tr::now), [=] {
-		setFlip(!flipped());
-	});
-	_menu->addAction(tr::lng_photo_editor_menu_duplicate(tr::now), [=] {
-		if (const auto s = static_cast<Scene*>(scene())) {
-			const auto newItem = duplicate(
-				_zoom.value(),
-				_lastZ,
-				_horizontalSize,
-				scenePos().x() + _horizontalSize / 3,
-				scenePos().y() + _verticalSize / 3);
-			newItem->setFlip(flipped());
-			newItem->setRotation(rotation());
-			s->clearSelection();
-			newItem->setSelected(true);
-			s->addItem(newItem);
-		}
-	});
+	add(
+		tr::lng_photo_editor_menu_delete,
+		kDeleteSequence,
+		[=] { actionDelete(); });
+	add(
+		tr::lng_photo_editor_menu_flip,
+		kFlipSequence,
+		[=] { actionFlip(); });
+	add(
+		tr::lng_photo_editor_menu_duplicate,
+		kDuplicateSequence,
+		[=] { actionDuplicate(); });
 
 	_menu->popup(event->screenPos());
 }
 
-int ItemBase::type() const {
-	return Type;
+void ItemBase::performForSelectedItems(Action action) {
+	if (const auto s = scene()) {
+		for (const auto item : s->selectedItems()) {
+			if (const auto base = static_cast<ItemBase*>(item)) {
+				(base->*action)();
+			}
+		}
+	}
+}
+
+void ItemBase::actionFlip() {
+	setFlip(!flipped());
+}
+
+void ItemBase::actionDelete() {
+	if (const auto s = static_cast<Scene*>(scene())) {
+		s->removeItem(this);
+	}
+}
+
+void ItemBase::actionDuplicate() {
+	if (const auto s = static_cast<Scene*>(scene())) {
+		const auto newItem = duplicate(
+			_zoom.value(),
+			_lastZ,
+			_horizontalSize,
+			scenePos().x() + _horizontalSize / 3,
+			scenePos().y() + _verticalSize / 3);
+		newItem->setFlip(flipped());
+		newItem->setRotation(rotation());
+		if (hasFocus()) {
+			newItem->setFocus();
+		}
+		const auto selected = isSelected();
+		newItem->setSelected(selected);
+		setSelected(false);
+		s->addItem(newItem);
+	}
+}
+
+void ItemBase::keyPressEvent(QKeyEvent *event) {
+	handleActionKey(event);
+}
+
+void ItemBase::handleActionKey(not_null<QKeyEvent*> e) {
+	const auto matches = [&](const QKeySequence &sequence) {
+		const auto searchKey = (e->modifiers() | e->key())
+			& ~(Qt::KeypadModifier | Qt::GroupSwitchModifier);
+		const auto events = QKeySequence(searchKey);
+		return sequence.matches(events) == QKeySequence::ExactMatch;
+	};
+	if (matches(kDuplicateSequence)) {
+		performForSelectedItems(&ItemBase::actionDuplicate);
+	} else if (matches(kDeleteSequence)) {
+		performForSelectedItems(&ItemBase::actionDelete);
+	} else if (matches(kFlipSequence)) {
+		performForSelectedItems(&ItemBase::actionFlip);
+	}
 }
 
 QRectF ItemBase::rightHandleRect() const {
