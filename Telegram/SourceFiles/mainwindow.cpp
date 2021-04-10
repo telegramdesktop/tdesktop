@@ -153,23 +153,38 @@ void MainWindow::createTrayIconMenu() {
 	});
 #endif // else for Q_OS_WIN
 
-	auto notificationActionText = Core::App().settings().desktopNotify()
-		? tr::lng_disable_notifications_from_tray(tr::now)
-		: tr::lng_enable_notifications_from_tray(tr::now);
-
-	trayIconMenu->addAction(tr::lng_minimize_to_tray(tr::now), [=] {
+	const auto minimizeAction = trayIconMenu->addAction(QString(), [=] {
 		if (_activeForTrayIconAction) {
 			minimizeToTray();
 		} else {
 			showFromTrayMenu();
 		}
 	});
-	trayIconMenu->addAction(notificationActionText, [=] {
+	const auto notificationAction = trayIconMenu->addAction(QString(), [=] {
 		toggleDisplayNotifyFromTray();
 	});
 	trayIconMenu->addAction(tr::lng_quit_from_tray(tr::now), [=] {
 		quitFromTray();
 	});
+
+	_updateTrayMenuTextActions.events(
+	) | rpl::start_with_next([=] {
+		if (!trayIconMenu) {
+			return;
+		}
+
+		_activeForTrayIconAction = isActiveForTrayMenu();
+		minimizeAction->setText(_activeForTrayIconAction
+			? tr::lng_minimize_to_tray(tr::now)
+			: tr::lng_open_from_tray(tr::now));
+
+		auto notificationActionText = Core::App().settings().desktopNotify()
+			? tr::lng_disable_notifications_from_tray(tr::now)
+			: tr::lng_enable_notifications_from_tray(tr::now);
+		notificationAction->setText(notificationActionText);
+	}, lifetime());
+
+	_updateTrayMenuTextActions.fire({});
 
 	initTrayMenuHook();
 }
@@ -678,22 +693,10 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 }
 
 void MainWindow::updateTrayMenu() {
-	if (!trayIconMenu) return;
-
-	auto actions = trayIconMenu->actions();
-	const auto active = isActiveForTrayMenu();
-	if (_activeForTrayIconAction != active) {
-		_activeForTrayIconAction = active;
-		const auto toggleAction = actions.at(0);
-		toggleAction->setText(_activeForTrayIconAction
-			? tr::lng_minimize_to_tray(tr::now)
-			: tr::lng_open_from_tray(tr::now));
+	if (!trayIconMenu) {
+		return;
 	}
-	auto notificationAction = actions.at(1);
-	auto notificationActionText = Core::App().settings().desktopNotify()
-		? tr::lng_disable_notifications_from_tray(tr::now)
-		: tr::lng_enable_notifications_from_tray(tr::now);
-	notificationAction->setText(notificationActionText);
+	_updateTrayMenuTextActions.fire({});
 
 	psTrayMenuUpdated();
 }

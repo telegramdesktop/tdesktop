@@ -162,6 +162,8 @@ private:
 
 	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
 
+	rpl::event_stream<> _updateTrayMenuTextActions;
+
 };
 
 namespace App {
