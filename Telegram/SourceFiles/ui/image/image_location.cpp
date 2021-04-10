@@ -376,10 +376,14 @@ std::optional<StorageFileLocation> StorageFileLocation::FromSerialized(
 		result._id = (result._type == Type::PeerPhoto)
 			? DeserializePeerId(id).value
 			: id;
-		result._localId = field1;
-		result._inMessagePeerId = (field2 > 0)
-			? peerFromUser(UserId(field2))
-			: peerFromChannel(ChannelId(-field2));
+		result._localId = (result._type == Type::PeerPhoto)
+			? 0
+			: field1;
+		result._inMessagePeerId = (field2 && result._type == Type::PeerPhoto)
+			? ((field2 > 0)
+				? peerFromUser(UserId(field2))
+				: peerFromChannel(ChannelId(-field2)))
+			: PeerId();
 	}
 
 	return (stream.status() == QDataStream::Ok && result.valid())
