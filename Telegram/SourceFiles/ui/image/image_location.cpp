@@ -277,7 +277,8 @@ QByteArray StorageFileLocation::serialize() const {
 
 		Assert(!(quint8(_type) & kModernLocationFlag)
 			&& !(quint8(_type) & kInMessageFieldsFlag));
-		auto typeWithFlags = quint8(_type) | kModernLocationFlag;
+		auto typeWithFlags = quint8(_type);
+		typeWithFlags |= kModernLocationFlag;
 		auto field1 = qint32(_localId);
 		auto field2 = qint32(0);
 		if (_inMessagePeerId != 0) {
