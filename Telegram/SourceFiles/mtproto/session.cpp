@@ -162,7 +162,6 @@ Session::Session(
 , _data(std::make_shared<SessionData>(this))
 , _thread(thread)
 , _sender([=] { needToResumeAndSend(); }) {
-	_timeouter.callEach(1000);
 	refreshOptions();
 	watchDcKeyChanges();
 	watchDcOptionsChanges();

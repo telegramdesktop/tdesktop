@@ -211,7 +211,6 @@ private:
 
 	bool _ping = false;
 
-	base::Timer _timeouter;
 	base::Timer _sender;
 
 	rpl::lifetime _lifetime;
