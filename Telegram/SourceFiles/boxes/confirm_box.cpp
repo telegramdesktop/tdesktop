@@ -487,7 +487,7 @@ void PinMessageBox::prepare() {
 			false,
 			st::defaultBoxCheckbox);
 		_checkbox = _pinForPeer;
-	} else if (!_pinningOld && (_peer->isChat() || _peer->isMegagroup())) {
+	} else if ((_peer->isChat() || _peer->isMegagroup())) {
 		_notify.create(
 			this,
 			tr::lng_pinned_notify(tr::now),
