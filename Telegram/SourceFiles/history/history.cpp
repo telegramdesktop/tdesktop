@@ -856,13 +856,6 @@ void History::applyServiceChanges(
 		not_null<HistoryItem*> item,
 		const MTPDmessageService &data) {
 	const auto replyTo = data.vreply_to();
-	const auto setGroupCallFrom = [&](const auto &data) {
-		if (const auto channel = peer->asChannel()) {
-			channel->setGroupCall(data.vcall());
-		} else if (const auto chat = peer->asChat()) {
-			chat->setGroupCall(data.vcall());
-		}
-	};
 	data.vaction().match([&](const MTPDmessageActionChatAddUser &data) {
 		if (const auto megagroup = peer->asMegagroup()) {
 			const auto mgInfo = megagroup->mgInfo.get();
@@ -1015,9 +1008,17 @@ void History::applyServiceChanges(
 			});
 		}
 	}, [&](const MTPDmessageActionGroupCall &data) {
-		setGroupCallFrom(data);
+		if (const auto channel = peer->asChannel()) {
+			channel->setGroupCall(data.vcall());
+		} else if (const auto chat = peer->asChat()) {
+			chat->setGroupCall(data.vcall());
+		}
 	}, [&](const MTPDmessageActionGroupCallScheduled &data) {
-		setGroupCallFrom(data);
+		if (const auto channel = peer->asChannel()) {
+			channel->setGroupCall(data.vcall(), data.vschedule_date().v);
+		} else if (const auto chat = peer->asChat()) {
+			chat->setGroupCall(data.vcall(), data.vschedule_date().v);
+		}
 	}, [&](const MTPDmessageActionPaymentSent &data) {
 		if (const auto payment = item->Get<HistoryServicePayment>()) {
 			if (const auto message = payment->msg) {

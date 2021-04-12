@@ -406,13 +406,6 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 		_accessHash = data.vaccess_hash().v;
 	});
 	setState(_scheduleDate ? State::Waiting : State::Joining);
-	if (const auto chat = _peer->asChat()) {
-		chat->setGroupCall(inputCall);
-	} else if (const auto group = _peer->asChannel()) {
-		group->setGroupCall(inputCall);
-	} else {
-		Unexpected("Peer type in GroupCall::join.");
-	}
 
 	if (_scheduleDate) {
 		return;
@@ -835,7 +828,18 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 	}
 	if (_acceptFields) {
 		if (!_instance && !_id) {
-			join(MTP_inputGroupCall(data.vid(), data.vaccess_hash()));
+			const auto input = MTP_inputGroupCall(
+				data.vid(),
+				data.vaccess_hash());
+			const auto scheduleDate = data.vschedule_date().value_or_empty();
+			if (const auto chat = _peer->asChat()) {
+				chat->setGroupCall(input, scheduleDate);
+			} else if (const auto group = _peer->asChannel()) {
+				group->setGroupCall(input, scheduleDate);
+			} else {
+				Unexpected("Peer type in GroupCall::join.");
+			}
+			join(input);
 		}
 		return;
 	} else if (_id != data.vid().v || !_instance) {

@@ -194,7 +194,9 @@ void ChatData::setMigrateToChannel(ChannelData *channel) {
 	}
 }
 
-void ChatData::setGroupCall(const MTPInputGroupCall &call) {
+void ChatData::setGroupCall(
+		const MTPInputGroupCall &call,
+		TimeId scheduleDate) {
 	if (migrateTo()) {
 		return;
 	}
@@ -214,7 +216,8 @@ void ChatData::setGroupCall(const MTPInputGroupCall &call) {
 		_call = std::make_unique<Data::GroupCall>(
 			this,
 			data.vid().v,
-			data.vaccess_hash().v);
+			data.vaccess_hash().v,
+			scheduleDate);
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
 		addFlags(MTPDchat::Flag::f_call_active);

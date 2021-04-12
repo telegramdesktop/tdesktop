@@ -166,7 +166,9 @@ public:
 	[[nodiscard]] Data::GroupCall *groupCall() const {
 		return _call.get();
 	}
-	void setGroupCall(const MTPInputGroupCall &call);
+	void setGroupCall(
+		const MTPInputGroupCall &call,
+		TimeId scheduleDate = 0);
 	void clearGroupCall();
 	void setGroupCallDefaultJoinAs(PeerId peerId);
 	[[nodiscard]] PeerId groupCallDefaultJoinAs() const;
