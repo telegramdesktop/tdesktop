@@ -155,6 +155,7 @@ CheckoutProcess::CheckoutProcess(
 		panelCancelEdit();
 	}, _panel->lifetime());
 	showForm();
+	_panel->toggleProgress(true);
 
 	if (mode == Mode::Payment) {
 		_session->api().passwordState(
@@ -180,7 +181,9 @@ not_null<Ui::PanelDelegate*> CheckoutProcess::panelDelegate() {
 }
 
 void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
-	v::match(update, [&](const FormReady &) {
+	v::match(update, [&](const ToggleProgress &data) {
+		_panel->toggleProgress(data.shown);
+	}, [&](const FormReady &) {
 		performInitialSilentValidation();
 		if (!_initialSilentValidation) {
 			showForm();

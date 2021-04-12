@@ -116,6 +116,9 @@ struct PaymentMethod {
 	Ui::PaymentMethodDetails ui;
 };
 
+struct ToggleProgress {
+	bool shown = true;
+};
 struct FormReady {};
 struct ThumbnailUpdated {
 	QImage thumbnail;
@@ -157,6 +160,7 @@ struct Error {
 };
 
 struct FormUpdate : std::variant<
+	ToggleProgress,
 	FormReady,
 	ThumbnailUpdated,
 	ValidateFinished,
@@ -209,6 +213,8 @@ public:
 
 private:
 	void fillInvoiceFromMessage();
+	void showProgress();
+	void hideProgress();
 
 	void loadThumbnail(not_null<PhotoData*> photo);
 	[[nodiscard]] QImage prepareGoodThumbnail(

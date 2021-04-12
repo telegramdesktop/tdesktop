@@ -43,6 +43,7 @@ public:
 	~Panel();
 
 	void requestActivate();
+	void toggleProgress(bool shown);
 
 	void showForm(
 		const Invoice &invoice,
@@ -86,16 +87,23 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	struct Progress;
+
 	bool createWebview();
 	void showWebviewError(
 		const QString &text,
 		const Webview::Available &information);
 	void setTitle(rpl::producer<QString> title);
 
+	[[nodiscard]] bool progressWithBackground() const;
+	[[nodiscard]] QRect progressRect() const;
+	void setupProgressGeometry();
+
 	const not_null<PanelDelegate*> _delegate;
 	std::unique_ptr<SeparatePanel> _widget;
 	std::unique_ptr<Webview::Window> _webview;
 	std::unique_ptr<RpWidget> _webviewBottom;
+	std::unique_ptr<Progress> _progress;
 	QPointer<Checkbox> _saveWebviewInformation;
 	QPointer<FormSummary> _weakFormSummary;
 	rpl::variable<int> _formScrollTop;
