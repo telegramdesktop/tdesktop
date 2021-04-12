@@ -29,6 +29,7 @@ class DocumentMedia;
 } // namespace Data
 
 namespace Ui {
+class AbstractButton;
 class InputField;
 class EmojiButton;
 class IconButton;
@@ -122,6 +123,7 @@ private:
 	object_ptr<Ui::EmojiButton> _emojiToggle = { nullptr };
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
+	base::unique_qptr<Ui::AbstractButton> _photoEditorButton;
 
 	int _thumbx = 0;
 	int _thumbw = 0;
@@ -146,6 +148,7 @@ private:
 	bool _isAllowedEditMedia = false;
 	bool _asFile = false;
 	rpl::event_stream<> _editMediaClicks;
+	rpl::event_stream<> _photoEditorOpens;
 
 	QString _error;
 

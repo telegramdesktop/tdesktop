@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/emoji_button.h"
 #include "ui/toast/toast.h"
 #include "ui/cached_round_corners.h"
+#include "ui/abstract_button.h"
 #include "window/window_session_controller.h"
 #include "confirm_box.h"
 #include "apiwrap.h"
@@ -405,7 +406,8 @@ EditCaptionBox::EditCaptionBox(
 		closeBox();
 	}, lifetime());
 
-	AddPhotoEditorMenu(this, [=, _controller = controller] {
+	_photoEditorOpens.events(
+	) | rpl::start_with_next([=, controller = _controller] {
 		const auto previewWidth = st::sendMediaPreviewSize;
 		if (!_preparedList.files.empty()) {
 			Editor::OpenWithPreparedFile(
@@ -444,7 +446,7 @@ EditCaptionBox::EditCaptionBox(
 					std::move(callback)),
 				Ui::LayerOption::KeepOther);
 		}
-	});
+	}, lifetime());
 }
 
 EditCaptionBox::~EditCaptionBox() = default;
@@ -637,6 +639,7 @@ void EditCaptionBox::updateEditPreview() {
 
 	const auto showCheckbox = _photo && (_albumType == Ui::AlbumType::None);
 	_wayWrap->toggle(showCheckbox, anim::type::instant);
+	_photoEditorButton->setVisible(_photo);
 
 	if (!_doc) {
 		_thumb = App::pixmapFromImageInPlace(
@@ -727,6 +730,15 @@ void EditCaptionBox::createEditMediaButton() {
 			st::historyAttach.ripple.hideDuration,
 			this,
 			buttonCallback));
+
+	_photoEditorButton = base::make_unique_q<Ui::AbstractButton>(this);
+	_photoEditorButton->clicks(
+	) | rpl::to_empty | rpl::start_to_stream(
+		_photoEditorOpens,
+		_photoEditorButton->lifetime());
+
+	_photoEditorButton->raise();
+	_editMedia->raise();
 }
 
 void EditCaptionBox::prepare() {
@@ -1052,6 +1064,9 @@ void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 		_wayWrap->moveToLeft(
 			st::boxPhotoPadding.left(),
 			st::boxPhotoPadding.top() + _thumbh);
+
+		_photoEditorButton->resize(_thumbw, _thumbh);
+		_photoEditorButton->moveToLeft(_thumbx, st::boxPhotoPadding.top());
 	}
 
 	_field->resize(st::sendMediaPreviewSize, _field->height());
@@ -1144,8 +1159,10 @@ void EditCaptionBox::setName(QString nameString, qint64 size) {
 }
 
 void EditCaptionBox::keyPressEvent(QKeyEvent *e) {
-	if ((e->key() == Qt::Key_E || e->key() == Qt::Key_O)
-		 && e->modifiers() == Qt::ControlModifier) {
+	const auto ctrl = e->modifiers().testFlag(Qt::ControlModifier);
+	if ((e->key() == Qt::Key_E) && ctrl) {
+		_photoEditorOpens.fire({});
+	} else if ((e->key() == Qt::Key_O) && ctrl) {
 		_editMediaClicks.fire({});
 	} else {
 		e->ignore();
