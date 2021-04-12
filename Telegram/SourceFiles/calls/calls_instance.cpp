@@ -411,6 +411,14 @@ void Instance::handleCallUpdate(
 void Instance::handleGroupCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update) {
+	if (_currentGroupCall
+		&& (&_currentGroupCall->peer()->session() == session)) {
+		update.match([&](const MTPDupdateGroupCall &data) {
+			_currentGroupCall->handlePossibleCreateOrJoinResponse(data);
+		}, [](const auto &) {
+		});
+	}
+
 	const auto callId = update.match([](const MTPDupdateGroupCall &data) {
 		return data.vcall().match([](const auto &data) {
 			return data.vid().v;
@@ -426,14 +434,6 @@ void Instance::handleGroupCallUpdate(
 		existing->enqueueUpdate(update);
 	} else {
 		applyGroupCallUpdateChecked(session, update);
-	}
-
-	if (_currentGroupCall
-		&& (&_currentGroupCall->peer()->session() == session)) {
-		update.match([&](const MTPDupdateGroupCall &data) {
-			_currentGroupCall->handlePossibleCreateOrJoinResponse(data);
-		}, [](const auto &) {
-		});
 	}
 }
 

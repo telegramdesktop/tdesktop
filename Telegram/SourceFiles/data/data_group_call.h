@@ -38,7 +38,11 @@ struct GroupCallParticipant {
 
 class GroupCall final {
 public:
-	GroupCall(not_null<PeerData*> peer, uint64 id, uint64 accessHash);
+	GroupCall(
+		not_null<PeerData*> peer,
+		uint64 id,
+		uint64 accessHash,
+		TimeId scheduleDate);
 	~GroupCall();
 
 	[[nodiscard]] uint64 id() const;

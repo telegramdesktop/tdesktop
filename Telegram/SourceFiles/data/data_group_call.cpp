@@ -38,12 +38,14 @@ constexpr auto kWaitForUpdatesTimeout = 3 * crl::time(1000);
 GroupCall::GroupCall(
 	not_null<PeerData*> peer,
 	uint64 id,
-	uint64 accessHash)
+	uint64 accessHash,
+	TimeId scheduleDate)
 : _id(id)
 , _accessHash(accessHash)
 , _peer(peer)
 , _reloadByQueuedUpdatesTimer([=] { reload(); })
-, _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); }) {
+, _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); })
+, _scheduleDate(scheduleDate) {
 }
 
 GroupCall::~GroupCall() {
