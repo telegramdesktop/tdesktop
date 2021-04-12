@@ -33,6 +33,7 @@ namespace {
 
 struct SessionProcesses {
 	base::flat_map<FullMsgId, std::unique_ptr<CheckoutProcess>> map;
+	base::flat_set<FullMsgId> paymentStarted;
 	rpl::lifetime lifetime;
 };
 
@@ -91,6 +92,47 @@ void CheckoutProcess::Start(
 			std::move(reactivate),
 			PrivateTag{})).first;
 	j->second->requestActivate();
+}
+
+bool CheckoutProcess::TakePaymentStarted(
+		not_null<const HistoryItem*> item) {
+	const auto session = &item->history()->session();
+	const auto itemId = item->fullId();
+	const auto i = Processes.find(session);
+	if (i == end(Processes) || !i->second.paymentStarted.contains(itemId)) {
+		return false;
+	}
+	i->second.paymentStarted.erase(itemId);
+	const auto j = i->second.map.find(itemId);
+	if (j != end(i->second.map)) {
+		j->second->closeAndReactivate();
+	} else if (i->second.paymentStarted.empty() && i->second.map.empty()) {
+		Processes.erase(i);
+	}
+	return true;
+}
+
+void CheckoutProcess::RegisterPaymentStart(
+		not_null<CheckoutProcess*> process) {
+	const auto i = Processes.find(process->_session);
+	Assert(i != end(Processes));
+	for (const auto &[itemId, itemProcess] : i->second.map) {
+		if (itemProcess.get() == process) {
+			i->second.paymentStarted.emplace(itemId);
+		}
+	}
+}
+
+void CheckoutProcess::UnregisterPaymentStart(
+		not_null<CheckoutProcess*> process) {
+	const auto i = Processes.find(process->_session);
+	if (i != end(Processes)) {
+		for (const auto &[itemId, itemProcess] : i->second.map) {
+			if (itemProcess.get() == process) {
+				i->second.paymentStarted.emplace(itemId);
+			}
+		}
+	}
 }
 
 CheckoutProcess::CheckoutProcess(
@@ -164,9 +206,11 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 			requestSetPassword();
 		}
 	}, [&](const TmpPasswordRequired &) {
+		UnregisterPaymentStart(this);
 		_submitState = SubmitState::Validated;
 		requestPassword();
 	}, [&](const BotTrustRequired &data) {
+		UnregisterPaymentStart(this);
 		_submitState = SubmitState::Validated;
 		_panel->showWarning(data.bot->name, data.provider->name);
 		if (const auto box = _enterPasswordBox.data()) {
@@ -276,20 +320,7 @@ void CheckoutProcess::handleError(const Error &error) {
 		}
 	} break;
 	case Error::Type::SmartGlocal: {
-		//using Field = Ui::CardField;
-		//if (id == u"InvalidNumber"_q || id == u"IncorrectNumber"_q) {
-		//	showCardError(Field::Number);
-		//} else if (id == u"InvalidCVC"_q || id == u"IncorrectCVC"_q) {
-		//	showCardError(Field::Cvc);
-		//} else if (id == u"InvalidExpiryMonth"_q
-		//	|| id == u"InvalidExpiryYear"_q
-		//	|| id == u"ExpiredCard"_q) {
-		//	showCardError(Field::ExpireDate);
-		//} else if (id == u"CardDeclined"_q) {
-		//	showToast({ tr::lng_payments_card_declined(tr::now) });
-		//} else {
-			showToast({ "SmartGlocal Error: " + id });
-		//}
+		showToast({ "SmartGlocal Error: " + id });
 	} break;
 	case Error::Type::TmpPassword:
 		if (const auto box = _enterPasswordBox.data()) {
@@ -303,6 +334,7 @@ void CheckoutProcess::handleError(const Error &error) {
 			box->closeBox();
 		}
 		if (_submitState == SubmitState::Finishing) {
+			UnregisterPaymentStart(this);
 			_submitState = SubmitState::Validated;
 		}
 		if (id == u"INVOICE_ALREADY_PAID"_q) {
@@ -359,7 +391,7 @@ void CheckoutProcess::close() {
 		return;
 	}
 	i->second.map.erase(j);
-	if (i->second.map.empty()) {
+	if (i->second.map.empty() && i->second.paymentStarted.empty()) {
 		Processes.erase(i);
 	}
 }
@@ -388,6 +420,7 @@ void CheckoutProcess::panelSubmit() {
 	} else if (!method.newCredentials && !method.savedCredentials) {
 		editPaymentMethod();
 	} else {
+		RegisterPaymentStart(this);
 		_submitState = SubmitState::Finishing;
 		_form->submit();
 	}

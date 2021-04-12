@@ -323,7 +323,7 @@ not_null<RpWidget*> EditCard::setupContent() {
 
 	if (_native.needCardholderName) {
 		_name = add({
-			.type = FieldType::CardNumber,
+			.type = FieldType::Text,
 			.placeholder = tr::lng_payments_card_holder(),
 			.validator = CardHolderNameValidator(),
 		});

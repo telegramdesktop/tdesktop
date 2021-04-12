@@ -278,6 +278,7 @@ bool Panel::showWebview(
 	if (!_webview && !createWebview()) {
 		return false;
 	}
+	_widget->destroyLayer();
 	_webview->navigate(url);
 	_widget->setBackAllowed(allowBack);
 	if (bottomText) {
