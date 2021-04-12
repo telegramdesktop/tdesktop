@@ -129,6 +129,10 @@ bool FormSummary::showCriticalError(const TextWithEntities &text) {
 	return true;
 }
 
+int FormSummary::contentHeight() const {
+	return _invoice ? _scroll->height() : _layout->height();
+}
+
 void FormSummary::updateThumbnail(const QImage &thumbnail) {
 	_invoice.cover.thumbnail = thumbnail;
 	_thumbnails.fire_copy(thumbnail);

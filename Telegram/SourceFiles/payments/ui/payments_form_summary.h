@@ -40,6 +40,7 @@ public:
 	[[nodiscard]] rpl::producer<int> scrollTopValue() const;
 
 	bool showCriticalError(const TextWithEntities &text);
+	[[nodiscard]] int contentHeight() const;
 
 private:
 	void resizeEvent(QResizeEvent *e) override;

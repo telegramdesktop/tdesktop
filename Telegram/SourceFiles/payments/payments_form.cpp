@@ -170,6 +170,14 @@ void Form::fillInvoiceFromMessage() {
 	}
 }
 
+void Form::showProgress() {
+	_updates.fire(ToggleProgress{ true });
+}
+
+void Form::hideProgress() {
+	_updates.fire(ToggleProgress{ false });
+}
+
 void Form::loadThumbnail(not_null<PhotoData*> photo) {
 	Expects(!_thumbnailLoadProcess);
 
@@ -251,29 +259,35 @@ QImage Form::prepareEmptyThumbnail() const {
 }
 
 void Form::requestForm() {
+	showProgress();
 	_api.request(MTPpayments_GetPaymentForm(
 		MTP_flags(MTPpayments_GetPaymentForm::Flag::f_theme_params),
 		_peer->input,
 		MTP_int(_msgId),
 		MTP_dataJSON(MTP_bytes(ThemeParams()))
 	)).done([=](const MTPpayments_PaymentForm &result) {
+		hideProgress();
 		result.match([&](const auto &data) {
 			processForm(data);
 		});
 	}).fail([=](const MTP::Error &error) {
+		hideProgress();
 		_updates.fire(Error{ Error::Type::Form, error.type() });
 	}).send();
 }
 
 void Form::requestReceipt() {
+	showProgress();
 	_api.request(MTPpayments_GetPaymentReceipt(
 		_peer->input,
 		MTP_int(_msgId)
 	)).done([=](const MTPpayments_PaymentReceipt &result) {
+		hideProgress();
 		result.match([&](const auto &data) {
 			processReceipt(data);
 		});
 	}).fail([=](const MTP::Error &error) {
+		hideProgress();
 		_updates.fire(Error{ Error::Type::Form, error.type() });
 	}).send();
 }
@@ -551,6 +565,7 @@ void Form::submit() {
 	}
 
 	using Flag = MTPpayments_SendPaymentForm::Flag;
+	showProgress();
 	_api.request(MTPpayments_SendPaymentForm(
 		MTP_flags((_requestedInformationId.isEmpty()
 			? Flag(0)
@@ -576,12 +591,14 @@ void Form::submit() {
 				MTP_bytes(password))),
 		MTP_long(_invoice.tipsSelected)
 	)).done([=](const MTPpayments_PaymentResult &result) {
+		hideProgress();
 		result.match([&](const MTPDpayments_paymentResult &data) {
 			_updates.fire(PaymentFinished{ data.vupdates() });
 		}, [&](const MTPDpayments_paymentVerificationNeeded &data) {
 			_updates.fire(VerificationNeeded{ qs(data.vurl()) });
 		});
 	}).fail([=](const MTP::Error &error) {
+		hideProgress();
 		_updates.fire(Error{ Error::Type::Send, error.type() });
 	}).send();
 }
@@ -612,6 +629,7 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 		if (_validatedInformation == information) {
 			return;
 		}
+		hideProgress();
 		_api.request(base::take(_validateRequestId)).cancel();
 	}
 	_validatedInformation = information;
@@ -625,6 +643,7 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 	Assert(!_invoice.isEmailRequested || !information.email.isEmpty());
 	Assert(!_invoice.isPhoneRequested || !information.phone.isEmpty());
 
+	showProgress();
 	using Flag = MTPpayments_ValidateRequestedInfo::Flag;
 	_validateRequestId = _api.request(MTPpayments_ValidateRequestedInfo(
 		MTP_flags(information.save ? Flag::f_save : Flag(0)),
@@ -632,6 +651,7 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 		MTP_int(_msgId),
 		Serialize(information)
 	)).done([=](const MTPpayments_ValidatedRequestedInfo &result) {
+		hideProgress();
 		_validateRequestId = 0;
 		const auto oldSelectedId = _shippingOptions.selectedId;
 		result.match([&](const MTPDpayments_validatedRequestedInfo &data) {
@@ -654,6 +674,7 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 		}
 		_updates.fire(ValidateFinished{});
 	}).fail([=](const MTP::Error &error) {
+		hideProgress();
 		_validateRequestId = 0;
 		_updates.fire(Error{ Error::Type::Validate, error.type() });
 	}).send();
@@ -798,9 +819,11 @@ void Form::validateCard(
 		.addressZip = details.addressZip,
 		.addressCountry = details.addressCountry,
 	};
+	showProgress();
 	_stripe->createTokenWithCard(std::move(card), crl::guard(this, [=](
 			Stripe::Token token,
 			Stripe::Error error) {
+		hideProgress();
 		_stripe = nullptr;
 
 		if (error) {
@@ -846,9 +869,11 @@ void Form::validateCard(
 		.addressZip = details.addressZip,
 		.addressCountry = details.addressCountry,
 	};
+	showProgress();
 	_smartglocal->createTokenWithCard(std::move(card), crl::guard(this, [=](
 			SmartGlocal::Token token,
 			SmartGlocal::Error error) {
+		hideProgress();
 		_smartglocal = nullptr;
 
 		if (error) {

@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/single_choice_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/effects/radial_animation.h"
 #include "lang/lang_keys.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_interface.h"
@@ -25,6 +26,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 
 namespace Payments::Ui {
+namespace {
+
+constexpr auto kProgressDuration = crl::time(200);
+constexpr auto kProgressOpacity = 0.3;
+
+} // namespace
+
+struct Panel::Progress {
+	Progress(QWidget *parent, Fn<QRect()> rect);
+
+	RpWidget widget;
+	InfiniteRadialAnimation animation;
+	Animations::Simple shownAnimation;
+	bool shown = true;
+	rpl::lifetime geometryLifetime;
+};
+
+Panel::Progress::Progress(QWidget *parent, Fn<QRect()> rect)
+: widget(parent)
+, animation(
+	[=] { if (!anim::Disabled()) widget.update(rect()); },
+	st::boxLoadingAnimation) {
+}
 
 Panel::Panel(not_null<PanelDelegate*> delegate)
 : _delegate(delegate)
@@ -45,11 +69,145 @@ Panel::Panel(not_null<PanelDelegate*> delegate)
 
 Panel::~Panel() {
 	// Destroy _widget before _webview.
+	_progress = nullptr;
 	_widget = nullptr;
 }
 
 void Panel::requestActivate() {
 	_widget->showAndActivate();
+}
+
+void Panel::toggleProgress(bool shown) {
+	if (!_progress) {
+		if (!shown) {
+			return;
+		}
+		_progress = std::make_unique<Progress>(
+			_widget.get(),
+			[=] { return progressRect(); });
+		_progress->widget.paintRequest(
+		) | rpl::start_with_next([=](QRect clip) {
+			auto p = QPainter(&_progress->widget);
+			p.setOpacity(
+				_progress->shownAnimation.value(_progress->shown ? 1. : 0.));
+			auto thickness = _webviewBottom
+				? st::boxLoadingAnimation.thickness
+				: (st::boxLoadingAnimation.thickness * 2);
+			if (progressWithBackground()) {
+				auto color = st::windowBg->c;
+				color.setAlphaF(kProgressOpacity);
+				p.fillRect(clip, color);
+			}
+			const auto rect = progressRect().marginsRemoved(
+				{ thickness, thickness, thickness, thickness });
+			InfiniteRadialAnimation::Draw(
+				p,
+				_progress->animation.computeState(),
+				rect.topLeft(),
+				rect.size() - QSize(),
+				_progress->widget.width(),
+				st::boxLoadingAnimation.color,
+				thickness);
+		}, _progress->widget.lifetime());
+		_progress->widget.show();
+		_progress->animation.start();
+	} else if (_progress->shown == shown) {
+		return;
+	}
+	const auto callback = [=] {
+		if (!_progress->shownAnimation.animating() && !_progress->shown) {
+			_progress = nullptr;
+		} else {
+			_progress->widget.update();
+		}
+	};
+	_progress->shown = shown;
+	_progress->shownAnimation.start(
+		callback,
+		shown ? 0. : 1.,
+		shown ? 1. : 0.,
+		kProgressDuration);
+	if (shown) {
+		setupProgressGeometry();
+	}
+}
+
+bool Panel::progressWithBackground() const {
+	return (_progress->widget.width() == _widget->innerGeometry().width());
+}
+
+QRect Panel::progressRect() const {
+	const auto rect = _progress->widget.rect();
+	if (!progressWithBackground()) {
+		return rect;
+	}
+	const auto size = st::defaultBoxButton.height;
+	return QRect(
+		rect.x() + (rect.width() - size) / 2,
+		rect.y() + (rect.height() - size) / 2,
+		size,
+		size);
+}
+
+void Panel::setupProgressGeometry() {
+	if (!_progress || !_progress->shown) {
+		return;
+	}
+	_progress->geometryLifetime.destroy();
+	if (_webviewBottom) {
+		_webviewBottom->geometryValue(
+		) | rpl::start_with_next([=](QRect bottom) {
+			const auto height = bottom.height();
+			const auto size = height
+				- st::layerBox.buttonPadding.top()
+				- st::layerBox.buttonPadding.bottom();
+			const auto inner = _widget->innerGeometry();
+			const auto right = inner.x() + inner.width();
+			const auto top = inner.y() + inner.height() - height;
+			// This doesn't work, because first we get the correct bottom
+			// geometry and after that we get the previous event (which
+			// triggered the 'fire' of correct geometry before getting here).
+			//const auto right = bottom.x() + bottom.width();
+			//const auto top = bottom.y();
+			_progress->widget.setGeometry(
+				right - size - st::layerBox.buttonPadding.right(),
+				top + st::layerBox.buttonPadding.top(),
+				size,
+				size);
+		}, _progress->geometryLifetime);
+	} else if (_weakFormSummary) {
+		_weakFormSummary->sizeValue(
+		) | rpl::start_with_next([=](QSize form) {
+			const auto full = _widget->innerGeometry();
+			const auto size = st::defaultBoxButton.height;
+			const auto inner = _weakFormSummary->contentHeight();
+			const auto left = full.height() - inner;
+			if (left >= 2 * size) {
+				_progress->widget.setGeometry(
+					full.x() + (full.width() - size) / 2,
+					full.y() + inner + (left - size) / 2,
+					size,
+					size);
+			} else {
+				_progress->widget.setGeometry(full);
+			}
+		}, _progress->geometryLifetime);
+	} else if (_weakEditInformation) {
+		_weakEditInformation->geometryValue(
+		) | rpl::start_with_next([=] {
+			_progress->widget.setGeometry(_widget->innerGeometry());
+		}, _progress->geometryLifetime);
+	} else if (_weakEditCard) {
+		_weakEditCard->geometryValue(
+		) | rpl::start_with_next([=] {
+			_progress->widget.setGeometry(_widget->innerGeometry());
+		}, _progress->geometryLifetime);
+	}
+	_progress->widget.show();
+	_progress->widget.raise();
+	if (_progress->shown) {
+		_progress->widget.setFocus();
+	}
 }
 
 void Panel::showForm(
@@ -83,6 +241,7 @@ void Panel::showForm(
 	_widget->showInner(std::move(form));
 	_widget->setBackAllowed(false);
 	_formScrollTop = _weakFormSummary->scrollTopValue();
+	setupProgressGeometry();
 }
 
 void Panel::updateFormThumbnail(const QImage &thumbnail) {
@@ -106,6 +265,7 @@ void Panel::showEditInformation(
 	_widget->showInner(std::move(edit));
 	_widget->setBackAllowed(true);
 	_weakEditInformation->setFocusFast(field);
+	setupProgressGeometry();
 }
 
 void Panel::showInformationError(
@@ -278,6 +438,7 @@ bool Panel::showWebview(
 	if (!_webview && !createWebview()) {
 		return false;
 	}
+	toggleProgress(true);
 	_widget->destroyLayer();
 	_webview->navigate(url);
 	_widget->setBackAllowed(allowBack);
@@ -347,8 +508,15 @@ bool Panel::createWebview() {
 		_delegate->panelWebviewMessage(message, save);
 	});
 
-	raw->setNavigationHandler([=](const QString &uri) {
-		return _delegate->panelWebviewNavigationAttempt(uri);
+	raw->setNavigationStartHandler([=](const QString &uri) {
+		if (!_delegate->panelWebviewNavigationAttempt(uri)) {
+			return false;
+		}
+		toggleProgress(true);
+		return true;
+	});
+	raw->setNavigationDoneHandler([=](bool success) {
+		toggleProgress(false);
 	});
 
 	raw->init(R"(
@@ -361,6 +529,9 @@ postEvent: function(eventType, eventData) {
 };)");
 
 	_widget->showInner(std::move(container));
+
+	setupProgressGeometry();
+
 	return true;
 }
 
@@ -452,6 +623,7 @@ void Panel::showEditCard(
 	_widget->showInner(std::move(edit));
 	_widget->setBackAllowed(true);
 	_weakEditCard->setFocusFast(field);
+	setupProgressGeometry();
 }
 
 void Panel::showCardError(
@@ -494,6 +666,7 @@ void Panel::showToast(const TextWithEntities &text) {
 }
 
 void Panel::showCriticalError(const TextWithEntities &text) {
+	toggleProgress(false);
 	if (!_weakFormSummary || !_weakFormSummary->showCriticalError(text)) {
 		auto error = base::make_unique_q<PaddingWrap<FlatLabel>>(
 			_widget.get(),
