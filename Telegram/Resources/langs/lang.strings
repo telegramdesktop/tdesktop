@@ -1878,6 +1878,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_invoice_label" = "Invoice";
 "lng_payments_invoice_label_test" = "Test invoice";
 "lng_payments_receipt_button" = "Receipt";
+"lng_payments_success" = "You paid {amount} for {title}.";
 
 "lng_payments_checkout_title" = "Checkout";
 "lng_payments_receipt_title" = "Receipt";

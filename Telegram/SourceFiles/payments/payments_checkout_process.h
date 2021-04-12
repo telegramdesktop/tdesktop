@@ -52,6 +52,8 @@ public:
 		not_null<const HistoryItem*> item,
 		Mode mode,
 		Fn<void()> reactivate);
+	[[nodiscard]] static bool TakePaymentStarted(
+		not_null<const HistoryItem*> item);
 
 	CheckoutProcess(
 		not_null<PeerData*> peer,
@@ -69,6 +71,9 @@ private:
 		Finishing,
 	};
 	[[nodiscard]] not_null<PanelDelegate*> panelDelegate();
+
+	static void RegisterPaymentStart(not_null<CheckoutProcess*> process);
+	static void UnregisterPaymentStart(not_null<CheckoutProcess*> process);
 
 	void setReactivateCallback(Fn<void()> reactivate);
 	void requestActivate();
