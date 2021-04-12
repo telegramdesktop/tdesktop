@@ -393,7 +393,7 @@ callErrorToast: Toast(defaultToast) {
 groupCallWidth: 380px;
 groupCallHeight: 580px;
 
-groupCallMuteButtonIconSize: size(69px, 69px);
+groupCallMuteButtonIconSize: size(67px, 67px);
 groupCallMuteButtonIconTop: 35px;
 groupCallRipple: RippleAnimation(defaultRippleAnimation) {
 	color: groupCallMembersBgRipple;
