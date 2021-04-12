@@ -632,6 +632,9 @@ void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setAdminsCanEdit(std::move(_adminsCanEdit));
 	memento->setSearchQuery(std::move(_searchQuery));
 	if (!_filterChanged) {
+		for (auto &item : _items) {
+			item.clearView();
+		}
 		memento->setItems(
 			base::take(_items),
 			base::take(_eventIds),

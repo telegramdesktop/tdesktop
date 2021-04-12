@@ -37,17 +37,18 @@ public:
 	OwnedItem &operator=(OwnedItem &&other);
 	~OwnedItem();
 
-	HistoryView::Element *get() const {
+	[[nodiscard]] HistoryView::Element *get() const {
 		return _view.get();
 	}
-	HistoryView::Element *operator->() const {
+	[[nodiscard]] HistoryView::Element *operator->() const {
 		return get();
 	}
-	operator HistoryView::Element*() const {
+	[[nodiscard]] operator HistoryView::Element*() const {
 		return get();
 	}
 
 	void refreshView(not_null<HistoryView::ElementDelegate*> delegate);
+	void clearView();
 
 private:
 	HistoryItem *_data = nullptr;
