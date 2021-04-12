@@ -480,7 +480,7 @@ OwnedItem &OwnedItem::operator=(OwnedItem &&other) {
 }
 
 OwnedItem::~OwnedItem() {
-	_view = nullptr;
+	clearView();
 	if (_data) {
 		_data->destroy();
 	}
@@ -489,6 +489,10 @@ OwnedItem::~OwnedItem() {
 void OwnedItem::refreshView(
 		not_null<HistoryView::ElementDelegate*> delegate) {
 	_view = _data->createView(delegate);
+}
+
+void OwnedItem::clearView() {
+	_view = nullptr;
 }
 
 void GenerateItems(
