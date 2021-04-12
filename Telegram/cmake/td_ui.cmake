@@ -47,7 +47,7 @@ target_precompile_headers(td_ui PRIVATE ${src_loc}/ui/ui_pch.h)
 nice_target_sources(td_ui ${src_loc}
 PRIVATE
     ${style_files}
-    
+
     calls/group/ui/calls_group_scheduled_labels.cpp
     calls/group/ui/calls_group_scheduled_labels.h
     calls/group/ui/desktop_capture_choose_source.cpp
@@ -106,10 +106,12 @@ PRIVATE
     ui/boxes/report_box.h
     ui/boxes/single_choice_box.cpp
     ui/boxes/single_choice_box.h
-    ui/chat/attach/attach_album_thumbnail.cpp
-    ui/chat/attach/attach_album_thumbnail.h
     ui/chat/attach/attach_album_preview.cpp
     ui/chat/attach/attach_album_preview.h
+    ui/chat/attach/attach_album_thumbnail.cpp
+    ui/chat/attach/attach_album_thumbnail.h
+    ui/chat/attach/attach_controls.cpp
+    ui/chat/attach/attach_controls.h
     ui/chat/attach/attach_extensions.cpp
     ui/chat/attach/attach_extensions.h
     ui/chat/attach/attach_prepare.cpp

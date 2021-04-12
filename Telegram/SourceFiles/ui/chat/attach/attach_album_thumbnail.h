@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/chat/attach/attach_controls.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/effects/animations.h"
 #include "ui/grouped_layout.h"
@@ -86,7 +87,7 @@ private:
 	float64 _suggestedMove = 0.;
 	Animations::Simple _suggestedMoveAnimation;
 	int _lastShrinkValue = 0;
-	RoundRect _buttonsRect;
+	AttachControls _buttons;
 
 	QRect _lastRectOfModify;
 	QRect _lastRectOfButtons;

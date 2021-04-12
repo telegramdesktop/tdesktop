@@ -9,9 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/abstract_button.h"
-#include "ui/round_rect.h"
 #include "media/clip/media_clip_reader.h"
-#include "base/object_ptr.h"
 
 namespace Lottie {
 class SinglePlayer;
@@ -19,6 +17,7 @@ class SinglePlayer;
 
 namespace Ui {
 
+class AttachControlsWidget;
 struct PreparedFile;
 class IconButton;
 
@@ -50,7 +49,6 @@ private:
 		QImage preview,
 		const QString &animatedPreviewPath);
 	void prepareAnimatedPreview(const QString &animatedPreviewPath);
-	void paintButtonsBackground(QPainter &p);
 	void clipCallback(Media::Clip::Notification notification);
 
 	Fn<bool()> _gifPaused;
@@ -63,10 +61,8 @@ private:
 	Media::Clip::ReaderPointer _gifPreview;
 	std::unique_ptr<Lottie::SinglePlayer> _lottiePreview;
 
-	base::unique_qptr<AbstractButton> _photoEditorButton;
-	object_ptr<IconButton> _editMedia = { nullptr };
-	object_ptr<IconButton> _deleteMedia = { nullptr };
-	RoundRect _buttonsRect;
+	const base::unique_qptr<AbstractButton> _photoEditorButton;
+	const base::unique_qptr<AttachControlsWidget> _controls;
 
 	rpl::event_stream<> _modifyRequests;
 

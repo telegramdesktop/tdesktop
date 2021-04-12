@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_single_media_preview.h"
 
 #include "editor/photo_editor_common.h"
+#include "ui/chat/attach/attach_controls.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/widgets/buttons.h"
 #include "core/mime_type.h"
@@ -69,12 +70,8 @@ SingleMediaPreview::SingleMediaPreview(
 , _animated(animated)
 , _sticker(sticker)
 , _photoEditorButton(base::make_unique_q<AbstractButton>(this))
-, _editMedia(this, st::sendBoxAlbumGroupButtonMedia)
-, _deleteMedia(this, st::sendBoxAlbumGroupButtonMedia)
-, _buttonsRect(st::sendBoxAlbumGroupRadius, st::roundedBg) {
+, _controls(base::make_unique_q<AttachControlsWidget>(this)) {
 	Expects(!preview.isNull());
-
-	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupButtonMediaDelete);
 
 	preparePreview(preview, animatedPreviewPath);
 }
@@ -82,11 +79,11 @@ SingleMediaPreview::SingleMediaPreview(
 SingleMediaPreview::~SingleMediaPreview() = default;
 
 rpl::producer<> SingleMediaPreview::deleteRequests() const {
-	return _deleteMedia->clicks() | rpl::to_empty;
+	return _controls->deleteRequests();
 }
 
 rpl::producer<> SingleMediaPreview::editRequests() const {
-	return _editMedia->clicks() | rpl::to_empty;
+	return _controls->editRequests();
 }
 
 rpl::producer<> SingleMediaPreview::modifyRequests() const {
@@ -132,7 +129,7 @@ void SingleMediaPreview::preparePreview(
 		_previewWidth = qMax(preview.width(), kMinPreviewWidth);
 	}
 	auto maxthumbh = qMin(qRound(1.5 * _previewWidth), st::confirmMaxHeight);
-	const auto minthumbh = st::sendBoxAlbumGroupHeight
+	const auto minthumbh = st::sendBoxAlbumGroupSize.height()
 		 + st::sendBoxAlbumGroupSkipTop * 2;
 	_previewHeight = qRound(originalHeight * float64(_previewWidth) / originalWidth);
 	if (_previewHeight > maxthumbh) {
@@ -169,18 +166,10 @@ void SingleMediaPreview::preparePreview(
 }
 
 void SingleMediaPreview::resizeEvent(QResizeEvent *e) {
-	const auto skipInternal = st::sendBoxAlbumGroupEditInternalSkip;
-	const auto size = st::sendBoxAlbumGroupHeight;
-	const auto skipRight = st::sendBoxAlbumGroupSkipRight;
-	const auto skipTop = st::sendBoxAlbumGroupSkipTop;
-	const auto groupWidth = size * 2 + skipInternal;
-
-	const auto right = (st::boxWideWidth - st::sendMediaPreviewSize) / 2
-		+ st::sendMediaPreviewSize;
-	const auto left = right - groupWidth - skipRight;
-	const auto top = skipTop;
-	_editMedia->move(left, top);
-	_deleteMedia->move(left + size + skipInternal, top);
+	_controls->moveToRight(
+		st::boxPhotoPadding.right() + st::sendBoxAlbumGroupSkipRight,
+		st::sendBoxAlbumGroupSkipTop,
+		width());
 }
 
 void SingleMediaPreview::prepareAnimatedPreview(
@@ -273,22 +262,6 @@ void SingleMediaPreview::paintEvent(QPaintEvent *e) {
 		auto icon = &st::historyFileInPlay;
 		icon->paintInCenter(p, inner);
 	}
-	paintButtonsBackground(p);
-}
-
-void SingleMediaPreview::paintButtonsBackground(QPainter &p) {
-	const auto skipInternal = st::sendBoxAlbumGroupEditInternalSkip;
-	const auto size = st::sendBoxAlbumGroupHeight;
-	const auto skipRight = st::sendBoxAlbumGroupSkipRight;
-	const auto skipTop = st::sendBoxAlbumGroupSkipTop;
-	const auto groupWidth = size * 2 + skipInternal;
-	const auto right = (st::boxWideWidth - st::sendMediaPreviewSize) / 2
-		+ st::sendMediaPreviewSize;
-	const auto left = right - groupWidth - skipRight;
-	const auto top = skipTop;
-
-	QRect groupRect(left, top, groupWidth, size);
-	_buttonsRect.paint(p, groupRect);
 }
 
 } // namespace Ui
