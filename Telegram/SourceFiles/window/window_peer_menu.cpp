@@ -68,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 #include <QtWidgets/QAction>
 #include <api/api_text_entities.h>
+#include <history/view/history_view_pinned_section.h>
 
 namespace Window {
 namespace {
@@ -478,6 +479,12 @@ void Filler::addUserActions(not_null<UserData*> user) {
 						tr::lng_pinned_message_hide(tr::now),
 						[=] { PeerMenuHidePinnedMessage(user); });
 			}
+			_addAction(
+					tr::lng_pinned_message_view(tr::now),
+					[=] {
+						const auto history = user->owner().history(user);
+						App::wnd()->sessionController()->showSection(std::make_shared<HistoryView::PinnedMemento>(history, 0));
+					});
 		}
 		if (!user->isContact() && !user->isSelf() && !user->isBot()) {
 			_addAction(
@@ -546,6 +553,12 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 						tr::lng_pinned_message_hide(tr::now),
 						[=] { PeerMenuHidePinnedMessage(chat); });
 			}
+			_addAction(
+					tr::lng_pinned_message_view(tr::now),
+					[=] {
+						const auto history = chat->owner().history(chat);
+						App::wnd()->sessionController()->showSection(std::make_shared<HistoryView::PinnedMemento>(history, 0));
+					});
 		}
 		if (chat->canAddMembers()) {
 			_addAction(
@@ -604,6 +617,12 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 						tr::lng_pinned_message_hide(tr::now),
 						[=] { PeerMenuHidePinnedMessage(channel); });
 			}
+			_addAction(
+					tr::lng_pinned_message_view(tr::now),
+					[=] {
+						const auto history = channel->owner().history(channel);
+						App::wnd()->sessionController()->showSection(std::make_shared<HistoryView::PinnedMemento>(history, 0));
+					});
 		}
 		if (channel->canAddMembers()) {
 			_addAction(

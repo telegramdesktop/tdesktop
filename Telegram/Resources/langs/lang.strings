@@ -2805,5 +2805,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_pinned_message_show" = "Show pinned message";
 "lng_pinned_message_hide" = "Hide pinned message";
+"lng_pinned_message_view" = "View pinned message";
 
 // Keys finished
