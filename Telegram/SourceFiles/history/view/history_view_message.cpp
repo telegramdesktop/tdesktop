@@ -102,6 +102,7 @@ void KeyboardStyle::paintButtonIcon(
 		switch (type) {
 		case Type::Url:
 		case Type::Auth: return &st::msgBotKbUrlIcon;
+		case Type::Buy: return &st::msgBotKbPaymentIcon;
 		case Type::SwitchInlineSame:
 		case Type::SwitchInline: return &st::msgBotKbSwitchPmIcon;
 		}
@@ -124,6 +125,7 @@ int KeyboardStyle::minButtonWidth(
 	switch (type) {
 	case Type::Url:
 	case Type::Auth: iconWidth = st::msgBotKbUrlIcon.width(); break;
+	case Type::Buy: iconWidth = st::msgBotKbPaymentIcon.width(); break;
 	case Type::SwitchInlineSame:
 	case Type::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.width(); break;
 	case Type::Callback:
