@@ -54,6 +54,7 @@ public:
 		Fn<void()> reactivate);
 	[[nodiscard]] static bool TakePaymentStarted(
 		not_null<const HistoryItem*> item);
+	static void ClearAll();
 
 	CheckoutProcess(
 		not_null<PeerData*> peer,

@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_domain.h"
 #include "storage/storage_databases.h"
 #include "storage/localstorage.h"
+#include "payments/payments_checkout_process.h"
 #include "export/export_manager.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -149,6 +150,15 @@ Application::~Application() {
 	_window = nullptr;
 	_mediaView = nullptr;
 	_notifications->clearAllFast();
+
+	// We must manually destroy all windows before going further.
+	// DestroyWindow on Windows (at least with an active WebView) enters
+	// event loop and invoke scheduled crl::on_main callbacks.
+	//
+	// For example Domain::removeRedundantAccounts() is called from
+	// Domain::finish() and there is a violation on Ensures(started()).
+	Payments::CheckoutProcess::ClearAll();
+
 	_domain->finish();
 
 	Local::finish();
