@@ -78,6 +78,9 @@ void Panel::requestActivate() {
 }
 
 void Panel::toggleProgress(bool shown) {
+	if (!shown) {
+		_webviewProgress = false;
+	}
 	if (!_progress) {
 		if (!shown) {
 			return;
@@ -431,6 +434,22 @@ void Panel::showEditPaymentMethod(const PaymentMethodDetails &method) {
 	}
 }
 
+void Panel::showWebviewProgress() {
+	if (_webviewProgress) {
+		return;
+	}
+	_webviewProgress = true;
+	toggleProgress(true);
+}
+
+void Panel::hideWebviewProgress() {
+	if (!_webviewProgress) {
+		return;
+	}
+	_webviewProgress = false;
+	toggleProgress(false);
+}
+
 bool Panel::showWebview(
 		const QString &url,
 		bool allowBack,
@@ -438,7 +457,7 @@ bool Panel::showWebview(
 	if (!_webview && !createWebview()) {
 		return false;
 	}
-	toggleProgress(true);
+	showWebviewProgress();
 	_widget->destroyLayer();
 	_webview->navigate(url);
 	_widget->setBackAllowed(allowBack);
@@ -488,6 +507,7 @@ bool Panel::createWebview() {
 	QObject::connect(container.get(), &QObject::destroyed, [=] {
 		if (_webview.get() == raw) {
 			_webview = nullptr;
+			hideWebviewProgress();
 		}
 		if (_webviewBottom.get() == bottom) {
 			_webviewBottom = nullptr;
@@ -512,11 +532,11 @@ bool Panel::createWebview() {
 		if (!_delegate->panelWebviewNavigationAttempt(uri)) {
 			return false;
 		}
-		toggleProgress(true);
+		showWebviewProgress();
 		return true;
 	});
 	raw->setNavigationDoneHandler([=](bool success) {
-		toggleProgress(false);
+		hideWebviewProgress();
 	});
 
 	raw->init(R"(

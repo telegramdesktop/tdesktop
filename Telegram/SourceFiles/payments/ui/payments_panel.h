@@ -90,6 +90,8 @@ private:
 	struct Progress;
 
 	bool createWebview();
+	void showWebviewProgress();
+	void hideWebviewProgress();
 	void showWebviewError(
 		const QString &text,
 		const Webview::Available &information);
@@ -109,6 +111,7 @@ private:
 	rpl::variable<int> _formScrollTop;
 	QPointer<EditInformation> _weakEditInformation;
 	QPointer<EditCard> _weakEditCard;
+	bool _webviewProgress = false;
 	bool _testMode = false;
 
 };
