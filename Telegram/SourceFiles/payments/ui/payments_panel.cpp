@@ -78,9 +78,6 @@ void Panel::requestActivate() {
 }
 
 void Panel::toggleProgress(bool shown) {
-	if (!shown) {
-		_webviewProgress = false;
-	}
 	if (!_progress) {
 		if (!shown) {
 			return;
@@ -435,7 +432,7 @@ void Panel::showEditPaymentMethod(const PaymentMethodDetails &method) {
 }
 
 void Panel::showWebviewProgress() {
-	if (_webviewProgress) {
+	if (_webviewProgress && _progress && _progress->shown) {
 		return;
 	}
 	_webviewProgress = true;
@@ -507,7 +504,12 @@ bool Panel::createWebview() {
 	QObject::connect(container.get(), &QObject::destroyed, [=] {
 		if (_webview.get() == raw) {
 			_webview = nullptr;
-			hideWebviewProgress();
+			if (_webviewProgress) {
+				hideWebviewProgress();
+				if (!_progress->shown) {
+					_progress = nullptr;
+				}
+			}
 		}
 		if (_webviewBottom.get() == bottom) {
 			_webviewBottom = nullptr;
@@ -686,7 +688,8 @@ void Panel::showToast(const TextWithEntities &text) {
 }
 
 void Panel::showCriticalError(const TextWithEntities &text) {
-	toggleProgress(false);
+	_progress = nullptr;
+	_webviewProgress = false;
 	if (!_weakFormSummary || !_weakFormSummary->showCriticalError(text)) {
 		auto error = base::make_unique_q<PaddingWrap<FlatLabel>>(
 			_widget.get(),
