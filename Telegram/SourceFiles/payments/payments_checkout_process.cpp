@@ -112,6 +112,10 @@ bool CheckoutProcess::TakePaymentStarted(
 	return true;
 }
 
+void CheckoutProcess::ClearAll() {
+	Processes.clear();
+}
+
 void CheckoutProcess::RegisterPaymentStart(
 		not_null<CheckoutProcess*> process) {
 	const auto i = Processes.find(process->_session);

@@ -501,7 +501,7 @@ bool Panel::createWebview() {
 			_webview = nullptr;
 			if (_webviewProgress) {
 				hideWebviewProgress();
-				if (!_progress->shown) {
+				if (_progress && !_progress->shown) {
 					_progress = nullptr;
 				}
 			}
