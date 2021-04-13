@@ -125,3 +125,9 @@ paymentsCriticalError: FlatLabel(boxLabel) {
 	textFg: windowSubTextFg;
 }
 paymentsCriticalErrorPadding: margins(10px, 40px, 10px, 0px);
+
+paymentsLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	size: size(24px, 24px);
+	color: windowSubTextFg;
+	thickness: 4px;
+}

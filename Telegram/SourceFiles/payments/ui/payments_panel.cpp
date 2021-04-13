@@ -47,7 +47,7 @@ Panel::Progress::Progress(QWidget *parent, Fn<QRect()> rect)
 : widget(parent)
 , animation(
 	[=] { if (!anim::Disabled()) widget.update(rect()); },
-	st::boxLoadingAnimation) {
+	st::paymentsLoading) {
 }
 
 Panel::Panel(not_null<PanelDelegate*> delegate)
@@ -90,9 +90,7 @@ void Panel::toggleProgress(bool shown) {
 			auto p = QPainter(&_progress->widget);
 			p.setOpacity(
 				_progress->shownAnimation.value(_progress->shown ? 1. : 0.));
-			auto thickness = _webviewBottom
-				? st::boxLoadingAnimation.thickness
-				: (st::boxLoadingAnimation.thickness * 2);
+			auto thickness = st::paymentsLoading.thickness;
 			if (progressWithBackground()) {
 				auto color = st::windowBg->c;
 				color.setAlphaF(kProgressOpacity);
@@ -106,7 +104,7 @@ void Panel::toggleProgress(bool shown) {
 				rect.topLeft(),
 				rect.size() - QSize(),
 				_progress->widget.width(),
-				st::boxLoadingAnimation.color,
+				st::paymentsLoading.color,
 				thickness);
 		}, _progress->widget.lifetime());
 		_progress->widget.show();
@@ -158,9 +156,8 @@ void Panel::setupProgressGeometry() {
 		_webviewBottom->geometryValue(
 		) | rpl::start_with_next([=](QRect bottom) {
 			const auto height = bottom.height();
-			const auto size = height
-				- st::layerBox.buttonPadding.top()
-				- st::layerBox.buttonPadding.bottom();
+			const auto size = st::paymentsLoading.size;
+			const auto skip = (height - size.height()) / 2;
 			const auto inner = _widget->innerGeometry();
 			const auto right = inner.x() + inner.width();
 			const auto top = inner.y() + inner.height() - height;
@@ -169,11 +166,9 @@ void Panel::setupProgressGeometry() {
 			// triggered the 'fire' of correct geometry before getting here).
 			//const auto right = bottom.x() + bottom.width();
 			//const auto top = bottom.y();
-			_progress->widget.setGeometry(
-				right - size - st::layerBox.buttonPadding.right(),
-				top + st::layerBox.buttonPadding.top(),
-				size,
-				size);
+			_progress->widget.setGeometry(QRect{
+				QPoint(right - skip - size.width(), top + skip),
+				size });
 		}, _progress->geometryLifetime);
 	} else if (_weakFormSummary) {
 		_weakFormSummary->sizeValue(
