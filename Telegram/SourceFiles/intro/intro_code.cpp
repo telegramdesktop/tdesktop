@@ -397,18 +397,17 @@ void CodeWidget::submit() {
 }
 
 void CodeWidget::noTelegramCode() {
-	Ui::show(Box<InformBox>(tr::lng_code_register_phone(tr::now)));
-	//if (_noTelegramCodeRequestId) {
-	//	return;
-	//}
-	//_noTelegramCodeRequestId = api().request(MTPauth_ResendCode(
-	//	MTP_string(getData()->phone),
-	//	MTP_bytes(getData()->phoneHash)
-	//)).done([=](const MTPauth_SentCode &result) {
-	//	noTelegramCodeDone(result);
-	//}).fail([=](const MTP::Error &error) {
-	//	noTelegramCodeFail(error);
-	//}).handleFloodErrors().send();
+	if (_noTelegramCodeRequestId) {
+		return;
+	}
+	_noTelegramCodeRequestId = api().request(MTPauth_ResendCode(
+		MTP_string(getData()->phone),
+		MTP_bytes(getData()->phoneHash)
+	)).done([=](const MTPauth_SentCode &result) {
+		noTelegramCodeDone(result);
+	}).fail([=](const MTP::Error &error) {
+		noTelegramCodeFail(error);
+	}).handleFloodErrors().send();
 }
 
 void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
@@ -438,6 +437,9 @@ void CodeWidget::noTelegramCodeFail(const MTP::Error &error) {
 	if (MTP::IsFloodError(error)) {
 		_noTelegramCodeRequestId = 0;
 		showCodeError(tr::lng_flood_error());
+		return;
+	} else if (error.type() == u"SEND_CODE_UNAVAILABLE"_q) {
+		_noTelegramCodeRequestId = 0;
 		return;
 	}
 
