@@ -386,7 +386,8 @@ void FormSummary::setupSuggestedTips(not_null<VerticalLayout*> layout) {
 	const auto state = outer->lifetime().make_state<State>();
 	for (const auto amount : _invoice.suggestedTips) {
 		const auto text = formatAmount(amount, true);
-		const auto &st = (amount == _invoice.tipsSelected)
+		const auto selected = (amount == _invoice.tipsSelected);
+		const auto &st = selected
 			? _tipChosen
 			: _tipButton;
 		state->buttons.push_back(Button{
@@ -398,7 +399,7 @@ void FormSummary::setupSuggestedTips(not_null<VerticalLayout*> layout) {
 		auto &button = state->buttons.back();
 		button.widget->show();
 		button.widget->setClickedCallback([=] {
-			_delegate->panelChangeTips(amount);
+			_delegate->panelChangeTips(selected ? 0 : amount);
 		});
 		button.minWidth = button.widget->width();
 		state->maxWidth = std::max(state->maxWidth, button.minWidth);
