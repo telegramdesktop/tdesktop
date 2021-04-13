@@ -1457,8 +1457,6 @@ void ParticipantsBoxController::rowActionClicked(
 base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) {
-	Expects(row->peer()->isUser());
-
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
 	const auto participant = row->peer();
@@ -1466,7 +1464,11 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
 	if (_navigation) {
 		result->addAction(
-			tr::lng_context_view_profile(tr::now),
+			(participant->isUser()
+				? tr::lng_context_view_profile
+				: participant->isBroadcast()
+				? tr::lng_context_view_channel
+				: tr::lng_context_view_group)(tr::now),
 			crl::guard(this, [=] {
 				_navigation->showPeerInfo(participant); }));
 	}
@@ -1493,7 +1495,7 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 				: tr::lng_context_promote_admin)(tr::now),
 			crl::guard(this, [=] { showAdmin(user); }));
 	}
-	if (_additional.canRestrictParticipant(participant)) {
+	if (user && _additional.canRestrictParticipant(participant)) {
 		const auto canRestrictWithoutKick = [&] {
 			if (const auto chat = _peer->asChat()) {
 				return chat->amCreator();
@@ -1506,7 +1508,7 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 				crl::guard(this, [=] { showRestricted(user); }));
 		}
 	}
-	if (_additional.canRemoveParticipant(participant)) {
+	if (user && _additional.canRemoveParticipant(participant)) {
 		if (!_additional.isKicked(participant)) {
 			const auto isGroup = _peer->isChat() || _peer->isMegagroup();
 			result->addAction(
