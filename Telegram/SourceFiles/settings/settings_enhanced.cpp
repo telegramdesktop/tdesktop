@@ -152,6 +152,20 @@ namespace Settings {
 		}, container->lifetime());
 
 		AddSkip(container);
+
+		AddButton(
+				inner,
+				tr::lng_settings_hide_classic_forward(),
+				st::settingsButton
+		)->toggleOn(
+				rpl::single(cHideClassicFwd())
+		)->toggledChanges(
+		) | rpl::filter([=](bool toggled) {
+			return (toggled != cHideClassicFwd());
+		}) | rpl::start_with_next([=](bool toggled) {
+			cSetHideClassicFwd(toggled);
+			EnhancedSettings::Write();
+		}, container->lifetime());
 	}
 
 	void SetupEnhancedButton(not_null<Ui::VerticalLayout *> container) {

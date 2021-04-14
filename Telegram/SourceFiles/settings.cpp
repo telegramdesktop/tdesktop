@@ -175,6 +175,7 @@ bool gShowEmojiButtonAsText = false;
 bool gShowRepeaterOption = false;
 bool gRepeaterReplyToOrigMsg = false;
 bool gDisableCloudDraftSync = false;
+bool gHideClassicFwd = false;
 bool gShowPhoneNumber = true;
 bool gShowScheduledButton = false;
 bool gRadioMode = false;

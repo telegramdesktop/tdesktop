@@ -233,6 +233,10 @@ namespace EnhancedSettings {
 			cSetDisableCloudDraftSync(v);
 		});
 
+		ReadBoolOption(settings, "hide_classic_fwd", [&](auto v) {
+			cSetHideClassicFwd(v);
+		});
+
 		ReadBoolOption(settings, "show_scheduled_button", [&](auto v) {
 			cSetShowScheduledButton(v);
 		});
@@ -285,6 +289,7 @@ namespace EnhancedSettings {
 		settings.insert(qsl("show_phone_number"), true);
 		settings.insert(qsl("repeater_reply_to_orig_msg"), false);
 		settings.insert(qsl("disable_cloud_draft_sync"), false);
+		settings.insert(qsl("hide_classic_fwd"), false);
 		settings.insert(qsl("show_scheduled_button"), false);
 		settings.insert(qsl("radio_mode"), false);
 		settings.insert(qsl("radio_controller"), "http://localhost:2468");
@@ -320,6 +325,7 @@ namespace EnhancedSettings {
 		settings.insert(qsl("show_phone_number"), cShowPhoneNumber());
 		settings.insert(qsl("repeater_reply_to_orig_msg"), cRepeaterReplyToOrigMsg());
 		settings.insert(qsl("disable_cloud_draft_sync"), cDisableCloudDraftSync());
+		settings.insert(qsl("hide_classic_fwd"), cHideClassicFwd());
 		settings.insert(qsl("show_scheduled_button"), cShowScheduledButton());
 		settings.insert(qsl("radio_mode"), cRadioMode());
 		settings.insert(qsl("radio_controller"), cRadioController());

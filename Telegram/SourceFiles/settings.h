@@ -173,6 +173,7 @@ DeclareSetting(bool, ShowEmojiButtonAsText);
 DeclareSetting(bool, ShowRepeaterOption);
 DeclareSetting(bool, RepeaterReplyToOrigMsg);
 DeclareSetting(bool, DisableCloudDraftSync);
+DeclareSetting(bool, HideClassicFwd);
 DeclareSetting(bool, ShowPhoneNumber);
 DeclareSetting(bool, ShowScheduledButton);
 DeclareSetting(bool, RadioMode);

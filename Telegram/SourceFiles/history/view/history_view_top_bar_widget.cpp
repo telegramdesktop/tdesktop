@@ -81,8 +81,10 @@ TopBarWidget::TopBarWidget(
 , _onlineUpdater([=] { updateOnlineDisplay(); }) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	_oldForward->setClickedCallback([=] { _oldForwardSelection.fire({}); });
-	_oldForward->setWidthChangedCallback([=] { updateControlsGeometry(); });
+	if (!cHideClassicFwd()) {
+		_oldForward->setClickedCallback([=] { _oldForwardSelection.fire({}); });
+		_oldForward->setWidthChangedCallback([=] { updateControlsGeometry(); });
+	}
 
 	Lang::Updated(
 	) | rpl::start_with_next([=] {
@@ -705,7 +707,12 @@ void TopBarWidget::updateControlsGeometry() {
 
 	auto widthLeft = qMin(width() - buttonsWidth, -2 * st::defaultActiveButton.width);
 	auto buttonFullWidth = qMin(-(widthLeft / 2), 0);
-	_oldForward->setFullWidth(buttonFullWidth);
+	if (!cHideClassicFwd()) {
+		_oldForward->show();
+		_oldForward->setFullWidth(buttonFullWidth);
+	} else {
+		_oldForward->hide();
+	}
 	_forward->setFullWidth(buttonFullWidth);
 	_forwardNoQuote->setFullWidth(buttonFullWidth);
 	_savedMessages->setFullWidth(buttonFullWidth);
@@ -714,9 +721,11 @@ void TopBarWidget::updateControlsGeometry() {
 
 	selectedButtonsTop += (height() - _forward->height()) / 2;
 
-	_oldForward->moveToLeft(buttonsLeft, selectedButtonsTop);
-	if (!_oldForward->isHidden()) {
-		buttonsLeft += _oldForward->width() + st::topBarActionSkip;
+	if (!cHideClassicFwd()) {
+		_oldForward->moveToLeft(buttonsLeft, selectedButtonsTop);
+		if (!_oldForward->isHidden()) {
+			buttonsLeft += _oldForward->width() + st::topBarActionSkip;
+		}
 	}
 
 	_forward->moveToLeft(buttonsLeft, selectedButtonsTop);
@@ -948,14 +957,18 @@ void TopBarWidget::showSelected(SelectedState state) {
 	auto wasSelected = (_selectedCount > 0);
 	_selectedCount = state.count;
 	if (_selectedCount > 0) {
-		_oldForward->setNumbersText(_selectedCount);
+		if (!cHideClassicFwd()) {
+			_oldForward->setNumbersText(_selectedCount);
+		}
 		_forward->setNumbersText(_selectedCount);
 		_forwardNoQuote->setNumbersText(_selectedCount);
 		_savedMessages->setNumbersText(_selectedCount);
 		_sendNow->setNumbersText(_selectedCount);
 		_delete->setNumbersText(_selectedCount);
 		if (!wasSelected) {
-			_oldForward->finishNumbersAnimation();
+			if (!cHideClassicFwd()) {
+				_oldForward->finishNumbersAnimation();
+			}
 			_forward->finishNumbersAnimation();
 			_forwardNoQuote->finishNumbersAnimation();
 			_savedMessages->finishNumbersAnimation();

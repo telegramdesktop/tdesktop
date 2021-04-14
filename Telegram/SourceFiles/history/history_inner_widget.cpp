@@ -1685,9 +1685,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (isUponSelected > 1) {
 			if (selectedState.count > 0 && selectedState.canForwardCount == selectedState.count) {
-				_menu->addAction(tr::lng_context_forward_msg_old_selected(tr::now), [=] {
-					_widget->oldForwardSelected();
-				});
+				if (!cHideClassicFwd()) {
+					_menu->addAction(tr::lng_context_forward_msg_old_selected(tr::now), [=] {
+						_widget->oldForwardSelected();
+					});
+				}
 				_menu->addAction(tr::lng_context_forward_selected(tr::now), [=] {
 					_widget->forwardSelected();
 				});
@@ -1870,9 +1872,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (isUponSelected > 1) {
 			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
-				_menu->addAction(tr::lng_context_forward_msg_old_selected(tr::now), [=] {
-					_widget->oldForwardSelected();
-				});
+				if (!cHideClassicFwd()) {
+					_menu->addAction(tr::lng_context_forward_msg_old_selected(tr::now), [=] {
+						_widget->oldForwardSelected();
+					});
+				}
 				_menu->addAction(tr::lng_context_forward_selected(tr::now), [=] {
 					_widget->forwardSelected();
 				});
