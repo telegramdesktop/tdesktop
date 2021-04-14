@@ -39,7 +39,6 @@ constexpr auto kPingSendAfterForce = 45 * crl::time(1000);
 constexpr auto kTemporaryExpiresIn = TimeId(86400);
 constexpr auto kBindKeyAdditionalExpiresTimeout = TimeId(30);
 constexpr auto kTestModeDcIdShift = 10000;
-constexpr auto kCheckSentRequestsEach = 1 * crl::time(1000);
 constexpr auto kKeyOldEnoughForDestroy = 60 * crl::time(1000);
 constexpr auto kSentContainerLives = 600 * crl::time(1000);
 constexpr auto kFastRequestDuration = crl::time(500);
@@ -163,13 +162,14 @@ SessionPrivate::SessionPrivate(
 , _waitForConnected(kMinConnectedTimeout)
 , _pingSender(thread, [=] { sendPingByTimer(); })
 , _checkSentRequestsTimer(thread, [=] { checkSentRequests(); })
+, _clearOldContainersTimer(thread, [=] { clearOldContainers(); })
 , _sessionData(std::move(data)) {
 	Expects(_shiftedDcId != 0);
 
 	moveToThread(thread);
 
 	InvokeQueued(this, [=] {
-		_checkSentRequestsTimer.callEach(kCheckSentRequestsEach);
+		_clearOldContainersTimer.callEach(kSentContainerLives);
 		connectToServer();
 	});
 }
@@ -246,41 +246,47 @@ int16 SessionPrivate::getProtocolDcId() const {
 }
 
 void SessionPrivate::checkSentRequests() {
-	clearOldContainers();
-
 	const auto now = crl::now();
-	if (_bindMsgId && _bindMessageSent + kCheckSentRequestTimeout < now) {
+	const auto checkTime = now - kCheckSentRequestTimeout;
+	if (_bindMsgId && _bindMessageSent < checkTime) {
 		DEBUG_LOG(("MTP Info: "
 			"Request state while key is not bound, restarting."));
 		restart();
+		_checkSentRequestsTimer.callOnce(kCheckSentRequestTimeout);
 		return;
 	}
 	auto requesting = false;
+	auto nextTimeout = kCheckSentRequestTimeout;
 	{
 		QReadLocker locker(_sessionData->haveSentMutex());
 		auto &haveSent = _sessionData->haveSentMap();
-		const auto haveSentCount = haveSent.size();
-		const auto checkAfter = kCheckSentRequestTimeout;
 		for (const auto &[msgId, request] : haveSent) {
-			if (request->lastSentTime + checkAfter < now) {
+			if (request->lastSentTime <= checkTime) {
 				// Need to check state.
 				request->lastSentTime = now;
 				if (_stateRequestData.emplace(msgId).second) {
 					requesting = true;
 				}
+			} else {
+				nextTimeout = std::min(request->lastSentTime - checkTime, nextTimeout);
 			}
 		}
 	}
 	if (requesting) {
 		_sessionData->queueSendAnything(kSendStateRequestWaiting);
 	}
+	if (nextTimeout < kCheckSentRequestTimeout) {
+		_checkSentRequestsTimer.callOnce(nextTimeout);
+	}
 }
 
 void SessionPrivate::clearOldContainers() {
 	auto resent = false;
+	auto nextTimeout = kSentContainerLives;
 	const auto now = crl::now();
+	const auto checkTime = now - kSentContainerLives;
 	for (auto i = _sentContainers.begin(); i != _sentContainers.end();) {
-		if (now > i->second.sent + kSentContainerLives) {
+		if (i->second.sent <= checkTime) {
 			DEBUG_LOG(("MTP Info: Removing old container with resending %1, "
 				"sent: %2, now: %3, current unixtime: %4"
 				).arg(i->first
@@ -296,11 +302,17 @@ void SessionPrivate::clearOldContainers() {
 				resend(innerMsgId, -1, true);
 			}
 		} else {
+			nextTimeout = std::min(i->second.sent - checkTime, nextTimeout);
 			++i;
 		}
 	}
 	if (resent) {
 		_sessionData->queueNeedToResumeAndSend();
+	}
+	if (nextTimeout < kSentContainerLives) {
+		_clearOldContainersTimer.callOnce(nextTimeout);
+	} else if (!_clearOldContainersTimer.isActive()) {
+		_clearOldContainersTimer.callEach(nextTimeout);
 	}
 }
 
@@ -683,6 +695,8 @@ void SessionPrivate::tryToSend() {
 	{
 		QWriteLocker locker1(_sessionData->toSendMutex());
 
+		auto scheduleCheckSentRequests = false;
+
 		auto toSendDummy = base::flat_map<mtpRequestId, SerializedRequest>();
 		auto &toSend = sendAll
 			? _sessionData->toSendMap()
@@ -748,6 +762,7 @@ void SessionPrivate::tryToSend() {
 					QWriteLocker locker2(_sessionData->haveSentMutex());
 					auto &haveSent = _sessionData->haveSentMap();
 					haveSent.emplace(msgId, toSendRequest);
+					scheduleCheckSentRequests = true;
 
 					const auto wrapLayer = needsLayer && toSendRequest->needsLayer;
 					if (toSendRequest->after) {
@@ -871,6 +886,7 @@ void SessionPrivate::tryToSend() {
 						//Assert(!haveSent.contains(msgId));
 						haveSent.emplace(msgId, request);
 						sentIdsWrap.messages.push_back(msgId);
+						scheduleCheckSentRequests = true;
 						needAnyResponse = true;
 					} else {
 						_ackedIds.emplace(msgId, request->requestId);
@@ -922,6 +938,10 @@ void SessionPrivate::tryToSend() {
 				bigMsgId,
 				forceNewMsgId);
 			_sentContainers.emplace(containerMsgId, std::move(sentIdsWrap));
+
+			if (scheduleCheckSentRequests && !_checkSentRequestsTimer.isActive()) {
+				_checkSentRequestsTimer.callOnce(kCheckSentRequestTimeout);
+			}
 		}
 	}
 	sendSecureRequest(std::move(toSendRequest), needAnyResponse);
