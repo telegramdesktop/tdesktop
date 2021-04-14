@@ -45,3 +45,4 @@
 41. Show/Hide/View pinned message
 42. Pin to top (Windows only)
 43. Pin older message with notify
+44. Remove all proxies

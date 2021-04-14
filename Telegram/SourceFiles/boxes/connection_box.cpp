@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/toast/toast.h"
@@ -34,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
+#include <mainwindow.h>
 
 namespace {
 
@@ -585,6 +587,29 @@ void ProxiesBox::prepare() {
 
 void ProxiesBox::setupContent() {
 	const auto inner = setInnerWidget(object_ptr<Ui::VerticalLayout>(this));
+
+	const auto top = addTopButton(st::infoTopBarMenu);
+	const auto share = [=] {
+		Global::SetProxiesList({});
+		Global::SetSelectedProxy(MTP::ProxyData());
+		Global::SetProxySettings(MTP::ProxyData::Settings::Disabled);
+		Core::App().refreshGlobalProxy();
+		Global::RefConnectionTypeChanged().notify();
+		Local::writeSettings();
+
+		closeBox();
+		Ui::show(ProxiesBoxController::CreateOwningBox(&App::wnd()->account()));
+	};
+	const auto menu =
+			std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
+	top->setClickedCallback([=] {
+		*menu = base::make_unique_q<Ui::PopupMenu>(top);
+		(*menu)->addAction(
+				tr::lng_proxy_remove_all(tr::now),
+				share);
+		(*menu)->popup(QCursor::pos());
+		return true;
+	});
 
 	_tryIPv6 = inner->add(
 		object_ptr<Ui::Checkbox>(
