@@ -1,14 +1,14 @@
-# Unofficial Telegram Desktop x64
+# 64Gram – Base on [Telegram Desktop](https://github.com/telegramdesktop/tdesktop)
 
 The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
 
-[![Preview of Telegram Desktop x64][preview_image]][preview_image_url]
+[![Preview of 64Gram][preview_image]][preview_image_url]
 
 ## Project Goal
 
 Provide Windows 64bit build with some enhancements. *(Linux/Mac build is a PLUS!)*
 
-Cause official Telegram Desktop do not provide Windows 64bit build, so [Project TDesktop x64](https://github.com/TDesktop-x64) is aimed at provide Windows native x64 build(with few enhancements) to everybody.
+~~Cause official Telegram Desktop do not provide Windows 64bit build, so [Project TDesktop x64](https://github.com/TDesktop-x64) is aimed at provide Windows native x64 build(with few enhancements) to everybody.~~
 
 ## Roadmap
 
@@ -21,6 +21,8 @@ Cause official Telegram Desktop do not provide Windows 64bit build, so [Project 
 Windows 7 and above
 
 Linux 64 bit
+
+macOS > 10.12 and above
 
 The latest version is available on the [Release](https://github.com/TDesktop-x64/tdesktop/releases) page.
 
