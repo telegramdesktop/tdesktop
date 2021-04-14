@@ -58,5 +58,5 @@ Then your language translation filename is `en.json` or something like that.
 [msvc_x64]: docs/building-msvc_x64.md
 [xcode]: docs/building-xcode.md
 [cmake]: docs/building-cmake.md
-[preview_image]: https://github.com/TDesktop-x64/tdesktop/blob/dev/docs/assets/preview.png "Preview of Telegram Desktop x64"
+[preview_image]: https://github.com/TDesktop-x64/tdesktop/blob/dev/docs/assets/preview.png "Preview of 64Gram Desktop"
 [preview_image_url]: https://raw.githubusercontent.com/TDesktop-x64/tdesktop/dev/docs/assets/preview.png

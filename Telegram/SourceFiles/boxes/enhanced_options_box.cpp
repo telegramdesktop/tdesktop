@@ -1,5 +1,5 @@
 /*
-This file is part of Telegram Desktop x64,
+This file is part of 64Gram Desktop,
 the unofficial app based on Telegram Desktop.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
