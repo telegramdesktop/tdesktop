@@ -218,6 +218,7 @@ private:
 	mtpMsgId _pingMsgId = 0;
 	base::Timer _pingSender;
 	base::Timer _checkSentRequestsTimer;
+	base::Timer _clearOldContainersTimer;
 
 	std::shared_ptr<SessionData> _sessionData;
 	std::unique_ptr<SessionOptions> _options;
