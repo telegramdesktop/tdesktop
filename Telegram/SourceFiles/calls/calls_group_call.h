@@ -146,6 +146,9 @@ public:
 	void startScheduledNow();
 	void toggleScheduleStartSubscribed(bool subscribed);
 
+	void addVideoOutput(uint32 ssrc, not_null<Webrtc::VideoTrack*> track);
+	[[nodiscard]] not_null<Webrtc::VideoTrack*> outgoingVideoTrack() const;
+
 	void setMuted(MuteState mute);
 	void setMutedAndUpdate(MuteState mute);
 	[[nodiscard]] MuteState muted() const {
@@ -190,6 +193,9 @@ public:
 
 	[[nodiscard]] rpl::producer<LevelUpdate> levelUpdates() const {
 		return _levelUpdates.events();
+	}
+	[[nodiscard]] rpl::producer<uint32> videoStreamUpdated() const {
+		return _videoStreamUpdated.events();
 	}
 	[[nodiscard]] rpl::producer<Group::RejoinEvent> rejoinEvents() const {
 		return _rejoinEvents.events();
@@ -294,6 +300,7 @@ private:
 		const Data::GroupCallParticipant &participant);
 	void addPreparedParticipants();
 	void addPreparedParticipantsDelayed();
+	void showVideoStreams(const std::vector<std::uint32_t> &ssrcs);
 
 	void editParticipant(
 		not_null<PeerData*> participantPeer,
@@ -351,6 +358,7 @@ private:
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
 	const std::unique_ptr<Webrtc::VideoTrack> _videoOutgoing;
 	rpl::event_stream<LevelUpdate> _levelUpdates;
+	rpl::event_stream<uint32> _videoStreamUpdated;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
 	rpl::event_stream<> _allowedToSpeakNotifications;

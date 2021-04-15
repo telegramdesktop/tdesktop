@@ -991,6 +991,18 @@ void GroupCall::toggleScheduleStartSubscribed(bool subscribed) {
 	}).send();
 }
 
+void GroupCall::addVideoOutput(
+		uint32 ssrc,
+		not_null<Webrtc::VideoTrack*> track) {
+	if (_instance) {
+		_instance->addIncomingVideoOutput(ssrc, track->sink());
+	}
+}
+
+not_null<Webrtc::VideoTrack*> GroupCall::outgoingVideoTrack() const {
+	return _videoOutgoing.get();
+}
+
 void GroupCall::setMuted(MuteState mute) {
 	const auto set = [=] {
 		const auto wasMuted = (muted() == MuteState::Muted)
@@ -1362,6 +1374,7 @@ void GroupCall::ensureControllerCreated() {
 
 	if (!_videoCapture) {
 		_videoCapture = _delegate->groupCallGetVideoCapture();
+		_videoOutgoing->setState(Webrtc::VideoState::Active);
 		_videoCapture->setOutput(_videoOutgoing->sink());
 	}
 
@@ -1394,6 +1407,15 @@ void GroupCall::ensureControllerCreated() {
 		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
 			settings.callAudioBackend()),
 		.videoCapture = _videoCapture,
+		//.getVideoSource = [=] {
+		//	return _videoCapture->
+		//},
+		.incomingVideoSourcesUpdated = [=](
+				const std::vector<uint32_t> &ssrcs) {
+			crl::on_main(weak, [=] {
+				showVideoStreams(ssrcs);
+			});
+		},
 		.participantDescriptionsRequired = [=](
 				const std::vector<uint32_t> &ssrcs) {
 			crl::on_main(weak, [=] {
@@ -1413,7 +1435,8 @@ void GroupCall::ensureControllerCreated() {
 				broadcastPartStart(std::move(result));
 			});
 			return result;
-		}
+		},
+		.enableVideo = true,
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
@@ -1540,6 +1563,12 @@ void GroupCall::requestParticipantsInformation(
 		prepareParticipantForAdding(*i);
 	}
 	addPreparedParticipants();
+}
+
+void GroupCall::showVideoStreams(const std::vector<std::uint32_t> &ssrcs) {
+	for (const auto ssrc : ssrcs) {
+		_videoStreamUpdated.fire_copy(ssrc);
+	}
 }
 
 void GroupCall::updateInstanceMuteState() {

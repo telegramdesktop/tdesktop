@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "window/window_controller.h" // Controller::sessionController.
 #include "window/window_session_controller.h"
+#include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
 
 namespace Calls::Group {
@@ -141,6 +142,9 @@ public:
 		return _raisedHandRating;
 	}
 
+	[[nodiscard]] not_null<Webrtc::VideoTrack*> createVideoTrack();
+	void setVideoTrack(not_null<Webrtc::VideoTrack*> track);
+
 	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
 	void stopLastActionRipple() override;
 
@@ -244,6 +248,9 @@ private:
 	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
 	std::unique_ptr<BlobsAnimation> _blobsAnimation;
 	std::unique_ptr<StatusIcon> _statusIcon;
+	std::unique_ptr<Webrtc::VideoTrack> _videoTrack;
+	Webrtc::VideoTrack *_videoTrackShown = nullptr;
+	rpl::lifetime _videoTrackLifetime; // #TODO calls move to unique_ptr.
 	Ui::Animations::Simple _speakingAnimation; // For gray-red/green icon.
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
@@ -635,6 +642,28 @@ void Row::ensureUserpicCache(
 auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	auto userpic = ensureUserpicView();
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
+		const auto videoSize = _videoTrackShown
+			? _videoTrackShown->frameSize()
+			: QSize();
+		if (!videoSize.isEmpty()) {
+			const auto resize = (videoSize.width() > videoSize.height())
+				? QSize(videoSize.width() * size / videoSize.height(), size)
+				: QSize(size, videoSize.height() * size / videoSize.width());
+			const auto request = Webrtc::FrameRequest{
+				.resize = resize,
+				.outer = QSize(size, size),
+			};
+			const auto frame = _videoTrackShown->frame(request);
+			auto copy = frame; // #TODO calls optimize.
+			copy.detach();
+			Images::prepareCircle(copy);
+			p.drawImage(x, y, copy);
+			_videoTrackShown->markFrameShown();
+			return;
+		} else if (_videoTrackShown) {
+			// We could skip the first notification.
+			_videoTrackShown->markFrameShown();
+		}
 		if (_blobsAnimation) {
 			const auto mutedByMe = (_state == State::MutedByMe);
 			const auto shift = QPointF(x + size / 2., y + size / 2.);
@@ -876,6 +905,27 @@ void Row::refreshStatus() {
 		_speaking);
 }
 
+not_null<Webrtc::VideoTrack*> Row::createVideoTrack() {
+	_videoTrackShown = nullptr;
+	_videoTrack = std::make_unique<Webrtc::VideoTrack>(
+		Webrtc::VideoState::Active);
+	setVideoTrack(_videoTrack.get());
+	return _videoTrack.get();
+}
+
+void Row::setVideoTrack(not_null<Webrtc::VideoTrack*> track) {
+	_videoTrackLifetime.destroy();
+	_videoTrackShown = track;
+	_videoTrackShown->renderNextFrame(
+	) | rpl::start_with_next([=] {
+		_delegate->rowUpdateRow(this);
+		if (_videoTrackShown->frameSize().isEmpty()) {
+			_videoTrackShown->markFrameShown();
+		}
+	}, _videoTrackLifetime);
+	_delegate->rowUpdateRow(this);
+}
+
 void Row::addActionRipple(QPoint point, Fn<void()> updateCallback) {
 	if (!_actionRipple) {
 		auto mask = Ui::RippleAnimation::ellipseMask(QSize(
@@ -977,6 +1027,20 @@ void MembersController::setupListChangeViewers() {
 		const auto i = _soundingRowBySsrc.find(update.ssrc);
 		if (i != end(_soundingRowBySsrc)) {
 			updateRowLevel(i->second, update.value);
+		}
+	}, _lifetime);
+
+	_call->videoStreamUpdated(
+	) | rpl::start_with_next([=](uint32 ssrc) {
+		const auto real = _call->lookupReal();
+		const auto participantPeer = real
+			? real->participantPeerByAudioSsrc(ssrc)
+			: nullptr;
+		const auto row = participantPeer
+			? findRow(participantPeer)
+			: nullptr;
+		if (row) {
+			_call->addVideoOutput(ssrc, row->createVideoTrack());
 		}
 	}, _lifetime);
 
@@ -1265,6 +1329,11 @@ void MembersController::updateRow(
 		if (nowSounding) {
 			Assert(nowSsrc != 0);
 			_soundingRowBySsrc.emplace(nowSsrc, row);
+		}
+		if (isMe(row->peer())) {
+			row->setVideoTrack(_call->outgoingVideoTrack());
+		} else if (nowSsrc) {
+			_call->addVideoOutput(nowSsrc, row->createVideoTrack());
 		}
 	}
 	const auto nowNoSounding = _soundingRowBySsrc.empty();
