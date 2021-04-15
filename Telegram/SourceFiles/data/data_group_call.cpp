@@ -186,9 +186,18 @@ bool GroupCall::participantsLoaded() const {
 	return _allParticipantsLoaded;
 }
 
-PeerData *GroupCall::participantPeerBySsrc(uint32 ssrc) const {
-	const auto i = _participantPeerBySsrc.find(ssrc);
-	return (i != end(_participantPeerBySsrc)) ? i->second.get() : nullptr;
+PeerData *GroupCall::participantPeerByAudioSsrc(uint32 ssrc) const {
+	const auto i = _participantPeerByAudioSsrc.find(ssrc);
+	return (i != end(_participantPeerByAudioSsrc))
+		? i->second.get()
+		: nullptr;
+}
+
+PeerData *GroupCall::participantPeerByVideoSsrc(uint32 ssrc) const {
+	const auto i = _participantPeerByVideoSsrc.find(ssrc);
+	return (i != end(_participantPeerByVideoSsrc))
+		? i->second.get()
+		: nullptr;
 }
 
 rpl::producer<> GroupCall::participantsSliceAdded() {
@@ -295,7 +304,8 @@ void GroupCall::processFullCallFields(const MTPphone_GroupCall &call) {
 		data.vcall().match([&](const MTPDgroupCall &data) {
 			_participants.clear();
 			_speakingByActiveFinishes.clear();
-			_participantPeerBySsrc.clear();
+			_participantPeerByAudioSsrc.clear();
+			_participantPeerByVideoSsrc.clear();
 			_allParticipantsLoaded = false;
 
 			applyParticipantsSlice(
@@ -488,7 +498,11 @@ void GroupCall::applyParticipantsSlice(
 					auto update = ParticipantUpdate{
 						.was = *i,
 					};
-					_participantPeerBySsrc.erase(i->ssrc);
+					_participantPeerByAudioSsrc.erase(i->ssrc);
+					const auto &all = VideoSourcesFromParams(i->videoParams);
+					for (const auto ssrc : all) {
+						_participantPeerByVideoSsrc.erase(ssrc);
+					}
 					_speakingByActiveFinishes.remove(participantPeer);
 					_participants.erase(i);
 					if (sliceSource != ApplySliceSource::SliceLoaded) {
@@ -557,17 +571,38 @@ void GroupCall::applyParticipantsSlice(
 				.onlyMinLoaded = onlyMinLoaded,
 			};
 			if (i == end(_participants)) {
-				_participantPeerBySsrc.emplace(value.ssrc, participantPeer);
+				_participantPeerByAudioSsrc.emplace(
+					value.ssrc,
+					participantPeer);
+				const auto &all = VideoSourcesFromParams(value.videoParams);
+				for (const auto ssrc : all) {
+					_participantPeerByVideoSsrc.emplace(
+						ssrc,
+						participantPeer);
+				}
 				_participants.push_back(value);
 				if (const auto user = participantPeer->asUser()) {
 					_peer->owner().unregisterInvitedToCallUser(_id, user);
 				}
 			} else {
 				if (i->ssrc != value.ssrc) {
-					_participantPeerBySsrc.erase(i->ssrc);
-					_participantPeerBySsrc.emplace(
+					_participantPeerByAudioSsrc.erase(i->ssrc);
+					_participantPeerByAudioSsrc.emplace(
 						value.ssrc,
 						participantPeer);
+				}
+				if (i->videoParams != value.videoParams) {
+					const auto &old = VideoSourcesFromParams(i->videoParams);
+					for (const auto ssrc : old) {
+						_participantPeerByVideoSsrc.erase(ssrc);
+					}
+					const auto &now = VideoSourcesFromParams(
+						value.videoParams);
+					for (const auto ssrc : now) {
+						_participantPeerByVideoSsrc.emplace(
+							ssrc,
+							participantPeer);
+					}
 				}
 				*i = value;
 			}
@@ -592,8 +627,8 @@ void GroupCall::applyLastSpoke(
 		uint32 ssrc,
 		LastSpokeTimes when,
 		crl::time now) {
-	const auto i = _participantPeerBySsrc.find(ssrc);
-	if (i == end(_participantPeerBySsrc)) {
+	const auto i = _participantPeerByAudioSsrc.find(ssrc);
+	if (i == end(_participantPeerByAudioSsrc)) {
 		_unknownSpokenSsrcs[ssrc] = when;
 		requestUnknownParticipants();
 		return;

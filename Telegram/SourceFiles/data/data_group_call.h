@@ -102,7 +102,8 @@ public:
 		-> const std::vector<Participant> &;
 	void requestParticipants();
 	[[nodiscard]] bool participantsLoaded() const;
-	[[nodiscard]] PeerData *participantPeerBySsrc(uint32 ssrc) const;
+	[[nodiscard]] PeerData *participantPeerByAudioSsrc(uint32 ssrc) const;
+	[[nodiscard]] PeerData *participantPeerByVideoSsrc(uint32 ssrc) const;
 
 	[[nodiscard]] rpl::producer<> participantsSliceAdded();
 	[[nodiscard]] rpl::producer<ParticipantUpdate> participantUpdated() const;
@@ -181,7 +182,8 @@ private:
 	std::optional<MTPphone_GroupCall> _savedFull;
 
 	std::vector<Participant> _participants;
-	base::flat_map<uint32, not_null<PeerData*>> _participantPeerBySsrc;
+	base::flat_map<uint32, not_null<PeerData*>> _participantPeerByAudioSsrc;
+	base::flat_map<uint32, not_null<PeerData*>> _participantPeerByVideoSsrc;
 	base::flat_map<not_null<PeerData*>, crl::time> _speakingByActiveFinishes;
 	base::Timer _speakingByActiveFinishTimer;
 	QString _nextOffset;

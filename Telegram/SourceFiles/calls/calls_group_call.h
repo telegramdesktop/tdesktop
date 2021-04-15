@@ -79,6 +79,8 @@ struct VideoParams;
 [[nodiscard]] std::shared_ptr<VideoParams> ParseVideoParams(
 	const QByteArray &json,
 	const std::shared_ptr<VideoParams> &existing);
+[[nodiscard]] const base::flat_set<uint32> &VideoSourcesFromParams(
+	const std::shared_ptr<VideoParams> &params);
 
 class GroupCall final : public base::has_weak_ptr {
 public:

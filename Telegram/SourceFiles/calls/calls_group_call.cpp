@@ -80,6 +80,7 @@ constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 
 struct VideoParams {
 	tgcalls::GroupParticipantDescription description;
+	base::flat_set<uint32> videoSsrcs;
 	uint32 hash = 0;
 };
 
@@ -148,7 +149,11 @@ std::shared_ptr<VideoParams> ParseVideoParams(
 	if (existing && existing->hash == hash) {
 		return existing;
 	}
-	const auto data = existing ? existing : std::make_shared<VideoParams>();
+	// We don't reuse existing pointer, that way we can compare pointers
+	// to see if anything was changed in video params.
+	const auto data = /*existing
+		? existing
+		: */std::make_shared<VideoParams>();
 	data->hash = hash;
 
 	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
@@ -181,7 +186,9 @@ std::shared_ptr<VideoParams> ParseVideoParams(
 			const auto list = inner.value("sources").toArray();
 			sources.reserve(list.size());
 			for (const auto &source : list) {
-				sources.push_back(uint32_t(source.toDouble()));
+				const auto ssrc = uint32_t(source.toDouble());
+				sources.push_back(ssrc);
+				data->videoSsrcs.emplace(ssrc);
 			}
 		}
 		data->description.videoSourceGroups.push_back({
@@ -209,16 +216,13 @@ std::shared_ptr<VideoParams> ParseVideoParams(
 		}
 		auto parameters = std::vector<std::pair<std::string, std::string>>();
 		{
-			const auto list = inner.value("parameters").toArray();
+			const auto list = inner.value("parameters").toObject();
 			parameters.reserve(list.size());
-			for (const auto &parameter : list) {
-				const auto inside = parameter.toObject();
-				for (auto i = inside.begin(); i != inside.end(); ++i) {
-					parameters.push_back({
-						i.key().toStdString(),
-						i.value().toString().toStdString(),
-					});
-				}
+			for (auto i = list.begin(); i != list.end(); ++i) {
+				parameters.push_back({
+					i.key().toStdString(),
+					i.value().toString().toStdString(),
+				});
 			}
 		}
 		data->description.videoPayloadTypes.push_back({
@@ -242,6 +246,14 @@ std::shared_ptr<VideoParams> ParseVideoParams(
 	}
 
 	return data;
+}
+
+const base::flat_set<uint32> &VideoSourcesFromParams(
+		const std::shared_ptr<VideoParams> &params) {
+	static const auto kEmpty = base::flat_set<uint32>();
+	return (params && !params->videoSsrcs.empty())
+		? params->videoSsrcs
+		: kEmpty;
 }
 
 GroupCall::LoadPartTask::LoadPartTask(
@@ -544,13 +556,18 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 			const auto &now = *update.now;
 			const auto &was = update.was;
 			const auto volumeChanged = was
-				? (was->volume != now.volume || was->mutedByMe != now.mutedByMe)
+				? (was->volume != now.volume
+					|| was->mutedByMe != now.mutedByMe)
 				: (now.volume != Group::kDefaultVolume || now.mutedByMe);
-			if (now.videoParams) {
-				auto participants = std::vector<tgcalls::GroupParticipantDescription>();
-				participants.push_back(now.videoParams->description);
-				participants.back().audioSsrc = now.ssrc;
-				_instance->addParticipants(std::move(participants));
+			if (now.videoParams
+				&& now.ssrc
+				&& (!was
+					|| was->videoParams != now.videoParams
+					|| was->ssrc != now.ssrc)
+				&& (now.peer != _joinAs)
+				&& (_instanceMode != InstanceMode::None)) {
+				prepareParticipantForAdding(now);
+				addPreparedParticipantsDelayed();
 			}
 
 			if (volumeChanged) {
@@ -1113,6 +1130,8 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 		}
 		setInstanceMode(InstanceMode::Rtc);
 		_instance->setJoinResponsePayload(payload, {});
+
+		addParticipantsToInstance();
 	});
 }
 
@@ -1143,6 +1162,11 @@ void GroupCall::prepareParticipantForAdding(
 	auto &added = _preparedParticipants.back();
 	added.audioSsrc = participant.ssrc;
 	_unresolvedSsrcs.remove(added.audioSsrc);
+	for (const auto &group : added.videoSourceGroups) {
+		for (const auto ssrc : group.ssrcs) {
+			_unresolvedSsrcs.remove(ssrc);
+		}
+	}
 }
 
 void GroupCall::addPreparedParticipants() {
@@ -1499,7 +1523,10 @@ void GroupCall::requestParticipantsInformation(
 
 	const auto &existing = real->participants();
 	for (const auto ssrc : ssrcs) {
-		const auto participantPeer = real->participantPeerBySsrc(ssrc);
+		const auto byAudio = real->participantPeerByAudioSsrc(ssrc);
+		const auto participantPeer = byAudio
+			? byAudio
+			: real->participantPeerByVideoSsrc(ssrc);
 		if (!participantPeer) {
 			_unresolvedSsrcs.emplace(ssrc);
 			continue;
