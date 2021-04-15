@@ -69,8 +69,7 @@ public:
 	bool activateCurrentCall(const QString &joinHash = QString());
 	bool minimizeCurrentActiveCall();
 	bool closeCurrentActiveCall();
-	auto getVideoCapture()
-		-> std::shared_ptr<tgcalls::VideoCaptureInterface> override;
+	std::shared_ptr<tgcalls::VideoCaptureInterface> getVideoCapture();
 	void requestPermissionsOrFail(Fn<void()> onSuccess, bool video = true);
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
@@ -103,6 +102,8 @@ private:
 		requestPermissionsOrFail(std::move(onSuccess), video);
 	}
 	void callPlaySound(CallSound sound) override;
+	auto callGetVideoCapture()
+		->std::shared_ptr<tgcalls::VideoCaptureInterface> override;
 
 	void groupCallFinished(not_null<GroupCall*> call) override;
 	void groupCallFailed(not_null<GroupCall*> call) override;
@@ -110,6 +111,8 @@ private:
 		requestPermissionsOrFail(std::move(onSuccess), false);
 	}
 	void groupCallPlaySound(GroupCallSound sound) override;
+	auto groupCallGetVideoCapture()
+		->std::shared_ptr<tgcalls::VideoCaptureInterface> override;
 
 	void createCall(not_null<UserData*> user, Call::Type type, bool video);
 	void destroyCall(not_null<Call*> call);

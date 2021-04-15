@@ -380,7 +380,7 @@ void Call::setupOutgoingVideo() {
 			// Paused not supported right now.
 			Assert(state == Webrtc::VideoState::Active);
 			if (!_videoCapture) {
-				_videoCapture = _delegate->getVideoCapture();
+				_videoCapture = _delegate->callGetVideoCapture();
 				_videoCapture->setOutput(_videoOutgoing->sink());
 			}
 			if (_instance) {

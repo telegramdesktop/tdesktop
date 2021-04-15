@@ -13,6 +13,10 @@ class PeerData;
 
 class ApiWrap;
 
+namespace Calls {
+struct VideoParams;
+} // namespace Calls
+
 namespace Data {
 
 struct LastSpokeTimes {
@@ -22,6 +26,7 @@ struct LastSpokeTimes {
 
 struct GroupCallParticipant {
 	not_null<PeerData*> peer;
+	std::shared_ptr<Calls::VideoParams> videoParams;
 	TimeId date = 0;
 	TimeId lastActive = 0;
 	uint64 raisedHandRating = 0;
@@ -131,6 +136,7 @@ private:
 		SliceLoaded,
 		UnknownLoaded,
 		UpdateReceived,
+		UpdateConstructed,
 	};
 	enum class QueuedType : uint8 {
 		VersionedParticipant,

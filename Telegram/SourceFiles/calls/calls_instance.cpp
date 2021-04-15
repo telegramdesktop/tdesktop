@@ -592,6 +592,14 @@ void Instance::requestPermissionOrFail(Platform::PermissionType type, Fn<void()>
 	}
 }
 
+std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::callGetVideoCapture() {
+	return getVideoCapture();
+}
+
+std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::groupCallGetVideoCapture() {
+	return getVideoCapture();
+}
+
 std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::getVideoCapture() {
 	if (auto result = _videoCapture.lock()) {
 		return result;

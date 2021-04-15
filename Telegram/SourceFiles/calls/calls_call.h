@@ -72,7 +72,7 @@ public:
 			Fn<void()> onSuccess,
 			bool video) = 0;
 
-		virtual auto getVideoCapture()
+		virtual auto callGetVideoCapture()
 			-> std::shared_ptr<tgcalls::VideoCaptureInterface> = 0;
 
 		virtual ~Delegate() = default;

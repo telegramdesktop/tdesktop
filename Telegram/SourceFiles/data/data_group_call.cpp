@@ -343,7 +343,7 @@ void GroupCall::applyLocalUpdate(
 		const MTPDupdateGroupCallParticipants &update) {
 	applyParticipantsSlice(
 		update.vparticipants().v,
-		ApplySliceSource::UpdateReceived);
+		ApplySliceSource::UpdateConstructed);
 }
 
 void GroupCall::applyEnqueuedUpdate(const MTPUpdate &update) {
@@ -529,8 +529,21 @@ void GroupCall::applyParticipantsSlice(
 				&& (!was || was->onlyMinLoaded);
 			const auto raisedHandRating
 				= data.vraise_hand_rating().value_or_empty();
+			const auto hasVideoParamsInformation = (sliceSource
+				!= ApplySliceSource::UpdateConstructed);
 			const auto value = Participant{
 				.peer = participantPeer,
+				.videoParams = (hasVideoParamsInformation
+					? Calls::ParseVideoParams(
+						(data.vparams()
+							? data.vparams()->c_dataJSON().vdata().v
+							: QByteArray()),
+						(i != end(_participants)
+							? i->videoParams
+							: nullptr))
+					: (i != end(_participants))
+					? i->videoParams
+					: nullptr),
 				.date = data.vdate().v,
 				.lastActive = lastActive,
 				.raisedHandRating = raisedHandRating,

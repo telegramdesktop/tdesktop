@@ -20,6 +20,7 @@ class GroupInstanceCustomImpl;
 struct GroupLevelsUpdate;
 struct GroupNetworkState;
 struct GroupParticipantDescription;
+class VideoCaptureInterface;
 } // namespace tgcalls
 
 namespace base {
@@ -29,6 +30,7 @@ class GlobalShortcutValue;
 
 namespace Webrtc {
 class MediaDevices;
+class VideoTrack;
 } // namespace Webrtc
 
 namespace Data {
@@ -72,6 +74,12 @@ struct LevelUpdate {
 	bool me = false;
 };
 
+struct VideoParams;
+
+[[nodiscard]] std::shared_ptr<VideoParams> ParseVideoParams(
+	const QByteArray &json,
+	const std::shared_ptr<VideoParams> &existing);
+
 class GroupCall final : public base::has_weak_ptr {
 public:
 	class Delegate {
@@ -90,6 +98,8 @@ public:
 			Ended,
 		};
 		virtual void groupCallPlaySound(GroupCallSound sound) = 0;
+		virtual auto groupCallGetVideoCapture()
+			-> std::shared_ptr<tgcalls::VideoCaptureInterface> = 0;
 	};
 
 	using GlobalShortcutManager = base::GlobalShortcutManager;
@@ -336,6 +346,8 @@ private:
 	mtpRequestId _updateMuteRequestId = 0;
 
 	std::unique_ptr<tgcalls::GroupInstanceCustomImpl> _instance;
+	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
+	const std::unique_ptr<Webrtc::VideoTrack> _videoOutgoing;
 	rpl::event_stream<LevelUpdate> _levelUpdates;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
