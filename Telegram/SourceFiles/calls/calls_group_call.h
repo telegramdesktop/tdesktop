@@ -209,6 +209,10 @@ public:
 	static constexpr auto kSpeakLevelThreshold = 0.2;
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
+	void setCurrentVideoDevice(const QString &deviceId);
+	bool isScreenSharing() const;
+	void switchToCamera();
+	void switchToScreenSharing();
 	//void setAudioVolume(bool input, float level);
 	void setAudioDuckingEnabled(bool enabled);
 
@@ -314,6 +318,9 @@ private:
 	void applySelfUpdate(const MTPDgroupCallParticipant &data);
 	void applyOtherParticipantUpdate(const MTPDgroupCallParticipant &data);
 
+	void setupMediaDevices();
+	void setupOutgoingVideo();
+
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
 	const not_null<Delegate*> _delegate;
@@ -377,6 +384,8 @@ private:
 	std::unique_ptr<Webrtc::MediaDevices> _mediaDevices;
 	QString _audioInputId;
 	QString _audioOutputId;
+	QString _videoInputId;
+	QString _videoDeviceId;
 
 	rpl::lifetime _lifetime;
 

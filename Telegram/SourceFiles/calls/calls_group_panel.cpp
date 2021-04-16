@@ -673,7 +673,12 @@ void Panel::refreshLeftButton() {
 		_share.destroy();
 		_settings.create(widget(), st::groupCallSettings);
 		_settings->setClickedCallback([=] {
-			_layerBg->showBox(Box(SettingsBox, _call));
+			if (_call->isScreenSharing()) {
+				_call->switchToCamera();
+			} else {
+				_call->switchToScreenSharing();
+			}
+			//_layerBg->showBox(Box(SettingsBox, _call));
 		});
 		_settings->setText(tr::lng_group_call_settings());
 	}

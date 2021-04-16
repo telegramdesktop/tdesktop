@@ -368,6 +368,9 @@ GroupCall::GroupCall(
 			_realChanges.fire_copy(real);
 		}, _lifetime);
 	}
+
+	setupMediaDevices();
+
 	if (_id) {
 		join(inputCall);
 	} else {
@@ -376,26 +379,31 @@ GroupCall::GroupCall(
 	if (_scheduleDate) {
 		saveDefaultJoinAs(_joinAs);
 	}
-
-	_mediaDevices->audioInputId(
-	) | rpl::start_with_next([=](QString id) {
-		_audioInputId = id;
-		if (_instance) {
-			_instance->setAudioInputDevice(id.toStdString());
-		}
-	}, _lifetime);
-
-	_mediaDevices->audioOutputId(
-	) | rpl::start_with_next([=](QString id) {
-		_audioOutputId = id;
-		if (_instance) {
-			_instance->setAudioOutputDevice(id.toStdString());
-		}
-	}, _lifetime);
 }
 
 GroupCall::~GroupCall() {
 	destroyController();
+	switchToCamera();
+}
+
+bool GroupCall::isScreenSharing() const {
+	return (_videoDeviceId != _videoInputId);
+}
+
+void GroupCall::switchToCamera() {
+	if (!_videoCapture || !isScreenSharing()) {
+		return;
+	}
+	_videoDeviceId = _videoInputId;
+	_videoCapture->switchToDevice(_videoDeviceId.toStdString());
+}
+
+void GroupCall::switchToScreenSharing() {
+	if (isScreenSharing()) {
+		return;
+	}
+	_videoDeviceId = "desktop_capturer_";
+	_videoCapture->switchToDevice(_videoDeviceId.toStdString());
 }
 
 void GroupCall::setScheduledDate(TimeId date) {
@@ -1322,6 +1330,41 @@ void GroupCall::applyOtherParticipantUpdate(
 	});
 }
 
+void GroupCall::setupMediaDevices() {
+	_mediaDevices->audioInputId(
+	) | rpl::start_with_next([=](QString id) {
+		_audioInputId = id;
+		if (_instance) {
+			_instance->setAudioInputDevice(id.toStdString());
+		}
+	}, _lifetime);
+
+	_mediaDevices->audioOutputId(
+	) | rpl::start_with_next([=](QString id) {
+		_audioOutputId = id;
+		if (_instance) {
+			_instance->setAudioOutputDevice(id.toStdString());
+		}
+	}, _lifetime);
+
+	_mediaDevices->videoInputId(
+	) | rpl::start_with_next([=](QString id) {
+		const auto usedCamera = !isScreenSharing();
+		_videoInputId = id;
+		if (_videoCapture && usedCamera) {
+			_videoCapture->switchToDevice(_videoDeviceId.toStdString());
+		}
+	}, _lifetime);
+	setupOutgoingVideo();
+}
+
+void GroupCall::setupOutgoingVideo() {
+	_videoCapture = _delegate->groupCallGetVideoCapture();
+	_videoOutgoing->setState(Webrtc::VideoState::Active);
+	_videoCapture->setOutput(_videoOutgoing->sink());
+	_videoDeviceId = _videoInputId;
+}
+
 void GroupCall::changeTitle(const QString &title) {
 	const auto real = lookupReal();
 	if (!real || real->title() == title) {
@@ -1371,12 +1414,6 @@ void GroupCall::ensureControllerCreated() {
 		return;
 	}
 	const auto &settings = Core::App().settings();
-
-	if (!_videoCapture) {
-		_videoCapture = _delegate->groupCallGetVideoCapture();
-		_videoOutgoing->setState(Webrtc::VideoState::Active);
-		_videoCapture->setOutput(_videoOutgoing->sink());
-	}
 
 	const auto weak = base::make_weak(this);
 	const auto myLevel = std::make_shared<tgcalls::GroupLevelValue>();
@@ -1819,6 +1856,10 @@ void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
 	} else {
 		_mediaDevices->switchToAudioOutput(deviceId);
 	}
+}
+
+void GroupCall::setCurrentVideoDevice(const QString &deviceId) {
+	_mediaDevices->switchToVideoInput(deviceId);
 }
 
 void GroupCall::toggleMute(const Group::MuteRequest &data) {

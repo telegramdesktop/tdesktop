@@ -56,6 +56,19 @@ PRIVATE
     VideoCaptureInterfaceImpl.h
     VideoCapturerInterface.h
 
+    # Desktop capturer
+    desktop_capturer/DesktopCaptureSource.h
+    desktop_capturer/DesktopCaptureSource.mm
+    desktop_capturer/DesktopCaptureSourceHelper.h
+    desktop_capturer/DesktopCaptureSourceHelper.mm
+    desktop_capturer/DesktopCaptureSourceManager.h
+    desktop_capturer/DesktopCaptureSourceManager.mm
+    desktop_capturer/DesktopCaptureSourceView.h
+    desktop_capturer/DesktopCaptureSourceView.mm
+    desktop_capturer/DesktopSharingCapturer.h
+    desktop_capturer/DesktopSharingCapturer.mm
+
+    # Group calls
     group/GroupInstanceCustomImpl.cpp
     group/GroupInstanceCustomImpl.h
     group/GroupNetworkManager.cpp
@@ -80,6 +93,8 @@ PRIVATE
     platform/darwin/DarwinInterface.mm
     platform/darwin/GLVideoView.h
     platform/darwin/GLVideoView.mm
+    platform/darwin/GLVideoViewMac.h
+    platform/darwin/GLVideoViewMac.mm
     platform/darwin/TGRTCCVPixelBuffer.h
     platform/darwin/TGRTCCVPixelBuffer.mm
     platform/darwin/TGRTCDefaultVideoDecoderFactory.h
@@ -108,6 +123,8 @@ PRIVATE
     # POSIX
 
     # Teleram Desktop
+    platform/tdesktop/DesktopCapturer.cpp
+    platform/tdesktop/DesktopCapturer.h
     platform/tdesktop/DesktopInterface.cpp
     platform/tdesktop/DesktopInterface.h
     platform/tdesktop/VideoCapturerInterfaceImpl.cpp
@@ -120,6 +137,19 @@ PRIVATE
     # All
     reference/InstanceImplReference.cpp
     reference/InstanceImplReference.h
+)
+
+remove_target_sources(lib_tgcalls ${tgcalls_loc}
+    desktop_capturer/DesktopCaptureSource.h
+    desktop_capturer/DesktopCaptureSource.mm
+    desktop_capturer/DesktopCaptureSourceHelper.h
+    desktop_capturer/DesktopCaptureSourceHelper.mm
+    desktop_capturer/DesktopCaptureSourceManager.h
+    desktop_capturer/DesktopCaptureSourceManager.mm
+    desktop_capturer/DesktopCaptureSourceView.h
+    desktop_capturer/DesktopCaptureSourceView.mm
+    desktop_capturer/DesktopSharingCapturer.h
+    desktop_capturer/DesktopSharingCapturer.mm
 )
 
 target_link_libraries(lib_tgcalls
@@ -152,6 +182,8 @@ elseif (APPLE)
     remove_target_sources(lib_tgcalls ${tgcalls_loc}
         platform/darwin/GLVideoView.h
         platform/darwin/GLVideoView.mm
+        platform/darwin/GLVideoViewMac.h
+        platform/darwin/GLVideoViewMac.mm
         platform/darwin/VideoCameraCapturer.h
         platform/darwin/VideoCameraCapturer.mm
         platform/darwin/VideoMetalView.h
