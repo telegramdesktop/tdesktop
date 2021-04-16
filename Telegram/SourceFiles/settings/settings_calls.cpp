@@ -154,7 +154,9 @@ void Calls::setupContent() {
 		track->renderNextFrame(
 		) | rpl::start_with_next([=] {
 			const auto size = track->frameSize();
-			if (size.isEmpty() || Core::App().calls().currentCall()) {
+			if (size.isEmpty()
+				|| Core::App().calls().currentCall()
+				|| Core::App().calls().currentGroupCall()) {
 				return;
 			}
 			const auto width = bubbleWrap->width();
@@ -166,9 +168,13 @@ void Calls::setupContent() {
 			bubbleWrap->update();
 		}, bubbleWrap->lifetime());
 
-		Core::App().calls().currentCallValue(
-		) | rpl::start_with_next([=](::Calls::Call *value) {
-			if (value) {
+		using namespace rpl::mappers;
+		rpl::combine(
+			Core::App().calls().currentCallValue(),
+			Core::App().calls().currentGroupCallValue(),
+			_1 || _2
+		) | rpl::start_with_next([=](bool has) {
+			if (has) {
 				track->setState(VideoState::Inactive);
 				bubbleWrap->resize(bubbleWrap->width(), 0);
 			} else {
