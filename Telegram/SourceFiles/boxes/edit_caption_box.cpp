@@ -486,13 +486,13 @@ void EditCaptionBox::handleStreamingError(Error &&error) {
 }
 
 void EditCaptionBox::streamingReady(Information &&info) {
-	const auto calculateGifDimensions = [&]() {
+	const auto calculateGifDimensions = [&] {
 		const auto scaled = QSize(
 			info.video.size.width(),
 			info.video.size.height()
 		).scaled(
-			st::sendMediaPreviewSize * cIntRetinaFactor(),
-			st::confirmMaxHeight * cIntRetinaFactor(),
+			st::sendMediaPreviewSize,
+			st::confirmMaxHeight,
 			Qt::KeepAspectRatio);
 		_thumbw = _gifw = scaled.width();
 		_thumbh = _gifh = scaled.height();
