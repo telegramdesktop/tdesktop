@@ -131,6 +131,9 @@ QString FillAmountAndCurrency(
 		int64 amount,
 		const QString &currency,
 		bool forceStripDotZero) {
+	// std::abs doesn't work on that one :/
+	Expects(amount != std::numeric_limits<int64>::min());
+
 	const auto rule = LookupCurrencyRule(currency);
 
 	const auto prefix = (amount < 0)
