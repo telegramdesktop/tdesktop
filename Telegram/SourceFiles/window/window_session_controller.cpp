@@ -593,6 +593,35 @@ void SessionController::refreshFiltersMenu() {
 	toggleFiltersMenu(!session().data().chatsFilters().list().empty());
 }
 
+void SessionController::reloadFiltersMenu() {
+	const auto enabled = !session().data().chatsFilters().list().empty();
+	if (enabled) {
+		auto previousFilter = activeChatsFilterCurrent();
+		rpl::single(
+			rpl::empty_value()
+		) | rpl::then(
+			filtersMenuChanged()
+		) | rpl::start_with_next([=] {
+			toggleFiltersMenu(true);
+			if (previousFilter) {
+				if (activeChatsFilterCurrent() != previousFilter) {
+					resetFakeUnreadWhileOpened();
+				}
+				_activeChatsFilter.force_assign(previousFilter);
+				if (previousFilter) {
+					closeFolder();
+				}
+			}
+		}, lifetime());
+
+		if (activeChatsFilterCurrent() != 0) {
+			resetFakeUnreadWhileOpened();
+		}
+		_activeChatsFilter.force_assign(0);
+		toggleFiltersMenu(false);
+	}
+}
+
 rpl::producer<> SessionController::filtersMenuChanged() const {
 	return _filtersMenuChanged.events();
 }

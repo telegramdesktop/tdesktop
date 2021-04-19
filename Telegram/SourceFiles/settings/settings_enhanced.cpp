@@ -6,6 +6,7 @@ https://github.com/TDesktop-x64/tdesktop/blob/dev/LEGAL
 */
 #include <base/timer_rpl.h>
 #include <ui/toast/toast.h>
+#include <mainwindow.h>
 #include "settings/settings_enhanced.h"
 
 #include "settings/settings_common.h"
@@ -291,6 +292,36 @@ namespace Settings {
 		AddSkip(container);
 	}
 
+	void SetupEnhancedOthers(not_null<Window::SessionController*> controller, not_null<Ui::VerticalLayout *> container) {
+		AddDivider(container);
+		AddSkip(container);
+		AddSubsectionTitle(container, tr::lng_settings_other());
+
+		const auto wrap = container->add(
+				object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+						container,
+						object_ptr<Ui::VerticalLayout>(container)));
+		const auto inner = wrap->entity();
+
+		AddButton(
+				container,
+				tr::lng_settings_hide_all_chats(),
+				st::settingsButton
+		)->toggleOn(
+				rpl::single(cHideFilterAllChats())
+		)->toggledValue(
+		) | rpl::filter([](bool enabled) {
+			return (enabled != cHideFilterAllChats());
+		}) | rpl::start_with_next([=](bool enabled) {
+			cSetHideFilterAllChats(enabled);
+			EnhancedSettings::Write();
+			controller->reloadFiltersMenu();
+			App::wnd()->fixOrder();
+		}, container->lifetime());
+
+		AddSkip(container);
+	}
+
 	Enhanced::Enhanced(
 			QWidget *parent,
 			not_null<Window::SessionController *> controller)
@@ -305,6 +336,7 @@ namespace Settings {
 		SetupEnhancedMessages(content);
 		SetupEnhancedButton(content);
 		SetupEnhancedVoiceChat(content);
+		SetupEnhancedOthers(controller, content);
 
 		Ui::ResizeFitChild(this, content);
 	}

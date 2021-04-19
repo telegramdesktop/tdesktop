@@ -23,6 +23,8 @@
     "lng_settings_radio_mode": "Radio mode",
     "lng_settings_radio_controller": "Radio controller",
     "lng_settings_auto_unmute": "Auto unmute",
+    "lng_settings_other": "Other",
+    "lng_settings_hide_all_chats": "Hide \"All chats\" folder",
     "lng_settings_restart_hint": "WARNING: Changing options that are colored in red will take effect only after the app restarts.",
 
     "lng_net_speed_boost_title": "Network speed boost",

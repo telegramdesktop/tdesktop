@@ -178,6 +178,7 @@ bool gDisableCloudDraftSync = false;
 bool gHideClassicFwd = false;
 bool gShowPhoneNumber = true;
 bool gShowScheduledButton = false;
+bool gHideFilterAllChats = false;
 bool gRadioMode = false;
 bool gAutoUnmute = false;
 QString gRadioController;

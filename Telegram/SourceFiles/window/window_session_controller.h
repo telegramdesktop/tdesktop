@@ -371,6 +371,7 @@ public:
 
 	void toggleFiltersMenu(bool enabled);
 	[[nodiscard]] rpl::producer<> filtersMenuChanged() const;
+	void reloadFiltersMenu();
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;

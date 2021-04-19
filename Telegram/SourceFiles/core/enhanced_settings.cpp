@@ -265,6 +265,10 @@ namespace EnhancedSettings {
 			}
 		});
 
+		ReadBoolOption(settings, "hide_all_chats", [&](auto v) {
+			cSetHideFilterAllChats(v);
+		});
+
 		return true;
 	}
 
@@ -295,6 +299,7 @@ namespace EnhancedSettings {
 		settings.insert(qsl("radio_controller"), "http://localhost:2468");
 		settings.insert(qsl("auto_unmute"), false);
 		settings.insert(qsl("bitrate"), 0);
+		settings.insert(qsl("hide_all_chats"), false);
 
 		auto document = QJsonDocument();
 		document.setObject(settings);
@@ -331,6 +336,7 @@ namespace EnhancedSettings {
 		settings.insert(qsl("radio_controller"), cRadioController());
 		settings.insert(qsl("auto_unmute"), cAutoUnmute());
 		settings.insert(qsl("bitrate"), cVoiceChatBitrate());
+		settings.insert(qsl("hide_all_chats"), cHideFilterAllChats());
 
 		auto document = QJsonDocument();
 		document.setObject(settings);

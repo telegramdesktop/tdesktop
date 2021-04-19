@@ -118,7 +118,7 @@ void FiltersMenu::setup() {
 		const auto i = _filters.find(_activeFilterId);
 		if (i != end(_filters)) {
 			i->second->setActive(false);
-		} else if (!_activeFilterId) {
+		} else if (!_activeFilterId && _all) {
 			_all->setActive(false);
 		}
 		_activeFilterId = id;
@@ -126,7 +126,7 @@ void FiltersMenu::setup() {
 		if (j != end(_filters)) {
 			j->second->setActive(true);
 			scrollToButton(j->second);
-		} else if (!_activeFilterId) {
+		} else if (!_activeFilterId && _all) {
 			_all->setActive(true);
 			scrollToButton(_all);
 		}
@@ -206,15 +206,22 @@ void FiltersMenu::refresh() {
 	// so we have to restore it.
 	_scroll.scrollToY(oldTop);
 	const auto i = _filters.find(_activeFilterId);
-	scrollToButton((i != end(_filters)) ? i->second : _all);
+	//scrollToButton((i != end(_filters)) ? i->second : _all);
+	if (i != end(_filters)) {
+		scrollToButton(i->second);
+	} else if (!cHideFilterAllChats()) {
+		scrollToButton(_all);
+	}
 }
 
 void FiltersMenu::setupList() {
-	_all = prepareButton(
-		_container,
-		0,
-		tr::lng_filters_all(tr::now),
-		Ui::FilterIcon::All);
+	if (!cHideFilterAllChats()) {
+		_all = prepareButton(
+			_container,
+			0,
+			tr::lng_filters_all(tr::now),
+			Ui::FilterIcon::All);
+	}
 	_list = _container->add(object_ptr<Ui::VerticalLayout>(_container));
 	_setup = prepareButton(
 		_container,
