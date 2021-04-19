@@ -216,12 +216,6 @@ InnerWidget::InnerWidget(
 		refresh();
 	}, lifetime());
 
-	subscribe(Window::Theme::Background(), [=](const Window::Theme::BackgroundUpdate &data) {
-		if (data.paletteChanged()) {
-			Layout::clearUnreadBadgesCache();
-		}
-	});
-
 	session().changes().historyUpdates(
 		Data::HistoryUpdate::Flag::IsPinned
 		| Data::HistoryUpdate::Flag::ChatOccupied
