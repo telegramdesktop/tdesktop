@@ -253,7 +253,7 @@ void Panel::initWindow() {
 	_window->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Close) {
-			handleClose();
+			//handleClose();
 		} else if (e->type() == QEvent::KeyPress) {
 			if ((static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Escape)
 				&& _window->isFullScreen()) {
