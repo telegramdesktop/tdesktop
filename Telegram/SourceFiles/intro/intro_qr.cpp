@@ -129,6 +129,7 @@ namespace {
 			size.height());
 		const auto radius = st::introQrBackgroundRadius;
 		const auto skip = st::introQrBackgroundSkip;
+		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(Qt::white);
 		p.drawRoundedRect(
