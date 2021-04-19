@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/cache/storage_cache_types.h"
 #include "base/qt_adapters.h"
+#include "base/weak_ptr.h"
 
 #include <QtNetwork/QAuthenticator>
 
@@ -51,7 +52,7 @@ struct UpdateForLoader {
 
 } // namespace
 
-class WebLoadManager final : public QObject {
+class WebLoadManager final : public base::has_weak_ptr {
 public:
 	WebLoadManager();
 	~WebLoadManager();
@@ -115,7 +116,7 @@ private:
 	void sendUpdate(int id, Update &&data);
 
 	QThread _thread;
-	QNetworkAccessManager _network;
+	std::unique_ptr<QNetworkAccessManager> _network;
 	base::Timer _resetGenerationTimer;
 
 	// Main thread.
@@ -132,16 +133,15 @@ private:
 };
 
 WebLoadManager::WebLoadManager()
-: _resetGenerationTimer(&_thread, [=] { resetGeneration(); }) {
+: _network(std::make_unique<QNetworkAccessManager>())
+, _resetGenerationTimer(&_thread, [=] { resetGeneration(); }) {
 	handleNetworkErrors();
 
 	const auto original = QThread::currentThread();
-	moveToThread(&_thread);
-	_network.moveToThread(&_thread);
-	connect(&_thread, &QThread::finished, [=] {
+	_network->moveToThread(&_thread);
+	QObject::connect(&_thread, &QThread::finished, [=] {
 		clear();
-		moveToThread(original);
-		_network.moveToThread(original);
+		_network = nullptr;
 	});
 	_thread.start();
 }
@@ -155,8 +155,14 @@ void WebLoadManager::handleNetworkErrors() {
 			}
 		}
 	};
-	connect(&_network, &QNetworkAccessManager::authenticationRequired, fail);
-	connect(&_network, &QNetworkAccessManager::sslErrors, fail);
+	QObject::connect(
+		_network.get(),
+		&QNetworkAccessManager::authenticationRequired,
+		fail);
+	QObject::connect(
+		_network.get(),
+		&QNetworkAccessManager::sslErrors,
+		fail);
 }
 
 WebLoadManager::~WebLoadManager() {
@@ -182,7 +188,7 @@ void WebLoadManager::enqueue(not_null<webFileLoader*> loader) {
 			: _ids.emplace(loader, ++_autoincrement).first->second;
 	}();
 	const auto url = loader->url();
-	InvokeQueued(this, [=] {
+	InvokeQueued(_network.get(), [=] {
 		enqueue(id, url);
 	});
 }
@@ -194,7 +200,7 @@ void WebLoadManager::remove(not_null<webFileLoader*> loader) {
 	}
 	const auto id = i->second;
 	_ids.erase(i);
-	InvokeQueued(this, [=] {
+	InvokeQueued(_network.get(), [=] {
 		remove(id);
 	});
 }
@@ -260,15 +266,18 @@ void WebLoadManager::removeSent(int id) {
 }
 
 not_null<QNetworkReply*> WebLoadManager::send(int id, const QString &url) {
-	const auto result = _network.get(QNetworkRequest(url));
+	const auto result = _network->get(QNetworkRequest(url));
 	const auto handleProgress = [=](qint64 ready, qint64 total) {
 		progress(id, result, ready, total);
 	};
 	const auto handleError = [=](QNetworkReply::NetworkError error) {
 		failed(id, result, error);
 	};
-	connect(result, &QNetworkReply::downloadProgress, handleProgress);
-	connect(result, base::QNetworkReply_error, handleError);
+	QObject::connect(
+		result,
+		&QNetworkReply::downloadProgress,
+		handleProgress);
+	QObject::connect(result, base::QNetworkReply_error, handleError);
 	return result;
 }
 
@@ -412,14 +421,11 @@ void WebLoadManager::queueFailedUpdate(int id) {
 
 void WebLoadManager::queueFinishedUpdate(int id, const QByteArray &data) {
 	crl::on_main(this, [=] {
-		LOG(("FINISHED UPDATE FOR: %1").arg(id));
 		for (const auto &[loader, loaderId] : _ids) {
 			if (loaderId == id) {
-				LOG(("LOADER ID: %2").arg(quintptr(loader.get())));
 				break;
 			}
 		}
-		LOG(("SENT"));
 		sendUpdate(id, QByteArray(data));
 	});
 }
