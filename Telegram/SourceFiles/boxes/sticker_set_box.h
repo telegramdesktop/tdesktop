@@ -42,6 +42,7 @@ private:
 	void updateButtons();
 	void addStickers();
 	void copyStickersLink();
+	void archiveStickers();
 
 	const not_null<Window::SessionController*> _controller;
 	MTPInputStickerSet _set;
