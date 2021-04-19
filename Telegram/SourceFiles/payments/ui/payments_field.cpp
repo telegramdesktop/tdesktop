@@ -96,16 +96,21 @@ struct SimpleFieldState {
 	if (decimalPosition >= 0) {
 		Assert(decimalPosition >= skip);
 		decimalPosition -= skip;
-	}
-	if (decimalPosition > digitsLimit) {
+		if (decimalPosition > digitsLimit) {
+			state = {
+				.value = (state.value.mid(0, digitsLimit)
+					+ state.value.mid(decimalPosition)),
+				.position = (state.position > digitsLimit
+					? std::max(
+						state.position - (decimalPosition - digitsLimit),
+						digitsLimit)
+					: state.position),
+			};
+		}
+	} else if (state.value.size() > digitsLimit) {
 		state = {
-			.value = (state.value.mid(0, digitsLimit)
-				+ state.value.mid(decimalPosition)),
-			.position = (state.position > digitsLimit
-				? std::max(
-					state.position - (decimalPosition - digitsLimit),
-					digitsLimit)
-				: state.position),
+			.value = state.value.mid(0, digitsLimit),
+			.position = std::min(state.position, digitsLimit),
 		};
 	}
 	return state;
