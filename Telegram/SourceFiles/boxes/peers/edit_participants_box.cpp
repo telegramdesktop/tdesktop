@@ -1500,7 +1500,7 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 			if (const auto chat = _peer->asChat()) {
 				return chat->amCreator();
 			}
-			return _peer->isMegagroup();
+			return _peer->isMegagroup() && !_peer->isGigagroup();
 		}();
 		if (canRestrictWithoutKick) {
 			result->addAction(
