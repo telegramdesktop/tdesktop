@@ -139,19 +139,6 @@ PRIVATE
     reference/InstanceImplReference.h
 )
 
-remove_target_sources(lib_tgcalls ${tgcalls_loc}
-    desktop_capturer/DesktopCaptureSource.h
-    desktop_capturer/DesktopCaptureSource.mm
-    desktop_capturer/DesktopCaptureSourceHelper.h
-    desktop_capturer/DesktopCaptureSourceHelper.mm
-    desktop_capturer/DesktopCaptureSourceManager.h
-    desktop_capturer/DesktopCaptureSourceManager.mm
-    desktop_capturer/DesktopCaptureSourceView.h
-    desktop_capturer/DesktopCaptureSourceView.mm
-    desktop_capturer/DesktopSharingCapturer.h
-    desktop_capturer/DesktopSharingCapturer.mm
-)
-
 target_link_libraries(lib_tgcalls
 PRIVATE
     desktop-app::external_webrtc
@@ -204,7 +191,22 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     )
 endif()
 
+if (NOT APPLE)
+    remove_target_sources(lib_tgcalls ${tgcalls_loc}
+        desktop_capturer/DesktopCaptureSource.h
+        desktop_capturer/DesktopCaptureSource.mm
+        desktop_capturer/DesktopCaptureSourceHelper.h
+        desktop_capturer/DesktopCaptureSourceHelper.mm
+        desktop_capturer/DesktopCaptureSourceManager.h
+        desktop_capturer/DesktopCaptureSourceManager.mm
+        desktop_capturer/DesktopSharingCapturer.h
+        desktop_capturer/DesktopSharingCapturer.mm
+    )
+endif()
+
 remove_target_sources(lib_tgcalls ${tgcalls_loc}
+    desktop_capturer/DesktopCaptureSourceView.h
+    desktop_capturer/DesktopCaptureSourceView.mm
     platform/android/AndroidContext.cpp
     platform/android/AndroidContext.h
     platform/android/AndroidInterface.cpp

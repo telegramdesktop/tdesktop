@@ -650,14 +650,16 @@ auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 				? QSize(videoSize.width() * size / videoSize.height(), size)
 				: QSize(size, videoSize.height() * size / videoSize.width());
 			const auto request = Webrtc::FrameRequest{
-				.resize = resize,
-				.outer = QSize(size, size),
+				.resize = resize * cIntRetinaFactor(),
+				.outer = QSize(size, size) * cIntRetinaFactor(),
 			};
 			const auto frame = _videoTrackShown->frame(request);
 			auto copy = frame; // #TODO calls optimize.
 			copy.detach();
 			Images::prepareCircle(copy);
-			p.drawImage(x, y, copy);
+			p.drawImage(
+				QRect(QPoint(x, y), copy.size() / cIntRetinaFactor()),
+				copy);
 			_videoTrackShown->markFrameShown();
 			return;
 		} else if (_videoTrackShown) {

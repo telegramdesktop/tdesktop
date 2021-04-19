@@ -97,7 +97,7 @@ Go to ***BuildPath*** and run
     make build_libs $MAKE_THREADS_CNT
     cd ..
 
-    git clone https://github.com/xiph/opus
+    git clone https://github.com/xiph/opus.git
     cd opus
     git checkout v1.3
     ./autogen.sh
@@ -105,6 +105,21 @@ Go to ***BuildPath*** and run
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
+
+    git clone https://github.com/desktop-app/rnnoise.git
+    cd rnnoise
+    mkdir out
+    cd out
+    mkdir Debug
+    cd Debug
+    cmake -G Ninja  -DCMAKE_BUILD_TYPE=Debug ../..
+    ninja
+    cd ..
+    mkdir Release
+    cd Release
+    cmake -G Ninja  -DCMAKE_BUILD_TYPE=Release ../..
+    ninja
+    cd ../../..
 
     libiconv_ver=1.16
     wget https://ftp.gnu.org/pub/gnu/libiconv/libiconv-$libiconv_ver.tar.gz

@@ -383,7 +383,14 @@ GroupCall::GroupCall(
 
 GroupCall::~GroupCall() {
 	destroyController();
-	switchToCamera();
+	const auto wasScreenSharing = isScreenSharing();
+	const auto weak = wasScreenSharing
+		? std::weak_ptr<tgcalls::VideoCaptureInterface>(_videoCapture)
+		: std::weak_ptr<tgcalls::VideoCaptureInterface>();
+	_videoCapture = nullptr;
+	if (const auto strong = weak.lock()) {
+		strong->switchToDevice(_videoDeviceId.toStdString());
+	}
 }
 
 bool GroupCall::isScreenSharing() const {
@@ -402,7 +409,7 @@ void GroupCall::switchToScreenSharing() {
 	if (isScreenSharing()) {
 		return;
 	}
-	_videoDeviceId = "desktop_capturer_";
+	_videoDeviceId = "desktop_capturer_screen_0";
 	_videoCapture->switchToDevice(_videoDeviceId.toStdString());
 }
 

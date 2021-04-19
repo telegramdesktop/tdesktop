@@ -145,18 +145,18 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd win32\VS2015
     msbuild opus.sln /property:Configuration=Debug /property:Platform="Win32"
     msbuild opus.sln /property:Configuration=Release /property:Platform="Win32"
+    cd ..\..\..
 
     git clone https://github.com/desktop-app/rnnoise.git
     cd rnnoise
-    git checkout tdesktop
     mkdir out
     cd out
     cmake -A Win32 ..
     cmake --build . --config Debug
     cmake --build . --config Release
-    cd ..
+    cd ..\..
 
-    cd ..\..\..\..
+    cd ..
     SET PATH_BACKUP_=%PATH%
     SET PATH=%cd%\ThirdParty\msys64\usr\bin;%PATH%
     cd Libraries
