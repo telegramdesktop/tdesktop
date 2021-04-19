@@ -1401,6 +1401,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stickers_search_sets" = "Search sticker sets";
 "lng_stickers_nothing_found" = "No stickers found";
 "lng_stickers_remove_pack_confirm" = "Remove";
+"lng_stickers_archive_pack" = "Archive Stickers";
+"lng_stickers_has_been_archived" = "Sticker pack has been archived.";
 
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_album" = "Album";

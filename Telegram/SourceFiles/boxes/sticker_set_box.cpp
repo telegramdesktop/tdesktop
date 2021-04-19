@@ -198,6 +198,38 @@ void StickerSetBox::copyStickersLink() {
 	QGuiApplication::clipboard()->setText(url);
 }
 
+void StickerSetBox::archiveStickers() {
+	const auto weak = base::make_weak(_controller.get());
+	const auto setId = _set.c_inputStickerSetID().vid().v;
+	_controller->session().api().request(MTPmessages_InstallStickerSet(
+		_set,
+		MTP_boolTrue()
+	)).done([=](const MTPmessages_StickerSetInstallResult &result) {
+		const auto controller = weak.get();
+		if (!controller) {
+			return;
+		}
+		if (result.type() == mtpc_messages_stickerSetInstallResultSuccess) {
+			Ui::Toast::Show(tr::lng_stickers_has_been_archived(tr::now));
+            
+			const auto &session = controller->session();
+			auto &order = session.data().stickers().setsOrderRef();
+			const auto index = order.indexOf(setId);
+			if (index == -1) {
+				return;
+			}
+			order.removeAt(index);
+            
+			session.local().writeInstalledStickers();
+			session.local().writeArchivedStickers();
+            
+			session.data().stickers().notifyUpdated();
+		}
+	}).fail([](const MTP::Error &error) {
+		Ui::Toast::Show(Lang::Hard::ServerError());
+	}).send();
+}
+
 void StickerSetBox::updateTitleAndButtons() {
 	setTitle(_inner->title());
 	updateButtons();
@@ -237,6 +269,24 @@ void StickerSetBox::updateButtons() {
 			};
 			addButton(tr::lng_stickers_share_pack(), std::move(share));
 			addButton(tr::lng_cancel(), [=] { closeBox(); });
+
+			if (!_inner->shortName().isEmpty()) {
+				const auto top = addTopButton(st::infoTopBarMenu);
+				const auto archive = [=] {
+					archiveStickers();
+					closeBox();
+				};
+				const auto menu =
+					std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
+				top->setClickedCallback([=] {
+					*menu = base::make_unique_q<Ui::PopupMenu>(top);
+					(*menu)->addAction(
+						tr::lng_stickers_archive_pack(tr::now),
+						archive);
+					(*menu)->popup(QCursor::pos());
+					return true;
+				});
+			}
 		}
 	} else {
 		addButton(tr::lng_cancel(), [=] { closeBox(); });
