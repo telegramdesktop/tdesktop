@@ -41,6 +41,7 @@ protected:
 
 private:
 	void prepareSettings();
+	void initQtMessageLogging();
 	void processArguments();
 
 	QStringList readArguments(int argc, char *argv[]) const;
