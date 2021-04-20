@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "calls/calls_group_call.h"
 #include "calls/calls_choose_join_as.h"
+#include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
@@ -53,7 +54,7 @@ namespace Calls::Group {
 
 class Members;
 
-class Panel final {
+class Panel final : private Ui::DesktopCapture::ChooseSourceDelegate {
 public:
 	Panel(not_null<GroupCall*> call);
 	~Panel();
@@ -107,6 +108,10 @@ private:
 
 	void migrate(not_null<ChannelData*> channel);
 	void subscribeToPeerChanges();
+
+	QWidget *chooseSourceParent() override;
+	rpl::lifetime &chooseSourceInstanceLifetime() override;
+	void chooseSourceAccepted(const QString &deviceId) override;
 
 	const not_null<GroupCall*> _call;
 	not_null<PeerData*> _peer;

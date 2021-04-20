@@ -1015,3 +1015,6 @@ groupCallStartsInTop: 10px;
 groupCallStartsWhenTop: 160px;
 groupCallCountdownFont: font(64px semibold);
 groupCallCountdownTop: 52px;
+
+desktopCaptureSourceSize: size(160px, 120px);
+desktopCaptureSourceSkip: 12px;

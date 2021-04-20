@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_media_devices.h"
 #include "webrtc/webrtc_create_adm.h"
 
-#include <tgcalls/desktop_capturer/DesktopCaptureSourceManager.h>
 #include <tgcalls/group/GroupInstanceCustomImpl.h>
 #include <tgcalls/VideoCaptureInterface.h>
 #include <tgcalls/StaticThreads.h>
@@ -406,18 +405,12 @@ void GroupCall::switchToCamera() {
 	_videoCapture->switchToDevice(_videoDeviceId.toStdString());
 }
 
-void GroupCall::switchToScreenSharing() {
-	if (isScreenSharing()) {
+void GroupCall::switchToScreenSharing(const QString &uniqueId) {
+	if (_videoDeviceId == uniqueId) {
 		return;
 	}
-	auto manager = tgcalls::DesktopCaptureSourceManager(
-		tgcalls::DesktopCaptureType::Screen);
-	const auto sources = manager.sources();
-	if (!sources.empty()) {
-		const auto key = sources.front().deviceIdKey();
-		_videoDeviceId = QString::fromStdString(key);
-		_videoCapture->switchToDevice(_videoDeviceId.toStdString());
-	}
+	_videoDeviceId = uniqueId;
+	_videoCapture->switchToDevice(_videoDeviceId.toStdString());
 }
 
 void GroupCall::setScheduledDate(TimeId date) {

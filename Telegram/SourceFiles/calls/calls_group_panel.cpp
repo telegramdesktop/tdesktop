@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_group_members.h"
 #include "calls/calls_group_settings.h"
 #include "calls/calls_group_menu.h"
+#include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/controls/call_mute_button.h"
@@ -473,6 +474,18 @@ void Panel::subscribeToPeerChanges() {
 	}, _peerLifetime);
 }
 
+QWidget *Panel::chooseSourceParent() {
+	return _window.get();
+}
+
+rpl::lifetime &Panel::chooseSourceInstanceLifetime() {
+	return _window->lifetime();
+}
+
+void Panel::chooseSourceAccepted(const QString &deviceId) {
+	_call->switchToScreenSharing(deviceId);
+}
+
 void Panel::initWindow() {
 	_window->setAttribute(Qt::WA_OpaquePaintEvent);
 	_window->setAttribute(Qt::WA_NoSystemBackground);
@@ -676,7 +689,7 @@ void Panel::refreshLeftButton() {
 			if (_call->isScreenSharing()) {
 				_call->switchToCamera();
 			} else {
-				_call->switchToScreenSharing();
+				Ui::DesktopCapture::ChooseSource(this);
 			}
 			//_layerBg->showBox(Box(SettingsBox, _call));
 		});

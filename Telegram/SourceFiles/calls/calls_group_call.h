@@ -212,7 +212,7 @@ public:
 	void setCurrentVideoDevice(const QString &deviceId);
 	bool isScreenSharing() const;
 	void switchToCamera();
-	void switchToScreenSharing();
+	void switchToScreenSharing(const QString &uniqueId);
 	//void setAudioVolume(bool input, float level);
 	void setAudioDuckingEnabled(bool enabled);
 
