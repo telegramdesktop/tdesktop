@@ -62,7 +62,7 @@ Version **1.8.15** was the last that supports older systems
 
 ## Build instructions
 
-* [Visual Studio 2019][msvc]
+* Visual Studio 2019 [(32 bits)][msvc32] [(64 bits)][msvc64]
 * [Xcode 12][xcode]
 * [CMake on GNU/Linux][cmake]
 
@@ -72,7 +72,8 @@ Version **1.8.15** was the last that supports older systems
 [telegram_api]: https://core.telegram.org
 [telegram_proto]: https://core.telegram.org/mtproto
 [license]: LICENSE
-[msvc]: docs/building-msvc.md
+[msvc32]: docs/building-msvc.md
+[msvc64]: docs/building-msvc-x64.md
 [xcode]: docs/building-xcode.md
 [xcode_old]: docs/building-xcode-old.md
 [cmake]: docs/building-cmake.md
