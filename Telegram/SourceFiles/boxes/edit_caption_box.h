@@ -91,6 +91,7 @@ private:
 	bool fileFromClipboard(not_null<const QMimeData*> data);
 	void updateEditPreview();
 	void updateEditMediaButton();
+	void updateCaptionMaxHeight();
 
 	int errorTopSkip() const;
 

@@ -660,6 +660,7 @@ void EditCaptionBox::updateEditPreview() {
 		}
 	}
 	updateEditMediaButton();
+	updateCaptionMaxHeight();
 	captionResized();
 }
 
@@ -783,6 +784,7 @@ void EditCaptionBox::prepare() {
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
 	_field->setTextCursor(cursor);
+	updateCaptionMaxHeight();
 
 	setupDragArea();
 }
@@ -824,6 +826,28 @@ void EditCaptionBox::captionResized() {
 	resizeEvent(0);
 	updateEmojiPanelGeometry();
 	update();
+}
+
+void EditCaptionBox::updateCaptionMaxHeight() {
+	// Save.
+	const auto wasCursor = _field->textCursor();
+	const auto position = wasCursor.position();
+	const auto anchor = wasCursor.anchor();
+	const auto text = _field->getTextWithAppliedMarkdown();
+	_field->setTextWithTags({});
+
+	_field->setMaxHeight(_doc
+		? st::confirmCaptionArea.heightMax
+		: st::confirmEditCaptionAreaHeightMax);
+
+	// Restore.
+	_field->setTextWithTags(text);
+	auto cursor = _field->textCursor();
+	cursor.setPosition(anchor);
+	if (position != anchor) {
+		cursor.setPosition(position, QTextCursor::KeepAnchor);
+	}
+	_field->setTextCursor(cursor);
 }
 
 void EditCaptionBox::setupEmojiPanel() {
