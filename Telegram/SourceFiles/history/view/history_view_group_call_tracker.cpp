@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/group_call_bar.h"
 #include "ui/chat/group_call_userpics.h"
 #include "ui/painter.h"
-#include "calls/calls_group_call.h"
+#include "calls/group/calls_group_call.h"
 #include "calls/calls_instance.h"
 #include "core/application.h"
 #include "styles/style_chat.h"

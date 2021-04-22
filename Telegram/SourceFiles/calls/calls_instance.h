@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/sender.h"
 #include "calls/calls_call.h"
-#include "calls/calls_group_call.h"
-#include "calls/calls_choose_join_as.h"
+#include "calls/group/calls_group_call.h"
+#include "calls/group/calls_choose_join_as.h"
 
 namespace Platform {
 enum class PermissionType;

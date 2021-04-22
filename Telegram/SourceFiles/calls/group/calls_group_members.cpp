@@ -5,12 +5,12 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "calls/calls_group_members.h"
+#include "calls/group/calls_group_members.h"
 
-#include "calls/calls_group_call.h"
-#include "calls/calls_group_common.h"
-#include "calls/calls_group_menu.h"
-#include "calls/calls_volume_item.h"
+#include "calls/group/calls_group_call.h"
+#include "calls/group/calls_group_common.h"
+#include "calls/group/calls_group_menu.h"
+#include "calls/group/calls_volume_item.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -304,6 +304,17 @@ public:
 		Painter &p,
 		QRect rect,
 		IconState state) override;
+
+	int customRowHeight() override;
+	void customRowPaint(
+		Painter &p,
+		crl::time now,
+		not_null<PeerListRow*> row,
+		bool selected) override;
+	bool customRowSelectionPoint(
+		not_null<PeerListRow*> row,
+		int x,
+		int y) override;
 
 private:
 	[[nodiscard]] std::unique_ptr<Row> createRowForMe();
@@ -1561,6 +1572,25 @@ void MembersController::rowPaintIcon(
 	// because 'muted' may animate color.
 	const auto crossProgress = std::min(1. - state.active, 0.9999);
 	_inactiveCrossLine.paint(p, left, top, crossProgress, iconColor);
+}
+
+int MembersController::customRowHeight() {
+	return st::groupCallNarrowSize.height() + st::groupCallNarrowRowSkip;
+}
+
+void MembersController::customRowPaint(
+		Painter &p,
+		crl::time now,
+		not_null<PeerListRow*> row,
+		bool selected) {
+	const auto real = static_cast<Row*>(row.get());
+}
+
+bool MembersController::customRowSelectionPoint(
+		not_null<PeerListRow*> row,
+		int x,
+		int y) {
+	return y < st::groupCallNarrowSize.height();
 }
 
 auto MembersController::kickParticipantRequests() const

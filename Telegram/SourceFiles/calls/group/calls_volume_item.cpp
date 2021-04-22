@@ -5,9 +5,9 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "calls/calls_volume_item.h"
+#include "calls/group/calls_volume_item.h"
 
-#include "calls/calls_group_common.h"
+#include "calls/group/calls_group_common.h"
 #include "ui/effects/animation_value.h"
 #include "ui/effects/cross_line.h"
 #include "ui/widgets/continuous_sliders.h"

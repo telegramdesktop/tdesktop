@@ -741,6 +741,32 @@ PeerListContent::PeerListContent(
 	_repaintByStatus.setCallback([this] { update(); });
 }
 
+void PeerListContent::setMode(Mode mode) {
+	if (mode == Mode::Default && _mode == Mode::Default) {
+		return;
+	}
+	_mode = mode;
+	switch (_mode) {
+	case Mode::Default:
+		_rowHeight = _st.item.height;
+		break;
+	case Mode::Custom:
+		_rowHeight = _controller->customRowHeight();
+		break;
+	}
+	const auto wasMouseSelection = _mouseSelection;
+	const auto wasLastMousePosition = _lastMousePosition;
+	_contextMenu = nullptr;
+	if (wasMouseSelection) {
+		setSelected(Selected());
+	}
+	setPressed(Selected());
+	refreshRows();
+	if (wasMouseSelection && wasLastMousePosition) {
+		selectByMouse(*wasLastMousePosition);
+	}
+}
+
 void PeerListContent::appendRow(std::unique_ptr<PeerListRow> row) {
 	Expects(row != nullptr);
 
@@ -1080,25 +1106,25 @@ void PeerListContent::clearSearchRows() {
 void PeerListContent::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto clip = e->rect();
+	const auto clip = e->rect();
 	p.fillRect(clip, _st.item.button.textBg);
 
-	auto repaintByStatusAfter = _repaintByStatus.remainingTime();
+	const auto repaintByStatusAfter = _repaintByStatus.remainingTime();
 	auto repaintAfterMin = repaintByStatusAfter;
 
-	auto rowsTopCached = rowsTop();
-	auto ms = crl::now();
-	auto yFrom = clip.y() - rowsTopCached;
-	auto yTo = clip.y() + clip.height() - rowsTopCached;
+	const auto rowsTopCached = rowsTop();
+	const auto now = crl::now();
+	const auto yFrom = clip.y() - rowsTopCached;
+	const auto yTo = clip.y() + clip.height() - rowsTopCached;
 	p.translate(0, rowsTopCached);
-	auto count = shownRowsCount();
+	const auto count = shownRowsCount();
 	if (count > 0) {
-		auto from = floorclamp(yFrom, _rowHeight, 0, count);
-		auto to = ceilclamp(yTo, _rowHeight, 0, count);
+		const auto from = floorclamp(yFrom, _rowHeight, 0, count);
+		const auto to = ceilclamp(yTo, _rowHeight, 0, count);
 		p.translate(0, from * _rowHeight);
 		for (auto index = from; index != to; ++index) {
-			auto repaintAfter = paintRow(p, ms, RowIndex(index));
-			if (repaintAfter >= 0
+			const auto repaintAfter = paintRow(p, now, RowIndex(index));
+			if (repaintAfter > 0
 				&& (repaintAfterMin < 0
 					|| repaintAfterMin > repaintAfter)) {
 				repaintAfterMin = repaintAfter;
@@ -1307,7 +1333,7 @@ void PeerListContent::setPressed(Selected pressed) {
 
 crl::time PeerListContent::paintRow(
 		Painter &p,
-		crl::time ms,
+		crl::time now,
 		RowIndex index) {
 	const auto row = getRow(index);
 	Assert(row != nullptr);
@@ -1315,13 +1341,15 @@ crl::time PeerListContent::paintRow(
 	row->lazyInitialize(_st.item);
 
 	auto refreshStatusAt = row->refreshStatusTime();
-	if (refreshStatusAt >= 0 && ms >= refreshStatusAt) {
+	if (refreshStatusAt > 0 && now >= refreshStatusAt) {
 		row->refreshStatus();
 		refreshStatusAt = row->refreshStatusTime();
 	}
+	const auto refreshStatusIn = (refreshStatusAt > 0)
+		? std::max(refreshStatusAt - now, crl::time(1))
+		: 0;
 
 	const auto peer = row->special() ? nullptr : row->peer().get();
-	const auto user = peer ? peer->asUser() : nullptr;
 	const auto active = (_contexted.index.value >= 0)
 		? _contexted
 		: (_pressed.index.value >= 0)
@@ -1329,6 +1357,11 @@ crl::time PeerListContent::paintRow(
 		: _selected;
 	const auto selected = (active.index == index);
 	const auto actionSelected = (selected && active.action);
+
+	if (_mode == Mode::Custom) {
+		_controller->customRowPaint(p, now, row, selected);
+		return refreshStatusIn;
+	}
 
 	const auto &bg = selected
 		? _st.item.button.textBgOver
@@ -1412,7 +1445,7 @@ crl::time PeerListContent::paintRow(
 	} else {
 		row->paintStatusText(p, _st.item, _st.item.statusPosition.x(), _st.item.statusPosition.y(), statusw, width(), selected);
 	}
-	return (refreshStatusAt - ms);
+	return refreshStatusIn;
 }
 
 PeerListContent::SkipResult PeerListContent::selectSkip(int direction) {
@@ -1740,15 +1773,21 @@ void PeerListContent::selectByMouse(QPoint globalPosition) {
 	_mouseSelection = true;
 	_lastMousePosition = globalPosition;
 	const auto point = mapFromGlobal(globalPosition);
+	const auto customMode = (_mode == Mode::Custom);
 	auto in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(globalPosition));
 	auto selected = Selected();
 	auto rowsPointY = point.y() - rowsTop();
 	selected.index.value = (in && rowsPointY >= 0 && rowsPointY < shownRowsCount() * _rowHeight) ? (rowsPointY / _rowHeight) : -1;
 	if (selected.index.value >= 0) {
-		auto row = getRow(selected.index);
-		if (row->disabled()) {
+		const auto row = getRow(selected.index);
+		if (row->disabled()
+			|| (customMode
+				&& !_controller->customRowSelectionPoint(
+					row,
+					point.x(),
+					rowsPointY))) {
 			selected = Selected();
-		} else {
+		} else if (!customMode) {
 			if (getActiveActionRect(row, selected.index).contains(point)) {
 				selected.action = true;
 			}

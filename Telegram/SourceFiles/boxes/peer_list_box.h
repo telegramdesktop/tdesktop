@@ -450,6 +450,23 @@ public:
 	[[nodiscard]] virtual bool respectSavedMessagesChat() const {
 		return false;
 	}
+	[[nodiscard]] virtual int customRowHeight() {
+		Unexpected("Unimplemented PeerListController::customRowHeight.");
+	}
+	virtual void customRowPaint(
+			Painter &p,
+			crl::time now,
+			not_null<PeerListRow*> row,
+			bool selected) {
+		Unexpected("Unimplemented PeerListController::customRowPaint.");
+	}
+	[[nodiscard]] virtual bool customRowSelectionPoint(
+			not_null<PeerListRow*> row,
+			int x,
+			int y) {
+		Unexpected(
+			"Unimplemented PeerListController::customRowSelectionPoint.");
+	}
 
 	[[nodiscard]] virtual rpl::producer<int> onlineCountValue() const;
 
@@ -513,6 +530,12 @@ public:
 	};
 	SkipResult selectSkip(int direction);
 	void selectSkipPage(int height, int direction);
+
+	enum class Mode {
+		Default,
+		Custom,
+	};
+	void setMode(Mode mode);
 
 	[[nodiscard]] rpl::producer<int> selectedIndexValue() const;
 	[[nodiscard]] bool hasSelection() const;
@@ -658,7 +681,7 @@ private:
 		QPoint globalPos,
 		Fn<void(not_null<Ui::PopupMenu*>)> destroyed = nullptr);
 
-	crl::time paintRow(Painter &p, crl::time ms, RowIndex index);
+	crl::time paintRow(Painter &p, crl::time now, RowIndex index);
 
 	void addRowEntry(not_null<PeerListRow*> row);
 	void addToSearchIndex(not_null<PeerListRow*> row);
@@ -688,6 +711,7 @@ private:
 	not_null<PeerListController*> _controller;
 	PeerListSearchMode _searchMode = PeerListSearchMode::Disabled;
 
+	Mode _mode = Mode::Default;
 	int _rowHeight = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

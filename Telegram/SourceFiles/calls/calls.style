@@ -1018,3 +1018,7 @@ groupCallCountdownTop: 52px;
 
 desktopCaptureSourceSize: size(160px, 120px);
 desktopCaptureSourceSkip: 12px;
+
+groupCallNarrowSkip: 9px;
+groupCallNarrowRowSkip: 8px;
+groupCallNarrowSize: size(90px, 90px);

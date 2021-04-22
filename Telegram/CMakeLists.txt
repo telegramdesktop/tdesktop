@@ -272,23 +272,25 @@ PRIVATE
     boxes/url_auth_box.h
     boxes/username_box.cpp
     boxes/username_box.h
+    calls/group/calls_choose_join_as.cpp
+    calls/group/calls_choose_join_as.h
+    calls/group/calls_group_call.cpp
+    calls/group/calls_group_call.h
+    calls/group/calls_group_common.h
+    calls/group/calls_group_members.cpp
+    calls/group/calls_group_members.h
+    calls/group/calls_group_menu.cpp
+    calls/group/calls_group_menu.h
+    calls/group/calls_group_panel.cpp
+    calls/group/calls_group_panel.h
+    calls/group/calls_group_settings.cpp
+    calls/group/calls_group_settings.h
+    calls/group/calls_volume_item.cpp
+    calls/group/calls_volume_item.h
     calls/calls_box_controller.cpp
     calls/calls_box_controller.h
     calls/calls_call.cpp
     calls/calls_call.h
-    calls/calls_choose_join_as.cpp
-    calls/calls_choose_join_as.h
-    calls/calls_group_call.cpp
-    calls/calls_group_call.h
-    calls/calls_group_common.h
-    calls/calls_group_members.cpp
-    calls/calls_group_members.h
-    calls/calls_group_menu.cpp
-    calls/calls_group_menu.h
-    calls/calls_group_panel.cpp
-    calls/calls_group_panel.h
-    calls/calls_group_settings.cpp
-    calls/calls_group_settings.h
     calls/calls_emoji_fingerprint.cpp
     calls/calls_emoji_fingerprint.h
     calls/calls_instance.cpp
@@ -303,8 +305,6 @@ PRIVATE
     calls/calls_userpic.h
     calls/calls_video_bubble.cpp
     calls/calls_video_bubble.h
-    calls/calls_volume_item.cpp
-    calls/calls_volume_item.h
     chat_helpers/bot_keyboard.cpp
     chat_helpers/bot_keyboard.h
     chat_helpers/emoji_keywords.cpp

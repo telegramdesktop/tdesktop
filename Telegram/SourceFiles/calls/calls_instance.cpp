@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_instance.h"
 
-#include "calls/calls_group_common.h"
+#include "calls/group/calls_group_common.h"
 #include "mtproto/mtproto_dh_utils.h"
 #include "core/application.h"
 #include "main/main_session.h"
@@ -15,10 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
+#include "calls/group/calls_group_call.h"
+#include "calls/group/calls_group_panel.h"
 #include "calls/calls_call.h"
-#include "calls/calls_group_call.h"
 #include "calls/calls_panel.h"
-#include "calls/calls_group_panel.h"
 #include "data/data_user.h"
 #include "data/data_group_call.h"
 #include "data/data_channel.h"

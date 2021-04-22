@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_call.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_signal_bars.h"
-#include "calls/calls_group_menu.h" // Group::LeaveBox.
+#include "calls/group/calls_group_menu.h" // Group::LeaveBox.
 #include "history/view/history_view_group_call_tracker.h" // ContentByCall.
 #include "data/data_user.h"
 #include "data/data_group_call.h"

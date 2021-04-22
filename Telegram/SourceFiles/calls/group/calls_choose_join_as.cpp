@@ -5,10 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "calls/calls_choose_join_as.h"
+#include "calls/group/calls_choose_join_as.h"
 
-#include "calls/calls_group_common.h"
-#include "calls/calls_group_menu.h"
+#include "calls/group/calls_group_common.h"
+#include "calls/group/calls_group_menu.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
