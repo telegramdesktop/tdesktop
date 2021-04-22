@@ -525,6 +525,11 @@ void Panel::initWindow() {
 			? (Flag::Move | Flag::Maximize)
 			: Flag::None;
 	});
+
+	_call->videoCallValue(
+	) | rpl::start_with_next([=] {
+		updateMode();
+	}, _window->lifetime());
 }
 
 void Panel::initWidget() {
@@ -536,8 +541,10 @@ void Panel::initWidget() {
 	}, widget()->lifetime());
 
 	widget()->sizeValue(
-	) | rpl::skip(1) | rpl::start_with_next([=] {
-		updateControlsGeometry();
+	) | rpl::skip(1) | rpl::start_with_next([=](QSize size) {
+		if (!updateMode()) {
+			updateControlsGeometry();
+		}
 
 		// title geometry depends on _controls->geometry,
 		// which is not updated here yet.
@@ -1384,6 +1391,21 @@ QRect Panel::computeTitleRect() const {
 #endif // !Q_OS_MAC
 }
 
+bool Panel::updateMode() {
+	const auto wide = _call->videoCall()
+		&& (widget()->width() >= st::groupCallWideModeWidthMin);
+	const auto mode = wide ? PanelMode::Wide : PanelMode::Default;
+	if (_mode == mode) {
+		return false;
+	}
+	_mode = mode;
+	if (_members) {
+		_members->setMode(mode);
+	}
+	updateControlsGeometry();
+	return true;
+}
+
 void Panel::updateControlsGeometry() {
 	if (widget()->size().isEmpty() || (!_settings && !_share)) {
 		return;
@@ -1434,27 +1456,35 @@ void Panel::updateMembersGeometry() {
 	if (!_members) {
 		return;
 	}
-	const auto muteTop = widget()->height() - st::groupCallMuteBottomSkip;
-	const auto membersTop = st::groupCallMembersTop;
-	const auto availableHeight = muteTop
-		- membersTop
-		- st::groupCallMembersMargin.bottom();
 	const auto desiredHeight = _members->desiredHeight();
-	const auto membersWidthAvailable = widget()->width()
-		- st::groupCallMembersMargin.left()
-		- st::groupCallMembersMargin.right();
-	const auto membersWidthMin = st::groupCallWidth
-		- st::groupCallMembersMargin.left()
-		- st::groupCallMembersMargin.right();
-	const auto membersWidth = std::clamp(
-		membersWidthAvailable,
-		membersWidthMin,
-		st::groupCallMembersWidthMax);
-	_members->setGeometry(
-		(widget()->width() - membersWidth) / 2,
-		membersTop,
-		membersWidth,
-		std::min(desiredHeight, availableHeight));
+	if (_mode == PanelMode::Wide) {
+		_members->setGeometry(
+			st::groupCallNarrowSkip,
+			0,
+			st::groupCallNarrowSize.width(),
+			std::min(desiredHeight, widget()->height()));
+	} else {
+		const auto muteTop = widget()->height() - st::groupCallMuteBottomSkip;
+		const auto membersTop = st::groupCallMembersTop;
+		const auto availableHeight = muteTop
+			- membersTop
+			- st::groupCallMembersMargin.bottom();
+		const auto membersWidthAvailable = widget()->width()
+			- st::groupCallMembersMargin.left()
+			- st::groupCallMembersMargin.right();
+		const auto membersWidthMin = st::groupCallWidth
+			- st::groupCallMembersMargin.left()
+			- st::groupCallMembersMargin.right();
+		const auto membersWidth = std::clamp(
+			membersWidthAvailable,
+			membersWidthMin,
+			st::groupCallMembersWidthMax);
+		_members->setGeometry(
+			(widget()->width() - membersWidth) / 2,
+			membersTop,
+			membersWidth,
+			std::min(desiredHeight, availableHeight));
+	}
 }
 
 void Panel::refreshTitle() {

@@ -143,6 +143,7 @@ public:
 	}
 
 	[[nodiscard]] not_null<Webrtc::VideoTrack*> createVideoTrack();
+	void clearVideoTrack();
 	void setVideoTrack(not_null<Webrtc::VideoTrack*> track);
 
 	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
@@ -352,12 +353,14 @@ private:
 		not_null<Row*> row,
 		uint64 raiseHandRating) const;
 	Row *findRow(not_null<PeerData*> participantPeer) const;
+	Row *findRow(uint32 audioSsrc) const;
 
 	void appendInvitedUsers();
 	void scheduleRaisedHandStatusRemove();
 
 	const not_null<GroupCall*> _call;
 	not_null<PeerData*> _peer;
+	uint32 _largeSsrc = 0;
 	bool _prepared = false;
 
 	rpl::event_stream<MuteRequest> _toggleMuteRequests;
@@ -926,6 +929,13 @@ not_null<Webrtc::VideoTrack*> Row::createVideoTrack() {
 	return _videoTrack.get();
 }
 
+void Row::clearVideoTrack() {
+	_videoTrackLifetime.destroy();
+	_videoTrackShown = nullptr;
+	_videoTrack = nullptr;
+	_delegate->rowUpdateRow(this);
+}
+
 void Row::setVideoTrack(not_null<Webrtc::VideoTrack*> track) {
 	_videoTrackLifetime.destroy();
 	_videoTrackShown = track;
@@ -1043,17 +1053,29 @@ void MembersController::setupListChangeViewers() {
 		}
 	}, _lifetime);
 
-	_call->videoStreamUpdated(
-	) | rpl::start_with_next([=](uint32 ssrc) {
-		const auto real = _call->lookupReal();
-		const auto participantPeer = real
-			? real->participantPeerByAudioSsrc(ssrc)
-			: nullptr;
-		const auto row = participantPeer
-			? findRow(participantPeer)
-			: nullptr;
-		if (row) {
-			_call->addVideoOutput(ssrc, row->createVideoTrack());
+
+	_call->videoStreamLargeValue(
+	) | rpl::filter([=](uint32 largeSsrc) {
+		return (_largeSsrc != largeSsrc);
+	}) | rpl::start_with_next([=](uint32 largeSsrc) {
+		if (const auto row = findRow(_largeSsrc)) {
+			_call->addVideoOutput(_largeSsrc, row->createVideoTrack());
+		}
+		_largeSsrc = largeSsrc;
+		if (const auto row = findRow(_largeSsrc)) {
+			row->clearVideoTrack();
+		}
+	}, _lifetime);
+
+	_call->streamsVideoUpdates(
+	) | rpl::start_with_next([=](StreamsVideoUpdate update) {
+		Assert(update.ssrc != _largeSsrc);
+		if (const auto row = findRow(update.ssrc)) {
+			if (update.streams) {
+				_call->addVideoOutput(update.ssrc, row->createVideoTrack());
+			} else {
+				row->clearVideoTrack();
+			}
 		}
 	}, _lifetime);
 
@@ -1345,8 +1367,6 @@ void MembersController::updateRow(
 		}
 		if (isMe(row->peer())) {
 			row->setVideoTrack(_call->outgoingVideoTrack());
-		} else if (nowSsrc) {
-			_call->addVideoOutput(nowSsrc, row->createVideoTrack());
 		}
 	}
 	const auto nowNoSounding = _soundingRowBySsrc.empty();
@@ -1376,6 +1396,17 @@ void MembersController::updateRowLevel(
 Row *MembersController::findRow(not_null<PeerData*> participantPeer) const {
 	return static_cast<Row*>(
 		delegate()->peerListFindRow(participantPeer->id.value));
+}
+
+Row *MembersController::findRow(uint32 audioSsrc) const {
+	if (!audioSsrc) {
+		return nullptr;
+	}
+	const auto real = _call->lookupReal();
+	const auto participantPeer = real
+		? real->participantPeerByAudioSsrc(audioSsrc)
+		: nullptr;
+	return participantPeer ? findRow(participantPeer) : nullptr;
 }
 
 Main::Session &MembersController::session() const {
@@ -1943,8 +1974,11 @@ int Members::desiredHeight() const {
 		return 0;
 	}();
 	const auto use = std::max(count, _list->fullRowsCount());
+	const auto single = (_mode == PanelMode::Wide)
+		? (st::groupCallNarrowSize.height() + st::groupCallNarrowRowSkip)
+		: st::groupCallMembersList.item.height;
 	return top
-		+ (use * st::groupCallMembersList.item.height)
+		+ (use * single)
 		+ (use ? st::lineWidth : 0);
 }
 
@@ -2006,6 +2040,16 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 
 		resizeToList();
 	}, lifetime());
+}
+
+void Members::setMode(PanelMode mode) {
+	if (_mode == mode) {
+		return;
+	}
+	_mode = mode;
+	_list->setMode((_mode == PanelMode::Wide)
+		? PeerListContent::Mode::Custom
+		: PeerListContent::Mode::Default);
 }
 
 rpl::producer<int> Members::fullCountValue() const {

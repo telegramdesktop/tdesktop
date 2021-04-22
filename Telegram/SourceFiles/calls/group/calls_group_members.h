@@ -26,6 +26,7 @@ namespace Calls::Group {
 
 struct VolumeRequest;
 struct MuteRequest;
+enum class PanelMode;
 
 class Members final
 	: public Ui::RpWidget
@@ -47,6 +48,8 @@ public:
 	[[nodiscard]] rpl::producer<> addMembersRequests() const {
 		return _addMemberRequests.events();
 	}
+
+	void setMode(PanelMode mode);
 
 private:
 	using ListWidget = PeerListContent;
@@ -76,6 +79,7 @@ private:
 	void updateControlsGeometry();
 
 	const not_null<GroupCall*> _call;
+	PanelMode _mode = PanelMode();
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<PeerListController> _listController;
 	object_ptr<Ui::SettingsButton> _addMember = { nullptr };

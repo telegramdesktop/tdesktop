@@ -47,4 +47,9 @@ struct JoinInfo {
 	TimeId scheduleDate = 0;
 };
 
+enum class PanelMode {
+	Default,
+	Wide,
+};
+
 } // namespace Calls::Group

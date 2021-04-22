@@ -736,7 +736,7 @@ groupCallMemberRaisedHand: icon {{ "calls/group_calls_raised_hand", groupCallMem
 
 groupCallSettingsInner: IconButton(callButton) {
 	iconPosition: point(-1px, 22px);
-	icon: icon {{ "calls/call_settings", groupCallIconFg }};
+	icon: icon {{ "calls/calls_settings", groupCallIconFg }};
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: callMuteRipple;
 	}
@@ -1022,3 +1022,5 @@ desktopCaptureSourceSkip: 12px;
 groupCallNarrowSkip: 9px;
 groupCallNarrowRowSkip: 8px;
 groupCallNarrowSize: size(90px, 90px);
+groupCallWideModeWidthMin: 800px;
+groupCallWideModeSize: size(960px, 520px);

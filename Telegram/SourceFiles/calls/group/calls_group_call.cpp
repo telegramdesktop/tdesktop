@@ -313,8 +313,8 @@ GroupCall::GroupCall(
 , _joinHash(info.joinHash)
 , _id(inputCall.c_inputGroupCall().vid().v)
 , _scheduleDate(info.scheduleDate)
-, _videoOutgoing(std::make_unique<Webrtc::VideoTrack>(
-	Webrtc::VideoState::Inactive))
+, _videoOutgoing(
+	std::make_unique<Webrtc::VideoTrack>(Webrtc::VideoState::Inactive))
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
 , _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
@@ -402,6 +402,7 @@ void GroupCall::switchToCamera() {
 		return;
 	}
 	_videoDeviceId = _videoInputId;
+	if (_videoOutgoing)
 	_videoCapture->switchToDevice(_videoDeviceId.toStdString());
 }
 
@@ -1366,10 +1367,42 @@ void GroupCall::setupMediaDevices() {
 }
 
 void GroupCall::setupOutgoingVideo() {
-	_videoCapture = _delegate->groupCallGetVideoCapture();
-	_videoOutgoing->setState(Webrtc::VideoState::Active);
-	_videoCapture->setOutput(_videoOutgoing->sink());
 	_videoDeviceId = _videoInputId;
+	static const auto hasDevices = [] {
+		return !Webrtc::GetVideoInputList().empty();
+	};
+	const auto started = _videoOutgoing->state();
+	if (!hasDevices()) {
+		_videoOutgoing->setState(Webrtc::VideoState::Inactive);
+	}
+	_videoOutgoing->stateValue(
+	) | rpl::start_with_next([=](Webrtc::VideoState state) {
+		if (state != Webrtc::VideoState::Inactive && !hasDevices()) {
+			//_errors.fire({ ErrorType::NoCamera }); // #TODO videochats
+			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
+		//} else if (state != Webrtc::VideoState::Inactive
+		//	&& _instance
+		//	&& !_instance->supportsVideo()) {
+		//	_errors.fire({ ErrorType::NotVideoCall });
+		//	_videoOutgoing->setState(Webrtc::VideoState::Inactive);
+		} else if (state != Webrtc::VideoState::Inactive) {
+			// Paused not supported right now.
+			Assert(state == Webrtc::VideoState::Active);
+			if (!_videoCapture) {
+				_videoCapture = _delegate->groupCallGetVideoCapture(
+					_videoDeviceId);
+				_videoCapture->setOutput(_videoOutgoing->sink());
+			} else {
+				_videoCapture->switchToDevice(_videoDeviceId.toStdString());
+			}
+			if (_instance) {
+				_instance->setVideoCapture(_videoCapture, nullptr);
+			}
+			_videoCapture->setState(tgcalls::VideoState::Active);
+		} else if (_videoCapture) {
+			_videoCapture->setState(tgcalls::VideoState::Inactive);
+		}
+	}, _lifetime);
 }
 
 void GroupCall::changeTitle(const QString &title) {
@@ -1424,6 +1457,7 @@ void GroupCall::ensureControllerCreated() {
 
 	const auto weak = base::make_weak(this);
 	const auto myLevel = std::make_shared<tgcalls::GroupLevelValue>();
+	_videoCall = true;
 	tgcalls::GroupInstanceDescriptor descriptor = {
 		.threads = tgcalls::StaticThreads::getThreads(),
 		.config = tgcalls::GroupConfig{
@@ -1451,13 +1485,10 @@ void GroupCall::ensureControllerCreated() {
 		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
 			settings.callAudioBackend()),
 		.videoCapture = _videoCapture,
-		//.getVideoSource = [=] {
-		//	return _videoCapture->
-		//},
 		.incomingVideoSourcesUpdated = [=](
 				const std::vector<uint32_t> &ssrcs) {
 			crl::on_main(weak, [=] {
-				showVideoStreams(ssrcs);
+				setVideoStreams(ssrcs);
 			});
 		},
 		.participantDescriptionsRequired = [=](
@@ -1609,9 +1640,53 @@ void GroupCall::requestParticipantsInformation(
 	addPreparedParticipants();
 }
 
-void GroupCall::showVideoStreams(const std::vector<std::uint32_t> &ssrcs) {
+void GroupCall::setVideoStreams(const std::vector<std::uint32_t> &ssrcs) {
+	const auto large = _videoStreamLarge.current();
+	auto newLarge = large;
+	if (large && !ranges::contains(ssrcs, large)) {
+		newLarge = 0;
+		_videoStreamPinned = 0;
+	}
+	auto lastSpokeVoice = crl::time(0);
+	auto lastSpokeVoiceSsrc = uint32(0);
+	auto lastSpokeAnything = crl::time(0);
+	auto lastSpokeAnythingSsrc = uint32(0);
+	auto removed = _videoStreamSsrcs;
 	for (const auto ssrc : ssrcs) {
-		_videoStreamUpdated.fire_copy(ssrc);
+		const auto i = removed.find(ssrc);
+		if (i != end(removed)) {
+			removed.erase(i);
+		} else {
+			_videoStreamSsrcs.emplace(ssrc);
+			_streamsVideoUpdated.fire({ ssrc, true });
+		}
+		if (!newLarge) {
+			const auto j = _lastSpoke.find(ssrc);
+			if (j != end(_lastSpoke)) {
+				if (!lastSpokeVoiceSsrc
+					|| lastSpokeVoice < j->second.voice) {
+					lastSpokeVoiceSsrc = ssrc;
+					lastSpokeVoice = j->second.voice;
+				}
+				if (!lastSpokeAnythingSsrc
+					|| lastSpokeAnything < j->second.anything) {
+					lastSpokeAnythingSsrc = ssrc;
+					lastSpokeAnything = j->second.anything;
+				}
+			}
+		}
+	}
+	if (!newLarge) {
+		_videoStreamLarge = lastSpokeVoiceSsrc
+			? lastSpokeVoiceSsrc
+			: lastSpokeAnythingSsrc
+			? lastSpokeAnythingSsrc
+			: ssrcs.empty()
+			? 0
+			: ssrcs.front();
+	}
+	for (const auto ssrc : removed) {
+		_streamsVideoUpdated.fire({ ssrc, false });
 	}
 }
 
@@ -2035,45 +2110,6 @@ auto GroupCall::otherParticipantStateValue() const
 	return _otherParticipantStateValue.events();
 }
 
-//void GroupCall::setAudioVolume(bool input, float level) {
-//	if (_instance) {
-//		if (input) {
-//			_instance->setInputVolume(level);
-//		} else {
-//			_instance->setOutputVolume(level);
-//		}
-//	}
-//}
-
-void GroupCall::setAudioDuckingEnabled(bool enabled) {
-	if (_instance) {
-		//_instance->setAudioOutputDuckingEnabled(enabled);
-	}
-}
-
-void GroupCall::handleRequestError(const MTP::Error &error) {
-	//if (error.type() == qstr("USER_PRIVACY_RESTRICTED")) {
-	//	Ui::show(Box<InformBox>(tr::lng_call_error_not_available(tr::now, lt_user, _user->name)));
-	//} else if (error.type() == qstr("PARTICIPANT_VERSION_OUTDATED")) {
-	//	Ui::show(Box<InformBox>(tr::lng_call_error_outdated(tr::now, lt_user, _user->name)));
-	//} else if (error.type() == qstr("CALL_PROTOCOL_LAYER_INVALID")) {
-	//	Ui::show(Box<InformBox>(Lang::Hard::CallErrorIncompatible().replace("{user}", _user->name)));
-	//}
-	//finish(FinishType::Failed);
-}
-
-void GroupCall::handleControllerError(const QString &error) {
-	if (error == u"ERROR_INCOMPATIBLE"_q) {
-		//Ui::show(Box<InformBox>(
-		//	Lang::Hard::CallErrorIncompatible().replace(
-		//		"{user}",
-		//		_user->name)));
-	} else if (error == u"ERROR_AUDIO_IO"_q) {
-		//Ui::show(Box<InformBox>(tr::lng_call_error_audio_io(tr::now)));
-	}
-	//finish(FinishType::Failed);
-}
-
 MTPInputGroupCall GroupCall::inputCall() const {
 	Expects(_id != 0);
 
@@ -2084,9 +2120,6 @@ MTPInputGroupCall GroupCall::inputCall() const {
 
 void GroupCall::destroyController() {
 	if (_instance) {
-		//_instance->stop([](tgcalls::FinalState) {
-		//});
-
 		DEBUG_LOG(("Call Info: Destroying call controller.."));
 		_instance.reset();
 		DEBUG_LOG(("Call Info: Call controller destroyed."));

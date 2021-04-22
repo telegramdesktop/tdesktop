@@ -8,9 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
-#include "calls/calls_call.h"
-#include "calls/group/calls_group_call.h"
-#include "calls/group/calls_choose_join_as.h"
 
 namespace Platform {
 enum class PermissionType;
@@ -27,17 +24,22 @@ class Session;
 namespace Calls::Group {
 struct JoinInfo;
 class Panel;
+class ChooseJoinAsProcess;
 } // namespace Calls::Group
+
+namespace tgcalls {
+class VideoCaptureInterface;
+} // namespace tgcalls
 
 namespace Calls {
 
+class Call;
+enum class CallType;
+class GroupCall;
 class Panel;
+struct DhConfig;
 
-class Instance
-	: private Call::Delegate
-	, private GroupCall::Delegate
-	, private base::Subscriber
-	, public base::has_weak_ptr {
+class Instance : private base::Subscriber, public base::has_weak_ptr {
 public:
 	Instance();
 	~Instance();
@@ -69,7 +71,8 @@ public:
 	bool activateCurrentCall(const QString &joinHash = QString());
 	bool minimizeCurrentActiveCall();
 	bool closeCurrentActiveCall();
-	std::shared_ptr<tgcalls::VideoCaptureInterface> getVideoCapture();
+	[[nodiscard]] auto getVideoCapture(QString deviceId = QString())
+		-> std::shared_ptr<tgcalls::VideoCaptureInterface>;
 	void requestPermissionsOrFail(Fn<void()> onSuccess, bool video = true);
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
@@ -77,44 +80,13 @@ public:
 	[[nodiscard]] bool isQuitPrevent();
 
 private:
-	using CallSound = Call::Delegate::CallSound;
-	using GroupCallSound = GroupCall::Delegate::GroupCallSound;
-
-	[[nodiscard]] not_null<Call::Delegate*> getCallDelegate() {
-		return static_cast<Call::Delegate*>(this);
-	}
-	[[nodiscard]] not_null<GroupCall::Delegate*> getGroupCallDelegate() {
-		return static_cast<GroupCall::Delegate*>(this);
-	}
-	[[nodiscard]] DhConfig getDhConfig() const override {
-		return _dhConfig;
-	}
+	class Delegate;
+	friend class Delegate;
 
 	not_null<Media::Audio::Track*> ensureSoundLoaded(const QString &key);
 	void playSoundOnce(const QString &key);
 
-	void callFinished(not_null<Call*> call) override;
-	void callFailed(not_null<Call*> call) override;
-	void callRedial(not_null<Call*> call) override;
-	void callRequestPermissionsOrFail(
-			Fn<void()> onSuccess,
-			bool video) override {
-		requestPermissionsOrFail(std::move(onSuccess), video);
-	}
-	void callPlaySound(CallSound sound) override;
-	auto callGetVideoCapture()
-		->std::shared_ptr<tgcalls::VideoCaptureInterface> override;
-
-	void groupCallFinished(not_null<GroupCall*> call) override;
-	void groupCallFailed(not_null<GroupCall*> call) override;
-	void groupCallRequestPermissionsOrFail(Fn<void()> onSuccess) override {
-		requestPermissionsOrFail(std::move(onSuccess), false);
-	}
-	void groupCallPlaySound(GroupCallSound sound) override;
-	auto groupCallGetVideoCapture()
-		->std::shared_ptr<tgcalls::VideoCaptureInterface> override;
-
-	void createCall(not_null<UserData*> user, Call::Type type, bool video);
+	void createCall(not_null<UserData*> user, CallType type, bool video);
 	void destroyCall(not_null<Call*> call);
 
 	void createGroupCall(
@@ -141,7 +113,8 @@ private:
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
 
-	DhConfig _dhConfig;
+	const std::unique_ptr<Delegate> _delegate;
+	const std::unique_ptr<DhConfig> _cachedDhConfig;
 
 	crl::time _lastServerConfigUpdateTime = 0;
 	base::weak_ptr<Main::Session> _serverConfigRequestSession;
@@ -157,7 +130,7 @@ private:
 
 	base::flat_map<QString, std::unique_ptr<Media::Audio::Track>> _tracks;
 
-	Group::ChooseJoinAsProcess _chooseJoinAs;
+	const std::unique_ptr<Group::ChooseJoinAsProcess> _chooseJoinAs;
 
 };
 

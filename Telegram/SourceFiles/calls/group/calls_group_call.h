@@ -74,6 +74,11 @@ struct LevelUpdate {
 	bool me = false;
 };
 
+struct StreamsVideoUpdate {
+	uint32 ssrc = 0;
+	bool streams = false;
+};
+
 struct VideoParams;
 
 [[nodiscard]] std::shared_ptr<VideoParams> ParseVideoParams(
@@ -100,7 +105,7 @@ public:
 			Ended,
 		};
 		virtual void groupCallPlaySound(GroupCallSound sound) = 0;
-		virtual auto groupCallGetVideoCapture()
+		virtual auto groupCallGetVideoCapture(const QString &deviceId)
 			-> std::shared_ptr<tgcalls::VideoCaptureInterface> = 0;
 	};
 
@@ -158,6 +163,13 @@ public:
 		return _muted.value();
 	}
 
+	[[nodiscard]] bool videoCall() const {
+		return _videoCall.current();
+	}
+	[[nodiscard]] rpl::producer<bool> videoCallValue() const {
+		return _videoCall.value();
+	}
+
 	[[nodiscard]] auto otherParticipantStateValue() const
 		-> rpl::producer<Group::ParticipantState>;
 
@@ -194,8 +206,15 @@ public:
 	[[nodiscard]] rpl::producer<LevelUpdate> levelUpdates() const {
 		return _levelUpdates.events();
 	}
-	[[nodiscard]] rpl::producer<uint32> videoStreamUpdated() const {
-		return _videoStreamUpdated.events();
+	[[nodiscard]] auto streamsVideoUpdates() const
+	-> rpl::producer<StreamsVideoUpdate> {
+		return _streamsVideoUpdated.events();
+	}
+	[[nodiscard]] uint32 videoStreamLarge() const {
+		return _videoStreamLarge.current();
+	}
+	[[nodiscard]] rpl::producer<uint32> videoStreamLargeValue() const {
+		return _videoStreamLarge.value();
 	}
 	[[nodiscard]] rpl::producer<Group::RejoinEvent> rejoinEvents() const {
 		return _rejoinEvents.events();
@@ -213,8 +232,6 @@ public:
 	bool isScreenSharing() const;
 	void switchToCamera();
 	void switchToScreenSharing(const QString &uniqueId);
-	//void setAudioVolume(bool input, float level);
-	void setAudioDuckingEnabled(bool enabled);
 
 	void toggleMute(const Group::MuteRequest &data);
 	void changeVolume(const Group::VolumeRequest &data);
@@ -264,8 +281,6 @@ private:
 	void handlePossibleDiscarded(const MTPDgroupCallDiscarded &data);
 	void handleUpdate(const MTPDupdateGroupCall &data);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
-	void handleRequestError(const MTP::Error &error);
-	void handleControllerError(const QString &error);
 	void ensureControllerCreated();
 	void destroyController();
 
@@ -304,7 +319,7 @@ private:
 		const Data::GroupCallParticipant &participant);
 	void addPreparedParticipants();
 	void addPreparedParticipantsDelayed();
-	void showVideoStreams(const std::vector<std::uint32_t> &ssrcs);
+	void setVideoStreams(const std::vector<std::uint32_t> &ssrcs);
 
 	void editParticipant(
 		not_null<PeerData*> participantPeer,
@@ -347,6 +362,7 @@ private:
 	QString _joinHash;
 
 	rpl::variable<MuteState> _muted = MuteState::Muted;
+	rpl::variable<bool> _videoCall = false;
 	bool _initialMuteStateSent = false;
 	bool _acceptFields = false;
 
@@ -365,7 +381,10 @@ private:
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
 	const std::unique_ptr<Webrtc::VideoTrack> _videoOutgoing;
 	rpl::event_stream<LevelUpdate> _levelUpdates;
-	rpl::event_stream<uint32> _videoStreamUpdated;
+	rpl::event_stream<StreamsVideoUpdate> _streamsVideoUpdated;
+	base::flat_set<uint32> _videoStreamSsrcs;
+	rpl::variable<uint32> _videoStreamLarge = 0;
+	uint32 _videoStreamPinned = 0;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
 	rpl::event_stream<> _allowedToSpeakNotifications;

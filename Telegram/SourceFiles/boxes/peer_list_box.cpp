@@ -1107,7 +1107,9 @@ void PeerListContent::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	const auto clip = e->rect();
-	p.fillRect(clip, _st.item.button.textBg);
+	if (_mode != Mode::Custom) {
+		p.fillRect(clip, _st.item.button.textBg);
+	}
 
 	const auto repaintByStatusAfter = _repaintByStatus.remainingTime();
 	auto repaintAfterMin = repaintByStatusAfter;

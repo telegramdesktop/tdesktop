@@ -53,6 +53,7 @@ struct CallBodyLayout;
 namespace Calls::Group {
 
 class Members;
+enum class PanelMode;
 
 class Panel final : private Ui::DesktopCapture::ChooseSourceDelegate {
 public:
@@ -88,6 +89,7 @@ private:
 	bool handleClose();
 	void startScheduledNow();
 
+	bool updateMode();
 	void updateControlsGeometry();
 	void updateMembersGeometry();
 	void showControls();
@@ -118,6 +120,7 @@ private:
 
 	const std::unique_ptr<Ui::Window> _window;
 	const std::unique_ptr<Ui::LayerManager> _layerBg;
+	PanelMode _mode = PanelMode();
 
 #ifndef Q_OS_MAC
 	std::unique_ptr<Ui::Platform::TitleControls> _controls;
