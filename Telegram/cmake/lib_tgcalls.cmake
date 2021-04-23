@@ -167,8 +167,6 @@ elseif (APPLE)
     remove_target_sources(lib_tgcalls ${tgcalls_loc}
         platform/darwin/DesktopCaptureSourceView.h
         platform/darwin/DesktopCaptureSourceView.mm
-        platform/darwin/DesktopSharingCapturer.h
-        platform/darwin/DesktopSharingCapturer.mm
         platform/darwin/GLVideoView.h
         platform/darwin/GLVideoView.mm
         platform/darwin/GLVideoViewMac.h
