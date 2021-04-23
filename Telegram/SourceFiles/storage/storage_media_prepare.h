@@ -44,6 +44,6 @@ Ui::PreparedList PrepareMediaFromImage(
 void PrepareDetails(Ui::PreparedFile &file, int previewWidth);
 void UpdateImageDetails(Ui::PreparedFile &file, int previewWidth);
 
-void ApplyModifications(const Ui::PreparedList &list);
+bool ApplyModifications(const Ui::PreparedList &list);
 
 } // namespace Storage

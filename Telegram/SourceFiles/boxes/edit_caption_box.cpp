@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_editing.h"
 #include "api/api_text_entities.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
@@ -392,7 +393,11 @@ EditCaptionBox::EditCaptionBox(
 			st::editMediaHintLabel),
 		st::editMediaLabelMargins);
 	_hintLabel = label.data();
-	_hintLabel->toggle(_photo, anim::type::instant);
+	_hintLabel->toggle(
+		_controller->session().settings().photoEditorHintShown()
+			? _photo
+			: false,
+		anim::type::instant);
 
 	auto r = object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 		this,
@@ -649,7 +654,9 @@ void EditCaptionBox::updateEditPreview() {
 
 	const auto showCheckbox = _photo && (_albumType == Ui::AlbumType::None);
 	_wayWrap->toggle(showCheckbox, anim::type::instant);
-	_hintLabel->toggle(_photo, anim::type::instant);
+	if (_controller->session().settings().photoEditorHintShown()) {
+		_hintLabel->toggle(_photo, anim::type::instant);
+	}
 	_photoEditorButton->setVisible(_photo);
 
 	if (!_doc) {
@@ -1160,7 +1167,10 @@ void EditCaptionBox::save() {
 		action.options = options;
 		action.replaceMediaOf = item->fullId().msg;
 
-		Storage::ApplyModifications(_preparedList);
+		if (Storage::ApplyModifications(_preparedList)) {
+			_controller->session().settings().incrementPhotoEditorHintShown();
+			_controller->session().saveSettings();
+		}
 
 		_controller->session().api().editMedia(
 			std::move(_preparedList),

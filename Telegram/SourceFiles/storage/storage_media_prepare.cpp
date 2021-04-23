@@ -309,16 +309,19 @@ void UpdateImageDetails(PreparedFile &file, int previewWidth) {
 	file.preview.setDevicePixelRatio(cRetinaFactor());
 }
 
-void ApplyModifications(const PreparedList &list) {
+bool ApplyModifications(const PreparedList &list) {
+	auto applied = false;
 	for (auto &file : list.files) {
 		const auto image = std::get_if<Image>(&file.information->media);
 		if (!image || !image->modifications) {
 			continue;
 		}
+		applied = true;
 		image->data = Editor::ImageModified(
 			std::move(image->data),
 			image->modifications);
 	}
+	return applied;
 }
 
 } // namespace Storage
