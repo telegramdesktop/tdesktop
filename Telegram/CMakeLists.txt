@@ -37,6 +37,11 @@ include(cmake/td_scheme.cmake)
 include(cmake/td_ui.cmake)
 include(cmake/generate_appdata_changelog.cmake)
 
+if (WIN32)
+    include(cmake/generate_midl.cmake)
+    generate_midl(Telegram ${src_loc}/platform/win/windows_quiethours.idl)
+endif()
+
 set_target_properties(Telegram PROPERTIES AUTOMOC ON AUTORCC ON)
 
 target_link_libraries(Telegram
