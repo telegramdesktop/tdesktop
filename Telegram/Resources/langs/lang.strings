@@ -1998,6 +1998,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_raised_hand_status" = "wants to speak";
 "lng_group_call_settings" = "Settings";
 "lng_group_call_share_button" = "Share";
+"lng_group_call_screen_share" = "Share";
+"lng_group_call_unmute_small" = "Unmute";
+"lng_group_call_you_are_live_small" = "Mute";
+"lng_group_call_force_muted_small" = "Muted";
+"lng_group_call_more" = "More";
 "lng_group_call_unmute" = "Unmute";
 "lng_group_call_unmute_sub" = "or hold spacebar to talk";
 "lng_group_call_you_are_live" = "You are Live";
@@ -2059,6 +2064,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_context_remove_hand" = "Cancel request to speak";
 "lng_group_call_context_mute_for_me" = "Mute for me";
 "lng_group_call_context_unmute_for_me" = "Unmute for me";
+"lng_group_call_context_pin_video" = "Pin video";
+"lng_group_call_context_unpin_video" = "Unpin video";
 "lng_group_call_context_remove" = "Remove";
 "lng_group_call_remove_channel" = "Remove {channel} from the voice chat?";
 "lng_group_call_duration_days#one" = "{count} day";

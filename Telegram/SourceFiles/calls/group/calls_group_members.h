@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 
 namespace Ui {
+class RpWidget;
 class ScrollArea;
+class VerticalLayout;
 class SettingsButton;
 } // namespace Ui
 
@@ -74,20 +76,24 @@ private:
 	void setupAddMember(not_null<GroupCall*> call);
 	void resizeToList();
 	void setupList();
+	void setupPinnedVideo();
 	void setupFakeRoundCorners();
 
 	void updateControlsGeometry();
 
 	const not_null<GroupCall*> _call;
-	PanelMode _mode = PanelMode();
+	rpl::variable<PanelMode> _mode = PanelMode();
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<PeerListController> _listController;
-	object_ptr<Ui::SettingsButton> _addMember = { nullptr };
+	not_null<Ui::VerticalLayout*> _layout;
+	const not_null<Ui::RpWidget*> _pinnedVideo;
 	rpl::variable<Ui::SettingsButton*> _addMemberButton = nullptr;
-	ListWidget *_list = { nullptr };
+	ListWidget *_list = nullptr;
 	rpl::event_stream<> _addMemberRequests;
 
 	rpl::variable<bool> _canAddMembers;
+
+	rpl::lifetime _pinnedTrackLifetime;
 
 };
 

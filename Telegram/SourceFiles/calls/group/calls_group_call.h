@@ -210,11 +210,25 @@ public:
 	-> rpl::producer<StreamsVideoUpdate> {
 		return _streamsVideoUpdated.events();
 	}
+	[[nodiscard]] bool streamsVideo(uint32 ssrc) const {
+		return _videoStreamSsrcs.contains(ssrc);
+	}
+	[[nodiscard]] uint32 videoStreamPinned() const {
+		return _videoStreamPinned;
+	}
+	void pinVideoStream(uint32 ssrc);
 	[[nodiscard]] uint32 videoStreamLarge() const {
 		return _videoStreamLarge.current();
 	}
 	[[nodiscard]] rpl::producer<uint32> videoStreamLargeValue() const {
 		return _videoStreamLarge.value();
+	}
+	[[nodiscard]] Webrtc::VideoTrack *videoLargeTrack() const {
+		return _videoLargeTrack.current();
+	}
+	[[nodiscard]] auto videoLargeTrackValue() const
+	-> rpl::producer<Webrtc::VideoTrack*> {
+		return _videoLargeTrack.value();
 	}
 	[[nodiscard]] rpl::producer<Group::RejoinEvent> rejoinEvents() const {
 		return _rejoinEvents.events();
@@ -256,6 +270,7 @@ public:
 
 private:
 	using GlobalShortcutValue = base::GlobalShortcutValue;
+	struct LargeTrack;
 
 	struct LoadingPart {
 		std::shared_ptr<LoadPartTask> task;
@@ -385,6 +400,8 @@ private:
 	base::flat_set<uint32> _videoStreamSsrcs;
 	rpl::variable<uint32> _videoStreamLarge = 0;
 	uint32 _videoStreamPinned = 0;
+	std::unique_ptr<LargeTrack> _videoLargeTrackWrap;
+	rpl::variable<Webrtc::VideoTrack*> _videoLargeTrack;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
 	rpl::event_stream<> _allowedToSpeakNotifications;

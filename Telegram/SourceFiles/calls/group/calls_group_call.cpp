@@ -111,6 +111,14 @@ private:
 
 };
 
+struct GroupCall::LargeTrack {
+	LargeTrack() : track(Webrtc::VideoState::Active) {
+	}
+
+	Webrtc::VideoTrack track;
+	std::shared_ptr<Webrtc::SinkInterface> sink;
+};
+
 [[nodiscard]] bool IsGroupCallAdmin(
 		not_null<PeerData*> peer,
 		not_null<PeerData*> participantPeer) {
@@ -426,6 +434,53 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 	real->scheduleDateValue(
 	) | rpl::start_with_next([=](TimeId date) {
 		setScheduledDate(date);
+	}, _lifetime);
+
+	using Update = Data::GroupCall::ParticipantUpdate;
+	real->participantUpdated(
+	) | rpl::start_with_next([=](const Update &data) {
+		const auto nowSpeaking = data.now && data.now->speaking;
+		const auto nowSounding = data.now && data.now->sounding;
+		const auto wasSpeaking = data.was && data.was->speaking;
+		const auto wasSounding = data.was && data.was->sounding;
+		if (nowSpeaking == wasSpeaking && nowSounding == wasSounding) {
+			return;
+		} else if (_videoStreamPinned) {
+			return;
+		}
+		const auto videoLargeSsrc = _videoStreamLarge.current();
+		const auto &participants = real->participants();
+		if ((wasSpeaking || wasSounding)
+			&& (data.was->ssrc == videoLargeSsrc)) {
+			auto bestWithVideoSsrc = uint32(0);
+			for (const auto &participant : participants) {
+				if (!participant.sounding
+					|| !participant.ssrc
+					|| !_videoStreamSsrcs.contains(participant.ssrc)) {
+					continue;
+				}
+				if (participant.speaking) {
+					bestWithVideoSsrc = participant.ssrc;
+					break;
+				} else if (!bestWithVideoSsrc) {
+					bestWithVideoSsrc = participant.ssrc;
+				}
+			}
+			if (bestWithVideoSsrc) {
+				_videoStreamLarge = bestWithVideoSsrc;
+			}
+		} else if ((nowSpeaking || nowSounding)
+			&& (data.now->ssrc != videoLargeSsrc)) {
+			const auto i = ranges::find(
+				participants,
+				videoLargeSsrc,
+				&Data::GroupCallParticipant::ssrc);
+			const auto speaking = (i != end(participants)) && i->speaking;
+			const auto sounding = (i != end(participants)) && i->sounding;
+			if ((nowSpeaking && !speaking) || (nowSounding && !sounding)) {
+				_videoStreamLarge = data.now->ssrc;
+			}
+		}
 	}, _lifetime);
 }
 
@@ -1531,6 +1586,22 @@ void GroupCall::ensureControllerCreated() {
 	LOG(("Call Info: Creating group instance"));
 	_instance = std::make_unique<tgcalls::GroupInstanceCustomImpl>(
 		std::move(descriptor));
+	_videoStreamLarge.changes(
+	) | rpl::start_with_next([=](uint32 ssrc) {
+		_instance->setFullSizeVideoSsrc(ssrc);
+		if (!ssrc) {
+			_videoLargeTrack = nullptr;
+			_videoLargeTrackWrap = nullptr;
+			return;
+		}
+		if (!_videoLargeTrackWrap) {
+			_videoLargeTrackWrap = std::make_unique<LargeTrack>();
+			_videoLargeTrack = &_videoLargeTrackWrap->track;
+		}
+		_videoLargeTrackWrap->sink = Webrtc::CreateProxySink(
+			_videoLargeTrackWrap->track.sink());
+		_instance->addIncomingVideoOutput(ssrc, _videoLargeTrackWrap->sink);
+	}, _lifetime);
 
 	updateInstanceMuteState();
 	updateInstanceVolumes();
@@ -1641,15 +1712,14 @@ void GroupCall::requestParticipantsInformation(
 }
 
 void GroupCall::setVideoStreams(const std::vector<std::uint32_t> &ssrcs) {
+	const auto real = lookupReal();
 	const auto large = _videoStreamLarge.current();
 	auto newLarge = large;
 	if (large && !ranges::contains(ssrcs, large)) {
 		newLarge = 0;
 		_videoStreamPinned = 0;
 	}
-	auto lastSpokeVoice = crl::time(0);
 	auto lastSpokeVoiceSsrc = uint32(0);
-	auto lastSpokeAnything = crl::time(0);
 	auto lastSpokeAnythingSsrc = uint32(0);
 	auto removed = _videoStreamSsrcs;
 	for (const auto ssrc : ssrcs) {
@@ -1660,30 +1730,41 @@ void GroupCall::setVideoStreams(const std::vector<std::uint32_t> &ssrcs) {
 			_videoStreamSsrcs.emplace(ssrc);
 			_streamsVideoUpdated.fire({ ssrc, true });
 		}
-		if (!newLarge) {
-			const auto j = _lastSpoke.find(ssrc);
-			if (j != end(_lastSpoke)) {
-				if (!lastSpokeVoiceSsrc
-					|| lastSpokeVoice < j->second.voice) {
+		if (!newLarge && real) {
+			const auto &participants = real->participants();
+			const auto i = ranges::find(
+				participants,
+				ssrc,
+				&Data::GroupCallParticipant::ssrc);
+			if (i != end(participants)) {
+				if (!lastSpokeVoiceSsrc && i->speaking) {
 					lastSpokeVoiceSsrc = ssrc;
-					lastSpokeVoice = j->second.voice;
 				}
-				if (!lastSpokeAnythingSsrc
-					|| lastSpokeAnything < j->second.anything) {
+				if (!lastSpokeAnythingSsrc && i->sounding) {
 					lastSpokeAnythingSsrc = ssrc;
-					lastSpokeAnything = j->second.anything;
 				}
 			}
 		}
 	}
-	if (!newLarge) {
+	if (!newLarge && real) {
+		const auto find = [&] {
+			const auto &participants = real->participants();
+			for (const auto ssrc : ssrcs) {
+				const auto i = ranges::find(
+					participants,
+					ssrc,
+					&Data::GroupCallParticipant::ssrc);
+				if (i != end(participants)) {
+					return ssrc;
+				}
+			}
+			return std::uint32_t(0);
+		};
 		_videoStreamLarge = lastSpokeVoiceSsrc
 			? lastSpokeVoiceSsrc
 			: lastSpokeAnythingSsrc
 			? lastSpokeAnythingSsrc
-			: ssrcs.empty()
-			? 0
-			: ssrcs.front();
+			: find();
 	}
 	for (const auto ssrc : removed) {
 		_streamsVideoUpdated.fire({ ssrc, false });
@@ -1930,6 +2011,15 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 			rejoin();
 		}
 	}).send();
+}
+
+void GroupCall::pinVideoStream(uint32 ssrc) {
+	if (!ssrc || _videoStreamSsrcs.contains(ssrc)) {
+		_videoStreamPinned = ssrc;
+		if (ssrc) {
+			_videoStreamLarge = ssrc;
+		}
+	}
 }
 
 void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {

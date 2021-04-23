@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "window/window_controller.h" // Controller::sessionController.
 #include "window/window_session_controller.h"
+#include "media/view/media_view_pip.h"
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
 
@@ -1147,7 +1148,6 @@ void MembersController::setupListChangeViewers() {
 		}
 	}, _lifetime);
 
-
 	_call->videoStreamLargeValue(
 	) | rpl::filter([=](uint32 largeSsrc) {
 		return (_largeSsrc != largeSsrc);
@@ -1844,6 +1844,17 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		_kickParticipantRequests.fire_copy(participantPeer);
 	});
 
+	const auto ssrc = real->ssrc();
+	if (ssrc != 0 && _call->streamsVideo(ssrc)) {
+		const auto pinned = (_call->videoStreamPinned() == ssrc);
+		const auto phrase = pinned
+			? tr::lng_group_call_context_unpin_video(tr::now)
+			: tr::lng_group_call_context_pin_video(tr::now);
+		result->addAction(phrase, [=] {
+			_call->pinVideoStream(pinned ? 0 : ssrc);
+		});
+	}
+
 	if (real->ssrc() != 0
 		&& (!isMe(participantPeer) || _peer->canManageGroupCall())) {
 		addMuteActionsToContextMenu(result, participantPeer, admin, real);
@@ -2056,9 +2067,13 @@ Members::Members(
 : RpWidget(parent)
 , _call(call)
 , _scroll(this)
-, _listController(std::make_unique<MembersController>(call, parent)) {
+, _listController(std::make_unique<MembersController>(call, parent))
+, _layout(_scroll->setOwnedWidget(
+	object_ptr<Ui::VerticalLayout>(_scroll.data())))
+, _pinnedVideo(_layout->add(object_ptr<Ui::RpWidget>(_layout.get()))) {
 	setupAddMember(call);
 	setupList();
+	setupPinnedVideo();
 	setContent(_list);
 	setupFakeRoundCorners();
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
@@ -2083,15 +2098,17 @@ auto Members::kickParticipantRequests() const
 }
 
 int Members::desiredHeight() const {
-	const auto top = _addMember ? _addMember->height() : 0;
-	auto count = [&] {
+	const auto addMember = _addMemberButton.current();
+	const auto top = _pinnedVideo->height()
+		+ (addMember ? addMember->height() : 0);
+	const auto count = [&] {
 		if (const auto real = _call->lookupReal()) {
 			return real->fullCount();
 		}
 		return 0;
 	}();
 	const auto use = std::max(count, _list->fullRowsCount());
-	const auto single = (_mode == PanelMode::Wide)
+	const auto single = (_mode.current() == PanelMode::Wide)
 		? (st::groupCallNarrowSize.height() + st::groupCallNarrowRowSkip)
 		: st::groupCallMembersList.item.height;
 	return top
@@ -2137,34 +2154,33 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 	_canAddMembers.value(
 	) | rpl::start_with_next([=](bool can) {
 		if (!can) {
+			delete _addMemberButton.current();
 			_addMemberButton = nullptr;
-			_addMember.destroy();
 			updateControlsGeometry();
 			return;
+		} else if (_addMemberButton.current()) {
+			return;
 		}
-		_addMember = Settings::CreateButton(
+		auto addMember = Settings::CreateButton(
 			this,
 			tr::lng_group_call_invite(),
 			st::groupCallAddMember,
 			&st::groupCallAddMemberIcon,
 			st::groupCallAddMemberIconLeft);
-		_addMember->show();
-
-		_addMember->addClickHandler([=] { // TODO throttle(ripple duration)
+		addMember->show();
+		addMember->addClickHandler([=] { // TODO throttle(ripple duration)
 			_addMemberRequests.fire({});
 		});
-		_addMemberButton = _addMember.data();
-
-		resizeToList();
+		_addMemberButton = _layout->insert(1, std::move(addMember));
 	}, lifetime());
 }
 
 void Members::setMode(PanelMode mode) {
-	if (_mode == mode) {
+	if (_mode.current() == mode) {
 		return;
 	}
 	_mode = mode;
-	_list->setMode((_mode == PanelMode::Wide)
+	_list->setMode((mode == PanelMode::Wide)
 		? PeerListContent::Mode::Custom
 		: PeerListContent::Mode::Default);
 }
@@ -2176,23 +2192,137 @@ rpl::producer<int> Members::fullCountValue() const {
 
 void Members::setupList() {
 	_listController->setStyleOverrides(&st::groupCallMembersList);
-	_list = _scroll->setOwnedWidget(object_ptr<ListWidget>(
+	_list = _layout->add(object_ptr<ListWidget>(
 		this,
 		_listController.get()));
 
-	_list->heightValue(
+	_layout->heightValue(
 	) | rpl::start_with_next([=] {
 		resizeToList();
-	}, _list->lifetime());
+	}, _layout->lifetime());
 
 	rpl::combine(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue()
 	) | rpl::start_with_next([=](int scrollTop, int scrollHeight) {
-		_list->setVisibleTopBottom(scrollTop, scrollTop + scrollHeight);
+		_layout->setVisibleTopBottom(scrollTop, scrollTop + scrollHeight);
 	}, _scroll->lifetime());
 
 	updateControlsGeometry();
+}
+
+void Members::setupPinnedVideo() {
+	using namespace rpl::mappers;
+
+	// New video was pinned or mode changed.
+	rpl::merge(
+		_mode.changes() | rpl::filter(
+			_1 == PanelMode::Default
+		) | rpl::to_empty,
+		_call->videoStreamLargeValue() | rpl::filter([=](uint32 ssrc) {
+			return ssrc == _call->videoStreamPinned();
+		}) | rpl::to_empty
+	) | rpl::start_with_next([=] {
+		_scroll->scrollToY(0);
+	}, _scroll->lifetime());
+
+	rpl::combine(
+		_mode.value(),
+		_call->videoLargeTrackValue()
+	) | rpl::map([](PanelMode mode, Webrtc::VideoTrack *track) {
+		return (mode == PanelMode::Default) ? track : nullptr;
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](Webrtc::VideoTrack *track) {
+		_pinnedTrackLifetime.destroy();
+		if (!track) {
+			_pinnedVideo->resize(_pinnedVideo->width(), 0);
+			return;
+		}
+		const auto frameSize = _pinnedTrackLifetime.make_state<QSize>();
+		const auto applyFrameSize = [=](QSize size) {
+			const auto width = _pinnedVideo->width();
+			if (size.isEmpty() || !width) {
+				return;
+			}
+			const auto heightMin = (width * 9) / 16;
+			const auto heightMax = (width * 3) / 4;
+			const auto scaled = size.scaled(
+				QSize(width, heightMax),
+				Qt::KeepAspectRatio);
+			_pinnedVideo->resize(
+				width,
+				std::max(scaled.height(), heightMin));
+		};
+		track->renderNextFrame(
+		) | rpl::start_with_next([=] {
+			const auto size = track->frameSize();
+			if (size.isEmpty()) {
+				track->markFrameShown();
+			} else {
+				if (*frameSize != size) {
+					*frameSize = size;
+					applyFrameSize(size);
+				}
+				_pinnedVideo->update();
+			}
+		}, _pinnedTrackLifetime);
+
+		_layout->widthValue(
+		) | rpl::start_with_next([=] {
+			applyFrameSize(track->frameSize());
+		}, _pinnedTrackLifetime);
+
+		_pinnedVideo->paintRequest(
+		) | rpl::start_with_next([=] {
+			const auto [image, rotation]
+				= track->frameOriginalWithRotation();
+			if (image.isNull()) {
+				return;
+			}
+			auto p = QPainter(_pinnedVideo);
+			auto hq = PainterHighQualityEnabler(p);
+			using namespace Media::View;
+			const auto size = _pinnedVideo->size();
+			const auto scaled = FlipSizeByRotation(
+				image.size(),
+				rotation
+			).scaled(size, Qt::KeepAspectRatio);
+			const auto left = (size.width() - scaled.width()) / 2;
+			const auto top = (size.height() - scaled.height()) / 2;
+			const auto target = QRect(QPoint(left, top), scaled);
+			if (UsePainterRotation(rotation)) {
+				if (rotation) {
+					p.save();
+					p.rotate(rotation);
+				}
+				p.drawImage(RotatedRect(target, rotation), image);
+				if (rotation) {
+					p.restore();
+				}
+			} else if (rotation) {
+				p.drawImage(target, RotateFrameImage(image, rotation));
+			} else {
+				p.drawImage(target, image);
+			}
+			if (left > 0) {
+				p.fillRect(0, 0, left, size.height(), Qt::black);
+			}
+			if (const auto right = left + scaled.width()
+				; right < size.width()) {
+				const auto fill = size.width() - right;
+				p.fillRect(right, 0, fill, size.height(), Qt::black);
+			}
+			if (top > 0) {
+				p.fillRect(0, 0, size.width(), top, Qt::black);
+			}
+			if (const auto bottom = top + scaled.height()
+				; bottom < size.height()) {
+				const auto fill = size.height() - bottom;
+				p.fillRect(0, bottom, size.width(), fill, Qt::black);
+			}
+			track->markFrameShown();
+		}, _pinnedTrackLifetime);
+	}, lifetime());
 }
 
 void Members::resizeEvent(QResizeEvent *e) {
@@ -2203,11 +2333,8 @@ void Members::resizeToList() {
 	if (!_list) {
 		return;
 	}
-	const auto listHeight = _list->height();
-	const auto newHeight = (listHeight > 0)
-		? ((_addMember ? _addMember->height() : 0)
-			+ listHeight
-			+ st::lineWidth)
+	const auto newHeight = (_list->height() > 0)
+		? (_layout->height() + st::lineWidth)
 		: 0;
 	if (height() == newHeight) {
 		updateControlsGeometry();
@@ -2217,17 +2344,8 @@ void Members::resizeToList() {
 }
 
 void Members::updateControlsGeometry() {
-	if (!_list) {
-		return;
-	}
-	auto topSkip = 0;
-	if (_addMember) {
-		_addMember->resizeToWidth(width());
-		_addMember->move(0, 0);
-		topSkip = _addMember->height();
-	}
-	_scroll->setGeometry(0, topSkip, width(), height() - topSkip);
-	_list->resizeToWidth(width());
+	_scroll->setGeometry(rect());
+	_layout->resizeToWidth(width());
 }
 
 void Members::setupFakeRoundCorners() {
