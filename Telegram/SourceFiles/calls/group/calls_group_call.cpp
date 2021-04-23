@@ -1998,13 +1998,13 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 	_updateMuteRequestId = _api.request(MTPphone_EditGroupCallParticipant(
 		MTP_flags((type == SendUpdateType::RaiseHand)
 			? Flag::f_raise_hand
-			: (muted() != MuteState::Active)
-			? Flag::f_muted
-			: Flag(0)),
+			: Flag::f_muted),
 		inputCall(),
 		_joinAs->input,
+		MTP_bool(muted() != MuteState::Active),
 		MTP_int(100000), // volume
-		MTP_bool(muted() == MuteState::RaisedHand)
+		MTP_bool(muted() == MuteState::RaisedHand),
+		MTPBool() // video_muted
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
 		_peer->session().api().applyUpdates(result);
@@ -2066,14 +2066,16 @@ void GroupCall::editParticipant(
 	applyParticipantLocally(participantPeer, mute, volume);
 
 	using Flag = MTPphone_EditGroupCallParticipant::Flag;
-	const auto flags = (mute ? Flag::f_muted : Flag(0))
+	const auto flags = Flag::f_muted
 		| (volume.has_value() ? Flag::f_volume : Flag(0));
 	_api.request(MTPphone_EditGroupCallParticipant(
 		MTP_flags(flags),
 		inputCall(),
 		participantPeer->input,
+		MTP_bool(mute),
 		MTP_int(std::clamp(volume.value_or(0), 1, Group::kMaxVolume)),
-		MTPBool()
+		MTPBool(), // raise_hand
+		MTPBool() // video_muted
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 	}).fail([=](const MTP::Error &error) {
