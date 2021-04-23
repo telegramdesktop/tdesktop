@@ -1022,5 +1022,5 @@ desktopCaptureSourceSkip: 12px;
 groupCallNarrowSkip: 9px;
 groupCallNarrowRowSkip: 8px;
 groupCallNarrowSize: size(90px, 90px);
-groupCallWideModeWidthMin: 800px;
-groupCallWideModeSize: size(960px, 520px);
+groupCallWideModeWidthMin: 520px;
+groupCallWideModeSize: size(720px, 480px);

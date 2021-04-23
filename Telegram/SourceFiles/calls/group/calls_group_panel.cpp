@@ -1561,7 +1561,7 @@ void Panel::updateMembersGeometry() {
 		_pinnedVideo->setGeometry(
 			pinnedLeft,
 			membersTop,
-			widget()->width() - pinnedLeft,
+			widget()->width() - pinnedLeft - st::groupCallNarrowSkip,
 			availableHeight);
 	} else {
 		const auto membersWidthAvailable = widget()->width()

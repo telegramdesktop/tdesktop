@@ -475,7 +475,8 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 				_videoStreamLarge = bestWithVideoSsrc;
 			}
 		} else if ((nowSpeaking || nowSounding)
-			&& (data.now->ssrc != videoLargeSsrc)) {
+			&& (data.now->ssrc != videoLargeSsrc)
+			&& _videoStreamSsrcs.contains(data.now->ssrc)) {
 			const auto i = ranges::find(
 				participants,
 				videoLargeSsrc,
