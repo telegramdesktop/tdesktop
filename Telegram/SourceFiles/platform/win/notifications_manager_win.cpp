@@ -689,6 +689,7 @@ void QueryQuietHours() {
 
 bool FocusAssistBlocks = false;
 
+// Thanks https://www.withinrafael.com/2019/09/19/determine-if-your-app-is-in-a-focus-assist-profiles-priority-list/
 void QueryFocusAssist() {
 	ComPtr<IQuietHoursSettings> quietHoursSettings;
 	auto hr = CoCreateInstance(
@@ -709,16 +710,20 @@ void QueryFocusAssist() {
 		return;
 	}
 	const auto profileName = QString::fromWCharArray(profileId);
-	if (profileName.endsWith(".unrestricted", Qt::CaseInsensitive)) {
-		if (FocusAssistBlocks) {
-			LOG(("Focus Assist: Unrestricted."));
-			FocusAssistBlocks = false;
-		}
-		return;
-	} else if (profileName.endsWith(".alarmsonly", Qt::CaseInsensitive)) {
+	if (profileName.endsWith(".alarmsonly", Qt::CaseInsensitive)) {
 		if (!FocusAssistBlocks) {
 			LOG(("Focus Assist: Alarms Only."));
 			FocusAssistBlocks = true;
+		}
+		return;
+	} else if (!profileName.endsWith(".priorityonly", Qt::CaseInsensitive)) {
+		if (!profileName.endsWith(".unrestricted", Qt::CaseInsensitive)) {
+			LOG(("Focus Assist Warning: Unknown profile '%1'"
+				).arg(profileName));
+		}
+		if (FocusAssistBlocks) {
+			LOG(("Focus Assist: Unrestricted."));
+			FocusAssistBlocks = false;
 		}
 		return;
 	}

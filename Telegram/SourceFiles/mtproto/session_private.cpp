@@ -1273,16 +1273,9 @@ void SessionPrivate::handleReceived() {
 		auto msgId = *(uint64*)&decryptedInts[4];
 		auto seqNo = *(uint32*)&decryptedInts[6];
 		auto needAck = ((seqNo & 0x01) != 0);
-
 		auto messageLength = *(uint32*)&decryptedInts[7];
-		if (messageLength > kMaxMessageLength) {
-			LOG(("TCP Error: bad messageLength %1").arg(messageLength));
-			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(ints, intsCount * kIntSize).str()));
-
-			return restart();
-
-		}
 		auto fullDataLength = kEncryptedHeaderIntsCount * kIntSize + messageLength; // Without padding.
+		auto badMessageLength = (messageLength > kMaxMessageLength);
 
 		// Can underflow, but it is an unsigned type, so we just check the range later.
 		auto paddingSize = static_cast<uint32>(encryptedBytesCount) - static_cast<uint32>(fullDataLength);
@@ -1290,7 +1283,7 @@ void SessionPrivate::handleReceived() {
 #ifdef TDESKTOP_MTPROTO_OLD
 		constexpr auto kMinPaddingSize_oldmtp = 0U;
 		constexpr auto kMaxPaddingSize_oldmtp = 15U;
-		auto badMessageLength = (/*paddingSize < kMinPaddingSize_oldmtp || */paddingSize > kMaxPaddingSize_oldmtp);
+		badMessageLength |= (/*paddingSize < kMinPaddingSize_oldmtp || */paddingSize > kMaxPaddingSize_oldmtp);
 
 		auto hashedDataLength = badMessageLength ? encryptedBytesCount : fullDataLength;
 		auto sha1ForMsgKeyCheck = hashSha1(decryptedInts, hashedDataLength);
@@ -1305,7 +1298,7 @@ void SessionPrivate::handleReceived() {
 #else // TDESKTOP_MTPROTO_OLD
 		constexpr auto kMinPaddingSize = 12U;
 		constexpr auto kMaxPaddingSize = 1024U;
-		auto badMessageLength = (paddingSize < kMinPaddingSize || paddingSize > kMaxPaddingSize);
+		badMessageLength |= (paddingSize < kMinPaddingSize || paddingSize > kMaxPaddingSize);
 
 		std::array<uchar, 32> sha256Buffer = { { 0 } };
 
