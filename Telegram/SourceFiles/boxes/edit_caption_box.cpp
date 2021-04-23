@@ -384,6 +384,16 @@ EditCaptionBox::EditCaptionBox(
 
 	InitSpellchecker(_controller, _field);
 
+	auto label = object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+		this,
+		object_ptr<Ui::FlatLabel>(
+			this,
+			tr::lng_edit_photo_editor_hint(tr::now),
+			st::editMediaHintLabel),
+		st::editMediaLabelMargins);
+	_hintLabel = label.data();
+	_hintLabel->toggle(_photo, anim::type::instant);
+
 	auto r = object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 		this,
 		object_ptr<Ui::Checkbox>(
@@ -639,6 +649,7 @@ void EditCaptionBox::updateEditPreview() {
 
 	const auto showCheckbox = _photo && (_albumType == Ui::AlbumType::None);
 	_wayWrap->toggle(showCheckbox, anim::type::instant);
+	_hintLabel->toggle(_photo, anim::type::instant);
 	_photoEditorButton->setVisible(_photo);
 
 	if (!_doc) {
@@ -838,7 +849,7 @@ void EditCaptionBox::updateCaptionMaxHeight() {
 
 	_field->setMaxHeight(_doc
 		? st::confirmCaptionArea.heightMax
-		: st::confirmEditCaptionAreaHeightMax);
+		: (st::confirmEditCaptionAreaHeightMax - (_hintLabel->height() / 2)));
 
 	// Restore.
 	_field->setTextWithTags(text);
@@ -921,6 +932,9 @@ void EditCaptionBox::updateBoxSize() {
 	auto newHeight = st::boxPhotoPadding.top() + st::boxPhotoCaptionSkip + _field->height() + errorTopSkip() + st::normalFont->height;
 	if (_photo) {
 		newHeight += _wayWrap->height() / 2;
+	}
+	if (_hintLabel->toggled()) {
+		newHeight += _hintLabel->height();
 	}
 	const auto &st = isThumbedLayout()
 		? st::msgFileThumbLayout
@@ -1083,18 +1097,34 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
+	const auto previewBottom = st::boxPhotoPadding.top() + _thumbh;
+	const auto hintToggled = _hintLabel->toggled();
+
+	if (hintToggled) {
+		_hintLabel->resize(st::sendMediaPreviewSize, _hintLabel->height());
+		_hintLabel->moveToLeft(st::boxPhotoPadding.left(), previewBottom);
+	}
+
 	if (_photo) {
 		_wayWrap->resize(st::sendMediaPreviewSize, _wayWrap->height());
 		_wayWrap->moveToLeft(
 			st::boxPhotoPadding.left(),
-			st::boxPhotoPadding.top() + _thumbh);
+			hintToggled
+				? _hintLabel->y() + _hintLabel->height()
+				: previewBottom);
 
 		_photoEditorButton->resize(_thumbw, _thumbh);
 		_photoEditorButton->moveToLeft(_thumbx, st::boxPhotoPadding.top());
 	}
 
 	_field->resize(st::sendMediaPreviewSize, _field->height());
-	_field->moveToLeft(st::boxPhotoPadding.left(), height() - st::normalFont->height - errorTopSkip() - _field->height());
+	_field->moveToLeft(
+		st::boxPhotoPadding.left(),
+		height()
+			- st::normalFont->height
+			- errorTopSkip()
+			- _field->height());
+
 	_emojiToggle->moveToLeft(
 		(st::boxPhotoPadding.left()
 			+ st::sendMediaPreviewSize

@@ -144,6 +144,7 @@ private:
 
 	object_ptr<Ui::IconButton> _editMedia = nullptr;
 	Ui::SlideWrap<Ui::RpWidget> *_wayWrap = nullptr;
+	Ui::SlideWrap<Ui::RpWidget> *_hintLabel = nullptr;
 	QString _newMediaPath;
 	Ui::AlbumType _albumType = Ui::AlbumType();
 	bool _isAllowedEditMedia = false;
