@@ -47,6 +47,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "app.h"
 #include "apiwrap.h" // api().kickParticipant.
+#include "media/view/media_view_pip.h"
+#include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
 #include "styles/style_layers.h"
 
@@ -904,6 +906,91 @@ void Panel::setupMembers() {
 			addMembers();
 		}
 	}, _callLifetime);
+
+	setupPinnedVideo();
+}
+
+void Panel::setupPinnedVideo() {
+	_pinnedVideo.create(widget());
+	_pinnedVideo->setVisible(_mode == PanelMode::Wide);
+
+	rpl::combine(
+		_pinnedVideo->shownValue(),
+		_call->videoLargeTrackValue()
+	) | rpl::map([](bool shown, Webrtc::VideoTrack *track) {
+		return shown ? track : nullptr;
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](Webrtc::VideoTrack *track) {
+		_pinnedTrackLifetime.destroy();
+		if (!track) {
+			_pinnedVideo->paintRequest(
+			) | rpl::start_with_next([=](QRect clip) {
+				QPainter(_pinnedVideo.data()).fillRect(clip, Qt::black);
+			}, _pinnedTrackLifetime);
+			_pinnedVideo->update();
+			return;
+		}
+		track->renderNextFrame(
+		) | rpl::start_with_next([=] {
+			const auto size = track->frameSize();
+			if (size.isEmpty()) {
+				track->markFrameShown();
+			} else {
+				_pinnedVideo->update();
+			}
+		}, _pinnedTrackLifetime);
+
+		_pinnedVideo->paintRequest(
+		) | rpl::start_with_next([=] {
+			const auto [image, rotation]
+				= track->frameOriginalWithRotation();
+			if (image.isNull()) {
+				return;
+			}
+			auto p = QPainter(_pinnedVideo);
+			auto hq = PainterHighQualityEnabler(p);
+			using namespace Media::View;
+			const auto size = _pinnedVideo->size();
+			const auto scaled = FlipSizeByRotation(
+				image.size(),
+				rotation
+			).scaled(size, Qt::KeepAspectRatio);
+			const auto left = (size.width() - scaled.width()) / 2;
+			const auto top = (size.height() - scaled.height()) / 2;
+			const auto target = QRect(QPoint(left, top), scaled);
+			if (UsePainterRotation(rotation)) {
+				if (rotation) {
+					p.save();
+					p.rotate(rotation);
+				}
+				p.drawImage(RotatedRect(target, rotation), image);
+				if (rotation) {
+					p.restore();
+				}
+			} else if (rotation) {
+				p.drawImage(target, RotateFrameImage(image, rotation));
+			} else {
+				p.drawImage(target, image);
+			}
+			if (left > 0) {
+				p.fillRect(0, 0, left, size.height(), Qt::black);
+			}
+			if (const auto right = left + scaled.width()
+				; right < size.width()) {
+				const auto fill = size.width() - right;
+				p.fillRect(right, 0, fill, size.height(), Qt::black);
+			}
+			if (top > 0) {
+				p.fillRect(0, 0, size.width(), top, Qt::black);
+			}
+			if (const auto bottom = top + scaled.height()
+				; bottom < size.height()) {
+				const auto fill = size.height() - bottom;
+				p.fillRect(0, bottom, size.width(), fill, Qt::black);
+			}
+			track->markFrameShown();
+		}, _pinnedTrackLifetime);
+	}, widget()->lifetime());
 }
 
 void Panel::setupJoinAsChangedToasts() {
@@ -1402,6 +1489,7 @@ bool Panel::updateMode() {
 	if (_members) {
 		_members->setMode(mode);
 	}
+	_pinnedVideo->setVisible(mode == PanelMode::Wide);
 	updateControlsGeometry();
 	return true;
 }
@@ -1457,18 +1545,25 @@ void Panel::updateMembersGeometry() {
 		return;
 	}
 	const auto desiredHeight = _members->desiredHeight();
+	const auto muteTop = widget()->height() - st::groupCallMuteBottomSkip;
+	const auto membersTop = st::groupCallMembersTop;
+	const auto availableHeight = muteTop
+		- membersTop
+		- st::groupCallMembersMargin.bottom();
 	if (_mode == PanelMode::Wide) {
 		_members->setGeometry(
 			st::groupCallNarrowSkip,
 			0,
 			st::groupCallNarrowSize.width(),
 			std::min(desiredHeight, widget()->height()));
+		const auto pinnedLeft = st::groupCallNarrowSkip * 2
+			+ st::groupCallNarrowSize.width();
+		_pinnedVideo->setGeometry(
+			pinnedLeft,
+			membersTop,
+			widget()->width() - pinnedLeft,
+			availableHeight);
 	} else {
-		const auto muteTop = widget()->height() - st::groupCallMuteBottomSkip;
-		const auto membersTop = st::groupCallMembersTop;
-		const auto availableHeight = muteTop
-			- membersTop
-			- st::groupCallMembersMargin.bottom();
 		const auto membersWidthAvailable = widget()->width()
 			- st::groupCallMembersMargin.left()
 			- st::groupCallMembersMargin.right();

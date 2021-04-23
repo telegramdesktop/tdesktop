@@ -410,7 +410,9 @@ void GroupCall::switchToCamera() {
 		return;
 	}
 	_videoDeviceId = _videoInputId;
-	if (_videoOutgoing)
+	if (_videoOutgoing->state() != Webrtc::VideoState::Active) {
+		_videoOutgoing->setState(Webrtc::VideoState::Active);
+	}
 	_videoCapture->switchToDevice(_videoDeviceId.toStdString());
 }
 
@@ -419,6 +421,9 @@ void GroupCall::switchToScreenSharing(const QString &uniqueId) {
 		return;
 	}
 	_videoDeviceId = uniqueId;
+	if (_videoOutgoing->state() != Webrtc::VideoState::Active) {
+		_videoOutgoing->setState(Webrtc::VideoState::Active);
+	}
 	_videoCapture->switchToDevice(_videoDeviceId.toStdString());
 }
 
@@ -1432,15 +1437,15 @@ void GroupCall::setupOutgoingVideo() {
 	}
 	_videoOutgoing->stateValue(
 	) | rpl::start_with_next([=](Webrtc::VideoState state) {
-		if (state != Webrtc::VideoState::Inactive && !hasDevices()) {
+		//if (state != Webrtc::VideoState::Inactive && !hasDevices()) {
 			//_errors.fire({ ErrorType::NoCamera }); // #TODO videochats
-			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
+			//_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 		//} else if (state != Webrtc::VideoState::Inactive
 		//	&& _instance
 		//	&& !_instance->supportsVideo()) {
 		//	_errors.fire({ ErrorType::NotVideoCall });
 		//	_videoOutgoing->setState(Webrtc::VideoState::Inactive);
-		} else if (state != Webrtc::VideoState::Inactive) {
+		/*} else */if (state != Webrtc::VideoState::Inactive) {
 			// Paused not supported right now.
 			Assert(state == Webrtc::VideoState::Active);
 			if (!_videoCapture) {

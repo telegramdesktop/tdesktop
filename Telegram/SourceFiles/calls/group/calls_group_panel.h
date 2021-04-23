@@ -31,6 +31,7 @@ class CallButton;
 class CallMuteButton;
 class IconButton;
 class FlatLabel;
+class RpWidget;
 template <typename Widget>
 class FadeWrap;
 template <typename Widget>
@@ -81,6 +82,7 @@ private:
 	void initGeometry();
 	void setupScheduledLabels(rpl::producer<TimeId> date);
 	void setupMembers();
+	void setupPinnedVideo();
 	void setupJoinAsChangedToasts();
 	void setupTitleChangedToasts();
 	void setupAllowedToSpeakToasts();
@@ -135,6 +137,8 @@ private:
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<Members> _members = { nullptr };
+	object_ptr<Ui::RpWidget> _pinnedVideo = { nullptr };
+	rpl::lifetime _pinnedTrackLifetime;
 	object_ptr<Ui::FlatLabel> _startsIn = { nullptr };
 	object_ptr<Ui::RpWidget> _countdown = { nullptr };
 	std::shared_ptr<Ui::GroupCallScheduledLeft> _countdownData;
