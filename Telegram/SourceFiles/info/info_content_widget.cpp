@@ -37,7 +37,7 @@ ContentWidget::ContentWidget(
 	not_null<Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _scroll(this, st::infoScroll) {
+, _scroll(this) {
 	using namespace rpl::mappers;
 
 	setAttribute(Qt::WA_OpaquePaintEvent);

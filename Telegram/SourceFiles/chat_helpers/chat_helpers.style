@@ -248,10 +248,6 @@ emojiSuggestionsPadding: margins(emojiColorsPadding, 0px, emojiColorsPadding, 0p
 emojiSuggestionsFadeAfter: 20px;
 
 mentionHeight: 40px;
-mentionScroll: ScrollArea(defaultScrollArea) {
-	topsh: 0px;
-	bottomsh: 0px;
-}
 mentionPadding: margins(8px, 5px, 8px, 5px);
 mentionTop: 11px;
 mentionFont: linkFont;

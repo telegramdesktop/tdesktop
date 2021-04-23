@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/cross_line.h"
+#include "ui/round_rect.h"
 #include "core/application.h" // Core::App().domain, Core::App().activeWindow.
 #include "main/main_domain.h" // Core::App().domain().activate.
 #include "main/main_session.h"
@@ -97,6 +98,7 @@ public:
 		Painter &p,
 		QRect rect,
 		IconState state) = 0;
+	virtual void rowPaintWideBackground(Painter &p, bool selected) = 0;
 };
 
 class Row final : public PeerListRow {
@@ -174,7 +176,15 @@ public:
 		bool selected,
 		bool actionSelected) override;
 
-	auto generatePaintUserpicCallback() -> PaintRoundImageCallback override;
+	PaintRoundImageCallback generatePaintUserpicCallback() override;
+	void paintComplexUserpic(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		PanelMode mode,
+		bool selected = false);
 
 	void paintStatusText(
 		Painter &p,
@@ -243,6 +253,20 @@ private:
 	void ensureUserpicCache(
 		std::shared_ptr<Data::CloudImageView> &view,
 		int size);
+	bool paintVideo(Painter &p, int x, int y, int size, PanelMode mode);
+	[[nodiscard]] static std::tuple<int, int, int> UserpicInWideMode(
+		int x,
+		int y,
+		int size);
+	void paintBlobs(Painter &p, int x, int y, int size, PanelMode mode);
+	void paintScaledUserpic(
+		Painter &p,
+		std::shared_ptr<Data::CloudImageView> &userpic,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		PanelMode mode);
 
 	const not_null<RowDelegate*> _delegate;
 	State _state = State::Inactive;
@@ -305,6 +329,7 @@ public:
 		Painter &p,
 		QRect rect,
 		IconState state) override;
+	void rowPaintWideBackground(Painter &p, bool selected) override;
 
 	int customRowHeight() override;
 	void customRowPaint(
@@ -316,6 +341,7 @@ public:
 		not_null<PeerListRow*> row,
 		int x,
 		int y) override;
+	Fn<QImage()> customRowRippleMaskGenerator() override;
 
 private:
 	[[nodiscard]] std::unique_ptr<Row> createRowForMe();
@@ -383,6 +409,8 @@ private:
 
 	Ui::CrossLineAnimation _inactiveCrossLine;
 	Ui::CrossLineAnimation _coloredCrossLine;
+	Ui::RoundRect _wideRoundRectSelected;
+	Ui::RoundRect _wideRoundRect;
 
 	rpl::lifetime _lifetime;
 
@@ -653,78 +681,142 @@ void Row::ensureUserpicCache(
 	}
 }
 
-auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
-	auto userpic = ensureUserpicView();
-	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
-		const auto videoSize = _videoTrackShown
-			? _videoTrackShown->frameSize()
-			: QSize();
-		if (!videoSize.isEmpty()) {
-			const auto resize = (videoSize.width() > videoSize.height())
-				? QSize(videoSize.width() * size / videoSize.height(), size)
-				: QSize(size, videoSize.height() * size / videoSize.width());
-			const auto request = Webrtc::FrameRequest{
-				.resize = resize * cIntRetinaFactor(),
-				.outer = QSize(size, size) * cIntRetinaFactor(),
-			};
-			const auto frame = _videoTrackShown->frame(request);
-			auto copy = frame; // #TODO calls optimize.
-			copy.detach();
-			Images::prepareCircle(copy);
-			p.drawImage(
-				QRect(QPoint(x, y), copy.size() / cIntRetinaFactor()),
-				copy);
-			_videoTrackShown->markFrameShown();
-			return;
-		} else if (_videoTrackShown) {
-			// We could skip the first notification.
-			_videoTrackShown->markFrameShown();
-		}
-		if (_blobsAnimation) {
-			const auto mutedByMe = (_state == State::MutedByMe);
-			const auto shift = QPointF(x + size / 2., y + size / 2.);
-			auto hq = PainterHighQualityEnabler(p);
-			p.translate(shift);
-			const auto brush = mutedByMe
-				? st::groupCallMemberMutedIcon->b
-				: anim::brush(
-					st::groupCallMemberInactiveStatus,
-					st::groupCallMemberActiveStatus,
-					_speakingAnimation.value(_speaking ? 1. : 0.));
-			_blobsAnimation->blobs.paint(p, brush);
-			p.translate(-shift);
-			p.setOpacity(1.);
-
-			const auto enter = _blobsAnimation->enter;
-			const auto &minScale = kUserpicMinScale;
-			const auto scaleUserpic = minScale
-				+ (1. - minScale) * _blobsAnimation->blobs.currentLevel();
-			const auto scale = scaleUserpic * enter + 1. * (1. - enter);
-			if (scale == 1.) {
-				peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
-			} else {
-				ensureUserpicCache(userpic, size);
-
-				PainterHighQualityEnabler hq(p);
-
-				auto target = QRect(
-					x + (1 - kWideScale) / 2 * size,
-					y + (1 - kWideScale) / 2 * size,
-					kWideScale * size,
-					kWideScale * size);
-				auto shrink = anim::interpolate(
-					(1 - kWideScale) / 2 * size,
-					0,
-					scale);
-				auto margins = QMargins(shrink, shrink, shrink, shrink);
-				p.drawImage(
-					target.marginsAdded(margins),
-					_blobsAnimation->userpicCache);
-			}
-		} else {
-			peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
-		}
+bool Row::paintVideo(Painter &p, int x, int y, int size, PanelMode mode) {
+	if (!_videoTrackShown) {
+		return false;
+	}
+	const auto guard = gsl::finally([&] {
+		_videoTrackShown->markFrameShown();
+	});
+	const auto videoSize = _videoTrackShown->frameSize();
+	if (videoSize.isEmpty()) {
+		return false;
+	}
+	const auto resize = (videoSize.width() > videoSize.height())
+		? QSize(videoSize.width() * size / videoSize.height(), size)
+		: QSize(size, videoSize.height() * size / videoSize.width());
+	const auto request = Webrtc::FrameRequest{
+		.resize = resize * cIntRetinaFactor(),
+		.outer = QSize(size, size) * cIntRetinaFactor(),
 	};
+	const auto frame = _videoTrackShown->frame(request);
+	auto copy = frame; // #TODO calls optimize.
+	copy.detach();
+	if (mode == PanelMode::Default) {
+		Images::prepareCircle(copy);
+	} else {
+		Images::prepareRound(copy, ImageRoundRadius::Large);
+	}
+	p.drawImage(
+		QRect(QPoint(x, y), copy.size() / cIntRetinaFactor()),
+		copy);
+	return true;
+}
+
+std::tuple<int, int, int> Row::UserpicInWideMode(int x, int y, int size) {
+	const auto useSize = st::groupCallMembersList.item.photoSize;
+	const auto skip = (size - useSize) / 2;
+	return { x + skip, y + skip, useSize };
+}
+
+void Row::paintBlobs(Painter &p, int x, int y, int size, PanelMode mode) {
+	if (!_blobsAnimation) {
+		return;
+	}
+	if (mode == PanelMode::Wide) {
+		std::tie(x, y, size) = UserpicInWideMode(x, y, size);
+	}
+	const auto mutedByMe = (_state == State::MutedByMe);
+	const auto shift = QPointF(x + size / 2., y + size / 2.);
+	auto hq = PainterHighQualityEnabler(p);
+	p.translate(shift);
+	const auto brush = mutedByMe
+		? st::groupCallMemberMutedIcon->b
+		: anim::brush(
+			st::groupCallMemberInactiveStatus,
+			st::groupCallMemberActiveStatus,
+			_speakingAnimation.value(_speaking ? 1. : 0.));
+	_blobsAnimation->blobs.paint(p, brush);
+	p.translate(-shift);
+	p.setOpacity(1.);
+}
+
+void Row::paintScaledUserpic(
+		Painter &p,
+		std::shared_ptr<Data::CloudImageView> &userpic,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		PanelMode mode) {
+	if (mode == PanelMode::Wide) {
+		std::tie(x, y, size) = UserpicInWideMode(x, y, size);
+	}
+	if (!_blobsAnimation) {
+		peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
+		return;
+	}
+	const auto enter = _blobsAnimation->enter;
+	const auto &minScale = kUserpicMinScale;
+	const auto scaleUserpic = minScale
+		+ (1. - minScale) * _blobsAnimation->blobs.currentLevel();
+	const auto scale = scaleUserpic * enter + 1. * (1. - enter);
+	if (scale == 1.) {
+		peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
+		return;
+	}
+	ensureUserpicCache(userpic, size);
+
+	PainterHighQualityEnabler hq(p);
+
+	auto target = QRect(
+		x + (1 - kWideScale) / 2 * size,
+		y + (1 - kWideScale) / 2 * size,
+		kWideScale * size,
+		kWideScale * size);
+	auto shrink = anim::interpolate(
+		(1 - kWideScale) / 2 * size,
+		0,
+		scale);
+	auto margins = QMargins(shrink, shrink, shrink, shrink);
+	p.drawImage(
+		target.marginsAdded(margins),
+		_blobsAnimation->userpicCache);
+}
+
+auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
+	return [=](Painter &p, int x, int y, int outerWidth, int size) {
+		paintComplexUserpic(p, x, y, outerWidth, size, PanelMode::Default);
+	};
+}
+
+void Row::paintComplexUserpic(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		PanelMode mode,
+		bool selected) {
+	if (mode == PanelMode::Wide) {
+		if (paintVideo(p, x, y, size, mode)) {
+			return;
+		}
+		_delegate->rowPaintWideBackground(p, selected);
+		paintRipple(p, x, y, outerWidth);
+	}
+	paintBlobs(p, x, y, size, mode);
+	if (mode == PanelMode::Default && paintVideo(p, x, y, size, mode)) {
+		return;
+	}
+	paintScaledUserpic(
+		p,
+		ensureUserpicView(),
+		x,
+		y,
+		outerWidth,
+		size,
+		mode);
 }
 
 int Row::statusIconWidth() const {
@@ -976,7 +1068,9 @@ MembersController::MembersController(
 , _menuParent(menuParent)
 , _raisedHandStatusRemoveTimer([=] { scheduleRaisedHandStatusRemove(); })
 , _inactiveCrossLine(st::groupCallMemberInactiveCrossLine)
-, _coloredCrossLine(st::groupCallMemberColoredCrossLine) {
+, _coloredCrossLine(st::groupCallMemberColoredCrossLine)
+, _wideRoundRectSelected(ImageRoundRadius::Large, st::groupCallMembersBgOver)
+, _wideRoundRect(ImageRoundRadius::Large, st::groupCallMembersBg) {
 	setupListChangeViewers();
 
 	style::PaletteChanged(
@@ -1605,6 +1699,12 @@ void MembersController::rowPaintIcon(
 	_inactiveCrossLine.paint(p, left, top, crossProgress, iconColor);
 }
 
+void MembersController::rowPaintWideBackground(Painter &p, bool selected) {
+	(selected ? _wideRoundRectSelected : _wideRoundRect).paint(
+		p,
+		{ QPoint(), st::groupCallNarrowSize });
+}
+
 int MembersController::customRowHeight() {
 	return st::groupCallNarrowSize.height() + st::groupCallNarrowRowSkip;
 }
@@ -1615,6 +1715,15 @@ void MembersController::customRowPaint(
 		not_null<PeerListRow*> row,
 		bool selected) {
 	const auto real = static_cast<Row*>(row.get());
+	const auto width = st::groupCallNarrowSize.width();
+	real->paintComplexUserpic(
+		p,
+		0,
+		0,
+		width,
+		width,
+		PanelMode::Wide,
+		selected);
 }
 
 bool MembersController::customRowSelectionPoint(
@@ -1622,6 +1731,14 @@ bool MembersController::customRowSelectionPoint(
 		int x,
 		int y) {
 	return y < st::groupCallNarrowSize.height();
+}
+
+Fn<QImage()> MembersController::customRowRippleMaskGenerator() {
+	return [] {
+		return Ui::RippleAnimation::roundRectMask(
+			st::groupCallNarrowSize,
+			st::roundRadiusLarge);
+	};
 }
 
 auto MembersController::kickParticipantRequests() const
@@ -1938,7 +2055,7 @@ Members::Members(
 	not_null<GroupCall*> call)
 : RpWidget(parent)
 , _call(call)
-, _scroll(this, st::defaultSolidScroll)
+, _scroll(this)
 , _listController(std::make_unique<MembersController>(call, parent)) {
 	setupAddMember(call);
 	setupList();

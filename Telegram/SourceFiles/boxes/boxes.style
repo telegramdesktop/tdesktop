@@ -729,10 +729,6 @@ termsAgePadding: margins(22px, 16px, 16px, 0px);
 
 themesSmallSkip: 10px;
 themesBackgroundSize: 120px;
-themesScroll: ScrollArea(defaultScrollArea) {
-	bottomsh: 0px;
-	topsh: 0px;
-}
 themesMenuToggle: IconButton(defaultIconButton) {
 	width: 44px;
 	height: 44px;

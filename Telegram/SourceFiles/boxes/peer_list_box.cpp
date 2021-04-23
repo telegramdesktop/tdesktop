@@ -529,7 +529,7 @@ QString PeerListRow::generateShortName() {
 		: peer()->shortName();
 }
 
-std::shared_ptr<Data::CloudImageView> PeerListRow::ensureUserpicView() {
+std::shared_ptr<Data::CloudImageView> &PeerListRow::ensureUserpicView() {
 	if (!_userpic) {
 		_userpic = peer()->createUserpicView();
 	}
@@ -588,11 +588,14 @@ void PeerListRow::paintStatusText(
 	_status.drawLeftElided(p, x, y, availableWidth, outerWidth);
 }
 
-template <typename UpdateCallback>
-void PeerListRow::addRipple(const style::PeerListItem &st, QSize size, QPoint point, UpdateCallback updateCallback) {
+template <typename MaskGenerator, typename UpdateCallback>
+void PeerListRow::addRipple(const style::PeerListItem &st, MaskGenerator &&maskGenerator, QPoint point, UpdateCallback &&updateCallback) {
 	if (!_ripple) {
-		auto mask = Ui::RippleAnimation::rectMask(size);
-		_ripple = std::make_unique<Ui::RippleAnimation>(st.button.ripple, std::move(mask), std::move(updateCallback));
+		auto mask = maskGenerator();
+		if (mask.isNull()) {
+			return;
+		}
+		_ripple = std::make_unique<Ui::RippleAnimation>(st.button.ripple, std::move(mask), std::forward<UpdateCallback>(updateCallback));
 	}
 	_ripple->add(point);
 }
@@ -1241,9 +1244,16 @@ void PeerListContent::mousePressEvent(QMouseEvent *e) {
 				row->addActionRipple(point, std::move(updateCallback));
 			}
 		} else {
-			auto size = QSize(width(), _rowHeight);
 			auto point = mapFromGlobal(QCursor::pos()) - QPoint(0, getRowTop(_selected.index));
-			row->addRipple(_st.item, size, point, std::move(updateCallback));
+			if (_mode == Mode::Custom) {
+				row->addRipple(_st.item, _controller->customRowRippleMaskGenerator(), point, std::move(updateCallback));
+			} else {
+				const auto maskGenerator = [&] {
+					return Ui::RippleAnimation::rectMask(
+						QSize(width(), _rowHeight));
+				};
+				row->addRipple(_st.item, maskGenerator, point, std::move(updateCallback));
+			}
 		}
 	}
 	if (anim::Disabled()) {
@@ -1779,7 +1789,11 @@ void PeerListContent::selectByMouse(QPoint globalPosition) {
 	auto in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(globalPosition));
 	auto selected = Selected();
 	auto rowsPointY = point.y() - rowsTop();
-	selected.index.value = (in && rowsPointY >= 0 && rowsPointY < shownRowsCount() * _rowHeight) ? (rowsPointY / _rowHeight) : -1;
+	selected.index.value = (in
+		&& rowsPointY >= 0
+		&& rowsPointY < shownRowsCount() * _rowHeight)
+		? (rowsPointY / _rowHeight)
+		: -1;
 	if (selected.index.value >= 0) {
 		const auto row = getRow(selected.index);
 		if (row->disabled()
@@ -1787,7 +1801,7 @@ void PeerListContent::selectByMouse(QPoint globalPosition) {
 				&& !_controller->customRowSelectionPoint(
 					row,
 					point.x(),
-					rowsPointY))) {
+					rowsPointY - (selected.index.value * _rowHeight)))) {
 			selected = Selected();
 		} else if (!customMode) {
 			if (getActiveActionRect(row, selected.index).contains(point)) {

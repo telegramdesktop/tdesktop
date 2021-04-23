@@ -37,11 +37,6 @@ infoToggle: InfoToggle {
 	rippleAreaPadding: 8px;
 }
 
-infoScroll: ScrollArea(defaultScrollArea) {
-	bottomsh: 0px;
-	topsh: 0px;
-}
-
 infoMediaSearch: SearchFieldRow {
 	height: 44px;
 	padding: margins(8px, 6px, 8px, 6px);

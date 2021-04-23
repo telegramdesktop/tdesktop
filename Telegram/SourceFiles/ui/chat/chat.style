@@ -60,7 +60,6 @@ historyScroll: ScrollArea(defaultScrollArea) {
 	deltat: 3px;
 	deltab: 3px;
 
-	topsh: 0px;
 	bottomsh: -1px;
 }
 

@@ -61,9 +61,6 @@ passportPasswordForgotBottom: 36px;
 passportPanelScroll: ScrollArea(defaultScrollArea) {
 	deltat: 6px;
 	deltab: 6px;
-
-	topsh: 0px;
-	bottomsh: 0px;
 }
 
 passportPanelAuthorize: RoundButton(passportPasswordSubmit) {

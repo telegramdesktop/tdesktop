@@ -51,10 +51,6 @@ dialogsSkip: 8px;
 
 dialogsWidthDuration: 120;
 dialogsTextWidthMin: 150px;
-dialogsScroll: ScrollArea(defaultScrollArea) {
-	topsh: 0px;
-	bottomsh: 0px;
-}
 
 dialogsTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgService;

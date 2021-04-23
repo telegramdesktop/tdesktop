@@ -174,7 +174,7 @@ Widget::Widget(
 	object_ptr<Ui::IconButton>(this, st::dialogsCalendar))
 , _cancelSearch(_searchControls, st::dialogsCancelSearch)
 , _lockUnlock(_searchControls, st::dialogsLock)
-, _scroll(this, st::dialogsScroll)
+, _scroll(this)
 , _scrollToTop(_scroll, st::dialogsToUp)
 , _singleMessageSearch(&controller->session()) {
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller));

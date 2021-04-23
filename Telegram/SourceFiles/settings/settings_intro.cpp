@@ -217,7 +217,7 @@ IntroWidget::IntroWidget(
 	not_null<Window::Controller*> window)
 : RpWidget(parent)
 , _wrap(this)
-, _scroll(Ui::CreateChild<Ui::ScrollArea>(_wrap.data(), st::infoScroll))
+, _scroll(Ui::CreateChild<Ui::ScrollArea>(_wrap.data()))
 , _topShadow(this) {
 	_wrap->setAttribute(Qt::WA_OpaquePaintEvent);
 	_wrap->paintRequest(

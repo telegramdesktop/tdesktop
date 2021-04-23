@@ -82,7 +82,7 @@ public:
 		return _id;
 	}
 
-	[[nodiscard]] std::shared_ptr<Data::CloudImageView> ensureUserpicView();
+	[[nodiscard]] std::shared_ptr<Data::CloudImageView> &ensureUserpicView();
 
 	[[nodiscard]] virtual QString generateName();
 	[[nodiscard]] virtual QString generateShortName();
@@ -172,12 +172,12 @@ public:
 	void finishCheckedAnimation();
 	void invalidatePixmapsCache();
 
-	template <typename UpdateCallback>
+	template <typename MaskGenerator, typename UpdateCallback>
 	void addRipple(
 		const style::PeerListItem &st,
-		QSize size,
+		MaskGenerator &&maskGenerator,
 		QPoint point,
-		UpdateCallback updateCallback);
+		UpdateCallback &&updateCallback);
 	void stopLastRipple();
 	void paintRipple(Painter &p, int x, int y, int outerWidth);
 	void paintUserpic(
@@ -451,21 +451,23 @@ public:
 		return false;
 	}
 	[[nodiscard]] virtual int customRowHeight() {
-		Unexpected("Unimplemented PeerListController::customRowHeight.");
+		Unexpected("PeerListController::customRowHeight.");
 	}
 	virtual void customRowPaint(
 			Painter &p,
 			crl::time now,
 			not_null<PeerListRow*> row,
 			bool selected) {
-		Unexpected("Unimplemented PeerListController::customRowPaint.");
+		Unexpected("PeerListController::customRowPaint.");
 	}
 	[[nodiscard]] virtual bool customRowSelectionPoint(
 			not_null<PeerListRow*> row,
 			int x,
 			int y) {
-		Unexpected(
-			"Unimplemented PeerListController::customRowSelectionPoint.");
+		Unexpected("PeerListController::customRowSelectionPoint.");
+	}
+	[[nodiscard]] virtual Fn<QImage()> customRowRippleMaskGenerator() {
+		Unexpected("PeerListController::customRowRippleMaskGenerator.");
 	}
 
 	[[nodiscard]] virtual rpl::producer<int> onlineCountValue() const;

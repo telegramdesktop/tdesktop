@@ -407,9 +407,7 @@ void Autocomplete::setupContent() {
 			rpl::single(qsl("Search for templates"))), // #TODO hard_lang
 		st::autocompleteSearchPadding);
 	const auto input = inputWrap->entity();
-	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(
-		this,
-		st::mentionScroll);
+	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(this);
 
 	const auto inner = scroll->setOwnedWidget(object_ptr<Inner>(scroll));
 

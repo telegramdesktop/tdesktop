@@ -649,7 +649,7 @@ Editor::Editor(
 	const Data::CloudTheme &cloud)
 : _window(window)
 , _cloud(cloud)
-, _scroll(this, st::themesScroll)
+, _scroll(this)
 , _close(this, st::defaultMultiSelect.fieldCancel)
 , _menuToggle(this, st::themesMenuToggle)
 , _select(this, st::defaultMultiSelect, tr::lng_country_ph())
