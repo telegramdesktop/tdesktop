@@ -194,6 +194,13 @@ void FormSummary::setupControls() {
 		_scroll->heightValue(),
 		_layout->heightValue(),
 		_1 + _2 < _3));
+
+	rpl::merge(
+		_submit->widthValue(),
+		_cancel->widthValue()
+	) | rpl::skip(2) | rpl::start_with_next([=] {
+		updateControlsGeometry();
+	}, lifetime());
 }
 
 void FormSummary::setupCover(not_null<VerticalLayout*> layout) {
