@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "chat_helpers/emoji_list_widget.h"
 #include "core/sandbox.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
@@ -265,7 +267,7 @@ void AppendEmojiPacks(
 	for (auto i = 0; i != ChatHelpers::kEmojiSectionCount; ++i) {
 		const auto section = static_cast<Ui::Emoji::Section>(i);
 		const auto list = (section == Ui::Emoji::Section::Recent)
-			? GetRecentEmojiSection()
+			? Core::App().settings().recentEmojiSection()
 			: Ui::Emoji::GetSection(section);
 		const auto title = (section == Ui::Emoji::Section::Recent)
 			? TitleRecentlyUsed(sets)
@@ -473,7 +475,7 @@ void AppendEmojiPacks(
 			if (const auto inputField = qobject_cast<QTextEdit*>(
 					QApplication::focusWidget())) {
 				Ui::InsertEmojiAtCursor(inputField->textCursor(), emoji);
-				AddRecentEmoji(emoji);
+				Core::App().settings().incrementRecentEmoji(emoji);
 				return true;
 			}
 		}
@@ -567,7 +569,7 @@ void AppendEmojiPacks(
 			_session->data().stickers().recentUpdated()
 		) | rpl::map_to(ScrubberItemType::Sticker),
 		rpl::merge(
-			UpdatedRecentEmoji(),
+			Core::App().settings().recentEmojiUpdated(),
 			Ui::Emoji::Updated()
 		) | rpl::map_to(ScrubberItemType::Emoji)
 	) | rpl::start_with_next([=](ScrubberItemType type) {

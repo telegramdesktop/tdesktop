@@ -944,13 +944,13 @@ bool ReadSetting(
 		context.legacyRead = true;
 	} break;
 
-	case dbiRecentEmojiOldOld: {
-		RecentEmojiPreloadOldOld v;
+	case dbiRecentEmojiOldOldOld: {
+		auto v = QVector<QPair<uint32, ushort>>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
 		if (!v.isEmpty()) {
-			RecentEmojiPreload p;
+			auto p = QVector<QPair<QString, ushort>>();
 			p.reserve(v.size());
 			for (auto &item : v) {
 				auto oldKey = uint64(item.first);
@@ -971,18 +971,18 @@ bool ReadSetting(
 					p.push_back(qMakePair(id, item.second));
 				}
 			}
-			cSetRecentEmojiPreload(p);
+			Core::App().settings().setLegacyRecentEmojiPreload(std::move(p));
 		}
 		context.legacyRead = true;
 	} break;
 
-	case dbiRecentEmojiOld: {
-		RecentEmojiPreloadOld v;
+	case dbiRecentEmojiOldOld: {
+		auto v = QVector<QPair<uint64, ushort>>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
 		if (!v.isEmpty()) {
-			RecentEmojiPreload p;
+			auto p = QVector<QPair<QString, ushort>>();
 			p.reserve(v.size());
 			for (auto &item : v) {
 				auto id = Ui::Emoji::IdFromOldKey(item.first);
@@ -990,17 +990,18 @@ bool ReadSetting(
 					p.push_back(qMakePair(id, item.second));
 				}
 			}
-			cSetRecentEmojiPreload(p);
+			Core::App().settings().setLegacyRecentEmojiPreload(std::move(p));
 		}
 		context.legacyRead = true;
 	} break;
 
-	case dbiRecentEmoji: {
-		RecentEmojiPreload v;
+	case dbiRecentEmojiOld: {
+		auto v = QVector<QPair<QString, ushort>>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		cSetRecentEmojiPreload(v);
+		Core::App().settings().setLegacyRecentEmojiPreload(std::move(v));
+		context.legacyRead = true;
 	} break;
 
 	case dbiRecentStickers: {
@@ -1011,12 +1012,12 @@ bool ReadSetting(
 		cSetRecentStickersPreload(v);
 	} break;
 
-	case dbiEmojiVariantsOld: {
-		EmojiColorVariantsOld v;
+	case dbiEmojiVariantsOldOld: {
+		auto v = QMap<uint32, uint64>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		EmojiColorVariants variants;
+		auto variants = QMap<QString, int>();
 		for (auto i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			auto id = Ui::Emoji::IdFromOldKey(static_cast<uint64>(i.key()));
 			if (!id.isEmpty()) {
@@ -1026,16 +1027,17 @@ bool ReadSetting(
 				}
 			}
 		}
-		cSetEmojiVariants(variants);
+		Core::App().settings().setLegacyEmojiVariants(std::move(variants));
 		context.legacyRead = true;
 	} break;
 
-	case dbiEmojiVariants: {
-		EmojiColorVariants v;
+	case dbiEmojiVariantsOld: {
+		auto v = QMap<QString, int>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		cSetEmojiVariants(v);
+		Core::App().settings().setLegacyEmojiVariants(std::move(v));
+		context.legacyRead = true;
 	} break;
 
 	case dbiHiddenPinnedMessagesOld: {

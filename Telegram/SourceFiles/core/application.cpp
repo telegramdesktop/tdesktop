@@ -535,6 +535,9 @@ void Application::badMtprotoConfigurationError() {
 void Application::startLocalStorage() {
 	Local::start();
 	_saveSettingsTimer.emplace([=] { saveSettings(); });
+	_settings.saveDelayedRequests() | rpl::start_with_next([=] {
+		saveSettingsDelayed();
+	}, _lifetime);
 }
 
 void Application::startEmojiImageLoader() {

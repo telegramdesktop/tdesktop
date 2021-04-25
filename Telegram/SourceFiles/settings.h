@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/style/style_core.h"
-#include "emoji.h"
 
 #define DeclareReadSetting(Type, Name) extern Type g##Name; \
 inline const Type &c##Name() { \
@@ -84,16 +83,6 @@ DeclareSetting(int, ScreenScale);
 DeclareSetting(int, ConfigScale);
 DeclareSetting(QString, TimeFormat);
 
-using RecentEmojiPreloadOldOld = QVector<QPair<uint32, ushort>>;
-using RecentEmojiPreloadOld = QVector<QPair<uint64, ushort>>;
-using RecentEmojiPreload = QVector<QPair<QString, ushort>>;
-using RecentEmojiPack = QVector<QPair<EmojiPtr, ushort>>;
-using EmojiColorVariantsOld = QMap<uint32, uint64>;
-using EmojiColorVariants = QMap<QString, int>;
-DeclareRefSetting(RecentEmojiPack, RecentEmoji);
-DeclareSetting(RecentEmojiPreload, RecentEmojiPreload);
-DeclareRefSetting(EmojiColorVariants, EmojiVariants);
-
 class DocumentData;
 
 typedef QList<QPair<DocumentData*, int16>> RecentStickerPackOld;
@@ -123,11 +112,6 @@ DeclareSetting(int, OtherOnline);
 inline void cChangeTimeFormat(const QString &newFormat) {
 	if (!newFormat.isEmpty()) cSetTimeFormat(newFormat);
 }
-
-RecentEmojiPack &GetRecentEmoji();
-QVector<EmojiPtr> GetRecentEmojiSection();
-void AddRecentEmoji(EmojiPtr emoji);
-[[nodiscard]] rpl::producer<> UpdatedRecentEmoji();
 
 inline bool passcodeCanTry() {
 	if (cPasscodeBadTries() < 3) return true;
