@@ -68,6 +68,7 @@ SingleMediaPreview::SingleMediaPreview(
 , _gifPaused(std::move(gifPaused))
 , _animated(animated)
 , _sticker(sticker)
+, _photoEditorButton(base::make_unique_q<AbstractButton>(this))
 , _editMedia(this, st::sendBoxAlbumGroupButtonMedia)
 , _deleteMedia(this, st::sendBoxAlbumGroupButtonMedia)
 , _buttonsRect(st::sendBoxAlbumGroupRadius, st::roundedBg) {
@@ -76,8 +77,6 @@ SingleMediaPreview::SingleMediaPreview(
 	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupButtonMediaDelete);
 
 	preparePreview(preview, animatedPreviewPath);
-
-	Ui::AddPhotoEditorMenu(this, [=] { _modifyRequests.fire({}); });
 }
 
 SingleMediaPreview::~SingleMediaPreview() = default;
@@ -91,7 +90,7 @@ rpl::producer<> SingleMediaPreview::editRequests() const {
 }
 
 rpl::producer<> SingleMediaPreview::modifyRequests() const {
-	return _modifyRequests.events();
+	return _photoEditorButton->clicks() | rpl::to_empty;
 }
 
 void SingleMediaPreview::preparePreview(
@@ -158,6 +157,13 @@ void SingleMediaPreview::preparePreview(
 	_preview.setDevicePixelRatio(style::DevicePixelRatio());
 
 	prepareAnimatedPreview(animatedPreviewPath);
+
+	_photoEditorButton->resize(_previewWidth, _previewHeight);
+	_photoEditorButton->moveToLeft(_previewLeft, 0);
+	_photoEditorButton->setVisible(!_sticker
+		&& !_gifPreview
+		&& !_lottiePreview
+		&& !_animated);
 
 	resize(width(), _previewHeight);
 }

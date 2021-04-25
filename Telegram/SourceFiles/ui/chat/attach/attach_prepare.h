@@ -138,6 +138,4 @@ struct PreparedGroup {
 
 [[nodiscard]] QPixmap PrepareSongCoverForThumbnail(QImage image, int size);
 
-void AddPhotoEditorMenu(not_null<Ui::RpWidget*> parent, Fn<void()> callback);
-
 } // namespace Ui

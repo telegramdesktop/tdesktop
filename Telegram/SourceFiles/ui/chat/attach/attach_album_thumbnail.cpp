@@ -29,6 +29,7 @@ AlbumThumbnail::AlbumThumbnail(
 : _layout(layout)
 , _fullPreview(file.preview)
 , _shrinkSize(int(std::ceil(st::historyMessageRadius / 1.4)))
+, _isPhoto(file.type == PreparedFile::Type::Photo)
 , _isVideo(file.type == PreparedFile::Type::Video)
 , _buttonsRect(st::sendBoxAlbumGroupRadius, st::roundedBg) {
 	Expects(!_fullPreview.isNull());
@@ -229,6 +230,8 @@ void AlbumThumbnail::paintInAlbum(
 		{ x, y },
 		geometry.width(),
 		shrinkProgress);
+
+	_lastRectOfModify = QRect(QPoint(x, y), geometry.size());
 }
 
 void AlbumThumbnail::prepareCache(QSize size, int shrink) {
@@ -376,21 +379,29 @@ void AlbumThumbnail::drawSimpleFrame(Painter &p, QRect to, QSize size) const {
 }
 
 void AlbumThumbnail::paintPhoto(Painter &p, int left, int top, int outerWidth) {
-	const auto width = _photo.width() / style::DevicePixelRatio();
+	const auto size = _photo.size() / style::DevicePixelRatio();
 	p.drawPixmapLeft(
-		left + (st::sendMediaPreviewSize - width) / 2,
+		left + (st::sendMediaPreviewSize - size.width()) / 2,
 		top,
 		outerWidth,
 		_photo);
 
+	const auto topLeft = QPoint{ left, top };
+
 	_lastRectOfButtons = paintButtons(
 		p,
-		{ left, top },
+		topLeft,
 		st::sendMediaPreviewSize,
 		0);
+
+	_lastRectOfModify = QRect(topLeft, size);
 }
 
-void AlbumThumbnail::paintFile(Painter &p, int left, int top, int outerWidth) {
+void AlbumThumbnail::paintFile(
+		Painter &p,
+		int left,
+		int top,
+		int outerWidth) {
 	const auto &st = st::attachPreviewThumbLayout;
 	const auto textLeft = left + st.thumbSize + st.padding.right();
 
@@ -411,6 +422,10 @@ void AlbumThumbnail::paintFile(Painter &p, int left, int top, int outerWidth) {
 		outerWidth,
 		_status,
 		_statusWidth);
+
+	_lastRectOfModify = QRect(
+		QPoint(left, top),
+		_fileThumb.size() / style::DevicePixelRatio());
 }
 
 bool AlbumThumbnail::containsPoint(QPoint position) const {
@@ -418,14 +433,18 @@ bool AlbumThumbnail::containsPoint(QPoint position) const {
 }
 
 bool AlbumThumbnail::buttonsContainPoint(QPoint position) const {
-	return _lastRectOfButtons.contains(position);
+	return (_isPhoto
+		? _lastRectOfModify
+		: _lastRectOfButtons).contains(position);
 }
 
 AttachButtonType AlbumThumbnail::buttonTypeFromPoint(QPoint position) const {
 	if (!buttonsContainPoint(position)) {
 		return AttachButtonType::None;
 	}
-	return (position.x() < _lastRectOfButtons.center().x())
+	return !_lastRectOfButtons.contains(position)
+		? AttachButtonType::Modify
+		: (position.x() < _lastRectOfButtons.center().x())
 		? AttachButtonType::Edit
 		: AttachButtonType::Delete;
 }

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/abstract_button.h"
 #include "ui/round_rect.h"
 #include "media/clip/media_clip_reader.h"
 #include "base/object_ptr.h"
@@ -62,6 +63,7 @@ private:
 	Media::Clip::ReaderPointer _gifPreview;
 	std::unique_ptr<Lottie::SinglePlayer> _lottiePreview;
 
+	base::unique_qptr<AbstractButton> _photoEditorButton;
 	object_ptr<IconButton> _editMedia = { nullptr };
 	object_ptr<IconButton> _deleteMedia = { nullptr };
 	RoundRect _buttonsRect;
