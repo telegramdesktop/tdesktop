@@ -35,6 +35,7 @@ struct GroupMediaLayout;
 class EmojiButton;
 class AlbumPreview;
 class VerticalLayout;
+class FlatLabel;
 } // namespace Ui
 
 namespace Window {
@@ -184,6 +185,7 @@ private:
 
 	object_ptr<Ui::Checkbox> _groupFiles = { nullptr };
 	object_ptr<Ui::Checkbox> _sendImagesAsPhotos = { nullptr };
+	object_ptr<Ui::FlatLabel> _hintLabel = { nullptr };
 	rpl::variable<Ui::SendFilesWay> _sendWay = Ui::SendFilesWay();
 
 	rpl::variable<int> _footerHeight = 0;

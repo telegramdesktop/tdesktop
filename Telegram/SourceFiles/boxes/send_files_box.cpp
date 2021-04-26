@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_media_prepare.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "mtproto/mtproto_config.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/send_context_menu.h"
@@ -667,6 +668,11 @@ void SendFilesBox::setupSendWayControls() {
 		sendWay.setSendImagesAsPhotos(_sendImagesAsPhotos->checked());
 		_sendWay = sendWay;
 	}, lifetime());
+
+	_hintLabel.create(
+		this,
+		tr::lng_edit_photo_editor_hint(tr::now),
+		st::editMediaHintLabel);
 }
 
 void SendFilesBox::updateSendWayControlsVisibility() {
@@ -674,6 +680,11 @@ void SendFilesBox::updateSendWayControlsVisibility() {
 	_groupFiles->setVisible(_list.hasGroupOption(onlyOne));
 	_sendImagesAsPhotos->setVisible(
 		_list.hasSendImagesAsPhotosOption(onlyOne));
+
+	_hintLabel->setVisible(
+		_controller->session().settings().photoEditorHintShown()
+			? _list.hasSendImagesAsPhotosOption(false)
+			: false);
 }
 
 void SendFilesBox::setupCaption() {
@@ -877,14 +888,15 @@ void SendFilesBox::updateBoxSize() {
 	if (_caption) {
 		footerHeight += st::boxPhotoCaptionSkip + _caption->height();
 	}
-	const auto pointers = {
-		_groupFiles.data(),
-		_sendImagesAsPhotos.data(),
-	};
-	for (auto pointer : pointers) {
+	const auto pairs = std::array<std::pair<RpWidget*, int>, 3>{ {
+		{ _groupFiles.data(), st::boxPhotoCompressedSkip },
+		{ _sendImagesAsPhotos.data(), st::boxPhotoCompressedSkip },
+		{ _hintLabel.data(), st::editMediaLabelMargins.top() },
+	} };
+	for (const auto &pair : pairs) {
+		const auto pointer = pair.first;
 		if (pointer && !pointer->isHidden()) {
-			footerHeight += st::boxPhotoCompressedSkip
-				+ pointer->heightNoMargins();
+			footerHeight += pair.second + pointer->heightNoMargins();
 		}
 	}
 	_footerHeight = footerHeight;
@@ -943,16 +955,18 @@ void SendFilesBox::updateControlsGeometry() {
 			_emojiToggle->update();
 		}
 	}
-	const auto pointers = {
-		_groupFiles.data(),
-		_sendImagesAsPhotos.data(),
-	};
-	for (const auto pointer : ranges::views::reverse(pointers)) {
+	const auto pairs = std::array<std::pair<RpWidget*, int>, 3>{ {
+		{ _hintLabel.data(), st::editMediaLabelMargins.top() },
+		{ _groupFiles.data(), st::boxPhotoCompressedSkip },
+		{ _sendImagesAsPhotos.data(), st::boxPhotoCompressedSkip },
+	} };
+	for (const auto &pair : ranges::views::reverse(pairs)) {
+		const auto pointer = pair.first;
 		if (pointer && !pointer->isHidden()) {
 			pointer->moveToLeft(
 				st::boxPhotoPadding.left(),
 				bottom - pointer->heightNoMargins());
-			bottom -= st::boxPhotoCompressedSkip + pointer->heightNoMargins();
+			bottom -= pair.second + pointer->heightNoMargins();
 		}
 	}
 	_scroll->resize(width(), bottom - _titleHeight.current());
@@ -1004,7 +1018,10 @@ void SendFilesBox::send(
 		block.applyAlbumOrder();
 	}
 
-	Storage::ApplyModifications(_list);
+	if (Storage::ApplyModifications(_list)) {
+		_controller->session().settings().incrementPhotoEditorHintShown();
+		_controller->session().saveSettings();
+	}
 
 	_confirmed = true;
 	if (_confirmedCallback) {
