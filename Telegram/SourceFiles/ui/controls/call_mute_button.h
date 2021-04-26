@@ -13,6 +13,10 @@
 #include "ui/effects/radial_animation.h"
 #include "lottie/lottie_icon.h"
 
+namespace style {
+struct CallMuteButton;
+} // namespace style
+
 namespace st {
 extern const style::InfiniteRadialAnimation &callConnectingRadial;
 } // namespace st
@@ -49,11 +53,13 @@ class CallMuteButton final {
 public:
 	explicit CallMuteButton(
 		not_null<RpWidget*> parent,
+		const style::CallMuteButton &st,
 		rpl::producer<bool> &&hideBlobs,
 		CallMuteButtonState initial = CallMuteButtonState());
 	~CallMuteButton();
 
 	void setState(const CallMuteButtonState &state);
+	void setStyle(const style::CallMuteButton &st);
 	void setLevel(float level);
 	[[nodiscard]] rpl::producer<Qt::MouseButton> clicks();
 
@@ -113,6 +119,9 @@ private:
 	};
 
 	void init();
+	void refreshIcons();
+	void refreshGradients();
+	void refreshLabels();
 	void overridesColors(
 		CallMuteButtonType fromType,
 		CallMuteButtonType toType,
@@ -124,7 +133,6 @@ private:
 	void updateSublabelGeometry(QRect my, QSize size);
 	void updateLabelsGeometry();
 
-	[[nodiscard]] IconState initialState();
 	[[nodiscard]] IconState iconStateFrom(CallMuteButtonType previous);
 	[[nodiscard]] IconState randomWavingState();
 	[[nodiscard]] IconState iconStateAnimated(CallMuteButtonType previous);
@@ -140,18 +148,20 @@ private:
 	QRect _muteIconRect;
 	HandleMouseState _handleMouseState = HandleMouseState::Enabled;
 
-	const style::CallButton &_st;
+	not_null<const style::CallMuteButton*> _st;
 
 	const base::unique_qptr<BlobsWidget> _blobs;
 	const base::unique_qptr<AbstractButton> _content;
-	const base::unique_qptr<AnimatedLabel> _centerLabel;
-	const base::unique_qptr<AnimatedLabel> _label;
-	const base::unique_qptr<AnimatedLabel> _sublabel;
+	base::unique_qptr<AnimatedLabel> _centerLabel;
+	base::unique_qptr<AnimatedLabel> _label;
+	base::unique_qptr<AnimatedLabel> _sublabel;
 	int _labelShakeShift = 0;
 
 	RadialInfo _radialInfo;
 	std::unique_ptr<InfiniteRadialAnimation> _radial;
 	const base::flat_map<CallMuteButtonType, anim::gradient_colors> _colors;
+	anim::linear_gradients<CallMuteButtonType> _linearGradients;
+	anim::radial_gradients<CallMuteButtonType> _glowGradients;
 
 	std::array<std::optional<Lottie::Icon>, 2> _icons;
 	IconState _iconState;

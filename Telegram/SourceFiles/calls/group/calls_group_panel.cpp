@@ -385,8 +385,10 @@ Panel::Panel(not_null<GroupCall*> call)
 	_window->body(),
 	st::groupCallTitle))
 #endif // !Q_OS_MAC
+, _videoMode(true) // #TODO calls
 , _mute(std::make_unique<Ui::CallMuteButton>(
 	widget(),
+	st::callMuteButton,
 	Core::App().appDeactivatedValue(),
 	Ui::CallMuteButtonState{
 		.text = (_call->scheduleDate()
@@ -738,7 +740,8 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 		_call->instanceStateValue(),
 		real->scheduleDateValue(),
 		real->scheduleStartSubscribedValue(),
-		Data::CanManageGroupCallValue(_peer)
+		Data::CanManageGroupCallValue(_peer),
+		_videoMode.value()
 	) | rpl::distinct_until_changed(
 	) | rpl::filter(
 		_2 != GroupCall::InstanceState::TransitionToRtc
@@ -747,7 +750,8 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 			GroupCall::InstanceState state,
 			TimeId scheduleDate,
 			bool scheduleStartSubscribed,
-			bool canManage) {
+			bool canManage,
+			bool videoMode) {
 		using Type = Ui::CallMuteButtonType;
 		_mute->setState(Ui::CallMuteButtonState{
 			.text = (scheduleDate
@@ -759,13 +763,19 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 				: state == GroupCall::InstanceState::Disconnected
 				? tr::lng_group_call_connecting(tr::now)
 				: mute == MuteState::ForceMuted
-				? tr::lng_group_call_force_muted(tr::now)
+				? (videoMode
+					? tr::lng_group_call_force_muted_small(tr::now)
+					: tr::lng_group_call_force_muted(tr::now))
 				: mute == MuteState::RaisedHand
-				? tr::lng_group_call_raised_hand(tr::now)
+				? (videoMode
+					? tr::lng_group_call_raised_hand_small(tr::now)
+					: tr::lng_group_call_raised_hand(tr::now))
 				: mute == MuteState::Muted
 				? tr::lng_group_call_unmute(tr::now)
-				: tr::lng_group_call_you_are_live(tr::now)),
-			.subtext = (scheduleDate
+				: (videoMode
+					? tr::lng_group_call_you_are_live_small(tr::now)
+					: tr::lng_group_call_you_are_live(tr::now))),
+			.subtext = ((scheduleDate || videoMode)
 				? QString()
 				: state == GroupCall::InstanceState::Disconnected
 				? QString()
@@ -1498,22 +1508,48 @@ void Panel::updateControlsGeometry() {
 	if (widget()->size().isEmpty() || (!_settings && !_share)) {
 		return;
 	}
-	const auto muteTop = widget()->height() - st::groupCallMuteBottomSkip;
-	const auto buttonsTop = widget()->height() - st::groupCallButtonBottomSkip;
-	const auto muteSize = _mute->innerSize().width();
-	const auto fullWidth = muteSize
-		+ 2 * (_settings ? _settings : _share)->width()
-		+ 2 * st::groupCallButtonSkip;
-	_mute->moveInner({ (widget()->width() - muteSize) / 2, muteTop });
-	const auto leftButtonLeft = (widget()->width() - fullWidth) / 2;
-	if (_settings) {
-		_settings->moveToLeft(leftButtonLeft, buttonsTop);
+	if (_videoMode.current()) {
+		_mute->setStyle(st::callMuteButtonSmall);
+		const auto buttonsTop = widget()->height()
+			- st::groupCallButtonBottomSkip;
+		const auto muteSize = _mute->innerSize().width();
+		const auto fullWidth = muteSize
+			+ 2 * (_settings ? _settings : _share)->width()
+			+ 2 * st::groupCallButtonSkip;
+		const auto leftButtonLeft = (widget()->width() - fullWidth) / 2;
+		const auto addSkip = st::callMuteButtonSmall.active.outerRadius;
+		_mute->moveInner({ leftButtonLeft + addSkip, buttonsTop + addSkip });
+		if (_settings) {
+			_settings->moveToLeft(
+				(widget()->width() - _settings->width()) / 2,
+				buttonsTop);
+		}
+		if (_share) {
+			_share->moveToLeft(
+				(widget()->width() - _share->width()) / 2,
+				buttonsTop);
+		}
+		_hangup->moveToRight(leftButtonLeft, buttonsTop);
+	} else {
+		_mute->setStyle(st::callMuteButton);
+		const auto muteTop = widget()->height()
+			- st::groupCallMuteBottomSkip;
+		const auto buttonsTop = widget()->height()
+			- st::groupCallButtonBottomSkip;
+		const auto muteSize = _mute->innerSize().width();
+		const auto fullWidth = muteSize
+			+ 2 * (_settings ? _settings : _share)->width()
+			+ 2 * st::groupCallButtonSkip;
+		_mute->moveInner({ (widget()->width() - muteSize) / 2, muteTop });
+		const auto leftButtonLeft = (widget()->width() - fullWidth) / 2;
+		if (_settings) {
+			_settings->moveToLeft(leftButtonLeft, buttonsTop);
+		}
+		if (_share) {
+			_share->moveToLeft(leftButtonLeft, buttonsTop);
+		}
+		_hangup->moveToRight(leftButtonLeft, buttonsTop);
 	}
-	if (_share) {
-		_share->moveToLeft(leftButtonLeft, buttonsTop);
-	}
-	_hangup->moveToRight(leftButtonLeft, buttonsTop);
-
 	updateMembersGeometry();
 	refreshTitle();
 

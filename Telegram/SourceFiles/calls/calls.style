@@ -175,6 +175,87 @@ callCameraUnmute: CallButton(callMicrophoneUnmute) {
 }
 callBottomShadowSize: 124px;
 
+CallMuteButton {
+	active: CallButton;
+	muted: CallButton;
+	labelAdditional: pixels;
+	sublabel: FlatLabel;
+	labelsSkip: pixels;
+	sublabelSkip: pixels;
+	lottieSize: size;
+	lottieTop: pixels;
+}
+
+callMuteButtonLabel: FlatLabel(defaultFlatLabel) {
+	textFg: groupCallMembersFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+		linkFont: font(14px);
+		linkFontOver: font(14px underline);
+	}
+}
+callMuteButtonActiveInner: IconButton {
+	width: 136px;
+	height: 165px;
+}
+callMuteButtonSmallActiveInner: IconButton {
+	width: 68px;
+	height: 79px;
+}
+callMuteButtonActive: CallButton {
+	button: callMuteButtonActiveInner;
+	bg: groupCallLive1;
+	bgSize: 100px;
+	bgPosition: point(18px, 18px);
+	outerRadius: 18px;
+	outerBg: callAnswerBgOuter;
+	label: callMuteButtonLabel;
+}
+callMuteButton: CallMuteButton {
+	active: callMuteButtonActive;
+	muted: CallButton(callMuteButtonActive) {
+		bg: groupCallMuted1;
+		label: callMuteButtonLabel;
+	}
+	labelAdditional: 5px;
+	sublabel: FlatLabel(defaultFlatLabel) {
+		textFg: groupCallMemberNotJoinedStatus;
+	}
+	labelsSkip: 5px;
+	sublabelSkip: 19px;
+	lottieSize: size(67px, 67px);
+	lottieTop: 35px;
+}
+callMuteButtonSmallActive: CallButton(callMuteButtonActive) {
+	button: callMuteButtonSmallActiveInner;
+	bgSize: 44px;
+	bgPosition: point(12px, 12px);
+	outerRadius: 12px;
+	label: callButtonLabel;
+}
+callMuteButtonSmall: CallMuteButton(callMuteButton) {
+	active: callMuteButtonSmallActive;
+	muted: CallButton(callMuteButtonSmallActive) {
+		bg: groupCallMuted1;
+		label: callButtonLabel;
+	}
+	labelsSkip: 0px;
+	sublabelSkip: 0px;
+	lottieSize: size(36px, 36px);
+	lottieTop: 17px;
+}
+
+callMuteMinorBlobMinRadius: 64px;
+callMuteMinorBlobMaxRadius: 74px;
+callMuteMajorBlobMinRadius: 67px;
+callMuteMajorBlobMaxRadius: 77px;
+callMuteBlobRadiusForDiameter: 100px;
+
+callConnectingRadial: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: lightButtonFg;
+	thickness: 4px;
+}
+
 callName: FlatLabel(defaultFlatLabel) {
 	minWidth: 260px;
 	maxHeight: 30px;
@@ -442,8 +523,6 @@ callErrorToast: Toast(defaultToast) {
 groupCallWidth: 380px;
 groupCallHeight: 580px;
 
-groupCallMuteButtonIconSize: size(67px, 67px);
-groupCallMuteButtonIconTop: 35px;
 groupCallRipple: RippleAnimation(defaultRippleAnimation) {
 	color: groupCallMembersBgRipple;
 }

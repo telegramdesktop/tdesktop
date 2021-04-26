@@ -144,9 +144,12 @@ private:
 	std::shared_ptr<Ui::GroupCallScheduledLeft> _countdownData;
 	object_ptr<Ui::FlatLabel> _startsWhen = { nullptr };
 	ChooseJoinAsProcess _joinAsProcess;
+	rpl::variable<bool> _videoMode;
 
 	object_ptr<Ui::CallButton> _settings = { nullptr };
 	object_ptr<Ui::CallButton> _share = { nullptr };
+	object_ptr<Ui::CallButton> _video = { nullptr };
+	object_ptr<Ui::CallButton> _shareScreen = { nullptr };
 	std::unique_ptr<Ui::CallMuteButton> _mute;
 	object_ptr<Ui::CallButton> _hangup;
 	Fn<void()> _shareLinkCallback;
