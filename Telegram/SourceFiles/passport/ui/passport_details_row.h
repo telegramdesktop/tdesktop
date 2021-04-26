@@ -11,18 +11,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
-#include "boxes/abstract_box.h"
 
 namespace Ui {
+class BoxContent;
 class InputField;
 class FlatLabel;
 template <typename Widget>
 class SlideWrap;
 } // namespace Ui
 
-namespace Passport {
+namespace Passport::Ui {
 
-class PanelController;
+using namespace ::Ui;
 
 enum class PanelDetailsType {
 	Text,
@@ -32,7 +32,7 @@ enum class PanelDetailsType {
 	Gender,
 };
 
-class PanelDetailsRow : public Ui::RpWidget {
+class PanelDetailsRow : public RpWidget {
 public:
 	using Type = PanelDetailsType;
 
@@ -43,8 +43,9 @@ public:
 
 	static object_ptr<PanelDetailsRow> Create(
 		QWidget *parent,
+		Fn<void(object_ptr<BoxContent>)> showBox,
+		const QString &defaultCountry,
 		Type type,
-		not_null<PanelController*> controller,
 		const QString &label,
 		int maxLabelWidth,
 		const QString &value,
@@ -74,11 +75,11 @@ private:
 
 	QString _label;
 	int _maxLabelWidth = 0;
-	object_ptr<Ui::SlideWrap<Ui::FlatLabel>> _error = { nullptr };
+	object_ptr<SlideWrap<FlatLabel>> _error = { nullptr };
 	bool _errorShown = false;
 	bool _errorHideSubscription = false;
-	Ui::Animations::Simple _errorAnimation;
+	Animations::Simple _errorAnimation;
 
 };
 
-} // namespace Passport
+} // namespace Passport::Ui

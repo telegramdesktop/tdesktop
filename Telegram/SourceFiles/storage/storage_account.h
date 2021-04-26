@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "base/flags.h"
 #include "storage/cache/storage_cache_database.h"
 #include "data/stickers/data_stickers_set.h"
 #include "data/data_drafts.h"
@@ -135,8 +136,10 @@ public:
 		const QByteArray& serialized,
 		int32 streamVersion);
 
-	void markBotTrusted(not_null<UserData*> bot);
-	[[nodiscard]] bool isBotTrusted(not_null<UserData*> bot);
+	void markBotTrustedOpenGame(PeerId botId);
+	[[nodiscard]] bool isBotTrustedOpenGame(PeerId botId);
+	void markBotTrustedPayment(PeerId botId);
+	[[nodiscard]] bool isBotTrustedPayment(PeerId botId);
 
 	[[nodiscard]] bool encrypt(
 		const void *src,
@@ -157,6 +160,11 @@ private:
 		IncorrectPasscode,
 		Failed,
 	};
+	enum class BotTrustFlag : uchar {
+		NoOpenGame = (1 << 0),
+		Payment    = (1 << 1),
+	};
+	friend inline constexpr bool is_flag_type(BotTrustFlag) { return true; };
 
 	[[nodiscard]] base::flat_set<QString> collectGoodNames() const;
 	[[nodiscard]] auto prepareReadSettingsContext() const
@@ -187,13 +195,13 @@ private:
 	void readDraftCursorsLegacy(
 		PeerId peerId,
 		details::FileReadDescriptor &draft,
-		quint64 draftPeer,
+		quint64 draftPeerSerialized,
 		Data::HistoryDrafts &map);
 	void clearDraftCursors(PeerId peerId);
 	void readDraftsWithCursorsLegacy(
 		not_null<History*> history,
 		details::FileReadDescriptor &draft,
-		quint64 draftPeer);
+		quint64 draftPeerSerialized);
 
 	void writeStickerSet(
 		QDataStream &stream,
@@ -253,7 +261,7 @@ private:
 	qint32 _cacheTotalTimeLimit = 0;
 	qint32 _cacheBigFileTotalTimeLimit = 0;
 
-	base::flat_set<uint64> _trustedBots;
+	base::flat_map<PeerId, base::flags<BotTrustFlag>> _trustedBots;
 	bool _trustedBotsRead = false;
 	bool _readingUserSettings = false;
 	bool _recentHashtagsAndBotsWereRead = false;

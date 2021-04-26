@@ -160,7 +160,7 @@ void SessionNavigation::resolveChannelById(
 	_resolveRequestId = _session->api().request(MTPchannels_GetChannels(
 		MTP_vector<MTPInputChannel>(
 			1,
-			MTP_inputChannel(MTP_int(channelId), MTP_long(0)))
+			MTP_inputChannel(MTP_int(channelId.bare), MTP_long(0))) // #TODO ids
 	)).done([=](const MTPmessages_Chats &result) {
 		result.match([&](const auto &data) {
 			const auto peer = _session->data().processChats(data.vchats());
@@ -178,7 +178,19 @@ void SessionNavigation::resolveChannelById(
 void SessionNavigation::showPeerByLinkResolved(
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info) {
+	auto params = SectionShow{
+		SectionShow::Way::Forward
+	};
+	params.origin = SectionShow::OriginMessage{
+		info.clickFromMessageId
+	};
 	if (info.voicechatHash && peer->isChannel()) {
+		// First show the channel itself.
+		crl::on_main(this, [=] {
+			showPeerHistory(peer->id, params, ShowAtUnreadMsgId);
+		});
+
+		// Then try to join the voice chat.
 		const auto bad = [=] {
 			Ui::ShowMultilineToast({
 				.text = { tr::lng_group_invite_bad_link(tr::now) }
@@ -224,12 +236,6 @@ void SessionNavigation::showPeerByLinkResolved(
 		}).send();
 		return;
 	}
-	auto params = SectionShow{
-		SectionShow::Way::Forward
-	};
-	params.origin = SectionShow::OriginMessage{
-		info.clickFromMessageId
-	};
 	const auto &replies = info.repliesInfo;
 	if (const auto threadId = std::get_if<ThreadId>(&replies)) {
 		showRepliesForMessage(
@@ -348,24 +354,20 @@ void SessionNavigation::showRepliesForMessage(
 				if (const auto maxId = data.vmax_id()) {
 					item->setRepliesMaxId(maxId->v);
 				}
-				if (const auto readTill = data.vread_inbox_max_id()) {
-					item->setRepliesInboxReadTill(readTill->v);
-				}
-				if (const auto readTill = data.vread_outbox_max_id()) {
-					item->setRepliesOutboxReadTill(readTill->v);
-				}
+				item->setRepliesInboxReadTill(
+					data.vread_inbox_max_id().value_or_empty());
+				item->setRepliesOutboxReadTill(
+					data.vread_outbox_max_id().value_or_empty());
 				const auto post = _session->data().message(channelId, rootId);
 				if (post && item->history()->channelId() != channelId) {
 					post->setCommentsItemId(item->fullId());
 					if (const auto maxId = data.vmax_id()) {
 						post->setRepliesMaxId(maxId->v);
 					}
-					if (const auto readTill = data.vread_inbox_max_id()) {
-						post->setRepliesInboxReadTill(readTill->v);
-					}
-					if (const auto readTill = data.vread_outbox_max_id()) {
-						post->setRepliesOutboxReadTill(readTill->v);
-					}
+					post->setRepliesInboxReadTill(
+						data.vread_inbox_max_id().value_or_empty());
+					post->setRepliesOutboxReadTill(
+						data.vread_outbox_max_id().value_or_empty());
 				}
 				showSection(std::make_shared<HistoryView::RepliesMemento>(
 					item,
@@ -1030,6 +1032,8 @@ void SessionController::startOrJoinGroupCall(
 		&& calls.inGroupCall()) {
 		if (calls.currentGroupCall()->peer() == peer) {
 			calls.activateCurrentCall(joinHash);
+		} else if (calls.currentGroupCall()->scheduleDate()) {
+			calls.startOrJoinGroupCall(peer, joinHash);
 		} else {
 			askConfirmation(
 				tr::lng_group_call_leave_to_other_sure(tr::now),

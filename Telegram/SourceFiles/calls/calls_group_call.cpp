@@ -114,7 +114,7 @@ private:
 	}
 	if (const auto chat = peer->asChat()) {
 		return chat->admins.contains(user)
-			|| (chat->creator == user->bareId());
+			|| (chat->creator == peerToUser(user->id));
 	} else if (const auto group = peer->asChannel()) {
 		if (const auto mgInfo = group->mgInfo.get()) {
 			if (mgInfo->creator == user) {
@@ -186,6 +186,8 @@ GroupCall::GroupCall(
 , _joinAs(info.joinAs)
 , _possibleJoinAs(std::move(info.possibleJoinAs))
 , _joinHash(info.joinHash)
+, _id(inputCall.c_inputGroupCall().vid().v)
+, _scheduleDate(info.scheduleDate)
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
 , _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
@@ -217,17 +219,35 @@ GroupCall::GroupCall(
 
 	checkGlobalShortcutAvailability();
 
-	const auto id = inputCall.c_inputGroupCall().vid().v;
-	if (id) {
-		if (const auto call = _peer->groupCall(); call && call->id() == id) {
-			if (!_peer->canManageGroupCall() && call->joinMuted()) {
-				_muted = MuteState::ForceMuted;
-			}
+	if (const auto real = lookupReal()) {
+		subscribeToReal(real);
+		if (!_peer->canManageGroupCall() && real->joinMuted()) {
+			_muted = MuteState::ForceMuted;
 		}
-		_state = State::Joining;
+	} else {
+		_peer->session().changes().peerFlagsValue(
+			_peer,
+			Data::PeerUpdate::Flag::GroupCall
+		) | rpl::map([=] {
+			return lookupReal();
+		}) | rpl::filter([](Data::GroupCall *real) {
+			return real != nullptr;
+		}) | rpl::map([](Data::GroupCall *real) {
+			return not_null{ real };
+		}) | rpl::take(
+			1
+		) | rpl::start_with_next([=](not_null<Data::GroupCall*> real) {
+			subscribeToReal(real);
+			_realChanges.fire_copy(real);
+		}, _lifetime);
+	}
+	if (_id) {
 		join(inputCall);
 	} else {
-		start();
+		start(info.scheduleDate);
+	}
+	if (_scheduleDate) {
+		saveDefaultJoinAs(_joinAs);
 	}
 
 	_mediaDevices->audioInputId(
@@ -249,6 +269,17 @@ GroupCall::GroupCall(
 
 GroupCall::~GroupCall() {
 	destroyController();
+}
+
+void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
+	real->scheduleDateValue(
+	) | rpl::start_with_next([=](TimeId date) {
+		const auto was = _scheduleDate;
+		_scheduleDate = date;
+		if (was && !date) {
+			join(inputCall());
+		}
+	}, _lifetime);
 }
 
 void GroupCall::checkGlobalShortcutAvailability() {
@@ -328,10 +359,33 @@ bool GroupCall::showChooseJoinAs() const {
 			&& !_possibleJoinAs.front()->isSelf());
 }
 
-void GroupCall::start() {
+bool GroupCall::scheduleStartSubscribed() const {
+	if (const auto real = lookupReal()) {
+		return real->scheduleStartSubscribed();
+	}
+	return false;
+}
+
+Data::GroupCall *GroupCall::lookupReal() const {
+	const auto real = _peer->groupCall();
+	return (real && real->id() == _id) ? real : nullptr;
+}
+
+rpl::producer<not_null<Data::GroupCall*>> GroupCall::real() const {
+	if (const auto real = lookupReal()) {
+		return rpl::single(not_null{ real });
+	}
+	return _realChanges.events();
+}
+
+void GroupCall::start(TimeId scheduleDate) {
+	using Flag = MTPphone_CreateGroupCall::Flag;
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
+		MTP_flags(scheduleDate ? Flag::f_schedule_date : Flag(0)),
 		_peer->input,
-		MTP_int(openssl::RandomValue<int32>())
+		MTP_int(openssl::RandomValue<int32>()),
+		MTPstring(), // title
+		MTP_int(scheduleDate)
 	)).done([=](const MTPUpdates &result) {
 		_acceptFields = true;
 		_peer->session().api().applyUpdates(result);
@@ -349,20 +403,16 @@ void GroupCall::start() {
 }
 
 void GroupCall::join(const MTPInputGroupCall &inputCall) {
-	setState(State::Joining);
-	if (const auto chat = _peer->asChat()) {
-		chat->setGroupCall(inputCall);
-	} else if (const auto group = _peer->asChannel()) {
-		group->setGroupCall(inputCall);
-	} else {
-		Unexpected("Peer type in GroupCall::join.");
-	}
-
 	inputCall.match([&](const MTPDinputGroupCall &data) {
 		_id = data.vid().v;
 		_accessHash = data.vaccess_hash().v;
-		rejoin();
 	});
+	setState(_scheduleDate ? State::Waiting : State::Joining);
+
+	if (_scheduleDate) {
+		return;
+	}
+	rejoin();
 
 	using Update = Data::GroupCall::ParticipantUpdate;
 	_peer->groupCall()->participantUpdated(
@@ -411,6 +461,23 @@ void GroupCall::rejoinWithHash(const QString &hash) {
 	}
 }
 
+void GroupCall::setJoinAs(not_null<PeerData*> as) {
+	_joinAs = as;
+	if (const auto chat = _peer->asChat()) {
+		chat->setGroupCallDefaultJoinAs(_joinAs->id);
+	} else if (const auto channel = _peer->asChannel()) {
+		channel->setGroupCallDefaultJoinAs(_joinAs->id);
+	}
+}
+
+void GroupCall::saveDefaultJoinAs(not_null<PeerData*> as) {
+	setJoinAs(as);
+	_api.request(MTPphone_SaveDefaultGroupCallJoinAs(
+		_peer->input,
+		_joinAs->input
+	)).send();
+}
+
 void GroupCall::rejoin(not_null<PeerData*> as) {
 	if (state() != State::Joining
 		&& state() != State::Joined
@@ -426,12 +493,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 	applyMeInCallLocally();
 	LOG(("Call Info: Requesting join payload."));
 
-	_joinAs = as;
-	if (const auto chat = _peer->asChat()) {
-		chat->setGroupCallDefaultJoinAs(_joinAs->id);
-	} else if (const auto channel = _peer->asChannel()) {
-		channel->setGroupCallDefaultJoinAs(_joinAs->id);
-	}
+	setJoinAs(as);
 
 	const auto weak = base::make_weak(this);
 	_instance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
@@ -481,6 +543,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				applyMeInCallLocally();
 				maybeSendMutedUpdate(wasMuteState);
 				_peer->session().api().applyUpdates(updates);
+				applyQueuedSelfUpdates();
 				checkFirstTimeJoined();
 			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
@@ -563,7 +626,8 @@ void GroupCall::applyMeInCallLocally() {
 					MTP_int(_mySsrc),
 					MTP_int(volume),
 					MTPstring(), // Don't update about text in local updates.
-					MTP_long(raisedHandRating))),
+					MTP_long(raisedHandRating),
+					MTPDataJSON())),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -608,7 +672,8 @@ void GroupCall::applyParticipantLocally(
 					MTP_int(participant->ssrc),
 					MTP_int(volume.value_or(participant->volume)),
 					MTPstring(), // Don't update about text in local updates.
-					MTP_long(participant->raisedHandRating))),
+					MTP_long(participant->raisedHandRating),
+					MTPDataJSON())),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -643,8 +708,12 @@ void GroupCall::rejoinAs(Group::JoinInfo info) {
 		.wasJoinAs = _joinAs,
 		.nowJoinAs = info.joinAs,
 	};
-	setState(State::Joining);
-	rejoin(info.joinAs);
+	if (_scheduleDate) {
+		saveDefaultJoinAs(info.joinAs);
+	} else {
+		setState(State::Joining);
+		rejoin(info.joinAs);
+	}
 	_rejoinEvents.fire_copy(event);
 }
 
@@ -691,6 +760,29 @@ void GroupCall::finish(FinishType type) {
 	CustomMonitor::currentMonitor()->resetParticipant();
 }
 
+void GroupCall::startScheduledNow() {
+	if (!lookupReal()) {
+		return;
+	}
+	_api.request(MTPphone_StartScheduledGroupCall(
+		inputCall()
+	)).done([=](const MTPUpdates &result) {
+		_peer->session().api().applyUpdates(result);
+	}).send();
+}
+
+void GroupCall::toggleScheduleStartSubscribed(bool subscribed) {
+	if (!lookupReal()) {
+		return;
+	}
+	_api.request(MTPphone_ToggleGroupCallStartSubscription(
+		inputCall(),
+		MTP_bool(subscribed)
+	)).done([=](const MTPUpdates &result) {
+		_peer->session().api().applyUpdates(result);
+	}).send();
+}
+
 void GroupCall::setMuted(MuteState mute) {
 	const auto set = [=] {
 		const auto wasMuted = (muted() == MuteState::Muted)
@@ -734,9 +826,25 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 
 void GroupCall::handlePossibleCreateOrJoinResponse(
 		const MTPDgroupCall &data) {
+	if (const auto date = data.vschedule_date()) {
+		_scheduleDate = date->v;
+	} else {
+		_scheduleDate = 0;
+	}
 	if (_acceptFields) {
 		if (!_instance && !_id) {
-			join(MTP_inputGroupCall(data.vid(), data.vaccess_hash()));
+			const auto input = MTP_inputGroupCall(
+				data.vid(),
+				data.vaccess_hash());
+			const auto scheduleDate = data.vschedule_date().value_or_empty();
+			if (const auto chat = _peer->asChat()) {
+				chat->setGroupCall(input, scheduleDate);
+			} else if (const auto group = _peer->asChannel()) {
+				group->setGroupCall(input, scheduleDate);
+			} else {
+				Unexpected("Peer type in GroupCall::join.");
+			}
+			join(input);
 		}
 		return;
 	} else if (_id != data.vid().v || !_instance) {
@@ -830,10 +938,8 @@ void GroupCall::handlePossibleDiscarded(const MTPDgroupCallDiscarded &data) {
 }
 
 void GroupCall::addParticipantsToInstance() {
-	const auto real = _peer->groupCall();
-	if (!real
-		|| (real->id() != _id)
-		|| (_instanceMode == InstanceMode::None)) {
+	const auto real = lookupReal();
+	if (!real || (_instanceMode == InstanceMode::None)) {
 		return;
 	}
 	for (const auto &participant : real->participants()) {
@@ -855,7 +961,7 @@ void GroupCall::addPreparedParticipants() {
 	if (!_preparedParticipants.empty()) {
 		_instance->addParticipants(base::take(_preparedParticipants));
 	}
-	if (const auto real = _peer->groupCall(); real && real->id() == _id) {
+	if (const auto real = lookupReal()) {
 		if (!_unresolvedSsrcs.empty()) {
 			real->resolveParticipants(base::take(_unresolvedSsrcs));
 		}
@@ -895,32 +1001,8 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 		return;
 	}
 	const auto state = _state.current();
-	if (state != State::Joined && state != State::Connecting) {
-		return;
-	}
-
-	const auto handleOtherParticipants = [=](
-			const MTPDgroupCallParticipant &data) {
-		if (data.is_min()) {
-			// No real information about mutedByMe or my custom volume.
-			return;
-		}
-		const auto participantPeer = _peer->owner().peer(
-			peerFromMTP(data.vpeer()));
-		const auto participant = LookupParticipant(
-			_peer,
-			_id,
-			participantPeer);
-		if (!participant) {
-			return;
-		}
-		_otherParticipantStateValue.fire(Group::ParticipantState{
-			.peer = participantPeer,
-			.volume = data.vvolume().value_or_empty(),
-			.mutedByMe = data.is_muted_by_you(),
-		});
-	};
-
+	const auto joined = (state == State::Joined)
+		|| (state == State::Connecting);
 	for (const auto &participant : data.vparticipants().v) {
 		participant.match([&](const MTPDgroupCallParticipant &data) {
 			if (cRadioMode() && cRadioController() != "") {
@@ -939,59 +1021,97 @@ void GroupCall::handleUpdate(const MTPDupdateGroupCallParticipants &data) {
 				|| (data.is_min()
 					&& peerFromMTP(data.vpeer()) == _joinAs->id);
 			if (!isSelf) {
-				handleOtherParticipants(data);
-				return;
-			}
-			if (data.is_left()) {
-				if (data.vsource().v == _mySsrc) {
-					// I was removed from the call, rejoin.
-					LOG(("Call Info: "
-						"Rejoin after got 'left' with my ssrc."));
-					setState(State::Joining);
-					rejoin();
-				}
-				return;
-			} else if (data.vsource().v != _mySsrc) {
-				if (!_mySsrcs.contains(data.vsource().v)) {
-					// I joined from another device, hangup.
-					LOG(("Call Info: "
-						"Hangup after '!left' with ssrc %1, my %2."
-						).arg(data.vsource().v
-						).arg(_mySsrc));
-					_mySsrc = 0;
-					hangup();
-				} else {
-					LOG(("Call Info: "
-						"Some old 'self' with '!left' and ssrc %1, my %2."
-						).arg(data.vsource().v
-						).arg(_mySsrc));
-				}
-				return;
-			}
-			if (data.is_muted() && !data.is_can_self_unmute()) {
-				setMuted(data.vraise_hand_rating().value_or_empty()
-					? MuteState::RaisedHand
-					: MuteState::ForceMuted);
-			} else if (_instanceMode == InstanceMode::Stream) {
-				LOG(("Call Info: Rejoin after unforcemute in stream mode."));
-				setState(State::Joining);
-				rejoin();
-			} else if (muted() == MuteState::ForceMuted
-				|| muted() == MuteState::RaisedHand) {
-				setMuted(MuteState::Muted);
-				if (!_instanceTransitioning) {
-					notifyAboutAllowedToSpeak();
-				}
-			} else if (data.is_muted() && muted() != MuteState::Muted) {
-				setMuted(MuteState::Muted);
+				applyOtherParticipantUpdate(data);
+			} else if (joined) {
+				applySelfUpdate(data);
+			} else {
+				_queuedSelfUpdates.push_back(participant);
 			}
 		});
 	}
 }
 
+void GroupCall::applyQueuedSelfUpdates() {
+	const auto weak = base::make_weak(this);
+	while (weak
+		&& !_queuedSelfUpdates.empty()
+		&& (_state.current() == State::Joined
+			|| _state.current() == State::Connecting)) {
+		const auto update = _queuedSelfUpdates.front();
+		_queuedSelfUpdates.erase(_queuedSelfUpdates.begin());
+		update.match([&](const MTPDgroupCallParticipant &data) {
+			applySelfUpdate(data);
+		});
+	}
+}
+
+void GroupCall::applySelfUpdate(const MTPDgroupCallParticipant &data) {
+	if (data.is_left()) {
+		if (data.vsource().v == _mySsrc) {
+			// I was removed from the call, rejoin.
+			LOG(("Call Info: "
+				"Rejoin after got 'left' with my ssrc."));
+			setState(State::Joining);
+			rejoin();
+		}
+		return;
+	} else if (data.vsource().v != _mySsrc) {
+		if (!_mySsrcs.contains(data.vsource().v)) {
+			// I joined from another device, hangup.
+			LOG(("Call Info: "
+				"Hangup after '!left' with ssrc %1, my %2."
+				).arg(data.vsource().v
+				).arg(_mySsrc));
+			_mySsrc = 0;
+			hangup();
+		} else {
+			LOG(("Call Info: "
+				"Some old 'self' with '!left' and ssrc %1, my %2."
+				).arg(data.vsource().v
+				).arg(_mySsrc));
+		}
+		return;
+	}
+	if (data.is_muted() && !data.is_can_self_unmute()) {
+		setMuted(data.vraise_hand_rating().value_or_empty()
+			? MuteState::RaisedHand
+			: MuteState::ForceMuted);
+	} else if (_instanceMode == InstanceMode::Stream) {
+		LOG(("Call Info: Rejoin after unforcemute in stream mode."));
+		setState(State::Joining);
+		rejoin();
+	} else if (muted() == MuteState::ForceMuted
+		|| muted() == MuteState::RaisedHand) {
+		setMuted(MuteState::Muted);
+		if (!_instanceTransitioning) {
+			notifyAboutAllowedToSpeak();
+		}
+	} else if (data.is_muted() && muted() != MuteState::Muted) {
+		setMuted(MuteState::Muted);
+	}
+}
+
+void GroupCall::applyOtherParticipantUpdate(
+		const MTPDgroupCallParticipant &data) {
+	if (data.is_min()) {
+		// No real information about mutedByMe or my custom volume.
+		return;
+	}
+	const auto participantPeer = _peer->owner().peer(
+		peerFromMTP(data.vpeer()));
+	if (!LookupParticipant(_peer, _id, participantPeer)) {
+		return;
+	}
+	_otherParticipantStateValue.fire(Group::ParticipantState{
+		.peer = participantPeer,
+		.volume = data.vvolume().value_or_empty(),
+		.mutedByMe = data.is_muted_by_you(),
+	});
+}
+
 void GroupCall::changeTitle(const QString &title) {
-	const auto real = _peer->groupCall();
-	if (!real || real->id() != _id || real->title() == title) {
+	const auto real = lookupReal();
+	if (!real || real->title() == title) {
 		return;
 	}
 
@@ -1006,8 +1126,8 @@ void GroupCall::changeTitle(const QString &title) {
 }
 
 void GroupCall::toggleRecording(bool enabled, const QString &title) {
-	const auto real = _peer->groupCall();
-	if (!real || real->id() != _id) {
+	const auto real = lookupReal();
+	if (!real) {
 		return;
 	}
 
@@ -1210,10 +1330,8 @@ void GroupCall::broadcastPartCancel(not_null<LoadPartTask*> task) {
 
 void GroupCall::requestParticipantsInformation(
 		const std::vector<uint32_t> &ssrcs) {
-	const auto real = _peer->groupCall();
-	if (!real
-		|| (real->id() != _id)
-		|| (_instanceMode == InstanceMode::None)) {
+	const auto real = lookupReal();
+	if (!real || (_instanceMode == InstanceMode::None)) {
 		for (const auto ssrc : ssrcs) {
 			_unresolvedSsrcs.emplace(ssrc);
 		}
@@ -1247,8 +1365,8 @@ void GroupCall::updateInstanceMuteState() {
 }
 
 void GroupCall::updateInstanceVolumes() {
-	const auto real = _peer->groupCall();
-	if (!real || real->id() != _id) {
+	const auto real = lookupReal();
+	if (!real) {
 		return;
 	}
 
@@ -1324,8 +1442,8 @@ void GroupCall::audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data) {
 }
 
 void GroupCall::checkLastSpoke() {
-	const auto real = _peer->groupCall();
-	if (!real || real->id() != _id) {
+	const auto real = lookupReal();
+	if (!real) {
 		return;
 	}
 
@@ -1539,8 +1657,8 @@ void GroupCall::editParticipant(
 
 std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 		const std::vector<not_null<UserData*>> &users) {
-	const auto real = _peer->groupCall();
-	if (!real || real->id() != _id) {
+	const auto real = lookupReal();
+	if (!real) {
 		return 0;
 	}
 	const auto owner = &_peer->owner();

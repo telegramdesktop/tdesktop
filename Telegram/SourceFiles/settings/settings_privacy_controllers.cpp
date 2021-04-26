@@ -91,7 +91,7 @@ void BlockPeerBoxController::prepareViewHook() {
 	session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::IsBlocked
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
-		if (auto row = delegate()->peerListFindRow(update.peer->id)) {
+		if (auto row = delegate()->peerListFindRow(update.peer->id.value)) {
 			updateIsBlocked(row, update.peer);
 			delegate()->peerListUpdateRow(row);
 		}
@@ -286,7 +286,7 @@ void BlockedBoxController::handleBlockedEvent(not_null<PeerData*> user) {
 			delegate()->peerListRefreshRows();
 			delegate()->peerListScrollToTop();
 		}
-	} else if (auto row = delegate()->peerListFindRow(user->id)) {
+	} else if (auto row = delegate()->peerListFindRow(user->id.value)) {
 		delegate()->peerListRemoveRow(row);
 		delegate()->peerListRefreshRows();
 	}
@@ -310,7 +310,7 @@ void BlockedBoxController::BlockNewPeer(
 }
 
 bool BlockedBoxController::appendRow(not_null<PeerData*> peer) {
-	if (delegate()->peerListFindRow(peer->id)) {
+	if (delegate()->peerListFindRow(peer->id.value)) {
 		return false;
 	}
 	delegate()->peerListAppendRow(createRow(peer));
@@ -318,7 +318,7 @@ bool BlockedBoxController::appendRow(not_null<PeerData*> peer) {
 }
 
 bool BlockedBoxController::prependRow(not_null<PeerData*> peer) {
-	if (delegate()->peerListFindRow(peer->id)) {
+	if (delegate()->peerListFindRow(peer->id.value)) {
 		return false;
 	}
 	delegate()->peerListPrependRow(createRow(peer));
@@ -746,7 +746,7 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 	auto message = GenerateForwardedItem(
 		delegate(),
 		_controller->session().data().history(
-			peerFromUser(PeerData::kServiceNotificationsId)),
+			PeerData::kServiceNotificationsId),
 		tr::lng_edit_privacy_forwards_sample_message(tr::now));
 	const auto view = message.get();
 

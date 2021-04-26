@@ -49,7 +49,8 @@ void MegagroupInfo::setLocation(const ChannelLocation &location) {
 
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
-, inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0)))
+, inputChannel(
+	MTP_inputChannel(MTP_int(peerToChannel(id).bare), MTP_long(0)))
 , _ptsWaiter(&owner->session().updates()) {
 	_flags.changes(
 	) | rpl::start_with_next([=](const Flags::Change &change) {
@@ -78,12 +79,8 @@ ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 }
 
 void ChannelData::setPhoto(const MTPChatPhoto &photo) {
-	setPhoto(userpicPhotoId(), photo);
-}
-
-void ChannelData::setPhoto(PhotoId photoId, const MTPChatPhoto &photo) {
 	photo.match([&](const MTPDchatPhoto & data) {
-		updateUserpic(photoId, data.vdc_id().v, data.vphoto_small());
+		updateUserpic(data.vphoto_id().v, data.vdc_id().v);
 	}, [&](const MTPDchatPhotoEmpty &) {
 		clearUserpic();
 	});
@@ -95,8 +92,8 @@ void ChannelData::setName(const QString &newName, const QString &newUsername) {
 
 void ChannelData::setAccessHash(uint64 accessHash) {
 	access = accessHash;
-	input = MTP_inputPeerChannel(MTP_int(bareId()), MTP_long(accessHash));
-	inputChannel = MTP_inputChannel(MTP_int(bareId()), MTP_long(accessHash));
+	input = MTP_inputPeerChannel(MTP_int(peerToChannel(id).bare), MTP_long(accessHash)); // #TODO ids
+	inputChannel = MTP_inputChannel(MTP_int(peerToChannel(id).bare), MTP_long(accessHash));
 }
 
 void ChannelData::setInviteLink(const QString &newInviteLink) {
@@ -353,7 +350,7 @@ void ChannelData::markForbidden() {
 		MTP_flags(isMegagroup()
 			? MTPDchannelForbidden::Flag::f_megagroup
 			: MTPDchannelForbidden::Flag::f_broadcast),
-		MTP_int(bareId()),
+		MTP_int(peerToChannel(id).bare),
 		MTP_long(access),
 		MTP_string(name),
 		MTPint()));
@@ -722,7 +719,9 @@ void ChannelData::migrateCall(std::unique_ptr<Data::GroupCall> call) {
 	addFlags(MTPDchannel::Flag::f_call_active);
 }
 
-void ChannelData::setGroupCall(const MTPInputGroupCall &call) {
+void ChannelData::setGroupCall(
+		const MTPInputGroupCall &call,
+		TimeId scheduleDate) {
 	call.match([&](const MTPDinputGroupCall &data) {
 		if (_call && _call->id() == data.vid().v) {
 			return;
@@ -739,7 +738,8 @@ void ChannelData::setGroupCall(const MTPInputGroupCall &call) {
 		_call = std::make_unique<Data::GroupCall>(
 			this,
 			data.vid().v,
-			data.vaccess_hash().v);
+			data.vaccess_hash().v,
+			scheduleDate);
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
 		addFlags(MTPDchannel::Flag::f_call_active);

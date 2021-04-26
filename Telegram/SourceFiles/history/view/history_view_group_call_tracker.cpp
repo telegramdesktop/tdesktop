@@ -149,7 +149,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 			state->current.users.push_back({
 				.userpic = pic.toImage(),
 				.userpicKey = userpic.uniqueKey,
-				.id = userpic.peer->bareId(),
+				.id = userpic.peer->id.value,
 				.speaking = userpic.speaking,
 			});
 			if (userpic.peer->hasUserpic()
@@ -330,10 +330,18 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 
 		RegenerateUserpics(state, call, userpicSize);
 
-		call->fullCountValue(
-		) | rpl::start_with_next([=](int count) {
+		rpl::combine(
+			call->titleValue(),
+			call->scheduleDateValue(),
+			call->fullCountValue()
+		) | rpl::start_with_next([=](
+				const QString &title,
+				TimeId scheduleDate,
+				int count) {
+			state->current.title = title;
+			state->current.scheduleDate = scheduleDate;
 			state->current.count = count;
-			state->current.shown = (count > 0);
+			state->current.shown = (count > 0) || (scheduleDate != 0);
 			consumer.put_next_copy(state->current);
 		}, lifetime);
 

@@ -216,6 +216,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_code_desc" = "We have sent you a message with activation\ncode to your phone. Please enter it below.";
 "lng_code_from_telegram" = "Please enter the code you've just received\nin your previous **Telegram** app.";
 "lng_code_no_telegram" = "Send code via SMS";
+"lng_code_register_phone" = "If you already signed up for Telegram, please enter the code which was sent to your mobile app.\n\nIf you haven’t signed up yet, please register from your phone or tablet first.";
 "lng_code_call" = "Telegram will call you in {minutes}:{seconds}";
 "lng_code_calling" = "Requesting a call from Telegram...";
 "lng_code_called" = "Telegram dialed your number";
@@ -453,6 +454,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_sensitive_title" = "Sensitive content";
 "lng_settings_sensitive_disable_filtering" = "Disable filtering";
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
+"lng_settings_security_bots" = "Bots and websites";
+"lng_settings_clear_payment_info" = "Clear Payment and Shipping Info";
+
+"lng_clear_payment_info_title" = "Clear payment info";
+"lng_clear_payment_info_sure" = "Are you sure you want to clear your payment and shipping info?";
+"lng_clear_payment_info_shipping" = "Shipping info";
+"lng_clear_payment_info_payment" = "Payment info";
+"lng_clear_payment_info_clear" = "Clear";
+"lng_clear_payment_info_confirm" = "Delete your shipping info and instruct all payment providers to remove your saved credit cards? Note that Telegram never stores your credit card data.";
 
 "lng_settings_auto_night_mode" = "Auto-Night mode";
 "lng_settings_auto_night_enabled" = "Match the system settings";
@@ -1097,8 +1107,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_invite_user_chat" = "the voice chat";
 "lng_action_invite_users_and_one" = "{accumulated}, {user}";
 "lng_action_invite_users_and_last" = "{accumulated} and {user}";
-"lng_action_group_call_started" = "{from} started {chat}";
-"lng_action_group_call_started_chat" = "a voice chat";
+"lng_action_group_call_started_group" = "{from} started a voice chat";
+"lng_action_group_call_started_channel" = "Voice chat started";
+"lng_action_group_call_scheduled_group" = "{from} scheduled a voice chat for {date}";
+"lng_action_group_call_scheduled_channel" = "Voice chat scheduled for {date}";
 "lng_action_group_call_finished" = "Voice chat finished ({duration})";
 "lng_action_add_user" = "{from} added {user}";
 "lng_action_add_users_many" = "{from} added {users}";
@@ -1865,11 +1877,66 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_menu_show" = "Show palette file";
 
 "lng_payments_not_supported" = "Sorry, 64Gram Desktop doesn't support payments yet. Please use one of our mobile apps to do this.";
+"lng_payments_webview_no_card" = "Unfortunately, you can't add a new card with current system configuration.";
+"lng_payments_webview_no_use" = "Unfortunately, you can't use payments with current system configuration.";
+"lng_payments_webview_install_edge" = "Please install {link}.";
+"lng_payments_webview_install_webkit" = "Please install WebKitGTK 4 (webkit2gtk-4.0) using your package manager.";
+"lng_payments_webview_switch_mutter" = "Qt's window embedding doesn't work well with Mutter window manager. Please switch to another window manager or desktop environment.";
+"lng_payments_webview_switch_wayland" = "There is no way to embed WebView window on Wayland. Please switch to X11.";
+"lng_payments_sure_close" = "Are you sure you want to close this payment form? The changes you made will be lost.";
 "lng_payments_receipt_label" = "Receipt";
 "lng_payments_receipt_label_test" = "Test receipt";
 "lng_payments_invoice_label" = "Invoice";
 "lng_payments_invoice_label_test" = "Test invoice";
 "lng_payments_receipt_button" = "Receipt";
+"lng_payments_success" = "You paid {amount} for {title}.";
+
+"lng_payments_checkout_title" = "Checkout";
+"lng_payments_receipt_title" = "Receipt";
+"lng_payments_total_label" = "Total";
+"lng_payments_date_label" = "Paid";
+"lng_payments_pay_amount" = "Pay {amount}";
+"lng_payments_payment_method" = "Payment Method";
+"lng_payments_new_card" = "New Card...";
+"lng_payments_shipping_address" = "Shipping Address";
+"lng_payments_address_street1" = "Address 1";
+"lng_payments_address_street2" = "Address 2";
+"lng_payments_address_city" = "City";
+"lng_payments_address_state" = "State";
+"lng_payments_address_country" = "Country";
+"lng_payments_address_postcode" = "Postcode";
+
+"lng_payments_shipping_method" = "Shipping Method";
+"lng_payments_info_name" = "Name";
+"lng_payments_info_email" = "Email";
+"lng_payments_info_phone" = "Phone";
+"lng_payments_to_provider_phone_email" = "Phone and Email will be passed to {provider} as billing info.";
+"lng_payments_to_provider_email" = "Email will be passed to {provider} as billing info.";
+"lng_payments_to_provider_phone" = "Phone will be passed to {provider} as billing info.";
+"lng_payments_processed_by" = "Processed by {provider}";
+"lng_payments_warning_title" = "Warning";
+"lng_payments_warning_body" = "Neither Telegram, nor {bot1} will have access to your credit card information. Credit card details will be handled only by the payment system, {provider}.\n\nPayments will go directly to the developer of {bot2}. Telegram cannot provide any guarantees, so proceed at your own risk. In case of problems, please contact the developer of {bot3} or your bank.";
+"lng_payments_shipping_address_title" = "Shipping Information";
+"lng_payments_card_title" = "New Card";
+"lng_payments_card_number" = "Card Number";
+"lng_payments_card_holder" = "Cardholder name";
+"lng_payments_billing_address" = "Billing Information";
+"lng_payments_billing_country" = "Country";
+"lng_payments_billing_zip_code" = "Zip Code";
+"lng_payments_save_information" = "Save Information for future use";
+"lng_payments_need_password" = "You can save your payment information for future use. Please turn on Two-Step Verification to enable this.";
+"lng_payments_password_title" = "Payment Confirmation";
+"lng_payments_password_description" = "Your card {card} is on file. To pay with this card, please enter your 2-Step-Verification password.";
+"lng_payments_password_submit" = "Pay";
+"lng_payments_tips_label" = "Tip (Optional)";
+"lng_payments_tips_box_title" = "Add Tip";
+"lng_payments_tips_max" = "Max possible tip amount: {amount}";
+
+"lng_payments_shipping_not_available" = "Shipping to the selected country is not available.";
+"lng_payments_card_declined" = "Your card was declined.";
+"lng_payments_payment_failed" = "Payment failed. Your card has not been billed.";
+"lng_payments_precheckout_failed" = "The bot couldn't process your payment. Your card has not been billed.";
+"lng_payments_already_paid" = "You have already paid for this item.";
 
 "lng_call_status_incoming" = "is calling you...";
 "lng_call_status_connecting" = "connecting...";
@@ -1936,6 +2003,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_inactive" = "listening";
 "lng_group_call_raised_hand_status" = "wants to speak";
 "lng_group_call_settings" = "Settings";
+"lng_group_call_share_button" = "Share";
 "lng_group_call_unmute" = "Unmute";
 "lng_group_call_unmute_sub" = "or hold spacebar to talk";
 "lng_group_call_you_are_live" = "You are Live";
@@ -1948,6 +2016,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_leave" = "Leave";
 "lng_group_call_leave_title" = "Leave voice chat";
 "lng_group_call_leave_sure" = "Are you sure you want to leave this voice chat?";
+"lng_group_call_close" = "Close";
+"lng_group_call_close_sure" = "Voice chat is scheduled. You can abort it or just close this panel.";
+"lng_group_call_also_cancel" = "Abort voice chat";
 "lng_group_call_leave_to_other_sure" = "Do you want to leave your active voice chat and join a voice chat in this group?";
 "lng_group_call_create_sure" = "Do you really want to start a voice chat in this group?";
 "lng_group_call_create_sure_channel" = "Are you sure you want to start a voice chat in this channel as your personal account?";
@@ -1978,6 +2049,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_copy_speaker_link" = "Copy Speaker Link";
 "lng_group_call_copy_listener_link" = "Copy Listener Link";
 "lng_group_call_end" = "End Voice Chat";
+"lng_group_call_cancel" = "Abort Voice Chat";
 "lng_group_call_join" = "Join";
 "lng_group_call_join_confirm" = "Do you want to join the voice chat {chat}?";
 "lng_group_call_invite_done_user" = "You invited {user} to the voice chat.";
@@ -2012,6 +2084,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_join_as_header" = "Join Voice Chat as...";
 "lng_group_call_display_as_header" = "Display me as...";
 "lng_group_call_join_as_about" = "Choose whether you want to be displayed as your personal account or as your channel.";
+"lng_group_call_or_schedule" = "You can also {link}.";
+"lng_group_call_schedule" = "schedule a voice chat";
+"lng_group_call_schedule_title" = "Schedule Voice Chat";
+"lng_group_call_schedule_notified_group" = "The members of the group will be notified that the voice chat will start in {duration}.";
+"lng_group_call_schedule_notified_channel" = "The subscribers of the channel will be notified that the voice chat will start in {duration}.";
+"lng_group_call_scheduled_status" = "Scheduled";
+"lng_group_call_scheduled_title" = "Scheduled Voice Chat";
+"lng_group_call_starts_short" = "Starts {when}";
+"lng_group_call_starts" = "Voice Chat starts {when}";
+"lng_group_call_starts_today" = "today at {time}";
+"lng_group_call_starts_tomorrow" = "tomorrow at {time}";
+"lng_group_call_starts_date" = "{date} at {time}";
+"lng_group_call_starts_in" = "Starts in";
+"lng_group_call_late_by" = "Late by";
+"lng_group_call_starts_short_today" = "Today, {time}";
+"lng_group_call_starts_short_tomorrow" = "Tomorrow, {time}";
+"lng_group_call_starts_short_date" = "{date}, {time}";
+"lng_group_call_start_now" = "Start Now";
+"lng_group_call_start_now_sure" = "Are you sure you want to start the voice chat now?";
+"lng_group_call_set_reminder" = "Set Reminder";
+"lng_group_call_cancel_reminder" = "Cancel Reminder";
 "lng_group_call_join_as_personal" = "personal account";
 "lng_group_call_edit_title" = "Edit voice chat title";
 "lng_group_call_switch_done" = "Members of this voice chat will now see you as **{user}**";
@@ -2485,6 +2578,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_state_chats_list" = "Processing chats...";
 "lng_export_state_chats" = "Chats";
 "lng_export_state_ready_progress" = "{ready} / {total}";
+"lng_export_skip_file" = "Skip this file";
 "lng_export_progress" = "You can close this window now. Please don't quit Telegram until the data export is completed.";
 "lng_export_stop" = "Stop";
 "lng_export_sure_stop" = "Are you sure you want to stop exporting your data?\n\nIf you do, you'll need to start over.";

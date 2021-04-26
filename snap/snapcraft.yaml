@@ -88,6 +88,7 @@ parts:
       - libopus-dev
       - libpulse-dev
       - libssl-dev
+      - libwebkit2gtk-4.0-dev
       - libxcb1-dev
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
@@ -102,6 +103,7 @@ parts:
       - libopus0
       - libpulse0
       - libssl1.1
+      - libwebkit2gtk-4.0-37
       - libxcb1
       - libxcb-keysyms1
       - libxcb-record0
@@ -411,8 +413,6 @@ parts:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/bin
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/mkspecs
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/examples
-      # Allow tdesktop's custom try-portal-and-fallback logic to work
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/plugins/platformthemes
       - -./usr/lib/qt5
       - -./usr/share
     after:

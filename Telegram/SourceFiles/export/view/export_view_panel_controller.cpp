@@ -299,6 +299,11 @@ void PanelController::showProgress() {
 			ContentFromState(_settings.get(), ProcessingState())
 		) | rpl::then(progressState()));
 
+	progress->skipFileClicks(
+	) | rpl::start_with_next([=](uint64 randomId) {
+		_process->skipFile(randomId);
+	}, progress->lifetime());
+
 	progress->cancelClicks(
 	) | rpl::start_with_next([=] {
 		stopWithConfirmation();

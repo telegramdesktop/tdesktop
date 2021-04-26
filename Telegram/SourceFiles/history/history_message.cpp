@@ -792,7 +792,7 @@ bool HistoryMessage::checkCommentsLinkedChat(ChannelId id) const {
 		if (channel->linkedChatKnown()
 			|| !(channel->flags() & MTPDchannel::Flag::f_has_link)) {
 			const auto linked = channel->linkedChat();
-			if (!linked || linked->bareId() != id) {
+			if (!linked || peerToChannel(linked->id) != id) {
 				return false;
 			}
 		}
@@ -858,7 +858,12 @@ MsgId HistoryMessage::computeRepliesInboxReadTillFull() const {
 		? history()->owner().historyLoaded(
 			peerFromChannel(views->commentsMegagroupId))
 		: history().get();
-	return group ? std::max(local, group->inboxReadTillId()) : local;
+	if (const auto megagroup = group->peer->asChannel()) {
+		if (megagroup->amIn()) {
+			return std::max(local, group->inboxReadTillId());
+		}
+	}
+	return local;
 }
 
 MsgId HistoryMessage::repliesOutboxReadTill() const {
@@ -892,7 +897,12 @@ MsgId HistoryMessage::computeRepliesOutboxReadTillFull() const {
 		? history()->owner().historyLoaded(
 			peerFromChannel(views->commentsMegagroupId))
 		: history().get();
-	return group ? std::max(local, group->outboxReadTillId()) : local;
+	if (const auto megagroup = group->peer->asChannel()) {
+		if (megagroup->amIn()) {
+			return std::max(local, group->outboxReadTillId());
+		}
+	}
+	return local;
 }
 
 void HistoryMessage::setRepliesMaxId(MsgId maxId) {
@@ -1099,7 +1109,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 						MTP_int(0),
 						MTP_int(0),
 						MTPVector<MTPPeer>(), // recent_repliers
-						MTP_int(linked->bareId()),
+						MTP_int(peerToChannel(linked->id).bare),
 						MTP_int(0), // max_id
 						MTP_int(0))); // read_max_id
 				}
@@ -1206,6 +1216,10 @@ void HistoryMessage::returnSavedMedia() {
 
 void HistoryMessage::setMedia(const MTPMessageMedia &media) {
 	_media = CreateMedia(this, media);
+	checkBuyButton();
+}
+
+void HistoryMessage::checkBuyButton() {
 	if (const auto invoice = _media ? _media->invoice() : nullptr) {
 		if (invoice->receiptMsgId) {
 			replaceBuyWithReceiptInMarkup();
@@ -1332,11 +1346,18 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 }
 
 void HistoryMessage::replaceBuyWithReceiptInMarkup() {
-	if (auto markup = inlineReplyMarkup()) {
+	if (const auto markup = inlineReplyMarkup()) {
 		for (auto &row : markup->rows) {
 			for (auto &button : row) {
 				if (button.type == HistoryMessageMarkupButton::Type::Buy) {
-					button.text = tr::lng_payments_receipt_button(tr::now);
+					const auto receipt = tr::lng_payments_receipt_button(tr::now);
+					if (button.text != receipt) {
+						button.text = receipt;
+						if (markup->inlineKeyboard) {
+							markup->inlineKeyboard = nullptr;
+							history()->owner().requestItemResize(this);
+						}
+					}
 				}
 			}
 		}
@@ -1725,10 +1746,11 @@ void HistoryMessage::setReplies(const MTPMessageReplies &data) {
 			return result;
 		}();
 		const auto count = data.vreplies().v;
-		const auto channelId = data.vchannel_id().value_or_empty();
+		const auto channelId = ChannelId(
+			data.vchannel_id().value_or_empty());
 		const auto readTillId = data.vread_max_id()
 			? std::max(
-				{ views->repliesInboxReadTillId,  data.vread_max_id()->v, 1 })
+				{ views->repliesInboxReadTillId, data.vread_max_id()->v, 1 })
 			: views->repliesInboxReadTillId;
 		const auto maxId = data.vmax_id().value_or(views->repliesMaxId);
 		const auto countsChanged = (views->replies.count != count)

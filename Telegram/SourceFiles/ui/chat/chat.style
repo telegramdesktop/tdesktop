@@ -463,6 +463,7 @@ msgBotKbFont: semiboldFont;
 msgBotKbIconPadding: 2px;
 msgBotKbUrlIcon: icon {{ "inline_button_url", msgBotKbIconFg }};
 msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", msgBotKbIconFg }};
+msgBotKbPaymentIcon: icon {{ "inline_button_card", msgBotKbIconFg }};
 msgBotKbButton: BotKeyboardButton {
 	margin: 5px;
 	padding: 10px;

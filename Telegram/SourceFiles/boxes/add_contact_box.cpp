@@ -94,7 +94,7 @@ void ChatCreateDone(
 		}
 		| [&](auto chats) {
 			return navigation->session().data().chat(
-				chats->front().c_chat().vid().v);
+				chats->front().c_chat().vid());
 		}
 		| [&](not_null<ChatData*> chat) {
 			if (!image.isNull()) {
@@ -268,7 +268,7 @@ AddContactBox::AddContactBox(
 	this,
 	st::defaultInputField,
 	tr::lng_contact_phone(),
-	ExtractPhonePrefix(session->user()->phone()),
+	Ui::ExtractPhonePrefix(session->user()->phone()),
 	phone)
 , _invertOrder(langFirstNameGoesSecond()) {
 	if (!phone.isEmpty()) {
@@ -401,7 +401,7 @@ void AddContactBox::save() {
 			const auto extractUser = [&](const MTPImportedContact &data) {
 				return data.match([&](const MTPDimportedContact &data) {
 					return (data.vclient_id().v == _contactId)
-						? _session->data().userLoaded(data.vuser_id().v)
+						? _session->data().userLoaded(data.vuser_id())
 						: nullptr;
 				});
 			};
@@ -687,7 +687,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 			}
 			| [&](auto chats) {
 				return _navigation->session().data().channel(
-					chats->front().c_channel().vid().v);
+					chats->front().c_channel().vid());
 			}
 			| [&](not_null<ChannelData*> channel) {
 				auto image = _photo->takeResultImage();

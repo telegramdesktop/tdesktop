@@ -403,8 +403,8 @@ callErrorToast: Toast(defaultToast) {
 groupCallWidth: 380px;
 groupCallHeight: 580px;
 
-groupCallMuteButtonIconSize: size(55px, 55px);
-groupCallMuteButtonIconTop: 42px;
+groupCallMuteButtonIconSize: size(67px, 67px);
+groupCallMuteButtonIconTop: 35px;
 groupCallRipple: RippleAnimation(defaultRippleAnimation) {
 	color: groupCallMembersBgRipple;
 }
@@ -695,13 +695,19 @@ groupCallMemberInvited: icon {{ "calls/group_calls_invited", groupCallMemberInac
 groupCallMemberInvitedPosition: point(2px, 12px);
 groupCallMemberRaisedHand: icon {{ "calls/group_calls_raised_hand", groupCallMemberInactiveStatus }};
 
+groupCallSettingsInner: IconButton(callButton) {
+	iconPosition: point(-1px, 22px);
+	icon: icon {{ "calls/call_settings", groupCallIconFg }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: callMuteRipple;
+	}
+}
 groupCallSettings: CallButton(callMicrophoneMute) {
-	button: IconButton(callButton) {
-		iconPosition: point(-1px, 22px);
-		icon: icon {{ "calls/call_settings", groupCallIconFg }};
-		ripple: RippleAnimation(defaultRippleAnimation) {
-			color: callMuteRipple;
-		}
+	button: groupCallSettingsInner;
+}
+groupCallShare: CallButton(groupCallSettings) {
+	button: IconButton(groupCallSettingsInner) {
+		icon: icon {{ "calls/group_calls_share", groupCallIconFg }};
 	}
 }
 groupCallHangup: CallButton(callHangup) {
@@ -729,6 +735,11 @@ groupCallTopBarJoin: RoundButton(defaultActiveButton) {
 	width: -26px;
 	height: 26px;
 	textTop: 4px;
+}
+groupCallTopBarOpen: RoundButton(groupCallTopBarJoin) {
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
 }
 groupCallBox: Box(defaultBox) {
 	button: RoundButton(defaultBoxButton) {
@@ -960,3 +971,18 @@ callTopBarMuteCrossLine: CrossLineAnimation {
 	endPosition: point(26px, 23px);
 	stroke: 2px;
 }
+
+groupCallStartsIn: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(20px semibold);
+		linkFont: font(20px semibold);
+		linkFontOver: font(20px semibold underline);
+	}
+	textFg: groupCallMembersFg;
+}
+groupCallScheduledBodyHeight: 200px;
+groupCallStartsWhen: groupCallStartsIn;
+groupCallStartsInTop: 10px;
+groupCallStartsWhenTop: 160px;
+groupCallCountdownFont: font(64px semibold);
+groupCallCountdownTop: 52px;

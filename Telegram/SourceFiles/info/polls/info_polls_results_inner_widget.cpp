@@ -438,7 +438,7 @@ void ListController::rowClicked(not_null<PeerListRow*> row) {
 }
 
 bool ListController::appendRow(not_null<UserData*> user) {
-	if (delegate()->peerListFindRow(user->id)) {
+	if (delegate()->peerListFindRow(user->id.value)) {
 		return false;
 	}
 	delegate()->peerListAppendRow(createRow(user));

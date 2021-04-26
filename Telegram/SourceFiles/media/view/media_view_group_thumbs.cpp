@@ -39,15 +39,15 @@ using Context = GroupThumbs::Context;
 using Key = GroupThumbs::Key;
 
 [[nodiscard]] QString DebugSerializeMsgId(FullMsgId itemId) {
-	return QString("msg%1_%2").arg(itemId.channel).arg(itemId.msg);
+	return QString("msg%1_%2").arg(itemId.channel.bare).arg(itemId.msg);
 }
 
 [[nodiscard]] QString DebugSerializePeer(PeerId peerId) {
 	return peerIsUser(peerId)
-		? QString("user%1").arg(peerToUser(peerId))
+		? QString("user%1").arg(peerToUser(peerId).bare)
 		: peerIsChat(peerId)
-		? QString("chat%1").arg(peerToChat(peerId))
-		: QString("channel%1").arg(peerToChannel(peerId));
+		? QString("chat%1").arg(peerToChat(peerId).bare)
+		: QString("channel%1").arg(peerToChannel(peerId).bare);
 }
 
 [[nodiscard]] QString DebugSerializeKey(const Key &key) {

@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "base/object_ptr.h"
 
+#include <set>
+
 namespace Ui {
 
 class InputField;

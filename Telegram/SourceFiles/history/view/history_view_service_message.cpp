@@ -513,17 +513,18 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 			point - trect.topLeft(),
 			trect.width(),
 			textRequest));
-		if (auto gamescore = item->Get<HistoryServiceGameScore>()) {
-			if (!result.link
-				&& result.cursor == CursorState::Text
-				&& g.contains(point)) {
+		if (!result.link
+			&& result.cursor == CursorState::Text
+			&& g.contains(point)) {
+			if (const auto gamescore = item->Get<HistoryServiceGameScore>()) {
 				result.link = gamescore->lnk;
-			}
-		} else if (auto payment = item->Get<HistoryServicePayment>()) {
-			if (!result.link
-				&& result.cursor == CursorState::Text
-				&& g.contains(point)) {
-				result.link = payment->lnk;
+			} else if (const auto payment = item->Get<HistoryServicePayment>()) {
+				result.link = payment->invoiceLink;
+			} else if (const auto call = item->Get<HistoryServiceOngoingCall>()) {
+				const auto peer = history()->peer;
+				if (PeerHasThisCall(peer, call->id).value_or(false)) {
+					result.link = call->link;
+				}
 			}
 		}
 	} else if (media) {

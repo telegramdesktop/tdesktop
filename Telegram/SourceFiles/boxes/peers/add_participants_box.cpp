@@ -661,12 +661,12 @@ void AddSpecialBoxController::editAdminDone(
 		using Flag = MTPDchannelParticipantCreator::Flag;
 		_additional.applyParticipant(MTP_channelParticipantCreator(
 			MTP_flags(rank.isEmpty() ? Flag(0) : Flag::f_rank),
-			MTP_int(user->bareId()),
+			peerToBareMTPInt(user->id),
 			rights,
 			MTP_string(rank)));
 	} else if (rights.c_chatAdminRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
-			MTP_int(user->bareId()),
+			peerToBareMTPInt(user->id),
 			MTP_int(date)));
 	} else {
 		using Flag = MTPDchannelParticipantAdmin::Flag;
@@ -674,11 +674,11 @@ void AddSpecialBoxController::editAdminDone(
 		_additional.applyParticipant(MTP_channelParticipantAdmin(
 			MTP_flags(Flag::f_can_edit
 				| (rank.isEmpty() ? Flag(0) : Flag::f_rank)),
-			MTP_int(user->bareId()),
+			peerToBareMTPInt(user->id),
 			MTPint(), // inviter_id
-			MTP_int(alreadyPromotedBy
-				? alreadyPromotedBy->bareId()
-				: user->session().userId()),
+			peerToBareMTPInt(alreadyPromotedBy
+				? alreadyPromotedBy->id
+				: user->session().userPeerId()),
 			MTP_int(date),
 			rights,
 			MTP_string(rank)));
@@ -763,7 +763,7 @@ void AddSpecialBoxController::editRestrictedDone(
 	if (Data::ChatBannedRightsFlags(rights) == 0) {
 		if (const auto user = participant->asUser()) {
 			_additional.applyParticipant(MTP_channelParticipant(
-				MTP_int(user->bareId()),
+				peerToBareMTPInt(user->id),
 				MTP_int(date)));
 		} else {
 			_additional.setExternal(participant);
@@ -777,14 +777,10 @@ void AddSpecialBoxController::editRestrictedDone(
 			MTP_flags(kicked
 				? MTPDchannelParticipantBanned::Flag::f_left
 				: MTPDchannelParticipantBanned::Flag(0)),
-			(participant->isUser()
-				? MTP_peerUser(MTP_int(participant->bareId()))
-				: participant->isChat()
-				? MTP_peerChat(MTP_int(participant->bareId()))
-				: MTP_peerChannel(MTP_int(participant->bareId()))),
-			MTP_int(alreadyRestrictedBy
-				? alreadyRestrictedBy->bareId()
-				: participant->session().userId()),
+			peerToMTP(participant->id),
+			peerToBareMTPInt(alreadyRestrictedBy
+				? alreadyRestrictedBy->id
+				: participant->session().userPeerId()),
 			MTP_int(date),
 			rights));
 	}
@@ -861,7 +857,7 @@ void AddSpecialBoxController::kickUser(
 }
 
 bool AddSpecialBoxController::appendRow(not_null<PeerData*> participant) {
-	if (delegate()->peerListFindRow(participant->id)
+	if (delegate()->peerListFindRow(participant->id.value)
 		|| (_excludeSelf && participant->isSelf())) {
 		return false;
 	}
@@ -870,7 +866,7 @@ bool AddSpecialBoxController::appendRow(not_null<PeerData*> participant) {
 }
 
 bool AddSpecialBoxController::prependRow(not_null<UserData*> user) {
-	if (delegate()->peerListFindRow(user->id)) {
+	if (delegate()->peerListFindRow(user->id.value)) {
 		return false;
 	}
 	delegate()->peerListPrependRow(createRow(user));

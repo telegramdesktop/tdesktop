@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/stickers_emoji_image_loader.h"
-#include "base/platform/base_platform_info.h"
 #include "base/platform/base_platform_last_input.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
@@ -65,6 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_domain.h"
 #include "storage/storage_databases.h"
 #include "storage/localstorage.h"
+#include "payments/payments_checkout_process.h"
 #include "export/export_manager.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -151,6 +151,15 @@ Application::~Application() {
 	_window = nullptr;
 	_mediaView = nullptr;
 	_notifications->clearAllFast();
+
+	// We must manually destroy all windows before going further.
+	// DestroyWindow on Windows (at least with an active WebView) enters
+	// event loop and invoke scheduled crl::on_main callbacks.
+	//
+	// For example Domain::removeRedundantAccounts() is called from
+	// Domain::finish() and there is a violation on Ensures(started()).
+	Payments::CheckoutProcess::ClearAll();
+
 	_domain->finish();
 
 	Local::finish();
@@ -529,6 +538,9 @@ void Application::badMtprotoConfigurationError() {
 void Application::startLocalStorage() {
 	Local::start();
 	_saveSettingsTimer.emplace([=] { saveSettings(); });
+	_settings.saveDelayedRequests() | rpl::start_with_next([=] {
+		saveSettingsDelayed();
+	}, _lifetime);
 }
 
 void Application::startEmojiImageLoader() {
@@ -979,13 +991,6 @@ void Application::notifyFileDialogShown(bool shown) {
 		_mediaView->notifyFileDialogShown(shown);
 	}
 }
-
-QWidget *Application::getModalParent() {
-	return (Platform::IsWayland() && activeWindow())
-		? activeWindow()->widget().get()
-		: nullptr;
-}
-
 
 void Application::checkMediaViewActivation() {
 	if (_mediaView && !_mediaView->isHidden()) {

@@ -324,6 +324,7 @@ bool Stickers::applyArchivedResultFake() {
 					MTP_string(raw->shortName),
 					MTP_vector<MTPPhotoSize>(),
 					MTP_int(0),
+					MTP_int(0),
 					MTP_int(raw->count),
 					MTP_int(raw->hash));
 				sets.push_back(MTP_stickerSetCovered(

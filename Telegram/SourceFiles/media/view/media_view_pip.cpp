@@ -373,8 +373,7 @@ QImage RotateFrameImage(QImage image, int rotation) {
 PipPanel::PipPanel(
 	QWidget *parent,
 	Fn<void(QPainter&, FrameRequest)> paint)
-: PipParent(Core::App().getModalParent())
-, _parent(parent)
+: _parent(parent)
 , _paint(std::move(paint)) {
 	setWindowFlags(Qt::Tool
 		| Qt::WindowStaysOnTopHint
@@ -388,7 +387,17 @@ PipPanel::PipPanel(
 	Ui::Platform::InitOnTopPanel(this);
 	setMouseTracking(true);
 	resize(0, 0);
-	show();
+	hide();
+	createWinId();
+}
+
+void PipPanel::setVisibleHook(bool visible) {
+	PipParent::setVisibleHook(visible);
+
+	// workaround Qt's forced transient parent
+	if (visible) {
+		Ui::Platform::ClearTransientParent(this);
+	}
 }
 
 void PipPanel::setAspectRatio(QSize ratio) {

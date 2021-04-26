@@ -24,6 +24,7 @@ set(style_files
     intro/intro.style
     media/player/media_player.style
     passport/passport.style
+    payments/ui/payments.style
     profile/profile.style
     settings/settings.style
     media/view/media_view.style
@@ -51,6 +52,9 @@ PRIVATE
     core/mime_type.cpp
     core/mime_type.h
 
+    data/data_countries.cpp
+    data/data_countries.h
+
     media/clip/media_clip_check_streaming.cpp
     media/clip/media_clip_check_streaming.h
     media/clip/media_clip_ffmpeg.cpp
@@ -59,6 +63,24 @@ PRIVATE
     media/clip/media_clip_implementation.h
     media/clip/media_clip_reader.cpp
     media/clip/media_clip_reader.h
+
+    passport/ui/passport_details_row.cpp
+    passport/ui/passport_details_row.h
+    passport/ui/passport_form_row.cpp
+    passport/ui/passport_form_row.h
+
+    payments/ui/payments_edit_card.cpp
+    payments/ui/payments_edit_card.h
+    payments/ui/payments_edit_information.cpp
+    payments/ui/payments_edit_information.h
+    payments/ui/payments_form_summary.cpp
+    payments/ui/payments_form_summary.h
+    payments/ui/payments_field.cpp
+    payments/ui/payments_field.h
+    payments/ui/payments_panel.cpp
+    payments/ui/payments_panel.h
+    payments/ui/payments_panel_data.h
+    payments/ui/payments_panel_delegate.h
 
     platform/mac/file_bookmark_mac.h
     platform/mac/file_bookmark_mac.mm
@@ -70,10 +92,14 @@ PRIVATE
     ui/boxes/calendar_box.h
     ui/boxes/choose_date_time.cpp
     ui/boxes/choose_date_time.h
+    ui/boxes/country_select_box.cpp
+    ui/boxes/country_select_box.h
     ui/boxes/edit_invite_link.cpp
     ui/boxes/edit_invite_link.h
     ui/boxes/report_box.cpp
     ui/boxes/report_box.h
+    ui/boxes/single_choice_box.cpp
+    ui/boxes/single_choice_box.h
     ui/chat/attach/attach_album_thumbnail.cpp
     ui/chat/attach/attach_album_thumbnail.h
     ui/chat/attach/attach_album_preview.cpp
@@ -114,11 +140,15 @@ PRIVATE
     ui/text/text_options.h
     ui/toasts/common_toasts.cpp
     ui/toasts/common_toasts.h
+    ui/widgets/separate_panel.cpp
+    ui/widgets/separate_panel.h
     ui/cached_round_corners.cpp
     ui/cached_round_corners.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
-    
+    ui/special_fields.cpp
+    ui/special_fields.h
+
     ui/ui_pch.h
 )
 
@@ -131,6 +161,9 @@ target_link_libraries(td_ui
 PUBLIC
     tdesktop::td_lang
     desktop-app::lib_ui
-    desktop-app::lib_ffmpeg
     desktop-app::lib_lottie
+PRIVATE
+    desktop-app::lib_ffmpeg
+    desktop-app::lib_webview
+    desktop-app::lib_stripe
 )

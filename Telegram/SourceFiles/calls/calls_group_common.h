@@ -44,6 +44,7 @@ struct JoinInfo {
 	not_null<PeerData*> joinAs;
 	std::vector<not_null<PeerData*>> possibleJoinAs;
 	QString joinHash;
+	TimeId scheduleDate = 0;
 };
 
 } // namespace Calls::Group

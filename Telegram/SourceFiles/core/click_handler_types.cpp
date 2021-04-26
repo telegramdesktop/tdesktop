@@ -86,12 +86,12 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 		open();
 	} else if (!_bot
 		|| _bot->isVerified()
-		|| _bot->session().local().isBotTrusted(_bot)) {
+		|| _bot->session().local().isBotTrustedOpenGame(_bot->id)) {
 		open();
 	} else {
 		const auto callback = [=, bot = _bot] {
 			Ui::hideLayer();
-			bot->session().local().markBotTrusted(bot);
+			bot->session().local().markBotTrustedOpenGame(bot->id);
 			open();
 		};
 		Ui::show(Box<ConfirmBox>(
@@ -136,7 +136,9 @@ void MentionNameClickHandler::onClick(ClickContext context) const {
 }
 
 auto MentionNameClickHandler::getTextEntity() const -> TextEntity {
-	auto data = QString::number(_userId) + '.' + QString::number(_accessHash);
+	const auto data = QString::number(_userId.bare)
+		+ '.'
+		+ QString::number(_accessHash);
 	return { EntityType::MentionName, data };
 }
 

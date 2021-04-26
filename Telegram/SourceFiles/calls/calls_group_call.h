@@ -37,6 +37,7 @@ class MediaDevices;
 namespace Data {
 struct LastSpokeTimes;
 struct GroupCallParticipant;
+class GroupCall;
 } // namespace Data
 
 namespace Calls {
@@ -112,8 +113,15 @@ public:
 		return _joinAs;
 	}
 	[[nodiscard]] bool showChooseJoinAs() const;
+	[[nodiscard]] TimeId scheduleDate() const {
+		return _scheduleDate;
+	}
+	[[nodiscard]] bool scheduleStartSubscribed() const;
 
-	void start();
+	[[nodiscard]] Data::GroupCall *lookupReal() const;
+	[[nodiscard]] rpl::producer<not_null<Data::GroupCall*>> real() const;
+
+	void start(TimeId scheduleDate);
 	void hangup();
 	void discard();
 	void rejoinAs(Group::JoinInfo info);
@@ -126,6 +134,8 @@ public:
 	[[nodiscard]] bool recordingStoppedByMe() const {
 		return _recordingStoppedByMe;
 	}
+	void startScheduledNow();
+	void toggleScheduleStartSubscribed(bool subscribed);
 
 	void setMuted(MuteState mute);
 	void setMutedAndUpdate(MuteState mute);
@@ -141,6 +151,7 @@ public:
 
 	enum State {
 		Creating,
+		Waiting,
 		Joining,
 		Connecting,
 		Joined,
@@ -248,6 +259,9 @@ private:
 	void applyMeInCallLocally();
 	void rejoin();
 	void rejoin(not_null<PeerData*> as);
+	void setJoinAs(not_null<PeerData*> as);
+	void saveDefaultJoinAs(not_null<PeerData*> as);
+	void subscribeToReal(not_null<Data::GroupCall*> real);
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
 	void setInstanceConnected(tgcalls::GroupNetworkState networkState);
@@ -279,6 +293,9 @@ private:
 		not_null<PeerData*> participantPeer,
 		bool mute,
 		std::optional<int> volume);
+	void applyQueuedSelfUpdates();
+	void applySelfUpdate(const MTPDgroupCallParticipant &data);
+	void applyOtherParticipantUpdate(const MTPDgroupCallParticipant &data);
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
@@ -287,6 +304,7 @@ private:
 	rpl::event_stream<PeerData*> _peerStream;
 	not_null<History*> _history; // Can change in legacy group migration.
 	MTP::Sender _api;
+	rpl::event_stream<not_null<Data::GroupCall*>> _realChanges;
 	rpl::variable<State> _state = State::Creating;
 	rpl::variable<InstanceState> _instanceState
 		= InstanceState::Disconnected;
@@ -309,10 +327,12 @@ private:
 	bool _acceptFields = false;
 
 	rpl::event_stream<Group::ParticipantState> _otherParticipantStateValue;
+	std::vector<MTPGroupCallParticipant> _queuedSelfUpdates;
 
 	uint64 _id = 0;
 	uint64 _accessHash = 0;
 	uint32 _mySsrc = 0;
+	TimeId _scheduleDate = 0;
 	base::flat_set<uint32> _mySsrcs;
 	mtpRequestId _createRequestId = 0;
 	mtpRequestId _updateMuteRequestId = 0;

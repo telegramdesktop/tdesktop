@@ -205,17 +205,17 @@ private:
 	};
 
 	struct StatusIcon {
-		StatusIcon(float volume)
-		: speaker(st::groupCallStatusSpeakerIcon)
-		, arcs(std::make_unique<Ui::Paint::ArcsAnimation>(
-			st::groupCallStatusSpeakerArcsAnimation,
-			kSpeakerThreshold,
-			volume,
-			Ui::Paint::ArcsAnimation::Direction::Right)) {
-		}
+		StatusIcon(bool shown, float volume);
+
 		const style::icon &speaker;
-		const std::unique_ptr<Ui::Paint::ArcsAnimation> arcs;
+		Ui::Paint::ArcsAnimation arcs;
+		Ui::Animations::Simple arcsAnimation;
+		Ui::Animations::Simple shownAnimation;
+		QString percent;
+		int percentWidth = 0;
 		int arcsWidth = 0;
+		int wasArcsWidth = 0;
+		bool shown = true;
 
 		rpl::lifetime lifetime;
 	};
@@ -247,7 +247,6 @@ private:
 	Ui::Animations::Simple _speakingAnimation; // For gray-red/green icon.
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
-	Ui::Animations::Simple _arcsAnimation; // For volume arcs animation.
 	QString _aboutText;
 	crl::time _speakingLastTime = 0;
 	uint64 _raisedHandRating = 0;
@@ -318,7 +317,7 @@ private:
 		not_null<PeerData*> participantPeer,
 		bool participantIsCallAdmin,
 		not_null<Row*> row);
-	void setupListChangeViewers(not_null<GroupCall*> call);
+	void setupListChangeViewers();
 	void subscribeToChanges(not_null<Data::GroupCall*> real);
 	void updateRow(
 		const std::optional<Data::GroupCall::Participant> &was,
@@ -336,16 +335,11 @@ private:
 		uint64 raiseHandRating) const;
 	Row *findRow(not_null<PeerData*> participantPeer) const;
 
-	[[nodiscard]] Data::GroupCall *resolvedRealCall() const;
 	void appendInvitedUsers();
 	void scheduleRaisedHandStatusRemove();
 
-	const base::weak_ptr<GroupCall> _call;
+	const not_null<GroupCall*> _call;
 	not_null<PeerData*> _peer;
-
-	// Use only resolvedRealCall() method, not this value directly.
-	Data::GroupCall *_realCallRawValue = nullptr;
-	uint64 _realId = 0;
 	bool _prepared = false;
 
 	rpl::event_stream<MuteRequest> _toggleMuteRequests;
@@ -372,6 +366,26 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+[[nodiscard]] QString StatusPercentString(float volume) {
+	return QString::number(int(std::round(volume * 200))) + '%';
+}
+
+[[nodiscard]] int StatusPercentWidth(const QString &percent) {
+	return st::normalFont->width(percent);
+}
+
+Row::StatusIcon::StatusIcon(bool shown, float volume)
+: speaker(st::groupCallStatusSpeakerIcon)
+, arcs(
+	st::groupCallStatusSpeakerArcsAnimation,
+	kSpeakerThreshold,
+	volume,
+	Ui::Paint::ArcsAnimation::Direction::Right)
+, percent(StatusPercentString(volume))
+, percentWidth(StatusPercentWidth(percent))
+, shown(shown) {
+}
 
 Row::Row(
 	not_null<RowDelegate*> delegate,
@@ -433,32 +447,30 @@ void Row::setSpeaking(bool speaking) {
 		|| (_state == State::MutedByMe)
 		|| (_state == State::Muted)
 		|| (_state == State::RaisedHand)) {
-		_statusIcon = nullptr;
+		if (_statusIcon) {
+			_statusIcon = nullptr;
+			_delegate->rowUpdateRow(this);
+		}
 	} else if (!_statusIcon) {
 		_statusIcon = std::make_unique<StatusIcon>(
+			(_volume != Group::kDefaultVolume),
 			(float)_volume / Group::kMaxVolume);
-		_statusIcon->arcs->setStrokeRatio(kArcsStrokeRatio);
-		_statusIcon->arcsWidth = _statusIcon->arcs->finishedWidth();
-
-		const auto wasArcsWidth = _statusIcon->lifetime.make_state<int>(0);
-
-		_statusIcon->arcs->startUpdateRequests(
+		_statusIcon->arcs.setStrokeRatio(kArcsStrokeRatio);
+		_statusIcon->arcsWidth = _statusIcon->arcs.finishedWidth();
+		_statusIcon->arcs.startUpdateRequests(
 		) | rpl::start_with_next([=] {
-			if (!_arcsAnimation.animating()) {
-				*wasArcsWidth = _statusIcon->arcsWidth;
+			if (!_statusIcon->arcsAnimation.animating()) {
+				_statusIcon->wasArcsWidth = _statusIcon->arcsWidth;
 			}
 			auto callback = [=](float64 value) {
-				if (_statusIcon) {
-					_statusIcon->arcs->update(crl::now());
-
-					_statusIcon->arcsWidth = anim::interpolate(
-						*wasArcsWidth,
-						_statusIcon->arcs->finishedWidth(),
-						value);
-				}
+				_statusIcon->arcs.update(crl::now());
+				_statusIcon->arcsWidth = anim::interpolate(
+					_statusIcon->wasArcsWidth,
+					_statusIcon->arcs.finishedWidth(),
+					value);
 				_delegate->rowUpdateRow(this);
 			};
-			_arcsAnimation.start(
+			_statusIcon->arcsAnimation.start(
 				std::move(callback),
 				0.,
 				1.,
@@ -533,7 +545,20 @@ void Row::setSsrc(uint32 ssrc) {
 void Row::setVolume(int volume) {
 	_volume = volume;
 	if (_statusIcon) {
-		_statusIcon->arcs->setValue((float)volume / Group::kMaxVolume);
+		const auto floatVolume = (float)volume / Group::kMaxVolume;
+		_statusIcon->arcs.setValue(floatVolume);
+		_statusIcon->percent = StatusPercentString(floatVolume);
+		_statusIcon->percentWidth = StatusPercentWidth(_statusIcon->percent);
+
+		const auto shown = (volume != Group::kDefaultVolume);
+		if (_statusIcon->shown != shown) {
+			_statusIcon->shown = shown;
+			_statusIcon->shownAnimation.start(
+				[=] { _delegate->rowUpdateRow(this); },
+				shown ? 0. : 1.,
+				shown ? 1. : 0.,
+				st::groupCallSpeakerArcsAnimation.duration);
+		}
 	}
 }
 
@@ -658,21 +683,20 @@ auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 }
 
 int Row::statusIconWidth() const {
-	if (!_statusIcon) {
+	if (!_statusIcon || !_speaking) {
 		return 0;
 	}
-	return _speaking
-		? (_statusIcon->speaker.width() + _statusIcon->arcsWidth)
-		: 0;
+	const auto shown = _statusIcon->shownAnimation.value(
+		_statusIcon->shown ? 1. : 0.);
+	const auto full = _statusIcon->speaker.width()
+		+ _statusIcon->arcsWidth
+		+ _statusIcon->percentWidth
+		+ st::normalFont->spacew;
+	return int(std::round(shown * full));
 }
 
 int Row::statusIconHeight() const {
-	if (!_statusIcon) {
-		return 0;
-	}
-	return _speaking
-		? _statusIcon->speaker.height()
-		: 0;
+	return (_statusIcon && _speaking) ? _statusIcon->speaker.height() : 0;
 }
 
 void Row::paintStatusIcon(
@@ -683,6 +707,12 @@ void Row::paintStatusIcon(
 	if (!_statusIcon) {
 		return;
 	}
+	const auto shown = _statusIcon->shownAnimation.value(
+		_statusIcon->shown ? 1. : 0.);
+	if (shown == 0.) {
+		return;
+	}
+
 	p.setFont(font);
 	const auto color = (_speaking
 		? st.statusFgActive
@@ -697,17 +727,34 @@ void Row::paintStatusIcon(
 		+ QPoint(
 			speakerRect.width() - st::groupCallStatusSpeakerArcsSkip,
 			speakerRect.height() / 2);
+	const auto fullWidth = speakerRect.width()
+		+ _statusIcon->arcsWidth
+		+ _statusIcon->percentWidth
+		+ st::normalFont->spacew;
 
-	const auto volume = std::round(_volume / 100.);
+	p.save();
+	if (shown < 1.) {
+		const auto centerx = speakerRect.x() + fullWidth / 2;
+		const auto centery = speakerRect.y() + speakerRect.height() / 2;
+		p.translate(centerx, centery);
+		p.scale(shown, shown);
+		p.translate(-centerx, -centery);
+	}
 	_statusIcon->speaker.paint(
 		p,
 		speakerRect.topLeft(),
 		speakerRect.width(),
 		color);
-
-	p.save();
 	p.translate(arcPosition);
-	_statusIcon->arcs->paint(p, color);
+	_statusIcon->arcs.paint(p, color);
+	p.translate(-arcPosition);
+	p.setFont(st::normalFont);
+	p.setPen(st.statusFgActive);
+	p.drawTextLeft(
+		st.statusPosition.x() + speakerRect.width() + _statusIcon->arcsWidth,
+		st.statusPosition.y(),
+		fullWidth,
+		_statusIcon->percent);
 	p.restore();
 }
 
@@ -736,11 +783,14 @@ void Row::paintStatusText(
 	if (about.isEmpty()
 		&& _state != State::Invited
 		&& _state != State::MutedByMe) {
-		p.save();
 		paintStatusIcon(p, st, font, selected);
+
 		const auto translatedWidth = statusIconWidth();
 		p.translate(translatedWidth, 0);
-		const auto guard = gsl::finally([&] { p.restore(); });
+		const auto guard = gsl::finally([&] {
+			p.translate(-translatedWidth, 0);
+		});
+
 		PeerListRow::paintStatusText(
 			p,
 			st,
@@ -819,9 +869,7 @@ void Row::paintAction(
 void Row::refreshStatus() {
 	setCustomStatus(
 		(_speaking
-			? u"%1% %2"_q
-				.arg(std::round(_volume / 100.))
-				.arg(tr::lng_group_call_active(tr::now))
+			? tr::lng_group_call_active(tr::now)
 			: _raisedHandStatus
 			? tr::lng_group_call_raised_hand_status(tr::now)
 			: tr::lng_group_call_inactive(tr::now)),
@@ -856,7 +904,7 @@ MembersController::MembersController(
 , _raisedHandStatusRemoveTimer([=] { scheduleRaisedHandStatusRemove(); })
 , _inactiveCrossLine(st::groupCallMemberInactiveCrossLine)
 , _coloredCrossLine(st::groupCallMemberColoredCrossLine) {
-	setupListChangeViewers(call);
+	setupListChangeViewers();
 
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
@@ -911,32 +959,20 @@ MembersController::~MembersController() {
 	base::take(_menu);
 }
 
-void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
-	const auto peer = call->peer();
-	peer->session().changes().peerFlagsValue(
-		peer,
-		Data::PeerUpdate::Flag::GroupCall
-	) | rpl::map([=] {
-		return peer->groupCall();
-	}) | rpl::filter([=](Data::GroupCall *real) {
-		const auto call = _call.get();
-		return call && real && (real->id() == call->id());
-	}) | rpl::take(
-		1
+void MembersController::setupListChangeViewers() {
+	_call->real(
 	) | rpl::start_with_next([=](not_null<Data::GroupCall*> real) {
 		subscribeToChanges(real);
 	}, _lifetime);
 
-	call->stateValue(
+	_call->stateValue(
 	) | rpl::start_with_next([=] {
-		const auto call = _call.get();
-		const auto real = peer->groupCall();
-		if (call && real && (real->id() == call->id())) {
+		if (const auto real = _call->lookupReal()) {
 			//updateRow(channel->session().user());
 		}
 	}, _lifetime);
 
-	call->levelUpdates(
+	_call->levelUpdates(
 	) | rpl::start_with_next([=](const LevelUpdate &update) {
 		const auto i = _soundingRowBySsrc.find(update.ssrc);
 		if (i != end(_soundingRowBySsrc)) {
@@ -944,7 +980,7 @@ void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
 		}
 	}, _lifetime);
 
-	call->rejoinEvents(
+	_call->rejoinEvents(
 	) | rpl::start_with_next([=](const Group::RejoinEvent &event) {
 		const auto guard = gsl::finally([&] {
 			delegate()->peerListRefreshRows();
@@ -961,9 +997,6 @@ void MembersController::setupListChangeViewers(not_null<GroupCall*> call) {
 }
 
 void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
-	_realCallRawValue = real;
-	_realId = real->id();
-
 	_fullCount = real->fullCountValue();
 
 	real->participantsSliceAdded(
@@ -1000,17 +1033,19 @@ void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
 }
 
 void MembersController::appendInvitedUsers() {
-	for (const auto user : _peer->owner().invitedToCallUsers(_realId)) {
-		if (auto row = createInvitedRow(user)) {
-			delegate()->peerListAppendRow(std::move(row));
+	if (const auto id = _call->id()) {
+		for (const auto user : _peer->owner().invitedToCallUsers(id)) {
+			if (auto row = createInvitedRow(user)) {
+				delegate()->peerListAppendRow(std::move(row));
+			}
 		}
+		delegate()->peerListRefreshRows();
 	}
-	delegate()->peerListRefreshRows();
 
 	using Invite = Data::Session::InviteToCall;
 	_peer->owner().invitesToCalls(
 	) | rpl::filter([=](const Invite &invite) {
-		return (invite.id == _realId);
+		return (invite.id == _call->id());
 	}) | rpl::start_with_next([=](const Invite &invite) {
 		if (auto row = createInvitedRow(invite.user)) {
 			delegate()->peerListAppendRow(std::move(row));
@@ -1067,7 +1102,7 @@ void MembersController::updateRow(
 	if (checkPosition) {
 		checkRowPosition(checkPosition);
 	} else if (addedToBottom) {
-		const auto real = resolvedRealCall();
+		const auto real = _call->lookupReal();
 		if (real && real->joinedToTop()) {
 			const auto proj = [&](const PeerListRow &other) {
 				const auto &real = static_cast<const Row&>(other);
@@ -1258,15 +1293,7 @@ void MembersController::updateRowLevel(
 
 Row *MembersController::findRow(not_null<PeerData*> participantPeer) const {
 	return static_cast<Row*>(
-		delegate()->peerListFindRow(participantPeer->id));
-}
-
-Data::GroupCall *MembersController::resolvedRealCall() const {
-	return (_realCallRawValue
-		&& (_peer->groupCall() == _realCallRawValue)
-		&& (_realCallRawValue->id() == _realId))
-		? _realCallRawValue
-		: nullptr;
+		delegate()->peerListFindRow(participantPeer->id.value));
 }
 
 Main::Session &MembersController::session() const {
@@ -1279,9 +1306,7 @@ void MembersController::prepare() {
 	setDescriptionText(tr::lng_contacts_loading(tr::now));
 	setSearchNoResultsText(tr::lng_blocked_list_not_found(tr::now));
 
-	const auto call = _call.get();
-	if (const auto real = _peer->groupCall()
-		; real && call && real->id() == call->id()) {
+	if (const auto real = _call->lookupReal()) {
 		prepareRows(real);
 	} else if (auto row = createRowForMe()) {
 		delegate()->peerListAppendRow(std::move(row));
@@ -1289,15 +1314,12 @@ void MembersController::prepare() {
 	}
 
 	loadMoreRows();
-	if (_realId) {
-		appendInvitedUsers();
-	}
+	appendInvitedUsers();
 	_prepared = true;
 }
 
 bool MembersController::isMe(not_null<PeerData*> participantPeer) const {
-	const auto call = _call.get();
-	return call && (call->joinAs() == participantPeer);
+	return (_call->joinAs() == participantPeer);
 }
 
 void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
@@ -1326,19 +1348,17 @@ void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
 		}
 	}
 	if (!foundMe) {
-		if (const auto call = _call.get()) {
-			const auto me = call->joinAs();
-			const auto i = ranges::find(
-				participants,
-				me,
-				&Data::GroupCall::Participant::peer);
-			auto row = (i != end(participants))
-				? createRow(*i)
-				: createRowForMe();
-			if (row) {
-				changed = true;
-				delegate()->peerListAppendRow(std::move(row));
-			}
+		const auto me = _call->joinAs();
+		const auto i = ranges::find(
+			participants,
+			me,
+			&Data::GroupCall::Participant::peer);
+		auto row = (i != end(participants))
+			? createRow(*i)
+			: createRowForMe();
+		if (row) {
+			changed = true;
+			delegate()->peerListAppendRow(std::move(row));
 		}
 	}
 	for (const auto &participant : participants) {
@@ -1353,7 +1373,7 @@ void MembersController::prepareRows(not_null<Data::GroupCall*> real) {
 }
 
 void MembersController::loadMoreRows() {
-	if (const auto real = _peer->groupCall()) {
+	if (const auto real = _call->lookupReal()) {
 		real->requestParticipants();
 	}
 }
@@ -1382,7 +1402,7 @@ void MembersController::rowUpdateRow(not_null<Row*> row) {
 
 void MembersController::rowScheduleRaisedHandStatusRemove(
 		not_null<Row*> row) {
-	const auto id = row->peer()->id;
+	const auto id = row->id();
 	const auto when = crl::now() + kKeepRaisedHandStatusDuration;
 	const auto i = _raisedHandStatusRemoveAt.find(id);
 	if (i != _raisedHandStatusRemoveAt.end()) {
@@ -1581,12 +1601,10 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 	}
 
 	if (isMe(participantPeer)) {
-		if (const auto strong = _call.get()
-			; strong && strong->muted() == MuteState::RaisedHand) {
+		if (_call->muted() == MuteState::RaisedHand) {
 			const auto removeHand = [=] {
-				if (const auto strong = _call.get()
-					; strong && strong->muted() == MuteState::RaisedHand) {
-					strong->setMutedAndUpdate(MuteState::ForceMuted);
+				if (_call->muted() == MuteState::RaisedHand) {
+					_call->setMutedAndUpdate(MuteState::ForceMuted);
 				}
 			};
 			result->addAction(
@@ -1675,14 +1693,12 @@ void MembersController::addMuteActionsToContextMenu(
 
 	auto mutesFromVolume = rpl::never<bool>() | rpl::type_erased();
 
-	const auto call = _call.get();
-	if (!isMuted || (call && call->joinAs() == participantPeer)) {
-		auto otherParticipantStateValue = call
-			? call->otherParticipantStateValue(
-				) | rpl::filter([=](const Group::ParticipantState &data) {
-					return data.peer == participantPeer;
-				})
-			: rpl::never<Group::ParticipantState>() | rpl::type_erased();
+	if (!isMuted || _call->joinAs() == participantPeer) {
+		auto otherParticipantStateValue
+			= _call->otherParticipantStateValue(
+		) | rpl::filter([=](const Group::ParticipantState &data) {
+			return data.peer == participantPeer;
+		});
 
 		auto volumeItem = base::make_unique_q<MenuVolumeItem>(
 			menu->menu(),
@@ -1761,11 +1777,7 @@ void MembersController::addMuteActionsToContextMenu(
 }
 
 std::unique_ptr<Row> MembersController::createRowForMe() {
-	const auto call = _call.get();
-	if (!call) {
-		return nullptr;
-	}
-	auto result = std::make_unique<Row>(this, call->joinAs());
+	auto result = std::make_unique<Row>(this, _call->joinAs());
 	updateRow(result.get(), nullptr);
 	return result;
 }
@@ -1824,12 +1836,8 @@ auto Members::kickParticipantRequests() const
 int Members::desiredHeight() const {
 	const auto top = _addMember ? _addMember->height() : 0;
 	auto count = [&] {
-		if (const auto call = _call.get()) {
-			if (const auto real = call->peer()->groupCall()) {
-				if (call->id() == real->id()) {
-					return real->fullCount();
-				}
-			}
+		if (const auto real = _call->lookupReal()) {
+			return real->fullCount();
 		}
 		return 0;
 	}();
@@ -1858,16 +1866,7 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 	if (const auto channel = peer->asBroadcast()) {
 		_canAddMembers = rpl::single(
 			false
-		) | rpl::then(peer->session().changes().peerFlagsValue(
-			peer,
-			Data::PeerUpdate::Flag::GroupCall
-		) | rpl::map([=] {
-			return peer->groupCall();
-		}) | rpl::filter([=](Data::GroupCall *real) {
-			const auto call = _call.get();
-			return call && real && (real->id() == call->id());
-		}) | rpl::take(
-			1
+		) | rpl::then(_call->real(
 		) | rpl::map([=] {
 			return Data::PeerFlagValue(
 				channel,

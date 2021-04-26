@@ -22,7 +22,6 @@ class Session;
 } // namespace Main
 
 void ShowPhoneBannedError(const QString &phone);
-[[nodiscard]] QString ExtractPhonePrefix(const QString &phone);
 
 class SentCodeField : public Ui::InputField {
 public:

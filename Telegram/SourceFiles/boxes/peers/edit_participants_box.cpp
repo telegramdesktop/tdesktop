@@ -608,7 +608,7 @@ UserData *ParticipantsAdditionalData::applyCreator(
 
 UserData *ParticipantsAdditionalData::applyAdmin(
 		const MTPDchannelParticipantAdmin &data) {
-	const auto user = _peer->owner().userLoaded(data.vuser_id().v);
+	const auto user = _peer->owner().userLoaded(UserId(data.vuser_id().v));
 	if (!user) {
 		return nullptr;
 	} else if (const auto chat = _peer->asChat()) {
@@ -632,7 +632,7 @@ UserData *ParticipantsAdditionalData::applyAdmin(
 	} else {
 		_adminRanks.remove(user);
 	}
-	if (const auto by = _peer->owner().userLoaded(data.vpromoted_by().v)) {
+	if (const auto by = _peer->owner().userLoaded(data.vpromoted_by())) {
 		const auto i = _adminPromotedBy.find(user);
 		if (i == _adminPromotedBy.end()) {
 			_adminPromotedBy.emplace(user, by);
@@ -647,7 +647,7 @@ UserData *ParticipantsAdditionalData::applyAdmin(
 }
 
 UserData *ParticipantsAdditionalData::applyRegular(MTPint userId) {
-	const auto user = _peer->owner().userLoaded(userId.v);
+	const auto user = _peer->owner().userLoaded(userId);
 	if (!user) {
 		return nullptr;
 	} else if (const auto chat = _peer->asChat()) {
@@ -686,7 +686,7 @@ PeerData *ParticipantsAdditionalData::applyBanned(
 		_kicked.erase(participant);
 	}
 	_restrictedRights[participant] = data.vbanned_rights();
-	if (const auto by = _peer->owner().userLoaded(data.vkicked_by().v)) {
+	if (const auto by = _peer->owner().userLoaded(data.vkicked_by())) {
 		const auto i = _restrictedBy.find(participant);
 		if (i == _restrictedBy.end()) {
 			_restrictedBy.emplace(participant, by);
@@ -726,7 +726,7 @@ ParticipantsOnlineSorter::ParticipantsOnlineSorter(
 		Data::PeerUpdate::Flag::OnlineStatus
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		const auto peerId = update.peer->id;
-		if (const auto row = _delegate->peerListFindRow(peerId)) {
+		if (const auto row = _delegate->peerListFindRow(peerId.value)) {
 			row->refreshStatus();
 			sortDelayed();
 		}
@@ -828,7 +828,7 @@ void ParticipantsBoxController::setupListChangeViewers() {
 				return;
 			}
 		}
-		if (const auto row = delegate()->peerListFindRow(user->id)) {
+		if (const auto row = delegate()->peerListFindRow(user->id.value)) {
 			delegate()->peerListPartitionRows([&](const PeerListRow &row) {
 				return (row.peer() == user);
 			});
@@ -844,7 +844,7 @@ void ParticipantsBoxController::setupListChangeViewers() {
 	channel->owner().megagroupParticipantRemoved(
 		channel
 	) | rpl::start_with_next([=](not_null<UserData*> user) {
-		if (const auto row = delegate()->peerListFindRow(user->id)) {
+		if (const auto row = delegate()->peerListFindRow(user->id.value)) {
 			delegate()->peerListRemoveRow(row);
 		}
 		delegate()->peerListRefreshRows();
@@ -1458,8 +1458,6 @@ void ParticipantsBoxController::rowActionClicked(
 base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) {
-	Expects(row->peer()->isUser());
-
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
 	const auto participant = row->peer();
@@ -1467,7 +1465,11 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 	auto result = base::make_unique_q<Ui::PopupMenu>(parent);
 	if (_navigation) {
 		result->addAction(
-			tr::lng_context_view_profile(tr::now),
+			(participant->isUser()
+				? tr::lng_context_view_profile
+				: participant->isBroadcast()
+				? tr::lng_context_view_channel
+				: tr::lng_context_view_group)(tr::now),
 			crl::guard(this, [=] {
 				_navigation->showPeerInfo(participant); }));
 		result->addAction(
@@ -1497,12 +1499,12 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 				: tr::lng_context_promote_admin)(tr::now),
 			crl::guard(this, [=] { showAdmin(user); }));
 	}
-	if (_additional.canRestrictParticipant(participant)) {
+	if (user && _additional.canRestrictParticipant(participant)) {
 		const auto canRestrictWithoutKick = [&] {
 			if (const auto chat = _peer->asChat()) {
 				return chat->amCreator();
 			}
-			return _peer->isMegagroup();
+			return _peer->isMegagroup() && !_peer->isGigagroup();
 		}();
 		if (canRestrictWithoutKick) {
 			result->addAction(
@@ -1510,7 +1512,7 @@ base::unique_qptr<Ui::PopupMenu> ParticipantsBoxController::rowContextMenu(
 				crl::guard(this, [=] { showRestricted(user); }));
 		}
 	}
-	if (_additional.canRemoveParticipant(participant)) {
+	if (user && _additional.canRemoveParticipant(participant)) {
 		if (!_additional.isKicked(participant)) {
 			const auto isGroup = _peer->isChat() || _peer->isMegagroup();
 			result->addAction(
@@ -1565,12 +1567,12 @@ void ParticipantsBoxController::editAdminDone(
 		using Flag = MTPDchannelParticipantCreator::Flag;
 		_additional.applyParticipant(MTP_channelParticipantCreator(
 			MTP_flags(rank.isEmpty() ? Flag(0) : Flag::f_rank),
-			MTP_int(user->bareId()),
+			peerToBareMTPInt(user->id),
 			rights,
 			MTP_string(rank)));
 	} else if (rights.c_chatAdminRights().vflags().v == 0) {
 		_additional.applyParticipant(MTP_channelParticipant(
-			MTP_int(user->bareId()),
+			peerToBareMTPInt(user->id),
 			MTP_int(date)));
 		if (_role == Role::Admins) {
 			removeRow(user);
@@ -1581,11 +1583,11 @@ void ParticipantsBoxController::editAdminDone(
 		_additional.applyParticipant(MTP_channelParticipantAdmin(
 			MTP_flags(Flag::f_can_edit
 				| (rank.isEmpty() ? Flag(0) : Flag::f_rank)),
-			MTP_int(user->bareId()),
+			peerToBareMTPInt(user->id),
 			MTPint(), // inviter_id
-			MTP_int(alreadyPromotedBy
-				? alreadyPromotedBy->bareId()
-				: user->session().userId()),
+			peerToBareMTPInt(alreadyPromotedBy
+				? alreadyPromotedBy->id
+				: user->session().userPeerId()),
 			MTP_int(date),
 			rights,
 			MTP_string(rank)));
@@ -1641,7 +1643,7 @@ void ParticipantsBoxController::editRestrictedDone(
 	if (Data::ChatBannedRightsFlags(rights) == 0) {
 		if (user) {
 			_additional.applyParticipant(MTP_channelParticipant(
-				MTP_int(user->bareId()),
+				peerToBareMTPInt(user->id),
 				MTP_int(date)));
 		} else {
 			_additional.setExternal(participant);
@@ -1658,14 +1660,10 @@ void ParticipantsBoxController::editRestrictedDone(
 			MTP_flags(kicked
 				? MTPDchannelParticipantBanned::Flag::f_left
 				: MTPDchannelParticipantBanned::Flag(0)),
-			(participant->isUser()
-				? MTP_peerUser(MTP_int(participant->bareId()))
-				: participant->isChat()
-				? MTP_peerChat(MTP_int(participant->bareId()))
-				: MTP_peerChannel(MTP_int(participant->bareId()))),
-			MTP_int(alreadyRestrictedBy
-				? alreadyRestrictedBy->bareId()
-				: participant->session().userId()),
+			peerToMTP(participant->id),
+			peerToBareMTPInt(alreadyRestrictedBy
+				? alreadyRestrictedBy->id
+				: participant->session().userPeerId()),
 			MTP_int(date),
 			rights));
 		if (kicked) {
@@ -1708,7 +1706,7 @@ void ParticipantsBoxController::kickParticipant(not_null<PeerData*> participant)
 
 void ParticipantsBoxController::unkickParticipant(not_null<UserData*> user) {
 	_editBox = nullptr;
-	if (const auto row = delegate()->peerListFindRow(user->id)) {
+	if (const auto row = delegate()->peerListFindRow(user->id.value)) {
 		delegate()->peerListRemoveRow(row);
 		delegate()->peerListRefreshRows();
 	}
@@ -1724,7 +1722,7 @@ void ParticipantsBoxController::kickParticipantSure(
 		? *restrictedRights
 		: ChannelData::EmptyRestrictedRights(participant);
 
-	if (const auto row = delegate()->peerListFindRow(participant->id)) {
+	if (const auto row = delegate()->peerListFindRow(participant->id.value)) {
 		delegate()->peerListRemoveRow(row);
 		delegate()->peerListRefreshRows();
 	}
@@ -1774,7 +1772,7 @@ void ParticipantsBoxController::removeAdminSure(not_null<UserData*> user) {
 
 void ParticipantsBoxController::removeKickedWithRow(
 		not_null<PeerData*> participant) {
-	if (const auto row = delegate()->peerListFindRow(participant->id)) {
+	if (const auto row = delegate()->peerListFindRow(participant->id.value)) {
 		removeKicked(row, participant);
 	} else {
 		removeKicked(participant);
@@ -1800,7 +1798,7 @@ void ParticipantsBoxController::removeKicked(
 }
 
 bool ParticipantsBoxController::appendRow(not_null<PeerData*> participant) {
-	if (delegate()->peerListFindRow(participant->id)) {
+	if (delegate()->peerListFindRow(participant->id.value)) {
 		recomputeTypeFor(participant);
 		return false;
 	} else if (auto row = createRow(participant)) {
@@ -1814,7 +1812,7 @@ bool ParticipantsBoxController::appendRow(not_null<PeerData*> participant) {
 }
 
 bool ParticipantsBoxController::prependRow(not_null<PeerData*> participant) {
-	if (const auto row = delegate()->peerListFindRow(participant->id)) {
+	if (const auto row = delegate()->peerListFindRow(participant->id.value)) {
 		recomputeTypeFor(participant);
 		refreshCustomStatus(row);
 		if (_role == Role::Admins) {
@@ -1833,7 +1831,7 @@ bool ParticipantsBoxController::prependRow(not_null<PeerData*> participant) {
 }
 
 bool ParticipantsBoxController::removeRow(not_null<PeerData*> participant) {
-	if (auto row = delegate()->peerListFindRow(participant->id)) {
+	if (auto row = delegate()->peerListFindRow(participant->id.value)) {
 		if (_role == Role::Admins) {
 			// Perhaps we are removing an admin from search results.
 			row->setCustomStatus(tr::lng_channel_admin_status_not_admin(tr::now));
@@ -1910,7 +1908,7 @@ void ParticipantsBoxController::recomputeTypeFor(
 	if (_role != Role::Profile) {
 		return;
 	}
-	if (const auto row = delegate()->peerListFindRow(participant->id)) {
+	if (const auto row = delegate()->peerListFindRow(participant->id.value)) {
 		static_cast<Row*>(row)->setType(computeType(participant));
 	}
 }

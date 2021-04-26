@@ -438,6 +438,9 @@ void CodeWidget::noTelegramCodeFail(const MTP::Error &error) {
 		_noTelegramCodeRequestId = 0;
 		showCodeError(tr::lng_flood_error());
 		return;
+	} else if (error.type() == u"SEND_CODE_UNAVAILABLE"_q) {
+		_noTelegramCodeRequestId = 0;
+		return;
 	}
 
 	_noTelegramCodeRequestId = 0;

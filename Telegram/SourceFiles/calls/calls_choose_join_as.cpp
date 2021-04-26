@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_choose_join_as.h"
 
 #include "calls/calls_group_common.h"
+#include "calls/calls_group_menu.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
@@ -18,14 +19,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "ui/layers/generic_box.h"
+#include "ui/boxes/choose_date_time.h"
 #include "ui/text/text_utilities.h"
 #include "boxes/peer_list_box.h"
-#include "boxes/confirm_box.h"
+#include "base/unixtime.h"
+#include "base/timer_rpl.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_calls.h"
 
 namespace Calls::Group {
 namespace {
+
+constexpr auto kDefaultScheduleDuration = 60 * TimeId(60);
+constexpr auto kLabelRefreshInterval = 10 * crl::time(1000);
 
 using Context = ChooseJoinAsProcess::Context;
 
@@ -98,7 +105,7 @@ void ListController::rowClicked(not_null<PeerListRow*> row) {
 	if (peer == _selected) {
 		return;
 	}
-	const auto previous = delegate()->peerListFindRow(_selected->id);
+	const auto previous = delegate()->peerListFindRow(_selected->id.value);
 	Assert(previous != nullptr);
 	delegate()->peerListSetRowChecked(previous, false);
 	delegate()->peerListSetRowChecked(row, true);
@@ -107,6 +114,79 @@ void ListController::rowClicked(not_null<PeerListRow*> row) {
 
 not_null<PeerData*> ListController::selected() const {
 	return _selected;
+}
+
+void ScheduleGroupCallBox(
+		not_null<Ui::GenericBox*> box,
+		const JoinInfo &info,
+		Fn<void(JoinInfo)> done) {
+	const auto send = [=](TimeId date) {
+		box->closeBox();
+
+		auto copy = info;
+		copy.scheduleDate = date;
+		done(std::move(copy));
+	};
+	const auto duration = box->lifetime().make_state<
+		rpl::variable<QString>>();
+	auto description = (info.peer->isBroadcast()
+		? tr::lng_group_call_schedule_notified_channel
+		: tr::lng_group_call_schedule_notified_group)(
+			lt_duration,
+			duration->value());
+
+	const auto now = QDateTime::currentDateTime();
+	const auto min = [] {
+		return base::unixtime::serialize(
+			QDateTime::currentDateTime().addSecs(12));
+	};
+	const auto max = [] {
+		return base::unixtime::serialize(
+			QDateTime(QDate::currentDate().addDays(8), QTime(0, 0))) - 1;
+	};
+
+	// At least half an hour later, at zero minutes/seconds.
+	const auto schedule = QDateTime(
+		now.date(),
+		QTime(now.time().hour(), 0)
+	).addSecs(60 * 60 * (now.time().minute() < 30 ? 1 : 2));
+
+	auto descriptor = Ui::ChooseDateTimeBox(box, {
+		.title = tr::lng_group_call_schedule_title(),
+		.submit = tr::lng_schedule_button(),
+		.done = send,
+		.min = min,
+		.time = base::unixtime::serialize(schedule),
+		.max = max,
+		.description = std::move(description),
+	});
+
+	using namespace rpl::mappers;
+	*duration = rpl::combine(
+		rpl::single(
+			rpl::empty_value()
+		) | rpl::then(base::timer_each(kLabelRefreshInterval)),
+		std::move(descriptor.values) | rpl::filter(_1 != 0),
+		_2
+	) | rpl::map([](TimeId date) {
+		const auto now = base::unixtime::now();
+		const auto duration = (date - now);
+		if (duration >= 24 * 60 * 60) {
+			return tr::lng_group_call_duration_days(
+				tr::now,
+				lt_count,
+				duration / (24 * 60 * 60));
+		} else if (duration >= 60 * 60) {
+			return tr::lng_group_call_duration_hours(
+				tr::now,
+				lt_count,
+				duration / (60 * 60));
+		}
+		return tr::lng_group_call_duration_minutes(
+			tr::now,
+			lt_count,
+			std::max(duration / 60, 1));
+	});
 }
 
 void ChooseJoinAsBox(
@@ -124,12 +204,13 @@ void ChooseJoinAsBox(
 		}
 		Unexpected("Context in ChooseJoinAsBox.");
 	}());
+	const auto &labelSt = (context == Context::Switch)
+		? st::groupCallJoinAsLabel
+		: st::confirmPhoneAboutLabel;
 	box->addRow(object_ptr<Ui::FlatLabel>(
 		box,
 		tr::lng_group_call_join_as_about(),
-		(context == Context::Switch
-			? st::groupCallJoinAsLabel
-			: st::confirmPhoneAboutLabel)));
+		labelSt));
 
 	auto &lifetime = box->lifetime();
 	const auto delegate = lifetime.make_state<
@@ -155,6 +236,25 @@ void ChooseJoinAsBox(
 	auto next = (context == Context::Switch)
 		? tr::lng_settings_save()
 		: tr::lng_continue();
+	if (context == Context::Create) {
+		const auto makeLink = [](const QString &text) {
+			return Ui::Text::Link(text);
+		};
+		const auto label = box->addRow(object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_group_call_or_schedule(
+				lt_link,
+				tr::lng_group_call_schedule(makeLink),
+				Ui::Text::WithEntities),
+			labelSt));
+		label->setClickHandlerFilter([=](const auto&...) {
+			auto withJoinAs = info;
+			withJoinAs.joinAs = controller->selected();
+			box->getDelegate()->show(
+				Box(ScheduleGroupCallBox, withJoinAs, done));
+			return false;
+		});
+	}
 	box->addButton(std::move(next), [=] {
 		auto copy = info;
 		copy.joinAs = controller->selected();
@@ -296,7 +396,7 @@ void ChooseJoinAsProcess::start(
 			&& (peer->groupCall() != nullptr);
 
 		if (!changingJoinAsFrom && (onlyByMe || byAlreadyUsed)) {
-			const auto confirmation = CreateOrJoinConfirmation(
+			auto confirmation = CreateOrJoinConfirmation(
 				peer,
 				context,
 				byAlreadyUsed);
@@ -304,12 +404,36 @@ void ChooseJoinAsProcess::start(
 				finish(info);
 				return;
 			}
-			auto box = Box<::ConfirmBox>(
-				confirmation,
-				(peer->groupCall()
-					? tr::lng_group_call_join(tr::now)
-					: tr::lng_create_group_create(tr::now)),
-				crl::guard(&_request->guard, [=] { finish(info); }));
+			const auto creating = !peer->groupCall();
+			if (creating) {
+				confirmation
+					.append("\n\n")
+					.append(tr::lng_group_call_or_schedule(
+					tr::now,
+					lt_link,
+					Ui::Text::Link(tr::lng_group_call_schedule(tr::now)),
+					Ui::Text::WithEntities));
+			}
+			const auto guard = base::make_weak(&_request->guard);
+			const auto safeFinish = crl::guard(guard, [=] { finish(info); });
+			const auto filter = [=](const auto &...) {
+				if (guard) {
+					_request->showBox(Box(
+						ScheduleGroupCallBox,
+						info,
+						crl::guard(guard, finish)));
+				}
+				return false;
+			};
+			auto box = ConfirmBox({
+				.text = confirmation,
+				.button = (creating
+					? tr::lng_create_group_create()
+					: tr::lng_group_call_join()),
+				.callback = crl::guard(guard, [=] { finish(info); }),
+				.st = &st::boxLabel,
+				.filter = filter,
+			});
 			box->boxClosing(
 			) | rpl::start_with_next([=] {
 				_request = nullptr;

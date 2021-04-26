@@ -21,17 +21,20 @@ void BaseIntegration::enterFromEventLoop(FnMut<void()> &&method) {
 		std::move(method));
 }
 
+bool BaseIntegration::logSkipDebug() {
+	return !Logs::DebugEnabled() && Logs::started();
+}
+
+void BaseIntegration::logMessageDebug(const QString &message) {
+	Logs::writeDebug(message);
+}
+
 void BaseIntegration::logMessage(const QString &message) {
-#ifdef DEBUG_LOG
-	DEBUG_LOG((message));
-#endif // DEBUG_LOG
+	Logs::writeMain(message);
 }
 
 void BaseIntegration::logAssertionViolation(const QString &info) {
-#ifdef LOG
-	LOG(("Assertion Failed! ") + info);
-#endif // LOG
-
+	Logs::writeMain("Assertion Failed! " + info);
 	CrashReports::SetAnnotation("Assertion", info);
 }
 

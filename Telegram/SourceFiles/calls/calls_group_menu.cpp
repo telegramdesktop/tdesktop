@@ -514,15 +514,6 @@ base::unique_qptr<Ui::Menu::ItemBase> MakeRecordingAction(
 		std::move(callback));
 }
 
-base::unique_qptr<Ui::Menu::ItemBase> MakeFinishAction(
-		not_null<Ui::Menu::Menu*> menu,
-		Fn<void()> callback) {
-	return MakeAttentionAction(
-		menu,
-		tr::lng_group_call_end(tr::now),
-		std::move(callback));
-}
-
 } // namespace
 
 void LeaveBox(
@@ -530,16 +521,25 @@ void LeaveBox(
 		not_null<GroupCall*> call,
 		bool discardChecked,
 		BoxContext context) {
-	box->setTitle(tr::lng_group_call_leave_title());
+	const auto scheduled = (call->scheduleDate() != 0);
+	if (!scheduled) {
+		box->setTitle(tr::lng_group_call_leave_title());
+	}
 	const auto inCall = (context == BoxContext::GroupCallPanel);
-	box->addRow(object_ptr<Ui::FlatLabel>(
-		box.get(),
-		tr::lng_group_call_leave_sure(),
-		(inCall ? st::groupCallBoxLabel : st::boxLabel)));
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box.get(),
+			(scheduled
+				? tr::lng_group_call_close_sure()
+				: tr::lng_group_call_leave_sure()),
+			(inCall ? st::groupCallBoxLabel : st::boxLabel)),
+		scheduled ? st::boxPadding : st::boxRowPadding);
 	const auto discard = call->peer()->canManageGroupCall()
 		? box->addRow(object_ptr<Ui::Checkbox>(
 			box.get(),
-			tr::lng_group_call_end(),
+			(scheduled
+				? tr::lng_group_call_also_cancel()
+				: tr::lng_group_call_also_end()),
 			discardChecked,
 			(inCall ? st::groupCallCheckbox : st::defaultBoxCheckbox),
 			(inCall ? st::groupCallCheck : st::defaultCheck)),
@@ -550,7 +550,10 @@ void LeaveBox(
 				st::boxRowPadding.bottom()))
 		: nullptr;
 	const auto weak = base::make_weak(call.get());
-	box->addButton(tr::lng_group_call_leave(), [=] {
+	auto label = scheduled
+		? tr::lng_group_call_close()
+		: tr::lng_group_call_leave();
+	box->addButton(std::move(label), [=] {
 		const auto discardCall = (discard && discard->checked());
 		box->closeBox();
 
@@ -565,19 +568,20 @@ void LeaveBox(
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
-void ConfirmBox(
+void ConfirmBoxBuilder(
 		not_null<Ui::GenericBox*> box,
-		const TextWithEntities &text,
-		rpl::producer<QString> button,
-		Fn<void()> callback) {
-	box->addRow(
+		ConfirmBoxArgs &&args) {
+	const auto label = box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box.get(),
-			rpl::single(text),
-			st::groupCallBoxLabel),
+			rpl::single(args.text),
+			args.st ? *args.st : st::groupCallBoxLabel),
 		st::boxPadding);
-	if (callback) {
-		box->addButton(std::move(button), callback);
+	if (args.callback) {
+		box->addButton(std::move(args.button), std::move(args.callback));
+	}
+	if (args.filter) {
+		label->setClickHandlerFilter(std::move(args.filter));
 	}
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
@@ -603,7 +607,8 @@ void FillMenu(
 
 	const auto addEditJoinAs = call->showChooseJoinAs();
 	const auto addEditTitle = peer->canManageGroupCall();
-	const auto addEditRecording = peer->canManageGroupCall();
+	const auto addEditRecording = peer->canManageGroupCall()
+		&& !real->scheduleDate();
 	if (addEditJoinAs) {
 		menu->addAction(MakeJoinAsAction(
 			menu->menu(),
@@ -660,7 +665,7 @@ void FillMenu(
 			showBox(Box(SettingsBox, strong));
 		}
 	});
-	menu->addAction(MakeFinishAction(menu->menu(), [=] {
+	const auto finish = [=] {
 		if (const auto strong = weak.get()) {
 			showBox(Box(
 				LeaveBox,
@@ -668,7 +673,13 @@ void FillMenu(
 				true,
 				BoxContext::GroupCallPanel));
 		}
-	}));
+	};
+	menu->addAction(MakeAttentionAction(
+		menu->menu(),
+		(real->scheduleDate()
+			? tr::lng_group_call_cancel(tr::now)
+			: tr::lng_group_call_end(tr::now)),
+		finish));
 }
 
 base::unique_qptr<Ui::Menu::ItemBase> MakeAttentionAction(

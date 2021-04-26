@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/value_ordering.h"
 #include "ui/text/text.h" // For QFIXED_MAX
+#include "data/data_peer_id.h"
 
 class HistoryItem;
 using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
@@ -63,11 +64,11 @@ struct FileOrigin;
 } // namespace Data
 
 struct MessageGroupId {
-	uint64 peer = 0;
+	PeerId peer = 0;
 	uint64 value = 0;
 
 	MessageGroupId() = default;
-	static MessageGroupId FromRaw(uint64 peer, uint64 value) {
+	static MessageGroupId FromRaw(PeerId peer, uint64 value) {
 		auto result = MessageGroupId();
 		result.peer = peer;
 		result.value = value;
@@ -85,7 +86,7 @@ struct MessageGroupId {
 	}
 
 	friend inline std::pair<uint64, uint64> value_ordering_helper(MessageGroupId value) {
-		return std::make_pair(value.value, value.peer);
+		return std::make_pair(value.value, value.peer.value);
 	}
 
 };
@@ -101,84 +102,8 @@ namespace Data {
 class Folder;
 } // namespace Data
 
-using UserId = int32;
-using ChatId = int32;
-using ChannelId = int32;
 using FolderId = int32;
 using FilterId = int32;
-
-constexpr auto NoChannel = ChannelId(0);
-
-using PeerId = uint64;
-
-constexpr auto PeerIdMask         = PeerId(0xFFFFFFFFULL);
-constexpr auto PeerIdTypeMask     = PeerId(0xF00000000ULL);
-constexpr auto PeerIdUserShift    = PeerId(0x000000000ULL);
-constexpr auto PeerIdChatShift    = PeerId(0x100000000ULL);
-constexpr auto PeerIdChannelShift = PeerId(0x200000000ULL);
-constexpr auto PeerIdFakeShift    = PeerId(0xF00000000ULL);
-
-inline constexpr bool peerIsUser(const PeerId &id) {
-	return (id & PeerIdTypeMask) == PeerIdUserShift;
-}
-inline constexpr bool peerIsChat(const PeerId &id) {
-	return (id & PeerIdTypeMask) == PeerIdChatShift;
-}
-inline constexpr bool peerIsChannel(const PeerId &id) {
-	return (id & PeerIdTypeMask) == PeerIdChannelShift;
-}
-inline constexpr PeerId peerFromUser(UserId user_id) {
-	return PeerIdUserShift | uint64(uint32(user_id));
-}
-inline constexpr PeerId peerFromChat(ChatId chat_id) {
-	return PeerIdChatShift | uint64(uint32(chat_id));
-}
-inline constexpr PeerId peerFromChannel(ChannelId channel_id) {
-	return PeerIdChannelShift | uint64(uint32(channel_id));
-}
-inline constexpr PeerId peerFromUser(const MTPint &user_id) {
-	return peerFromUser(user_id.v);
-}
-inline constexpr PeerId peerFromChat(const MTPint &chat_id) {
-	return peerFromChat(chat_id.v);
-}
-inline constexpr PeerId peerFromChannel(const MTPint &channel_id) {
-	return peerFromChannel(channel_id.v);
-}
-inline constexpr int32 peerToBareInt(const PeerId &id) {
-	return int32(uint32(id & PeerIdMask));
-}
-inline constexpr UserId peerToUser(const PeerId &id) {
-	return peerIsUser(id) ? peerToBareInt(id) : 0;
-}
-inline constexpr ChatId peerToChat(const PeerId &id) {
-	return peerIsChat(id) ? peerToBareInt(id) : 0;
-}
-inline constexpr ChannelId peerToChannel(const PeerId &id) {
-	return peerIsChannel(id) ? peerToBareInt(id) : NoChannel;
-}
-inline MTPint peerToBareMTPInt(const PeerId &id) {
-	return MTP_int(peerToBareInt(id));
-}
-inline PeerId peerFromMTP(const MTPPeer &peer) {
-	switch (peer.type()) {
-	case mtpc_peerUser: return peerFromUser(peer.c_peerUser().vuser_id());
-	case mtpc_peerChat: return peerFromChat(peer.c_peerChat().vchat_id());
-	case mtpc_peerChannel: return peerFromChannel(peer.c_peerChannel().vchannel_id());
-	}
-	return 0;
-}
-inline MTPpeer peerToMTP(const PeerId &id) {
-	if (peerIsUser(id)) {
-		return MTP_peerUser(peerToBareMTPInt(id));
-	} else if (peerIsChat(id)) {
-		return MTP_peerChat(peerToBareMTPInt(id));
-	} else if (peerIsChannel(id)) {
-		return MTP_peerChannel(peerToBareMTPInt(id));
-	}
-	return MTP_peerUser(MTP_int(0));
-}
-
 using MsgId = int32;
 constexpr auto StartClientMsgId = MsgId(-0x7FFFFFFF);
 constexpr auto EndClientMsgId = MsgId(-0x40000000);
@@ -214,7 +139,8 @@ inline bool operator!=(const MsgRange &a, const MsgRange &b) {
 
 struct FullMsgId {
 	constexpr FullMsgId() = default;
-	constexpr FullMsgId(ChannelId channel, MsgId msg) : channel(channel), msg(msg) {
+	constexpr FullMsgId(ChannelId channel, MsgId msg)
+	: channel(channel), msg(msg) {
 	}
 
 	explicit operator bool() const {

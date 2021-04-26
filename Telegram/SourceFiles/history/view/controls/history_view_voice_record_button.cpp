@@ -87,7 +87,7 @@ void VoiceRecordButton::init() {
 			_blobs->setLevel(0.);
 		}
 		_blobsHideLastTime = hide ? crl::now() : 0;
-		if (!hide && !_animation.animating()) {
+		if (!hide && !_animation.animating() && isVisible()) {
 			_animation.start();
 		}
 	}, lifetime());

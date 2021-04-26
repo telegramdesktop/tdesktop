@@ -994,6 +994,7 @@ void MainWidget::setCurrentGroupCall(Calls::GroupCall *call) {
 		) | rpl::start_with_next([=](Calls::GroupCall::State state) {
 			using State = Calls::GroupCall::State;
 			if (state != State::Creating
+				&& state != State::Waiting
 				&& state != State::Joining
 				&& state != State::Joined
 				&& state != State::Connecting) {

@@ -20,21 +20,21 @@ namespace Platform {
 namespace internal {
 namespace {
 
-constexpr auto kNotificationService = "org.freedesktop.Notifications"_cs;
+constexpr auto kService = "org.freedesktop.Notifications"_cs;
 
-bool IsNotificationServiceActivatable() {
-	static const auto Result = [] {
+auto Activatable() {
+	static const auto Result = []() -> std::optional<bool> {
 		try {
 			const auto connection = Gio::DBus::Connection::get_sync(
 				Gio::DBus::BusType::BUS_TYPE_SESSION);
 
 			return ranges::contains(
 				base::Platform::DBus::ListActivatableNames(connection),
-				Glib::ustring(std::string(kNotificationService)));
+				Glib::ustring(std::string(kService)));
 		} catch (...) {
 		}
 
-		return false;
+		return std::nullopt;
 	}();
 
 	return Result;
@@ -56,14 +56,13 @@ NotificationServiceWatcher::NotificationServiceWatcher()
 
 		_private->signalId = base::Platform::DBus::RegisterServiceWatcher(
 			_private->dbusConnection,
-			std::string(kNotificationService),
+			std::string(kService),
 			[](
 				const Glib::ustring &service,
 				const Glib::ustring &oldOwner,
 				const Glib::ustring &newOwner) {
 				if (!Core::App().domain().started()
-					|| (IsNotificationServiceActivatable()
-						&& newOwner.empty())) {
+					|| (Activatable().value_or(true) && newOwner.empty())) {
 					return;
 				}
 

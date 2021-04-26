@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_edit_document.h"
 
 #include "passport/passport_panel_controller.h"
-#include "passport/passport_panel_details_row.h"
 #include "passport/passport_panel_edit_scans.h"
+#include "passport/ui/passport_details_row.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
@@ -19,6 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
+#include "data/data_countries.h"
+#include "data/data_user.h" // ->bot()->session()
+#include "main/main_session.h" // ->session().user()
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "boxes/abstract_box.h"
 #include "boxes/confirm_box.h"
@@ -363,7 +366,7 @@ not_null<Ui::RpWidget*> PanelEditDocument::setupContent(
 			const ValueMap &fields) {
 		accumulate_max(
 			maxLabelWidth,
-			PanelDetailsRow::LabelWidth(row.label));
+			Ui::PanelDetailsRow::LabelWidth(row.label));
 	});
 	if (maxLabelWidth > 0) {
 		if (error && !error->isEmpty()) {
@@ -513,12 +516,20 @@ void PanelEditDocument::createDetailsRow(
 	};
 
 	const auto current = valueOrEmpty(fields, row.key);
+	const auto showBox = [controller = _controller](
+			object_ptr<Ui::BoxContent> box) {
+		controller->show(std::move(box));
+	};
+	const auto isoByPhone = Data::CountryISO2ByPhone(
+		_controller->bot()->session().user()->phone());
+
 	const auto [it, ok] = _details.emplace(
 		i,
-		container->add(PanelDetailsRow::Create(
+		container->add(Ui::PanelDetailsRow::Create(
 			container,
+			showBox,
+			isoByPhone,
 			row.inputType,
-			_controller,
 			row.label,
 			maxLabelWidth,
 			current.text,
@@ -537,7 +548,7 @@ void PanelEditDocument::createDetailsRow(
 	}, it->second->lifetime());
 }
 
-not_null<PanelDetailsRow*> PanelEditDocument::findRow(
+not_null<Ui::PanelDetailsRow*> PanelEditDocument::findRow(
 		const QString &key) const {
 	for (auto i = 0, count = int(_scheme.rows.size()); i != count; ++i) {
 		const auto &row = _scheme.rows[i];
@@ -636,7 +647,7 @@ bool PanelEditDocument::validate() {
 		_scroll->scrollToY(_scroll->scrollTop() + scrolldelta);
 		error = firsttop.y();
 	}
-	auto first = QPointer<PanelDetailsRow>();
+	auto first = QPointer<Ui::PanelDetailsRow>();
 	for (const auto &[i, field] : ranges::views::reverse(_details)) {
 		const auto &row = _scheme.rows[i];
 		if (row.valueClass == Scheme::ValueClass::Additional

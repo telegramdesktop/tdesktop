@@ -516,6 +516,8 @@ struct UnreadBadgeSizeData {
 };
 class UnreadBadgeStyleData : public Data::AbstractStructure {
 public:
+	UnreadBadgeStyleData();
+
 	UnreadBadgeSizeData sizes[UnreadBadgeSizesCount];
 	style::color bg[6] = {
 		st::dialogsUnreadBg,
@@ -525,8 +527,23 @@ public:
 		st::dialogsUnreadBgMutedOver,
 		st::dialogsUnreadBgMutedActive
 	};
+	rpl::lifetime lifetime;
 };
 Data::GlobalStructurePointer<UnreadBadgeStyleData> unreadBadgeStyle;
+
+UnreadBadgeStyleData::UnreadBadgeStyleData() {
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		for (auto &data : sizes) {
+			for (auto &left : data.left) {
+				left = QPixmap();
+			}
+			for (auto &right : data.right) {
+				right = QPixmap();
+			}
+		}
+	}, lifetime);
+}
 
 void createCircleMask(UnreadBadgeSizeData *data, int size) {
 	if (!data->circle.isNull()) return;
@@ -976,19 +993,6 @@ void PaintCollapsedRow(
 			unreadTop,
 			st,
 			nullptr);
-	}
-}
-
-void clearUnreadBadgesCache() {
-	if (unreadBadgeStyle) {
-		for (auto &data : unreadBadgeStyle->sizes) {
-			for (auto &left : data.left) {
-				left = QPixmap();
-			}
-			for (auto &right : data.right) {
-				right = QPixmap();
-			}
-		}
 	}
 }
 

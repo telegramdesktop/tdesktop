@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/level_meter.h"
 #include "ui/widgets/buttons.h"
-#include "boxes/single_choice_box.h"
+#include "ui/boxes/single_choice_box.h"
 #include "boxes/confirm_box.h"
 #include "platform/platform_specific.h"
 #include "main/main_session.h"

@@ -38,7 +38,7 @@ class GroupCall;
 class CloudImageView;
 
 int PeerColorIndex(PeerId peerId);
-int PeerColorIndex(int32 bareId);
+int PeerColorIndex(BareId bareId);
 style::color PeerUserpicColor(PeerId peerId);
 PeerId FakePeerIdForJustName(const QString &name);
 
@@ -172,7 +172,7 @@ public:
 			|| (id == kServiceNotificationsId);
 	}
 	[[nodiscard]] bool isServiceUser() const {
-		return isUser() && !(id % 1000);
+		return isUser() && !(id.value % 1000);
 	}
 
 	[[nodiscard]] std::optional<TimeId> notifyMuteUntil() const {
@@ -238,10 +238,6 @@ public:
 	[[nodiscard]] const QString &shortName() const;
 	[[nodiscard]] const Ui::Text::String &topBarNameText() const;
 	[[nodiscard]] QString userName() const;
-
-	[[nodiscard]] int32 bareId() const {
-		return int32(uint32(id & 0xFFFFFFFFULL));
-	}
 
 	[[nodiscard]] const base::flat_set<QString> &nameWords() const {
 		return _nameWords;
@@ -404,10 +400,7 @@ protected:
 		const QString &newName,
 		const QString &newNameOrPhone,
 		const QString &newUsername);
-	void updateUserpic(
-		PhotoId photoId,
-		MTP::DcId dcId,
-		const MTPFileLocation &small);
+	void updateUserpic(PhotoId photoId, MTP::DcId dcId);
 	void clearUserpic();
 
 private:

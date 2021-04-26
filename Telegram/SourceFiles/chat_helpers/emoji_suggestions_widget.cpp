@@ -116,11 +116,11 @@ auto SuggestionsWidget::getRowsByQuery() const -> std::vector<Row> {
 	}) | ranges::to_vector;
 
 	auto lastRecent = begin(result);
-	const auto &recent = GetRecentEmoji();
+	const auto &recent = Core::App().settings().recentEmoji();
 	for (const auto &item : recent) {
-		const auto emoji = item.first->original()
-			? item.first->original()
-			: item.first;
+		const auto emoji = item.emoji->original()
+			? item.emoji->original()
+			: item.emoji;
 		const auto it = ranges::find(result, emoji, [](const Row &row) {
 			return row.emoji.get();
 		});
@@ -133,12 +133,12 @@ auto SuggestionsWidget::getRowsByQuery() const -> std::vector<Row> {
 	for (auto &item : result) {
 		item.emoji = [&] {
 			const auto result = item.emoji;
-			const auto &variants = cEmojiVariants();
+			const auto &variants = Core::App().settings().emojiVariants();
 			const auto i = result->hasVariants()
-				? variants.constFind(result->nonColoredId())
-				: variants.cend();
-			return (i != variants.cend())
-				? result->variant(i.value())
+				? variants.find(result->nonColoredId())
+				: end(variants);
+			return (i != end(variants))
+				? result->variant(i->second)
 				: result.get();
 		}();
 	}

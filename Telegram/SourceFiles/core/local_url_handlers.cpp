@@ -191,7 +191,7 @@ bool ShowPassportForm(
 	if (!controller) {
 		return false;
 	}
-	const auto botId = params.value("bot_id", QString()).toInt();
+	const auto botId = params.value("bot_id", QString()).toULongLong();
 	const auto scope = params.value("scope", QString());
 	const auto callback = params.value("callback_url", QString());
 	const auto publicKey = params.value("public_key", QString());
@@ -317,7 +317,8 @@ bool ResolvePrivatePost(
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	const auto channelId = params.value(qsl("channel")).toInt();
+	const auto channelId = ChannelId(
+		params.value(qsl("channel")).toULongLong());
 	const auto msgId = params.value(qsl("post")).toInt();
 	const auto commentParam = params.value(qsl("comment"));
 	const auto commentId = commentParam.toInt();

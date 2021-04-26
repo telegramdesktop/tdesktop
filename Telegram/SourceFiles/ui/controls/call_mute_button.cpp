@@ -70,6 +70,14 @@ constexpr auto kOverlapProgressRadialHide = 1.2;
 
 constexpr auto kRadialFinishArcShift = 1200;
 
+[[nodiscard]] CallMuteButtonType TypeForIcon(CallMuteButtonType type) {
+	return (type == CallMuteButtonType::Connecting)
+		? CallMuteButtonType::Muted
+		: (type == CallMuteButtonType::RaisedHand)
+		? CallMuteButtonType::ForceMuted
+		: type;
+};
+
 auto MuteBlobs() {
 	return std::vector<Paint::Blobs::BlobData>{
 		{
@@ -102,21 +110,7 @@ auto MuteBlobs() {
 auto Colors() {
 	using Vector = std::vector<QColor>;
 	using Colors = anim::gradient_colors;
-	return base::flat_map<CallMuteButtonType, Colors>{
-		{
-			CallMuteButtonType::ForceMuted,
-			Colors(QGradientStops{
-				{ .0, st::groupCallForceMuted3->c },
-				{ .5, st::groupCallForceMuted2->c },
-				{ 1., st::groupCallForceMuted1->c } })
-		},
-		{
-			CallMuteButtonType::RaisedHand,
-			Colors(QGradientStops{
-				{ .0, st::groupCallForceMuted3->c },
-				{ .5, st::groupCallForceMuted2->c },
-				{ 1., st::groupCallForceMuted1->c } })
-		},
+	auto result = base::flat_map<CallMuteButtonType, Colors>{
 		{
 			CallMuteButtonType::Active,
 			Colors(Vector{ st::groupCallLive1->c, st::groupCallLive2->c })
@@ -130,6 +124,21 @@ auto Colors() {
 			Colors(Vector{ st::groupCallMuted1->c, st::groupCallMuted2->c })
 		},
 	};
+	const auto forceMutedColors = Colors(QGradientStops{
+		{ .0, st::groupCallForceMuted3->c },
+		{ .5, st::groupCallForceMuted2->c },
+		{ 1., st::groupCallForceMuted1->c } });
+	const auto forceMutedTypes = {
+		CallMuteButtonType::ForceMuted,
+		CallMuteButtonType::RaisedHand,
+		CallMuteButtonType::ScheduledCanStart,
+		CallMuteButtonType::ScheduledNotify,
+		CallMuteButtonType::ScheduledSilent,
+	};
+	for (const auto type : forceMutedTypes) {
+		result.emplace(type, forceMutedColors);
+	}
+	return result;
 }
 
 bool IsMuted(CallMuteButtonType type) {
@@ -141,9 +150,7 @@ bool IsConnecting(CallMuteButtonType type) {
 }
 
 bool IsInactive(CallMuteButtonType type) {
-	return IsConnecting(type)
-		|| (type == CallMuteButtonType::ForceMuted)
-		|| (type == CallMuteButtonType::RaisedHand);
+	return IsConnecting(type);
 }
 
 auto Clamp(float64 value) {
@@ -542,148 +549,101 @@ CallMuteButton::CallMuteButton(
 }
 
 CallMuteButton::IconState CallMuteButton::initialState() {
+	const auto result = iconStateFrom(_state.current().type);
 	_icons[0].emplace(Lottie::IconDescriptor{
-		.path = u":/gui/icons/calls/hand_muted_active.json"_q,
+		.path = u":/gui/icons/calls/voice.lottie"_q,
 		.color = st::groupCallIconFg,
 		.sizeOverride = st::groupCallMuteButtonIconSize,
-		.frame = 22,
+		.frame = result.frameTo,
 	});
 	_icons[1].emplace(Lottie::IconDescriptor{
-		.path = u":/gui/icons/calls/active_hand.json"_q,
+		.path = u":/gui/icons/calls/hands.lottie"_q,
 		.color = st::groupCallIconFg,
 		.sizeOverride = st::groupCallMuteButtonIconSize,
 		.frame = 0,
 	});
-	_icons[2].emplace(Lottie::IconDescriptor{
-		.path = u":/gui/icons/calls/raised_hand.json"_q,
-		.color = st::groupCallIconFg,
-		.sizeOverride = st::groupCallMuteButtonIconSize,
-		.frame = 0,
-	});
-	return iconStateFrom(_state.current().type);
+	return result;
+}
+
+auto CallMuteButton::iconStateAnimated(CallMuteButtonType previous)
+-> IconState {
+	using Type = CallMuteButtonType;
+	using Key = std::pair<Type, Type>;
+	struct Animation {
+		int from = 0;
+		int to = 0;
+	};
+	static const auto kAnimations = std::vector<std::pair<Key, Animation>>{
+		{ { Type::ForceMuted, Type::Muted }, { 0, 35 } },
+		{ { Type::Muted, Type::Active }, { 36, 68 } },
+		{ { Type::Active, Type::Muted }, { 69, 98 } },
+		{ { Type::Muted, Type::ForceMuted }, { 99, 135 } },
+		{ { Type::Active, Type::ForceMuted }, { 136, 172 } },
+		{ { Type::ScheduledSilent, Type::ScheduledNotify }, { 173, 201 } },
+		{ { Type::ScheduledSilent, Type::Muted }, { 202, 236 } },
+		{ { Type::ScheduledSilent, Type::ForceMuted }, { 237, 273 } },
+		{ { Type::ScheduledNotify, Type::ForceMuted }, { 274, 310 } },
+		{ { Type::ScheduledNotify, Type::ScheduledSilent }, { 311, 343 } },
+		{ { Type::ScheduledNotify, Type::Muted }, { 344, 375 } },
+		{ { Type::ScheduledCanStart, Type::Muted }, { 376, 403 } },
+	};
+	static const auto kMap = [] {
+		// flat_multi_map_pair_type lacks some required constructors :(
+		auto &&list = kAnimations | ranges::views::transform([](auto &&pair) {
+			return base::flat_multi_map_pair_type<Key, Animation>(
+				pair.first,
+				pair.second);
+		});
+		return base::flat_map<Key, Animation>(begin(list), end(list));
+	}();
+	const auto was = TypeForIcon(previous);
+	const auto now = TypeForIcon(_state.current().type);
+	if (was == now) {
+		return {};
+	}
+
+	if (const auto i = kMap.find(Key{ was, now }); i != end(kMap)) {
+		return { 0, i->second.from, i->second.to };
+	}
+	return {};
 }
 
 CallMuteButton::IconState CallMuteButton::iconStateFrom(
 		CallMuteButtonType previous) {
-	const auto current = _state.current().type;
-	switch (previous) {
-	case CallMuteButtonType::Active: {
-		switch (current) {
-		case CallMuteButtonType::Active: {
-			return { // Active
-				.icon = &*_icons[0],
-				.frameFrom = 41,
-				.frameTo = 41,
-				.otherJumpToFrame = 0,
-			};
-		} break;
-		case CallMuteButtonType::Connecting:
-		case CallMuteButtonType::Muted: {
-			return { // Active -> Muted
-				.icon = &*_icons[0],
-				.frameFrom = 42,
-				.frameTo = 62,
-			};
-		} break;
-		case CallMuteButtonType::ForceMuted:
-		case CallMuteButtonType::RaisedHand: {
-			return { // Active -> Hand
-				.icon = &*_icons[1],
-				.frameFrom = 0,
-				.frameTo = 22,
-				.otherJumpToFrame = 0,
-			};
-		} break;
-		}
-	} break;
-	case CallMuteButtonType::Connecting:
-	case CallMuteButtonType::Muted: {
-		switch (current) {
-		case CallMuteButtonType::Active: {
-			return { // Muted -> Active
-				.icon = &*_icons[0],
-				.frameFrom = 21,
-				.frameTo = 41,
-				.otherJumpToFrame = 0,
-			};
-		} break;
-		case CallMuteButtonType::Connecting:
-		case CallMuteButtonType::Muted: {
-			return { // Muted
-				.icon = &*_icons[0],
-				.frameFrom = 22,
-				.frameTo = 22,
-			};
-		} break;
-		case CallMuteButtonType::ForceMuted:
-		case CallMuteButtonType::RaisedHand: {
-			return { // Muted -> Hand
-				.icon = &*_icons[0],
-				.frameFrom = 63,
-				.frameTo = 83,
-				.otherJumpToFrame = 22,
-			};
-		} break;
-		}
-	} break;
-	case CallMuteButtonType::ForceMuted:
-	case CallMuteButtonType::RaisedHand: {
-		switch (current) {
-		case CallMuteButtonType::Active: {
-			return { // Hand -> Active
-				.icon = &*_icons[1],
-				.frameFrom = 22,
-				.frameTo = 0,
-				.otherJumpToFrame = 42,
-			};
-		} break;
-		case CallMuteButtonType::Connecting:
-		case CallMuteButtonType::Muted: {
-			return { // Hand -> Muted
-				.icon = &*_icons[0],
-				.frameFrom = 0,
-				.frameTo = 20,
-			};
-		} break;
-		case CallMuteButtonType::ForceMuted:
-		case CallMuteButtonType::RaisedHand: {
-			return { // Hand
-				.icon = &*_icons[0],
-				.frameFrom = 0,
-				.frameTo = 0,
-				.otherJumpToFrame = 22,
-			};
-		} break;
-		}
-	} break;
+	if (const auto animated = iconStateAnimated(previous)) {
+		return animated;
 	}
-	Unexpected("State in CallMuteButton::iconStateFrom.");
+
+	using Type = CallMuteButtonType;
+	static const auto kFinal = base::flat_map<Type, int>{
+		{ Type::ForceMuted, 0 },
+		{ Type::Muted, 36 },
+		{ Type::Active, 69 },
+		{ Type::ScheduledSilent, 173 },
+		{ Type::ScheduledNotify, 274 },
+		{ Type::ScheduledCanStart, 376 },
+	};
+
+	const auto now = TypeForIcon(_state.current().type);
+	const auto i = kFinal.find(now);
+
+	Ensures(i != end(kFinal));
+	return { 0, i->second, i->second };
 }
 
 CallMuteButton::IconState CallMuteButton::randomWavingState() {
-	switch (openssl::RandomValue<uint32>() % 5) {
-	case 0: return {
-		.icon = &*_icons[2],
-		.frameFrom = 0,
-		.frameTo = 120 };
-	case 1: return {
-		.icon = &*_icons[2],
-		.frameFrom = 120,
-		.frameTo = 240 };
-	case 2: return {
-		.icon = &*_icons[2],
-		.frameFrom = 240,
-		.frameTo = 420 };
-	case 3: return {
-		.icon = &*_icons[2],
-		.frameFrom = 420,
-		.frameTo = 540 };
-	case 4: return {
-		.icon = &*_icons[2],
-		.frameFrom = 540,
-		.frameTo = 720 };
-	}
-	Unexpected("Value in CallMuteButton::randomWavingState.");
+	struct Animation {
+		int from = 0;
+		int to = 0;
+	};
+	static const auto kAnimations = std::vector<Animation>{
+		{ 0, 120 },
+		{ 120, 240 },
+		{ 240, 420 },
+		{ 420, 540 },
+	};
+	const auto index = openssl::RandomValue<uint32>() % kAnimations.size();
+	return { 1, kAnimations[index].from, kAnimations[index].to };
 }
 
 void CallMuteButton::init() {
@@ -779,7 +739,7 @@ void CallMuteButton::init() {
 		for (auto &[type, stops] : copy) {
 			auto firstColor = IsInactive(type)
 				? st::groupCallBg->c
-				: stops.stops[0].second;
+				: stops.stops[(stops.stops.size() - 1) / 2].second;
 			firstColor.setAlpha(kGlowAlpha);
 			stops.stops = QGradientStops{
 				{ 0., std::move(firstColor) },
@@ -868,7 +828,7 @@ void CallMuteButton::init() {
 	) | rpl::start_with_next([=](QRect clip) {
 		Painter p(_content);
 
-		_iconState.icon->paint(p, _muteIconRect.x(), _muteIconRect.y());
+		_icons[_iconState.index]->paint(p, _muteIconRect.x(), _muteIconRect.y());
 
 		if (_radialInfo.state.has_value() && _switchAnimation.animating()) {
 			const auto radialProgress = _radialInfo.realShowProgress;
@@ -913,7 +873,7 @@ void CallMuteButton::init() {
 
 void CallMuteButton::scheduleIconState(const IconState &state) {
 	if (_iconState != state) {
-		if (_iconState.icon->animating()) {
+		if (_icons[_iconState.index]->animating()) {
 			_scheduledState = state;
 		} else {
 			startIconState(state);
@@ -926,22 +886,15 @@ void CallMuteButton::scheduleIconState(const IconState &state) {
 void CallMuteButton::startIconState(const IconState &state) {
 	_iconState = state;
 	_scheduledState = std::nullopt;
-	_iconState.icon->animate(
+	_icons[_iconState.index]->animate(
 		[=] { iconAnimationCallback(); },
 		_iconState.frameFrom,
 		_iconState.frameTo);
-	if (const auto other = state.otherJumpToFrame) {
-		if (_iconState.icon == &*_icons[0]) {
-			_icons[1]->jumpTo(*other, nullptr);
-		} else {
-			_icons[0]->jumpTo(*other, nullptr);
-		}
-	}
 }
 
 void CallMuteButton::iconAnimationCallback() {
 	_content->update(_muteIconRect);
-	if (!_iconState.icon->animating() && _scheduledState) {
+	if (!_icons[_iconState.index]->animating() && _scheduledState) {
 		startIconState(*_scheduledState);
 	}
 }
@@ -1015,6 +968,9 @@ CallMuteButton::HandleMouseState CallMuteButton::HandleMouseStateFromType(
 		return HandleMouseState::Enabled;
 	case CallMuteButtonType::Connecting:
 		return HandleMouseState::Disabled;
+	case CallMuteButtonType::ScheduledCanStart:
+	case CallMuteButtonType::ScheduledNotify:
+	case CallMuteButtonType::ScheduledSilent:
 	case CallMuteButtonType::ForceMuted:
 	case CallMuteButtonType::RaisedHand:
 		return HandleMouseState::Enabled;
@@ -1096,22 +1052,16 @@ void CallMuteButton::overridesColors(
 		CallMuteButtonType fromType,
 		CallMuteButtonType toType,
 		float64 progress) {
-	const auto forceMutedToConnecting = [](CallMuteButtonType &type) {
-		if (type == CallMuteButtonType::ForceMuted
-			|| type == CallMuteButtonType::RaisedHand) {
-			type = CallMuteButtonType::Connecting;
-		}
-	};
-	forceMutedToConnecting(toType);
-	forceMutedToConnecting(fromType);
 	const auto toInactive = IsInactive(toType);
 	const auto fromInactive = IsInactive(fromType);
 	if (toInactive && (progress == 1)) {
 		_colorOverrides.fire({ std::nullopt, std::nullopt });
 		return;
 	}
-	auto from = _colors.find(fromType)->second.stops[0].second;
-	auto to = _colors.find(toType)->second.stops[0].second;
+	const auto &fromStops = _colors.find(fromType)->second.stops;
+	const auto &toStops = _colors.find(toType)->second.stops;
+	auto from = fromStops[(fromStops.size() - 1) / 2].second;
+	auto to = toStops[(toStops.size() - 1) / 2].second;
 	auto fromRipple = from;
 	auto toRipple = to;
 	if (!toInactive) {

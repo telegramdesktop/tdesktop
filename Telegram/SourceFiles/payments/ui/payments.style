@@ -1,0 +1,133 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+
+using "info/info.style";
+
+paymentsPanelSize: size(392px, 600px);
+
+paymentsPanelButton: defaultBoxButton;
+paymentsPanelSubmit: RoundButton(defaultActiveButton) {
+	width: -36px;
+	height: 36px;
+	font: boxButtonFont;
+}
+paymentsPanelPadding: margins(8px, 12px, 15px, 12px);
+
+paymentsCoverPadding: margins(26px, 0px, 26px, 13px);
+paymentsDescription: FlatLabel(defaultFlatLabel) {
+	minWidth: 160px;
+	textFg: windowFg;
+}
+paymentsTitle: FlatLabel(paymentsDescription) {
+	style: semiboldTextStyle;
+}
+paymentsSeller: FlatLabel(paymentsDescription) {
+	textFg: windowSubTextFg;
+}
+paymentsWebviewBottom: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+paymentsPriceLabel: paymentsDescription;
+paymentsPriceAmount: defaultFlatLabel;
+paymentsFullPriceLabel: paymentsTitle;
+paymentsFullPriceAmount: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+}
+
+paymentsTitleTop: 0px;
+paymentsDescriptionTop: 3px;
+paymentsSellerTop: 4px;
+
+paymentsThumbnailSize: size(80px, 80px);
+paymentsThumbnailSkip: 18px;
+
+paymentsPricesTopSkip: 12px;
+paymentsPricesBottomSkip: 13px;
+paymentsPricePadding: margins(28px, 6px, 28px, 5px);
+
+paymentsTipSkip: 8px;
+paymentsTipButton: RoundButton(defaultLightButton) {
+	textFg: paymentsTipActive;
+	textFgOver: paymentsTipActive;
+	textBgOver: transparent;
+
+	width: -16px;
+	height: 28px;
+	textTop: 5px;
+}
+paymentsTipChosen: RoundButton(paymentsTipButton) {
+	textFg: windowFgActive;
+	textFgOver: windowFgActive;
+	textBgOver: transparent;
+}
+paymentsTipButtonsPadding: margins(26px, 6px, 26px, 6px);
+
+paymentsSectionsTopSkip: 11px;
+paymentsSectionButton: SettingsButton(infoProfileButton) {
+	padding: margins(68px, 11px, 14px, 9px);
+}
+
+paymentsIconPaymentMethod: icon {{ "payments/payment_card", menuIconFg }};
+paymentsIconShippingAddress: icon {{ "payments/payment_address", menuIconFg }};
+paymentsIconName: icon {{ "payments/payment_name", menuIconFg }};
+paymentsIconEmail: icon {{ "payments/payment_email", menuIconFg }};
+paymentsIconPhone: icon {{ "payments/payment_phone", menuIconFg }};
+paymentsIconShippingMethod: icon {{ "payments/payment_shipping", menuIconFg }};
+
+paymentsField: defaultInputField;
+paymentsMoneyField: InputField(paymentsField) {
+	textMargins: margins(0px, 4px, 0px, 4px);
+	heightMin: 30px;
+}
+paymentsFieldAdditional: FlatLabel(defaultFlatLabel) {
+	style: boxTextStyle;
+}
+
+paymentsFieldPadding: margins(28px, 0px, 28px, 2px);
+paymentsSaveCheckboxPadding: margins(28px, 20px, 28px, 8px);
+paymentsExpireCvcSkip: 34px;
+
+paymentsBillingInformationTitle: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: windowActiveTextFg;
+	minWidth: 240px;
+}
+paymentsBillingInformationTitlePadding: margins(28px, 26px, 28px, 1px);
+
+paymentsShippingMargin: margins(27px, 11px, 27px, 20px);
+paymentsShippingLabel: FlatLabel(defaultFlatLabel) {
+	style: boxTextStyle;
+}
+paymentsShippingPrice: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+paymentsShippingLabelPosition: point(43px, 8px);
+paymentsShippingPricePosition: point(43px, 29px);
+
+paymentTipsErrorLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 275px;
+	textFg: boxTextFgError;
+}
+paymentTipsErrorPadding: margins(22px, 6px, 22px, 0px);
+
+paymentsToProviderLabel: paymentsShippingPrice;
+paymentsToProviderPadding: margins(28px, 6px, 28px, 6px);
+
+paymentsCriticalError: FlatLabel(boxLabel) {
+	minWidth: 370px;
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+paymentsCriticalErrorPadding: margins(10px, 40px, 10px, 0px);
+
+paymentsLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	size: size(24px, 24px);
+	color: windowSubTextFg;
+	thickness: 4px;
+}

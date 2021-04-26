@@ -72,10 +72,7 @@ void UserData::setIsContact(bool is) {
 // see Serialize::readPeer as well
 void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	photo.match([&](const MTPDuserProfilePhoto &data) {
-		updateUserpic(
-			data.vphoto_id().v,
-			data.vdc_id().v,
-			data.vphoto_small());
+		updateUserpic(data.vphoto_id().v, data.vdc_id().v);
 	}, [&](const MTPDuserProfilePhotoEmpty &) {
 		clearUserpic();
 	});

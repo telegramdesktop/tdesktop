@@ -217,7 +217,7 @@ QByteArray FormatFilePath(const Data::File &file) {
 QByteArray SerializeMessage(
 		Context &context,
 		const Data::Message &message,
-		const std::map<Data::PeerId, Data::Peer> &peers,
+		const std::map<PeerId, Data::Peer> &peers,
 		const QString &internalLinksDomain) {
 	using namespace Data;
 
@@ -235,18 +235,11 @@ QByteArray SerializeMessage(
 		static auto empty = Peer{ User() };
 		return empty;
 	};
-	const auto user = [&](int32 userId) -> const User& {
-		if (const auto result = peer(UserPeerId(userId)).user()) {
+	const auto user = [&](UserId userId) -> const User& {
+		if (const auto result = peer(userId).user()) {
 			return *result;
 		}
 		static auto empty = User();
-		return empty;
-	};
-	const auto chat = [&](int32 chatId) -> const Chat& {
-		if (const auto result = peer(ChatPeerId(chatId)).chat()) {
-			return *result;
-		}
-		static auto empty = Chat();
 		return empty;
 	};
 
@@ -280,6 +273,25 @@ QByteArray SerializeMessage(
 	const auto push = [&](const QByteArray &key, const auto &value) {
 		if constexpr (std::is_arithmetic_v<std::decay_t<decltype(value)>>) {
 			pushBare(key, Data::NumberToString(value));
+		} else if constexpr (std::is_same_v<
+				std::decay_t<decltype(value)>,
+				PeerId>) {
+			if (const auto chat = peerToChat(value)) {
+				pushBare(
+					key,
+					SerializeString("chat"
+						+ Data::NumberToString(chat.bare)));
+			} else if (const auto channel = peerToChannel(value)) {
+				pushBare(
+					key,
+					SerializeString("channel"
+						+ Data::NumberToString(channel.bare)));
+			} else {
+				pushBare(
+					key,
+					SerializeString("user"
+						+ Data::NumberToString(peerToUser(value).bare)));
+			}
 		} else {
 			const auto wrapped = QByteArray(value);
 			if (!wrapped.isEmpty()) {
@@ -290,7 +302,7 @@ QByteArray SerializeMessage(
 	const auto wrapPeerName = [&](PeerId peerId) {
 		return StringAllowNull(peer(peerId).name());
 	};
-	const auto wrapUserName = [&](int32 userId) {
+	const auto wrapUserName = [&](UserId userId) {
 		return StringAllowNull(user(userId).name());
 	};
 	const auto pushFrom = [&](const QByteArray &label = "from") {
@@ -309,7 +321,7 @@ QByteArray SerializeMessage(
 		}
 	};
 	const auto pushUserNames = [&](
-			const std::vector<int32> &data,
+			const std::vector<UserId> &data,
 			const QByteArray &label = "members") {
 		auto list = std::vector<QByteArray>();
 		for (const auto userId : data) {
@@ -497,6 +509,14 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("invite_to_group_call");
 		pushUserNames(data.userIds);
+	}, [&](const ActionSetMessagesTTL &data) {
+		pushActor();
+		pushAction("set_messages_ttl");
+		push("period", data.period);
+	}, [&](const ActionGroupCallScheduled &data) {
+		pushActor();
+		pushAction("group_call_scheduled");
+		push("schedule_date", data.date);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {
@@ -708,7 +728,7 @@ Result JsonWriter::writePersonal(const Data::PersonalInfo &data) {
 	return _output->writeBlock(
 		prepareObjectItemStart("personal_information")
 		+ SerializeObject(_context, {
-		{ "user_id", Data::NumberToString(data.user.id) },
+		{ "user_id", Data::NumberToString(data.user.bareId) },
 		{ "first_name", SerializeString(info.firstName) },
 		{ "last_name", SerializeString(info.lastName) },
 		{
@@ -814,7 +834,12 @@ Result JsonWriter::writeSavedContacts(const Data::ContactsList &data) {
 			}));
 		} else {
 			block.append(SerializeObject(_context, {
-				{ "user_id", Data::NumberToString(contact.userId) },
+				{
+					"user_id",
+					(contact.userId
+						? Data::NumberToString(contact.userId.bare)
+						: QByteArray())
+				},
 				{ "first_name", SerializeString(contact.firstName) },
 				{ "last_name", SerializeString(contact.lastName) },
 				{
@@ -859,7 +884,7 @@ Result JsonWriter::writeFrequentContacts(const Data::ContactsList &data) {
 			}();
 			block.append(prepareArrayItemStart());
 			block.append(SerializeObject(_context, {
-				{ "id", Data::NumberToString(top.peer.id()) },
+				{ "id", Data::NumberToString(Data::PeerToBareId(top.peer.id())) },
 				{ "category", SerializeString(category) },
 				{ "type", SerializeString(type) },
 				{ "name",  StringAllowNull(top.peer.name()) },
@@ -1058,7 +1083,7 @@ Result JsonWriter::writeDialogStart(const Data::DialogInfo &data) {
 	block.append(prepareObjectItemStart("type")
 		+ StringAllowNull(TypeString(data.type)));
 	block.append(prepareObjectItemStart("id")
-		+ Data::NumberToString(data.peerId));
+		+ Data::NumberToString(Data::PeerToBareId(data.peerId)));
 	block.append(prepareObjectItemStart("messages"));
 	block.append(pushNesting(Context::kArray));
 	return _output->writeBlock(block);

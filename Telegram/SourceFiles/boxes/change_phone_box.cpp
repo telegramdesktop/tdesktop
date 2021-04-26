@@ -151,7 +151,7 @@ void ChangePhoneBox::EnterPhone::prepare() {
 		this,
 		st::defaultInputField,
 		tr::lng_change_phone_new_title(),
-		ExtractPhonePrefix(_session->user()->phone()),
+		Ui::ExtractPhonePrefix(_session->user()->phone()),
 		phoneValue);
 
 	_phone->resize(st::boxWidth - 2 * st::boxPadding.left(), _phone->height());

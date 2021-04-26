@@ -216,12 +216,6 @@ InnerWidget::InnerWidget(
 		refresh();
 	}, lifetime());
 
-	subscribe(Window::Theme::Background(), [=](const Window::Theme::BackgroundUpdate &data) {
-		if (data.paletteChanged()) {
-			Layout::clearUnreadBadgesCache();
-		}
-	});
-
 	session().changes().historyUpdates(
 		Data::HistoryUpdate::Flag::IsPinned
 		| Data::HistoryUpdate::Flag::ChatOccupied
@@ -729,7 +723,7 @@ bool InnerWidget::isSearchResultActive(
 	const auto peer = item->history()->peer;
 	return (item->fullId() == entry.fullId)
 		|| (peer->migrateTo()
-			&& (peer->migrateTo()->bareId() == entry.fullId.channel)
+			&& (peerToChannel(peer->migrateTo()->id) == entry.fullId.channel)
 			&& (item->id == -entry.fullId.msg))
 		|| (uniqueSearchResults() && peer == entry.key.peer());
 }
@@ -2080,7 +2074,8 @@ bool InnerWidget::searchReceived(
 				_lastSearchPeer = peer;
 			}
 		} else {
-			LOG(("API Error: a search results with not loaded peer %1").arg(peerId));
+			LOG(("API Error: a search results with not loaded peer %1"
+				).arg(peerId.value));
 		}
 		if (isMigratedSearch) {
 			_lastSearchMigratedId = msgId;
@@ -2142,7 +2137,7 @@ void InnerWidget::peerSearchReceived(
 		} else {
 			LOG(("API Error: "
 				"user %1 was not loaded in InnerWidget::peopleReceived()"
-				).arg(peer->id));
+				).arg(peer->id.value));
 		}
 	}
 	for (const auto &mtpPeer : result) {
@@ -2157,7 +2152,7 @@ void InnerWidget::peerSearchReceived(
 		} else {
 			LOG(("API Error: "
 				"user %1 was not loaded in InnerWidget::peopleReceived()"
-				).arg(peer->id));
+				).arg(peer->id.value));
 		}
 	}
 	refresh();

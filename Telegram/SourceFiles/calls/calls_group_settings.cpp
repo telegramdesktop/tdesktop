@@ -35,7 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_changes.h"
 #include "core/application.h"
-#include "boxes/single_choice_box.h"
+#include "ui/boxes/single_choice_box.h"
 #include "webrtc/webrtc_audio_input_tester.h"
 #include "webrtc/webrtc_media_devices.h"
 #include "settings/settings_common.h"
@@ -149,8 +149,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 			}
 			text.append(error.first);
 			if (const auto weak = *box) {
-				weak->getDelegate()->show(
-					Box(ConfirmBox, text, nullptr, nullptr));
+				weak->getDelegate()->show(ConfirmBox({ .text = text }));
 			}
 			return;
 		}
@@ -677,7 +676,7 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 		return true;
 	};
 	auto callback = [=] {
-		const auto real = peer->groupCall();
+		const auto real = peer->migrateToOrMe()->groupCall();
 		if (shareReady() || state->generatingLink || !real) {
 			return;
 		}
@@ -702,11 +701,11 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 			state->linkSpeakerRequestId = peer->session().api().request(
 				MTPphone_ExportGroupCallInvite(
 					MTP_flags(Flag::f_can_self_unmute),
-					real->input()
-				)).done([=](const MTPphone_ExportedGroupCallInvite &result) {
+					real->input())
+			).done([=](const MTPphone_ExportedGroupCallInvite &result) {
 				state->linkSpeakerRequestId = 0;
 				result.match([&](
-					const MTPDphone_exportedGroupCallInvite &data) {
+						const MTPDphone_exportedGroupCallInvite &data) {
 					state->linkSpeaker = qs(data.vlink());
 					shareReady();
 				});

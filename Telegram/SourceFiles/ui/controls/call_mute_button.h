@@ -30,6 +30,9 @@ enum class CallMuteButtonType {
 	Muted,
 	ForceMuted,
 	RaisedHand,
+	ScheduledCanStart,
+	ScheduledSilent,
+	ScheduledNotify,
 };
 
 struct CallMuteButtonState {
@@ -84,19 +87,24 @@ private:
 		const style::InfiniteRadialAnimation &st = st::callConnectingRadial;
 	};
 	struct IconState {
-		not_null<Lottie::Icon*> icon;
+		int index = -1;
 		int frameFrom = 0;
 		int frameTo = 0;
-		std::optional<int> otherJumpToFrame;
 
 		inline bool operator==(const IconState &other) const {
-			return (icon == other.icon)
+			return (index == other.index)
 				&& (frameFrom == other.frameFrom)
-				&& (frameTo == other.frameTo)
-				&& (otherJumpToFrame == other.otherJumpToFrame);
+				&& (frameTo == other.frameTo);
 		}
 		inline bool operator!=(const IconState &other) const {
 			return !(*this == other);
+		}
+
+		bool valid() const {
+			return (index >= 0);
+		}
+		explicit operator bool() const {
+			return valid();
 		}
 	};
 
@@ -115,6 +123,7 @@ private:
 	[[nodiscard]] IconState initialState();
 	[[nodiscard]] IconState iconStateFrom(CallMuteButtonType previous);
 	[[nodiscard]] IconState randomWavingState();
+	[[nodiscard]] IconState iconStateAnimated(CallMuteButtonType previous);
 	void scheduleIconState(const IconState &state);
 	void startIconState(const IconState &state);
 	void iconAnimationCallback();
@@ -140,7 +149,7 @@ private:
 	std::unique_ptr<InfiniteRadialAnimation> _radial;
 	const base::flat_map<CallMuteButtonType, anim::gradient_colors> _colors;
 
-	std::array<std::optional<Lottie::Icon>, 3> _icons;
+	std::array<std::optional<Lottie::Icon>, 2> _icons;
 	IconState _iconState;
 	std::optional<IconState> _scheduledState;
 

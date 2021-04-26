@@ -108,7 +108,7 @@ void ComputeExternalUpdater() {
 		while (!fileStream.atEnd()) {
 			const auto path = fileStream.readLine();
 
-			if (path == (cWorkingDir() + cExeName())) {
+			if (path == (cExeDir() + cExeName())) {
 				SetUpdaterDisabledAtStartup();
 				return;
 			}
@@ -279,19 +279,7 @@ void Launcher::init() {
 	_arguments = readArguments(_argc, _argv);
 
 	prepareSettings();
-
-	static QtMessageHandler originalMessageHandler = nullptr;
-	originalMessageHandler = qInstallMessageHandler([](
-		QtMsgType type,
-		const QMessageLogContext &context,
-		const QString &msg) {
-		if (originalMessageHandler) {
-			originalMessageHandler(type, context, msg);
-		}
-		if (Logs::DebugEnabled() || !Logs::started()) {
-			LOG((msg));
-		}
-	});
+	initQtMessageLogging();
 
 	QApplication::setApplicationName(qsl("TelegramDesktop"));
 
@@ -428,6 +416,26 @@ void Launcher::prepareSettings() {
 	}
 
 	processArguments();
+}
+
+void Launcher::initQtMessageLogging() {
+	static QtMessageHandler OriginalMessageHandler = nullptr;
+	static bool WritingQtMessage = false;
+	OriginalMessageHandler = qInstallMessageHandler([](
+			QtMsgType type,
+			const QMessageLogContext &context,
+			const QString &msg) {
+		if (OriginalMessageHandler) {
+			OriginalMessageHandler(type, context, msg);
+		}
+		if (Logs::DebugEnabled() || !Logs::started()) {
+			if (!WritingQtMessage) {
+				WritingQtMessage = true;
+				LOG((msg));
+				WritingQtMessage = false;
+			}
+		}
+	});
 }
 
 uint64 Launcher::installationTag() const {

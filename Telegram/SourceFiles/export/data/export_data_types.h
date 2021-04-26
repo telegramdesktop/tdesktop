@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "scheme.h"
 #include "base/optional.h"
 #include "base/variant.h"
+#include "data/data_peer_id.h"
 
 #include <QtCore/QSize>
 #include <QtCore/QString>
@@ -22,14 +23,10 @@ struct Settings;
 namespace Data {
 
 using Utf8String = QByteArray;
-using PeerId = uint64;
 
-PeerId UserPeerId(int32 userId);
-PeerId ChatPeerId(int32 chatId);
-int32 BarePeerId(PeerId peerId);
-bool IsChatPeerId(PeerId peerId);
-bool IsUserPeerId(PeerId peerId);
-int PeerColorIndex(int32 bareId);
+int PeerColorIndex(BareId bareId);
+BareId PeerToBareId(PeerId peerId);
+int PeerColorIndex(PeerId peerId);
 int ApplicationColorIndex(int applicationId);
 int DomainApplicationId(const Utf8String &data);
 
@@ -102,7 +99,7 @@ QString WriteImageThumb(
 	const QString &postfix = "_thumb");
 
 struct ContactInfo {
-	int32 userId = 0;
+	UserId userId = 0;
 	Utf8String firstName;
 	Utf8String lastName;
 	Utf8String phoneNumber;
@@ -169,7 +166,7 @@ struct Game {
 	Utf8String title;
 	Utf8String description;
 
-	int32 botId = 0;
+	UserId botId = 0;
 };
 
 struct Invoice {
@@ -204,9 +201,11 @@ UserpicsSlice ParseUserpicsSlice(
 	int baseIndex);
 
 struct User {
+	PeerId id() const;
+
+	BareId bareId = 0;
 	ContactInfo info;
 	Utf8String username;
-	int32 id;
 	bool isBot = false;
 	bool isSelf = false;
 	bool isReplies = false;
@@ -217,11 +216,13 @@ struct User {
 };
 
 User ParseUser(const MTPUser &data);
-std::map<int32, User> ParseUsersList(const MTPVector<MTPUser> &data);
+std::map<UserId, User> ParseUsersList(const MTPVector<MTPUser> &data);
 
 struct Chat {
-	int32 id = 0;
-	int32 migratedToChannelId = 0;
+	PeerId id() const;
+
+	BareId bareId = 0;
+	ChannelId migratedToChannelId = 0;
 	Utf8String title;
 	Utf8String username;
 	bool isBroadcast = false;
@@ -231,7 +232,7 @@ struct Chat {
 };
 
 Chat ParseChat(const MTPChat &data);
-std::map<int32, Chat> ParseChatsList(const MTPVector<MTPChat> &data);
+std::map<PeerId, Chat> ParseChatsList(const MTPVector<MTPChat> &data);
 
 struct Peer {
 	PeerId id() const;
@@ -336,7 +337,7 @@ struct ParseMediaContext {
 	int videos = 0;
 	int files = 0;
 	int contacts = 0;
-	int32 botId = 0;
+	UserId botId = 0;
 };
 
 Media ParseMedia(
@@ -347,7 +348,7 @@ Media ParseMedia(
 
 struct ActionChatCreate {
 	Utf8String title;
-	std::vector<int32> userIds;
+	std::vector<UserId> userIds;
 };
 
 struct ActionChatEditTitle {
@@ -362,15 +363,15 @@ struct ActionChatDeletePhoto {
 };
 
 struct ActionChatAddUser {
-	std::vector<int32> userIds;
+	std::vector<UserId> userIds;
 };
 
 struct ActionChatDeleteUser {
-	int32 userId = 0;
+	UserId userId = 0;
 };
 
 struct ActionChatJoinedByLink {
-	int32 inviterId = 0;
+	UserId inviterId = 0;
 };
 
 struct ActionChannelCreate {
@@ -378,12 +379,12 @@ struct ActionChannelCreate {
 };
 
 struct ActionChatMigrateTo {
-	int32 channelId = 0;
+	ChannelId channelId = 0;
 };
 
 struct ActionChannelMigrateFrom {
 	Utf8String title;
-	int32 chatId = 0;
+	ChatId chatId = 0;
 };
 
 struct ActionPinMessage {
@@ -463,7 +464,15 @@ struct ActionGroupCall {
 };
 
 struct ActionInviteToGroupCall {
-	std::vector<int32> userIds;
+	std::vector<UserId> userIds;
+};
+
+struct ActionSetMessagesTTL {
+	TimeId period = 0;
+};
+
+struct ActionGroupCallScheduled {
+	TimeId date = 0;
 };
 
 struct ServiceAction {
@@ -492,7 +501,9 @@ struct ServiceAction {
 		ActionPhoneNumberRequest,
 		ActionGeoProximityReached,
 		ActionGroupCall,
-		ActionInviteToGroupCall> content;
+		ActionInviteToGroupCall,
+		ActionSetMessagesTTL,
+		ActionGroupCallScheduled> content;
 };
 
 ServiceAction ParseServiceAction(
@@ -527,9 +538,33 @@ struct TextPart {
 	Utf8String additional;
 };
 
+struct MessageId {
+	ChannelId channelId;
+	int32 msgId = 0;
+};
+
+inline bool operator==(MessageId a, MessageId b) {
+	return (a.channelId == b.channelId) && (a.msgId == b.msgId);
+}
+inline bool operator!=(MessageId a, MessageId b) {
+	return !(a == b);
+}
+inline bool operator<(MessageId a, MessageId b) {
+	return (a.channelId < b.channelId)
+		|| (a.channelId == b.channelId && a.msgId < b.msgId);
+}
+inline bool operator>(MessageId a, MessageId b) {
+	return (b < a);
+}
+inline bool operator<=(MessageId a, MessageId b) {
+	return !(b < a);
+}
+inline bool operator>=(MessageId a, MessageId b) {
+	return !(a < b);
+}
+
 struct Message {
 	int32 id = 0;
-	int32 chatId = 0;
 	TimeId date = 0;
 	TimeId edited = 0;
 	PeerId fromId = 0;
@@ -542,7 +577,7 @@ struct Message {
 	bool showForwardedAsOriginal = false;
 	PeerId savedFromChatId = 0;
 	Utf8String signature;
-	int32 viaBotId = 0;
+	UserId viaBotId = 0;
 	int32 replyToMsgId = 0;
 	PeerId replyToPeerId = 0;
 	std::vector<TextPart> text;
@@ -566,7 +601,7 @@ Message ParseMessage(
 	ParseMediaContext &context,
 	const MTPMessage &data,
 	const QString &mediaFolder);
-std::map<uint64, Message> ParseMessagesList(
+std::map<MessageId, Message> ParseMessagesList(
 	PeerId selfId,
 	const MTPVector<MTPMessage> &data,
 	const QString &mediaFolder);
@@ -594,7 +629,7 @@ struct DialogInfo {
 	PeerId peerId = 0;
 
 	MTPInputPeer migratedFromInput = MTP_inputPeerEmpty();
-	int32 migratedToChannelId = 0;
+	ChannelId migratedToChannelId = 0;
 
 	// User messages splits which contained that dialog.
 	std::vector<int> splits;
@@ -660,7 +695,7 @@ Utf8String FormatDateTime(
 	QChar dateSeparator = QChar('.'),
 	QChar timeSeparator = QChar(':'),
 	QChar separator = QChar(' '));
-Utf8String FormatMoneyAmount(uint64 amount, const Utf8String &currency);
+Utf8String FormatMoneyAmount(int64 amount, const Utf8String &currency);
 Utf8String FormatFileSize(int64 size);
 Utf8String FormatDuration(int64 seconds);
 

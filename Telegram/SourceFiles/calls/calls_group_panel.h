@@ -38,6 +38,7 @@ class Window;
 class ScrollArea;
 class GenericBox;
 class LayerManager;
+class GroupCallScheduledLeft;
 namespace Platform {
 class TitleControls;
 } // namespace Platform
@@ -73,16 +74,23 @@ private:
 	void initWindow();
 	void initWidget();
 	void initControls();
-	void initWithCall(GroupCall *call);
+	void initShareAction();
 	void initLayout();
 	void initGeometry();
+	void setupScheduledLabels(rpl::producer<TimeId> date);
+	void setupMembers();
 	void setupJoinAsChangedToasts();
 	void setupTitleChangedToasts();
+	void setupAllowedToSpeakToasts();
+	void setupRealMuteButtonState(not_null<Data::GroupCall*> real);
 
 	bool handleClose();
+	void startScheduledNow();
 
 	void updateControlsGeometry();
+	void updateMembersGeometry();
 	void showControls();
+	void refreshLeftButton();
 
 	void endCall();
 
@@ -94,13 +102,13 @@ private:
 	[[nodiscard]] QRect computeTitleRect() const;
 	void refreshTitle();
 	void refreshTitleGeometry();
-	void setupRealCallViewers(not_null<GroupCall*> call);
+	void setupRealCallViewers();
 	void subscribeToChanges(not_null<Data::GroupCall*> real);
 
 	void migrate(not_null<ChannelData*> channel);
 	void subscribeToPeerChanges();
 
-	GroupCall *_call = nullptr;
+	const not_null<GroupCall*> _call;
 	not_null<PeerData*> _peer;
 
 	const std::unique_ptr<Ui::Window> _window;
@@ -118,13 +126,18 @@ private:
 	object_ptr<Ui::IconButton> _menuToggle = { nullptr };
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
-	object_ptr<Members> _members;
-	rpl::variable<QString> _titleText;
+	object_ptr<Members> _members = { nullptr };
+	object_ptr<Ui::FlatLabel> _startsIn = { nullptr };
+	object_ptr<Ui::RpWidget> _countdown = { nullptr };
+	std::shared_ptr<Ui::GroupCallScheduledLeft> _countdownData;
+	object_ptr<Ui::FlatLabel> _startsWhen = { nullptr };
 	ChooseJoinAsProcess _joinAsProcess;
 
-	object_ptr<Ui::CallButton> _settings;
+	object_ptr<Ui::CallButton> _settings = { nullptr };
+	object_ptr<Ui::CallButton> _share = { nullptr };
 	std::unique_ptr<Ui::CallMuteButton> _mute;
 	object_ptr<Ui::CallButton> _hangup;
+	Fn<void()> _shareLinkCallback;
 
 	rpl::lifetime _peerLifetime;
 

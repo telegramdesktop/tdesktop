@@ -9,10 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "passport/passport_panel_edit_document.h"
-#include "passport/passport_panel_details_row.h"
 #include "passport/passport_panel_edit_contact.h"
 #include "passport/passport_panel_edit_scans.h"
 #include "passport/passport_panel.h"
+#include "passport/ui/passport_details_row.h"
 #include "base/openssl_help.h"
 #include "base/unixtime.h"
 #include "boxes/passcode_box.h"
@@ -212,7 +212,7 @@ EditDocumentScheme GetDocumentScheme(
 		result.rows = {
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Text,
+				Ui::PanelDetailsType::Text,
 				qsl("first_name"),
 				tr::lng_passport_first_name(tr::now),
 				NameValidate,
@@ -221,7 +221,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Text,
+				Ui::PanelDetailsType::Text,
 				qsl("middle_name"),
 				tr::lng_passport_middle_name(tr::now),
 				NameOrEmptyValidate,
@@ -231,7 +231,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Text,
+				Ui::PanelDetailsType::Text,
 				qsl("last_name"),
 				tr::lng_passport_last_name(tr::now),
 				NameValidate,
@@ -241,7 +241,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Date,
+				Ui::PanelDetailsType::Date,
 				qsl("birth_date"),
 				tr::lng_passport_birth_date(tr::now),
 				DateValidate,
@@ -249,7 +249,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Gender,
+				Ui::PanelDetailsType::Gender,
 				qsl("gender"),
 				tr::lng_passport_gender(tr::now),
 				GenderValidate,
@@ -257,7 +257,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Country,
+				Ui::PanelDetailsType::Country,
 				qsl("country_code"),
 				tr::lng_passport_country(tr::now),
 				CountryValidate,
@@ -265,7 +265,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Country,
+				Ui::PanelDetailsType::Country,
 				qsl("residence_country_code"),
 				tr::lng_passport_residence_country(tr::now),
 				CountryValidate,
@@ -273,7 +273,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Scans,
-				PanelDetailsType::Text,
+				Ui::PanelDetailsType::Text,
 				qsl("document_no"),
 				tr::lng_passport_document_number(tr::now),
 				DocumentValidate,
@@ -282,7 +282,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Scans,
-				PanelDetailsType::Date,
+				Ui::PanelDetailsType::Date,
 				qsl("expiry_date"),
 				tr::lng_passport_expiry_date(tr::now),
 				DateOrEmptyValidate,
@@ -344,7 +344,7 @@ EditDocumentScheme GetDocumentScheme(
 			auto additional = std::initializer_list<Row>{
 				{
 					ValueClass::Additional,
-					PanelDetailsType::Text,
+					Ui::PanelDetailsType::Text,
 					qsl("first_name_native"),
 					tr::lng_passport_first_name(tr::now),
 					NativeNameValidate,
@@ -355,7 +355,7 @@ EditDocumentScheme GetDocumentScheme(
 				},
 				{
 					ValueClass::Additional,
-					PanelDetailsType::Text,
+					Ui::PanelDetailsType::Text,
 					qsl("middle_name_native"),
 					tr::lng_passport_middle_name(tr::now),
 					NativeNameOrEmptyValidate,
@@ -366,7 +366,7 @@ EditDocumentScheme GetDocumentScheme(
 				},
 				{
 					ValueClass::Additional,
-					PanelDetailsType::Text,
+					Ui::PanelDetailsType::Text,
 					qsl("last_name_native"),
 					tr::lng_passport_last_name(tr::now),
 					NativeNameValidate,
@@ -411,7 +411,7 @@ EditDocumentScheme GetDocumentScheme(
 		result.rows = {
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Text,
+				Ui::PanelDetailsType::Text,
 				qsl("street_line1"),
 				tr::lng_passport_street(tr::now),
 				StreetValidate,
@@ -420,7 +420,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Text,
+				Ui::PanelDetailsType::Text,
 				qsl("street_line2"),
 				tr::lng_passport_street(tr::now),
 				DontValidate,
@@ -429,7 +429,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Text,
+				Ui::PanelDetailsType::Text,
 				qsl("city"),
 				tr::lng_passport_city(tr::now),
 				CityValidate,
@@ -438,7 +438,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Text,
+				Ui::PanelDetailsType::Text,
 				qsl("state"),
 				tr::lng_passport_state(tr::now),
 				DontValidate,
@@ -447,7 +447,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Country,
+				Ui::PanelDetailsType::Country,
 				qsl("country_code"),
 				tr::lng_passport_country(tr::now),
 				CountryValidate,
@@ -455,7 +455,7 @@ EditDocumentScheme GetDocumentScheme(
 			},
 			{
 				ValueClass::Fields,
-				PanelDetailsType::Postcode,
+				Ui::PanelDetailsType::Postcode,
 				qsl("post_code"),
 				tr::lng_passport_postcode(tr::now),
 				PostcodeValidate,

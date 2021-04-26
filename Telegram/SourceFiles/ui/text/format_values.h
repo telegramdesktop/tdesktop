@@ -23,9 +23,26 @@ inline constexpr auto FileStatusSizeFailed = 0x7FFFFFF2;
 [[nodiscard]] QString FormatGifAndSizeText(qint64 size);
 [[nodiscard]] QString FormatPlayedText(qint64 played, qint64 duration);
 
+struct CurrencyRule {
+	const char *international = "";
+	char thousands = ',';
+	char decimal = '.';
+	bool left = true;
+	bool space = false;
+	int exponent = 2;
+	bool stripDotZero = false;
+};
+
 [[nodiscard]] QString FillAmountAndCurrency(
-	uint64 amount,
-	const QString &currency);
+	int64 amount,
+	const QString &currency,
+	bool forceStripDotZero = false);
+[[nodiscard]] CurrencyRule LookupCurrencyRule(const QString &currency);
+[[nodiscard]] QString FormatWithSeparators(
+	double amount,
+	int precision,
+	char decimal,
+	char thousands);
 
 [[nodiscard]] QString ComposeNameString(
 	const QString &filename,

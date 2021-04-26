@@ -295,7 +295,7 @@ AdminLog::OwnedItem GenerateTextItem(
 		| (out ? Flag::f_out : Flag(0));
 	const auto clientFlags = MTPDmessage_ClientFlag::f_fake_history_item;
 	const auto replyTo = 0;
-	const auto viaBotId = 0;
+	const auto viaBotId = UserId(0);
 	const auto item = history->makeMessage(
 		++id,
 		flags,
@@ -402,14 +402,12 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 , _controller(controller)
 , _text1(GenerateTextItem(
 	delegate(),
-	_controller->session().data().history(
-		peerFromUser(PeerData::kServiceNotificationsId)),
+	_controller->session().data().history(PeerData::kServiceNotificationsId),
 	tr::lng_background_text1(tr::now),
 	false))
 , _text2(GenerateTextItem(
 	delegate(),
-	_controller->session().data().history(
-		peerFromUser(PeerData::kServiceNotificationsId)),
+	_controller->session().data().history(PeerData::kServiceNotificationsId),
 	tr::lng_background_text2(tr::now),
 	true))
 , _paper(paper)

@@ -692,7 +692,7 @@ QString ApiWrap::exportDirectMessageLink(
 		if (inRepliesContext) {
 			if (const auto rootId = item->replyToTop()) {
 				const auto root = item->history()->owner().message(
-					channel->bareId(),
+					peerToChannel(channel->id),
 					rootId);
 				const auto sender = root
 					? root->discussionPostOriginalSender()
@@ -715,7 +715,7 @@ QString ApiWrap::exportDirectMessageLink(
 		}
 		const auto base = linkChannel->hasUsername()
 			? linkChannel->username
-			: "c/" + QString::number(linkChannel->bareId());
+			: "c/" + QString::number(peerToChannel(linkChannel->id).bare);
 		const auto query = base
 			+ '/'
 			+ QString::number(linkItemId)
@@ -776,7 +776,7 @@ void ApiWrap::requestContacts() {
 		for (const auto &contact : d.vcontacts().v) {
 			if (contact.type() != mtpc_contact) continue;
 
-			const auto userId = contact.c_contact().vuser_id().v;
+			const auto userId = UserId(contact.c_contact().vuser_id());
 			if (userId == _session->userId()) {
 				_session->user()->setIsContact(true);
 			}
@@ -2267,7 +2267,7 @@ void ApiWrap::updatePrivacyLastSeens(const QVector<MTPPrivacyRule> &rules) {
 		for (const auto &item : result.v) {
 			Assert(item.type() == mtpc_contactStatus);
 			auto &data = item.c_contactStatus();
-			if (auto user = _session->data().userLoaded(data.vuser_id().v)) {
+			if (auto user = _session->data().userLoaded(data.vuser_id())) {
 				auto oldOnlineTill = user->onlineTill;
 				auto newOnlineTill = OnlineTillFromStatus(data.vstatus(), oldOnlineTill);
 				if (oldOnlineTill != newOnlineTill) {
@@ -3566,7 +3566,7 @@ void ApiWrap::userPhotosDone(
 		}
 	}
 	_session->storage().add(Storage::UserPhotosAddSlice(
-		user->id,
+		peerToUser(user->id),
 		std::move(photoIds),
 		fullCount
 	));
@@ -3809,7 +3809,7 @@ void ApiWrap::sendSharedContact(
 				MTP_string(firstName),
 				MTP_string(lastName),
 				MTP_string(vcard),
-				MTP_int(userId)),
+				MTP_int(userId.bare)), // #TODO ids
 			MTPReplyMarkup(),
 			MTPVector<MTPMessageEntity>(),
 			MTP_int(views),
@@ -4613,7 +4613,7 @@ void ApiWrap::clearPeerPhoto(not_null<PhotoData*> photo) {
 			MTP_vector<MTPInputPhoto>(1, photo->mtpInput())
 		)).send();
 		_session->storage().remove(Storage::UserPhotosRemoveOne(
-			self->bareId(),
+			peerToUser(self->id),
 			photo->id));
 	}
 }
@@ -4790,11 +4790,11 @@ auto ApiWrap::parsePrivacy(const QVector<MTPPrivacyRule> &rules)
 		}, [&](const MTPDprivacyValueAllowChatParticipants &data) {
 			const auto &chats = data.vchats().v;
 			always.reserve(always.size() + chats.size());
-			for (const auto chatId : chats) {
-				const auto chat = _session->data().chatLoaded(chatId.v);
+			for (const auto &chatId : chats) {
+				const auto chat = _session->data().chatLoaded(chatId);
 				const auto peer = chat
 					? static_cast<PeerData*>(chat)
-					: _session->data().channelLoaded(chatId.v);
+					: _session->data().channelLoaded(chatId);
 				if (peer
 					&& !base::contains(never, peer)
 					&& !base::contains(always, peer)) {
@@ -4818,11 +4818,11 @@ auto ApiWrap::parsePrivacy(const QVector<MTPPrivacyRule> &rules)
 		}, [&](const MTPDprivacyValueDisallowChatParticipants &data) {
 			const auto &chats = data.vchats().v;
 			never.reserve(never.size() + chats.size());
-			for (const auto chatId : chats) {
-				const auto chat = _session->data().chatLoaded(chatId.v);
+			for (const auto &chatId : chats) {
+				const auto chat = _session->data().chatLoaded(chatId);
 				const auto peer = chat
 					? static_cast<PeerData*>(chat)
-					: _session->data().channelLoaded(chatId.v);
+					: _session->data().channelLoaded(chatId);
 				if (peer
 					&& !base::contains(always, peer)
 					&& !base::contains(never, peer)) {

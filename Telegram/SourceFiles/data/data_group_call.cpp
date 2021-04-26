@@ -38,12 +38,14 @@ constexpr auto kWaitForUpdatesTimeout = 3 * crl::time(1000);
 GroupCall::GroupCall(
 	not_null<PeerData*> peer,
 	uint64 id,
-	uint64 accessHash)
+	uint64 accessHash,
+	TimeId scheduleDate)
 : _id(id)
 , _accessHash(accessHash)
 , _peer(peer)
 , _reloadByQueuedUpdatesTimer([=] { reload(); })
-, _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); }) {
+, _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); })
+, _scheduleDate(scheduleDate) {
 }
 
 GroupCall::~GroupCall() {
@@ -270,7 +272,9 @@ void GroupCall::discard(const MTPDgroupCallDiscarded &data) {
 	Core::App().calls().applyGroupCallUpdateChecked(
 		&peer->session(),
 		MTP_updateGroupCall(
-			MTP_int(peer->bareId()),
+			MTP_int(peer->isChat()
+				? peerToChat(peer->id).bare
+				: peerToChannel(peer->id).bare),
 			MTP_groupCallDiscarded(
 				data.vid(),
 				data.vaccess_hash(),
@@ -329,6 +333,8 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 	changePeerEmptyCallFlag();
 	_title = qs(data.vtitle().value_or_empty());
 	_recordStartDate = data.vrecord_start_date().value_or_empty();
+	_scheduleDate = data.vschedule_date().value_or_empty();
+	_scheduleStartSubscribed = data.is_schedule_start_subscribed();
 	_allParticipantsLoaded
 		= (_serverParticipantsCount == _participants.size());
 }
@@ -738,12 +744,12 @@ void GroupCall::requestUnknownParticipants() {
 	for (const auto &[participantPeerId, when] : participantPeerIds) {
 		if (const auto userId = peerToUser(participantPeerId)) {
 			peerInputs.push_back(
-				MTP_inputPeerUser(MTP_int(userId), MTP_long(0)));
+				MTP_inputPeerUser(MTP_int(userId.bare), MTP_long(0))); // #TODO ids
 		} else if (const auto chatId = peerToChat(participantPeerId)) {
-			peerInputs.push_back(MTP_inputPeerChat(MTP_int(chatId)));
+			peerInputs.push_back(MTP_inputPeerChat(MTP_int(chatId.bare))); // #TODO ids
 		} else if (const auto channelId = peerToChannel(participantPeerId)) {
 			peerInputs.push_back(
-				MTP_inputPeerChannel(MTP_int(channelId), MTP_long(0)));
+				MTP_inputPeerChannel(MTP_int(channelId.bare), MTP_long(0))); // #TODO ids
 		}
 	}
 	_unknownParticipantPeersRequestId = api().request(

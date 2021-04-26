@@ -39,10 +39,8 @@ public:
 
 	ChatData(not_null<Data::Session*> owner, PeerId id);
 
-	void setPhoto(const MTPChatPhoto &photo);
-	void setPhoto(PhotoId photoId, const MTPChatPhoto &photo);
-
 	void setName(const QString &newName);
+	void setPhoto(const MTPChatPhoto &photo);
 
 	void invalidateParticipants();
 	[[nodiscard]] bool noParticipantInfo() const {
@@ -168,7 +166,9 @@ public:
 	[[nodiscard]] Data::GroupCall *groupCall() const {
 		return _call.get();
 	}
-	void setGroupCall(const MTPInputGroupCall &call);
+	void setGroupCall(
+		const MTPInputGroupCall &call,
+		TimeId scheduleDate = 0);
 	void clearGroupCall();
 	void setGroupCallDefaultJoinAs(PeerId peerId);
 	[[nodiscard]] PeerId groupCallDefaultJoinAs() const;
