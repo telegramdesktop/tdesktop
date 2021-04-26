@@ -153,7 +153,7 @@ void BotKeyboard::leaveEventHook(QEvent *e) {
 bool BotKeyboard::moderateKeyActivate(int key) {
 	if (const auto item = _session->data().message(_wasForMsgId)) {
 		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-			if (key >= Qt::Key_1 && key <= Qt::Key_2) {
+			if (key >= Qt::Key_1 && key <= Qt::Key_9) {
 				const auto index = int(key - Qt::Key_1);
 				if (!markup->rows.empty()
 					&& index >= 0
@@ -163,14 +163,20 @@ bool BotKeyboard::moderateKeyActivate(int key) {
 				}
 			} else if (const auto user = item->history()->peer->asUser()) {
 				if (user->isBot() && item->from() == user) {
-					if (key == Qt::Key_Q) {
+					if (key == Qt::Key_Q || key == Qt::Key_6) {
 						App::sendBotCommand(user, user, qsl("/translate"));
-					} else if (key == Qt::Key_W) {
+					} else if (key == Qt::Key_W || key == Qt::Key_5) {
 						App::sendBotCommand(user, user, qsl("/eng"));
 					} else if (key == Qt::Key_3) {
 						App::sendBotCommand(user, user, qsl("/pattern"));
 					} else if (key == Qt::Key_4) {
 						App::sendBotCommand(user, user, qsl("/abuse"));
+					} else if (key == Qt::Key_0 || key == Qt::Key_E) {
+						App::sendBotCommand(user, user, qsl("/undo"));
+					} else if (key == Qt::Key_Plus || key == Qt::Key_QuoteLeft) {
+						App::sendBotCommand(user, user, qsl("/next"));
+					} else if (key == Qt::Key_Period || key == Qt::Key_S) {
+						App::sendBotCommand(user, user, qsl("/stats"));
 					}
 					return true;
 				}
