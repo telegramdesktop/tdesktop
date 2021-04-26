@@ -2211,10 +2211,9 @@ void OverlayWidget::showDocument(
 
 	_streamingStartPaused = false;
 	displayDocument(document, context, cloud, continueStreaming);
-	preloadData(0);
-	activateControls();
-	if (_showAsPip && !videoIsGifOrUserpic()) {
-		switchToPip();
+	if (!isHidden()) {
+		preloadData(0);
+		activateControls();
 	}
 }
 
@@ -2412,7 +2411,11 @@ void OverlayWidget::displayDocument(
 	contentSizeChanged();
 	refreshFromLabel(item);
 	_blurred = false;
-	displayFinished();
+	if (_showAsPip && _streamed && !videoIsGifOrUserpic()) {
+		switchToPip();
+	} else {
+		displayFinished();
+	}
 }
 
 void OverlayWidget::updateThemePreviewGeometry() {
