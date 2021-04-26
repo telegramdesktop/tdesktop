@@ -1,3 +1,12 @@
+2.7.2 (26.04.21)
+
+- Offer real goods and services for sale in any group, channel or bot – Telegram doesn't charge a commission.
+- Pay for goods securely using one of the 8 integrated payment providers – Telegram doesn't collect your payment info.
+- See how this works in our @TestStore.
+- Schedule voice chats to let participants know about them in advance.
+- View a countdown to the voice chat and get notified when it starts.
+- Try two new, fully-featured versions of Telegram Web – both supporting animated stickers, dark mode, chat folders and more: https://webk.telegram.org/ and https://webz.telegram.org/.
+
 2.7.1 (20.03.21)
 
 - Fix editing 'Manage Voice Chats' rights for channel admins.
