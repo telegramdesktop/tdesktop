@@ -46,3 +46,6 @@
 42. Pin to top (Windows only)
 43. Pin older message with notify
 44. Remove all proxies
+45. Hide "All chats" folder option
+46. Hide 1 to 1 call panel window when press X(close window)
+47. Allow pin older message with notify
