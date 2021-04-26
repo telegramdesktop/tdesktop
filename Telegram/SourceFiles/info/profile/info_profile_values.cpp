@@ -70,12 +70,12 @@ void StripExternalLinks(TextWithEntities &text) {
 
 rpl::producer<TextWithEntities> IDValue(not_null<PeerData*> peer, int type) {
 	if (type == 0) {
-		return rpl::single(QString("-%1").arg(peer->bareId())) | Ui::Text::ToWithEntities();
+		return rpl::single(QString("-%1").arg(peer->id.value)) | Ui::Text::ToWithEntities();
 	} else if (type == 1) {
-		return rpl::single(QString("-100%1").arg(peer->bareId())) | Ui::Text::ToWithEntities();
+		return rpl::single(QString("-100%1").arg(peer->id.value)) | Ui::Text::ToWithEntities();
 	}
 	else {
-		return rpl::single(QString("%1").arg(peer->bareId())) | Ui::Text::ToWithEntities();
+		return rpl::single(QString("%1").arg(peer->id.value)) | Ui::Text::ToWithEntities();
 	}
 }
 

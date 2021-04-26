@@ -180,7 +180,8 @@ void EditLinkBox::prepare() {
 			if (uid > 0) {
 				const auto user = session->data().userLoaded(uid);
 				if (user != nullptr) {
-					linkUrl = "mention://user." + TextUtilities::MentionNameDataFromFields({uid, user->accessHash()});
+					const auto userId = UserId(uid);
+					linkUrl = "mention://user." + TextUtilities::MentionNameDataFromFields({userId.bare, user->accessHash()});
 				} else {
 					url->showError();
 					return;
@@ -200,7 +201,8 @@ void EditLinkBox::prepare() {
 			if (uid > 0) {
 				const auto user = session->data().userLoaded(uid);
 				if (user != nullptr) {
-					linkUrl = "mention://user." + TextUtilities::MentionNameDataFromFields({uid, user->accessHash()});
+					const auto userId = UserId(uid);
+					linkUrl = "mention://user." + TextUtilities::MentionNameDataFromFields({userId.bare, user->accessHash()});
 				} else {
 					url->showError();
 					return;
