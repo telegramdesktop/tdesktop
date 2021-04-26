@@ -392,7 +392,7 @@ void AlbumPreview::mousePressEvent(QMouseEvent *e) {
 	cancelDrag();
 	if (const auto thumb = findThumb(position)) {
 		if (thumb->buttonsContainPoint(e->pos())) {
-			thumbButtonsCallback(thumb, thumb->buttonTypeFromPoint(e->pos()));
+			_pressedButtonType = thumb->buttonTypeFromPoint(e->pos());
 			return;
 		}
 		_paintedAbove = _suggestedThumb = _draggedThumb = thumb;
@@ -492,7 +492,16 @@ void AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 		_draggedThumb = nullptr;
 		_suggestedThumb = nullptr;
 		update();
+	} else if (const auto thumb = findThumb(e->pos())) {
+		if (thumb->buttonsContainPoint(e->pos())) {
+			const auto was = _pressedButtonType;
+			const auto now = thumb->buttonTypeFromPoint(e->pos());
+			if (was == now) {
+				thumbButtonsCallback(thumb, now);
+			}
+		}
 	}
+	_pressedButtonType = AttachButtonType::None;
 }
 
 rpl::producer<int> AlbumPreview::thumbModified() const {

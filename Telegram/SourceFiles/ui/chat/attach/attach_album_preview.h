@@ -89,6 +89,8 @@ private:
 	AlbumThumbnail *_paintedAbove = nullptr;
 	QPoint _draggedStartPosition;
 
+	AttachButtonType _pressedButtonType = AttachButtonType::None;
+
 	rpl::event_stream<int> _thumbDeleted;
 	rpl::event_stream<int> _thumbChanged;
 	rpl::event_stream<int> _thumbModified;
