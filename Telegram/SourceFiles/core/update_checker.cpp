@@ -45,6 +45,10 @@ extern "C" {
 #include <lzma.h>
 #endif // else of Q_OS_WIN && !DESKTOP_APP_USE_PACKAGED
 
+#ifdef Q_OS_UNIX
+#include <unistd.h>
+#endif // Q_OS_UNIX
+
 namespace Core {
 namespace {
 
@@ -1553,9 +1557,25 @@ bool checkReadyUpdate() {
 		return false;
 	}
 #elif defined Q_OS_UNIX // Q_OS_MAC
+	// if the files in the directory are owned by user, while the directory is not,
+	// update will still fail since it's not possible to remove files
+	if (unlink(QFile::encodeName(curUpdater).constData())) {
+		if (errno == EACCES) {
+			cSetWriteProtected(true);
+			return true;
+		} else {
+			ClearAll();
+			return false;
+		}
+	}
 	if (!linuxMoveFile(QFile::encodeName(updater.absoluteFilePath()).constData(), QFile::encodeName(curUpdater).constData())) {
-		ClearAll();
-		return false;
+		if (errno == EACCES) {
+			cSetWriteProtected(true);
+			return true;
+		} else {
+			ClearAll();
+			return false;
+		}
 	}
 #endif // Q_OS_UNIX
 
