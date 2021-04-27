@@ -211,7 +211,9 @@ public:
 		return _streamsVideoUpdated.events();
 	}
 	[[nodiscard]] bool streamsVideo(uint32 ssrc) const {
-		return _videoStreamSsrcs.contains(ssrc);
+		return ssrc
+			&& _videoStreamSsrcs.contains(ssrc)
+			&& !_videoMuted.contains(ssrc);
 	}
 	[[nodiscard]] uint32 videoStreamPinned() const {
 		return _videoStreamPinned;
@@ -290,6 +292,7 @@ private:
 	enum class SendUpdateType {
 		Mute,
 		RaiseHand,
+		VideoMuted,
 	};
 
 	void handlePossibleCreateOrJoinResponse(const MTPDgroupCall &data);
@@ -335,6 +338,7 @@ private:
 	void addPreparedParticipants();
 	void addPreparedParticipantsDelayed();
 	void setVideoStreams(const std::vector<std::uint32_t> &ssrcs);
+	[[nodiscard]] uint32 chooseLargeVideoSsrc() const;
 
 	void editParticipant(
 		not_null<PeerData*> participantPeer,
@@ -398,6 +402,7 @@ private:
 	rpl::event_stream<LevelUpdate> _levelUpdates;
 	rpl::event_stream<StreamsVideoUpdate> _streamsVideoUpdated;
 	base::flat_set<uint32> _videoStreamSsrcs;
+	base::flat_set<uint32> _videoMuted;
 	rpl::variable<uint32> _videoStreamLarge = 0;
 	uint32 _videoStreamPinned = 0;
 	std::unique_ptr<LargeTrack> _videoLargeTrackWrap;

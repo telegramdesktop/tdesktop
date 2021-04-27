@@ -407,13 +407,17 @@ bool GroupCall::isScreenSharing() const {
 
 void GroupCall::toggleVideo(bool active) {
 	if (!active) {
-		_videoOutgoing->setState(Webrtc::VideoState::Inactive);
+		if (_videoOutgoing->state() != Webrtc::VideoState::Inactive) {
+			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
+			sendSelfUpdate(SendUpdateType::VideoMuted);
+		}
 		return;
 	}
 	const auto changing = isScreenSharing();
 	_videoDeviceId = _videoInputId;
 	if (_videoOutgoing->state() != Webrtc::VideoState::Active) {
 		_videoOutgoing->setState(Webrtc::VideoState::Active);
+		sendSelfUpdate(SendUpdateType::VideoMuted);
 	}
 	if (!_videoCapture) {
 		return;
@@ -430,6 +434,7 @@ void GroupCall::switchToScreenSharing(const QString &uniqueId) {
 	_videoDeviceId = uniqueId;
 	if (_videoOutgoing->state() != Webrtc::VideoState::Active) {
 		_videoOutgoing->setState(Webrtc::VideoState::Active);
+		sendSelfUpdate(SendUpdateType::VideoMuted);
 	}
 	_videoCapture->switchToDevice(_videoDeviceId.toStdString());
 }
@@ -451,6 +456,43 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 	using Update = Data::GroupCall::ParticipantUpdate;
 	real->participantUpdated(
 	) | rpl::start_with_next([=](const Update &data) {
+		auto newLarge = _videoStreamLarge.current();
+		auto updateAsNotStreams = uint32(0);
+		const auto guard = gsl::finally([&] {
+			if (!newLarge) {
+				newLarge = chooseLargeVideoSsrc();
+			}
+			if (_videoStreamLarge.current() != newLarge) {
+				_videoStreamLarge = newLarge;
+			}
+			if (updateAsNotStreams) {
+				_streamsVideoUpdated.fire({ updateAsNotStreams, false });
+			}
+		});
+
+		const auto wasVideoMutedSsrc = (data.was && data.was->videoMuted)
+			? data.was->ssrc
+			: 0;
+		const auto nowVideoMutedSsrc = (data.now && data.now->videoMuted)
+			? data.now->ssrc
+			: 0;
+		if (wasVideoMutedSsrc != nowVideoMutedSsrc) {
+			if (wasVideoMutedSsrc
+				&& _videoMuted.remove(wasVideoMutedSsrc)
+				&& _videoStreamSsrcs.contains(wasVideoMutedSsrc)
+				&& data.now
+				&& data.now->ssrc == wasVideoMutedSsrc) {
+				_streamsVideoUpdated.fire({ wasVideoMutedSsrc, true });
+			}
+			if (nowVideoMutedSsrc
+				&& _videoMuted.emplace(nowVideoMutedSsrc).second
+				&& _videoStreamSsrcs.contains(nowVideoMutedSsrc)) {
+				updateAsNotStreams = nowVideoMutedSsrc;
+				if (newLarge == nowVideoMutedSsrc) {
+					newLarge = 0;
+				}
+			}
+		}
 		const auto nowSpeaking = data.now && data.now->speaking;
 		const auto nowSounding = data.now && data.now->sounding;
 		const auto wasSpeaking = data.was && data.was->speaking;
@@ -460,15 +502,13 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 		} else if (_videoStreamPinned) {
 			return;
 		}
-		const auto videoLargeSsrc = _videoStreamLarge.current();
 		const auto &participants = real->participants();
 		if ((wasSpeaking || wasSounding)
-			&& (data.was->ssrc == videoLargeSsrc)) {
+			&& (data.was->ssrc == newLarge)) {
 			auto bestWithVideoSsrc = uint32(0);
 			for (const auto &participant : participants) {
 				if (!participant.sounding
-					|| !participant.ssrc
-					|| !_videoStreamSsrcs.contains(participant.ssrc)) {
+					|| !streamsVideo(participant.ssrc)) {
 					continue;
 				}
 				if (participant.speaking) {
@@ -479,19 +519,19 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 				}
 			}
 			if (bestWithVideoSsrc) {
-				_videoStreamLarge = bestWithVideoSsrc;
+				newLarge = bestWithVideoSsrc;
 			}
 		} else if ((nowSpeaking || nowSounding)
-			&& (data.now->ssrc != videoLargeSsrc)
-			&& _videoStreamSsrcs.contains(data.now->ssrc)) {
+			&& (data.now->ssrc != newLarge)
+			&& streamsVideo(data.now->ssrc)) {
 			const auto i = ranges::find(
 				participants,
-				videoLargeSsrc,
+				newLarge,
 				&Data::GroupCallParticipant::ssrc);
 			const auto speaking = (i != end(participants)) && i->speaking;
 			const auto sounding = (i != end(participants)) && i->sounding;
 			if ((nowSpeaking && !speaking) || (nowSounding && !sounding)) {
-				_videoStreamLarge = data.now->ssrc;
+				newLarge = data.now->ssrc;
 			}
 		}
 	}, _lifetime);
@@ -840,6 +880,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				_peer->session().api().applyUpdates(updates);
 				applyQueuedSelfUpdates();
 				checkFirstTimeJoined();
+				sendSelfUpdate(SendUpdateType::VideoMuted);
 			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
 				LOG(("Call Error: Could not join, error: %1").arg(type));
@@ -895,6 +936,8 @@ void GroupCall::applyMeInCallLocally() {
 		: Group::kDefaultVolume;
 	const auto canSelfUnmute = (muted() != MuteState::ForceMuted)
 		&& (muted() != MuteState::RaisedHand);
+	const auto videoMuted = (_videoOutgoing->state()
+		!= Webrtc::VideoState::Active);
 	const auto raisedHandRating = (muted() != MuteState::RaisedHand)
 		? uint64(0)
 		: (i != end(participants))
@@ -907,6 +950,7 @@ void GroupCall::applyMeInCallLocally() {
 		| Flag::f_volume // Without flag the volume is reset to 100%.
 		| Flag::f_volume_by_admin // Self volume can only be set by admin.
 		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0))
+		| (videoMuted ? Flag::f_video_muted : Flag(0))
 		| (raisedHandRating > 0 ? Flag::f_raise_hand_rating : Flag(0));
 	call->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
@@ -951,6 +995,7 @@ void GroupCall::applyParticipantLocally(
 		| (isMuted ? Flag::f_muted : Flag(0))
 		| (isMutedByYou ? Flag::f_muted_by_you : Flag(0))
 		| (participantPeer == _joinAs ? Flag::f_self : Flag(0))
+		| (participant->videoMuted ? Flag::f_video_muted : Flag(0))
 		| (participant->raisedHandRating
 			? Flag::f_raise_hand_rating
 			: Flag(0));
@@ -1725,63 +1770,70 @@ void GroupCall::requestParticipantsInformation(
 }
 
 void GroupCall::setVideoStreams(const std::vector<std::uint32_t> &ssrcs) {
-	const auto real = lookupReal();
 	const auto large = _videoStreamLarge.current();
 	auto newLarge = large;
 	if (large && !ranges::contains(ssrcs, large)) {
 		newLarge = 0;
 		_videoStreamPinned = 0;
 	}
-	auto lastSpokeVoiceSsrc = uint32(0);
-	auto lastSpokeAnythingSsrc = uint32(0);
 	auto removed = _videoStreamSsrcs;
 	for (const auto ssrc : ssrcs) {
 		const auto i = removed.find(ssrc);
+		const auto videoMuted = _videoMuted.contains(ssrc);
 		if (i != end(removed)) {
 			removed.erase(i);
 		} else {
 			_videoStreamSsrcs.emplace(ssrc);
-			_streamsVideoUpdated.fire({ ssrc, true });
-		}
-		if (!newLarge && real) {
-			const auto &participants = real->participants();
-			const auto i = ranges::find(
-				participants,
-				ssrc,
-				&Data::GroupCallParticipant::ssrc);
-			if (i != end(participants)) {
-				if (!lastSpokeVoiceSsrc && i->speaking) {
-					lastSpokeVoiceSsrc = ssrc;
-				}
-				if (!lastSpokeAnythingSsrc && i->sounding) {
-					lastSpokeAnythingSsrc = ssrc;
-				}
+			if (!videoMuted) {
+				_streamsVideoUpdated.fire({ ssrc, true });
 			}
 		}
 	}
-	if (!newLarge && real) {
-		const auto find = [&] {
-			const auto &participants = real->participants();
-			for (const auto ssrc : ssrcs) {
-				const auto i = ranges::find(
-					participants,
-					ssrc,
-					&Data::GroupCallParticipant::ssrc);
-				if (i != end(participants)) {
-					return ssrc;
-				}
-			}
-			return std::uint32_t(0);
-		};
-		_videoStreamLarge = lastSpokeVoiceSsrc
-			? lastSpokeVoiceSsrc
-			: lastSpokeAnythingSsrc
-			? lastSpokeAnythingSsrc
-			: find();
+	if (!newLarge) {
+		_videoStreamLarge = chooseLargeVideoSsrc();
 	}
 	for (const auto ssrc : removed) {
-		_streamsVideoUpdated.fire({ ssrc, false });
+		if (!_videoMuted.contains(ssrc)) {
+			_streamsVideoUpdated.fire({ ssrc, false });
+		}
 	}
+}
+
+uint32 GroupCall::chooseLargeVideoSsrc() const {
+	const auto real = lookupReal();
+	if (!real) {
+		return 0;
+	}
+	auto anySsrc = uint32(0);
+	auto lastSpokeVoiceSsrc = uint32(0);
+	auto lastSpokeAnythingSsrc = uint32(0);
+	const auto &participants = real->participants();
+	for (const auto ssrc : _videoStreamSsrcs) {
+		if (_videoMuted.contains(ssrc)) {
+			continue;
+		}
+		const auto &participants = real->participants();
+		const auto i = ranges::find(
+			participants,
+			ssrc,
+			&Data::GroupCallParticipant::ssrc);
+		if (i != end(participants)) {
+			if (!lastSpokeVoiceSsrc && i->speaking) {
+				lastSpokeVoiceSsrc = ssrc;
+			}
+			if (!lastSpokeAnythingSsrc && i->sounding) {
+				lastSpokeAnythingSsrc = ssrc;
+			}
+			if (!anySsrc) {
+				anySsrc = ssrc;
+			}
+		}
+	}
+	return lastSpokeVoiceSsrc
+		? lastSpokeVoiceSsrc
+		: lastSpokeAnythingSsrc
+		? lastSpokeAnythingSsrc
+		: anySsrc;
 }
 
 void GroupCall::updateInstanceMuteState() {
@@ -2006,13 +2058,15 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 	_updateMuteRequestId = _api.request(MTPphone_EditGroupCallParticipant(
 		MTP_flags((type == SendUpdateType::RaiseHand)
 			? Flag::f_raise_hand
+			: (type == SendUpdateType::VideoMuted)
+			? Flag::f_video_muted
 			: Flag::f_muted),
 		inputCall(),
 		_joinAs->input,
 		MTP_bool(muted() != MuteState::Active),
 		MTP_int(100000), // volume
 		MTP_bool(muted() == MuteState::RaisedHand),
-		MTPBool() // video_muted
+		MTP_bool(_videoOutgoing->state() == Webrtc::VideoState::Active)
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
 		_peer->session().api().applyUpdates(result);
@@ -2027,7 +2081,7 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 }
 
 void GroupCall::pinVideoStream(uint32 ssrc) {
-	if (!ssrc || _videoStreamSsrcs.contains(ssrc)) {
+	if (!ssrc || streamsVideo(ssrc)) {
 		_videoStreamPinned = ssrc;
 		if (ssrc) {
 			_videoStreamLarge = ssrc;

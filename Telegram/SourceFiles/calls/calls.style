@@ -827,6 +827,7 @@ groupCallVideoActiveSmall: CallButton(groupCallVideoSmall) {
 groupCallScreenShareSmall: CallButton(groupCallShareSmall) {
 	button: IconButton(groupCallSettingsInner) {
 		icon: icon {{ "calls/calls_present", groupCallIconFg }};
+		height: 76px;
 	}
 }
 groupCallButtonSkip: 43px;

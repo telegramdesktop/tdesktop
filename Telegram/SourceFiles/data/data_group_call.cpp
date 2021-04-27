@@ -568,6 +568,7 @@ void GroupCall::applyParticipantsSlice(
 				.muted = data.is_muted(),
 				.mutedByMe = mutedByMe,
 				.canSelfUnmute = canSelfUnmute,
+				.videoMuted = data.is_video_muted(),
 				.onlyMinLoaded = onlyMinLoaded,
 			};
 			if (i == end(_participants)) {

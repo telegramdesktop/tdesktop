@@ -38,6 +38,7 @@ struct GroupCallParticipant {
 	bool muted = false;
 	bool mutedByMe = false;
 	bool canSelfUnmute = false;
+	bool videoMuted = true;
 	bool onlyMinLoaded = false;
 };
 
