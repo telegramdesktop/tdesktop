@@ -15,6 +15,7 @@ namespace Notifications {
 [[nodiscard]] bool SkipAudio();
 [[nodiscard]] bool SkipToast();
 [[nodiscard]] bool SkipFlashBounce();
+[[nodiscard]] bool HideDetails();
 
 [[nodiscard]] bool Supported();
 [[nodiscard]] bool Enforced();

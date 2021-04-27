@@ -578,7 +578,7 @@ void System::updateAll() {
 
 Manager::DisplayOptions Manager::GetNotificationOptions(HistoryItem *item) {
 	const auto hideEverything = Core::App().passcodeLocked()
-		|| Global::ScreenIsLocked();
+		|| Platform::Notifications::HideDetails();
 
 	const auto view = Core::App().settings().notifyView();
 	DisplayOptions result;

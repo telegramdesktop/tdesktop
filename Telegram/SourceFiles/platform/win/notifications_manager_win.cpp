@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
+#include "facades.h" // Global::ScreenIsLocked.
 #include "windows_quiethours_h.h"
 
 #include <Shobjidl.h>
@@ -798,13 +799,9 @@ bool SkipAudio() {
 	if (UserNotificationState == QUNS_NOT_PRESENT
 		|| UserNotificationState == QUNS_PRESENTATION_MODE
 		|| QuietHoursEnabled
-		|| FocusAssistBlocks) {
+		|| FocusAssistBlocks
+		|| Global::ScreenIsLocked()) {
 		return true;
-	}
-	if (const auto filter = EventFilter::GetInstance()) {
-		if (filter->sessionLoggedOff()) {
-			return true;
-		}
 	}
 	return false;
 }
@@ -824,6 +821,10 @@ bool SkipToast() {
 
 bool SkipFlashBounce() {
 	return SkipToast();
+}
+
+bool HideDetails() {
+	return false;
 }
 
 } // namespace Notifications

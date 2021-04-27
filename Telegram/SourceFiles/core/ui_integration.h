@@ -41,6 +41,7 @@ public:
 	void textActionsUpdated() override;
 	void activationFromTopPanel() override;
 
+	bool screenIsLocked() override;
 	QString timeFormat() override;
 
 	std::shared_ptr<ClickHandler> createLinkHandler(
