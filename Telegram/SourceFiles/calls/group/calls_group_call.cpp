@@ -405,15 +405,24 @@ bool GroupCall::isScreenSharing() const {
 	return (_videoDeviceId != _videoInputId);
 }
 
-void GroupCall::switchToCamera() {
-	if (!_videoCapture || !isScreenSharing()) {
+void GroupCall::toggleVideo(bool active) {
+	if (!active) {
+		if (!isScreenSharing()) {
+			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
+		}
 		return;
 	}
+	const auto changing = isScreenSharing();
 	_videoDeviceId = _videoInputId;
 	if (_videoOutgoing->state() != Webrtc::VideoState::Active) {
 		_videoOutgoing->setState(Webrtc::VideoState::Active);
 	}
-	_videoCapture->switchToDevice(_videoDeviceId.toStdString());
+	if (!_videoCapture) {
+		return;
+	}
+	if (changing) {
+		_videoCapture->switchToDevice(_videoDeviceId.toStdString());
+	}
 }
 
 void GroupCall::switchToScreenSharing(const QString &uniqueId) {

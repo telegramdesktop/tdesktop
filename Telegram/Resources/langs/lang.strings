@@ -1998,6 +1998,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_raised_hand_status" = "wants to speak";
 "lng_group_call_settings" = "Settings";
 "lng_group_call_share_button" = "Share";
+"lng_group_call_video" = "Video";
 "lng_group_call_screen_share" = "Share";
 "lng_group_call_unmute_small" = "Unmute";
 "lng_group_call_you_are_live_small" = "Mute";

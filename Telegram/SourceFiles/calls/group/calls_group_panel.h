@@ -147,12 +147,12 @@ private:
 	rpl::variable<bool> _videoMode;
 
 	object_ptr<Ui::CallButton> _settings = { nullptr };
-	object_ptr<Ui::CallButton> _share = { nullptr };
+	object_ptr<Ui::CallButton> _callShare = { nullptr };
 	object_ptr<Ui::CallButton> _video = { nullptr };
-	object_ptr<Ui::CallButton> _shareScreen = { nullptr };
+	object_ptr<Ui::CallButton> _screenShare = { nullptr };
 	std::unique_ptr<Ui::CallMuteButton> _mute;
 	object_ptr<Ui::CallButton> _hangup;
-	Fn<void()> _shareLinkCallback;
+	Fn<void()> _callShareLinkCallback;
 
 	rpl::lifetime _peerLifetime;
 

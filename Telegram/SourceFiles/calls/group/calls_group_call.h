@@ -244,7 +244,7 @@ public:
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
 	void setCurrentVideoDevice(const QString &deviceId);
 	bool isScreenSharing() const;
-	void switchToCamera();
+	void toggleVideo(bool active);
 	void switchToScreenSharing(const QString &uniqueId);
 
 	void toggleMute(const Group::MuteRequest &data);

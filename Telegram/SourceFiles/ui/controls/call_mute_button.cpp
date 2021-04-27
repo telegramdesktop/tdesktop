@@ -175,11 +175,9 @@ public:
 		int additionalHeight,
 		const style::FlatLabel &st = st::defaultFlatLabel);
 
-	int height() const;
+	int contentHeight() const;
 
 private:
-	int realHeight() const;
-
 	void setText(const QString &text);
 
 	const style::FlatLabel &_st;
@@ -220,9 +218,9 @@ AnimatedLabel::AnimatedLabel(
 		p.setPen(_st.textFg);
 		p.setTextPalette(_st.palette);
 
-		const auto textHeight = height();
-		const auto diffHeight = realHeight() - textHeight;
-		const auto center = (diffHeight) / 2;
+		const auto textHeight = contentHeight();
+		const auto diffHeight = height() - textHeight;
+		const auto center = diffHeight / 2;
 
 		p.setOpacity(1. - progress);
 		if (p.opacity()) {
@@ -246,12 +244,8 @@ AnimatedLabel::AnimatedLabel(
 	}, lifetime());
 }
 
-int AnimatedLabel::height() const {
+int AnimatedLabel::contentHeight() const {
 	return _st.style.font->height;
-}
-
-int AnimatedLabel::realHeight() const {
-	return RpWidget::height();
 }
 
 void AnimatedLabel::setText(const QString &text) {
@@ -264,7 +258,9 @@ void AnimatedLabel::setText(const QString &text) {
 	const auto width = std::max(
 		_st.style.font->width(_text.toString()),
 		_st.style.font->width(_previousText.toString()));
-	resize(width + _additionalHeight, height() + _additionalHeight * 2);
+	resize(
+		width + _additionalHeight,
+		contentHeight() + _additionalHeight * 2);
 
 	_animation.stop();
 	_animation.start([=] { update(); }, 0., 1., _duration);
@@ -933,25 +929,31 @@ void CallMuteButton::updateLabelsGeometry() {
 
 void CallMuteButton::updateLabelGeometry(QRect my, QSize size) {
 	const auto skip = _st->sublabelSkip + _st->labelsSkip;
+	const auto contentHeight = _label->contentHeight();
+	const auto contentTop = my.y() + my.height() - contentHeight - skip;
 	_label->moveToLeft(
 		my.x() + (my.width() - size.width()) / 2 + _labelShakeShift,
-		my.y() + my.height() - size.height() - skip,
+		contentTop - (size.height() - contentHeight) / 2,
 		my.width());
 }
 
 void CallMuteButton::updateCenterLabelGeometry(QRect my, QSize size) {
 	const auto skip = (_st->sublabelSkip / 2) + _st->labelsSkip;
+	const auto contentHeight = _centerLabel->contentHeight();
+	const auto contentTop = my.y() + my.height() - contentHeight - skip;
 	_centerLabel->moveToLeft(
 		my.x() + (my.width() - size.width()) / 2 + _labelShakeShift,
-		my.y() + my.height() - size.height() - skip,
+		contentTop - (size.height() - contentHeight) / 2,
 		my.width());
 }
 
 void CallMuteButton::updateSublabelGeometry(QRect my, QSize size) {
 	const auto skip = _st->labelsSkip;
+	const auto contentHeight = _sublabel->contentHeight();
+	const auto contentTop = my.y() + my.height() - contentHeight - skip;
 	_sublabel->moveToLeft(
 		my.x() + (my.width() - size.width()) / 2 + _labelShakeShift,
-		my.y() + my.height() - size.height() - skip,
+		contentTop - (size.height() - contentHeight) / 2,
 		my.width());
 }
 
