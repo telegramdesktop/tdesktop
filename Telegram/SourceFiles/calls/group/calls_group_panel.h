@@ -90,10 +90,12 @@ private:
 
 	bool handleClose();
 	void startScheduledNow();
+	void raiseControls();
 
 	bool updateMode();
 	void updateControlsGeometry();
 	void updateMembersGeometry();
+	void refreshControlsBackground();
 	void showControls();
 	void refreshLeftButton();
 
@@ -146,6 +148,7 @@ private:
 	ChooseJoinAsProcess _joinAsProcess;
 	rpl::variable<bool> _videoMode;
 
+	object_ptr<Ui::RpWidget> _controlsBackground = { nullptr };
 	object_ptr<Ui::CallButton> _settings = { nullptr };
 	object_ptr<Ui::CallButton> _callShare = { nullptr };
 	object_ptr<Ui::CallButton> _video = { nullptr };

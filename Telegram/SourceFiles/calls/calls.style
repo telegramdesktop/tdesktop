@@ -678,6 +678,7 @@ groupCallShareBoxList: PeerList(groupCallMembersList) {
 groupCallMembersTop: 51px;
 groupCallTitleTop: 8px;
 groupCallSubtitleTop: 26px;
+groupCallWideVideoTop: 24px;
 
 groupCallMembersMargin: margins(16px, 16px, 16px, 28px);
 groupCallAddMember: SettingsButton(defaultSettingsButton) {
@@ -832,6 +833,10 @@ groupCallButtonSkip: 43px;
 groupCallButtonSkipSmall: 4px;
 groupCallButtonBottomSkip: 145px;
 groupCallButtonBottomSkipSmall: 95px;
+groupCallButtonBottomSkipWide: 89px;
+groupCallMembersBottomSkipSmall: 72px;
+groupCallControlsBackMargin: margins(2px, 2px, 2px, 2px);
+groupCallControlsBackRadius: 12px;
 groupCallMuteBottomSkip: 160px;
 
 groupCallTopBarUserpics: GroupCallUserpics {

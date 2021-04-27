@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toasts/common_toasts.h"
+#include "ui/round_rect.h"
 #include "ui/special_buttons.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::Value.
 #include "core/application.h"
@@ -63,6 +64,7 @@ constexpr auto kSpacePushToTalkDelay = crl::time(250);
 constexpr auto kRecordingAnimationDuration = crl::time(1200);
 constexpr auto kRecordingOpacity = 0.6;
 constexpr auto kStartNoConfirmation = TimeId(10);
+constexpr auto kControlsBackgroundOpacity = 0.8;
 
 class InviteController final : public ParticipantsBoxController {
 public:
@@ -706,7 +708,10 @@ void Panel::refreshLeftButton() {
 	raw->setColorOverrides(_mute->colorOverrides());
 
 	if (!_video) {
-		_video.create(widget(), st::groupCallVideoSmall);
+		_video.create(
+			widget(),
+			st::groupCallVideoSmall,
+			&st::groupCallVideoActiveSmall);
 		_video->show();
 		_video->setClickedCallback([=] {
 			const auto sharing = _call->isScreenSharing();
@@ -937,9 +942,30 @@ void Panel::setupMembers() {
 	setupPinnedVideo();
 }
 
+void Panel::raiseControls() {
+	if (_controlsBackground) {
+		_controlsBackground->raise();
+	}
+	const auto buttons = {
+		&_settings,
+		&_callShare,
+		&_screenShare,
+		&_video,
+		&_hangup
+	};
+	for (const auto button : buttons) {
+		if (const auto raw = button->data()) {
+			raw->raise();
+		}
+	}
+	_mute->raise();
+}
+
 void Panel::setupPinnedVideo() {
 	_pinnedVideo.create(widget());
 	_pinnedVideo->setVisible(_mode == PanelMode::Wide);
+
+	raiseControls();
 
 	rpl::combine(
 		_pinnedVideo->shownValue(),
@@ -1517,8 +1543,34 @@ bool Panel::updateMode() {
 		_members->setMode(mode);
 	}
 	_pinnedVideo->setVisible(mode == PanelMode::Wide);
+	refreshControlsBackground();
 	updateControlsGeometry();
 	return true;
+}
+
+void Panel::refreshControlsBackground() {
+	if (_mode != PanelMode::Wide) {
+		_controlsBackground.destroy();
+	} else if (_controlsBackground) {
+		return;
+	}
+	_controlsBackground.create(widget());
+	_controlsBackground->show();
+	auto &lifetime = _controlsBackground->lifetime();
+	const auto color = lifetime.make_state<style::complex_color>([] {
+		auto result = st::groupCallBg->c;
+		result.setAlphaF(kControlsBackgroundOpacity);
+		return result;
+	});
+	const auto corners = lifetime.make_state<Ui::RoundRect>(
+		st::groupCallControlsBackRadius,
+		color->color());
+	_controlsBackground->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(_controlsBackground.data());
+		corners->paint(p, _controlsBackground->rect());
+	}, lifetime);
+	raiseControls();
 }
 
 void Panel::updateControlsGeometry() {
@@ -1560,6 +1612,16 @@ void Panel::updateControlsGeometry() {
 		}
 		_hangup->setStyle(st::groupCallHangupSmall);
 		_hangup->moveToLeft(left, buttonsTop);
+		left += _hangup->width();
+		if (_controlsBackground) {
+			const auto rect = QRect(
+				left - fullWidth,
+				buttonsTop,
+				fullWidth,
+				_hangup->height());
+			_controlsBackground->setGeometry(
+				rect.marginsAdded(st::groupCallControlsBackMargin));
+		}
 	} else {
 		_mute->setStyle(st::callMuteButton);
 		const auto muteTop = widget()->height()
@@ -1614,11 +1676,6 @@ void Panel::updateMembersGeometry() {
 		return;
 	}
 	const auto desiredHeight = _members->desiredHeight();
-	const auto muteTop = widget()->height() - st::groupCallMuteBottomSkip;
-	const auto membersTop = st::groupCallMembersTop;
-	const auto availableHeight = muteTop
-		- membersTop
-		- st::groupCallMembersMargin.bottom();
 	if (_mode == PanelMode::Wide) {
 		_members->setGeometry(
 			st::groupCallNarrowSkip,
@@ -1627,12 +1684,20 @@ void Panel::updateMembersGeometry() {
 			std::min(desiredHeight, widget()->height()));
 		const auto pinnedLeft = st::groupCallNarrowSkip * 2
 			+ st::groupCallNarrowSize.width();
+		const auto pinnedTop = st::groupCallWideVideoTop;
 		_pinnedVideo->setGeometry(
 			pinnedLeft,
-			membersTop,
+			pinnedTop,
 			widget()->width() - pinnedLeft - st::groupCallNarrowSkip,
-			availableHeight);
+			widget()->height() - pinnedTop - st::groupCallNarrowSkip);
 	} else {
+		const auto membersBottom = _videoMode.current()
+			? (widget()->height() - st::groupCallMembersBottomSkipSmall)
+			: (widget()->height() - st::groupCallMuteBottomSkip);
+		const auto membersTop = st::groupCallMembersTop;
+		const auto availableHeight = membersBottom
+			- st::groupCallMembersMargin.bottom()
+			- membersTop;
 		const auto membersWidthAvailable = widget()->width()
 			- st::groupCallMembersMargin.left()
 			- st::groupCallMembersMargin.right();

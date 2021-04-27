@@ -1064,6 +1064,9 @@ void CallMuteButton::moveInner(QPoint position) {
 }
 
 void CallMuteButton::setVisible(bool visible) {
+	_centerLabel->setVisible(visible);
+	_label->setVisible(visible);
+	_sublabel->setVisible(visible);
 	_content->setVisible(visible);
 	_blobs->setVisible(visible);
 }
@@ -1071,9 +1074,15 @@ void CallMuteButton::setVisible(bool visible) {
 void CallMuteButton::raise() {
 	_blobs->raise();
 	_content->raise();
+	_centerLabel->raise();
+	_label->raise();
+	_sublabel->raise();
 }
 
 void CallMuteButton::lower() {
+	_centerLabel->lower();
+	_label->lower();
+	_sublabel->lower();
 	_content->lower();
 	_blobs->lower();
 }
