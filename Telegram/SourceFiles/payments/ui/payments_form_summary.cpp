@@ -196,7 +196,7 @@ void FormSummary::setupControls() {
 		_1 + _2 < _3));
 
 	rpl::merge(
-		_submit->widthValue(),
+		(_submit ? _submit->widthValue() : rpl::single(0)),
 		_cancel->widthValue()
 	) | rpl::skip(2) | rpl::start_with_next([=] {
 		updateControlsGeometry();
