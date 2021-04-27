@@ -2066,7 +2066,7 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 		MTP_bool(muted() != MuteState::Active),
 		MTP_int(100000), // volume
 		MTP_bool(muted() == MuteState::RaisedHand),
-		MTP_bool(_videoOutgoing->state() == Webrtc::VideoState::Active)
+		MTP_bool(_videoOutgoing->state() != Webrtc::VideoState::Active)
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
 		_peer->session().api().applyUpdates(result);

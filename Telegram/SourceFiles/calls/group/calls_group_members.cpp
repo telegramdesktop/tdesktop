@@ -690,7 +690,8 @@ bool Row::paintVideo(Painter &p, int x, int y, int size, PanelMode mode) {
 		_videoTrackShown->markFrameShown();
 	});
 	const auto videoSize = _videoTrackShown->frameSize();
-	if (videoSize.isEmpty()) {
+	if (videoSize.isEmpty()
+		|| _videoTrackShown->state() != Webrtc::VideoState::Active) {
 		return false;
 	}
 	const auto resize = (videoSize.width() > videoSize.height())
