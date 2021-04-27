@@ -114,6 +114,11 @@ jobs:
       - name: Choco installs.
         run: choco install --no-progress -y nasm yasm jom ninja
 
+      - name: NuGet sources.
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
+
       - name: Patches.
         shell: bash
         run: |
@@ -278,6 +283,10 @@ jobs:
           cd win32\VS2015
           msbuild -m opus.sln /property:Configuration=Debug /property:Platform="Win32"
           msbuild -m opus.sln /property:Configuration=Release /property:Platform="Win32"
+
+          echo "Workaround for FFmpeg."
+          copy Win32\Release\m.lib Win32\Release\ssp.lib
+          copy Win32\Release\m.lib Win32\Debug\ssp.lib
 
       - name: FFmpeg cache.
         id: cache-ffmpeg

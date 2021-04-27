@@ -20,15 +20,7 @@ public:
 	bool nativeEventFilter(const QByteArray &eventType, void *message, long *result);
 	bool mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT *result);
 
-	bool sessionLoggedOff() const {
-		return _sessionLoggedOff;
-	}
-	void setSessionLoggedOff(bool loggedOff) {
-		_sessionLoggedOff = loggedOff;
-	}
-
 	static EventFilter *CreateInstance(not_null<MainWindow*> window);
-	static EventFilter *GetInstance();
 	static void Destroy();
 
 private:
@@ -42,7 +34,6 @@ private:
 		LRESULT *result);
 
 	not_null<MainWindow*> _window;
-	bool _sessionLoggedOff = false;
 
 };
 

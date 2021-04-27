@@ -60,8 +60,17 @@ void StartServiceAsync(
 				try {
 					result(); // get the error if any
 				} catch (const Glib::Error &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
+					static const auto NotSupportedErrors = {
+						"org.freedesktop.DBus.Error.ServiceUnknown",
+					};
+
+					const auto errorName =
+						Gio::DBus::ErrorUtils::get_remote_error(e);
+
+					if (!ranges::contains(NotSupportedErrors, errorName)) {
+						LOG(("Native Notification Error: %1").arg(
+							QString::fromStdString(e.what())));
+					}
 				} catch (const std::exception &e) {
 					LOG(("Native Notification Error: %1").arg(
 						QString::fromStdString(e.what())));
@@ -72,9 +81,7 @@ void StartServiceAsync(
 			cancellable);
 
 			return;
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
+	} catch (...) {
 	}
 
 	crl::on_main([=] { callback(); });

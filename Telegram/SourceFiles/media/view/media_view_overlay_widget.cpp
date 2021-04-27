@@ -2999,9 +2999,14 @@ void OverlayWidget::switchToPip() {
 		_streamed->instance.shared(),
 		closeAndContinue,
 		[=] { _pip = nullptr; });
-	close();
-	if (const auto window = Core::App().activeWindow()) {
-		window->activate();
+	if (isHidden()) {
+		clearBeforeHide();
+		clearAfterHide();
+	} else {
+		close();
+		if (const auto window = Core::App().activeWindow()) {
+			window->activate();
+		}
 	}
 }
 
@@ -4365,42 +4370,50 @@ void OverlayWidget::applyHideWindowWorkaround() {
 #endif // USE_OPENGL_OVERLAY_WIDGET
 }
 
+// #TODO unite and check
+void OverlayWidget::clearBeforeHide() {
+	_sharedMedia = nullptr;
+	_sharedMediaData = std::nullopt;
+	_sharedMediaDataKey = std::nullopt;
+	_userPhotos = nullptr;
+	_userPhotosData = std::nullopt;
+	_collage = nullptr;
+	_collageData = std::nullopt;
+	assignMediaPointer(nullptr);
+	_preloadPhotos.clear();
+	_preloadDocuments.clear();
+	if (_menu) {
+		_menu->hideMenu(true);
+	}
+	_controlsHideTimer.cancel();
+	_controlsState = ControlsShown;
+	_controlsOpacity = anim::value(1, 1);
+	_groupThumbs = nullptr;
+	_groupThumbsRect = QRect();
+}
+
+void OverlayWidget::clearAfterHide() {
+	clearStreaming();
+	destroyThemePreview();
+	_radial.stop();
+	_staticContent = QPixmap();
+	_themePreview = nullptr;
+	_themeApply.destroyDelayed();
+	_themeCancel.destroyDelayed();
+	_themeShare.destroyDelayed();
+}
+
 void OverlayWidget::setVisibleHook(bool visible) {
 	if (!visible) {
 		applyHideWindowWorkaround();
-		_sharedMedia = nullptr;
-		_sharedMediaData = std::nullopt;
-		_sharedMediaDataKey = std::nullopt;
-		_userPhotos = nullptr;
-		_userPhotosData = std::nullopt;
-		_collage = nullptr;
-		_collageData = std::nullopt;
-		assignMediaPointer(nullptr);
-		_preloadPhotos.clear();
-		_preloadDocuments.clear();
-		if (_menu) {
-			_menu->hideMenu(true);
-		}
-		_controlsHideTimer.cancel();
-		_controlsState = ControlsShown;
-		_controlsOpacity = anim::value(1, 1);
-		_groupThumbs = nullptr;
-		_groupThumbsRect = QRect();
+		clearBeforeHide();
 	}
 	OverlayParent::setVisibleHook(visible);
 	if (visible) {
 		QCoreApplication::instance()->installEventFilter(this);
 	} else {
 		QCoreApplication::instance()->removeEventFilter(this);
-
-		clearStreaming();
-		destroyThemePreview();
-		_radial.stop();
-		_staticContent = QPixmap();
-		_themePreview = nullptr;
-		_themeApply.destroyDelayed();
-		_themeCancel.destroyDelayed();
-		_themeShare.destroyDelayed();
+		clearAfterHide();
 	}
 }
 

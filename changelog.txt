@@ -1,3 +1,9 @@
+2.7.3 (27.04.21)
+
+- Fix crash on some versions of Linux.
+- Fix video not stopping when PiP window is closed.
+- Fix messages marking as read if the Windows session is locked.
+
 2.7.2 (26.04.21)
 
 - Offer real goods and services for sale in any group, channel or bot – Telegram doesn't charge a commission.

@@ -210,6 +210,9 @@ private:
 	void playbackPauseMusic();
 	void switchToPip();
 
+	void clearBeforeHide();
+	void clearAfterHide();
+
 	void assignMediaPointer(DocumentData *document);
 	void assignMediaPointer(not_null<PhotoData*> photo);
 

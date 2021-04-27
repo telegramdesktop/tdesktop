@@ -13,6 +13,10 @@
 #include "ui/effects/radial_animation.h"
 #include "lottie/lottie_icon.h"
 
+namespace st {
+extern const style::InfiniteRadialAnimation &callConnectingRadial;
+} // namespace st
+
 namespace Ui {
 
 class BlobsWidget;
