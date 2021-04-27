@@ -823,9 +823,5 @@ bool SkipFlashBounce() {
 	return SkipToast();
 }
 
-bool HideDetails() {
-	return false;
-}
-
 } // namespace Notifications
 } // namespace Platform

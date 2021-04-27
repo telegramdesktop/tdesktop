@@ -193,8 +193,8 @@ public:
 		bool hideMessageText = false;
 		bool hideReplyButton = false;
 	};
-	[[nodiscard]] static DisplayOptions GetNotificationOptions(
-		HistoryItem *item);
+	[[nodiscard]] DisplayOptions getNotificationOptions(
+		HistoryItem *item) const;
 
 	[[nodiscard]] QString addTargetAccountName(
 		const QString &title,
@@ -218,6 +218,9 @@ protected:
 	virtual void doClearFromItem(not_null<HistoryItem*> item) = 0;
 	virtual void doClearFromHistory(not_null<History*> history) = 0;
 	virtual void doClearFromSession(not_null<Main::Session*> session) = 0;
+	[[nodiscard]] virtual bool forceHideDetails() const {
+		return false;
+	}
 	virtual void onBeforeNotificationActivated(NotificationId id) {
 	}
 	virtual void onAfterNotificationActivated(
@@ -255,6 +258,8 @@ protected:
 	void doShowNotification(
 		not_null<HistoryItem*> item,
 		int forwardedCount) override;
+
+	bool forceHideDetails() const override;
 
 	virtual void doShowNativeNotification(
 		not_null<PeerData*> peer,

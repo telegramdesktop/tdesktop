@@ -725,7 +725,7 @@ void Notification::actionsOpacityCallback() {
 void Notification::updateNotifyDisplay() {
 	if (!_history || (!_item && _forwardedCount < 2)) return;
 
-	const auto options = Manager::GetNotificationOptions(_item);
+	const auto options = manager()->getNotificationOptions(_item);
 	_hideReplyButton = options.hideReplyButton;
 
 	int32 w = width(), h = height();

@@ -159,10 +159,6 @@ bool SkipFlashBounce() {
 	return SkipAudio();
 }
 
-bool HideDetails() {
-	return Global::ScreenIsLocked();
-}
-
 bool Supported() {
 	return Platform::IsMac10_8OrGreater();
 }

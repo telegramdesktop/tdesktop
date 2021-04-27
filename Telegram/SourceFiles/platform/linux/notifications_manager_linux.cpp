@@ -727,10 +727,6 @@ bool SkipFlashBounce() {
 	return Inhibited();
 }
 
-bool HideDetails() {
-	return false;
-}
-
 bool Supported() {
 	return ServiceRegistered;
 }

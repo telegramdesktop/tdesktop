@@ -576,9 +576,10 @@ void System::updateAll() {
 	}
 }
 
-Manager::DisplayOptions Manager::GetNotificationOptions(HistoryItem *item) {
+Manager::DisplayOptions Manager::getNotificationOptions(
+		HistoryItem *item) const {
 	const auto hideEverything = Core::App().passcodeLocked()
-		|| Platform::Notifications::HideDetails();
+		|| forceHideDetails();
 
 	const auto view = Core::App().settings().notifyView();
 	DisplayOptions result;
@@ -696,7 +697,7 @@ void Manager::notificationReplied(
 void NativeManager::doShowNotification(
 		not_null<HistoryItem*> item,
 		int forwardedCount) {
-	const auto options = GetNotificationOptions(item);
+	const auto options = getNotificationOptions(item);
 
 	const auto peer = item->history()->peer;
 	const auto scheduled = !options.hideNameAndPhoto
@@ -730,6 +731,10 @@ void NativeManager::doShowNotification(
 		text,
 		options.hideNameAndPhoto,
 		options.hideReplyButton);
+}
+
+bool NativeManager::forceHideDetails() const {
+	return Global::ScreenIsLocked();
 }
 
 System::~System() = default;
