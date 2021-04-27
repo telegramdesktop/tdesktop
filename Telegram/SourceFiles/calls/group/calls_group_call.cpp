@@ -407,9 +407,7 @@ bool GroupCall::isScreenSharing() const {
 
 void GroupCall::toggleVideo(bool active) {
 	if (!active) {
-		if (!isScreenSharing()) {
-			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
-		}
+		_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 		return;
 	}
 	const auto changing = isScreenSharing();
@@ -1581,7 +1579,7 @@ void GroupCall::ensureControllerCreated() {
 			});
 			return result;
 		},
-		.enableVideo = true,
+		.videoContentType = tgcalls::VideoContentType::Screencast,
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
