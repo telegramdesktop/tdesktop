@@ -726,7 +726,9 @@ void Panel::refreshLeftButton() {
 		_screenShare.create(widget(), st::groupCallScreenShareSmall);
 		_screenShare->show();
 		_screenShare->setClickedCallback([=] {
+#ifndef Q_OS_LINUX
 			Ui::DesktopCapture::ChooseSource(this);
+#endif // Q_OS_LINUX
 		});
 		_screenShare->setText(tr::lng_group_call_screen_share());
 		_screenShare->setColorOverrides(_mute->colorOverrides());
