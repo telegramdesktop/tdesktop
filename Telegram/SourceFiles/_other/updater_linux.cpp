@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <cstdio>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/sendfile.h>
 #include <cstdlib>
 #include <unistd.h>
@@ -88,7 +89,7 @@ void writeLog(const char *format, ...) {
 	va_end(args);
 }
 
-bool copyFile(const char *from, const char *to) {
+bool copyFile(const char *from, const char *to, bool writeprotected) {
 	FILE *ffrom = fopen(from, "rb"), *fto = fopen(to, "wb");
 	if (!ffrom) {
 		if (fto) fclose(fto);
@@ -134,7 +135,7 @@ bool copyFile(const char *from, const char *to) {
 	}
 
 	//update to the same uid/gid
-	if (fchown(fileno(fto), fst.st_uid, fst.st_gid) != 0) {
+	if (!writeprotected && fchown(fileno(fto), fst.st_uid, fst.st_gid) != 0) {
 		fclose(ffrom);
 		fclose(fto);
 		return false;
@@ -233,7 +234,7 @@ void delFolder() {
 	rmdir(delFolder.c_str());
 }
 
-bool update() {
+bool update(bool writeprotected) {
 	writeLog("Update started..");
 
 	string updDir = workDir + "tupdates/temp", readyFilePath = workDir + "tupdates/temp/ready", tdataDir = workDir + "tupdates/temp/tdata";
@@ -346,7 +347,7 @@ bool update() {
 		writeLog("Copying file '%s' to '%s'..", fname.c_str(), tofname.c_str());
 		int copyTries = 0, triesLimit = 30;
 		do {
-			if (!copyFile(fname.c_str(), tofname.c_str())) {
+			if (!copyFile(fname.c_str(), tofname.c_str(), writeprotected)) {
 				++copyTries;
 				usleep(100000);
 			} else {
@@ -381,6 +382,7 @@ int main(int argc, char *argv[]) {
 	bool needupdate = true;
 	bool autostart = false;
 	bool debug = false;
+	bool writeprotected = false;
 	bool tosettings = false;
 	bool startintray = false;
 	bool testmode = false;
@@ -389,6 +391,8 @@ int main(int argc, char *argv[]) {
 
 	char *key = 0;
 	char *workdir = 0;
+	char *oldUsername = 0;
+	char *dbusAddress = 0;
 	for (int i = 1; i < argc; ++i) {
 		if (equal(argv[i], "-noupdate")) {
 			needupdate = false;
@@ -408,12 +412,17 @@ int main(int argc, char *argv[]) {
 			customWorkingDir = true;
 		} else if (equal(argv[i], "-key") && ++i < argc) {
 			key = argv[i];
+		} else if (equal(argv[i], "-writeprotected") && ++i < argc) {
+			writeprotected = true;
+			oldUsername = argv[i];
 		} else if (equal(argv[i], "-workpath") && ++i < argc) {
 			workDir = workdir = argv[i];
 		} else if (equal(argv[i], "-exename") && ++i < argc) {
 			exeName = argv[i];
 		} else if (equal(argv[i], "-exepath") && ++i < argc) {
 			exePath = argv[i];
+		} else if (equal(argv[i], "-dbus") && ++i < argc) {
+			dbusAddress = argv[i];
 		}
 	}
 	if (exeName.empty() || exeName.find('/') != string::npos) {
@@ -427,6 +436,7 @@ int main(int argc, char *argv[]) {
 	}
 	if (needupdate) writeLog("Need to update!");
 	if (autostart) writeLog("From autostart!");
+	if (writeprotected) writeLog("Write Protected folder!");
 
 	updaterName = CurrentExecutablePath(argc, argv);
 	writeLog("Updater binary full path is: %s", updaterName.c_str());
@@ -477,7 +487,7 @@ int main(int argc, char *argv[]) {
 				} else {
 					writeLog("Passed workpath is '%s'", workDir.c_str());
 				}
-				update();
+				update(writeprotected);
 			}
 		} else {
 			writeLog("Error: bad exe name!");
@@ -494,6 +504,15 @@ int main(int argc, char *argv[]) {
 		// Force null-terminated .data() call result.
 		values.push_back(arg + char(0));
 	};
+	if (writeprotected) { // run un-elevated
+		push("pkexec");
+		push("--user");
+		push(oldUsername);
+		push("env");
+		push("DBUS_SESSION_BUS_ADDRESS=" + string(dbusAddress));
+		push("systemd-run"); // restore environment
+		push("--user");
+	}
 	push(path);
 	push("-noupdate");
 	if (autostart) push("-autostart");
@@ -523,8 +542,13 @@ int main(int argc, char *argv[]) {
 		writeLog("fork() failed!");
 		return 1;
 	case 0:
-		execv(path, args.data());
+		execvp(args[0], args.data());
 		return 1;
+	}
+
+	// pkexec needs an alive parent
+	if (writeprotected) {
+		waitpid(pid, nullptr, 0);
 	}
 
 	writeLog("Executed Telegram, closing log and quitting..");

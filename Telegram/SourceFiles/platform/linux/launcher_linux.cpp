@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <cstdlib>
 #include <unistd.h>
 #include <dirent.h>
@@ -75,12 +76,17 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		return false;
 	}
 
-	const auto binaryName = (action == UpdaterLaunch::JustRelaunch)
-		? cExeName()
-		: QStringLiteral("Updater");
+	const auto binaryPath = (action == UpdaterLaunch::JustRelaunch)
+		? (cExeDir() + cExeName())
+		: (cWriteProtected()
+			? (cWorkingDir() + qsl("tupdates/temp/Updater"))
+			: (cExeDir() + qsl("Updater")));
 
 	auto argumentsList = Arguments();
-	argumentsList.push(QFile::encodeName(cExeDir() + binaryName));
+	if (action != UpdaterLaunch::JustRelaunch && cWriteProtected()) {
+		argumentsList.push("pkexec");
+	}
+	argumentsList.push(QFile::encodeName(binaryPath));
 
 	if (cLaunchMode() == LaunchModeAutoStart) {
 		argumentsList.push("-autostart");
@@ -118,6 +124,16 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		if (customWorkingDir()) {
 			argumentsList.push("-workdir_custom");
 		}
+		if (cWriteProtected()) {
+			const auto currentUid = geteuid();
+			const auto pw = getpwuid(currentUid);
+			if (pw) {
+				argumentsList.push("-writeprotected");
+				argumentsList.push(pw->pw_name);
+				argumentsList.push("-dbus");
+				argumentsList.push(qgetenv("DBUS_SESSION_BUS_ADDRESS"));
+			}
+		}
 	}
 
 	Logs::closeMain();
@@ -128,8 +144,14 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	pid_t pid = fork();
 	switch (pid) {
 	case -1: return false;
-	case 0: execv(args[0], args); return false;
+	case 0: execvp(args[0], args); return false;
 	}
+
+	// pkexec needs an alive parent
+	if (cWriteProtected()) {
+		waitpid(pid, nullptr, 0);
+	}
+
 	return true;
 }
 
