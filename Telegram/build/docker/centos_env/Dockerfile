@@ -112,6 +112,22 @@ RUN make DESTDIR="$LibrariesPath/opus-cache" install
 WORKDIR ..
 RUN rm -rf opus
 
+FROM builder AS rnnoise
+RUN git clone -b master --depth=1 $GIT/desktop-app/rnnoise
+
+WORKDIR rnnoise
+RUN cmake3 -B build . \
+	-DCMAKE_BUILD_TYPE=Release
+
+RUN cmake3 --build build -j$(nproc)
+RUN mkdir -p "$LibrariesPath/rnnoise-cache/usr/local/include"
+RUN cp "include/rnnoise.h" "$LibrariesPath/rnnoise-cache/usr/local/include/"
+RUN mkdir -p "$LibrariesPath/rnnoise-cache/usr/local/lib"
+RUN cp "build/librnnoise.a" "$LibrariesPath/rnnoise-cache/usr/local/lib/"
+
+WORKDIR ..
+RUN rm -rf rnnoise
+
 FROM builder AS xcb-proto
 RUN git clone -b xcb-proto-1.14 --depth=1 https://gitlab.freedesktop.org/xorg/proto/xcbproto.git
 
@@ -691,6 +707,7 @@ COPY --from=xz ${LibrariesPath}/xz-cache /
 COPY --from=libproxy ${LibrariesPath}/libproxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=opus ${LibrariesPath}/opus-cache /
+COPY --from=rnnoise ${LibrariesPath}/rnnoise-cache /
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
 COPY --from=xcb-wm ${LibrariesPath}/xcb-wm-cache /
 COPY --from=xcb-util ${LibrariesPath}/xcb-util-cache /
