@@ -153,7 +153,7 @@ void BotKeyboard::leaveEventHook(QEvent *e) {
 bool BotKeyboard::moderateKeyActivate(int key) {
 	if (const auto item = _session->data().message(_wasForMsgId)) {
 		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
-			if (key >= Qt::Key_1 && key <= Qt::Key_9) {
+			if (key >= Qt::Key_1 && key <= Qt::Key_2) {
 				const auto index = int(key - Qt::Key_1);
 				if (!markup->rows.empty()
 					&& index >= 0
