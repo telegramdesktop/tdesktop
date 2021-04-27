@@ -15,7 +15,8 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 The latest version is available for
 
-* [Windows 7 and above](https://telegram.org/dl/desktop/win) ([portable](https://telegram.org/dl/desktop/win_portable))
+* [Windows 7 and above (64 bit)](https://telegram.org/dl/desktop/win64) ([portable](https://telegram.org/dl/desktop/win64_portable))
+* [Windows 7 and above (32 bit)](https://telegram.org/dl/desktop/win) ([portable](https://telegram.org/dl/desktop/win_portable))
 * [macOS 10.12 and above](https://telegram.org/dl/desktop/mac)
 * [Linux static build for 64 bit](https://telegram.org/dl/desktop/linux)
 * [Snap](https://snapcraft.io/telegram-desktop)
