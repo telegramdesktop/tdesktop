@@ -269,14 +269,18 @@ GroupCall::~GroupCall() {
 	destroyController();
 }
 
+void GroupCall::setScheduledDate(TimeId date) {
+	const auto was = _scheduleDate;
+	_scheduleDate = date;
+	if (was && !date) {
+		join(inputCall());
+	}
+}
+
 void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 	real->scheduleDateValue(
 	) | rpl::start_with_next([=](TimeId date) {
-		const auto was = _scheduleDate;
-		_scheduleDate = date;
-		if (was && !date) {
-			join(inputCall());
-		}
+		setScheduledDate(date);
 	}, _lifetime);
 }
 
@@ -821,11 +825,7 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 
 void GroupCall::handlePossibleCreateOrJoinResponse(
 		const MTPDgroupCall &data) {
-	if (const auto date = data.vschedule_date()) {
-		_scheduleDate = date->v;
-	} else {
-		_scheduleDate = 0;
-	}
+	setScheduledDate(data.vschedule_date().value_or_empty());
 	if (_acceptFields) {
 		if (!_instance && !_id) {
 			const auto input = MTP_inputGroupCall(

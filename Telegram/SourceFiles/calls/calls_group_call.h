@@ -259,6 +259,7 @@ private:
 	void setJoinAs(not_null<PeerData*> as);
 	void saveDefaultJoinAs(not_null<PeerData*> as);
 	void subscribeToReal(not_null<Data::GroupCall*> real);
+	void setScheduledDate(TimeId date);
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
 	void setInstanceConnected(tgcalls::GroupNetworkState networkState);
