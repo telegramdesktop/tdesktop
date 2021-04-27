@@ -1908,6 +1908,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_shipping_address_title" = "Shipping Information";
 "lng_payments_card_title" = "New Card";
 "lng_payments_card_number" = "Card Number";
+"lng_payments_card_cvc" = "CVC";
+"lng_payments_card_expire_date" = "MM / YY";
 "lng_payments_card_holder" = "Cardholder name";
 "lng_payments_billing_address" = "Billing Information";
 "lng_payments_billing_country" = "Country";
