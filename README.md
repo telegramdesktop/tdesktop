@@ -9,7 +9,7 @@ This is the complete source code and the build instructions for the alpha versio
 
 [![Preview of Telegram Desktop][preview_image]][preview_image_url]
 
-The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
+The source code is published under GPLv3 with OpenSSL exception; the license is available [here][license].
 
 ## Supported systems
 
