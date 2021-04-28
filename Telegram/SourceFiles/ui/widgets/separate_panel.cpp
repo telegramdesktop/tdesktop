@@ -356,11 +356,35 @@ QRect SeparatePanel::innerGeometry() const {
 
 void SeparatePanel::initGeometry(QSize size) {
 	const auto active = QApplication::activeWindow();
-	const auto center = !active
-		? QGuiApplication::primaryScreen()->geometry().center()
-		: (active->isVisible() && active->isActiveWindow())
-		? active->geometry().center()
-		: active->windowHandle()->screen()->geometry().center();
+	const auto available = !active
+		? QGuiApplication::primaryScreen()->availableGeometry()
+		: active->windowHandle()->screen()->availableGeometry();
+	const auto parentGeometry = (active
+		&& active->isVisible()
+		&& active->isActiveWindow())
+		? active->geometry()
+		: available;
+
+	auto center = parentGeometry.center();
+	if (size.height() > available.height()) {
+		size = QSize(size.width(), available.height());
+	}
+	if (center.x() + size.width() / 2
+		> available.x() + available.width()) {
+		center.setX(
+			available.x() + available.width() - size.width() / 2);
+	}
+	if (center.x() - size.width() / 2 < available.x()) {
+		center.setX(available.x() + size.width() / 2);
+	}
+	if (center.y() + size.height() / 2
+		> available.y() + available.height()) {
+		center.setY(
+			available.y() + available.height() - size.height() / 2);
+	}
+	if (center.y() - size.height() / 2 < available.y()) {
+		center.setY(available.y() + size.height() / 2);
+	}
 	_useTransparency = Ui::Platform::TranslucentWindowsSupported(center);
 	_padding = _useTransparency
 		? st::callShadow.extend
