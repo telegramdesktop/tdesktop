@@ -140,23 +140,16 @@ using Manager = Platform::Notifications::Manager;
 namespace Platform {
 namespace Notifications {
 
-bool SkipAudio() {
-	queryDoNotDisturbState();
-	return DoNotDisturbEnabled;
+bool SkipAudioForCustom() {
+	return false;
 }
 
-bool SkipToast() {
-	if (Supported()) {
-		// Do not skip native notifications because of Do not disturb.
-		// They respect this setting anyway.
-		return false;
-	}
-	queryDoNotDisturbState();
-	return DoNotDisturbEnabled;
+bool SkipToastForCustom() {
+	return false;
 }
 
-bool SkipFlashBounce() {
-	return SkipAudio();
+bool SkipFlashBounceForCustom() {
+	return false;
 }
 
 bool Supported() {
@@ -436,6 +429,19 @@ void Manager::doClearFromSession(not_null<Main::Session*> session) {
 
 QString Manager::accountNameSeparator() {
 	return QString::fromUtf8(" \xE2\x86\x92 ");
+}
+
+bool Manager::doSkipAudio() const {
+	queryDoNotDisturbState();
+	return DoNotDisturbEnabled;
+}
+
+bool Manager::doSkipToast() const {
+	return false;
+}
+
+bool Manager::doSkipFlashBounce() const {
+	return doSkipAudio();
 }
 
 } // namespace Notifications

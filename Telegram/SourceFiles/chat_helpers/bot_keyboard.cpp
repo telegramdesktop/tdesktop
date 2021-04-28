@@ -163,14 +163,20 @@ bool BotKeyboard::moderateKeyActivate(int key) {
 				}
 			} else if (const auto user = item->history()->peer->asUser()) {
 				if (user->isBot() && item->from() == user) {
-					if (key == Qt::Key_Q) {
+					if (key == Qt::Key_Q || key == Qt::Key_6) {
 						App::sendBotCommand(user, user, qsl("/translate"));
-					} else if (key == Qt::Key_W) {
+					} else if (key == Qt::Key_W || key == Qt::Key_5) {
 						App::sendBotCommand(user, user, qsl("/eng"));
 					} else if (key == Qt::Key_3) {
 						App::sendBotCommand(user, user, qsl("/pattern"));
 					} else if (key == Qt::Key_4) {
 						App::sendBotCommand(user, user, qsl("/abuse"));
+					} else if (key == Qt::Key_0 || key == Qt::Key_E) {
+						App::sendBotCommand(user, user, qsl("/undo"));
+					} else if (key == Qt::Key_Plus || key == Qt::Key_QuoteLeft) {
+						App::sendBotCommand(user, user, qsl("/next"));
+					} else if (key == Qt::Key_Period || key == Qt::Key_S) {
+						App::sendBotCommand(user, user, qsl("/stats"));
 					}
 					return true;
 				}

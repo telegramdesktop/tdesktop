@@ -404,6 +404,18 @@ void Manager::doClearFromItem(not_null<HistoryItem*> item) {
 	}
 }
 
+bool Manager::doSkipAudio() const {
+	return Platform::Notifications::SkipAudioForCustom();
+}
+
+bool Manager::doSkipToast() const {
+	return Platform::Notifications::SkipToastForCustom();
+}
+
+bool Manager::doSkipFlashBounce() const {
+	return Platform::Notifications::SkipFlashBounceForCustom();
+}
+
 void Manager::doUpdateAll() {
 	for_const (auto &notification, _notifications) {
 		notification->updateNotifyDisplay();

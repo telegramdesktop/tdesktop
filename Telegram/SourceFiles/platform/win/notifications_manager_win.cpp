@@ -257,8 +257,187 @@ void Check() {
 	InitSucceeded = init();
 }
 
+bool QuietHoursEnabled = false;
+DWORD QuietHoursValue = 0;
+
+[[nodiscard]] bool UseQuietHoursRegistryEntry() {
+	static const bool result = [] {
+		// Taken from QSysInfo.
+		OSVERSIONINFO result = { sizeof(OSVERSIONINFO), 0, 0, 0, 0,{ '\0' } };
+		if (const auto library = GetModuleHandle(L"ntdll.dll")) {
+			using RtlGetVersionFunction = NTSTATUS(NTAPI*)(LPOSVERSIONINFO);
+			const auto RtlGetVersion = reinterpret_cast<RtlGetVersionFunction>(
+				GetProcAddress(library, "RtlGetVersion"));
+			if (RtlGetVersion) {
+				RtlGetVersion(&result);
+			}
+		}
+		// At build 17134 (Redstone 4) the "Quiet hours" was replaced
+		// by "Focus assist" and it looks like it doesn't use registry.
+		return (result.dwMajorVersion == 10
+			&& result.dwMinorVersion == 0
+			&& result.dwBuildNumber < 17134);
+	}();
+	return result;
+}
+
+// Thanks https://stackoverflow.com/questions/35600128/get-windows-quiet-hours-from-win32-or-c-sharp-api
+void QueryQuietHours() {
+	if (!UseQuietHoursRegistryEntry()) {
+		// There are quiet hours in Windows starting from Windows 8.1
+		// But there were several reports about the notifications being shut
+		// down according to the registry while no quiet hours were enabled.
+		// So we try this method only starting with Windows 10.
+		return;
+	}
+
+	LPCWSTR lpKeyName = L"Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings";
+	LPCWSTR lpValueName = L"NOC_GLOBAL_SETTING_TOASTS_ENABLED";
+	HKEY key;
+	auto result = RegOpenKeyEx(HKEY_CURRENT_USER, lpKeyName, 0, KEY_READ, &key);
+	if (result != ERROR_SUCCESS) {
+		return;
+	}
+
+	DWORD value = 0, type = 0, size = sizeof(value);
+	result = RegQueryValueEx(key, lpValueName, 0, &type, (LPBYTE)&value, &size);
+	RegCloseKey(key);
+
+	auto quietHoursEnabled = (result == ERROR_SUCCESS) && (value == 0);
+	if (QuietHoursEnabled != quietHoursEnabled) {
+		QuietHoursEnabled = quietHoursEnabled;
+		QuietHoursValue = value;
+		LOG(("Quiet hours changed, entry value: %1").arg(value));
+	} else if (QuietHoursValue != value) {
+		QuietHoursValue = value;
+		LOG(("Quiet hours value changed, was value: %1, entry value: %2").arg(QuietHoursValue).arg(value));
+	}
+}
+
+bool FocusAssistBlocks = false;
+
+// Thanks https://www.withinrafael.com/2019/09/19/determine-if-your-app-is-in-a-focus-assist-profiles-priority-list/
+void QueryFocusAssist() {
+	ComPtr<IQuietHoursSettings> quietHoursSettings;
+	auto hr = CoCreateInstance(
+		CLSID_QuietHoursSettings,
+		nullptr,
+		CLSCTX_LOCAL_SERVER,
+		IID_PPV_ARGS(&quietHoursSettings));
+	if (!SUCCEEDED(hr) || !quietHoursSettings) {
+		return;
+	}
+
+	auto profileId = LPWSTR{};
+	const auto guardProfileId = gsl::finally([&] {
+		if (profileId) CoTaskMemFree(profileId);
+	});
+	hr = quietHoursSettings->get_UserSelectedProfile(&profileId);
+	if (!SUCCEEDED(hr) || !profileId) {
+		return;
+	}
+	const auto profileName = QString::fromWCharArray(profileId);
+	if (profileName.endsWith(".alarmsonly", Qt::CaseInsensitive)) {
+		if (!FocusAssistBlocks) {
+			LOG(("Focus Assist: Alarms Only."));
+			FocusAssistBlocks = true;
+		}
+		return;
+	} else if (!profileName.endsWith(".priorityonly", Qt::CaseInsensitive)) {
+		if (!profileName.endsWith(".unrestricted", Qt::CaseInsensitive)) {
+			LOG(("Focus Assist Warning: Unknown profile '%1'"
+				).arg(profileName));
+		}
+		if (FocusAssistBlocks) {
+			LOG(("Focus Assist: Unrestricted."));
+			FocusAssistBlocks = false;
+		}
+		return;
+	}
+	const auto appUserModelId = std::wstring(AppUserModelId::getId());
+	auto blocked = true;
+	const auto guard = gsl::finally([&] {
+		if (FocusAssistBlocks != blocked) {
+			LOG(("Focus Assist: %1, AppUserModelId: %2, Blocks: %3"
+				).arg(profileName
+				).arg(QString::fromStdWString(appUserModelId)
+				).arg(Logs::b(blocked)));
+			FocusAssistBlocks = blocked;
+		}
+	});
+
+	ComPtr<IQuietHoursProfile> profile;
+	hr = quietHoursSettings->GetProfile(profileId, &profile);
+	if (!SUCCEEDED(hr) || !profile) {
+		return;
+	}
+
+	UINT32 count = 0;
+	auto apps = (LPWSTR*)nullptr;
+	const auto guardApps = gsl::finally([&] {
+		if (apps) CoTaskMemFree(apps);
+	});
+	hr = profile->GetAllowedApps(&count, &apps);
+	if (!SUCCEEDED(hr) || !apps) {
+		return;
+	}
+	for (UINT32 i = 0; i < count; i++) {
+		auto app = apps[i];
+		const auto guardApp = gsl::finally([&] {
+			if (app) CoTaskMemFree(app);
+		});
+		if (app == appUserModelId) {
+			blocked = false;
+		}
+	}
+}
+
+QUERY_USER_NOTIFICATION_STATE UserNotificationState = QUNS_ACCEPTS_NOTIFICATIONS;
+
+void QueryUserNotificationState() {
+	if (Dlls::SHQueryUserNotificationState != nullptr) {
+		QUERY_USER_NOTIFICATION_STATE state;
+		if (SUCCEEDED(Dlls::SHQueryUserNotificationState(&state))) {
+			UserNotificationState = state;
+		}
+	}
+}
+
+static constexpr auto kQuerySettingsEachMs = 1000;
+crl::time LastSettingsQueryMs = 0;
+
+void QuerySystemNotificationSettings() {
+	auto ms = crl::now();
+	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + kQuerySettingsEachMs) {
+		return;
+	}
+	LastSettingsQueryMs = ms;
+	QueryQuietHours();
+	QueryFocusAssist();
+	QueryUserNotificationState();
+}
+
 } // namespace
 #endif // !__MINGW32__
+
+bool SkipAudioForCustom() {
+	QuerySystemNotificationSettings();
+
+	return (UserNotificationState == QUNS_NOT_PRESENT)
+		|| (UserNotificationState == QUNS_PRESENTATION_MODE)
+		|| Global::ScreenIsLocked();
+}
+
+bool SkipToastForCustom() {
+	QuerySystemNotificationSettings();
+
+	return (UserNotificationState == QUNS_PRESENTATION_MODE)
+		|| (UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN);
+}
+
+bool SkipFlashBounceForCustom() {
+	return SkipToastForCustom();
+}
 
 bool Supported() {
 #ifndef __MINGW32__
@@ -627,201 +806,23 @@ void Manager::onAfterNotificationActivated(
 		not_null<Window::SessionController*> window) {
 	_private->afterNotificationActivated(id, window);
 }
+
+bool Manager::doSkipAudio() const {
+	return SkipAudioForCustom()
+		|| QuietHoursEnabled
+		|| FocusAssistBlocks;
+}
+
+bool Manager::doSkipToast() const {
+	return false;
+}
+
+bool Manager::doSkipFlashBounce() const {
+	return SkipFlashBounceForCustom()
+		|| QuietHoursEnabled
+		|| FocusAssistBlocks;
+}
 #endif // !__MINGW32__
-
-namespace {
-
-bool QuietHoursEnabled = false;
-DWORD QuietHoursValue = 0;
-
-[[nodiscard]] bool UseQuietHoursRegistryEntry() {
-	static const bool result = [] {
-		// Taken from QSysInfo.
-		OSVERSIONINFO result = { sizeof(OSVERSIONINFO), 0, 0, 0, 0,{ '\0' } };
-		if (const auto library = GetModuleHandle(L"ntdll.dll")) {
-			using RtlGetVersionFunction = NTSTATUS(NTAPI*)(LPOSVERSIONINFO);
-			const auto RtlGetVersion = reinterpret_cast<RtlGetVersionFunction>(
-				GetProcAddress(library, "RtlGetVersion"));
-			if (RtlGetVersion) {
-				RtlGetVersion(&result);
-			}
-		}
-		// At build 17134 (Redstone 4) the "Quiet hours" was replaced
-		// by "Focus assist" and it looks like it doesn't use registry.
-		return (result.dwMajorVersion == 10
-			&& result.dwMinorVersion == 0
-			&& result.dwBuildNumber < 17134);
-	}();
-	return result;
-}
-
-// Thanks https://stackoverflow.com/questions/35600128/get-windows-quiet-hours-from-win32-or-c-sharp-api
-void QueryQuietHours() {
-	if (!UseQuietHoursRegistryEntry()) {
-		// There are quiet hours in Windows starting from Windows 8.1
-		// But there were several reports about the notifications being shut
-		// down according to the registry while no quiet hours were enabled.
-		// So we try this method only starting with Windows 10.
-		return;
-	}
-
-	LPCWSTR lpKeyName = L"Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings";
-	LPCWSTR lpValueName = L"NOC_GLOBAL_SETTING_TOASTS_ENABLED";
-	HKEY key;
-	auto result = RegOpenKeyEx(HKEY_CURRENT_USER, lpKeyName, 0, KEY_READ, &key);
-	if (result != ERROR_SUCCESS) {
-		return;
-	}
-
-	DWORD value = 0, type = 0, size = sizeof(value);
-	result = RegQueryValueEx(key, lpValueName, 0, &type, (LPBYTE)&value, &size);
-	RegCloseKey(key);
-
-	auto quietHoursEnabled = (result == ERROR_SUCCESS) && (value == 0);
-	if (QuietHoursEnabled != quietHoursEnabled) {
-		QuietHoursEnabled = quietHoursEnabled;
-		QuietHoursValue = value;
-		LOG(("Quiet hours changed, entry value: %1").arg(value));
-	} else if (QuietHoursValue != value) {
-		QuietHoursValue = value;
-		LOG(("Quiet hours value changed, was value: %1, entry value: %2").arg(QuietHoursValue).arg(value));
-	}
-}
-
-bool FocusAssistBlocks = false;
-
-// Thanks https://www.withinrafael.com/2019/09/19/determine-if-your-app-is-in-a-focus-assist-profiles-priority-list/
-void QueryFocusAssist() {
-	ComPtr<IQuietHoursSettings> quietHoursSettings;
-	auto hr = CoCreateInstance(
-		CLSID_QuietHoursSettings,
-		nullptr,
-		CLSCTX_LOCAL_SERVER,
-		IID_PPV_ARGS(&quietHoursSettings));
-	if (!SUCCEEDED(hr) || !quietHoursSettings) {
-		return;
-	}
-
-	auto profileId = LPWSTR{};
-	const auto guardProfileId = gsl::finally([&] {
-		if (profileId) CoTaskMemFree(profileId);
-	});
-	hr = quietHoursSettings->get_UserSelectedProfile(&profileId);
-	if (!SUCCEEDED(hr) || !profileId) {
-		return;
-	}
-	const auto profileName = QString::fromWCharArray(profileId);
-	if (profileName.endsWith(".alarmsonly", Qt::CaseInsensitive)) {
-		if (!FocusAssistBlocks) {
-			LOG(("Focus Assist: Alarms Only."));
-			FocusAssistBlocks = true;
-		}
-		return;
-	} else if (!profileName.endsWith(".priorityonly", Qt::CaseInsensitive)) {
-		if (!profileName.endsWith(".unrestricted", Qt::CaseInsensitive)) {
-			LOG(("Focus Assist Warning: Unknown profile '%1'"
-				).arg(profileName));
-		}
-		if (FocusAssistBlocks) {
-			LOG(("Focus Assist: Unrestricted."));
-			FocusAssistBlocks = false;
-		}
-		return;
-	}
-	const auto appUserModelId = std::wstring(AppUserModelId::getId());
-	auto blocked = true;
-	const auto guard = gsl::finally([&] {
-		if (FocusAssistBlocks != blocked) {
-			LOG(("Focus Assist: %1, AppUserModelId: %2, Blocks: %3"
-				).arg(profileName
-				).arg(QString::fromStdWString(appUserModelId)
-				).arg(Logs::b(blocked)));
-			FocusAssistBlocks = blocked;
-		}
-	});
-
-	ComPtr<IQuietHoursProfile> profile;
-	hr = quietHoursSettings->GetProfile(profileId, &profile);
-	if (!SUCCEEDED(hr) || !profile) {
-		return;
-	}
-
-	UINT32 count = 0;
-	auto apps = (LPWSTR*)nullptr;
-	const auto guardApps = gsl::finally([&] {
-		if (apps) CoTaskMemFree(apps);
-	});
-	hr = profile->GetAllowedApps(&count, &apps);
-	if (!SUCCEEDED(hr) || !apps) {
-		return;
-	}
-	for (UINT32 i = 0; i < count; i++) {
-		auto app = apps[i];
-		const auto guardApp = gsl::finally([&] {
-			if (app) CoTaskMemFree(app);
-		});
-		if (app == appUserModelId) {
-			blocked = false;
-		}
-	}
-}
-
-QUERY_USER_NOTIFICATION_STATE UserNotificationState = QUNS_ACCEPTS_NOTIFICATIONS;
-
-void QueryUserNotificationState() {
-	if (Dlls::SHQueryUserNotificationState != nullptr) {
-		QUERY_USER_NOTIFICATION_STATE state;
-		if (SUCCEEDED(Dlls::SHQueryUserNotificationState(&state))) {
-			UserNotificationState = state;
-		}
-	}
-}
-
-static constexpr auto kQuerySettingsEachMs = 1000;
-crl::time LastSettingsQueryMs = 0;
-
-void QuerySystemNotificationSettings() {
-	auto ms = crl::now();
-	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + kQuerySettingsEachMs) {
-		return;
-	}
-	LastSettingsQueryMs = ms;
-	QueryQuietHours();
-	QueryFocusAssist();
-	QueryUserNotificationState();
-}
-
-} // namespace
-
-bool SkipAudio() {
-	QuerySystemNotificationSettings();
-
-	if (UserNotificationState == QUNS_NOT_PRESENT
-		|| UserNotificationState == QUNS_PRESENTATION_MODE
-		|| QuietHoursEnabled
-		|| FocusAssistBlocks
-		|| Global::ScreenIsLocked()) {
-		return true;
-	}
-	return false;
-}
-
-bool SkipToast() {
-	QuerySystemNotificationSettings();
-
-	if (UserNotificationState == QUNS_PRESENTATION_MODE
-		|| UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN
-		//|| UserNotificationState == QUNS_BUSY
-		|| QuietHoursEnabled
-		|| FocusAssistBlocks) {
-		return true;
-	}
-	return false;
-}
-
-bool SkipFlashBounce() {
-	return SkipToast();
-}
 
 } // namespace Notifications
 } // namespace Platform

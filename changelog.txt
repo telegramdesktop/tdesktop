@@ -1,3 +1,9 @@
+2.7.4 (28.04.21)
+
+- Fix crash in viewing an invoice after a payment is made.
+- Respect Focus Assist only for native notifications.
+- Mark messages as read only in active window.
+
 2.7.3 (27.04.21)
 
 - Fix crash on some versions of Linux.
