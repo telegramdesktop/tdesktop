@@ -557,13 +557,8 @@ bool MainWindow::doWeMarkAsRead() {
 	if (!_main || Ui::isLayerShown()) {
 		return false;
 	}
-	// for tile grid in case other windows have shadows
-	// i've seen some windows with >70px shadow margins
-	const auto margin = style::ConvertScale(100);
-	return Ui::IsContentVisible(
-		this,
-		inner().marginsRemoved(QMargins(margin, margin, margin, margin)))
-		&& _main->doWeMarkAsRead();
+	updateIsActive();
+	return isActive() && _main->doWeMarkAsRead();
 }
 
 void MainWindow::checkHistoryActivation() {
