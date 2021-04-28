@@ -311,13 +311,13 @@ protected:
 	}
 	void doClearFromSession(not_null<Main::Session*> session) override {
 	}
-	bool doSkipAudio() const {
+	bool doSkipAudio() const override {
 		return false;
 	}
-	bool doSkipToast() const {
+	bool doSkipToast() const override {
 		return false;
 	}
-	bool doSkipFlashBounce() const {
+	bool doSkipFlashBounce() const override {
 		return false;
 	}
 
