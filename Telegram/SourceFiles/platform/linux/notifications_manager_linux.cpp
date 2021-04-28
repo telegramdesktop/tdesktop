@@ -715,23 +715,16 @@ void NotificationData::notificationReplied(
 
 } // namespace
 
-bool SkipAudio() {
-	return Inhibited();
+bool SkipAudioForCustom() {
+	return false;
 }
 
-bool SkipToast() {
-	// Do not skip native notifications because of Do not disturb.
-	// They respect this setting anyway.
-	if ((Core::App().settings().nativeNotifications() && Supported())
-		|| Enforced()) {
-		return false;
-	}
-
-	return Inhibited();
+bool SkipToastForCustom() {
+	return false;
 }
 
-bool SkipFlashBounce() {
-	return Inhibited();
+bool SkipFlashBounceForCustom() {
+	return false;
 }
 
 bool Supported() {
@@ -1028,6 +1021,18 @@ void Manager::doClearFromHistory(not_null<History*> history) {
 
 void Manager::doClearFromSession(not_null<Main::Session*> session) {
 	_private->clearFromSession(session);
+}
+
+bool Manager::doSkipAudio() const {
+	return Inhibited();
+}
+
+bool Manager::doSkipToast() const {
+	return false;
+}
+
+bool Manager::doSkipFlashBounce() const {
+	return Inhibited();
 }
 
 } // namespace Notifications

@@ -202,6 +202,16 @@ public:
 
 	[[nodiscard]] virtual ManagerType type() const = 0;
 
+	[[nodiscard]] bool skipAudio() const {
+		return doSkipAudio();
+	}
+	[[nodiscard]] bool skipToast() const {
+		return doSkipToast();
+	}
+	[[nodiscard]] bool skipFlashBounce() const {
+		return doSkipFlashBounce();
+	}
+
 	virtual ~Manager() = default;
 
 protected:
@@ -218,6 +228,9 @@ protected:
 	virtual void doClearFromItem(not_null<HistoryItem*> item) = 0;
 	virtual void doClearFromHistory(not_null<History*> history) = 0;
 	virtual void doClearFromSession(not_null<Main::Session*> session) = 0;
+	virtual bool doSkipAudio() const = 0;
+	virtual bool doSkipToast() const = 0;
+	virtual bool doSkipFlashBounce() const = 0;
 	[[nodiscard]] virtual bool forceHideDetails() const {
 		return false;
 	}
@@ -297,6 +310,15 @@ protected:
 	void doClearFromHistory(not_null<History*> history) override {
 	}
 	void doClearFromSession(not_null<Main::Session*> session) override {
+	}
+	bool doSkipAudio() const {
+		return false;
+	}
+	bool doSkipToast() const {
+		return false;
+	}
+	bool doSkipFlashBounce() const {
+		return false;
 	}
 
 };

@@ -138,6 +138,8 @@ System::SkipState System::skipNotification(
 }
 
 void System::schedule(not_null<HistoryItem*> item) {
+	Expects(_manager != nullptr);
+
 	const auto history = item->history();
 	const auto skip = skipNotification(item);
 	if (skip.value == SkipState::Skip) {
@@ -167,7 +169,7 @@ void System::schedule(not_null<HistoryItem*> item) {
 		_whenAlerts[history].emplace(when, notifyBy);
 	}
 	if (Core::App().settings().desktopNotify()
-		&& !Platform::Notifications::SkipToast()) {
+		&& !_manager->skipToast()) {
 		auto &whenMap = _whenMaps[history];
 		if (whenMap.find(item->id) == whenMap.end()) {
 			whenMap.emplace(item->id, when);
@@ -391,7 +393,7 @@ void System::showNext() {
 	}
 	const auto &settings = Core::App().settings();
 	if (alert) {
-		if (settings.flashBounceNotify() && !Platform::Notifications::SkipFlashBounce()) {
+		if (settings.flashBounceNotify() && !_manager->skipFlashBounce()) {
 			if (const auto window = Core::App().activeWindow()) {
 				if (const auto handle = window->widget()->windowHandle()) {
 					handle->alert(kSystemAlertDuration);
@@ -399,7 +401,7 @@ void System::showNext() {
 				}
 			}
 		}
-		if (settings.soundNotify() && !Platform::Notifications::SkipAudio()) {
+		if (settings.soundNotify() && !_manager->skipAudio()) {
 			ensureSoundCreated();
 			_soundTrack->playOnce();
 			Media::Player::mixer()->suppressAll(_soundTrack->getLengthMs());
@@ -407,7 +409,7 @@ void System::showNext() {
 		}
 	}
 
-	if (_waiters.empty() || !settings.desktopNotify() || Platform::Notifications::SkipToast()) {
+	if (_waiters.empty() || !settings.desktopNotify() || _manager->skipToast()) {
 		if (nextAlert) {
 			_waitTimer.callOnce(nextAlert - ms);
 		}
