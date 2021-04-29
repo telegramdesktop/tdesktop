@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_gtk_integration.h"
+#include "base/platform/linux/base_linux_wayland_integration.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_gtk_integration.h"
 #include "platform/linux/linux_wayland_integration.h"
@@ -754,6 +755,10 @@ void start() {
 
 	if (const auto integration = GtkIntegration::Instance()) {
 		integration->load();
+	}
+
+	if (IsWayland() && !base::Platform::ResolveWayland()) {
+		g_warning("Could not load wayland-client dynamically.");
 	}
 
 #ifdef DESKTOP_APP_USE_PACKAGED_RLOTTIE
