@@ -2010,10 +2010,7 @@ void MembersController::addMuteActionsToContextMenu(
 			|| isMe(participantPeer)
 			|| (muteState == Row::State::Inactive
 				&& participantIsCallAdmin
-				&& _peer->canManageGroupCall())
-			|| (isMuted
-				&& !_peer->canManageGroupCall()
-				&& muteState != Row::State::MutedByMe)) {
+				&& _peer->canManageGroupCall())) {
 			return nullptr;
 		}
 		auto callback = [=] {
