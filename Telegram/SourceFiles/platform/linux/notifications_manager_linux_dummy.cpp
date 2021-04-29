@@ -13,15 +13,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace Notifications {
 
-bool SkipAudio() {
+bool SkipAudioForCustom() {
 	return false;
 }
 
-bool SkipToast() {
+bool SkipToastForCustom() {
 	return false;
 }
 
-bool SkipFlashBounce() {
+bool SkipFlashBounceForCustom() {
 	return false;
 }
 

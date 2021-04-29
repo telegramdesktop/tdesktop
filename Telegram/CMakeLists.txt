@@ -830,6 +830,7 @@ PRIVATE
     platform/linux/linux_gsd_media_keys.h
     platform/linux/linux_gtk_file_dialog.cpp
     platform/linux/linux_gtk_file_dialog.h
+    platform/linux/linux_gtk_integration_dummy.cpp
     platform/linux/linux_gtk_integration_p.h
     platform/linux/linux_gtk_integration.cpp
     platform/linux/linux_gtk_integration.h
@@ -839,6 +840,7 @@ PRIVATE
     platform/linux/linux_mpris_support.h
     platform/linux/linux_notification_service_watcher.cpp
     platform/linux/linux_notification_service_watcher.h
+    platform/linux/linux_wayland_integration_dummy.cpp
     platform/linux/linux_wayland_integration.cpp
     platform/linux/linux_wayland_integration.h
     platform/linux/linux_xdp_file_dialog.cpp
@@ -851,6 +853,7 @@ PRIVATE
     platform/linux/launcher_linux.h
     platform/linux/main_window_linux.cpp
     platform/linux/main_window_linux.h
+    platform/linux/notifications_manager_linux_dummy.cpp
     platform/linux/notifications_manager_linux.cpp
     platform/linux/notifications_manager_linux.h
     platform/linux/specific_linux.cpp
@@ -860,6 +863,7 @@ PRIVATE
     platform/mac/file_utilities_mac.h
     platform/mac/launcher_mac.mm
     platform/mac/launcher_mac.h
+    platform/mac/mac_iconv_helper.c
     platform/mac/main_window_mac.mm
     platform/mac/main_window_mac.h
     platform/mac/notifications_manager_mac.mm
@@ -1135,16 +1139,20 @@ if (DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
         platform/linux/linux_xdp_open_with_dialog.h
         platform/linux/notifications_manager_linux.cpp
     )
-
-    nice_target_sources(Telegram ${src_loc}
-    PRIVATE
+else()
+    remove_target_sources(Telegram ${src_loc}
         platform/linux/notifications_manager_linux_dummy.cpp
     )
 endif()
 
 if (DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
-    remove_target_sources(Telegram ${src_loc} platform/linux/linux_wayland_integration.cpp)
-    nice_target_sources(Telegram ${src_loc} PRIVATE platform/linux/linux_wayland_integration_dummy.cpp)
+    remove_target_sources(Telegram ${src_loc}
+        platform/linux/linux_wayland_integration.cpp
+    )
+else()
+    remove_target_sources(Telegram ${src_loc}
+        platform/linux/linux_wayland_integration_dummy.cpp
+    )
 endif()
 
 if (DESKTOP_APP_DISABLE_GTK_INTEGRATION)
@@ -1158,15 +1166,16 @@ if (DESKTOP_APP_DISABLE_GTK_INTEGRATION)
         platform/linux/linux_gtk_open_with_dialog.cpp
         platform/linux/linux_gtk_open_with_dialog.h
     )
-
-    nice_target_sources(Telegram ${src_loc}
-    PRIVATE
+else()
+    remove_target_sources(Telegram ${src_loc}
         platform/linux/linux_gtk_integration_dummy.cpp
     )
 endif()
 
-if (NOT DESKTOP_APP_USE_PACKAGED)
-    nice_target_sources(Telegram ${src_loc} PRIVATE platform/mac/mac_iconv_helper.c)
+if (DESKTOP_APP_USE_PACKAGED)
+    remove_target_sources(Telegram ${src_loc}
+        platform/mac/mac_iconv_helper.c
+    )
 endif()
 
 nice_target_sources(Telegram ${res_loc}
