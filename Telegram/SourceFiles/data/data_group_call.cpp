@@ -549,8 +549,8 @@ void GroupCall::applyParticipantsSlice(
 				.peer = participantPeer,
 				.videoParams = (hasVideoParamsInformation
 					? Calls::ParseVideoParams(
-						(data.vparams()
-							? data.vparams()->c_dataJSON().vdata().v
+						(data.vvideo()
+							? data.vvideo()->c_dataJSON().vdata().v
 							: QByteArray()),
 						(i != end(_participants)
 							? i->videoParams
@@ -568,7 +568,7 @@ void GroupCall::applyParticipantsSlice(
 				.muted = data.is_muted(),
 				.mutedByMe = mutedByMe,
 				.canSelfUnmute = canSelfUnmute,
-				.videoMuted = data.is_video_muted(),
+				.videoMuted = (data.vvideo() == nullptr),
 				.onlyMinLoaded = onlyMinLoaded,
 			};
 			if (i == end(_participants)) {

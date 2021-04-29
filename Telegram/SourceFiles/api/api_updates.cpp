@@ -1878,6 +1878,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updatePhoneCall:
 	case mtpc_updatePhoneCallSignalingData:
 	case mtpc_updateGroupCallParticipants:
+	case mtpc_updateGroupCallConnection:
 	case mtpc_updateGroupCall: {
 		Core::App().calls().handleUpdate(&session(), update);
 	} break;

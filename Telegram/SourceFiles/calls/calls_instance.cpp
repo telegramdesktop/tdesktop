@@ -391,6 +391,8 @@ void Instance::handleUpdate(
 		handleSignalingData(session, data);
 	}, [&](const MTPDupdateGroupCall &data) {
 		handleGroupCallUpdate(session, update);
+	}, [&](const MTPDupdateGroupCallConnection &data) {
+		handleGroupCallUpdate(session, update);
 	}, [&](const MTPDupdateGroupCallParticipants &data) {
 		handleGroupCallUpdate(session, update);
 	}, [](const auto &) {
@@ -482,10 +484,15 @@ void Instance::handleGroupCallUpdate(
 		&& (&_currentGroupCall->peer()->session() == session)) {
 		update.match([&](const MTPDupdateGroupCall &data) {
 			_currentGroupCall->handlePossibleCreateOrJoinResponse(data);
+		}, [&](const MTPDupdateGroupCallConnection &data) {
+			_currentGroupCall->handlePossibleCreateOrJoinResponse(data);
 		}, [](const auto &) {
 		});
 	}
 
+	if (update.type() == mtpc_updateGroupCallConnection) {
+		return;
+	}
 	const auto callId = update.match([](const MTPDupdateGroupCall &data) {
 		return data.vcall().match([](const auto &data) {
 			return data.vid().v;

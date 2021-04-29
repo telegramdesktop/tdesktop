@@ -76,6 +76,12 @@ constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 	return msgId / double(1ULL << 32);
 }
 
+[[nodiscard]] std::string ReadJsonString(
+		const QJsonObject &object,
+		const char *key) {
+	return object.value(key).toString().toStdString();
+};
+
 } // namespace
 
 struct VideoParams {
@@ -177,13 +183,8 @@ std::shared_ptr<VideoParams> ParseVideoParams(
 		return data;
 	}
 
-	const auto readString = [](
-			const QJsonObject &object,
-			const char *key) {
-		return object.value(key).toString().toStdString();
-	};
 	const auto object = document.object();
-	data->description.endpointId = readString(object, "endpoint");
+	data->description.endpointId = ReadJsonString(object, "endpoint");
 
 	const auto ssrcGroups = object.value("ssrc-groups").toArray();
 	data->description.videoSourceGroups.reserve(ssrcGroups.size());
@@ -201,58 +202,11 @@ std::shared_ptr<VideoParams> ParseVideoParams(
 		}
 		data->description.videoSourceGroups.push_back({
 			.ssrcs = std::move(sources),
-			.semantics = readString(inner, "semantics"),
+			.semantics = ReadJsonString(inner, "semantics"),
 		});
 	}
 
-	const auto payloadTypes = object.value("payload-types").toArray();
-	data->description.videoPayloadTypes.reserve(payloadTypes.size());
-	for (const auto &value : payloadTypes) {
-		const auto inner = value.toObject();
-
-		auto types = std::vector<GroupJoinPayloadVideoPayloadFeedbackType>();
-		{
-			const auto list = inner.value("rtcp-fbs").toArray();
-			types.reserve(list.size());
-			for (const auto &type : list) {
-				const auto inside = type.toObject();
-				types.push_back({
-					.type = readString(inside, "type"),
-					.subtype = readString(inside, "subtype"),
-				});
-			}
-		}
-		auto parameters = std::vector<std::pair<std::string, std::string>>();
-		{
-			const auto list = inner.value("parameters").toObject();
-			parameters.reserve(list.size());
-			for (auto i = list.begin(); i != list.end(); ++i) {
-				parameters.push_back({
-					i.key().toStdString(),
-					i.value().toString().toStdString(),
-				});
-			}
-		}
-		data->description.videoPayloadTypes.push_back({
-			.id = uint32_t(inner.value("id").toDouble()),
-			.name = readString(inner, "name"),
-			.clockrate = uint32_t(inner.value("clockrate").toDouble()),
-			.channels = uint32_t(inner.value("channels").toDouble()),
-			.feedbackTypes = std::move(types),
-			.parameters = std::move(parameters),
-		});
-	}
-
-	const auto extensionMap = object.value("rtp-hdrexts").toArray();
-	data->description.videoExtensionMap.reserve(extensionMap.size());
-	for (const auto &extension : extensionMap) {
-		const auto inner = extension.toObject();
-		data->description.videoExtensionMap.push_back({
-			uint32_t(inner.value("id").toDouble()),
-			readString(inner, "uri"),
-		});
-	}
-
+	// videoPayloadTypes and videoExtensionMap will be in _commonVideoFields.
 	return data;
 }
 
@@ -950,7 +904,7 @@ void GroupCall::applyMeInCallLocally() {
 		| Flag::f_volume // Without flag the volume is reset to 100%.
 		| Flag::f_volume_by_admin // Self volume can only be set by admin.
 		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0))
-		| (videoMuted ? Flag::f_video_muted : Flag(0))
+		//| (videoMuted ? Flag(0) : Flag::f_video)
 		| (raisedHandRating > 0 ? Flag::f_raise_hand_rating : Flag(0));
 	call->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
@@ -966,7 +920,8 @@ void GroupCall::applyMeInCallLocally() {
 					MTP_int(volume),
 					MTPstring(), // Don't update about text in local updates.
 					MTP_long(raisedHandRating),
-					MTPDataJSON())),
+					MTPDataJSON(), // video
+					MTPDataJSON())), // presentation
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -995,7 +950,7 @@ void GroupCall::applyParticipantLocally(
 		| (isMuted ? Flag::f_muted : Flag(0))
 		| (isMutedByYou ? Flag::f_muted_by_you : Flag(0))
 		| (participantPeer == _joinAs ? Flag::f_self : Flag(0))
-		| (participant->videoMuted ? Flag::f_video_muted : Flag(0))
+		//| (participant->videoMuted ? Flag(0) : Flag::f_video)
 		| (participant->raisedHandRating
 			? Flag::f_raise_hand_rating
 			: Flag(0));
@@ -1013,7 +968,8 @@ void GroupCall::applyParticipantLocally(
 					MTP_int(volume.value_or(participant->volume)),
 					MTPstring(), // Don't update about text in local updates.
 					MTP_long(participant->raisedHandRating),
-					MTPDataJSON())),
+					MTPDataJSON(), // video
+					MTPDataJSON())), // presentation
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -1195,13 +1151,18 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 	} else if (_id != data.vid().v || !_instance) {
 		return;
 	}
-	const auto streamDcId = MTP::BareDcId(
-		data.vstream_dc_id().value_or_empty());
-	const auto params = data.vparams();
-	if (!params) {
+	if (const auto streamDcId = data.vstream_dc_id()) {
+		_broadcastDcId = MTP::BareDcId(streamDcId->v);
+	}
+}
+
+void GroupCall::handlePossibleCreateOrJoinResponse(
+		const MTPDupdateGroupCallConnection &data) {
+	if (data.is_presentation()) {
+		// #TODO calls
 		return;
 	}
-	params->match([&](const MTPDdataJSON &data) {
+	data.vparams().match([&](const MTPDdataJSON &data) {
 		auto error = QJsonParseError{ 0, QJsonParseError::NoError };
 		const auto document = QJsonDocument::fromJson(
 			data.vdata().v,
@@ -1222,58 +1183,115 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 		});
 
 		if (document.object().value("stream").toBool()) {
-			if (!streamDcId) {
+			if (!_broadcastDcId) {
 				LOG(("Api Error: Empty stream_dc_id in groupCall."));
+				_broadcastDcId = _peer->session().mtp().mainDcId();
 			}
-			_broadcastDcId = streamDcId
-				? streamDcId
-				: _peer->session().mtp().mainDcId();
 			setInstanceMode(InstanceMode::Stream);
 			return;
 		}
 
 		const auto readString = [](
-				const QJsonObject &object,
-				const char *key) {
+			const QJsonObject &object,
+			const char *key) {
 			return object.value(key).toString().toStdString();
 		};
 		const auto root = document.object().value("transport").toObject();
+		const auto video = document.object().value("video").toObject();
 		auto payload = tgcalls::GroupJoinResponsePayload();
-		payload.ufrag = readString(root, "ufrag");
-		payload.pwd = readString(root, "pwd");
+		payload.serverVideoBandwidthProbingSsrc = uint32_t(
+			video.value("server_sources").toArray().at(0).toDouble());
+		payload.ufrag = ReadJsonString(root, "ufrag");
+		payload.pwd = ReadJsonString(root, "pwd");
 		const auto prints = root.value("fingerprints").toArray();
 		const auto candidates = root.value("candidates").toArray();
 		for (const auto &print : prints) {
 			const auto object = print.toObject();
 			payload.fingerprints.push_back({
-				.hash = readString(object, "hash"),
-				.setup = readString(object, "setup"),
-				.fingerprint = readString(object, "fingerprint"),
+				.hash = ReadJsonString(object, "hash"),
+				.setup = ReadJsonString(object, "setup"),
+				.fingerprint = ReadJsonString(object, "fingerprint"),
 			});
 		}
 		for (const auto &candidate : candidates) {
 			const auto object = candidate.toObject();
 			payload.candidates.push_back({
-				.port = readString(object, "port"),
-				.protocol = readString(object, "protocol"),
-				.network = readString(object, "network"),
-				.generation = readString(object, "generation"),
-				.id = readString(object, "id"),
-				.component = readString(object, "component"),
-				.foundation = readString(object, "foundation"),
-				.priority = readString(object, "priority"),
-				.ip = readString(object, "ip"),
-				.type = readString(object, "type"),
-				.tcpType = readString(object, "tcpType"),
-				.relAddr = readString(object, "relAddr"),
-				.relPort = readString(object, "relPort"),
+				.port = ReadJsonString(object, "port"),
+				.protocol = ReadJsonString(object, "protocol"),
+				.network = ReadJsonString(object, "network"),
+				.generation = ReadJsonString(object, "generation"),
+				.id = ReadJsonString(object, "id"),
+				.component = ReadJsonString(object, "component"),
+				.foundation = ReadJsonString(object, "foundation"),
+				.priority = ReadJsonString(object, "priority"),
+				.ip = ReadJsonString(object, "ip"),
+				.type = ReadJsonString(object, "type"),
+				.tcpType = ReadJsonString(object, "tcpType"),
+				.relAddr = ReadJsonString(object, "relAddr"),
+				.relPort = ReadJsonString(object, "relPort"),
 			});
 		}
+
+		parseCommonVideoFields(video);
+
 		setInstanceMode(InstanceMode::Rtc);
 		_instance->setJoinResponsePayload(payload, {});
-
-		addParticipantsToInstance();
 	});
+}
+
+void GroupCall::parseCommonVideoFields(const QJsonObject &root) {
+	using namespace tgcalls;
+
+	_commonVideoFields = std::make_unique<GroupParticipantDescription>();
+	const auto raw = _commonVideoFields.get();
+
+	const auto payloadTypes = root.value("payload-types").toArray();
+	raw->videoPayloadTypes.reserve(payloadTypes.size());
+	for (const auto &value : payloadTypes) {
+		const auto inner = value.toObject();
+
+		auto types = std::vector<GroupJoinPayloadVideoPayloadFeedbackType>();
+		{
+			const auto list = inner.value("rtcp-fbs").toArray();
+			types.reserve(list.size());
+			for (const auto &type : list) {
+				const auto inside = type.toObject();
+				types.push_back({
+					.type = ReadJsonString(inside, "type"),
+					.subtype = ReadJsonString(inside, "subtype"),
+				});
+			}
+		}
+		auto parameters = std::vector<std::pair<std::string, std::string>>();
+		{
+			const auto list = inner.value("parameters").toObject();
+			parameters.reserve(list.size());
+			for (auto i = list.begin(); i != list.end(); ++i) {
+				parameters.push_back({
+					i.key().toStdString(),
+					i.value().toString().toStdString(),
+				});
+			}
+		}
+		raw->videoPayloadTypes.push_back({
+			.id = uint32_t(inner.value("id").toDouble()),
+			.name = ReadJsonString(inner, "name"),
+			.clockrate = uint32_t(inner.value("clockrate").toDouble()),
+			.channels = uint32_t(inner.value("channels").toDouble()),
+			.feedbackTypes = std::move(types),
+			.parameters = std::move(parameters),
+		});
+	}
+
+	const auto extensionMap = root.value("rtp-hdrexts").toArray();
+	raw->videoExtensionMap.reserve(extensionMap.size());
+	for (const auto &extension : extensionMap) {
+		const auto inner = extension.toObject();
+		raw->videoExtensionMap.push_back({
+			uint32_t(inner.value("id").toDouble()),
+			ReadJsonString(inner, "uri"),
+		});
+	}
 }
 
 void GroupCall::handlePossibleDiscarded(const MTPDgroupCallDiscarded &data) {
@@ -1286,7 +1304,9 @@ void GroupCall::handlePossibleDiscarded(const MTPDgroupCallDiscarded &data) {
 
 void GroupCall::addParticipantsToInstance() {
 	const auto real = lookupReal();
-	if (!real || (_instanceMode == InstanceMode::None)) {
+	if (!real
+		|| (_instanceMode == InstanceMode::None)
+		|| (_instanceMode == InstanceMode::Rtc && !_commonVideoFields)) {
 		return;
 	}
 	for (const auto &participant : real->participants()) {
@@ -1297,10 +1317,15 @@ void GroupCall::addParticipantsToInstance() {
 
 void GroupCall::prepareParticipantForAdding(
 		const Data::GroupCallParticipant &participant) {
-	_preparedParticipants.push_back(participant.videoParams
+	const auto withVideo = _commonVideoFields && participant.videoParams;
+	_preparedParticipants.push_back(withVideo
 		? participant.videoParams->description
 		: tgcalls::GroupParticipantDescription());
 	auto &added = _preparedParticipants.back();
+	if (withVideo) {
+		added.videoSourceGroups = _commonVideoFields->videoSourceGroups;
+		added.videoExtensionMap = _commonVideoFields->videoExtensionMap;
+	}
 	added.audioSsrc = participant.ssrc;
 	_unresolvedSsrcs.remove(added.audioSsrc);
 	for (const auto &group : added.videoSourceGroups) {
@@ -1624,7 +1649,7 @@ void GroupCall::ensureControllerCreated() {
 			});
 			return result;
 		},
-		.videoContentType = tgcalls::VideoContentType::Screencast,
+		.videoContentType = tgcalls::VideoContentType::Generic,
 	};
 	if (Logs::DebugEnabled()) {
 		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
@@ -1953,20 +1978,33 @@ void GroupCall::checkJoined() {
 	if (state() != State::Connecting || !_id || !_mySsrc) {
 		return;
 	}
+	auto sources = QVector<MTPint>(1, MTP_int(_mySsrc));
+	if (_screencastSsrc) {
+		sources.push_back(MTP_int(_screencastSsrc));
+	}
 	_api.request(MTPphone_CheckGroupCall(
 		inputCall(),
-		MTP_int(_mySsrc)
-	)).done([=](const MTPBool &result) {
-		if (!mtpIsTrue(result)) {
-			LOG(("Call Info: Rejoin after FALSE in checkGroupCall."));
+		MTP_vector<MTPint>(std::move(sources))
+	)).done([=](const MTPVector<MTPint> &result) {
+		if (!ranges::contains(result.v, MTP_int(_mySsrc))) {
+			LOG(("Call Info: Rejoin after no _mySsrc in checkGroupCall."));
 			rejoin();
 		} else if (state() == State::Connecting) {
 			_checkJoinedTimer.callOnce(kCheckJoinedTimeout);
 		}
+		if (_screencastSsrc
+			&& !ranges::contains(result.v, MTP_int(_screencastSsrc))) {
+			LOG(("Call Info: "
+				"Rejoin presentation after _screencastSsrc not found."));
+			// #TODO calls
+		}
 	}).fail([=](const MTP::Error &error) {
-		LOG(("Call Info: Rejoin after error '%1' in checkGroupCall."
+ 		LOG(("Call Info: Full rejoin after error '%1' in checkGroupCall."
 			).arg(error.type()));
 		rejoin();
+		if (_screencastSsrc) {
+			// #TODO calls
+		}
 	}).send();
 }
 

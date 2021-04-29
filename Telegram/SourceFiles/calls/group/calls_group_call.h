@@ -143,6 +143,8 @@ public:
 	void join(const MTPInputGroupCall &inputCall);
 	void handleUpdate(const MTPUpdate &update);
 	void handlePossibleCreateOrJoinResponse(const MTPDupdateGroupCall &data);
+	void handlePossibleCreateOrJoinResponse(
+		const MTPDupdateGroupCallConnection &data);
 	void changeTitle(const QString &title);
 	void toggleRecording(bool enabled, const QString &title);
 	[[nodiscard]] bool recordingStoppedByMe() const {
@@ -299,6 +301,7 @@ private:
 	void handlePossibleDiscarded(const MTPDgroupCallDiscarded &data);
 	void handleUpdate(const MTPDupdateGroupCall &data);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
+	void parseCommonVideoFields(const QJsonObject &root);
 	void ensureControllerCreated();
 	void destroyController();
 
@@ -391,6 +394,8 @@ private:
 	uint64 _id = 0;
 	uint64 _accessHash = 0;
 	uint32 _mySsrc = 0;
+	uint32 _screencastSsrc = 0;
+	std::unique_ptr<tgcalls::GroupParticipantDescription> _commonVideoFields;
 	TimeId _scheduleDate = 0;
 	base::flat_set<uint32> _mySsrcs;
 	mtpRequestId _createRequestId = 0;
