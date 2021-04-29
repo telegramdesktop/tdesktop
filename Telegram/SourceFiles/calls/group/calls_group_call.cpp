@@ -87,7 +87,7 @@ constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 struct VideoParams {
 	tgcalls::GroupParticipantDescription description;
 	base::flat_set<uint32> videoSsrcs;
-	uint32 hash = 0;
+	uint64 hash = 0;
 };
 
 class GroupCall::LoadPartTask final : public tgcalls::BroadcastPartTask {
@@ -152,14 +152,16 @@ struct GroupCall::LargeTrack {
 }
 
 std::shared_ptr<VideoParams> ParseVideoParams(
-		const QByteArray &json,
+		const QByteArray &video,
+		const QByteArray &screencast,
 		const std::shared_ptr<VideoParams> &existing) {
 	using namespace tgcalls;
 
-	if (json.isEmpty()) {
+	if (video.isEmpty() && screencast.isEmpty()) {
 		return nullptr;
 	}
-	const auto hash = XXH32(json.data(), json.size(), uint32(0));
+	const auto hash = XXH32(screencast.data(), screencast.size(), uint32(0))
+		| (uint64(XXH32(video.data(), video.size(), uint32(0))) << 32);
 	if (existing && existing->hash == hash) {
 		return existing;
 	}
@@ -169,44 +171,8 @@ std::shared_ptr<VideoParams> ParseVideoParams(
 		? existing
 		: */std::make_shared<VideoParams>();
 	data->hash = hash;
-
-	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
-	const auto document = QJsonDocument::fromJson(json, &error);
-	if (error.error != QJsonParseError::NoError) {
-		LOG(("API Error: "
-			"Failed to parse group call video params, error: %1."
-			).arg(error.errorString()));
-		return data;
-	} else if (!document.isObject()) {
-		LOG(("API Error: "
-			"Not an object received in group call video params."));
-		return data;
-	}
-
-	const auto object = document.object();
-	data->description.endpointId = ReadJsonString(object, "endpoint");
-
-	const auto ssrcGroups = object.value("ssrc-groups").toArray();
-	data->description.videoSourceGroups.reserve(ssrcGroups.size());
-	for (const auto &value : ssrcGroups) {
-		const auto inner = value.toObject();
-		auto sources = std::vector<uint32_t>();
-		{
-			const auto list = inner.value("sources").toArray();
-			sources.reserve(list.size());
-			for (const auto &source : list) {
-				const auto ssrc = uint32_t(source.toDouble());
-				sources.push_back(ssrc);
-				data->videoSsrcs.emplace(ssrc);
-			}
-		}
-		data->description.videoSourceGroups.push_back({
-			.ssrcs = std::move(sources),
-			.semantics = ReadJsonString(inner, "semantics"),
-		});
-	}
-
-	// videoPayloadTypes and videoExtensionMap will be in _commonVideoFields.
+	data->description.videoInformation = video.toStdString();
+	data->description.screencastInformation = screencast.toStdString();
 	return data;
 }
 
@@ -719,97 +685,11 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 	const auto weak = base::make_weak(this);
 	_instance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
 		crl::on_main(weak, [=, payload = std::move(payload)]{
-			auto fingerprints = QJsonArray();
-			for (const auto &print : payload.fingerprints) {
-				auto object = QJsonObject();
-				object.insert("hash", QString::fromStdString(print.hash));
-				object.insert("setup", QString::fromStdString(print.setup));
-				object.insert(
-					"fingerprint",
-					QString::fromStdString(print.fingerprint));
-				fingerprints.push_back(object);
-			}
-
-			auto extensionMap = QJsonArray();
-			for (const auto &extension : payload.videoExtensionMap) {
-				auto object = QJsonObject();
-				object.insert("id", int64(extension.first));
-				object.insert(
-					"uri",
-					QString::fromStdString(extension.second));
-				extensionMap.push_back(object);
-			}
-
-			auto payloadTypes = QJsonArray();
-			for (const auto &type : payload.videoPayloadTypes) {
-				auto object = QJsonObject();
-				object.insert("id", int64(type.id));
-				object.insert("name", QString::fromStdString(type.name));
-				object.insert("clockrate", int64(type.clockrate));
-				if (!type.parameters.empty()) {
-					auto parameters = QJsonObject();
-					for (const auto &parameter : type.parameters) {
-						parameters.insert(
-							QString::fromStdString(parameter.first),
-							QString::fromStdString(parameter.second));
-					}
-					object.insert("parameters", parameters);
-				}
-				if (type.name != "rtx") {
-					object.insert("channels", int64(type.channels));
-					auto fbs = QJsonArray();
-					for (const auto &element : type.feedbackTypes) {
-						auto inner = QJsonObject();
-						inner.insert(
-							"type",
-							QString::fromStdString(element.type));
-						if (!element.subtype.empty()) {
-							inner.insert(
-								"subtype",
-								QString::fromStdString(element.subtype));
-						}
-						fbs.push_back(inner);
-					}
-					object.insert("rtcp-fbs", fbs);
-				}
-				payloadTypes.push_back(object);
-			}
-
-			auto sourceGroups = QJsonArray();
-			for (const auto &group : payload.videoSourceGroups) {
-				auto object = QJsonObject();
-				object.insert(
-					"semantics",
-					QString::fromStdString(group.semantics));
-				auto list = QJsonArray();
-				for (const auto source : group.ssrcs) {
-					list.push_back(int64(source));
-				}
-				object.insert("sources", list);
-				sourceGroups.push_back(object);
-			}
-
-			auto root = QJsonObject();
-			const auto ssrc = payload.ssrc;
-			root.insert("ufrag", QString::fromStdString(payload.ufrag));
-			root.insert("pwd", QString::fromStdString(payload.pwd));
-			root.insert("fingerprints", fingerprints);
-			root.insert("ssrc", double(payload.ssrc));
-			if (!extensionMap.isEmpty()) {
-				root.insert("rtp-hdrexts", extensionMap);
-			}
-			if (!payloadTypes.isEmpty()) {
-				root.insert("payload-types", payloadTypes);
-			}
-			if (!sourceGroups.isEmpty()) {
-				root.insert("ssrc-groups", sourceGroups);
-			}
-
+			const auto ssrc = payload.audioSsrc;
 			LOG(("Call Info: Join payload received, joining with ssrc: %1."
 				).arg(ssrc));
 
-			const auto json = QJsonDocument(root).toJson(
-				QJsonDocument::Compact);
+			const auto json = QByteArray::fromStdString(payload.json);
 			const auto wasMuteState = muted();
 			using Flag = MTPphone_JoinGroupCall::Flag;
 			_api.request(MTPphone_JoinGroupCall(
@@ -1163,135 +1043,9 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 		return;
 	}
 	data.vparams().match([&](const MTPDdataJSON &data) {
-		auto error = QJsonParseError{ 0, QJsonParseError::NoError };
-		const auto document = QJsonDocument::fromJson(
-			data.vdata().v,
-			&error);
-		if (error.error != QJsonParseError::NoError) {
-			LOG(("API Error: "
-				"Failed to parse group call params, error: %1."
-				).arg(error.errorString()));
-			return;
-		} else if (!document.isObject()) {
-			LOG(("API Error: "
-				"Not an object received in group call params."));
-			return;
-		}
-
-		const auto guard = gsl::finally([&] {
-			addParticipantsToInstance();
-		});
-
-		if (document.object().value("stream").toBool()) {
-			if (!_broadcastDcId) {
-				LOG(("Api Error: Empty stream_dc_id in groupCall."));
-				_broadcastDcId = _peer->session().mtp().mainDcId();
-			}
-			setInstanceMode(InstanceMode::Stream);
-			return;
-		}
-
-		const auto readString = [](
-			const QJsonObject &object,
-			const char *key) {
-			return object.value(key).toString().toStdString();
-		};
-		const auto root = document.object().value("transport").toObject();
-		const auto video = document.object().value("video").toObject();
-		auto payload = tgcalls::GroupJoinResponsePayload();
-		payload.serverVideoBandwidthProbingSsrc = uint32_t(
-			video.value("server_sources").toArray().at(0).toDouble());
-		payload.ufrag = ReadJsonString(root, "ufrag");
-		payload.pwd = ReadJsonString(root, "pwd");
-		const auto prints = root.value("fingerprints").toArray();
-		const auto candidates = root.value("candidates").toArray();
-		for (const auto &print : prints) {
-			const auto object = print.toObject();
-			payload.fingerprints.push_back({
-				.hash = ReadJsonString(object, "hash"),
-				.setup = ReadJsonString(object, "setup"),
-				.fingerprint = ReadJsonString(object, "fingerprint"),
-			});
-		}
-		for (const auto &candidate : candidates) {
-			const auto object = candidate.toObject();
-			payload.candidates.push_back({
-				.port = ReadJsonString(object, "port"),
-				.protocol = ReadJsonString(object, "protocol"),
-				.network = ReadJsonString(object, "network"),
-				.generation = ReadJsonString(object, "generation"),
-				.id = ReadJsonString(object, "id"),
-				.component = ReadJsonString(object, "component"),
-				.foundation = ReadJsonString(object, "foundation"),
-				.priority = ReadJsonString(object, "priority"),
-				.ip = ReadJsonString(object, "ip"),
-				.type = ReadJsonString(object, "type"),
-				.tcpType = ReadJsonString(object, "tcpType"),
-				.relAddr = ReadJsonString(object, "relAddr"),
-				.relPort = ReadJsonString(object, "relPort"),
-			});
-		}
-
-		parseCommonVideoFields(video);
-
 		setInstanceMode(InstanceMode::Rtc);
-		_instance->setJoinResponsePayload(payload, {});
+		_instance->setJoinResponsePayload(data.vdata().v.toStdString());
 	});
-}
-
-void GroupCall::parseCommonVideoFields(const QJsonObject &root) {
-	using namespace tgcalls;
-
-	_commonVideoFields = std::make_unique<GroupParticipantDescription>();
-	const auto raw = _commonVideoFields.get();
-
-	const auto payloadTypes = root.value("payload-types").toArray();
-	raw->videoPayloadTypes.reserve(payloadTypes.size());
-	for (const auto &value : payloadTypes) {
-		const auto inner = value.toObject();
-
-		auto types = std::vector<GroupJoinPayloadVideoPayloadFeedbackType>();
-		{
-			const auto list = inner.value("rtcp-fbs").toArray();
-			types.reserve(list.size());
-			for (const auto &type : list) {
-				const auto inside = type.toObject();
-				types.push_back({
-					.type = ReadJsonString(inside, "type"),
-					.subtype = ReadJsonString(inside, "subtype"),
-				});
-			}
-		}
-		auto parameters = std::vector<std::pair<std::string, std::string>>();
-		{
-			const auto list = inner.value("parameters").toObject();
-			parameters.reserve(list.size());
-			for (auto i = list.begin(); i != list.end(); ++i) {
-				parameters.push_back({
-					i.key().toStdString(),
-					i.value().toString().toStdString(),
-				});
-			}
-		}
-		raw->videoPayloadTypes.push_back({
-			.id = uint32_t(inner.value("id").toDouble()),
-			.name = ReadJsonString(inner, "name"),
-			.clockrate = uint32_t(inner.value("clockrate").toDouble()),
-			.channels = uint32_t(inner.value("channels").toDouble()),
-			.feedbackTypes = std::move(types),
-			.parameters = std::move(parameters),
-		});
-	}
-
-	const auto extensionMap = root.value("rtp-hdrexts").toArray();
-	raw->videoExtensionMap.reserve(extensionMap.size());
-	for (const auto &extension : extensionMap) {
-		const auto inner = extension.toObject();
-		raw->videoExtensionMap.push_back({
-			uint32_t(inner.value("id").toDouble()),
-			ReadJsonString(inner, "uri"),
-		});
-	}
 }
 
 void GroupCall::handlePossibleDiscarded(const MTPDgroupCallDiscarded &data) {
@@ -1304,9 +1058,7 @@ void GroupCall::handlePossibleDiscarded(const MTPDgroupCallDiscarded &data) {
 
 void GroupCall::addParticipantsToInstance() {
 	const auto real = lookupReal();
-	if (!real
-		|| (_instanceMode == InstanceMode::None)
-		|| (_instanceMode == InstanceMode::Rtc && !_commonVideoFields)) {
+	if (!real || (_instanceMode == InstanceMode::None)) {
 		return;
 	}
 	for (const auto &participant : real->participants()) {
@@ -1317,22 +1069,17 @@ void GroupCall::addParticipantsToInstance() {
 
 void GroupCall::prepareParticipantForAdding(
 		const Data::GroupCallParticipant &participant) {
-	const auto withVideo = _commonVideoFields && participant.videoParams;
-	_preparedParticipants.push_back(withVideo
+	_preparedParticipants.push_back(participant.videoParams
 		? participant.videoParams->description
 		: tgcalls::GroupParticipantDescription());
 	auto &added = _preparedParticipants.back();
-	if (withVideo) {
-		added.videoSourceGroups = _commonVideoFields->videoSourceGroups;
-		added.videoExtensionMap = _commonVideoFields->videoExtensionMap;
-	}
 	added.audioSsrc = participant.ssrc;
 	_unresolvedSsrcs.remove(added.audioSsrc);
-	for (const auto &group : added.videoSourceGroups) {
-		for (const auto ssrc : group.ssrcs) {
-			_unresolvedSsrcs.remove(ssrc);
-		}
-	}
+	//for (const auto &group : added.videoSourceGroups) { // #TODO calls
+	//	for (const auto ssrc : group.ssrcs) {
+	//		_unresolvedSsrcs.remove(ssrc);
+	//	}
+	//}
 }
 
 void GroupCall::addPreparedParticipants() {
@@ -1516,7 +1263,7 @@ void GroupCall::setupOutgoingVideo() {
 	_videoOutgoing->stateValue(
 	) | rpl::start_with_next([=](Webrtc::VideoState state) {
 		//if (state != Webrtc::VideoState::Inactive && !hasDevices()) {
-			//_errors.fire({ ErrorType::NoCamera }); // #TODO videochats
+			//_errors.fire({ ErrorType::NoCamera }); // #TODO calls
 			//_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 		//} else if (state != Webrtc::VideoState::Inactive
 		//	&& _instance
@@ -1534,7 +1281,7 @@ void GroupCall::setupOutgoingVideo() {
 				_videoCapture->switchToDevice(_videoDeviceId.toStdString());
 			}
 			if (_instance) {
-				_instance->setVideoCapture(_videoCapture, nullptr);
+				_instance->setVideoCapture(_videoCapture);
 			}
 			_videoCapture->setState(tgcalls::VideoState::Active);
 		} else if (_videoCapture) {

@@ -552,6 +552,9 @@ void GroupCall::applyParticipantsSlice(
 						(data.vvideo()
 							? data.vvideo()->c_dataJSON().vdata().v
 							: QByteArray()),
+						(data.vpresentation()
+							? data.vpresentation()->c_dataJSON().vdata().v
+							: QByteArray()),
 						(i != end(_participants)
 							? i->videoParams
 							: nullptr))

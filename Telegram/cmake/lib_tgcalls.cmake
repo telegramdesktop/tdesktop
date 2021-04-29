@@ -67,6 +67,10 @@ PRIVATE
     # Group calls
     group/GroupInstanceCustomImpl.cpp
     group/GroupInstanceCustomImpl.h
+    group/GroupInstanceImpl.h
+    group/GroupJoinPayloadInternal.cpp
+    group/GroupJoinPayloadInternal.h
+    group/GroupJoinPayload.h
     group/GroupNetworkManager.cpp
     group/GroupNetworkManager.h
     group/StreamingPart.cpp
@@ -135,6 +139,10 @@ PRIVATE
     # All
     reference/InstanceImplReference.cpp
     reference/InstanceImplReference.h
+
+    # third-party
+    third-party/json11.cpp
+    third-party/json11.hpp
 )
 
 target_link_libraries(lib_tgcalls
@@ -145,6 +153,8 @@ PRIVATE
 )
 
 target_compile_definitions(lib_tgcalls
+PUBLIC
+    TGCALLS_USE_STD_OPTIONAL
 PRIVATE
     WEBRTC_APP_TDESKTOP
     RTC_ENABLE_VP9
