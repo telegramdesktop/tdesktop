@@ -2000,6 +2000,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_share_button" = "Share";
 "lng_group_call_video" = "Video";
 "lng_group_call_screen_share" = "Share";
+"lng_group_call_screen_share_start" = "Share Screen";
+"lng_group_call_screen_share_stop" = "Stop Sharing";
+"lng_group_call_screen_title" = "Screen {index}";
 "lng_group_call_unmute_small" = "Unmute";
 "lng_group_call_you_are_live_small" = "Mute";
 "lng_group_call_force_muted_small" = "Muted";

@@ -116,8 +116,10 @@ private:
 	void subscribeToPeerChanges();
 
 	QWidget *chooseSourceParent() override;
+	QString chooseSourceActiveDeviceId() override;
 	rpl::lifetime &chooseSourceInstanceLifetime() override;
 	void chooseSourceAccepted(const QString &deviceId) override;
+	void chooseSourceStop() override;
 
 	const not_null<GroupCall*> _call;
 	not_null<PeerData*> _peer;

@@ -484,12 +484,20 @@ QWidget *Panel::chooseSourceParent() {
 	return _window.get();
 }
 
+QString Panel::chooseSourceActiveDeviceId() {
+	return _call->screenSharingDeviceId();
+}
+
 rpl::lifetime &Panel::chooseSourceInstanceLifetime() {
 	return _window->lifetime();
 }
 
 void Panel::chooseSourceAccepted(const QString &deviceId) {
 	_call->switchToScreenSharing(deviceId);
+}
+
+void Panel::chooseSourceStop() {
+	_call->toggleVideo(false);
 }
 
 void Panel::initWindow() {

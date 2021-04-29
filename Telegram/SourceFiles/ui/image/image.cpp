@@ -93,16 +93,6 @@ QImage FromInlineBytes(const QByteArray &bytes) {
 	return App::readImage(ExpandInlineBytes(bytes));
 }
 
-QSize GetSizeForDocument(const QVector<MTPDocumentAttribute> &attributes) {
-	for (const auto &attribute : attributes) {
-		if (attribute.type() == mtpc_documentAttributeImageSize) {
-			auto &size = attribute.c_documentAttributeImageSize();
-			return QSize(size.vw().v, size.vh().v);
-		}
-	}
-	return QSize();
-}
-
 } // namespace Images
 
 Image::Image(const QString &path) : Image(ReadContent(path)) {

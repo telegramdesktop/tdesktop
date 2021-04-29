@@ -1460,9 +1460,9 @@ void MembersController::updateRow(
 			Assert(nowSsrc != 0);
 			_soundingRowBySsrc.emplace(nowSsrc, row);
 		}
-		if (isMe(row->peer())) {
-			row->setVideoTrack(_call->outgoingVideoTrack());
-		}
+		//if (isMe(row->peer())) {
+		//	row->setVideoTrack(_call->outgoingVideoTrack());
+		//}
 	}
 	const auto nowNoSounding = _soundingRowBySsrc.empty();
 	if (wasNoSounding && !nowNoSounding) {

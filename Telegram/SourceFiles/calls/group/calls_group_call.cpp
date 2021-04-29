@@ -322,7 +322,12 @@ GroupCall::~GroupCall() {
 }
 
 bool GroupCall::isScreenSharing() const {
-	return (_videoDeviceId != _videoInputId);
+	return (_videoDeviceId != _videoInputId)
+		&& (_videoOutgoing->state() == Webrtc::VideoState::Active);
+}
+
+QString GroupCall::screenSharingDeviceId() const {
+	return isScreenSharing() ? _videoDeviceId : QString();
 }
 
 void GroupCall::toggleVideo(bool active) {

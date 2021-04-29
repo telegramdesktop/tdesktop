@@ -13,6 +13,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QBuffer>
 
 namespace Images {
+namespace {
+
+QSize GetSizeForDocument(const QVector<MTPDocumentAttribute> &attributes) {
+	for (const auto &attribute : attributes) {
+		if (attribute.type() == mtpc_documentAttributeImageSize) {
+			auto &size = attribute.c_documentAttributeImageSize();
+			return QSize(size.vw().v, size.vh().v);
+		}
+	}
+	return QSize();
+}
+
+} // namespace
 
 ImageWithLocation FromPhotoSize(
 		not_null<Main::Session*> session,

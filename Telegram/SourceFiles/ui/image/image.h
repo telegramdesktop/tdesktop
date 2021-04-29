@@ -14,9 +14,6 @@ namespace Images {
 [[nodiscard]] QByteArray ExpandInlineBytes(const QByteArray &bytes);
 [[nodiscard]] QImage FromInlineBytes(const QByteArray &bytes);
 
-[[nodiscard]] QSize GetSizeForDocument(
-	const QVector<MTPDocumentAttribute> &attributes);
-
 } // namespace Images
 
 class Image final {

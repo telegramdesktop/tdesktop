@@ -11,8 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/effects/ripple_animation.h"
+#include "ui/image/image.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "base/platform/base_platform_info.h"
 #include "webrtc/webrtc_video_track.h"
+#include "lang/lang_keys.h"
 #include "styles/style_calls.h"
 
 #include <tgcalls/desktop_capturer/DesktopCaptureSourceManager.h>
@@ -33,6 +37,19 @@ struct Preview {
 	rpl::lifetime lifetime;
 };
 
+class SourceButton final : public RippleButton {
+public:
+	using RippleButton::RippleButton;
+
+private:
+	QImage prepareRippleMask() const override;
+
+};
+
+QImage SourceButton::prepareRippleMask() const {
+	return RippleAnimation::roundRectMask(size(), st::roundRadiusLarge);
+}
+
 class Source final {
 public:
 	Source(
@@ -43,19 +60,23 @@ public:
 	void setGeometry(QRect geometry);
 	void clearHelper();
 
-	[[nodiscard]] bool ready() const;
-	[[nodiscard]] rpl::producer<> clicks() const;
+	[[nodiscard]] rpl::producer<> activations() const;
+	void setActive(bool active);
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
 	void paint();
 	void setupPreview();
 
-	AbstractButton _widget;
+	SourceButton _widget;
 	FlatLabel _label;
+	RoundRect _selectedRect;
+	RoundRect _activeRect;
 	tgcalls::DesktopCaptureSource _source;
 	std::unique_ptr<Preview> _preview;
+	rpl::event_stream<> _activations;
 	QImage _frame;
+	bool _active = false;
 
 };
 
@@ -80,11 +101,16 @@ private:
 		std::unique_ptr<ChooseSourceProcess>> &Map();
 
 	const not_null<ChooseSourceDelegate*> _delegate;
-	const std::unique_ptr<::Ui::Window> _window;
+	const std::unique_ptr<Ui::Window> _window;
 	const std::unique_ptr<ScrollArea> _scroll;
 	const not_null<RpWidget*> _inner;
+	const not_null<RpWidget*> _bottom;
+	const not_null<RoundButton*> _submit;
+	const not_null<RoundButton*> _finish;
 
 	std::vector<std::unique_ptr<Source>> _sources;
+	Source *_selected = nullptr;
+	QString _selectedId;
 
 };
 
@@ -109,25 +135,45 @@ Source::Source(
 	not_null<QWidget*> parent,
 	tgcalls::DesktopCaptureSource source,
 	const QString &title)
-: _widget(parent)
-, _label(&_widget, title)
+: _widget(parent, st::groupCallRipple)
+, _label(&_widget, title, st::desktopCaptureLabel)
+, _selectedRect(ImageRoundRadius::Large, st::groupCallMembersBgOver)
+, _activeRect(ImageRoundRadius::Large, st::groupCallMuted1)
 , _source(source) {
 	_widget.paintRequest(
 	) | rpl::start_with_next([=] {
 		paint();
 	}, _widget.lifetime());
 
+	_label.setAttribute(Qt::WA_TransparentForMouseEvents);
+
 	_widget.sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
-		_label.resizeToNaturalWidth(size.width());
+		const auto padding = st::desktopCapturePadding;
+		_label.resizeToNaturalWidth(
+			size.width() - padding.left() - padding.right());
 		_label.move(
 			(size.width() - _label.width()) / 2,
-			size.height() - _label.height());
+			size.height() - _label.height() - st::desktopCaptureLabelBottom);
 	}, _label.lifetime());
+
+	_widget.setClickedCallback([=] {
+		setActive(true);
+	});
 }
 
-rpl::producer<> Source::clicks() const {
-	return _widget.clicks() | rpl::to_empty;
+rpl::producer<> Source::activations() const {
+	return _activations.events();
+}
+
+void Source::setActive(bool active) {
+	if (_active != active) {
+		_active = active;
+		_widget.update();
+		if (active) {
+			_activations.fire({});
+		}
+	}
 }
 
 void Source::setGeometry(QRect geometry) {
@@ -144,14 +190,21 @@ void Source::paint() {
 	if (_frame.isNull() && !_preview) {
 		setupPreview();
 	}
+	if (_active) {
+		_activeRect.paint(p, _widget.rect());
+	} else if (_widget.isOver() || _widget.isDown()) {
+		_selectedRect.paint(p, _widget.rect());
+	}
+	_widget.paintRipple(
+		p,
+		{ 0, 0 },
+		_active ? &st::groupCallMuted2->c : nullptr);
+
 	const auto size = _preview ? _preview->track.frameSize() : QSize();
 	const auto factor = style::DevicePixelRatio();
+	const auto padding = st::desktopCapturePadding;
 	const auto rect = _widget.rect();
-	const auto inner = QRect(
-		rect.x(),
-		rect.y(),
-		rect.width(),
-		rect.height() - _label.height());
+	const auto inner = rect.marginsRemoved(padding);
 	if (!size.isEmpty()) {
 		const auto scaled = size.scaled(inner.size(), Qt::KeepAspectRatio);
 		const auto request = Webrtc::FrameRequest{
@@ -190,9 +243,20 @@ rpl::lifetime &Source::lifetime() {
 ChooseSourceProcess::ChooseSourceProcess(
 	not_null<ChooseSourceDelegate*> delegate)
 : _delegate(delegate)
-, _window(std::make_unique<::Ui::Window>())
+, _window(std::make_unique<Ui::Window>())
 , _scroll(std::make_unique<ScrollArea>(_window->body()))
-, _inner(_scroll->setOwnedWidget(object_ptr<RpWidget>(_scroll.get()))) {
+, _inner(_scroll->setOwnedWidget(object_ptr<RpWidget>(_scroll.get())))
+, _bottom(CreateChild<RpWidget>(_window->body().get()))
+, _submit(
+	CreateChild<RoundButton>(
+		_bottom.get(),
+		tr::lng_group_call_screen_share_start(),
+		st::desktopCaptureSubmit))
+, _finish(
+	CreateChild<RoundButton>(
+		_bottom.get(),
+		tr::lng_group_call_screen_share_stop(),
+		st::desktopCaptureFinish)) {
 	setupPanel();
 	setupSources();
 	activate();
@@ -233,25 +297,102 @@ void ChooseSourceProcess::activate() {
 }
 
 void ChooseSourceProcess::setupPanel() {
-	const auto width = kColumns * st::desktopCaptureSourceSize.width()
-		+ (kColumns + 1) * st::desktopCaptureSourceSkip;
-	const auto height = kRows * st::desktopCaptureSourceSize.height()
-		+ (kRows + 1) * st::desktopCaptureSourceSkip
-		+ (st::desktopCaptureSourceSize.height() / 2);
+	_window->setAttribute(Qt::WA_OpaquePaintEvent);
+	_window->setAttribute(Qt::WA_NoSystemBackground);
+	_window->setWindowIcon(QIcon(
+		QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
+	_window->setTitleStyle(st::desktopCaptureSourceTitle);
+
+	const auto skips = st::desktopCaptureSourceSkips;
+	const auto margins = st::desktopCaptureMargins;
+	const auto padding = st::desktopCapturePadding;
+	const auto bottomSkip = margins.right() + padding.right();
+	const auto bottomHeight = 2 * bottomSkip
+		+ st::desktopCaptureCancel.height;
+	const auto width = margins.left()
+		+ kColumns * st::desktopCaptureSourceSize.width()
+		+ (kColumns - 1) * skips.width()
+		+ margins.right();
+	const auto height = margins.top()
+		+ kRows * st::desktopCaptureSourceSize.height()
+		+ (kRows - 1) * skips.height()
+		+ (st::desktopCaptureSourceSize.height() / 2)
+		+ bottomHeight;
 	_window->setFixedSize({ width, height });
 	_window->setWindowFlags(Qt::WindowStaysOnTopHint);
 
+	_window->body()->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		QPainter(_window->body()).fillRect(clip, st::groupCallBg);
+	}, _window->lifetime());
+
+	_bottom->setGeometry(0, height - bottomHeight, width, bottomHeight);
+
+	_submit->setClickedCallback([=] {
+		if (_selectedId.isEmpty()) {
+			return;
+		}
+		const auto weak = MakeWeak(_window.get());
+		_delegate->chooseSourceAccepted(_selectedId);
+		if (const auto strong = weak.data()) {
+			strong->close();
+		}
+	});
+	_finish->setClickedCallback([=] {
+		const auto weak = MakeWeak(_window.get());
+		_delegate->chooseSourceStop();
+		if (const auto strong = weak.data()) {
+			strong->close();
+		}
+	});
+	const auto cancel = CreateChild<RoundButton>(
+		_bottom.get(),
+		tr::lng_cancel(),
+		st::desktopCaptureCancel);
+	cancel->setClickedCallback([=] {
+		_window->close();
+	});
+
+	rpl::combine(
+		_submit->widthValue(),
+		_submit->shownValue(),
+		_finish->widthValue(),
+		_finish->shownValue(),
+		cancel->widthValue()
+	) | rpl::start_with_next([=](
+			int submitWidth,
+			bool submitShown,
+			int finishWidth,
+			bool finishShown,
+			int cancelWidth) {
+		_finish->moveToRight(bottomSkip, bottomSkip);
+		_submit->moveToRight(bottomSkip, bottomSkip);
+		cancel->moveToRight(
+			bottomSkip * 2 + (submitShown ? submitWidth : finishWidth),
+			bottomSkip);
+	}, _bottom->lifetime());
+
+	const auto sharing = !_delegate->chooseSourceActiveDeviceId().isEmpty();
+	_finish->setVisible(sharing);
+	_submit->setVisible(!sharing);
+
 	_window->body()->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
-		_scroll->setGeometry({ QPoint(), size });
+		_scroll->setGeometry(
+			0,
+			0,
+			size.width(),
+			size.height() - _bottom->height());
 	}, _scroll->lifetime());
 
 	_scroll->widthValue(
 	) | rpl::start_with_next([=](int width) {
 		const auto rows = int(std::ceil(_sources.size() / float(kColumns)));
-		const auto height = rows * st::desktopCaptureSourceSize.height()
-			+ (rows + 1) * st::desktopCaptureSourceSkip;
-		_inner->resize(width, height);
+		const auto innerHeight = margins.top()
+			+ rows * st::desktopCaptureSourceSize.height()
+			+ (rows - 1) * skips.height()
+			+ margins.bottom();
+		_inner->resize(width, std::max(height, innerHeight));
 	}, _inner->lifetime());
 
 	if (const auto parent = _delegate->chooseSourceParent()) {
@@ -278,17 +419,42 @@ void ChooseSourceProcess::fillSources() {
 
 	auto screenIndex = 0;
 	auto windowIndex = 0;
+	const auto active = _delegate->chooseSourceActiveDeviceId();
 	const auto append = [&](const tgcalls::DesktopCaptureSource &source) {
-		const auto title = !source.title().empty()
+		const auto title = !source.isWindow()
+			? tr::lng_group_call_screen_title(
+				tr::now,
+				lt_index,
+				QString::number(++screenIndex))
+			: !source.title().empty()
 			? QString::fromStdString(source.title())
-			: source.isWindow()
-			? "Window " + QString::number(++windowIndex)
-			: "Screen " + QString::number(++screenIndex);
+			: "Window " + QString::number(++windowIndex);
+		const auto id = source.deviceIdKey();
 		_sources.push_back(std::make_unique<Source>(_inner, source, title));
-		_sources.back()->clicks(
-		) | rpl::start_with_next([=, id = source.deviceIdKey()]{
-			_delegate->chooseSourceAccepted(QString::fromStdString(id));
-			}, _sources.back()->lifetime());
+
+		const auto raw = _sources.back().get();
+		if (!active.isEmpty() && active.toStdString() == id) {
+			_selected = raw;
+			raw->setActive(true);
+		}
+		_sources.back()->activations(
+		) | rpl::filter([=] {
+			return (_selected != raw);
+		}) | rpl::start_with_next([=]{
+			if (_selected) {
+				_selected->setActive(false);
+			}
+			_selected = raw;
+			_selectedId = QString::fromStdString(id);
+			if (_selectedId == _delegate->chooseSourceActiveDeviceId()) {
+				_selectedId = QString();
+				_finish->setVisible(true);
+				_submit->setVisible(false);
+			} else {
+				_finish->setVisible(false);
+				_submit->setVisible(true);
+			}
+		}, raw->lifetime());
 	};
 	for (const auto &source : screensManager.sources()) {
 		append(source);
@@ -300,31 +466,34 @@ void ChooseSourceProcess::fillSources() {
 
 void ChooseSourceProcess::setupSourcesGeometry() {
 	if (_sources.empty()) {
-		//LOG(());
 		destroy();
 		return;
 	}
 	_inner->widthValue(
 	) | rpl::start_with_next([=](int width) {
 		const auto rows = int(std::ceil(_sources.size() / float(kColumns)));
-		const auto skip = st::desktopCaptureSourceSkip;
-		const auto single = (width - (kColumns + 1) * skip) / kColumns;
+		const auto margins = st::desktopCaptureMargins;
+		const auto skips = st::desktopCaptureSourceSkips;
+		const auto single = (width
+			- margins.left()
+			- margins.right()
+			- (kColumns - 1) * skips.width()) / kColumns;
 		const auto height = st::desktopCaptureSourceSize.height();
-		auto top = skip;
+		auto top = margins.top();
 		auto index = 0;
 		for (auto row = 0; row != rows; ++row) {
-			auto left = skip;
+			auto left = margins.left();
 			for (auto column = 0; column != kColumns; ++column) {
 				_sources[index]->setGeometry({ left, top, single, height });
 				if (++index == _sources.size()) {
 					break;
 				}
-				left += single + skip;
+				left += single + skips.width();
 			}
 			if (index >= _sources.size()) {
 				break;
 			}
-			top += height + skip;
+			top += height + skips.height();
 		}
 	}, _inner->lifetime());
 
@@ -333,9 +502,10 @@ void ChooseSourceProcess::setupSourcesGeometry() {
 		_scroll->heightValue()
 	) | rpl::start_with_next([=](int scrollTop, int scrollHeight) {
 		const auto rows = int(std::ceil(_sources.size() / float(kColumns)));
-		const auto skip = st::desktopCaptureSourceSkip;
+		const auto margins = st::desktopCaptureMargins;
+		const auto skips = st::desktopCaptureSourceSkips;
 		const auto height = st::desktopCaptureSourceSize.height();
-		auto top = skip;
+		auto top = margins.top();
 		auto index = 0;
 		for (auto row = 0; row != rows; ++row) {
 			const auto hidden = (top + height <= scrollTop)
@@ -353,7 +523,7 @@ void ChooseSourceProcess::setupSourcesGeometry() {
 			if (index >= _sources.size()) {
 				break;
 			}
-			top += height + skip;
+			top += height + skips.height();
 		}
 	}, _inner->lifetime());
 }

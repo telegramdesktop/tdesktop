@@ -19,8 +19,10 @@ namespace Calls::Group::Ui::DesktopCapture {
 class ChooseSourceDelegate {
 public:
 	virtual QWidget *chooseSourceParent() = 0;
+	virtual QString chooseSourceActiveDeviceId() = 0;
 	virtual rpl::lifetime &chooseSourceInstanceLifetime() = 0;
 	virtual void chooseSourceAccepted(const QString &deviceId) = 0;
+	virtual void chooseSourceStop() = 0;
 };
 
 void ChooseSource(not_null<ChooseSourceDelegate*> delegate);

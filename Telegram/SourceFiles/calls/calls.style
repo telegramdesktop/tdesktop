@@ -856,17 +856,18 @@ groupCallTopBarOpen: RoundButton(groupCallTopBarJoin) {
 		color: shadowFg;
 	}
 }
-groupCallBox: Box(defaultBox) {
-	button: RoundButton(defaultBoxButton) {
-		textFg: groupCallActiveFg;
-		textFgOver: groupCallActiveFg;
-		numbersTextFg: groupCallActiveFg;
-		numbersTextFgOver: groupCallActiveFg;
-		textBg: groupCallMembersBg;
-		textBgOver: groupCallMembersBgOver;
+groupCallBoxButton: RoundButton(defaultBoxButton) {
+	textFg: groupCallActiveFg;
+	textFgOver: groupCallActiveFg;
+	numbersTextFg: groupCallActiveFg;
+	numbersTextFgOver: groupCallActiveFg;
+	textBg: groupCallMembersBg;
+	textBgOver: groupCallMembersBgOver;
 
-		ripple: groupCallRipple;
-	}
+	ripple: groupCallRipple;
+}
+groupCallBox: Box(defaultBox) {
+	button: groupCallBoxButton;
 	margin: margins(0px, 56px, 0px, 10px);
 	bg: groupCallMembersBg;
 	title: FlatLabel(boxTitle) {
@@ -1092,8 +1093,46 @@ groupCallStartsWhenTop: 160px;
 groupCallCountdownFont: font(64px semibold);
 groupCallCountdownTop: 52px;
 
-desktopCaptureSourceSize: size(160px, 120px);
-desktopCaptureSourceSkip: 12px;
+desktopCaptureMargins: margins(12px, 8px, 12px, 6px);
+desktopCaptureSourceSize: size(235px, 165px);
+desktopCaptureSourceSkips: size(2px, 10px);
+desktopCaptureSourceTitle: WindowTitle(groupCallTitle) {
+	height: 21px;
+}
+desktopCapturePadding: margins(7px, 7px, 7px, 33px);
+desktopCaptureLabelBottom: 7px;
+desktopCaptureLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 200px;
+	maxHeight: 20px;
+	textFg: groupCallMembersFg;
+	style: semiboldTextStyle;
+}
+desktopCaptureCancel: RoundButton(defaultBoxButton) {
+	textFg: groupCallActiveFg;
+	textFgOver: groupCallActiveFg;
+	numbersTextFg: groupCallActiveFg;
+	numbersTextFgOver: groupCallActiveFg;
+	textBg: groupCallBg;
+	textBgOver: groupCallMembersBg;
+
+	ripple: groupCallRipple;
+}
+desktopCaptureFinish: RoundButton(desktopCaptureCancel) {
+	textFg: groupCallMemberMutedIcon;
+	textFgOver: groupCallMemberMutedIcon;
+}
+desktopCaptureSubmit: RoundButton(desktopCaptureCancel) {
+	textFg: groupCallIconFg;
+	textFgOver: groupCallIconFg;
+	numbersTextFg: groupCallIconFg;
+	numbersTextFgOver: groupCallIconFg;
+	textBg: groupCallMuted1;
+	textBgOver: groupCallMuted1;
+
+	ripple: RippleAnimation(groupCallRipple) {
+		color: groupCallMuted2;
+	}
+}
 
 groupCallNarrowSkip: 9px;
 groupCallNarrowRowSkip: 8px;

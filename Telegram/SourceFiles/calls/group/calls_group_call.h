@@ -248,7 +248,8 @@ public:
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
 	void setCurrentVideoDevice(const QString &deviceId);
-	bool isScreenSharing() const;
+	[[nodiscard]] bool isScreenSharing() const;
+	[[nodiscard]] QString screenSharingDeviceId() const;
 	void toggleVideo(bool active);
 	void switchToScreenSharing(const QString &uniqueId);
 
