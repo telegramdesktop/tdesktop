@@ -180,6 +180,10 @@ public:
 
 	int exec() override;
 
+	bool failedToOpen() {
+		return _failedToOpen;
+	}
+
 private:
 	void openPortal();
 	void gotResponse(
@@ -219,6 +223,7 @@ private:
 	Glib::ustring _selectedMimeTypeFilter;
 	Glib::ustring _selectedNameFilter;
 	std::vector<Glib::ustring> _selectedFiles;
+	bool _failedToOpen = false;
 
 	rpl::event_stream<> _accept;
 	rpl::event_stream<> _reject;
@@ -432,12 +437,40 @@ void XDPFileDialog::openPortal() {
 			}),
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
 				try {
-					_dbusConnection->call_finish(result);
+					auto reply = _dbusConnection->call_finish(result);
+
+					const auto handle = base::Platform::GlibVariantCast<
+						Glib::ustring>(reply.get_child(0));
+
+					if (handle != requestPath) {
+						crl::on_main([=] {
+							_failedToOpen = true;
+							_reject.fire({});
+						});
+					}
 				} catch (const Glib::Error &e) {
+					static const auto NotSupportedErrors = {
+						"org.freedesktop.DBus.Error.ServiceUnknown",
+					};
+
+					const auto errorName =
+						Gio::DBus::ErrorUtils::get_remote_error(e);
+
+					if (!ranges::contains(NotSupportedErrors, errorName)) {
+						LOG(("XDP File Dialog Error: %1").arg(
+							QString::fromStdString(e.what())));
+					}
+
+					crl::on_main([=] {
+						_failedToOpen = true;
+						_reject.fire({});
+					});
+				} catch (const std::exception &e) {
 					LOG(("XDP File Dialog Error: %1").arg(
 						QString::fromStdString(e.what())));
 
 					crl::on_main([=] {
+						_failedToOpen = true;
 						_reject.fire({});
 					});
 				}
@@ -445,6 +478,7 @@ void XDPFileDialog::openPortal() {
 			_cancellable,
 			std::string(kXDGDesktopPortalService));
 	} catch (...) {
+		_failedToOpen = true;
 		_reject.fire({});
 	}
 }
@@ -502,6 +536,9 @@ int XDPFileDialog::exec() {
 	setResult(0);
 
 	show();
+	if (failedToOpen()) {
+		return result();
+	}
 
 	QPointer<QDialog> guard = this;
 
@@ -651,7 +688,7 @@ bool Use(Type type) {
 		&& (type != Type::ReadFolder || *Version >= 3);
 }
 
-bool Get(
+std::optional<bool> Get(
 		QPointer<QWidget> parent,
 		QStringList &files,
 		QByteArray &remoteContent,
@@ -688,6 +725,9 @@ bool Get(
 	dialog.selectFile(startFile);
 
 	const auto res = dialog.exec();
+	if (dialog.failedToOpen()) {
+		return std::nullopt;
+	}
 
 	if (type != Type::ReadFolder) {
 		// Save last used directory for all queries except directory choosing.
