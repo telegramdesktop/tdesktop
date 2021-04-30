@@ -33,6 +33,8 @@ constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 const char *filterRegExp =
 "^(.*)\\(([a-zA-Z0-9_.,*? +;#\\-\\[\\]@\\{\\}/!<>\\$%&=^~:\\|]*)\\)$";
 
+std::optional<uint> FileChooserPortalVersion;
+
 auto QStringListToStd(const QStringList &list) {
 	std::vector<Glib::ustring> result;
 	ranges::transform(
@@ -69,53 +71,55 @@ auto MakeFilterList(const QString &filter) {
 	return result;
 }
 
-std::optional<uint> FileChooserPortalVersion() {
-	try {
-		const auto connection = [] {
-			try {
-				return Gio::DBus::Connection::get_sync(
-					Gio::DBus::BusType::BUS_TYPE_SESSION);
-			} catch (...) {
-				return Glib::RefPtr<Gio::DBus::Connection>();
-			}
-		}();
-
-		if (!connection) {
-			return std::nullopt;
+void ComputeFileChooserPortalVersion() {
+	const auto connection = [] {
+		try {
+			return Gio::DBus::Connection::get_sync(
+				Gio::DBus::BusType::BUS_TYPE_SESSION);
+		} catch (...) {
+			return Glib::RefPtr<Gio::DBus::Connection>();
 		}
+	}();
 
-		auto reply = connection->call_sync(
-			std::string(kXDGDesktopPortalObjectPath),
-			std::string(kPropertiesInterface),
-			"Get",
-			base::Platform::MakeGlibVariant(std::tuple{
-				Glib::ustring(
-					std::string(kXDGDesktopPortalFileChooserInterface)),
-				Glib::ustring("version"),
-			}),
-			std::string(kXDGDesktopPortalService));
-
-		return base::Platform::GlibVariantCast<uint>(
-			base::Platform::GlibVariantCast<Glib::VariantBase>(
-				reply.get_child(0)));
-	} catch (const Glib::Error &e) {
-		static const auto NotSupportedErrors = {
-			"org.freedesktop.DBus.Error.ServiceUnknown",
-		};
-
-		const auto errorName = Gio::DBus::ErrorUtils::get_remote_error(e);
-		if (ranges::contains(NotSupportedErrors, errorName)) {
-			return std::nullopt;
-		}
-
-		LOG(("XDP File Dialog Error: %1").arg(
-			QString::fromStdString(e.what())));
-	} catch (const std::exception &e) {
-		LOG(("XDP File Dialog Error: %1").arg(
-			QString::fromStdString(e.what())));
+	if (!connection) {
+		return;
 	}
 
-	return std::nullopt;
+	connection->call(
+		std::string(kXDGDesktopPortalObjectPath),
+		std::string(kPropertiesInterface),
+		"Get",
+		base::Platform::MakeGlibVariant(std::tuple{
+			Glib::ustring(
+				std::string(kXDGDesktopPortalFileChooserInterface)),
+			Glib::ustring("version"),
+		}),
+		[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
+			try {
+				auto reply = connection->call_finish(result);
+
+				FileChooserPortalVersion =
+					base::Platform::GlibVariantCast<uint>(
+						base::Platform::GlibVariantCast<Glib::VariantBase>(
+							reply.get_child(0)));
+			} catch (const Glib::Error &e) {
+				static const auto NotSupportedErrors = {
+					"org.freedesktop.DBus.Error.ServiceUnknown",
+				};
+
+				const auto errorName =
+					Gio::DBus::ErrorUtils::get_remote_error(e);
+
+				if (!ranges::contains(NotSupportedErrors, errorName)) {
+					LOG(("XDP File Dialog Error: %1").arg(
+						QString::fromStdString(e.what())));
+				}
+			} catch (const std::exception &e) {
+				LOG(("XDP File Dialog Error: %1").arg(
+					QString::fromStdString(e.what())));
+			}
+		},
+		std::string(kXDGDesktopPortalService));
 }
 
 // This is a patched copy of file dialog from qxdgdesktopportal theme plugin.
@@ -682,10 +686,13 @@ rpl::producer<> XDPFileDialog::rejected() {
 
 } // namespace
 
+void Start() {
+	ComputeFileChooserPortalVersion();
+}
+
 bool Use(Type type) {
-	static const auto Version = FileChooserPortalVersion();
-	return Version.has_value()
-		&& (type != Type::ReadFolder || *Version >= 3);
+	return FileChooserPortalVersion.has_value()
+		&& (type != Type::ReadFolder || *FileChooserPortalVersion >= 3);
 }
 
 std::optional<bool> Get(
