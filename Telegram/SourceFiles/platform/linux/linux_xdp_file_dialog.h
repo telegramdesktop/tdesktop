@@ -16,7 +16,7 @@ namespace XDP {
 using Type = ::FileDialog::internal::Type;
 
 bool Use(Type type = Type::ReadFile);
-bool Get(
+std::optional<bool> Get(
 	QPointer<QWidget> parent,
 	QStringList &files,
 	QByteArray &remoteContent,

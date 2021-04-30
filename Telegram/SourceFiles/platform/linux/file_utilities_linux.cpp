@@ -172,7 +172,7 @@ bool Get(
 	}
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	if (XDP::Use(type)) {
-		return XDP::Get(
+		const auto result = XDP::Get(
 			parent,
 			files,
 			remoteContent,
@@ -180,6 +180,10 @@ bool Get(
 			filter,
 			type,
 			startFile);
+
+		if (result.has_value()) {
+			return *result;
+		}
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	if (const auto integration = GtkIntegration::Instance()) {
