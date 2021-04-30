@@ -71,8 +71,18 @@ auto MakeFilterList(const QString &filter) {
 
 std::optional<uint> FileChooserPortalVersion() {
 	try {
-		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+		const auto connection = [] {
+			try {
+				return Gio::DBus::Connection::get_sync(
+					Gio::DBus::BusType::BUS_TYPE_SESSION);
+			} catch (...) {
+				return Glib::RefPtr<Gio::DBus::Connection>();
+			}
+		}();
+
+		if (!connection) {
+			return std::nullopt;
+		}
 
 		auto reply = connection->call_sync(
 			std::string(kXDGDesktopPortalObjectPath),
@@ -90,7 +100,6 @@ std::optional<uint> FileChooserPortalVersion() {
 				reply.get_child(0)));
 	} catch (const Glib::Error &e) {
 		static const auto NotSupportedErrors = {
-			"org.freedesktop.DBus.Error.Disconnected",
 			"org.freedesktop.DBus.Error.ServiceUnknown",
 		};
 
@@ -435,10 +444,7 @@ void XDPFileDialog::openPortal() {
 			},
 			_cancellable,
 			std::string(kXDGDesktopPortalService));
-	} catch (const Glib::Error &e) {
-		LOG(("XDP File Dialog Error: %1").arg(
-			QString::fromStdString(e.what())));
-
+	} catch (...) {
 		_reject.fire({});
 	}
 }

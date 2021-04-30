@@ -430,8 +430,18 @@ bool UseUnityCounter() {
 
 bool IsSNIAvailable() {
 	try {
-		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+		const auto connection = [] {
+			try {
+				return Gio::DBus::Connection::get_sync(
+					Gio::DBus::BusType::BUS_TYPE_SESSION);
+			} catch (...) {
+				return Glib::RefPtr<Gio::DBus::Connection>();
+			}
+		}();
+
+		if (!connection) {
+			return false;
+		}
 
 		auto reply = connection->call_sync(
 			std::string(kSNIWatcherObjectPath),
@@ -448,7 +458,6 @@ bool IsSNIAvailable() {
 				reply.get_child(0)));
 	} catch (const Glib::Error &e) {
 		static const auto NotSupportedErrors = {
-			"org.freedesktop.DBus.Error.Disconnected",
 			"org.freedesktop.DBus.Error.ServiceUnknown",
 		};
 
