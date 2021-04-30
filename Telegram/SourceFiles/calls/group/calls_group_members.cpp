@@ -145,8 +145,10 @@ public:
 		return _raisedHandRating;
 	}
 
-	[[nodiscard]] not_null<Webrtc::VideoTrack*> createVideoTrack();
+	[[nodiscard]] not_null<Webrtc::VideoTrack*> createVideoTrack(
+		const std::string &endpoint);
 	void clearVideoTrack();
+	[[nodiscard]] const std::string &videoTrackEndpoint() const;
 	void setVideoTrack(not_null<Webrtc::VideoTrack*> track);
 
 	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
@@ -276,6 +278,7 @@ private:
 	std::unique_ptr<StatusIcon> _statusIcon;
 	std::unique_ptr<Webrtc::VideoTrack> _videoTrack;
 	Webrtc::VideoTrack *_videoTrackShown = nullptr;
+	std::string _videoTrackEndpoint;
 	rpl::lifetime _videoTrackLifetime; // #TODO calls move to unique_ptr.
 	Ui::Animations::Simple _speakingAnimation; // For gray-red/green icon.
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
@@ -380,14 +383,16 @@ private:
 		not_null<Row*> row,
 		uint64 raiseHandRating) const;
 	Row *findRow(not_null<PeerData*> participantPeer) const;
-	Row *findRow(uint32 audioSsrc) const;
+	const Data::GroupCallParticipant *findParticipant(
+		const std::string &endpoint) const;
+	Row *findRow(const std::string &endpoint) const;
 
 	void appendInvitedUsers();
 	void scheduleRaisedHandStatusRemove();
 
 	const not_null<GroupCall*> _call;
 	not_null<PeerData*> _peer;
-	uint32 _largeSsrc = 0;
+	std::string _largeEndpoint;
 	bool _prepared = false;
 
 	rpl::event_stream<MuteRequest> _toggleMuteRequests;
@@ -1015,12 +1020,18 @@ void Row::refreshStatus() {
 		_speaking);
 }
 
-not_null<Webrtc::VideoTrack*> Row::createVideoTrack() {
+not_null<Webrtc::VideoTrack*> Row::createVideoTrack(
+		const std::string &endpoint) {
 	_videoTrackShown = nullptr;
+	_videoTrackEndpoint = endpoint;
 	_videoTrack = std::make_unique<Webrtc::VideoTrack>(
 		Webrtc::VideoState::Active);
 	setVideoTrack(_videoTrack.get());
 	return _videoTrack.get();
+}
+
+const std::string &Row::videoTrackEndpoint() const {
+	return _videoTrackEndpoint;
 }
 
 void Row::clearVideoTrack() {
@@ -1149,27 +1160,48 @@ void MembersController::setupListChangeViewers() {
 		}
 	}, _lifetime);
 
-	_call->videoStreamLargeValue(
-	) | rpl::filter([=](uint32 largeSsrc) {
-		return (_largeSsrc != largeSsrc);
-	}) | rpl::start_with_next([=](uint32 largeSsrc) {
-		if (const auto row = findRow(_largeSsrc)) {
-			_call->addVideoOutput(_largeSsrc, row->createVideoTrack());
+	_call->videoEndpointLargeValue(
+	) | rpl::filter([=](const std::string &largeEndpoint) {
+		return (_largeEndpoint != largeEndpoint);
+	}) | rpl::start_with_next([=](const std::string &largeEndpoint) {
+		if (const auto participant = findParticipant(_largeEndpoint)) {
+			if (participant->cameraEndpoint() == _largeEndpoint) {
+				if (const auto row = findRow(participant->peer)) {
+					_call->addVideoOutput(
+						_largeEndpoint,
+						row->createVideoTrack(_largeEndpoint));
+				}
+			}
 		}
-		_largeSsrc = largeSsrc;
-		if (const auto row = findRow(_largeSsrc)) {
-			row->clearVideoTrack();
+		_largeEndpoint = largeEndpoint;
+		if (const auto participant = findParticipant(_largeEndpoint)) {
+			if (participant->cameraEndpoint() == _largeEndpoint) {
+				if (const auto row = findRow(participant->peer)) {
+					row->clearVideoTrack();
+				}
+			}
 		}
 	}, _lifetime);
 
 	_call->streamsVideoUpdates(
 	) | rpl::start_with_next([=](StreamsVideoUpdate update) {
-		Assert(update.ssrc != _largeSsrc);
-		if (const auto row = findRow(update.ssrc)) {
+		Assert(update.endpoint != _largeEndpoint);
+		if (const auto participant = findParticipant(update.endpoint)) {
 			if (update.streams) {
-				_call->addVideoOutput(update.ssrc, row->createVideoTrack());
+				if (participant->cameraEndpoint() == update.endpoint
+					|| !_call->streamsVideo(participant->cameraEndpoint())) {
+					if (const auto row = findRow(participant->peer)) {
+						_call->addVideoOutput(
+							update.endpoint,
+							row->createVideoTrack(update.endpoint));
+					}
+				}
 			} else {
-				row->clearVideoTrack();
+				if (const auto row = findRow(participant->peer)) {
+					if (row->videoTrackEndpoint() == update.endpoint) {
+						row->clearVideoTrack();
+					}
+				}
 			}
 		}
 	}, _lifetime);
@@ -1493,15 +1525,18 @@ Row *MembersController::findRow(not_null<PeerData*> participantPeer) const {
 		delegate()->peerListFindRow(participantPeer->id.value));
 }
 
-Row *MembersController::findRow(uint32 audioSsrc) const {
-	if (!audioSsrc) {
+const Data::GroupCallParticipant *MembersController::findParticipant(
+		const std::string &endpoint) const {
+	if (endpoint.empty()) {
 		return nullptr;
 	}
 	const auto real = _call->lookupReal();
-	const auto participantPeer = real
-		? real->participantPeerByAudioSsrc(audioSsrc)
-		: nullptr;
-	return participantPeer ? findRow(participantPeer) : nullptr;
+	return real ? real->participantByEndpoint(endpoint) : nullptr;
+}
+
+Row *MembersController::findRow(const std::string &endpoint) const {
+	const auto participant = findParticipant(endpoint);
+	return participant ? findRow(participant->peer) : nullptr;
 }
 
 Main::Session &MembersController::session() const {
@@ -1845,15 +1880,35 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		_kickParticipantRequests.fire_copy(participantPeer);
 	});
 
-	const auto ssrc = real->ssrc();
-	if (ssrc != 0 && _call->streamsVideo(ssrc)) {
-		const auto pinned = (_call->videoStreamPinned() == ssrc);
-		const auto phrase = pinned
-			? tr::lng_group_call_context_unpin_video(tr::now)
-			: tr::lng_group_call_context_pin_video(tr::now);
-		result->addAction(phrase, [=] {
-			_call->pinVideoStream(pinned ? 0 : ssrc);
-		});
+	if (const auto real = _call->lookupReal()) {
+		const auto pinnedEndpoint = _call->videoEndpointPinned();
+		const auto participant = real->participantByEndpoint(pinnedEndpoint);
+		if (participant && participant->peer == participantPeer) {
+			result->addAction(
+				tr::lng_group_call_context_unpin_video(tr::now),
+				[=] { _call->pinVideoEndpoint(std::string()); });
+		} else {
+			const auto &participants = real->participants();
+			const auto i = ranges::find(
+				participants,
+				participantPeer,
+				&Data::GroupCallParticipant::peer);
+			if (i != end(participants)) {
+				const auto camera = i->cameraEndpoint();
+				const auto screen = i->screenEndpoint();
+				const auto streamsScreen = _call->streamsVideo(screen);
+				if (streamsScreen || _call->streamsVideo(camera)) {
+					const auto callback = [=] {
+						_call->pinVideoEndpoint(streamsScreen
+							? screen
+							: camera);
+					};
+					result->addAction(
+						tr::lng_group_call_context_pin_video(tr::now),
+						callback);
+				}
+			}
+		}
 	}
 
 	if (real->ssrc() != 0
@@ -2217,8 +2272,9 @@ void Members::setupPinnedVideo() {
 		_mode.changes() | rpl::filter(
 			_1 == PanelMode::Default
 		) | rpl::to_empty,
-		_call->videoStreamLargeValue() | rpl::filter([=](uint32 ssrc) {
-			return ssrc == _call->videoStreamPinned();
+		_call->videoEndpointLargeValue(
+		) | rpl::filter([=](const std::string &endpoint) {
+			return endpoint == _call->videoEndpointPinned();
 		}) | rpl::to_empty
 	) | rpl::start_with_next([=] {
 		_scroll->scrollToY(0);

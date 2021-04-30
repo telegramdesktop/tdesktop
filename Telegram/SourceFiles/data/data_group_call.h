@@ -14,7 +14,7 @@ class PeerData;
 class ApiWrap;
 
 namespace Calls {
-struct VideoParams;
+struct ParticipantVideoParams;
 } // namespace Calls
 
 namespace Data {
@@ -26,7 +26,7 @@ struct LastSpokeTimes {
 
 struct GroupCallParticipant {
 	not_null<PeerData*> peer;
-	std::shared_ptr<Calls::VideoParams> videoParams;
+	std::shared_ptr<Calls::ParticipantVideoParams> videoParams;
 	TimeId date = 0;
 	TimeId lastActive = 0;
 	uint64 raisedHandRating = 0;
@@ -38,8 +38,10 @@ struct GroupCallParticipant {
 	bool muted = false;
 	bool mutedByMe = false;
 	bool canSelfUnmute = false;
-	bool videoMuted = true;
 	bool onlyMinLoaded = false;
+
+	[[nodiscard]] const std::string &cameraEndpoint() const;
+	[[nodiscard]] const std::string &screenEndpoint() const;
 };
 
 class GroupCall final {
@@ -104,7 +106,10 @@ public:
 	void requestParticipants();
 	[[nodiscard]] bool participantsLoaded() const;
 	[[nodiscard]] PeerData *participantPeerByAudioSsrc(uint32 ssrc) const;
-	[[nodiscard]] PeerData *participantPeerByVideoSsrc(uint32 ssrc) const;
+	[[nodiscard]] PeerData *participantPeerByCameraSsrc(uint32 ssrc) const;
+	[[nodiscard]] PeerData *participantPeerByScreenSsrc(uint32 ssrc) const;
+	[[nodiscard]] const Participant *participantByEndpoint(
+		const std::string &endpoint) const;
 
 	[[nodiscard]] rpl::producer<> participantsSliceAdded();
 	[[nodiscard]] rpl::producer<ParticipantUpdate> participantUpdated() const;
@@ -120,6 +125,12 @@ public:
 		PeerData *participantPeerLoaded);
 
 	void resolveParticipants(const base::flat_set<uint32> &ssrcs);
+	[[nodiscard]] rpl::producer<
+		not_null<const base::flat_map<
+			uint32,
+			LastSpokeTimes>*>> participantsResolved() const {
+		return _participantsResolved.events();
+	}
 
 	[[nodiscard]] int fullCount() const;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
@@ -167,6 +178,9 @@ private:
 	void processSavedFullCall();
 	void finishParticipantsSliceRequest();
 
+	void emplaceVideoSsrcs(const Participant &participant);
+	void eraseVideoSsrcs(const Participant &participant);
+
 	const uint64 _id = 0;
 	const uint64 _accessHash = 0;
 
@@ -184,7 +198,8 @@ private:
 
 	std::vector<Participant> _participants;
 	base::flat_map<uint32, not_null<PeerData*>> _participantPeerByAudioSsrc;
-	base::flat_map<uint32, not_null<PeerData*>> _participantPeerByVideoSsrc;
+	base::flat_map<uint32, not_null<PeerData*>> _participantPeerByCameraSsrc;
+	base::flat_map<uint32, not_null<PeerData*>> _participantPeerByScreenSsrc;
 	base::flat_map<not_null<PeerData*>, crl::time> _speakingByActiveFinishes;
 	base::Timer _speakingByActiveFinishTimer;
 	QString _nextOffset;
@@ -196,6 +211,10 @@ private:
 
 	base::flat_map<uint32, LastSpokeTimes> _unknownSpokenSsrcs;
 	base::flat_map<PeerId, LastSpokeTimes> _unknownSpokenPeerIds;
+	rpl::event_stream<
+		not_null<const base::flat_map<
+			uint32,
+			LastSpokeTimes>*>> _participantsResolved;
 	mtpRequestId _unknownParticipantPeersRequestId = 0;
 
 	rpl::event_stream<ParticipantUpdate> _participantUpdates;

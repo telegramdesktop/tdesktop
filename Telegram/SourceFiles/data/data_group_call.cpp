@@ -33,7 +33,21 @@ constexpr auto kWaitForUpdatesTimeout = 3 * crl::time(1000);
 	});
 }
 
+[[nodiscard]] const std::string &EmptyEndpoint() {
+	static const auto result = std::string();
+	return result;
+}
+
 } // namespace
+
+
+const std::string &GroupCallParticipant::cameraEndpoint() const {
+	return videoParams ? videoParams->camera.endpoint : EmptyEndpoint();
+}
+
+const std::string &GroupCallParticipant::screenEndpoint() const {
+	return videoParams ? videoParams->screen.endpoint : EmptyEndpoint();
+}
 
 GroupCall::GroupCall(
 	not_null<PeerData*> peer,
@@ -193,11 +207,34 @@ PeerData *GroupCall::participantPeerByAudioSsrc(uint32 ssrc) const {
 		: nullptr;
 }
 
-PeerData *GroupCall::participantPeerByVideoSsrc(uint32 ssrc) const {
-	const auto i = _participantPeerByVideoSsrc.find(ssrc);
-	return (i != end(_participantPeerByVideoSsrc))
+PeerData *GroupCall::participantPeerByCameraSsrc(uint32 ssrc) const {
+	const auto i = _participantPeerByCameraSsrc.find(ssrc);
+	return (i != end(_participantPeerByCameraSsrc))
 		? i->second.get()
 		: nullptr;
+}
+
+PeerData *GroupCall::participantPeerByScreenSsrc(uint32 ssrc) const {
+	const auto i = _participantPeerByScreenSsrc.find(ssrc);
+	return (i != end(_participantPeerByScreenSsrc))
+		? i->second.get()
+		: nullptr;
+}
+
+const GroupCallParticipant *GroupCall::participantByEndpoint(
+		const std::string &endpoint) const {
+	if (endpoint.empty()) {
+		return nullptr;
+	}
+	for (const auto &participant : _participants) {
+		if (const auto params = participant.videoParams.get()) {
+			if (params->camera.endpoint == endpoint
+				|| params->screen.endpoint == endpoint) {
+				return &participant;
+			}
+		}
+	}
+	return nullptr;
 }
 
 rpl::producer<> GroupCall::participantsSliceAdded() {
@@ -305,7 +342,8 @@ void GroupCall::processFullCallFields(const MTPphone_GroupCall &call) {
 			_participants.clear();
 			_speakingByActiveFinishes.clear();
 			_participantPeerByAudioSsrc.clear();
-			_participantPeerByVideoSsrc.clear();
+			_participantPeerByCameraSsrc.clear();
+			_participantPeerByScreenSsrc.clear();
 			_allParticipantsLoaded = false;
 
 			applyParticipantsSlice(
@@ -499,10 +537,7 @@ void GroupCall::applyParticipantsSlice(
 						.was = *i,
 					};
 					_participantPeerByAudioSsrc.erase(i->ssrc);
-					const auto &all = VideoSourcesFromParams(i->videoParams);
-					for (const auto ssrc : all) {
-						_participantPeerByVideoSsrc.erase(ssrc);
-					}
+					eraseVideoSsrcs(*i);
 					_speakingByActiveFinishes.remove(participantPeer);
 					_participants.erase(i);
 					if (sliceSource != ApplySliceSource::SliceLoaded) {
@@ -543,8 +578,8 @@ void GroupCall::applyParticipantsSlice(
 				&& (!was || was->onlyMinLoaded);
 			const auto raisedHandRating
 				= data.vraise_hand_rating().value_or_empty();
-			const auto hasVideoParamsInformation = (sliceSource
-				!= ApplySliceSource::UpdateConstructed);
+			const auto hasVideoParamsInformation = true/*(sliceSource
+				!= ApplySliceSource::UpdateConstructed)*/;
 			const auto value = Participant{
 				.peer = participantPeer,
 				.videoParams = (hasVideoParamsInformation
@@ -571,19 +606,13 @@ void GroupCall::applyParticipantsSlice(
 				.muted = data.is_muted(),
 				.mutedByMe = mutedByMe,
 				.canSelfUnmute = canSelfUnmute,
-				.videoMuted = (data.vvideo() == nullptr),
 				.onlyMinLoaded = onlyMinLoaded,
 			};
 			if (i == end(_participants)) {
 				_participantPeerByAudioSsrc.emplace(
 					value.ssrc,
 					participantPeer);
-				const auto &all = VideoSourcesFromParams(value.videoParams);
-				for (const auto ssrc : all) {
-					_participantPeerByVideoSsrc.emplace(
-						ssrc,
-						participantPeer);
-				}
+				emplaceVideoSsrcs(value);
 				_participants.push_back(value);
 				if (const auto user = participantPeer->asUser()) {
 					_peer->owner().unregisterInvitedToCallUser(_id, user);
@@ -596,17 +625,8 @@ void GroupCall::applyParticipantsSlice(
 						participantPeer);
 				}
 				if (i->videoParams != value.videoParams) {
-					const auto &old = VideoSourcesFromParams(i->videoParams);
-					for (const auto ssrc : old) {
-						_participantPeerByVideoSsrc.erase(ssrc);
-					}
-					const auto &now = VideoSourcesFromParams(
-						value.videoParams);
-					for (const auto ssrc : now) {
-						_participantPeerByVideoSsrc.emplace(
-							ssrc,
-							participantPeer);
-					}
+					eraseVideoSsrcs(*i);
+					emplaceVideoSsrcs(value);
 				}
 				*i = value;
 			}
@@ -624,6 +644,29 @@ void GroupCall::applyParticipantsSlice(
 	if (sliceSource == ApplySliceSource::UpdateReceived) {
 		changePeerEmptyCallFlag();
 		computeParticipantsCount();
+	}
+}
+
+void GroupCall::emplaceVideoSsrcs(const Participant &participant) {
+	if (const auto params = participant.videoParams.get()) {
+		const auto participantPeer = participant.peer;
+		for (const auto ssrc : params->camera.ssrcs) {
+			_participantPeerByCameraSsrc.emplace(ssrc, participantPeer);
+		}
+		for (const auto ssrc : params->screen.ssrcs) {
+			_participantPeerByScreenSsrc.emplace(ssrc, participantPeer);
+		}
+	}
+}
+
+void GroupCall::eraseVideoSsrcs(const Participant &participant) {
+	if (const auto params = participant.videoParams.get()) {
+		for (const auto ssrc : params->camera.ssrcs) {
+			_participantPeerByCameraSsrc.erase(ssrc);
+		}
+		for (const auto ssrc : params->screen.ssrcs) {
+			_participantPeerByScreenSsrc.erase(ssrc);
+		}
 	}
 }
 
@@ -839,6 +882,9 @@ void GroupCall::requestUnknownParticipants() {
 				}
 			}
 			_unknownSpokenPeerIds.remove(id);
+		}
+		if (!ssrcs.empty()) {
+			_participantsResolved.fire(&ssrcs);
 		}
 		requestUnknownParticipants();
 	}).fail([=](const MTP::Error &error) {

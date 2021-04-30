@@ -75,18 +75,33 @@ struct LevelUpdate {
 };
 
 struct StreamsVideoUpdate {
-	uint32 ssrc = 0;
+	std::string endpoint;
 	bool streams = false;
 };
 
-struct VideoParams;
+struct VideoParams {
+	base::flat_set<uint32> ssrcs;
+	std::string endpoint;
+	QByteArray json;
+	uint32 hash = 0;
 
-[[nodiscard]] std::shared_ptr<VideoParams> ParseVideoParams(
-	const QByteArray &video,
-	const QByteArray &screencast,
-	const std::shared_ptr<VideoParams> &existing);
-[[nodiscard]] const base::flat_set<uint32> &VideoSourcesFromParams(
-	const std::shared_ptr<VideoParams> &params);
+	[[nodiscard]] bool empty() const {
+		return endpoint.empty() || ssrcs.empty() || json.isEmpty();
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return !empty();
+	}
+};
+
+struct ParticipantVideoParams {
+	VideoParams camera;
+	VideoParams screen;
+};
+
+[[nodiscard]] std::shared_ptr<ParticipantVideoParams> ParseVideoParams(
+	const QByteArray &camera,
+	const QByteArray &screen,
+	const std::shared_ptr<ParticipantVideoParams> &existing);
 
 class GroupCall final : public base::has_weak_ptr {
 public:
@@ -154,8 +169,11 @@ public:
 	void startScheduledNow();
 	void toggleScheduleStartSubscribed(bool subscribed);
 
-	void addVideoOutput(uint32 ssrc, not_null<Webrtc::VideoTrack*> track);
-	[[nodiscard]] not_null<Webrtc::VideoTrack*> outgoingVideoTrack() const;
+	void addVideoOutput(
+		const std::string &endpoint,
+		not_null<Webrtc::VideoTrack*> track);
+	[[nodiscard]] not_null<Webrtc::VideoTrack*> outgoingCameraTrack() const;
+	[[nodiscard]] not_null<Webrtc::VideoTrack*> outgoingScreenTrack() const;
 
 	void setMuted(MuteState mute);
 	void setMutedAndUpdate(MuteState mute);
@@ -213,20 +231,21 @@ public:
 	-> rpl::producer<StreamsVideoUpdate> {
 		return _streamsVideoUpdated.events();
 	}
-	[[nodiscard]] bool streamsVideo(uint32 ssrc) const {
-		return ssrc
-			&& _videoStreamSsrcs.contains(ssrc)
-			&& !_videoMuted.contains(ssrc);
+	[[nodiscard]] bool streamsVideo(const std::string &endpoint) const {
+		return !endpoint.empty()
+			&& _incomingVideoEndpoints.contains(endpoint)
+			&& _activeVideoEndpoints.contains(endpoint);
 	}
-	[[nodiscard]] uint32 videoStreamPinned() const {
-		return _videoStreamPinned;
+	[[nodiscard]] const std::string &videoEndpointPinned() const {
+		return _videoEndpointPinned;
 	}
-	void pinVideoStream(uint32 ssrc);
-	[[nodiscard]] uint32 videoStreamLarge() const {
-		return _videoStreamLarge.current();
+	void pinVideoEndpoint(const std::string &endpoint);
+	[[nodiscard]] std::string videoEndpointLarge() const {
+		return _videoEndpointLarge.current();
 	}
-	[[nodiscard]] rpl::producer<uint32> videoStreamLargeValue() const {
-		return _videoStreamLarge.value();
+	[[nodiscard]] auto videoEndpointLargeValue() const
+	-> rpl::producer<std::string> {
+		return _videoEndpointLarge.value();
 	}
 	[[nodiscard]] Webrtc::VideoTrack *videoLargeTrack() const {
 		return _videoLargeTrack.current();
@@ -251,7 +270,7 @@ public:
 	[[nodiscard]] bool isScreenSharing() const;
 	[[nodiscard]] QString screenSharingDeviceId() const;
 	void toggleVideo(bool active);
-	void switchToScreenSharing(const QString &uniqueId);
+	void toggleScreenSharing(std::optional<QString> uniqueId);
 
 	void toggleMute(const Group::MuteRequest &data);
 	void changeVolume(const Group::VolumeRequest &data);
@@ -269,10 +288,15 @@ public:
 
 private:
 	class LoadPartTask;
+	class MediaChannelDescriptionsTask;
 
 public:
 	void broadcastPartStart(std::shared_ptr<LoadPartTask> task);
 	void broadcastPartCancel(not_null<LoadPartTask*> task);
+	void mediaChannelDescriptionsStart(
+		std::shared_ptr<MediaChannelDescriptionsTask> task);
+	void mediaChannelDescriptionsCancel(
+		not_null<MediaChannelDescriptionsTask*> task);
 
 private:
 	using GlobalShortcutValue = base::GlobalShortcutValue;
@@ -299,12 +323,19 @@ private:
 		VideoMuted,
 	};
 
+	[[nodiscard]] bool mediaChannelDescriptionsFill(
+		not_null<MediaChannelDescriptionsTask*> task,
+		Fn<bool(uint32)> resolved = nullptr);
+	void checkMediaChannelDescriptions(Fn<bool(uint32)> resolved = nullptr);
+
 	void handlePossibleCreateOrJoinResponse(const MTPDgroupCall &data);
 	void handlePossibleDiscarded(const MTPDgroupCallDiscarded &data);
 	void handleUpdate(const MTPDupdateGroupCall &data);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
 	void ensureControllerCreated();
 	void destroyController();
+	void ensureScreencastCreated();
+	void destroyScreencast();
 
 	void setState(State state);
 	void finish(FinishType type);
@@ -319,10 +350,15 @@ private:
 	void saveDefaultJoinAs(not_null<PeerData*> as);
 	void subscribeToReal(not_null<Data::GroupCall*> real);
 	void setScheduledDate(TimeId date);
+	void joinLeavePresentation();
+	void rejoinPresentation();
+	void leavePresentation();
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
 	void setInstanceConnected(tgcalls::GroupNetworkState networkState);
 	void setInstanceMode(InstanceMode mode);
+	void setScreenInstanceConnected(tgcalls::GroupNetworkState networkState);
+	void setScreenInstanceMode(InstanceMode mode);
 	void checkLastSpoke();
 	void pushToTalkCancel();
 
@@ -335,14 +371,8 @@ private:
 	void stopConnectingSound();
 	void playConnectingSoundOnce();
 
-	void requestParticipantsInformation(const std::vector<uint32_t> &ssrcs);
-	void addParticipantsToInstance();
-	void prepareParticipantForAdding(
-		const Data::GroupCallParticipant &participant);
-	void addPreparedParticipants();
-	void addPreparedParticipantsDelayed();
-	void setVideoStreams(const std::vector<std::uint32_t> &ssrcs);
-	[[nodiscard]] uint32 chooseLargeVideoSsrc() const;
+	void setIncomingVideoStreams(const std::vector<std::string> &endpoints);
+	[[nodiscard]] std::string chooseLargeVideoEndpoint() const;
 
 	void editParticipant(
 		not_null<PeerData*> participantPeer,
@@ -368,17 +398,15 @@ private:
 	MTP::Sender _api;
 	rpl::event_stream<not_null<Data::GroupCall*>> _realChanges;
 	rpl::variable<State> _state = State::Creating;
-	rpl::variable<InstanceState> _instanceState
-		= InstanceState::Disconnected;
-	bool _instanceTransitioning = false;
-	InstanceMode _instanceMode = InstanceMode::None;
 	base::flat_set<uint32> _unresolvedSsrcs;
-	std::vector<tgcalls::GroupParticipantDescription> _preparedParticipants;
-	bool _addPreparedParticipantsScheduled = false;
 	bool _recordingStoppedByMe = false;
 
 	MTP::DcId _broadcastDcId = 0;
 	base::flat_map<not_null<LoadPartTask*>, LoadingPart> _broadcastParts;
+	base::flat_set<
+		std::shared_ptr<
+			MediaChannelDescriptionsTask>,
+		base::pointer_comparator<MediaChannelDescriptionsTask>> _mediaChannelDescriptionses;
 
 	not_null<PeerData*> _joinAs;
 	std::vector<not_null<PeerData*>> _possibleJoinAs;
@@ -395,21 +423,35 @@ private:
 	uint64 _id = 0;
 	uint64 _accessHash = 0;
 	uint32 _mySsrc = 0;
-	uint32 _screencastSsrc = 0;
+	uint32 _screenSsrc = 0;
 	TimeId _scheduleDate = 0;
 	base::flat_set<uint32> _mySsrcs;
 	mtpRequestId _createRequestId = 0;
 	mtpRequestId _updateMuteRequestId = 0;
 
+	rpl::variable<InstanceState> _instanceState
+		= InstanceState::Disconnected;
+	bool _instanceTransitioning = false;
+	InstanceMode _instanceMode = InstanceMode::None;
 	std::unique_ptr<tgcalls::GroupInstanceCustomImpl> _instance;
-	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
-	const std::unique_ptr<Webrtc::VideoTrack> _videoOutgoing;
+	std::shared_ptr<tgcalls::VideoCaptureInterface> _cameraCapture;
+	const std::unique_ptr<Webrtc::VideoTrack> _cameraOutgoing;
+
+	rpl::variable<InstanceState> _screenInstanceState
+		= InstanceState::Disconnected;
+	InstanceMode _screenInstanceMode = InstanceMode::None;
+	std::unique_ptr<tgcalls::GroupInstanceCustomImpl> _screenInstance;
+	std::shared_ptr<tgcalls::VideoCaptureInterface> _screenCapture;
+	const std::unique_ptr<Webrtc::VideoTrack> _screenOutgoing;
+	QString _screenDeviceId;
+	std::string _screenEndpoint;
+
 	rpl::event_stream<LevelUpdate> _levelUpdates;
 	rpl::event_stream<StreamsVideoUpdate> _streamsVideoUpdated;
-	base::flat_set<uint32> _videoStreamSsrcs;
-	base::flat_set<uint32> _videoMuted;
-	rpl::variable<uint32> _videoStreamLarge = 0;
-	uint32 _videoStreamPinned = 0;
+	base::flat_set<std::string> _incomingVideoEndpoints;
+	base::flat_set<std::string> _activeVideoEndpoints;
+	rpl::variable<std::string> _videoEndpointLarge;
+	std::string _videoEndpointPinned;
 	std::unique_ptr<LargeTrack> _videoLargeTrackWrap;
 	rpl::variable<Webrtc::VideoTrack*> _videoLargeTrack;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
@@ -430,8 +472,7 @@ private:
 	std::unique_ptr<Webrtc::MediaDevices> _mediaDevices;
 	QString _audioInputId;
 	QString _audioOutputId;
-	QString _videoInputId;
-	QString _videoDeviceId;
+	QString _cameraInputId;
 
 	rpl::lifetime _lifetime;
 

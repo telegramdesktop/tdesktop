@@ -493,11 +493,11 @@ rpl::lifetime &Panel::chooseSourceInstanceLifetime() {
 }
 
 void Panel::chooseSourceAccepted(const QString &deviceId) {
-	_call->switchToScreenSharing(deviceId);
+	_call->toggleScreenSharing(deviceId);
 }
 
 void Panel::chooseSourceStop() {
-	_call->toggleVideo(false);
+	_call->toggleScreenSharing(std::nullopt);
 }
 
 void Panel::initWindow() {
@@ -722,10 +722,8 @@ void Panel::refreshLeftButton() {
 			&st::groupCallVideoActiveSmall);
 		_video->show();
 		_video->setClickedCallback([=] {
-			const auto sharing = _call->isScreenSharing();
-			const auto active = (_call->outgoingVideoTrack()->state()
-				== Webrtc::VideoState::Active);
-			_call->toggleVideo(sharing || !active);
+			_call->toggleVideo(_call->outgoingCameraTrack()->state()
+				!= Webrtc::VideoState::Active);
 		});
 		_video->setText(tr::lng_group_call_video());
 		_video->setColorOverrides(_mute->colorOverrides());
