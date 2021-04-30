@@ -1130,7 +1130,7 @@ desktopCaptureSubmit: RoundButton(desktopCaptureCancel) {
 	textBgOver: groupCallMuted1;
 
 	ripple: RippleAnimation(groupCallRipple) {
-		color: groupCallMuted2;
+		color: shadowFg;
 	}
 }
 

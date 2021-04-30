@@ -379,10 +379,6 @@ GroupCall::GroupCall(
 , _joinHash(info.joinHash)
 , _id(inputCall.c_inputGroupCall().vid().v)
 , _scheduleDate(info.scheduleDate)
-, _cameraOutgoing(
-	std::make_unique<Webrtc::VideoTrack>(Webrtc::VideoState::Inactive))
-, _screenOutgoing(
-	std::make_unique<Webrtc::VideoTrack>(Webrtc::VideoState::Inactive))
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
 , _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
@@ -454,7 +450,13 @@ GroupCall::~GroupCall() {
 }
 
 bool GroupCall::isScreenSharing() const {
-	return (_screenOutgoing->state() == Webrtc::VideoState::Active);
+	return _screenOutgoing
+		&& (_screenOutgoing->state() == Webrtc::VideoState::Active);
+}
+
+bool GroupCall::isCameraSharing() const {
+	return _cameraOutgoing
+		&& (_cameraOutgoing->state() == Webrtc::VideoState::Active);
 }
 
 QString GroupCall::screenSharingDeviceId() const {
@@ -462,6 +464,10 @@ QString GroupCall::screenSharingDeviceId() const {
 }
 
 void GroupCall::toggleVideo(bool active) {
+	if (!_instance || !_id) {
+		return;
+	}
+	ensureOutgoingVideo();
 	const auto state = active
 		? Webrtc::VideoState::Active
 		: Webrtc::VideoState::Inactive;
@@ -471,6 +477,7 @@ void GroupCall::toggleVideo(bool active) {
 }
 
 void GroupCall::toggleScreenSharing(std::optional<QString> uniqueId) {
+	ensureOutgoingVideo();
 	if (!uniqueId) {
 		_screenOutgoing->setState(Webrtc::VideoState::Inactive);
 		return;
@@ -1233,14 +1240,6 @@ void GroupCall::addVideoOutput(
 	}
 }
 
-not_null<Webrtc::VideoTrack*> GroupCall::outgoingCameraTrack() const {
-	return _cameraOutgoing.get();
-}
-
-not_null<Webrtc::VideoTrack*> GroupCall::outgoingScreenTrack() const {
-	return _screenOutgoing.get();
-}
-
 void GroupCall::setMuted(MuteState mute) {
 	const auto set = [=] {
 		const auto wasMuted = (muted() == MuteState::Muted)
@@ -1502,10 +1501,20 @@ void GroupCall::setupMediaDevices() {
 			_cameraCapture->switchToDevice(id.toStdString());
 		}
 	}, _lifetime);
-	setupOutgoingVideo();
 }
 
-void GroupCall::setupOutgoingVideo() {
+void GroupCall::ensureOutgoingVideo() {
+	Expects(_id != 0);
+
+	if (_cameraOutgoing) {
+		return;
+	}
+
+	_cameraOutgoing = std::make_unique<Webrtc::VideoTrack>(
+		Webrtc::VideoState::Inactive);
+	_screenOutgoing = std::make_unique<Webrtc::VideoTrack>(
+		Webrtc::VideoState::Inactive);
+
 	//static const auto hasDevices = [] {
 	//	return !Webrtc::GetVideoInputList().empty();
 	//};
@@ -2265,7 +2274,8 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 		MTP_bool(muted() != MuteState::Active),
 		MTP_int(100000), // volume
 		MTP_bool(muted() == MuteState::RaisedHand),
-		MTP_bool(_cameraOutgoing->state() != Webrtc::VideoState::Active)
+		MTP_bool(!_cameraOutgoing
+			|| _cameraOutgoing->state() != Webrtc::VideoState::Active)
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
 		_peer->session().api().applyUpdates(result);

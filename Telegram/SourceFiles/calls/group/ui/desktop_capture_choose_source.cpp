@@ -198,7 +198,7 @@ void Source::paint() {
 	_widget.paintRipple(
 		p,
 		{ 0, 0 },
-		_active ? &st::groupCallMuted2->c : nullptr);
+		_active ? &st::shadowFg->c : nullptr);
 
 	const auto size = _preview ? _preview->track.frameSize() : QSize();
 	const auto factor = style::DevicePixelRatio();
@@ -230,9 +230,8 @@ void Source::setupPreview() {
 	) | rpl::start_with_next([=] {
 		if (_preview->track.frameSize().isEmpty()) {
 			_preview->track.markFrameShown();
-		} else {
-			_widget.update();
 		}
+		_widget.update();
 	}, _preview->lifetime);
 }
 

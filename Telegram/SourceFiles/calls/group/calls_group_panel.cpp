@@ -722,8 +722,7 @@ void Panel::refreshLeftButton() {
 			&st::groupCallVideoActiveSmall);
 		_video->show();
 		_video->setClickedCallback([=] {
-			_call->toggleVideo(_call->outgoingCameraTrack()->state()
-				!= Webrtc::VideoState::Active);
+			_call->toggleVideo(!_call->isCameraSharing());
 		});
 		_video->setText(tr::lng_group_call_video());
 		_video->setColorOverrides(_mute->colorOverrides());
@@ -912,6 +911,9 @@ void Panel::setupMembers() {
 	_startsWhen.destroy();
 
 	_members.create(widget(), _call);
+	setupPinnedVideo();
+
+	_members->setMode(_mode);
 	_members->show();
 
 	_members->desiredHeightValue(
@@ -946,8 +948,6 @@ void Panel::setupMembers() {
 			addMembers();
 		}
 	}, _callLifetime);
-
-	setupPinnedVideo();
 }
 
 void Panel::raiseControls() {
@@ -1550,7 +1550,9 @@ bool Panel::updateMode() {
 	if (_members) {
 		_members->setMode(mode);
 	}
-	_pinnedVideo->setVisible(mode == PanelMode::Wide);
+	if (_pinnedVideo) {
+		_pinnedVideo->setVisible(mode == PanelMode::Wide);
+	}
 	refreshControlsBackground();
 	updateControlsGeometry();
 	return true;

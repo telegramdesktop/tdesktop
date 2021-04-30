@@ -172,8 +172,6 @@ public:
 	void addVideoOutput(
 		const std::string &endpoint,
 		not_null<Webrtc::VideoTrack*> track);
-	[[nodiscard]] not_null<Webrtc::VideoTrack*> outgoingCameraTrack() const;
-	[[nodiscard]] not_null<Webrtc::VideoTrack*> outgoingScreenTrack() const;
 
 	void setMuted(MuteState mute);
 	void setMutedAndUpdate(MuteState mute);
@@ -268,6 +266,7 @@ public:
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
 	void setCurrentVideoDevice(const QString &deviceId);
 	[[nodiscard]] bool isScreenSharing() const;
+	[[nodiscard]] bool isCameraSharing() const;
 	[[nodiscard]] QString screenSharingDeviceId() const;
 	void toggleVideo(bool active);
 	void toggleScreenSharing(std::optional<QString> uniqueId);
@@ -387,7 +386,7 @@ private:
 	void applyOtherParticipantUpdate(const MTPDgroupCallParticipant &data);
 
 	void setupMediaDevices();
-	void setupOutgoingVideo();
+	void ensureOutgoingVideo();
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
@@ -435,14 +434,14 @@ private:
 	InstanceMode _instanceMode = InstanceMode::None;
 	std::unique_ptr<tgcalls::GroupInstanceCustomImpl> _instance;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _cameraCapture;
-	const std::unique_ptr<Webrtc::VideoTrack> _cameraOutgoing;
+	std::unique_ptr<Webrtc::VideoTrack> _cameraOutgoing;
 
 	rpl::variable<InstanceState> _screenInstanceState
 		= InstanceState::Disconnected;
 	InstanceMode _screenInstanceMode = InstanceMode::None;
 	std::unique_ptr<tgcalls::GroupInstanceCustomImpl> _screenInstance;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _screenCapture;
-	const std::unique_ptr<Webrtc::VideoTrack> _screenOutgoing;
+	std::unique_ptr<Webrtc::VideoTrack> _screenOutgoing;
 	QString _screenDeviceId;
 	std::string _screenEndpoint;
 
