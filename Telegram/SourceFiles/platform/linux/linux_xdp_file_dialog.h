@@ -15,6 +15,7 @@ namespace XDP {
 
 using Type = ::FileDialog::internal::Type;
 
+void Start();
 bool Use(Type type = Type::ReadFile);
 std::optional<bool> Get(
 	QPointer<QWidget> parent,
