@@ -1175,8 +1175,8 @@ void MembersController::setupListChangeViewers() {
 		}
 		_largeEndpoint = largeEndpoint;
 		if (const auto participant = findParticipant(_largeEndpoint)) {
-			if (participant->cameraEndpoint() == _largeEndpoint) {
-				if (const auto row = findRow(participant->peer)) {
+			if (const auto row = findRow(participant->peer)) {
+				if (row->videoTrackEndpoint() == _largeEndpoint) {
 					row->clearVideoTrack();
 				}
 			}

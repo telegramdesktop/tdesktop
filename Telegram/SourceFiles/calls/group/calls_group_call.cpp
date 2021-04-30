@@ -501,6 +501,25 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 
 	const auto emptyEndpoint = std::string();
 
+	real->participantsSliceAdded(
+	) | rpl::start_with_next([=] {
+		const auto &participants = real->participants();
+		for (const auto &participant : participants) {
+			const auto camera = participant.cameraEndpoint();
+			const auto screen = participant.screenEndpoint();
+			if (!camera.empty()
+				&& _activeVideoEndpoints.emplace(camera).second
+				&& _incomingVideoEndpoints.contains(camera)) {
+				_streamsVideoUpdated.fire({ camera, true });
+			}
+			if (!screen.empty()
+				&& _activeVideoEndpoints.emplace(screen).second
+				&& _incomingVideoEndpoints.contains(screen)) {
+				_streamsVideoUpdated.fire({ screen, true });
+			}
+		}
+	}, _lifetime);
+
 	using Update = Data::GroupCall::ParticipantUpdate;
 	real->participantUpdated(
 	) | rpl::start_with_next([=](const Update &data) {
