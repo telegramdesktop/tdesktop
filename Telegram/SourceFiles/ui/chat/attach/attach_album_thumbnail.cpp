@@ -243,6 +243,7 @@ void AlbumThumbnail::prepareCache(QSize size, int shrink) {
 	if (_albumCache.width() < cacheSize.width()
 		|| _albumCache.height() < cacheSize.height()) {
 		_albumCache = QImage(cacheSize, QImage::Format_ARGB32_Premultiplied);
+		_albumCache.setDevicePixelRatio(style::DevicePixelRatio());
 	}
 	_albumCache.fill(Qt::transparent);
 	{
@@ -257,7 +258,6 @@ void AlbumThumbnail::prepareCache(QSize size, int shrink) {
 		ImageRoundRadius::Large,
 		_albumCorners,
 		QRect(QPoint(), size * style::DevicePixelRatio()));
-	_albumCache.setDevicePixelRatio(style::DevicePixelRatio());
 }
 
 void AlbumThumbnail::drawSimpleFrame(Painter &p, QRect to, QSize size) const {
