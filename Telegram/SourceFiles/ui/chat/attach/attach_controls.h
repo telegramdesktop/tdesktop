@@ -15,21 +15,31 @@ namespace Ui {
 
 class AttachControls final {
 public:
+	enum class Type {
+		Full,
+		EditOnly,
+	};
+
 	AttachControls();
 
 	void paint(Painter &p, int x, int y);
+	void setType(Type type);
 
 	[[nodiscard]] int width() const;
 	[[nodiscard]] int height() const;
+	[[nodiscard]] Type type() const;
 
 private:
 	RoundRect _rect;
+	Type _type = Type::Full;
 
 };
 
 class AttachControlsWidget final : public RpWidget {
 public:
-	AttachControlsWidget(not_null<RpWidget*> parent);
+	AttachControlsWidget(
+		not_null<RpWidget*> parent,
+		AttachControls::Type type = AttachControls::Type::Full);
 
 	[[nodiscard]] rpl::producer<> editRequests() const;
 	[[nodiscard]] rpl::producer<> deleteRequests() const;

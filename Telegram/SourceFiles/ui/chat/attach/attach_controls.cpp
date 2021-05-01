@@ -18,37 +18,65 @@ AttachControls::AttachControls()
 void AttachControls::paint(Painter &p, int x, int y) {
 	const auto groupWidth = width();
 	const auto groupHeight = height();
-	const auto groupHalfWidth = groupWidth / 2;
-	const auto &internalSkip = st::sendBoxAlbumGroupEditInternalSkip;
+	const auto full = (_type == Type::Full);
 
 	QRect groupRect(x, y, groupWidth, groupHeight);
 	_rect.paint(p, groupRect);
 
-	QRect leftRect(x, y, groupHalfWidth, groupHeight);
-	QRect rightRect(x + groupHalfWidth, y, groupHalfWidth, groupHeight);
-	st::sendBoxAlbumGroupButtonMediaEdit.paintInCenter(p, leftRect);
-	st::sendBoxAlbumGroupButtonMediaDelete.paintInCenter(p, rightRect);
+	if (full) {
+		const auto groupHalfWidth = groupWidth / 2;
+		QRect leftRect(x, y, groupHalfWidth, groupHeight);
+		st::sendBoxAlbumGroupButtonMediaEdit.paintInCenter(p, leftRect);
+		QRect rightRect(x + groupHalfWidth, y, groupHalfWidth, groupHeight);
+		st::sendBoxAlbumGroupButtonMediaDelete.paintInCenter(p, rightRect);
+	} else {
+		st::sendBoxAlbumButtonMediaEdit.paintInCenter(p, groupRect);
+	}
 }
 
 int AttachControls::width() const {
-	return st::sendBoxAlbumGroupSize.width();
+	return (_type == Type::Full)
+		? st::sendBoxAlbumGroupSize.width()
+		: st::sendBoxAlbumSmallGroupSize.width();
 }
 
 int AttachControls::height() const {
-	return st::sendBoxAlbumGroupSize.height();
+	return (_type == Type::Full)
+		? st::sendBoxAlbumGroupSize.height()
+		: st::sendBoxAlbumSmallGroupSize.height();
 }
 
-AttachControlsWidget::AttachControlsWidget(not_null<RpWidget*> parent)
+AttachControls::Type AttachControls::type() const {
+	return _type;
+}
+
+void AttachControls::setType(Type type) {
+	if (_type != type) {
+		_type = type;
+	}
+}
+
+AttachControlsWidget::AttachControlsWidget(
+	not_null<RpWidget*> parent,
+	AttachControls::Type type)
 : RpWidget(parent)
 , _edit(base::make_unique_q<AbstractButton>(this))
 , _delete(base::make_unique_q<AbstractButton>(this)) {
+	_controls.setType(type);
+
 	const auto w = _controls.width();
 	resize(w, _controls.height());
-	_edit->resize(w / 2, _controls.height());
-	_delete->resize(w / 2, _controls.height());
 
-	_edit->moveToLeft(0, 0, w);
-	_delete->moveToRight(0, 0, w);
+	if (type == AttachControls::Type::Full) {
+		_edit->resize(w / 2, _controls.height());
+		_delete->resize(w / 2, _controls.height());
+
+		_edit->moveToLeft(0, 0, w);
+		_delete->moveToRight(0, 0, w);
+	} else if (type == AttachControls::Type::EditOnly) {
+		_edit->resize(w, _controls.height());
+		_edit->moveToLeft(0, 0, w);
+	}
 
 	paintRequest(
 	) | rpl::start_with_next([=] {

@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_song_document_name.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
+#include "ui/chat/attach/attach_controls.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/toast/toast.h"
@@ -683,13 +684,8 @@ void EditCaptionBox::updateEditPreview() {
 }
 
 void EditCaptionBox::updateEditMediaButton() {
-	const auto icon = _doc
-		? &st::editMediaButtonIconFile
-		: &st::editMediaButtonIconPhoto;
-	const auto color = _doc ? &st::windowBgRipple : &st::roundedBg;
-	_editMedia->setIconOverride(icon);
-	_editMedia->setRippleColorOverride(color);
-	_editMedia->setForceRippled(!_doc, anim::type::instant);
+	_editMedia->setVisible(!_doc);
+	_editFile->setVisible(_doc);
 }
 
 void EditCaptionBox::createEditMediaButton() {
@@ -742,13 +738,17 @@ void EditCaptionBox::createEditMediaButton() {
 		lifetime());
 
 	// Create edit media button.
-	_editMedia.create(this, st::editMediaButton);
+	_editMedia.create(this, Ui::AttachControls::Type::EditOnly);
+	_editFile.create(this, st::editMediaButton);
 	updateEditMediaButton();
-	_editMedia->setClickedCallback(
+	_editFile->setClickedCallback(
 		App::LambdaDelayed(
 			st::historyAttach.ripple.hideDuration,
 			this,
 			buttonCallback));
+
+	_editMedia->editRequests(
+	) | rpl::start_with_next(buttonCallback, _editMedia->lifetime());
 
 	_photoEditorButton = base::make_unique_q<Ui::AbstractButton>(this);
 	_photoEditorButton->clicks(
@@ -987,39 +987,56 @@ void EditCaptionBox::startStreamedPlayer() {
 void EditCaptionBox::paintEvent(QPaintEvent *e) {
 	BoxContent::paintEvent(e);
 
+	const auto &padding = st::boxPhotoPadding;
+
 	Painter p(this);
 
 	if (_photo || _animated) {
 		const auto th = std::max(_gifh, _thumbh);
-		if (_thumbx > st::boxPhotoPadding.left()) {
-			p.fillRect(st::boxPhotoPadding.left(), st::boxPhotoPadding.top(), _thumbx - st::boxPhotoPadding.left(), th, st::confirmBg);
+		if (_thumbx > padding.left()) {
+			p.fillRect(
+				padding.left(),
+				padding.top(),
+				_thumbx - padding.left(),
+				th,
+				st::confirmBg);
 		}
-		if (_thumbx + _thumbw < width() - st::boxPhotoPadding.right()) {
-			p.fillRect(_thumbx + _thumbw, st::boxPhotoPadding.top(), width() - st::boxPhotoPadding.right() - _thumbx - _thumbw, th, st::confirmBg);
+		if (_thumbx + _thumbw < width() - padding.right()) {
+			p.fillRect(
+				_thumbx + _thumbw,
+				padding.top(),
+				width() - padding.right() - _thumbx - _thumbw,
+				th,
+				st::confirmBg);
 		}
 		checkStreamedIsStarted();
 		if (_streamed
 			&& _streamed->player().ready()
 			&& !_streamed->player().videoSize().isEmpty()) {
 			const auto s = QSize(_gifw, _gifh);
-			const auto paused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
+			const auto paused = _controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::Layer);
 
 			auto request = ::Media::Streaming::FrameRequest();
 			request.outer = s * cIntRetinaFactor();
 			request.resize = s * cIntRetinaFactor();
 			p.drawImage(
-				QRect(_gifx, st::boxPhotoPadding.top(), _gifw, _gifh),
+				QRect(_gifx, padding.top(), _gifw, _gifh),
 				_streamed->frame(request));
 			if (!paused) {
 				_streamed->markFrameShown();
 			}
 		} else {
 			const auto offset = _gifh ? ((_gifh - _thumbh) / 2) : 0;
-			p.drawPixmap(_thumbx, st::boxPhotoPadding.top() + offset, _thumb);
+			p.drawPixmap(_thumbx, padding.top() + offset, _thumb);
 		}
 		if (_animated && !_streamed) {
 			const auto &st = st::msgFileLayout;
-			QRect inner(_thumbx + (_thumbw - st.thumbSize) / 2, st::boxPhotoPadding.top() + (th - st.thumbSize) / 2, st.thumbSize, st.thumbSize);
+			QRect inner(
+				_thumbx + (_thumbw - st.thumbSize) / 2,
+				padding.top() + (th - st.thumbSize) / 2,
+				st.thumbSize,
+				st.thumbSize);
 			p.setPen(Qt::NoPen);
 			p.setBrush(st::msgDateImgBg);
 
@@ -1035,21 +1052,26 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 		const auto &st = isThumbedLayout()
 			? st::msgFileThumbLayout
 			: st::msgFileLayout;
-		const auto w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
+		const auto w = width() - padding.left() - padding.right();
 		const auto h = 0 + st.thumbSize + 0;
 		const auto nameleft = 0 + st.thumbSize + st.padding.right();
 		const auto nametop = st.nameTop - st.padding.top();
 		const auto nameright = 0;
 		const auto statustop = st.statusTop - st.padding.top();
 		const auto editButton = _isAllowedEditMedia
-			? _editMedia->width() + st::editMediaButtonSkip
+			? _editFile->width() + st::editMediaButtonSkip
 			: 0;
 		const auto namewidth = w - nameleft - editButton;
-		const auto x = (width() - w) / 2, y = st::boxPhotoPadding.top();
+		const auto x = (width() - w) / 2, y = padding.top();
 
 //		Ui::FillRoundCorner(p, x, y, w, h, st::msgInBg, Ui::MessageInCorners, &st::msgInShadow);
 
-		const auto rthumb = style::rtlrect(x + 0, y + 0, st.thumbSize, st.thumbSize, width());
+		const auto rthumb = style::rtlrect(
+			x + 0,
+			y + 0,
+			st.thumbSize,
+			st.thumbSize,
+			width());
 		if (isThumbedLayout()) {
 			p.drawPixmap(rthumb.topLeft(), _thumb);
 		} else {
@@ -1072,7 +1094,12 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 		}
 		p.setFont(st::semiboldFont);
 		p.setPen(st::historyFileNameInFg);
-		_name.drawLeftElided(p, x + nameleft, y + nametop, namewidth, width());
+		_name.drawLeftElided(
+			p,
+			x + nameleft,
+			y + nametop,
+			namewidth,
+			width());
 
 		const auto &status = st::mediaInFg;
 		p.setFont(st::normalFont);
@@ -1081,23 +1108,33 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 	} else {
 		p.setFont(st::boxTitleFont);
 		p.setPen(st::boxTextFg);
-		p.drawTextLeft(_field->x(), st::boxPhotoPadding.top(), width(), tr::lng_edit_message(tr::now));
+		p.drawTextLeft(
+			_field->x(),
+			padding.top(),
+			width(),
+			tr::lng_edit_message(tr::now));
 	}
 
 	if (!_error.isEmpty()) {
 		p.setFont(st::normalFont);
 		p.setPen(st::boxTextFgError);
-		p.drawTextLeft(_field->x(), _field->y() + _field->height() + errorTopSkip(), width(), _error);
+		p.drawTextLeft(
+			_field->x(),
+			_field->y() + _field->height() + errorTopSkip(),
+			width(),
+			_error);
 	}
 
 	if (_isAllowedEditMedia) {
-		_editMedia->moveToRight(
-			st::boxPhotoPadding.right() + (_doc
-				? st::editMediaButtonFileSkipRight
-				: st::editMediaButtonSkip),
-			st::boxPhotoPadding.top() + (_doc
-				? st::editMediaButtonFileSkipTop
-				: st::editMediaButtonSkip));
+		if (_doc) {
+			_editFile->moveToRight(
+				padding.right() + st::editMediaButtonFileSkipRight,
+				padding.top() + st::editMediaButtonFileSkipTop);
+		} else {
+			_editMedia->moveToRight(
+				padding.right() + st::editMediaButtonSkip,
+				padding.top() + st::editMediaButtonSkip);
+		}
 	}
 }
 

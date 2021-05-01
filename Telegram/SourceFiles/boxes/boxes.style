@@ -429,17 +429,16 @@ sendMediaPreviewHeightMax: 1280;
 sendMediaRowSkip: 10px;
 
 editMediaButtonSize: 32px;
-editMediaButtonSkip: 8px;
+editMediaButtonSkip: 5px;
 editMediaButtonFileSkipRight: 1px;
 editMediaButtonFileSkipTop: 7px;
 
 editMediaButtonIconFile: icon {{ "send_media/send_media_replace", menuIconFg }};
-editMediaButtonIconPhoto: icon {{ "send_media/send_media_replace", roundedFg }};
 editMediaButton: IconButton(defaultIconButton) {
 	width: editMediaButtonSize;
 	height: editMediaButtonSize;
 
-	icon: editMediaButtonIconPhoto;
+	icon: editMediaButtonIconFile;
 
 	rippleAreaSize: editMediaButtonSize;
 	ripple: defaultRippleAnimation;
@@ -457,6 +456,7 @@ sendBoxAlbumGroupSkipRight: 5px;
 sendBoxAlbumGroupSkipTop: 5px;
 sendBoxAlbumGroupRadius: 4px;
 sendBoxAlbumGroupSize: size(62px, 25px);
+sendBoxAlbumSmallGroupSize: size(30px, 25px);
 
 sendBoxFileGroupSkipTop: 2px;
 sendBoxFileGroupSkipRight: 5px;
@@ -470,6 +470,7 @@ sendBoxAlbumGroupButtonFile: IconButton(editMediaButton) {
 sendBoxAlbumGroupEditButtonIconFile: editMediaButtonIconFile;
 sendBoxAlbumGroupDeleteButtonIconFile: icon {{ "send_media/send_media_delete", menuIconFg }};
 
+sendBoxAlbumButtonMediaEdit: icon {{ "send_media/send_media_replace", roundedFg }};
 sendBoxAlbumGroupButtonMediaEdit: icon {{ "send_media/send_media_replace", roundedFg, point(4px, 1px) }};
 sendBoxAlbumGroupButtonMediaDelete: icon {{ "send_media/send_media_delete", roundedFg }};
 

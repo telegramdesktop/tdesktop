@@ -35,6 +35,7 @@ class EmojiButton;
 class IconButton;
 class Checkbox;
 enum class AlbumType;
+class AttachControlsWidget;
 } // namespace Ui
 
 namespace Window {
@@ -142,7 +143,8 @@ private:
 
 	mtpRequestId _saveRequestId = 0;
 
-	object_ptr<Ui::IconButton> _editMedia = nullptr;
+	object_ptr<Ui::AttachControlsWidget> _editMedia = nullptr;
+	object_ptr<Ui::IconButton> _editFile = nullptr;
 	Ui::SlideWrap<Ui::RpWidget> *_wayWrap = nullptr;
 	Ui::SlideWrap<Ui::RpWidget> *_hintLabel = nullptr;
 	QString _newMediaPath;
