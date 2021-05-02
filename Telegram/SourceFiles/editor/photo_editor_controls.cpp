@@ -204,8 +204,6 @@ PhotoEditorControls::PhotoEditorControls(
 
 	}, lifetime());
 
-	const auto &buttonsTop = st::photoEditorControlsTopSkip;
-
 	rpl::combine(
 		sizeValue(),
 		_mode.value()
@@ -215,6 +213,10 @@ PhotoEditorControls::PhotoEditorControls(
 		if (size.isEmpty()) {
 			return;
 		}
+
+		const auto buttonsTop = height()
+			- st::photoEditorControlsBottomSkip
+			- _transformButtons->height();
 
 		const auto &current = _transformButtons->isHidden()
 			? _paintButtons

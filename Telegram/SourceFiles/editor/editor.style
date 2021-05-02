@@ -11,7 +11,7 @@ using "ui/widgets/widgets.style";
 using "ui/chat/chat.style";
 
 photoEditorControlsHeight: 100px;
-photoEditorControlsTopSkip: 40px;
+photoEditorControlsBottomSkip: 20px;
 
 photoEditorButtonIconFg: mediaviewPipControlsFg;
 photoEditorButtonIconFgOver: mediaviewPipControlsFgOver;
