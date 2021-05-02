@@ -67,13 +67,13 @@ EdgeButton::EdgeButton(
 }
 
 void EdgeButton::init() {
-	const auto bg = rounded(_bg);
+	// const auto bg = rounded(_bg);
 
 	paintRequest(
 	) | rpl::start_with_next([=] {
 		Painter p(this);
 
-		p.drawImage(QPoint(), bg);
+		// p.drawImage(QPoint(), bg);
 
 		paintRipple(p, _rippleRect.x(), _rippleRect.y());
 
@@ -106,30 +106,63 @@ QPoint EdgeButton::prepareRippleStartPosition() const {
 	return mapFromGlobal(QCursor::pos()) - _rippleRect.topLeft();
 }
 
-class HorizontalContainer final : public Ui::RpWidget {
+class ButtonBar final : public Ui::RpWidget {
 public:
-	HorizontalContainer(not_null<Ui::RpWidget*> parent);
+	ButtonBar(
+		not_null<Ui::RpWidget*> parent,
+		const style::color &bg);
 
-	void updateChildrenPosition();
+private:
+	QImage _roundedBg;
 
 };
 
-HorizontalContainer::HorizontalContainer(not_null<Ui::RpWidget*> parent)
+ButtonBar::ButtonBar(
+	not_null<Ui::RpWidget*> parent,
+	const style::color &bg)
 : RpWidget(parent) {
-}
-
-void HorizontalContainer::updateChildrenPosition() {
-	auto left = 0;
-	auto height = 0;
-	for (auto child : RpWidget::children()) {
-		if (child->isWidgetType()) {
-			const auto widget = static_cast<QWidget*>(child);
-			widget->move(left, 0);
-			left += widget->width();
-			height = std::max(height, widget->height());
+	sizeValue(
+	) | rpl::start_with_next([=](const QSize &size) {
+		const auto children = RpWidget::children();
+		if (children.empty()) {
+			return;
 		}
-	}
-	resize(left, height);
+		const auto widgets = ranges::view::all(
+			children
+		) | ranges::view::filter([](not_null<const QObject*> object) {
+			return object->isWidgetType();
+		}) | ranges::view::transform([](not_null<QObject*> object) {
+			return static_cast<Ui::RpWidget*>(object.get());
+		}) | ranges::to_vector;
+
+		const auto residualWidth = size.width()
+			- ranges::accumulate(widgets, 0, ranges::plus(), &QWidget::width);
+		const auto step = residualWidth / float(widgets.size() - 1);
+
+		auto left = 0.;
+		for (const auto &widget : widgets) {
+			widget->moveToLeft(int(left), 0);
+			left += widget->width() + step;
+		}
+
+		auto result = QImage(
+			size * cIntRetinaFactor(),
+			QImage::Format_ARGB32_Premultiplied);
+		result.setDevicePixelRatio(cIntRetinaFactor());
+		result.fill(bg->c);
+
+		const auto options = Images::Option::Smooth
+			| Images::Option::RoundedLarge
+			| Images::Option::RoundedAll;
+		_roundedBg = Images::prepare(std::move(result), 0, 0, options, 0, 0);
+	}, lifetime());
+
+	paintRequest(
+	) | rpl::start_with_next([=] {
+		Painter p(this);
+
+		p.drawImage(QPoint(), _roundedBg);
+	}, lifetime());
 }
 
 PhotoEditorControls::PhotoEditorControls(
@@ -139,8 +172,17 @@ PhotoEditorControls::PhotoEditorControls(
 	bool doneControls)
 : RpWidget(parent)
 , _bg(st::roundedBg)
-, _transformButtons(base::make_unique_q<HorizontalContainer>(this))
-, _paintButtons(base::make_unique_q<HorizontalContainer>(this))
+, _buttonHeight(st::photoEditorButtonBarHeight)
+, _transformButtons(base::make_unique_q<ButtonBar>(this, _bg))
+, _paintBottomButtons(base::make_unique_q<ButtonBar>(this, _bg))
+, _transformCancel(base::make_unique_q<EdgeButton>(
+	_transformButtons,
+	tr::lng_cancel(tr::now),
+	_buttonHeight,
+	true,
+	_bg,
+	st::activeButtonFg,
+	st::photoEditorRotateButton.ripple))
 , _rotateButton(base::make_unique_q<Ui::IconButton>(
 	_transformButtons,
 	st::photoEditorRotateButton))
@@ -150,59 +192,59 @@ PhotoEditorControls::PhotoEditorControls(
 , _paintModeButton(base::make_unique_q<Ui::IconButton>(
 	_transformButtons,
 	st::photoEditorPaintModeButton))
-, _undoButton(base::make_unique_q<Ui::IconButton>(
-	_paintButtons,
-	st::photoEditorUndoButton))
-, _redoButton(base::make_unique_q<Ui::IconButton>(
-	_paintButtons,
-	st::photoEditorRedoButton))
-, _paintModeButtonActive(base::make_unique_q<Ui::IconButton>(
-	_paintButtons,
-	st::photoEditorPaintModeButton))
-, _stickersButton(controllers->stickersPanelController
-		? base::make_unique_q<Ui::IconButton>(
-			_paintButtons,
-			st::photoEditorStickersButton)
-		: nullptr)
-, _cancel(base::make_unique_q<EdgeButton>(
-	this,
+, _transformDone(base::make_unique_q<EdgeButton>(
+	_transformButtons,
+	tr::lng_box_done(tr::now),
+	_buttonHeight,
+	false,
+	_bg,
+	st::lightButtonFg,
+	st::photoEditorRotateButton.ripple))
+, _paintCancel(base::make_unique_q<EdgeButton>(
+	_paintBottomButtons,
 	tr::lng_cancel(tr::now),
-	_flipButton->height(),
+	_buttonHeight,
 	true,
 	_bg,
 	st::activeButtonFg,
 	st::photoEditorRotateButton.ripple))
-, _done(base::make_unique_q<EdgeButton>(
-	this,
+, _undoButton(base::make_unique_q<Ui::IconButton>(
+	_paintBottomButtons,
+	st::photoEditorUndoButton))
+, _redoButton(base::make_unique_q<Ui::IconButton>(
+	_paintBottomButtons,
+	st::photoEditorRedoButton))
+, _paintModeButtonActive(base::make_unique_q<Ui::IconButton>(
+	_paintBottomButtons,
+	st::photoEditorPaintModeButton))
+, _stickersButton(controllers->stickersPanelController
+		? base::make_unique_q<Ui::IconButton>(
+			_paintBottomButtons,
+			st::photoEditorStickersButton)
+		: nullptr)
+, _paintDone(base::make_unique_q<EdgeButton>(
+	_paintBottomButtons,
 	tr::lng_box_done(tr::now),
-	_flipButton->height(),
+	_buttonHeight,
 	false,
 	_bg,
 	st::lightButtonFg,
 	st::photoEditorRotateButton.ripple)) {
 
-	_transformButtons->updateChildrenPosition();
-	_paintButtons->updateChildrenPosition();
+	{
+		const auto &padding = st::photoEditorButtonBarPadding;
+		const auto w = st::photoEditorButtonBarWidth
+			- padding.left()
+			- padding.right();
+		_transformButtons->resize(w, _buttonHeight);
+		_paintBottomButtons->resize(w, _buttonHeight);
+	}
 
 	{
 		const auto icon = &st::photoEditorPaintIconActive;
 		_paintModeButtonActive->setIconOverride(icon, icon);
 	}
 	_paintModeButtonActive->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	paintRequest(
-	) | rpl::start_with_next([=](const QRect &clip) {
-		Painter p(this);
-
-		const auto &current = _transformButtons->isHidden()
-			? _paintButtons
-			: _transformButtons;
-
-		p.setPen(Qt::NoPen);
-		p.setBrush(_bg);
-		p.drawRect(current->geometry());
-
-	}, lifetime());
 
 	rpl::combine(
 		sizeValue(),
@@ -214,21 +256,17 @@ PhotoEditorControls::PhotoEditorControls(
 			return;
 		}
 
-		const auto buttonsTop = height()
+		const auto buttonsTop = size.height()
 			- st::photoEditorControlsBottomSkip
 			- _transformButtons->height();
 
 		const auto &current = _transformButtons->isHidden()
-			? _paintButtons
+			? _paintBottomButtons
 			: _transformButtons;
 
 		current->moveToLeft(
 			(size.width() - current->width()) / 2,
 			buttonsTop);
-
-		_cancel->moveToLeft(current->x() - _cancel->width(), buttonsTop);
-		_done->moveToLeft(current->x() + current->width(), buttonsTop);
-
 	}, lifetime());
 
 	controllers->undoController->setPerformRequestChanges(rpl::merge(
@@ -257,7 +295,7 @@ PhotoEditorControls::PhotoEditorControls(
 			) | rpl::map_to(std::optional<bool>(std::nullopt)));
 
 		controllers->stickersPanelController->setMoveRequestChanges(
-			_paintButtons->positionValue(
+			_paintBottomButtons->positionValue(
 			) | rpl::map([=](const QPoint &containerPos) {
 				return QPoint(
 					(x() + width()) / 2,
@@ -298,17 +336,21 @@ rpl::producer<> PhotoEditorControls::paintModeRequests() const {
 }
 
 rpl::producer<> PhotoEditorControls::doneRequests() const {
-	return _done->clicks() | rpl::to_empty;
+	return rpl::merge(
+		_transformDone->clicks() | rpl::to_empty,
+		_paintDone->clicks() | rpl::to_empty);
 }
 
 rpl::producer<> PhotoEditorControls::cancelRequests() const {
-	return _cancel->clicks() | rpl::to_empty;
+	return rpl::merge(
+		_transformCancel->clicks() | rpl::to_empty,
+		_paintCancel->clicks() | rpl::to_empty);
 }
 
 void PhotoEditorControls::applyMode(const PhotoEditorMode &mode) {
 	using Mode = PhotoEditorMode::Mode;
 	_transformButtons->setVisible(mode.mode == Mode::Transform);
-	_paintButtons->setVisible(mode.mode == Mode::Paint);
+	_paintBottomButtons->setVisible(mode.mode == Mode::Paint);
 	_mode = mode;
 }
 

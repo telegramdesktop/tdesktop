@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 
+using "window/window.style";
 using "ui/widgets/widgets.style";
 using "ui/chat/chat.style";
 
@@ -19,14 +20,19 @@ photoEditorButtonIconFgOver: mediaviewPipControlsFgOver;
 photoEditorButtonIconFgActive: lightButtonFg;
 photoEditorButtonIconFgInactive: mediaviewPipPlaybackInactive;
 
+photoEditorButtonBarHeight: 50px;
+photoEditorButtonBarWidth: windowMinWidth;
+photoEditorButtonBarPadding: margins(2px, 0px, 2px, 0px);
+photoEditorTextButtonPadding: margins(22px, 0px, 22px, 0px);
+
 photoEditorRotateButton: IconButton(defaultIconButton) {
-	width: 56px;
-	height: 56px;
+	width: photoEditorButtonBarHeight;
+	height: photoEditorButtonBarHeight;
 
 	icon: icon {{ "photo_editor/rotate", photoEditorButtonIconFg }};
 	iconOver: icon {{ "photo_editor/rotate", photoEditorButtonIconFgOver }};
 
-	rippleAreaPosition: point(8px, 8px);
+	rippleAreaPosition: point(5px, 5px);
 	rippleAreaSize: 40px;
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: shadowFg;
@@ -62,8 +68,6 @@ photoEditorStickersIconActive: icon {{ "settings_stickers", photoEditorButtonIco
 
 photoEditorUndoButtonInactive: icon {{ "photo_editor/undo", photoEditorButtonIconFgInactive }};
 photoEditorRedoButtonInactive: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgInactive }};
-
-photoEditorTextButtonPadding: margins(10px, 0px, 10px, 0px);
 
 photoEditorColorPickerTopSkip: 20px;
 photoEditorColorPickerWidth: 250px;

@@ -18,7 +18,7 @@ class IconButton;
 namespace Editor {
 
 class EdgeButton;
-class HorizontalContainer;
+class ButtonBar;
 struct Controllers;
 
 class PhotoEditorControls final : public Ui::RpWidget {
@@ -40,20 +40,22 @@ public:
 private:
 
 	const style::color &_bg;
-	const base::unique_qptr<HorizontalContainer> _transformButtons;
-	const base::unique_qptr<HorizontalContainer> _paintButtons;
+	const int _buttonHeight;
+	const base::unique_qptr<ButtonBar> _transformButtons;
+	const base::unique_qptr<ButtonBar> _paintBottomButtons;
 
+	const base::unique_qptr<EdgeButton> _transformCancel;
 	const base::unique_qptr<Ui::IconButton> _rotateButton;
 	const base::unique_qptr<Ui::IconButton> _flipButton;
 	const base::unique_qptr<Ui::IconButton> _paintModeButton;
+	const base::unique_qptr<EdgeButton> _transformDone;
 
+	const base::unique_qptr<EdgeButton> _paintCancel;
 	const base::unique_qptr<Ui::IconButton> _undoButton;
 	const base::unique_qptr<Ui::IconButton> _redoButton;
 	const base::unique_qptr<Ui::IconButton> _paintModeButtonActive;
 	const base::unique_qptr<Ui::IconButton> _stickersButton;
-
-	const base::unique_qptr<EdgeButton> _cancel;
-	const base::unique_qptr<EdgeButton> _done;
+	const base::unique_qptr<EdgeButton> _paintDone;
 
 	bool _flipped = false;
 
