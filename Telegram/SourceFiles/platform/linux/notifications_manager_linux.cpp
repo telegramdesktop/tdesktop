@@ -46,9 +46,7 @@ bool InhibitionSupported = false;
 std::optional<ServerInformation> CurrentServerInformation;
 QStringList CurrentCapabilities;
 
-void StartServiceAsync(
-		Fn<void()> callback,
-		const Glib::RefPtr<Gio::Cancellable> &cancellable = Glib::RefPtr<Gio::Cancellable>()) {
+void StartServiceAsync(Fn<void()> callback) {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
@@ -77,8 +75,7 @@ void StartServiceAsync(
 				}
 
 				crl::on_main([=] { callback(); });
-			},
-			cancellable);
+			});
 
 			return;
 	} catch (...) {
@@ -357,7 +354,7 @@ Glib::ustring GetImageKey(const QVersionNumber &specificationVersion) {
 	return "icon_data";
 }
 
-class NotificationData : public sigc::trackable {
+class NotificationData : public base::has_weak_ptr {
 public:
 	using NotificationId = Window::Notifications::Manager::NotificationId;
 
@@ -382,7 +379,6 @@ public:
 
 private:
 	Glib::RefPtr<Gio::DBus::Connection> _dbusConnection;
-	Glib::RefPtr<Gio::Cancellable> _cancellable;
 	base::weak_ptr<Manager> _manager;
 
 	Glib::ustring _title;
@@ -397,20 +393,9 @@ private:
 	uint _notificationClosedSignalId = 0;
 	NotificationId _id;
 
-	void notificationShown(
-		const Glib::RefPtr<Gio::AsyncResult> &result);
-
 	void notificationClosed(uint id, uint reason);
 	void actionInvoked(uint id, const Glib::ustring &actionName);
 	void notificationReplied(uint id, const Glib::ustring &text);
-
-	void signalEmitted(
-		const Glib::RefPtr<Gio::DBus::Connection> &connection,
-		const Glib::ustring &sender_name,
-		const Glib::ustring &object_path,
-		const Glib::ustring &interface_name,
-		const Glib::ustring &signal_name,
-		const Glib::VariantContainerBase &parameters);
 
 };
 
@@ -423,8 +408,7 @@ NotificationData::NotificationData(
 	const QString &msg,
 	NotificationId id,
 	bool hideReplyButton)
-: _cancellable(Gio::Cancellable::create())
-, _manager(manager)
+: _manager(manager)
 , _title(title.toStdString())
 , _imageKey(GetImageKey(CurrentServerInformationValue().specVersion))
 , _id(id) {
@@ -439,6 +423,47 @@ NotificationData::NotificationData(
 	}
 
 	const auto capabilities = CurrentCapabilities;
+
+	const auto signalEmitted = crl::guard(this, [=](
+		const Glib::RefPtr<Gio::DBus::Connection> &connection,
+		const Glib::ustring &sender_name,
+		const Glib::ustring &object_path,
+		const Glib::ustring &interface_name,
+		const Glib::ustring &signal_name,
+		const Glib::VariantContainerBase &parameters) {
+		try {
+			auto parametersCopy = parameters;
+
+			if (signal_name == "ActionInvoked") {
+				const auto id = base::Platform::GlibVariantCast<uint>(
+					parametersCopy.get_child(0));
+
+				const auto actionName = base::Platform::GlibVariantCast<
+					Glib::ustring>(parametersCopy.get_child(1));
+
+				actionInvoked(id, actionName);
+			} else if (signal_name == "NotificationReplied") {
+				const auto id = base::Platform::GlibVariantCast<uint>(
+					parametersCopy.get_child(0));
+
+				const auto text = base::Platform::GlibVariantCast<Glib::ustring>(
+					parametersCopy.get_child(1));
+
+				notificationReplied(id, text);
+			} else if (signal_name == "NotificationClosed") {
+				const auto id = base::Platform::GlibVariantCast<uint>(
+					parametersCopy.get_child(0));
+
+				const auto reason = base::Platform::GlibVariantCast<uint>(
+					parametersCopy.get_child(1));
+
+				notificationClosed(id, reason);
+			}
+		} catch (const std::exception &e) {
+			LOG(("Native Notification Error: %1").arg(
+				QString::fromStdString(e.what())));
+		}
+	});
 
 	if (capabilities.contains(qsl("body-markup"))) {
 		_body = subtitle.isEmpty()
@@ -468,7 +493,7 @@ NotificationData::NotificationData(
 				tr::lng_notification_reply(tr::now).toStdString());
 
 			_notificationRepliedSignalId = _dbusConnection->signal_subscribe(
-				sigc::mem_fun(this, &NotificationData::signalEmitted),
+				signalEmitted,
 				std::string(kService),
 				std::string(kInterface),
 				"NotificationReplied",
@@ -481,7 +506,7 @@ NotificationData::NotificationData(
 		}
 
 		_actionInvokedSignalId = _dbusConnection->signal_subscribe(
-			sigc::mem_fun(this, &NotificationData::signalEmitted),
+			signalEmitted,
 			std::string(kService),
 			std::string(kInterface),
 			"ActionInvoked",
@@ -515,7 +540,7 @@ NotificationData::NotificationData(
 		QGuiApplication::desktopFileName().chopped(8).toStdString());
 
 	_notificationClosedSignalId = _dbusConnection->signal_subscribe(
-		sigc::mem_fun(this, &NotificationData::signalEmitted),
+		signalEmitted,
 		std::string(kService),
 		std::string(kInterface),
 		"NotificationClosed",
@@ -523,10 +548,6 @@ NotificationData::NotificationData(
 }
 
 NotificationData::~NotificationData() {
-	if (_cancellable) {
-		_cancellable->cancel();
-	}
-
 	if (_dbusConnection) {
 		if (_actionInvokedSignalId != 0) {
 			_dbusConnection->signal_unsubscribe(_actionInvokedSignalId);
@@ -544,7 +565,7 @@ NotificationData::~NotificationData() {
 
 void NotificationData::show() {
 	// a hack for snap's activation restriction
-	StartServiceAsync([=] {
+	StartServiceAsync(crl::guard(this, [=] {
 		const auto iconName = _imageKey.empty()
 			|| _hints.find(_imageKey) == end(_hints)
 				? Glib::ustring(GetIconName().toStdString())
@@ -564,32 +585,30 @@ void NotificationData::show() {
 				_hints,
 				-1,
 			}),
-			sigc::mem_fun(this, &NotificationData::notificationShown),
+			crl::guard(this, [=](
+				const Glib::RefPtr<Gio::AsyncResult> &result) {
+				try {
+					auto reply = _dbusConnection->call_finish(result);
+					_notificationId = base::Platform::GlibVariantCast<uint>(
+						reply.get_child(0));
+
+					return;
+				} catch (const Glib::Error &e) {
+					LOG(("Native Notification Error: %1").arg(
+						QString::fromStdString(e.what())));
+				} catch (const std::exception &e) {
+					LOG(("Native Notification Error: %1").arg(
+						QString::fromStdString(e.what())));
+				}
+
+				const auto manager = _manager;
+				const auto my = _id;
+				crl::on_main(manager, [=] {
+					manager->clearNotification(my);
+				});
+			}),
 			std::string(kService));
-	}, _cancellable);
-}
-
-void NotificationData::notificationShown(
-		const Glib::RefPtr<Gio::AsyncResult> &result) {
-	try {
-		auto reply = _dbusConnection->call_finish(result);
-		_notificationId = base::Platform::GlibVariantCast<uint>(
-			reply.get_child(0));
-
-		return;
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	} catch (const std::exception &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	}
-
-	const auto manager = _manager;
-	const auto my = _id;
-	crl::on_main(manager, [=] {
-		manager->clearNotification(my);
-	});
+	}));
 }
 
 void NotificationData::close() {
@@ -623,47 +642,6 @@ void NotificationData::setImage(const QString &imagePath) {
 			image.constBits(),
 			image.constBits() + image.sizeInBytes()),
 	});
-}
-
-void NotificationData::signalEmitted(
-		const Glib::RefPtr<Gio::DBus::Connection> &connection,
-		const Glib::ustring &sender_name,
-		const Glib::ustring &object_path,
-		const Glib::ustring &interface_name,
-		const Glib::ustring &signal_name,
-		const Glib::VariantContainerBase &parameters) {
-	try {
-		auto parametersCopy = parameters;
-
-		if (signal_name == "ActionInvoked") {
-			const auto id = base::Platform::GlibVariantCast<uint>(
-				parametersCopy.get_child(0));
-
-			const auto actionName = base::Platform::GlibVariantCast<
-				Glib::ustring>(parametersCopy.get_child(1));
-
-			actionInvoked(id, actionName);
-		} else if (signal_name == "NotificationReplied") {
-			const auto id = base::Platform::GlibVariantCast<uint>(
-				parametersCopy.get_child(0));
-
-			const auto text = base::Platform::GlibVariantCast<Glib::ustring>(
-				parametersCopy.get_child(1));
-
-			notificationReplied(id, text);
-		} else if (signal_name == "NotificationClosed") {
-			const auto id = base::Platform::GlibVariantCast<uint>(
-				parametersCopy.get_child(0));
-
-			const auto reason = base::Platform::GlibVariantCast<uint>(
-				parametersCopy.get_child(1));
-
-			notificationClosed(id, reason);
-		}
-	} catch (const std::exception &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	}
 }
 
 void NotificationData::notificationClosed(uint id, uint reason) {
