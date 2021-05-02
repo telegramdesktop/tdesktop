@@ -27,28 +27,7 @@ constexpr auto kMATEObjectPath = "/org/mate/SettingsDaemon/MediaKeys"_cs;
 constexpr auto kInterface = kService;
 constexpr auto kMATEInterface = "org.mate.SettingsDaemon.MediaKeys"_cs;
 
-} // namespace
-
-class GSDMediaKeys::Private : public sigc::trackable {
-public:
-	Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
-
-	Glib::ustring service;
-	Glib::ustring objectPath;
-	Glib::ustring interface;
-	uint signalId = 0;
-	bool grabbed = false;
-
-	void keyPressed(
-		const Glib::RefPtr<Gio::DBus::Connection> &connection,
-		const Glib::ustring &sender_name,
-		const Glib::ustring &object_path,
-		const Glib::ustring &interface_name,
-		const Glib::ustring &signal_name,
-		const Glib::VariantContainerBase &parameters);
-};
-
-void GSDMediaKeys::Private::keyPressed(
+void KeyPressed(
 		const Glib::RefPtr<Gio::DBus::Connection> &connection,
 		const Glib::ustring &sender_name,
 		const Glib::ustring &object_path,
@@ -82,6 +61,19 @@ void GSDMediaKeys::Private::keyPressed(
 	} catch (...) {
 	}
 }
+
+} // namespace
+
+class GSDMediaKeys::Private {
+public:
+	Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
+
+	Glib::ustring service;
+	Glib::ustring objectPath;
+	Glib::ustring interface;
+	uint signalId = 0;
+	bool grabbed = false;
+};
 
 GSDMediaKeys::GSDMediaKeys()
 : _private(std::make_unique<Private>()) {
@@ -126,7 +118,7 @@ GSDMediaKeys::GSDMediaKeys()
 		_private->grabbed = true;
 
 		_private->signalId = _private->dbusConnection->signal_subscribe(
-			sigc::mem_fun(_private.get(), &Private::keyPressed),
+			sigc::ptr_fun(KeyPressed),
 			_private->service,
 			_private->interface,
 			"MediaPlayerKeyPressed",
