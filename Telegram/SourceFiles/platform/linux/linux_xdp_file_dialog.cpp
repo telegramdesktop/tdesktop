@@ -128,7 +128,7 @@ void ComputeFileChooserPortalVersion() {
 //
 // XDP file dialog is a dialog obtained via a DBus service
 // provided by the current desktop environment.
-class XDPFileDialog : public QDialog, public sigc::trackable {
+class XDPFileDialog : public QDialog {
 public:
 	enum ConditionType : uint {
 		GlobalPattern = 0,
@@ -191,12 +191,8 @@ public:
 private:
 	void openPortal();
 	void gotResponse(
-		const Glib::RefPtr<Gio::DBus::Connection> &connection,
-		const Glib::ustring &sender_name,
-		const Glib::ustring &object_path,
-		const Glib::ustring &interface_name,
-		const Glib::ustring &signal_name,
-		const Glib::VariantContainerBase &parameters);
+		uint response,
+		const std::map<Glib::ustring, Glib::VariantBase> &results);
 
 	void showHelper(
 		Qt::WindowFlags windowFlags,
@@ -208,7 +204,6 @@ private:
 	rpl::producer<> rejected();
 
 	Glib::RefPtr<Gio::DBus::Connection> _dbusConnection;
-	Glib::RefPtr<Gio::Cancellable> _cancellable;
 	uint _requestSignalId = 0;
 
 	// Options
@@ -263,10 +258,6 @@ XDPFileDialog::XDPFileDialog(
 }
 
 XDPFileDialog::~XDPFileDialog() {
-	if (_cancellable) {
-		_cancellable->cancel();
-	}
-
 	if (_dbusConnection && _requestSignalId != 0) {
 		_dbusConnection->signal_unsubscribe(_requestSignalId);
 	}
@@ -419,14 +410,37 @@ void XDPFileDialog::openPortal() {
 			+ handleToken;
 
 		_requestSignalId = _dbusConnection->signal_subscribe(
-			sigc::mem_fun(this, &XDPFileDialog::gotResponse),
+			crl::guard(this, [=](
+				const Glib::RefPtr<Gio::DBus::Connection> &connection,
+				const Glib::ustring &sender_name,
+				const Glib::ustring &object_path,
+				const Glib::ustring &interface_name,
+				const Glib::ustring &signal_name,
+				const Glib::VariantContainerBase &parameters) {
+				try {
+					auto parametersCopy = parameters;
+
+					const auto response = base::Platform::GlibVariantCast<uint>(
+						parametersCopy.get_child(0));
+
+					const auto results = base::Platform::GlibVariantCast<
+						std::map<
+							Glib::ustring,
+							Glib::VariantBase
+						>>(parametersCopy.get_child(1));
+
+					gotResponse(response, results);
+				} catch (const std::exception &e) {
+					LOG(("XDP File Dialog Error: %1").arg(
+						QString::fromStdString(e.what())));
+
+					_reject.fire({});
+				}
+			}),
 			{},
 			"org.freedesktop.portal.Request",
 			"Response",
 			requestPath);
-
-		// synchronize functor deletion by this cancellable
-		_cancellable = Gio::Cancellable::create();
 
 		_dbusConnection->call(
 			std::string(kXDGDesktopPortalObjectPath),
@@ -439,7 +453,7 @@ void XDPFileDialog::openPortal() {
 				_windowTitle,
 				options,
 			}),
-			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
+			crl::guard(this, [=](const Glib::RefPtr<Gio::AsyncResult> &result) {
 				try {
 					auto reply = _dbusConnection->call_finish(result);
 
@@ -478,8 +492,7 @@ void XDPFileDialog::openPortal() {
 						_reject.fire({});
 					});
 				}
-			},
-			_cancellable,
+			}),
 			std::string(kXDGDesktopPortalService));
 	} catch (...) {
 		_failedToOpen = true;
@@ -615,24 +628,9 @@ void XDPFileDialog::showHelper(
 }
 
 void XDPFileDialog::gotResponse(
-		const Glib::RefPtr<Gio::DBus::Connection> &connection,
-		const Glib::ustring &sender_name,
-		const Glib::ustring &object_path,
-		const Glib::ustring &interface_name,
-		const Glib::ustring &signal_name,
-		const Glib::VariantContainerBase &parameters) {
+		uint response,
+		const std::map<Glib::ustring, Glib::VariantBase> &results) {
 	try {
-		auto parametersCopy = parameters;
-
-		const auto response = base::Platform::GlibVariantCast<uint>(
-			parametersCopy.get_child(0));
-
-		const auto results = base::Platform::GlibVariantCast<
-			std::map<
-				Glib::ustring,
-				Glib::VariantBase
-			>>(parametersCopy.get_child(1));
-
 		if (!response) {
 			if (const auto i = results.find("uris"); i != end(results)) {
 				_selectedFiles = base::Platform::GlibVariantCast<
