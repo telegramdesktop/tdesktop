@@ -53,13 +53,13 @@ PhoneWidget::PhoneWidget(
 
 	connect(_country, &CountryInput::codeChanged, [=](const QString &code) {
 		_code->codeSelected(code);
+		_phone->chooseCode(code);
 	});
 	_code->codeChanged(
 	) | rpl::start_with_next([=](const QString &code) {
 		_country->onChooseCode(code);
 		_phone->chooseCode(code);
 	}, _code->lifetime());
-	connect(_country, SIGNAL(codeChanged(const QString &)), _phone, SLOT(onChooseCode(const QString &)));
 	_code->addedToNumber(
 	) | rpl::start_with_next([=](const QString &added) {
 		_phone->addedToNumber(added);
