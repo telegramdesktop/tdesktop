@@ -1559,20 +1559,27 @@ bool checkReadyUpdate() {
 #elif defined Q_OS_UNIX // Q_OS_MAC
 	// if the files in the directory are owned by user, while the directory is not,
 	// update will still fail since it's not possible to remove files
-	if (unlink(QFile::encodeName(curUpdater).constData())) {
+	if (QFile::exists(curUpdater)
+		&& unlink(QFile::encodeName(curUpdater).constData())) {
 		if (errno == EACCES) {
+			DEBUG_LOG(("Update Info: "
+				"could not unlink current Updater, access denied."));
 			cSetWriteProtected(true);
 			return true;
 		} else {
+			DEBUG_LOG(("Update Error: could not unlink current Updater."));
 			ClearAll();
 			return false;
 		}
 	}
 	if (!linuxMoveFile(QFile::encodeName(updater.absoluteFilePath()).constData(), QFile::encodeName(curUpdater).constData())) {
 		if (errno == EACCES) {
+			DEBUG_LOG(("Update Info: "
+				"could not copy new Updater, access denied."));
 			cSetWriteProtected(true);
 			return true;
 		} else {
+			DEBUG_LOG(("Update Error: could not copy new Updater."));
 			ClearAll();
 			return false;
 		}

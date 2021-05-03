@@ -650,9 +650,6 @@ bool SkipTaskbarSupported() {
 
 } // namespace Platform
 
-void psWriteDump() {
-}
-
 void psActivateProcess(uint64 pid) {
 //	objc_activateProgram();
 }

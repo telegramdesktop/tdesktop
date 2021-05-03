@@ -47,8 +47,6 @@ inline void finish() {
 inline void psCheckLocalSocket(const QString &) {
 }
 
-void psWriteDump();
-
 void psActivateProcess(uint64 pid = 0);
 QString psAppDataPath();
 QString psAppDataPathOld();

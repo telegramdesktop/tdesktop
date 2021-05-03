@@ -26,6 +26,9 @@ void InstallLauncher(bool force = false);
 inline void IgnoreApplicationActivationRightNow() {
 }
 
+inline void WriteCrashDumpDetails() {
+}
+
 } // namespace Platform
 
 inline void psCheckLocalSocket(const QString &serverName) {
@@ -34,8 +37,6 @@ inline void psCheckLocalSocket(const QString &serverName) {
 		address.remove();
 	}
 }
-
-void psWriteDump();
 
 void psActivateProcess(uint64 pid = 0);
 QString psAppDataPath();
