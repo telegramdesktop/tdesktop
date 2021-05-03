@@ -202,8 +202,8 @@ const int HandledSignals[] = {
 struct sigaction OldSigActions[32]/* = { 0 }*/;
 
 void RestoreSignalHandlers() {
-	for (const auto signal : HandledSignals) {
-		sigaction(signal, &OldSigActions[signal], nullptr);
+	for (const auto signum : HandledSignals) {
+		sigaction(signum, &OldSigActions[signal], nullptr);
 	}
 }
 
@@ -445,12 +445,12 @@ Status Restart() {
 			sigemptyset(&sigact.sa_mask);
 			sigact.sa_flags = SA_NODEFER | SA_RESETHAND | SA_SIGINFO;
 
-			for (const auto signal : HandledSignals) {
-				sigaction(signal, &sigact, &OldSigActions[signal]);
+			for (const auto signum : HandledSignals) {
+				sigaction(signum, &sigact, &OldSigActions[signal]);
 			}
 #else // !Q_OS_WIN
-			for (const auto signal : HandledSignals) {
-				signal(signal, SignalHandler);
+			for (const auto signum : HandledSignals) {
+				signal(signum, SignalHandler);
 			}
 #endif // else for !Q_OS_WIN
 		}
