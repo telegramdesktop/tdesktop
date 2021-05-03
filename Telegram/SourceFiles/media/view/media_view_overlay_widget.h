@@ -234,7 +234,6 @@ private:
 
 	void refreshLang();
 	void showSaveMsgFile();
-	void updateMixerVideoVolume() const;
 
 	struct SharedMedia;
 	using SharedMediaType = SharedMediaWithLastSlice::Type;
