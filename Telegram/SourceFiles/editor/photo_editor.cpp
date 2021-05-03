@@ -85,11 +85,12 @@ PhotoEditor::PhotoEditor(
 		const auto controlsRect = geometry
 			- style::margins(0, contentRect.height(), 0, 0);
 		_controls->setGeometry(controlsRect);
-
-		_colorPicker->moveLine(QPoint(
-			controlsRect.x() + controlsRect.width() / 2,
-			controlsRect.y() + st::photoEditorColorPickerTopSkip));
 	}, lifetime());
+
+	_controls->colorLinePositionValue(
+	) | rpl::start_with_next([=](const QPoint &p) {
+		_colorPicker->moveLine(p);
+	}, _controls->lifetime());
 
 	_mode.value(
 	) | rpl::start_with_next([=](const PhotoEditorMode &mode) {

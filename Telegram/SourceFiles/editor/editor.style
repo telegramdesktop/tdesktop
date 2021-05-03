@@ -11,8 +11,11 @@ using "window/window.style";
 using "ui/widgets/widgets.style";
 using "ui/chat/chat.style";
 
-photoEditorControlsHeight: 100px;
+// photoEditorControlsBottomSkip * 2 + photoEditorControlsCenterSkip + photoEditorButtonBarHeight * 2
+photoEditorControlsHeight: 146px;
+
 photoEditorControlsBottomSkip: 20px;
+photoEditorControlsCenterSkip: 6px;
 
 photoEditorButtonIconFg: mediaviewPipControlsFg;
 photoEditorButtonIconFgOver: mediaviewPipControlsFgOver;
@@ -69,7 +72,6 @@ photoEditorStickersIconActive: icon {{ "settings_stickers", photoEditorButtonIco
 photoEditorUndoButtonInactive: icon {{ "photo_editor/undo", photoEditorButtonIconFgInactive }};
 photoEditorRedoButtonInactive: icon {{ "photo_editor/undo-flip_horizontal", photoEditorButtonIconFgInactive }};
 
-photoEditorColorPickerTopSkip: 20px;
 photoEditorColorPickerWidth: 250px;
 photoEditorColorPickerLineHeight: 10px;
 photoEditorColorPickerCanvasHeight: 300px;

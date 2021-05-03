@@ -34,6 +34,7 @@ public:
 	[[nodiscard]] rpl::producer<> paintModeRequests() const;
 	[[nodiscard]] rpl::producer<> doneRequests() const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
+	[[nodiscard]] rpl::producer<QPoint> colorLinePositionValue() const;
 
 	void applyMode(const PhotoEditorMode &mode);
 
@@ -42,6 +43,7 @@ private:
 	const style::color &_bg;
 	const int _buttonHeight;
 	const base::unique_qptr<ButtonBar> _transformButtons;
+	const base::unique_qptr<ButtonBar> _paintTopButtons;
 	const base::unique_qptr<ButtonBar> _paintBottomButtons;
 
 	const base::unique_qptr<EdgeButton> _transformCancel;

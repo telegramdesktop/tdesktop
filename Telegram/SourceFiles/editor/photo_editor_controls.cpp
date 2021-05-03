@@ -174,6 +174,7 @@ PhotoEditorControls::PhotoEditorControls(
 , _bg(st::roundedBg)
 , _buttonHeight(st::photoEditorButtonBarHeight)
 , _transformButtons(base::make_unique_q<ButtonBar>(this, _bg))
+, _paintTopButtons(base::make_unique_q<ButtonBar>(this, _bg))
 , _paintBottomButtons(base::make_unique_q<ButtonBar>(this, _bg))
 , _transformCancel(base::make_unique_q<EdgeButton>(
 	_transformButtons,
@@ -209,10 +210,10 @@ PhotoEditorControls::PhotoEditorControls(
 	st::activeButtonFg,
 	st::photoEditorRotateButton.ripple))
 , _undoButton(base::make_unique_q<Ui::IconButton>(
-	_paintBottomButtons,
+	_paintTopButtons,
 	st::photoEditorUndoButton))
 , _redoButton(base::make_unique_q<Ui::IconButton>(
-	_paintBottomButtons,
+	_paintTopButtons,
 	st::photoEditorRedoButton))
 , _paintModeButtonActive(base::make_unique_q<Ui::IconButton>(
 	_paintBottomButtons,
@@ -238,6 +239,7 @@ PhotoEditorControls::PhotoEditorControls(
 			- padding.right();
 		_transformButtons->resize(w, _buttonHeight);
 		_paintBottomButtons->resize(w, _buttonHeight);
+		_paintTopButtons->resize(w, _buttonHeight);
 	}
 
 	{
@@ -268,6 +270,15 @@ PhotoEditorControls::PhotoEditorControls(
 			(size.width() - current->width()) / 2,
 			buttonsTop);
 	}, lifetime());
+
+	_paintBottomButtons->positionValue(
+	) | rpl::start_with_next([=](const QPoint &containerPos) {
+		_paintTopButtons->moveToLeft(
+			containerPos.x(),
+			containerPos.y()
+				- st::photoEditorControlsCenterSkip
+				- _paintTopButtons->height());
+	}, _paintBottomButtons->lifetime());
 
 	controllers->undoController->setPerformRequestChanges(rpl::merge(
 		_undoButton->clicks() | rpl::map_to(Undo::Undo),
@@ -351,7 +362,19 @@ void PhotoEditorControls::applyMode(const PhotoEditorMode &mode) {
 	using Mode = PhotoEditorMode::Mode;
 	_transformButtons->setVisible(mode.mode == Mode::Transform);
 	_paintBottomButtons->setVisible(mode.mode == Mode::Paint);
+	_paintTopButtons->setVisible(mode.mode == Mode::Paint);
 	_mode = mode;
+}
+
+rpl::producer<QPoint> PhotoEditorControls::colorLinePositionValue() const {
+	return rpl::merge(
+		geometryValue() | rpl::to_empty,
+		_paintTopButtons->geometryValue() | rpl::to_empty
+	) | rpl::map([=] {
+		const auto r = _paintTopButtons->geometry();
+		return mapToParent(r.topLeft())
+			+ QPoint(r.width() / 2, r.height() / 2);
+	});
 }
 
 } // namespace Editor
