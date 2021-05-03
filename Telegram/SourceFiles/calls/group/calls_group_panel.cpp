@@ -722,7 +722,7 @@ void Panel::refreshLeftButton() {
 			&st::groupCallVideoActiveSmall);
 		_video->show();
 		_video->setClickedCallback([=] {
-			_call->toggleVideo(!_call->isCameraSharing());
+			_call->toggleVideo(!_call->isSharingCamera());
 		});
 		_video->setText(tr::lng_group_call_video());
 		_video->setColorOverrides(_mute->colorOverrides());

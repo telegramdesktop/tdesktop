@@ -111,7 +111,7 @@ public:
 	[[nodiscard]] const Participant *participantByEndpoint(
 		const std::string &endpoint) const;
 
-	[[nodiscard]] rpl::producer<> participantsSliceAdded();
+	[[nodiscard]] rpl::producer<> participantsReloaded();
 	[[nodiscard]] rpl::producer<ParticipantUpdate> participantUpdated() const;
 
 	void enqueueUpdate(const MTPUpdate &update);
@@ -146,6 +146,7 @@ public:
 
 private:
 	enum class ApplySliceSource {
+		FullReloaded,
 		SliceLoaded,
 		UnknownLoaded,
 		UpdateReceived,
@@ -175,7 +176,7 @@ private:
 	void processFullCallFields(const MTPphone_GroupCall &call);
 	[[nodiscard]] bool requestParticipantsAfterReload(
 		const MTPphone_GroupCall &call) const;
-	void processSavedFullCall();
+	[[nodiscard]] bool processSavedFullCall();
 	void finishParticipantsSliceRequest();
 
 	void emplaceVideoSsrcs(const Participant &participant);
@@ -218,7 +219,7 @@ private:
 	mtpRequestId _unknownParticipantPeersRequestId = 0;
 
 	rpl::event_stream<ParticipantUpdate> _participantUpdates;
-	rpl::event_stream<> _participantsSliceAdded;
+	rpl::event_stream<> _participantsReloaded;
 
 	bool _joinMuted = false;
 	bool _canChangeJoinMuted = true;

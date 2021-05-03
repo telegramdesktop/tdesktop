@@ -309,7 +309,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallTracker::ContentByCall(
 			}
 		}, lifetime);
 
-		call->participantsSliceAdded(
+		call->participantsReloaded(
 		) | rpl::filter([=] {
 			return RegenerateUserpics(state, call, userpicSize);
 		}) | rpl::start_with_next(pushNext, lifetime);

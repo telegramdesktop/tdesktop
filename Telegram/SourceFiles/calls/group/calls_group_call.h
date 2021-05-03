@@ -232,7 +232,7 @@ public:
 	[[nodiscard]] bool streamsVideo(const std::string &endpoint) const {
 		return !endpoint.empty()
 			&& _incomingVideoEndpoints.contains(endpoint)
-			&& _activeVideoEndpoints.contains(endpoint);
+			&& activeVideoEndpointType(endpoint) != EndpointType::None;
 	}
 	[[nodiscard]] const std::string &videoEndpointPinned() const {
 		return _videoEndpointPinned;
@@ -265,8 +265,10 @@ public:
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
 	void setCurrentVideoDevice(const QString &deviceId);
-	[[nodiscard]] bool isScreenSharing() const;
-	[[nodiscard]] bool isCameraSharing() const;
+	[[nodiscard]] bool isSharingScreen() const;
+	[[nodiscard]] const std::string &screenSharingEndpoint() const;
+	[[nodiscard]] bool isSharingCamera() const;
+	[[nodiscard]] const std::string &cameraSharingEndpoint() const;
 	[[nodiscard]] QString screenSharingDeviceId() const;
 	void toggleVideo(bool active);
 	void toggleScreenSharing(std::optional<QString> uniqueId);
@@ -300,6 +302,7 @@ public:
 private:
 	using GlobalShortcutValue = base::GlobalShortcutValue;
 	struct LargeTrack;
+	struct SinkPointer;
 
 	struct LoadingPart {
 		std::shared_ptr<LoadPartTask> task;
@@ -320,6 +323,11 @@ private:
 		Mute,
 		RaiseHand,
 		VideoMuted,
+	};
+	enum class EndpointType {
+		None,
+		Camera,
+		Screen,
 	};
 
 	[[nodiscard]] bool mediaChannelDescriptionsFill(
@@ -370,8 +378,12 @@ private:
 	void stopConnectingSound();
 	void playConnectingSoundOnce();
 
-	void setIncomingVideoStreams(const std::vector<std::string> &endpoints);
+	void setIncomingVideoEndpoints(
+		const std::vector<std::string> &endpoints);
+	void fillActiveVideoEndpoints();
 	[[nodiscard]] std::string chooseLargeVideoEndpoint() const;
+	[[nodiscard]] EndpointType activeVideoEndpointType(
+		const std::string &endpoint) const;
 
 	void editParticipant(
 		not_null<PeerData*> participantPeer,
@@ -387,6 +399,10 @@ private:
 
 	void setupMediaDevices();
 	void ensureOutgoingVideo();
+	void setMyEndpointType(const std::string &endpoint, EndpointType type);
+	void setScreenEndpoint(std::string endpoint);
+	void setCameraEndpoint(std::string endpoint);
+	void addVideoOutput(const std::string &endpoint, SinkPointer sink);
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
@@ -423,6 +439,8 @@ private:
 	uint64 _accessHash = 0;
 	uint32 _mySsrc = 0;
 	uint32 _screenSsrc = 0;
+	std::string _cameraEndpoint;
+	std::string _screenEndpoint;
 	TimeId _scheduleDate = 0;
 	base::flat_set<uint32> _mySsrcs;
 	mtpRequestId _createRequestId = 0;
@@ -443,12 +461,11 @@ private:
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _screenCapture;
 	std::unique_ptr<Webrtc::VideoTrack> _screenOutgoing;
 	QString _screenDeviceId;
-	std::string _screenEndpoint;
 
 	rpl::event_stream<LevelUpdate> _levelUpdates;
 	rpl::event_stream<StreamsVideoUpdate> _streamsVideoUpdated;
 	base::flat_set<std::string> _incomingVideoEndpoints;
-	base::flat_set<std::string> _activeVideoEndpoints;
+	base::flat_map<std::string, EndpointType> _activeVideoEndpoints;
 	rpl::variable<std::string> _videoEndpointLarge;
 	std::string _videoEndpointPinned;
 	std::unique_ptr<LargeTrack> _videoLargeTrackWrap;

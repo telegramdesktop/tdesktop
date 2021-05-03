@@ -113,42 +113,50 @@ void GroupCall::requestParticipants() {
 			: _nextOffset),
 		MTP_int(kRequestPerPage)
 	)).done([=](const MTPphone_GroupParticipants &result) {
-		_participantsRequestId = 0;
-		processSavedFullCall();
 		result.match([&](const MTPDphone_groupParticipants &data) {
+			_participantsRequestId = 0;
+			const auto reloaded = processSavedFullCall();
 			_nextOffset = qs(data.vnext_offset());
 			_peer->owner().processUsers(data.vusers());
 			_peer->owner().processChats(data.vchats());
 			applyParticipantsSlice(
 				data.vparticipants().v,
-				ApplySliceSource::SliceLoaded);
+				(reloaded
+					? ApplySliceSource::FullReloaded
+					: ApplySliceSource::SliceLoaded));
 			setServerParticipantsCount(data.vcount().v);
 			if (data.vparticipants().v.isEmpty()) {
 				_allParticipantsLoaded = true;
 			}
 			finishParticipantsSliceRequest();
+			if (reloaded) {
+				_participantsReloaded.fire({});
+			}
 		});
 	}).fail([=](const MTP::Error &error) {
 		_participantsRequestId = 0;
-		processSavedFullCall();
+		const auto reloaded = processSavedFullCall();
 		setServerParticipantsCount(_participants.size());
 		_allParticipantsLoaded = true;
 		finishParticipantsSliceRequest();
+		if (reloaded) {
+			_participantsReloaded.fire({});
+		}
 	}).send();
 }
 
-void GroupCall::processSavedFullCall() {
+bool GroupCall::processSavedFullCall() {
 	if (!_savedFull) {
-		return;
+		return false;
 	}
 	_reloadRequestId = 0;
 	processFullCallFields(*base::take(_savedFull));
+	return true;
 }
 
 void GroupCall::finishParticipantsSliceRequest() {
 	computeParticipantsCount();
 	processQueuedUpdates();
-	_participantsSliceAdded.fire({});
 }
 
 void GroupCall::setServerParticipantsCount(int count) {
@@ -237,8 +245,8 @@ const GroupCallParticipant *GroupCall::participantByEndpoint(
 	return nullptr;
 }
 
-rpl::producer<> GroupCall::participantsSliceAdded() {
-	return _participantsSliceAdded.events();
+rpl::producer<> GroupCall::participantsReloaded() {
+	return _participantsReloaded.events();
 }
 
 auto GroupCall::participantUpdated() const
@@ -348,7 +356,7 @@ void GroupCall::processFullCallFields(const MTPphone_GroupCall &call) {
 
 			applyParticipantsSlice(
 				participants,
-				ApplySliceSource::SliceLoaded);
+				ApplySliceSource::FullReloaded);
 			_nextOffset = nextOffset;
 
 			applyCallFields(data);
@@ -362,6 +370,7 @@ void GroupCall::processFullCall(const MTPphone_GroupCall &call) {
 	processFullCallUsersChats(call);
 	processFullCallFields(call);
 	finishParticipantsSliceRequest();
+	_participantsReloaded.fire({});
 }
 
 void GroupCall::applyCallFields(const MTPDgroupCall &data) {
@@ -540,7 +549,7 @@ void GroupCall::applyParticipantsSlice(
 					eraseVideoSsrcs(*i);
 					_speakingByActiveFinishes.remove(participantPeer);
 					_participants.erase(i);
-					if (sliceSource != ApplySliceSource::SliceLoaded) {
+					if (sliceSource != ApplySliceSource::FullReloaded) {
 						_participantUpdates.fire(std::move(update));
 					}
 				}
@@ -578,24 +587,18 @@ void GroupCall::applyParticipantsSlice(
 				&& (!was || was->onlyMinLoaded);
 			const auto raisedHandRating
 				= data.vraise_hand_rating().value_or_empty();
-			const auto hasVideoParamsInformation = true/*(sliceSource
-				!= ApplySliceSource::UpdateConstructed)*/;
 			const auto value = Participant{
 				.peer = participantPeer,
-				.videoParams = (hasVideoParamsInformation
-					? Calls::ParseVideoParams(
-						(data.vvideo()
-							? data.vvideo()->c_dataJSON().vdata().v
-							: QByteArray()),
-						(data.vpresentation()
-							? data.vpresentation()->c_dataJSON().vdata().v
-							: QByteArray()),
-						(i != end(_participants)
-							? i->videoParams
-							: nullptr))
-					: (i != end(_participants))
-					? i->videoParams
-					: nullptr),
+				.videoParams = Calls::ParseVideoParams(
+					(data.vvideo()
+						? data.vvideo()->c_dataJSON().vdata().v
+						: QByteArray()),
+					(data.vpresentation()
+						? data.vpresentation()->c_dataJSON().vdata().v
+						: QByteArray()),
+					(i != end(_participants)
+						? i->videoParams
+						: nullptr)),
 				.date = data.vdate().v,
 				.lastActive = lastActive,
 				.raisedHandRating = raisedHandRating,
@@ -633,7 +636,7 @@ void GroupCall::applyParticipantsSlice(
 			if (data.is_just_joined()) {
 				++_serverParticipantsCount;
 			}
-			if (sliceSource != ApplySliceSource::SliceLoaded) {
+			if (sliceSource != ApplySliceSource::FullReloaded) {
 				_participantUpdates.fire({
 					.was = was,
 					.now = value,

@@ -108,6 +108,11 @@ constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 	return video.value("endpoint").toString().toStdString();
 }
 
+[[nodiscard]] const std::string &EmptyString() {
+	static const auto result = std::string();
+	return result;
+}
+
 } // namespace
 
 class GroupCall::LoadPartTask final : public tgcalls::BroadcastPartTask {
@@ -171,6 +176,10 @@ struct GroupCall::LargeTrack {
 
 	Webrtc::VideoTrack track;
 	std::shared_ptr<Webrtc::SinkInterface> sink;
+};
+
+struct GroupCall::SinkPointer {
+	std::shared_ptr<Webrtc::SinkInterface> data;
 };
 
 [[nodiscard]] bool IsGroupCallAdmin(
@@ -447,20 +456,29 @@ GroupCall::GroupCall(
 
 GroupCall::~GroupCall() {
 	destroyController();
+	destroyScreencast();
 }
 
-bool GroupCall::isScreenSharing() const {
+bool GroupCall::isSharingScreen() const {
 	return _screenOutgoing
 		&& (_screenOutgoing->state() == Webrtc::VideoState::Active);
 }
 
-bool GroupCall::isCameraSharing() const {
+const std::string &GroupCall::screenSharingEndpoint() const {
+	return isSharingScreen() ? _screenEndpoint : EmptyString();
+}
+
+bool GroupCall::isSharingCamera() const {
 	return _cameraOutgoing
 		&& (_cameraOutgoing->state() == Webrtc::VideoState::Active);
 }
 
+const std::string &GroupCall::cameraSharingEndpoint() const {
+	return isSharingCamera() ? _cameraEndpoint : EmptyString();
+}
+
 QString GroupCall::screenSharingDeviceId() const {
-	return isScreenSharing() ? _screenDeviceId : QString();
+	return isSharingScreen() ? _screenDeviceId : QString();
 }
 
 void GroupCall::toggleVideo(bool active) {
@@ -506,26 +524,11 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 		setScheduledDate(date);
 	}, _lifetime);
 
-	const auto emptyEndpoint = std::string();
-
-	real->participantsSliceAdded(
+	real->participantsReloaded(
 	) | rpl::start_with_next([=] {
-		const auto &participants = real->participants();
-		for (const auto &participant : participants) {
-			const auto camera = participant.cameraEndpoint();
-			const auto screen = participant.screenEndpoint();
-			if (!camera.empty()
-				&& _activeVideoEndpoints.emplace(camera).second
-				&& _incomingVideoEndpoints.contains(camera)) {
-				_streamsVideoUpdated.fire({ camera, true });
-			}
-			if (!screen.empty()
-				&& _activeVideoEndpoints.emplace(screen).second
-				&& _incomingVideoEndpoints.contains(screen)) {
-				_streamsVideoUpdated.fire({ screen, true });
-			}
-		}
+		fillActiveVideoEndpoints();
 	}, _lifetime);
+	fillActiveVideoEndpoints();
 
 	using Update = Data::GroupCall::ParticipantUpdate;
 	real->participantUpdated(
@@ -533,6 +536,14 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 		auto newLarge = _videoEndpointLarge.current();
 		auto updateCameraNotStreams = std::string();
 		auto updateScreenNotStreams = std::string();
+		const auto regularEndpoint = [&](const std::string &endpoint)
+		-> const std::string & {
+			return (endpoint.empty()
+					|| endpoint == _cameraEndpoint
+					|| endpoint == _screenEndpoint)
+				? EmptyString()
+				: endpoint;
+		};
 		const auto guard = gsl::finally([&] {
 			if (newLarge.empty()) {
 				newLarge = chooseLargeVideoEndpoint();
@@ -549,14 +560,16 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 		});
 
 		const auto &wasCameraEndpoint = (data.was && data.was->videoParams)
-			? data.was->videoParams->camera.endpoint
-			: emptyEndpoint;
+			? regularEndpoint(data.was->videoParams->camera.endpoint)
+			: EmptyString();
 		const auto &nowCameraEndpoint = (data.now && data.now->videoParams)
-			? data.now->videoParams->camera.endpoint
-			: emptyEndpoint;
+			? regularEndpoint(data.now->videoParams->camera.endpoint)
+			: EmptyString();
 		if (wasCameraEndpoint != nowCameraEndpoint) {
 			if (!nowCameraEndpoint.empty()
-				&& _activeVideoEndpoints.emplace(nowCameraEndpoint).second
+				&& _activeVideoEndpoints.emplace(
+					nowCameraEndpoint,
+					EndpointType::Camera).second
 				&& _incomingVideoEndpoints.contains(nowCameraEndpoint)) {
 				_streamsVideoUpdated.fire({ nowCameraEndpoint, true });
 			}
@@ -565,19 +578,21 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 				&& _incomingVideoEndpoints.contains(wasCameraEndpoint)) {
 				updateCameraNotStreams = wasCameraEndpoint;
 				if (newLarge == wasCameraEndpoint) {
-					newLarge = std::string();
+					_videoEndpointPinned = newLarge = std::string();
 				}
 			}
 		}
 		const auto &wasScreenEndpoint = (data.was && data.was->videoParams)
 			? data.was->videoParams->screen.endpoint
-			: emptyEndpoint;
+			: EmptyString();
 		const auto &nowScreenEndpoint = (data.now && data.now->videoParams)
 			? data.now->videoParams->screen.endpoint
-			: emptyEndpoint;
+			: EmptyString();
 		if (wasScreenEndpoint != nowScreenEndpoint) {
 			if (!nowScreenEndpoint.empty()
-				&& _activeVideoEndpoints.emplace(nowScreenEndpoint).second
+				&& _activeVideoEndpoints.emplace(
+					nowScreenEndpoint,
+					EndpointType::Screen).second
 				&& _incomingVideoEndpoints.contains(nowScreenEndpoint)) {
 				_streamsVideoUpdated.fire({ nowScreenEndpoint, true });
 			}
@@ -586,7 +601,7 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 				&& _incomingVideoEndpoints.contains(wasScreenEndpoint)) {
 				updateScreenNotStreams = wasScreenEndpoint;
 				if (newLarge == wasScreenEndpoint) {
-					newLarge = std::string();
+					_videoEndpointPinned = newLarge = std::string();
 				}
 			}
 		}
@@ -600,7 +615,8 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 			return;
 		}
 		if (nowScreenEndpoint != newLarge
-			&& streamsVideo(nowScreenEndpoint)) {
+			&& streamsVideo(nowScreenEndpoint)
+			&& activeVideoEndpointType(newLarge) != EndpointType::Screen) {
 			newLarge = nowScreenEndpoint;
 		}
 		const auto &participants = real->participants();
@@ -639,8 +655,8 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 				newLarge = soundingEndpoint;
 			}
 		} else if ((nowSpeaking || nowSounding)
-			&& (nowScreenEndpoint != newLarge)
 			&& (nowCameraEndpoint != newLarge)
+			&& (activeVideoEndpointType(newLarge) != EndpointType::Screen)
 			&& streamsVideo(nowCameraEndpoint)) {
 			const auto participant = real->participantByEndpoint(newLarge);
 			const auto screen = participant
@@ -701,6 +717,7 @@ void GroupCall::setState(State state) {
 		// Destroy controller before destroying Call Panel,
 		// so that the panel hide animation is smooth.
 		destroyController();
+		destroyScreencast();
 	}
 	switch (state) {
 	case State::HangingUp:
@@ -833,6 +850,90 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 	});
 }
 
+void GroupCall::setMyEndpointType(
+		const std::string &endpoint,
+		EndpointType type) {
+	if (endpoint.empty()) {
+		return;
+	} else if (type == EndpointType::None) {
+		const auto was1 = _incomingVideoEndpoints.remove(endpoint);
+		const auto was2 = _activeVideoEndpoints.remove(endpoint);
+		if (was1 && was2) {
+			auto newLarge = _videoEndpointLarge.current();
+			if (newLarge == endpoint) {
+				_videoEndpointPinned = std::string();
+				_videoEndpointLarge = chooseLargeVideoEndpoint();
+			}
+			_streamsVideoUpdated.fire({ endpoint, false });
+		}
+	} else {
+		const auto now1 = _incomingVideoEndpoints.emplace(endpoint).second;
+		const auto now2 = _activeVideoEndpoints.emplace(
+			endpoint,
+			type).second;
+		if (now1 && now2) {
+			_streamsVideoUpdated.fire({ endpoint, true });
+		}
+		const auto nowLarge = activeVideoEndpointType(
+			_videoEndpointLarge.current());
+		if (_videoEndpointPinned.empty()
+			&& ((type == EndpointType::Screen
+				&& nowLarge != EndpointType::Screen)
+				|| (type == EndpointType::Camera
+					&& nowLarge == EndpointType::None))) {
+			_videoEndpointLarge = endpoint;
+		}
+	}
+}
+
+void GroupCall::setScreenEndpoint(std::string endpoint) {
+	if (_screenEndpoint == endpoint) {
+		return;
+	}
+	if (!_screenEndpoint.empty()) {
+		setMyEndpointType(_screenEndpoint, EndpointType::None);
+	}
+	_screenEndpoint = std::move(endpoint);
+	if (_screenEndpoint.empty()) {
+		return;
+	}
+	if (_instance) {
+		_instance->setIgnoreVideoEndpointIds({ _screenEndpoint });
+	}
+	if (isSharingScreen()) {
+		setMyEndpointType(_screenEndpoint, EndpointType::Screen);
+	}
+}
+
+void GroupCall::setCameraEndpoint(std::string endpoint) {
+	if (_cameraEndpoint == endpoint) {
+		return;
+	}
+	if (!_cameraEndpoint.empty()) {
+		setMyEndpointType(_cameraEndpoint, EndpointType::None);
+	}
+	_cameraEndpoint = std::move(endpoint);
+	if (_cameraEndpoint.empty()) {
+		return;
+	}
+	if (isSharingCamera()) {
+		setMyEndpointType(_cameraEndpoint, EndpointType::Camera);
+	}
+}
+
+void GroupCall::addVideoOutput(
+		const std::string &endpoint,
+		SinkPointer sink) {
+	if (_cameraEndpoint == endpoint) {
+		_cameraCapture->setOutput(sink.data);
+	} else if (_screenEndpoint == endpoint) {
+		_screenCapture->setOutput(sink.data);
+	} else {
+		Assert(_instance != nullptr);
+		_instance->addIncomingVideoOutput(endpoint, sink.data);
+	}
+}
+
 void GroupCall::rejoin() {
 	rejoin(_joinAs);
 }
@@ -913,6 +1014,10 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				applyQueuedSelfUpdates();
 				checkFirstTimeJoined();
 				sendSelfUpdate(SendUpdateType::VideoMuted);
+				if (_screenSsrc && isSharingScreen()) {
+					LOG(("Call Info: Screen rejoin after rejoin()."));
+					rejoinPresentation();
+				}
 			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
 				LOG(("Call Error: Could not join, error: %1").arg(type));
@@ -970,22 +1075,16 @@ void GroupCall::rejoinPresentation() {
 				const auto type = error.type();
 				LOG(("Call Error: "
 					"Could not screen join, error: %1").arg(type));
-
 				if (type == u"GROUPCALL_SSRC_DUPLICATE_MUCH") {
 					rejoinPresentation();
-					return;
+				} else if (type == u"GROUPCALL_JOIN_MISSING"_q
+					|| type == u"GROUPCALL_FORBIDDEN"_q) {
+					_screenSsrc = ssrc;
+					rejoin();
+				} else {
+					_screenSsrc = 0;
+					setScreenEndpoint(std::string());
 				}
-
-				//hangup();
-				//Ui::ShowMultilineToast({
-				//	.text = { type == u"GROUPCALL_ANONYMOUS_FORBIDDEN"_q
-				//		? tr::lng_group_call_no_anonymous(tr::now)
-				//		: type == u"GROUPCALL_PARTICIPANTS_TOO_MUCH"_q
-				//		? tr::lng_group_call_too_many(tr::now)
-				//		: type == u"GROUPCALL_FORBIDDEN"_q
-				//		? tr::lng_group_not_accessible(tr::now)
-				//		: Lang::Hard::ServerError() },
-				//});
 			}).send();
 		});
 	});
@@ -999,12 +1098,14 @@ void GroupCall::leavePresentation() {
 		inputCall()
 	)).done([=](const MTPUpdates &updates) {
 		_screenSsrc = 0;
+		setScreenEndpoint(std::string());
 		_peer->session().api().applyUpdates(updates);
 	}).fail([=](const MTP::Error &error) {
 		const auto type = error.type();
 		LOG(("Call Error: "
 			"Could not screen leave, error: %1").arg(type));
 		_screenSsrc = 0;
+		setScreenEndpoint(std::string());
 	}).send();
 }
 
@@ -1233,11 +1334,9 @@ void GroupCall::toggleScheduleStartSubscribed(bool subscribed) {
 }
 
 void GroupCall::addVideoOutput(
-		const std::string &endpointId,
+		const std::string &endpoint,
 		not_null<Webrtc::VideoTrack*> track) {
-	if (_instance) {
-		_instance->addIncomingVideoOutput(endpointId, track->sink());
-	}
+	addVideoOutput(endpoint, { track->sink() });
 }
 
 void GroupCall::setMuted(MuteState mute) {
@@ -1314,16 +1413,15 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 		setScreenInstanceMode(InstanceMode::Rtc);
 		data.vparams().match([&](const MTPDdataJSON &data) {
 			const auto json = data.vdata().v;
-			_screenEndpoint = ParseVideoEndpoint(json);
-			if (!_screenEndpoint.empty() && _instance) {
-				_instance->setIgnoreVideoEndpointIds({ _screenEndpoint });
-			}
+			setScreenEndpoint(ParseVideoEndpoint(json));
 			_screenInstance->setJoinResponsePayload(json.toStdString());
 		});
 	} else {
 		setInstanceMode(InstanceMode::Rtc);
 		data.vparams().match([&](const MTPDdataJSON &data) {
-			_instance->setJoinResponsePayload(data.vdata().v.toStdString());
+			const auto json = data.vdata().v;
+			setCameraEndpoint(ParseVideoEndpoint(json));
+			_instance->setJoinResponsePayload(json.toStdString());
 		});
 		checkMediaChannelDescriptions();
 	}
@@ -1534,7 +1632,6 @@ void GroupCall::ensureOutgoingVideo() {
 			if (!_cameraCapture) {
 				_cameraCapture = _delegate->groupCallGetVideoCapture(
 					_cameraInputId);
-				_cameraCapture->setOutput(_cameraOutgoing->sink());
 			} else {
 				_cameraCapture->switchToDevice(_cameraInputId.toStdString());
 			}
@@ -1542,8 +1639,12 @@ void GroupCall::ensureOutgoingVideo() {
 				_instance->setVideoCapture(_cameraCapture);
 			}
 			_cameraCapture->setState(tgcalls::VideoState::Active);
-		} else if (_cameraCapture) {
-			_cameraCapture->setState(tgcalls::VideoState::Inactive);
+			setMyEndpointType(_cameraEndpoint, EndpointType::Camera);
+		} else {
+			if (_cameraCapture) {
+				_cameraCapture->setState(tgcalls::VideoState::Inactive);
+			}
+			setMyEndpointType(_cameraEndpoint, EndpointType::None);
 		}
 		sendSelfUpdate(SendUpdateType::VideoMuted);
 		applyMeInCallLocally();
@@ -1559,7 +1660,6 @@ void GroupCall::ensureOutgoingVideo() {
 					tgcalls::VideoCaptureInterface::Create(
 						tgcalls::StaticThreads::getThreads(),
 						_screenDeviceId.toStdString()));
-				_screenCapture->setOutput(_screenOutgoing->sink());
 			} else {
 				_screenCapture->switchToDevice(_screenDeviceId.toStdString());
 			}
@@ -1567,8 +1667,12 @@ void GroupCall::ensureOutgoingVideo() {
 				_screenInstance->setVideoCapture(_screenCapture);
 			}
 			_screenCapture->setState(tgcalls::VideoState::Active);
-		} else if (_screenCapture) {
-			_screenCapture->setState(tgcalls::VideoState::Inactive);
+			setMyEndpointType(_screenEndpoint, EndpointType::Screen);
+		} else {
+			if (_screenCapture) {
+				_screenCapture->setState(tgcalls::VideoState::Inactive);
+			}
+			setMyEndpointType(_screenEndpoint, EndpointType::None);
 		}
 		joinLeavePresentation();
 	}, _lifetime);
@@ -1657,7 +1761,7 @@ void GroupCall::ensureControllerCreated() {
 		.incomingVideoSourcesUpdated = [=](
 				std::vector<std::string> endpointIds) {
 			crl::on_main(weak, [=, endpoints = std::move(endpointIds)] {
-				setIncomingVideoStreams(endpoints);
+				setIncomingVideoEndpoints(endpoints);
 			});
 		},
 		.requestBroadcastPart = [=](
@@ -1722,14 +1826,15 @@ void GroupCall::ensureControllerCreated() {
 		}
 		_videoLargeTrackWrap->sink = Webrtc::CreateProxySink(
 			_videoLargeTrackWrap->track.sink());
-		_instance->addIncomingVideoOutput(
-			endpoint,
-			_videoLargeTrackWrap->sink);
+		addVideoOutput(endpoint, { _videoLargeTrackWrap->sink });
 	}, _lifetime);
 
 	updateInstanceMuteState();
 	updateInstanceVolumes();
 
+	if (!_screenEndpoint.empty()) {
+		_instance->setIgnoreVideoEndpointIds({ _screenEndpoint });
+	}
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 }
 
@@ -1909,10 +2014,10 @@ bool GroupCall::mediaChannelDescriptionsFill(
 		} else if (const auto byScreen
 			= real->participantPeerByScreenSsrc(ssrc)) {
 			addVideoChannel(byScreen, &ParticipantVideoParams::screen);
-		} else if (resolved(ssrc)) {
-			add(std::nullopt);
 		} else if (!resolved) {
 			_unresolvedSsrcs.emplace(ssrc);
+		} else if (resolved(ssrc)) {
+			add(std::nullopt);
 		}
 	}
 	return result;
@@ -1926,25 +2031,33 @@ void GroupCall::mediaChannelDescriptionsCancel(
 	}
 }
 
-void GroupCall::setIncomingVideoStreams(
+void GroupCall::setIncomingVideoEndpoints(
 		const std::vector<std::string> &endpoints) {
-	const auto large = _videoEndpointLarge.current();
-	auto newLarge = large;
-	if (!large.empty() && !ranges::contains(endpoints, large)) {
-		newLarge = _videoEndpointPinned = std::string();
-	}
+	auto newLarge = _videoEndpointLarge.current();
+	auto newLargeFound = false;
 	auto removed = _incomingVideoEndpoints;
-	for (const auto &endpoint : endpoints) {
-		const auto i = removed.find(endpoint);
-		const auto videoActive = _activeVideoEndpoints.contains(endpoint);
-		if (i != end(removed)) {
-			removed.erase(i);
-		} else {
+	const auto feedOne = [&](const std::string &endpoint) {
+		if (endpoint.empty()) {
+			return;
+		} else if (endpoint == newLarge) {
+			newLargeFound = true;
+		}
+		if (!removed.remove(endpoint)) {
 			_incomingVideoEndpoints.emplace(endpoint);
-			if (videoActive) {
+			if (_activeVideoEndpoints.contains(endpoint)) {
 				_streamsVideoUpdated.fire({ endpoint, true });
 			}
 		}
+	};
+	for (const auto &endpoint : endpoints) {
+		if (endpoint != _cameraEndpoint && endpoint != _screenEndpoint) {
+			feedOne(endpoint);
+		}
+	}
+	feedOne(cameraSharingEndpoint());
+	feedOne(screenSharingEndpoint());
+	if (!newLarge.empty() && !newLargeFound) {
+		newLarge = _videoEndpointPinned = std::string();
 	}
 	if (newLarge.empty()) {
 		_videoEndpointLarge = chooseLargeVideoEndpoint();
@@ -1956,6 +2069,65 @@ void GroupCall::setIncomingVideoStreams(
 	}
 }
 
+void GroupCall::fillActiveVideoEndpoints() {
+	const auto real = lookupReal();
+	Assert(real != nullptr);
+
+	const auto &participants = real->participants();
+	auto newLarge = _videoEndpointLarge.current();
+	auto newLargeFound = false;
+	auto removed = _activeVideoEndpoints;
+	const auto feedOne = [&](
+			const std::string &endpoint,
+			EndpointType type) {
+		if (endpoint.empty()) {
+			return;
+		} else if (endpoint == newLarge) {
+			newLargeFound = true;
+		}
+		if (!removed.remove(endpoint)) {
+			_activeVideoEndpoints.emplace(endpoint, type);
+			if (_incomingVideoEndpoints.contains(endpoint)) {
+				_streamsVideoUpdated.fire({ endpoint, true });
+			}
+		}
+	};
+	for (const auto &participant : participants) {
+		const auto camera = participant.cameraEndpoint();
+		if (camera != _cameraEndpoint && camera != _screenEndpoint) {
+			feedOne(camera, EndpointType::Camera);
+		}
+		const auto screen = participant.screenEndpoint();
+		if (screen != _cameraEndpoint && screen != _screenEndpoint) {
+			feedOne(screen, EndpointType::Screen);
+		}
+	}
+	feedOne(cameraSharingEndpoint(), EndpointType::Camera);
+	feedOne(screenSharingEndpoint(), EndpointType::Screen);
+	if (!newLarge.empty() && !newLargeFound) {
+		newLarge = _videoEndpointPinned = std::string();
+	}
+	if (newLarge.empty()) {
+		_videoEndpointLarge = chooseLargeVideoEndpoint();
+	}
+	for (const auto &[endpoint, type] : removed) {
+		if (_activeVideoEndpoints.remove(endpoint)) {
+			_streamsVideoUpdated.fire({ endpoint, false });
+		}
+	}
+}
+
+GroupCall::EndpointType GroupCall::activeVideoEndpointType(
+		const std::string &endpoint) const {
+	if (endpoint.empty()) {
+		return EndpointType::None;
+	}
+	const auto i = _activeVideoEndpoints.find(endpoint);
+	return (i != end(_activeVideoEndpoints))
+		? i->second
+		: EndpointType::None;
+}
+
 std::string GroupCall::chooseLargeVideoEndpoint() const {
 	const auto real = lookupReal();
 	if (!real) {
@@ -1965,9 +2137,13 @@ std::string GroupCall::chooseLargeVideoEndpoint() const {
 	auto screenEndpoint = std::string();
 	auto speakingEndpoint = std::string();
 	auto soundingEndpoint = std::string();
+	const auto &myCameraEndpoint = cameraSharingEndpoint();
+	const auto &myScreenEndpoint = screenSharingEndpoint();
 	const auto &participants = real->participants();
 	for (const auto &endpoint : _incomingVideoEndpoints) {
-		if (!_activeVideoEndpoints.contains(endpoint)) {
+		if (!_activeVideoEndpoints.contains(endpoint)
+			|| endpoint == _cameraEndpoint
+			|| endpoint == _screenEndpoint) {
 			continue;
 		}
 		if (const auto participant = real->participantByEndpoint(endpoint)) {
@@ -1989,11 +2165,17 @@ std::string GroupCall::chooseLargeVideoEndpoint() const {
 	}
 	return !screenEndpoint.empty()
 		? screenEndpoint
+		: streamsVideo(myScreenEndpoint)
+		? myScreenEndpoint
 		: !speakingEndpoint.empty()
 		? speakingEndpoint
 		: !soundingEndpoint.empty()
 		? soundingEndpoint
-		: anyEndpoint;
+		: !anyEndpoint.empty()
+		? anyEndpoint
+		: streamsVideo(myCameraEndpoint)
+		? myCameraEndpoint
+		: std::string();
 }
 
 void GroupCall::updateInstanceMuteState() {
@@ -2124,25 +2306,22 @@ void GroupCall::checkJoined() {
 		if (!ranges::contains(result.v, MTP_int(_mySsrc))) {
 			LOG(("Call Info: Rejoin after no _mySsrc in checkGroupCall."));
 			rejoin();
-		} else if (state() == State::Connecting) {
-			_checkJoinedTimer.callOnce(kCheckJoinedTimeout);
-		}
-		if (_screenSsrc
-			&& !ranges::contains(result.v, MTP_int(_screenSsrc))
-			&& isScreenSharing()) {
-			LOG(("Call Info: "
-				"Screen rejoin after _screenSsrc not found."));
-			rejoinPresentation();
+		} else {
+			if (state() == State::Connecting) {
+				_checkJoinedTimer.callOnce(kCheckJoinedTimeout);
+			}
+			if (_screenSsrc
+				&& !ranges::contains(result.v, MTP_int(_screenSsrc))
+				&& isSharingScreen()) {
+				LOG(("Call Info: "
+					"Screen rejoin after _screenSsrc not found."));
+				rejoinPresentation();
+			}
 		}
 	}).fail([=](const MTP::Error &error) {
  		LOG(("Call Info: Full rejoin after error '%1' in checkGroupCall."
 			).arg(error.type()));
 		rejoin();
-		if (_screenSsrc && isScreenSharing()) {
-			LOG(("Call Info: "
-				"Full screen rejoin after _screenSsrc not found."));
-			rejoinPresentation();
-		}
 	}).send();
 }
 
@@ -2490,6 +2669,14 @@ void GroupCall::destroyController() {
 		DEBUG_LOG(("Call Info: Destroying call controller.."));
 		_instance.reset();
 		DEBUG_LOG(("Call Info: Call controller destroyed."));
+	}
+}
+
+void GroupCall::destroyScreencast() {
+	if (_screenInstance) {
+		DEBUG_LOG(("Call Info: Destroying call screen controller.."));
+		_screenInstance.reset();
+		DEBUG_LOG(("Call Info: Call screen controller destroyed."));
 	}
 }
 
