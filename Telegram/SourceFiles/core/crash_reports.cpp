@@ -136,40 +136,6 @@ bool ReportingHeaderWritten/* = false*/;
 const char *BreakpadDumpPath/* = nullptr*/;
 const wchar_t *BreakpadDumpPathW/* = nullptr*/;
 
-const int HandledSignals[] = {
-	SIGSEGV,
-	SIGABRT,
-	SIGFPE,
-	SIGILL,
-#ifdef Q_OS_UNIX
-	SIGBUS,
-	SIGTRAP,
-#endif // Q_OS_UNIX
-};
-
-#ifdef Q_OS_UNIX
-struct sigaction OldSigActions[32]/* = { 0 }*/;
-
-void RestoreSignalHandlers() {
-	for (const auto signal : HandledSignals) {
-		sigaction(signal, &OldSigActions[signal], nullptr);
-	}
-}
-
-void InvokeOldSignalHandler(int signum, siginfo_t *info, void *ucontext) {
-	if (signum < 0 || signum > 31) {
-		return;
-	} else if (OldSigActions[signum].sa_flags & SA_SIGINFO) {
-		if (OldSigActions[signum].sa_sigaction) {
-			OldSigActions[signum].sa_sigaction(signum, info, ucontext);
-		}
-	} else {
-		if (OldSigActions[signum].sa_handler) {
-			OldSigActions[signum].sa_handler(signum);
-		}
-	}
-}
-
 void WriteReportHeader() {
 	if (ReportingHeaderWritten) {
 		return;
@@ -219,6 +185,40 @@ void WriteReportInfo(int signum, const char *name) {
 
 	dump() << "\nBacktrace omitted.\n";
 	dump() << "\n";
+}
+
+const int HandledSignals[] = {
+	SIGSEGV,
+	SIGABRT,
+	SIGFPE,
+	SIGILL,
+#ifdef Q_OS_UNIX
+	SIGBUS,
+	SIGTRAP,
+#endif // Q_OS_UNIX
+};
+
+#ifdef Q_OS_UNIX
+struct sigaction OldSigActions[32]/* = { 0 }*/;
+
+void RestoreSignalHandlers() {
+	for (const auto signal : HandledSignals) {
+		sigaction(signal, &OldSigActions[signal], nullptr);
+	}
+}
+
+void InvokeOldSignalHandler(int signum, siginfo_t *info, void *ucontext) {
+	if (signum < 0 || signum > 31) {
+		return;
+	} else if (OldSigActions[signum].sa_flags & SA_SIGINFO) {
+		if (OldSigActions[signum].sa_sigaction) {
+			OldSigActions[signum].sa_sigaction(signum, info, ucontext);
+		}
+	} else {
+		if (OldSigActions[signum].sa_handler) {
+			OldSigActions[signum].sa_handler(signum);
+		}
+	}
 }
 
 void SignalHandler(int signum, siginfo_t *info, void *ucontext) {
