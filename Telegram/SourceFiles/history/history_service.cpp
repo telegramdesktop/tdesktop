@@ -338,6 +338,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	};
 
 	auto prepareGroupCall = [this](const MTPDmessageActionGroupCall &action) {
+		auto result = PreparedText{};
 		if (const auto duration = action.vduration()) {
 			const auto seconds = duration->v;
 			const auto days = seconds / 86400;
@@ -350,9 +351,22 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				: (minutes > 1)
 				? tr::lng_group_call_duration_minutes(tr::now, lt_count, minutes)
 				: tr::lng_group_call_duration_seconds(tr::now, lt_count, seconds);
-			return PreparedText{ tr::lng_action_group_call_finished(tr::now, lt_duration, text) };
+			if (history()->peer->isBroadcast()) {
+				result.text = tr::lng_action_group_call_finished(
+					tr::now,
+					lt_duration,
+					text);
+			} else {
+				result.links.push_back(fromLink());
+				result.text = tr::lng_action_group_call_finished_group(
+					tr::now,
+					lt_from,
+					fromLinkText(),
+					lt_duration,
+					text);
+			}
+			return result;
 		}
-		auto result = PreparedText{};
 		if (history()->peer->isBroadcast()) {
 			result.text = tr::lng_action_group_call_started_channel(tr::now);
 		} else {
