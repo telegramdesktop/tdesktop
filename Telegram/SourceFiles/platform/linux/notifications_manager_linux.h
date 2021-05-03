@@ -8,14 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "platform/platform_notifications_manager.h"
-#include "base/weak_ptr.h"
 
 namespace Platform {
 namespace Notifications {
 
-class Manager
-	: public Window::Notifications::NativeManager
-	, public base::has_weak_ptr {
+class Manager : public Window::Notifications::NativeManager {
 public:
 	Manager(not_null<Window::Notifications::System*> system);
 	void clearNotification(NotificationId id);
