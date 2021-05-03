@@ -67,6 +67,23 @@ RUN DESTDIR="$LibrariesPath/xz-cache" cmake3 --install build
 WORKDIR ..
 RUN rm -rf xz
 
+FROM patches AS libproxy
+RUN git clone -b 0.4.17 --depth=1 $GIT/libproxy/libproxy.git
+
+WORKDIR libproxy
+RUN git apply ../patches/libproxy.patch
+RUN cmake3 -B build . \
+	-DCMAKE_BUILD_TYPE=Release \
+	-DWITH_DBUS=OFF \
+	-DWITH_NM=OFF \
+	-DWITH_NMold=OFF
+
+RUN cmake3 --build build -j$(nproc)
+RUN DESTDIR="$LibrariesPath/libproxy-cache" cmake3 --install build
+
+WORKDIR ..
+RUN rm -rf libproxy
+
 FROM builder AS mozjpeg
 RUN git clone -b v4.0.1-rc2 --depth=1 $GIT/mozilla/mozjpeg.git
 
@@ -508,6 +525,7 @@ RUN rm -rf glibmm
 FROM patches AS qt
 
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
+COPY --from=libproxy ${LibrariesPath}/libproxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
 COPY --from=xcb-wm ${LibrariesPath}/xcb-wm-cache /
@@ -537,6 +555,7 @@ RUN echo './configure -prefix '$'\"''$QT_PREFIX'$'\"'' \
 	-opensource \
 	-confirm-license \
 	-xcb \
+	-libproxy \
 	-qt-libpng \
 	-qt-harfbuzz \
 	-qt-pcre \
@@ -549,6 +568,7 @@ RUN echo './configure -prefix '$'\"''$QT_PREFIX'$'\"'' \
 	-openssl-linked \
 	-I '$'\"''$OPENSSL_PREFIX/include'$'\"'' \
 	OPENSSL_LIBS='$'\"''$OPENSSL_PREFIX/lib/libssl.a $OPENSSL_PREFIX/lib/libcrypto.a -lz -ldl -lpthread'$'\"'' \
+	LIBPROXY_LIBS='$'\"''-lproxy -ldl'$'\"'' \
 	-nomake examples \
 	-nomake tests' >> ./run_configure.sh
 RUN cat ./run_configure.sh
@@ -566,6 +586,7 @@ FROM builder AS kwayland
 
 COPY --from=extra-cmake-modules ${LibrariesPath}/extra-cmake-modules-cache /
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
+COPY --from=libproxy ${LibrariesPath}/libproxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
 COPY --from=xcb-wm ${LibrariesPath}/xcb-wm-cache /
@@ -665,6 +686,7 @@ FROM builder
 
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 COPY --from=xz ${LibrariesPath}/xz-cache /
+COPY --from=libproxy ${LibrariesPath}/libproxy-cache /
 COPY --from=mozjpeg ${LibrariesPath}/mozjpeg-cache /
 COPY --from=opus ${LibrariesPath}/opus-cache /
 COPY --from=xcb ${LibrariesPath}/xcb-cache /
