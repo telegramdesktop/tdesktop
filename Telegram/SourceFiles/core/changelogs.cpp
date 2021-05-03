@@ -147,6 +147,18 @@ std::map<int, const char*> BetaLogs() {
 
 		"- MPRIS support on Linux.\n"
 	},
+	{
+		2007005,
+		"- Add \"Voice chats\" filter in \"Recent actions\" for channels.\n"
+
+		"- Write local drafts to disk on a background thread.\n"
+
+		"- Support autoupdate for Telegram in write-protected folders on Linux.\n"
+
+		"- Fix crash in native notifications on Linux.\n"
+
+		"- Fix crash in file dialog on Linux.\n"
+	},
 	};
 };
 

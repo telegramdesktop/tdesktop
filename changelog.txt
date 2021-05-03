@@ -1,3 +1,11 @@
+2.7.5 beta (04.05.21)
+
+- Add "Voice chats" filter in "Recent actions" for channels.
+- Write local drafts to disk on a background thread.
+- Support autoupdate for Telegram in write-protected folders on Linux.
+- Fix crash in native notifications on Linux.
+- Fix crash in file dialog on Linux.
+
 2.7.4 (28.04.21)
 
 - Fix crash in viewing an invoice after a payment is made.
