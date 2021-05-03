@@ -1260,12 +1260,6 @@ void OverlayWidget::showSaveMsgFile() {
 	File::ShowInFolder(_saveMsgFilename);
 }
 
-void OverlayWidget::updateMixerVideoVolume() const {
-	if (_streamed) {
-		Player::mixer()->setVideoVolume(Core::App().settings().videoVolume());
-	}
-}
-
 void OverlayWidget::close() {
 	Core::App().hideMediaView();
 }
@@ -2941,9 +2935,11 @@ void OverlayWidget::playbackControlsSeekFinished(crl::time position) {
 }
 
 void OverlayWidget::playbackControlsVolumeChanged(float64 volume) {
+	if (_streamed) {
+		Player::mixer()->setVideoVolume(volume);
+	}
 	Core::App().settings().setVideoVolume(volume);
 	Core::App().saveSettingsDelayed();
-	updateMixerVideoVolume();
 }
 
 float64 OverlayWidget::playbackControlsCurrentVolume() {
