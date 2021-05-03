@@ -125,14 +125,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 			argumentsList.push("-workdir_custom");
 		}
 		if (cWriteProtected()) {
-			const auto currentUid = geteuid();
-			const auto pw = getpwuid(currentUid);
-			if (pw) {
-				argumentsList.push("-writeprotected");
-				argumentsList.push(pw->pw_name);
-				argumentsList.push("-dbus");
-				argumentsList.push(qgetenv("DBUS_SESSION_BUS_ADDRESS"));
-			}
+			argumentsList.push("-writeprotected");
 		}
 	}
 
@@ -150,6 +143,8 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	// pkexec needs an alive parent
 	if (cWriteProtected()) {
 		waitpid(pid, nullptr, 0);
+		// launch new version in the same environment
+		return launchUpdater(UpdaterLaunch::JustRelaunch);
 	}
 
 	return true;

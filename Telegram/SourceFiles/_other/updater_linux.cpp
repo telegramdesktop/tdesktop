@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <cstdio>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <sys/sendfile.h>
 #include <cstdlib>
 #include <unistd.h>
@@ -391,8 +390,6 @@ int main(int argc, char *argv[]) {
 
 	char *key = 0;
 	char *workdir = 0;
-	char *oldUsername = 0;
-	char *dbusAddress = 0;
 	for (int i = 1; i < argc; ++i) {
 		if (equal(argv[i], "-noupdate")) {
 			needupdate = false;
@@ -410,19 +407,16 @@ int main(int argc, char *argv[]) {
 			tosettings = true;
 		} else if (equal(argv[i], "-workdir_custom")) {
 			customWorkingDir = true;
+		} else if (equal(argv[i], "-writeprotected")) {
+			writeprotected = true;
 		} else if (equal(argv[i], "-key") && ++i < argc) {
 			key = argv[i];
-		} else if (equal(argv[i], "-writeprotected") && ++i < argc) {
-			writeprotected = true;
-			oldUsername = argv[i];
 		} else if (equal(argv[i], "-workpath") && ++i < argc) {
 			workDir = workdir = argv[i];
 		} else if (equal(argv[i], "-exename") && ++i < argc) {
 			exeName = argv[i];
 		} else if (equal(argv[i], "-exepath") && ++i < argc) {
 			exePath = argv[i];
-		} else if (equal(argv[i], "-dbus") && ++i < argc) {
-			dbusAddress = argv[i];
 		}
 	}
 	if (exeName.empty() || exeName.find('/') != string::npos) {
@@ -504,15 +498,6 @@ int main(int argc, char *argv[]) {
 		// Force null-terminated .data() call result.
 		values.push_back(arg + char(0));
 	};
-	if (writeprotected) { // run un-elevated
-		push("pkexec");
-		push("--user");
-		push(oldUsername);
-		push("env");
-		push("DBUS_SESSION_BUS_ADDRESS=" + string(dbusAddress));
-		push("systemd-run"); // restore environment
-		push("--user");
-	}
 	push(path);
 	push("-noupdate");
 	if (autostart) push("-autostart");
@@ -536,19 +521,17 @@ int main(int argc, char *argv[]) {
 	}
 	args.push_back(nullptr);
 
-	pid_t pid = fork();
-	switch (pid) {
-	case -1:
-		writeLog("fork() failed!");
-		return 1;
-	case 0:
-		execvp(args[0], args.data());
-		return 1;
-	}
-
-	// pkexec needs an alive parent
-	if (writeprotected) {
-		waitpid(pid, nullptr, 0);
+	// let the parent launch instead
+	if (!writeprotected) {
+		pid_t pid = fork();
+		switch (pid) {
+		case -1:
+			writeLog("fork() failed!");
+			return 1;
+		case 0:
+			execv(args[0], args.data());
+			return 1;
+		}
 	}
 
 	writeLog("Executed Telegram, closing log and quitting..");
