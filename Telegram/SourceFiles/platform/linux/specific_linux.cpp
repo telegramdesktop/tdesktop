@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/sendfile.h>
 #include <cstdlib>
 #include <unistd.h>
 #include <dirent.h>
@@ -1039,13 +1040,25 @@ bool linuxMoveFile(const char *from, const char *to) {
 		nullptr,
 		fst.st_size);
 #endif // Q_OS_LINUX
-	
+
 	if (copied == -1) {
+		DEBUG_LOG(("Update Error: "
+			"Copy by sendfile '%1' to '%2' failed, error: %3, fallback now."
+			).arg(from
+			).arg(to
+			).arg(errno));
 		static const int BufSize = 65536;
 		char buf[BufSize];
 		while (size_t size = fread(buf, 1, BufSize, ffrom)) {
 			fwrite(buf, 1, size, fto);
 		}
+	} else {
+		DEBUG_LOG(("Update Info: "
+			"Copy by sendfile '%1' to '%2' done, size: %3, result: %4."
+			).arg(from
+			).arg(to
+			).arg(fst.st_size
+			).arg(copied));
 	}
 
 	//update to the same uid/gid

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <cstdio>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/sendfile.h>
 #include <cstdlib>
 #include <unistd.h>
 #include <dirent.h>
@@ -113,11 +114,23 @@ bool copyFile(const char *from, const char *to) {
 		fst.st_size);
 
 	if (copied == -1) {
+		writeLog(
+			"Copy by sendfile '%s' to '%s' failed, error: %d, fallback now.",
+			from,
+			to,
+			int(errno));
 		static const int BufSize = 65536;
 		char buf[BufSize];
 		while (size_t size = fread(buf, 1, BufSize, ffrom)) {
 			fwrite(buf, 1, size, fto);
 		}
+	} else {
+		writeLog(
+			"Copy by sendfile '%s' to '%s' done, size: %d, result: %d.",
+			from,
+			to,
+			int(fst.st_size),
+			int(copied));
 	}
 
 	//update to the same uid/gid
