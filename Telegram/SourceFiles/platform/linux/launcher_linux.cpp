@@ -83,7 +83,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 			: (cExeDir() + qsl("Updater")));
 
 	auto argumentsList = Arguments();
-	if (action != UpdaterLaunch::JustRelaunch && cWriteProtected()) {
+	if (action == UpdaterLaunch::PerformUpdate && cWriteProtected()) {
 		argumentsList.push("pkexec");
 	}
 	argumentsList.push(QFile::encodeName(binaryPath));
@@ -141,7 +141,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	}
 
 	// pkexec needs an alive parent
-	if (cWriteProtected()) {
+	if (action == UpdaterLaunch::PerformUpdate && cWriteProtected()) {
 		waitpid(pid, nullptr, 0);
 		// launch new version in the same environment
 		return launchUpdater(UpdaterLaunch::JustRelaunch);
