@@ -108,8 +108,8 @@ bool copyFile(const char *from, const char *to) {
 	}
 
 	ssize_t copied = sendfile(
-		fileno(ffrom),
 		fileno(fto),
+		fileno(ffrom),
 		nullptr,
 		fst.st_size);
 

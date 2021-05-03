@@ -1035,8 +1035,8 @@ bool linuxMoveFile(const char *from, const char *to) {
 	ssize_t copied = -1;
 #ifdef Q_OS_LINUX
 	copied = sendfile(
-		fileno(ffrom),
 		fileno(fto),
+		fileno(ffrom),
 		nullptr,
 		fst.st_size);
 #endif // Q_OS_LINUX
