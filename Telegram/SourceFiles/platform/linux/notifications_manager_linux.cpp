@@ -34,6 +34,8 @@ constexpr auto kObjectPath = "/org/freedesktop/Notifications"_cs;
 constexpr auto kInterface = kService;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 
+using namespace base::Platform;
+
 struct ServerInformation {
 	QString name;
 	QString vendor;
@@ -51,10 +53,10 @@ void StartServiceAsync(Fn<void()> callback) {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-		base::Platform::DBus::StartServiceByNameAsync(
+		DBus::StartServiceByNameAsync(
 			connection,
 			std::string(kService),
-			[=](Fn<base::Platform::DBus::StartReply()> result) {
+			[=](Fn<DBus::StartReply()> result) {
 				try {
 					result(); // get the error if any
 				} catch (const Glib::Error &e) {
@@ -74,14 +76,14 @@ void StartServiceAsync(Fn<void()> callback) {
 						QString::fromStdString(e.what())));
 				}
 
-				crl::on_main([=] { callback(); });
+				crl::on_main(callback);
 			});
 
 			return;
 	} catch (...) {
 	}
 
-	crl::on_main([=] { callback(); });
+	crl::on_main(callback);
 }
 
 bool GetServiceRegistered() {
@@ -91,7 +93,7 @@ bool GetServiceRegistered() {
 
 		const auto hasOwner = [&] {
 			try {
-				return base::Platform::DBus::NameHasOwner(
+				return DBus::NameHasOwner(
 					connection,
 					std::string(kService));
 			} catch (...) {
@@ -102,7 +104,7 @@ bool GetServiceRegistered() {
 		static const auto activatable = [&] {
 			try {
 				return ranges::contains(
-					base::Platform::DBus::ListActivatableNames(connection),
+					DBus::ListActivatableNames(connection),
 					Glib::ustring(std::string(kService)));
 			} catch (...) {
 				return false;
@@ -131,17 +133,17 @@ void GetServerInformation(
 				try {
 					auto reply = connection->call_finish(result);
 
-					const auto name = base::Platform::GlibVariantCast<
-						Glib::ustring>(reply.get_child(0));
+					const auto name = GlibVariantCast<Glib::ustring>(
+						reply.get_child(0));
 
-					const auto vendor = base::Platform::GlibVariantCast<
-						Glib::ustring>(reply.get_child(1));
+					const auto vendor = GlibVariantCast<Glib::ustring>(
+						reply.get_child(1));
 
-					const auto version = base::Platform::GlibVariantCast<
-						Glib::ustring>(reply.get_child(2));
+					const auto version = GlibVariantCast<Glib::ustring>(
+						reply.get_child(2));
 
-					const auto specVersion = base::Platform::GlibVariantCast<
-						Glib::ustring>(reply.get_child(3));
+					const auto specVersion = GlibVariantCast<Glib::ustring>(
+						reply.get_child(3));
 
 					crl::on_main([=] {
 						callback(ServerInformation{
@@ -192,8 +194,8 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 
 					QStringList value;
 					ranges::transform(
-						base::Platform::GlibVariantCast<
-							std::vector<Glib::ustring>>(reply.get_child(0)),
+						GlibVariantCast<std::vector<Glib::ustring>>(
+							reply.get_child(0)),
 						ranges::back_inserter(value),
 						QString::fromStdString);
 
@@ -232,7 +234,7 @@ void GetInhibitionSupported(Fn<void(bool)> callback) {
 			std::string(kObjectPath),
 			std::string(kPropertiesInterface),
 			"Get",
-			base::Platform::MakeGlibVariant(std::tuple{
+			MakeGlibVariant(std::tuple{
 				Glib::ustring(std::string(kInterface)),
 				Glib::ustring("Inhibited"),
 			}),
@@ -283,7 +285,7 @@ bool Inhibited() {
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
 		// a hack for snap's activation restriction
-		base::Platform::DBus::StartServiceByName(
+		DBus::StartServiceByName(
 			connection,
 			std::string(kService));
 
@@ -291,15 +293,14 @@ bool Inhibited() {
 			std::string(kObjectPath),
 			std::string(kPropertiesInterface),
 			"Get",
-			base::Platform::MakeGlibVariant(std::tuple{
+			MakeGlibVariant(std::tuple{
 				Glib::ustring(std::string(kInterface)),
 				Glib::ustring("Inhibited"),
 			}),
 			std::string(kService));
 
-		return base::Platform::GlibVariantCast<bool>(
-			base::Platform::GlibVariantCast<Glib::VariantBase>(
-				reply.get_child(0)));
+		return GlibVariantCast<bool>(
+			GlibVariantCast<Glib::VariantBase>(reply.get_child(0)));
 	} catch (const Glib::Error &e) {
 		LOG(("Native Notification Error: %1").arg(
 			QString::fromStdString(e.what())));
@@ -354,16 +355,18 @@ Glib::ustring GetImageKey(const QVersionNumber &specificationVersion) {
 	return "icon_data";
 }
 
-class NotificationData : public base::has_weak_ptr {
+class NotificationData final : public base::has_weak_ptr {
 public:
 	using NotificationId = Window::Notifications::Manager::NotificationId;
 
 	NotificationData(
-		const base::weak_ptr<Manager> &manager,
+		not_null<Manager*> manager,
+		NotificationId id);
+
+	[[nodiscard]] bool init(
 		const QString &title,
 		const QString &subtitle,
 		const QString &msg,
-		NotificationId id,
 		bool hideReplyButton);
 
 	NotificationData(const NotificationData &other) = delete;
@@ -378,9 +381,10 @@ public:
 	void setImage(const QString &imagePath);
 
 private:
-	Glib::RefPtr<Gio::DBus::Connection> _dbusConnection;
-	base::weak_ptr<Manager> _manager;
+	const not_null<Manager*> _manager;
+	NotificationId _id;
 
+	Glib::RefPtr<Gio::DBus::Connection> _dbusConnection;
 	Glib::ustring _title;
 	Glib::ustring _body;
 	std::vector<Glib::ustring> _actions;
@@ -391,7 +395,6 @@ private:
 	uint _actionInvokedSignalId = 0;
 	uint _notificationRepliedSignalId = 0;
 	uint _notificationClosedSignalId = 0;
-	NotificationId _id;
 
 	void notificationClosed(uint id, uint reason);
 	void actionInvoked(uint id, const Glib::ustring &actionName);
@@ -399,71 +402,73 @@ private:
 
 };
 
-using Notification = std::shared_ptr<NotificationData>;
+using Notification = std::unique_ptr<NotificationData>;
 
 NotificationData::NotificationData(
-	const base::weak_ptr<Manager> &manager,
-	const QString &title,
-	const QString &subtitle,
-	const QString &msg,
-	NotificationId id,
-	bool hideReplyButton)
+	not_null<Manager*> manager,
+	NotificationId id)
 : _manager(manager)
-, _title(title.toStdString())
-, _imageKey(GetImageKey(CurrentServerInformationValue().specVersion))
 , _id(id) {
+}
+
+bool NotificationData::init(
+		const QString &title,
+		const QString &subtitle,
+		const QString &msg,
+		bool hideReplyButton) {
 	try {
 		_dbusConnection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 	} catch (const Glib::Error &e) {
 		LOG(("Native Notification Error: %1").arg(
 			QString::fromStdString(e.what())));
-
-		return;
+		return false;
 	}
 
+	const auto weak = base::make_weak(this);
 	const auto capabilities = CurrentCapabilities;
 
-	const auto signalEmitted = crl::guard(this, [=](
-		const Glib::RefPtr<Gio::DBus::Connection> &connection,
-		const Glib::ustring &sender_name,
-		const Glib::ustring &object_path,
-		const Glib::ustring &interface_name,
-		const Glib::ustring &signal_name,
-		const Glib::VariantContainerBase &parameters) {
+	const auto signalEmitted = [=](
+			const Glib::RefPtr<Gio::DBus::Connection> &connection,
+			const Glib::ustring &sender_name,
+			const Glib::ustring &object_path,
+			const Glib::ustring &interface_name,
+			const Glib::ustring &signal_name,
+			Glib::VariantContainerBase parameters) {
 		try {
-			auto parametersCopy = parameters;
-
 			if (signal_name == "ActionInvoked") {
-				const auto id = base::Platform::GlibVariantCast<uint>(
-					parametersCopy.get_child(0));
+				const auto id = GlibVariantCast<uint>(
+					parameters.get_child(0));
 
-				const auto actionName = base::Platform::GlibVariantCast<
-					Glib::ustring>(parametersCopy.get_child(1));
+				const auto actionName = GlibVariantCast<Glib::ustring>(
+					parameters.get_child(1));
 
-				actionInvoked(id, actionName);
+				crl::on_main(weak, [=] { actionInvoked(id, actionName); });
 			} else if (signal_name == "NotificationReplied") {
-				const auto id = base::Platform::GlibVariantCast<uint>(
-					parametersCopy.get_child(0));
+				const auto id = GlibVariantCast<uint>(
+					parameters.get_child(0));
 
-				const auto text = base::Platform::GlibVariantCast<Glib::ustring>(
-					parametersCopy.get_child(1));
+				const auto text = GlibVariantCast<Glib::ustring>(
+					parameters.get_child(1));
 
-				notificationReplied(id, text);
+				crl::on_main(weak, [=] { notificationReplied(id, text); });
 			} else if (signal_name == "NotificationClosed") {
-				const auto id = base::Platform::GlibVariantCast<uint>(
-					parametersCopy.get_child(0));
+				const auto id = GlibVariantCast<uint>(
+					parameters.get_child(0));
 
-				const auto reason = base::Platform::GlibVariantCast<uint>(
-					parametersCopy.get_child(1));
+				const auto reason = GlibVariantCast<uint>(
+					parameters.get_child(1));
 
-				notificationClosed(id, reason);
+				crl::on_main(weak, [=] { notificationClosed(id, reason); });
 			}
 		} catch (const std::exception &e) {
 			LOG(("Native Notification Error: %1").arg(
 				QString::fromStdString(e.what())));
 		}
-	});
+	};
+
+	_title = title.toStdString();
+	_imageKey = GetImageKey(CurrentServerInformationValue().specVersion);
 
 	if (capabilities.contains(qsl("body-markup"))) {
 		_body = subtitle.isEmpty()
@@ -545,6 +550,7 @@ NotificationData::NotificationData(
 		std::string(kInterface),
 		"NotificationClosed",
 		std::string(kObjectPath));
+	return true;
 }
 
 NotificationData::~NotificationData() {
@@ -565,7 +571,8 @@ NotificationData::~NotificationData() {
 
 void NotificationData::show() {
 	// a hack for snap's activation restriction
-	StartServiceAsync(crl::guard(this, [=] {
+	const auto weak = base::make_weak(this);
+	StartServiceAsync(crl::guard(weak, [=] {
 		const auto iconName = _imageKey.empty()
 			|| _hints.find(_imageKey) == end(_hints)
 				? Glib::ustring(GetIconName().toStdString())
@@ -575,7 +582,7 @@ void NotificationData::show() {
 			std::string(kObjectPath),
 			std::string(kInterface),
 			"Notify",
-			base::Platform::MakeGlibVariant(std::tuple{
+			MakeGlibVariant(std::tuple{
 				Glib::ustring(std::string(AppName)),
 				uint(0),
 				iconName,
@@ -585,13 +592,14 @@ void NotificationData::show() {
 				_hints,
 				-1,
 			}),
-			crl::guard(this, [=](
-				const Glib::RefPtr<Gio::AsyncResult> &result) {
+			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
 				try {
 					auto reply = _dbusConnection->call_finish(result);
-					_notificationId = base::Platform::GlibVariantCast<uint>(
+					const auto notificationId = GlibVariantCast<uint>(
 						reply.get_child(0));
-
+					crl::on_main(weak, [=] {
+						_notificationId = notificationId;
+					});
 					return;
 				} catch (const Glib::Error &e) {
 					LOG(("Native Notification Error: %1").arg(
@@ -600,13 +608,10 @@ void NotificationData::show() {
 					LOG(("Native Notification Error: %1").arg(
 						QString::fromStdString(e.what())));
 				}
-
-				const auto manager = _manager;
-				const auto my = _id;
-				crl::on_main(manager, [=] {
-					manager->clearNotification(my);
+				crl::on_main(weak, [=] {
+					_manager->clearNotification(_id);
 				});
-			}),
+			},
 			std::string(kService));
 	}));
 }
@@ -616,11 +621,12 @@ void NotificationData::close() {
 		std::string(kObjectPath),
 		std::string(kInterface),
 		"CloseNotification",
-		base::Platform::MakeGlibVariant(std::tuple{
+		MakeGlibVariant(std::tuple{
 			_notificationId,
 		}),
 		{},
 		std::string(kService));
+	_manager->clearNotification(_id);
 }
 
 void NotificationData::setImage(const QString &imagePath) {
@@ -631,7 +637,7 @@ void NotificationData::setImage(const QString &imagePath) {
 	const auto image = QImage(imagePath)
 		.convertToFormat(QImage::Format_RGBA8888);
 
-	_hints[_imageKey] = base::Platform::MakeGlibVariant(std::tuple{
+	_hints[_imageKey] = MakeGlibVariant(std::tuple{
 		image.width(),
 		image.height(),
 		image.bytesPerLine(),
@@ -646,11 +652,7 @@ void NotificationData::setImage(const QString &imagePath) {
 
 void NotificationData::notificationClosed(uint id, uint reason) {
 	if (id == _notificationId) {
-		const auto manager = _manager;
-		const auto my = _id;
-		crl::on_main(manager, [=] {
-			manager->clearNotification(my);
-		});
+		_manager->clearNotification(_id);
 	}
 }
 
@@ -663,17 +665,9 @@ void NotificationData::actionInvoked(
 
 	if (actionName == "default"
 		|| actionName == "mail-reply-sender") {
-		const auto manager = _manager;
-		const auto my = _id;
-		crl::on_main(manager, [=] {
-			manager->notificationActivated(my);
-		});
+		_manager->notificationActivated(_id);
 	} else if (actionName == "mail-mark-read") {
-		const auto manager = _manager;
-		const auto my = _id;
-		crl::on_main(manager, [=] {
-			manager->notificationReplied(my, {});
-		});
+		_manager->notificationReplied(_id, {});
 	}
 }
 
@@ -681,13 +675,9 @@ void NotificationData::notificationReplied(
 		uint id,
 		const Glib::ustring &text) {
 	if (id == _notificationId) {
-		const auto manager = _manager;
-		const auto my = _id;
-		crl::on_main(manager, [=] {
-			manager->notificationReplied(
-				my,
-				{ QString::fromStdString(text), {} });
-		});
+		_manager->notificationReplied(
+			_id,
+			{ QString::fromStdString(text), {} });
 	}
 }
 
@@ -801,17 +791,19 @@ public:
 	~Private();
 
 private:
+	const not_null<Manager*> _manager;
+
 	base::flat_map<
 		FullPeer,
 		base::flat_map<MsgId, Notification>> _notifications;
 
 	Window::Notifications::CachedUserpics _cachedUserpics;
-	base::weak_ptr<Manager> _manager;
+
 };
 
 Manager::Private::Private(not_null<Manager*> manager, Type type)
-: _cachedUserpics(type)
-, _manager(manager) {
+: _manager(manager)
+, _cachedUserpics(type) {
 	if (!Supported()) {
 		return;
 	}
@@ -856,13 +848,18 @@ void Manager::Private::showNotification(
 		.sessionId = peer->session().uniqueId(),
 		.peerId = peer->id
 	};
-	auto notification = std::make_shared<NotificationData>(
+	const auto notificationId = NotificationId{ .full = key, .msgId = msgId };
+	auto notification = std::make_unique<NotificationData>(
 		_manager,
+		notificationId);
+	const auto inited = notification->init(
 		title,
 		subtitle,
 		msg,
-		NotificationId{ .full = key, .msgId = msgId },
 		hideReplyButton);
+	if (!inited) {
+		return;
+	}
 
 	if (!hideNameAndPhoto) {
 		const auto userpicKey = peer->userpicUniqueKey(userpicView);
@@ -871,22 +868,24 @@ void Manager::Private::showNotification(
 	}
 
 	auto i = _notifications.find(key);
-	if (i != _notifications.cend()) {
+	if (i != end(_notifications)) {
 		auto j = i->second.find(msgId);
-		if (j != i->second.end()) {
-			auto oldNotification = j->second;
+		if (j != end(i->second)) {
+			auto oldNotification = std::move(j->second);
 			i->second.erase(j);
 			oldNotification->close();
 			i = _notifications.find(key);
 		}
 	}
-	if (i == _notifications.cend()) {
+	if (i == end(_notifications)) {
 		i = _notifications.emplace(
 			key,
 			base::flat_map<MsgId, Notification>()).first;
 	}
-	i->second.emplace(msgId, notification);
-	notification->show();
+	const auto j = i->second.emplace(
+		msgId,
+		std::move(notification)).first;
+	j->second->show();
 }
 
 void Manager::Private::clearAll() {
