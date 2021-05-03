@@ -16,8 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <mutex>
 
 #ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
-
-// see https://blog.inventic.eu/2012/08/qt-and-google-breakpad/
 #ifdef Q_OS_WIN
 
 #pragma warning(push)
@@ -25,11 +23,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "client/windows/handler/exception_handler.h"
 #pragma warning(pop)
 
-#elif defined Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_UNIX // Q_OS_WIN
 
 #include <execinfo.h>
-#include <signal.h>
 #include <sys/syscall.h>
+
+#ifdef Q_OS_MAC
+
 #include <dlfcn.h>
 #include <unistd.h>
 
@@ -39,16 +39,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "client/crashpad_client.h"
 #endif // else for MAC_USE_BREAKPAD
 
-#elif defined Q_OS_UNIX // Q_OS_MAC
-
-#include <execinfo.h>
-#include <signal.h>
-#include <sys/syscall.h>
+#else // Q_OS_MAC
 
 #include "client/linux/handler/exception_handler.h"
 
-#endif // Q_OS_UNIX
+#endif // Q_OS_MAC
 
+#endif // Q_OS_WIN
 #endif // !DESKTOP_APP_DISABLE_CRASH_REPORTS
 
 namespace CrashReports {
@@ -203,7 +200,7 @@ struct sigaction OldSigActions[32]/* = { 0 }*/;
 
 void RestoreSignalHandlers() {
 	for (const auto signum : HandledSignals) {
-		sigaction(signum, &OldSigActions[signal], nullptr);
+		sigaction(signum, &OldSigActions[signum], nullptr);
 	}
 }
 
@@ -446,7 +443,7 @@ Status Restart() {
 			sigact.sa_flags = SA_NODEFER | SA_RESETHAND | SA_SIGINFO;
 
 			for (const auto signum : HandledSignals) {
-				sigaction(signum, &sigact, &OldSigActions[signal]);
+				sigaction(signum, &sigact, &OldSigActions[signum]);
 			}
 #else // !Q_OS_WIN
 			for (const auto signum : HandledSignals) {
