@@ -52,7 +52,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef Q_OS_LINUX
 #include <sys/sendfile.h>
+#endif // Q_OS_LINUX
 #include <cstdlib>
 #include <unistd.h>
 #include <dirent.h>
@@ -1013,6 +1015,14 @@ void psAutoStart(bool start, bool silent) {
 void psSendToMenu(bool send, bool silent) {
 }
 
+void sendfileFallback(FILE *out, FILE *in) {
+	static const int BufSize = 65536;
+	char buf[BufSize];
+	while (size_t size = fread(buf, 1, BufSize, in)) {
+		fwrite(buf, 1, size, out);
+	}
+}
+
 bool linuxMoveFile(const char *from, const char *to) {
 	FILE *ffrom = fopen(from, "rb"), *fto = fopen(to, "wb");
 	if (!ffrom) {
@@ -1032,26 +1042,19 @@ bool linuxMoveFile(const char *from, const char *to) {
 		return false;
 	}
 
-	ssize_t copied = -1;
 #ifdef Q_OS_LINUX
-	copied = sendfile(
+	ssize_t copied = sendfile(
 		fileno(fto),
 		fileno(ffrom),
 		nullptr,
 		fst.st_size);
-#endif // Q_OS_LINUX
-
 	if (copied == -1) {
 		DEBUG_LOG(("Update Error: "
 			"Copy by sendfile '%1' to '%2' failed, error: %3, fallback now."
 			).arg(from
 			).arg(to
 			).arg(errno));
-		static const int BufSize = 65536;
-		char buf[BufSize];
-		while (size_t size = fread(buf, 1, BufSize, ffrom)) {
-			fwrite(buf, 1, size, fto);
-		}
+		sendfileFallback(fto, ffrom);
 	} else {
 		DEBUG_LOG(("Update Info: "
 			"Copy by sendfile '%1' to '%2' done, size: %3, result: %4."
@@ -1060,6 +1063,9 @@ bool linuxMoveFile(const char *from, const char *to) {
 			).arg(fst.st_size
 			).arg(copied));
 	}
+#else // Q_OS_LINUX
+	sendfileFallback(fto, ffrom);
+#endif // Q_OS_LINUX
 
 	//update to the same uid/gid
 	if (fchown(fileno(fto), fst.st_uid, fst.st_gid) != 0) {
