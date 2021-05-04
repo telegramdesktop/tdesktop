@@ -1815,9 +1815,9 @@ void GroupCall::ensureControllerCreated() {
 	_videoEndpointLarge.changes(
 	) | rpl::start_with_next([=](const std::string &endpoint) {
 		_instance->setFullSizeVideoEndpointId(endpoint);
+		_videoLargeTrack = nullptr;
+		_videoLargeTrackWrap = nullptr;
 		if (endpoint.empty()) {
-			_videoLargeTrack = nullptr;
-			_videoLargeTrackWrap = nullptr;
 			return;
 		}
 		if (!_videoLargeTrackWrap) {
