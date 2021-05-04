@@ -149,7 +149,7 @@ LayerWidget::LayerWidget(
 	) | rpl::start_with_next([=](const QRect &clip) {
 		Painter p(this);
 
-		p.fillRect(clip, st::boxBg);
+		p.fillRect(clip, st::photoEditorBg);
 	}, lifetime());
 
 	_content->cancelRequests(
