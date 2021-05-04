@@ -92,11 +92,15 @@ PhotoEditor::PhotoEditor(
 		_colorPicker->moveLine(p);
 	}, _controls->lifetime());
 
+	_controls->colorLineShownValue(
+	) | rpl::start_with_next([=](bool shown) {
+		_colorPicker->setVisible(shown);
+	}, _controls->lifetime());
+
 	_mode.value(
 	) | rpl::start_with_next([=](const PhotoEditorMode &mode) {
 		_content->applyMode(mode);
 		_controls->applyMode(mode);
-		_colorPicker->setVisible(mode.mode == PhotoEditorMode::Mode::Paint);
 	}, lifetime());
 
 	_controls->rotateRequests(

@@ -248,19 +248,13 @@ PhotoEditorControls::PhotoEditorControls(
 	}
 	_paintModeButtonActive->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	rpl::combine(
-		sizeValue(),
-		_mode.value()
-	) | rpl::start_with_next([=](
-			const QSize &size,
-			const PhotoEditorMode &mode) {
+	sizeValue(
+	) | rpl::start_with_next([=](const QSize &size) {
 		if (size.isEmpty()) {
 			return;
 		}
 
-		const auto buttonsTop = size.height()
-			- st::photoEditorControlsBottomSkip
-			- _transformButtons->height();
+		const auto buttonsTop = bottomButtonsTop();
 
 		const auto &current = _transformButtons->isHidden()
 			? _paintBottomButtons
@@ -271,6 +265,15 @@ PhotoEditorControls::PhotoEditorControls(
 			buttonsTop);
 	}, lifetime());
 
+	_mode.changes(
+	) | rpl::start_with_next([=](const PhotoEditorMode &mode) {
+		const auto animated = (_paintBottomButtons->isVisible()
+				== _transformButtons->isVisible())
+			? anim::type::instant
+			: anim::type::normal;
+		showAnimated(mode.mode, animated);
+	}, lifetime());
+
 	_paintBottomButtons->positionValue(
 	) | rpl::start_with_next([=](const QPoint &containerPos) {
 		_paintTopButtons->moveToLeft(
@@ -278,6 +281,11 @@ PhotoEditorControls::PhotoEditorControls(
 			containerPos.y()
 				- st::photoEditorControlsCenterSkip
 				- _paintTopButtons->height());
+	}, _paintBottomButtons->lifetime());
+
+	_paintBottomButtons->shownValue(
+	) | rpl::start_with_next([=](bool shown) {
+		_paintTopButtons->setVisible(shown);
 	}, _paintBottomButtons->lifetime());
 
 	controllers->undoController->setPerformRequestChanges(rpl::merge(
@@ -358,11 +366,81 @@ rpl::producer<> PhotoEditorControls::cancelRequests() const {
 		_paintCancel->clicks() | rpl::to_empty);
 }
 
-void PhotoEditorControls::applyMode(const PhotoEditorMode &mode) {
+int PhotoEditorControls::bottomButtonsTop() const {
+	return height()
+		- st::photoEditorControlsBottomSkip
+		- _transformButtons->height();
+}
+
+void PhotoEditorControls::showAnimated(
+		PhotoEditorMode::Mode mode,
+		anim::type animated) {
 	using Mode = PhotoEditorMode::Mode;
-	_transformButtons->setVisible(mode.mode == Mode::Transform);
-	_paintBottomButtons->setVisible(mode.mode == Mode::Paint);
-	_paintTopButtons->setVisible(mode.mode == Mode::Paint);
+
+	const auto duration = st::photoEditorBarAnimationDuration;
+
+	const auto isTransform = (mode == Mode::Transform);
+	const auto isPaint = (mode == Mode::Paint);
+
+	const auto buttonsLeft = (width() - _transformButtons->width()) / 2;
+	const auto buttonsTop = bottomButtonsTop();
+
+	const auto visibleBar = _transformButtons->isVisible()
+		? _transformButtons.get()
+		: _paintBottomButtons.get();
+
+	const auto shouldVisibleBar = isTransform
+		? _transformButtons.get()
+		: _paintBottomButtons.get(); // Mode::Paint
+
+	const auto computeTop = [=](float64 progress) {
+		return anim::interpolate(buttonsTop, height() * 2, progress);
+	};
+
+	const auto showShouldVisibleBar = [=] {
+		_toggledBarAnimation.stop();
+		auto callback = [=](float64 value) {
+			shouldVisibleBar->moveToLeft(buttonsLeft, computeTop(value));
+		};
+		if (animated == anim::type::instant) {
+			callback(1.);
+		} else {
+			_toggledBarAnimation.start(
+				std::move(callback),
+				1.,
+				0.,
+				duration);
+		}
+	};
+
+	auto animationCallback = [=](float64 value) {
+		if (shouldVisibleBar == visibleBar) {
+			showShouldVisibleBar();
+			return;
+		}
+		visibleBar->moveToLeft(buttonsLeft, computeTop(value));
+
+		if (value == 1.) {
+			shouldVisibleBar->show();
+			shouldVisibleBar->moveToLeft(buttonsLeft, computeTop(1.));
+			visibleBar->hide();
+
+			showShouldVisibleBar();
+		}
+	};
+
+	if (animated == anim::type::instant) {
+		animationCallback(1.);
+	} else {
+		_toggledBarAnimation.start(
+			std::move(animationCallback),
+			0.,
+			1.,
+			duration);
+	}
+}
+
+void PhotoEditorControls::applyMode(const PhotoEditorMode &mode) {
 	_mode = mode;
 }
 
@@ -375,6 +453,10 @@ rpl::producer<QPoint> PhotoEditorControls::colorLinePositionValue() const {
 		return mapToParent(r.topLeft())
 			+ QPoint(r.width() / 2, r.height() / 2);
 	});
+}
+
+rpl::producer<bool> PhotoEditorControls::colorLineShownValue() const {
+	return _paintTopButtons->shownValue();
 }
 
 } // namespace Editor

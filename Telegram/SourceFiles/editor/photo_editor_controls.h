@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+#include "ui/effects/animations.h"
 #include "editor/photo_editor_common.h"
 
 namespace Ui {
@@ -35,10 +36,16 @@ public:
 	[[nodiscard]] rpl::producer<> doneRequests() const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<QPoint> colorLinePositionValue() const;
+	[[nodiscard]] rpl::producer<bool> colorLineShownValue() const;
 
 	void applyMode(const PhotoEditorMode &mode);
 
 private:
+	void showAnimated(
+		PhotoEditorMode::Mode mode,
+		anim::type animated = anim::type::normal);
+
+	int bottomButtonsTop() const;
 
 	const style::color &_bg;
 	const int _buttonHeight;
@@ -60,6 +67,8 @@ private:
 	const base::unique_qptr<EdgeButton> _paintDone;
 
 	bool _flipped = false;
+
+	Ui::Animations::Simple _toggledBarAnimation;
 
 	rpl::variable<PhotoEditorMode> _mode;
 
