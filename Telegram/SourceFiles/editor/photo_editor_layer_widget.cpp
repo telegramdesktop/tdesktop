@@ -174,6 +174,10 @@ void LayerWidget::parentResized() {
 	resizeToWidth(parentWidget()->width());
 }
 
+void LayerWidget::keyPressEvent(QKeyEvent *e) {
+	_content->handleKeyPress(e);
+}
+
 int LayerWidget::resizeGetHeight(int newWidth) {
 	return parentWidget()->height();
 }

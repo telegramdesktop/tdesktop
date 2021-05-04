@@ -164,6 +164,10 @@ PhotoEditor::PhotoEditor(
 	}, lifetime());
 }
 
+void PhotoEditor::handleKeyPress(not_null<QKeyEvent*> e) {
+	_content->handleKeyPress(e) || _controls->handleKeyPress(e);
+}
+
 void PhotoEditor::save() {
 	_content->save(_modifications);
 	_done.fire_copy(_modifications);

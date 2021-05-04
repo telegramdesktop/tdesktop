@@ -32,6 +32,8 @@ public:
 	void applyBrush(const Brush &brush);
 	void save(PhotoModifications &modifications);
 
+	bool handleKeyPress(not_null<QKeyEvent*> e) const;
+
 private:
 
 	const QSize _photoSize;
@@ -40,6 +42,7 @@ private:
 	const std::shared_ptr<Image> _photo;
 
 	rpl::variable<PhotoModifications> _modifications;
+	rpl::event_stream<int> _keyPresses;
 
 	QRect _imageRect;
 	QMatrix _imageMatrix;

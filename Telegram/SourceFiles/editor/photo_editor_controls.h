@@ -38,6 +38,10 @@ public:
 	[[nodiscard]] rpl::producer<QPoint> colorLinePositionValue() const;
 	[[nodiscard]] rpl::producer<bool> colorLineShownValue() const;
 
+	[[nodiscard]] bool animating() const;
+
+	bool handleKeyPress(not_null<QKeyEvent*> e) const;
+
 	void applyMode(const PhotoEditorMode &mode);
 
 private:
@@ -71,6 +75,7 @@ private:
 	Ui::Animations::Simple _toggledBarAnimation;
 
 	rpl::variable<PhotoEditorMode> _mode;
+	rpl::event_stream<int> _keyPresses;
 
 };
 

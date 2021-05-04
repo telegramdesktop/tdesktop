@@ -52,6 +52,7 @@ public:
 	bool closeByOutsideClick() const override;
 
 protected:
+	void keyPressEvent(QKeyEvent *e) override;
 	int resizeGetHeight(int newWidth) override;
 
 private:

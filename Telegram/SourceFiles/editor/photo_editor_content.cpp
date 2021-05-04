@@ -129,4 +129,8 @@ void PhotoEditorContent::applyBrush(const Brush &brush) {
 	_paint->applyBrush(brush);
 }
 
+bool PhotoEditorContent::handleKeyPress(not_null<QKeyEvent*> e) const {
+	return false;
+}
+
 } // namespace Editor

@@ -363,13 +363,23 @@ rpl::producer<> PhotoEditorControls::paintModeRequests() const {
 rpl::producer<> PhotoEditorControls::doneRequests() const {
 	return rpl::merge(
 		_transformDone->clicks() | rpl::to_empty,
-		_paintDone->clicks() | rpl::to_empty);
+		_paintDone->clicks() | rpl::to_empty,
+		_keyPresses.events(
+		) | rpl::filter([=](int key) {
+			return ((key == Qt::Key_Enter) || (key == Qt::Key_Return))
+				&& !_toggledBarAnimation.animating();
+		}) | rpl::to_empty);
 }
 
 rpl::producer<> PhotoEditorControls::cancelRequests() const {
 	return rpl::merge(
 		_transformCancel->clicks() | rpl::to_empty,
-		_paintCancel->clicks() | rpl::to_empty);
+		_paintCancel->clicks() | rpl::to_empty,
+		_keyPresses.events(
+		) | rpl::filter([=](int key) {
+			return (key == Qt::Key_Escape)
+				&& !_toggledBarAnimation.animating();
+		}) | rpl::to_empty);
 }
 
 int PhotoEditorControls::bottomButtonsTop() const {
@@ -463,6 +473,15 @@ rpl::producer<QPoint> PhotoEditorControls::colorLinePositionValue() const {
 
 rpl::producer<bool> PhotoEditorControls::colorLineShownValue() const {
 	return _paintTopButtons->shownValue();
+}
+
+bool PhotoEditorControls::handleKeyPress(not_null<QKeyEvent*> e) const {
+	_keyPresses.fire(e->key());
+	return true;
+}
+
+bool PhotoEditorControls::animating() const {
+	return _toggledBarAnimation.animating();
 }
 
 } // namespace Editor

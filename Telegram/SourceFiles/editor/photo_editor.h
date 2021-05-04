@@ -37,6 +37,8 @@ public:
 	rpl::producer<PhotoModifications> doneRequests() const;
 	rpl::producer<> cancelRequests() const;
 
+	void handleKeyPress(not_null<QKeyEvent*> e);
+
 private:
 
 	PhotoModifications _modifications;
