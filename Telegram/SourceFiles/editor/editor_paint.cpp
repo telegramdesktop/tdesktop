@@ -100,9 +100,11 @@ Paint::Paint(
 		})));
 
 	if (controllers->stickersPanelController) {
+		using ShowRequest = StickersPanelController::ShowRequest;
+
 		controllers->stickersPanelController->setShowRequestChanges(
 			controllers->stickersPanelController->stickerChosen(
-			) | rpl::map_to(std::optional<bool>(false)));
+			) | rpl::map_to(ShowRequest::HideAnimated));
 
 		controllers->stickersPanelController->stickerChosen(
 		) | rpl::start_with_next([=](not_null<DocumentData*> document) {

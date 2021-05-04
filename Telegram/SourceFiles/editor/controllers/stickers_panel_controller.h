@@ -25,6 +25,13 @@ namespace Editor {
 
 class StickersPanelController final {
 public:
+	enum class ShowRequest {
+		ToggleAnimated,
+		ShowAnimated,
+		HideAnimated,
+		HideFast,
+	};
+
 	StickersPanelController(
 		not_null<Ui::RpWidget*> panelContainer,
 		not_null<Window::SessionController*> controller);
@@ -33,8 +40,7 @@ public:
 	-> rpl::producer<not_null<DocumentData*>>;
 	[[nodiscard]] rpl::producer<bool> panelShown() const;
 
-	void setShowRequestChanges(
-		rpl::producer<std::optional<bool>> &&showRequest);
+	void setShowRequestChanges(rpl::producer<ShowRequest> &&showRequest);
 	// Middle x and plain y position.
 	void setMoveRequestChanges(rpl::producer<QPoint> &&moveRequest);
 

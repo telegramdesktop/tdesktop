@@ -44,19 +44,20 @@ rpl::producer<bool> StickersPanelController::panelShown() const {
 }
 
 void StickersPanelController::setShowRequestChanges(
-		rpl::producer<std::optional<bool>> &&showRequest) {
+		rpl::producer<ShowRequest> &&showRequest) {
 	std::move(
 		showRequest
-	) | rpl::start_with_next([=](std::optional<bool> show) {
-		if (!show) {
+	) | rpl::start_with_next([=](ShowRequest show) {
+		if (show == ShowRequest::ToggleAnimated) {
 			_stickersPanel->toggleAnimated();
 			_stickersPanel->raise();
-			return;
-		}
-		if (*show) {
+		} else if (show == ShowRequest::ShowAnimated) {
 			_stickersPanel->showAnimated();
-		} else {
-			_stickersPanel->toggleAnimated();
+			_stickersPanel->raise();
+		} else if (show == ShowRequest::HideAnimated) {
+			_stickersPanel->hideAnimated();
+		} else if (show == ShowRequest::HideFast) {
+			_stickersPanel->hideFast();
 		}
 	}, _stickersPanel->lifetime());
 }

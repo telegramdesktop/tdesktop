@@ -309,9 +309,15 @@ PhotoEditorControls::PhotoEditorControls(
 	}, lifetime());
 
 	if (_stickersButton) {
+		using ShowRequest = StickersPanelController::ShowRequest;
+
 		controllers->stickersPanelController->setShowRequestChanges(
-			_stickersButton->clicks(
-			) | rpl::map_to(std::optional<bool>(std::nullopt)));
+			rpl::merge(
+				_mode.value(
+				) | rpl::map_to(ShowRequest::HideFast),
+				_stickersButton->clicks(
+				) | rpl::map_to(ShowRequest::ToggleAnimated)
+			));
 
 		controllers->stickersPanelController->setMoveRequestChanges(
 			_paintBottomButtons->positionValue(
