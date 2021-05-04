@@ -80,6 +80,7 @@ PreLaunchLabel::PreLaunchLabel(QWidget *parent) : QLabel(parent) {
 
 	QPalette p(palette());
 	p.setColor(QPalette::WindowText, QColor(0, 0, 0));
+	p.setColor(QPalette::Text, QColor(0, 0, 0));
 	setPalette(p);
 	show();
 };
@@ -98,6 +99,7 @@ PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(paren
 
 	QPalette p(palette());
 	p.setColor(QPalette::WindowText, QColor(0, 0, 0));
+	p.setColor(QPalette::Text, QColor(0, 0, 0));
 	setPalette(p);
 
 	QLineEdit::setTextMargins(0, 0, 0, 0);
@@ -116,6 +118,7 @@ PreLaunchLog::PreLaunchLog(QWidget *parent) : QTextEdit(parent) {
 
 	QPalette p(palette());
 	p.setColor(QPalette::WindowText, QColor(96, 96, 96));
+	p.setColor(QPalette::Text, QColor(96, 96, 96));
 	setPalette(p);
 
 	setReadOnly(true);
@@ -154,6 +157,11 @@ PreLaunchCheckbox::PreLaunchCheckbox(QWidget *parent) : QCheckBox(parent) {
 	closeFont.setFamily(style::internal::GetFontOverride(style::internal::FontSemibold));
 	closeFont.setPixelSize(static_cast<PreLaunchWindow*>(parent)->basicSize());
 	setFont(closeFont);
+
+	QPalette p(palette());
+	p.setColor(QPalette::WindowText, QColor(96, 96, 96));
+	p.setColor(QPalette::Text, QColor(96, 96, 96));
+	setPalette(p);
 
 	setCursor(Qt::PointingHandCursor);
 	show();
