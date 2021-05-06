@@ -251,8 +251,15 @@ void ItemBase::actionDuplicate() {
 	}
 }
 
-void ItemBase::keyPressEvent(QKeyEvent *event) {
-	handleActionKey(event);
+void ItemBase::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Escape) {
+		if (const auto s = scene()) {
+			s->clearSelection();
+			s->clearFocus();
+			return;
+		}
+	}
+	handleActionKey(e);
 }
 
 void ItemBase::handleActionKey(not_null<QKeyEvent*> e) {

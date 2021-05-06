@@ -61,7 +61,7 @@ protected:
 	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;
-	void keyPressEvent(QKeyEvent *event) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 	using Action = void(ItemBase::*)();
 	void performForSelectedItems(Action action);
