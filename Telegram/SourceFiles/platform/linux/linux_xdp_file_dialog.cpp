@@ -408,35 +408,37 @@ void XDPFileDialog::openPortal() {
 			+ uniqueName
 			+ '/'
 			+ handleToken;
+		
+		const auto responseCallback = crl::guard(this, [=](
+			const Glib::RefPtr<Gio::DBus::Connection> &connection,
+			const Glib::ustring &sender_name,
+			const Glib::ustring &object_path,
+			const Glib::ustring &interface_name,
+			const Glib::ustring &signal_name,
+			const Glib::VariantContainerBase &parameters) {
+			try {
+				auto parametersCopy = parameters;
+
+				const auto response = base::Platform::GlibVariantCast<uint>(
+					parametersCopy.get_child(0));
+
+				const auto results = base::Platform::GlibVariantCast<
+					std::map<
+						Glib::ustring,
+						Glib::VariantBase
+					>>(parametersCopy.get_child(1));
+
+				gotResponse(response, results);
+			} catch (const std::exception &e) {
+				LOG(("XDP File Dialog Error: %1").arg(
+					QString::fromStdString(e.what())));
+
+				_reject.fire({});
+			}
+		});
 
 		_requestSignalId = _dbusConnection->signal_subscribe(
-			crl::guard(this, [=](
-				const Glib::RefPtr<Gio::DBus::Connection> &connection,
-				const Glib::ustring &sender_name,
-				const Glib::ustring &object_path,
-				const Glib::ustring &interface_name,
-				const Glib::ustring &signal_name,
-				const Glib::VariantContainerBase &parameters) {
-				try {
-					auto parametersCopy = parameters;
-
-					const auto response = base::Platform::GlibVariantCast<uint>(
-						parametersCopy.get_child(0));
-
-					const auto results = base::Platform::GlibVariantCast<
-						std::map<
-							Glib::ustring,
-							Glib::VariantBase
-						>>(parametersCopy.get_child(1));
-
-					gotResponse(response, results);
-				} catch (const std::exception &e) {
-					LOG(("XDP File Dialog Error: %1").arg(
-						QString::fromStdString(e.what())));
-
-					_reject.fire({});
-				}
-			}),
+			responseCallback,
 			{},
 			"org.freedesktop.portal.Request",
 			"Response",
@@ -461,10 +463,15 @@ void XDPFileDialog::openPortal() {
 						Glib::ustring>(reply.get_child(0));
 
 					if (handle != requestPath) {
-						crl::on_main([=] {
-							_failedToOpen = true;
-							_reject.fire({});
-						});
+						_dbusConnection->signal_unsubscribe(
+							_requestSignalId);
+
+						_requestSignalId = _dbusConnection->signal_subscribe(
+							responseCallback,
+							{},
+							"org.freedesktop.portal.Request",
+							"Response",
+							handle);
 					}
 				} catch (const Glib::Error &e) {
 					static const auto NotSupportedErrors = {
