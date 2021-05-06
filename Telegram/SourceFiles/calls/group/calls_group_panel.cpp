@@ -1571,6 +1571,16 @@ bool Panel::updateMode() {
 		return false;
 	}
 	_mode = mode;
+	if (_title) {
+		_title->setTextColorOverride(wide
+			? std::make_optional(st::groupCallMemberNotJoinedStatus->c)
+			: std::nullopt);
+	}
+	if (wide && _subtitle) {
+		_subtitle.destroy();
+	} else if (!wide && !_subtitle) {
+		refreshTitle();
+	}
 	if (_members) {
 		_members->setMode(mode);
 	}
@@ -1775,7 +1785,7 @@ void Panel::refreshTitle() {
 		_title->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
 	refreshTitleGeometry();
-	if (!_subtitle) {
+	if (!_subtitle && _mode == PanelMode::Default) {
 		_subtitle.create(
 			widget(),
 			rpl::single(
@@ -1801,15 +1811,17 @@ void Panel::refreshTitle() {
 		_subtitle->show();
 		_subtitle->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
-	const auto middle = _title
-		? (_title->x() + _title->width() / 2)
-		: (widget()->width() / 2);
-	const auto top = _title
-		? st::groupCallSubtitleTop
-		: st::groupCallTitleTop;
-	_subtitle->moveToLeft(
-		(widget()->width() - _subtitle->width()) / 2,
-		top);
+	if (_subtitle) {
+		const auto middle = _title
+			? (_title->x() + _title->width() / 2)
+			: (widget()->width() / 2);
+		const auto top = _title
+			? st::groupCallSubtitleTop
+			: st::groupCallTitleTop;
+		_subtitle->moveToLeft(
+			(widget()->width() - _subtitle->width()) / 2,
+			top);
+	}
 }
 
 void Panel::refreshTitleGeometry() {
@@ -1828,7 +1840,10 @@ void Panel::refreshTitleGeometry() {
 		: fullRect;
 	const auto best = _title->naturalWidth();
 	const auto from = (widget()->width() - best) / 2;
-	const auto top = st::groupCallTitleTop;
+	const auto top = (_mode == PanelMode::Default)
+		? st::groupCallTitleTop
+		: (st::groupCallWideVideoTop
+			- st::groupCallTitleLabel.style.font->height) / 2;
 	const auto left = titleRect.x();
 	if (from >= left && from + best <= left + titleRect.width()) {
 		_title->resizeToWidth(best);
