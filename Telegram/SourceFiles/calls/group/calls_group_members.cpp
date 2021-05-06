@@ -185,7 +185,8 @@ public:
 		int x,
 		int y,
 		int outerWidth,
-		int size,
+		int sizew,
+		int sizeh,
 		PanelMode mode,
 		bool selected = false);
 
@@ -256,19 +257,32 @@ private:
 	void ensureUserpicCache(
 		std::shared_ptr<Data::CloudImageView> &view,
 		int size);
-	bool paintVideo(Painter &p, int x, int y, int size, PanelMode mode);
+	bool paintVideo(
+		Painter &p,
+		int x,
+		int y,
+		int sizew,
+		int sizeh,
+		PanelMode mode);
 	[[nodiscard]] static std::tuple<int, int, int> UserpicInWideMode(
 		int x,
 		int y,
-		int size);
-	void paintBlobs(Painter &p, int x, int y, int size, PanelMode mode);
+		int sizew,
+		int sizeh);
+	void paintBlobs(
+		Painter &p,
+		int x,
+		int y,
+		int sizew,
+		int sizeh, PanelMode mode);
 	void paintScaledUserpic(
 		Painter &p,
 		std::shared_ptr<Data::CloudImageView> &userpic,
 		int x,
 		int y,
 		int outerWidth,
-		int size,
+		int sizew,
+		int sizeh,
 		PanelMode mode);
 
 	const not_null<RowDelegate*> _delegate;
@@ -694,7 +708,13 @@ void Row::ensureUserpicCache(
 	}
 }
 
-bool Row::paintVideo(Painter &p, int x, int y, int size, PanelMode mode) {
+bool Row::paintVideo(
+		Painter &p,
+		int x,
+		int y,
+		int sizew,
+		int sizeh,
+		PanelMode mode) {
 	if (!_videoTrackShown) {
 		return false;
 	}
@@ -706,12 +726,14 @@ bool Row::paintVideo(Painter &p, int x, int y, int size, PanelMode mode) {
 		|| _videoTrackShown->state() != Webrtc::VideoState::Active) {
 		return false;
 	}
-	const auto resize = (videoSize.width() > videoSize.height())
-		? QSize(videoSize.width() * size / videoSize.height(), size)
-		: QSize(size, videoSize.height() * size / videoSize.width());
+	const auto videow = videoSize.width();
+	const auto videoh = videoSize.height();
+	const auto resize = (videow * sizeh > videoh * sizew)
+		? QSize(videow * sizeh / videoh, sizeh)
+		: QSize(sizew, videoh * sizew / videow);
 	const auto request = Webrtc::FrameRequest{
 		.resize = resize * cIntRetinaFactor(),
-		.outer = QSize(size, size) * cIntRetinaFactor(),
+		.outer = QSize(sizew, sizeh) * cIntRetinaFactor(),
 	};
 	const auto frame = _videoTrackShown->frame(request);
 	auto copy = frame; // #TODO calls optimize.
@@ -727,18 +749,30 @@ bool Row::paintVideo(Painter &p, int x, int y, int size, PanelMode mode) {
 	return true;
 }
 
-std::tuple<int, int, int> Row::UserpicInWideMode(int x, int y, int size) {
+std::tuple<int, int, int> Row::UserpicInWideMode(
+		int x,
+		int y,
+		int sizew,
+		int sizeh) {
 	const auto useSize = st::groupCallMembersList.item.photoSize;
-	const auto skip = (size - useSize) / 2;
-	return { x + skip, y + skip, useSize };
+	const auto skipx = (sizew - useSize) / 2;
+	const auto skipy = (sizeh - useSize) / 2;
+	return { x + skipx, y + skipy, useSize };
 }
 
-void Row::paintBlobs(Painter &p, int x, int y, int size, PanelMode mode) {
+void Row::paintBlobs(
+		Painter &p,
+		int x,
+		int y,
+		int sizew,
+		int sizeh,
+		PanelMode mode) {
 	if (!_blobsAnimation) {
 		return;
 	}
+	auto size = sizew;
 	if (mode == PanelMode::Wide) {
-		std::tie(x, y, size) = UserpicInWideMode(x, y, size);
+		std::tie(x, y, size) = UserpicInWideMode(x, y, sizew, sizeh);
 	}
 	const auto mutedByMe = (_state == State::MutedByMe);
 	const auto shift = QPointF(x + size / 2., y + size / 2.);
@@ -761,10 +795,12 @@ void Row::paintScaledUserpic(
 		int x,
 		int y,
 		int outerWidth,
-		int size,
+		int sizew,
+		int sizeh,
 		PanelMode mode) {
+	auto size = sizew;
 	if (mode == PanelMode::Wide) {
-		std::tie(x, y, size) = UserpicInWideMode(x, y, size);
+		std::tie(x, y, size) = UserpicInWideMode(x, y, sizew, sizeh);
 	}
 	if (!_blobsAnimation) {
 		peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
@@ -800,7 +836,8 @@ void Row::paintScaledUserpic(
 
 auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	return [=](Painter &p, int x, int y, int outerWidth, int size) {
-		paintComplexUserpic(p, x, y, outerWidth, size, PanelMode::Default);
+		const auto outer = outerWidth;
+		paintComplexUserpic(p, x, y, outer, size, size, PanelMode::Default);
 	};
 }
 
@@ -809,18 +846,20 @@ void Row::paintComplexUserpic(
 		int x,
 		int y,
 		int outerWidth,
-		int size,
+		int sizew,
+		int sizeh,
 		PanelMode mode,
 		bool selected) {
 	if (mode == PanelMode::Wide) {
-		if (paintVideo(p, x, y, size, mode)) {
+		if (paintVideo(p, x, y, sizew, sizeh, mode)) {
 			return;
 		}
 		_delegate->rowPaintWideBackground(p, selected);
 		paintRipple(p, x, y, outerWidth);
 	}
-	paintBlobs(p, x, y, size, mode);
-	if (mode == PanelMode::Default && paintVideo(p, x, y, size, mode)) {
+	paintBlobs(p, x, y, sizew, sizeh, mode);
+	if (mode == PanelMode::Default
+		&& paintVideo(p, x, y, sizew, sizeh, mode)) {
 		return;
 	}
 	paintScaledUserpic(
@@ -829,7 +868,8 @@ void Row::paintComplexUserpic(
 		x,
 		y,
 		outerWidth,
-		size,
+		sizew,
+		sizeh,
 		mode);
 }
 
@@ -1826,7 +1866,7 @@ void MembersController::rowPaintIcon(
 void MembersController::rowPaintWideBackground(Painter &p, bool selected) {
 	(selected ? _wideRoundRectSelected : _wideRoundRect).paint(
 		p,
-		{ QPoint(), st::groupCallNarrowSize });
+		{ QPoint(st::groupCallNarrowSkip, 0), st::groupCallNarrowSize });
 }
 
 int MembersController::customRowHeight() {
@@ -1840,12 +1880,14 @@ void MembersController::customRowPaint(
 		bool selected) {
 	const auto real = static_cast<Row*>(row.get());
 	const auto width = st::groupCallNarrowSize.width();
+	const auto height = st::groupCallNarrowSize.height();
 	real->paintComplexUserpic(
 		p,
-		0,
+		st::groupCallNarrowSkip,
 		0,
 		width,
 		width,
+		height,
 		PanelMode::Wide,
 		selected);
 }
@@ -1854,7 +1896,9 @@ bool MembersController::customRowSelectionPoint(
 		not_null<PeerListRow*> row,
 		int x,
 		int y) {
-	return y < st::groupCallNarrowSize.height();
+	return x >= st::groupCallNarrowSkip
+		&& x < st::groupCallNarrowSkip + st::groupCallNarrowSize.width()
+		&& y < st::groupCallNarrowSize.height();
 }
 
 Fn<QImage()> MembersController::customRowRippleMaskGenerator() {
@@ -1973,7 +2017,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 		const auto participant = real->participantByEndpoint(pinnedEndpoint);
 		if (participant && participant->peer == participantPeer) {
 			result->addAction(
-				tr::lng_group_call_context_unpin_video(tr::now),
+				tr::lng_group_call_context_unpin_camera(tr::now),
 				[=] { _call->pinVideoEndpoint(std::string()); });
 		} else {
 			const auto &participants = real->participants();
@@ -1992,7 +2036,7 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 							: camera);
 					};
 					result->addAction(
-						tr::lng_group_call_context_pin_video(tr::now),
+						tr::lng_group_call_context_pin_camera(tr::now),
 						callback);
 				}
 			}
@@ -2292,27 +2336,61 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 			});
 	}
 
-	_canAddMembers.value(
-	) | rpl::start_with_next([=](bool can) {
+	rpl::combine(
+		_canAddMembers.value(),
+		_mode.value()
+	) | rpl::start_with_next([=](bool can, PanelMode mode) {
+		const auto old = _addMemberButton.current();
+		delete old;
 		if (!can) {
-			delete _addMemberButton.current();
-			_addMemberButton = nullptr;
-			updateControlsGeometry();
-			return;
-		} else if (_addMemberButton.current()) {
+			if (old) {
+				_addMemberButton = nullptr;
+				updateControlsGeometry();
+			}
 			return;
 		}
-		auto addMember = Settings::CreateButton(
-			this,
-			tr::lng_group_call_invite(),
-			st::groupCallAddMember,
-			&st::groupCallAddMemberIcon,
-			st::groupCallAddMemberIconLeft);
+		auto addMember = (Ui::AbstractButton*)nullptr;
+		auto wrap = [&]() -> object_ptr<Ui::RpWidget> {
+			if (mode == PanelMode::Default) {
+				auto result = Settings::CreateButton(
+					this,
+					tr::lng_group_call_invite(),
+					st::groupCallAddMember,
+					&st::groupCallAddMemberIcon,
+					st::groupCallAddMemberIconLeft,
+					&st::groupCallMemberInactiveIcon);
+				addMember = result.data();
+				return result;
+			}
+			auto result = object_ptr<Ui::RpWidget>(_layout.get());
+			const auto skip = st::groupCallNarrowSkip;
+			const auto fullwidth = st::groupCallNarrowSize.width()
+				+ 2 * skip;
+			const auto fullheight = st::groupCallNarrowAddMember.height
+				+ st::groupCallNarrowRowSkip;
+			result->resize(fullwidth, fullheight);
+			const auto button = Ui::CreateChild<Ui::RoundButton>(
+				result.data(),
+				rpl::single(QString()),
+				st::groupCallNarrowAddMember);
+			button->move(skip, 0);
+			const auto width = fullwidth - 2 * skip;
+			button->setFullWidth(width);
+			Settings::AddButtonIcon(
+				button,
+				&st::groupCallAddMemberIcon,
+				(width - st::groupCallAddMemberIcon.width()) / 2,
+				&st::groupCallMemberInactiveIcon);
+			addMember = button;
+			return result;
+		}();
 		addMember->show();
-		addMember->addClickHandler([=] { // TODO throttle(ripple duration)
-			_addMemberRequests.fire({});
-		});
-		_addMemberButton = _layout->insert(1, std::move(addMember));
+		addMember->clicks(
+		) | rpl::to_empty | rpl::start_to_stream(
+			_addMemberRequests,
+			addMember->lifetime());
+		_addMemberButton = wrap.data();
+		_layout->insert(1, std::move(wrap));
 	}, lifetime());
 }
 

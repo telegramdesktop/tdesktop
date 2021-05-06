@@ -235,10 +235,13 @@ public:
 			&& activeVideoEndpointType(endpoint) != EndpointType::None;
 	}
 	[[nodiscard]] const std::string &videoEndpointPinned() const {
-		return _videoEndpointPinned;
+		return _videoEndpointPinned.current();
+	}
+	[[nodiscard]] rpl::producer<std::string> videoEndpointPinnedValue() const {
+		return _videoEndpointPinned.value();
 	}
 	void pinVideoEndpoint(const std::string &endpoint);
-	[[nodiscard]] std::string videoEndpointLarge() const {
+	[[nodiscard]] const std::string &videoEndpointLarge() const {
 		return _videoEndpointLarge.current();
 	}
 	[[nodiscard]] auto videoEndpointLargeValue() const
@@ -266,8 +269,10 @@ public:
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
 	void setCurrentVideoDevice(const QString &deviceId);
 	[[nodiscard]] bool isSharingScreen() const;
+	[[nodiscard]] rpl::producer<bool> isSharingScreenValue() const;
 	[[nodiscard]] const std::string &screenSharingEndpoint() const;
 	[[nodiscard]] bool isSharingCamera() const;
+	[[nodiscard]] rpl::producer<bool> isSharingCameraValue() const;
 	[[nodiscard]] const std::string &cameraSharingEndpoint() const;
 	[[nodiscard]] QString screenSharingDeviceId() const;
 	void toggleVideo(bool active);
@@ -462,12 +467,14 @@ private:
 	std::unique_ptr<Webrtc::VideoTrack> _screenOutgoing;
 	QString _screenDeviceId;
 
+	bool _videoInited = false;
+
 	rpl::event_stream<LevelUpdate> _levelUpdates;
 	rpl::event_stream<StreamsVideoUpdate> _streamsVideoUpdated;
 	base::flat_set<std::string> _incomingVideoEndpoints;
 	base::flat_map<std::string, EndpointType> _activeVideoEndpoints;
 	rpl::variable<std::string> _videoEndpointLarge;
-	std::string _videoEndpointPinned;
+	rpl::variable<std::string> _videoEndpointPinned;
 	std::unique_ptr<LargeTrack> _videoLargeTrackWrap;
 	rpl::variable<Webrtc::VideoTrack*> _videoLargeTrack;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;

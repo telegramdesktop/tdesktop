@@ -87,7 +87,7 @@ private:
 	std::unique_ptr<PeerListController> _listController;
 	not_null<Ui::VerticalLayout*> _layout;
 	const not_null<Ui::RpWidget*> _pinnedVideo;
-	rpl::variable<Ui::SettingsButton*> _addMemberButton = nullptr;
+	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;
 	ListWidget *_list = nullptr;
 	rpl::event_stream<> _addMemberRequests;
 

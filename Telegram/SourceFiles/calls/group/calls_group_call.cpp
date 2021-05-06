@@ -388,6 +388,10 @@ GroupCall::GroupCall(
 , _joinHash(info.joinHash)
 , _id(inputCall.c_inputGroupCall().vid().v)
 , _scheduleDate(info.scheduleDate)
+, _cameraOutgoing(std::make_unique<Webrtc::VideoTrack>(
+	Webrtc::VideoState::Inactive))
+, _screenOutgoing(std::make_unique<Webrtc::VideoTrack>(
+	Webrtc::VideoState::Inactive))
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
 , _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
@@ -460,8 +464,15 @@ GroupCall::~GroupCall() {
 }
 
 bool GroupCall::isSharingScreen() const {
-	return _screenOutgoing
-		&& (_screenOutgoing->state() == Webrtc::VideoState::Active);
+	return (_screenOutgoing->state() == Webrtc::VideoState::Active);
+}
+
+rpl::producer<bool> GroupCall::isSharingScreenValue() const {
+	using namespace rpl::mappers;
+	return _screenOutgoing->stateValue(
+	) | rpl::map(
+		_1 == Webrtc::VideoState::Active
+	) | rpl::distinct_until_changed();
 }
 
 const std::string &GroupCall::screenSharingEndpoint() const {
@@ -469,8 +480,15 @@ const std::string &GroupCall::screenSharingEndpoint() const {
 }
 
 bool GroupCall::isSharingCamera() const {
-	return _cameraOutgoing
-		&& (_cameraOutgoing->state() == Webrtc::VideoState::Active);
+	return (_cameraOutgoing->state() == Webrtc::VideoState::Active);
+}
+
+rpl::producer<bool> GroupCall::isSharingCameraValue() const {
+	using namespace rpl::mappers;
+	return _cameraOutgoing->stateValue(
+	) | rpl::map(
+		_1 == Webrtc::VideoState::Active
+	) | rpl::distinct_until_changed();
 }
 
 const std::string &GroupCall::cameraSharingEndpoint() const {
@@ -611,7 +629,7 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 		const auto wasSounding = data.was && data.was->sounding;
 		if (nowSpeaking == wasSpeaking && nowSounding == wasSounding) {
 			return;
-		} else if (!_videoEndpointPinned.empty()) {
+		} else if (!_videoEndpointPinned.current().empty()) {
 			return;
 		}
 		if (nowScreenEndpoint != newLarge
@@ -876,7 +894,7 @@ void GroupCall::setMyEndpointType(
 		}
 		const auto nowLarge = activeVideoEndpointType(
 			_videoEndpointLarge.current());
-		if (_videoEndpointPinned.empty()
+		if (_videoEndpointPinned.current().empty()
 			&& ((type == EndpointType::Screen
 				&& nowLarge != EndpointType::Screen)
 				|| (type == EndpointType::Camera
@@ -1604,14 +1622,10 @@ void GroupCall::setupMediaDevices() {
 void GroupCall::ensureOutgoingVideo() {
 	Expects(_id != 0);
 
-	if (_cameraOutgoing) {
+	if (_videoInited) {
 		return;
 	}
-
-	_cameraOutgoing = std::make_unique<Webrtc::VideoTrack>(
-		Webrtc::VideoState::Inactive);
-	_screenOutgoing = std::make_unique<Webrtc::VideoTrack>(
-		Webrtc::VideoState::Inactive);
+	_videoInited = true;
 
 	//static const auto hasDevices = [] {
 	//	return !Webrtc::GetVideoInputList().empty();
@@ -2057,7 +2071,7 @@ void GroupCall::setIncomingVideoEndpoints(
 	feedOne(cameraSharingEndpoint());
 	feedOne(screenSharingEndpoint());
 	if (!newLarge.empty() && !newLargeFound) {
-		newLarge = _videoEndpointPinned = std::string();
+		_videoEndpointPinned = newLarge = std::string();
 	}
 	if (newLarge.empty()) {
 		_videoEndpointLarge = chooseLargeVideoEndpoint();
@@ -2105,7 +2119,7 @@ void GroupCall::fillActiveVideoEndpoints() {
 	feedOne(cameraSharingEndpoint(), EndpointType::Camera);
 	feedOne(screenSharingEndpoint(), EndpointType::Screen);
 	if (!newLarge.empty() && !newLargeFound) {
-		newLarge = _videoEndpointPinned = std::string();
+		_videoEndpointPinned = newLarge = std::string();
 	}
 	if (newLarge.empty()) {
 		_videoEndpointLarge = chooseLargeVideoEndpoint();
@@ -2453,8 +2467,7 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 		MTP_bool(muted() != MuteState::Active),
 		MTP_int(100000), // volume
 		MTP_bool(muted() == MuteState::RaisedHand),
-		MTP_bool(!_cameraOutgoing
-			|| _cameraOutgoing->state() != Webrtc::VideoState::Active)
+		MTP_bool(_cameraOutgoing->state() != Webrtc::VideoState::Active)
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
 		_peer->session().api().applyUpdates(result);
@@ -2472,7 +2485,9 @@ void GroupCall::pinVideoEndpoint(const std::string &endpoint) {
 	if (endpoint.empty()) {
 		_videoEndpointPinned = endpoint;
 	} else if (streamsVideo(endpoint)) {
-		_videoEndpointLarge = _videoEndpointPinned = endpoint;
+		_videoEndpointPinned = std::string();
+		_videoEndpointLarge = endpoint;
+		_videoEndpointPinned = endpoint;
 	}
 }
 

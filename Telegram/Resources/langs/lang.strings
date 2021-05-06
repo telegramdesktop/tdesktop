@@ -2069,8 +2069,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_context_remove_hand" = "Cancel request to speak";
 "lng_group_call_context_mute_for_me" = "Mute for me";
 "lng_group_call_context_unmute_for_me" = "Unmute for me";
-"lng_group_call_context_pin_video" = "Pin video";
-"lng_group_call_context_unpin_video" = "Unpin video";
+"lng_group_call_context_pin_camera" = "Pin video";
+"lng_group_call_context_unpin_camera" = "Unpin video";
+"lng_group_call_context_pin_screen" = "Pin screencast";
+"lng_group_call_context_unpin_screen" = "Unpin screencast";
 "lng_group_call_context_remove" = "Remove";
 "lng_group_call_remove_channel" = "Remove {channel} from the voice chat?";
 "lng_group_call_duration_days#one" = "{count} day";

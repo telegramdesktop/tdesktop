@@ -811,9 +811,6 @@ groupCallHangupSmall: CallButton(groupCallHangup) {
 groupCallVideoSmallInner: IconButton(groupCallSettingsInner) {
 	icon: icon {{ "calls/call_camera_muted", groupCallIconFg }};
 	iconPosition: point(-1px, 16px);
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: groupCallLeaveBgRipple;
-	}
 	height: 76px;
 }
 groupCallVideoSmall: CallButton(groupCallShareSmall) {
@@ -1136,6 +1133,19 @@ desktopCaptureSubmit: RoundButton(desktopCaptureCancel) {
 
 groupCallNarrowSkip: 9px;
 groupCallNarrowRowSkip: 8px;
-groupCallNarrowSize: size(90px, 90px);
+groupCallNarrowSize: size(144px, 90px);
 groupCallWideModeWidthMin: 520px;
 groupCallWideModeSize: size(720px, 480px);
+groupCallNarrowAddMemberHeight: 32px;
+
+groupCallNarrowAddMember: RoundButton(defaultActiveButton) {
+	textFg: groupCallMemberNotJoinedStatus;
+	textFgOver: groupCallMemberNotJoinedStatus;
+	textBg: groupCallMembersBg;
+	textBgOver: groupCallMembersBgOver;
+
+	height: 32px;
+	radius: roundRadiusLarge;
+
+	ripple: groupCallRipple;
+}

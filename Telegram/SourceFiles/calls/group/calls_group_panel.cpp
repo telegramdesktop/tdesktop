@@ -65,6 +65,7 @@ constexpr auto kRecordingAnimationDuration = crl::time(1200);
 constexpr auto kRecordingOpacity = 0.6;
 constexpr auto kStartNoConfirmation = TimeId(10);
 constexpr auto kControlsBackgroundOpacity = 0.8;
+constexpr auto kOverrideActiveColorBgAlpha = 236;
 
 class InviteController final : public ParticipantsBoxController {
 public:
@@ -713,8 +714,21 @@ void Panel::refreshLeftButton() {
 	}
 	const auto raw = _callShare ? _callShare.data() : _settings.data();
 	raw->show();
-	raw->setColorOverrides(_mute->colorOverrides());
 
+	auto overrides = _mute->colorOverrides();
+	raw->setColorOverrides(rpl::duplicate(overrides));
+
+	auto toggleableOverrides = [&](rpl::producer<bool> active) {
+		return rpl::combine(
+			std::move(active),
+			rpl::duplicate(overrides)
+		) | rpl::map([](bool active, Ui::CallButtonColors colors) {
+			if (active && colors.bg) {
+				colors.bg->setAlpha(kOverrideActiveColorBgAlpha);
+			}
+			return colors;
+		});
+	};
 	if (!_video) {
 		_video.create(
 			widget(),
@@ -725,7 +739,12 @@ void Panel::refreshLeftButton() {
 			_call->toggleVideo(!_call->isSharingCamera());
 		});
 		_video->setText(tr::lng_group_call_video());
-		_video->setColorOverrides(_mute->colorOverrides());
+		_video->setColorOverrides(
+			toggleableOverrides(_call->isSharingCameraValue()));
+		_call->isSharingCameraValue(
+		) | rpl::start_with_next([=](bool sharing) {
+			_video->setProgress(sharing ? 1. : 0.);
+		}, _video->lifetime());
 	}
 	if (!_screenShare) {
 		_screenShare.create(widget(), st::groupCallScreenShareSmall);
@@ -736,7 +755,12 @@ void Panel::refreshLeftButton() {
 #endif // Q_OS_LINUX
 		});
 		_screenShare->setText(tr::lng_group_call_screen_share());
-		_screenShare->setColorOverrides(_mute->colorOverrides());
+		_screenShare->setColorOverrides(
+			toggleableOverrides(_call->isSharingScreenValue()));
+		_call->isSharingScreenValue(
+		) | rpl::start_with_next([=](bool sharing) {
+			_screenShare->setProgress(sharing ? 1. : 0.);
+		}, _screenShare->lifetime());
 	}
 }
 
@@ -1687,19 +1711,19 @@ void Panel::updateMembersGeometry() {
 	}
 	const auto desiredHeight = _members->desiredHeight();
 	if (_mode == PanelMode::Wide) {
+		const auto skip = st::groupCallNarrowSkip;
+		const auto membersWidth = st::groupCallNarrowSize.width() + 2 * skip;
+		const auto top = st::groupCallWideVideoTop;
 		_members->setGeometry(
-			st::groupCallNarrowSkip,
 			0,
-			st::groupCallNarrowSize.width(),
+			top,
+			membersWidth,
 			std::min(desiredHeight, widget()->height()));
-		const auto pinnedLeft = st::groupCallNarrowSkip * 2
-			+ st::groupCallNarrowSize.width();
-		const auto pinnedTop = st::groupCallWideVideoTop;
 		_pinnedVideo->setGeometry(
-			pinnedLeft,
-			pinnedTop,
-			widget()->width() - pinnedLeft - st::groupCallNarrowSkip,
-			widget()->height() - pinnedTop - st::groupCallNarrowSkip);
+			membersWidth,
+			top,
+			widget()->width() - membersWidth - skip,
+			widget()->height() - top - skip);
 	} else {
 		const auto membersBottom = _videoMode.current()
 			? (widget()->height() - st::groupCallMembersBottomSkipSmall)
