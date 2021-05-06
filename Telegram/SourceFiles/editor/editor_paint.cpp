@@ -7,14 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_paint.h"
 
+#include "app.h"
+#include "boxes/confirm_box.h"
 #include "editor/controllers/controllers.h"
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_base.h"
 #include "editor/scene/scene_item_canvas.h"
+#include "editor/scene/scene_item_image.h"
 #include "editor/scene/scene_item_sticker.h"
 #include "lottie/lottie_single_player.h"
+#include "storage/storage_media_prepare.h"
+#include "ui/chat/attach/attach_prepare.h"
 
 #include <QGraphicsView>
+#include <QtCore/QMimeData>
 
 namespace Editor {
 namespace {
@@ -46,6 +52,7 @@ Paint::Paint(
 	const QSize &imageSize,
 	std::shared_ptr<Controllers> controllers)
 : RpWidget(parent)
+, _controllers(controllers)
 , _lastZ(std::make_shared<float64>(9000.))
 , _scene(EnsureScene(modifications, imageSize))
 , _view(base::make_unique_q<QGraphicsView>(_scene.get(), this))
@@ -254,6 +261,47 @@ void Paint::applyBrush(const Brush &brush) {
 	_scene->applyBrush(
 		brush.color,
 		(kMinBrush + float64(kMaxBrush - kMinBrush) * brush.sizeRatio));
+}
+
+void Paint::handleMimeData(const QMimeData *data) {
+	const auto add = [&](QImage image) {
+		if (image.isNull()) {
+			return;
+		}
+		const auto s = _scene->sceneRect().size();
+		const auto size = std::min(s.width(), s.height()) / 2;
+		const auto x = s.width() / 2;
+		const auto y = s.height() / 2;
+		if (!Ui::ValidateThumbDimensions(image.width(), image.height())) {
+			_controllers->showBox(
+				Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)));
+			return;
+		}
+
+		const auto item = std::make_shared<ItemImage>(
+			App::pixmapFromImageInPlace(std::move(image)),
+			_transform.zoom.value(),
+			_lastZ,
+			size,
+			x,
+			y);
+		item->setFlip(_transform.flipped);
+		item->setRotation(-_transform.angle);
+		_scene->addItem(item);
+		_scene->clearSelection();
+	};
+
+	using Error = Ui::PreparedList::Error;
+	auto result = data->hasUrls()
+		? Storage::PrepareMediaList(
+			data->urls().mid(0, 1),
+			_imageSize.width() / 2)
+		: Ui::PreparedList(Error::EmptyFile, QString());
+	if (result.error == Error::None) {
+		add(base::take(result.files.front().preview));
+	} else if (data->hasImage()) {
+		add(qvariant_cast<QImage>(data->imageData()));
+	}
 }
 
 } // namespace Editor

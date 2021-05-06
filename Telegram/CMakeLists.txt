@@ -533,6 +533,8 @@ PRIVATE
     editor/scene/scene_item_base.h
     editor/scene/scene_item_canvas.cpp
     editor/scene/scene_item_canvas.h
+    editor/scene/scene_item_image.cpp
+    editor/scene/scene_item_image.h
     editor/scene/scene_item_line.cpp
     editor/scene/scene_item_line.h
     editor/scene/scene_item_sticker.cpp

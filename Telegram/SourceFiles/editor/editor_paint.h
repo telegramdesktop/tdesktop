@@ -37,6 +37,8 @@ public:
 	void keepResult();
 	void updateUndoState();
 
+	void handleMimeData(const QMimeData *data);
+
 private:
 	struct SavedItem {
 		std::shared_ptr<QGraphicsItem> item;
@@ -50,6 +52,7 @@ private:
 	bool isItemToRemove(const std::shared_ptr<QGraphicsItem> &item) const;
 	bool isItemHidden(const std::shared_ptr<QGraphicsItem> &item) const;
 
+	const std::shared_ptr<Controllers> _controllers;
 	const std::shared_ptr<float64> _lastZ;
 	const std::shared_ptr<Scene> _scene;
 	const base::unique_qptr<QGraphicsView> _view;

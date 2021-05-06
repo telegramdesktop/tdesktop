@@ -51,7 +51,8 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 		Fn<bool(not_null<const QMimeData*>)> &&dragEnterFilter,
 		Fn<void(bool)> &&setAcceptDropsField,
 		Fn<void()> &&updateControlsGeometry,
-		DragArea::CallbackComputeState &&computeState) {
+		DragArea::CallbackComputeState &&computeState,
+		bool hideSubtext) {
 
 	using DragState = Storage::MimeDataState;
 
@@ -133,24 +134,32 @@ DragArea::Areas DragArea::SetupDragAreaToContainer(
 		case DragState::Files:
 			attachDragDocument->setText(
 				tr::lng_drag_files_here(tr::now),
-				tr::lng_drag_to_send_files(tr::now));
+				hideSubtext
+					? QString()
+					: tr::lng_drag_to_send_files(tr::now));
 			attachDragDocument->otherEnter();
 			attachDragPhoto->hideFast();
 		break;
 		case DragState::PhotoFiles:
 			attachDragDocument->setText(
 				tr::lng_drag_images_here(tr::now),
-				tr::lng_drag_to_send_no_compression(tr::now));
+				hideSubtext
+					? QString()
+					: tr::lng_drag_to_send_no_compression(tr::now));
 			attachDragPhoto->setText(
 				tr::lng_drag_photos_here(tr::now),
-				tr::lng_drag_to_send_quick(tr::now));
+				hideSubtext
+					? QString()
+					: tr::lng_drag_to_send_quick(tr::now));
 			attachDragDocument->otherEnter();
 			attachDragPhoto->otherEnter();
 		break;
 		case DragState::Image:
 			attachDragPhoto->setText(
 				tr::lng_drag_images_here(tr::now),
-				tr::lng_drag_to_send_quick(tr::now));
+				hideSubtext
+					? QString()
+					: tr::lng_drag_to_send_quick(tr::now));
 			attachDragDocument->hideFast();
 			attachDragPhoto->otherEnter();
 		break;

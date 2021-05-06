@@ -85,6 +85,27 @@ void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
 
 } // namespace
 
+bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
+	if (data->urls().size() > 1) {
+		return false;
+	} else if (data->hasImage()) {
+		return true;
+	}
+
+	if (data->hasUrls()) {
+		const auto url = data->urls().front();
+		if (url.isLocalFile()) {
+			using namespace Core;
+			const auto info = QFileInfo(Platform::File::UrlToLocal(url));
+			const auto filename = info.fileName();
+			return FileIsImage(filename, MimeTypeForFile(info).name())
+				&& HasExtensionFrom(filename, Ui::ExtensionsForCompression());
+		}
+	}
+
+	return false;
+}
+
 bool ValidateEditMediaDragData(
 		not_null<const QMimeData*> data,
 		Ui::AlbumType albumType) {
@@ -173,7 +194,6 @@ PreparedList PrepareMediaList(const QList<QUrl> &files, int previewWidth) {
 PreparedList PrepareMediaList(const QStringList &files, int previewWidth) {
 	auto result = PreparedList();
 	result.files.reserve(files.size());
-	const auto extensionsToCompress = Ui::ExtensionsForCompression();
 	for (const auto &file : files) {
 		const auto fileinfo = QFileInfo(file);
 		const auto filesize = fileinfo.size();

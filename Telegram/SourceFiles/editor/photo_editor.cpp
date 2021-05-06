@@ -58,7 +58,8 @@ PhotoEditor::PhotoEditor(
 			this,
 			controller->sessionController())
 		: nullptr,
-	std::make_unique<UndoController>()))
+	std::make_unique<UndoController>(),
+	[=] (object_ptr<Ui::BoxContent> c) { controller->show(std::move(c)); }))
 , _content(base::make_unique_q<PhotoEditorContent>(
 	this,
 	photo,

@@ -34,6 +34,8 @@ public:
 
 	bool handleKeyPress(not_null<QKeyEvent*> e) const;
 
+	void setupDragArea();
+
 private:
 
 	const QSize _photoSize;

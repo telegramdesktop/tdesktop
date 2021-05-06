@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/editor_crop.h"
 #include "editor/editor_paint.h"
+#include "history/history_drag_area.h"
 #include "media/view/media_view_pip.h"
+#include "storage/storage_media_prepare.h"
 
 namespace Editor {
 
@@ -92,6 +94,8 @@ PhotoEditorContent::PhotoEditorContent(
 			_imageRect,
 			_photo->pix(_imageRect.width(), _imageRect.height()));
 	}, lifetime());
+
+	setupDragArea();
 }
 
 void PhotoEditorContent::applyModifications(
@@ -131,6 +135,26 @@ void PhotoEditorContent::applyBrush(const Brush &brush) {
 
 bool PhotoEditorContent::handleKeyPress(not_null<QKeyEvent*> e) const {
 	return false;
+}
+
+void PhotoEditorContent::setupDragArea() {
+	auto dragEnterFilter = [=](const QMimeData *data) {
+		return (_mode.mode == PhotoEditorMode::Mode::Transform)
+			? false
+			: Storage::ValidatePhotoEditorMediaDragData(data);
+	};
+
+	const auto areas = DragArea::SetupDragAreaToContainer(
+		this,
+		std::move(dragEnterFilter),
+		nullptr,
+		nullptr,
+		[](const QMimeData *d) { return Storage::MimeDataState::Image; },
+		true);
+
+	areas.photo->setDroppedCallback([=](const QMimeData *data) {
+		_paint->handleMimeData(data);
+	});
 }
 
 } // namespace Editor

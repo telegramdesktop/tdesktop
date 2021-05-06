@@ -74,6 +74,10 @@ ItemBase::ItemBase(
 			.min = int(st::photoEditorItemMinSize / zoom),
 			.max = int(st::photoEditorItemMaxSize / zoom),
 		};
+		_horizontalSize = std::clamp(
+			_horizontalSize,
+			float64(_sizeLimits.min),
+			float64(_sizeLimits.max));
 
 		updatePens(QPen(
 			QBrush(),
@@ -303,7 +307,13 @@ float64 ItemBase::size() const {
 }
 
 void ItemBase::updateVerticalSize() {
-	_verticalSize = _horizontalSize * _aspectRatio;
+	const auto verticalSize = _horizontalSize * _aspectRatio;
+	_verticalSize = std::max(
+		verticalSize,
+		float64(st::photoEditorItemMinSize));
+	if (verticalSize < st::photoEditorItemMinSize) {
+		_horizontalSize = _verticalSize / _aspectRatio;
+	}
 }
 
 void ItemBase::setAspectRatio(float64 aspectRatio) {
