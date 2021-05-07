@@ -26,13 +26,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/effects/slide_animation.h"
+#include "ui/ui_utility.h"
 #include "data/data_user.h"
 #include "data/data_auto_download.h"
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
 #include "window/window_controller.h"
 #include "window/themes/window_theme.h"
-#include "app.h"
 #include "styles/style_intro.h"
 #include "styles/style_window.h"
 
@@ -366,7 +366,7 @@ void Step::prepareCoverMask() {
 		}
 		maskInts += maskIntsPerLineAdded;
 	}
-	_coverMask = App::pixmapFromImageInPlace(std::move(mask));
+	_coverMask = Ui::PixmapFromImage(std::move(mask));
 }
 
 void Step::paintCover(Painter &p, int top) {

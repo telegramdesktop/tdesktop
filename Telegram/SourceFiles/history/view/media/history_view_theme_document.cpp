@@ -19,9 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
+#include "ui/ui_utility.h"
 #include "window/themes/window_theme.h"
 #include "layout.h" // FullSelection
-#include "app.h" // App::pixmapFromImageInPlace.
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -259,7 +259,7 @@ void ThemeDocument::prepareThumbnailFrom(
 			Data::PatternColor(_background),
 			_intensity);
 	}
-	_thumbnail = App::pixmapFromImageInPlace(std::move(original));
+	_thumbnail = Ui::PixmapFromImage(std::move(original));
 	_thumbnailGood = good;
 }
 

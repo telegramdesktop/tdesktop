@@ -53,7 +53,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_media_preview.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
@@ -955,7 +954,11 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::
 		placeSmallCounter(img, size, count, bg, QPoint(), fg);
 	} else {
 		QPainter p(&img);
-		p.drawPixmap(size / 2, size / 2, App::pixmapFromImageInPlace(iconWithCounter(-size / 2, count, bg, fg, false)));
+		p.drawPixmap(
+			size / 2,
+			size / 2,
+			Ui::PixmapFromImage(
+				iconWithCounter(-size / 2, count, bg, fg, false)));
 	}
 	return img;
 }

@@ -57,10 +57,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/cached_round_corners.h"
 #include "ui/abstract_button.h"
+#include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
 #include "confirm_box.h"
 #include "apiwrap.h"
-#include "app.h" // App::pixmapFromImageInPlace.
 #include "facades.h" // App::LambdaDelayed.
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -209,7 +209,7 @@ EditCaptionBox::EditCaptionBox(
 						| Images::Option::RoundedTopRight
 						| Images::Option::RoundedBottomLeft
 						| Images::Option::RoundedBottomRight;
-					_thumb = App::pixmapFromImageInPlace(Images::prepare(
+					_thumb = Ui::PixmapFromImage(Images::prepare(
 						image->original(),
 						_thumbw * cIntRetinaFactor(),
 						0,
@@ -339,7 +339,7 @@ EditCaptionBox::EditCaptionBox(
 
 		const auto prepareBasicThumb = _refreshThumbnail;
 		const auto scaleThumbDown = [=] {
-			_thumb = App::pixmapFromImageInPlace(_thumb.toImage().scaled(
+			_thumb = Ui::PixmapFromImage(_thumb.toImage().scaled(
 				_thumbw * cIntRetinaFactor(),
 				_thumbh * cIntRetinaFactor(),
 				Qt::KeepAspectRatio,
@@ -661,7 +661,7 @@ void EditCaptionBox::updateEditPreview() {
 	_photoEditorButton->setVisible(_photo);
 
 	if (!_doc) {
-		_thumb = App::pixmapFromImageInPlace(
+		_thumb = Ui::PixmapFromImage(
 			file->preview.scaled(
 				st::sendMediaPreviewSize * cIntRetinaFactor(),
 				(st::confirmMaxHeight - (showCheckbox

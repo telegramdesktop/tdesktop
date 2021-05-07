@@ -29,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_last_input.h"
 #include "base/call_delayed.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
@@ -92,7 +91,12 @@ Manager::QueuedNotification::QueuedNotification(
 
 QPixmap Manager::hiddenUserpicPlaceholder() const {
 	if (_hiddenUserpicPlaceholder.isNull()) {
-		_hiddenUserpicPlaceholder = App::pixmapFromImageInPlace(Core::App().logoNoMargin().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+		_hiddenUserpicPlaceholder = Ui::PixmapFromImage(
+			Core::App().logoNoMargin().scaled(
+				st::notifyPhotoSize,
+				st::notifyPhotoSize,
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation));
 		_hiddenUserpicPlaceholder.setDevicePixelRatio(cRetinaFactor());
 	}
 	return _hiddenUserpicPlaceholder;
@@ -682,7 +686,7 @@ void Notification::prepareActionsCache() {
 		p.fillRect(style::rtlrect(fadeWidth, 0, actionsCacheWidth - fadeWidth, actionsCacheHeight, actionsCacheWidth), st::notificationBg);
 		p.drawPixmapRight(replyRight, _reply->y() - actionsTop, actionsCacheWidth, replyCache);
 	}
-	_buttonsCache = App::pixmapFromImageInPlace(std::move(actionsCacheImg));
+	_buttonsCache = Ui::PixmapFromImage(std::move(actionsCacheImg));
 }
 
 bool Notification::checkLastInput(
@@ -861,7 +865,7 @@ void Notification::updateNotifyDisplay() {
 		titleText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	}
 
-	_cache = App::pixmapFromImageInPlace(std::move(img));
+	_cache = Ui::PixmapFromImage(std::move(img));
 	if (!canReply()) {
 		toggleActionButtons(false);
 	}
@@ -889,7 +893,7 @@ void Notification::updatePeerPhoto() {
 			width(),
 			st::notifyPhotoSize);
 	}
-	_cache = App::pixmapFromImageInPlace(std::move(img));
+	_cache = Ui::PixmapFromImage(std::move(img));
 	_userpicView = nullptr;
 	update();
 }

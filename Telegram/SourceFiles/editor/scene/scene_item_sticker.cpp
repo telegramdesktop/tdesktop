@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/scene/scene_item_sticker.h"
 
-#include "app.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -15,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_single_player.h"
 #include "main/main_session.h"
+#include "ui/ui_utility.h"
 #include "styles/style_editor.h"
 
 namespace Editor {
@@ -51,7 +51,7 @@ ItemSticker::ItemSticker(
 				Lottie::Quality::High);
 			_lottie.player->updates(
 			) | rpl::start_with_next([=] {
-				updatePixmap(App::pixmapFromImageInPlace(
+				updatePixmap(Ui::PixmapFromImage(
 					_lottie.player->frame()));
 				_lottie.player = nullptr;
 				_lottie.lifetime.destroy();

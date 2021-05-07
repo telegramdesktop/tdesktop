@@ -113,7 +113,7 @@ QIcon CreateOfficialIcon(Main::Session *session) {
 	if (session && session->supportMode()) {
 		ConvertIconToBlack(image);
 	}
-	return QIcon(App::pixmapFromImageInPlace(std::move(image)));
+	return QIcon(Ui::PixmapFromImage(std::move(image)));
 }
 
 QIcon CreateIcon(Main::Session *session) {

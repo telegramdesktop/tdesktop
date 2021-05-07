@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/text/text_options.h"
 #include "ui/toasts/common_toasts.h"
+#include "ui/ui_utility.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
@@ -41,7 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "facades.h" // Ui::showPeerProfile
-#include "app.h"
 
 namespace {
 
@@ -417,7 +417,7 @@ QPixmap PeerData::genUserpic(
 		Painter p(&result);
 		paintUserpic(p, view, 0, 0, size);
 	}
-	return App::pixmapFromImageInPlace(std::move(result));
+	return Ui::PixmapFromImage(std::move(result));
 }
 
 QPixmap PeerData::genUserpicRounded(
@@ -433,7 +433,7 @@ QPixmap PeerData::genUserpicRounded(
 		Painter p(&result);
 		paintUserpicRounded(p, view, 0, 0, size);
 	}
-	return App::pixmapFromImageInPlace(std::move(result));
+	return Ui::PixmapFromImage(std::move(result));
 }
 
 Data::FileOrigin PeerData::userpicOrigin() const {

@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/connection_box.h"
 #include "boxes/abstract_box.h"
 #include "lang/lang_keys.h"
-#include "app.h"
 #include "styles/style_window.h"
 
 namespace Window {
@@ -169,7 +168,7 @@ void ConnectionState::Widget::ProxyIcon::refreshCacheImages() {
 				(height() - icon.height()) / 2,
 				width());
 		}
-		return App::pixmapFromImageInPlace(std::move(image));
+		return Ui::PixmapFromImage(std::move(image));
 	};
 	_cacheOn = prepareCache(st::connectingProxyOn);
 	_cacheOff = prepareCache(st::connectingProxyOff);

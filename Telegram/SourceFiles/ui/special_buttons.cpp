@@ -39,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "facades.h"
-#include "app.h"
 
 namespace Ui {
 namespace {
@@ -66,7 +65,7 @@ QPixmap CreateSquarePixmap(int width, Callback &&paintCallback) {
 		Painter p(&image);
 		paintCallback(p);
 	}
-	return App::pixmapFromImageInPlace(std::move(image));
+	return Ui::PixmapFromImage(std::move(image));
 };
 
 } // namespace
@@ -698,7 +697,7 @@ void UserpicButton::setImage(QImage &&image) {
 		Qt::IgnoreAspectRatio,
 		Qt::SmoothTransformation);
 	Images::prepareCircle(small);
-	_userpic = App::pixmapFromImageInPlace(std::move(small));
+	_userpic = Ui::PixmapFromImage(std::move(small));
 	_userpic.setDevicePixelRatio(cRetinaFactor());
 	_userpicCustom = _userpicHasImage = true;
 	_result = std::move(image);

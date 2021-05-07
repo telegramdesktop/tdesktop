@@ -44,7 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/cached_round_corners.h"
-#include "app.h"
+#include "ui/ui_utility.h"
 
 namespace Overview {
 namespace Layout {
@@ -368,7 +368,7 @@ void Photo::setPixFrom(not_null<Image*> image) {
 		delegate()->unregisterHeavyItem(this);
 	}
 
-	_pix = App::pixmapFromImageInPlace(std::move(img));
+	_pix = Ui::PixmapFromImage(std::move(img));
 }
 
 void Photo::ensureDataMediaCreated() const {
@@ -459,7 +459,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		}
 		img.setDevicePixelRatio(cRetinaFactor());
 
-		_pix = App::pixmapFromImageInPlace(std::move(img));
+		_pix = Ui::PixmapFromImage(std::move(img));
 		_pixBlurred = !(thumbnail || good);
 	}
 

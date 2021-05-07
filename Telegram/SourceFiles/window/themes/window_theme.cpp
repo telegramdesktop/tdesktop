@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h" // Account::local.
 #include "main/main_domain.h" // Domain::activeSessionValue.
 #include "ui/image/image.h"
+#include "ui/ui_utility.h"
 #include "boxes/confirm_box.h"
 #include "boxes/background_box.h"
 #include "core/application.h"
@@ -754,10 +755,10 @@ void ChatBackground::preparePixmaps(QImage image) {
 				imageForTiledBytes += imageForTiled.bytesPerLine() - (repeatTimesX * bytesInLine);
 			}
 		}
-		_pixmapForTiled = App::pixmapFromImageInPlace(std::move(imageForTiled));
+		_pixmapForTiled = Ui::PixmapFromImage(std::move(imageForTiled));
 	}
 	_isMonoColorImage = CalculateIsMonoColorImage(image);
-	_pixmap = App::pixmapFromImageInPlace(std::move(image));
+	_pixmap = Ui::PixmapFromImage(std::move(image));
 	if (!isSmallForTiled) {
 		_pixmapForTiled = _pixmap;
 	}

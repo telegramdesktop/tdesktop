@@ -16,10 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "ui/text/text_options.h"
+#include "ui/ui_utility.h"
 #include "mainwidget.h"
 #include "layout.h"
 #include "lang/lang_keys.h"
-#include "app.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -115,7 +115,7 @@ QPixmap circleCorner(int corner, const style::color &bg) {
 			bg,
 			part);
 		result.setDevicePixelRatio(cRetinaFactor());
-		currentCorner = App::pixmapFromImageInPlace(std::move(result));
+		currentCorner = Ui::PixmapFromImage(std::move(result));
 	}
 	return currentCorner;
 }

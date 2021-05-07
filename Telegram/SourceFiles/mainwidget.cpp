@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/resize_area.h"
 #include "ui/text/text_options.h"
 #include "ui/emoji_config.h"
+#include "ui/ui_utility.h"
 #include "window/section_memento.h"
 #include "window/section_widget.h"
 #include "window/window_connecting_widget.h"
@@ -108,7 +109,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
-#include "app.h"
 #include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
@@ -815,7 +815,7 @@ void MainWidget::cacheBackground() {
 		}
 		_cachedX = 0;
 		_cachedY = 0;
-		_cachedBackground = App::pixmapFromImageInPlace(std::move(result));
+		_cachedBackground = Ui::PixmapFromImage(std::move(result));
 	} else {
 		auto &bg = Window::Theme::Background()->pixmap();
 
@@ -823,7 +823,12 @@ void MainWidget::cacheBackground() {
 		Window::Theme::ComputeBackgroundRects(_willCacheFor, bg.size(), to, from);
 		_cachedX = to.x();
 		_cachedY = to.y();
-		_cachedBackground = App::pixmapFromImageInPlace(bg.toImage().copy(from).scaled(to.width() * cIntRetinaFactor(), to.height() * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+		_cachedBackground = Ui::PixmapFromImage(
+			bg.toImage().copy(from).scaled(
+				to.width() * cIntRetinaFactor(),
+				to.height() * cIntRetinaFactor(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation));
 		_cachedBackground.setDevicePixelRatio(cRetinaFactor());
 	}
 	_cachedFor = _willCacheFor;

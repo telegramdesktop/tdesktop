@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "ui/emoji_config.h"
 #include "ui/effects/animation_value.h"
-#include "app.h"
+#include "ui/ui_utility.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h" // style::IconButton
@@ -171,7 +171,7 @@ template <typename Callback>
 		Painter p(&result);
 		callback(p);
 	}
-	return App::pixmapFromImageInPlace(std::move(result));
+	return Ui::PixmapFromImage(std::move(result));
 }
 
 } // namespace
@@ -396,7 +396,7 @@ QPixmap EmptyUserpic::generate(int size) {
 		Painter p(&result);
 		paint(p, 0, 0, size, size);
 	}
-	return App::pixmapFromImageInPlace(std::move(result));
+	return Ui::PixmapFromImage(std::move(result));
 }
 
 void EmptyUserpic::fillString(const QString &name) {

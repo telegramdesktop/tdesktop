@@ -282,8 +282,4 @@ namespace App {
 		return result;
 	}
 
-	QPixmap pixmapFromImageInPlace(QImage &&image) {
-		return QPixmap::fromImage(std::move(image), Qt::ColorOnly);
-	}
-
 }

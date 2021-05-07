@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/text/text_options.h"
 #include "ui/unread_badge.h"
+#include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "support/support_helper.h"
 #include "main/main_session.h"
@@ -29,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_folder.h"
 #include "data/data_peer_values.h"
-#include "app.h"
 
 namespace Dialogs {
 namespace Layout {
@@ -601,8 +601,14 @@ void paintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st)
 	if (badgeData->left[index].isNull()) {
 		int imgsize = size * cIntRetinaFactor(), imgsizehalf = sizehalf * cIntRetinaFactor();
 		createCircleMask(badgeData, size);
-		badgeData->left[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(badgeData, imgsize, imgsizehalf, 0, bg));
-		badgeData->right[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(badgeData, imgsize, imgsizehalf, imgsize - imgsizehalf, bg));
+		badgeData->left[index] = Ui::PixmapFromImage(
+			colorizeCircleHalf(badgeData, imgsize, imgsizehalf, 0, bg));
+		badgeData->right[index] = Ui::PixmapFromImage(colorizeCircleHalf(
+			badgeData,
+			imgsize,
+			imgsizehalf,
+			imgsize - imgsizehalf,
+			bg));
 	}
 
 	int bar = rect.width() - 2 * sizehalf;

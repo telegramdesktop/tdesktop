@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
-#include "app.h"
+#include "ui/ui_utility.h"
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "base/platform/linux/base_linux_glibmm_helper.h"
@@ -355,8 +355,7 @@ QIcon TrayIconGen(int counter, bool muted) {
 			}
 		}
 
-		result.addPixmap(App::pixmapFromImageInPlace(
-			std::move(iconImage)));
+		result.addPixmap(Ui::PixmapFromImage(std::move(iconImage)));
 	}
 
 	UpdateIconRegenerationNeeded(result, counter, muted, iconThemeName);

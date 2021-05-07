@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
 #include "ui/special_fields.h"
+#include "ui/ui_utility.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "storage/localstorage.h"
@@ -169,7 +170,7 @@ void BackgroundSelector::updateThumbnail() {
 		p.drawImage(QRect(0, 0, size, size), pix, QRect(sx, sy, s, s));
 	}
 	Images::prepareRound(back, ImageRoundRadius::Small);
-	_thumbnail = App::pixmapFromImageInPlace(std::move(back));
+	_thumbnail = Ui::PixmapFromImage(std::move(back));
 	_thumbnail.setDevicePixelRatio(cRetinaFactor());
 	update();
 }

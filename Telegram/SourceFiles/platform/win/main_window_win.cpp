@@ -20,9 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/ui_utility.h"
 #include "window/themes/window_theme.h"
 #include "history/history.h"
-#include "app.h"
 
 #include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QStyleFactory>
@@ -241,7 +241,7 @@ void MainWindow::psSetupTrayIcon() {
 	if (!trayIcon) {
 		trayIcon = new QSystemTrayIcon(this);
 
-		auto icon = QIcon(App::pixmapFromImageInPlace(Core::App().logoNoMargin()));
+		auto icon = QIcon(Ui::PixmapFromImage(Core::App().logoNoMargin()));
 
 		trayIcon->setIcon(icon);
 		connect(
@@ -369,13 +369,17 @@ void MainWindow::updateIconCounters() {
 
 	auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
 	auto &fg = st::trayCounterFg;
-	auto iconSmallPixmap16 = App::pixmapFromImageInPlace(iconWithCounter(16, counter, bg, fg, true));
-	auto iconSmallPixmap32 = App::pixmapFromImageInPlace(iconWithCounter(32, counter, bg, fg, true));
+	auto iconSmallPixmap16 = Ui::PixmapFromImage(
+		iconWithCounter(16, counter, bg, fg, true));
+	auto iconSmallPixmap32 = Ui::PixmapFromImage(
+		iconWithCounter(32, counter, bg, fg, true));
 	QIcon iconSmall, iconBig;
 	iconSmall.addPixmap(iconSmallPixmap16);
 	iconSmall.addPixmap(iconSmallPixmap32);
-	iconBig.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(32, taskbarList.Get() ? 0 : counter, bg, fg, false)));
-	iconBig.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(64, taskbarList.Get() ? 0 : counter, bg, fg, false)));
+	iconBig.addPixmap(Ui::PixmapFromImage(
+		iconWithCounter(32, taskbarList.Get() ? 0 : counter, bg, fg, false)));
+	iconBig.addPixmap(Ui::PixmapFromImage(
+		iconWithCounter(64, taskbarList.Get() ? 0 : counter, bg, fg, false)));
 	if (trayIcon) {
 		// Force Qt to use right icon size, not the larger one.
 		QIcon forTrayIcon;
@@ -391,8 +395,10 @@ void MainWindow::updateIconCounters() {
 	if (taskbarList.Get()) {
 		if (counter > 0) {
 			QIcon iconOverlay;
-			iconOverlay.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(-16, counter, bg, fg, false)));
-			iconOverlay.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(-32, counter, bg, fg, false)));
+			iconOverlay.addPixmap(Ui::PixmapFromImage(
+				iconWithCounter(-16, counter, bg, fg, false)));
+			iconOverlay.addPixmap(Ui::PixmapFromImage(
+				iconWithCounter(-32, counter, bg, fg, false)));
 			ps_iconOverlay = createHIconFromQIcon(iconOverlay, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
 		}
 		auto description = (counter > 0) ? tr::lng_unread_bar(tr::now, lt_count, counter) : QString();

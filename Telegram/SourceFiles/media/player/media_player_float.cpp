@@ -25,8 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
+#include "ui/ui_utility.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_media_player.h"
 #include "styles/style_chat.h"
 
@@ -173,7 +173,7 @@ void Float::prepareShadow() {
 		auto extend = 2 * st::lineWidth;
 		p.drawEllipse(getInnerRect().marginsAdded(QMargins(extend, extend, extend, extend)));
 	}
-	_shadow = App::pixmapFromImageInPlace(Images::prepareBlur(std::move(shadow)));
+	_shadow = Ui::PixmapFromImage(Images::prepareBlur(std::move(shadow)));
 }
 
 QRect Float::getInnerRect() const {

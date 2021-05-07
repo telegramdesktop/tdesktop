@@ -20,9 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/media/history_view_media.h"
 #include "ui/image/image.h"
+#include "ui/ui_utility.h"
 #include "main/main_session.h"
 #include "core/crash_reports.h"
-#include "app.h"
 #include "styles/style_media_view.h"
 
 namespace Media {
@@ -287,7 +287,7 @@ void GroupThumbs::Thumb::validateImage() {
 			/ pixSize.width();
 		auto original = _image->original();
 		original.setDevicePixelRatio(cRetinaFactor());
-		_full = App::pixmapFromImageInPlace(original.copy(
+		_full = Ui::PixmapFromImage(original.copy(
 			(originalWidth - takeWidth) / 2,
 			0,
 			takeWidth,

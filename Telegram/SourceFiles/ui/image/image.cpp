@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/cache/storage_cache_database.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "ui/ui_utility.h"
 #include "app.h"
 
 using namespace Images;
@@ -622,10 +623,11 @@ QPixmap Image::pixNoCache(
 			Assert(colored != nullptr);
 			result = prepareColored(*colored, std::move(result));
 		}
-		return App::pixmapFromImageInPlace(std::move(result));
+		return Ui::PixmapFromImage(std::move(result));
 	}
 
-	return App::pixmapFromImageInPlace(prepare(_data, w, h, options, outerw, outerh, colored));
+	return Ui::PixmapFromImage(
+		prepare(_data, w, h, options, outerw, outerh, colored));
 }
 
 QPixmap Image::pixColoredNoCache(
@@ -639,12 +641,19 @@ QPixmap Image::pixColoredNoCache(
 
 	auto img = _data;
 	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) {
-		return App::pixmapFromImageInPlace(prepareColored(add, std::move(img)));
+		return Ui::PixmapFromImage(prepareColored(add, std::move(img)));
 	}
+	const auto transformation = smooth
+		? Qt::SmoothTransformation
+		: Qt::FastTransformation;
 	if (h <= 0) {
-		return App::pixmapFromImageInPlace(prepareColored(add, img.scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)));
+		return Ui::PixmapFromImage(
+			prepareColored(add, img.scaledToWidth(w, transformation)));
 	}
-	return App::pixmapFromImageInPlace(prepareColored(add, img.scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)));
+	return Ui::PixmapFromImage(
+		prepareColored(
+			add,
+			img.scaled(w, h, Qt::IgnoreAspectRatio, transformation)));
 }
 
 QPixmap Image::pixBlurredColoredNoCache(
@@ -662,5 +671,5 @@ QPixmap Image::pixBlurredColoredNoCache(
 		img = img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 	}
 
-	return App::pixmapFromImageInPlace(prepareColored(add, img));
+	return Ui::PixmapFromImage(prepareColored(add, img));
 }

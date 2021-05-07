@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
+#include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "export/export_manager.h"
 #include "window/themes/window_theme.h"
@@ -590,7 +591,7 @@ void BackgroundRow::updateImage() {
 		}
 	}
 	Images::prepareRound(back, ImageRoundRadius::Small);
-	_background = App::pixmapFromImageInPlace(std::move(back));
+	_background = Ui::PixmapFromImage(std::move(back));
 	_background.setDevicePixelRatio(cRetinaFactor());
 
 	rtlupdate(radialRect());

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -651,7 +652,7 @@ void Widget::startWidthAnimation() {
 		QPainter p(&image);
 		Ui::RenderWidget(p, _scroll);
 	}
-	_widthAnimationCache = App::pixmapFromImageInPlace(std::move(image));
+	_widthAnimationCache = Ui::PixmapFromImage(std::move(image));
 	_scroll->setGeometry(scrollGeometry);
 	_scroll->hide();
 }

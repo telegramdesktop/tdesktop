@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/crash_reports.h"
 #include "window/window_controller.h"
-#include "app.h"
+#include "ui/ui_utility.h"
 
 #include <QtWidgets/QFileDialog>
 #include <QtGui/QDesktopServices>
@@ -90,7 +90,14 @@ HBITMAP IconToBitmap(LPWSTR icon, int iconindex) {
 		if (!iconindex) { // try to read image
 			QImage img(QString::fromWCharArray(icon));
 			if (!img.isNull()) {
-				return qt_pixmapToWinHBITMAP(App::pixmapFromImageInPlace(img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)), /* HBitmapAlpha */ 2);
+				return qt_pixmapToWinHBITMAP(
+					Ui::PixmapFromImage(
+						img.scaled(
+							w,
+							h,
+							Qt::IgnoreAspectRatio,
+							Qt::SmoothTransformation)),
+					/* HBitmapAlpha */ 2);
 			}
 		}
 		return 0;

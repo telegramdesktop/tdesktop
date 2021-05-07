@@ -35,8 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "base/platform/mac/base_utilities_mac.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/ui_utility.h"
 #include "facades.h"
-#include "app.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
@@ -632,10 +632,22 @@ QIcon MainWindow::generateIconForTray(int counter, bool muted) const {
 	_placeCounter(darkMode, size, counter, bg, muted ? st::trayCounterFgMacInvert : st::trayCounterFg);
 	_placeCounter(lightModeActive, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
 	_placeCounter(darkModeActive, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
-	result.addPixmap(App::pixmapFromImageInPlace(std::move(lightMode)), QIcon::Normal, QIcon::Off);
-	result.addPixmap(App::pixmapFromImageInPlace(std::move(darkMode)), QIcon::Normal, QIcon::On);
-	result.addPixmap(App::pixmapFromImageInPlace(std::move(lightModeActive)), QIcon::Active, QIcon::Off);
-	result.addPixmap(App::pixmapFromImageInPlace(std::move(darkModeActive)), QIcon::Active, QIcon::On);
+	result.addPixmap(Ui::PixmapFromImage(
+		std::move(lightMode)),
+		QIcon::Normal,
+		QIcon::Off);
+	result.addPixmap(Ui::PixmapFromImage(
+		std::move(darkMode)),
+		QIcon::Normal,
+		QIcon::On);
+	result.addPixmap(Ui::PixmapFromImage(
+		std::move(lightModeActive)),
+		QIcon::Active,
+		QIcon::Off);
+	result.addPixmap(Ui::PixmapFromImage(
+		std::move(darkModeActive)),
+		QIcon::Active,
+		QIcon::On);
 	return result;
 }
 

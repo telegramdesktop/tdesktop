@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_preview_box.h"
 #include "boxes/confirm_box.h"
 #include "window/window_session_controller.h"
-#include "app.h"
 #include "styles/style_overview.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -337,7 +336,7 @@ void BackgroundBox::Inner::validatePaperThumbnail(
 			Data::PatternColor(color),
 			paper.data.patternIntensity());
 	}
-	paper.thumbnail = App::pixmapFromImageInPlace(TakeMiddleSample(
+	paper.thumbnail = Ui::PixmapFromImage(TakeMiddleSample(
 		original,
 		st::backgroundSize));
 	paper.thumbnail.setDevicePixelRatio(cRetinaFactor());

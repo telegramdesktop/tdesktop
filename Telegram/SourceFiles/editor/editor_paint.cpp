@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_paint.h"
 
-#include "app.h"
 #include "boxes/confirm_box.h"
 #include "editor/controllers/controllers.h"
 #include "editor/scene/scene.h"
@@ -18,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/ui_utility.h"
 
 #include <QGraphicsView>
 #include <QtCore/QMimeData>
@@ -279,7 +279,7 @@ void Paint::handleMimeData(const QMimeData *data) {
 		}
 
 		const auto item = std::make_shared<ItemImage>(
-			App::pixmapFromImageInPlace(std::move(image)),
+			Ui::PixmapFromImage(std::move(image)),
 			_transform.zoom.value(),
 			_lastZ,
 			size,

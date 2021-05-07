@@ -29,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/background_preview_box.h"
 #include "window/window_session_controller.h"
-#include "app.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -688,8 +687,8 @@ void BackgroundPreviewBox::setScaledFromImage(
 	if (!_full.isNull()) {
 		startFadeInFrom(std::move(_scaled));
 	}
-	_scaled = App::pixmapFromImageInPlace(std::move(image));
-	_blurred = App::pixmapFromImageInPlace(std::move(blurred));
+	_scaled = Ui::PixmapFromImage(std::move(image));
+	_blurred = Ui::PixmapFromImage(std::move(blurred));
 	if (_blur && (!_paper.document() || !_full.isNull())) {
 		_blur->setDisabled(false);
 	}
