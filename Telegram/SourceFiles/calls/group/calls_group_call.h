@@ -74,6 +74,55 @@ struct LevelUpdate {
 	bool me = false;
 };
 
+struct VideoEndpoint {
+	PeerData *peer = nullptr;
+	std::string endpoint;
+
+	[[nodiscard]] bool empty() const noexcept {
+		return !peer;
+	}
+	[[nodiscard]] explicit operator bool() const noexcept {
+		return !empty();
+	}
+};
+
+inline bool operator==(
+		const VideoEndpoint &a,
+		const VideoEndpoint &b) noexcept {
+	return (a.peer == b.peer) && (a.endpoint == b.endpoint);
+}
+
+inline bool operator!=(
+		const VideoEndpoint &a,
+		const VideoEndpoint &b) noexcept {
+	return !(a == b);
+}
+
+inline bool operator<(
+		const VideoEndpoint &a,
+		const VideoEndpoint &b) noexcept {
+	return (a.peer < b.peer)
+		|| (a.peer == b.peer && a.endpoint < b.endpoint);
+}
+
+inline bool operator>(
+		const VideoEndpoint &a,
+		const VideoEndpoint &b) noexcept {
+	return (b < a);
+}
+
+inline bool operator<=(
+		const VideoEndpoint &a,
+		const VideoEndpoint &b) noexcept {
+	return !(b < a);
+}
+
+inline bool operator>=(
+		const VideoEndpoint &a,
+		const VideoEndpoint &b) noexcept {
+	return !(a < b);
+}
+
 struct StreamsVideoUpdate {
 	std::string endpoint;
 	bool streams = false;
@@ -234,18 +283,18 @@ public:
 			&& _incomingVideoEndpoints.contains(endpoint)
 			&& activeVideoEndpointType(endpoint) != EndpointType::None;
 	}
-	[[nodiscard]] const std::string &videoEndpointPinned() const {
+	[[nodiscard]] bool videoEndpointPinned() const {
 		return _videoEndpointPinned.current();
 	}
-	[[nodiscard]] rpl::producer<std::string> videoEndpointPinnedValue() const {
+	[[nodiscard]] rpl::producer<bool> videoEndpointPinnedValue() const {
 		return _videoEndpointPinned.value();
 	}
-	void pinVideoEndpoint(const std::string &endpoint);
-	[[nodiscard]] const std::string &videoEndpointLarge() const {
+	void pinVideoEndpoint(const VideoEndpoint &endpoint);
+	[[nodiscard]] const VideoEndpoint &videoEndpointLarge() const {
 		return _videoEndpointLarge.current();
 	}
 	[[nodiscard]] auto videoEndpointLargeValue() const
-	-> rpl::producer<std::string> {
+	-> rpl::producer<VideoEndpoint> {
 		return _videoEndpointLarge.value();
 	}
 	[[nodiscard]] Webrtc::VideoTrack *videoLargeTrack() const {
@@ -386,7 +435,7 @@ private:
 	void setIncomingVideoEndpoints(
 		const std::vector<std::string> &endpoints);
 	void fillActiveVideoEndpoints();
-	[[nodiscard]] std::string chooseLargeVideoEndpoint() const;
+	[[nodiscard]] VideoEndpoint chooseLargeVideoEndpoint() const;
 	[[nodiscard]] EndpointType activeVideoEndpointType(
 		const std::string &endpoint) const;
 
@@ -473,8 +522,8 @@ private:
 	rpl::event_stream<StreamsVideoUpdate> _streamsVideoUpdated;
 	base::flat_set<std::string> _incomingVideoEndpoints;
 	base::flat_map<std::string, EndpointType> _activeVideoEndpoints;
-	rpl::variable<std::string> _videoEndpointLarge;
-	rpl::variable<std::string> _videoEndpointPinned;
+	rpl::variable<VideoEndpoint> _videoEndpointLarge;
+	rpl::variable<bool> _videoEndpointPinned;
 	std::unique_ptr<LargeTrack> _videoLargeTrackWrap;
 	rpl::variable<Webrtc::VideoTrack*> _videoLargeTrack;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;

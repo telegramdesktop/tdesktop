@@ -563,7 +563,7 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 				: endpoint;
 		};
 		const auto guard = gsl::finally([&] {
-			if (newLarge.empty()) {
+			if (!newLarge) {
 				newLarge = chooseLargeVideoEndpoint();
 			}
 			if (_videoEndpointLarge.current() != newLarge) {
@@ -577,6 +577,7 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 			}
 		});
 
+		const auto peer = data.was ? data.was->peer : data.now->peer;
 		const auto &wasCameraEndpoint = (data.was && data.was->videoParams)
 			? regularEndpoint(data.was->videoParams->camera.endpoint)
 			: EmptyString();
@@ -595,8 +596,9 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 				&& _activeVideoEndpoints.remove(wasCameraEndpoint)
 				&& _incomingVideoEndpoints.contains(wasCameraEndpoint)) {
 				updateCameraNotStreams = wasCameraEndpoint;
-				if (newLarge == wasCameraEndpoint) {
-					_videoEndpointPinned = newLarge = std::string();
+				if (newLarge.endpoint == wasCameraEndpoint) {
+					newLarge = VideoEndpoint();
+					_videoEndpointPinned = false;
 				}
 			}
 		}
@@ -618,8 +620,9 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 				&& _activeVideoEndpoints.remove(wasScreenEndpoint)
 				&& _incomingVideoEndpoints.contains(wasScreenEndpoint)) {
 				updateScreenNotStreams = wasScreenEndpoint;
-				if (newLarge == wasScreenEndpoint) {
-					_videoEndpointPinned = newLarge = std::string();
+				if (newLarge.endpoint == wasScreenEndpoint) {
+					newLarge = VideoEndpoint();
+					_videoEndpointPinned = false;
 				}
 			}
 		}
@@ -629,62 +632,67 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 		const auto wasSounding = data.was && data.was->sounding;
 		if (nowSpeaking == wasSpeaking && nowSounding == wasSounding) {
 			return;
-		} else if (!_videoEndpointPinned.current().empty()) {
+		} else if (_videoEndpointPinned.current()) {
 			return;
 		}
-		if (nowScreenEndpoint != newLarge
+		if (nowScreenEndpoint != newLarge.endpoint
 			&& streamsVideo(nowScreenEndpoint)
-			&& activeVideoEndpointType(newLarge) != EndpointType::Screen) {
-			newLarge = nowScreenEndpoint;
+			&& (activeVideoEndpointType(newLarge.endpoint)
+				!= EndpointType::Screen)) {
+			newLarge = { peer, nowScreenEndpoint };
 		}
 		const auto &participants = real->participants();
 		if (!nowSpeaking
 			&& (wasSpeaking || wasSounding)
-			&& (wasCameraEndpoint == newLarge)) {
-			auto screenEndpoint = std::string();
-			auto speakingEndpoint = std::string();
-			auto soundingEndpoint = std::string();
+			&& (wasCameraEndpoint == newLarge.endpoint)) {
+			auto screenEndpoint = VideoEndpoint();
+			auto speakingEndpoint = VideoEndpoint();
+			auto soundingEndpoint = VideoEndpoint();
 			for (const auto &participant : participants) {
 				const auto params = participant.videoParams.get();
 				if (!params) {
 					continue;
 				}
+				const auto peer = participant.peer;
 				if (streamsVideo(params->screen.endpoint)) {
-					screenEndpoint = params->screen.endpoint;
+					screenEndpoint = { peer, params->screen.endpoint };
 					break;
 				} else if (participant.speaking
-					&& speakingEndpoint.empty()) {
+					&& !speakingEndpoint) {
 					if (streamsVideo(params->camera.endpoint)) {
-						speakingEndpoint = params->camera.endpoint;
+						speakingEndpoint = { peer, params->camera.endpoint };
 					}
 				} else if (!nowSounding
 					&& participant.sounding
-					&& soundingEndpoint.empty()) {
+					&& !soundingEndpoint) {
 					if (streamsVideo(params->camera.endpoint)) {
-						soundingEndpoint = params->camera.endpoint;
+						soundingEndpoint = { peer, params->camera.endpoint };
 					}
 				}
 			}
-			if (!screenEndpoint.empty()) {
+			if (screenEndpoint) {
 				newLarge = screenEndpoint;
-			} else if (!speakingEndpoint.empty()) {
+			} else if (speakingEndpoint) {
 				newLarge = speakingEndpoint;
-			} else if (!soundingEndpoint.empty()) {
+			} else if (soundingEndpoint) {
 				newLarge = soundingEndpoint;
 			}
 		} else if ((nowSpeaking || nowSounding)
-			&& (nowCameraEndpoint != newLarge)
-			&& (activeVideoEndpointType(newLarge) != EndpointType::Screen)
+			&& (nowCameraEndpoint != newLarge.endpoint)
+			&& (activeVideoEndpointType(newLarge.endpoint)
+				!= EndpointType::Screen)
 			&& streamsVideo(nowCameraEndpoint)) {
-			const auto participant = real->participantByEndpoint(newLarge);
+			const auto participant = real->participantByEndpoint(
+				newLarge.endpoint);
 			const auto screen = participant
-				&& (participant->videoParams->screen.endpoint == newLarge);
+				&& (participant->videoParams->screen.endpoint
+					== newLarge.endpoint);
 			const auto speaking = participant && participant->speaking;
 			const auto sounding = participant && participant->sounding;
 			if (!screen
 				&& ((nowSpeaking && !speaking)
 					|| (nowSounding && !sounding))) {
-				newLarge = nowCameraEndpoint;
+				newLarge = { peer, nowCameraEndpoint };
 			}
 		}
 	}, _lifetime);
@@ -878,8 +886,8 @@ void GroupCall::setMyEndpointType(
 		const auto was2 = _activeVideoEndpoints.remove(endpoint);
 		if (was1 && was2) {
 			auto newLarge = _videoEndpointLarge.current();
-			if (newLarge == endpoint) {
-				_videoEndpointPinned = std::string();
+			if (newLarge.endpoint == endpoint) {
+				_videoEndpointPinned = false;
 				_videoEndpointLarge = chooseLargeVideoEndpoint();
 			}
 			_streamsVideoUpdated.fire({ endpoint, false });
@@ -893,13 +901,13 @@ void GroupCall::setMyEndpointType(
 			_streamsVideoUpdated.fire({ endpoint, true });
 		}
 		const auto nowLarge = activeVideoEndpointType(
-			_videoEndpointLarge.current());
-		if (_videoEndpointPinned.current().empty()
+			_videoEndpointLarge.current().endpoint);
+		if (!_videoEndpointPinned.current()
 			&& ((type == EndpointType::Screen
 				&& nowLarge != EndpointType::Screen)
 				|| (type == EndpointType::Camera
 					&& nowLarge == EndpointType::None))) {
-			_videoEndpointLarge = endpoint;
+			_videoEndpointLarge = VideoEndpoint{ _joinAs, endpoint };
 		}
 	}
 }
@@ -1837,8 +1845,8 @@ void GroupCall::ensureControllerCreated() {
 		std::move(descriptor));
 
 	_videoEndpointLarge.changes(
-	) | rpl::start_with_next([=](const std::string &endpoint) {
-		_instance->setFullSizeVideoEndpointId(endpoint);
+	) | rpl::start_with_next([=](const VideoEndpoint &endpoint) {
+		_instance->setFullSizeVideoEndpointId(endpoint.endpoint);
 		_videoLargeTrack = nullptr;
 		_videoLargeTrackWrap = nullptr;
 		if (endpoint.empty()) {
@@ -1850,7 +1858,7 @@ void GroupCall::ensureControllerCreated() {
 		}
 		_videoLargeTrackWrap->sink = Webrtc::CreateProxySink(
 			_videoLargeTrackWrap->track.sink());
-		addVideoOutput(endpoint, { _videoLargeTrackWrap->sink });
+		addVideoOutput(endpoint.endpoint, { _videoLargeTrackWrap->sink });
 	}, _lifetime);
 
 	updateInstanceMuteState();
@@ -2063,7 +2071,7 @@ void GroupCall::setIncomingVideoEndpoints(
 	const auto feedOne = [&](const std::string &endpoint) {
 		if (endpoint.empty()) {
 			return;
-		} else if (endpoint == newLarge) {
+		} else if (endpoint == newLarge.endpoint) {
 			newLargeFound = true;
 		}
 		if (!removed.remove(endpoint)) {
@@ -2080,8 +2088,9 @@ void GroupCall::setIncomingVideoEndpoints(
 	}
 	feedOne(cameraSharingEndpoint());
 	feedOne(screenSharingEndpoint());
-	if (!newLarge.empty() && !newLargeFound) {
-		_videoEndpointPinned = newLarge = std::string();
+	if (newLarge && !newLargeFound) {
+		_videoEndpointPinned = false;
+		newLarge = VideoEndpoint();
 	}
 	if (newLarge.empty()) {
 		_videoEndpointLarge = chooseLargeVideoEndpoint();
@@ -2106,7 +2115,7 @@ void GroupCall::fillActiveVideoEndpoints() {
 			EndpointType type) {
 		if (endpoint.empty()) {
 			return;
-		} else if (endpoint == newLarge) {
+		} else if (endpoint == newLarge.endpoint) {
 			newLargeFound = true;
 		}
 		if (!removed.remove(endpoint)) {
@@ -2129,9 +2138,10 @@ void GroupCall::fillActiveVideoEndpoints() {
 	feedOne(cameraSharingEndpoint(), EndpointType::Camera);
 	feedOne(screenSharingEndpoint(), EndpointType::Screen);
 	if (!newLarge.empty() && !newLargeFound) {
-		_videoEndpointPinned = newLarge = std::string();
+		_videoEndpointPinned = false;
+		newLarge = VideoEndpoint();
 	}
-	if (newLarge.empty()) {
+	if (!newLarge) {
 		_videoEndpointLarge = chooseLargeVideoEndpoint();
 	}
 	for (const auto &[endpoint, type] : removed) {
@@ -2152,15 +2162,15 @@ GroupCall::EndpointType GroupCall::activeVideoEndpointType(
 		: EndpointType::None;
 }
 
-std::string GroupCall::chooseLargeVideoEndpoint() const {
+VideoEndpoint GroupCall::chooseLargeVideoEndpoint() const {
 	const auto real = lookupReal();
 	if (!real) {
-		return std::string();
+		return VideoEndpoint();
 	}
-	auto anyEndpoint = std::string();
-	auto screenEndpoint = std::string();
-	auto speakingEndpoint = std::string();
-	auto soundingEndpoint = std::string();
+	auto anyEndpoint = VideoEndpoint();
+	auto screenEndpoint = VideoEndpoint();
+	auto speakingEndpoint = VideoEndpoint();
+	auto soundingEndpoint = VideoEndpoint();
 	const auto &myCameraEndpoint = cameraSharingEndpoint();
 	const auto &myScreenEndpoint = screenSharingEndpoint();
 	const auto &participants = real->participants();
@@ -2171,35 +2181,36 @@ std::string GroupCall::chooseLargeVideoEndpoint() const {
 			continue;
 		}
 		if (const auto participant = real->participantByEndpoint(endpoint)) {
+			const auto peer = participant->peer;
 			if (screenEndpoint.empty()
 				&& participant->videoParams->screen.endpoint == endpoint) {
-				screenEndpoint = endpoint;
+				screenEndpoint = { peer, endpoint };
 				break;
 			}
 			if (speakingEndpoint.empty() && participant->speaking) {
-				speakingEndpoint = endpoint;
+				speakingEndpoint = { peer, endpoint };
 			}
 			if (soundingEndpoint.empty() && participant->sounding) {
-				soundingEndpoint = endpoint;
+				soundingEndpoint = { peer, endpoint };
 			}
 			if (anyEndpoint.empty()) {
-				anyEndpoint = endpoint;
+				anyEndpoint = { peer, endpoint };
 			}
 		}
 	}
-	return !screenEndpoint.empty()
+	return screenEndpoint
 		? screenEndpoint
 		: streamsVideo(myScreenEndpoint)
-		? myScreenEndpoint
-		: !speakingEndpoint.empty()
+		? VideoEndpoint{ _joinAs, myScreenEndpoint }
+		: speakingEndpoint
 		? speakingEndpoint
-		: !soundingEndpoint.empty()
+		: soundingEndpoint
 		? soundingEndpoint
-		: !anyEndpoint.empty()
+		: anyEndpoint
 		? anyEndpoint
 		: streamsVideo(myCameraEndpoint)
-		? myCameraEndpoint
-		: std::string();
+		? VideoEndpoint{ _joinAs, myCameraEndpoint }
+		: VideoEndpoint();
 }
 
 void GroupCall::updateInstanceMuteState() {
@@ -2491,13 +2502,13 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 	}).send();
 }
 
-void GroupCall::pinVideoEndpoint(const std::string &endpoint) {
-	if (endpoint.empty()) {
-		_videoEndpointPinned = endpoint;
-	} else if (streamsVideo(endpoint)) {
-		_videoEndpointPinned = std::string();
+void GroupCall::pinVideoEndpoint(const VideoEndpoint &endpoint) {
+	if (!endpoint) {
+		_videoEndpointPinned = false;
+	} else if (streamsVideo(endpoint.endpoint)) {
+		_videoEndpointPinned = false;
 		_videoEndpointLarge = endpoint;
-		_videoEndpointPinned = endpoint;
+		_videoEndpointPinned = true;
 	}
 }
 

@@ -1228,9 +1228,9 @@ void MembersController::setupListChangeViewers() {
 	}, _lifetime);
 
 	_call->videoEndpointLargeValue(
-	) | rpl::filter([=](const std::string &largeEndpoint) {
-		return (_largeEndpoint != largeEndpoint);
-	}) | rpl::start_with_next([=](const std::string &largeEndpoint) {
+	) | rpl::filter([=](const VideoEndpoint &largeEndpoint) {
+		return (_largeEndpoint != largeEndpoint.endpoint);
+	}) | rpl::start_with_next([=](const VideoEndpoint &largeEndpoint) {
 		if (_call->streamsVideo(_largeEndpoint)) {
 			if (const auto participant = findParticipant(_largeEndpoint)) {
 				if (const auto row = findRow(participant->peer)) {
@@ -1243,7 +1243,7 @@ void MembersController::setupListChangeViewers() {
 				}
 			}
 		}
-		_largeEndpoint = largeEndpoint;
+		_largeEndpoint = largeEndpoint.endpoint;
 		if (const auto participant = findParticipant(_largeEndpoint)) {
 			if (const auto row = findRow(participant->peer)) {
 				if (row->videoTrackEndpoint() == _largeEndpoint) {
@@ -2013,12 +2013,14 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 	});
 
 	if (const auto real = _call->lookupReal()) {
-		const auto pinnedEndpoint = _call->videoEndpointPinned();
+		const auto pinnedEndpoint = _call->videoEndpointPinned()
+			? _call->videoEndpointLarge().endpoint
+			: std::string();
 		const auto participant = real->participantByEndpoint(pinnedEndpoint);
 		if (participant && participant->peer == participantPeer) {
 			result->addAction(
 				tr::lng_group_call_context_unpin_camera(tr::now),
-				[=] { _call->pinVideoEndpoint(std::string()); });
+				[=] { _call->pinVideoEndpoint(VideoEndpoint()); });
 		} else {
 			const auto &participants = real->participants();
 			const auto i = ranges::find(
@@ -2031,9 +2033,9 @@ base::unique_qptr<Ui::PopupMenu> MembersController::createRowContextMenu(
 				const auto streamsScreen = _call->streamsVideo(screen);
 				if (streamsScreen || _call->streamsVideo(camera)) {
 					const auto callback = [=] {
-						_call->pinVideoEndpoint(streamsScreen
-							? screen
-							: camera);
+						_call->pinVideoEndpoint(VideoEndpoint{
+							participantPeer,
+							streamsScreen ? screen : camera });
 					};
 					result->addAction(
 						tr::lng_group_call_context_pin_camera(tr::now),
@@ -2438,10 +2440,7 @@ void Members::setupPinnedVideo() {
 		_mode.changes() | rpl::filter(
 			_1 == PanelMode::Default
 		) | rpl::to_empty,
-		_call->videoEndpointLargeValue(
-		) | rpl::filter([=](const std::string &endpoint) {
-			return endpoint == _call->videoEndpointPinned();
-		}) | rpl::to_empty
+		_call->videoEndpointPinnedValue() | rpl::filter(_1) | rpl::to_empty
 	) | rpl::start_with_next([=] {
 		_scroll->scrollToY(0);
 	}, _scroll->lifetime());
