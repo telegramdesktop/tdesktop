@@ -1077,6 +1077,9 @@ void GroupCall::rejoinPresentation() {
 	const auto weak = base::make_weak(this);
 	_screenInstance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
 		crl::on_main(weak, [=, payload = std::move(payload)]{
+			if (!_screenInstance) {
+				return;
+			}
 			const auto ssrc = payload.audioSsrc;
 			LOG(("Call Info: Join payload received, joining with ssrc: %1."
 				).arg(ssrc));
@@ -1109,6 +1112,7 @@ void GroupCall::rejoinPresentation() {
 }
 
 void GroupCall::leavePresentation() {
+	destroyScreencast();
 	if (!_screenSsrc) {
 		return;
 	}
@@ -1428,6 +1432,9 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 void GroupCall::handlePossibleCreateOrJoinResponse(
 		const MTPDupdateGroupCallConnection &data) {
 	if (data.is_presentation()) {
+		if (!_screenInstance) {
+			return;
+		}
 		setScreenInstanceMode(InstanceMode::Rtc);
 		data.vparams().match([&](const MTPDdataJSON &data) {
 			const auto json = data.vdata().v;
@@ -1435,6 +1442,9 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 			_screenInstance->setJoinResponsePayload(json.toStdString());
 		});
 	} else {
+		if (!_instance) {
+			return;
+		}
 		setInstanceMode(InstanceMode::Rtc);
 		data.vparams().match([&](const MTPDdataJSON &data) {
 			const auto json = data.vdata().v;
