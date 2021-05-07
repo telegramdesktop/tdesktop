@@ -13,6 +13,7 @@ namespace Calls::Group {
 
 constexpr auto kDefaultVolume = 10000;
 constexpr auto kMaxVolume = 20000;
+constexpr auto kBlobsEnterDuration = crl::time(250);
 
 struct MuteRequest {
 	not_null<PeerData*> peer;

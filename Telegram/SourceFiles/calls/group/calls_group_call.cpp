@@ -56,7 +56,7 @@ constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 		settings.callVideoInputDeviceId());
 }
 
-[[nodiscard]] const Data::GroupCall::Participant *LookupParticipant(
+[[nodiscard]] const Data::GroupCallParticipant *LookupParticipant(
 		not_null<PeerData*> peer,
 		uint64 id,
 		not_null<PeerData*> participantPeer) {
@@ -68,7 +68,7 @@ constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 	const auto i = ranges::find(
 		participants,
 		participantPeer,
-		&Data::GroupCall::Participant::peer);
+		&Data::GroupCallParticipant::peer);
 	return (i != end(participants)) ? &*i : nullptr;
 }
 
@@ -1149,7 +1149,7 @@ void GroupCall::applyMeInCallLocally() {
 	const auto i = ranges::find(
 		participants,
 		_joinAs,
-		&Data::GroupCall::Participant::peer);
+		&Data::GroupCallParticipant::peer);
 	const auto date = (i != end(participants))
 		? i->date
 		: base::unixtime::now();
@@ -2586,7 +2586,7 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 		return !invited.contains(user) && !ranges::contains(
 			participants,
 			user,
-			&Data::GroupCall::Participant::peer);
+			&Data::GroupCallParticipant::peer);
 	});
 
 	auto count = 0;
