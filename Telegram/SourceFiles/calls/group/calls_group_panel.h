@@ -54,6 +54,7 @@ struct CallBodyLayout;
 namespace Calls::Group {
 
 class Members;
+class LargeVideo;
 enum class PanelMode;
 
 class Panel final : private Ui::DesktopCapture::ChooseSourceDelegate {
@@ -141,7 +142,7 @@ private:
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<Members> _members = { nullptr };
-	object_ptr<Ui::RpWidget> _pinnedVideo = { nullptr };
+	std::unique_ptr<LargeVideo> _pinnedVideo;
 	rpl::lifetime _pinnedTrackLifetime;
 	object_ptr<Ui::FlatLabel> _startsIn = { nullptr };
 	object_ptr<Ui::RpWidget> _countdown = { nullptr };

@@ -1171,3 +1171,48 @@ groupCallVideoCrossLine: CrossLineAnimation(groupCallNarrowInactiveCrossLine) {
 	fg: groupCallVideoTextFg;
 	icon: icon {{ "calls/voice_mute_mini", groupCallVideoTextFg }};
 }
+
+groupCallLargeVideoCrossLine: CrossLineAnimation(groupCallMemberColoredCrossLine) {
+	fg: groupCallVideoTextFg;
+	icon: icon {{ "calls/group_calls_unmuted", groupCallVideoSubTextFg }};
+}
+
+GroupCallLargeVideo {
+	shadowHeight: pixels;
+	controlsAlign: align;
+	namePosition: point;
+	statusPosition: point;
+	pinPosition: point;
+	iconPosition: point;
+}
+
+groupCallLargeVideoWide: GroupCallLargeVideo {
+	shadowHeight: 60px;
+	controlsAlign: align(top);
+	namePosition: point(15px, 8px);
+	statusPosition: point(15px, 28px);
+	pinPosition: point(52px, 15px);
+	iconPosition: point(14px, 15px);
+}
+groupCallLargeVideoNarrow: GroupCallLargeVideo {
+	shadowHeight: 50px;
+	controlsAlign: align(top);
+	namePosition: point(64px, 44px);
+	statusPosition: point(64px, 20px);
+	pinPosition: point(20px, 12px);
+	iconPosition: point(18px, 12px);
+}
+groupCallLargeVideoListItem: PeerListItem(groupCallMembersListItem) {
+	nameFg: groupCallVideoTextFg;
+	nameFgChecked: groupCallVideoTextFg;
+	statusFg: groupCallVideoSubTextFg;
+	statusFgOver: groupCallVideoSubTextFg;
+	statusFgActive: groupCallVideoSubTextFg;
+}
+groupCallLargeVideoPin: CrossLineAnimation {
+	fg: groupCallVideoSubTextFg;
+	icon: icon {{ "calls/voice_pin", groupCallVideoSubTextFg }};
+	startPosition: point(5px, 2px);
+	endPosition: point(20px, 17px);
+	stroke: 2px;
+}

@@ -495,20 +495,27 @@ void MembersRow::paintScaledUserpic(
 		_blobsAnimation->userpicCache);
 }
 
+void MembersRow::paintMuteIcon(
+		Painter &p,
+		QRect iconRect,
+		MembersRowStyle style) {
+	_delegate->rowPaintIcon(p, iconRect, computeIconState(style));
+}
+
 void MembersRow::paintNarrowName(
 		Painter &p,
 		int x,
 		int y,
 		int sizew,
 		int sizeh,
-		NarrowStyle style) {
+		MembersRowStyle style) {
 	if (_narrowName.isEmpty()) {
 		_narrowName.setText(
 			st::semiboldTextStyle,
 			generateShortName(),
 			Ui::NameTextOptions());
 	}
-	if (style == NarrowStyle::Video) {
+	if (style == MembersRowStyle::Video) {
 		_delegate->rowPaintNarrowShadow(p, x, y, sizew, sizeh);
 	}
 	const auto &icon = st::groupCallVideoCrossLine.icon;
@@ -525,7 +532,7 @@ void MembersRow::paintNarrowName(
 	_delegate->rowPaintIcon(p, iconRect, state);
 
 	p.setPen([&] {
-		if (style == NarrowStyle::Video) {
+		if (style == MembersRowStyle::Video) {
 			return st::groupCallVideoTextFg->p;
 		} else if (state.speaking == 1. && !state.mutedByMe) {
 			return st::groupCallMemberActiveIcon->p;
@@ -580,7 +587,7 @@ void MembersRow::paintComplexUserpic(
 		bool selected) {
 	if (mode == PanelMode::Wide) {
 		if (paintVideo(p, x, y, sizew, sizeh, mode)) {
-			paintNarrowName(p, x, y, sizew, sizeh, NarrowStyle::Video);
+			paintNarrowName(p, x, y, sizew, sizeh, MembersRowStyle::Video);
 			_delegate->rowPaintNarrowBorder(p, x, y, this);
 			return;
 		}
@@ -602,7 +609,7 @@ void MembersRow::paintComplexUserpic(
 		sizeh,
 		mode);
 	if (mode == PanelMode::Wide) {
-		paintNarrowName(p, x, y, sizew, sizeh, NarrowStyle::Userpic);
+		paintNarrowName(p, x, y, sizew, sizeh, MembersRowStyle::Userpic);
 		_delegate->rowPaintNarrowBorder(p, x, y, this);
 	}
 }
@@ -699,6 +706,26 @@ void MembersRow::paintStatusText(
 		int availableWidth,
 		int outerWidth,
 		bool selected) {
+	paintComplexStatusText(
+		p,
+		st,
+		x,
+		y,
+		availableWidth,
+		outerWidth,
+		selected,
+		MembersRowStyle::None);
+}
+
+void MembersRow::paintComplexStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected,
+		MembersRowStyle style) {
 	const auto &font = st::normalFont;
 	const auto about = (_state == State::Inactive
 		|| _state == State::Muted
@@ -727,7 +754,9 @@ void MembersRow::paintStatusText(
 		return;
 	}
 	p.setFont(font);
-	if (_state == State::MutedByMe) {
+	if (style == MembersRowStyle::LargeVideo) {
+		p.setPen(st::groupCallVideoSubTextFg);
+	} else if (_state == State::MutedByMe) {
 		p.setPen(st::groupCallMemberMutedIcon);
 	} else {
 		p.setPen(st::groupCallMemberNotJoinedStatus);
@@ -738,7 +767,7 @@ void MembersRow::paintStatusText(
 		outerWidth,
 		(_state == State::MutedByMe
 			? tr::lng_group_call_muted_by_me_status(tr::now)
-			: !about.isEmpty()
+			: (!about.isEmpty() && style != MembersRowStyle::LargeVideo)
 			? font->m.elidedText(about, Qt::ElideRight, availableWidth)
 			: _delegate->rowIsMe(peer())
 			? tr::lng_status_connecting(tr::now)
@@ -797,11 +826,11 @@ void MembersRow::paintAction(
 			_actionRipple.reset();
 		}
 	}
-	_delegate->rowPaintIcon(p, iconRect, computeIconState());
+	paintMuteIcon(p, iconRect);
 }
 
 MembersRowDelegate::IconState MembersRow::computeIconState(
-		NarrowStyle style) const {
+		MembersRowStyle style) const {
 	const auto speaking = _speakingAnimation.value(_speaking ? 1. : 0.);
 	const auto active = _activeAnimation.value(
 		(_state == State::Active) ? 1. : 0.);
@@ -814,7 +843,7 @@ MembersRowDelegate::IconState MembersRow::computeIconState(
 		.muted = muted,
 		.mutedByMe = (_state == State::MutedByMe),
 		.raisedHand = (_state == State::RaisedHand),
-		.narrowStyle = style,
+		.style = style,
 	};
 }
 

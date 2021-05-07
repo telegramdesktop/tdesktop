@@ -297,11 +297,25 @@ public:
 	-> rpl::producer<VideoEndpoint> {
 		return _videoEndpointLarge.value();
 	}
-	[[nodiscard]] Webrtc::VideoTrack *videoLargeTrack() const {
+	struct LargeTrack {
+		Webrtc::VideoTrack *track = nullptr;
+		PeerData *peer = nullptr;
+
+		[[nodiscard]] explicit operator bool() const {
+			return (track != nullptr);
+		}
+		[[nodiscard]] bool operator==(LargeTrack other) const {
+			return (track == other.track) && (peer == other.peer);
+		}
+		[[nodiscard]] bool operator!=(LargeTrack other) const {
+			return !(*this == other);
+		}
+	};
+	[[nodiscard]] LargeTrack videoLargeTrack() const {
 		return _videoLargeTrack.current();
 	}
 	[[nodiscard]] auto videoLargeTrackValue() const
-	-> rpl::producer<Webrtc::VideoTrack*> {
+	-> rpl::producer<LargeTrack> {
 		return _videoLargeTrack.value();
 	}
 	[[nodiscard]] rpl::producer<Group::RejoinEvent> rejoinEvents() const {
@@ -355,7 +369,6 @@ public:
 
 private:
 	using GlobalShortcutValue = base::GlobalShortcutValue;
-	struct LargeTrack;
 	struct SinkPointer;
 
 	struct LoadingPart {
@@ -524,8 +537,8 @@ private:
 	base::flat_map<std::string, EndpointType> _activeVideoEndpoints;
 	rpl::variable<VideoEndpoint> _videoEndpointLarge;
 	rpl::variable<bool> _videoEndpointPinned;
-	std::unique_ptr<LargeTrack> _videoLargeTrackWrap;
-	rpl::variable<Webrtc::VideoTrack*> _videoLargeTrack;
+	std::unique_ptr<Webrtc::VideoTrack> _videoLargeTrackWrap;
+	rpl::variable<LargeTrack> _videoLargeTrack;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
 	rpl::event_stream<> _allowedToSpeakNotifications;

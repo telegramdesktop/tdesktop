@@ -170,14 +170,6 @@ private:
 
 };
 
-struct GroupCall::LargeTrack {
-	LargeTrack() : track(Webrtc::VideoState::Active) {
-	}
-
-	Webrtc::VideoTrack track;
-	std::shared_ptr<Webrtc::SinkInterface> sink;
-};
-
 struct GroupCall::SinkPointer {
 	std::shared_ptr<Webrtc::SinkInterface> data;
 };
@@ -1847,18 +1839,18 @@ void GroupCall::ensureControllerCreated() {
 	_videoEndpointLarge.changes(
 	) | rpl::start_with_next([=](const VideoEndpoint &endpoint) {
 		_instance->setFullSizeVideoEndpointId(endpoint.endpoint);
-		_videoLargeTrack = nullptr;
+		_videoLargeTrack = LargeTrack();
 		_videoLargeTrackWrap = nullptr;
-		if (endpoint.empty()) {
+		if (!endpoint) {
 			return;
 		}
-		if (!_videoLargeTrackWrap) {
-			_videoLargeTrackWrap = std::make_unique<LargeTrack>();
-			_videoLargeTrack = &_videoLargeTrackWrap->track;
-		}
-		_videoLargeTrackWrap->sink = Webrtc::CreateProxySink(
-			_videoLargeTrackWrap->track.sink());
-		addVideoOutput(endpoint.endpoint, { _videoLargeTrackWrap->sink });
+		_videoLargeTrackWrap = std::make_unique<Webrtc::VideoTrack>(
+			Webrtc::VideoState::Active);
+		_videoLargeTrack = LargeTrack{
+			_videoLargeTrackWrap.get(),
+			endpoint.peer
+		};
+		addVideoOutput(endpoint.endpoint, { _videoLargeTrackWrap->sink() });
 	}, _lifetime);
 
 	updateInstanceMuteState();

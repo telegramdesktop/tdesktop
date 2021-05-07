@@ -26,6 +26,7 @@ class GroupCall;
 
 namespace Calls::Group {
 
+class MembersRow;
 struct VolumeRequest;
 struct MuteRequest;
 enum class PanelMode;
@@ -37,6 +38,7 @@ public:
 	Members(
 		not_null<QWidget*> parent,
 		not_null<GroupCall*> call);
+	~Members();
 
 	[[nodiscard]] int desiredHeight() const;
 	[[nodiscard]] rpl::producer<int> desiredHeightValue() const override;
@@ -51,9 +53,12 @@ public:
 		return _addMemberRequests.events();
 	}
 
+	[[nodiscard]] MembersRow *lookupRow(not_null<PeerData*> peer) const;
+
 	void setMode(PanelMode mode);
 
 private:
+	class Controller;
 	using ListWidget = PeerListContent;
 
 	void resizeEvent(QResizeEvent *e) override;
@@ -84,7 +89,7 @@ private:
 	const not_null<GroupCall*> _call;
 	rpl::variable<PanelMode> _mode = PanelMode();
 	object_ptr<Ui::ScrollArea> _scroll;
-	std::unique_ptr<PeerListController> _listController;
+	std::unique_ptr<Controller> _listController;
 	not_null<Ui::VerticalLayout*> _layout;
 	const not_null<Ui::RpWidget*> _pinnedVideo;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;

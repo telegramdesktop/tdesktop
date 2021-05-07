@@ -27,10 +27,11 @@ class RippleAnimation;
 
 namespace Calls::Group {
 
-enum class NarrowStyle {
+enum class MembersRowStyle {
 	None,
 	Userpic,
 	Video,
+	LargeVideo,
 };
 
 class MembersRow;
@@ -42,7 +43,7 @@ public:
 		float64 muted = 0.;
 		bool mutedByMe = false;
 		bool raisedHand = false;
-		NarrowStyle narrowStyle = NarrowStyle::None;
+		MembersRowStyle style = MembersRowStyle::None;
 	};
 	virtual bool rowIsMe(not_null<PeerData*> participantPeer) = 0;
 	virtual bool rowCanMuteMembers() = 0;
@@ -155,6 +156,19 @@ public:
 		int availableWidth,
 		int outerWidth,
 		bool selected) override;
+	void paintComplexStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected,
+		MembersRowStyle style);
+	void paintMuteIcon(
+		Painter &p,
+		QRect iconRect,
+		MembersRowStyle style = MembersRowStyle::None);
 
 private:
 	struct BlobsAnimation;
@@ -211,9 +225,9 @@ private:
 		int y,
 		int sizew,
 		int sizeh,
-		NarrowStyle style);
+		MembersRowStyle style);
 	[[nodiscard]] MembersRowDelegate::IconState computeIconState(
-		NarrowStyle style = NarrowStyle::None) const;
+		MembersRowStyle style = MembersRowStyle::None) const;
 
 	const not_null<MembersRowDelegate*> _delegate;
 	State _state = State::Inactive;
