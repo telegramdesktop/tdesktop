@@ -948,6 +948,9 @@ Pip::Pip(
 	})
 , _playbackProgress(std::make_unique<PlaybackProgress>())
 , _rotation(data->owner().mediaRotation().get(data))
+, _lastPositiveVolume((Core::App().settings().videoVolume() > 0.)
+	? Core::App().settings().videoVolume()
+	: Core::Settings::kDefaultVolume)
 , _roundRect(ImageRoundRadius::Large, st::radialBg)
 , _closeAndContinue(std::move(closeAndContinue))
 , _destroy(std::move(destroy)) {
@@ -1032,6 +1035,7 @@ void Pip::handleMouseMove(QPoint position) {
 	});
 	setOverState(computeState(position));
 	seekUpdate(position);
+	volumeControllerUpdate(position);
 }
 
 void Pip::setOverState(OverState state) {
@@ -1088,6 +1092,8 @@ void Pip::updateActiveState(OverState was) {
 	check(_enlarge);
 	check(_play);
 	check(_playback);
+	check(_volumeToggle);
+	check(_volumeController);
 }
 
 void Pip::handleMousePress(QPoint position, Qt::MouseButton button) {
@@ -1101,10 +1107,11 @@ void Pip::handleMousePress(QPoint position, Qt::MouseButton button) {
 		return;
 	}
 	_pressed = _over;
-	if (_over == OverState::Playback) {
+	if (_over == OverState::Playback || _over == OverState::VolumeController) {
 		_panel.setDragDisabled(true);
 	}
 	seekUpdate(position);
+	volumeControllerUpdate(position);
 }
 
 void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
@@ -1118,11 +1125,18 @@ void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 		return;
 	}
 	seekUpdate(position);
+	volumeControllerUpdate(position);
 	const auto pressed = base::take(_pressed);
-	if (pressed && *pressed == OverState::Playback) {
-		_panel.setDragDisabled(false);
-		seekFinish(_playbackProgress->value());
-		return;
+	if (pressed) {
+		if (*pressed == OverState::Playback) {
+			_panel.setDragDisabled(false);
+			seekFinish(_playbackProgress->value());
+			return;
+		} else if (*pressed == OverState::VolumeController) {
+			_panel.setDragDisabled(false);
+			_panel.update();
+			return;
+		}
 	} else if (_panel.dragging() || !pressed || *pressed != _over) {
 		_lastHandledPress = std::nullopt;
 		return;
@@ -1132,6 +1146,7 @@ void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 	switch (_over) {
 	case OverState::Close: _panel.widget()->close(); break;
 	case OverState::Enlarge: _closeAndContinue(); break;
+	case OverState::VolumeToggle: volumeToggled(); break;
 	case OverState::Other: playbackPauseResume(); break;
 	}
 }
@@ -1192,10 +1207,37 @@ void Pip::seekFinish(float64 value) {
 	restartAtSeekPosition(positionMs);
 }
 
+void Pip::volumeChanged(float64 volume) {
+	if (volume > 0.) {
+		_lastPositiveVolume = volume;
+	}
+	Player::mixer()->setVideoVolume(volume);
+	Core::App().settings().setVideoVolume(volume);
+	Core::App().saveSettingsDelayed();
+}
+
+void Pip::volumeToggled() {
+	const auto volume = Core::App().settings().videoVolume();
+	volumeChanged(volume ? 0. : _lastPositiveVolume);
+	_panel.update();
+}
+
+void Pip::volumeControllerUpdate(QPoint position) {
+	if (!_pressed || *_pressed != OverState::VolumeController) {
+		return;
+	}
+	const auto unbound = (position.x() - _volumeController.icon.x())
+		/ float64(_volumeController.icon.width());
+	const auto value = std::clamp(unbound, 0., 1.);
+	volumeChanged(value);
+}
+
 void Pip::setupButtons() {
 	_close.state = OverState::Close;
 	_enlarge.state = OverState::Enlarge;
 	_playback.state = OverState::Playback;
+	_volumeToggle.state = OverState::VolumeToggle;
+	_volumeController.state = OverState::VolumeController;
 	_play.state = OverState::Other;
 	_panel.rp()->sizeValue(
 	) | rpl::map([=] {
@@ -1212,6 +1254,31 @@ void Pip::setupButtons() {
 			rect.y(),
 			st::pipEnlargeIcon.width() + 2 * skip,
 			st::pipEnlargeIcon.height() + 2 * skip);
+
+		const auto volumeSkip = st::pipPlaybackSkip;
+		const auto volumeHeight = 2 * volumeSkip + st::pipPlaybackWide;
+		const auto volumeToggleWidth = st::mediaviewVolumeIcon0.width()
+			+ 2 * skip;
+		const auto volumeToggleHeight = st::mediaviewVolumeIcon0.height()
+			+ 2 * skip;
+		const auto volumeWidth = (((st::mediaviewVolumeWidth + 2 * skip)
+			+ _close.area.width()
+			+ _enlarge.area.width()
+			+ volumeToggleWidth) < rect.width())
+				? st::mediaviewVolumeWidth
+				: 0;
+		_volumeController.area = QRect(
+			rect.x() + rect.width() - volumeWidth - 2 * volumeSkip,
+			rect.y() + (volumeToggleHeight - volumeHeight) / 2,
+			volumeWidth,
+			volumeHeight);
+		_volumeToggle.area = QRect(
+			_volumeController.area.x()
+				- st::mediaviewVolumeIcon0.width()
+				- skip,
+			rect.y(),
+			volumeToggleWidth,
+			volumeToggleHeight);
 		if (!IsWindowControlsOnLeft()) {
 			_close.area.moveLeft(rect.x()
 				+ rect.width()
@@ -1221,15 +1288,22 @@ void Pip::setupButtons() {
 				+ rect.width()
 				- (_enlarge.area.x() - rect.x())
 				- _enlarge.area.width());
+			_volumeToggle.area.moveLeft(rect.x());
+			_volumeController.area.moveLeft(_volumeToggle.area.x()
+				+ _volumeToggle.area.width());
 		}
 		_close.icon = _close.area.marginsRemoved({ skip, skip, skip, skip });
 		_enlarge.icon = _enlarge.area.marginsRemoved(
+			{ skip, skip, skip, skip });
+		_volumeToggle.icon = _volumeToggle.area.marginsRemoved(
 			{ skip, skip, skip, skip });
 		_play.icon = QRect(
 			rect.x() + (rect.width() - st::pipPlayIcon.width()) / 2,
 			rect.y() + (rect.height() - st::pipPlayIcon.height()) / 2,
 			st::pipPlayIcon.width(),
 			st::pipPlayIcon.height());
+		_volumeController.icon = _volumeController.area.marginsRemoved(
+			{ volumeSkip, volumeSkip, volumeSkip, volumeSkip });
 		const auto playbackSkip = st::pipPlaybackSkip;
 		const auto playbackHeight = 2 * playbackSkip + st::pipPlaybackWide;
 		_playback.area = QRect(
@@ -1312,6 +1386,7 @@ void Pip::paintControls(QPainter &p) const {
 	paintButtons(p);
 	paintPlayback(p);
 	paintPlaybackTexts(p);
+	paintVolumeController(p);
 }
 
 void Pip::paintFade(QPainter &p) const {
@@ -1355,42 +1430,73 @@ void Pip::paintButtons(QPainter &p) const {
 		_showPause ? st::pipPauseIconOver : st::pipPlayIconOver);
 	drawOne(_close, st::pipCloseIcon, st::pipCloseIconOver);
 	drawOne(_enlarge, st::pipEnlargeIcon, st::pipEnlargeIconOver);
+	const auto volume = Core::App().settings().videoVolume();
+	if (volume <= 0.) {
+		drawOne(
+			_volumeToggle,
+			st::mediaviewVolumeIcon0,
+			st::mediaviewVolumeIcon0Over);
+	} else if (volume < 1 / 2.) {
+		drawOne(
+			_volumeToggle,
+			st::mediaviewVolumeIcon1,
+			st::mediaviewVolumeIcon1Over);
+	} else {
+		drawOne(
+			_volumeToggle,
+			st::mediaviewVolumeIcon2,
+			st::mediaviewVolumeIcon2Over);
+	}
 }
 
 void Pip::paintPlayback(QPainter &p) const {
 	const auto radius = _playback.icon.height() / 2;
-	const auto shown = activeValue(_playback);
 	const auto progress = _playbackProgress->value();
-	const auto width = _playback.icon.width();
 	const auto height = anim::interpolate(
 		st::pipPlaybackWidth,
 		_playback.icon.height(),
 		activeValue(_playback));
-	const auto left = _playback.icon.x();
-	const auto top = _playback.icon.y() + _playback.icon.height() - height;
-	const auto done = int(std::round(width * progress));
+	const auto rect = QRect(
+		_playback.icon.x(),
+		_playback.icon.y() + _playback.icon.height() - height,
+		_playback.icon.width(),
+		height);
+
+	paintProgressBar(p, rect, progress, radius);
+}
+
+void Pip::paintProgressBar(
+		QPainter &p,
+		const QRect &rect,
+		float64 progress,
+		int radius) const {
+	const auto done = int(std::round(rect.width() * progress));
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
 	if (done > 0) {
 		p.setBrush(st::mediaviewPipPlaybackActive);
-		p.setClipRect(left, top, done, height);
+		p.setClipRect(rect.x(), rect.y(), done, rect.height());
 		p.drawRoundedRect(
-			left,
-			top,
-			std::min(done + radius, width),
-			height,
+			rect.x(),
+			rect.y(),
+			std::min(done + radius, rect.width()),
+			rect.height(),
 			radius,
 			radius);
 	}
-	if (done < width) {
-		const auto from = std::max(left + done - radius, left);
+	if (done < rect.width()) {
+		const auto from = std::max(rect.x() + done - radius, rect.x());
 		p.setBrush(st::mediaviewPipPlaybackInactive);
-		p.setClipRect(left + done, top, width - done, height);
+		p.setClipRect(
+			rect.x() + done,
+			rect.y(),
+			rect.width() - done,
+			rect.height());
 		p.drawRoundedRect(
 			from,
-			top,
-			left + width - from,
-			height,
+			rect.y(),
+			rect.x() + rect.width() - from,
+			rect.height(),
 			radius,
 			radius);
 	}
@@ -1410,6 +1516,25 @@ void Pip::paintPlaybackTexts(QPainter &p) const {
 	p.setPen(st::mediaviewPipControlsFgOver);
 	p.drawText(left, top, _timeAlready);
 	p.drawText(right - _timeLeftWidth, top, _timeLeft);
+}
+
+void Pip::paintVolumeController(QPainter &p) const {
+	if (!_volumeController.icon.width()) {
+		return;
+	}
+	const auto radius = _volumeController.icon.height() / 2;
+	const auto volume = Core::App().settings().videoVolume();
+	const auto height = anim::interpolate(
+		st::pipPlaybackWidth,
+		_volumeController.icon.height(),
+		activeValue(_volumeController));
+	const auto rect = QRect(
+		_volumeController.icon.x(),
+		_volumeController.icon.y() + radius - height / 2,
+		_volumeController.icon.width(),
+		height);
+
+	paintProgressBar(p, rect, volume, radius);
 }
 
 void Pip::handleStreamingUpdate(Streaming::Update &&update) {
@@ -1703,6 +1828,10 @@ Pip::OverState Pip::computeState(QPoint position) const {
 		return OverState::Enlarge;
 	} else if (_playback.area.contains(position)) {
 		return OverState::Playback;
+	} else if (_volumeToggle.area.contains(position)) {
+		return OverState::VolumeToggle;
+	} else if (_volumeController.area.contains(position)) {
+		return OverState::VolumeController;
 	} else {
 		return OverState::Other;
 	}

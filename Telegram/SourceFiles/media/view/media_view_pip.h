@@ -144,6 +144,8 @@ private:
 		Close,
 		Enlarge,
 		Playback,
+		VolumeToggle,
+		VolumeController,
 		Other,
 	};
 	enum class ThumbState {
@@ -166,6 +168,9 @@ private:
 	void setupStreaming();
 	void paint(QPainter &p, FrameRequest request, bool opengl);
 	void playbackPauseResume();
+	void volumeChanged(float64 volume);
+	void volumeToggled();
+	void volumeControllerUpdate(QPoint position);
 	void waitingAnimationCallback();
 	void handleStreamingUpdate(Streaming::Update &&update);
 	void handleStreamingError(Streaming::Error &&error);
@@ -198,7 +203,13 @@ private:
 	void paintFade(QPainter &p) const;
 	void paintButtons(QPainter &p) const;
 	void paintPlayback(QPainter &p) const;
+	void paintProgressBar(
+		QPainter &p,
+		const QRect &rect,
+		float64 progress,
+		int radius) const;
 	void paintPlaybackTexts(QPainter &p) const;
+	void paintVolumeController(QPainter &p) const;
 	void paintRadialLoading(QPainter &p) const;
 	void paintRadialLoadingContent(QPainter &p, const QRect &inner) const;
 	[[nodiscard]] QRect countRadialRect() const;
@@ -222,6 +233,7 @@ private:
 	QString _timeAlready, _timeLeft;
 	int _timeLeftWidth = 0;
 	int _rotation = 0;
+	float64 _lastPositiveVolume = 1.;
 	crl::time _seekPositionMs = -1;
 	crl::time _lastDurationMs = 0;
 	OverState _over = OverState::None;
@@ -231,6 +243,8 @@ private:
 	Button _enlarge;
 	Button _playback;
 	Button _play;
+	Button _volumeToggle;
+	Button _volumeController;
 	Ui::Animations::Simple _controlsShown;
 	Ui::RoundRect _roundRect;
 
