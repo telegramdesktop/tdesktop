@@ -1134,6 +1134,10 @@ desktopCaptureSubmit: RoundButton(desktopCaptureCancel) {
 groupCallNarrowSkip: 9px;
 groupCallNarrowRowSkip: 8px;
 groupCallNarrowSize: size(144px, 90px);
+groupCallNarrowUserpicTop: 12px;
+groupCallNarrowNameTop: 65px;
+groupCallNarrowIconTop: 62px;
+groupCallNarrowIconLess: 5px;
 groupCallWideModeWidthMin: 520px;
 groupCallWideModeSize: size(720px, 480px);
 groupCallNarrowAddMemberHeight: 32px;
@@ -1148,4 +1152,20 @@ groupCallNarrowAddMember: RoundButton(defaultActiveButton) {
 	radius: roundRadiusLarge;
 
 	ripple: groupCallRipple;
+}
+groupCallNarrowInactiveCrossLine: CrossLineAnimation {
+	fg: groupCallMemberInactiveIcon;
+	icon: icon {{ "calls/voice_mute_mini", groupCallMemberInactiveIcon }};
+	startPosition: point(7px, 4px);
+	endPosition: point(17px, 15px);
+	stroke: 3px;
+	strokeDenominator: 2;
+}
+groupCallNarrowColoredCrossLine: CrossLineAnimation(groupCallNarrowInactiveCrossLine) {
+	fg: groupCallMemberMutedIcon;
+	icon: icon {{ "calls/voice_mute_mini", groupCallMemberActiveIcon }};
+}
+groupCallVideoCrossLine: CrossLineAnimation(groupCallNarrowInactiveCrossLine) {
+	fg: groupCallVideoTextFg;
+	icon: icon {{ "calls/voice_mute_mini", groupCallVideoTextFg }};
 }

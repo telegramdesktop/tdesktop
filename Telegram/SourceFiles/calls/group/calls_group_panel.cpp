@@ -996,6 +996,7 @@ void Panel::raiseControls() {
 void Panel::setupPinnedVideo() {
 	_pinnedVideo.create(widget());
 	_pinnedVideo->setVisible(_mode == PanelMode::Wide);
+	_pinnedVideo->setAttribute(Qt::WA_OpaquePaintEvent, true);
 
 	raiseControls();
 
@@ -1026,7 +1027,7 @@ void Panel::setupPinnedVideo() {
 		}, _pinnedTrackLifetime);
 
 		_pinnedVideo->paintRequest(
-		) | rpl::start_with_next([=] {
+		) | rpl::start_with_next([=](QRect clip) {
 			const auto [image, rotation]
 				= track->frameOriginalWithRotation();
 			if (image.isNull()) {

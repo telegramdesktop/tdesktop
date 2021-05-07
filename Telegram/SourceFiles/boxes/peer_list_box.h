@@ -122,7 +122,7 @@ public:
 		bool actionSelected) {
 	}
 
-	void refreshName(const style::PeerListItem &st);
+	virtual void refreshName(const style::PeerListItem &st);
 	const Ui::Text::String &name() const {
 		return _name;
 	}

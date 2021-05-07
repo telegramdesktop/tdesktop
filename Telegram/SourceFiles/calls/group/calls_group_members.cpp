@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/text/text_utilities.h"
+#include "ui/text/text_options.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/cross_line.h"
 #include "ui/round_rect.h"
@@ -82,6 +83,12 @@ auto RowBlobs() -> std::array<Ui::Paint::Blobs::BlobData, 2> {
 
 class Row;
 
+enum class NarrowStyle {
+	None,
+	Userpic,
+	Video,
+};
+
 class RowDelegate {
 public:
 	struct IconState {
@@ -90,6 +97,7 @@ public:
 		float64 muted = 0.;
 		bool mutedByMe = false;
 		bool raisedHand = false;
+		NarrowStyle narrowStyle = NarrowStyle::None;
 	};
 	virtual bool rowIsMe(not_null<PeerData*> participantPeer) = 0;
 	virtual bool rowCanMuteMembers() = 0;
@@ -98,8 +106,8 @@ public:
 	virtual void rowPaintIcon(
 		Painter &p,
 		QRect rect,
-		IconState state) = 0;
-	virtual void rowPaintWideBackground(Painter &p, bool selected) = 0;
+		const IconState &state) = 0;
+	virtual void rowPaintNarrowBackground(Painter &p, bool selected) = 0;
 };
 
 class Row final : public PeerListRow {
@@ -153,6 +161,8 @@ public:
 
 	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
 	void stopLastActionRipple() override;
+
+	void refreshName(const style::PeerListItem &st) override;
 
 	QSize actionSize() const override {
 		return QSize(
@@ -264,7 +274,7 @@ private:
 		int sizew,
 		int sizeh,
 		PanelMode mode);
-	[[nodiscard]] static std::tuple<int, int, int> UserpicInWideMode(
+	[[nodiscard]] static std::tuple<int, int, int> UserpicInNarrowMode(
 		int x,
 		int y,
 		int sizew,
@@ -284,6 +294,15 @@ private:
 		int sizew,
 		int sizeh,
 		PanelMode mode);
+	void paintNarrowName(
+		Painter &p,
+		int x,
+		int y,
+		int sizew,
+		int sizeh,
+		NarrowStyle style);
+	[[nodiscard]] RowDelegate::IconState computeIconState(
+		NarrowStyle style = NarrowStyle::None) const;
 
 	const not_null<RowDelegate*> _delegate;
 	State _state = State::Inactive;
@@ -297,6 +316,7 @@ private:
 	Ui::Animations::Simple _speakingAnimation; // For gray-red/green icon.
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
+	Ui::Text::String _narrowName;
 	QString _aboutText;
 	crl::time _speakingLastTime = 0;
 	uint64 _raisedHandRating = 0;
@@ -346,8 +366,8 @@ public:
 	void rowPaintIcon(
 		Painter &p,
 		QRect rect,
-		IconState state) override;
-	void rowPaintWideBackground(Painter &p, bool selected) override;
+		const IconState &state) override;
+	void rowPaintNarrowBackground(Painter &p, bool selected) override;
 
 	int customRowHeight() override;
 	void customRowPaint(
@@ -436,8 +456,11 @@ private:
 
 	Ui::CrossLineAnimation _inactiveCrossLine;
 	Ui::CrossLineAnimation _coloredCrossLine;
-	Ui::RoundRect _wideRoundRectSelected;
-	Ui::RoundRect _wideRoundRect;
+	Ui::CrossLineAnimation _inactiveNarrowCrossLine;
+	Ui::CrossLineAnimation _coloredNarrowCrossLine;
+	Ui::CrossLineAnimation _videoNarrowCrossLine;
+	Ui::RoundRect _narrowRoundRectSelected;
+	Ui::RoundRect _narrowRoundRect;
 
 	rpl::lifetime _lifetime;
 
@@ -749,15 +772,14 @@ bool Row::paintVideo(
 	return true;
 }
 
-std::tuple<int, int, int> Row::UserpicInWideMode(
+std::tuple<int, int, int> Row::UserpicInNarrowMode(
 		int x,
 		int y,
 		int sizew,
 		int sizeh) {
 	const auto useSize = st::groupCallMembersList.item.photoSize;
 	const auto skipx = (sizew - useSize) / 2;
-	const auto skipy = (sizeh - useSize) / 2;
-	return { x + skipx, y + skipy, useSize };
+	return { x + skipx, y + st::groupCallNarrowUserpicTop, useSize };
 }
 
 void Row::paintBlobs(
@@ -772,7 +794,7 @@ void Row::paintBlobs(
 	}
 	auto size = sizew;
 	if (mode == PanelMode::Wide) {
-		std::tie(x, y, size) = UserpicInWideMode(x, y, sizew, sizeh);
+		std::tie(x, y, size) = UserpicInNarrowMode(x, y, sizew, sizeh);
 	}
 	const auto mutedByMe = (_state == State::MutedByMe);
 	const auto shift = QPointF(x + size / 2., y + size / 2.);
@@ -800,7 +822,7 @@ void Row::paintScaledUserpic(
 		PanelMode mode) {
 	auto size = sizew;
 	if (mode == PanelMode::Wide) {
-		std::tie(x, y, size) = UserpicInWideMode(x, y, sizew, sizeh);
+		std::tie(x, y, size) = UserpicInNarrowMode(x, y, sizew, sizeh);
 	}
 	if (!_blobsAnimation) {
 		peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
@@ -834,6 +856,70 @@ void Row::paintScaledUserpic(
 		_blobsAnimation->userpicCache);
 }
 
+void Row::paintNarrowName(
+		Painter &p,
+		int x,
+		int y,
+		int sizew,
+		int sizeh,
+		NarrowStyle style) {
+	if (_narrowName.isEmpty()) {
+		_narrowName.setText(
+			st::semiboldTextStyle,
+			generateShortName(),
+			Ui::NameTextOptions());
+	}
+	const auto &icon = st::groupCallVideoCrossLine.icon;
+	const auto added = icon.width() - st::groupCallNarrowIconLess;
+	const auto available = sizew - 2 * st::normalFont->spacew - added;
+	const auto use = std::min(available, _narrowName.maxWidth());
+	const auto left = (sizew - use - added) / 2;
+	const auto iconRect = QRect(
+		left - st::groupCallNarrowIconLess,
+		y + st::groupCallNarrowIconTop,
+		icon.width(),
+		icon.height());
+	const auto &state = computeIconState(style);
+	_delegate->rowPaintIcon(p, iconRect, state);
+
+	p.setPen([&] {
+		if (style == NarrowStyle::Video) {
+			return st::groupCallVideoTextFg->p;
+		} else if (state.speaking == 1. && !state.mutedByMe) {
+			return st::groupCallMemberActiveIcon->p;
+		} else if (state.speaking == 0.) {
+			if (state.active == 1.) {
+				return st::groupCallMemberInactiveIcon->p;
+			} else if (state.active == 0.) {
+				if (state.muted == 1.) {
+					return state.raisedHand
+						? st::groupCallMemberInactiveStatus->p
+						: st::groupCallMemberMutedIcon->p;
+				} else if (state.muted == 0.) {
+					return st::groupCallMemberInactiveIcon->p;
+				}
+			}
+		}
+		const auto activeInactiveColor = anim::color(
+			st::groupCallMemberInactiveIcon,
+			(state.mutedByMe
+				? st::groupCallMemberMutedIcon
+				: st::groupCallMemberActiveIcon),
+			state.speaking);
+		return anim::pen(
+			activeInactiveColor,
+			st::groupCallMemberMutedIcon,
+			state.muted);
+	}());
+	const auto nameLeft = iconRect.x() + icon.width();
+	const auto nameTop = y + st::groupCallNarrowNameTop;
+	if (use == available) {
+		_narrowName.drawLeftElided(p, nameLeft, nameTop, available, sizew);
+	} else {
+		_narrowName.drawLeft(p, nameLeft, nameTop, available, sizew);
+	}
+}
+
 auto Row::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	return [=](Painter &p, int x, int y, int outerWidth, int size) {
 		const auto outer = outerWidth;
@@ -852,9 +938,10 @@ void Row::paintComplexUserpic(
 		bool selected) {
 	if (mode == PanelMode::Wide) {
 		if (paintVideo(p, x, y, sizew, sizeh, mode)) {
+			paintNarrowName(p, x, y, sizew, sizeh, NarrowStyle::Video);
 			return;
 		}
-		_delegate->rowPaintWideBackground(p, selected);
+		_delegate->rowPaintNarrowBackground(p, selected);
 		paintRipple(p, x, y, outerWidth);
 	}
 	paintBlobs(p, x, y, sizew, sizeh, mode);
@@ -871,6 +958,9 @@ void Row::paintComplexUserpic(
 		sizew,
 		sizeh,
 		mode);
+	if (mode == PanelMode::Wide) {
+		paintNarrowName(p, x, y, sizew, sizeh, NarrowStyle::Userpic);
+	}
 }
 
 int Row::statusIconWidth() const {
@@ -1043,18 +1133,23 @@ void Row::paintAction(
 			_actionRipple.reset();
 		}
 	}
+	_delegate->rowPaintIcon(p, iconRect, computeIconState());
+}
+
+RowDelegate::IconState Row::computeIconState(NarrowStyle style) const {
 	const auto speaking = _speakingAnimation.value(_speaking ? 1. : 0.);
 	const auto active = _activeAnimation.value((_state == State::Active) ? 1. : 0.);
 	const auto muted = _mutedAnimation.value(
 		(_state == State::Muted || _state == State::RaisedHand) ? 1. : 0.);
 	const auto mutedByMe = (_state == State::MutedByMe);
-	_delegate->rowPaintIcon(p, iconRect, {
+	return {
 		.speaking = speaking,
 		.active = active,
 		.muted = muted,
 		.mutedByMe = (_state == State::MutedByMe),
 		.raisedHand = (_state == State::RaisedHand),
-	});
+		.narrowStyle = style,
+	};
 }
 
 void Row::refreshStatus() {
@@ -1115,6 +1210,11 @@ void Row::addActionRipple(QPoint point, Fn<void()> updateCallback) {
 	_actionRipple->add(point - st::groupCallActiveButton.rippleAreaPosition);
 }
 
+void Row::refreshName(const style::PeerListItem &st) {
+	PeerListRow::refreshName(st);
+	_narrowName = Ui::Text::String();
+}
+
 void Row::stopLastActionRipple() {
 	if (_actionRipple) {
 		_actionRipple->lastStop();
@@ -1130,14 +1230,22 @@ MembersController::MembersController(
 , _raisedHandStatusRemoveTimer([=] { scheduleRaisedHandStatusRemove(); })
 , _inactiveCrossLine(st::groupCallMemberInactiveCrossLine)
 , _coloredCrossLine(st::groupCallMemberColoredCrossLine)
-, _wideRoundRectSelected(ImageRoundRadius::Large, st::groupCallMembersBgOver)
-, _wideRoundRect(ImageRoundRadius::Large, st::groupCallMembersBg) {
+, _inactiveNarrowCrossLine(st::groupCallNarrowInactiveCrossLine)
+, _coloredNarrowCrossLine(st::groupCallNarrowColoredCrossLine)
+, _videoNarrowCrossLine(st::groupCallVideoCrossLine)
+, _narrowRoundRectSelected(
+	ImageRoundRadius::Large,
+	st::groupCallMembersBgOver)
+, _narrowRoundRect(ImageRoundRadius::Large, st::groupCallMembersBg) {
 	setupListChangeViewers();
 
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		_inactiveCrossLine.invalidate();
 		_coloredCrossLine.invalidate();
+		_inactiveNarrowCrossLine.invalidate();
+		_coloredNarrowCrossLine.invalidate();
+		_videoNarrowCrossLine.invalidate();
 	}, _lifetime);
 
 	rpl::combine(
@@ -1812,8 +1920,14 @@ void MembersController::scheduleRaisedHandStatusRemove() {
 void MembersController::rowPaintIcon(
 		Painter &p,
 		QRect rect,
-		IconState state) {
-	const auto &greenIcon = st::groupCallMemberColoredCrossLine.icon;
+		const IconState &state) {
+	const auto narrowUserpic = (state.narrowStyle == NarrowStyle::Userpic);
+	const auto narrowVideo = (state.narrowStyle == NarrowStyle::Video);
+	const auto &greenIcon = narrowVideo
+		? st::groupCallVideoCrossLine.icon
+		: narrowUserpic
+		? st::groupCallNarrowColoredCrossLine.icon
+		: st::groupCallMemberColoredCrossLine.icon;
 	const auto left = rect.x() + (rect.width() - greenIcon.width()) / 2;
 	const auto top = rect.y() + (rect.height() - greenIcon.height()) / 2;
 	if (state.speaking == 1. && !state.mutedByMe) {
@@ -1823,25 +1937,44 @@ void MembersController::rowPaintIcon(
 	} else if (state.speaking == 0.) {
 		if (state.active == 1.) {
 			// Just gray icon, no cross, no coloring.
-			st::groupCallMemberInactiveCrossLine.icon.paintInCenter(p, rect);
+			const auto &grayIcon = narrowVideo
+				? st::groupCallVideoCrossLine.icon
+				: narrowUserpic
+				? st::groupCallNarrowInactiveCrossLine.icon
+				: st::groupCallMemberInactiveCrossLine.icon;
+			grayIcon.paintInCenter(p, rect);
 			return;
 		} else if (state.active == 0.) {
 			if (state.muted == 1.) {
 				if (state.raisedHand) {
+					// #TODO narrow mode icon
 					st::groupCallMemberRaisedHand.paintInCenter(p, rect);
 					return;
 				}
 				// Red crossed icon, colorized once, cached as last frame.
-				_coloredCrossLine.paint(
+				auto &line = narrowVideo
+					? _videoNarrowCrossLine
+					: narrowUserpic
+					? _coloredNarrowCrossLine
+					: _coloredCrossLine;
+				const auto color = narrowVideo
+					? std::nullopt
+					: std::make_optional(st::groupCallMemberMutedIcon->c);
+				line.paint(
 					p,
 					left,
 					top,
 					1.,
-					st::groupCallMemberMutedIcon->c);
+					color);
 				return;
 			} else if (state.muted == 0.) {
 				// Gray crossed icon, no coloring, cached as last frame.
-				_inactiveCrossLine.paint(p, left, top, 1.);
+				auto &line = narrowVideo
+					? _videoNarrowCrossLine
+					: narrowUserpic
+					? _inactiveNarrowCrossLine
+					: _inactiveCrossLine;
+				line.paint(p, left, top, 1.);
 				return;
 			}
 		}
@@ -1856,15 +1989,23 @@ void MembersController::rowPaintIcon(
 		activeInactiveColor,
 		st::groupCallMemberMutedIcon,
 		state.muted);
+	const auto color = narrowVideo
+		? std::nullopt
+		: std::make_optional(iconColor);
 
 	// Don't use caching of the last frame,
 	// because 'muted' may animate color.
 	const auto crossProgress = std::min(1. - state.active, 0.9999);
-	_inactiveCrossLine.paint(p, left, top, crossProgress, iconColor);
+	auto &line = narrowVideo
+		? _videoNarrowCrossLine
+		: narrowUserpic
+		? _inactiveNarrowCrossLine
+		: _inactiveCrossLine;
+	line.paint(p, left, top, crossProgress, color);
 }
 
-void MembersController::rowPaintWideBackground(Painter &p, bool selected) {
-	(selected ? _wideRoundRectSelected : _wideRoundRect).paint(
+void MembersController::rowPaintNarrowBackground(Painter &p, bool selected) {
+	(selected ? _narrowRoundRectSelected : _narrowRoundRect).paint(
 		p,
 		{ QPoint(st::groupCallNarrowSkip, 0), st::groupCallNarrowSize });
 }
