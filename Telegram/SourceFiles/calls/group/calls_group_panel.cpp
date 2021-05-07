@@ -65,7 +65,7 @@ constexpr auto kRecordingAnimationDuration = crl::time(1200);
 constexpr auto kRecordingOpacity = 0.6;
 constexpr auto kStartNoConfirmation = TimeId(10);
 constexpr auto kControlsBackgroundOpacity = 0.8;
-constexpr auto kOverrideActiveColorBgAlpha = 236;
+constexpr auto kOverrideActiveColorBgAlpha = 172;
 
 class InviteController final : public ParticipantsBoxController {
 public:

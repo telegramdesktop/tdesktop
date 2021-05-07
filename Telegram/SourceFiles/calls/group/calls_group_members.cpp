@@ -53,6 +53,7 @@ constexpr auto kUserpicMinScale = 0.8;
 constexpr auto kMaxLevel = 1.;
 constexpr auto kWideScale = 5;
 constexpr auto kKeepRaisedHandStatusDuration = 3 * crl::time(1000);
+constexpr auto kShadowMaxAlpha = 74;
 
 const auto kSpeakerThreshold = std::vector<float>{
 	Group::kDefaultVolume * 0.1f / Group::kMaxVolume,
@@ -107,7 +108,22 @@ public:
 		Painter &p,
 		QRect rect,
 		const IconState &state) = 0;
-	virtual void rowPaintNarrowBackground(Painter &p, bool selected) = 0;
+	virtual void rowPaintNarrowBackground(
+		Painter &p,
+		int x,
+		int y,
+		bool selected) = 0;
+	virtual void rowPaintNarrowBorder(
+		Painter &p,
+		int x,
+		int y,
+		not_null<Row*> row) = 0;
+	virtual void rowPaintNarrowShadow(
+		Painter &p,
+		int x,
+		int y,
+		int sizew,
+		int sizeh) = 0;
 };
 
 class Row final : public PeerListRow {
@@ -367,7 +383,22 @@ public:
 		Painter &p,
 		QRect rect,
 		const IconState &state) override;
-	void rowPaintNarrowBackground(Painter &p, bool selected) override;
+	void rowPaintNarrowBackground(
+		Painter &p,
+		int x,
+		int y,
+		bool selected) override;
+	void rowPaintNarrowBorder(
+		Painter &p,
+		int x,
+		int y,
+		not_null<Row*> row) override;
+	void rowPaintNarrowShadow(
+		Painter &p,
+		int x,
+		int y,
+		int sizew,
+		int sizeh) override;
 
 	int customRowHeight() override;
 	void customRowPaint(
@@ -427,6 +458,7 @@ private:
 		not_null<Row*> row,
 		const std::string &endpoint);
 
+	void generateNarrowShadow();
 	void appendInvitedUsers();
 	void scheduleRaisedHandStatusRemove();
 
@@ -461,6 +493,7 @@ private:
 	Ui::CrossLineAnimation _videoNarrowCrossLine;
 	Ui::RoundRect _narrowRoundRectSelected;
 	Ui::RoundRect _narrowRoundRect;
+	QImage _narrowShadow;
 
 	rpl::lifetime _lifetime;
 
@@ -869,11 +902,14 @@ void Row::paintNarrowName(
 			generateShortName(),
 			Ui::NameTextOptions());
 	}
+	if (style == NarrowStyle::Video) {
+		_delegate->rowPaintNarrowShadow(p, x, y, sizew, sizeh);
+	}
 	const auto &icon = st::groupCallVideoCrossLine.icon;
 	const auto added = icon.width() - st::groupCallNarrowIconLess;
 	const auto available = sizew - 2 * st::normalFont->spacew - added;
 	const auto use = std::min(available, _narrowName.maxWidth());
-	const auto left = (sizew - use - added) / 2;
+	const auto left = x + (sizew - use - added) / 2;
 	const auto iconRect = QRect(
 		left - st::groupCallNarrowIconLess,
 		y + st::groupCallNarrowIconTop,
@@ -939,9 +975,10 @@ void Row::paintComplexUserpic(
 	if (mode == PanelMode::Wide) {
 		if (paintVideo(p, x, y, sizew, sizeh, mode)) {
 			paintNarrowName(p, x, y, sizew, sizeh, NarrowStyle::Video);
+			_delegate->rowPaintNarrowBorder(p, x, y, this);
 			return;
 		}
-		_delegate->rowPaintNarrowBackground(p, selected);
+		_delegate->rowPaintNarrowBackground(p, x, y, selected);
 		paintRipple(p, x, y, outerWidth);
 	}
 	paintBlobs(p, x, y, sizew, sizeh, mode);
@@ -960,6 +997,7 @@ void Row::paintComplexUserpic(
 		mode);
 	if (mode == PanelMode::Wide) {
 		paintNarrowName(p, x, y, sizew, sizeh, NarrowStyle::Userpic);
+		_delegate->rowPaintNarrowBorder(p, x, y, this);
 	}
 }
 
@@ -1473,6 +1511,29 @@ void MembersController::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	}
 }
 
+void MembersController::generateNarrowShadow() {
+	const auto factor = style::DevicePixelRatio();
+	_narrowShadow = QImage(
+		QSize(1, st::groupCallNarrowShadowHeight) * factor,
+		QImage::Format_ARGB32_Premultiplied);
+	const auto height = uint32(_narrowShadow.height());
+	constexpr auto kShift = 24;
+	constexpr auto kMultiply = (1U << kShift);
+	const auto step = 1 + ((kShadowMaxAlpha * kMultiply) / (height - 1));
+	const auto till = height * uint32(step);
+	auto ints = reinterpret_cast<uint32*>(_narrowShadow.bits());
+	const auto perline = _narrowShadow.bytesPerLine() / sizeof(uint32);
+	for (auto i = uint32(0); i != till; i += step) {
+		const auto alpha = (i >> kShift);
+		const auto color = alpha << 24;
+		ranges::fill(
+			gsl::span{ ints, size_t(_narrowShadow.width()) },
+			color);
+		ints += perline;
+		LOG(("ALPHA: %1").arg(alpha));
+	}
+}
+
 void MembersController::appendInvitedUsers() {
 	if (const auto id = _call->id()) {
 		for (const auto user : _peer->owner().invitedToCallUsers(id)) {
@@ -1707,9 +1768,6 @@ void MembersController::updateRow(
 			Assert(nowSsrc != 0);
 			_soundingRowBySsrc.emplace(nowSsrc, row);
 		}
-		//if (isMe(row->peer())) {
-		//	row->setVideoTrack(_call->outgoingVideoTrack());
-		//}
 	}
 	const auto nowNoSounding = _soundingRowBySsrc.empty();
 	if (wasNoSounding && !nowNoSounding) {
@@ -2004,14 +2062,52 @@ void MembersController::rowPaintIcon(
 	line.paint(p, left, top, crossProgress, color);
 }
 
-void MembersController::rowPaintNarrowBackground(Painter &p, bool selected) {
+void MembersController::rowPaintNarrowBackground(
+		Painter &p,
+		int x,
+		int y,
+		bool selected) {
 	(selected ? _narrowRoundRectSelected : _narrowRoundRect).paint(
 		p,
-		{ QPoint(st::groupCallNarrowSkip, 0), st::groupCallNarrowSize });
+		{ QPoint(x, y), st::groupCallNarrowSize });
+}
+
+void MembersController::rowPaintNarrowBorder(
+		Painter &p,
+		int x,
+		int y,
+		not_null<Row*> row) {
+	if (_call->videoEndpointLarge().peer != row->peer().get()) {
+		return;
+	}
+	auto hq = PainterHighQualityEnabler(p);
+	p.setBrush(Qt::NoBrush);
+	auto pen = st::groupCallMemberActiveIcon->p;
+	pen.setWidthF(st::groupCallNarrowOutline);
+	p.setPen(pen);
+	p.drawRoundedRect(
+		QRect{ QPoint(x, y), st::groupCallNarrowSize },
+		st::roundRadiusLarge,
+		st::roundRadiusLarge);
+}
+
+void MembersController::rowPaintNarrowShadow(
+		Painter &p,
+		int x,
+		int y,
+		int sizew,
+		int sizeh) {
+	if (_narrowShadow.isNull()) {
+		generateNarrowShadow();
+	}
+	const auto height = st::groupCallNarrowShadowHeight;
+	p.drawImage(
+		QRect(x, y + sizeh - height, sizew, height),
+		_narrowShadow);
 }
 
 int MembersController::customRowHeight() {
-	return st::groupCallNarrowSize.height() + st::groupCallNarrowRowSkip;
+	return st::groupCallNarrowSize.height() + st::groupCallNarrowRowSkip * 2;
 }
 
 void MembersController::customRowPaint(
@@ -2025,7 +2121,7 @@ void MembersController::customRowPaint(
 	real->paintComplexUserpic(
 		p,
 		st::groupCallNarrowSkip,
-		0,
+		st::groupCallNarrowRowSkip,
 		width,
 		width,
 		height,
@@ -2039,7 +2135,8 @@ bool MembersController::customRowSelectionPoint(
 		int y) {
 	return x >= st::groupCallNarrowSkip
 		&& x < st::groupCallNarrowSkip + st::groupCallNarrowSize.width()
-		&& y < st::groupCallNarrowSize.height();
+		&& y >= st::groupCallNarrowRowSkip
+		&& y < st::groupCallNarrowRowSkip + st::groupCallNarrowSize.height();
 }
 
 Fn<QImage()> MembersController::customRowRippleMaskGenerator() {
@@ -2437,7 +2534,7 @@ int Members::desiredHeight() const {
 	}();
 	const auto use = std::max(count, _list->fullRowsCount());
 	const auto single = (_mode.current() == PanelMode::Wide)
-		? (st::groupCallNarrowSize.height() + st::groupCallNarrowRowSkip)
+		? (st::groupCallNarrowSize.height() + st::groupCallNarrowRowSkip * 2)
 		: st::groupCallMembersList.item.height;
 	return top
 		+ (use * single)
