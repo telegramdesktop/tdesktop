@@ -100,7 +100,7 @@ void ItemCanvas::applyBrush(const QColor &color, float size) {
 	_brushData.color = color;
 	_brushData.size = size;
 	_p->setBrush(color);
-	_brushMargins = QMarginsF(size, size, size, size) / 2.;
+	_brushMargins = QMarginsF(size, size, size, size);// / 2.;
 }
 
 QRectF ItemCanvas::boundingRect() const {
