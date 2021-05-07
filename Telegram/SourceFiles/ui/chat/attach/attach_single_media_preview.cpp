@@ -69,6 +69,8 @@ SingleMediaPreview::SingleMediaPreview(
 , _gifPaused(std::move(gifPaused))
 , _animated(animated)
 , _sticker(sticker)
+, _minThumbH(st::sendBoxAlbumGroupSize.height()
+	+ st::sendBoxAlbumGroupSkipTop * 2)
 , _photoEditorButton(base::make_unique_q<AbstractButton>(this))
 , _controls(base::make_unique_q<AttachControlsWidget>(this)) {
 	Expects(!preview.isNull());
@@ -129,8 +131,6 @@ void SingleMediaPreview::preparePreview(
 		_previewWidth = qMax(preview.width(), kMinPreviewWidth);
 	}
 	auto maxthumbh = qMin(qRound(1.5 * _previewWidth), st::confirmMaxHeight);
-	const auto minthumbh = st::sendBoxAlbumGroupSize.height()
-		 + st::sendBoxAlbumGroupSkipTop * 2;
 	_previewHeight = qRound(originalHeight
 		* float64(_previewWidth)
 		/ originalWidth);
@@ -140,13 +140,11 @@ void SingleMediaPreview::preparePreview(
 			/ _previewHeight);
 		accumulate_max(_previewWidth, kMinPreviewWidth);
 		_previewHeight = maxthumbh;
-	} else if (_previewHeight < minthumbh) {
-		_previewWidth = qRound(_previewWidth * float64(minthumbh)
-			/ _previewHeight);
-		accumulate_max(_previewWidth, kMinPreviewWidth);
-		_previewHeight = minthumbh;
 	}
 	_previewLeft = (st::boxWideWidth - _previewWidth) / 2;
+	if (_previewHeight < _minThumbH) {
+		_previewTop = (_minThumbH - _previewHeight) / 2;
+	}
 
 	preview = std::move(preview).scaled(
 		_previewWidth * style::DevicePixelRatio(),
@@ -160,13 +158,13 @@ void SingleMediaPreview::preparePreview(
 	prepareAnimatedPreview(animatedPreviewPath);
 
 	_photoEditorButton->resize(_previewWidth, _previewHeight);
-	_photoEditorButton->moveToLeft(_previewLeft, 0);
+	_photoEditorButton->moveToLeft(_previewLeft, _previewTop);
 	_photoEditorButton->setVisible(!_sticker
 		&& !_gifPreview
 		&& !_lottiePreview
 		&& !_animated);
 
-	resize(width(), _previewHeight);
+	resize(width(), std::max(_previewHeight, _minThumbH));
 }
 
 void SingleMediaPreview::resizeEvent(QResizeEvent *e) {
@@ -233,24 +231,29 @@ void SingleMediaPreview::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (!_sticker) {
-		if (_previewLeft > st::boxPhotoPadding.left()) {
+		const auto &padding = st::boxPhotoPadding;
+		if (_previewLeft > padding.left()) {
 			p.fillRect(
-				st::boxPhotoPadding.left(),
-				0,
-				_previewLeft - st::boxPhotoPadding.left(),
+				padding.left(),
+				_previewTop,
+				_previewLeft - padding.left(),
 				_previewHeight,
 				st::confirmBg);
 		}
-		if ((_previewLeft + _previewWidth)
-				< (width() - st::boxPhotoPadding.right())) {
+		if ((_previewLeft + _previewWidth) < (width() - padding.right())) {
 			p.fillRect(
 				_previewLeft + _previewWidth,
-				0,
-				width()
-					- st::boxPhotoPadding.right()
-					- _previewLeft
-					- _previewWidth,
+				_previewTop,
+				width() - padding.right() - _previewLeft - _previewWidth,
 				_previewHeight,
+				st::confirmBg);
+		}
+		if (_previewTop > 0) {
+			p.fillRect(
+				padding.left(),
+				0,
+				width() - padding.right() - padding.left(),
+				height(),
 				st::confirmBg);
 		}
 	}
@@ -265,7 +268,7 @@ void SingleMediaPreview::paintEvent(QPaintEvent *e) {
 			ImageRoundRadius::None,
 			RectPart::None,
 			paused ? 0 : crl::now());
-		p.drawPixmap(_previewLeft, 0, frame);
+		p.drawPixmap(_previewLeft, _previewTop, frame);
 	} else if (_lottiePreview && _lottiePreview->ready()) {
 		const auto frame = _lottiePreview->frame();
 		const auto size = frame.size() / style::DevicePixelRatio();
@@ -278,13 +281,13 @@ void SingleMediaPreview::paintEvent(QPaintEvent *e) {
 			frame);
 		_lottiePreview->markFrameShown();
 	} else {
-		p.drawPixmap(_previewLeft, 0, _preview);
+		p.drawPixmap(_previewLeft, _previewTop, _preview);
 	}
 	if (_animated && !_gifPreview && !_lottiePreview) {
 		const auto innerSize = st::msgFileLayout.thumbSize;
 		auto inner = QRect(
 			_previewLeft + (_previewWidth - innerSize) / 2,
-			(_previewHeight - innerSize) / 2,
+			_previewTop + (_previewHeight - innerSize) / 2,
 			innerSize,
 			innerSize);
 		p.setPen(Qt::NoPen);

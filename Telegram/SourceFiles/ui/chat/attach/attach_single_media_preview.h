@@ -56,11 +56,13 @@ private:
 	bool _sticker = false;
 	QPixmap _preview;
 	int _previewLeft = 0;
+	int _previewTop = 0;
 	int _previewWidth = 0;
 	int _previewHeight = 0;
 	Media::Clip::ReaderPointer _gifPreview;
 	std::unique_ptr<Lottie::SinglePlayer> _lottiePreview;
 
+	const int _minThumbH;
 	const base::unique_qptr<AbstractButton> _photoEditorButton;
 	const base::unique_qptr<AttachControlsWidget> _controls;
 
