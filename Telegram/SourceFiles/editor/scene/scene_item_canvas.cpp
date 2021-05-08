@@ -168,16 +168,18 @@ void ItemCanvas::handleMouseReleaseEvent(
 	}
 	_drawing = false;
 
-	const auto scaledContentRect = QRectF(
-		_contentRect.x() * cRetinaFactor(),
-		_contentRect.y() * cRetinaFactor(),
-		_contentRect.width() * cRetinaFactor(),
-		_contentRect.height() * cRetinaFactor());
+	if (_contentRect.isValid()) {
+		const auto scaledContentRect = QRectF(
+			_contentRect.x() * cRetinaFactor(),
+			_contentRect.y() * cRetinaFactor(),
+			_contentRect.width() * cRetinaFactor(),
+			_contentRect.height() * cRetinaFactor());
 
-	_grabContentRequests.fire({
-		.pixmap = _pixmap.copy(scaledContentRect.toRect()),
-		.position = _contentRect.topLeft(),
-	});
+		_grabContentRequests.fire({
+			.pixmap = _pixmap.copy(scaledContentRect.toRect()),
+			.position = _contentRect.topLeft(),
+		});
+	}
 	clearPixmap();
 	update();
 }

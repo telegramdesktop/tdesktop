@@ -66,11 +66,6 @@ Paint::Paint(
 	_view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	_view->setStyleSheet(kViewStyle.utf8());
 
-	_scene->addsItem(
-	) | rpl::start_with_next([=] {
-		updateUndoState();
-	}, lifetime());
-
 	// Undo / Redo.
 	controllers->undoController->performRequestChanges(
 	) | rpl::start_with_next([=](const Undo &command) {
@@ -138,10 +133,10 @@ Paint::Paint(
 			? controllers->stickersPanelController->stickerChosen(
 				) | rpl::to_empty
 			: rpl::never<>(),
-		_scene->mousePresses()
+		_scene->addsItem()
 	) | rpl::start_with_next([=] {
-		_hasUndo = true;
 		clearRedoList();
+		updateUndoState();
 	}, lifetime());
 }
 

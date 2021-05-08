@@ -71,7 +71,6 @@ void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 		return;
 	}
 	_canvas->handleMousePressEvent(event);
-	_mousePresses.fire({});
 }
 
 void Scene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
@@ -92,10 +91,6 @@ void Scene::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 
 void Scene::applyBrush(const QColor &color, float size) {
 	_canvas->applyBrush(color, size);
-}
-
-rpl::producer<> Scene::mousePresses() const {
-	return _mousePresses.events();
 }
 
 rpl::producer<> Scene::addsItem() const {

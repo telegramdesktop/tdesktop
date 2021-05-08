@@ -36,7 +36,6 @@ public:
 	void removeItem(not_null<QGraphicsItem*> item);
 	void removeItem(const ItemPtr &item);
 	[[nodiscard]] rpl::producer<> addsItem() const;
-	[[nodiscard]] rpl::producer<> mousePresses() const;
 
 	[[nodiscard]] std::vector<MTPInputDocument> attachedStickers() const;
 protected:
@@ -51,7 +50,6 @@ private:
 	float64 _lastLineZ = 0.;
 	int _itemNumber = 0;
 
-	rpl::event_stream<> _mousePresses;
 	rpl::event_stream<> _addsItem;
 	rpl::lifetime _lifetime;
 
