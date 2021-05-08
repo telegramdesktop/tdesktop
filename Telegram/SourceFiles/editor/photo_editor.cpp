@@ -166,7 +166,9 @@ PhotoEditor::PhotoEditor(
 }
 
 void PhotoEditor::handleKeyPress(not_null<QKeyEvent*> e) {
-	_content->handleKeyPress(e) || _controls->handleKeyPress(e);
+	if (!_colorPicker->preventHandleKeyPress()) {
+		_content->handleKeyPress(e) || _controls->handleKeyPress(e);
+	}
 }
 
 void PhotoEditor::save() {

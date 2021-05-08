@@ -321,4 +321,9 @@ int ColorPicker::colorToPosition(const QColor &color) const {
 	return 0;
 }
 
+bool ColorPicker::preventHandleKeyPress() const {
+	return _canvasForCircle->isVisible()
+		&& (_circleAnimation.animating() || _down.pressed);
+}
+
 } // namespace Editor

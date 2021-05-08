@@ -29,6 +29,7 @@ public:
 
 	void moveLine(const QPoint &position);
 	void setVisible(bool visible);
+	bool preventHandleKeyPress() const;
 
 	rpl::producer<Brush> saveBrushRequests() const;
 
