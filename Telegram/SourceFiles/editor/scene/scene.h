@@ -38,6 +38,8 @@ public:
 	[[nodiscard]] rpl::producer<> addsItem() const;
 
 	[[nodiscard]] std::vector<MTPInputDocument> attachedStickers() const;
+
+	void cancelDrawing();
 protected:
 	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;

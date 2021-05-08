@@ -176,6 +176,7 @@ std::shared_ptr<Scene> Paint::saveScene() const {
 
 void Paint::cancel() {
 	_scene->clearSelection();
+	_scene->cancelDrawing();
 
 	const auto filtered = _scene->items(Qt::AscendingOrder);
 	if (filtered.empty()) {
@@ -199,6 +200,7 @@ void Paint::cancel() {
 
 void Paint::keepResult() {
 	_scene->clearSelection();
+	_scene->cancelDrawing();
 
 	for (const auto &item : _itemsToRemove) {
 		_scene->removeItem(item);

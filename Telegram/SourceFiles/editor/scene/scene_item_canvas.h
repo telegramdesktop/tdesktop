@@ -25,6 +25,7 @@ public:
 
 	void applyBrush(const QColor &color, float size);
 	void clearPixmap();
+	void cancelDrawing();
 
 	QRectF boundingRect() const override;
 	void paint(

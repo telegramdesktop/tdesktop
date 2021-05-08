@@ -209,6 +209,13 @@ bool ItemCanvas::collidesWithPath(
 	return false;
 }
 
+void ItemCanvas::cancelDrawing() {
+	_drawing = false;
+	_contentRect = QRectF();
+	clearPixmap();
+	update();
+}
+
 ItemCanvas::~ItemCanvas() {
 	_hq = nullptr;
 	_p = nullptr;

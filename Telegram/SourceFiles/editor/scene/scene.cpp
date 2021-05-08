@@ -41,6 +41,10 @@ Scene::Scene(const QRectF &rect)
 	}, _lifetime);
 }
 
+void Scene::cancelDrawing() {
+	_canvas->cancelDrawing();
+}
+
 void Scene::addItem(std::shared_ptr<NumberedItem> item) {
 	if (!item) {
 		return;
