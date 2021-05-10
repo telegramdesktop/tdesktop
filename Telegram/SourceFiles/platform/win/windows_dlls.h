@@ -23,25 +23,20 @@ namespace Platform {
 namespace Dlls {
 
 void init();
-
-// KERNEL32.DLL
-using f_SetDllDirectory = BOOL(FAR STDAPICALLTYPE*)(LPCWSTR lpPathName);
-extern f_SetDllDirectory SetDllDirectory;
-
 void start();
 
+// KERNEL32.DLL
+inline BOOL(__stdcall *SetDllDirectory)(LPCWSTR lpPathName);
+
 // UXTHEME.DLL
-using f_SetWindowTheme = HRESULT(FAR STDAPICALLTYPE*)(
+inline HRESULT(__stdcall *SetWindowTheme)(
 	HWND hWnd,
 	LPCWSTR pszSubAppName,
 	LPCWSTR pszSubIdList);
-extern f_SetWindowTheme SetWindowTheme;
 
-//using f_RefreshImmersiveColorPolicyState = void(FAR STDAPICALLTYPE*)();
-//extern f_RefreshImmersiveColorPolicyState RefreshImmersiveColorPolicyState;
+//inline void(__stdcall *RefreshImmersiveColorPolicyState)();
 //
-//using f_AllowDarkModeForApp = BOOL(FAR STDAPICALLTYPE*)(BOOL allow);
-//extern f_AllowDarkModeForApp AllowDarkModeForApp;
+//inline BOOL(__stdcall *AllowDarkModeForApp)(BOOL allow);
 //
 //enum class PreferredAppMode {
 //	Default,
@@ -51,101 +46,74 @@ extern f_SetWindowTheme SetWindowTheme;
 //	Max
 //};
 //
-//using f_SetPreferredAppMode = PreferredAppMode(FAR STDAPICALLTYPE*)(PreferredAppMode appMode);
-//extern f_SetPreferredAppMode SetPreferredAppMode;
-//
-//using f_AllowDarkModeForWindow = BOOL(FAR STDAPICALLTYPE*)(HWND hwnd, BOOL allow);
-//extern f_AllowDarkModeForWindow AllowDarkModeForWindow;
-//
-//using f_FlushMenuThemes = void(FAR STDAPICALLTYPE*)();
-//extern f_FlushMenuThemes FlushMenuThemes;
+//inline PreferredAppMode(__stdcall *SetPreferredAppMode)(
+//	PreferredAppMode appMode);
+//inline BOOL(__stdcall *AllowDarkModeForWindow)(HWND hwnd, BOOL allow);
+//inline void(__stdcall *FlushMenuThemes)();
 
 // SHELL32.DLL
-using f_SHAssocEnumHandlers = HRESULT(FAR STDAPICALLTYPE*)(
+inline HRESULT(__stdcall *SHAssocEnumHandlers)(
 	PCWSTR pszExtra,
 	ASSOC_FILTER afFilter,
 	IEnumAssocHandlers **ppEnumHandler);
-extern f_SHAssocEnumHandlers SHAssocEnumHandlers;
-
-using f_SHCreateItemFromParsingName = HRESULT(FAR STDAPICALLTYPE*)(
+inline HRESULT(__stdcall *SHCreateItemFromParsingName)(
 	PCWSTR pszPath,
 	IBindCtx *pbc,
 	REFIID riid,
 	void **ppv);
-extern f_SHCreateItemFromParsingName SHCreateItemFromParsingName;
-
-using f_SHOpenWithDialog = HRESULT(FAR STDAPICALLTYPE*)(
+inline HRESULT(__stdcall *SHOpenWithDialog)(
 	HWND hwndParent,
 	const OPENASINFO *poainfo);
-extern f_SHOpenWithDialog SHOpenWithDialog;
-
-using f_OpenAs_RunDLL = HRESULT(FAR STDAPICALLTYPE*)(
+inline HRESULT(__stdcall *OpenAs_RunDLL)(
 	HWND hWnd,
 	HINSTANCE hInstance,
 	LPCWSTR lpszCmdLine,
 	int nCmdShow);
-extern f_OpenAs_RunDLL OpenAs_RunDLL;
-
-using f_SHQueryUserNotificationState = HRESULT(FAR STDAPICALLTYPE*)(
+inline HRESULT(__stdcall *SHQueryUserNotificationState)(
 	QUERY_USER_NOTIFICATION_STATE *pquns);
-extern f_SHQueryUserNotificationState SHQueryUserNotificationState;
-
-using f_SHChangeNotify = void(FAR STDAPICALLTYPE*)(
+inline void(__stdcall *SHChangeNotify)(
 	LONG wEventId,
 	UINT uFlags,
 	__in_opt LPCVOID dwItem1,
 	__in_opt LPCVOID dwItem2);
-extern f_SHChangeNotify SHChangeNotify;
-
-using f_SetCurrentProcessExplicitAppUserModelID
-	= HRESULT(FAR STDAPICALLTYPE*)(__in PCWSTR AppID);
-extern f_SetCurrentProcessExplicitAppUserModelID SetCurrentProcessExplicitAppUserModelID;
+inline HRESULT(__stdcall *SetCurrentProcessExplicitAppUserModelID)(
+	__in PCWSTR AppID);
 
 // WTSAPI32.DLL
 
-using f_WTSRegisterSessionNotification = BOOL(FAR STDAPICALLTYPE*)(
+inline BOOL(__stdcall *WTSRegisterSessionNotification)(
 	HWND hWnd,
 	DWORD dwFlags);
-extern f_WTSRegisterSessionNotification WTSRegisterSessionNotification;
-
-using f_WTSUnRegisterSessionNotification = BOOL(FAR STDAPICALLTYPE*)(
+inline BOOL(__stdcall *WTSUnRegisterSessionNotification)(
 	HWND hWnd);
-extern f_WTSUnRegisterSessionNotification WTSUnRegisterSessionNotification;
 
 // PROPSYS.DLL
 
-using f_PropVariantToString = HRESULT(FAR STDAPICALLTYPE*)(
+inline HRESULT(__stdcall *PropVariantToString)(
 	_In_ REFPROPVARIANT propvar,
 	_Out_writes_(cch) PWSTR psz,
 	_In_ UINT cch);
-extern f_PropVariantToString PropVariantToString;
-
-using f_PSStringFromPropertyKey = HRESULT(FAR STDAPICALLTYPE*)(
+inline HRESULT(__stdcall *PSStringFromPropertyKey)(
 	_In_ REFPROPERTYKEY pkey,
 	_Out_writes_(cch) LPWSTR psz,
 	_In_ UINT cch);
-extern f_PSStringFromPropertyKey PSStringFromPropertyKey;
 
 // DWMAPI.DLL
 
-using f_DwmIsCompositionEnabled = HRESULT(FAR STDAPICALLTYPE*)(
+inline HRESULT(__stdcall *DwmIsCompositionEnabled)(
 	_Out_ BOOL* pfEnabled);
-extern f_DwmIsCompositionEnabled DwmIsCompositionEnabled;
-
-using f_DwmSetWindowAttribute = HRESULT(FAR STDAPICALLTYPE*)(
+inline HRESULT(__stdcall *DwmSetWindowAttribute)(
 	HWND hwnd,
 	DWORD dwAttribute,
 	_In_reads_bytes_(cbAttribute) LPCVOID pvAttribute,
 	DWORD cbAttribute);
-extern f_DwmSetWindowAttribute DwmSetWindowAttribute;
 
 // PSAPI.DLL
 
-using f_GetProcessMemoryInfo = BOOL(FAR STDAPICALLTYPE*)(
+inline BOOL(__stdcall *GetProcessMemoryInfo)(
 	HANDLE Process,
 	PPROCESS_MEMORY_COUNTERS ppsmemCounters,
 	DWORD cb);
-extern f_GetProcessMemoryInfo GetProcessMemoryInfo;
 
 // USER32.DLL
 
@@ -186,8 +154,9 @@ struct WINDOWCOMPOSITIONATTRIBDATA {
 	SIZE_T cbData;
 };
 
-using f_SetWindowCompositionAttribute = BOOL(WINAPI *)(HWND hWnd, WINDOWCOMPOSITIONATTRIBDATA*);
-extern f_SetWindowCompositionAttribute SetWindowCompositionAttribute;
+inline BOOL(__stdcall *SetWindowCompositionAttribute)(
+	HWND hWnd,
+	WINDOWCOMPOSITIONATTRIBDATA*);
 
 } // namespace Dlls
 } // namespace Platform
