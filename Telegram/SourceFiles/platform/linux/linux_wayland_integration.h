@@ -15,6 +15,7 @@ public:
 	static WaylandIntegration *Instance();
 	void waitForInterfaceAnnounce();
 	bool supportsXdgDecoration();
+	QString nativeHandle(QWindow *window);
 
 private:
 	WaylandIntegration();

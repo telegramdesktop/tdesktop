@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 class QLibrary;
+class QWindow;
 
 extern "C" {
 #include <gtk/gtk.h>
@@ -18,8 +19,7 @@ namespace Platform {
 namespace internal {
 
 void GdkHelperLoad(QLibrary &lib);
-bool GdkHelperLoaded();
-void XSetTransientForHint(GdkWindow *window, quintptr winId);
+void GdkSetTransientFor(GdkWindow *window, QWindow *parent);
 
 } // namespace internal
 } // namespace Platform

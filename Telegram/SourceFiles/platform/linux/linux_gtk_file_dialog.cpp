@@ -70,8 +70,7 @@ QStringList cleanFilterList(const QString &filter) {
 }
 
 bool Supported() {
-	return internal::GdkHelperLoaded()
-		&& (gtk_widget_hide_on_delete != nullptr)
+	return (gtk_widget_hide_on_delete != nullptr)
 		&& (gtk_clipboard_store != nullptr)
 		&& (gtk_clipboard_get != nullptr)
 		&& (gtk_widget_destroy != nullptr)
@@ -273,7 +272,7 @@ void QGtkDialog::show(Qt::WindowFlags flags, Qt::WindowModality modality, QWindo
 	gtk_widget_realize(gtkWidget); // creates X window
 
 	if (parent) {
-		internal::XSetTransientForHint(gtk_widget_get_window(gtkWidget), parent->winId());
+		internal::GdkSetTransientFor(gtk_widget_get_window(gtkWidget), parent);
 	}
 
 	if (modality != Qt::NonModal) {

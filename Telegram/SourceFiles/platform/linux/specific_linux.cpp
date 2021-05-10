@@ -102,18 +102,22 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 
 		const auto parentWindowId = [&]() -> Glib::ustring {
 			std::stringstream result;
-			if (const auto activeWindow = Core::App().activeWindow()) {
-				if (IsX11()) {
-					result
-						<< "x11:"
-						<< std::hex
-						<< activeWindow
-							->widget()
-							.get()
-							->windowHandle()
-							->winId();
-				}
+
+			const auto activeWindow = Core::App().activeWindow();
+			if (!activeWindow) {
+				return result.str();
 			}
+
+			const auto window = activeWindow->widget()->windowHandle();
+			if (const auto integration = WaylandIntegration::Instance()) {
+				if (const auto handle = integration->nativeHandle(window)
+					; !handle.isEmpty()) {
+					result << "wayland:" << handle.toStdString();
+				}
+			} else if (IsX11()) {
+				result << "x11:" << std::hex << window->winId();
+			}
+
 			return result.str();
 		}();
 

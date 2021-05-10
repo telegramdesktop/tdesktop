@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_glibmm_helper.h"
+#include "platform/linux/linux_wayland_integration.h"
 #include "core/application.h"
 #include "window/window_controller.h"
 #include "base/openssl_help.h"
@@ -20,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <glibmm.h>
 #include <giomm.h>
 #include <private/qguiapplication_p.h>
+
+using Platform::internal::WaylandIntegration;
 
 namespace Platform {
 namespace File {
@@ -80,18 +83,22 @@ bool XDPOpenWithDialog::exec() {
 
 		const auto parentWindowId = [&]() -> Glib::ustring {
 			std::stringstream result;
-			if (const auto activeWindow = Core::App().activeWindow()) {
-				if (IsX11()) {
-					result
-						<< "x11:"
-						<< std::hex
-						<< activeWindow
-							->widget()
-							.get()
-							->windowHandle()
-							->winId();
-				}
+
+			const auto activeWindow = Core::App().activeWindow();
+			if (!activeWindow) {
+				return result.str();
 			}
+
+			const auto window = activeWindow->widget()->windowHandle();
+			if (const auto integration = WaylandIntegration::Instance()) {
+				if (const auto handle = integration->nativeHandle(window)
+					; !handle.isEmpty()) {
+					result << "wayland:" << handle.toStdString();
+				}
+			} else if (IsX11()) {
+				result << "x11:" << std::hex << window->winId();
+			}
+
 			return result.str();
 		}();
 
