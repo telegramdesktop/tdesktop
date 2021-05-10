@@ -436,6 +436,7 @@ private:
 	int _x = 0, _y = 0, _w = 0, _h = 0;
 	int _xStart = 0, _yStart = 0;
 	int _zoom = 0; // < 0 - out, 0 - none, > 0 - in
+	int _initialZoom = 0;
 	float64 _zoomToScreen = 0.; // for documents
 	float64 _zoomToDefault = 0.;
 	QPoint _mStart;
@@ -498,6 +499,7 @@ private:
 		ControlsShown,
 		ControlsHiding,
 		ControlsHidden,
+		ControlsDisabled
 	};
 	ControlsState _controlsState = ControlsShown;
 	crl::time _controlsAnimStarted = 0;

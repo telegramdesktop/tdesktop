@@ -1035,6 +1035,12 @@ void OverlayWidget::resizeContentByScreenSize() {
 	}
 	_x = (width() - _w) / 2;
 	_y = (height() - _h) / 2;
+	_initialZoom = _zoom;
+	if (_controlsState == ControlsDisabled) {
+		_controlsState = ControlsHidden;
+		activateControls();
+		updateCursor();
+	}
 }
 
 float64 OverlayWidget::radialProgress() const {
@@ -1155,7 +1161,7 @@ void OverlayWidget::zoomReset() {
 	auto newZoom = _zoom;
 	const auto full = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 	if (_zoom == 0) {
-		if (qFloor(full) == qCeil(full) && qRound(full) >= -kMaxZoomLevel && qRound(full) <= kMaxZoomLevel) {
+		if (qFloor(full) == qCeil(full) && qRound(full) >= -kMaxZoomLevel && qRound(full) <= kMaxZoomLevel && qRound(full) != 0) {
 			newZoom = qRound(full);
 		} else {
 			newZoom = kZoomToScreenLevel;
@@ -1271,6 +1277,9 @@ void OverlayWidget::close() {
 }
 
 void OverlayWidget::activateControls() {
+	if (_controlsState == ControlsDisabled) {
+		return;
+	}
 	if (!_menu && !_mousePressed) {
 		_controlsHideTimer.callOnce(st::mediaviewWaitHide);
 	}
@@ -1304,7 +1313,11 @@ void OverlayWidget::onHideControls(bool force) {
 	if (_fullScreenVideo) {
 		_streamed->controls.hideAnimated();
 	}
-	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) return;
+	if (_controlsState == ControlsHiding
+		|| _controlsState == ControlsHidden
+		|| _controlsState == ControlsDisabled) {
+		return;
+	}
 
 	_lastMouseMovePos = mapFromGlobal(QCursor::pos());
 	_controlsState = ControlsHiding;
@@ -3681,6 +3694,22 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 	if (!force && _zoom == newZoom) {
 		return;
 	}
+	if (!_fullScreenVideo) {
+		if ((_initialZoom == 0 && newZoom > 0)
+			|| (_initialZoom != 0 && newZoom >= 0 && newZoom != _initialZoom)) {
+			if (_controlsState != ControlsDisabled) {
+				activateControls();
+				onHideControls(true);
+				updateControlsAnimation(_controlsAnimStarted + st::mediaviewHideDuration);
+				_controlsState = ControlsDisabled;
+				updateCursor();
+			}
+		} else if (_controlsState == ControlsDisabled) {
+			_controlsState = ControlsHidden;
+			activateControls();
+			updateCursor();
+		}
+	}
 
 	const auto full = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 	float64 nx, ny, z = (_zoom == kZoomToScreenLevel) ? full : _zoom;
@@ -4034,6 +4063,15 @@ void OverlayWidget::updateOverRect(OverState state) {
 
 bool OverlayWidget::updateOverState(OverState newState) {
 	bool result = true;
+	if (_controlsState == ControlsDisabled
+		&& newState != OverLeftNav
+		&& newState != OverRightNav
+		&& newState != OverClose
+		&& newState != OverVideo) {
+		_over = OverNone;
+		updateCursor();
+		return false;
+	}
 	if (_over != newState) {
 		if (newState == OverMore && !_ignoringDropdown) {
 			_dropdownShowTimer.callOnce(0);
