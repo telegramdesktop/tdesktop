@@ -125,8 +125,8 @@ Go to ***BuildPath*** and run
     cp ../patches/macos_yasm_wrap.sh ./
 
     ./configure --prefix=/usr/local/macos \
-    --extra-cflags="$MIN_VER $UNGUARDED" \
-    --extra-cxxflags="$MIN_VER $UNGUARDED" \
+    --extra-cflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1" \
+    --extra-cxxflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1" \
     --extra-ldflags="$MIN_VER" \
     --x86asmexe=`pwd`/macos_yasm_wrap.sh \
     --enable-protocol=file \
