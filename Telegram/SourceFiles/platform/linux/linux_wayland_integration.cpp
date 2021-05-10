@@ -9,8 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 
+#include <QtCore/QCoreApplication>
 #include <connection_thread.h>
 #include <registry.h>
+#include <surface.h>
+#include <xdgforeign.h>
 
 using namespace KWayland::Client;
 
@@ -25,6 +28,10 @@ public:
 		return _registry;
 	}
 
+	[[nodiscard]] XdgExporter *xdgExporter() {
+		return _xdgExporter.get();
+	}
+
 	[[nodiscard]] QEventLoop &interfacesLoop() {
 		return _interfacesLoop;
 	}
@@ -35,12 +42,25 @@ public:
 
 private:
 	ConnectionThread _connection;
+	ConnectionThread *_applicationConnection = nullptr;
 	Registry _registry;
+	Registry _applicationRegistry;
+	std::unique_ptr<XdgExporter> _xdgExporter;
 	QEventLoop _interfacesLoop;
 	bool _interfacesAnnounced = false;
 };
 
-WaylandIntegration::Private::Private() {
+WaylandIntegration::Private::Private()
+: _applicationConnection(ConnectionThread::fromApplication(this)) {
+	_applicationRegistry.create(_applicationConnection);
+	_applicationRegistry.setup();
+
+	connect(
+		_applicationConnection,
+		&ConnectionThread::connectionDied,
+		&_applicationRegistry,
+		&Registry::destroy);
+
 	connect(&_connection, &ConnectionThread::connected, [=] {
 		LOG(("Successfully connected to Wayland server at socket: %1")
 			.arg(_connection.socketName()));
@@ -61,6 +81,22 @@ WaylandIntegration::Private::Private() {
 			_interfacesLoop.quit();
 		}
 	});
+
+	connect(
+		&_applicationRegistry,
+		&Registry::exporterUnstableV2Announced,
+		[=](uint name, uint version) {
+			_xdgExporter = {
+				_applicationRegistry.createXdgExporter(name, version),
+				std::default_delete<XdgExporter>(),
+			};
+
+			connect(
+				QCoreApplication::instance(),
+				&QCoreApplication::aboutToQuit,
+				this,
+				[=] { _xdgExporter = nullptr; });
+		});
 
 	_connection.initConnection();
 }
@@ -87,6 +123,26 @@ void WaylandIntegration::waitForInterfaceAnnounce() {
 bool WaylandIntegration::supportsXdgDecoration() {
 	return _private->registry().hasInterface(
 		Registry::Interface::XdgDecorationUnstableV1);
+}
+
+QString WaylandIntegration::nativeHandle(QWindow *window) {
+	if (const auto exporter = _private->xdgExporter()) {
+		if (const auto surface = Surface::fromWindow(window)) {
+			if (const auto exported = exporter->exportTopLevel(
+				surface,
+				_private->xdgExporter())) {
+				QEventLoop loop;
+				QObject::connect(
+					exported,
+					&XdgExported::done,
+					&loop,
+					&QEventLoop::quit);
+				loop.exec();
+				return exported->handle();
+			}
+		}
+	}
+	return {};
 }
 
 } // namespace internal

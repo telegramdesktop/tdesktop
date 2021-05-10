@@ -33,5 +33,9 @@ bool WaylandIntegration::supportsXdgDecoration() {
 	return false;
 }
 
+QString WaylandIntegration::nativeHandle(QWindow *window) {
+	return {};
+}
+
 } // namespace internal
 } // namespace Platform

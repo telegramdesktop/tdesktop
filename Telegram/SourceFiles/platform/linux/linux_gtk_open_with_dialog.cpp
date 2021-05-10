@@ -22,8 +22,7 @@ namespace {
 using namespace Platform::Gtk;
 
 bool Supported() {
-	return Platform::internal::GdkHelperLoaded()
-		&& (gtk_app_chooser_dialog_new != nullptr)
+	return (gtk_app_chooser_dialog_new != nullptr)
 		&& (gtk_app_chooser_get_app_info != nullptr)
 		&& (gtk_app_chooser_get_type != nullptr)
 		&& (gtk_widget_get_window != nullptr)
@@ -70,9 +69,9 @@ bool GtkOpenWithDialog::exec() {
 	gtk_widget_realize(_gtkWidget);
 
 	if (const auto activeWindow = Core::App().activeWindow()) {
-		Platform::internal::XSetTransientForHint(
+		Platform::internal::GdkSetTransientFor(
 			gtk_widget_get_window(_gtkWidget),
-			activeWindow->widget().get()->windowHandle()->winId());
+			activeWindow->widget()->windowHandle());
 	}
 
 	QGuiApplicationPrivate::showModalWindow(this);
