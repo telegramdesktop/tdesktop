@@ -296,8 +296,11 @@ void ChooseSourceProcess::activate() {
 }
 
 void ChooseSourceProcess::setupPanel() {
+#ifndef Q_OS_LINUX
 	_window->setAttribute(Qt::WA_OpaquePaintEvent);
+#endif // Q_OS_LINUX
 	_window->setAttribute(Qt::WA_NoSystemBackground);
+
 	_window->setWindowIcon(QIcon(
 		QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
 	_window->setTitleStyle(st::desktopCaptureSourceTitle);
@@ -318,7 +321,7 @@ void ChooseSourceProcess::setupPanel() {
 		+ (st::desktopCaptureSourceSize.height() / 2)
 		+ bottomHeight;
 	_window->setFixedSize({ width, height });
-	_window->setWindowFlags(Qt::WindowStaysOnTopHint);
+	_window->setWindowFlag(Qt::WindowStaysOnTopHint);
 
 	_window->body()->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
@@ -530,11 +533,7 @@ void ChooseSourceProcess::setupSourcesGeometry() {
 void ChooseSourceProcess::setupGeometryWithParent(
 		not_null<QWidget*> parent) {
 	if (const auto handle = parent->windowHandle()) {
-		if (::Platform::IsLinux()) {
-			_window->windowHandle()->setTransientParent(
-				parent->windowHandle());
-			_window->setWindowModality(Qt::WindowModal);
-		}
+		_window->createWinId();
 		const auto parentScreen = handle->screen();
 		const auto myScreen = _window->windowHandle()->screen();
 		if (parentScreen && myScreen != parentScreen) {
