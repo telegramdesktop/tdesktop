@@ -3631,6 +3631,8 @@ void OverlayWidget::keyPressEvent(QKeyEvent *e) {
 			playbackPauseResume();
 		} else if (_document && !_document->loading() && (documentBubbleShown() || !_documentMedia->loaded())) {
 			onDocClick();
+		} else {
+			zoomReset();
 		}
 	} else if (e->key() == Qt::Key_Left) {
 		if (_controlsHideTimer.isActive()) {
@@ -3652,6 +3654,12 @@ void OverlayWidget::keyPressEvent(QKeyEvent *e) {
 		} else if (e->key() == Qt::Key_I) {
 			update();
 		}
+	} else if (e->key() == Qt::Key_Plus) {
+		zoomIn();
+	} else if (e->key() == Qt::Key_Minus) {
+		zoomOut();
+	} else if (e->key() == Qt::Key_Asterisk) {
+		zoomReset();
 	}
 }
 
