@@ -1266,12 +1266,12 @@ bool Instance::Private::onErrorDefault(
 		int breakpoint = 0;
 	}
 	auto badGuestDc = (code == 400) && (type == qsl("FILE_ID_INVALID"));
-	QRegularExpressionMatch m;
-	if ((m = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(type)).hasMatch()) {
+	QRegularExpressionMatch m1, m2;
+	if ((m1 = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(type)).hasMatch()) {
 		if (!requestId) return false;
 
 		auto dcWithShift = ShiftedDcId(0);
-		auto newdcWithShift = ShiftedDcId(m.captured(2).toInt());
+		auto newdcWithShift = ShiftedDcId(m1.captured(2).toInt());
 		if (const auto shiftedDcId = queryRequestByDc(requestId)) {
 			dcWithShift = *shiftedDcId;
 		} else {
@@ -1329,7 +1329,11 @@ bool Instance::Private::onErrorDefault(
 			(dcWithShift < 0) ? -newdcWithShift : newdcWithShift);
 		session->sendPrepared(request);
 		return true;
-	} else if (code < 0 || code >= 500 || (m = QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(type)).hasMatch()) {
+	} else if (code < 0
+		|| code >= 500
+		|| (m1 = QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(type)).hasMatch()
+		|| ((m2 = QRegularExpression("^SLOWMODE_WAIT_(\\d+)$").match(type)).hasMatch()
+			&& m2.captured(1).toInt() < 3)) {
 		if (!requestId) return false;
 
 		int32 secs = 1;
@@ -1340,9 +1344,11 @@ bool Instance::Private::onErrorDefault(
 			} else {
 				_requestsDelays.emplace(requestId, secs);
 			}
-		} else {
-			secs = m.captured(1).toInt();
+		} else if (m1.hasMatch()) {
+			secs = m1.captured(1).toInt();
 //			if (secs >= 60) return false;
+		} else if (m2.hasMatch()) {
+			secs = m2.captured(1).toInt();
 		}
 		auto sendAt = crl::now() + secs * 1000 + 10;
 		auto it = _delayedRequests.begin(), e = _delayedRequests.end();
