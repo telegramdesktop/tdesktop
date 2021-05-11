@@ -527,10 +527,10 @@ void MainWindow::initSize() {
 					if (rightPoint > w) {
 						const auto distance = rightPoint - w;
 						const auto newXPos = position.x - distance;
-						if (newXPos >= 0) {
+						if (newXPos >= x) {
 							position.x = newXPos;
 						} else {
-							position.x = 0;
+							position.x = x;
 							const auto newRightPoint = position.x + position.w;
 							const auto newDistance = newRightPoint - w;
 							position.w -= newDistance;
@@ -540,10 +540,10 @@ void MainWindow::initSize() {
 					if (bottomPoint > h) {
 						const auto distance = bottomPoint - h;
 						const auto newYPos = position.y - distance;
-						if (newYPos >= 0) {
+						if (newYPos >= y) {
 							position.y = newYPos;
 						} else {
-							position.y = 0;
+							position.y = y;
 							const auto newBottomPoint = position.y + position.h;
 							const auto newDistance = newBottomPoint - h;
 							position.h -= newDistance;
