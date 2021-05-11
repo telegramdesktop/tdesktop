@@ -30,7 +30,9 @@ LargeVideo::LargeVideo(
 , _st(st)
 , _pin(st::groupCallLargeVideoPin)
 , _pinButton(&_content)
-, _topControls(_st.controlsAlign == style::al_top) {
+, _controlsShown(_st.controlsAlign == style::al_top)
+, _topControls(_st.controlsAlign == style::al_top)
+, _controlsShownRatio(_controlsShown.current() ? 1. : 0.) {
 	_content.setVisible(visible);
 	setup(std::move(track), std::move(pinned));
 }
@@ -47,8 +49,23 @@ void LargeVideo::setGeometry(int x, int y, int width, int height) {
 	_content.setGeometry(x, y, width, height);
 }
 
+void LargeVideo::setControlsShown(bool shown) {
+	if (_mouseInside == shown) {
+		return;
+	}
+	_mouseInside = shown;
+	if (!_toggleControlsScheduled) {
+		_toggleControlsScheduled = true;
+		crl::on_main(&_content, [=] { toggleControls(); });
+	}
+}
+
 rpl::producer<bool> LargeVideo::pinToggled() const {
 	return _pinButton.clicks() | rpl::map([=] { return !_pinned; });
+}
+
+rpl::producer<float64> LargeVideo::controlsShown() const {
+	return _controlsShownRatio.value();
 }
 
 rpl::producer<QSize> LargeVideo::trackSizeValue() const {
@@ -60,10 +77,26 @@ void LargeVideo::setup(
 		rpl::producer<bool> pinned) {
 	_content.setAttribute(Qt::WA_OpaquePaintEvent);
 
+	_content.events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::Enter) {
+			Ui::Integration::Instance().registerLeaveSubscription(&_content);
+			setControlsShown(true);
+		} else if (e->type() == QEvent::Leave) {
+			Ui::Integration::Instance().unregisterLeaveSubscription(
+				&_content);
+			setControlsShown(false);
+		}
+	}, _content.lifetime());
+
 	rpl::combine(
 		_content.shownValue(),
 		std::move(track)
 	) | rpl::map([=](bool shown, LargeVideoTrack track) {
+		if (!shown) {
+			_controlsAnimation.stop();
+			_controlsShownRatio = _controlsShown.current() ? 1. : 0.;
+		}
 		return shown ? track : LargeVideoTrack();
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](LargeVideoTrack track) {
@@ -88,6 +121,34 @@ void LargeVideo::setup(
 	}, _content.lifetime());
 
 	setupControls(std::move(pinned));
+}
+
+void LargeVideo::toggleControls() {
+	_toggleControlsScheduled = false;
+	const auto shown = _mouseInside;
+	if (_controlsShown.current() == shown) {
+		return;
+	}
+	_controlsShown = shown;
+	const auto callback = [=] {
+		_controlsShownRatio = _controlsAnimation.value(
+			_controlsShown.current() ? 1. : 0.);
+		if (_topControls) {
+			_content.update(0, 0, _content.width(), _st.shadowHeight);
+		} else {
+			_content.update();
+		}
+		updateControlsGeometry();
+	};
+	if (_content.isHidden()) {
+		updateControlsGeometry();
+	} else {
+		_controlsAnimation.start(
+			callback,
+			shown ? 0. : 1.,
+			shown ? 1. : 0.,
+			140);
+	}
 }
 
 void LargeVideo::setupControls(rpl::producer<bool> pinned) {
@@ -186,13 +247,17 @@ void LargeVideo::paint(QRect clip) {
 }
 
 void LargeVideo::paintControls(Painter &p, QRect clip) {
-	const auto shown = _controlsAnimation.value(_controlsShown ? 1. : 0.);
-	if (shown == 0.) {
+	const auto shown = _controlsShownRatio.current();
+	if (shown == 0. && _topControls) {
 		return;
 	}
 
 	const auto width = _content.width();
 	const auto height = _content.height();
+	const auto fullShift = _st.statusPosition.y() + st::normalFont->height;
+	const auto shift = _topControls
+		? anim::interpolate(-fullShift, 0, shown)
+		: 0;
 
 	// Shadow.
 	if (_shadow.isNull()) {
@@ -204,7 +269,9 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 	}
 	const auto shadowRect = QRect(
 		0,
-		_topControls ? 0 : (height - _st.shadowHeight),
+		(_topControls
+			? anim::interpolate(-_st.shadowHeight, 0, shown)
+			: (height - _st.shadowHeight)),
 		width,
 		_st.shadowHeight);
 	const auto shadowFill = shadowRect.intersected(clip);
@@ -231,7 +298,7 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 		- _st.namePosition.x();
 	const auto nameLeft = _st.namePosition.x();
 	const auto nameTop = _topControls
-		? _st.namePosition.y()
+		? (_st.namePosition.y() + shift)
 		: (height - _st.namePosition.y());
 	_track.row->name().drawLeftElided(p, nameLeft, nameTop, hasWidth, width);
 
@@ -239,7 +306,7 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 	p.setPen(st::groupCallVideoSubTextFg);
 	const auto statusLeft = _st.statusPosition.x();
 	const auto statusTop = _topControls
-		? _st.statusPosition.y()
+		? (_st.statusPosition.y() + shift)
 		: (height - _st.statusPosition.y());
 	_track.row->paintComplexStatusText(
 		p,
@@ -255,7 +322,7 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 	const auto &icon = st::groupCallLargeVideoCrossLine.icon;
 	const auto iconLeft = width - _st.iconPosition.x() - icon.width();
 	const auto iconTop = _topControls
-		? _st.iconPosition.y()
+		? (_st.iconPosition.y() + shift)
 		: (height - _st.iconPosition.y() - icon.height());
 	_track.row->paintMuteIcon(
 		p,
@@ -268,7 +335,7 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 		? (width - _st.pinPosition.x() - pin.width())
 		: _st.pinPosition.x();
 	const auto pinTop = _topControls
-		? _st.pinPosition.y()
+		? (_st.pinPosition.y() + shift)
 		: (height - _st.pinPosition.y() - pin.height());
 	_pin.paint(p, pinLeft, pinTop, _pinned ? 1. : 0.);
 }

@@ -18,6 +18,7 @@
 #include "styles/style_calls.h"
 
 #include <QtCore/QtMath>
+#include <QtCore/QCoreApplication>
 
 namespace Ui {
 namespace {
@@ -1038,6 +1039,10 @@ rpl::producer<Qt::MouseButton> CallMuteButton::clicks() {
 	});
 }
 
+rpl::producer<not_null<QEvent*>> CallMuteButton::events() const {
+	return _content->events();
+}
+
 QSize CallMuteButton::innerSize() const {
 	return innerGeometry().size();
 }
@@ -1069,6 +1074,10 @@ void CallMuteButton::setVisible(bool visible) {
 	_sublabel->setVisible(visible);
 	_content->setVisible(visible);
 	_blobs->setVisible(visible);
+}
+
+bool CallMuteButton::isHidden() const {
+	return _content->isHidden();
 }
 
 void CallMuteButton::raise() {

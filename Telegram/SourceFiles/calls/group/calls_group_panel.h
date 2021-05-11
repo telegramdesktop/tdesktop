@@ -91,10 +91,12 @@ private:
 
 	bool handleClose();
 	void startScheduledNow();
+	void trackControls();
 	void raiseControls();
 
 	bool updateMode();
 	void updateControlsGeometry();
+	void updateButtonsGeometry();
 	void updateMembersGeometry();
 	void refreshControlsBackground();
 	void showControls();
@@ -143,7 +145,8 @@ private:
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<Members> _members = { nullptr };
 	std::unique_ptr<LargeVideo> _pinnedVideo;
-	rpl::lifetime _pinnedTrackLifetime;
+	float64 _pinnedVideoControlsShown = 1.;
+	rpl::lifetime _trackControlsLifetime;
 	object_ptr<Ui::FlatLabel> _startsIn = { nullptr };
 	object_ptr<Ui::RpWidget> _countdown = { nullptr };
 	std::shared_ptr<Ui::GroupCallScheduledLeft> _countdownData;

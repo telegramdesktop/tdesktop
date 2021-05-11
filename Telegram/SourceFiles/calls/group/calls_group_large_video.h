@@ -61,8 +61,10 @@ public:
 	void raise();
 	void setVisible(bool visible);
 	void setGeometry(int x, int y, int width, int height);
+	void setControlsShown(bool shown);
 
 	[[nodiscard]] rpl::producer<bool> pinToggled() const;
+	[[nodiscard]] rpl::producer<float64> controlsShown() const;
 	[[nodiscard]] rpl::producer<QSize> trackSizeValue() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
@@ -99,6 +101,7 @@ private:
 	void paint(QRect clip);
 	void paintControls(Painter &p, QRect clip);
 	void updateControlsGeometry();
+	void toggleControls();
 
 	Content _content;
 	const style::GroupCallLargeVideo &_st;
@@ -107,9 +110,12 @@ private:
 	Ui::CrossLineAnimation _pin;
 	Ui::AbstractButton _pinButton;
 	Ui::Animations::Simple _controlsAnimation;
-	bool _topControls = false;
+	rpl::variable<bool> _controlsShown = true;
+	const bool _topControls = true;
 	bool _pinned = false;
-	bool _controlsShown = true;
+	bool _mouseInside = false;
+	bool _toggleControlsScheduled = false;
+	rpl::variable<float64> _controlsShownRatio = 1.;
 	rpl::variable<QSize> _trackSize;
 	rpl::lifetime _trackLifetime;
 

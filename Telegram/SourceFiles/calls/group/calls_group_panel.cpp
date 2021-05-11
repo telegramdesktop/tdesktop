@@ -1016,6 +1016,21 @@ void Panel::setupPinnedVideo() {
 			_call->pinVideoEndpoint(large);
 		}
 	}, _pinnedVideo->lifetime());
+	_pinnedVideo->controlsShown(
+	) | rpl::filter([=](float64 shown) {
+		return (_pinnedVideoControlsShown != shown);
+	}) | rpl::start_with_next([=](float64 shown) {
+		const auto hiding = (shown <= _pinnedVideoControlsShown);
+		_pinnedVideoControlsShown = shown;
+		if (_mode == PanelMode::Wide) {
+			if (hiding && _trackControlsLifetime) {
+				_trackControlsLifetime.destroy();
+			} else if (!hiding && !_trackControlsLifetime) {
+				trackControls();
+			}
+			updateButtonsGeometry();
+		}
+	}, _pinnedVideo->lifetime());
 
 	raiseControls();
 }
@@ -1536,6 +1551,7 @@ bool Panel::updateMode() {
 
 void Panel::refreshControlsBackground() {
 	if (_mode != PanelMode::Wide) {
+		_trackControlsLifetime.destroy();
 		_controlsBackground.destroy();
 	} else if (_controlsBackground) {
 		return;
@@ -1556,17 +1572,92 @@ void Panel::refreshControlsBackground() {
 		auto p = QPainter(_controlsBackground.data());
 		corners->paint(p, _controlsBackground->rect());
 	}, lifetime);
+
+	if (_pinnedVideoControlsShown > 0.) {
+		trackControls();
+	}
 	raiseControls();
+}
+
+void Panel::trackControls() {
+	const auto trackOne = [&](auto &&widget) {
+		if (widget) {
+			widget->events(
+			) | rpl::start_with_next([=](not_null<QEvent*> e) {
+				if (e->type() == QEvent::Enter) {
+					_pinnedVideo->setControlsShown(true);
+				} else if (e->type() == QEvent::Leave) {
+					_pinnedVideo->setControlsShown(false);
+				}
+			}, _trackControlsLifetime);
+		}
+	};
+	trackOne(_mute);
+	trackOne(_video);
+	trackOne(_screenShare);
+	trackOne(_settings);
+	trackOne(_callShare);
+	trackOne(_hangup);
+	trackOne(_controlsBackground);
 }
 
 void Panel::updateControlsGeometry() {
 	if (widget()->size().isEmpty() || (!_settings && !_callShare)) {
 		return;
 	}
+	updateButtonsGeometry();
+	updateMembersGeometry();
+	refreshTitle();
+
+#ifdef Q_OS_MAC
+	const auto controlsOnTheLeft = true;
+#else // Q_OS_MAC
+	const auto controlsOnTheLeft = _controls->geometry().center().x()
+		< widget()->width() / 2;
+#endif // Q_OS_MAC
+	const auto menux = st::groupCallMenuTogglePosition.x();
+	const auto menuy = st::groupCallMenuTogglePosition.y();
+	if (controlsOnTheLeft) {
+		if (_menuToggle) {
+			_menuToggle->moveToRight(menux, menuy);
+		} else if (_joinAsToggle) {
+			_joinAsToggle->moveToRight(menux, menuy);
+		}
+	} else {
+		if (_menuToggle) {
+			_menuToggle->moveToLeft(menux, menuy);
+		} else if (_joinAsToggle) {
+			_joinAsToggle->moveToLeft(menux, menuy);
+		}
+	}
+}
+
+void Panel::updateButtonsGeometry() {
+	const auto toggle = [&](bool shown) {
+		const auto toggleOne = [&](auto &widget) {
+			if (widget && widget->isHidden() == shown) {
+				widget->setVisible(shown);
+			}
+		};
+		toggleOne(_mute);
+		toggleOne(_video);
+		toggleOne(_screenShare);
+		toggleOne(_settings);
+		toggleOne(_callShare);
+		toggleOne(_hangup);
+	};
 	if (_videoMode.current()) {
 		_mute->setStyle(st::callMuteButtonSmall);
+		toggle(_mode != PanelMode::Wide || _pinnedVideoControlsShown > 0.);
+
 		const auto buttonsTop = widget()->height()
-			- st::groupCallButtonBottomSkipSmall;
+			- st::groupCallButtonBottomSkipSmall
+			+ (_mode == PanelMode::Wide
+				? anim::interpolate(
+					st::groupCallButtonBottomSkipSmall,
+					0,
+					_pinnedVideoControlsShown)
+				: 0);
 		const auto addSkip = st::callMuteButtonSmall.active.outerRadius;
 		const auto muteSize = _mute->innerSize().width() + 2 * addSkip;
 		const auto skip = (_video ? 1 : 2) * st::groupCallButtonSkipSmall;
@@ -1619,6 +1710,8 @@ void Panel::updateControlsGeometry() {
 		}
 	} else {
 		_mute->setStyle(st::callMuteButton);
+		toggle(true);
+
 		const auto muteTop = widget()->height()
 			- st::groupCallMuteBottomSkip;
 		const auto buttonsTop = widget()->height()
@@ -1639,30 +1732,6 @@ void Panel::updateControlsGeometry() {
 		}
 		_hangup->setStyle(st::groupCallHangup);
 		_hangup->moveToRight(leftButtonLeft, buttonsTop);
-	}
-	updateMembersGeometry();
-	refreshTitle();
-
-#ifdef Q_OS_MAC
-	const auto controlsOnTheLeft = true;
-#else // Q_OS_MAC
-	const auto controlsOnTheLeft = _controls->geometry().center().x()
-		< widget()->width() / 2;
-#endif // Q_OS_MAC
-	const auto menux = st::groupCallMenuTogglePosition.x();
-	const auto menuy = st::groupCallMenuTogglePosition.y();
-	if (controlsOnTheLeft) {
-		if (_menuToggle) {
-			_menuToggle->moveToRight(menux, menuy);
-		} else if (_joinAsToggle) {
-			_joinAsToggle->moveToRight(menux, menuy);
-		}
-	} else {
-		if (_menuToggle) {
-			_menuToggle->moveToLeft(menux, menuy);
-		} else if (_joinAsToggle) {
-			_joinAsToggle->moveToLeft(menux, menuy);
-		}
 	}
 }
 

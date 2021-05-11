@@ -62,6 +62,7 @@ public:
 	void setStyle(const style::CallMuteButton &st);
 	void setLevel(float level);
 	[[nodiscard]] rpl::producer<Qt::MouseButton> clicks();
+	[[nodiscard]] rpl::producer<not_null<QEvent*>> events() const;
 
 	[[nodiscard]] QSize innerSize() const;
 	[[nodiscard]] QRect innerGeometry() const;
@@ -76,6 +77,7 @@ public:
 	void hide() {
 		setVisible(false);
 	}
+	[[nodiscard]] bool isHidden() const;
 	void raise();
 	void lower();
 
