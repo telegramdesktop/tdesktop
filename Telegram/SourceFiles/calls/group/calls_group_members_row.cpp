@@ -727,7 +727,9 @@ void MembersRow::paintComplexStatusText(
 		bool selected,
 		MembersRowStyle style) {
 	const auto &font = st::normalFont;
-	const auto about = (_state == State::Inactive
+	const auto about = (style == MembersRowStyle::LargeVideo)
+		? QString()
+		: (_state == State::Inactive
 		|| _state == State::Muted
 		|| (_state == State::RaisedHand && !_raisedHandStatus))
 		? _aboutText
@@ -767,7 +769,7 @@ void MembersRow::paintComplexStatusText(
 		outerWidth,
 		(_state == State::MutedByMe
 			? tr::lng_group_call_muted_by_me_status(tr::now)
-			: (!about.isEmpty() && style != MembersRowStyle::LargeVideo)
+			: !about.isEmpty()
 			? font->m.elidedText(about, Qt::ElideRight, availableWidth)
 			: _delegate->rowIsMe(peer())
 			? tr::lng_status_connecting(tr::now)

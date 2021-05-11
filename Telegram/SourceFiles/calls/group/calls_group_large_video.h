@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/abstract_button.h"
 #include "ui/effects/cross_line.h"
+#include "ui/effects/animations.h"
 
 #if defined Q_OS_MAC
 #define USE_OPENGL_LARGE_VIDEO
@@ -60,6 +62,12 @@ public:
 	void setVisible(bool visible);
 	void setGeometry(int x, int y, int width, int height);
 
+	[[nodiscard]] rpl::producer<bool> pinToggled() const;
+
+	[[nodiscard]] rpl::lifetime &lifetime() {
+		return _content.lifetime();
+	}
+
 private:
 #ifdef USE_OPENGL_LARGE_VIDEO
 	using ContentParent = Ui::RpWidgetWrap<QOpenGLWidget>;
@@ -86,15 +94,21 @@ private:
 	void setup(
 		rpl::producer<LargeVideoTrack> track,
 		rpl::producer<bool> pinned);
+	void setupControls(rpl::producer<bool> pinned);
 	void paint(QRect clip);
 	void paintControls(Painter &p, QRect clip);
+	void updateControlsGeometry();
 
 	Content _content;
 	const style::GroupCallLargeVideo &_st;
 	LargeVideoTrack _track;
 	QImage _shadow;
 	Ui::CrossLineAnimation _pin;
+	Ui::AbstractButton _pinButton;
+	Ui::Animations::Simple _controlsAnimation;
+	bool _topControls = false;
 	bool _pinned = false;
+	bool _controlsShown = true;
 	rpl::lifetime _trackLifetime;
 
 };

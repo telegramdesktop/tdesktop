@@ -1173,7 +1173,7 @@ groupCallVideoCrossLine: CrossLineAnimation(groupCallNarrowInactiveCrossLine) {
 }
 
 groupCallLargeVideoCrossLine: CrossLineAnimation(groupCallMemberColoredCrossLine) {
-	fg: groupCallVideoTextFg;
+	fg: groupCallVideoSubTextFg;
 	icon: icon {{ "calls/group_calls_unmuted", groupCallVideoSubTextFg }};
 }
 
@@ -1187,7 +1187,7 @@ GroupCallLargeVideo {
 }
 
 groupCallLargeVideoWide: GroupCallLargeVideo {
-	shadowHeight: 60px;
+	shadowHeight: 100px;
 	controlsAlign: align(top);
 	namePosition: point(15px, 8px);
 	statusPosition: point(15px, 28px);
@@ -1195,7 +1195,7 @@ groupCallLargeVideoWide: GroupCallLargeVideo {
 	iconPosition: point(14px, 15px);
 }
 groupCallLargeVideoNarrow: GroupCallLargeVideo {
-	shadowHeight: 50px;
+	shadowHeight: 80px;
 	controlsAlign: align(top);
 	namePosition: point(64px, 44px);
 	statusPosition: point(64px, 20px);

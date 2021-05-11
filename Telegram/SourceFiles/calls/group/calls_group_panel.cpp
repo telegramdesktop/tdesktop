@@ -1008,6 +1008,14 @@ void Panel::setupPinnedVideo() {
 		visible,
 		std::move(track),
 		_call->videoEndpointPinnedValue());
+	_pinnedVideo->pinToggled(
+	) | rpl::start_with_next([=](bool pinned) {
+		if (!pinned) {
+			_call->pinVideoEndpoint(VideoEndpoint{});
+		} else if (const auto &large = _call->videoEndpointLarge()) {
+			_call->pinVideoEndpoint(large);
+		}
+	}, _pinnedVideo->lifetime());
 
 	raiseControls();
 }
