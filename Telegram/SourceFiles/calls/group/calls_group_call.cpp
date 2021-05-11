@@ -887,7 +887,7 @@ void GroupCall::setMyEndpointType(
 		const auto now2 = _activeVideoEndpoints.emplace(
 			endpoint,
 			type).second;
-		if (now1 && now2) {
+		if (now1 || now2) {
 			_streamsVideoUpdated.fire({ endpoint, true });
 		}
 		const auto nowLarge = activeVideoEndpointType(
