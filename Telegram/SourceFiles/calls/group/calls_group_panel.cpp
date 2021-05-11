@@ -1575,7 +1575,16 @@ void Panel::updateControlsGeometry() {
 			+ (_screenShare ? _screenShare->width() + skip : 0)
 			+ (_settings ? _settings : _callShare)->width() + skip
 			+ _hangup->width() + skip;
-		auto left = (widget()->width() - fullWidth) / 2;
+		const auto membersSkip = st::groupCallNarrowSkip;
+		const auto membersWidth = st::groupCallNarrowSize.width()
+			+ 2 * membersSkip;
+		auto left = (_mode == PanelMode::Default)
+			? (widget()->width() - fullWidth) / 2
+			: (membersWidth
+				+ (widget()->width()
+					- membersWidth
+					- membersSkip
+					- fullWidth) / 2);
 		_mute->moveInner({ left + addSkip, buttonsTop + addSkip });
 		left += muteSize + skip;
 		if (_video) {

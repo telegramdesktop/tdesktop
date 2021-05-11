@@ -1138,7 +1138,7 @@ groupCallNarrowUserpicTop: 13px;
 groupCallNarrowNameTop: 65px;
 groupCallNarrowIconTop: 62px;
 groupCallNarrowIconLess: 5px;
-groupCallWideModeWidthMin: 520px;
+groupCallWideModeWidthMin: 550px;
 groupCallWideModeSize: size(720px, 480px);
 groupCallNarrowAddMemberHeight: 32px;
 groupCallNarrowOutline: 2px;
