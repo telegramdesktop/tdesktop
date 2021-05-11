@@ -53,6 +53,7 @@ public:
 	[[nodiscard]] rpl::producer<> addMembersRequests() const {
 		return _addMemberRequests.events();
 	}
+	[[nodiscard]] rpl::producer<> enlargeVideo() const;
 
 	[[nodiscard]] MembersRow *lookupRow(not_null<PeerData*> peer) const;
 

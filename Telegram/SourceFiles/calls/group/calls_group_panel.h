@@ -93,6 +93,8 @@ private:
 	void startScheduledNow();
 	void trackControls();
 	void raiseControls();
+	void enlargeVideo();
+	void minimizeVideo();
 
 	bool updateMode();
 	void updateControlsGeometry();
@@ -153,6 +155,9 @@ private:
 	object_ptr<Ui::FlatLabel> _startsWhen = { nullptr };
 	ChooseJoinAsProcess _joinAsProcess;
 	rpl::variable<bool> _videoMode;
+	std::optional<QRect> _lastSmallGeometry;
+	std::optional<QRect> _lastLargeGeometry;
+	bool _lastLargeMaximized = false;
 
 	object_ptr<Ui::RpWidget> _controlsBackground = { nullptr };
 	object_ptr<Ui::CallButton> _settings = { nullptr };

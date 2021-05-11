@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>
+#include <QtGui/QScreen>
 
 namespace Calls::Group {
 namespace {
@@ -970,6 +971,79 @@ void Panel::setupMembers() {
 			addMembers();
 		}
 	}, _callLifetime);
+
+	_members->enlargeVideo(
+	) | rpl::start_with_next([=] {
+		enlargeVideo();
+	}, _callLifetime);
+}
+
+void Panel::enlargeVideo() {
+	_lastSmallGeometry = _window->geometry();
+
+	const auto available = _window->screen()->availableGeometry();
+	const auto width = std::max(
+		_window->width(),
+		std::max(
+			std::min(available.width(), st::groupCallWideModeSize.width()),
+			st::groupCallWideModeWidthMin));
+	const auto height = std::max(
+		_window->height(),
+		std::min(available.height(), st::groupCallWideModeSize.height()));
+	auto geometry = QRect(
+		_window->x() - (width - _window->width()) / 2,
+		_window->y() - (height - _window->height()) / 2,
+		width,
+		height);
+	if (geometry.x() < available.x()) {
+		geometry.setX(std::min(available.x(), _window->x()));
+	}
+	if (geometry.x() + geometry.width()
+		> available.x() + available.width()) {
+		geometry.setX(std::max(
+			available.x() + available.width(),
+			_window->x() + _window->width()) - geometry.width());
+	}
+	if (geometry.y() < available.y()) {
+		geometry.setY(std::min(available.y(), _window->y()));
+	}
+	if (geometry.y() + geometry.height() > available.y() + available.height()) {
+		geometry.setY(std::max(
+			available.y() + available.height(),
+			_window->y() + _window->height()) - geometry.height());
+	}
+	if (_lastLargeMaximized) {
+		_window->setWindowState(
+			_window->windowState() | Qt::WindowMaximized);
+	} else {
+		_window->setGeometry((_lastLargeGeometry
+			&& available.intersects(*_lastLargeGeometry))
+			? *_lastLargeGeometry
+			: geometry);
+	}
+}
+
+void Panel::minimizeVideo() {
+	if (_window->windowState() & Qt::WindowMaximized) {
+		_lastLargeMaximized = true;
+		_window->setWindowState(
+			_window->windowState() & ~Qt::WindowMaximized);
+	} else {
+		_lastLargeMaximized = false;
+		_lastLargeGeometry = _window->geometry();
+	}
+	const auto available = _window->screen()->availableGeometry();
+	const auto width = st::groupCallWidth;
+	const auto height = st::groupCallHeight;
+	auto geometry = QRect(
+		_window->x() + (_window->width() - width) / 2,
+		_window->y() + (_window->height() - height) / 2,
+		width,
+		height);
+	_window->setGeometry((_lastSmallGeometry
+		&& available.intersects(*_lastSmallGeometry))
+		? *_lastSmallGeometry
+		: geometry);
 }
 
 void Panel::raiseControls() {
@@ -1008,6 +1082,10 @@ void Panel::setupPinnedVideo() {
 		visible,
 		std::move(track),
 		_call->videoEndpointPinnedValue());
+	_pinnedVideo->minimizeClicks(
+	) | rpl::start_with_next([=] {
+		minimizeVideo();
+	}, _pinnedVideo->lifetime());
 	_pinnedVideo->pinToggled(
 	) | rpl::start_with_next([=](bool pinned) {
 		if (!pinned) {

@@ -1605,6 +1605,10 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 	}, lifetime());
 }
 
+rpl::producer<> Members::enlargeVideo() const {
+	return _pinnedVideo->clicks();
+}
+
 Row *Members::lookupRow(not_null<PeerData*> peer) const {
 	return _listController->findRow(peer);
 }
@@ -1681,8 +1685,8 @@ void Members::setupPinnedVideo() {
 			QSize(width, heightMax),
 			Qt::KeepAspectRatio);
 		const auto height = std::max(scaled.height(), heightMin);
-		_pinnedVideoWrap->resize(width, height);
 		_pinnedVideo->setGeometry(0, 0, width, height);
+		_pinnedVideoWrap->resize(width, height);
 	}, _pinnedVideo->lifetime());
 }
 

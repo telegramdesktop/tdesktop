@@ -30,6 +30,9 @@ LargeVideo::LargeVideo(
 , _st(st)
 , _pin(st::groupCallLargeVideoPin)
 , _pinButton(&_content)
+, _minimizeButton((_st.controlsAlign == style::al_top)
+	? std::make_unique<Ui::AbstractButton>(&_content)
+	: nullptr)
 , _controlsShown(_st.controlsAlign == style::al_top)
 , _topControls(_st.controlsAlign == style::al_top)
 , _controlsShownRatio(_controlsShown.current() ? 1. : 0.) {
@@ -64,6 +67,12 @@ rpl::producer<bool> LargeVideo::pinToggled() const {
 	return _pinButton.clicks() | rpl::map([=] { return !_pinned; });
 }
 
+rpl::producer<> LargeVideo::minimizeClicks() const {
+	return _minimizeButton
+		? (_minimizeButton->clicks() | rpl::to_empty)
+		: (rpl::never<rpl::empty_value>() | rpl::type_erased());
+}
+
 rpl::producer<float64> LargeVideo::controlsShown() const {
 	return _controlsShownRatio.value();
 }
@@ -86,6 +95,18 @@ void LargeVideo::setup(
 			Ui::Integration::Instance().unregisterLeaveSubscription(
 				&_content);
 			setControlsShown(false);
+		} else if (e->type() == QEvent::MouseButtonPress
+			&& static_cast<QMouseEvent*>(
+				e.get())->button() == Qt::LeftButton) {
+			_mouseDown = true;
+		} else if (e->type() == QEvent::MouseButtonRelease
+			&& static_cast<QMouseEvent*>(
+				e.get())->button() == Qt::LeftButton
+			&& _mouseDown) {
+			_mouseDown = false;
+			if (!_content.isHidden()) {
+				_clicks.fire({});
+			}
 		}
 	}, _content.lifetime());
 
@@ -118,6 +139,9 @@ void LargeVideo::setup(
 			}
 			_content.update();
 		}, _trackLifetime);
+		if (const auto size = track.track->frameSize(); !size.isEmpty()) {
+			_trackSize = size;
+		}
 	}, _content.lifetime());
 
 	setupControls(std::move(pinned));
@@ -147,7 +171,7 @@ void LargeVideo::toggleControls() {
 			callback,
 			shown ? 0. : 1.,
 			shown ? 1. : 0.,
-			140);
+			st::slideWrapDuration);
 	}
 }
 
@@ -166,18 +190,26 @@ void LargeVideo::setupControls(rpl::producer<bool> pinned) {
 void LargeVideo::updateControlsGeometry() {
 	if (_topControls) {
 		const auto &pin = st::groupCallLargeVideoPin.icon;
-		const auto pinWidth = pin.width();
 		const auto pinRight = (_content.width() - _st.pinPosition.x());
+		const auto pinLeft = pinRight - pin.width();
 		const auto pinTop = _st.pinPosition.y();
 		const auto &icon = st::groupCallLargeVideoCrossLine.icon;
 		const auto iconLeft = _content.width()
 			- _st.iconPosition.x()
 			- icon.width();
-		const auto skip = iconLeft - pinRight;
+		const auto skip1 = iconLeft - pinRight;
+		const auto &min = st::groupCallVideoMinimize;
+		const auto minRight = _content.width() - _st.minimizePosition.x();
+		const auto skip2 = pinLeft - minRight;
 		_pinButton.setGeometry(
-			pinRight - pin.width() - (skip / 2),
+			pinLeft - (skip2 / 2),
 			0,
-			pin.width() + skip,
+			pin.width() + (skip2 / 2) + (skip1 / 2),
+			pinTop * 2 + pin.height());
+		_minimizeButton->setGeometry(
+			minRight - min.width() - (skip2 / 2),
+			0,
+			min.width() + skip2,
 			pinTop * 2 + pin.height());
 	} else {
 		_pinButton.setGeometry(
@@ -271,11 +303,11 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 		0,
 		(_topControls
 			? anim::interpolate(-_st.shadowHeight, 0, shown)
-			: (height - _st.shadowHeight)),
+			: (height - anim::interpolate(_st.shadowHeight, 0, shown))),
 		width,
 		_st.shadowHeight);
 	const auto shadowFill = shadowRect.intersected(clip);
-	if (shadowFill.isEmpty()) {
+	if (shadowFill.isEmpty() && (_topControls || shown == 0.)) {
 		return;
 	}
 	const auto factor = style::DevicePixelRatio();
@@ -287,6 +319,16 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 			(shadowFill.y() - shadowRect.y()) * factor,
 			_shadow.width(),
 			shadowFill.height() * factor));
+	if (!_topControls && shown > 0.) {
+		auto color = st::radialBg->c;
+		color.setAlphaF(color.alphaF() * shown);
+		p.fillRect(clip, color);
+
+		p.setOpacity(shown);
+		st::groupCallVideoEnlarge.paintInCenter(p, _content.rect());
+		p.setOpacity(1.);
+	}
+
 	_track.row->lazyInitialize(st::groupCallMembersListItem);
 
 	// Name.
@@ -338,6 +380,14 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 		? (_st.pinPosition.y() + shift)
 		: (height - _st.pinPosition.y() - pin.height());
 	_pin.paint(p, pinLeft, pinTop, _pinned ? 1. : 0.);
+
+	// Minimize.
+	if (_topControls) {
+		const auto &min = st::groupCallVideoMinimize;
+		const auto minLeft = width - _st.minimizePosition.x() - min.width();
+		const auto minTop = _st.minimizePosition.y() + shift;
+		min.paint(p, minLeft, minTop, width);
+	}
 }
 
 QImage GenerateShadow(int height, int topAlpha, int bottomAlpha) {

@@ -64,8 +64,12 @@ public:
 	void setControlsShown(bool shown);
 
 	[[nodiscard]] rpl::producer<bool> pinToggled() const;
+	[[nodiscard]] rpl::producer<> minimizeClicks() const;
 	[[nodiscard]] rpl::producer<float64> controlsShown() const;
 	[[nodiscard]] rpl::producer<QSize> trackSizeValue() const;
+	[[nodiscard]] rpl::producer<> clicks() const {
+		return _clicks.events();
+	}
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _content.lifetime();
@@ -109,11 +113,14 @@ private:
 	QImage _shadow;
 	Ui::CrossLineAnimation _pin;
 	Ui::AbstractButton _pinButton;
+	std::unique_ptr<Ui::AbstractButton> _minimizeButton;
 	Ui::Animations::Simple _controlsAnimation;
 	rpl::variable<bool> _controlsShown = true;
+	rpl::event_stream<> _clicks;
 	const bool _topControls = true;
 	bool _pinned = false;
 	bool _mouseInside = false;
+	bool _mouseDown = false;
 	bool _toggleControlsScheduled = false;
 	rpl::variable<float64> _controlsShownRatio = 1.;
 	rpl::variable<QSize> _trackSize;

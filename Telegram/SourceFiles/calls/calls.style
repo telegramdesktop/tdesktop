@@ -1139,7 +1139,7 @@ groupCallNarrowNameTop: 65px;
 groupCallNarrowIconTop: 62px;
 groupCallNarrowIconLess: 5px;
 groupCallWideModeWidthMin: 550px;
-groupCallWideModeSize: size(720px, 480px);
+groupCallWideModeSize: size(960px, 580px);
 groupCallNarrowAddMemberHeight: 32px;
 groupCallNarrowOutline: 2px;
 groupCallNarrowShadowHeight: 36px;
@@ -1184,6 +1184,7 @@ GroupCallLargeVideo {
 	statusPosition: point;
 	pinPosition: point;
 	iconPosition: point;
+	minimizePosition: point;
 }
 
 groupCallLargeVideoWide: GroupCallLargeVideo {
@@ -1193,6 +1194,7 @@ groupCallLargeVideoWide: GroupCallLargeVideo {
 	statusPosition: point(15px, 28px);
 	pinPosition: point(52px, 16px);
 	iconPosition: point(14px, 16px);
+	minimizePosition: point(94px, 16px);
 }
 groupCallLargeVideoNarrow: GroupCallLargeVideo {
 	shadowHeight: 80px;
@@ -1216,3 +1218,5 @@ groupCallLargeVideoPin: CrossLineAnimation {
 	endPosition: point(20px, 17px);
 	stroke: 2px;
 }
+groupCallVideoEnlarge: icon {{ "calls/voice_enlarge", mediaviewPipControlsFgOver }};
+groupCallVideoMinimize: icon {{ "calls/voice_minimize", groupCallVideoSubTextFg }};
