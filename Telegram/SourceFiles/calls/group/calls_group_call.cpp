@@ -964,6 +964,14 @@ void GroupCall::rejoinWithHash(const QString &hash) {
 }
 
 void GroupCall::setJoinAs(not_null<PeerData*> as) {
+	if (_joinAs != as) {
+		if (_cameraOutgoing) {
+			_cameraOutgoing->setState(Webrtc::VideoState::Inactive);
+		}
+		if (_screenOutgoing) {
+			_screenOutgoing->setState(Webrtc::VideoState::Inactive);
+		}
+	}
 	_joinAs = as;
 	if (const auto chat = _peer->asChat()) {
 		chat->setGroupCallDefaultJoinAs(_joinAs->id);
@@ -1650,6 +1658,10 @@ void GroupCall::ensureOutgoingVideo() {
 			if (!_cameraCapture) {
 				_cameraCapture = _delegate->groupCallGetVideoCapture(
 					_cameraInputId);
+				if (!_cameraCapture) {
+					_cameraOutgoing->setState(Webrtc::VideoState::Inactive);
+					return;
+				}
 			} else {
 				_cameraCapture->switchToDevice(_cameraInputId.toStdString());
 			}
@@ -1678,6 +1690,18 @@ void GroupCall::ensureOutgoingVideo() {
 					tgcalls::VideoCaptureInterface::Create(
 						tgcalls::StaticThreads::getThreads(),
 						_screenDeviceId.toStdString()));
+				if (!_screenCapture) {
+					_screenOutgoing->setState(Webrtc::VideoState::Inactive);
+					return;
+				}
+				const auto weak = base::make_weak(this);
+				_screenCapture->setOnFatalError([=] {
+					crl::on_main(weak, [=] {
+						_screenOutgoing->setState(
+							Webrtc::VideoState::Inactive);
+						// #TODO calls show error toast, receive here device.
+					});
+				});
 			} else {
 				_screenCapture->switchToDevice(_screenDeviceId.toStdString());
 			}
