@@ -361,7 +361,7 @@ private:
 	void updateOverRect(OverState state);
 	bool updateOverState(OverState newState);
 	float64 overLevel(OverState control) const;
-  bool isZoomedIn();
+	bool isZoomedIn();
 
 	void checkGroupThumbsAnimation();
 	void initGroupThumbs();
