@@ -928,8 +928,8 @@ bool OverlayWidget::updateControlsAnimation(crl::time now) {
 		return false;
 	}
 	const auto duration = (_controlsState == ControlsShowing)
-		? st::mediaviewShowDuration
-		: st::mediaviewHideDuration;
+		? (isZoomedIn() ? st::mediaviewZoomShow : st::mediaviewShowDuration)
+		: (isZoomedIn() ? st::mediaviewZoomHide : st::mediaviewHideDuration);
 	const auto dt = float64(now - _controlsAnimStarted)
 		/ duration;
 	if (dt >= 1) {
@@ -1036,11 +1036,6 @@ void OverlayWidget::resizeContentByScreenSize() {
 	_x = (width() - _w) / 2;
 	_y = (height() - _h) / 2;
 	_initialZoom = _zoom;
-	if (_controlsState == ControlsDisabled) {
-		_controlsState = ControlsHidden;
-		activateControls();
-		updateCursor();
-	}
 }
 
 float64 OverlayWidget::radialProgress() const {
@@ -1161,7 +1156,7 @@ void OverlayWidget::zoomReset() {
 	auto newZoom = _zoom;
 	const auto full = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 	if (_zoom == 0) {
-		if (qFloor(full) == qCeil(full) && qRound(full) >= -kMaxZoomLevel && qRound(full) <= kMaxZoomLevel && qRound(full) != 0) {
+		if (qFloor(full) == qCeil(full) && qRound(full) >= -kMaxZoomLevel && qRound(full) <= kMaxZoomLevel && full != 0.0) {
 			newZoom = qRound(full);
 		} else {
 			newZoom = kZoomToScreenLevel;
@@ -1277,11 +1272,8 @@ void OverlayWidget::close() {
 }
 
 void OverlayWidget::activateControls() {
-	if (_controlsState == ControlsDisabled) {
-		return;
-	}
-	if (!_menu && !_mousePressed) {
-		_controlsHideTimer.callOnce(st::mediaviewWaitHide);
+	if (!_menu && !_mousePressed && (_over == OverNone || _over == OverVideo)) {
+		_controlsHideTimer.callOnce(isZoomedIn() ? st::mediaviewZoomWait : st::mediaviewWaitHide);
 	}
 	if (_fullScreenVideo) {
 		if (_streamed) {
@@ -1304,6 +1296,7 @@ void OverlayWidget::onHideControls(bool force) {
 			|| (_streamed && _streamed->controls.hasMenu())
 			|| _menu
 			|| _mousePressed
+			|| (_over != OverNone && _over != OverVideo)
 			|| (_fullScreenVideo
 				&& !videoIsGifOrUserpic()
 				&& _streamed->controls.geometry().contains(_lastMouseMovePos))) {
@@ -1313,11 +1306,7 @@ void OverlayWidget::onHideControls(bool force) {
 	if (_fullScreenVideo) {
 		_streamed->controls.hideAnimated();
 	}
-	if (_controlsState == ControlsHiding
-		|| _controlsState == ControlsHidden
-		|| _controlsState == ControlsDisabled) {
-		return;
-	}
+	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) return;
 
 	_lastMouseMovePos = mapFromGlobal(QCursor::pos());
 	_controlsState = ControlsHiding;
@@ -3631,8 +3620,6 @@ void OverlayWidget::keyPressEvent(QKeyEvent *e) {
 			playbackPauseResume();
 		} else if (_document && !_document->loading() && (documentBubbleShown() || !_documentMedia->loaded())) {
 			onDocClick();
-		} else {
-			zoomReset();
 		}
 	} else if (e->key() == Qt::Key_Left) {
 		if (_controlsHideTimer.isActive()) {
@@ -3644,22 +3631,16 @@ void OverlayWidget::keyPressEvent(QKeyEvent *e) {
 			activateControls();
 		}
 		moveToNext(1);
-	} else if (ctrl) {
+	} else if (ctrl || !_streamed) {
 		if (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Asterisk || e->key() == ']') {
 			zoomIn();
-		} else if (e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore) {
+		} else if (e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore || e->key() == '[') {
 			zoomOut();
 		} else if (e->key() == Qt::Key_0) {
 			zoomReset();
 		} else if (e->key() == Qt::Key_I) {
 			update();
 		}
-	} else if (e->key() == Qt::Key_Plus) {
-		zoomIn();
-	} else if (e->key() == Qt::Key_Minus) {
-		zoomOut();
-	} else if (e->key() == Qt::Key_Asterisk) {
-		zoomReset();
 	}
 }
 
@@ -3702,22 +3683,6 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 	if (!force && _zoom == newZoom) {
 		return;
 	}
-	if (!_fullScreenVideo) {
-		if ((_initialZoom == 0 && newZoom > 0)
-			|| (_initialZoom != 0 && newZoom >= 0 && newZoom != _initialZoom)) {
-			if (_controlsState != ControlsDisabled) {
-				activateControls();
-				onHideControls(true);
-				updateControlsAnimation(_controlsAnimStarted + st::mediaviewHideDuration);
-				_controlsState = ControlsDisabled;
-				updateCursor();
-			}
-		} else if (_controlsState == ControlsDisabled) {
-			_controlsState = ControlsHidden;
-			activateControls();
-			updateCursor();
-		}
-	}
 
 	const auto full = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 	float64 nx, ny, z = (_zoom == kZoomToScreenLevel) ? full : _zoom;
@@ -3745,6 +3710,12 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 		_h = qRound(_h / (-z + 1));
 		_x = qRound(nx / (-z + 1) + width() / 2.);
 		_y = qRound(ny / (-z + 1) + height() / 2.);
+	}
+	if(isZoomedIn()){
+		if(_controlsState == ControlsHiding){
+			_controlsState = ControlsShown;
+		}
+		onHideControls();
 	}
 	snapXY();
 	update();
@@ -4071,15 +4042,6 @@ void OverlayWidget::updateOverRect(OverState state) {
 
 bool OverlayWidget::updateOverState(OverState newState) {
 	bool result = true;
-	if (_controlsState == ControlsDisabled
-		&& newState != OverLeftNav
-		&& newState != OverRightNav
-		&& newState != OverClose
-		&& newState != OverVideo) {
-		_over = OverNone;
-		updateCursor();
-		return false;
-	}
 	if (_over != newState) {
 		if (newState == OverMore && !_ignoringDropdown) {
 			_dropdownShowTimer.callOnce(0);
@@ -4114,6 +4076,7 @@ bool OverlayWidget::updateOverState(OverState newState) {
 			if (!_stateAnimation.animating()) {
 				_stateAnimation.start();
 			}
+			activateControls();
 		}
 		updateCursor();
 	}
@@ -4250,7 +4213,7 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 		_pressed = false;
 	}
 	_down = OverNone;
-	if (!isHidden()) {
+	if (isHidden() && _controlsState == ControlsHidden) {
 		activateControls();
 	}
 }
@@ -4568,6 +4531,11 @@ float64 OverlayWidget::overLevel(OverState control) const {
 	return (i == end(_animationOpacities))
 		? (_over == control ? 1. : 0.)
 		: i->second.current();
+}
+
+bool OverlayWidget::isZoomedIn() {
+	return ((_initialZoom == 0 && _zoom > 0)
+		|| (_initialZoom != 0 && _zoom >= 0 && _zoom != _initialZoom));
 }
 
 } // namespace View

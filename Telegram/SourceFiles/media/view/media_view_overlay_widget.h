@@ -361,6 +361,7 @@ private:
 	void updateOverRect(OverState state);
 	bool updateOverState(OverState newState);
 	float64 overLevel(OverState control) const;
+  bool isZoomedIn();
 
 	void checkGroupThumbsAnimation();
 	void initGroupThumbs();
@@ -499,7 +500,6 @@ private:
 		ControlsShown,
 		ControlsHiding,
 		ControlsHidden,
-		ControlsDisabled
 	};
 	ControlsState _controlsState = ControlsShown;
 	crl::time _controlsAnimStarted = 0;

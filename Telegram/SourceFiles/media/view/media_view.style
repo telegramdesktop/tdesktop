@@ -247,6 +247,9 @@ mediaviewWaitHide: 2000;
 mediaviewHideDuration: 1000;
 mediaviewShowDuration: 200;
 mediaviewFadeDuration: 150;
+mediaviewZoomWait: 150;
+mediaviewZoomHide: 150;
+mediaviewZoomShow: 150;
 
 mediaviewDeltaFromLastAction: 5px;
 mediaviewSwipeDistance: 80px;
