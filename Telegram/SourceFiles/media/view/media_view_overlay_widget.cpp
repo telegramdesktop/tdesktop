@@ -4213,7 +4213,7 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 		_pressed = false;
 	}
 	_down = OverNone;
-	if (isHidden() && _controlsState == ControlsHidden) {
+	if (!isHidden() || (isZoomedIn() && _controlsState == ControlsHidden)) {
 		activateControls();
 	}
 }
