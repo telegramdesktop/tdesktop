@@ -178,6 +178,8 @@ private:
 	int statusIconHeight() const;
 	void paintStatusIcon(
 		Painter &p,
+		int x,
+		int y,
 		const style::PeerListItem &st,
 		const style::font &font,
 		bool selected);

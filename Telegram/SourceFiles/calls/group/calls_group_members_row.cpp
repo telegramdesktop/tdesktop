@@ -633,6 +633,8 @@ int MembersRow::statusIconHeight() const {
 
 void MembersRow::paintStatusIcon(
 		Painter &p,
+		int x,
+		int y,
 		const style::PeerListItem &st,
 		const style::font &font,
 		bool selected) {
@@ -652,8 +654,7 @@ void MembersRow::paintStatusIcon(
 	p.setPen(color);
 
 	const auto speakerRect = QRect(
-		st.statusPosition
-			+ QPoint(0, (font->height - statusIconHeight()) / 2),
+		QPoint(x, y + (font->height - statusIconHeight()) / 2),
 		_statusIcon->speaker.size());
 	const auto arcPosition = speakerRect.topLeft()
 		+ QPoint(
@@ -683,8 +684,8 @@ void MembersRow::paintStatusIcon(
 	p.setFont(st::normalFont);
 	p.setPen(st.statusFgActive);
 	p.drawTextLeft(
-		st.statusPosition.x() + speakerRect.width() + _statusIcon->arcsWidth,
-		st.statusPosition.y(),
+		x + speakerRect.width() + _statusIcon->arcsWidth,
+		y,
 		fullWidth,
 		_statusIcon->percent);
 	p.restore();
@@ -737,7 +738,7 @@ void MembersRow::paintComplexStatusText(
 	if (about.isEmpty()
 		&& _state != State::Invited
 		&& _state != State::MutedByMe) {
-		paintStatusIcon(p, st, font, selected);
+		paintStatusIcon(p, x, y, st, font, selected);
 
 		const auto translatedWidth = statusIconWidth();
 		p.translate(translatedWidth, 0);
