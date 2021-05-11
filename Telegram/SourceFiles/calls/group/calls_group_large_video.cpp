@@ -116,6 +116,9 @@ void LargeVideo::setup(
 	) | rpl::map([=](bool shown, LargeVideoTrack track) {
 		if (!shown) {
 			_controlsAnimation.stop();
+			if (!_topControls) {
+				_controlsShown = _mouseInside = false;
+			}
 			_controlsShownRatio = _controlsShown.current() ? 1. : 0.;
 		}
 		return shown ? track : LargeVideoTrack();

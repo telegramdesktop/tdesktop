@@ -446,8 +446,8 @@ GroupCall::GroupCall(
 }
 
 GroupCall::~GroupCall() {
-	destroyController();
 	destroyScreencast();
+	destroyController();
 }
 
 bool GroupCall::isSharingScreen() const {
@@ -732,8 +732,8 @@ void GroupCall::setState(State state) {
 		|| state == State::Failed) {
 		// Destroy controller before destroying Call Panel,
 		// so that the panel hide animation is smooth.
-		destroyController();
 		destroyScreencast();
+		destroyController();
 	}
 	switch (state) {
 	case State::HangingUp:
@@ -1005,7 +1005,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 
 	setJoinAs(as);
 
-	const auto weak = base::make_weak(this);
+	const auto weak = base::make_weak(&_instanceGuard);
 	_instance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
 		crl::on_main(weak, [=, payload = std::move(payload)]{
 			const auto ssrc = payload.audioSsrc;
@@ -1080,7 +1080,7 @@ void GroupCall::rejoinPresentation() {
 	setScreenInstanceMode(InstanceMode::None);
 	LOG(("Call Info: Requesting join payload."));
 
-	const auto weak = base::make_weak(this);
+	const auto weak = base::make_weak(&_screenInstanceGuard);
 	_screenInstance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
 		crl::on_main(weak, [=, payload = std::move(payload)]{
 			if (!_screenInstance) {
@@ -1770,7 +1770,7 @@ void GroupCall::ensureControllerCreated() {
 	}
 	const auto &settings = Core::App().settings();
 
-	const auto weak = base::make_weak(this);
+	const auto weak = base::make_weak(&_instanceGuard);
 	const auto myLevel = std::make_shared<tgcalls::GroupLevelValue>();
 	_videoCall = true;
 	tgcalls::GroupInstanceDescriptor descriptor = {
@@ -1806,12 +1806,12 @@ void GroupCall::ensureControllerCreated() {
 				setIncomingVideoEndpoints(endpoints);
 			});
 		},
-		.requestBroadcastPart = [=](
+		.requestBroadcastPart = [=, call = base::make_weak(this)](
 				int64_t time,
 				int64_t period,
 				std::function<void(tgcalls::BroadcastPart &&)> done) {
 			auto result = std::make_shared<LoadPartTask>(
-				weak,
+				call,
 				time,
 				period,
 				std::move(done));
@@ -1821,12 +1821,12 @@ void GroupCall::ensureControllerCreated() {
 			return result;
 		},
 		.videoContentType = tgcalls::VideoContentType::Generic,
-		.requestMediaChannelDescriptions = [=](
+		.requestMediaChannelDescriptions = [=, call = base::make_weak(this)](
 			const std::vector<uint32_t> &ssrcs,
 			std::function<void(
 				std::vector<tgcalls::MediaChannelDescription> &&)> done) {
 			auto result = std::make_shared<MediaChannelDescriptionsTask>(
-				weak,
+				call,
 				ssrcs,
 				std::move(done));
 			crl::on_main(weak, [=]() mutable {
@@ -1886,7 +1886,7 @@ void GroupCall::ensureScreencastCreated() {
 	}
 	//const auto &settings = Core::App().settings();
 
-	const auto weak = base::make_weak(this);
+	const auto weak = base::make_weak(&_screenInstanceGuard);
 	//const auto myLevel = std::make_shared<tgcalls::GroupLevelValue>();
 	tgcalls::GroupInstanceDescriptor descriptor = {
 		.threads = tgcalls::StaticThreads::getThreads(),
@@ -2721,16 +2721,22 @@ MTPInputGroupCall GroupCall::inputCall() const {
 void GroupCall::destroyController() {
 	if (_instance) {
 		DEBUG_LOG(("Call Info: Destroying call controller.."));
-		_instance.reset();
-		DEBUG_LOG(("Call Info: Call controller destroyed."));
+		invalidate_weak_ptrs(&_instanceGuard);
+		crl::async([instance = base::take(_instance)]() mutable {
+			instance = nullptr;
+			DEBUG_LOG(("Call Info: Call controller destroyed."));
+		});
 	}
 }
 
 void GroupCall::destroyScreencast() {
 	if (_screenInstance) {
 		DEBUG_LOG(("Call Info: Destroying call screen controller.."));
-		_screenInstance.reset();
-		DEBUG_LOG(("Call Info: Call screen controller destroyed."));
+		invalidate_weak_ptrs(&_screenInstanceGuard);
+		crl::async([instance = base::take(_screenInstance)]() mutable {
+			instance = nullptr;
+			DEBUG_LOG(("Call Info: Call screen controller destroyed."));
+		});
 	}
 }
 

@@ -520,6 +520,7 @@ private:
 	bool _instanceTransitioning = false;
 	InstanceMode _instanceMode = InstanceMode::None;
 	std::unique_ptr<tgcalls::GroupInstanceCustomImpl> _instance;
+	base::has_weak_ptr _instanceGuard;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _cameraCapture;
 	std::unique_ptr<Webrtc::VideoTrack> _cameraOutgoing;
 
@@ -527,6 +528,7 @@ private:
 		= InstanceState::Disconnected;
 	InstanceMode _screenInstanceMode = InstanceMode::None;
 	std::unique_ptr<tgcalls::GroupInstanceCustomImpl> _screenInstance;
+	base::has_weak_ptr _screenInstanceGuard;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _screenCapture;
 	std::unique_ptr<Webrtc::VideoTrack> _screenOutgoing;
 	QString _screenDeviceId;
