@@ -108,6 +108,8 @@ public:
 	[[nodiscard]] PeerData *participantPeerByAudioSsrc(uint32 ssrc) const;
 	[[nodiscard]] PeerData *participantPeerByCameraSsrc(uint32 ssrc) const;
 	[[nodiscard]] PeerData *participantPeerByScreenSsrc(uint32 ssrc) const;
+	[[nodiscard]] const Participant *participantByPeer(
+		not_null<PeerData*> peer) const;
 	[[nodiscard]] const Participant *participantByEndpoint(
 		const std::string &endpoint) const;
 
@@ -178,6 +180,7 @@ private:
 		const MTPphone_GroupCall &call) const;
 	[[nodiscard]] bool processSavedFullCall();
 	void finishParticipantsSliceRequest();
+	[[nodiscard]] Participant *findParticipant(not_null<PeerData*> peer);
 
 	void emplaceVideoSsrcs(const Participant &participant);
 	void eraseVideoSsrcs(const Participant &participant);

@@ -289,7 +289,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> videoEndpointPinnedValue() const {
 		return _videoEndpointPinned.value();
 	}
-	void pinVideoEndpoint(const VideoEndpoint &endpoint);
+	void pinVideoEndpoint(VideoEndpoint endpoint);
 	[[nodiscard]] const VideoEndpoint &videoEndpointLarge() const {
 		return _videoEndpointLarge.current();
 	}
@@ -297,6 +297,7 @@ public:
 	-> rpl::producer<VideoEndpoint> {
 		return _videoEndpointLarge.value();
 	}
+	void showVideoEndpointLarge(VideoEndpoint endpoint);
 	struct LargeTrack {
 		Webrtc::VideoTrack *track = nullptr;
 		PeerData *peer = nullptr;
@@ -451,6 +452,7 @@ private:
 	[[nodiscard]] VideoEndpoint chooseLargeVideoEndpoint() const;
 	[[nodiscard]] EndpointType activeVideoEndpointType(
 		const std::string &endpoint) const;
+	void setVideoEndpointLarge(VideoEndpoint endpoint);
 
 	void editParticipant(
 		not_null<PeerData*> participantPeer,
@@ -539,6 +541,7 @@ private:
 	rpl::variable<bool> _videoEndpointPinned;
 	std::unique_ptr<Webrtc::VideoTrack> _videoLargeTrackWrap;
 	rpl::variable<LargeTrack> _videoLargeTrack;
+	crl::time _videoLargeShowTime = 0;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
 	rpl::event_stream<> _allowedToSpeakNotifications;

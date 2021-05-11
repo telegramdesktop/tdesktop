@@ -229,6 +229,17 @@ PeerData *GroupCall::participantPeerByScreenSsrc(uint32 ssrc) const {
 		: nullptr;
 }
 
+const GroupCallParticipant *GroupCall::participantByPeer(
+		not_null<PeerData*> peer) const {
+	return const_cast<GroupCall*>(this)->findParticipant(peer);
+}
+
+GroupCallParticipant *GroupCall::findParticipant(
+		not_null<PeerData*> peer) {
+	const auto i = ranges::find(_participants, peer, &Participant::peer);
+	return (i != end(_participants)) ? &*i : nullptr;
+}
+
 const GroupCallParticipant *GroupCall::participantByEndpoint(
 		const std::string &endpoint) const {
 	if (endpoint.empty()) {
@@ -683,24 +694,22 @@ void GroupCall::applyLastSpoke(
 		requestUnknownParticipants();
 		return;
 	}
-	const auto j = ranges::find(
-		_participants,
-		i->second,
-		&Participant::peer);
-	Assert(j != end(_participants));
+	const auto participant = findParticipant(i->second);
+	Assert(participant != nullptr);
 
-	_speakingByActiveFinishes.remove(j->peer);
+	_speakingByActiveFinishes.remove(participant->peer);
 	const auto sounding = (when.anything + kSoundStatusKeptFor >= now)
-		&& j->canSelfUnmute;
+		&& participant->canSelfUnmute;
 	const auto speaking = sounding
 		&& (when.voice + kSoundStatusKeptFor >= now);
-	if (j->sounding != sounding || j->speaking != speaking) {
-		const auto was = *j;
-		j->sounding = sounding;
-		j->speaking = speaking;
+	if (participant->sounding != sounding
+		|| participant->speaking != speaking) {
+		const auto was = *participant;
+		participant->sounding = sounding;
+		participant->speaking = speaking;
 		_participantUpdates.fire({
 			.was = was,
-			.now = *j,
+			.now = *participant,
 		});
 	}
 }
@@ -722,41 +731,37 @@ void GroupCall::applyActiveUpdate(
 	if (inCall()) {
 		return;
 	}
-	const auto i = participantPeerLoaded
-		? ranges::find(
-			_participants,
-			not_null{ participantPeerLoaded },
-			&Participant::peer)
-		: _participants.end();
-	const auto notFound = (i == end(_participants));
-	const auto loadByUserId = notFound || i->onlyMinLoaded;
+	const auto participant = participantPeerLoaded
+		? findParticipant(participantPeerLoaded)
+		: nullptr;
+	const auto loadByUserId = !participant || participant->onlyMinLoaded;
 	if (loadByUserId) {
 		_unknownSpokenPeerIds[participantPeerId] = when;
 		requestUnknownParticipants();
 	}
-	if (notFound || !i->canSelfUnmute) {
+	if (!participant || !participant->canSelfUnmute) {
 		return;
 	}
-	const auto was = std::make_optional(*i);
+	const auto was = std::make_optional(*participant);
 	const auto now = crl::now();
 	const auto elapsed = TimeId((now - when.anything) / crl::time(1000));
 	const auto lastActive = base::unixtime::now() - elapsed;
 	const auto finishes = when.anything + kSpeakingAfterActive;
-	if (lastActive <= i->lastActive || finishes <= now) {
+	if (lastActive <= participant->lastActive || finishes <= now) {
 		return;
 	}
-	_speakingByActiveFinishes[i->peer] = finishes;
+	_speakingByActiveFinishes[participant->peer] = finishes;
 	if (!_speakingByActiveFinishTimer.isActive()) {
 		_speakingByActiveFinishTimer.callOnce(finishes - now);
 	}
 
-	i->lastActive = lastActive;
-	i->speaking = true;
-	i->canSelfUnmute = true;
+	participant->lastActive = lastActive;
+	participant->speaking = true;
+	participant->canSelfUnmute = true;
 	if (!was->speaking || !was->canSelfUnmute) {
 		_participantUpdates.fire({
 			.was = was,
-			.now = *i,
+			.now = *participant,
 		});
 	}
 }
@@ -779,16 +784,14 @@ void GroupCall::checkFinishSpeakingByActive() {
 		}
 	}
 	for (const auto participantPeer : stop) {
-		const auto i = ranges::find(
-			_participants,
-			participantPeer,
-			&Participant::peer);
-		if (i->speaking) {
-			const auto was = *i;
-			i->speaking = false;
+		const auto participant = findParticipant(participantPeer);
+		Assert(participant != nullptr);
+		if (participant->speaking) {
+			const auto was = *participant;
+			participant->speaking = false;
 			_participantUpdates.fire({
 				.was = was,
-				.now = *i,
+				.now = *participant,
 			});
 		}
 	}

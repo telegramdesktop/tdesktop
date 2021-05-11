@@ -47,6 +47,7 @@ constexpr auto kCheckLastSpokeInterval = crl::time(1000);
 constexpr auto kCheckJoinedTimeout = 4 * crl::time(1000);
 constexpr auto kUpdateSendActionEach = crl::time(500);
 constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
+constexpr auto kFixLargeVideoDuration = 5 * crl::time(1000);
 
 [[nodiscard]] std::unique_ptr<Webrtc::MediaDevices> CreateMediaDevices() {
 	const auto &settings = Core::App().settings();
@@ -61,15 +62,9 @@ constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 		uint64 id,
 		not_null<PeerData*> participantPeer) {
 	const auto call = peer->groupCall();
-	if (!id || !call || call->id() != id) {
-		return nullptr;
-	}
-	const auto &participants = call->participants();
-	const auto i = ranges::find(
-		participants,
-		participantPeer,
-		&Data::GroupCallParticipant::peer);
-	return (i != end(participants)) ? &*i : nullptr;
+	return (id && call && call->id() == id)
+		? call->participantByPeer(participantPeer)
+		: nullptr;
 }
 
 [[nodiscard]] double TimestampFromMsgId(mtpMsgId msgId) {
@@ -559,7 +554,7 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 				newLarge = chooseLargeVideoEndpoint();
 			}
 			if (_videoEndpointLarge.current() != newLarge) {
-				_videoEndpointLarge = newLarge;
+				setVideoEndpointLarge(newLarge);
 			}
 			if (!updateCameraNotStreams.empty()) {
 				_streamsVideoUpdated.fire({ updateCameraNotStreams, false });
@@ -624,7 +619,10 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 		const auto wasSounding = data.was && data.was->sounding;
 		if (nowSpeaking == wasSpeaking && nowSounding == wasSounding) {
 			return;
-		} else if (_videoEndpointPinned.current()) {
+		} else if (_videoEndpointPinned.current()
+			|| (_videoLargeShowTime
+				&& _videoLargeShowTime + kFixLargeVideoDuration
+					> crl::now())) {
 			return;
 		}
 		if (nowScreenEndpoint != newLarge.endpoint
@@ -880,7 +878,7 @@ void GroupCall::setMyEndpointType(
 			auto newLarge = _videoEndpointLarge.current();
 			if (newLarge.endpoint == endpoint) {
 				_videoEndpointPinned = false;
-				_videoEndpointLarge = chooseLargeVideoEndpoint();
+				setVideoEndpointLarge(chooseLargeVideoEndpoint());
 			}
 			_streamsVideoUpdated.fire({ endpoint, false });
 		}
@@ -899,7 +897,7 @@ void GroupCall::setMyEndpointType(
 				&& nowLarge != EndpointType::Screen)
 				|| (type == EndpointType::Camera
 					&& nowLarge == EndpointType::None))) {
-			_videoEndpointLarge = VideoEndpoint{ _joinAs, endpoint };
+			setVideoEndpointLarge(VideoEndpoint{ _joinAs, endpoint });
 		}
 	}
 }
@@ -1132,34 +1130,30 @@ void GroupCall::leavePresentation() {
 }
 
 void GroupCall::applyMeInCallLocally() {
-	const auto call = _peer->groupCall();
-	if (!call || call->id() != _id) {
+	const auto real = lookupReal();
+	if (!real) {
 		return;
 	}
 	using Flag = MTPDgroupCallParticipant::Flag;
-	const auto &participants = call->participants();
-	const auto i = ranges::find(
-		participants,
-		_joinAs,
-		&Data::GroupCallParticipant::peer);
-	const auto date = (i != end(participants))
-		? i->date
+	const auto participant = real->participantByPeer(_joinAs);
+	const auto date = participant
+		? participant->date
 		: base::unixtime::now();
-	const auto lastActive = (i != end(participants))
-		? i->lastActive
+	const auto lastActive = participant
+		? participant->lastActive
 		: TimeId(0);
-	const auto volume = (i != end(participants))
-		? i->volume
+	const auto volume = participant
+		? participant->volume
 		: Group::kDefaultVolume;
 	const auto canSelfUnmute = (muted() != MuteState::ForceMuted)
 		&& (muted() != MuteState::RaisedHand);
 	const auto raisedHandRating = (muted() != MuteState::RaisedHand)
 		? uint64(0)
-		: (i != end(participants))
-		? i->raisedHandRating
-		: FindLocalRaisedHandRating(participants);
-	const auto params = (i != end(participants))
-		? i->videoParams.get()
+		: participant
+		? participant->raisedHandRating
+		: FindLocalRaisedHandRating(real->participants());
+	const auto params = participant
+		? participant->videoParams.get()
 		: nullptr;
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (lastActive ? Flag::f_active_date : Flag(0))
@@ -1173,7 +1167,7 @@ void GroupCall::applyMeInCallLocally() {
 			? Flag::f_presentation
 			: Flag(0))
 		| (raisedHandRating > 0 ? Flag::f_raise_hand_rating : Flag(0));
-	call->applyLocalUpdate(
+	real->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
 			inputCall(),
 			MTP_vector<MTPGroupCallParticipant>(
@@ -2013,17 +2007,15 @@ bool GroupCall::mediaChannelDescriptionsFill(
 		const auto addVideoChannel = [&](
 				not_null<PeerData*> participantPeer,
 				const auto field) {
-			const auto i = ranges::find(
-				existing,
-				participantPeer,
-				&Data::GroupCallParticipant::peer);
-			Assert(i != end(existing));
-			Assert(i->videoParams != nullptr);
-			const auto &params = i->videoParams.get()->*field;
+			const auto participant = real->participantByPeer(
+				participantPeer);
+			Assert(participant != nullptr);
+			Assert(participant->videoParams != nullptr);
+			const auto &params = participant->videoParams.get()->*field;
 			Assert(!params.empty());
 			add(Channel{
 				.type = Channel::Type::Video,
-				.audioSsrc = i->ssrc,
+				.audioSsrc = participant->ssrc,
 				.videoInformation = params.json.toStdString(),
 			}, (field == &ParticipantVideoParams::screen));
 		};
@@ -2085,7 +2077,7 @@ void GroupCall::setIncomingVideoEndpoints(
 		newLarge = VideoEndpoint();
 	}
 	if (newLarge.empty()) {
-		_videoEndpointLarge = chooseLargeVideoEndpoint();
+		setVideoEndpointLarge(chooseLargeVideoEndpoint());
 	}
 	for (const auto &endpoint : removed) {
 		if (_activeVideoEndpoints.contains(endpoint)) {
@@ -2134,7 +2126,7 @@ void GroupCall::fillActiveVideoEndpoints() {
 		newLarge = VideoEndpoint();
 	}
 	if (!newLarge) {
-		_videoEndpointLarge = chooseLargeVideoEndpoint();
+		setVideoEndpointLarge(chooseLargeVideoEndpoint());
 	}
 	for (const auto &[endpoint, type] : removed) {
 		if (_activeVideoEndpoints.remove(endpoint)) {
@@ -2494,14 +2486,28 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 	}).send();
 }
 
-void GroupCall::pinVideoEndpoint(const VideoEndpoint &endpoint) {
+void GroupCall::pinVideoEndpoint(VideoEndpoint endpoint) {
 	if (!endpoint) {
 		_videoEndpointPinned = false;
 	} else if (streamsVideo(endpoint.endpoint)) {
 		_videoEndpointPinned = false;
-		_videoEndpointLarge = endpoint;
+		setVideoEndpointLarge(std::move(endpoint));
 		_videoEndpointPinned = true;
 	}
+}
+
+void GroupCall::showVideoEndpointLarge(VideoEndpoint endpoint) {
+	if (!streamsVideo(endpoint.endpoint)) {
+		return;
+	}
+	_videoEndpointPinned = false;
+	setVideoEndpointLarge(std::move(endpoint));
+	_videoLargeShowTime = crl::now();
+}
+
+void GroupCall::setVideoEndpointLarge(VideoEndpoint endpoint) {
+	_videoEndpointLarge = endpoint;
+	_videoLargeShowTime = 0;
 }
 
 void GroupCall::setCurrentAudioDevice(bool input, const QString &deviceId) {
@@ -2572,13 +2578,9 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 	}
 	const auto owner = &_peer->owner();
 	const auto &invited = owner->invitedToCallUsers(_id);
-	const auto &participants = real->participants();
 	auto &&toInvite = users | ranges::views::filter([&](
 			not_null<UserData*> user) {
-		return !invited.contains(user) && !ranges::contains(
-			participants,
-			user,
-			&Data::GroupCallParticipant::peer);
+		return !invited.contains(user) && !real->participantByPeer(user);
 	});
 
 	auto count = 0;

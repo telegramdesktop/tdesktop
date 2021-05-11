@@ -159,6 +159,8 @@ private:
 	void setRowVideoEndpoint(
 		not_null<Row*> row,
 		const std::string &endpoint);
+	bool toggleRowVideo(not_null<PeerListRow*> row);
+	void showRowMenu(not_null<PeerListRow*> row);
 
 	void generateNarrowShadow();
 	void appendInvitedUsers();
@@ -377,16 +379,13 @@ void Members::Controller::setupListChangeViewers() {
 				const auto row = i->second;
 				const auto real = _call->lookupReal();
 				Assert(real != nullptr);
-				const auto &participants = real->participants();
-				const auto j = ranges::find(
-					participants,
-					row->peer(),
-					&Data::GroupCallParticipant::peer);
-				if (j == end(participants)) {
+				const auto participant = real->participantByPeer(
+					row->peer());
+				if (!participant) {
 					setRowVideoEndpoint(row, std::string());
 				} else {
-					const auto &camera = computeCameraEndpoint(&*j);
-					const auto &screen = computeScreenEndpoint(&*j);
+					const auto &camera = computeCameraEndpoint(participant);
+					const auto &screen = computeScreenEndpoint(participant);
 					if (update.endpoint == camera
 						&& (_largeEndpoint != screen)
 						&& _call->streamsVideo(screen)) {
@@ -730,12 +729,7 @@ const Data::GroupCallParticipant *Members::Controller::findParticipant(
 		return nullptr;
 	} else if (endpoint == _call->screenSharingEndpoint()
 		|| endpoint == _call->cameraSharingEndpoint()) {
-		const auto &participants = real->participants();
-		const auto i = ranges::find(
-			participants,
-			_call->joinAs(),
-			&Data::GroupCallParticipant::peer);
-		return (i != end(participants)) ? &*i : nullptr;
+		return real->participantByPeer(_call->joinAs());
 	} else {
 		return real->participantByEndpoint(endpoint);
 	}
@@ -784,7 +778,6 @@ bool Members::Controller::isMe(not_null<PeerData*> participantPeer) const {
 void Members::Controller::prepareRows(not_null<Data::GroupCall*> real) {
 	auto foundMe = false;
 	auto changed = false;
-	const auto &participants = real->participants();
 	auto count = delegate()->peerListFullRowsCount();
 	for (auto i = 0; i != count;) {
 		auto row = delegate()->peerListRowAt(i);
@@ -794,11 +787,7 @@ void Members::Controller::prepareRows(not_null<Data::GroupCall*> real) {
 			++i;
 			continue;
 		}
-		const auto contains = ranges::contains(
-			participants,
-			participantPeer,
-			&Data::GroupCallParticipant::peer);
-		if (contains) {
+		if (real->participantByPeer(participantPeer)) {
 			++i;
 		} else {
 			changed = true;
@@ -808,19 +797,16 @@ void Members::Controller::prepareRows(not_null<Data::GroupCall*> real) {
 	}
 	if (!foundMe) {
 		const auto me = _call->joinAs();
-		const auto i = ranges::find(
-			participants,
-			me,
-			&Data::GroupCallParticipant::peer);
-		auto row = (i != end(participants))
-			? createRow(*i)
+		const auto participant = real->participantByPeer(me);
+		auto row = participant
+			? createRow(*participant)
 			: createRowForMe();
 		if (row) {
 			changed = true;
 			delegate()->peerListAppendRow(std::move(row));
 		}
 	}
-	for (const auto &participant : participants) {
+	for (const auto &participant : real->participants()) {
 		if (auto row = createRow(participant)) {
 			changed = true;
 			delegate()->peerListAppendRow(std::move(row));
@@ -1089,6 +1075,12 @@ auto Members::Controller::kickParticipantRequests() const
 }
 
 void Members::Controller::rowClicked(not_null<PeerListRow*> row) {
+	if (!toggleRowVideo(row)) {
+		showRowMenu(row);
+	}
+}
+
+void Members::Controller::showRowMenu(not_null<PeerListRow*> row) {
 	delegate()->peerListShowRowMenu(row, [=](not_null<Ui::PopupMenu*> menu) {
 		if (!_menu || _menu.get() != menu) {
 			return;
@@ -1103,9 +1095,51 @@ void Members::Controller::rowClicked(not_null<PeerListRow*> row) {
 	});
 }
 
+bool Members::Controller::toggleRowVideo(not_null<PeerListRow*> row) {
+	const auto real = _call->lookupReal();
+	if (!real) {
+		return false;
+	}
+	const auto participantPeer = row->peer();
+	const auto isMe = (participantPeer == _call->joinAs());
+	const auto participant = real->participantByPeer(participantPeer);
+	if (!participant) {
+		return false;
+	}
+	const auto params = participant->videoParams.get();
+	const auto empty = std::string();
+	const auto &camera = isMe
+		? _call->cameraSharingEndpoint()
+		: (params && _call->streamsVideo(params->camera.endpoint))
+		? params->camera.endpoint
+		: empty;
+	const auto &screen = isMe
+		? _call->screenSharingEndpoint()
+		: (params && _call->streamsVideo(params->screen.endpoint))
+		? params->screen.endpoint
+		: empty;
+	const auto &large = _call->videoEndpointLarge().endpoint;
+	const auto show = [&] {
+		if (!screen.empty() && large != screen) {
+			return screen;
+		} else if (!camera.empty() && large != camera) {
+			return camera;
+		}
+		return std::string();
+	}();
+	if (show.empty()) {
+		return false;
+	} else if (_call->videoEndpointPinned()) {
+		_call->pinVideoEndpoint({ participantPeer, show });
+	} else {
+		_call->showVideoEndpointLarge({ participantPeer, show });
+	}
+	return true;
+}
+
 void Members::Controller::rowActionClicked(
 		not_null<PeerListRow*> row) {
-	rowClicked(row);
+	showRowMenu(row);
 }
 
 base::unique_qptr<Ui::PopupMenu> Members::Controller::rowContextMenu(
@@ -1195,26 +1229,20 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 			result->addAction(
 				tr::lng_group_call_context_unpin_camera(tr::now),
 				[=] { _call->pinVideoEndpoint(VideoEndpoint()); });
-		} else {
-			const auto &participants = real->participants();
-			const auto i = ranges::find(
-				participants,
-				participantPeer,
-				&Data::GroupCallParticipant::peer);
-			if (i != end(participants)) {
-				const auto &camera = computeCameraEndpoint(&*i);
-				const auto &screen = computeScreenEndpoint(&*i);
-				const auto streamsScreen = _call->streamsVideo(screen);
-				if (streamsScreen || _call->streamsVideo(camera)) {
-					const auto callback = [=] {
-						_call->pinVideoEndpoint(VideoEndpoint{
-							participantPeer,
-							streamsScreen ? screen : camera });
-					};
-					result->addAction(
-						tr::lng_group_call_context_pin_camera(tr::now),
-						callback);
-				}
+		} else if (const auto participant = real->participantByPeer(
+				participantPeer)) {
+			const auto &camera = computeCameraEndpoint(participant);
+			const auto &screen = computeScreenEndpoint(participant);
+			const auto streamsScreen = _call->streamsVideo(screen);
+			if (streamsScreen || _call->streamsVideo(camera)) {
+				const auto callback = [=] {
+					_call->pinVideoEndpoint(VideoEndpoint{
+						participantPeer,
+						streamsScreen ? screen : camera });
+				};
+				result->addAction(
+					tr::lng_group_call_context_pin_camera(tr::now),
+					callback);
 			}
 		}
 	}
