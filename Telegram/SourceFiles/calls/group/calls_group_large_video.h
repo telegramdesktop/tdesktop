@@ -63,6 +63,7 @@ public:
 	void setGeometry(int x, int y, int width, int height);
 
 	[[nodiscard]] rpl::producer<bool> pinToggled() const;
+	[[nodiscard]] rpl::producer<QSize> trackSizeValue() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _content.lifetime();
@@ -109,6 +110,7 @@ private:
 	bool _topControls = false;
 	bool _pinned = false;
 	bool _controlsShown = true;
+	rpl::variable<QSize> _trackSize;
 	rpl::lifetime _trackLifetime;
 
 };

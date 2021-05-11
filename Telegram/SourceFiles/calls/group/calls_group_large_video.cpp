@@ -51,6 +51,10 @@ rpl::producer<bool> LargeVideo::pinToggled() const {
 	return _pinButton.clicks() | rpl::map([=] { return !_pinned; });
 }
 
+rpl::producer<QSize> LargeVideo::trackSizeValue() const {
+	return _trackSize.value();
+}
+
 void LargeVideo::setup(
 		rpl::producer<LargeVideoTrack> track,
 		rpl::producer<bool> pinned) {
@@ -68,6 +72,7 @@ void LargeVideo::setup(
 
 		_trackLifetime.destroy();
 		if (!track.track) {
+			_trackSize = QSize();
 			return;
 		}
 		track.track->renderNextFrame(
@@ -75,6 +80,8 @@ void LargeVideo::setup(
 			const auto size = track.track->frameSize();
 			if (size.isEmpty()) {
 				track.track->markFrameShown();
+			} else {
+				_trackSize = size;
 			}
 			_content.update();
 		}, _trackLifetime);
@@ -249,20 +256,20 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 	const auto iconLeft = width - _st.iconPosition.x() - icon.width();
 	const auto iconTop = _topControls
 		? _st.iconPosition.y()
-		: (height - _st.iconPosition.y());
+		: (height - _st.iconPosition.y() - icon.height());
 	_track.row->paintMuteIcon(
 		p,
 		{ iconLeft, iconTop, icon.width(), icon.height() },
 		MembersRowStyle::LargeVideo);
 
 	// Pin.
-	const auto pinWidth = st::groupCallLargeVideoPin.icon.width();
+	const auto &pin = st::groupCallLargeVideoPin.icon;
 	const auto pinLeft = _topControls
-		? (width - _st.pinPosition.x() - pinWidth)
+		? (width - _st.pinPosition.x() - pin.width())
 		: _st.pinPosition.x();
 	const auto pinTop = _topControls
 		? _st.pinPosition.y()
-		: (height - _st.pinPosition.y());
+		: (height - _st.pinPosition.y() - pin.height());
 	_pin.paint(p, pinLeft, pinTop, _pinned ? 1. : 0.);
 }
 

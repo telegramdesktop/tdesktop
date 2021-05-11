@@ -26,6 +26,7 @@ class GroupCall;
 
 namespace Calls::Group {
 
+class LargeVideo;
 class MembersRow;
 struct VolumeRequest;
 struct MuteRequest;
@@ -91,7 +92,8 @@ private:
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<Controller> _listController;
 	not_null<Ui::VerticalLayout*> _layout;
-	const not_null<Ui::RpWidget*> _pinnedVideo;
+	const not_null<Ui::RpWidget*> _pinnedVideoWrap;
+	const std::unique_ptr<LargeVideo> _pinnedVideo;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;
 	ListWidget *_list = nullptr;
 	rpl::event_stream<> _addMemberRequests;

@@ -1457,7 +1457,19 @@ Members::Members(
 , _listController(std::make_unique<Controller>(call, parent))
 , _layout(_scroll->setOwnedWidget(
 	object_ptr<Ui::VerticalLayout>(_scroll.data())))
-, _pinnedVideo(_layout->add(object_ptr<Ui::RpWidget>(_layout.get()))) {
+, _pinnedVideoWrap(_layout->add(object_ptr<Ui::RpWidget>(_layout.get())))
+, _pinnedVideo(
+	std::make_unique<LargeVideo>(
+		_pinnedVideoWrap.get(),
+		st::groupCallLargeVideoNarrow,
+		true,
+		_call->videoLargeTrackValue(
+		) | rpl::map([=](GroupCall::LargeTrack track) {
+			const auto row = track ? lookupRow(track.peer) : nullptr;
+			Assert(!track || row != nullptr);
+			return LargeVideoTrack{	row ? track.track : nullptr, row };
+		}),
+		_call->videoEndpointPinnedValue())) {
 	setupAddMember(call);
 	setupList();
 	setupPinnedVideo();
@@ -1485,7 +1497,7 @@ auto Members::kickParticipantRequests() const
 
 int Members::desiredHeight() const {
 	const auto addMember = _addMemberButton.current();
-	const auto top = _pinnedVideo->height()
+	const auto top = _pinnedVideoWrap->height()
 		+ (addMember ? addMember->height() : 0);
 	const auto count = [&] {
 		if (const auto real = _call->lookupReal()) {
@@ -1602,6 +1614,7 @@ void Members::setMode(PanelMode mode) {
 		return;
 	}
 	_mode = mode;
+	_pinnedVideo->setVisible(mode == PanelMode::Default);
 	_list->setMode((mode == PanelMode::Wide)
 		? PeerListContent::Mode::Custom
 		: PeerListContent::Mode::Default);
@@ -1635,6 +1648,15 @@ void Members::setupList() {
 void Members::setupPinnedVideo() {
 	using namespace rpl::mappers;
 
+	_pinnedVideo->pinToggled(
+	) | rpl::start_with_next([=](bool pinned) {
+		if (!pinned) {
+			_call->pinVideoEndpoint(VideoEndpoint{});
+		} else if (const auto &large = _call->videoEndpointLarge()) {
+			_call->pinVideoEndpoint(large);
+		}
+	}, _pinnedVideo->lifetime());
+
 	// New video was pinned or mode changed.
 	rpl::merge(
 		_mode.changes() | rpl::filter(
@@ -1646,102 +1668,22 @@ void Members::setupPinnedVideo() {
 	}, _scroll->lifetime());
 
 	rpl::combine(
-		_mode.value(),
-		_call->videoLargeTrackValue()
-	) | rpl::map([](PanelMode mode, GroupCall::LargeTrack track) {
-		return (mode == PanelMode::Default) ? track.track : nullptr;
-	}) | rpl::distinct_until_changed(
-	) | rpl::start_with_next([=](Webrtc::VideoTrack *track) {
-		_pinnedTrackLifetime.destroy();
-		if (!track) {
-			_pinnedVideo->resize(_pinnedVideo->width(), 0);
+		_layout->widthValue(),
+		_pinnedVideo->trackSizeValue()
+	) | rpl::start_with_next([=](int width, QSize size) {
+		if (size.isEmpty() || !width) {
+			_pinnedVideoWrap->resize(width, 0);
 			return;
 		}
-		const auto frameSize = _pinnedTrackLifetime.make_state<QSize>();
-		const auto applyFrameSize = [=](QSize size) {
-			const auto width = _pinnedVideo->width();
-			if (size.isEmpty() || !width) {
-				return;
-			}
-			const auto heightMin = (width * 9) / 16;
-			const auto heightMax = (width * 3) / 4;
-			const auto scaled = size.scaled(
-				QSize(width, heightMax),
-				Qt::KeepAspectRatio);
-			_pinnedVideo->resize(
-				width,
-				std::max(scaled.height(), heightMin));
-		};
-		track->renderNextFrame(
-		) | rpl::start_with_next([=] {
-			const auto size = track->frameSize();
-			if (size.isEmpty()) {
-				track->markFrameShown();
-			} else {
-				if (*frameSize != size) {
-					*frameSize = size;
-					applyFrameSize(size);
-				}
-				_pinnedVideo->update();
-			}
-		}, _pinnedTrackLifetime);
-
-		_layout->widthValue(
-		) | rpl::start_with_next([=] {
-			applyFrameSize(track->frameSize());
-		}, _pinnedTrackLifetime);
-
-		_pinnedVideo->paintRequest(
-		) | rpl::start_with_next([=] {
-			const auto [image, rotation]
-				= track->frameOriginalWithRotation();
-			if (image.isNull()) {
-				return;
-			}
-			auto p = QPainter(_pinnedVideo);
-			auto hq = PainterHighQualityEnabler(p);
-			using namespace Media::View;
-			const auto size = _pinnedVideo->size();
-			const auto scaled = FlipSizeByRotation(
-				image.size(),
-				rotation
-			).scaled(size, Qt::KeepAspectRatio);
-			const auto left = (size.width() - scaled.width()) / 2;
-			const auto top = (size.height() - scaled.height()) / 2;
-			const auto target = QRect(QPoint(left, top), scaled);
-			if (UsePainterRotation(rotation)) {
-				if (rotation) {
-					p.save();
-					p.rotate(rotation);
-				}
-				p.drawImage(RotatedRect(target, rotation), image);
-				if (rotation) {
-					p.restore();
-				}
-			} else if (rotation) {
-				p.drawImage(target, RotateFrameImage(image, rotation));
-			} else {
-				p.drawImage(target, image);
-			}
-			if (left > 0) {
-				p.fillRect(0, 0, left, size.height(), Qt::black);
-			}
-			if (const auto right = left + scaled.width()
-				; right < size.width()) {
-				const auto fill = size.width() - right;
-				p.fillRect(right, 0, fill, size.height(), Qt::black);
-			}
-			if (top > 0) {
-				p.fillRect(0, 0, size.width(), top, Qt::black);
-			}
-			if (const auto bottom = top + scaled.height()
-				; bottom < size.height()) {
-				const auto fill = size.height() - bottom;
-				p.fillRect(0, bottom, size.width(), fill, Qt::black);
-			}
-			track->markFrameShown();
-		}, _pinnedTrackLifetime);
-	}, lifetime());
+		const auto heightMin = (width * 9) / 16;
+		const auto heightMax = (width * 3) / 4;
+		const auto scaled = size.scaled(
+			QSize(width, heightMax),
+			Qt::KeepAspectRatio);
+		const auto height = std::max(scaled.height(), heightMin);
+		_pinnedVideoWrap->resize(width, height);
+		_pinnedVideo->setGeometry(0, 0, width, height);
+	}, _pinnedVideo->lifetime());
 }
 
 void Members::resizeEvent(QResizeEvent *e) {

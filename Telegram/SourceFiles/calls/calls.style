@@ -1191,14 +1191,14 @@ groupCallLargeVideoWide: GroupCallLargeVideo {
 	controlsAlign: align(top);
 	namePosition: point(15px, 8px);
 	statusPosition: point(15px, 28px);
-	pinPosition: point(52px, 15px);
-	iconPosition: point(14px, 15px);
+	pinPosition: point(52px, 16px);
+	iconPosition: point(14px, 16px);
 }
 groupCallLargeVideoNarrow: GroupCallLargeVideo {
 	shadowHeight: 80px;
-	controlsAlign: align(top);
+	controlsAlign: align(bottom);
 	namePosition: point(64px, 44px);
-	statusPosition: point(64px, 20px);
+	statusPosition: point(64px, 25px);
 	pinPosition: point(20px, 12px);
 	iconPosition: point(18px, 12px);
 }
