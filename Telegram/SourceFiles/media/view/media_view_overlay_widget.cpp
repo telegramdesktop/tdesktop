@@ -3711,8 +3711,8 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 		_x = qRound(nx / (-z + 1) + width() / 2.);
 		_y = qRound(ny / (-z + 1) + height() / 2.);
 	}
-	if(isZoomedIn()){
-		if(_controlsState == ControlsHiding){
+	if (isZoomedIn()) {
+		if (_controlsState == ControlsHiding) {
 			_controlsState = ControlsShown;
 		}
 		onHideControls();
