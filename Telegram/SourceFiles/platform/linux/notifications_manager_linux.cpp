@@ -578,8 +578,9 @@ void NotificationData::show() {
 			|| _hints.find(_imageKey) == end(_hints)
 				? Glib::ustring(GetIconName().toStdString())
 				: Glib::ustring();
+		const auto connection = _dbusConnection;
 
-		_dbusConnection->call(
+		connection->call(
 			std::string(kObjectPath),
 			std::string(kInterface),
 			"Notify",
@@ -595,7 +596,7 @@ void NotificationData::show() {
 			}),
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
 				try {
-					auto reply = _dbusConnection->call_finish(result);
+					auto reply = connection->call_finish(result);
 					const auto notificationId = GlibVariantCast<uint>(
 						reply.get_child(0));
 					crl::on_main(weak, [=] {
