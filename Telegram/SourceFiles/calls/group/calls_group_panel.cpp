@@ -976,6 +976,13 @@ void Panel::setupMembers() {
 	) | rpl::start_with_next([=] {
 		enlargeVideo();
 	}, _callLifetime);
+
+	_call->videoEndpointPinnedValue(
+	) | rpl::filter([=](bool pinned) {
+		return pinned && (_mode == PanelMode::Default);
+	}) | rpl::start_with_next([=] {
+		enlargeVideo();
+	}, _callLifetime);
 }
 
 void Panel::enlargeVideo() {

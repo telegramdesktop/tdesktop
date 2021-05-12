@@ -1221,28 +1221,38 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 	});
 
 	if (const auto real = _call->lookupReal()) {
-		const auto pinnedEndpoint = _call->videoEndpointPinned()
-			? _call->videoEndpointLarge().endpoint
-			: std::string();
-		const auto participant = real->participantByEndpoint(pinnedEndpoint);
-		if (participant && participant->peer == participantPeer) {
-			result->addAction(
-				tr::lng_group_call_context_unpin_camera(tr::now),
-				[=] { _call->pinVideoEndpoint(VideoEndpoint()); });
-		} else if (const auto participant = real->participantByPeer(
-				participantPeer)) {
+		const auto participant = real->participantByPeer(participantPeer);
+		if (participant) {
+			const auto pinnedEndpoint = _call->videoEndpointPinned()
+				? _call->videoEndpointLarge().endpoint
+				: std::string();
 			const auto &camera = computeCameraEndpoint(participant);
 			const auto &screen = computeScreenEndpoint(participant);
-			const auto streamsScreen = _call->streamsVideo(screen);
-			if (streamsScreen || _call->streamsVideo(camera)) {
-				const auto callback = [=] {
-					_call->pinVideoEndpoint(VideoEndpoint{
-						participantPeer,
-						streamsScreen ? screen : camera });
-				};
-				result->addAction(
-					tr::lng_group_call_context_pin_camera(tr::now),
-					callback);
+			if (_call->streamsVideo(camera)) {
+				if (pinnedEndpoint == camera) {
+					result->addAction(
+						tr::lng_group_call_context_unpin_camera(tr::now),
+						[=] { _call->pinVideoEndpoint(VideoEndpoint()); });
+				} else {
+					result->addAction(
+						tr::lng_group_call_context_pin_camera(tr::now),
+						[=] { _call->pinVideoEndpoint(VideoEndpoint{
+							participantPeer,
+							camera }); });
+				}
+			}
+			if (_call->streamsVideo(screen)) {
+				if (pinnedEndpoint == screen) {
+					result->addAction(
+						tr::lng_group_call_context_unpin_screen(tr::now),
+						[=] { _call->pinVideoEndpoint(VideoEndpoint()); });
+				} else {
+					result->addAction(
+						tr::lng_group_call_context_pin_screen(tr::now),
+						[=] { _call->pinVideoEndpoint(VideoEndpoint{
+							participantPeer,
+							screen }); });
+				}
 			}
 		}
 	}
