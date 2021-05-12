@@ -46,6 +46,11 @@ using Row = MembersRow;
 
 } // namespace
 
+struct Members::VideoTile {
+	std::unique_ptr<LargeVideo> video;
+	VideoEndpoint endpoint;
+};
+
 class Members::Controller final
 	: public PeerListController
 	, public MembersRowDelegate
@@ -156,13 +161,12 @@ private:
 		not_null<const Data::GroupCallParticipant*> participant) const;
 	const std::string &computeCameraEndpoint(
 		not_null<const Data::GroupCallParticipant*> participant) const;
-	void setRowVideoEndpoint(
-		not_null<Row*> row,
-		const std::string &endpoint);
+	//void setRowVideoEndpoint(
+	//	not_null<Row*> row,
+	//	const std::string &endpoint);
 	bool toggleRowVideo(not_null<PeerListRow*> row);
 	void showRowMenu(not_null<PeerListRow*> row);
 
-	void generateNarrowShadow();
 	void appendInvitedUsers();
 	void scheduleRaisedHandStatusRemove();
 
@@ -277,37 +281,30 @@ Members::Controller::~Controller() {
 	base::take(_menu);
 }
 
-void Members::Controller::setRowVideoEndpoint(
-		not_null<Row*> row,
-		const std::string &endpoint) {
-	const auto was = row->videoTrackEndpoint();
-	if (was != endpoint) {
-		if (!was.empty()) {
-			_videoEndpoints.remove(was);
-		}
-		if (!endpoint.empty()) {
-			_videoEndpoints.emplace(endpoint, row);
-		}
-	}
-	if (endpoint.empty()) {
-		row->clearVideoTrack();
-	} else {
-		_call->addVideoOutput(endpoint, row->createVideoTrack(endpoint));
-	}
-}
+//void Members::Controller::setRowVideoEndpoint(
+//		not_null<Row*> row,
+//		const std::string &endpoint) {
+//	const auto was = row->videoTrackEndpoint();
+//	if (was != endpoint) {
+//		if (!was.empty()) {
+//			_videoEndpoints.remove(was);
+//		}
+//		if (!endpoint.empty()) {
+//			_videoEndpoints.emplace(endpoint, row);
+//		}
+//	}
+//	if (endpoint.empty()) {
+//		row->clearVideoTrack();
+//	} else {
+//		_call->addVideoOutput(endpoint, row->createVideoTrack(endpoint));
+//	}
+//}
 
 void Members::Controller::setupListChangeViewers() {
 	_call->real(
 	) | rpl::start_with_next([=](not_null<Data::GroupCall*> real) {
 		subscribeToChanges(real);
 	}, _lifetime);
-
-	//_call->stateValue(
-	//) | rpl::start_with_next([=] {
-	//	if (const auto real = _call->lookupReal()) {
-	//		updateRow(channel->session().user());
-	//	}
-	//}, _lifetime);
 
 	_call->levelUpdates(
 	) | rpl::start_with_next([=](const LevelUpdate &update) {
@@ -317,88 +314,88 @@ void Members::Controller::setupListChangeViewers() {
 		}
 	}, _lifetime);
 
-	_call->videoEndpointLargeValue(
-	) | rpl::filter([=](const VideoEndpoint &largeEndpoint) {
-		return (_largeEndpoint != largeEndpoint.endpoint);
-	}) | rpl::start_with_next([=](const VideoEndpoint &largeEndpoint) {
-		if (_call->streamsVideo(_largeEndpoint)) {
-			if (const auto participant = findParticipant(_largeEndpoint)) {
-				if (const auto row = findRow(participant->peer)) {
-					const auto current = row->videoTrackEndpoint();
-					if (current.empty()
-						|| (computeScreenEndpoint(participant) == _largeEndpoint
-							&& computeCameraEndpoint(participant) == current)) {
-						setRowVideoEndpoint(row, _largeEndpoint);
-					}
-				}
-			}
-		}
-		_largeEndpoint = largeEndpoint.endpoint;
-		if (const auto participant = findParticipant(_largeEndpoint)) {
-			if (const auto row = findRow(participant->peer)) {
-				if (row->videoTrackEndpoint() == _largeEndpoint) {
-					const auto &camera = computeCameraEndpoint(participant);
-					const auto &screen = computeScreenEndpoint(participant);
-					if (_largeEndpoint == camera
-						&& _call->streamsVideo(screen)) {
-						setRowVideoEndpoint(row, screen);
-					} else if (_largeEndpoint == screen
-						&& _call->streamsVideo(camera)) {
-						setRowVideoEndpoint(row, camera);
-					} else {
-						setRowVideoEndpoint(row, std::string());
-					}
-				}
-			}
-		}
-	}, _lifetime);
+	//_call->videoEndpointLargeValue(
+	//) | rpl::filter([=](const VideoEndpoint &largeEndpoint) {
+	//	return (_largeEndpoint != largeEndpoint.endpoint);
+	//}) | rpl::start_with_next([=](const VideoEndpoint &largeEndpoint) {
+	//	if (_call->streamsVideo(_largeEndpoint)) {
+	//		if (const auto participant = findParticipant(_largeEndpoint)) {
+	//			if (const auto row = findRow(participant->peer)) {
+	//				const auto current = row->videoTrackEndpoint();
+	//				if (current.empty()
+	//					|| (computeScreenEndpoint(participant) == _largeEndpoint
+	//						&& computeCameraEndpoint(participant) == current)) {
+	//					setRowVideoEndpoint(row, _largeEndpoint);
+	//				}
+	//			}
+	//		}
+	//	}
+	//	_largeEndpoint = largeEndpoint.endpoint;
+	//	if (const auto participant = findParticipant(_largeEndpoint)) {
+	//		if (const auto row = findRow(participant->peer)) {
+	//			if (row->videoTrackEndpoint() == _largeEndpoint) {
+	//				const auto &camera = computeCameraEndpoint(participant);
+	//				const auto &screen = computeScreenEndpoint(participant);
+	//				if (_largeEndpoint == camera
+	//					&& _call->streamsVideo(screen)) {
+	//					setRowVideoEndpoint(row, screen);
+	//				} else if (_largeEndpoint == screen
+	//					&& _call->streamsVideo(camera)) {
+	//					setRowVideoEndpoint(row, camera);
+	//				} else {
+	//					setRowVideoEndpoint(row, std::string());
+	//				}
+	//			}
+	//		}
+	//	}
+	//}, _lifetime);
 
-	_call->streamsVideoUpdates(
-	) | rpl::start_with_next([=](StreamsVideoUpdate update) {
-		Assert(update.endpoint != _largeEndpoint);
-		if (update.streams) {
-			if (const auto participant = findParticipant(update.endpoint)) {
-				if (const auto row = findRow(participant->peer)) {
-					const auto &camera = computeCameraEndpoint(participant);
-					const auto &screen = computeScreenEndpoint(participant);
-					if (update.endpoint == camera
-						&& (!_call->streamsVideo(screen)
-							|| _largeEndpoint == screen)) {
-						setRowVideoEndpoint(row, camera);
-					} else if (update.endpoint == screen
-						&& (_largeEndpoint != screen)) {
-						setRowVideoEndpoint(row, screen);
-					}
-				}
-			}
-		} else {
-			const auto i = _videoEndpoints.find(update.endpoint);
-			if (i != end(_videoEndpoints)) {
-				const auto row = i->second;
-				const auto real = _call->lookupReal();
-				Assert(real != nullptr);
-				const auto participant = real->participantByPeer(
-					row->peer());
-				if (!participant) {
-					setRowVideoEndpoint(row, std::string());
-				} else {
-					const auto &camera = computeCameraEndpoint(participant);
-					const auto &screen = computeScreenEndpoint(participant);
-					if (update.endpoint == camera
-						&& (_largeEndpoint != screen)
-						&& _call->streamsVideo(screen)) {
-						setRowVideoEndpoint(row, screen);
-					} else if (update.endpoint == screen
-						&& (_largeEndpoint != camera)
-						&& _call->streamsVideo(camera)) {
-						setRowVideoEndpoint(row, camera);
-					} else {
-						setRowVideoEndpoint(row, std::string());
-					}
-				}
-			}
-		}
-	}, _lifetime);
+	//_call->streamsVideoUpdates(
+	//) | rpl::start_with_next([=](StreamsVideoUpdate update) {
+	//	Assert(update.endpoint != _largeEndpoint);
+	//	if (update.streams) {
+	//		if (const auto participant = findParticipant(update.endpoint)) {
+	//			if (const auto row = findRow(participant->peer)) {
+	//				const auto &camera = computeCameraEndpoint(participant);
+	//				const auto &screen = computeScreenEndpoint(participant);
+	//				if (update.endpoint == camera
+	//					&& (!_call->streamsVideo(screen)
+	//						|| _largeEndpoint == screen)) {
+	//					setRowVideoEndpoint(row, camera);
+	//				} else if (update.endpoint == screen
+	//					&& (_largeEndpoint != screen)) {
+	//					setRowVideoEndpoint(row, screen);
+	//				}
+	//			}
+	//		}
+	//	} else {
+	//		const auto i = _videoEndpoints.find(update.endpoint);
+	//		if (i != end(_videoEndpoints)) {
+	//			const auto row = i->second;
+	//			const auto real = _call->lookupReal();
+	//			Assert(real != nullptr);
+	//			const auto participant = real->participantByPeer(
+	//				row->peer());
+	//			if (!participant) {
+	//				setRowVideoEndpoint(row, std::string());
+	//			} else {
+	//				const auto &camera = computeCameraEndpoint(participant);
+	//				const auto &screen = computeScreenEndpoint(participant);
+	//				if (update.endpoint == camera
+	//					&& (_largeEndpoint != screen)
+	//					&& _call->streamsVideo(screen)) {
+	//					setRowVideoEndpoint(row, screen);
+	//				} else if (update.endpoint == screen
+	//					&& (_largeEndpoint != camera)
+	//					&& _call->streamsVideo(camera)) {
+	//					setRowVideoEndpoint(row, camera);
+	//				} else {
+	//					setRowVideoEndpoint(row, std::string());
+	//				}
+	//			}
+	//		}
+	//	}
+	//}, _lifetime);
 
 	_call->rejoinEvents(
 	) | rpl::start_with_next([=](const Group::RejoinEvent &event) {
@@ -996,18 +993,18 @@ void Members::Controller::rowPaintNarrowBorder(
 		int x,
 		int y,
 		not_null<Row*> row) {
-	if (_call->videoEndpointLarge().peer != row->peer().get()) {
-		return;
-	}
-	auto hq = PainterHighQualityEnabler(p);
-	p.setBrush(Qt::NoBrush);
-	auto pen = st::groupCallMemberActiveIcon->p;
-	pen.setWidthF(st::groupCallNarrowOutline);
-	p.setPen(pen);
-	p.drawRoundedRect(
-		QRect{ QPoint(x, y), st::groupCallNarrowSize },
-		st::roundRadiusLarge,
-		st::roundRadiusLarge);
+	//if (_call->videoEndpointLarge().peer != row->peer().get()) {
+	//	return;
+	//}
+	//auto hq = PainterHighQualityEnabler(p);
+	//p.setBrush(Qt::NoBrush);
+	//auto pen = st::groupCallMemberActiveIcon->p;
+	//pen.setWidthF(st::groupCallNarrowOutline);
+	//p.setPen(pen);
+	//p.drawRoundedRect(
+	//	QRect{ QPoint(x, y), st::groupCallNarrowSize },
+	//	st::roundRadiusLarge,
+	//	st::roundRadiusLarge);
 }
 
 void Members::Controller::rowPaintNarrowShadow(
@@ -1096,45 +1093,46 @@ void Members::Controller::showRowMenu(not_null<PeerListRow*> row) {
 }
 
 bool Members::Controller::toggleRowVideo(not_null<PeerListRow*> row) {
-	const auto real = _call->lookupReal();
-	if (!real) {
-		return false;
-	}
-	const auto participantPeer = row->peer();
-	const auto isMe = (participantPeer == _call->joinAs());
-	const auto participant = real->participantByPeer(participantPeer);
-	if (!participant) {
-		return false;
-	}
-	const auto params = participant->videoParams.get();
-	const auto empty = std::string();
-	const auto &camera = isMe
-		? _call->cameraSharingEndpoint()
-		: (params && _call->streamsVideo(params->camera.endpoint))
-		? params->camera.endpoint
-		: empty;
-	const auto &screen = isMe
-		? _call->screenSharingEndpoint()
-		: (params && _call->streamsVideo(params->screen.endpoint))
-		? params->screen.endpoint
-		: empty;
-	const auto &large = _call->videoEndpointLarge().endpoint;
-	const auto show = [&] {
-		if (!screen.empty() && large != screen) {
-			return screen;
-		} else if (!camera.empty() && large != camera) {
-			return camera;
-		}
-		return std::string();
-	}();
-	if (show.empty()) {
-		return false;
-	} else if (_call->videoEndpointPinned()) {
-		_call->pinVideoEndpoint({ participantPeer, show });
-	} else {
-		_call->showVideoEndpointLarge({ participantPeer, show });
-	}
-	return true;
+	return false;
+	//const auto real = _call->lookupReal();
+	//if (!real) {
+	//	return false;
+	//}
+	//const auto participantPeer = row->peer();
+	//const auto isMe = (participantPeer == _call->joinAs());
+	//const auto participant = real->participantByPeer(participantPeer);
+	//if (!participant) {
+	//	return false;
+	//}
+	//const auto params = participant->videoParams.get();
+	//const auto empty = std::string();
+	//const auto &camera = isMe
+	//	? _call->cameraSharingEndpoint()
+	//	: (params && _call->streamsVideo(params->camera.endpoint))
+	//	? params->camera.endpoint
+	//	: empty;
+	//const auto &screen = isMe
+	//	? _call->screenSharingEndpoint()
+	//	: (params && _call->streamsVideo(params->screen.endpoint))
+	//	? params->screen.endpoint
+	//	: empty;
+	//const auto &large = _call->videoEndpointLarge().endpoint;
+	//const auto show = [&] {
+	//	if (!screen.empty() && large != screen) {
+	//		return screen;
+	//	} else if (!camera.empty() && large != camera) {
+	//		return camera;
+	//	}
+	//	return std::string();
+	//}();
+	//if (show.empty()) {
+	//	return false;
+	//} else if (_call->videoEndpointPinned()) {
+	//	_call->pinVideoEndpoint({ participantPeer, show });
+	//} else {
+	//	_call->showVideoEndpointLarge({ participantPeer, show });
+	//}
+	//return true;
 }
 
 void Members::Controller::rowActionClicked(
@@ -1223,13 +1221,11 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 	if (const auto real = _call->lookupReal()) {
 		const auto participant = real->participantByPeer(participantPeer);
 		if (participant) {
-			const auto pinnedEndpoint = _call->videoEndpointPinned()
-				? _call->videoEndpointLarge().endpoint
-				: std::string();
+			const auto &pinned = _call->videoEndpointPinned();
 			const auto &camera = computeCameraEndpoint(participant);
 			const auto &screen = computeScreenEndpoint(participant);
-			if (_call->streamsVideo(camera)) {
-				if (pinnedEndpoint == camera) {
+			if (!camera.empty()) {
+				if (pinned.id == camera) {
 					result->addAction(
 						tr::lng_group_call_context_unpin_camera(tr::now),
 						[=] { _call->pinVideoEndpoint(VideoEndpoint()); });
@@ -1241,8 +1237,8 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 							camera }); });
 				}
 			}
-			if (_call->streamsVideo(screen)) {
-				if (pinnedEndpoint == screen) {
+			if (!screen.empty()) {
+				if (pinned.id == screen) {
 					result->addAction(
 						tr::lng_group_call_context_unpin_screen(tr::now),
 						[=] { _call->pinVideoEndpoint(VideoEndpoint()); });
@@ -1445,14 +1441,13 @@ std::unique_ptr<Row> Members::Controller::createRow(
 		const Data::GroupCallParticipant &participant) {
 	auto result = std::make_unique<Row>(this, participant.peer);
 	updateRow(result.get(), &participant);
-
-	const auto &camera = computeCameraEndpoint(&participant);
-	const auto &screen = computeScreenEndpoint(&participant);
-	if (!screen.empty() && _largeEndpoint != screen) {
-		setRowVideoEndpoint(result.get(), screen);
-	} else if (!camera.empty() && _largeEndpoint != camera) {
-		setRowVideoEndpoint(result.get(), camera);
-	}
+	//const auto &camera = computeCameraEndpoint(&participant);
+	//const auto &screen = computeScreenEndpoint(&participant);
+	//if (!screen.empty() && _largeEndpoint != screen) {
+	//	setRowVideoEndpoint(result.get(), screen);
+	//} else if (!camera.empty() && _largeEndpoint != camera) {
+	//	setRowVideoEndpoint(result.get(), camera);
+	//}
 	return result;
 }
 
@@ -1612,7 +1607,7 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 }
 
 rpl::producer<> Members::enlargeVideo() const {
-	return _pinnedVideo->clicks();
+	return _enlargeVideoClicks.events();
 }
 
 Row *Members::lookupRow(not_null<PeerData*> peer) const {
@@ -1624,7 +1619,9 @@ void Members::setMode(PanelMode mode) {
 		return;
 	}
 	_mode = mode;
-	_pinnedVideo->setVisible(mode == PanelMode::Default);
+	for (const auto &tile : _videoTiles) {
+		tile.video->setVisible(mode == PanelMode::Default);
+	}
 	_list->setMode((mode == PanelMode::Wide)
 		? PeerListContent::Mode::Custom
 		: PeerListContent::Mode::Default);
@@ -1655,29 +1652,121 @@ void Members::setupList() {
 	updateControlsGeometry();
 }
 
+void Members::refreshTilesGeometry() {
+	const auto width = _layout->width();
+	if (_videoTiles.empty()
+		|| !width
+		|| _mode.current() == PanelMode::Wide) {
+		_pinnedVideoWrap->resize(width, 0);
+		return;
+	}
+	auto sizes = base::flat_map<not_null<LargeVideo*>, QSize>();
+	sizes.reserve(_videoTiles.size());
+	for (const auto &tile : _videoTiles) {
+		const auto video = tile.video.get();
+		const auto size = video->trackSize();
+		if (size.isEmpty()) {
+			video->setGeometry(0, 0, width, 0);
+		} else {
+			sizes.emplace(video, size);
+		}
+	}
+	if (sizes.empty()) {
+		_pinnedVideoWrap->resize(width, 0);
+		return;
+	} else if (sizes.size() == 1) {
+		const auto size = sizes.front().second;
+		const auto heightMin = (width * 9) / 16;
+		const auto heightMax = (width * 3) / 4;
+		const auto scaled = size.scaled(
+			QSize(width, heightMax),
+			Qt::KeepAspectRatio);
+		const auto height = std::max(scaled.height(), heightMin);
+		sizes.front().first->setGeometry(0, 0, width, height);
+		_pinnedVideoWrap->resize(width, height);
+		return;
+	}
+	const auto square = (width - st::groupCallVideoSmallSkip) / 2;
+	const auto skip = (width - 2 * square);
+	const auto put = [&](not_null<LargeVideo*> video, int column, int row) {
+		video->setGeometry(
+			(column == 2) ? 0 : column ? (width - square) : 0,
+			row * (square + skip),
+			(column == 2) ? width : square,
+			square);
+	};
+	const auto rows = (sizes.size() + 1) / 2;
+	if (sizes.size() == 3) {
+		put(sizes.front().first, 2, 0);
+		put((sizes.begin() + 1)->first, 0, 1);
+		put((sizes.begin() + 1)->first, 1, 1);
+	} else {
+		auto row = 0;
+		auto column = 0;
+		for (const auto &[video, endpoint] : sizes) {
+			put(video, column, row);
+			if (column) {
+				++row;
+				column = (row + 1 == rows && sizes.size() % 2) ? 2 : 0;
+			} else {
+				column = 1;
+			}
+		}
+	}
+	_pinnedVideoWrap->resize(width, rows * (square + skip) - skip);
+}
+
 void Members::setupPinnedVideo() {
 	using namespace rpl::mappers;
 
-	_pinnedVideo = std::make_unique<LargeVideo>(
-		_pinnedVideoWrap.get(),
-		st::groupCallLargeVideoNarrow,
-		true,
-		_call->videoLargeTrackValue(
-		) | rpl::map([=](GroupCall::LargeTrack track) {
-			const auto row = track ? lookupRow(track.peer) : nullptr;
-			Assert(!track || row != nullptr);
-			return LargeVideoTrack{ row ? track.track : nullptr, row };
-		}),
-		_call->videoEndpointPinnedValue());
+	const auto setupTile = [=](
+			const VideoEndpoint &endpoint,
+			const GroupCall::VideoTrack &track) {
+		const auto row = lookupRow(track.peer);
+		Assert(row != nullptr);
+		auto video = std::make_unique<LargeVideo>(
+			_pinnedVideoWrap.get(),
+			st::groupCallLargeVideoNarrow,
+			(_mode.current() == PanelMode::Default),
+			rpl::single(LargeVideoTrack{ track.track.get(), row }),
+			_call->videoEndpointPinnedValue() | rpl::map(_1 == endpoint));
 
-	_pinnedVideo->pinToggled(
-	) | rpl::start_with_next([=](bool pinned) {
-		if (!pinned) {
-			_call->pinVideoEndpoint(VideoEndpoint{});
-		} else if (const auto &large = _call->videoEndpointLarge()) {
-			_call->pinVideoEndpoint(large);
+		video->pinToggled(
+		) | rpl::start_with_next([=](bool pinned) {
+			_call->pinVideoEndpoint(pinned ? endpoint : VideoEndpoint{});
+		}, video->lifetime());
+
+		video->requestedQuality(
+		) | rpl::start_with_next([=](VideoQuality quality) {
+			_call->requestVideoQuality(endpoint, quality);
+		}, video->lifetime());
+
+		video->trackSizeValue(
+		) | rpl::start_with_next([=] {
+			refreshTilesGeometry();
+		}, video->lifetime());
+
+		return VideoTile{
+			.video = std::move(video),
+			.endpoint = endpoint,
+		};
+	};
+	for (const auto &[endpoint, track] : _call->activeVideoTracks()) {
+		_videoTiles.push_back(setupTile(endpoint, track));
+	}
+	_call->videoStreamActiveUpdates(
+	) | rpl::start_with_next([=](const VideoEndpoint &endpoint) {
+		const auto &tracks = _call->activeVideoTracks();
+		const auto i = tracks.find(endpoint);
+		if (i != end(tracks)) {
+			_videoTiles.push_back(setupTile(endpoint, i->second));
+		} else {
+			_videoTiles.erase(
+				ranges::remove(_videoTiles, endpoint, &VideoTile::endpoint),
+				end(_videoTiles));
+			refreshTilesGeometry();
 		}
-	}, _pinnedVideo->lifetime());
+	}, _pinnedVideoWrap->lifetime());
 
 	// New video was pinned or mode changed.
 	rpl::merge(
@@ -1689,23 +1778,9 @@ void Members::setupPinnedVideo() {
 		_scroll->scrollToY(0);
 	}, _scroll->lifetime());
 
-	rpl::combine(
-		_layout->widthValue(),
-		_pinnedVideo->trackSizeValue()
-	) | rpl::start_with_next([=](int width, QSize size) {
-		if (size.isEmpty() || !width) {
-			_pinnedVideoWrap->resize(width, 0);
-			return;
-		}
-		const auto heightMin = (width * 9) / 16;
-		const auto heightMax = (width * 3) / 4;
-		const auto scaled = size.scaled(
-			QSize(width, heightMax),
-			Qt::KeepAspectRatio);
-		const auto height = std::max(scaled.height(), heightMin);
-		_pinnedVideo->setGeometry(0, 0, width, height);
-		_pinnedVideoWrap->resize(width, height);
-	}, _pinnedVideo->lifetime());
+	_layout->widthValue() | rpl::start_with_next([=] {
+		refreshTilesGeometry();
+	}, _pinnedVideoWrap->lifetime());
 }
 
 void Members::resizeEvent(QResizeEvent *e) {

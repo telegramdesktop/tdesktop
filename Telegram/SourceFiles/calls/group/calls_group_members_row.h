@@ -13,9 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class PeerData;
 class Painter;
 
-namespace Webrtc {
-class VideoTrack;
-} // namespace Webrtc
+//namespace Webrtc {
+//class VideoTrack;
+//} // namespace Webrtc
 
 namespace Data {
 struct GroupCallParticipant;
@@ -115,11 +115,11 @@ public:
 		return _raisedHandRating;
 	}
 
-	[[nodiscard]] not_null<Webrtc::VideoTrack*> createVideoTrack(
-		const std::string &endpoint);
-	void clearVideoTrack();
-	[[nodiscard]] const std::string &videoTrackEndpoint() const;
-	void setVideoTrack(not_null<Webrtc::VideoTrack*> track);
+	//[[nodiscard]] not_null<Webrtc::VideoTrack*> createVideoTrack(
+	//	const std::string &endpoint);
+	//void clearVideoTrack();
+	//[[nodiscard]] const std::string &videoTrackEndpoint() const;
+	//void setVideoTrack(not_null<Webrtc::VideoTrack*> track);
 
 	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
 	void stopLastActionRipple() override;
@@ -236,10 +236,10 @@ private:
 	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
 	std::unique_ptr<BlobsAnimation> _blobsAnimation;
 	std::unique_ptr<StatusIcon> _statusIcon;
-	std::unique_ptr<Webrtc::VideoTrack> _videoTrack;
-	Webrtc::VideoTrack *_videoTrackShown = nullptr;
-	std::string _videoTrackEndpoint;
-	rpl::lifetime _videoTrackLifetime; // #TODO calls move to unique_ptr.
+	//std::unique_ptr<Webrtc::VideoTrack> _videoTrack;
+	//Webrtc::VideoTrack *_videoTrackShown = nullptr;
+	//std::string _videoTrackEndpoint;
+	//rpl::lifetime _videoTrackLifetime; // #TODO calls move to unique_ptr.
 	Ui::Animations::Simple _speakingAnimation; // For gray-red/green icon.
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.

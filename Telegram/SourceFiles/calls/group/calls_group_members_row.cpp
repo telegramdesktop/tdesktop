@@ -377,38 +377,39 @@ bool MembersRow::paintVideo(
 		int sizew,
 		int sizeh,
 		PanelMode mode) {
-	if (!_videoTrackShown) {
-		return false;
-	}
-	const auto guard = gsl::finally([&] {
-		_videoTrackShown->markFrameShown();
-	});
-	const auto videoSize = _videoTrackShown->frameSize();
-	if (videoSize.isEmpty()
-		|| _videoTrackShown->state() != Webrtc::VideoState::Active) {
-		return false;
-	}
-	const auto videow = videoSize.width();
-	const auto videoh = videoSize.height();
-	const auto resize = (videow * sizeh > videoh * sizew)
-		? QSize(videow * sizeh / videoh, sizeh)
-		: QSize(sizew, videoh * sizew / videow);
-	const auto request = Webrtc::FrameRequest{
-		.resize = resize * cIntRetinaFactor(),
-		.outer = QSize(sizew, sizeh) * cIntRetinaFactor(),
-	};
-	const auto frame = _videoTrackShown->frame(request);
-	auto copy = frame; // #TODO calls optimize.
-	copy.detach();
-	if (mode == PanelMode::Default) {
-		Images::prepareCircle(copy);
-	} else {
-		Images::prepareRound(copy, ImageRoundRadius::Large);
-	}
-	p.drawImage(
-		QRect(QPoint(x, y), copy.size() / cIntRetinaFactor()),
-		copy);
-	return true;
+	return false;
+	//if (!_videoTrackShown) {
+	//	return false;
+	//}
+	//const auto guard = gsl::finally([&] {
+	//	_videoTrackShown->markFrameShown();
+	//});
+	//const auto videoSize = _videoTrackShown->frameSize();
+	//if (videoSize.isEmpty()
+	//	|| _videoTrackShown->state() != Webrtc::VideoState::Active) {
+	//	return false;
+	//}
+	//const auto videow = videoSize.width();
+	//const auto videoh = videoSize.height();
+	//const auto resize = (videow * sizeh > videoh * sizew)
+	//	? QSize(videow * sizeh / videoh, sizeh)
+	//	: QSize(sizew, videoh * sizew / videow);
+	//const auto request = Webrtc::FrameRequest{
+	//	.resize = resize * cIntRetinaFactor(),
+	//	.outer = QSize(sizew, sizeh) * cIntRetinaFactor(),
+	//};
+	//const auto frame = _videoTrackShown->frame(request);
+	//auto copy = frame; // #TODO calls optimize.
+	//copy.detach();
+	//if (mode == PanelMode::Default) {
+	//	Images::prepareCircle(copy);
+	//} else {
+	//	Images::prepareRound(copy, ImageRoundRadius::Large);
+	//}
+	//p.drawImage(
+	//	QRect(QPoint(x, y), copy.size() / cIntRetinaFactor()),
+	//	copy);
+	//return true;
 }
 
 std::tuple<int, int, int> MembersRow::UserpicInNarrowMode(
@@ -860,40 +861,40 @@ void MembersRow::refreshStatus() {
 		_speaking);
 }
 
-not_null<Webrtc::VideoTrack*> MembersRow::createVideoTrack(
-		const std::string &endpoint) {
-	_videoTrackShown = nullptr;
-	_videoTrackEndpoint = endpoint;
-	_videoTrack = std::make_unique<Webrtc::VideoTrack>(
-		Webrtc::VideoState::Active);
-	setVideoTrack(_videoTrack.get());
-	return _videoTrack.get();
-}
-
-const std::string &MembersRow::videoTrackEndpoint() const {
-	return _videoTrackEndpoint;
-}
-
-void MembersRow::clearVideoTrack() {
-	_videoTrackLifetime.destroy();
-	_videoTrackEndpoint = std::string();
-	_videoTrackShown = nullptr;
-	_videoTrack = nullptr;
-	_delegate->rowUpdateRow(this);
-}
-
-void MembersRow::setVideoTrack(not_null<Webrtc::VideoTrack*> track) {
-	_videoTrackLifetime.destroy();
-	_videoTrackShown = track;
-	_videoTrackShown->renderNextFrame(
-	) | rpl::start_with_next([=] {
-		_delegate->rowUpdateRow(this);
-		if (_videoTrackShown->frameSize().isEmpty()) {
-			_videoTrackShown->markFrameShown();
-		}
-	}, _videoTrackLifetime);
-	_delegate->rowUpdateRow(this);
-}
+//not_null<Webrtc::VideoTrack*> MembersRow::createVideoTrack(
+//		const std::string &endpoint) {
+//	_videoTrackShown = nullptr;
+//	_videoTrackEndpoint = endpoint;
+//	_videoTrack = std::make_unique<Webrtc::VideoTrack>(
+//		Webrtc::VideoState::Active);
+//	setVideoTrack(_videoTrack.get());
+//	return _videoTrack.get();
+//}
+//
+//const std::string &MembersRow::videoTrackEndpoint() const {
+//	return _videoTrackEndpoint;
+//}
+//
+//void MembersRow::clearVideoTrack() {
+//	_videoTrackLifetime.destroy();
+//	_videoTrackEndpoint = std::string();
+//	_videoTrackShown = nullptr;
+//	_videoTrack = nullptr;
+//	_delegate->rowUpdateRow(this);
+//}
+//
+//void MembersRow::setVideoTrack(not_null<Webrtc::VideoTrack*> track) {
+//	_videoTrackLifetime.destroy();
+//	_videoTrackShown = track;
+//	_videoTrackShown->renderNextFrame(
+//	) | rpl::start_with_next([=] {
+//		_delegate->rowUpdateRow(this);
+//		if (_videoTrackShown->frameSize().isEmpty()) {
+//			_videoTrackShown->markFrameShown();
+//		}
+//	}, _videoTrackLifetime);
+//	_delegate->rowUpdateRow(this);
+//}
 
 void MembersRow::addActionRipple(QPoint point, Fn<void()> updateCallback) {
 	if (!_actionRipple) {

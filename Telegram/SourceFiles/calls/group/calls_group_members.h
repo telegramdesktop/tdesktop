@@ -61,6 +61,7 @@ public:
 
 private:
 	class Controller;
+	struct VideoTile;
 	using ListWidget = PeerListContent;
 
 	void resizeEvent(QResizeEvent *e) override;
@@ -87,6 +88,7 @@ private:
 	void setupFakeRoundCorners();
 
 	void updateControlsGeometry();
+	void refreshTilesGeometry();
 
 	const not_null<GroupCall*> _call;
 	rpl::variable<PanelMode> _mode = PanelMode();
@@ -94,7 +96,8 @@ private:
 	std::unique_ptr<Controller> _listController;
 	not_null<Ui::VerticalLayout*> _layout;
 	const not_null<Ui::RpWidget*> _pinnedVideoWrap;
-	std::unique_ptr<LargeVideo> _pinnedVideo;
+	std::vector<VideoTile> _videoTiles;
+	rpl::event_stream<> _enlargeVideoClicks;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;
 	ListWidget *_list = nullptr;
 	rpl::event_stream<> _addMemberRequests;

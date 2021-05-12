@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/group/calls_group_large_video.h"
 
+#include "calls/group/calls_group_common.h"
 #include "calls/group/calls_group_members_row.h"
 #include "media/view/media_view_pip.h"
 #include "webrtc/webrtc_video_track.h"
@@ -50,6 +51,15 @@ void LargeVideo::setVisible(bool visible) {
 
 void LargeVideo::setGeometry(int x, int y, int width, int height) {
 	_content.setGeometry(x, y, width, height);
+	if (width > 0 && height > 0) {
+		const auto kMedium = style::ConvertScale(380);
+		const auto kSmall = style::ConvertScale(200);
+		_requestedQuality = (width > kMedium || height > kMedium)
+			? VideoQuality::Full
+			: (width > kSmall || height > kSmall)
+			? VideoQuality::Medium
+			: VideoQuality::Thumbnail;
+	}
 }
 
 void LargeVideo::setControlsShown(bool shown) {
@@ -77,8 +87,22 @@ rpl::producer<float64> LargeVideo::controlsShown() const {
 	return _controlsShownRatio.value();
 }
 
+QSize LargeVideo::trackSize() const {
+	return _trackSize.current();
+}
+
 rpl::producer<QSize> LargeVideo::trackSizeValue() const {
 	return _trackSize.value();
+}
+
+rpl::producer<VideoQuality> LargeVideo::requestedQuality() const {
+	using namespace rpl::mappers;
+	return rpl::combine(
+		_content.shownValue(),
+		_requestedQuality.value()
+	) | rpl::filter([=](bool shown, auto) {
+		return shown;
+	}) | rpl::map(_2);
 }
 
 void LargeVideo::setup(

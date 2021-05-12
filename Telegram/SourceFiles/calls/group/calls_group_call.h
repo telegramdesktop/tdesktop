@@ -47,6 +47,7 @@ struct VolumeRequest;
 struct ParticipantState;
 struct JoinInfo;
 struct RejoinEvent;
+enum class VideoQuality;
 } // namespace Group
 
 enum class MuteState {
@@ -76,10 +77,10 @@ struct LevelUpdate {
 
 struct VideoEndpoint {
 	PeerData *peer = nullptr;
-	std::string endpoint;
+	std::string id;
 
 	[[nodiscard]] bool empty() const noexcept {
-		return !peer;
+		return id.empty();
 	}
 	[[nodiscard]] explicit operator bool() const noexcept {
 		return !empty();
@@ -89,7 +90,7 @@ struct VideoEndpoint {
 inline bool operator==(
 		const VideoEndpoint &a,
 		const VideoEndpoint &b) noexcept {
-	return (a.peer == b.peer) && (a.endpoint == b.endpoint);
+	return (a.id == b.id);
 }
 
 inline bool operator!=(
@@ -102,7 +103,7 @@ inline bool operator<(
 		const VideoEndpoint &a,
 		const VideoEndpoint &b) noexcept {
 	return (a.peer < b.peer)
-		|| (a.peer == b.peer && a.endpoint < b.endpoint);
+		|| (a.peer == b.peer && a.id < b.id);
 }
 
 inline bool operator>(
@@ -122,11 +123,6 @@ inline bool operator>=(
 		const VideoEndpoint &b) noexcept {
 	return !(a < b);
 }
-
-struct StreamsVideoUpdate {
-	std::string endpoint;
-	bool streams = false;
-};
 
 struct VideoParams {
 	base::flat_set<uint32> ssrcs;
@@ -274,49 +270,44 @@ public:
 	[[nodiscard]] rpl::producer<LevelUpdate> levelUpdates() const {
 		return _levelUpdates.events();
 	}
-	[[nodiscard]] auto streamsVideoUpdates() const
-	-> rpl::producer<StreamsVideoUpdate> {
-		return _streamsVideoUpdated.events();
-	}
-	[[nodiscard]] bool streamsVideo(const std::string &endpoint) const {
-		return !endpoint.empty()
-			&& activeVideoEndpointType(endpoint) != EndpointType::None;
-	}
-	[[nodiscard]] bool videoEndpointPinned() const {
-		return _videoEndpointPinned.current();
-	}
-	[[nodiscard]] rpl::producer<bool> videoEndpointPinnedValue() const {
-		return _videoEndpointPinned.value();
+	[[nodiscard]] auto videoStreamActiveUpdates() const
+	-> rpl::producer<VideoEndpoint> {
+		return _videoStreamActiveUpdates.events();
 	}
 	void pinVideoEndpoint(VideoEndpoint endpoint);
-	[[nodiscard]] const VideoEndpoint &videoEndpointLarge() const {
-		return _videoEndpointLarge.current();
+	void requestVideoQuality(
+		const VideoEndpoint &endpoint,
+		Group::VideoQuality quality);
+	[[nodiscard]] const VideoEndpoint &videoEndpointPinned() const {
+		return _videoEndpointPinned.current();
 	}
-	[[nodiscard]] auto videoEndpointLargeValue() const
+	[[nodiscard]] auto videoEndpointPinnedValue() const
 	-> rpl::producer<VideoEndpoint> {
-		return _videoEndpointLarge.value();
+		return _videoEndpointPinned.value();
 	}
-	void showVideoEndpointLarge(VideoEndpoint endpoint);
-	struct LargeTrack {
-		Webrtc::VideoTrack *track = nullptr;
+	struct VideoTrack {
+		//VideoTrack();
+		//VideoTrack(VideoTrack &&other);
+		//VideoTrack &operator=(VideoTrack &&other);
+		//~VideoTrack();
+
+		std::unique_ptr<Webrtc::VideoTrack> track;
 		PeerData *peer = nullptr;
+		Group::VideoQuality quality = Group::VideoQuality();
 
 		[[nodiscard]] explicit operator bool() const {
 			return (track != nullptr);
 		}
-		[[nodiscard]] bool operator==(LargeTrack other) const {
+		[[nodiscard]] bool operator==(const VideoTrack &other) const {
 			return (track == other.track) && (peer == other.peer);
 		}
-		[[nodiscard]] bool operator!=(LargeTrack other) const {
+		[[nodiscard]] bool operator!=(const VideoTrack &other) const {
 			return !(*this == other);
 		}
 	};
-	[[nodiscard]] LargeTrack videoLargeTrack() const {
-		return _videoLargeTrack.current();
-	}
-	[[nodiscard]] auto videoLargeTrackValue() const
-	-> rpl::producer<LargeTrack> {
-		return _videoLargeTrack.value();
+	[[nodiscard]] auto activeVideoTracks() const
+	-> const base::flat_map<VideoEndpoint, VideoTrack> & {
+		return _activeVideoTracks;
 	}
 	[[nodiscard]] rpl::producer<Group::RejoinEvent> rejoinEvents() const {
 		return _rejoinEvents.events();
@@ -391,11 +382,6 @@ private:
 		RaiseHand,
 		VideoMuted,
 	};
-	enum class EndpointType {
-		None,
-		Camera,
-		Screen,
-	};
 
 	[[nodiscard]] bool mediaChannelDescriptionsFill(
 		not_null<MediaChannelDescriptionsTask*> task,
@@ -448,10 +434,6 @@ private:
 	void updateRequestedVideoChannels();
 	void updateRequestedVideoChannelsDelayed();
 	void fillActiveVideoEndpoints();
-	[[nodiscard]] VideoEndpoint chooseLargeVideoEndpoint() const;
-	[[nodiscard]] EndpointType activeVideoEndpointType(
-		const std::string &endpoint) const;
-	void setVideoEndpointLarge(VideoEndpoint endpoint);
 
 	void editParticipant(
 		not_null<PeerData*> participantPeer,
@@ -467,10 +449,11 @@ private:
 
 	void setupMediaDevices();
 	void ensureOutgoingVideo();
-	void setMyEndpointType(const std::string &endpoint, EndpointType type);
 	void setScreenEndpoint(std::string endpoint);
 	void setCameraEndpoint(std::string endpoint);
 	void addVideoOutput(const std::string &endpoint, SinkPointer sink);
+
+	void markEndpointActive(VideoEndpoint endpoint, bool active);
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
@@ -523,6 +506,7 @@ private:
 	base::has_weak_ptr _instanceGuard;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _cameraCapture;
 	std::unique_ptr<Webrtc::VideoTrack> _cameraOutgoing;
+	base::flat_map<std::string, SinkPointer> _pendingVideoOutputs;
 
 	rpl::variable<InstanceState> _screenInstanceState
 		= InstanceState::Disconnected;
@@ -536,13 +520,9 @@ private:
 	bool _videoInited = false;
 
 	rpl::event_stream<LevelUpdate> _levelUpdates;
-	rpl::event_stream<StreamsVideoUpdate> _streamsVideoUpdated;
-	base::flat_map<std::string, EndpointType> _activeVideoEndpoints;
-	rpl::variable<VideoEndpoint> _videoEndpointLarge;
-	rpl::variable<bool> _videoEndpointPinned;
-	std::unique_ptr<Webrtc::VideoTrack> _videoLargeTrackWrap;
-	rpl::variable<LargeTrack> _videoLargeTrack;
-	crl::time _videoLargeShowTime = 0;
+	rpl::event_stream<VideoEndpoint> _videoStreamActiveUpdates;
+	base::flat_map<VideoEndpoint, VideoTrack> _activeVideoTracks;
+	rpl::variable<VideoEndpoint> _videoEndpointPinned;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
 	rpl::event_stream<> _allowedToSpeakNotifications;

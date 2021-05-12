@@ -27,6 +27,7 @@ class VideoTrack;
 namespace Calls::Group {
 
 class MembersRow;
+enum class VideoQuality;
 
 struct LargeVideoTrack {
 	Webrtc::VideoTrack *track = nullptr;
@@ -66,10 +67,13 @@ public:
 	[[nodiscard]] rpl::producer<bool> pinToggled() const;
 	[[nodiscard]] rpl::producer<> minimizeClicks() const;
 	[[nodiscard]] rpl::producer<float64> controlsShown() const;
-	[[nodiscard]] rpl::producer<QSize> trackSizeValue() const;
 	[[nodiscard]] rpl::producer<> clicks() const {
 		return _clicks.events();
 	}
+
+	[[nodiscard]] QSize trackSize() const;
+	[[nodiscard]] rpl::producer<QSize> trackSizeValue() const;
+	[[nodiscard]] rpl::producer<VideoQuality> requestedQuality() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _content.lifetime();
@@ -124,6 +128,7 @@ private:
 	bool _toggleControlsScheduled = false;
 	rpl::variable<float64> _controlsShownRatio = 1.;
 	rpl::variable<QSize> _trackSize;
+	rpl::variable<VideoQuality> _requestedQuality;
 	rpl::lifetime _trackLifetime;
 
 };

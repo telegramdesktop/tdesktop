@@ -70,6 +70,7 @@ public:
 
 private:
 	using State = GroupCall::State;
+	struct VideoTile;
 
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
@@ -103,6 +104,7 @@ private:
 	void refreshControlsBackground();
 	void showControls();
 	void refreshLeftButton();
+	void refreshTilesGeometry();
 
 	void endCall();
 
@@ -146,8 +148,9 @@ private:
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<Members> _members = { nullptr };
-	std::unique_ptr<LargeVideo> _pinnedVideo;
+	std::unique_ptr<Ui::RpWidget> _pinnedVideoWrap;
 	float64 _pinnedVideoControlsShown = 1.;
+	std::vector<VideoTile> _videoTiles;
 	rpl::lifetime _trackControlsLifetime;
 	object_ptr<Ui::FlatLabel> _startsIn = { nullptr };
 	object_ptr<Ui::RpWidget> _countdown = { nullptr };

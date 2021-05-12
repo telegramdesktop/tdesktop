@@ -53,4 +53,10 @@ enum class PanelMode {
 	Wide,
 };
 
+enum class VideoQuality {
+	Thumbnail,
+	Medium,
+	Full,
+};
+
 } // namespace Calls::Group
