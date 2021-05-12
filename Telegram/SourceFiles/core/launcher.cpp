@@ -420,7 +420,6 @@ void Launcher::prepareSettings() {
 
 void Launcher::initQtMessageLogging() {
 	static QtMessageHandler OriginalMessageHandler = nullptr;
-	static bool WritingQtMessage = false;
 	OriginalMessageHandler = qInstallMessageHandler([](
 			QtMsgType type,
 			const QMessageLogContext &context,
@@ -429,10 +428,9 @@ void Launcher::initQtMessageLogging() {
 			OriginalMessageHandler(type, context, msg);
 		}
 		if (Logs::DebugEnabled() || !Logs::started()) {
-			if (!WritingQtMessage) {
-				WritingQtMessage = true;
+			if (!Logs::WritingEntry()) {
+				// Sometimes Qt logs something inside our own logging.
 				LOG((msg));
-				WritingQtMessage = false;
 			}
 		}
 	});

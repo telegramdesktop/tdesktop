@@ -14,6 +14,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 std::atomic<int> ThreadCounter/* = 0*/;
+thread_local bool WritingEntryFlag/* = false*/;
+
+class WritingEntryScope final {
+public:
+	WritingEntryScope() {
+		WritingEntryFlag = true;
+	}
+	~WritingEntryScope() {
+		WritingEntryFlag = false;
+	}
+};
 
 } // namespace
 
@@ -73,6 +84,8 @@ public:
 
 	void closeMain() {
 		QMutexLocker lock(_logsMutex(LogDataMain));
+		WritingEntryScope scope;
+
 		const auto file = files[LogDataMain].get();
 		if (file && file->isOpen()) {
 			file->close();
@@ -98,6 +111,8 @@ public:
 
 	void write(LogDataType type, const QString &msg) {
 		QMutexLocker lock(_logsMutex(type));
+		WritingEntryScope scope;
+
 		if (type != LogDataMain) {
 			reopenDebug();
 		}
@@ -321,6 +336,10 @@ bool DebugEnabled() {
 #else
 	return DebugModeEnabled;
 #endif
+}
+
+bool WritingEntry() {
+	return WritingEntryFlag;
 }
 
 void start(not_null<Core::Launcher*> launcher) {

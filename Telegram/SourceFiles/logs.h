@@ -19,6 +19,7 @@ namespace Logs {
 
 void SetDebugEnabled(bool enabled);
 bool DebugEnabled();
+[[nodiscard]] bool WritingEntry();
 
 void start(not_null<Core::Launcher*> launcher);
 bool started();
