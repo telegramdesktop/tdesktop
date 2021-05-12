@@ -221,8 +221,6 @@ Members::Controller::Controller(
 	ImageRoundRadius::Large,
 	st::groupCallMembersBgOver)
 , _narrowRoundRect(ImageRoundRadius::Large, st::groupCallMembersBg) {
-	setupListChangeViewers();
-
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		_inactiveCrossLine.invalidate();
@@ -304,12 +302,12 @@ void Members::Controller::setupListChangeViewers() {
 		subscribeToChanges(real);
 	}, _lifetime);
 
-	_call->stateValue(
-	) | rpl::start_with_next([=] {
-		if (const auto real = _call->lookupReal()) {
-			//updateRow(channel->session().user());
-		}
-	}, _lifetime);
+	//_call->stateValue(
+	//) | rpl::start_with_next([=] {
+	//	if (const auto real = _call->lookupReal()) {
+	//		updateRow(channel->session().user());
+	//	}
+	//}, _lifetime);
 
 	_call->levelUpdates(
 	) | rpl::start_with_next([=](const LevelUpdate &update) {
@@ -769,6 +767,8 @@ void Members::Controller::prepare() {
 	loadMoreRows();
 	appendInvitedUsers();
 	_prepared = true;
+
+	setupListChangeViewers();
 }
 
 bool Members::Controller::isMe(not_null<PeerData*> participantPeer) const {
@@ -1435,6 +1435,14 @@ std::unique_ptr<Row> Members::Controller::createRow(
 		const Data::GroupCallParticipant &participant) {
 	auto result = std::make_unique<Row>(this, participant.peer);
 	updateRow(result.get(), &participant);
+
+	const auto &camera = computeCameraEndpoint(&participant);
+	const auto &screen = computeScreenEndpoint(&participant);
+	if (!screen.empty() && _largeEndpoint != screen) {
+		setRowVideoEndpoint(result.get(), screen);
+	} else if (!camera.empty() && _largeEndpoint != camera) {
+		setRowVideoEndpoint(result.get(), camera);
+	}
 	return result;
 }
 
@@ -1457,25 +1465,13 @@ Members::Members(
 , _listController(std::make_unique<Controller>(call, parent))
 , _layout(_scroll->setOwnedWidget(
 	object_ptr<Ui::VerticalLayout>(_scroll.data())))
-, _pinnedVideoWrap(_layout->add(object_ptr<Ui::RpWidget>(_layout.get())))
-, _pinnedVideo(
-	std::make_unique<LargeVideo>(
-		_pinnedVideoWrap.get(),
-		st::groupCallLargeVideoNarrow,
-		true,
-		_call->videoLargeTrackValue(
-		) | rpl::map([=](GroupCall::LargeTrack track) {
-			const auto row = track ? lookupRow(track.peer) : nullptr;
-			Assert(!track || row != nullptr);
-			return LargeVideoTrack{	row ? track.track : nullptr, row };
-		}),
-		_call->videoEndpointPinnedValue())) {
+, _pinnedVideoWrap(_layout->add(object_ptr<Ui::RpWidget>(_layout.get()))) {
 	setupAddMember(call);
 	setupList();
-	setupPinnedVideo();
 	setContent(_list);
 	setupFakeRoundCorners();
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
+	setupPinnedVideo();
 }
 
 Members::~Members() = default;
@@ -1651,6 +1647,18 @@ void Members::setupList() {
 
 void Members::setupPinnedVideo() {
 	using namespace rpl::mappers;
+
+	_pinnedVideo = std::make_unique<LargeVideo>(
+		_pinnedVideoWrap.get(),
+		st::groupCallLargeVideoNarrow,
+		true,
+		_call->videoLargeTrackValue(
+		) | rpl::map([=](GroupCall::LargeTrack track) {
+			const auto row = track ? lookupRow(track.peer) : nullptr;
+			Assert(!track || row != nullptr);
+			return LargeVideoTrack{ row ? track.track : nullptr, row };
+		}),
+		_call->videoEndpointPinnedValue());
 
 	_pinnedVideo->pinToggled(
 	) | rpl::start_with_next([=](bool pinned) {

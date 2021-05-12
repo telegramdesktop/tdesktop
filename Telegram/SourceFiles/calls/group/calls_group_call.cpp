@@ -538,6 +538,7 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 	using Update = Data::GroupCall::ParticipantUpdate;
 	real->participantUpdated(
 	) | rpl::start_with_next([=](const Update &data) {
+		auto changed = false;
 		auto newLarge = _videoEndpointLarge.current();
 		auto updateCameraNotStreams = std::string();
 		auto updateScreenNotStreams = std::string();
@@ -555,6 +556,8 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 			}
 			if (_videoEndpointLarge.current() != newLarge) {
 				setVideoEndpointLarge(newLarge);
+			} else if (changed) {
+				updateRequestedVideoChannelsDelayed();
 			}
 			if (!updateCameraNotStreams.empty()) {
 				_streamsVideoUpdated.fire({ updateCameraNotStreams, false });
@@ -575,13 +578,13 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 			if (!nowCameraEndpoint.empty()
 				&& _activeVideoEndpoints.emplace(
 					nowCameraEndpoint,
-					EndpointType::Camera).second
-				&& _incomingVideoEndpoints.contains(nowCameraEndpoint)) {
+					EndpointType::Camera).second) {
+				changed = true;
 				_streamsVideoUpdated.fire({ nowCameraEndpoint, true });
 			}
 			if (!wasCameraEndpoint.empty()
-				&& _activeVideoEndpoints.remove(wasCameraEndpoint)
-				&& _incomingVideoEndpoints.contains(wasCameraEndpoint)) {
+				&& _activeVideoEndpoints.remove(wasCameraEndpoint)) {
+				changed = true;
 				updateCameraNotStreams = wasCameraEndpoint;
 				if (newLarge.endpoint == wasCameraEndpoint) {
 					newLarge = VideoEndpoint();
@@ -599,13 +602,13 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 			if (!nowScreenEndpoint.empty()
 				&& _activeVideoEndpoints.emplace(
 					nowScreenEndpoint,
-					EndpointType::Screen).second
-				&& _incomingVideoEndpoints.contains(nowScreenEndpoint)) {
+					EndpointType::Screen).second) {
+				changed = true;
 				_streamsVideoUpdated.fire({ nowScreenEndpoint, true });
 			}
 			if (!wasScreenEndpoint.empty()
-				&& _activeVideoEndpoints.remove(wasScreenEndpoint)
-				&& _incomingVideoEndpoints.contains(wasScreenEndpoint)) {
+				&& _activeVideoEndpoints.remove(wasScreenEndpoint)) {
+				changed = true;
 				updateScreenNotStreams = wasScreenEndpoint;
 				if (newLarge.endpoint == wasScreenEndpoint) {
 					newLarge = VideoEndpoint();
@@ -872,9 +875,8 @@ void GroupCall::setMyEndpointType(
 	if (endpoint.empty()) {
 		return;
 	} else if (type == EndpointType::None) {
-		const auto was1 = _incomingVideoEndpoints.remove(endpoint);
-		const auto was2 = _activeVideoEndpoints.remove(endpoint);
-		if (was1 && was2) {
+		const auto was = _activeVideoEndpoints.remove(endpoint);
+		if (was) {
 			auto newLarge = _videoEndpointLarge.current();
 			if (newLarge.endpoint == endpoint) {
 				_videoEndpointPinned = false;
@@ -883,11 +885,10 @@ void GroupCall::setMyEndpointType(
 			_streamsVideoUpdated.fire({ endpoint, false });
 		}
 	} else {
-		const auto now1 = _incomingVideoEndpoints.emplace(endpoint).second;
-		const auto now2 = _activeVideoEndpoints.emplace(
+		const auto now = _activeVideoEndpoints.emplace(
 			endpoint,
 			type).second;
-		if (now1 || now2) {
+		if (now) {
 			_streamsVideoUpdated.fire({ endpoint, true });
 		}
 		const auto nowLarge = activeVideoEndpointType(
@@ -912,9 +913,6 @@ void GroupCall::setScreenEndpoint(std::string endpoint) {
 	_screenEndpoint = std::move(endpoint);
 	if (_screenEndpoint.empty()) {
 		return;
-	}
-	if (_instance) {
-		_instance->setIgnoreVideoEndpointIds({ _screenEndpoint });
 	}
 	if (isSharingScreen()) {
 		setMyEndpointType(_screenEndpoint, EndpointType::Screen);
@@ -1014,13 +1012,19 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 
 			const auto json = QByteArray::fromStdString(payload.json);
 			const auto wasMuteState = muted();
+			const auto wasVideoMuted = !isSharingCamera();
 			using Flag = MTPphone_JoinGroupCall::Flag;
+			const auto flags = (wasMuteState != MuteState::Active
+				? Flag::f_muted
+				: Flag(0))
+				| (_joinHash.isEmpty()
+					? Flag(0)
+					: Flag::f_invite_hash)
+				| (wasVideoMuted
+					? Flag::f_video_muted
+					: Flag(0));
 			_api.request(MTPphone_JoinGroupCall(
-				MTP_flags((wasMuteState != MuteState::Active
-					? Flag::f_muted
-					: Flag(0)) | (_joinHash.isEmpty()
-						? Flag(0)
-						: Flag::f_invite_hash)),
+				MTP_flags(flags),
 				inputCall(),
 				_joinAs->input,
 				MTP_string(_joinHash),
@@ -1037,7 +1041,9 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				_peer->session().api().applyUpdates(updates);
 				applyQueuedSelfUpdates();
 				checkFirstTimeJoined();
-				sendSelfUpdate(SendUpdateType::VideoMuted);
+				if (wasVideoMuted == isSharingCamera()) {
+					sendSelfUpdate(SendUpdateType::VideoMuted);
+				}
 				if (_screenSsrc && isSharingScreen()) {
 					LOG(("Call Info: Screen rejoin after rejoin()."));
 					rejoinPresentation();
@@ -1452,8 +1458,9 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 			const auto json = data.vdata().v;
 			setCameraEndpoint(ParseVideoEndpoint(json));
 			_instance->setJoinResponsePayload(json.toStdString());
+			updateRequestedVideoChannels();
+			checkMediaChannelDescriptions();
 		});
-		checkMediaChannelDescriptions();
 	}
 }
 
@@ -1800,12 +1807,6 @@ void GroupCall::ensureControllerCreated() {
 		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
 			settings.callAudioBackend()),
 		.videoCapture = _cameraCapture,
-		.incomingVideoSourcesUpdated = [=](
-				std::vector<std::string> endpointIds) {
-			crl::on_main(weak, [=, endpoints = std::move(endpointIds)] {
-				setIncomingVideoEndpoints(endpoints);
-			});
-		},
 		.requestBroadcastPart = [=, call = base::make_weak(this)](
 				int64_t time,
 				int64_t period,
@@ -1854,9 +1855,10 @@ void GroupCall::ensureControllerCreated() {
 	_instance = std::make_unique<tgcalls::GroupInstanceCustomImpl>(
 		std::move(descriptor));
 
-	_videoEndpointLarge.changes(
+	_videoEndpointLarge.value(
 	) | rpl::start_with_next([=](const VideoEndpoint &endpoint) {
-		_instance->setFullSizeVideoEndpointId(endpoint.endpoint);
+		updateRequestedVideoChannels();
+
 		_videoLargeTrack = LargeTrack();
 		_videoLargeTrackWrap = nullptr;
 		if (!endpoint) {
@@ -1873,10 +1875,6 @@ void GroupCall::ensureControllerCreated() {
 
 	updateInstanceMuteState();
 	updateInstanceVolumes();
-
-	if (!_screenEndpoint.empty()) {
-		_instance->setIgnoreVideoEndpointIds({ _screenEndpoint });
-	}
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 }
 
@@ -2071,43 +2069,52 @@ void GroupCall::mediaChannelDescriptionsCancel(
 	}
 }
 
-void GroupCall::setIncomingVideoEndpoints(
-		const std::vector<std::string> &endpoints) {
-	auto newLarge = _videoEndpointLarge.current();
-	auto newLargeFound = false;
-	auto removed = _incomingVideoEndpoints;
-	const auto feedOne = [&](const std::string &endpoint) {
-		if (endpoint.empty()) {
-			return;
-		} else if (endpoint == newLarge.endpoint) {
-			newLargeFound = true;
-		}
-		if (!removed.remove(endpoint)) {
-			_incomingVideoEndpoints.emplace(endpoint);
-			if (_activeVideoEndpoints.contains(endpoint)) {
-				_streamsVideoUpdated.fire({ endpoint, true });
-			}
-		}
-	};
-	for (const auto &endpoint : endpoints) {
-		if (endpoint != _cameraEndpoint && endpoint != _screenEndpoint) {
-			feedOne(endpoint);
-		}
+void GroupCall::updateRequestedVideoChannels() {
+	_requestedVideoChannelsUpdateScheduled = false;
+	const auto real = lookupReal();
+	if (!real || !_instance) {
+		return;
 	}
-	feedOne(cameraSharingEndpoint());
-	feedOne(screenSharingEndpoint());
-	if (newLarge && !newLargeFound) {
-		_videoEndpointPinned = false;
-		newLarge = VideoEndpoint();
-	}
-	if (newLarge.empty()) {
-		setVideoEndpointLarge(chooseLargeVideoEndpoint());
-	}
-	for (const auto &endpoint : removed) {
-		if (_activeVideoEndpoints.contains(endpoint)) {
-			_streamsVideoUpdated.fire({ endpoint, false });
+	auto channels = std::vector<tgcalls::VideoChannelDescription>();
+	using Quality = tgcalls::VideoChannelDescription::Quality;
+	channels.reserve(_activeVideoEndpoints.size());
+	const auto &camera = cameraSharingEndpoint();
+	const auto &screen = screenSharingEndpoint();
+	const auto &large = _videoEndpointLarge.current().endpoint;
+	for (const auto &[endpoint, endpointType] : _activeVideoEndpoints) {
+		if (endpoint == camera || endpoint == screen) {
+			continue;
 		}
+		const auto participant = real->participantByEndpoint(endpoint);
+		const auto params = (participant && participant->ssrc)
+			? participant->videoParams.get()
+			: nullptr;
+		if (!params) {
+			continue;
+		}
+		channels.push_back({
+			.audioSsrc = participant->ssrc,
+			.videoInformation = (params->camera.endpoint == endpoint
+				? params->camera.json.toStdString()
+				: params->screen.json.toStdString()),
+			.quality = (endpoint == large
+				? Quality::Full
+				: Quality::Thumbnail),
+		});
 	}
+	_instance->setRequestedVideoChannels(std::move(channels));
+}
+
+void GroupCall::updateRequestedVideoChannelsDelayed() {
+	if (_requestedVideoChannelsUpdateScheduled) {
+		return;
+	}
+	_requestedVideoChannelsUpdateScheduled = true;
+	crl::on_main(this, [=] {
+		if (_requestedVideoChannelsUpdateScheduled) {
+			updateRequestedVideoChannels();
+		}
+	});
 }
 
 void GroupCall::fillActiveVideoEndpoints() {
@@ -2128,9 +2135,7 @@ void GroupCall::fillActiveVideoEndpoints() {
 		}
 		if (!removed.remove(endpoint)) {
 			_activeVideoEndpoints.emplace(endpoint, type);
-			if (_incomingVideoEndpoints.contains(endpoint)) {
-				_streamsVideoUpdated.fire({ endpoint, true });
-			}
+			_streamsVideoUpdated.fire({ endpoint, true });
 		}
 	};
 	for (const auto &participant : participants) {
@@ -2157,6 +2162,7 @@ void GroupCall::fillActiveVideoEndpoints() {
 			_streamsVideoUpdated.fire({ endpoint, false });
 		}
 	}
+	updateRequestedVideoChannels();
 }
 
 GroupCall::EndpointType GroupCall::activeVideoEndpointType(
@@ -2182,10 +2188,8 @@ VideoEndpoint GroupCall::chooseLargeVideoEndpoint() const {
 	const auto &myCameraEndpoint = cameraSharingEndpoint();
 	const auto &myScreenEndpoint = screenSharingEndpoint();
 	const auto &participants = real->participants();
-	for (const auto &endpoint : _incomingVideoEndpoints) {
-		if (!_activeVideoEndpoints.contains(endpoint)
-			|| endpoint == _cameraEndpoint
-			|| endpoint == _screenEndpoint) {
+	for (const auto &[endpoint, endpointType] : _activeVideoEndpoints) {
+		if (endpoint == _cameraEndpoint || endpoint == _screenEndpoint) {
 			continue;
 		}
 		if (const auto participant = real->participantByEndpoint(endpoint)) {

@@ -94,7 +94,7 @@ private:
 	std::unique_ptr<Controller> _listController;
 	not_null<Ui::VerticalLayout*> _layout;
 	const not_null<Ui::RpWidget*> _pinnedVideoWrap;
-	const std::unique_ptr<LargeVideo> _pinnedVideo;
+	std::unique_ptr<LargeVideo> _pinnedVideo;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;
 	ListWidget *_list = nullptr;
 	rpl::event_stream<> _addMemberRequests;

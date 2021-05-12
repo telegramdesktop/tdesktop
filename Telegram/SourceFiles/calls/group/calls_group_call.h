@@ -280,7 +280,6 @@ public:
 	}
 	[[nodiscard]] bool streamsVideo(const std::string &endpoint) const {
 		return !endpoint.empty()
-			&& _incomingVideoEndpoints.contains(endpoint)
 			&& activeVideoEndpointType(endpoint) != EndpointType::None;
 	}
 	[[nodiscard]] bool videoEndpointPinned() const {
@@ -446,8 +445,8 @@ private:
 	void stopConnectingSound();
 	void playConnectingSoundOnce();
 
-	void setIncomingVideoEndpoints(
-		const std::vector<std::string> &endpoints);
+	void updateRequestedVideoChannels();
+	void updateRequestedVideoChannelsDelayed();
 	void fillActiveVideoEndpoints();
 	[[nodiscard]] VideoEndpoint chooseLargeVideoEndpoint() const;
 	[[nodiscard]] EndpointType activeVideoEndpointType(
@@ -484,6 +483,7 @@ private:
 	rpl::variable<State> _state = State::Creating;
 	base::flat_set<uint32> _unresolvedSsrcs;
 	bool _recordingStoppedByMe = false;
+	bool _requestedVideoChannelsUpdateScheduled = false;
 
 	MTP::DcId _broadcastDcId = 0;
 	base::flat_map<not_null<LoadPartTask*>, LoadingPart> _broadcastParts;
@@ -537,7 +537,6 @@ private:
 
 	rpl::event_stream<LevelUpdate> _levelUpdates;
 	rpl::event_stream<StreamsVideoUpdate> _streamsVideoUpdated;
-	base::flat_set<std::string> _incomingVideoEndpoints;
 	base::flat_map<std::string, EndpointType> _activeVideoEndpoints;
 	rpl::variable<VideoEndpoint> _videoEndpointLarge;
 	rpl::variable<bool> _videoEndpointPinned;
