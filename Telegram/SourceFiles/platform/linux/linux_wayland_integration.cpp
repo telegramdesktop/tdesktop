@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <surface.h>
 #include <xdgforeign.h>
 #include <plasmashell.h>
+#include <appmenu.h>
 
 using namespace KWayland::Client;
 
@@ -36,6 +37,10 @@ public:
 		return _plasmaShell.get();
 	}
 
+	[[nodiscard]] AppMenuManager *appMenuManager() {
+		return _appMenuManager.get();
+	}
+
 	[[nodiscard]] QEventLoop &interfacesLoop() {
 		return _interfacesLoop;
 	}
@@ -51,6 +56,7 @@ private:
 	Registry _applicationRegistry;
 	std::unique_ptr<XdgExporter> _xdgExporter;
 	std::unique_ptr<PlasmaShell> _plasmaShell;
+	std::unique_ptr<AppMenuManager> _appMenuManager;
 	QEventLoop _interfacesLoop;
 	bool _interfacesAnnounced = false;
 };
@@ -115,6 +121,21 @@ WaylandIntegration::Private::Private()
 				&ConnectionThread::connectionDied,
 				_plasmaShell.get(),
 				&PlasmaShell::destroy);
+		});
+
+	connect(
+		&_applicationRegistry,
+		&Registry::appMenuAnnounced,
+		[=](uint name, uint version) {
+			_appMenuManager = std::unique_ptr<AppMenuManager>{
+				_applicationRegistry.createAppMenuManager(name, version),
+			};
+
+			connect(
+				_applicationConnection,
+				&ConnectionThread::connectionDied,
+				_appMenuManager.get(),
+				&AppMenuManager::destroy);
 		});
 
 	_connection.initConnection();
@@ -185,6 +206,28 @@ void WaylandIntegration::skipTaskbar(QWindow *window, bool skip) {
 	}
 
 	plasmaSurface->setSkipTaskbar(skip);
+}
+
+void WaylandIntegration::registerAppMenu(
+		QWindow *window,
+		const QString &serviceName,
+		const QString &objectPath) {
+	const auto manager = _private->appMenuManager();
+	if (!manager) {
+		return;
+	}
+
+	const auto surface = Surface::fromWindow(window);
+	if (!surface) {
+		return;
+	}
+
+	const auto appMenu = manager->create(surface, surface);
+	if (!appMenu) {
+		return;
+	}
+
+	appMenu->setAddress(serviceName, objectPath);
 }
 
 } // namespace internal
