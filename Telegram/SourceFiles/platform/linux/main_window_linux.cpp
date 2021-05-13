@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "base/platform/base_platform_info.h"
-#include "base/call_delayed.h"
+#include "base/invoke_queued.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
 #include "facades.h"
@@ -1270,7 +1270,7 @@ void MainWindow::updateGlobalMenuHook() {
 
 void MainWindow::handleVisibleChangedHook(bool visible) {
 	if (visible) {
-		base::call_delayed(1, this, [=] {
+		InvokeQueued(this, [=] {
 			SkipTaskbar(
 				windowHandle(),
 				(Global::WorkMode().value() == dbiwmTrayOnly)
@@ -1281,7 +1281,7 @@ void MainWindow::handleVisibleChangedHook(bool visible) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	if (_appMenuSupported && _mainMenuExporter) {
 		if (visible) {
-			base::call_delayed(1, this, [=] {
+			InvokeQueued(this, [=] {
 				RegisterAppMenu(windowHandle(), kMainMenuObjectPath.utf16());
 			});
 		} else {
