@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <registry.h>
 #include <surface.h>
 #include <xdgforeign.h>
+#include <plasmashell.h>
 
 using namespace KWayland::Client;
 
@@ -31,6 +32,10 @@ public:
 		return _xdgExporter.get();
 	}
 
+	[[nodiscard]] PlasmaShell *plasmaShell() {
+		return _plasmaShell.get();
+	}
+
 	[[nodiscard]] QEventLoop &interfacesLoop() {
 		return _interfacesLoop;
 	}
@@ -45,6 +50,7 @@ private:
 	Registry _registry;
 	Registry _applicationRegistry;
 	std::unique_ptr<XdgExporter> _xdgExporter;
+	std::unique_ptr<PlasmaShell> _plasmaShell;
 	QEventLoop _interfacesLoop;
 	bool _interfacesAnnounced = false;
 };
@@ -96,6 +102,21 @@ WaylandIntegration::Private::Private()
 				&XdgExporter::destroy);
 		});
 
+	connect(
+		&_applicationRegistry,
+		&Registry::plasmaShellAnnounced,
+		[=](uint name, uint version) {
+			_plasmaShell = std::unique_ptr<PlasmaShell>{
+				_applicationRegistry.createPlasmaShell(name, version),
+			};
+
+			connect(
+				_applicationConnection,
+				&ConnectionThread::connectionDied,
+				_plasmaShell.get(),
+				&PlasmaShell::destroy);
+		});
+
 	_connection.initConnection();
 }
 
@@ -141,6 +162,29 @@ QString WaylandIntegration::nativeHandle(QWindow *window) {
 		}
 	}
 	return {};
+}
+
+bool WaylandIntegration::skipTaskbarSupported() {
+	return _private->plasmaShell();
+}
+
+void WaylandIntegration::skipTaskbar(QWindow *window, bool skip) {
+	const auto shell = _private->plasmaShell();
+	if (!shell) {
+		return;
+	}
+
+	const auto surface = Surface::fromWindow(window);
+	if (!surface) {
+		return;
+	}
+
+	const auto plasmaSurface = shell->createSurface(surface, surface);
+	if (!plasmaSurface) {
+		return;
+	}
+
+	plasmaSurface->setSkipTaskbar(skip);
 }
 
 } // namespace internal
