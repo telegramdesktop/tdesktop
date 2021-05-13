@@ -964,7 +964,7 @@ void OverlayWidget::waitingAnimationCallback() {
 }
 
 void OverlayWidget::updateCursor() {
-	setCursor(_controlsState == ControlsHidden
+	setCursor(_controlsState == ControlsHidden && !isZoomedIn()
 		? Qt::BlankCursor
 		: (_over == OverNone ? style::cur_default : style::cur_pointer));
 }
@@ -3291,7 +3291,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 		}
 
 		// more area
-		if (_moreNavIcon.intersects(r)) {
+		if (_moreNavIcon.intersects(r) && !isZoomedIn()) {
 			auto o = overLevel(OverMore);
 			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
 			st::mediaviewMore.paintInCenter(p, _moreNavIcon);
@@ -4131,7 +4131,7 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverRotate);
 	} else if (_document && documentBubbleShown() && _docIconRect.contains(pos)) {
 		updateOverState(OverIcon);
-	} else if (_moreNav.contains(pos)) {
+	} else if (_moreNav.contains(pos) && !isZoomedIn()) {
 		updateOverState(OverMore);
 	} else if (_closeNav.contains(pos)) {
 		updateOverState(OverClose);
