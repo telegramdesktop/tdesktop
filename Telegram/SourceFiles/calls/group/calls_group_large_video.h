@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
-#include "ui/abstract_button.h"
 #include "ui/effects/cross_line.h"
 #include "ui/effects/animations.h"
 
@@ -23,6 +22,10 @@ struct GroupCallLargeVideo;
 namespace Webrtc {
 class VideoTrack;
 } // namespace Webrtc
+
+namespace Ui {
+class AbstractButton;
+} // namespace Ui
 
 namespace Calls::Group {
 
@@ -63,9 +66,9 @@ public:
 	void setVisible(bool visible);
 	void setGeometry(int x, int y, int width, int height);
 	void setControlsShown(bool shown);
+	void toggleControlsHidingEnabled(bool enabled);
 
 	[[nodiscard]] rpl::producer<bool> pinToggled() const;
-	[[nodiscard]] rpl::producer<> minimizeClicks() const;
 	[[nodiscard]] rpl::producer<float64> controlsShown() const;
 	[[nodiscard]] rpl::producer<> clicks() const {
 		return _clicks.events();
@@ -116,13 +119,13 @@ private:
 	LargeVideoTrack _track;
 	QImage _shadow;
 	Ui::CrossLineAnimation _pin;
-	Ui::AbstractButton _pinButton;
-	std::unique_ptr<Ui::AbstractButton> _minimizeButton;
+	std::unique_ptr<Ui::AbstractButton> _pinButton;
 	Ui::Animations::Simple _controlsAnimation;
 	rpl::variable<bool> _controlsShown = true;
 	rpl::event_stream<> _clicks;
-	const bool _topControls = true;
+	const bool _hasEnlarge = true;
 	bool _pinned = false;
+	bool _controlsHidingEnabled = false;
 	bool _mouseInside = false;
 	bool _mouseDown = false;
 	bool _toggleControlsScheduled = false;

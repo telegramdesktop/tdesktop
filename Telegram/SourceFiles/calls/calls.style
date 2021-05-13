@@ -831,7 +831,7 @@ groupCallButtonSkip: 43px;
 groupCallButtonSkipSmall: 4px;
 groupCallButtonBottomSkip: 145px;
 groupCallButtonBottomSkipSmall: 95px;
-groupCallButtonBottomSkipWide: 89px;
+groupCallButtonBottomSkipWide: 122px;
 groupCallMembersBottomSkipSmall: 72px;
 groupCallControlsBackMargin: margins(2px, 2px, 2px, 2px);
 groupCallControlsBackRadius: 12px;
@@ -1179,30 +1179,22 @@ groupCallLargeVideoCrossLine: CrossLineAnimation(groupCallMemberColoredCrossLine
 
 GroupCallLargeVideo {
 	shadowHeight: pixels;
-	controlsAlign: align;
+	enlargeAlign: align;
 	namePosition: point;
-	statusPosition: point;
 	pinPosition: point;
 	iconPosition: point;
-	minimizePosition: point;
 }
 
 groupCallLargeVideoWide: GroupCallLargeVideo {
-	shadowHeight: 100px;
-	controlsAlign: align(top);
+	shadowHeight: 40px;
+	enlargeAlign: align(topright);
 	namePosition: point(15px, 8px);
-	statusPosition: point(15px, 28px);
-	pinPosition: point(52px, 16px);
-	iconPosition: point(14px, 16px);
-	minimizePosition: point(94px, 16px);
+	pinPosition: point(18px, 18px);
+	iconPosition: point(10px, 5px);
 }
-groupCallLargeVideoNarrow: GroupCallLargeVideo {
-	shadowHeight: 80px;
-	controlsAlign: align(bottom);
-	namePosition: point(64px, 44px);
-	statusPosition: point(64px, 25px);
-	pinPosition: point(20px, 12px);
-	iconPosition: point(18px, 12px);
+groupCallLargeVideoNarrow: GroupCallLargeVideo(groupCallLargeVideoWide) {
+	enlargeAlign: align(center);
+	pinPosition: point(-1px, -1px);
 }
 groupCallLargeVideoListItem: PeerListItem(groupCallMembersListItem) {
 	nameFg: groupCallVideoTextFg;
@@ -1219,7 +1211,6 @@ groupCallLargeVideoPin: CrossLineAnimation {
 	stroke: 2px;
 }
 groupCallVideoEnlarge: icon {{ "calls/voice_enlarge", mediaviewPipControlsFgOver }};
-groupCallVideoMinimize: icon {{ "calls/voice_minimize", groupCallVideoSubTextFg }};
 
 groupCallVideoSmallSkip: 4px;
 groupCallVideoLargeSkip: 6px;

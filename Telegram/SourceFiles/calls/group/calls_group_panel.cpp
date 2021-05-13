@@ -435,6 +435,7 @@ Panel::~Panel() {
 	if (_menu) {
 		_menu.destroy();
 	}
+	_videoTiles.clear();
 }
 
 void Panel::setupRealCallViewers() {
@@ -983,10 +984,12 @@ void Panel::setupMembers() {
 	}, _callLifetime);
 
 	_call->videoEndpointPinnedValue(
-	) | rpl::filter([=](const VideoEndpoint &pinned) {
-		return pinned && (_mode == PanelMode::Default);
-	}) | rpl::start_with_next([=] {
-		enlargeVideo();
+	) | rpl::start_with_next([=](const VideoEndpoint &pinned) {
+		if (_mode == PanelMode::Wide) {
+			refreshTilesGeometry();
+		} else if (pinned) {
+			enlargeVideo();
+		}
 	}, _callLifetime);
 }
 
@@ -1082,6 +1085,7 @@ void Panel::refreshTilesGeometry() {
 	if (_videoTiles.empty()
 		|| outer.isEmpty()
 		|| _mode == PanelMode::Default) {
+		trackControls(nullptr);
 		return;
 	}
 	struct Geometry {
@@ -1089,21 +1093,28 @@ void Panel::refreshTilesGeometry() {
 		QRect columns;
 		QRect rows;
 	};
+	const auto &pinned = _call->videoEndpointPinned();
 	auto sizes = base::flat_map<not_null<LargeVideo*>, Geometry>();
 	sizes.reserve(_videoTiles.size());
 	for (const auto &tile : _videoTiles) {
 		const auto video = tile.video.get();
-		const auto size = video->trackSize();
+		const auto size = (pinned && tile.endpoint != pinned)
+			? QSize()
+			: video->trackSize();
 		if (size.isEmpty()) {
+			video->toggleControlsHidingEnabled(false);
 			video->setGeometry(0, 0, outer.width(), 0);
 		} else {
 			sizes.emplace(video, Geometry{ size });
 		}
 	}
-	if (sizes.empty()) {
-		return;
-	} else if (sizes.size() == 1) {
+	if (sizes.size() == 1) {
+		trackControls(sizes.front().first);
+		sizes.front().first->toggleControlsHidingEnabled(true);
 		sizes.front().first->setGeometry(0, 0, outer.width(), outer.height());
+		return;
+	}
+	if (sizes.empty()) {
 		return;
 	}
 
@@ -1180,6 +1191,7 @@ void Panel::refreshTilesGeometry() {
 		const auto &rect = (columnsBlack < rowsBlack)
 			? geometry.columns
 			: geometry.rows;
+		video->toggleControlsHidingEnabled(false);
 		video->setGeometry(rect.x(), rect.y(), rect.width(), rect.height());
 	}
 }
@@ -1195,7 +1207,7 @@ void Panel::setupPinnedVideo() {
 		Assert(row != nullptr);
 		auto video = std::make_unique<LargeVideo>(
 			_pinnedVideoWrap.get(),
-			st::groupCallLargeVideoNarrow,
+			st::groupCallLargeVideoWide,
 			(_mode == PanelMode::Wide),
 			rpl::single(LargeVideoTrack{ track.track.get(), row }),
 			_call->videoEndpointPinnedValue() | rpl::map(_1 == endpoint));
@@ -1210,31 +1222,16 @@ void Panel::setupPinnedVideo() {
 			_call->requestVideoQuality(endpoint, quality);
 		}, video->lifetime());
 
-		video->minimizeClicks(
-		) | rpl::start_with_next([=] {
-			minimizeVideo();
-		}, video->lifetime());
-
 		video->trackSizeValue(
 		) | rpl::start_with_next([=] {
 			refreshTilesGeometry();
 		}, video->lifetime());
 
-		video->controlsShown(
-		) | rpl::filter([=](float64 shown) {
-			return (_pinnedVideoControlsShown != shown);
-		}) | rpl::start_with_next([=](float64 shown) {
-			const auto hiding = (shown <= _pinnedVideoControlsShown);
-			_pinnedVideoControlsShown = shown;
-			if (_mode == PanelMode::Wide) {
-				if (hiding && _trackControlsLifetime) {
-					_trackControlsLifetime.destroy();
-				} else if (!hiding && !_trackControlsLifetime) {
-					trackControls();
-				}
-				updateButtonsGeometry();
+		video->lifetime().add([=, video = video.get()] {
+			if (_trackControlsTile == video) {
+				trackControls(nullptr);
 			}
-		}, video->lifetime());
+		});
 
 		return VideoTile{
 			.video = std::move(video),
@@ -1806,32 +1803,59 @@ void Panel::refreshControlsBackground() {
 		corners->paint(p, _controlsBackground->rect());
 	}, lifetime);
 
-	if (_pinnedVideoControlsShown > 0.) {
-		trackControls();
-	}
 	raiseControls();
 }
 
-void Panel::trackControls() {
-	const auto trackOne = [&](auto &&widget) {
+void Panel::trackControls(LargeVideo *video) {
+	if (_trackControlsTile == video) {
+		return;
+	}
+	_trackControlsTile = video;
+	if (!video) {
+		_trackControlsLifetime.destroy();
+		_trackControlsOverStateLifetime.destroy();
+		if (_pinnedVideoControlsShown != 1.) {
+			_pinnedVideoControlsShown = 1.;
+			updateButtonsGeometry();
+		}
+		return;
+	}
+
+	const auto trackOne = [=](auto &&widget) {
 		if (widget) {
 			widget->events(
 			) | rpl::start_with_next([=](not_null<QEvent*> e) {
-				//if (e->type() == QEvent::Enter) {
-				//	_pinnedVideo->setControlsShown(true);
-				//} else if (e->type() == QEvent::Leave) {
-				//	_pinnedVideo->setControlsShown(false);
-				//}
-			}, _trackControlsLifetime);
+				if (e->type() == QEvent::Enter) {
+					video->setControlsShown(true);
+				} else if (e->type() == QEvent::Leave) {
+					video->setControlsShown(false);
+				}
+			}, _trackControlsOverStateLifetime);
 		}
 	};
-	trackOne(_mute);
-	trackOne(_video);
-	trackOne(_screenShare);
-	trackOne(_settings);
-	trackOne(_callShare);
-	trackOne(_hangup);
-	trackOne(_controlsBackground);
+	const auto trackOverState = [=] {
+		trackOne(_mute);
+		trackOne(_video);
+		trackOne(_screenShare);
+		trackOne(_settings);
+		trackOne(_callShare);
+		trackOne(_hangup);
+		trackOne(_controlsBackground);
+	};
+
+	video->controlsShown(
+	) | rpl::filter([=](float64 shown) {
+		return (_pinnedVideoControlsShown != shown);
+	}) | rpl::start_with_next([=](float64 shown) {
+		const auto hiding = (shown <= _pinnedVideoControlsShown);
+		_pinnedVideoControlsShown = shown;
+		if (hiding && _trackControlsLifetime) {
+			_trackControlsOverStateLifetime.destroy();
+		} else if (!hiding && !_trackControlsOverStateLifetime) {
+			trackOverState();
+		}
+		updateButtonsGeometry();
+	}, _trackControlsLifetime);
 }
 
 void Panel::updateControlsGeometry() {
@@ -1884,13 +1908,12 @@ void Panel::updateButtonsGeometry() {
 		toggle(_mode != PanelMode::Wide || _pinnedVideoControlsShown > 0.);
 
 		const auto buttonsTop = widget()->height()
-			- st::groupCallButtonBottomSkipSmall
-			+ (_mode == PanelMode::Wide
+			- (_mode == PanelMode::Wide
 				? anim::interpolate(
-					st::groupCallButtonBottomSkipSmall,
 					0,
+					st::groupCallButtonBottomSkipWide,
 					_pinnedVideoControlsShown)
-				: 0);
+				: st::groupCallButtonBottomSkipSmall);
 		const auto addSkip = st::callMuteButtonSmall.active.outerRadius;
 		const auto muteSize = _mute->innerSize().width() + 2 * addSkip;
 		const auto skip = (_video ? 1 : 2) * st::groupCallButtonSkipSmall;

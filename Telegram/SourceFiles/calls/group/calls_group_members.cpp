@@ -1686,14 +1686,18 @@ void Members::refreshTilesGeometry() {
 		_pinnedVideoWrap->resize(width, height);
 		return;
 	}
+	const auto min = (st::groupCallWidth
+		- st::groupCallMembersMargin.left()
+		- st::groupCallMembersMargin.right()
+		- st::groupCallVideoSmallSkip) / 2;
 	const auto square = (width - st::groupCallVideoSmallSkip) / 2;
 	const auto skip = (width - 2 * square);
 	const auto put = [&](not_null<LargeVideo*> video, int column, int row) {
 		video->setGeometry(
 			(column == 2) ? 0 : column ? (width - square) : 0,
-			row * (square + skip),
+			row * (min + skip),
 			(column == 2) ? width : square,
-			square);
+			min);
 	};
 	const auto rows = (sizes.size() + 1) / 2;
 	if (sizes.size() == 3) {
@@ -1713,7 +1717,7 @@ void Members::refreshTilesGeometry() {
 			}
 		}
 	}
-	_pinnedVideoWrap->resize(width, rows * (square + skip) - skip);
+	_pinnedVideoWrap->resize(width, rows * (min + skip) - skip);
 }
 
 void Members::setupPinnedVideo() {
@@ -1745,6 +1749,9 @@ void Members::setupPinnedVideo() {
 		) | rpl::start_with_next([=] {
 			refreshTilesGeometry();
 		}, video->lifetime());
+
+		video->clicks(
+		) | rpl::start_to_stream(_enlargeVideoClicks, video->lifetime());
 
 		return VideoTile{
 			.video = std::move(video),

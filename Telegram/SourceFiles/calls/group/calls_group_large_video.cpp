@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_pip.h"
 #include "webrtc/webrtc_video_track.h"
 #include "ui/painter.h"
+#include "ui/abstract_button.h"
 #include "styles/style_calls.h"
 
 namespace Calls::Group {
@@ -30,12 +31,11 @@ LargeVideo::LargeVideo(
 : _content(parent, [=](QRect clip) { paint(clip); })
 , _st(st)
 , _pin(st::groupCallLargeVideoPin)
-, _pinButton(&_content)
-, _minimizeButton((_st.controlsAlign == style::al_top)
+, _pinButton((_st.pinPosition.x() >= 0)
 	? std::make_unique<Ui::AbstractButton>(&_content)
 	: nullptr)
-, _controlsShown(_st.controlsAlign == style::al_top)
-, _topControls(_st.controlsAlign == style::al_top)
+, _controlsShown(_st.enlargeAlign != style::al_center)
+, _hasEnlarge(_st.enlargeAlign == style::al_center)
 , _controlsShownRatio(_controlsShown.current() ? 1. : 0.) {
 	_content.setVisible(visible);
 	setup(std::move(track), std::move(pinned));
@@ -74,13 +74,9 @@ void LargeVideo::setControlsShown(bool shown) {
 }
 
 rpl::producer<bool> LargeVideo::pinToggled() const {
-	return _pinButton.clicks() | rpl::map([=] { return !_pinned; });
-}
-
-rpl::producer<> LargeVideo::minimizeClicks() const {
-	return _minimizeButton
-		? (_minimizeButton->clicks() | rpl::to_empty)
-		: (rpl::never<rpl::empty_value>() | rpl::type_erased());
+	return _pinButton
+		? _pinButton->clicks() | rpl::map([=] { return !_pinned; })
+		: rpl::never<bool>() | rpl::type_erased();
 }
 
 rpl::producer<float64> LargeVideo::controlsShown() const {
@@ -140,7 +136,7 @@ void LargeVideo::setup(
 	) | rpl::map([=](bool shown, LargeVideoTrack track) {
 		if (!shown) {
 			_controlsAnimation.stop();
-			if (!_topControls) {
+			if (_hasEnlarge) {
 				_controlsShown = _mouseInside = false;
 			}
 			_controlsShownRatio = _controlsShown.current() ? 1. : 0.;
@@ -174,9 +170,18 @@ void LargeVideo::setup(
 	setupControls(std::move(pinned));
 }
 
+void LargeVideo::toggleControlsHidingEnabled(bool enabled) {
+	if (_controlsHidingEnabled == enabled) {
+		return;
+	}
+	_controlsHidingEnabled = enabled;
+	toggleControls();
+}
+
 void LargeVideo::toggleControls() {
 	_toggleControlsScheduled = false;
-	const auto shown = _mouseInside;
+	const auto shown = _mouseInside
+		|| (!_hasEnlarge && !_controlsHidingEnabled);
 	if (_controlsShown.current() == shown) {
 		return;
 	}
@@ -184,11 +189,7 @@ void LargeVideo::toggleControls() {
 	const auto callback = [=] {
 		_controlsShownRatio = _controlsAnimation.value(
 			_controlsShown.current() ? 1. : 0.);
-		if (_topControls) {
-			_content.update(0, 0, _content.width(), _st.shadowHeight);
-		} else {
-			_content.update();
-		}
+		_content.update();
 		updateControlsGeometry();
 	};
 	if (_content.isHidden()) {
@@ -215,45 +216,30 @@ void LargeVideo::setupControls(rpl::producer<bool> pinned) {
 }
 
 void LargeVideo::updateControlsGeometry() {
-	if (_topControls) {
+	if (_pinButton) {
 		const auto &pin = st::groupCallLargeVideoPin.icon;
-		const auto pinRight = (_content.width() - _st.pinPosition.x());
-		const auto pinLeft = pinRight - pin.width();
-		const auto pinTop = _st.pinPosition.y();
-		const auto &icon = st::groupCallLargeVideoCrossLine.icon;
-		const auto iconLeft = _content.width()
-			- _st.iconPosition.x()
-			- icon.width();
-		const auto skip1 = iconLeft - pinRight;
-		const auto &min = st::groupCallVideoMinimize;
-		const auto minRight = _content.width() - _st.minimizePosition.x();
-		const auto skip2 = pinLeft - minRight;
-		_pinButton.setGeometry(
-			pinLeft - (skip2 / 2),
+		const auto buttonWidth = pin.width() + 2 * _st.pinPosition.x();
+		const auto buttonHeight = pin.height() + 2 * _st.pinPosition.y();
+		_pinButton->setGeometry(
+			_content.width() - buttonWidth,
 			0,
-			pin.width() + (skip2 / 2) + (skip1 / 2),
-			pinTop * 2 + pin.height());
-		_minimizeButton->setGeometry(
-			minRight - min.width() - (skip2 / 2),
-			0,
-			min.width() + skip2,
-			pinTop * 2 + pin.height());
-	} else {
-		_pinButton.setGeometry(
-			0,
-			_content.height() - _st.namePosition.y(),
-			_st.namePosition.x(),
-			_st.namePosition.y());
+			buttonWidth,
+			buttonHeight);
 	}
 }
 
 void LargeVideo::paint(QRect clip) {
 	auto p = Painter(&_content);
+	const auto fill = [&](QRect rect) {
+		if (rect.intersects(clip)) {
+			p.fillRect(rect.intersected(clip), st::groupCallMembersBg);
+		}
+	};
 	const auto [image, rotation] = _track
 		? _track.track->frameOriginalWithRotation()
 		: std::pair<QImage, int>();
 	if (image.isNull()) {
-		p.fillRect(clip, Qt::black);
+		fill(clip);
 		return;
 	}
 	auto hq = PainterHighQualityEnabler(p);
@@ -282,11 +268,6 @@ void LargeVideo::paint(QRect clip) {
 	}
 	_track.track->markFrameShown();
 
-	const auto fill = [&](QRect rect) {
-		if (rect.intersects(clip)) {
-			p.fillRect(rect.intersected(clip), Qt::black);
-		}
-	};
 	if (left > 0) {
 		fill({ 0, 0, left, size.height() });
 	}
@@ -306,35 +287,29 @@ void LargeVideo::paint(QRect clip) {
 }
 
 void LargeVideo::paintControls(Painter &p, QRect clip) {
-	const auto shown = _controlsShownRatio.current();
-	if (shown == 0. && _topControls) {
+	const auto ratio = _controlsShownRatio.current();
+	const auto shown = _hasEnlarge ? 1. : ratio;
+	const auto enlarge = _hasEnlarge ? ratio : 0.;
+	if (shown == 0.) {
 		return;
 	}
 
 	const auto width = _content.width();
 	const auto height = _content.height();
-	const auto fullShift = _st.statusPosition.y() + st::normalFont->height;
-	const auto shift = _topControls
-		? anim::interpolate(-fullShift, 0, shown)
-		: 0;
+	const auto fullShift = _st.namePosition.y() + st::normalFont->height;
+	const auto shift = anim::interpolate(fullShift, 0, shown);
 
 	// Shadow.
 	if (_shadow.isNull()) {
-		if (_topControls) {
-			_shadow = GenerateShadow(_st.shadowHeight, kShadowMaxAlpha, 0);
-		} else {
-			_shadow = GenerateShadow(_st.shadowHeight, 0, kShadowMaxAlpha);
-		}
+		_shadow = GenerateShadow(_st.shadowHeight, 0, kShadowMaxAlpha);
 	}
 	const auto shadowRect = QRect(
 		0,
-		(_topControls
-			? anim::interpolate(-_st.shadowHeight, 0, shown)
-			: (height - anim::interpolate(_st.shadowHeight, 0, shown))),
+		(height - anim::interpolate(0, _st.shadowHeight, shown)),
 		width,
 		_st.shadowHeight);
 	const auto shadowFill = shadowRect.intersected(clip);
-	if (shadowFill.isEmpty() && (_topControls || shown == 0.)) {
+	if (shadowFill.isEmpty() && enlarge == 0. && !_pinButton) {
 		return;
 	}
 	const auto factor = style::DevicePixelRatio();
@@ -346,74 +321,52 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 			(shadowFill.y() - shadowRect.y()) * factor,
 			_shadow.width(),
 			shadowFill.height() * factor));
-	if (!_topControls && shown > 0.) {
+	if (enlarge > 0.) {
 		auto color = st::radialBg->c;
-		color.setAlphaF(color.alphaF() * shown);
+		color.setAlphaF(color.alphaF() * enlarge);
 		p.fillRect(clip, color);
 
-		p.setOpacity(shown);
+		p.setOpacity(enlarge);
 		st::groupCallVideoEnlarge.paintInCenter(p, _content.rect());
 		p.setOpacity(1.);
 	}
 
 	_track.row->lazyInitialize(st::groupCallMembersListItem);
 
-	// Name.
-	p.setPen(_topControls
-		? st::groupCallVideoTextFg
-		: st::groupCallVideoSubTextFg);
-	const auto hasWidth = width
-		- (_topControls ? _st.pinPosition.x() : _st.iconPosition.x())
-		- _st.namePosition.x();
-	const auto nameLeft = _st.namePosition.x();
-	const auto nameTop = _topControls
-		? (_st.namePosition.y() + shift)
-		: (height - _st.namePosition.y());
-	_track.row->name().drawLeftElided(p, nameLeft, nameTop, hasWidth, width);
-
-	// Status.
-	p.setPen(st::groupCallVideoSubTextFg);
-	const auto statusLeft = _st.statusPosition.x();
-	const auto statusTop = _topControls
-		? (_st.statusPosition.y() + shift)
-		: (height - _st.statusPosition.y());
-	_track.row->paintComplexStatusText(
-		p,
-		st::groupCallLargeVideoListItem,
-		statusLeft,
-		statusTop,
-		hasWidth,
-		width,
-		false,
-		MembersRowStyle::LargeVideo);
-
 	// Mute.
 	const auto &icon = st::groupCallLargeVideoCrossLine.icon;
 	const auto iconLeft = width - _st.iconPosition.x() - icon.width();
-	const auto iconTop = _topControls
-		? (_st.iconPosition.y() + shift)
-		: (height - _st.iconPosition.y() - icon.height());
+	const auto iconTop = (height
+		- _st.iconPosition.y()
+		- icon.height()
+		+ shift);
 	_track.row->paintMuteIcon(
 		p,
 		{ iconLeft, iconTop, icon.width(), icon.height() },
 		MembersRowStyle::LargeVideo);
 
-	// Pin.
-	const auto &pin = st::groupCallLargeVideoPin.icon;
-	const auto pinLeft = _topControls
-		? (width - _st.pinPosition.x() - pin.width())
-		: _st.pinPosition.x();
-	const auto pinTop = _topControls
-		? (_st.pinPosition.y() + shift)
-		: (height - _st.pinPosition.y() - pin.height());
-	_pin.paint(p, pinLeft, pinTop, _pinned ? 1. : 0.);
+	// Name.
+	p.setPen(st::groupCallVideoTextFg);
+	const auto hasWidth = width
+		- _st.iconPosition.x() - icon.width()
+		- _st.namePosition.x();
+	const auto nameLeft = _st.namePosition.x();
+	const auto nameTop = (height
+		- _st.namePosition.y()
+		- st::semiboldFont->height
+		+ shift);
+	_track.row->name().drawLeftElided(p, nameLeft, nameTop, hasWidth, width);
 
-	// Minimize.
-	if (_topControls) {
-		const auto &min = st::groupCallVideoMinimize;
-		const auto minLeft = width - _st.minimizePosition.x() - min.width();
-		const auto minTop = _st.minimizePosition.y() + shift;
-		min.paint(p, minLeft, minTop, width);
+	// Pin.
+	if (_st.pinPosition.x() >= 0) {
+		const auto &pin = st::groupCallLargeVideoPin.icon;
+		const auto pinLeft = (width - _st.pinPosition.x() - pin.width());
+		const auto pinShift = anim::interpolate(
+			_st.pinPosition.y() + pin.height(),
+			0,
+			shown);
+		const auto pinTop = (_st.pinPosition.y() - pinShift);
+		_pin.paint(p, pinLeft, pinTop, _pinned ? 1. : 0.);
 	}
 }
 

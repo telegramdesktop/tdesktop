@@ -92,7 +92,7 @@ private:
 
 	bool handleClose();
 	void startScheduledNow();
-	void trackControls();
+	void trackControls(LargeVideo *video);
 	void raiseControls();
 	void enlargeVideo();
 	void minimizeVideo();
@@ -151,7 +151,9 @@ private:
 	std::unique_ptr<Ui::RpWidget> _pinnedVideoWrap;
 	float64 _pinnedVideoControlsShown = 1.;
 	std::vector<VideoTile> _videoTiles;
+	LargeVideo *_trackControlsTile = nullptr;
 	rpl::lifetime _trackControlsLifetime;
+	rpl::lifetime _trackControlsOverStateLifetime;
 	object_ptr<Ui::FlatLabel> _startsIn = { nullptr };
 	object_ptr<Ui::RpWidget> _countdown = { nullptr };
 	std::shared_ptr<Ui::GroupCallScheduledLeft> _countdownData;
