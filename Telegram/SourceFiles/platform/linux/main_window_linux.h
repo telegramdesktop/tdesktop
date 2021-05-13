@@ -47,7 +47,6 @@ protected:
 	void initHook() override;
 	void unreadCounterChangedHook() override;
 	void updateGlobalMenuHook() override;
-	void handleVisibleChangedHook(bool visible) override;
 
 	void initTrayMenuHook() override;
 	bool hasTrayIcon() const override;
@@ -76,6 +75,7 @@ private:
 	base::unique_qptr<Ui::PopupMenu> _trayIconMenuXEmbed;
 
 	void updateIconCounters();
+	void handleNativeSurfaceChanged(bool exist);
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	StatusNotifierItem *_sniTrayIcon = nullptr;

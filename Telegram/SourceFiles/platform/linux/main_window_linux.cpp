@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "base/platform/base_platform_info.h"
-#include "base/invoke_queued.h"
+#include "base/event_filter.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/input_fields.h"
 #include "facades.h"
@@ -649,6 +649,27 @@ void MainWindow::initHook() {
 	} catch (...) {
 	}
 
+	base::install_event_filter(windowHandle(), [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::Expose) {
+			auto ee = static_cast<QExposeEvent*>(e.get());
+			if (ee->region().isNull()) {
+				return base::EventFilterResult::Continue;
+			}
+			if (!windowHandle()
+				|| windowHandle()->parent()
+				|| !windowHandle()->isVisible()) {
+				return base::EventFilterResult::Continue;
+			}
+			handleNativeSurfaceChanged(true);
+		} else if (e->type() == QEvent::Hide) {
+			if (!windowHandle() || windowHandle()->parent()) {
+				return base::EventFilterResult::Continue;
+			}
+			handleNativeSurfaceChanged(false);
+		}
+		return base::EventFilterResult::Continue;
+	});
+
 	if (_appMenuSupported) {
 		LOG(("Using D-Bus global menu."));
 	} else {
@@ -1268,22 +1289,18 @@ void MainWindow::updateGlobalMenuHook() {
 
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-void MainWindow::handleVisibleChangedHook(bool visible) {
-	if (visible) {
-		InvokeQueued(this, [=] {
-			SkipTaskbar(
-				windowHandle(),
-				(Global::WorkMode().value() == dbiwmTrayOnly)
-					&& trayAvailable());
-		});
+void MainWindow::handleNativeSurfaceChanged(bool exist) {
+	if (exist) {
+		SkipTaskbar(
+			windowHandle(),
+			(Global::WorkMode().value() == dbiwmTrayOnly)
+				&& trayAvailable());
 	}
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	if (_appMenuSupported && _mainMenuExporter) {
-		if (visible) {
-			InvokeQueued(this, [=] {
-				RegisterAppMenu(windowHandle(), kMainMenuObjectPath.utf16());
-			});
+		if (exist) {
+			RegisterAppMenu(windowHandle(), kMainMenuObjectPath.utf16());
 		} else {
 			UnregisterAppMenu(windowHandle());
 		}
