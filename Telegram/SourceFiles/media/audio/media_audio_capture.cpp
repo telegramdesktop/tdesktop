@@ -679,6 +679,10 @@ bool Instance::Inner::processFrame(int32 offset, int32 framesize) {
 
 	AVFrame *frame = av_frame_alloc();
 
+	frame->format = d->codecContext->sample_fmt;
+	frame->channels = d->codecContext->channels;
+	frame->channel_layout = d->codecContext->channel_layout;
+	frame->sample_rate = d->codecContext->sample_rate;
 	frame->nb_samples = d->dstSamples;
 	frame->pts = av_rescale_q(d->fullSamples, AVRational { 1, d->codecContext->sample_rate }, d->codecContext->time_base);
 
