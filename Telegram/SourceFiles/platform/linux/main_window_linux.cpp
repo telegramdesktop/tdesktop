@@ -503,7 +503,15 @@ bool IsAppMenuSupported() {
 
 // This call must be made from the same bus connection as DBusMenuExporter
 // So it must use QDBusConnection
-void RegisterAppMenu(uint winId, const QString &menuPath) {
+void RegisterAppMenu(QWindow *window, const QString &menuPath) {
+	if (const auto integration = WaylandIntegration::Instance()) {
+		integration->registerAppMenu(
+			window,
+			QDBusConnection::sessionBus().baseService(),
+			menuPath);
+		return;
+	}
+
 	auto message = QDBusMessage::createMethodCall(
 		kAppMenuService.utf16(),
 		kAppMenuObjectPath.utf16(),
@@ -511,7 +519,7 @@ void RegisterAppMenu(uint winId, const QString &menuPath) {
 		qsl("RegisterWindow"));
 
 	message.setArguments({
-		winId,
+		window->winId(),
 		QVariant::fromValue(QDBusObjectPath(menuPath))
 	});
 
@@ -520,7 +528,11 @@ void RegisterAppMenu(uint winId, const QString &menuPath) {
 
 // This call must be made from the same bus connection as DBusMenuExporter
 // So it must use QDBusConnection
-void UnregisterAppMenu(uint winId) {
+void UnregisterAppMenu(QWindow *window) {
+	if (const auto integration = WaylandIntegration::Instance()) {
+		return;
+	}
+
 	auto message = QDBusMessage::createMethodCall(
 		kAppMenuService.utf16(),
 		kAppMenuObjectPath.utf16(),
@@ -528,7 +540,7 @@ void UnregisterAppMenu(uint winId) {
 		qsl("UnregisterWindow"));
 
 	message.setArguments({
-		winId
+		window->winId()
 	});
 
 	QDBusConnection::sessionBus().send(message);
@@ -806,9 +818,9 @@ void MainWindow::handleAppMenuOwnerChanged(
 	}
 
 	if (_appMenuSupported && _mainMenuExporter) {
-		RegisterAppMenu(winId(), kMainMenuObjectPath.utf16());
+		RegisterAppMenu(windowHandle(), kMainMenuObjectPath.utf16());
 	} else {
-		UnregisterAppMenu(winId());
+		UnregisterAppMenu(windowHandle());
 	}
 }
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -1133,7 +1145,7 @@ void MainWindow::createGlobalMenu() {
 		psMainMenu);
 
 	if (_appMenuSupported) {
-		RegisterAppMenu(winId(), kMainMenuObjectPath.utf16());
+		RegisterAppMenu(windowHandle(), kMainMenuObjectPath.utf16());
 	}
 
 	updateGlobalMenu();
@@ -1269,9 +1281,11 @@ void MainWindow::handleVisibleChangedHook(bool visible) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	if (_appMenuSupported && _mainMenuExporter) {
 		if (visible) {
-			RegisterAppMenu(winId(), kMainMenuObjectPath.utf16());
+			base::call_delayed(1, this, [=] {
+				RegisterAppMenu(windowHandle(), kMainMenuObjectPath.utf16());
+			});
 		} else {
-			UnregisterAppMenu(winId());
+			UnregisterAppMenu(windowHandle());
 		}
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -1299,7 +1313,7 @@ MainWindow::~MainWindow() {
 	delete _sniTrayIcon;
 
 	if (_appMenuSupported) {
-		UnregisterAppMenu(winId());
+		UnregisterAppMenu(windowHandle());
 	}
 
 	delete _mainMenuExporter;
