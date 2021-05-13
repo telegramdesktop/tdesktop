@@ -85,9 +85,8 @@ WaylandIntegration::Private::Private()
 		&_applicationRegistry,
 		&Registry::exporterUnstableV2Announced,
 		[=](uint name, uint version) {
-			_xdgExporter = {
+			_xdgExporter = std::unique_ptr<XdgExporter>{
 				_applicationRegistry.createXdgExporter(name, version),
-				std::default_delete<XdgExporter>(),
 			};
 
 			connect(
