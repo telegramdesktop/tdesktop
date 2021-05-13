@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_window.h"
 #include "platform/linux/specific_linux.h"
+#include "platform/linux/linux_wayland_integration.h"
 #include "history/history.h"
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
@@ -59,6 +60,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace {
 
+using internal::WaylandIntegration;
+
 constexpr auto kPanelTrayIconName = "telegram-panel"_cs;
 constexpr auto kMutePanelTrayIconName = "telegram-mute-panel"_cs;
 constexpr auto kAttentionPanelTrayIconName = "telegram-attention-panel"_cs;
@@ -83,15 +86,15 @@ QIcon TrayIcon;
 QString TrayIconThemeName, TrayIconName;
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-bool XCBSkipTaskbar(QWindow *window, bool set) {
+void XCBSkipTaskbar(QWindow *window, bool skip) {
 	const auto connection = base::Platform::XCB::GetConnectionFromQt();
 	if (!connection) {
-		return false;
+		return;
 	}
 
 	const auto root = base::Platform::XCB::GetRootWindowFromQt();
 	if (!root.has_value()) {
-		return false;
+		return;
 	}
 
 	const auto stateAtom = base::Platform::XCB::GetAtom(
@@ -99,7 +102,7 @@ bool XCBSkipTaskbar(QWindow *window, bool set) {
 		"_NET_WM_STATE");
 
 	if (!stateAtom.has_value()) {
-		return false;
+		return;
 	}
 
 	const auto skipTaskbarAtom = base::Platform::XCB::GetAtom(
@@ -107,7 +110,7 @@ bool XCBSkipTaskbar(QWindow *window, bool set) {
 		"_NET_WM_STATE_SKIP_TASKBAR");
 
 	if (!skipTaskbarAtom.has_value()) {
-		return false;
+		return;
 	}
 
 	xcb_client_message_event_t xev;
@@ -116,7 +119,7 @@ bool XCBSkipTaskbar(QWindow *window, bool set) {
 	xev.sequence = 0;
 	xev.window = window->winId();
 	xev.format = 32;
-	xev.data.data32[0] = set ? 1 : 0;
+	xev.data.data32[0] = skip ? 1 : 0;
 	xev.data.data32[1] = *skipTaskbarAtom;
 	xev.data.data32[2] = 0;
 	xev.data.data32[3] = 0;
@@ -129,19 +132,19 @@ bool XCBSkipTaskbar(QWindow *window, bool set) {
 		XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
 			| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
 		reinterpret_cast<const char*>(&xev));
-
-	return true;
 }
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
-bool SkipTaskbar(QWindow *window, bool set) {
+void SkipTaskbar(QWindow *window, bool skip) {
+	if (const auto integration = WaylandIntegration::Instance()) {
+		integration->skipTaskbar(window, skip);
+	}
+
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	if (IsX11()) {
-		return XCBSkipTaskbar(window, set);
+		XCBSkipTaskbar(window, skip);
 	}
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
-
-	return false;
 }
 
 QString GetPanelIconName(int counter, bool muted) {

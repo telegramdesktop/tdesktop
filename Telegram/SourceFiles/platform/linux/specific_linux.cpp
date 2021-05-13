@@ -644,9 +644,15 @@ bool TrayIconSupported() {
 }
 
 bool SkipTaskbarSupported() {
+	if (const auto integration = WaylandIntegration::Instance()) {
+		return integration->skipTaskbarSupported();
+	}
+
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-	return IsX11()
-		&& base::Platform::XCB::IsSupportedByWM("_NET_WM_STATE_SKIP_TASKBAR");
+	if (IsX11()) {
+		return base::Platform::XCB::IsSupportedByWM(
+			"_NET_WM_STATE_SKIP_TASKBAR");
+	}
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 	return false;

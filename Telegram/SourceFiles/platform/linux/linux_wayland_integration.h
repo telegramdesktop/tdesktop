@@ -16,6 +16,8 @@ public:
 	void waitForInterfaceAnnounce();
 	bool supportsXdgDecoration();
 	QString nativeHandle(QWindow *window);
+	bool skipTaskbarSupported();
+	void skipTaskbar(QWindow *window, bool skip);
 
 private:
 	WaylandIntegration();
