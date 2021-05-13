@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 
-#include <QtCore/QCoreApplication>
 #include <connection_thread.h>
 #include <registry.h>
 #include <surface.h>
@@ -92,10 +91,10 @@ WaylandIntegration::Private::Private()
 			};
 
 			connect(
-				QCoreApplication::instance(),
-				&QCoreApplication::aboutToQuit,
-				this,
-				[=] { _xdgExporter = nullptr; });
+				_applicationConnection,
+				&ConnectionThread::connectionDied,
+				_xdgExporter.get(),
+				&XdgExporter::destroy);
 		});
 
 	_connection.initConnection();
@@ -130,7 +129,7 @@ QString WaylandIntegration::nativeHandle(QWindow *window) {
 		if (const auto surface = Surface::fromWindow(window)) {
 			if (const auto exported = exporter->exportTopLevel(
 				surface,
-				_private->xdgExporter())) {
+				surface)) {
 				QEventLoop loop;
 				QObject::connect(
 					exported,
