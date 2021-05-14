@@ -1243,15 +1243,26 @@ void Panel::setupPinnedVideo() {
 	}
 	_call->videoStreamActiveUpdates(
 	) | rpl::start_with_next([=](const VideoEndpoint &endpoint) {
-		const auto &tracks = _call->activeVideoTracks();
-		const auto i = tracks.find(endpoint);
-		if (i != end(tracks)) {
-			_videoTiles.push_back(setupTile(endpoint, i->second));
+		if (_call->activeVideoTracks().contains(endpoint)) {
+			// Add async (=> the participant row is definitely in Members).
+			crl::on_main(_pinnedVideoWrap.get(), [=] {
+				const auto &tracks = _call->activeVideoTracks();
+				const auto i = tracks.find(endpoint);
+				if (i != end(tracks)) {
+					_videoTiles.push_back(setupTile(endpoint, i->second));
+				}
+			});
 		} else {
-			_videoTiles.erase(
-				ranges::remove(_videoTiles, endpoint, &VideoTile::endpoint),
-				end(_videoTiles));
-			refreshTilesGeometry();
+			// Remove sync.
+			const auto eraseTill = end(_videoTiles);
+			const auto eraseFrom = ranges::remove(
+				_videoTiles,
+				endpoint,
+				&VideoTile::endpoint);
+			if (eraseFrom != eraseTill) {
+				_videoTiles.erase(eraseFrom, eraseTill);
+				refreshTilesGeometry();
+			}
 		}
 	}, _pinnedVideoWrap->lifetime());
 
