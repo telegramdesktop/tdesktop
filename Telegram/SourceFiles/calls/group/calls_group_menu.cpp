@@ -78,10 +78,6 @@ void StartGroupCallRecordingBox(
 	});
 	box->addButton(tr::lng_group_call_recording_start_button(), [=] {
 		const auto result = input->getLastText().trimmed();
-		if (result.isEmpty()) {
-			input->showError();
-			return;
-		}
 		box->closeBox();
 		done(result);
 	});
