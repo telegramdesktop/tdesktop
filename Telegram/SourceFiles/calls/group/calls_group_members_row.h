@@ -62,6 +62,7 @@ public:
 		int outerWidth,
 		not_null<MembersRow*> row,
 		const IconState &state) = 0;
+	virtual bool rowIsNarrow() = 0;
 	//virtual void rowPaintNarrowBackground(
 	//	Painter &p,
 	//	int x,

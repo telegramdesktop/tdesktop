@@ -2015,7 +2015,7 @@ void Panel::updateMembersGeometry() {
 			skip,
 			top,
 			membersWidth,
-			std::min(desiredHeight, widget()->height()));
+			std::min(desiredHeight, widget()->height() - top - skip));
 		_pinnedVideoWrap->setGeometry(
 			membersWidth + 2 * skip,
 			top,

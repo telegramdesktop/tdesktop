@@ -99,6 +99,7 @@ public:
 		int outerWidth,
 		not_null<MembersRow*> row,
 		const IconState &state) override;
+	bool rowIsNarrow() override;
 	//void rowPaintNarrowBackground(
 	//	Painter &p,
 	//	int x,
@@ -989,7 +990,7 @@ void Members::Controller::rowPaintIcon(
 		// Just green icon, no cross, no coloring.
 		greenIcon.paintInCenter(p, rect);
 		return;
-	} else if (state.speaking == 0.) {
+	} else if (state.speaking == 0. && (!narrow || !state.mutedByMe)) {
 		if (state.active == 1.) {
 			// Just gray icon, no cross, no coloring.
 			const auto &grayIcon = largeVideo
@@ -1051,7 +1052,7 @@ void Members::Controller::rowPaintIcon(
 	}
 	const auto activeInactiveColor = anim::color(
 		(narrow
-			? st::groupCallMemberInactiveStatus
+			? st::groupCallMemberNotJoinedStatus
 			: st::groupCallMemberInactiveIcon),
 		(narrow
 			? st::groupCallMemberActiveStatus
@@ -1107,17 +1108,54 @@ int Members::Controller::rowPaintStatusIcon(
 	rowPaintIcon(p, rect, state);
 	x += icon.width();
 	auto result = st::groupCallNarrowIconSkip;
-	if (_cameraActive.contains(row->peer())) {
-		st::groupCallNarrowCameraIcon.paint(p, x, y, outerWidth);
-		x += st::groupCallNarrowCameraIcon.width();
-		result += st::groupCallNarrowCameraIcon.width();
-	}
-	if (_screenActive.contains(row->peer())) {
-		st::groupCallNarrowScreenIcon.paint(p, x, y, outerWidth);
-		x += st::groupCallNarrowScreenIcon.width();
-		result += st::groupCallNarrowScreenIcon.width();
+	const auto participantPeer = row->peer();
+	const auto camera = _cameraActive.contains(participantPeer);
+	const auto screen = _screenActive.contains(participantPeer);
+	if (camera || screen) {
+		const auto activeInactiveColor = anim::color(
+			st::groupCallMemberNotJoinedStatus,
+			st::groupCallMemberActiveStatus,
+			state.speaking);
+		const auto iconColor = anim::color(
+			activeInactiveColor,
+			st::groupCallMemberNotJoinedStatus,
+			state.muted);
+		const auto other = state.mutedByMe
+			? st::groupCallMemberMutedIcon->c
+			: state.raisedHand
+			? st::groupCallMemberInactiveStatus->c
+			: iconColor;
+		const auto color = (state.speaking == 1. && !state.mutedByMe)
+			? st::groupCallMemberActiveStatus->c
+			: (state.speaking == 0.
+				? (state.active == 1.
+					? st::groupCallMemberNotJoinedStatus->c
+					: (state.active == 0.
+						? (state.muted == 1.
+							? (state.raisedHand
+								? st::groupCallMemberInactiveStatus->c
+								: st::groupCallMemberNotJoinedStatus->c)
+							: (state.muted == 0.
+								? st::groupCallMemberNotJoinedStatus->c
+								: other))
+						: other))
+				: other);
+		if (camera) {
+			st::groupCallNarrowCameraIcon.paint(p, x, y, outerWidth, other);
+			x += st::groupCallNarrowCameraIcon.width();
+			result += st::groupCallNarrowCameraIcon.width();
+		}
+		if (screen) {
+			st::groupCallNarrowScreenIcon.paint(p, x, y, outerWidth, other);
+			x += st::groupCallNarrowScreenIcon.width();
+			result += st::groupCallNarrowScreenIcon.width();
+		}
 	}
 	return result;
+}
+
+bool Members::Controller::rowIsNarrow() {
+	return (_mode == PanelMode::Wide);
 }
 
 //void Members::Controller::rowPaintNarrowBackground(
@@ -1848,7 +1886,7 @@ void Members::refreshTilesGeometry() {
 	if (sizes.size() == 3) {
 		put(sizes.front().first, 2, 0);
 		put((sizes.begin() + 1)->first, 0, 1);
-		put((sizes.begin() + 1)->first, 1, 1);
+		put((sizes.begin() + 2)->first, 1, 1);
 	} else {
 		auto row = 0;
 		auto column = 0;

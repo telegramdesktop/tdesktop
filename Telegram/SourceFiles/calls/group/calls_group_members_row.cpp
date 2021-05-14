@@ -765,9 +765,13 @@ void MembersRow::paintComplexStatusText(
 			p.translate(-translatedWidth, 0);
 		});
 
+		const auto &style = (!narrowMode
+			|| (_state == State::RaisedHand && _raisedHandStatus))
+			? st
+			: st::groupCallNarrowMembersListItem;
 		PeerListRow::paintStatusText(
 			p,
-			st,
+			style,
 			x,
 			y,
 			availableWidth - translatedWidth,
@@ -799,7 +803,7 @@ void MembersRow::paintComplexStatusText(
 }
 
 QSize MembersRow::actionSize() const {
-	return QSize(
+	return _delegate->rowIsNarrow() ? QSize() : QSize(
 		st::groupCallActiveButton.width,
 		st::groupCallActiveButton.height);
 }

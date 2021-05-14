@@ -562,6 +562,11 @@ groupCallMembersListItem: PeerListItem(defaultPeerListItem) {
 	statusFgOver: groupCallMemberInactiveStatus;
 	statusFgActive: groupCallMemberActiveStatus;
 }
+groupCallNarrowMembersListItem: PeerListItem(groupCallMembersListItem) {
+	statusFg: groupCallMemberNotJoinedStatus;
+	statusFgOver: groupCallMemberNotJoinedStatus;
+	statusFgActive: groupCallMemberActiveStatus;
+}
 groupCallMembersList: PeerList(defaultPeerList) {
 	bg: groupCallMembersBg;
 	about: FlatLabel(defaultPeerListAbout) {
@@ -1157,8 +1162,8 @@ groupCallWideModeSize: size(960px, 580px);
 //	ripple: groupCallRipple;
 //}
 groupCallNarrowInactiveCrossLine: CrossLineAnimation {
-	fg: groupCallMemberInactiveStatus;
-	icon: icon {{ "calls/video_mini_mute", groupCallMemberInactiveStatus }};
+	fg: groupCallMemberNotJoinedStatus;
+	icon: icon {{ "calls/video_mini_mute", groupCallMemberNotJoinedStatus }};
 	startPosition: point(3px, 0px);
 	endPosition: point(13px, 12px);
 	stroke: 3px;
@@ -1169,8 +1174,8 @@ groupCallNarrowColoredCrossLine: CrossLineAnimation(groupCallNarrowInactiveCross
 	icon: icon {{ "calls/video_mini_mute", groupCallMemberActiveStatus }};
 }
 groupCallNarrowRaisedHand: icon {{ "calls/video_mini_speak", groupCallMemberInactiveStatus }};
-groupCallNarrowCameraIcon: icon {{ "calls/video_mini_video", groupCallMemberInactiveStatus }};
-groupCallNarrowScreenIcon: icon {{ "calls/video_mini_screencast", groupCallMemberInactiveStatus }};
+groupCallNarrowCameraIcon: icon {{ "calls/video_mini_video", groupCallMemberNotJoinedStatus }};
+groupCallNarrowScreenIcon: icon {{ "calls/video_mini_screencast", groupCallMemberNotJoinedStatus }};
 groupCallNarrowIconPosition: point(-4px, 2px);
 groupCallNarrowIconSkip: 15px;
 //groupCallVideoCrossLine: CrossLineAnimation(groupCallNarrowInactiveCrossLine) {
