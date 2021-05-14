@@ -412,15 +412,15 @@ bool MembersRow::paintVideo(
 	//return true;
 }
 
-std::tuple<int, int, int> MembersRow::UserpicInNarrowMode(
-		int x,
-		int y,
-		int sizew,
-		int sizeh) {
-	const auto useSize = st::groupCallMembersList.item.photoSize;
-	const auto skipx = (sizew - useSize) / 2;
-	return { x + skipx, y + st::groupCallNarrowUserpicTop, useSize };
-}
+//std::tuple<int, int, int> MembersRow::UserpicInNarrowMode(
+//		int x,
+//		int y,
+//		int sizew,
+//		int sizeh) {
+//	const auto useSize = st::groupCallMembersList.item.photoSize;
+//	const auto skipx = (sizew - useSize) / 2;
+//	return { x + skipx, y + st::groupCallNarrowUserpicTop, useSize };
+//}
 
 void MembersRow::paintBlobs(
 		Painter &p,
@@ -433,9 +433,9 @@ void MembersRow::paintBlobs(
 		return;
 	}
 	auto size = sizew;
-	if (mode == PanelMode::Wide) {
-		std::tie(x, y, size) = UserpicInNarrowMode(x, y, sizew, sizeh);
-	}
+	//if (mode == PanelMode::Wide) {
+	//	std::tie(x, y, size) = UserpicInNarrowMode(x, y, sizew, sizeh);
+	//}
 	const auto mutedByMe = (_state == State::MutedByMe);
 	const auto shift = QPointF(x + size / 2., y + size / 2.);
 	auto hq = PainterHighQualityEnabler(p);
@@ -461,9 +461,9 @@ void MembersRow::paintScaledUserpic(
 		int sizeh,
 		PanelMode mode) {
 	auto size = sizew;
-	if (mode == PanelMode::Wide) {
-		std::tie(x, y, size) = UserpicInNarrowMode(x, y, sizew, sizeh);
-	}
+	//if (mode == PanelMode::Wide) {
+	//	std::tie(x, y, size) = UserpicInNarrowMode(x, y, sizew, sizeh);
+	//}
 	if (!_blobsAnimation) {
 		peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 		return;
@@ -503,72 +503,72 @@ void MembersRow::paintMuteIcon(
 	_delegate->rowPaintIcon(p, iconRect, computeIconState(style));
 }
 
-void MembersRow::paintNarrowName(
-		Painter &p,
-		int x,
-		int y,
-		int sizew,
-		int sizeh,
-		MembersRowStyle style) {
-	if (_narrowName.isEmpty()) {
-		_narrowName.setText(
-			st::semiboldTextStyle,
-			generateShortName(),
-			Ui::NameTextOptions());
-	}
-	if (style == MembersRowStyle::Video) {
-		_delegate->rowPaintNarrowShadow(p, x, y, sizew, sizeh);
-	}
-	const auto &icon = st::groupCallVideoCrossLine.icon;
-	const auto added = icon.width() - st::groupCallNarrowIconLess;
-	const auto available = sizew - 2 * st::normalFont->spacew - added;
-	const auto use = std::min(available, _narrowName.maxWidth());
-	const auto left = x + (sizew - use - added) / 2;
-	const auto iconRect = QRect(
-		left - st::groupCallNarrowIconLess,
-		y + st::groupCallNarrowIconTop,
-		icon.width(),
-		icon.height());
-	const auto &state = computeIconState(style);
-	_delegate->rowPaintIcon(p, iconRect, state);
-
-	p.setPen([&] {
-		if (style == MembersRowStyle::Video) {
-			return st::groupCallVideoTextFg->p;
-		} else if (state.speaking == 1. && !state.mutedByMe) {
-			return st::groupCallMemberActiveIcon->p;
-		} else if (state.speaking == 0.) {
-			if (state.active == 1.) {
-				return st::groupCallMemberInactiveIcon->p;
-			} else if (state.active == 0.) {
-				if (state.muted == 1.) {
-					return state.raisedHand
-						? st::groupCallMemberInactiveStatus->p
-						: st::groupCallMemberMutedIcon->p;
-				} else if (state.muted == 0.) {
-					return st::groupCallMemberInactiveIcon->p;
-				}
-			}
-		}
-		const auto activeInactiveColor = anim::color(
-			st::groupCallMemberInactiveIcon,
-			(state.mutedByMe
-				? st::groupCallMemberMutedIcon
-				: st::groupCallMemberActiveIcon),
-			state.speaking);
-		return anim::pen(
-			activeInactiveColor,
-			st::groupCallMemberMutedIcon,
-			state.muted);
-	}());
-	const auto nameLeft = iconRect.x() + icon.width();
-	const auto nameTop = y + st::groupCallNarrowNameTop;
-	if (use == available) {
-		_narrowName.drawLeftElided(p, nameLeft, nameTop, available, sizew);
-	} else {
-		_narrowName.drawLeft(p, nameLeft, nameTop, available, sizew);
-	}
-}
+//void MembersRow::paintNarrowName(
+//		Painter &p,
+//		int x,
+//		int y,
+//		int sizew,
+//		int sizeh,
+//		MembersRowStyle style) {
+//	if (_narrowName.isEmpty()) {
+//		_narrowName.setText(
+//			st::semiboldTextStyle,
+//			generateShortName(),
+//			Ui::NameTextOptions());
+//	}
+//	if (style == MembersRowStyle::Video) {
+//		_delegate->rowPaintNarrowShadow(p, x, y, sizew, sizeh);
+//	}
+//	const auto &icon = st::groupCallVideoCrossLine.icon;
+//	const auto added = icon.width() - st::groupCallNarrowIconLess;
+//	const auto available = sizew - 2 * st::normalFont->spacew - added;
+//	const auto use = std::min(available, _narrowName.maxWidth());
+//	const auto left = x + (sizew - use - added) / 2;
+//	const auto iconRect = QRect(
+//		left - st::groupCallNarrowIconLess,
+//		y + st::groupCallNarrowIconTop,
+//		icon.width(),
+//		icon.height());
+//	const auto &state = computeIconState(style);
+//	_delegate->rowPaintIcon(p, iconRect, state);
+//
+//	p.setPen([&] {
+//		if (style == MembersRowStyle::Video) {
+//			return st::groupCallVideoTextFg->p;
+//		} else if (state.speaking == 1. && !state.mutedByMe) {
+//			return st::groupCallMemberActiveIcon->p;
+//		} else if (state.speaking == 0.) {
+//			if (state.active == 1.) {
+//				return st::groupCallMemberInactiveIcon->p;
+//			} else if (state.active == 0.) {
+//				if (state.muted == 1.) {
+//					return state.raisedHand
+//						? st::groupCallMemberInactiveStatus->p
+//						: st::groupCallMemberMutedIcon->p;
+//				} else if (state.muted == 0.) {
+//					return st::groupCallMemberInactiveIcon->p;
+//				}
+//			}
+//		}
+//		const auto activeInactiveColor = anim::color(
+//			st::groupCallMemberInactiveIcon,
+//			(state.mutedByMe
+//				? st::groupCallMemberMutedIcon
+//				: st::groupCallMemberActiveIcon),
+//			state.speaking);
+//		return anim::pen(
+//			activeInactiveColor,
+//			st::groupCallMemberMutedIcon,
+//			state.muted);
+//	}());
+//	const auto nameLeft = iconRect.x() + icon.width();
+//	const auto nameTop = y + st::groupCallNarrowNameTop;
+//	if (use == available) {
+//		_narrowName.drawLeftElided(p, nameLeft, nameTop, available, sizew);
+//	} else {
+//		_narrowName.drawLeft(p, nameLeft, nameTop, available, sizew);
+//	}
+//}
 
 auto MembersRow::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	return [=](Painter &p, int x, int y, int outerWidth, int size) {
@@ -586,20 +586,20 @@ void MembersRow::paintComplexUserpic(
 		int sizeh,
 		PanelMode mode,
 		bool selected) {
-	if (mode == PanelMode::Wide) {
-		if (paintVideo(p, x, y, sizew, sizeh, mode)) {
-			paintNarrowName(p, x, y, sizew, sizeh, MembersRowStyle::Video);
-			_delegate->rowPaintNarrowBorder(p, x, y, this);
-			return;
-		}
-		_delegate->rowPaintNarrowBackground(p, x, y, selected);
-		paintRipple(p, x, y, outerWidth);
-	}
+	//if (mode == PanelMode::Wide) {
+	//	if (paintVideo(p, x, y, sizew, sizeh, mode)) {
+	//		paintNarrowName(p, x, y, sizew, sizeh, MembersRowStyle::Video);
+	//		_delegate->rowPaintNarrowBorder(p, x, y, this);
+	//		return;
+	//	}
+	//	_delegate->rowPaintNarrowBackground(p, x, y, selected);
+	//	paintRipple(p, x, y, outerWidth);
+	//}
 	paintBlobs(p, x, y, sizew, sizeh, mode);
-	if (mode == PanelMode::Default
-		&& paintVideo(p, x, y, sizew, sizeh, mode)) {
-		return;
-	}
+	//if (mode == PanelMode::Default
+	//	&& paintVideo(p, x, y, sizew, sizeh, mode)) {
+	//	return;
+	//}
 	paintScaledUserpic(
 		p,
 		ensureUserpicView(),
@@ -609,20 +609,22 @@ void MembersRow::paintComplexUserpic(
 		sizew,
 		sizeh,
 		mode);
-	if (mode == PanelMode::Wide) {
-		paintNarrowName(p, x, y, sizew, sizeh, MembersRowStyle::Userpic);
-		_delegate->rowPaintNarrowBorder(p, x, y, this);
-	}
+	//if (mode == PanelMode::Wide) {
+	//	paintNarrowName(p, x, y, sizew, sizeh, MembersRowStyle::Userpic);
+	//	_delegate->rowPaintNarrowBorder(p, x, y, this);
+	//}
 }
 
-int MembersRow::statusIconWidth() const {
+int MembersRow::statusIconWidth(bool skipIcon) const {
 	if (!_statusIcon || !_speaking) {
 		return 0;
 	}
 	const auto shown = _statusIcon->shownAnimation.value(
 		_statusIcon->shown ? 1. : 0.);
-	const auto full = _statusIcon->speaker.width()
-		+ _statusIcon->arcsWidth
+	const auto iconWidth = skipIcon
+		? 0
+		: (_statusIcon->speaker.width() + _statusIcon->arcsWidth);
+	const auto full = iconWidth
 		+ _statusIcon->percentWidth
 		+ st::normalFont->spacew;
 	return int(std::round(shown * full));
@@ -638,7 +640,8 @@ void MembersRow::paintStatusIcon(
 		int y,
 		const style::PeerListItem &st,
 		const style::font &font,
-		bool selected) {
+		bool selected,
+		bool skipIcon) {
 	if (!_statusIcon) {
 		return;
 	}
@@ -661,8 +664,10 @@ void MembersRow::paintStatusIcon(
 		+ QPoint(
 			speakerRect.width() - st::groupCallStatusSpeakerArcsSkip,
 			speakerRect.height() / 2);
-	const auto fullWidth = speakerRect.width()
-		+ _statusIcon->arcsWidth
+	const auto iconWidth = skipIcon
+		? 0
+		: (speakerRect.width() + _statusIcon->arcsWidth);
+	const auto fullWidth = iconWidth
 		+ _statusIcon->percentWidth
 		+ st::normalFont->spacew;
 
@@ -674,18 +679,20 @@ void MembersRow::paintStatusIcon(
 		p.scale(shown, shown);
 		p.translate(-centerx, -centery);
 	}
-	_statusIcon->speaker.paint(
-		p,
-		speakerRect.topLeft(),
-		speakerRect.width(),
-		color);
-	p.translate(arcPosition);
-	_statusIcon->arcs.paint(p, color);
-	p.translate(-arcPosition);
+	if (!skipIcon) {
+		_statusIcon->speaker.paint(
+			p,
+			speakerRect.topLeft(),
+			speakerRect.width(),
+			color);
+		p.translate(arcPosition);
+		_statusIcon->arcs.paint(p, color);
+		p.translate(-arcPosition);
+	}
 	p.setFont(st::normalFont);
 	p.setPen(st.statusFgActive);
 	p.drawTextLeft(
-		x + speakerRect.width() + _statusIcon->arcsWidth,
+		x + iconWidth,
 		y,
 		fullWidth,
 		_statusIcon->percent);
@@ -728,20 +735,31 @@ void MembersRow::paintComplexStatusText(
 		int outerWidth,
 		bool selected,
 		MembersRowStyle style) {
+	const auto skip = (style == MembersRowStyle::None)
+		? _delegate->rowPaintStatusIcon(
+			p,
+			x,
+			y,
+			outerWidth,
+			this,
+			computeIconState(MembersRowStyle::Narrow))
+		: 0;
+	const auto narrowMode = (skip > 0);
+	x += skip;
+	availableWidth -= skip;
 	const auto &font = st::normalFont;
 	const auto about = (style == MembersRowStyle::LargeVideo)
 		? QString()
-		: (_state == State::Inactive
-		|| _state == State::Muted
-		|| (_state == State::RaisedHand && !_raisedHandStatus))
+		: ((_state == State::RaisedHand && !_raisedHandStatus)
+			|| (_state != State::Active && _state != State::RaisedHand))
 		? _aboutText
 		: QString();
 	if (about.isEmpty()
 		&& _state != State::Invited
 		&& _state != State::MutedByMe) {
-		paintStatusIcon(p, x, y, st, font, selected);
+		paintStatusIcon(p, x, y, st, font, selected, narrowMode);
 
-		const auto translatedWidth = statusIconWidth();
+		const auto translatedWidth = statusIconWidth(narrowMode);
 		p.translate(translatedWidth, 0);
 		const auto guard = gsl::finally([&] {
 			p.translate(-translatedWidth, 0);
@@ -762,6 +780,8 @@ void MembersRow::paintComplexStatusText(
 		p.setPen(st::groupCallVideoSubTextFg);
 	} else if (_state == State::MutedByMe) {
 		p.setPen(st::groupCallMemberMutedIcon);
+	} else if (narrowMode && !about.isEmpty()) {
+		p.setPen(st::groupCallMembersFg);
 	} else {
 		p.setPen(st::groupCallMemberNotJoinedStatus);
 	}
@@ -814,11 +834,6 @@ void MembersRow::paintAction(
 		outerWidth);
 	if (_state == State::Invited) {
 		_actionRipple = nullptr;
-		st::groupCallMemberInvited.paint(
-			p,
-			QPoint(x, y) + st::groupCallMemberInvitedPosition,
-			outerWidth);
-		return;
 	}
 	if (_actionRipple) {
 		_actionRipple->paint(
@@ -847,6 +862,7 @@ MembersRowDelegate::IconState MembersRow::computeIconState(
 		.muted = muted,
 		.mutedByMe = (_state == State::MutedByMe),
 		.raisedHand = (_state == State::RaisedHand),
+		.invited = (_state == State::Invited),
 		.style = style,
 	};
 }
@@ -911,7 +927,7 @@ void MembersRow::addActionRipple(QPoint point, Fn<void()> updateCallback) {
 
 void MembersRow::refreshName(const style::PeerListItem &st) {
 	PeerListRow::refreshName(st);
-	_narrowName = Ui::Text::String();
+	//_narrowName = Ui::Text::String();
 }
 
 void MembersRow::stopLastActionRipple() {

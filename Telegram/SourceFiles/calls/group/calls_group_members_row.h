@@ -29,8 +29,9 @@ namespace Calls::Group {
 
 enum class MembersRowStyle {
 	None,
-	Userpic,
-	Video,
+	//Userpic,
+	//Video,
+	Narrow,
 	LargeVideo,
 };
 
@@ -43,6 +44,7 @@ public:
 		float64 muted = 0.;
 		bool mutedByMe = false;
 		bool raisedHand = false;
+		bool invited = false;
 		MembersRowStyle style = MembersRowStyle::None;
 	};
 	virtual bool rowIsMe(not_null<PeerData*> participantPeer) = 0;
@@ -53,22 +55,29 @@ public:
 		Painter &p,
 		QRect rect,
 		const IconState &state) = 0;
-	virtual void rowPaintNarrowBackground(
+	virtual int rowPaintStatusIcon(
 		Painter &p,
 		int x,
 		int y,
-		bool selected) = 0;
-	virtual void rowPaintNarrowBorder(
-		Painter &p,
-		int x,
-		int y,
-		not_null<MembersRow*> row) = 0;
-	virtual void rowPaintNarrowShadow(
-		Painter &p,
-		int x,
-		int y,
-		int sizew,
-		int sizeh) = 0;
+		int outerWidth,
+		not_null<MembersRow*> row,
+		const IconState &state) = 0;
+	//virtual void rowPaintNarrowBackground(
+	//	Painter &p,
+	//	int x,
+	//	int y,
+	//	bool selected) = 0;
+	//virtual void rowPaintNarrowBorder(
+	//	Painter &p,
+	//	int x,
+	//	int y,
+	//	not_null<MembersRow*> row) = 0;
+	//virtual void rowPaintNarrowShadow(
+	//	Painter &p,
+	//	int x,
+	//	int y,
+	//	int sizew,
+	//	int sizeh) = 0;
 };
 
 class MembersRow final : public PeerListRow {
@@ -174,7 +183,7 @@ private:
 	struct BlobsAnimation;
 	struct StatusIcon;
 
-	int statusIconWidth() const;
+	int statusIconWidth(bool skipIcon) const;
 	int statusIconHeight() const;
 	void paintStatusIcon(
 		Painter &p,
@@ -182,7 +191,8 @@ private:
 		int y,
 		const style::PeerListItem &st,
 		const style::font &font,
-		bool selected);
+		bool selected,
+		bool skipIcon);
 
 	void refreshStatus() override;
 	void setSounding(bool sounding);
@@ -201,11 +211,11 @@ private:
 		int sizew,
 		int sizeh,
 		PanelMode mode);
-	[[nodiscard]] static std::tuple<int, int, int> UserpicInNarrowMode(
-		int x,
-		int y,
-		int sizew,
-		int sizeh);
+	//[[nodiscard]] static std::tuple<int, int, int> UserpicInNarrowMode(
+	//	int x,
+	//	int y,
+	//	int sizew,
+	//	int sizeh);
 	void paintBlobs(
 		Painter &p,
 		int x,

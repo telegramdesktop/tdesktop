@@ -1132,49 +1132,55 @@ desktopCaptureSubmit: RoundButton(desktopCaptureCancel) {
 }
 
 groupCallNarrowSkip: 9px;
-groupCallNarrowRowSkip: 4px;
-groupCallNarrowSize: size(144px, 90px);
-groupCallNarrowUserpicTop: 13px;
-groupCallNarrowNameTop: 65px;
-groupCallNarrowIconTop: 62px;
-groupCallNarrowIconLess: 5px;
-groupCallWideModeWidthMin: 550px;
+groupCallNarrowMembersWidth: 202px;
+//groupCallNarrowRowSkip: 4px;
+//groupCallNarrowSize: size(144px, 90px);
+//groupCallNarrowUserpicTop: 13px;
+//groupCallNarrowNameTop: 65px;
+//groupCallNarrowIconTop: 62px;
+//groupCallNarrowIconLess: 5px;
+groupCallWideModeWidthMin: 600px;
 groupCallWideModeSize: size(960px, 580px);
-groupCallNarrowAddMemberHeight: 32px;
-groupCallNarrowOutline: 2px;
-groupCallNarrowShadowHeight: 36px;
+//groupCallNarrowAddMemberHeight: 32px;
+//groupCallNarrowOutline: 2px;
+//groupCallNarrowShadowHeight: 36px;
 
-groupCallNarrowAddMember: RoundButton(defaultActiveButton) {
-	textFg: groupCallMemberNotJoinedStatus;
-	textFgOver: groupCallMemberNotJoinedStatus;
-	textBg: groupCallMembersBg;
-	textBgOver: groupCallMembersBgOver;
-
-	height: 32px;
-	radius: roundRadiusLarge;
-
-	ripple: groupCallRipple;
-}
+//groupCallNarrowAddMember: RoundButton(defaultActiveButton) {
+//	textFg: groupCallMemberNotJoinedStatus;
+//	textFgOver: groupCallMemberNotJoinedStatus;
+//	textBg: groupCallMembersBg;
+//	textBgOver: groupCallMembersBgOver;
+//
+//	height: 32px;
+//	radius: roundRadiusLarge;
+//
+//	ripple: groupCallRipple;
+//}
 groupCallNarrowInactiveCrossLine: CrossLineAnimation {
-	fg: groupCallMemberInactiveIcon;
-	icon: icon {{ "calls/voice_mute_mini", groupCallMemberInactiveIcon }};
-	startPosition: point(7px, 4px);
-	endPosition: point(17px, 16px);
+	fg: groupCallMemberInactiveStatus;
+	icon: icon {{ "calls/video_mini_mute", groupCallMemberInactiveStatus }};
+	startPosition: point(3px, 0px);
+	endPosition: point(13px, 12px);
 	stroke: 3px;
 	strokeDenominator: 2;
 }
 groupCallNarrowColoredCrossLine: CrossLineAnimation(groupCallNarrowInactiveCrossLine) {
-	fg: groupCallMemberMutedIcon;
-	icon: icon {{ "calls/voice_mute_mini", groupCallMemberActiveIcon }};
+	fg: groupCallMemberNotJoinedStatus;
+	icon: icon {{ "calls/video_mini_mute", groupCallMemberActiveStatus }};
 }
-groupCallVideoCrossLine: CrossLineAnimation(groupCallNarrowInactiveCrossLine) {
-	fg: groupCallVideoTextFg;
-	icon: icon {{ "calls/voice_mute_mini", groupCallVideoTextFg }};
-}
+groupCallNarrowRaisedHand: icon {{ "calls/video_mini_speak", groupCallMemberInactiveStatus }};
+groupCallNarrowCameraIcon: icon {{ "calls/video_mini_video", groupCallMemberInactiveStatus }};
+groupCallNarrowScreenIcon: icon {{ "calls/video_mini_screencast", groupCallMemberInactiveStatus }};
+groupCallNarrowIconPosition: point(-4px, 2px);
+groupCallNarrowIconSkip: 15px;
+//groupCallVideoCrossLine: CrossLineAnimation(groupCallNarrowInactiveCrossLine) {
+//	fg: groupCallVideoTextFg;
+//	icon: icon {{ "calls/voice_mute_mini", groupCallVideoTextFg }};
+//}
 
 groupCallLargeVideoCrossLine: CrossLineAnimation(groupCallMemberColoredCrossLine) {
-	fg: groupCallVideoSubTextFg;
-	icon: icon {{ "calls/group_calls_unmuted", groupCallVideoSubTextFg }};
+	fg: groupCallVideoTextFg;
+	icon: icon {{ "calls/video_over_mute", groupCallVideoTextFg }};
 }
 
 GroupCallLargeVideo {
@@ -1196,16 +1202,16 @@ groupCallLargeVideoNarrow: GroupCallLargeVideo(groupCallLargeVideoWide) {
 	enlargeAlign: align(center);
 	pinPosition: point(-1px, -1px);
 }
-groupCallLargeVideoListItem: PeerListItem(groupCallMembersListItem) {
-	nameFg: groupCallVideoTextFg;
-	nameFgChecked: groupCallVideoTextFg;
-	statusFg: groupCallVideoSubTextFg;
-	statusFgOver: groupCallVideoSubTextFg;
-	statusFgActive: groupCallVideoSubTextFg;
-}
+//groupCallLargeVideoListItem: PeerListItem(groupCallMembersListItem) {
+//	nameFg: groupCallVideoTextFg;
+//	nameFgChecked: groupCallVideoTextFg;
+//	statusFg: groupCallVideoSubTextFg;
+//	statusFgOver: groupCallVideoSubTextFg;
+//	statusFgActive: groupCallVideoSubTextFg;
+//}
 groupCallLargeVideoPin: CrossLineAnimation {
-	fg: groupCallVideoSubTextFg;
-	icon: icon {{ "calls/voice_pin", groupCallVideoSubTextFg }};
+	fg: groupCallVideoTextFg;
+	icon: icon {{ "calls/voice_pin", groupCallVideoTextFg }};
 	startPosition: point(5px, 2px);
 	endPosition: point(20px, 17px);
 	stroke: 2px;

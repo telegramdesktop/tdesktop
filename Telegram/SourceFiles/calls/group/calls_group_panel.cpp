@@ -1923,7 +1923,7 @@ void Panel::updateButtonsGeometry() {
 			+ (_settings ? _settings : _callShare)->width() + skip
 			+ _hangup->width() + skip;
 		const auto membersSkip = st::groupCallNarrowSkip;
-		const auto membersWidth = st::groupCallNarrowSize.width()
+		const auto membersWidth = st::groupCallNarrowMembersWidth
 			+ 2 * membersSkip;
 		auto left = (_mode == PanelMode::Default)
 			? (widget()->width() - fullWidth) / 2
@@ -1998,17 +1998,17 @@ void Panel::updateMembersGeometry() {
 	const auto desiredHeight = _members->desiredHeight();
 	if (_mode == PanelMode::Wide) {
 		const auto skip = st::groupCallNarrowSkip;
-		const auto membersWidth = st::groupCallNarrowSize.width() + 2 * skip;
+		const auto membersWidth = st::groupCallNarrowMembersWidth;
 		const auto top = st::groupCallWideVideoTop;
 		_members->setGeometry(
-			0,
+			skip,
 			top,
 			membersWidth,
 			std::min(desiredHeight, widget()->height()));
 		_pinnedVideoWrap->setGeometry(
-			membersWidth,
+			membersWidth + 2 * skip,
 			top,
-			widget()->width() - membersWidth - skip,
+			widget()->width() - membersWidth - 3 * skip,
 			widget()->height() - top - skip);
 	} else {
 		const auto membersBottom = _videoMode.current()
