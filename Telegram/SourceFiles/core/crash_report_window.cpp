@@ -206,6 +206,7 @@ void NotStartedWindow::updateControls() {
 
 void NotStartedWindow::closeEvent(QCloseEvent *e) {
 	deleteLater();
+	App::quit();
 }
 
 void NotStartedWindow::resizeEvent(QResizeEvent *e) {
@@ -964,11 +965,6 @@ void LastCrashedWindow::onUpdateFailed() {
 }
 
 void LastCrashedWindow::onContinue() {
-	if (CrashReports::Restart() == CrashReports::CantOpen) {
-		new NotStartedWindow();
-	} else {
-		_launch();
-	}
 	close();
 }
 
@@ -1017,6 +1013,12 @@ void LastCrashedWindow::onSendingProgress(qint64 uploaded, qint64 total) {
 
 void LastCrashedWindow::closeEvent(QCloseEvent *e) {
 	deleteLater();
+
+	if (CrashReports::Restart() == CrashReports::CantOpen) {
+		new NotStartedWindow();
+	} else {
+		_launch();
+	}
 }
 
 void LastCrashedWindow::resizeEvent(QResizeEvent *e) {
@@ -1142,6 +1144,7 @@ void NetworkSettingsWindow::onSave() {
 }
 
 void NetworkSettingsWindow::closeEvent(QCloseEvent *e) {
+	deleteLater();
 }
 
 void NetworkSettingsWindow::updateControls() {

@@ -234,16 +234,3 @@ private:
 	QWidget *_parent;
 
 };
-
-class ShowCrashReportWindow : public PreLaunchWindow {
-public:
-	ShowCrashReportWindow(const QString &text);
-
-protected:
-	void resizeEvent(QResizeEvent *e);
-	void closeEvent(QCloseEvent *e);
-
-private:
-	PreLaunchLog _log;
-
-};
