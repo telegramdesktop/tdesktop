@@ -76,6 +76,18 @@ using VersionChar = wchar_t;
 
 using Loader = MTP::AbstractDedicatedLoader;
 
+struct BIODeleter {
+	void operator()(BIO *value) {
+		BIO_free(value);
+	}
+};
+
+inline auto MakeBIO(const void *buf, int len) {
+	return std::unique_ptr<BIO, BIODeleter>{
+		BIO_new_mem_buf(buf, len),
+	};
+}
+
 class Checker : public base::has_weak_ptr {
 public:
 	Checker(bool testing);
@@ -289,7 +301,15 @@ bool UnpackUpdate(const QString &filepath) {
 		return false;
 	}
 
-	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(AppBetaVersion ? UpdatesPublicBetaKey : UpdatesPublicKey), -1), 0, 0, 0);
+	RSA *pbKey = [] {
+		const auto bio = MakeBIO(
+			const_cast<char*>(
+				AppBetaVersion
+					? UpdatesPublicBetaKey
+					: UpdatesPublicKey),
+			-1);
+		return PEM_read_bio_RSAPublicKey(bio.get(), 0, 0, 0);
+	}();
 	if (!pbKey) {
 		LOG(("Update Error: cant read public rsa key!"));
 		return false;
@@ -298,7 +318,15 @@ bool UnpackUpdate(const QString &filepath) {
 		RSA_free(pbKey);
 
 		// try other public key, if we update from beta to stable or vice versa
-		pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>(AppBetaVersion ? UpdatesPublicKey : UpdatesPublicBetaKey), -1), 0, 0, 0);
+		pbKey = [] {
+			const auto bio = MakeBIO(
+				const_cast<char*>(
+					AppBetaVersion
+						? UpdatesPublicKey
+						: UpdatesPublicBetaKey),
+				-1);
+			return PEM_read_bio_RSAPublicKey(bio.get(), 0, 0, 0);
+		}();
 		if (!pbKey) {
 			LOG(("Update Error: cant read public rsa key!"));
 			return false;
@@ -1649,7 +1677,12 @@ QString countAlphaVersionSignature(uint64 version) { // duplicated in packer.cpp
 
 	uint32 siglen = 0;
 
-	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>(cAlphaPrivateKey().constData()), -1), 0, 0, 0);
+	RSA *prKey = [] {
+		const auto bio = MakeBIO(
+			const_cast<char*>(cAlphaPrivateKey().constData()),
+			-1);
+		return PEM_read_bio_RSAPrivateKey(bio.get(), 0, 0, 0);
+	}();
 	if (!prKey) {
 		LOG(("Error: Could not read alpha private key!"));
 		return QString();

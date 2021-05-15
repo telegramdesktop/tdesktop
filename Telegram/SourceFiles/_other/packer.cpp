@@ -47,6 +47,18 @@ typedef signed int int32;
 
 namespace{
 
+struct BIODeleter {
+	void operator()(BIO *value) {
+		BIO_free(value);
+	}
+};
+
+inline auto makeBIO(const void *buf, int len) {
+	return std::unique_ptr<BIO, BIODeleter>{
+		BIO_new_mem_buf(buf, len),
+	};
+}
+
 inline uint32 sha1Shift(uint32 v, uint32 shift) {
 	return ((v << shift) | (v >> (32 - shift)));
 }
@@ -430,7 +442,15 @@ int main(int argc, char *argv[])
 	uint32 siglen = 0;
 
 	cout << "Signing..\n";
-	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>((BetaChannel || AlphaVersion) ? PrivateBetaKey : PrivateKey), -1), 0, 0, 0);
+	RSA *prKey = [] {
+		const auto bio = makeBIO(
+			const_cast<char*>(
+				(BetaChannel || AlphaVersion)
+					? PrivateBetaKey
+					: PrivateKey),
+			-1);
+		return PEM_read_bio_RSAPrivateKey(bio.get(), 0, 0, 0);
+	}();
 	if (!prKey) {
 		cout << "Could not read RSA private key!\n";
 		return -1;
@@ -453,7 +473,15 @@ int main(int argc, char *argv[])
 	}
 
 	cout << "Checking signature..\n";
-	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>((BetaChannel || AlphaVersion) ? PublicBetaKey : PublicKey), -1), 0, 0, 0);
+	RSA *pbKey = [] {
+		const auto bio = makeBIO(
+			const_cast<char*>(
+				(BetaChannel || AlphaVersion)
+					? PublicBetaKey
+					: PublicKey),
+			-1);
+		return PEM_read_bio_RSAPublicKey(bio.get(), 0, 0, 0);
+	}();
 	if (!pbKey) {
 		cout << "Could not read RSA public key!\n";
 		return -1;
@@ -510,7 +538,12 @@ QString countAlphaVersionSignature(quint64 version) { // duplicated in autoupdat
 
 	uint32 siglen = 0;
 
-	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>(cAlphaPrivateKey.constData()), -1), 0, 0, 0);
+	RSA *prKey = [] {
+		const auto bio = makeBIO(
+			const_cast<char*>(cAlphaPrivateKey.constData()),
+			-1);
+		return PEM_read_bio_RSAPrivateKey(bio.get(), 0, 0, 0);
+	}();
 	if (!prKey) {
 		cout << "Error: Could not read alpha private key!\n";
 		return QString();
