@@ -428,11 +428,31 @@ parts:
     plugin: cmake
     build-packages:
       - yasm
+      - libglib2.0-dev
       - libopus-dev
+      - libpipewire-0.2-dev
       - libssl-dev
+      - libx11-dev
+      - libxcomposite-dev
+      - libxdamage-dev
+      - libxext-dev
+      - libxfixes-dev
+      - libxrender-dev
+      - libxrandr-dev
+      - libxtst-dev
     stage-packages:
+      - libglib2.0-0
       - libopus0
+      - libpipewire-0.2-1
       - libssl1.1
+      - libx11-6
+      - libxcomposite1
+      - libxdamage1
+      - libxext6
+      - libxfixes3
+      - libxrender1
+      - libxrandr2
+      - libxtst6
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
