@@ -54,6 +54,12 @@ enum class Format {
 	Unknown,
 };
 
+struct BIODeleter {
+	void operator()(BIO *value) {
+		BIO_free(value);
+	}
+};
+
 Format GuessFormat(bytes::const_span key) {
 	const auto array = QByteArray::fromRawData(
 		reinterpret_cast<const char*>(key.data()),
@@ -68,14 +74,16 @@ Format GuessFormat(bytes::const_span key) {
 
 RSA *CreateRaw(bytes::const_span key) {
 	const auto format = GuessFormat(key);
-	const auto bio = BIO_new_mem_buf(
-		const_cast<gsl::byte*>(key.data()),
-		key.size());
+	const auto bio = std::unique_ptr<BIO, BIODeleter>{
+		BIO_new_mem_buf(
+			const_cast<gsl::byte*>(key.data()),
+			key.size()),
+	};
 	switch (format) {
 	case Format::RSAPublicKey:
-		return PEM_read_bio_RSAPublicKey(bio, nullptr, nullptr, nullptr);
+		return PEM_read_bio_RSAPublicKey(bio.get(), nullptr, nullptr, nullptr);
 	case Format::RSA_PUBKEY:
-		return PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
+		return PEM_read_bio_RSA_PUBKEY(bio.get(), nullptr, nullptr, nullptr);
 	}
 	Unexpected("format in RSAPublicKey::Private::Create.");
 }
