@@ -59,6 +59,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <unistd.h>
 #include <dirent.h>
 #include <pwd.h>
+#include <malloc.h>
 
 #include <iostream>
 
@@ -745,6 +746,16 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
+	// avoid stripping custom allocator
+	malloc(0);
+	calloc(0, 0);
+	realloc(nullptr, 0);
+	free(nullptr);
+	aligned_alloc(0, 0);
+	malloc_usable_size(nullptr);
+	memalign(0, 0);
+	posix_memalign(nullptr, 0, 0);
+
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
