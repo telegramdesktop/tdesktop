@@ -91,3 +91,6 @@
 [submodule "Telegram/lib_webview"]
 	path = Telegram/lib_webview
 	url = https://github.com/desktop-app/lib_webview.git
+[submodule "Telegram/ThirdParty/mallocng"]
+	path = Telegram/ThirdParty/mallocng
+	url = https://github.com/desktop-app/mallocng.git
