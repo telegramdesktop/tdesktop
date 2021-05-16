@@ -459,8 +459,6 @@ parts:
       - -DBUILD_SHARED_LIBS=OFF
       - -DJPEG_LIBRARY_RELEASE=$SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so
       - -DJPEG_INCLUDE_DIR=$SNAPCRAFT_STAGE/usr/include
-      # NEON support for arm 32-bit is broken and no one seem to fix it
-      - -DTG_OWT_ARCH_ARMV7_USE_NEON=OFF
     prime: [-./*]
     after:
       - ffmpeg
