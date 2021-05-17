@@ -1938,8 +1938,7 @@ void Panel::updateButtonsGeometry() {
 			+ 2 * membersSkip;
 		auto left = (_mode == PanelMode::Default)
 			? (widget()->width() - fullWidth) / 2
-			: (membersWidth
-				+ (widget()->width()
+			: ((widget()->width()
 					- membersWidth
 					- membersSkip
 					- fullWidth) / 2);
@@ -2012,12 +2011,12 @@ void Panel::updateMembersGeometry() {
 		const auto membersWidth = st::groupCallNarrowMembersWidth;
 		const auto top = st::groupCallWideVideoTop;
 		_members->setGeometry(
-			skip,
+			widget()->width() - skip - membersWidth,
 			top,
 			membersWidth,
 			std::min(desiredHeight, widget()->height() - top - skip));
 		_pinnedVideoWrap->setGeometry(
-			membersWidth + 2 * skip,
+			skip,
 			top,
 			widget()->width() - membersWidth - 3 * skip,
 			widget()->height() - top - skip);
