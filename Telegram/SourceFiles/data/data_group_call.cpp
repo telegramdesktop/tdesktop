@@ -215,20 +215,6 @@ PeerData *GroupCall::participantPeerByAudioSsrc(uint32 ssrc) const {
 		: nullptr;
 }
 
-PeerData *GroupCall::participantPeerByCameraSsrc(uint32 ssrc) const {
-	const auto i = _participantPeerByCameraSsrc.find(ssrc);
-	return (i != end(_participantPeerByCameraSsrc))
-		? i->second.get()
-		: nullptr;
-}
-
-PeerData *GroupCall::participantPeerByScreenSsrc(uint32 ssrc) const {
-	const auto i = _participantPeerByScreenSsrc.find(ssrc);
-	return (i != end(_participantPeerByScreenSsrc))
-		? i->second.get()
-		: nullptr;
-}
-
 const GroupCallParticipant *GroupCall::participantByPeer(
 		not_null<PeerData*> peer) const {
 	return const_cast<GroupCall*>(this)->findParticipant(peer);
@@ -361,8 +347,6 @@ void GroupCall::processFullCallFields(const MTPphone_GroupCall &call) {
 			_participants.clear();
 			_speakingByActiveFinishes.clear();
 			_participantPeerByAudioSsrc.clear();
-			_participantPeerByCameraSsrc.clear();
-			_participantPeerByScreenSsrc.clear();
 			_allParticipantsLoaded = false;
 
 			applyParticipantsSlice(
@@ -557,7 +541,6 @@ void GroupCall::applyParticipantsSlice(
 						.was = *i,
 					};
 					_participantPeerByAudioSsrc.erase(i->ssrc);
-					eraseVideoSsrcs(*i);
 					_speakingByActiveFinishes.remove(participantPeer);
 					_participants.erase(i);
 					if (sliceSource != ApplySliceSource::FullReloaded) {
@@ -626,7 +609,6 @@ void GroupCall::applyParticipantsSlice(
 				_participantPeerByAudioSsrc.emplace(
 					value.ssrc,
 					participantPeer);
-				emplaceVideoSsrcs(value);
 				_participants.push_back(value);
 				if (const auto user = participantPeer->asUser()) {
 					_peer->owner().unregisterInvitedToCallUser(_id, user);
@@ -637,10 +619,6 @@ void GroupCall::applyParticipantsSlice(
 					_participantPeerByAudioSsrc.emplace(
 						value.ssrc,
 						participantPeer);
-				}
-				if (i->videoParams != value.videoParams) {
-					eraseVideoSsrcs(*i);
-					emplaceVideoSsrcs(value);
 				}
 				*i = value;
 			}
@@ -658,29 +636,6 @@ void GroupCall::applyParticipantsSlice(
 	if (sliceSource == ApplySliceSource::UpdateReceived) {
 		changePeerEmptyCallFlag();
 		computeParticipantsCount();
-	}
-}
-
-void GroupCall::emplaceVideoSsrcs(const Participant &participant) {
-	if (const auto params = participant.videoParams.get()) {
-		const auto participantPeer = participant.peer;
-		for (const auto ssrc : params->camera.ssrcs) {
-			_participantPeerByCameraSsrc.emplace(ssrc, participantPeer);
-		}
-		for (const auto ssrc : params->screen.ssrcs) {
-			_participantPeerByScreenSsrc.emplace(ssrc, participantPeer);
-		}
-	}
-}
-
-void GroupCall::eraseVideoSsrcs(const Participant &participant) {
-	if (const auto params = participant.videoParams.get()) {
-		for (const auto ssrc : params->camera.ssrcs) {
-			_participantPeerByCameraSsrc.erase(ssrc);
-		}
-		for (const auto ssrc : params->screen.ssrcs) {
-			_participantPeerByScreenSsrc.erase(ssrc);
-		}
 	}
 }
 

@@ -223,15 +223,6 @@ struct GroupCall::SinkPointer {
 		.endpoint = ReadJsonString(object, "endpoint"),
 		.json = json,
 	};
-	const auto ssrcGroups = object.value("ssrc-groups").toArray();
-	for (const auto &value : ssrcGroups) {
-		const auto inner = value.toObject();
-		const auto list = inner.value("sources").toArray();
-		for (const auto &source : list) {
-			const auto ssrc = uint32_t(source.toDouble());
-			result.ssrcs.emplace(ssrc);
-		}
-	}
 	return result.empty() ? VideoParams() : result;
 }
 
@@ -1897,32 +1888,11 @@ bool GroupCall::mediaChannelDescriptionsFill(
 				result = true;
 			}
 		};
-		const auto addVideoChannel = [&](
-				not_null<PeerData*> participantPeer,
-				const auto field) {
-			const auto participant = real->participantByPeer(
-				participantPeer);
-			Assert(participant != nullptr);
-			Assert(participant->videoParams != nullptr);
-			const auto &params = participant->videoParams.get()->*field;
-			Assert(!params.empty());
-			add(Channel{
-				.type = Channel::Type::Video,
-				.audioSsrc = participant->ssrc,
-				.videoInformation = params.json.toStdString(),
-			}, (field == &ParticipantVideoParams::screen));
-		};
 		if (const auto byAudio = real->participantPeerByAudioSsrc(ssrc)) {
 			add(Channel{
 				.type = Channel::Type::Audio,
 				.audioSsrc = ssrc,
 			});
-		} else if (const auto byCamera
-			= real->participantPeerByCameraSsrc(ssrc)) {
-			addVideoChannel(byCamera, &ParticipantVideoParams::camera);
-		} else if (const auto byScreen
-			= real->participantPeerByScreenSsrc(ssrc)) {
-			addVideoChannel(byScreen, &ParticipantVideoParams::screen);
 		} else if (!resolved) {
 			_unresolvedSsrcs.emplace(ssrc);
 		} else if (resolved(ssrc)) {

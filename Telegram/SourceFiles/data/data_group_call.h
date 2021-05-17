@@ -106,8 +106,6 @@ public:
 	void requestParticipants();
 	[[nodiscard]] bool participantsLoaded() const;
 	[[nodiscard]] PeerData *participantPeerByAudioSsrc(uint32 ssrc) const;
-	[[nodiscard]] PeerData *participantPeerByCameraSsrc(uint32 ssrc) const;
-	[[nodiscard]] PeerData *participantPeerByScreenSsrc(uint32 ssrc) const;
 	[[nodiscard]] const Participant *participantByPeer(
 		not_null<PeerData*> peer) const;
 	[[nodiscard]] const Participant *participantByEndpoint(
@@ -182,9 +180,6 @@ private:
 	void finishParticipantsSliceRequest();
 	[[nodiscard]] Participant *findParticipant(not_null<PeerData*> peer);
 
-	void emplaceVideoSsrcs(const Participant &participant);
-	void eraseVideoSsrcs(const Participant &participant);
-
 	const uint64 _id = 0;
 	const uint64 _accessHash = 0;
 
@@ -202,8 +197,6 @@ private:
 
 	std::vector<Participant> _participants;
 	base::flat_map<uint32, not_null<PeerData*>> _participantPeerByAudioSsrc;
-	base::flat_map<uint32, not_null<PeerData*>> _participantPeerByCameraSsrc;
-	base::flat_map<uint32, not_null<PeerData*>> _participantPeerByScreenSsrc;
 	base::flat_map<not_null<PeerData*>, crl::time> _speakingByActiveFinishes;
 	base::Timer _speakingByActiveFinishTimer;
 	QString _nextOffset;

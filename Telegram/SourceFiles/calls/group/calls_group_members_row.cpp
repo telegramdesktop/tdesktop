@@ -784,8 +784,6 @@ void MembersRow::paintComplexStatusText(
 		p.setPen(st::groupCallVideoSubTextFg);
 	} else if (_state == State::MutedByMe) {
 		p.setPen(st::groupCallMemberMutedIcon);
-	} else if (narrowMode && !about.isEmpty()) {
-		p.setPen(st::groupCallMembersFg);
 	} else {
 		p.setPen(st::groupCallMemberNotJoinedStatus);
 	}

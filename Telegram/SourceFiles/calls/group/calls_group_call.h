@@ -125,13 +125,12 @@ inline bool operator>=(
 }
 
 struct VideoParams {
-	base::flat_set<uint32> ssrcs;
 	std::string endpoint;
 	QByteArray json;
 	uint32 hash = 0;
 
 	[[nodiscard]] bool empty() const {
-		return endpoint.empty() || ssrcs.empty() || json.isEmpty();
+		return endpoint.empty() || json.isEmpty();
 	}
 	[[nodiscard]] explicit operator bool() const {
 		return !empty();
