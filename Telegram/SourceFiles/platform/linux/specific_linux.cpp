@@ -746,15 +746,19 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
-	// avoid stripping custom allocator
-	malloc(0);
-	calloc(0, 0);
-	realloc(nullptr, 0);
-	free(nullptr);
-	aligned_alloc(0, 0);
-	malloc_usable_size(nullptr);
-	memalign(0, 0);
-	posix_memalign(nullptr, 0, 0);
+	// Avoid stripping custom allocator methods.
+	const auto address = [](auto method) {
+		return reinterpret_cast<uint64>(method);
+	};
+	const auto value = address(malloc)
+		+ address(calloc)
+		+ address(realloc)
+		+ address(free)
+		+ address(aligned_alloc)
+		+ address(malloc_usable_size)
+		+ address(memalign)
+		+ address(posix_memalign);
+	DEBUG_LOG(("Malloc addresses %1.").arg(value ? "non-null" : "null"));
 
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 

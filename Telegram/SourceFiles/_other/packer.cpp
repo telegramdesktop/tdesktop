@@ -538,7 +538,7 @@ QString countAlphaVersionSignature(quint64 version) { // duplicated in autoupdat
 
 	uint32 siglen = 0;
 
-	RSA *prKey = [] {
+	RSA *prKey = [&] {
 		const auto bio = makeBIO(
 			const_cast<char*>(cAlphaPrivateKey.constData()),
 			-1);
