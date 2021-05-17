@@ -167,6 +167,8 @@ public:
 		virtual void groupCallPlaySound(GroupCallSound sound) = 0;
 		virtual auto groupCallGetVideoCapture(const QString &deviceId)
 			-> std::shared_ptr<tgcalls::VideoCaptureInterface> = 0;
+
+		[[nodiscard]] virtual FnMut<void()> groupCallAddAsyncWaiter() = 0;
 	};
 
 	using GlobalShortcutManager = base::GlobalShortcutManager;

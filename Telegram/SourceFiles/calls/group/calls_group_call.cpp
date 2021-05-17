@@ -2504,9 +2504,14 @@ void GroupCall::destroyController() {
 	if (_instance) {
 		DEBUG_LOG(("Call Info: Destroying call controller.."));
 		invalidate_weak_ptrs(&_instanceGuard);
-		crl::async([instance = base::take(_instance)]() mutable {
+
+		crl::async([
+			instance = base::take(_instance),
+			done = _delegate->groupCallAddAsyncWaiter()
+		]() mutable {
 			instance = nullptr;
 			DEBUG_LOG(("Call Info: Call controller destroyed."));
+			done();
 		});
 	}
 }
@@ -2515,9 +2520,13 @@ void GroupCall::destroyScreencast() {
 	if (_screenInstance) {
 		DEBUG_LOG(("Call Info: Destroying call screen controller.."));
 		invalidate_weak_ptrs(&_screenInstanceGuard);
-		crl::async([instance = base::take(_screenInstance)]() mutable {
+		crl::async([
+			instance = base::take(_screenInstance),
+			done = _delegate->groupCallAddAsyncWaiter()
+		]() mutable {
 			instance = nullptr;
 			DEBUG_LOG(("Call Info: Call screen controller destroyed."));
+			done();
 		});
 	}
 }

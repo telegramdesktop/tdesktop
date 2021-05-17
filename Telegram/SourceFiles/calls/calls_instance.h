@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/sender.h"
 
+namespace crl {
+class semaphore;
+} // namespace crl
+
 namespace Platform {
 enum class PermissionType;
 } // namespace Platform
@@ -77,6 +81,8 @@ public:
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
 
+	[[nodiscard]] FnMut<void()> addAsyncWaiter();
+
 	[[nodiscard]] bool isQuitPrevent();
 
 private:
@@ -131,6 +137,8 @@ private:
 	base::flat_map<QString, std::unique_ptr<Media::Audio::Track>> _tracks;
 
 	const std::unique_ptr<Group::ChooseJoinAsProcess> _chooseJoinAs;
+
+	base::flat_set<std::unique_ptr<crl::semaphore>> _asyncWaiters;
 
 };
 

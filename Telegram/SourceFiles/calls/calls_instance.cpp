@@ -73,6 +73,7 @@ public:
 	void groupCallPlaySound(GroupCallSound sound) override;
 	auto groupCallGetVideoCapture(const QString &deviceId)
 		-> std::shared_ptr<tgcalls::VideoCaptureInterface> override;
+	FnMut<void()> groupCallAddAsyncWaiter() override;
 
 private:
 	const not_null<Instance*> _instance;
@@ -161,13 +162,24 @@ auto Instance::Delegate::groupCallGetVideoCapture(const QString &deviceId)
 	return _instance->getVideoCapture(deviceId);
 }
 
+FnMut<void()> Instance::Delegate::groupCallAddAsyncWaiter() {
+	return _instance->addAsyncWaiter();
+}
+
 Instance::Instance()
 : _delegate(std::make_unique<Delegate>(this))
 , _cachedDhConfig(std::make_unique<DhConfig>())
 , _chooseJoinAs(std::make_unique<Group::ChooseJoinAsProcess>()) {
 }
 
-Instance::~Instance() = default;
+Instance::~Instance() {
+	destroyCurrentCall();
+
+	while (!_asyncWaiters.empty()) {
+		_asyncWaiters.front()->acquire();
+		_asyncWaiters.erase(_asyncWaiters.begin());
+	}
+}
 
 void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 	if (activateCurrentCall()) {
@@ -424,6 +436,26 @@ void Instance::setCurrentAudioDevice(bool input, const QString &deviceId) {
 	} else if (const auto group = currentGroupCall()) {
 		group->setCurrentAudioDevice(input, deviceId);
 	}
+}
+
+FnMut<void()> Instance::addAsyncWaiter() {
+	auto semaphore = std::make_unique<crl::semaphore>();
+	const auto raw = semaphore.get();
+	const auto weak = base::make_weak(this);
+	_asyncWaiters.emplace(std::move(semaphore));
+	return [raw, weak] {
+		raw->release();
+		crl::on_main(weak, [raw, weak] {
+			auto &waiters = weak->_asyncWaiters;
+			auto wrapped = std::unique_ptr<crl::semaphore>(raw);
+			const auto i = waiters.find(wrapped);
+			wrapped.release();
+
+			if (i != end(waiters)) {
+				waiters.erase(i);
+			}
+		});
+	};
 }
 
 bool Instance::isQuitPrevent() {
