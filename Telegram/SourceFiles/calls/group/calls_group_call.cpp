@@ -804,10 +804,14 @@ void GroupCall::markEndpointActive(VideoEndpoint endpoint, bool active) {
 	if (!endpoint) {
 		return;
 	}
+	const auto i = _activeVideoTracks.find(endpoint);
 	const auto changed = active
-		? !_activeVideoTracks.contains(endpoint)
-		: _activeVideoTracks.remove(endpoint);
-	if (active && changed) {
+		? (i == end(_activeVideoTracks))
+		: (i != end(_activeVideoTracks));
+	if (!changed) {
+		return;
+	}
+	if (active) {
 		const auto i = _activeVideoTracks.emplace(
 			endpoint,
 			VideoTrack{
@@ -816,13 +820,14 @@ void GroupCall::markEndpointActive(VideoEndpoint endpoint, bool active) {
 				.peer = endpoint.peer,
 			}).first;
 		addVideoOutput(i->first.id, { i->second.track->sink() });
-	} else if (!active && _videoEndpointPinned.current() == endpoint) {
-		_videoEndpointPinned = VideoEndpoint();
+	} else {
+		if (_videoEndpointPinned.current() == endpoint) {
+			_videoEndpointPinned = VideoEndpoint();
+		}
+		_activeVideoTracks.erase(i);
 	}
 	updateRequestedVideoChannelsDelayed();
-	if (changed) {
-		_videoStreamActiveUpdates.fire(std::move(endpoint));
-	}
+	_videoStreamActiveUpdates.fire(std::move(endpoint));
 }
 
 void GroupCall::rejoin() {

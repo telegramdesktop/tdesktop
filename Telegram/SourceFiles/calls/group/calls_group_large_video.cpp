@@ -13,6 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_video_track.h"
 #include "ui/painter.h"
 #include "ui/abstract_button.h"
+#include "ui/effects/animations.h"
+#include "ui/effects/cross_line.h"
+#include "lang/lang_keys.h"
 #include "styles/style_calls.h"
 
 namespace Calls::Group {
@@ -22,6 +25,32 @@ constexpr auto kShadowMaxAlpha = 80;
 
 } // namespace
 
+struct LargeVideo::PinButton {
+	PinButton(
+		not_null<QWidget*> parent,
+		const style::GroupCallLargeVideo &st);
+
+	Ui::AbstractButton area;
+	Ui::CrossLineAnimation icon;
+	Ui::RoundRect background;
+	Ui::Text::String text;
+	QRect rect;
+	Ui::Animations::Simple shownAnimation;
+	bool shown = false;
+};
+
+LargeVideo::PinButton::PinButton(
+	not_null<QWidget*> parent,
+	const style::GroupCallLargeVideo &st)
+: area(parent)
+, icon(st::groupCallLargeVideoPin)
+, background(
+	(st.pinPadding.top()
+		+ st::groupCallLargeVideoPin.icon.height()
+		+ st.pinPadding.bottom()) / 2,
+	st::radialBg) {
+}
+
 LargeVideo::LargeVideo(
 	QWidget *parent,
 	const style::GroupCallLargeVideo &st,
@@ -30,9 +59,8 @@ LargeVideo::LargeVideo(
 	rpl::producer<bool> pinned)
 : _content(parent, [=](QRect clip) { paint(clip); })
 , _st(st)
-, _pin(st::groupCallLargeVideoPin)
 , _pinButton((_st.pinPosition.x() >= 0)
-	? std::make_unique<Ui::AbstractButton>(&_content)
+	? std::make_unique<PinButton>(&_content, st)
 	: nullptr)
 , _smallLayout(!_pinButton) {
 	_content.setVisible(visible);
@@ -41,6 +69,8 @@ LargeVideo::LargeVideo(
 	}
 	setup(std::move(track), std::move(pinned));
 }
+
+LargeVideo::~LargeVideo() = default;
 
 void LargeVideo::raise() {
 	_content.raise();
@@ -74,7 +104,7 @@ void LargeVideo::setControlsShown(float64 shown) {
 
 rpl::producer<bool> LargeVideo::pinToggled() const {
 	return _pinButton
-		? _pinButton->clicks() | rpl::map([=] { return !_pinned; })
+		? _pinButton->area.clicks() | rpl::map([=] { return !_pinned; })
 		: rpl::never<bool>() | rpl::type_erased();
 }
 
@@ -103,11 +133,16 @@ void LargeVideo::setup(
 
 	_content.events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::MouseButtonPress
+		const auto type = e->type();
+		if (type == QEvent::Enter && _pinButton) {
+			togglePinShown(true);
+		} else if (type == QEvent::Leave && _pinButton) {
+			togglePinShown(false);
+		} else if (type == QEvent::MouseButtonPress
 			&& static_cast<QMouseEvent*>(
 				e.get())->button() == Qt::LeftButton) {
 			_mouseDown = true;
-		} else if (e->type() == QEvent::MouseButtonRelease
+		} else if (type == QEvent::MouseButtonRelease
 			&& static_cast<QMouseEvent*>(
 				e.get())->button() == Qt::LeftButton
 			&& _mouseDown) {
@@ -151,9 +186,31 @@ void LargeVideo::setup(
 	setupControls(std::move(pinned));
 }
 
+void LargeVideo::togglePinShown(bool shown) {
+	Expects(_pinButton != nullptr);
+
+	if (_pinButton->shown == shown) {
+		return;
+	}
+	_pinButton->shown = shown;
+	_pinButton->shownAnimation.start(
+		[=] { updateControlsGeometry(); _content.update(); },
+		shown ? 0. : 1.,
+		shown ? 1. : 0.,
+		st::slideWrapDuration);
+}
+
 void LargeVideo::setupControls(rpl::producer<bool> pinned) {
 	std::move(pinned) | rpl::start_with_next([=](bool pinned) {
 		_pinned = pinned;
+		if (_pinButton) {
+			_pinButton->text.setText(
+				st::semiboldTextStyle,
+				(pinned
+					? tr::lng_pinned_unpin
+					: tr::lng_pinned_pin)(tr::now));
+			updateControlsGeometry();
+		}
 		_content.update();
 	}, _content.lifetime());
 
@@ -165,14 +222,29 @@ void LargeVideo::setupControls(rpl::producer<bool> pinned) {
 
 void LargeVideo::updateControlsGeometry() {
 	if (_pinButton) {
-		const auto &pin = st::groupCallLargeVideoPin.icon;
-		const auto buttonWidth = pin.width() + 2 * _st.pinPosition.x();
-		const auto buttonHeight = pin.height() + 2 * _st.pinPosition.y();
-		_pinButton->setGeometry(
-			_content.width() - buttonWidth,
+		const auto &icon = st::groupCallLargeVideoPin.icon;
+		const auto innerWidth = icon.width()
+			+ _st.pinTextPosition.x()
+			+ _pinButton->text.maxWidth();
+		const auto innerHeight = icon.height();
+		const auto buttonWidth = _st.pinPadding.left() + innerWidth + _st.pinPadding.right();
+		const auto buttonHeight = _st.pinPadding.top() + innerHeight + _st.pinPadding.bottom();
+		const auto fullWidth = _st.pinPosition.x() * 2 + buttonWidth;
+		const auto fullHeight = _st.pinPosition.y() * 2 + buttonHeight;
+		const auto slide = anim::interpolate(
+			_st.pinPosition.y() + buttonHeight,
 			0,
+			_pinButton->shownAnimation.value(_pinButton->shown ? 1. : 0.));
+		_pinButton->rect = QRect(
+			_content.width() - _st.pinPosition.x() - buttonWidth,
+			_st.pinPosition.y() - slide,
 			buttonWidth,
 			buttonHeight);
+		_pinButton->area.setGeometry(
+			_content.width() - fullWidth,
+			-slide,
+			fullWidth,
+			fullHeight);
 	}
 }
 
@@ -235,14 +307,37 @@ void LargeVideo::paint(QRect clip) {
 }
 
 void LargeVideo::paintControls(Painter &p, QRect clip) {
+	const auto width = _content.width();
+	const auto height = _content.height();
+
+	// Pin.
+	if (_pinButton && _pinButton->rect.intersects(clip)) {
+		const auto &icon = st::groupCallLargeVideoPin.icon;
+		_pinButton->background.paint(p, _pinButton->rect);
+		_pinButton->icon.paint(
+			p,
+			_pinButton->rect.marginsRemoved(_st.pinPadding).topLeft(),
+			_pinned ? 1. : 0.);
+		p.setPen(st::groupCallVideoTextFg);
+		_pinButton->text.drawLeft(
+			p,
+			(_pinButton->rect.x()
+				+ _st.pinPadding.left()
+				+ icon.width()
+				+ _st.pinTextPosition.x()),
+			(_pinButton->rect.y()
+				+ _st.pinPadding.top()
+				+ _st.pinTextPosition.y()),
+			_pinButton->text.maxWidth(),
+			width);
+	}
+
+	const auto fullShift = _st.namePosition.y() + st::normalFont->height;
 	const auto shown = _controlsShownRatio;
 	if (shown == 0.) {
 		return;
 	}
 
-	const auto width = _content.width();
-	const auto height = _content.height();
-	const auto fullShift = _st.namePosition.y() + st::normalFont->height;
 	const auto shift = anim::interpolate(fullShift, 0, shown);
 
 	// Shadow.
@@ -255,7 +350,7 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 		width,
 		_st.shadowHeight);
 	const auto shadowFill = shadowRect.intersected(clip);
-	if (shadowFill.isEmpty() && _smallLayout) {
+	if (shadowFill.isEmpty()) {
 		return;
 	}
 	const auto factor = style::DevicePixelRatio();
@@ -292,18 +387,6 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 		- st::semiboldFont->height
 		+ shift);
 	_track.row->name().drawLeftElided(p, nameLeft, nameTop, hasWidth, width);
-
-	// Pin.
-	if (_pinButton) {
-		const auto &pin = st::groupCallLargeVideoPin.icon;
-		const auto pinLeft = (width - _st.pinPosition.x() - pin.width());
-		const auto pinShift = anim::interpolate(
-			_st.pinPosition.y() + pin.height(),
-			0,
-			shown);
-		const auto pinTop = (_st.pinPosition.y() - pinShift);
-		_pin.paint(p, pinLeft, pinTop, _pinned ? 1. : 0.);
-	}
 }
 
 QImage GenerateShadow(int height, int topAlpha, int bottomAlpha) {

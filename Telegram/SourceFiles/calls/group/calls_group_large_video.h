@@ -8,8 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
-#include "ui/effects/cross_line.h"
-#include "ui/effects/animations.h"
 
 #if 1
 #define USE_OPENGL_LARGE_VIDEO 1
@@ -63,6 +61,7 @@ public:
 		bool visible,
 		rpl::producer<LargeVideoTrack> track,
 		rpl::producer<bool> pinned);
+	~LargeVideo();
 
 	void raise();
 	void setVisible(bool visible);
@@ -105,6 +104,8 @@ private:
 
 	};
 
+	struct PinButton;
+
 	void setup(
 		rpl::producer<LargeVideoTrack> track,
 		rpl::producer<bool> pinned);
@@ -112,13 +113,13 @@ private:
 	void paint(QRect clip);
 	void paintControls(Painter &p, QRect clip);
 	void updateControlsGeometry();
+	void togglePinShown(bool shown);
 
 	Content _content;
 	const style::GroupCallLargeVideo &_st;
 	LargeVideoTrack _track;
 	QImage _shadow;
-	Ui::CrossLineAnimation _pin;
-	std::unique_ptr<Ui::AbstractButton> _pinButton;
+	std::unique_ptr<PinButton> _pinButton;
 	rpl::event_stream<> _clicks;
 	const bool _smallLayout = true;
 	bool _pinned = false;

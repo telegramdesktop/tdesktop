@@ -162,8 +162,9 @@ private:
 	std::optional<QRect> _lastSmallGeometry;
 	std::optional<QRect> _lastLargeGeometry;
 	bool _lastLargeMaximized = false;
-	bool _wideControlsShown = false;
+	bool _showWideControls = false;
 	bool _trackControls = false;
+	bool _wideControlsShown = false;
 	Ui::Animations::Simple _wideControlsAnimation;
 
 	object_ptr<Ui::RpWidget> _controlsBackground = { nullptr };

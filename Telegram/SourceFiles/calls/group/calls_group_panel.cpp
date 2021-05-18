@@ -1085,10 +1085,8 @@ void Panel::refreshTilesGeometry() {
 	if (_videoTiles.empty()
 		|| outer.isEmpty()
 		|| _mode == PanelMode::Default) {
-		trackControls(false);
 		return;
 	}
-	trackControls(true);
 	struct Geometry {
 		QSize size;
 		QRect columns;
@@ -1265,9 +1263,11 @@ void Panel::setupPinnedVideo() {
 	raw->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Enter) {
+			LOG(("Track Enter"));
 			Ui::Integration::Instance().registerLeaveSubscription(raw);
 			toggleWideControls(true);
 		} else if (e->type() == QEvent::Leave) {
+			LOG(("Track Leave"));
 			Ui::Integration::Instance().unregisterLeaveSubscription(raw);
 			toggleWideControls(false);
 		}
@@ -1277,15 +1277,23 @@ void Panel::setupPinnedVideo() {
 }
 
 void Panel::toggleWideControls(bool shown) {
-	if (_wideControlsShown == shown) {
+	if (_showWideControls == shown) {
 		return;
 	}
-	_wideControlsShown = shown;
-	_wideControlsAnimation.start(
-		[=] { updateButtonsGeometry(); },
-		shown ? 0. : 1.,
-		shown ? 1. : 0.,
-		st::slideWrapDuration);
+	_showWideControls = shown;
+	LOG(("On Main Scheduled"));
+	crl::on_main(widget(), [=] {
+		if (_wideControlsShown == _showWideControls) {
+			return;
+		}
+		LOG(("On Main Fired: %1").arg(Logs::b(_showWideControls)));
+		_wideControlsShown = _showWideControls;
+		_wideControlsAnimation.start(
+			[=] { updateButtonsGeometry(); },
+			_wideControlsShown ? 0. : 1.,
+			_wideControlsShown ? 1. : 0.,
+			st::slideWrapDuration);
+	});
 }
 
 void Panel::setupJoinAsChangedToasts() {
@@ -1795,8 +1803,8 @@ bool Panel::updateMode() {
 		_members->setMode(mode);
 	}
 	if (_pinnedVideoWrap) {
+		_wideControlsShown = _showWideControls = true;
 		_wideControlsAnimation.stop();
-		_wideControlsShown = true;
 		_pinnedVideoWrap->setVisible(mode == PanelMode::Wide);
 		for (const auto &tile : _videoTiles) {
 			tile.video->setVisible(mode == PanelMode::Wide);
@@ -1810,7 +1818,7 @@ bool Panel::updateMode() {
 
 void Panel::refreshControlsBackground() {
 	if (_mode != PanelMode::Wide) {
-		_trackControlsLifetime.destroy();
+		trackControls(false);
 		_controlsBackground.destroy();
 	} else if (_controlsBackground) {
 		return;
@@ -1832,6 +1840,7 @@ void Panel::refreshControlsBackground() {
 		corners->paint(p, _controlsBackground->rect());
 	}, lifetime);
 
+	trackControls(true);
 	raiseControls();
 }
 
@@ -1857,8 +1866,10 @@ void Panel::trackControls(bool track) {
 			raw->events(
 			) | rpl::start_with_next([=](not_null<QEvent*> e) {
 				if (e->type() == QEvent::Enter) {
+					LOG(("Track Enter"));
 					toggleWideControls(true);
 				} else if (e->type() == QEvent::Leave) {
+					LOG(("Track Leave"));
 					toggleWideControls(false);
 				}
 			}, _trackControlsOverStateLifetime);

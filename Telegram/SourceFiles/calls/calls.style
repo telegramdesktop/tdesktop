@@ -1192,6 +1192,8 @@ GroupCallLargeVideo {
 	shadowHeight: pixels;
 	namePosition: point;
 	pinPosition: point;
+	pinPadding: margins;
+	pinTextPosition: point;
 	iconPosition: point;
 }
 
@@ -1199,6 +1201,8 @@ groupCallLargeVideoWide: GroupCallLargeVideo {
 	shadowHeight: 40px;
 	namePosition: point(15px, 8px);
 	pinPosition: point(18px, 18px);
+	pinPadding: margins(6px, 2px, 12px, 1px);
+	pinTextPosition: point(1px, 3px);
 	iconPosition: point(10px, 5px);
 }
 groupCallLargeVideoNarrow: GroupCallLargeVideo(groupCallLargeVideoWide) {
@@ -1214,9 +1218,10 @@ groupCallLargeVideoNarrow: GroupCallLargeVideo(groupCallLargeVideoWide) {
 groupCallLargeVideoPin: CrossLineAnimation {
 	fg: groupCallVideoTextFg;
 	icon: icon {{ "calls/video_over_pin", groupCallVideoTextFg }};
-	startPosition: point(5px, 2px);
-	endPosition: point(20px, 17px);
-	stroke: 2px;
+	startPosition: point(7px, 4px);
+	endPosition: point(17px, 14px);
+	stroke: 3px;
+	strokeDenominator: 2;
 }
 
 groupCallVideoSmallSkip: 4px;
