@@ -474,7 +474,7 @@ void VideoTrackObject::addTimelineDelay(crl::time delayed) {
 void VideoTrackObject::updateFrameRequest(
 		const Instance *instance,
 		const FrameRequest &request) {
-	_requests.emplace(instance, request);
+	_requests[instance] = request;
 }
 
 void VideoTrackObject::removeFrameRequest(const Instance *instance) {
