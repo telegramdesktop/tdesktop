@@ -1865,8 +1865,9 @@ void Members::refreshTilesGeometry() {
 			QSize(width, heightMax),
 			Qt::KeepAspectRatio);
 		const auto height = std::max(scaled.height(), heightMin);
+		const auto skip = st::groupCallVideoSmallSkip;
 		sizes.front().first->setGeometry(0, 0, width, height);
-		_pinnedVideoWrap->resize(width, height);
+		_pinnedVideoWrap->resize(width, height + skip);
 		return;
 	}
 	const auto min = (st::groupCallWidth
@@ -1900,7 +1901,7 @@ void Members::refreshTilesGeometry() {
 			}
 		}
 	}
-	_pinnedVideoWrap->resize(width, rows * (min + skip) - skip);
+	_pinnedVideoWrap->resize(width, rows * (min + skip));
 }
 
 void Members::setupPinnedVideo() {

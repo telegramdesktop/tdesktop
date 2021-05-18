@@ -92,7 +92,7 @@ private:
 
 	bool handleClose();
 	void startScheduledNow();
-	void trackControls(LargeVideo *video);
+	void trackControls(bool track);
 	void raiseControls();
 	void enlargeVideo();
 	void minimizeVideo();
@@ -105,6 +105,7 @@ private:
 	void showControls();
 	void refreshLeftButton();
 	void refreshTilesGeometry();
+	void toggleWideControls(bool shown);
 
 	void endCall();
 
@@ -149,9 +150,7 @@ private:
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<Members> _members = { nullptr };
 	std::unique_ptr<Ui::RpWidget> _pinnedVideoWrap;
-	float64 _pinnedVideoControlsShown = 1.;
 	std::vector<VideoTile> _videoTiles;
-	LargeVideo *_trackControlsTile = nullptr;
 	rpl::lifetime _trackControlsLifetime;
 	rpl::lifetime _trackControlsOverStateLifetime;
 	object_ptr<Ui::FlatLabel> _startsIn = { nullptr };
@@ -163,6 +162,9 @@ private:
 	std::optional<QRect> _lastSmallGeometry;
 	std::optional<QRect> _lastLargeGeometry;
 	bool _lastLargeMaximized = false;
+	bool _wideControlsShown = false;
+	bool _trackControls = false;
+	Ui::Animations::Simple _wideControlsAnimation;
 
 	object_ptr<Ui::RpWidget> _controlsBackground = { nullptr };
 	object_ptr<Ui::CallButton> _settings = { nullptr };

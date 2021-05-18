@@ -1190,7 +1190,6 @@ groupCallLargeVideoCrossLine: CrossLineAnimation(groupCallMemberColoredCrossLine
 
 GroupCallLargeVideo {
 	shadowHeight: pixels;
-	enlargeAlign: align;
 	namePosition: point;
 	pinPosition: point;
 	iconPosition: point;
@@ -1198,13 +1197,11 @@ GroupCallLargeVideo {
 
 groupCallLargeVideoWide: GroupCallLargeVideo {
 	shadowHeight: 40px;
-	enlargeAlign: align(topright);
 	namePosition: point(15px, 8px);
 	pinPosition: point(18px, 18px);
 	iconPosition: point(10px, 5px);
 }
 groupCallLargeVideoNarrow: GroupCallLargeVideo(groupCallLargeVideoWide) {
-	enlargeAlign: align(center);
 	pinPosition: point(-1px, -1px);
 }
 //groupCallLargeVideoListItem: PeerListItem(groupCallMembersListItem) {
@@ -1216,12 +1213,11 @@ groupCallLargeVideoNarrow: GroupCallLargeVideo(groupCallLargeVideoWide) {
 //}
 groupCallLargeVideoPin: CrossLineAnimation {
 	fg: groupCallVideoTextFg;
-	icon: icon {{ "calls/voice_pin", groupCallVideoTextFg }};
+	icon: icon {{ "calls/video_over_pin", groupCallVideoTextFg }};
 	startPosition: point(5px, 2px);
 	endPosition: point(20px, 17px);
 	stroke: 2px;
 }
-groupCallVideoEnlarge: icon {{ "calls/voice_enlarge", mediaviewPipControlsFgOver }};
 
 groupCallVideoSmallSkip: 4px;
 groupCallVideoLargeSkip: 6px;
