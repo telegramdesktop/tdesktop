@@ -1083,20 +1083,22 @@ void ComposeControls::initKeyHandler() {
 		auto keyEvent = static_cast<QKeyEvent*>(e.get());
 		const auto key = keyEvent->key();
 		const auto isCtrl = keyEvent->modifiers() == Qt::ControlModifier;
+		const auto hasModifiers = keyEvent->modifiers() != Qt::NoModifier;
 		if (key == Qt::Key_O && isCtrl) {
 			_attachRequests.fire({});
 			return;
 		}
-		if (key == Qt::Key_Up) {
+		if (key == Qt::Key_Up && !hasModifiers) {
 			if (!isEditingMessage()) {
 				_editLastMessageRequests.fire(std::move(keyEvent));
 				return;
 			}
 		}
-		if ((key == Qt::Key_Up)
-			|| (key == Qt::Key_Down)
-			|| (key == Qt::Key_PageUp)
-			|| (key == Qt::Key_PageDown)) {
+		if (!hasModifiers
+			&& ((key == Qt::Key_Up)
+				|| (key == Qt::Key_Down)
+				|| (key == Qt::Key_PageUp)
+				|| (key == Qt::Key_PageDown))) {
 			_scrollKeyEvents.fire(std::move(keyEvent));
 		}
 	}, _wrap->lifetime());
