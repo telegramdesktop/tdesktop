@@ -40,6 +40,7 @@ public:
 
 	void updateOnline();
 	[[nodiscard]] bool isIdle() const;
+	[[nodiscard]] rpl::producer<bool> isIdleValue() const;
 	void checkIdleFinish();
 	bool lastWasOnline() const;
 	crl::time lastSetOnline() const;
@@ -185,7 +186,7 @@ private:
 	base::Timer _idleFinishTimer;
 	crl::time _lastSetOnline = 0;
 	bool _lastWasOnline = false;
-	bool _isIdle = false;
+	rpl::variable<bool> _isIdle = false;
 
 	rpl::lifetime _lifetime;
 

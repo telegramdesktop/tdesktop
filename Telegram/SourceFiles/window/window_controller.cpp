@@ -82,7 +82,7 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 			_sessionController->filtersMenuChanged(
 			) | rpl::start_with_next([=] {
 				sideBarChanged();
-			}, session->lifetime());
+			}, _sessionController->lifetime());
 		}
 		if (session && session->settings().dialogsFiltersEnabled()) {
 			_sessionController->toggleFiltersMenu(true);
@@ -93,11 +93,18 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 		if (session) {
 			setupMain();
 
+			session->updates().isIdleValue(
+			) | rpl::filter([=](bool idle) {
+				return !idle;
+			}) | rpl::start_with_next([=] {
+				widget()->checkHistoryActivation();
+			}, _sessionController->lifetime());
+
 			session->termsLockValue(
 			) | rpl::start_with_next([=] {
 				checkLockByTerms();
 				_widget.updateGlobalMenu();
-			}, _lifetime);
+			}, _sessionController->lifetime());
 		} else {
 			setupIntro();
 			_widget.updateGlobalMenu();

@@ -867,7 +867,11 @@ void Updates::updateOnline() {
 }
 
 bool Updates::isIdle() const {
-	return _isIdle;
+	return _isIdle.current();
+}
+
+rpl::producer<bool> Updates::isIdleValue() const {
+	return _isIdle.value();
 }
 
 void Updates::updateOnline(bool gotOtherOffline) {
@@ -881,7 +885,7 @@ void Updates::updateOnline(bool gotOtherOffline) {
 		const auto idle = crl::now() - Core::App().lastNonIdleTime();
 		if (idle >= config.offlineIdleTimeout) {
 			isOnline = false;
-			if (!_isIdle) {
+			if (!isIdle()) {
 				_isIdle = true;
 				_idleFinishTimer.callOnce(900);
 			}
@@ -932,10 +936,9 @@ void Updates::updateOnline(bool gotOtherOffline) {
 void Updates::checkIdleFinish() {
 	if (crl::now() - Core::App().lastNonIdleTime()
 		< _session->serverConfig().offlineIdleTimeout) {
+		updateOnline();
 		_idleFinishTimer.cancel();
 		_isIdle = false;
-		updateOnline();
-		App::wnd()->checkHistoryActivation();
 	} else {
 		_idleFinishTimer.callOnce(900);
 	}
