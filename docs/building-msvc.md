@@ -209,7 +209,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 80c1c62533
+    git checkout cb9f347e10
     git submodule init
     git submodule update
     mkdir out
@@ -218,6 +218,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd Debug
     cmake -G Ninja ^
         -DCMAKE_BUILD_TYPE=Debug ^
+        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF ^
         -DTG_OWT_SPECIAL_TARGET=win ^
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
         -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include ^
@@ -229,6 +230,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd Release
     cmake -G Ninja ^
         -DCMAKE_BUILD_TYPE=Release ^
+        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF ^
         -DTG_OWT_SPECIAL_TARGET=win ^
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
         -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include ^

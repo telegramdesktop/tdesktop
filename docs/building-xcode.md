@@ -304,7 +304,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 80c1c62533
+    git checkout cb9f347e10
     git submodule init
     git submodule update
     mkdir out
@@ -313,6 +313,7 @@ Go to ***BuildPath*** and run
     cd Debug
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
+        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=mac \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/macos/include \
         -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \
@@ -324,6 +325,7 @@ Go to ***BuildPath*** and run
     cd Release
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
+        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=mac \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/macos/include \
         -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \
