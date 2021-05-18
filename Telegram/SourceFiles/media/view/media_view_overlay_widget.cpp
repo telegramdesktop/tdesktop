@@ -466,19 +466,28 @@ void OverlayWidget::updateGeometry() {
 	if (Platform::IsWayland()) {
 		return;
 	}
-	const auto screen = windowHandle() && windowHandle()->screen()
-		? windowHandle()->screen()
+	const auto window = windowHandle();
+	const auto screen = window && window->screen()
+		? window->screen()
 		: QApplication::primaryScreen();
 	const auto available = screen->geometry();
-	if (geometry() == available) {
+	const auto useSizeHack = (USE_OPENGL_OVERLAY_WIDGET
+		&& Platform::IsWindows());
+	const auto use = available.marginsAdded({ 0, 0, 0, 1 });
+	const auto mask = useSizeHack ? QRegion(available) : QRegion();
+	if ((geometry() == use)
+		&& (!useSizeHack || (window && window->mask() == mask))) {
 		return;
 	}
 	DEBUG_LOG(("Viewer Pos: Setting %1, %2, %3, %4")
-		.arg(available.x())
-		.arg(available.y())
-		.arg(available.width())
-		.arg(available.height()));
-	setGeometry(available);
+		.arg(use.x())
+		.arg(use.y())
+		.arg(use.width())
+		.arg(use.height()));
+	setGeometry(use);
+	if (window && useSizeHack) {
+		window->setMask(mask);
+	}
 }
 
 void OverlayWidget::moveEvent(QMoveEvent *e) {
@@ -552,7 +561,7 @@ QImage OverlayWidget::videoFrameForDirectPaint() const {
 
 	const auto result = videoFrame();
 
-#ifdef USE_OPENGL_OVERLAY_WIDGET
+#if USE_OPENGL_OVERLAY_WIDGET
 	const auto bytesPerLine = result.bytesPerLine();
 	if (bytesPerLine == result.width() * 4) {
 		return result;
@@ -3385,7 +3394,7 @@ void OverlayWidget::paintTransformedVideoFrame(Painter &p) {
 	PainterHighQualityEnabler hq(p);
 
 	const auto rotation = contentRotation();
-	if (UsePainterRotation(rotation)) {
+	if (UsePainterRotation(rotation, USE_OPENGL_OVERLAY_WIDGET)) {
 		if (rotation) {
 			p.save();
 			p.rotate(rotation);
@@ -3415,7 +3424,7 @@ void OverlayWidget::paintTransformedStaticContent(Painter &p) {
 		return;
 	}
 	const auto rotation = contentRotation();
-	if (UsePainterRotation(rotation)) {
+	if (UsePainterRotation(rotation, USE_OPENGL_OVERLAY_WIDGET)) {
 		if (rotation) {
 			p.save();
 			p.rotate(rotation);
@@ -3444,7 +3453,7 @@ void OverlayWidget::paintRadialLoading(
 	const auto inner = radialRect();
 	Assert(!inner.isEmpty());
 
-#ifdef USE_OPENGL_OVERLAY_WIDGET
+#if USE_OPENGL_OVERLAY_WIDGET
 	{
 		if (_radialCache.size() != inner.size() * cIntRetinaFactor()) {
 			_radialCache = QImage(
@@ -4349,7 +4358,7 @@ bool OverlayWidget::eventFilter(QObject *obj, QEvent *e) {
 }
 
 void OverlayWidget::applyHideWindowWorkaround() {
-#ifdef USE_OPENGL_OVERLAY_WIDGET
+#if USE_OPENGL_OVERLAY_WIDGET
 	// QOpenGLWidget can't properly destroy a child widget if
 	// it is hidden exactly after that, so it must be repainted
 	// before it is hidden without the child widget.

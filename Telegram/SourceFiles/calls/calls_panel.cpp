@@ -52,11 +52,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 namespace {
 
-#if defined Q_OS_MAC && !defined OS_MAC_OLD
-#define USE_OPENGL_OVERLAY_WIDGET
+#if 1
+#define USE_OPENGL_OVERLAY_WIDGET 1
+#else // Q_OS_MAC && !OS_MAC_OLD
+#define USE_OPENGL_OVERLAY_WIDGET 0
 #endif // Q_OS_MAC && !OS_MAC_OLD
 
-#ifdef USE_OPENGL_OVERLAY_WIDGET
+#if USE_OPENGL_OVERLAY_WIDGET
 using IncomingParent = Ui::RpWidgetWrap<QOpenGLWidget>;
 #else // USE_OPENGL_OVERLAY_WIDGET
 using IncomingParent = Ui::RpWidget;
@@ -101,7 +103,7 @@ void Panel::Incoming::paintEvent(QPaintEvent *e) {
 	} else {
 		using namespace Media::View;
 		auto hq = PainterHighQualityEnabler(p);
-		if (UsePainterRotation(rotation)) {
+		if (UsePainterRotation(rotation, USE_OPENGL_OVERLAY_WIDGET)) {
 			if (rotation) {
 				p.save();
 				p.rotate(rotation);

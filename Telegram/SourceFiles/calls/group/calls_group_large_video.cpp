@@ -200,7 +200,7 @@ void LargeVideo::paint(QRect clip) {
 	const auto left = (size.width() - scaled.width()) / 2;
 	const auto top = (size.height() - scaled.height()) / 2;
 	const auto target = QRect(QPoint(left, top), scaled);
-	if (UsePainterRotation(rotation)) {
+	if (UsePainterRotation(rotation, USE_OPENGL_LARGE_VIDEO)) {
 		if (rotation) {
 			p.save();
 			p.rotate(rotation);

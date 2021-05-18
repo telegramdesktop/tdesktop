@@ -11,8 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/cross_line.h"
 #include "ui/effects/animations.h"
 
-#if defined Q_OS_MAC
-#define USE_OPENGL_LARGE_VIDEO
+#if 1
+#define USE_OPENGL_LARGE_VIDEO 1
+#else
+#define USE_OPENGL_LARGE_VIDEO 0
 #endif // Q_OS_MAC
 
 namespace style {
@@ -81,7 +83,7 @@ public:
 	}
 
 private:
-#ifdef USE_OPENGL_LARGE_VIDEO
+#if USE_OPENGL_LARGE_VIDEO
 	using ContentParent = Ui::RpWidgetWrap<QOpenGLWidget>;
 #else // USE_OPENGL_OVERLAY_WIDGET
 	using ContentParent = Ui::RpWidget;

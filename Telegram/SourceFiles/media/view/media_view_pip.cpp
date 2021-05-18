@@ -354,8 +354,8 @@ QRect RotatedRect(QRect rect, int rotation) {
 	Unexpected("Rotation in RotatedRect.");
 }
 
-bool UsePainterRotation(int rotation) {
-	return Platform::IsMac() || !(rotation % 180);
+bool UsePainterRotation(int rotation, bool opengl) {
+	return opengl || !(rotation % 180);
 }
 
 QSize FlipSizeByRotation(QSize size, int rotation) {
@@ -375,6 +375,9 @@ PipPanel::PipPanel(
 	Fn<void(QPainter&, FrameRequest)> paint)
 : _parent(parent)
 , _paint(std::move(paint)) {
+}
+
+void PipPanel::init() {
 	setWindowFlags(Qt::Tool
 		| Qt::WindowStaysOnTopHint
 		| Qt::FramelessWindowHint
@@ -592,8 +595,12 @@ void PipPanel::setPositionOnScreen(Position position, QRect available) {
 void PipPanel::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
-	if (_useTransparency) {
-		Ui::Platform::StartTranslucentPaint(p, e->region());
+	if (_useTransparency && USE_OPENGL_PIP_WIDGET) {
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		for (const auto rect : e->region()) {
+			p.fillRect(rect, Qt::transparent);
+		}
+		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 	}
 
 	auto request = FrameRequest();
@@ -898,6 +905,7 @@ Pip::Pip(
 Pip::~Pip() = default;
 
 void Pip::setupPanel() {
+	_panel.init();
 	const auto size = [&] {
 		if (!_instance.info().video.size.isEmpty()) {
 			return _instance.info().video.size;
@@ -1196,11 +1204,12 @@ void Pip::paint(QPainter &p, FrameRequest request) {
 		inner.topLeft(),
 		request.outer / style::DevicePixelRatio()
 	};
-	if (UsePainterRotation(_rotation)) {
+	if (UsePainterRotation(_rotation, USE_OPENGL_PIP_WIDGET)) {
 		if (_rotation) {
 			p.save();
 			p.rotate(_rotation);
 		}
+		auto hq = PainterHighQualityEnabler(p);
 		p.drawImage(RotatedRect(rect, _rotation), image);
 		if (_rotation) {
 			p.restore();
@@ -1516,7 +1525,7 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 QImage Pip::videoFrameForDirectPaint(const FrameRequest &request) const {
 	const auto result = videoFrame(request);
 
-#ifdef USE_OPENGL_OVERLAY_WIDGET
+#ifdef USE_OPENGL_PIP_WIDGET
 	const auto bytesPerLine = result.bytesPerLine();
 	if (bytesPerLine == result.width() * 4) {
 		return result;
@@ -1545,14 +1554,14 @@ QImage Pip::videoFrameForDirectPaint(const FrameRequest &request) const {
 		from += bytesPerLine;
 	}
 	return cache;
-#endif // USE_OPENGL_OVERLAY_WIDGET
+#endif // USE_OPENGL_PIP_WIDGET
 
 	return result;
 }
 
 void Pip::paintRadialLoading(QPainter &p) const {
 	const auto inner = countRadialRect();
-#ifdef USE_OPENGL_OVERLAY_WIDGET
+#ifdef USE_OPENGL_PIP_WIDGET
 	{
 		if (_radialCache.size() != inner.size() * cIntRetinaFactor()) {
 			_radialCache = QImage(
@@ -1566,9 +1575,9 @@ void Pip::paintRadialLoading(QPainter &p) const {
 		paintRadialLoadingContent(q, inner.translated(-inner.topLeft()));
 	}
 	p.drawImage(inner.topLeft(), _radialCache);
-#else // USE_OPENGL_OVERLAY_WIDGET
+#else // USE_OPENGL_PIP_WIDGET
 	paintRadialLoadingContent(p, inner);
-#endif // USE_OPENGL_OVERLAY_WIDGET
+#endif // USE_OPENGL_PIP_WIDGET
 }
 
 void Pip::paintRadialLoadingContent(QPainter &p, const QRect &inner) const {

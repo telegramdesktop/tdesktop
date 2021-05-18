@@ -52,15 +52,17 @@ namespace View {
 class GroupThumbs;
 class Pip;
 
-#if defined Q_OS_MAC && !defined OS_MAC_OLD
-#define USE_OPENGL_OVERLAY_WIDGET
+#if 1
+#define USE_OPENGL_OVERLAY_WIDGET 1
+#else // Q_OS_MAC && !OS_MAC_OLD
+#define USE_OPENGL_OVERLAY_WIDGET 0
 #endif // Q_OS_MAC && !OS_MAC_OLD
 
 struct OverlayParentTraits : Ui::RpWidgetDefaultTraits {
 	static constexpr bool kSetZeroGeometry = false;
 };
 
-#ifdef USE_OPENGL_OVERLAY_WIDGET
+#if USE_OPENGL_OVERLAY_WIDGET
 using OverlayParent = Ui::RpWidgetWrap<QOpenGLWidget, OverlayParentTraits>;
 #else // USE_OPENGL_OVERLAY_WIDGET
 using OverlayParent = Ui::RpWidgetWrap<QWidget, OverlayParentTraits>;

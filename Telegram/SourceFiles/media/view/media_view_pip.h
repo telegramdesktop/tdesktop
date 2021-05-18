@@ -34,19 +34,21 @@ namespace View {
 class PlaybackProgress;
 
 [[nodiscard]] QRect RotatedRect(QRect rect, int rotation);
-[[nodiscard]] bool UsePainterRotation(int rotation);
+[[nodiscard]] bool UsePainterRotation(int rotation, bool opengl);
 [[nodiscard]] QSize FlipSizeByRotation(QSize size, int rotation);
 [[nodiscard]] QImage RotateFrameImage(QImage image, int rotation);
 
-#if defined Q_OS_MAC && !defined OS_MAC_OLD
-#define USE_OPENGL_OVERLAY_WIDGET
+#if 1
+#define USE_OPENGL_PIP_WIDGET 1
+#else
+#define USE_OPENGL_PIP_WIDGET 0
 #endif // Q_OS_MAC && !OS_MAC_OLD
 
-#ifdef USE_OPENGL_OVERLAY_WIDGET
+#if USE_OPENGL_PIP_WIDGET
 using PipParent = Ui::RpWidgetWrap<QOpenGLWidget>;
-#else // USE_OPENGL_OVERLAY_WIDGET
+#else // USE_OPENGL_PIP_WIDGET
 using PipParent = Ui::RpWidget;
-#endif // USE_OPENGL_OVERLAY_WIDGET
+#endif // USE_OPENGL_PIP_WIDGET
 
 class PipPanel final : public PipParent {
 public:
@@ -61,6 +63,7 @@ public:
 	PipPanel(
 		QWidget *parent,
 		Fn<void(QPainter&, FrameRequest)> paint);
+	void init();
 
 	void setAspectRatio(QSize ratio);
 	[[nodiscard]] Position countPosition() const;
@@ -234,10 +237,10 @@ private:
 	FnMut<void()> _closeAndContinue;
 	FnMut<void()> _destroy;
 
-#ifdef USE_OPENGL_OVERLAY_WIDGET
+#if USE_OPENGL_PIP_WIDGET
 	mutable QImage _frameForDirectPaint;
 	mutable QImage _radialCache;
-#endif // USE_OPENGL_OVERLAY_WIDGET
+#endif // USE_OPENGL_PIP_WIDGET
 
 	mutable QImage _preparedCoverStorage;
 	mutable FrameRequest _preparedCoverRequest;
