@@ -733,13 +733,20 @@ COPY --from=ffmpeg ${LibrariesPath}/ffmpeg-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 COPY --from=libXtst ${LibrariesPath}/libXtst-cache /
 
-ADD https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master tg_owt-version.json
-RUN git clone --depth=1 --recursive $GIT/desktop-app/tg_owt.git
+# Shallow clone on a specific commit.
+RUN mkdir tg_owt
+WORKDIR tg_owt
+RUN git init
+RUN git remote add origin $GIT/desktop-app/tg_owt.git
+RUN git fetch --depth=1 origin 80c1c625332cb056aae50794c107700edc3b71d2
+RUN git reset --hard FETCH_HEAD
+RUN git submodule init
+RUN git submodule update
 
-WORKDIR tg_owt/src/third_party/pipewire
+WORKDIR src/third_party/pipewire
 RUN meson build
 
-WORKDIR $LibrariesPath/tg_owt
+WORKDIR ../../..
 
 RUN cmake3 -B out/Release . \
 	-DCMAKE_BUILD_TYPE=Release \

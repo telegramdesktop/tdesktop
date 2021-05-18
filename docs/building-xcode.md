@@ -302,8 +302,11 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
-    git clone --recursive https://github.com/desktop-app/tg_owt.git
+    git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
+    git checkout 80c1c62533
+    git submodule init
+    git submodule update
     mkdir out
     cd out
     mkdir Debug
