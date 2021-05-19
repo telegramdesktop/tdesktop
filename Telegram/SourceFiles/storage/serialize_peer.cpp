@@ -324,12 +324,10 @@ PeerData *readPeer(
 	}
 	if (apply) {
 		using LocationType = StorageFileLocation::Type;
-		const auto location = (userpic->valid() && userpic->isLegacy())
-			? userpic->convertToModern(
-				LocationType::PeerPhoto,
-				result->id.value,
-				userpicAccessHash)
-			: *userpic;
+		const auto location = userpic->convertToModernPeerPhoto(
+			result->id.value,
+			userpicAccessHash,
+			photoId);
 		result->setUserpic(photoId, location);
 	}
 	return result;
@@ -342,7 +340,7 @@ QString peekUserPhone(int streamAppVersion, QDataStream &stream) {
 	DEBUG_LOG(("peekUserPhone.id: %1").arg(peerId.value));
 	if (!peerId
 		|| !peerIsUser(peerId)
-		|| !readStorageImageLocation(streamAppVersion, stream)) {
+		|| !readImageLocation(streamAppVersion, stream)) {
 		return QString();
 	}
 

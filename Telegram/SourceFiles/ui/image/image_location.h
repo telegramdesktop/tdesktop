@@ -70,10 +70,10 @@ public:
 		UserId self,
 		const MTPInputFileLocation &tl);
 
-	[[nodiscard]] StorageFileLocation convertToModern(
-		Type type,
+	[[nodiscard]] StorageFileLocation convertToModernPeerPhoto(
 		uint64 id,
-		uint64 accessHash) const;
+		uint64 accessHash,
+		uint64 photoId) const;
 
 	[[nodiscard]] int32 dcId() const;
 	[[nodiscard]] uint64 objectId() const;
@@ -157,12 +157,12 @@ public:
 	[[nodiscard]] static std::optional<StorageImageLocation> FromSerialized(
 		const QByteArray &serialized);
 
-	[[nodiscard]] StorageImageLocation convertToModern(
-			StorageFileLocation::Type type,
+	[[nodiscard]] StorageImageLocation convertToModernPeerPhoto(
 			uint64 id,
-			uint64 accessHash) const {
+			uint64 accessHash,
+			uint64 photoId) const {
 		return StorageImageLocation(
-			_file.convertToModern(type, id, accessHash),
+			_file.convertToModernPeerPhoto(id, accessHash, photoId),
 			_width,
 			_height);
 	}
@@ -461,10 +461,10 @@ public:
 	[[nodiscard]] static std::optional<DownloadLocation> FromSerialized(
 		const QByteArray &serialized);
 
-	[[nodiscard]] DownloadLocation convertToModern(
-		StorageFileLocation::Type type,
+	[[nodiscard]] DownloadLocation convertToModernPeerPhoto(
 		uint64 id,
-		uint64 accessHash) const;
+		uint64 accessHash,
+		uint64 photoId) const;
 
 	[[nodiscard]] Storage::Cache::Key cacheKey() const;
 	[[nodiscard]] Storage::Cache::Key bigFileBaseCacheKey() const;
@@ -524,12 +524,12 @@ public:
 	[[nodiscard]] static std::optional<ImageLocation> FromSerialized(
 		const QByteArray &serialized);
 
-	[[nodiscard]] ImageLocation convertToModern(
-			StorageFileLocation::Type type,
+	[[nodiscard]] ImageLocation convertToModernPeerPhoto(
 			uint64 id,
-			uint64 accessHash) const {
+			uint64 accessHash,
+			uint64 photoId) const {
 		return ImageLocation(
-			_file.convertToModern(type, id, accessHash),
+			_file.convertToModernPeerPhoto(id, accessHash, photoId),
 			_width,
 			_height);
 	}

@@ -177,18 +177,25 @@ StorageFileLocation::StorageFileLocation(
 	});
 }
 
-StorageFileLocation StorageFileLocation::convertToModern(
-		Type type,
+StorageFileLocation StorageFileLocation::convertToModernPeerPhoto(
 		uint64 id,
-		uint64 accessHash) const {
-	Expects(_type == Type::Legacy);
-	Expects(type == Type::PeerPhoto || type == Type::StickerSetThumb);
+		uint64 accessHash,
+		uint64 photoId) const {
+	if (_type != Type::Legacy && _type != Type::PeerPhoto) {
+		return *this;
+	} else if (!photoId) {
+		return StorageFileLocation();
+	}
 
 	auto result = *this;
-	result._type = type;
+	result._type = Type::PeerPhoto;
 	result._id = id;
 	result._accessHash = accessHash;
-	result._sizeLetter = (type == Type::PeerPhoto) ? uint8('a') : uint8(0);
+	result._sizeLetter = uint8('a');
+	result._volumeId = photoId;
+	result._localId = 0;
+	result._inMessagePeerId = 0;
+	result._inMessageId = 0;
 	return result;
 }
 
@@ -310,7 +317,7 @@ int StorageFileLocation::serializeSize() const {
 }
 
 std::optional<StorageFileLocation> StorageFileLocation::FromSerialized(
-	const QByteArray &serialized) {
+		const QByteArray &serialized) {
 	if (serialized.isEmpty()) {
 		return StorageFileLocation();
 	}
@@ -385,6 +392,11 @@ std::optional<StorageFileLocation> StorageFileLocation::FromSerialized(
 				? peerFromUser(UserId(field2))
 				: peerFromChannel(ChannelId(-field2)))
 			: PeerId();
+	}
+	if (result._type == Type::StickerSetThumb && result._volumeId != 0) {
+		// Legacy field values that cannot be converted to modern.
+		// No information about thumb_version, which is required.
+		return std::nullopt;
 	}
 
 	return (stream.status() == QDataStream::Ok && result.valid())
@@ -882,15 +894,17 @@ std::optional<DownloadLocation> DownloadLocation::FromSerialized(
 	return std::nullopt;
 }
 
-DownloadLocation DownloadLocation::convertToModern(
-		StorageFileLocation::Type type,
+DownloadLocation DownloadLocation::convertToModernPeerPhoto(
 		uint64 id,
-		uint64 accessHash) const {
+		uint64 accessHash,
+		uint64 photoId) const {
 	if (!v::is<StorageFileLocation>(data)) {
 		return *this;
 	}
 	auto &file = v::get<StorageFileLocation>(data);
-	return DownloadLocation{ file.convertToModern(type, id, accessHash) };
+	return DownloadLocation{
+		file.convertToModernPeerPhoto(id, accessHash, photoId)
+	};
 }
 
 Storage::Cache::Key DownloadLocation::cacheKey() const {
