@@ -13,10 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_video_track.h"
 #include "ui/painter.h"
 #include "ui/abstract_button.h"
+#include "ui/gl/gl_surface.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/cross_line.h"
 #include "lang/lang_keys.h"
 #include "styles/style_calls.h"
+
+#include <QtGui/QWindow>
 
 namespace Calls::Group {
 namespace {
@@ -57,31 +60,64 @@ LargeVideo::LargeVideo(
 	bool visible,
 	rpl::producer<LargeVideoTrack> track,
 	rpl::producer<bool> pinned)
-: _content(parent, [=](QRect clip) { paint(clip); })
+: _content(Ui::GL::CreateSurface(
+	parent,
+	[=](Ui::GL::Capabilities capabilities) {
+		return chooseRenderer(capabilities);
+	}))
 , _st(st)
 , _pinButton((_st.pinPosition.x() >= 0)
-	? std::make_unique<PinButton>(&_content, st)
+	? std::make_unique<PinButton>(widget(), st)
 	: nullptr)
 , _smallLayout(!_pinButton) {
-	_content.setVisible(visible);
+	widget()->setVisible(visible);
 	if (_smallLayout) {
-		_content.setCursor(style::cur_pointer);
+		widget()->setCursor(style::cur_pointer);
 	}
 	setup(std::move(track), std::move(pinned));
 }
 
 LargeVideo::~LargeVideo() = default;
 
+Ui::GL::ChosenRenderer LargeVideo::chooseRenderer(
+		Ui::GL::Capabilities capabilities) {
+	class Renderer : public Ui::GL::Renderer {
+	public:
+		Renderer(not_null<LargeVideo*> owner) : _owner(owner) {
+		}
+
+		void paintFallback(
+				QPainter &&p,
+				const QRegion &clip,
+				Ui::GL::Backend backend) override {
+			_owner->paint(
+				clip.boundingRect(),
+				backend == Ui::GL::Backend::OpenGL);
+		}
+
+	private:
+		const not_null<LargeVideo*> _owner;
+
+	};
+
+	return {
+		.renderer = std::make_unique<Renderer>(this),
+		.backend = (capabilities.supported
+			? Ui::GL::Backend::OpenGL
+			: Ui::GL::Backend::Raster),
+	};
+}
+
 void LargeVideo::raise() {
-	_content.raise();
+	widget()->raise();
 }
 
 void LargeVideo::setVisible(bool visible) {
-	_content.setVisible(visible);
+	widget()->setVisible(visible);
 }
 
 void LargeVideo::setGeometry(int x, int y, int width, int height) {
-	_content.setGeometry(x, y, width, height);
+	widget()->setGeometry(x, y, width, height);
 	if (width > 0 && height > 0) {
 		const auto kMedium = style::ConvertScale(380);
 		const auto kSmall = style::ConvertScale(200);
@@ -98,7 +134,7 @@ void LargeVideo::setControlsShown(float64 shown) {
 		return;
 	}
 	_controlsShownRatio = shown;
-	_content.update();
+	widget()->update();
 	updateControlsGeometry();
 }
 
@@ -119,19 +155,27 @@ rpl::producer<QSize> LargeVideo::trackSizeValue() const {
 rpl::producer<VideoQuality> LargeVideo::requestedQuality() const {
 	using namespace rpl::mappers;
 	return rpl::combine(
-		_content.shownValue(),
+		_content->shownValue(),
 		_requestedQuality.value()
 	) | rpl::filter([=](bool shown, auto) {
 		return shown;
 	}) | rpl::map(_2);
 }
 
+rpl::lifetime &LargeVideo::lifetime() {
+	return _content->lifetime();
+}
+
+not_null<QWidget*> LargeVideo::widget() const {
+	return _content->rpWidget();
+}
+
 void LargeVideo::setup(
 		rpl::producer<LargeVideoTrack> track,
 		rpl::producer<bool> pinned) {
-	_content.setAttribute(Qt::WA_OpaquePaintEvent);
+	widget()->setAttribute(Qt::WA_OpaquePaintEvent);
 
-	_content.events(
+	_content->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		const auto type = e->type();
 		if (type == QEvent::Enter && _pinButton) {
@@ -147,21 +191,21 @@ void LargeVideo::setup(
 				e.get())->button() == Qt::LeftButton
 			&& _mouseDown) {
 			_mouseDown = false;
-			if (!_content.isHidden()) {
+			if (!widget()->isHidden()) {
 				_clicks.fire({});
 			}
 		}
-	}, _content.lifetime());
+	}, _content->lifetime());
 
 	rpl::combine(
-		_content.shownValue(),
+		_content->shownValue(),
 		std::move(track)
 	) | rpl::map([=](bool shown, LargeVideoTrack track) {
 		return shown ? track : LargeVideoTrack();
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](LargeVideoTrack track) {
 		_track = track;
-		_content.update();
+		widget()->update();
 
 		_trackLifetime.destroy();
 		if (!track.track) {
@@ -176,12 +220,12 @@ void LargeVideo::setup(
 			} else {
 				_trackSize = size;
 			}
-			_content.update();
+			widget()->update();
 		}, _trackLifetime);
 		if (const auto size = track.track->frameSize(); !size.isEmpty()) {
 			_trackSize = size;
 		}
-	}, _content.lifetime());
+	}, _content->lifetime());
 
 	setupControls(std::move(pinned));
 }
@@ -194,7 +238,7 @@ void LargeVideo::togglePinShown(bool shown) {
 	}
 	_pinButton->shown = shown;
 	_pinButton->shownAnimation.start(
-		[=] { updateControlsGeometry(); _content.update(); },
+		[=] { updateControlsGeometry(); widget()->update(); },
 		shown ? 0. : 1.,
 		shown ? 1. : 0.,
 		st::slideWrapDuration);
@@ -211,13 +255,13 @@ void LargeVideo::setupControls(rpl::producer<bool> pinned) {
 					: tr::lng_pinned_pin)(tr::now));
 			updateControlsGeometry();
 		}
-		_content.update();
-	}, _content.lifetime());
+		widget()->update();
+	}, _content->lifetime());
 
-	_content.sizeValue(
+	_content->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
 		updateControlsGeometry();
-	}, _content.lifetime());
+	}, _content->lifetime());
 }
 
 void LargeVideo::updateControlsGeometry() {
@@ -236,20 +280,20 @@ void LargeVideo::updateControlsGeometry() {
 			0,
 			_pinButton->shownAnimation.value(_pinButton->shown ? 1. : 0.));
 		_pinButton->rect = QRect(
-			_content.width() - _st.pinPosition.x() - buttonWidth,
+			widget()->width() - _st.pinPosition.x() - buttonWidth,
 			_st.pinPosition.y() - slide,
 			buttonWidth,
 			buttonHeight);
 		_pinButton->area.setGeometry(
-			_content.width() - fullWidth,
+			widget()->width() - fullWidth,
 			-slide,
 			fullWidth,
 			fullHeight);
 	}
 }
 
-void LargeVideo::paint(QRect clip) {
-	auto p = Painter(&_content);
+void LargeVideo::paint(QRect clip, bool opengl) {
+	auto p = Painter(widget());
 	const auto fill = [&](QRect rect) {
 		if (rect.intersects(clip)) {
 			p.fillRect(rect.intersected(clip), st::groupCallMembersBg);
@@ -264,7 +308,7 @@ void LargeVideo::paint(QRect clip) {
 	}
 	auto hq = PainterHighQualityEnabler(p);
 	using namespace Media::View;
-	const auto size = _content.size();
+	const auto size = widget()->size();
 	const auto scaled = FlipSizeByRotation(
 		image.size(),
 		rotation
@@ -272,7 +316,7 @@ void LargeVideo::paint(QRect clip) {
 	const auto left = (size.width() - scaled.width()) / 2;
 	const auto top = (size.height() - scaled.height()) / 2;
 	const auto target = QRect(QPoint(left, top), scaled);
-	if (UsePainterRotation(rotation, USE_OPENGL_LARGE_VIDEO)) {
+	if (UsePainterRotation(rotation, opengl)) {
 		if (rotation) {
 			p.save();
 			p.rotate(rotation);
@@ -307,8 +351,8 @@ void LargeVideo::paint(QRect clip) {
 }
 
 void LargeVideo::paintControls(Painter &p, QRect clip) {
-	const auto width = _content.width();
-	const auto height = _content.height();
+	const auto width = widget()->width();
+	const auto height = widget()->height();
 
 	// Pin.
 	if (_pinButton && _pinButton->rect.intersects(clip)) {

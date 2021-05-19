@@ -63,9 +63,9 @@ struct OverlayParentTraits : Ui::RpWidgetDefaultTraits {
 };
 
 #if USE_OPENGL_OVERLAY_WIDGET
-using OverlayParent = Ui::RpWidgetWrap<QOpenGLWidget, OverlayParentTraits>;
+using OverlayParent = Ui::RpWidgetBase<QOpenGLWidget, OverlayParentTraits>;
 #else // USE_OPENGL_OVERLAY_WIDGET
-using OverlayParent = Ui::RpWidgetWrap<QWidget, OverlayParentTraits>;
+using OverlayParent = Ui::RpWidgetBase<QWidget, OverlayParentTraits>;
 #endif // USE_OPENGL_OVERLAY_WIDGET
 
 class OverlayWidget final

@@ -9,12 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
-#if 1
-#define USE_OPENGL_LARGE_VIDEO 1
-#else
-#define USE_OPENGL_LARGE_VIDEO 0
-#endif // Q_OS_MAC
-
 namespace style {
 struct GroupCallLargeVideo;
 } // namespace style
@@ -25,6 +19,11 @@ class VideoTrack;
 
 namespace Ui {
 class AbstractButton;
+class RpWidgetWrap;
+namespace GL {
+struct Capabilities;
+struct ChosenRenderer;
+} // namespace GL
 } // namespace Ui
 
 namespace Calls::Group {
@@ -77,45 +76,26 @@ public:
 	[[nodiscard]] rpl::producer<QSize> trackSizeValue() const;
 	[[nodiscard]] rpl::producer<VideoQuality> requestedQuality() const;
 
-	[[nodiscard]] rpl::lifetime &lifetime() {
-		return _content.lifetime();
-	}
+	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
-#if USE_OPENGL_LARGE_VIDEO
-	using ContentParent = Ui::RpWidgetWrap<QOpenGLWidget>;
-#else // USE_OPENGL_OVERLAY_WIDGET
-	using ContentParent = Ui::RpWidget;
-#endif // USE_OPENGL_OVERLAY_WIDGET
-
-	class Content final : public ContentParent {
-	public:
-		Content(QWidget *parent, Fn<void(QRect)> paint)
-		: ContentParent(parent), _paint(std::move(paint)) {
-			Expects(_paint != nullptr);
-		}
-
-	private:
-		void paintEvent(QPaintEvent *e) override {
-			_paint(e->rect());
-		}
-
-		Fn<void(QRect)> _paint;
-
-	};
-
 	struct PinButton;
+
+	[[nodiscard]] not_null<QWidget*> widget() const;
 
 	void setup(
 		rpl::producer<LargeVideoTrack> track,
 		rpl::producer<bool> pinned);
 	void setupControls(rpl::producer<bool> pinned);
-	void paint(QRect clip);
+	void paint(QRect clip, bool opengl);
 	void paintControls(Painter &p, QRect clip);
 	void updateControlsGeometry();
 	void togglePinShown(bool shown);
 
-	Content _content;
+	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
+		Ui::GL::Capabilities capabilities);
+
+	const std::unique_ptr<Ui::RpWidgetWrap> _content;
 	const style::GroupCallLargeVideo &_st;
 	LargeVideoTrack _track;
 	QImage _shadow;

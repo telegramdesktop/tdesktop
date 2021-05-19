@@ -300,6 +300,8 @@ public:
 	[[nodiscard]] ImageLocation userpicLocation() const {
 		return _userpic.location();
 	}
+
+	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
 	[[nodiscard]] bool userpicPhotoUnknown() const {
 		return (_userpicPhotoId == kUnknownPhotoId);
 	}
@@ -410,8 +412,6 @@ private:
 		-> const std::vector<Data::UnavailableReason> &;
 
 	void setUserpicChecked(PhotoId photoId, const ImageLocation &location);
-
-	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
 
 	const not_null<Data::Session*> _owner;
 

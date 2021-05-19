@@ -1263,11 +1263,9 @@ void Panel::setupPinnedVideo() {
 	raw->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Enter) {
-			LOG(("Track Enter"));
 			Ui::Integration::Instance().registerLeaveSubscription(raw);
 			toggleWideControls(true);
 		} else if (e->type() == QEvent::Leave) {
-			LOG(("Track Leave"));
 			Ui::Integration::Instance().unregisterLeaveSubscription(raw);
 			toggleWideControls(false);
 		}
@@ -1281,12 +1279,10 @@ void Panel::toggleWideControls(bool shown) {
 		return;
 	}
 	_showWideControls = shown;
-	LOG(("On Main Scheduled"));
 	crl::on_main(widget(), [=] {
 		if (_wideControlsShown == _showWideControls) {
 			return;
 		}
-		LOG(("On Main Fired: %1").arg(Logs::b(_showWideControls)));
 		_wideControlsShown = _showWideControls;
 		_wideControlsAnimation.start(
 			[=] { updateButtonsGeometry(); },
@@ -1343,7 +1339,7 @@ void Panel::setupAllowedToSpeakToasts() {
 			Ui::ShowMultilineToast({
 				.parentOverride = widget(),
 				.text = { tr::lng_group_call_can_speak_here(tr::now) },
-				});
+			});
 		} else {
 			const auto real = _call->lookupReal();
 			const auto name = (real && !real->title().isEmpty())
@@ -1355,7 +1351,7 @@ void Panel::setupAllowedToSpeakToasts() {
 					lt_chat,
 					Ui::Text::Bold(name),
 					Ui::Text::WithEntities),
-				});
+			});
 		}
 	}, widget()->lifetime());
 }
@@ -1866,10 +1862,8 @@ void Panel::trackControls(bool track) {
 			raw->events(
 			) | rpl::start_with_next([=](not_null<QEvent*> e) {
 				if (e->type() == QEvent::Enter) {
-					LOG(("Track Enter"));
 					toggleWideControls(true);
 				} else if (e->type() == QEvent::Leave) {
-					LOG(("Track Leave"));
 					toggleWideControls(false);
 				}
 			}, _trackControlsOverStateLifetime);

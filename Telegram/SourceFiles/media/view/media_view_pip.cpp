@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/shadow.h"
 #include "ui/text/format_values.h"
+#include "ui/gl/gl_surface.h"
 #include "window/window_controller.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
@@ -372,35 +373,77 @@ QImage RotateFrameImage(QImage image, int rotation) {
 
 PipPanel::PipPanel(
 	QWidget *parent,
-	Fn<void(QPainter&, FrameRequest)> paint)
-: _parent(parent)
+	Fn<void(QPainter&, FrameRequest, bool)> paint)
+: _content(Ui::GL::CreateSurface(
+	parent,
+	[=](Ui::GL::Capabilities capabilities) {
+		return chooseRenderer(capabilities);
+	}))
+, _parent(parent)
 , _paint(std::move(paint)) {
 }
 
+Ui::GL::ChosenRenderer PipPanel::chooseRenderer(
+		Ui::GL::Capabilities capabilities) {
+	class Renderer : public Ui::GL::Renderer {
+	public:
+		Renderer(not_null<PipPanel*> owner) : _owner(owner) {
+		}
+
+		void paintFallback(
+				QPainter &&p,
+				const QRegion &clip,
+				Ui::GL::Backend backend) override {
+			_owner->paint(
+				p,
+				clip,
+				backend == Ui::GL::Backend::OpenGL);
+		}
+
+	private:
+		const not_null<PipPanel*> _owner;
+
+	};
+
+	return {
+		.renderer = std::make_unique<Renderer>(this),
+		.backend = (capabilities.supported
+			? Ui::GL::Backend::OpenGL
+			: Ui::GL::Backend::Raster),
+	};
+}
+
 void PipPanel::init() {
-	setWindowFlags(Qt::Tool
+	widget()->setWindowFlags(Qt::Tool
 		| Qt::WindowStaysOnTopHint
 		| Qt::FramelessWindowHint
 		| Qt::WindowDoesNotAcceptFocus);
-	setAttribute(Qt::WA_ShowWithoutActivating);
-	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
-	setAttribute(Qt::WA_NoSystemBackground);
-	setAttribute(Qt::WA_TranslucentBackground);
-	Ui::Platform::IgnoreAllActivation(this);
-	Ui::Platform::InitOnTopPanel(this);
-	setMouseTracking(true);
-	resize(0, 0);
-	hide();
-	createWinId();
+	widget()->setAttribute(Qt::WA_ShowWithoutActivating);
+	widget()->setAttribute(Qt::WA_MacAlwaysShowToolWindow);
+	widget()->setAttribute(Qt::WA_NoSystemBackground);
+	widget()->setAttribute(Qt::WA_TranslucentBackground);
+	Ui::Platform::IgnoreAllActivation(widget());
+	Ui::Platform::InitOnTopPanel(widget());
+	widget()->setMouseTracking(true);
+	widget()->resize(0, 0);
+	widget()->hide();
+	widget()->createWinId();
+
+	rp()->shownValue(
+	) | rpl::filter([=](bool shown) {
+		return shown;
+	}) | rpl::start_with_next([=] {
+		// Workaround Qt's forced transient parent.
+		Ui::Platform::ClearTransientParent(widget());
+	}, rp()->lifetime());
 }
 
-void PipPanel::setVisibleHook(bool visible) {
-	PipParent::setVisibleHook(visible);
+not_null<QWidget*> PipPanel::widget() const {
+	return _content->rpWidget();
+}
 
-	// workaround Qt's forced transient parent
-	if (visible) {
-		Ui::Platform::ClearTransientParent(this);
-	}
+not_null<Ui::RpWidgetWrap*> PipPanel::rp() const {
+	return _content.get();
 }
 
 void PipPanel::setAspectRatio(QSize ratio) {
@@ -411,7 +454,7 @@ void PipPanel::setAspectRatio(QSize ratio) {
 	if (_ratio.isEmpty()) {
 		_ratio = QSize(1, 1);
 	}
-	if (!size().isEmpty()) {
+	if (!widget()->size().isEmpty()) {
 		setPosition(countPosition());
 	}
 }
@@ -429,7 +472,7 @@ void PipPanel::setPosition(Position position) {
 }
 
 QRect PipPanel::inner() const {
-	return rect().marginsRemoved(_padding);
+	return widget()->rect().marginsRemoved(_padding);
 }
 
 RectParts PipPanel::attached() const {
@@ -452,7 +495,10 @@ rpl::producer<> PipPanel::saveGeometryRequests() const {
 }
 
 QScreen *PipPanel::myScreen() const {
-	return windowHandle() ? windowHandle()->screen() : nullptr;
+	if (const auto window = widget()->windowHandle()) {
+		return window->screen();
+	}
+	return nullptr;
 }
 
 PipPanel::Position PipPanel::countPosition() const {
@@ -462,7 +508,7 @@ PipPanel::Position PipPanel::countPosition() const {
 	}
 	auto result = Position();
 	result.screen = screen->geometry();
-	result.geometry = geometry().marginsRemoved(_padding);
+	result.geometry = widget()->geometry().marginsRemoved(_padding);
 	const auto available = screen->availableGeometry();
 	const auto skip = st::pipBorderSkip;
 	const auto left = result.geometry.x();
@@ -501,9 +547,9 @@ void PipPanel::setPositionDefault() {
 		return nullptr;
 	};
 	const auto parentScreen = widgetScreen(_parent);
-	const auto myScreen = widgetScreen(this);
+	const auto myScreen = widgetScreen(widget());
 	if (parentScreen && myScreen && myScreen != parentScreen) {
-		windowHandle()->setScreen(parentScreen);
+		widget()->windowHandle()->setScreen(parentScreen);
 	}
 	const auto screen = parentScreen
 		? parentScreen
@@ -583,21 +629,19 @@ void PipPanel::setPositionOnScreen(Position position, QRect available) {
 
 	geometry += _padding;
 
-	setGeometry(geometry);
-	setMinimumSize(minimalSize);
-	setMaximumSize(
+	widget()->setGeometry(geometry);
+	widget()->setMinimumSize(minimalSize);
+	widget()->setMaximumSize(
 		std::max(minimalSize.width(), maximalSize.width()),
 		std::max(minimalSize.height(), maximalSize.height()));
 	updateDecorations();
-	update();
+	widget()->update();
 }
 
-void PipPanel::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
-
-	if (_useTransparency && USE_OPENGL_PIP_WIDGET) {
+void PipPanel::paint(QPainter &p, const QRegion &clip, bool opengl) {
+	if (_useTransparency && opengl) {
 		p.setCompositionMode(QPainter::CompositionMode_Source);
-		for (const auto rect : e->region()) {
+		for (const auto rect : clip) {
 			p.fillRect(rect, Qt::transparent);
 		}
 		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
@@ -622,27 +666,27 @@ void PipPanel::paintEvent(QPaintEvent *e) {
 	request.radius = ImageRoundRadius::Large;
 	if (_useTransparency) {
 		const auto sides = RectPart::AllSides & ~_attached;
-		Ui::Shadow::paint(p, inner, width(), st::callShadow);
+		Ui::Shadow::paint(p, inner, widget()->width(), st::callShadow);
 	}
-	_paint(p, request);
+	_paint(p, request, opengl);
 }
 
-void PipPanel::mousePressEvent(QMouseEvent *e) {
-	if (e->button() != Qt::LeftButton) {
+void PipPanel::handleMousePress(QPoint position, Qt::MouseButton button) {
+	if (button != Qt::LeftButton) {
 		return;
 	}
-	updateOverState(e->pos());
+	updateOverState(position);
 	_pressState = _overState;
-	_pressPoint = e->globalPos();
+	_pressPoint = QCursor::pos();
 }
 
-void PipPanel::mouseReleaseEvent(QMouseEvent *e) {
-	if (e->button() != Qt::LeftButton || !base::take(_pressState)) {
+void PipPanel::handleMouseRelease(QPoint position, Qt::MouseButton button) {
+	if (button != Qt::LeftButton || !base::take(_pressState)) {
 		return;
 	} else if (!base::take(_dragState)) {
 		//playbackPauseResume();
 	} else {
-		finishDrag(e->globalPos());
+		finishDrag(QCursor::pos());
 	}
 }
 
@@ -656,26 +700,28 @@ void PipPanel::updateOverState(QPoint point) {
 	const auto top = count(RectPart::Top, _padding.top());
 	const auto right = count(RectPart::Right, _padding.right());
 	const auto bottom = count(RectPart::Bottom, _padding.bottom());
+	const auto width = widget()->width();
+	const auto height = widget()->height();
 	const auto overState = [&] {
 		if (point.x() < left) {
 			if (point.y() < top) {
 				return RectPart::TopLeft;
-			} else if (point.y() >= height() - bottom) {
+			} else if (point.y() >= height - bottom) {
 				return RectPart::BottomLeft;
 			} else {
 				return RectPart::Left;
 			}
-		} else if (point.x() >= width() - right) {
+		} else if (point.x() >= width - right) {
 			if (point.y() < top) {
 				return RectPart::TopRight;
-			} else if (point.y() >= height() - bottom) {
+			} else if (point.y() >= height - bottom) {
 				return RectPart::BottomRight;
 			} else {
 				return RectPart::Right;
 			}
 		} else if (point.y() < top) {
 			return RectPart::Top;
-		} else if (point.y() >= height() - bottom) {
+		} else if (point.y() >= height - bottom) {
 			return RectPart::Bottom;
 		} else {
 			return RectPart::Center;
@@ -683,7 +729,7 @@ void PipPanel::updateOverState(QPoint point) {
 	}();
 	if (_overState != overState) {
 		_overState = overState;
-		setCursor([&] {
+		widget()->setCursor([&] {
 			switch (_overState) {
 			case RectPart::Center:
 				return style::cur_pointer;
@@ -705,19 +751,19 @@ void PipPanel::updateOverState(QPoint point) {
 	}
 }
 
-void PipPanel::mouseMoveEvent(QMouseEvent *e) {
+void PipPanel::handleMouseMove(QPoint position) {
 	if (!_pressState) {
-		updateOverState(e->pos());
+		updateOverState(position);
 		return;
 	}
-	const auto point = e->globalPos();
+	const auto point = QCursor::pos();
 	const auto distance = QApplication::startDragDistance();
 	if (!_dragState
 		&& (point - _pressPoint).manhattanLength() > distance
 		&& !_dragDisabled) {
 		_dragState = _pressState;
 		updateDecorations();
-		_dragStartGeometry = geometry().marginsRemoved(_padding);
+		_dragStartGeometry = widget()->geometry().marginsRemoved(_padding);
 	}
 	if (_dragState) {
 		if (Platform::IsWayland()) {
@@ -733,9 +779,9 @@ void PipPanel::startSystemDrag() {
 
 	const auto stateEdges = RectPartToQtEdges(*_dragState);
 	if (stateEdges) {
-		windowHandle()->startSystemResize(stateEdges);
+		widget()->windowHandle()->startSystemResize(stateEdges);
 	} else {
-		windowHandle()->startSystemMove();
+		widget()->windowHandle()->startSystemMove();
 	}
 }
 
@@ -780,14 +826,14 @@ void PipPanel::processDrag(QPoint point) {
 	} else {
 		const auto newGeometry = valid.marginsAdded(_padding);
 		_positionAnimation.stop();
-		setGeometry(newGeometry);
+		widget()->setGeometry(newGeometry);
 	}
 }
 
 void PipPanel::finishDrag(QPoint point) {
 	const auto screen = ScreenFromPosition(point);
-	const auto inner = geometry().marginsRemoved(_padding);
-	const auto position = pos();
+	const auto inner = widget()->geometry().marginsRemoved(_padding);
+	const auto position = widget()->pos();
 	const auto clamped = [&] {
 		auto result = position;
 		if (Platform::IsWayland()) {
@@ -818,7 +864,8 @@ void PipPanel::finishDrag(QPoint point) {
 void PipPanel::updatePositionAnimated() {
 	const auto progress = _positionAnimation.value(1.);
 	if (!_positionAnimation.animating()) {
-		move(_positionAnimationTo - QPoint(_padding.left(), _padding.top()));
+		widget()->move(_positionAnimationTo
+			- QPoint(_padding.left(), _padding.top()));
 		if (!_dragState) {
 			updateDecorations();
 		}
@@ -826,7 +873,7 @@ void PipPanel::updatePositionAnimated() {
 	}
 	const auto from = QPointF(_positionAnimationFrom);
 	const auto to = QPointF(_positionAnimationTo);
-	move((from + (to - from) * progress).toPoint()
+	widget()->move((from + (to - from) * progress).toPoint()
 		- QPoint(_padding.left(), _padding.top()));
 }
 
@@ -835,7 +882,8 @@ void PipPanel::moveAnimated(QPoint to) {
 		return;
 	}
 	_positionAnimationTo = to;
-	_positionAnimationFrom = pos() + QPoint(_padding.left(), _padding.top());
+	_positionAnimationFrom = widget()->pos()
+		+ QPoint(_padding.left(), _padding.top());
 	_positionAnimation.stop();
 	_positionAnimation.start(
 		[=] { updatePositionAnimated(); },
@@ -868,9 +916,9 @@ void PipPanel::updateDecorations() {
 	_attached = position.attached;
 	_padding = padding;
 	_useTransparency = use;
-	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
-	setGeometry(newGeometry);
-	update();
+	widget()->setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
+	widget()->setGeometry(newGeometry);
+	widget()->update();
 }
 
 Pip::Pip(
@@ -886,7 +934,9 @@ Pip::Pip(
 , _instance(std::move(shared), [=] { waitingAnimationCallback(); })
 , _panel(
 	_delegate->pipParentWidget(),
-	[=](QPainter &p, const FrameRequest &request) { paint(p, request); })
+	[=](QPainter &p, const FrameRequest &request, bool opengl) {
+		paint(p, request, opengl);
+	})
 , _playbackProgress(std::make_unique<PlaybackProgress>())
 , _rotation(data->owner().mediaRotation().get(data))
 , _roundRect(ImageRoundRadius::Large, st::radialBg)
@@ -899,7 +949,7 @@ Pip::Pip(
 	_data->session().account().sessionChanges(
 	) | rpl::start_with_next([=] {
 		_destroy();
-	}, _panel.lifetime());
+	}, _panel.rp()->lifetime());
 }
 
 Pip::~Pip() = default;
@@ -920,14 +970,14 @@ void Pip::setupPanel() {
 	}();
 	_panel.setAspectRatio(FlipSizeByRotation(size, _rotation));
 	_panel.setPosition(Deserialize(_delegate->pipLoadGeometry()));
-	_panel.show();
+	_panel.widget()->show();
 
 	_panel.saveGeometryRequests(
 	) | rpl::start_with_next([=] {
 		saveGeometry();
-	}, _panel.lifetime());
+	}, _panel.rp()->lifetime());
 
-	_panel.events(
+	_panel.rp()->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		const auto mousePosition = [&] {
 			return static_cast<QMouseEvent*>(e.get())->pos();
@@ -951,11 +1001,11 @@ void Pip::setupPanel() {
 			handleDoubleClick(mouseButton());
 			break;
 		}
-	}, _panel.lifetime());
+	}, _panel.rp()->lifetime());
 }
 
 void Pip::handleClose() {
-	crl::on_main(&_panel, [=] {
+	crl::on_main(_panel.widget(), [=] {
 		_destroy();
 	});
 }
@@ -965,6 +1015,7 @@ void Pip::handleLeave() {
 }
 
 void Pip::handleMouseMove(QPoint position) {
+	_panel.handleMouseMove(position);
 	setOverState(computeState(position));
 	seekUpdate(position);
 }
@@ -978,7 +1029,7 @@ void Pip::setOverState(OverState state) {
 	const auto nowShown = (_over != OverState::None);
 	if ((was != OverState::None) != nowShown) {
 		_controlsShown.start(
-			[=] { _panel.update(); },
+			[=] { _panel.widget()->update(); },
 			nowShown ? 0. : 1.,
 			nowShown ? 1. : 0.,
 			st::fadeWrapDuration,
@@ -987,7 +1038,7 @@ void Pip::setOverState(OverState state) {
 	if (!_pressed) {
 		updateActiveState(was);
 	}
-	_panel.update();
+	_panel.widget()->update();
 }
 
 void Pip::setPressedState(std::optional<OverState> state) {
@@ -1012,7 +1063,7 @@ void Pip::updateActiveState(OverState was) {
 		const auto now = (activeState() == button.state);
 		if ((was == button.state) != now) {
 			button.active.start(
-				[=, &button] { _panel.update(button.icon); },
+				[=, &button] { _panel.widget()->update(button.icon); },
 				now ? 0. : 1.,
 				now ? 1. : 0.,
 				st::fadeWrapDuration,
@@ -1026,6 +1077,7 @@ void Pip::updateActiveState(OverState was) {
 }
 
 void Pip::handleMousePress(QPoint position, Qt::MouseButton button) {
+	_panel.handleMousePress(position, button);
 	if (button != Qt::LeftButton) {
 		return;
 	}
@@ -1037,6 +1089,7 @@ void Pip::handleMousePress(QPoint position, Qt::MouseButton button) {
 }
 
 void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
+	_panel.handleMouseRelease(position, button);
 	if (button != Qt::LeftButton) {
 		return;
 	}
@@ -1053,7 +1106,7 @@ void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 
 	_lastHandledPress = _over;
 	switch (_over) {
-	case OverState::Close: _panel.close(); break;
+	case OverState::Close: _panel.widget()->close(); break;
 	case OverState::Enlarge: _closeAndContinue(); break;
 	case OverState::Other: playbackPauseResume(); break;
 	}
@@ -1120,7 +1173,7 @@ void Pip::setupButtons() {
 	_enlarge.state = OverState::Enlarge;
 	_playback.state = OverState::Playback;
 	_play.state = OverState::Other;
-	_panel.sizeValue(
+	_panel.rp()->sizeValue(
 	) | rpl::map([=] {
 		return _panel.inner();
 	}) | rpl::start_with_next([=](QRect rect) {
@@ -1162,12 +1215,12 @@ void Pip::setupButtons() {
 			playbackHeight);
 		_playback.icon = _playback.area.marginsRemoved(
 			{ playbackSkip, playbackSkip, playbackSkip, playbackSkip });
-	}, _panel.lifetime());
+	}, _panel.rp()->lifetime());
 
 	_playbackProgress->setValueChangedCallback([=](
 			float64 value,
 			float64 receivedTill) {
-		_panel.update(_playback.area);
+		_panel.widget()->update(_playback.area);
 	});
 }
 
@@ -1179,7 +1232,7 @@ void Pip::updatePlayPauseResumeState(const Player::TrackState &state) {
 	auto showPause = Player::ShowPauseIcon(state.state);
 	if (showPause != _showPause) {
 		_showPause = showPause;
-		_panel.update();
+		_panel.widget()->update();
 	}
 }
 
@@ -1196,7 +1249,7 @@ void Pip::setupStreaming() {
 	updatePlaybackState();
 }
 
-void Pip::paint(QPainter &p, FrameRequest request) {
+void Pip::paint(QPainter &p, FrameRequest request, bool opengl) {
 	const auto image = videoFrameForDirectPaint(
 		UnrotateRequest(request, _rotation));
 	const auto inner = _panel.inner();
@@ -1204,7 +1257,7 @@ void Pip::paint(QPainter &p, FrameRequest request) {
 		inner.topLeft(),
 		request.outer / style::DevicePixelRatio()
 	};
-	if (UsePainterRotation(_rotation, USE_OPENGL_PIP_WIDGET)) {
+	if (UsePainterRotation(_rotation, opengl)) {
 		if (_rotation) {
 			p.save();
 			p.rotate(_rotation);
@@ -1257,7 +1310,7 @@ void Pip::paintFade(QPainter &p) const {
 
 void Pip::paintButtons(QPainter &p) const {
 	const auto opacity = p.opacity();
-	const auto outer = _panel.width();
+	const auto outer = _panel.widget()->width();
 	const auto drawOne = [&](
 			const Button &button,
 			const style::icon &icon,
@@ -1344,7 +1397,7 @@ void Pip::handleStreamingUpdate(Streaming::Update &&update) {
 	}, [&](const PreloadedVideo &update) {
 		updatePlaybackState();
 	}, [&](const UpdateVideo &update) {
-		_panel.update();
+		_panel.widget()->update();
 		Core::App().updateNonIdle();
 		updatePlaybackState();
 	}, [&](const PreloadedAudio &update) {
@@ -1399,7 +1452,7 @@ void Pip::updatePlaybackTexts(
 	_timeAlready = already;
 	_timeLeft = left;
 	_timeLeftWidth = st::pipPlaybackFont->width(_timeLeft);
-	_panel.update(QRect(
+	_panel.widget()->update(QRect(
 		_playback.area.x(),
 		_playback.icon.y() - st::pipPlaybackFont->height,
 		_playback.area.width(),
@@ -1407,12 +1460,12 @@ void Pip::updatePlaybackTexts(
 }
 
 void Pip::handleStreamingError(Streaming::Error &&error) {
-	_panel.close();
+	_panel.widget()->close();
 }
 
 void Pip::playbackPauseResume() {
 	if (_instance.player().failed()) {
-		_panel.close();
+		_panel.widget()->close();
 	} else if (_instance.player().finished()
 		|| !_instance.player().active()) {
 		_startPaused = false;
@@ -1602,7 +1655,7 @@ void Pip::paintRadialLoadingContent(QPainter &p, const QRect &inner) const {
 		_instance.waitingState(),
 		arc.topLeft(),
 		arc.size(),
-		_panel.width(),
+		_panel.widget()->width(),
 		st::radialFg,
 		st::radialLine);
 }
@@ -1632,7 +1685,7 @@ Pip::OverState Pip::computeState(QPoint position) const {
 }
 
 void Pip::waitingAnimationCallback() {
-	_panel.update(countRadialRect());
+	_panel.widget()->update(countRadialRect());
 }
 
 } // namespace View

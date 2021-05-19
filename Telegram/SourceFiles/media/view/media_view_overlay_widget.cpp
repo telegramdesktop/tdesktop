@@ -474,7 +474,9 @@ void OverlayWidget::updateGeometry() {
 	const auto useSizeHack = (USE_OPENGL_OVERLAY_WIDGET
 		&& Platform::IsWindows());
 	const auto use = available.marginsAdded({ 0, 0, 0, 1 });
-	const auto mask = useSizeHack ? QRegion(available) : QRegion();
+	const auto mask = useSizeHack
+		? QRegion(QRect(QPoint(), available.size()))
+		: QRegion();
 	if ((geometry() == use)
 		&& (!useSizeHack || (window && window->mask() == mask))) {
 		return;
