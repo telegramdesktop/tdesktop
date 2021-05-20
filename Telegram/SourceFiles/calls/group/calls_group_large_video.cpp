@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_common.h"
 #include "calls/group/calls_group_members_row.h"
 #include "media/view/media_view_pip.h"
+#include "base/platform/base_platform_info.h"
 #include "webrtc/webrtc_video_track.h"
 #include "ui/painter.h"
 #include "ui/abstract_button.h"
@@ -87,10 +88,11 @@ Ui::GL::ChosenRenderer LargeVideo::chooseRenderer(
 		}
 
 		void paintFallback(
-				QPainter &&p,
+				Painter &&p,
 				const QRegion &clip,
 				Ui::GL::Backend backend) override {
 			_owner->paint(
+				p,
 				clip.boundingRect(),
 				backend == Ui::GL::Backend::OpenGL);
 		}
@@ -100,11 +102,15 @@ Ui::GL::ChosenRenderer LargeVideo::chooseRenderer(
 
 	};
 
+	const auto use = Platform::IsMac()
+		? true
+		: Platform::IsWindows()
+		? capabilities.supported
+		: capabilities.transparency;
+	LOG(("OpenGL: %1 (LargeVideo)").arg(Logs::b(use)));
 	return {
 		.renderer = std::make_unique<Renderer>(this),
-		.backend = (capabilities.supported
-			? Ui::GL::Backend::OpenGL
-			: Ui::GL::Backend::Raster),
+		.backend = (use ? Ui::GL::Backend::OpenGL : Ui::GL::Backend::Raster),
 	};
 }
 
@@ -292,8 +298,7 @@ void LargeVideo::updateControlsGeometry() {
 	}
 }
 
-void LargeVideo::paint(QRect clip, bool opengl) {
-	auto p = Painter(widget());
+void LargeVideo::paint(Painter &p, QRect clip, bool opengl) {
 	const auto fill = [&](QRect rect) {
 		if (rect.intersects(clip)) {
 			p.fillRect(rect.intersected(clip), st::groupCallMembersBg);

@@ -107,7 +107,7 @@ Ui::GL::ChosenRenderer Panel::Incoming::chooseRenderer(
 		}
 
 		void paintFallback(
-				QPainter &&p,
+				Painter &&p,
 				const QRegion &clip,
 				Ui::GL::Backend backend) override {
 			_owner->paint(
@@ -121,11 +121,15 @@ Ui::GL::ChosenRenderer Panel::Incoming::chooseRenderer(
 
 	};
 
+	const auto use = Platform::IsMac()
+		? true
+		: Platform::IsWindows()
+		? capabilities.supported
+		: capabilities.transparency;
+	LOG(("OpenGL: %1 (Incoming)").arg(Logs::b(use)));
 	return {
 		.renderer = std::make_unique<Renderer>(this),
-		.backend = (capabilities.supported
-			? Ui::GL::Backend::OpenGL
-			: Ui::GL::Backend::Raster),
+		.backend = (use ? Ui::GL::Backend::OpenGL : Ui::GL::Backend::Raster),
 	};
 }
 

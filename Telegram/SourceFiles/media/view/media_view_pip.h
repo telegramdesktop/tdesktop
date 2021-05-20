@@ -95,8 +95,8 @@ private:
 	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
 		Ui::GL::Capabilities capabilities);
 
-	std::unique_ptr<Ui::RpWidgetWrap> _content;
-	QPointer<QWidget> _parent;
+	const std::unique_ptr<Ui::RpWidgetWrap> _content;
+	const QPointer<QWidget> _parent;
 	Fn<void(QPainter&, FrameRequest, bool)> _paint;
 	RectParts _attached = RectParts();
 	RectParts _snapped = RectParts();

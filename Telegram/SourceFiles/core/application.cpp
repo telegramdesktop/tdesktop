@@ -368,8 +368,6 @@ void Application::showPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	Expects(_mediaView != nullptr);
 
 	_mediaView->showPhoto(photo, item);
-	_mediaView->activateWindow();
-	_mediaView->setFocus();
 }
 
 void Application::showPhoto(
@@ -378,8 +376,6 @@ void Application::showPhoto(
 	Expects(_mediaView != nullptr);
 
 	_mediaView->showPhoto(photo, peer);
-	_mediaView->activateWindow();
-	_mediaView->setFocus();
 }
 
 void Application::showDocument(not_null<DocumentData*> document, HistoryItem *item) {
@@ -391,8 +387,6 @@ void Application::showDocument(not_null<DocumentData*> document, HistoryItem *it
 		File::Launch(document->location(false).fname);
 	} else {
 		_mediaView->showDocument(document, item);
-		_mediaView->activateWindow();
-		_mediaView->setFocus();
 	}
 }
 
@@ -402,8 +396,6 @@ void Application::showTheme(
 	Expects(_mediaView != nullptr);
 
 	_mediaView->showTheme(document, cloud);
-	_mediaView->activateWindow();
-	_mediaView->setFocus();
 }
 
 PeerData *Application::ui_getPeerForMouseAction() {
@@ -976,7 +968,7 @@ bool Application::minimizeActiveWindow() {
 }
 
 QWidget *Application::getFileDialogParent() {
-	return (_mediaView && _mediaView->isVisible())
+	return (_mediaView && !_mediaView->isHidden())
 		? (QWidget*)_mediaView.get()
 		: activeWindow()
 		? (QWidget*)activeWindow()->widget()
@@ -991,9 +983,7 @@ void Application::notifyFileDialogShown(bool shown) {
 
 void Application::checkMediaViewActivation() {
 	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->activateWindow();
-		QApplication::setActiveWindow(_mediaView.get());
-		_mediaView->setFocus();
+		_mediaView->activate();
 	}
 }
 

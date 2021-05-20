@@ -87,7 +87,7 @@ private:
 		rpl::producer<LargeVideoTrack> track,
 		rpl::producer<bool> pinned);
 	void setupControls(rpl::producer<bool> pinned);
-	void paint(QRect clip, bool opengl);
+	void paint(Painter &p, QRect clip, bool opengl);
 	void paintControls(Painter &p, QRect clip);
 	void updateControlsGeometry();
 	void togglePinShown(bool shown);

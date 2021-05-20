@@ -391,7 +391,7 @@ Ui::GL::ChosenRenderer PipPanel::chooseRenderer(
 		}
 
 		void paintFallback(
-				QPainter &&p,
+				Painter &&p,
 				const QRegion &clip,
 				Ui::GL::Backend backend) override {
 			_owner->paint(
@@ -405,11 +405,13 @@ Ui::GL::ChosenRenderer PipPanel::chooseRenderer(
 
 	};
 
+	const auto use = Platform::IsMac()
+		? true
+		: capabilities.transparency;
+	LOG(("OpenGL: %1 (PipPanel)").arg(Logs::b(use)));
 	return {
 		.renderer = std::make_unique<Renderer>(this),
-		.backend = (capabilities.supported
-			? Ui::GL::Backend::OpenGL
-			: Ui::GL::Backend::Raster),
+		.backend = (use ? Ui::GL::Backend::OpenGL : Ui::GL::Backend::Raster),
 	};
 }
 

@@ -27,6 +27,10 @@ namespace Ui {
 class PopupMenu;
 class LinkButton;
 class RoundButton;
+namespace GL {
+struct ChosenRenderer;
+struct Capabilities;
+} // namespace GL
 } // namespace Ui
 
 namespace Window {
@@ -52,25 +56,8 @@ namespace View {
 class GroupThumbs;
 class Pip;
 
-#if 1
-#define USE_OPENGL_OVERLAY_WIDGET 1
-#else // Q_OS_MAC && !OS_MAC_OLD
-#define USE_OPENGL_OVERLAY_WIDGET 0
-#endif // Q_OS_MAC && !OS_MAC_OLD
-
-struct OverlayParentTraits : Ui::RpWidgetDefaultTraits {
-	static constexpr bool kSetZeroGeometry = false;
-};
-
-#if USE_OPENGL_OVERLAY_WIDGET
-using OverlayParent = Ui::RpWidgetBase<QOpenGLWidget, OverlayParentTraits>;
-#else // USE_OPENGL_OVERLAY_WIDGET
-using OverlayParent = Ui::RpWidgetBase<QWidget, OverlayParentTraits>;
-#endif // USE_OPENGL_OVERLAY_WIDGET
-
 class OverlayWidget final
-	: public OverlayParent
-	, public ClickHandlerHost
+	: public ClickHandlerHost
 	, private PlaybackControls::Delegate {
 public:
 	OverlayWidget();
@@ -82,6 +69,12 @@ public:
 		None,
 	};
 
+	[[nodiscard]] bool isHidden() const;
+	void hide();
+	void setCursor(style::cursor cursor);
+	void setFocus();
+	void activate();
+
 	void showPhoto(not_null<PhotoData*> photo, HistoryItem *context);
 	void showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> context);
 	void showDocument(
@@ -91,12 +84,14 @@ public:
 		not_null<DocumentData*> document,
 		const Data::CloudTheme &cloud);
 
-	void leaveToChildEvent(QEvent *e, QWidget *child) override { // e -- from enterEvent() of child TWidget
-		updateOverState(OverNone);
-	}
-	void enterFromChildEvent(QEvent *e, QWidget *child) override { // e -- from leaveEvent() of child TWidget
-		updateOver(mapFromGlobal(QCursor::pos()));
-	}
+	//void leaveToChildEvent(QEvent *e, QWidget *child) override {
+	//	// e -- from enterEvent() of child TWidget
+	//	updateOverState(OverNone);
+	//}
+	//void enterFromChildEvent(QEvent *e, QWidget *child) override {
+	//	// e -- from leaveEvent() of child TWidget
+	//	updateOver(mapFromGlobal(QCursor::pos()));
+	//}
 
 	void activateControls();
 	void close();
@@ -110,6 +105,8 @@ public:
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+
+	rpl::lifetime &lifetime();
 
 private:
 	struct Streamed;
@@ -142,24 +139,29 @@ private:
 		SaveAs,
 	};
 
-	void paintEvent(QPaintEvent *e) override;
-	void moveEvent(QMoveEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
+	[[nodiscard]] not_null<QWindow*> window() const;
+	[[nodiscard]] int width() const;
+	[[nodiscard]] int height() const;
+	void update();
+	void update(const QRegion &region);
 
-	void keyPressEvent(QKeyEvent *e) override;
-	void wheelEvent(QWheelEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseDoubleClickEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
-	void touchEvent(QTouchEvent *e);
+	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
+		Ui::GL::Capabilities capabilities);
+	void paint(Painter &p, const QRegion &clip);
 
-	bool eventHook(QEvent *e) override;
-	bool eventFilter(QObject *obj, QEvent *e) override;
+	void handleMousePress(QPoint position, Qt::MouseButton button);
+	void handleMouseRelease(QPoint position, Qt::MouseButton button);
+	void handleMouseMove(QPoint position);
+	bool handleContextMenu(std::optional<QPoint> position);
+	bool handleDoubleClick(QPoint position);
+	bool handleTouchEvent(not_null<QTouchEvent*> e);
+	void handleWheelEvent(not_null<QWheelEvent*> e);
+	void handleKeyPress(not_null<QKeyEvent*> e);
 
-	void setVisibleHook(bool visible) override;
-
+	void toggleApplicationEventFilter(bool install);
+	bool filterApplicationEvent(
+		not_null<QObject*> object,
+		not_null<QEvent*> e);
 	void setSession(not_null<Main::Session*> session);
 
 	void playbackControlsPlay() override;
@@ -214,7 +216,6 @@ private:
 	bool moveToNext(int delta);
 	void preloadData(int delta);
 
-	void handleVisibleChanged(bool visible);
 	void handleScreenChanged(QScreen *screen);
 
 	bool contentCanBeSaved() const;
@@ -379,6 +380,9 @@ private:
 
 	void applyHideWindowWorkaround();
 
+	bool _opengl = false;
+	const std::unique_ptr<Ui::RpWidgetWrap> _surface;
+	const not_null<QWidget*> _widget;
 	QBrush _transparentBrush;
 
 	Main::Session *_session = nullptr;
@@ -435,7 +439,9 @@ private:
 	int32 _dragging = 0;
 	QPixmap _staticContent;
 	bool _blurred = true;
+
 	rpl::lifetime _screenGeometryLifetime;
+	std::unique_ptr<QObject> _applicationEventFilter;
 
 	std::unique_ptr<Streamed> _streamed;
 	std::unique_ptr<PipWrap> _pip;
@@ -509,7 +515,6 @@ private:
 	bool _touchRightButton = false;
 	base::Timer _touchTimer;
 	QPoint _touchStart;
-	QPoint _accumScroll;
 
 	QString _saveMsgFilename;
 	crl::time _saveMsgStarted = 0;
