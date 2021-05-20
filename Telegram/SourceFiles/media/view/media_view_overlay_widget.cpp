@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/openssl_help.h"
 #include "base/unixtime.h"
+#include "base/qt_signal_producer.h"
 #include "main/main_account.h"
 #include "main/main_domain.h" // Domain::activeSessionValue.
 #include "main/main_session.h"
@@ -352,8 +353,6 @@ OverlayWidget::OverlayWidget()
 	_saveMsgText.setMarkedText(st::mediaviewSaveMsgStyle, text, Ui::DialogTextOptions());
 	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::mediaviewSaveMsgPadding.left() + st::mediaviewSaveMsgPadding.right(), st::mediaviewSaveMsgStyle.font->height + st::mediaviewSaveMsgPadding.top() + st::mediaviewSaveMsgPadding.bottom());
 
-	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
-
 	if (Platform::IsLinux()) {
 		setWindowFlags(Qt::FramelessWindowHint
 			| Qt::MaximizeUsingFullscreenGeometryHint);
@@ -392,6 +391,7 @@ OverlayWidget::OverlayWidget()
 		&QWindow::screenChanged,
 		this,
 		[=](QScreen *screen) { handleScreenChanged(screen); });
+	subscribeToScreenGeometry();
 
 #if defined Q_OS_MAC && !defined OS_OSX
 	TouchBar::SetupMediaViewTouchBar(
@@ -420,16 +420,16 @@ OverlayWidget::OverlayWidget()
 	_saveMsgUpdater.setCallback([=] { updateImage(); });
 
 	setAttribute(Qt::WA_AcceptTouchEvents);
-	_touchTimer.setCallback([=] { onTouchTimer(); });
+	_touchTimer.setCallback([=] { handleTouchTimer(); });
 
-	_controlsHideTimer.setCallback([=] { onHideControls(); });
+	_controlsHideTimer.setCallback([=] { hideControls(); });
 
-	_docDownload->addClickHandler([=] { onDownload(); });
-	_docSaveAs->addClickHandler([=] { onSaveAs(); });
-	_docCancel->addClickHandler([=] { onSaveCancel(); });
+	_docDownload->addClickHandler([=] { downloadMedia(); });
+	_docSaveAs->addClickHandler([=] { saveAs(); });
+	_docCancel->addClickHandler([=] { saveCancel(); });
 
 	_dropdown->setHiddenCallback([this] { dropdownHidden(); });
-	_dropdownShowTimer.setCallback([=] { onDropdown(); });
+	_dropdownShowTimer.setCallback([=] { showDropdown(); });
 }
 
 void OverlayWidget::refreshLang() {
@@ -698,10 +698,10 @@ void OverlayWidget::checkForSaveLoaded() {
 		return;
 	} else if (_savePhotoVideoWhenLoaded == SavePhotoVideo::QuickSave) {
 		_savePhotoVideoWhenLoaded = SavePhotoVideo::None;
-		onDownload();
+		downloadMedia();
 	} else if (_savePhotoVideoWhenLoaded == SavePhotoVideo::SaveAs) {
 		_savePhotoVideoWhenLoaded = SavePhotoVideo::None;
-		onSaveAs();
+		saveAs();
 	} else {
 		Unexpected("SavePhotoVideo in OverlayWidget::checkForSaveLoaded.");
 	}
@@ -838,35 +838,28 @@ void OverlayWidget::refreshCaptionGeometry() {
 
 void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 	if (_document && _document->loading()) {
-		addAction(tr::lng_cancel(tr::now), [=] { onSaveCancel(); });
+		addAction(tr::lng_cancel(tr::now), [=] { saveCancel(); });
 	}
 	if (IsServerMsgId(_msgid.msg)) {
-		addAction(tr::lng_context_to_msg(tr::now), [=] { onToMessage(); });
+		addAction(tr::lng_context_to_msg(tr::now), [=] { toMessage(); });
 	}
 	if (_document && !_document->filepath(true).isEmpty()) {
 		const auto text =  Platform::IsMac()
 			? tr::lng_context_show_in_finder(tr::now)
 			: tr::lng_context_show_in_folder(tr::now);
-		addAction(text, [=] { onShowInFolder(); });
+		addAction(text, [=] { showInFolder(); });
 	}
 	if ((_document && documentContentShown()) || (_photo && _photoMedia->loaded())) {
-		addAction(tr::lng_mediaview_copy(tr::now), [=] { onCopy(); });
+		addAction(tr::lng_mediaview_copy(tr::now), [=] { copyMedia(); });
 	}
 	if ((_photo && _photo->hasAttachedStickers())
 		|| (_document && _document->hasAttachedStickers())) {
-		auto callback = [=] {
-			if (_photo) {
-				onPhotoAttachedStickers();
-			} else if (_document) {
-				onDocumentAttachedStickers();
-			}
-		};
 		addAction(
 			tr::lng_context_attached_stickers(tr::now),
-			std::move(callback));
+			[=] { showAttachedStickers(); });
 	}
 	if (_canForwardItem) {
-		addAction(tr::lng_mediaview_forward(tr::now), [=] { onForward(); });
+		addAction(tr::lng_mediaview_forward(tr::now), [=] { forwardMedia(); });
 	}
 	const auto canDelete = [&] {
 		if (_canDeleteItem) {
@@ -886,15 +879,15 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 		return false;
 	}();
 	if (canDelete) {
-		addAction(tr::lng_mediaview_delete(tr::now), [=] { onDelete(); });
+		addAction(tr::lng_mediaview_delete(tr::now), [=] { deleteMedia(); });
 	}
-	addAction(tr::lng_mediaview_save_as(tr::now), [=] { onSaveAs(); });
+	addAction(tr::lng_mediaview_save_as(tr::now), [=] { saveAs(); });
 
 	if (const auto overviewType = computeOverviewType()) {
 		const auto text = _document
 			? tr::lng_mediaview_files_all(tr::now)
 			: tr::lng_mediaview_photos_all(tr::now);
-		addAction(text, [=] { onOverview(); });
+		addAction(text, [=] { showMediaOverview(); });
 	}
 }
 
@@ -1300,7 +1293,7 @@ void OverlayWidget::activateControls() {
 	}
 }
 
-void OverlayWidget::onHideControls(bool force) {
+void OverlayWidget::hideControls(bool force) {
 	if (!force) {
 		if (!_dropdown->isHidden()
 			|| (_streamed && _streamed->controls.hasMenu())
@@ -1333,24 +1326,7 @@ void OverlayWidget::dropdownHidden() {
 	updateOver(_lastMouseMovePos);
 	_ignoringDropdown = false;
 	if (!_controlsHideTimer.isActive()) {
-		onHideControls(true);
-	}
-}
-
-void OverlayWidget::onScreenResized(int screen) {
-	if (isHidden()) {
-		return;
-	}
-
-	const auto screens = QApplication::screens();
-	const auto changed = (screen >= 0 && screen < screens.size())
-		? screens[screen]
-		: nullptr;
-	if (windowHandle()
-		&& windowHandle()->screen()
-		&& changed
-		&& windowHandle()->screen() == changed) {
-		updateGeometry();
+		hideControls(true);
 	}
 }
 
@@ -1365,6 +1341,7 @@ void OverlayWidget::handleVisibleChanged(bool visible) {
 }
 
 void OverlayWidget::handleScreenChanged(QScreen *screen) {
+	subscribeToScreenGeometry();
 	if (!isVisible()) {
 		return;
 	}
@@ -1376,7 +1353,21 @@ void OverlayWidget::handleScreenChanged(QScreen *screen) {
 	moveToScreen();
 }
 
-void OverlayWidget::onToMessage() {
+void OverlayWidget::subscribeToScreenGeometry() {
+	_screenGeometryLifetime.destroy();
+	const auto screen = windowHandle()->screen();
+	if (!screen) {
+		return;
+	}
+	base::qt_signal_producer(
+		screen,
+		&QScreen::geometryChanged
+	) | rpl::start_with_next([=] {
+		updateGeometry();
+	}, _screenGeometryLifetime);
+}
+
+void OverlayWidget::toMessage() {
 	if (!_session) {
 		return;
 	}
@@ -1397,7 +1388,7 @@ void OverlayWidget::notifyFileDialogShown(bool shown) {
 	}
 }
 
-void OverlayWidget::onSaveAs() {
+void OverlayWidget::saveAs() {
 	QString file;
 	if (_document) {
 		const auto &location = _document->location(true);
@@ -1502,9 +1493,9 @@ void OverlayWidget::onSaveAs() {
 	setFocus();
 }
 
-void OverlayWidget::onDocClick() {
+void OverlayWidget::handleDocumentClick() {
 	if (_document->loading()) {
-		onSaveCancel();
+		saveCancel();
 	} else {
 		DocumentOpenClickHandler::Open(
 			fileOrigin(),
@@ -1520,12 +1511,12 @@ PeerData *OverlayWidget::ui_getPeerForMouseAction() {
 	return _history ? _history->peer.get() : nullptr;
 }
 
-void OverlayWidget::onDownload() {
+void OverlayWidget::downloadMedia() {
 	if (!_photo && !_document) {
 		return;
 	}
 	if (Core::App().settings().askDownloadPath()) {
-		return onSaveAs();
+		return saveAs();
 	}
 
 	QString path;
@@ -1607,7 +1598,7 @@ void OverlayWidget::onDownload() {
 	}
 }
 
-void OverlayWidget::onSaveCancel() {
+void OverlayWidget::saveCancel() {
 	if (_document && _document->loading()) {
 		_document->cancel();
 		if (_documentMedia->canBePlayed()) {
@@ -1616,7 +1607,7 @@ void OverlayWidget::onSaveCancel() {
 	}
 }
 
-void OverlayWidget::onShowInFolder() {
+void OverlayWidget::showInFolder() {
 	if (!_document) return;
 
 	auto filepath = _document->filepath(true);
@@ -1626,7 +1617,7 @@ void OverlayWidget::onShowInFolder() {
 	}
 }
 
-void OverlayWidget::onForward() {
+void OverlayWidget::forwardMedia() {
 	if (!_session) {
 		return;
 	}
@@ -1645,7 +1636,7 @@ void OverlayWidget::onForward() {
 		{ 1, item->fullId() });
 }
 
-void OverlayWidget::onDelete() {
+void OverlayWidget::deleteMedia() {
 	if (!_session) {
 		return;
 	}
@@ -1678,7 +1669,7 @@ void OverlayWidget::onDelete() {
 	}
 }
 
-void OverlayWidget::onOverview() {
+void OverlayWidget::showMediaOverview() {
 	if (_menu) {
 		_menu->hideMenu(true);
 	}
@@ -1689,7 +1680,7 @@ void OverlayWidget::onOverview() {
 	}
 }
 
-void OverlayWidget::onCopy() {
+void OverlayWidget::copyMedia() {
 	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
 	if (_document) {
 		QGuiApplication::clipboard()->setImage(videoShown()
@@ -1702,31 +1693,23 @@ void OverlayWidget::onCopy() {
 	}
 }
 
-void OverlayWidget::onPhotoAttachedStickers() {
-	if (!_session || !_photo) {
+void OverlayWidget::showAttachedStickers() {
+	if (!_session) {
 		return;
 	}
 	const auto &active = _session->windows();
 	if (active.empty()) {
 		return;
 	}
-	_session->api().attachedStickers().requestAttachedStickerSets(
-		active.front(),
-		_photo);
-	close();
-}
-
-void OverlayWidget::onDocumentAttachedStickers() {
-	if (!_session || !_document) {
+	const auto window = active.front();
+	auto &attachedStickers = _session->api().attachedStickers();
+	if (_photo) {
+		attachedStickers.requestAttachedStickerSets(window, _photo);
+	} else if (_document) {
+		attachedStickers.requestAttachedStickerSets(window, _document);
+	} else {
 		return;
 	}
-	const auto &active = _session->windows();
-	if (active.empty()) {
-		return;
-	}
-	_session->api().attachedStickers().requestAttachedStickerSets(
-		active.front(),
-		_document);
 	close();
 }
 
@@ -2455,8 +2438,12 @@ void OverlayWidget::updateThemePreviewGeometry() {
 void OverlayWidget::displayFinished() {
 	updateControls();
 	if (isHidden()) {
-		Ui::Platform::UpdateOverlayed(this);
 		moveToScreen();
+		//setAttribute(Qt::WA_DontShowOnScreen);
+		//OverlayParent::setVisibleHook(true);
+		//OverlayParent::setVisibleHook(false);
+		//setAttribute(Qt::WA_DontShowOnScreen, false);
+		Ui::Platform::UpdateOverlayed(this);
 		if (Platform::IsLinux()) {
 			showFullScreen();
 		} else {
@@ -3616,19 +3603,19 @@ void OverlayWidget::keyPressEvent(QKeyEvent *e) {
 	}
 	if (!_menu && e->key() == Qt::Key_Escape) {
 		if (_document && _document->loading() && !_streamed) {
-			onDocClick();
+			handleDocumentClick();
 		} else {
 			close();
 		}
 	} else if (e == QKeySequence::Save || e == QKeySequence::SaveAs) {
-		onSaveAs();
+		saveAs();
 	} else if (e->key() == Qt::Key_Copy || (e->key() == Qt::Key_C && ctrl)) {
-		onCopy();
+		copyMedia();
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
 		if (_streamed) {
 			playbackPauseResume();
 		} else if (_document && !_document->loading() && (documentBubbleShown() || !_documentMedia->loaded())) {
-			onDocClick();
+			handleDocumentClick();
 		}
 	} else if (e->key() == Qt::Key_Left) {
 		if (_controlsHideTimer.isActive()) {
@@ -4173,17 +4160,17 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 			Ui::showPeerProfile(_from);
 		}
 	} else if (_over == OverDate && _down == OverDate) {
-		onToMessage();
+		toMessage();
 	} else if (_over == OverHeader && _down == OverHeader) {
-		onOverview();
+		showMediaOverview();
 	} else if (_over == OverSave && _down == OverSave) {
-		onDownload();
+		downloadMedia();
 	} else if (_over == OverRotate && _down == OverRotate) {
 		playbackControlsRotate();
 	} else if (_over == OverIcon && _down == OverIcon) {
-		onDocClick();
+		handleDocumentClick();
 	} else if (_over == OverMore && _down == OverMore) {
-		InvokeQueued(this, [=] { onDropdown(); });
+		InvokeQueued(this, [=] { showDropdown(); });
 	} else if (_over == OverClose && _down == OverClose) {
 		close();
 	} else if (_over == OverVideo && _down == OverVideo) {
@@ -4432,7 +4419,7 @@ void OverlayWidget::receiveMouse() {
 	_receiveMouse = true;
 }
 
-void OverlayWidget::onDropdown() {
+void OverlayWidget::showDropdown() {
 	_dropdown->clearActions();
 	fillContextMenuActions([&] (const QString &text, Fn<void()> handler) {
 		_dropdown->addAction(text, std::move(handler));
@@ -4442,7 +4429,7 @@ void OverlayWidget::onDropdown() {
 	_dropdown->setFocus();
 }
 
-void OverlayWidget::onTouchTimer() {
+void OverlayWidget::handleTouchTimer() {
 	_touchRightButton = true;
 }
 

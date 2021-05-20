@@ -72,10 +72,9 @@ class OverlayWidget final
 	: public OverlayParent
 	, public ClickHandlerHost
 	, private PlaybackControls::Delegate {
-	Q_OBJECT
-
 public:
 	OverlayWidget();
+	~OverlayWidget();
 
 	enum class TouchBarItemType {
 		Photo,
@@ -99,10 +98,8 @@ public:
 		updateOver(mapFromGlobal(QCursor::pos()));
 	}
 
-	void close();
-
 	void activateControls();
-	void onDocClick();
+	void close();
 
 	PeerData *ui_getPeerForMouseAction();
 
@@ -110,35 +107,9 @@ public:
 
 	void clearSession();
 
-	~OverlayWidget();
-
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
-
-private Q_SLOTS:
-	void onHideControls(bool force = false);
-
-	void onScreenResized(int screen);
-
-	void onToMessage();
-	void onSaveAs();
-	void onDownload();
-	void onSaveCancel();
-	void onShowInFolder();
-	void onForward();
-	void onDelete();
-	void onOverview();
-	void onCopy();
-	void receiveMouse();
-	void onPhotoAttachedStickers();
-	void onDocumentAttachedStickers();
-
-	void onDropdown();
-
-	void onTouchTimer();
-
-	void updateImage();
 
 private:
 	struct Streamed;
@@ -211,6 +182,25 @@ private:
 	void playbackResumeOnCall();
 	void playbackPauseMusic();
 	void switchToPip();
+
+	void hideControls(bool force = false);
+	void subscribeToScreenGeometry();
+
+	void toMessage();
+	void saveAs();
+	void downloadMedia();
+	void saveCancel();
+	void showInFolder();
+	void forwardMedia();
+	void deleteMedia();
+	void showMediaOverview();
+	void copyMedia();
+	void receiveMouse();
+	void showAttachedStickers();
+	void showDropdown();
+	void handleTouchTimer();
+	void handleDocumentClick();
+	void updateImage();
 
 	void clearBeforeHide();
 	void clearAfterHide();
@@ -445,6 +435,7 @@ private:
 	int32 _dragging = 0;
 	QPixmap _staticContent;
 	bool _blurred = true;
+	rpl::lifetime _screenGeometryLifetime;
 
 	std::unique_ptr<Streamed> _streamed;
 	std::unique_ptr<PipWrap> _pip;

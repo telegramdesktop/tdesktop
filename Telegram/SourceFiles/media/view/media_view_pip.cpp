@@ -375,7 +375,7 @@ PipPanel::PipPanel(
 	QWidget *parent,
 	Fn<void(QPainter&, FrameRequest, bool)> paint)
 : _content(Ui::GL::CreateSurface(
-	parent,
+	nullptr, // No parent for the window in Qt parent-child sense.
 	[=](Ui::GL::Capabilities capabilities) {
 		return chooseRenderer(capabilities);
 	}))
@@ -629,13 +629,20 @@ void PipPanel::setPositionOnScreen(Position position, QRect available) {
 
 	geometry += _padding;
 
-	widget()->setGeometry(geometry);
+	setGeometry(geometry);
 	widget()->setMinimumSize(minimalSize);
 	widget()->setMaximumSize(
 		std::max(minimalSize.width(), maximalSize.width()),
 		std::max(minimalSize.height(), maximalSize.height()));
 	updateDecorations();
+}
+
+void PipPanel::update() {
 	widget()->update();
+}
+
+void PipPanel::setGeometry(QRect geometry) {
+	widget()->setGeometry(geometry);
 }
 
 void PipPanel::paint(QPainter &p, const QRegion &clip, bool opengl) {
@@ -826,7 +833,7 @@ void PipPanel::processDrag(QPoint point) {
 	} else {
 		const auto newGeometry = valid.marginsAdded(_padding);
 		_positionAnimation.stop();
-		widget()->setGeometry(newGeometry);
+		setGeometry(newGeometry);
 	}
 }
 
@@ -917,8 +924,8 @@ void PipPanel::updateDecorations() {
 	_padding = padding;
 	_useTransparency = use;
 	widget()->setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
-	widget()->setGeometry(newGeometry);
-	widget()->update();
+	setGeometry(newGeometry);
+	update();
 }
 
 Pip::Pip(
@@ -1029,7 +1036,7 @@ void Pip::setOverState(OverState state) {
 	const auto nowShown = (_over != OverState::None);
 	if ((was != OverState::None) != nowShown) {
 		_controlsShown.start(
-			[=] { _panel.widget()->update(); },
+			[=] { _panel.update(); },
 			nowShown ? 0. : 1.,
 			nowShown ? 1. : 0.,
 			st::fadeWrapDuration,
@@ -1038,7 +1045,7 @@ void Pip::setOverState(OverState state) {
 	if (!_pressed) {
 		updateActiveState(was);
 	}
-	_panel.widget()->update();
+	_panel.update();
 }
 
 void Pip::setPressedState(std::optional<OverState> state) {
@@ -1232,7 +1239,7 @@ void Pip::updatePlayPauseResumeState(const Player::TrackState &state) {
 	auto showPause = Player::ShowPauseIcon(state.state);
 	if (showPause != _showPause) {
 		_showPause = showPause;
-		_panel.widget()->update();
+		_panel.update();
 	}
 }
 
@@ -1397,7 +1404,7 @@ void Pip::handleStreamingUpdate(Streaming::Update &&update) {
 	}, [&](const PreloadedVideo &update) {
 		updatePlaybackState();
 	}, [&](const UpdateVideo &update) {
-		_panel.widget()->update();
+		_panel.update();
 		Core::App().updateNonIdle();
 		updatePlaybackState();
 	}, [&](const PreloadedAudio &update) {

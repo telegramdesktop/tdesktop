@@ -60,6 +60,9 @@ public:
 	[[nodiscard]] not_null<QWidget*> widget() const;
 	[[nodiscard]] not_null<Ui::RpWidgetWrap*> rp() const;
 
+	void update();
+	void setGeometry(QRect geometry);
+
 	void setAspectRatio(QSize ratio);
 	[[nodiscard]] Position countPosition() const;
 	void setPosition(Position position);
