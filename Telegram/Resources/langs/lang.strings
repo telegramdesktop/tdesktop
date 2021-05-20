@@ -451,6 +451,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_system_integration" = "System integration";
 "lng_settings_performance" = "Performance";
 "lng_settings_enable_animations" = "Enable animations";
+"lng_settings_enable_opengl" = "Enable OpenGL rendering for video";
 "lng_settings_sensitive_title" = "Sensitive content";
 "lng_settings_sensitive_disable_filtering" = "Disable filtering";
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";

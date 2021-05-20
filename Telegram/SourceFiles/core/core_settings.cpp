@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "webrtc/webrtc_create_adm.h"
+#include "ui/gl/gl_detection.h"
 #include "facades.h"
 
 namespace Core {
@@ -194,6 +195,7 @@ QByteArray Settings::serialize() const {
 		for (const auto &[id, variant] : _emojiVariants) {
 			stream << id << quint8(variant);
 		}
+		stream << qint32(_disableOpenGL ? 1 : 0);
 	}
 	return result;
 }
@@ -269,6 +271,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	QByteArray windowPosition;
 	std::vector<RecentEmojiId> recentEmojiPreload;
 	base::flat_map<QString, uint8> emojiVariants;
+	qint32 disableOpenGL = _disableOpenGL ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -397,6 +400,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		stream >> disableOpenGL;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -502,6 +508,10 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}
 	_recentEmojiPreload = std::move(recentEmojiPreload);
 	_emojiVariants = std::move(emojiVariants);
+	_disableOpenGL = (disableOpenGL == 1);
+	if (!Platform::IsMac()) {
+		Ui::GL::ForceDisable(_disableOpenGL);
+	}
 }
 
 bool Settings::chatWide() const {

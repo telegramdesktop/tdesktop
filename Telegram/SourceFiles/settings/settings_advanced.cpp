@@ -502,10 +502,45 @@ void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
 	}, container->lifetime());
 }
 
+void SetupOpenGL(not_null<Ui::VerticalLayout*> container) {
+	const auto toggles = container->lifetime().make_state<
+		rpl::event_stream<bool>
+	>();
+	const auto button = AddButton(
+		container,
+		tr::lng_settings_enable_opengl(),
+		st::settingsButton
+	)->toggleOn(
+		toggles->events_starting_with_copy(
+			!Core::App().settings().disableOpenGL())
+	);
+	button->toggledValue(
+	) | rpl::filter([](bool enabled) {
+		return (enabled == Core::App().settings().disableOpenGL());
+	}) | rpl::start_with_next([=](bool enabled) {
+		const auto confirmed = crl::guard(button, [=] {
+			Core::App().settings().setDisableOpenGL(!enabled);
+			Local::writeSettings();
+			App::restart();
+		});
+		const auto cancelled = crl::guard(button, [=] {
+			toggles->fire(!enabled);
+		});
+		Ui::show(Box<ConfirmBox>(
+			tr::lng_settings_need_restart(tr::now),
+			tr::lng_settings_restart_now(tr::now),
+			confirmed,
+			cancelled));
+	}, container->lifetime());
+}
+
 void SetupPerformance(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
 	SetupAnimations(container);
+	if (!Platform::IsMac()) {
+		SetupOpenGL(container);
+	}
 }
 
 void SetupSystemIntegration(

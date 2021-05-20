@@ -532,6 +532,13 @@ public:
 	void saveEmojiVariant(EmojiPtr emoji);
 	void setLegacyEmojiVariants(QMap<QString, int> data);
 
+	[[nodiscard]] bool disableOpenGL() const {
+		return _disableOpenGL;
+	}
+	void setDisableOpenGL(bool value) {
+		_disableOpenGL = value;
+	}
+
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
@@ -624,6 +631,7 @@ private:
 	rpl::variable<std::optional<bool>> _systemDarkMode = std::nullopt;
 	rpl::variable<bool> _systemDarkModeEnabled = false;
 	WindowPosition _windowPosition; // per-window
+	bool _disableOpenGL = false;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window
