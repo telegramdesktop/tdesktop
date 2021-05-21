@@ -652,9 +652,6 @@ void Panel::initControls() {
 	_hangup->setClickedCallback([=] { endCall(); });
 
 	const auto scheduleDate = _call->scheduleDate();
-	_hangup->setText(scheduleDate
-		? tr::lng_group_call_close()
-		: tr::lng_group_call_leave());
 	if (scheduleDate) {
 		auto changes = _call->real(
 		) | rpl::map([=](not_null<Data::GroupCall*> real) {
@@ -681,7 +678,7 @@ void Panel::initControls() {
 		}, _callLifetime);
 
 		std::move(started) | rpl::start_with_next([=] {
-			_hangup->setText(tr::lng_group_call_leave());
+			updateButtonsStyles();
 			setupMembers();
 		}, _callLifetime);
 	}
@@ -722,14 +719,12 @@ void Panel::refreshLeftButton() {
 		_settings.destroy();
 		_callShare.create(widget(), st::groupCallShare);
 		_callShare->setClickedCallback(_callShareLinkCallback);
-		_callShare->setText(tr::lng_group_call_share_button());
 	} else {
 		_callShare.destroy();
 		_settings.create(widget(), st::groupCallSettings);
 		_settings->setClickedCallback([=] {
 			_layerBg->showBox(Box(SettingsBox, _call));
 		});
-		_settings->setText(tr::lng_group_call_settings());
 	}
 	const auto raw = _callShare ? _callShare.data() : _settings.data();
 	raw->show();
@@ -757,7 +752,6 @@ void Panel::refreshLeftButton() {
 		_video->setClickedCallback([=] {
 			_call->toggleVideo(!_call->isSharingCamera());
 		});
-		_video->setText(tr::lng_group_call_video());
 		_video->setColorOverrides(
 			toggleableOverrides(_call->isSharingCameraValue()));
 		_call->isSharingCameraValue(
@@ -771,7 +765,6 @@ void Panel::refreshLeftButton() {
 		_screenShare->setClickedCallback([=] {
 			Ui::DesktopCapture::ChooseSource(this);
 		});
-		_screenShare->setText(tr::lng_group_call_screen_share());
 		_screenShare->setColorOverrides(
 			toggleableOverrides(_call->isSharingScreenValue()));
 		_call->isSharingScreenValue(
@@ -779,6 +772,7 @@ void Panel::refreshLeftButton() {
 			_screenShare->setProgress(sharing ? 1. : 0.);
 		}, _screenShare->lifetime());
 	}
+	updateButtonsStyles();
 }
 
 void Panel::initShareAction() {
@@ -825,7 +819,9 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 		const auto wide = (mode == PanelMode::Wide);
 		using Type = Ui::CallMuteButtonType;
 		_mute->setState(Ui::CallMuteButtonState{
-			.text = (scheduleDate
+			.text = (wide
+				? QString()
+				: scheduleDate
 				? (canManage
 					? tr::lng_group_call_start_now(tr::now)
 					: scheduleStartSubscribed
@@ -1022,11 +1018,7 @@ void Panel::enlargeVideo() {
 	const auto height = std::max(
 		_window->height(),
 		std::min(available.height(), st::groupCallWideModeSize.height()));
-	auto geometry = QRect(
-		_window->x() - (width - _window->width()) / 2,
-		_window->y() - (height - _window->height()) / 2,
-		width,
-		height);
+	auto geometry = QRect(_window->pos(), QSize(width, height));
 	if (geometry.x() < available.x()) {
 		geometry.setX(std::min(available.x(), _window->x()));
 	}
@@ -1828,9 +1820,49 @@ bool Panel::updateMode() {
 			tile.video->setControlsShown(1.);
 		}
 	}
+	updateButtonsStyles();
 	refreshControlsBackground();
 	updateControlsGeometry();
 	return true;
+}
+
+void Panel::updateButtonsStyles() {
+	const auto wide = (_mode.current() == PanelMode::Wide);
+	_mute->setStyle(wide ? st::callMuteButtonSmall : st::callMuteButton);
+	if (_video) {
+		_video->setStyle(
+			wide ? st::groupCallVideoSmall : st::groupCallVideo,
+			(wide
+				? &st::groupCallVideoActiveSmall
+				: &st::groupCallVideoActive));
+		_video->setText(wide
+			? rpl::single(QString())
+			: tr::lng_group_call_video());
+	}
+	if (_settings) {
+		_settings->setText(wide
+			? rpl::single(QString())
+			: tr::lng_group_call_settings());
+		_settings->setStyle(wide
+			? st::groupCallSettingsSmall
+			: st::groupCallSettings);
+	}
+	if (_callShare) {
+		_callShare->setText(wide
+			? rpl::single(QString())
+			: tr::lng_group_call_share_button());
+		_callShare->setStyle(wide
+			? st::groupCallShareSmall
+			: st::groupCallShare);
+	}
+	_hangup->setText(wide
+		? rpl::single(QString())
+		: _call->scheduleDate()
+		? tr::lng_group_call_close()
+		: tr::lng_group_call_leave());
+	_hangup->setStyle(wide
+		? st::groupCallHangupSmall
+		: st::groupCallHangup);
 }
 
 void Panel::refreshControlsBackground() {
@@ -2049,7 +2081,6 @@ void Panel::updateButtonsGeometry() {
 		toggleOne(_hangup);
 	};
 	if (mode() == PanelMode::Wide) {
-		_mute->setStyle(st::callMuteButtonSmall);
 		const auto shown = _wideControlsAnimation.value(
 			_wideControlsShown ? 1. : 0.);
 		toggle(shown > 0.);
@@ -2064,7 +2095,7 @@ void Panel::updateButtonsGeometry() {
 			shown);
 		const auto addSkip = st::callMuteButtonSmall.active.outerRadius;
 		const auto muteSize = _mute->innerSize().width() + 2 * addSkip;
-		const auto skip = (_video ? 1 : 2) * st::groupCallButtonSkipSmall;
+		const auto skip = st::groupCallButtonSkipSmall;
 		const auto fullWidth = muteSize
 			+ (_video ? _video->width() + skip : 0)
 			+ (_screenShare ? _screenShare->width() + skip : 0)
@@ -2077,33 +2108,27 @@ void Panel::updateButtonsGeometry() {
 			- membersWidth
 			- membersSkip
 			- fullWidth) / 2;
-		_mute->moveInner({ left + addSkip, buttonsTop + addSkip });
-		left += muteSize + skip;
-		if (_video) {
-			_video->setStyle(
-				st::groupCallVideoSmall,
-				&st::groupCallVideoActiveSmall);
-			_video->moveToLeft(left, buttonsTop);
-			left += _video->width() + skip;
-		}
 		if (_screenShare) {
 			_screenShare->setVisible(true);
 			_screenShare->moveToLeft(left, buttonsTop);
+			left += _screenShare->width() + skip;
+		}
+		if (_video) {
+			_video->moveToLeft(left, buttonsTop);
 			left += _video->width() + skip;
 		}
+		_mute->moveInner({ left + addSkip, buttonsTop + addSkip });
+		left += muteSize + skip;
 		if (_settings) {
 			_settings->setVisible(true);
-			_settings->setStyle(st::groupCallSettingsSmall);
 			_settings->moveToLeft(left, buttonsTop);
 			left += _settings->width() + skip;
 		}
 		if (_callShare) {
 			_callShare->setVisible(true);
-			_callShare->setStyle(st::groupCallShareSmall);
 			_callShare->moveToLeft(left, buttonsTop);
 			left += _callShare->width() + skip;
 		}
-		_hangup->setStyle(st::groupCallHangupSmall);
 		_hangup->moveToLeft(left, buttonsTop);
 		left += _hangup->width();
 		if (_controlsBackgroundWide) {
@@ -2116,7 +2141,6 @@ void Panel::updateButtonsGeometry() {
 				rect.marginsAdded(st::groupCallControlsBackMargin));
 		}
 	} else {
-		_mute->setStyle(st::callMuteButton);
 		toggle(true);
 
 		const auto muteTop = widget()->height()
@@ -2138,15 +2162,12 @@ void Panel::updateButtonsGeometry() {
 		}
 		if (_settings) {
 			_settings->setVisible(!_video);
-			_settings->setStyle(st::groupCallSettings);
 			_settings->moveToLeft(leftButtonLeft, buttonsTop);
 		}
 		if (_callShare) {
 			_callShare->setVisible(!_video);
-			_callShare->setStyle(st::groupCallShare);
 			_callShare->moveToLeft(leftButtonLeft, buttonsTop);
 		}
-		_hangup->setStyle(st::groupCallHangup);
 		_hangup->moveToRight(leftButtonLeft, buttonsTop);
 	}
 	if (_controlsBackgroundNarrow) {

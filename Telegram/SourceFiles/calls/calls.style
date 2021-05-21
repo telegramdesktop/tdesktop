@@ -200,7 +200,7 @@ callMuteButtonActiveInner: IconButton {
 }
 callMuteButtonSmallActiveInner: IconButton {
 	width: 68px;
-	height: 76px;
+	height: 68px;
 }
 callMuteButtonActive: CallButton {
 	button: callMuteButtonActiveInner;
@@ -228,9 +228,9 @@ callMuteButton: CallMuteButton {
 }
 callMuteButtonSmallActive: CallButton(callMuteButtonActive) {
 	button: callMuteButtonSmallActiveInner;
-	bgSize: 44px;
-	bgPosition: point(12px, 12px);
-	outerRadius: 12px;
+	bgSize: 42px;
+	bgPosition: point(13px, 13px);
+	outerRadius: 13px;
 	label: callButtonLabel;
 }
 callMuteButtonSmall: CallMuteButton(callMuteButton) {
@@ -812,41 +812,59 @@ groupCallHangup: CallButton(callHangup) {
 }
 groupCallSettingsSmall: CallButton(groupCallSettings) {
 	button: IconButton(groupCallSettingsInner) {
-		height: 76px;
+		width: 60px;
+		height: 68px;
+		rippleAreaPosition: point(8px, 12px);
 	}
+	bgPosition: point(8px, 12px);
 }
 groupCallShareSmall: CallButton(groupCallShare) {
 	button: IconButton(groupCallShareInner) {
-		height: 76px;
+		width: 60px;
+		height: 68px;
+		rippleAreaPosition: point(8px, 12px);
 	}
+	bgPosition: point(8px, 12px);
 }
 groupCallHangupSmall: CallButton(groupCallHangup) {
 	button: IconButton(groupCallHangupInner) {
-		height: 76px;
+		width: 60px;
+		height: 68px;
+		rippleAreaPosition: point(8px, 12px);
 	}
+	bgPosition: point(8px, 12px);
 }
 groupCallVideoSmall: CallButton(groupCallShareSmall) {
 	button: IconButton(groupCallVideoInner) {
-		height: 76px;
+		width: 60px;
+		height: 68px;
+		rippleAreaPosition: point(8px, 12px);
 	}
+	bgPosition: point(8px, 12px);
 }
 groupCallVideoActiveSmall: CallButton(groupCallVideoSmall) {
 	button: IconButton(groupCallVideoInnerActive) {
-		height: 76px;
+		width: 60px;
+		height: 68px;
+		rippleAreaPosition: point(8px, 12px);
 	}
+	bgPosition: point(8px, 12px);
 }
 groupCallScreenShareSmall: CallButton(groupCallShareSmall) {
 	button: IconButton(groupCallSettingsInner) {
 		icon: icon {{ "calls/calls_present", groupCallIconFg }};
-		height: 76px;
+		width: 60px;
+		height: 68px;
+		rippleAreaPosition: point(8px, 12px);
 	}
+	bgPosition: point(8px, 12px);
 }
 groupCallButtonSkip: 40px;
-groupCallButtonSkipSmall: 4px;
+groupCallButtonSkipSmall: 5px;
 groupCallButtonBottomSkip: 113px;
 groupCallButtonBottomSkipSmall: 95px;
 groupCallButtonBottomSkipWide: 122px;
-groupCallControlsBackMargin: margins(2px, 2px, 2px, 2px);
+groupCallControlsBackMargin: margins(10px, 0px, 10px, 0px);
 groupCallControlsBackRadius: 12px;
 groupCallMuteBottomSkip: 116px;
 

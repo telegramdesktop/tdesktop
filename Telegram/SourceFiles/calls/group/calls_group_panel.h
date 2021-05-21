@@ -103,6 +103,7 @@ private:
 	bool updateMode();
 	void updateControlsGeometry();
 	void updateButtonsGeometry();
+	void updateButtonsStyles();
 	void updateMembersGeometry();
 	void refreshControlsBackground();
 	void setupControlsBackgroundWide();
