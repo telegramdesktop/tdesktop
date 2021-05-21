@@ -80,6 +80,7 @@ public:
 
 private:
 	struct PinButton;
+	class RendererGL;
 
 	[[nodiscard]] not_null<QWidget*> widget() const;
 

@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_calls.h"
 
+#include "core/application.h"
+
 #include <QtGui/QWindow>
 
 namespace Calls::Group {
@@ -43,6 +45,41 @@ struct LargeVideo::PinButton {
 	bool shown = false;
 };
 
+class LargeVideo::RendererGL : public Ui::GL::Renderer {
+public:
+	explicit RendererGL(not_null<LargeVideo*> owner) : _owner(owner) {
+	}
+	~RendererGL();
+
+	void init(
+		not_null<QOpenGLWidget*> widget,
+		not_null<QOpenGLFunctions*> f) override;
+
+	void resize(
+		not_null<QOpenGLWidget*> widget,
+		not_null<QOpenGLFunctions*> f,
+		int w,
+		int h) override;
+
+	void paint(
+		not_null<QOpenGLWidget*> widget,
+		not_null<QOpenGLFunctions*> f) override;
+
+private:
+	void deinit(not_null<QOpenGLContext*> context);
+
+	const not_null<LargeVideo*> _owner;
+
+	std::array<GLuint, 3> _textures = {};
+	GLuint _vertexBuffer = 0;
+	GLuint _vertexShader = 0;
+	GLuint _fragmentShader = 0;
+	GLuint _shaderProgram = 0;
+	qint64 _key = 0;
+	QMetaObject::Connection _connection;
+
+};
+
 LargeVideo::PinButton::PinButton(
 	not_null<QWidget*> parent,
 	const style::GroupCallLargeVideo &st)
@@ -53,6 +90,198 @@ LargeVideo::PinButton::PinButton(
 		+ st::groupCallLargeVideoPin.icon.height()
 		+ st.pinPadding.bottom()) / 2,
 	st::radialBg) {
+}
+
+LargeVideo::RendererGL::~RendererGL() {
+}
+
+void LargeVideo::RendererGL::init(
+		not_null<QOpenGLWidget*> widget,
+		not_null<QOpenGLFunctions*> f) {
+	if (_connection) {
+		QObject::disconnect(_connection);
+	}
+	const auto context = widget->context();
+	_connection = QObject::connect(
+		context,
+		&QOpenGLContext::aboutToBeDestroyed,
+		[=] { deinit(context); });
+
+	f->glGenTextures(3, _textures.data());
+	for (const auto texture : _textures) {
+		f->glBindTexture(GL_TEXTURE_2D, texture);
+		const auto clamp = GL_CLAMP_TO_EDGE;
+		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, clamp);
+		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, clamp);
+		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
+	f->glGenBuffers(1, &_vertexBuffer);
+
+	const char *vertexShaderSource = R"(
+#version 130
+in vec2 position;
+in vec2 texcoord;
+out vec2 v_texcoord;
+void main() {
+	gl_Position = vec4(position.x, position.y, 0.0, 1.0);
+	v_texcoord = texcoord;
+}
+)";
+	_vertexShader = f->glCreateShader(GL_VERTEX_SHADER);
+	f->glShaderSource(_vertexShader, 1, &vertexShaderSource, NULL);
+	f->glCompileShader(_vertexShader);
+
+	{
+		int  success;
+		char infoLog[512];
+		f->glGetShaderiv(_vertexShader, GL_COMPILE_STATUS, &success);
+		if (!success) {
+			f->glGetShaderInfoLog(_vertexShader, 512, NULL, infoLog);
+		}
+		int a = 0;
+	}
+
+	const char *fragmentShaderSource = R"(
+#version 130
+in vec2 v_texcoord;
+uniform sampler2D s_texture;
+out vec4 fragColor;
+void main() {
+	vec4 color = texture(s_texture, v_texcoord);
+    fragColor = vec4(color.b, color.g, color.r, color.a);
+}
+)";
+	// ;
+	_fragmentShader = f->glCreateShader(GL_FRAGMENT_SHADER);
+	f->glShaderSource(_fragmentShader, 1, &fragmentShaderSource, NULL);
+	f->glCompileShader(_fragmentShader);
+
+	{
+		int  success;
+		char infoLog[512];
+		f->glGetShaderiv(_fragmentShader, GL_COMPILE_STATUS, &success);
+		if (!success) {
+			f->glGetShaderInfoLog(_fragmentShader, 512, NULL, infoLog);
+		}
+		int a = 0;
+	}
+
+	_shaderProgram = f->glCreateProgram();
+	f->glAttachShader(_shaderProgram, _vertexShader);
+	f->glAttachShader(_shaderProgram, _fragmentShader);
+	f->glLinkProgram(_shaderProgram);
+
+	{
+		int  success;
+		char infoLog[512];
+		f->glGetProgramiv(_shaderProgram, GL_LINK_STATUS, &success);
+		if (!success) {
+			f->glGetProgramInfoLog(_shaderProgram, 512, NULL, infoLog);
+		}
+		int a = 0;
+	}
+}
+
+void LargeVideo::RendererGL::deinit(not_null<QOpenGLContext*> context) {
+	context->functions()->glDeleteTextures(_textures.size(), _textures.data());
+	context->functions()->glDeleteBuffers(1, &_vertexBuffer);
+	context->functions()->glDeleteProgram(_shaderProgram);
+	context->functions()->glDeleteShader(_vertexShader);
+	context->functions()->glDeleteShader(_fragmentShader);
+}
+
+void LargeVideo::RendererGL::resize(
+		not_null<QOpenGLWidget*> widget,
+		not_null<QOpenGLFunctions*> f,
+		int w,
+		int h) {
+	f->glViewport(0, 0, w, h);
+}
+
+void LargeVideo::RendererGL::paint(
+		not_null<QOpenGLWidget*> widget,
+		not_null<QOpenGLFunctions*> f) {
+	const auto bg = st::groupCallMembersFg->c;
+	const auto fill = [&](QRect rect) {
+		//p.fillRect(rect, st::groupCallMembersBg);
+	};
+	const auto [image, rotation] = _owner->_track
+		? _owner->_track.track->frameOriginalWithRotation()
+		: std::pair<QImage, int>();
+	if (image.isNull()) {
+		f->glClearColor(bg.redF(), bg.greenF(), bg.blueF(), 1.);
+		f->glClear(GL_COLOR_BUFFER_BIT);
+		return;
+	}
+	f->glUseProgram(_shaderProgram);
+	f->glActiveTexture(GL_TEXTURE0);
+	f->glBindTexture(GL_TEXTURE_2D, _textures[0]);
+
+	// #TODO calls check stride, upload with stride or from copy of an image.
+	const auto key = image.cacheKey();
+	if (_key != key) {
+		_key = key;
+		f->glPixelStorei(GL_UNPACK_ROW_LENGTH, image.bytesPerLine() / 4);
+		f->glTexImage2D(
+			GL_TEXTURE_2D,
+			0,
+			GL_RGB,
+			image.width(),
+			image.height(),
+			0,
+			GL_RGBA,
+			GL_UNSIGNED_BYTE,
+			image.constBits());
+		f->glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	}
+	_owner->_track.track->markFrameShown();
+
+	f->glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
+	std::array<std::array<GLfloat, 2>, 4> UVCoords = { {
+		{{0, 1}},  // Lower left.
+		{{1, 1}},  // Lower right.
+		{{1, 0}},  // Upper right.
+		{{0, 0}},  // Upper left.
+	} };
+
+	const auto rotation_offset = (rotation / 90);
+	std::rotate(
+		UVCoords.begin(),
+		UVCoords.begin() + rotation_offset,
+		UVCoords.end());
+	const GLfloat vertices[] = {
+	  -1, -1, UVCoords[0][0], UVCoords[0][1],
+	   1, -1, UVCoords[1][0], UVCoords[1][1],
+	   1,  1, UVCoords[2][0], UVCoords[2][1],
+	  -1,  1, UVCoords[3][0], UVCoords[3][1],
+	};
+	f->glBufferData(
+		GL_ARRAY_BUFFER,
+		sizeof(vertices),
+		vertices,
+		GL_DYNAMIC_DRAW);
+
+	GLint sampler = f->glGetUniformLocation(_shaderProgram, "s_texture");
+	GLint position = f->glGetAttribLocation(_shaderProgram, "position");
+	GLint texcoord = f->glGetAttribLocation(_shaderProgram, "texcoord");
+	if (position < 0 || texcoord < 0) {
+		return;
+	}
+
+	f->glUniform1i(sampler, 0);
+
+	// Read position attribute with size of 2 and stride of 4 beginning at the start of the array. The
+	// last argument indicates offset of data within the vertex buffer.
+	f->glVertexAttribPointer(position, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)0);
+	f->glEnableVertexAttribArray(position);
+
+	// Read texcoord attribute  with size of 2 and stride of 4 beginning at the first texcoord in the
+	// array. The last argument indicates offset of data within the vertex buffer.
+	f->glVertexAttribPointer(texcoord, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
+	f->glEnableVertexAttribArray(texcoord);
+
+	f->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
 LargeVideo::LargeVideo(
@@ -84,7 +313,7 @@ Ui::GL::ChosenRenderer LargeVideo::chooseRenderer(
 		Ui::GL::Capabilities capabilities) {
 	class Renderer : public Ui::GL::Renderer {
 	public:
-		Renderer(not_null<LargeVideo*> owner) : _owner(owner) {
+		explicit Renderer(not_null<LargeVideo*> owner) : _owner(owner) {
 		}
 
 		void paintFallback(
@@ -108,9 +337,15 @@ Ui::GL::ChosenRenderer LargeVideo::chooseRenderer(
 		? capabilities.supported
 		: capabilities.transparency;
 	LOG(("OpenGL: %1 (LargeVideo)").arg(Logs::b(use)));
+	if (use) {
+		return {
+			.renderer = std::make_unique<RendererGL>(this),
+			.backend = Ui::GL::Backend::OpenGL,
+		};
+	}
 	return {
 		.renderer = std::make_unique<Renderer>(this),
-		.backend = (use ? Ui::GL::Backend::OpenGL : Ui::GL::Backend::Raster),
+		.backend = Ui::GL::Backend::Raster,
 	};
 }
 
