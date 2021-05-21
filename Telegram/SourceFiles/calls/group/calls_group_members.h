@@ -58,6 +58,7 @@ public:
 	[[nodiscard]] MembersRow *lookupRow(not_null<PeerData*> peer) const;
 
 	void setMode(PanelMode mode);
+	[[nodiscard]] QRect getInnerGeometry() const;
 
 private:
 	class Controller;

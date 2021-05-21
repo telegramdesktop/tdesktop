@@ -1677,9 +1677,6 @@ auto Members::kickParticipantRequests() const
 }
 
 int Members::desiredHeight() const {
-	const auto addMember = _addMemberButton.current();
-	const auto top = _pinnedVideoWrap->height()
-		+ (addMember ? addMember->height() : 0);
 	const auto count = [&] {
 		if (const auto real = _call->lookupReal()) {
 			return real->fullCount();
@@ -1690,16 +1687,18 @@ int Members::desiredHeight() const {
 	const auto single = /*(_mode.current() == PanelMode::Wide)
 		? (st::groupCallNarrowSize.height() + st::groupCallNarrowRowSkip * 2)
 		: */st::groupCallMembersList.item.height;
-	return top
+	const auto desired = (_layout->height() - _list->height())
 		+ (use * single)
 		+ (use ? st::lineWidth : 0);
+	return std::max(height(), desired);
 }
 
 rpl::producer<int> Members::desiredHeightValue() const {
 	return rpl::combine(
 		heightValue(),
 		_addMemberButton.value(),
-		_listController->fullCountValue()
+		_listController->fullCountValue(),
+		_mode.value()
 	) | rpl::map([=] {
 		return desiredHeight();
 	});
@@ -1810,6 +1809,16 @@ void Members::setMode(PanelMode mode) {
 	//	: PeerListContent::Mode::Default);
 }
 
+QRect Members::getInnerGeometry() const {
+	const auto addMembers = _addMemberButton.current();
+	const auto add = addMembers ? addMembers->height() : 0;
+	return QRect(
+		0,
+		-_scroll->scrollTop(),
+		width(),
+		_list->y() + _list->height());
+}
+
 rpl::producer<int> Members::fullCountValue() const {
 	return _listController->fullCountValue();
 }
@@ -1817,10 +1826,19 @@ rpl::producer<int> Members::fullCountValue() const {
 void Members::setupList() {
 	_listController->setStyleOverrides(&st::groupCallMembersList);
 	_list = _layout->add(object_ptr<ListWidget>(
-		this,
+		_layout.get(),
 		_listController.get()));
+	const auto skip = _layout->add(object_ptr<Ui::RpWidget>(_layout.get()));
+	_mode.value(
+	) | rpl::start_with_next([=](PanelMode mode) {
+		skip->resize(skip->width(), (mode == PanelMode::Default)
+			? st::groupCallMembersBottomSkip
+			: 0);
+	}, skip->lifetime());
 
-	_layout->heightValue(
+	rpl::combine(
+		_mode.value(),
+		_layout->heightValue()
 	) | rpl::start_with_next([=] {
 		resizeToList();
 	}, _layout->lifetime());
@@ -2030,7 +2048,7 @@ void Members::setupFakeRoundCorners() {
 	};
 
 	const auto create = [&](QPoint imagePartOrigin) {
-		const auto result = Ui::CreateChild<Ui::RpWidget>(this);
+		const auto result = Ui::CreateChild<Ui::RpWidget>(_layout.get());
 		result->show();
 		result->resize(size, size);
 		result->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -2050,14 +2068,24 @@ void Members::setupFakeRoundCorners() {
 	const auto bottomleft = create({ 0, shift });
 	const auto bottomright = create({ shift, shift });
 
-	sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		topleft->move(0, 0);
-		topright->move(size.width() - topright->width(), 0);
-		bottomleft->move(0, size.height() - bottomleft->height());
-		bottomright->move(
-			size.width() - bottomright->width(),
-			size.height() - bottomright->height());
+	rpl::combine(
+		_list->geometryValue(),
+		_addMemberButton.value() | rpl::map([=](Ui::RpWidget *widget) {
+			topleft->raise();
+			topright->raise();
+			bottomleft->raise();
+			bottomright->raise();
+			return widget ? widget->heightValue() : rpl::single(0);
+		}) | rpl::flatten_latest()
+	) | rpl::start_with_next([=](QRect list, int addMembers) {
+		const auto left = list.x();
+		const auto top = list.y() - addMembers;
+		const auto right = list.x() + list.width() - topright->width();
+		const auto bottom = list.y() + list.height() - bottomleft->height();
+		topleft->move(left, top);
+		topright->move(right, top);
+		bottomleft->move(left, bottom);
+		bottomright->move(right, bottom);
 	}, lifetime());
 
 	refreshImage();

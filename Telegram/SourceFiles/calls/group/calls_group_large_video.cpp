@@ -438,16 +438,27 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 	_track.row->name().drawLeftElided(p, nameLeft, nameTop, hasWidth, width);
 }
 
-QImage GenerateShadow(int height, int topAlpha, int bottomAlpha) {
+QImage GenerateShadow(
+		int height,
+		int topAlpha,
+		int bottomAlpha,
+		QColor color) {
 	Expects(topAlpha >= 0 && topAlpha < 256);
 	Expects(bottomAlpha >= 0 && bottomAlpha < 256);
 	Expects(height * style::DevicePixelRatio() < 65536);
 
+	const auto base = (uint32(color.red()) << 16)
+		| (uint32(color.green()) << 8)
+		| uint32(color.blue());
+	const auto premultiplied = (topAlpha == bottomAlpha) || !base;
 	auto result = QImage(
 		QSize(1, height * style::DevicePixelRatio()),
-		QImage::Format_ARGB32_Premultiplied);
+		(premultiplied
+			? QImage::Format_ARGB32_Premultiplied
+			: QImage::Format_ARGB32));
 	if (topAlpha == bottomAlpha) {
-		result.fill(QColor(0, 0, 0, topAlpha));
+		color.setAlpha(topAlpha);
+		result.fill(color);
 		return result;
 	}
 	constexpr auto kShift = 16;
@@ -460,12 +471,16 @@ QImage GenerateShadow(int height, int topAlpha, int bottomAlpha) {
 	auto ints = reinterpret_cast<uint32*>(result.bits());
 	if (topAlpha < bottomAlpha) {
 		for (auto i = uint32(0); i != till; i += step) {
-			*ints++ = ((topAlpha + (i >> kShift)) << 24);
+			*ints++ = base | ((topAlpha + (i >> kShift)) << 24);
 		}
 	} else {
 		for (auto i = uint32(0); i != till; i += step) {
-			*ints++ = ((topAlpha - (i >> kShift)) << 24);
+			*ints++ = base | ((topAlpha - (i >> kShift)) << 24);
 		}
+	}
+	if (!premultiplied) {
+		result = std::move(result).convertToFormat(
+			QImage::Format_ARGB32_Premultiplied);
 	}
 	return result;
 }

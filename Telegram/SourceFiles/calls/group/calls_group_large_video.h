@@ -114,6 +114,7 @@ private:
 [[nodiscard]] QImage GenerateShadow(
 	int height,
 	int topAlpha,
-	int bottomAlpha);
+	int bottomAlpha,
+	QColor color = QColor(0, 0, 0));
 
 } // namespace Calls::Group

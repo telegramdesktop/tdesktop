@@ -195,8 +195,8 @@ callMuteButtonLabel: FlatLabel(defaultFlatLabel) {
 	}
 }
 callMuteButtonActiveInner: IconButton {
-	width: 136px;
-	height: 165px;
+	width: 112px;
+	height: 138px;
 }
 callMuteButtonSmallActiveInner: IconButton {
 	width: 68px;
@@ -205,7 +205,7 @@ callMuteButtonSmallActiveInner: IconButton {
 callMuteButtonActive: CallButton {
 	button: callMuteButtonActiveInner;
 	bg: groupCallLive1;
-	bgSize: 100px;
+	bgSize: 77px;
 	bgPosition: point(18px, 18px);
 	outerRadius: 18px;
 	outerBg: callAnswerBgOuter;
@@ -221,10 +221,10 @@ callMuteButton: CallMuteButton {
 	sublabel: FlatLabel(defaultFlatLabel) {
 		textFg: groupCallMemberNotJoinedStatus;
 	}
-	labelsSkip: 5px;
-	sublabelSkip: 19px;
-	lottieSize: size(67px, 67px);
-	lottieTop: 35px;
+	labelsSkip: 8px;
+	sublabelSkip: 14px;
+	lottieSize: size(54px, 54px);
+	lottieTop: 31px;
 }
 callMuteButtonSmallActive: CallButton(callMuteButtonActive) {
 	button: callMuteButtonSmallActiveInner;
@@ -685,7 +685,6 @@ groupCallTitleTop: 8px;
 groupCallSubtitleTop: 26px;
 groupCallWideVideoTop: 24px;
 
-groupCallMembersMargin: margins(16px, 16px, 16px, 28px);
 groupCallAddMember: SettingsButton(defaultSettingsButton) {
 	textFg: groupCallMemberNotJoinedStatus;
 	textFgOver: groupCallMemberNotJoinedStatus;
@@ -780,6 +779,10 @@ groupCallSettingsInner: IconButton(callButton) {
 groupCallShareInner: IconButton(groupCallSettingsInner) {
 	icon: icon {{ "calls/group_calls_share", groupCallIconFg }};
 }
+groupCallVideoInner: IconButton(groupCallSettingsInner) {
+	icon: icon {{ "calls/call_camera_muted", groupCallIconFg }};
+	iconPosition: point(-1px, 16px);
+}
 groupCallHangupInner: IconButton(callButton) {
 	icon: icon {{ "calls/call_discard", groupCallIconFg }};
 	ripple: RippleAnimation(defaultRippleAnimation) {
@@ -791,6 +794,15 @@ groupCallSettings: CallButton(callMicrophoneMute) {
 }
 groupCallShare: CallButton(groupCallSettings) {
 	button: groupCallShareInner;
+}
+groupCallVideo: CallButton(groupCallSettings) {
+	button: groupCallVideoInner;
+}
+groupCallVideoInnerActive: IconButton(groupCallVideoInner) {
+	icon: icon {{ "calls/call_camera_active", groupCallIconFg }};
+}
+groupCallVideoActive: CallButton(groupCallVideo) {
+	button: groupCallVideoInnerActive;
 }
 groupCallHangup: CallButton(callHangup) {
 	button: groupCallHangupInner;
@@ -813,17 +825,14 @@ groupCallHangupSmall: CallButton(groupCallHangup) {
 		height: 76px;
 	}
 }
-groupCallVideoSmallInner: IconButton(groupCallSettingsInner) {
-	icon: icon {{ "calls/call_camera_muted", groupCallIconFg }};
-	iconPosition: point(-1px, 16px);
-	height: 76px;
-}
 groupCallVideoSmall: CallButton(groupCallShareSmall) {
-	button: groupCallVideoSmallInner;
+	button: IconButton(groupCallVideoInner) {
+		height: 76px;
+	}
 }
 groupCallVideoActiveSmall: CallButton(groupCallVideoSmall) {
-	button: IconButton(groupCallVideoSmallInner) {
-		icon: icon {{ "calls/call_camera_active", groupCallIconFg }};
+	button: IconButton(groupCallVideoInnerActive) {
+		height: 76px;
 	}
 }
 groupCallScreenShareSmall: CallButton(groupCallShareSmall) {
@@ -832,15 +841,20 @@ groupCallScreenShareSmall: CallButton(groupCallShareSmall) {
 		height: 76px;
 	}
 }
-groupCallButtonSkip: 43px;
+groupCallButtonSkip: 40px;
 groupCallButtonSkipSmall: 4px;
-groupCallButtonBottomSkip: 145px;
+groupCallButtonBottomSkip: 113px;
 groupCallButtonBottomSkipSmall: 95px;
 groupCallButtonBottomSkipWide: 122px;
-groupCallMembersBottomSkipSmall: 72px;
 groupCallControlsBackMargin: margins(2px, 2px, 2px, 2px);
 groupCallControlsBackRadius: 12px;
-groupCallMuteBottomSkip: 160px;
+groupCallMuteBottomSkip: 116px;
+
+groupCallMembersMargin: margins(16px, 16px, 16px, 60px);
+groupCallMembersBottomSkip: 80px;
+groupCallMembersShadowHeight: 160px;
+groupCallMembersFadeSkip: 10px;
+groupCallMembersFadeHeight: 100px;
 
 groupCallTopBarUserpics: GroupCallUserpics {
 	size: 28px;

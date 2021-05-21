@@ -71,8 +71,11 @@ public:
 private:
 	using State = GroupCall::State;
 	struct VideoTile;
+	struct ControlsBackgroundNarrow;
 
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
+
+	[[nodiscard]] PanelMode mode() const;
 
 	void paint(QRect clip);
 
@@ -102,6 +105,8 @@ private:
 	void updateButtonsGeometry();
 	void updateMembersGeometry();
 	void refreshControlsBackground();
+	void setupControlsBackgroundWide();
+	void setupControlsBackgroundNarrow();
 	void showControls();
 	void refreshLeftButton();
 	void refreshTilesGeometry();
@@ -134,7 +139,7 @@ private:
 
 	const std::unique_ptr<Ui::Window> _window;
 	const std::unique_ptr<Ui::LayerManager> _layerBg;
-	PanelMode _mode = PanelMode();
+	rpl::variable<PanelMode> _mode;
 
 #ifndef Q_OS_MAC
 	std::unique_ptr<Ui::Platform::TitleControls> _controls;
@@ -167,7 +172,8 @@ private:
 	bool _wideControlsShown = false;
 	Ui::Animations::Simple _wideControlsAnimation;
 
-	object_ptr<Ui::RpWidget> _controlsBackground = { nullptr };
+	object_ptr<Ui::RpWidget> _controlsBackgroundWide = { nullptr };
+	std::unique_ptr<ControlsBackgroundNarrow> _controlsBackgroundNarrow;
 	object_ptr<Ui::CallButton> _settings = { nullptr };
 	object_ptr<Ui::CallButton> _callShare = { nullptr };
 	object_ptr<Ui::CallButton> _video = { nullptr };
