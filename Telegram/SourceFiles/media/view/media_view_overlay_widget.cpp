@@ -461,7 +461,7 @@ OverlayWidget::OverlayWidget()
 
 #if defined Q_OS_MAC && !defined OS_OSX
 	TouchBar::SetupMediaViewTouchBar(
-		winId(),
+		_widget->winId(),
 		static_cast<PlaybackControls::Delegate*>(this),
 		_touchbarTrackState.events(),
 		_touchbarDisplay.events(),
