@@ -1657,8 +1657,6 @@ void Account::readStickerSets(
 		return failed();
 	}
 	for (auto i = 0; i != count; ++i) {
-		using LocationType = StorageFileLocation::Type;
-
 		quint64 setId = 0, setAccess = 0;
 		QString setTitle, setShortName;
 		qint32 scnt = 0;

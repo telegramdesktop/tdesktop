@@ -323,7 +323,6 @@ PeerData *readPeer(
 		}
 	}
 	if (apply) {
-		using LocationType = StorageFileLocation::Type;
 		const auto location = userpic->convertToModernPeerPhoto(
 			result->id.value,
 			userpicAccessHash,
