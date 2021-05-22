@@ -2796,6 +2796,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mac_menu_show" = "Show Telegram";
 "lng_mac_menu_emoji_and_symbols" = "Emoji & Symbols";
 
+"lng_mac_menu_player_pause" = "Pause";
+"lng_mac_menu_player_resume" = "Resume";
+"lng_mac_menu_player_next" = "Next";
+"lng_mac_menu_player_previous" = "Previous";
+"lng_mac_menu_player_stop" = "Stop";
+
 "lng_mac_touchbar_favorite_stickers" = "Favorite stickers";
 
 // Keys finished

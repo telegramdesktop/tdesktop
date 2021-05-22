@@ -35,14 +35,53 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <IOKit/hidsystem/ev_keymap.h>
 #include <SPMediaKeyTap.h>
 
+using Platform::Q2NSString;
+using Platform::NS2QString;
+
 namespace {
 
 constexpr auto kIgnoreActivationTimeoutMs = 500;
 
+NSMenuItem *CreateMenuItem(
+		QString title,
+		rpl::lifetime &lifetime,
+		Fn<void()> callback,
+		bool enabled = true) {
+	id block = [^{
+		Core::Sandbox::Instance().customEnterFromEventLoop(callback);
+	} copy];
+
+	NSMenuItem *item = [[NSMenuItem alloc]
+		initWithTitle:Q2NSString(title)
+		action:@selector(invoke)
+		keyEquivalent:@""];
+	[item setTarget:block];
+	[item setEnabled:enabled];
+
+	lifetime.add([=] {
+		[block release];
+	});
+	return [item autorelease];
+}
+
 } // namespace
 
-using Platform::Q2NSString;
-using Platform::NS2QString;
+@interface RpMenu : NSMenu {
+}
+
+- (rpl::lifetime &) lifetime;
+
+@end // @interface Menu
+
+@implementation RpMenu {
+	rpl::lifetime _lifetime;
+}
+
+- (rpl::lifetime &) lifetime {
+	return _lifetime;
+}
+
+@end // @implementation Menu
 
 @interface qVisualize : NSObject {
 }
@@ -102,6 +141,8 @@ using Platform::NS2QString;
 - (void) mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)event;
 
 - (void) ignoreApplicationActivationRightNow;
+
+- (NSMenu *) applicationDockMenu:(NSApplication *)sender;
 
 @end // @interface ApplicationDelegate
 
@@ -205,6 +246,46 @@ ApplicationDelegate *_sharedDelegate = nil;
 - (void) ignoreApplicationActivationRightNow {
 	_ignoreActivation = true;
 	_ignoreActivationStop.callOnce(kIgnoreActivationTimeoutMs);
+}
+
+- (NSMenu *) applicationDockMenu:(NSApplication *)sender {
+	RpMenu* dockMenu = [[[RpMenu alloc] initWithTitle: @""] autorelease];
+	[dockMenu setAutoenablesItems:false];
+
+	auto notifyCallback = [] {
+		auto &settings = Core::App().settings();
+		settings.setDesktopNotify(!settings.desktopNotify());
+	};
+	[dockMenu addItem:CreateMenuItem(
+		Core::App().settings().desktopNotify()
+			? tr::lng_disable_notifications_from_tray(tr::now)
+			: tr::lng_enable_notifications_from_tray(tr::now),
+		[dockMenu lifetime],
+		std::move(notifyCallback))];
+
+	using namespace Media::Player;
+	const auto state = instance()->getState(instance()->getActiveType());
+	if (!IsStoppedOrStopping(state.state)) {
+		[dockMenu addItem:[NSMenuItem separatorItem]];
+		[dockMenu addItem:CreateMenuItem(
+			tr::lng_mac_menu_player_previous(tr::now),
+			[dockMenu lifetime],
+			[] { instance()->previous(); },
+			instance()->previousAvailable(instance()->getActiveType()))];
+		[dockMenu addItem:CreateMenuItem(
+			IsPausedOrPausing(state.state)
+				? tr::lng_mac_menu_player_resume(tr::now)
+				: tr::lng_mac_menu_player_pause(tr::now),
+			[dockMenu lifetime],
+			[] { instance()->playPause(); })];
+		[dockMenu addItem:CreateMenuItem(
+			tr::lng_mac_menu_player_next(tr::now),
+			[dockMenu lifetime],
+			[] { instance()->next(); },
+			instance()->nextAvailable(instance()->getActiveType()))];
+	}
+
+	return dockMenu;
 }
 
 @end // @implementation ApplicationDelegate
