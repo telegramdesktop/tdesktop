@@ -32,65 +32,122 @@ namespace {
 
 constexpr auto kShadowMaxAlpha = 80;
 
-const char *FrameVertexShader() {
+struct ShaderPart {
+	QString header;
+	QString body;
+};
+
+[[nodiscard]] QString VertexShader(const std::vector<ShaderPart> &parts) {
+	const auto accumulate = [&](auto proj) {
+		return ranges::accumulate(parts, QString(), std::plus<>(), proj);
+	};
 	return R"(
 #version 130
 in vec2 position;
-in vec2 texcoord;
-uniform vec2 viewport;
-out vec2 v_texcoord;
-vec4 transform(vec2 pos) {
-	return vec4(vec2(-1, -1) + 2 * pos / viewport, 0., 1.);
-}
+)" + accumulate(&ShaderPart::header) + R"(
 void main() {
-	gl_Position = transform(position);
-	v_texcoord = texcoord;
+	vec4 result = vec4(position, 0., 1.);
+)" + accumulate(&ShaderPart::body) + R"(
+	gl_Position = result;
 }
 )";
 }
 
-const char *FrameFragmentShader() {
+[[nodiscard]] QString FragmentShader(const std::vector<ShaderPart> &parts) {
+	const auto accumulate = [&](auto proj) {
+		return ranges::accumulate(parts, QString(), std::plus<>(), proj);
+	};
 	return R"(
 #version 130
+out vec4 fragColor;
+)" + accumulate(&ShaderPart::header) + R"(
+void main() {
+	vec4 result = vec4(0., 0., 0., 0.);
+)" + accumulate(&ShaderPart::body) + R"(
+	fragColor = result;
+}
+)";
+}
+
+[[nodiscard]] ShaderPart VertexPassTextureCoord() {
+	return {
+		.header = R"(
+in vec2 texcoord;
+out vec2 v_texcoord;
+)",
+		.body = R"(
+	v_texcoord = texcoord;
+)",
+	};
+}
+
+[[nodiscard]] ShaderPart FragmentSampleTexture() {
+	return {
+		.header = R"(
 in vec2 v_texcoord;
 uniform sampler2D s_texture;
-out vec4 fragColor;
-void main() {
-	vec4 color = texture(s_texture, v_texcoord);
-    fragColor = vec4(color.b, color.g, color.r, color.a);
-}
-)";
+)",
+		.body = R"(
+	result = texture(s_texture, v_texcoord);
+	result = vec4(result.b, result.g, result.r, result.a);
+)",
+	};
 }
 
-const char *FillVertexShader() {
-	return R"(
-#version 130
-in vec2 position;
+[[nodiscard]] ShaderPart VertexViewportTransform() {
+	return {
+		.header = R"(
 uniform vec2 viewport;
-vec4 transform(vec2 pos) {
-	return vec4(vec2(-1, -1) + 2 * pos / viewport, 0., 1.);
+vec4 transform(vec4 position) {
+	return vec4(
+		vec2(-1, -1) + 2 * position.xy / viewport,
+		position.z,
+		position.w);
 }
-void main() {
-	gl_Position = transform(position);
-}
-)";
+)",
+		.body = R"(
+	result = transform(result);
+)",
+	};
 }
 
-const char *FillFragmentShader() {
-	return R"(
-#version 130
-uniform vec4 s_color;
-out vec4 fragColor;
-void main() {
-    fragColor = s_color;
+[[nodiscard]] ShaderPart FragmentRoundCorners() {
+	return {
+		.header = R"(
+uniform vec2 viewport;
+uniform float roundRadius;
+float roundedCorner() {
+	vec2 viewportHalf = viewport / 2;
+	vec2 fromViewportCenter = abs(gl_FragCoord.xy - viewportHalf);
+	vec2 vectorRadius = vec2(roundRadius + 0.5, roundRadius + 0.5);
+	vec2 fromCenterWithRadius = fromViewportCenter + vectorRadius;
+	vec2 fromRoundingCenter = max(fromCenterWithRadius, viewportHalf)
+		- viewportHalf;
+	float d = length(fromRoundingCenter) - roundRadius;
+	return 1. - smoothstep(0., 1., d);
 }
-)";
+)",
+		.body = R"(
+	result = vec4(result.r, result.g, result.b, result.a * roundedCorner());
+)",
+	};
+}
+
+[[nodiscard]] ShaderPart FragmentStaticColor() {
+	return {
+		.header = R"(
+uniform vec4 s_color;
+)",
+		.body = R"(
+	result = s_color;
+)",
+	};
 }
 
 not_null<QOpenGLShader*> MakeShader(
 		not_null<QOpenGLShaderProgram*> program,
 		QOpenGLShader::ShaderType type,
-		const char *source) {
+		const QString &source) {
 	const auto result = new QOpenGLShader(type, program);
 	if (!result->compileSourceCode(source)) {
 		LOG(("Shader Compilation Failed: %1, error %2."
@@ -103,13 +160,80 @@ not_null<QOpenGLShader*> MakeShader(
 
 void LinkProgram(
 		not_null<QOpenGLShaderProgram*> program,
-		const char *vertexSource,
-		const char *fragmentSource) {
+		const QString &vertexSource,
+		const QString &fragmentSource) {
 	MakeShader(program, QOpenGLShader::Vertex, vertexSource);
 	MakeShader(program, QOpenGLShader::Fragment, fragmentSource);
 	if (!program->link()) {
 		LOG(("Shader Link Failed: %1.").arg(program->log()));
 	}
+}
+
+class Quads final {
+public:
+	void fill(QRect rect);
+	void paint(
+		not_null<QOpenGLFunctions*> f,
+		not_null<QOpenGLBuffer*> buffer,
+		not_null<QOpenGLShaderProgram*> program,
+		QSize viewport,
+		const QColor &color,
+		Fn<void()> additional = nullptr);
+
+private:
+	static constexpr auto kMaxTriangles = 8;
+	std::array<GLfloat, 6 * kMaxTriangles> coordinates{ 0 };
+	int triangles = 0;
+
+};
+
+void Quads::fill(QRect rect) {
+	Expects(triangles + 2 <= kMaxTriangles);
+
+	auto i = triangles * 6;
+	coordinates[i + 0] = coordinates[i + 10] = rect.x();
+	coordinates[i + 1] = coordinates[i + 11] = rect.y();
+	coordinates[i + 2] = rect.x() + rect.width();
+	coordinates[i + 3] = rect.y();
+	coordinates[i + 4] = coordinates[i + 6] = rect.x() + rect.width();
+	coordinates[i + 5] = coordinates[i + 7] = rect.y() + rect.height();
+	coordinates[i + 8] = rect.x();
+	coordinates[i + 9] = rect.y() + rect.height();
+	triangles += 2;
+}
+
+void Quads::paint(
+		not_null<QOpenGLFunctions*> f,
+		not_null<QOpenGLBuffer*> buffer,
+		not_null<QOpenGLShaderProgram*> program,
+		QSize viewport,
+		const QColor &color,
+		Fn<void()> additional) {
+	if (!triangles) {
+		return;
+	}
+	buffer->bind();
+	buffer->allocate(coordinates.data(), triangles * 6 * sizeof(GLfloat));
+
+	f->glUseProgram(program->programId());
+	program->setUniformValue("viewport", QSizeF(viewport));
+	program->setUniformValue("s_color", QVector4D(
+		color.redF(),
+		color.greenF(),
+		color.blueF(),
+		color.alphaF()));
+
+	GLint position = program->attributeLocation("position");
+	f->glVertexAttribPointer(position, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (void*)0);
+	f->glEnableVertexAttribArray(position);
+
+	if (additional) {
+		additional();
+	}
+
+	f->glDrawArrays(GL_TRIANGLES, 0, triangles * 3);
+
+	f->glDisableVertexAttribArray(position);
 }
 
 } // namespace
@@ -158,9 +282,11 @@ private:
 	std::array<GLuint, 3> _textures = {};
 	std::optional<QOpenGLBuffer> _frameBuffer;
 	std::optional<QOpenGLBuffer> _fillBuffer;
+	std::optional<QOpenGLBuffer> _cornersBgBuffer;
 	std::optional<QOpenGLShaderProgram> _frameProgram;
 	std::optional<QOpenGLShaderProgram> _fillProgram;
-	qint64 _key = 0;
+	std::optional<QOpenGLShaderProgram> _cornersBgProgram;
+	qint64 _frameKey = 0;
 
 };
 
@@ -192,18 +318,41 @@ void LargeVideo::RendererGL::init(
 		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	}
 	_frameBuffer.emplace();
-	_frameBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
+	_frameBuffer->setUsagePattern(QOpenGLBuffer::StaticDraw);
 	_frameBuffer->create();
+	_frameProgram.emplace();
+	LinkProgram(
+		&*_frameProgram,
+		VertexShader({
+			VertexViewportTransform(),
+			VertexPassTextureCoord(),
+		}),
+		FragmentShader({
+			FragmentSampleTexture(),
+			FragmentRoundCorners(),
+		}));
 
 	_fillBuffer.emplace();
-	_fillBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
+	_fillBuffer->setUsagePattern(QOpenGLBuffer::StaticDraw);
 	_fillBuffer->create();
-
-	_frameProgram.emplace();
-	LinkProgram(&*_frameProgram, FrameVertexShader(), FrameFragmentShader());
-
 	_fillProgram.emplace();
-	LinkProgram(&*_fillProgram, FillVertexShader(), FillFragmentShader());
+	LinkProgram(
+		&*_fillProgram,
+		VertexShader({ VertexViewportTransform() }),
+		FragmentShader({
+			FragmentStaticColor(),
+			FragmentRoundCorners(),
+		}));
+
+
+	_cornersBgBuffer.emplace();
+	_cornersBgBuffer->setUsagePattern(QOpenGLBuffer::StaticDraw);
+	_cornersBgBuffer->create();
+	_cornersBgProgram.emplace();
+	LinkProgram(
+		&*_cornersBgProgram,
+		VertexShader({ VertexViewportTransform() }),
+		FragmentShader({ FragmentStaticColor() }));
 }
 
 void LargeVideo::RendererGL::deinit(
@@ -217,6 +366,7 @@ void LargeVideo::RendererGL::deinit(
 	_fillBuffer = std::nullopt;
 	_frameProgram = std::nullopt;
 	_fillProgram = std::nullopt;
+	_cornersBgProgram = std::nullopt;
 }
 
 void LargeVideo::RendererGL::resize(
@@ -245,11 +395,9 @@ void LargeVideo::RendererGL::paint(
 	const auto [image, rotation] = _owner->_track
 		? _owner->_track.track->frameOriginalWithRotation()
 		: std::pair<QImage, int>();
-	if (image.isNull()) {
-		f->glClearColor(bgvector[0], bgvector[1], bgvector[2], bgvector[3]);
-		f->glClear(GL_COLOR_BUFFER_BIT);
-		return;
-	}
+
+	f->glEnable(GL_BLEND);
+	f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	const auto scaled = Media::View::FlipSizeByRotation(
 		image.size(),
@@ -259,107 +407,108 @@ void LargeVideo::RendererGL::paint(
 	const auto top = (size.height() - scaled.height()) / 2;
 	const auto right = left + scaled.width();
 	const auto bottom = top + scaled.height();
+	const auto radius = GLfloat(st::roundRadiusLarge * cIntRetinaFactor());
 
-	auto texcoords = std::array<std::array<GLfloat, 2>, 4> { {
-		{ {0, 1}},
-		{ {1, 1} },
-		{ {1, 0} },
-		{ {0, 0} },
-	} };
-	if (rotation > 0) {
-		std::rotate(
-			texcoords.begin(),
-			texcoords.begin() + (rotation / 90),
-			texcoords.end());
-	}
-	const GLfloat vertices[] = {
-		float(left), float(top), texcoords[0][0], texcoords[0][1],
-		float(right), float(top), texcoords[1][0], texcoords[1][1],
-		float(right), float(bottom), texcoords[2][0], texcoords[2][1],
-		float(left), float(bottom), texcoords[3][0], texcoords[3][1],
-	};
+	auto cornersBg = Quads();
+	const auto cornerBgSize = QSize(int(radius), int(radius));
+	cornersBg.fill({ QPoint(), cornerBgSize });
+	cornersBg.fill({ QPoint(size.width() - int(radius), 0), cornerBgSize });
+	cornersBg.fill({
+		QPoint(size.width() - int(radius), size.height() - int(radius)),
+		cornerBgSize
+	});
+	cornersBg.fill({ QPoint(0, size.height() - int(radius)), cornerBgSize });
+	cornersBg.paint(
+		f,
+		&*_cornersBgBuffer,
+		&*_cornersBgProgram,
+		size,
+		st::groupCallBg->c);
 
-	f->glUseProgram(_frameProgram->programId());
-	f->glActiveTexture(GL_TEXTURE0);
-	f->glBindTexture(GL_TEXTURE_2D, _textures[0]);
-	const auto key = image.cacheKey();
-	if (_key != key) {
-		_key = key;
-		f->glPixelStorei(GL_UNPACK_ROW_LENGTH, image.bytesPerLine() / 4);
-		f->glTexImage2D(
-			GL_TEXTURE_2D,
-			0,
-			GL_RGB,
-			image.width(),
-			image.height(),
-			0,
-			GL_RGBA,
-			GL_UNSIGNED_BYTE,
-			image.constBits());
-		f->glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-	}
-	_owner->_track.track->markFrameShown();
+	auto sideQuads = Quads();
+	if (!image.isNull()) {
+		auto texcoords = std::array<std::array<GLfloat, 2>, 4> { {
+			{ { 0, 1 }},
+			{ { 1, 1 } },
+			{ { 1, 0 } },
+			{ { 0, 0 } },
+		} };
+		if (rotation > 0) {
+			std::rotate(
+				texcoords.begin(),
+				texcoords.begin() + (rotation / 90),
+				texcoords.end());
+		}
+		const GLfloat vertices[] = {
+			float(left), float(top), texcoords[0][0], texcoords[0][1],
+			float(right), float(top), texcoords[1][0], texcoords[1][1],
+			float(right), float(bottom), texcoords[2][0], texcoords[2][1],
+			float(left), float(bottom), texcoords[3][0], texcoords[3][1],
+		};
 
-	_frameBuffer->bind();
-	_frameBuffer->allocate(vertices, sizeof(vertices));
+		f->glUseProgram(_frameProgram->programId());
+		f->glActiveTexture(GL_TEXTURE0);
+		f->glBindTexture(GL_TEXTURE_2D, _textures[0]);
+		const auto key = image.cacheKey();
+		if (_frameKey != key) {
+			_frameKey = key;
+			f->glPixelStorei(GL_UNPACK_ROW_LENGTH, image.bytesPerLine() / 4);
+			f->glTexImage2D(
+				GL_TEXTURE_2D,
+				0,
+				GL_RGB,
+				image.width(),
+				image.height(),
+				0,
+				GL_RGBA,
+				GL_UNSIGNED_BYTE,
+				image.constBits());
+			f->glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+		}
+		_owner->_track.track->markFrameShown();
 
-	_frameProgram->setUniformValue("viewport", QSizeF(size));
-	_frameProgram->setUniformValue("s_texture", GLint(0));
+		_frameBuffer->bind();
+		_frameBuffer->allocate(vertices, sizeof(vertices));
 
-	GLint position = _frameProgram->attributeLocation("position");
-	f->glVertexAttribPointer(position, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)0);
-	f->glEnableVertexAttribArray(position);
+		_frameProgram->setUniformValue("viewport", QSizeF(size));
+		_frameProgram->setUniformValue("s_texture", GLint(0));
+		_frameProgram->setUniformValue("roundRadius", radius);
 
-	GLint texcoord = _frameProgram->attributeLocation("texcoord");
-	f->glVertexAttribPointer(texcoord, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
-	f->glEnableVertexAttribArray(texcoord);
-
-	f->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
-	f->glDisableVertexAttribArray(position);
-	f->glDisableVertexAttribArray(texcoord);
-
-	constexpr auto kMaxTriangles = 8;
-	auto coordinates = std::array<GLfloat, 6 * kMaxTriangles>{ 0 };
-	auto triangles = 0;
-	const auto fill = [&](QRect rect) {
-		auto i = triangles * 6;
-		coordinates[i + 0] = coordinates[i + 10] = rect.x();
-		coordinates[i + 1] = coordinates[i + 11] = rect.y();
-		coordinates[i + 2] = rect.x() + rect.width();
-		coordinates[i + 3] = rect.y();
-		coordinates[i + 4] = coordinates[i + 6] = rect.x() + rect.width();
-		coordinates[i + 5] = coordinates[i + 7] = rect.y() + rect.height();
-		coordinates[i + 8] = rect.x();
-		coordinates[i + 9] = rect.y() + rect.height();
-		triangles += 2;
-	};
-	if (left > 0) {
-		fill({ 0, 0, left, size.height() });
-	}
-	if (right < size.width()) {
-		fill({ right, 0, size.width() - right, size.height() });
-	}
-	if (top > 0) {
-		fill({ 0, 0, size.width(), top });
-	}
-	if (bottom < size.height()) {
-		fill({ 0, bottom, size.width(), size.height() - bottom });
-	}
-	if (triangles > 0) {
-		_fillBuffer->bind();
-		_fillBuffer->allocate(coordinates.data(), triangles * 6 * sizeof(GLfloat));
-
-		f->glUseProgram(_fillProgram->programId());
-		_fillProgram->setUniformValue("viewport", QSizeF(size));
-		_fillProgram->setUniformValue("s_color", bgvector);
-
-		GLint position = _fillProgram->attributeLocation("position");
-		f->glVertexAttribPointer(position, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (void*)0);
+		GLint position = _frameProgram->attributeLocation("position");
+		f->glVertexAttribPointer(position, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)0);
 		f->glEnableVertexAttribArray(position);
 
-		f->glDrawArrays(GL_TRIANGLES, 0, triangles * 3);
+		GLint texcoord = _frameProgram->attributeLocation("texcoord");
+		f->glVertexAttribPointer(texcoord, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
+		f->glEnableVertexAttribArray(texcoord);
+
+		f->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+		f->glDisableVertexAttribArray(position);
+		f->glDisableVertexAttribArray(texcoord);
+
+		if (left > 0) {
+			sideQuads.fill({ 0, 0, left, size.height() });
+		}
+		if (right < size.width()) {
+			sideQuads.fill({ right, 0, size.width() - right, size.height() });
+		}
+		if (top > 0) {
+			sideQuads.fill({ 0, 0, size.width(), top });
+		}
+		if (bottom < size.height()) {
+			sideQuads.fill({ 0, bottom, size.width(), size.height() - bottom });
+		}
+	} else {
+		sideQuads.fill({ 0, 0, size.width(), size.height() });
 	}
+	sideQuads.paint(
+		f,
+		&*_fillBuffer,
+		&*_fillProgram,
+		size,
+		st::groupCallMembersBg->c,
+		[&] { _fillProgram->setUniformValue("roundRadius", radius); });
 }
 
 LargeVideo::LargeVideo(
@@ -378,6 +527,7 @@ LargeVideo::LargeVideo(
 	? std::make_unique<PinButton>(widget(), st)
 	: nullptr)
 , _smallLayout(!_pinButton) {
+	widget()->resize(0, 0);
 	widget()->setVisible(visible);
 	if (_smallLayout) {
 		widget()->setCursor(style::cur_pointer);
