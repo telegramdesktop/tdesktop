@@ -288,6 +288,7 @@ WORKDIR libvdpau
 RUN sed -i 's/shared_library/library/g' src/meson.build
 
 RUN meson build \
+	--buildtype=release \
 	--default-library=both \
 	--sysconfdir=/etc \
 	-Ddocumentation=false \
@@ -462,6 +463,7 @@ RUN git clone -b xkbcommon-1.0.3 --depth=1 $GIT/xkbcommon/libxkbcommon.git
 
 WORKDIR libxkbcommon
 RUN meson build \
+	--buildtype=release \
 	--default-library=both \
 	-Denable-docs=false \
 	-Denable-wayland=false \
