@@ -23,11 +23,94 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 
 #include <QtGui/QWindow>
+#include <QtGui/QOpenGLShader>
+#include <QtGui/QOpenGLShaderProgram>
+#include <QtGui/QOpenGLBuffer>
 
 namespace Calls::Group {
 namespace {
 
 constexpr auto kShadowMaxAlpha = 80;
+
+const char *FrameVertexShader() {
+	return R"(
+#version 130
+in vec2 position;
+in vec2 texcoord;
+uniform vec2 viewport;
+out vec2 v_texcoord;
+vec4 transform(vec2 pos) {
+	return vec4(vec2(-1, -1) + 2 * pos / viewport, 0., 1.);
+}
+void main() {
+	gl_Position = transform(position);
+	v_texcoord = texcoord;
+}
+)";
+}
+
+const char *FrameFragmentShader() {
+	return R"(
+#version 130
+in vec2 v_texcoord;
+uniform sampler2D s_texture;
+out vec4 fragColor;
+void main() {
+	vec4 color = texture(s_texture, v_texcoord);
+    fragColor = vec4(color.b, color.g, color.r, color.a);
+}
+)";
+}
+
+const char *FillVertexShader() {
+	return R"(
+#version 130
+in vec2 position;
+uniform vec2 viewport;
+vec4 transform(vec2 pos) {
+	return vec4(vec2(-1, -1) + 2 * pos / viewport, 0., 1.);
+}
+void main() {
+	gl_Position = transform(position);
+}
+)";
+}
+
+const char *FillFragmentShader() {
+	return R"(
+#version 130
+uniform vec4 s_color;
+out vec4 fragColor;
+void main() {
+    fragColor = s_color;
+}
+)";
+}
+
+not_null<QOpenGLShader*> MakeShader(
+		not_null<QOpenGLShaderProgram*> program,
+		QOpenGLShader::ShaderType type,
+		const char *source) {
+	const auto result = new QOpenGLShader(type, program);
+	if (!result->compileSourceCode(source)) {
+		LOG(("Shader Compilation Failed: %1, error %2."
+			).arg(source
+			).arg(result->log()));
+	}
+	program->addShader(result);
+	return result;
+}
+
+void LinkProgram(
+		not_null<QOpenGLShaderProgram*> program,
+		const char *vertexSource,
+		const char *fragmentSource) {
+	MakeShader(program, QOpenGLShader::Vertex, vertexSource);
+	MakeShader(program, QOpenGLShader::Fragment, fragmentSource);
+	if (!program->link()) {
+		LOG(("Shader Link Failed: %1.").arg(program->log()));
+	}
+}
 
 } // namespace
 
@@ -55,6 +138,10 @@ public:
 		not_null<QOpenGLWidget*> widget,
 		not_null<QOpenGLFunctions*> f) override;
 
+	void deinit(
+		not_null<QOpenGLWidget*> widget,
+		not_null<QOpenGLFunctions*> f) override;
+
 	void resize(
 		not_null<QOpenGLWidget*> widget,
 		not_null<QOpenGLFunctions*> f,
@@ -66,17 +153,14 @@ public:
 		not_null<QOpenGLFunctions*> f) override;
 
 private:
-	void deinit(not_null<QOpenGLContext*> context);
-
 	const not_null<LargeVideo*> _owner;
 
 	std::array<GLuint, 3> _textures = {};
-	GLuint _vertexBuffer = 0;
-	GLuint _vertexShader = 0;
-	GLuint _fragmentShader = 0;
-	GLuint _shaderProgram = 0;
+	std::optional<QOpenGLBuffer> _frameBuffer;
+	std::optional<QOpenGLBuffer> _fillBuffer;
+	std::optional<QOpenGLShaderProgram> _frameProgram;
+	std::optional<QOpenGLShaderProgram> _fillProgram;
 	qint64 _key = 0;
-	QMetaObject::Connection _connection;
 
 };
 
@@ -98,15 +182,6 @@ LargeVideo::RendererGL::~RendererGL() {
 void LargeVideo::RendererGL::init(
 		not_null<QOpenGLWidget*> widget,
 		not_null<QOpenGLFunctions*> f) {
-	if (_connection) {
-		QObject::disconnect(_connection);
-	}
-	const auto context = widget->context();
-	_connection = QObject::connect(
-		context,
-		&QOpenGLContext::aboutToBeDestroyed,
-		[=] { deinit(context); });
-
 	f->glGenTextures(3, _textures.data());
 	for (const auto texture : _textures) {
 		f->glBindTexture(GL_TEXTURE_2D, texture);
@@ -116,79 +191,32 @@ void LargeVideo::RendererGL::init(
 		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	}
-	f->glGenBuffers(1, &_vertexBuffer);
+	_frameBuffer.emplace();
+	_frameBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
+	_frameBuffer->create();
 
-	const char *vertexShaderSource = R"(
-#version 130
-in vec2 position;
-in vec2 texcoord;
-out vec2 v_texcoord;
-void main() {
-	gl_Position = vec4(position.x, position.y, 0.0, 1.0);
-	v_texcoord = texcoord;
-}
-)";
-	_vertexShader = f->glCreateShader(GL_VERTEX_SHADER);
-	f->glShaderSource(_vertexShader, 1, &vertexShaderSource, NULL);
-	f->glCompileShader(_vertexShader);
+	_fillBuffer.emplace();
+	_fillBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
+	_fillBuffer->create();
 
-	{
-		int  success;
-		char infoLog[512];
-		f->glGetShaderiv(_vertexShader, GL_COMPILE_STATUS, &success);
-		if (!success) {
-			f->glGetShaderInfoLog(_vertexShader, 512, NULL, infoLog);
-		}
-		int a = 0;
-	}
+	_frameProgram.emplace();
+	LinkProgram(&*_frameProgram, FrameVertexShader(), FrameFragmentShader());
 
-	const char *fragmentShaderSource = R"(
-#version 130
-in vec2 v_texcoord;
-uniform sampler2D s_texture;
-out vec4 fragColor;
-void main() {
-	vec4 color = texture(s_texture, v_texcoord);
-    fragColor = vec4(color.b, color.g, color.r, color.a);
-}
-)";
-	// ;
-	_fragmentShader = f->glCreateShader(GL_FRAGMENT_SHADER);
-	f->glShaderSource(_fragmentShader, 1, &fragmentShaderSource, NULL);
-	f->glCompileShader(_fragmentShader);
-
-	{
-		int  success;
-		char infoLog[512];
-		f->glGetShaderiv(_fragmentShader, GL_COMPILE_STATUS, &success);
-		if (!success) {
-			f->glGetShaderInfoLog(_fragmentShader, 512, NULL, infoLog);
-		}
-		int a = 0;
-	}
-
-	_shaderProgram = f->glCreateProgram();
-	f->glAttachShader(_shaderProgram, _vertexShader);
-	f->glAttachShader(_shaderProgram, _fragmentShader);
-	f->glLinkProgram(_shaderProgram);
-
-	{
-		int  success;
-		char infoLog[512];
-		f->glGetProgramiv(_shaderProgram, GL_LINK_STATUS, &success);
-		if (!success) {
-			f->glGetProgramInfoLog(_shaderProgram, 512, NULL, infoLog);
-		}
-		int a = 0;
-	}
+	_fillProgram.emplace();
+	LinkProgram(&*_fillProgram, FillVertexShader(), FillFragmentShader());
 }
 
-void LargeVideo::RendererGL::deinit(not_null<QOpenGLContext*> context) {
-	context->functions()->glDeleteTextures(_textures.size(), _textures.data());
-	context->functions()->glDeleteBuffers(1, &_vertexBuffer);
-	context->functions()->glDeleteProgram(_shaderProgram);
-	context->functions()->glDeleteShader(_vertexShader);
-	context->functions()->glDeleteShader(_fragmentShader);
+void LargeVideo::RendererGL::deinit(
+		not_null<QOpenGLWidget*> widget,
+		not_null<QOpenGLFunctions*> f) {
+	if (_textures.front()) {
+		f->glDeleteTextures(_textures.size(), _textures.data());
+		ranges::fill(_textures, 0);
+	}
+	_frameBuffer = std::nullopt;
+	_fillBuffer = std::nullopt;
+	_frameProgram = std::nullopt;
+	_fillProgram = std::nullopt;
 }
 
 void LargeVideo::RendererGL::resize(
@@ -202,23 +230,58 @@ void LargeVideo::RendererGL::resize(
 void LargeVideo::RendererGL::paint(
 		not_null<QOpenGLWidget*> widget,
 		not_null<QOpenGLFunctions*> f) {
-	const auto bg = st::groupCallMembersFg->c;
-	const auto fill = [&](QRect rect) {
-		//p.fillRect(rect, st::groupCallMembersBg);
-	};
+	const auto size = _owner->widget()->size();
+	if (size.isEmpty()) {
+		return;
+	}
+
+	const auto bg = st::groupCallMembersBg->c;
+	const auto bgvector = QVector4D(
+		bg.redF(),
+		bg.greenF(),
+		bg.blueF(),
+		bg.alphaF());
+
 	const auto [image, rotation] = _owner->_track
 		? _owner->_track.track->frameOriginalWithRotation()
 		: std::pair<QImage, int>();
 	if (image.isNull()) {
-		f->glClearColor(bg.redF(), bg.greenF(), bg.blueF(), 1.);
+		f->glClearColor(bgvector[0], bgvector[1], bgvector[2], bgvector[3]);
 		f->glClear(GL_COLOR_BUFFER_BIT);
 		return;
 	}
-	f->glUseProgram(_shaderProgram);
+
+	const auto scaled = Media::View::FlipSizeByRotation(
+		image.size(),
+		rotation
+	).scaled(size, Qt::KeepAspectRatio);
+	const auto left = (size.width() - scaled.width()) / 2;
+	const auto top = (size.height() - scaled.height()) / 2;
+	const auto right = left + scaled.width();
+	const auto bottom = top + scaled.height();
+
+	auto texcoords = std::array<std::array<GLfloat, 2>, 4> { {
+		{ {0, 1}},
+		{ {1, 1} },
+		{ {1, 0} },
+		{ {0, 0} },
+	} };
+	if (rotation > 0) {
+		std::rotate(
+			texcoords.begin(),
+			texcoords.begin() + (rotation / 90),
+			texcoords.end());
+	}
+	const GLfloat vertices[] = {
+		float(left), float(top), texcoords[0][0], texcoords[0][1],
+		float(right), float(top), texcoords[1][0], texcoords[1][1],
+		float(right), float(bottom), texcoords[2][0], texcoords[2][1],
+		float(left), float(bottom), texcoords[3][0], texcoords[3][1],
+	};
+
+	f->glUseProgram(_frameProgram->programId());
 	f->glActiveTexture(GL_TEXTURE0);
 	f->glBindTexture(GL_TEXTURE_2D, _textures[0]);
-
-	// #TODO calls check stride, upload with stride or from copy of an image.
 	const auto key = image.cacheKey();
 	if (_key != key) {
 		_key = key;
@@ -237,51 +300,66 @@ void LargeVideo::RendererGL::paint(
 	}
 	_owner->_track.track->markFrameShown();
 
-	f->glBindBuffer(GL_ARRAY_BUFFER, _vertexBuffer);
-	std::array<std::array<GLfloat, 2>, 4> UVCoords = { {
-		{{0, 1}},  // Lower left.
-		{{1, 1}},  // Lower right.
-		{{1, 0}},  // Upper right.
-		{{0, 0}},  // Upper left.
-	} };
+	_frameBuffer->bind();
+	_frameBuffer->allocate(vertices, sizeof(vertices));
 
-	const auto rotation_offset = (rotation / 90);
-	std::rotate(
-		UVCoords.begin(),
-		UVCoords.begin() + rotation_offset,
-		UVCoords.end());
-	const GLfloat vertices[] = {
-	  -1, -1, UVCoords[0][0], UVCoords[0][1],
-	   1, -1, UVCoords[1][0], UVCoords[1][1],
-	   1,  1, UVCoords[2][0], UVCoords[2][1],
-	  -1,  1, UVCoords[3][0], UVCoords[3][1],
-	};
-	f->glBufferData(
-		GL_ARRAY_BUFFER,
-		sizeof(vertices),
-		vertices,
-		GL_DYNAMIC_DRAW);
+	_frameProgram->setUniformValue("viewport", QSizeF(size));
+	_frameProgram->setUniformValue("s_texture", GLint(0));
 
-	GLint sampler = f->glGetUniformLocation(_shaderProgram, "s_texture");
-	GLint position = f->glGetAttribLocation(_shaderProgram, "position");
-	GLint texcoord = f->glGetAttribLocation(_shaderProgram, "texcoord");
-	if (position < 0 || texcoord < 0) {
-		return;
-	}
-
-	f->glUniform1i(sampler, 0);
-
-	// Read position attribute with size of 2 and stride of 4 beginning at the start of the array. The
-	// last argument indicates offset of data within the vertex buffer.
-	f->glVertexAttribPointer(position, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)0);
+	GLint position = _frameProgram->attributeLocation("position");
+	f->glVertexAttribPointer(position, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)0);
 	f->glEnableVertexAttribArray(position);
 
-	// Read texcoord attribute  with size of 2 and stride of 4 beginning at the first texcoord in the
-	// array. The last argument indicates offset of data within the vertex buffer.
-	f->glVertexAttribPointer(texcoord, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void *)(2 * sizeof(GLfloat)));
+	GLint texcoord = _frameProgram->attributeLocation("texcoord");
+	f->glVertexAttribPointer(texcoord, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
 	f->glEnableVertexAttribArray(texcoord);
 
 	f->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+	f->glDisableVertexAttribArray(position);
+	f->glDisableVertexAttribArray(texcoord);
+
+	constexpr auto kMaxTriangles = 8;
+	auto coordinates = std::array<GLfloat, 6 * kMaxTriangles>{ 0 };
+	auto triangles = 0;
+	const auto fill = [&](QRect rect) {
+		auto i = triangles * 6;
+		coordinates[i + 0] = coordinates[i + 10] = rect.x();
+		coordinates[i + 1] = coordinates[i + 11] = rect.y();
+		coordinates[i + 2] = rect.x() + rect.width();
+		coordinates[i + 3] = rect.y();
+		coordinates[i + 4] = coordinates[i + 6] = rect.x() + rect.width();
+		coordinates[i + 5] = coordinates[i + 7] = rect.y() + rect.height();
+		coordinates[i + 8] = rect.x();
+		coordinates[i + 9] = rect.y() + rect.height();
+		triangles += 2;
+	};
+	if (left > 0) {
+		fill({ 0, 0, left, size.height() });
+	}
+	if (right < size.width()) {
+		fill({ right, 0, size.width() - right, size.height() });
+	}
+	if (top > 0) {
+		fill({ 0, 0, size.width(), top });
+	}
+	if (bottom < size.height()) {
+		fill({ 0, bottom, size.width(), size.height() - bottom });
+	}
+	if (triangles > 0) {
+		_fillBuffer->bind();
+		_fillBuffer->allocate(coordinates.data(), triangles * 6 * sizeof(GLfloat));
+
+		f->glUseProgram(_fillProgram->programId());
+		_fillProgram->setUniformValue("viewport", QSizeF(size));
+		_fillProgram->setUniformValue("s_color", bgvector);
+
+		GLint position = _fillProgram->attributeLocation("position");
+		f->glVertexAttribPointer(position, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(GLfloat), (void*)0);
+		f->glEnableVertexAttribArray(position);
+
+		f->glDrawArrays(GL_TRIANGLES, 0, triangles * 3);
+	}
 }
 
 LargeVideo::LargeVideo(
