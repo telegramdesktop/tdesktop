@@ -928,8 +928,8 @@ bool OverlayWidget::updateControlsAnimation(crl::time now) {
 		return false;
 	}
 	const auto duration = (_controlsState == ControlsShowing)
-		? st::mediaviewShowDuration
-		: st::mediaviewHideDuration;
+		? (isZoomedIn() ? st::mediaviewZoomShow : st::mediaviewShowDuration)
+		: (isZoomedIn() ? st::mediaviewZoomHide : st::mediaviewHideDuration);
 	const auto dt = float64(now - _controlsAnimStarted)
 		/ duration;
 	if (dt >= 1) {
@@ -964,7 +964,7 @@ void OverlayWidget::waitingAnimationCallback() {
 }
 
 void OverlayWidget::updateCursor() {
-	setCursor(_controlsState == ControlsHidden
+	setCursor(_controlsState == ControlsHidden && !isZoomedIn()
 		? Qt::BlankCursor
 		: (_over == OverNone ? style::cur_default : style::cur_pointer));
 }
@@ -1035,6 +1035,7 @@ void OverlayWidget::resizeContentByScreenSize() {
 	}
 	_x = (width() - _w) / 2;
 	_y = (height() - _h) / 2;
+	_initialZoom = _zoom;
 }
 
 float64 OverlayWidget::radialProgress() const {
@@ -1155,7 +1156,7 @@ void OverlayWidget::zoomReset() {
 	auto newZoom = _zoom;
 	const auto full = _fullScreenVideo ? _zoomToScreen : _zoomToDefault;
 	if (_zoom == 0) {
-		if (qFloor(full) == qCeil(full) && qRound(full) >= -kMaxZoomLevel && qRound(full) <= kMaxZoomLevel) {
+		if (qFloor(full) == qCeil(full) && qRound(full) >= -kMaxZoomLevel && qRound(full) <= kMaxZoomLevel && full != 0.0) {
 			newZoom = qRound(full);
 		} else {
 			newZoom = kZoomToScreenLevel;
@@ -1271,8 +1272,8 @@ void OverlayWidget::close() {
 }
 
 void OverlayWidget::activateControls() {
-	if (!_menu && !_mousePressed) {
-		_controlsHideTimer.callOnce(st::mediaviewWaitHide);
+	if (!_menu && !_mousePressed && (_over == OverNone || _over == OverVideo)) {
+		_controlsHideTimer.callOnce(isZoomedIn() ? st::mediaviewZoomWait : st::mediaviewWaitHide);
 	}
 	if (_fullScreenVideo) {
 		if (_streamed) {
@@ -1295,6 +1296,7 @@ void OverlayWidget::onHideControls(bool force) {
 			|| (_streamed && _streamed->controls.hasMenu())
 			|| _menu
 			|| _mousePressed
+			|| (_over != OverNone && _over != OverVideo)
 			|| (_fullScreenVideo
 				&& !videoIsGifOrUserpic()
 				&& _streamed->controls.geometry().contains(_lastMouseMovePos))) {
@@ -3289,7 +3291,7 @@ void OverlayWidget::paintEvent(QPaintEvent *e) {
 		}
 
 		// more area
-		if (_moreNavIcon.intersects(r)) {
+		if (_moreNavIcon.intersects(r) && !isZoomedIn()) {
 			auto o = overLevel(OverMore);
 			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
 			st::mediaviewMore.paintInCenter(p, _moreNavIcon);
@@ -3629,10 +3631,10 @@ void OverlayWidget::keyPressEvent(QKeyEvent *e) {
 			activateControls();
 		}
 		moveToNext(1);
-	} else if (ctrl) {
+	} else if (ctrl || !_streamed) {
 		if (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Asterisk || e->key() == ']') {
 			zoomIn();
-		} else if (e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore) {
+		} else if (e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore || e->key() == '[') {
 			zoomOut();
 		} else if (e->key() == Qt::Key_0) {
 			zoomReset();
@@ -3708,6 +3710,12 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 		_h = qRound(_h / (-z + 1));
 		_x = qRound(nx / (-z + 1) + width() / 2.);
 		_y = qRound(ny / (-z + 1) + height() / 2.);
+	}
+	if (isZoomedIn()) {
+		if (_controlsState == ControlsHiding) {
+			_controlsState = ControlsShown;
+		}
+		onHideControls();
 	}
 	snapXY();
 	update();
@@ -4068,6 +4076,7 @@ bool OverlayWidget::updateOverState(OverState newState) {
 			if (!_stateAnimation.animating()) {
 				_stateAnimation.start();
 			}
+			activateControls();
 		}
 		updateCursor();
 	}
@@ -4122,7 +4131,7 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverRotate);
 	} else if (_document && documentBubbleShown() && _docIconRect.contains(pos)) {
 		updateOverState(OverIcon);
-	} else if (_moreNav.contains(pos)) {
+	} else if (_moreNav.contains(pos) && !isZoomedIn()) {
 		updateOverState(OverMore);
 	} else if (_closeNav.contains(pos)) {
 		updateOverState(OverClose);
@@ -4204,7 +4213,7 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 		_pressed = false;
 	}
 	_down = OverNone;
-	if (!isHidden()) {
+	if (!isHidden() || (isZoomedIn() && _controlsState == ControlsHidden)) {
 		activateControls();
 	}
 }
@@ -4522,6 +4531,11 @@ float64 OverlayWidget::overLevel(OverState control) const {
 	return (i == end(_animationOpacities))
 		? (_over == control ? 1. : 0.)
 		: i->second.current();
+}
+
+bool OverlayWidget::isZoomedIn() {
+	return ((_initialZoom == 0 && _zoom > 0)
+		|| (_initialZoom != 0 && _zoom >= 0 && _zoom != _initialZoom));
 }
 
 } // namespace View
