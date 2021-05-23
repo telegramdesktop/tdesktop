@@ -216,6 +216,8 @@ MTPWallPaperSettings WallPaper::mtpSettings() const {
 			? MTP_int(SerializeMaybeColor(_backgroundColor))
 			: MTP_int(0)),
 		MTP_int(0), // second_background_color
+		MTP_int(0), // third_background_color
+		MTP_int(0), // fourth_background_color
 		MTP_int(_intensity),
 		MTP_int(0) // rotation
 	);
