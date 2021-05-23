@@ -41,7 +41,11 @@ Viewport::Viewport(QWidget *parent, PanelMode mode)
 }
 
 Viewport::~Viewport() {
-	base::take(_tiles);
+	for (const auto &tile : base::take(_tiles)) {
+		if (const auto textures = tile->takeTextures()) {
+			_freeTextures(textures);
+		}
+	}
 }
 
 not_null<QWidget*> Viewport::widget() const {
@@ -200,6 +204,9 @@ void Viewport::remove(const VideoEndpoint &endpoint) {
 	}
 	if (_pressed.tile == removing) {
 		setPressed({});
+	}
+	if (const auto textures = removing->takeTextures()) {
+
 	}
 	_tiles.erase(i);
 	updateTilesGeometry();
@@ -378,8 +385,12 @@ Ui::GL::ChosenRenderer Viewport::chooseRenderer(
 		: capabilities.transparency;
 	LOG(("OpenGL: %1 (Calls::Group::Viewport)").arg(Logs::b(use)));
 	if (use) {
+		auto renderer = std::make_unique<RendererGL>(this);
+		_freeTextures = [raw = renderer.get()](const Textures &textures) {
+			raw->free(textures);
+		};
 		return {
-			.renderer = std::make_unique<Renderer>(this),
+			.renderer = std::move(renderer),
 			.backend = Ui::GL::Backend::OpenGL,
 		};
 	}

@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_calls.h"
 
+#include <QtGui/QOpenGLFunctions>
+
 namespace Calls::Group {
 
 Viewport::VideoTile::VideoTile(
@@ -25,6 +27,10 @@ Viewport::VideoTile::VideoTile(
 	Expects(track.row != nullptr);
 
 	setup(std::move(pinned));
+}
+
+Viewport::VideoTile::~VideoTile() {
+	Expects(!_textures);
 }
 
 QRect Viewport::VideoTile::pinInner() const {
@@ -60,7 +66,7 @@ void Viewport::VideoTile::togglePinShown(bool shown) {
 }
 
 bool Viewport::VideoTile::updateRequestedQuality(VideoQuality quality) {
-	if (!_quality || *_quality == quality) {
+	if (_quality && *_quality == quality) {
 		return false;
 	}
 	_quality = quality;
@@ -121,6 +127,30 @@ void Viewport::VideoTile::setup(rpl::producer<bool> pinned) {
 	if (const auto size = _track.track->frameSize(); !size.isEmpty()) {
 		_trackSize = size;
 	}
+}
+
+void Viewport::VideoTile::ensureTexturesCreated(
+		not_null<QOpenGLFunctions*> f) {
+	if (_textures) {
+		return;
+	}
+	f->glGenTextures(_textures.values.size(), _textures.values.data());
+	for (const auto texture : _textures.values) {
+		f->glBindTexture(GL_TEXTURE_2D, texture);
+		const auto clamp = GL_CLAMP_TO_EDGE;
+		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, clamp);
+		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, clamp);
+		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
+}
+
+const Viewport::Textures &Viewport::VideoTile::textures() const {
+	return _textures;
+}
+
+Viewport::Textures Viewport::VideoTile::takeTextures() {
+	return base::take(_textures);
 }
 
 } // namespace Calls::Group

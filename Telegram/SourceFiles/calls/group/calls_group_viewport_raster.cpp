@@ -40,17 +40,14 @@ void Viewport::Renderer::paintFallback(
 		const QRegion &clip,
 		Ui::GL::Backend backend) {
 	auto bg = clip;
-	const auto guard = gsl::finally([&] {
-		for (const auto rect : bg) {
-			p.fillRect(rect, st::groupCallBg);
-		}
-	});
-
 	auto hq = PainterHighQualityEnabler(p);
 	const auto bounding = clip.boundingRect();
 	const auto opengl = (backend == Ui::GL::Backend::OpenGL);
 	for (const auto &tile : _owner->_tiles) {
 		paintTile(p, tile.get(), bounding, opengl, bg);
+	}
+	for (const auto rect : bg) {
+		p.fillRect(rect, st::groupCallBg);
 	}
 }
 
@@ -61,7 +58,9 @@ void Viewport::Renderer::paintTile(
 		bool opengl,
 		QRegion &bg) {
 	const auto track = tile->track();
-	const auto [image, rotation] = track->frameOriginalWithRotation();
+	const auto data = track->frameWithInfo();
+	const auto &image = data.original;
+	const auto rotation = data.rotation;
 	if (image.isNull()) {
 		return;
 	}

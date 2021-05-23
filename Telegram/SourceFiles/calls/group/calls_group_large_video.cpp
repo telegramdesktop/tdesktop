@@ -391,9 +391,11 @@ void LargeVideo::RendererGL::paint(
 		bg.blueF(),
 		bg.alphaF());
 
-	const auto [image, rotation] = _owner->_track
-		? _owner->_track.track->frameOriginalWithRotation()
-		: std::pair<QImage, int>();
+	const auto data = _owner->_track
+		? _owner->_track.track->frameWithInfo()
+		: Webrtc::FrameWithInfo();
+	const auto &image = data.original;
+	const auto rotation = data.rotation;
 
 	f->glEnable(GL_BLEND);
 	f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -766,9 +768,11 @@ void LargeVideo::paint(Painter &p, QRect clip, bool opengl) {
 			p.fillRect(rect.intersected(clip), st::groupCallMembersBg);
 		}
 	};
-	const auto [image, rotation] = _track
-		? _track.track->frameOriginalWithRotation()
-		: std::pair<QImage, int>();
+	const auto data = _track
+		? _track.track->frameWithInfo()
+		: Webrtc::FrameWithInfo();
+	const auto &image = data.original;
+	const auto rotation = data.rotation;
 	if (image.isNull()) {
 		fill(clip);
 		return;

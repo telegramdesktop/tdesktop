@@ -19,6 +19,8 @@ class Viewport::RendererGL final : public Ui::GL::Renderer {
 public:
 	explicit RendererGL(not_null<Viewport*> owner);
 
+	void free(const Textures &textures);
+
 	void init(
 		not_null<QOpenGLWidget*> widget,
 		not_null<QOpenGLFunctions*> f) override;
@@ -38,14 +40,22 @@ public:
 		not_null<QOpenGLFunctions*> f) override;
 
 private:
+	void fillBackground(not_null<QOpenGLFunctions*> f);
+	void paintTile(
+		not_null<QOpenGLFunctions*> f,
+		not_null<VideoTile*> tile);
+	void freeTextures(not_null<QOpenGLFunctions*> f);
+
 	const not_null<Viewport*> _owner;
 
+	QSize _viewport;
 	std::optional<QOpenGLBuffer> _frameBuffer;
-	std::optional<QOpenGLBuffer> _fillBuffer;
 	std::optional<QOpenGLBuffer> _bgBuffer;
 	std::optional<QOpenGLShaderProgram> _frameProgram;
-	std::optional<QOpenGLShaderProgram> _fillProgram;
 	std::optional<QOpenGLShaderProgram> _bgProgram;
+
+	std::vector<GLfloat> _bgTriangles;
+	std::vector<Textures> _texturesToFree;
 
 };
 

@@ -65,7 +65,7 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
-	struct PinButton;
+	struct Textures;
 	class VideoTile;
 	class Renderer;
 	class RendererGL;
@@ -100,6 +100,7 @@ private:
 	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
 		Ui::GL::Capabilities capabilities);
 
+	Fn<void(const Textures &)> _freeTextures;
 	rpl::variable<PanelMode> _mode;
 	const std::unique_ptr<Ui::RpWidgetWrap> _content;
 	std::vector<std::unique_ptr<VideoTile>> _tiles;

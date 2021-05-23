@@ -15,7 +15,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/cross_line.h"
 #include "ui/round_rect.h"
 
+class QOpenGLFunctions;
+
 namespace Calls::Group {
+
+struct Viewport::Textures {
+	std::array<GLuint, 2> values = { { 0 } };
+	mutable int textureIndex = 0;
+	mutable int trackIndex = -1;
+
+	explicit operator bool() const {
+		return values[0] || values[1];
+	}
+};
 
 class Viewport::VideoTile final {
 public:
@@ -24,6 +36,7 @@ public:
 		LargeVideoTrack track,
 		rpl::producer<bool> pinned,
 		Fn<void()> update);
+	~VideoTile();
 
 	[[nodiscard]] not_null<Webrtc::VideoTrack*> track() const {
 		return _track.track;
@@ -53,6 +66,10 @@ public:
 	void togglePinShown(bool shown);
 	bool updateRequestedQuality(VideoQuality quality);
 
+	void ensureTexturesCreated(not_null<QOpenGLFunctions*> f);
+	[[nodiscard]] const Textures &textures() const;
+	[[nodiscard]] Textures takeTextures();
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -74,6 +91,8 @@ private:
 	bool _pinShown = false;
 	bool _pinned = false;
 	std::optional<VideoQuality> _quality;
+
+	Textures _textures;
 
 	rpl::lifetime _lifetime;
 

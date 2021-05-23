@@ -134,7 +134,9 @@ Ui::GL::ChosenRenderer Panel::Incoming::chooseRenderer(
 }
 
 void Panel::Incoming::paint(QPainter &p, const QRegion &clip, bool opengl) {
-	const auto [image, rotation] = _track->frameOriginalWithRotation();
+	const auto data = _track->frameWithInfo();
+	const auto &image = data.original;
+	const auto rotation = data.rotation;
 	if (image.isNull()) {
 		p.fillRect(clip.boundingRect(), Qt::black);
 	} else {
@@ -517,10 +519,7 @@ void Panel::reinitWithCall(Call *call) {
 	_call->videoIncoming()->renderNextFrame(
 	) | rpl::start_with_next([=] {
 		const auto track = _call->videoIncoming();
-		const auto [frame, rotation] = track->frameOriginalWithRotation();
-		setIncomingSize((rotation == 90 || rotation == 270)
-			? QSize(frame.height(), frame.width())
-			: frame.size());
+		setIncomingSize(track->frameSize());
 		if (_incoming->widget()->isHidden()) {
 			return;
 		}
