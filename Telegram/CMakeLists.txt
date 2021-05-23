@@ -289,6 +289,14 @@ PRIVATE
     calls/group/calls_group_panel.h
     calls/group/calls_group_settings.cpp
     calls/group/calls_group_settings.h
+    calls/group/calls_group_viewport.cpp
+    calls/group/calls_group_viewport.h
+    calls/group/calls_group_viewport_opengl.cpp
+    calls/group/calls_group_viewport_opengl.h
+    calls/group/calls_group_viewport_raster.cpp
+    calls/group/calls_group_viewport_raster.h
+    calls/group/calls_group_viewport_tile.cpp
+    calls/group/calls_group_viewport_tile.h
     calls/group/calls_volume_item.cpp
     calls/group/calls_volume_item.h
     calls/calls_box_controller.cpp

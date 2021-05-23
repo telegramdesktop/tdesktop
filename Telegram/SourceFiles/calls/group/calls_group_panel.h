@@ -54,7 +54,7 @@ struct CallBodyLayout;
 namespace Calls::Group {
 
 class Members;
-class LargeVideo;
+class Viewport;
 enum class PanelMode;
 
 class Panel final : private Ui::DesktopCapture::ChooseSourceDelegate {
@@ -70,7 +70,6 @@ public:
 
 private:
 	using State = GroupCall::State;
-	struct VideoTile;
 	struct ControlsBackgroundNarrow;
 
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
@@ -155,8 +154,7 @@ private:
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<Members> _members = { nullptr };
-	std::unique_ptr<Ui::RpWidget> _pinnedVideoWrap;
-	std::vector<VideoTile> _videoTiles;
+	std::unique_ptr<Viewport> _viewport;
 	rpl::lifetime _trackControlsLifetime;
 	rpl::lifetime _trackControlsOverStateLifetime;
 	object_ptr<Ui::FlatLabel> _startsIn = { nullptr };

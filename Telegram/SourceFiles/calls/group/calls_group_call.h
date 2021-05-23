@@ -124,6 +124,16 @@ inline bool operator>=(
 	return !(a < b);
 }
 
+struct VideoPinToggle {
+	VideoEndpoint endpoint;
+	bool pinned = false;
+};
+
+struct VideoQualityRequest {
+	VideoEndpoint endpoint;
+	Group::VideoQuality quality = Group::VideoQuality();
+};
+
 struct VideoParams {
 	std::string endpoint;
 	QByteArray json;

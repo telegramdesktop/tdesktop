@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_settings.h"
 #include "calls/group/calls_group_menu.h"
 #include "calls/group/calls_group_large_video.h"
+#include "calls/group/calls_group_viewport.h"
 #include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/platform/ui_platform_utility.h"
@@ -379,11 +380,6 @@ std::unique_ptr<PeerListRow> InviteContactsController::createRow(
 
 } // namespace
 
-struct Panel::VideoTile {
-	std::unique_ptr<LargeVideo> video;
-	VideoEndpoint endpoint;
-};
-
 struct Panel::ControlsBackgroundNarrow {
 	explicit ControlsBackgroundNarrow(not_null<QWidget*> parent)
 	: shadow(parent)
@@ -442,10 +438,8 @@ Panel::Panel(not_null<GroupCall*> call)
 }
 
 Panel::~Panel() {
-	if (_menu) {
-		_menu.destroy();
-	}
-	_videoTiles.clear();
+	_menu.destroy();
+	_viewport = nullptr;
 }
 
 void Panel::setupRealCallViewers() {
@@ -999,7 +993,7 @@ void Panel::setupMembers() {
 	_call->videoEndpointPinnedValue(
 	) | rpl::start_with_next([=](const VideoEndpoint &pinned) {
 		if (mode() == PanelMode::Wide) {
-			refreshTilesGeometry();
+			_viewport->showLarge(pinned);
 		} else if (pinned) {
 			enlargeVideo();
 		}
@@ -1093,195 +1087,62 @@ void Panel::raiseControls() {
 	_mute->raise();
 }
 
-void Panel::refreshTilesGeometry() {
-	const auto outer = _pinnedVideoWrap->size();
-	if (_videoTiles.empty()
-		|| outer.isEmpty()
-		|| mode() == PanelMode::Default) {
-		return;
-	}
-	struct Geometry {
-		QSize size;
-		QRect columns;
-		QRect rows;
-	};
-	const auto &pinned = _call->videoEndpointPinned();
-	auto sizes = base::flat_map<not_null<LargeVideo*>, Geometry>();
-	sizes.reserve(_videoTiles.size());
-	for (const auto &tile : _videoTiles) {
-		const auto video = tile.video.get();
-		const auto size = (pinned && tile.endpoint != pinned)
-			? QSize()
-			: video->trackSize();
-		if (size.isEmpty()) {
-			video->setGeometry(0, 0, outer.width(), 0);
-		} else {
-			sizes.emplace(video, Geometry{ size });
-		}
-	}
-	if (sizes.size() == 1) {
-		sizes.front().first->setGeometry(0, 0, outer.width(), outer.height());
-		return;
-	}
-	if (sizes.empty()) {
-		return;
-	}
-
-	auto columnsBlack = uint64();
-	auto rowsBlack = uint64();
-	const auto count = int(sizes.size());
-	const auto skip = st::groupCallVideoLargeSkip;
-	const auto slices = int(std::ceil(std::sqrt(float64(count))));
-	{
-		auto index = 0;
-		const auto columns = slices;
-		const auto sizew = (outer.width() + skip) / float64(columns);
-		for (auto column = 0; column != columns; ++column) {
-			const auto left = int(std::round(column * sizew));
-			const auto width = int(std::round(column * sizew + sizew - skip))
-				- left;
-			const auto rows = int(std::round((count - index)
-				/ float64(columns - column)));
-			const auto sizeh = (outer.height() + skip) / float64(rows);
-			for (auto row = 0; row != rows; ++row) {
-				const auto top = int(std::round(row * sizeh));
-				const auto height = int(std::round(
-					row * sizeh + sizeh - skip)) - top;
-				auto &geometry = (sizes.begin() + index)->second;
-				geometry.columns = {
-					left,
-					top,
-					width,
-					height };
-				const auto scaled = geometry.size.scaled(
-					width,
-					height,
-					Qt::KeepAspectRatio);
-				columnsBlack += (scaled.width() < width)
-					? (width - scaled.width()) * height
-					: (height - scaled.height()) * width;
-				++index;
-			}
-		}
-	}
-	{
-		auto index = 0;
-		const auto rows = slices;
-		const auto sizeh = (outer.height() + skip) / float64(rows);
-		for (auto row = 0; row != rows; ++row) {
-			const auto top = int(std::round(row * sizeh));
-			const auto height = int(std::round(row * sizeh + sizeh - skip))
-				- top;
-			const auto columns = int(std::round((count - index)
-				/ float64(rows - row)));
-			const auto sizew = (outer.width() + skip) / float64(columns);
-			for (auto column = 0; column != columns; ++column) {
-				const auto left = int(std::round(column * sizew));
-				const auto width = int(std::round(
-					column * sizew + sizew - skip)) - left;
-				auto &geometry = (sizes.begin() + index)->second;
-				geometry.rows = {
-					left,
-					top,
-					width,
-					height };
-				const auto scaled = geometry.size.scaled(
-					width,
-					height,
-					Qt::KeepAspectRatio);
-				rowsBlack += (scaled.width() < width)
-					? (width - scaled.width()) * height
-					: (height - scaled.height()) * width;
-				++index;
-			}
-		}
-	}
-	for (const auto &[video, geometry] : sizes) {
-		const auto &rect = (columnsBlack < rowsBlack)
-			? geometry.columns
-			: geometry.rows;
-		video->setGeometry(rect.x(), rect.y(), rect.width(), rect.height());
-	}
-}
-
 void Panel::setupPinnedVideo() {
 	using namespace rpl::mappers;
-	_pinnedVideoWrap = std::make_unique<Ui::RpWidget>(widget());
-	const auto raw = _pinnedVideoWrap.get();
+	_viewport = std::make_unique<Viewport>(widget(), _mode.current());
+	const auto raw = _viewport.get();
 
 	const auto setupTile = [=](
 			const VideoEndpoint &endpoint,
 			const GroupCall::VideoTrack &track) {
 		const auto row = _members->lookupRow(track.peer);
 		Assert(row != nullptr);
-		auto video = std::make_unique<LargeVideo>(
-			raw,
-			st::groupCallLargeVideoWide,
-			(mode() == PanelMode::Wide),
-			rpl::single(LargeVideoTrack{ track.track.get(), row }),
+		_viewport->add(
+			endpoint,
+			LargeVideoTrack{ track.track.get(), row },
 			_call->videoEndpointPinnedValue() | rpl::map(_1 == endpoint));
-
-		video->pinToggled(
-		) | rpl::start_with_next([=](bool pinned) {
-			_call->pinVideoEndpoint(pinned ? endpoint : VideoEndpoint{});
-		}, video->lifetime());
-
-		video->requestedQuality(
-		) | rpl::start_with_next([=](VideoQuality quality) {
-			_call->requestVideoQuality(endpoint, quality);
-		}, video->lifetime());
-
-		video->trackSizeValue(
-		) | rpl::start_with_next([=] {
-			refreshTilesGeometry();
-		}, video->lifetime());
-
-		return VideoTile{
-			.video = std::move(video),
-			.endpoint = endpoint,
-		};
 	};
 	for (const auto &[endpoint, track] : _call->activeVideoTracks()) {
-		_videoTiles.push_back(setupTile(endpoint, track));
+		setupTile(endpoint, track);
 	}
 	_call->videoStreamActiveUpdates(
 	) | rpl::start_with_next([=](const VideoEndpoint &endpoint) {
 		if (_call->activeVideoTracks().contains(endpoint)) {
 			// Add async (=> the participant row is definitely in Members).
-			crl::on_main(raw, [=] {
+			crl::on_main(widget(), [=] {
 				const auto &tracks = _call->activeVideoTracks();
 				const auto i = tracks.find(endpoint);
 				if (i != end(tracks)) {
-					_videoTiles.push_back(setupTile(endpoint, i->second));
+					setupTile(endpoint, i->second);
 				}
 			});
 		} else {
 			// Remove sync.
-			const auto eraseTill = end(_videoTiles);
-			const auto eraseFrom = ranges::remove(
-				_videoTiles,
-				endpoint,
-				&VideoTile::endpoint);
-			if (eraseFrom != eraseTill) {
-				_videoTiles.erase(eraseFrom, eraseTill);
-				refreshTilesGeometry();
-			}
+			_viewport->remove(endpoint);
 		}
 	}, raw->lifetime());
 
-	raw->sizeValue() | rpl::start_with_next([=] {
-		refreshTilesGeometry();
+	raw->pinToggled(
+	) | rpl::start_with_next([=](const VideoPinToggle &value) {
+		_call->pinVideoEndpoint(
+			value.pinned ? value.endpoint : VideoEndpoint{});
 	}, raw->lifetime());
 
-	raw->events(
-	) | rpl::start_with_next([=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::Enter) {
-			Ui::Integration::Instance().registerLeaveSubscription(raw);
-			toggleWideControls(true);
-		} else if (e->type() == QEvent::Leave) {
-			Ui::Integration::Instance().unregisterLeaveSubscription(raw);
-			toggleWideControls(false);
-		}
+	raw->clicks(
+	) | rpl::filter([=] {
+		return (_mode.current() == PanelMode::Default);
+	}) | rpl::start_with_next([=] {
+		enlargeVideo();
+	}, raw->lifetime());
+
+	raw->qualityRequests(
+	) | rpl::start_with_next([=](const VideoQualityRequest &request) {
+		_call->requestVideoQuality(request.endpoint, request.quality);
+	}, raw->lifetime());
+
+	raw->mouseInsideValue(
+	) | rpl::start_with_next([=](bool inside) {
+		toggleWideControls(inside);
 	}, raw->lifetime());
 
 	raiseControls();
@@ -1811,14 +1672,10 @@ bool Panel::updateMode() {
 	if (_members) {
 		_members->setMode(mode);
 	}
-	if (_pinnedVideoWrap) {
+	if (_viewport) {
 		_wideControlsShown = _showWideControls = true;
 		_wideControlsAnimation.stop();
-		_pinnedVideoWrap->setVisible(mode == PanelMode::Wide);
-		for (const auto &tile : _videoTiles) {
-			tile.video->setVisible(mode == PanelMode::Wide);
-			tile.video->setControlsShown(1.);
-		}
+		_viewport->setMode(mode);
 	}
 	updateButtonsStyles();
 	refreshControlsBackground();
@@ -2085,8 +1942,8 @@ void Panel::updateButtonsGeometry() {
 			_wideControlsShown ? 1. : 0.);
 		toggle(shown > 0.);
 
-		for (const auto &tile : _videoTiles) {
-			tile.video->setControlsShown(shown);
+		if (_viewport) {
+			_viewport->setControlsShown(shown);
 		}
 
 		const auto buttonsTop = widget()->height() - anim::interpolate(
@@ -2206,7 +2063,7 @@ void Panel::updateMembersGeometry() {
 			top,
 			membersWidth,
 			std::min(desiredHeight, widget()->height() - top - skip));
-		_pinnedVideoWrap->setGeometry(
+		_viewport->widget()->setGeometry(
 			skip,
 			top,
 			widget()->width() - membersWidth - 3 * skip,

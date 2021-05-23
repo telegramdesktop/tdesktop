@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/group/calls_group_large_video.h"
 
+#include "calls/group/calls_group_viewport.h" // GenerateShadow.
 #include "calls/group/calls_group_common.h"
 #include "calls/group/calls_group_members_row.h"
 #include "media/view/media_view_pip.h"
@@ -19,8 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/cross_line.h"
 #include "lang/lang_keys.h"
 #include "styles/style_calls.h"
-
-#include "core/application.h"
 
 #include <QtGui/QWindow>
 #include <QtGui/QOpenGLShader>
@@ -590,9 +589,9 @@ void LargeVideo::setGeometry(int x, int y, int width, int height) {
 	if (width > 0 && height > 0) {
 		const auto kMedium = style::ConvertScale(380);
 		const auto kSmall = style::ConvertScale(200);
-		_requestedQuality = (width > kMedium || height > kMedium)
+		_requestedQuality = (width > kMedium && height > kMedium)
 			? VideoQuality::Full
-			: (width > kSmall || height > kSmall)
+			: (width > kSmall && height > kSmall)
 			? VideoQuality::Medium
 			: VideoQuality::Thumbnail;
 	}
@@ -899,53 +898,6 @@ void LargeVideo::paintControls(Painter &p, QRect clip) {
 		- st::semiboldFont->height
 		+ shift);
 	_track.row->name().drawLeftElided(p, nameLeft, nameTop, hasWidth, width);
-}
-
-QImage GenerateShadow(
-		int height,
-		int topAlpha,
-		int bottomAlpha,
-		QColor color) {
-	Expects(topAlpha >= 0 && topAlpha < 256);
-	Expects(bottomAlpha >= 0 && bottomAlpha < 256);
-	Expects(height * style::DevicePixelRatio() < 65536);
-
-	const auto base = (uint32(color.red()) << 16)
-		| (uint32(color.green()) << 8)
-		| uint32(color.blue());
-	const auto premultiplied = (topAlpha == bottomAlpha) || !base;
-	auto result = QImage(
-		QSize(1, height * style::DevicePixelRatio()),
-		(premultiplied
-			? QImage::Format_ARGB32_Premultiplied
-			: QImage::Format_ARGB32));
-	if (topAlpha == bottomAlpha) {
-		color.setAlpha(topAlpha);
-		result.fill(color);
-		return result;
-	}
-	constexpr auto kShift = 16;
-	constexpr auto kMultiply = (1U << kShift);
-	const auto values = std::abs(topAlpha - bottomAlpha);
-	const auto rows = uint32(result.height());
-	const auto step = (values * kMultiply) / (rows - 1);
-	const auto till = rows * uint32(step);
-	Assert(result.bytesPerLine() == sizeof(uint32));
-	auto ints = reinterpret_cast<uint32*>(result.bits());
-	if (topAlpha < bottomAlpha) {
-		for (auto i = uint32(0); i != till; i += step) {
-			*ints++ = base | ((topAlpha + (i >> kShift)) << 24);
-		}
-	} else {
-		for (auto i = uint32(0); i != till; i += step) {
-			*ints++ = base | ((topAlpha - (i >> kShift)) << 24);
-		}
-	}
-	if (!premultiplied) {
-		result = std::move(result).convertToFormat(
-			QImage::Format_ARGB32_Premultiplied);
-	}
-	return result;
 }
 
 } // namespace Calls::Group
