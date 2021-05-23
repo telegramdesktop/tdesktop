@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_service_message.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
@@ -568,7 +569,12 @@ ListWidget::ListWidget(
 , _peer(_controller->key().peer())
 , _migrated(_controller->migrated())
 , _type(_controller->section().mediaType())
-, _slice(sliceKey(_universalAroundId)) {
+, _slice(sliceKey(_universalAroundId))
+, _dateBadge(DateBadge{
+	.check = SingleQueuedInvokation([=] { scrollDateCheck(); }),
+	.hideTimer = base::Timer([=] { scrollDateHide(); }),
+	.goodType = (_type == Type::Photo || _type == Type::Video),
+}) {
 	setMouseTracking(true);
 	start();
 }
@@ -1070,6 +1076,55 @@ void ListWidget::visibleTopBottomUpdated(
 
 	checkMoveToOtherViewer();
 	clearHeavyItems();
+
+	if (_dateBadge.goodType) {
+		updateDateBadgeFor(_visibleTop);
+		if (!_visibleTop) {
+			if (_dateBadge.shown) {
+				scrollDateHide();
+			} else {
+				update(_dateBadge.rect);
+			}
+		} else {
+			_dateBadge.check.call();
+		}
+	}
+}
+
+void ListWidget::updateDateBadgeFor(int top) {
+	if (_sections.empty()) {
+		return;
+	}
+	const auto layout = findItemByPoint({ st::infoMediaSkip, top }).layout;
+	const auto rectHeight = st::msgServiceMargin.top()
+		+ st::msgServicePadding.top()
+		+ st::msgServiceFont->height
+		+ st::msgServicePadding.bottom();
+
+	_dateBadge.text = ItemDateText(layout->getItem(), false);
+	_dateBadge.rect = QRect(0, top, width(), rectHeight);
+}
+
+void ListWidget::scrollDateCheck() {
+	if (!_dateBadge.shown) {
+		toggleScrollDateShown();
+	}
+	_dateBadge.hideTimer.callOnce(st::infoScrollDateHideTimeout);
+}
+
+void ListWidget::scrollDateHide() {
+	if (_dateBadge.shown) {
+		toggleScrollDateShown();
+	}
+}
+
+void ListWidget::toggleScrollDateShown() {
+	_dateBadge.shown = !_dateBadge.shown;
+	_dateBadge.opacity.start(
+		[=] { update(_dateBadge.rect); },
+		_dateBadge.shown ? 0. : 1.,
+		_dateBadge.shown ? 1. : 0.,
+		st::infoDateFadeDuration);
 }
 
 void ListWidget::checkMoveToOtherViewer() {
@@ -1216,6 +1271,21 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		p.translate(0, top);
 		it->paint(p, context, clip.translated(0, -top), outerWidth);
 		p.translate(0, -top);
+	}
+
+	if (_dateBadge.goodType && clip.intersects(_dateBadge.rect)) {
+		const auto scrollDateOpacity =
+			_dateBadge.opacity.value(_dateBadge.shown ? 1. : 0.);
+		if (scrollDateOpacity > 0.) {
+			p.setOpacity(scrollDateOpacity);
+			HistoryView::ServiceMessagePainter::paintDate(
+				p,
+				_dateBadge.text,
+				_visibleTop,
+				outerWidth,
+				st::roundedBg,
+				st::roundedFg);
+		}
 	}
 }
 

@@ -947,3 +947,6 @@ inviteLinkQrValuePadding: margins(22px, 0px, 22px, 12px);
 infoAboutGigagroup: FlatLabel(defaultFlatLabel) {
 	minWidth: 274px;
 }
+
+infoScrollDateHideTimeout: historyScrollDateHideTimeout;
+infoDateFadeDuration: historyDateFadeDuration;

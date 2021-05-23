@@ -51,7 +51,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-constexpr auto kScrollDateHideTimeout = 1000;
 constexpr auto kPreloadedScreensCount = 4;
 constexpr auto kPreloadIfLessThanScreens = 2;
 constexpr auto kPreloadedScreensCountFull
@@ -743,7 +742,7 @@ void ListWidget::scrollDateCheck() {
 		}
 		_scrollDateLastItem = _visibleTopItem;
 		_scrollDateLastItemTop = _visibleTopFromItem;
-		_scrollDateHideTimer.callOnce(kScrollDateHideTimeout);
+		_scrollDateHideTimer.callOnce(st::historyScrollDateHideTimeout);
 	}
 }
 
@@ -766,7 +765,7 @@ void ListWidget::keepScrollDateForNow() {
 		&& _scrollDateOpacity.animating()) {
 		toggleScrollDateShown();
 	}
-	_scrollDateHideTimer.callOnce(kScrollDateHideTimeout);
+	_scrollDateHideTimer.callOnce(st::historyScrollDateHideTimeout);
 }
 
 void ListWidget::toggleScrollDateShown() {
