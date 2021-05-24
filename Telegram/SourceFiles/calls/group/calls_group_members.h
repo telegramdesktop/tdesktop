@@ -91,6 +91,7 @@ private:
 
 	void grabViewport();
 	void grabViewport(PanelMode mode);
+	void trackViewportGeometry();
 	void updateControlsGeometry();
 
 	const not_null<GroupCall*> _call;
@@ -99,7 +100,7 @@ private:
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<Controller> _listController;
 	not_null<Ui::VerticalLayout*> _layout;
-	const not_null<Ui::RpWidget*> _pinnedVideoWrap;
+	const not_null<Ui::RpWidget*> _videoWrap;
 	rpl::event_stream<> _enlargeVideoClicks;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;
 	ListWidget *_list = nullptr;

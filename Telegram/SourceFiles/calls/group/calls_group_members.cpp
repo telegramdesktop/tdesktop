@@ -1652,13 +1652,14 @@ Members::Members(
 , _listController(std::make_unique<Controller>(call, parent, mode))
 , _layout(_scroll->setOwnedWidget(
 	object_ptr<Ui::VerticalLayout>(_scroll.data())))
-, _pinnedVideoWrap(_layout->add(object_ptr<Ui::RpWidget>(_layout.get()))) {
+, _videoWrap(_layout->add(object_ptr<Ui::RpWidget>(_layout.get()))) {
 	setupAddMember(call);
 	setupList();
 	setContent(_list);
 	setupFakeRoundCorners();
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
 	grabViewport();
+	trackViewportGeometry();
 }
 
 Members::~Members() = default;
@@ -1733,10 +1734,9 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 		_canAddMembers.value(),
 		_mode.value()
 	) | rpl::start_with_next([=](bool can, PanelMode mode) {
-		const auto old = _addMemberButton.current();
-		delete old;
 		if (!can) {
-			if (old) {
+			if (const auto old = _addMemberButton.current()) {
+				delete old;
 				_addMemberButton = nullptr;
 				updateControlsGeometry();
 			}
@@ -1784,6 +1784,7 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 			addMember->lifetime());
 		wrap->show();
 		wrap->resizeToWidth(_layout->width());
+		delete _addMemberButton.current();
 		_addMemberButton = wrap.data();
 		_layout->insert(1, std::move(wrap));
 	}, lifetime());
@@ -1804,6 +1805,7 @@ void Members::setMode(PanelMode mode) {
 	grabViewport(mode);
 	_mode = mode;
 	_listController->setMode(mode);
+	trackViewportGeometry();
 	//_list->setMode((mode == PanelMode::Wide)
 	//	? PeerListContent::Mode::Custom
 	//	: PeerListContent::Mode::Default);
@@ -1860,11 +1862,16 @@ void Members::grabViewport() {
 void Members::grabViewport(PanelMode mode) {
 	if (mode != PanelMode::Default) {
 		_viewportGrabLifetime.destroy();
-		_pinnedVideoWrap->resize(_pinnedVideoWrap->width(), 0);
+		_videoWrap->resize(_videoWrap->width(), 0);
 		return;
 	}
-	_viewport->setMode(mode, _pinnedVideoWrap.get());
+	_viewport->setMode(mode, _videoWrap.get());
+}
 
+void Members::trackViewportGeometry() {
+	if (_mode.current() != PanelMode::Default) {
+		return;
+	}
 	const auto move = [=] {
 		const auto maxTop = _viewport->fullHeight()
 			- _viewport->widget()->height();
@@ -1897,9 +1904,7 @@ void Members::grabViewport(PanelMode mode) {
 
 	_viewport->fullHeightValue(
 	) | rpl::start_with_next([=](int height) {
-		_pinnedVideoWrap->resize(
-			_pinnedVideoWrap->width(),
-			height);
+		_videoWrap->resize(_videoWrap->width(), height);
 		move();
 		resize();
 	}, _viewportGrabLifetime);
