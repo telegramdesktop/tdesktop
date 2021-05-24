@@ -313,7 +313,7 @@ void Viewport::RendererGL::fillBackground(not_null<QOpenGLFunctions*> f) {
 	const auto radiuses = QMargins{ radius, radius, radius, radius };
 	auto bg = QRegion(QRect(QPoint(), _viewport));
 	for (const auto &tile : _owner->_tiles) {
-		bg -= tile->geometry().marginsRemoved(radiuses);
+		bg -= tileGeometry(tile.get()).marginsRemoved(radiuses);
 	}
 	if (bg.isEmpty()) {
 		return;
@@ -343,15 +343,18 @@ void Viewport::RendererGL::paintTile(
 		return;
 	}
 
-	const auto geometry = tile->geometry();
+	const auto geometry = tileGeometry(tile);
 	const auto x = geometry.x();
 	const auto y = geometry.y();
 	const auto width = geometry.width();
 	const auto height = geometry.height();
+	const auto expand = !_owner->wide()/* && !tile->screencast()*/;
 	const auto scaled = Media::View::FlipSizeByRotation(
 		image.size(),
 		data.rotation
-	).scaled(QSize(width, height), Qt::KeepAspectRatio);
+	).scaled(
+		QSize(width, height),
+		(expand ? Qt::KeepAspectRatioByExpanding : Qt::KeepAspectRatio));
 	if (scaled.isEmpty()) {
 		return;
 	}
@@ -450,6 +453,16 @@ void Viewport::RendererGL::paintTile(
 	f->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
 	f->glDisableVertexAttribArray(position);
+}
+
+QRect Viewport::RendererGL::tileGeometry(not_null<VideoTile*> tile) const {
+	const auto raster = tile->geometry();
+	return {
+		raster.x(),
+		_viewport.height() - raster.y() - raster.height(),
+		raster.width(),
+		raster.height(),
+	};
 }
 
 void Viewport::RendererGL::freeTextures(not_null<QOpenGLFunctions*> f) {

@@ -45,6 +45,7 @@ private:
 		not_null<QOpenGLFunctions*> f,
 		not_null<VideoTile*> tile);
 	void freeTextures(not_null<QOpenGLFunctions*> f);
+	[[nodiscard]] QRect tileGeometry(not_null<VideoTile*> tile) const;
 
 	const not_null<Viewport*> _owner;
 

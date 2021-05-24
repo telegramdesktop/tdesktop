@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_menu.h"
 #include "calls/group/calls_volume_item.h"
 #include "calls/group/calls_group_members_row.h"
-#include "calls/group/calls_group_large_video.h"
+#include "calls/group/calls_group_viewport.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -46,11 +46,6 @@ using Row = MembersRow;
 
 } // namespace
 
-struct Members::VideoTile {
-	std::unique_ptr<LargeVideo> video;
-	VideoEndpoint endpoint;
-};
-
 class Members::Controller final
 	: public PeerListController
 	, public MembersRowDelegate
@@ -58,7 +53,8 @@ class Members::Controller final
 public:
 	Controller(
 		not_null<GroupCall*> call,
-		not_null<QWidget*> menuParent);
+		not_null<QWidget*> menuParent,
+		PanelMode mode);
 	~Controller();
 
 	using MuteRequest = Group::MuteRequest;
@@ -226,11 +222,13 @@ private:
 
 Members::Controller::Controller(
 	not_null<GroupCall*> call,
-	not_null<QWidget*> menuParent)
+	not_null<QWidget*> menuParent,
+	PanelMode mode)
 : _call(call)
 , _peer(call->peer())
 , _menuParent(menuParent)
 , _raisedHandStatusRemoveTimer([=] { scheduleRaisedHandStatusRemove(); })
+, _mode(mode)
 , _inactiveCrossLine(st::groupCallMemberInactiveCrossLine)
 , _coloredCrossLine(st::groupCallMemberColoredCrossLine)
 , _inactiveNarrowCrossLine(st::groupCallNarrowInactiveCrossLine)
@@ -1643,11 +1641,15 @@ std::unique_ptr<Row> Members::Controller::createInvitedRow(
 
 Members::Members(
 	not_null<QWidget*> parent,
-	not_null<GroupCall*> call)
+	not_null<GroupCall*> call,
+	not_null<Viewport*> viewport,
+	PanelMode mode)
 : RpWidget(parent)
 , _call(call)
+, _viewport(viewport)
+, _mode(mode)
 , _scroll(this)
-, _listController(std::make_unique<Controller>(call, parent))
+, _listController(std::make_unique<Controller>(call, parent, mode))
 , _layout(_scroll->setOwnedWidget(
 	object_ptr<Ui::VerticalLayout>(_scroll.data())))
 , _pinnedVideoWrap(_layout->add(object_ptr<Ui::RpWidget>(_layout.get()))) {
@@ -1656,7 +1658,7 @@ Members::Members(
 	setContent(_list);
 	setupFakeRoundCorners();
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
-	setupPinnedVideo();
+	grabViewport();
 }
 
 Members::~Members() = default;
@@ -1799,10 +1801,8 @@ void Members::setMode(PanelMode mode) {
 	if (_mode.current() == mode) {
 		return;
 	}
+	grabViewport(mode);
 	_mode = mode;
-	for (const auto &tile : _videoTiles) {
-		tile.video->setVisible(mode == PanelMode::Default);
-	}
 	_listController->setMode(mode);
 	//_list->setMode((mode == PanelMode::Wide)
 	//	? PeerListContent::Mode::Custom
@@ -1853,154 +1853,56 @@ void Members::setupList() {
 	updateControlsGeometry();
 }
 
-void Members::refreshTilesGeometry() {
-	const auto width = _layout->width();
-	if (_videoTiles.empty()
-		|| !width
-		|| _mode.current() == PanelMode::Wide) {
-		_pinnedVideoWrap->resize(width, 0);
-		return;
-	}
-	auto sizes = base::flat_map<not_null<LargeVideo*>, QSize>();
-	sizes.reserve(_videoTiles.size());
-	for (const auto &tile : _videoTiles) {
-		const auto video = tile.video.get();
-		const auto size = video->trackSize();
-		if (size.isEmpty()) {
-			video->setGeometry(0, 0, width, 0);
-		} else {
-			sizes.emplace(video, size);
-		}
-	}
-	if (sizes.empty()) {
-		_pinnedVideoWrap->resize(width, 0);
-		return;
-	} else if (sizes.size() == 1) {
-		const auto size = sizes.front().second;
-		const auto heightMin = (width * 9) / 16;
-		const auto heightMax = (width * 3) / 4;
-		const auto scaled = size.scaled(
-			QSize(width, heightMax),
-			Qt::KeepAspectRatio);
-		const auto height = std::max(scaled.height(), heightMin);
-		const auto skip = st::groupCallVideoSmallSkip;
-		sizes.front().first->setGeometry(0, 0, width, height);
-		_pinnedVideoWrap->resize(width, height + skip);
-		return;
-	}
-	const auto min = (st::groupCallWidth
-		- st::groupCallMembersMargin.left()
-		- st::groupCallMembersMargin.right()
-		- st::groupCallVideoSmallSkip) / 2;
-	const auto square = (width - st::groupCallVideoSmallSkip) / 2;
-	const auto skip = (width - 2 * square);
-	const auto put = [&](not_null<LargeVideo*> video, int column, int row) {
-		video->setGeometry(
-			(column == 2) ? 0 : column ? (width - square) : 0,
-			row * (min + skip),
-			(column == 2) ? width : square,
-			min);
-	};
-	const auto rows = (sizes.size() + 1) / 2;
-	if (sizes.size() == 3) {
-		put(sizes.front().first, 2, 0);
-		put((sizes.begin() + 1)->first, 0, 1);
-		put((sizes.begin() + 2)->first, 1, 1);
-	} else {
-		auto row = 0;
-		auto column = 0;
-		for (const auto &[video, endpoint] : sizes) {
-			put(video, column, row);
-			if (column) {
-				++row;
-				column = (row + 1 == rows && sizes.size() % 2) ? 2 : 0;
-			} else {
-				column = 1;
-			}
-		}
-	}
-	_pinnedVideoWrap->resize(width, rows * (min + skip));
+void Members::grabViewport() {
+	grabViewport(_mode.current());
 }
 
-void Members::setupPinnedVideo() {
-	using namespace rpl::mappers;
-
-	const auto setupTile = [=](
-			const VideoEndpoint &endpoint,
-			const GroupCall::VideoTrack &track) {
-		const auto row = lookupRow(track.peer);
-		Assert(row != nullptr);
-		auto video = std::make_unique<LargeVideo>(
-			_pinnedVideoWrap.get(),
-			st::groupCallLargeVideoNarrow,
-			(_mode.current() == PanelMode::Default),
-			rpl::single(LargeVideoTrack{ track.track.get(), row }),
-			_call->videoEndpointPinnedValue() | rpl::map(_1 == endpoint));
-
-		video->pinToggled(
-		) | rpl::start_with_next([=](bool pinned) {
-			_call->pinVideoEndpoint(pinned ? endpoint : VideoEndpoint{});
-		}, video->lifetime());
-
-		video->requestedQuality(
-		) | rpl::start_with_next([=](VideoQuality quality) {
-			_call->requestVideoQuality(endpoint, quality);
-		}, video->lifetime());
-
-		video->trackSizeValue(
-		) | rpl::start_with_next([=] {
-			refreshTilesGeometry();
-		}, video->lifetime());
-
-		video->clicks(
-		) | rpl::start_to_stream(_enlargeVideoClicks, video->lifetime());
-
-		return VideoTile{
-			.video = std::move(video),
-			.endpoint = endpoint,
-		};
-	};
-	for (const auto &[endpoint, track] : _call->activeVideoTracks()) {
-		_videoTiles.push_back(setupTile(endpoint, track));
+void Members::grabViewport(PanelMode mode) {
+	if (mode != PanelMode::Default) {
+		_viewportGrabLifetime.destroy();
+		_pinnedVideoWrap->resize(_pinnedVideoWrap->width(), 0);
+		return;
 	}
-	_call->videoStreamActiveUpdates(
-	) | rpl::start_with_next([=](const VideoEndpoint &endpoint) {
-		if (_call->activeVideoTracks().contains(endpoint)) {
-			// Add async (=> the participant row is definitely in Members).
-			crl::on_main(_pinnedVideoWrap, [=] {
-				const auto &tracks = _call->activeVideoTracks();
-				const auto i = tracks.find(endpoint);
-				if (i != end(tracks)) {
-					_videoTiles.push_back(setupTile(endpoint, i->second));
-				}
-			});
-		} else {
-			// Remove sync.
-			const auto eraseTill = end(_videoTiles);
-			const auto eraseFrom = ranges::remove(
-				_videoTiles,
-				endpoint,
-				&VideoTile::endpoint);
-			if (eraseFrom != eraseTill) {
-				_videoTiles.erase(eraseFrom, eraseTill);
-				refreshTilesGeometry();
-			}
+	_viewport->setMode(mode, _pinnedVideoWrap.get());
+
+	const auto move = [=] {
+		const auto maxTop = _viewport->fullHeight()
+			- _viewport->widget()->height();
+		if (maxTop < 0) {
+			return;
 		}
-	}, _pinnedVideoWrap->lifetime());
+		const auto scrollTop = _scroll->scrollTop();
+		const auto shift = std::min(scrollTop, maxTop);
+		_viewport->setScrollTop(shift);
+		if (_viewport->widget()->y() != shift) {
+			_viewport->widget()->move(0, shift);
+		}
+	};
+	const auto resize = [=] {
+		_viewport->widget()->resize(
+			_layout->width(),
+			std::min(_scroll->height(), _viewport->fullHeight()));
+	};
+	_layout->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		_viewport->resizeToWidth(width);
+		resize();
+	}, _viewportGrabLifetime);
 
-	// New video was pinned or mode changed.
-	rpl::merge(
-		_mode.changes() | rpl::filter(
-			_1 == PanelMode::Default
-		) | rpl::to_empty,
-		_call->videoEndpointPinnedValue() | rpl::filter(_1) | rpl::to_empty
-	) | rpl::start_with_next([=] {
-		_scroll->scrollToY(0);
-	}, _scroll->lifetime());
+	_scroll->heightValue(
+	) | rpl::skip(1) | rpl::start_with_next(resize, _viewportGrabLifetime);
 
-	_layout->widthValue() | rpl::start_with_next([=] {
-		refreshTilesGeometry();
-	}, _pinnedVideoWrap->lifetime());
+	_scroll->scrollTopValue(
+	) | rpl::skip(1) | rpl::start_with_next(move, _viewportGrabLifetime);
+
+	_viewport->fullHeightValue(
+	) | rpl::start_with_next([=](int height) {
+		_pinnedVideoWrap->resize(
+			_pinnedVideoWrap->width(),
+			height);
+		move();
+		resize();
+	}, _viewportGrabLifetime);
 }
 
 void Members::resizeEvent(QResizeEvent *e) {

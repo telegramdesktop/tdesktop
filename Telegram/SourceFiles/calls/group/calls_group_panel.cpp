@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_members.h"
 #include "calls/group/calls_group_settings.h"
 #include "calls/group/calls_group_menu.h"
-#include "calls/group/calls_group_large_video.h"
 #include "calls/group/calls_group_viewport.h"
 #include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/platform/ui_platform_window_title.h"
@@ -400,6 +399,7 @@ Panel::Panel(not_null<GroupCall*> call)
 	_window->body(),
 	st::groupCallTitle))
 #endif // !Q_OS_MAC
+, _viewport(std::make_unique<Viewport>(widget(), _mode.current()))
 , _videoMode(true) // #TODO calls
 , _mute(std::make_unique<Ui::CallMuteButton>(
 	widget(),
@@ -946,11 +946,11 @@ void Panel::setupMembers() {
 	_countdown.destroy();
 	_startsWhen.destroy();
 
-	_members.create(widget(), _call);
-	setupPinnedVideo();
-
-	_members->setMode(mode());
+	_members.create(widget(), _call, _viewport.get(), mode());
+	setupVideo();
 	_members->show();
+
+	raiseControls();
 
 	_members->desiredHeightValue(
 	) | rpl::start_with_next([=] {
@@ -1087,14 +1087,13 @@ void Panel::raiseControls() {
 	_mute->raise();
 }
 
-void Panel::setupPinnedVideo() {
-	using namespace rpl::mappers;
-	_viewport = std::make_unique<Viewport>(widget(), _mode.current());
+void Panel::setupVideo() {
 	const auto raw = _viewport.get();
 
 	const auto setupTile = [=](
 			const VideoEndpoint &endpoint,
 			const GroupCall::VideoTrack &track) {
+		using namespace rpl::mappers;
 		const auto row = _members->lookupRow(track.peer);
 		Assert(row != nullptr);
 		_viewport->add(
@@ -1144,8 +1143,6 @@ void Panel::setupPinnedVideo() {
 	) | rpl::start_with_next([=](bool inside) {
 		toggleWideControls(inside);
 	}, raw->lifetime());
-
-	raiseControls();
 }
 
 void Panel::toggleWideControls(bool shown) {
@@ -1629,7 +1626,6 @@ void Panel::initGeometry() {
 	_window->setGeometry(rect.translated(center - rect.center()));
 	_window->setMinimumSize(rect.size());
 	_window->show();
-	updateControlsGeometry();
 }
 
 QRect Panel::computeTitleRect() const {
@@ -1652,11 +1648,17 @@ QRect Panel::computeTitleRect() const {
 }
 
 bool Panel::updateMode() {
+	if (!_viewport) {
+		return false;
+	}
 	const auto wide = _call->videoCall()
 		&& (widget()->width() >= st::groupCallWideModeWidthMin);
 	const auto mode = wide ? PanelMode::Wide : PanelMode::Default;
 	if (_mode.current() == mode) {
 		return false;
+	}
+	if (!wide && _call->videoEndpointPinned()) {
+		_call->pinVideoEndpoint({});
 	}
 	_mode = mode;
 	if (_title) {
@@ -1669,13 +1671,13 @@ bool Panel::updateMode() {
 	} else if (!wide && !_subtitle) {
 		refreshTitle();
 	}
+	_wideControlsShown = _showWideControls = true;
+	_wideControlsAnimation.stop();
+	if (wide) {
+		_viewport->setMode(mode, widget());
+	}
 	if (_members) {
 		_members->setMode(mode);
-	}
-	if (_viewport) {
-		_wideControlsShown = _showWideControls = true;
-		_wideControlsAnimation.stop();
-		_viewport->setMode(mode);
 	}
 	updateButtonsStyles();
 	refreshControlsBackground();
@@ -2063,11 +2065,12 @@ void Panel::updateMembersGeometry() {
 			top,
 			membersWidth,
 			std::min(desiredHeight, widget()->height() - top - skip));
-		_viewport->widget()->setGeometry(
+		_viewport->setGeometry({
 			skip,
 			top,
 			widget()->width() - membersWidth - 3 * skip,
-			widget()->height() - top - skip);
+			widget()->height() - top - skip,
+		});
 	} else {
 		const auto membersBottom = widget()->height();
 		const auto membersTop = st::groupCallMembersTop;

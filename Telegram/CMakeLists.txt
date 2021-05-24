@@ -277,8 +277,6 @@ PRIVATE
     calls/group/calls_group_call.cpp
     calls/group/calls_group_call.h
     calls/group/calls_group_common.h
-    calls/group/calls_group_large_video.cpp
-    calls/group/calls_group_large_video.h
     calls/group/calls_group_members.cpp
     calls/group/calls_group_members.h
     calls/group/calls_group_members_row.cpp

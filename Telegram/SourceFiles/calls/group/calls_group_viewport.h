@@ -37,18 +37,41 @@ namespace Calls::Group {
 class MembersRow;
 enum class PanelMode;
 enum class VideoQuality;
-struct LargeVideoTrack;
+
+struct LargeVideoTrack {
+	Webrtc::VideoTrack *track = nullptr;
+	MembersRow *row = nullptr;
+
+	[[nodiscard]] explicit operator bool() const {
+		return track != nullptr;
+	}
+};
+
+[[nodiscard]] inline bool operator==(
+		LargeVideoTrack a,
+		LargeVideoTrack b) noexcept {
+	return (a.track == b.track) && (a.row == b.row);
+}
+
+[[nodiscard]] inline bool operator!=(
+		LargeVideoTrack a,
+		LargeVideoTrack b) noexcept {
+	return !(a == b);
+}
 
 class Viewport final {
 public:
-	Viewport(QWidget *parent, PanelMode mode);
+	Viewport(not_null<QWidget*> parent, PanelMode mode);
 	~Viewport();
 
 	[[nodiscard]] not_null<QWidget*> widget() const;
 	[[nodiscard]] not_null<Ui::RpWidgetWrap*> rp() const;
 
-	void setMode(PanelMode mode);
+	void setMode(PanelMode mode, not_null<QWidget*> parent);
 	void setControlsShown(float64 shown);
+	void setGeometry(QRect geometry);
+	void resizeToWidth(int newWidth);
+	void setScrollTop(int scrollTop);
 
 	void add(
 		const VideoEndpoint &endpoint,
@@ -57,6 +80,8 @@ public:
 	void remove(const VideoEndpoint &endpoint);
 	void showLarge(const VideoEndpoint &endpoint);
 
+	[[nodiscard]] int fullHeight() const;
+	[[nodiscard]] rpl::producer<int> fullHeightValue() const;
 	[[nodiscard]] rpl::producer<VideoPinToggle> pinToggled() const;
 	[[nodiscard]] rpl::producer<VideoEndpoint> clicks() const;
 	[[nodiscard]] rpl::producer<VideoQualityRequest> qualityRequests() const;
@@ -88,6 +113,9 @@ private:
 	[[nodiscard]] bool wide() const;
 
 	void updateTilesGeometry();
+	void updateTilesGeometry(int outerWidth);
+	void updateTilesGeometryWide(int outerWidth, int outerHeight);
+	void updateTilesGeometryNarrow(int outerWidth);
 	void setTileGeometry(not_null<VideoTile*> tile, QRect geometry);
 
 	void setSelected(Selection value);
@@ -96,14 +124,19 @@ private:
 	void handleMousePress(QPoint position, Qt::MouseButton button);
 	void handleMouseRelease(QPoint position, Qt::MouseButton button);
 	void handleMouseMove(QPoint position);
+	void updateSelected(QPoint position);
+	void updateSelected();
 
 	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
 		Ui::GL::Capabilities capabilities);
 
 	Fn<void(const Textures &)> _freeTextures;
-	rpl::variable<PanelMode> _mode;
+	PanelMode _mode = PanelMode();
+	bool _geometryStaleAfterModeChange = false;
 	const std::unique_ptr<Ui::RpWidgetWrap> _content;
 	std::vector<std::unique_ptr<VideoTile>> _tiles;
+	rpl::variable<int> _fullHeight = 0;
+	int _scrollTop = 0;
 	QImage _shadow;
 	rpl::event_stream<VideoEndpoint> _clicks;
 	rpl::event_stream<VideoPinToggle> _pinToggles;

@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "calls/group/calls_group_viewport.h"
 #include "calls/group/calls_group_call.h"
-#include "calls/group/calls_group_large_video.h" // LargeVideoTrack.
-
 #include "ui/effects/animations.h"
 #include "ui/effects/cross_line.h"
 #include "ui/round_rect.h"

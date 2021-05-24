@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/group/calls_group_viewport.h"
 
-#include "calls/group/calls_group_large_video.h" // LargeVideoTrack.
 #include "calls/group/calls_group_viewport_tile.h"
 #include "calls/group/calls_group_viewport_opengl.h"
 #include "calls/group/calls_group_viewport_raster.h"
@@ -30,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Calls::Group {
 
-Viewport::Viewport(QWidget *parent, PanelMode mode)
+Viewport::Viewport(not_null<QWidget*> parent, PanelMode mode)
 : _mode(mode)
 , _content(Ui::GL::CreateSurface(
 	parent,
@@ -64,7 +63,9 @@ void Viewport::setup() {
 	raw->setMouseTracking(true);
 
 	_content->sizeValue(
-	) | rpl::start_with_next([=] {
+	) | rpl::filter([=] {
+		return wide();
+	}) | rpl::start_with_next([=] {
 		updateTilesGeometry();
 	}, lifetime());
 
@@ -92,20 +93,49 @@ void Viewport::setup() {
 	}, lifetime());
 }
 
-bool Viewport::wide() const {
-	return (_mode.current() == PanelMode::Wide);
+void Viewport::setGeometry(QRect geometry) {
+	Expects(wide());
+
+	if (widget()->geometry() != geometry) {
+		_geometryStaleAfterModeChange = false;
+		widget()->setGeometry(geometry);
+	} else if (_geometryStaleAfterModeChange) {
+		_geometryStaleAfterModeChange = false;
+		updateTilesGeometry();
+	}
 }
 
-void Viewport::setMode(PanelMode mode) {
-	if (_mode.current() == mode) {
+void Viewport::resizeToWidth(int width) {
+	Expects(!wide());
+
+	updateTilesGeometry(width);
+}
+
+void Viewport::setScrollTop(int scrollTop) {
+	if (_scrollTop == scrollTop) {
+		return;
+	}
+	_scrollTop = scrollTop;
+	updateTilesGeometry();
+}
+
+bool Viewport::wide() const {
+	return (_mode == PanelMode::Wide);
+}
+
+void Viewport::setMode(PanelMode mode, not_null<QWidget*> parent) {
+	if (_mode == mode && widget()->parent() == parent) {
 		return;
 	}
 	_mode = mode;
-	widget()->setVisible(wide()); // #TODO calls
+	_scrollTop = 0;
 	setControlsShown(1.);
-	updateTilesGeometry();
-	if (_mouseInside.current()) {
-		handleMouseMove(widget()->mapFromGlobal(QCursor::pos()));
+	if (widget()->parent() != parent) {
+		const auto hidden = widget()->isHidden();
+		widget()->setParent(parent);
+		if (!hidden) {
+			widget()->show();
+		}
 	}
 	if (!wide()) {
 		for (const auto &tile : _tiles) {
@@ -143,6 +173,10 @@ void Viewport::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 }
 
 void Viewport::handleMouseMove(QPoint position) {
+	updateSelected(position);
+}
+
+void Viewport::updateSelected(QPoint position) {
 	if (!widget()->rect().contains(position)) {
 		setSelected({});
 		return;
@@ -164,6 +198,10 @@ void Viewport::handleMouseMove(QPoint position) {
 	setSelected({});
 }
 
+void Viewport::updateSelected() {
+	updateSelected(widget()->mapFromGlobal(QCursor::pos()));
+}
+
 void Viewport::setControlsShown(float64 shown) {
 	_controlsShownRatio = shown;
 	widget()->update();
@@ -178,11 +216,6 @@ void Viewport::add(
 		track,
 		std::move(pinned),
 		[=] { widget()->update(); }));
-
-	//video->pinToggled( // #TODO calls
-	//) | rpl::start_with_next([=](bool pinned) {
-	//	_call->pinVideoEndpoint(pinned ? endpoint : VideoEndpoint{});
-	//}, video->lifetime());
 
 	_tiles.back()->trackSizeValue(
 	) | rpl::start_with_next([=] {
@@ -222,12 +255,36 @@ void Viewport::showLarge(const VideoEndpoint &endpoint) {
 }
 
 void Viewport::updateTilesGeometry() {
-	const auto outer = widget()->size();
-	if (_tiles.empty() || outer.isEmpty()) {
+	updateTilesGeometry(widget()->width());
+}
+
+void Viewport::updateTilesGeometry(int outerWidth) {
+	const auto mouseInside = _mouseInside.current();
+	const auto guard = gsl::finally([&] {
+		if (mouseInside) {
+			updateSelected();
+		}
+		widget()->update();
+	});
+
+	const auto outerHeight = widget()->height();
+	if (_tiles.empty() || !outerWidth) {
+		_fullHeight = 0;
 		return;
 	}
 
-	const auto guard = gsl::finally([&] { widget()->update(); });
+	if (wide()) {
+		updateTilesGeometryWide(outerWidth, outerHeight);
+		_fullHeight = 0;
+	} else {
+		updateTilesGeometryNarrow(outerWidth);
+	}
+}
+
+void Viewport::updateTilesGeometryWide(int outerWidth, int outerHeight) {
+	if (!outerHeight) {
+		return;
+	}
 
 	struct Geometry {
 		QSize size;
@@ -242,7 +299,7 @@ void Viewport::updateTilesGeometry() {
 			? QSize()
 			: video->trackSize();
 		if (size.isEmpty()) {
-			setTileGeometry(video, { 0, 0, outer.width(), 0 });
+			setTileGeometry(video, { 0, 0, outerWidth, 0 });
 		} else {
 			sizes.emplace(video, Geometry{ size });
 		}
@@ -250,7 +307,7 @@ void Viewport::updateTilesGeometry() {
 	if (sizes.size() == 1) {
 		setTileGeometry(
 			sizes.front().first,
-			{ 0, 0, outer.width(), outer.height() });
+			{ 0, 0, outerWidth, outerHeight });
 		return;
 	}
 	if (sizes.empty()) {
@@ -265,14 +322,14 @@ void Viewport::updateTilesGeometry() {
 	{
 		auto index = 0;
 		const auto columns = slices;
-		const auto sizew = (outer.width() + skip) / float64(columns);
+		const auto sizew = (outerWidth + skip) / float64(columns);
 		for (auto column = 0; column != columns; ++column) {
 			const auto left = int(std::round(column * sizew));
 			const auto width = int(std::round(column * sizew + sizew - skip))
 				- left;
 			const auto rows = int(std::round((count - index)
 				/ float64(columns - column)));
-			const auto sizeh = (outer.height() + skip) / float64(rows);
+			const auto sizeh = (outerHeight + skip) / float64(rows);
 			for (auto row = 0; row != rows; ++row) {
 				const auto top = int(std::round(row * sizeh));
 				const auto height = int(std::round(
@@ -297,14 +354,14 @@ void Viewport::updateTilesGeometry() {
 	{
 		auto index = 0;
 		const auto rows = slices;
-		const auto sizeh = (outer.height() + skip) / float64(rows);
+		const auto sizeh = (outerHeight + skip) / float64(rows);
 		for (auto row = 0; row != rows; ++row) {
 			const auto top = int(std::round(row * sizeh));
 			const auto height = int(std::round(row * sizeh + sizeh - skip))
 				- top;
 			const auto columns = int(std::round((count - index)
 				/ float64(rows - row)));
-			const auto sizew = (outer.width() + skip) / float64(columns);
+			const auto sizew = (outerWidth + skip) / float64(columns);
 			for (auto column = 0; column != columns; ++column) {
 				const auto left = int(std::round(column * sizew));
 				const auto width = int(std::round(
@@ -332,6 +389,72 @@ void Viewport::updateTilesGeometry() {
 	for (const auto &[video, geometry] : sizes) {
 		setTileGeometry(video, geometry.*layout);
 	}
+}
+
+void Viewport::updateTilesGeometryNarrow(int outerWidth) {
+	const auto y = -_scrollTop;
+
+	auto sizes = base::flat_map<not_null<VideoTile*>, QSize>();
+	sizes.reserve(_tiles.size());
+	for (const auto &tile : _tiles) {
+		const auto video = tile.get();
+		const auto size = video->trackSize();
+		if (size.isEmpty()) {
+			video->setGeometry({ 0, y, outerWidth, 0 });
+		} else {
+			sizes.emplace(video, size);
+		}
+	}
+	if (sizes.empty()) {
+		_fullHeight = 0;
+		return;
+	} else if (sizes.size() == 1) {
+		const auto size = sizes.front().second;
+		const auto heightMin = (outerWidth * 9) / 16;
+		const auto heightMax = (outerWidth * 3) / 4;
+		const auto scaled = size.scaled(
+			QSize(outerWidth, heightMax),
+			Qt::KeepAspectRatio);
+		const auto height = std::max(scaled.height(), heightMin);
+		const auto skip = st::groupCallVideoSmallSkip;
+		sizes.front().first->setGeometry({ 0, y, outerWidth, height });
+		_fullHeight = height + skip;
+		return;
+	}
+	const auto min = (st::groupCallWidth
+		- st::groupCallMembersMargin.left()
+		- st::groupCallMembersMargin.right()
+		- st::groupCallVideoSmallSkip) / 2;
+	const auto square = (outerWidth - st::groupCallVideoSmallSkip) / 2;
+	const auto skip = (outerWidth - 2 * square);
+	const auto put = [&](not_null<VideoTile*> tile, int column, int row) {
+		tile->setGeometry({
+			(column == 2) ? 0 : column ? (outerWidth - square) : 0,
+			y + row * (min + skip),
+			(column == 2) ? outerWidth : square,
+			min,
+		});
+	};
+	const auto rows = (sizes.size() + 1) / 2;
+	if (sizes.size() == 3) {
+		put(sizes.front().first, 2, 0);
+		put((sizes.begin() + 1)->first, 0, 1);
+		put((sizes.begin() + 2)->first, 1, 1);
+	} else {
+		auto row = 0;
+		auto column = 0;
+		for (const auto &[video, endpoint] : sizes) {
+			put(video, column, row);
+			if (column) {
+				++row;
+				column = (row + 1 == rows && sizes.size() % 2) ? 2 : 0;
+			} else {
+				column = 1;
+			}
+		}
+	}
+	_fullHeight = rows * (min + skip);
+
 }
 
 void Viewport::setTileGeometry(not_null<VideoTile*> tile, QRect geometry) {
@@ -400,23 +523,31 @@ Ui::GL::ChosenRenderer Viewport::chooseRenderer(
 	};
 }
 
-[[nodiscard]] rpl::producer<VideoPinToggle> Viewport::pinToggled() const {
+int Viewport::fullHeight() const {
+	return _fullHeight.current();
+}
+
+rpl::producer<int> Viewport::fullHeightValue() const {
+	return _fullHeight.value();
+}
+
+rpl::producer<VideoPinToggle> Viewport::pinToggled() const {
 	return _pinToggles.events();
 }
 
-[[nodiscard]] rpl::producer<VideoEndpoint> Viewport::clicks() const {
+rpl::producer<VideoEndpoint> Viewport::clicks() const {
 	return _clicks.events();
 }
 
-[[nodiscard]] rpl::producer<VideoQualityRequest> Viewport::qualityRequests() const {
+rpl::producer<VideoQualityRequest> Viewport::qualityRequests() const {
 	return _qualityRequests.events();
 }
 
-[[nodiscard]] rpl::producer<bool> Viewport::mouseInsideValue() const {
+rpl::producer<bool> Viewport::mouseInsideValue() const {
 	return _mouseInside.value();
 }
 
-[[nodiscard]] rpl::lifetime &Viewport::lifetime() {
+rpl::lifetime &Viewport::lifetime() {
 	return _content->lifetime();
 }
 

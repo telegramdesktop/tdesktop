@@ -26,7 +26,7 @@ class GroupCall;
 
 namespace Calls::Group {
 
-class LargeVideo;
+class Viewport;
 class MembersRow;
 struct VolumeRequest;
 struct MuteRequest;
@@ -38,7 +38,9 @@ class Members final
 public:
 	Members(
 		not_null<QWidget*> parent,
-		not_null<GroupCall*> call);
+		not_null<GroupCall*> call,
+		not_null<Viewport*> viewport,
+		PanelMode mode);
 	~Members();
 
 	[[nodiscard]] int desiredHeight() const;
@@ -85,19 +87,19 @@ private:
 	void setupAddMember(not_null<GroupCall*> call);
 	void resizeToList();
 	void setupList();
-	void setupPinnedVideo();
 	void setupFakeRoundCorners();
 
+	void grabViewport();
+	void grabViewport(PanelMode mode);
 	void updateControlsGeometry();
-	void refreshTilesGeometry();
 
 	const not_null<GroupCall*> _call;
+	const not_null<Viewport*> _viewport;
 	rpl::variable<PanelMode> _mode = PanelMode();
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<Controller> _listController;
 	not_null<Ui::VerticalLayout*> _layout;
 	const not_null<Ui::RpWidget*> _pinnedVideoWrap;
-	std::vector<VideoTile> _videoTiles;
 	rpl::event_stream<> _enlargeVideoClicks;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;
 	ListWidget *_list = nullptr;
@@ -105,7 +107,7 @@ private:
 
 	rpl::variable<bool> _canAddMembers;
 
-	rpl::lifetime _pinnedTrackLifetime;
+	rpl::lifetime _viewportGrabLifetime;
 
 };
 
