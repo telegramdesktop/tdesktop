@@ -53,6 +53,31 @@ void main() {
 )";
 }
 
+[[nodiscard]] ShaderPart VertexPassTextureCoord() {
+	return {
+		.header = R"(
+in vec2 texcoord;
+out vec2 v_texcoord;
+)",
+		.body = R"(
+	v_texcoord = texcoord;
+)",
+	};
+}
+
+[[nodiscard]] ShaderPart FragmentSampleTexture() {
+	return {
+		.header = R"(
+in vec2 v_texcoord;
+uniform sampler2D s_texture;
+)",
+		.body = R"(
+	result = texture(s_texture, v_texcoord);
+	result = vec4(result.b, result.g, result.r, result.a);
+)",
+	};
+}
+
 [[nodiscard]] ShaderPart VertexViewportTransform() {
 	return {
 		.header = R"(
@@ -95,24 +120,18 @@ float roundedCorner() {
 	};
 }
 
+// Depends on FragmetSampleTexture().
 [[nodiscard]] ShaderPart FragmentFrameColor() {
 	return {
 		.header = R"(
-uniform sampler2D s_texture;
-uniform vec4 textureRect;
 uniform vec4 frameBg;
 )",
 		.body = R"(
-	vec2 texturePos = gl_FragCoord.xy - textureRect.xy;
-	vec2 textureCoord = vec2(texturePos.x, textureRect.w - texturePos.y)
-		/ textureRect.zw;
-	vec2 textureHalf = textureRect.zw / 2;
-	vec2 fromTextureCenter = abs(texturePos - textureHalf);
+	vec2 textureHalf = vec2(0.5, 0.5);
+	vec2 fromTextureCenter = abs(v_texcoord - textureHalf);
 	vec2 fromTextureEdge = max(fromTextureCenter, textureHalf) - textureHalf;
 	float outsideCheck = dot(fromTextureEdge, fromTextureEdge);
 	float inside = step(outsideCheck, 0);
-	result = texture(s_texture, textureCoord);
-	result = vec4(result.b, result.g, result.r, result.a);
 	result = result * inside + frameBg * (1. - inside);
 )",
 	};
@@ -237,8 +256,10 @@ void Viewport::RendererGL::init(
 		&*_frameProgram,
 		VertexShader({
 			VertexViewportTransform(),
+			VertexPassTextureCoord(),
 		}),
 		FragmentShader({
+			FragmentSampleTexture(),
 			FragmentFrameColor(),
 			FragmentRoundCorners(),
 		}));
@@ -331,23 +352,40 @@ void Viewport::RendererGL::paintTile(
 		image.size(),
 		data.rotation
 	).scaled(QSize(width, height), Qt::KeepAspectRatio);
+	if (scaled.isEmpty()) {
+		return;
+	}
 	const auto left = (width - scaled.width()) / 2;
 	const auto top = (height - scaled.height()) / 2;
 	const auto right = left + scaled.width();
 	const auto bottom = top + scaled.height();
 	const auto radius = GLfloat(st::roundRadiusLarge * cIntRetinaFactor());
-	// #TODO rotation
-	//if (data.rotation > 0) {
-	//	std::rotate(
-	//		texcoords.begin(),
-	//		texcoords.begin() + (data.rotation / 90),
-	//		texcoords.end());
-	//}
+	auto dleft = float(left) / scaled.width();
+	auto dright = float(width - left) / scaled.width();
+	auto dtop = float(top) / scaled.height();
+	auto dbottom = float(height - top) / scaled.height();
+	const auto swap = (((data.rotation / 90) % 2) == 1);
+	if (swap) {
+		std::swap(dleft, dtop);
+		std::swap(dright, dbottom);
+	}
+	auto texCoord = std::array<std::array<GLfloat, 2>, 4> { {
+		{ { -dleft, 1.f + dtop } },
+		{ { dright, 1.f + dtop } },
+		{ { dright, 1.f - dbottom } },
+		{ { -dleft, 1.f - dbottom } },
+	} };
+	if (data.rotation > 0) {
+		std::rotate(
+			texCoord.begin(),
+			texCoord.begin() + (data.rotation / 90),
+			texCoord.end());
+	}
 	const GLfloat coords[] = {
-		float(x), float(y),
-		float(x + width), float(y),
-		float(x + width), float(y + height),
-		float(x), float(y + height),
+		float(x), float(y), texCoord[0][0], texCoord[0][1],
+		float(x + width), float(y), texCoord[1][0], texCoord[1][1],
+		float(x + width), float(y + height), texCoord[2][0], texCoord[2][1],
+		float(x), float(y + height), texCoord[3][0], texCoord[3][1],
 	};
 
 	tile->ensureTexturesCreated(f);
@@ -383,9 +421,6 @@ void Viewport::RendererGL::paintTile(
 	_frameProgram->setUniformValue("viewport", QSizeF(_viewport));
 	_frameProgram->setUniformValue("s_texture", GLint(0));
 	_frameProgram->setUniformValue(
-		"textureRect",
-		Uniform(QRect(x + left, y + top, scaled.width(), scaled.height())));
-	_frameProgram->setUniformValue(
 		"frameBg",
 		Uniform(st::groupCallMembersBg->c));
 	_frameProgram->setUniformValue("roundRadius", radius);
@@ -398,9 +433,19 @@ void Viewport::RendererGL::paintTile(
 		2,
 		GL_FLOAT,
 		GL_FALSE,
-		2 * sizeof(GLfloat),
+		4 * sizeof(GLfloat),
 		nullptr);
 	f->glEnableVertexAttribArray(position);
+
+	GLint texcoord = _frameProgram->attributeLocation("texcoord");
+	f->glVertexAttribPointer(
+		texcoord,
+		2,
+		GL_FLOAT,
+		GL_FALSE,
+		4 * sizeof(GLfloat),
+		reinterpret_cast<const void*>(2 * sizeof(GLfloat)));
+	f->glEnableVertexAttribArray(texcoord);
 
 	f->glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 
