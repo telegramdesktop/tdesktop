@@ -134,7 +134,7 @@ Ui::GL::ChosenRenderer Panel::Incoming::chooseRenderer(
 }
 
 void Panel::Incoming::paint(QPainter &p, const QRegion &clip, bool opengl) {
-	const auto data = _track->frameWithInfo();
+	const auto data = _track->frameWithInfo(true);
 	const auto &image = data.original;
 	const auto rotation = data.rotation;
 	if (image.isNull()) {

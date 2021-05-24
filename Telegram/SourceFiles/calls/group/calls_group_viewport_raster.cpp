@@ -58,7 +58,7 @@ void Viewport::Renderer::paintTile(
 		bool opengl,
 		QRegion &bg) {
 	const auto track = tile->track();
-	const auto data = track->frameWithInfo();
+	const auto data = track->frameWithInfo(true);
 	const auto &image = data.original;
 	const auto rotation = data.rotation;
 	if (image.isNull()) {

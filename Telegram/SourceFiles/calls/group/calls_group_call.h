@@ -352,6 +352,7 @@ public:
 	void applyGlobalShortcutChanges();
 
 	void pushToTalk(bool pressed, crl::time delay);
+	void setNotRequireARGB32();
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -517,6 +518,7 @@ private:
 	base::has_weak_ptr _instanceGuard;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _cameraCapture;
 	std::unique_ptr<Webrtc::VideoTrack> _cameraOutgoing;
+	rpl::variable<bool> _isSharingCamera = false;
 	base::flat_map<std::string, SinkPointer> _pendingVideoOutputs;
 
 	rpl::variable<InstanceState> _screenInstanceState
@@ -526,9 +528,11 @@ private:
 	base::has_weak_ptr _screenInstanceGuard;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _screenCapture;
 	std::unique_ptr<Webrtc::VideoTrack> _screenOutgoing;
+	rpl::variable<bool> _isSharingScreen = false;
 	QString _screenDeviceId;
 
 	bool _videoInited = false;
+	bool _requireARGB32 = true;
 
 	rpl::event_stream<LevelUpdate> _levelUpdates;
 	rpl::event_stream<VideoEndpoint> _videoStreamActiveUpdates;

@@ -65,7 +65,7 @@ out vec2 v_texcoord;
 	};
 }
 
-[[nodiscard]] ShaderPart FragmentSampleTexture() {
+[[nodiscard]] ShaderPart FragmentSampleARGB32Texture() {
 	return {
 		.header = R"(
 in vec2 v_texcoord;
@@ -74,6 +74,23 @@ uniform sampler2D s_texture;
 		.body = R"(
 	result = texture(s_texture, v_texcoord);
 	result = vec4(result.b, result.g, result.r, result.a);
+)",
+	};
+}
+
+[[nodiscard]] ShaderPart FragmentSampleYUV420Texture() {
+	return {
+		.header = R"(
+in vec2 v_texcoord;
+uniform sampler2D y_texture;
+uniform sampler2D u_texture;
+uniform sampler2D v_texture;
+)",
+		.body = R"(
+	float y = texture(y_texture, v_texcoord).r;
+	float u = texture(u_texture, v_texcoord).r - 0.5;
+	float v = texture(v_texture, v_texcoord).r - 0.5;
+	result = vec4(y + 1.403 * v, y - 0.344 * u - 0.714 * v, y + 1.77 * u, 1);
 )",
 	};
 }
@@ -162,15 +179,39 @@ not_null<QOpenGLShader*> MakeShader(
 	return result;
 }
 
-void LinkProgram(
+struct Program {
+	not_null<QOpenGLShader*> vertex;
+	not_null<QOpenGLShader*> fragment;
+};
+
+Program LinkProgram(
 		not_null<QOpenGLShaderProgram*> program,
-		const QString &vertexSource,
-		const QString &fragmentSource) {
-	MakeShader(program, QOpenGLShader::Vertex, vertexSource);
-	MakeShader(program, QOpenGLShader::Fragment, fragmentSource);
+		std::variant<QString, not_null<QOpenGLShader*>> vertex,
+		std::variant<QString, not_null<QOpenGLShader*>> fragment) {
+	const auto vertexAsSource = v::is<QString>(vertex);
+	const auto v = vertexAsSource
+		? MakeShader(
+			program,
+			QOpenGLShader::Vertex,
+			v::get<QString>(vertex))
+		: v::get<not_null<QOpenGLShader*>>(vertex);
+	if (!vertexAsSource) {
+		program->addShader(v);
+	}
+	const auto fragmentAsSource = v::is<QString>(fragment);
+	const auto f = fragmentAsSource
+		? MakeShader(
+			program,
+			QOpenGLShader::Fragment,
+			v::get<QString>(fragment))
+		: v::get<not_null<QOpenGLShader*>>(fragment);
+	if (!fragmentAsSource) {
+		program->addShader(f);
+	}
 	if (!program->link()) {
 		LOG(("Shader Link Failed: %1.").arg(program->log()));
 	}
+	return { v, f };
 }
 
 [[nodiscard]] QVector4D Uniform(const QRect &rect) {
@@ -251,18 +292,19 @@ void Viewport::RendererGL::init(
 	_frameBuffer.emplace();
 	_frameBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
 	_frameBuffer->create();
-	_frameProgram.emplace();
-	LinkProgram(
-		&*_frameProgram,
+	_yuv420Program.emplace();
+	_frameVertexShader = LinkProgram(
+		&*_yuv420Program,
 		VertexShader({
 			VertexViewportTransform(),
 			VertexPassTextureCoord(),
 		}),
 		FragmentShader({
-			FragmentSampleTexture(),
+			FragmentSampleYUV420Texture(),
 			FragmentFrameColor(),
 			FragmentRoundCorners(),
-		}));
+		})).vertex;
+
 
 	_bgBuffer.emplace();
 	_bgBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
@@ -274,12 +316,28 @@ void Viewport::RendererGL::init(
 		FragmentShader({ FragmentStaticColor() }));
 }
 
+void Viewport::RendererGL::ensureARGB32Program() {
+	Expects(_frameVertexShader != nullptr);
+
+	_argb32Program.emplace();
+	LinkProgram(
+		&*_argb32Program,
+		_frameVertexShader,
+		FragmentShader({
+			FragmentSampleARGB32Texture(),
+			FragmentFrameColor(),
+			FragmentRoundCorners(),
+		}));
+}
+
 void Viewport::RendererGL::deinit(
 		not_null<QOpenGLWidget*> widget,
 		not_null<QOpenGLFunctions*> f) {
 	_frameBuffer = std::nullopt;
 	_bgBuffer = std::nullopt;
-	_frameProgram = std::nullopt;
+	_frameVertexShader = nullptr;
+	_argb32Program = std::nullopt;
+	_yuv420Program = std::nullopt;
 	_bgProgram = std::nullopt;
 	for (const auto &tile : _owner->_tiles) {
 		if (const auto textures = tile->takeTextures()) {
@@ -337,9 +395,8 @@ void Viewport::RendererGL::paintTile(
 		not_null<QOpenGLFunctions*> f,
 		not_null<VideoTile*> tile) {
 	const auto track = tile->track();
-	const auto data = track->frameWithInfo();
-	const auto &image = data.original;
-	if (image.isNull()) {
+	const auto data = track->frameWithInfo(false);
+	if (data.format == Webrtc::FrameFormat::None) {
 		return;
 	}
 
@@ -350,7 +407,7 @@ void Viewport::RendererGL::paintTile(
 	const auto height = geometry.height();
 	const auto expand = !_owner->wide()/* && !tile->screencast()*/;
 	const auto scaled = Media::View::FlipSizeByRotation(
-		image.size(),
+		data.yuv420->size,
 		data.rotation
 	).scaled(
 		QSize(width, height),
@@ -394,43 +451,79 @@ void Viewport::RendererGL::paintTile(
 	tile->ensureTexturesCreated(f);
 	const auto &textures = tile->textures();
 	const auto upload = (textures.trackIndex != data.index);
-	if (upload) {
-		textures.textureIndex = 1 - textures.textureIndex;
-	}
-	const auto texture = textures.values[textures.textureIndex];
-
-	f->glUseProgram(_frameProgram->programId());
-	f->glActiveTexture(GL_TEXTURE0);
-	f->glBindTexture(GL_TEXTURE_2D, texture);
-	if (upload) {
-		f->glPixelStorei(GL_UNPACK_ROW_LENGTH, image.bytesPerLine() / 4);
+	const auto uploadOne = [&](GLint internalformat, GLint format, QSize size, int stride, const void *data) {
+		f->glPixelStorei(GL_UNPACK_ROW_LENGTH, stride);
 		f->glTexImage2D(
 			GL_TEXTURE_2D,
 			0,
-			GL_RGB,
-			image.width(),
-			image.height(),
+			internalformat,
+			size.width(),
+			size.height(),
 			0,
-			GL_RGBA,
+			format,
 			GL_UNSIGNED_BYTE,
-			image.constBits());
+			data);
 		f->glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	};
+	if (upload) {
+		textures.textureIndex = 1 - textures.textureIndex;
+	}
+	const auto rgba = (data.format == Webrtc::FrameFormat::ARGB32);
+	if (rgba) {
+		ensureARGB32Program();
+		const auto texture = textures.values[textures.textureIndex];
+		f->glUseProgram(_argb32Program->programId());
+		f->glActiveTexture(GL_TEXTURE0);
+		f->glBindTexture(GL_TEXTURE_2D, texture);
+		if (upload) {
+			const auto &image = data.original;
+			const auto stride = image.bytesPerLine() / 4;
+			const auto data = image.constBits();
+			uploadOne(GL_RGB, GL_RGBA, image.size(), stride, data);
+		}
+		_argb32Program->setUniformValue("s_texture", GLint(0));
+	} else {
+		const auto yuv = data.yuv420;
+		const auto otherSize = yuv->chromaSize;
+		const auto textureY = textures.values[textures.textureIndex * 3 + 0];
+		const auto textureU = textures.values[textures.textureIndex * 3 + 1];
+		const auto textureV = textures.values[textures.textureIndex * 3 + 2];
+		f->glUseProgram(_yuv420Program->programId());
+		f->glActiveTexture(GL_TEXTURE0);
+		f->glBindTexture(GL_TEXTURE_2D, textureY);
+		if (upload) {
+			uploadOne(GL_RED, GL_RED, yuv->size, yuv->y.stride, yuv->y.data);
+		}
+		f->glActiveTexture(GL_TEXTURE1);
+		f->glBindTexture(GL_TEXTURE_2D, textureU);
+		if (upload) {
+			uploadOne(GL_RED, GL_RED, otherSize, yuv->u.stride, yuv->u.data);
+		}
+		f->glActiveTexture(GL_TEXTURE2);
+		f->glBindTexture(GL_TEXTURE_2D, textureV);
+		if (upload) {
+			uploadOne(GL_RED, GL_RED, otherSize, yuv->v.stride, yuv->v.data);
+		}
+		_yuv420Program->setUniformValue("y_texture", GLint(0));
+		_yuv420Program->setUniformValue("u_texture", GLint(1));
+		_yuv420Program->setUniformValue("v_texture", GLint(2));
 	}
 	tile->track()->markFrameShown();
 
 	_frameBuffer->bind();
 	_frameBuffer->allocate(coords, sizeof(coords));
 
-	_frameProgram->setUniformValue("viewport", QSizeF(_viewport));
-	_frameProgram->setUniformValue("s_texture", GLint(0));
-	_frameProgram->setUniformValue(
+	const auto program = rgba ? &*_argb32Program : &*_yuv420Program;
+
+	program->setUniformValue("viewport", QSizeF(_viewport));
+	program->setUniformValue(
 		"frameBg",
 		Uniform(st::groupCallMembersBg->c));
-	_frameProgram->setUniformValue("roundRadius", radius);
-	_frameProgram->setUniformValue("roundRect", Uniform(geometry));
-	_frameProgram->setUniformValue("roundBg", Uniform(st::groupCallBg->c));
+	program->setUniformValue("roundRadius", radius);
+	program->setUniformValue("roundRect", Uniform(geometry));
+	program->setUniformValue("roundBg", Uniform(st::groupCallBg->c));
 
-	GLint position = _frameProgram->attributeLocation("position");
+	GLint position = program->attributeLocation("position");
 	f->glVertexAttribPointer(
 		position,
 		2,
@@ -440,7 +533,7 @@ void Viewport::RendererGL::paintTile(
 		nullptr);
 	f->glEnableVertexAttribArray(position);
 
-	GLint texcoord = _frameProgram->attributeLocation("texcoord");
+	GLint texcoord = program->attributeLocation("texcoord");
 	f->glVertexAttribPointer(
 		texcoord,
 		2,

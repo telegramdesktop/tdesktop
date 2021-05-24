@@ -80,6 +80,7 @@ public:
 	void remove(const VideoEndpoint &endpoint);
 	void showLarge(const VideoEndpoint &endpoint);
 
+	[[nodiscard]] bool requireARGB32() const;
 	[[nodiscard]] int fullHeight() const;
 	[[nodiscard]] rpl::producer<int> fullHeightValue() const;
 	[[nodiscard]] rpl::producer<VideoPinToggle> pinToggled() const;

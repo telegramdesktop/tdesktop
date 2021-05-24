@@ -18,12 +18,12 @@ class QOpenGLFunctions;
 namespace Calls::Group {
 
 struct Viewport::Textures {
-	std::array<GLuint, 2> values = { { 0 } };
+	std::array<GLuint, 6> values = { { 0 } };
 	mutable int textureIndex = 0;
 	mutable int trackIndex = -1;
 
 	explicit operator bool() const {
-		return values[0] || values[1];
+		return (values[0] != 0);
 	}
 };
 

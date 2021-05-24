@@ -110,12 +110,6 @@ constexpr auto kFixLargeVideoDuration = 5 * crl::time(1000);
 
 } // namespace
 
-//GroupCall::VideoTrack::VideoTrack() = default;
-//GroupCall::VideoTrack::VideoTrack(VideoTrack &&other) = default;
-//GroupCall::VideoTrack &GroupCall::VideoTrack::operator=(
-//	VideoTrack &&other) = default;
-//GroupCall::VideoTrack::~VideoTrack() = default;
-//
 class GroupCall::LoadPartTask final : public tgcalls::BroadcastPartTask {
 public:
 	LoadPartTask(
@@ -372,10 +366,6 @@ GroupCall::GroupCall(
 , _joinHash(info.joinHash)
 , _id(inputCall.c_inputGroupCall().vid().v)
 , _scheduleDate(info.scheduleDate)
-, _cameraOutgoing(std::make_unique<Webrtc::VideoTrack>(
-	Webrtc::VideoState::Inactive))
-, _screenOutgoing(std::make_unique<Webrtc::VideoTrack>(
-	Webrtc::VideoState::Inactive))
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
 , _checkJoinedTimer([=] { checkJoined(); })
 , _pushToTalkCancelTimer([=] { pushToTalkCancel(); })
@@ -448,15 +438,12 @@ GroupCall::~GroupCall() {
 }
 
 bool GroupCall::isSharingScreen() const {
-	return (_screenOutgoing->state() == Webrtc::VideoState::Active);
+	return _screenOutgoing
+		&& (_screenOutgoing->state() == Webrtc::VideoState::Active);
 }
 
 rpl::producer<bool> GroupCall::isSharingScreenValue() const {
-	using namespace rpl::mappers;
-	return _screenOutgoing->stateValue(
-	) | rpl::map(
-		_1 == Webrtc::VideoState::Active
-	) | rpl::distinct_until_changed();
+	return _isSharingScreen.value();
 }
 
 const std::string &GroupCall::screenSharingEndpoint() const {
@@ -464,15 +451,12 @@ const std::string &GroupCall::screenSharingEndpoint() const {
 }
 
 bool GroupCall::isSharingCamera() const {
-	return (_cameraOutgoing->state() == Webrtc::VideoState::Active);
+	return _cameraOutgoing
+		&& (_cameraOutgoing->state() == Webrtc::VideoState::Active);
 }
 
 rpl::producer<bool> GroupCall::isSharingCameraValue() const {
-	using namespace rpl::mappers;
-	return _cameraOutgoing->stateValue(
-	) | rpl::map(
-		_1 == Webrtc::VideoState::Active
-	) | rpl::distinct_until_changed();
+	return _isSharingCamera.value();
 }
 
 const std::string &GroupCall::cameraSharingEndpoint() const {
@@ -526,11 +510,17 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 		setScheduledDate(date);
 	}, _lifetime);
 
-	real->participantsReloaded(
-	) | rpl::start_with_next([=] {
-		fillActiveVideoEndpoints();
-	}, _lifetime);
-	fillActiveVideoEndpoints();
+	// Postpone creating video tracks, so that we know if Panel
+	// supports OpenGL and we don't need ARGB32 frames at all.
+	Ui::PostponeCall(this, [=] {
+		if (const auto real = lookupReal()) {
+			real->participantsReloaded(
+			) | rpl::start_with_next([=] {
+				fillActiveVideoEndpoints();
+			}, _lifetime);
+			fillActiveVideoEndpoints();
+		}
+	});
 
 	using Update = Data::GroupCall::ParticipantUpdate;
 	real->participantUpdated(
@@ -816,7 +806,8 @@ void GroupCall::markEndpointActive(VideoEndpoint endpoint, bool active) {
 			endpoint,
 			VideoTrack{
 				.track = std::make_unique<Webrtc::VideoTrack>(
-					Webrtc::VideoState::Active),
+					Webrtc::VideoState::Active,
+					_requireARGB32),
 				.peer = endpoint.peer,
 			}).first;
 		addVideoOutput(i->first.id, { i->second.track->sink() });
@@ -955,7 +946,8 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 }
 
 void GroupCall::joinLeavePresentation() {
-	if (_screenOutgoing->state() == Webrtc::VideoState::Active) {
+	if (_screenOutgoing
+		&& _screenOutgoing->state() == Webrtc::VideoState::Active) {
 		rejoinPresentation();
 	} else {
 		leavePresentation();
@@ -1527,6 +1519,19 @@ void GroupCall::ensureOutgoingVideo() {
 		return;
 	}
 	_videoInited = true;
+
+	_cameraOutgoing = std::make_unique<Webrtc::VideoTrack>(
+		Webrtc::VideoState::Inactive,
+		_requireARGB32);
+	_screenOutgoing = std::make_unique<Webrtc::VideoTrack>(
+		Webrtc::VideoState::Inactive,
+		_requireARGB32);
+
+	using namespace rpl::mappers;
+	_isSharingCamera = _cameraOutgoing->stateValue(
+	) | rpl::map(_1 == Webrtc::VideoState::Active);
+	_isSharingScreen = _screenOutgoing->stateValue(
+	) | rpl::map(_1 == Webrtc::VideoState::Active);
 
 	//static const auto hasDevices = [] {
 	//	return !Webrtc::GetVideoInputList().empty();
@@ -2289,7 +2294,8 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 		MTP_bool(muted() != MuteState::Active),
 		MTP_int(100000), // volume
 		MTP_bool(muted() == MuteState::RaisedHand),
-		MTP_bool(_cameraOutgoing->state() != Webrtc::VideoState::Active)
+		MTP_bool(!_cameraOutgoing
+			|| _cameraOutgoing->state() != Webrtc::VideoState::Active)
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
 		_peer->session().api().applyUpdates(result);
@@ -2490,6 +2496,10 @@ void GroupCall::pushToTalkCancel() {
 	if (muted() == MuteState::PushToTalk) {
 		setMuted(MuteState::Muted);
 	}
+}
+
+void GroupCall::setNotRequireARGB32() {
+	_requireARGB32 = false;
 }
 
 auto GroupCall::otherParticipantStateValue() const

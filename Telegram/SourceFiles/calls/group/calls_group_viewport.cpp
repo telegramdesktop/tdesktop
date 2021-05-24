@@ -523,6 +523,10 @@ Ui::GL::ChosenRenderer Viewport::chooseRenderer(
 	};
 }
 
+bool Viewport::requireARGB32() const {
+	return !_freeTextures;
+}
+
 int Viewport::fullHeight() const {
 	return _fullHeight.current();
 }

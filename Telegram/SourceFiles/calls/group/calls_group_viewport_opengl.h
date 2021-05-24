@@ -46,14 +46,17 @@ private:
 		not_null<VideoTile*> tile);
 	void freeTextures(not_null<QOpenGLFunctions*> f);
 	[[nodiscard]] QRect tileGeometry(not_null<VideoTile*> tile) const;
+	void ensureARGB32Program();
 
 	const not_null<Viewport*> _owner;
 
 	QSize _viewport;
 	std::optional<QOpenGLBuffer> _frameBuffer;
 	std::optional<QOpenGLBuffer> _bgBuffer;
-	std::optional<QOpenGLShaderProgram> _frameProgram;
+	std::optional<QOpenGLShaderProgram> _argb32Program;
+	std::optional<QOpenGLShaderProgram> _yuv420Program;
 	std::optional<QOpenGLShaderProgram> _bgProgram;
+	QOpenGLShader *_frameVertexShader = nullptr;
 
 	std::vector<GLfloat> _bgTriangles;
 	std::vector<Textures> _texturesToFree;

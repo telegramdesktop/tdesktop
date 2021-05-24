@@ -421,6 +421,10 @@ Panel::Panel(not_null<GroupCall*> call)
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_layerBg->setHideByBackgroundClick(true);
 
+	if (!_viewport->requireARGB32()) {
+		_call->setNotRequireARGB32();
+	}
+
 	SubscribeToMigration(
 		_peer,
 		_window->lifetime(),
