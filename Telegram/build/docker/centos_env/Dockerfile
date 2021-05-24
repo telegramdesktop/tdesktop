@@ -738,7 +738,7 @@ RUN mkdir tg_owt
 WORKDIR tg_owt
 RUN git init
 RUN git remote add origin $GIT/desktop-app/tg_owt.git
-RUN git fetch --depth=1 origin cb9f347e1020ffbdd762d6c32f97db6533dd47e0
+RUN git fetch --depth=1 origin 792baa1e9f41da441abb6bdb09b3809551ffdcf0
 RUN git reset --hard FETCH_HEAD
 RUN git submodule init
 RUN git submodule update

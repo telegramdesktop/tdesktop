@@ -304,7 +304,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout cb9f347e10
+    git checkout 792baa1e9f
     git submodule init
     git submodule update
     mkdir out
