@@ -50,6 +50,7 @@ private:
 
 	const not_null<Viewport*> _owner;
 
+	GLfloat _factor = 1.;
 	QSize _viewport;
 	std::optional<QOpenGLBuffer> _frameBuffer;
 	std::optional<QOpenGLBuffer> _bgBuffer;

@@ -26,8 +26,8 @@ struct ShaderPart {
 		return ranges::accumulate(parts, QString(), std::plus<>(), proj);
 	};
 	return R"(
-#version 130
-in vec2 position;
+#version 120
+attribute vec2 position;
 )" + accumulate(&ShaderPart::header) + R"(
 void main() {
 	vec4 result = vec4(position, 0., 1.);
@@ -42,13 +42,12 @@ void main() {
 		return ranges::accumulate(parts, QString(), std::plus<>(), proj);
 	};
 	return R"(
-#version 130
-out vec4 fragColor;
+#version 120
 )" + accumulate(&ShaderPart::header) + R"(
 void main() {
 	vec4 result = vec4(0., 0., 0., 0.);
 )" + accumulate(&ShaderPart::body) + R"(
-	fragColor = result;
+	gl_FragColor = result;
 }
 )";
 }
@@ -56,8 +55,8 @@ void main() {
 [[nodiscard]] ShaderPart VertexPassTextureCoord() {
 	return {
 		.header = R"(
-in vec2 texcoord;
-out vec2 v_texcoord;
+attribute vec2 texcoord;
+varying vec2 v_texcoord;
 )",
 		.body = R"(
 	v_texcoord = texcoord;
@@ -68,11 +67,11 @@ out vec2 v_texcoord;
 [[nodiscard]] ShaderPart FragmentSampleARGB32Texture() {
 	return {
 		.header = R"(
-in vec2 v_texcoord;
+varying vec2 v_texcoord;
 uniform sampler2D s_texture;
 )",
 		.body = R"(
-	result = texture(s_texture, v_texcoord);
+	result = texture2D(s_texture, v_texcoord);
 	result = vec4(result.b, result.g, result.r, result.a);
 )",
 	};
@@ -81,15 +80,15 @@ uniform sampler2D s_texture;
 [[nodiscard]] ShaderPart FragmentSampleYUV420Texture() {
 	return {
 		.header = R"(
-in vec2 v_texcoord;
+varying vec2 v_texcoord;
 uniform sampler2D y_texture;
 uniform sampler2D u_texture;
 uniform sampler2D v_texture;
 )",
 		.body = R"(
-	float y = texture(y_texture, v_texcoord).r;
-	float u = texture(u_texture, v_texcoord).r - 0.5;
-	float v = texture(v_texture, v_texcoord).r - 0.5;
+	float y = texture2D(y_texture, v_texcoord).r;
+	float u = texture2D(u_texture, v_texcoord).r - 0.5;
+	float v = texture2D(v_texture, v_texcoord).r - 0.5;
 	result = vec4(y + 1.403 * v, y - 0.344 * u - 0.714 * v, y + 1.77 * u, 1);
 )",
 	};
@@ -214,8 +213,12 @@ Program LinkProgram(
 	return { v, f };
 }
 
-[[nodiscard]] QVector4D Uniform(const QRect &rect) {
-	return QVector4D(rect.x(), rect.y(), rect.width(), rect.height());
+[[nodiscard]] QVector4D Uniform(const QRect &rect, GLfloat factor) {
+	return QVector4D(
+		rect.x() * factor,
+		rect.y() * factor,
+		rect.width() * factor,
+		rect.height() * factor);
 }
 
 [[nodiscard]] QVector4D Uniform(const QColor &color) {
@@ -226,15 +229,15 @@ Program LinkProgram(
 		color.alphaF());
 }
 
-void FillRectVertices(GLfloat *coords, QRect rect) {
-	coords[0] = coords[10] = rect.x();
-	coords[1] = coords[11] = rect.y();
-	coords[2] = rect.x() + rect.width();
-	coords[3] = rect.y();
-	coords[4] = coords[6] = rect.x() + rect.width();
-	coords[5] = coords[7] = rect.y() + rect.height();
-	coords[8] = rect.x();
-	coords[9] = rect.y() + rect.height();
+void FillRectVertices(GLfloat *coords, QRect rect, GLfloat factor) {
+	coords[0] = coords[10] = rect.x() * factor;
+	coords[1] = coords[11] = rect.y() * factor;
+	coords[2] = (rect.x() + rect.width()) * factor;
+	coords[3] = rect.y() * factor;
+	coords[4] = coords[6] = (rect.x() + rect.width()) * factor;
+	coords[5] = coords[7] = (rect.y() + rect.height()) * factor;
+	coords[8] = rect.x() * factor;
+	coords[9] = (rect.y() + rect.height()) * factor;
 }
 
 void FillTriangles(
@@ -242,7 +245,7 @@ void FillTriangles(
 		gsl::span<const GLfloat> coords,
 		not_null<QOpenGLBuffer*> buffer,
 		not_null<QOpenGLShaderProgram*> program,
-		QSize viewport,
+		QSize viewportWithFactor,
 		const QColor &color,
 		Fn<void()> additional = nullptr) {
 	Expects(coords.size() % 6 == 0);
@@ -254,7 +257,7 @@ void FillTriangles(
 	buffer->allocate(coords.data(), coords.size() * sizeof(GLfloat));
 
 	f->glUseProgram(program->programId());
-	program->setUniformValue("viewport", QSizeF(viewport));
+	program->setUniformValue("viewport", QSizeF(viewportWithFactor));
 	program->setUniformValue("s_color", Uniform(color));
 
 	GLint position = program->attributeLocation("position");
@@ -289,6 +292,7 @@ void Viewport::RendererGL::free(const Textures &textures) {
 void Viewport::RendererGL::init(
 		not_null<QOpenGLWidget*> widget,
 		not_null<QOpenGLFunctions*> f) {
+	_factor = widget->devicePixelRatio();
 	_frameBuffer.emplace();
 	_frameBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
 	_frameBuffer->create();
@@ -352,13 +356,15 @@ void Viewport::RendererGL::resize(
 		not_null<QOpenGLFunctions*> f,
 		int w,
 		int h) {
+	_factor = widget->devicePixelRatio();
 	_viewport = QSize(w, h);
-	f->glViewport(0, 0, w, h);
+	f->glViewport(0, 0, w * _factor, h * _factor);
 }
 
 void Viewport::RendererGL::paint(
 		not_null<QOpenGLWidget*> widget,
 		not_null<QOpenGLFunctions*> f) {
+	_factor = widget->devicePixelRatio();
 	fillBackground(f);
 	for (const auto &tile : _owner->_tiles) {
 		paintTile(f, tile.get());
@@ -379,7 +385,7 @@ void Viewport::RendererGL::fillBackground(not_null<QOpenGLFunctions*> f) {
 	_bgTriangles.resize((bg.end() - bg.begin()) * 12);
 	auto coords = _bgTriangles.data();
 	for (const auto rect : bg) {
-		FillRectVertices(coords, rect);
+		FillRectVertices(coords, rect, _factor);
 		coords += 12;
 	}
 	FillTriangles(
@@ -387,7 +393,7 @@ void Viewport::RendererGL::fillBackground(not_null<QOpenGLFunctions*> f) {
 		_bgTriangles,
 		&*_bgBuffer,
 		&*_bgProgram,
-		_viewport,
+		_viewport * _factor,
 		st::groupCallBg->c);
 }
 
@@ -419,7 +425,7 @@ void Viewport::RendererGL::paintTile(
 	const auto top = (height - scaled.height()) / 2;
 	const auto right = left + scaled.width();
 	const auto bottom = top + scaled.height();
-	const auto radius = GLfloat(st::roundRadiusLarge * cIntRetinaFactor());
+	const auto radius = GLfloat(st::roundRadiusLarge);
 	auto dleft = float(left) / scaled.width();
 	auto dright = float(width - left) / scaled.width();
 	auto dtop = float(top) / scaled.height();
@@ -442,10 +448,10 @@ void Viewport::RendererGL::paintTile(
 			texCoord.end());
 	}
 	const GLfloat coords[] = {
-		float(x), float(y), texCoord[0][0], texCoord[0][1],
-		float(x + width), float(y), texCoord[1][0], texCoord[1][1],
-		float(x + width), float(y + height), texCoord[2][0], texCoord[2][1],
-		float(x), float(y + height), texCoord[3][0], texCoord[3][1],
+		x * _factor, y * _factor, texCoord[0][0], texCoord[0][1],
+		(x + width) * _factor, y * _factor, texCoord[1][0], texCoord[1][1],
+		(x + width) * _factor, (y + height) * _factor, texCoord[2][0], texCoord[2][1],
+		x * _factor, (y + height) * _factor, texCoord[3][0], texCoord[3][1],
 	};
 
 	tile->ensureTexturesCreated(f);
@@ -515,12 +521,12 @@ void Viewport::RendererGL::paintTile(
 
 	const auto program = rgba ? &*_argb32Program : &*_yuv420Program;
 
-	program->setUniformValue("viewport", QSizeF(_viewport));
+	program->setUniformValue("viewport", QSizeF(_viewport * _factor));
 	program->setUniformValue(
 		"frameBg",
 		Uniform(st::groupCallMembersBg->c));
-	program->setUniformValue("roundRadius", radius);
-	program->setUniformValue("roundRect", Uniform(geometry));
+	program->setUniformValue("roundRadius", radius * _factor);
+	program->setUniformValue("roundRect", Uniform(geometry, _factor));
 	program->setUniformValue("roundBg", Uniform(st::groupCallBg->c));
 
 	GLint position = program->attributeLocation("position");
