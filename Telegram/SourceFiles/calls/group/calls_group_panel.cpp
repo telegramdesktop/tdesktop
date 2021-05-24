@@ -954,6 +954,7 @@ void Panel::setupMembers() {
 	setupVideo();
 	_members->show();
 
+	refreshControlsBackground();
 	raiseControls();
 
 	_members->desiredHeightValue(
@@ -1729,6 +1730,9 @@ void Panel::updateButtonsStyles() {
 }
 
 void Panel::refreshControlsBackground() {
+	if (!_members) {
+		return;
+	}
 	if (mode() == PanelMode::Default) {
 		trackControls(false);
 		_controlsBackgroundWide.destroy();
