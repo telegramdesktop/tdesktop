@@ -469,6 +469,7 @@ void Viewport::RendererGL::paintTile(
 		f.glActiveTexture(GL_TEXTURE0);
 		textures.values.bind(f, textures.textureIndex * 3 + 0);
 		if (upload) {
+			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 			uploadOne(GL_RED, GL_RED, yuv->size, yuv->y.stride, yuv->y.data);
 		}
 		f.glActiveTexture(GL_TEXTURE1);
@@ -480,6 +481,7 @@ void Viewport::RendererGL::paintTile(
 		textures.values.bind(f, textures.textureIndex * 3 + 2);
 		if (upload) {
 			uploadOne(GL_RED, GL_RED, otherSize, yuv->v.stride, yuv->v.data);
+			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 		}
 		_yuv420Program->setUniformValue("y_texture", GLint(0));
 		_yuv420Program->setUniformValue("u_texture", GLint(1));
