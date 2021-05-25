@@ -827,17 +827,16 @@ int MainWindow::tryToExtendWidthBy(int addToWidth) {
 	return addToWidth;
 }
 
-void MainWindow::launchDrag(std::unique_ptr<QMimeData> data) {
-	auto weak = QPointer<MainWindow>(this);
+void MainWindow::launchDrag(
+		std::unique_ptr<QMimeData> data,
+		Fn<void()> &&callback) {
 	auto drag = std::make_unique<QDrag>(this);
 	drag->setMimeData(data.release());
 	drag->exec(Qt::CopyAction);
 
 	// We don't receive mouseReleaseEvent when drag is finished.
 	ClickHandler::unpressed();
-	if (weak) {
-		weak->dragFinished().notify();
-	}
+	callback();
 }
 
 MainWindow::~MainWindow() {

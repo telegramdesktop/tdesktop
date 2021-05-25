@@ -176,9 +176,6 @@ HistoryInner::HistoryInner(
 			update();
 		}
 	}, lifetime());
-	subscribe(_controller->widget()->dragFinished(), [this] {
-		mouseActionUpdate(QCursor::pos());
-	});
 	session().data().itemRemoved(
 	) | rpl::start_with_next(
 		[this](auto item) { itemRemoved(item); },
@@ -1261,7 +1258,9 @@ std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
 void HistoryInner::performDrag() {
 	if (auto mimeData = prepareDrag()) {
 		// This call enters event loop and can destroy any QObject.
-		_controller->widget()->launchDrag(std::move(mimeData));
+		_controller->widget()->launchDrag(
+			std::move(mimeData),
+			crl::guard(this, [=] { mouseActionUpdate(QCursor::pos()); }));
 	}
 }
 

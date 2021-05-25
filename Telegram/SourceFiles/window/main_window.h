@@ -103,10 +103,7 @@ public:
 		return _body.data();
 	}
 
-	void launchDrag(std::unique_ptr<QMimeData> data);
-	base::Observable<void> &dragFinished() {
-		return _dragFinished;
-	}
+	void launchDrag(std::unique_ptr<QMimeData> data, Fn<void()> &&callback);
 
 	rpl::producer<> leaveEvents() const;
 
@@ -229,7 +226,6 @@ private:
 
 	bool _isActive = false;
 
-	base::Observable<void> _dragFinished;
 	rpl::event_stream<> _leaveEvents;
 
 	bool _maximizedBeforeHide = false;

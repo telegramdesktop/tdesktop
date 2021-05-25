@@ -41,8 +41,7 @@ enum class ReportReason;
 class HistoryWidget;
 class HistoryInner
 	: public Ui::RpWidget
-	, public Ui::AbstractTooltipShower
-	, private base::Subscriber {
+	, public Ui::AbstractTooltipShower {
 	// The Q_OBJECT meta info is used for qobject_cast!
 	Q_OBJECT
 
