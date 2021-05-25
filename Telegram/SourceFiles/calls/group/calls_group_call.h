@@ -297,13 +297,9 @@ public:
 		return _videoEndpointPinned.value();
 	}
 	struct VideoTrack {
-		//VideoTrack();
-		//VideoTrack(VideoTrack &&other);
-		//VideoTrack &operator=(VideoTrack &&other);
-		//~VideoTrack();
-
 		std::unique_ptr<Webrtc::VideoTrack> track;
 		PeerData *peer = nullptr;
+		rpl::lifetime lifetime;
 		Group::VideoQuality quality = Group::VideoQuality();
 
 		[[nodiscard]] explicit operator bool() const {
@@ -342,6 +338,8 @@ public:
 	[[nodiscard]] QString screenSharingDeviceId() const;
 	void toggleVideo(bool active);
 	void toggleScreenSharing(std::optional<QString> uniqueId);
+	[[nodiscard]] bool hasVideoWithFrames() const;
+	[[nodiscard]] rpl::producer<bool> hasVideoWithFramesValue() const;
 
 	void toggleMute(const Group::MuteRequest &data);
 	void changeVolume(const Group::VolumeRequest &data);
@@ -531,13 +529,13 @@ private:
 	rpl::variable<bool> _isSharingScreen = false;
 	QString _screenDeviceId;
 
-	bool _videoInited = false;
 	bool _requireARGB32 = true;
 
 	rpl::event_stream<LevelUpdate> _levelUpdates;
 	rpl::event_stream<VideoEndpoint> _videoStreamActiveUpdates;
 	base::flat_map<VideoEndpoint, VideoTrack> _activeVideoTracks;
 	rpl::variable<VideoEndpoint> _videoEndpointPinned;
+	rpl::variable<bool> _hasVideoWithFrames = false;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
 	rpl::event_stream<> _allowedToSpeakNotifications;

@@ -400,7 +400,6 @@ Panel::Panel(not_null<GroupCall*> call)
 	st::groupCallTitle))
 #endif // !Q_OS_MAC
 , _viewport(std::make_unique<Viewport>(widget(), _mode.current()))
-, _videoMode(true) // #TODO calls
 , _mute(std::make_unique<Ui::CallMuteButton>(
 	widget(),
 	st::callMuteButton,
@@ -556,7 +555,9 @@ void Panel::initWindow() {
 			: Flag::None;
 	});
 
-	_call->videoCallValue(
+	rpl::combine(
+		_call->hasVideoWithFramesValue(),
+		_call->videoCallValue()
 	) | rpl::start_with_next([=] {
 		updateMode();
 	}, _window->lifetime());
@@ -1656,7 +1657,7 @@ bool Panel::updateMode() {
 	if (!_viewport) {
 		return false;
 	}
-	const auto wide = _call->videoCall()
+	const auto wide = _call->hasVideoWithFrames()
 		&& (widget()->width() >= st::groupCallWideModeWidthMin);
 	const auto mode = wide ? PanelMode::Wide : PanelMode::Default;
 	if (_mode.current() == mode) {

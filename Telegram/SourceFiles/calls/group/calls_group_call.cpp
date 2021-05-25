@@ -496,6 +496,14 @@ void GroupCall::toggleScreenSharing(std::optional<QString> uniqueId) {
 	}
 }
 
+bool GroupCall::hasVideoWithFrames() const {
+	return _hasVideoWithFrames.current();
+}
+
+rpl::producer<bool> GroupCall::hasVideoWithFramesValue() const {
+	return _hasVideoWithFrames.value();
+}
+
 void GroupCall::setScheduledDate(TimeId date) {
 	const auto was = _scheduleDate;
 	_scheduleDate = date;
@@ -801,6 +809,7 @@ void GroupCall::markEndpointActive(VideoEndpoint endpoint, bool active) {
 	if (!changed) {
 		return;
 	}
+	auto hasVideoWithFrames = _hasVideoWithFrames.current();
 	if (active) {
 		const auto i = _activeVideoTracks.emplace(
 			endpoint,
@@ -810,15 +819,33 @@ void GroupCall::markEndpointActive(VideoEndpoint endpoint, bool active) {
 					_requireARGB32),
 				.peer = endpoint.peer,
 			}).first;
-		addVideoOutput(i->first.id, { i->second.track->sink() });
+		const auto track = i->second.track.get();
+		track->renderNextFrame(
+		) | rpl::start_with_next([=] {
+			if (!track->frameSize().isEmpty()) {
+				_hasVideoWithFrames = true;
+			}
+		}, i->second.lifetime);
+		if (!track->frameSize().isEmpty()) {
+			hasVideoWithFrames = true;
+		}
+		addVideoOutput(i->first.id, { track->sink() });
 	} else {
 		if (_videoEndpointPinned.current() == endpoint) {
 			_videoEndpointPinned = VideoEndpoint();
 		}
 		_activeVideoTracks.erase(i);
+		hasVideoWithFrames = false;
+		for (const auto &[endpoint, track] : _activeVideoTracks) {
+			if (!track.track->frameSize().isEmpty()) {
+				hasVideoWithFrames = true;
+				break;
+			}
+		}
 	}
 	updateRequestedVideoChannelsDelayed();
 	_videoStreamActiveUpdates.fire(std::move(endpoint));
+	_hasVideoWithFrames = hasVideoWithFrames;
 }
 
 void GroupCall::rejoin() {
@@ -1515,11 +1542,9 @@ void GroupCall::setupMediaDevices() {
 void GroupCall::ensureOutgoingVideo() {
 	Expects(_id != 0);
 
-	if (_videoInited) {
+	if (_cameraOutgoing) {
 		return;
 	}
-	_videoInited = true;
-
 	_cameraOutgoing = std::make_unique<Webrtc::VideoTrack>(
 		Webrtc::VideoState::Inactive,
 		_requireARGB32);

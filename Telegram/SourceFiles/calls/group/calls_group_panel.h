@@ -162,7 +162,6 @@ private:
 	std::shared_ptr<Ui::GroupCallScheduledLeft> _countdownData;
 	object_ptr<Ui::FlatLabel> _startsWhen = { nullptr };
 	ChooseJoinAsProcess _joinAsProcess;
-	rpl::variable<bool> _videoMode;
 	std::optional<QRect> _lastSmallGeometry;
 	std::optional<QRect> _lastLargeGeometry;
 	bool _lastLargeMaximized = false;
