@@ -87,6 +87,8 @@ public:
 
 	void updateForwardBar();
 
+	[[nodiscard]] rpl::producer<> closeForwardBarRequests() const;
+
 	// Float player interface.
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 	QRect floatPlayerAvailableRect() override;
@@ -244,6 +246,8 @@ private:
 	int _draggingScrollDelta = 0;
 
 	int _topDelta = 0;
+
+	rpl::event_stream<> _closeForwardBarRequests;
 
 };
 

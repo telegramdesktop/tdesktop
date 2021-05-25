@@ -674,6 +674,11 @@ void MainWidget::hiderLayer(base::unique_qptr<Window::HistoryHider> hider) {
 	_hider = std::move(hider);
 	controller()->setSelectingPeer(true);
 
+	_dialogs->closeForwardBarRequests(
+	) | rpl::start_with_next([=] {
+		_hider->startHide();
+	}, _hider->lifetime());
+
 	_hider->setParent(this);
 
 	_hider->hidden(

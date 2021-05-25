@@ -129,8 +129,6 @@ DeclareRefVar(base::Observable<void>, LocalPasscodeChanged);
 
 DeclareRefVar(base::Variable<DBIWorkMode>, WorkMode);
 
-DeclareRefVar(base::Observable<void>, PeerChooseCancel);
-
 } // namespace Global
 
 namespace Adaptive {

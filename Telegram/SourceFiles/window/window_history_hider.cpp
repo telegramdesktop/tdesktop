@@ -30,8 +30,6 @@ HistoryHider::HistoryHider(
 		refreshLang();
 	}, lifetime());
 
-	subscribe(Global::RefPeerChooseCancel(), [=] { startHide(); });
-
 	_chooseWidth = st::historyForwardChooseFont->width(_text);
 
 	resizeEvent(0);

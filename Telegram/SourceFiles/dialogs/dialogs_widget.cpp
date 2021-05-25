@@ -1617,6 +1617,10 @@ void Widget::updateControlsGeometry() {
 	}
 }
 
+rpl::producer<> Widget::closeForwardBarRequests() const {
+	return _closeForwardBarRequests.events();
+}
+
 void Widget::updateForwardBar() {
 	auto selecting = controller()->selectingPeer();
 	auto oneColumnSelecting = (Adaptive::OneColumn() && selecting);
@@ -1625,8 +1629,8 @@ void Widget::updateForwardBar() {
 	}
 	if (oneColumnSelecting) {
 		_forwardCancel.create(this, st::dialogsForwardCancel);
-		_forwardCancel->setClickedCallback([] {
-			Global::RefPeerChooseCancel().notify(true);
+		_forwardCancel->setClickedCallback([=] {
+			_closeForwardBarRequests.fire({});
 		});
 		if (!_a_show.animating()) _forwardCancel->show();
 	} else {

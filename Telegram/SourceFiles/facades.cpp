@@ -356,8 +356,6 @@ struct Data {
 	base::Observable<void> LocalPasscodeChanged;
 
 	base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowAndTray };
-
-	base::Observable<void> PeerChooseCancel;
 };
 
 } // namespace internal
@@ -398,7 +396,5 @@ DefineVar(Global, bool, LocalPasscode);
 DefineRefVar(Global, base::Observable<void>, LocalPasscodeChanged);
 
 DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
-
-DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
 
 } // namespace Global

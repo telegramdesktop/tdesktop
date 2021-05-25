@@ -16,7 +16,7 @@ class RoundButton;
 
 namespace Window {
 
-class HistoryHider : public Ui::RpWidget, private base::Subscriber {
+class HistoryHider : public Ui::RpWidget {
 public:
 	// Forward messages (via drag-n-drop)
 	HistoryHider(QWidget *parent, MessageIdsList &&items);
