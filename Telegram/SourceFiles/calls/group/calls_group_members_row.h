@@ -179,6 +179,8 @@ public:
 		Painter &p,
 		QRect iconRect,
 		MembersRowStyle style = MembersRowStyle::None);
+	[[nodiscard]] MembersRowDelegate::IconState computeIconState(
+		MembersRowStyle style = MembersRowStyle::None) const;
 
 private:
 	struct BlobsAnimation;
@@ -239,8 +241,6 @@ private:
 		int sizew,
 		int sizeh,
 		MembersRowStyle style);
-	[[nodiscard]] MembersRowDelegate::IconState computeIconState(
-		MembersRowStyle style = MembersRowStyle::None) const;
 
 	const not_null<MembersRowDelegate*> _delegate;
 	State _state = State::Inactive;

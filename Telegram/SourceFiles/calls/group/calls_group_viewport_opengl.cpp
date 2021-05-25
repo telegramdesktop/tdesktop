@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_viewport_tile.h"
 #include "webrtc/webrtc_video_track.h"
 #include "media/view/media_view_pip.h"
+#include "calls/group/calls_group_members_row.h"
+#include "ui/gl/gl_shader.h"
 #include "styles/style_calls.h"
 
 #include <QtGui/QOpenGLShader>
@@ -17,146 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls::Group {
 namespace {
 
-struct FloatRect {
-	FloatRect(QRect rect)
-	: x(rect.x())
-	, y(rect.y())
-	, width(rect.width())
-	, height(rect.height()) {
-	}
-
-	FloatRect(QRectF rect)
-	: x(rect.x())
-	, y(rect.y())
-	, width(rect.width())
-	, height(rect.height()) {
-	}
-
-	float x = 0;
-	float y = 0;
-	float width = 0;
-	float height = 0;
-};
-
-struct ShaderPart {
-	QString header;
-	QString body;
-};
-
-[[nodiscard]] QString VertexShader(const std::vector<ShaderPart> &parts) {
-	const auto accumulate = [&](auto proj) {
-		return ranges::accumulate(parts, QString(), std::plus<>(), proj);
-	};
-	return R"(
-#version 120
-attribute vec2 position;
-)" + accumulate(&ShaderPart::header) + R"(
-void main() {
-	vec4 result = vec4(position, 0., 1.);
-)" + accumulate(&ShaderPart::body) + R"(
-	gl_Position = result;
-}
-)";
-}
-
-[[nodiscard]] QString FragmentShader(const std::vector<ShaderPart> &parts) {
-	const auto accumulate = [&](auto proj) {
-		return ranges::accumulate(parts, QString(), std::plus<>(), proj);
-	};
-	return R"(
-#version 120
-)" + accumulate(&ShaderPart::header) + R"(
-void main() {
-	vec4 result = vec4(0., 0., 0., 0.);
-)" + accumulate(&ShaderPart::body) + R"(
-	gl_FragColor = result;
-}
-)";
-}
-
-[[nodiscard]] ShaderPart VertexPassTextureCoord() {
-	return {
-		.header = R"(
-attribute vec2 texcoord;
-varying vec2 v_texcoord;
-)",
-		.body = R"(
-	v_texcoord = texcoord;
-)",
-	};
-}
-
-[[nodiscard]] ShaderPart FragmentSampleARGB32Texture() {
-	return {
-		.header = R"(
-varying vec2 v_texcoord;
-uniform sampler2D s_texture;
-)",
-		.body = R"(
-	result = texture2D(s_texture, v_texcoord);
-	result = vec4(result.b, result.g, result.r, result.a);
-)",
-	};
-}
-
-[[nodiscard]] ShaderPart FragmentSampleYUV420Texture() {
-	return {
-		.header = R"(
-varying vec2 v_texcoord;
-uniform sampler2D y_texture;
-uniform sampler2D u_texture;
-uniform sampler2D v_texture;
-)",
-		.body = R"(
-	float y = texture2D(y_texture, v_texcoord).r;
-	float u = texture2D(u_texture, v_texcoord).r - 0.5;
-	float v = texture2D(v_texture, v_texcoord).r - 0.5;
-	result = vec4(y + 1.403 * v, y - 0.344 * u - 0.714 * v, y + 1.77 * u, 1);
-)",
-	};
-}
-
-[[nodiscard]] ShaderPart VertexViewportTransform() {
-	return {
-		.header = R"(
-uniform vec2 viewport;
-vec4 transform(vec4 position) {
-	return vec4(
-		vec2(-1, -1) + 2 * position.xy / viewport,
-		position.z,
-		position.w);
-}
-)",
-		.body = R"(
-	result = transform(result);
-)",
-	};
-}
-
-[[nodiscard]] ShaderPart FragmentRoundCorners() {
-	return {
-		.header = R"(
-uniform vec4 roundRect;
-uniform vec4 roundBg;
-uniform float roundRadius;
-float roundedCorner() {
-	vec2 rectHalf = roundRect.zw / 2;
-	vec2 rectCenter = roundRect.xy + rectHalf;
-	vec2 fromRectCenter = abs(gl_FragCoord.xy - rectCenter);
-	vec2 vectorRadius = vec2(roundRadius + 0.5, roundRadius + 0.5);
-	vec2 fromCenterWithRadius = fromRectCenter + vectorRadius;
-	vec2 fromRoundingCenter = max(fromCenterWithRadius, rectHalf)
-		- rectHalf;
-	float d = length(fromRoundingCenter) - roundRadius;
-	return 1. - smoothstep(0., 1., d);
-}
-)",
-		.body = R"(
-	float rounded = roundedCorner();
-	result = result * rounded + roundBg * (1. - rounded);
-)",
-	};
-}
+using namespace Ui::GL;
 
 // Depends on FragmetSampleTexture().
 [[nodiscard]] ShaderPart FragmentFrameColor() {
@@ -184,91 +47,15 @@ float insideTexture() {
 	};
 }
 
-[[nodiscard]] ShaderPart FragmentStaticColor() {
-	return {
-		.header = R"(
-uniform vec4 s_color;
-)",
-		.body = R"(
-	result = s_color;
-)",
-	};
-}
-
-not_null<QOpenGLShader*> MakeShader(
-		not_null<QOpenGLShaderProgram*> program,
-		QOpenGLShader::ShaderType type,
-		const QString &source) {
-	const auto result = new QOpenGLShader(type, program);
-	if (!result->compileSourceCode(source)) {
-		LOG(("Shader Compilation Failed: %1, error %2."
-			).arg(source
-			).arg(result->log()));
-	}
-	program->addShader(result);
-	return result;
-}
-
-struct Program {
-	not_null<QOpenGLShader*> vertex;
-	not_null<QOpenGLShader*> fragment;
-};
-
-Program LinkProgram(
-		not_null<QOpenGLShaderProgram*> program,
-		std::variant<QString, not_null<QOpenGLShader*>> vertex,
-		std::variant<QString, not_null<QOpenGLShader*>> fragment) {
-	const auto vertexAsSource = v::is<QString>(vertex);
-	const auto v = vertexAsSource
-		? MakeShader(
-			program,
-			QOpenGLShader::Vertex,
-			v::get<QString>(vertex))
-		: v::get<not_null<QOpenGLShader*>>(vertex);
-	if (!vertexAsSource) {
-		program->addShader(v);
-	}
-	const auto fragmentAsSource = v::is<QString>(fragment);
-	const auto f = fragmentAsSource
-		? MakeShader(
-			program,
-			QOpenGLShader::Fragment,
-			v::get<QString>(fragment))
-		: v::get<not_null<QOpenGLShader*>>(fragment);
-	if (!fragmentAsSource) {
-		program->addShader(f);
-	}
-	if (!program->link()) {
-		LOG(("Shader Link Failed: %1.").arg(program->log()));
-	}
-	return { v, f };
-}
-
-[[nodiscard]] QVector4D Uniform(const QRect &rect, GLfloat factor) {
-	return QVector4D(
-		rect.x() * factor,
-		rect.y() * factor,
-		rect.width() * factor,
-		rect.height() * factor);
-}
-
-[[nodiscard]] QVector4D Uniform(const QColor &color) {
-	return QVector4D(
-		color.redF(),
-		color.greenF(),
-		color.blueF(),
-		color.alphaF());
-}
-
-void FillRectVertices(GLfloat *coords, QRect rect, GLfloat factor) {
-	coords[0] = coords[10] = rect.x() * factor;
-	coords[1] = coords[11] = rect.y() * factor;
-	coords[2] = (rect.x() + rect.width()) * factor;
-	coords[3] = rect.y() * factor;
-	coords[4] = coords[6] = (rect.x() + rect.width()) * factor;
-	coords[5] = coords[7] = (rect.y() + rect.height()) * factor;
-	coords[8] = rect.x() * factor;
-	coords[9] = (rect.y() + rect.height()) * factor;
+void FillRectVertices(GLfloat *coords, Rect rect) {
+	coords[0] = coords[10] = rect.left();
+	coords[1] = coords[11] = rect.top();
+	coords[2] = rect.right();
+	coords[3] = rect.top();
+	coords[4] = coords[6] = rect.right();
+	coords[5] = coords[7] = rect.bottom();
+	coords[8] = rect.left();
+	coords[9] = rect.bottom();
 }
 
 void FillTriangles(
@@ -349,6 +136,7 @@ void FillTexturedRectangle(
 Viewport::RendererGL::RendererGL(not_null<Viewport*> owner)
 : _owner(owner)
 , _pinIcon(st::groupCallLargeVideo.pin)
+, _muteIcon(st::groupCallLargeVideoCrossLine)
 , _pinBackground(
 	(st::groupCallLargeVideo.pinPadding.top()
 		+ st::groupCallLargeVideo.pin.icon.height()
@@ -357,7 +145,7 @@ Viewport::RendererGL::RendererGL(not_null<Viewport*> owner)
 
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
-		_pinButtons.invalidate();
+		_buttons.invalidate();
 	}, _lifetime);
 }
 
@@ -435,7 +223,7 @@ void Viewport::RendererGL::deinit(
 		}
 	}
 	freeTextures(f);
-	_pinButtons.destroy(f);
+	_buttons.destroy(f);
 }
 
 void Viewport::RendererGL::resize(
@@ -464,7 +252,7 @@ void Viewport::RendererGL::fillBackground(QOpenGLFunctions &f) {
 	const auto radiuses = QMargins{ radius, radius, radius, radius };
 	auto bg = QRegion(QRect(QPoint(), _viewport));
 	for (const auto &tile : _owner->_tiles) {
-		bg -= tileGeometry(tile.get()).marginsRemoved(radiuses);
+		bg -= tile->geometry().marginsRemoved(radiuses);
 	}
 	if (bg.isEmpty()) {
 		return;
@@ -472,7 +260,7 @@ void Viewport::RendererGL::fillBackground(QOpenGLFunctions &f) {
 	_bgTriangles.resize((bg.end() - bg.begin()) * 12);
 	auto coords = _bgTriangles.data();
 	for (const auto rect : bg) {
-		FillRectVertices(coords, rect, _factor);
+		FillRectVertices(coords, transformRect(rect));
 		coords += 12;
 	}
 	FillTriangles(
@@ -494,11 +282,20 @@ void Viewport::RendererGL::paintTile(
 	}
 
 	const auto geometry = tile->geometry();
-	const auto flipped = flipRect(geometry);
-	const auto x = flipped.x();
-	const auto y = flipped.y();
-	const auto width = flipped.width();
-	const auto height = flipped.height();
+	const auto x = geometry.x();
+	const auto y = geometry.y();
+	const auto width = geometry.width();
+	const auto height = geometry.height();
+	const auto &st = st::groupCallLargeVideo;
+	const auto shown = _owner->_controlsShownRatio;
+	const auto fullNameShift = st.namePosition.y() + st::normalFont->height;
+	const auto nameShift = anim::interpolate(fullNameShift, 0, shown);
+	const auto row = tile->row();
+	const auto style = row->computeIconState(MembersRowStyle::LargeVideo);
+
+	ensureButtonsImage();
+
+	// Frame.
 	const auto expand = !_owner->wide()/* && !tile->screencast()*/;
 	const auto scaled = Media::View::FlipSizeByRotation(
 		data.yuv420->size,
@@ -506,23 +303,22 @@ void Viewport::RendererGL::paintTile(
 	).scaled(
 		QSize(width, height),
 		(expand ? Qt::KeepAspectRatioByExpanding : Qt::KeepAspectRatio));
-	if (scaled.isEmpty()) {
-		return;
-	}
+	const auto good = !scaled.isEmpty();
 	const auto left = (width - scaled.width()) / 2;
 	const auto top = (height - scaled.height()) / 2;
 	const auto right = left + scaled.width();
 	const auto bottom = top + scaled.height();
 	const auto radius = GLfloat(st::roundRadiusLarge);
-	auto dleft = float(left) / scaled.width();
-	auto dright = float(width - left) / scaled.width();
-	auto dtop = float(top) / scaled.height();
-	auto dbottom = float(height - top) / scaled.height();
+	auto dleft = good ? (float(left) / scaled.width()) : 0.f;
+	auto dright = good ? (float(width - left) / scaled.width()) : 1.f;
+	auto dtop = good ? (float(top) / scaled.height()) : 0.f;
+	auto dbottom = good ? (float(height - top) / scaled.height()) : 1.f;
 	const auto swap = (((data.rotation / 90) % 2) == 1);
 	if (swap) {
 		std::swap(dleft, dtop);
 		std::swap(dright, dbottom);
 	}
+	const auto rect = transformRect(geometry);
 	auto texCoord = std::array<std::array<GLfloat, 2>, 4> { {
 		{ { -dleft, 1.f + dtop } },
 		{ { dright, 1.f + dtop } },
@@ -536,50 +332,67 @@ void Viewport::RendererGL::paintTile(
 			texCoord.end());
 	}
 
-	ensurePinImage();
-	const auto pinRasterRect = tile->pinInner().translated(
-		geometry.topLeft());
-	const auto pinVisibleRect = pinRasterRect.intersected(geometry);
-	const auto pin = FloatRect(flipRect(pinVisibleRect));
-	const auto pinTextureRect = tile->pinned() ? _pinOn : _pinOff;
-	const auto pinUseTextureRect = QRect(
-		pinTextureRect.x(),
-		pinTextureRect.y() + pinVisibleRect.y() - pinRasterRect.y(),
-		pinTextureRect.width(),
-		pinVisibleRect.height());
-	const auto pinImageDimensions = _pinButtons.image().size();
-	const auto pinTexture = FloatRect(QRectF(
-		pinUseTextureRect.x() / float(pinImageDimensions.width()),
-		pinUseTextureRect.y() / float(pinImageDimensions.height()),
-		pinUseTextureRect.width() / float(pinImageDimensions.width()),
-		pinUseTextureRect.height() / float(pinImageDimensions.height())));
+	// Pin.
+	const auto pin = _buttons.texturedRect(
+		tile->pinInner().translated(x, y),
+		tile->pinned() ? _pinOn : _pinOff,
+		geometry);
+	const auto pinRect = transformRect(pin.geometry);
+
+	// Mute.
+	const auto &icon = st::groupCallLargeVideoCrossLine.icon;
+	const auto iconLeft = x + width - st.iconPosition.x() - icon.width();
+	const auto iconTop = y + (height
+		- st.iconPosition.y()
+		- icon.height()
+		+ nameShift);
+	const auto mute = _buttons.texturedRect(
+		QRect(iconLeft, iconTop, icon.width(), icon.height()),
+		(row->state() == MembersRow::State::Active
+			? _muteOff
+			: _muteOn),
+		geometry);
+	const auto muteRect = transformRect(mute.geometry);
 
 	const GLfloat coords[] = {
-		// Frame.
-		x * _factor, y * _factor,
+		rect.left(), rect.top(),
 		texCoord[0][0], texCoord[0][1],
 
-		(x + width) * _factor, y * _factor,
+		rect.right(), rect.top(),
 		texCoord[1][0], texCoord[1][1],
 
-		(x + width) * _factor, (y + height) * _factor,
+		rect.right(), rect.bottom(),
 		texCoord[2][0], texCoord[2][1],
 
-		x * _factor, (y + height) * _factor,
+		rect.left(), rect.bottom(),
 		texCoord[3][0], texCoord[3][1],
 
-		// Pin button.
-		pin.x * _factor, pin.y * _factor,
-		pinTexture.x, pinTexture.y + pinTexture.height,
+		pinRect.left(), pinRect.top(),
+		pin.texture.left(), pin.texture.bottom(),
 
-		(pin.x + pin.width) * _factor, pin.y * _factor,
-		pinTexture.x + pinTexture.width, pinTexture.y + pinTexture.height,
+		pinRect.right(), pinRect.top(),
+		pin.texture.right(), pin.texture.bottom(),
 
-		(pin.x + pin.width) * _factor, (pin.y + pin.height) * _factor,
-		pinTexture.x + pinTexture.width, pinTexture.y,
+		pinRect.right(), pinRect.bottom(),
+		pin.texture.right(), pin.texture.top(),
 
-		pin.x * _factor, (pin.y + pin.height) * _factor,
-		pinTexture.x, pinTexture.y,
+		pinRect.left(), pinRect.bottom(),
+		pin.texture.left(), pin.texture.top(),
+
+		muteRect.left(), muteRect.top(),
+		mute.texture.left(), mute.texture.bottom(),
+
+		muteRect.right(), muteRect.top(),
+		mute.texture.right(), mute.texture.bottom(),
+
+		muteRect.right(), muteRect.bottom(),
+		mute.texture.right(), mute.texture.top(),
+
+		muteRect.left(), muteRect.bottom(),
+		mute.texture.left(), mute.texture.top(),
+
+
+		// Name.
 	};
 
 	tile->ensureTexturesCreated(f);
@@ -656,11 +469,9 @@ void Viewport::RendererGL::paintTile(
 		"frameBg",
 		Uniform(st::groupCallMembersBg->c));
 	program->setUniformValue("roundRadius", radius * _factor);
-	program->setUniformValue("roundRect", Uniform(flipped, _factor));
+	program->setUniformValue("roundRect", Uniform(rect));
 	program->setUniformValue("roundBg", Uniform(st::groupCallBg->c));
 
-	const auto &st = st::groupCallLargeVideo;
-	const auto shown = _owner->_controlsShownRatio;
 	const auto shadowHeight = st.shadowHeight * _factor;
 	const auto shadowAlpha = kShadowMaxAlpha / 255.f;
 	program->setUniformValue(
@@ -670,7 +481,7 @@ void Viewport::RendererGL::paintTile(
 	FillTexturedRectangle(f, program);
 
 	const auto pinVisible = _owner->wide()
-		&& (pinRasterRect.y() + pinRasterRect.height() > y);
+		&& (pin.geometry.bottom() > y);
 	if (shown == 0. && !pinVisible) {
 		return;
 	}
@@ -682,30 +493,51 @@ void Viewport::RendererGL::paintTile(
 	});
 
 	f.glUseProgram(_imageProgram->programId());
+	_imageProgram->setUniformValue("viewport", uniformViewport);
+	_imageProgram->setUniformValue("s_texture", GLint(0));
+
+	f.glActiveTexture(GL_TEXTURE0);
+	_buttons.bind(f);
+
 	if (pinVisible) {
-		f.glActiveTexture(GL_TEXTURE0);
-		_pinButtons.bind(f);
-		_imageProgram->setUniformValue("viewport", uniformViewport);
-		_imageProgram->setUniformValue("s_texture", GLint(0));
 		FillTexturedRectangle(f, &*_imageProgram, 4);
 	}
 
 	if (shown == 0.) {
 		return;
 	}
+
+	// Mute.
+	FillTexturedRectangle(f, &*_imageProgram, 8);
+
+	// Name.
+	//p.setPen(st::groupCallVideoTextFg);
+	//const auto hasWidth = width
+	//	- st.iconPosition.x() - icon.width()
+	//	- st.namePosition.x();
+	//const auto nameLeft = x + st.namePosition.x();
+	//const auto nameTop = y + (height
+	//	- st.namePosition.y()
+	//	- st::semiboldFont->height
+	//	+ shift);
+	//row->name().drawLeftElided(p, nameLeft, nameTop, hasWidth, width);
 }
 
-QRect Viewport::RendererGL::tileGeometry(not_null<VideoTile*> tile) const {
-	const auto raster = tile->geometry();
-	return flipRect(tile->geometry());
-}
-
-QRect Viewport::RendererGL::flipRect(const QRect &raster) const {
+Rect Viewport::RendererGL::transformRect(const Rect &raster) const {
 	return {
-		raster.x(),
-		_viewport.height() - raster.y() - raster.height(),
-		raster.width(),
-		raster.height(),
+		raster.left() * _factor,
+		float(_viewport.height() - raster.bottom()) * _factor,
+		raster.width() * _factor,
+		raster.height() * _factor,
+	};
+}
+
+Rect Viewport::RendererGL::transformRect(const QRect &raster) const {
+	return {
+		raster.x() * _factor,
+		(_viewport.height() - raster.y() - raster.height()) * _factor,
+		raster.width() * _factor,
+		raster.height() * _factor,
 	};
 }
 
@@ -715,17 +547,24 @@ void Viewport::RendererGL::freeTextures(QOpenGLFunctions &f) {
 	}
 }
 
-void Viewport::RendererGL::ensurePinImage() {
-	if (_pinButtons) {
+void Viewport::RendererGL::ensureButtonsImage() {
+	if (_buttons) {
 		return;
 	}
+	const auto factor = cIntRetinaFactor();
 	const auto pinOnSize = VideoTile::PinInnerSize(true);
 	const auto pinOffSize = VideoTile::PinInnerSize(false);
+	const auto muteSize = st::groupCallLargeVideoCrossLine.icon.size();
+
 	const auto fullSize = QSize(
-		std::max(pinOnSize.width(), pinOffSize.width()),
-		pinOnSize.height() + pinOffSize.height());
-	const auto imageSize = fullSize * cIntRetinaFactor();
-	auto image = _pinButtons.takeImage();
+		std::max({
+			pinOnSize.width(),
+			pinOffSize.width(),
+			2 * muteSize.width(),
+		}),
+		pinOnSize.height() + pinOffSize.height() + muteSize.height());
+	const auto imageSize = fullSize * factor;
+	auto image = _buttons.takeImage();
 	if (image.size() != imageSize) {
 		image = QImage(imageSize, QImage::Format_ARGB32_Premultiplied);
 	}
@@ -734,7 +573,8 @@ void Viewport::RendererGL::ensurePinImage() {
 	{
 		auto p = Painter(&image);
 		auto hq = PainterHighQualityEnabler(p);
-		_pinOn = QRect(QPoint(), pinOnSize);
+
+		_pinOn = QRect(QPoint(), pinOnSize * factor);
 		VideoTile::PaintPinButton(
 			p,
 			true,
@@ -743,7 +583,10 @@ void Viewport::RendererGL::ensurePinImage() {
 			fullSize.width(),
 			&_pinBackground,
 			&_pinIcon);
-		_pinOff = QRect(QPoint(0, pinOnSize.height()), pinOffSize);
+
+		_pinOff = QRect(
+			QPoint(0, pinOnSize.height()) * factor,
+			pinOffSize * factor);
 		VideoTile::PaintPinButton(
 			p,
 			false,
@@ -752,8 +595,17 @@ void Viewport::RendererGL::ensurePinImage() {
 			fullSize.width(),
 			&_pinBackground,
 			&_pinIcon);
+
+		const auto muteTop = pinOnSize.height() + pinOffSize.height();
+		_muteOn = QRect(QPoint(0, muteTop) * factor, muteSize * factor);
+		_muteIcon.paint(p, { 0, muteTop }, 1.);
+
+		_muteOff = QRect(
+			QPoint(muteSize.width(), muteTop) * factor,
+			muteSize * factor);
+		_muteIcon.paint(p, { muteSize.width(), muteTop }, 0.);
 	}
-	_pinButtons.setImage(std::move(image));
+	_buttons.setImage(std::move(image));
 }
 
 } // namespace Calls::Group
