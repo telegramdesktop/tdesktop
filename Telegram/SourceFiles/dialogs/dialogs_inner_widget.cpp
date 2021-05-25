@@ -126,9 +126,6 @@ InnerWidget::InnerWidget(
 
 	_cancelSearchInChat->setClickedCallback([=] { cancelSearchInChat(); });
 	_cancelSearchInChat->hide();
-	_cancelSearchFromUser->setClickedCallback([=] {
-		searchFromUserChanged.notify(nullptr);
-	});
 	_cancelSearchFromUser->hide();
 
 	session().downloaderTaskFinished(
@@ -1955,6 +1952,10 @@ rpl::producer<> InnerWidget::updated() const {
 
 rpl::producer<> InnerWidget::listBottomReached() const {
 	return _listBottomReached.events();
+}
+
+rpl::producer<> InnerWidget::cancelSearchFromUserRequests() const {
+	return _cancelSearchFromUser->clicks() | rpl::to_empty;
 }
 
 void InnerWidget::visibleTopBottomUpdated(

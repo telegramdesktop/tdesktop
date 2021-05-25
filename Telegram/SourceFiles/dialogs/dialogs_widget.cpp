@@ -207,10 +207,11 @@ Widget::Widget(
 	connect(_inner, SIGNAL(completeHashtag(QString)), this, SLOT(onCompleteHashtag(QString)));
 	connect(_inner, SIGNAL(refreshHashtags()), this, SLOT(onFilterCursorMoved()));
 	connect(_inner, SIGNAL(cancelSearchInChat()), this, SLOT(onCancelSearchInChat()));
-	subscribe(_inner->searchFromUserChanged, [this](PeerData *from) {
-		setSearchInChat(_searchInChat, from);
+	_inner->cancelSearchFromUserRequests(
+	) | rpl::start_with_next([=] {
+		setSearchInChat(_searchInChat, nullptr);
 		applyFilterUpdate(true);
-	});
+	}, lifetime());
 	_inner->chosenRow(
 	) | rpl::start_with_next([=](const ChosenRow &row) {
 		const auto openSearchResult = !controller->selectingPeer()

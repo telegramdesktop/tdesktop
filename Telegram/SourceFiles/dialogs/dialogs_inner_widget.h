@@ -120,9 +120,7 @@ public:
 
 	void setLoadMoreCallback(Fn<void()> callback);
 	[[nodiscard]] rpl::producer<> listBottomReached() const;
-
-	base::Observable<PeerData*> searchFromUserChanged;
-
+	[[nodiscard]] rpl::producer<> cancelSearchFromUserRequests() const;
 	[[nodiscard]] rpl::producer<ChosenRow> chosenRow() const;
 	[[nodiscard]] rpl::producer<> updated() const;
 
