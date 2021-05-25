@@ -291,15 +291,24 @@ void SetupLocalPasscode(
 		Ui::show(Box<PasscodeBox>(&controller->session(), true));
 	});
 
+	const auto autoLockBoxClosing =
+		container->lifetime().make_state<rpl::event_stream<>>();
 	const auto label = base::Platform::LastUserInputTimeSupported()
 		? tr::lng_passcode_autolock_away
 		: tr::lng_passcode_autolock_inactive;
-	auto value = PasscodeChanges(
+	auto value = autoLockBoxClosing->events_starting_with(
+		rpl::empty_value()
 	) | rpl::map([] {
 		const auto autolock = Core::App().settings().autoLock();
 		return (autolock % 3600)
-			? tr::lng_passcode_autolock_minutes(tr::now, lt_count, autolock / 60)
-			: tr::lng_passcode_autolock_hours(tr::now, lt_count, autolock / 3600);
+			? tr::lng_passcode_autolock_minutes(
+				tr::now,
+				lt_count,
+				autolock / 60)
+			: tr::lng_passcode_autolock_hours(
+				tr::now,
+				lt_count,
+				autolock / 3600);
 	});
 
 	AddButtonWithLabel(
@@ -308,7 +317,9 @@ void SetupLocalPasscode(
 		std::move(value),
 		st::settingsButton
 	)->addClickHandler([=] {
-		Ui::show(Box<AutoLockBox>(&controller->session()));
+		const auto box = Ui::show(Box<AutoLockBox>(&controller->session()));
+		box->boxClosing(
+		) | rpl::start_to_stream(*autoLockBoxClosing, box->lifetime());
 	});
 
 	wrap->toggleOn(base::duplicate(has));
