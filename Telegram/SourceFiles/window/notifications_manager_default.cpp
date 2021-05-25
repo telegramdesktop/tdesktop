@@ -131,9 +131,14 @@ void Manager::settingsChanged(ChangeType change) {
 				showNextFromQueue();
 			}
 		}
-	} else if (change == ChangeType::DemoIsShown) {
-		auto demoIsShown = Global::NotificationsDemoIsShown();
-		_demoMasterOpacity.start([this] { demoMasterOpacityCallback(); }, demoIsShown ? 1. : 0., demoIsShown ? 0. : 1., st::notifyFastAnim);
+	} else if ((change == ChangeType::DemoIsShown)
+			|| (change == ChangeType::DemoIsHidden)) {
+		_demoIsShown = (change == ChangeType::DemoIsShown);
+		_demoMasterOpacity.start(
+			[=] { demoMasterOpacityCallback(); },
+			_demoIsShown ? 1. : 0.,
+			_demoIsShown ? 0. : 1.,
+			st::notifyFastAnim);
 	}
 }
 
@@ -147,7 +152,7 @@ void Manager::demoMasterOpacityCallback() {
 }
 
 float64 Manager::demoMasterOpacity() const {
-	return _demoMasterOpacity.value(Global::NotificationsDemoIsShown() ? 0. : 1.);
+	return _demoMasterOpacity.value(_demoIsShown ? 0. : 1.);
 }
 
 void Manager::checkLastInput() {

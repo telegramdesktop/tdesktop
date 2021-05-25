@@ -115,8 +115,6 @@ DeclareVar(Adaptive::ChatLayout, AdaptiveChatLayout);
 DeclareVar(Adaptive::WindowLayout, AdaptiveWindowLayout);
 DeclareRefVar(base::Observable<void>, AdaptiveChanged);
 
-DeclareVar(bool, NotificationsDemoIsShown);
-
 DeclareVar(bool, TryIPv6);
 DeclareVar(std::vector<MTP::ProxyData>, ProxiesList);
 DeclareVar(MTP::ProxyData, SelectedProxy);

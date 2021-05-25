@@ -343,8 +343,6 @@ struct Data {
 	Adaptive::ChatLayout AdaptiveChatLayout = Adaptive::ChatLayout::Normal;
 	base::Observable<void> AdaptiveChanged;
 
-	bool NotificationsDemoIsShown = false;
-
 	bool TryIPv6 = !Platform::IsWindows();
 	std::vector<MTP::ProxyData> ProxiesList;
 	MTP::ProxyData SelectedProxy;
@@ -379,8 +377,6 @@ DefineVar(Global, bool, ScreenIsLocked);
 DefineVar(Global, Adaptive::WindowLayout, AdaptiveWindowLayout);
 DefineVar(Global, Adaptive::ChatLayout, AdaptiveChatLayout);
 DefineRefVar(Global, base::Observable<void>, AdaptiveChanged);
-
-DefineVar(Global, bool, NotificationsDemoIsShown);
 
 DefineVar(Global, bool, TryIPv6);
 DefineVar(Global, std::vector<MTP::ProxyData>, ProxiesList);

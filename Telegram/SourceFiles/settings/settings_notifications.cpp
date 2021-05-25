@@ -356,7 +356,6 @@ void NotificationsCount::setOverCorner(ScreenCorner corner) {
 	} else {
 		_isOverCorner = true;
 		setCursor(style::cur_pointer);
-		Global::SetNotificationsDemoIsShown(true);
 		Core::App().notifications().notifySettingsChanged(
 			ChangeType::DemoIsShown);
 	}
@@ -392,9 +391,8 @@ void NotificationsCount::clearOverCorner() {
 	if (_isOverCorner) {
 		_isOverCorner = false;
 		setCursor(style::cur_default);
-		Global::SetNotificationsDemoIsShown(false);
 		Core::App().notifications().notifySettingsChanged(
-			ChangeType::DemoIsShown);
+			ChangeType::DemoIsHidden);
 
 		for_const (const auto &samples, _cornerSamples) {
 			for_const (const auto widget, samples) {

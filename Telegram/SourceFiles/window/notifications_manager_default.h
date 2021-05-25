@@ -122,6 +122,7 @@ private:
 	std::deque<QueuedNotification> _queuedNotifications;
 
 	Ui::Animations::Simple _demoMasterOpacity;
+	bool _demoIsShown = false;
 
 	mutable QPixmap _hiddenUserpicPlaceholder;
 

@@ -53,6 +53,7 @@ enum class ChangeType {
 	MaxCount,
 	Corner,
 	DemoIsShown,
+	DemoIsHidden,
 };
 
 } // namespace Notifications
