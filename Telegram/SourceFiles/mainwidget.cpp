@@ -660,6 +660,8 @@ void MainWidget::clearHider(not_null<Window::HistoryHider*> instance) {
 				_history->showAnimated(Window::SlideDirection::FromRight, animationParams);
 			}
 			floatPlayerCheckVisibility();
+		} else {
+			_dialogs->updateForwardBar();
 		}
 	}
 }

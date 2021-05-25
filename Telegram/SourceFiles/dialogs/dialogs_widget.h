@@ -85,6 +85,8 @@ public:
 	void searchMessages(const QString &query, Key inChat = {});
 	void onSearchMore();
 
+	void updateForwardBar();
+
 	// Float player interface.
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 	QRect floatPlayerAvailableRect() override;
@@ -155,7 +157,6 @@ private:
 	void updateSearchFromVisibility(bool fast = false);
 	void updateControlsGeometry();
 	void refreshFolderTopBar();
-	void updateForwardBar();
 	void checkUpdateStatus();
 	void changeOpenedFolder(Data::Folder *folder, anim::type animated);
 	QPixmap grabForFolderSlideAnimation();
