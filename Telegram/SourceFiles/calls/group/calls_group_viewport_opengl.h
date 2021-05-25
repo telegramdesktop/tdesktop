@@ -43,16 +43,24 @@ public:
 		QOpenGLFunctions &f) override;
 
 private:
+	struct NameData {
+		not_null<PeerData*> peer;
+		int nameVersion = 0;
+		QRect rect;
+		bool stale = false;
+	};
 	void fillBackground(QOpenGLFunctions &f);
 	void paintTile(
 		QOpenGLFunctions &f,
-		not_null<VideoTile*> tile);
+		not_null<VideoTile*> tile,
+		const NameData &nameData);
 	void freeTextures(QOpenGLFunctions &f);
 	[[nodiscard]] Ui::GL::Rect transformRect(const QRect &raster) const;
 	[[nodiscard]] Ui::GL::Rect transformRect(const Ui::GL::Rect &raster) const;
 
 	void ensureARGB32Program();
 	void ensureButtonsImage();
+	void validateNames();
 
 	const not_null<Viewport*> _owner;
 
@@ -71,6 +79,10 @@ private:
 	QRect _pinOff;
 	QRect _muteOn;
 	QRect _muteOff;
+
+	Ui::GL::Image _names;
+	std::vector<NameData> _nameData;
+	std::vector<int> _nameDataIndices;
 
 	std::vector<GLfloat> _bgTriangles;
 	std::vector<Textures> _texturesToFree;

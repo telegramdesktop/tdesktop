@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_pip.h"
 #include "calls/group/calls_group_members_row.h"
 #include "ui/gl/gl_shader.h"
+#include "data/data_peer.h"
 #include "styles/style_calls.h"
 
 #include <QtGui/QOpenGLShader>
@@ -240,9 +241,11 @@ void Viewport::RendererGL::paint(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
 	_factor = widget->devicePixelRatio();
+	validateNames();
 	fillBackground(f);
+	auto index = 0;
 	for (const auto &tile : _owner->_tiles) {
-		paintTile(f, tile.get());
+		paintTile(f, tile.get(), _nameData[_nameDataIndices[index++]]);
 	}
 	freeTextures(f);
 }
@@ -274,7 +277,8 @@ void Viewport::RendererGL::fillBackground(QOpenGLFunctions &f) {
 
 void Viewport::RendererGL::paintTile(
 		QOpenGLFunctions &f,
-		not_null<VideoTile*> tile) {
+		not_null<VideoTile*> tile,
+		const NameData &nameData) {
 	const auto track = tile->track();
 	const auto data = track->frameWithInfo(false);
 	if (data.format == Webrtc::FrameFormat::None) {
@@ -282,6 +286,9 @@ void Viewport::RendererGL::paintTile(
 	}
 
 	const auto geometry = tile->geometry();
+	if (geometry.isEmpty()) {
+		return;
+	}
 	const auto x = geometry.x();
 	const auto y = geometry.y();
 	const auto width = geometry.width();
@@ -354,6 +361,19 @@ void Viewport::RendererGL::paintTile(
 		geometry);
 	const auto muteRect = transformRect(mute.geometry);
 
+	// Name.
+	const auto namePosition = QPoint(
+		x + st.namePosition.x(),
+		y + (height
+			- st.namePosition.y()
+			- st::semiboldFont->height
+			+ nameShift));
+	const auto name = _names.texturedRect(
+		QRect(namePosition, nameData.rect.size() / cIntRetinaFactor()),
+		nameData.rect,
+		geometry);
+	const auto nameRect = transformRect(name.geometry);
+
 	const GLfloat coords[] = {
 		rect.left(), rect.top(),
 		texCoord[0][0], texCoord[0][1],
@@ -391,8 +411,17 @@ void Viewport::RendererGL::paintTile(
 		muteRect.left(), muteRect.bottom(),
 		mute.texture.left(), mute.texture.top(),
 
+		nameRect.left(), nameRect.top(),
+		name.texture.left(), name.texture.bottom(),
 
-		// Name.
+		nameRect.right(), nameRect.top(),
+		name.texture.right(), name.texture.bottom(),
+
+		nameRect.right(), nameRect.bottom(),
+		name.texture.right(), name.texture.top(),
+
+		nameRect.left(), nameRect.bottom(),
+		name.texture.left(), name.texture.top(),
 	};
 
 	tile->ensureTexturesCreated(f);
@@ -511,16 +540,8 @@ void Viewport::RendererGL::paintTile(
 	FillTexturedRectangle(f, &*_imageProgram, 8);
 
 	// Name.
-	//p.setPen(st::groupCallVideoTextFg);
-	//const auto hasWidth = width
-	//	- st.iconPosition.x() - icon.width()
-	//	- st.namePosition.x();
-	//const auto nameLeft = x + st.namePosition.x();
-	//const auto nameTop = y + (height
-	//	- st.namePosition.y()
-	//	- st::semiboldFont->height
-	//	+ shift);
-	//row->name().drawLeftElided(p, nameLeft, nameTop, hasWidth, width);
+	_names.bind(f);
+	FillTexturedRectangle(f, &*_imageProgram, 12);
 }
 
 Rect Viewport::RendererGL::transformRect(const Rect &raster) const {
@@ -606,6 +627,133 @@ void Viewport::RendererGL::ensureButtonsImage() {
 		_muteIcon.paint(p, { muteSize.width(), muteTop }, 0.);
 	}
 	_buttons.setImage(std::move(image));
+}
+
+void Viewport::RendererGL::validateNames() {
+	const auto &tiles = _owner->_tiles;
+	const auto &st = st::groupCallLargeVideo;
+	const auto count = int(tiles.size());
+	const auto factor = cIntRetinaFactor();
+	const auto nameHeight = st::semiboldFont->height * factor;
+	auto requests = std::vector<int>();
+	auto available = _names.image().width();
+	for (auto &data : _nameData) {
+		data.stale = true;
+	}
+	_nameDataIndices.resize(count);
+	const auto nameWidth = [&](int i) {
+		const auto row = tiles[i]->row();
+		const auto hasWidth = tiles[i]->geometry().width()
+			- st.iconPosition.x()
+			- st::groupCallLargeVideoCrossLine.icon.width()
+			- st.namePosition.x();
+		return std::clamp(row->name().maxWidth(), 1, hasWidth) * factor;
+	};
+	for (auto i = 0; i != count; ++i) {
+		const auto width = nameWidth(i);
+		if (width <= 0) {
+			continue;
+		}
+		if (width > available) {
+			available = width;
+		}
+		const auto peer = tiles[i]->row()->peer();
+		const auto j = ranges::find(_nameData, peer, &NameData::peer);
+		if (j != end(_nameData)) {
+			j->stale = false;
+			const auto index = (j - begin(_nameData));
+			_nameDataIndices[i] = index;
+			if (peer->nameVersion != j->nameVersion
+				|| width != j->rect.width()) {
+				const auto nameTop = index * nameHeight;
+				j->rect = QRect(0, nameTop, width, nameHeight);
+				requests.push_back(i);
+			}
+		} else {
+			_nameDataIndices[i] = -1;
+			requests.push_back(i);
+		}
+	}
+	if (requests.empty()) {
+		return;
+	}
+	auto maybeStaleAfter = begin(_nameData);
+	auto maybeStaleEnd = end(_nameData);
+	for (const auto i : requests) {
+		if (_nameDataIndices[i] >= 0) {
+			continue;
+		}
+		const auto peer = tiles[i]->row()->peer();
+		auto index = int(_nameData.size());
+		maybeStaleAfter = ranges::find(
+			maybeStaleAfter,
+			maybeStaleEnd,
+			true,
+			&NameData::stale);
+		if (maybeStaleAfter != maybeStaleEnd) {
+			index = (maybeStaleAfter - begin(_nameData));
+			maybeStaleAfter->peer = peer;
+			maybeStaleAfter->stale = false;
+		} else {
+			// This invalidates maybeStale*, but they're already equal.
+			_nameData.push_back({ .peer = peer });
+		}
+		_nameData[index].nameVersion = peer->nameVersion;
+		_nameData[index].rect = QRect(
+			0,
+			index * nameHeight,
+			nameWidth(i),
+			nameHeight);
+		_nameDataIndices[i] = index;
+	}
+	auto image = _names.takeImage();
+	const auto imageSize = QSize(
+		available * factor,
+		_nameData.size() * nameHeight);
+	auto paintToImage = (image.size() != imageSize)
+		? QImage(imageSize, QImage::Format_ARGB32_Premultiplied)
+		: base::take(image);
+	paintToImage.setDevicePixelRatio(factor);
+	if (image.isNull()) {
+		paintToImage.fill(Qt::transparent);
+	}
+	{
+		auto p = Painter(&paintToImage);
+		if (!image.isNull()) {
+			p.setCompositionMode(QPainter::CompositionMode_Source);
+			p.drawImage(0, 0, image);
+			if (paintToImage.width() > image.width()) {
+				p.fillRect(
+					image.width() / factor,
+					0,
+					(paintToImage.width() - image.width()) / factor,
+					image.height() / factor,
+					Qt::transparent);
+			}
+			if (paintToImage.height() > image.height()) {
+				p.fillRect(
+					0,
+					image.height() / factor,
+					paintToImage.width() / factor,
+					(paintToImage.height() - image.height()) / factor,
+					Qt::transparent);
+			}
+			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		}
+		p.setPen(st::groupCallVideoTextFg);
+		for (const auto i : requests) {
+			const auto index = _nameDataIndices[i];
+			const auto &data = _nameData[_nameDataIndices[i]];
+			const auto row = tiles[i]->row();
+			row->name().drawLeftElided(
+				p,
+				0,
+				data.rect.y() / factor,
+				data.rect.width() / factor,
+				paintToImage.width() / factor);
+		}
+	}
+	_names.setImage(std::move(paintToImage));
 }
 
 } // namespace Calls::Group

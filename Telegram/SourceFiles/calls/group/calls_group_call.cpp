@@ -2121,7 +2121,13 @@ void GroupCall::checkLastSpoke() {
 		} else {
 			i = list.erase(i);
 		}
-		real->applyLastSpoke(ssrc, when, now);
+
+		// Ignore my levels from microphone if I'm already muted.
+		if (ssrc != _mySsrc
+			|| muted() == MuteState::Active
+			|| muted() == MuteState::PushToTalk) {
+			real->applyLastSpoke(ssrc, when, now);
+		}
 	}
 	_lastSpoke = std::move(list);
 
