@@ -352,9 +352,6 @@ struct Data {
 	bool UseProxyForCalls = false;
 	base::Observable<void> ConnectionTypeChanged;
 
-	bool LocalPasscode = false;
-	base::Observable<void> LocalPasscodeChanged;
-
 	base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowAndTray };
 };
 
@@ -391,9 +388,6 @@ DefineVar(Global, MTP::ProxyData, SelectedProxy);
 DefineVar(Global, MTP::ProxyData::Settings, ProxySettings);
 DefineVar(Global, bool, UseProxyForCalls);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
-
-DefineVar(Global, bool, LocalPasscode);
-DefineRefVar(Global, base::Observable<void>, LocalPasscodeChanged);
 
 DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 

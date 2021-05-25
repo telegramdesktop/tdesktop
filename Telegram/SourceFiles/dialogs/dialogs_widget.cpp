@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
@@ -34,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_main_menu.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
+#include "storage/storage_domain.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -268,8 +270,13 @@ Widget::Widget(
 	_cancelSearch->setClickedCallback([this] { onCancelSearch(); });
 	_jumpToDate->entity()->setClickedCallback([this] { showJumpToDate(); });
 	_chooseFromUser->entity()->setClickedCallback([this] { showSearchFrom(); });
-	_lockUnlock->setVisible(Global::LocalPasscode());
-	subscribe(Global::RefLocalPasscodeChanged(), [this] { updateLockUnlockVisibility(); });
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		session().domain().local().localPasscodeChanged()
+	) | rpl::start_with_next([=] {
+		updateLockUnlockVisibility();
+	}, lifetime());
 	_lockUnlock->setClickedCallback([this] {
 		_lockUnlock->setIconOverride(&st::dialogsUnlockIcon, &st::dialogsUnlockIconOver);
 		Core::App().lockByPasscode();
@@ -1502,7 +1509,7 @@ void Widget::updateLockUnlockVisibility() {
 	if (_a_show.animating()) {
 		return;
 	}
-	const auto hidden = !Global::LocalPasscode();
+	const auto hidden = !session().domain().local().hasLocalPasscode();
 	if (_lockUnlock->isHidden() != hidden) {
 		_lockUnlock->setVisible(!hidden);
 		updateControlsGeometry();
@@ -1560,7 +1567,7 @@ void Widget::updateControlsGeometry() {
 	auto smallLayoutWidth = (st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x());
 	auto smallLayoutRatio = (width() < st::columnMinimalWidthLeft) ? (st::columnMinimalWidthLeft - width()) / float64(st::columnMinimalWidthLeft - smallLayoutWidth) : 0.;
 	auto filterLeft = (controller()->filtersWidth() ? st::dialogsFilterSkip : st::dialogsFilterPadding.x() + _mainMenuToggle->width()) + st::dialogsFilterPadding.x();
-	auto filterRight = (Global::LocalPasscode() ? (st::dialogsFilterPadding.x() + _lockUnlock->width()) : st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
+	auto filterRight = (_lockUnlock->isVisible() ? (st::dialogsFilterPadding.x() + _lockUnlock->width()) : st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
 	auto filterWidth = qMax(width(), st::columnMinimalWidthLeft) - filterLeft - filterRight;
 	auto filterAreaHeight = st::topBarHeight;
 	_searchControls->setGeometry(0, filterAreaTop, width(), filterAreaHeight);

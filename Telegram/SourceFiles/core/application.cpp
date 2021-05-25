@@ -321,8 +321,6 @@ void Application::startDomain() {
 		startSettingsAndBackground();
 	}
 	if (state != Storage::StartResult::Success) {
-		Global::SetLocalPasscode(true);
-		Global::RefLocalPasscodeChanged().notify();
 		lockByPasscode();
 		DEBUG_LOG(("Application Info: passcode needed..."));
 	}
@@ -910,7 +908,7 @@ bool Application::someSessionExists() const {
 }
 
 void Application::checkAutoLock() {
-	if (!Global::LocalPasscode()
+	if (!_domain->local().hasLocalPasscode()
 		|| passcodeLocked()
 		|| !someSessionExists()) {
 		_shouldLockAt = 0;
@@ -1146,7 +1144,7 @@ void Application::startShortcuts() {
 			return true;
 		});
 		request->check(Command::Lock) && request->handle([=] {
-			if (!passcodeLocked() && Global::LocalPasscode()) {
+			if (!passcodeLocked() && _domain->local().hasLocalPasscode()) {
 				lockByPasscode();
 				return true;
 			}

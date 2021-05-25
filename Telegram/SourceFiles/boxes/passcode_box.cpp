@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_encryption.h"
 #include "passport/passport_panel_edit_contact.h"
 #include "settings/settings_privacy_security.h"
-#include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_passport.h"
 #include "styles/style_boxes.h"
@@ -119,7 +118,12 @@ PasscodeBox::PasscodeBox(
 , _turningOff(turningOff)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
 , _oldPasscode(this, st::defaultInputField, tr::lng_passcode_enter_old())
-, _newPasscode(this, st::defaultInputField, Global::LocalPasscode() ? tr::lng_passcode_enter_new() : tr::lng_passcode_enter_first())
+, _newPasscode(
+	this,
+	st::defaultInputField,
+	session->domain().local().hasLocalPasscode()
+		? tr::lng_passcode_enter_new()
+		: tr::lng_passcode_enter_first())
 , _reenterPasscode(this, st::defaultInputField, tr::lng_passcode_confirm_new())
 , _passwordHint(this, st::defaultInputField, tr::lng_cloud_password_hint())
 , _recoverEmail(this, st::defaultInputField, tr::lng_cloud_password_email())
@@ -164,7 +168,9 @@ rpl::producer<> PasscodeBox::clearUnconfirmedPassword() const {
 }
 
 bool PasscodeBox::currentlyHave() const {
-	return _cloudPwd ? (!!_cloudFields.curRequest) : Global::LocalPasscode();
+	return _cloudPwd
+		? (!!_cloudFields.curRequest)
+		: _session->domain().local().hasLocalPasscode();
 }
 
 bool PasscodeBox::onlyCheckCurrent() const {
@@ -520,7 +526,7 @@ void PasscodeBox::save(bool force) {
 			return;
 		}
 
-		if (Core::App().domain().local().checkPasscode(old.toUtf8())) {
+		if (_session->domain().local().checkPasscode(old.toUtf8())) {
 			cSetPasscodeBadTries(0);
 			if (_turningOff) pwd = conf = QString();
 		} else {
@@ -588,7 +594,7 @@ void PasscodeBox::save(bool force) {
 		closeReplacedBy();
 		const auto weak = Ui::MakeWeak(this);
 		cSetPasscodeBadTries(0);
-		Core::App().domain().local().setPasscode(pwd.toUtf8());
+		_session->domain().local().setPasscode(pwd.toUtf8());
 		Core::App().localPasscodeChanged();
 		if (weak) {
 			closeBox();

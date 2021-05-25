@@ -340,7 +340,7 @@ bool Domain::removePasscodeIfEmpty() {
 		return false;
 	}
 	Local::reset();
-	if (!Global::LocalPasscode()) {
+	if (!_local->hasLocalPasscode()) {
 		return false;
 	}
 	// We completely logged out, remove the passcode if it was there.

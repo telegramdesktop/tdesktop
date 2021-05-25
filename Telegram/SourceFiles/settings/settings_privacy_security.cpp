@@ -39,7 +39,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
+#include "storage/storage_domain.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "facades.h"
@@ -55,14 +57,6 @@ namespace {
 constexpr auto kUpdateTimeout = 60 * crl::time(1000);
 
 using Privacy = ApiWrap::Privacy;
-
-rpl::producer<> PasscodeChanges() {
-	return rpl::single(
-		rpl::empty_value()
-	) | rpl::then(base::ObservableViewer(
-		Global::RefLocalPasscodeChanged()
-	));
-}
 
 QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
 	using Key = Privacy::Key;
@@ -257,9 +251,12 @@ void SetupLocalPasscode(
 	AddSkip(container);
 	AddSubsectionTitle(container, tr::lng_settings_passcode_title());
 
-	auto has = PasscodeChanges(
-	) | rpl::map([] {
-		return Global::LocalPasscode();
+	auto has = rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		controller->session().domain().local().localPasscodeChanged()
+	) | rpl::map([=] {
+		return controller->session().domain().local().hasLocalPasscode();
 	});
 	auto text = rpl::combine(
 		tr::lng_passcode_change(),

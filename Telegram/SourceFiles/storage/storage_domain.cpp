@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "main/main_domain.h"
 #include "main/main_account.h"
-#include "facades.h"
 
 namespace Storage {
 namespace {
@@ -116,6 +115,7 @@ void Domain::encryptLocalKey(const QByteArray &passcode) {
 	EncryptedDescriptor passKeyData(MTP::AuthKey::kSize);
 	_localKey->write(passKeyData.stream);
 	_passcodeKeyEncrypted = PrepareEncrypted(passKeyData, _passcodeKey);
+	_hasLocalPasscode = !passcode.isEmpty();
 }
 
 Domain::StartModernResult Domain::startModern(
@@ -156,6 +156,7 @@ Domain::StartModernResult Domain::startModern(
 
 	_passcodeKeyEncrypted = keyEncrypted;
 	_passcodeKeySalt = salt;
+	_hasLocalPasscode = !passcode.isEmpty();
 
 	if (!DecryptLocal(info, infoEncrypted, _localKey)) {
 		LOG(("App Error: could not decrypt info."));
@@ -261,8 +262,7 @@ void Domain::setPasscode(const QByteArray &passcode) {
 	encryptLocalKey(passcode);
 	writeAccounts();
 
-	Global::SetLocalPasscode(!passcode.isEmpty());
-	Global::RefLocalPasscodeChanged().notify();
+	_passcodeKeyChanged.fire({});
 }
 
 int Domain::oldVersion() const {
@@ -275,6 +275,14 @@ void Domain::clearOldVersion() {
 
 QString Domain::webviewDataPath() const {
 	return BaseGlobalPath() + "webview";
+}
+
+rpl::producer<> Domain::localPasscodeChanged() const {
+	return _passcodeKeyChanged.events();
+}
+
+bool Domain::hasLocalPasscode() const {
+	return _hasLocalPasscode;
 }
 
 } // namespace Storage

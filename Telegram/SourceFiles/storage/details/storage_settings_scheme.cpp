@@ -838,7 +838,6 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setAutoLock(v);
-		Global::RefLocalPasscodeChanged().notify();
 		context.legacyRead = true;
 	} break;
 

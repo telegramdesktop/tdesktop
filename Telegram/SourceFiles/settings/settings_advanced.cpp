@@ -27,8 +27,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "core/application.h"
 #include "storage/localstorage.h"
+#include "storage/storage_domain.h"
 #include "data/data_session.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mtproto/facade.h"
 #include "facades.h"
@@ -313,7 +315,9 @@ void SetupSpellchecker(
 #endif // !TDESKTOP_DISABLE_SPELLCHECK
 }
 
-void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
+void SetupSystemIntegrationContent(
+		Window::SessionController *controller,
+		not_null<Ui::VerticalLayout*> container) {
 	const auto checkbox = [&](rpl::producer<QString> &&label, bool checked) {
 		return object_ptr<Ui::Checkbox>(
 			container,
@@ -409,9 +413,10 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 			Core::App().saveSettingsDelayed();
 		}, nativeFrame->lifetime());
 	}
-	if (Platform::AutostartSupported()) {
-		const auto minimizedToggled = [] {
-			return cStartMinimized() && !Global::LocalPasscode();
+	if (Platform::AutostartSupported() && controller) {
+		const auto minimizedToggled = [=] {
+			return cStartMinimized()
+				&& !controller->session().domain().local().hasLocalPasscode();
 		};
 
 		const auto autostart = addCheckbox(
@@ -441,7 +446,7 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 		) | rpl::filter([=](bool checked) {
 			return (checked != minimizedToggled());
 		}) | rpl::start_with_next([=](bool checked) {
-			if (Global::LocalPasscode()) {
+			if (controller->session().domain().local().hasLocalPasscode()) {
 				minimized->entity()->setChecked(false);
 				Ui::show(Box<InformBox>(
 					tr::lng_error_start_minimized_passcoded(tr::now)));
@@ -451,8 +456,7 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 			}
 		}, minimized->lifetime());
 
-		base::ObservableViewer(
-			Global::RefLocalPasscodeChanged()
+		controller->session().domain().local().localPasscodeChanged(
 		) | rpl::start_with_next([=] {
 			minimized->entity()->setChecked(minimizedToggled());
 		}, minimized->lifetime());
@@ -474,9 +478,11 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 	}
 }
 
-void SetupSystemIntegrationOptions(not_null<Ui::VerticalLayout*> container) {
+void SetupSystemIntegrationOptions(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
-	SetupSystemIntegrationContent(wrap.data());
+	SetupSystemIntegrationContent(controller, wrap.data());
 	if (wrap->count() > 0) {
 		container->add(object_ptr<Ui::OverrideMargins>(
 			container,
@@ -544,6 +550,7 @@ void SetupPerformance(
 }
 
 void SetupSystemIntegration(
+		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(Type)> showOther) {
 	AddDivider(container);
@@ -556,7 +563,7 @@ void SetupSystemIntegration(
 	)->addClickHandler([=] {
 		showOther(Type::Calls);
 	});
-	SetupSystemIntegrationOptions(container);
+	SetupSystemIntegrationOptions(controller, container);
 	AddSkip(container);
 }
 
@@ -601,7 +608,7 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	AddSkip(content);
 	SetupDataStorage(controller, content);
 	SetupAutoDownload(controller, content);
-	SetupSystemIntegration(content, [=](Type type) {
+	SetupSystemIntegration(controller, content, [=](Type type) {
 		_showOther.fire_copy(type);
 	});
 
