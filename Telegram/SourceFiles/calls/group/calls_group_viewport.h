@@ -110,6 +110,8 @@ private:
 		}
 	};
 
+	static constexpr auto kShadowMaxAlpha = 80;
+
 	void setup();
 	[[nodiscard]] bool wide() const;
 

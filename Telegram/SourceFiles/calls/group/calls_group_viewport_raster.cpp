@@ -17,22 +17,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/palette.h"
 
 namespace Calls::Group {
-namespace {
-
-constexpr auto kShadowMaxAlpha = 80;
-
-} // namespace
 
 Viewport::Renderer::Renderer(not_null<Viewport*> owner)
 : _owner(owner)
-, _pinIcon(st::groupCallLargeVideoPin)
+, _pinIcon(st::groupCallLargeVideo.pin)
 , _pinBackground(
-	(st::groupCallLargeVideoWide.pinPadding.top()
-		+ st::groupCallLargeVideoPin.icon.height()
-		+ st::groupCallLargeVideoWide.pinPadding.bottom()) / 2,
-	st::radialBg)
-, _pinTextOn(st::semiboldTextStyle, tr::lng_pinned_unpin(tr::now))
-, _pinTextOff(st::semiboldTextStyle, tr::lng_pinned_pin(tr::now)) {
+	(st::groupCallLargeVideo.pinPadding.top()
+		+ st::groupCallLargeVideo.pin.icon.height()
+		+ st::groupCallLargeVideo.pinPadding.bottom()) / 2,
+	st::radialBg) {
 }
 
 void Viewport::Renderer::paintFallback(
@@ -132,44 +125,29 @@ void Viewport::Renderer::paintTileControls(
 	// Pin.
 	const auto wide = _owner->wide();
 	if (wide) {
-		const auto inner = tile->pinInner().translated(x, y);
-		const auto pinned = tile->pinned();
-		const auto &icon = st::groupCallLargeVideoPin.icon;
-		const auto &st = st::groupCallLargeVideoWide;
-		_pinBackground.paint(p, inner);
-		_pinIcon.paint(
+		const auto inner = tile->pinInner();
+		VideoTile::PaintPinButton(
 			p,
-			inner.marginsRemoved(st.pinPadding).topLeft(),
-			pinned ? 1. : 0.);
-		p.setPen(st::groupCallVideoTextFg);
-		const auto &text = (pinned ? _pinTextOn : _pinTextOff);
-		text.drawLeft(
-			p,
-			(inner.x()
-				+ st.pinPadding.left()
-				+ icon.width()
-				+ st.pinTextPosition.x()),
-			(inner.y()
-				+ st.pinPadding.top()
-				+ st.pinTextPosition.y()),
-			text.maxWidth(),
-			_owner->widget()->width());
+			tile->pinned(),
+			x + inner.x(),
+			y + inner.y(),
+			_owner->widget()->width(),
+			&_pinBackground,
+			&_pinIcon);
 	}
 
-	const auto &st = wide
-		? st::groupCallLargeVideoWide
-		: st::groupCallLargeVideoNarrow;
-	const auto fullShift = st.namePosition.y() + st::normalFont->height;
 	const auto shown = _owner->_controlsShownRatio;
 	if (shown == 0.) {
 		return;
 	}
 
+	const auto &st = st::groupCallLargeVideo;
+	const auto fullShift = st.namePosition.y() + st::normalFont->height;
 	const auto shift = anim::interpolate(fullShift, 0, shown);
-	auto &shadow = wide ? _shadowWide : _shadowNarrow;
+
 	// Shadow.
-	if (shadow.isNull()) {
-		shadow = GenerateShadow(st.shadowHeight, 0, kShadowMaxAlpha);
+	if (_shadow.isNull()) {
+		_shadow = GenerateShadow(st.shadowHeight, 0, kShadowMaxAlpha);
 	}
 	const auto shadowRect = QRect(
 		x,
@@ -183,11 +161,11 @@ void Viewport::Renderer::paintTileControls(
 	const auto factor = style::DevicePixelRatio();
 	p.drawImage(
 		shadowFill,
-		shadow,
+		_shadow,
 		QRect(
 			0,
 			(shadowFill.y() - shadowRect.y()) * factor,
-			shadow.width(),
+			_shadow.width(),
 			shadowFill.height() * factor));
 	const auto row = tile->row();
 	row->lazyInitialize(st::groupCallMembersListItem);

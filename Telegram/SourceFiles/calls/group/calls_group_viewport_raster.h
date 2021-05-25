@@ -41,12 +41,9 @@ private:
 
 	const not_null<Viewport*> _owner;
 
-	QImage _shadowWide;
-	QImage _shadowNarrow;
+	QImage _shadow;
 	Ui::CrossLineAnimation _pinIcon;
 	Ui::RoundRect _pinBackground;
-	Ui::Text::String _pinTextOn;
-	Ui::Text::String _pinTextOff;
 
 };
 

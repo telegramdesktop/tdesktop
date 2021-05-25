@@ -41,8 +41,8 @@ Viewport::Viewport(not_null<QWidget*> parent, PanelMode mode)
 
 Viewport::~Viewport() {
 	for (const auto &tile : base::take(_tiles)) {
-		if (const auto textures = tile->takeTextures()) {
-			_freeTextures(textures);
+		if (auto textures = tile->takeTextures()) {
+			_freeTextures(base::take(textures));
 		}
 	}
 }

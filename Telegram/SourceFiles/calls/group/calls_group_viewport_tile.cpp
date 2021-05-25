@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "webrtc/webrtc_video_track.h"
 #include "lang/lang_keys.h"
+#include "ui/round_rect.h"
+#include "ui/effects/cross_line.h"
 #include "styles/style_calls.h"
 
 #include <QtGui/QOpenGLFunctions>
@@ -43,7 +45,7 @@ QRect Viewport::VideoTile::pinOuter() const {
 
 int Viewport::VideoTile::pinSlide() const {
 	return anim::interpolate(
-		st::groupCallLargeVideoWide.pinPosition.y() + _pinInner.height(),
+		st::groupCallLargeVideo.pinPosition.y() + _pinInner.height(),
 		0,
 		_pinShownAnimation.value(_pinShown ? 1. : 0.));
 }
@@ -73,12 +75,12 @@ bool Viewport::VideoTile::updateRequestedQuality(VideoQuality quality) {
 	return true;
 }
 
-void Viewport::VideoTile::updatePinnedGeometry() {
-	const auto &st = st::groupCallLargeVideoWide;
-	const auto &icon = st::groupCallLargeVideoPin.icon;
+QSize Viewport::VideoTile::PinInnerSize(bool pinned) {
+	const auto &st = st::groupCallLargeVideo;
+	const auto &icon = st::groupCallLargeVideo.pin.icon;
 	const auto innerWidth = icon.width()
 		+ st.pinTextPosition.x()
-		+ st::semiboldFont->width(_pinned
+		+ st::semiboldFont->width(pinned
 			? tr::lng_pinned_unpin(tr::now)
 			: tr::lng_pinned_pin(tr::now));
 	const auto innerHeight = icon.height();
@@ -88,13 +90,49 @@ void Viewport::VideoTile::updatePinnedGeometry() {
 	const auto buttonHeight = st.pinPadding.top()
 		+ innerHeight
 		+ st.pinPadding.bottom();
-	const auto fullWidth = st.pinPosition.x() * 2 + buttonWidth;
-	const auto fullHeight = st.pinPosition.y() * 2 + buttonHeight;
-	_pinInner = QRect(
-		_geometry.width() - st.pinPosition.x() - buttonWidth,
-		st.pinPosition.y(),
-		buttonWidth,
-		buttonHeight);
+	return { buttonWidth, buttonHeight };
+}
+
+void Viewport::VideoTile::PaintPinButton(
+		Painter &p,
+		bool pinned,
+		int x,
+		int y,
+		int outerWidth,
+		not_null<Ui::RoundRect*> background,
+		not_null<Ui::CrossLineAnimation*> icon) {
+	const auto &st = st::groupCallLargeVideo;
+	const auto rect = QRect(QPoint(x, y), PinInnerSize(pinned));
+	background->paint(p, rect);
+	icon->paint(
+		p,
+		rect.marginsRemoved(st.pinPadding).topLeft(),
+		pinned ? 1. : 0.);
+	p.setPen(st::groupCallVideoTextFg);
+	p.setFont(st::semiboldFont);
+	p.drawTextLeft(
+		(x
+			+ st.pinPadding.left()
+			+ st::groupCallLargeVideo.pin.icon.width()
+			+ st.pinTextPosition.x()),
+		(y
+			+ st.pinPadding.top()
+			+ st.pinTextPosition.y()),
+		outerWidth,
+		(pinned
+			? tr::lng_pinned_unpin(tr::now)
+			: tr::lng_pinned_pin(tr::now)));
+
+}
+
+void Viewport::VideoTile::updatePinnedGeometry() {
+	const auto &st = st::groupCallLargeVideo;
+	const auto buttonSize = PinInnerSize(_pinned);
+	const auto fullWidth = st.pinPosition.x() * 2 + buttonSize.width();
+	const auto fullHeight = st.pinPosition.y() * 2 + buttonSize.height();
+	_pinInner = QRect(QPoint(), buttonSize).translated(
+		_geometry.width() - st.pinPosition.x() - buttonSize.width(),
+		st.pinPosition.y());
 	_pinOuter = QRect(
 		_geometry.width() - fullWidth,
 		0,
@@ -130,19 +168,8 @@ void Viewport::VideoTile::setup(rpl::producer<bool> pinned) {
 }
 
 void Viewport::VideoTile::ensureTexturesCreated(
-		not_null<QOpenGLFunctions*> f) {
-	if (_textures) {
-		return;
-	}
-	f->glGenTextures(_textures.values.size(), _textures.values.data());
-	for (const auto texture : _textures.values) {
-		f->glBindTexture(GL_TEXTURE_2D, texture);
-		const auto clamp = GL_CLAMP_TO_EDGE;
-		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, clamp);
-		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, clamp);
-		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		f->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	}
+		QOpenGLFunctions &f) {
+	_textures.values.ensureCreated(f);
 }
 
 const Viewport::Textures &Viewport::VideoTile::textures() const {

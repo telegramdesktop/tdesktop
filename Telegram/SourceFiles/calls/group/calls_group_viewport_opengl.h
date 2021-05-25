@@ -8,7 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "calls/group/calls_group_viewport.h"
+#include "ui/round_rect.h"
+#include "ui/effects/cross_line.h"
 #include "ui/gl/gl_surface.h"
+#include "ui/gl/gl_image.h"
 
 #include <QtGui/QOpenGLBuffer>
 #include <QtGui/QOpenGLShaderProgram>
@@ -23,30 +26,33 @@ public:
 
 	void init(
 		not_null<QOpenGLWidget*> widget,
-		not_null<QOpenGLFunctions*> f) override;
+		QOpenGLFunctions &f) override;
 
 	void deinit(
 		not_null<QOpenGLWidget*> widget,
-		not_null<QOpenGLFunctions*> f) override;
+		QOpenGLFunctions &f) override;
 
 	void resize(
 		not_null<QOpenGLWidget*> widget,
-		not_null<QOpenGLFunctions*> f,
+		QOpenGLFunctions &f,
 		int w,
 		int h) override;
 
 	void paint(
 		not_null<QOpenGLWidget*> widget,
-		not_null<QOpenGLFunctions*> f) override;
+		QOpenGLFunctions &f) override;
 
 private:
-	void fillBackground(not_null<QOpenGLFunctions*> f);
+	void fillBackground(QOpenGLFunctions &f);
 	void paintTile(
-		not_null<QOpenGLFunctions*> f,
+		QOpenGLFunctions &f,
 		not_null<VideoTile*> tile);
-	void freeTextures(not_null<QOpenGLFunctions*> f);
+	void freeTextures(QOpenGLFunctions &f);
 	[[nodiscard]] QRect tileGeometry(not_null<VideoTile*> tile) const;
+	[[nodiscard]] QRect flipRect(const QRect &raster) const;
+
 	void ensureARGB32Program();
+	void ensurePinImage();
 
 	const not_null<Viewport*> _owner;
 
@@ -56,11 +62,20 @@ private:
 	std::optional<QOpenGLBuffer> _bgBuffer;
 	std::optional<QOpenGLShaderProgram> _argb32Program;
 	std::optional<QOpenGLShaderProgram> _yuv420Program;
+	std::optional<QOpenGLShaderProgram> _imageProgram;
 	std::optional<QOpenGLShaderProgram> _bgProgram;
 	QOpenGLShader *_frameVertexShader = nullptr;
 
+	Ui::GL::Image _pinButtons;
+	QRect _pinOn;
+	QRect _pinOff;
+
 	std::vector<GLfloat> _bgTriangles;
 	std::vector<Textures> _texturesToFree;
+	Ui::CrossLineAnimation _pinIcon;
+	Ui::RoundRect _pinBackground;
+
+	rpl::lifetime _lifetime;
 
 };
 

@@ -10,20 +10,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_viewport.h"
 #include "calls/group/calls_group_call.h"
 #include "ui/effects/animations.h"
-#include "ui/effects/cross_line.h"
-#include "ui/round_rect.h"
+#include "ui/gl/gl_image.h"
 
+class Painter;
 class QOpenGLFunctions;
+
+namespace Ui {
+class CrossLineAnimation;
+class RoundRect;
+} // namespace Ui
 
 namespace Calls::Group {
 
 struct Viewport::Textures {
-	std::array<GLuint, 6> values = { { 0 } };
+	Ui::GL::Textures<6> values;
 	mutable int textureIndex = 0;
 	mutable int trackIndex = -1;
 
 	explicit operator bool() const {
-		return (values[0] != 0);
+		return values.created();
 	}
 };
 
@@ -64,13 +69,23 @@ public:
 	void togglePinShown(bool shown);
 	bool updateRequestedQuality(VideoQuality quality);
 
-	void ensureTexturesCreated(not_null<QOpenGLFunctions*> f);
+	void ensureTexturesCreated(QOpenGLFunctions &f);
 	[[nodiscard]] const Textures &textures() const;
 	[[nodiscard]] Textures takeTextures();
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
+
+	[[nodiscard]] static QSize PinInnerSize(bool pinned);
+	static void PaintPinButton(
+		Painter &p,
+		bool pinned,
+		int x,
+		int y,
+		int outerWidth,
+		not_null<Ui::RoundRect*> background,
+		not_null<Ui::CrossLineAnimation*> icon);
 
 private:
 	void setup(rpl::producer<bool> pinned);
