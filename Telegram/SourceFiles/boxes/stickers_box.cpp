@@ -68,9 +68,7 @@ private:
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class StickersBox::Inner
-	: public Ui::RpWidget
-	, private base::Subscriber {
+class StickersBox::Inner : public Ui::RpWidget {
 public:
 	using Section = StickersBox::Section;
 
@@ -85,7 +83,9 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 
-	base::Observable<int> scrollToY;
+	rpl::producer<int> scrollsToY() const {
+		return _scrollsToY.events();
+	}
 	void setInnerFocus();
 
 	void saveGroupSet();
@@ -276,6 +276,8 @@ private:
 	int _above = -1;
 	rpl::event_stream<int> _draggingScrollDelta;
 
+	rpl::event_stream<int> _scrollsToY;
+
 	int _minHeight = 0;
 
 	int _scrollbar = 0;
@@ -387,9 +389,10 @@ StickersBox::StickersBox(
 , _section(Section::Installed)
 , _installed(0, this, controller, megagroup)
 , _megagroupSet(megagroup) {
-	subscribe(_installed.widget()->scrollToY, [=](int y) {
+	_installed.widget()->scrollsToY(
+	) | rpl::start_with_next([=](int y) {
 		onScrollToY(y);
-	});
+	}, lifetime());
 }
 
 StickersBox::StickersBox(
@@ -1898,7 +1901,7 @@ void StickersBox::Inner::rebuild() {
 void StickersBox::Inner::setMegagroupSelectedSet(const MTPInputStickerSet &set) {
 	_megagroupSetInput = set;
 	rebuild();
-	scrollToY.notify(0, true);
+	_scrollsToY.fire(0);
 	updateSelected();
 }
 
