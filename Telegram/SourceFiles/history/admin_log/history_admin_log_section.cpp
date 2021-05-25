@@ -34,16 +34,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace AdminLog {
 
-class FixedBar final : public TWidget, private base::Subscriber {
+class FixedBar final : public TWidget {
 public:
 	FixedBar(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		not_null<ChannelData*> channel);
 
-	base::Observable<void> showFilterSignal;
-	base::Observable<void> searchCancelledSignal;
-	base::Observable<QString> searchSignal;
+	[[nodiscard]] rpl::producer<> showFilterRequests() const;
+	[[nodiscard]] rpl::producer<> searchCancelRequests() const;
+	[[nodiscard]] rpl::producer<QString> searchRequests() const;
 
 	// When animating mode is enabled the content is hidden and the
 	// whole fixed bar acts like a back button.
@@ -85,6 +85,9 @@ private:
 	bool _animatingMode = false;
 	base::Timer _searchTimer;
 
+	rpl::event_stream<> _searchCancelRequests;
+	rpl::event_stream<QString> _searchRequests;
+
 };
 
 object_ptr<Window::SectionWidget> SectionMemento::createWidget(
@@ -116,7 +119,6 @@ FixedBar::FixedBar(
 , _filter(this, tr::lng_admin_log_filter(), st::topBarButton) {
 	_backButton->moveToLeft(0, 0);
 	_backButton->setClickedCallback([=] { goBack(); });
-	_filter->setClickedCallback([=] { showFilterSignal.notify(); });
 	_search->setClickedCallback([=] { showSearch(); });
 	_cancel->setClickedCallback([=] { cancelSearch(); });
 	_field->hide();
@@ -158,7 +160,7 @@ void FixedBar::toggleSearch() {
 		_field->show();
 		_field->setFocus();
 	} else {
-		searchCancelledSignal.notify(true);
+		_searchCancelRequests.fire({});
 	}
 }
 
@@ -198,7 +200,7 @@ void FixedBar::searchUpdated() {
 }
 
 void FixedBar::applySearch() {
-	searchSignal.notify(_field->getLastText());
+	_searchRequests.fire_copy(_field->getLastText());
 }
 
 int FixedBar::resizeGetHeight(int newWidth) {
@@ -221,6 +223,18 @@ int FixedBar::resizeGetHeight(int newWidth) {
 	_field->setGeometryToLeft(fieldLeft, st::historyAdminLogSearchTop, cancelLeft - fieldLeft, _field->height());
 
 	return newHeight;
+}
+
+rpl::producer<> FixedBar::showFilterRequests() const {
+	return _filter->clicks() | rpl::to_empty;
+}
+
+rpl::producer<> FixedBar::searchCancelRequests() const {
+	return _searchCancelRequests.events();
+}
+
+rpl::producer<QString> FixedBar::searchRequests() const {
+	return _searchRequests.events();
 }
 
 void FixedBar::setAnimatingMode(bool enabled) {
@@ -266,9 +280,18 @@ Widget::Widget(
 , _whatIsThis(this, tr::lng_admin_log_about(tr::now).toUpper(), st::historyComposeButton) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
-	subscribe(_fixedBar->showFilterSignal, [this] { showFilter(); });
-	subscribe(_fixedBar->searchCancelledSignal, [this] { setInnerFocus(); });
-	subscribe(_fixedBar->searchSignal, [this](const QString &query) { _inner->applySearch(query); });
+	_fixedBar->showFilterRequests(
+	) | rpl::start_with_next([=] {
+		showFilter();
+	}, lifetime());
+	_fixedBar->searchCancelRequests(
+	) | rpl::start_with_next([=] {
+		setInnerFocus();
+	}, lifetime());
+	_fixedBar->searchRequests(
+	) | rpl::start_with_next([=](const QString &query) {
+		_inner->applySearch(query);
+	}, lifetime());
 	_fixedBar->show();
 
 	_fixedBarShadow->raise();
