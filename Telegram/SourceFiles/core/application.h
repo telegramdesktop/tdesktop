@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "mtproto/mtproto_auth_key.h"
 #include "mtproto/mtproto_proxy_data.h"
-#include "base/observer.h"
 #include "base/timer.h"
 
 class MainWindow;
@@ -104,7 +103,7 @@ namespace Core {
 class Launcher;
 struct LocalUrlHandler;
 
-class Application final : public QObject, private base::Subscriber {
+class Application final : public QObject {
 public:
 	struct ProxyChange {
 		MTP::ProxyData was;
@@ -351,7 +350,6 @@ private:
 	const std::unique_ptr<Lang::CloudManager> _langCloudManager;
 	const std::unique_ptr<ChatHelpers::EmojiKeywords> _emojiKeywords;
 	std::unique_ptr<Lang::Translator> _translator;
-	base::Observable<void> _passcodedChanged;
 	QPointer<Ui::BoxContent> _badProxyDisableBox;
 
 	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
