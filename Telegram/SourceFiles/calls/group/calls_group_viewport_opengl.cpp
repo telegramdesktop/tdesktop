@@ -511,7 +511,7 @@ void Viewport::RendererGL::paintTile(
 
 	const auto pinVisible = _owner->wide()
 		&& (pin.geometry.bottom() > y);
-	if (shown == 0. && !pinVisible) {
+	if (nameShift == fullNameShift && !pinVisible) {
 		return;
 	}
 
@@ -532,16 +532,20 @@ void Viewport::RendererGL::paintTile(
 		FillTexturedRectangle(f, &*_imageProgram, 4);
 	}
 
-	if (shown == 0.) {
+	if (nameShift == fullNameShift) {
 		return;
 	}
 
 	// Mute.
-	FillTexturedRectangle(f, &*_imageProgram, 8);
+	if (!muteRect.empty()) {
+		FillTexturedRectangle(f, &*_imageProgram, 8);
+	}
 
 	// Name.
-	_names.bind(f);
-	FillTexturedRectangle(f, &*_imageProgram, 12);
+	if (!nameRect.empty()) {
+		_names.bind(f);
+		FillTexturedRectangle(f, &*_imageProgram, 12);
+	}
 }
 
 Rect Viewport::RendererGL::transformRect(const Rect &raster) const {
@@ -745,6 +749,14 @@ void Viewport::RendererGL::validateNames() {
 			const auto index = _nameDataIndices[i];
 			const auto &data = _nameData[_nameDataIndices[i]];
 			const auto row = tiles[i]->row();
+			p.setCompositionMode(QPainter::CompositionMode_Source);
+			p.fillRect(
+				0,
+				data.rect.y() / factor,
+				paintToImage.width() / factor,
+				nameHeight / factor,
+				Qt::transparent);
+			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 			row->name().drawLeftElided(
 				p,
 				0,
