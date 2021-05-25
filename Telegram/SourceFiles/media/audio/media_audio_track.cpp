@@ -292,9 +292,6 @@ void Instance::trackFinished(Track *track) {
 		_updateTimer.cancel();
 		scheduleDetachIfNotUsed();
 	}
-	if (track->isLooping()) {
-		trackFinished().notify(track, true);
-	}
 }
 
 void Instance::detachTracks() {
