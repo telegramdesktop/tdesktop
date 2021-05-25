@@ -69,7 +69,10 @@ PhoneWidget::PhoneWidget(
 
 	setTitleText(tr::lng_phone_title());
 	setDescriptionText(tr::lng_phone_desc());
-	subscribe(getData()->updated, [=] { countryChanged(); });
+	getData()->updated.events(
+	) | rpl::start_with_next([=] {
+		countryChanged();
+	}, lifetime());
 	setErrorCentered(true);
 	setupQrLogin();
 

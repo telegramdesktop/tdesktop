@@ -566,7 +566,7 @@ void Widget::getNearestDC() {
 		const auto nearestCountry = qs(nearest.vcountry());
 		if (getData()->country != nearestCountry) {
 			getData()->country = nearestCountry;
-			getData()->updated.notify();
+			getData()->updated.fire({});
 		}
 	}).send();
 }

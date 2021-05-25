@@ -59,7 +59,7 @@ struct Data {
 
 	Window::TermsLock termsLock;
 
-	base::Observable<void> updated;
+	rpl::event_stream<> updated;
 
 };
 
