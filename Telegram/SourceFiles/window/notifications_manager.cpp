@@ -52,7 +52,8 @@ constexpr auto kSystemAlertDuration = crl::time(0);
 System::System()
 : _waitTimer([=] { showNext(); })
 , _waitForAllGroupedTimer([=] { showGrouped(); }) {
-	subscribe(settingsChanged(), [=](ChangeType type) {
+	settingsChanged(
+	) | rpl::start_with_next([=](ChangeType type) {
 		if (type == ChangeType::DesktopEnabled) {
 			clearAll();
 		} else if (type == ChangeType::ViewParams) {
@@ -61,7 +62,7 @@ System::System()
 			|| type == ChangeType::CountMessages) {
 			Core::App().domain().notifyUnreadBadgeChanged();
 		}
-	});
+	}, lifetime());
 }
 
 void System::createManager() {
@@ -576,6 +577,14 @@ void System::updateAll() {
 	if (_manager) {
 		_manager->updateAll();
 	}
+}
+
+rpl::producer<ChangeType> System::settingsChanged() const {
+	return _settingsChanged.events();
+}
+
+void System::notifySettingsChanged(ChangeType type) {
+	return _settingsChanged.fire(std::move(type));
 }
 
 Manager::DisplayOptions Manager::getNotificationOptions(

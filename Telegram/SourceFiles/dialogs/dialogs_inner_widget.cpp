@@ -133,13 +133,13 @@ InnerWidget::InnerWidget(
 		update();
 	}, lifetime());
 
-	subscribe(Core::App().notifications().settingsChanged(), [=](
-			Window::Notifications::ChangeType change) {
+	Core::App().notifications().settingsChanged(
+	) | rpl::start_with_next([=](Window::Notifications::ChangeType change) {
 		if (change == Window::Notifications::ChangeType::CountMessages) {
 			// Folder rows change their unread badge with this setting.
 			update();
 		}
-	});
+	}, lifetime());
 
 	session().data().contactsLoaded().changes(
 	) | rpl::start_with_next([=] {

@@ -756,13 +756,13 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 	}
 	account().session().saveSettings();
 	using Change = Window::Notifications::ChangeType;
-	auto &changes = Core::App().notifications().settingsChanged();
-	changes.notify(Change::DesktopEnabled);
+	auto &notifications = Core::App().notifications();
+	notifications.notifySettingsChanged(Change::DesktopEnabled);
 	if (soundNotifyChanged) {
-		changes.notify(Change::SoundEnabled);
+		notifications.notifySettingsChanged(Change::SoundEnabled);
 	}
 	if (flashBounceNotifyChanged) {
-		changes.notify(Change::FlashBounceEnabled);
+		notifications.notifySettingsChanged(Change::FlashBounceEnabled);
 	}
 }
 

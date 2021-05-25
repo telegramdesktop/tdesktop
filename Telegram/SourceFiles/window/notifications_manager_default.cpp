@@ -73,9 +73,10 @@ std::unique_ptr<Manager> Create(System *system) {
 Manager::Manager(System *system)
 : Notifications::Manager(system)
 , _inputCheckTimer([=] { checkLastInput(); }) {
-	subscribe(system->settingsChanged(), [this](ChangeType change) {
+	system->settingsChanged(
+	) | rpl::start_with_next([=](ChangeType change) {
 		settingsChanged(change);
-	});
+	}, system->lifetime());
 }
 
 Manager::QueuedNotification::QueuedNotification(

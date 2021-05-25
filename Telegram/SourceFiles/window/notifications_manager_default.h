@@ -38,7 +38,7 @@ class HideAllButton;
 class Manager;
 std::unique_ptr<Manager> Create(System *system);
 
-class Manager final : public Notifications::Manager, private base::Subscriber {
+class Manager final : public Notifications::Manager {
 public:
 	Manager(System *system);
 	~Manager();

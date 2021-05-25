@@ -71,7 +71,7 @@ namespace Notifications {
 
 class Manager;
 
-class System final : private base::Subscriber {
+class System final {
 public:
 	System();
 	~System();
@@ -92,8 +92,11 @@ public:
 	void clearAllFast();
 	void updateAll();
 
-	base::Observable<ChangeType> &settingsChanged() {
-		return _settingsChanged;
+	[[nodiscard]] rpl::producer<ChangeType> settingsChanged() const;
+	void notifySettingsChanged(ChangeType type);
+
+	[[nodiscard]] rpl::lifetime &lifetime() {
+		return _lifetime;
 	}
 
 private:
@@ -132,13 +135,15 @@ private:
 
 	std::unique_ptr<Manager> _manager;
 
-	base::Observable<ChangeType> _settingsChanged;
+	rpl::event_stream<ChangeType> _settingsChanged;
 
 	std::unique_ptr<Media::Audio::Track> _soundTrack;
 
 	int _lastForwardedCount = 0;
 	uint64 _lastHistorySessionId = 0;
 	FullMsgId _lastHistoryItemId;
+
+	rpl::lifetime _lifetime;
 
 };
 
