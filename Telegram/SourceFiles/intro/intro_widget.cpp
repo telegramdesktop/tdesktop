@@ -107,9 +107,10 @@ Widget::Widget(
 
 	fixOrder();
 
-	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [=] {
+	Lang::CurrentCloudManager().firstLanguageSuggestion(
+	) | rpl::start_with_next([=] {
 		createLanguageLink();
-	});
+	}, lifetime());
 
 	_account->mtpUpdates(
 	) | rpl::start_with_next([=](const MTPUpdates &updates) {

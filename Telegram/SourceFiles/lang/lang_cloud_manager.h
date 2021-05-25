@@ -22,7 +22,7 @@ struct Language;
 
 Language ParseLanguage(const MTPLangPackLanguage &data);
 
-class CloudManager : public base::has_weak_ptr, private base::Subscriber {
+class CloudManager : public base::has_weak_ptr {
 public:
 	explicit CloudManager(Instance &langpack);
 
@@ -32,9 +32,8 @@ public:
 	const Languages &languageList() const {
 		return _languages;
 	}
-	base::Observable<void> &languageListChanged() {
-		return _languagesChanged;
-	}
+	[[nodiscard]] rpl::producer<> languageListChanged() const;
+	[[nodiscard]] rpl::producer<> firstLanguageSuggestion() const;
 	void requestLangPackDifference(const QString &langId);
 	void applyLangPackDifference(const MTPLangPackDifference &difference);
 	void setCurrentVersions(int version, int baseVersion);
@@ -47,9 +46,6 @@ public:
 	void setSuggestedLanguage(const QString &langCode);
 	QString suggestedLanguage() const {
 		return _suggestedLanguage;
-	}
-	base::Observable<void> &firstLanguageSuggestion() {
-		return _firstLanguageSuggestion;
 	}
 
 private:
@@ -78,7 +74,6 @@ private:
 	std::optional<MTP::Sender> _api;
 	Instance &_langpack;
 	Languages _languages;
-	base::Observable<void> _languagesChanged;
 	mtpRequestId _langPackRequestId = 0;
 	mtpRequestId _langPackBaseRequestId = 0;
 	mtpRequestId _languagesRequestId = 0;
@@ -88,13 +83,15 @@ private:
 
 	QString _suggestedLanguage;
 	bool _languageWasSuggested = false;
-	base::Observable<void> _firstLanguageSuggestion;
 
 	mtpRequestId _switchingToLanguageRequest = 0;
 	QString _switchingToLanguageId;
 	bool _switchingToLanguageWarning = false;
 
 	mtpRequestId _getKeysForSwitchRequestId = 0;
+
+	rpl::event_stream<> _languageListChanged;
+	rpl::event_stream<> _firstLanguageSuggestion;
 
 	rpl::lifetime _lifetime;
 

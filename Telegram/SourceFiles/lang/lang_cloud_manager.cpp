@@ -182,6 +182,14 @@ Pack CloudManager::packTypeFromId(const QString &id) const {
 	return Pack::None;
 }
 
+rpl::producer<> CloudManager::languageListChanged() const {
+	return _languageListChanged.events();
+}
+
+rpl::producer<> CloudManager::firstLanguageSuggestion() const {
+	return _firstLanguageSuggestion.events();
+}
+
 void CloudManager::requestLangPackDifference(const QString &langId) {
 	Expects(!langId.isEmpty());
 
@@ -251,7 +259,7 @@ void CloudManager::setSuggestedLanguage(const QString &langCode) {
 
 	if (!_languageWasSuggested) {
 		_languageWasSuggested = true;
-		_firstLanguageSuggestion.notify();
+		_firstLanguageSuggestion.fire({});
 
 		if (Core::App().offerLegacyLangPackSwitch()
 			&& _langpack.id().isEmpty()
@@ -311,7 +319,7 @@ void CloudManager::requestLanguageList() {
 		}
 		if (_languages != languages) {
 			_languages = languages;
-			_languagesChanged.notify();
+			_languageListChanged.fire({});
 		}
 		_languagesRequestId = 0;
 	}).fail([=](const MTP::Error &error) {
@@ -324,9 +332,10 @@ void CloudManager::offerSwitchLangPack() {
 	Expects(_offerSwitchToId != DefaultLanguageId());
 
 	if (!showOfferSwitchBox()) {
-		subscribe(languageListChanged(), [this] {
+		languageListChanged(
+		) | rpl::start_with_next([=] {
 			showOfferSwitchBox();
-		});
+		}, _lifetime);
 		requestLanguageList();
 	}
 }

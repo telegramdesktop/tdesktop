@@ -529,8 +529,7 @@ void EmojiKeywords::apiChanged(ApiWrap *api) {
 	_api = api;
 	if (_api) {
 		crl::on_main(&_api->session(), crl::guard(&_guard, [=] {
-			base::ObservableViewer(
-				Lang::CurrentCloudManager().firstLanguageSuggestion()
+			Lang::CurrentCloudManager().firstLanguageSuggestion(
 			) | rpl::filter([=] {
 				// Refresh with the suggested language if we already were asked.
 				return !_data.empty();

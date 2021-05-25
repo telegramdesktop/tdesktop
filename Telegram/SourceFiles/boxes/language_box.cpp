@@ -1166,15 +1166,19 @@ base::binary_guard LanguageBox::Show() {
 	if (manager.languageList().empty()) {
 		auto guard = std::make_shared<base::binary_guard>(
 			result.make_guard());
-		auto alive = std::make_shared<std::unique_ptr<base::Subscription>>(
-			std::make_unique<base::Subscription>());
-		**alive = manager.languageListChanged().add_subscription([=] {
+		auto lifetime = std::make_shared<rpl::lifetime>();
+		manager.languageListChanged(
+		) | rpl::take(
+			1
+		) | rpl::start_with_next([=]() mutable {
 			const auto show = guard->alive();
-			*alive = nullptr;
+			if (lifetime) {
+				base::take(lifetime)->destroy();
+			}
 			if (show) {
 				Ui::show(Box<LanguageBox>());
 			}
-		});
+		}, *lifetime);
 	} else {
 		Ui::show(Box<LanguageBox>());
 	}
