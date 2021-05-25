@@ -169,11 +169,13 @@ HistoryInner::HistoryInner(
 	notifyIsBotChanged();
 
 	setMouseTracking(true);
-	subscribe(_controller->gifPauseLevelChanged(), [this] {
-		if (!_controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any)) {
+	_controller->gifPauseLevelChanged(
+	) | rpl::start_with_next([=] {
+		if (!_controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::Any)) {
 			update();
 		}
-	});
+	}, lifetime());
 	subscribe(_controller->widget()->dragFinished(), [this] {
 		mouseActionUpdate(QCursor::pos());
 	});

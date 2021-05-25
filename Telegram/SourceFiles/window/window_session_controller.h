@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/variable.h>
 #include "base/flags.h"
-#include "base/observer.h"
 #include "base/object_ptr.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
@@ -227,7 +226,7 @@ private:
 
 };
 
-class SessionController : public SessionNavigation, private base::Subscriber {
+class SessionController : public SessionNavigation {
 public:
 	SessionController(
 		not_null<Main::Session*> session,
@@ -275,8 +274,8 @@ public:
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);
-	base::Observable<void> &gifPauseLevelChanged() {
-		return _gifPauseLevelChanged;
+	rpl::producer<> gifPauseLevelChanged() const {
+		return _gifPauseLevelChanged.events();
 	}
 	bool isGifPausedAtLeastFor(GifPauseReason reason) const;
 	void floatPlayerAreaUpdated();
@@ -406,7 +405,7 @@ private:
 	std::unique_ptr<FiltersMenu> _filters;
 
 	GifPauseReasons _gifPauseReasons = 0;
-	base::Observable<void> _gifPauseLevelChanged;
+	rpl::event_stream<> _gifPauseLevelChanged;
 
 	// Depends on _gifPause*.
 	const std::unique_ptr<ChatHelpers::TabbedSelector> _tabbedSelector;

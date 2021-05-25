@@ -465,12 +465,14 @@ SessionController::SessionController(
 		enableGifPauseReason(GifPauseReason::RoundPlaying);
 	}
 
-	subscribe(session->api().fullPeerUpdated(), [=](PeerData *peer) {
+	base::ObservableViewer(
+		session->api().fullPeerUpdated()
+	) | rpl::start_with_next([=](PeerData *peer) {
 		if (peer == _showEditPeer) {
 			_showEditPeer = nullptr;
 			Ui::show(Box<EditPeerInfoBox>(this, peer));
 		}
-	});
+	}, lifetime());
 
 	session->data().chatsListChanges(
 	) | rpl::filter([=](Data::Folder *folder) {
@@ -753,7 +755,7 @@ void SessionController::enableGifPauseReason(GifPauseReason reason) {
 		auto notify = (static_cast<int>(_gifPauseReasons) < static_cast<int>(reason));
 		_gifPauseReasons |= reason;
 		if (notify) {
-			_gifPauseLevelChanged.notify();
+			_gifPauseLevelChanged.fire({});
 		}
 	}
 }
@@ -762,7 +764,7 @@ void SessionController::disableGifPauseReason(GifPauseReason reason) {
 	if (_gifPauseReasons & reason) {
 		_gifPauseReasons &= ~reason;
 		if (_gifPauseReasons < reason) {
-			_gifPauseLevelChanged.notify();
+			_gifPauseLevelChanged.fire({});
 		}
 	}
 }

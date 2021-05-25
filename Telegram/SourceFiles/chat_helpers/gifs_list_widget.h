@@ -46,8 +46,7 @@ void AddGifAction(
 
 class GifsListWidget
 	: public TabbedSelector::Inner
-	, public InlineBots::Layout::Context
-	, private base::Subscriber {
+	, public InlineBots::Layout::Context {
 public:
 	using InlineChosen = TabbedSelector::InlineChosen;
 

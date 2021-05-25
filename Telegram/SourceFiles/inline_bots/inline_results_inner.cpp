@@ -48,11 +48,13 @@ Inner::Inner(
 		update();
 	}, lifetime());
 
-	subscribe(controller->gifPauseLevelChanged(), [this] {
-		if (!_controller->isGifPausedAtLeastFor(Window::GifPauseReason::InlineResults)) {
+	controller->gifPauseLevelChanged(
+	) | rpl::start_with_next([=] {
+		if (!_controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::InlineResults)) {
 			update();
 		}
-	});
+	}, lifetime());
 
 	_controller->session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::Rights
