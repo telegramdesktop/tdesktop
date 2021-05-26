@@ -113,6 +113,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
+#include "window/window_adaptive.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_slide_animation.h"
@@ -412,7 +413,8 @@ HistoryWidget::HistoryWidget(
 		Window::ActivateWindow(controller);
 	});
 
-	subscribe(Adaptive::Changed(), [=] {
+	controller->adaptive().changed(
+	) | rpl::start_with_next([=] {
 		if (_history) {
 			_history->forceFullResize();
 			if (_migrated) {
@@ -421,7 +423,7 @@ HistoryWidget::HistoryWidget(
 			updateHistoryGeometry();
 			update();
 		}
-	});
+	}, lifetime());
 
 	session().data().unreadItemAdded(
 	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
@@ -4068,7 +4070,8 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 		return;
 	}
 	if (_tabbedPanel) {
-		if (controller()->canShowThirdSection() && !Adaptive::OneColumn()) {
+		if (controller()->canShowThirdSection()
+			&& !controller()->adaptive().isOneColumn()) {
 			Core::App().settings().setTabbedSelectorSectionEnabled(true);
 			Core::App().saveSettingsDelayed();
 			pushTabbedSelectorToThirdSection(
@@ -4083,13 +4086,10 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 }
 
 void HistoryWidget::recountChatWidth() {
-	auto layout = (width() < st::adaptiveChatWideWidth)
-		? Adaptive::ChatLayout::Normal
-		: Adaptive::ChatLayout::Wide;
-	if (layout != Global::AdaptiveChatLayout()) {
-		Global::SetAdaptiveChatLayout(layout);
-		Adaptive::Changed().notify(true);
-	}
+	const auto layout = (width() < st::adaptiveChatWideWidth)
+		? Window::AdaptiveModern::ChatLayout::Normal
+		: Window::AdaptiveModern::ChatLayout::Wide;
+	controller()->adaptive().setChatLayout(layout);
 }
 
 void HistoryWidget::moveFieldControls() {
@@ -4639,8 +4639,14 @@ void HistoryWidget::updateControlsGeometry() {
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
 	}
 
-	auto topShadowLeft = (Adaptive::OneColumn() || _inGrab) ? 0 : st::lineWidth;
-	auto topShadowRight = (Adaptive::ThreeColumn() && !_inGrab && _peer) ? st::lineWidth : 0;
+	const auto isOneColumn = controller()->adaptive().isOneColumn();
+	const auto isThreeColumn = controller()->adaptive().isThreeColumn();
+	const auto topShadowLeft = (isOneColumn || _inGrab)
+		? 0
+		: st::lineWidth;
+	const auto topShadowRight = (isThreeColumn && !_inGrab && _peer)
+		? st::lineWidth
+		: 0;
 	_topShadow->setGeometryToLeft(
 		topShadowLeft,
 		_topBar->bottomNoMargins(),
@@ -5479,13 +5485,8 @@ void HistoryWidget::checkPinnedBarState() {
 		refreshPinnedBarButton(many);
 	}, _pinnedBar->lifetime());
 
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		base::ObservableViewer(Adaptive::Changed())
-	) | rpl::map([] {
-		return Adaptive::OneColumn();
-	}) | rpl::start_with_next([=](bool one) {
+	controller()->adaptive().oneColumnValue(
+	) | rpl::start_with_next([=](bool one) {
 		_pinnedBar->setShadowGeometryPostprocess([=](QRect geometry) {
 			if (!one) {
 				geometry.setLeft(geometry.left() + st::lineWidth);
@@ -5608,13 +5609,8 @@ void HistoryWidget::setupGroupCallTracker() {
 		_groupCallTracker->content(),
 		Core::App().appDeactivatedValue());
 
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		base::ObservableViewer(Adaptive::Changed())
-	) | rpl::map([] {
-		return Adaptive::OneColumn();
-	}) | rpl::start_with_next([=](bool one) {
+	controller()->adaptive().oneColumnValue(
+	) | rpl::start_with_next([=](bool one) {
 		_groupCallBar->setShadowGeometryPostprocess([=](QRect geometry) {
 			if (!one) {
 				geometry.setLeft(geometry.left() + st::lineWidth);
