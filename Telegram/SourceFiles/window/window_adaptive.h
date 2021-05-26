@@ -29,6 +29,7 @@ public:
 
 	[[nodiscard]] rpl::producer<> changed() const;
 	[[nodiscard]] rpl::producer<bool> oneColumnValue() const;
+	[[nodiscard]] rpl::producer<ChatLayout> chatLayoutValue() const;
 
 	[[nodiscard]] bool isOneColumn() const;
 	[[nodiscard]] bool isNormal() const;

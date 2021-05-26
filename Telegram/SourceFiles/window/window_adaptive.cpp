@@ -36,6 +36,10 @@ rpl::producer<bool> AdaptiveModern::oneColumnValue() const {
 	});
 }
 
+rpl::producer<AdaptiveModern::ChatLayout> AdaptiveModern::chatLayoutValue() const {
+	return _chatLayout.value();
+}
+
 bool AdaptiveModern::isOneColumn() const {
 	return _layout.current() == WindowLayout::OneColumn;
 }

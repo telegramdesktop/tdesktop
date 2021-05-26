@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_themes_embedded.h"
 #include "window/themes/window_theme_editor_box.h"
 #include "window/themes/window_themes_cloud_list.h"
+#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "storage/localstorage.h"
@@ -967,19 +968,15 @@ void SetupChatBackground(
 		tile->setChecked(tiled);
 	}, tile->lifetime());
 
-	adaptive->toggleOn(rpl::single(
-		rpl::empty_value()
-	) | rpl::then(base::ObservableViewer(
-		Adaptive::Changed()
-	)) | rpl::map([] {
-		return (Global::AdaptiveChatLayout() == Adaptive::ChatLayout::Wide);
+	adaptive->toggleOn(controller->adaptive().chatLayoutValue(
+	) | rpl::map([](Window::AdaptiveModern::ChatLayout layout) {
+		return (layout == Window::AdaptiveModern::ChatLayout::Wide);
 	}));
 
 	adaptive->entity()->checkedChanges(
 	) | rpl::start_with_next([=](bool checked) {
 		Core::App().settings().setAdaptiveForWide(checked);
 		Core::App().saveSettingsDelayed();
-		Adaptive::Changed().notify();
 	}, adaptive->lifetime());
 }
 
