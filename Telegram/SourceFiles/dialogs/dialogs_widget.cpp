@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peers/edit_participants_box.h"
+#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
@@ -265,7 +266,10 @@ Widget::Widget(
 		}, lifetime());
 	}
 
-	subscribe(Adaptive::Changed(), [this] { updateForwardBar(); });
+	controller->adaptive().changed(
+	) | rpl::start_with_next([=] {
+		updateForwardBar();
+	}, lifetime());
 
 	_cancelSearch->setClickedCallback([this] { onCancelSearch(); });
 	_jumpToDate->entity()->setClickedCallback([this] { showJumpToDate(); });
@@ -414,7 +418,7 @@ void Widget::setupConnectingWidget() {
 	_connecting = std::make_unique<Window::ConnectionState>(
 		this,
 		&session().account(),
-		Window::AdaptiveIsOneColumn());
+		controller()->adaptive().oneColumnValue());
 }
 
 void Widget::setupSupportMode() {
@@ -1277,7 +1281,7 @@ void Widget::dragEnterEvent(QDragEnterEvent *e) {
 
 	const auto data = e->mimeData();
 	_dragInScroll = false;
-	_dragForward = Adaptive::OneColumn()
+	_dragForward = controller()->adaptive().isOneColumn()
 		? false
 		: data->hasFormat(qsl("application/x-td-forward"));
 	if (_dragForward) {
@@ -1630,7 +1634,8 @@ rpl::producer<> Widget::closeForwardBarRequests() const {
 
 void Widget::updateForwardBar() {
 	auto selecting = controller()->selectingPeer();
-	auto oneColumnSelecting = (Adaptive::OneColumn() && selecting);
+	auto oneColumnSelecting = (controller()->adaptive().isOneColumn()
+		&& selecting);
 	if (!oneColumnSelecting == !_forwardCancel) {
 		return;
 	}
@@ -1750,7 +1755,7 @@ bool Widget::onCancelSearch() {
 	bool clearing = !_filter->getLastText().isEmpty();
 	cancelSearchRequest();
 	if (_searchInChat && !clearing) {
-		if (Adaptive::OneColumn()) {
+		if (controller()->adaptive().isOneColumn()) {
 			if (const auto peer = _searchInChat.peer()) {
 				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 			} else {
@@ -1769,8 +1774,9 @@ bool Widget::onCancelSearch() {
 
 void Widget::onCancelSearchInChat() {
 	cancelSearchRequest();
+	const auto isOneColumn = controller()->adaptive().isOneColumn();
 	if (_searchInChat) {
-		if (Adaptive::OneColumn()
+		if (isOneColumn
 			&& !controller()->selectingPeer()
 			&& _filter->getLastText().trimmed().isEmpty()) {
 			if (const auto peer = _searchInChat.peer()) {
@@ -1782,7 +1788,7 @@ void Widget::onCancelSearchInChat() {
 		setSearchInChat(Key());
 	}
 	applyFilterUpdate(true);
-	if (!Adaptive::OneColumn() && !controller()->selectingPeer()) {
+	if (!isOneColumn && !controller()->selectingPeer()) {
 		cancelled();
 	}
 }
