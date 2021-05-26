@@ -736,16 +736,15 @@ bool Instance::Inner::writeFrame(AVFrame *frame) {
 }
 
 int Instance::Inner::writePackets() {
-	AVPacket pkt;
-	memset(&pkt, 0, sizeof(pkt)); // data and size must be 0;
+	AVPacket *pkt = av_packet_alloc();
+	const auto guard = gsl::finally([&] { av_packet_free(&pkt); });
 
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 
 	int written = 0;
 	do {
-		av_init_packet(&pkt);
-		if ((res = avcodec_receive_packet(d->codecContext, &pkt)) < 0) {
+		if ((res = avcodec_receive_packet(d->codecContext, pkt)) < 0) {
 			if (res == AVERROR(EAGAIN)) {
 				return written;
 			} else if (res == AVERROR_EOF) {
@@ -756,16 +755,16 @@ int Instance::Inner::writePackets() {
 			return res;
 		}
 
-		av_packet_rescale_ts(&pkt, d->codecContext->time_base, d->stream->time_base);
-		pkt.stream_index = d->stream->index;
-		if ((res = av_interleaved_write_frame(d->fmtContext, &pkt)) < 0) {
+		av_packet_rescale_ts(pkt, d->codecContext->time_base, d->stream->time_base);
+		pkt->stream_index = d->stream->index;
+		if ((res = av_interleaved_write_frame(d->fmtContext, pkt)) < 0) {
 			LOG(("Audio Error: Unable to av_interleaved_write_frame for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			fail();
 			return -1;
 		}
 
 		++written;
-		av_packet_unref(&pkt);
+		av_packet_unref(pkt);
 	} while (true);
 	return written;
 }
