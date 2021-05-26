@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/const_string.h"
 
-#define TDESKTOP_REQUESTED_ALPHA_VERSION (2007005005ULL)
+#define TDESKTOP_REQUESTED_ALPHA_VERSION (2007005006ULL)
 
 #ifdef TDESKTOP_ALLOW_CLOSED_ALPHA
 #define TDESKTOP_ALPHA_VERSION TDESKTOP_REQUESTED_ALPHA_VERSION
