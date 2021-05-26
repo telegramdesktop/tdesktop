@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_message.h" // GetErrorTextForSending.
 #include "history/view/history_view_context_menu.h"
+#include "window/window_adaptive.h" // Adaptive::isThreeColumn
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "support/support_helper.h"
@@ -54,7 +55,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "export/export_manager.h"
 #include "boxes/peers/edit_peer_info_box.h"
-#include "facades.h" // Adaptive::ThreeColumn
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_window.h" // st::windowMinWidth
@@ -271,7 +271,7 @@ bool Filler::showInfo() {
 		return false;
 	} else if (_controller->activeChatCurrent().peer() != _peer) {
 		return true;
-	} else if (!Adaptive::ThreeColumn()) {
+	} else if (!_controller->adaptive().isThreeColumn()) {
 		return true;
 	} else if (!Core::App().settings().thirdSectionInfoEnabled()
 		&& !Core::App().settings().tabbedReplacedWithInfo()) {
@@ -760,9 +760,12 @@ void PeerMenuShareContactBox(
 		Ui::show(Box<ConfirmBox>(
 			tr::lng_forward_share_contact(tr::now, lt_recipient, recipient),
 			tr::lng_forward_send(tr::now),
-			[peer, user] {
+			[peer, user, navigation] {
 				const auto history = peer->owner().history(peer);
-				Ui::showPeerHistory(history, ShowAtTheEndMsgId);
+				navigation->showPeerHistory(
+					history,
+					Window::SectionShow::Way::ClearStack,
+					ShowAtTheEndMsgId);
 				auto action = Api::SendAction(history);
 				action.clearDraft = false;
 				user->session().api().shareContact(user, action);
