@@ -1020,11 +1020,10 @@ void Panel::setupMembers() {
 
 	_call->videoEndpointPinnedValue(
 	) | rpl::start_with_next([=](const VideoEndpoint &pinned) {
-		if (mode() == PanelMode::Wide) {
-			_viewport->showLarge(pinned);
-		} else if (pinned) {
+		if (pinned && mode() != PanelMode::Wide) {
 			enlargeVideo();
 		}
+		_viewport->showLarge(pinned);
 	}, _callLifetime);
 }
 

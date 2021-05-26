@@ -250,7 +250,9 @@ void Viewport::showLarge(const VideoEndpoint &endpoint) {
 	const auto large = (i != end(_tiles)) ? i->get() : nullptr;
 	if (_large != large) {
 		_large = large;
-		updateTilesGeometry();
+		if (wide()) {
+			updateTilesGeometry();
+		}
 	}
 }
 
