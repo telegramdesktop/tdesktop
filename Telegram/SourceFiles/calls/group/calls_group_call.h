@@ -238,13 +238,6 @@ public:
 		return _muted.value();
 	}
 
-	[[nodiscard]] bool videoCall() const {
-		return _videoCall.current();
-	}
-	[[nodiscard]] rpl::producer<bool> videoCallValue() const {
-		return _videoCall.value();
-	}
-
 	[[nodiscard]] auto otherParticipantStateValue() const
 		-> rpl::producer<Group::ParticipantState>;
 
@@ -328,6 +321,9 @@ public:
 	static constexpr auto kSpeakLevelThreshold = 0.2;
 
 	[[nodiscard]] bool mutedByAdmin() const;
+	[[nodiscard]] bool canManage() const;
+	[[nodiscard]] rpl::producer<bool> canManageValue() const;
+
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
 	void setCurrentVideoDevice(const QString &deviceId);
 	[[nodiscard]] bool isSharingScreen() const;
@@ -491,7 +487,7 @@ private:
 	QString _joinHash;
 
 	rpl::variable<MuteState> _muted = MuteState::Muted;
-	rpl::variable<bool> _videoCall = false;
+	rpl::variable<bool> _canManage = false;
 	bool _initialMuteStateSent = false;
 	bool _acceptFields = false;
 

@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_group_call.h"
+#include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "base/global_shortcuts.h"
 #include "base/openssl_help.h"
@@ -364,6 +365,7 @@ GroupCall::GroupCall(
 , _joinAs(info.joinAs)
 , _possibleJoinAs(std::move(info.possibleJoinAs))
 , _joinHash(info.joinHash)
+, _canManage(Data::CanManageGroupCallValue(_peer))
 , _id(inputCall.c_inputGroupCall().vid().v)
 , _scheduleDate(info.scheduleDate)
 , _lastSpokeCheckTimer([=] { checkLastSpoke(); })
@@ -399,7 +401,7 @@ GroupCall::GroupCall(
 
 	if (const auto real = lookupReal()) {
 		subscribeToReal(real);
-		if (!_peer->canManageGroupCall() && real->joinMuted()) {
+		if (!canManage() && real->joinMuted()) {
 			_muted = MuteState::ForceMuted;
 		}
 	} else {
@@ -470,6 +472,14 @@ QString GroupCall::screenSharingDeviceId() const {
 bool GroupCall::mutedByAdmin() const {
 	const auto mute = muted();
 	return mute == MuteState::ForceMuted || mute == MuteState::RaisedHand;
+}
+
+bool GroupCall::canManage() const {
+	return _canManage.current();
+}
+
+rpl::producer<bool> GroupCall::canManageValue() const {
+	return _canManage.value();
 }
 
 void GroupCall::toggleVideo(bool active) {
@@ -758,6 +768,7 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 		_peerStream.events_starting_with_copy(_peer));
 	SubscribeToMigration(_peer, _lifetime, [=](not_null<ChannelData*> group) {
 		_peer = group;
+		_canManage = Data::CanManageGroupCallValue(_peer);
 		_peerStream.fire_copy(group);
 	});
 }
@@ -1124,7 +1135,7 @@ void GroupCall::applyParticipantLocally(
 	if (!participant || !participant->ssrc) {
 		return;
 	}
-	const auto canManageCall = _peer->canManageGroupCall();
+	const auto canManageCall = canManage();
 	const auto isMuted = participant->muted || (mute && canManageCall);
 	const auto canSelfUnmute = !canManageCall
 		? participant->canSelfUnmute
@@ -1705,7 +1716,6 @@ void GroupCall::ensureControllerCreated() {
 
 	const auto weak = base::make_weak(&_instanceGuard);
 	const auto myLevel = std::make_shared<tgcalls::GroupLevelValue>();
-	_videoCall = true;
 	tgcalls::GroupInstanceDescriptor descriptor = {
 		.threads = tgcalls::StaticThreads::getThreads(),
 		.config = tgcalls::GroupConfig{

@@ -99,6 +99,9 @@ private:
 	void enlargeVideo();
 	void minimizeVideo();
 
+	template <typename WidgetPointer>
+	void trackControl(WidgetPointer &widget, rpl::lifetime &lifetime);
+
 	bool updateMode();
 	void updateControlsGeometry();
 	void updateButtonsGeometry();
@@ -111,6 +114,7 @@ private:
 	void refreshLeftButton();
 	void refreshVideoButtons(
 		std::optional<bool> overrideWideMode = std::nullopt);
+	void refreshTopButton();
 	void toggleWideControls(bool shown);
 	[[nodiscard]] bool videoButtonInNarrowMode() const;
 
@@ -118,6 +122,7 @@ private:
 
 	void showMainMenu();
 	void chooseJoinAs();
+	void chooseShareScreenSource();
 	void addMembers();
 	void kickParticipant(not_null<PeerData*> participantPeer);
 	void kickParticipantSure(not_null<PeerData*> participantPeer);
@@ -154,11 +159,13 @@ private:
 	object_ptr<Ui::AbstractButton> _recordingMark = { nullptr };
 	object_ptr<Ui::IconButton> _menuToggle = { nullptr };
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
+	rpl::variable<bool> _wideMenuShown = false;
 	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<Members> _members = { nullptr };
 	std::unique_ptr<Viewport> _viewport;
 	rpl::lifetime _trackControlsLifetime;
 	rpl::lifetime _trackControlsOverStateLifetime;
+	rpl::lifetime _trackControlsMenuLifetime;
 	object_ptr<Ui::FlatLabel> _startsIn = { nullptr };
 	object_ptr<Ui::RpWidget> _countdown = { nullptr };
 	std::shared_ptr<Ui::GroupCallScheduledLeft> _countdownData;
@@ -175,6 +182,7 @@ private:
 	object_ptr<Ui::RpWidget> _controlsBackgroundWide = { nullptr };
 	std::unique_ptr<ControlsBackgroundNarrow> _controlsBackgroundNarrow;
 	object_ptr<Ui::CallButton> _settings = { nullptr };
+	object_ptr<Ui::CallButton> _wideMenu = { nullptr };
 	object_ptr<Ui::CallButton> _callShare = { nullptr };
 	object_ptr<Ui::CallButton> _video = { nullptr };
 	object_ptr<Ui::CallButton> _screenShare = { nullptr };

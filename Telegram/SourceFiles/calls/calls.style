@@ -739,6 +739,7 @@ groupCallJoinAsToggle: UserpicButton(defaultUserpicButton) {
 	photoPosition: point(3px, 3px);
 }
 groupCallMenuPosition: point(-1px, 29px);
+groupCallWideMenuPosition: point(-2px, 28px);
 
 groupCallActiveButton: IconButton {
 	width: 36px;
@@ -843,6 +844,14 @@ groupCallVideoActiveSmall: CallButton(groupCallVideoSmall) {
 groupCallScreenShareSmall: CallButton(groupCallSettingsSmall) {
 	button: IconButton(groupCallSettingsInner) {
 		icon: icon {{ "calls/calls_present", groupCallIconFg }};
+		width: 60px;
+		height: 68px;
+		rippleAreaPosition: point(8px, 12px);
+	}
+}
+groupCallMenuToggleSmall: CallButton(groupCallSettingsSmall) {
+	button: IconButton(groupCallSettingsInner) {
+		icon: icon {{ "calls/calls_more", groupCallIconFg }};
 		width: 60px;
 		height: 68px;
 		rippleAreaPosition: point(8px, 12px);

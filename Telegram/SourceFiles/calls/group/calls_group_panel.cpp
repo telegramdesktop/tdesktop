@@ -38,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
-#include "data/data_peer_values.h"
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "boxes/peers/edit_participants_box.h"
@@ -555,9 +554,7 @@ void Panel::initWindow() {
 			: Flag::None;
 	});
 
-	rpl::combine(
-		_call->hasVideoWithFramesValue(),
-		_call->videoCallValue()
+	_call->hasVideoWithFramesValue(
 	) | rpl::start_with_next([=] {
 		updateMode();
 	}, _window->lifetime());
@@ -584,7 +581,7 @@ void Panel::initWidget() {
 }
 
 void Panel::endCall() {
-	if (!_call->peer()->canManageGroupCall()) {
+	if (!_call->canManage()) {
 		_call->hangup();
 		return;
 	}
@@ -626,7 +623,7 @@ void Panel::initControls() {
 		return (button == Qt::LeftButton);
 	}) | rpl::start_with_next([=] {
 		if (_call->scheduleDate()) {
-			if (_peer->canManageGroupCall()) {
+			if (_call->canManage()) {
 				startScheduledNow();
 			} else if (const auto real = _call->lookupReal()) {
 				_call->toggleScheduleStartSubscribed(
@@ -648,6 +645,13 @@ void Panel::initControls() {
 	initShareAction();
 	refreshLeftButton();
 	refreshVideoButtons();
+
+	rpl::combine(
+		_mode.value(),
+		_call->canManageValue()
+	) | rpl::start_with_next([=] {
+		refreshTopButton();
+	}, widget()->lifetime());
 
 	_hangup->setClickedCallback([=] { endCall(); });
 
@@ -730,6 +734,7 @@ void Panel::refreshLeftButton() {
 	const auto raw = _callShare ? _callShare.data() : _settings.data();
 	raw->show();
 	raw->setColorOverrides(_mute->colorOverrides());
+	updateButtonsStyles();
 }
 
 void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
@@ -783,7 +788,7 @@ void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
 		_screenShare.create(widget(), st::groupCallScreenShareSmall);
 		_screenShare->show();
 		_screenShare->setClickedCallback([=] {
-			Ui::DesktopCapture::ChooseSource(this);
+			chooseShareScreenSource();
 		});
 		_screenShare->setColorOverrides(
 			toggleableOverrides(_call->isSharingScreenValue()));
@@ -791,6 +796,13 @@ void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
 		) | rpl::start_with_next([=](bool sharing) {
 			_screenShare->setProgress(sharing ? 1. : 0.);
 		}, _screenShare->lifetime());
+	}
+	if (!_wideMenu) {
+		_wideMenu.create(widget(), st::groupCallMenuToggleSmall);
+		_wideMenu->show();
+		_wideMenu->setClickedCallback([=] { showMainMenu(); });
+		_wideMenu->setColorOverrides(
+			toggleableOverrides(_wideMenuShown.value()));
 	}
 	updateButtonsStyles();
 	updateButtonsGeometry();
@@ -825,7 +837,7 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 		_call->instanceStateValue(),
 		real->scheduleDateValue(),
 		real->scheduleStartSubscribedValue(),
-		Data::CanManageGroupCallValue(_peer),
+		_call->canManageValue(),
 		_mode.value()
 	) | rpl::distinct_until_changed(
 	) | rpl::filter(
@@ -1103,6 +1115,7 @@ void Panel::raiseControls() {
 		&_settings,
 		&_callShare,
 		&_screenShare,
+		&_wideMenu,
 		&_video,
 		&_hangup
 	};
@@ -1323,16 +1336,37 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	}, widget()->lifetime());
 	validateRecordingMark(real->recordStartDate() != 0);
 
-	const auto showMenu = _peer->canManageGroupCall();
-	const auto showUserpic = !showMenu && _call->showChooseJoinAs();
-	if (showMenu) {
+	real->canStartVideoValue(
+	) | rpl::start_with_next([=] {
+		refreshVideoButtons();
+		refreshTopButton();
+	}, widget()->lifetime());
+
+	updateControlsGeometry();
+}
+
+void Panel::refreshTopButton() {
+	if (_mode.current() == PanelMode::Wide) {
+		_menuToggle.destroy();
+		_joinAsToggle.destroy();
+		updateButtonsGeometry(); // _wideMenu <-> _settings
+		return;
+	}
+	const auto real = _call->lookupReal();
+	const auto hasJoinAs = _call->showChooseJoinAs();
+	const auto wide = (_mode.current() == PanelMode::Wide);
+	const auto showNarrowMenu = _call->canManage()
+		|| (real && real->canStartVideo());
+	const auto showNarrowUserpic = !showNarrowMenu && hasJoinAs;
+	if (showNarrowMenu) {
 		_joinAsToggle.destroy();
 		if (!_menuToggle) {
 			_menuToggle.create(widget(), st::groupCallMenuToggle);
 			_menuToggle->show();
 			_menuToggle->setClickedCallback([=] { showMainMenu(); });
+			updateControlsGeometry();
 		}
-	} else if (showUserpic) {
+	} else if (showNarrowUserpic) {
 		_menuToggle.destroy();
 		rpl::single(
 			_call->joinAs()
@@ -1357,12 +1391,10 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 		_menuToggle.destroy();
 		_joinAsToggle.destroy();
 	}
-	real->canStartVideoValue(
-	) | rpl::start_with_next([=] {
-		refreshVideoButtons();
-	}, widget()->lifetime());
+}
 
-	updateControlsGeometry();
+void Panel::chooseShareScreenSource() {
+	Ui::DesktopCapture::ChooseSource(this);
 }
 
 void Panel::chooseJoinAs() {
@@ -1392,14 +1424,21 @@ void Panel::showMainMenu() {
 	if (_menu) {
 		return;
 	}
+	const auto wide = (_mode.current() == PanelMode::Wide) && _wideMenu;
+	if (!wide && !_menuToggle) {
+		return;
+	}
 	_menu.create(widget(), st::groupCallDropdownMenu);
 	FillMenu(
 		_menu.data(),
 		_peer,
 		_call,
+		wide,
 		[=] { chooseJoinAs(); },
+		[=] { chooseShareScreenSource(); },
 		[=](auto box) { _layerBg->showBox(std::move(box)); });
 	if (_menu->empty()) {
+		_wideMenuShown = false;
 		_menu.destroy();
 		return;
 	}
@@ -1409,29 +1448,51 @@ void Panel::showMainMenu() {
 		raw->deleteLater();
 		if (_menu == raw) {
 			_menu = nullptr;
-			_menuToggle->setForceRippled(false);
+			_wideMenuShown = false;
+			_trackControlsMenuLifetime.destroy();
+			if (_menuToggle) {
+				_menuToggle->setForceRippled(false);
+			}
 		}
 	});
 	raw->setShowStartCallback([=] {
 		if (_menu == raw) {
-			_menuToggle->setForceRippled(true);
+			if (wide) {
+				_wideMenuShown = true;
+			} else if (_menuToggle) {
+				_menuToggle->setForceRippled(true);
+			}
 		}
 	});
 	raw->setHideStartCallback([=] {
 		if (_menu == raw) {
-			_menuToggle->setForceRippled(false);
+			_wideMenuShown = false;
+			if (_menuToggle) {
+				_menuToggle->setForceRippled(false);
+			}
 		}
 	});
-	_menuToggle->installEventFilter(_menu);
 
-	const auto x = st::groupCallMenuPosition.x();
-	const auto y = st::groupCallMenuPosition.y();
-	if (_menuToggle->x() > widget()->width() / 2) {
-		_menu->moveToRight(x, y);
-		_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
+	if (wide) {
+		_wideMenu->installEventFilter(_menu);
+		const auto x = st::groupCallWideMenuPosition.x();
+		const auto y = st::groupCallWideMenuPosition.y();
+		_menu->moveToLeft(
+			_wideMenu->x() + x,
+			_wideMenu->y() - _menu->height() + y);
+		_menu->showAnimated(Ui::PanelAnimation::Origin::BottomLeft);
+		trackControl(_menu, _trackControlsMenuLifetime);
 	} else {
-		_menu->moveToLeft(x, y);
-		_menu->showAnimated(Ui::PanelAnimation::Origin::TopLeft);
+		_menuToggle->installEventFilter(_menu);
+		const auto x = st::groupCallMenuPosition.x();
+		const auto y = st::groupCallMenuPosition.y();
+		if (_menuToggle->x() > widget()->width() / 2) {
+			_menu->moveToRight(x, y);
+			_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
+		} else {
+			_menu->moveToLeft(x, y);
+			_menu->showAnimated(Ui::PanelAnimation::Origin::TopLeft);
+		}
 	}
 }
 
@@ -1884,6 +1945,20 @@ void Panel::setupControlsBackgroundWide() {
 	trackControls(true);
 }
 
+template <typename WidgetPointer>
+void Panel::trackControl(WidgetPointer &widget, rpl::lifetime &lifetime) {
+	if (widget) {
+		widget->events(
+		) | rpl::start_with_next([=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::Enter) {
+				toggleWideControls(true);
+			} else if (e->type() == QEvent::Leave) {
+				toggleWideControls(false);
+			}
+		}, lifetime);
+	}
+}
+
 void Panel::trackControls(bool track) {
 	if (_trackControls == track) {
 		return;
@@ -1892,6 +1967,7 @@ void Panel::trackControls(bool track) {
 	if (!track) {
 		_trackControlsLifetime.destroy();
 		_trackControlsOverStateLifetime.destroy();
+		_trackControlsMenuLifetime.destroy();
 		toggleWideControls(true);
 		if (_wideControlsAnimation.animating()) {
 			_wideControlsAnimation.stop();
@@ -1901,24 +1977,16 @@ void Panel::trackControls(bool track) {
 	}
 
 	const auto trackOne = [=](auto &&widget) {
-		if (widget) {
-			const auto raw = &*widget;
-			raw->events(
-			) | rpl::start_with_next([=](not_null<QEvent*> e) {
-				if (e->type() == QEvent::Enter) {
-					toggleWideControls(true);
-				} else if (e->type() == QEvent::Leave) {
-					toggleWideControls(false);
-				}
-			}, _trackControlsOverStateLifetime);
-		}
+		trackControl(widget, _trackControlsOverStateLifetime);
 	};
 	trackOne(_mute);
 	trackOne(_video);
 	trackOne(_screenShare);
+	trackOne(_wideMenu);
 	trackOne(_settings);
 	trackOne(_hangup);
 	trackOne(_controlsBackgroundWide);
+	trackControl(_menu, _trackControlsMenuLifetime);
 }
 
 void Panel::updateControlsGeometry() {
@@ -1956,28 +2024,21 @@ void Panel::updateButtonsGeometry() {
 	if (widget()->size().isEmpty() || (!_settings && !_callShare)) {
 		return;
 	}
-	const auto toggle = [&](bool shown) {
-		const auto toggleOne = [&](auto &widget) {
-			if (widget && widget->isHidden() == shown) {
-				widget->setVisible(shown);
-			}
-		};
-		toggleOne(_mute);
-		toggleOne(_video);
-		toggleOne(_screenShare);
-		toggleOne(_settings);
-		toggleOne(_callShare);
-		toggleOne(_hangup);
+	const auto toggle = [](auto &widget, bool shown) {
+		if (widget && widget->isHidden() == shown) {
+			widget->setVisible(shown);
+		}
 	};
 	if (mode() == PanelMode::Wide) {
 		Assert(_video != nullptr);
 		Assert(_screenShare != nullptr);
+		Assert(_wideMenu != nullptr);
 		Assert(_settings != nullptr);
 		Assert(_callShare == nullptr);
 
 		const auto shown = _wideControlsAnimation.value(
 			_wideControlsShown ? 1. : 0.);
-		toggle(shown > 0.);
+		const auto hidden = (shown == 0.);
 
 		if (_viewport) {
 			_viewport->setControlsShown(shown);
@@ -2002,17 +2063,23 @@ void Panel::updateButtonsGeometry() {
 			- membersWidth
 			- membersSkip
 			- fullWidth) / 2;
-		_screenShare->setVisible(true);
+		toggle(_screenShare, !hidden);
 		_screenShare->moveToLeft(left, buttonsTop);
 		left += _screenShare->width() + skip;
-		_screenShare->setVisible(true);
+		toggle(_video, !hidden);
 		_video->moveToLeft(left, buttonsTop);
 		left += _video->width() + skip;
+		toggle(_mute, !hidden);
 		_mute->moveInner({ left + addSkip, buttonsTop + addSkip });
 		left += muteSize + skip;
-		_settings->setVisible(true);
+		const auto wideMenuShown = _call->canManage()
+			|| _call->showChooseJoinAs();
+		toggle(_settings, !hidden && !wideMenuShown);
+		toggle(_wideMenu, !hidden && wideMenuShown);
+		_wideMenu->moveToLeft(left, buttonsTop);
 		_settings->moveToLeft(left, buttonsTop);
 		left += _settings->width() + skip;
+		toggle(_hangup, !hidden);
 		_hangup->moveToLeft(left, buttonsTop);
 		left += _hangup->width();
 		if (_controlsBackgroundWide) {
@@ -2025,8 +2092,6 @@ void Panel::updateButtonsGeometry() {
 				rect.marginsAdded(st::groupCallControlsBackMargin));
 		}
 	} else {
-		toggle(true);
-
 		const auto muteTop = widget()->height()
 			- st::groupCallMuteBottomSkip;
 		const auto buttonsTop = widget()->height()
@@ -2035,24 +2100,26 @@ void Panel::updateButtonsGeometry() {
 		const auto fullWidth = muteSize
 			+ 2 * (_settings ? _settings : _callShare)->width()
 			+ 2 * st::groupCallButtonSkip;
+		toggle(_mute, true);
 		_mute->moveInner({ (widget()->width() - muteSize) / 2, muteTop });
 		const auto leftButtonLeft = (widget()->width() - fullWidth) / 2;
-		if (_screenShare) {
-			_screenShare->setVisible(false);
-		}
+		toggle(_screenShare, false);
+		toggle(_wideMenu, false);
+		toggle(_callShare, true);
 		if (_callShare) {
 			_callShare->moveToLeft(leftButtonLeft, buttonsTop);
 		}
 		const auto showVideoButton = videoButtonInNarrowMode();
+		toggle(_video, !_callShare && showVideoButton);
 		if (_video) {
-			_video->setVisible(!_callShare && showVideoButton);
 			_video->setStyle(st::groupCallVideo, &st::groupCallVideoActive);
 			_video->moveToLeft(leftButtonLeft, buttonsTop);
 		}
+		toggle(_settings, !_callShare && !showVideoButton);
 		if (_settings) {
-			_settings->setVisible(!_callShare && !showVideoButton);
 			_settings->moveToLeft(leftButtonLeft, buttonsTop);
 		}
+		toggle(_hangup, true);
 		_hangup->moveToRight(leftButtonLeft, buttonsTop);
 	}
 	if (_controlsBackgroundNarrow) {

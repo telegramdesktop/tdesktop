@@ -61,7 +61,9 @@ void FillMenu(
 	not_null<Ui::DropdownMenu*> menu,
 	not_null<PeerData*> peer,
 	not_null<GroupCall*> call,
+	bool wide,
 	Fn<void()> chooseJoinAs,
+	Fn<void()> chooseShareScreenSource,
 	Fn<void(object_ptr<Ui::BoxContent>)> showBox);
 
 [[nodiscard]] base::unique_qptr<Ui::Menu::ItemBase> MakeAttentionAction(
