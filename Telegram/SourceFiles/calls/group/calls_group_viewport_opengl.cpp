@@ -641,7 +641,11 @@ void Viewport::RendererGL::validateNames() {
 	const auto count = int(tiles.size());
 	const auto factor = cIntRetinaFactor();
 	const auto nameHeight = st::semiboldFont->height * factor;
-	auto requests = std::vector<int>();
+	struct Request {
+		int index = 0;
+		bool updating = false;
+	};
+	auto requests = std::vector<Request>();
 	auto available = _names.image().width();
 	for (auto &data : _nameData) {
 		data.stale = true;
@@ -656,6 +660,7 @@ void Viewport::RendererGL::validateNames() {
 		return std::clamp(row->name().maxWidth(), 1, hasWidth) * factor;
 	};
 	for (auto i = 0; i != count; ++i) {
+		tiles[i]->row()->lazyInitialize(st::groupCallMembersListItem);
 		const auto width = nameWidth(i);
 		if (width <= 0) {
 			continue;
@@ -673,11 +678,11 @@ void Viewport::RendererGL::validateNames() {
 				|| width != j->rect.width()) {
 				const auto nameTop = index * nameHeight;
 				j->rect = QRect(0, nameTop, width, nameHeight);
-				requests.push_back(i);
+				requests.push_back({ .index = i, .updating = true });
 			}
 		} else {
 			_nameDataIndices[i] = -1;
-			requests.push_back(i);
+			requests.push_back({ .index = i, .updating = false });
 		}
 	}
 	if (requests.empty()) {
@@ -685,7 +690,8 @@ void Viewport::RendererGL::validateNames() {
 	}
 	auto maybeStaleAfter = begin(_nameData);
 	auto maybeStaleEnd = end(_nameData);
-	for (const auto i : requests) {
+	for (auto &request : requests) {
+		const auto i = request.index;
 		if (_nameDataIndices[i] >= 0) {
 			continue;
 		}
@@ -700,6 +706,7 @@ void Viewport::RendererGL::validateNames() {
 			index = (maybeStaleAfter - begin(_nameData));
 			maybeStaleAfter->peer = peer;
 			maybeStaleAfter->stale = false;
+			request.updating = true;
 		} else {
 			// This invalidates maybeStale*, but they're already equal.
 			_nameData.push_back({ .peer = peer });
@@ -716,11 +723,12 @@ void Viewport::RendererGL::validateNames() {
 	const auto imageSize = QSize(
 		available * factor,
 		_nameData.size() * nameHeight);
-	auto paintToImage = (image.size() != imageSize)
+	const auto allocate = (image.size() != imageSize);
+	auto paintToImage = allocate
 		? QImage(imageSize, QImage::Format_ARGB32_Premultiplied)
 		: base::take(image);
 	paintToImage.setDevicePixelRatio(factor);
-	if (image.isNull()) {
+	if (allocate && image.isNull()) {
 		paintToImage.fill(Qt::transparent);
 	}
 	{
@@ -747,18 +755,21 @@ void Viewport::RendererGL::validateNames() {
 			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 		}
 		p.setPen(st::groupCallVideoTextFg);
-		for (const auto i : requests) {
+		for (const auto &request : requests) {
+			const auto i = request.index;
 			const auto index = _nameDataIndices[i];
 			const auto &data = _nameData[_nameDataIndices[i]];
 			const auto row = tiles[i]->row();
-			p.setCompositionMode(QPainter::CompositionMode_Source);
-			p.fillRect(
-				0,
-				data.rect.y() / factor,
-				paintToImage.width() / factor,
-				nameHeight / factor,
-				Qt::transparent);
-			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+			if (request.updating) {
+				p.setCompositionMode(QPainter::CompositionMode_Source);
+				p.fillRect(
+					0,
+					data.rect.y() / factor,
+					paintToImage.width() / factor,
+					nameHeight / factor,
+					Qt::transparent);
+				p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+			}
 			row->name().drawLeftElided(
 				p,
 				0,
