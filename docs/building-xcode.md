@@ -133,7 +133,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
-    git checkout release/4.2
+    git checkout release/4.4
     CFLAGS=`freetype-config --cflags`
     LDFLAGS=`freetype-config --libs`
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
@@ -211,7 +211,6 @@ Go to ***BuildPath*** and run
     --enable-decoder=pcm_u32be \
     --enable-decoder=pcm_u32le \
     --enable-decoder=pcm_u8 \
-    --enable-decoder=pcm_zork \
     --enable-decoder=vorbis \
     --enable-decoder=wavpack \
     --enable-decoder=wmalossless \
