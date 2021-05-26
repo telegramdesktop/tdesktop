@@ -1,7 +1,13 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
 #pragma once
 
 #include "ui/wrap/slide_wrap.h"
-#include "facades.h"
 
 namespace Window {
 
@@ -10,11 +16,20 @@ class TopBarWrapWidget : public Ui::SlideWrap<Inner> {
 	using Parent = Ui::SlideWrap<Inner>;
 
 public:
-	TopBarWrapWidget(QWidget *parent, object_ptr<Inner> inner)
+	TopBarWrapWidget(
+		QWidget *parent,
+		object_ptr<Inner> inner,
+		rpl::producer<bool> oneColumnValue)
 	: Parent(parent, std::move(inner)) {
 		this->sizeValue(
-		) | rpl::start_with_next([this](const QSize &size) {
+		) | rpl::start_with_next([=](const QSize &size) {
 			updateShadowGeometry(size);
+		}, this->lifetime());
+
+		std::move(
+			oneColumnValue
+		) | rpl::start_with_next([=](bool oneColumn) {
+			_isOneColumn = oneColumn;
 		}, this->lifetime());
 	}
 
@@ -33,13 +48,15 @@ public:
 
 private:
 	void updateShadowGeometry(const QSize &size) {
-		auto skip = Adaptive::OneColumn() ? 0 : st::lineWidth;
+		const auto skip = _isOneColumn ? 0 : st::lineWidth;
 		this->entity()->setShadowGeometryToLeft(
 			skip,
 			size.height() - st::lineWidth,
 			size.width() - skip,
 			st::lineWidth);
 	}
+
+	bool _isOneColumn = false;
 
 };
 

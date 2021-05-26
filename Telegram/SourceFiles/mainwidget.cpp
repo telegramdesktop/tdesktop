@@ -922,7 +922,8 @@ void MainWidget::createPlayer() {
 	if (!_player) {
 		_player.create(
 			this,
-			object_ptr<Media::Player::Widget>(this, &session()));
+			object_ptr<Media::Player::Widget>(this, &session()),
+			_controller->adaptive().oneColumnValue());
 		rpl::merge(
 			_player->heightValue() | rpl::map_to(true),
 			_player->shownValue()
@@ -1088,7 +1089,8 @@ void MainWidget::setCurrentExportView(Export::View::PanelController *view) {
 void MainWidget::createExportTopBar(Export::View::Content &&data) {
 	_exportTopBar.create(
 		this,
-		object_ptr<Export::View::TopBar>(this, std::move(data)));
+		object_ptr<Export::View::TopBar>(this, std::move(data)),
+		_controller->adaptive().oneColumnValue());
 	_exportTopBar->entity()->clicks(
 	) | rpl::start_with_next([=] {
 		if (_currentExportView) {
