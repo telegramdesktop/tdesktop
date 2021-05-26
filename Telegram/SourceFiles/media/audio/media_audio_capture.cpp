@@ -709,8 +709,9 @@ bool Instance::Inner::writeFrame(AVFrame *frame) {
 			if (frame && packetsWritten == AVERROR_EOF) {
 				LOG(("Audio Error: EOF in packets received when EAGAIN was got in avcodec_send_frame()"));
 				fail();
+				return false;
 			}
-			return false;
+			return true;
 		} else if (!packetsWritten) {
 			LOG(("Audio Error: No packets received when EAGAIN was got in avcodec_send_frame()"));
 			fail();
