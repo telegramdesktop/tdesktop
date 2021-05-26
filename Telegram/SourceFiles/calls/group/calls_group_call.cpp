@@ -87,21 +87,38 @@ constexpr auto kFixLargeVideoDuration = 5 * crl::time(1000);
 	return (i == end(list)) ? 1 : (i->raisedHandRating + 1);
 }
 
-[[nodiscard]] std::string ParseVideoEndpoint(const QByteArray &json) {
+struct JoinVideoEndpoint {
+	std::string id;
+};
+
+struct JoinBroadcastStream {
+};
+
+using JoinClientFields = std::variant<
+	v::null_t,
+	JoinVideoEndpoint,
+	JoinBroadcastStream>;
+
+[[nodiscard]] JoinClientFields ParseJoinResponse(const QByteArray &json) {
 	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
 	const auto document = QJsonDocument::fromJson(json, &error);
 	if (error.error != QJsonParseError::NoError) {
 		LOG(("API Error: "
-			"Failed to parse presentation video params, error: %1."
+			"Failed to parse join response params, error: %1."
 			).arg(error.errorString()));
 		return {};
 	} else if (!document.isObject()) {
 		LOG(("API Error: "
-			"Not an object received in presentation video params."));
+			"Not an object received in join response params."));
 		return {};
 	}
+	if (document.object().value("stream").toBool()) {
+		return JoinBroadcastStream{};
+	}
 	const auto video = document.object().value("video").toObject();
-	return video.value("endpoint").toString().toStdString();
+	return JoinVideoEndpoint{
+		video.value("endpoint").toString().toStdString(),
+	};
 }
 
 [[nodiscard]] const std::string &EmptyString() {
@@ -1373,18 +1390,34 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 		setScreenInstanceMode(InstanceMode::Rtc);
 		data.vparams().match([&](const MTPDdataJSON &data) {
 			const auto json = data.vdata().v;
-			setScreenEndpoint(ParseVideoEndpoint(json));
+			const auto response = ParseJoinResponse(json);
+			const auto endpoint = std::get_if<JoinVideoEndpoint>(&response);
+			if (endpoint) {
+				setScreenEndpoint(endpoint->id);
+			} else {
+				LOG(("Call Error: Bad response for 'presentation' flag."));
+			}
 			_screenInstance->setJoinResponsePayload(json.toStdString());
 		});
 	} else {
 		if (!_instance) {
 			return;
 		}
-		setInstanceMode(InstanceMode::Rtc);
 		data.vparams().match([&](const MTPDdataJSON &data) {
 			const auto json = data.vdata().v;
-			setCameraEndpoint(ParseVideoEndpoint(json));
-			_instance->setJoinResponsePayload(json.toStdString());
+			const auto response = ParseJoinResponse(json);
+			const auto endpoint = std::get_if<JoinVideoEndpoint>(&response);
+			if (v::is<JoinBroadcastStream>(response)) {
+				if (!_broadcastDcId) {
+					LOG(("Api Error: Empty stream_dc_id in groupCall."));
+					_broadcastDcId = _peer->session().mtp().mainDcId();
+				}
+				setInstanceMode(InstanceMode::Stream);
+			} else {
+				setInstanceMode(InstanceMode::Rtc);
+				setCameraEndpoint(endpoint ? endpoint->id : std::string());
+				_instance->setJoinResponsePayload(json.toStdString());
+			}
 			updateRequestedVideoChannels();
 			checkMediaChannelDescriptions();
 		});
