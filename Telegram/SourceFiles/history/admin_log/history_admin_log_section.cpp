@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "window/themes/window_theme.h"
+#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "boxes/confirm_box.h"
 #include "base/timer.h"
@@ -295,8 +296,14 @@ Widget::Widget(
 	_fixedBar->show();
 
 	_fixedBarShadow->raise();
-	updateAdaptiveLayout();
-	subscribe(Adaptive::Changed(), [this] { updateAdaptiveLayout(); });
+
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		controller->adaptive().changed()
+	) | rpl::start_with_next([=] {
+		updateAdaptiveLayout();
+	}, lifetime());
 
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller, channel));
 	_inner->showSearchSignal(
@@ -334,7 +341,11 @@ void Widget::showFilter() {
 }
 
 void Widget::updateAdaptiveLayout() {
-	_fixedBarShadow->moveToLeft(Adaptive::OneColumn() ? 0 : st::lineWidth, _fixedBar->height());
+	_fixedBarShadow->moveToLeft(
+		controller()->adaptive().isOneColumn()
+			? 0
+			: st::lineWidth,
+		_fixedBar->height());
 }
 
 not_null<ChannelData*> Widget::channel() const {

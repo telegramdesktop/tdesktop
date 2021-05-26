@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toasts/common_toasts.h"
 #include "base/timer_rpl.h"
 #include "apiwrap.h"
+#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "base/event_filter.h"
@@ -127,8 +128,13 @@ PinnedWidget::PinnedWidget(
 	}, _topBar->lifetime());
 
 	_topBarShadow->raise();
-	updateAdaptiveLayout();
-	subscribe(Adaptive::Changed(), [=] { updateAdaptiveLayout(); });
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		controller->adaptive().changed()
+	) | rpl::start_with_next([=] {
+		updateAdaptiveLayout();
+	}, lifetime());
 
 	_inner = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
@@ -297,7 +303,7 @@ void PinnedWidget::scrollDownAnimationFinish() {
 
 void PinnedWidget::updateAdaptiveLayout() {
 	_topBarShadow->moveToLeft(
-		Adaptive::OneColumn() ? 0 : st::lineWidth,
+		controller()->adaptive().isOneColumn() ? 0 : st::lineWidth,
 		_topBar->height());
 }
 
@@ -387,12 +393,9 @@ void PinnedWidget::resizeEvent(QResizeEvent *e) {
 
 void PinnedWidget::recountChatWidth() {
 	auto layout = (width() < st::adaptiveChatWideWidth)
-		? Adaptive::ChatLayout::Normal
-		: Adaptive::ChatLayout::Wide;
-	if (layout != Global::AdaptiveChatLayout()) {
-		Global::SetAdaptiveChatLayout(layout);
-		Adaptive::Changed().notify(true);
-	}
+		? Window::AdaptiveModern::ChatLayout::Normal
+		: Window::AdaptiveModern::ChatLayout::Wide;
+	controller()->adaptive().setChatLayout(layout);
 }
 
 void PinnedWidget::setMessagesCount(int count) {

@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "data/data_web_page.h"
 #include "storage/storage_account.h"
-#include "facades.h"
 #include "apiwrap.h"
 #include "boxes/confirm_box.h"
 #include "history/history.h"
@@ -52,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/send_button.h"
 #include "ui/special_buttons.h"
+#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
 
@@ -1919,7 +1919,8 @@ void ComposeControls::toggleTabbedSelectorMode() {
 		return;
 	}
 	if (_tabbedPanel) {
-		if (_window->canShowThirdSection() && !Adaptive::OneColumn()) {
+		if (_window->canShowThirdSection()
+				&& !_window->adaptive().isOneColumn()) {
 			Core::App().settings().setTabbedSelectorSectionEnabled(true);
 			Core::App().saveSettingsDelayed();
 			pushTabbedSelectorToThirdSection(

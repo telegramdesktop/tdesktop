@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "apiwrap.h"
 #include "layout.h"
+#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "main/main_session.h"
@@ -2504,7 +2505,7 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 		if (!urls.isEmpty()) {
 			mimeData->setUrls(urls);
 		}
-		if (uponSelected && !Adaptive::OneColumn()) {
+		if (uponSelected && !_controller->adaptive().isOneColumn()) {
 			const auto canForwardAll = [&] {
 				for (const auto &[itemId, data] : _selected) {
 					if (!data.canForward) {

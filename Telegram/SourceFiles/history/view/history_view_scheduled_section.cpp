@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/edit_caption_box.h"
 #include "boxes/send_files_box.h"
+#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "base/event_filter.h"
@@ -125,8 +126,13 @@ ScheduledWidget::ScheduledWidget(
 	}, _topBar->lifetime());
 
 	_topBarShadow->raise();
-	updateAdaptiveLayout();
-	subscribe(Adaptive::Changed(), [=] { updateAdaptiveLayout(); });
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		controller->adaptive().changed()
+	) | rpl::start_with_next([=] {
+		updateAdaptiveLayout();
+	}, lifetime());
 
 	_inner = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
@@ -855,7 +861,7 @@ void ScheduledWidget::scrollDownAnimationFinish() {
 
 void ScheduledWidget::updateAdaptiveLayout() {
 	_topBarShadow->moveToLeft(
-		Adaptive::OneColumn() ? 0 : st::lineWidth,
+		controller()->adaptive().isOneColumn() ? 0 : st::lineWidth,
 		_topBar->height());
 }
 
