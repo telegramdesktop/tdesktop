@@ -818,14 +818,6 @@ groupCallSettingsSmall: CallButton(groupCallSettings) {
 	}
 	bgPosition: point(8px, 12px);
 }
-groupCallShareSmall: CallButton(groupCallShare) {
-	button: IconButton(groupCallShareInner) {
-		width: 60px;
-		height: 68px;
-		rippleAreaPosition: point(8px, 12px);
-	}
-	bgPosition: point(8px, 12px);
-}
 groupCallHangupSmall: CallButton(groupCallHangup) {
 	button: IconButton(groupCallHangupInner) {
 		width: 60px;
@@ -834,13 +826,12 @@ groupCallHangupSmall: CallButton(groupCallHangup) {
 	}
 	bgPosition: point(8px, 12px);
 }
-groupCallVideoSmall: CallButton(groupCallShareSmall) {
+groupCallVideoSmall: CallButton(groupCallSettingsSmall) {
 	button: IconButton(groupCallVideoInner) {
 		width: 60px;
 		height: 68px;
 		rippleAreaPosition: point(8px, 12px);
 	}
-	bgPosition: point(8px, 12px);
 }
 groupCallVideoActiveSmall: CallButton(groupCallVideoSmall) {
 	button: IconButton(groupCallVideoInnerActive) {
@@ -848,16 +839,14 @@ groupCallVideoActiveSmall: CallButton(groupCallVideoSmall) {
 		height: 68px;
 		rippleAreaPosition: point(8px, 12px);
 	}
-	bgPosition: point(8px, 12px);
 }
-groupCallScreenShareSmall: CallButton(groupCallShareSmall) {
+groupCallScreenShareSmall: CallButton(groupCallSettingsSmall) {
 	button: IconButton(groupCallSettingsInner) {
 		icon: icon {{ "calls/calls_present", groupCallIconFg }};
 		width: 60px;
 		height: 68px;
 		rippleAreaPosition: point(8px, 12px);
 	}
-	bgPosition: point(8px, 12px);
 }
 groupCallButtonSkip: 40px;
 groupCallButtonSkipSmall: 5px;

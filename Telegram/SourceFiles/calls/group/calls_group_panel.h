@@ -109,6 +109,8 @@ private:
 	void setupControlsBackgroundNarrow();
 	void showControls();
 	void refreshLeftButton();
+	void refreshVideoButtons(
+		std::optional<bool> overrideWideMode = std::nullopt);
 	void refreshTilesGeometry();
 	void toggleWideControls(bool shown);
 

@@ -387,6 +387,7 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 	_recordStartDate = data.vrecord_start_date().value_or_empty();
 	_scheduleDate = data.vschedule_date().value_or_empty();
 	_scheduleStartSubscribed = data.is_schedule_start_subscribed();
+	_canStartVideo = data.is_can_start_video();
 	_allParticipantsLoaded
 		= (_serverParticipantsCount == _participants.size());
 }

@@ -647,6 +647,7 @@ void Panel::initControls() {
 
 	initShareAction();
 	refreshLeftButton();
+	refreshVideoButtons();
 
 	_hangup->setClickedCallback([=] { endCall(); });
 
@@ -677,6 +678,7 @@ void Panel::initControls() {
 		}, _callLifetime);
 
 		std::move(started) | rpl::start_with_next([=] {
+			refreshVideoButtons();
 			updateButtonsStyles();
 			setupMembers();
 		}, _callLifetime);
@@ -727,14 +729,29 @@ void Panel::refreshLeftButton() {
 	}
 	const auto raw = _callShare ? _callShare.data() : _settings.data();
 	raw->show();
+	raw->setColorOverrides(_mute->colorOverrides());
+}
 
-	auto overrides = _mute->colorOverrides();
-	raw->setColorOverrides(rpl::duplicate(overrides));
-
+void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
+	const auto real = _call->lookupReal();
+	const auto canStartVideo = !_call->scheduleDate()
+		&& real
+		&& real->canStartVideo();
+	const auto create = overrideWideMode.value_or(mode() == PanelMode::Wide)
+		|| canStartVideo;
+	const auto created = _video && _screenShare;
+	if (created == create) {
+		return;
+	} else if (created) {
+		_video.destroy();
+		_screenShare.destroy();
+		updateButtonsGeometry();
+		return;
+	}
 	auto toggleableOverrides = [&](rpl::producer<bool> active) {
 		return rpl::combine(
 			std::move(active),
-			rpl::duplicate(overrides)
+			_mute->colorOverrides()
 		) | rpl::map([](bool active, Ui::CallButtonColors colors) {
 			if (active && colors.bg) {
 				colors.bg->setAlpha(kOverrideActiveColorBgAlpha);
@@ -772,6 +789,7 @@ void Panel::refreshLeftButton() {
 		}, _screenShare->lifetime());
 	}
 	updateButtonsStyles();
+	updateButtonsGeometry();
 }
 
 void Panel::initShareAction() {
@@ -1336,6 +1354,11 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 		_menuToggle.destroy();
 		_joinAsToggle.destroy();
 	}
+	real->canStartVideoValue(
+	) | rpl::start_with_next([=] {
+		refreshVideoButtons();
+	}, widget()->lifetime());
+
 	updateControlsGeometry();
 }
 
@@ -1666,6 +1689,7 @@ bool Panel::updateMode() {
 	if (!wide && _call->videoEndpointPinned()) {
 		_call->pinVideoEndpoint({});
 	}
+	refreshVideoButtons(wide);
 	_mode = mode;
 	if (_title) {
 		_title->setTextColorOverride(wide
@@ -1711,14 +1735,6 @@ void Panel::updateButtonsStyles() {
 		_settings->setStyle(wide
 			? st::groupCallSettingsSmall
 			: st::groupCallSettings);
-	}
-	if (_callShare) {
-		_callShare->setText(wide
-			? rpl::single(QString())
-			: tr::lng_group_call_share_button());
-		_callShare->setStyle(wide
-			? st::groupCallShareSmall
-			: st::groupCallShare);
 	}
 	_hangup->setText(wide
 		? rpl::single(QString())
@@ -1898,7 +1914,6 @@ void Panel::trackControls(bool track) {
 	trackOne(_video);
 	trackOne(_screenShare);
 	trackOne(_settings);
-	trackOne(_callShare);
 	trackOne(_hangup);
 	trackOne(_controlsBackgroundWide);
 }
@@ -1935,6 +1950,9 @@ void Panel::updateControlsGeometry() {
 }
 
 void Panel::updateButtonsGeometry() {
+	if (widget()->size().isEmpty() || (!_settings && !_callShare)) {
+		return;
+	}
 	const auto toggle = [&](bool shown) {
 		const auto toggleOne = [&](auto &widget) {
 			if (widget && widget->isHidden() == shown) {
@@ -1949,6 +1967,11 @@ void Panel::updateButtonsGeometry() {
 		toggleOne(_hangup);
 	};
 	if (mode() == PanelMode::Wide) {
+		Assert(_video != nullptr);
+		Assert(_screenShare != nullptr);
+		Assert(_settings != nullptr);
+		Assert(_callShare == nullptr);
+
 		const auto shown = _wideControlsAnimation.value(
 			_wideControlsShown ? 1. : 0.);
 		toggle(shown > 0.);
@@ -1964,10 +1987,10 @@ void Panel::updateButtonsGeometry() {
 		const auto addSkip = st::callMuteButtonSmall.active.outerRadius;
 		const auto muteSize = _mute->innerSize().width() + 2 * addSkip;
 		const auto skip = st::groupCallButtonSkipSmall;
-		const auto fullWidth = muteSize
-			+ (_video ? _video->width() + skip : 0)
-			+ (_screenShare ? _screenShare->width() + skip : 0)
-			+ (_settings ? _settings : _callShare)->width() + skip
+		const auto fullWidth = (_video->width() + skip)
+			+ (_screenShare->width() + skip)
+			+ muteSize
+			+ (_settings ->width() + skip)
 			+ _hangup->width() + skip;
 		const auto membersSkip = st::groupCallNarrowSkip;
 		const auto membersWidth = st::groupCallNarrowMembersWidth
@@ -1976,27 +1999,17 @@ void Panel::updateButtonsGeometry() {
 			- membersWidth
 			- membersSkip
 			- fullWidth) / 2;
-		if (_screenShare) {
-			_screenShare->setVisible(true);
-			_screenShare->moveToLeft(left, buttonsTop);
-			left += _screenShare->width() + skip;
-		}
-		if (_video) {
-			_video->moveToLeft(left, buttonsTop);
-			left += _video->width() + skip;
-		}
+		_screenShare->setVisible(true);
+		_screenShare->moveToLeft(left, buttonsTop);
+		left += _screenShare->width() + skip;
+		_screenShare->setVisible(true);
+		_video->moveToLeft(left, buttonsTop);
+		left += _video->width() + skip;
 		_mute->moveInner({ left + addSkip, buttonsTop + addSkip });
 		left += muteSize + skip;
-		if (_settings) {
-			_settings->setVisible(true);
-			_settings->moveToLeft(left, buttonsTop);
-			left += _settings->width() + skip;
-		}
-		if (_callShare) {
-			_callShare->setVisible(true);
-			_callShare->moveToLeft(left, buttonsTop);
-			left += _callShare->width() + skip;
-		}
+		_settings->setVisible(true);
+		_settings->moveToLeft(left, buttonsTop);
+		left += _settings->width() + skip;
 		_hangup->moveToLeft(left, buttonsTop);
 		left += _hangup->width();
 		if (_controlsBackgroundWide) {
@@ -2024,17 +2037,17 @@ void Panel::updateButtonsGeometry() {
 		if (_screenShare) {
 			_screenShare->setVisible(false);
 		}
+		if (_callShare) {
+			_callShare->moveToLeft(leftButtonLeft, buttonsTop);
+		}
 		if (_video) {
+			_video->setVisible(!_callShare);
 			_video->setStyle(st::groupCallVideo, &st::groupCallVideoActive);
 			_video->moveToLeft(leftButtonLeft, buttonsTop);
 		}
 		if (_settings) {
-			_settings->setVisible(!_video);
+			_settings->setVisible(!_callShare && !_video);
 			_settings->moveToLeft(leftButtonLeft, buttonsTop);
-		}
-		if (_callShare) {
-			_callShare->setVisible(!_video);
-			_callShare->moveToLeft(leftButtonLeft, buttonsTop);
 		}
 		_hangup->moveToRight(leftButtonLeft, buttonsTop);
 	}
