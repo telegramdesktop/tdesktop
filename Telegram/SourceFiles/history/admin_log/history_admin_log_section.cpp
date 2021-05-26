@@ -114,7 +114,8 @@ FixedBar::FixedBar(
 , _backButton(
 	this,
 	&controller->session(),
-	tr::lng_admin_log_title_all(tr::now))
+	tr::lng_admin_log_title_all(tr::now),
+	controller->adaptive().oneColumnValue())
 , _search(this, st::topBarSearch)
 , _cancel(this, st::historyAdminLogCancelSearch)
 , _filter(this, tr::lng_admin_log_filter(), st::topBarButton) {
