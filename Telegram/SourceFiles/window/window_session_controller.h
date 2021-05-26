@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 #include "ui/effects/animation_value.h"
+#include "window/window_adaptive.h"
 
 class PhotoData;
 class MainWidget;
@@ -53,7 +54,6 @@ class MainWindow;
 class SectionMemento;
 class Controller;
 class FiltersMenu;
-class AdaptiveModern;
 
 enum class GifPauseReason {
 	Any           = 0,
@@ -287,7 +287,7 @@ public:
 		int dialogsWidth;
 		int chatWidth;
 		int thirdWidth;
-		Adaptive::WindowLayout windowLayout;
+		AdaptiveModern::WindowLayout windowLayout;
 	};
 	[[nodiscard]] ColumnLayout computeColumnLayout() const;
 	int dialogsSmallColumnWidth() const;

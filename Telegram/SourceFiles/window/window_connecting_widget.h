@@ -92,6 +92,4 @@ private:
 
 };
 
-rpl::producer<bool> AdaptiveIsOneColumn();
-
 } // namespace Window

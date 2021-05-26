@@ -344,6 +344,10 @@ private:
 
 	void handleHistoryBack();
 
+	bool isOneColumn() const;
+	bool isNormalColumn() const;
+	bool isThreeColumn() const;
+
 	const not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
 

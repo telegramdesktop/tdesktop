@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/add_contact_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "boxes/peer_list_controllers.h"
+#include "window/window_adaptive.h"
 #include "window/window_controller.h"
 #include "window/main_window.h"
 #include "window/window_filters_menu.h"
@@ -802,7 +803,7 @@ bool SessionController::forceWideDialogs() const {
 }
 
 auto SessionController::computeColumnLayout() const -> ColumnLayout {
-	auto layout = Adaptive::WindowLayout::OneColumn;
+	auto layout = AdaptiveModern::WindowLayout::OneColumn;
 
 	auto bodyWidth = widget()->bodyWidget()->width() - filtersWidth();
 	auto dialogsWidth = 0, chatWidth = 0, thirdWidth = 0;
@@ -831,12 +832,12 @@ auto SessionController::computeColumnLayout() const -> ColumnLayout {
 	if (useOneColumnLayout()) {
 		dialogsWidth = chatWidth = bodyWidth;
 	} else if (useNormalLayout()) {
-		layout = Adaptive::WindowLayout::Normal;
+		layout = AdaptiveModern::WindowLayout::Normal;
 		dialogsWidth = countDialogsWidthFromRatio(bodyWidth);
 		accumulate_min(dialogsWidth, bodyWidth - st::columnMinimalWidthMain);
 		chatWidth = bodyWidth - dialogsWidth;
 	} else {
-		layout = Adaptive::WindowLayout::ThreeColumn;
+		layout = AdaptiveModern::WindowLayout::ThreeColumn;
 		dialogsWidth = countDialogsWidthFromRatio(bodyWidth);
 		thirdWidth = countThirdColumnWidthFromRatio(bodyWidth);
 		auto shrink = shrinkDialogsAndThirdColumns(
@@ -906,7 +907,7 @@ bool SessionController::takeThirdSectionFromLayer() {
 }
 
 void SessionController::resizeForThirdSection() {
-	if (Adaptive::ThreeColumn()) {
+	if (adaptive().isThreeColumn()) {
 		return;
 	}
 
@@ -959,7 +960,7 @@ void SessionController::closeThirdSection() {
 	auto &settings = Core::App().settings();
 	auto newWindowSize = widget()->size();
 	auto layout = computeColumnLayout();
-	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
+	if (layout.windowLayout == AdaptiveModern::WindowLayout::ThreeColumn) {
 		auto noResize = widget()->isFullScreen()
 			|| widget()->isMaximized();
 		auto savedValue = settings.thirdSectionExtendedBy();
@@ -1182,7 +1183,7 @@ void SessionController::setActiveChatsFilter(FilterId id) {
 	if (id) {
 		closeFolder();
 	}
-	if (Adaptive::OneColumn()) {
+	if (adaptive().isOneColumn()) {
 		Ui::showChatsList(&session());
 	}
 }

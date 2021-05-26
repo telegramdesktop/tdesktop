@@ -380,10 +380,13 @@ MainWidget::MainWidget(
 		}
 	});
 
-	subscribe(Adaptive::Changed(), [this]() { handleAdaptiveLayoutUpdate(); });
+	_controller->adaptive().changed(
+	) | rpl::start_with_next([=] {
+		handleAdaptiveLayoutUpdate();
+	}, lifetime());
 
 	_dialogs->show();
-	if (Adaptive::OneColumn()) {
+	if (isOneColumn()) {
 		_history->hide();
 	} else {
 		_history->show();
@@ -416,7 +419,7 @@ void MainWidget::setupConnectingWidget() {
 	_connecting = std::make_unique<Window::ConnectionState>(
 		this,
 		&session().account(),
-		Window::AdaptiveIsOneColumn() | rpl::map(!_1));
+		_controller->adaptive().oneColumnValue() | rpl::map(!_1));
 }
 
 not_null<Media::Player::FloatDelegate*> MainWidget::floatPlayerDelegate() {
@@ -429,7 +432,7 @@ not_null<Ui::RpWidget*> MainWidget::floatPlayerWidget() {
 
 auto MainWidget::floatPlayerGetSection(Window::Column column)
 -> not_null<Media::Player::FloatSectionDelegate*> {
-	if (Adaptive::ThreeColumn()) {
+	if (isThreeColumn()) {
 		if (column == Window::Column::First) {
 			return _dialogs;
 		} else if (column == Window::Column::Second
@@ -440,7 +443,7 @@ auto MainWidget::floatPlayerGetSection(Window::Column column)
 			return _history;
 		}
 		return _thirdSection;
-	} else if (Adaptive::Normal()) {
+	} else if (isNormalColumn()) {
 		if (column == Window::Column::First) {
 			return _dialogs;
 		} else if (_mainSection) {
@@ -448,11 +451,11 @@ auto MainWidget::floatPlayerGetSection(Window::Column column)
 		}
 		return _history;
 	}
-	if (Adaptive::OneColumn() && selectingPeer()) {
+	if (isOneColumn() && selectingPeer()) {
 		return _dialogs;
 	} else if (_mainSection) {
 		return _mainSection;
-	} else if (!Adaptive::OneColumn() || _history->peer()) {
+	} else if (!isOneColumn() || _history->peer()) {
 		return _history;
 	}
 	return _dialogs;
@@ -461,7 +464,7 @@ auto MainWidget::floatPlayerGetSection(Window::Column column)
 void MainWidget::floatPlayerEnumerateSections(Fn<void(
 		not_null<Media::Player::FloatSectionDelegate*> widget,
 		Window::Column widgetColumn)> callback) {
-	if (Adaptive::ThreeColumn()) {
+	if (isThreeColumn()) {
 		callback(_dialogs, Window::Column::First);
 		if (_mainSection) {
 			callback(_mainSection, Window::Column::Second);
@@ -471,7 +474,7 @@ void MainWidget::floatPlayerEnumerateSections(Fn<void(
 		if (_thirdSection) {
 			callback(_thirdSection, Window::Column::Third);
 		}
-	} else if (Adaptive::Normal()) {
+	} else if (isNormalColumn()) {
 		callback(_dialogs, Window::Column::First);
 		if (_mainSection) {
 			callback(_mainSection, Window::Column::Second);
@@ -479,11 +482,11 @@ void MainWidget::floatPlayerEnumerateSections(Fn<void(
 			callback(_history, Window::Column::Second);
 		}
 	} else {
-		if (Adaptive::OneColumn() && selectingPeer()) {
+		if (isOneColumn() && selectingPeer()) {
 			callback(_dialogs, Window::Column::First);
 		} else if (_mainSection) {
 			callback(_mainSection, Window::Column::Second);
-		} else if (!Adaptive::OneColumn() || _history->peer()) {
+		} else if (!isOneColumn() || _history->peer()) {
 			callback(_history, Window::Column::Second);
 		} else {
 			callback(_dialogs, Window::Column::First);
@@ -645,7 +648,7 @@ void MainWidget::clearHider(not_null<Window::HistoryHider*> instance) {
 	_hider.release();
 	controller()->setSelectingPeer(false);
 
-	if (Adaptive::OneColumn()) {
+	if (isOneColumn()) {
 		if (_mainSection || (_history->peer() && _history->peer()->id)) {
 			auto animationParams = ([=] {
 				if (_mainSection) {
@@ -693,7 +696,7 @@ void MainWidget::hiderLayer(base::unique_qptr<Window::HistoryHider> hider) {
 		_dialogs->onCancelSearch();
 	}, _hider->lifetime());
 
-	if (Adaptive::OneColumn()) {
+	if (isOneColumn()) {
 		dialogsToUp();
 
 		_hider->hide();
@@ -873,7 +876,7 @@ bool MainWidget::insertBotCommand(const QString &cmd) {
 
 void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
 	_dialogs->searchMessages(query, inChat);
-	if (Adaptive::OneColumn()) {
+	if (isOneColumn()) {
 		Ui::showChatsList(&session());
 	} else {
 		_dialogs->setInnerFocus();
@@ -1541,18 +1544,18 @@ void MainWidget::ui_showPeerHistory(
 			return false;
 		}
 		if (!peerId) {
-			if (Adaptive::OneColumn()) {
+			if (isOneColumn()) {
 				return _dialogs->isHidden();
 			} else {
 				return false;
 			}
 		}
 		if (_history->isHidden()) {
-			if (!Adaptive::OneColumn() && way == Way::ClearStack) {
+			if (!isOneColumn() && way == Way::ClearStack) {
 				return false;
 			}
 			return (_mainSection != nullptr)
-				|| (Adaptive::OneColumn() && !_dialogs->isHidden());
+				|| (isOneColumn() && !_dialogs->isHidden());
 		}
 		if (back || way == Way::Forward) {
 			return true;
@@ -1573,7 +1576,7 @@ void MainWidget::ui_showPeerHistory(
 	_history->showHistory(peerId, showAtMsgId);
 
 	auto noPeer = !_history->peer();
-	auto onlyDialogs = noPeer && Adaptive::OneColumn();
+	auto onlyDialogs = noPeer && isOneColumn();
 	_mainSection.destroy();
 
 	updateControlsGeometry();
@@ -1597,7 +1600,7 @@ void MainWidget::ui_showPeerHistory(
 		if (nowActivePeer && nowActivePeer != wasActivePeer) {
 			_viewsIncremented.remove(nowActivePeer);
 		}
-		if (Adaptive::OneColumn() && !_dialogs->isHidden()) {
+		if (isOneColumn() && !_dialogs->isHidden()) {
 			_dialogs->hide();
 		}
 		if (!_a_show.animating()) {
@@ -1711,7 +1714,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 		bool willHaveTopBarShadow) {
 	Window::SectionSlideParams result;
 	result.withTopBarShadow = willHaveTopBarShadow;
-	if (selectingPeer() && Adaptive::OneColumn()) {
+	if (selectingPeer() && isOneColumn()) {
 		result.withTopBarShadow = false;
 	} else if (_mainSection) {
 		if (!_mainSection->hasTopBarShadow()) {
@@ -1735,7 +1738,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 	}
 
 	auto sectionTop = getMainSectionTop();
-	if (selectingPeer() && Adaptive::OneColumn()) {
+	if (selectingPeer() && isOneColumn()) {
 		result.oldContentCache = Ui::GrabWidget(this, QRect(
 			0,
 			sectionTop,
@@ -1743,7 +1746,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 			height() - sectionTop));
 	} else if (_mainSection) {
 		result.oldContentCache = _mainSection->grabForShowAnimation(result);
-	} else if (!Adaptive::OneColumn() || !_history->isHidden()) {
+	} else if (!isOneColumn() || !_history->isHidden()) {
 		result.oldContentCache = _history->grabForShowAnimation(result);
 	} else {
 		result.oldContentCache = Ui::GrabWidget(this, QRect(
@@ -1791,7 +1794,7 @@ void MainWidget::showNewSection(
 		thirdSectionTop,
 		st::columnMinimalWidthThird,
 		height() - thirdSectionTop);
-	auto newThirdSection = (Adaptive::ThreeColumn() && params.thirdColumn)
+	auto newThirdSection = (isThreeColumn() && params.thirdColumn)
 		? memento->createWidget(
 			this,
 			_controller,
@@ -1827,7 +1830,7 @@ void MainWidget::showNewSection(
 		: memento->createWidget(
 			this,
 			_controller,
-			Adaptive::OneColumn() ? Column::First : Column::Second,
+			isOneColumn() ? Column::First : Column::Second,
 			newMainGeometry);
 	Assert(newMainSection || newThirdSection);
 
@@ -1838,9 +1841,9 @@ void MainWidget::showNewSection(
 			|| memento->instant()) {
 			return false;
 		}
-		if (!Adaptive::OneColumn() && params.way == SectionShow::Way::ClearStack) {
+		if (!isOneColumn() && params.way == SectionShow::Way::ClearStack) {
 			return false;
-		} else if (Adaptive::OneColumn()
+		} else if (isOneColumn()
 			|| (newThirdSection && _thirdSection)
 			|| (newMainSection && isMainSectionShown())) {
 			return true;
@@ -1876,7 +1879,7 @@ void MainWidget::showNewSection(
 		_history->finishAnimating();
 		_history->showHistory(0, 0);
 		_history->hide();
-		if (Adaptive::OneColumn()) _dialogs->hide();
+		if (isOneColumn()) _dialogs->hide();
 	}
 
 	if (animationParams) {
@@ -1884,7 +1887,7 @@ void MainWidget::showNewSection(
 		auto direction = (back || settingSection->forceAnimateBack())
 			? Window::SlideDirection::FromLeft
 			: Window::SlideDirection::FromRight;
-		if (Adaptive::OneColumn()) {
+		if (isOneColumn()) {
 			_controller->removeLayerBlackout();
 		}
 		settingSection->showAnimated(direction, animationParams);
@@ -2054,7 +2057,7 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	}
 
 	auto sectionTop = getMainSectionTop();
-	if (Adaptive::OneColumn()) {
+	if (isOneColumn()) {
 		result = Ui::GrabWidget(this, QRect(
 			0,
 			sectionTop,
@@ -2191,7 +2194,7 @@ void MainWidget::showAll() {
 		cSetPasswordRecovered(false);
 		Ui::show(Box<InformBox>(tr::lng_signin_password_removed(tr::now)));
 	}
-	if (Adaptive::OneColumn()) {
+	if (isOneColumn()) {
 		_sideShadow->hide();
 		if (_hider) {
 			_hider->hide();
@@ -2266,7 +2269,7 @@ void MainWidget::updateControlsGeometry() {
 	if (!_a_dialogsWidth.animating()) {
 		_dialogs->stopWidthAnimation();
 	}
-	if (Adaptive::ThreeColumn()) {
+	if (isThreeColumn()) {
 		if (!_thirdSection
 			&& !_controller->takeThirdSectionFromLayer()) {
 			auto params = Window::SectionShow(
@@ -2294,7 +2297,7 @@ void MainWidget::updateControlsGeometry() {
 	}
 	auto mainSectionTop = getMainSectionTop();
 	auto dialogsWidth = qRound(_a_dialogsWidth.value(_dialogsWidth));
-	if (Adaptive::OneColumn()) {
+	if (isOneColumn()) {
 		if (_callTopBar) {
 			_callTopBar->resizeToWidth(dialogsWidth);
 			_callTopBar->moveToLeft(0, 0);
@@ -2375,7 +2378,7 @@ void MainWidget::updateControlsGeometry() {
 }
 
 void MainWidget::refreshResizeAreas() {
-	if (!Adaptive::OneColumn()) {
+	if (!isOneColumn()) {
 		ensureFirstColumnResizeAreaCreated();
 		_firstColumnResizeArea->setGeometryToLeft(
 			_history->x(),
@@ -2386,7 +2389,7 @@ void MainWidget::refreshResizeAreas() {
 		_firstColumnResizeArea.destroy();
 	}
 
-	if (Adaptive::ThreeColumn() && _thirdSection) {
+	if (isThreeColumn() && _thirdSection) {
 		ensureThirdColumnResizeAreaCreated();
 		_thirdColumnResizeArea->setGeometryToLeft(
 			_thirdSection->x(),
@@ -2424,7 +2427,7 @@ void MainWidget::ensureFirstColumnResizeAreaCreated() {
 		Core::App().settings().setDialogsWidthRatio(newRatio);
 	};
 	auto moveFinishedCallback = [=] {
-		if (Adaptive::OneColumn()) {
+		if (isOneColumn()) {
 			return;
 		}
 		if (Core::App().settings().dialogsWidthRatio() > 0) {
@@ -2448,7 +2451,7 @@ void MainWidget::ensureThirdColumnResizeAreaCreated() {
 		Core::App().settings().setThirdColumnWidth(newWidth);
 	};
 	auto moveFinishedCallback = [=] {
-		if (!Adaptive::ThreeColumn() || !_thirdSection) {
+		if (!isThreeColumn() || !_thirdSection) {
 			return;
 		}
 		Core::App().settings().setThirdColumnWidth(std::clamp(
@@ -2523,7 +2526,7 @@ void MainWidget::updateThirdColumnToCurrentChat(
 		//
 		// Like in _controller->showPeerInfo()
 		//
-		if (Adaptive::ThreeColumn()
+		if (isThreeColumn()
 			&& !settings.thirdSectionInfoEnabled()) {
 			settings.setThirdSectionInfoEnabled(true);
 			Core::App().saveSettingsDelayed();
@@ -2539,7 +2542,7 @@ void MainWidget::updateThirdColumnToCurrentChat(
 			? _mainSection->pushTabbedSelectorToThirdSection(peer, params)
 			: _history->pushTabbedSelectorToThirdSection(peer, params);
 	};
-	if (Adaptive::ThreeColumn()
+	if (isThreeColumn()
 		&& settings.tabbedSelectorSectionEnabled()
 		&& key) {
 		if (!canWrite) {
@@ -2559,7 +2562,7 @@ void MainWidget::updateThirdColumnToCurrentChat(
 				_thirdShadow.destroy();
 				updateControlsGeometry();
 			}
-		} else if (Adaptive::ThreeColumn()
+		} else if (isThreeColumn()
 			&& settings.thirdSectionInfoEnabled()) {
 			switchInfoFast();
 		}
@@ -2626,7 +2629,7 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 
 void MainWidget::handleAdaptiveLayoutUpdate() {
 	showAll();
-	_sideShadow->setVisible(!Adaptive::OneColumn());
+	_sideShadow->setVisible(!isOneColumn());
 	if (_player) {
 		_player->updateAdaptiveLayout();
 	}
@@ -2653,7 +2656,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 
 	// Check if we are in a single-column layout in a wide enough window
 	// for the normal layout. If so, switch to the normal layout.
-	if (layout.windowLayout == Adaptive::WindowLayout::OneColumn) {
+	if (layout.windowLayout == Window::AdaptiveModern::WindowLayout::OneColumn) {
 		auto chatWidth = layout.chatWidth;
 		//if (session().settings().tabbedSelectorSectionEnabled()
 		//	&& chatWidth >= _history->minimalWidthForTabbedSelectorSection()) {
@@ -2663,7 +2666,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 			+ st::columnMinimalWidthMain;
 		if (chatWidth >= minimalNormalWidth) {
 			// Switch layout back to normal in a wide enough window.
-			layout.windowLayout = Adaptive::WindowLayout::Normal;
+			layout.windowLayout = Window::AdaptiveModern::WindowLayout::Normal;
 			layout.dialogsWidth = st::columnMinimalWidthLeft;
 			layout.chatWidth = layout.bodyWidth - layout.dialogsWidth;
 			dialogsWidthRatio = float64(layout.dialogsWidth) / layout.bodyWidth;
@@ -2673,7 +2676,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 	// Check if we are going to create the third column and shrink the
 	// dialogs widget to provide a wide enough chat history column.
 	// Don't shrink the column on the first call, when window is inited.
-	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn
+	if (layout.windowLayout == Window::AdaptiveModern::WindowLayout::ThreeColumn
 		&& _controller->widget()->positionInited()) {
 		//auto chatWidth = layout.chatWidth;
 		//if (_history->willSwitchToTabbedSelectorWithWidth(chatWidth)) {
@@ -2694,17 +2697,14 @@ void MainWidget::updateWindowAdaptiveLayout() {
 
 	Core::App().settings().setDialogsWidthRatio(dialogsWidthRatio);
 
-	auto useSmallColumnWidth = !Adaptive::OneColumn()
+	auto useSmallColumnWidth = !isOneColumn()
 		&& !dialogsWidthRatio
 		&& !_controller->forceWideDialogs();
 	_dialogsWidth = useSmallColumnWidth
 		? _controller->dialogsSmallColumnWidth()
 		: layout.dialogsWidth;
 	_thirdColumnWidth = layout.thirdWidth;
-	if (layout.windowLayout != Global::AdaptiveWindowLayout()) {
-		Global::SetAdaptiveWindowLayout(layout.windowLayout);
-		Adaptive::Changed().notify(true);
-	}
+	_controller->adaptive().setWindowLayout(layout.windowLayout);
 }
 
 int MainWidget::backgroundFromY() const {
@@ -2716,7 +2716,7 @@ void MainWidget::searchInChat(Dialogs::Key chat) {
 		_controller->closeFolder();
 	}
 	_dialogs->searchInChat(chat);
-	if (Adaptive::OneColumn()) {
+	if (isOneColumn()) {
 		Ui::showChatsList(&session());
 	} else {
 		_dialogs->setInnerFocus();
@@ -2776,6 +2776,18 @@ int32 MainWidget::dlgsWidth() const {
 
 void MainWidget::saveFieldToHistoryLocalDraft() {
 	_history->saveFieldToHistoryLocalDraft();
+}
+
+bool MainWidget::isOneColumn() const {
+	return _controller->adaptive().isOneColumn();
+}
+
+bool MainWidget::isNormalColumn() const {
+	return _controller->adaptive().isNormal();
+}
+
+bool MainWidget::isThreeColumn() const {
+	return _controller->adaptive().isThreeColumn();
 }
 
 namespace App {

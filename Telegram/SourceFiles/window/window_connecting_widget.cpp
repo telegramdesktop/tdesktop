@@ -623,14 +623,4 @@ void ConnectionState::Widget::refreshRetryLink(bool hasRetry) {
 	}
 }
 
-rpl::producer<bool> AdaptiveIsOneColumn() {
-	return rpl::single(
-		Adaptive::OneColumn()
-	) | rpl::then(base::ObservableViewer(
-		Adaptive::Changed()
-	) | rpl::map([] {
-		return Adaptive::OneColumn();
-	}));
-}
-
 } // namespace Window
