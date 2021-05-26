@@ -724,14 +724,16 @@ void MainWidget::showForwardLayer(MessageIdsList &&items) {
 	hiderLayer(base::make_unique_q<Window::HistoryHider>(
 		this,
 		tr::lng_forward_choose(tr::now),
-		std::move(callback)));
+		std::move(callback),
+		_controller->adaptive().oneColumnValue()));
 }
 
 void MainWidget::showSendPathsLayer() {
 	hiderLayer(base::make_unique_q<Window::HistoryHider>(
 		this,
 		tr::lng_forward_choose(tr::now),
-		[=](PeerId peer) { return sendPaths(peer); }));
+		[=](PeerId peer) { return sendPaths(peer); },
+		_controller->adaptive().oneColumnValue()));
 	if (_hider) {
 		connect(_hider, &QObject::destroyed, [] {
 			cSetSendPaths(QStringList());
@@ -788,7 +790,8 @@ void MainWidget::shareUrlLayer(const QString &url, const QString &text) {
 	hiderLayer(base::make_unique_q<Window::HistoryHider>(
 		this,
 		tr::lng_forward_choose(tr::now),
-		std::move(callback)));
+		std::move(callback),
+		_controller->adaptive().oneColumnValue()));
 }
 
 void MainWidget::inlineSwitchLayer(const QString &botAndQuery) {
@@ -798,7 +801,8 @@ void MainWidget::inlineSwitchLayer(const QString &botAndQuery) {
 	hiderLayer(base::make_unique_q<Window::HistoryHider>(
 		this,
 		tr::lng_inline_switch_choose(tr::now),
-		std::move(callback)));
+		std::move(callback),
+		_controller->adaptive().oneColumnValue()));
 }
 
 bool MainWidget::selectingPeer() const {
