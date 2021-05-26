@@ -327,6 +327,7 @@ public:
 	}
 	static constexpr auto kSpeakLevelThreshold = 0.2;
 
+	[[nodiscard]] bool mutedByAdmin() const;
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
 	void setCurrentVideoDevice(const QString &deviceId);
 	[[nodiscard]] bool isSharingScreen() const;

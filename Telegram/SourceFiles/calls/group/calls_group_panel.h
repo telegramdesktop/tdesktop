@@ -113,6 +113,7 @@ private:
 		std::optional<bool> overrideWideMode = std::nullopt);
 	void refreshTilesGeometry();
 	void toggleWideControls(bool shown);
+	[[nodiscard]] bool videoButtonInNarrowMode() const;
 
 	void endCall();
 

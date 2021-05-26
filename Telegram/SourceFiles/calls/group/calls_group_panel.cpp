@@ -774,6 +774,10 @@ void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
 		) | rpl::start_with_next([=](bool sharing) {
 			_video->setProgress(sharing ? 1. : 0.);
 		}, _video->lifetime());
+		_call->mutedValue(
+		) | rpl::start_with_next([=] {
+			updateButtonsGeometry();
+		}, _video->lifetime());
 	}
 	if (!_screenShare) {
 		_screenShare.create(widget(), st::groupCallScreenShareSmall);
@@ -2040,13 +2044,14 @@ void Panel::updateButtonsGeometry() {
 		if (_callShare) {
 			_callShare->moveToLeft(leftButtonLeft, buttonsTop);
 		}
+		const auto showVideoButton = videoButtonInNarrowMode();
 		if (_video) {
-			_video->setVisible(!_callShare);
+			_video->setVisible(!_callShare && showVideoButton);
 			_video->setStyle(st::groupCallVideo, &st::groupCallVideoActive);
 			_video->moveToLeft(leftButtonLeft, buttonsTop);
 		}
 		if (_settings) {
-			_settings->setVisible(!_callShare && !_video);
+			_settings->setVisible(!_callShare && !showVideoButton);
 			_settings->moveToLeft(leftButtonLeft, buttonsTop);
 		}
 		_hangup->moveToRight(leftButtonLeft, buttonsTop);
@@ -2071,6 +2076,10 @@ void Panel::updateButtonsGeometry() {
 			width,
 			st::groupCallMembersBottomSkip);
 	}
+}
+
+bool Panel::videoButtonInNarrowMode() const {
+	return (_video != nullptr) && !_call->mutedByAdmin();
 }
 
 void Panel::updateMembersGeometry() {

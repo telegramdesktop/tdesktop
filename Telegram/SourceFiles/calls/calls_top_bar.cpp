@@ -280,8 +280,7 @@ void TopBar::initControls() {
 		if (const auto call = _call.get()) {
 			call->setMuted(!call->muted());
 		} else if (const auto group = _groupCall.get()) {
-			if (group->muted() == MuteState::ForceMuted
-				|| group->muted() == MuteState::RaisedHand) {
+			if (group->mutedByAdmin()) {
 				Ui::Toast::Show(tr::lng_group_call_force_muted_sub(tr::now));
 			} else {
 				group->setMuted((group->muted() == MuteState::Muted)

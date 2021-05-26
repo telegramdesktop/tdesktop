@@ -467,8 +467,16 @@ QString GroupCall::screenSharingDeviceId() const {
 	return isSharingScreen() ? _screenDeviceId : QString();
 }
 
+bool GroupCall::mutedByAdmin() const {
+	const auto mute = muted();
+	return mute == MuteState::ForceMuted || mute == MuteState::RaisedHand;
+}
+
 void GroupCall::toggleVideo(bool active) {
-	if (!_instance || !_id) {
+	if (!_instance
+		|| !_id
+		|| (active && mutedByAdmin())
+		|| (!active && !_cameraOutgoing)) {
 		return;
 	}
 	ensureOutgoingVideo();
@@ -481,6 +489,12 @@ void GroupCall::toggleVideo(bool active) {
 }
 
 void GroupCall::toggleScreenSharing(std::optional<QString> uniqueId) {
+	if (!_instance
+		|| !_id
+		|| (uniqueId && mutedByAdmin())
+		|| (!uniqueId && !_screenOutgoing)) {
+		return;
+	}
 	ensureOutgoingVideo();
 	if (!uniqueId) {
 		_screenOutgoing->setState(Webrtc::VideoState::Inactive);
@@ -853,9 +867,7 @@ void GroupCall::rejoin() {
 }
 
 void GroupCall::rejoinWithHash(const QString &hash) {
-	if (!hash.isEmpty()
-		&& (muted() == MuteState::ForceMuted
-			|| muted() == MuteState::RaisedHand)) {
+	if (!hash.isEmpty() && mutedByAdmin()) {
 		_joinHash = hash;
 		rejoin();
 	}
@@ -1060,8 +1072,7 @@ void GroupCall::applyMeInCallLocally() {
 	const auto volume = participant
 		? participant->volume
 		: Group::kDefaultVolume;
-	const auto canSelfUnmute = (muted() != MuteState::ForceMuted)
-		&& (muted() != MuteState::RaisedHand);
+	const auto canSelfUnmute = !mutedByAdmin();
 	const auto raisedHandRating = (muted() != MuteState::RaisedHand)
 		? uint64(0)
 		: participant
@@ -1282,6 +1293,10 @@ void GroupCall::setMuted(MuteState mute) {
 		if (wasMuted != nowMuted || wasRaiseHand != nowRaiseHand) {
 			applyMeInCallLocally();
 		}
+		if (mutedByAdmin()) {
+			toggleVideo(false);
+			toggleScreenSharing(std::nullopt);
+		}
 	};
 	if (mute == MuteState::Active || mute == MuteState::PushToTalk) {
 		_delegate->groupCallRequestPermissionsOrFail(crl::guard(this, set));
@@ -1484,8 +1499,7 @@ void GroupCall::applySelfUpdate(const MTPDgroupCallParticipant &data) {
 		LOG(("Call Info: Rejoin after unforcemute in stream mode."));
 		setState(State::Joining);
 		rejoin();
-	} else if (muted() == MuteState::ForceMuted
-		|| muted() == MuteState::RaisedHand) {
+	} else if (mutedByAdmin()) {
 		setMuted(MuteState::Muted);
 		if (!_instanceTransitioning) {
 			notifyAboutAllowedToSpeak();
@@ -2508,9 +2522,7 @@ void GroupCall::applyGlobalShortcutChanges() {
 }
 
 void GroupCall::pushToTalk(bool pressed, crl::time delay) {
-	if (muted() == MuteState::ForceMuted
-		|| muted() == MuteState::RaisedHand
-		|| muted() == MuteState::Active) {
+	if (mutedByAdmin() || muted() == MuteState::Active) {
 		return;
 	} else if (pressed) {
 		_pushToTalkCancelTimer.cancel();
