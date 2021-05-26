@@ -1205,6 +1205,10 @@ void SessionController::showNewChannel() {
 		Ui::LayerOption::KeepOther);
 }
 
+Window::AdaptiveModern &SessionController::adaptive() const {
+	return _window->adaptive();
+}
+
 SessionController::~SessionController() = default;
 
 } // namespace Window

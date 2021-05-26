@@ -1086,6 +1086,8 @@ PRIVATE
     window/section_memento.h
     window/section_widget.cpp
     window/section_widget.h
+    window/window_adaptive.cpp
+    window/window_adaptive.h
     window/window_connecting_widget.cpp
     window/window_connecting_widget.h
     window/window_controller.cpp

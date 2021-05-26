@@ -53,6 +53,7 @@ class MainWindow;
 class SectionMemento;
 class Controller;
 class FiltersMenu;
+class AdaptiveModern;
 
 enum class GifPauseReason {
 	Any           = 0,
@@ -238,6 +239,7 @@ public:
 	}
 	[[nodiscard]] not_null<::MainWindow*> widget() const;
 	[[nodiscard]] not_null<MainWidget*> content() const;
+	[[nodiscard]] AdaptiveModern &adaptive() const;
 
 	// We need access to this from MainWidget::MainWidget, where
 	// we can't call content() yet.

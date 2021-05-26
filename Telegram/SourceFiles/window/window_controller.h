@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mainwindow.h"
+#include "window/window_adaptive.h"
 #include "ui/layers/layer_widget.h"
 
 namespace Main {
@@ -38,6 +39,8 @@ public:
 		return _sessionController.get();
 	}
 	[[nodiscard]] bool locked() const;
+
+	[[nodiscard]] AdaptiveModern &adaptive() const;
 
 	void finishFirstShow();
 
@@ -90,6 +93,7 @@ private:
 
 	Main::Account *_account = nullptr;
 	::MainWindow _widget;
+	const std::unique_ptr<AdaptiveModern> _adaptive;
 	std::unique_ptr<SessionController> _sessionController;
 	base::Timer _isActiveTimer;
 	QPointer<Ui::BoxContent> _termsBox;
