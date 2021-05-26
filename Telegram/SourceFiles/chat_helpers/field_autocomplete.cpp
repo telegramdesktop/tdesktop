@@ -34,8 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "base/unixtime.h"
 #include "base/openssl_help.h"
+#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
-#include "facades.h"
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat_helpers.h"
@@ -122,6 +122,8 @@ private:
 	bool _overDelete = false;
 
 	bool _previewShown = false;
+
+	bool _isOneColumn = false;
 
 	Fn<SendMenu::Type()> _sendMenuType;
 
@@ -741,6 +743,12 @@ FieldAutocomplete::Inner::Inner(
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
+
+	controller->adaptive().changed(
+	) | rpl::start_with_next([=] {
+		_isOneColumn = controller->adaptive().isOneColumn();
+		update();
+	}, lifetime());
 }
 
 void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
@@ -937,9 +945,9 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				}
 			}
 		}
-		p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerBottom() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
+		p.fillRect(_isOneColumn ? 0 : st::lineWidth, _parent->innerBottom() - st::lineWidth, width() - (_isOneColumn ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
 	}
-	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerTop(), width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
+	p.fillRect(_isOneColumn ? 0 : st::lineWidth, _parent->innerTop(), width() - (_isOneColumn ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
 }
 
 void FieldAutocomplete::Inner::resizeEvent(QResizeEvent *e) {
