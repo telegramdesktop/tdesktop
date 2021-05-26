@@ -1024,7 +1024,12 @@ void Pip::handleLeave() {
 }
 
 void Pip::handleMouseMove(QPoint position) {
-	_panel.handleMouseMove(position);
+	const auto weak = Ui::MakeWeak(_panel.widget());
+	const auto guard = gsl::finally([&] {
+		if (weak) {
+			_panel.handleMouseMove(position);
+		}
+	});
 	setOverState(computeState(position));
 	seekUpdate(position);
 }
@@ -1086,7 +1091,12 @@ void Pip::updateActiveState(OverState was) {
 }
 
 void Pip::handleMousePress(QPoint position, Qt::MouseButton button) {
-	_panel.handleMousePress(position, button);
+	const auto weak = Ui::MakeWeak(_panel.widget());
+	const auto guard = gsl::finally([&] {
+		if (weak) {
+			_panel.handleMousePress(position, button);
+		}
+	});
 	if (button != Qt::LeftButton) {
 		return;
 	}
@@ -1098,7 +1108,12 @@ void Pip::handleMousePress(QPoint position, Qt::MouseButton button) {
 }
 
 void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
-	_panel.handleMouseRelease(position, button);
+	const auto weak = Ui::MakeWeak(_panel.widget());
+	const auto guard = gsl::finally([&] {
+		if (weak) {
+			_panel.handleMouseRelease(position, button);
+		}
+	});
 	if (button != Qt::LeftButton) {
 		return;
 	}
