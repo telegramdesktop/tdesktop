@@ -393,8 +393,8 @@ void PinnedWidget::resizeEvent(QResizeEvent *e) {
 
 void PinnedWidget::recountChatWidth() {
 	auto layout = (width() < st::adaptiveChatWideWidth)
-		? Window::AdaptiveModern::ChatLayout::Normal
-		: Window::AdaptiveModern::ChatLayout::Wide;
+		? Window::Adaptive::ChatLayout::Normal
+		: Window::Adaptive::ChatLayout::Wide;
 	controller()->adaptive().setChatLayout(layout);
 }
 

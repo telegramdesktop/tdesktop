@@ -969,8 +969,8 @@ void SetupChatBackground(
 	}, tile->lifetime());
 
 	adaptive->toggleOn(controller->adaptive().chatLayoutValue(
-	) | rpl::map([](Window::AdaptiveModern::ChatLayout layout) {
-		return (layout == Window::AdaptiveModern::ChatLayout::Wide);
+	) | rpl::map([](Window::Adaptive::ChatLayout layout) {
+		return (layout == Window::Adaptive::ChatLayout::Wide);
 	}));
 
 	adaptive->entity()->checkedChanges(

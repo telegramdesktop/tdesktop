@@ -4087,8 +4087,8 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 
 void HistoryWidget::recountChatWidth() {
 	const auto layout = (width() < st::adaptiveChatWideWidth)
-		? Window::AdaptiveModern::ChatLayout::Normal
-		: Window::AdaptiveModern::ChatLayout::Wide;
+		? Window::Adaptive::ChatLayout::Normal
+		: Window::Adaptive::ChatLayout::Wide;
 	controller()->adaptive().setChatLayout(layout);
 }
 

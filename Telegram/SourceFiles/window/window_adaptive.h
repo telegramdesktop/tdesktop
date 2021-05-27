@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
-class AdaptiveModern {
+class Adaptive {
 public:
 	enum class WindowLayout {
 		OneColumn,
@@ -22,7 +22,7 @@ public:
 		Wide,
 	};
 
-	AdaptiveModern();
+	Adaptive();
 
 	void setWindowLayout(WindowLayout value);
 	void setChatLayout(ChatLayout value);

@@ -803,7 +803,7 @@ bool SessionController::forceWideDialogs() const {
 }
 
 auto SessionController::computeColumnLayout() const -> ColumnLayout {
-	auto layout = AdaptiveModern::WindowLayout::OneColumn;
+	auto layout = Adaptive::WindowLayout::OneColumn;
 
 	auto bodyWidth = widget()->bodyWidget()->width() - filtersWidth();
 	auto dialogsWidth = 0, chatWidth = 0, thirdWidth = 0;
@@ -832,12 +832,12 @@ auto SessionController::computeColumnLayout() const -> ColumnLayout {
 	if (useOneColumnLayout()) {
 		dialogsWidth = chatWidth = bodyWidth;
 	} else if (useNormalLayout()) {
-		layout = AdaptiveModern::WindowLayout::Normal;
+		layout = Adaptive::WindowLayout::Normal;
 		dialogsWidth = countDialogsWidthFromRatio(bodyWidth);
 		accumulate_min(dialogsWidth, bodyWidth - st::columnMinimalWidthMain);
 		chatWidth = bodyWidth - dialogsWidth;
 	} else {
-		layout = AdaptiveModern::WindowLayout::ThreeColumn;
+		layout = Adaptive::WindowLayout::ThreeColumn;
 		dialogsWidth = countDialogsWidthFromRatio(bodyWidth);
 		thirdWidth = countThirdColumnWidthFromRatio(bodyWidth);
 		auto shrink = shrinkDialogsAndThirdColumns(
@@ -960,7 +960,7 @@ void SessionController::closeThirdSection() {
 	auto &settings = Core::App().settings();
 	auto newWindowSize = widget()->size();
 	auto layout = computeColumnLayout();
-	if (layout.windowLayout == AdaptiveModern::WindowLayout::ThreeColumn) {
+	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
 		auto noResize = widget()->isFullScreen()
 			|| widget()->isMaximized();
 		auto savedValue = settings.thirdSectionExtendedBy();
@@ -1206,7 +1206,7 @@ void SessionController::showNewChannel() {
 		Ui::LayerOption::KeepOther);
 }
 
-Window::AdaptiveModern &SessionController::adaptive() const {
+Window::Adaptive &SessionController::adaptive() const {
 	return _window->adaptive();
 }
 

@@ -239,7 +239,7 @@ public:
 	}
 	[[nodiscard]] not_null<::MainWindow*> widget() const;
 	[[nodiscard]] not_null<MainWidget*> content() const;
-	[[nodiscard]] AdaptiveModern &adaptive() const;
+	[[nodiscard]] Adaptive &adaptive() const;
 
 	// We need access to this from MainWidget::MainWidget, where
 	// we can't call content() yet.
@@ -287,7 +287,7 @@ public:
 		int dialogsWidth;
 		int chatWidth;
 		int thirdWidth;
-		AdaptiveModern::WindowLayout windowLayout;
+		Adaptive::WindowLayout windowLayout;
 	};
 	[[nodiscard]] ColumnLayout computeColumnLayout() const;
 	int dialogsSmallColumnWidth() const;

@@ -41,7 +41,7 @@ namespace Window {
 
 Controller::Controller()
 : _widget(this)
-, _adaptive(std::make_unique<AdaptiveModern>())
+, _adaptive(std::make_unique<Adaptive>())
 , _isActiveTimer([=] { updateIsActive(); }) {
 	_widget.init();
 }
@@ -368,7 +368,7 @@ void Controller::showLogoutConfirmation() {
 		callback));
 }
 
-Window::AdaptiveModern &Controller::adaptive() const {
+Window::Adaptive &Controller::adaptive() const {
 	return *_adaptive;
 }
 

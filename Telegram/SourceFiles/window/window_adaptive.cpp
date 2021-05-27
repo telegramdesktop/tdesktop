@@ -15,57 +15,57 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
-AdaptiveModern::AdaptiveModern() = default;
+Adaptive::Adaptive() = default;
 
-void AdaptiveModern::setWindowLayout(WindowLayout value) {
+void Adaptive::setWindowLayout(WindowLayout value) {
 	_layout = value;
 }
 
-void AdaptiveModern::setChatLayout(ChatLayout value) {
+void Adaptive::setChatLayout(ChatLayout value) {
 	_chatLayout = value;
 }
 
-rpl::producer<> AdaptiveModern::changed() const {
+rpl::producer<> Adaptive::changed() const {
 	return rpl::merge(
 		Core::App().settings().adaptiveForWideValue() | rpl::to_empty,
 		_chatLayout.changes() | rpl::to_empty,
 		_layout.changes() | rpl::to_empty);
 }
 
-rpl::producer<bool> AdaptiveModern::oneColumnValue() const {
+rpl::producer<bool> Adaptive::oneColumnValue() const {
 	return _layout.value(
 	) | rpl::map([=] {
 		return isOneColumn();
 	});
 }
 
-rpl::producer<AdaptiveModern::ChatLayout> AdaptiveModern::chatLayoutValue() const {
+rpl::producer<Adaptive::ChatLayout> Adaptive::chatLayoutValue() const {
 	return _chatLayout.value();
 }
 
-bool AdaptiveModern::isOneColumn() const {
+bool Adaptive::isOneColumn() const {
 	return _layout.current() == WindowLayout::OneColumn;
 }
 
-bool AdaptiveModern::isNormal() const {
+bool Adaptive::isNormal() const {
 	return _layout.current() == WindowLayout::Normal;
 }
 
-bool AdaptiveModern::isThreeColumn() const {
+bool Adaptive::isThreeColumn() const {
 	return _layout.current() == WindowLayout::ThreeColumn;
 }
 
-rpl::producer<bool> AdaptiveModern::chatWideValue() const {
+rpl::producer<bool> Adaptive::chatWideValue() const {
 	return rpl::combine(
 		_chatLayout.value(
-		) | rpl::map(rpl::mappers::_1 == AdaptiveModern::ChatLayout::Wide),
+		) | rpl::map(rpl::mappers::_1 == Adaptive::ChatLayout::Wide),
 		Core::App().settings().adaptiveForWideValue()
 	) | rpl::map(rpl::mappers::_1 && rpl::mappers::_2);
 }
 
-bool AdaptiveModern::isChatWide() const {
+bool Adaptive::isChatWide() const {
 	return Core::App().settings().adaptiveForWide()
-		&& (_chatLayout.current() == AdaptiveModern::ChatLayout::Wide);
+		&& (_chatLayout.current() == Adaptive::ChatLayout::Wide);
 }
 
 } // namespace Window

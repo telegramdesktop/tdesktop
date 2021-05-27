@@ -2656,7 +2656,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 
 	// Check if we are in a single-column layout in a wide enough window
 	// for the normal layout. If so, switch to the normal layout.
-	if (layout.windowLayout == Window::AdaptiveModern::WindowLayout::OneColumn) {
+	if (layout.windowLayout == Window::Adaptive::WindowLayout::OneColumn) {
 		auto chatWidth = layout.chatWidth;
 		//if (session().settings().tabbedSelectorSectionEnabled()
 		//	&& chatWidth >= _history->minimalWidthForTabbedSelectorSection()) {
@@ -2666,7 +2666,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 			+ st::columnMinimalWidthMain;
 		if (chatWidth >= minimalNormalWidth) {
 			// Switch layout back to normal in a wide enough window.
-			layout.windowLayout = Window::AdaptiveModern::WindowLayout::Normal;
+			layout.windowLayout = Window::Adaptive::WindowLayout::Normal;
 			layout.dialogsWidth = st::columnMinimalWidthLeft;
 			layout.chatWidth = layout.bodyWidth - layout.dialogsWidth;
 			dialogsWidthRatio = float64(layout.dialogsWidth) / layout.bodyWidth;
@@ -2676,7 +2676,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 	// Check if we are going to create the third column and shrink the
 	// dialogs widget to provide a wide enough chat history column.
 	// Don't shrink the column on the first call, when window is inited.
-	if (layout.windowLayout == Window::AdaptiveModern::WindowLayout::ThreeColumn
+	if (layout.windowLayout == Window::Adaptive::WindowLayout::ThreeColumn
 		&& _controller->widget()->positionInited()) {
 		//auto chatWidth = layout.chatWidth;
 		//if (_history->willSwitchToTabbedSelectorWithWidth(chatWidth)) {

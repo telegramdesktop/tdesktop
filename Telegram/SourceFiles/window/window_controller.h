@@ -40,7 +40,7 @@ public:
 	}
 	[[nodiscard]] bool locked() const;
 
-	[[nodiscard]] AdaptiveModern &adaptive() const;
+	[[nodiscard]] Adaptive &adaptive() const;
 
 	void finishFirstShow();
 
@@ -93,7 +93,7 @@ private:
 
 	Main::Account *_account = nullptr;
 	::MainWindow _widget;
-	const std::unique_ptr<AdaptiveModern> _adaptive;
+	const std::unique_ptr<Adaptive> _adaptive;
 	std::unique_ptr<SessionController> _sessionController;
 	base::Timer _isActiveTimer;
 	QPointer<Ui::BoxContent> _termsBox;
