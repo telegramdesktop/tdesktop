@@ -542,6 +542,7 @@ private:
 	object_ptr<Ui::RoundButton> _themeShare = { nullptr };
 	Data::CloudTheme _themeCloudData;
 
+	bool _hideWorkaround = false;
 	bool _wasRepainted = false;
 
 };

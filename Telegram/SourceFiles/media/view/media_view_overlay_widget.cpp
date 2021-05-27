@@ -607,14 +607,14 @@ QImage OverlayWidget::videoFrameForDirectPaint() const {
 	Expects(_streamed != nullptr);
 
 	const auto result = videoFrame();
-
-#if USE_OPENGL_OVERLAY_WIDGET
+	if (!_opengl) {
+		return result;
+	}
 	const auto bytesPerLine = result.bytesPerLine();
 	if (bytesPerLine == result.width() * 4) {
 		return result;
 	}
 
-	// On macOS 10.8+ we use QOpenGLWidget as OverlayWidget base class.
 	// The OpenGL painter can't paint textures where byte data is with strides.
 	// So in that case we prepare a compact copy of the frame to render.
 	//
@@ -637,9 +637,6 @@ QImage OverlayWidget::videoFrameForDirectPaint() const {
 		from += bytesPerLine;
 	}
 	return cache;
-#endif // USE_OPENGL_OVERLAY_WIDGET
-
-	return result;
 }
 
 bool OverlayWidget::documentContentShown() const {
@@ -3222,6 +3219,11 @@ Ui::GL::ChosenRenderer OverlayWidget::chooseRenderer(
 }
 
 void OverlayWidget::paint(Painter &p, const QRegion &clip) {
+	if (_hideWorkaround) {
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		p.fillRect(_widget->rect(), st::transparent);
+		return;
+	}
 	const auto r = clip.boundingRect();
 	const auto contentShown = _photo || documentContentShown();
 	const auto opaqueContentShown = contentShown
@@ -3550,8 +3552,7 @@ void OverlayWidget::paintRadialLoading(
 	const auto inner = radialRect();
 	Assert(!inner.isEmpty());
 
-#if USE_OPENGL_OVERLAY_WIDGET
-	{
+	if (_opengl) {
 		if (_radialCache.size() != inner.size() * cIntRetinaFactor()) {
 			_radialCache = QImage(
 				inner.size() * cIntRetinaFactor(),
@@ -3559,15 +3560,15 @@ void OverlayWidget::paintRadialLoading(
 			_radialCache.setDevicePixelRatio(cRetinaFactor());
 		}
 		_radialCache.fill(Qt::transparent);
-
-		Painter q(&_radialCache);
-		const auto moved = inner.translated(-inner.topLeft());
-		paintRadialLoadingContent(q, moved, radial, radialOpacity);
+		{
+			Painter q(&_radialCache);
+			const auto moved = inner.translated(-inner.topLeft());
+			paintRadialLoadingContent(q, moved, radial, radialOpacity);
+		}
+		p.drawImage(inner.topLeft(), _radialCache);
+	} else {
+		paintRadialLoadingContent(p, inner, radial, radialOpacity);
 	}
-	p.drawImage(inner.topLeft(), _radialCache);
-#else // USE_OPENGL_OVERLAY_WIDGET
-	paintRadialLoadingContent(p, inner, radial, radialOpacity);
-#endif // USE_OPENGL_OVERLAY_WIDGET
 }
 
 void OverlayWidget::paintRadialLoadingContent(
@@ -4474,25 +4475,29 @@ bool OverlayWidget::filterApplicationEvent(
 }
 
 void OverlayWidget::applyHideWindowWorkaround() {
-#if USE_OPENGL_OVERLAY_WIDGET
 	// QOpenGLWidget can't properly destroy a child widget if
 	// it is hidden exactly after that, so it must be repainted
 	// before it is hidden without the child widget.
-	if (!isHidden()) {
+	if (_opengl && !isHidden()) {
 		_dropdown->hideFast();
-		hideChildren();
+		for (auto child : _widget->children()) {
+			if (child->isWidgetType()) {
+				static_cast<QWidget*>(child)->hide();
+			}
+		}
 		_wasRepainted = false;
-		repaint();
+		_hideWorkaround = true;
+		_widget->repaint();
 		if (!_wasRepainted) {
 			// Qt has some optimization to prevent too frequent repaints.
 			// If the previous repaint was less than 1/60 second it silently
 			// converts repaint() call to an update() call. But we have to
 			// repaint right now, before hide(), with _streamingControls destroyed.
 			auto event = QEvent(QEvent::UpdateRequest);
-			QApplication::sendEvent(this, &event);
+			QApplication::sendEvent(_widget, &event);
 		}
+		_hideWorkaround = false;
 	}
-#endif // USE_OPENGL_OVERLAY_WIDGET
 }
 
 // #TODO unite and check
