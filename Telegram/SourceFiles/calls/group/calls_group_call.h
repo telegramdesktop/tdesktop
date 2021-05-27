@@ -369,6 +369,8 @@ private:
 	using GlobalShortcutValue = base::GlobalShortcutValue;
 	struct SinkPointer;
 
+	static constexpr uint32 kDisabledSsrc = uint32(-1);
+
 	struct LoadingPart {
 		std::shared_ptr<LoadPartTask> task;
 		mtpRequestId requestId = 0;
@@ -389,6 +391,21 @@ private:
 		RaiseHand,
 		VideoMuted,
 	};
+	enum class JoinAction {
+		None,
+		Joining,
+		Leaving,
+	};
+	struct JoinState {
+		uint32 ssrc = 0;
+		JoinAction action = JoinAction::None;
+		bool nextActionPending = false;
+
+		void finish(uint32 updatedSsrc = 0) {
+			action = JoinAction::None;
+			ssrc = updatedSsrc;
+		}
+	};
 
 	[[nodiscard]] bool mediaChannelDescriptionsFill(
 		not_null<MediaChannelDescriptionsTask*> task,
@@ -399,9 +416,9 @@ private:
 	void handlePossibleDiscarded(const MTPDgroupCallDiscarded &data);
 	void handleUpdate(const MTPDupdateGroupCall &data);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
-	void ensureControllerCreated();
+	bool tryCreateController();
 	void destroyController();
-	void ensureScreencastCreated();
+	bool tryCreateScreencast();
 	void destroyScreencast();
 
 	void setState(State state);
@@ -412,14 +429,15 @@ private:
 	void updateInstanceVolumes();
 	void applyMeInCallLocally();
 	void rejoin();
+	void leave();
 	void rejoin(not_null<PeerData*> as);
 	void setJoinAs(not_null<PeerData*> as);
 	void saveDefaultJoinAs(not_null<PeerData*> as);
 	void subscribeToReal(not_null<Data::GroupCall*> real);
 	void setScheduledDate(TimeId date);
-	void joinLeavePresentation();
 	void rejoinPresentation();
 	void leavePresentation();
+	void checkNextJoinAction();
 
 	void audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data);
 	void setInstanceConnected(tgcalls::GroupNetworkState networkState);
@@ -496,8 +514,8 @@ private:
 
 	uint64 _id = 0;
 	uint64 _accessHash = 0;
-	uint32 _mySsrc = 0;
-	uint32 _screenSsrc = 0;
+	JoinState _joinState;
+	JoinState _screenJoinState;
 	std::string _cameraEndpoint;
 	std::string _screenEndpoint;
 	TimeId _scheduleDate = 0;

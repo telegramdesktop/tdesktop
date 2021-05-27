@@ -396,7 +396,7 @@ GroupCall::GroupCall(
 		if (_instance) {
 			updateInstanceMuteState();
 		}
-		if (_mySsrc
+		if (_joinState.ssrc
 			&& (!_initialMuteStateSent || state == MuteState::Active)) {
 			_initialMuteStateSent = true;
 			maybeSendMutedUpdate(previous);
@@ -632,13 +632,19 @@ void GroupCall::checkGlobalShortcutAvailability() {
 }
 
 void GroupCall::setState(State state) {
-	if (_state.current() == State::Failed) {
+	const auto current = _state.current();
+	if (current == State::Failed) {
 		return;
-	} else if (_state.current() == State::FailedHangingUp
+	} else if (current == State::Ended && state != State::Failed) {
+		return;
+	} else if (current == State::FailedHangingUp && state != State::Failed) {
+		return;
+	} else if (current == State::HangingUp
+		&& state != State::Ended
 		&& state != State::Failed) {
 		return;
 	}
-	if (_state.current() == state) {
+	if (current == state) {
 		return;
 	}
 	_state = state;
@@ -902,14 +908,6 @@ void GroupCall::rejoinWithHash(const QString &hash) {
 }
 
 void GroupCall::setJoinAs(not_null<PeerData*> as) {
-	if (_joinAs != as) {
-		if (_cameraOutgoing) {
-			_cameraOutgoing->setState(Webrtc::VideoState::Inactive);
-		}
-		if (_screenOutgoing) {
-			_screenOutgoing->setState(Webrtc::VideoState::Inactive);
-		}
-	}
 	_joinAs = as;
 	if (const auto chat = _peer->asChat()) {
 		chat->setGroupCallDefaultJoinAs(_joinAs->id);
@@ -931,13 +929,22 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 		&& state() != State::Joined
 		&& state() != State::Connecting) {
 		return;
+	} else if (_joinState.action != JoinAction::None) {
+		return;
 	}
 
-	_mySsrc = 0;
+	if (_joinAs != as) {
+		toggleVideo(false);
+		toggleScreenSharing(std::nullopt);
+	}
+
+	_joinState.action = JoinAction::Joining;
+	_joinState.ssrc = 0;
 	_initialMuteStateSent = false;
 	setState(State::Joining);
-	ensureControllerCreated();
-	setInstanceMode(InstanceMode::None);
+	if (!tryCreateController()) {
+		setInstanceMode(InstanceMode::None);
+	}
 	applyMeInCallLocally();
 	LOG(("Call Info: Requesting join payload."));
 
@@ -945,7 +952,12 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 
 	const auto weak = base::make_weak(&_instanceGuard);
 	_instance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
-		crl::on_main(weak, [=, payload = std::move(payload)]{
+		crl::on_main(weak, [=, payload = std::move(payload)] {
+			if (state() != State::Joining) {
+				_joinState.finish();
+				checkNextJoinAction();
+				return;
+			}
 			const auto ssrc = payload.audioSsrc;
 			LOG(("Call Info: Join payload received, joining with ssrc: %1."
 				).arg(ssrc));
@@ -970,8 +982,9 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				MTP_string(_joinHash),
 				MTP_dataJSON(MTP_bytes(json))
 			)).done([=](const MTPUpdates &updates) {
-				_mySsrc = ssrc;
+				_joinState.finish(ssrc);
 				_mySsrcs.emplace(ssrc);
+
 				setState((_instanceState.current()
 					== InstanceState::Disconnected)
 					? State::Connecting
@@ -984,11 +997,11 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				if (wasVideoMuted == isSharingCamera()) {
 					sendSelfUpdate(SendUpdateType::VideoMuted);
 				}
-				if (_screenSsrc && isSharingScreen()) {
-					LOG(("Call Info: Screen rejoin after rejoin()."));
-					rejoinPresentation();
-				}
+				_screenJoinState.nextActionPending = true;
+				checkNextJoinAction();
 			}).fail([=](const MTP::Error &error) {
+				_joinState.finish();
+
 				const auto type = error.type();
 				LOG(("Call Error: Could not join, error: %1").arg(type));
 
@@ -1012,52 +1025,91 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 	});
 }
 
-void GroupCall::joinLeavePresentation() {
-	if (_screenOutgoing
-		&& _screenOutgoing->state() == Webrtc::VideoState::Active) {
-		rejoinPresentation();
+void GroupCall::checkNextJoinAction() {
+	if (_joinState.action != JoinAction::None) {
+		return;
+	} else if (_joinState.nextActionPending) {
+		_joinState.nextActionPending = false;
+		const auto state = _state.current();
+		if (state != State::HangingUp && state != State::FailedHangingUp) {
+			rejoin();
+		} else {
+			leave();
+		}
+	} else if (!_joinState.ssrc) {
+		rejoin();
+	} else if (_screenJoinState.action != JoinAction::None
+		|| !_screenJoinState.nextActionPending) {
+		return;
 	} else {
-		leavePresentation();
+		_screenJoinState.nextActionPending = false;
+		if (isSharingScreen()) {
+			rejoinPresentation();
+		} else {
+			leavePresentation();
+		}
 	}
 }
 
 void GroupCall::rejoinPresentation() {
-	_screenSsrc = 0;
-	ensureScreencastCreated();
-	setScreenInstanceMode(InstanceMode::None);
-	LOG(("Call Info: Requesting join payload."));
+	if (!_joinState.ssrc
+		|| _screenJoinState.action == JoinAction::Joining
+		|| !isSharingScreen()) {
+		return;
+	} else if (_screenJoinState.action != JoinAction::None) {
+		_screenJoinState.nextActionPending = true;
+		return;
+	}
+
+	_screenJoinState.action = JoinAction::Joining;
+	_screenJoinState.ssrc = 0;
+	if (!tryCreateScreencast()) {
+		setScreenInstanceMode(InstanceMode::None);
+	}
+	LOG(("Call Info: Requesting join screen payload."));
 
 	const auto weak = base::make_weak(&_screenInstanceGuard);
 	_screenInstance->emitJoinPayload([=](tgcalls::GroupJoinPayload payload) {
 		crl::on_main(weak, [=, payload = std::move(payload)]{
-			if (!_screenInstance) {
+			if (!isSharingScreen() || !_joinState.ssrc) {
+				_screenJoinState.finish();
+				checkNextJoinAction();
 				return;
 			}
+			const auto withMainSsrc = _joinState.ssrc;
 			const auto ssrc = payload.audioSsrc;
-			LOG(("Call Info: Join payload received, joining with ssrc: %1."
+			LOG(("Call Info: Join screen payload received, ssrc: %1."
 				).arg(ssrc));
 
 			const auto json = QByteArray::fromStdString(payload.json);
-			_api.request(MTPphone_JoinGroupCallPresentation(
-				inputCall(),
-				MTP_dataJSON(MTP_bytes(json))
-			)).done([=](const MTPUpdates &updates) {
-				_screenSsrc = ssrc;
+			_api.request(
+				MTPphone_JoinGroupCallPresentation(
+					inputCall(),
+					MTP_dataJSON(MTP_bytes(json)))
+			).done([=](const MTPUpdates &updates) {
+				_screenJoinState.finish(ssrc);
 				_mySsrcs.emplace(ssrc);
+
 				_peer->session().api().applyUpdates(updates);
+				checkNextJoinAction();
 			}).fail([=](const MTP::Error &error) {
+				_screenJoinState.finish();
+
 				const auto type = error.type();
-				LOG(("Call Error: "
-					"Could not screen join, error: %1").arg(type));
 				if (type == u"GROUPCALL_SSRC_DUPLICATE_MUCH") {
-					rejoinPresentation();
+					_screenJoinState.nextActionPending = true;
+					checkNextJoinAction();
 				} else if (type == u"GROUPCALL_JOIN_MISSING"_q
 					|| type == u"GROUPCALL_FORBIDDEN"_q) {
-					_screenSsrc = ssrc;
-					rejoin();
+					if (_joinState.ssrc != withMainSsrc) {
+						// We've rejoined, rejoin presentation again.
+						_screenJoinState.nextActionPending = true;
+						checkNextJoinAction();
+					}
 				} else {
-					_screenSsrc = 0;
-					setScreenEndpoint(std::string());
+					LOG(("Call Error: "
+						"Could not screen join, error: %1").arg(type));
+					_screenOutgoing->setState(Webrtc::VideoState::Inactive);
 				}
 			}).send();
 		});
@@ -1066,21 +1118,31 @@ void GroupCall::rejoinPresentation() {
 
 void GroupCall::leavePresentation() {
 	destroyScreencast();
-	if (!_screenSsrc) {
+	if (!_screenJoinState.ssrc) {
+		setScreenEndpoint(std::string());
+		return;
+	} else if (_screenJoinState.action == JoinAction::Leaving) {
+		return;
+	} else if (_screenJoinState.action != JoinAction::None) {
+		_screenJoinState.nextActionPending = true;
 		return;
 	}
-	_api.request(MTPphone_LeaveGroupCallPresentation(
-		inputCall()
-	)).done([=](const MTPUpdates &updates) {
-		_screenSsrc = 0;
-		setScreenEndpoint(std::string());
+	_api.request(
+		MTPphone_LeaveGroupCallPresentation(inputCall())
+	).done([=](const MTPUpdates &updates) {
+		_screenJoinState.finish();
+
 		_peer->session().api().applyUpdates(updates);
+		setScreenEndpoint(std::string());
+		checkNextJoinAction();
 	}).fail([=](const MTP::Error &error) {
+		_screenJoinState.finish();
+
 		const auto type = error.type();
 		LOG(("Call Error: "
 			"Could not screen leave, error: %1").arg(type));
-		_screenSsrc = 0;
 		setScreenEndpoint(std::string());
+		checkNextJoinAction();
 	}).send();
 }
 
@@ -1111,7 +1173,7 @@ void GroupCall::applyMeInCallLocally() {
 		: nullptr;
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (lastActive ? Flag::f_active_date : Flag(0))
-		| (_mySsrc ? Flag(0) : Flag::f_left)
+		| (_joinState.ssrc ? Flag(0) : Flag::f_left)
 		| Flag::f_self
 		| Flag::f_volume // Without flag the volume is reset to 100%.
 		| Flag::f_volume_by_admin // Self volume can only be set by admin.
@@ -1131,7 +1193,7 @@ void GroupCall::applyMeInCallLocally() {
 					peerToMTP(_joinAs->id),
 					MTP_int(date),
 					MTP_int(lastActive),
-					MTP_int(_mySsrc),
+					MTP_int(_joinState.ssrc),
 					MTP_int(volume),
 					MTPstring(), // Don't update about text in local updates.
 					MTP_long(raisedHandRating),
@@ -1255,13 +1317,23 @@ void GroupCall::finish(FinishType type) {
 		|| state == State::Ended
 		|| state == State::Failed) {
 		return;
-	}
-	if (!_mySsrc) {
+	} else if (_joinState.action == JoinAction::None && !_joinState.ssrc) {
 		setState(finalState);
 		return;
 	}
-
 	setState(hangupState);
+	_joinState.nextActionPending = true;
+	checkNextJoinAction();
+}
+
+void GroupCall::leave() {
+	Expects(_joinState.action == JoinAction::None);
+
+	_joinState.action = JoinAction::Leaving;
+
+	const auto finalState = (_state.current() == State::HangingUp)
+		? State::Ended
+		: State::Failed;
 
 	// We want to leave request still being sent and processed even if
 	// the call is already destroyed.
@@ -1269,7 +1341,7 @@ void GroupCall::finish(FinishType type) {
 	const auto weak = base::make_weak(this);
 	session->api().request(MTPphone_LeaveGroupCall(
 		inputCall(),
-		MTP_int(_mySsrc)
+		MTP_int(base::take(_joinState.ssrc))
 	)).done([=](const MTPUpdates &result) {
 		// Here 'this' could be destroyed by updates, so we set Ended after
 		// updates being handled, but in a guarded way.
@@ -1322,8 +1394,8 @@ void GroupCall::setMuted(MuteState mute) {
 			applyMeInCallLocally();
 		}
 		if (mutedByAdmin()) {
-			toggleVideo(false);
-			toggleScreenSharing(std::nullopt);
+			//toggleVideo(false);
+			//toggleScreenSharing(std::nullopt);
 		}
 	};
 	if (mute == MuteState::Active || mute == MuteState::PushToTalk) {
@@ -1427,7 +1499,7 @@ void GroupCall::handlePossibleCreateOrJoinResponse(
 void GroupCall::handlePossibleDiscarded(const MTPDgroupCallDiscarded &data) {
 	if (data.vid().v == _id) {
 		LOG(("Call Info: Hangup after groupCallDiscarded."));
-		_mySsrc = 0;
+		_joinState.finish();
 		hangup();
 	}
 }
@@ -1510,7 +1582,7 @@ void GroupCall::applyQueuedSelfUpdates() {
 
 void GroupCall::applySelfUpdate(const MTPDgroupCallParticipant &data) {
 	if (data.is_left()) {
-		if (data.vsource().v == _mySsrc) {
+		if (data.vsource().v == _joinState.ssrc) {
 			// I was removed from the call, rejoin.
 			LOG(("Call Info: "
 				"Rejoin after got 'left' with my ssrc."));
@@ -1518,20 +1590,20 @@ void GroupCall::applySelfUpdate(const MTPDgroupCallParticipant &data) {
 			rejoin();
 		}
 		return;
-	} else if (data.vsource().v != _mySsrc) {
+	} else if (data.vsource().v != _joinState.ssrc) {
 		if (!_mySsrcs.contains(data.vsource().v)) {
 			// I joined from another device, hangup.
 			LOG(("Call Info: "
 				"Hangup after '!left' with ssrc %1, my %2."
 				).arg(data.vsource().v
-				).arg(_mySsrc));
-			_mySsrc = 0;
+				).arg(_joinState.ssrc));
+			_joinState.finish();
 			hangup();
 		} else {
 			LOG(("Call Info: "
 				"Some old 'self' with '!left' and ssrc %1, my %2."
 				).arg(data.vsource().v
-				).arg(_mySsrc));
+				).arg(_joinState.ssrc));
 		}
 		return;
 	}
@@ -1646,13 +1718,10 @@ void GroupCall::ensureOutgoingVideo() {
 				_instance->setVideoCapture(_cameraCapture);
 			}
 			_cameraCapture->setState(tgcalls::VideoState::Active);
-			markEndpointActive({ _joinAs, _cameraEndpoint }, true);
-		} else {
-			if (_cameraCapture) {
-				_cameraCapture->setState(tgcalls::VideoState::Inactive);
-			}
-			markEndpointActive({ _joinAs, _cameraEndpoint }, false);
+		} else if (_cameraCapture) {
+			_cameraCapture->setState(tgcalls::VideoState::Inactive);
 		}
+		markEndpointActive({ _joinAs, _cameraEndpoint }, isSharingCamera());
 		sendSelfUpdate(SendUpdateType::VideoMuted);
 		applyMeInCallLocally();
 	}, _lifetime);
@@ -1686,14 +1755,12 @@ void GroupCall::ensureOutgoingVideo() {
 				_screenInstance->setVideoCapture(_screenCapture);
 			}
 			_screenCapture->setState(tgcalls::VideoState::Active);
-			markEndpointActive({ _joinAs, _screenEndpoint }, true);
-		} else {
-			if (_screenCapture) {
-				_screenCapture->setState(tgcalls::VideoState::Inactive);
-			}
-			markEndpointActive({ _joinAs, _screenEndpoint }, false);
+		} else if (_screenCapture) {
+			_screenCapture->setState(tgcalls::VideoState::Inactive);
 		}
-		joinLeavePresentation();
+		markEndpointActive({ _joinAs, _screenEndpoint }, isSharingScreen());
+		_screenJoinState.nextActionPending = true;
+		checkNextJoinAction();
 	}, _lifetime);
 }
 
@@ -1741,9 +1808,9 @@ void GroupCall::toggleRecording(bool enabled, const QString &title) {
 	}).send();
 }
 
-void GroupCall::ensureControllerCreated() {
+bool GroupCall::tryCreateController() {
 	if (_instance) {
-		return;
+		return false;
 	}
 	const auto &settings = Core::App().settings();
 
@@ -1830,11 +1897,12 @@ void GroupCall::ensureControllerCreated() {
 		_instance->addIncomingVideoOutput(endpoint, std::move(sink.data));
 	}
 	//raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
+	return true;
 }
 
-void GroupCall::ensureScreencastCreated() {
+bool GroupCall::tryCreateScreencast() {
 	if (_screenInstance) {
-		return;
+		return false;
 	}
 	//const auto &settings = Core::App().settings();
 
@@ -1870,6 +1938,7 @@ void GroupCall::ensureScreencastCreated() {
 	LOG(("Call Info: Creating group screen instance"));
 	_screenInstance = std::make_unique<tgcalls::GroupInstanceCustomImpl>(
 		std::move(descriptor));
+	return true;
 }
 
 void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
@@ -2136,10 +2205,13 @@ void GroupCall::audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data) {
 	auto checkNow = false;
 	const auto now = crl::now();
 	for (const auto &[ssrcOrZero, value] : data.updates) {
-		const auto ssrc = ssrcOrZero ? ssrcOrZero : _mySsrc;
+		const auto ssrc = ssrcOrZero ? ssrcOrZero : _joinState.ssrc;
+		if (!ssrc) {
+			continue;
+		}
 		const auto level = value.level;
 		const auto voice = value.voice;
-		const auto me = (ssrc == _mySsrc);
+		const auto me = (ssrc == _joinState.ssrc);
 		_levelUpdates.fire(LevelUpdate{
 			.ssrc = ssrc,
 			.value = level,
@@ -2205,7 +2277,7 @@ void GroupCall::checkLastSpoke() {
 		}
 
 		// Ignore my levels from microphone if I'm already muted.
-		if (ssrc != _mySsrc
+		if (ssrc != _joinState.ssrc
 			|| muted() == MuteState::Active
 			|| muted() == MuteState::PushToTalk) {
 			real->applyLastSpoke(ssrc, when, now);
@@ -2221,34 +2293,37 @@ void GroupCall::checkLastSpoke() {
 }
 
 void GroupCall::checkJoined() {
-	if (state() != State::Connecting || !_id || !_mySsrc) {
+	if (state() != State::Connecting || !_id || !_joinState.ssrc) {
 		return;
 	}
-	auto sources = QVector<MTPint>(1, MTP_int(_mySsrc));
-	if (_screenSsrc) {
-		sources.push_back(MTP_int(_screenSsrc));
+	auto sources = QVector<MTPint>(1, MTP_int(_joinState.ssrc));
+	if (_screenJoinState.ssrc) {
+		sources.push_back(MTP_int(_screenJoinState.ssrc));
 	}
 	_api.request(MTPphone_CheckGroupCall(
 		inputCall(),
 		MTP_vector<MTPint>(std::move(sources))
 	)).done([=](const MTPVector<MTPint> &result) {
-		if (!ranges::contains(result.v, MTP_int(_mySsrc))) {
+		if (!ranges::contains(result.v, MTP_int(_joinState.ssrc))) {
 			LOG(("Call Info: Rejoin after no _mySsrc in checkGroupCall."));
-			rejoin();
+			_joinState.nextActionPending = true;
+			checkNextJoinAction();
 		} else {
 			if (state() == State::Connecting) {
 				_checkJoinedTimer.callOnce(kCheckJoinedTimeout);
 			}
-			if (_screenSsrc
-				&& !ranges::contains(result.v, MTP_int(_screenSsrc))
-				&& isSharingScreen()) {
+			if (_screenJoinState.ssrc
+				&& !ranges::contains(
+					result.v,
+					MTP_int(_screenJoinState.ssrc))) {
 				LOG(("Call Info: "
 					"Screen rejoin after _screenSsrc not found."));
-				rejoinPresentation();
+				_screenJoinState.nextActionPending = true;
+				checkNextJoinAction();
 			}
 		}
 	}).fail([=](const MTP::Error &error) {
- 		LOG(("Call Info: Full rejoin after error '%1' in checkGroupCall."
+		LOG(("Call Info: Full rejoin after error '%1' in checkGroupCall."
 			).arg(error.type()));
 		rejoin();
 	}).send();
@@ -2343,7 +2418,7 @@ void GroupCall::setScreenInstanceMode(InstanceMode mode) {
 
 	using Mode = tgcalls::GroupConnectionMode;
 	_screenInstance->setConnectionMode([&] {
-		switch (_instanceMode) {
+		switch (_screenInstanceMode) {
 		case InstanceMode::None: return Mode::GroupConnectionModeNone;
 		case InstanceMode::Rtc: return Mode::GroupConnectionModeRtc;
 		case InstanceMode::Stream: return Mode::GroupConnectionModeBroadcast;

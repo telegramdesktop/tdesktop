@@ -1394,7 +1394,9 @@ void Panel::refreshTopButton() {
 }
 
 void Panel::chooseShareScreenSource() {
-	Ui::DesktopCapture::ChooseSource(this);
+	if (!_call->mutedByAdmin()) {
+		Ui::DesktopCapture::ChooseSource(this);
+	}
 }
 
 void Panel::chooseJoinAs() {
