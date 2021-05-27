@@ -96,6 +96,7 @@ public:
 		not_null<MembersRow*> row,
 		const IconState &state) override;
 	bool rowIsNarrow() override;
+	void rowShowContextMenu(not_null<PeerListRow*> row);
 	//void rowPaintNarrowBackground(
 	//	Painter &p,
 	//	int x,
@@ -1156,6 +1157,10 @@ bool Members::Controller::rowIsNarrow() {
 	return (_mode == PanelMode::Wide);
 }
 
+void Members::Controller::rowShowContextMenu(not_null<PeerListRow*> row) {
+	showRowMenu(row);
+}
+
 //void Members::Controller::rowPaintNarrowBackground(
 //		Painter &p,
 //		int x,
@@ -1366,15 +1371,16 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 		}
 		return getCurrentWindow();
 	};
+	const auto weakMenu = Ui::MakeWeak(result.get());
 	const auto performOnMainWindow = [=](auto callback) {
 		if (const auto window = getWindow()) {
-			if (_menu) {
-				_menu->discardParentReActivate();
+			if (const auto menu = weakMenu.data()) {
+				menu->discardParentReActivate();
 
 				// We must hide PopupMenu before we activate the MainWindow,
 				// otherwise we set focus in field inside MainWindow and then
 				// PopupMenu::hide activates back the group call panel :(
-				_menu = nullptr;
+				delete weakMenu;
 			}
 			callback(window);
 			window->widget()->activate();

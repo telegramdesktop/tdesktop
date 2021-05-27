@@ -148,10 +148,7 @@ void Viewport::setMode(PanelMode mode, not_null<QWidget*> parent) {
 
 void Viewport::handleMousePress(QPoint position, Qt::MouseButton button) {
 	handleMouseMove(position);
-
-	if (button == Qt::LeftButton) {
-		setPressed(_selected);
-	}
+	setPressed(_selected);
 }
 
 void Viewport::handleMouseRelease(QPoint position, Qt::MouseButton button) {
@@ -160,7 +157,9 @@ void Viewport::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 	setPressed({});
 	if (const auto tile = pressed.tile) {
 		if (pressed == _selected) {
-			if (!wide()) {
+			if (button == Qt::RightButton) {
+				tile->row()->showContextMenu();
+			} else if (!wide()) {
 				_clicks.fire_copy(tile->endpoint());
 			} else if (pressed.element == Selection::Element::PinButton) {
 				_pinToggles.fire({

@@ -869,6 +869,10 @@ MembersRowDelegate::IconState MembersRow::computeIconState(
 	};
 }
 
+void MembersRow::showContextMenu() {
+	return _delegate->rowShowContextMenu(this);
+}
+
 void MembersRow::refreshStatus() {
 	setCustomStatus(
 		(_speaking

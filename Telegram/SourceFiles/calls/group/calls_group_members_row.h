@@ -50,7 +50,8 @@ public:
 	virtual bool rowIsMe(not_null<PeerData*> participantPeer) = 0;
 	virtual bool rowCanMuteMembers() = 0;
 	virtual void rowUpdateRow(not_null<MembersRow*> row) = 0;
-	virtual void rowScheduleRaisedHandStatusRemove(not_null<MembersRow*> row) = 0;
+	virtual void rowScheduleRaisedHandStatusRemove(
+		not_null<MembersRow*> row) = 0;
 	virtual void rowPaintIcon(
 		Painter &p,
 		QRect rect,
@@ -63,6 +64,7 @@ public:
 		not_null<MembersRow*> row,
 		const IconState &state) = 0;
 	virtual bool rowIsNarrow() = 0;
+	virtual void rowShowContextMenu(not_null<PeerListRow*> row) = 0;
 	//virtual void rowPaintNarrowBackground(
 	//	Painter &p,
 	//	int x,
@@ -181,6 +183,8 @@ public:
 		MembersRowStyle style = MembersRowStyle::None);
 	[[nodiscard]] MembersRowDelegate::IconState computeIconState(
 		MembersRowStyle style = MembersRowStyle::None) const;
+
+	void showContextMenu();
 
 private:
 	struct BlobsAnimation;
