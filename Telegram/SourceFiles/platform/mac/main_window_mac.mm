@@ -541,9 +541,9 @@ void MainWindow::psSetupTrayIcon() {
 	trayIcon->show();
 }
 
-void MainWindow::workmodeUpdated(DBIWorkMode mode) {
+void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
 	psSetupTrayIcon();
-	if (mode == dbiwmWindowOnly) {
+	if (mode == Core::Settings::WorkMode::WindowOnly) {
 		if (trayIcon) {
 			trayIcon->setContextMenu(0);
 			delete trayIcon;

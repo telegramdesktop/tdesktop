@@ -61,6 +61,7 @@ namespace Platform {
 namespace {
 
 using internal::WaylandIntegration;
+using WorkMode = Core::Settings::WorkMode;
 
 constexpr auto kPanelTrayIconName = "telegram-panel"_cs;
 constexpr auto kMutePanelTrayIconName = "telegram-mute-panel"_cs;
@@ -809,7 +810,7 @@ void MainWindow::handleSNIHostRegistered() {
 
 	_sniAvailable = true;
 
-	if (Core::App().settings().workMode() == dbiwmWindowOnly) {
+	if (Core::App().settings().workMode() == WorkMode::WindowOnly) {
 		return;
 	}
 
@@ -825,7 +826,7 @@ void MainWindow::handleSNIHostRegistered() {
 
 	SkipTaskbar(
 		windowHandle(),
-		Core::App().settings().workMode() == dbiwmTrayOnly);
+		Core::App().settings().workMode() == WorkMode::TrayOnly);
 }
 
 void MainWindow::handleSNIOwnerChanged(
@@ -834,7 +835,7 @@ void MainWindow::handleSNIOwnerChanged(
 		const QString &newOwner) {
 	_sniAvailable = IsSNIAvailable();
 
-	if (Core::App().settings().workMode() == dbiwmWindowOnly) {
+	if (Core::App().settings().workMode() == WorkMode::WindowOnly) {
 		return;
 	}
 
@@ -860,7 +861,7 @@ void MainWindow::handleSNIOwnerChanged(
 
 	SkipTaskbar(
 		windowHandle(),
-		(Core::App().settings().workMode() == dbiwmTrayOnly)
+		(Core::App().settings().workMode() == WorkMode::TrayOnly)
 			&& trayAvailable());
 }
 
@@ -918,10 +919,10 @@ void MainWindow::psSetupTrayIcon() {
 	}
 }
 
-void MainWindow::workmodeUpdated(DBIWorkMode mode) {
+void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
 	if (!trayAvailable()) {
 		return;
-	} else if (mode == dbiwmWindowOnly) {
+	} else if (mode == WorkMode::WindowOnly) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 		if (_sniTrayIcon) {
 			_sniTrayIcon->setContextMenu(0);
@@ -939,7 +940,7 @@ void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 		psSetupTrayIcon();
 	}
 
-	SkipTaskbar(windowHandle(), mode == dbiwmTrayOnly);
+	SkipTaskbar(windowHandle(), mode == WorkMode::TrayOnly);
 }
 
 void MainWindow::unreadCounterChangedHook() {
@@ -1331,7 +1332,7 @@ void MainWindow::handleNativeSurfaceChanged(bool exist) {
 	if (exist) {
 		SkipTaskbar(
 			windowHandle(),
-			(Core::App().settings().workMode() == dbiwmTrayOnly)
+			(Core::App().settings().workMode() == WorkMode::TrayOnly)
 				&& trayAvailable());
 	}
 

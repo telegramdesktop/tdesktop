@@ -316,7 +316,8 @@ void Controller::updateIsActive() {
 }
 
 void Controller::minimize() {
-	if (Core::App().settings().workMode() == dbiwmTrayOnly) {
+	if (Core::App().settings().workMode()
+			== Core::Settings::WorkMode::TrayOnly) {
 		_widget.minimizeToTray();
 	} else {
 		_widget.setWindowState(_widget.windowState() | Qt::WindowMinimized);

@@ -85,7 +85,7 @@ protected:
 
 	void showTrayTooltip() override;
 
-	void workmodeUpdated(DBIWorkMode mode) override;
+	void workmodeUpdated(Core::Settings::WorkMode mode) override;
 
 	bool initSizeFromSystem() override;
 

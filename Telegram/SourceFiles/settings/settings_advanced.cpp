@@ -318,6 +318,8 @@ void SetupSpellchecker(
 void SetupSystemIntegrationContent(
 		Window::SessionController *controller,
 		not_null<Ui::VerticalLayout*> container) {
+	using WorkMode = Core::Settings::WorkMode;
+
 	const auto checkbox = [&](rpl::producer<QString> &&label, bool checked) {
 		return object_ptr<Ui::Checkbox>(
 			container,
@@ -344,8 +346,8 @@ void SetupSystemIntegrationContent(
 	if (Platform::TrayIconSupported()) {
 		const auto trayEnabled = [] {
 			const auto workMode = Core::App().settings().workMode();
-			return (workMode == dbiwmTrayOnly)
-				|| (workMode == dbiwmWindowAndTray);
+			return (workMode == WorkMode::TrayOnly)
+				|| (workMode == WorkMode::WindowAndTray);
 		};
 		const auto tray = addCheckbox(
 			tr::lng_settings_workmode_tray(),
@@ -353,8 +355,8 @@ void SetupSystemIntegrationContent(
 
 		const auto taskbarEnabled = [] {
 			const auto workMode = Core::App().settings().workMode();
-			return (workMode == dbiwmWindowOnly)
-				|| (workMode == dbiwmWindowAndTray);
+			return (workMode == WorkMode::WindowOnly)
+				|| (workMode == WorkMode::WindowAndTray);
 		};
 		const auto taskbar = Platform::SkipTaskbarSupported()
 			? addCheckbox(
@@ -365,10 +367,11 @@ void SetupSystemIntegrationContent(
 		const auto updateWorkmode = [=] {
 			const auto newMode = tray->checked()
 				? ((!taskbar || taskbar->checked())
-					? dbiwmWindowAndTray
-					: dbiwmTrayOnly)
-				: dbiwmWindowOnly;
-			if ((newMode == dbiwmWindowAndTray || newMode == dbiwmTrayOnly)
+					? WorkMode::WindowAndTray
+					: WorkMode::TrayOnly)
+				: WorkMode::WindowOnly;
+			if ((newMode == WorkMode::WindowAndTray
+				|| newMode == WorkMode::TrayOnly)
 				&& Core::App().settings().workMode() != newMode) {
 				cSetSeenTrayTooltip(false);
 			}

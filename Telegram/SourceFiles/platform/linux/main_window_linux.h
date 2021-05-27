@@ -51,7 +51,7 @@ protected:
 	void initTrayMenuHook() override;
 	bool hasTrayIcon() const override;
 
-	void workmodeUpdated(DBIWorkMode mode) override;
+	void workmodeUpdated(Core::Settings::WorkMode mode) override;
 	void createGlobalMenu() override;
 
 	QSystemTrayIcon *trayIcon = nullptr;

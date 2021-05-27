@@ -188,7 +188,8 @@ void MainWindow::applyInitialWorkMode() {
 		const auto minimizeAndHide = [=] {
 			DEBUG_LOG(("Window Pos: First show, setting minimized after."));
 			setWindowState(windowState() | Qt::WindowMinimized);
-			if (workMode == dbiwmTrayOnly || workMode == dbiwmWindowAndTray) {
+			if (workMode == Core::Settings::WorkMode::TrayOnly
+				|| workMode == Core::Settings::WorkMode::WindowAndTray) {
 				hide();
 			}
 		};

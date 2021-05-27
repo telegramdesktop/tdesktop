@@ -179,7 +179,7 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 	}, lifetime());
 
 	Core::App().settings().workModeChanges(
-	) | rpl::start_with_next([=](DBIWorkMode mode) {
+	) | rpl::start_with_next([=](Core::Settings::WorkMode mode) {
 		workmodeUpdated(mode);
 	}, lifetime());
 
@@ -211,7 +211,8 @@ bool MainWindow::hideNoQuit() {
 		return false;
 	}
 	const auto workMode = Core::App().settings().workMode();
-	if (workMode == dbiwmTrayOnly || workMode == dbiwmWindowAndTray) {
+	if (workMode == Core::Settings::WorkMode::TrayOnly
+		|| workMode == Core::Settings::WorkMode::WindowAndTray) {
 		if (minimizeToTray()) {
 			if (const auto controller = sessionController()) {
 				Ui::showChatsList(&controller->session());
@@ -316,8 +317,9 @@ void MainWindow::handleStateChanged(Qt::WindowState state) {
 		controller().updateIsActiveFocus();
 	}
 	Core::App().updateNonIdle();
+	using WorkMode = Core::Settings::WorkMode;
 	if (state == Qt::WindowMinimized
-			&& (Core::App().settings().workMode() == dbiwmTrayOnly)) {
+		&& (Core::App().settings().workMode() == WorkMode::TrayOnly)) {
 		minimizeToTray();
 	}
 	savePosition(state);

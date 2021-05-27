@@ -71,7 +71,7 @@ protected:
 
 	void updateGlobalMenuHook() override;
 
-	void workmodeUpdated(DBIWorkMode mode) override;
+	void workmodeUpdated(Core::Settings::WorkMode mode) override;
 
 	QSystemTrayIcon *trayIcon = nullptr;
 	QMenu *trayIconMenu = nullptr;

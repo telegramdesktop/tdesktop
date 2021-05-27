@@ -234,7 +234,7 @@ Manager::Private::Private(Manager *manager)
 , _managerIdString(QString::number(_managerId))
 , _delegate([[NotificationDelegate alloc] initWithManager:manager managerId:_managerId]) {
 	Core::App().settings().workModeValue(
-	) | rpl::start_with_next([=](DBIWorkMode mode) {
+	) | rpl::start_with_next([=](Core::Settings::WorkMode mode) {
 		// We need to update the delegate _after_ the tray icon change was done in Qt.
 		// Because Qt resets the delegate.
 		crl::on_main(this, [=] {

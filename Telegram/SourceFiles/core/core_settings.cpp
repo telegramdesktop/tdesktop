@@ -525,11 +525,11 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			|| Ui::Integration::Instance().openglLastCheckFailed());
 	}
 	_groupCallNoiseSuppression = (groupCallNoiseSuppression == 1);
-	const auto uncheckedWorkMode = static_cast<DBIWorkMode>(workMode);
+	const auto uncheckedWorkMode = static_cast<WorkMode>(workMode);
 	switch (uncheckedWorkMode) {
-	case dbiwmWindowAndTray:
-	case dbiwmTrayOnly:
-	case dbiwmWindowOnly: _workMode = uncheckedWorkMode; break;
+	case WorkMode::WindowAndTray:
+	case WorkMode::TrayOnly:
+	case WorkMode::WindowOnly: _workMode = uncheckedWorkMode; break;
 	}
 }
 
@@ -791,7 +791,7 @@ void Settings::resetOnLastLogout() {
 	_recentEmoji.clear();
 	_emojiVariants.clear();
 
-	_workMode = dbiwmWindowAndTray;
+	_workMode = WorkMode::WindowAndTray;
 }
 
 bool Settings::ThirdColumnByDefault() {

@@ -121,12 +121,6 @@ void memset_rand(void *data, uint32 len);
 QString translitRusEng(const QString &rus);
 QString rusKeyboardLayoutSwitch(const QString &from);
 
-enum DBIWorkMode {
-	dbiwmWindowAndTray = 0,
-	dbiwmTrayOnly = 1,
-	dbiwmWindowOnly = 2,
-};
-
 static const int MatrixRowShift = 40000;
 
 inline int rowscount(int fullCount, int countPerRow) {

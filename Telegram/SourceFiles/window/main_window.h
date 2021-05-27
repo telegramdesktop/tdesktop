@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "base/timer.h"
 #include "base/object_ptr.h"
+#include "core/core_settings.h"
 
 #include <QtWidgets/QSystemTrayIcon>
 
@@ -174,7 +175,7 @@ protected:
 	virtual void showTrayTooltip() {
 	}
 
-	virtual void workmodeUpdated(DBIWorkMode mode) {
+	virtual void workmodeUpdated(Core::Settings::WorkMode mode) {
 	}
 
 	virtual void createGlobalMenu() {

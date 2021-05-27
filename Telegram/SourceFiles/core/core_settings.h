@@ -53,6 +53,11 @@ public:
 		ShowName = 1,
 		ShowNothing = 2,
 	};
+	enum class WorkMode {
+		WindowAndTray = 0,
+		TrayOnly = 1,
+		WindowOnly = 2,
+	};
 
 	static constexpr auto kDefaultVolume = 0.9;
 
@@ -526,16 +531,16 @@ public:
 	void setWindowPosition(const WindowPosition &position) {
 		_windowPosition = position;
 	}
-	void setWorkMode(DBIWorkMode value) {
+	void setWorkMode(WorkMode value) {
 		_workMode = value;
 	}
-	[[nodiscard]] DBIWorkMode workMode() const {
+	[[nodiscard]] WorkMode workMode() const {
 		return _workMode.current();
 	}
-	[[nodiscard]] rpl::producer<DBIWorkMode> workModeValue() const {
+	[[nodiscard]] rpl::producer<WorkMode> workModeValue() const {
 		return _workMode.value();
 	}
-	[[nodiscard]] rpl::producer<DBIWorkMode> workModeChanges() const {
+	[[nodiscard]] rpl::producer<WorkMode> workModeChanges() const {
 		return _workMode.changes();
 	}
 
@@ -658,7 +663,7 @@ private:
 	rpl::variable<bool> _systemDarkModeEnabled = false;
 	WindowPosition _windowPosition; // per-window
 	bool _disableOpenGL = false;
-	rpl::variable<DBIWorkMode> _workMode = dbiwmWindowAndTray;
+	rpl::variable<WorkMode> _workMode = WorkMode::WindowAndTray;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

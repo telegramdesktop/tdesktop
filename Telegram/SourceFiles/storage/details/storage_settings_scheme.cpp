@@ -428,11 +428,12 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		const auto newMode = [v] {
-			switch (v) {
-			case dbiwmTrayOnly: return dbiwmTrayOnly;
-			case dbiwmWindowOnly: return dbiwmWindowOnly;
+			using WorkMode = Core::Settings::WorkMode;
+			switch (static_cast<WorkMode>(v)) {
+			case WorkMode::TrayOnly: return WorkMode::TrayOnly;
+			case WorkMode::WindowOnly: return WorkMode::WindowOnly;
 			};
-			return dbiwmWindowAndTray;
+			return WorkMode::WindowAndTray;
 		}();
 		Core::App().settings().setWorkMode(newMode);
 
