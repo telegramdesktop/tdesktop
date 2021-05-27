@@ -881,11 +881,16 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		switch (v) {
-		case dbinvShowNothing: Core::App().settings().setNotifyView(dbinvShowNothing); break;
-		case dbinvShowName: Core::App().settings().setNotifyView(dbinvShowName); break;
-		default: Core::App().settings().setNotifyView(dbinvShowPreview); break;
-		}
+		const auto newView = [&] {
+			using Notify = Core::Settings::NotifyView;
+			switch (static_cast<Notify>(v)) {
+			case Notify::ShowNothing: return Notify::ShowNothing;
+			case Notify::ShowName: return Notify::ShowName;
+			}
+			return Notify::ShowPreview;
+		}();
+		Core::App().settings().setNotifyView(newView);
+
 		context.legacyRead = true;
 	} break;
 

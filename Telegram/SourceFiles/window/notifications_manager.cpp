@@ -594,8 +594,10 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 
 	const auto view = Core::App().settings().notifyView();
 	DisplayOptions result;
-	result.hideNameAndPhoto = hideEverything || (view > dbinvShowName);
-	result.hideMessageText = hideEverything || (view > dbinvShowPreview);
+	result.hideNameAndPhoto = hideEverything
+		|| (view > Core::Settings::NotifyView::ShowName);
+	result.hideMessageText = hideEverything
+		|| (view > Core::Settings::NotifyView::ShowPreview);
 	result.hideReplyButton = result.hideMessageText
 		|| !item
 		|| ((item->out() || item->history()->peer->isSelf())

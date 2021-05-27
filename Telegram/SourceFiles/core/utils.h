@@ -121,12 +121,6 @@ void memset_rand(void *data, uint32 len);
 QString translitRusEng(const QString &rus);
 QString rusKeyboardLayoutSwitch(const QString &from);
 
-enum DBINotifyView {
-	dbinvShowPreview = 0,
-	dbinvShowName = 1,
-	dbinvShowNothing = 2,
-};
-
 enum DBIWorkMode {
 	dbiwmWindowAndTray = 0,
 	dbiwmTrayOnly = 1,

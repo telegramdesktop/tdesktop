@@ -432,11 +432,11 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_soundNotify = (soundNotify == 1);
 	_desktopNotify = (desktopNotify == 1);
 	_flashBounceNotify = (flashBounceNotify == 1);
-	const auto uncheckedNotifyView = static_cast<DBINotifyView>(notifyView);
+	const auto uncheckedNotifyView = static_cast<NotifyView>(notifyView);
 	switch (uncheckedNotifyView) {
-	case dbinvShowNothing:
-	case dbinvShowName:
-	case dbinvShowPreview: _notifyView = uncheckedNotifyView; break;
+	case NotifyView::ShowNothing:
+	case NotifyView::ShowName:
+	case NotifyView::ShowPreview: _notifyView = uncheckedNotifyView; break;
 	}
 	switch (nativeNotifications) {
 	case 0: _nativeNotifications = std::nullopt; break;
@@ -732,7 +732,7 @@ void Settings::resetOnLastLogout() {
 	_soundNotify = true;
 	_desktopNotify = true;
 	_flashBounceNotify = true;
-	_notifyView = dbinvShowPreview;
+	_notifyView = NotifyView::ShowPreview;
 	//_nativeNotifications = std::nullopt;
 	//_notificationsCount = 3;
 	//_notificationsCorner = ScreenCorner::BottomRight;

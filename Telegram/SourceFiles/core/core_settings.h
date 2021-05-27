@@ -48,6 +48,11 @@ public:
 		BottomRight = 2,
 		BottomLeft = 3,
 	};
+	enum class NotifyView {
+		ShowPreview = 0,
+		ShowName = 1,
+		ShowNothing = 2,
+	};
 
 	static constexpr auto kDefaultVolume = 0.9;
 
@@ -147,10 +152,10 @@ public:
 	void setFlashBounceNotify(bool value) {
 		_flashBounceNotify = value;
 	}
-	[[nodiscard]] DBINotifyView notifyView() const {
+	[[nodiscard]] NotifyView notifyView() const {
 		return _notifyView;
 	}
-	void setNotifyView(DBINotifyView value) {
+	void setNotifyView(NotifyView value) {
 		_notifyView = value;
 	}
 	[[nodiscard]] bool nativeNotifications() const {
@@ -598,7 +603,7 @@ private:
 	bool _soundNotify = true;
 	bool _desktopNotify = true;
 	bool _flashBounceNotify = true;
-	DBINotifyView _notifyView = dbinvShowPreview;
+	NotifyView _notifyView = NotifyView::ShowPreview;
 	std::optional<bool> _nativeNotifications;
 	int _notificationsCount = 3;
 	ScreenCorner _notificationsCorner = ScreenCorner::BottomRight;
