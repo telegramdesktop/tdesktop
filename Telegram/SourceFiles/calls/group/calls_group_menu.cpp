@@ -611,7 +611,8 @@ void FillMenu(
 	const auto addEditTitle = call->canManage();
 	const auto addEditRecording = call->canManage() && !real->scheduleDate();
 	const auto addScreenCast = !wide
-		&& (real->canStartVideo() || call->isSharingScreen());
+		&& (real->canStartVideo() || call->isSharingScreen())
+		&& !real->scheduleDate();
 	if (addEditJoinAs) {
 		menu->addAction(MakeJoinAsAction(
 			menu->menu(),
