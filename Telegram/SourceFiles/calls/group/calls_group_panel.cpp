@@ -319,7 +319,10 @@ bool InviteController::isAlreadyIn(not_null<UserData*> user) const {
 std::unique_ptr<PeerListRow> InviteController::createRow(
 		not_null<PeerData*> participant) const {
 	const auto user = participant->asUser();
-	if (!user || user->isSelf() || user->isBot()) {
+	if (!user
+		|| user->isSelf()
+		|| user->isBot()
+		|| (user->flags() & MTPDuser::Flag::f_deleted)) {
 		return nullptr;
 	}
 	auto result = std::make_unique<PeerListRow>(user);
