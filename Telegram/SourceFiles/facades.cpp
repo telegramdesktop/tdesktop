@@ -338,8 +338,6 @@ namespace Global {
 namespace internal {
 
 struct Data {
-	bool ScreenIsLocked = false;
-
 	bool TryIPv6 = !Platform::IsWindows();
 	std::vector<MTP::ProxyData> ProxiesList;
 	MTP::ProxyData SelectedProxy;
@@ -369,8 +367,6 @@ void finish() {
 	delete GlobalData;
 	GlobalData = nullptr;
 }
-
-DefineVar(Global, bool, ScreenIsLocked);
 
 DefineVar(Global, bool, TryIPv6);
 DefineVar(Global, std::vector<MTP::ProxyData>, ProxiesList);

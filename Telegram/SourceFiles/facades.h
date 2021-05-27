@@ -95,8 +95,6 @@ bool started();
 void start();
 void finish();
 
-DeclareVar(bool, ScreenIsLocked);
-
 DeclareVar(bool, TryIPv6);
 DeclareVar(std::vector<MTP::ProxyData>, ProxiesList);
 DeclareVar(MTP::ProxyData, SelectedProxy);

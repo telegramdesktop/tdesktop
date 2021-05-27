@@ -745,7 +745,7 @@ void NativeManager::doShowNotification(
 }
 
 bool NativeManager::forceHideDetails() const {
-	return Global::ScreenIsLocked();
+	return Core::App().screenIsLocked();
 }
 
 System::~System() = default;

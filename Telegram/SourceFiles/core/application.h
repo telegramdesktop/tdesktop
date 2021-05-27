@@ -280,6 +280,10 @@ public:
 
 	void call_handleObservables();
 
+	// Global runtime variables.
+	void setScreenIsLocked(bool locked);
+	bool screenIsLocked() const;
+
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
 
@@ -360,6 +364,7 @@ private:
 	const QImage _logoNoMargin;
 
 	rpl::variable<bool> _passcodeLock;
+	bool _screenIsLocked = false;
 
 	crl::time _shouldLockAt = 0;
 	base::Timer _autoLockTimer;

@@ -192,11 +192,11 @@ private:
 }
 
 - (void) screenIsLocked:(NSNotification *)aNotification {
-	Global::SetScreenIsLocked(true);
+	Core::App().setScreenIsLocked(true);
 }
 
 - (void) screenIsUnlocked:(NSNotification *)aNotification {
-	Global::SetScreenIsLocked(false);
+	Core::App().setScreenIsLocked(false);
 }
 
 - (void) windowWillEnterFullScreen:(NSNotification *)aNotification {

@@ -236,9 +236,9 @@ bool EventFilter::mainWindowEvent(
 
 	case WM_WTSSESSION_CHANGE: {
 		if (wParam == WTS_SESSION_LOGOFF || wParam == WTS_SESSION_LOCK) {
-			Global::SetScreenIsLocked(true);
+			Core::App().setScreenIsLocked(true);
 		} else if (wParam == WTS_SESSION_LOGON || wParam == WTS_SESSION_UNLOCK) {
-			Global::SetScreenIsLocked(false);
+			Core::App().setScreenIsLocked(false);
 		}
 	} return false;
 

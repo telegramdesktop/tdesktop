@@ -590,6 +590,14 @@ void Application::startEmojiImageLoader() {
 	}, _lifetime);
 }
 
+void Application::setScreenIsLocked(bool locked) {
+	_screenIsLocked = locked;
+}
+
+bool Application::screenIsLocked() const {
+	return _screenIsLocked;
+}
+
 void Application::setDefaultFloatPlayerDelegate(
 		not_null<Media::Player::FloatDelegate*> delegate) {
 	Expects(!_defaultFloatPlayerDelegate == !_floatPlayers);
