@@ -81,6 +81,7 @@ public:
 	void raise();
 	void lower();
 
+	[[nodiscard]] not_null<QWidget*> outer() const;
 	[[nodiscard]] rpl::producer<CallButtonColors> colorOverrides() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime();

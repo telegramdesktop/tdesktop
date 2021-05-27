@@ -1140,6 +1140,10 @@ rpl::producer<CallButtonColors> CallMuteButton::colorOverrides() const {
 	return _colorOverrides.events();
 }
 
+not_null<QWidget*> CallMuteButton::outer() const {
+	return _content.get();
+}
+
 rpl::lifetime &CallMuteButton::lifetime() {
 	return _blobs->lifetime();
 }

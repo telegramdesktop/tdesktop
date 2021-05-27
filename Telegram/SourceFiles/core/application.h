@@ -369,17 +369,11 @@ private:
 
 	std::optional<base::Timer> _saveSettingsTimer;
 
-	struct LeaveSubscription {
-		LeaveSubscription(
-			QPointer<QWidget> pointer,
-			rpl::lifetime &&subscription)
-		: pointer(pointer), subscription(std::move(subscription)) {
-		}
-
-		QPointer<QWidget> pointer;
-		rpl::lifetime subscription;
+	struct LeaveFilter {
+		std::vector<QPointer<QWidget>> registered;
+		QPointer<QObject> filter;
 	};
-	std::vector<LeaveSubscription> _leaveSubscriptions;
+	base::flat_map<not_null<QWidget*>, LeaveFilter> _leaveFilters;
 
 	rpl::lifetime _lifetime;
 

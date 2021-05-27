@@ -1948,11 +1948,26 @@ void Panel::setupControlsBackgroundWide() {
 template <typename WidgetPointer>
 void Panel::trackControl(WidgetPointer &widget, rpl::lifetime &lifetime) {
 	if (widget) {
-		widget->events(
+		const auto raw = &*widget;
+		raw->events(
 		) | rpl::start_with_next([=](not_null<QEvent*> e) {
+			using Type = std::remove_cvref_t<decltype(*raw)>;
+			constexpr auto mute = std::is_same_v<Type, Ui::CallMuteButton>;
 			if (e->type() == QEvent::Enter) {
+				auto &integration = Ui::Integration::Instance();
+				if constexpr (mute) {
+					integration.registerLeaveSubscription(raw->outer());
+				} else {
+					integration.registerLeaveSubscription(raw);
+				}
 				toggleWideControls(true);
 			} else if (e->type() == QEvent::Leave) {
+				auto &integration = Ui::Integration::Instance();
+				if constexpr (mute) {
+					integration.unregisterLeaveSubscription(raw->outer());
+				} else {
+					integration.unregisterLeaveSubscription(raw);
+				}
 				toggleWideControls(false);
 			}
 		}, lifetime);
