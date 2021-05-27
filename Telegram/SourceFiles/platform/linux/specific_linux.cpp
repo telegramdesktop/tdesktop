@@ -421,6 +421,125 @@ void SetGtkScaleFactor() {
 	cSetScreenScale(style::CheckScale(scaleFactor * 100));
 }
 
+void SetDarkMode() {
+	static const auto Inited = [] {
+		QObject::connect(
+			qGuiApp,
+			&QGuiApplication::paletteChanged,
+			SetDarkMode);
+
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+		using XDPSettingWatcher = base::Platform::XDP::SettingWatcher;
+		static const XDPSettingWatcher KdeColorSchemeWatcher(
+			[=](
+				const Glib::ustring &group,
+				const Glib::ustring &key,
+				const Glib::VariantBase &value) {
+				if (group == "org.kde.kdeglobals.General"
+					&& key == "ColorScheme") {
+					SetDarkMode();
+				}
+			});
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
+		const auto integration = BaseGtkIntegration::Instance();
+		if (integration) {
+			integration->connectToSetting(
+				"gtk-theme-name",
+				SetDarkMode);
+
+			if (integration->checkVersion(3, 0, 0)) {
+				integration->connectToSetting(
+					"gtk-application-prefer-dark-theme",
+					SetDarkMode);
+			}
+		}
+
+		return true;
+	}();
+
+	std::optional<bool> result;
+	const auto setter = gsl::finally([&] {
+		crl::on_main([=] {
+			Core::App().settings().setSystemDarkMode(result);
+		});
+	});
+
+	const auto styleName = QApplication::style()->metaObject()->className();
+	if (styleName != qstr("QFusionStyle")
+		&& styleName != qstr("QWindowsStyle")) {
+		result = false;
+
+		const auto paletteBackgroundGray = qGray(
+			QPalette().color(QPalette::Window).rgb());
+
+		if (paletteBackgroundGray < kDarkColorLimit) {
+			result = true;
+			return;
+		}
+	}
+
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	try {
+		using namespace base::Platform::XDP;
+
+		const auto kdeBackgroundColorOptional = ReadSetting(
+			"org.kde.kdeglobals.Colors:Window",
+			"BackgroundNormal");
+
+		if (kdeBackgroundColorOptional.has_value()) {
+			const auto kdeBackgroundColorList = QString::fromStdString(
+				base::Platform::GlibVariantCast<Glib::ustring>(
+					*kdeBackgroundColorOptional)).split(',');
+
+			if (kdeBackgroundColorList.size() >= 3) {
+				result = false;
+
+				const auto kdeBackgroundGray = qGray(
+					kdeBackgroundColorList[0].toInt(),
+					kdeBackgroundColorList[1].toInt(),
+					kdeBackgroundColorList[2].toInt());
+
+				if (kdeBackgroundGray < kDarkColorLimit) {
+					result = true;
+					return;
+				}
+			}
+		}
+	} catch (...) {
+	}
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+
+	const auto integration = BaseGtkIntegration::Instance();
+	if (integration) {
+		if (integration->checkVersion(3, 0, 0)) {
+			const auto preferDarkTheme = integration->getBoolSetting(
+				qsl("gtk-application-prefer-dark-theme"));
+
+			if (preferDarkTheme.has_value()) {
+				result = false;
+
+				if (*preferDarkTheme) {
+					result = true;
+					return;
+				}
+			}
+		}
+
+		const auto themeName = integration->getStringSetting(
+			qsl("gtk-theme-name"));
+
+		if (themeName.has_value()) {
+			result = false;
+
+			if (themeName->contains(qsl("-dark"), Qt::CaseInsensitive)) {
+				result = true;
+				return;
+			}
+		}
+	}
+}
+
 } // namespace
 
 void SetWatchingMediaKeys(bool watching) {
@@ -514,119 +633,7 @@ QImage GetImageFromClipboard() {
 }
 
 std::optional<bool> IsDarkMode() {
-	std::optional<bool> failResult;
-
-	if (static auto Once = false; !std::exchange(Once, true)) {
-		const auto onChanged = [] {
-			Core::Sandbox::Instance().customEnterFromEventLoop([] {
-				Core::App().settings().setSystemDarkMode(IsDarkMode());
-			});
-		};
-
-		QObject::connect(
-			qGuiApp,
-			&QGuiApplication::paletteChanged,
-			onChanged);
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-		using XDPSettingWatcher = base::Platform::XDP::SettingWatcher;
-		static const XDPSettingWatcher KdeColorSchemeWatcher(
-			[=](
-				const Glib::ustring &group,
-				const Glib::ustring &key,
-				const Glib::VariantBase &value) {
-				if (group == "org.kde.kdeglobals.General"
-					&& key == "ColorScheme") {
-					onChanged();
-				}
-			});
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-		const auto integration = BaseGtkIntegration::Instance();
-		if (integration) {
-			integration->connectToSetting(
-				"gtk-theme-name",
-				onChanged);
-
-			if (integration->checkVersion(3, 0, 0)) {
-				integration->connectToSetting(
-					"gtk-application-prefer-dark-theme",
-					onChanged);
-			}
-		}
-	}
-
-	const auto styleName = QApplication::style()->metaObject()->className();
-	if (styleName != qstr("QFusionStyle")
-		&& styleName != qstr("QWindowsStyle")) {
-		failResult = false;
-
-		const auto paletteBackgroundGray = qGray(
-			QPalette().color(QPalette::Window).rgb());
-
-		if (paletteBackgroundGray < kDarkColorLimit) {
-			return true;
-		}
-	}
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	try {
-		using namespace base::Platform::XDP;
-
-		const auto kdeBackgroundColorOptional = ReadSetting(
-			"org.kde.kdeglobals.Colors:Window",
-			"BackgroundNormal");
-
-		if (kdeBackgroundColorOptional.has_value()) {
-			const auto kdeBackgroundColorList = QString::fromStdString(
-				base::Platform::GlibVariantCast<Glib::ustring>(
-					*kdeBackgroundColorOptional)).split(',');
-
-			if (kdeBackgroundColorList.size() >= 3) {
-				failResult = false;
-
-				const auto kdeBackgroundGray = qGray(
-					kdeBackgroundColorList[0].toInt(),
-					kdeBackgroundColorList[1].toInt(),
-					kdeBackgroundColorList[2].toInt());
-
-				if (kdeBackgroundGray < kDarkColorLimit) {
-					return true;
-				}
-			}
-		}
-	} catch (...) {
-	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	const auto integration = BaseGtkIntegration::Instance();
-	if (integration) {
-		if (integration->checkVersion(3, 0, 0)) {
-			const auto preferDarkTheme = integration->getBoolSetting(
-				qsl("gtk-application-prefer-dark-theme"));
-
-			if (preferDarkTheme.has_value()) {
-				failResult = false;
-
-				if (*preferDarkTheme) {
-					return true;
-				}
-			}
-		}
-
-		const auto themeName = integration->getStringSetting(
-			qsl("gtk-theme-name"));
-
-		if (themeName.has_value()) {
-			failResult = false;
-
-			if (themeName->contains(qsl("-dark"), Qt::CaseInsensitive)) {
-				return true;
-			}
-		}
-	}
-
-	return failResult;
+	return Core::App().settings().systemDarkMode();
 }
 
 bool AutostartSupported() {
@@ -966,12 +973,13 @@ void start() {
 		integration->load();
 	}
 
-	SetGtkScaleFactor();
-
 	// wait for interface announce to know if native window frame is supported
 	if (const auto integration = WaylandIntegration::Instance()) {
 		integration->waitForInterfaceAnnounce();
 	}
+
+	SetGtkScaleFactor();
+	crl::async(SetDarkMode);
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	NSWInstance = std::make_unique<internal::NotificationServiceWatcher>();
