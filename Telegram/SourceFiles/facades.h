@@ -89,21 +89,6 @@ bool switchInlineBotButtonReceived(
 #define DeclareVar(Type, Name) DeclareRefVar(Type, Name) \
 	void Set##Name(const Type &Name);
 
-namespace Adaptive {
-
-enum class WindowLayout {
-	OneColumn,
-	Normal,
-	ThreeColumn,
-};
-
-enum class ChatLayout {
-	Normal,
-	Wide,
-};
-
-} // namespace Adaptive
-
 namespace Global {
 
 bool started();
@@ -111,9 +96,6 @@ void start();
 void finish();
 
 DeclareVar(bool, ScreenIsLocked);
-DeclareVar(Adaptive::ChatLayout, AdaptiveChatLayout);
-DeclareVar(Adaptive::WindowLayout, AdaptiveWindowLayout);
-DeclareRefVar(base::Observable<void>, AdaptiveChanged);
 
 DeclareVar(bool, TryIPv6);
 DeclareVar(std::vector<MTP::ProxyData>, ProxiesList);
@@ -125,23 +107,3 @@ DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);
 DeclareRefVar(base::Variable<DBIWorkMode>, WorkMode);
 
 } // namespace Global
-
-namespace Adaptive {
-
-inline base::Observable<void> &Changed() {
-	return Global::RefAdaptiveChanged();
-}
-
-inline bool OneColumn() {
-	return Global::AdaptiveWindowLayout() == WindowLayout::OneColumn;
-}
-
-inline bool Normal() {
-	return Global::AdaptiveWindowLayout() == WindowLayout::Normal;
-}
-
-inline bool ThreeColumn() {
-	return Global::AdaptiveWindowLayout() == WindowLayout::ThreeColumn;
-}
-
-} // namespace Adaptive

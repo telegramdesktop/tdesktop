@@ -339,9 +339,6 @@ namespace internal {
 
 struct Data {
 	bool ScreenIsLocked = false;
-	Adaptive::WindowLayout AdaptiveWindowLayout = Adaptive::WindowLayout::Normal;
-	Adaptive::ChatLayout AdaptiveChatLayout = Adaptive::ChatLayout::Normal;
-	base::Observable<void> AdaptiveChanged;
 
 	bool TryIPv6 = !Platform::IsWindows();
 	std::vector<MTP::ProxyData> ProxiesList;
@@ -374,9 +371,6 @@ void finish() {
 }
 
 DefineVar(Global, bool, ScreenIsLocked);
-DefineVar(Global, Adaptive::WindowLayout, AdaptiveWindowLayout);
-DefineVar(Global, Adaptive::ChatLayout, AdaptiveChatLayout);
-DefineRefVar(Global, base::Observable<void>, AdaptiveChanged);
 
 DefineVar(Global, bool, TryIPv6);
 DefineVar(Global, std::vector<MTP::ProxyData>, ProxiesList);
