@@ -69,9 +69,11 @@ public:
 	[[nodiscard]] QByteArray serialize() const;
 	void addFromSerialized(const QByteArray &serialized);
 
-	[[nodiscard]] bool chatWide() const;
 	[[nodiscard]] bool adaptiveForWide() const {
-		return _adaptiveForWide;
+		return _adaptiveForWide.current();
+	}
+	[[nodiscard]] rpl::producer<bool> adaptiveForWideValue() const {
+		return _adaptiveForWide.value();
 	}
 	void setAdaptiveForWide(bool value) {
 		_adaptiveForWide = value;
@@ -573,7 +575,7 @@ private:
 		ushort rating = 0;
 	};
 
-	bool _adaptiveForWide = true;
+	rpl::variable<bool> _adaptiveForWide = true;
 	bool _moderateModeEnabled = false;
 	rpl::variable<float64> _songVolume = kDefaultVolume;
 	rpl::variable<float64> _videoVolume = kDefaultVolume;

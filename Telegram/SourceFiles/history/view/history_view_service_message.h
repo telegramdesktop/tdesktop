@@ -68,6 +68,7 @@ public:
 		const QDateTime &date,
 		int y,
 		int w,
+		bool chatWide,
 		const style::color &bg = st::msgServiceBg,
 		const style::color &fg = st::msgServiceFg);
 	static void paintDate(
@@ -75,6 +76,7 @@ public:
 		const QString &dateText,
 		int y,
 		int w,
+		bool chatWide,
 		const style::color &bg = st::msgServiceBg,
 		const style::color &fg = st::msgServiceFg);
 	static void paintDate(
@@ -83,6 +85,7 @@ public:
 		int dateTextWidth,
 		int y,
 		int w,
+		bool chatWide,
 		const style::color &bg = st::msgServiceBg,
 		const style::color &fg = st::msgServiceFg);
 

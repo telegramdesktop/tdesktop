@@ -120,6 +120,7 @@ public:
 		const QString &command,
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
+	bool elementIsChatWide() override;
 
 	~InnerWidget();
 

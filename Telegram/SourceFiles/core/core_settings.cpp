@@ -117,7 +117,7 @@ QByteArray Settings::serialize() const {
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream
 			<< themesAccentColors
-			<< qint32(_adaptiveForWide ? 1 : 0)
+			<< qint32(_adaptiveForWide.current() ? 1 : 0)
 			<< qint32(_moderateModeEnabled ? 1 : 0)
 			<< qint32(qRound(_songVolume.current() * 1e6))
 			<< qint32(qRound(_videoVolume.current() * 1e6))
@@ -211,7 +211,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	stream.setVersion(QDataStream::Qt_5_1);
 
 	QByteArray themesAccentColors;
-	qint32 adaptiveForWide = _adaptiveForWide ? 1 : 0;
+	qint32 adaptiveForWide = _adaptiveForWide.current() ? 1 : 0;
 	qint32 moderateModeEnabled = _moderateModeEnabled ? 1 : 0;
 	qint32 songVolume = qint32(qRound(_songVolume.current() * 1e6));
 	qint32 videoVolume = qint32(qRound(_videoVolume.current() * 1e6));
@@ -520,11 +520,6 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			|| Ui::Integration::Instance().openglLastCheckFailed());
 	}
 	_groupCallNoiseSuppression = (groupCallNoiseSuppression == 1);
-}
-
-bool Settings::chatWide() const {
-	return _adaptiveForWide
-		&& (Global::AdaptiveChatLayout() == Adaptive::ChatLayout::Wide);
 }
 
 QString Settings::getSoundPath(const QString &key) const {

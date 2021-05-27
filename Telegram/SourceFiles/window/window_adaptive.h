@@ -35,6 +35,9 @@ public:
 	[[nodiscard]] bool isNormal() const;
 	[[nodiscard]] bool isThreeColumn() const;
 
+	[[nodiscard]] rpl::producer<bool> chatWideValue() const;
+	[[nodiscard]] bool isChatWide() const;
+
 private:
 	rpl::variable<ChatLayout> _chatLayout;
 	rpl::variable<WindowLayout> _layout;

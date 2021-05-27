@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "core/application.h"
 #include "core/click_handler_types.h"
 #include "apiwrap.h"
 #include "layout.h"
@@ -312,6 +311,11 @@ ListWidget::ListWidget(
 			}
 		}
 	});
+
+	controller->adaptive().chatWideValue(
+	) | rpl::start_with_next([=](bool wide) {
+		_isChatWide = wide;
+	}, lifetime());
 }
 
 Main::Session &ListWidget::session() const {
@@ -1323,6 +1327,10 @@ void ListWidget::elementHandleViaClick(not_null<UserData*> bot) {
 	_delegate->listHandleViaClick(bot);
 }
 
+bool ListWidget::elementIsChatWide() {
+	return _isChatWide;
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();
@@ -1558,13 +1566,14 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 					int dateY = /*noFloatingDate ? itemtop :*/ (dateTop - st::msgServiceMargin.top());
 					int width = view->width();
 					if (const auto date = view->Get<HistoryView::DateBadge>()) {
-						date->paint(p, dateY, width);
+						date->paint(p, dateY, width, _isChatWide);
 					} else {
 						ServiceMessagePainter::paintDate(
 							p,
 							ItemDateText(view->data(), IsItemScheduledUntilOnline(view->data())),
 							dateY,
-							width);
+							width,
+							_isChatWide);
 					}
 				}
 			}
@@ -2348,7 +2357,7 @@ void ListWidget::mouseActionUpdate() {
 					dateWidth += st::msgServicePadding.left() + st::msgServicePadding.right();
 					auto dateLeft = st::msgServiceMargin.left();
 					auto maxwidth = view->width();
-					if (Core::App().settings().chatWide()) {
+					if (_isChatWide) {
 						maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 					}
 					auto widthForDate = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();

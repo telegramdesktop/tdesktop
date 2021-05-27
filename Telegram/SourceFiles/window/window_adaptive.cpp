@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 
 namespace Window {
 
@@ -25,6 +27,7 @@ void AdaptiveModern::setChatLayout(ChatLayout value) {
 
 rpl::producer<> AdaptiveModern::changed() const {
 	return rpl::merge(
+		Core::App().settings().adaptiveForWideValue() | rpl::to_empty,
 		_chatLayout.changes() | rpl::to_empty,
 		_layout.changes() | rpl::to_empty);
 }
@@ -50,6 +53,19 @@ bool AdaptiveModern::isNormal() const {
 
 bool AdaptiveModern::isThreeColumn() const {
 	return _layout.current() == WindowLayout::ThreeColumn;
+}
+
+rpl::producer<bool> AdaptiveModern::chatWideValue() const {
+	return rpl::combine(
+		_chatLayout.value(
+		) | rpl::map(rpl::mappers::_1 == AdaptiveModern::ChatLayout::Wide),
+		Core::App().settings().adaptiveForWideValue()
+	) | rpl::map(rpl::mappers::_1 && rpl::mappers::_2);
+}
+
+bool AdaptiveModern::isChatWide() const {
+	return Core::App().settings().adaptiveForWide()
+		&& (_chatLayout.current() == AdaptiveModern::ChatLayout::Wide);
 }
 
 } // namespace Window

@@ -626,6 +626,10 @@ void InnerWidget::elementSendBotCommand(
 void InnerWidget::elementHandleViaClick(not_null<UserData*> bot) {
 }
 
+bool InnerWidget::elementIsChatWide() {
+	return _controller->adaptive().isChatWide();
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));
@@ -941,14 +945,17 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						p.setOpacity(opacity);
 						const auto dateY = /*noFloatingDate ? itemtop :*/ (dateTop - st::msgServiceMargin.top());
 						const auto width = view->width();
+						const auto chatWide =
+							_controller->adaptive().isChatWide();
 						if (const auto date = view->Get<HistoryView::DateBadge>()) {
-							date->paint(p, dateY, width);
+							date->paint(p, dateY, width, chatWide);
 						} else {
 							HistoryView::ServiceMessagePainter::paintDate(
 								p,
 								view->dateTime(),
 								dateY,
-								width);
+								width,
+								chatWide);
 						}
 					}
 				}

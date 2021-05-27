@@ -1338,6 +1338,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				_dateBadge.text,
 				_visibleTop,
 				outerWidth,
+				false,
 				st::roundedBg,
 				st::roundedFg);
 		}

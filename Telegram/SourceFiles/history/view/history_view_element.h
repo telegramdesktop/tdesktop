@@ -70,6 +70,7 @@ public:
 		const QString &command,
 		const FullMsgId &context) = 0;
 	virtual void elementHandleViaClick(not_null<UserData*> bot) = 0;
+	virtual bool elementIsChatWide() = 0;
 
 };
 
@@ -106,6 +107,7 @@ public:
 		const QString &command,
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
+	bool elementIsChatWide() override;
 
 private:
 	const not_null<Window::SessionController*> _controller;
@@ -135,7 +137,7 @@ struct UnreadBar : public RuntimeComponent<UnreadBar, Element> {
 	static int height();
 	static int marginTop();
 
-	void paint(Painter &p, int y, int w) const;
+	void paint(Painter &p, int y, int w, bool chatWide) const;
 
 	QString text;
 	int width = 0;
@@ -149,7 +151,7 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 	void init(const QString &date);
 
 	int height() const;
-	void paint(Painter &p, int y, int w) const;
+	void paint(Painter &p, int y, int w, bool chatWide) const;
 
 	QString text;
 	int width = 0;

@@ -16,8 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "ui/effects/ripple_animation.h"
 #include "base/unixtime.h"
-#include "core/application.h"
-#include "core/core_settings.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_entity.h"
@@ -564,7 +562,7 @@ void Message::draw(
 		auto unreadbarh = bar->height();
 		if (clip.intersects(QRect(0, dateh, width(), unreadbarh))) {
 			p.translate(0, dateh);
-			bar->paint(p, 0, width());
+			bar->paint(p, 0, width(), delegate()->elementIsChatWide());
 			p.translate(0, -dateh);
 		}
 	}
@@ -644,7 +642,7 @@ void Message::draw(
 			|| (context() == Context::Replies && data()->isDiscussionPost());
 		auto displayTail = skipTail
 			? RectPart::None
-			: (outbg && !Core::App().settings().chatWide())
+			: (outbg && !delegate()->elementIsChatWide())
 			? RectPart::Right
 			: RectPart::Left;
 		PaintBubble(
@@ -1207,7 +1205,7 @@ bool Message::hasFromPhoto() const {
 			|| item->isEmpty()
 			|| (context() == Context::Replies && item->isDiscussionPost())) {
 			return false;
-		} else if (Core::App().settings().chatWide()) {
+		} else if (delegate()->elementIsChatWide()) {
 			return true;
 		} else if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 			const auto peer = item->history()->peer;
@@ -2517,7 +2515,7 @@ QRect Message::countGeometry() const {
 	const auto availableWidth = width()
 		- st::msgMargin.left()
 		- (commentsRoot ? st::msgMargin.left() : st::msgMargin.right());
-	auto contentLeft = (outbg && !Core::App().settings().chatWide())
+	auto contentLeft = (outbg && !delegate()->elementIsChatWide())
 		? st::msgMargin.right()
 		: st::msgMargin.left();
 	auto contentWidth = availableWidth;
@@ -2540,7 +2538,7 @@ QRect Message::countGeometry() const {
 			contentWidth = mediaWidth;
 		}
 	}
-	if (contentWidth < availableWidth && !Core::App().settings().chatWide()) {
+	if (contentWidth < availableWidth && !delegate()->elementIsChatWide()) {
 		if (outbg) {
 			contentLeft += availableWidth - contentWidth;
 		} else if (commentsRoot) {
