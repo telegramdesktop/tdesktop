@@ -174,7 +174,8 @@ void MainWindow::createTrayIconMenu() {
 }
 
 void MainWindow::applyInitialWorkMode() {
-	Global::RefWorkMode().setForced(Global::WorkMode().value(), true);
+	const auto workMode = Core::App().settings().workMode();
+	workmodeUpdated(workMode);
 
 	if (Core::App().settings().windowPosition().maximized) {
 		DEBUG_LOG(("Window Pos: First show, setting maximized."));
@@ -187,8 +188,7 @@ void MainWindow::applyInitialWorkMode() {
 		const auto minimizeAndHide = [=] {
 			DEBUG_LOG(("Window Pos: First show, setting minimized after."));
 			setWindowState(windowState() | Qt::WindowMinimized);
-			if (Global::WorkMode().value() == dbiwmTrayOnly
-				|| Global::WorkMode().value() == dbiwmWindowAndTray) {
+			if (workMode == dbiwmTrayOnly || workMode == dbiwmWindowAndTray) {
 				hide();
 			}
 		};

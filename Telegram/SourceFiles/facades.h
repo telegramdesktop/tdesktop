@@ -102,6 +102,4 @@ DeclareVar(MTP::ProxyData::Settings, ProxySettings);
 DeclareVar(bool, UseProxyForCalls);
 DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);
 
-DeclareRefVar(base::Variable<DBIWorkMode>, WorkMode);
-
 } // namespace Global

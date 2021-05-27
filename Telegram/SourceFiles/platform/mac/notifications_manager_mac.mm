@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/notifications_manager_mac.h"
 
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
 #include "base/platform/mac/base_utilities_mac.h"
@@ -15,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
-#include "facades.h"
 #include "styles/style_window.h"
 
 #include <thread>
@@ -172,7 +173,7 @@ void Create(Window::Notifications::System *system) {
 	}
 }
 
-class Manager::Private : public QObject, private base::Subscriber {
+class Manager::Private : public QObject {
 public:
 	Private(Manager *manager);
 
@@ -224,20 +225,22 @@ private:
 		ClearFinish>;
 	std::vector<ClearTask> _clearingTasks;
 
+	rpl::lifetime _lifetime;
+
 };
 
 Manager::Private::Private(Manager *manager)
 : _managerId(openssl::RandomValue<uint64>())
 , _managerIdString(QString::number(_managerId))
 , _delegate([[NotificationDelegate alloc] initWithManager:manager managerId:_managerId]) {
-	updateDelegate();
-	subscribe(Global::RefWorkMode(), [this](DBIWorkMode mode) {
+	Core::App().settings().workModeValue(
+	) | rpl::start_with_next([=](DBIWorkMode mode) {
 		// We need to update the delegate _after_ the tray icon change was done in Qt.
 		// Because Qt resets the delegate.
 		crl::on_main(this, [=] {
 			updateDelegate();
 		});
-	});
+	}, _lifetime);
 }
 
 void Manager::Private::showNotification(

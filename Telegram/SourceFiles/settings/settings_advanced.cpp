@@ -343,7 +343,7 @@ void SetupSystemIntegrationContent(
 	};
 	if (Platform::TrayIconSupported()) {
 		const auto trayEnabled = [] {
-			const auto workMode = Global::WorkMode().value();
+			const auto workMode = Core::App().settings().workMode();
 			return (workMode == dbiwmTrayOnly)
 				|| (workMode == dbiwmWindowAndTray);
 		};
@@ -352,7 +352,7 @@ void SetupSystemIntegrationContent(
 			trayEnabled());
 
 		const auto taskbarEnabled = [] {
-			const auto workMode = Global::WorkMode().value();
+			const auto workMode = Core::App().settings().workMode();
 			return (workMode == dbiwmWindowOnly)
 				|| (workMode == dbiwmWindowAndTray);
 		};
@@ -369,10 +369,10 @@ void SetupSystemIntegrationContent(
 					: dbiwmTrayOnly)
 				: dbiwmWindowOnly;
 			if ((newMode == dbiwmWindowAndTray || newMode == dbiwmTrayOnly)
-				&& Global::WorkMode().value() != newMode) {
+				&& Core::App().settings().workMode() != newMode) {
 				cSetSeenTrayTooltip(false);
 			}
-			Global::RefWorkMode().set(newMode);
+			Core::App().settings().setWorkMode(newMode);
 			Local::writeSettings();
 		};
 

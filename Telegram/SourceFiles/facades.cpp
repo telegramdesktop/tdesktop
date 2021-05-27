@@ -344,8 +344,6 @@ struct Data {
 	MTP::ProxyData::Settings ProxySettings = MTP::ProxyData::Settings::System;
 	bool UseProxyForCalls = false;
 	base::Observable<void> ConnectionTypeChanged;
-
-	base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowAndTray };
 };
 
 } // namespace internal
@@ -374,7 +372,5 @@ DefineVar(Global, MTP::ProxyData, SelectedProxy);
 DefineVar(Global, MTP::ProxyData::Settings, ProxySettings);
 DefineVar(Global, bool, UseProxyForCalls);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
-
-DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 
 } // namespace Global

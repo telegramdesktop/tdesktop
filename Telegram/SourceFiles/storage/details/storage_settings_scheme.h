@@ -86,7 +86,7 @@ enum {
 	dbiAutoStart = 0x06,
 	dbiStartMinimized = 0x07,
 	dbiSoundFlashBounceNotifyOld = 0x08,
-	dbiWorkMode = 0x09,
+	dbiWorkModeOld = 0x09,
 	dbiSeenTrayTooltip = 0x0a,
 	dbiDesktopNotifyOld = 0x0b,
 	dbiAutoUpdate = 0x0c,

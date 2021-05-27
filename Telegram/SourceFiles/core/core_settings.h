@@ -521,6 +521,18 @@ public:
 	void setWindowPosition(const WindowPosition &position) {
 		_windowPosition = position;
 	}
+	void setWorkMode(DBIWorkMode value) {
+		_workMode = value;
+	}
+	[[nodiscard]] DBIWorkMode workMode() const {
+		return _workMode.current();
+	}
+	[[nodiscard]] rpl::producer<DBIWorkMode> workModeValue() const {
+		return _workMode.value();
+	}
+	[[nodiscard]] rpl::producer<DBIWorkMode> workModeChanges() const {
+		return _workMode.changes();
+	}
 
 	struct RecentEmoji {
 		EmojiPtr emoji = nullptr;
@@ -641,6 +653,7 @@ private:
 	rpl::variable<bool> _systemDarkModeEnabled = false;
 	WindowPosition _windowPosition; // per-window
 	bool _disableOpenGL = false;
+	rpl::variable<DBIWorkMode> _workMode = dbiwmWindowAndTray;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

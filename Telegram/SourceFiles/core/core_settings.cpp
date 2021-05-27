@@ -197,7 +197,8 @@ QByteArray Settings::serialize() const {
 		}
 		stream
 			<< qint32(_disableOpenGL ? 1 : 0)
-			<< qint32(_groupCallNoiseSuppression ? 1 : 0);
+			<< qint32(_groupCallNoiseSuppression ? 1 : 0)
+			<< _workMode.current();
 	}
 	return result;
 }
@@ -275,6 +276,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	base::flat_map<QString, uint8> emojiVariants;
 	qint32 disableOpenGL = _disableOpenGL ? 1 : 0;
 	qint32 groupCallNoiseSuppression = _groupCallNoiseSuppression ? 1 : 0;
+	qint32 workMode = static_cast<qint32>(_workMode.current());
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -409,6 +411,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> groupCallNoiseSuppression;
 	}
+	if (!stream.atEnd()) {
+		stream >> workMode;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -520,6 +525,12 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			|| Ui::Integration::Instance().openglLastCheckFailed());
 	}
 	_groupCallNoiseSuppression = (groupCallNoiseSuppression == 1);
+	const auto uncheckedWorkMode = static_cast<DBIWorkMode>(workMode);
+	switch (uncheckedWorkMode) {
+	case dbiwmWindowAndTray:
+	case dbiwmTrayOnly:
+	case dbiwmWindowOnly: _workMode = uncheckedWorkMode; break;
+	}
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -779,6 +790,8 @@ void Settings::resetOnLastLogout() {
 	_recentEmojiPreload.clear();
 	_recentEmoji.clear();
 	_emojiVariants.clear();
+
+	_workMode = dbiwmWindowAndTray;
 }
 
 bool Settings::ThirdColumnByDefault() {

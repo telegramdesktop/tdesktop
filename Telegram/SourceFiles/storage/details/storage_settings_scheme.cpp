@@ -422,19 +422,21 @@ bool ReadSetting(
 		context.sessionSettings().addFromSerialized(v);
 	} break;
 
-	case dbiWorkMode: {
+	case dbiWorkModeOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		auto newMode = [v] {
+		const auto newMode = [v] {
 			switch (v) {
 			case dbiwmTrayOnly: return dbiwmTrayOnly;
 			case dbiwmWindowOnly: return dbiwmWindowOnly;
 			};
 			return dbiwmWindowAndTray;
-		};
-		Global::RefWorkMode().set(newMode());
+		}();
+		Core::App().settings().setWorkMode(newMode);
+
+		context.legacyRead = true;
 	} break;
 
 	case dbiTxtDomainStringOldOld: {
