@@ -1212,7 +1212,7 @@ groupCallNarrowIconSkip: 15px;
 //	fg: groupCallVideoTextFg;
 //	icon: icon {{ "calls/voice_mute_mini", groupCallVideoTextFg }};
 //}
-
+groupCallOutline: 2px;
 groupCallLargeVideoCrossLine: CrossLineAnimation(groupCallMemberColoredCrossLine) {
 	fg: groupCallVideoTextFg;
 	icon: icon {{ "calls/video_over_mute", groupCallVideoTextFg }};

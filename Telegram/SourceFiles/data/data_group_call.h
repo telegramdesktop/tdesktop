@@ -105,7 +105,7 @@ public:
 		std::optional<Participant> now;
 	};
 
-	static constexpr auto kSoundStatusKeptFor = crl::time(350);
+	static constexpr auto kSoundStatusKeptFor = crl::time(1350);
 
 	[[nodiscard]] auto participants() const
 		-> const std::vector<Participant> &;

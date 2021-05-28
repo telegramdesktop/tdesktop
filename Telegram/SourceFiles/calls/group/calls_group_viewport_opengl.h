@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "calls/group/calls_group_viewport.h"
 #include "ui/round_rect.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/cross_line.h"
 #include "ui/gl/gl_surface.h"
 #include "ui/gl/gl_image.h"
@@ -43,24 +44,30 @@ public:
 		QOpenGLFunctions &f) override;
 
 private:
-	struct NameData {
+	struct TileData {
 		not_null<PeerData*> peer;
+		Ui::Animations::Simple outlined;
+		QRect nameRect;
 		int nameVersion = 0;
-		QRect rect;
 		bool stale = false;
+		bool outline = false;
 	};
 	void fillBackground(QOpenGLFunctions &f);
 	void paintTile(
 		QOpenGLFunctions &f,
 		not_null<VideoTile*> tile,
-		const NameData &nameData);
+		const TileData &nameData);
 	void freeTextures(QOpenGLFunctions &f);
 	[[nodiscard]] Ui::GL::Rect transformRect(const QRect &raster) const;
-	[[nodiscard]] Ui::GL::Rect transformRect(const Ui::GL::Rect &raster) const;
+	[[nodiscard]] Ui::GL::Rect transformRect(
+		const Ui::GL::Rect &raster) const;
 
 	void ensureARGB32Program();
 	void ensureButtonsImage();
-	void validateNames();
+	void validateDatas();
+	void validateOutlineAnimation(
+		not_null<VideoTile*> tile,
+		TileData &data);
 
 	const not_null<Viewport*> _owner;
 
@@ -81,8 +88,8 @@ private:
 	QRect _muteOff;
 
 	Ui::GL::Image _names;
-	std::vector<NameData> _nameData;
-	std::vector<int> _nameDataIndices;
+	std::vector<TileData> _tileData;
+	std::vector<int> _tileDataIndices;
 
 	std::vector<GLfloat> _bgTriangles;
 	std::vector<Textures> _texturesToFree;

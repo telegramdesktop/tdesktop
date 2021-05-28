@@ -241,11 +241,13 @@ void Viewport::RendererGL::paint(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
 	_factor = widget->devicePixelRatio();
-	validateNames();
+	validateDatas();
 	fillBackground(f);
 	auto index = 0;
 	for (const auto &tile : _owner->_tiles) {
-		paintTile(f, tile.get(), _nameData[_nameDataIndices[index++]]);
+		auto &data = _tileData[_tileDataIndices[index++]];
+		validateOutlineAnimation(tile.get(), data);
+		paintTile(f, tile.get(), data);
 	}
 	freeTextures(f);
 }
@@ -278,7 +280,7 @@ void Viewport::RendererGL::fillBackground(QOpenGLFunctions &f) {
 void Viewport::RendererGL::paintTile(
 		QOpenGLFunctions &f,
 		not_null<VideoTile*> tile,
-		const NameData &nameData) {
+		const TileData &tileData) {
 	const auto track = tile->track();
 	const auto data = track->frameWithInfo(false);
 	if (data.format == Webrtc::FrameFormat::None) {
@@ -369,8 +371,8 @@ void Viewport::RendererGL::paintTile(
 			- st::semiboldFont->height
 			+ nameShift));
 	const auto name = _names.texturedRect(
-		QRect(namePosition, nameData.rect.size() / cIntRetinaFactor()),
-		nameData.rect,
+		QRect(namePosition, tileData.nameRect.size() / cIntRetinaFactor()),
+		tileData.nameRect,
 		geometry);
 	const auto nameRect = transformRect(name.geometry);
 
@@ -499,9 +501,17 @@ void Viewport::RendererGL::paintTile(
 	program->setUniformValue(
 		"frameBg",
 		Uniform(st::groupCallMembersBg->c));
-	program->setUniformValue("roundRadius", radius * _factor);
+	const auto outline = tileData.outlined.value(tileData.outline ? 1. : 0.);
+	program->setUniformValue("radiusOutline", QVector2D(
+		radius * _factor,
+		(outline > 0) ? (st::groupCallOutline * _factor) : 0.f));
 	program->setUniformValue("roundRect", Uniform(rect));
 	program->setUniformValue("roundBg", Uniform(st::groupCallBg->c));
+	program->setUniformValue("outlineFg", QVector4D(
+		st::groupCallMemberActiveIcon->c.redF(),
+		st::groupCallMemberActiveIcon->c.greenF(),
+		st::groupCallMemberActiveIcon->c.blueF(),
+		st::groupCallMemberActiveIcon->c.alphaF() * outline));
 
 	const auto shadowHeight = st.shadowHeight * _factor;
 	const auto shadowAlpha = kShadowMaxAlpha / 255.f;
@@ -635,7 +645,7 @@ void Viewport::RendererGL::ensureButtonsImage() {
 	_buttons.setImage(std::move(image));
 }
 
-void Viewport::RendererGL::validateNames() {
+void Viewport::RendererGL::validateDatas() {
 	const auto &tiles = _owner->_tiles;
 	const auto &st = st::groupCallLargeVideo;
 	const auto count = int(tiles.size());
@@ -647,10 +657,10 @@ void Viewport::RendererGL::validateNames() {
 	};
 	auto requests = std::vector<Request>();
 	auto available = _names.image().width();
-	for (auto &data : _nameData) {
+	for (auto &data : _tileData) {
 		data.stale = true;
 	}
-	_nameDataIndices.resize(count);
+	_tileDataIndices.resize(count);
 	const auto nameWidth = [&](int i) {
 		const auto row = tiles[i]->row();
 		const auto hasWidth = tiles[i]->geometry().width()
@@ -669,60 +679,60 @@ void Viewport::RendererGL::validateNames() {
 			available = width;
 		}
 		const auto peer = tiles[i]->row()->peer();
-		const auto j = ranges::find(_nameData, peer, &NameData::peer);
-		if (j != end(_nameData)) {
+		const auto j = ranges::find(_tileData, peer, &TileData::peer);
+		if (j != end(_tileData)) {
 			j->stale = false;
-			const auto index = (j - begin(_nameData));
-			_nameDataIndices[i] = index;
+			const auto index = (j - begin(_tileData));
+			_tileDataIndices[i] = index;
 			if (peer->nameVersion != j->nameVersion
-				|| width != j->rect.width()) {
+				|| width != j->nameRect.width()) {
 				const auto nameTop = index * nameHeight;
-				j->rect = QRect(0, nameTop, width, nameHeight);
+				j->nameRect = QRect(0, nameTop, width, nameHeight);
 				requests.push_back({ .index = i, .updating = true });
 			}
 		} else {
-			_nameDataIndices[i] = -1;
+			_tileDataIndices[i] = -1;
 			requests.push_back({ .index = i, .updating = false });
 		}
 	}
 	if (requests.empty()) {
 		return;
 	}
-	auto maybeStaleAfter = begin(_nameData);
-	auto maybeStaleEnd = end(_nameData);
+	auto maybeStaleAfter = begin(_tileData);
+	auto maybeStaleEnd = end(_tileData);
 	for (auto &request : requests) {
 		const auto i = request.index;
-		if (_nameDataIndices[i] >= 0) {
+		if (_tileDataIndices[i] >= 0) {
 			continue;
 		}
 		const auto peer = tiles[i]->row()->peer();
-		auto index = int(_nameData.size());
+		auto index = int(_tileData.size());
 		maybeStaleAfter = ranges::find(
 			maybeStaleAfter,
 			maybeStaleEnd,
 			true,
-			&NameData::stale);
+			&TileData::stale);
 		if (maybeStaleAfter != maybeStaleEnd) {
-			index = (maybeStaleAfter - begin(_nameData));
+			index = (maybeStaleAfter - begin(_tileData));
 			maybeStaleAfter->peer = peer;
 			maybeStaleAfter->stale = false;
 			request.updating = true;
 		} else {
 			// This invalidates maybeStale*, but they're already equal.
-			_nameData.push_back({ .peer = peer });
+			_tileData.push_back({ .peer = peer });
 		}
-		_nameData[index].nameVersion = peer->nameVersion;
-		_nameData[index].rect = QRect(
+		_tileData[index].nameVersion = peer->nameVersion;
+		_tileData[index].nameRect = QRect(
 			0,
 			index * nameHeight,
 			nameWidth(i),
 			nameHeight);
-		_nameDataIndices[i] = index;
+		_tileDataIndices[i] = index;
 	}
 	auto image = _names.takeImage();
 	const auto imageSize = QSize(
 		available * factor,
-		_nameData.size() * nameHeight);
+		_tileData.size() * nameHeight);
 	const auto allocate = (image.size() != imageSize);
 	auto paintToImage = allocate
 		? QImage(imageSize, QImage::Format_ARGB32_Premultiplied)
@@ -757,14 +767,14 @@ void Viewport::RendererGL::validateNames() {
 		p.setPen(st::groupCallVideoTextFg);
 		for (const auto &request : requests) {
 			const auto i = request.index;
-			const auto index = _nameDataIndices[i];
-			const auto &data = _nameData[_nameDataIndices[i]];
+			const auto index = _tileDataIndices[i];
+			const auto &data = _tileData[_tileDataIndices[i]];
 			const auto row = tiles[i]->row();
 			if (request.updating) {
 				p.setCompositionMode(QPainter::CompositionMode_Source);
 				p.fillRect(
 					0,
-					data.rect.y() / factor,
+					data.nameRect.y() / factor,
 					paintToImage.width() / factor,
 					nameHeight / factor,
 					Qt::transparent);
@@ -773,12 +783,27 @@ void Viewport::RendererGL::validateNames() {
 			row->name().drawLeftElided(
 				p,
 				0,
-				data.rect.y() / factor,
-				data.rect.width() / factor,
+				data.nameRect.y() / factor,
+				data.nameRect.width() / factor,
 				paintToImage.width() / factor);
 		}
 	}
 	_names.setImage(std::move(paintToImage));
+}
+
+void Viewport::RendererGL::validateOutlineAnimation(
+		not_null<VideoTile*> tile,
+		TileData &data) {
+	const auto outline = tile->row()->speaking();
+	if (data.outline == outline) {
+		return;
+	}
+	data.outline = outline;
+	data.outlined.start(
+		[=] { _owner->widget()->update(); },
+		outline ? 0. : 1.,
+		outline ? 1. : 0.,
+		st::fadeWrapDuration);
 }
 
 } // namespace Calls::Group
