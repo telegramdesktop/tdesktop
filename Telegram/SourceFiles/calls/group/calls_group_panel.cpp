@@ -871,15 +871,7 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 				: mute == MuteState::Muted
 				? tr::lng_group_call_unmute(tr::now)
 				: tr::lng_group_call_you_are_live(tr::now)),
-			.subtext = ((scheduleDate || wide)
-				? QString()
-				: state == GroupCall::InstanceState::Disconnected
-				? QString()
-				: mute == MuteState::ForceMuted
-				? tr::lng_group_call_raise_hand_tip(tr::now)
-				: mute == MuteState::RaisedHand
-				? tr::lng_group_call_raised_hand_sub(tr::now)
-				: mute == MuteState::Muted
+			.tooltip = ((!scheduleDate && mute == MuteState::Muted)
 				? tr::lng_group_call_unmute_sub(tr::now)
 				: QString()),
 			.type = (scheduleDate

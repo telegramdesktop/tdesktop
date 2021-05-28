@@ -1254,3 +1254,9 @@ groupCallLargeVideo: GroupCallLargeVideo {
 
 groupCallVideoSmallSkip: 4px;
 groupCallVideoLargeSkip: 6px;
+
+groupCallTooltip: Tooltip(defaultTooltip) {
+	textBg: groupCallMembersBg;
+	textFg: groupCallMembersFg;
+	textBorder: groupCallMembersBgOver;
+}

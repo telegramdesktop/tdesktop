@@ -696,6 +696,17 @@ void CallMuteButton::init() {
 	const auto &button = _st->active.button;
 	_content->resize(button.width, button.height);
 
+	_content->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::MouseMove) {
+			if (!_state.current().tooltip.isEmpty()) {
+				Ui::Tooltip::Show(1000, this);
+			}
+		} else if (e->type() == QEvent::Leave) {
+			Ui::Tooltip::Hide();
+		}
+	}, _content->lifetime());
+
 	rpl::combine(
 		_radialInfo.rawShowProgress.value(),
 		anim::Disables()
@@ -920,6 +931,24 @@ void CallMuteButton::iconAnimationCallback() {
 	if (!_icons[_iconState.index]->animating() && _scheduledState) {
 		startIconState(*_scheduledState);
 	}
+}
+
+QString CallMuteButton::tooltipText() const {
+	return _state.current().tooltip;
+}
+
+QPoint CallMuteButton::tooltipPos() const {
+	return QCursor::pos();
+}
+
+bool CallMuteButton::tooltipWindowActive() const {
+	return Ui::AppInFocus()
+		&& Ui::InFocusChain(_content->window())
+		&& _content->mapToGlobal(_content->rect()).contains(QCursor::pos());
+}
+
+const style::Tooltip *CallMuteButton::tooltipSt() const {
+	return &st::groupCallTooltip;
 }
 
 void CallMuteButton::updateLabelsGeometry() {

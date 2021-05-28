@@ -11,6 +11,7 @@
 #include "ui/effects/cross_line.h"
 #include "ui/effects/gradient.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/widgets/tooltip.h"
 #include "lottie/lottie_icon.h"
 
 namespace style {
@@ -46,10 +47,11 @@ enum class CallMuteButtonType {
 struct CallMuteButtonState {
 	QString text;
 	QString subtext;
+	QString tooltip;
 	CallMuteButtonType type = CallMuteButtonType::Connecting;
 };
 
-class CallMuteButton final {
+class CallMuteButton final : private AbstractTooltipShower {
 public:
 	explicit CallMuteButton(
 		not_null<RpWidget*> parent,
@@ -142,6 +144,11 @@ private:
 	void scheduleIconState(const IconState &state);
 	void startIconState(const IconState &state);
 	void iconAnimationCallback();
+
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
+	bool tooltipWindowActive() const override;
+	const style::Tooltip *tooltipSt() const override;
 
 	[[nodiscard]] static HandleMouseState HandleMouseStateFromType(
 		CallMuteButtonType type);
