@@ -72,6 +72,10 @@ QByteArray DnsUserAgent() {
 std::vector<DnsEntry> ParseDnsResponse(
 		const QByteArray &bytes,
 		std::optional<int> typeRestriction) {
+	if (bytes.isEmpty()) {
+		return {};
+	}
+
 	// Read and store to "result" all the data bytes from the response:
 	// { ..,
 	//   "Answer": [
@@ -339,7 +343,7 @@ QByteArray DomainResolver::finalizeRequest(
 		const AttemptKey &key,
 		not_null<QNetworkReply*> reply) {
 	if (reply->error() != QNetworkReply::NoError) {
-		LOG(("Resolve Error: Failed to get response, error: %2 (%3)"
+		DEBUG_LOG(("Resolve Error: Failed to get response, error: %2 (%3)"
 			).arg(reply->errorString()
 			).arg(reply->error()));
 	}

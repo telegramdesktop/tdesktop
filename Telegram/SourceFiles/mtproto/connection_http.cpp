@@ -122,7 +122,13 @@ qint32 HttpConnection::handleError(QNetworkReply *reply) { // returnes "maybe ba
 	case QNetworkReply::TemporaryNetworkFailureError:
 	case QNetworkReply::NetworkSessionFailedError:
 	case QNetworkReply::BackgroundRequestNotAllowedError:
-	case QNetworkReply::UnknownNetworkError: LOG(("HTTP Error: network error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
+	case QNetworkReply::UnknownNetworkError:
+		if (reply->error() == QNetworkReply::UnknownNetworkError) {
+			DEBUG_LOG(("HTTP Error: network error %1 - %2").arg(reply->error()).arg(reply->errorString()));
+		} else {
+			LOG(("HTTP Error: network error %1 - %2").arg(reply->error()).arg(reply->errorString()));
+		}
+		break;
 
 	// proxy errors (101-199):
 	case QNetworkReply::ProxyConnectionRefusedError:

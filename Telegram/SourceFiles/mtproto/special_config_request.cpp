@@ -380,7 +380,7 @@ void SpecialConfigRequest::requestFinished(
 		not_null<QNetworkReply*> reply) {
 	handleHeaderUnixtime(reply);
 	const auto result = finalizeRequest(reply);
-	if (!_callback) {
+	if (!_callback || result.isEmpty()) {
 		return;
 	}
 
@@ -407,7 +407,7 @@ void SpecialConfigRequest::requestFinished(
 QByteArray SpecialConfigRequest::finalizeRequest(
 		not_null<QNetworkReply*> reply) {
 	if (reply->error() != QNetworkReply::NoError) {
-		LOG(("Config Error: Failed to get response, error: %2 (%3)"
+		DEBUG_LOG(("Config Error: Failed to get response, error: %2 (%3)"
 			).arg(reply->errorString()
 			).arg(reply->error()));
 	}

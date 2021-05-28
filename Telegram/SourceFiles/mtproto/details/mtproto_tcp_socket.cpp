@@ -122,9 +122,9 @@ void TcpSocket::LogError(int errorCode, const QString &errorText) {
 		LOG(("TCP Error: socket timeout - %1").arg(errorText));
 		break;
 
-	case QAbstractSocket::NetworkError:
-		LOG(("TCP Error: network - %1").arg(errorText));
-		break;
+	case QAbstractSocket::NetworkError: {
+		DEBUG_LOG(("TCP Error: network - %1").arg(errorText));
+	} break;
 
 	case QAbstractSocket::ProxyAuthenticationRequiredError:
 	case QAbstractSocket::ProxyConnectionRefusedError:
