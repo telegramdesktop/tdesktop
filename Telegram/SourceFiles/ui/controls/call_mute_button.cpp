@@ -1068,10 +1068,6 @@ rpl::producer<Qt::MouseButton> CallMuteButton::clicks() {
 	});
 }
 
-rpl::producer<not_null<QEvent*>> CallMuteButton::events() const {
-	return _content->events();
-}
-
 QSize CallMuteButton::innerSize() const {
 	return innerGeometry().size();
 }
@@ -1169,7 +1165,7 @@ rpl::producer<CallButtonColors> CallMuteButton::colorOverrides() const {
 	return _colorOverrides.events();
 }
 
-not_null<QWidget*> CallMuteButton::outer() const {
+not_null<RpWidget*> CallMuteButton::outer() const {
 	return _content.get();
 }
 

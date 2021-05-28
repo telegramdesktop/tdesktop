@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/layers/layer_manager.h"
 #include "ui/layers/generic_box.h"
@@ -45,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_lists_box.h"
 #include "boxes/confirm_box.h"
 #include "base/unixtime.h"
+#include "base/qt_signal_producer.h"
 #include "base/timer_rpl.h"
 #include "app.h"
 #include "apiwrap.h" // api().kickParticipant.
@@ -1792,6 +1794,7 @@ bool Panel::updateMode() {
 		_call->pinVideoEndpoint({});
 	}
 	refreshVideoButtons(wide);
+	_niceTooltip.destroy();
 	_mode = mode;
 	if (_title) {
 		_title->setTextColorOverride(wide
@@ -1983,33 +1986,111 @@ void Panel::setupControlsBackgroundWide() {
 	trackControls(true);
 }
 
-template <typename WidgetPointer>
-void Panel::trackControl(WidgetPointer &widget, rpl::lifetime &lifetime) {
-	if (widget) {
-		const auto raw = &*widget;
-		raw->events(
-		) | rpl::start_with_next([=](not_null<QEvent*> e) {
-			using Type = std::remove_cvref_t<decltype(*raw)>;
-			constexpr auto mute = std::is_same_v<Type, Ui::CallMuteButton>;
-			if (e->type() == QEvent::Enter) {
-				auto &integration = Ui::Integration::Instance();
-				if constexpr (mute) {
-					integration.registerLeaveSubscription(raw->outer());
-				} else {
-					integration.registerLeaveSubscription(raw);
-				}
-				toggleWideControls(true);
-			} else if (e->type() == QEvent::Leave) {
-				auto &integration = Ui::Integration::Instance();
-				if constexpr (mute) {
-					integration.unregisterLeaveSubscription(raw->outer());
-				} else {
-					integration.unregisterLeaveSubscription(raw);
-				}
-				toggleWideControls(false);
-			}
-		}, lifetime);
+void Panel::trackControl(Ui::RpWidget *widget, rpl::lifetime &lifetime) {
+	if (!widget) {
+		return;
 	}
+	widget->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::Enter) {
+			trackControlOver(widget, true);
+		} else if (e->type() == QEvent::Leave) {
+			trackControlOver(widget, false);
+		}
+	}, lifetime);
+}
+
+void Panel::trackControlOver(not_null<Ui::RpWidget*> control, bool over) {
+	if (_niceTooltip) {
+		_niceTooltip.release()->toggleAnimated(false);
+	}
+	if (over) {
+		Ui::Integration::Instance().registerLeaveSubscription(control);
+		showNiceTooltip(control);
+	} else {
+		Ui::Integration::Instance().unregisterLeaveSubscription(control);
+	}
+	toggleWideControls(over);
+}
+
+void Panel::showNiceTooltip(not_null<Ui::RpWidget*> control) {
+	auto text = [&]() -> rpl::producer<QString> {
+		if (control == _screenShare.data()) {
+			if (_call->mutedByAdmin()) {
+				return nullptr;
+			}
+			return tr::lng_group_call_tooltip_screen();
+		} else if (control == _video.data()) {
+			if (_call->mutedByAdmin()) {
+				return nullptr;
+			}
+			return _call->isSharingCameraValue(
+			) | rpl::map([=](bool sharing) {
+				return sharing
+					? tr::lng_group_call_tooltip_camera_off()
+					: tr::lng_group_call_tooltip_camera();
+			}) | rpl::flatten_latest();
+		} else if (control == _settings.data()) {
+			return tr::lng_group_call_settings();
+		} else if (control == _mute->outer()) {
+			return MuteButtonTooltip(_call);
+		} else if (control == _hangup.data()) {
+			return tr::lng_group_call_leave();
+		}
+		return rpl::producer<QString>();
+	}();
+	if (!text
+		|| _wideControlsAnimation.animating()
+		|| !_wideControlsShown) {
+		return;
+	}
+	_niceTooltip.create(
+		widget().get(),
+		object_ptr<Ui::FlatLabel>(
+			widget().get(),
+			std::move(text),
+			st::groupCallNiceTooltipLabel),
+		st::groupCallNiceTooltip);
+	const auto tooltip = _niceTooltip.data();
+	const auto weak = QPointer<QWidget>(tooltip);
+	const auto destroy = [=] {
+		delete weak.data();
+	};
+	tooltip->setAttribute(Qt::WA_TransparentForMouseEvents);
+	tooltip->setHiddenCallback(destroy);
+	base::qt_signal_producer(
+		control.get(),
+		&QObject::destroyed
+	) | rpl::start_with_next(destroy, tooltip->lifetime());
+
+	const auto geometry = control->geometry();
+	const auto countPosition = [=](QSize size) {
+		const auto strong = weak.data();
+		if (!strong) {
+			return QPoint();
+		}
+		const auto top = geometry.y()
+			- st::groupCallNiceTooltipTop
+			- size.height();
+		const auto middle = geometry.center().x();
+		const auto back = _controlsBackgroundWide.data();
+		if (size.width() >= _viewport->widget()->width()) {
+			return QPoint(_viewport->widget()->x(), top);
+		} else if (back && size.width() >= back->width()) {
+			return QPoint(
+				back->x() - (size.width() - back->width()) / 2,
+				top);
+		} else if (back && (middle - back->x() < size.width() / 2)) {
+			return QPoint(back->x(), top);
+		} else if (back
+			&& (back->x() + back->width() - middle < size.width() / 2)) {
+			return QPoint(back->x() + back->width() - size.width(), top);
+		} else {
+			return QPoint(middle - size.width() / 2, top);
+		}
+	};
+	tooltip->pointAt(geometry, RectPart::Top, countPosition);
+	tooltip->toggleAnimated(true);
 }
 
 void Panel::trackControls(bool track) {
@@ -2032,7 +2113,7 @@ void Panel::trackControls(bool track) {
 	const auto trackOne = [=](auto &&widget) {
 		trackControl(widget, _trackControlsOverStateLifetime);
 	};
-	trackOne(_mute);
+	trackOne(_mute->outer());
 	trackOne(_video);
 	trackOne(_screenShare);
 	trackOne(_wideMenu);
@@ -2106,13 +2187,13 @@ void Panel::updateButtonsGeometry() {
 		const auto skip = st::groupCallButtonSkipSmall;
 		const auto fullWidth = (_video->width() + skip)
 			+ (_screenShare->width() + skip)
-			+ muteSize
+			+ (muteSize + skip)
 			+ (_settings ->width() + skip)
-			+ _hangup->width() + skip;
+			+ _hangup->width();
 		const auto membersSkip = st::groupCallNarrowSkip;
 		const auto membersWidth = st::groupCallNarrowMembersWidth
 			+ 2 * membersSkip;
-		auto left = (widget()->width()
+		auto left = membersSkip + (widget()->width()
 			- membersWidth
 			- membersSkip
 			- fullWidth) / 2;

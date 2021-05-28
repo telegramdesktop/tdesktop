@@ -26,6 +26,7 @@ class GroupCall;
 
 namespace Ui {
 class AbstractButton;
+class ImportantTooltip;
 class DropdownMenu;
 class CallButton;
 class CallMuteButton;
@@ -102,8 +103,9 @@ private:
 	void enlargeVideo();
 	void minimizeVideo();
 
-	template <typename WidgetPointer>
-	void trackControl(WidgetPointer &widget, rpl::lifetime &lifetime);
+	void trackControl(Ui::RpWidget *widget, rpl::lifetime &lifetime);
+	void trackControlOver(not_null<Ui::RpWidget*> control, bool over);
+	void showNiceTooltip(not_null<Ui::RpWidget*> control);
 
 	bool updateMode();
 	void updateControlsGeometry();
@@ -191,6 +193,7 @@ private:
 	object_ptr<Ui::CallButton> _screenShare = { nullptr };
 	std::unique_ptr<Ui::CallMuteButton> _mute;
 	object_ptr<Ui::CallButton> _hangup;
+	object_ptr<Ui::ImportantTooltip> _niceTooltip = { nullptr };
 	Fn<void()> _callShareLinkCallback;
 
 	rpl::lifetime _peerLifetime;

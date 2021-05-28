@@ -500,7 +500,6 @@ rpl::producer<bool> GroupCall::canManageValue() const {
 void GroupCall::toggleVideo(bool active) {
 	if (!_instance
 		|| !_id
-		|| (active && mutedByAdmin())
 		|| (!active && !_cameraOutgoing)) {
 		return;
 	}
@@ -513,7 +512,6 @@ void GroupCall::toggleVideo(bool active) {
 void GroupCall::toggleScreenSharing(std::optional<QString> uniqueId) {
 	if (!_instance
 		|| !_id
-		|| (uniqueId && mutedByAdmin())
 		|| (!uniqueId && !_screenOutgoing)) {
 		return;
 	}

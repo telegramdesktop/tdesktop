@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/gl/gl_surface.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/cross_line.h"
+#include "data/data_group_call.h" // MuteButtonTooltip.
 #include "lang/lang_keys.h"
 #include "styles/style_calls.h"
 
@@ -601,6 +602,53 @@ QImage GenerateShadow(
 			QImage::Format_ARGB32_Premultiplied);
 	}
 	return result;
+}
+
+rpl::producer<QString> MuteButtonTooltip(not_null<GroupCall*> call) {
+	//return rpl::single(std::make_tuple(
+	//	(Data::GroupCall*)nullptr,
+	//	call->scheduleDate()
+	//)) | rpl::then(call->real(
+	//) | rpl::map([](not_null<Data::GroupCall*> real) {
+	//	using namespace rpl::mappers;
+	//	return real->scheduleDateValue(
+	//	) | rpl::map([=](TimeId scheduleDate) {
+	//		return std::make_tuple(real.get(), scheduleDate);
+	//	});
+	//}) | rpl::flatten_latest(
+	//)) | rpl::map([=](
+	//		Data::GroupCall *real,
+	//		TimeId scheduleDate) -> rpl::producer<QString> {
+	//	if (scheduleDate) {
+	//		return rpl::combine(
+	//			call->canManageValue(),
+	//			(real
+	//				? real->scheduleStartSubscribedValue()
+	//				: rpl::single(false))
+	//		) | rpl::map([](bool canManage, bool subscribed) {
+	//			return canManage
+	//				? tr::lng_group_call_start_now()
+	//				: subscribed
+	//				? tr::lng_group_call_cancel_reminder()
+	//				: tr::lng_group_call_set_reminder();
+	//		}) | rpl::flatten_latest();
+	//	}
+		return call->mutedValue(
+		) | rpl::map([](MuteState muted) {
+			switch (muted) {
+			case MuteState::Active:
+			case MuteState::PushToTalk:
+				return tr::lng_group_call_you_are_live();
+			case MuteState::ForceMuted:
+				return tr::lng_group_call_tooltip_force_muted();
+			case MuteState::RaisedHand:
+				return tr::lng_group_call_tooltip_raised_hand();
+			case MuteState::Muted:
+				return tr::lng_group_call_tooltip_microphone();
+			}
+			Unexpected("Value in MuteState in showNiceTooltip.");
+		}) | rpl::flatten_latest();
+	//}) | rpl::flatten_latest();
 }
 
 } // namespace Calls::Group

@@ -64,7 +64,6 @@ public:
 	void setStyle(const style::CallMuteButton &st);
 	void setLevel(float level);
 	[[nodiscard]] rpl::producer<Qt::MouseButton> clicks();
-	[[nodiscard]] rpl::producer<not_null<QEvent*>> events() const;
 
 	[[nodiscard]] QSize innerSize() const;
 	[[nodiscard]] QRect innerGeometry() const;
@@ -83,7 +82,7 @@ public:
 	void raise();
 	void lower();
 
-	[[nodiscard]] not_null<QWidget*> outer() const;
+	[[nodiscard]] not_null<RpWidget*> outer() const;
 	[[nodiscard]] rpl::producer<CallButtonColors> colorOverrides() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime();

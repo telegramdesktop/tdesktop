@@ -23,6 +23,7 @@ struct ChosenRenderer;
 } // namespace Ui
 
 namespace Calls {
+class GroupCall;
 struct VideoEndpoint;
 struct VideoPinToggle;
 struct VideoQualityRequest;
@@ -157,5 +158,8 @@ private:
 	int topAlpha,
 	int bottomAlpha,
 	QColor color = QColor(0, 0, 0));
+
+[[nodiscard]] rpl::producer<QString> MuteButtonTooltip(
+	not_null<GroupCall*> call);
 
 } // namespace Calls::Group

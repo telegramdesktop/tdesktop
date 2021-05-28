@@ -91,6 +91,8 @@ PRIVATE
     # iOS / macOS
     platform/darwin/DarwinInterface.h
     platform/darwin/DarwinInterface.mm
+    platform/darwin/DarwinVideoSource.h
+    platform/darwin/DarwinVideoSource.mm
     platform/darwin/DesktopCaptureSourceView.h
     platform/darwin/DesktopCaptureSourceView.mm
     platform/darwin/DesktopSharingCapturer.h
