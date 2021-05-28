@@ -87,9 +87,12 @@ private:
 	void setupScheduledLabels(rpl::producer<TimeId> date);
 	void setupMembers();
 	void setupVideo();
+	void setupToasts();
 	void setupJoinAsChangedToasts();
 	void setupTitleChangedToasts();
+	void setupRequestedToSpeakToasts();
 	void setupAllowedToSpeakToasts();
+	void setupErrorToasts();
 	void setupRealMuteButtonState(not_null<Data::GroupCall*> real);
 
 	bool handleClose();

@@ -457,8 +457,7 @@ GroupCall::~GroupCall() {
 }
 
 bool GroupCall::isSharingScreen() const {
-	return _screenOutgoing
-		&& (_screenOutgoing->state() == Webrtc::VideoState::Active);
+	return _isSharingScreen.current();
 }
 
 rpl::producer<bool> GroupCall::isSharingScreenValue() const {
@@ -470,8 +469,7 @@ const std::string &GroupCall::screenSharingEndpoint() const {
 }
 
 bool GroupCall::isSharingCamera() const {
-	return _cameraOutgoing
-		&& (_cameraOutgoing->state() == Webrtc::VideoState::Active);
+	return _isSharingCamera.current();
 }
 
 rpl::producer<bool> GroupCall::isSharingCameraValue() const {
@@ -507,12 +505,9 @@ void GroupCall::toggleVideo(bool active) {
 		return;
 	}
 	ensureOutgoingVideo();
-	const auto state = active
+	_cameraOutgoing->setState(active
 		? Webrtc::VideoState::Active
-		: Webrtc::VideoState::Inactive;
-	if (_cameraOutgoing->state() != state) {
-		_cameraOutgoing->setState(state);
-	}
+		: Webrtc::VideoState::Inactive);
 }
 
 void GroupCall::toggleScreenSharing(std::optional<QString> uniqueId) {
@@ -529,9 +524,7 @@ void GroupCall::toggleScreenSharing(std::optional<QString> uniqueId) {
 	}
 	const auto changed = (_screenDeviceId != *uniqueId);
 	_screenDeviceId = *uniqueId;
-	if (_screenOutgoing->state() != Webrtc::VideoState::Active) {
-		_screenOutgoing->setState(Webrtc::VideoState::Active);
-	}
+	_screenOutgoing->setState(Webrtc::VideoState::Active);
 	if (changed) {
 		_screenCapture->switchToDevice(uniqueId->toStdString());
 	}
@@ -1110,6 +1103,9 @@ void GroupCall::rejoinPresentation() {
 					LOG(("Call Error: "
 						"Could not screen join, error: %1").arg(type));
 					_screenOutgoing->setState(Webrtc::VideoState::Inactive);
+					_errors.fire_copy(mutedByAdmin()
+						? Error::MutedNoScreen
+						: Error::ScreenFailed);
 				}
 			}).send();
 		});
@@ -1669,6 +1665,48 @@ void GroupCall::setupMediaDevices() {
 	}, _lifetime);
 }
 
+bool GroupCall::emitShareCameraError() {
+	const auto emitError = [=](Error error) {
+		emitShareCameraError(error);
+		return true;
+	};
+	if (const auto real = lookupReal(); real && !real->canStartVideo()) {
+		return emitError(Error::DisabledNoCamera);
+	} else if (mutedByAdmin()) {
+		return emitError(Error::MutedNoCamera);
+	} else if (Webrtc::GetVideoInputList().empty()) {
+		return emitError(Error::NoCamera);
+	}
+	return false;
+}
+
+void GroupCall::emitShareCameraError(Error error) {
+	if (_cameraOutgoing) {
+		_cameraOutgoing->setState(Webrtc::VideoState::Inactive);
+	}
+	_errors.fire_copy(error);
+}
+
+bool GroupCall::emitShareScreenError() {
+	const auto emitError = [=](Error error) {
+		emitShareScreenError(error);
+		return true;
+	};
+	if (const auto real = lookupReal(); real && !real->canStartVideo()) {
+		return emitError(Error::DisabledNoScreen);
+	} else if (mutedByAdmin()) {
+		return emitError(Error::MutedNoScreen);
+	}
+	return false;
+}
+
+void GroupCall::emitShareScreenError(Error error) {
+	if (_screenOutgoing) {
+		_screenOutgoing->setState(Webrtc::VideoState::Inactive);
+	}
+	_errors.fire_copy(error);
+}
+
 void GroupCall::ensureOutgoingVideo() {
 	Expects(_id != 0);
 
@@ -1682,33 +1720,21 @@ void GroupCall::ensureOutgoingVideo() {
 		Webrtc::VideoState::Inactive,
 		_requireARGB32);
 
-	using namespace rpl::mappers;
-	_isSharingCamera = _cameraOutgoing->stateValue(
-	) | rpl::map(_1 == Webrtc::VideoState::Active);
-	_isSharingScreen = _screenOutgoing->stateValue(
-	) | rpl::map(_1 == Webrtc::VideoState::Active);
-
-	//static const auto hasDevices = [] {
-	//	return !Webrtc::GetVideoInputList().empty();
-	//};
 	_cameraOutgoing->stateValue(
 	) | rpl::start_with_next([=](Webrtc::VideoState state) {
-		//if (state != Webrtc::VideoState::Inactive && !hasDevices()) {
-			//_errors.fire({ ErrorType::NoCamera }); // #TODO calls
-			//_videoOutgoing->setState(Webrtc::VideoState::Inactive);
-		//} else if (state != Webrtc::VideoState::Inactive
-		//	&& _instance
-		//	&& !_instance->supportsVideo()) {
-		//	_errors.fire({ ErrorType::NotVideoCall });
-		//	_videoOutgoing->setState(Webrtc::VideoState::Inactive);
-		/*} else */if (state != Webrtc::VideoState::Inactive) {
+		const auto active = (state != Webrtc::VideoState::Inactive);
+		if (active) {
 			// Paused not supported right now.
 			Assert(state == Webrtc::VideoState::Active);
-			if (!_cameraCapture) {
+			if (emitShareCameraError()) {
+				return;
+			} else if (!_cameraCapture) {
 				_cameraCapture = _delegate->groupCallGetVideoCapture(
 					_cameraInputId);
 				if (!_cameraCapture) {
+					return emitShareCameraError(Error::NoCamera);
 					_cameraOutgoing->setState(Webrtc::VideoState::Inactive);
+					_errors.fire_copy(Error::NoCamera);
 					return;
 				}
 			} else {
@@ -1721,31 +1747,33 @@ void GroupCall::ensureOutgoingVideo() {
 		} else if (_cameraCapture) {
 			_cameraCapture->setState(tgcalls::VideoState::Inactive);
 		}
-		markEndpointActive({ _joinAs, _cameraEndpoint }, isSharingCamera());
+		_isSharingCamera = active;
+		markEndpointActive({ _joinAs, _cameraEndpoint }, active);
 		sendSelfUpdate(SendUpdateType::VideoMuted);
 		applyMeInCallLocally();
 	}, _lifetime);
 
 	_screenOutgoing->stateValue(
 	) | rpl::start_with_next([=](Webrtc::VideoState state) {
-		if (state != Webrtc::VideoState::Inactive) {
+		const auto active = (state != Webrtc::VideoState::Inactive);
+		if (active) {
 			// Paused not supported right now.
 			Assert(state == Webrtc::VideoState::Active);
-			if (!_screenCapture) {
-				_screenCapture = std::shared_ptr<tgcalls::VideoCaptureInterface>(
-					tgcalls::VideoCaptureInterface::Create(
-						tgcalls::StaticThreads::getThreads(),
-						_screenDeviceId.toStdString()));
+			if (emitShareScreenError()) {
+				return;
+			} else if (!_screenCapture) {
+				_screenCapture = std::shared_ptr<
+					tgcalls::VideoCaptureInterface
+				>(tgcalls::VideoCaptureInterface::Create(
+					tgcalls::StaticThreads::getThreads(),
+					_screenDeviceId.toStdString()));
 				if (!_screenCapture) {
-					_screenOutgoing->setState(Webrtc::VideoState::Inactive);
-					return;
+					return emitShareScreenError(Error::ScreenFailed);
 				}
 				const auto weak = base::make_weak(this);
 				_screenCapture->setOnFatalError([=] {
 					crl::on_main(weak, [=] {
-						_screenOutgoing->setState(
-							Webrtc::VideoState::Inactive);
-						// #TODO calls show error toast, receive here device.
+						emitShareScreenError(Error::ScreenFailed);
 					});
 				});
 			} else {
@@ -1758,7 +1786,8 @@ void GroupCall::ensureOutgoingVideo() {
 		} else if (_screenCapture) {
 			_screenCapture->setState(tgcalls::VideoState::Inactive);
 		}
-		markEndpointActive({ _joinAs, _screenEndpoint }, isSharingScreen());
+		_isSharingScreen = active;
+		markEndpointActive({ _joinAs, _screenEndpoint }, active);
 		_screenJoinState.nextActionPending = true;
 		checkNextJoinAction();
 	}, _lifetime);
@@ -2457,8 +2486,7 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 		MTP_bool(muted() != MuteState::Active),
 		MTP_int(100000), // volume
 		MTP_bool(muted() == MuteState::RaisedHand),
-		MTP_bool(!_cameraOutgoing
-			|| _cameraOutgoing->state() != Webrtc::VideoState::Active)
+		MTP_bool(!isSharingCamera())
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
 		_peer->session().api().applyUpdates(result);

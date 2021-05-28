@@ -2004,8 +2004,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_screen_share_stop" = "Stop Sharing";
 "lng_group_call_screen_title" = "Screen {index}";
 "lng_group_call_unmute_small" = "Unmute";
-"lng_group_call_you_are_live_small" = "Mute";
-"lng_group_call_force_muted_small" = "Muted";
 "lng_group_call_more" = "More";
 "lng_group_call_unmute" = "Unmute";
 "lng_group_call_unmute_sub" = "or hold spacebar to talk";
@@ -2014,7 +2012,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_force_muted_sub" = "You are in Listen Only mode";
 "lng_group_call_raise_hand_tip" = "Click if you want to speak";
 "lng_group_call_raised_hand" = "You asked to speak";
-"lng_group_call_raised_hand_small" = "Raised hand";
 "lng_group_call_raised_hand_sub" = "We let the speakers know";
 "lng_group_call_connecting" = "Connecting...";
 "lng_group_call_leave" = "Leave";
@@ -2027,6 +2024,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_create_sure" = "Do you really want to start a voice chat in this group?";
 "lng_group_call_create_sure_channel" = "Are you sure you want to start a voice chat in this channel as your personal account?";
 "lng_group_call_join_sure_personal" = "Are you sure you want to join this voice chat as your personal account?";
+"lng_group_call_muted_no_camera" = "You can't turn on video while you're muted by admin.";
+"lng_group_call_muted_no_screen" = "You can't share your screen while you're muted by admin.";
+"lng_group_call_chat_no_camera" = "You can't turn on video in this chat.";
+"lng_group_call_chat_no_screen" = "You can't share your screen in this chat.";
+"lng_group_call_failed_screen" = "An error occured. Screencast has stopped.";
+"lng_group_call_tooltip_screen" = "Share screen";
+"lng_group_call_tooltip_camera" = "Your camera is off. Click here to enable camera.";
+"lng_group_call_tooltip_microphone" = "You are on mute. Click here to speak.";
+"lng_group_call_tooltip_camera_off" = "Disable camera";
+"lng_group_call_tooltip_force_muted" = "Muted by admin. Click if you want to speak.";
+"lng_group_call_tooltip_raised_hand" = "You asked to speak. We let the speakers know.";
 "lng_group_call_also_end" = "End voice chat";
 "lng_group_call_settings_title" = "Settings";
 "lng_group_call_invite" = "Invite Member";

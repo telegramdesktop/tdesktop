@@ -48,6 +48,7 @@ struct ParticipantState;
 struct JoinInfo;
 struct RejoinEvent;
 enum class VideoQuality;
+enum class Error;
 } // namespace Group
 
 enum class MuteState {
@@ -225,6 +226,13 @@ public:
 	void startScheduledNow();
 	void toggleScheduleStartSubscribed(bool subscribed);
 
+	bool emitShareScreenError();
+	bool emitShareCameraError();
+
+	[[nodiscard]] rpl::producer<Group::Error> errors() const {
+		return _errors.events();
+	}
+
 	void addVideoOutput(
 		const std::string &endpoint,
 		not_null<Webrtc::VideoTrack*> track);
@@ -367,6 +375,7 @@ public:
 
 private:
 	using GlobalShortcutValue = base::GlobalShortcutValue;
+	using Error = Group::Error;
 	struct SinkPointer;
 
 	static constexpr uint32 kDisabledSsrc = uint32(-1);
@@ -420,6 +429,9 @@ private:
 	void destroyController();
 	bool tryCreateScreencast();
 	void destroyScreencast();
+
+	void emitShareCameraError(Error error);
+	void emitShareScreenError(Error error);
 
 	void setState(State state);
 	void finish(FinishType type);
@@ -490,6 +502,7 @@ private:
 	rpl::event_stream<not_null<Data::GroupCall*>> _realChanges;
 	rpl::variable<State> _state = State::Creating;
 	base::flat_set<uint32> _unresolvedSsrcs;
+	rpl::event_stream<Error> _errors;
 	bool _recordingStoppedByMe = false;
 	bool _requestedVideoChannelsUpdateScheduled = false;
 

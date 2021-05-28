@@ -59,4 +59,13 @@ enum class VideoQuality {
 	Full,
 };
 
+enum class Error {
+	NoCamera,
+	ScreenFailed,
+	MutedNoCamera,
+	MutedNoScreen,
+	DisabledNoCamera,
+	DisabledNoScreen,
+};
+
 } // namespace Calls::Group

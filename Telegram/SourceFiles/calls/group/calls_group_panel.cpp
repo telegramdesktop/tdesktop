@@ -66,6 +66,7 @@ constexpr auto kRecordingOpacity = 0.6;
 constexpr auto kStartNoConfirmation = TimeId(10);
 constexpr auto kControlsBackgroundOpacity = 0.8;
 constexpr auto kOverrideActiveColorBgAlpha = 172;
+constexpr auto kErrorDuration = 2 * crl::time(1000);
 
 class InviteController final : public ParticipantsBoxController {
 public:
@@ -437,9 +438,7 @@ Panel::Panel(not_null<GroupCall*> call)
 	initControls();
 	initLayout();
 	showAndActivate();
-	setupJoinAsChangedToasts();
-	setupTitleChangedToasts();
-	setupAllowedToSpeakToasts();
+	setupToasts();
 }
 
 Panel::~Panel() {
@@ -866,18 +865,12 @@ void Panel::setupRealMuteButtonState(not_null<Data::GroupCall*> real) {
 				: state == GroupCall::InstanceState::Disconnected
 				? tr::lng_group_call_connecting(tr::now)
 				: mute == MuteState::ForceMuted
-				? (wide
-					? tr::lng_group_call_force_muted_small(tr::now)
-					: tr::lng_group_call_force_muted(tr::now))
+				? tr::lng_group_call_force_muted(tr::now)
 				: mute == MuteState::RaisedHand
-				? (wide
-					? tr::lng_group_call_raised_hand_small(tr::now)
-					: tr::lng_group_call_raised_hand(tr::now))
+				? tr::lng_group_call_raised_hand(tr::now)
 				: mute == MuteState::Muted
 				? tr::lng_group_call_unmute(tr::now)
-				: (wide
-					? tr::lng_group_call_you_are_live_small(tr::now)
-					: tr::lng_group_call_you_are_live(tr::now))),
+				: tr::lng_group_call_you_are_live(tr::now)),
 			.subtext = ((scheduleDate || wide)
 				? QString()
 				: state == GroupCall::InstanceState::Disconnected
@@ -1206,6 +1199,14 @@ void Panel::toggleWideControls(bool shown) {
 	});
 }
 
+void Panel::setupToasts() {
+	setupJoinAsChangedToasts();
+	setupTitleChangedToasts();
+	setupRequestedToSpeakToasts();
+	setupAllowedToSpeakToasts();
+	setupErrorToasts();
+}
+
 void Panel::setupJoinAsChangedToasts() {
 	_call->rejoinEvents(
 	) | rpl::filter([](RejoinEvent event) {
@@ -1267,6 +1268,46 @@ void Panel::setupAllowedToSpeakToasts() {
 					Ui::Text::WithEntities),
 			});
 		}
+	}, widget()->lifetime());
+}
+
+void Panel::setupRequestedToSpeakToasts() {
+	_call->mutedValue(
+	) | rpl::combine_previous(
+	) | rpl::start_with_next([=](MuteState was, MuteState now) {
+		if (was == MuteState::ForceMuted && now == MuteState::RaisedHand) {
+			Ui::ShowMultilineToast({
+				.parentOverride = widget(),
+				.text = tr::lng_group_call_tooltip_raised_hand(tr::now),
+			});
+		}
+	}, widget()->lifetime());
+}
+
+void Panel::setupErrorToasts() {
+	_call->errors(
+	) | rpl::start_with_next([=](Error error) {
+		const auto key = [&] {
+			switch (error) {
+			case Error::NoCamera: return tr::lng_call_error_no_camera;
+			case Error::ScreenFailed:
+				return tr::lng_group_call_failed_screen;
+			case Error::MutedNoCamera:
+				return tr::lng_group_call_muted_no_camera;
+			case Error::MutedNoScreen:
+				return tr::lng_group_call_muted_no_screen;
+			case Error::DisabledNoCamera:
+				return tr::lng_group_call_chat_no_camera;
+			case Error::DisabledNoScreen:
+				return tr::lng_group_call_chat_no_screen;
+			}
+			Unexpected("Error in Calls::Group::Panel::setupErrorToasts.");
+		}();
+		Ui::ShowMultilineToast({
+			.parentOverride = widget(),
+			.text = { key(tr::now) },
+			.duration = kErrorDuration,
+		});
 	}, widget()->lifetime());
 }
 
@@ -1397,7 +1438,7 @@ void Panel::refreshTopButton() {
 }
 
 void Panel::chooseShareScreenSource() {
-	if (!_call->mutedByAdmin()) {
+	if (!_call->emitShareScreenError()) {
 		Ui::DesktopCapture::ChooseSource(this);
 	}
 }
