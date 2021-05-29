@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_single_file_preview.h"
 
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/text/format_song_name.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/widgets/buttons.h"
@@ -115,7 +116,8 @@ void SingleFilePreview::preparePreview(const PreparedFile &file) {
 			}
 		}
 
-		_name = ComposeNameString(filename, songTitle, songPerformer);
+		_name = Text::FormatSongName(filename, songTitle, songPerformer)
+			.string();
 		_statusText = FormatSizeText(fileinfo.size());
 	}
 	const auto &st = !isThumbedLayout()

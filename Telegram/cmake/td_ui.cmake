@@ -137,6 +137,8 @@ PRIVATE
     ui/controls/invite_link_label.h
     ui/controls/send_button.cpp
     ui/controls/send_button.h
+    ui/text/format_song_name.cpp
+    ui/text/format_song_name.h
     ui/text/format_values.cpp
     ui/text/format_values.h
     ui/text/text_options.cpp

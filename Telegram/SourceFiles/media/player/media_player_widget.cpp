@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
+#include "ui/text/format_song_document_name.h"
 #include "lang/lang_keys.h"
 #include "media/audio/media_audio.h"
 #include "media/view/media_view_playback_progress.h"
@@ -565,26 +566,8 @@ void Widget::handleSongChange() {
 			textWithEntities.text = tr::lng_media_audio(tr::now);
 		}
 	} else {
-		const auto song = document->song();
-		if (!song || song->performer.isEmpty()) {
-			textWithEntities.text = (!song || song->title.isEmpty())
-				? (document->filename().isEmpty()
-					? qsl("Unknown Track")
-					: document->filename())
-				: song->title;
-		} else {
-			auto title = song->title.isEmpty()
-				? qsl("Unknown Track")
-				: TextUtilities::Clean(song->title);
-			auto dash = QString::fromUtf8(" \xe2\x80\x93 ");
-			textWithEntities.text = song->performer + dash + title;
-			textWithEntities.entities.append({
-				EntityType::Semibold,
-				0,
-				song->performer.size(),
-				QString()
-			});
-		}
+		textWithEntities = Ui::Text::FormatSongNameFor(document)
+			.textWithEntities(true);
 	}
 	_nameLabel->setMarkedText(textWithEntities);
 

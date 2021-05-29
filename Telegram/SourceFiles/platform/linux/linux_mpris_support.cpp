@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "ui/text/format_song_document_name.h"
 
 #include <QtCore/QBuffer>
 #include <QtGui/QGuiApplication>
@@ -108,30 +109,21 @@ auto CreateMetadata(
 		kFakeTrackPath.utf8().constData()));
 	result["mpris:length"] = Glib::Variant<gint64>::create(
 		state.length * 1000);
-	result["xesam:title"] = Glib::Variant<Glib::ustring>::create(
-		"Unknown Track");
 
-	const auto audioData = state.id.audio();
+	const auto audioData = state.id.audio()
+		? state.id.audio()
+		: trackView
+		? trackView->owner().get()
+		: nullptr;
 	if (audioData) {
-		if (!audioData->filename().isEmpty()) {
-			result["xesam:title"] = Glib::Variant<
-				Glib::ustring
-			>::create(audioData->filename().toStdString());
-		}
-
-		if (audioData->isSong()) {
-			const auto songData = audioData->song();
-			if (!songData->performer.isEmpty()) {
-				result["xesam:artist"] = Glib::Variant<
-					std::vector<Glib::ustring>
-				>::create({ songData->performer.toStdString() });
-			}
-			if (!songData->title.isEmpty()) {
-				result["xesam:title"] = Glib::Variant<
-					Glib::ustring
-				>::create(songData->title.toStdString());
-			}
-		}
+		const auto &[title, performer] =
+			Ui::Text::FormatSongNameFor(audioData).composedName();
+		result["xesam:title"] = Glib::Variant<
+			Glib::ustring
+		>::create(title.toStdString());
+		result["xesam:artist"] = Glib::Variant<
+			std::vector<Glib::ustring>
+		>::create({ performer.toStdString() });
 	}
 
 	if (trackView) {

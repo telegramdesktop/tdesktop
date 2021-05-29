@@ -1051,6 +1051,8 @@ PRIVATE
     ui/search_field_controller.h
     ui/special_buttons.cpp
     ui/special_buttons.h
+    ui/text/format_song_document_name.cpp
+    ui/text/format_song_document_name.h
     ui/unread_badge.cpp
     ui/unread_badge.h
     window/main_window.cpp

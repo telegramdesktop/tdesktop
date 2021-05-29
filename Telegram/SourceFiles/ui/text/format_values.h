@@ -44,9 +44,4 @@ struct CurrencyRule {
 	char decimal,
 	char thousands);
 
-[[nodiscard]] QString ComposeNameString(
-	const QString &filename,
-	const QString &songTitle,
-	const QString &songPerformer);
-
 } // namespace Ui

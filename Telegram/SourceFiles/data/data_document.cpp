@@ -40,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
-#include "ui/text/format_values.h"
 #include "base/base_file_utilities.h"
 #include "mainwindow.h"
 #include "core/application.h"
@@ -1462,16 +1461,6 @@ uint8 DocumentData::cacheTag() const {
 		return Data::kImageCacheTag;
 	}
 	return 0;
-}
-
-QString DocumentData::composeNameString() const {
-	if (auto songData = song()) {
-		return Ui::ComposeNameString(
-			_filename,
-			songData->title,
-			songData->performer);
-	}
-	return Ui::ComposeNameString(_filename, QString(), QString());
 }
 
 LocationType DocumentData::locationType() const {

@@ -228,8 +228,6 @@ public:
 	[[nodiscard]] Storage::Cache::Key cacheKey() const;
 	[[nodiscard]] uint8 cacheTag() const;
 
-	[[nodiscard]] QString composeNameString() const;
-
 	[[nodiscard]] bool canBeStreamed() const;
 	[[nodiscard]] auto createStreamingLoader(
 		Data::FileOrigin origin,

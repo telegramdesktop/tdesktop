@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
+#include "ui/text/format_song_document_name.h"
 #include "ui/cached_round_corners.h"
 #include "ui/ui_utility.h"
 #include "layout.h" // FullSelection
@@ -226,7 +227,7 @@ void Document::createComponents(bool caption) {
 
 void Document::fillNamedFromData(HistoryDocumentNamed *named) {
 	const auto nameString = named->_name = CleanTagSymbols(
-		_data->composeNameString());
+		Ui::Text::FormatSongNameFor(_data).string());
 	named->_namew = st::semiboldFont->width(nameString);
 }
 

@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt_adapters.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image.h"
+#include "ui/text/format_song_document_name.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/cached_round_corners.h"
@@ -55,38 +56,6 @@ TextParseOptions _documentNameOptions = {
 	0, // maxh
 	Qt::LayoutDirectionAuto, // dir
 };
-
-TextWithEntities ComposeNameWithEntities(DocumentData *document) {
-	TextWithEntities result;
-	const auto song = document->song();
-	if (!song || (song->title.isEmpty() && song->performer.isEmpty())) {
-		result.text = document->filename().isEmpty()
-			? qsl("Unknown File")
-			: document->filename();
-		result.entities.push_back({
-			EntityType::Semibold,
-			0,
-			result.text.size()
-		});
-	} else if (song->performer.isEmpty()) {
-		result.text = song->title;
-		result.entities.push_back({
-			EntityType::Semibold,
-			0,
-			result.text.size()
-		});
-	} else {
-		result.text = song->performer
-			+ QString::fromUtf8(" \xe2\x80\x93 ")
-			+ (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
-		result.entities.push_back({
-			EntityType::Semibold,
-			0,
-			song->performer.size()
-		});
-	}
-	return result;
-}
 
 } // namespace
 
@@ -935,7 +904,10 @@ Document::Document(
 , _date(langDateTime(base::unixtime::parse(_data->date)))
 , _datew(st::normalFont->width(_date))
 , _colorIndex(documentColorIndex(_data, _ext)) {
-	_name.setMarkedText(st::defaultTextStyle, ComposeNameWithEntities(_data), _documentNameOptions);
+	_name.setMarkedText(
+		st::defaultTextStyle,
+		Ui::Text::FormatSongNameFor(_data).textWithEntities(),
+		_documentNameOptions);
 
 	AddComponents(Info::Bit());
 

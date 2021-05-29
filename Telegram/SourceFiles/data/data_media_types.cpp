@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_slot_machine.h"
 #include "history/view/media/history_view_dice.h"
 #include "ui/image/image.h"
+#include "ui/text/format_song_document_name.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
@@ -506,6 +507,7 @@ QString MediaFile::chatListText() const {
 		return Media::chatListText();
 	}
 	const auto type = [&] {
+		using namespace Ui::Text;
 		if (_document->isVideoMessage()) {
 			return tr::lng_in_dlg_video_message(tr::now);
 		} else if (_document->isAnimation()) {
@@ -514,7 +516,7 @@ QString MediaFile::chatListText() const {
 			return tr::lng_in_dlg_video(tr::now);
 		} else if (_document->isVoiceMessage()) {
 			return tr::lng_in_dlg_audio(tr::now);
-		} else if (const auto name = _document->composeNameString();
+		} else if (const auto name = FormatSongNameFor(_document).string();
 				!name.isEmpty()) {
 			return name;
 		} else if (_document->isAudioFile()) {
@@ -576,7 +578,7 @@ QString MediaFile::pinnedTextSubstring() const {
 
 TextForMimeData MediaFile::clipboardText() const {
 	const auto attachType = [&] {
-		const auto name = _document->composeNameString();
+		const auto name = Ui::Text::FormatSongNameFor(_document).string();
 		const auto addName = !name.isEmpty()
 			? qstr(" : ") + name
 			: QString();

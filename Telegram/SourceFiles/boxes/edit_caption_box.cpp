@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/text/format_song_document_name.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/chat/attach/attach_prepare.h"
@@ -220,7 +221,7 @@ EditCaptionBox::EditCaptionBox(
 			const auto document = _documentMedia->owner();
 			const auto nameString = document->isVoiceMessage()
 				? tr::lng_media_audio(tr::now)
-				: document->composeNameString();
+				: Ui::Text::FormatSongNameFor(document).string();
 			setName(nameString, document->size);
 			_isImage = document->isImage();
 			_isAudio = document->isVoiceMessage()
@@ -549,10 +550,10 @@ void EditCaptionBox::updateEditPreview() {
 	if (shouldAsDoc) {
 		auto nameString = filename;
 		if (const auto song = std::get_if<Info::Song>(fileMedia)) {
-			nameString = Ui::ComposeNameString(
+			nameString = Ui::Text::FormatSongName(
 				filename,
 				song->title,
-				song->performer);
+				song->performer).string();
 			_isAudio = true;
 
 			if (auto cover = song->cover; !cover.isNull()) {
