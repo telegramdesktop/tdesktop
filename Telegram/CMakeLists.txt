@@ -923,6 +923,8 @@ PRIVATE
     platform/win/windows_dlls.h
     platform/win/windows_event_filter.cpp
     platform/win/windows_event_filter.h
+    platform/win/windows_system_media_controls_manager.cpp
+    platform/win/windows_system_media_controls_manager.h
     platform/platform_audio.h
     platform/platform_file_utilities.h
     platform/platform_launcher.h

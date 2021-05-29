@@ -20,6 +20,8 @@ class PopupMenu;
 
 namespace Platform {
 
+class SystemMediaControlsManager;
+
 class MainWindow : public Window::MainWindow {
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
@@ -122,6 +124,8 @@ private:
 	HICON ps_iconBig = nullptr;
 	HICON ps_iconSmall = nullptr;
 	HICON ps_iconOverlay = nullptr;
+
+	std::unique_ptr<Platform::SystemMediaControlsManager> _smtcManager;
 
 	int _deltaLeft = 0;
 	int _deltaTop = 0;
