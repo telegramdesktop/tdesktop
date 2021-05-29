@@ -25,7 +25,7 @@ using namespace Ui::GL;
 constexpr auto kScaleForBlurTextureIndex = 3;
 constexpr auto kFirstBlurPassTextureIndex = 4;
 constexpr auto kBlurTextureSizeFactor = 1.7;
-constexpr auto kBlurOpacity = 0.5;
+constexpr auto kBlurOpacity = 0.7;
 
 ShaderPart FragmentBlurTexture(bool vertical, char prefix = 'v') {
 	const auto offsets = (vertical ? QString("0, 1") : QString("1, 0"));
@@ -693,8 +693,15 @@ void Viewport::RendererGL::prepareObjects(
 	tileData.textures.ensureCreated(f);
 	tileData.framebuffers.ensureCreated(f);
 
-	const auto create = [&](int index) {
-		tileData.textures.bind(f, tileData.textureIndex * 5 + index);
+	if (tileData.textureBlurSize == blurSize) {
+		return;
+	}
+	tileData.textureBlurSize = blurSize;
+
+	const auto create = [&](int framebufferIndex, int index) {
+		index += tileData.textureIndex * 5;
+
+		tileData.textures.bind(f, index);
 		f.glTexImage2D(
 			GL_TEXTURE_2D,
 			0,
@@ -705,9 +712,17 @@ void Viewport::RendererGL::prepareObjects(
 			GL_RGB,
 			GL_UNSIGNED_BYTE,
 			nullptr);
+
+		tileData.framebuffers.bind(f, framebufferIndex);
+		f.glFramebufferTexture2D(
+			GL_FRAMEBUFFER,
+			GL_COLOR_ATTACHMENT0,
+			GL_TEXTURE_2D,
+			tileData.textures.id(index),
+			0);
 	};
-	create(kScaleForBlurTextureIndex);
-	create(kFirstBlurPassTextureIndex);
+	create(0, kScaleForBlurTextureIndex);
+	create(1, kFirstBlurPassTextureIndex);
 }
 
 void Viewport::RendererGL::bindFrame(
@@ -721,19 +736,33 @@ void Viewport::RendererGL::bindFrame(
 			GLint internalformat,
 			GLint format,
 			QSize size,
+			QSize hasSize,
 			int stride,
 			const void *data) {
 		f.glPixelStorei(GL_UNPACK_ROW_LENGTH, stride);
-		f.glTexImage2D(
-			GL_TEXTURE_2D,
-			0,
-			internalformat,
-			size.width(),
-			size.height(),
-			0,
-			format,
-			GL_UNSIGNED_BYTE,
-			data);
+		if (hasSize != size) {
+			f.glTexImage2D(
+				GL_TEXTURE_2D,
+				0,
+				internalformat,
+				size.width(),
+				size.height(),
+				0,
+				format,
+				GL_UNSIGNED_BYTE,
+				data);
+		} else {
+			f.glTexSubImage2D(
+				GL_TEXTURE_2D,
+				0,
+				0,
+				0,
+				size.width(),
+				size.height(),
+				format,
+				GL_UNSIGNED_BYTE,
+				data);
+		}
 		f.glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 	};
 	//if (upload) {
@@ -748,28 +777,54 @@ void Viewport::RendererGL::bindFrame(
 			const auto &image = data.original;
 			const auto stride = image.bytesPerLine() / 4;
 			const auto data = image.constBits();
-			uploadOne(GL_RGB, GL_RGBA, image.size(), stride, data);
+			uploadOne(
+				GL_RGBA,
+				GL_RGBA,
+				image.size(),
+				tileData.rgbaSize,
+				stride,
+				data);
+			tileData.rgbaSize = image.size();
 		}
 		program.argb32->setUniformValue("s_texture", GLint(0));
 	} else {
 		const auto yuv = data.yuv420;
-		const auto otherSize = yuv->chromaSize;
 		f.glUseProgram(program.yuv420->programId());
 		f.glActiveTexture(GL_TEXTURE0);
 		tileData.textures.bind(f, tileData.textureIndex * 5 + 0);
 		if (upload) {
 			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-			uploadOne(GL_RED, GL_RED, yuv->size, yuv->y.stride, yuv->y.data);
+			uploadOne(
+				GL_RED,
+				GL_RED,
+				yuv->size,
+				tileData.textureSize,
+				yuv->y.stride,
+				yuv->y.data);
+			tileData.textureSize = yuv->size;
 		}
 		f.glActiveTexture(GL_TEXTURE1);
 		tileData.textures.bind(f, tileData.textureIndex * 5 + 1);
 		if (upload) {
-			uploadOne(GL_RED, GL_RED, otherSize, yuv->u.stride, yuv->u.data);
+			uploadOne(
+				GL_RED,
+				GL_RED,
+				yuv->chromaSize,
+				tileData.textureChromaSize,
+				yuv->u.stride,
+				yuv->u.data);
 		}
 		f.glActiveTexture(GL_TEXTURE2);
 		tileData.textures.bind(f, tileData.textureIndex * 5 + 2);
 		if (upload) {
-			uploadOne(GL_RED, GL_RED, otherSize, yuv->v.stride, yuv->v.data);
+			uploadOne(
+				GL_RED,
+				GL_RED,
+				yuv->chromaSize,
+				tileData.textureChromaSize,
+				yuv->v.stride,
+				yuv->v.data);
+			tileData.textureChromaSize = yuv->chromaSize;
 			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 		}
 		program.yuv420->setUniformValue("y_texture", GLint(0));
@@ -782,13 +837,6 @@ void Viewport::RendererGL::drawDownscalePass(
 		QOpenGLFunctions &f,
 		TileData &tileData) {
 	tileData.framebuffers.bind(f, 0);
-	f.glFramebufferTexture2D(
-		GL_FRAMEBUFFER,
-		GL_COLOR_ATTACHMENT0,
-		GL_TEXTURE_2D,
-		tileData.textures.id(
-			tileData.textureIndex * 5 + kScaleForBlurTextureIndex),
-		0);
 
 	const auto program = _rgbaFrame
 		? &*_downscaleProgram.argb32
@@ -802,13 +850,6 @@ void Viewport::RendererGL::drawFirstBlurPass(
 		TileData &tileData,
 		QSize blurSize) {
 	tileData.framebuffers.bind(f, 1);
-	f.glFramebufferTexture2D(
-		GL_FRAMEBUFFER,
-		GL_COLOR_ATTACHMENT0,
-		GL_TEXTURE_2D,
-		tileData.textures.id(
-			tileData.textureIndex * 5 + kFirstBlurPassTextureIndex),
-		0);
 
 	f.glUseProgram(_blurProgram->programId());
 	f.glActiveTexture(GL_TEXTURE0);

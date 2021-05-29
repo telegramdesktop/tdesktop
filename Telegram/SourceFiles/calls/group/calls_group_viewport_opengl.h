@@ -48,14 +48,18 @@ public:
 private:
 	struct TileData {
 		quintptr id = 0;
+		not_null<PeerData*> peer;
 		Ui::GL::Textures<5> textures;
 		Ui::GL::Framebuffers<2> framebuffers;
-		mutable int textureIndex = 0;
-		mutable int trackIndex = -1;
 		Ui::Animations::Simple outlined;
 		QRect nameRect;
-		not_null<PeerData*> peer;
 		int nameVersion = 0;
+		mutable int textureIndex = 0;
+		mutable int trackIndex = -1;
+		mutable QSize rgbaSize;
+		mutable QSize textureSize;
+		mutable QSize textureChromaSize;
+		mutable QSize textureBlurSize;
 		bool stale = false;
 		bool outline = false;
 	};
