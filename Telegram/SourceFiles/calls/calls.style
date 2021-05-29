@@ -1167,7 +1167,8 @@ desktopCaptureSubmit: RoundButton(desktopCaptureCancel) {
 }
 
 groupCallNarrowSkip: 9px;
-groupCallNarrowMembersWidth: 202px;
+groupCallNarrowMembersWidth: 204px;
+groupCallNarrowVideoHeight: 120px;
 //groupCallNarrowRowSkip: 4px;
 //groupCallNarrowSize: size(144px, 90px);
 //groupCallNarrowUserpicTop: 13px;

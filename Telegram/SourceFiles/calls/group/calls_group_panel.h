@@ -87,7 +87,7 @@ private:
 	void initGeometry();
 	void setupScheduledLabels(rpl::producer<TimeId> date);
 	void setupMembers();
-	void setupVideo();
+	void setupVideo(not_null<Viewport*> viewport);
 	void setupToasts();
 	void setupJoinAsChangedToasts();
 	void setupTitleChangedToasts();

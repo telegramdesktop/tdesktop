@@ -783,9 +783,6 @@ Row *Members::Controller::findRow(
 }
 
 void Members::Controller::setMode(PanelMode mode) {
-	if (_mode == mode) {
-		return;
-	}
 	_mode = mode;
 }
 
@@ -1648,27 +1645,30 @@ std::unique_ptr<Row> Members::Controller::createInvitedRow(
 Members::Members(
 	not_null<QWidget*> parent,
 	not_null<GroupCall*> call,
-	not_null<Viewport*> viewport,
 	PanelMode mode)
 : RpWidget(parent)
 , _call(call)
-, _viewport(viewport)
 , _mode(mode)
 , _scroll(this)
 , _listController(std::make_unique<Controller>(call, parent, mode))
 , _layout(_scroll->setOwnedWidget(
 	object_ptr<Ui::VerticalLayout>(_scroll.data())))
-, _videoWrap(_layout->add(object_ptr<Ui::RpWidget>(_layout.get()))) {
+, _videoWrap(_layout->add(object_ptr<Ui::RpWidget>(_layout.get())))
+, _viewport(
+	std::make_unique<Viewport>(
+		_videoWrap.get(),
+		PanelMode::Default)) {
 	setupAddMember(call);
 	setupList();
 	setContent(_list);
 	setupFakeRoundCorners();
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
-	grabViewport();
 	trackViewportGeometry();
 }
 
-Members::~Members() = default;
+Members::~Members() {
+	_viewport = nullptr;
+}
 
 auto Members::toggleMuteRequests() const
 -> rpl::producer<Group::MuteRequest> {
@@ -1683,6 +1683,10 @@ auto Members::changeVolumeRequests() const
 auto Members::kickParticipantRequests() const
 -> rpl::producer<not_null<PeerData*>> {
 	return _listController->kickParticipantRequests();
+}
+
+not_null<Viewport*> Members::viewport() const {
+	return _viewport.get();
 }
 
 int Members::desiredHeight() const {
@@ -1808,10 +1812,8 @@ void Members::setMode(PanelMode mode) {
 	if (_mode.current() == mode) {
 		return;
 	}
-	grabViewport(mode);
 	_mode = mode;
 	_listController->setMode(mode);
-	trackViewportGeometry();
 	//_list->setMode((mode == PanelMode::Wide)
 	//	? PeerListContent::Mode::Custom
 	//	: PeerListContent::Mode::Default);
@@ -1861,23 +1863,12 @@ void Members::setupList() {
 	updateControlsGeometry();
 }
 
-void Members::grabViewport() {
-	grabViewport(_mode.current());
-}
-
-void Members::grabViewport(PanelMode mode) {
-	if (mode != PanelMode::Default) {
-		_viewportGrabLifetime.destroy();
-		_videoWrap->resize(_videoWrap->width(), 0);
-		return;
-	}
-	_viewport->setMode(mode, _videoWrap.get());
-}
-
 void Members::trackViewportGeometry() {
-	if (_mode.current() != PanelMode::Default) {
-		return;
-	}
+	_call->videoEndpointPinnedValue(
+	) | rpl::start_with_next([=](const VideoEndpoint &pinned) {
+		_viewport->showLarge(pinned);
+	}, _viewport->lifetime());
+
 	const auto move = [=] {
 		const auto maxTop = _viewport->fullHeight()
 			- _viewport->widget()->height();
@@ -1900,20 +1891,20 @@ void Members::trackViewportGeometry() {
 	) | rpl::start_with_next([=](int width) {
 		_viewport->resizeToWidth(width);
 		resize();
-	}, _viewportGrabLifetime);
+	}, _viewport->lifetime());
 
 	_scroll->heightValue(
-	) | rpl::skip(1) | rpl::start_with_next(resize, _viewportGrabLifetime);
+	) | rpl::skip(1) | rpl::start_with_next(resize, _viewport->lifetime());
 
 	_scroll->scrollTopValue(
-	) | rpl::skip(1) | rpl::start_with_next(move, _viewportGrabLifetime);
+	) | rpl::skip(1) | rpl::start_with_next(move, _viewport->lifetime());
 
 	_viewport->fullHeightValue(
 	) | rpl::start_with_next([=](int height) {
 		_videoWrap->resize(_videoWrap->width(), height);
 		move();
 		resize();
-	}, _viewportGrabLifetime);
+	}, _viewport->lifetime());
 }
 
 void Members::resizeEvent(QResizeEvent *e) {

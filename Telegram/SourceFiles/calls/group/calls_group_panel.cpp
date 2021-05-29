@@ -404,7 +404,7 @@ Panel::Panel(not_null<GroupCall*> call)
 	_window->body(),
 	st::groupCallTitle))
 #endif // !Q_OS_MAC
-, _viewport(std::make_unique<Viewport>(widget(), _mode.current()))
+, _viewport(std::make_unique<Viewport>(widget(), PanelMode::Wide))
 , _mute(std::make_unique<Ui::CallMuteButton>(
 	widget(),
 	st::callMuteButton,
@@ -425,6 +425,7 @@ Panel::Panel(not_null<GroupCall*> call)
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_layerBg->setHideByBackgroundClick(true);
 
+	_viewport->widget()->hide();
 	if (!_viewport->requireARGB32()) {
 		_call->setNotRequireARGB32();
 	}
@@ -975,8 +976,9 @@ void Panel::setupMembers() {
 	_countdown.destroy();
 	_startsWhen.destroy();
 
-	_members.create(widget(), _call, _viewport.get(), mode());
-	setupVideo();
+	_members.create(widget(), _call, mode());
+	setupVideo(_viewport.get());
+	setupVideo(_members->viewport());
 	_members->show();
 
 	refreshControlsBackground();
@@ -1117,16 +1119,14 @@ void Panel::raiseControls() {
 	_mute->raise();
 }
 
-void Panel::setupVideo() {
-	const auto raw = _viewport.get();
-
+void Panel::setupVideo(not_null<Viewport*> viewport) {
 	const auto setupTile = [=](
 			const VideoEndpoint &endpoint,
 			const GroupCall::VideoTrack &track) {
 		using namespace rpl::mappers;
 		const auto row = _members->lookupRow(track.peer);
 		Assert(row != nullptr);
-		_viewport->add(
+		viewport->add(
 			endpoint,
 			LargeVideoTrack{ track.track.get(), row },
 			_call->videoEndpointPinnedValue() | rpl::map(_1 == endpoint));
@@ -1138,7 +1138,7 @@ void Panel::setupVideo() {
 	) | rpl::start_with_next([=](const VideoEndpoint &endpoint) {
 		if (_call->activeVideoTracks().contains(endpoint)) {
 			// Add async (=> the participant row is definitely in Members).
-			crl::on_main(widget(), [=] {
+			crl::on_main(viewport->widget(), [=] {
 				const auto &tracks = _call->activeVideoTracks();
 				const auto i = tracks.find(endpoint);
 				if (i != end(tracks)) {
@@ -1147,32 +1147,32 @@ void Panel::setupVideo() {
 			});
 		} else {
 			// Remove sync.
-			_viewport->remove(endpoint);
+			viewport->remove(endpoint);
 		}
-	}, raw->lifetime());
+	}, viewport->lifetime());
 
-	raw->pinToggled(
+	viewport->pinToggled(
 	) | rpl::start_with_next([=](const VideoPinToggle &value) {
 		_call->pinVideoEndpoint(
 			value.pinned ? value.endpoint : VideoEndpoint{});
-	}, raw->lifetime());
+	}, viewport->lifetime());
 
-	raw->clicks(
+	viewport->clicks(
 	) | rpl::filter([=] {
 		return (_mode.current() == PanelMode::Default);
 	}) | rpl::start_with_next([=] {
 		enlargeVideo();
-	}, raw->lifetime());
+	}, viewport->lifetime());
 
-	raw->qualityRequests(
+	viewport->qualityRequests(
 	) | rpl::start_with_next([=](const VideoQualityRequest &request) {
 		_call->requestVideoQuality(request.endpoint, request.quality);
-	}, raw->lifetime());
+	}, viewport->lifetime());
 
-	raw->mouseInsideValue(
+	viewport->mouseInsideValue(
 	) | rpl::start_with_next([=](bool inside) {
 		toggleWideControls(inside);
-	}, raw->lifetime());
+	}, viewport->lifetime());
 }
 
 void Panel::toggleWideControls(bool shown) {
@@ -1808,9 +1808,7 @@ bool Panel::updateMode() {
 	}
 	_wideControlsShown = _showWideControls = true;
 	_wideControlsAnimation.stop();
-	if (wide) {
-		_viewport->setMode(mode, widget());
-	}
+	_viewport->widget()->setVisible(wide);
 	if (_members) {
 		_members->setMode(mode);
 	}

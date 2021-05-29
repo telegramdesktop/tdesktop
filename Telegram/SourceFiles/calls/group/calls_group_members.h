@@ -39,10 +39,10 @@ public:
 	Members(
 		not_null<QWidget*> parent,
 		not_null<GroupCall*> call,
-		not_null<Viewport*> viewport,
 		PanelMode mode);
 	~Members();
 
+	[[nodiscard]] not_null<Viewport*> viewport() const;
 	[[nodiscard]] int desiredHeight() const;
 	[[nodiscard]] rpl::producer<int> desiredHeightValue() const override;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
@@ -89,26 +89,22 @@ private:
 	void setupList();
 	void setupFakeRoundCorners();
 
-	void grabViewport();
-	void grabViewport(PanelMode mode);
 	void trackViewportGeometry();
 	void updateControlsGeometry();
 
 	const not_null<GroupCall*> _call;
-	const not_null<Viewport*> _viewport;
 	rpl::variable<PanelMode> _mode = PanelMode();
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<Controller> _listController;
 	not_null<Ui::VerticalLayout*> _layout;
 	const not_null<Ui::RpWidget*> _videoWrap;
+	std::unique_ptr<Viewport> _viewport;
 	rpl::event_stream<> _enlargeVideoClicks;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;
 	ListWidget *_list = nullptr;
 	rpl::event_stream<> _addMemberRequests;
 
 	rpl::variable<bool> _canAddMembers;
-
-	rpl::lifetime _viewportGrabLifetime;
 
 };
 

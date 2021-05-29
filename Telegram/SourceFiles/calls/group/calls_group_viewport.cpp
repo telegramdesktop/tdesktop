@@ -241,9 +241,7 @@ void Viewport::showLarge(const VideoEndpoint &endpoint) {
 	const auto large = (i != end(_tiles)) ? i->get() : nullptr;
 	if (_large != large) {
 		_large = large;
-		if (wide()) {
-			updateTilesGeometry();
-		}
+		updateTilesGeometry();
 	}
 }
 
@@ -386,6 +384,22 @@ void Viewport::updateTilesGeometryWide(int outerWidth, int outerHeight) {
 
 void Viewport::updateTilesGeometryNarrow(int outerWidth) {
 	const auto y = -_scrollTop;
+
+	if (outerWidth <= st::groupCallNarrowMembersWidth) {
+		auto top = 0;
+		for (const auto &tile : _tiles) {
+			const auto video = tile.get();
+			const auto size = video->trackSize();
+			const auto shown = !size.isEmpty() && _large && video != _large;
+			const auto height = shown
+				? st::groupCallNarrowVideoHeight
+				: 0;
+			video->setGeometry({ 0, y + top, outerWidth, height });
+			top += height ? (height + st::groupCallVideoSmallSkip) : 0;
+		}
+		_fullHeight = top;
+		return;
+	}
 
 	auto sizes = base::flat_map<not_null<VideoTile*>, QSize>();
 	sizes.reserve(_tiles.size());
