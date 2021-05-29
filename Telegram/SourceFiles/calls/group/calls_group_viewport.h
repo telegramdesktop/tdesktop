@@ -89,6 +89,8 @@ public:
 	[[nodiscard]] rpl::producer<VideoQualityRequest> qualityRequests() const;
 	[[nodiscard]] rpl::producer<bool> mouseInsideValue() const;
 
+	[[nodiscard]] uint32 defaultFramebufferObject() const;
+
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
@@ -134,7 +136,7 @@ private:
 	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
 		Ui::GL::Capabilities capabilities);
 
-	Fn<void(const Textures &)> _freeTextures;
+	bool _opengl = false;
 	PanelMode _mode = PanelMode();
 	bool _geometryStaleAfterModeChange = false;
 	const std::unique_ptr<Ui::RpWidgetWrap> _content;

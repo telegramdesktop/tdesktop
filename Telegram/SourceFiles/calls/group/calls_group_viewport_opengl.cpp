@@ -22,12 +22,50 @@ namespace {
 
 using namespace Ui::GL;
 
+constexpr auto kScaleForBlurTextureIndex = 3;
+constexpr auto kFirstBlurPassTextureIndex = 4;
+constexpr auto kBlurTextureSizeFactor = 1.7;
+constexpr auto kBlurOpacity = 0.5;
+
+ShaderPart FragmentBlurTexture(bool vertical, char prefix = 'v') {
+	const auto offsets = (vertical ? QString("0, 1") : QString("1, 0"));
+	const auto name = prefix + QString("_texcoord");
+	return {
+		.header = R"(
+varying vec2 )" + name + R"(;
+uniform sampler2D b_texture;
+uniform float texelOffset;
+const vec3 satLuminanceWeighting = vec3(0.2126, 0.7152, 0.0722);
+const vec2 offsets = vec2()" + offsets + R"();
+const int radius = 15;
+const int diameter = 2 * radius + 1;
+)",
+		.body = R"(
+	vec4 accumulated = vec4(0.);
+	for (int i = 0; i != diameter; i++) {
+		float stepOffset = float(i - radius) * texelOffset;
+		vec2 offset = vec2(stepOffset) * offsets;
+		vec4 sampled = vec4(texture2D(b_texture, )" + name + R"( + offset));
+		float fradius = float(radius);
+		float boxWeight = fradius + 1.0 - abs(float(i) - fradius);
+		accumulated += sampled * boxWeight;
+	}
+	vec3 blurred = accumulated.rgb / accumulated.a;
+	float satLuminance = dot(blurred, satLuminanceWeighting);
+	vec3 mixinColor = vec3(satLuminance);
+	result = vec4(clamp(mix(mixinColor, blurred, 1.1), 0.0, 1.0), 1.0);
+)",
+	};
+}
+
 // Depends on FragmetSampleTexture().
 [[nodiscard]] ShaderPart FragmentFrameColor() {
+	const auto blur = FragmentBlurTexture(true, 'b');
 	return {
 		.header = R"(
 uniform vec4 frameBg;
 uniform vec3 shadow; // fullHeight, shown, maxOpacity
+const float backgroundOpacity = )" + QString::number(kBlurOpacity) + R"(;
 float insideTexture() {
 	vec2 textureHalf = vec2(0.5, 0.5);
 	vec2 fromTextureCenter = abs(v_texcoord - textureHalf);
@@ -35,10 +73,18 @@ float insideTexture() {
 	float outsideCheck = dot(fromTextureEdge, fromTextureEdge);
 	return step(outsideCheck, 0);
 }
+)" + blur.header + R"(
+vec4 background() {
+	vec4 result;
+)" + blur.body + R"(
+	return result;
+}
 )",
 		.body = R"(
 	float inside = insideTexture();
-	result = result * inside + frameBg * (1. - inside);
+	result = result * inside
+		+ (1. - inside) * (backgroundOpacity * background()
+			+ (1. - backgroundOpacity) * frameBg);
 
 	float shadowCoord = gl_FragCoord.y - roundRect.y;
 	float shadowValue = max(1. - (shadowCoord / shadow.x), 0.);
@@ -46,6 +92,51 @@ float insideTexture() {
 	result = vec4(result.rgb * (1. - shadowShown), result.a);
 )",
 	};
+}
+
+[[nodiscard]] QSize NonEmpty(QSize size) {
+	return QSize(std::max(size.width(), 1), std::max(size.height(), 1));
+}
+
+[[nodiscard]] QSize CountBlurredSize(
+		QSize unscaled,
+		QSize viewport,
+		float factor) {
+	factor *= kBlurTextureSizeFactor; // The more the scale - more blurred the image.
+	const auto area = viewport / int(std::round(factor * cScale() / 100));
+	const auto scaled = unscaled.scaled(area, Qt::KeepAspectRatio);
+	return (scaled.width() > unscaled.width()
+		|| scaled.height() > unscaled.height())
+		? unscaled
+		: NonEmpty(scaled);
+}
+
+[[nodiscard]] std::array<std::array<GLfloat, 2>, 4> CountTexCoords(
+		QSize unscaled,
+		QSize size,
+		bool expand,
+		bool swap = false) {
+	const auto scaled = NonEmpty(unscaled.scaled(
+		size,
+		expand ? Qt::KeepAspectRatioByExpanding : Qt::KeepAspectRatio));
+	const auto left = (size.width() - scaled.width()) / 2;
+	const auto top = (size.height() - scaled.height()) / 2;
+	const auto right = left + scaled.width();
+	const auto bottom = top + scaled.height();
+	auto dleft = float(left) / scaled.width();
+	auto dright = float(size.width() - left) / scaled.width();
+	auto dtop = float(top) / scaled.height();
+	auto dbottom = float(size.height() - top) / scaled.height();
+	if (swap) {
+		std::swap(dleft, dtop);
+		std::swap(dright, dbottom);
+	}
+	return { {
+		{ { -dleft, 1.f + dtop } },
+		{ { dright, 1.f + dtop } },
+		{ { dright, 1.f - dbottom } },
+		{ { -dleft, 1.f - dbottom } },
+	} };
 }
 
 void FillRectVertices(GLfloat *coords, Rect rect) {
@@ -116,7 +207,7 @@ void FillTexturedRectangle(
 		shift(0));
 	f.glEnableVertexAttribArray(position);
 
-	GLint texcoord = program->attributeLocation("texcoord");
+	GLint texcoord = program->attributeLocation("v_texcoordIn");
 	f.glVertexAttribPointer(
 		texcoord,
 		2,
@@ -150,10 +241,6 @@ Viewport::RendererGL::RendererGL(not_null<Viewport*> owner)
 	}, _lifetime);
 }
 
-void Viewport::RendererGL::free(const Textures &textures) {
-	_texturesToFree.push_back(textures);
-}
-
 void Viewport::RendererGL::init(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
@@ -162,13 +249,34 @@ void Viewport::RendererGL::init(
 	_frameBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
 	_frameBuffer->create();
 	_frameBuffer->bind();
-	_frameBuffer->allocate(64 * sizeof(GLfloat));
-	_yuv420Program.emplace();
+	constexpr auto kQuads = 6;
+	constexpr auto kQuadVertices = kQuads * 4;
+	constexpr auto kQuadValues = kQuadVertices * 4;
+	constexpr auto kValues = kQuadValues + 8; // Blur texture coordinates.
+	_frameBuffer->allocate(kValues * sizeof(GLfloat));
+	_downscaleProgram.yuv420.emplace();
+	_downscaleVertexShader = LinkProgram(
+		&*_downscaleProgram.yuv420,
+		VertexShader({
+			VertexPassTextureCoord(),
+		}),
+		FragmentShader({
+			FragmentSampleYUV420Texture(),
+		})).vertex;
+	_blurProgram.emplace();
+	LinkProgram(
+		&*_blurProgram,
+		_downscaleVertexShader,
+		FragmentShader({
+			FragmentBlurTexture(false),
+		}));
+	_frameProgram.yuv420.emplace();
 	_frameVertexShader = LinkProgram(
-		&*_yuv420Program,
+		&*_frameProgram.yuv420,
 		VertexShader({
 			VertexViewportTransform(),
 			VertexPassTextureCoord(),
+			VertexPassTextureCoord('b'),
 		}),
 		FragmentShader({
 			FragmentSampleYUV420Texture(),
@@ -195,11 +303,20 @@ void Viewport::RendererGL::init(
 }
 
 void Viewport::RendererGL::ensureARGB32Program() {
+	Expects(_downscaleVertexShader != nullptr);
 	Expects(_frameVertexShader != nullptr);
 
-	_argb32Program.emplace();
+	_downscaleProgram.argb32.emplace();
 	LinkProgram(
-		&*_argb32Program,
+		&*_downscaleProgram.argb32,
+		_downscaleVertexShader,
+		FragmentShader({
+			FragmentSampleARGB32Texture(),
+		}));
+
+	_frameProgram.argb32.emplace();
+	LinkProgram(
+		&*_frameProgram.argb32,
 		_frameVertexShader,
 		FragmentShader({
 			FragmentSampleARGB32Texture(),
@@ -216,14 +333,16 @@ void Viewport::RendererGL::deinit(
 	_frameVertexShader = nullptr;
 	_bgProgram = std::nullopt;
 	_imageProgram = std::nullopt;
-	_argb32Program = std::nullopt;
-	_yuv420Program = std::nullopt;
-	for (const auto &tile : _owner->_tiles) {
-		if (const auto textures = tile->takeTextures()) {
-			free(textures);
-		}
+	_downscaleProgram.argb32 = std::nullopt;
+	_downscaleProgram.yuv420 = std::nullopt;
+	_blurProgram = std::nullopt;
+	_frameProgram.argb32 = std::nullopt;
+	_frameProgram.yuv420 = std::nullopt;
+	for (auto &data : _tileData) {
+		data.textures.destroy(f);
 	}
-	freeTextures(f);
+	_tileData.clear();
+	_tileDataIndices.clear();
 	_buttons.destroy(f);
 }
 
@@ -234,7 +353,12 @@ void Viewport::RendererGL::resize(
 		int h) {
 	_factor = widget->devicePixelRatio();
 	_viewport = QSize(w, h);
-	f.glViewport(0, 0, w * _factor, h * _factor);
+	setDefaultViewport(f);
+}
+
+void Viewport::RendererGL::setDefaultViewport(QOpenGLFunctions &f) {
+	const auto size = _viewport * _factor;
+	f.glViewport(0, 0, size.width(), size.height());
 }
 
 void Viewport::RendererGL::paint(
@@ -243,13 +367,15 @@ void Viewport::RendererGL::paint(
 	_factor = widget->devicePixelRatio();
 	validateDatas();
 	fillBackground(f);
+	const auto defaultFramebufferObject = widget->defaultFramebufferObject();
 	auto index = 0;
 	for (const auto &tile : _owner->_tiles) {
-		auto &data = _tileData[_tileDataIndices[index++]];
-		validateOutlineAnimation(tile.get(), data);
-		paintTile(f, tile.get(), data);
+		paintTile(
+			f,
+			defaultFramebufferObject,
+			tile.get(),
+			_tileData[_tileDataIndices[index++]]);
 	}
-	freeTextures(f);
 }
 
 void Viewport::RendererGL::fillBackground(QOpenGLFunctions &f) {
@@ -279,18 +405,21 @@ void Viewport::RendererGL::fillBackground(QOpenGLFunctions &f) {
 
 void Viewport::RendererGL::paintTile(
 		QOpenGLFunctions &f,
+		GLuint defaultFramebufferObject,
 		not_null<VideoTile*> tile,
-		const TileData &tileData) {
+		TileData &tileData) {
 	const auto track = tile->track();
 	const auto data = track->frameWithInfo(false);
 	if (data.format == Webrtc::FrameFormat::None) {
 		return;
 	}
-
+	Assert(!data.yuv420->size.isEmpty());
 	const auto geometry = tile->geometry();
 	if (geometry.isEmpty()) {
 		return;
 	}
+
+	_rgbaFrame = (data.format == Webrtc::FrameFormat::ARGB32);
 	const auto x = geometry.x();
 	const auto y = geometry.y();
 	const auto width = geometry.width();
@@ -302,43 +431,37 @@ void Viewport::RendererGL::paintTile(
 	const auto row = tile->row();
 	const auto style = row->computeIconState(MembersRowStyle::LargeVideo);
 
+	validateOutlineAnimation(tile, tileData);
+	const auto outline = tileData.outlined.value(tileData.outline ? 1. : 0.);
+
 	ensureButtonsImage();
 
 	// Frame.
-	const auto expand = !_owner->wide()/* && !tile->screencast()*/;
-	const auto scaled = Media::View::FlipSizeByRotation(
+	const auto unscaled = Media::View::FlipSizeByRotation(
 		data.yuv420->size,
-		data.rotation
-	).scaled(
-		QSize(width, height),
-		(expand ? Qt::KeepAspectRatioByExpanding : Qt::KeepAspectRatio));
-	const auto good = !scaled.isEmpty();
-	const auto left = (width - scaled.width()) / 2;
-	const auto top = (height - scaled.height()) / 2;
-	const auto right = left + scaled.width();
-	const auto bottom = top + scaled.height();
-	const auto radius = GLfloat(st::roundRadiusLarge);
-	auto dleft = good ? (float(left) / scaled.width()) : 0.f;
-	auto dright = good ? (float(width - left) / scaled.width()) : 1.f;
-	auto dtop = good ? (float(top) / scaled.height()) : 0.f;
-	auto dbottom = good ? (float(height - top) / scaled.height()) : 1.f;
+		data.rotation);
 	const auto swap = (((data.rotation / 90) % 2) == 1);
-	if (swap) {
-		std::swap(dleft, dtop);
-		std::swap(dright, dbottom);
-	}
+	const auto expand = !_owner->wide()/* && !tile->screencast()*/;
+	auto texCoords = CountTexCoords(unscaled, geometry.size(), expand, swap);
+	auto blurTexCoords = expand
+		? texCoords
+		: CountTexCoords(unscaled, geometry.size(), true);
 	const auto rect = transformRect(geometry);
-	auto texCoord = std::array<std::array<GLfloat, 2>, 4> { {
-		{ { -dleft, 1.f + dtop } },
-		{ { dright, 1.f + dtop } },
-		{ { dright, 1.f - dbottom } },
-		{ { -dleft, 1.f - dbottom } },
+	auto toBlurTexCoords = std::array<std::array<GLfloat, 2>, 4> { {
+		{ { 0.f, 1.f } },
+		{ { 1.f, 1.f } },
+		{ { 1.f, 0.f } },
+		{ { 0.f, 0.f } },
 	} };
-	if (data.rotation > 0) {
+	if (const auto shift = (data.rotation / 90); shift > 0) {
 		std::rotate(
-			texCoord.begin(),
-			texCoord.begin() + (data.rotation / 90),
-			texCoord.end());
+			toBlurTexCoords.begin(),
+			toBlurTexCoords.begin() + shift,
+			toBlurTexCoords.end());
+		std::rotate(
+			texCoords.begin(),
+			texCoords.begin() + shift,
+			texCoords.end());
 	}
 
 	// Pin.
@@ -377,18 +500,52 @@ void Viewport::RendererGL::paintTile(
 	const auto nameRect = transformRect(name.geometry);
 
 	const GLfloat coords[] = {
+		// YUV -> RGB-for-blur quad.
+		-1.f, 1.f,
+		toBlurTexCoords[0][0], toBlurTexCoords[0][1],
+
+		1.f, 1.f,
+		toBlurTexCoords[1][0], toBlurTexCoords[1][1],
+
+		1.f, -1.f,
+		toBlurTexCoords[2][0], toBlurTexCoords[2][1],
+
+		-1.f, -1.f,
+		toBlurTexCoords[3][0], toBlurTexCoords[3][1],
+
+		// First RGB -> RGB blur pass.
+		-1.f, 1.f,
+		0.f, 1.f,
+
+		1.f, 1.f,
+		1.f, 1.f,
+
+		1.f, -1.f,
+		1.f, 0.f,
+
+		-1.f, -1.f,
+		0.f, 0.f,
+
+		// Second blur pass + paint final frame.
 		rect.left(), rect.top(),
-		texCoord[0][0], texCoord[0][1],
+		texCoords[0][0], texCoords[0][1],
 
 		rect.right(), rect.top(),
-		texCoord[1][0], texCoord[1][1],
+		texCoords[1][0], texCoords[1][1],
 
 		rect.right(), rect.bottom(),
-		texCoord[2][0], texCoord[2][1],
+		texCoords[2][0], texCoords[2][1],
 
 		rect.left(), rect.bottom(),
-		texCoord[3][0], texCoord[3][1],
+		texCoords[3][0], texCoords[3][1],
 
+		// Additional blurred background texture coordinates.
+		blurTexCoords[0][0], blurTexCoords[0][1],
+		blurTexCoords[1][0], blurTexCoords[1][1],
+		blurTexCoords[2][0], blurTexCoords[2][1],
+		blurTexCoords[3][0], blurTexCoords[3][1],
+
+		// Pin button.
 		pinRect.left(), pinRect.top(),
 		pin.texture.left(), pin.texture.bottom(),
 
@@ -401,6 +558,7 @@ void Viewport::RendererGL::paintTile(
 		pinRect.left(), pinRect.bottom(),
 		pin.texture.left(), pin.texture.top(),
 
+		// Mute icon.
 		muteRect.left(), muteRect.top(),
 		mute.texture.left(), mute.texture.bottom(),
 
@@ -413,6 +571,7 @@ void Viewport::RendererGL::paintTile(
 		muteRect.left(), muteRect.bottom(),
 		mute.texture.left(), mute.texture.top(),
 
+		// Name.
 		nameRect.left(), nameRect.top(),
 		name.texture.left(), name.texture.bottom(),
 
@@ -426,84 +585,33 @@ void Viewport::RendererGL::paintTile(
 		name.texture.left(), name.texture.top(),
 	};
 
-	tile->ensureTexturesCreated(f);
-	const auto &textures = tile->textures();
-	const auto upload = (textures.trackIndex != data.index);
-	const auto uploadOne = [&](
-			GLint internalformat,
-			GLint format,
-			QSize size,
-			int stride,
-			const void *data) {
-		f.glPixelStorei(GL_UNPACK_ROW_LENGTH, stride);
-		f.glTexImage2D(
-			GL_TEXTURE_2D,
-			0,
-			internalformat,
-			size.width(),
-			size.height(),
-			0,
-			format,
-			GL_UNSIGNED_BYTE,
-			data);
-		f.glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-	};
-	if (upload) {
-		textures.textureIndex = 1 - textures.textureIndex;
-	}
-	const auto rgba = (data.format == Webrtc::FrameFormat::ARGB32);
-	if (rgba) {
-		ensureARGB32Program();
-		f.glUseProgram(_argb32Program->programId());
-		f.glActiveTexture(GL_TEXTURE0);
-		textures.values.bind(f, textures.textureIndex);
-		if (upload) {
-			const auto &image = data.original;
-			const auto stride = image.bytesPerLine() / 4;
-			const auto data = image.constBits();
-			uploadOne(GL_RGB, GL_RGBA, image.size(), stride, data);
-		}
-		_argb32Program->setUniformValue("s_texture", GLint(0));
-	} else {
-		const auto yuv = data.yuv420;
-		const auto otherSize = yuv->chromaSize;
-		f.glUseProgram(_yuv420Program->programId());
-		f.glActiveTexture(GL_TEXTURE0);
-		textures.values.bind(f, textures.textureIndex * 3 + 0);
-		if (upload) {
-			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-			uploadOne(GL_RED, GL_RED, yuv->size, yuv->y.stride, yuv->y.data);
-		}
-		f.glActiveTexture(GL_TEXTURE1);
-		textures.values.bind(f, textures.textureIndex * 3 + 1);
-		if (upload) {
-			uploadOne(GL_RED, GL_RED, otherSize, yuv->u.stride, yuv->u.data);
-		}
-		f.glActiveTexture(GL_TEXTURE2);
-		textures.values.bind(f, textures.textureIndex * 3 + 2);
-		if (upload) {
-			uploadOne(GL_RED, GL_RED, otherSize, yuv->v.stride, yuv->v.data);
-			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-		}
-		_yuv420Program->setUniformValue("y_texture", GLint(0));
-		_yuv420Program->setUniformValue("u_texture", GLint(1));
-		_yuv420Program->setUniformValue("v_texture", GLint(2));
-	}
-	tile->track()->markFrameShown();
+	const auto blurSize = CountBlurredSize(unscaled, _viewport, _factor);
+	prepareObjects(f, tileData, blurSize);
+	f.glViewport(0, 0, blurSize.width(), blurSize.height());
 
 	_frameBuffer->bind();
 	_frameBuffer->write(0, coords, sizeof(coords));
 
-	const auto program = rgba ? &*_argb32Program : &*_yuv420Program;
+	bindFrame(f, data, tileData, _downscaleProgram);
+	tile->track()->markFrameShown();
+
+	drawDownscalePass(f, tileData);
+	drawFirstBlurPass(f, tileData, blurSize);
+
+	f.glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebufferObject);
+	setDefaultViewport(f);
+
+	bindFrame(f, data, tileData, _frameProgram);
+
+	const auto program = _rgbaFrame
+		? &*_frameProgram.argb32
+		: &*_frameProgram.yuv420;
 	const auto uniformViewport = QSizeF(_viewport * _factor);
 
 	program->setUniformValue("viewport", uniformViewport);
-	program->setUniformValue(
-		"frameBg",
-		Uniform(st::groupCallMembersBg->c));
-	const auto outline = tileData.outlined.value(tileData.outline ? 1. : 0.);
+	program->setUniformValue("frameBg", Uniform(st::groupCallBg->c));
 	program->setUniformValue("radiusOutline", QVector2D(
-		radius * _factor,
+		GLfloat(st::roundRadiusLarge * _factor),
 		(outline > 0) ? (st::groupCallOutline * _factor) : 0.f));
 	program->setUniformValue("roundRect", Uniform(rect));
 	program->setUniformValue("roundBg", Uniform(st::groupCallBg->c));
@@ -519,7 +627,25 @@ void Viewport::RendererGL::paintTile(
 		"shadow",
 		QVector3D(shadowHeight, shown, shadowAlpha));
 
-	FillTexturedRectangle(f, program);
+	f.glActiveTexture(_rgbaFrame ? GL_TEXTURE1 : GL_TEXTURE3);
+	tileData.textures.bind(
+		f,
+		tileData.textureIndex * 5 + kFirstBlurPassTextureIndex);
+	program->setUniformValue("b_texture", GLint(_rgbaFrame ? 1 : 3));
+	program->setUniformValue(
+		"texelOffset",
+		GLfloat(1.f / blurSize.height()));
+	GLint blurTexcoord = program->attributeLocation("b_texcoordIn");
+	f.glVertexAttribPointer(
+		blurTexcoord,
+		2,
+		GL_FLOAT,
+		GL_FALSE,
+		2 * sizeof(GLfloat),
+		reinterpret_cast<const void*>(48 * sizeof(GLfloat)));
+	f.glEnableVertexAttribArray(blurTexcoord);
+	FillTexturedRectangle(f, program, 8);
+	f.glDisableVertexAttribArray(blurTexcoord);
 
 	const auto pinVisible = _owner->wide()
 		&& (pin.geometry.bottom() > y);
@@ -541,7 +667,7 @@ void Viewport::RendererGL::paintTile(
 	_buttons.bind(f);
 
 	if (pinVisible) {
-		FillTexturedRectangle(f, &*_imageProgram, 4);
+		FillTexturedRectangle(f, &*_imageProgram, 14);
 	}
 
 	if (nameShift == fullNameShift) {
@@ -550,14 +676,152 @@ void Viewport::RendererGL::paintTile(
 
 	// Mute.
 	if (!muteRect.empty()) {
-		FillTexturedRectangle(f, &*_imageProgram, 8);
+		FillTexturedRectangle(f, &*_imageProgram, 18);
 	}
 
 	// Name.
 	if (!nameRect.empty()) {
 		_names.bind(f);
-		FillTexturedRectangle(f, &*_imageProgram, 12);
+		FillTexturedRectangle(f, &*_imageProgram, 22);
 	}
+}
+
+void Viewport::RendererGL::prepareObjects(
+		QOpenGLFunctions &f,
+		TileData &tileData,
+		QSize blurSize) {
+	tileData.textures.ensureCreated(f);
+	tileData.framebuffers.ensureCreated(f);
+
+	const auto create = [&](int index) {
+		tileData.textures.bind(f, tileData.textureIndex * 5 + index);
+		f.glTexImage2D(
+			GL_TEXTURE_2D,
+			0,
+			GL_RGB,
+			blurSize.width(),
+			blurSize.height(),
+			0,
+			GL_RGB,
+			GL_UNSIGNED_BYTE,
+			nullptr);
+	};
+	create(kScaleForBlurTextureIndex);
+	create(kFirstBlurPassTextureIndex);
+}
+
+void Viewport::RendererGL::bindFrame(
+		QOpenGLFunctions &f,
+		const Webrtc::FrameWithInfo &data,
+		TileData &tileData,
+		Program &program) {
+	const auto upload = (tileData.trackIndex != data.index);
+	tileData.trackIndex = data.index;
+	const auto uploadOne = [&](
+			GLint internalformat,
+			GLint format,
+			QSize size,
+			int stride,
+			const void *data) {
+		f.glPixelStorei(GL_UNPACK_ROW_LENGTH, stride);
+		f.glTexImage2D(
+			GL_TEXTURE_2D,
+			0,
+			internalformat,
+			size.width(),
+			size.height(),
+			0,
+			format,
+			GL_UNSIGNED_BYTE,
+			data);
+		f.glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	};
+	//if (upload) {
+	//	tileData.textureIndex = 1 - tileData.textureIndex;
+	//}
+	if (_rgbaFrame) {
+		ensureARGB32Program();
+		f.glUseProgram(program.argb32->programId());
+		f.glActiveTexture(GL_TEXTURE0);
+		tileData.textures.bind(f, tileData.textureIndex);
+		if (upload) {
+			const auto &image = data.original;
+			const auto stride = image.bytesPerLine() / 4;
+			const auto data = image.constBits();
+			uploadOne(GL_RGB, GL_RGBA, image.size(), stride, data);
+		}
+		program.argb32->setUniformValue("s_texture", GLint(0));
+	} else {
+		const auto yuv = data.yuv420;
+		const auto otherSize = yuv->chromaSize;
+		f.glUseProgram(program.yuv420->programId());
+		f.glActiveTexture(GL_TEXTURE0);
+		tileData.textures.bind(f, tileData.textureIndex * 5 + 0);
+		if (upload) {
+			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+			uploadOne(GL_RED, GL_RED, yuv->size, yuv->y.stride, yuv->y.data);
+		}
+		f.glActiveTexture(GL_TEXTURE1);
+		tileData.textures.bind(f, tileData.textureIndex * 5 + 1);
+		if (upload) {
+			uploadOne(GL_RED, GL_RED, otherSize, yuv->u.stride, yuv->u.data);
+		}
+		f.glActiveTexture(GL_TEXTURE2);
+		tileData.textures.bind(f, tileData.textureIndex * 5 + 2);
+		if (upload) {
+			uploadOne(GL_RED, GL_RED, otherSize, yuv->v.stride, yuv->v.data);
+			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+		}
+		program.yuv420->setUniformValue("y_texture", GLint(0));
+		program.yuv420->setUniformValue("u_texture", GLint(1));
+		program.yuv420->setUniformValue("v_texture", GLint(2));
+	}
+}
+
+void Viewport::RendererGL::drawDownscalePass(
+		QOpenGLFunctions &f,
+		TileData &tileData) {
+	tileData.framebuffers.bind(f, 0);
+	f.glFramebufferTexture2D(
+		GL_FRAMEBUFFER,
+		GL_COLOR_ATTACHMENT0,
+		GL_TEXTURE_2D,
+		tileData.textures.id(
+			tileData.textureIndex * 5 + kScaleForBlurTextureIndex),
+		0);
+
+	const auto program = _rgbaFrame
+		? &*_downscaleProgram.argb32
+		: &*_downscaleProgram.yuv420;
+
+	FillTexturedRectangle(f, program);
+}
+
+void Viewport::RendererGL::drawFirstBlurPass(
+		QOpenGLFunctions &f,
+		TileData &tileData,
+		QSize blurSize) {
+	tileData.framebuffers.bind(f, 1);
+	f.glFramebufferTexture2D(
+		GL_FRAMEBUFFER,
+		GL_COLOR_ATTACHMENT0,
+		GL_TEXTURE_2D,
+		tileData.textures.id(
+			tileData.textureIndex * 5 + kFirstBlurPassTextureIndex),
+		0);
+
+	f.glUseProgram(_blurProgram->programId());
+	f.glActiveTexture(GL_TEXTURE0);
+	tileData.textures.bind(
+		f,
+		tileData.textureIndex * 5 + kScaleForBlurTextureIndex);
+
+	_blurProgram->setUniformValue("b_texture", GLint(0));
+	_blurProgram->setUniformValue(
+		"texelOffset",
+		GLfloat(1.f / blurSize.width()));
+
+	FillTexturedRectangle(f, &*_blurProgram, 4);
 }
 
 Rect Viewport::RendererGL::transformRect(const Rect &raster) const {
@@ -576,12 +840,6 @@ Rect Viewport::RendererGL::transformRect(const QRect &raster) const {
 		raster.width() * _factor,
 		raster.height() * _factor,
 	};
-}
-
-void Viewport::RendererGL::freeTextures(QOpenGLFunctions &f) {
-	for (auto &textures : base::take(_texturesToFree)) {
-		textures.values.destroy(f);
-	}
 }
 
 void Viewport::RendererGL::ensureButtonsImage() {

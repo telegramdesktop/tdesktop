@@ -17,13 +17,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QOpenGLBuffer>
 #include <QtGui/QOpenGLShaderProgram>
 
+namespace Webrtc {
+struct FrameWithInfo;
+} // namespace Webrtc
+
 namespace Calls::Group {
 
 class Viewport::RendererGL final : public Ui::GL::Renderer {
 public:
 	explicit RendererGL(not_null<Viewport*> owner);
-
-	void free(const Textures &textures);
 
 	void init(
 		not_null<QOpenGLWidget*> widget,
@@ -46,24 +48,50 @@ public:
 private:
 	struct TileData {
 		not_null<PeerData*> peer;
+		Ui::GL::Textures<5> textures;
+		Ui::GL::Framebuffers<2> framebuffers;
+		mutable int textureIndex = 0;
+		mutable int trackIndex = -1;
 		Ui::Animations::Simple outlined;
 		QRect nameRect;
 		int nameVersion = 0;
 		bool stale = false;
 		bool outline = false;
 	};
+	struct Program {
+		std::optional<QOpenGLShaderProgram> argb32;
+		std::optional<QOpenGLShaderProgram> yuv420;
+	};
+
+	void setDefaultViewport(QOpenGLFunctions &f);
 	void fillBackground(QOpenGLFunctions &f);
 	void paintTile(
 		QOpenGLFunctions &f,
+		GLuint defaultFramebufferObject,
 		not_null<VideoTile*> tile,
-		const TileData &nameData);
-	void freeTextures(QOpenGLFunctions &f);
+		TileData &nameData);
 	[[nodiscard]] Ui::GL::Rect transformRect(const QRect &raster) const;
 	[[nodiscard]] Ui::GL::Rect transformRect(
 		const Ui::GL::Rect &raster) const;
 
 	void ensureARGB32Program();
 	void ensureButtonsImage();
+	void prepareObjects(
+		QOpenGLFunctions &f,
+		TileData &tileData,
+		QSize blurSize);
+	void bindFrame(
+		QOpenGLFunctions &f,
+		const Webrtc::FrameWithInfo &data,
+		TileData &tileData,
+		Program &program);
+	void drawDownscalePass(
+		QOpenGLFunctions &f,
+		TileData &tileData);
+	void drawFirstBlurPass(
+		QOpenGLFunctions &f,
+		TileData &tileData,
+		QSize blurSize);
 	void validateDatas();
 	void validateOutlineAnimation(
 		not_null<VideoTile*> tile,
@@ -73,12 +101,15 @@ private:
 
 	GLfloat _factor = 1.;
 	QSize _viewport;
+	bool _rgbaFrame = false;
 	std::optional<QOpenGLBuffer> _frameBuffer;
 	std::optional<QOpenGLBuffer> _bgBuffer;
-	std::optional<QOpenGLShaderProgram> _argb32Program;
-	std::optional<QOpenGLShaderProgram> _yuv420Program;
+	Program _downscaleProgram;
+	std::optional<QOpenGLShaderProgram> _blurProgram;
+	Program _frameProgram;
 	std::optional<QOpenGLShaderProgram> _imageProgram;
 	std::optional<QOpenGLShaderProgram> _bgProgram;
+	QOpenGLShader *_downscaleVertexShader = nullptr;
 	QOpenGLShader *_frameVertexShader = nullptr;
 
 	Ui::GL::Image _buttons;
@@ -92,7 +123,6 @@ private:
 	std::vector<int> _tileDataIndices;
 
 	std::vector<GLfloat> _bgTriangles;
-	std::vector<Textures> _texturesToFree;
 	Ui::CrossLineAnimation _pinIcon;
 	Ui::CrossLineAnimation _muteIcon;
 	Ui::RoundRect _pinBackground;

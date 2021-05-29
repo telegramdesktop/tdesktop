@@ -31,10 +31,6 @@ Viewport::VideoTile::VideoTile(
 	setup(std::move(pinned));
 }
 
-Viewport::VideoTile::~VideoTile() {
-	Expects(!_textures);
-}
-
 QRect Viewport::VideoTile::pinInner() const {
 	return _pinInner.translated(0, -pinSlide());
 }
@@ -165,19 +161,6 @@ void Viewport::VideoTile::setup(rpl::producer<bool> pinned) {
 	if (const auto size = _track.track->frameSize(); !size.isEmpty()) {
 		_trackSize = size;
 	}
-}
-
-void Viewport::VideoTile::ensureTexturesCreated(
-		QOpenGLFunctions &f) {
-	_textures.values.ensureCreated(f);
-}
-
-const Viewport::Textures &Viewport::VideoTile::textures() const {
-	return _textures;
-}
-
-Viewport::Textures Viewport::VideoTile::takeTextures() {
-	return base::take(_textures);
 }
 
 } // namespace Calls::Group

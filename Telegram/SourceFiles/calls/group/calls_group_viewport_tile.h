@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_viewport.h"
 #include "calls/group/calls_group_call.h"
 #include "ui/effects/animations.h"
-#include "ui/gl/gl_image.h"
 
 class Painter;
 class QOpenGLFunctions;
@@ -22,16 +21,6 @@ class RoundRect;
 
 namespace Calls::Group {
 
-struct Viewport::Textures {
-	Ui::GL::Textures<6> values;
-	mutable int textureIndex = 0;
-	mutable int trackIndex = -1;
-
-	explicit operator bool() const {
-		return values.created();
-	}
-};
-
 class Viewport::VideoTile final {
 public:
 	VideoTile(
@@ -39,7 +28,6 @@ public:
 		LargeVideoTrack track,
 		rpl::producer<bool> pinned,
 		Fn<void()> update);
-	~VideoTile();
 
 	[[nodiscard]] not_null<Webrtc::VideoTrack*> track() const {
 		return _track.track;
@@ -68,10 +56,6 @@ public:
 	void setGeometry(QRect geometry);
 	void togglePinShown(bool shown);
 	bool updateRequestedQuality(VideoQuality quality);
-
-	void ensureTexturesCreated(QOpenGLFunctions &f);
-	[[nodiscard]] const Textures &textures() const;
-	[[nodiscard]] Textures takeTextures();
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -104,8 +88,6 @@ private:
 	bool _pinShown = false;
 	bool _pinned = false;
 	std::optional<VideoQuality> _quality;
-
-	Textures _textures;
 
 	rpl::lifetime _lifetime;
 
