@@ -936,13 +936,15 @@ void Viewport::RendererGL::validateDatas() {
 		if (width > available) {
 			available = width;
 		}
-		const auto peer = tiles[i]->row()->peer();
-		const auto j = ranges::find(_tileData, peer, &TileData::peer);
+		const auto id = quintptr(tiles[i]->track().get());
+		const auto j = ranges::find(_tileData, id, &TileData::id);
 		if (j != end(_tileData)) {
 			j->stale = false;
 			const auto index = (j - begin(_tileData));
 			_tileDataIndices[i] = index;
-			if (peer->nameVersion != j->nameVersion
+			const auto peer = tiles[i]->row()->peer();
+			if (peer != j->peer
+				|| peer->nameVersion != j->nameVersion
 				|| width != j->nameRect.width()) {
 				const auto nameTop = index * nameHeight;
 				j->nameRect = QRect(0, nameTop, width, nameHeight);
@@ -963,6 +965,7 @@ void Viewport::RendererGL::validateDatas() {
 		if (_tileDataIndices[i] >= 0) {
 			continue;
 		}
+		const auto id = quintptr(tiles[i]->track().get());
 		const auto peer = tiles[i]->row()->peer();
 		auto index = int(_tileData.size());
 		maybeStaleAfter = ranges::find(
@@ -972,12 +975,16 @@ void Viewport::RendererGL::validateDatas() {
 			&TileData::stale);
 		if (maybeStaleAfter != maybeStaleEnd) {
 			index = (maybeStaleAfter - begin(_tileData));
+			maybeStaleAfter->id = id;
 			maybeStaleAfter->peer = peer;
 			maybeStaleAfter->stale = false;
 			request.updating = true;
 		} else {
 			// This invalidates maybeStale*, but they're already equal.
-			_tileData.push_back({ .peer = peer });
+			_tileData.push_back({
+				.id = id,
+				.peer = peer,
+			});
 		}
 		_tileData[index].nameVersion = peer->nameVersion;
 		_tileData[index].nameRect = QRect(
