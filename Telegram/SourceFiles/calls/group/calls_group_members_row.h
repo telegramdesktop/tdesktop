@@ -13,10 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class PeerData;
 class Painter;
 
-//namespace Webrtc {
-//class VideoTrack;
-//} // namespace Webrtc
-
 namespace Data {
 struct GroupCallParticipant;
 } // namespace Data
@@ -29,8 +25,6 @@ namespace Calls::Group {
 
 enum class MembersRowStyle {
 	None,
-	//Userpic,
-	//Video,
 	Narrow,
 	LargeVideo,
 };
@@ -65,22 +59,6 @@ public:
 		const IconState &state) = 0;
 	virtual bool rowIsNarrow() = 0;
 	virtual void rowShowContextMenu(not_null<PeerListRow*> row) = 0;
-	//virtual void rowPaintNarrowBackground(
-	//	Painter &p,
-	//	int x,
-	//	int y,
-	//	bool selected) = 0;
-	//virtual void rowPaintNarrowBorder(
-	//	Painter &p,
-	//	int x,
-	//	int y,
-	//	not_null<MembersRow*> row) = 0;
-	//virtual void rowPaintNarrowShadow(
-	//	Painter &p,
-	//	int x,
-	//	int y,
-	//	int sizew,
-	//	int sizeh) = 0;
 };
 
 class MembersRow final : public PeerListRow {
@@ -126,12 +104,6 @@ public:
 	[[nodiscard]] uint64 raisedHandRating() const {
 		return _raisedHandRating;
 	}
-
-	//[[nodiscard]] not_null<Webrtc::VideoTrack*> createVideoTrack(
-	//	const std::string &endpoint);
-	//void clearVideoTrack();
-	//[[nodiscard]] const std::string &videoTrackEndpoint() const;
-	//void setVideoTrack(not_null<Webrtc::VideoTrack*> track);
 
 	void addActionRipple(QPoint point, Fn<void()> updateCallback) override;
 	void stopLastActionRipple() override;
@@ -211,18 +183,6 @@ private:
 	void ensureUserpicCache(
 		std::shared_ptr<Data::CloudImageView> &view,
 		int size);
-	bool paintVideo(
-		Painter &p,
-		int x,
-		int y,
-		int sizew,
-		int sizeh,
-		PanelMode mode);
-	//[[nodiscard]] static std::tuple<int, int, int> UserpicInNarrowMode(
-	//	int x,
-	//	int y,
-	//	int sizew,
-	//	int sizeh);
 	void paintBlobs(
 		Painter &p,
 		int x,
@@ -238,27 +198,15 @@ private:
 		int sizew,
 		int sizeh,
 		PanelMode mode);
-	void paintNarrowName(
-		Painter &p,
-		int x,
-		int y,
-		int sizew,
-		int sizeh,
-		MembersRowStyle style);
 
 	const not_null<MembersRowDelegate*> _delegate;
 	State _state = State::Inactive;
 	std::unique_ptr<Ui::RippleAnimation> _actionRipple;
 	std::unique_ptr<BlobsAnimation> _blobsAnimation;
 	std::unique_ptr<StatusIcon> _statusIcon;
-	//std::unique_ptr<Webrtc::VideoTrack> _videoTrack;
-	//Webrtc::VideoTrack *_videoTrackShown = nullptr;
-	//std::string _videoTrackEndpoint;
-	//rpl::lifetime _videoTrackLifetime; // TODO calls move to unique_ptr.
 	Ui::Animations::Simple _speakingAnimation; // For gray-red/green icon.
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
-	Ui::Text::String _narrowName;
 	QString _aboutText;
 	crl::time _speakingLastTime = 0;
 	uint64 _raisedHandRating = 0;

@@ -97,34 +97,6 @@ public:
 		const IconState &state) override;
 	bool rowIsNarrow() override;
 	void rowShowContextMenu(not_null<PeerListRow*> row);
-	//void rowPaintNarrowBackground(
-	//	Painter &p,
-	//	int x,
-	//	int y,
-	//	bool selected) override;
-	//void rowPaintNarrowBorder(
-	//	Painter &p,
-	//	int x,
-	//	int y,
-	//	not_null<Row*> row) override;
-	//void rowPaintNarrowShadow(
-	//	Painter &p,
-	//	int x,
-	//	int y,
-	//	int sizew,
-	//	int sizeh) override;
-
-	//int customRowHeight() override;
-	//void customRowPaint(
-	//	Painter &p,
-	//	crl::time now,
-	//	not_null<PeerListRow*> row,
-	//	bool selected) override;
-	//bool customRowSelectionPoint(
-	//	not_null<PeerListRow*> row,
-	//	int x,
-	//	int y) override;
-	//Fn<QImage()> customRowRippleMaskGenerator() override;
 
 private:
 	[[nodiscard]] std::unique_ptr<Row> createRowForMe();
@@ -135,7 +107,6 @@ private:
 
 	[[nodiscard]] bool isMe(not_null<PeerData*> participantPeer) const;
 	void prepareRows(not_null<Data::GroupCall*> real);
-	//void repaintByTimer();
 
 	[[nodiscard]] base::unique_qptr<Ui::PopupMenu> createRowContextMenu(
 		QWidget *parent,
@@ -167,10 +138,6 @@ private:
 		not_null<const Data::GroupCallParticipant*> participant) const;
 	const std::string &computeCameraEndpoint(
 		not_null<const Data::GroupCallParticipant*> participant) const;
-	//void setRowVideoEndpoint(
-	//	not_null<Row*> row,
-	//	const std::string &endpoint);
-	bool toggleRowVideo(not_null<PeerListRow*> row);
 	void showRowMenu(not_null<PeerListRow*> row, bool highlightRow);
 
 	void toggleVideoEndpointActive(
@@ -203,7 +170,6 @@ private:
 	base::Timer _raisedHandStatusRemoveTimer;
 
 	base::flat_map<uint32, not_null<Row*>> _soundingRowBySsrc;
-	//base::flat_map<std::string, not_null<Row*>> _videoEndpoints;
 	base::flat_set<not_null<PeerData*>> _cameraActive;
 	base::flat_set<not_null<PeerData*>> _screenActive;
 	Ui::Animations::Basic _soundingAnimation;
@@ -216,7 +182,6 @@ private:
 	Ui::CrossLineAnimation _coloredCrossLine;
 	Ui::CrossLineAnimation _inactiveNarrowCrossLine;
 	Ui::CrossLineAnimation _coloredNarrowCrossLine;
-	//Ui::CrossLineAnimation _videoNarrowCrossLine;
 	Ui::CrossLineAnimation _videoLargeCrossLine;
 	Ui::RoundRect _narrowRoundRectSelected;
 	Ui::RoundRect _narrowRoundRect;
@@ -239,7 +204,6 @@ Members::Controller::Controller(
 , _coloredCrossLine(st::groupCallMemberColoredCrossLine)
 , _inactiveNarrowCrossLine(st::groupCallNarrowInactiveCrossLine)
 , _coloredNarrowCrossLine(st::groupCallNarrowColoredCrossLine)
-//, _videoNarrowCrossLine(st::groupCallVideoCrossLine)
 , _videoLargeCrossLine(st::groupCallLargeVideoCrossLine)
 , _narrowRoundRectSelected(
 	ImageRoundRadius::Large,
@@ -251,7 +215,6 @@ Members::Controller::Controller(
 		_coloredCrossLine.invalidate();
 		_inactiveNarrowCrossLine.invalidate();
 		_coloredNarrowCrossLine.invalidate();
-		//_videoNarrowCrossLine.invalidate();
 	}, _lifetime);
 
 	rpl::combine(
@@ -301,25 +264,6 @@ Members::Controller::~Controller() {
 	base::take(_menu);
 }
 
-//void Members::Controller::setRowVideoEndpoint(
-//		not_null<Row*> row,
-//		const std::string &endpoint) {
-//	const auto was = row->videoTrackEndpoint();
-//	if (was != endpoint) {
-//		if (!was.empty()) {
-//			_videoEndpoints.remove(was);
-//		}
-//		if (!endpoint.empty()) {
-//			_videoEndpoints.emplace(endpoint, row);
-//		}
-//	}
-//	if (endpoint.empty()) {
-//		row->clearVideoTrack();
-//	} else {
-//		_call->addVideoOutput(endpoint, row->createVideoTrack(endpoint));
-//	}
-//}
-
 void Members::Controller::setupListChangeViewers() {
 	_call->real(
 	) | rpl::start_with_next([=](not_null<Data::GroupCall*> real) {
@@ -333,89 +277,6 @@ void Members::Controller::setupListChangeViewers() {
 			updateRowLevel(i->second, update.value);
 		}
 	}, _lifetime);
-
-	//_call->videoEndpointLargeValue(
-	//) | rpl::filter([=](const VideoEndpoint &largeEndpoint) {
-	//	return (_largeEndpoint != largeEndpoint.endpoint);
-	//}) | rpl::start_with_next([=](const VideoEndpoint &largeEndpoint) {
-	//	if (_call->streamsVideo(_largeEndpoint)) {
-	//		if (const auto participant = findParticipant(_largeEndpoint)) {
-	//			if (const auto row = findRow(participant->peer)) {
-	//				const auto current = row->videoTrackEndpoint();
-	//				if (current.empty()
-	//					|| (computeScreenEndpoint(participant) == _largeEndpoint
-	//						&& computeCameraEndpoint(participant) == current)) {
-	//					setRowVideoEndpoint(row, _largeEndpoint);
-	//				}
-	//			}
-	//		}
-	//	}
-	//	_largeEndpoint = largeEndpoint.endpoint;
-	//	if (const auto participant = findParticipant(_largeEndpoint)) {
-	//		if (const auto row = findRow(participant->peer)) {
-	//			if (row->videoTrackEndpoint() == _largeEndpoint) {
-	//				const auto &camera = computeCameraEndpoint(participant);
-	//				const auto &screen = computeScreenEndpoint(participant);
-	//				if (_largeEndpoint == camera
-	//					&& _call->streamsVideo(screen)) {
-	//					setRowVideoEndpoint(row, screen);
-	//				} else if (_largeEndpoint == screen
-	//					&& _call->streamsVideo(camera)) {
-	//					setRowVideoEndpoint(row, camera);
-	//				} else {
-	//					setRowVideoEndpoint(row, std::string());
-	//				}
-	//			}
-	//		}
-	//	}
-	//}, _lifetime);
-
-	//_call->streamsVideoUpdates(
-	//) | rpl::start_with_next([=](StreamsVideoUpdate update) {
-	//	Assert(update.endpoint != _largeEndpoint);
-	//	if (update.streams) {
-	//		if (const auto participant = findParticipant(update.endpoint)) {
-	//			if (const auto row = findRow(participant->peer)) {
-	//				const auto &camera = computeCameraEndpoint(participant);
-	//				const auto &screen = computeScreenEndpoint(participant);
-	//				if (update.endpoint == camera
-	//					&& (!_call->streamsVideo(screen)
-	//						|| _largeEndpoint == screen)) {
-	//					setRowVideoEndpoint(row, camera);
-	//				} else if (update.endpoint == screen
-	//					&& (_largeEndpoint != screen)) {
-	//					setRowVideoEndpoint(row, screen);
-	//				}
-	//			}
-	//		}
-	//	} else {
-	//		const auto i = _videoEndpoints.find(update.endpoint);
-	//		if (i != end(_videoEndpoints)) {
-	//			const auto row = i->second;
-	//			const auto real = _call->lookupReal();
-	//			Assert(real != nullptr);
-	//			const auto participant = real->participantByPeer(
-	//				row->peer());
-	//			if (!participant) {
-	//				setRowVideoEndpoint(row, std::string());
-	//			} else {
-	//				const auto &camera = computeCameraEndpoint(participant);
-	//				const auto &screen = computeScreenEndpoint(participant);
-	//				if (update.endpoint == camera
-	//					&& (_largeEndpoint != screen)
-	//					&& _call->streamsVideo(screen)) {
-	//					setRowVideoEndpoint(row, screen);
-	//				} else if (update.endpoint == screen
-	//					&& (_largeEndpoint != camera)
-	//					&& _call->streamsVideo(camera)) {
-	//					setRowVideoEndpoint(row, camera);
-	//				} else {
-	//					setRowVideoEndpoint(row, std::string());
-	//				}
-	//			}
-	//		}
-	//	}
-	//}, _lifetime);
 
 	_call->videoEndpointPinnedValue(
 	) | rpl::start_with_next([=](const VideoEndpoint &pinned) {
@@ -1036,8 +897,6 @@ void Members::Controller::rowPaintIcon(
 	if (_mode == PanelMode::Wide && state.style == MembersRowStyle::None) {
 		return;
 	}
-	//const auto narrowUserpic = (state.style == MembersRowStyle::Userpic);
-	//const auto narrowVideo = (state.style == MembersRowStyle::Video);
 	const auto narrow = (state.style == MembersRowStyle::Narrow);
 	if (!narrow && state.invited) {
 		st::groupCallMemberInvited.paintInCenter(
@@ -1050,10 +909,6 @@ void Members::Controller::rowPaintIcon(
 	const auto largeVideo = (state.style == MembersRowStyle::LargeVideo);
 	const auto &greenIcon = largeVideo
 		? st::groupCallLargeVideoCrossLine.icon
-		//: narrowVideo
-		//? st::groupCallVideoCrossLine.icon
-		//: narrowUserpic
-		//? st::groupCallNarrowColoredCrossLine.icon
 		: narrow
 		? st::groupCallNarrowColoredCrossLine.icon
 		: st::groupCallMemberColoredCrossLine.icon;
@@ -1068,10 +923,6 @@ void Members::Controller::rowPaintIcon(
 			// Just gray icon, no cross, no coloring.
 			const auto &grayIcon = largeVideo
 				? st::groupCallLargeVideoCrossLine.icon
-				//: narrowVideo
-				//? st::groupCallVideoCrossLine.icon
-				//: narrowUserpic
-				//? st::groupCallNarrowInactiveCrossLine.icon
 				: narrow
 				? st::groupCallNarrowInactiveCrossLine.icon
 				: st::groupCallMemberInactiveCrossLine.icon;
@@ -1088,14 +939,10 @@ void Members::Controller::rowPaintIcon(
 				// Red crossed icon, colorized once, cached as last frame.
 				auto &line = largeVideo
 					? _videoLargeCrossLine
-					//: narrowVideo
-					//? _videoNarrowCrossLine
-					//: narrowUserpic
-					//? _coloredNarrowCrossLine
 					: narrow
 					? _coloredNarrowCrossLine
 					: _coloredCrossLine;
-				const auto color = (largeVideo/* || narrowVideo*/)
+				const auto color = largeVideo
 					? std::nullopt
 					: std::make_optional(narrow
 						? st::groupCallMemberNotJoinedStatus->c
@@ -1111,10 +958,6 @@ void Members::Controller::rowPaintIcon(
 				// Gray crossed icon, no coloring, cached as last frame.
 				auto &line = largeVideo
 					? _videoLargeCrossLine
-					//: narrowVideo
-					//? _videoNarrowCrossLine
-					//: narrowUserpic
-					//? _inactiveNarrowCrossLine
 					: narrow
 					? _inactiveNarrowCrossLine
 					: _inactiveCrossLine;
@@ -1139,7 +982,7 @@ void Members::Controller::rowPaintIcon(
 			? st::groupCallMemberNotJoinedStatus
 			: st::groupCallMemberMutedIcon),
 		state.muted);
-	const auto color = (largeVideo/* || narrowVideo*/)
+	const auto color = largeVideo
 		? std::nullopt
 		: std::make_optional((narrow && state.mutedByMe)
 			? st::groupCallMemberMutedIcon->c
@@ -1152,10 +995,6 @@ void Members::Controller::rowPaintIcon(
 	const auto crossProgress = std::min(1. - state.active, 0.9999);
 	auto &line = largeVideo
 		? _videoLargeCrossLine
-		//: narrowVideo
-		//? _videoNarrowCrossLine
-		//: narrowUserpic
-		//? _inactiveNarrowCrossLine
 		: narrow
 		? _inactiveNarrowCrossLine
 		: _inactiveCrossLine;
@@ -1235,103 +1074,13 @@ void Members::Controller::rowShowContextMenu(not_null<PeerListRow*> row) {
 	showRowMenu(row, false);
 }
 
-//void Members::Controller::rowPaintNarrowBackground(
-//		Painter &p,
-//		int x,
-//		int y,
-//		bool selected) {
-//	(selected ? _narrowRoundRectSelected : _narrowRoundRect).paint(
-//		p,
-//		{ QPoint(x, y), st::groupCallNarrowSize });
-//}
-//
-//void Members::Controller::rowPaintNarrowBorder(
-//		Painter &p,
-//		int x,
-//		int y,
-//		not_null<Row*> row) {
-//	if (_call->videoEndpointLarge().peer != row->peer().get()) {
-//		return;
-//	}
-//	auto hq = PainterHighQualityEnabler(p);
-//	p.setBrush(Qt::NoBrush);
-//	auto pen = st::groupCallMemberActiveIcon->p;
-//	pen.setWidthF(st::groupCallNarrowOutline);
-//	p.setPen(pen);
-//	p.drawRoundedRect(
-//		QRect{ QPoint(x, y), st::groupCallNarrowSize },
-//		st::roundRadiusLarge,
-//		st::roundRadiusLarge);
-//}
-//
-//void Members::Controller::rowPaintNarrowShadow(
-//		Painter &p,
-//		int x,
-//		int y,
-//		int sizew,
-//		int sizeh) {
-//	if (_narrowShadow.isNull()) {
-//		_narrowShadow = GenerateShadow(
-//			st::groupCallNarrowShadowHeight,
-//			0,
-//			kShadowMaxAlpha);
-//	}
-//	const auto height = st::groupCallNarrowShadowHeight;
-//	p.drawImage(
-//		QRect(x, y + sizeh - height, sizew, height),
-//		_narrowShadow);
-//}
-//
-//int Members::Controller::customRowHeight() {
-//	return st::groupCallNarrowSize.height() + st::groupCallNarrowRowSkip * 2;
-//}
-//
-//void Members::Controller::customRowPaint(
-//		Painter &p,
-//		crl::time now,
-//		not_null<PeerListRow*> row,
-//		bool selected) {
-//	const auto real = static_cast<Row*>(row.get());
-//	const auto width = st::groupCallNarrowSize.width();
-//	const auto height = st::groupCallNarrowSize.height();
-//	real->paintComplexUserpic(
-//		p,
-//		st::groupCallNarrowSkip,
-//		st::groupCallNarrowRowSkip,
-//		width,
-//		width,
-//		height,
-//		PanelMode::Wide,
-//		selected);
-//}
-//
-//bool Members::Controller::customRowSelectionPoint(
-//		not_null<PeerListRow*> row,
-//		int x,
-//		int y) {
-//	return x >= st::groupCallNarrowSkip
-//		&& x < st::groupCallNarrowSkip + st::groupCallNarrowSize.width()
-//		&& y >= st::groupCallNarrowRowSkip
-//		&& y < st::groupCallNarrowRowSkip + st::groupCallNarrowSize.height();
-//}
-//
-//Fn<QImage()> Members::Controller::customRowRippleMaskGenerator() {
-//	return [] {
-//		return Ui::RippleAnimation::roundRectMask(
-//			st::groupCallNarrowSize,
-//			st::roundRadiusLarge);
-//	};
-//}
-
 auto Members::Controller::kickParticipantRequests() const
 -> rpl::producer<not_null<PeerData*>>{
 	return _kickParticipantRequests.events();
 }
 
 void Members::Controller::rowClicked(not_null<PeerListRow*> row) {
-	if (!toggleRowVideo(row)) {
-		showRowMenu(row, true);
-	}
+	showRowMenu(row, true);
 }
 
 void Members::Controller::showRowMenu(
@@ -1350,49 +1099,6 @@ void Members::Controller::showRowMenu(
 		_menu = std::move(saved);
 	};
 	delegate()->peerListShowRowMenu(row, highlightRow, cleanup);
-}
-
-bool Members::Controller::toggleRowVideo(not_null<PeerListRow*> row) {
-	return false;
-	//const auto real = _call->lookupReal();
-	//if (!real) {
-	//	return false;
-	//}
-	//const auto participantPeer = row->peer();
-	//const auto isMe = (participantPeer == _call->joinAs());
-	//const auto participant = real->participantByPeer(participantPeer);
-	//if (!participant) {
-	//	return false;
-	//}
-	//const auto params = participant->videoParams.get();
-	//const auto empty = std::string();
-	//const auto &camera = isMe
-	//	? _call->cameraSharingEndpoint()
-	//	: (params && _call->streamsVideo(params->camera.endpoint))
-	//	? params->camera.endpoint
-	//	: empty;
-	//const auto &screen = isMe
-	//	? _call->screenSharingEndpoint()
-	//	: (params && _call->streamsVideo(params->screen.endpoint))
-	//	? params->screen.endpoint
-	//	: empty;
-	//const auto &large = _call->videoEndpointLarge().endpoint;
-	//const auto show = [&] {
-	//	if (!screen.empty() && large != screen) {
-	//		return screen;
-	//	} else if (!camera.empty() && large != camera) {
-	//		return camera;
-	//	}
-	//	return std::string();
-	//}();
-	//if (show.empty()) {
-	//	return false;
-	//} else if (_call->videoEndpointPinned()) {
-	//	_call->pinVideoEndpoint({ participantPeer, show });
-	//} else {
-	//	_call->showVideoEndpointLarge({ participantPeer, show });
-	//}
-	//return true;
 }
 
 void Members::Controller::rowActionClicked(
@@ -1779,9 +1485,7 @@ int Members::desiredHeight() const {
 		return 0;
 	}();
 	const auto use = std::max(count, _list->fullRowsCount());
-	const auto single = /*(_mode.current() == PanelMode::Wide)
-		? (st::groupCallNarrowSize.height() + st::groupCallNarrowRowSkip * 2)
-		: */st::groupCallMembersList.item.height;
+	const auto single = st::groupCallMembersList.item.height;
 	const auto desired = (_layout->height() - _list->height())
 		+ (use * single)
 		+ (use ? st::lineWidth : 0);
@@ -1834,51 +1538,22 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 			}
 			return;
 		}
-		auto addMember = (Ui::AbstractButton*)nullptr;
-		auto wrap = [&]() -> object_ptr<Ui::RpWidget> {
-			//if (mode == PanelMode::Default) {
-				auto result = Settings::CreateButton(
-					_layout.get(),
-					tr::lng_group_call_invite(),
-					st::groupCallAddMember,
-					&st::groupCallAddMemberIcon,
-					st::groupCallAddMemberIconLeft,
-					&st::groupCallMemberInactiveIcon);
-				addMember = result.data();
-				return result;
-			//}
-			//auto result = object_ptr<Ui::RpWidget>(_layout.get());
-			//const auto skip = st::groupCallNarrowSkip;
-			//const auto fullwidth = st::groupCallNarrowSize.width()
-			//	+ 2 * skip;
-			//const auto fullheight = st::groupCallNarrowAddMember.height
-			//	+ st::groupCallNarrowRowSkip;
-			//result->resize(fullwidth, fullheight);
-			//const auto button = Ui::CreateChild<Ui::RoundButton>(
-			//	result.data(),
-			//	rpl::single(QString()),
-			//	st::groupCallNarrowAddMember);
-			//button->move(skip, 0);
-			//const auto width = fullwidth - 2 * skip;
-			//button->setFullWidth(width);
-			//Settings::AddButtonIcon(
-			//	button,
-			//	&st::groupCallAddMemberIcon,
-			//	(width - st::groupCallAddMemberIcon.width()) / 2,
-			//	&st::groupCallMemberInactiveIcon);
-			//addMember = button;
-			//return result;
-		}();
-		addMember->show();
+		auto addMember = Settings::CreateButton(
+			_layout.get(),
+			tr::lng_group_call_invite(),
+			st::groupCallAddMember,
+			&st::groupCallAddMemberIcon,
+			st::groupCallAddMemberIconLeft,
+			&st::groupCallMemberInactiveIcon);
 		addMember->clicks(
 		) | rpl::to_empty | rpl::start_to_stream(
 			_addMemberRequests,
 			addMember->lifetime());
-		wrap->show();
-		wrap->resizeToWidth(_layout->width());
+		addMember->show();
+		addMember->resizeToWidth(_layout->width());
 		delete _addMemberButton.current();
-		_addMemberButton = wrap.data();
-		_layout->insert(3, std::move(wrap));
+		_addMemberButton = addMember.data();
+		_layout->insert(3, std::move(addMember));
 	}, lifetime());
 
 	updateControlsGeometry();
@@ -1898,9 +1573,6 @@ void Members::setMode(PanelMode mode) {
 	}
 	_mode = mode;
 	_listController->setMode(mode);
-	//_list->setMode((mode == PanelMode::Wide)
-	//	? PeerListContent::Mode::Custom
-	//	: PeerListContent::Mode::Default);
 }
 
 QRect Members::getInnerGeometry() const {

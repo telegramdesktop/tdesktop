@@ -370,58 +370,6 @@ void MembersRow::ensureUserpicCache(
 	}
 }
 
-bool MembersRow::paintVideo(
-		Painter &p,
-		int x,
-		int y,
-		int sizew,
-		int sizeh,
-		PanelMode mode) {
-	return false;
-	//if (!_videoTrackShown) {
-	//	return false;
-	//}
-	//const auto guard = gsl::finally([&] {
-	//	_videoTrackShown->markFrameShown();
-	//});
-	//const auto videoSize = _videoTrackShown->frameSize();
-	//if (videoSize.isEmpty()
-	//	|| _videoTrackShown->state() != Webrtc::VideoState::Active) {
-	//	return false;
-	//}
-	//const auto videow = videoSize.width();
-	//const auto videoh = videoSize.height();
-	//const auto resize = (videow * sizeh > videoh * sizew)
-	//	? QSize(videow * sizeh / videoh, sizeh)
-	//	: QSize(sizew, videoh * sizew / videow);
-	//const auto request = Webrtc::FrameRequest{
-	//	.resize = resize * cIntRetinaFactor(),
-	//	.outer = QSize(sizew, sizeh) * cIntRetinaFactor(),
-	//};
-	//const auto frame = _videoTrackShown->frame(request);
-	//auto copy = frame; // TODO calls optimize.
-	//copy.detach();
-	//if (mode == PanelMode::Default) {
-	//	Images::prepareCircle(copy);
-	//} else {
-	//	Images::prepareRound(copy, ImageRoundRadius::Large);
-	//}
-	//p.drawImage(
-	//	QRect(QPoint(x, y), copy.size() / cIntRetinaFactor()),
-	//	copy);
-	//return true;
-}
-
-//std::tuple<int, int, int> MembersRow::UserpicInNarrowMode(
-//		int x,
-//		int y,
-//		int sizew,
-//		int sizeh) {
-//	const auto useSize = st::groupCallMembersList.item.photoSize;
-//	const auto skipx = (sizew - useSize) / 2;
-//	return { x + skipx, y + st::groupCallNarrowUserpicTop, useSize };
-//}
-
 void MembersRow::paintBlobs(
 		Painter &p,
 		int x,
@@ -433,9 +381,6 @@ void MembersRow::paintBlobs(
 		return;
 	}
 	auto size = sizew;
-	//if (mode == PanelMode::Wide) {
-	//	std::tie(x, y, size) = UserpicInNarrowMode(x, y, sizew, sizeh);
-	//}
 	const auto mutedByMe = (_state == State::MutedByMe);
 	const auto shift = QPointF(x + size / 2., y + size / 2.);
 	auto hq = PainterHighQualityEnabler(p);
@@ -461,9 +406,6 @@ void MembersRow::paintScaledUserpic(
 		int sizeh,
 		PanelMode mode) {
 	auto size = sizew;
-	//if (mode == PanelMode::Wide) {
-	//	std::tie(x, y, size) = UserpicInNarrowMode(x, y, sizew, sizeh);
-	//}
 	if (!_blobsAnimation) {
 		peer()->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 		return;
@@ -503,73 +445,6 @@ void MembersRow::paintMuteIcon(
 	_delegate->rowPaintIcon(p, iconRect, computeIconState(style));
 }
 
-//void MembersRow::paintNarrowName(
-//		Painter &p,
-//		int x,
-//		int y,
-//		int sizew,
-//		int sizeh,
-//		MembersRowStyle style) {
-//	if (_narrowName.isEmpty()) {
-//		_narrowName.setText(
-//			st::semiboldTextStyle,
-//			generateShortName(),
-//			Ui::NameTextOptions());
-//	}
-//	if (style == MembersRowStyle::Video) {
-//		_delegate->rowPaintNarrowShadow(p, x, y, sizew, sizeh);
-//	}
-//	const auto &icon = st::groupCallVideoCrossLine.icon;
-//	const auto added = icon.width() - st::groupCallNarrowIconLess;
-//	const auto available = sizew - 2 * st::normalFont->spacew - added;
-//	const auto use = std::min(available, _narrowName.maxWidth());
-//	const auto left = x + (sizew - use - added) / 2;
-//	const auto iconRect = QRect(
-//		left - st::groupCallNarrowIconLess,
-//		y + st::groupCallNarrowIconTop,
-//		icon.width(),
-//		icon.height());
-//	const auto &state = computeIconState(style);
-//	_delegate->rowPaintIcon(p, iconRect, state);
-//
-//	p.setPen([&] {
-//		if (style == MembersRowStyle::Video) {
-//			return st::groupCallVideoTextFg->p;
-//		} else if (state.speaking == 1. && !state.mutedByMe) {
-//			return st::groupCallMemberActiveIcon->p;
-//		} else if (state.speaking == 0.) {
-//			if (state.active == 1.) {
-//				return st::groupCallMemberInactiveIcon->p;
-//			} else if (state.active == 0.) {
-//				if (state.muted == 1.) {
-//					return state.raisedHand
-//						? st::groupCallMemberInactiveStatus->p
-//						: st::groupCallMemberMutedIcon->p;
-//				} else if (state.muted == 0.) {
-//					return st::groupCallMemberInactiveIcon->p;
-//				}
-//			}
-//		}
-//		const auto activeInactiveColor = anim::color(
-//			st::groupCallMemberInactiveIcon,
-//			(state.mutedByMe
-//				? st::groupCallMemberMutedIcon
-//				: st::groupCallMemberActiveIcon),
-//			state.speaking);
-//		return anim::pen(
-//			activeInactiveColor,
-//			st::groupCallMemberMutedIcon,
-//			state.muted);
-//	}());
-//	const auto nameLeft = iconRect.x() + icon.width();
-//	const auto nameTop = y + st::groupCallNarrowNameTop;
-//	if (use == available) {
-//		_narrowName.drawLeftElided(p, nameLeft, nameTop, available, sizew);
-//	} else {
-//		_narrowName.drawLeft(p, nameLeft, nameTop, available, sizew);
-//	}
-//}
-
 auto MembersRow::generatePaintUserpicCallback() -> PaintRoundImageCallback {
 	return [=](Painter &p, int x, int y, int outerWidth, int size) {
 		const auto outer = outerWidth;
@@ -586,20 +461,7 @@ void MembersRow::paintComplexUserpic(
 		int sizeh,
 		PanelMode mode,
 		bool selected) {
-	//if (mode == PanelMode::Wide) {
-	//	if (paintVideo(p, x, y, sizew, sizeh, mode)) {
-	//		paintNarrowName(p, x, y, sizew, sizeh, MembersRowStyle::Video);
-	//		_delegate->rowPaintNarrowBorder(p, x, y, this);
-	//		return;
-	//	}
-	//	_delegate->rowPaintNarrowBackground(p, x, y, selected);
-	//	paintRipple(p, x, y, outerWidth);
-	//}
 	paintBlobs(p, x, y, sizew, sizeh, mode);
-	//if (mode == PanelMode::Default
-	//	&& paintVideo(p, x, y, sizew, sizeh, mode)) {
-	//	return;
-	//}
 	paintScaledUserpic(
 		p,
 		ensureUserpicView(),
@@ -609,10 +471,6 @@ void MembersRow::paintComplexUserpic(
 		sizew,
 		sizeh,
 		mode);
-	//if (mode == PanelMode::Wide) {
-	//	paintNarrowName(p, x, y, sizew, sizeh, MembersRowStyle::Userpic);
-	//	_delegate->rowPaintNarrowBorder(p, x, y, this);
-	//}
 }
 
 int MembersRow::statusIconWidth(bool skipIcon) const {
@@ -882,41 +740,6 @@ void MembersRow::refreshStatus() {
 			: tr::lng_group_call_inactive(tr::now)),
 		_speaking);
 }
-
-//not_null<Webrtc::VideoTrack*> MembersRow::createVideoTrack(
-//		const std::string &endpoint) {
-//	_videoTrackShown = nullptr;
-//	_videoTrackEndpoint = endpoint;
-//	_videoTrack = std::make_unique<Webrtc::VideoTrack>(
-//		Webrtc::VideoState::Active);
-//	setVideoTrack(_videoTrack.get());
-//	return _videoTrack.get();
-//}
-//
-//const std::string &MembersRow::videoTrackEndpoint() const {
-//	return _videoTrackEndpoint;
-//}
-//
-//void MembersRow::clearVideoTrack() {
-//	_videoTrackLifetime.destroy();
-//	_videoTrackEndpoint = std::string();
-//	_videoTrackShown = nullptr;
-//	_videoTrack = nullptr;
-//	_delegate->rowUpdateRow(this);
-//}
-//
-//void MembersRow::setVideoTrack(not_null<Webrtc::VideoTrack*> track) {
-//	_videoTrackLifetime.destroy();
-//	_videoTrackShown = track;
-//	_videoTrackShown->renderNextFrame(
-//	) | rpl::start_with_next([=] {
-//		_delegate->rowUpdateRow(this);
-//		if (_videoTrackShown->frameSize().isEmpty()) {
-//			_videoTrackShown->markFrameShown();
-//		}
-//	}, _videoTrackLifetime);
-//	_delegate->rowUpdateRow(this);
-//}
 
 void MembersRow::addActionRipple(QPoint point, Fn<void()> updateCallback) {
 	if (!_actionRipple) {
