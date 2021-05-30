@@ -55,7 +55,6 @@ public:
 	[[nodiscard]] rpl::producer<> addMembersRequests() const {
 		return _addMemberRequests.events();
 	}
-	[[nodiscard]] rpl::producer<> enlargeVideo() const;
 
 	[[nodiscard]] MembersRow *lookupRow(not_null<PeerData*> peer) const;
 
@@ -99,7 +98,6 @@ private:
 	not_null<Ui::VerticalLayout*> _layout;
 	const not_null<Ui::RpWidget*> _videoWrap;
 	std::unique_ptr<Viewport> _viewport;
-	rpl::event_stream<> _enlargeVideoClicks;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;
 	RpWidget *_topSkip = nullptr;
 	RpWidget *_bottomSkip = nullptr;

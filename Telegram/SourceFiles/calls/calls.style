@@ -1170,29 +1170,8 @@ desktopCaptureSubmit: RoundButton(desktopCaptureCancel) {
 groupCallNarrowSkip: 9px;
 groupCallNarrowMembersWidth: 204px;
 groupCallNarrowVideoHeight: 120px;
-//groupCallNarrowRowSkip: 4px;
-//groupCallNarrowSize: size(144px, 90px);
-//groupCallNarrowUserpicTop: 13px;
-//groupCallNarrowNameTop: 65px;
-//groupCallNarrowIconTop: 62px;
-//groupCallNarrowIconLess: 5px;
 groupCallWideModeWidthMin: 600px;
 groupCallWideModeSize: size(960px, 580px);
-//groupCallNarrowAddMemberHeight: 32px;
-//groupCallNarrowOutline: 2px;
-//groupCallNarrowShadowHeight: 36px;
-
-//groupCallNarrowAddMember: RoundButton(defaultActiveButton) {
-//	textFg: groupCallMemberNotJoinedStatus;
-//	textFgOver: groupCallMemberNotJoinedStatus;
-//	textBg: groupCallMembersBg;
-//	textBgOver: groupCallMembersBgOver;
-//
-//	height: 32px;
-//	radius: roundRadiusLarge;
-//
-//	ripple: groupCallRipple;
-//}
 groupCallNarrowInactiveCrossLine: CrossLineAnimation {
 	fg: groupCallMemberNotJoinedStatus;
 	icon: icon {{ "calls/video_mini_mute", groupCallMemberNotJoinedStatus }};
@@ -1210,17 +1189,13 @@ groupCallNarrowCameraIcon: icon {{ "calls/video_mini_video", groupCallMemberNotJ
 groupCallNarrowScreenIcon: icon {{ "calls/video_mini_screencast", groupCallMemberNotJoinedStatus }};
 groupCallNarrowIconPosition: point(-4px, 2px);
 groupCallNarrowIconSkip: 15px;
-//groupCallVideoCrossLine: CrossLineAnimation(groupCallNarrowInactiveCrossLine) {
-//	fg: groupCallVideoTextFg;
-//	icon: icon {{ "calls/voice_mute_mini", groupCallVideoTextFg }};
-//}
 groupCallOutline: 2px;
-groupCallLargeVideoCrossLine: CrossLineAnimation(groupCallMemberColoredCrossLine) {
+groupCallVideoCrossLine: CrossLineAnimation(groupCallMemberColoredCrossLine) {
 	fg: groupCallVideoTextFg;
 	icon: icon {{ "calls/video_over_mute", groupCallVideoTextFg }};
 }
 
-GroupCallLargeVideo {
+GroupCallVideoTile {
 	shadowHeight: pixels;
 	namePosition: point;
 	pin: CrossLineAnimation;
@@ -1230,7 +1205,7 @@ GroupCallLargeVideo {
 	iconPosition: point;
 }
 
-groupCallLargeVideo: GroupCallLargeVideo {
+groupCallVideoTile: GroupCallVideoTile {
 	shadowHeight: 40px;
 	namePosition: point(15px, 8px);
 	pin: CrossLineAnimation {
@@ -1246,13 +1221,6 @@ groupCallLargeVideo: GroupCallLargeVideo {
 	pinTextPosition: point(1px, 3px);
 	iconPosition: point(10px, 5px);
 }
-//groupCallLargeVideoListItem: PeerListItem(groupCallMembersListItem) {
-//	nameFg: groupCallVideoTextFg;
-//	nameFgChecked: groupCallVideoTextFg;
-//	statusFg: groupCallVideoSubTextFg;
-//	statusFgOver: groupCallVideoSubTextFg;
-//	statusFgActive: groupCallVideoSubTextFg;
-//}
 
 groupCallVideoSmallSkip: 4px;
 groupCallVideoLargeSkip: 6px;

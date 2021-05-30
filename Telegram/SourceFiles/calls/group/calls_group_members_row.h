@@ -24,9 +24,9 @@ class RippleAnimation;
 namespace Calls::Group {
 
 enum class MembersRowStyle {
-	None,
+	Default,
 	Narrow,
-	LargeVideo,
+	Video,
 };
 
 class MembersRow;
@@ -39,7 +39,7 @@ public:
 		bool mutedByMe = false;
 		bool raisedHand = false;
 		bool invited = false;
-		MembersRowStyle style = MembersRowStyle::None;
+		MembersRowStyle style = MembersRowStyle::Default;
 	};
 	virtual bool rowIsMe(not_null<PeerData*> participantPeer) = 0;
 	virtual bool rowCanMuteMembers() = 0;
@@ -152,9 +152,9 @@ public:
 	void paintMuteIcon(
 		Painter &p,
 		QRect iconRect,
-		MembersRowStyle style = MembersRowStyle::None);
+		MembersRowStyle style = MembersRowStyle::Default);
 	[[nodiscard]] MembersRowDelegate::IconState computeIconState(
-		MembersRowStyle style = MembersRowStyle::None) const;
+		MembersRowStyle style = MembersRowStyle::Default) const;
 
 	void showContextMenu();
 

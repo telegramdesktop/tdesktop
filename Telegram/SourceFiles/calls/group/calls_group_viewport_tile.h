@@ -25,7 +25,7 @@ class Viewport::VideoTile final {
 public:
 	VideoTile(
 		const VideoEndpoint &endpoint,
-		LargeVideoTrack track,
+		VideoTileTrack track,
 		rpl::producer<bool> pinned,
 		Fn<void()> update);
 
@@ -80,7 +80,7 @@ private:
 	const VideoEndpoint _endpoint;
 	const Fn<void()> _update;
 
-	LargeVideoTrack _track;
+	VideoTileTrack _track;
 	QRect _geometry;
 	rpl::variable<QSize> _trackSize;
 	QRect _pinOuter;

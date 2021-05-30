@@ -581,7 +581,7 @@ void MembersRow::paintStatusText(
 		availableWidth,
 		outerWidth,
 		selected,
-		MembersRowStyle::None);
+		MembersRowStyle::Default);
 }
 
 void MembersRow::paintComplexStatusText(
@@ -593,7 +593,7 @@ void MembersRow::paintComplexStatusText(
 		int outerWidth,
 		bool selected,
 		MembersRowStyle style) {
-	const auto skip = (style == MembersRowStyle::None)
+	const auto skip = (style == MembersRowStyle::Default)
 		? _delegate->rowPaintStatusIcon(
 			p,
 			x,
@@ -606,7 +606,7 @@ void MembersRow::paintComplexStatusText(
 	x += skip;
 	availableWidth -= skip;
 	const auto &font = st::normalFont;
-	const auto about = (style == MembersRowStyle::LargeVideo)
+	const auto about = (style == MembersRowStyle::Video)
 		? QString()
 		: ((_state == State::RaisedHand && !_raisedHandStatus)
 			|| (_state != State::Active && _state != State::RaisedHand))
@@ -638,7 +638,7 @@ void MembersRow::paintComplexStatusText(
 		return;
 	}
 	p.setFont(font);
-	if (style == MembersRowStyle::LargeVideo) {
+	if (style == MembersRowStyle::Video) {
 		p.setPen(st::groupCallVideoSubTextFg);
 	} else if (_state == State::MutedByMe) {
 		p.setPen(st::groupCallMemberMutedIcon);

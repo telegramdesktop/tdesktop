@@ -182,7 +182,7 @@ private:
 	Ui::CrossLineAnimation _coloredCrossLine;
 	Ui::CrossLineAnimation _inactiveNarrowCrossLine;
 	Ui::CrossLineAnimation _coloredNarrowCrossLine;
-	Ui::CrossLineAnimation _videoLargeCrossLine;
+	Ui::CrossLineAnimation _videoCrossLine;
 	Ui::RoundRect _narrowRoundRectSelected;
 	Ui::RoundRect _narrowRoundRect;
 	QImage _narrowShadow;
@@ -204,7 +204,7 @@ Members::Controller::Controller(
 , _coloredCrossLine(st::groupCallMemberColoredCrossLine)
 , _inactiveNarrowCrossLine(st::groupCallNarrowInactiveCrossLine)
 , _coloredNarrowCrossLine(st::groupCallNarrowColoredCrossLine)
-, _videoLargeCrossLine(st::groupCallLargeVideoCrossLine)
+, _videoCrossLine(st::groupCallVideoCrossLine)
 , _narrowRoundRectSelected(
 	ImageRoundRadius::Large,
 	st::groupCallMembersBgOver)
@@ -894,7 +894,8 @@ void Members::Controller::rowPaintIcon(
 		Painter &p,
 		QRect rect,
 		const IconState &state) {
-	if (_mode == PanelMode::Wide && state.style == MembersRowStyle::None) {
+	if (_mode == PanelMode::Wide
+		&& state.style == MembersRowStyle::Default) {
 		return;
 	}
 	const auto narrow = (state.style == MembersRowStyle::Narrow);
@@ -906,9 +907,9 @@ void Members::Controller::rowPaintIcon(
 				st::groupCallMemberInvited.size()));
 		return;
 	}
-	const auto largeVideo = (state.style == MembersRowStyle::LargeVideo);
-	const auto &greenIcon = largeVideo
-		? st::groupCallLargeVideoCrossLine.icon
+	const auto video = (state.style == MembersRowStyle::Video);
+	const auto &greenIcon = video
+		? st::groupCallVideoCrossLine.icon
 		: narrow
 		? st::groupCallNarrowColoredCrossLine.icon
 		: st::groupCallMemberColoredCrossLine.icon;
@@ -921,8 +922,8 @@ void Members::Controller::rowPaintIcon(
 	} else if (state.speaking == 0. && (!narrow || !state.mutedByMe)) {
 		if (state.active == 1.) {
 			// Just gray icon, no cross, no coloring.
-			const auto &grayIcon = largeVideo
-				? st::groupCallLargeVideoCrossLine.icon
+			const auto &grayIcon = video
+				? st::groupCallVideoCrossLine.icon
 				: narrow
 				? st::groupCallNarrowInactiveCrossLine.icon
 				: st::groupCallMemberInactiveCrossLine.icon;
@@ -937,12 +938,12 @@ void Members::Controller::rowPaintIcon(
 					return;
 				}
 				// Red crossed icon, colorized once, cached as last frame.
-				auto &line = largeVideo
-					? _videoLargeCrossLine
+				auto &line = video
+					? _videoCrossLine
 					: narrow
 					? _coloredNarrowCrossLine
 					: _coloredCrossLine;
-				const auto color = largeVideo
+				const auto color = video
 					? std::nullopt
 					: std::make_optional(narrow
 						? st::groupCallMemberNotJoinedStatus->c
@@ -956,8 +957,8 @@ void Members::Controller::rowPaintIcon(
 				return;
 			} else if (state.muted == 0.) {
 				// Gray crossed icon, no coloring, cached as last frame.
-				auto &line = largeVideo
-					? _videoLargeCrossLine
+				auto &line = video
+					? _videoCrossLine
 					: narrow
 					? _inactiveNarrowCrossLine
 					: _inactiveCrossLine;
@@ -982,7 +983,7 @@ void Members::Controller::rowPaintIcon(
 			? st::groupCallMemberNotJoinedStatus
 			: st::groupCallMemberMutedIcon),
 		state.muted);
-	const auto color = largeVideo
+	const auto color = video
 		? std::nullopt
 		: std::make_optional((narrow && state.mutedByMe)
 			? st::groupCallMemberMutedIcon->c
@@ -993,8 +994,8 @@ void Members::Controller::rowPaintIcon(
 	// Don't use caching of the last frame,
 	// because 'muted' may animate color.
 	const auto crossProgress = std::min(1. - state.active, 0.9999);
-	auto &line = largeVideo
-		? _videoLargeCrossLine
+	auto &line = video
+		? _videoCrossLine
 		: narrow
 		? _inactiveNarrowCrossLine
 		: _inactiveCrossLine;
@@ -1410,13 +1411,6 @@ std::unique_ptr<Row> Members::Controller::createRow(
 		const Data::GroupCallParticipant &participant) {
 	auto result = std::make_unique<Row>(this, participant.peer);
 	updateRow(result.get(), &participant);
-	//const auto &camera = computeCameraEndpoint(&participant);
-	//const auto &screen = computeScreenEndpoint(&participant);
-	//if (!screen.empty() && _largeEndpoint != screen) {
-	//	setRowVideoEndpoint(result.get(), screen);
-	//} else if (!camera.empty() && _largeEndpoint != camera) {
-	//	setRowVideoEndpoint(result.get(), camera);
-	//}
 	return result;
 }
 
@@ -1557,10 +1551,6 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 	}, lifetime());
 
 	updateControlsGeometry();
-}
-
-rpl::producer<> Members::enlargeVideo() const {
-	return _enlargeVideoClicks.events();
 }
 
 Row *Members::lookupRow(not_null<PeerData*> peer) const {

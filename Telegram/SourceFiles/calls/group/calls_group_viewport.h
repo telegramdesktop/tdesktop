@@ -9,10 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
-namespace style {
-struct GroupCallLargeVideo;
-} // namespace style
-
 namespace Ui {
 class AbstractButton;
 class RpWidgetWrap;
@@ -39,7 +35,7 @@ class MembersRow;
 enum class PanelMode;
 enum class VideoQuality;
 
-struct LargeVideoTrack {
+struct VideoTileTrack {
 	Webrtc::VideoTrack *track = nullptr;
 	MembersRow *row = nullptr;
 
@@ -49,14 +45,14 @@ struct LargeVideoTrack {
 };
 
 [[nodiscard]] inline bool operator==(
-		LargeVideoTrack a,
-		LargeVideoTrack b) noexcept {
+		VideoTileTrack a,
+		VideoTileTrack b) noexcept {
 	return (a.track == b.track) && (a.row == b.row);
 }
 
 [[nodiscard]] inline bool operator!=(
-		LargeVideoTrack a,
-		LargeVideoTrack b) noexcept {
+		VideoTileTrack a,
+		VideoTileTrack b) noexcept {
 	return !(a == b);
 }
 
@@ -76,7 +72,7 @@ public:
 
 	void add(
 		const VideoEndpoint &endpoint,
-		LargeVideoTrack track,
+		VideoTileTrack track,
 		rpl::producer<bool> pinned);
 	void remove(const VideoEndpoint &endpoint);
 	void showLarge(const VideoEndpoint &endpoint);

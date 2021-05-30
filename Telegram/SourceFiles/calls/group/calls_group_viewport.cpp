@@ -203,7 +203,7 @@ void Viewport::setControlsShown(float64 shown) {
 
 void Viewport::add(
 		const VideoEndpoint &endpoint,
-		LargeVideoTrack track,
+		VideoTileTrack track,
 		rpl::producer<bool> pinned) {
 	_tiles.push_back(std::make_unique<VideoTile>(
 		endpoint,

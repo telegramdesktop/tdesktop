@@ -19,7 +19,7 @@ namespace Calls::Group {
 
 Viewport::VideoTile::VideoTile(
 	const VideoEndpoint &endpoint,
-	LargeVideoTrack track,
+	VideoTileTrack track,
 	rpl::producer<bool> pinned,
 	Fn<void()> update)
 : _endpoint(endpoint)
@@ -41,7 +41,7 @@ QRect Viewport::VideoTile::pinOuter() const {
 
 int Viewport::VideoTile::pinSlide() const {
 	return anim::interpolate(
-		st::groupCallLargeVideo.pinPosition.y() + _pinInner.height(),
+		st::groupCallVideoTile.pinPosition.y() + _pinInner.height(),
 		0,
 		_pinShownAnimation.value(_pinShown ? 1. : 0.));
 }
@@ -68,7 +68,10 @@ void Viewport::VideoTile::togglePinShown(bool shown) {
 }
 
 bool Viewport::VideoTile::updateRequestedQuality(VideoQuality quality) {
-	if (_quality && *_quality == quality) {
+	if (_geometry.isEmpty()) {
+		_quality = std::nullopt;
+		return false;
+	} else if (_quality && *_quality == quality) {
 		return false;
 	}
 	_quality = quality;
@@ -76,8 +79,8 @@ bool Viewport::VideoTile::updateRequestedQuality(VideoQuality quality) {
 }
 
 QSize Viewport::VideoTile::PinInnerSize(bool pinned) {
-	const auto &st = st::groupCallLargeVideo;
-	const auto &icon = st::groupCallLargeVideo.pin.icon;
+	const auto &st = st::groupCallVideoTile;
+	const auto &icon = st::groupCallVideoTile.pin.icon;
 	const auto innerWidth = icon.width()
 		+ st.pinTextPosition.x()
 		+ st::semiboldFont->width(pinned
@@ -101,7 +104,7 @@ void Viewport::VideoTile::PaintPinButton(
 		int outerWidth,
 		not_null<Ui::RoundRect*> background,
 		not_null<Ui::CrossLineAnimation*> icon) {
-	const auto &st = st::groupCallLargeVideo;
+	const auto &st = st::groupCallVideoTile;
 	const auto rect = QRect(QPoint(x, y), PinInnerSize(pinned));
 	background->paint(p, rect);
 	icon->paint(
@@ -113,7 +116,7 @@ void Viewport::VideoTile::PaintPinButton(
 	p.drawTextLeft(
 		(x
 			+ st.pinPadding.left()
-			+ st::groupCallLargeVideo.pin.icon.width()
+			+ st::groupCallVideoTile.pin.icon.width()
 			+ st.pinTextPosition.x()),
 		(y
 			+ st.pinPadding.top()
@@ -126,7 +129,7 @@ void Viewport::VideoTile::PaintPinButton(
 }
 
 void Viewport::VideoTile::updatePinnedGeometry() {
-	const auto &st = st::groupCallLargeVideo;
+	const auto &st = st::groupCallVideoTile;
 	const auto buttonSize = PinInnerSize(_pinned);
 	const auto fullWidth = st.pinPosition.x() * 2 + buttonSize.width();
 	const auto fullHeight = st.pinPosition.y() * 2 + buttonSize.height();

@@ -240,12 +240,12 @@ void FillTexturedRectangle(
 
 Viewport::RendererGL::RendererGL(not_null<Viewport*> owner)
 : _owner(owner)
-, _pinIcon(st::groupCallLargeVideo.pin)
-, _muteIcon(st::groupCallLargeVideoCrossLine)
+, _pinIcon(st::groupCallVideoTile.pin)
+, _muteIcon(st::groupCallVideoCrossLine)
 , _pinBackground(
-	(st::groupCallLargeVideo.pinPadding.top()
-		+ st::groupCallLargeVideo.pin.icon.height()
-		+ st::groupCallLargeVideo.pinPadding.bottom()) / 2,
+	(st::groupCallVideoTile.pinPadding.top()
+		+ st::groupCallVideoTile.pin.icon.height()
+		+ st::groupCallVideoTile.pinPadding.bottom()) / 2,
 	st::radialBg) {
 
 	style::PaletteChanged(
@@ -437,12 +437,12 @@ void Viewport::RendererGL::paintTile(
 	const auto y = geometry.y();
 	const auto width = geometry.width();
 	const auto height = geometry.height();
-	const auto &st = st::groupCallLargeVideo;
+	const auto &st = st::groupCallVideoTile;
 	const auto shown = _owner->_controlsShownRatio;
 	const auto fullNameShift = st.namePosition.y() + st::normalFont->height;
 	const auto nameShift = anim::interpolate(fullNameShift, 0, shown);
 	const auto row = tile->row();
-	const auto style = row->computeIconState(MembersRowStyle::LargeVideo);
+	const auto style = row->computeIconState(MembersRowStyle::Video);
 
 	validateOutlineAnimation(tile, tileData);
 	const auto outline = tileData.outlined.value(tileData.outline ? 1. : 0.);
@@ -487,7 +487,7 @@ void Viewport::RendererGL::paintTile(
 	const auto pinRect = transformRect(pin.geometry);
 
 	// Mute.
-	const auto &icon = st::groupCallLargeVideoCrossLine.icon;
+	const auto &icon = st::groupCallVideoCrossLine.icon;
 	const auto iconLeft = x + width - st.iconPosition.x() - icon.width();
 	const auto iconTop = y + (height
 		- st.iconPosition.y()
@@ -905,7 +905,7 @@ void Viewport::RendererGL::ensureButtonsImage() {
 	const auto factor = cIntRetinaFactor();
 	const auto pinOnSize = VideoTile::PinInnerSize(true);
 	const auto pinOffSize = VideoTile::PinInnerSize(false);
-	const auto muteSize = st::groupCallLargeVideoCrossLine.icon.size();
+	const auto muteSize = st::groupCallVideoCrossLine.icon.size();
 
 	const auto fullSize = QSize(
 		std::max({
@@ -961,7 +961,7 @@ void Viewport::RendererGL::ensureButtonsImage() {
 
 void Viewport::RendererGL::validateDatas() {
 	const auto &tiles = _owner->_tiles;
-	const auto &st = st::groupCallLargeVideo;
+	const auto &st = st::groupCallVideoTile;
 	const auto count = int(tiles.size());
 	const auto factor = cIntRetinaFactor();
 	const auto nameHeight = st::semiboldFont->height * factor;
@@ -979,7 +979,7 @@ void Viewport::RendererGL::validateDatas() {
 		const auto row = tiles[i]->row();
 		const auto hasWidth = tiles[i]->geometry().width()
 			- st.iconPosition.x()
-			- st::groupCallLargeVideoCrossLine.icon.width()
+			- st::groupCallVideoCrossLine.icon.width()
 			- st.namePosition.x();
 		return std::clamp(row->name().maxWidth(), 1, hasWidth) * factor;
 	};

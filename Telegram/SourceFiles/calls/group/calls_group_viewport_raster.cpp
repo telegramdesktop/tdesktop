@@ -20,11 +20,11 @@ namespace Calls::Group {
 
 Viewport::Renderer::Renderer(not_null<Viewport*> owner)
 : _owner(owner)
-, _pinIcon(st::groupCallLargeVideo.pin)
+, _pinIcon(st::groupCallVideoTile.pin)
 , _pinBackground(
-	(st::groupCallLargeVideo.pinPadding.top()
-		+ st::groupCallLargeVideo.pin.icon.height()
-		+ st::groupCallLargeVideo.pinPadding.bottom()) / 2,
+	(st::groupCallVideoTile.pinPadding.top()
+		+ st::groupCallVideoTile.pin.icon.height()
+		+ st::groupCallVideoTile.pinPadding.bottom()) / 2,
 	st::radialBg) {
 }
 
@@ -141,7 +141,7 @@ void Viewport::Renderer::paintTileControls(
 		return;
 	}
 
-	const auto &st = st::groupCallLargeVideo;
+	const auto &st = st::groupCallVideoTile;
 	const auto fullShift = st.namePosition.y() + st::normalFont->height;
 	const auto shift = anim::interpolate(fullShift, 0, shown);
 
@@ -171,7 +171,7 @@ void Viewport::Renderer::paintTileControls(
 	row->lazyInitialize(st::groupCallMembersListItem);
 
 	// Mute.
-	const auto &icon = st::groupCallLargeVideoCrossLine.icon;
+	const auto &icon = st::groupCallVideoCrossLine.icon;
 	const auto iconLeft = x + width - st.iconPosition.x() - icon.width();
 	const auto iconTop = y + (height
 		- st.iconPosition.y()
@@ -180,7 +180,7 @@ void Viewport::Renderer::paintTileControls(
 	row->paintMuteIcon(
 		p,
 		{ iconLeft, iconTop, icon.width(), icon.height() },
-		MembersRowStyle::LargeVideo);
+		MembersRowStyle::Video);
 
 	// Name.
 	p.setPen(st::groupCallVideoTextFg);

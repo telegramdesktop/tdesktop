@@ -1023,11 +1023,6 @@ void Panel::setupMembers() {
 		}
 	}, _callLifetime);
 
-	_members->enlargeVideo(
-	) | rpl::start_with_next([=] {
-		enlargeVideo();
-	}, _callLifetime);
-
 	_call->videoEndpointPinnedValue(
 	) | rpl::start_with_next([=](const VideoEndpoint &pinned) {
 		if (pinned && mode() != PanelMode::Wide) {
@@ -1134,7 +1129,7 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 		Assert(row != nullptr);
 		viewport->add(
 			endpoint,
-			LargeVideoTrack{ track.track.get(), row },
+			VideoTileTrack{ track.track.get(), row },
 			_call->videoEndpointPinnedValue() | rpl::map(_1 == endpoint));
 	};
 	for (const auto &[endpoint, track] : _call->activeVideoTracks()) {
@@ -1167,8 +1162,8 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 	viewport->clicks(
 	) | rpl::filter([=] {
 		return (_mode.current() == PanelMode::Default);
-	}) | rpl::start_with_next([=] {
-		enlargeVideo();
+	}) | rpl::start_with_next([=](VideoEndpoint &&endpoint) {
+		_call->pinVideoEndpoint(std::move(endpoint));
 	}, viewport->lifetime());
 
 	viewport->qualityRequests(
