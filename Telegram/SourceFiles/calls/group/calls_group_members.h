@@ -101,6 +101,7 @@ private:
 	std::unique_ptr<Viewport> _viewport;
 	rpl::event_stream<> _enlargeVideoClicks;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;
+	RpWidget *_topSkip = nullptr;
 	ListWidget *_list = nullptr;
 	rpl::event_stream<> _addMemberRequests;
 

@@ -1658,8 +1658,8 @@ Members::Members(
 	std::make_unique<Viewport>(
 		_videoWrap.get(),
 		PanelMode::Default)) {
-	setupAddMember(call);
 	setupList();
+	setupAddMember(call);
 	setContent(_list);
 	setupFakeRoundCorners();
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
@@ -1796,8 +1796,10 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 		wrap->resizeToWidth(_layout->width());
 		delete _addMemberButton.current();
 		_addMemberButton = wrap.data();
-		_layout->insert(1, std::move(wrap));
+		_layout->insert(3, std::move(wrap));
 	}, lifetime());
+
+	updateControlsGeometry();
 }
 
 rpl::producer<> Members::enlargeVideo() const {
@@ -1826,7 +1828,7 @@ QRect Members::getInnerGeometry() const {
 		0,
 		-_scroll->scrollTop(),
 		width(),
-		_list->y() + _list->height());
+		_list->y() + _list->height() + add);
 }
 
 rpl::producer<int> Members::fullCountValue() const {
@@ -1835,9 +1837,18 @@ rpl::producer<int> Members::fullCountValue() const {
 
 void Members::setupList() {
 	_listController->setStyleOverrides(&st::groupCallMembersList);
-	_list = _layout->add(object_ptr<ListWidget>(
-		_layout.get(),
-		_listController.get()));
+	_topSkip = _layout->add(
+		object_ptr<Ui::FixedHeightWidget>(
+			_layout.get(),
+			st::groupCallMembersTopSkip));
+	_topSkip->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		QPainter(_topSkip).fillRect(clip, st::groupCallMembersBg);
+	}, _topSkip->lifetime());
+	_list = _layout->add(
+		object_ptr<ListWidget>(
+			_layout.get(),
+			_listController.get()));
 	const auto skip = _layout->add(object_ptr<Ui::RpWidget>(_layout.get()));
 	_mode.value(
 	) | rpl::start_with_next([=](PanelMode mode) {
@@ -1859,8 +1870,6 @@ void Members::setupList() {
 	) | rpl::start_with_next([=](int scrollTop, int scrollHeight) {
 		_layout->setVisibleTopBottom(scrollTop, scrollTop + scrollHeight);
 	}, _scroll->lifetime());
-
-	updateControlsGeometry();
 }
 
 void Members::trackViewportGeometry() {
@@ -1983,9 +1992,13 @@ void Members::setupFakeRoundCorners() {
 		}) | rpl::flatten_latest()
 	) | rpl::start_with_next([=](QRect list, int addMembers) {
 		const auto left = list.x();
-		const auto top = list.y() - addMembers;
-		const auto right = list.x() + list.width() - topright->width();
-		const auto bottom = list.y() + list.height() - bottomleft->height();
+		const auto top = list.y() - _topSkip->height();
+		const auto right = left + list.width() - topright->width();
+		const auto bottom = top
+			+ _topSkip->height()
+			+ list.height()
+			+ addMembers
+			- bottomleft->height();
 		topleft->move(left, top);
 		topright->move(right, top);
 		bottomleft->move(left, bottom);

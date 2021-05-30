@@ -183,7 +183,6 @@ void Viewport::Renderer::paintTileControls(
 		MembersRowStyle::LargeVideo);
 
 	// Name.
-	row->lazyInitialize(st::groupCallMembersListItem);
 	p.setPen(st::groupCallVideoTextFg);
 	const auto hasWidth = width
 		- st.iconPosition.x() - icon.width()
