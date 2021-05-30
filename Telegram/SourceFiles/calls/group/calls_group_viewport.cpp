@@ -415,24 +415,12 @@ void Viewport::updateTilesGeometryWide(int outerWidth, int outerHeight) {
 }
 
 void Viewport::updateTilesGeometryNarrow(int outerWidth) {
-	const auto y = -_scrollTop;
-
 	if (outerWidth <= st::groupCallNarrowMembersWidth) {
-		auto top = 0;
-		for (const auto &tile : _tiles) {
-			const auto video = tile.get();
-			const auto size = video->trackSize();
-			const auto shown = !size.isEmpty() && _large && video != _large;
-			const auto height = shown
-				? st::groupCallNarrowVideoHeight
-				: 0;
-			video->setGeometry({ 0, y + top, outerWidth, height });
-			top += height ? (height + st::groupCallVideoSmallSkip) : 0;
-		}
-		_fullHeight = top;
+		updateTilesGeometryColumn(outerWidth);
 		return;
 	}
 
+	const auto y = -_scrollTop;
 	auto sizes = base::flat_map<not_null<VideoTile*>, QSize>();
 	sizes.reserve(_tiles.size());
 	for (const auto &tile : _tiles) {
@@ -493,7 +481,53 @@ void Viewport::updateTilesGeometryNarrow(int outerWidth) {
 		}
 	}
 	_fullHeight = rows * (min + skip);
+}
 
+void Viewport::updateTilesGeometryColumn(int outerWidth) {
+	const auto y = -_scrollTop;
+	auto top = 0;
+	const auto layoutNext = [&](not_null<VideoTile*> tile) {
+		const auto size = tile->trackSize();
+		const auto shown = !size.isEmpty() && _large && tile != _large;
+		const auto height = shown
+			? st::groupCallNarrowVideoHeight
+			: 0;
+		tile->setGeometry({ 0, y + top, outerWidth, height });
+		top += height ? (height + st::groupCallVideoSmallSkip) : 0;
+	};
+	const auto topPeer = _large ? _large->row()->peer().get() : nullptr;
+	const auto reorderNeeded = [&] {
+		if (!_large) {
+			return false;
+		}
+		for (const auto &tile : _tiles) {
+			if (tile.get() != _large && tile->row()->peer() == topPeer) {
+				return (tile.get() != _tiles.front().get())
+					&& !tile->trackSize().isEmpty();
+			}
+		}
+		return false;
+	}();
+	if (reorderNeeded) {
+		_tilesForOrder.clear();
+		_tilesForOrder.reserve(_tiles.size());
+		for (const auto &tile : _tiles) {
+			_tilesForOrder.push_back(tile.get());
+		}
+		ranges::stable_partition(
+			_tilesForOrder,
+			[&](not_null<VideoTile*> tile) {
+				return (tile->row()->peer() == topPeer);
+			});
+		for (const auto &tile : _tilesForOrder) {
+			layoutNext(tile);
+		}
+	} else {
+		for (const auto &tile : _tiles) {
+			layoutNext(tile.get());
+		}
+	}
+	_fullHeight = top;
 }
 
 void Viewport::setTileGeometry(not_null<VideoTile*> tile, QRect geometry) {

@@ -117,6 +117,7 @@ private:
 	void updateTilesGeometry(int outerWidth);
 	void updateTilesGeometryWide(int outerWidth, int outerHeight);
 	void updateTilesGeometryNarrow(int outerWidth);
+	void updateTilesGeometryColumn(int outerWidth);
 	void setTileGeometry(not_null<VideoTile*> tile, QRect geometry);
 	void refreshHasTwoOrMore();
 	void updateTopControlsVisibility();
@@ -138,6 +139,7 @@ private:
 	bool _geometryStaleAfterModeChange = false;
 	const std::unique_ptr<Ui::RpWidgetWrap> _content;
 	std::vector<std::unique_ptr<VideoTile>> _tiles;
+	std::vector<not_null<VideoTile*>> _tilesForOrder;
 	rpl::variable<int> _fullHeight = 0;
 	bool _hasTwoOrMore = false;
 	int _scrollTop = 0;
