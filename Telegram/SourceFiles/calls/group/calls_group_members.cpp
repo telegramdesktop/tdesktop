@@ -278,10 +278,10 @@ void Members::Controller::setupListChangeViewers() {
 		}
 	}, _lifetime);
 
-	_call->videoEndpointPinnedValue(
-	) | rpl::start_with_next([=](const VideoEndpoint &pinned) {
-		if (pinned) {
-			hideRowsWithVideoExcept(pinned);
+	_call->videoEndpointLargeValue(
+	) | rpl::start_with_next([=](const VideoEndpoint &large) {
+		if (large) {
+			hideRowsWithVideoExcept(large);
 		} else {
 			showAllHiddenRows();
 		}
@@ -289,8 +289,8 @@ void Members::Controller::setupListChangeViewers() {
 
 	_call->videoStreamShownUpdates(
 	) | rpl::filter([=](const VideoActiveToggle &update) {
-		const auto &pinned = _call->videoEndpointPinned();
-		return pinned && (update.endpoint != pinned);
+		const auto &large = _call->videoEndpointLarge();
+		return large && (update.endpoint != large);
 	}) | rpl::start_with_next([=](const VideoActiveToggle &update) {
 		if (update.active) {
 			hideRowWithVideo(update.endpoint);
@@ -353,10 +353,10 @@ void Members::Controller::hideRowWithVideo(const VideoEndpoint &endpoint) {
 
 void Members::Controller::showRowWithVideo(const VideoEndpoint &endpoint) {
 	const auto peer = endpoint.peer;
-	const auto &pinned = _call->videoEndpointPinned();
-	if (pinned) {
+	const auto &large = _call->videoEndpointLarge();
+	if (large) {
 		for (const auto &endpoint : _call->shownVideoTracks()) {
-			if (endpoint != pinned && endpoint.peer == peer) {
+			if (endpoint != large && endpoint.peer == peer) {
 				// Still hidden with another video.
 				return;
 			}
@@ -1189,11 +1189,12 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 	if (const auto real = _call->lookupReal()) {
 		const auto participant = real->participantByPeer(participantPeer);
 		if (participant) {
-			const auto &pinned = _call->videoEndpointPinned();
+			const auto &large = _call->videoEndpointLarge();
+			const auto pinned = _call->videoEndpointPinned();
 			const auto &camera = computeCameraEndpoint(participant);
 			const auto &screen = computeScreenEndpoint(participant);
 			if (!camera.empty()) {
-				if (pinned.id == camera) {
+				if (pinned && large.id == camera) {
 					result->addAction(
 						tr::lng_group_call_context_unpin_camera(tr::now),
 						[=] { _call->pinVideoEndpoint(VideoEndpoint()); });
@@ -1203,11 +1204,12 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 						[=] { _call->pinVideoEndpoint(VideoEndpoint{
 							VideoEndpointType::Camera,
 							participantPeer,
-							camera }); });
+							camera });
+						});
 				}
 			}
 			if (!screen.empty()) {
-				if (pinned.id == screen) {
+				if (pinned && large.id == screen) {
 					result->addAction(
 						tr::lng_group_call_context_unpin_screen(tr::now),
 						[=] { _call->pinVideoEndpoint(VideoEndpoint()); });
@@ -1217,7 +1219,8 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 						[=] { _call->pinVideoEndpoint(VideoEndpoint{
 							VideoEndpointType::Screen,
 							participantPeer,
-							screen }); });
+							screen });
+						});
 				}
 			}
 		}
@@ -1637,9 +1640,9 @@ void Members::setupList() {
 }
 
 void Members::trackViewportGeometry() {
-	_call->videoEndpointPinnedValue(
-	) | rpl::start_with_next([=](const VideoEndpoint &pinned) {
-		_viewport->showLarge(pinned);
+	_call->videoEndpointLargeValue(
+	) | rpl::start_with_next([=](const VideoEndpoint &large) {
+		_viewport->showLarge(large);
 	}, _viewport->lifetime());
 
 	const auto move = [=] {

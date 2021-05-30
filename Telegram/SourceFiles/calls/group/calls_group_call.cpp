@@ -569,7 +569,6 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 	using Update = Data::GroupCall::ParticipantUpdate;
 	real->participantUpdated(
 	) | rpl::start_with_next([=](const Update &data) {
-		const auto &pinned = _videoEndpointPinned.current();
 		const auto regularEndpoint = [&](const std::string &endpoint)
 		-> const std::string & {
 			return (endpoint.empty()
@@ -906,8 +905,8 @@ void GroupCall::markEndpointActive(VideoEndpoint endpoint, bool active) {
 		}
 		addVideoOutput(i->first.id, { track->sink() });
 	} else {
-		if (_videoEndpointPinned.current() == endpoint) {
-			_videoEndpointPinned = VideoEndpoint();
+		if (_videoEndpointLarge.current() == endpoint) {
+			setVideoEndpointLarge({});
 		}
 		_activeVideoTracks.erase(i);
 	}
@@ -2197,8 +2196,8 @@ void GroupCall::fillActiveVideoEndpoints() {
 	Assert(real != nullptr);
 
 	const auto &participants = real->participants();
-	const auto &pinned = _videoEndpointPinned.current();
-	auto pinnedFound = false;
+	const auto &large = _videoEndpointLarge.current();
+	auto largeFound = false;
 	auto endpoints = _activeVideoTracks | ranges::views::transform([](
 			const auto &pair) {
 		return pair.first;
@@ -2209,8 +2208,8 @@ void GroupCall::fillActiveVideoEndpoints() {
 	const auto feedOne = [&](VideoEndpoint endpoint) {
 		if (endpoint.empty()) {
 			return;
-		} else if (endpoint == pinned) {
-			pinnedFound = true;
+		} else if (endpoint == large) {
+			largeFound = true;
 		}
 		if (!removed.remove(endpoint)) {
 			markEndpointActive(std::move(endpoint), true);
@@ -2233,8 +2232,8 @@ void GroupCall::fillActiveVideoEndpoints() {
 	}
 	feedOne({ Type::Camera, _joinAs, cameraSharingEndpoint() });
 	feedOne({ Type::Screen, _joinAs, screenSharingEndpoint() });
-	if (pinned && !pinnedFound) {
-		_videoEndpointPinned = VideoEndpoint();
+	if (large && !largeFound) {
+		setVideoEndpointLarge({});
 	}
 	for (const auto &endpoint : removed) {
 		markEndpointActive(endpoint, false);
@@ -2544,7 +2543,24 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 }
 
 void GroupCall::pinVideoEndpoint(VideoEndpoint endpoint) {
-	_videoEndpointPinned = endpoint;
+	_videoEndpointPinned = false;
+	if (endpoint) {
+		setVideoEndpointLarge(std::move(endpoint));
+		_videoEndpointPinned = true;
+	}
+}
+
+void GroupCall::showVideoEndpointLarge(VideoEndpoint endpoint) {
+	_videoEndpointPinned = false;
+	setVideoEndpointLarge(std::move(endpoint));
+	_videoLargeShowTime = crl::now();
+}
+
+void GroupCall::setVideoEndpointLarge(VideoEndpoint endpoint) {
+	if (!endpoint) {
+		_videoEndpointPinned = false;
+	}
+	_videoEndpointLarge = endpoint;
 }
 
 void GroupCall::requestVideoQuality(

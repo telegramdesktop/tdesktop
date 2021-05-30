@@ -21,7 +21,6 @@ struct ChosenRenderer;
 namespace Calls {
 class GroupCall;
 struct VideoEndpoint;
-struct VideoPinToggle;
 struct VideoQualityRequest;
 } // namespace Calls
 
@@ -80,7 +79,7 @@ public:
 	[[nodiscard]] bool requireARGB32() const;
 	[[nodiscard]] int fullHeight() const;
 	[[nodiscard]] rpl::producer<int> fullHeightValue() const;
-	[[nodiscard]] rpl::producer<VideoPinToggle> pinToggled() const;
+	[[nodiscard]] rpl::producer<bool> pinToggled() const;
 	[[nodiscard]] rpl::producer<VideoEndpoint> clicks() const;
 	[[nodiscard]] rpl::producer<VideoQualityRequest> qualityRequests() const;
 	[[nodiscard]] rpl::producer<bool> mouseInsideValue() const;
@@ -139,7 +138,7 @@ private:
 	int _scrollTop = 0;
 	QImage _shadow;
 	rpl::event_stream<VideoEndpoint> _clicks;
-	rpl::event_stream<VideoPinToggle> _pinToggles;
+	rpl::event_stream<bool> _pinToggles;
 	rpl::event_stream<VideoQualityRequest> _qualityRequests;
 	float64 _controlsShownRatio = 1.;
 	VideoTile *_large = nullptr;

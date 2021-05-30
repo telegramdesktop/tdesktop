@@ -1023,12 +1023,12 @@ void Panel::setupMembers() {
 		}
 	}, _callLifetime);
 
-	_call->videoEndpointPinnedValue(
-	) | rpl::start_with_next([=](const VideoEndpoint &pinned) {
-		if (pinned && mode() != PanelMode::Wide) {
+	_call->videoEndpointLargeValue(
+	) | rpl::start_with_next([=](const VideoEndpoint &large) {
+		if (large && mode() != PanelMode::Wide) {
 			enlargeVideo();
 		}
-		_viewport->showLarge(pinned);
+		_viewport->showLarge(large);
 	}, _callLifetime);
 }
 
@@ -1127,10 +1127,14 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 		using namespace rpl::mappers;
 		const auto row = _members->lookupRow(track.peer);
 		Assert(row != nullptr);
+		auto pinned = rpl::combine(
+			_call->videoEndpointLargeValue(),
+			_call->videoEndpointPinnedValue()
+		) | rpl::map(_1 == endpoint && _2);
 		viewport->add(
 			endpoint,
 			VideoTileTrack{ track.track.get(), row },
-			_call->videoEndpointPinnedValue() | rpl::map(_1 == endpoint));
+			std::move(pinned));
 	};
 	for (const auto &[endpoint, track] : _call->activeVideoTracks()) {
 		setupTile(endpoint, track);
@@ -1154,16 +1158,21 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 	}, viewport->lifetime());
 
 	viewport->pinToggled(
-	) | rpl::start_with_next([=](const VideoPinToggle &value) {
-		_call->pinVideoEndpoint(
-			value.pinned ? value.endpoint : VideoEndpoint{});
+	) | rpl::start_with_next([=](bool pinned) {
+		_call->pinVideoEndpoint(pinned
+			? _call->videoEndpointLarge()
+			: VideoEndpoint{});
 	}, viewport->lifetime());
 
 	viewport->clicks(
-	) | rpl::filter([=] {
-		return (_mode.current() == PanelMode::Default);
-	}) | rpl::start_with_next([=](VideoEndpoint &&endpoint) {
-		_call->pinVideoEndpoint(std::move(endpoint));
+	) | rpl::start_with_next([=](VideoEndpoint &&endpoint) {
+		if (_call->videoEndpointLarge() == endpoint) {
+			_call->showVideoEndpointLarge({});
+		} else if (_call->videoEndpointPinned()) {
+			_call->pinVideoEndpoint(std::move(endpoint));
+		} else {
+			_call->showVideoEndpointLarge(std::move(endpoint));
+		}
 	}, viewport->lifetime());
 
 	viewport->qualityRequests(
@@ -1787,8 +1796,8 @@ bool Panel::updateMode() {
 	if (_mode.current() == mode) {
 		return false;
 	}
-	if (!wide && _call->videoEndpointPinned()) {
-		_call->pinVideoEndpoint({});
+	if (!wide && _call->videoEndpointLarge()) {
+		_call->showVideoEndpointLarge({});
 	}
 	refreshVideoButtons(wide);
 	_niceTooltip.destroy();

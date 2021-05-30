@@ -131,11 +131,6 @@ inline bool operator>=(
 	return !(a < b);
 }
 
-struct VideoPinToggle {
-	VideoEndpoint endpoint;
-	bool pinned = false;
-};
-
 struct VideoActiveToggle {
 	VideoEndpoint endpoint;
 	bool active = false;
@@ -301,17 +296,27 @@ public:
 	-> rpl::producer<VideoActiveToggle> {
 		return _videoStreamShownUpdates.events();
 	}
-	void pinVideoEndpoint(VideoEndpoint endpoint);
 	void requestVideoQuality(
 		const VideoEndpoint &endpoint,
 		Group::VideoQuality quality);
-	[[nodiscard]] const VideoEndpoint &videoEndpointPinned() const {
+
+	[[nodiscard]] bool videoEndpointPinned() const {
 		return _videoEndpointPinned.current();
 	}
-	[[nodiscard]] auto videoEndpointPinnedValue() const
-	-> rpl::producer<VideoEndpoint> {
+	[[nodiscard]] rpl::producer<bool> videoEndpointPinnedValue() const {
 		return _videoEndpointPinned.value();
 	}
+	void pinVideoEndpoint(VideoEndpoint endpoint);
+
+	void showVideoEndpointLarge(VideoEndpoint endpoint);
+	[[nodiscard]] const VideoEndpoint &videoEndpointLarge() const {
+		return _videoEndpointLarge.current();
+	}
+	[[nodiscard]] auto videoEndpointLargeValue() const
+	-> rpl::producer<VideoEndpoint> {
+		return _videoEndpointLarge.value();
+	}
+
 	struct VideoTrack {
 		std::unique_ptr<Webrtc::VideoTrack> track;
 		PeerData *peer = nullptr;
@@ -508,6 +513,7 @@ private:
 	void setScreenEndpoint(std::string endpoint);
 	void setCameraEndpoint(std::string endpoint);
 	void addVideoOutput(const std::string &endpoint, SinkPointer sink);
+	void setVideoEndpointLarge(VideoEndpoint endpoint);
 
 	void markEndpointActive(VideoEndpoint endpoint, bool active);
 	void markTrackShown(const VideoEndpoint &endpoint, bool shown);
@@ -584,7 +590,9 @@ private:
 	rpl::event_stream<VideoActiveToggle> _videoStreamShownUpdates;
 	base::flat_map<VideoEndpoint, VideoTrack> _activeVideoTracks;
 	base::flat_set<VideoEndpoint> _shownVideoTracks;
-	rpl::variable<VideoEndpoint> _videoEndpointPinned;
+	rpl::variable<VideoEndpoint> _videoEndpointLarge;
+	rpl::variable<bool> _videoEndpointPinned = false;
+	crl::time _videoLargeShowTime = 0;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
 	rpl::event_stream<> _allowedToSpeakNotifications;

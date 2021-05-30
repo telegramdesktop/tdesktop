@@ -157,10 +157,7 @@ void Viewport::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 			} else if (!wide()) {
 				_clicks.fire_copy(tile->endpoint());
 			} else if (pressed.element == Selection::Element::PinButton) {
-				_pinToggles.fire({
-					.endpoint = tile->endpoint(),
-					.pinned = !tile->pinned(),
-				});
+				_pinToggles.fire(!tile->pinned());
 			}
 		}
 	}
@@ -540,7 +537,7 @@ rpl::producer<int> Viewport::fullHeightValue() const {
 	return _fullHeight.value();
 }
 
-rpl::producer<VideoPinToggle> Viewport::pinToggled() const {
+rpl::producer<bool> Viewport::pinToggled() const {
 	return _pinToggles.events();
 }
 
