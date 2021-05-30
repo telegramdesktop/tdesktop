@@ -48,7 +48,8 @@ constexpr auto kCheckLastSpokeInterval = crl::time(1000);
 constexpr auto kCheckJoinedTimeout = 4 * crl::time(1000);
 constexpr auto kUpdateSendActionEach = crl::time(500);
 constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
-constexpr auto kFixLargeVideoDuration = 5 * crl::time(1000);
+constexpr auto kFixManualLargeVideoDuration = 5 * crl::time(1000);
+constexpr auto kFixSpeakingLargeVideoDuration = 3 * crl::time(1000);
 
 [[nodiscard]] std::unique_ptr<Webrtc::MediaDevices> CreateMediaDevices() {
 	const auto &settings = Core::App().settings();
@@ -628,6 +629,40 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 		checkMediaChannelDescriptions([&](uint32 ssrc) {
 			return ssrcs->contains(ssrc);
 		});
+	}, _lifetime);
+
+	real->participantSpeaking(
+	) | rpl::filter([=] {
+		return _videoEndpointLarge.current();
+	}) | rpl::start_with_next([=](not_null<Data::GroupCallParticipant*> p) {
+		const auto now = crl::now();
+		if (_videoEndpointLarge.current().peer == p->peer) {
+			_videoLargeTillTime = std::max(
+				_videoLargeTillTime,
+				now + kFixSpeakingLargeVideoDuration);
+			return;
+		} else if (videoEndpointPinned() || _videoLargeTillTime > now) {
+			return;
+		}
+		using Type = VideoEndpointType;
+		if (p->cameraEndpoint().empty() && p->screenEndpoint().empty()) {
+			return;
+		}
+		const auto tryEndpoint = [&](Type type, const std::string &id) {
+			if (id.empty()) {
+				return false;
+			}
+			const auto endpoint = VideoEndpoint{ type, p->peer, id };
+			if (!shownVideoTracks().contains(endpoint)) {
+				return false;
+			}
+			setVideoEndpointLarge(endpoint);
+			return true;
+		};
+		if (tryEndpoint(Type::Screen, p->screenEndpoint())
+			|| tryEndpoint(Type::Camera, p->cameraEndpoint())) {
+			_videoLargeTillTime = now + kFixSpeakingLargeVideoDuration;
+		}
 	}, _lifetime);
 }
 
@@ -2335,12 +2370,16 @@ void GroupCall::checkLastSpoke() {
 		return;
 	}
 
+	constexpr auto kKeepInListFor = kCheckLastSpokeInterval * 2;
+	static_assert(Data::GroupCall::kSoundStatusKeptFor
+		<= kKeepInListFor - (kCheckLastSpokeInterval / 3));
+
 	auto hasRecent = false;
 	const auto now = crl::now();
 	auto list = base::take(_lastSpoke);
 	for (auto i = list.begin(); i != list.end();) {
 		const auto [ssrc, when] = *i;
-		if (when.anything + kCheckLastSpokeInterval >= now) {
+		if (when.anything + kKeepInListFor >= now) {
 			hasRecent = true;
 			++i;
 		} else {
@@ -2551,9 +2590,12 @@ void GroupCall::pinVideoEndpoint(VideoEndpoint endpoint) {
 }
 
 void GroupCall::showVideoEndpointLarge(VideoEndpoint endpoint) {
+	if (_videoEndpointLarge.current() == endpoint) {
+		return;
+	}
 	_videoEndpointPinned = false;
 	setVideoEndpointLarge(std::move(endpoint));
-	_videoLargeShowTime = crl::now();
+	_videoLargeTillTime = crl::now() + kFixManualLargeVideoDuration;
 }
 
 void GroupCall::setVideoEndpointLarge(VideoEndpoint endpoint) {

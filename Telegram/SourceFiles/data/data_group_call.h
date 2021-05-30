@@ -105,7 +105,7 @@ public:
 		std::optional<Participant> now;
 	};
 
-	static constexpr auto kSoundStatusKeptFor = crl::time(1350);
+	static constexpr auto kSoundStatusKeptFor = crl::time(1500);
 
 	[[nodiscard]] auto participants() const
 		-> const std::vector<Participant> &;
@@ -118,7 +118,10 @@ public:
 		const std::string &endpoint) const;
 
 	[[nodiscard]] rpl::producer<> participantsReloaded();
-	[[nodiscard]] rpl::producer<ParticipantUpdate> participantUpdated() const;
+	[[nodiscard]] auto participantUpdated() const
+		-> rpl::producer<ParticipantUpdate>;
+	[[nodiscard]] auto participantSpeaking() const
+		-> rpl::producer<not_null<Participant*>>;
 
 	void enqueueUpdate(const MTPUpdate &update);
 	void applyLocalUpdate(
@@ -222,6 +225,7 @@ private:
 	mtpRequestId _unknownParticipantPeersRequestId = 0;
 
 	rpl::event_stream<ParticipantUpdate> _participantUpdates;
+	rpl::event_stream<not_null<Participant*>> _participantSpeaking;
 	rpl::event_stream<> _participantsReloaded;
 
 	bool _joinMuted = false;

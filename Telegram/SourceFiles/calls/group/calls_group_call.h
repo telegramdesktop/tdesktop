@@ -592,7 +592,7 @@ private:
 	base::flat_set<VideoEndpoint> _shownVideoTracks;
 	rpl::variable<VideoEndpoint> _videoEndpointLarge;
 	rpl::variable<bool> _videoEndpointPinned = false;
-	crl::time _videoLargeShowTime = 0;
+	crl::time _videoLargeTillTime = 0;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
 	rpl::event_stream<> _allowedToSpeakNotifications;

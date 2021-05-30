@@ -251,6 +251,11 @@ auto GroupCall::participantUpdated() const
 	return _participantUpdates.events();
 }
 
+auto GroupCall::participantSpeaking() const
+-> rpl::producer<not_null<Participant*>> {
+	return _participantSpeaking.events();
+}
+
 void GroupCall::enqueueUpdate(const MTPUpdate &update) {
 	update.match([&](const MTPDupdateGroupCall &updateData) {
 		updateData.vcall().match([&](const MTPDgroupCall &data) {
@@ -658,6 +663,9 @@ void GroupCall::applyLastSpoke(
 		&& participant->canSelfUnmute;
 	const auto speaking = sounding
 		&& (when.voice + kSoundStatusKeptFor >= now);
+	if (speaking) {
+		_participantSpeaking.fire({ participant });
+	}
 	if (participant->sounding != sounding
 		|| participant->speaking != speaking) {
 		const auto was = *participant;
