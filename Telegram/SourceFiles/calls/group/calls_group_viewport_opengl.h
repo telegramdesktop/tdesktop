@@ -120,6 +120,7 @@ private:
 	Ui::GL::Image _buttons;
 	QRect _pinOn;
 	QRect _pinOff;
+	QRect _back;
 	QRect _muteOn;
 	QRect _muteOff;
 

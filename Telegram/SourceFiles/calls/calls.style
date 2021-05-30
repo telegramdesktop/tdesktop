@@ -1202,6 +1202,7 @@ GroupCallVideoTile {
 	pinPosition: point;
 	pinPadding: margins;
 	pinTextPosition: point;
+	back: icon;
 	iconPosition: point;
 }
 
@@ -1219,6 +1220,7 @@ groupCallVideoTile: GroupCallVideoTile {
 	pinPosition: point(18px, 18px);
 	pinPadding: margins(6px, 2px, 12px, 1px);
 	pinTextPosition: point(1px, 3px);
+	back: icon {{ "calls/video_back", groupCallVideoTextFg }};
 	iconPosition: point(10px, 5px);
 }
 

@@ -97,6 +97,7 @@ private:
 			None,
 			Tile,
 			PinButton,
+			BackButton,
 		};
 		VideoTile *tile = nullptr;
 		Element element = Element::None;
@@ -111,11 +112,14 @@ private:
 	void setup();
 	[[nodiscard]] bool wide() const;
 
+	void updateCursor();
 	void updateTilesGeometry();
 	void updateTilesGeometry(int outerWidth);
 	void updateTilesGeometryWide(int outerWidth, int outerHeight);
 	void updateTilesGeometryNarrow(int outerWidth);
 	void setTileGeometry(not_null<VideoTile*> tile, QRect geometry);
+	void refreshHasTwoOrMore();
+	void updateTopControlsVisibility();
 
 	void setSelected(Selection value);
 	void setPressed(Selection value);
@@ -135,6 +139,7 @@ private:
 	const std::unique_ptr<Ui::RpWidgetWrap> _content;
 	std::vector<std::unique_ptr<VideoTile>> _tiles;
 	rpl::variable<int> _fullHeight = 0;
+	bool _hasTwoOrMore = false;
 	int _scrollTop = 0;
 	QImage _shadow;
 	rpl::event_stream<VideoEndpoint> _clicks;

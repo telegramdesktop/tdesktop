@@ -134,10 +134,10 @@ void Viewport::setMode(PanelMode mode, not_null<QWidget*> parent) {
 	}
 	if (!wide()) {
 		for (const auto &tile : _tiles) {
-			tile->togglePinShown(false);
+			tile->toggleTopControlsShown(false);
 		}
 	} else if (_selected.tile) {
-		_selected.tile->togglePinShown(true);
+		_selected.tile->toggleTopControlsShown(true);
 	}
 }
 
@@ -154,7 +154,9 @@ void Viewport::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 		if (pressed == _selected) {
 			if (button == Qt::RightButton) {
 				tile->row()->showContextMenu();
-			} else if (!wide()) {
+			} else if (!wide()
+				|| (_hasTwoOrMore && !_large)
+				|| pressed.element == Selection::Element::BackButton) {
 				_clicks.fire_copy(tile->endpoint());
 			} else if (pressed.element == Selection::Element::PinButton) {
 				_pinToggles.fire(!tile->pinned());
@@ -177,10 +179,14 @@ void Viewport::updateSelected(QPoint position) {
 		if (geometry.contains(position)) {
 			const auto pin = wide()
 				&& tile->pinOuter().contains(position - geometry.topLeft());
+			const auto back = wide()
+				&& tile->backOuter().contains(position - geometry.topLeft());
 			setSelected({
 				.tile = tile.get(),
 				.element = (pin
 					? Selection::Element::PinButton
+					: back
+					? Selection::Element::BackButton
 					: Selection::Element::Tile),
 			});
 			return;
@@ -238,6 +244,7 @@ void Viewport::showLarge(const VideoEndpoint &endpoint) {
 	const auto large = (i != end(_tiles)) ? i->get() : nullptr;
 	if (_large != large) {
 		_large = large;
+		updateTopControlsVisibility();
 		updateTilesGeometry();
 	}
 }
@@ -263,9 +270,37 @@ void Viewport::updateTilesGeometry(int outerWidth) {
 
 	if (wide()) {
 		updateTilesGeometryWide(outerWidth, outerHeight);
+		refreshHasTwoOrMore();
 		_fullHeight = 0;
 	} else {
 		updateTilesGeometryNarrow(outerWidth);
+	}
+}
+
+void Viewport::refreshHasTwoOrMore() {
+	auto hasTwoOrMore = false;
+	auto oneFound = false;
+	for (const auto &tile : _tiles) {
+		if (!tile->trackSize().isEmpty()) {
+			if (oneFound) {
+				hasTwoOrMore = true;
+				break;
+			}
+			oneFound = true;
+		}
+	}
+	if (_hasTwoOrMore == hasTwoOrMore) {
+		return;
+	}
+	_hasTwoOrMore = hasTwoOrMore;
+	updateCursor();
+	updateTopControlsVisibility();
+}
+
+void Viewport::updateTopControlsVisibility() {
+	if (_selected.tile) {
+		_selected.tile->toggleTopControlsShown(
+			_hasTwoOrMore && wide() && _large && _large == _selected.tile);
 	}
 }
 
@@ -485,14 +520,19 @@ void Viewport::setSelected(Selection value) {
 		return;
 	}
 	if (_selected.tile) {
-		_selected.tile->togglePinShown(false);
+		_selected.tile->toggleTopControlsShown(false);
 	}
 	_selected = value;
-	if (_selected.tile && wide()) {
-		_selected.tile->togglePinShown(true);
-	}
+	updateTopControlsVisibility();
+	updateCursor();
+}
+
+void Viewport::updateCursor() {
 	const auto pointer = _selected.tile
-		&& (!wide() || _selected.element == Selection::Element::PinButton);
+		&& (!wide()
+			|| (_hasTwoOrMore && !_large)
+			|| _selected.element == Selection::Element::PinButton
+			|| _selected.element == Selection::Element::BackButton);
 	widget()->setCursor(pointer ? style::cur_pointer : style::cur_default);
 }
 

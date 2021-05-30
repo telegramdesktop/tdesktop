@@ -122,18 +122,28 @@ void Viewport::Renderer::paintTileControls(
 	p.setClipRect(x, y, width, height);
 	const auto guard = gsl::finally([&] { p.setClipping(false); });
 
-	// Pin.
 	const auto wide = _owner->wide();
 	if (wide) {
-		const auto inner = tile->pinInner();
+		// Pin.
+
+		const auto pinInner = tile->pinInner();
 		VideoTile::PaintPinButton(
 			p,
 			tile->pinned(),
-			x + inner.x(),
-			y + inner.y(),
+			x + pinInner.x(),
+			y + pinInner.y(),
 			_owner->widget()->width(),
 			&_pinBackground,
 			&_pinIcon);
+
+		// Back.
+		const auto backInner = tile->backInner();
+		VideoTile::PaintBackButton(
+			p,
+			x + backInner.x(),
+			y + backInner.y(),
+			_owner->widget()->width(),
+			&_pinBackground);
 	}
 
 	const auto shown = _owner->_controlsShownRatio;

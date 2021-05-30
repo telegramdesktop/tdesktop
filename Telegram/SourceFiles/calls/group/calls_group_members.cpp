@@ -1187,8 +1187,19 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 	});
 
 	if (const auto real = _call->lookupReal()) {
+		auto oneFound = false;
+		auto hasTwoOrMore = false;
+		for (const auto &[endpoint, track] : _call->activeVideoTracks()) {
+			if (_call->shownVideoTracks().contains(endpoint)) {
+				if (oneFound) {
+					hasTwoOrMore = true;
+					break;
+				}
+				oneFound = true;
+			}
+		}
 		const auto participant = real->participantByPeer(participantPeer);
-		if (participant) {
+		if (participant && hasTwoOrMore) {
 			const auto &large = _call->videoEndpointLarge();
 			const auto pinned = _call->videoEndpointPinned();
 			const auto &camera = computeCameraEndpoint(participant);

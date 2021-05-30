@@ -31,19 +31,27 @@ Viewport::VideoTile::VideoTile(
 	setup(std::move(pinned));
 }
 
-QRect Viewport::VideoTile::pinInner() const {
-	return _pinInner.translated(0, -pinSlide());
-}
-
 QRect Viewport::VideoTile::pinOuter() const {
 	return _pinOuter;
 }
 
-int Viewport::VideoTile::pinSlide() const {
+QRect Viewport::VideoTile::pinInner() const {
+	return _pinInner.translated(0, -topControlsSlide());
+}
+
+QRect Viewport::VideoTile::backOuter() const {
+	return _backOuter;
+}
+
+QRect Viewport::VideoTile::backInner() const {
+	return _backInner.translated(0, -topControlsSlide());
+}
+
+int Viewport::VideoTile::topControlsSlide() const {
 	return anim::interpolate(
 		st::groupCallVideoTile.pinPosition.y() + _pinInner.height(),
 		0,
-		_pinShownAnimation.value(_pinShown ? 1. : 0.));
+		_topControlsShownAnimation.value(_topControlsShown ? 1. : 0.));
 }
 
 bool Viewport::VideoTile::screencast() const {
@@ -52,15 +60,15 @@ bool Viewport::VideoTile::screencast() const {
 
 void Viewport::VideoTile::setGeometry(QRect geometry) {
 	_geometry = geometry;
-	updatePinnedGeometry();
+	updateTopControlsGeometry();
 }
 
-void Viewport::VideoTile::togglePinShown(bool shown) {
-	if (_pinShown == shown) {
+void Viewport::VideoTile::toggleTopControlsShown(bool shown) {
+	if (_topControlsShown == shown) {
 		return;
 	}
-	_pinShown = shown;
-	_pinShownAnimation.start(
+	_topControlsShown = shown;
+	_topControlsShownAnimation.start(
 		_update,
 		shown ? 0. : 1.,
 		shown ? 1. : 0.,
@@ -128,19 +136,68 @@ void Viewport::VideoTile::PaintPinButton(
 
 }
 
-void Viewport::VideoTile::updatePinnedGeometry() {
+QSize Viewport::VideoTile::BackInnerSize() {
 	const auto &st = st::groupCallVideoTile;
-	const auto buttonSize = PinInnerSize(_pinned);
-	const auto fullWidth = st.pinPosition.x() * 2 + buttonSize.width();
-	const auto fullHeight = st.pinPosition.y() * 2 + buttonSize.height();
-	_pinInner = QRect(QPoint(), buttonSize).translated(
-		_geometry.width() - st.pinPosition.x() - buttonSize.width(),
+	const auto &icon = st::groupCallVideoTile.back;
+	const auto innerWidth = icon.width()
+		+ st.pinTextPosition.x()
+		+ st::semiboldFont->width(tr::lng_create_group_back(tr::now));
+	const auto innerHeight = icon.height();
+	const auto buttonWidth = st.pinPadding.left()
+		+ innerWidth
+		+ st.pinPadding.right();
+	const auto buttonHeight = st.pinPadding.top()
+		+ innerHeight
+		+ st.pinPadding.bottom();
+	return { buttonWidth, buttonHeight };
+}
+
+void Viewport::VideoTile::PaintBackButton(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		not_null<Ui::RoundRect*> background) {
+	const auto &st = st::groupCallVideoTile;
+	const auto rect = QRect(QPoint(x, y), BackInnerSize());
+	background->paint(p, rect);
+	st.back.paint(
+		p,
+		rect.marginsRemoved(st.pinPadding).topLeft(),
+		outerWidth);
+	p.setPen(st::groupCallVideoTextFg);
+	p.setFont(st::semiboldFont);
+	p.drawTextLeft(
+		(x
+			+ st.pinPadding.left()
+			+ st::groupCallVideoTile.pin.icon.width()
+			+ st.pinTextPosition.x()),
+		(y
+			+ st.pinPadding.top()
+			+ st.pinTextPosition.y()),
+		outerWidth,
+		tr::lng_create_group_back(tr::now));
+}
+
+void Viewport::VideoTile::updateTopControlsGeometry() {
+	const auto &st = st::groupCallVideoTile;
+
+	const auto pinSize = PinInnerSize(_pinned);
+	const auto pinWidth = st.pinPosition.x() * 2 + pinSize.width();
+	const auto pinHeight = st.pinPosition.y() * 2 + pinSize.height();
+	_pinInner = QRect(QPoint(), pinSize).translated(
+		_geometry.width() - st.pinPosition.x() - pinSize.width(),
 		st.pinPosition.y());
 	_pinOuter = QRect(
-		_geometry.width() - fullWidth,
+		_geometry.width() - pinWidth,
 		0,
-		fullWidth,
-		fullHeight);
+		pinWidth,
+		pinHeight);
+	const auto backSize = BackInnerSize();
+	const auto backWidth = st.pinPosition.x() * 2 + backSize.width();
+	const auto backHeight = st.pinPosition.y() * 2 + backSize.height();
+	_backInner = QRect(QPoint(), backSize).translated(st.pinPosition);
+	_backOuter = QRect(0, 0, backWidth, backHeight);
 }
 
 void Viewport::VideoTile::setup(rpl::producer<bool> pinned) {
@@ -150,7 +207,7 @@ void Viewport::VideoTile::setup(rpl::producer<bool> pinned) {
 		return (_pinned != pinned);
 	}) | rpl::start_with_next([=](bool pinned) {
 		_pinned = pinned;
-		updatePinnedGeometry();
+		updateTopControlsGeometry();
 		_update();
 	}, _lifetime);
 

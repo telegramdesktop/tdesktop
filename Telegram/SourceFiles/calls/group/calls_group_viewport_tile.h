@@ -43,6 +43,8 @@ public:
 	}
 	[[nodiscard]] QRect pinOuter() const;
 	[[nodiscard]] QRect pinInner() const;
+	[[nodiscard]] QRect backOuter() const;
+	[[nodiscard]] QRect backInner() const;
 	[[nodiscard]] const VideoEndpoint &endpoint() const {
 		return _endpoint;
 	}
@@ -55,7 +57,7 @@ public:
 
 	[[nodiscard]] bool screencast() const;
 	void setGeometry(QRect geometry);
-	void togglePinShown(bool shown);
+	void toggleTopControlsShown(bool shown);
 	bool updateRequestedQuality(VideoQuality quality);
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
@@ -72,10 +74,18 @@ public:
 		not_null<Ui::RoundRect*> background,
 		not_null<Ui::CrossLineAnimation*> icon);
 
+	[[nodiscard]] static QSize BackInnerSize();
+	static void PaintBackButton(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		not_null<Ui::RoundRect*> background);
+
 private:
 	void setup(rpl::producer<bool> pinned);
-	[[nodiscard]] int pinSlide() const;
-	void updatePinnedGeometry();
+	[[nodiscard]] int topControlsSlide() const;
+	void updateTopControlsGeometry();
 
 	const VideoEndpoint _endpoint;
 	const Fn<void()> _update;
@@ -85,8 +95,10 @@ private:
 	rpl::variable<QSize> _trackSize;
 	QRect _pinOuter;
 	QRect _pinInner;
-	Ui::Animations::Simple _pinShownAnimation;
-	bool _pinShown = false;
+	QRect _backOuter;
+	QRect _backInner;
+	Ui::Animations::Simple _topControlsShownAnimation;
+	bool _topControlsShown = false;
 	bool _pinned = false;
 	std::optional<VideoQuality> _quality;
 

@@ -262,7 +262,7 @@ void Viewport::RendererGL::init(
 	_frameBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
 	_frameBuffer->create();
 	_frameBuffer->bind();
-	constexpr auto kQuads = 6;
+	constexpr auto kQuads = 7;
 	constexpr auto kQuadVertices = kQuads * 4;
 	constexpr auto kQuadValues = kQuadVertices * 4;
 	constexpr auto kValues = kQuadValues + 8; // Blur texture coordinates.
@@ -486,6 +486,13 @@ void Viewport::RendererGL::paintTile(
 		geometry);
 	const auto pinRect = transformRect(pin.geometry);
 
+	// Back.
+	const auto back = _buttons.texturedRect(
+		tile->backInner().translated(x, y),
+		_back,
+		geometry);
+	const auto backRect = transformRect(back.geometry);
+
 	// Mute.
 	const auto &icon = st::groupCallVideoCrossLine.icon;
 	const auto iconLeft = x + width - st.iconPosition.x() - icon.width();
@@ -572,6 +579,19 @@ void Viewport::RendererGL::paintTile(
 
 		pinRect.left(), pinRect.bottom(),
 		pin.texture.left(), pin.texture.top(),
+
+		// Back button.
+		backRect.left(), backRect.top(),
+		back.texture.left(), back.texture.bottom(),
+
+		backRect.right(), backRect.top(),
+		back.texture.right(), back.texture.bottom(),
+
+		backRect.right(), backRect.bottom(),
+		back.texture.right(), back.texture.top(),
+
+		backRect.left(), backRect.bottom(),
+		back.texture.left(), back.texture.top(),
 
 		// Mute icon.
 		muteRect.left(), muteRect.top(),
@@ -683,6 +703,7 @@ void Viewport::RendererGL::paintTile(
 
 	if (pinVisible) {
 		FillTexturedRectangle(f, &*_imageProgram, 14);
+		FillTexturedRectangle(f, &*_imageProgram, 18);
 	}
 
 	if (nameShift == fullNameShift) {
@@ -691,13 +712,13 @@ void Viewport::RendererGL::paintTile(
 
 	// Mute.
 	if (!muteRect.empty()) {
-		FillTexturedRectangle(f, &*_imageProgram, 18);
+		FillTexturedRectangle(f, &*_imageProgram, 22);
 	}
 
 	// Name.
 	if (!nameRect.empty()) {
 		_names.bind(f);
-		FillTexturedRectangle(f, &*_imageProgram, 22);
+		FillTexturedRectangle(f, &*_imageProgram, 26);
 	}
 }
 
@@ -905,15 +926,20 @@ void Viewport::RendererGL::ensureButtonsImage() {
 	const auto factor = cIntRetinaFactor();
 	const auto pinOnSize = VideoTile::PinInnerSize(true);
 	const auto pinOffSize = VideoTile::PinInnerSize(false);
+	const auto backSize = VideoTile::BackInnerSize();
 	const auto muteSize = st::groupCallVideoCrossLine.icon.size();
 
 	const auto fullSize = QSize(
 		std::max({
 			pinOnSize.width(),
 			pinOffSize.width(),
+			backSize.width(),
 			2 * muteSize.width(),
 		}),
-		pinOnSize.height() + pinOffSize.height() + muteSize.height());
+		(pinOnSize.height()
+			+ pinOffSize.height()
+			+ backSize.height()
+			+ muteSize.height()));
 	const auto imageSize = fullSize * factor;
 	auto image = _buttons.takeImage();
 	if (image.size() != imageSize) {
@@ -947,7 +973,19 @@ void Viewport::RendererGL::ensureButtonsImage() {
 			&_pinBackground,
 			&_pinIcon);
 
-		const auto muteTop = pinOnSize.height() + pinOffSize.height();
+		_back = QRect(
+			QPoint(0, pinOnSize.height() + pinOffSize.height()) * factor,
+			backSize * factor);
+		VideoTile::PaintBackButton(
+			p,
+			0,
+			pinOnSize.height() + pinOffSize.height(),
+			fullSize.width(),
+			&_pinBackground);
+
+		const auto muteTop = pinOnSize.height()
+			+ pinOffSize.height()
+			+ backSize.height();
 		_muteOn = QRect(QPoint(0, muteTop) * factor, muteSize * factor);
 		_muteIcon.paint(p, { 0, muteTop }, 1.);
 
