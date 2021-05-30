@@ -171,7 +171,7 @@ private:
 	//	not_null<Row*> row,
 	//	const std::string &endpoint);
 	bool toggleRowVideo(not_null<PeerListRow*> row);
-	void showRowMenu(not_null<PeerListRow*> row);
+	void showRowMenu(not_null<PeerListRow*> row, bool highlightRow);
 
 	void toggleVideoEndpointActive(
 		const VideoEndpoint &endpoint,
@@ -179,6 +179,11 @@ private:
 
 	void appendInvitedUsers();
 	void scheduleRaisedHandStatusRemove();
+
+	void hideRowsWithVideoExcept(const VideoEndpoint &pinned);
+	void showAllHiddenRows();
+	void hideRowWithVideo(const VideoEndpoint &endpoint);
+	void showRowWithVideo(const VideoEndpoint &endpoint);
 
 	const not_null<GroupCall*> _call;
 	not_null<PeerData*> _peer;
@@ -412,6 +417,27 @@ void Members::Controller::setupListChangeViewers() {
 	//	}
 	//}, _lifetime);
 
+	_call->videoEndpointPinnedValue(
+	) | rpl::start_with_next([=](const VideoEndpoint &pinned) {
+		if (pinned) {
+			hideRowsWithVideoExcept(pinned);
+		} else {
+			showAllHiddenRows();
+		}
+	}, _lifetime);
+
+	_call->videoStreamShownUpdates(
+	) | rpl::filter([=](const VideoActiveToggle &update) {
+		const auto &pinned = _call->videoEndpointPinned();
+		return pinned && (update.endpoint != pinned);
+	}) | rpl::start_with_next([=](const VideoActiveToggle &update) {
+		if (update.active) {
+			hideRowWithVideo(update.endpoint);
+		} else {
+			showRowWithVideo(update.endpoint);
+		}
+	}, _lifetime);
+
 	_call->rejoinEvents(
 	) | rpl::start_with_next([=](const Group::RejoinEvent &event) {
 		const auto guard = gsl::finally([&] {
@@ -426,6 +452,59 @@ void Members::Controller::setupListChangeViewers() {
 			delegate()->peerListAppendRow(std::move(row));
 		}
 	}, _lifetime);
+}
+
+void Members::Controller::hideRowsWithVideoExcept(
+		const VideoEndpoint &pinned) {
+	auto hidden = false;
+	for (const auto &endpoint : _call->shownVideoTracks()) {
+		if (endpoint != pinned) {
+			if (const auto row = findRow(endpoint.peer)) {
+				delegate()->peerListSetRowHidden(row, true);
+				hidden = true;
+			}
+		}
+	}
+	if (hidden) {
+		delegate()->peerListRefreshRows();
+	}
+}
+
+void Members::Controller::showAllHiddenRows() {
+	auto shown = false;
+	for (const auto &endpoint : _call->shownVideoTracks()) {
+		if (const auto row = findRow(endpoint.peer)) {
+			delegate()->peerListSetRowHidden(row, false);
+			shown = true;
+		}
+	}
+	if (shown) {
+		delegate()->peerListRefreshRows();
+	}
+}
+
+void Members::Controller::hideRowWithVideo(const VideoEndpoint &endpoint) {
+	if (const auto row = findRow(endpoint.peer)) {
+		delegate()->peerListSetRowHidden(row, true);
+		delegate()->peerListRefreshRows();
+	}
+}
+
+void Members::Controller::showRowWithVideo(const VideoEndpoint &endpoint) {
+	const auto peer = endpoint.peer;
+	const auto &pinned = _call->videoEndpointPinned();
+	if (pinned) {
+		for (const auto &endpoint : _call->shownVideoTracks()) {
+			if (endpoint != pinned && endpoint.peer == peer) {
+				// Still hidden with another video.
+				return;
+			}
+		}
+	}
+	if (const auto row = findRow(endpoint.peer)) {
+		delegate()->peerListSetRowHidden(row, false);
+		delegate()->peerListRefreshRows();
+	}
 }
 
 void Members::Controller::subscribeToChanges(not_null<Data::GroupCall*> real) {
@@ -463,9 +542,8 @@ void Members::Controller::subscribeToChanges(not_null<Data::GroupCall*> real) {
 		toggleVideoEndpointActive(endpoint, true);
 	}
 	_call->videoStreamActiveUpdates(
-	) | rpl::start_with_next([=](const VideoEndpoint &endpoint) {
-		const auto active = _call->activeVideoTracks().contains(endpoint);
-		toggleVideoEndpointActive(endpoint, active);
+	) | rpl::start_with_next([=](const VideoActiveToggle &update) {
+		toggleVideoEndpointActive(update.endpoint, update.active);
 	}, _lifetime);
 
 	if (_prepared) {
@@ -822,9 +900,8 @@ Main::Session &Members::Controller::session() const {
 
 void Members::Controller::prepare() {
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Disabled);
-	//delegate()->peerListSetTitle(std::move(title));
-	setDescriptionText(tr::lng_contacts_loading(tr::now));
-	setSearchNoResultsText(tr::lng_blocked_list_not_found(tr::now));
+	setDescription(nullptr);
+	setSearchNoResults(nullptr);
 
 	if (const auto real = _call->lookupReal()) {
 		prepareRows(real);
@@ -1155,7 +1232,7 @@ bool Members::Controller::rowIsNarrow() {
 }
 
 void Members::Controller::rowShowContextMenu(not_null<PeerListRow*> row) {
-	showRowMenu(row);
+	showRowMenu(row, false);
 }
 
 //void Members::Controller::rowPaintNarrowBackground(
@@ -1253,12 +1330,14 @@ auto Members::Controller::kickParticipantRequests() const
 
 void Members::Controller::rowClicked(not_null<PeerListRow*> row) {
 	if (!toggleRowVideo(row)) {
-		showRowMenu(row);
+		showRowMenu(row, true);
 	}
 }
 
-void Members::Controller::showRowMenu(not_null<PeerListRow*> row) {
-	delegate()->peerListShowRowMenu(row, [=](not_null<Ui::PopupMenu*> menu) {
+void Members::Controller::showRowMenu(
+		not_null<PeerListRow*> row,
+		bool highlightRow) {
+	const auto cleanup = [=](not_null<Ui::PopupMenu*> menu) {
 		if (!_menu || _menu.get() != menu) {
 			return;
 		}
@@ -1269,7 +1348,8 @@ void Members::Controller::showRowMenu(not_null<PeerListRow*> row) {
 			}
 		}
 		_menu = std::move(saved);
-	});
+	};
+	delegate()->peerListShowRowMenu(row, highlightRow, cleanup);
 }
 
 bool Members::Controller::toggleRowVideo(not_null<PeerListRow*> row) {
@@ -1317,7 +1397,7 @@ bool Members::Controller::toggleRowVideo(not_null<PeerListRow*> row) {
 
 void Members::Controller::rowActionClicked(
 		not_null<PeerListRow*> row) {
-	showRowMenu(row);
+	showRowMenu(row, true);
 }
 
 base::unique_qptr<Ui::PopupMenu> Members::Controller::rowContextMenu(
@@ -1414,6 +1494,7 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 					result->addAction(
 						tr::lng_group_call_context_pin_camera(tr::now),
 						[=] { _call->pinVideoEndpoint(VideoEndpoint{
+							VideoEndpointType::Camera,
 							participantPeer,
 							camera }); });
 				}
@@ -1427,6 +1508,7 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 					result->addAction(
 						tr::lng_group_call_context_pin_screen(tr::now),
 						[=] { _call->pinVideoEndpoint(VideoEndpoint{
+							VideoEndpointType::Screen,
 							participantPeer,
 							screen }); });
 				}
@@ -1828,7 +1910,7 @@ QRect Members::getInnerGeometry() const {
 		0,
 		-_scroll->scrollTop(),
 		width(),
-		_list->y() + _list->height() + add);
+		_list->y() + _list->height() + _bottomSkip->height() + add);
 }
 
 rpl::producer<int> Members::fullCountValue() const {
@@ -1837,18 +1919,38 @@ rpl::producer<int> Members::fullCountValue() const {
 
 void Members::setupList() {
 	_listController->setStyleOverrides(&st::groupCallMembersList);
-	_topSkip = _layout->add(
-		object_ptr<Ui::FixedHeightWidget>(
-			_layout.get(),
-			st::groupCallMembersTopSkip));
-	_topSkip->paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
-		QPainter(_topSkip).fillRect(clip, st::groupCallMembersBg);
-	}, _topSkip->lifetime());
+	const auto addSkip = [&] {
+		const auto result = _layout->add(
+			object_ptr<Ui::FixedHeightWidget>(
+				_layout.get(),
+				st::groupCallMembersTopSkip));
+		result->paintRequest(
+		) | rpl::start_with_next([=](QRect clip) {
+			QPainter(result).fillRect(clip, st::groupCallMembersBg);
+		}, result->lifetime());
+		return result;
+	};
+	_topSkip = addSkip();
 	_list = _layout->add(
 		object_ptr<ListWidget>(
 			_layout.get(),
 			_listController.get()));
+	_bottomSkip = addSkip();
+
+	using namespace rpl::mappers;
+	rpl::combine(
+		_list->heightValue() | rpl::map(_1 > 0),
+		_addMemberButton.value() | rpl::map(_1 != nullptr)
+	) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool hasList, bool hasAddMembers) {
+		_topSkip->resize(
+			_topSkip->width(),
+			hasList ? st::groupCallMembersTopSkip : 0);
+		_bottomSkip->resize(
+			_bottomSkip->width(),
+			(hasList && !hasAddMembers) ? st::groupCallMembersTopSkip : 0);
+	}, _list->lifetime());
+
 	const auto skip = _layout->add(object_ptr<Ui::RpWidget>(_layout.get()));
 	_mode.value(
 	) | rpl::start_with_next([=](PanelMode mode) {
@@ -1997,6 +2099,7 @@ void Members::setupFakeRoundCorners() {
 		const auto bottom = top
 			+ _topSkip->height()
 			+ list.height()
+			+ _bottomSkip->height()
 			+ addMembers
 			- bottomleft->height();
 		topleft->move(left, top);

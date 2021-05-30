@@ -776,6 +776,10 @@ void PeerListContent::appendRow(std::unique_ptr<PeerListRow> row) {
 	if (_rowsById.find(row->id()) == _rowsById.cend()) {
 		row->setAbsoluteIndex(_rows.size());
 		addRowEntry(row.get());
+		if (!_hiddenRows.empty()) {
+			Assert(!row->hidden());
+			_filterResults.push_back(row.get());
+		}
 		_rows.push_back(std::move(row));
 	}
 }
@@ -811,6 +815,17 @@ void PeerListContent::changeCheckState(
 		_st.item.checkbox,
 		animated,
 		[=] { updateRow(row); });
+}
+
+void PeerListContent::setRowHidden(not_null<PeerListRow*> row, bool hidden) {
+	Expects(!row->isSearchResult());
+
+	row->setHidden(hidden);
+	if (hidden) {
+		_hiddenRows.emplace(row);
+	} else {
+		_hiddenRows.remove(row);
+	}
 }
 
 void PeerListContent::addRowEntry(not_null<PeerListRow*> row) {
@@ -879,6 +894,10 @@ void PeerListContent::prependRow(std::unique_ptr<PeerListRow> row) {
 
 	if (_rowsById.find(row->id()) == _rowsById.cend()) {
 		addRowEntry(row.get());
+		if (!_hiddenRows.empty()) {
+			Assert(!row->hidden());
+			_filterResults.insert(_filterResults.begin(), row.get());
+		}
 		_rows.insert(_rows.begin(), std::move(row));
 		refreshIndices();
 	}
@@ -894,6 +913,10 @@ void PeerListContent::prependRowFromSearchResult(not_null<PeerListRow*> row) {
 	Assert(_searchRows[index].get() == row);
 
 	row->setIsSearchResult(false);
+	if (!_hiddenRows.empty()) {
+		Assert(!row->hidden());
+		_filterResults.insert(_filterResults.begin(), row);
+	}
 	_rows.insert(_rows.begin(), std::move(_searchRows[index]));
 	refreshIndices();
 	removeRowAtIndex(_searchRows, index);
@@ -947,6 +970,7 @@ void PeerListContent::removeRow(not_null<PeerListRow*> row) {
 	_filterResults.erase(
 		ranges::remove(_filterResults, row),
 		end(_filterResults));
+	_hiddenRows.remove(row);
 	removeRowAtIndex(eraseFrom, index);
 
 	restoreSelection();
@@ -984,7 +1008,9 @@ void PeerListContent::convertRowToSearchResult(not_null<PeerListRow*> row) {
 
 	removeFromSearchIndex(row);
 	row->setIsSearchResult(true);
+	row->setHidden(false);
 	row->setAbsoluteIndex(_searchRows.size());
+	_hiddenRows.remove(row);
 	_searchRows.push_back(std::move(_rows[index]));
 	removeRowAtIndex(_rows, index);
 }
@@ -1069,6 +1095,14 @@ int PeerListContent::labelHeight() const {
 }
 
 void PeerListContent::refreshRows() {
+	if (!_hiddenRows.empty()) {
+		_filterResults.clear();
+		for (const auto &row : _rows) {
+			if (!row->hidden()) {
+				_filterResults.push_back(row.get());
+			}
+		}
+	}
 	resizeToWidth(width());
 	if (_visibleBottom > 0) {
 		checkScrollForPreload();
@@ -1082,7 +1116,7 @@ void PeerListContent::refreshRows() {
 void PeerListContent::setSearchMode(PeerListSearchMode mode) {
 	if (_searchMode != mode) {
 		if (!addingToSearchIndex()) {
-			for_const (auto &row, _rows) {
+			for (const auto &row : _rows) {
 				addToSearchIndex(row.get());
 			}
 		}
@@ -1284,13 +1318,22 @@ void PeerListContent::mousePressReleased(Qt::MouseButton button) {
 
 void PeerListContent::showRowMenu(
 		not_null<PeerListRow*> row,
+		bool highlightRow,
 		Fn<void(not_null<Ui::PopupMenu*>)> destroyed) {
-	showRowMenu(findRowIndex(row), QCursor::pos(), std::move(destroyed));
+	const auto index = findRowIndex(row);
+	showRowMenu(
+		index,
+		row,
+		QCursor::pos(),
+		highlightRow,
+		std::move(destroyed));
 }
 
 bool PeerListContent::showRowMenu(
 		RowIndex index,
+		PeerListRow *row,
 		QPoint globalPos,
+		bool highlightRow,
 		Fn<void(not_null<Ui::PopupMenu*>)> destroyed) {
 	if (_contextMenu) {
 		_contextMenu->setDestroyedCallback(nullptr);
@@ -1301,7 +1344,9 @@ bool PeerListContent::showRowMenu(
 		mousePressReleased(_pressButton);
 	}
 
-	const auto row = getRow(index);
+	if (highlightRow) {
+		row = getRow(index);
+	}
 	if (!row) {
 		return false;
 	}
@@ -1312,11 +1357,15 @@ bool PeerListContent::showRowMenu(
 		return false;
 	}
 
-	setContexted({ index, false });
+	if (highlightRow) {
+		setContexted({ index, false });
+	}
 	raw->setDestroyedCallback(crl::guard(
 		this,
 		[=] {
-			setContexted(Selected());
+			if (highlightRow) {
+				setContexted(Selected());
+			}
 			handleMouseMove(QCursor::pos());
 			if (destroyed) {
 				destroyed(raw);
@@ -1330,7 +1379,7 @@ void PeerListContent::contextMenuEvent(QContextMenuEvent *e) {
 	if (e->reason() == QContextMenuEvent::Mouse) {
 		handleMouseMove(e->globalPos());
 	}
-	if (showRowMenu(_selected.index, e->globalPos())) {
+	if (showRowMenu(_selected.index, nullptr, e->globalPos(), true)) {
 		e->accept();
 	}
 }
@@ -1607,6 +1656,8 @@ void PeerListContent::searchQueryChanged(QString query) {
 	if (_normalizedSearchQuery != normalizedQuery) {
 		setSearchQuery(query, normalizedQuery);
 		if (_controller->searchInLocal() && !searchWordsList.isEmpty()) {
+			Assert(_hiddenRows.empty());
+
 			auto minimalList = (const std::vector<not_null<PeerListRow*>>*)nullptr;
 			for (const auto &searchWord : searchWordsList) {
 				auto searchWordStart = searchWord[0].toLower();
@@ -1656,15 +1707,17 @@ void PeerListContent::searchQueryChanged(QString query) {
 }
 
 std::unique_ptr<PeerListState> PeerListContent::saveState() const {
+	Expects(_hiddenRows.empty());
+
 	auto result = std::make_unique<PeerListState>();
 	result->controllerState
 		= std::make_unique<PeerListController::SavedStateBase>();
 	result->list.reserve(_rows.size());
-	for (auto &row : _rows) {
+	for (const auto &row : _rows) {
 		result->list.push_back(row->peer());
 	}
 	result->filterResults.reserve(_filterResults.size());
-	for (auto &row : _filterResults) {
+	for (const auto &row : _filterResults) {
 		result->filterResults.push_back(row->peer());
 	}
 	result->searchQuery = _searchQuery;
@@ -1844,8 +1897,7 @@ void PeerListContent::updateRow(RowIndex index) {
 	if (index.value < 0) {
 		return;
 	}
-	auto row = getRow(index);
-	if (row->disabled()) {
+	if (const auto row = getRow(index); row && row->disabled()) {
 		if (index == _selected.index) {
 			setSelected(Selected());
 		}
@@ -1939,4 +1991,11 @@ PeerListContent::~PeerListContent() {
 	if (_contextMenu) {
 		_contextMenu->setDestroyedCallback(nullptr);
 	}
+}
+
+void PeerListContentDelegate::peerListShowRowMenu(
+		not_null<PeerListRow*> row,
+		bool highlightRow,
+		Fn<void(not_null<Ui::PopupMenu *>)> destroyed) {
+	_content->showRowMenu(row, highlightRow, std::move(destroyed));
 }

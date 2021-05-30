@@ -26,8 +26,11 @@ constexpr auto kScaleForBlurTextureIndex = 3;
 constexpr auto kFirstBlurPassTextureIndex = 4;
 constexpr auto kBlurTextureSizeFactor = 1.7;
 constexpr auto kBlurOpacity = 0.7;
+constexpr auto kMinCameraVisiblePart = 0.75;
 
-ShaderPart FragmentBlurTexture(bool vertical, char prefix = 'v') {
+[[nodiscard]] ShaderPart FragmentBlurTexture(
+		bool vertical,
+		char prefix = 'v') {
 	const auto offsets = (vertical ? QString("0, 1") : QString("1, 0"));
 	const auto name = prefix + QString("_texcoord");
 	return {
@@ -92,6 +95,16 @@ vec4 background() {
 	result = vec4(result.rgb * (1. - shadowShown), result.a);
 )",
 	};
+}
+
+[[nodiscard]] bool UseExpandForCamera(QSize original, QSize viewport) {
+	const auto big = original.scaled(
+		viewport,
+		Qt::KeepAspectRatioByExpanding);
+
+	// If we cut out no more than 0.25 of the original, let's use expanding.
+	return (big.width() * kMinCameraVisiblePart <= viewport.width())
+		&& (big.height() * kMinCameraVisiblePart <= viewport.height());
 }
 
 [[nodiscard]] QSize NonEmpty(QSize size) {
@@ -440,12 +453,14 @@ void Viewport::RendererGL::paintTile(
 	const auto unscaled = Media::View::FlipSizeByRotation(
 		data.yuv420->size,
 		data.rotation);
+	const auto tileSize = geometry.size();
 	const auto swap = (((data.rotation / 90) % 2) == 1);
-	const auto expand = !_owner->wide()/* && !tile->screencast()*/;
-	auto texCoords = CountTexCoords(unscaled, geometry.size(), expand, swap);
+	const auto expand = !tile->screencast()
+		&& (!_owner->wide() || UseExpandForCamera(unscaled, tileSize));
+	auto texCoords = CountTexCoords(unscaled, tileSize, expand, swap);
 	auto blurTexCoords = expand
 		? texCoords
-		: CountTexCoords(unscaled, geometry.size(), true);
+		: CountTexCoords(unscaled, tileSize, true);
 	const auto rect = transformRect(geometry);
 	auto toBlurTexCoords = std::array<std::array<GLfloat, 2>, 4> { {
 		{ { 0.f, 1.f } },

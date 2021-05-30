@@ -102,6 +102,7 @@ private:
 	rpl::event_stream<> _enlargeVideoClicks;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;
 	RpWidget *_topSkip = nullptr;
+	RpWidget *_bottomSkip = nullptr;
 	ListWidget *_list = nullptr;
 	rpl::event_stream<> _addMemberRequests;
 

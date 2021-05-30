@@ -529,11 +529,15 @@ void GroupCall::toggleScreenSharing(std::optional<QString> uniqueId) {
 }
 
 bool GroupCall::hasVideoWithFrames() const {
-	return _hasVideoWithFrames.current();
+	return !_shownVideoTracks.empty();
 }
 
 rpl::producer<bool> GroupCall::hasVideoWithFramesValue() const {
-	return _hasVideoWithFrames.value();
+	return _videoStreamShownUpdates.events_starting_with(
+		VideoActiveToggle()
+	) | rpl::map([=] {
+		return hasVideoWithFrames();
+	}) | rpl::distinct_until_changed();
 }
 
 void GroupCall::setScheduledDate(TimeId date) {
@@ -586,8 +590,16 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 			? regularEndpoint(data.now->cameraEndpoint())
 			: EmptyString();
 		if (wasCameraEndpoint != nowCameraEndpoint) {
-			markEndpointActive({ peer, nowCameraEndpoint }, true);
-			markEndpointActive({ peer, wasCameraEndpoint }, false);
+			markEndpointActive({
+				VideoEndpointType::Camera,
+				peer,
+				nowCameraEndpoint
+			}, true);
+			markEndpointActive({
+				VideoEndpointType::Camera,
+				peer,
+				wasCameraEndpoint
+			}, false);
 		}
 		const auto &wasScreenEndpoint = data.was
 			? regularEndpoint(data.was->screenEndpoint())
@@ -596,8 +608,16 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 			? regularEndpoint(data.now->screenEndpoint())
 			: EmptyString();
 		if (wasScreenEndpoint != nowScreenEndpoint) {
-			markEndpointActive({ peer, nowScreenEndpoint }, true);
-			markEndpointActive({ peer, wasScreenEndpoint }, false);
+			markEndpointActive({
+				VideoEndpointType::Screen,
+				peer,
+				nowScreenEndpoint
+			}, true);
+			markEndpointActive({
+				VideoEndpointType::Screen,
+				peer,
+				wasScreenEndpoint
+			}, false);
 		}
 	}, _lifetime);
 
@@ -792,14 +812,22 @@ void GroupCall::setScreenEndpoint(std::string endpoint) {
 		return;
 	}
 	if (!_screenEndpoint.empty()) {
-		markEndpointActive({ _joinAs, _screenEndpoint }, false);
+		markEndpointActive({
+			VideoEndpointType::Screen,
+			_joinAs,
+			_screenEndpoint
+		}, false);
 	}
 	_screenEndpoint = std::move(endpoint);
 	if (_screenEndpoint.empty()) {
 		return;
 	}
 	if (isSharingScreen()) {
-		markEndpointActive({ _joinAs, _screenEndpoint }, true);
+		markEndpointActive({
+			VideoEndpointType::Screen,
+			_joinAs,
+			_screenEndpoint
+		}, true);
 	}
 }
 
@@ -808,14 +836,22 @@ void GroupCall::setCameraEndpoint(std::string endpoint) {
 		return;
 	}
 	if (!_cameraEndpoint.empty()) {
-		markEndpointActive({ _joinAs, _cameraEndpoint }, false);
+		markEndpointActive({
+			VideoEndpointType::Camera,
+			_joinAs,
+			_cameraEndpoint
+		}, false);
 	}
 	_cameraEndpoint = std::move(endpoint);
 	if (_cameraEndpoint.empty()) {
 		return;
 	}
 	if (isSharingCamera()) {
-		markEndpointActive({ _joinAs, _cameraEndpoint }, true);
+		markEndpointActive({
+			VideoEndpointType::Camera,
+			_joinAs,
+			_cameraEndpoint
+		}, true);
 	}
 }
 
@@ -848,7 +884,7 @@ void GroupCall::markEndpointActive(VideoEndpoint endpoint, bool active) {
 	if (!changed) {
 		return;
 	}
-	auto hasVideoWithFrames = _hasVideoWithFrames.current();
+	auto shown = false;
 	if (active) {
 		const auto i = _activeVideoTracks.emplace(
 			endpoint,
@@ -862,11 +898,11 @@ void GroupCall::markEndpointActive(VideoEndpoint endpoint, bool active) {
 		track->renderNextFrame(
 		) | rpl::start_with_next([=] {
 			if (!track->frameSize().isEmpty()) {
-				_hasVideoWithFrames = true;
+				markTrackShown(endpoint, true);
 			}
 		}, i->second.lifetime);
 		if (!track->frameSize().isEmpty()) {
-			hasVideoWithFrames = true;
+			shown = true;
 		}
 		addVideoOutput(i->first.id, { track->sink() });
 	} else {
@@ -874,17 +910,17 @@ void GroupCall::markEndpointActive(VideoEndpoint endpoint, bool active) {
 			_videoEndpointPinned = VideoEndpoint();
 		}
 		_activeVideoTracks.erase(i);
-		hasVideoWithFrames = false;
-		for (const auto &[endpoint, track] : _activeVideoTracks) {
-			if (!track.track->frameSize().isEmpty()) {
-				hasVideoWithFrames = true;
-				break;
-			}
-		}
 	}
 	updateRequestedVideoChannelsDelayed();
-	_videoStreamActiveUpdates.fire(std::move(endpoint));
-	_hasVideoWithFrames = hasVideoWithFrames;
+	_videoStreamActiveUpdates.fire({ endpoint, active });
+	markTrackShown(endpoint, shown);
+}
+
+void GroupCall::markTrackShown(const VideoEndpoint &endpoint, bool shown) {
+	if ((shown && _shownVideoTracks.emplace(endpoint).second)
+		|| (!shown && _shownVideoTracks.remove(endpoint))) {
+		_videoStreamShownUpdates.fire_copy({ endpoint, shown });
+	}
 }
 
 void GroupCall::rejoin() {
@@ -1746,7 +1782,11 @@ void GroupCall::ensureOutgoingVideo() {
 			_cameraCapture->setState(tgcalls::VideoState::Inactive);
 		}
 		_isSharingCamera = active;
-		markEndpointActive({ _joinAs, _cameraEndpoint }, active);
+		markEndpointActive({
+			VideoEndpointType::Camera,
+			_joinAs,
+			_cameraEndpoint
+		}, active);
 		sendSelfUpdate(SendUpdateType::VideoMuted);
 		applyMeInCallLocally();
 	}, _lifetime);
@@ -1785,7 +1825,11 @@ void GroupCall::ensureOutgoingVideo() {
 			_screenCapture->setState(tgcalls::VideoState::Inactive);
 		}
 		_isSharingScreen = active;
-		markEndpointActive({ _joinAs, _screenEndpoint }, active);
+		markEndpointActive({
+			VideoEndpointType::Screen,
+			_joinAs,
+			_screenEndpoint
+		}, active);
 		_screenJoinState.nextActionPending = true;
 		checkNextJoinAction();
 	}, _lifetime);
@@ -2172,22 +2216,23 @@ void GroupCall::fillActiveVideoEndpoints() {
 			markEndpointActive(std::move(endpoint), true);
 		}
 	};
+	using Type = VideoEndpointType;
 	for (const auto &participant : participants) {
 		const auto camera = participant.cameraEndpoint();
 		if (camera != _cameraEndpoint
 			&& camera != _screenEndpoint
 			&& participant.peer != _joinAs) {
-			feedOne({ participant.peer, camera });
+			feedOne({ Type::Camera, participant.peer, camera });
 		}
 		const auto screen = participant.screenEndpoint();
 		if (screen != _cameraEndpoint
 			&& screen != _screenEndpoint
 			&& participant.peer != _joinAs) {
-			feedOne({ participant.peer, screen });
+			feedOne({ Type::Screen, participant.peer, screen });
 		}
 	}
-	feedOne({ _joinAs, cameraSharingEndpoint() });
-	feedOne({ _joinAs, screenSharingEndpoint() });
+	feedOne({ Type::Camera, _joinAs, cameraSharingEndpoint() });
+	feedOne({ Type::Screen, _joinAs, screenSharingEndpoint() });
 	if (pinned && !pinnedFound) {
 		_videoEndpointPinned = VideoEndpoint();
 	}

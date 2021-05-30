@@ -53,6 +53,7 @@ public:
 		return _trackSize.value();
 	}
 
+	[[nodiscard]] bool screencast() const;
 	void setGeometry(QRect geometry);
 	void togglePinShown(bool shown);
 	bool updateRequestedQuality(VideoQuality quality);

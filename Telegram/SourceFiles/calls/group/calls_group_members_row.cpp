@@ -399,7 +399,7 @@ bool MembersRow::paintVideo(
 	//	.outer = QSize(sizew, sizeh) * cIntRetinaFactor(),
 	//};
 	//const auto frame = _videoTrackShown->frame(request);
-	//auto copy = frame; // #TODO calls optimize.
+	//auto copy = frame; // TODO calls optimize.
 	//copy.detach();
 	//if (mode == PanelMode::Default) {
 	//	Images::prepareCircle(copy);

@@ -977,8 +977,14 @@ void Panel::setupMembers() {
 	_startsWhen.destroy();
 
 	_members.create(widget(), _call, mode());
+
 	setupVideo(_viewport.get());
 	setupVideo(_members->viewport());
+	_viewport->mouseInsideValue(
+	) | rpl::start_with_next([=](bool inside) {
+		toggleWideControls(inside);
+	}, _viewport->lifetime());
+
 	_members->show();
 
 	refreshControlsBackground();
@@ -1135,9 +1141,10 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 		setupTile(endpoint, track);
 	}
 	_call->videoStreamActiveUpdates(
-	) | rpl::start_with_next([=](const VideoEndpoint &endpoint) {
-		if (_call->activeVideoTracks().contains(endpoint)) {
+	) | rpl::start_with_next([=](const VideoActiveToggle &update) {
+		if (update.active) {
 			// Add async (=> the participant row is definitely in Members).
+			const auto endpoint = update.endpoint;
 			crl::on_main(viewport->widget(), [=] {
 				const auto &tracks = _call->activeVideoTracks();
 				const auto i = tracks.find(endpoint);
@@ -1147,7 +1154,7 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 			});
 		} else {
 			// Remove sync.
-			viewport->remove(endpoint);
+			viewport->remove(update.endpoint);
 		}
 	}, viewport->lifetime());
 
@@ -1167,11 +1174,6 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 	viewport->qualityRequests(
 	) | rpl::start_with_next([=](const VideoQualityRequest &request) {
 		_call->requestVideoQuality(request.endpoint, request.quality);
-	}, viewport->lifetime());
-
-	viewport->mouseInsideValue(
-	) | rpl::start_with_next([=](bool inside) {
-		toggleWideControls(inside);
 	}, viewport->lifetime());
 }
 

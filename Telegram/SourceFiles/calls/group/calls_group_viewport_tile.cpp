@@ -46,6 +46,10 @@ int Viewport::VideoTile::pinSlide() const {
 		_pinShownAnimation.value(_pinShown ? 1. : 0.));
 }
 
+bool Viewport::VideoTile::screencast() const {
+	return (_endpoint.type == VideoEndpointType::Screen);
+}
+
 void Viewport::VideoTile::setGeometry(QRect geometry) {
 	_geometry = geometry;
 	updatePinnedGeometry();

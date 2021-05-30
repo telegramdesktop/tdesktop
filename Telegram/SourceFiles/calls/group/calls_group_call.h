@@ -76,7 +76,13 @@ struct LevelUpdate {
 	bool me = false;
 };
 
+enum class VideoEndpointType {
+	Camera,
+	Screen,
+};
+
 struct VideoEndpoint {
+	VideoEndpointType type = VideoEndpointType::Camera;
 	PeerData *peer = nullptr;
 	std::string id;
 
@@ -128,6 +134,11 @@ inline bool operator>=(
 struct VideoPinToggle {
 	VideoEndpoint endpoint;
 	bool pinned = false;
+};
+
+struct VideoActiveToggle {
+	VideoEndpoint endpoint;
+	bool active = false;
 };
 
 struct VideoQualityRequest {
@@ -283,8 +294,12 @@ public:
 		return _levelUpdates.events();
 	}
 	[[nodiscard]] auto videoStreamActiveUpdates() const
-	-> rpl::producer<VideoEndpoint> {
+	-> rpl::producer<VideoActiveToggle> {
 		return _videoStreamActiveUpdates.events();
+	}
+	[[nodiscard]] auto videoStreamShownUpdates() const
+	-> rpl::producer<VideoActiveToggle> {
+		return _videoStreamShownUpdates.events();
 	}
 	void pinVideoEndpoint(VideoEndpoint endpoint);
 	void requestVideoQuality(
@@ -316,6 +331,10 @@ public:
 	[[nodiscard]] auto activeVideoTracks() const
 	-> const base::flat_map<VideoEndpoint, VideoTrack> & {
 		return _activeVideoTracks;
+	}
+	[[nodiscard]] auto shownVideoTracks() const
+	-> const base::flat_set<VideoEndpoint> & {
+		return _shownVideoTracks;
 	}
 	[[nodiscard]] rpl::producer<Group::RejoinEvent> rejoinEvents() const {
 		return _rejoinEvents.events();
@@ -491,6 +510,7 @@ private:
 	void addVideoOutput(const std::string &endpoint, SinkPointer sink);
 
 	void markEndpointActive(VideoEndpoint endpoint, bool active);
+	void markTrackShown(const VideoEndpoint &endpoint, bool shown);
 
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
@@ -560,10 +580,11 @@ private:
 	bool _requireARGB32 = true;
 
 	rpl::event_stream<LevelUpdate> _levelUpdates;
-	rpl::event_stream<VideoEndpoint> _videoStreamActiveUpdates;
+	rpl::event_stream<VideoActiveToggle> _videoStreamActiveUpdates;
+	rpl::event_stream<VideoActiveToggle> _videoStreamShownUpdates;
 	base::flat_map<VideoEndpoint, VideoTrack> _activeVideoTracks;
+	base::flat_set<VideoEndpoint> _shownVideoTracks;
 	rpl::variable<VideoEndpoint> _videoEndpointPinned;
-	rpl::variable<bool> _hasVideoWithFrames = false;
 	base::flat_map<uint32, Data::LastSpokeTimes> _lastSpoke;
 	rpl::event_stream<Group::RejoinEvent> _rejoinEvents;
 	rpl::event_stream<> _allowedToSpeakNotifications;

@@ -446,7 +446,7 @@ void Panel::refreshIncomingGeometry() {
 		to,
 		Qt::KeepAspectRatioByExpanding);
 
-	// If we cut out no more than 0.33 of the original, let's use expanding.
+	// If we cut out no more than 0.25 of the original, let's use expanding.
 	const auto use = ((big.width() * 3 <= to.width() * 4)
 		&& (big.height() * 3 <= to.height() * 4))
 		? big

@@ -533,7 +533,7 @@ void LinksController::rowClicked(not_null<PeerListRow*> row) {
 }
 
 void LinksController::rowActionClicked(not_null<PeerListRow*> row) {
-	delegate()->peerListShowRowMenu(row, nullptr);
+	delegate()->peerListShowRowMenu(row, true);
 }
 
 base::unique_qptr<Ui::PopupMenu> LinksController::rowContextMenu(

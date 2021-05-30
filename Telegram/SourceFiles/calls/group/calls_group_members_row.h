@@ -254,7 +254,7 @@ private:
 	//std::unique_ptr<Webrtc::VideoTrack> _videoTrack;
 	//Webrtc::VideoTrack *_videoTrackShown = nullptr;
 	//std::string _videoTrackEndpoint;
-	//rpl::lifetime _videoTrackLifetime; // #TODO calls move to unique_ptr.
+	//rpl::lifetime _videoTrackLifetime; // TODO calls move to unique_ptr.
 	Ui::Animations::Simple _speakingAnimation; // For gray-red/green icon.
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
