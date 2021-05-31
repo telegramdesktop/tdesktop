@@ -331,7 +331,10 @@ void Viewport::RendererGL::init(
 	_imageProgram.emplace();
 	LinkProgram(
 		&*_imageProgram,
-		_frameVertexShader,
+		VertexShader({
+			VertexViewportTransform(),
+			VertexPassTextureCoord(),
+		}),
 		FragmentShader({
 			FragmentSampleARGB32Texture(),
 		}));
