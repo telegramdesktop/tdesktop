@@ -31,6 +31,13 @@ private:
 		const QRect &clip,
 		bool opengl,
 		QRegion &bg);
+	void paintTileOutline(
+		Painter &p,
+		int x,
+		int y,
+		int width,
+		int height,
+		not_null<VideoTile*> tile);
 	void paintTileControls(
 		Painter &p,
 		int x,

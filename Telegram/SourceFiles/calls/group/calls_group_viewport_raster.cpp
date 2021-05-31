@@ -110,6 +110,31 @@ void Viewport::Renderer::paintTile(
 	}
 
 	paintTileControls(p, x, y, width, height, tile);
+	paintTileOutline(p, x, y, width, height, tile);
+}
+
+void Viewport::Renderer::paintTileOutline(
+		Painter &p,
+		int x,
+		int y,
+		int width,
+		int height,
+		not_null<VideoTile*> tile) {
+	if (!tile->row()->speaking()) {
+		return;
+	}
+	const auto outline = st::groupCallOutline;
+	const auto &color = st::groupCallMemberActiveIcon;
+	p.setPen(Qt::NoPen);
+	p.fillRect(x, y, outline, height - outline, color);
+	p.fillRect(x + outline, y, width - outline, outline, color);
+	p.fillRect(
+		x + width - outline,
+		y + outline,
+		outline,
+		height - outline,
+		color);
+	p.fillRect(x, y + height - outline, width - outline, outline, color);
 }
 
 void Viewport::Renderer::paintTileControls(
