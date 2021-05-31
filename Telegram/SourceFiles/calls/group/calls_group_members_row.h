@@ -73,7 +73,6 @@ public:
 		Inactive,
 		Muted,
 		RaisedHand,
-		MutedByMe,
 		Invited,
 	};
 
@@ -94,6 +93,9 @@ public:
 	}
 	[[nodiscard]] bool speaking() const {
 		return _speaking;
+	}
+	[[nodiscard]] bool mutedByMe() const {
+		return _mutedByMe;
 	}
 	[[nodiscard]] crl::time speakingLastTime() const {
 		return _speakingLastTime;
@@ -212,10 +214,11 @@ private:
 	uint64 _raisedHandRating = 0;
 	uint32 _ssrc = 0;
 	int _volume = Group::kDefaultVolume;
-	bool _sounding = false;
-	bool _speaking = false;
-	bool _raisedHandStatus = false;
-	bool _skipLevelUpdate = false;
+	bool _sounding : 1;
+	bool _speaking : 1;
+	bool _raisedHandStatus : 1;
+	bool _skipLevelUpdate : 1;
+	bool _mutedByMe : 1;
 
 };
 

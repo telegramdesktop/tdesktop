@@ -1299,16 +1299,14 @@ void Members::Controller::addMuteActionsToContextMenu(
 		not_null<PeerData*> participantPeer,
 		bool participantIsCallAdmin,
 		not_null<Row*> row) {
-	const auto muteString = [=] {
-		return (_peer->canManageGroupCall()
-			? tr::lng_group_call_context_mute
-			: tr::lng_group_call_context_mute_for_me)(tr::now);
-	};
-
-	const auto unmuteString = [=] {
-		return (_peer->canManageGroupCall()
-			? tr::lng_group_call_context_unmute
-			: tr::lng_group_call_context_unmute_for_me)(tr::now);
+	const auto muteUnmuteString = [=](bool muted, bool mutedByMe) {
+		return (muted && _peer->canManageGroupCall())
+			? tr::lng_group_call_context_unmute(tr::now)
+			: mutedByMe
+			? tr::lng_group_call_context_unmute_for_me(tr::now)
+			: _peer->canManageGroupCall()
+			? tr::lng_group_call_context_mute(tr::now)
+			: tr::lng_group_call_context_mute_for_me(tr::now);
 	};
 
 	const auto toggleMute = crl::guard(this, [=](bool mute, bool local) {
@@ -1329,13 +1327,13 @@ void Members::Controller::addMuteActionsToContextMenu(
 	});
 
 	const auto muteState = row->state();
-	const auto isMuted = (muteState == Row::State::Muted)
-		|| (muteState == Row::State::RaisedHand)
-		|| (muteState == Row::State::MutedByMe);
+	const auto muted = (muteState == Row::State::Muted)
+		|| (muteState == Row::State::RaisedHand);
+	const auto mutedByMe = row->mutedByMe();
 
 	auto mutesFromVolume = rpl::never<bool>() | rpl::type_erased();
 
-	if (!isMuted || _call->joinAs() == participantPeer) {
+	if (!muted || _call->joinAs() == participantPeer) {
 		auto otherParticipantStateValue
 			= _call->otherParticipantStateValue(
 		) | rpl::filter([=](const Group::ParticipantState &data) {
@@ -1348,7 +1346,7 @@ void Members::Controller::addMuteActionsToContextMenu(
 			otherParticipantStateValue,
 			row->volume(),
 			Group::kMaxVolume,
-			isMuted);
+			muted);
 
 		mutesFromVolume = volumeItem->toggleMuteRequests();
 
@@ -1397,20 +1395,32 @@ void Members::Controller::addMuteActionsToContextMenu(
 		auto callback = [=] {
 			const auto state = row->state();
 			const auto muted = (state == Row::State::Muted)
-				|| (state == Row::State::RaisedHand)
-				|| (state == Row::State::MutedByMe);
-			toggleMute(!muted, false);
+				|| (state == Row::State::RaisedHand);
+			const auto mutedByMe = row->mutedByMe();
+			toggleMute(!mutedByMe && (!_call->canManage() || !muted), false);
 		};
 		return menu->addAction(
-			isMuted ? unmuteString() : muteString(),
+			muteUnmuteString(muted, mutedByMe),
 			std::move(callback));
 	}();
 
 	if (muteAction) {
 		std::move(
 			mutesFromVolume
-		) | rpl::start_with_next([=](bool muted) {
-			muteAction->setText(muted ? unmuteString() : muteString());
+		) | rpl::start_with_next([=](bool mutedFromVolume) {
+			const auto state = _call->canManage()
+				? (mutedFromVolume
+					? (row->raisedHandRating()
+						? Row::State::RaisedHand
+						: Row::State::Muted)
+					: Row::State::Inactive)
+				: row->state();
+			const auto muted = (state == Row::State::Muted)
+				|| (state == Row::State::RaisedHand);
+			const auto mutedByMe = _call->canManage()
+				? false
+				: mutedFromVolume;
+			muteAction->setText(muteUnmuteString(muted, mutedByMe));
 		}, menu->lifetime());
 	}
 }

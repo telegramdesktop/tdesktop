@@ -126,7 +126,12 @@ MembersRow::MembersRow(
 	not_null<MembersRowDelegate*> delegate,
 	not_null<PeerData*> participantPeer)
 : PeerListRow(participantPeer)
-, _delegate(delegate) {
+, _delegate(delegate)
+, _sounding(false)
+, _speaking(false)
+, _raisedHandStatus(false)
+, _skipLevelUpdate(false)
+, _mutedByMe(false) {
 	refreshStatus();
 	_aboutText = participantPeer->about();
 }
@@ -147,25 +152,27 @@ void MembersRow::updateState(
 		setState(State::Invited);
 		setSounding(false);
 		setSpeaking(false);
+		_mutedByMe = false;
 		_raisedHandRating = 0;
 	} else if (!participant->muted
 		|| (participant->sounding && participant->ssrc != 0)) {
-		setState(participant->mutedByMe ? State::MutedByMe : State::Active);
+		setState(State::Active);
 		setSounding(participant->sounding && participant->ssrc != 0);
 		setSpeaking(participant->speaking && participant->ssrc != 0);
+		_mutedByMe = participant->mutedByMe;
 		_raisedHandRating = 0;
 	} else if (participant->canSelfUnmute) {
-		setState(participant->mutedByMe
-			? State::MutedByMe
-			: State::Inactive);
+		setState(State::Inactive);
 		setSounding(false);
 		setSpeaking(false);
+		_mutedByMe = participant->mutedByMe;
 		_raisedHandRating = 0;
 	} else {
-		_raisedHandRating = participant->raisedHandRating;
-		setState(_raisedHandRating ? State::RaisedHand : State::Muted);
 		setSounding(false);
 		setSpeaking(false);
+		_mutedByMe = participant->mutedByMe;
+		_raisedHandRating = participant->raisedHandRating;
+		setState(_raisedHandRating ? State::RaisedHand : State::Muted);
 	}
 	refreshStatus();
 }
@@ -182,7 +189,7 @@ void MembersRow::setSpeaking(bool speaking) {
 		st::widgetFadeDuration);
 
 	if (!_speaking
-		|| (_state == State::MutedByMe)
+		|| _mutedByMe
 		|| (_state == State::Muted)
 		|| (_state == State::RaisedHand)) {
 		if (_statusIcon) {
@@ -381,11 +388,10 @@ void MembersRow::paintBlobs(
 		return;
 	}
 	auto size = sizew;
-	const auto mutedByMe = (_state == State::MutedByMe);
 	const auto shift = QPointF(x + size / 2., y + size / 2.);
 	auto hq = PainterHighQualityEnabler(p);
 	p.translate(shift);
-	const auto brush = mutedByMe
+	const auto brush = _mutedByMe
 		? st::groupCallMemberMutedIcon->b
 		: anim::brush(
 			st::groupCallMemberInactiveStatus,
@@ -614,7 +620,7 @@ void MembersRow::paintComplexStatusText(
 		: QString();
 	if (about.isEmpty()
 		&& _state != State::Invited
-		&& _state != State::MutedByMe) {
+		&& !_mutedByMe) {
 		paintStatusIcon(p, x, y, st, font, selected, narrowMode);
 
 		const auto translatedWidth = statusIconWidth(narrowMode);
@@ -640,7 +646,7 @@ void MembersRow::paintComplexStatusText(
 	p.setFont(font);
 	if (style == MembersRowStyle::Video) {
 		p.setPen(st::groupCallVideoSubTextFg);
-	} else if (_state == State::MutedByMe) {
+	} else if (_mutedByMe) {
 		p.setPen(st::groupCallMemberMutedIcon);
 	} else {
 		p.setPen(st::groupCallMemberNotJoinedStatus);
@@ -649,7 +655,7 @@ void MembersRow::paintComplexStatusText(
 		x,
 		y,
 		outerWidth,
-		(_state == State::MutedByMe
+		(_mutedByMe
 			? tr::lng_group_call_muted_by_me_status(tr::now)
 			: !about.isEmpty()
 			? font->m.elidedText(about, Qt::ElideRight, availableWidth)
@@ -715,12 +721,11 @@ MembersRowDelegate::IconState MembersRow::computeIconState(
 		(_state == State::Active) ? 1. : 0.);
 	const auto muted = _mutedAnimation.value(
 		(_state == State::Muted || _state == State::RaisedHand) ? 1. : 0.);
-	const auto mutedByMe = (_state == State::MutedByMe);
 	return {
 		.speaking = speaking,
 		.active = active,
 		.muted = muted,
-		.mutedByMe = (_state == State::MutedByMe),
+		.mutedByMe = _mutedByMe,
 		.raisedHand = (_state == State::RaisedHand),
 		.invited = (_state == State::Invited),
 		.style = style,
