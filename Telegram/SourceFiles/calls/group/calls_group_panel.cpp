@@ -764,14 +764,17 @@ void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
 		&& real
 		&& real->canStartVideo();
 	const auto create = overrideWideMode.value_or(mode() == PanelMode::Wide)
-		|| canStartVideo;
+		|| canStartVideo
+		|| _call->isSharingCamera();
 	const auto created = _video && _screenShare;
 	if (created == create) {
 		return;
 	} else if (created) {
 		_video.destroy();
 		_screenShare.destroy();
-		updateButtonsGeometry();
+		if (!overrideWideMode) {
+			updateButtonsGeometry();
+		}
 		return;
 	}
 	auto toggleableOverrides = [&](rpl::producer<bool> active) {
@@ -1275,9 +1278,17 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	}, widget()->lifetime());
 	validateRecordingMark(real->recordStartDate() != 0);
 
-	real->canStartVideoValue(
+	rpl::combine(
+		real->canStartVideoValue(),
+		_call->isSharingCameraValue()
 	) | rpl::start_with_next([=] {
 		refreshVideoButtons();
+	}, widget()->lifetime());
+
+	rpl::combine(
+		real->canStartVideoValue(),
+		_call->isSharingScreenValue()
+	) | rpl::start_with_next([=] {
 		refreshTopButton();
 	}, widget()->lifetime());
 
@@ -1295,7 +1306,8 @@ void Panel::refreshTopButton() {
 	const auto hasJoinAs = _call->showChooseJoinAs();
 	const auto wide = (_mode.current() == PanelMode::Wide);
 	const auto showNarrowMenu = _call->canManage()
-		|| (real && real->canStartVideo());
+		|| (real && real->canStartVideo())
+		|| _call->isSharingScreen();
 	const auto showNarrowUserpic = !showNarrowMenu && hasJoinAs;
 	if (showNarrowMenu) {
 		_joinAsToggle.destroy();
@@ -1333,9 +1345,42 @@ void Panel::refreshTopButton() {
 }
 
 void Panel::chooseShareScreenSource() {
-	if (!_call->emitShareScreenError()) {
-		Ui::DesktopCapture::ChooseSource(this);
+	if (_call->emitShareScreenError()) {
+		return;
 	}
+	const auto choose = [=] {
+		Ui::DesktopCapture::ChooseSource(this);
+	};
+	const auto screencastFromPeer = [&]() -> PeerData* {
+		for (const auto &[endpoint, track] : _call->activeVideoTracks()) {
+			if (endpoint.type == VideoEndpointType::Screen) {
+				return endpoint.peer;
+			}
+		}
+		return nullptr;
+	}();
+	if (!screencastFromPeer) {
+		choose();
+		return;
+	}
+	const auto text = tr::lng_group_call_sure_screencast(
+		tr::now,
+		lt_user,
+		screencastFromPeer->shortName());
+	const auto shared = std::make_shared<QPointer<Ui::GenericBox>>();
+	const auto done = [=] {
+		if (*shared) {
+			base::take(*shared)->closeBox();
+		}
+		choose();
+	};
+	auto box = ConfirmBox({
+		.text = { text },
+		.button = tr::lng_continue(),
+		.callback = done,
+	});
+	*shared = box.data();
+	_layerBg->showBox(std::move(box));
 }
 
 void Panel::chooseJoinAs() {
