@@ -951,9 +951,14 @@ void GroupCall::markEndpointActive(VideoEndpoint endpoint, bool active) {
 }
 
 void GroupCall::markTrackShown(const VideoEndpoint &endpoint, bool shown) {
-	if ((shown && _shownVideoTracks.emplace(endpoint).second)
-		|| (!shown && _shownVideoTracks.remove(endpoint))) {
+	const auto changed = shown
+		? _shownVideoTracks.emplace(endpoint).second
+		: _shownVideoTracks.remove(endpoint);
+	if (changed) {
 		_videoStreamShownUpdates.fire_copy({ endpoint, shown });
+	}
+	if (shown && changed && endpoint.type == VideoEndpointType::Screen) {
+		pinVideoEndpoint(endpoint);
 	}
 }
 
