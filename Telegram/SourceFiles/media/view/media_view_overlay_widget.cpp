@@ -3222,7 +3222,8 @@ Ui::GL::ChosenRenderer OverlayWidget::chooseRenderer(
 }
 
 void OverlayWidget::paint(Painter &p, const QRegion &clip) {
-	if (_hideWorkaround) {
+	if (_hideWorkaround && !Platform::IsMac()) {
+		// This glitches on macOS, it shows old content while animating hide.
 		p.setCompositionMode(QPainter::CompositionMode_Source);
 		p.fillRect(_widget->rect(), st::transparent);
 		return;
