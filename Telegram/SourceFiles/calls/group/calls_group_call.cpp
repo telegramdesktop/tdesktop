@@ -555,6 +555,20 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 		setScheduledDate(date);
 	}, _lifetime);
 
+	// If we joined before you could start video and then you can,
+	// you have to rejoin so that the server knows your video params.
+	real->canStartVideoValue(
+	) | rpl::combine_previous(
+	) | rpl::start_with_next([=](bool could, bool can) {
+		if (could || !can) {
+			return;
+		} if (_joinState.action == JoinAction::None) {
+			rejoin();
+		} else {
+			_joinState.nextActionPending = true;
+		}
+	}, _lifetime);
+
 	// Postpone creating video tracks, so that we know if Panel
 	// supports OpenGL and we don't need ARGB32 frames at all.
 	Ui::PostponeCall(this, [=] {
