@@ -50,6 +50,8 @@ public:
 
 	// corners[(CircleMask value) * MaskMultiplier | (CornerVerticalSide value) | (CornerHorizontalSide value)]
 	QPixmap corners[8];
+
+	base::flat_map<std::pair<int, uint32>, QPixmap> overridenCorners;
 };
 Data::GlobalStructurePointer<ServiceMessageStyleData> serviceMessageStyle;
 
@@ -86,10 +88,20 @@ void createCircleMasks() {
 	serviceMessageStyle->circle[InvertedMask] = style::createInvertedCircleMask(sizeInverted);
 }
 
-QPixmap circleCorner(int corner) {
-	if (serviceMessageStyle->corners[corner].isNull()) {
+uint32 ColorToUint(const style::color &bg) {
+	const auto &c = bg->c;
+	return c.red() << 24 | c.green() << 16 | c.blue() << 8 | c.alpha();
+}
+
+QPixmap circleCorner(int corner, const style::color &bg) {
+	auto &currentCorner = (bg == st::msgServiceBg)
+		? serviceMessageStyle->corners[corner]
+		: serviceMessageStyle->overridenCorners[{ corner, ColorToUint(bg) }];
+	if (currentCorner.isNull()) {
 		int maskType = corner / MaskMultiplier;
-		int radius = (maskType == NormalMask ? historyServiceMsgRadius() : historyServiceMsgInvertedRadius());
+		int radius = (maskType == NormalMask
+			? historyServiceMsgRadius()
+			: historyServiceMsgInvertedRadius());
 		int size = radius * cIntRetinaFactor();
 
 		int xoffset = 0, yoffset = 0;
@@ -100,11 +112,14 @@ QPixmap circleCorner(int corner) {
 			yoffset = size;
 		}
 		auto part = QRect(xoffset, yoffset, size, size);
-		auto result = style::colorizeImage(serviceMessageStyle->circle[maskType], st::msgServiceBg, part);
+		auto result = style::colorizeImage(
+			serviceMessageStyle->circle[maskType],
+			bg,
+			part);
 		result.setDevicePixelRatio(cRetinaFactor());
-		serviceMessageStyle->corners[corner] = App::pixmapFromImageInPlace(std::move(result));
+		currentCorner = App::pixmapFromImageInPlace(std::move(result));
 	}
-	return serviceMessageStyle->corners[corner];
+	return currentCorner;
 }
 
 enum class SideStyle {
@@ -114,38 +129,63 @@ enum class SideStyle {
 };
 
 // Returns amount of pixels already painted vertically (so you can skip them in the complex rect shape).
-int paintBubbleSide(Painter &p, int x, int y, int width, SideStyle style, CornerVerticalSide side) {
+int paintBubbleSide(
+		Painter &p,
+		int x,
+		int y,
+		int width,
+		SideStyle style,
+		CornerVerticalSide side,
+		const style::color &bg) {
 	if (style == SideStyle::Rounded) {
-		auto left = circleCorner((NormalMask * MaskMultiplier) | side | CornerLeft);
+		const auto corner = (NormalMask * MaskMultiplier) | side;
+		auto left = circleCorner(corner | CornerLeft, bg);
 		int leftWidth = left.width() / cIntRetinaFactor();
 		p.drawPixmap(x, y, left);
 
-		auto right = circleCorner((NormalMask * MaskMultiplier) | side | CornerRight);
+		auto right = circleCorner(corner | CornerRight, bg);
 		int rightWidth = right.width() / cIntRetinaFactor();
 		p.drawPixmap(x + width - rightWidth, y, right);
 
 		int cornerHeight = left.height() / cIntRetinaFactor();
-		p.fillRect(x + leftWidth, y, width - leftWidth - rightWidth, cornerHeight, st::msgServiceBg);
+		p.fillRect(
+			x + leftWidth,
+			y,
+			width - leftWidth - rightWidth,
+			cornerHeight,
+			bg);
 		return cornerHeight;
 	} else if (style == SideStyle::Inverted) {
 		// CornerLeft and CornerRight are inverted for SideStyle::Inverted sprites.
-		auto left = circleCorner((InvertedMask * MaskMultiplier) | side | CornerRight);
+		const auto corner = (InvertedMask * MaskMultiplier) | side;
+		auto left = circleCorner(corner | CornerRight, bg);
 		int leftWidth = left.width() / cIntRetinaFactor();
 		p.drawPixmap(x - leftWidth, y, left);
 
-		auto right = circleCorner((InvertedMask * MaskMultiplier) | side | CornerLeft);
+		auto right = circleCorner(corner | CornerLeft, bg);
 		p.drawPixmap(x + width, y, right);
 	}
 	return 0;
 }
 
-void paintBubblePart(Painter &p, int x, int y, int width, int height, SideStyle topStyle, SideStyle bottomStyle, bool forceShrink = false) {
-	if (topStyle == SideStyle::Inverted || bottomStyle == SideStyle::Inverted || forceShrink) {
+void paintBubblePart(
+		Painter &p,
+		int x,
+		int y,
+		int width,
+		int height,
+		SideStyle topStyle,
+		SideStyle bottomStyle,
+		const style::color &bg,
+		bool forceShrink = false) {
+	if ((topStyle == SideStyle::Inverted)
+		|| (bottomStyle == SideStyle::Inverted)
+		|| forceShrink) {
 		width -= historyServiceMsgInvertedShrink() * 2;
 		x += historyServiceMsgInvertedShrink();
 	}
 
-	if (int skip = paintBubbleSide(p, x, y, width, topStyle, CornerTop)) {
+	if (int skip = paintBubbleSide(p, x, y, width, topStyle, CornerTop, bg)) {
 		y += skip;
 		height -= skip;
 	}
@@ -155,14 +195,28 @@ void paintBubblePart(Painter &p, int x, int y, int width, int height, SideStyle 
 	} else if (bottomStyle == SideStyle::Inverted) {
 		bottomSize = historyServiceMsgInvertedRadius();
 	}
-	if (int skip = paintBubbleSide(p, x, y + height - bottomSize, width, bottomStyle, CornerBottom)) {
+	const auto skip = paintBubbleSide(
+		p,
+		x,
+		y + height - bottomSize,
+		width,
+		bottomStyle,
+		CornerBottom,
+		bg);
+	if (skip) {
 		height -= skip;
 	}
 
-	p.fillRect(x, y, width, height, st::msgServiceBg);
+	p.fillRect(x, y, width, height, bg);
 }
 
-void paintPreparedDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w) {
+void paintPreparedDate(
+		Painter &p,
+		const QString &dateText,
+		int dateTextWidth,
+		int y,
+		int w,
+		const style::color &bg) {
 	int left = st::msgServiceMargin.left();
 	int maxwidth = w;
 	if (Core::App().settings().chatWide()) {
@@ -172,7 +226,15 @@ void paintPreparedDate(Painter &p, const QString &dateText, int dateTextWidth, i
 
 	left += (w - dateTextWidth - st::msgServicePadding.left() - st::msgServicePadding.right()) / 2;
 	int height = st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
-	ServiceMessagePainter::paintBubble(p, left, y + st::msgServiceMargin.top(), dateTextWidth + st::msgServicePadding.left() + st::msgServicePadding.left(), height);
+	ServiceMessagePainter::paintBubble(
+		p,
+		left,
+		y + st::msgServiceMargin.top(),
+		dateTextWidth
+			+ st::msgServicePadding.left()
+			+ st::msgServicePadding.left(),
+		height,
+		bg);
 
 	p.setFont(st::msgServiceFont);
 	p.setPen(st::msgServiceFg);
@@ -194,27 +256,69 @@ int WideChatWidth() {
 	return st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left();
 }
 
-void ServiceMessagePainter::paintDate(Painter &p, const QDateTime &date, int y, int w) {
-	auto dateText = langDayOfMonthFull(date.date());
-	auto dateTextWidth = st::msgServiceFont->width(dateText);
-	paintPreparedDate(p, dateText, dateTextWidth, y, w);
+void ServiceMessagePainter::paintDate(
+		Painter &p,
+		const QDateTime &date,
+		int y,
+		int w,
+		const style::color &bg) {
+	const auto dateText = langDayOfMonthFull(date.date());
+	const auto dateTextWidth = st::msgServiceFont->width(dateText);
+	paintPreparedDate(p, dateText, dateTextWidth, y, w, bg);
 }
 
-void ServiceMessagePainter::paintDate(Painter &p, const QString &dateText, int y, int w) {
-	paintPreparedDate(p, dateText, st::msgServiceFont->width(dateText), y, w);
+void ServiceMessagePainter::paintDate(
+		Painter &p,
+		const QString &dateText,
+		int y,
+		int w,
+		const style::color &bg) {
+	paintPreparedDate(
+		p,
+		dateText,
+		st::msgServiceFont->width(dateText),
+		y,
+		w,
+		bg);
 }
 
-void ServiceMessagePainter::paintDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w) {
-	paintPreparedDate(p, dateText, dateTextWidth, y, w);
+void ServiceMessagePainter::paintDate(
+		Painter &p,
+		const QString &dateText,
+		int dateTextWidth,
+		int y,
+		int w,
+		const style::color &bg) {
+	paintPreparedDate(p, dateText, dateTextWidth, y, w, bg);
 }
 
-void ServiceMessagePainter::paintBubble(Painter &p, int x, int y, int w, int h) {
+void ServiceMessagePainter::paintBubble(
+		Painter &p,
+		int x,
+		int y,
+		int w,
+		int h,
+		const style::color &bg) {
 	createCircleMasks();
 
-	paintBubblePart(p, x, y, w, h, SideStyle::Rounded, SideStyle::Rounded);
+	paintBubblePart(
+		p,
+		x,
+		y,
+		w,
+		h,
+		SideStyle::Rounded,
+		SideStyle::Rounded,
+		bg);
 }
 
-void ServiceMessagePainter::paintComplexBubble(Painter &p, int left, int width, const Ui::Text::String &text, const QRect &textRect) {
+void ServiceMessagePainter::paintComplexBubble(
+		Painter &p,
+		int left,
+		int width,
+		const Ui::Text::String &text,
+		const QRect &textRect,
+		const style::color &bg) {
 	createCircleMasks();
 
 	auto lineWidths = countLineWidths(text, textRect);
@@ -250,7 +354,16 @@ void ServiceMessagePainter::paintComplexBubble(Painter &p, int left, int width, 
 			richHeight -= st::msgServicePadding.top();
 		}
 		forceShrink = previousShrink && (richWidth == previousRichWidth);
-		paintBubblePart(p, left + ((width - richWidth) / 2), y, richWidth, richHeight, topStyle, bottomStyle, forceShrink);
+		paintBubblePart(
+			p,
+			left + ((width - richWidth) / 2),
+			y,
+			richWidth,
+			richHeight,
+			topStyle,
+			bottomStyle,
+			bg,
+			forceShrink);
 		y += richHeight;
 
 		previousShrink = forceShrink || (topStyle == SideStyle::Inverted) || (bottomStyle == SideStyle::Inverted);

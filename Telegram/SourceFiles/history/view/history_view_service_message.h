@@ -63,13 +63,41 @@ struct PaintContext {
 
 class ServiceMessagePainter {
 public:
-	static void paintDate(Painter &p, const QDateTime &date, int y, int w);
-	static void paintDate(Painter &p, const QString &dateText, int y, int w);
-	static void paintDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w);
+	static void paintDate(
+		Painter &p,
+		const QDateTime &date,
+		int y,
+		int w,
+		const style::color &bg = st::msgServiceBg);
+	static void paintDate(
+		Painter &p,
+		const QString &dateText,
+		int y,
+		int w,
+		const style::color &bg = st::msgServiceBg);
+	static void paintDate(
+		Painter &p,
+		const QString &dateText,
+		int dateTextWidth,
+		int y,
+		int w,
+		const style::color &bg = st::msgServiceBg);
 
-	static void paintBubble(Painter &p, int x, int y, int w, int h);
+	static void paintBubble(
+		Painter &p,
+		int x,
+		int y,
+		int w,
+		int h,
+		const style::color &bg = st::msgServiceBg);
 
-	static void paintComplexBubble(Painter &p, int left, int width, const Ui::Text::String &text, const QRect &textRect);
+	static void paintComplexBubble(
+		Painter &p,
+		int left,
+		int width,
+		const Ui::Text::String &text,
+		const QRect &textRect,
+		const style::color &bg = st::msgServiceBg);
 
 private:
 	static QVector<int> countLineWidths(const Ui::Text::String &text, const QRect &textRect);
