@@ -42,6 +42,9 @@ class ScrollArea;
 class GenericBox;
 class LayerManager;
 class GroupCallScheduledLeft;
+namespace Toast {
+class Instance;
+} // namespace Toast
 namespace Platform {
 class TitleControls;
 } // namespace Platform
@@ -54,6 +57,7 @@ struct CallBodyLayout;
 
 namespace Calls::Group {
 
+class Toasts;
 class Members;
 class Viewport;
 enum class PanelMode;
@@ -63,7 +67,11 @@ public:
 	Panel(not_null<GroupCall*> call);
 	~Panel();
 
+	[[nodiscard]] not_null<GroupCall*> call() const;
 	[[nodiscard]] bool isActive() const;
+
+	void showToast(TextWithEntities &&text, crl::time duration = 0);
+
 	void minimize();
 	void close();
 	void showAndActivate();
@@ -88,12 +96,6 @@ private:
 	void setupScheduledLabels(rpl::producer<TimeId> date);
 	void setupMembers();
 	void setupVideo(not_null<Viewport*> viewport);
-	void setupToasts();
-	void setupJoinAsChangedToasts();
-	void setupTitleChangedToasts();
-	void setupRequestedToSpeakToasts();
-	void setupAllowedToSpeakToasts();
-	void setupErrorToasts();
 	void setupRealMuteButtonState(not_null<Data::GroupCall*> real);
 
 	bool handleClose();
@@ -195,6 +197,9 @@ private:
 	object_ptr<Ui::CallButton> _hangup;
 	object_ptr<Ui::ImportantTooltip> _niceTooltip = { nullptr };
 	Fn<void()> _callShareLinkCallback;
+
+	const std::unique_ptr<Toasts> _toasts;
+	base::weak_ptr<Ui::Toast::Instance> _lastToast;
 
 	rpl::lifetime _peerLifetime;
 

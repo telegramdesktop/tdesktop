@@ -11,6 +11,7 @@
 #include "ui/effects/cross_line.h"
 #include "ui/effects/gradient.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/widgets/call_button.h"
 #include "ui/widgets/tooltip.h"
 #include "lottie/lottie_icon.h"
 
@@ -30,8 +31,6 @@ class AbstractButton;
 class FlatLabel;
 class RpWidget;
 class AnimatedLabel;
-
-struct CallButtonColors;
 
 enum class CallMuteButtonType {
 	Connecting,
@@ -179,7 +178,7 @@ private:
 	Animations::Simple _switchAnimation;
 	Animations::Simple _shakeAnimation;
 
-	rpl::event_stream<CallButtonColors> _colorOverrides;
+	rpl::variable<CallButtonColors> _colorOverrides;
 
 };
 

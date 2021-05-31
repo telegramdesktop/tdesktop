@@ -1139,7 +1139,7 @@ void CallMuteButton::overridesColors(
 	const auto toInactive = IsInactive(toType);
 	const auto fromInactive = IsInactive(fromType);
 	if (toInactive && (progress == 1)) {
-		_colorOverrides.fire({ std::nullopt, std::nullopt });
+		_colorOverrides = CallButtonColors();
 		return;
 	}
 	const auto &fromStops = _colors.find(fromType)->second.stops;
@@ -1158,11 +1158,11 @@ void CallMuteButton::overridesColors(
 	}
 	const auto resultBg = anim::color(from, to, progress);
 	const auto resultRipple = anim::color(fromRipple, toRipple, progress);
-	_colorOverrides.fire({ resultBg, resultRipple });
+	_colorOverrides = CallButtonColors{ resultBg, resultRipple };
 }
 
 rpl::producer<CallButtonColors> CallMuteButton::colorOverrides() const {
-	return _colorOverrides.events();
+	return _colorOverrides.value();
 }
 
 not_null<RpWidget*> CallMuteButton::outer() const {

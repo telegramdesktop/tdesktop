@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_settings.h"
 #include "calls/group/calls_group_menu.h"
 #include "calls/group/calls_group_viewport.h"
+#include "calls/group/calls_group_toasts.h"
 #include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/platform/ui_platform_utility.h"
@@ -27,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/layer_manager.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/round_rect.h"
 #include "ui/special_buttons.h"
@@ -68,7 +70,6 @@ constexpr auto kRecordingOpacity = 0.6;
 constexpr auto kStartNoConfirmation = TimeId(10);
 constexpr auto kControlsBackgroundOpacity = 0.8;
 constexpr auto kOverrideActiveColorBgAlpha = 172;
-constexpr auto kErrorDuration = 2 * crl::time(1000);
 
 class InviteController final : public ParticipantsBoxController {
 public:
@@ -421,7 +422,8 @@ Panel::Panel(not_null<GroupCall*> call)
 			? Ui::CallMuteButtonType::ScheduledNotify
 			: Ui::CallMuteButtonType::ScheduledSilent),
 	}))
-, _hangup(widget(), st::groupCallHangup) {
+, _hangup(widget(), st::groupCallHangup)
+, _toasts(std::make_unique<Toasts>(this)) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_layerBg->setHideByBackgroundClick(true);
 
@@ -441,7 +443,6 @@ Panel::Panel(not_null<GroupCall*> call)
 	initControls();
 	initLayout();
 	showAndActivate();
-	setupToasts();
 }
 
 Panel::~Panel() {
@@ -456,10 +457,25 @@ void Panel::setupRealCallViewers() {
 	}, _window->lifetime());
 }
 
+not_null<GroupCall*> Panel::call() const {
+	return _call;
+}
+
 bool Panel::isActive() const {
 	return _window->isActiveWindow()
 		&& _window->isVisible()
 		&& !(_window->windowState() & Qt::WindowMinimized);
+}
+
+void Panel::showToast(TextWithEntities &&text, crl::time duration) {
+	if (const auto strong = _lastToast.get()) {
+		strong->hideAnimated();
+	}
+	_lastToast = Ui::ShowMultilineToast({
+		.parentOverride = widget(),
+		.text = std::move(text),
+		.duration = duration,
+	});
 }
 
 void Panel::minimize() {
@@ -814,19 +830,16 @@ void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
 }
 
 void Panel::initShareAction() {
-	const auto showBox = [=](object_ptr<Ui::BoxContent> next) {
+	const auto showBoxCallback = [=](object_ptr<Ui::BoxContent> next) {
 		_layerBg->showBox(std::move(next));
 	};
-	const auto showToast = [=](QString text) {
-		Ui::ShowMultilineToast({
-			.parentOverride = widget(),
-			.text = { text },
-		});
+	const auto showToastCallback = [=](QString text) {
+		showToast({ text });
 	};
 	auto [shareLinkCallback, shareLinkLifetime] = ShareInviteLinkAction(
 		_peer,
-		showBox,
-		showToast);
+		showBoxCallback,
+		showToastCallback);
 	_callShareLinkCallback = [=, callback = std::move(shareLinkCallback)] {
 		if (_call->lookupReal()) {
 			callback();
@@ -1199,118 +1212,6 @@ void Panel::toggleWideControls(bool shown) {
 	});
 }
 
-void Panel::setupToasts() {
-	setupJoinAsChangedToasts();
-	setupTitleChangedToasts();
-	setupRequestedToSpeakToasts();
-	setupAllowedToSpeakToasts();
-	setupErrorToasts();
-}
-
-void Panel::setupJoinAsChangedToasts() {
-	_call->rejoinEvents(
-	) | rpl::filter([](RejoinEvent event) {
-		return (event.wasJoinAs != event.nowJoinAs);
-	}) | rpl::map([=] {
-		return _call->stateValue() | rpl::filter([](State state) {
-			return (state == State::Joined);
-		}) | rpl::take(1);
-	}) | rpl::flatten_latest() | rpl::start_with_next([=] {
-		Ui::ShowMultilineToast({
-			.parentOverride = widget(),
-			.text = tr::lng_group_call_join_as_changed(
-				tr::now,
-				lt_name,
-				Ui::Text::Bold(_call->joinAs()->name),
-				Ui::Text::WithEntities),
-		});
-	}, widget()->lifetime());
-}
-
-void Panel::setupTitleChangedToasts() {
-	_call->titleChanged(
-	) | rpl::filter([=] {
-		return (_call->lookupReal() != nullptr);
-	}) | rpl::map([=] {
-		return _peer->groupCall()->title().isEmpty()
-			? _peer->name
-			: _peer->groupCall()->title();
-	}) | rpl::start_with_next([=](const QString &title) {
-		Ui::ShowMultilineToast({
-			.parentOverride = widget(),
-			.text = tr::lng_group_call_title_changed(
-				tr::now,
-				lt_title,
-				Ui::Text::Bold(title),
-				Ui::Text::WithEntities),
-		});
-	}, widget()->lifetime());
-}
-
-void Panel::setupAllowedToSpeakToasts() {
-	_call->allowedToSpeakNotifications(
-	) | rpl::start_with_next([=] {
-		if (isActive()) {
-			Ui::ShowMultilineToast({
-				.parentOverride = widget(),
-				.text = { tr::lng_group_call_can_speak_here(tr::now) },
-			});
-		} else {
-			const auto real = _call->lookupReal();
-			const auto name = (real && !real->title().isEmpty())
-				? real->title()
-				: _peer->name;
-			Ui::ShowMultilineToast({
-				.text = tr::lng_group_call_can_speak(
-					tr::now,
-					lt_chat,
-					Ui::Text::Bold(name),
-					Ui::Text::WithEntities),
-			});
-		}
-	}, widget()->lifetime());
-}
-
-void Panel::setupRequestedToSpeakToasts() {
-	_call->mutedValue(
-	) | rpl::combine_previous(
-	) | rpl::start_with_next([=](MuteState was, MuteState now) {
-		if (was == MuteState::ForceMuted && now == MuteState::RaisedHand) {
-			Ui::ShowMultilineToast({
-				.parentOverride = widget(),
-				.text = tr::lng_group_call_tooltip_raised_hand(tr::now),
-			});
-		}
-	}, widget()->lifetime());
-}
-
-void Panel::setupErrorToasts() {
-	_call->errors(
-	) | rpl::start_with_next([=](Error error) {
-		const auto key = [&] {
-			switch (error) {
-			case Error::NoCamera: return tr::lng_call_error_no_camera;
-			case Error::ScreenFailed:
-				return tr::lng_group_call_failed_screen;
-			case Error::MutedNoCamera:
-				return tr::lng_group_call_muted_no_camera;
-			case Error::MutedNoScreen:
-				return tr::lng_group_call_muted_no_screen;
-			case Error::DisabledNoCamera:
-				return tr::lng_group_call_chat_no_camera;
-			case Error::DisabledNoScreen:
-				return tr::lng_group_call_chat_no_screen;
-			}
-			Unexpected("Error in Calls::Group::Panel::setupErrorToasts.");
-		}();
-		Ui::ShowMultilineToast({
-			.parentOverride = widget(),
-			.text = { key(tr::now) },
-			.duration = kErrorDuration,
-		});
-	}, widget()->lifetime());
-}
-
 void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	const auto validateRecordingMark = [=](bool recording) {
 		if (!recording && _recordingMark) {
@@ -1328,10 +1229,7 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 			const auto skip = st::groupCallRecordingMarkSkip;
 			_recordingMark->resize(size + 2 * skip, size + 2 * skip);
 			_recordingMark->setClickedCallback([=] {
-				Ui::ShowMultilineToast({
-					.parentOverride = widget(),
-					.text = { tr::lng_group_call_is_recorded(tr::now) },
-				});
+				showToast({ tr::lng_group_call_is_recorded(tr::now) });
 			});
 			const auto animate = [=] {
 				const auto opaque = state->opaque;
@@ -1367,16 +1265,13 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool recorded) {
 		validateRecordingMark(recorded);
-		Ui::ShowMultilineToast({
-			.parentOverride = widget(),
-			.text = (recorded
-				? tr::lng_group_call_recording_started
-				: _call->recordingStoppedByMe()
-				? tr::lng_group_call_recording_saved
-				: tr::lng_group_call_recording_stopped)(
-					tr::now,
-					Ui::Text::RichLangValue),
-		});
+		showToast((recorded
+			? tr::lng_group_call_recording_started
+			: _call->recordingStoppedByMe()
+			? tr::lng_group_call_recording_saved
+			: tr::lng_group_call_recording_stopped)(
+				tr::now,
+				Ui::Text::RichLangValue));
 	}, widget()->lifetime());
 	validateRecordingMark(real->recordStartDate() != 0);
 
@@ -1448,20 +1343,17 @@ void Panel::chooseJoinAs() {
 	const auto callback = [=](JoinInfo info) {
 		_call->rejoinAs(info);
 	};
-	const auto showBox = [=](object_ptr<Ui::BoxContent> next) {
+	const auto showBoxCallback = [=](object_ptr<Ui::BoxContent> next) {
 		_layerBg->showBox(std::move(next));
 	};
-	const auto showToast = [=](QString text) {
-		Ui::ShowMultilineToast({
-			.parentOverride = widget(),
-			.text = { text },
-		});
+	const auto showToastCallback = [=](QString text) {
+		showToast({ text });
 	};
 	_joinAsProcess.start(
 		_peer,
 		context,
-		showBox,
-		showToast,
+		showBoxCallback,
+		showToastCallback,
 		callback,
 		_call->joinAs());
 }
@@ -1578,24 +1470,18 @@ void Panel::addMembers() {
 		}
 		const auto result = call->inviteUsers(users);
 		if (const auto user = std::get_if<not_null<UserData*>>(&result)) {
-			Ui::ShowMultilineToast({
-				.parentOverride = widget(),
-				.text = tr::lng_group_call_invite_done_user(
-					tr::now,
-					lt_user,
-					Ui::Text::Bold((*user)->firstName),
-					Ui::Text::WithEntities),
-			});
+			showToast(tr::lng_group_call_invite_done_user(
+				tr::now,
+				lt_user,
+				Ui::Text::Bold((*user)->firstName),
+				Ui::Text::WithEntities));
 		} else if (const auto count = std::get_if<int>(&result)) {
 			if (*count > 0) {
-				Ui::ShowMultilineToast({
-					.parentOverride = widget(),
-					.text = tr::lng_group_call_invite_done_many(
-						tr::now,
-						lt_count,
-						*count,
-						Ui::Text::RichLangValue),
-				});
+				showToast(tr::lng_group_call_invite_done_many(
+					tr::now,
+					lt_count,
+					*count,
+					Ui::Text::RichLangValue));
 			}
 		} else {
 			Unexpected("Result in GroupCall::inviteUsers.");

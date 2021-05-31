@@ -8,8 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/text/text_entity.h"
+#include "base/weak_ptr.h"
 
 namespace Ui {
+namespace Toast {
+class Instance;
+} // namespace Toast
 
 struct MultilineToastArgs {
 	QWidget *parentOverride = nullptr;
@@ -17,6 +21,7 @@ struct MultilineToastArgs {
 	crl::time duration = 0;
 };
 
-void ShowMultilineToast(MultilineToastArgs &&args);
+base::weak_ptr<Toast::Instance> ShowMultilineToast(
+	MultilineToastArgs &&args);
 
 } // namespace Ui
