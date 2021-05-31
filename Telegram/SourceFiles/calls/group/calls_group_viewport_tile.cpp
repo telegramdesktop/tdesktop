@@ -63,6 +63,10 @@ void Viewport::VideoTile::setGeometry(QRect geometry) {
 	updateTopControlsGeometry();
 }
 
+void Viewport::VideoTile::setShown(bool shown) {
+	_shown = shown;
+}
+
 void Viewport::VideoTile::toggleTopControlsShown(bool shown) {
 	if (_topControlsShown == shown) {
 		return;
@@ -76,7 +80,7 @@ void Viewport::VideoTile::toggleTopControlsShown(bool shown) {
 }
 
 bool Viewport::VideoTile::updateRequestedQuality(VideoQuality quality) {
-	if (_geometry.isEmpty()) {
+	if (!_shown) {
 		_quality = std::nullopt;
 		return false;
 	} else if (_quality && *_quality == quality) {

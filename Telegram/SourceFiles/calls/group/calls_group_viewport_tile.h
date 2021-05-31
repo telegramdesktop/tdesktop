@@ -41,6 +41,9 @@ public:
 	[[nodiscard]] bool pinned() const {
 		return _pinned;
 	}
+	[[nodiscard]] bool shown() const {
+		return _shown && !_geometry.isEmpty();
+	}
 	[[nodiscard]] QRect pinOuter() const;
 	[[nodiscard]] QRect pinInner() const;
 	[[nodiscard]] QRect backOuter() const;
@@ -57,6 +60,7 @@ public:
 
 	[[nodiscard]] bool screencast() const;
 	void setGeometry(QRect geometry);
+	void setShown(bool shown);
 	void toggleTopControlsShown(bool shown);
 	bool updateRequestedQuality(VideoQuality quality);
 
@@ -100,6 +104,7 @@ private:
 	Ui::Animations::Simple _topControlsShownAnimation;
 	bool _topControlsShown = false;
 	bool _pinned = false;
+	bool _shown = false;
 	std::optional<VideoQuality> _quality;
 
 	rpl::lifetime _lifetime;

@@ -54,7 +54,7 @@ void Viewport::Renderer::paintTile(
 	const auto data = track->frameWithInfo(true);
 	const auto &image = data.original;
 	const auto rotation = data.rotation;
-	if (image.isNull()) {
+	if (image.isNull() || !tile->shown()) {
 		return;
 	}
 
@@ -150,7 +150,6 @@ void Viewport::Renderer::paintTileControls(
 	const auto wide = _owner->wide();
 	if (wide) {
 		// Pin.
-
 		const auto pinInner = tile->pinInner();
 		VideoTile::PaintPinButton(
 			p,

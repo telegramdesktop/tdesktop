@@ -175,7 +175,9 @@ void Viewport::updateSelected(QPoint position) {
 		return;
 	}
 	for (const auto &tile : _tiles) {
-		const auto geometry = tile->geometry();
+		const auto geometry = tile->shown()
+			? tile->geometry()
+			: QRect();
 		if (geometry.contains(position)) {
 			const auto pin = wide()
 				&& tile->pinOuter().contains(position - geometry.topLeft());
@@ -215,7 +217,9 @@ void Viewport::add(
 		[=] { widget()->update(); }));
 
 	_tiles.back()->trackSizeValue(
-	) | rpl::start_with_next([=] {
+	) | rpl::filter([](QSize size) {
+		return !size.isEmpty();
+	}) | rpl::start_with_next([=] {
 		updateTilesGeometry();
 	}, _tiles.back()->lifetime());
 }
@@ -427,7 +431,7 @@ void Viewport::updateTilesGeometryNarrow(int outerWidth) {
 		const auto video = tile.get();
 		const auto size = video->trackSize();
 		if (size.isEmpty()) {
-			video->setGeometry({ 0, y, outerWidth, 0 });
+			setTileGeometry(video, { 0, y, outerWidth, 0 });
 		} else {
 			sizes.emplace(video, size);
 		}
@@ -444,7 +448,7 @@ void Viewport::updateTilesGeometryNarrow(int outerWidth) {
 			Qt::KeepAspectRatio);
 		const auto height = std::max(scaled.height(), heightMin);
 		const auto skip = st::groupCallVideoSmallSkip;
-		sizes.front().first->setGeometry({ 0, y, outerWidth, height });
+		setTileGeometry(sizes.front().first, { 0, y, outerWidth, height });
 		_fullHeight = height + skip;
 		return;
 	}
@@ -455,7 +459,7 @@ void Viewport::updateTilesGeometryNarrow(int outerWidth) {
 	const auto square = (outerWidth - st::groupCallVideoSmallSkip) / 2;
 	const auto skip = (outerWidth - 2 * square);
 	const auto put = [&](not_null<VideoTile*> tile, int column, int row) {
-		tile->setGeometry({
+		setTileGeometry(tile, {
 			(column == 2) ? 0 : column ? (outerWidth - square) : 0,
 			y + row * (min + skip),
 			(column == 2) ? outerWidth : square,
@@ -492,7 +496,7 @@ void Viewport::updateTilesGeometryColumn(int outerWidth) {
 		const auto height = shown
 			? st::groupCallNarrowVideoHeight
 			: 0;
-		tile->setGeometry({ 0, y + top, outerWidth, height });
+		setTileGeometry(tile, { 0, y + top, outerWidth, height });
 		top += height ? (height + st::groupCallVideoSmallSkip) : 0;
 	};
 	const auto topPeer = _large ? _large->row()->peer().get() : nullptr;
@@ -532,6 +536,7 @@ void Viewport::updateTilesGeometryColumn(int outerWidth) {
 
 void Viewport::setTileGeometry(not_null<VideoTile*> tile, QRect geometry) {
 	tile->setGeometry(geometry);
+	tile->setShown(!geometry.isEmpty());
 
 	const auto min = std::min(geometry.width(), geometry.height());
 	const auto kMedium = style::ConvertScale(480);

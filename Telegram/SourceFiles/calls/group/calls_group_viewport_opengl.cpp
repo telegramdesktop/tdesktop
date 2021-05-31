@@ -383,6 +383,9 @@ void Viewport::RendererGL::paint(
 	const auto defaultFramebufferObject = widget->defaultFramebufferObject();
 	auto index = 0;
 	for (const auto &tile : _owner->_tiles) {
+		if (!tile->shown()) {
+			continue;
+		}
 		paintTile(
 			f,
 			defaultFramebufferObject,
@@ -396,7 +399,9 @@ void Viewport::RendererGL::fillBackground(QOpenGLFunctions &f) {
 	const auto radiuses = QMargins{ radius, radius, radius, radius };
 	auto bg = QRegion(QRect(QPoint(), _viewport));
 	for (const auto &tile : _owner->_tiles) {
-		bg -= tile->geometry().marginsRemoved(radiuses);
+		if (tile->shown()) {
+			bg -= tile->geometry().marginsRemoved(radiuses);
+		}
 	}
 	if (bg.isEmpty()) {
 		return;
@@ -427,12 +432,9 @@ void Viewport::RendererGL::paintTile(
 		return;
 	}
 	Assert(!data.yuv420->size.isEmpty());
-	const auto geometry = tile->geometry();
-	if (geometry.isEmpty()) {
-		return;
-	}
 
 	_rgbaFrame = (data.format == Webrtc::FrameFormat::ARGB32);
+	const auto geometry = tile->geometry();
 	const auto x = geometry.x();
 	const auto y = geometry.y();
 	const auto width = geometry.width();
@@ -1019,9 +1021,15 @@ void Viewport::RendererGL::validateDatas() {
 			- st.iconPosition.x()
 			- st::groupCallVideoCrossLine.icon.width()
 			- st.namePosition.x();
+		if (hasWidth < 1) {
+			return 0;
+		}
 		return std::clamp(row->name().maxWidth(), 1, hasWidth) * factor;
 	};
 	for (auto i = 0; i != count; ++i) {
+		if (!tiles[i]->shown()) {
+			continue;
+		}
 		tiles[i]->row()->lazyInitialize(st::groupCallMembersListItem);
 		const auto width = nameWidth(i);
 		if (width <= 0) {
