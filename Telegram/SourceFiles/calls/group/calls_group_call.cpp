@@ -972,7 +972,11 @@ void GroupCall::markTrackShown(const VideoEndpoint &endpoint, bool shown) {
 		_videoStreamShownUpdates.fire_copy({ endpoint, shown });
 	}
 	if (shown && changed && endpoint.type == VideoEndpointType::Screen) {
-		pinVideoEndpoint(endpoint);
+		crl::on_main(this, [=] {
+			if (_shownVideoTracks.contains(endpoint)) {
+				pinVideoEndpoint(endpoint);
+			}
+		});
 	}
 }
 

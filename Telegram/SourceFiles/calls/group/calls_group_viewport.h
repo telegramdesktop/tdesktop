@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 namespace Ui {
 class AbstractButton;
@@ -91,6 +92,26 @@ private:
 	class VideoTile;
 	class Renderer;
 	class RendererGL;
+	using TileId = quintptr;
+
+	struct Geometry {
+		VideoTile *tile = nullptr;
+		QSize size;
+		QRect rows;
+		QRect columns;
+	};
+
+	struct Layout {
+		std::vector<Geometry> list;
+		QSize outer;
+		bool useColumns = false;
+	};
+
+	struct TileAnimation {
+		QSize from;
+		QSize to;
+		float64 ratio = -1.;
+	};
 
 	struct Selection {
 		enum class Element {
@@ -122,6 +143,12 @@ private:
 	void refreshHasTwoOrMore();
 	void updateTopControlsVisibility();
 
+	void prepareLargeChangeAnimation();
+	void startLargeChangeAnimation();
+	void updateTilesAnimated();
+	[[nodiscard]] Layout countWide(int outerWidth, int outerHeight) const;
+	[[nodiscard]] Layout applyLarge(Layout layout) const;
+
 	void setSelected(Selection value);
 	void setPressed(Selection value);
 
@@ -149,6 +176,9 @@ private:
 	rpl::event_stream<VideoQualityRequest> _qualityRequests;
 	float64 _controlsShownRatio = 1.;
 	VideoTile *_large = nullptr;
+	Ui::Animations::Simple _largeChangeAnimation;
+	Layout _startTilesLayout;
+	Layout _finishTilesLayout;
 	Selection _selected;
 	Selection _pressed;
 	rpl::variable<bool> _mouseInside = false;

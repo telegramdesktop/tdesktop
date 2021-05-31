@@ -124,14 +124,36 @@ vec4 background() {
 		: NonEmpty(scaled);
 }
 
+[[nodiscard]] QSize InterpolateScaledSize(
+		QSize unscaled,
+		QSize size,
+		float64 ratio) {
+	if (ratio == 0.) {
+		return NonEmpty(unscaled.scaled(
+			size,
+			Qt::KeepAspectRatio));
+	} else if (ratio == 1.) {
+		return NonEmpty(unscaled.scaled(
+			size,
+			Qt::KeepAspectRatioByExpanding));
+	}
+	const auto notExpanded = NonEmpty(unscaled.scaled(
+		size,
+		Qt::KeepAspectRatio));
+	const auto expanded = NonEmpty(unscaled.scaled(
+		size,
+		Qt::KeepAspectRatioByExpanding));
+	return QSize(
+		anim::interpolate(notExpanded.width(), expanded.width(), ratio),
+		anim::interpolate(notExpanded.height(), expanded.height(), ratio));
+}
+
 [[nodiscard]] std::array<std::array<GLfloat, 2>, 4> CountTexCoords(
 		QSize unscaled,
 		QSize size,
-		bool expand,
+		float64 expandRatio,
 		bool swap = false) {
-	const auto scaled = NonEmpty(unscaled.scaled(
-		size,
-		expand ? Qt::KeepAspectRatioByExpanding : Qt::KeepAspectRatio));
+	const auto scaled = InterpolateScaledSize(unscaled, size, expandRatio);
 	const auto left = (size.width() - scaled.width()) / 2;
 	const auto top = (size.height() - scaled.height()) / 2;
 	const auto right = left + scaled.width();
@@ -457,12 +479,17 @@ void Viewport::RendererGL::paintTile(
 		data.rotation);
 	const auto tileSize = geometry.size();
 	const auto swap = (((data.rotation / 90) % 2) == 1);
-	const auto expand = !tile->screencast()
-		&& (!_owner->wide() || UseExpandForCamera(unscaled, tileSize));
-	auto texCoords = CountTexCoords(unscaled, tileSize, expand, swap);
-	auto blurTexCoords = expand
+	const auto expand = isExpanded(tile, unscaled, tileSize);
+	const auto animation = tile->animation();
+	const auto expandRatio = (animation.ratio >= 0.)
+		? countExpandRatio(tile, unscaled, animation)
+		: expand
+		? 1.
+		: 0.;
+	auto texCoords = CountTexCoords(unscaled, tileSize, expandRatio, swap);
+	auto blurTexCoords = (expandRatio == 1.)
 		? texCoords
-		: CountTexCoords(unscaled, tileSize, true);
+		: CountTexCoords(unscaled, tileSize, 1.);
 	const auto rect = transformRect(geometry);
 	auto toBlurTexCoords = std::array<std::array<GLfloat, 2>, 4> { {
 		{ { 0.f, 1.f } },
@@ -761,6 +788,29 @@ void Viewport::RendererGL::prepareObjects(
 	};
 	create(0, kScaleForBlurTextureIndex);
 	create(1, kFirstBlurPassTextureIndex);
+}
+
+bool Viewport::RendererGL::isExpanded(
+		not_null<VideoTile*> tile,
+		QSize unscaled,
+		QSize tileSize) const {
+	return !tile->screencast()
+		&& (!_owner->wide() || UseExpandForCamera(unscaled, tileSize));
+}
+
+float64 Viewport::RendererGL::countExpandRatio(
+		not_null<VideoTile*> tile,
+		QSize unscaled,
+		const TileAnimation &animation) const {
+	const auto expandedFrom = isExpanded(tile, unscaled, animation.from);
+	const auto expandedTo = isExpanded(tile, unscaled, animation.to);
+	return (expandedFrom && expandedTo)
+		? 1.
+		: (!expandedFrom && !expandedTo)
+		? 0.
+		: expandedFrom
+		? (1. - animation.ratio)
+		: animation.ratio;
 }
 
 void Viewport::RendererGL::bindFrame(

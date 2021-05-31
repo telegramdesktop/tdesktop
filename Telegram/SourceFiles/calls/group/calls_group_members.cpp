@@ -1189,8 +1189,9 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 	if (const auto real = _call->lookupReal()) {
 		auto oneFound = false;
 		auto hasTwoOrMore = false;
+		const auto &shown = _call->shownVideoTracks();
 		for (const auto &[endpoint, track] : _call->activeVideoTracks()) {
-			if (_call->shownVideoTracks().contains(endpoint)) {
+			if (shown.contains(endpoint)) {
 				if (oneFound) {
 					hasTwoOrMore = true;
 					break;
@@ -1202,36 +1203,36 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 		if (participant && hasTwoOrMore) {
 			const auto &large = _call->videoEndpointLarge();
 			const auto pinned = _call->videoEndpointPinned();
-			const auto &camera = computeCameraEndpoint(participant);
-			const auto &screen = computeScreenEndpoint(participant);
-			if (!camera.empty()) {
-				if (pinned && large.id == camera) {
+			const auto camera = VideoEndpoint{
+				VideoEndpointType::Camera,
+				participantPeer,
+				computeCameraEndpoint(participant)
+			};
+			const auto screen = VideoEndpoint{
+				VideoEndpointType::Screen,
+				participantPeer,
+				computeScreenEndpoint(participant)
+			};
+			if (shown.contains(camera)) {
+				if (pinned && large == camera) {
 					result->addAction(
 						tr::lng_group_call_context_unpin_camera(tr::now),
-						[=] { _call->pinVideoEndpoint(VideoEndpoint()); });
+						[=] { _call->pinVideoEndpoint({}); });
 				} else {
 					result->addAction(
 						tr::lng_group_call_context_pin_camera(tr::now),
-						[=] { _call->pinVideoEndpoint(VideoEndpoint{
-							VideoEndpointType::Camera,
-							participantPeer,
-							camera });
-						});
+						[=] { _call->pinVideoEndpoint(camera); });
 				}
 			}
-			if (!screen.empty()) {
-				if (pinned && large.id == screen) {
+			if (shown.contains(screen)) {
+				if (pinned && large == screen) {
 					result->addAction(
 						tr::lng_group_call_context_unpin_screen(tr::now),
-						[=] { _call->pinVideoEndpoint(VideoEndpoint()); });
+						[=] { _call->pinVideoEndpoint({}); });
 				} else {
 					result->addAction(
 						tr::lng_group_call_context_pin_screen(tr::now),
-						[=] { _call->pinVideoEndpoint(VideoEndpoint{
-							VideoEndpointType::Screen,
-							participantPeer,
-							screen });
-						});
+						[=] { _call->pinVideoEndpoint(screen); });
 				}
 			}
 		}

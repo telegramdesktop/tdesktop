@@ -1359,7 +1359,7 @@ void Panel::chooseShareScreenSource() {
 		}
 		return nullptr;
 	}();
-	if (!screencastFromPeer) {
+	if (!screencastFromPeer || _call->isSharingScreen()) {
 		choose();
 		return;
 	}

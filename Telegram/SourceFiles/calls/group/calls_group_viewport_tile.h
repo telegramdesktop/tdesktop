@@ -38,6 +38,9 @@ public:
 	[[nodiscard]] QRect geometry() const {
 		return _geometry;
 	}
+	[[nodiscard]] TileAnimation animation() const {
+		return _animation;
+	}
 	[[nodiscard]] bool pinned() const {
 		return _pinned;
 	}
@@ -59,8 +62,10 @@ public:
 	}
 
 	[[nodiscard]] bool screencast() const;
-	void setGeometry(QRect geometry);
-	void setShown(bool shown);
+	void setGeometry(
+		QRect geometry,
+		TileAnimation animation = TileAnimation());
+	void hide();
 	void toggleTopControlsShown(bool shown);
 	bool updateRequestedQuality(VideoQuality quality);
 
@@ -89,13 +94,15 @@ public:
 private:
 	void setup(rpl::producer<bool> pinned);
 	[[nodiscard]] int topControlsSlide() const;
-	void updateTopControlsGeometry();
+	void updateTopControlsSize();
+	void updateTopControlsPosition();
 
 	const VideoEndpoint _endpoint;
 	const Fn<void()> _update;
 
 	VideoTileTrack _track;
 	QRect _geometry;
+	TileAnimation _animation;
 	rpl::variable<QSize> _trackSize;
 	QRect _pinOuter;
 	QRect _pinInner;

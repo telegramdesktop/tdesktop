@@ -58,13 +58,18 @@ bool Viewport::VideoTile::screencast() const {
 	return (_endpoint.type == VideoEndpointType::Screen);
 }
 
-void Viewport::VideoTile::setGeometry(QRect geometry) {
+void Viewport::VideoTile::setGeometry(
+		QRect geometry,
+		TileAnimation animation) {
+	_shown = true;
 	_geometry = geometry;
-	updateTopControlsGeometry();
+	_animation = animation;
+	updateTopControlsPosition();
 }
 
-void Viewport::VideoTile::setShown(bool shown) {
-	_shown = shown;
+void Viewport::VideoTile::hide() {
+	_shown = false;
+	_quality = std::nullopt;
 }
 
 void Viewport::VideoTile::toggleTopControlsShown(bool shown) {
@@ -183,25 +188,36 @@ void Viewport::VideoTile::PaintBackButton(
 		tr::lng_create_group_back(tr::now));
 }
 
-void Viewport::VideoTile::updateTopControlsGeometry() {
+void Viewport::VideoTile::updateTopControlsSize() {
 	const auto &st = st::groupCallVideoTile;
 
 	const auto pinSize = PinInnerSize(_pinned);
 	const auto pinWidth = st.pinPosition.x() * 2 + pinSize.width();
 	const auto pinHeight = st.pinPosition.y() * 2 + pinSize.height();
-	_pinInner = QRect(QPoint(), pinSize).translated(
-		_geometry.width() - st.pinPosition.x() - pinSize.width(),
-		st.pinPosition.y());
-	_pinOuter = QRect(
-		_geometry.width() - pinWidth,
-		0,
-		pinWidth,
-		pinHeight);
+	_pinInner = QRect(QPoint(), pinSize);
+	_pinOuter = QRect(0, 0, pinWidth, pinHeight);
+
 	const auto backSize = BackInnerSize();
 	const auto backWidth = st.pinPosition.x() * 2 + backSize.width();
 	const auto backHeight = st.pinPosition.y() * 2 + backSize.height();
-	_backInner = QRect(QPoint(), backSize).translated(st.pinPosition);
+	_backInner = QRect(QPoint(), backSize);
 	_backOuter = QRect(0, 0, backWidth, backHeight);
+}
+
+void Viewport::VideoTile::updateTopControlsPosition() {
+	const auto &st = st::groupCallVideoTile;
+
+	_pinInner = QRect(
+		_geometry.width() - st.pinPosition.x() - _pinInner.width(),
+		st.pinPosition.y(),
+		_pinInner.width(),
+		_pinInner.height());
+	_pinOuter = QRect(
+		_geometry.width() - _pinOuter.width(),
+		0,
+		_pinOuter.width(),
+		_pinOuter.height());
+	_backInner = QRect(st.pinPosition, _backInner.size());
 }
 
 void Viewport::VideoTile::setup(rpl::producer<bool> pinned) {
@@ -211,8 +227,11 @@ void Viewport::VideoTile::setup(rpl::producer<bool> pinned) {
 		return (_pinned != pinned);
 	}) | rpl::start_with_next([=](bool pinned) {
 		_pinned = pinned;
-		updateTopControlsGeometry();
-		_update();
+		updateTopControlsSize();
+		if (_shown) {
+			updateTopControlsPosition();
+			_update();
+		}
 	}, _lifetime);
 
 	_track.track->renderNextFrame(
@@ -229,6 +248,8 @@ void Viewport::VideoTile::setup(rpl::producer<bool> pinned) {
 	if (const auto size = _track.track->frameSize(); !size.isEmpty()) {
 		_trackSize = size;
 	}
+
+	updateTopControlsSize();
 }
 
 } // namespace Calls::Group

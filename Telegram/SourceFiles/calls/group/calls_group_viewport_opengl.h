@@ -102,6 +102,15 @@ private:
 		not_null<VideoTile*> tile,
 		TileData &data);
 
+	[[nodiscard]] bool isExpanded(
+		not_null<VideoTile*> tile,
+		QSize unscaled,
+		QSize tileSize) const;
+	[[nodiscard]] float64 countExpandRatio(
+		not_null<VideoTile*> tile,
+		QSize unscaled,
+		const TileAnimation &animation) const;
+
 	const not_null<Viewport*> _owner;
 
 	GLfloat _factor = 1.;
