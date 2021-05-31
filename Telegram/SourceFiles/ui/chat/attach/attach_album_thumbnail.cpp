@@ -30,7 +30,7 @@ AlbumThumbnail::AlbumThumbnail(
 , _fullPreview(file.preview)
 , _shrinkSize(int(std::ceil(st::historyMessageRadius / 1.4)))
 , _isVideo(file.type == PreparedFile::Type::Video)
-, _buttonsRect(st::sendBoxAlbumGroupRadius, st::callFingerprintBg) {
+, _buttonsRect(st::sendBoxAlbumGroupRadius, st::roundedBg) {
 	Expects(!_fullPreview.isNull());
 
 	moveToLayout(layout);

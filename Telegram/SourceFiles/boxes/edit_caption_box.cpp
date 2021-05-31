@@ -621,7 +621,7 @@ void EditCaptionBox::updateEditMediaButton() {
 	const auto icon = _doc
 		? &st::editMediaButtonIconFile
 		: &st::editMediaButtonIconPhoto;
-	const auto color = _doc ? &st::windowBgRipple : &st::callFingerprintBg;
+	const auto color = _doc ? &st::windowBgRipple : &st::roundedBg;
 	_editMedia->setIconOverride(icon);
 	_editMedia->setRippleColorOverride(color);
 	_editMedia->setForceRippled(!_doc, anim::type::instant);
