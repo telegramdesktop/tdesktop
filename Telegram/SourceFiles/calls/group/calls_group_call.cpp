@@ -193,7 +193,7 @@ struct GroupCall::SinkPointer {
 		not_null<PeerData*> participantPeer) {
 	const auto user = participantPeer->asUser();
 	if (!user) {
-		return false;
+		return (peer == participantPeer);
 	}
 	if (const auto chat = peer->asChat()) {
 		return chat->admins.contains(user)
