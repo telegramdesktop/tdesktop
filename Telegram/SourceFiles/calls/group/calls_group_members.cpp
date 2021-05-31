@@ -96,7 +96,7 @@ public:
 		not_null<MembersRow*> row,
 		const IconState &state) override;
 	bool rowIsNarrow() override;
-	void rowShowContextMenu(not_null<PeerListRow*> row);
+	void rowShowContextMenu(not_null<PeerListRow*> row) override;
 
 private:
 	[[nodiscard]] std::unique_ptr<Row> createRowForMe();
