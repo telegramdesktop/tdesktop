@@ -216,7 +216,8 @@ void paintPreparedDate(
 		int dateTextWidth,
 		int y,
 		int w,
-		const style::color &bg) {
+		const style::color &bg,
+		const style::color &fg) {
 	int left = st::msgServiceMargin.left();
 	int maxwidth = w;
 	if (Core::App().settings().chatWide()) {
@@ -237,7 +238,7 @@ void paintPreparedDate(
 		bg);
 
 	p.setFont(st::msgServiceFont);
-	p.setPen(st::msgServiceFg);
+	p.setPen(fg);
 	p.drawText(left + st::msgServicePadding.left(), y + st::msgServiceMargin.top() + st::msgServicePadding.top() + st::msgServiceFont->ascent, dateText);
 }
 
@@ -261,10 +262,11 @@ void ServiceMessagePainter::paintDate(
 		const QDateTime &date,
 		int y,
 		int w,
-		const style::color &bg) {
+		const style::color &bg,
+		const style::color &fg) {
 	const auto dateText = langDayOfMonthFull(date.date());
 	const auto dateTextWidth = st::msgServiceFont->width(dateText);
-	paintPreparedDate(p, dateText, dateTextWidth, y, w, bg);
+	paintPreparedDate(p, dateText, dateTextWidth, y, w, bg, fg);
 }
 
 void ServiceMessagePainter::paintDate(
@@ -272,14 +274,16 @@ void ServiceMessagePainter::paintDate(
 		const QString &dateText,
 		int y,
 		int w,
-		const style::color &bg) {
+		const style::color &bg,
+		const style::color &fg) {
 	paintPreparedDate(
 		p,
 		dateText,
 		st::msgServiceFont->width(dateText),
 		y,
 		w,
-		bg);
+		bg,
+		fg);
 }
 
 void ServiceMessagePainter::paintDate(
@@ -288,8 +292,9 @@ void ServiceMessagePainter::paintDate(
 		int dateTextWidth,
 		int y,
 		int w,
-		const style::color &bg) {
-	paintPreparedDate(p, dateText, dateTextWidth, y, w, bg);
+		const style::color &bg,
+		const style::color &fg) {
+	paintPreparedDate(p, dateText, dateTextWidth, y, w, bg, fg);
 }
 
 void ServiceMessagePainter::paintBubble(

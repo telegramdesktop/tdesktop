@@ -68,20 +68,23 @@ public:
 		const QDateTime &date,
 		int y,
 		int w,
-		const style::color &bg = st::msgServiceBg);
+		const style::color &bg = st::msgServiceBg,
+		const style::color &fg = st::msgServiceFg);
 	static void paintDate(
 		Painter &p,
 		const QString &dateText,
 		int y,
 		int w,
-		const style::color &bg = st::msgServiceBg);
+		const style::color &bg = st::msgServiceBg,
+		const style::color &fg = st::msgServiceFg);
 	static void paintDate(
 		Painter &p,
 		const QString &dateText,
 		int dateTextWidth,
 		int y,
 		int w,
-		const style::color &bg = st::msgServiceBg);
+		const style::color &bg = st::msgServiceBg,
+		const style::color &fg = st::msgServiceFg);
 
 	static void paintBubble(
 		Painter &p,
