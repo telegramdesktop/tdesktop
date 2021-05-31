@@ -371,6 +371,12 @@ OverlayWidget::OverlayWidget()
 		}
 	}, lifetime());
 
+	const auto mousePosition = [](not_null<QEvent*> e) {
+		return static_cast<QMouseEvent*>(e.get())->pos();
+	};
+	const auto mouseButton = [](not_null<QEvent*> e) {
+		return static_cast<QMouseEvent*>(e.get())->button();
+	};
 	base::install_event_filter(_widget, [=](not_null<QEvent*> e) {
 		const auto type = e->type();
 		if (type == QEvent::Move) {
@@ -385,15 +391,11 @@ OverlayWidget::OverlayWidget()
 				.arg(size.height()));
 			updateControlsGeometry();
 		} else if (type == QEvent::MouseButtonPress) {
-			handleMousePress(
-				static_cast<QMouseEvent*>(e.get())->pos(),
-				static_cast<QMouseEvent*>(e.get())->button());
+			handleMousePress(mousePosition(e), mouseButton(e));
 		} else if (type == QEvent::MouseButtonRelease) {
-			handleMouseRelease(
-				static_cast<QMouseEvent*>(e.get())->pos(),
-				static_cast<QMouseEvent*>(e.get())->button());
+			handleMouseRelease(mousePosition(e), mouseButton(e));
 		} else if (type == QEvent::MouseMove) {
-			handleMouseMove(static_cast<QMouseEvent*>(e.get())->pos());
+			handleMouseMove(mousePosition(e));
 		} else if (type == QEvent::KeyPress) {
 			handleKeyPress(static_cast<QKeyEvent*>(e.get()));
 		} else if (type == QEvent::ContextMenu) {
@@ -406,9 +408,10 @@ OverlayWidget::OverlayWidget()
 				return base::EventFilterResult::Cancel;
 			}
 		} else if (type == QEvent::MouseButtonDblClick) {
-			const auto position = static_cast<QMouseEvent*>(e.get())->pos();
-			if (handleDoubleClick(position)) {
+			if (handleDoubleClick(mousePosition(e), mouseButton(e))) {
 				return base::EventFilterResult::Cancel;
+			} else {
+				handleMousePress(mousePosition(e), mouseButton(e));
 			}
 		} else if (type == QEvent::UpdateRequest) {
 			_wasRepainted = true;
@@ -4073,10 +4076,12 @@ void OverlayWidget::handleMousePress(
 	activateControls();
 }
 
-bool OverlayWidget::handleDoubleClick(QPoint position) {
+bool OverlayWidget::handleDoubleClick(
+		QPoint position,
+		Qt::MouseButton button) {
 	updateOver(position);
 
-	if (_over != OverVideo || !_streamed) {
+	if (_over != OverVideo || !_streamed || button != Qt::LeftButton) {
 		return false;
 	}
 	playbackToggleFullScreen();

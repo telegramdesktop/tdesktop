@@ -153,7 +153,7 @@ private:
 	void handleMouseRelease(QPoint position, Qt::MouseButton button);
 	void handleMouseMove(QPoint position);
 	bool handleContextMenu(std::optional<QPoint> position);
-	bool handleDoubleClick(QPoint position);
+	bool handleDoubleClick(QPoint position, Qt::MouseButton button);
 	bool handleTouchEvent(not_null<QTouchEvent*> e);
 	void handleWheelEvent(not_null<QWheelEvent*> e);
 	void handleKeyPress(not_null<QKeyEvent*> e);
