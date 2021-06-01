@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 #include "apiwrap.h" // api().kickParticipant.
 #include "webrtc/webrtc_video_track.h"
+#include "webrtc/webrtc_media_devices.h" // UniqueDesktopCaptureSource.
 #include "styles/style_calls.h"
 #include "styles/style_layers.h"
 
@@ -1349,7 +1350,15 @@ void Panel::chooseShareScreenSource() {
 		return;
 	}
 	const auto choose = [=] {
-		Ui::DesktopCapture::ChooseSource(this);
+		if (const auto source = Webrtc::UniqueDesktopCaptureSource()) {
+			if (_call->isSharingScreen()) {
+				_call->toggleScreenSharing(std::nullopt);
+			} else {
+				chooseSourceAccepted(*source);
+			}
+		} else {
+			Ui::DesktopCapture::ChooseSource(this);
+		}
 	};
 	const auto screencastFromPeer = [&]() -> PeerData* {
 		for (const auto &[endpoint, track] : _call->activeVideoTracks()) {
