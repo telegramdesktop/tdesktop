@@ -615,7 +615,7 @@ void MembersRow::paintComplexStatusText(
 	const auto about = (style == MembersRowStyle::Video)
 		? QString()
 		: ((_state == State::RaisedHand && !_raisedHandStatus)
-			|| (_state != State::Active && _state != State::RaisedHand))
+			|| (_state != State::RaisedHand && !_speaking))
 		? _aboutText
 		: QString();
 	if (about.isEmpty()
