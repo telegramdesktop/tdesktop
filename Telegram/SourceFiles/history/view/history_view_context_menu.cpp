@@ -481,7 +481,7 @@ bool AddRescheduleAction(
 			list->cancelSelection();
 			for (const auto &id : ids) {
 				const auto item = owner->message(id);
-				if (!item && !item->isScheduled()) {
+				if (!item || !item->isScheduled()) {
 					continue;
 				}
 				if (!item->media() || !item->media()->webpage()) {
