@@ -146,6 +146,7 @@ parts:
       - kwayland
       - mozjpeg
       - openal
+      - rnnoise
       - webrtc
 
   patches:
@@ -420,6 +421,18 @@ parts:
     after:
       - mozjpeg
       - patches
+
+  rnnoise:
+    source: https://gitlab.xiph.org/xiph/rnnoise.git
+    source-depth: 1
+    source-commit: 7f449bf8bd3b933891d12c30112268c4090e4d59
+    plugin: autotools
+    autotools-configure-parameters:
+      - --disable-examples
+      - --disable-doc
+    prime:
+      - -./usr/include
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
 
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
