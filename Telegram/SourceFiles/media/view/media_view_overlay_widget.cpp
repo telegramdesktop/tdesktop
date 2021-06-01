@@ -144,62 +144,6 @@ Images::Options VideoThumbOptions(DocumentData *document) {
 		: result;
 }
 
-void PaintImageProfile(QPainter &p, const QImage &image, QRect rect, QRect fill) {
-	const auto argb = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-	const auto rgb = image.convertToFormat(QImage::Format_RGB32);
-	const auto argbp = QPixmap::fromImage(argb);
-	const auto rgbp = QPixmap::fromImage(rgb);
-	const auto width = image.width();
-	const auto height = image.height();
-	const auto xcopies = (fill.width() + width - 1) / width;
-	const auto ycopies = (fill.height() + height - 1) / height;
-	const auto copies = xcopies * ycopies;
-	auto times = QStringList();
-	const auto bench = [&](QString label, auto &&paint) {
-		const auto single = [&](QString label) {
-			auto now = crl::now();
-			const auto push = [&] {
-				times.push_back(QString("%1").arg(crl::now() - now, 4, 10, QChar(' ')));
-				now = crl::now();
-			};
-			paint(rect);
-			push();
-			{
-				PainterHighQualityEnabler hq(p);
-				paint(rect);
-			}
-			push();
-			for (auto i = 0; i < xcopies; ++i) {
-				for (auto j = 0; j < ycopies; ++j) {
-					paint(QRect(
-						fill.topLeft() + QPoint(i * width, j * height),
-						QSize(width, height)));
-				}
-			}
-			push();
-			LOG(("FRAME (%1): %2 (copies: %3)").arg(label, times.join(' ')).arg(copies));
-			times = QStringList();
-			now = crl::now();
-		};
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		single(label + " S");
-		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-		single(label + " O");
-	};
-	bench("ARGB I", [&](QRect rect) {
-		p.drawImage(rect, argb);
-	});
-	bench("RGB  I", [&](QRect rect) {
-		p.drawImage(rect, rgb);
-	});
-	bench("ARGB P", [&](QRect rect) {
-		p.drawPixmap(rect, argbp);
-	});
-	bench("RGB  P", [&](QRect rect) {
-		p.drawPixmap(rect, rgbp);
-	});
-}
-
 QPixmap PrepareStaticImage(QImage image) {
 	if (image.width() > kMaxDisplayImageSize
 		|| image.height() > kMaxDisplayImageSize) {
@@ -413,8 +357,6 @@ OverlayWidget::OverlayWidget()
 			} else {
 				handleMousePress(mousePosition(e), mouseButton(e));
 			}
-		} else if (type == QEvent::UpdateRequest) {
-			_wasRepainted = true;
 		} else if (type == QEvent::TouchBegin
 			|| type == QEvent::TouchUpdate
 			|| type == QEvent::TouchEnd
@@ -2205,8 +2147,8 @@ bool OverlayWidget::isHidden() const {
 }
 
 void OverlayWidget::hide() {
-	applyHideWindowWorkaround();
 	clearBeforeHide();
+	applyHideWindowWorkaround();
 	_widget->hide();
 }
 
@@ -3222,7 +3164,7 @@ Ui::GL::ChosenRenderer OverlayWidget::chooseRenderer(
 }
 
 void OverlayWidget::paint(Painter &p, const QRegion &clip) {
-	if (_hideWorkaround && !Platform::IsMac()) {
+	if (_hideWorkaround && Platform::IsWindows()) {
 		// This glitches on macOS, it shows old content while animating hide.
 		p.setCompositionMode(QPainter::CompositionMode_Source);
 		p.fillRect(_widget->rect(), st::transparent);
@@ -3236,12 +3178,6 @@ void OverlayWidget::paint(Painter &p, const QRegion &clip) {
 	const auto bgRegion = opaqueContentShown
 		? (clip - contentRect())
 		: clip;
-
-	auto ms = crl::now();
-
-	bool name = false;
-
-	p.setClipRegion(clip);
 
 	// main bg
 	const auto m = p.compositionMode();
@@ -3271,7 +3207,8 @@ void OverlayWidget::paint(Painter &p, const QRegion &clip) {
 			paintRadialLoading(p, radial, radialOpacity);
 		}
 		if (_saveMsgStarted && _saveMsg.intersects(r)) {
-			float64 dt = float64(ms) - _saveMsgStarted, hidingDt = dt - st::mediaviewSaveMsgShowing - st::mediaviewSaveMsgShown;
+			float64 dt = float64(crl::now()) - _saveMsgStarted;
+			float64 hidingDt = dt - st::mediaviewSaveMsgShowing - st::mediaviewSaveMsgShown;
 			if (dt < st::mediaviewSaveMsgShowing + st::mediaviewSaveMsgShown + st::mediaviewSaveMsgHiding) {
 				if (hidingDt >= 0 && _saveMsgOpacity.to() > 0.5) {
 					_saveMsgOpacity.start(0);
@@ -3324,7 +3261,6 @@ void OverlayWidget::paint(Painter &p, const QRegion &clip) {
 			}
 
 			if (!_docIconRect.contains(r)) {
-				name = true;
 				p.setPen(st::mediaviewFileNameFg);
 				p.setFont(st::mediaviewFileNameFont);
 				p.drawTextLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileNameTop, width(), _docName, _docNameWidth);
@@ -4481,28 +4417,25 @@ bool OverlayWidget::filterApplicationEvent(
 }
 
 void OverlayWidget::applyHideWindowWorkaround() {
-	// QOpenGLWidget can't properly destroy a child widget if
-	// it is hidden exactly after that, so it must be repainted
-	// before it is hidden without the child widget.
-	if (_opengl && !isHidden()) {
-		_dropdown->hideFast();
-		for (auto child : _widget->children()) {
-			if (child->isWidgetType()) {
-				static_cast<QWidget*>(child)->hide();
-			}
+	// QOpenGLWidget can't properly destroy a child widget if it is hidden
+	// exactly after that, the child is cached in the backing store.
+	// So on next paint we force full backing store repaint.
+	if (_opengl && !isHidden() && !_hideWorkaround) {
+		_hideWorkaround = std::make_unique<Ui::RpWidget>(_widget);
+		_hideWorkaround->setGeometry(_widget->rect());
+		_hideWorkaround->show();
+		_hideWorkaround->paintRequest(
+		) | rpl::start_with_next([=] {
+			QPainter(_hideWorkaround.get()).fillRect(_hideWorkaround->rect(), QColor(0, 1, 0, 1));
+			crl::on_main(_hideWorkaround.get(), [=] {
+				_hideWorkaround.reset();
+			});
+		}, _hideWorkaround->lifetime());
+		_hideWorkaround->update();
+
+		if (Platform::IsWindows()) {
+			Ui::Platform::UpdateOverlayed(_widget);
 		}
-		_wasRepainted = false;
-		_hideWorkaround = true;
-		_widget->repaint();
-		if (!_wasRepainted) {
-			// Qt has some optimization to prevent too frequent repaints.
-			// If the previous repaint was less than 1/60 second it silently
-			// converts repaint() call to an update() call. But we have to
-			// repaint right now, before hide(), with _streamingControls destroyed.
-			auto event = QEvent(QEvent::UpdateRequest);
-			QApplication::sendEvent(_widget, &event);
-		}
-		_hideWorkaround = false;
 	}
 }
 
@@ -4526,6 +4459,9 @@ void OverlayWidget::clearBeforeHide() {
 	_controlsOpacity = anim::value(1, 1);
 	_groupThumbs = nullptr;
 	_groupThumbsRect = QRect();
+	if (_streamed) {
+		_streamed->controls.hide();
+	}
 }
 
 void OverlayWidget::clearAfterHide() {
