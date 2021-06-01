@@ -47,6 +47,7 @@ namespace Info {
 namespace Media {
 namespace {
 
+constexpr auto kFloatingHeaderAlpha = 0.9;
 constexpr auto kPreloadedScreensCount = 4;
 constexpr auto kPreloadIfLessThanScreens = 2;
 constexpr auto kPreloadedScreensCountFull
@@ -67,6 +68,21 @@ UniversalMsgId GetUniversalId(not_null<const BaseLayout*> layout) {
 	return GetUniversalId(layout->getItem()->fullId());
 }
 
+bool HasFloatingHeader(Type type) {
+	switch (type) {
+	case Type::Photo:
+	case Type::Video:
+	case Type::RoundFile:
+	case Type::RoundVoiceFile:
+	case Type::MusicFile:
+		return false;
+	case Type::File:
+	case Type::Link:
+		return true;
+	}
+	Unexpected("Type in HasFloatingHeader()");
+}
+
 } // namespace
 
 struct ListWidget::Context {
@@ -78,7 +94,9 @@ struct ListWidget::Context {
 
 class ListWidget::Section {
 public:
-	Section(Type type) : _type(type) {
+	Section(Type type)
+	: _type(type)
+	, _hasFloatingHeader(HasFloatingHeader(type)) {
 	}
 
 	bool addItem(not_null<BaseLayout*> item);
@@ -123,6 +141,8 @@ public:
 		QRect clip,
 		int outerWidth) const;
 
+	void paintFloatingHeader(Painter &p, int visibleTop, int outerWidth);
+
 	static int MinItemHeight(Type type, int width);
 
 private:
@@ -151,6 +171,7 @@ private:
 	void refreshHeight();
 
 	Type _type = Type::Photo;
+	bool _hasFloatingHeader = false;
 	Ui::Text::String _header;
 	Items _items;
 	int _itemsLeft = 0;
@@ -423,6 +444,37 @@ void ListWidget::Section::paint(
 			p.translate(-rect.topLeft());
 		}
 	}
+}
+
+void ListWidget::Section::paintFloatingHeader(
+		Painter &p,
+		int visibleTop,
+		int outerWidth) {
+	if (!_hasFloatingHeader) {
+		return;
+	}
+	const auto headerTop = st::infoMediaHeaderPosition.y() / 2;
+	if (visibleTop <= (_top + headerTop)) {
+		return;
+	}
+	const auto header = headerHeight();
+	const auto headerLeft = st::infoMediaHeaderPosition.x();
+	const auto floatingTop = std::min(
+		visibleTop,
+		bottom() - header + headerTop);
+	p.save();
+	p.resetTransform();
+	p.setOpacity(kFloatingHeaderAlpha);
+	p.fillRect(QRect(0, floatingTop, outerWidth, header), st::boxBg);
+	p.setOpacity(1.0);
+	p.setPen(st::infoMediaHeaderFg);
+	_header.drawLeftElided(
+		p,
+		headerLeft,
+		floatingTop + headerTop,
+		outerWidth - 2 * headerLeft,
+		outerWidth);
+	p.restore();
 }
 
 TextSelection ListWidget::Section::itemSelection(
@@ -1271,6 +1323,9 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		p.translate(0, top);
 		it->paint(p, context, clip.translated(0, -top), outerWidth);
 		p.translate(0, -top);
+	}
+	if (fromSectionIt != _sections.end()) {
+		fromSectionIt->paintFloatingHeader(p, _visibleTop, outerWidth);
 	}
 
 	if (_dateBadge.goodType && clip.intersects(_dateBadge.rect)) {
