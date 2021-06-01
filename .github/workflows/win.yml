@@ -284,9 +284,16 @@ jobs:
           msbuild -m opus.sln /property:Configuration=Debug /property:Platform="Win32"
           msbuild -m opus.sln /property:Configuration=Release /property:Platform="Win32"
 
-          echo "Workaround for FFmpeg."
-          copy Win32\Release\m.lib Win32\Release\ssp.lib
-          copy Win32\Release\m.lib Win32\Debug\ssp.lib
+      - name: Rnnoise.
+        shell: cmd
+        run: |
+          %VC%
+
+          git clone %GIT%/desktop-app/rnnoise.git
+          mkdir rnnoise\out
+          cd rnnoise\out
+          cmake -A Win32 ..
+          cmake --build . --config Debug
 
       - name: FFmpeg cache.
         id: cache-ffmpeg
@@ -302,7 +309,7 @@ jobs:
 
           git clone %GIT%/FFmpeg/FFmpeg.git ffmpeg
           cd ffmpeg
-          git checkout release/4.2
+          git checkout release/4.4
           set CHERE_INVOKING=enabled_from_arguments
           set MSYS2_PATH_TYPE=inherit
           call c:\tools\msys64\usr\bin\bash --login ../patches/build_ffmpeg_win.sh
@@ -341,7 +348,7 @@ jobs:
           -confirm-license ^
           -static ^
           -static-runtime -I "%SSL%\include" ^
-          -no-opengl ^
+          -opengl dynamic ^
           -openssl-linked ^
           OPENSSL_LIBS_DEBUG="%SSL%\out32.dbg\libssl.lib %SSL%\out32.dbg\%LIBS%" ^
           OPENSSL_LIBS_RELEASE="%SSL%\out32\libssl.lib %SSL%\out32\%LIBS%" ^
@@ -381,6 +388,7 @@ jobs:
           cmake -G Ninja ^
           -DCMAKE_BUILD_TYPE=Debug ^
           -DTG_OWT_SPECIAL_TARGET=win ^
+          -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF ^
           -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
           -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_%OPENSSL_VER%/include ^
           -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
@@ -408,6 +416,9 @@ jobs:
             echo "ARTIFACT_NAME=Telegram" >> $GITHUB_ENV
           fi
           echo "TDESKTOP_BUILD_DEFINE=$DEFINE" >> $GITHUB_ENV
+
+      - name: Free up some disk space.
+        run: del /S *.pdb
 
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
