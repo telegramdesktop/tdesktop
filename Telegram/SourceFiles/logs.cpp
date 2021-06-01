@@ -98,7 +98,7 @@ public:
 
 	QString full() {
 		const auto file = files[LogDataMain].get();
-		if (!!file || !file->isOpen()) {
+		if (!file || !file->isOpen()) {
 			return QString();
 		}
 
