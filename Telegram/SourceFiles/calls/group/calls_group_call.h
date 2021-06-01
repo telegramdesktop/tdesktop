@@ -141,28 +141,18 @@ struct VideoQualityRequest {
 	Group::VideoQuality quality = Group::VideoQuality();
 };
 
-struct VideoParams {
-	std::string endpoint;
-	QByteArray json;
-	uint32 hash = 0;
-
-	[[nodiscard]] bool empty() const {
-		return endpoint.empty() || json.isEmpty();
-	}
-	[[nodiscard]] explicit operator bool() const {
-		return !empty();
-	}
-};
-
-struct ParticipantVideoParams {
-	VideoParams camera;
-	VideoParams screen;
-};
+struct ParticipantVideoParams;
 
 [[nodiscard]] std::shared_ptr<ParticipantVideoParams> ParseVideoParams(
-	const QByteArray &camera,
-	const QByteArray &screen,
+	const tl::conditional<MTPGroupCallParticipantVideo> &camera,
+	const tl::conditional<MTPGroupCallParticipantVideo> &screen,
 	const std::shared_ptr<ParticipantVideoParams> &existing);
+
+[[nodiscard]] const std::string &GetCameraEndpoint(
+	const std::shared_ptr<ParticipantVideoParams> &params);
+
+[[nodiscard]] const std::string &GetScreenEndpoint(
+	const std::shared_ptr<ParticipantVideoParams> &params);
 
 class GroupCall final : public base::has_weak_ptr {
 public:
@@ -422,7 +412,7 @@ private:
 	enum class SendUpdateType {
 		Mute,
 		RaiseHand,
-		VideoMuted,
+		VideoStopped,
 	};
 	enum class JoinAction {
 		None,

@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <tgcalls/group/GroupInstanceCustomImpl.h>
 #include <tgcalls/VideoCaptureInterface.h>
 #include <tgcalls/StaticThreads.h>
-#include <xxhash.h>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonArray>
@@ -214,49 +213,118 @@ struct GroupCall::SinkPointer {
 	return false;
 }
 
-[[nodiscard]] VideoParams ParseVideoParams(const QByteArray &json) {
-	if (json.isEmpty()) {
-		return {};
-	}
-	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
-	const auto document = QJsonDocument::fromJson(json, &error);
-	if (error.error != QJsonParseError::NoError) {
-		LOG(("API Error: "
-			"Failed to parse group call video params, error: %1."
-			).arg(error.errorString()));
-		return {};
-	} else if (!document.isObject()) {
-		LOG(("API Error: "
-			"Not an object received in group call video params."));
-		return {};
-	}
+struct VideoParams {
+	std::string endpointId;
+	std::vector<tgcalls::MediaSsrcGroup> ssrcGroups;
 
-	const auto object = document.object();
-	auto result = VideoParams{
-		.endpoint = ReadJsonString(object, "endpoint"),
-		.json = json,
-	};
-	return result.empty() ? VideoParams() : result;
+	[[nodiscard]] bool empty() const {
+		return endpointId.empty() || ssrcGroups.empty();
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return !empty();
+	}
+};
+
+struct ParticipantVideoParams {
+	VideoParams camera;
+	VideoParams screen;
+};
+
+[[nodiscard]] bool VideoParamsAreEqual(
+		const VideoParams &was,
+		const tl::conditional<MTPGroupCallParticipantVideo> &now) {
+	if (!now) {
+		return !was;
+	}
+	return now->match([&](const MTPDgroupCallParticipantVideo &data) {
+		if (gsl::make_span(data.vendpoint().v)
+			!= gsl::make_span(was.endpointId)) {
+			return false;
+		}
+		const auto &list = data.vsource_groups().v;
+		if (list.size() != was.ssrcGroups.size()) {
+			return false;
+		}
+		auto index = 0;
+		for (const auto &group : list) {
+			const auto equal = group.match([&](
+					const MTPDgroupCallParticipantVideoSourceGroup &data) {
+				const auto &group = was.ssrcGroups[index++];
+				if (gsl::make_span(data.vsemantics().v)
+					!= gsl::make_span(group.semantics)) {
+					return false;
+				}
+				const auto list = data.vsources().v;
+				if (list.size() != group.ssrcs.size()) {
+					return false;
+				}
+				auto i = 0;
+				for (const auto &ssrc : list) {
+					if (ssrc.v != group.ssrcs[i++]) {
+						return false;
+					}
+				}
+				return true;
+			});
+			if (!equal) {
+				return false;
+			}
+		}
+		return true;
+	});
+}
+
+[[nodiscard]] VideoParams ParseVideoParams(
+		const tl::conditional<MTPGroupCallParticipantVideo> &params) {
+	if (!params) {
+		return VideoParams();
+	}
+	auto result = VideoParams();
+	params->match([&](const MTPDgroupCallParticipantVideo &data) {
+		result.endpointId = data.vendpoint().v.toStdString();
+		const auto &list = data.vsource_groups().v;
+		result.ssrcGroups.reserve(list.size());
+		for (const auto &group : list) {
+			group.match([&](
+					const MTPDgroupCallParticipantVideoSourceGroup &data) {
+				const auto &list = data.vsources().v;
+				auto ssrcs = std::vector<uint32_t>();
+				ssrcs.reserve(list.size());
+				for (const auto &ssrc : list) {
+					ssrcs.push_back(ssrc.v);
+				}
+				result.ssrcGroups.push_back({
+					.semantics = data.vsemantics().v.toStdString(),
+					.ssrcs = std::move(ssrcs),
+				});
+			});
+		}
+	});
+	return result;
+}
+
+const std::string &GetCameraEndpoint(
+		const std::shared_ptr<ParticipantVideoParams> &params) {
+	return params ? params->camera.endpointId : EmptyString();
+}
+
+const std::string &GetScreenEndpoint(
+		const std::shared_ptr<ParticipantVideoParams> &params) {
+	return params ? params->screen.endpointId : EmptyString();
 }
 
 std::shared_ptr<ParticipantVideoParams> ParseVideoParams(
-		const QByteArray &camera,
-		const QByteArray &screen,
+		const tl::conditional<MTPGroupCallParticipantVideo> &camera,
+		const tl::conditional<MTPGroupCallParticipantVideo> &screen,
 		const std::shared_ptr<ParticipantVideoParams> &existing) {
 	using namespace tgcalls;
 
-	if (camera.isEmpty() && screen.isEmpty()) {
+	if (!camera && !screen) {
 		return nullptr;
 	}
-	const auto cameraHash = camera.isEmpty()
-		? 0
-		: XXH32(camera.data(), camera.size(), uint32(0));
-	const auto screenHash = screen.isEmpty()
-		? 0
-		: XXH32(screen.data(), screen.size(), uint32(0));
 	if (existing
-		&& existing->camera.hash == cameraHash
-		&& existing->screen.hash == screenHash) {
+		&& VideoParamsAreEqual(existing->camera, camera)
+		&& VideoParamsAreEqual(existing->screen, screen)) {
 		return existing;
 	}
 	// We don't reuse existing pointer, that way we can compare pointers
@@ -265,9 +333,7 @@ std::shared_ptr<ParticipantVideoParams> ParseVideoParams(
 		? existing
 		: */std::make_shared<ParticipantVideoParams>();
 	data->camera = ParseVideoParams(camera);
-	data->camera.hash = cameraHash;
 	data->screen = ParseVideoParams(screen);
-	data->screen.hash = screenHash;
 	return data;
 }
 
@@ -1048,7 +1114,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 
 			const auto json = QByteArray::fromStdString(payload.json);
 			const auto wasMuteState = muted();
-			const auto wasVideoMuted = !isSharingCamera();
+			const auto wasVideoStopped = !isSharingCamera();
 			using Flag = MTPphone_JoinGroupCall::Flag;
 			const auto flags = (wasMuteState != MuteState::Active
 				? Flag::f_muted
@@ -1056,8 +1122,8 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				| (_joinHash.isEmpty()
 					? Flag(0)
 					: Flag::f_invite_hash)
-				| (wasVideoMuted
-					? Flag::f_video_muted
+				| (wasVideoStopped
+					? Flag::f_video_stopped
 					: Flag(0));
 			_api.request(MTPphone_JoinGroupCall(
 				MTP_flags(flags),
@@ -1078,8 +1144,8 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				_peer->session().api().applyUpdates(updates);
 				applyQueuedSelfUpdates();
 				checkFirstTimeJoined();
-				if (wasVideoMuted == isSharingCamera()) {
-					sendSelfUpdate(SendUpdateType::VideoMuted);
+				if (wasVideoStopped == isSharingCamera()) {
+					sendSelfUpdate(SendUpdateType::VideoStopped);
 				}
 				_screenJoinState.nextActionPending = true;
 				checkNextJoinAction();
@@ -1255,9 +1321,6 @@ void GroupCall::applyMeInCallLocally() {
 		: participant
 		? participant->raisedHandRating
 		: FindLocalRaisedHandRating(real->participants());
-	const auto params = participant
-		? participant->videoParams.get()
-		: nullptr;
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (lastActive ? Flag::f_active_date : Flag(0))
 		| (_joinState.ssrc ? Flag(0) : Flag::f_left)
@@ -1265,10 +1328,6 @@ void GroupCall::applyMeInCallLocally() {
 		| Flag::f_volume // Without flag the volume is reset to 100%.
 		| Flag::f_volume_by_admin // Self volume can only be set by admin.
 		| ((muted() != MuteState::Active) ? Flag::f_muted : Flag(0))
-		| ((params && !params->camera.empty()) ? Flag::f_video : Flag(0))
-		| ((params && !params->screen.empty())
-			? Flag::f_presentation
-			: Flag(0))
 		| (raisedHandRating > 0 ? Flag::f_raise_hand_rating : Flag(0));
 	real->applyLocalUpdate(
 		MTP_updateGroupCallParticipants(
@@ -1284,12 +1343,8 @@ void GroupCall::applyMeInCallLocally() {
 					MTP_int(volume),
 					MTPstring(), // Don't update about text in local updates.
 					MTP_long(raisedHandRating),
-					(params
-						? MTP_dataJSON(MTP_bytes(params->camera.json))
-						: MTPDataJSON()),
-					(params
-						? MTP_dataJSON(MTP_bytes(params->screen.json))
-						: MTPDataJSON()))),
+					MTPGroupCallParticipantVideo(),
+					MTPGroupCallParticipantVideo())),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -1307,7 +1362,6 @@ void GroupCall::applyParticipantLocally(
 		? participant->canSelfUnmute
 		: (!mute || IsGroupCallAdmin(_peer, participantPeer));
 	const auto isMutedByYou = mute && !canManageCall;
-	const auto params = participant->videoParams.get();
 	const auto mutedCount = 0/*participant->mutedCount*/;
 	using Flag = MTPDgroupCallParticipant::Flag;
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
@@ -1319,10 +1373,6 @@ void GroupCall::applyParticipantLocally(
 		| (isMuted ? Flag::f_muted : Flag(0))
 		| (isMutedByYou ? Flag::f_muted_by_you : Flag(0))
 		| (participantPeer == _joinAs ? Flag::f_self : Flag(0))
-		| ((params && !params->camera.empty()) ? Flag::f_video : Flag(0))
-		| ((params && !params->screen.empty())
-			? Flag::f_presentation
-			: Flag(0))
 		| (participant->raisedHandRating
 			? Flag::f_raise_hand_rating
 			: Flag(0));
@@ -1340,12 +1390,8 @@ void GroupCall::applyParticipantLocally(
 					MTP_int(volume.value_or(participant->volume)),
 					MTPstring(), // Don't update about text in local updates.
 					MTP_long(participant->raisedHandRating),
-					(params
-						? MTP_dataJSON(MTP_bytes(params->camera.json))
-						: MTPDataJSON()),
-					(params
-						? MTP_dataJSON(MTP_bytes(params->screen.json))
-						: MTPDataJSON()))),
+					MTPGroupCallParticipantVideo(),
+					MTPGroupCallParticipantVideo())),
 			MTP_int(0)).c_updateGroupCallParticipants());
 }
 
@@ -1844,7 +1890,7 @@ void GroupCall::ensureOutgoingVideo() {
 			_joinAs,
 			_cameraEndpoint
 		}, active);
-		sendSelfUpdate(SendUpdateType::VideoMuted);
+		sendSelfUpdate(SendUpdateType::VideoStopped);
 		applyMeInCallLocally();
 	}, _lifetime);
 
@@ -2224,9 +2270,10 @@ void GroupCall::updateRequestedVideoChannels() {
 		}
 		channels.push_back({
 			.audioSsrc = participant->ssrc,
-			.videoInformation = (params->camera.endpoint == endpointId
-				? params->camera.json.toStdString()
-				: params->screen.json.toStdString()),
+			.endpointId = endpointId,
+			.ssrcGroups = (params->camera.endpointId == endpointId
+				? params->camera.ssrcGroups
+				: params->screen.ssrcGroups),
 			.quality = (video.quality == Group::VideoQuality::Full
 				? Quality::Full
 				: video.quality == Group::VideoQuality::Medium
@@ -2582,15 +2629,17 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 	_updateMuteRequestId = _api.request(MTPphone_EditGroupCallParticipant(
 		MTP_flags((type == SendUpdateType::RaiseHand)
 			? Flag::f_raise_hand
-			: (type == SendUpdateType::VideoMuted)
-			? Flag::f_video_muted
+			: (type == SendUpdateType::VideoStopped)
+			? Flag::f_video_stopped
 			: Flag::f_muted),
 		inputCall(),
 		_joinAs->input,
 		MTP_bool(muted() != MuteState::Active),
 		MTP_int(100000), // volume
 		MTP_bool(muted() == MuteState::RaisedHand),
-		MTP_bool(!isSharingCamera())
+		MTP_bool(!isSharingCamera()),
+		MTP_bool(false), // video_paused
+		MTP_bool(false) // presentation_paused
 	)).done([=](const MTPUpdates &result) {
 		_updateMuteRequestId = 0;
 		_peer->session().api().applyUpdates(result);
@@ -2690,7 +2739,9 @@ void GroupCall::editParticipant(
 		MTP_bool(mute),
 		MTP_int(std::clamp(volume.value_or(0), 1, Group::kMaxVolume)),
 		MTPBool(), // raise_hand
-		MTPBool() // video_muted
+		MTPBool(), // video_muted
+		MTPBool(), // video_paused
+		MTPBool() // presentation_paused
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 	}).fail([=](const MTP::Error &error) {
