@@ -325,7 +325,7 @@ void ChooseSourceProcess::setupPanel() {
 
 	_window->body()->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
-		QPainter(_window->body()).fillRect(clip, st::groupCallBg);
+		QPainter(_window->body()).fillRect(clip, st::groupCallMembersBg);
 	}, _window->lifetime());
 
 	_bottom->setGeometry(0, height - bottomHeight, width, bottomHeight);

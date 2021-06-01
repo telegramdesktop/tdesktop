@@ -1130,6 +1130,8 @@ desktopCaptureMargins: margins(12px, 8px, 12px, 6px);
 desktopCaptureSourceSize: size(235px, 165px);
 desktopCaptureSourceSkips: size(2px, 10px);
 desktopCaptureSourceTitle: WindowTitle(groupCallTitle) {
+	bg: groupCallMembersBgOver;
+	bgActive: groupCallMembersBgOver;
 	height: 21px;
 }
 desktopCapturePadding: margins(7px, 7px, 7px, 33px);
@@ -1145,8 +1147,8 @@ desktopCaptureCancel: RoundButton(defaultBoxButton) {
 	textFgOver: groupCallActiveFg;
 	numbersTextFg: groupCallActiveFg;
 	numbersTextFgOver: groupCallActiveFg;
-	textBg: groupCallBg;
-	textBgOver: groupCallMembersBg;
+	textBg: groupCallMembersBg;
+	textBgOver: groupCallMembersBgOver;
 
 	ripple: groupCallRipple;
 }
