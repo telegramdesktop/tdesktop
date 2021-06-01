@@ -112,12 +112,12 @@ Go to ***BuildPath*** and run
     cd out
     mkdir Debug
     cd Debug
-    cmake -G Ninja  -DCMAKE_BUILD_TYPE=Debug ../..
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug ../..
     ninja
     cd ..
     mkdir Release
     cd Release
-    cmake -G Ninja  -DCMAKE_BUILD_TYPE=Release ../..
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ../..
     ninja
     cd ../../..
 
