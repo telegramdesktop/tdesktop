@@ -437,7 +437,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 56f0e53eaccfaed54c513f8795cc03a25e2a72f8
+    source-commit: 19e418c988a42d954418f32b1df34d3693ef22ca
     plugin: cmake
     build-packages:
       - yasm
