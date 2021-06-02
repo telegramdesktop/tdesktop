@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Calls::Group {
 
-Viewport::Renderer::Renderer(not_null<Viewport*> owner)
+Viewport::RendererSW::RendererSW(not_null<Viewport*> owner)
 : _owner(owner)
 , _pinIcon(st::groupCallVideoTile.pin)
 , _pinBackground(
@@ -28,27 +28,25 @@ Viewport::Renderer::Renderer(not_null<Viewport*> owner)
 	st::radialBg) {
 }
 
-void Viewport::Renderer::paintFallback(
+void Viewport::RendererSW::paintFallback(
 		Painter &&p,
 		const QRegion &clip,
 		Ui::GL::Backend backend) {
 	auto bg = clip;
 	auto hq = PainterHighQualityEnabler(p);
 	const auto bounding = clip.boundingRect();
-	const auto opengl = (backend == Ui::GL::Backend::OpenGL);
 	for (const auto &tile : _owner->_tiles) {
-		paintTile(p, tile.get(), bounding, opengl, bg);
+		paintTile(p, tile.get(), bounding, bg);
 	}
 	for (const auto rect : bg) {
 		p.fillRect(rect, st::groupCallBg);
 	}
 }
 
-void Viewport::Renderer::paintTile(
+void Viewport::RendererSW::paintTile(
 		Painter &p,
 		not_null<VideoTile*> tile,
 		const QRect &clip,
-		bool opengl,
 		QRegion &bg) {
 	const auto track = tile->track();
 	const auto data = track->frameWithInfo(true);
@@ -79,7 +77,7 @@ void Viewport::Renderer::paintTile(
 	const auto left = (width - scaled.width()) / 2;
 	const auto top = (height - scaled.height()) / 2;
 	const auto target = QRect(QPoint(x + left, y + top), scaled);
-	if (UsePainterRotation(rotation, opengl)) {
+	if (UsePainterRotation(rotation, false)) {
 		if (rotation) {
 			p.save();
 			p.rotate(rotation);
@@ -113,7 +111,7 @@ void Viewport::Renderer::paintTile(
 	paintTileOutline(p, x, y, width, height, tile);
 }
 
-void Viewport::Renderer::paintTileOutline(
+void Viewport::RendererSW::paintTileOutline(
 		Painter &p,
 		int x,
 		int y,
@@ -137,7 +135,7 @@ void Viewport::Renderer::paintTileOutline(
 	p.fillRect(x, y + height - outline, width - outline, outline, color);
 }
 
-void Viewport::Renderer::paintTileControls(
+void Viewport::RendererSW::paintTileControls(
 		Painter &p,
 		int x,
 		int y,

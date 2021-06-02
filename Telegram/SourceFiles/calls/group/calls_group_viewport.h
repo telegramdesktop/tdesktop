@@ -90,7 +90,7 @@ public:
 private:
 	struct Textures;
 	class VideoTile;
-	class Renderer;
+	class RendererSW;
 	class RendererGL;
 	using TileId = quintptr;
 

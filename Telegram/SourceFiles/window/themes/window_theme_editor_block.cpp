@@ -165,7 +165,7 @@ void EditorBlock::Row::fillSearchIndex() {
 EditorBlock::EditorBlock(QWidget *parent, Type type, Context *context) : TWidget(parent)
 , _type(type)
 , _context(context)
-, _transparent(style::transparentPlaceholderBrush()) {
+, _transparent(style::TransparentPlaceholder()) {
 	setMouseTracking(true);
 	subscribe(_context->updated, [this] {
 		if (_mouseSelection) {

@@ -174,90 +174,6 @@ vec4 background() {
 	} };
 }
 
-void FillRectVertices(GLfloat *coords, Rect rect) {
-	coords[0] = coords[10] = rect.left();
-	coords[1] = coords[11] = rect.top();
-	coords[2] = rect.right();
-	coords[3] = rect.top();
-	coords[4] = coords[6] = rect.right();
-	coords[5] = coords[7] = rect.bottom();
-	coords[8] = rect.left();
-	coords[9] = rect.bottom();
-}
-
-void FillTriangles(
-		QOpenGLFunctions &f,
-		gsl::span<const GLfloat> coords,
-		not_null<QOpenGLBuffer*> buffer,
-		not_null<QOpenGLShaderProgram*> program,
-		QSize viewportWithFactor,
-		const QColor &color,
-		Fn<void()> additional = nullptr) {
-	Expects(coords.size() % 6 == 0);
-
-	if (coords.empty()) {
-		return;
-	}
-	buffer->bind();
-	buffer->allocate(coords.data(), coords.size() * sizeof(GLfloat));
-
-	f.glUseProgram(program->programId());
-	program->setUniformValue("viewport", QSizeF(viewportWithFactor));
-	program->setUniformValue("s_color", Uniform(color));
-
-	GLint position = program->attributeLocation("position");
-	f.glVertexAttribPointer(
-		position,
-		2,
-		GL_FLOAT,
-		GL_FALSE,
-		2 * sizeof(GLfloat),
-		nullptr);
-	f.glEnableVertexAttribArray(position);
-
-	if (additional) {
-		additional();
-	}
-
-	f.glDrawArrays(GL_TRIANGLES, 0, coords.size() / 2);
-
-	f.glDisableVertexAttribArray(position);
-}
-
-void FillTexturedRectangle(
-		QOpenGLFunctions &f,
-		not_null<QOpenGLShaderProgram*> program,
-		int skipVertices = 0) {
-	const auto shift = [&](int elements) {
-		return reinterpret_cast<const void*>(
-			(skipVertices * 4 + elements) * sizeof(GLfloat));
-	};
-	GLint position = program->attributeLocation("position");
-	f.glVertexAttribPointer(
-		position,
-		2,
-		GL_FLOAT,
-		GL_FALSE,
-		4 * sizeof(GLfloat),
-		shift(0));
-	f.glEnableVertexAttribArray(position);
-
-	GLint texcoord = program->attributeLocation("v_texcoordIn");
-	f.glVertexAttribPointer(
-		texcoord,
-		2,
-		GL_FLOAT,
-		GL_FALSE,
-		4 * sizeof(GLfloat),
-		shift(2));
-	f.glEnableVertexAttribArray(texcoord);
-
-	f.glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
-	f.glDisableVertexAttribArray(position);
-	f.glDisableVertexAttribArray(texcoord);
-}
-
 } // namespace
 
 Viewport::RendererGL::RendererGL(not_null<Viewport*> owner)
@@ -319,14 +235,7 @@ void Viewport::RendererGL::init(
 			FragmentRoundCorners(),
 		})).vertex;
 
-	_bgBuffer.emplace();
-	_bgBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
-	_bgBuffer->create();
-	_bgProgram.emplace();
-	LinkProgram(
-		&*_bgProgram,
-		VertexShader({ VertexViewportTransform() }),
-		FragmentShader({ FragmentStaticColor() }));
+	_background.init(f);
 
 	_imageProgram.emplace();
 	LinkProgram(
@@ -366,10 +275,8 @@ void Viewport::RendererGL::ensureARGB32Program() {
 void Viewport::RendererGL::deinit(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
-	_bgBuffer = std::nullopt;
 	_frameBuffer = std::nullopt;
 	_frameVertexShader = nullptr;
-	_bgProgram = std::nullopt;
 	_imageProgram = std::nullopt;
 	_downscaleProgram.argb32 = std::nullopt;
 	_downscaleProgram.yuv420 = std::nullopt;
@@ -381,6 +288,7 @@ void Viewport::RendererGL::deinit(
 	}
 	_tileData.clear();
 	_tileDataIndices.clear();
+	_background.deinit(f);
 	_buttons.destroy(f);
 }
 
@@ -422,28 +330,13 @@ void Viewport::RendererGL::paint(
 void Viewport::RendererGL::fillBackground(QOpenGLFunctions &f) {
 	const auto radius = st::roundRadiusLarge;
 	const auto radiuses = QMargins{ radius, radius, radius, radius };
-	auto bg = QRegion(QRect(QPoint(), _viewport));
+	auto region = QRegion(QRect(QPoint(), _viewport));
 	for (const auto &tile : _owner->_tiles) {
 		if (tile->shown()) {
-			bg -= tile->geometry().marginsRemoved(radiuses);
+			region -= tile->geometry().marginsRemoved(radiuses);
 		}
 	}
-	if (bg.isEmpty()) {
-		return;
-	}
-	_bgTriangles.resize((bg.end() - bg.begin()) * 12);
-	auto coords = _bgTriangles.data();
-	for (const auto rect : bg) {
-		FillRectVertices(coords, transformRect(rect));
-		coords += 12;
-	}
-	FillTriangles(
-		f,
-		_bgTriangles,
-		&*_bgBuffer,
-		&*_bgProgram,
-		_viewport * _factor,
-		st::groupCallBg->c);
+	_background.fill(f, region, _viewport, _factor, st::groupCallBg);
 }
 
 void Viewport::RendererGL::paintTile(
@@ -957,12 +850,7 @@ void Viewport::RendererGL::drawFirstBlurPass(
 }
 
 Rect Viewport::RendererGL::transformRect(const Rect &raster) const {
-	return {
-		raster.left() * _factor,
-		float(_viewport.height() - raster.bottom()) * _factor,
-		raster.width() * _factor,
-		raster.height() * _factor,
-	};
+	return TransformRect(raster, _viewport, _factor);
 }
 
 Rect Viewport::RendererGL::transformRect(const QRect &raster) const {

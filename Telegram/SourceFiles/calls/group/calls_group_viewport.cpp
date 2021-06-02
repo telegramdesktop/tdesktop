@@ -798,7 +798,7 @@ Ui::GL::ChosenRenderer Viewport::chooseRenderer(
 		};
 	}
 	return {
-		.renderer = std::make_unique<Renderer>(this),
+		.renderer = std::make_unique<RendererSW>(this),
 		.backend = Ui::GL::Backend::Raster,
 	};
 }

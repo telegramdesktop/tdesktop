@@ -15,9 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Calls::Group {
 
-class Viewport::Renderer final : public Ui::GL::Renderer {
+class Viewport::RendererSW final : public Ui::GL::Renderer {
 public:
-	explicit Renderer(not_null<Viewport*> owner);
+	explicit RendererSW(not_null<Viewport*> owner);
 
 	void paintFallback(
 		Painter &&p,
@@ -29,7 +29,6 @@ private:
 		Painter &p,
 		not_null<VideoTile*> tile,
 		const QRect &clip,
-		bool opengl,
 		QRegion &bg);
 	void paintTileOutline(
 		Painter &p,

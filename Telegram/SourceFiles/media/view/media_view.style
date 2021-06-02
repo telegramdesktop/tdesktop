@@ -237,7 +237,7 @@ mediaviewTextOpacity: 0.5;
 mediaviewTextOverOpacity: 1;
 
 mediaviewIconOpacity: 0.45;
-mediaviewIconOverOpacity: 1;
+mediaviewIconOverOpacity: 1.;
 mediaviewControlBgOpacity: 0.3;
 mediaviewControlMargin: 0px;
 mediaviewControlSize: 90px;

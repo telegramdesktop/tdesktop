@@ -349,7 +349,9 @@ EditColorBox::Slider::Slider(
 , _type(type)
 , _color(color.red(), color.green(), color.blue())
 , _value(valueFromColor(color))
-, _transparent((_type == Type::Opacity) ? style::transparentPlaceholderBrush() : QBrush()) {
+, _transparent((_type == Type::Opacity)
+		? style::TransparentPlaceholder()
+		: QBrush()) {
 	prepareMinSize();
 }
 
@@ -758,7 +760,7 @@ EditColorBox::EditColorBox(
 , _greenField(this, st::colorValueInput, "G", 255)
 , _blueField(this, st::colorValueInput, "B", 255)
 , _result(this, st::colorResultInput)
-, _transparent(style::transparentPlaceholderBrush())
+, _transparent(style::TransparentPlaceholder())
 , _current(current)
 , _new(current) {
 	if (_mode == Mode::RGBA) {

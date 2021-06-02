@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/cross_line.h"
+#include "ui/gl/gl_primitives.h"
 #include "ui/gl/gl_surface.h"
 #include "ui/gl/gl_image.h"
 
@@ -116,13 +117,12 @@ private:
 	GLfloat _factor = 1.;
 	QSize _viewport;
 	bool _rgbaFrame = false;
+	Ui::GL::BackgroundFiller _background;
 	std::optional<QOpenGLBuffer> _frameBuffer;
-	std::optional<QOpenGLBuffer> _bgBuffer;
 	Program _downscaleProgram;
 	std::optional<QOpenGLShaderProgram> _blurProgram;
 	Program _frameProgram;
 	std::optional<QOpenGLShaderProgram> _imageProgram;
-	std::optional<QOpenGLShaderProgram> _bgProgram;
 	QOpenGLShader *_downscaleVertexShader = nullptr;
 	QOpenGLShader *_frameVertexShader = nullptr;
 
@@ -137,7 +137,6 @@ private:
 	std::vector<TileData> _tileData;
 	std::vector<int> _tileDataIndices;
 
-	std::vector<GLfloat> _bgTriangles;
 	Ui::CrossLineAnimation _pinIcon;
 	Ui::CrossLineAnimation _muteIcon;
 	Ui::RoundRect _pinBackground;

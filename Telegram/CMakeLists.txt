@@ -777,6 +777,11 @@ PRIVATE
     media/streaming/media_streaming_video_track.h
     media/view/media_view_group_thumbs.cpp
     media/view/media_view_group_thumbs.h
+    media/view/media_view_overlay_opengl.cpp
+    media/view/media_view_overlay_opengl.h
+    media/view/media_view_overlay_raster.cpp
+    media/view/media_view_overlay_raster.h
+    media/view/media_view_overlay_renderer.h
     media/view/media_view_overlay_widget.cpp
     media/view/media_view_overlay_widget.h
     media/view/media_view_pip.cpp
