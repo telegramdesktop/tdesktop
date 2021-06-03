@@ -428,11 +428,17 @@ parts:
     source-commit: 7f449bf8bd3b933891d12c30112268c4090e4d59
     plugin: autotools
     autotools-configure-parameters:
+      - --prefix=/usr
+      - --libdir=\${exec_prefix}/lib/$SNAPCRAFT_ARCH_TRIPLET
+      - --disable-static
       - --disable-examples
       - --disable-doc
     prime:
       - -./usr/include
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/librnnoise.la
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/librnnoise.so
+      - -./usr/share
 
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
