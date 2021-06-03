@@ -319,6 +319,7 @@ void Viewport::RendererGL::paint(
 	auto index = 0;
 	for (const auto &tile : _owner->_tiles) {
 		if (!tile->shown()) {
+			index++;
 			continue;
 		}
 		paintTile(
@@ -970,14 +971,8 @@ void Viewport::RendererGL::validateDatas() {
 		return std::clamp(row->name().maxWidth(), 1, hasWidth) * factor;
 	};
 	for (auto i = 0; i != count; ++i) {
-		if (!tiles[i]->shown()) {
-			continue;
-		}
 		tiles[i]->row()->lazyInitialize(st::groupCallMembersListItem);
 		const auto width = nameWidth(i);
-		if (width <= 0) {
-			continue;
-		}
 		if (width > available) {
 			available = width;
 		}
@@ -1079,6 +1074,9 @@ void Viewport::RendererGL::validateDatas() {
 			const auto i = request.index;
 			const auto index = _tileDataIndices[i];
 			const auto &data = _tileData[_tileDataIndices[i]];
+			if (data.nameRect.isEmpty()) {
+				continue;
+			}
 			const auto row = tiles[i]->row();
 			if (request.updating) {
 				p.setCompositionMode(QPainter::CompositionMode_Source);
