@@ -174,6 +174,19 @@ QImage ConvertFrame(
 	return storage;
 }
 
+FrameYUV420 ExtractYUV420(Stream &stream, AVFrame *frame) {
+	return {
+		.size = { frame->width, frame->height },
+		.chromaSize = {
+			AV_CEIL_RSHIFT(frame->width, 1), // SWScale does that.
+			AV_CEIL_RSHIFT(frame->height, 1)
+		},
+		.y = { .data = frame->data[0], .stride = frame->linesize[0] },
+		.u = { .data = frame->data[1], .stride = frame->linesize[1] },
+		.v = { .data = frame->data[2], .stride = frame->linesize[2] },
+	};
+}
+
 void PaintFrameOuter(QPainter &p, const QRect &inner, QSize outer) {
 	const auto left = inner.x();
 	const auto right = outer.width() - inner.width() - left;

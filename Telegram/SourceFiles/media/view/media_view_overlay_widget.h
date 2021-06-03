@@ -47,6 +47,7 @@ struct TrackState;
 namespace Streaming {
 struct Information;
 struct Update;
+struct FrameWithInfo;
 enum class Error;
 } // namespace Streaming
 } // namespace Media
@@ -397,6 +398,8 @@ private:
 	[[nodiscard]] QSize videoSize() const;
 	[[nodiscard]] bool videoIsGifOrUserpic() const;
 	[[nodiscard]] QImage videoFrame() const;
+	[[nodiscard]] Streaming::FrameWithInfo videoFrameWithInfo() const;
+	[[nodiscard]] int streamedIndex() const;
 	[[nodiscard]] QImage transformedShownContent() const;
 	[[nodiscard]] QImage transformShownContent(
 		QImage content,
@@ -474,6 +477,7 @@ private:
 
 	std::unique_ptr<Streamed> _streamed;
 	std::unique_ptr<PipWrap> _pip;
+	int _streamedCreated = 0;
 	bool _showAsPip = false;
 
 	const style::icon *_docIcon = nullptr;

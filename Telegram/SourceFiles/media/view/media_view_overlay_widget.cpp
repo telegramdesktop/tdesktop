@@ -555,6 +555,22 @@ QImage OverlayWidget::videoFrame() const {
 		: _streamed->instance.info().video.cover;
 }
 
+Streaming::FrameWithInfo OverlayWidget::videoFrameWithInfo() const {
+	Expects(videoShown());
+
+	return _streamed->instance.player().ready()
+		? _streamed->instance.frameWithInfo()
+		: Streaming::FrameWithInfo{
+			.original = _streamed->instance.info().video.cover,
+			.format = Streaming::FrameFormat::ARGB32,
+			.index = -2,
+		};
+}
+
+int OverlayWidget::streamedIndex() const {
+	return _streamedCreated;
+}
+
 bool OverlayWidget::documentContentShown() const {
 	return _document && (!_staticContent.isNull() || videoShown());
 }
@@ -2618,6 +2634,7 @@ bool OverlayWidget::createStreamingObjects() {
 		_streamed = nullptr;
 		return false;
 	}
+	++_streamedCreated;
 	_streamed->instance.setPriority(kOverlayLoaderPriority);
 	_streamed->instance.lockPlayer();
 	_streamed->withSound = _document
@@ -4429,8 +4446,10 @@ void OverlayWidget::clearBeforeHide() {
 	_controlsOpacity = anim::value(1, 1);
 	_groupThumbs = nullptr;
 	_groupThumbsRect = QRect();
-	if (_streamed) {
-		_streamed->controls.hide();
+	for (const auto child : _widget->children()) {
+		if (child->isWidgetType()) {
+			static_cast<QWidget*>(child)->hide();
+		}
 	}
 }
 

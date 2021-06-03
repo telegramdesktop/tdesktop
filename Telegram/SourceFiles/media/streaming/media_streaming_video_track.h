@@ -58,6 +58,7 @@ public:
 	[[nodiscard]] QImage frame(
 		const FrameRequest &request,
 		const Instance *instance);
+	[[nodiscard]] FrameWithInfo frameWithInfo(const Instance *instance);
 	void unregisterInstance(not_null<const Instance*> instance);
 	[[nodiscard]] rpl::producer<> checkNextFrame() const;
 	[[nodiscard]] rpl::producer<> waitingForData() const;
@@ -78,13 +79,19 @@ private:
 	struct Frame {
 		FFmpeg::FramePointer decoded = FFmpeg::MakeFramePointer();
 		QImage original;
+		FrameYUV420 yuv420;
 		crl::time position = kTimeUnknown;
 		crl::time displayed = kTimeUnknown;
 		crl::time display = kTimeUnknown;
+		FrameFormat format = FrameFormat::None;
 
 		base::flat_map<const Instance*, Prepared> prepared;
 
 		bool alpha = false;
+	};
+	struct FrameWithIndex {
+		not_null<Frame*> frame;
+		int index = -1;
 	};
 
 	class Shared {
@@ -123,6 +130,7 @@ private:
 		bool markFrameShown();
 		[[nodiscard]] crl::time nextFrameDisplayTime() const;
 		[[nodiscard]] not_null<Frame*> frameForPaint();
+		[[nodiscard]] FrameWithIndex frameForPaintWithIndex();
 
 	private:
 		[[nodiscard]] not_null<Frame*> getFrame(int index);
@@ -131,6 +139,9 @@ private:
 
 		static constexpr auto kCounterUninitialized = -1;
 		std::atomic<int> _counter = kCounterUninitialized;
+
+		// Main thread.
+		int _counterCycle = 0;
 
 		static constexpr auto kFramesCount = 4;
 		std::array<Frame, kFramesCount> _frames;

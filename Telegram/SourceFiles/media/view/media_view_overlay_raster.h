@@ -51,6 +51,8 @@ private:
 	void paintCaption(QRect outer, float64 opacity) override;
 	void paintGroupThumbs(QRect outer, float64 opacity) override;
 
+	void invalidate() override;
+
 	const not_null<OverlayWidget*> _owner;
 	QBrush _transparentBrush;
 

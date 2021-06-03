@@ -49,6 +49,10 @@ private:
 		QRect rect,
 		int rotation,
 		bool fillTransparentBackground) override;
+	void paintTransformedContent(
+		not_null<QOpenGLShaderProgram*> program,
+		QRect rect,
+		int rotation);
 	void paintRadialLoading(
 		QRect inner,
 		bool radial,
@@ -66,6 +70,8 @@ private:
 	void paintFooter(QRect outer, float64 opacity) override;
 	void paintCaption(QRect outer, float64 opacity) override;
 	void paintGroupThumbs(QRect outer, float64 opacity) override;
+
+	void invalidate() override;
 
 	void paintUsingRaster(
 		Ui::GL::Image &image,
@@ -97,11 +103,16 @@ private:
 
 	std::optional<QOpenGLBuffer> _contentBuffer;
 	std::optional<QOpenGLShaderProgram> _imageProgram;
-
+	QOpenGLShader *_texturedVertexShader = nullptr;
+	std::optional<QOpenGLShaderProgram> _withTransparencyProgram;
+	std::optional<QOpenGLShaderProgram> _yuv420Program;
 	Ui::GL::Textures<3> _textures;
 	QSize _rgbaSize;
-	QSize _ySize;
+	QSize _lumaSize;
+	QSize _chromaSize;
 	quint64 _cacheKey = 0;
+	int _trackFrameIndex = 0;
+	int _streamedIndex = 0;
 
 	Ui::GL::Image _radialImage;
 	Ui::GL::Image _documentBubbleImage;

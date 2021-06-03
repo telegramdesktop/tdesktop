@@ -58,6 +58,7 @@ struct Stream {
 	AVFrame *frame,
 	QSize resize,
 	QImage storage);
+[[nodiscard]] FrameYUV420 ExtractYUV420(Stream &stream, AVFrame *frame);
 [[nodiscard]] QImage PrepareByRequest(
 	const QImage &original,
 	bool alpha,
