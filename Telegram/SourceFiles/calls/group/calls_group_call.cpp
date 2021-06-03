@@ -1527,8 +1527,8 @@ void GroupCall::setMuted(MuteState mute) {
 			applyMeInCallLocally();
 		}
 		if (mutedByAdmin()) {
-			//toggleVideo(false);
-			//toggleScreenSharing(std::nullopt);
+			toggleVideo(false);
+			toggleScreenSharing(std::nullopt);
 		}
 	};
 	if (mute == MuteState::Active || mute == MuteState::PushToTalk) {
