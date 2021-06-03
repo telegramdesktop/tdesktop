@@ -231,6 +231,7 @@ parts:
       - -./usr/include
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libexec
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
       - -./usr/mkspecs
       - -./usr/share
     after:
@@ -253,6 +254,7 @@ parts:
       - -./usr/bin
       - -./usr/include
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
       - -./usr/share
 
   openal:
@@ -277,6 +279,7 @@ parts:
       - -./usr/include
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libopenal.so
 
   plasma-wayland-protocols:
     source: https://github.com/KDE/plasma-wayland-protocols.git
@@ -416,6 +419,10 @@ parts:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/bin
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/mkspecs
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/qt5/examples
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.la
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.prl
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
       - -./usr/lib/qt5
       - -./usr/share
     after:
