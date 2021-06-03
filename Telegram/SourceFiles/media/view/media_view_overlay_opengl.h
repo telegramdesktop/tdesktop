@@ -9,14 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/view/media_view_overlay_renderer.h"
 #include "ui/gl/gl_surface.h"
+#include "ui/gl/gl_image.h"
 #include "ui/gl/gl_primitives.h"
+
+#include <QtGui/QOpenGLBuffer>
 
 namespace Media::View {
 
 class OverlayWidget::RendererGL final : public OverlayWidget::Renderer {
 public:
-	RendererGL(not_null<OverlayWidget*> owner) : _owner(owner) {
-	}
+	explicit RendererGL(not_null<OverlayWidget*> owner);
 
 	void init(
 		not_null<QOpenGLWidget*> widget,
@@ -65,11 +67,26 @@ private:
 	void paintCaption(QRect outer, float64 opacity) override;
 	void paintGroupThumbs(QRect outer, float64 opacity) override;
 
-	void paintToCache(
-		QImage &cache,
-		QSize size,
+	void paintUsingRaster(
+		Ui::GL::Image &image,
+		QRect rect,
 		Fn<void(Painter&&)> method,
-		bool clear = false);
+		int bufferOffset,
+		bool transparent = false);
+
+	void toggleBlending(bool enabled);
+
+	[[nodiscard]] Ui::GL::Rect transformRect(const QRect &raster) const;
+	[[nodiscard]] Ui::GL::Rect transformRect(
+		const Ui::GL::Rect &raster) const;
+
+	void uploadTexture(
+		GLint internalformat,
+		GLint format,
+		QSize size,
+		QSize hasSize,
+		int stride,
+		const void *data) const;
 
 	const not_null<OverlayWidget*> _owner;
 
@@ -78,13 +95,24 @@ private:
 	QSize _viewport;
 	float _factor = 1.;
 
-	QImage _radialCache;
-	QImage _documentBubbleCache;
-	QImage _themePreviewCache;
-	QImage _saveMsgCache;
-	QImage _footerCache;
-	QImage _captionCache;
-	QImage _groupThumbsCache;
+	std::optional<QOpenGLBuffer> _contentBuffer;
+	std::optional<QOpenGLShaderProgram> _imageProgram;
+
+	Ui::GL::Textures<3> _textures;
+	QSize _rgbaSize;
+	QSize _ySize;
+	quint64 _cacheKey = 0;
+
+	Ui::GL::Image _radialImage;
+	Ui::GL::Image _documentBubbleImage;
+	Ui::GL::Image _themePreviewImage;
+	Ui::GL::Image _saveMsgImage;
+	Ui::GL::Image _footerImage;
+	Ui::GL::Image _captionImage;
+	Ui::GL::Image _groupThumbsImage;
+	bool _blendingEnabled = false;
+
+	rpl::lifetime _lifetime;
 
 };
 

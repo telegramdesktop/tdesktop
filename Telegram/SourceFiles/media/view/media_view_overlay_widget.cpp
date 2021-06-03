@@ -3121,7 +3121,7 @@ Ui::GL::ChosenRenderer OverlayWidget::chooseRenderer(
 		? true
 		: capabilities.transparency;
 	LOG(("OpenGL: %1 (OverlayWidget)").arg(Logs::b(use)));
-	if (use && false) {
+	if (use) {
 		auto renderer = std::make_unique<RendererGL>(this);
 		_opengl = true;
 		return {
@@ -3160,7 +3160,7 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 		paintRadialLoading(renderer);
 	} else if (_themePreviewShown) {
 		renderer->paintThemePreview(_themePreviewRect);
-	} else if (documentBubbleShown()) {
+	} else if (documentBubbleShown() && !_docRect.isEmpty()) {
 		renderer->paintDocumentBubble(_docRect, _docIconRect);
 	}
 	updateSaveMsgState();

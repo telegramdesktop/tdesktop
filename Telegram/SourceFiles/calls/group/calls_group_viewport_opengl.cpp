@@ -28,6 +28,11 @@ constexpr auto kBlurTextureSizeFactor = 1.7;
 constexpr auto kBlurOpacity = 0.7;
 constexpr auto kMinCameraVisiblePart = 0.75;
 
+constexpr auto kQuads = 7;
+constexpr auto kQuadVertices = kQuads * 4;
+constexpr auto kQuadValues = kQuadVertices * 4;
+constexpr auto kValues = kQuadValues + 8; // Blur texture coordinates.
+
 [[nodiscard]] ShaderPart FragmentBlurTexture(
 		bool vertical,
 		char prefix = 'v') {
@@ -200,10 +205,6 @@ void Viewport::RendererGL::init(
 	_frameBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
 	_frameBuffer->create();
 	_frameBuffer->bind();
-	constexpr auto kQuads = 7;
-	constexpr auto kQuadVertices = kQuads * 4;
-	constexpr auto kQuadValues = kQuadVertices * 4;
-	constexpr auto kValues = kQuadValues + 8; // Blur texture coordinates.
 	_frameBuffer->allocate(kValues * sizeof(GLfloat));
 	_downscaleProgram.yuv420.emplace();
 	_downscaleVertexShader = LinkProgram(
@@ -235,8 +236,6 @@ void Viewport::RendererGL::init(
 			FragmentRoundCorners(),
 		})).vertex;
 
-	_background.init(f);
-
 	_imageProgram.emplace();
 	LinkProgram(
 		&*_imageProgram,
@@ -247,6 +246,8 @@ void Viewport::RendererGL::init(
 		FragmentShader({
 			FragmentSampleARGB32Texture(),
 		}));
+
+	_background.init(f);
 }
 
 void Viewport::RendererGL::ensureARGB32Program() {
@@ -275,6 +276,8 @@ void Viewport::RendererGL::ensureARGB32Program() {
 void Viewport::RendererGL::deinit(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
+	_background.deinit(f);
+
 	_frameBuffer = std::nullopt;
 	_frameVertexShader = nullptr;
 	_imageProgram = std::nullopt;
@@ -288,7 +291,6 @@ void Viewport::RendererGL::deinit(
 	}
 	_tileData.clear();
 	_tileDataIndices.clear();
-	_background.deinit(f);
 	_buttons.destroy(f);
 }
 
@@ -545,12 +547,12 @@ void Viewport::RendererGL::paintTile(
 		name.texture.left(), name.texture.top(),
 	};
 
+	_frameBuffer->bind();
+	_frameBuffer->write(0, coords, sizeof(coords));
+
 	const auto blurSize = CountBlurredSize(unscaled, _viewport, _factor);
 	prepareObjects(f, tileData, blurSize);
 	f.glViewport(0, 0, blurSize.width(), blurSize.height());
-
-	_frameBuffer->bind();
-	_frameBuffer->write(0, coords, sizeof(coords));
 
 	bindFrame(f, data, tileData, _downscaleProgram);
 	tile->track()->markFrameShown();
@@ -716,52 +718,17 @@ void Viewport::RendererGL::bindFrame(
 		Program &program) {
 	const auto upload = (tileData.trackIndex != data.index);
 	tileData.trackIndex = data.index;
-	const auto uploadOne = [&](
-			GLint internalformat,
-			GLint format,
-			QSize size,
-			QSize hasSize,
-			int stride,
-			const void *data) {
-		f.glPixelStorei(GL_UNPACK_ROW_LENGTH, stride);
-		if (hasSize != size) {
-			f.glTexImage2D(
-				GL_TEXTURE_2D,
-				0,
-				internalformat,
-				size.width(),
-				size.height(),
-				0,
-				format,
-				GL_UNSIGNED_BYTE,
-				data);
-		} else {
-			f.glTexSubImage2D(
-				GL_TEXTURE_2D,
-				0,
-				0,
-				0,
-				size.width(),
-				size.height(),
-				format,
-				GL_UNSIGNED_BYTE,
-				data);
-		}
-		f.glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-	};
-	//if (upload) {
-	//	tileData.textureIndex = 1 - tileData.textureIndex;
-	//}
 	if (_rgbaFrame) {
 		ensureARGB32Program();
 		f.glUseProgram(program.argb32->programId());
 		f.glActiveTexture(GL_TEXTURE0);
-		tileData.textures.bind(f, tileData.textureIndex);
+		tileData.textures.bind(f, tileData.textureIndex * 5 + 0);
 		if (upload) {
 			const auto &image = data.original;
 			const auto stride = image.bytesPerLine() / 4;
 			const auto data = image.constBits();
-			uploadOne(
+			uploadTexture(
+				f,
 				GL_RGBA,
 				GL_RGBA,
 				image.size(),
@@ -769,6 +736,7 @@ void Viewport::RendererGL::bindFrame(
 				stride,
 				data);
 			tileData.rgbaSize = image.size();
+			tileData.textureSize = QSize();
 		}
 		program.argb32->setUniformValue("s_texture", GLint(0));
 	} else {
@@ -778,7 +746,8 @@ void Viewport::RendererGL::bindFrame(
 		tileData.textures.bind(f, tileData.textureIndex * 5 + 0);
 		if (upload) {
 			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-			uploadOne(
+			uploadTexture(
+				f,
 				GL_RED,
 				GL_RED,
 				yuv->size,
@@ -786,11 +755,13 @@ void Viewport::RendererGL::bindFrame(
 				yuv->y.stride,
 				yuv->y.data);
 			tileData.textureSize = yuv->size;
+			tileData.rgbaSize = QSize();
 		}
 		f.glActiveTexture(GL_TEXTURE1);
 		tileData.textures.bind(f, tileData.textureIndex * 5 + 1);
 		if (upload) {
-			uploadOne(
+			uploadTexture(
+				f,
 				GL_RED,
 				GL_RED,
 				yuv->chromaSize,
@@ -801,7 +772,8 @@ void Viewport::RendererGL::bindFrame(
 		f.glActiveTexture(GL_TEXTURE2);
 		tileData.textures.bind(f, tileData.textureIndex * 5 + 2);
 		if (upload) {
-			uploadOne(
+			uploadTexture(
+				f,
 				GL_RED,
 				GL_RED,
 				yuv->chromaSize,
@@ -815,6 +787,41 @@ void Viewport::RendererGL::bindFrame(
 		program.yuv420->setUniformValue("u_texture", GLint(1));
 		program.yuv420->setUniformValue("v_texture", GLint(2));
 	}
+}
+
+void Viewport::RendererGL::uploadTexture(
+		QOpenGLFunctions &f,
+		GLint internalformat,
+		GLint format,
+		QSize size,
+		QSize hasSize,
+		int stride,
+		const void *data) const {
+	f.glPixelStorei(GL_UNPACK_ROW_LENGTH, stride);
+	if (hasSize != size) {
+		f.glTexImage2D(
+			GL_TEXTURE_2D,
+			0,
+			internalformat,
+			size.width(),
+			size.height(),
+			0,
+			format,
+			GL_UNSIGNED_BYTE,
+			data);
+	} else {
+		f.glTexSubImage2D(
+			GL_TEXTURE_2D,
+			0,
+			0,
+			0,
+			size.width(),
+			size.height(),
+			format,
+			GL_UNSIGNED_BYTE,
+			data);
+	}
+	f.glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
 
 void Viewport::RendererGL::drawDownscalePass(
@@ -854,12 +861,7 @@ Rect Viewport::RendererGL::transformRect(const Rect &raster) const {
 }
 
 Rect Viewport::RendererGL::transformRect(const QRect &raster) const {
-	return {
-		raster.x() * _factor,
-		(_viewport.height() - raster.y() - raster.height()) * _factor,
-		raster.width() * _factor,
-		raster.height() * _factor,
-	};
+	return TransformRect(Rect(raster), _viewport, _factor);
 }
 
 void Viewport::RendererGL::ensureButtonsImage() {

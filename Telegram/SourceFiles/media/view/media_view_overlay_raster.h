@@ -14,7 +14,7 @@ namespace Media::View {
 
 class OverlayWidget::RendererSW final : public OverlayWidget::Renderer {
 public:
-	RendererSW(not_null<OverlayWidget*> owner);
+	explicit RendererSW(not_null<OverlayWidget*> owner);
 
 	void paintFallback(
 		Painter &&p,

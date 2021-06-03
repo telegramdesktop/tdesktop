@@ -7,13 +7,68 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/view/media_view_overlay_opengl.h"
 
+#include "ui/gl/gl_shader.h"
 #include "base/platform/base_platform_info.h"
 
 namespace Media::View {
+namespace {
+
+using namespace Ui::GL;
+
+constexpr auto kQuads = 8;
+constexpr auto kQuadVertices = kQuads * 4;
+constexpr auto kQuadValues = kQuadVertices * 4;
+constexpr auto kControls = 6;
+constexpr auto kControlValues = 2 * 4 + 4 * 4;
+constexpr auto kControlsValues = kControls * kControlValues;
+constexpr auto kValues = kQuadValues + kControlsValues;
+
+constexpr auto kRadialLoadingOffset = 4;
+constexpr auto kThemePreviewOffset = kRadialLoadingOffset + 4;
+constexpr auto kDocumentBubbleOffset = kThemePreviewOffset + 4;
+constexpr auto kSaveMsgOffset = kDocumentBubbleOffset + 4;
+constexpr auto kFooterOffset = kSaveMsgOffset + 4;
+constexpr auto kCaptionOffset = kFooterOffset + 4;
+constexpr auto kGroupThumbsOffset = kCaptionOffset + 4;
+
+} // namespace
+
+OverlayWidget::RendererGL::RendererGL(not_null<OverlayWidget*> owner)
+: _owner(owner) {
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_radialImage.invalidate();
+		_documentBubbleImage.invalidate();
+		_themePreviewImage.invalidate();
+		_saveMsgImage.invalidate();
+		_footerImage.invalidate();
+		_captionImage.invalidate();
+	}, _lifetime);
+}
 
 void OverlayWidget::RendererGL::init(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
+	_factor = widget->devicePixelRatio();
+	_contentBuffer.emplace();
+	_contentBuffer->setUsagePattern(QOpenGLBuffer::DynamicDraw);
+	_contentBuffer->create();
+	_contentBuffer->bind();
+	_contentBuffer->allocate(kValues * sizeof(GLfloat));
+
+	_textures.ensureCreated(f);
+
+	_imageProgram.emplace();
+	LinkProgram(
+		&*_imageProgram,
+		VertexShader({
+			VertexViewportTransform(),
+			VertexPassTextureCoord(),
+		}),
+		FragmentShader({
+			FragmentSampleARGB32Texture(),
+		}));
+
 	_background.init(f);
 }
 
@@ -21,6 +76,9 @@ void OverlayWidget::RendererGL::deinit(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
 	_background.deinit(f);
+	_textures.destroy(f);
+	_imageProgram = std::nullopt;
+	_contentBuffer = std::nullopt;
 }
 
 void OverlayWidget::RendererGL::resize(
@@ -46,6 +104,7 @@ void OverlayWidget::RendererGL::paint(
 	}
 	_f = &f;
 	_owner->paint(this);
+	_f = nullptr;
 }
 
 bool OverlayWidget::RendererGL::handleHideWorkaround(QOpenGLFunctions &f) {
@@ -67,6 +126,7 @@ void OverlayWidget::RendererGL::paintBackground() {
 	if (_owner->opaqueContentShown()) {
 		fill -= _owner->contentRect();
 	}
+	toggleBlending(false);
 	_background.fill(
 		*_f,
 		fill,
@@ -78,6 +138,11 @@ void OverlayWidget::RendererGL::paintBackground() {
 void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 		QRect rect,
 		int rotation) {
+	paintTransformedStaticContent(
+		_owner->videoFrame(),
+		rect,
+		rotation,
+		false);
 }
 
 void OverlayWidget::RendererGL::paintTransformedStaticContent(
@@ -85,44 +150,131 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 		QRect rect,
 		int rotation,
 		bool fillTransparentBackground) {
+	AssertIsDebug(fillTransparentBackground);
+	auto texCoords = std::array<std::array<GLfloat, 2>, 4> { {
+		{ { 0.f, 1.f } },
+		{ { 1.f, 1.f } },
+		{ { 1.f, 0.f } },
+		{ { 0.f, 0.f } },
+	} };
+	if (const auto shift = (rotation / 90); shift > 0) {
+		std::rotate(
+			texCoords.begin(),
+			texCoords.begin() + shift,
+			texCoords.end());
+	}
+
+	const auto geometry = transformRect(rect);
+	const GLfloat coords[] = {
+		geometry.left(), geometry.top(),
+		texCoords[0][0], texCoords[0][1],
+
+		geometry.right(), geometry.top(),
+		texCoords[1][0], texCoords[1][1],
+
+		geometry.right(), geometry.bottom(),
+		texCoords[2][0], texCoords[2][1],
+
+		geometry.left(), geometry.bottom(),
+		texCoords[3][0], texCoords[3][1],
+	};
+
+	_contentBuffer->bind();
+	_contentBuffer->write(0, coords, sizeof(coords));
+
+	_f->glUseProgram(_imageProgram->programId());
+	_imageProgram->setUniformValue("viewport", QSizeF(_viewport * _factor));
+	_imageProgram->setUniformValue("s_texture", GLint(0));
+
+	_f->glActiveTexture(GL_TEXTURE0);
+	_textures.bind(*_f, 0);
+	const auto cacheKey = image.cacheKey();
+	const auto upload = (_cacheKey != cacheKey);
+	if (upload) {
+		const auto stride = image.bytesPerLine() / 4;
+		const auto data = image.constBits();
+		uploadTexture(
+			GL_RGBA,
+			GL_RGBA,
+			image.size(),
+			_rgbaSize,
+			stride,
+			data);
+		_rgbaSize = image.size();
+		_ySize = QSize();
+	}
+
+	toggleBlending(false);
+	FillTexturedRectangle(*_f, &*_imageProgram);
+}
+
+void OverlayWidget::RendererGL::uploadTexture(
+		GLint internalformat,
+		GLint format,
+		QSize size,
+		QSize hasSize,
+		int stride,
+		const void *data) const {
+	_f->glPixelStorei(GL_UNPACK_ROW_LENGTH, stride);
+	if (hasSize != size) {
+		_f->glTexImage2D(
+			GL_TEXTURE_2D,
+			0,
+			internalformat,
+			size.width(),
+			size.height(),
+			0,
+			format,
+			GL_UNSIGNED_BYTE,
+			data);
+	} else {
+		_f->glTexSubImage2D(
+			GL_TEXTURE_2D,
+			0,
+			0,
+			0,
+			size.width(),
+			size.height(),
+			format,
+			GL_UNSIGNED_BYTE,
+			data);
+	}
+	_f->glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 }
 
 void OverlayWidget::RendererGL::paintRadialLoading(
 		QRect inner,
 		bool radial,
 		float64 radialOpacity) {
-	paintToCache(_radialCache, inner.size(), [&](Painter &&p) {
+	paintUsingRaster(_radialImage, inner, [&](Painter &&p) {
 		const auto newInner = QRect(QPoint(), inner.size());
 		_owner->paintRadialLoadingContent(p, newInner, radial, radialOpacity);
-	}, true);
-	//p.drawImage(inner.topLeft(), _radialCache);
+	}, kRadialLoadingOffset, true);
 }
 
 void OverlayWidget::RendererGL::paintThemePreview(QRect outer) {
-	paintToCache(_themePreviewCache, outer.size(), [&](Painter &&p) {
+	paintUsingRaster(_themePreviewImage, outer, [&](Painter &&p) {
 		const auto newOuter = QRect(QPoint(), outer.size());
 		_owner->paintThemePreviewContent(p, newOuter, newOuter);
-	});
+	}, kThemePreviewOffset);
 }
 
 void OverlayWidget::RendererGL::paintDocumentBubble(
 		QRect outer,
 		QRect icon) {
-	paintToCache(_documentBubbleCache, outer.size(), [&](Painter &&p) {
+	paintUsingRaster(_documentBubbleImage, outer, [&](Painter &&p) {
 		const auto newOuter = QRect(QPoint(), outer.size());
 		const auto newIcon = icon.translated(-outer.topLeft());
 		_owner->paintDocumentBubbleContent(p, newOuter, newIcon, newOuter);
-	});
-	//p.drawImage(outer.topLeft(), _documentBubbleCache);
+	}, kDocumentBubbleOffset);
 	_owner->paintRadialLoading(this);
 }
 
 void OverlayWidget::RendererGL::paintSaveMsg(QRect outer) {
-	paintToCache(_saveMsgCache, outer.size(), [&](Painter &&p) {
+	paintUsingRaster(_saveMsgImage, outer, [&](Painter &&p) {
 		const auto newOuter = QRect(QPoint(), outer.size());
 		_owner->paintSaveMsgContent(p, newOuter, newOuter);
-	}, true);
-	//p.drawImage(outer.topLeft(), _saveMsgCache);
+	}, kSaveMsgOffset, true);
 }
 
 void OverlayWidget::RendererGL::paintControl(
@@ -132,52 +284,109 @@ void OverlayWidget::RendererGL::paintControl(
 		QRect inner,
 		float64 innerOpacity,
 		const style::icon &icon) {
-
+	AssertIsDebug(controls);
 }
 
 void OverlayWidget::RendererGL::paintFooter(QRect outer, float64 opacity) {
-	paintToCache(_footerCache, outer.size(), [&](Painter &&p) {
+	paintUsingRaster(_footerImage, outer, [&](Painter &&p) {
 		const auto newOuter = QRect(QPoint(), outer.size());
 		_owner->paintFooterContent(p, newOuter, newOuter, opacity);
-	}, true);
-	//p.drawImage(outer, _footerCache, QRect(QPoint(), outer.size()) * factor);
+	}, kFooterOffset, true);
 }
 
 void OverlayWidget::RendererGL::paintCaption(QRect outer, float64 opacity) {
-	paintToCache(_captionCache, outer.size(), [&](Painter &&p) {
+	paintUsingRaster(_captionImage, outer, [&](Painter &&p) {
 		const auto newOuter = QRect(QPoint(), outer.size());
 		_owner->paintCaptionContent(p, newOuter, newOuter, opacity);
-	});
-	//p.drawImage(outer, _captionCache, ...);
+	}, kCaptionOffset, true);
 }
 
 void OverlayWidget::RendererGL::paintGroupThumbs(
 		QRect outer,
 		float64 opacity) {
-	paintToCache(_groupThumbsCache, outer.size(), [&](Painter &&p) {
+	paintUsingRaster(_groupThumbsImage, outer, [&](Painter &&p) {
 		const auto newOuter = QRect(QPoint(), outer.size());
 		_owner->paintGroupThumbsContent(p, newOuter, newOuter, opacity);
-	});
+	}, kGroupThumbsOffset, true);
 }
 
-void OverlayWidget::RendererGL::paintToCache(
-		QImage &cache,
-		QSize size,
+void OverlayWidget::RendererGL::paintUsingRaster(
+		Ui::GL::Image &image,
+		QRect rect,
 		Fn<void(Painter&&)> method,
-		bool clear) {
-	if (cache.width() < size.width() * _factor
-		|| cache.height() < size.height() * _factor) {
-		cache = QImage(
-			size * _factor,
-			QImage::Format_ARGB32_Premultiplied);
-		cache.setDevicePixelRatio(_factor);
-	} else if (cache.devicePixelRatio() != _factor) {
-		cache.setDevicePixelRatio(_factor);
+		int bufferOffset,
+		bool transparent) {
+	auto raster = image.takeImage();
+	const auto size = rect.size() * _factor;
+	if (raster.width() < size.width() || raster.height() < size.height()) {
+		raster = QImage(size, QImage::Format_ARGB32_Premultiplied);
+		raster.setDevicePixelRatio(_factor);
+		if (!transparent
+			&& (raster.width() > size.width()
+				|| raster.height() > size.height())) {
+			raster.fill(Qt::transparent);
+		}
+	} else if (raster.devicePixelRatio() != _factor) {
+		raster.setDevicePixelRatio(_factor);
 	}
-	if (clear) {
-		cache.fill(Qt::transparent);
+
+	if (transparent) {
+		raster.fill(Qt::transparent);
 	}
-	method(Painter(&cache));
+	method(Painter(&raster));
+
+	image.setImage(std::move(raster));
+	image.bind(*_f, size);
+
+	const auto textured = image.texturedRect(rect, QRect(QPoint(), size));
+	const auto geometry = transformRect(textured.geometry);
+	const GLfloat coords[] = {
+		geometry.left(), geometry.top(),
+		textured.texture.left(), textured.texture.bottom(),
+
+		geometry.right(), geometry.top(),
+		textured.texture.right(), textured.texture.bottom(),
+
+		geometry.right(), geometry.bottom(),
+		textured.texture.right(), textured.texture.top(),
+
+		geometry.left(), geometry.bottom(),
+		textured.texture.left(), textured.texture.top(),
+	};
+	_contentBuffer->write(
+		bufferOffset * 4 * sizeof(GLfloat),
+		coords,
+		sizeof(coords));
+
+	_f->glUseProgram(_imageProgram->programId());
+	_imageProgram->setUniformValue("viewport", QSizeF(_viewport * _factor));
+	_imageProgram->setUniformValue("s_texture", GLint(0));
+
+	_f->glActiveTexture(GL_TEXTURE0);
+	image.bind(*_f, size);
+
+	toggleBlending(transparent);
+	FillTexturedRectangle(*_f, &*_imageProgram, bufferOffset);
+}
+
+void OverlayWidget::RendererGL::toggleBlending(bool enabled) {
+	if (_blendingEnabled == enabled) {
+		return;
+	} else if (enabled) {
+		_f->glEnable(GL_BLEND);
+		_f->glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	} else {
+		_f->glDisable(GL_BLEND);
+	}
+	_blendingEnabled = enabled;
+}
+
+Rect OverlayWidget::RendererGL::transformRect(const Rect &raster) const {
+	return TransformRect(raster, _viewport, _factor);
+}
+
+Rect OverlayWidget::RendererGL::transformRect(const QRect &raster) const {
+	return TransformRect(Rect(raster), _viewport, _factor);
 }
 
 } // namespace Media::View

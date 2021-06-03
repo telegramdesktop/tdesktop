@@ -103,6 +103,15 @@ private:
 		not_null<VideoTile*> tile,
 		TileData &data);
 
+	void uploadTexture(
+		QOpenGLFunctions &f,
+		GLint internalformat,
+		GLint format,
+		QSize size,
+		QSize hasSize,
+		int stride,
+		const void *data) const;
+
 	[[nodiscard]] bool isExpanded(
 		not_null<VideoTile*> tile,
 		QSize unscaled,

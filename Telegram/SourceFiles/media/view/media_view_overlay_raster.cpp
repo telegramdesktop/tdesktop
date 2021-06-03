@@ -24,6 +24,8 @@ void OverlayWidget::RendererSW::paintFallback(
 	_clip = &clip;
 	_clipOuter = clip.boundingRect();
 	_owner->paint(this);
+	_p = nullptr;
+	_clip = nullptr;
 }
 
 void OverlayWidget::RendererSW::paintBackground() {
