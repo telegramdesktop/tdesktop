@@ -479,7 +479,10 @@ parts:
       - -DJPEG_LIBRARY_RELEASE=$SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so
       - -DJPEG_INCLUDE_DIR=$SNAPCRAFT_STAGE/usr/include
       - -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF
-    prime: [-./*]
+    prime:
+      - -./usr/include
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
     after:
       - ffmpeg
       - mozjpeg
