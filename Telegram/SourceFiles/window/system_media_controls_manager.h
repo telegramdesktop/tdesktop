@@ -8,22 +8,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 namespace base::Platform {
-class SystemMediaControlsWin;
+class SystemMediaControls;
 } // namespace base::Platform
 
 namespace Data {
 class DocumentMedia;
 } // namespace Data
 
-namespace Platform {
+namespace Window {
 
 class SystemMediaControlsManager {
 public:
-	SystemMediaControlsManager(HWND hwnd);
+	SystemMediaControlsManager(not_null<QWidget*> parent);
 	~SystemMediaControlsManager();
 
+	static bool Supported();
+
 private:
-	const std::unique_ptr<base::Platform::SystemMediaControlsWin> _controls;
+	const std::unique_ptr<base::Platform::SystemMediaControls> _controls;
 
 	std::vector<std::shared_ptr<Data::DocumentMedia>> _cachedMediaView;
 
@@ -31,4 +33,4 @@ private:
 	rpl::lifetime _lifetime;
 };
 
-}  // namespace Platform
+}  // namespace Window

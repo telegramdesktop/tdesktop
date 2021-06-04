@@ -5,10 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "platform/win/windows_system_media_controls_manager.h"
+#include "window/system_media_controls_manager.h"
 
 #include "base/observer.h"
-#include "base/platform/win/base_windows_system_media_controls.h"
+#include "base/platform/base_platform_system_media_controls.h"
 #include "core/application.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -18,16 +18,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "ui/text/format_song_document_name.h"
 
-namespace Platform {
+namespace Window {
 
-SystemMediaControlsManager::SystemMediaControlsManager(HWND hwnd)
-: _controls(std::make_unique<base::Platform::SystemMediaControlsWin>()) {
+bool SystemMediaControlsManager::Supported() {
+	return base::Platform::SystemMediaControls::Supported();
+}
+
+SystemMediaControlsManager::SystemMediaControlsManager(
+	not_null<QWidget*> parent)
+: _controls(std::make_unique<base::Platform::SystemMediaControls>()) {
 
 	using PlaybackStatus =
-		base::Platform::SystemMediaControlsWin::PlaybackStatus;
-	using Command = base::Platform::SystemMediaControlsWin::Command;
+		base::Platform::SystemMediaControls::PlaybackStatus;
+	using Command = base::Platform::SystemMediaControls::Command;
 
-	_controls->init(hwnd);
+	const auto inited = _controls->init(parent.get());
+	if (!inited) {
+		LOG(("SystemMediaControlsManager failed to init."));
+		return;
+	}
 	const auto type = AudioMsgId::Type::Song;
 
 	const auto mediaPlayer = Media::Player::instance();
@@ -52,8 +61,8 @@ SystemMediaControlsManager::SystemMediaControlsManager(HWND hwnd)
 		mediaPlayer->stops(type) | rpl::map_to(false),
 		mediaPlayer->startsPlay(type) | rpl::map_to(true)
 	) | rpl::start_with_next([=](bool audio) {
+		_controls->setEnabled(audio);
 		if (audio) {
-			_controls->setEnabled(audio);
 			_controls->setIsNextEnabled(mediaPlayer->nextAvailable(type));
 			_controls->setIsPreviousEnabled(
 				mediaPlayer->previousAvailable(type));
@@ -75,8 +84,8 @@ SystemMediaControlsManager::SystemMediaControlsManager(HWND hwnd)
 	});
 
 	auto unlocked = Core::App().passcodeLockChanges(
-	) | rpl::filter([](bool locked) {
-		return !locked;
+	) | rpl::filter([=](bool locked) {
+		return !locked && (mediaPlayer->current(type));
 	}) | rpl::map([=] {
 		return type;
 	}) | rpl::before_next([=] {
@@ -145,4 +154,4 @@ SystemMediaControlsManager::SystemMediaControlsManager(HWND hwnd)
 
 SystemMediaControlsManager::~SystemMediaControlsManager() = default;
 
-}  // namespace Platform
+}  // namespace Window

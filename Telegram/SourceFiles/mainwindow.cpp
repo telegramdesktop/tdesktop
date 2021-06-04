@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_warning.h"
+#include "window/system_media_controls_manager.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_main_menu.h"
 #include "window/window_controller.h" // App::wnd.
@@ -81,7 +82,11 @@ void FeedLangTestingKey(int key) {
 } // namespace
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
-: Platform::MainWindow(controller) {
+: Platform::MainWindow(controller)
+, _mediaControlsManager(Window::SystemMediaControlsManager::Supported()
+	? std::make_unique<Window::SystemMediaControlsManager>(this)
+	: nullptr) {
+
 	auto logo = Core::App().logo();
 	icon16 = logo.scaledToWidth(16, Qt::SmoothTransformation);
 	icon32 = logo.scaledToWidth(32, Qt::SmoothTransformation);

@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_notifications_manager.h"
 #include "platform/win/windows_dlls.h"
 #include "platform/win/windows_event_filter.h"
-#include "platform/win/windows_system_media_controls_manager.h"
 #include "window/notifications_manager.h"
 #include "mainwindow.h"
 #include "base/crc32hash.h"
@@ -431,10 +430,6 @@ void MainWindow::initHook() {
 	}
 
 	psInitSysMenu();
-
-	if (IsWindows10OrGreater()) {
-		_smtcManager = std::make_unique<SystemMediaControlsManager>(psHwnd());
-	}
 }
 
 void MainWindow::initShadows() {
