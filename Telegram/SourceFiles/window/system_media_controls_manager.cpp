@@ -39,12 +39,15 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 	}
 	const auto type = AudioMsgId::Type::Song;
 
+	using TrackState = Media::Player::TrackState;
 	const auto mediaPlayer = Media::Player::instance();
 
+	auto trackFilter = rpl::filter([=](const TrackState &state) {
+		return (state.id.type() == type);
+	});
+
 	mediaPlayer->updatedNotifier(
-	) | rpl::filter([=](const Media::Player::TrackState &state) {
-		return state.id.type() == type;
-	}) | rpl::map([=](const Media::Player::TrackState &state) {
+	) | trackFilter | rpl::map([=](const TrackState &state) {
 		using namespace Media::Player;
 		if (IsStoppedOrStopping(state.state)) {
 			return PlaybackStatus::Stopped;
@@ -56,6 +59,24 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 	) | rpl::start_with_next([=](PlaybackStatus status) {
 		_controls->setPlaybackStatus(status);
 	}, _lifetime);
+
+	if (_controls->seekingSupported()) {
+		mediaPlayer->updatedNotifier(
+		) | trackFilter | rpl::map([=](const TrackState &state) {
+			return state.position;
+		}) | rpl::distinct_until_changed(
+		) | rpl::start_with_next([=](int position) {
+			_controls->setPosition(position);
+		}, _lifetime);
+
+		mediaPlayer->updatedNotifier(
+		) | trackFilter | rpl::map([=](const TrackState &state) {
+			return state.length;
+		}) | rpl::distinct_until_changed(
+		) | rpl::start_with_next([=](int length) {
+			_controls->setDuration(length);
+		}, _lifetime);
+	}
 
 	rpl::merge(
 		mediaPlayer->stops(type) | rpl::map_to(false),
@@ -135,6 +156,7 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 	_controls->commandRequests(
 	) | rpl::start_with_next([=](Command command) {
 		switch (command) {
+		case Command::PlayPause: mediaPlayer->playPause(type); break;
 		case Command::Play: mediaPlayer->play(type); break;
 		case Command::Pause: mediaPlayer->pause(type); break;
 		case Command::Next: mediaPlayer->next(type); break;
@@ -142,6 +164,13 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 		case Command::Stop: mediaPlayer->stop(type); break;
 		}
 	}, _lifetime);
+
+	if (_controls->seekingSupported()) {
+		_controls->seekRequests(
+		) | rpl::start_with_next([=](float64 progress) {
+			mediaPlayer->finishSeeking(type, progress);
+		}, _lifetime);
+	}
 
 	Core::App().passcodeLockValue(
 	) | rpl::filter([=](bool locked) {
