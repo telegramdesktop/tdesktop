@@ -120,6 +120,9 @@ void OverlayWidget::RendererSW::paintSaveMsg(QRect outer) {
 	}
 }
 
+void OverlayWidget::RendererSW::paintControlsStart() {
+}
+
 void OverlayWidget::RendererSW::paintControl(
 		OverState control,
 		QRect outer,

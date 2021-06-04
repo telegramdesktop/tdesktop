@@ -40,6 +40,7 @@ private:
 	void paintThemePreview(QRect outer) override;
 	void paintDocumentBubble(QRect outer, QRect icon) override;
 	void paintSaveMsg(QRect outer) override;
+	void paintControlsStart() override;
 	void paintControl(
 		OverState control,
 		QRect outer,

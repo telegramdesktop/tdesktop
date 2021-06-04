@@ -39,6 +39,10 @@ public:
 		QOpenGLFunctions &f) override;
 
 private:
+	struct Control {
+		int index = -1;
+		not_null<const style::icon*> icon;
+	};
 	bool handleHideWorkaround(QOpenGLFunctions &f);
 	void setDefaultViewport(QOpenGLFunctions &f);
 
@@ -60,6 +64,7 @@ private:
 	void paintThemePreview(QRect outer) override;
 	void paintDocumentBubble(QRect outer, QRect icon) override;
 	void paintSaveMsg(QRect outer) override;
+	void paintControlsStart() override;
 	void paintControl(
 		OverState control,
 		QRect outer,
@@ -80,6 +85,8 @@ private:
 		int bufferOffset,
 		bool transparent = false);
 
+	void validateControls();
+	void invalidateControls();
 	void toggleBlending(bool enabled);
 
 	[[nodiscard]] Ui::GL::Rect transformRect(const QRect &raster) const;
@@ -100,12 +107,15 @@ private:
 	Ui::GL::BackgroundFiller _background;
 	QSize _viewport;
 	float _factor = 1.;
+	QVector2D _uniformViewport;
 
 	std::optional<QOpenGLBuffer> _contentBuffer;
 	std::optional<QOpenGLShaderProgram> _imageProgram;
 	QOpenGLShader *_texturedVertexShader = nullptr;
 	std::optional<QOpenGLShaderProgram> _withTransparencyProgram;
 	std::optional<QOpenGLShaderProgram> _yuv420Program;
+	std::optional<QOpenGLShaderProgram> _fillProgram;
+	std::optional<QOpenGLShaderProgram> _controlsProgram;
 	Ui::GL::Textures<4> _textures;
 	QSize _rgbaSize;
 	QSize _lumaSize;
@@ -121,6 +131,12 @@ private:
 	Ui::GL::Image _footerImage;
 	Ui::GL::Image _captionImage;
 	Ui::GL::Image _groupThumbsImage;
+	Ui::GL::Image _controlsImage;
+
+	static constexpr auto kControlsCount = 6;
+	[[nodiscard]] static Control ControlMeta(OverState control);
+	std::array<QRect, kControlsCount> _controlsTextures;
+
 	bool _blendingEnabled = false;
 
 	rpl::lifetime _lifetime;

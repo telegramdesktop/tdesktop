@@ -27,6 +27,7 @@ public:
 	virtual void paintThemePreview(QRect outer) = 0;
 	virtual void paintDocumentBubble(QRect outer, QRect icon) = 0;
 	virtual void paintSaveMsg(QRect outer) = 0;
+	virtual void paintControlsStart() = 0;
 	virtual void paintControl(
 		OverState control,
 		QRect outer,

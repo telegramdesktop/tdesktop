@@ -3181,10 +3181,13 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 				fillTransparentBackground);
 		}
 		paintRadialLoading(renderer);
-	} else if (_themePreviewShown) {
-		renderer->paintThemePreview(_themePreviewRect);
-	} else if (documentBubbleShown() && !_docRect.isEmpty()) {
-		renderer->paintDocumentBubble(_docRect, _docIconRect);
+	} else {
+		int a = 0;
+		if (_themePreviewShown) {
+			renderer->paintThemePreview(_themePreviewRect);
+		} else if (documentBubbleShown() && !_docRect.isEmpty()) {
+			renderer->paintDocumentBubble(_docRect, _docIconRect);
+		}
 	}
 	updateSaveMsgState();
 	if (_saveMsgStarted && _saveMsgOpacity.current() > 0.) {
@@ -3453,6 +3456,7 @@ void OverlayWidget::paintControls(
 		const style::icon &icon;
 	};
 	const QRect kEmpty;
+	// When adding / removing controls please update RendererGL.
 	const Control controls[] = {
 		{
 			OverLeftNav,
@@ -3492,6 +3496,7 @@ void OverlayWidget::paintControls(
 			st::mediaviewMore },
 	};
 
+	renderer->paintControlsStart();
 	for (const auto &control : controls) {
 		if (!control.visible) {
 			continue;
@@ -3938,7 +3943,7 @@ void OverlayWidget::preloadData(int delta) {
 	if (!_index) {
 		return;
 	}
-	auto from = *_index + (delta ? delta : -1);
+	auto from = *_index + (delta ? -delta : -1);
 	auto till = *_index + (delta ? delta * kPreloadCount : 1);
 	if (from > till) std::swap(from, till);
 
