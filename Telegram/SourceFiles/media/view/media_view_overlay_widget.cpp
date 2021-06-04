@@ -963,23 +963,62 @@ void OverlayWidget::updateCursor() {
 		: (_over == OverNone ? style::cur_default : style::cur_pointer));
 }
 
-int OverlayWidget::contentRotation() const {
-	if (!_streamed) {
-		return _rotation;
-	}
-	return (_rotation + (_streamed
-		? _streamed->instance.info().video.rotation
-		: 0)) % 360;
+int OverlayWidget::finalContentRotation() const {
+	return _streamed
+		? ((_rotation + (_streamed
+			? _streamed->instance.info().video.rotation
+			: 0)) % 360)
+		: _rotation;
 }
 
-QRect OverlayWidget::contentRect() const {
-	const auto progress = _zoomAnimation.value(1.);
-	return {
-		anim::interpolate(_xOld, _x, progress),
-		anim::interpolate(_yOld, _y, progress),
-		anim::interpolate(_wOld, _w, progress),
-		anim::interpolate(_hOld, _h, progress),
-	};
+QRect OverlayWidget::finalContentRect() const {
+	return { _x, _y, _w, _h };
+}
+
+OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
+	const auto toRotation = qreal(finalContentRotation());
+	const auto toRectRotated = QRectF(finalContentRect());
+	const auto toRectCenter = toRectRotated.center();
+	const auto toRect = ((int(toRotation) % 180) == 90)
+		? QRectF(
+			toRectCenter.x() - toRectRotated.height() / 2.,
+			toRectCenter.y() - toRectRotated.width() / 2.,
+			toRectRotated.height(),
+			toRectRotated.width())
+		: toRectRotated;
+	if (!_geometryAnimation.animating()) {
+		return { toRect, toRotation };
+	}
+	const auto fromRect = _oldGeometry.rect;
+	const auto fromRotation = _oldGeometry.rotation;
+	const auto progress = _geometryAnimation.value(1.);
+	const auto rotationDelta = (toRotation - fromRotation);
+	const auto useRotationDelta = (rotationDelta > 180.)
+		? (rotationDelta - 360.)
+		: (rotationDelta <= -180.)
+		? (rotationDelta + 360.)
+		: rotationDelta;
+	const auto rotation = fromRotation + useRotationDelta * progress;
+	const auto useRotation = (rotation > 360.)
+		? (rotation - 360.)
+		: (rotation < 0.)
+		? (rotation + 360.)
+		: rotation;
+	const auto useRect = QRectF(
+		fromRect.x() + (toRect.x() - fromRect.x()) * progress,
+		fromRect.y() + (toRect.y() - fromRect.y()) * progress,
+		fromRect.width() + (toRect.width() - fromRect.width()) * progress,
+		fromRect.height() + (toRect.height() - fromRect.height()) * progress
+	);
+	return { useRect, useRotation };
+}
+
+void OverlayWidget::updateContentRect() {
+	if (_opengl) {
+		update();
+	} else {
+		update(finalContentRect());
+	}
 }
 
 void OverlayWidget::contentSizeChanged() {
@@ -1035,7 +1074,7 @@ void OverlayWidget::resizeContentByScreenSize() {
 	}
 	_x = (width() - _w) / 2;
 	_y = (height() - _h) / 2;
-	_zoomAnimation.stop();
+	_geometryAnimation.stop();
 }
 
 float64 OverlayWidget::radialProgress() const {
@@ -2612,13 +2651,13 @@ void OverlayWidget::streamingReady(Streaming::Information &&info) {
 	if (videoShown()) {
 		applyVideoSize();
 	}
-	update(contentRect());
+	updateContentRect();
 }
 
 void OverlayWidget::applyVideoSize() {
 	const auto contentSize = style::ConvertScale(videoSize());
 	if (contentSize != QSize(_width, _height)) {
-		update(contentRect());
+		updateContentRect();
 		_w = contentSize.width();
 		_h = contentSize.height();
 		contentSizeChanged();
@@ -2668,7 +2707,7 @@ bool OverlayWidget::createStreamingObjects() {
 QImage OverlayWidget::transformedShownContent() const {
 	return transformShownContent(
 		videoShown() ? currentVideoFrameImage() : _staticContent,
-		contentRotation());
+		finalContentRotation());
 }
 
 QImage OverlayWidget::transformShownContent(
@@ -2697,7 +2736,7 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 	}, [&](const PreloadedVideo &update) {
 		updatePlaybackState();
 	}, [&](const UpdateVideo &update) {
-		this->update(contentRect());
+		updateContentRect();
 		Core::App().updateNonIdle();
 		updatePlaybackState();
 	}, [&](const PreloadedAudio &update) {
@@ -2874,6 +2913,8 @@ void OverlayWidget::playbackControlsToPictureInPicture() {
 }
 
 void OverlayWidget::playbackControlsRotate() {
+	_oldGeometry = contentGeometry();
+	_geometryAnimation.stop();
 	if (_photo) {
 		auto &storage = _photo->owner().mediaRotation();
 		storage.set(_photo, storage.get(_photo) - 90);
@@ -2885,10 +2926,18 @@ void OverlayWidget::playbackControlsRotate() {
 		_rotation = storage.get(_document);
 		if (videoShown()) {
 			applyVideoSize();
-			update(contentRect());
+			updateContentRect();
 		} else {
 			redisplayContent();
 		}
+	}
+	if (_opengl) {
+		_geometryAnimation.start(
+			[=] { update(); },
+			0.,
+			1.,
+			st::widgetFadeDuration/*,
+			st::easeOutCirc*/);
 	}
 }
 
@@ -2923,7 +2972,7 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 		const auto saved = base::take(_rotation);
 		_staticContent = transformedShownContent();
 		_rotation = saved;
-		update(contentRect());
+		updateContentRect();
 	}
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
@@ -3168,10 +3217,8 @@ Ui::GL::ChosenRenderer OverlayWidget::chooseRenderer(
 void OverlayWidget::paint(not_null<Renderer*> renderer) {
 	renderer->paintBackground();
 	if (contentShown()) {
-		const auto rect = contentRect();
-		const auto rotation = contentRotation();
 		if (videoShown()) {
-			renderer->paintTransformedVideoFrame(rect, rotation);
+			renderer->paintTransformedVideoFrame(contentGeometry());
 			if (_streamed->instance.player().ready()) {
 				_streamed->instance.markFrameShown();
 			}
@@ -3183,8 +3230,7 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 					|| _staticContent.hasAlphaChannel());
 			renderer->paintTransformedStaticContent(
 				_staticContent,
-				rect,
-				rotation,
+				contentGeometry(),
 				fillTransparentBackground);
 		}
 		paintRadialLoading(renderer);
@@ -3736,11 +3782,8 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 	const auto contentSize = videoShown()
 		? style::ConvertScale(videoSize())
 		: QSize(_width, _height);
-	const auto current = contentRect();
-	_xOld = current.x();
-	_yOld = current.y();
-	_wOld = current.width();
-	_hOld = current.height();
+	_oldGeometry = contentGeometry();
+	_geometryAnimation.stop();
 
 	_w = contentSize.width();
 	_h = contentSize.height();
@@ -3764,15 +3807,14 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 		_x = qRound(nx / (-z + 1) + width() / 2.);
 		_y = qRound(ny / (-z + 1) + height() / 2.);
 	}
-	_zoomAnimation.stop();
 	snapXY();
 	if (_opengl) {
-		_zoomAnimation.start(
+		_geometryAnimation.start(
 			[=] { update(); },
 			0.,
 			1.,
-			st::widgetFadeDuration,
-			anim::easeOutCirc);
+			st::widgetFadeDuration/*,
+			anim::easeOutCirc*/);
 	}
 	update();
 }
@@ -4197,7 +4239,7 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverMore);
 	} else if (_closeNav.contains(pos)) {
 		updateOverState(OverClose);
-	} else if (documentContentShown() && contentRect().contains(pos)) {
+	} else if (documentContentShown() && finalContentRect().contains(pos)) {
 		if ((_document->isVideoFile() || _document->isVideoMessage()) && _streamed) {
 			updateOverState(OverVideo);
 		} else if (!_streamed && !_documentMedia->loaded()) {

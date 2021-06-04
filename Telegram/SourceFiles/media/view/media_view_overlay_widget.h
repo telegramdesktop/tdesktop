@@ -143,6 +143,10 @@ private:
 		QuickSave,
 		SaveAs,
 	};
+	struct ContentGeometry {
+		QRectF rect;
+		qreal rotation = 0.;
+	};
 
 	[[nodiscard]] not_null<QWindow*> window() const;
 	[[nodiscard]] int width() const;
@@ -322,8 +326,10 @@ private:
 	void documentUpdated(DocumentData *doc);
 	void changingMsgId(not_null<HistoryItem*> row, MsgId oldId);
 
-	[[nodiscard]] int contentRotation() const;
-	[[nodiscard]] QRect contentRect() const;
+	[[nodiscard]] int finalContentRotation() const;
+	[[nodiscard]] QRect finalContentRect() const;
+	[[nodiscard]] ContentGeometry contentGeometry() const;
+	void updateContentRect();
 	void contentSizeChanged();
 
 	// Radial animation interface.
@@ -467,14 +473,14 @@ private:
 	int _zoom = 0; // < 0 - out, 0 - none, > 0 - in
 	float64 _zoomToScreen = 0.; // for documents
 	float64 _zoomToDefault = 0.;
-	int _xOld = 0, _yOld = 0, _wOld = 0, _hOld = 0;
-	Ui::Animations::Simple _zoomAnimation;
 	QPoint _mStart;
 	bool _pressed = false;
 	int32 _dragging = 0;
 	QImage _staticContent;
 	bool _blurred = true;
 
+	ContentGeometry _oldGeometry;
+	Ui::Animations::Simple _geometryAnimation;
 	rpl::lifetime _screenGeometryLifetime;
 	std::unique_ptr<QObject> _applicationEventFilter;
 

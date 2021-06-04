@@ -30,7 +30,7 @@ void OverlayWidget::RendererSW::paintFallback(
 
 void OverlayWidget::RendererSW::paintBackground() {
 	const auto region = _owner->opaqueContentShown()
-		? (*_clip - _owner->contentRect())
+		? (*_clip - _owner->finalContentRect())
 		: *_clip;
 
 	const auto m = _p->compositionMode();
@@ -44,11 +44,30 @@ void OverlayWidget::RendererSW::paintBackground() {
 	_p->setCompositionMode(m);
 }
 
-void OverlayWidget::RendererSW::paintTransformedVideoFrame(
-		QRect rect,
+QRect OverlayWidget::RendererSW::TransformRect(
+		QRectF geometry,
 		int rotation) {
+	const auto center = geometry.center();
+	const auto rect = ((rotation % 180) == 90)
+		? QRectF(
+			center.x() - geometry.height() / 2.,
+			center.y() - geometry.width() / 2.,
+			geometry.height(),
+			geometry.width())
+		: geometry;
+	return QRect(
+		int(rect.x()),
+		int(rect.y()),
+		int(rect.width()),
+		int(rect.height()));
+}
+
+void OverlayWidget::RendererSW::paintTransformedVideoFrame(
+		ContentGeometry geometry) {
 	Expects(_owner->_streamed != nullptr);
 
+	const auto rotation = int(geometry.rotation);
+	const auto rect = TransformRect(geometry.rect, rotation);
 	if (!rect.intersects(_clipOuter)) {
 		return;
 	}
@@ -57,9 +76,10 @@ void OverlayWidget::RendererSW::paintTransformedVideoFrame(
 
 void OverlayWidget::RendererSW::paintTransformedStaticContent(
 		const QImage &image,
-		QRect rect,
-		int rotation,
+		ContentGeometry geometry,
 		bool fillTransparentBackground) {
+	const auto rotation = int(geometry.rotation);
+	const auto rect = TransformRect(geometry.rect, rotation);
 	if (!rect.intersects(_clipOuter)) {
 		return;
 	}

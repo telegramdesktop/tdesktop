@@ -185,9 +185,6 @@ void OverlayWidget::RendererGL::paintBackground() {
 		? st::mediaviewVideoBg
 		: st::mediaviewBg;
 	auto fill = QRegion(QRect(QPoint(), _viewport));
-	if (_owner->opaqueContentShown()) {
-		fill -= _owner->contentRect();
-	}
 	toggleBlending(false);
 	_background.fill(
 		*_f,
@@ -199,19 +196,14 @@ void OverlayWidget::RendererGL::paintBackground() {
 }
 
 void OverlayWidget::RendererGL::paintTransformedVideoFrame(
-		QRect rect,
-		int rotation) {
+		ContentGeometry geometry) {
 	const auto data = _owner->videoFrameWithInfo();
 	if (data.format == Streaming::FrameFormat::None) {
 		return;
 	}
 	if (data.format == Streaming::FrameFormat::ARGB32) {
 		Assert(!data.original.isNull());
-		paintTransformedStaticContent(
-			data.original,
-			rect,
-			rotation,
-			false);
+		paintTransformedStaticContent(data.original, geometry, false);
 		return;
 	}
 	Assert(data.format == Streaming::FrameFormat::YUV420);
@@ -265,13 +257,12 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 	_yuv420Program->setUniformValue("u_texture", GLint(1));
 	_yuv420Program->setUniformValue("v_texture", GLint(2));
 
-	paintTransformedContent(&*_yuv420Program, rect, rotation);
+	paintTransformedContent(&*_yuv420Program, geometry);
 }
 
 void OverlayWidget::RendererGL::paintTransformedStaticContent(
 		const QImage &image,
-		QRect rect,
-		int rotation,
+		ContentGeometry geometry,
 		bool fillTransparentBackground) {
 	auto &program = fillTransparentBackground
 		? _withTransparencyProgram
@@ -307,38 +298,46 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 		_rgbaSize = image.size();
 	}
 
-	paintTransformedContent(&*program, rect, rotation);
+	paintTransformedContent(&*program, geometry);
 }
 
 void OverlayWidget::RendererGL::paintTransformedContent(
 		not_null<QOpenGLShaderProgram*> program,
-		QRect rect,
-		int rotation) {
+		ContentGeometry geometry) {
 	auto texCoords = std::array<std::array<GLfloat, 2>, 4> { {
 		{ { 0.f, 1.f } },
 		{ { 1.f, 1.f } },
 		{ { 1.f, 0.f } },
 		{ { 0.f, 0.f } },
 	} };
-	if (const auto shift = (rotation / 90); shift > 0) {
-		std::rotate(
-			texCoords.begin(),
-			texCoords.begin() + shift,
-			texCoords.end());
-	}
-
-	const auto geometry = transformRect(rect);
+	const auto rect = transformRect(geometry.rect);
+	const auto centerx = rect.x() + rect.width() / 2;
+	const auto centery = rect.y() + rect.height() / 2;
+	const auto rsin = std::sinf(geometry.rotation * M_PI / 180.);
+	const auto rcos = std::cosf(geometry.rotation * M_PI / 180.);
+	const auto rotated = [&](float x, float y) -> std::array<float, 2> {
+		x -= centerx;
+		y -= centery;
+		return {
+			centerx + (x * rcos + y * rsin),
+			centery + (y * rcos - x * rsin)
+		};
+	};
+	const auto topleft = rotated(rect.left(), rect.top());
+	const auto topright = rotated(rect.right(), rect.top());
+	const auto bottomright = rotated(rect.right(), rect.bottom());
+	const auto bottomleft = rotated(rect.left(), rect.bottom());
 	const GLfloat coords[] = {
-		geometry.left(), geometry.top(),
+		topleft[0], topleft[1],
 		texCoords[0][0], texCoords[0][1],
 
-		geometry.right(), geometry.top(),
+		topright[0], topright[1],
 		texCoords[1][0], texCoords[1][1],
 
-		geometry.right(), geometry.bottom(),
+		bottomright[0], bottomright[1],
 		texCoords[2][0], texCoords[2][1],
 
-		geometry.left(), geometry.bottom(),
+		bottomleft[0], bottomleft[1],
 		texCoords[3][0], texCoords[3][1],
 	};
 
@@ -658,6 +657,10 @@ void OverlayWidget::RendererGL::toggleBlending(bool enabled) {
 }
 
 Rect OverlayWidget::RendererGL::transformRect(const Rect &raster) const {
+	return TransformRect(raster, _viewport, _factor);
+}
+
+Rect OverlayWidget::RendererGL::transformRect(const QRectF &raster) const {
 	return TransformRect(raster, _viewport, _factor);
 }
 

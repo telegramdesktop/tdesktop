@@ -14,11 +14,10 @@ namespace Media::View {
 class OverlayWidget::Renderer : public Ui::GL::Renderer {
 public:
 	virtual void paintBackground() = 0;
-	virtual void paintTransformedVideoFrame(QRect rect, int rotation) = 0;
+	virtual void paintTransformedVideoFrame(ContentGeometry geometry) = 0;
 	virtual void paintTransformedStaticContent(
 		const QImage &image,
-		QRect rect,
-		int rotation,
+		ContentGeometry geometry,
 		bool fillTransparentBackground) = 0;
 	virtual void paintRadialLoading(
 		QRect inner,

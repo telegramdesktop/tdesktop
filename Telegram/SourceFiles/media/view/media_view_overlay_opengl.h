@@ -47,16 +47,14 @@ private:
 	void setDefaultViewport(QOpenGLFunctions &f);
 
 	void paintBackground();
-	void paintTransformedVideoFrame(QRect rect, int rotation) override;
+	void paintTransformedVideoFrame(ContentGeometry geometry) override;
 	void paintTransformedStaticContent(
 		const QImage &image,
-		QRect rect,
-		int rotation,
+		ContentGeometry geometry,
 		bool fillTransparentBackground) override;
 	void paintTransformedContent(
 		not_null<QOpenGLShaderProgram*> program,
-		QRect rect,
-		int rotation);
+		ContentGeometry geometry);
 	void paintRadialLoading(
 		QRect inner,
 		bool radial,
@@ -90,6 +88,7 @@ private:
 	void toggleBlending(bool enabled);
 
 	[[nodiscard]] Ui::GL::Rect transformRect(const QRect &raster) const;
+	[[nodiscard]] Ui::GL::Rect transformRect(const QRectF &raster) const;
 	[[nodiscard]] Ui::GL::Rect transformRect(
 		const Ui::GL::Rect &raster) const;
 

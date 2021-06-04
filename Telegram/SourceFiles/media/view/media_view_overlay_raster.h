@@ -23,11 +23,10 @@ public:
 
 private:
 	void paintBackground() override;
-	void paintTransformedVideoFrame(QRect rect, int rotation) override;
+	void paintTransformedVideoFrame(ContentGeometry geometry) override;
 	void paintTransformedStaticContent(
 		const QImage &image,
-		QRect rect,
-		int rotation,
+		ContentGeometry geometry,
 		bool fillTransparentBackground) override;
 	void paintTransformedImage(
 		const QImage &image,
@@ -53,6 +52,8 @@ private:
 	void paintGroupThumbs(QRect outer, float64 opacity) override;
 
 	void invalidate() override;
+
+	[[nodiscard]] static QRect TransformRect(QRectF geometry, int rotation);
 
 	const not_null<OverlayWidget*> _owner;
 	QBrush _transparentBrush;
