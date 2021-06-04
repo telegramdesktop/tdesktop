@@ -567,6 +567,12 @@ Streaming::FrameWithInfo OverlayWidget::videoFrameWithInfo() const {
 		};
 }
 
+QImage OverlayWidget::currentVideoFrameImage() const {
+	return _streamed->instance.player().ready()
+		? _streamed->instance.player().currentFrameImage()
+		: _streamed->instance.info().video.cover;
+}
+
 int OverlayWidget::streamedIndex() const {
 	return _streamedCreated;
 }
@@ -2654,7 +2660,7 @@ bool OverlayWidget::createStreamingObjects() {
 
 QImage OverlayWidget::transformedShownContent() const {
 	return transformShownContent(
-		videoShown() ? videoFrame() : _staticContent,
+		videoShown() ? currentVideoFrameImage() : _staticContent,
 		contentRotation());
 }
 

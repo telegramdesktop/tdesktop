@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/streaming/media_streaming_video_track.h"
 
+#include "ffmpeg/ffmpeg_utility.h"
 #include "media/audio/media_audio.h"
 #include "base/concurrent_timer.h"
 
@@ -18,6 +19,55 @@ constexpr auto kMaxFrameArea = 3840 * 2160; // usual 4K
 constexpr auto kDisplaySkipped = crl::time(-1);
 constexpr auto kFinishedPosition = std::numeric_limits<crl::time>::max();
 static_assert(kDisplaySkipped != kTimeUnknown);
+
+[[nodiscard]] QImage ConvertToARGB32(const FrameYUV420 &data) {
+	Expects(data.y.data != nullptr);
+	Expects(data.u.data != nullptr);
+	Expects(data.v.data != nullptr);
+	Expects(!data.size.isEmpty());
+
+	//if (FFmpeg::RotationSwapWidthHeight(stream.rotation)) {
+	//	resize.transpose();
+	//}
+
+	auto result = FFmpeg::CreateFrameStorage(data.size);
+	const auto format = AV_PIX_FMT_BGRA;
+	const auto swscale = FFmpeg::MakeSwscalePointer(
+		data.size,
+		AV_PIX_FMT_YUV420P,
+		data.size,
+		AV_PIX_FMT_BGRA);
+	if (!swscale) {
+		return QImage();
+	}
+
+	// AV_NUM_DATA_POINTERS defined in AVFrame struct
+	const uint8_t *srcData[AV_NUM_DATA_POINTERS] = {
+		static_cast<const uint8_t*>(data.y.data),
+		static_cast<const uint8_t*>(data.u.data),
+		static_cast<const uint8_t*>(data.v.data),
+		nullptr,
+	};
+	int srcLinesize[AV_NUM_DATA_POINTERS] = {
+		data.y.stride,
+		data.u.stride,
+		data.v.stride,
+		0,
+	};
+	uint8_t *dstData[AV_NUM_DATA_POINTERS] = { result.bits(), nullptr };
+	int dstLinesize[AV_NUM_DATA_POINTERS] = { result.bytesPerLine(), 0 };
+
+	sws_scale(
+		swscale.get(),
+		srcData,
+		srcLinesize,
+		0,
+		data.size.height(),
+		dstData,
+		dstLinesize);
+
+	return result;
+}
 
 } // namespace
 
@@ -383,6 +433,12 @@ void VideoTrackObject::rasterizeFrame(not_null<Frame*> frame) {
 			frame->prepared.clear();
 			fail(Error::InvalidData);
 			return;
+		}
+		if (!frame->original.isNull()) {
+			frame->original = QImage();
+			for (auto &[_, prepared] : frame->prepared) {
+				prepared.image = QImage();
+			}
 		}
 		frame->format = FrameFormat::YUV420;
 	} else {
@@ -1020,8 +1076,7 @@ bool VideoTrack::markFrameShown() {
 QImage VideoTrack::frame(
 		const FrameRequest &request,
 		const Instance *instance) {
-	const auto data = _shared->frameForPaintWithIndex();
-	const auto frame = data.frame;
+	const auto frame = _shared->frameForPaint();
 	const auto i = frame->prepared.find(instance);
 	const auto none = (i == frame->prepared.end());
 	const auto preparedFor = frame->prepared.empty()
@@ -1033,6 +1088,10 @@ QImage VideoTrack::frame(
 		_wrapped.with([=](Implementation &unwrapped) {
 			unwrapped.updateFrameRequest(instance, useRequest);
 		});
+	}
+	if (frame->original.isNull()
+		&& frame->format == FrameFormat::YUV420) {
+		frame->original = ConvertToARGB32(frame->yuv420);
 	}
 	if (!frame->alpha
 		&& GoodForRequest(frame->original, _streamRotation, useRequest)) {
@@ -1081,6 +1140,14 @@ FrameWithInfo VideoTrack::frameWithInfo(const Instance *instance) {
 		.format = data.frame->format,
 		.index = data.index,
 	};
+}
+
+QImage VideoTrack::currentFrameImage() {
+	const auto frame = _shared->frameForPaint();
+	if (frame->original.isNull() && frame->format == FrameFormat::YUV420) {
+		frame->original = ConvertToARGB32(frame->yuv420);
+	}
+	return frame->original;
 }
 
 void VideoTrack::unregisterInstance(not_null<const Instance*> instance) {

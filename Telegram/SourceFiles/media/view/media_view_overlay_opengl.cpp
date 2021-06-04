@@ -200,7 +200,7 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 	_streamedIndex = _owner->streamedIndex();
 
 	_f->glActiveTexture(GL_TEXTURE0);
-	_textures.bind(*_f, 0);
+	_textures.bind(*_f, 1);
 	if (upload) {
 		_f->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 		uploadTexture(
@@ -211,10 +211,9 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 			yuv->y.stride,
 			yuv->y.data);
 		_lumaSize = yuv->size;
-		_rgbaSize = QSize();
 	}
 	_f->glActiveTexture(GL_TEXTURE1);
-	_textures.bind(*_f, 1);
+	_textures.bind(*_f, 2);
 	if (upload) {
 		uploadTexture(
 			GL_RED,
@@ -225,7 +224,7 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 			yuv->u.data);
 	}
 	_f->glActiveTexture(GL_TEXTURE2);
-	_textures.bind(*_f, 2);
+	_textures.bind(*_f, 3);
 	if (upload) {
 		uploadTexture(
 			GL_RED,
@@ -280,7 +279,6 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 			stride,
 			data);
 		_rgbaSize = image.size();
-		_lumaSize = QSize();
 	}
 
 	paintTransformedContent(&*program, rect, rotation);

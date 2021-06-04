@@ -397,8 +397,9 @@ private:
 	[[nodiscard]] bool videoShown() const;
 	[[nodiscard]] QSize videoSize() const;
 	[[nodiscard]] bool videoIsGifOrUserpic() const;
-	[[nodiscard]] QImage videoFrame() const;
-	[[nodiscard]] Streaming::FrameWithInfo videoFrameWithInfo() const;
+	[[nodiscard]] QImage videoFrame() const; // ARGB (changes prepare format)
+	[[nodiscard]] QImage currentVideoFrameImage() const; // RGB (may convert)
+	[[nodiscard]] Streaming::FrameWithInfo videoFrameWithInfo() const; // YUV
 	[[nodiscard]] int streamedIndex() const;
 	[[nodiscard]] QImage transformedShownContent() const;
 	[[nodiscard]] QImage transformShownContent(

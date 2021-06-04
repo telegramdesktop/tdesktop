@@ -59,6 +59,7 @@ public:
 		const FrameRequest &request,
 		const Instance *instance);
 	[[nodiscard]] FrameWithInfo frameWithInfo(const Instance *instance);
+	[[nodiscard]] QImage currentFrameImage();
 	void unregisterInstance(not_null<const Instance*> instance);
 	[[nodiscard]] rpl::producer<> checkNextFrame() const;
 	[[nodiscard]] rpl::producer<> waitingForData() const;

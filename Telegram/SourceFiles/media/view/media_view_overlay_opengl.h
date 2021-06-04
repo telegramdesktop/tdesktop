@@ -106,7 +106,7 @@ private:
 	QOpenGLShader *_texturedVertexShader = nullptr;
 	std::optional<QOpenGLShaderProgram> _withTransparencyProgram;
 	std::optional<QOpenGLShaderProgram> _yuv420Program;
-	Ui::GL::Textures<3> _textures;
+	Ui::GL::Textures<4> _textures;
 	QSize _rgbaSize;
 	QSize _lumaSize;
 	QSize _chromaSize;

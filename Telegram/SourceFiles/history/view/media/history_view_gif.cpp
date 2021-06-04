@@ -389,7 +389,8 @@ void Gif::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms
 			}
 			p.drawImage(rthumb, activeOwnPlaying->frozenFrame);
 		} else {
-			if (activeOwnPlaying) {
+			if (activeOwnPlaying
+				&& !activeOwnPlaying->frozenFrame.isNull()) {
 				activeOwnPlaying->frozenFrame = QImage();
 				activeOwnPlaying->frozenStatusText = QString();
 			}

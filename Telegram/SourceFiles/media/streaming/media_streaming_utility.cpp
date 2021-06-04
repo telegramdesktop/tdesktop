@@ -91,7 +91,9 @@ bool GoodForRequest(
 		const QImage &image,
 		int rotation,
 		const FrameRequest &request) {
-	if (request.resize.isEmpty()) {
+	if (image.isNull()) {
+		return false;
+	} else if (request.resize.isEmpty()) {
 		return true;
 	} else if (rotation != 0) {
 		return false;
