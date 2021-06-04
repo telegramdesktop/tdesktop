@@ -973,7 +973,13 @@ int OverlayWidget::contentRotation() const {
 }
 
 QRect OverlayWidget::contentRect() const {
-	return { _x, _y, _w, _h };
+	const auto progress = _zoomAnimation.value(1.);
+	return {
+		anim::interpolate(_xOld, _x, progress),
+		anim::interpolate(_yOld, _y, progress),
+		anim::interpolate(_wOld, _w, progress),
+		anim::interpolate(_hOld, _h, progress),
+	};
 }
 
 void OverlayWidget::contentSizeChanged() {
@@ -1029,6 +1035,7 @@ void OverlayWidget::resizeContentByScreenSize() {
 	}
 	_x = (width() - _w) / 2;
 	_y = (height() - _h) / 2;
+	_zoomAnimation.stop();
 }
 
 float64 OverlayWidget::radialProgress() const {
@@ -3729,6 +3736,12 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 	const auto contentSize = videoShown()
 		? style::ConvertScale(videoSize())
 		: QSize(_width, _height);
+	const auto current = contentRect();
+	_xOld = current.x();
+	_yOld = current.y();
+	_wOld = current.width();
+	_hOld = current.height();
+
 	_w = contentSize.width();
 	_h = contentSize.height();
 	if (z >= 0) {
@@ -3751,7 +3764,16 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 		_x = qRound(nx / (-z + 1) + width() / 2.);
 		_y = qRound(ny / (-z + 1) + height() / 2.);
 	}
+	_zoomAnimation.stop();
 	snapXY();
+	if (_opengl) {
+		_zoomAnimation.start(
+			[=] { update(); },
+			0.,
+			1.,
+			st::widgetFadeDuration,
+			anim::easeOutCirc);
+	}
 	update();
 }
 

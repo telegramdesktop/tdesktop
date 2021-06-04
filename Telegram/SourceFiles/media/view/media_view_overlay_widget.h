@@ -467,6 +467,8 @@ private:
 	int _zoom = 0; // < 0 - out, 0 - none, > 0 - in
 	float64 _zoomToScreen = 0.; // for documents
 	float64 _zoomToDefault = 0.;
+	int _xOld = 0, _yOld = 0, _wOld = 0, _hOld = 0;
+	Ui::Animations::Simple _zoomAnimation;
 	QPoint _mStart;
 	bool _pressed = false;
 	int32 _dragging = 0;
