@@ -786,6 +786,11 @@ PRIVATE
     media/view/media_view_overlay_widget.h
     media/view/media_view_pip.cpp
     media/view/media_view_pip.h
+    media/view/media_view_pip_opengl.cpp
+    media/view/media_view_pip_opengl.h
+    media/view/media_view_pip_raster.cpp
+    media/view/media_view_pip_raster.h
+    media/view/media_view_pip_renderer.h
     media/view/media_view_playback_controls.cpp
     media/view/media_view_playback_controls.h
     media/view/media_view_playback_progress.cpp

@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_document.h"
 #include "media/streaming/media_streaming_utility.h"
 #include "media/view/media_view_playback_progress.h"
+#include "media/view/media_view_pip_opengl.h"
+#include "media/view/media_view_pip_raster.h"
 #include "media/audio/media_audio.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -260,54 +262,6 @@ constexpr auto kMsInSecond = 1000;
 	return result;
 }
 
-Streaming::FrameRequest UnrotateRequest(
-		const Streaming::FrameRequest &request,
-		int rotation) {
-	if (!rotation) {
-		return request;
-	}
-	const auto unrotatedCorner = [&](RectPart corner) {
-		if (!(request.corners & corner)) {
-			return RectPart(0);
-		}
-		switch (corner) {
-		case RectPart::TopLeft:
-			return (rotation == 90)
-				? RectPart::BottomLeft
-				: (rotation == 180)
-				? RectPart::BottomRight
-				: RectPart::TopRight;
-		case RectPart::TopRight:
-			return (rotation == 90)
-				? RectPart::TopLeft
-				: (rotation == 180)
-				? RectPart::BottomLeft
-				: RectPart::BottomRight;
-		case RectPart::BottomRight:
-			return (rotation == 90)
-				? RectPart::TopRight
-				: (rotation == 180)
-				? RectPart::TopLeft
-				: RectPart::BottomLeft;
-		case RectPart::BottomLeft:
-			return (rotation == 90)
-				? RectPart::BottomRight
-				: (rotation == 180)
-				? RectPart::TopRight
-				: RectPart::TopLeft;
-		}
-		Unexpected("Corner in rotateCorner.");
-	};
-	auto result = request;
-	result.outer = FlipSizeByRotation(request.outer, rotation);
-	result.resize = FlipSizeByRotation(request.resize, rotation);
-	result.corners = unrotatedCorner(RectPart::TopLeft)
-		| unrotatedCorner(RectPart::TopRight)
-		| unrotatedCorner(RectPart::BottomRight)
-		| unrotatedCorner(RectPart::BottomLeft);
-	return result;
-}
-
 Qt::Edges RectPartToQtEdges(RectPart rectPart) {
 	switch (rectPart) {
 	case RectPart::TopLeft:
@@ -373,45 +327,9 @@ QImage RotateFrameImage(QImage image, int rotation) {
 
 PipPanel::PipPanel(
 	QWidget *parent,
-	Fn<void(QPainter&, FrameRequest, bool)> paint)
-: _content(Ui::GL::CreateSurface(
-	[=](Ui::GL::Capabilities capabilities) {
-		return chooseRenderer(capabilities);
-	}))
-, _parent(parent)
-, _paint(std::move(paint)) {
-}
-
-Ui::GL::ChosenRenderer PipPanel::chooseRenderer(
-		Ui::GL::Capabilities capabilities) {
-	class Renderer : public Ui::GL::Renderer {
-	public:
-		Renderer(not_null<PipPanel*> owner) : _owner(owner) {
-		}
-
-		void paintFallback(
-				Painter &&p,
-				const QRegion &clip,
-				Ui::GL::Backend backend) override {
-			_owner->paint(
-				p,
-				clip,
-				backend == Ui::GL::Backend::OpenGL);
-		}
-
-	private:
-		const not_null<PipPanel*> _owner;
-
-	};
-
-	const auto use = Platform::IsMac()
-		? true
-		: capabilities.transparency;
-	LOG(("OpenGL: %1 (PipPanel)").arg(Logs::b(use)));
-	return {
-		.renderer = std::make_unique<Renderer>(this),
-		.backend = (use ? Ui::GL::Backend::OpenGL : Ui::GL::Backend::Raster),
-	};
+	Fn<Ui::GL::ChosenRenderer(Ui::GL::Capabilities)> renderer)
+: _content(Ui::GL::CreateSurface(std::move(renderer)))
+, _parent(parent) {
 }
 
 void PipPanel::init() {
@@ -478,6 +396,10 @@ QRect PipPanel::inner() const {
 
 RectParts PipPanel::attached() const {
 	return _attached;
+}
+
+bool PipPanel::useTransparency() const {
+	return _useTransparency;
 }
 
 void PipPanel::setDragDisabled(bool disabled) {
@@ -644,39 +566,6 @@ void PipPanel::update() {
 
 void PipPanel::setGeometry(QRect geometry) {
 	widget()->setGeometry(geometry);
-}
-
-void PipPanel::paint(QPainter &p, const QRegion &clip, bool opengl) {
-	if (_useTransparency && opengl) {
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		for (const auto rect : clip) {
-			p.fillRect(rect, Qt::transparent);
-		}
-		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-	}
-
-	auto request = FrameRequest();
-	const auto inner = this->inner();
-	request.resize = request.outer = inner.size() * style::DevicePixelRatio();
-	request.corners = RectPart(0)
-		| ((_attached & (RectPart::Left | RectPart::Top))
-			? RectPart(0)
-			: RectPart::TopLeft)
-		| ((_attached & (RectPart::Top | RectPart::Right))
-			? RectPart(0)
-			: RectPart::TopRight)
-		| ((_attached & (RectPart::Right | RectPart::Bottom))
-			? RectPart(0)
-			: RectPart::BottomRight)
-		| ((_attached & (RectPart::Bottom | RectPart::Left))
-			? RectPart(0)
-			: RectPart::BottomLeft);
-	request.radius = ImageRoundRadius::Large;
-	if (_useTransparency) {
-		const auto sides = RectPart::AllSides & ~_attached;
-		Ui::Shadow::paint(p, inner, widget()->width(), st::callShadow);
-	}
-	_paint(p, request, opengl);
 }
 
 void PipPanel::handleMousePress(QPoint position, Qt::MouseButton button) {
@@ -942,15 +831,14 @@ Pip::Pip(
 , _instance(std::move(shared), [=] { waitingAnimationCallback(); })
 , _panel(
 	_delegate->pipParentWidget(),
-	[=](QPainter &p, const FrameRequest &request, bool opengl) {
-		paint(p, request, opengl);
+	[=](Ui::GL::Capabilities capabilities) {
+		return chooseRenderer(capabilities);
 	})
 , _playbackProgress(std::make_unique<PlaybackProgress>())
 , _rotation(data->owner().mediaRotation().get(data))
 , _lastPositiveVolume((Core::App().settings().videoVolume() > 0.)
 	? Core::App().settings().videoVolume()
 	: Core::Settings::kDefaultVolume)
-, _roundRect(ImageRoundRadius::Large, st::radialBg)
 , _closeAndContinue(std::move(closeAndContinue))
 , _destroy(std::move(destroy)) {
 	setupPanel();
@@ -1041,19 +929,19 @@ void Pip::setOverState(OverState state) {
 	if (_over == state) {
 		return;
 	}
-	const auto was = _over;
+	const auto wasShown = ResolveShownOver(_over);
 	_over = state;
-	const auto nowShown = (_over != OverState::None);
-	if ((was != OverState::None) != nowShown) {
+	const auto nowAreShown = (ResolveShownOver(_over) != OverState::None);
+	if ((wasShown != OverState::None) != nowAreShown) {
 		_controlsShown.start(
 			[=] { _panel.update(); },
-			nowShown ? 0. : 1.,
-			nowShown ? 1. : 0.,
+			nowAreShown ? 0. : 1.,
+			nowAreShown ? 1. : 0.,
 			st::fadeWrapDuration,
 			anim::linear);
 	}
 	if (!_pressed) {
-		updateActiveState(was);
+		updateActiveState(wasShown);
 	}
 	_panel.update();
 }
@@ -1062,27 +950,29 @@ void Pip::setPressedState(std::optional<OverState> state) {
 	if (_pressed == state) {
 		return;
 	}
-	const auto was = activeState();
+	const auto wasShown = shownActiveState();
 	_pressed = state;
-	updateActiveState(was);
+	updateActiveState(wasShown);
 }
 
-Pip::OverState Pip::activeState() const {
-	return _pressed.value_or(_over);
+Pip::OverState Pip::shownActiveState() const {
+	return ResolveShownOver(_pressed.value_or(_over));
 }
 
 float64 Pip::activeValue(const Button &button) const {
-	return button.active.value((activeState() == button.state) ? 1. : 0.);
+	const auto shownState = ResolveShownOver(button.state);
+	return button.active.value((shownActiveState() == shownState) ? 1. : 0.);
 }
 
-void Pip::updateActiveState(OverState was) {
+void Pip::updateActiveState(OverState wasShown) {
 	const auto check = [&](Button &button) {
-		const auto now = (activeState() == button.state);
-		if ((was == button.state) != now) {
+		const auto shownState = ResolveShownOver(button.state);
+		const auto nowIsShown = (shownActiveState() == shownState);
+		if ((wasShown == shownState) != nowIsShown) {
 			button.active.start(
 				[=, &button] { _panel.widget()->update(button.icon); },
-				now ? 0. : 1.,
-				now ? 1. : 0.,
+				nowIsShown ? 0. : 1.,
+				nowIsShown ? 1. : 0.,
 				st::fadeWrapDuration,
 				anim::linear);
 		}
@@ -1093,6 +983,12 @@ void Pip::updateActiveState(OverState was) {
 	check(_playback);
 	check(_volumeToggle);
 	check(_volumeController);
+}
+
+Pip::OverState Pip::ResolveShownOver(OverState state) {
+	return (state == OverState::VolumeController)
+		? OverState::VolumeToggle
+		: state;
 }
 
 void Pip::handleMousePress(QPoint position, Qt::MouseButton button) {
@@ -1256,9 +1152,9 @@ void Pip::setupButtons() {
 
 		const auto volumeSkip = st::pipPlaybackSkip;
 		const auto volumeHeight = 2 * volumeSkip + st::pipPlaybackWide;
-		const auto volumeToggleWidth = st::mediaviewVolumeIcon0.width()
+		const auto volumeToggleWidth = st::pipVolumeIcon0.width()
 			+ 2 * skip;
-		const auto volumeToggleHeight = st::mediaviewVolumeIcon0.height()
+		const auto volumeToggleHeight = st::pipVolumeIcon0.height()
 			+ 2 * skip;
 		const auto volumeWidth = (((st::mediaviewVolumeWidth + 2 * skip)
 			+ _close.area.width()
@@ -1273,7 +1169,7 @@ void Pip::setupButtons() {
 			volumeHeight);
 		_volumeToggle.area = QRect(
 			_volumeController.area.x()
-				- st::mediaviewVolumeIcon0.width()
+				- st::pipVolumeIcon0.width()
 				- skip,
 			rect.y(),
 			volumeToggleWidth,
@@ -1346,83 +1242,70 @@ void Pip::setupStreaming() {
 	updatePlaybackState();
 }
 
-void Pip::paint(QPainter &p, FrameRequest request, bool opengl) {
-	const auto image = videoFrameForDirectPaint(
-		UnrotateRequest(request, _rotation));
-	const auto inner = _panel.inner();
-	const auto rect = QRect{
-		inner.topLeft(),
-		request.outer / style::DevicePixelRatio()
+Ui::GL::ChosenRenderer Pip::chooseRenderer(
+		Ui::GL::Capabilities capabilities) {
+	const auto use = Platform::IsMac()
+		? true
+		: capabilities.transparency;
+	LOG(("OpenGL: %1 (PipPanel)").arg(Logs::b(use)));
+	if (use) {
+		_opengl = true;
+		return {
+			.renderer = std::make_unique<RendererGL>(this),
+			.backend = Ui::GL::Backend::OpenGL,
+		};
+	}
+	return {
+		.renderer = std::make_unique<RendererSW>(this),
+		.backend = Ui::GL::Backend::Raster,
 	};
-	if (UsePainterRotation(_rotation, opengl)) {
-		if (_rotation) {
-			p.save();
-			p.rotate(_rotation);
-		}
-		auto hq = PainterHighQualityEnabler(p);
-		p.drawImage(RotatedRect(rect, _rotation), image);
-		if (_rotation) {
-			p.restore();
-		}
-	} else {
-		p.drawImage(rect, RotateFrameImage(image, _rotation));
-	}
-	if (canUseVideoFrame()) {
-		_instance.markFrameShown();
-	}
-	paintRadialLoading(p);
-	paintControls(p);
 }
 
-void Pip::paintControls(QPainter &p) const {
-	const auto shown = _controlsShown.value(
+void Pip::paint(not_null<Renderer*> renderer) const {
+	const auto controlsShown = _controlsShown.value(
 		(_over != OverState::None) ? 1. : 0.);
-	if (!shown) {
-		return;
+	const auto geometry = ContentGeometry{
+		.inner = _panel.inner(),
+		.attached = (_panel.useTransparency()
+			? _panel.attached()
+			: RectPart::AllSides),
+		.fade = controlsShown,
+		.outer = _panel.widget()->size(),
+		.rotation = _rotation,
+		.useTransparency = _panel.useTransparency(),
+	};
+	if (canUseVideoFrame()) {
+		renderer->paintTransformedVideoFrame(geometry);
+		_instance.markFrameShown();
+	} else {
+		renderer->paintTransformedStaticContent(staticContent(), geometry);
 	}
-	p.setOpacity(shown);
-	paintFade(p);
-	paintButtons(p);
-	paintPlayback(p);
-	paintPlaybackTexts(p);
-	paintVolumeController(p);
+	if (_instance.waitingShown()) {
+		renderer->paintRadialLoading(countRadialRect(), controlsShown);
+	}
+	if (controlsShown > 0) {
+		paintButtons(renderer, controlsShown);
+		paintPlayback(renderer, controlsShown);
+		paintVolumeController(renderer, controlsShown);
+	}
 }
 
-void Pip::paintFade(QPainter &p) const {
-	using Part = RectPart;
-	const auto sides = _panel.attached();
-	const auto rounded = RectPart(0)
-		| ((sides & (Part::Top | Part::Left)) ? Part(0) : Part::TopLeft)
-		| ((sides & (Part::Top | Part::Right)) ? Part(0) : Part::TopRight)
-		| ((sides & (Part::Bottom | Part::Right))
-			? Part(0)
-			: Part::BottomRight)
-		| ((sides & (Part::Bottom | Part::Left))
-			? Part(0)
-			: Part::BottomLeft);
-	_roundRect.paintSomeRounded(
-		p,
-		_panel.inner(),
-		rounded | Part::NoTopBottom | Part::Top | Part::Bottom);
-}
-
-void Pip::paintButtons(QPainter &p) const {
-	const auto opacity = p.opacity();
+void Pip::paintButtons(not_null<Renderer*> renderer, float64 shown) const {
 	const auto outer = _panel.widget()->width();
 	const auto drawOne = [&](
 			const Button &button,
 			const style::icon &icon,
 			const style::icon &iconOver) {
-		const auto over = activeValue(button);
-		if (over < 1.) {
-			icon.paint(p, button.icon.x(), button.icon.y(), outer);
-		}
-		if (over > 0.) {
-			p.setOpacity(over * opacity);
-			iconOver.paint(p, button.icon.x(), button.icon.y(), outer);
-			p.setOpacity(opacity);
-		}
+		renderer->paintButton(
+			button,
+			outer,
+			shown,
+			activeValue(button),
+			icon,
+			iconOver);
 	};
+
+	renderer->paintButtonsStart();
 	drawOne(
 		_play,
 		_showPause ? st::pipPauseIcon : st::pipPlayIcon,
@@ -1433,47 +1316,73 @@ void Pip::paintButtons(QPainter &p) const {
 	if (volume <= 0.) {
 		drawOne(
 			_volumeToggle,
-			st::mediaviewVolumeIcon0,
-			st::mediaviewVolumeIcon0Over);
+			st::pipVolumeIcon0,
+			st::pipVolumeIcon0Over);
 	} else if (volume < 1 / 2.) {
 		drawOne(
 			_volumeToggle,
-			st::mediaviewVolumeIcon1,
-			st::mediaviewVolumeIcon1Over);
+			st::pipVolumeIcon1,
+			st::pipVolumeIcon1Over);
 	} else {
 		drawOne(
 			_volumeToggle,
-			st::mediaviewVolumeIcon2,
-			st::mediaviewVolumeIcon2Over);
+			st::pipVolumeIcon2,
+			st::pipVolumeIcon2Over);
 	}
 }
 
-void Pip::paintPlayback(QPainter &p) const {
+void Pip::paintPlayback(not_null<Renderer*> renderer, float64 shown) const {
+	const auto outer = QRect(
+		_playback.icon.x(),
+		_playback.icon.y() - st::pipPlaybackFont->height,
+		_playback.icon.width(),
+		st::pipPlaybackFont->height + _playback.icon.height());
+	renderer->paintPlayback(outer, shown);
+}
+
+void Pip::paintPlaybackContent(
+		QPainter &p,
+		QRect outer,
+		float64 shown) const {
+	p.setOpacity(shown);
+	paintPlaybackProgress(p, outer);
+	paintPlaybackTexts(p, outer);
+}
+
+void Pip::paintPlaybackProgress(QPainter &p, QRect outer) const {
 	const auto radius = _playback.icon.height() / 2;
 	const auto progress = _playbackProgress->value();
+	const auto active = activeValue(_playback);
 	const auto height = anim::interpolate(
 		st::pipPlaybackWidth,
 		_playback.icon.height(),
-		activeValue(_playback));
+		active);
 	const auto rect = QRect(
-		_playback.icon.x(),
-		_playback.icon.y() + _playback.icon.height() - height,
-		_playback.icon.width(),
+		outer.x(),
+		(outer.y()
+			+ st::pipPlaybackFont->height
+			+ _playback.icon.height()
+			- height),
+		outer.width(),
 		height);
 
-	paintProgressBar(p, rect, progress, radius);
+	paintProgressBar(p, rect, progress, radius, active);
 }
 
 void Pip::paintProgressBar(
 		QPainter &p,
 		const QRect &rect,
 		float64 progress,
-		int radius) const {
+		int radius,
+		float64 active) const {
 	const auto done = int(std::round(rect.width() * progress));
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
 	if (done > 0) {
-		p.setBrush(st::mediaviewPipPlaybackActive);
+		p.setBrush(anim::brush(
+			st::mediaviewPipControlsFg,
+			st::mediaviewPipPlaybackActive,
+			active));
 		p.setClipRect(rect.x(), rect.y(), done, rect.height());
 		p.drawRoundedRect(
 			rect.x(),
@@ -1502,14 +1411,17 @@ void Pip::paintProgressBar(
 	p.setClipping(false);
 }
 
-void Pip::paintPlaybackTexts(QPainter &p) const {
-	const auto left = _playback.area.x() + st::pipPlaybackTextSkip;
-	const auto right = _playback.area.x()
+void Pip::paintPlaybackTexts(QPainter &p, QRect outer) const {
+	const auto left = outer.x()
+		- _playback.icon.x()
+		+ _playback.area.x()
+		+ st::pipPlaybackTextSkip;
+	const auto right = outer.x()
+		- _playback.icon.x()
+		+ _playback.area.x()
 		+ _playback.area.width()
 		- st::pipPlaybackTextSkip;
-	const auto top = _playback.icon.y()
-		- st::pipPlaybackFont->height
-		+ st::pipPlaybackFont->ascent;
+	const auto top = outer.y() + st::pipPlaybackFont->ascent;
 
 	p.setFont(st::pipPlaybackFont);
 	p.setPen(st::mediaviewPipControlsFgOver);
@@ -1517,23 +1429,35 @@ void Pip::paintPlaybackTexts(QPainter &p) const {
 	p.drawText(right - _timeLeftWidth, top, _timeLeft);
 }
 
-void Pip::paintVolumeController(QPainter &p) const {
+void Pip::paintVolumeController(
+		not_null<Renderer*> renderer,
+		float64 shown) const {
 	if (!_volumeController.icon.width()) {
 		return;
 	}
+	renderer->paintVolumeController(_volumeController.icon, shown);
+}
+
+void Pip::paintVolumeControllerContent(
+		QPainter &p,
+		QRect outer,
+		float64 shown) const {
+	p.setOpacity(shown);
+
 	const auto radius = _volumeController.icon.height() / 2;
 	const auto volume = Core::App().settings().videoVolume();
+	const auto active = activeValue(_volumeController);
 	const auto height = anim::interpolate(
 		st::pipPlaybackWidth,
 		_volumeController.icon.height(),
-		activeValue(_volumeController));
+		active);
 	const auto rect = QRect(
-		_volumeController.icon.x(),
-		_volumeController.icon.y() + radius - height / 2,
-		_volumeController.icon.width(),
+		outer.x(),
+		outer.y() + radius - height / 2,
+		outer.width(),
 		height);
 
-	paintProgressBar(p, rect, volume, radius);
+	paintProgressBar(p, rect, volume, radius, active);
 }
 
 void Pip::handleStreamingUpdate(Streaming::Update &&update) {
@@ -1649,12 +1573,19 @@ bool Pip::canUseVideoFrame() const {
 }
 
 QImage Pip::videoFrame(const FrameRequest &request) const {
-	if (canUseVideoFrame()) {
-		_preparedCoverStorage = QImage();
-		return _instance.frame(request);
-	}
-	const auto &cover = _instance.info().video.cover;
+	Expects(canUseVideoFrame());
 
+	return _instance.frame(request);
+}
+
+Streaming::FrameWithInfo Pip::videoFrameWithInfo() const {
+	Expects(canUseVideoFrame());
+
+	return _instance.frameWithInfo();
+}
+
+QImage Pip::staticContent() const {
+	const auto &cover = _instance.info().video.cover;
 	const auto media = _data->activeMediaView();
 	const auto use = media
 		? media
@@ -1677,114 +1608,32 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 		: blurred
 		? ThumbState::Inline
 		: ThumbState::Empty;
-	if (_preparedCoverStorage.isNull()
-		|| _preparedCoverRequest != request
-		|| _preparedCoverState < state) {
-		_preparedCoverRequest = request;
-		_preparedCoverState = state;
-		if (state == ThumbState::Cover) {
-			_preparedCoverStorage = Streaming::PrepareByRequest(
-				_instance.info().video.cover,
-				false,
-				_instance.info().video.rotation,
-				request,
+	if (!_preparedCoverStorage.isNull() && _preparedCoverState >= state) {
+		return _preparedCoverStorage;
+	}
+	_preparedCoverState = state;
+	if (state == ThumbState::Cover) {
+		_preparedCoverStorage = _instance.info().video.cover;
+	} else {
+		_preparedCoverStorage = (good
+			? good
+			: thumb
+			? thumb
+			: blurred
+			? blurred
+			: Image::BlankMedia().get())->original();
+		if (!good) {
+			_preparedCoverStorage = Images::prepareBlur(
 				std::move(_preparedCoverStorage));
-		} else if (!request.resize.isEmpty()) {
-			using Option = Images::Option;
-			const auto options = Option::Smooth
-				| (good ? Option(0) : Option::Blurred)
-				| Option::RoundedLarge
-				| ((request.corners & RectPart::TopLeft)
-					? Option::RoundedTopLeft
-					: Option(0))
-				| ((request.corners & RectPart::TopRight)
-					? Option::RoundedTopRight
-					: Option(0))
-				| ((request.corners & RectPart::BottomRight)
-					? Option::RoundedBottomRight
-					: Option(0))
-				| ((request.corners & RectPart::BottomLeft)
-					? Option::RoundedBottomLeft
-					: Option(0));
-			_preparedCoverStorage = (good
-				? good
-				: thumb
-				? thumb
-				: blurred
-				? blurred
-				: Image::BlankMedia().get())->pixNoCache(
-					request.resize.width(),
-					request.resize.height(),
-					options,
-					request.outer.width(),
-					request.outer.height()).toImage();
 		}
 	}
 	return _preparedCoverStorage;
 }
 
-QImage Pip::videoFrameForDirectPaint(const FrameRequest &request) const {
-	const auto result = videoFrame(request);
-
-#ifdef USE_OPENGL_PIP_WIDGET
-	const auto bytesPerLine = result.bytesPerLine();
-	if (bytesPerLine == result.width() * 4) {
-		return result;
-	}
-
-	// On macOS 10.8+ we use QOpenGLWidget as OverlayWidget base class.
-	// The OpenGL painter can't paint textures where byte data is with strides.
-	// So in that case we prepare a compact copy of the frame to render.
-	//
-	// See Qt commit ed557c037847e343caa010562952b398f806adcd
-	//
-	auto &cache = _frameForDirectPaint;
-	if (cache.size() != result.size()) {
-		cache = QImage(result.size(), result.format());
-	}
-	const auto height = result.height();
-	const auto line = cache.bytesPerLine();
-	Assert(line == result.width() * 4);
-	Assert(line < bytesPerLine);
-
-	auto from = result.bits();
-	auto to = cache.bits();
-	for (auto y = 0; y != height; ++y) {
-		memcpy(to, from, line);
-		to += line;
-		from += bytesPerLine;
-	}
-	return cache;
-#endif // USE_OPENGL_PIP_WIDGET
-
-	return result;
-}
-
-void Pip::paintRadialLoading(QPainter &p) const {
-	const auto inner = countRadialRect();
-#ifdef USE_OPENGL_PIP_WIDGET
-	{
-		if (_radialCache.size() != inner.size() * cIntRetinaFactor()) {
-			_radialCache = QImage(
-				inner.size() * cIntRetinaFactor(),
-				QImage::Format_ARGB32_Premultiplied);
-			_radialCache.setDevicePixelRatio(cRetinaFactor());
-		}
-		_radialCache.fill(Qt::transparent);
-
-		Painter q(&_radialCache);
-		paintRadialLoadingContent(q, inner.translated(-inner.topLeft()));
-	}
-	p.drawImage(inner.topLeft(), _radialCache);
-#else // USE_OPENGL_PIP_WIDGET
-	paintRadialLoadingContent(p, inner);
-#endif // USE_OPENGL_PIP_WIDGET
-}
-
-void Pip::paintRadialLoadingContent(QPainter &p, const QRect &inner) const {
-	if (!_instance.waitingShown()) {
-		return;
-	}
+void Pip::paintRadialLoadingContent(
+		QPainter &p,
+		const QRect &inner,
+		QColor fg) const {
 	const auto arc = inner.marginsRemoved(QMargins(
 		st::radialLine,
 		st::radialLine,
@@ -1804,7 +1653,7 @@ void Pip::paintRadialLoadingContent(QPainter &p, const QRect &inner) const {
 		arc.topLeft(),
 		arc.size(),
 		_panel.widget()->width(),
-		st::radialFg,
+		fg,
 		st::radialLine);
 }
 

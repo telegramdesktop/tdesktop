@@ -318,6 +318,7 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 			_rgbaSize = image.size();
 		}
 	}
+	program->setUniformValue("s_texture", GLint(0));
 
 	paintTransformedContent(&*program, geometry);
 }
@@ -325,12 +326,6 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 void OverlayWidget::RendererGL::paintTransformedContent(
 		not_null<QOpenGLShaderProgram*> program,
 		ContentGeometry geometry) {
-	auto texCoords = std::array<std::array<GLfloat, 2>, 4> { {
-		{ { 0.f, 1.f } },
-		{ { 1.f, 1.f } },
-		{ { 1.f, 0.f } },
-		{ { 0.f, 0.f } },
-	} };
 	const auto rect = transformRect(geometry.rect);
 	const auto centerx = rect.x() + rect.width() / 2;
 	const auto centery = rect.y() + rect.height() / 2;
@@ -350,22 +345,21 @@ void OverlayWidget::RendererGL::paintTransformedContent(
 	const auto bottomleft = rotated(rect.left(), rect.bottom());
 	const GLfloat coords[] = {
 		topleft[0], topleft[1],
-		texCoords[0][0], texCoords[0][1],
+		0.f, 1.f,
 
 		topright[0], topright[1],
-		texCoords[1][0], texCoords[1][1],
+		1.f, 1.f,
 
 		bottomright[0], bottomright[1],
-		texCoords[2][0], texCoords[2][1],
+		1.f, 0.f,
 
 		bottomleft[0], bottomleft[1],
-		texCoords[3][0], texCoords[3][1],
+		0.f, 0.f,
 	};
 
 	_contentBuffer->write(0, coords, sizeof(coords));
 
 	program->setUniformValue("viewport", _uniformViewport);
-	program->setUniformValue("s_texture", GLint(0));
 
 	toggleBlending(false);
 	FillTexturedRectangle(*_f, &*program);

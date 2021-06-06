@@ -3232,10 +3232,9 @@ Ui::GL::ChosenRenderer OverlayWidget::chooseRenderer(
 		: capabilities.transparency;
 	LOG(("OpenGL: %1 (OverlayWidget)").arg(Logs::b(use)));
 	if (use) {
-		auto renderer = std::make_unique<RendererGL>(this);
 		_opengl = true;
 		return {
-			.renderer = std::move(renderer),
+			.renderer = std::make_unique<RendererGL>(this),
 			.backend = Ui::GL::Backend::OpenGL,
 		};
 	}

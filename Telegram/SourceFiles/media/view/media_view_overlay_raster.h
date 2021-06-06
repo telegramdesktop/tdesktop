@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "media/view/media_view_overlay_renderer.h"
-#include "ui/gl/gl_surface.h"
 
 namespace Media::View {
 
@@ -50,8 +49,6 @@ private:
 	void paintFooter(QRect outer, float64 opacity) override;
 	void paintCaption(QRect outer, float64 opacity) override;
 	void paintGroupThumbs(QRect outer, float64 opacity) override;
-
-	void invalidate() override;
 
 	[[nodiscard]] static QRect TransformRect(QRectF geometry, int rotation);
 

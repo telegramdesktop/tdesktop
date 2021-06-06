@@ -38,8 +38,6 @@ public:
 	virtual void paintCaption(QRect outer, float64 opacity) = 0;
 	virtual void paintGroupThumbs(QRect outer, float64 opacity) = 0;
 
-	virtual void invalidate() = 0;
-
 };
 
 } // namespace Media::View

@@ -70,7 +70,7 @@ public:
 
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
 	[[nodiscard]] FrameWithInfo frameWithInfo() const;
-	bool markFrameShown();
+	bool markFrameShown() const;
 
 	void lockPlayer();
 	void unlockPlayer();

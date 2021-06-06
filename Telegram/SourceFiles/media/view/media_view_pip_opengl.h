@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "media/view/media_view_overlay_renderer.h"
+#include "media/view/media_view_pip_renderer.h"
 #include "ui/gl/gl_image.h"
 #include "ui/gl/gl_primitives.h"
 
@@ -15,9 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media::View {
 
-class OverlayWidget::RendererGL final : public OverlayWidget::Renderer {
+class Pip::RendererGL final : public Pip::Renderer {
 public:
-	explicit RendererGL(not_null<OverlayWidget*> owner);
+	explicit RendererGL(not_null<Pip*> owner);
 
 	void init(
 		not_null<QOpenGLWidget*> widget,
@@ -31,7 +31,7 @@ public:
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f,
 		int w,
-		int h) override;
+		int h);
 
 	void paint(
 		not_null<QOpenGLWidget*> widget,
@@ -41,39 +41,31 @@ private:
 	struct Control {
 		int index = -1;
 		not_null<const style::icon*> icon;
+		not_null<const style::icon*> iconOver;
 	};
-	bool handleHideWorkaround(QOpenGLFunctions &f);
 	void setDefaultViewport(QOpenGLFunctions &f);
+	void createShadowTexture();
 
-	void paintBackground() override;
 	void paintTransformedVideoFrame(ContentGeometry geometry) override;
 	void paintTransformedStaticContent(
 		const QImage &image,
-		ContentGeometry geometry,
-		bool fillTransparentBackground) override;
+		ContentGeometry geometry) override;
 	void paintTransformedContent(
 		not_null<QOpenGLShaderProgram*> program,
 		ContentGeometry geometry);
 	void paintRadialLoading(
 		QRect inner,
-		bool radial,
-		float64 radialOpacity) override;
-	void paintThemePreview(QRect outer) override;
-	void paintDocumentBubble(QRect outer, QRect icon) override;
-	void paintSaveMsg(QRect outer) override;
-	void paintControlsStart() override;
-	void paintControl(
-		OverState control,
-		QRect outer,
-		float64 outerOpacity,
-		QRect inner,
-		float64 innerOpacity,
-		const style::icon &icon) override;
-	void paintFooter(QRect outer, float64 opacity) override;
-	void paintCaption(QRect outer, float64 opacity) override;
-	void paintGroupThumbs(QRect outer, float64 opacity) override;
-
-	void invalidate();
+		float64 controlsShown) override;
+	void paintButtonsStart() override;
+	void paintButton(
+		const Button &button,
+		int outerWidth,
+		float64 shown,
+		float64 over,
+		const style::icon &icon,
+		const style::icon &iconOver) override;
+	void paintPlayback(QRect outer, float64 shown) override;
+	void paintVolumeController(QRect outer, float64 shown) override;
 
 	void paintUsingRaster(
 		Ui::GL::Image &image,
@@ -85,6 +77,8 @@ private:
 	void validateControls();
 	void invalidateControls();
 	void toggleBlending(bool enabled);
+
+	[[nodiscard]] QRect RoundingRect(ContentGeometry geometry);
 
 	[[nodiscard]] Ui::GL::Rect transformRect(const QRect &raster) const;
 	[[nodiscard]] Ui::GL::Rect transformRect(const QRectF &raster) const;
@@ -99,41 +93,37 @@ private:
 		int stride,
 		const void *data) const;
 
-	const not_null<OverlayWidget*> _owner;
+	const not_null<Pip*> _owner;
 
 	QOpenGLFunctions *_f = nullptr;
-	Ui::GL::BackgroundFiller _background;
 	QSize _viewport;
 	float _factor = 1.;
 	QVector2D _uniformViewport;
 
 	std::optional<QOpenGLBuffer> _contentBuffer;
 	std::optional<QOpenGLShaderProgram> _imageProgram;
-	QOpenGLShader *_texturedVertexShader = nullptr;
-	std::optional<QOpenGLShaderProgram> _withTransparencyProgram;
-	std::optional<QOpenGLShaderProgram> _yuv420Program;
-	std::optional<QOpenGLShaderProgram> _fillProgram;
 	std::optional<QOpenGLShaderProgram> _controlsProgram;
+	QOpenGLShader *_texturedVertexShader = nullptr;
+	std::optional<QOpenGLShaderProgram> _argb32Program;
+	std::optional<QOpenGLShaderProgram> _yuv420Program;
 	Ui::GL::Textures<4> _textures;
 	QSize _rgbaSize;
 	QSize _lumaSize;
 	QSize _chromaSize;
-	qint64 _cacheKey = 0;
+	quint64 _cacheKey = 0;
 	int _trackFrameIndex = 0;
-	int _streamedIndex = 0;
 
 	Ui::GL::Image _radialImage;
-	Ui::GL::Image _documentBubbleImage;
-	Ui::GL::Image _themePreviewImage;
-	Ui::GL::Image _saveMsgImage;
-	Ui::GL::Image _footerImage;
-	Ui::GL::Image _captionImage;
-	Ui::GL::Image _groupThumbsImage;
 	Ui::GL::Image _controlsImage;
+	Ui::GL::Image _playbackImage;
+	Ui::GL::Image _volumeControllerImage;
+	Ui::GL::Image _shadowImage;
 
-	static constexpr auto kControlsCount = 6;
-	[[nodiscard]] static Control ControlMeta(OverState control);
-	std::array<QRect, kControlsCount> _controlsTextures;
+	static constexpr auto kControlsCount = 7;
+	[[nodiscard]] static Control ControlMeta(
+		OverState control,
+		int index = 0);
+	std::array<QRect, kControlsCount * 2> _controlsTextures;
 
 	bool _blendingEnabled = false;
 

@@ -50,11 +50,10 @@ public:
 		QRect geometry;
 		QRect screen;
 	};
-	using FrameRequest = Streaming::FrameRequest;
 
 	PipPanel(
 		QWidget *parent,
-		Fn<void(QPainter&, FrameRequest, bool)> paint);
+		Fn<Ui::GL::ChosenRenderer(Ui::GL::Capabilities)> renderer);
 	void init();
 
 	[[nodiscard]] not_null<QWidget*> widget() const;
@@ -68,6 +67,8 @@ public:
 	void setPosition(Position position);
 	[[nodiscard]] QRect inner() const;
 	[[nodiscard]] RectParts attached() const;
+	[[nodiscard]] bool useTransparency() const;
+
 	void setDragDisabled(bool disabled);
 	[[nodiscard]] bool dragging() const;
 
@@ -78,8 +79,6 @@ public:
 	[[nodiscard]] rpl::producer<> saveGeometryRequests() const;
 
 private:
-	void paint(QPainter &p, const QRegion &clip, bool opengl);
-
 	void setPositionDefault();
 	void setPositionOnScreen(Position position, QRect available);
 
@@ -92,12 +91,8 @@ private:
 	void moveAnimated(QPoint to);
 	void updateDecorations();
 
-	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
-		Ui::GL::Capabilities capabilities);
-
 	const std::unique_ptr<Ui::RpWidgetWrap> _content;
 	const QPointer<QWidget> _parent;
-	Fn<void(QPainter&, FrameRequest, bool)> _paint;
 	RectParts _attached = RectParts();
 	RectParts _snapped = RectParts();
 	QSize _ratio;
@@ -161,12 +156,26 @@ private:
 		OverState state = OverState::None;
 		Ui::Animations::Simple active;
 	};
+	struct ContentGeometry {
+		QRect inner;
+		RectParts attached = RectParts();
+		float64 fade = 0.;
+		QSize outer;
+		int rotation = 0;
+		bool useTransparency = false;
+	};
+	struct StaticContent {
+		QImage image;
+		bool blurred = false;
+	};
 	using FrameRequest = Streaming::FrameRequest;
+	class Renderer;
+	class RendererGL;
+	class RendererSW;
 
 	void setupPanel();
 	void setupButtons();
 	void setupStreaming();
-	void paint(QPainter &p, FrameRequest request, bool opengl);
 	void playbackPauseResume();
 	void volumeChanged(float64 volume);
 	void volumeToggled();
@@ -182,15 +191,21 @@ private:
 
 	[[nodiscard]] bool canUseVideoFrame() const;
 	[[nodiscard]] QImage videoFrame(const FrameRequest &request) const;
-	[[nodiscard]] QImage videoFrameForDirectPaint(
-		const FrameRequest &request) const;
+	[[nodiscard]] Streaming::FrameWithInfo videoFrameWithInfo() const; // YUV
+	[[nodiscard]] QImage staticContent() const;
 	[[nodiscard]] OverState computeState(QPoint position) const;
 	void setOverState(OverState state);
 	void setPressedState(std::optional<OverState> state);
-	[[nodiscard]] OverState activeState() const;
+	[[nodiscard]] OverState shownActiveState() const;
 	[[nodiscard]] float64 activeValue(const Button &button) const;
 	void updateActiveState(OverState was);
 	void updatePlaybackTexts(int64 position, int64 length, int64 frequency);
+
+	[[nodiscard]] static OverState ResolveShownOver(OverState state);
+
+	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
+		Ui::GL::Capabilities capabilities);
+	void paint(not_null<Renderer*> renderer) const;
 
 	void handleMouseMove(QPoint position);
 	void handleMousePress(QPoint position, Qt::MouseButton button);
@@ -199,19 +214,28 @@ private:
 	void handleLeave();
 	void handleClose();
 
-	void paintControls(QPainter &p) const;
-	void paintFade(QPainter &p) const;
-	void paintButtons(QPainter &p) const;
-	void paintPlayback(QPainter &p) const;
+	void paintRadialLoadingContent(
+		QPainter &p,
+		const QRect &inner,
+		QColor fg) const;
+	void paintButtons(not_null<Renderer*> renderer, float64 shown) const;
+	void paintPlayback(not_null<Renderer*> renderer, float64 shown) const;
+	void paintPlaybackContent(QPainter &p, QRect outer, float64 shown) const;
+	void paintPlaybackProgress(QPainter &p, QRect outer) const;
 	void paintProgressBar(
 		QPainter &p,
 		const QRect &rect,
 		float64 progress,
-		int radius) const;
-	void paintPlaybackTexts(QPainter &p) const;
-	void paintVolumeController(QPainter &p) const;
-	void paintRadialLoading(QPainter &p) const;
-	void paintRadialLoadingContent(QPainter &p, const QRect &inner) const;
+		int radius,
+		float64 active) const;
+	void paintPlaybackTexts(QPainter &p, QRect outer) const;
+	void paintVolumeController(
+		not_null<Renderer*> renderer,
+		float64 shown) const;
+	void paintVolumeControllerContent(
+		QPainter &p,
+		QRect outer,
+		float64 shown) const;
 	[[nodiscard]] QRect countRadialRect() const;
 
 	void seekUpdate(QPoint position);
@@ -222,6 +246,7 @@ private:
 	not_null<DocumentData*> _data;
 	FullMsgId _contextId;
 	Streaming::Instance _instance;
+	bool _opengl = false;
 	PipPanel _panel;
 	QSize _size;
 	std::unique_ptr<PlaybackProgress> _playbackProgress;
@@ -246,19 +271,12 @@ private:
 	Button _volumeToggle;
 	Button _volumeController;
 	Ui::Animations::Simple _controlsShown;
-	Ui::RoundRect _roundRect;
 
 	FnMut<void()> _closeAndContinue;
 	FnMut<void()> _destroy;
 
-#if USE_OPENGL_PIP_WIDGET
-	mutable QImage _frameForDirectPaint;
-	mutable QImage _radialCache;
-#endif // USE_OPENGL_PIP_WIDGET
-
 	mutable QImage _preparedCoverStorage;
-	mutable FrameRequest _preparedCoverRequest;
-	mutable ThumbState _preparedCoverState;
+	mutable ThumbState _preparedCoverState = ThumbState::Empty;
 
 };
 

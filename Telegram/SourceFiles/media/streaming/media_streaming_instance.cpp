@@ -176,7 +176,7 @@ FrameWithInfo Instance::frameWithInfo() const {
 	return player().frameWithInfo(this);
 }
 
-bool Instance::markFrameShown() {
+bool Instance::markFrameShown() const {
 	Expects(_shared != nullptr);
 
 	return _shared->player().markFrameShown();

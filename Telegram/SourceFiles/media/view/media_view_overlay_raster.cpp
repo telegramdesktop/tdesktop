@@ -188,7 +188,4 @@ void OverlayWidget::RendererSW::paintGroupThumbs(
 	}
 }
 
-void OverlayWidget::RendererSW::invalidate() {
-}
-
 } // namespace Media::View
