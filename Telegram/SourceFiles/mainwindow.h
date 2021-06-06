@@ -132,7 +132,7 @@ private:
 	QPixmap grabInner();
 
 	using MediaControlsManager = Window::SystemMediaControlsManager;
-	const std::unique_ptr<MediaControlsManager> _mediaControlsManager;
+	std::unique_ptr<MediaControlsManager> _mediaControlsManager;
 
 	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 

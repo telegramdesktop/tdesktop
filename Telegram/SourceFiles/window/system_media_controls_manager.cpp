@@ -13,10 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
+#include "mainwidget.h"
+#include "main/main_account.h"
 #include "main/main_session.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "ui/text/format_song_document_name.h"
+#include "window/window_controller.h"
 
 namespace Window {
 
@@ -25,14 +28,14 @@ bool SystemMediaControlsManager::Supported() {
 }
 
 SystemMediaControlsManager::SystemMediaControlsManager(
-	not_null<QWidget*> parent)
+	not_null<Window::Controller*> controller)
 : _controls(std::make_unique<base::Platform::SystemMediaControls>()) {
 
 	using PlaybackStatus =
 		base::Platform::SystemMediaControls::PlaybackStatus;
 	using Command = base::Platform::SystemMediaControls::Command;
 
-	const auto inited = _controls->init(parent.get());
+	const auto inited = _controls->init(controller->widget());
 	if (!inited) {
 		LOG(("SystemMediaControlsManager failed to init."));
 		return;
@@ -162,6 +165,13 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 		case Command::Next: mediaPlayer->next(type); break;
 		case Command::Previous: mediaPlayer->previous(type); break;
 		case Command::Stop: mediaPlayer->stop(type); break;
+		case Command::Raise: controller->widget()->showFromTray(); break;
+		case Command::Quit: {
+			if (const auto main = controller->widget()->sessionContent()) {
+				main->closeBothPlayers();
+			}
+			break;
+		}
 		}
 	}, _lifetime);
 

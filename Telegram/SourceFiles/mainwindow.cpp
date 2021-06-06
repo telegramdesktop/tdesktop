@@ -82,10 +82,7 @@ void FeedLangTestingKey(int key) {
 } // namespace
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
-: Platform::MainWindow(controller)
-, _mediaControlsManager(Window::SystemMediaControlsManager::Supported()
-	? std::make_unique<Window::SystemMediaControlsManager>(this)
-	: nullptr) {
+: Platform::MainWindow(controller) {
 
 	auto logo = Core::App().logo();
 	icon16 = logo.scaledToWidth(16, Qt::SmoothTransformation);
@@ -135,6 +132,11 @@ void MainWindow::initHook() {
 		this,
 		[=] { checkHistoryActivation(); },
 		Qt::QueuedConnection);
+
+	if (Window::SystemMediaControlsManager::Supported()) {
+		using MediaManager = Window::SystemMediaControlsManager;
+		_mediaControlsManager = std::make_unique<MediaManager>(&controller());
+	}
 }
 
 void MainWindow::createTrayIconMenu() {

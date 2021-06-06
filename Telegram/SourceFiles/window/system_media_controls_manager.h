@@ -16,10 +16,14 @@ class DocumentMedia;
 } // namespace Data
 
 namespace Window {
+class Controller;
+} // namespace Window
+
+namespace Window {
 
 class SystemMediaControlsManager {
 public:
-	SystemMediaControlsManager(not_null<QWidget*> parent);
+	SystemMediaControlsManager(not_null<Window::Controller*> controller);
 	~SystemMediaControlsManager();
 
 	static bool Supported();
