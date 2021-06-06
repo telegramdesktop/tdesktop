@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/observer.h"
 #include "base/platform/base_platform_system_media_controls.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
@@ -189,6 +190,21 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 	}) | rpl::start_with_next([=] {
 		_controls->setEnabled(false);
 	}, _lifetime);
+
+	if (_controls->volumeSupported()) {
+		rpl::single(
+			Core::App().settings().songVolume()
+		) | rpl::then(
+			Core::App().settings().songVolumeChanges()
+		) | rpl::start_with_next([=](float64 volume) {
+			_controls->setVolume(volume);
+		}, _lifetime);
+
+		_controls->volumeChangeRequests(
+		) | rpl::start_with_next([](float64 volume) {
+			Core::App().settings().setSongVolume(volume);
+		}, _lifetime);
+	}
 
 }
 
