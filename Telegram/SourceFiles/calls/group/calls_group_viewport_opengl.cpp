@@ -66,13 +66,14 @@ const int diameter = 2 * radius + 1;
 	};
 }
 
-// Depends on FragmetSampleTexture().
+// Depends on FragmentSampleTexture().
 [[nodiscard]] ShaderPart FragmentFrameColor() {
 	const auto blur = FragmentBlurTexture(true, 'b');
 	return {
 		.header = R"(
 uniform vec4 frameBg;
 uniform vec3 shadow; // fullHeight, shown, maxOpacity
+uniform float paused; // 0. <-> 1.
 const float backgroundOpacity = )" + QString::number(kBlurOpacity) + R"(;
 float insideTexture() {
 	vec2 textureHalf = vec2(0.5, 0.5);
@@ -89,14 +90,14 @@ vec4 background() {
 }
 )",
 		.body = R"(
-	float inside = insideTexture();
+	float inside = insideTexture() * (1. - paused);
 	result = result * inside
 		+ (1. - inside) * (backgroundOpacity * background()
 			+ (1. - backgroundOpacity) * frameBg);
 
 	float shadowCoord = gl_FragCoord.y - roundRect.y;
 	float shadowValue = max(1. - (shadowCoord / shadow.x), 0.);
-	float shadowShown = shadowValue * shadow.y * shadow.z;
+	float shadowShown = max(shadowValue * shadow.y, paused) * shadow.z;
 	result = vec4(result.rgb * (1. - shadowShown), result.a);
 )",
 	};
@@ -342,6 +343,30 @@ void Viewport::RendererGL::fillBackground(QOpenGLFunctions &f) {
 	_background.fill(f, region, _viewport, _factor, st::groupCallBg);
 }
 
+void Viewport::RendererGL::validateUserpicFrame(
+		not_null<VideoTile*> tile,
+		TileData &tileData) {
+	if (!_userpicFrame) {
+		tileData.userpicFrame = QImage();
+		return;
+	} else if (!tileData.userpicFrame.isNull()) {
+		return;
+	}
+	tileData.userpicFrame = QImage(
+		tile->trackOrUserpicSize(),
+		QImage::Format_ARGB32_Premultiplied);
+	tileData.userpicFrame.fill(Qt::black);
+	{
+		auto p = Painter(&tileData.userpicFrame);
+		tile->row()->peer()->paintUserpicSquare(
+			p,
+			tile->row()->ensureUserpicView(),
+			0,
+			0,
+			tileData.userpicFrame.width());
+	}
+}
+
 void Viewport::RendererGL::paintTile(
 		QOpenGLFunctions &f,
 		GLuint defaultFramebufferObject,
@@ -349,12 +374,18 @@ void Viewport::RendererGL::paintTile(
 		TileData &tileData) {
 	const auto track = tile->track();
 	const auto data = track->frameWithInfo(false);
-	if (data.format == Webrtc::FrameFormat::None) {
-		return;
-	}
-	Assert(!data.yuv420->size.isEmpty());
+	_userpicFrame = (data.format == Webrtc::FrameFormat::None);
+	validateUserpicFrame(tile, tileData);
+	const auto frameSize = _userpicFrame
+		? tileData.userpicFrame.size()
+		: data.yuv420->size;
+	const auto frameRotation = _userpicFrame
+		? 0
+		: data.rotation;
+	Assert(!frameSize.isEmpty());
 
-	_rgbaFrame = (data.format == Webrtc::FrameFormat::ARGB32);
+	_rgbaFrame = (data.format == Webrtc::FrameFormat::ARGB32)
+		|| _userpicFrame;
 	const auto geometry = tile->geometry();
 	const auto x = geometry.x();
 	const auto y = geometry.y();
@@ -368,16 +399,18 @@ void Viewport::RendererGL::paintTile(
 	const auto style = row->computeIconState(MembersRowStyle::Video);
 
 	validateOutlineAnimation(tile, tileData);
+	validatePausedAnimation(tile, tileData);
 	const auto outline = tileData.outlined.value(tileData.outline ? 1. : 0.);
+	const auto paused = tileData.paused.value(tileData.pause ? 1. : 0.);
 
 	ensureButtonsImage();
 
 	// Frame.
 	const auto unscaled = Media::View::FlipSizeByRotation(
-		data.yuv420->size,
-		data.rotation);
+		frameSize,
+		frameRotation);
 	const auto tileSize = geometry.size();
-	const auto swap = (((data.rotation / 90) % 2) == 1);
+	const auto swap = (((frameRotation / 90) % 2) == 1);
 	const auto expand = isExpanded(tile, unscaled, tileSize);
 	const auto animation = tile->animation();
 	const auto expandRatio = (animation.ratio >= 0.)
@@ -386,7 +419,7 @@ void Viewport::RendererGL::paintTile(
 		? 1.
 		: 0.;
 	auto texCoords = CountTexCoords(unscaled, tileSize, expandRatio, swap);
-	auto blurTexCoords = (expandRatio == 1.)
+	auto blurTexCoords = (expandRatio == 1. && !swap)
 		? texCoords
 		: CountTexCoords(unscaled, tileSize, 1.);
 	const auto rect = transformRect(geometry);
@@ -396,7 +429,7 @@ void Viewport::RendererGL::paintTile(
 		{ { 1.f, 0.f } },
 		{ { 0.f, 0.f } },
 	} };
-	if (const auto shift = (data.rotation / 90); shift > 0) {
+	if (const auto shift = (frameRotation / 90); shift > 0) {
 		std::rotate(
 			toBlurTexCoords.begin(),
 			toBlurTexCoords.begin() + shift,
@@ -572,12 +605,12 @@ void Viewport::RendererGL::paintTile(
 	const auto uniformViewport = QSizeF(_viewport * _factor);
 
 	program->setUniformValue("viewport", uniformViewport);
-	program->setUniformValue("frameBg", Uniform(st::groupCallBg->c));
+	program->setUniformValue("frameBg", st::groupCallBg->c);
 	program->setUniformValue("radiusOutline", QVector2D(
 		GLfloat(st::roundRadiusLarge * _factor),
 		(outline > 0) ? (st::groupCallOutline * _factor) : 0.f));
 	program->setUniformValue("roundRect", Uniform(rect));
-	program->setUniformValue("roundBg", Uniform(st::groupCallBg->c));
+	program->setUniformValue("roundBg", st::groupCallBg->c);
 	program->setUniformValue("outlineFg", QVector4D(
 		st::groupCallMemberActiveIcon->c.redF(),
 		st::groupCallMemberActiveIcon->c.greenF(),
@@ -589,6 +622,7 @@ void Viewport::RendererGL::paintTile(
 	program->setUniformValue(
 		"shadow",
 		QVector3D(shadowHeight, shown, shadowAlpha));
+	program->setUniformValue("paused", GLfloat(paused));
 
 	f.glActiveTexture(_rgbaFrame ? GL_TEXTURE1 : GL_TEXTURE3);
 	tileData.textures.bind(
@@ -632,6 +666,10 @@ void Viewport::RendererGL::paintTile(
 	if (pinVisible) {
 		FillTexturedRectangle(f, &*_imageProgram, 14);
 		FillTexturedRectangle(f, &*_imageProgram, 18);
+	}
+
+	if (paused > 0.) {
+
 	}
 
 	if (nameShift == fullNameShift) {
@@ -717,15 +755,18 @@ void Viewport::RendererGL::bindFrame(
 		const Webrtc::FrameWithInfo &data,
 		TileData &tileData,
 		Program &program) {
-	const auto upload = (tileData.trackIndex != data.index);
-	tileData.trackIndex = data.index;
+	const auto imageIndex = _userpicFrame ? 0 : (data.index + 1);
+	const auto upload = (tileData.trackIndex != imageIndex);
+	tileData.trackIndex = imageIndex;
 	if (_rgbaFrame) {
 		ensureARGB32Program();
 		f.glUseProgram(program.argb32->programId());
 		f.glActiveTexture(GL_TEXTURE0);
 		tileData.textures.bind(f, tileData.textureIndex * 5 + 0);
 		if (upload) {
-			const auto &image = data.original;
+			const auto &image = _userpicFrame
+				? tileData.userpicFrame
+				: data.original;
 			const auto stride = image.bytesPerLine() / 4;
 			const auto data = image.constBits();
 			uploadTexture(
@@ -1007,6 +1048,8 @@ void Viewport::RendererGL::validateDatas() {
 		}
 		const auto id = quintptr(tiles[i]->track().get());
 		const auto peer = tiles[i]->row()->peer();
+		const auto paused = (tiles[i]->track()->state()
+			== Webrtc::VideoState::Paused);
 		auto index = int(_tileData.size());
 		maybeStaleAfter = ranges::find(
 			maybeStaleAfter,
@@ -1018,12 +1061,15 @@ void Viewport::RendererGL::validateDatas() {
 			maybeStaleAfter->id = id;
 			maybeStaleAfter->peer = peer;
 			maybeStaleAfter->stale = false;
+			maybeStaleAfter->pause = paused;
+			maybeStaleAfter->paused.stop();
 			request.updating = true;
 		} else {
 			// This invalidates maybeStale*, but they're already equal.
 			_tileData.push_back({
 				.id = id,
 				.peer = peer,
+				.pause = paused,
 			});
 		}
 		_tileData[index].nameVersion = peer->nameVersion;
@@ -1113,5 +1159,23 @@ void Viewport::RendererGL::validateOutlineAnimation(
 		outline ? 1. : 0.,
 		st::fadeWrapDuration);
 }
+
+void Viewport::RendererGL::validatePausedAnimation(
+		not_null<VideoTile*> tile,
+		TileData &data) {
+	const auto paused = (_userpicFrame
+		&& tile->track()->frameSize().isEmpty())
+		|| (tile->track()->state() == Webrtc::VideoState::Paused);
+	if (data.pause == paused) {
+		return;
+	}
+	data.pause = paused;
+	data.paused.start(
+		[=] { _owner->widget()->update(); },
+		paused ? 0. : 1.,
+		paused ? 1. : 0.,
+		st::fadeWrapDuration);
+}
+
 
 } // namespace Calls::Group

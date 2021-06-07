@@ -16,6 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QOpenGLFunctions>
 
 namespace Calls::Group {
+namespace {
+
+constexpr auto kPausedVideoSize = 90;
+
+} // namespace
 
 Viewport::VideoTile::VideoTile(
 	const VideoEndpoint &endpoint,
@@ -52,6 +57,20 @@ int Viewport::VideoTile::topControlsSlide() const {
 		st::groupCallVideoTile.pinPosition.y() + _pinInner.height(),
 		0,
 		_topControlsShownAnimation.value(_topControlsShown ? 1. : 0.));
+}
+
+QSize Viewport::VideoTile::PausedVideoSize() {
+	return QSize(kPausedVideoSize, kPausedVideoSize);
+}
+
+QSize Viewport::VideoTile::trackOrUserpicSize() const {
+	if (const auto size = trackSize(); !size.isEmpty()) {
+		return size;
+	} else if (_userpicSize.isEmpty()
+		&& _track.track->state() == Webrtc::VideoState::Paused) {
+		_userpicSize = PausedVideoSize();
+	}
+	return _userpicSize;
 }
 
 bool Viewport::VideoTile::screencast() const {

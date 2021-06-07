@@ -132,11 +132,11 @@ private:
 	[[nodiscard]] bool allRowsAboveMoreImportantThanHand(
 		not_null<Row*> row,
 		uint64 raiseHandRating) const;
-	const Data::GroupCallParticipant *findParticipant(
+	[[nodiscard]] const Data::GroupCallParticipant *findParticipant(
 		const std::string &endpoint) const;
-	const std::string &computeScreenEndpoint(
+	[[nodiscard]] const std::string &computeScreenEndpoint(
 		not_null<const Data::GroupCallParticipant*> participant) const;
-	const std::string &computeCameraEndpoint(
+	[[nodiscard]] const std::string &computeCameraEndpoint(
 		not_null<const Data::GroupCallParticipant*> participant) const;
 	void showRowMenu(not_null<PeerListRow*> row, bool highlightRow);
 
@@ -288,11 +288,11 @@ void Members::Controller::setupListChangeViewers() {
 	}, _lifetime);
 
 	_call->videoStreamShownUpdates(
-	) | rpl::filter([=](const VideoActiveToggle &update) {
+	) | rpl::filter([=](const VideoStateToggle &update) {
 		const auto &large = _call->videoEndpointLarge();
 		return large && (update.endpoint != large);
-	}) | rpl::start_with_next([=](const VideoActiveToggle &update) {
-		if (update.active) {
+	}) | rpl::start_with_next([=](const VideoStateToggle &update) {
+		if (update.value) {
 			hideRowWithVideo(update.endpoint);
 		} else {
 			showRowWithVideo(update.endpoint);
@@ -403,8 +403,8 @@ void Members::Controller::subscribeToChanges(not_null<Data::GroupCall*> real) {
 		toggleVideoEndpointActive(endpoint, true);
 	}
 	_call->videoStreamActiveUpdates(
-	) | rpl::start_with_next([=](const VideoActiveToggle &update) {
-		toggleVideoEndpointActive(update.endpoint, update.active);
+	) | rpl::start_with_next([=](const VideoStateToggle &update) {
+		toggleVideoEndpointActive(update.endpoint, update.value);
 	}, _lifetime);
 
 	if (_prepared) {
@@ -1206,12 +1206,12 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 			const auto camera = VideoEndpoint{
 				VideoEndpointType::Camera,
 				participantPeer,
-				computeCameraEndpoint(participant)
+				computeCameraEndpoint(participant),
 			};
 			const auto screen = VideoEndpoint{
 				VideoEndpointType::Screen,
 				participantPeer,
-				computeScreenEndpoint(participant)
+				computeScreenEndpoint(participant),
 			};
 			if (shown.contains(camera)) {
 				if (pinned && large == camera) {

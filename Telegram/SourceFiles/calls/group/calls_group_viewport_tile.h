@@ -60,6 +60,8 @@ public:
 	[[nodiscard]] rpl::producer<QSize> trackSizeValue() const {
 		return _trackSize.value();
 	}
+	[[nodiscard]] QSize trackOrUserpicSize() const;
+	[[nodiscard]] static QSize PausedVideoSize();
 
 	[[nodiscard]] bool screencast() const;
 	void setGeometry(
@@ -104,6 +106,7 @@ private:
 	QRect _geometry;
 	TileAnimation _animation;
 	rpl::variable<QSize> _trackSize;
+	mutable QSize _userpicSize;
 	QRect _pinOuter;
 	QRect _pinInner;
 	QRect _backOuter;

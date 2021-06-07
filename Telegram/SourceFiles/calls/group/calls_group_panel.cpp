@@ -843,8 +843,8 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 		setupTile(endpoint, track);
 	}
 	_call->videoStreamActiveUpdates(
-	) | rpl::start_with_next([=](const VideoActiveToggle &update) {
-		if (update.active) {
+	) | rpl::start_with_next([=](const VideoStateToggle &update) {
+		if (update.value) {
 			// Add async (=> the participant row is definitely in Members).
 			const auto endpoint = update.endpoint;
 			crl::on_main(viewport->widget(), [=] {

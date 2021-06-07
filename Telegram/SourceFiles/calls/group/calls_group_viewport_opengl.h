@@ -53,6 +53,8 @@ private:
 		Ui::GL::Textures<5> textures;
 		Ui::GL::Framebuffers<2> framebuffers;
 		Ui::Animations::Simple outlined;
+		Ui::Animations::Simple paused;
+		QImage userpicFrame;
 		QRect nameRect;
 		int nameVersion = 0;
 		mutable int textureIndex = 0;
@@ -62,6 +64,7 @@ private:
 		mutable QSize textureChromaSize;
 		mutable QSize textureBlurSize;
 		bool stale = false;
+		bool pause = false;
 		bool outline = false;
 	};
 	struct Program {
@@ -102,6 +105,12 @@ private:
 	void validateOutlineAnimation(
 		not_null<VideoTile*> tile,
 		TileData &data);
+	void validatePausedAnimation(
+		not_null<VideoTile*> tile,
+		TileData &data);
+	void validateUserpicFrame(
+		not_null<VideoTile*> tile,
+		TileData &tileData);
 
 	void uploadTexture(
 		QOpenGLFunctions &f,
@@ -126,6 +135,7 @@ private:
 	GLfloat _factor = 1.;
 	QSize _viewport;
 	bool _rgbaFrame = false;
+	bool _userpicFrame;
 	Ui::GL::BackgroundFiller _background;
 	std::optional<QOpenGLBuffer> _frameBuffer;
 	Program _downscaleProgram;
@@ -148,6 +158,7 @@ private:
 
 	Ui::CrossLineAnimation _pinIcon;
 	Ui::CrossLineAnimation _muteIcon;
+
 	Ui::RoundRect _pinBackground;
 
 	rpl::lifetime _lifetime;

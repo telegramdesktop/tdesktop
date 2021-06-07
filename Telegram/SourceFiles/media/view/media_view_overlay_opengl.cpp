@@ -279,10 +279,10 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 	if (fillTransparentBackground) {
 		program->setUniformValue(
 			"transparentBg",
-			Uniform(st::mediaviewTransparentBg->c));
+			st::mediaviewTransparentBg->c);
 		program->setUniformValue(
 			"transparentFg",
-			Uniform(st::mediaviewTransparentFg->c));
+			st::mediaviewTransparentFg->c);
 		program->setUniformValue(
 			"transparentSize",
 			st::transparentPlaceholderSize * _factor);

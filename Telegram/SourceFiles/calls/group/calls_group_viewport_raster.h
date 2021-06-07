@@ -25,6 +25,11 @@ public:
 		Ui::GL::Backend backend) override;
 
 private:
+	struct TileData {
+		QImage userpicFrame;
+		QImage blurredFrame;
+		bool stale = false;
+	};
 	void paintTile(
 		Painter &p,
 		not_null<VideoTile*> tile,
@@ -44,10 +49,16 @@ private:
 		int width,
 		int height,
 		not_null<VideoTile*> tile);
+	void validateUserpicFrame(
+		not_null<VideoTile*> tile,
+		TileData &data);
 
 	const not_null<Viewport*> _owner;
 
 	QImage _shadow;
+	bool _userpicFrame = false;
+	bool _pausedFrame = false;
+	base::flat_map<not_null<VideoTile*>, TileData> _tileData;
 	Ui::CrossLineAnimation _pinIcon;
 	Ui::RoundRect _pinBackground;
 

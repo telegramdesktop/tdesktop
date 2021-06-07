@@ -216,6 +216,7 @@ struct GroupCall::SinkPointer {
 struct VideoParams {
 	std::string endpointId;
 	std::vector<tgcalls::MediaSsrcGroup> ssrcGroups;
+	bool paused = false;
 
 	[[nodiscard]] bool empty() const {
 		return endpointId.empty() || ssrcGroups.empty();
@@ -237,6 +238,9 @@ struct ParticipantVideoParams {
 		return !was;
 	}
 	return now->match([&](const MTPDgroupCallParticipantVideo &data) {
+		if (data.is_paused() != was.paused) {
+			return false;
+		}
 		if (gsl::make_span(data.vendpoint().v)
 			!= gsl::make_span(was.endpointId)) {
 			return false;
@@ -281,6 +285,7 @@ struct ParticipantVideoParams {
 	}
 	auto result = VideoParams();
 	params->match([&](const MTPDgroupCallParticipantVideo &data) {
+		result.paused = data.is_paused();
 		result.endpointId = data.vendpoint().v.toStdString();
 		const auto &list = data.vsource_groups().v;
 		result.ssrcGroups.reserve(list.size());
@@ -311,6 +316,14 @@ const std::string &GetCameraEndpoint(
 const std::string &GetScreenEndpoint(
 		const std::shared_ptr<ParticipantVideoParams> &params) {
 	return params ? params->screen.endpointId : EmptyString();
+}
+
+bool IsCameraPaused(const std::shared_ptr<ParticipantVideoParams> &params) {
+	return params && params->camera.paused;
+}
+
+bool IsScreenPaused(const std::shared_ptr<ParticipantVideoParams> &params) {
+	return params && params->screen.paused;
 }
 
 std::shared_ptr<ParticipantVideoParams> ParseVideoParams(
@@ -601,7 +614,7 @@ bool GroupCall::hasVideoWithFrames() const {
 
 rpl::producer<bool> GroupCall::hasVideoWithFramesValue() const {
 	return _videoStreamShownUpdates.events_starting_with(
-		VideoActiveToggle()
+		VideoStateToggle()
 	) | rpl::map([=] {
 		return hasVideoWithFrames();
 	}) | rpl::distinct_until_changed();
@@ -664,22 +677,32 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 			return;
 		}
 		const auto &wasCameraEndpoint = data.was
-			? regularEndpoint(data.was->cameraEndpoint())
+			? regularEndpoint(GetCameraEndpoint(data.was->videoParams))
 			: EmptyString();
 		const auto &nowCameraEndpoint = data.now
-			? regularEndpoint(data.now->cameraEndpoint())
+			? regularEndpoint(GetCameraEndpoint(data.now->videoParams))
 			: EmptyString();
+		const auto wasCameraPaused = !wasCameraEndpoint.empty()
+			&& IsCameraPaused(data.was->videoParams);
+		const auto nowCameraPaused = !nowCameraEndpoint.empty()
+			&& IsCameraPaused(data.now->videoParams);
 		if (wasCameraEndpoint != nowCameraEndpoint) {
 			markEndpointActive({
 				VideoEndpointType::Camera,
 				peer,
-				nowCameraEndpoint
-			}, true);
+				nowCameraEndpoint,
+			}, true, nowCameraPaused);
 			markEndpointActive({
 				VideoEndpointType::Camera,
 				peer,
-				wasCameraEndpoint
-			}, false);
+				wasCameraEndpoint,
+			}, false, wasCameraPaused);
+		} else if (wasCameraPaused != nowCameraPaused) {
+			markTrackPaused({
+				VideoEndpointType::Camera,
+				peer,
+				nowCameraEndpoint,
+			}, nowCameraPaused);
 		}
 		const auto &wasScreenEndpoint = data.was
 			? regularEndpoint(data.was->screenEndpoint())
@@ -687,17 +710,27 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 		const auto &nowScreenEndpoint = data.now
 			? regularEndpoint(data.now->screenEndpoint())
 			: EmptyString();
+		const auto wasScreenPaused = !wasScreenEndpoint.empty()
+			&& IsScreenPaused(data.was->videoParams);
+		const auto nowScreenPaused = !nowScreenEndpoint.empty()
+			&& IsScreenPaused(data.now->videoParams);
 		if (wasScreenEndpoint != nowScreenEndpoint) {
 			markEndpointActive({
 				VideoEndpointType::Screen,
 				peer,
-				nowScreenEndpoint
-			}, true);
+				nowScreenEndpoint,
+			}, true, nowScreenPaused);
 			markEndpointActive({
 				VideoEndpointType::Screen,
 				peer,
-				wasScreenEndpoint
-			}, false);
+				wasScreenEndpoint,
+			}, false, wasScreenPaused);
+		} else if (wasScreenPaused != nowScreenPaused) {
+			markTrackPaused({
+				VideoEndpointType::Screen,
+				peer,
+				wasScreenEndpoint,
+			}, nowScreenPaused);
 		}
 	}, _lifetime);
 
@@ -725,7 +758,9 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 			return;
 		}
 		using Type = VideoEndpointType;
-		if (p->cameraEndpoint().empty() && p->screenEndpoint().empty()) {
+		const auto &params = p->videoParams;
+		if (GetCameraEndpoint(params).empty()
+			&& GetScreenEndpoint(params).empty()) {
 			return;
 		}
 		const auto tryEndpoint = [&](Type type, const std::string &id) {
@@ -739,8 +774,8 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 			setVideoEndpointLarge(endpoint);
 			return true;
 		};
-		if (tryEndpoint(Type::Screen, p->screenEndpoint())
-			|| tryEndpoint(Type::Camera, p->cameraEndpoint())) {
+		if (tryEndpoint(Type::Screen, GetScreenEndpoint(params))
+			|| tryEndpoint(Type::Camera, GetCameraEndpoint(params))) {
 			_videoLargeTillTime = now + kFixSpeakingLargeVideoDuration;
 		}
 	}, _lifetime);
@@ -930,7 +965,7 @@ void GroupCall::setScreenEndpoint(std::string endpoint) {
 			VideoEndpointType::Screen,
 			_joinAs,
 			_screenEndpoint
-		}, false);
+		}, false, false);
 	}
 	_screenEndpoint = std::move(endpoint);
 	if (_screenEndpoint.empty()) {
@@ -941,7 +976,7 @@ void GroupCall::setScreenEndpoint(std::string endpoint) {
 			VideoEndpointType::Screen,
 			_joinAs,
 			_screenEndpoint
-		}, true);
+		}, true, false);
 	}
 }
 
@@ -954,7 +989,7 @@ void GroupCall::setCameraEndpoint(std::string endpoint) {
 			VideoEndpointType::Camera,
 			_joinAs,
 			_cameraEndpoint
-		}, false);
+		}, false, false);
 	}
 	_cameraEndpoint = std::move(endpoint);
 	if (_cameraEndpoint.empty()) {
@@ -965,7 +1000,7 @@ void GroupCall::setCameraEndpoint(std::string endpoint) {
 			VideoEndpointType::Camera,
 			_joinAs,
 			_cameraEndpoint
-		}, true);
+		}, true, false);
 	}
 }
 
@@ -987,7 +1022,10 @@ void GroupCall::addVideoOutput(
 	}
 }
 
-void GroupCall::markEndpointActive(VideoEndpoint endpoint, bool active) {
+void GroupCall::markEndpointActive(
+		VideoEndpoint endpoint,
+		bool active,
+		bool paused) {
 	if (!endpoint) {
 		return;
 	}
@@ -996,6 +1034,9 @@ void GroupCall::markEndpointActive(VideoEndpoint endpoint, bool active) {
 		? (i == end(_activeVideoTracks))
 		: (i != end(_activeVideoTracks));
 	if (!changed) {
+		if (active) {
+			markTrackPaused(endpoint, paused);
+		}
 		return;
 	}
 	auto shown = false;
@@ -1004,30 +1045,49 @@ void GroupCall::markEndpointActive(VideoEndpoint endpoint, bool active) {
 			endpoint,
 			VideoTrack{
 				.track = std::make_unique<Webrtc::VideoTrack>(
-					Webrtc::VideoState::Active,
+					(paused
+						? Webrtc::VideoState::Paused
+						: Webrtc::VideoState::Active),
 					_requireARGB32),
 				.peer = endpoint.peer,
 			}).first;
 		const auto track = i->second.track.get();
-		track->renderNextFrame(
-		) | rpl::start_with_next([=] {
-			if (!track->frameSize().isEmpty()) {
-				markTrackShown(endpoint, true);
-			}
-		}, i->second.lifetime);
-		if (!track->frameSize().isEmpty()) {
+		if (!track->frameSize().isEmpty()
+			|| track->state() == Webrtc::VideoState::Paused) {
 			shown = true;
+		} else {
+			auto hasFrame = track->renderNextFrame() | rpl::map([=] {
+				return !track->frameSize().isEmpty();
+			});
+			auto isPaused = track->stateValue(
+			) | rpl::map([=](Webrtc::VideoState state) {
+				return (state == Webrtc::VideoState::Paused);
+			});
+			rpl::merge(
+				std::move(hasFrame),
+				std::move(isPaused)
+			) | rpl::filter([=](bool shouldShow) {
+				return shouldShow;
+			}) | rpl::start_with_next([=] {
+				_activeVideoTracks[endpoint].shownTrackingLifetime.destroy();
+				markTrackShown(endpoint, true);
+			}, i->second.shownTrackingLifetime);
 		}
 		addVideoOutput(i->first.id, { track->sink() });
 	} else {
 		if (_videoEndpointLarge.current() == endpoint) {
 			setVideoEndpointLarge({});
 		}
+		markTrackShown(endpoint, false);
+		markTrackPaused(endpoint, false);
 		_activeVideoTracks.erase(i);
 	}
 	updateRequestedVideoChannelsDelayed();
 	_videoStreamActiveUpdates.fire({ endpoint, active });
-	markTrackShown(endpoint, shown);
+	if (active) {
+		markTrackShown(endpoint, shown);
+		markTrackPaused(endpoint, paused);
+	}
 }
 
 void GroupCall::markTrackShown(const VideoEndpoint &endpoint, bool shown) {
@@ -1044,6 +1104,15 @@ void GroupCall::markTrackShown(const VideoEndpoint &endpoint, bool shown) {
 			}
 		});
 	}
+}
+
+void GroupCall::markTrackPaused(const VideoEndpoint &endpoint, bool paused) {
+	const auto i = _activeVideoTracks.find(endpoint);
+	Assert(i != end(_activeVideoTracks));
+
+	i->second.track->setState(paused
+		? Webrtc::VideoState::Paused
+		: Webrtc::VideoState::Active);
 }
 
 void GroupCall::rejoin() {
@@ -1889,7 +1958,7 @@ void GroupCall::ensureOutgoingVideo() {
 			VideoEndpointType::Camera,
 			_joinAs,
 			_cameraEndpoint
-		}, active);
+		}, active, false);
 		sendSelfUpdate(SendUpdateType::VideoStopped);
 		applyMeInCallLocally();
 	}, _lifetime);
@@ -1932,7 +2001,7 @@ void GroupCall::ensureOutgoingVideo() {
 			VideoEndpointType::Screen,
 			_joinAs,
 			_screenEndpoint
-		}, active);
+		}, active, false);
 		_screenJoinState.nextActionPending = true;
 		checkNextJoinAction();
 	}, _lifetime);
@@ -2310,38 +2379,42 @@ void GroupCall::fillActiveVideoEndpoints() {
 	auto removed = base::flat_set<VideoEndpoint>(
 		begin(endpoints),
 		end(endpoints));
-	const auto feedOne = [&](VideoEndpoint endpoint) {
+	const auto feedOne = [&](VideoEndpoint endpoint, bool paused) {
 		if (endpoint.empty()) {
 			return;
 		} else if (endpoint == large) {
 			largeFound = true;
 		}
-		if (!removed.remove(endpoint)) {
-			markEndpointActive(std::move(endpoint), true);
+		if (removed.remove(endpoint)) {
+			markTrackPaused(endpoint, paused);
+		} else {
+			markEndpointActive(std::move(endpoint), true, paused);
 		}
 	};
 	using Type = VideoEndpointType;
 	for (const auto &participant : participants) {
-		const auto camera = participant.cameraEndpoint();
+		const auto camera = GetCameraEndpoint(participant.videoParams);
 		if (camera != _cameraEndpoint
 			&& camera != _screenEndpoint
 			&& participant.peer != _joinAs) {
-			feedOne({ Type::Camera, participant.peer, camera });
+			const auto paused = IsCameraPaused(participant.videoParams);
+			feedOne({ Type::Camera, participant.peer, camera }, paused);
 		}
-		const auto screen = participant.screenEndpoint();
+		const auto screen = GetScreenEndpoint(participant.videoParams);
 		if (screen != _cameraEndpoint
 			&& screen != _screenEndpoint
 			&& participant.peer != _joinAs) {
-			feedOne({ Type::Screen, participant.peer, screen });
+			const auto paused = IsScreenPaused(participant.videoParams);
+			feedOne({ Type::Screen, participant.peer, screen }, paused);
 		}
 	}
-	feedOne({ Type::Camera, _joinAs, cameraSharingEndpoint() });
-	feedOne({ Type::Screen, _joinAs, screenSharingEndpoint() });
+	feedOne({ Type::Camera, _joinAs, cameraSharingEndpoint() }, false);
+	feedOne({ Type::Screen, _joinAs, screenSharingEndpoint() }, false);
 	if (large && !largeFound) {
 		setVideoEndpointLarge({});
 	}
 	for (const auto &endpoint : removed) {
-		markEndpointActive(endpoint, false);
+		markEndpointActive(endpoint, false, false);
 	}
 	updateRequestedVideoChannels();
 }

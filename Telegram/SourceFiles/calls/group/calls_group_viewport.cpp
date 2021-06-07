@@ -239,6 +239,11 @@ void Viewport::add(
 	}) | rpl::start_with_next([=] {
 		updateTilesGeometry();
 	}, _tiles.back()->lifetime());
+
+	_tiles.back()->track()->stateValue(
+	) | rpl::start_with_next([=] {
+		updateTilesGeometry();
+	}, _tiles.back()->lifetime());
 }
 
 void Viewport::remove(const VideoEndpoint &endpoint) {
@@ -434,7 +439,7 @@ Viewport::Layout Viewport::countWide(int outerWidth, int outerHeight) const {
 	sizes.reserve(_tiles.size());
 	for (const auto &tile : _tiles) {
 		const auto video = tile.get();
-		const auto size = video->trackSize();
+		const auto size = video->trackOrUserpicSize();
 		if (!size.isEmpty()) {
 			sizes.push_back(Geometry{ video, size });
 		}
@@ -529,7 +534,7 @@ void Viewport::showLarge(const VideoEndpoint &endpoint) {
 		startLargeChangeAnimation();
 	}
 
-	Ensures(!_large || !_large->trackSize().isEmpty());
+	Ensures(!_large || !_large->trackOrUserpicSize().isEmpty());
 }
 
 void Viewport::updateTilesGeometry() {
@@ -564,7 +569,7 @@ void Viewport::refreshHasTwoOrMore() {
 	auto hasTwoOrMore = false;
 	auto oneFound = false;
 	for (const auto &tile : _tiles) {
-		if (!tile->trackSize().isEmpty()) {
+		if (!tile->trackOrUserpicSize().isEmpty()) {
 			if (oneFound) {
 				hasTwoOrMore = true;
 				break;
@@ -598,7 +603,7 @@ void Viewport::updateTilesGeometryWide(int outerWidth, int outerHeight) {
 	}
 
 	_startTilesLayout = countWide(outerWidth, outerHeight);
-	if (_large && !_large->trackSize().isEmpty()) {
+	if (_large && !_large->trackOrUserpicSize().isEmpty()) {
 		for (const auto &geometry : _startTilesLayout.list) {
 			if (geometry.tile == _large) {
 				setTileGeometry(_large, { 0, 0, outerWidth, outerHeight });
@@ -629,7 +634,7 @@ void Viewport::updateTilesGeometryNarrow(int outerWidth) {
 	sizes.reserve(_tiles.size());
 	for (const auto &tile : _tiles) {
 		const auto video = tile.get();
-		const auto size = video->trackSize();
+		const auto size = video->trackOrUserpicSize();
 		if (size.isEmpty()) {
 			video->hide();
 		} else {
@@ -691,7 +696,7 @@ void Viewport::updateTilesGeometryColumn(int outerWidth) {
 	const auto y = -_scrollTop;
 	auto top = 0;
 	const auto layoutNext = [&](not_null<VideoTile*> tile) {
-		const auto size = tile->trackSize();
+		const auto size = tile->trackOrUserpicSize();
 		const auto shown = !size.isEmpty() && _large && tile != _large;
 		const auto height = shown
 			? st::groupCallNarrowVideoHeight
@@ -707,7 +712,7 @@ void Viewport::updateTilesGeometryColumn(int outerWidth) {
 		for (const auto &tile : _tiles) {
 			if (tile.get() != _large && tile->row()->peer() == topPeer) {
 				return (tile.get() != _tiles.front().get())
-					&& !tile->trackSize().isEmpty();
+					&& !tile->trackOrUserpicSize().isEmpty();
 			}
 		}
 		return false;

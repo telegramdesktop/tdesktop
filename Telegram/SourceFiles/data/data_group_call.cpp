@@ -48,6 +48,14 @@ const std::string &GroupCallParticipant::screenEndpoint() const {
 	return GetScreenEndpoint(videoParams);
 }
 
+bool GroupCallParticipant::cameraPaused() const {
+	return IsCameraPaused(videoParams);
+}
+
+bool GroupCallParticipant::screenPaused() const {
+	return IsScreenPaused(videoParams);
+}
+
 GroupCall::GroupCall(
 	not_null<PeerData*> peer,
 	uint64 id,
@@ -231,8 +239,8 @@ const GroupCallParticipant *GroupCall::participantByEndpoint(
 		return nullptr;
 	}
 	for (const auto &participant : _participants) {
-		if (participant.cameraEndpoint() == endpoint
-			|| participant.screenEndpoint() == endpoint) {
+		if (GetCameraEndpoint(participant.videoParams) == endpoint
+			|| GetScreenEndpoint(participant.videoParams) == endpoint) {
 			return &participant;
 		}
 	}

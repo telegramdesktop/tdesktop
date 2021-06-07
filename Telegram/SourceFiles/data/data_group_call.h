@@ -42,6 +42,8 @@ struct GroupCallParticipant {
 
 	[[nodiscard]] const std::string &cameraEndpoint() const;
 	[[nodiscard]] const std::string &screenEndpoint() const;
+	[[nodiscard]] bool cameraPaused() const;
+	[[nodiscard]] bool screenPaused() const;
 };
 
 class GroupCall final {
