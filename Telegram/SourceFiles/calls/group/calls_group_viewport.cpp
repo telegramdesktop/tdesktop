@@ -173,7 +173,7 @@ void Viewport::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 				tile->row()->showContextMenu();
 			} else if (!wide()
 				|| (_hasTwoOrMore && !_large)
-				|| pressed.element == Selection::Element::BackButton) {
+				|| pressed.element != Selection::Element::PinButton) {
 				_clicks.fire_copy(tile->endpoint());
 			} else if (pressed.element == Selection::Element::PinButton) {
 				_pinToggles.fire(!tile->pinned());
@@ -771,11 +771,7 @@ void Viewport::setSelected(Selection value) {
 }
 
 void Viewport::updateCursor() {
-	const auto pointer = _selected.tile
-		&& (!wide()
-			|| (_hasTwoOrMore && !_large)
-			|| _selected.element == Selection::Element::PinButton
-			|| _selected.element == Selection::Element::BackButton);
+	const auto pointer = _selected.tile && (!wide() || _hasTwoOrMore);
 	widget()->setCursor(pointer ? style::cur_pointer : style::cur_default);
 }
 
