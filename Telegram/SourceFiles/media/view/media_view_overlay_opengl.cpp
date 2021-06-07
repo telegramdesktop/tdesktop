@@ -264,6 +264,14 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 		const QImage &image,
 		ContentGeometry geometry,
 		bool fillTransparentBackground) {
+	Expects(image.isNull()
+		|| image.format() == QImage::Format_RGB32
+		|| image.format() == QImage::Format_ARGB32_Premultiplied);
+
+	if (geometry.rect.isEmpty()) {
+		return;
+	}
+
 	auto &program = fillTransparentBackground
 		? _withTransparencyProgram
 		: _imageProgram;
@@ -282,20 +290,33 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 
 	_f->glActiveTexture(GL_TEXTURE0);
 	_textures.bind(*_f, 0);
-	const auto cacheKey = image.cacheKey();
+	const auto cacheKey = image.isNull() ? qint64(-1) : image.cacheKey();
 	const auto upload = (_cacheKey != cacheKey);
 	if (upload) {
 		_cacheKey = cacheKey;
-		const auto stride = image.bytesPerLine() / 4;
-		const auto data = image.constBits();
-		uploadTexture(
-			GL_RGBA,
-			GL_RGBA,
-			image.size(),
-			_rgbaSize,
-			stride,
-			data);
-		_rgbaSize = image.size();
+		if (image.isNull()) {
+			// Upload transparent 2x2 texture.
+			const auto stride = 2;
+			const uint32_t data[4] = { 0 };
+			uploadTexture(
+				GL_RGBA,
+				GL_RGBA,
+				QSize(2, 2),
+				_rgbaSize,
+				stride,
+				data);
+		} else {
+			const auto stride = image.bytesPerLine() / 4;
+			const auto data = image.constBits();
+			uploadTexture(
+				GL_RGBA,
+				GL_RGBA,
+				image.size(),
+				_rgbaSize,
+				stride,
+				data);
+			_rgbaSize = image.size();
+		}
 	}
 
 	paintTransformedContent(&*program, geometry);

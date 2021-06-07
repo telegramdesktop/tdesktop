@@ -139,14 +139,14 @@ QWidget *PipDelegate::pipParentWidget() {
 	return _parent;
 }
 
-Images::Options VideoThumbOptions(DocumentData *document) {
+[[nodiscard]] Images::Options VideoThumbOptions(DocumentData *document) {
 	const auto result = Images::Option::Smooth | Images::Option::Blurred;
 	return (document && document->isVideoMessage())
 		? (result | Images::Option::Circled)
 		: result;
 }
 
-QImage PrepareStaticImage(QImage image) {
+[[nodiscard]] QImage PrepareStaticImage(QImage image) {
 	if (image.width() > kMaxDisplayImageSize
 		|| image.height() > kMaxDisplayImageSize) {
 		image = image.scaled(
@@ -158,12 +158,33 @@ QImage PrepareStaticImage(QImage image) {
 	return image;
 }
 
-QImage PrepareStaticImage(const QString &path) {
+[[nodiscard]] QImage PrepareStaticImage(const QString &path) {
 	return PrepareStaticImage(App::readImage(path, nullptr, false));
 }
 
-QImage PrepareStaticImage(const QByteArray &bytes) {
+[[nodiscard]] QImage PrepareStaticImage(const QByteArray &bytes) {
 	return PrepareStaticImage(App::readImage(bytes, nullptr, false));
+}
+
+[[nodiscard]] bool IsSemitransparent(const QImage &image) {
+	if (image.isNull()) {
+		return true;
+	} else if (!image.hasAlphaChannel()) {
+		return false;
+	}
+	Assert(image.format() == QImage::Format_ARGB32_Premultiplied);
+	constexpr auto kAlphaMask = 0xFF000000;
+	auto ints = reinterpret_cast<const uint32*>(image.bits());
+	const auto add = (image.bytesPerLine() / 4) - image.width();
+	for (auto y = 0; y != image.height(); ++y) {
+		for (auto till = ints + image.width(); ints != till; ++ints) {
+			if ((*ints & kAlphaMask) != kAlphaMask) {
+				return true;
+			}
+		}
+		ints += add;
+	}
+	return false;
 }
 
 } // namespace
@@ -587,6 +608,18 @@ bool OverlayWidget::documentBubbleShown() const {
 			&& !_themePreviewShown
 			&& !_streamed
 			&& _staticContent.isNull());
+}
+
+void OverlayWidget::setStaticContent(QImage image) {
+	constexpr auto kGood = QImage::Format_ARGB32_Premultiplied;
+	if (!image.isNull()
+		&& image.format() != kGood
+		&& image.format() != QImage::Format_RGB32) {
+		image = std::move(image).convertToFormat(kGood);
+	}
+	image.setDevicePixelRatio(cRetinaFactor());
+	_staticContent = std::move(image);
+	_staticContentTransparent = IsSemitransparent(_staticContent);
 }
 
 bool OverlayWidget::contentShown() const {
@@ -2362,43 +2395,44 @@ void OverlayWidget::displayDocument(
 
 	refreshMediaViewer();
 	if (_document) {
-		if (_document->sticker()) {
-			if (const auto image = _documentMedia->getStickerLarge()) {
-				_staticContent = image->original();
-			} else if (const auto thumbnail = _documentMedia->thumbnail()) {
-				_staticContent = thumbnail->pixBlurred(
-					_document->dimensions.width(),
-					_document->dimensions.height()
-				).toImage();
+if (_document->sticker()) {
+	if (const auto image = _documentMedia->getStickerLarge()) {
+		setStaticContent(image->original());
+	} else if (const auto thumbnail = _documentMedia->thumbnail()) {
+		setStaticContent(thumbnail->pixBlurred(
+			_document->dimensions.width(),
+			_document->dimensions.height()
+		).toImage());
+	}
+} else {
+	if (_documentMedia->canBePlayed()
+		&& initStreaming(continueStreaming)) {
+	} else if (_document->isVideoFile()) {
+		_documentMedia->automaticLoad(fileOrigin(), item);
+		initStreamingThumbnail();
+	} else if (_document->isTheme()) {
+		_documentMedia->automaticLoad(fileOrigin(), item);
+		initThemePreview();
+	} else {
+		_documentMedia->automaticLoad(fileOrigin(), item);
+		_document->saveFromDataSilent();
+		auto &location = _document->location(true);
+		if (location.accessEnable()) {
+			const auto &path = location.name();
+			if (QImageReader(path).canRead()) {
+				setStaticContent(PrepareStaticImage(path));
+				_touchbarDisplay.fire(TouchBarItemType::Photo);
 			}
-		} else {
-			if (_documentMedia->canBePlayed()
-				&& initStreaming(continueStreaming)) {
-			} else if (_document->isVideoFile()) {
-				_documentMedia->automaticLoad(fileOrigin(), item);
-				initStreamingThumbnail();
-			} else if (_document->isTheme()) {
-				_documentMedia->automaticLoad(fileOrigin(), item);
-				initThemePreview();
-			} else {
-				_documentMedia->automaticLoad(fileOrigin(), item);
-				_document->saveFromDataSilent();
-				auto &location = _document->location(true);
-				if (location.accessEnable()) {
-					const auto &path = location.name();
-					if (QImageReader(path).canRead()) {
-						_staticContent = PrepareStaticImage(path);
-						_touchbarDisplay.fire(TouchBarItemType::Photo);
-					}
-				} else if (!_documentMedia->bytes().isEmpty()) {
-					_staticContent = PrepareStaticImage(_documentMedia->bytes());
-					if (!_staticContent.isNull()) {
-						_touchbarDisplay.fire(TouchBarItemType::Photo);
-					}
-				}
-				location.accessDisable();
+		} else if (!_documentMedia->bytes().isEmpty()) {
+			setStaticContent(
+				PrepareStaticImage(_documentMedia->bytes()));
+			if (!_staticContent.isNull()) {
+				_touchbarDisplay.fire(TouchBarItemType::Photo);
 			}
 		}
+		location.accessDisable();
+	}
+}
 	}
 	refreshCaption(item);
 
@@ -2459,7 +2493,6 @@ void OverlayWidget::displayDocument(
 	} else if (_themePreviewShown) {
 		updateThemePreviewGeometry();
 	} else if (!_staticContent.isNull()) {
-		_staticContent.setDevicePixelRatio(cRetinaFactor());
 		const auto size = style::ConvertScale(
 			flipSizeByRotation(_staticContent.size()));
 		_w = size.width();
@@ -2631,7 +2664,7 @@ void OverlayWidget::initStreamingThumbnail() {
 	const auto h = size.height();
 	const auto options = VideoThumbOptions(_document);
 	const auto goodOptions = (options & ~Images::Option::Blurred);
-	_staticContent = (good
+	setStaticContent((good
 		? good
 		: thumbnail
 		? thumbnail
@@ -2643,8 +2676,7 @@ void OverlayWidget::initStreamingThumbnail() {
 			good ? goodOptions : options,
 			w / cIntRetinaFactor(),
 			h / cIntRetinaFactor()
-		).toImage();
-	_staticContent.setDevicePixelRatio(cRetinaFactor());
+		).toImage());
 }
 
 void OverlayWidget::streamingReady(Streaming::Information &&info) {
@@ -2970,7 +3002,7 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	if (videoShown()) {
 		_streamed->instance.saveFrameToCover();
 		const auto saved = base::take(_rotation);
-		_staticContent = transformedShownContent();
+		setStaticContent(transformedShownContent());
 		_rotation = saved;
 		updateContentRect();
 	}
@@ -3163,13 +3195,12 @@ void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {
 	}
 	const auto use = flipSizeByRotation({ _width, _height })
 		* cIntRetinaFactor();
-	_staticContent = image->pixNoCache(
+	setStaticContent(image->pixNoCache(
 		use.width(),
 		use.height(),
 		Images::Option::Smooth
 		| (blurred ? Images::Option::Blurred : Images::Option(0))
-	).toImage();
-	_staticContent.setDevicePixelRatio(cRetinaFactor());
+	).toImage());
 	_blurred = blurred;
 }
 
@@ -3226,8 +3257,7 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 			validatePhotoCurrentImage();
 			const auto fillTransparentBackground = (!_document
 				|| (!_document->sticker() && !_document->isVideoMessage()))
-				&& (_staticContent.isNull()
-					|| _staticContent.hasAlphaChannel());
+				&& _staticContentTransparent;
 			renderer->paintTransformedStaticContent(
 				_staticContent,
 				contentGeometry(),

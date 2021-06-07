@@ -413,6 +413,7 @@ private:
 		int rotation) const;
 	[[nodiscard]] bool documentContentShown() const;
 	[[nodiscard]] bool documentBubbleShown() const;
+	void setStaticContent(QImage image);
 	[[nodiscard]] bool contentShown() const;
 	[[nodiscard]] bool opaqueContentShown() const;
 	void clearStreaming(bool savePosition = true);
@@ -477,6 +478,7 @@ private:
 	bool _pressed = false;
 	int32 _dragging = 0;
 	QImage _staticContent;
+	bool _staticContentTransparent = false;
 	bool _blurred = true;
 
 	ContentGeometry _oldGeometry;

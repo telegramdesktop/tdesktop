@@ -119,7 +119,7 @@ private:
 	QSize _rgbaSize;
 	QSize _lumaSize;
 	QSize _chromaSize;
-	quint64 _cacheKey = 0;
+	qint64 _cacheKey = 0;
 	int _trackFrameIndex = 0;
 	int _streamedIndex = 0;
 
