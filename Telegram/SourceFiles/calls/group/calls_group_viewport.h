@@ -176,6 +176,7 @@ private:
 	rpl::event_stream<VideoQualityRequest> _qualityRequests;
 	float64 _controlsShownRatio = 1.;
 	VideoTile *_large = nullptr;
+	Fn<void()> _updateLargeScheduled;
 	Ui::Animations::Simple _largeChangeAnimation;
 	Layout _startTilesLayout;
 	Layout _finishTilesLayout;

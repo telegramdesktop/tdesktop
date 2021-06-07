@@ -525,16 +525,30 @@ Viewport::Layout Viewport::countWide(int outerWidth, int outerHeight) const {
 }
 
 void Viewport::showLarge(const VideoEndpoint &endpoint) {
-	const auto i = ranges::find(_tiles, endpoint, &VideoTile::endpoint);
-	const auto large = (i != end(_tiles)) ? i->get() : nullptr;
-	if (_large != large) {
-		prepareLargeChangeAnimation();
-		_large = large;
-		updateTopControlsVisibility();
-		startLargeChangeAnimation();
-	}
+	// If a video get's switched off, GroupCall first unpins it,
+	// then removes it from Large endpoint, then removes from active tracks.
+	//
+	// If we want to animate large video removal properly, we need to
+	// delay this update and start animation directly from removing of the
+	// track from the active list. Otherwise final state won't be correct.
+	_updateLargeScheduled = [=] {
+		const auto i = ranges::find(_tiles, endpoint, &VideoTile::endpoint);
+		const auto large = (i != end(_tiles)) ? i->get() : nullptr;
+		if (_large != large) {
+			prepareLargeChangeAnimation();
+			_large = large;
+			updateTopControlsVisibility();
+			startLargeChangeAnimation();
+		}
 
-	Ensures(!_large || !_large->trackOrUserpicSize().isEmpty());
+		Ensures(!_large || !_large->trackOrUserpicSize().isEmpty());
+	};
+	crl::on_main(widget(), [=] {
+		if (!_updateLargeScheduled) {
+			return;
+		}
+		base::take(_updateLargeScheduled)();
+	});
 }
 
 void Viewport::updateTilesGeometry() {
