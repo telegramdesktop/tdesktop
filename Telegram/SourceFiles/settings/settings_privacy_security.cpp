@@ -658,6 +658,7 @@ void SetupSessionsList(
 	) | rpl::start_with_next([=] {
 		controller->session().api().authorizations().reload();
 	}, container->lifetime());
+
 	auto count = controller->session().api().authorizations().totalChanges(
 	) | rpl::map([](int count) {
 		return count ? QString::number(count) : QString();

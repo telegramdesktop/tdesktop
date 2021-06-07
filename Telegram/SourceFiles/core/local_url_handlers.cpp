@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/local_url_handlers.h"
 
+#include "api/api_authorizations.h"
 #include "api/api_text_entities.h"
 #include "api/api_chat_invite.h"
 #include "base/qthelp_regex.h"
@@ -360,6 +361,7 @@ bool ResolveSettings(
 		return true;
 	}
 	if (section == qstr("devices")) {
+		controller->session().api().authorizations().reload();
 		Ui::show(Box<SessionsBox>(&controller->session()));
 		return true;
 	} else if (section == qstr("language")) {
