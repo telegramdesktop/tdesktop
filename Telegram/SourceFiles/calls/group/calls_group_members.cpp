@@ -1278,7 +1278,8 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 						&& chat->canBanMembers()
 						&& !chat->admins.contains(user));
 			} else if (const auto channel = _peer->asChannel()) {
-				return channel->canRestrictParticipant(participantPeer);
+				return !participantPeer->isMegagroup() // That's the creator.
+					&& channel->canRestrictParticipant(participantPeer);
 			}
 			return false;
 		}();
