@@ -51,6 +51,12 @@ not_null<Instance*> instance();
 
 class Instance : private base::Subscriber {
 public:
+	enum class Seeking {
+		Start,
+		Finish,
+		Cancel,
+	};
+
 	void play(AudioMsgId::Type type);
 	void pause(AudioMsgId::Type type);
 	void stop(AudioMsgId::Type type);
@@ -155,6 +161,8 @@ public:
 	rpl::producer<> stops(AudioMsgId::Type type) const;
 	rpl::producer<> startsPlay(AudioMsgId::Type type) const;
 
+	rpl::producer<Seeking> seekingChanges(AudioMsgId::Type type) const;
+
 	bool pauseGifByRoundVideo() const;
 
 	void documentLoadProgress(DocumentData *document);
@@ -187,6 +195,11 @@ private:
 		bool isPlaying = false;
 		bool resumeOnCallEnd = false;
 		std::unique_ptr<Streamed> streamed;
+	};
+
+	struct SeekingChanges {
+		Seeking seeking;
+		AudioMsgId::Type type;
 	};
 
 	Instance();
@@ -269,6 +282,7 @@ private:
 	rpl::event_stream<AudioMsgId::Type> _playerStopped;
 	rpl::event_stream<AudioMsgId::Type> _playerStartedPlay;
 	rpl::event_stream<TrackState> _updatedNotifier;
+	rpl::event_stream<SeekingChanges> _seekingChanges;
 	rpl::lifetime _lifetime;
 
 };
