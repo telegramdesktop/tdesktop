@@ -65,28 +65,10 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 		_controls->setPlaybackStatus(status);
 	}, _lifetime);
 
-	if (_controls->seekingSupported()) {
-		mediaPlayer->updatedNotifier(
-		) | trackFilter | rpl::map([=](const TrackState &state) {
-			return state.position;
-		}) | rpl::distinct_until_changed(
-		) | rpl::start_with_next([=](int position) {
-			_controls->setPosition(position);
-		}, _lifetime);
-
-		mediaPlayer->updatedNotifier(
-		) | trackFilter | rpl::map([=](const TrackState &state) {
-			return state.length;
-		}) | rpl::distinct_until_changed(
-		) | rpl::start_with_next([=](int length) {
-			_controls->setDuration(length);
-		}, _lifetime);
-	}
-
 	rpl::merge(
 		mediaPlayer->stops(type) | rpl::map_to(false),
 		mediaPlayer->startsPlay(type) | rpl::map_to(true)
-	) | rpl::start_with_next([=](bool audio) {
+	) | rpl::distinct_until_changed() | rpl::start_with_next([=](bool audio) {
 		_controls->setEnabled(audio);
 		if (audio) {
 			_controls->setIsNextEnabled(mediaPlayer->nextAvailable(type));
@@ -142,6 +124,22 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 		_controls->setArtist(performer);
 		_controls->setTitle(title);
 
+		if (_controls->seekingSupported()) {
+			const auto state = mediaPlayer->getState(audioType);
+			_controls->setDuration(state.length);
+			// macOS NowPlaying and Linux MPRIS update the track position
+			// according to the rate property
+			// while the playback status is "playing",
+			// so we should change the track position only when
+			// the track is changed
+			// or when the position is changed by the user.
+			_controls->setPosition(state.position);
+		}
+
+		// Setting a thumbnail can take a long time,
+		// so we need to update the display before that.
+		_controls->updateDisplay();
+
 		if (document && document->isSongWithCover()) {
 			const auto view = document->createMediaView();
 			view->thumbnailWanted(current.contextId());
@@ -185,9 +183,26 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 	}, _lifetime);
 
 	if (_controls->seekingSupported()) {
+		mediaPlayer->seekingChanges(
+			type
+		) | rpl::filter([](Media::Player::Instance::Seeking seeking) {
+			return (seeking == Media::Player::Instance::Seeking::Finish);
+		}) | rpl::map([=] {
+			return mediaPlayer->getState(type).position;
+		}) | rpl::distinct_until_changed(
+		) | rpl::start_with_next([=](int position) {
+			_controls->setPosition(position);
+			_controls->updateDisplay();
+		}, _lifetime);
+
 		_controls->seekRequests(
 		) | rpl::start_with_next([=](float64 progress) {
 			mediaPlayer->finishSeeking(type, progress);
+		}, _lifetime);
+
+		_controls->updatePositionRequests(
+		) | rpl::start_with_next([=] {
+			_controls->setPosition(mediaPlayer->getState(type).position);
 		}, _lifetime);
 	}
 
