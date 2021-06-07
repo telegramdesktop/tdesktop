@@ -67,6 +67,7 @@ constexpr auto kMaxChatEntryHistorySize = 50;
 
 void ActivateWindow(not_null<SessionController*> controller) {
 	const auto window = controller->widget();
+	window->raise();
 	window->activateWindow();
 	Ui::ActivateWindowDelayed(window);
 }

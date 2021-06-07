@@ -229,6 +229,7 @@ void MainWindow::psRefreshTaskbarIcon() {
 	palette.setColor(QPalette::Window, (isActiveWindow() ? st::titleBgActive : st::titleBg)->c);
 	refresher->setPalette(palette);
 	refresher->show();
+	refresher->raise();
 	refresher->activateWindow();
 
 	updateIconCounters();

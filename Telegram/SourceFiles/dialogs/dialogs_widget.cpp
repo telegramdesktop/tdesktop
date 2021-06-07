@@ -1332,6 +1332,7 @@ void Widget::dropEvent(QDropEvent *e) {
 			controller()->content()->onFilesOrForwardDrop(
 				peer->id,
 				e->mimeData());
+			controller()->widget()->raise();
 			controller()->widget()->activateWindow();
 		}
 	}

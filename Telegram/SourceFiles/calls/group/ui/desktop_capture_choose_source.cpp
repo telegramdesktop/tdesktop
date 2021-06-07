@@ -283,6 +283,7 @@ void ChooseSourceProcess::activate() {
 	} else {
 		_window->show();
 	}
+	_window->raise();
 	_window->activateWindow();
 }
 

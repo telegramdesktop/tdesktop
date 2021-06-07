@@ -916,6 +916,7 @@ void Notification::showReplyField() {
 	if (!_item) {
 		return;
 	}
+	raise();
 	activateWindow();
 
 	if (_replyArea) {
@@ -1039,6 +1040,7 @@ bool Notification::eventFilter(QObject *o, QEvent *e) {
 	if (e->type() == QEvent::MouseButtonPress) {
 		if (auto receiver = qobject_cast<QWidget*>(o)) {
 			if (isAncestorOf(receiver)) {
+				raise();
 				activateWindow();
 			}
 		}

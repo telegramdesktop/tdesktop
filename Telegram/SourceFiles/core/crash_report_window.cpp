@@ -59,6 +59,7 @@ void PreLaunchWindow::activate() {
 	setWindowState(windowState() & ~Qt::WindowMinimized);
 	setVisible(true);
 	psActivateProcess();
+	raise();
 	activateWindow();
 }
 

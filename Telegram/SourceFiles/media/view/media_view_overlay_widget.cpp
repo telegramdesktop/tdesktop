@@ -2235,6 +2235,7 @@ void OverlayWidget::setFocus() {
 }
 
 void OverlayWidget::activate() {
+	_widget->raise();
 	_widget->activateWindow();
 	QApplication::setActiveWindow(_widget);
 	setFocus();
