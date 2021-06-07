@@ -47,6 +47,8 @@ nice_target_sources(td_ui ${src_loc}
 PRIVATE
     ${style_files}
     
+    calls/group/ui/calls_group_scheduled_labels.cpp
+    calls/group/ui/calls_group_scheduled_labels.h
     calls/group/ui/desktop_capture_choose_source.cpp
     calls/group/ui/desktop_capture_choose_source.h
 

@@ -277,6 +277,8 @@ PRIVATE
     calls/group/calls_group_call.cpp
     calls/group/calls_group_call.h
     calls/group/calls_group_common.h
+    calls/group/calls_group_invite_controller.cpp
+    calls/group/calls_group_invite_controller.h
     calls/group/calls_group_members.cpp
     calls/group/calls_group_members.h
     calls/group/calls_group_members_row.cpp
