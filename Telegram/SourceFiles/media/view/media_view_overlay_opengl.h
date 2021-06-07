@@ -32,7 +32,7 @@ public:
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f,
 		int w,
-		int h);
+		int h) override;
 
 	void paint(
 		not_null<QOpenGLWidget*> widget,
@@ -46,7 +46,7 @@ private:
 	bool handleHideWorkaround(QOpenGLFunctions &f);
 	void setDefaultViewport(QOpenGLFunctions &f);
 
-	void paintBackground();
+	void paintBackground() override;
 	void paintTransformedVideoFrame(ContentGeometry geometry) override;
 	void paintTransformedStaticContent(
 		const QImage &image,
