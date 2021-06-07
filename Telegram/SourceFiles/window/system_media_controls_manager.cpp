@@ -129,6 +129,11 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 		if (!current) {
 			return;
 		}
+		if ((_lastAudioMsgId.contextId() == current.contextId())
+			&& (_lastAudioMsgId.audio() == current.audio())
+			&& (_lastAudioMsgId.type() == current.type())) {
+			return;
+		}
 		const auto document = current.audio();
 
 		const auto &[title, performer] = Ui::Text::FormatSongNameFor(document)
@@ -156,6 +161,8 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 		} else {
 			_controls->clearThumbnail();
 		}
+
+		_lastAudioMsgId = current;
 	}, _lifetime);
 
 	_controls->commandRequests(

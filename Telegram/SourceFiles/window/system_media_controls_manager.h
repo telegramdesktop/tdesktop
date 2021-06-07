@@ -32,6 +32,7 @@ private:
 	const std::unique_ptr<base::Platform::SystemMediaControls> _controls;
 
 	std::vector<std::shared_ptr<Data::DocumentMedia>> _cachedMediaView;
+	AudioMsgId _lastAudioMsgId;
 
 	rpl::lifetime _lifetimeDownload;
 	rpl::lifetime _lifetime;
