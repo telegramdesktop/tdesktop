@@ -827,12 +827,15 @@ void GroupCall::setState(State state) {
 	switch (state) {
 	case State::HangingUp:
 	case State::FailedHangingUp:
+		stopConnectingSound();
 		_delegate->groupCallPlaySound(Delegate::GroupCallSound::Ended);
 		break;
 	case State::Ended:
+		stopConnectingSound();
 		_delegate->groupCallFinished(this);
 		break;
 	case State::Failed:
+		stopConnectingSound();
 		_delegate->groupCallFailed(this);
 		break;
 	case State::Connecting:
@@ -844,7 +847,12 @@ void GroupCall::setState(State state) {
 }
 
 void GroupCall::playConnectingSound() {
-	if (_connectingSoundTimer.isActive()) {
+	const auto state = _state.current();
+	if (_connectingSoundTimer.isActive()
+		|| state == State::HangingUp
+		|| state == State::FailedHangingUp
+		|| state == State::Ended
+		|| state == State::Failed) {
 		return;
 	}
 	playConnectingSoundOnce();
