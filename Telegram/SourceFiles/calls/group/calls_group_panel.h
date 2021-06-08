@@ -134,6 +134,7 @@ private:
 	void showMainMenu();
 	void chooseJoinAs();
 	void chooseShareScreenSource();
+	void screenSharingPrivacyRequest();
 	void addMembers();
 	void kickParticipant(not_null<PeerData*> participantPeer);
 	void kickParticipantSure(not_null<PeerData*> participantPeer);

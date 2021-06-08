@@ -298,9 +298,9 @@ void ChooseSourceProcess::activate() {
 
 void ChooseSourceProcess::setupPanel() {
 #ifndef Q_OS_LINUX
-	_window->setAttribute(Qt::WA_OpaquePaintEvent);
+	//_window->setAttribute(Qt::WA_OpaquePaintEvent);
 #endif // Q_OS_LINUX
-	_window->setAttribute(Qt::WA_NoSystemBackground);
+	//_window->setAttribute(Qt::WA_NoSystemBackground);
 
 	_window->setWindowIcon(QIcon(
 		QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
@@ -322,7 +322,7 @@ void ChooseSourceProcess::setupPanel() {
 		+ (st::desktopCaptureSourceSize.height() / 2)
 		+ bottomHeight;
 	_window->setFixedSize({ width, height });
-	_window->setWindowFlag(Qt::WindowStaysOnTopHint);
+	_window->setStaysOnTop(true);
 
 	_window->body()->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {

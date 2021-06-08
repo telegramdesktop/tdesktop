@@ -1052,12 +1052,46 @@ void Panel::refreshTopButton() {
 	}
 }
 
+void Panel::screenSharingPrivacyRequest() {
+#ifdef Q_OS_MAC
+	if (!Platform::IsMac10_15OrGreater()) {
+		return;
+	}
+	const auto requestInputMonitoring = Platform::IsMac10_15OrGreater();
+	_layerBg->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box.get(),
+				rpl::combine(
+					tr::lng_group_call_mac_screencast_access(),
+					tr::lng_group_call_mac_recording()
+				) | rpl::map([](QString a, QString b) {
+					auto result = Ui::Text::RichLangValue(a);
+					result.append("\n\n").append(Ui::Text::RichLangValue(b));
+					return result;
+				}),
+				st::groupCallBoxLabel),
+			style::margins(
+				st::boxRowPadding.left(),
+				st::boxPadding.top(),
+				st::boxRowPadding.right(),
+				st::boxPadding.bottom()));
+		box->addButton(tr::lng_group_call_mac_settings(), [=] {
+			Platform::OpenDesktopCapturePrivacySettings();
+		});
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}));
+#endif // Q_OS_MAC
+}
+
 void Panel::chooseShareScreenSource() {
 	if (_call->emitShareScreenError()) {
 		return;
 	}
 	const auto choose = [=] {
-		if (const auto source = Webrtc::UniqueDesktopCaptureSource()) {
+		if (!Webrtc::DesktopCaptureAllowed()) {
+			screenSharingPrivacyRequest();
+		} else if (const auto source = Webrtc::UniqueDesktopCaptureSource()) {
 			if (_call->isSharingScreen()) {
 				_call->toggleScreenSharing(std::nullopt);
 			} else {
