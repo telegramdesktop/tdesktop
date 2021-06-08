@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
+#include "media/streaming/media_streaming_instance.h"
+#include "media/streaming/media_streaming_player.h"
 #include "ui/text/format_song_document_name.h"
 #include "window/window_controller.h"
 
@@ -54,6 +56,12 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 	mediaPlayer->updatedNotifier(
 	) | trackFilter | rpl::map([=](const TrackState &state) {
 		using namespace Media::Player;
+		if (_streamed) {
+			const auto &player = _streamed->player();
+			if (player.buffering() || !player.playing()) {
+				return PlaybackStatus::Paused;
+			}
+		}
 		if (IsStoppedOrStopping(state.state)) {
 			return PlaybackStatus::Stopped;
 		} else if (IsPausedOrPausing(state.state)) {
@@ -80,6 +88,7 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 			_controls->updateDisplay();
 		} else {
 			_cachedMediaView.clear();
+			_streamed = nullptr;
 			_controls->clearMetadata();
 		}
 		_lifetimeDownload.destroy();
@@ -134,6 +143,11 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 			// the track is changed
 			// or when the position is changed by the user.
 			_controls->setPosition(state.position);
+
+			_streamed = std::make_unique<Media::Streaming::Instance>(
+				document,
+				current.contextId(),
+				nullptr);
 		}
 
 		// Setting a thumbnail can take a long time,
