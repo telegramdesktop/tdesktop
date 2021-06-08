@@ -590,6 +590,7 @@ void GroupCall::applyParticipantsSlice(
 				: data.is_muted_by_you();
 			const auto onlyMinLoaded = data.is_min()
 				&& (!was || was->onlyMinLoaded);
+			const auto videoJoined = data.is_video_joined();
 			const auto raisedHandRating
 				= data.vraise_hand_rating().value_or_empty();
 			const auto localUpdate = (sliceSource
@@ -617,6 +618,7 @@ void GroupCall::applyParticipantsSlice(
 				.mutedByMe = mutedByMe,
 				.canSelfUnmute = canSelfUnmute,
 				.onlyMinLoaded = onlyMinLoaded,
+				.videoJoined = videoJoined,
 			};
 			if (i == end(_participants)) {
 				_participantPeerByAudioSsrc.emplace(

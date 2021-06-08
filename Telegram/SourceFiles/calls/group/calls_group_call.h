@@ -358,6 +358,12 @@ public:
 	[[nodiscard]] bool mutedByAdmin() const;
 	[[nodiscard]] bool canManage() const;
 	[[nodiscard]] rpl::producer<bool> canManageValue() const;
+	[[nodiscard]] bool videoIsWorking() const {
+		return _videoIsWorking.current();
+	}
+	[[nodiscard]] rpl::producer<bool> videoIsWorkingValue() const {
+		return _videoIsWorking.value();
+	}
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
 	void setCurrentVideoDevice(const QString &deviceId);
@@ -552,6 +558,7 @@ private:
 
 	rpl::variable<MuteState> _muted = MuteState::Muted;
 	rpl::variable<bool> _canManage = false;
+	rpl::variable<bool> _videoIsWorking = false;
 	bool _initialMuteStateSent = false;
 	bool _acceptFields = false;
 

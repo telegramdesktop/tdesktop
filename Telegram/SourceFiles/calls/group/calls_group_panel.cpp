@@ -468,12 +468,8 @@ void Panel::refreshLeftButton() {
 
 void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
 	const auto real = _call->lookupReal();
-	const auto canStartVideo = !_call->scheduleDate()
-		&& real
-		&& real->canStartVideo();
 	const auto create = overrideWideMode.value_or(mode() == PanelMode::Wide)
-		|| canStartVideo
-		|| _call->isSharingCamera();
+		|| (!_call->scheduleDate() && _call->videoIsWorking());
 	const auto created = _video && _screenShare;
 	if (created == create) {
 		return;
@@ -987,14 +983,14 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 	validateRecordingMark(real->recordStartDate() != 0);
 
 	rpl::combine(
-		real->canStartVideoValue(),
+		_call->videoIsWorkingValue(),
 		_call->isSharingCameraValue()
 	) | rpl::start_with_next([=] {
 		refreshVideoButtons();
 	}, widget()->lifetime());
 
 	rpl::combine(
-		real->canStartVideoValue(),
+		_call->videoIsWorkingValue(),
 		_call->isSharingScreenValue()
 	) | rpl::start_with_next([=] {
 		refreshTopButton();
@@ -1014,8 +1010,7 @@ void Panel::refreshTopButton() {
 	const auto hasJoinAs = _call->showChooseJoinAs();
 	const auto wide = (_mode.current() == PanelMode::Wide);
 	const auto showNarrowMenu = _call->canManage()
-		|| (real && real->canStartVideo())
-		|| _call->isSharingScreen();
+		|| _call->videoIsWorking();
 	const auto showNarrowUserpic = !showNarrowMenu && hasJoinAs;
 	if (showNarrowMenu) {
 		_joinAsToggle.destroy();

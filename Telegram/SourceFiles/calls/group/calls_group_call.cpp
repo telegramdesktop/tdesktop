@@ -636,17 +636,17 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 
 	// If we joined before you could start video and then you can,
 	// you have to rejoin so that the server knows your video params.
-	real->canStartVideoValue(
-	) | rpl::combine_previous(
-	) | rpl::start_with_next([=](bool could, bool can) {
-		if (could || !can) {
-			return;
-		} if (_joinState.action == JoinAction::None) {
-			rejoin();
-		} else {
-			_joinState.nextActionPending = true;
-		}
-	}, _lifetime);
+	//real->canStartVideoValue( // ignore can_start_video after call start.
+	//) | rpl::combine_previous(
+	//) | rpl::start_with_next([=](bool could, bool can) {
+	//	if (could || !can) {
+	//		return;
+	//	} if (_joinState.action == JoinAction::None) {
+	//		rejoin();
+	//	} else {
+	//		_joinState.nextActionPending = true;
+	//	}
+	//}, _lifetime);
 
 	// Postpone creating video tracks, so that we know if Panel
 	// supports OpenGL and we don't need ARGB32 frames at all.
@@ -674,6 +674,10 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 
 		const auto peer = data.was ? data.was->peer : data.now->peer;
 		if (peer == _joinAs) {
+			const auto working = data.now && data.now->videoJoined;
+			if (videoIsWorking() != working) {
+				fillActiveVideoEndpoints();
+			}
 			return;
 		}
 		const auto &wasCameraEndpoint = data.was
@@ -1401,6 +1405,7 @@ void GroupCall::applyMeInCallLocally() {
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| (lastActive ? Flag::f_active_date : Flag(0))
 		| (_joinState.ssrc ? Flag(0) : Flag::f_left)
+		| (_videoIsWorking.current() ? Flag::f_video_joined : Flag(0))
 		| Flag::f_self
 		| Flag::f_volume // Without flag the volume is reset to 100%.
 		| Flag::f_volume_by_admin // Self volume can only be set by admin.
@@ -1446,6 +1451,7 @@ void GroupCall::applyParticipantLocally(
 		| ((participant->applyVolumeFromMin && !volume)
 			? Flag::f_volume_by_admin
 			: Flag(0))
+		| (participant->videoJoined ? Flag::f_video_joined : Flag(0))
 		| (participant->lastActive ? Flag::f_active_date : Flag(0))
 		| (isMuted ? Flag::f_muted : Flag(0))
 		| (isMutedByYou ? Flag::f_muted_by_you : Flag(0))
@@ -1884,7 +1890,9 @@ bool GroupCall::emitShareCameraError() {
 		emitShareCameraError(error);
 		return true;
 	};
-	if (const auto real = lookupReal(); real && !real->canStartVideo()) {
+	/*if (const auto real = lookupReal(); real && !real->canStartVideo()) {
+		return emitError(Error::DisabledNoCamera);
+	} else */if (!videoIsWorking()) {
 		return emitError(Error::DisabledNoCamera);
 	} else if (mutedByAdmin()) {
 		return emitError(Error::MutedNoCamera);
@@ -1906,7 +1914,9 @@ bool GroupCall::emitShareScreenError() {
 		emitShareScreenError(error);
 		return true;
 	};
-	if (const auto real = lookupReal(); real && !real->canStartVideo()) {
+	/*if (const auto real = lookupReal(); real && !real->canStartVideo()) {
+		return emitError(Error::DisabledNoScreen);
+	} else */if (!videoIsWorking()) {
 		return emitError(Error::DisabledNoScreen);
 	} else if (mutedByAdmin()) {
 		return emitError(Error::MutedNoScreen);
@@ -2377,6 +2387,16 @@ void GroupCall::fillActiveVideoEndpoints() {
 	const auto real = lookupReal();
 	Assert(real != nullptr);
 
+	if (const auto participant = real->participantByPeer(_joinAs)) {
+		_videoIsWorking = participant->videoJoined;
+	} else {
+		_videoIsWorking = false;
+	}
+	if (!videoIsWorking()) {
+		toggleVideo(false);
+		toggleScreenSharing(std::nullopt);
+	}
+
 	const auto &participants = real->participants();
 	const auto &large = _videoEndpointLarge.current();
 	auto largeFound = false;
@@ -2400,24 +2420,26 @@ void GroupCall::fillActiveVideoEndpoints() {
 		}
 	};
 	using Type = VideoEndpointType;
-	for (const auto &participant : participants) {
-		const auto camera = GetCameraEndpoint(participant.videoParams);
-		if (camera != _cameraEndpoint
-			&& camera != _screenEndpoint
-			&& participant.peer != _joinAs) {
-			const auto paused = IsCameraPaused(participant.videoParams);
-			feedOne({ Type::Camera, participant.peer, camera }, paused);
+	if (_videoIsWorking.current()) {
+		for (const auto &participant : participants) {
+			const auto camera = GetCameraEndpoint(participant.videoParams);
+			if (camera != _cameraEndpoint
+				&& camera != _screenEndpoint
+				&& participant.peer != _joinAs) {
+				const auto paused = IsCameraPaused(participant.videoParams);
+				feedOne({ Type::Camera, participant.peer, camera }, paused);
+			}
+			const auto screen = GetScreenEndpoint(participant.videoParams);
+			if (screen != _cameraEndpoint
+				&& screen != _screenEndpoint
+				&& participant.peer != _joinAs) {
+				const auto paused = IsScreenPaused(participant.videoParams);
+				feedOne({ Type::Screen, participant.peer, screen }, paused);
+			}
 		}
-		const auto screen = GetScreenEndpoint(participant.videoParams);
-		if (screen != _cameraEndpoint
-			&& screen != _screenEndpoint
-			&& participant.peer != _joinAs) {
-			const auto paused = IsScreenPaused(participant.videoParams);
-			feedOne({ Type::Screen, participant.peer, screen }, paused);
-		}
+		feedOne({ Type::Camera, _joinAs, cameraSharingEndpoint() }, false);
+		feedOne({ Type::Screen, _joinAs, screenSharingEndpoint() }, false);
 	}
-	feedOne({ Type::Camera, _joinAs, cameraSharingEndpoint() }, false);
-	feedOne({ Type::Screen, _joinAs, screenSharingEndpoint() }, false);
 	if (large && !largeFound) {
 		setVideoEndpointLarge({});
 	}
