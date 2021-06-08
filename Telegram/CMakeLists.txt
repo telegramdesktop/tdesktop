@@ -869,8 +869,6 @@ PRIVATE
     platform/linux/linux_gtk_integration.h
     platform/linux/linux_gtk_open_with_dialog.cpp
     platform/linux/linux_gtk_open_with_dialog.h
-    platform/linux/linux_mpris_support.cpp
-    platform/linux/linux_mpris_support.h
     platform/linux/linux_notification_service_watcher.cpp
     platform/linux/linux_notification_service_watcher.h
     platform/linux/linux_wayland_integration_dummy.cpp

@@ -29,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "platform/linux/linux_notification_service_watcher.h"
 #include "platform/linux/linux_xdp_file_dialog.h"
-#include "platform/linux/linux_mpris_support.h"
 #include "platform/linux/linux_gsd_media_keys.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
@@ -544,22 +543,13 @@ void SetDarkMode() {
 
 void SetWatchingMediaKeys(bool watching) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	static std::unique_ptr<internal::MPRISSupport> MPRISInstance;
 	static std::unique_ptr<internal::GSDMediaKeys> GSDInstance;
 
 	if (watching) {
-		if (!MPRISInstance) {
-			MPRISInstance = std::make_unique<internal::MPRISSupport>();
-		}
-
 		if (!GSDInstance) {
 			GSDInstance = std::make_unique<internal::GSDMediaKeys>();
 		}
 	} else {
-		if (MPRISInstance) {
-			MPRISInstance = nullptr;
-		}
-
 		if (GSDInstance) {
 			GSDInstance = nullptr;
 		}
