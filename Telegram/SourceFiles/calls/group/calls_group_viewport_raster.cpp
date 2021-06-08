@@ -232,6 +232,7 @@ void Viewport::RendererSW::paintTileControls(
 
 	if (_pausedFrame) {
 		p.fillRect(x, y, width, height, QColor(0, 0, 0, kShadowMaxAlpha));
+		st::groupCallPaused.paintInCenter(p, { x, y, width, height });
 	}
 
 	const auto shown = _owner->_controlsShownRatio;

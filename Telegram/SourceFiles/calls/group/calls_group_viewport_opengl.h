@@ -155,6 +155,7 @@ private:
 	QRect _back;
 	QRect _muteOn;
 	QRect _muteOff;
+	QRect _paused;
 
 	Ui::GL::Image _names;
 	std::vector<TileData> _tileData;

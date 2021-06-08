@@ -32,7 +32,7 @@ constexpr auto kBlurOpacity = 0.65;
 constexpr auto kDitherNoiseAmount = 0.002;
 constexpr auto kMinCameraVisiblePart = 0.75;
 
-constexpr auto kQuads = 7;
+constexpr auto kQuads = 8;
 constexpr auto kQuadVertices = kQuads * 4;
 constexpr auto kQuadValues = kQuadVertices * 4;
 constexpr auto kValues = kQuadValues + 8; // Blur texture coordinates.
@@ -370,6 +370,7 @@ void Viewport::RendererGL::init(
 		}),
 		FragmentShader({
 			FragmentSampleARGB32Texture(),
+			FragmentGlobalOpacity(),
 		}));
 
 	validateNoiseTexture(f, 0);
@@ -569,6 +570,17 @@ void Viewport::RendererGL::paintTile(
 			texCoords.end());
 	}
 
+	// Paused.
+	const auto &pauseIcon = st::groupCallPaused;
+	const auto pausedIcon = _buttons.texturedRect(
+		QRect(
+			geometry.x() + (geometry.width() - pauseIcon.width()) / 2,
+			geometry.y() + (geometry.height() - pauseIcon.height()) / 2,
+			pauseIcon.width(),
+			pauseIcon.height()),
+		_paused);
+	const auto pausedRect = transformRect(pausedIcon.geometry);
+
 	// Pin.
 	const auto pin = _buttons.texturedRect(
 		tile->pinInner().translated(x, y),
@@ -708,6 +720,19 @@ void Viewport::RendererGL::paintTile(
 
 		nameRect.left(), nameRect.bottom(),
 		name.texture.left(), name.texture.top(),
+
+		// Paused icon.
+		pausedRect.left(), pausedRect.top(),
+		pausedIcon.texture.left(), pausedIcon.texture.bottom(),
+
+		pausedRect.right(), pausedRect.top(),
+		pausedIcon.texture.right(), pausedIcon.texture.bottom(),
+
+		pausedRect.right(), pausedRect.bottom(),
+		pausedIcon.texture.right(), pausedIcon.texture.top(),
+
+		pausedRect.left(), pausedRect.bottom(),
+		pausedIcon.texture.left(), pausedIcon.texture.top(),
 	};
 
 	_frameBuffer->bind();
@@ -779,7 +804,7 @@ void Viewport::RendererGL::paintTile(
 
 	const auto pinVisible = _owner->wide()
 		&& (pin.geometry.bottom() > y);
-	if (nameShift == fullNameShift && !pinVisible) {
+	if (nameShift == fullNameShift && !pinVisible && paused == 0.) {
 		return;
 	}
 
@@ -796,13 +821,15 @@ void Viewport::RendererGL::paintTile(
 	f.glActiveTexture(GL_TEXTURE0);
 	_buttons.bind(f);
 
+	if (paused > 0) {
+		_imageProgram->setUniformValue("g_opacity", GLfloat(paused));
+		FillTexturedRectangle(f, &*_imageProgram, 30);
+	}
+	_imageProgram->setUniformValue("g_opacity", GLfloat(1.f));
+
 	if (pinVisible) {
 		FillTexturedRectangle(f, &*_imageProgram, 14);
 		FillTexturedRectangle(f, &*_imageProgram, 18);
-	}
-
-	if (paused > 0.) {
-
 	}
 
 	if (nameShift == fullNameShift) {
@@ -1052,6 +1079,7 @@ void Viewport::RendererGL::ensureButtonsImage() {
 	const auto pinOffSize = VideoTile::PinInnerSize(false);
 	const auto backSize = VideoTile::BackInnerSize();
 	const auto muteSize = st::groupCallVideoCrossLine.icon.size();
+	const auto pausedSize = st::groupCallPaused.size();
 
 	const auto fullSize = QSize(
 		std::max({
@@ -1059,11 +1087,13 @@ void Viewport::RendererGL::ensureButtonsImage() {
 			pinOffSize.width(),
 			backSize.width(),
 			2 * muteSize.width(),
+			pausedSize.width(),
 		}),
 		(pinOnSize.height()
 			+ pinOffSize.height()
 			+ backSize.height()
-			+ muteSize.height()));
+			+ muteSize.height()
+			+ pausedSize.height()));
 	const auto imageSize = fullSize * factor;
 	auto image = _buttons.takeImage();
 	if (image.size() != imageSize) {
@@ -1085,9 +1115,8 @@ void Viewport::RendererGL::ensureButtonsImage() {
 			&_pinBackground,
 			&_pinIcon);
 
-		_pinOff = QRect(
-			QPoint(0, pinOnSize.height()) * factor,
-			pinOffSize * factor);
+		const auto pinOffTop = pinOnSize.height();
+		_pinOff = QRect(QPoint(0, pinOffTop) * factor, pinOffSize * factor);
 		VideoTile::PaintPinButton(
 			p,
 			false,
@@ -1097,9 +1126,8 @@ void Viewport::RendererGL::ensureButtonsImage() {
 			&_pinBackground,
 			&_pinIcon);
 
-		_back = QRect(
-			QPoint(0, pinOnSize.height() + pinOffSize.height()) * factor,
-			backSize * factor);
+		const auto backTop = pinOffTop + pinOffSize.height();
+		_back = QRect(QPoint(0, backTop) * factor, backSize * factor);
 		VideoTile::PaintBackButton(
 			p,
 			0,
@@ -1107,9 +1135,7 @@ void Viewport::RendererGL::ensureButtonsImage() {
 			fullSize.width(),
 			&_pinBackground);
 
-		const auto muteTop = pinOnSize.height()
-			+ pinOffSize.height()
-			+ backSize.height();
+		const auto muteTop = backTop + backSize.height();
 		_muteOn = QRect(QPoint(0, muteTop) * factor, muteSize * factor);
 		_muteIcon.paint(p, { 0, muteTop }, 1.);
 
@@ -1117,6 +1143,10 @@ void Viewport::RendererGL::ensureButtonsImage() {
 			QPoint(muteSize.width(), muteTop) * factor,
 			muteSize * factor);
 		_muteIcon.paint(p, { muteSize.width(), muteTop }, 0.);
+
+		const auto pausedTop = muteTop + muteSize.height();
+		_paused = QRect(QPoint(0, pausedTop) * factor, pausedSize * factor);
+		st::groupCallPaused.paint(p, 0, pausedTop, fullSize.width());
 	}
 	_buttons.setImage(std::move(image));
 }
