@@ -57,7 +57,6 @@ private:
 		QImage userpicFrame;
 		QRect nameRect;
 		int nameVersion = 0;
-		mutable int textureIndex = 0;
 		mutable int trackIndex = -1;
 		mutable QSize rgbaSize;
 		mutable QSize textureSize;
@@ -102,6 +101,9 @@ private:
 		TileData &tileData,
 		QSize blurSize);
 	void validateDatas();
+	void validateNoiseTexture(
+		QOpenGLFunctions &f,
+		GLuint defaultFramebufferObject);
 	void validateOutlineAnimation(
 		not_null<VideoTile*> tile,
 		TileData &data);
@@ -142,6 +144,8 @@ private:
 	std::optional<QOpenGLShaderProgram> _blurProgram;
 	Program _frameProgram;
 	std::optional<QOpenGLShaderProgram> _imageProgram;
+	Ui::GL::Textures<1> _noiseTexture;
+	Ui::GL::Framebuffers<1> _noiseFramebuffer;
 	QOpenGLShader *_downscaleVertexShader = nullptr;
 	QOpenGLShader *_frameVertexShader = nullptr;
 
