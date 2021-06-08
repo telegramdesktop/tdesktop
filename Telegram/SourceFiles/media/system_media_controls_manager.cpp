@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "window/system_media_controls_manager.h"
+#include "media/system_media_controls_manager.h"
 
 #include "base/observer.h"
 #include "base/platform/base_platform_system_media_controls.h"
@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_song_document_name.h"
 #include "window/window_controller.h"
 
-namespace Window {
+namespace Media {
 
 bool SystemMediaControlsManager::Supported() {
 	return base::Platform::SystemMediaControls::Supported();
@@ -253,4 +253,4 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 
 SystemMediaControlsManager::~SystemMediaControlsManager() = default;
 
-}  // namespace Window
+}  // namespace Media

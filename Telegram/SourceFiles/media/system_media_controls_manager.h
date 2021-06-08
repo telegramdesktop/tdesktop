@@ -23,7 +23,7 @@ namespace Media::Streaming {
 class Instance;
 } // namespace Media::Streaming
 
-namespace Window {
+namespace Media {
 
 class SystemMediaControlsManager {
 public:
@@ -43,4 +43,4 @@ private:
 	rpl::lifetime _lifetime;
 };
 
-}  // namespace Window
+}  // namespace Media

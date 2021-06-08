@@ -729,6 +729,8 @@ PRIVATE
     main/main_session.h
     main/main_session_settings.cpp
     main/main_session_settings.h
+    media/system_media_controls_manager.h
+    media/system_media_controls_manager.cpp
     media/audio/media_audio.cpp
     media/audio/media_audio.h
     media/audio/media_audio_capture.cpp
@@ -1086,8 +1088,6 @@ PRIVATE
     window/section_memento.h
     window/section_widget.cpp
     window/section_widget.h
-    window/system_media_controls_manager.cpp
-    window/system_media_controls_manager.h
     window/window_connecting_widget.cpp
     window/window_connecting_widget.h
     window/window_controller.cpp

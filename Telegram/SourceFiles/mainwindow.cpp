@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h" // Account::sessionValue.
 #include "main/main_domain.h"
 #include "mainwidget.h"
+#include "media/system_media_controls_manager.h"
 #include "boxes/confirm_box.h"
 #include "boxes/connection_box.h"
 #include "storage/storage_account.h"
@@ -45,7 +46,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_warning.h"
-#include "window/system_media_controls_manager.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_main_menu.h"
 #include "window/window_controller.h" // App::wnd.
@@ -133,8 +133,8 @@ void MainWindow::initHook() {
 		[=] { checkHistoryActivation(); },
 		Qt::QueuedConnection);
 
-	if (Window::SystemMediaControlsManager::Supported()) {
-		using MediaManager = Window::SystemMediaControlsManager;
+	if (Media::SystemMediaControlsManager::Supported()) {
+		using MediaManager = Media::SystemMediaControlsManager;
 		_mediaControlsManager = std::make_unique<MediaManager>(&controller());
 	}
 }

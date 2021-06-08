@@ -19,12 +19,15 @@ class Widget;
 enum class EnterPoint : uchar;
 } // namespace Intro
 
+namespace Media {
+class SystemMediaControlsManager;
+} // namespace Media
+
 namespace Window {
 class MediaPreviewWidget;
 class SectionMemento;
 struct SectionShow;
 class PasscodeLockWidget;
-class SystemMediaControlsManager;
 namespace Theme {
 struct BackgroundUpdate;
 class WarningWidget;
@@ -131,8 +134,7 @@ private:
 
 	QPixmap grabInner();
 
-	using MediaControlsManager = Window::SystemMediaControlsManager;
-	std::unique_ptr<MediaControlsManager> _mediaControlsManager;
+	std::unique_ptr<Media::SystemMediaControlsManager> _mediaControlsManager;
 
 	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 
