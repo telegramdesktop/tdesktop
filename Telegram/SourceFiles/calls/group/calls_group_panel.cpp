@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/gl/gl_detection.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/layers/layer_manager.h"
 #include "ui/layers/generic_box.h"
@@ -46,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "base/unixtime.h"
+#include "base/platform/base_platform_info.h"
 #include "base/qt_signal_producer.h"
 #include "base/timer_rpl.h"
 #include "app.h"
@@ -85,14 +87,14 @@ struct Panel::ControlsBackgroundNarrow {
 Panel::Panel(not_null<GroupCall*> call)
 : _call(call)
 , _peer(call->peer())
-, _window(std::make_unique<Ui::Window>())
+, _window(createWindow())
 , _layerBg(std::make_unique<Ui::LayerManager>(_window->body()))
 #ifndef Q_OS_MAC
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
 	_window->body(),
 	st::groupCallTitle))
 #endif // !Q_OS_MAC
-, _viewport(std::make_unique<Viewport>(widget(), PanelMode::Wide))
+, _viewport(std::make_unique<Viewport>(widget(), PanelMode::Wide, _backend))
 , _mute(std::make_unique<Ui::CallMuteButton>(
 	widget(),
 	st::callMuteButton,
@@ -135,6 +137,25 @@ Panel::Panel(not_null<GroupCall*> call)
 Panel::~Panel() {
 	_menu.destroy();
 	_viewport = nullptr;
+}
+
+std::unique_ptr<Ui::Window> Panel::createWindow() {
+	auto result = std::make_unique<Ui::Window>();
+	const auto capabilities = Ui::GL::CheckCapabilities(result.get());
+	const auto use = Platform::IsMac()
+		? true
+		: Platform::IsWindows()
+		? capabilities.supported
+		: capabilities.transparency;
+	LOG(("OpenGL: %1 (Calls::Group::Viewport)").arg(Logs::b(use)));
+	_backend = use ? Ui::GL::Backend::OpenGL : Ui::GL::Backend::Raster;
+
+	if (use) {
+		return result;
+	}
+
+	// We have to create a new window, if OpenGL initialization failed.
+	return std::make_unique<Ui::Window>();
 }
 
 void Panel::setupRealCallViewers() {
@@ -679,7 +700,7 @@ void Panel::setupMembers() {
 	_countdown.destroy();
 	_startsWhen.destroy();
 
-	_members.create(widget(), _call, mode());
+	_members.create(widget(), _call, mode(), _backend);
 
 	setupVideo(_viewport.get());
 	setupVideo(_members->viewport());

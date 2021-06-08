@@ -56,7 +56,8 @@ class Panel::Incoming final {
 public:
 	Incoming(
 		not_null<QWidget*> parent,
-		not_null<Webrtc::VideoTrack*> track);
+		not_null<Webrtc::VideoTrack*> track,
+		Ui::GL::Backend backend);
 
 	[[nodiscard]] not_null<QWidget*> widget() const;
 	[[nodiscard]] not_null<Ui::RpWidgetWrap* > rp() const;
@@ -69,7 +70,7 @@ private:
 	void fillBottomShadow(QPainter &p);
 
 	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
-		Ui::GL::Capabilities capabilities);
+		Ui::GL::Backend backend);
 
 	const std::unique_ptr<Ui::RpWidgetWrap> _surface;
 	const not_null<Webrtc::VideoTrack*> _track;
@@ -79,12 +80,9 @@ private:
 
 Panel::Incoming::Incoming(
 	not_null<QWidget*> parent,
-	not_null<Webrtc::VideoTrack*> track)
-: _surface(Ui::GL::CreateSurface(
-	parent,
-	[=](Ui::GL::Capabilities capabilities) {
-		return chooseRenderer(capabilities);
-	}))
+	not_null<Webrtc::VideoTrack*> track,
+	Ui::GL::Backend backend)
+: _surface(Ui::GL::CreateSurface(parent, chooseRenderer(backend)))
 , _track(track) {
 	initBottomShadow();
 	widget()->setAttribute(Qt::WA_OpaquePaintEvent);
@@ -100,7 +98,7 @@ not_null<Ui::RpWidgetWrap*> Panel::Incoming::rp() const {
 }
 
 Ui::GL::ChosenRenderer Panel::Incoming::chooseRenderer(
-		Ui::GL::Capabilities capabilities) {
+		Ui::GL::Backend backend) {
 	class Renderer : public Ui::GL::Renderer {
 	public:
 		Renderer(not_null<Panel::Incoming*> owner) : _owner(owner) {
@@ -121,15 +119,9 @@ Ui::GL::ChosenRenderer Panel::Incoming::chooseRenderer(
 
 	};
 
-	const auto use = Platform::IsMac()
-		? true
-		: Platform::IsWindows()
-		? capabilities.supported
-		: capabilities.transparency;
-	LOG(("OpenGL: %1 (Incoming)").arg(Logs::b(use)));
 	return {
 		.renderer = std::make_unique<Renderer>(this),
-		.backend = (use ? Ui::GL::Backend::OpenGL : Ui::GL::Backend::Raster),
+		.backend = backend,
 	};
 }
 
@@ -257,6 +249,25 @@ Panel::Panel(not_null<Call*> call)
 }
 
 Panel::~Panel() = default;
+
+std::unique_ptr<Ui::Window> Panel::createWindow() {
+	auto result = std::make_unique<Ui::Window>();
+	const auto capabilities = Ui::GL::CheckCapabilities(result.get());
+	const auto use = Platform::IsMac()
+		? true
+		: Platform::IsWindows()
+		? capabilities.supported
+		: capabilities.transparency;
+	LOG(("OpenGL: %1 (Incoming)").arg(Logs::b(use)));
+	_backend = use ? Ui::GL::Backend::OpenGL : Ui::GL::Backend::Raster;
+
+	if (use) {
+		return result;
+	}
+
+	// We have to create a new window, if OpenGL initialization failed.
+	return std::make_unique<Ui::Window>();
+}
 
 bool Panel::isActive() const {
 	return _window->isActiveWindow()
@@ -491,7 +502,8 @@ void Panel::reinitWithCall(Call *call) {
 		_call->videoOutgoing());
 	_incoming = std::make_unique<Incoming>(
 		widget(),
-		_call->videoIncoming());
+		_call->videoIncoming(),
+		_backend);
 	_incoming->widget()->hide();
 
 	_call->mutedValue(

@@ -375,7 +375,6 @@ PipPanel::PipPanel(
 	QWidget *parent,
 	Fn<void(QPainter&, FrameRequest, bool)> paint)
 : _content(Ui::GL::CreateSurface(
-	nullptr, // No parent for the window in Qt parent-child sense.
 	[=](Ui::GL::Capabilities capabilities) {
 		return chooseRenderer(capabilities);
 	}))

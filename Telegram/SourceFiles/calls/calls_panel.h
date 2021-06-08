@@ -30,6 +30,9 @@ class FadeWrap;
 template <typename Widget>
 class PaddingWrap;
 class Window;
+namespace GL {
+enum class Backend;
+} // namespace GL
 namespace Platform {
 class TitleControls;
 } // namespace Platform
@@ -67,6 +70,7 @@ private:
 		Redial,
 	};
 
+	std::unique_ptr<Ui::Window> createWindow();
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
 	void paint(QRect clip);
@@ -79,9 +83,6 @@ private:
 	void initGeometry();
 
 	void handleClose();
-
-	QRect signalBarsRect() const;
-	void paintSignalBarsBg(Painter &p);
 
 	void updateControlsGeometry();
 	void updateHangupGeometry();
@@ -105,6 +106,7 @@ private:
 	Call *_call = nullptr;
 	not_null<UserData*> _user;
 
+	Ui::GL::Backend _backend = Ui::GL::Backend();
 	const std::unique_ptr<Ui::Window> _window;
 	std::unique_ptr<Incoming> _incoming;
 

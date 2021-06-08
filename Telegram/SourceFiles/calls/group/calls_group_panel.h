@@ -42,6 +42,9 @@ class ScrollArea;
 class GenericBox;
 class LayerManager;
 class GroupCallScheduledLeft;
+namespace GL {
+enum class Backend;
+} // namespace GL
 namespace Toast {
 class Instance;
 } // namespace Toast
@@ -81,6 +84,7 @@ private:
 	using State = GroupCall::State;
 	struct ControlsBackgroundNarrow;
 
+	std::unique_ptr<Ui::Window> createWindow();
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
 	[[nodiscard]] PanelMode mode() const;
@@ -151,6 +155,7 @@ private:
 	const not_null<GroupCall*> _call;
 	not_null<PeerData*> _peer;
 
+	Ui::GL::Backend _backend = Ui::GL::Backend();
 	const std::unique_ptr<Ui::Window> _window;
 	const std::unique_ptr<Ui::LayerManager> _layerBg;
 	rpl::variable<PanelMode> _mode;

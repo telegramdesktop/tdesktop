@@ -14,6 +14,9 @@ class RpWidget;
 class ScrollArea;
 class VerticalLayout;
 class SettingsButton;
+namespace GL {
+enum class Backend;
+} // namespace GL
 } // namespace Ui
 
 namespace Data {
@@ -39,7 +42,8 @@ public:
 	Members(
 		not_null<QWidget*> parent,
 		not_null<GroupCall*> call,
-		PanelMode mode);
+		PanelMode mode,
+		Ui::GL::Backend backend);
 	~Members();
 
 	[[nodiscard]] not_null<Viewport*> viewport() const;

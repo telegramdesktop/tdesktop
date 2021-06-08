@@ -14,6 +14,7 @@ namespace Ui {
 class AbstractButton;
 class RpWidgetWrap;
 namespace GL {
+enum class Backend;
 struct Capabilities;
 struct ChosenRenderer;
 } // namespace GL
@@ -58,7 +59,10 @@ struct VideoTileTrack {
 
 class Viewport final {
 public:
-	Viewport(not_null<QWidget*> parent, PanelMode mode);
+	Viewport(
+		not_null<QWidget*> parent,
+		PanelMode mode,
+		Ui::GL::Backend backend);
 	~Viewport();
 
 	[[nodiscard]] not_null<QWidget*> widget() const;
@@ -159,7 +163,7 @@ private:
 	void updateSelected();
 
 	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
-		Ui::GL::Capabilities capabilities);
+		Ui::GL::Backend backend);
 
 	PanelMode _mode = PanelMode();
 	bool _opengl = false;

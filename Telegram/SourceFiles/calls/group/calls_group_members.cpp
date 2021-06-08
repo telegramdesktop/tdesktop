@@ -1461,7 +1461,8 @@ std::unique_ptr<Row> Members::Controller::createInvitedRow(
 Members::Members(
 	not_null<QWidget*> parent,
 	not_null<GroupCall*> call,
-	PanelMode mode)
+	PanelMode mode,
+	Ui::GL::Backend backend)
 : RpWidget(parent)
 , _call(call)
 , _mode(mode)
@@ -1473,7 +1474,8 @@ Members::Members(
 , _viewport(
 	std::make_unique<Viewport>(
 		_videoWrap.get(),
-		PanelMode::Default)) {
+		PanelMode::Default,
+		backend)) {
 	setupList();
 	setupAddMember(call);
 	setContent(_list);

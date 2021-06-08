@@ -47,13 +47,12 @@ namespace {
 
 } // namespace
 
-Viewport::Viewport(not_null<QWidget*> parent, PanelMode mode)
+Viewport::Viewport(
+	not_null<QWidget*> parent,
+	PanelMode mode,
+	Ui::GL::Backend backend)
 : _mode(mode)
-, _content(Ui::GL::CreateSurface(
-	parent,
-	[=](Ui::GL::Capabilities capabilities) {
-		return chooseRenderer(capabilities);
-	})) {
+, _content(Ui::GL::CreateSurface(parent, chooseRenderer(backend))) {
 	setup();
 }
 
@@ -796,25 +795,14 @@ void Viewport::setPressed(Selection value) {
 	_pressed = value;
 }
 
-Ui::GL::ChosenRenderer Viewport::chooseRenderer(
-		Ui::GL::Capabilities capabilities) {
-	const auto use = Platform::IsMac()
-		? true
-		: Platform::IsWindows()
-		? capabilities.supported
-		: capabilities.transparency;
-	LOG(("OpenGL: %1 (Calls::Group::Viewport)").arg(Logs::b(use)));
-	if (use) {
-		auto renderer = std::make_unique<RendererGL>(this);
-		_opengl = true;
-		return {
-			.renderer = std::move(renderer),
-			.backend = Ui::GL::Backend::OpenGL,
-		};
-	}
+Ui::GL::ChosenRenderer Viewport::chooseRenderer(Ui::GL::Backend backend) {
+	_opengl = (backend == Ui::GL::Backend::OpenGL);
 	return {
-		.renderer = std::make_unique<RendererSW>(this),
-		.backend = Ui::GL::Backend::Raster,
+		.renderer = (_opengl
+			? std::unique_ptr<Ui::GL::Renderer>(
+				std::make_unique<RendererGL>(this))
+			: std::make_unique<RendererSW>(this)),
+		.backend = backend,
 	};
 }
 
