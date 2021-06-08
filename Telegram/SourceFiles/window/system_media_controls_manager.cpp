@@ -163,6 +163,13 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 		_lastAudioMsgId = current;
 	}, _lifetime);
 
+	mediaPlayer->playlistChanges(
+		type
+	) | rpl::start_with_next([=] {
+		_controls->setIsNextEnabled(mediaPlayer->nextAvailable(type));
+		_controls->setIsPreviousEnabled(mediaPlayer->previousAvailable(type));
+	}, _lifetime);
+
 	_controls->commandRequests(
 	) | rpl::start_with_next([=](Command command) {
 		switch (command) {
