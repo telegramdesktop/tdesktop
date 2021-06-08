@@ -397,7 +397,6 @@ void Viewport::RendererGL::ensureARGB32Program() {
 		FragmentShader({
 			FragmentSampleARGB32Texture(),
 			FragmentFrameColor(),
-			FragmentRoundCorners(),
 		}));
 }
 
