@@ -147,7 +147,7 @@ private:
 	void appendInvitedUsers();
 	void scheduleRaisedHandStatusRemove();
 
-	void hideRowsWithVideoExcept(const VideoEndpoint &pinned);
+	void hideRowsWithVideoExcept(const VideoEndpoint &large);
 	void showAllHiddenRows();
 	void hideRowWithVideo(const VideoEndpoint &endpoint);
 	void showRowWithVideo(const VideoEndpoint &endpoint);
@@ -316,17 +316,25 @@ void Members::Controller::setupListChangeViewers() {
 }
 
 void Members::Controller::hideRowsWithVideoExcept(
-		const VideoEndpoint &pinned) {
-	auto hidden = false;
+		const VideoEndpoint &large) {
+	auto changed = false;
+	auto showLargeRow = true;
 	for (const auto &endpoint : _call->shownVideoTracks()) {
-		if (endpoint != pinned) {
+		if (endpoint != large) {
 			if (const auto row = findRow(endpoint.peer)) {
+				if (endpoint.peer == large.peer) {
+					showLargeRow = false;
+				}
 				delegate()->peerListSetRowHidden(row, true);
-				hidden = true;
+				changed = true;
 			}
 		}
 	}
-	if (hidden) {
+	if (const auto row = showLargeRow ? findRow(large.peer) : nullptr) {
+		delegate()->peerListSetRowHidden(row, false);
+		changed = true;
+	}
+	if (changed) {
 		delegate()->peerListRefreshRows();
 	}
 }
