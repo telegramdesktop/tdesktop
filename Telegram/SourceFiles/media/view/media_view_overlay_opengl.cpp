@@ -209,7 +209,7 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 	Assert(data.format == Streaming::FrameFormat::YUV420);
 	Assert(!data.yuv420->size.isEmpty());
 	const auto yuv = data.yuv420;
-	_f->glUseProgram(_yuv420Program->programId());
+	_yuv420Program->bind();
 
 	const auto upload = (_trackFrameIndex != data.index)
 		|| (_streamedIndex != _owner->streamedIndex());
@@ -275,7 +275,7 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 	auto &program = fillTransparentBackground
 		? _withTransparencyProgram
 		: _imageProgram;
-	_f->glUseProgram(program->programId());
+	program->bind();
 	if (fillTransparentBackground) {
 		program->setUniformValue(
 			"transparentBg",
@@ -489,7 +489,7 @@ void OverlayWidget::RendererGL::paintControl(
 			offset * 4 * sizeof(GLfloat),
 			coords,
 			sizeof(coords));
-		_f->glUseProgram(_fillProgram->programId());
+		_fillProgram->bind();
 		_fillProgram->setUniformValue("viewport", _uniformViewport);
 		FillRectangle(
 			*_f,
@@ -502,7 +502,7 @@ void OverlayWidget::RendererGL::paintControl(
 			coords + (fgOffset - offset) * 4,
 			sizeof(coords) - (fgOffset - offset) * 4 * sizeof(GLfloat));
 	}
-	_f->glUseProgram(_controlsProgram->programId());
+	_controlsProgram->bind();
 	_controlsProgram->setUniformValue("g_opacity", GLfloat(innerOpacity));
 	_controlsProgram->setUniformValue("viewport", _uniformViewport);
 	FillTexturedRectangle(*_f, &*_controlsProgram, fgOffset);
@@ -654,7 +654,7 @@ void OverlayWidget::RendererGL::paintUsingRaster(
 		coords,
 		sizeof(coords));
 
-	_f->glUseProgram(_imageProgram->programId());
+	_imageProgram->bind();
 	_imageProgram->setUniformValue("viewport", _uniformViewport);
 	_imageProgram->setUniformValue("s_texture", GLint(0));
 

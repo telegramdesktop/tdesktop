@@ -789,7 +789,7 @@ void Viewport::RendererGL::paintTile(
 		f.glDisable(GL_BLEND);
 	});
 
-	f.glUseProgram(_imageProgram->programId());
+	_imageProgram->bind();
 	_imageProgram->setUniformValue("viewport", uniformViewport);
 	_imageProgram->setUniformValue("s_texture", GLint(0));
 
@@ -899,7 +899,7 @@ void Viewport::RendererGL::bindFrame(
 	tileData.trackIndex = imageIndex;
 	if (_rgbaFrame) {
 		ensureARGB32Program();
-		f.glUseProgram(program.argb32->programId());
+		program.argb32->bind();
 		f.glActiveTexture(GL_TEXTURE0);
 		tileData.textures.bind(f, 0);
 		if (upload) {
@@ -922,7 +922,7 @@ void Viewport::RendererGL::bindFrame(
 		program.argb32->setUniformValue("s_texture", GLint(0));
 	} else {
 		const auto yuv = data.yuv420;
-		f.glUseProgram(program.yuv420->programId());
+		program.yuv420->bind();
 		f.glActiveTexture(GL_TEXTURE0);
 		tileData.textures.bind(f, 0);
 		if (upload) {
@@ -1023,7 +1023,7 @@ void Viewport::RendererGL::drawFirstBlurPass(
 		QSize blurSize) {
 	tileData.framebuffers.bind(f, 1);
 
-	f.glUseProgram(_blurProgram->programId());
+	_blurProgram->bind();
 	f.glActiveTexture(GL_TEXTURE0);
 	tileData.textures.bind(f, kScaleForBlurTextureIndex);
 
@@ -1330,7 +1330,7 @@ void Viewport::RendererGL::validateNoiseTexture(
 		&program,
 		VertexShader({}),
 		FragmentShader({ FragmentGenerateNoise() }));
-	f.glUseProgram(program.programId());
+	program.bind();
 
 	GLint position = program.attributeLocation("position");
 	f.glVertexAttribPointer(
