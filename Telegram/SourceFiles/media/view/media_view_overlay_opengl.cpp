@@ -308,12 +308,12 @@ void OverlayWidget::RendererGL::paintTransformedContent(
 	const auto rect = transformRect(geometry.rect);
 	const auto centerx = rect.x() + rect.width() / 2;
 	const auto centery = rect.y() + rect.height() / 2;
-	const auto rsin = std::sinf(geometry.rotation * M_PI / 180.);
-	const auto rcos = std::cosf(geometry.rotation * M_PI / 180.);
+	const auto rsin = float(std::sin(geometry.rotation * M_PI / 180.));
+	const auto rcos = float(std::cos(geometry.rotation * M_PI / 180.));
 	const auto rotated = [&](float x, float y) -> std::array<float, 2> {
 		x -= centerx;
 		y -= centery;
-		return {
+		return std::array<float, 2>{
 			centerx + (x * rcos + y * rsin),
 			centery + (y * rcos - x * rsin)
 		};
