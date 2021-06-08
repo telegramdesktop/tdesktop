@@ -45,7 +45,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <CoreFoundation/CFURL.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/hidsystem/ev_keymap.h>
-#include <SPMediaKeyTap.h>
 
 @interface MainWindowObserver : NSObject {
 }
@@ -106,25 +105,6 @@ private:
 
 #endif // OS_MAC_OLD
 
-class EventFilter : public QAbstractNativeEventFilter {
-public:
-	EventFilter(not_null<MainWindow*> window) : _window(window) {
-	}
-
-	bool nativeEventFilter(
-			const QByteArray &eventType,
-			void *message,
-			long *result) {
-		return Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-			return _window->psFilterNativeEvent(message);
-		});
-	}
-
-private:
-	not_null<MainWindow*> _window;
-
-};
-
 [[nodiscard]] QImage TrayIconBack(bool darkMode) {
 	static const auto WithColor = [](QColor color) {
 		return st::macTrayIcon.instance(color, 100);
@@ -152,8 +132,6 @@ public:
 	void updateNativeTitle();
 
 	void enableShadow(WId winId);
-
-	bool filterNativeEvent(void *event);
 
 	void willEnterFullScreen();
 	void willExitFullScreen();
@@ -187,8 +165,6 @@ private:
 	NSPasteboard *_generalPasteboard = nullptr;
 	int _generalPasteboardChangeCount = -1;
 	bool _generalPasteboardHasText = false;
-
-	EventFilter _nativeEventFilter;
 
 };
 
@@ -260,8 +236,7 @@ void ForceDisabled(QAction *action, bool disabled) {
 
 MainWindow::Private::Private(not_null<MainWindow*> window)
 : _public(window)
-, _observer([[MainWindowObserver alloc] init:this])
-, _nativeEventFilter(window) {
+, _observer([[MainWindowObserver alloc] init:this]) {
 	_generalPasteboard = [NSPasteboard generalPasteboard];
 
 	@autoreleasepool {
@@ -270,11 +245,6 @@ MainWindow::Private::Private(not_null<MainWindow*> window)
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:_observer selector:@selector(darkModeChanged:) name:Q2NSString(strNotificationAboutThemeChange()) object:nil];
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:_observer selector:@selector(screenIsLocked:) name:Q2NSString(strNotificationAboutScreenLocked()) object:nil];
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:_observer selector:@selector(screenIsUnlocked:) name:Q2NSString(strNotificationAboutScreenUnlocked()) object:nil];
-
-#ifndef OS_MAC_STORE
-	// Register defaults for the whitelist of apps that want to use media keys
-	[[NSUserDefaults standardUserDefaults] registerDefaults:[NSDictionary dictionaryWithObjectsAndKeys:[SPMediaKeyTap defaultMediaKeyUserBundleIdentifiers], kMediaKeyUsingBundleIdentifiersDefaultsKey, nil]];
-#endif // !OS_MAC_STORE
 
 	}
 }
@@ -467,21 +437,6 @@ void MainWindow::Private::enableShadow(WId winId) {
 //	[[(NSView*)winId window] setHasShadow:YES];
 }
 
-bool MainWindow::Private::filterNativeEvent(void *event) {
-	NSEvent *e = static_cast<NSEvent*>(event);
-	if (e && [e type] == NSSystemDefined && [e subtype] == SPSystemDefinedEventMediaKeys) {
-#ifndef OS_MAC_STORE
-		// If event tap is not installed, handle events that reach the app instead
-		if (![SPMediaKeyTap usesGlobalMediaKeyTap]) {
-			return objc_handleMediaKeyEvent(e);
-		}
-#else // !OS_MAC_STORE
-		return objc_handleMediaKeyEvent(e);
-#endif // else for !OS_MAC_STORE
-	}
-	return false;
-}
-
 MainWindow::Private::~Private() {
 	[_observer release];
 }
@@ -489,8 +444,6 @@ MainWindow::Private::~Private() {
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller)
 , _private(std::make_unique<Private>(this)) {
-	QCoreApplication::instance()->installNativeEventFilter(
-		&_private->_nativeEventFilter);
 
 #ifndef OS_MAC_OLD
 	auto forceOpenGL = std::make_unique<QOpenGLWidget>(this);
@@ -929,10 +882,6 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psStrikeOut, !canApplyMarkdown);
 	ForceDisabled(psMonospace, !canApplyMarkdown);
 	ForceDisabled(psClearFormat, !canApplyMarkdown);
-}
-
-bool MainWindow::psFilterNativeEvent(void *event) {
-	return _private->filterNativeEvent(event);
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {

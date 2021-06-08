@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <CoreFoundation/CFURL.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/hidsystem/ev_keymap.h>
-#include <SPMediaKeyTap.h>
 
 using Platform::Q2NSString;
 using Platform::NS2QString;
@@ -131,14 +130,9 @@ NSMenuItem *CreateMenuItem(
 }
 
 - (BOOL) applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag;
-- (void) applicationDidFinishLaunching:(NSNotification *)aNotification;
 - (void) applicationDidBecomeActive:(NSNotification *)aNotification;
 - (void) applicationDidResignActive:(NSNotification *)aNotification;
 - (void) receiveWakeNote:(NSNotification*)note;
-
-- (void) setWatchingMediaKeys:(bool)watching;
-- (bool) isWatchingMediaKeys;
-- (void) mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)event;
 
 - (void) ignoreApplicationActivationRightNow;
 
@@ -149,8 +143,6 @@ NSMenuItem *CreateMenuItem(
 ApplicationDelegate *_sharedDelegate = nil;
 
 @implementation ApplicationDelegate {
-	SPMediaKeyTap *_keyTap;
-	bool _watchingMediaKeys;
 	bool _ignoreActivation;
 	base::Timer _ignoreActivationStop;
 }
@@ -165,24 +157,10 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void) applicationDidFinishLaunching:(NSNotification *)aNotification {
-	_keyTap = nullptr;
-	_watchingMediaKeys = false;
 	_ignoreActivation = false;
 	_ignoreActivationStop.setCallback([self] {
 		_ignoreActivation = false;
 	});
-#ifndef OS_MAC_STORE
-	if ([SPMediaKeyTap usesGlobalMediaKeyTap]) {
-		if (!Platform::IsMac10_14OrGreater()) {
-			_keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
-		} else {
-			// In macOS Mojave it requires accessibility features.
-			LOG(("Media key monitoring disabled starting with Mojave."));
-		}
-	} else {
-		LOG(("Media key monitoring disabled"));
-	}
-#endif // else for !OS_MAC_STORE
 }
 
 - (void) applicationDidBecomeActive:(NSNotification *)aNotification {
@@ -213,33 +191,6 @@ ApplicationDelegate *_sharedDelegate = nil;
 		Media::Audio::ScheduleDetachFromDeviceSafe();
 
 		Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
-	});
-}
-
-- (void) setWatchingMediaKeys:(bool)watching {
-	if (_watchingMediaKeys != watching) {
-		_watchingMediaKeys = watching;
-		if (_keyTap) {
-#ifndef OS_MAC_STORE
-			if (_watchingMediaKeys) {
-				[_keyTap startWatchingMediaKeys];
-			} else {
-				[_keyTap stopWatchingMediaKeys];
-			}
-#endif // else for !OS_MAC_STORE
-		}
-	}
-}
-
-- (bool) isWatchingMediaKeys {
-	return _watchingMediaKeys;
-}
-
-- (void) mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)e {
-	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-		if (e && [e type] == NSSystemDefined && [e subtype] == SPSystemDefinedEventMediaKeys) {
-			objc_handleMediaKeyEvent(e);
-		}
 	});
 }
 
@@ -293,9 +244,6 @@ ApplicationDelegate *_sharedDelegate = nil;
 namespace Platform {
 
 void SetWatchingMediaKeys(bool watching) {
-	if (_sharedDelegate) {
-		[_sharedDelegate setWatchingMediaKeys:watching];
-	}
 }
 
 void SetApplicationIcon(const QIcon &icon) {
@@ -309,43 +257,6 @@ void SetApplicationIcon(const QIcon &icon) {
 }
 
 } // namespace Platform
-
-bool objc_handleMediaKeyEvent(void *ev) {
-	auto e = reinterpret_cast<NSEvent*>(ev);
-
-	int keyCode = (([e data1] & 0xFFFF0000) >> 16);
-	int keyFlags = ([e data1] & 0x0000FFFF);
-	int keyState = (((keyFlags & 0xFF00) >> 8)) == 0xA;
-	int keyRepeat = (keyFlags & 0x1);
-
-	if (!_sharedDelegate || ![_sharedDelegate isWatchingMediaKeys]) {
-		return false;
-	}
-
-	switch (keyCode) {
-	case NX_KEYTYPE_PLAY:
-		if (keyState == 0) { // Play pressed and released
-			Media::Player::instance()->playPause();
-			return true;
-		}
-		break;
-
-	case NX_KEYTYPE_FAST:
-		if (keyState == 0) { // Next pressed and released
-			Media::Player::instance()->next();
-			return true;
-		}
-		break;
-
-	case NX_KEYTYPE_REWIND:
-		if (keyState == 0) { // Previous pressed and released
-			Media::Player::instance()->previous();
-			return true;
-		}
-		break;
-	}
-	return false;
-}
 
 void objc_debugShowAlert(const QString &str) {
 	@autoreleasepool {
