@@ -1119,6 +1119,7 @@ void Pip::volumeControllerUpdate(QPoint position) {
 		/ float64(_volumeController.icon.width());
 	const auto value = std::clamp(unbound, 0., 1.);
 	volumeChanged(value);
+	_panel.update();
 }
 
 void Pip::setupButtons() {
@@ -1191,8 +1192,12 @@ void Pip::setupButtons() {
 			rect.y() + (rect.height() - st::pipPlayIcon.height()) / 2,
 			st::pipPlayIcon.width(),
 			st::pipPlayIcon.height());
-		_volumeController.icon = _volumeController.area.marginsRemoved(
-			{ volumeSkip, volumeSkip, volumeSkip, volumeSkip });
+		const auto volumeArea = _volumeController.area;
+		_volumeController.icon = (volumeArea.width() > 2 * volumeSkip
+			&& volumeArea.height() > 2 * volumeSkip)
+			? volumeArea.marginsRemoved(
+				{ volumeSkip, volumeSkip, volumeSkip, volumeSkip })
+			: QRect();
 		const auto playbackSkip = st::pipPlaybackSkip;
 		const auto playbackHeight = 2 * playbackSkip + st::pipPlaybackWide;
 		_playback.area = QRect(
@@ -1258,7 +1263,7 @@ Ui::GL::ChosenRenderer Pip::chooseRenderer(
 void Pip::paint(not_null<Renderer*> renderer) const {
 	const auto controlsShown = _controlsShown.value(
 		(_over != OverState::None) ? 1. : 0.);
-	const auto geometry = ContentGeometry{
+	auto geometry = ContentGeometry{
 		.inner = _panel.inner(),
 		.attached = (_panel.useTransparency()
 			? _panel.attached()
@@ -1266,12 +1271,17 @@ void Pip::paint(not_null<Renderer*> renderer) const {
 		.fade = controlsShown,
 		.outer = _panel.widget()->size(),
 		.rotation = _rotation,
+		.videoRotation = _instance.info().video.rotation,
 		.useTransparency = _panel.useTransparency(),
 	};
 	if (canUseVideoFrame()) {
 		renderer->paintTransformedVideoFrame(geometry);
 		_instance.markFrameShown();
 	} else {
+		const auto content = staticContent();
+		if (_preparedCoverState == ThumbState::Cover) {
+			geometry.rotation += base::take(geometry.videoRotation);
+		}
 		renderer->paintTransformedStaticContent(staticContent(), geometry);
 	}
 	if (_instance.waitingShown()) {
@@ -1426,7 +1436,7 @@ void Pip::paintPlaybackTexts(QPainter &p, QRect outer) const {
 void Pip::paintVolumeController(
 		not_null<Renderer*> renderer,
 		float64 shown) const {
-	if (!_volumeController.icon.width()) {
+	if (_volumeController.icon.isEmpty()) {
 		return;
 	}
 	renderer->paintVolumeController(_volumeController.icon, shown);

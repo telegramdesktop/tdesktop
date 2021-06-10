@@ -162,6 +162,7 @@ private:
 		float64 fade = 0.;
 		QSize outer;
 		int rotation = 0;
+		int videoRotation = 0;
 		bool useTransparency = false;
 	};
 	struct StaticContent {

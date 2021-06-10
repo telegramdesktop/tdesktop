@@ -2395,44 +2395,44 @@ void OverlayWidget::displayDocument(
 
 	refreshMediaViewer();
 	if (_document) {
-if (_document->sticker()) {
-	if (const auto image = _documentMedia->getStickerLarge()) {
-		setStaticContent(image->original());
-	} else if (const auto thumbnail = _documentMedia->thumbnail()) {
-		setStaticContent(thumbnail->pixBlurred(
-			_document->dimensions.width(),
-			_document->dimensions.height()
-		).toImage());
-	}
-} else {
-	if (_documentMedia->canBePlayed()
-		&& initStreaming(continueStreaming)) {
-	} else if (_document->isVideoFile()) {
-		_documentMedia->automaticLoad(fileOrigin(), item);
-		initStreamingThumbnail();
-	} else if (_document->isTheme()) {
-		_documentMedia->automaticLoad(fileOrigin(), item);
-		initThemePreview();
-	} else {
-		_documentMedia->automaticLoad(fileOrigin(), item);
-		_document->saveFromDataSilent();
-		auto &location = _document->location(true);
-		if (location.accessEnable()) {
-			const auto &path = location.name();
-			if (QImageReader(path).canRead()) {
-				setStaticContent(PrepareStaticImage(path));
-				_touchbarDisplay.fire(TouchBarItemType::Photo);
+		if (_document->sticker()) {
+			if (const auto image = _documentMedia->getStickerLarge()) {
+				setStaticContent(image->original());
+			} else if (const auto thumbnail = _documentMedia->thumbnail()) {
+				setStaticContent(thumbnail->pixBlurred(
+					_document->dimensions.width(),
+					_document->dimensions.height()
+				).toImage());
 			}
-		} else if (!_documentMedia->bytes().isEmpty()) {
-			setStaticContent(
-				PrepareStaticImage(_documentMedia->bytes()));
-			if (!_staticContent.isNull()) {
-				_touchbarDisplay.fire(TouchBarItemType::Photo);
+		} else {
+			if (_documentMedia->canBePlayed()
+				&& initStreaming(continueStreaming)) {
+			} else if (_document->isVideoFile()) {
+				_documentMedia->automaticLoad(fileOrigin(), item);
+				initStreamingThumbnail();
+			} else if (_document->isTheme()) {
+				_documentMedia->automaticLoad(fileOrigin(), item);
+				initThemePreview();
+			} else {
+				_documentMedia->automaticLoad(fileOrigin(), item);
+				_document->saveFromDataSilent();
+				auto &location = _document->location(true);
+				if (location.accessEnable()) {
+					const auto &path = location.name();
+					if (QImageReader(path).canRead()) {
+						setStaticContent(PrepareStaticImage(path));
+						_touchbarDisplay.fire(TouchBarItemType::Photo);
+					}
+				} else if (!_documentMedia->bytes().isEmpty()) {
+					setStaticContent(
+						PrepareStaticImage(_documentMedia->bytes()));
+					if (!_staticContent.isNull()) {
+						_touchbarDisplay.fire(TouchBarItemType::Photo);
+					}
+				}
+				location.accessDisable();
 			}
 		}
-		location.accessDisable();
-	}
-}
 	}
 	refreshCaption(item);
 
@@ -2503,6 +2503,9 @@ if (_document->sticker()) {
 		_h = contentSize.height();
 	}
 	contentSizeChanged();
+	if (videoShown()) {
+		applyVideoSize();
+	}
 	refreshFromLabel(item);
 	_blurred = false;
 	if (_showAsPip && _streamed && !videoIsGifOrUserpic()) {
@@ -2682,8 +2685,9 @@ void OverlayWidget::initStreamingThumbnail() {
 void OverlayWidget::streamingReady(Streaming::Information &&info) {
 	if (videoShown()) {
 		applyVideoSize();
+	} else {
+		updateContentRect();
 	}
-	updateContentRect();
 }
 
 void OverlayWidget::applyVideoSize() {
@@ -2694,6 +2698,7 @@ void OverlayWidget::applyVideoSize() {
 		_h = contentSize.height();
 		contentSizeChanged();
 	}
+	updateContentRect();
 }
 
 bool OverlayWidget::createStreamingObjects() {
@@ -2958,7 +2963,6 @@ void OverlayWidget::playbackControlsRotate() {
 		_rotation = storage.get(_document);
 		if (videoShown()) {
 			applyVideoSize();
-			updateContentRect();
 		} else {
 			redisplayContent();
 		}

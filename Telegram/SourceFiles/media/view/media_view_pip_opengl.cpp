@@ -291,6 +291,7 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 	if (data.format == Streaming::FrameFormat::None) {
 		return;
 	}
+	geometry.rotation = (geometry.rotation + geometry.videoRotation) % 360;
 	if (data.format == Streaming::FrameFormat::ARGB32) {
 		Assert(!data.original.isNull());
 		paintTransformedStaticContent(data.original, geometry);
@@ -378,23 +379,31 @@ void Pip::RendererGL::paintTransformedStaticContent(
 void Pip::RendererGL::paintTransformedContent(
 		not_null<QOpenGLShaderProgram*> program,
 		ContentGeometry geometry) {
-	const auto rect = transformRect(geometry.inner);
+	std::array<std::array<GLfloat, 2>, 4> rect = { {
+		{ { -1.f, 1.f } },
+		{ { 1.f, 1.f } },
+		{ { 1.f, -1.f } },
+		{ { -1.f, -1.f } },
+	} };
+	if (const auto shift = (geometry.rotation / 90); shift != 0) {
+		std::rotate(begin(rect), begin(rect) + shift, end(rect));
+	}
 	const auto xscale = 1.f / geometry.inner.width();
 	const auto yscale = 1.f / geometry.inner.height();
 	const GLfloat coords[] = {
-		-1.f, 1.f,
+		rect[0][0], rect[0][1],
 		-geometry.inner.x() * xscale,
 		-geometry.inner.y() * yscale,
 
-		1.f, 1.f,
+		rect[1][0], rect[1][1],
 		(geometry.outer.width() - geometry.inner.x()) * xscale,
 		-geometry.inner.y() * yscale,
 
-		1.f, -1.f,
+		rect[2][0], rect[2][1],
 		(geometry.outer.width() - geometry.inner.x()) * xscale,
 		(geometry.outer.height() - geometry.inner.y()) * yscale,
 
-		-1.f, -1.f,
+		rect[3][0], rect[3][1],
 		-geometry.inner.x() * xscale,
 		(geometry.outer.height() - geometry.inner.y()) * yscale,
 	};
