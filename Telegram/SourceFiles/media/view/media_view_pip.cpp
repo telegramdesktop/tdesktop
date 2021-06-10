@@ -580,10 +580,9 @@ void PipPanel::handleMousePress(QPoint position, Qt::MouseButton button) {
 void PipPanel::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 	if (button != Qt::LeftButton || !base::take(_pressState)) {
 		return;
-	} else if (!base::take(_dragState)) {
-		//playbackPauseResume();
-	} else {
+	} else if (base::take(_dragState)) {
 		finishDrag(QCursor::pos());
+		updateOverState(position);
 	}
 }
 
