@@ -496,7 +496,7 @@ void Pip::RendererGL::paintRadialLoading(
 			int(std::round(fg.red() * fgAlpha + fade.red() * fadeAlpha)),
 			int(std::round(fg.green() * fgAlpha + fade.green() * fadeAlpha)),
 			int(std::round(fg.blue() * fgAlpha + fade.blue() * fadeAlpha)),
-			fg.alphaF());
+			fg.alpha());
 
 		_owner->paintRadialLoadingContent(p, newInner, color);
 	}, kRadialLoadingOffset, true);

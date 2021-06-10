@@ -1557,6 +1557,8 @@ void Pip::playbackPauseResume() {
 
 void Pip::restartAtSeekPosition(crl::time position) {
 	if (!_instance.info().video.cover.isNull()) {
+		_preparedCoverStorage = QImage();
+		_preparedCoverState = ThumbState::Empty;
 		_instance.saveFrameToCover();
 	}
 	auto options = Streaming::PlaybackOptions();
