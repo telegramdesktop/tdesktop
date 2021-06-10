@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_signal_bars.h"
 #include "calls/calls_userpic.h"
 #include "calls/calls_video_bubble.h"
+#include "calls/calls_video_incoming.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/call_button.h"
 #include "ui/widgets/buttons.h"
@@ -30,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/gl/gl_surface.h"
+#include "ui/gl/gl_shader.h"
 #include "ui/toast/toast.h"
 #include "ui/empty_userpic.h"
 #include "ui/emoji_config.h"
@@ -52,176 +54,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Calls {
 
-class Panel::Incoming final {
-public:
-	Incoming(
-		not_null<QWidget*> parent,
-		not_null<Webrtc::VideoTrack*> track,
-		Ui::GL::Backend backend);
-
-	[[nodiscard]] not_null<QWidget*> widget() const;
-	[[nodiscard]] not_null<Ui::RpWidgetWrap* > rp() const;
-
-private:
-	void paint(QPainter &p, const QRegion &clip, bool opengl);
-
-	void initBottomShadow();
-	void fillTopShadow(QPainter &p);
-	void fillBottomShadow(QPainter &p);
-
-	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
-		Ui::GL::Backend backend);
-
-	const std::unique_ptr<Ui::RpWidgetWrap> _surface;
-	const not_null<Webrtc::VideoTrack*> _track;
-	QPixmap _bottomShadow;
-
-};
-
-Panel::Incoming::Incoming(
-	not_null<QWidget*> parent,
-	not_null<Webrtc::VideoTrack*> track,
-	Ui::GL::Backend backend)
-: _surface(Ui::GL::CreateSurface(parent, chooseRenderer(backend)))
-, _track(track) {
-	initBottomShadow();
-	widget()->setAttribute(Qt::WA_OpaquePaintEvent);
-	widget()->setAttribute(Qt::WA_TransparentForMouseEvents);
-}
-
-not_null<QWidget*> Panel::Incoming::widget() const {
-	return _surface->rpWidget();
-}
-
-not_null<Ui::RpWidgetWrap*> Panel::Incoming::rp() const {
-	return _surface.get();
-}
-
-Ui::GL::ChosenRenderer Panel::Incoming::chooseRenderer(
-		Ui::GL::Backend backend) {
-	class Renderer : public Ui::GL::Renderer {
-	public:
-		Renderer(not_null<Panel::Incoming*> owner) : _owner(owner) {
-		}
-
-		void paintFallback(
-				Painter &&p,
-				const QRegion &clip,
-				Ui::GL::Backend backend) override {
-			_owner->paint(
-				p,
-				clip.boundingRect(),
-				backend == Ui::GL::Backend::OpenGL);
-		}
-
-	private:
-		const not_null<Panel::Incoming*> _owner;
-
-	};
-
-	return {
-		.renderer = std::make_unique<Renderer>(this),
-		.backend = backend,
-	};
-}
-
-void Panel::Incoming::paint(QPainter &p, const QRegion &clip, bool opengl) {
-	const auto data = _track->frameWithInfo(true);
-	const auto &image = data.original;
-	const auto rotation = data.rotation;
-	if (image.isNull()) {
-		p.fillRect(clip.boundingRect(), Qt::black);
-	} else {
-		const auto rect = widget()->rect();
-		using namespace Media::View;
-		auto hq = PainterHighQualityEnabler(p);
-		if (UsePainterRotation(rotation, opengl)) {
-			if (rotation) {
-				p.save();
-				p.rotate(rotation);
-			}
-			p.drawImage(RotatedRect(rect, rotation), image);
-			if (rotation) {
-				p.restore();
-			}
-		} else if (rotation) {
-			p.drawImage(rect, RotateFrameImage(image, rotation));
-		} else {
-			p.drawImage(rect, image);
-		}
-		fillBottomShadow(p);
-		fillTopShadow(p);
-	}
-	_track->markFrameShown();
-}
-
-void Panel::Incoming::initBottomShadow() {
-	auto image = QImage(
-		QSize(1, st::callBottomShadowSize) * cIntRetinaFactor(),
-		QImage::Format_ARGB32_Premultiplied);
-	const auto colorFrom = uint32(0);
-	const auto colorTill = uint32(74);
-	const auto rows = image.height();
-	const auto step = (uint64(colorTill - colorFrom) << 32) / rows;
-	auto accumulated = uint64();
-	auto bytes = image.bits();
-	for (auto y = 0; y != rows; ++y) {
-		accumulated += step;
-		const auto color = (colorFrom + uint32(accumulated >> 32)) << 24;
-		for (auto x = 0; x != image.width(); ++x) {
-			*(reinterpret_cast<uint32*>(bytes) + x) = color;
-		}
-		bytes += image.bytesPerLine();
-	}
-	_bottomShadow = Images::PixmapFast(std::move(image));
-}
-
-void Panel::Incoming::fillTopShadow(QPainter &p) {
-#ifdef Q_OS_WIN
-	const auto width = widget()->parentWidget()->width();
-	const auto position = QPoint(width - st::callTitleShadow.width(), 0);
-	const auto shadowArea = QRect(
-		position,
-		st::callTitleShadow.size());
-	const auto fill = shadowArea.intersected(
-		widget()->geometry()).translated(-widget()->pos());
-	if (fill.isEmpty()) {
-		return;
-	}
-	p.save();
-	p.setClipRect(fill);
-	st::callTitleShadow.paint(p, position - widget()->pos(), width);
-	p.restore();
-#endif // Q_OS_WIN
-}
-
-void Panel::Incoming::fillBottomShadow(QPainter &p) {
-	const auto shadowArea = QRect(
-		0,
-		widget()->parentWidget()->height() - st::callBottomShadowSize,
-		widget()->parentWidget()->width(),
-		st::callBottomShadowSize);
-	const auto fill = shadowArea.intersected(
-		widget()->geometry()).translated(-widget()->pos());
-	if (fill.isEmpty()) {
-		return;
-	}
-	const auto factor = cIntRetinaFactor();
-	p.drawPixmap(
-		fill,
-		_bottomShadow,
-		QRect(
-			0,
-			(factor
-				* (fill.y() - shadowArea.translated(-widget()->pos()).y())),
-			factor,
-			factor * fill.height()));
-}
-
 Panel::Panel(not_null<Call*> call)
 : _call(call)
 , _user(call->user())
-, _window(std::make_unique<Ui::Window>())
+, _window(createWindow())
 #ifndef Q_OS_MAC
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
 	_window->body(),
@@ -531,7 +367,9 @@ void Panel::reinitWithCall(Call *call) {
 	_call->videoIncoming()->renderNextFrame(
 	) | rpl::start_with_next([=] {
 		const auto track = _call->videoIncoming();
-		setIncomingSize(track->frameSize());
+		setIncomingSize(track->state() == Webrtc::VideoState::Active
+			? track->frameSize()
+			: QSize());
 		if (_incoming->widget()->isHidden()) {
 			return;
 		}
@@ -541,6 +379,13 @@ void Panel::reinitWithCall(Call *call) {
 		if (incoming.intersects(outgoing)) {
 			widget()->update(outgoing);
 		}
+	}, _callLifetime);
+
+	_call->videoIncoming()->stateValue(
+	) | rpl::start_with_next([=](Webrtc::VideoState state) {
+		setIncomingSize((state == Webrtc::VideoState::Active)
+			? _call->videoIncoming()->frameSize()
+			: QSize());
 	}, _callLifetime);
 
 	_call->videoOutgoing()->renderNextFrame(
@@ -592,6 +437,12 @@ void Panel::reinitWithCall(Call *call) {
 
 	_name->setText(_user->name);
 	updateStatusText(_call->state());
+
+	_answerHangupRedial->raise();
+	_decline->raise();
+	_cancel->raise();
+	_camera->raise();
+	_mute->raise();
 
 	_incoming->widget()->lower();
 }
@@ -720,15 +571,31 @@ void Panel::updateControlsGeometry() {
 	}
 	if (_fingerprint) {
 #ifndef Q_OS_MAC
-		const auto minRight = _controls->geometry().width()
-			+ st::callFingerprintTop;
+		const auto controlsGeometry = _controls->geometry();
+		const auto halfWidth = widget()->width() / 2;
+		const auto minLeft = (controlsGeometry.center().x() < halfWidth)
+			? (controlsGeometry.width() + st::callFingerprintTop)
+			: 0;
+		const auto minRight = (controlsGeometry.center().x() >= halfWidth)
+			? (controlsGeometry.width() + st::callFingerprintTop)
+			: 0;
+		_incoming->setControlsAlignment(minLeft
+			? style::al_left
+			: style::al_right);
 #else // !Q_OS_MAC
+		const auto minLeft = 0;
 		const auto minRight = 0;
 #endif // _controls
 		const auto desired = (widget()->width() - _fingerprint->width()) / 2;
-		_fingerprint->moveToRight(
-			std::max(desired, minRight),
-			st::callFingerprintTop);
+		if (minLeft) {
+			_fingerprint->moveToLeft(
+				std::max(desired, minLeft),
+				st::callFingerprintTop);
+		} else {
+			_fingerprint->moveToRight(
+				std::max(desired, minRight),
+				st::callFingerprintTop);
+		}
 	}
 	const auto innerHeight = std::max(widget()->height(), st::callHeightMin);
 	const auto innerWidth = widget()->width() - 2 * st::callInnerPadding;

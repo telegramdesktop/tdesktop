@@ -465,7 +465,8 @@ callTitle: WindowTitle(defaultWindowTitle) {
 	closeIconActive: callTitleCloseIcon;
 	closeIconActiveOver: callTitleCloseIconOver;
 }
-callTitleShadow: icon {{ "calls/calls_shadow_controls", windowShadowFg }};
+callTitleShadowRight: icon {{ "calls/calls_shadow_controls", windowShadowFg }};
+callTitleShadowLeft: icon {{ "calls/calls_shadow_controls-flip_horizontal", windowShadowFg }};
 
 callErrorToast: Toast(defaultToast) {
 	minWidth: 240px;

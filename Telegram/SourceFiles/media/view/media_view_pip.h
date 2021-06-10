@@ -38,7 +38,7 @@ namespace View {
 class PlaybackProgress;
 
 [[nodiscard]] QRect RotatedRect(QRect rect, int rotation);
-[[nodiscard]] bool UsePainterRotation(int rotation, bool opengl);
+[[nodiscard]] bool UsePainterRotation(int rotation);
 [[nodiscard]] QSize FlipSizeByRotation(QSize size, int rotation);
 [[nodiscard]] QImage RotateFrameImage(QImage image, int rotation);
 

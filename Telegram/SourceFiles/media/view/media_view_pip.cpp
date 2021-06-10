@@ -309,8 +309,8 @@ QRect RotatedRect(QRect rect, int rotation) {
 	Unexpected("Rotation in RotatedRect.");
 }
 
-bool UsePainterRotation(int rotation, bool opengl) {
-	return opengl || !(rotation % 180);
+bool UsePainterRotation(int rotation) {
+	return !(rotation % 180);
 }
 
 QSize FlipSizeByRotation(QSize size, int rotation) {

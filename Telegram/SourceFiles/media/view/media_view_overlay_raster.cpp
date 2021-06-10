@@ -98,7 +98,7 @@ void OverlayWidget::RendererSW::paintTransformedImage(
 		QRect rect,
 		int rotation) {
 	PainterHighQualityEnabler hq(*_p);
-	if (UsePainterRotation(rotation, false)) {
+	if (UsePainterRotation(rotation)) {
 		if (rotation) {
 			_p->save();
 			_p->rotate(rotation);

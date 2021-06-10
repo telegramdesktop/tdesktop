@@ -209,7 +209,7 @@ void Pip::RendererSW::paintTransformedImage(
 		Ui::Shadow::paint(*_p, rect, geometry.outer.width(), st::callShadow);
 	}
 
-	if (UsePainterRotation(rotation, false)) {
+	if (UsePainterRotation(rotation)) {
 		if (rotation) {
 			_p->save();
 			_p->rotate(rotation);

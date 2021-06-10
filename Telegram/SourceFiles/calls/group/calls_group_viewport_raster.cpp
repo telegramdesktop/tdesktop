@@ -95,6 +95,9 @@ void Viewport::RendererSW::paintTile(
 		const QRect &clip,
 		QRegion &bg) {
 	const auto track = tile->track();
+	const auto markGuard = gsl::finally([&] {
+		tile->track()->markFrameShown();
+	});
 	const auto data = track->frameWithInfo(true);
 	auto &tileData = _tileData[tile];
 	tileData.stale = false;
@@ -139,7 +142,7 @@ void Viewport::RendererSW::paintTile(
 	const auto left = (width - scaled.width()) / 2;
 	const auto top = (height - scaled.height()) / 2;
 	const auto target = QRect(QPoint(x + left, y + top), scaled);
-	if (UsePainterRotation(frameRotation, false)) {
+	if (UsePainterRotation(frameRotation)) {
 		if (frameRotation) {
 			p.save();
 			p.rotate(frameRotation);
@@ -154,7 +157,6 @@ void Viewport::RendererSW::paintTile(
 		p.drawImage(target, image);
 	}
 	bg -= target;
-	track->markFrameShown();
 
 	if (left > 0) {
 		fill({ x, y, left, height });

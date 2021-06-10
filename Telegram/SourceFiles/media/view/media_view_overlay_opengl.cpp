@@ -455,7 +455,7 @@ void OverlayWidget::RendererGL::paintControl(
 	const auto bgAlpha = int(std::round(bg.alpha() * outerOpacity));
 	const auto offset = kControlsOffset + (meta.index * kControlValues) / 4;
 	const auto fgOffset = offset + 2;
-	const auto bgRect = TransformRect(outer, _viewport, _factor);
+	const auto bgRect = transformRect(outer);
 	const auto iconRect = _controlsImage.texturedRect(
 		inner,
 		_controlsTextures[meta.index]);

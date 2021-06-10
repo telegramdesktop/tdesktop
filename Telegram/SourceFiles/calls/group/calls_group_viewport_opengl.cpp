@@ -502,6 +502,9 @@ void Viewport::RendererGL::paintTile(
 		not_null<VideoTile*> tile,
 		TileData &tileData) {
 	const auto track = tile->track();
+	const auto markGuard = gsl::finally([&] {
+		tile->track()->markFrameShown();
+	});
 	const auto data = track->frameWithInfo(false);
 	_userpicFrame = (data.format == Webrtc::FrameFormat::None);
 	validateUserpicFrame(tile, tileData);
@@ -745,7 +748,6 @@ void Viewport::RendererGL::paintTile(
 	f.glViewport(0, 0, blurSize.width(), blurSize.height());
 
 	bindFrame(f, data, tileData, _downscaleProgram);
-	tile->track()->markFrameShown();
 
 	drawDownscalePass(f, tileData);
 	drawFirstBlurPass(f, tileData, blurSize);
