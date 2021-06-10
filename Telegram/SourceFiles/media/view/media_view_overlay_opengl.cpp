@@ -119,14 +119,11 @@ void OverlayWidget::RendererGL::init(
 			FragmentSampleARGB32Texture(),
 			FragmentGlobalOpacity(),
 		}));
-
-	_background.init(f);
 }
 
 void OverlayWidget::RendererGL::deinit(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
-	_background.deinit(f);
 	_textures.destroy(f);
 	_imageProgram = std::nullopt;
 	_texturedVertexShader = nullptr;
@@ -137,61 +134,43 @@ void OverlayWidget::RendererGL::deinit(
 	_contentBuffer = std::nullopt;
 }
 
-void OverlayWidget::RendererGL::resize(
-		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f,
-		int w,
-		int h) {
-	const auto factor = widget->devicePixelRatio();
-	if (_factor != factor) {
-		_factor = factor;
-		_controlsImage.invalidate();
-	}
-	_viewport = QSize{ w, h };
-	_uniformViewport = QVector2D(
-		_viewport.width() * _factor,
-		_viewport.height() * _factor);
-	setDefaultViewport(f);
-}
-
-void OverlayWidget::RendererGL::setDefaultViewport(QOpenGLFunctions &f) {
-	f.glViewport(0, 0, _uniformViewport.x(), _uniformViewport.y());
-}
-
 void OverlayWidget::RendererGL::paint(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
 	if (handleHideWorkaround(f)) {
 		return;
 	}
+	const auto factor = widget->devicePixelRatio();
+	if (_factor != factor) {
+		_factor = factor;
+		_controlsImage.invalidate();
+	}
+	_viewport = widget->size();
+	_uniformViewport = QVector2D(
+		_viewport.width() * _factor,
+		_viewport.height() * _factor);
 	_f = &f;
 	_owner->paint(this);
 	_f = nullptr;
 }
 
-bool OverlayWidget::RendererGL::handleHideWorkaround(QOpenGLFunctions &f) {
-	if (!Platform::IsWindows() || !_owner->_hideWorkaround) {
-		return false;
+std::optional<QColor> OverlayWidget::RendererGL::clearColor() {
+	if (Platform::IsWindows() && _owner->_hideWorkaround) {
+		return QColor(0, 0, 0, 0);
+	} else if (_owner->_fullScreenVideo) {
+		return st::mediaviewVideoBg->c;
+	} else {
+		return st::mediaviewBg->c;
 	}
+}
+
+bool OverlayWidget::RendererGL::handleHideWorkaround(QOpenGLFunctions &f) {
 	// This is needed on Windows,
 	// because on reopen it blinks with the last shown content.
-	f.glClearColor(0., 0., 0., 0.);
-	f.glClear(GL_COLOR_BUFFER_BIT);
-	return true;
+	return Platform::IsWindows() && _owner->_hideWorkaround;
 }
 
 void OverlayWidget::RendererGL::paintBackground() {
-	const auto &bg = _owner->_fullScreenVideo
-		? st::mediaviewVideoBg
-		: st::mediaviewBg;
-	auto fill = QRegion(QRect(QPoint(), _viewport));
-	toggleBlending(false);
-	_background.fill(
-		*_f,
-		fill,
-		_viewport,
-		_factor,
-		bg);
 	_contentBuffer->bind();
 }
 

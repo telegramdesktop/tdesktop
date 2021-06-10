@@ -53,12 +53,6 @@ public:
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) override;
 
-	void resize(
-		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f,
-		int w,
-		int h) override;
-
 	void paint(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) override;
@@ -183,24 +177,6 @@ void Panel::Incoming::RendererGL::deinit(
 	_contentBuffer = std::nullopt;
 }
 
-void Panel::Incoming::RendererGL::resize(
-		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f,
-		int w,
-		int h) {
-	const auto factor = widget->devicePixelRatio();
-	if (_factor != factor) {
-		_factor = factor;
-		_controlsShadowImage.invalidate();
-	}
-	_viewport = QSize{ w, h };
-	_uniformViewport = QVector2D(
-		_viewport.width() * _factor,
-		_viewport.height() * _factor);
-	const auto size = _viewport * _factor;
-	f.glViewport(0, 0, size.width(), size.height());
-}
-
 void Panel::Incoming::RendererGL::paint(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
@@ -211,6 +187,17 @@ void Panel::Incoming::RendererGL::paint(
 	if (data.format == Webrtc::FrameFormat::None) {
 		return;
 	}
+
+	const auto factor = widget->devicePixelRatio();
+	if (_factor != factor) {
+		_factor = factor;
+		_controlsShadowImage.invalidate();
+	}
+	_viewport = widget->size();
+	_uniformViewport = QVector2D(
+		_viewport.width() * _factor,
+		_viewport.height() * _factor);
+
 	const auto rgbaFrame = (data.format == Webrtc::FrameFormat::ARGB32);
 	const auto upload = (_trackFrameIndex != data.index);
 	_trackFrameIndex = data.index;

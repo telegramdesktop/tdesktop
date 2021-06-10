@@ -374,8 +374,6 @@ void Viewport::RendererGL::init(
 		}));
 
 	validateNoiseTexture(f, 0);
-
-	_background.init(f);
 }
 
 void Viewport::RendererGL::ensureARGB32Program() {
@@ -403,8 +401,6 @@ void Viewport::RendererGL::ensureARGB32Program() {
 void Viewport::RendererGL::deinit(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
-	_background.deinit(f);
-
 	_frameBuffer = std::nullopt;
 	_frameVertexShader = nullptr;
 	_imageProgram = std::nullopt;
@@ -423,16 +419,6 @@ void Viewport::RendererGL::deinit(
 	_buttons.destroy(f);
 }
 
-void Viewport::RendererGL::resize(
-		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f,
-		int w,
-		int h) {
-	_factor = widget->devicePixelRatio();
-	_viewport = QSize(w, h);
-	setDefaultViewport(f);
-}
-
 void Viewport::RendererGL::setDefaultViewport(QOpenGLFunctions &f) {
 	const auto size = _viewport * _factor;
 	f.glViewport(0, 0, size.width(), size.height());
@@ -442,10 +428,11 @@ void Viewport::RendererGL::paint(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
 	_factor = widget->devicePixelRatio();
+	_viewport = widget->size();
+
 	const auto defaultFramebufferObject = widget->defaultFramebufferObject();
 
 	validateDatas();
-	fillBackground(f);
 	auto index = 0;
 	for (const auto &tile : _owner->_tiles) {
 		if (!tile->shown()) {
@@ -460,16 +447,8 @@ void Viewport::RendererGL::paint(
 	}
 }
 
-void Viewport::RendererGL::fillBackground(QOpenGLFunctions &f) {
-	const auto radius = st::roundRadiusLarge;
-	const auto radiuses = QMargins{ radius, radius, radius, radius };
-	auto region = QRegion(QRect(QPoint(), _viewport));
-	for (const auto &tile : _owner->_tiles) {
-		if (tile->shown()) {
-			region -= tile->geometry().marginsRemoved(radiuses);
-		}
-	}
-	_background.fill(f, region, _viewport, _factor, st::groupCallBg);
+std::optional<QColor> Viewport::RendererGL::clearColor() {
+	return st::groupCallBg->c;
 }
 
 void Viewport::RendererGL::validateUserpicFrame(

@@ -235,27 +235,6 @@ void Pip::RendererGL::deinit(
 	_contentBuffer = std::nullopt;
 }
 
-void Pip::RendererGL::resize(
-		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f,
-		int w,
-		int h) {
-	const auto factor = widget->devicePixelRatio();
-	if (_factor != factor) {
-		_factor = factor;
-		_controlsImage.invalidate();
-	}
-	_viewport = QSize{ w, h };
-	_uniformViewport = QVector2D(
-		_viewport.width() * _factor,
-		_viewport.height() * _factor);
-	setDefaultViewport(f);
-}
-
-void Pip::RendererGL::setDefaultViewport(QOpenGLFunctions &f) {
-	f.glViewport(0, 0, _uniformViewport.x(), _uniformViewport.y());
-}
-
 void Pip::RendererGL::createShadowTexture() {
 	const auto &shadow = st::callShadow;
 	const auto size = 2 * st::callShadow.topLeft.size()
@@ -279,9 +258,22 @@ void Pip::RendererGL::createShadowTexture() {
 void Pip::RendererGL::paint(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) {
+	const auto factor = widget->devicePixelRatio();
+	if (_factor != factor) {
+		_factor = factor;
+		_controlsImage.invalidate();
+	}
+	_viewport = widget->size();
+	_uniformViewport = QVector2D(
+		_viewport.width() * _factor,
+		_viewport.height() * _factor);
 	_f = &f;
 	_owner->paint(this);
 	_f = nullptr;
+}
+
+std::optional<QColor> Pip::RendererGL::clearColor() {
+	return QColor(0, 0, 0, 0);
 }
 
 void Pip::RendererGL::paintTransformedVideoFrame(

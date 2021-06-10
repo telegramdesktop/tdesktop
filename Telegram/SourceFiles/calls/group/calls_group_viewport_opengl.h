@@ -36,15 +36,11 @@ public:
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) override;
 
-	void resize(
-		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f,
-		int w,
-		int h) override;
-
 	void paint(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) override;
+
+	std::optional<QColor> clearColor() override;
 
 private:
 	struct TileData {
@@ -72,7 +68,6 @@ private:
 	};
 
 	void setDefaultViewport(QOpenGLFunctions &f);
-	void fillBackground(QOpenGLFunctions &f);
 	void paintTile(
 		QOpenGLFunctions &f,
 		GLuint defaultFramebufferObject,
@@ -138,7 +133,6 @@ private:
 	QSize _viewport;
 	bool _rgbaFrame = false;
 	bool _userpicFrame;
-	Ui::GL::BackgroundFiller _background;
 	std::optional<QOpenGLBuffer> _frameBuffer;
 	Program _downscaleProgram;
 	std::optional<QOpenGLShaderProgram> _blurProgram;

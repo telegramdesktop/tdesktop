@@ -27,15 +27,11 @@ public:
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) override;
 
-	void resize(
-		not_null<QOpenGLWidget*> widget,
-		QOpenGLFunctions &f,
-		int w,
-		int h) override;
-
 	void paint(
 		not_null<QOpenGLWidget*> widget,
 		QOpenGLFunctions &f) override;
+
+	std::optional<QColor> clearColor() override;
 
 private:
 	struct Control {
@@ -43,7 +39,6 @@ private:
 		not_null<const style::icon*> icon;
 	};
 	bool handleHideWorkaround(QOpenGLFunctions &f);
-	void setDefaultViewport(QOpenGLFunctions &f);
 
 	void paintBackground() override;
 	void paintTransformedVideoFrame(ContentGeometry geometry) override;
@@ -102,7 +97,6 @@ private:
 	const not_null<OverlayWidget*> _owner;
 
 	QOpenGLFunctions *_f = nullptr;
-	Ui::GL::BackgroundFiller _background;
 	QSize _viewport;
 	float _factor = 1.;
 	QVector2D _uniformViewport;

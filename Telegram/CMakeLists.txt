@@ -319,6 +319,8 @@ PRIVATE
     calls/calls_userpic.h
     calls/calls_video_bubble.cpp
     calls/calls_video_bubble.h
+    calls/calls_video_incoming.cpp
+    calls/calls_video_incoming.h
     chat_helpers/bot_keyboard.cpp
     chat_helpers/bot_keyboard.h
     chat_helpers/emoji_keywords.cpp
