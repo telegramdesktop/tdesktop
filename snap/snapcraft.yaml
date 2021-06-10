@@ -142,6 +142,7 @@ parts:
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     after:
       - desktop-qt5
+      - extra-cmake-modules
       - ffmpeg
       - kwayland
       - mozjpeg
