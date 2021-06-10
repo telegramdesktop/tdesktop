@@ -1022,27 +1022,22 @@ void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 	seekUpdate(position);
 	volumeControllerUpdate(position);
 	const auto pressed = base::take(_pressed);
-	if (pressed) {
-		if (*pressed == OverState::Playback) {
-			_panel.setDragDisabled(false);
-			seekFinish(_playbackProgress->value());
-			return;
-		} else if (*pressed == OverState::VolumeController) {
-			_panel.setDragDisabled(false);
-			_panel.update();
-			return;
-		}
+	if (pressed && *pressed == OverState::Playback) {
+		_panel.setDragDisabled(false);
+		seekFinish(_playbackProgress->value());
+	} else if (pressed && *pressed == OverState::VolumeController) {
+		_panel.setDragDisabled(false);
+		_panel.update();
 	} else if (_panel.dragging() || !pressed || *pressed != _over) {
 		_lastHandledPress = std::nullopt;
-		return;
-	}
-
-	_lastHandledPress = _over;
-	switch (_over) {
-	case OverState::Close: _panel.widget()->close(); break;
-	case OverState::Enlarge: _closeAndContinue(); break;
-	case OverState::VolumeToggle: volumeToggled(); break;
-	case OverState::Other: playbackPauseResume(); break;
+	} else {
+		_lastHandledPress = _over;
+		switch (_over) {
+		case OverState::Close: _panel.widget()->close(); break;
+		case OverState::Enlarge: _closeAndContinue(); break;
+		case OverState::VolumeToggle: volumeToggled(); break;
+		case OverState::Other: playbackPauseResume(); break;
+		}
 	}
 }
 
