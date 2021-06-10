@@ -273,7 +273,6 @@ void Pip::RendererGL::createShadowTexture() {
 			size.width(),
 			shadow);
 	}
-	image.save("C:\\Tmp\\shadow.png");
 	_shadowImage.setImage(std::move(image));
 }
 
