@@ -26,11 +26,13 @@ public:
 		not_null<Instance*> instance,
 		const QString &phone,
 		Fn<void(const MTPConfig &result)> onDone,
-		FailHandler onFail);
+		FailHandler onFail,
+		bool proxyEnabled);
 	~ConfigLoader();
 
 	void load();
 	void setPhone(const QString &phone);
+	void setProxyEnabled(bool value);
 
 private:
 	mtpRequestId sendRequest(ShiftedDcId shiftedDcId);
@@ -67,6 +69,7 @@ private:
 	DcId _specialEnumCurrent = 0;
 	mtpRequestId _specialEnumRequest = 0;
 	QString _phone;
+	bool _proxyEnabled = false;
 
 	Fn<void(const MTPConfig &result)> _doneHandler;
 	FailHandler _failHandler;

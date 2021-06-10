@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dc_options.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtp_instance.h"
-#include "facades.h"
 
 namespace MTP {
 namespace details {
@@ -28,9 +27,11 @@ ConfigLoader::ConfigLoader(
 	not_null<Instance*> instance,
 	const QString &phone,
 	Fn<void(const MTPConfig &result)> onDone,
-	FailHandler onFail)
+	FailHandler onFail,
+	bool proxyEnabled)
 : _instance(instance)
 , _phone(phone)
+, _proxyEnabled(proxyEnabled)
 , _doneHandler(onDone)
 , _failHandler(onFail) {
 	_enumDCTimer.setCallback([this] { enumerate(); });
@@ -115,7 +116,7 @@ void ConfigLoader::enumerate() {
 }
 
 void ConfigLoader::refreshSpecialLoader() {
-	if (Global::ProxySettings() == ProxyData::Settings::Enabled) {
+	if (_proxyEnabled) {
 		_specialLoader.reset();
 		return;
 	}
@@ -174,7 +175,7 @@ void ConfigLoader::addSpecialEndpoint(
 
 void ConfigLoader::sendSpecialRequest() {
 	terminateSpecialRequest();
-	if (Global::ProxySettings() == ProxyData::Settings::Enabled) {
+	if (_proxyEnabled) {
 		_specialLoader.reset();
 		return;
 	}
@@ -231,6 +232,10 @@ void ConfigLoader::specialConfigLoaded(const MTPConfig &result) {
 	// We use special config only for dc options.
 	// For everything else we wait for normal config from main dc.
 	_instance->dcOptions().setFromList(data.vdc_options());
+}
+
+void ConfigLoader::setProxyEnabled(bool value) {
+	_proxyEnabled = value;
 }
 
 } // namespace details

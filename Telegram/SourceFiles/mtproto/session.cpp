@@ -10,9 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/details/mtproto_dcenter.h"
 #include "mtproto/session_private.h"
 #include "mtproto/mtproto_auth_key.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "base/unixtime.h"
 #include "base/openssl_help.h"
-#include "facades.h"
 
 namespace MTP {
 namespace details {
@@ -238,22 +239,19 @@ void Session::restart() {
 }
 
 void Session::refreshOptions() {
-	const auto &proxy = Global::SelectedProxy();
-	const auto proxyType =
-		(Global::ProxySettings() == ProxyData::Settings::Enabled
-			? proxy.type
-			: ProxyData::Type::None);
+	auto &settings = Core::App().settings().proxy();
+	const auto &proxy = settings.selected();
+	const auto isEnabled = settings.isEnabled();
+	const auto proxyType = (isEnabled ? proxy.type : ProxyData::Type::None);
 	const auto useTcp = (proxyType != ProxyData::Type::Http);
 	const auto useHttp = (proxyType != ProxyData::Type::Mtproto);
 	const auto useIPv4 = true;
-	const auto useIPv6 = Global::TryIPv6();
+	const auto useIPv6 = settings.tryIPv6();
 	_data->setOptions(SessionOptions(
 		_instance->systemLangCode(),
 		_instance->cloudLangCode(),
 		_instance->langPackName(),
-		(Global::ProxySettings() == ProxyData::Settings::Enabled
-			? proxy
-			: ProxyData()),
+		(isEnabled ? proxy : ProxyData()),
 		useIPv4,
 		useIPv6,
 		useHttp,

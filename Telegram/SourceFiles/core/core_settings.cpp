@@ -77,6 +77,7 @@ Settings::Settings()
 QByteArray Settings::serialize() const {
 	const auto themesAccentColors = _themesAccentColors.serialize();
 	const auto windowPosition = Serialize(_windowPosition);
+	const auto proxy = _proxy.serialize();
 
 	auto recentEmojiPreloadGenerated = std::vector<RecentEmojiId>();
 	if (_recentEmojiPreload.empty()) {
@@ -97,7 +98,8 @@ QByteArray Settings::serialize() const {
 		+ Serialize::stringSize(_callOutputDeviceId)
 		+ Serialize::stringSize(_callInputDeviceId)
 		+ Serialize::stringSize(_callVideoInputDeviceId)
-		+ sizeof(qint32) * 5;
+		+ sizeof(qint32) * 5
+		+ Serialize::bytearraySize(proxy);
 	for (const auto &[key, value] : _soundOverrides) {
 		size += Serialize::stringSize(key) + Serialize::stringSize(value);
 	}
@@ -198,7 +200,8 @@ QByteArray Settings::serialize() const {
 		stream
 			<< qint32(_disableOpenGL ? 1 : 0)
 			<< qint32(_groupCallNoiseSuppression ? 1 : 0)
-			<< _workMode.current();
+			<< _workMode.current()
+			<< proxy;
 	}
 	return result;
 }
@@ -277,6 +280,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 disableOpenGL = _disableOpenGL ? 1 : 0;
 	qint32 groupCallNoiseSuppression = _groupCallNoiseSuppression ? 1 : 0;
 	qint32 workMode = static_cast<qint32>(_workMode.current());
+	QByteArray proxy;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -414,11 +418,16 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> workMode;
 	}
+	if (!stream.atEnd()) {
+		stream >> proxy;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
 		return;
 	} else if (!_themesAccentColors.setFromSerialized(themesAccentColors)) {
+		return;
+	} else if (!_proxy.setFromSerialized(proxy)) {
 		return;
 	}
 	_adaptiveForWide = (adaptiveForWide == 1);

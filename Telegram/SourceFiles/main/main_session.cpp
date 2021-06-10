@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_updates.h"
 #include "api/api_send_progress.h"
-#include "core/application.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session_settings.h"
@@ -34,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "calls/calls_instance.h"
 #include "support/support_helper.h"
-#include "facades.h"
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "chat_helpers/spellchecker_common.h"
@@ -88,10 +86,6 @@ Session::Session(
 , _saveSettingsTimer([=] { saveSettings(); }) {
 	Expects(_settings != nullptr);
 
-	subscribe(Global::RefConnectionTypeChanged(), [=] {
-		_api->refreshTopPromotion();
-	});
-	_api->refreshTopPromotion();
 	_api->requestTermsUpdate();
 	_api->requestFullPeer(_user);
 

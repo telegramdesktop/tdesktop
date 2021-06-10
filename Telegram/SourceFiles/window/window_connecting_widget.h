@@ -21,7 +21,7 @@ class Account;
 
 namespace Window {
 
-class ConnectionState : private base::Subscriber {
+class ConnectionState {
 public:
 	ConnectionState(
 		not_null<Ui::RpWidget*> parent,

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "core/core_settings_proxy.h"
 #include "window/themes/window_themes_embedded.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "platform/platform_notifications_manager.h"
@@ -65,6 +66,10 @@ public:
 
 	[[nodiscard]] rpl::producer<> saveDelayedRequests() const {
 		return _saveDelayed.events();
+	}
+
+	[[nodiscard]] SettingsProxy &proxy() {
+		return _proxy;
 	}
 
 	[[nodiscard]] static bool IsLeftCorner(ScreenCorner corner) {
@@ -596,6 +601,8 @@ private:
 		QString emoji;
 		ushort rating = 0;
 	};
+
+	SettingsProxy _proxy;
 
 	rpl::variable<bool> _adaptiveForWide = true;
 	bool _moderateModeEnabled = false;

@@ -212,6 +212,11 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 		}, _session->lifetime());
 
 		setupSupportMode();
+
+		Core::App().settings().proxy().connectionTypeValue(
+		) | rpl::start_with_next([=] {
+			refreshTopPromotion();
+		}, _session->lifetime());
 	});
 }
 
@@ -261,10 +266,10 @@ void ApiWrap::refreshTopPromotion() {
 		return;
 	}
 	const auto key = [&]() -> std::pair<QString, uint32> {
-		if (Global::ProxySettings() != MTP::ProxyData::Settings::Enabled) {
+		if (!Core::App().settings().proxy().isEnabled()) {
 			return {};
 		}
-		const auto &proxy = Global::SelectedProxy();
+		const auto &proxy = Core::App().settings().proxy().selected();
 		if (proxy.type != MTP::ProxyData::Type::Mtproto) {
 			return {};
 		}

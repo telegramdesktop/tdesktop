@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/themes/window_theme.h"
 #include "lang/lang_instance.h"
-#include "facades.h"
 
 #include <QtCore/QDirIterator>
 
@@ -466,19 +465,6 @@ void writeSettings() {
 	size += sizeof(quint32) + Serialize::bytearraySize(applicationSettings);
 	size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
 
-	auto &proxies = Global::RefProxiesList();
-	const auto &proxy = Global::SelectedProxy();
-	auto proxyIt = ranges::find(proxies, proxy);
-	if (proxy.type != MTP::ProxyData::Type::None
-		&& proxyIt == end(proxies)) {
-		proxies.push_back(proxy);
-		proxyIt = end(proxies) - 1;
-	}
-	size += sizeof(quint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
-	for (const auto &proxy : proxies) {
-		size += sizeof(qint32) + Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
-	}
-
 	// Theme keys and night mode.
 	size += sizeof(quint32) + sizeof(quint64) * 2 + sizeof(quint32);
 	size += sizeof(quint32) + sizeof(quint64) * 2;
@@ -500,17 +486,6 @@ void writeSettings() {
 	data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 	data.stream << quint32(dbiAnimationsDisabled) << qint32(anim::Disabled() ? 1 : 0);
 
-	data.stream << quint32(dbiConnectionType) << qint32(dbictProxiesList);
-	data.stream << qint32(proxies.size());
-	data.stream << qint32(proxyIt - begin(proxies)) + 1;
-	data.stream << qint32(Global::ProxySettings());
-	data.stream << qint32(Global::UseProxyForCalls() ? 1 : 0);
-	for (const auto &proxy : proxies) {
-		data.stream << qint32(kProxyTypeShift + int(proxy.type));
-		data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
-	}
-
-	data.stream << quint32(dbiTryIPv6) << qint32(Global::TryIPv6());
 	data.stream
 		<< quint32(dbiThemeKey)
 		<< quint64(_themeKeyDay)

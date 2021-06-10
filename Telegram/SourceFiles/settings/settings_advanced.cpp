@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mtproto/facade.h"
-#include "facades.h"
 #include "app.h"
 #include "styles/style_settings.h"
 
@@ -50,7 +49,7 @@ void SetupConnectionType(
 		not_null<Ui::VerticalLayout*> container) {
 	const auto connectionType = [=] {
 		const auto transport = account->mtp().dctransport();
-		if (Global::ProxySettings() != MTP::ProxyData::Settings::Enabled) {
+		if (!Core::App().settings().proxy().isEnabled()) {
 			return transport.isEmpty()
 				? tr::lng_connection_auto_connecting(tr::now)
 				: tr::lng_connection_auto(tr::now, lt_transport, transport);
@@ -64,7 +63,7 @@ void SetupConnectionType(
 		container,
 		tr::lng_settings_connection_type(),
 		rpl::merge(
-			base::ObservableViewer(Global::RefConnectionTypeChanged()),
+			Core::App().settings().proxy().connectionTypeChanges(),
 			// Handle language switch.
 			tr::lng_connection_auto_connecting() | rpl::to_empty
 		) | rpl::map(connectionType),

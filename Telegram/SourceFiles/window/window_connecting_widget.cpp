@@ -13,12 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "mtproto/facade.h"
 #include "main/main_account.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "core/update_checker.h"
 #include "window/themes/window_theme.h"
 #include "boxes/connection_box.h"
 #include "boxes/abstract_box.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
 #include "app.h"
 #include "styles/style_window.h"
 
@@ -224,9 +225,6 @@ ConnectionState::ConnectionState(
 		}
 	}, _lifetime);
 
-	subscribe(Global::RefConnectionTypeChanged(), [=] {
-		refreshState();
-	});
 	if (!Core::UpdaterDisabled()) {
 		Core::UpdateChecker checker;
 		rpl::merge(
@@ -236,7 +234,11 @@ ConnectionState::ConnectionState(
 			refreshState();
 		}, _lifetime);
 	}
-	refreshState();
+
+	Core::App().settings().proxy().connectionTypeValue(
+	) | rpl::start_with_next([=] {
+		refreshState();
+	}, _lifetime);
 }
 
 void ConnectionState::createWidget() {
@@ -291,8 +293,7 @@ void ConnectionState::refreshState() {
 		const auto under = _widget && _widget->isOver();
 		const auto ready = (Checker().state() == Checker::State::Ready);
 		const auto state = _account->mtp().dcstate();
-		const auto proxy
-			= (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled);
+		const auto proxy = Core::App().settings().proxy().isEnabled();
 		if (state == MTP::ConnectingState
 			|| state == MTP::DisconnectedState
 			|| (state < 0 && state > -600)) {

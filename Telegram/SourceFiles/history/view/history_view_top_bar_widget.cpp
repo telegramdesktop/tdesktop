@@ -47,7 +47,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "support/support_helper.h"
 #include "apiwrap.h"
-#include "facades.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
@@ -172,8 +171,7 @@ TopBarWidget::TopBarWidget(
 		updateInfoToggleActive();
 	}, lifetime());
 
-	rpl::single(rpl::empty_value()) | rpl::then(
-		base::ObservableViewer(Global::RefConnectionTypeChanged())
+	Core::App().settings().proxy().connectionTypeValue(
 	) | rpl::start_with_next([=] {
 		updateConnectingState();
 	}, lifetime());

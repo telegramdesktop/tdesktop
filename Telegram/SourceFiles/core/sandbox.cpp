@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "base/qt_adapters.h"
 #include "ui/effects/animations.h"
-#include "facades.h"
 #include "app.h"
 
 #include <QtGui/QSessionManager>
@@ -450,17 +449,17 @@ void Sandbox::checkForQuit() {
 }
 
 void Sandbox::refreshGlobalProxy() {
-	const auto proxy = !Global::started()
+	const auto proxy = !Core::IsAppLaunched()
 		? _sandboxProxy
-		: (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled)
-		? Global::SelectedProxy()
+		: Core::App().settings().proxy().isEnabled()
+		? Core::App().settings().proxy().selected()
 		: MTP::ProxyData();
 	if (proxy.type == MTP::ProxyData::Type::Socks5
 		|| proxy.type == MTP::ProxyData::Type::Http) {
 		QNetworkProxy::setApplicationProxy(
 			MTP::ToNetworkProxy(MTP::ToDirectIpProxy(proxy)));
-	} else if (!Global::started()
-		|| Global::ProxySettings() == MTP::ProxyData::Settings::System) {
+	} else if (!Core::IsAppLaunched()
+		|| Core::App().settings().proxy().isSystem()) {
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
 	} else {
 		QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
