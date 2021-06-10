@@ -771,6 +771,7 @@ RUN cmake3 --build out/Debug -- -j$(nproc)
 
 FROM builder
 
+COPY --from=extra-cmake-modules ${LibrariesPath}/extra-cmake-modules-cache /
 COPY --from=libffi ${LibrariesPath}/libffi-cache /
 COPY --from=xz ${LibrariesPath}/xz-cache /
 COPY --from=libproxy ${LibrariesPath}/libproxy-cache /

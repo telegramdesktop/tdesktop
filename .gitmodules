@@ -94,3 +94,6 @@
 [submodule "Telegram/ThirdParty/mallocng"]
 	path = Telegram/ThirdParty/mallocng
 	url = https://github.com/desktop-app/mallocng.git
+[submodule "Telegram/lib_waylandshells"]
+	path = Telegram/lib_waylandshells
+	url = https://github.com/desktop-app/lib_waylandshells.git
