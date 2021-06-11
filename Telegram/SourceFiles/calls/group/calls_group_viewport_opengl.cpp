@@ -1228,9 +1228,7 @@ void Viewport::RendererGL::validateDatas() {
 		_tileDataIndices[i] = index;
 	}
 	auto image = _names.takeImage();
-	const auto imageSize = QSize(
-		available * factor,
-		_tileData.size() * nameHeight);
+	const auto imageSize = QSize(available, _tileData.size() * nameHeight);
 	const auto allocate = (image.size() != imageSize);
 	auto paintToImage = allocate
 		? QImage(imageSize, QImage::Format_ARGB32_Premultiplied)
