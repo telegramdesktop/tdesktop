@@ -31,6 +31,7 @@ class GlobalShortcutValue;
 namespace Webrtc {
 class MediaDevices;
 class VideoTrack;
+enum class VideoState;
 } // namespace Webrtc
 
 namespace Data {
@@ -527,7 +528,7 @@ private:
 	void applyOtherParticipantUpdate(const MTPDgroupCallParticipant &data);
 
 	void setupMediaDevices();
-	void ensureOutgoingVideo();
+	void setupOutgoingVideo();
 	void setScreenEndpoint(std::string endpoint);
 	void setCameraEndpoint(std::string endpoint);
 	void addVideoOutput(const std::string &endpoint, SinkPointer sink);
@@ -592,7 +593,7 @@ private:
 	std::unique_ptr<tgcalls::GroupInstanceCustomImpl> _instance;
 	base::has_weak_ptr _instanceGuard;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _cameraCapture;
-	std::unique_ptr<Webrtc::VideoTrack> _cameraOutgoing;
+	rpl::variable<Webrtc::VideoState> _cameraState;
 	rpl::variable<bool> _isSharingCamera = false;
 	base::flat_map<std::string, SinkPointer> _pendingVideoOutputs;
 
@@ -602,7 +603,7 @@ private:
 	std::unique_ptr<tgcalls::GroupInstanceCustomImpl> _screenInstance;
 	base::has_weak_ptr _screenInstanceGuard;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _screenCapture;
-	std::unique_ptr<Webrtc::VideoTrack> _screenOutgoing;
+	rpl::variable<Webrtc::VideoState> _screenState;
 	rpl::variable<bool> _isSharingScreen = false;
 	QString _screenDeviceId;
 
