@@ -526,14 +526,14 @@ SuggestionsController::SuggestionsController(
 	setReplaceCallback(nullptr);
 
 	const auto fieldCallback = [=](not_null<QEvent*> event) {
-		return fieldFilter(event)
+		return (_container && fieldFilter(event))
 			? base::EventFilterResult::Cancel
 			: base::EventFilterResult::Continue;
 	};
 	_fieldFilter.reset(base::install_event_filter(_field, fieldCallback));
 
 	const auto outerCallback = [=](not_null<QEvent*> event) {
-		return outerFilter(event)
+		return (_container && outerFilter(event))
 			? base::EventFilterResult::Cancel
 			: base::EventFilterResult::Continue;
 	};
