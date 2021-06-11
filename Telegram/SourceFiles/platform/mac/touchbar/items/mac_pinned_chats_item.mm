@@ -441,7 +441,8 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 	_gestures.events(
 	) | rpl::filter([=] {
 		return !(*waitForFinish);
-	}) | rpl::start_with_next([=](not_null<NSPressGestureRecognizer*> gesture) {
+	}) | rpl::start_with_next([=](
+			not_null<NSPressGestureRecognizer*> gesture) {
 		const auto currentPosition = [gesture locationInView:self].x;
 
 		switch ([gesture state]) {
@@ -530,7 +531,8 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		pin->peer->paintUserpic(p, pin->userpicView, 0, 0, userpic.width());
 		userpic.setDevicePixelRatio(cRetinaFactor());
 		pin->userpic = std::move(userpic);
-		[self setNeedsDisplayInRect:PeerRectByIndex(pin->index)];
+		const auto userpicIndex = pin->index + [self shift];
+		[self setNeedsDisplayInRect:PeerRectByIndex(userpicIndex)];
 	};
 	const auto updateUserpics = [=] {
 		ranges::for_each(_pins, singleUserpic);
@@ -653,12 +655,15 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		peerChangedLifetime->destroy();
 		for (const auto &pin : _pins) {
 			const auto peer = pin->peer;
+			const auto index = pin->index;
+
 			_session->changes().peerUpdates(
 				peer,
 				UpdateFlag::Photo
-			) | rpl::start_with_next(
-				listenToDownloaderFinished,
-				*peerChangedLifetime);
+			) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
+				_pins[index]->userpicView = update.peer->createUserpicView();
+				listenToDownloaderFinished();
+			}, *peerChangedLifetime);
 
 			if (const auto user = peer->asUser()) {
 				if (!user->isServiceUser()
@@ -668,7 +673,6 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 				}
 			}
 
-			const auto index = pin->index;
 			rpl::merge(
 				_session->changes().historyUpdates(
 					_session->data().history(peer),
