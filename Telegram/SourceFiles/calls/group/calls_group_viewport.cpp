@@ -756,7 +756,7 @@ void Viewport::setTileGeometry(not_null<VideoTile*> tile, QRect geometry) {
 	tile->setGeometry(geometry);
 
 	const auto min = std::min(geometry.width(), geometry.height());
-	const auto kMedium = style::ConvertScale(480);
+	const auto kMedium = style::ConvertScale(540);
 	const auto kSmall = style::ConvertScale(240);
 	const auto quality = (min >= kMedium)
 		? VideoQuality::Full
