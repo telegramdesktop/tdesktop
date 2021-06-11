@@ -263,6 +263,7 @@ void Pip::RendererGL::paint(
 		_factor = factor;
 		_controlsImage.invalidate();
 	}
+	_blendingEnabled = false;
 	_viewport = widget->size();
 	_uniformViewport = QVector2D(
 		_viewport.width() * _factor,
@@ -429,7 +430,6 @@ void Pip::RendererGL::paintTransformedContent(
 		float(st::radialBg->c.blueF() * fadeAlpha),
 		float(fadeAlpha)));
 
-	toggleBlending(true);
 	FillTexturedRectangle(*_f, &*program);
 }
 
