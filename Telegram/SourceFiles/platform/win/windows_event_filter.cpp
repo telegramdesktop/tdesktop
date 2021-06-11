@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "ui/inactive_press.h"
 #include "mainwindow.h"
-#include "facades.h"
 #include "app.h"
 
 #include <QtGui/QWindow>
@@ -255,9 +254,7 @@ bool EventFilter::mainWindowEvent(
 		} else {
 			_window->shadowsDeactivate();
 		}
-		if (Global::started()) {
-			_window->update();
-		}
+		_window->update();
 	} return false;
 
 	case WM_WINDOWPOSCHANGING:

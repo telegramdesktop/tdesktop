@@ -75,7 +75,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/share_box.h"
-#include "facades.h"
 #include "app.h"
 
 #include <QtWidgets/QDesktopWidget>
@@ -177,7 +176,6 @@ Application::~Application() {
 	Media::Player::finish(_audio.get());
 	style::stopManager();
 
-	Global::finish();
 	ThirdParty::finish();
 
 	Instance = nullptr;
@@ -187,8 +185,7 @@ void Application::run() {
 	style::internal::StartFonts();
 
 	ThirdParty::start();
-	Global::start();
-	refreshGlobalProxy(); // Depends on Global::start().
+	refreshGlobalProxy(); // Depends on Core::IsAppLaunched().
 
 	// Depends on OpenSSL on macOS, so on ThirdParty::start().
 	// Depends on notifications settings.

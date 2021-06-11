@@ -82,24 +82,3 @@ bool switchInlineBotButtonReceived(
 	MsgId samePeerReplyTo = 0);
 
 } // namespace Notify
-
-#define DeclareReadOnlyVar(Type, Name) const Type &Name();
-#define DeclareRefVar(Type, Name) DeclareReadOnlyVar(Type, Name) \
-	Type &Ref##Name();
-#define DeclareVar(Type, Name) DeclareRefVar(Type, Name) \
-	void Set##Name(const Type &Name);
-
-namespace Global {
-
-bool started();
-void start();
-void finish();
-
-DeclareVar(bool, TryIPv6);
-DeclareVar(std::vector<MTP::ProxyData>, ProxiesList);
-DeclareVar(MTP::ProxyData, SelectedProxy);
-DeclareVar(MTP::ProxyData::Settings, ProxySettings);
-DeclareVar(bool, UseProxyForCalls);
-DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);
-
-} // namespace Global
