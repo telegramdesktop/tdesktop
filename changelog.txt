@@ -1,3 +1,12 @@
+2.7.7 beta (11.06.21)
+
+- Optimized video playback in media viewer and Picture-in-Picture mode.
+- Added integration with System Media Transport Controls on Windows 10.
+- Added "Now Playing" integration for music playback on macOS.
+- Added "Archive Sticker" into the "..." menu of the Sticker Set Box.
+- Fixed memory not being freed on Linux.
+- Several crash fixes.
+
 2.7.6 beta (31.05.21)
 
 - Optimized video playback in media viewer and Picture-in-Picture on Windows and Linux.
