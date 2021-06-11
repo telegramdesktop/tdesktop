@@ -71,6 +71,7 @@ public:
 	};
 
 	[[nodiscard]] bool isHidden() const;
+	[[nodiscard]] not_null<QWidget*> widget() const;
 	void hide();
 	void setCursor(style::cursor cursor);
 	void setFocus();

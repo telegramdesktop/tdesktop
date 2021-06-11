@@ -970,9 +970,9 @@ bool Application::minimizeActiveWindow() {
 
 QWidget *Application::getFileDialogParent() {
 	return (_mediaView && !_mediaView->isHidden())
-		? (QWidget*)_mediaView.get()
+		? static_cast<QWidget*>(_mediaView->widget())
 		: activeWindow()
-		? (QWidget*)activeWindow()->widget()
+		? static_cast<QWidget*>(activeWindow()->widget())
 		: nullptr;
 }
 

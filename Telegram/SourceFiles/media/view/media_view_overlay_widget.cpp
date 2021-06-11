@@ -2219,6 +2219,10 @@ bool OverlayWidget::isHidden() const {
 	return _widget->isHidden();
 }
 
+not_null<QWidget*> OverlayWidget::widget() const {
+	return _widget;
+}
+
 void OverlayWidget::hide() {
 	clearBeforeHide();
 	applyHideWindowWorkaround();
