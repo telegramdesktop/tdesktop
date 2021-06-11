@@ -1013,7 +1013,7 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 		FieldAutocomplete::ChooseMethod method,
 		int index,
 		Api::SendOptions options) const {
-	if (index < 0) {
+	if (index < 0 || (method == ChooseMethod::ByEnter && _mouseSelection)) {
 		return false;
 	}
 	if (!_srows->empty()) {
