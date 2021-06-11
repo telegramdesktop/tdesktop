@@ -883,10 +883,12 @@ void MainWidget::handleAudioUpdate(const Media::Player::TrackState &state) {
 	if (const auto item = session().data().message(state.id.contextId())) {
 		session().data().requestItemRepaint(item);
 	}
-	if (const auto items = InlineBots::Layout::documentItems()) {
-		if (const auto i = items->find(document); i != items->end()) {
-			for (const auto item : i->second) {
-				item->update();
+	if (document) {
+		if (const auto items = InlineBots::Layout::documentItems()) {
+			if (const auto i = items->find(document); i != items->end()) {
+				for (const auto item : i->second) {
+					item->update();
+				}
 			}
 		}
 	}
