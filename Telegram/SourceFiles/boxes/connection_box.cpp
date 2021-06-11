@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/text/text_options.h"
+#include "ui/basic_click_handlers.h"
 #include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -1086,10 +1087,25 @@ void ProxiesBoxController::ShowApplyConfirmation(
 		proxy.password = fields.value(qsl("secret"));
 	}
 	if (proxy) {
+		const auto displayed = "https://" + server + "/";
+		const auto parsed = QUrl::fromUserInput(displayed);
+		const auto displayUrl = !UrlClickHandler::IsSuspicious(displayed)
+			? displayed
+			: parsed.isValid()
+			? QString::fromUtf8(parsed.toEncoded())
+			: UrlClickHandler::ShowEncoded(displayed);
+		const auto displayServer = QString(
+			displayUrl
+		).replace(
+			QRegularExpression(
+				"^https://",
+				QRegularExpression::CaseInsensitiveOption),
+			QString()
+		).replace(QRegularExpression("/$"), QString());
 		const auto text = tr::lng_sure_enable_socks(
 			tr::now,
 			lt_server,
-			server,
+			displayServer,
 			lt_port,
 			QString::number(port))
 			+ (proxy.type == Type::Mtproto
