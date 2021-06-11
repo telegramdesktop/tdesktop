@@ -85,6 +85,10 @@ const auto kBadPrefix = u"http://"_q;
 	return true;
 }
 
+[[nodiscard]] QString OpenGLCheckFilePath() {
+	return cWorkingDir() + "tdata/opengl_crash_check";
+}
+
 } // namespace
 
 void UiIntegration::postponeCall(FnMut<void()> &&callable) {
@@ -101,6 +105,22 @@ void UiIntegration::unregisterLeaveSubscription(not_null<QWidget*> widget) {
 
 QString UiIntegration::emojiCacheFolder() {
 	return cWorkingDir() + "tdata/emoji";
+}
+
+void UiIntegration::openglCheckStart() {
+	auto f = QFile(OpenGLCheckFilePath());
+	if (f.open(QIODevice::WriteOnly)) {
+		f.write("1", 1);
+		f.close();
+	}
+}
+
+void UiIntegration::openglCheckFinish() {
+	QFile::remove(OpenGLCheckFilePath());
+}
+
+bool UiIntegration::openglLastCheckFailed() {
+	return QFile::exists(OpenGLCheckFilePath());
 }
 
 void UiIntegration::textActionsUpdated() {

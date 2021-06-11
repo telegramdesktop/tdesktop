@@ -299,13 +299,12 @@ private:
 	void startEmojiImageLoader();
 	void startSystemDarkModeViewer();
 
-	void stateChanged(Qt::ApplicationState state);
-
 	friend void App::quit();
 	static void QuitAttempt();
 	void quitDelayed();
 	[[nodiscard]] bool readyToQuit();
 
+	void showOpenGLCrashNotification();
 	void clearPasscodeLock();
 
 	bool openCustomUrl(

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/stickers_emoji_image_loader.h"
 #include "base/platform/base_platform_last_input.h"
+#include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
 #include "dialogs/dialogs_entry.h"
@@ -281,6 +282,36 @@ void Application::run() {
 	for (const auto &error : Shortcuts::Errors()) {
 		LOG(("Shortcuts Error: %1").arg(error));
 	}
+
+	if (!Platform::IsMac()
+		&& Ui::Integration::Instance().openglLastCheckFailed()) {
+		showOpenGLCrashNotification();
+	}
+}
+
+void Application::showOpenGLCrashNotification() {
+	const auto enable = [=] {
+		Ui::GL::ForceDisable(false);
+		Ui::Integration::Instance().openglCheckFinish();
+		Core::App().settings().setDisableOpenGL(false);
+		Local::writeSettings();
+		App::restart();
+	};
+	const auto keepDisabled = [=] {
+		Ui::GL::ForceDisable(true);
+		Ui::Integration::Instance().openglCheckFinish();
+		Core::App().settings().setDisableOpenGL(true);
+		Local::writeSettings();
+	};
+	_window->show(Box<ConfirmBox>(
+		"Last time OpenGL crashed on initialization. "
+		"Perhaps it is a problem with your graphics card driver.\n\n"
+		"Right now OpenGL was disabled. You can try to enable it back "
+		"or keep it disabled, if it continues crashing.",
+		"Enable",
+		"Keep Disabled",
+		enable,
+		keepDisabled));
 }
 
 void Application::startDomain() {

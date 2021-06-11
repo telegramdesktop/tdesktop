@@ -510,7 +510,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_emojiVariants = std::move(emojiVariants);
 	_disableOpenGL = (disableOpenGL == 1);
 	if (!Platform::IsMac()) {
-		Ui::GL::ForceDisable(_disableOpenGL);
+		Ui::GL::ForceDisable(_disableOpenGL
+			|| Ui::Integration::Instance().openglLastCheckFailed());
 	}
 }
 
