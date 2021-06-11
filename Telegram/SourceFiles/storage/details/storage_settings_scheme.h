@@ -174,16 +174,5 @@ enum {
 	dbiVersion = 666,
 };
 
-enum {
-	dbictAuto = 0,
-	dbictHttpAuto = 1, // not used
-	dbictHttpProxy = 2,
-	dbictTcpProxy = 3,
-	dbictProxiesListOld = 4,
-	dbictProxiesList = 5,
-};
-
-inline constexpr auto kProxyTypeShift = 1024;
-
 } // namespace details
 } // namespace Storage

@@ -461,6 +461,13 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
+		// const auto dbictAuto = 0;
+		// const auto dbictHttpAuto = 1; // not used
+		const auto dbictHttpProxy = 2;
+		const auto dbictTcpProxy = 3;
+		// const auto dbictProxiesListOld = 4;
+		// const auto dbictProxiesList = 5;
+
 		MTP::ProxyData proxy;
 		switch (v) {
 		case dbictHttpProxy:
@@ -496,22 +503,37 @@ bool ReadSetting(
 
 		auto &proxySettings = Core::App().settings().proxy();
 
+		const auto legacyProxyTypeShift = 1024;
+
+		// const auto dbictAuto = 0;
+		// const auto dbictHttpAuto = 1; // not used
+		const auto dbictHttpProxy = 2;
+		const auto dbictTcpProxy = 3;
+		const auto dbictProxiesListOld = 4;
+		const auto dbictProxiesList = 5;
+
 		const auto readProxy = [&] {
+			using Type = MTP::ProxyData::Type;
 			qint32 proxyType, port;
 			MTP::ProxyData proxy;
-			stream >> proxyType >> proxy.host >> port >> proxy.user >> proxy.password;
+			stream
+				>> proxyType
+				>> proxy.host
+				>> port
+				>> proxy.user
+				>> proxy.password;
 			proxy.port = port;
 			proxy.type = (proxyType == dbictTcpProxy)
-				? MTP::ProxyData::Type::Socks5
+				? Type::Socks5
 				: (proxyType == dbictHttpProxy)
-				? MTP::ProxyData::Type::Http
-				: (proxyType == kProxyTypeShift + int(MTP::ProxyData::Type::Socks5))
-				? MTP::ProxyData::Type::Socks5
-				: (proxyType == kProxyTypeShift + int(MTP::ProxyData::Type::Http))
-				? MTP::ProxyData::Type::Http
-				: (proxyType == kProxyTypeShift + int(MTP::ProxyData::Type::Mtproto))
-				? MTP::ProxyData::Type::Mtproto
-				: MTP::ProxyData::Type::None;
+				? Type::Http
+				: (proxyType == legacyProxyTypeShift + int(Type::Socks5))
+				? Type::Socks5
+				: (proxyType == legacyProxyTypeShift + int(Type::Http))
+				? Type::Http
+				: (proxyType == legacyProxyTypeShift + int(Type::Mtproto))
+				? Type::Mtproto
+				: Type::None;
 			return proxy;
 		};
 		if (connectionType == dbictProxiesListOld
