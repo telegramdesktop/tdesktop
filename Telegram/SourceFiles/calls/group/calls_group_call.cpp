@@ -1122,6 +1122,10 @@ void GroupCall::markTrackShown(const VideoEndpoint &endpoint, bool shown) {
 }
 
 void GroupCall::markTrackPaused(const VideoEndpoint &endpoint, bool paused) {
+	if (!endpoint) {
+		return;
+	}
+
 	const auto i = _activeVideoTracks.find(endpoint);
 	Assert(i != end(_activeVideoTracks));
 
