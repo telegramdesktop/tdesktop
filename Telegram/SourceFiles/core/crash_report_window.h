@@ -92,7 +92,6 @@ private:
 };
 
 class LastCrashedWindow : public PreLaunchWindow {
-	 Q_OBJECT
 
 public:
 	LastCrashedWindow(
@@ -106,28 +105,19 @@ public:
 		return _lifetime;
 	}
 
-public Q_SLOTS:
-	void onViewReport();
-	void onSaveReport();
-	void onSendReport();
-	void onGetApp();
+	void saveReport();
+	void sendReport();
 
-	void onNetworkSettings();
-	void onContinue();
+	void networkSettings();
+	void processContinue();
 
-	void onCheckingFinished();
-	void onSendingError(QNetworkReply::NetworkError e);
-	void onSendingFinished();
-	void onSendingProgress(qint64 uploaded, qint64 total);
+	void checkingFinished();
+	void sendingError(QNetworkReply::NetworkError e);
+	void sendingFinished();
+	void sendingProgress(qint64 uploaded, qint64 total);
 
-	void onUpdateRetry();
-	void onUpdateSkip();
-
-	void onUpdateChecking();
-	void onUpdateLatest();
-	void onUpdateDownloading(qint64 ready, qint64 total);
-	void onUpdateReady();
-	void onUpdateFailed();
+	void updateRetry();
+	void updateSkip();
 
 protected:
 	void closeEvent(QCloseEvent *e) override;

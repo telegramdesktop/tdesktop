@@ -185,7 +185,7 @@ NotStartedWindow::NotStartedWindow()
 
 	_log.setPlainText(Logs::full());
 
-	connect(&_close, SIGNAL(clicked()), this, SLOT(close()));
+	connect(&_close, &QPushButton::clicked, [=] { close(); });
 	_close.setText(qsl("CLOSE"));
 
 	QRect scr(QApplication::primaryScreen()->availableGeometry());
@@ -319,7 +319,10 @@ LastCrashedWindow::LastCrashedWindow(
 	}
 
 	_networkSettings.setText(qsl("NETWORK SETTINGS"));
-	connect(&_networkSettings, SIGNAL(clicked()), this, SLOT(onNetworkSettings()));
+	connect(
+		&_networkSettings,
+		&QPushButton::clicked,
+		[=] { networkSettings(); });
 
 	if (_sendingState == SendingNoReport) {
 		_label.setText(qsl("Last time Telegram Desktop was not closed properly."));
@@ -329,24 +332,53 @@ LastCrashedWindow::LastCrashedWindow(
 
 	if (_updaterData) {
 		_updaterData->check.setText(qsl("TRY AGAIN"));
-		connect(&_updaterData->check, SIGNAL(clicked()), this, SLOT(onUpdateRetry()));
+		connect(
+			&_updaterData->check,
+			&QPushButton::clicked,
+			[=] { updateRetry(); });
 		_updaterData->skip.setText(qsl("SKIP"));
-		connect(&_updaterData->skip, SIGNAL(clicked()), this, SLOT(onUpdateSkip()));
+		connect(
+			&_updaterData->skip,
+			&QPushButton::clicked,
+			[=] { updateSkip(); });
 
 		Core::UpdateChecker checker;
 		using Progress = Core::UpdateChecker::Progress;
 		checker.checking(
-		) | rpl::start_with_next([=] { onUpdateChecking(); }, _lifetime);
+		) | rpl::start_with_next([=] {
+			Assert(_updaterData != nullptr);
+
+			setUpdatingState(UpdatingCheck);
+		}, _lifetime);
+
 		checker.isLatest(
-		) | rpl::start_with_next([=] { onUpdateLatest(); }, _lifetime);
+		) | rpl::start_with_next([=] {
+			Assert(_updaterData != nullptr);
+
+			setUpdatingState(UpdatingLatest);
+		}, _lifetime);
+
 		checker.progress(
 		) | rpl::start_with_next([=](const Progress &result) {
-			onUpdateDownloading(result.already, result.size);
+			Assert(_updaterData != nullptr);
+
+			setUpdatingState(UpdatingDownload);
+			setDownloadProgress(result.already, result.size);
 		}, _lifetime);
+
 		checker.failed(
-		) | rpl::start_with_next([=] { onUpdateFailed(); }, _lifetime);
+		) | rpl::start_with_next([=] {
+			Assert(_updaterData != nullptr);
+
+			setUpdatingState(UpdatingFail);
+		}, _lifetime);
+
 		checker.ready(
-		) | rpl::start_with_next([=] { onUpdateReady(); }, _lifetime);
+		) | rpl::start_with_next([=] {
+			Assert(_updaterData != nullptr);
+
+			setUpdatingState(UpdatingReady);
+		}, _lifetime);
 
 		switch (checker.state()) {
 		case Core::UpdateChecker::State::Download:
@@ -380,19 +412,24 @@ LastCrashedWindow::LastCrashedWindow(
 	_report.setPlainText(_reportTextNoUsername);
 
 	_showReport.setText(qsl("VIEW REPORT"));
-	connect(&_showReport, SIGNAL(clicked()), this, SLOT(onViewReport()));
+	connect(&_showReport, &QPushButton::clicked, [=] {
+		_reportShown = !_reportShown;
+		updateControls();
+	});
 	_saveReport.setText(qsl("SAVE TO FILE"));
-	connect(&_saveReport, SIGNAL(clicked()), this, SLOT(onSaveReport()));
+	connect(&_saveReport, &QPushButton::clicked, [=] { saveReport(); });
 	_getApp.setText(qsl("GET THE LATEST OFFICIAL VERSION OF TELEGRAM DESKTOP"));
-	connect(&_getApp, SIGNAL(clicked()), this, SLOT(onGetApp()));
+	connect(&_getApp, &QPushButton::clicked, [=] {
+		QDesktopServices::openUrl(qsl("https://desktop.telegram.org"));
+	});
 
 	_send.setText(qsl("SEND CRASH REPORT"));
-	connect(&_send, SIGNAL(clicked()), this, SLOT(onSendReport()));
+	connect(&_send, &QPushButton::clicked, [=] { sendReport(); });
 
 	_sendSkip.setText(qsl("SKIP"));
-	connect(&_sendSkip, SIGNAL(clicked()), this, SLOT(onContinue()));
+	connect(&_sendSkip, &QPushButton::clicked, [=] { processContinue(); });
 	_continue.setText(qsl("CONTINUE"));
-	connect(&_continue, SIGNAL(clicked()), this, SLOT(onContinue()));
+	connect(&_continue, &QPushButton::clicked, [=] { processContinue(); });
 
 	QRect scr(QApplication::primaryScreen()->availableGeometry());
 	move(scr.x() + (scr.width() / 6), scr.y() + (scr.height() / 6));
@@ -400,12 +437,7 @@ LastCrashedWindow::LastCrashedWindow(
 	show();
 }
 
-void LastCrashedWindow::onViewReport() {
-	_reportShown = !_reportShown;
-	updateControls();
-}
-
-void LastCrashedWindow::onSaveReport() {
+void LastCrashedWindow::saveReport() {
 	QString to = QFileDialog::getSaveFileName(0, qsl("Telegram Crash Report"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + qsl("/report.telegramcrash"), qsl("Telegram crash report (*.telegramcrash)"));
 	if (!to.isEmpty()) {
 		QFile file(to);
@@ -425,10 +457,6 @@ QByteArray LastCrashedWindow::getCrashReportRaw() const {
 			"Username: _not_included_");
 	}
 	return result;
-}
-
-void LastCrashedWindow::onGetApp() {
-	QDesktopServices::openUrl(qsl("https://desktop.telegram.org"));
 }
 
 void LastCrashedWindow::excludeReportUsername() {
@@ -474,7 +502,7 @@ void LastCrashedWindow::addReportFieldPart(const QLatin1String &name, const QLat
 	}
 }
 
-void LastCrashedWindow::onSendReport() {
+void LastCrashedWindow::sendReport() {
 	if (_checkReply) {
 		_checkReply->deleteLater();
 		_checkReply = nullptr;
@@ -491,8 +519,14 @@ void LastCrashedWindow::onSendReport() {
 		QString::number(minidumpFileName().isEmpty() ? 0 : 1),
 		CrashReports::PlatformString())));
 
-	connect(_checkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onSendingError(QNetworkReply::NetworkError)));
-	connect(_checkReply, SIGNAL(finished()), this, SLOT(onCheckingFinished()));
+	connect(
+		_checkReply,
+		&QNetworkReply::errorOccurred,
+		[=](QNetworkReply::NetworkError code) { sendingError(code); });
+	connect(
+		_checkReply,
+		&QNetworkReply::finished,
+		[=] { checkingFinished(); });
 
 	_pleaseSendReport.setText(qsl("Sending crash report..."));
 	_sendingState = SendingProgress;
@@ -509,7 +543,7 @@ QString LastCrashedWindow::minidumpFileName() {
 	return QString();
 }
 
-void LastCrashedWindow::onCheckingFinished() {
+void LastCrashedWindow::checkingFinished() {
 	if (!_checkReply || _sendReply) return;
 
 	QByteArray result = _checkReply->readAll().trimmed();
@@ -581,9 +615,18 @@ void LastCrashedWindow::onCheckingFinished() {
 	_sendReply = _sendManager.post(QNetworkRequest(qsl("https://tdesktop.com/crash.php?act=report")), multipart);
 	multipart->setParent(_sendReply);
 
-	connect(_sendReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(onSendingError(QNetworkReply::NetworkError)));
-	connect(_sendReply, SIGNAL(finished()), this, SLOT(onSendingFinished()));
-	connect(_sendReply, SIGNAL(uploadProgress(qint64,qint64)), this, SLOT(onSendingProgress(qint64,qint64)));
+	connect(
+		_sendReply,
+		&QNetworkReply::errorOccurred,
+		[=](QNetworkReply::NetworkError code) { sendingError(code); });
+	connect(
+		_sendReply,
+		&QNetworkReply::finished,
+		[=] { sendingFinished(); });
+	connect(
+		_sendReply,
+		&QNetworkReply::uploadProgress,
+		[=](qint64 sent, qint64 total) { sendingProgress(sent, total); });
 
 	updateControls();
 }
@@ -811,7 +854,7 @@ void LastCrashedWindow::updateControls() {
 	}
 }
 
-void LastCrashedWindow::onNetworkSettings() {
+void LastCrashedWindow::networkSettings() {
 	const auto &proxy = Core::Sandbox::Instance().sandboxProxy();
 	const auto box = new NetworkSettingsWindow(
 		this,
@@ -840,7 +883,7 @@ void LastCrashedWindow::proxyUpdated() {
 		checker.start();
 	} else if (_sendingState == SendingFail
 		|| _sendingState == SendingProgress) {
-		onSendReport();
+		sendReport();
 	}
 	activate();
 }
@@ -858,7 +901,7 @@ void LastCrashedWindow::setUpdatingState(UpdatingState state, bool force) {
 		case UpdatingLatest:
 			_updating.setText(qsl("Latest version is installed."));
 			if (_sendingState == SendingNoReport) {
-				QTimer::singleShot(0, this, SLOT(onContinue()));
+				InvokeQueued(this, [=] { processContinue(); });
 			} else {
 				_sendingState = SendingNone;
 			}
@@ -898,7 +941,7 @@ void LastCrashedWindow::setDownloadProgress(qint64 ready, qint64 total) {
 	}
 }
 
-void LastCrashedWindow::onUpdateRetry() {
+void LastCrashedWindow::updateRetry() {
 	Expects(_updaterData != nullptr);
 
 	cSetLastUpdateCheck(0);
@@ -906,11 +949,11 @@ void LastCrashedWindow::onUpdateRetry() {
 	checker.start();
 }
 
-void LastCrashedWindow::onUpdateSkip() {
+void LastCrashedWindow::updateSkip() {
 	Expects(_updaterData != nullptr);
 
 	if (_sendingState == SendingNoReport) {
-		onContinue();
+		processContinue();
 	} else {
 		if (_updaterData->state == UpdatingCheck
 			|| _updaterData->state == UpdatingDownload) {
@@ -923,42 +966,11 @@ void LastCrashedWindow::onUpdateSkip() {
 	}
 }
 
-void LastCrashedWindow::onUpdateChecking() {
-	Expects(_updaterData != nullptr);
-
-	setUpdatingState(UpdatingCheck);
-}
-
-void LastCrashedWindow::onUpdateLatest() {
-	Expects(_updaterData != nullptr);
-
-	setUpdatingState(UpdatingLatest);
-}
-
-void LastCrashedWindow::onUpdateDownloading(qint64 ready, qint64 total) {
-	Expects(_updaterData != nullptr);
-
-	setUpdatingState(UpdatingDownload);
-	setDownloadProgress(ready, total);
-}
-
-void LastCrashedWindow::onUpdateReady() {
-	Expects(_updaterData != nullptr);
-
-	setUpdatingState(UpdatingReady);
-}
-
-void LastCrashedWindow::onUpdateFailed() {
-	Expects(_updaterData != nullptr);
-
-	setUpdatingState(UpdatingFail);
-}
-
-void LastCrashedWindow::onContinue() {
+void LastCrashedWindow::processContinue() {
 	close();
 }
 
-void LastCrashedWindow::onSendingError(QNetworkReply::NetworkError e) {
+void LastCrashedWindow::sendingError(QNetworkReply::NetworkError e) {
 	LOG(("Crash report sending error: %1").arg(e));
 
 	_pleaseSendReport.setText(qsl("Sending crash report failed :("));
@@ -974,7 +986,7 @@ void LastCrashedWindow::onSendingError(QNetworkReply::NetworkError e) {
 	updateControls();
 }
 
-void LastCrashedWindow::onSendingFinished() {
+void LastCrashedWindow::sendingFinished() {
 	if (_sendReply) {
 		QByteArray result = _sendReply->readAll();
 		LOG(("Crash report sending done, result: %1").arg(QString::fromUtf8(result)));
@@ -989,7 +1001,7 @@ void LastCrashedWindow::onSendingFinished() {
 	}
 }
 
-void LastCrashedWindow::onSendingProgress(qint64 uploaded, qint64 total) {
+void LastCrashedWindow::sendingProgress(qint64 uploaded, qint64 total) {
 	if (_sendingState != SendingProgress && _sendingState != SendingUploading) return;
 	_sendingState = SendingUploading;
 
@@ -1089,7 +1101,7 @@ NetworkSettingsWindow::NetworkSettingsWindow(QWidget *parent, QString host, quin
 	_save.setText(qsl("SAVE"));
 	connect(&_save, &QPushButton::clicked, [=] { save(); });
 	_cancel.setText(qsl("CANCEL"));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(close()));
+	connect(&_cancel, &QPushButton::clicked, [=] { close(); });
 
 	_hostInput.setText(host);
 	_portInput.setText(QString::number(port));
