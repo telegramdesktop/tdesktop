@@ -31,7 +31,7 @@ struct Data;
 enum class StackAction;
 enum class Animate;
 
-class Step : public Ui::RpWidget, protected base::Subscriber {
+class Step : public Ui::RpWidget {
 public:
 	Step(
 		QWidget *parent,
