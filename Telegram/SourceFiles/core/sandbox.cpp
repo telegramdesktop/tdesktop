@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "base/qthelp_regex.h"
 #include "base/qt_adapters.h"
+#include "ui/ui_utility.h"
 #include "ui/effects/animations.h"
 #include "app.h"
 
@@ -182,6 +183,8 @@ void Sandbox::launchApplication() {
 }
 
 void Sandbox::setupScreenScale() {
+	Ui::DisableCustomScaling();
+
 	const auto dpi = Sandbox::primaryScreen()->logicalDotsPerInch();
 	LOG(("Primary screen DPI: %1").arg(dpi));
 	if (dpi <= 108) {
