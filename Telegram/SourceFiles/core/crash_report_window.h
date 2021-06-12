@@ -113,7 +113,6 @@ public Q_SLOTS:
 	void onGetApp();
 
 	void onNetworkSettings();
-	void onNetworkSettingsSaved(QString host, quint32 port, QString username, QString password);
 	void onContinue();
 
 	void onCheckingFinished();
@@ -209,16 +208,12 @@ private:
 };
 
 class NetworkSettingsWindow : public PreLaunchWindow {
-	Q_OBJECT
 
 public:
 	NetworkSettingsWindow(QWidget *parent, QString host, quint32 port, QString username, QString password);
 
-Q_SIGNALS:
-	void saved(QString host, quint32 port, QString username, QString password);
-
-public Q_SLOTS:
-	void onSave();
+	[[nodiscard]] rpl::producer<MTP::ProxyData> saveRequests() const;
+	void save();
 
 protected:
 	void closeEvent(QCloseEvent *e);
@@ -232,5 +227,7 @@ private:
 	PreLaunchButton _save, _cancel;
 
 	QWidget *_parent;
+
+	rpl::event_stream<MTP::ProxyData> _saveRequests;
 
 };

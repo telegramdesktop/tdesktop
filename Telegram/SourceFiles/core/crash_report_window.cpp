@@ -819,31 +819,13 @@ void LastCrashedWindow::onNetworkSettings() {
 		proxy.port ? proxy.port : 80,
 		proxy.user,
 		proxy.password);
-	connect(
-		box,
-		SIGNAL(saved(QString,quint32,QString,QString)),
-		this,
-		SLOT(onNetworkSettingsSaved(QString,quint32,QString,QString)));
+	box->saveRequests(
+	) | rpl::start_with_next([=](MTP::ProxyData &&data) {
+		Assert(data.host.isEmpty() || data.port != 0);
+		_proxyChanges.fire(std::move(data));
+		proxyUpdated();
+	}, _lifetime);
 	box->show();
-}
-
-void LastCrashedWindow::onNetworkSettingsSaved(
-		QString host,
-		quint32 port,
-		QString username,
-		QString password) {
-	Expects(host.isEmpty() || port != 0);
-
-	auto proxy = MTP::ProxyData();
-	proxy.type = host.isEmpty()
-		? MTP::ProxyData::Type::None
-		: MTP::ProxyData::Type::Http;
-	proxy.host = host;
-	proxy.port = port;
-	proxy.user = username;
-	proxy.password = password;
-	_proxyChanges.fire(std::move(proxy));
-	proxyUpdated();
 }
 
 void LastCrashedWindow::proxyUpdated() {
@@ -1105,7 +1087,7 @@ NetworkSettingsWindow::NetworkSettingsWindow(QWidget *parent, QString host, quin
 	_passwordLabel.setText(qsl("Password"));
 
 	_save.setText(qsl("SAVE"));
-	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
+	connect(&_save, &QPushButton::clicked, [=] { save(); });
 	_cancel.setText(qsl("CANCEL"));
 	connect(&_cancel, SIGNAL(clicked()), this, SLOT(close()));
 
@@ -1138,7 +1120,7 @@ void NetworkSettingsWindow::resizeEvent(QResizeEvent *e) {
 	_cancel.move(_save.x() - padding - _cancel.width(), _save.y());
 }
 
-void NetworkSettingsWindow::onSave() {
+void NetworkSettingsWindow::save() {
 	QString host = _hostInput.text().trimmed(), port = _portInput.text().trimmed(), username = _usernameInput.text().trimmed(), password = _passwordInput.text().trimmed();
 	if (!port.isEmpty() && !port.toUInt()) {
 		_portInput.setFocus();
@@ -1147,12 +1129,24 @@ void NetworkSettingsWindow::onSave() {
 		_portInput.setFocus();
 		return;
 	}
-	saved(host, port.toUInt(), username, password);
+	_saveRequests.fire({
+		.type = host.isEmpty()
+			? MTP::ProxyData::Type::None
+			: MTP::ProxyData::Type::Http,
+		.host = host,
+		.port = port.toUInt(),
+		.user = username,
+		.password = password,
+	});
 	close();
 }
 
 void NetworkSettingsWindow::closeEvent(QCloseEvent *e) {
 	deleteLater();
+}
+
+rpl::producer<MTP::ProxyData> NetworkSettingsWindow::saveRequests() const {
+	return _saveRequests.events();
 }
 
 void NetworkSettingsWindow::updateControls() {
