@@ -104,6 +104,8 @@ PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(paren
 	p.setColor(QPalette::Text, QColor(0, 0, 0));
 	setPalette(p);
 
+	setStyleSheet("QLineEdit { background-color: white; }");
+
 	QLineEdit::setTextMargins(0, 0, 0, 0);
 	setContentsMargins(0, 0, 0, 0);
 	if (password) {
