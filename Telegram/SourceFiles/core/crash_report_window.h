@@ -135,9 +135,6 @@ private:
 
 	QByteArray _dumpraw;
 
-	QString _host, _username, _password;
-	quint32 _port;
-
 	PreLaunchLabel _label, _pleaseSendReport, _yourReportName, _minidump;
 	PreLaunchLog _report;
 	PreLaunchButton _send, _sendSkip, _networkSettings, _continue, _showReport, _saveReport, _getApp;
@@ -164,8 +161,6 @@ private:
 	SendingState _sendingState;
 
 	PreLaunchLabel _updating;
-	qint64 _sendingProgress = 0;
-	qint64 _sendingTotal = 0;
 
 	QNetworkAccessManager _sendManager;
 	QNetworkReply *_checkReply = nullptr;

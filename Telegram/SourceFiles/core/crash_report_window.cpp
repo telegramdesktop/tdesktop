@@ -230,7 +230,6 @@ LastCrashedWindow::LastCrashedWindow(
 	const QByteArray &crashdump,
 	Fn<void()> launch)
 : _dumpraw(crashdump)
-, _port(kDefaultProxyPort)
 , _label(this)
 , _pleaseSendReport(this)
 , _yourReportName(this)
@@ -859,7 +858,7 @@ void LastCrashedWindow::networkSettings() {
 	const auto box = new NetworkSettingsWindow(
 		this,
 		proxy.host,
-		proxy.port ? proxy.port : 80,
+		proxy.port ? proxy.port : kDefaultProxyPort,
 		proxy.user,
 		proxy.password);
 	box->saveRequests(
