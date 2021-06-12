@@ -80,10 +80,10 @@ f_gdk_wayland_window_set_transient_for_exported gdk_wayland_window_set_transient
 #endif // !DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
 
 void GdkHelperLoadGtk2(QLibrary &lib) {
-#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
+#if !defined DESKTOP_APP_DISABLE_X11_INTEGRATION && !defined LINK_TO_GTK
 	LOAD_GTK_SYMBOL(lib, gdk_x11_drawable_get_xdisplay);
 	LOAD_GTK_SYMBOL(lib, gdk_x11_drawable_get_xid);
-#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
+#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION && !LINK_TO_GTK
 }
 
 void GdkHelperLoadGtk3(QLibrary &lib) {
