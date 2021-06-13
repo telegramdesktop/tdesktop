@@ -723,7 +723,7 @@ void MainWindow::createGlobalMenu() {
 		if (!sessionController()) {
 			return;
 		}
-		Ui::show(PrepareContactsBox(sessionController()));
+		sessionController()->show(PrepareContactsBox(sessionController()));
 	}));
 	{
 		auto callback = [=] {

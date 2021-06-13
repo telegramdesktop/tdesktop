@@ -478,7 +478,8 @@ void InnerWidget::showFilter(Fn<void(FilterValue &&filter)> callback) {
 	if (_admins.empty()) {
 		_showFilterCallback = std::move(callback);
 	} else {
-		Ui::show(Box<FilterBox>(_channel, _admins, _filter, std::move(callback)));
+		_controller->show(
+			Box<FilterBox>(_channel, _admins, _filter, std::move(callback)));
 	}
 }
 
@@ -1317,7 +1318,8 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 					(*weakBox)->closeBox();
 				}
 			});
-			*weakBox = Ui::show(
+			*weakBox = QPointer<EditRestrictedBox>(box.data());
+			_controller->show(
 				std::move(box),
 				Ui::LayerOption::KeepOther);
 		};

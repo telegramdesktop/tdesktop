@@ -151,7 +151,7 @@ void BackgroundBox::prepare() {
 
 	_inner->chooseEvents(
 	) | rpl::start_with_next([=](const Data::WallPaper &paper) {
-		Ui::show(
+		_controller->show(
 			Box<BackgroundPreviewBox>(_controller, paper),
 			Ui::LayerOption::KeepOther);
 	}, _inner->lifetime());
@@ -176,7 +176,7 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 			paper.mtpSettings()
 		)).send();
 	};
-	Ui::show(
+	_controller->show(
 		Box<ConfirmBox>(
 			tr::lng_background_sure_delete(tr::now),
 			tr::lng_selected_delete(tr::now),

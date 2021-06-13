@@ -304,7 +304,7 @@ void BlockedBoxController::BlockNewPeer(
 		});
 		box->addButton(tr::lng_cancel(), [box] { box->closeBox(); });
 	};
-	Ui::show(
+	window->show(
 		Box<PeerListBox>(std::move(controller), std::move(initBox)),
 		Ui::LayerOption::KeepOther);
 }

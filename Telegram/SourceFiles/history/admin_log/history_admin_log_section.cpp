@@ -326,7 +326,7 @@ Widget::Widget(
 	connect(_scroll, &Ui::ScrollArea::scrolled, this, [this] { onScroll(); });
 
 	_whatIsThis->setClickedCallback([=] {
-		Ui::show(Box<InformBox>(channel->isMegagroup()
+		controller->show(Box<InformBox>(channel->isMegagroup()
 			? tr::lng_admin_log_about_text(tr::now)
 			: tr::lng_admin_log_about_text_channel(tr::now)));
 	});

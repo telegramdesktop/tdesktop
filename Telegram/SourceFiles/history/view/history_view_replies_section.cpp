@@ -215,7 +215,7 @@ RepliesWidget::RepliesWidget(
 			const auto media = item->media();
 			if (media && !media->webpage()) {
 				if (media->allowsEditCaption()) {
-					Ui::show(Box<EditCaptionBox>(controller, item));
+					controller->show(Box<EditCaptionBox>(controller, item));
 				}
 			} else {
 				_composeControls->editMessage(fullId);
@@ -655,7 +655,7 @@ bool RepliesWidget::confirmSendingFiles(
 		insertTextOnCancel));
 
 	//ActivateWindow(controller());
-	const auto shown = Ui::show(std::move(box));
+	const auto shown = controller()->show(std::move(box));
 	shown->setCloseByOutsideClick(false);
 
 	return true;
@@ -945,13 +945,13 @@ void RepliesWidget::edit(
 
 	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		if (item) {
-			Ui::show(Box<DeleteMessagesBox>(item, false));
+			controller()->show(Box<DeleteMessagesBox>(item, false));
 		} else {
 			doSetInnerFocus();
 		}
 		return;
 	} else if (!left.text.isEmpty()) {
-		Ui::show(Box<InformBox>(tr::lng_edit_too_long(tr::now)));
+		controller()->show(Box<InformBox>(tr::lng_edit_too_long(tr::now)));
 		return;
 	}
 
@@ -976,13 +976,13 @@ void RepliesWidget::edit(
 
 		const auto &err = error.type();
 		if (ranges::contains(Api::kDefaultEditMessagesErrors, err)) {
-			Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+			controller()->show(Box<InformBox>(tr::lng_edit_error(tr::now)));
 		} else if (err == u"MESSAGE_NOT_MODIFIED"_q) {
 			_composeControls->cancelEditMessage();
 		} else if (err == u"MESSAGE_EMPTY"_q) {
 			doSetInnerFocus();
 		} else {
-			Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+			controller()->show(Box<InformBox>(tr::lng_edit_error(tr::now)));
 		}
 		update();
 		return true;
@@ -1018,7 +1018,9 @@ bool RepliesWidget::sendExistingDocument(
 		_history->peer,
 		ChatRestriction::f_send_stickers);
 	if (error) {
-		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
+		controller()->show(
+			Box<InformBox>(*error),
+			Ui::LayerOption::KeepOther);
 		return false;
 	} else if (showSlowmodeError()) {
 		return false;
@@ -1052,7 +1054,9 @@ bool RepliesWidget::sendExistingPhoto(
 		_history->peer,
 		ChatRestriction::f_send_media);
 	if (error) {
-		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
+		controller()->show(
+			Box<InformBox>(*error),
+			Ui::LayerOption::KeepOther);
 		return false;
 	} else if (showSlowmodeError()) {
 		return false;
@@ -1073,7 +1077,7 @@ void RepliesWidget::sendInlineResult(
 		not_null<UserData*> bot) {
 	const auto errorText = result->getErrorOnSend(_history);
 	if (!errorText.isEmpty()) {
-		Ui::show(Box<InformBox>(errorText));
+		controller()->show(Box<InformBox>(errorText));
 		return;
 	}
 	sendInlineResult(result, bot, Api::SendOptions());

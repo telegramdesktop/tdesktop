@@ -75,18 +75,20 @@ void SetupPhoto(
 			if (image.isNull()
 				|| image.width() > 10 * image.height()
 				|| image.height() > 10 * image.width()) {
-				Ui::show(Box<InformBox>(tr::lng_bad_photo(tr::now)));
+				controller->show(Box<InformBox>(tr::lng_bad_photo(tr::now)));
 				return;
 			}
 
-			const auto box = Ui::show(
-				Box<PhotoCropBox>(image, tr::lng_settings_crop_profile(tr::now)));
+			auto box = Box<PhotoCropBox>(
+				image,
+				tr::lng_settings_crop_profile(tr::now));
 			box->ready(
 			) | rpl::start_with_next([=](QImage &&image) {
 				self->session().api().uploadPeerPhoto(
 					self,
 					std::move(image));
 			}, box->lifetime());
+			controller->show(std::move(box));
 		};
 		FileDialog::GetOpenPath(
 			upload,
@@ -219,6 +221,7 @@ void AddRow(
 
 void SetupRows(
 		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller,
 		not_null<UserData*> self) {
 	const auto session = &self->session();
 
@@ -229,7 +232,7 @@ void SetupRows(
 		tr::lng_settings_name_label(),
 		Info::Profile::NameValue(self),
 		tr::lng_profile_copy_fullname(tr::now),
-		[=] { Ui::show(Box<EditNameBox>(self)); },
+		[=] { controller->show(Box<EditNameBox>(self)); },
 		st::settingsInfoName);
 
 	AddRow(
@@ -237,7 +240,7 @@ void SetupRows(
 		tr::lng_settings_phone_label(),
 		Info::Profile::PhoneValue(self),
 		tr::lng_profile_copy_phone(tr::now),
-		[=] { Ui::show(Box<ChangePhoneBox>(session)); },
+		[=] { controller->show(Box<ChangePhoneBox>(session)); },
 		st::settingsInfoPhone);
 
 	auto username = Info::Profile::UsernameValue(self);
@@ -272,7 +275,7 @@ void SetupRows(
 		std::move(label),
 		std::move(value),
 		tr::lng_context_copy_mention(tr::now),
-		[=] { Ui::show(Box<UsernameBox>(session)); },
+		[=] { controller->show(Box<UsernameBox>(session)); },
 		st::settingsInfoUsername);
 
 	AddSkip(container, st::settingsInfoAfterSkip);
@@ -439,7 +442,7 @@ void Information::setupContent(
 
 	const auto self = controller->session().user();
 	SetupPhoto(content, controller, self);
-	SetupRows(content, self);
+	SetupRows(content, controller, self);
 	SetupBio(content, self);
 	//auto manager = SetupBio(content, self);
 	//_canSaveChanges = std::move(manager.canSave);

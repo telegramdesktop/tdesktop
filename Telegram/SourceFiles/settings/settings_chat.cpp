@@ -416,7 +416,7 @@ BackgroundRow::BackgroundRow(
 	updateImage();
 
 	_chooseFromGallery->addClickHandler([=] {
-		Ui::show(Box<BackgroundBox>(controller));
+		controller->show(Box<BackgroundBox>(controller));
 	});
 	_chooseFromFile->addClickHandler([=] {
 		ChooseFromFile(controller, this);
@@ -635,7 +635,7 @@ void ChooseFromFile(
 		auto local = Data::CustomWallPaper();
 		local.setLocalImageAsThumbnail(std::make_shared<Image>(
 			std::move(image)));
-		Ui::show(Box<BackgroundPreviewBox>(controller, local));
+		controller->show(Box<BackgroundPreviewBox>(controller, local));
 	});
 	FileDialog::GetOpenPath(
 		parent.get(),
@@ -725,7 +725,7 @@ void SetupStickersEmoji(
 		&st::settingsIconStickers,
 		st::settingsChatIconLeft
 	)->addClickHandler([=] {
-		Ui::show(
+		controller->show(
 			Box<StickersBox>(controller, StickersBox::Section::Installed));
 	});
 
@@ -736,7 +736,7 @@ void SetupStickersEmoji(
 		&st::settingsIconEmoji,
 		st::settingsChatIconLeft
 	)->addClickHandler([=] {
-		Ui::show(Box<Ui::Emoji::ManageSetsBox>(session));
+		controller->show(Box<Ui::Emoji::ManageSetsBox>(session));
 	});
 
 	AddSkip(container, st::settingsCheckboxesSkip);
@@ -862,7 +862,7 @@ void SetupDataStorage(
 		st::settingsButton,
 		tr::lng_download_path());
 	path->entity()->addClickHandler([=] {
-		Ui::show(Box<DownloadPathBox>(controller));
+		controller->show(Box<DownloadPathBox>(controller));
 	});
 	path->toggleOn(ask->toggledValue() | rpl::map(!_1));
 #endif // OS_WIN_STORE
@@ -901,7 +901,8 @@ void SetupAutoDownload(
 			std::move(label),
 			st::settingsButton
 		)->addClickHandler([=] {
-			Ui::show(Box<AutoDownloadBox>(&controller->session(), source));
+			controller->show(
+				Box<AutoDownloadBox>(&controller->session(), source));
 		});
 	};
 	add(tr::lng_media_auto_in_private(), Source::User);
@@ -1142,7 +1143,7 @@ void SetupDefaultThemes(
 			// in Window::Theme::Revert which is called by Editor.
 			//
 			// So we check here, before we change the saved accent color.
-			Ui::show(Box<InformBox>(
+			window->show(Box<InformBox>(
 				tr::lng_theme_editor_cant_change_theme(tr::now)));
 			return;
 		}
@@ -1269,7 +1270,9 @@ void SetupCloudThemes(
 	wrap->setDuration(0)->toggleOn(list->empty() | rpl::map(!_1));
 }
 
-void SetupAutoNightMode(not_null<Ui::VerticalLayout*> container) {
+void SetupAutoNightMode(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	if (!Platform::IsDarkModeSupported()) {
 		return;
 	}
@@ -1294,7 +1297,7 @@ void SetupAutoNightMode(not_null<Ui::VerticalLayout*> container) {
 	}) | rpl::start_with_next([=](bool checked) {
 		if (checked && Window::Theme::Background()->editingTheme()) {
 			autoNight->setChecked(false);
-			Ui::show(Box<InformBox>(
+			controller->show(Box<InformBox>(
 				tr::lng_theme_editor_cant_change_theme(tr::now)));
 		} else {
 			Core::App().settings().setSystemDarkModeEnabled(checked);
@@ -1451,7 +1454,7 @@ void Chat::setupContent(not_null<Window::SessionController*> controller) {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	SetupThemeOptions(controller, content);
-	SetupAutoNightMode(content);
+	SetupAutoNightMode(controller, content);
 	SetupCloudThemes(controller, content);
 	SetupChatBackground(controller, content);
 	SetupStickersEmoji(controller, content);

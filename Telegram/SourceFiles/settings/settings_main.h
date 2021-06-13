@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 
 namespace Window {
+class Controller;
 class SessionController;
 } // namespace Window
 
@@ -24,6 +25,7 @@ void SetupLanguageButton(
 	bool icon = true);
 bool HasInterfaceScale();
 void SetupInterfaceScale(
+	not_null<Window::Controller*> window,
 	not_null<Ui::VerticalLayout*> container,
 	bool icon = true);
 void SetupFaq(

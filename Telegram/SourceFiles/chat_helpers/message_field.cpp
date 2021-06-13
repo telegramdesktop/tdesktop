@@ -281,7 +281,7 @@ Fn<bool(
 			return Ui::InputField::IsValidMarkdownLink(link)
 				&& !TextUtilities::IsMentionLink(link);
 		}
-		Ui::show(Box<EditLinkBox>(controller, text, link, [=](
+		controller->show(Box<EditLinkBox>(controller, text, link, [=](
 				const QString &text,
 				const QString &link) {
 			if (const auto strong = weak.data()) {
@@ -321,7 +321,9 @@ void InitSpellchecker(
 		Core::App().settings().spellcheckerEnabledValue(),
 		Spellchecker::SpellingHighlighter::CustomContextMenuItem{
 			tr::lng_settings_manage_dictionaries(tr::now),
-			[=] { Ui::show(Box<Ui::ManageDictionariesBox>(controller)); }
+			[=] {
+				controller->show(Box<Ui::ManageDictionariesBox>(controller));
+			}
 		});
 	field->setExtendedContextMenu(s->contextMenuCreated());
 #endif // TDESKTOP_DISABLE_SPELLCHECK

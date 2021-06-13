@@ -126,7 +126,7 @@ void Controller::checkLockByTerms() {
 		return;
 	}
 	Ui::hideSettingsAndLayer(anim::type::instant);
-	const auto box = Ui::show(Box<TermsBox>(
+	const auto box = show(Box<TermsBox>(
 		*data,
 		tr::lng_terms_agree(),
 		tr::lng_terms_decline()));
@@ -161,7 +161,7 @@ void Controller::checkLockByTerms() {
 }
 
 void Controller::showTermsDecline() {
-	const auto box = Ui::show(
+	const auto box = show(
 		Box<Window::TermsBox>(
 			TextWithEntities{ tr::lng_terms_update_sorry(tr::now) },
 			tr::lng_terms_decline_and_delete(),
@@ -193,7 +193,7 @@ void Controller::showTermsDelete() {
 			Ui::hideLayer();
 		}
 	};
-	Ui::show(
+	show(
 		Box<ConfirmBox>(
 			tr::lng_terms_delete_warning(tr::now),
 			tr::lng_terms_delete_now(tr::now),

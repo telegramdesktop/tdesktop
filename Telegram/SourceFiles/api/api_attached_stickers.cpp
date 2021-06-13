@@ -36,10 +36,12 @@ void AttachedStickers::request(
 			return;
 		}
 		if (result.v.isEmpty()) {
-			Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
+			strongController->show(
+				Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 			return;
 		} else if (result.v.size() > 1) {
-			Ui::show(Box<StickersBox>(strongController, result));
+			strongController->show(
+				Box<StickersBox>(strongController, result));
 			return;
 		}
 		// Single attached sticker pack.
@@ -52,12 +54,15 @@ void AttachedStickers::request(
 		const auto setId = (setData->vid().v && setData->vaccess_hash().v)
 			? MTP_inputStickerSetID(setData->vid(), setData->vaccess_hash())
 			: MTP_inputStickerSetShortName(setData->vshort_name());
-		Ui::show(
+		strongController->show(
 			Box<StickerSetBox>(strongController, setId),
 			Ui::LayerOption::KeepOther);
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
-		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
+		if (const auto strongController = weak.get()) {
+			strongController->show(
+				Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
+		}
 	}).send();
 }
 

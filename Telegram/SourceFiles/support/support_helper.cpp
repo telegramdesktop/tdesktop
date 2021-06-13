@@ -507,7 +507,7 @@ void Helper::showEditInfoBox(
 			TextUtilities::ConvertTextTagsToEntities(result.tags)
 		}, done);
 	};
-	Ui::show(
+	controller->show(
 		Box<EditInfoBox>(controller, editData, save),
 		Ui::LayerOption::KeepOther);
 }

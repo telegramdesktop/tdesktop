@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 #include "ui/effects/animation_value.h"
+#include "ui/layers/layer_widget.h"
 #include "window/window_adaptive.h"
 
 class PhotoData;
@@ -249,6 +250,11 @@ public:
 	[[nodiscard]] bool selectingPeer() const {
 		return _selectingPeer;
 	}
+
+	QPointer<Ui::BoxContent> show(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options = Ui::LayerOption::KeepOther,
+		anim::type animated = anim::type::normal);
 
 	[[nodiscard]] auto tabbedSelector() const
 	-> not_null<ChatHelpers::TabbedSelector*>;

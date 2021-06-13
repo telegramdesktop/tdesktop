@@ -534,7 +534,7 @@ void StickersListWidget::Footer::mousePressEvent(QMouseEvent *e) {
 	updateSelected();
 
 	if (_iconOver == SpecialOver::Settings) {
-		Ui::show(Box<StickersBox>(
+		_pan->controller()->show(Box<StickersBox>(
 			_pan->controller(),
 			(hasOnlyFeaturedSets()
 				? StickersBox::Section::Featured
@@ -909,7 +909,7 @@ StickersListWidget::StickersListWidget(
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	_settings->addClickHandler([=] {
-		Ui::show(
+		controller->show(
 			Box<StickersBox>(controller, StickersBox::Section::Installed));
 	});
 
@@ -2185,7 +2185,7 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 				removeSet(sets[button->section].id);
 			}
 		} else if (std::get_if<OverGroupAdd>(&pressed)) {
-			Ui::show(Box<StickersBox>(controller(), _megagroupSet));
+			controller()->show(Box<StickersBox>(controller(), _megagroupSet));
 		}
 	}
 }
@@ -3005,7 +3005,7 @@ void StickersListWidget::displaySet(uint64 setId) {
 	if (setId == Data::Stickers::MegagroupSetId) {
 		if (_megagroupSet->canEditStickers()) {
 			_displayingSet = true;
-			checkHideWithBox(Ui::show(
+			checkHideWithBox(controller()->show(
 				Box<StickersBox>(controller(), _megagroupSet),
 				Ui::LayerOption::KeepOther).data());
 			return;
@@ -3019,7 +3019,7 @@ void StickersListWidget::displaySet(uint64 setId) {
 	auto it = sets.find(setId);
 	if (it != sets.cend()) {
 		_displayingSet = true;
-		checkHideWithBox(Ui::show(
+		checkHideWithBox(controller()->show(
 			Box<StickerSetBox>(controller(), it->second->mtpInput()),
 			Ui::LayerOption::KeepOther).data());
 	}
@@ -3083,7 +3083,7 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 		return;
 	}
 	_removingSetId = Data::Stickers::MegagroupSetId;
-	Ui::show(Box<ConfirmBox>(tr::lng_stickers_remove_group_set(tr::now), crl::guard(this, [this, group = _megagroupSet] {
+	controller()->show(Box<ConfirmBox>(tr::lng_stickers_remove_group_set(tr::now), crl::guard(this, [this, group = _megagroupSet] {
 		Expects(group->mgInfo != nullptr);
 
 		if (group->mgInfo->stickerSet.type() != mtpc_inputStickerSetEmpty) {
@@ -3105,7 +3105,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 		const auto set = it->second.get();
 		_removingSetId = set->id;
 		auto text = tr::lng_stickers_remove_pack(tr::now, lt_sticker_pack, set->title);
-		Ui::show(Box<ConfirmBox>(text, tr::lng_stickers_remove_pack_confirm(tr::now), crl::guard(this, [=] {
+		controller()->show(Box<ConfirmBox>(text, tr::lng_stickers_remove_pack_confirm(tr::now), crl::guard(this, [=] {
 			Ui::hideLayer();
 			const auto &sets = session().data().stickers().sets();
 			const auto it = sets.find(_removingSetId);

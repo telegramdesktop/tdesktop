@@ -65,7 +65,7 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 	AddDivider(result);
 	AddSkip(result);
 	SetupLanguageButton(result, false);
-	SetupConnectionType(&window->account(), result);
+	SetupConnectionType(window, &window->account(), result);
 	AddSkip(result);
 	if (HasUpdate()) {
 		AddDivider(result);
@@ -89,7 +89,7 @@ object_ptr<Ui::RpWidget> CreateIntroSettings(
 	}
 	AddDivider(result);
 	AddSkip(result);
-	SetupInterfaceScale(result, false);
+	SetupInterfaceScale(window, result, false);
 	SetupDefaultThemes(window, result);
 	AddSkip(result);
 

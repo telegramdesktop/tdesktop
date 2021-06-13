@@ -1002,7 +1002,7 @@ void SendFilesBox::sendScheduled() {
 		? SendMenu::Type::ScheduledToUser
 		: _sendMenuType;
 	const auto callback = [=](Api::SendOptions options) { send(options); };
-	Ui::show(
+	_controller->show(
 		HistoryView::PrepareScheduleBox(this, type, callback),
 		Ui::LayerOption::KeepOther);
 }

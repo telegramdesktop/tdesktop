@@ -795,7 +795,8 @@ rpl::producer<> ComposeControls::attachRequests() const {
 		_attachRequests.events()
 	) | rpl::filter([=] {
 		if (isEditingMessage()) {
-			Ui::show(Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
+			_window->show(
+				Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
 			return false;
 		}
 		return true;
@@ -1655,7 +1656,7 @@ void ComposeControls::initVoiceRecordBar() {
 				ChatRestriction::f_send_media)
 			: std::nullopt;
 		if (error) {
-			Ui::show(Box<InformBox>(*error));
+			_window->show(Box<InformBox>(*error));
 			return true;
 		} else if (_showSlowmodeError && _showSlowmodeError()) {
 			return true;
@@ -1954,7 +1955,7 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 	Expects(draftKeyCurrent() != Data::DraftKey::None());
 
 	if (_voiceRecordBar->isActive()) {
-		Ui::show(Box<InformBox>(tr::lng_edit_caption_voice(tr::now)));
+		_window->show(Box<InformBox>(tr::lng_edit_caption_voice(tr::now)));
 		return;
 	}
 

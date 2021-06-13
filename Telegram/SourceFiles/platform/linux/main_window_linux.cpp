@@ -1154,7 +1154,8 @@ void MainWindow::createGlobalMenu() {
 				return;
 			}
 
-			Ui::show(PrepareContactsBox(sessionController()));
+			sessionController()->show(
+				PrepareContactsBox(sessionController()));
 		}));
 
 	psAddContact = tools->addAction(

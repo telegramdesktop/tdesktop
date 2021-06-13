@@ -769,23 +769,25 @@ bool BackgroundPreviewBox::Start(
 		const QString &slug,
 		const QMap<QString, QString> &params) {
 	if (const auto paper = Data::WallPaper::FromColorSlug(slug)) {
-		Ui::show(Box<BackgroundPreviewBox>(
+		controller->show(Box<BackgroundPreviewBox>(
 			controller,
 			paper->withUrlParams(params)));
 		return true;
 	}
 	if (!IsValidWallPaperSlug(slug)) {
-		Ui::show(Box<InformBox>(tr::lng_background_bad_link(tr::now)));
+		controller->show(
+			Box<InformBox>(tr::lng_background_bad_link(tr::now)));
 		return false;
 	}
 	controller->session().api().requestWallPaper(slug, crl::guard(controller, [=](
 			const Data::WallPaper &result) {
-		Ui::show(Box<BackgroundPreviewBox>(
+		controller->show(Box<BackgroundPreviewBox>(
 			controller,
 			result.withUrlParams(params)));
-	}), [](const MTP::Error &error) {
-		Ui::show(Box<InformBox>(tr::lng_background_bad_link(tr::now)));
-	});
+	}), crl::guard(controller, [=](const MTP::Error &error) {
+		controller->show(
+			Box<InformBox>(tr::lng_background_bad_link(tr::now)));
+	}));
 	return true;
 }
 

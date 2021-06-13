@@ -141,7 +141,7 @@ void SessionNavigation::resolveUsername(
 	}).fail([=](const MTP::Error &error) {
 		_resolveRequestId = 0;
 		if (error.code() == 400) {
-			Ui::show(Box<InformBox>(
+			show(Box<InformBox>(
 				tr::lng_username_not_found(tr::now, lt_user, username)));
 		}
 	}).send();
@@ -471,7 +471,7 @@ SessionController::SessionController(
 	) | rpl::start_with_next([=](PeerData *peer) {
 		if (peer == _showEditPeer) {
 			_showEditPeer = nullptr;
-			Ui::show(Box<EditPeerInfoBox>(this, peer));
+			show(Box<EditPeerInfoBox>(this, peer));
 		}
 	}, lifetime());
 
@@ -993,7 +993,7 @@ void SessionController::startOrJoinGroupCall(
 		GroupCallJoinConfirm confirm) {
 	auto &calls = Core::App().calls();
 	const auto askConfirmation = [&](QString text, QString button) {
-		Ui::show(Box<ConfirmBox>(text, button, crl::guard(this, [=] {
+		show(Box<ConfirmBox>(text, button, crl::guard(this, [=] {
 			Ui::hideLayer();
 			startOrJoinGroupCall(peer, joinHash, GroupCallJoinConfirm::None);
 		})));
@@ -1095,7 +1095,7 @@ void SessionController::showJumpToDate(Dialogs::Key chat, QDate requestedDate) {
 	box->setMinDate(minPeerDate(chat));
 	box->setMaxDate(maxPeerDate(chat));
 	box->setBeginningButton(true);
-	Ui::show(std::move(box));
+	show(std::move(box));
 }
 
 void SessionController::showPassportForm(const Passport::FormRequest &request) {
@@ -1208,6 +1208,13 @@ void SessionController::showNewChannel() {
 
 Window::Adaptive &SessionController::adaptive() const {
 	return _window->adaptive();
+}
+
+QPointer<Ui::BoxContent> SessionController::show(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options,
+		anim::type animated) {
+	return _window->show(std::move(content), options, animated);
 }
 
 SessionController::~SessionController() = default;

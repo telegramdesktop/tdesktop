@@ -3192,7 +3192,7 @@ void InnerWidget::setupShortcuts() {
 		});
 
 		request->check(Command::ShowContacts) && request->handle([=] {
-			Ui::show(PrepareContactsBox(_controller));
+			_controller->show(PrepareContactsBox(_controller));
 			return true;
 		});
 

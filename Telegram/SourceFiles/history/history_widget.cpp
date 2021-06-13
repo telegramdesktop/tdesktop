@@ -627,7 +627,7 @@ HistoryWidget::HistoryWidget(
 			const auto unavailable = _peer->computeUnavailableReason();
 			if (!unavailable.isEmpty()) {
 				controller->showBackFromStack();
-				Ui::show(Box<InformBox>(unavailable));
+				controller->show(Box<InformBox>(unavailable));
 				return;
 			}
 		}
@@ -791,7 +791,7 @@ void HistoryWidget::initVoiceRecordBar() {
 			? Data::RestrictionError(_peer, ChatRestriction::f_send_media)
 			: std::nullopt;
 		if (error) {
-			Ui::show(Box<InformBox>(*error));
+			controller()->show(Box<InformBox>(*error));
 			return true;
 		} else if (showSlowmodeError()) {
 			return true;
@@ -948,7 +948,7 @@ void HistoryWidget::supportShareContact(Support::Contact contact) {
 			contact.lastName,
 			action);
 	};
-	const auto box = Ui::show(Box<Support::ConfirmContactBox>(
+	const auto box = controller()->show(Box<Support::ConfirmContactBox>(
 		controller(),
 		_history,
 		contact,
@@ -3089,10 +3089,11 @@ void HistoryWidget::saveEditMsg() {
 
 	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		const auto suggestModerateActions = false;
-		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
+		controller()->show(
+			Box<DeleteMessagesBox>(item, suggestModerateActions));
 		return;
 	} else if (!left.text.isEmpty()) {
-		Ui::show(Box<InformBox>(tr::lng_edit_too_long(tr::now)));
+		controller()->show(Box<InformBox>(tr::lng_edit_too_long(tr::now)));
 		return;
 	}
 
@@ -3126,14 +3127,16 @@ void HistoryWidget::saveEditMsg() {
 			}
 			const auto &err = error.type();
 			if (ranges::contains(Api::kDefaultEditMessagesErrors, err)) {
-				Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+				controller()->show(
+					Box<InformBox>(tr::lng_edit_error(tr::now)));
 			} else if (err == u"MESSAGE_NOT_MODIFIED"_q) {
 				cancelEdit();
 			} else if (err == u"MESSAGE_EMPTY"_q) {
 				_field->selectAll();
 				_field->setFocus();
 			} else {
-				Ui::show(Box<InformBox>(tr::lng_edit_error(tr::now)));
+				controller()->show(
+					Box<InformBox>(tr::lng_edit_error(tr::now)));
 			}
 			update();
 		})();
@@ -3256,7 +3259,7 @@ void HistoryWidget::sendScheduled() {
 		return;
 	}
 	const auto callback = [=](Api::SendOptions options) { send(options); };
-	Ui::show(
+	controller()->show(
 		HistoryView::PrepareScheduleBox(_list, sendMenuType(), callback),
 		Ui::LayerOption::KeepOther);
 }
@@ -3470,7 +3473,7 @@ void HistoryWidget::checkSuggestToGigagroup() {
 				group->input,
 				MTP_string("convert_to_gigagroup")
 			)).send();
-			Ui::show(Box([=](not_null<Ui::GenericBox*> box) {
+			controller()->show(Box([=](not_null<Ui::GenericBox*> box) {
 				box->setTitle(tr::lng_gigagroup_suggest_title());
 				box->addRow(
 					object_ptr<Ui::FlatLabel>(
@@ -3508,7 +3511,8 @@ void HistoryWidget::unreadMentionsAnimationFinish() {
 
 void HistoryWidget::chooseAttach() {
 	if (_editMsgId) {
-		Ui::show(Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
+		controller()->show(
+			Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
 		return;
 	}
 
@@ -4335,7 +4339,8 @@ bool HistoryWidget::confirmSendingFiles(
 		return false;
 	}
 	if (_editMsgId) {
-		Ui::show(Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
+		controller()->show(
+			Box<InformBox>(tr::lng_edit_caption_attach(tr::now)));
 		return false;
 	}
 
@@ -4379,7 +4384,7 @@ bool HistoryWidget::confirmSendingFiles(
 	}));
 
 	Window::ActivateWindow(controller());
-	const auto shown = Ui::show(std::move(box));
+	const auto shown = controller()->show(std::move(box));
 	shown->setCloseByOutsideClick(false);
 
 	return true;
@@ -5330,7 +5335,7 @@ void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
 
 	auto errorText = result.result->getErrorOnSend(_history);
 	if (!errorText.isEmpty()) {
-		Ui::show(Box<InformBox>(errorText));
+		controller()->show(Box<InformBox>(errorText));
 		return;
 	}
 
@@ -5664,7 +5669,9 @@ bool HistoryWidget::sendExistingDocument(
 		? Data::RestrictionError(_peer, ChatRestriction::f_send_stickers)
 		: std::nullopt;
 	if (error) {
-		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
+		controller()->show(
+			Box<InformBox>(*error),
+			Ui::LayerOption::KeepOther);
 		return false;
 	} else if (!_peer || !_peer->canWrite()) {
 		return false;
@@ -5698,7 +5705,9 @@ bool HistoryWidget::sendExistingPhoto(
 		? Data::RestrictionError(_peer, ChatRestriction::f_send_media)
 		: std::nullopt;
 	if (error) {
-		Ui::show(Box<InformBox>(*error), Ui::LayerOption::KeepOther);
+		controller()->show(
+			Box<InformBox>(*error),
+			Ui::LayerOption::KeepOther);
 		return false;
 	} else if (!_peer || !_peer->canWrite()) {
 		return false;
@@ -5782,14 +5791,18 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 	}
 	if (item->history() == _migrated) {
 		if (item->serviceMsg()) {
-			Ui::show(Box<InformBox>(tr::lng_reply_cant(tr::now)));
+			controller()->show(Box<InformBox>(tr::lng_reply_cant(tr::now)));
 		} else {
 			const auto itemId = item->fullId();
-			Ui::show(Box<ConfirmBox>(tr::lng_reply_cant_forward(tr::now), tr::lng_selected_forward(tr::now), crl::guard(this, [=] {
-				controller()->content()->setForwardDraft(
-					_peer->id,
-					{ 1, itemId });
-			})));
+			controller()->show(
+				Box<ConfirmBox>(
+					tr::lng_reply_cant_forward(tr::now),
+					tr::lng_selected_forward(tr::now),
+					crl::guard(this, [=] {
+						controller()->content()->setForwardDraft(
+							_peer->id,
+							{ 1, itemId });
+					})));
 		}
 		return;
 	}
@@ -5832,12 +5845,13 @@ void HistoryWidget::editMessage(FullMsgId itemId) {
 
 void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 	if (_voiceRecordBar->isActive()) {
-		Ui::show(Box<InformBox>(tr::lng_edit_caption_voice(tr::now)));
+		controller()->show(
+			Box<InformBox>(tr::lng_edit_caption_voice(tr::now)));
 		return;
 	}
 	if (const auto media = item->media()) {
 		if (media->allowsEditCaption()) {
-			Ui::show(Box<EditCaptionBox>(controller(), item));
+			controller()->show(Box<EditCaptionBox>(controller(), item));
 			return;
 		}
 	}
@@ -6283,14 +6297,13 @@ void HistoryWidget::confirmDeleteSelected() {
 		return;
 	}
 	const auto weak = Ui::MakeWeak(this);
-	const auto box = Ui::show(Box<DeleteMessagesBox>(
-		&session(),
-		std::move(items)));
+	auto box = Box<DeleteMessagesBox>(&session(), std::move(items));
 	box->setDeleteConfirmedCallback([=] {
 		if (const auto strong = weak.data()) {
 			strong->clearSelected();
 		}
 	});
+	controller()->show(std::move(box));
 }
 
 void HistoryWidget::escape() {
@@ -6303,7 +6316,7 @@ void HistoryWidget::escape() {
 	} else if (_editMsgId) {
 		if (_replyEditMsg
 			&& PrepareEditText(_replyEditMsg) != _field->getTextWithTags()) {
-			Ui::show(Box<ConfirmBox>(
+			controller()->show(Box<ConfirmBox>(
 				tr::lng_cancel_edit_post_sure(tr::now),
 				tr::lng_cancel_edit_post_yes(tr::now),
 				tr::lng_cancel_edit_post_no(tr::now),

@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_sensitive_content.h"
 #include "api/api_global_privacy.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "core/click_handler_types.h"
 #include "base/call_delayed.h"
@@ -167,6 +168,7 @@ bool HasInterfaceScale() {
 }
 
 void SetupInterfaceScale(
+		not_null<Window::Controller*> window,
 		not_null<Ui::VerticalLayout*> container,
 		bool icon) {
 	if (!HasInterfaceScale()) {
@@ -234,7 +236,7 @@ void SetupInterfaceScale(
 					button,
 					[=] { repeatSetScale(cConfigScale(), repeatSetScale); });
 			});
-			Ui::show(Box<ConfirmBox>(
+			window->show(Box<ConfirmBox>(
 				tr::lng_settings_need_restart(tr::now),
 				tr::lng_settings_restart_now(tr::now),
 				confirmed,
@@ -332,7 +334,7 @@ void SetupHelp(
 			sure,
 			OpenFaq);
 		box->setStrictCancel(true);
-		Ui::show(std::move(box));
+		controller->show(std::move(box));
 	});
 
 	AddSkip(container);
@@ -368,7 +370,7 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 	if (HasInterfaceScale()) {
 		AddDivider(content);
 		AddSkip(content);
-		SetupInterfaceScale(content);
+		SetupInterfaceScale(&controller->window(), content);
 		AddSkip(content);
 	}
 	SetupHelp(controller, content);

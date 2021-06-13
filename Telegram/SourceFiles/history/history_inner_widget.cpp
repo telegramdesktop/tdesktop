@@ -3226,7 +3226,7 @@ void HistoryInner::deleteItem(not_null<HistoryItem*> item) {
 		}
 	}
 	const auto suggestModerateActions = true;
-	Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
+	_controller->show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 }
 
 bool HistoryInner::hasPendingResizedItems() const {
@@ -3240,7 +3240,7 @@ void HistoryInner::deleteAsGroup(FullMsgId itemId) {
 		if (!group) {
 			return deleteItem(item);
 		}
-		Ui::show(Box<DeleteMessagesBox>(
+		_controller->show(Box<DeleteMessagesBox>(
 			&session(),
 			session().data().itemsToIds(group->items)));
 	}
@@ -3263,7 +3263,7 @@ void HistoryInner::reportAsGroup(FullMsgId itemId) {
 
 void HistoryInner::blockSenderItem(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
-		Ui::show(Box(
+		_controller->show(Box(
 			Window::BlockSenderFromRepliesBox,
 			_controller,
 			itemId));

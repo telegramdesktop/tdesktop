@@ -140,7 +140,7 @@ void SetupPrivacy(
 				BlockedBoxController::BlockNewPeer(controller);
 			});
 		};
-		Ui::show(Box<PeerListBox>(
+		controller->show(Box<PeerListBox>(
 			std::make_unique<BlockedBoxController>(controller),
 			initBox));
 	});
@@ -271,7 +271,7 @@ void SetupLocalPasscode(
 			std::move(text),
 			st::settingsButton)
 	)->addClickHandler([=] {
-		Ui::show(Box<PasscodeBox>(&controller->session(), false));
+		controller->show(Box<PasscodeBox>(&controller->session(), false));
 	});
 
 	const auto wrap = container->add(
@@ -285,7 +285,7 @@ void SetupLocalPasscode(
 			tr::lng_settings_passcode_disable(),
 			st::settingsButton)
 	)->addClickHandler([=] {
-		Ui::show(Box<PasscodeBox>(&controller->session(), true));
+		controller->show(Box<PasscodeBox>(&controller->session(), true));
 	});
 
 	const auto autoLockBoxClosing =
@@ -314,7 +314,8 @@ void SetupLocalPasscode(
 		std::move(value),
 		st::settingsButton
 	)->addClickHandler([=] {
-		const auto box = Ui::show(Box<AutoLockBox>(&controller->session()));
+		const auto box = controller->show(
+			Box<AutoLockBox>(&controller->session()));
 		box->boxClosing(
 		) | rpl::start_to_stream(*autoLockBoxClosing, box->lifetime());
 	});
@@ -409,9 +410,9 @@ void SetupCloudPassword(
 	))->setDuration(0);
 	change->entity()->addClickHandler([=] {
 		if (CheckEditCloudPassword(session)) {
-			Ui::show(EditCloudPasswordBox(session));
+			controller->show(EditCloudPasswordBox(session));
 		} else {
-			Ui::show(CloudPasswordAppOutdatedBox());
+			controller->show(CloudPasswordAppOutdatedBox());
 		}
 	});
 
@@ -448,14 +449,14 @@ void SetupCloudPassword(
 			session->api().clearUnconfirmedPassword();
 		}, validation.box->lifetime());
 
-		Ui::show(std::move(validation.box));
+		controller->show(std::move(validation.box));
 	});
 
 	const auto remove = [=] {
 		if (CheckEditCloudPassword(session)) {
-			RemoveCloudPassword(session);
+			RemoveCloudPassword(controller);
 		} else {
-			Ui::show(CloudPasswordAppOutdatedBox());
+			controller->show(CloudPasswordAppOutdatedBox());
 		}
 	};
 	const auto disable = container->add(
@@ -569,7 +570,7 @@ void SetupSelfDestruction(
 		label(),
 		st::settingsButton
 	)->addClickHandler([=] {
-		Ui::show(Box<SelfDestructionBox>(
+		controller->show(Box<SelfDestructionBox>(
 			session,
 			session->api().selfDestruct().days()));
 	});
@@ -648,7 +649,7 @@ void SetupBotsAndWebsites(
 		tr::lng_settings_clear_payment_info(),
 		st::settingsButton
 	)->addClickHandler([=] {
-		Ui::show(ClearPaymentInfoBox(session));
+		controller->show(ClearPaymentInfoBox(session));
 	});
 
 	AddSkip(container);
@@ -678,7 +679,7 @@ void SetupSessionsList(
 		std::move(count),
 		st::settingsButton
 	)->addClickHandler([=] {
-		Ui::show(Box<SessionsBox>(&controller->session()));
+		controller->show(Box<SessionsBox>(&controller->session()));
 	});
 	AddSkip(container, st::settingsPrivacySecurityPadding);
 	AddDividerText(container, tr::lng_settings_sessions_about());
@@ -734,7 +735,8 @@ object_ptr<Ui::BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session
 	return result;
 }
 
-void RemoveCloudPassword(not_null<::Main::Session*> session) {
+void RemoveCloudPassword(not_null<Window::SessionController*> controller) {
+	const auto session = &controller->session();
 	const auto current = session->api().passwordStateCurrent();
 	Assert(current.has_value());
 
@@ -744,7 +746,7 @@ void RemoveCloudPassword(not_null<::Main::Session*> session) {
 	}
 	auto fields = PasscodeBox::CloudFields::From(*current);
 	fields.turningOff = true;
-	const auto box = Ui::show(Box<PasscodeBox>(session, fields));
+	auto box = Box<PasscodeBox>(session, fields);
 
 	rpl::merge(
 		box->newPasswordSet() | rpl::to_empty,
@@ -757,6 +759,8 @@ void RemoveCloudPassword(not_null<::Main::Session*> session) {
 	) | rpl::start_with_next([=] {
 		session->api().clearUnconfirmedPassword();
 	}, box->lifetime());
+
+	controller->show(std::move(box));
 }
 
 object_ptr<Ui::BoxContent> CloudPasswordAppOutdatedBox() {
@@ -789,7 +793,7 @@ void AddPrivacyButton(
 		) | rpl::take(
 			1
 		) | rpl::start_with_next([=](const Privacy &value) {
-			Ui::show(
+			controller->show(
 				Box<EditPrivacyBox>(controller, controllerFactory(), value),
 				Ui::LayerOption::KeepOther);
 		});

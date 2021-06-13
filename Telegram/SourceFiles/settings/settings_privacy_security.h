@@ -23,7 +23,7 @@ int ExceptionUsersCount(const std::vector<not_null<PeerData*>> &exceptions);
 bool CheckEditCloudPassword(not_null<::Main::Session*> session);
 object_ptr<Ui::BoxContent> EditCloudPasswordBox(
 	not_null<::Main::Session*> session);
-void RemoveCloudPassword(not_null<::Main::Session*> session);
+void RemoveCloudPassword(not_null<Window::SessionController*> session);
 object_ptr<Ui::BoxContent> CloudPasswordAppOutdatedBox();
 
 void AddPrivacyButton(

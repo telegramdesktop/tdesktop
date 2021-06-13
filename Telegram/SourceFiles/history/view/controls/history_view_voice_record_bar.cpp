@@ -1638,7 +1638,7 @@ void VoiceRecordBar::showDiscardBox(
 			callback();
 		}
 	};
-	Ui::show(Box<ConfirmBox>(
+	_controller->show(Box<ConfirmBox>(
 		(isListenState()
 			? tr::lng_record_listen_cancel_sure
 			: tr::lng_record_lock_cancel_sure)(tr::now),

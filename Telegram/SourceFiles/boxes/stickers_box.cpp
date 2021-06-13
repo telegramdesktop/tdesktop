@@ -1592,7 +1592,7 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		}();
 		const auto showSetByRow = [&](const Row &row) {
 			setSelected(SelectedRow());
-			Ui::show(
+			_controller->show(
 				Box<StickerSetBox>(_controller, row.set->mtpInput()),
 				Ui::LayerOption::KeepOther);
 		};

@@ -153,7 +153,7 @@ QPointer<Ui::BoxContent> StickerSetBox::Show(
 		not_null<DocumentData*> document) {
 	if (const auto sticker = document->sticker()) {
 		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-			return Ui::show(
+			return controller->show(
 				Box<StickerSetBox>(controller, sticker->set),
 				Ui::LayerOption::KeepOther).data();
 		}
@@ -324,7 +324,7 @@ StickerSetBox::Inner::Inner(
 		gotSet(result);
 	}).fail([=](const MTP::Error &error) {
 		_loaded = true;
-		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
+		controller->show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 	}).send();
 
 	_controller->session().api().updateStickers();
@@ -419,7 +419,8 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 	});
 
 	if (_pack.isEmpty()) {
-		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
+		_controller->show(
+			Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 		return;
 	} else {
 		int32 rows = _pack.size() / kStickersPanelPerRow + ((_pack.size() % kStickersPanelPerRow) ? 1 : 0);
@@ -795,7 +796,7 @@ QString StickerSetBox::Inner::shortName() const {
 
 void StickerSetBox::Inner::install() {
 	if (isMasksSet()) {
-		Ui::show(
+		_controller->show(
 			Box<InformBox>(tr::lng_stickers_masks_pack(tr::now)),
 			Ui::LayerOption::KeepOther);
 		return;
@@ -808,7 +809,8 @@ void StickerSetBox::Inner::install() {
 	)).done([=](const MTPmessages_StickerSetInstallResult &result) {
 		installDone(result);
 	}).fail([=](const MTP::Error &error) {
-		Ui::show(Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
+		_controller->show(
+			Box<InformBox>(tr::lng_stickers_not_found(tr::now)));
 	}).send();
 }
 

@@ -125,7 +125,7 @@ void Calls::setupContent() {
 					call->setCurrentVideoDevice(deviceId);
 				}
 			});
-			Ui::show(Box([=](not_null<Ui::GenericBox*> box) {
+			_controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 				SingleChoiceBox(box, {
 					.title = tr::lng_settings_call_camera(),
 					.options = options,
@@ -200,7 +200,7 @@ void Calls::setupContent() {
 		),
 		st::settingsButton
 	)->addClickHandler([=] {
-		Ui::show(ChooseAudioOutputBox(crl::guard(this, [=](
+		_controller->show(ChooseAudioOutputBox(crl::guard(this, [=](
 				const QString &id,
 				const QString &name) {
 			_outputNameStream.fire_copy(name);
@@ -221,7 +221,7 @@ void Calls::setupContent() {
 		),
 		st::settingsButton
 	)->addClickHandler([=] {
-		Ui::show(ChooseAudioInputBox(crl::guard(this, [=](
+		_controller->show(ChooseAudioInputBox(crl::guard(this, [=](
 				const QString &id,
 				const QString &name) {
 			_inputNameStream.fire_copy(name);
@@ -268,11 +268,12 @@ void Calls::setupContent() {
 		content,
 		tr::lng_settings_call_open_system_prefs(),
 		st::settingsButton
-	)->addClickHandler([] {
+	)->addClickHandler([=] {
 		const auto opened = Platform::OpenSystemSettings(
 			Platform::SystemSettingsType::Audio);
 		if (!opened) {
-			Ui::show(Box<InformBox>(tr::lng_linux_no_audio_prefs(tr::now)));
+			_controller->show(
+				Box<InformBox>(tr::lng_linux_no_audio_prefs(tr::now)));
 		}
 	});
 
@@ -304,7 +305,7 @@ void Calls::requestPermissionAndStartTestingMicrophone() {
 				Platform::PermissionType::Microphone);
 			Ui::hideLayer();
 		};
-		Ui::show(Box<ConfirmBox>(
+		_controller->show(Box<ConfirmBox>(
 			tr::lng_no_mic_permission(tr::now),
 			tr::lng_menu_settings(tr::now),
 			showSystemSettings));

@@ -1085,7 +1085,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		send({ .silent = true });
 	};
 	const auto sendScheduled = [=] {
-		Ui::show(
+		_controller->show(
 			HistoryView::PrepareScheduleBox(
 				this,
 				SendMenu::Type::Scheduled,

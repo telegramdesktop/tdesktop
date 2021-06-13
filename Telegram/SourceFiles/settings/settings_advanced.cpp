@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "platform/platform_window_title.h"
 #include "base/platform/base_platform_info.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "core/update_checker.h"
@@ -45,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 
 void SetupConnectionType(
+		not_null<Window::Controller*> controller,
 		not_null<Main::Account*> account,
 		not_null<Ui::VerticalLayout*> container) {
 	const auto connectionType = [=] {
@@ -69,7 +71,7 @@ void SetupConnectionType(
 		) | rpl::map(connectionType),
 		st::settingsButton);
 	button->addClickHandler([=] {
-		Ui::show(ProxiesBoxController::CreateOwningBox(account));
+		controller->show(ProxiesBoxController::CreateOwningBox(account));
 	});
 }
 
@@ -304,7 +306,7 @@ void SetupSpellchecker(
 		Spellchecker::ButtonManageDictsState(session),
 		st::settingsButton
 	)->addClickHandler([=] {
-		Ui::show(Box<Ui::ManageDictionariesBox>(controller));
+		controller->show(Box<Ui::ManageDictionariesBox>(controller));
 	});
 
 	button->toggledValue(
@@ -450,7 +452,7 @@ void SetupSystemIntegrationContent(
 		}) | rpl::start_with_next([=](bool checked) {
 			if (controller->session().domain().local().hasLocalPasscode()) {
 				minimized->entity()->setChecked(false);
-				Ui::show(Box<InformBox>(
+				controller->show(Box<InformBox>(
 					tr::lng_error_start_minimized_passcoded(tr::now)));
 			} else {
 				cSetStartMinimized(checked);
@@ -510,7 +512,9 @@ void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
 	}, container->lifetime());
 }
 
-void SetupOpenGL(not_null<Ui::VerticalLayout*> container) {
+void SetupOpenGL(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	const auto toggles = container->lifetime().make_state<
 		rpl::event_stream<bool>
 	>();
@@ -534,7 +538,7 @@ void SetupOpenGL(not_null<Ui::VerticalLayout*> container) {
 		const auto cancelled = crl::guard(button, [=] {
 			toggles->fire(!enabled);
 		});
-		Ui::show(Box<ConfirmBox>(
+		controller->show(Box<ConfirmBox>(
 			tr::lng_settings_need_restart(tr::now),
 			tr::lng_settings_restart_now(tr::now),
 			confirmed,
@@ -547,7 +551,7 @@ void SetupPerformance(
 		not_null<Ui::VerticalLayout*> container) {
 	SetupAnimations(container);
 	if (!Platform::IsMac()) {
-		SetupOpenGL(container);
+		SetupOpenGL(controller, container);
 	}
 }
 
@@ -606,7 +610,10 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	addDivider();
 	AddSkip(content);
 	AddSubsectionTitle(content, tr::lng_settings_network_proxy());
-	SetupConnectionType(&controller->session().account(), content);
+	SetupConnectionType(
+		&controller->window(),
+		&controller->session().account(),
+		content);
 	AddSkip(content);
 	SetupDataStorage(controller, content);
 	SetupAutoDownload(controller, content);
