@@ -73,6 +73,8 @@ public:
 
 	[[nodiscard]] rpl::producer<Error> errors() const;
 
+	void archiveStickers();
+
 	bool isMasksSet() const {
 		return (_setFlags & MTPDstickerSet::Flag::f_masks);
 	}
@@ -228,38 +230,6 @@ void StickerSetBox::handleError(Error error) {
 	}
 }
 
-void StickerSetBox::archiveStickers() {
-	const auto weak = base::make_weak(_controller.get());
-	const auto setId = _set.c_inputStickerSetID().vid().v;
-	_controller->session().api().request(MTPmessages_InstallStickerSet(
-		_set,
-		MTP_boolTrue()
-	)).done([=](const MTPmessages_StickerSetInstallResult &result) {
-		const auto controller = weak.get();
-		if (!controller) {
-			return;
-		}
-		if (result.type() == mtpc_messages_stickerSetInstallResultSuccess) {
-			Ui::Toast::Show(tr::lng_stickers_has_been_archived(tr::now));
-
-			const auto &session = controller->session();
-			auto &order = session.data().stickers().setsOrderRef();
-			const auto index = order.indexOf(setId);
-			if (index == -1) {
-				return;
-			}
-			order.removeAt(index);
-
-			session.local().writeInstalledStickers();
-			session.local().writeArchivedStickers();
-
-			session.data().stickers().notifyUpdated();
-		}
-	}).fail([](const MTP::Error &error) {
-		Ui::Toast::Show(Lang::Hard::ServerError());
-	}).send();
-}
-
 void StickerSetBox::updateTitleAndButtons() {
 	setTitle(_inner->title());
 	updateButtons();
@@ -312,7 +282,7 @@ void StickerSetBox::updateButtons() {
 			if (!_inner->shortName().isEmpty()) {
 				const auto top = addTopButton(st::infoTopBarMenu);
 				const auto archive = [=] {
-					archiveStickers();
+					_inner->archiveStickers();
 					closeBox();
 				};
 				const auto menu =
@@ -320,7 +290,9 @@ void StickerSetBox::updateButtons() {
 				top->setClickedCallback([=] {
 					*menu = base::make_unique_q<Ui::PopupMenu>(top);
 					(*menu)->addAction(
-						tr::lng_stickers_archive_pack(tr::now),
+						isMasks
+							? tr::lng_masks_archive_pack(tr::now)
+							: tr::lng_stickers_archive_pack(tr::now),
 						archive);
 					(*menu)->popup(QCursor::pos());
 					return true;
@@ -880,6 +852,47 @@ void StickerSetBox::Inner::install() {
 		installDone(result);
 	}).fail([=](const MTP::Error &error) {
 		_errors.fire(Error::NotFound);
+	}).send();
+}
+
+void StickerSetBox::Inner::archiveStickers() {
+	const auto isMasks = isMasksSet();
+	const auto weak = base::make_weak(_controller.get());
+	_controller->session().api().request(MTPmessages_InstallStickerSet(
+		_input,
+		MTP_boolTrue()
+	)).done([=](const MTPmessages_StickerSetInstallResult &result) {
+		const auto controller = weak.get();
+		if (!controller) {
+			return;
+		}
+		if (result.type() == mtpc_messages_stickerSetInstallResultSuccess) {
+			Ui::Toast::Show(isMasks
+				? tr::lng_masks_has_been_archived(tr::now)
+				: tr::lng_stickers_has_been_archived(tr::now));
+
+			const auto &session = controller->session();
+			auto &order = isMasks
+				? session.data().stickers().maskSetsOrderRef()
+				: session.data().stickers().setsOrderRef();
+			const auto index = order.indexOf(_setId);
+			if (index == -1) {
+				return;
+			}
+			order.removeAt(index);
+
+			if (isMasks) {
+				session.local().writeInstalledMasks();
+				session.local().writeArchivedMasks();
+			} else {
+				session.local().writeInstalledStickers();
+				session.local().writeArchivedStickers();
+			}
+
+			session.data().stickers().notifyUpdated();
+		}
+	}).fail([](const MTP::Error &error) {
+		Ui::Toast::Show(Lang::Hard::ServerError());
 	}).send();
 }
 

@@ -1419,6 +1419,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stickers_remove_pack_confirm" = "Remove";
 "lng_stickers_archive_pack" = "Archive Stickers";
 "lng_stickers_has_been_archived" = "Sticker pack has been archived.";
+"lng_masks_archive_pack" = "Archive Masks";
+"lng_masks_has_been_archived" = "Mask pack has been archived.";
 "lng_masks_installed" = "Mask pack has been installed.";
 
 "lng_in_dlg_photo" = "Photo";

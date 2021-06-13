@@ -46,7 +46,6 @@ private:
 	void updateButtons();
 	void addStickers();
 	void copyStickersLink();
-	void archiveStickers();
 	void handleError(Error error);
 
 	const not_null<Window::SessionController*> _controller;
