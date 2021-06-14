@@ -2316,6 +2316,57 @@ void OverlayWidget::showDocument(
 }
 
 void OverlayWidget::show(OpenRequest request) {
+	const auto document = request.document();
+	const auto photo = request.photo();
+	const auto contextItem = request.item();
+	const auto contextPeer = request.peer();
+	if (photo) {
+		if (contextItem && contextPeer) {
+			return;
+		}
+		setSession(&photo->session());
+
+		if (contextPeer) {
+			setContext(contextPeer);
+		} else if (contextItem) {
+			setContext(contextItem);
+		} else {
+			setContext(v::null);
+		}
+
+		clearControlsState();
+		if (contextPeer) {
+			_firstOpenedPeerPhoto = true;
+		}
+		assignMediaPointer(photo);
+
+		displayPhoto(photo, contextPeer ? nullptr : contextItem);
+		preloadData(0);
+		activateControls();
+	} else if (document) {
+		setSession(&document->session());
+
+		if (contextItem) {
+			setContext(contextItem);
+		} else {
+			setContext(v::null);
+		}
+
+		clearControlsState();
+
+		_streamingStartPaused = false;
+		displayDocument(
+			document,
+			contextItem,
+			request.cloudTheme()
+				? *request.cloudTheme()
+				: Data::CloudTheme(),
+			false);
+		if (!isHidden()) {
+			preloadData(0);
+			activateControls();
+		}
+	}
 }
 
 void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
