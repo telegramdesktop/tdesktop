@@ -147,8 +147,11 @@ private:
 	void deleteUnusedInlineLayouts();
 
 	int validateExistingInlineRows(const Results &results);
-	void selectInlineResult(int row, int column);
-	void selectInlineResult(int row, int column, Api::SendOptions options);
+	void selectInlineResult(
+		int row,
+		int column,
+		Api::SendOptions options,
+		bool open);
 
 	not_null<Window::SessionController*> _controller;
 

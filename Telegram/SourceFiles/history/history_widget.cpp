@@ -1265,7 +1265,16 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 			_inlineResults.create(this, controller());
 			_inlineResults->setResultSelectedCallback([=](
 					InlineBots::ResultSelected result) {
-				sendInlineResult(result);
+				if (result.open) {
+					const auto request = result.result->openRequest();
+					if (const auto photo = request.photo()) {
+						controller()->openPhoto(photo, FullMsgId());
+					} else if (const auto document = request.document()) {
+						controller()->openDocument(document, FullMsgId());
+					}
+				} else {
+					sendInlineResult(result);
+				}
 			});
 			_inlineResults->setCurrentDialogsEntryState(
 				computeDialogsEntryState());

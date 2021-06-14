@@ -42,6 +42,12 @@ public:
 	}
 };
 
+class OpenFileClickHandler : public ClickHandler {
+public:
+	void onClick(ClickContext context) const override {
+	}
+};
+
 class Context {
 public:
 	virtual void inlineItemLayoutChanged(const ItemBase *layout) = 0;
@@ -131,6 +137,7 @@ protected:
 	PhotoData *_photo = nullptr;
 
 	ClickHandlerPtr _send = ClickHandlerPtr{ new SendClickHandler() };
+	ClickHandlerPtr _open = ClickHandlerPtr{ new OpenFileClickHandler() };
 
 	int _position = 0; // < 0 means removed from layout
 

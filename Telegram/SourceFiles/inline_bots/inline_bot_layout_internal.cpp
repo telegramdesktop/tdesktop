@@ -812,10 +812,6 @@ void Video::prepareThumbnail(QSize size) const {
 	}
 }
 
-void OpenFileClickHandler::onClickImpl() const {
-	_result->openFile();
-}
-
 void CancelFileClickHandler::onClickImpl() const {
 	_result->cancelFile();
 }
@@ -824,7 +820,6 @@ File::File(not_null<Context*> context, not_null<Result*> result)
 : FileBase(context, result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineFileSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineFileSize - st::inlineThumbSkip)
-, _open(std::make_shared<OpenFileClickHandler>(result))
 , _cancel(std::make_shared<CancelFileClickHandler>(result))
 , _document(getShownDocument()) {
 	Expects(getResultDocument() != nullptr);

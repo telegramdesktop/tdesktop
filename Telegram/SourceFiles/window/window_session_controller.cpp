@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_replies_section.h"
 #include "media/player/media_player_instance.h"
 #include "media/view/media_view_open_common.h"
+#include "data/data_document_resolver.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
@@ -1235,9 +1236,8 @@ void SessionController::openPhoto(
 void SessionController::openDocument(
 		not_null<DocumentData*> document,
 		FullMsgId contextId) {
-	_window->openInMediaView(Media::View::OpenRequest(
-		document,
-		session().data().message(contextId)));
+	// TEMP.
+	Data::ResolveDocument(document, session().data().message(contextId));
 }
 
 SessionController::~SessionController() = default;

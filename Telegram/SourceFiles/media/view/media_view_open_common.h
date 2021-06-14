@@ -18,6 +18,9 @@ namespace Media::View {
 
 struct OpenRequest {
 public:
+	OpenRequest() {
+	}
+
 	OpenRequest(not_null<PhotoData*> photo, HistoryItem *item)
 	: _photo(photo)
 	, _item(item) {

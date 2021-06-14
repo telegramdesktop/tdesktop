@@ -331,12 +331,13 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 	return true;
 }
 
-void Result::openFile() {
+Media::View::OpenRequest Result::openRequest() {
 	if (_document) {
-		DocumentOpenClickHandler(_document).onClick({});
+		return Media::View::OpenRequest(_document, nullptr);
 	} else if (_photo) {
-		PhotoOpenClickHandler(_photo).onClick({});
+		return Media::View::OpenRequest(_photo, nullptr);
 	}
+	return {};
 }
 
 void Result::cancelFile() {

@@ -2394,7 +2394,16 @@ void ComposeControls::applyInlineBotQuery(
 				_currentDialogsEntryState);
 			_inlineResults->setResultSelectedCallback([=](
 					InlineBots::ResultSelected result) {
-				_inlineResultChosen.fire_copy(result);
+				if (result.open) {
+					const auto request = result.result->openRequest();
+					if (const auto photo = request.photo()) {
+						_window->openPhoto(photo, FullMsgId());
+					} else if (const auto document = request.document()) {
+						_window->openDocument(document, FullMsgId());
+					}
+				} else {
+					_inlineResultChosen.fire_copy(result);
+				}
 			});
 			_inlineResults->setSendMenuType([=] { return sendMenuType(); });
 			_inlineResults->requesting(

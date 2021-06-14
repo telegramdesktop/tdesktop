@@ -236,22 +236,22 @@ void Inner::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 
-	if (dynamic_cast<InlineBots::Layout::SendClickHandler*>(activated.get())) {
-		int row = _selected / MatrixRowShift, column = _selected % MatrixRowShift;
-		selectInlineResult(row, column);
+	using namespace InlineBots::Layout;
+	const auto open = dynamic_cast<OpenFileClickHandler*>(activated.get());
+	if (dynamic_cast<SendClickHandler*>(activated.get()) || open) {
+		const auto row = int(_selected / MatrixRowShift);
+		const auto column = int(_selected % MatrixRowShift);
+		selectInlineResult(row, column, {}, !!open);
 	} else {
 		ActivateClickHandler(window(), activated, e->button());
 	}
 }
 
-void Inner::selectInlineResult(int row, int column) {
-	selectInlineResult(row, column, Api::SendOptions());
-}
-
 void Inner::selectInlineResult(
 		int row,
 		int column,
-		Api::SendOptions options) {
+		Api::SendOptions options,
+		bool open) {
 	if (row >= _rows.size() || column >= _rows.at(row).items.size()) {
 		return;
 	}
@@ -262,7 +262,8 @@ void Inner::selectInlineResult(
 			_resultSelectedCallback({
 				.result = inlineResult,
 				.bot = _inlineBot,
-				.options = std::move(options)
+				.options = std::move(options),
+				.open = open,
 			});
 		}
 	}
@@ -300,7 +301,7 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 
 	const auto send = [=](Api::SendOptions options) {
-		selectInlineResult(row, column, options);
+		selectInlineResult(row, column, options, false);
 	};
 	SendMenu::FillSendMenu(
 		_menu,
