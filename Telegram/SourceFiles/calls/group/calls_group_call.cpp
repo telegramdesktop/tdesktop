@@ -1614,19 +1614,33 @@ void GroupCall::addVideoOutput(
 
 void GroupCall::setMuted(MuteState mute) {
 	const auto set = [=] {
-		const auto wasMuted = (muted() == MuteState::Muted)
-			|| (muted() == MuteState::PushToTalk);
-		const auto wasRaiseHand = (muted() == MuteState::RaisedHand);
+		const auto was = muted();
+		const auto wasSpeaking = (was == MuteState::Active)
+			|| (was == MuteState::PushToTalk);
+		const auto wasMuted = (was == MuteState::Muted)
+			|| (was == MuteState::PushToTalk);
+		const auto wasRaiseHand = (was == MuteState::RaisedHand);
 		_muted = mute;
-		const auto nowMuted = (muted() == MuteState::Muted)
-			|| (muted() == MuteState::PushToTalk);
-		const auto nowRaiseHand = (muted() == MuteState::RaisedHand);
+		const auto now = muted();
+		const auto nowSpeaking = (now == MuteState::Active)
+			|| (now == MuteState::PushToTalk);
+		const auto nowMuted = (now == MuteState::Muted)
+			|| (now == MuteState::PushToTalk);
+		const auto nowRaiseHand = (now == MuteState::RaisedHand);
 		if (wasMuted != nowMuted || wasRaiseHand != nowRaiseHand) {
 			applyMeInCallLocally();
 		}
 		if (mutedByAdmin()) {
 			toggleVideo(false);
 			toggleScreenSharing(std::nullopt);
+		}
+		if (wasSpeaking && !nowSpeaking && _joinState.ssrc) {
+			_levelUpdates.fire(LevelUpdate{
+				.ssrc = _joinState.ssrc,
+				.value = 0.f,
+				.voice = false,
+				.me = true,
+			});
 		}
 	};
 	if (mute == MuteState::Active || mute == MuteState::PushToTalk) {
@@ -2203,10 +2217,8 @@ bool GroupCall::tryCreateScreencast() {
 	if (_screenInstance) {
 		return false;
 	}
-	//const auto &settings = Core::App().settings();
 
 	const auto weak = base::make_weak(&_screenInstanceGuard);
-	//const auto myLevel = std::make_shared<tgcalls::GroupLevelValue>();
 	tgcalls::GroupInstanceDescriptor descriptor = {
 		.threads = tgcalls::StaticThreads::getThreads(),
 		.config = tgcalls::GroupConfig{
@@ -2219,20 +2231,6 @@ bool GroupCall::tryCreateScreencast() {
 		.videoCapture = _screenCapture,
 		.videoContentType = tgcalls::VideoContentType::Screencast,
 	};
-//	if (Logs::DebugEnabled()) {
-//		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
-//		auto callLogPath = callLogFolder + qsl("/last_group_call_log.txt");
-//		auto callLogNative = QDir::toNativeSeparators(callLogPath);
-//#ifdef Q_OS_WIN
-//		descriptor.config.logPath.data = callLogNative.toStdWString();
-//#else // Q_OS_WIN
-//		const auto callLogUtf = QFile::encodeName(callLogNative);
-//		descriptor.config.logPath.data.resize(callLogUtf.size());
-//		ranges::copy(callLogUtf, descriptor.config.logPath.data.begin());
-//#endif // Q_OS_WIN
-//		QFile(callLogPath).remove();
-//		QDir().mkpath(callLogFolder);
-//	}
 
 	LOG(("Call Info: Creating group screen instance"));
 	_screenInstance = std::make_unique<tgcalls::GroupInstanceCustomImpl>(
@@ -2530,6 +2528,11 @@ void GroupCall::audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data) {
 	auto check = false;
 	auto checkNow = false;
 	const auto now = crl::now();
+	const auto meMuted = [&] {
+		const auto state = muted();
+		return (state != MuteState::Active)
+			&& (state != MuteState::PushToTalk);
+	};
 	for (const auto &[ssrcOrZero, value] : data.updates) {
 		const auto ssrc = ssrcOrZero ? ssrcOrZero : _joinState.ssrc;
 		if (!ssrc) {
@@ -2538,11 +2541,12 @@ void GroupCall::audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data) {
 		const auto level = value.level;
 		const auto voice = value.voice;
 		const auto me = (ssrc == _joinState.ssrc);
+		const auto ignore = me && meMuted();
 		_levelUpdates.fire(LevelUpdate{
 			.ssrc = ssrc,
-			.value = level,
-			.voice = voice,
-			.me = me
+			.value = ignore ? 0.f : level,
+			.voice = (!ignore && voice),
+			.me = me,
 		});
 		if (level <= kSpeakLevelThreshold) {
 			continue;
