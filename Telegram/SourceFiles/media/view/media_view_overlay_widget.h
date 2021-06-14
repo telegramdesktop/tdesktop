@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_cloud_themes.h" // Data::CloudTheme.
 #include "media/view/media_view_playback_controls.h"
+#include "media/view/media_view_open_common.h"
 
 namespace Data {
 class PhotoMedia;
@@ -85,6 +86,8 @@ public:
 	void showTheme(
 		not_null<DocumentData*> document,
 		const Data::CloudTheme &cloud);
+
+	void show(OpenRequest request);
 
 	//void leaveToChildEvent(QEvent *e, QWidget *child) override {
 	//	// e -- from enterEvent() of child TWidget

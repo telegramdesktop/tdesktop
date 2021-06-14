@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "media/view/media_view_overlay_widget.h"
+#include "media/view/media_view_open_common.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtp_instance.h"
@@ -284,6 +285,13 @@ void Application::run() {
 		&& Ui::Integration::Instance().openglLastCheckFailed()) {
 		showOpenGLCrashNotification();
 	}
+
+	_window->openInMediaViewRequests(
+	) | rpl::start_with_next([=](Media::View::OpenRequest &&request) {
+		if (_mediaView) {
+			_mediaView->show(std::move(request));
+		}
+	}, _window->lifetime());
 }
 
 void Application::showOpenGLCrashNotification() {

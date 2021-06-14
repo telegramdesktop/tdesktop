@@ -2315,6 +2315,9 @@ void OverlayWidget::showDocument(
 	}
 }
 
+void OverlayWidget::show(OpenRequest request) {
+}
+
 void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	if (photo->isNull()) {
 		displayDocument(nullptr, item);

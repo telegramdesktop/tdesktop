@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "main/main_app_config.h"
+#include "media/view/media_view_open_common.h"
 #include "intro/intro_widget.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/layers/box_content.h"
@@ -371,6 +372,19 @@ void Controller::showLogoutConfirmation() {
 
 Window::Adaptive &Controller::adaptive() const {
 	return *_adaptive;
+}
+
+void Controller::openInMediaView(Media::View::OpenRequest &&request) {
+	_openInMediaViewRequests.fire(std::move(request));
+}
+
+auto Controller::openInMediaViewRequests() const
+-> rpl::producer<Media::View::OpenRequest> {
+	return _openInMediaViewRequests.events();
+}
+
+rpl::lifetime &Controller::lifetime() {
+	return _lifetime;
 }
 
 } // namespace Window

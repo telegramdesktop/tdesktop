@@ -15,6 +15,10 @@ namespace Main {
 class Account;
 } // namespace Main
 
+namespace Media::View {
+struct OpenRequest;
+} // namespace Media::View
+
 namespace Window {
 
 class Controller final {
@@ -79,7 +83,13 @@ public:
 
 	void preventOrInvoke(Fn<void()> &&callback);
 
+	void openInMediaView(Media::View::OpenRequest &&request);
+	[[nodiscard]] auto openInMediaViewRequests() const
+	-> rpl::producer<Media::View::OpenRequest>;
+
 	QPoint getPointForCallPanelCenter() const;
+
+	rpl::lifetime &lifetime();
 
 private:
 	void showBox(
@@ -97,6 +107,8 @@ private:
 	std::unique_ptr<SessionController> _sessionController;
 	base::Timer _isActiveTimer;
 	QPointer<Ui::BoxContent> _termsBox;
+
+	rpl::event_stream<Media::View::OpenRequest> _openInMediaViewRequests;
 
 	rpl::lifetime _accountLifetime;
 	rpl::lifetime _lifetime;

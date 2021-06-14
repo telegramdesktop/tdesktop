@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_replies_section.h"
 #include "media/player/media_player_instance.h"
+#include "media/view/media_view_open_common.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
@@ -1215,6 +1216,28 @@ QPointer<Ui::BoxContent> SessionController::show(
 		Ui::LayerOptions options,
 		anim::type animated) {
 	return _window->show(std::move(content), options, animated);
+}
+
+void SessionController::openPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId contextId) {
+	_window->openInMediaView(Media::View::OpenRequest(
+		photo,
+		session().data().message(contextId)));
+}
+
+void SessionController::openPhoto(
+		not_null<PhotoData*> photo,
+		not_null<PeerData*> peer) {
+	_window->openInMediaView(Media::View::OpenRequest(photo, peer));
+}
+
+void SessionController::openDocument(
+		not_null<DocumentData*> document,
+		FullMsgId contextId) {
+	_window->openInMediaView(Media::View::OpenRequest(
+		document,
+		session().data().message(contextId)));
 }
 
 SessionController::~SessionController() = default;

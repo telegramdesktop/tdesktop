@@ -347,6 +347,10 @@ public:
 	void showPassportForm(const Passport::FormRequest &request);
 	void clearPassportForm();
 
+	void openPhoto(not_null<PhotoData*> photo, FullMsgId contextId);
+	void openPhoto(not_null<PhotoData*> photo, not_null<PeerData*> peer);
+	void openDocument(not_null<DocumentData*> document, FullMsgId contextId);
+
 	void showChooseReportMessages(
 		not_null<PeerData*> peer,
 		Ui::ReportReason reason,
