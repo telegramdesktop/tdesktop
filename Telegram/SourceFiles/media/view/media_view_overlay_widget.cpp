@@ -627,7 +627,8 @@ bool OverlayWidget::contentShown() const {
 
 bool OverlayWidget::opaqueContentShown() const {
 	return contentShown()
-		&& (!_document
+		&& (!_staticContentTransparent
+			|| !_document
 			|| (!_document->isVideoMessage() && !_document->sticker()));
 }
 
@@ -3268,6 +3269,7 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 			renderer->paintTransformedStaticContent(
 				_staticContent,
 				contentGeometry(),
+				_staticContentTransparent,
 				fillTransparentBackground);
 		}
 		paintRadialLoading(renderer);

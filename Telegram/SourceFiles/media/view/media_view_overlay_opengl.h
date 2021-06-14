@@ -45,6 +45,7 @@ private:
 	void paintTransformedStaticContent(
 		const QImage &image,
 		ContentGeometry geometry,
+		bool semiTransparent,
 		bool fillTransparentBackground) override;
 	void paintTransformedContent(
 		not_null<QOpenGLShaderProgram*> program,

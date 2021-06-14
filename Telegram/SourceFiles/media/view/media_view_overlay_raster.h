@@ -26,6 +26,7 @@ private:
 	void paintTransformedStaticContent(
 		const QImage &image,
 		ContentGeometry geometry,
+		bool semiTransparent,
 		bool fillTransparentBackground) override;
 	void paintTransformedImage(
 		const QImage &image,

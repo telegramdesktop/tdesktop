@@ -77,6 +77,7 @@ void OverlayWidget::RendererSW::paintTransformedVideoFrame(
 void OverlayWidget::RendererSW::paintTransformedStaticContent(
 		const QImage &image,
 		ContentGeometry geometry,
+		bool semiTransparent,
 		bool fillTransparentBackground) {
 	const auto rotation = int(geometry.rotation);
 	const auto rect = TransformRect(geometry.rect, rotation);

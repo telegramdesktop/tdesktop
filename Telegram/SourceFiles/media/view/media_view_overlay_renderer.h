@@ -18,6 +18,7 @@ public:
 	virtual void paintTransformedStaticContent(
 		const QImage &image,
 		ContentGeometry geometry,
+		bool semiTransparent,
 		bool fillTransparentBackground) = 0;
 	virtual void paintRadialLoading(
 		QRect inner,
