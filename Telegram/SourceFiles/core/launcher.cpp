@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "base/concurrent_timer.h"
 
-//#include <QtCore/QLoggingCategory>
+#include <QtCore/QLoggingCategory>
 
 namespace Core {
 namespace {
@@ -99,6 +99,9 @@ void ComputeDebugMode() {
 	}
 	if (cDebugMode()) {
 		Logs::SetDebugEnabled(true);
+	}
+	if (Logs::DebugEnabled()) {
+		QLoggingCategory::setFilterRules("qt.qpa.gl.debug=true");
 	}
 }
 
@@ -527,7 +530,6 @@ void Launcher::processArguments() {
 int Launcher::executeApplication() {
 	FilteredCommandLineArguments arguments(_argc, _argv);
 	Sandbox sandbox(this, arguments.count(), arguments.values());
-	//QLoggingCategory::setFilterRules("qt.qpa.gl.debug=true");
 	Ui::MainQueueProcessor processor;
 	base::ConcurrentTimerEnvironment environment;
 	return sandbox.start();

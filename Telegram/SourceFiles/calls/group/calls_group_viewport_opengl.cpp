@@ -197,7 +197,7 @@ float insideTexture() {
 	vec2 fromTextureCenter = abs(v_texcoord - textureHalf);
 	vec2 fromTextureEdge = max(fromTextureCenter, textureHalf) - textureHalf;
 	float outsideCheck = dot(fromTextureEdge, fromTextureEdge);
-	return step(outsideCheck, 0);
+	return step(outsideCheck, 0.);
 }
 
 vec4 background() {

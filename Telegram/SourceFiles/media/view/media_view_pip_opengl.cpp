@@ -116,7 +116,7 @@ uniform float roundRadius;
 )" + shadow.header + R"(
 
 float roundedCorner() {
-	vec2 rectHalf = roundRect.zw / 2;
+	vec2 rectHalf = roundRect.zw / 2.;
 	vec2 rectCenter = roundRect.xy + rectHalf;
 	vec2 fromRectCenter = abs(gl_FragCoord.xy - rectCenter);
 	vec2 vectorRadius = vec2(roundRadius + 0.5, roundRadius + 0.5);
