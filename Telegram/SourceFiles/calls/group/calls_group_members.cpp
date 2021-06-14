@@ -953,9 +953,7 @@ void Members::Controller::rowPaintIcon(
 					: _coloredCrossLine;
 				const auto color = video
 					? std::nullopt
-					: std::make_optional(narrow
-						? st::groupCallMemberNotJoinedStatus->c
-						: st::groupCallMemberMutedIcon->c);
+					: std::make_optional(st::groupCallMemberMutedIcon->c);
 				line.paint(
 					p,
 					left,
@@ -987,9 +985,7 @@ void Members::Controller::rowPaintIcon(
 		state.speaking);
 	const auto iconColor = anim::color(
 		activeInactiveColor,
-		(narrow
-			? st::groupCallMemberNotJoinedStatus
-			: st::groupCallMemberMutedIcon),
+		st::groupCallMemberMutedIcon,
 		state.muted);
 	const auto color = video
 		? std::nullopt
