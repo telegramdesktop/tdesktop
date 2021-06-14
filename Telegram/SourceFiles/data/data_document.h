@@ -438,16 +438,3 @@ QString DocumentFileNameForSave(
 	bool forceSavingAs = false,
 	const QString &already = QString(),
 	const QDir &dir = QDir());
-
-namespace Data {
-
-[[nodiscard]] QString FileExtension(const QString &filepath);
-[[nodiscard]] bool IsValidMediaFile(const QString &filepath);
-[[nodiscard]] bool IsExecutableName(const QString &filepath);
-[[nodiscard]] bool IsIpRevealingName(const QString &filepath);
-base::binary_guard ReadImageAsync(
-	not_null<Data::DocumentMedia*> media,
-	FnMut<QImage(QImage)> postprocess,
-	FnMut<void(QImage&&)> done);
-
-} // namespace Data

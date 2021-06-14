@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "overview/overview_layout_delegate.h"
 #include "data/data_document.h"
+#include "data/data_document_resolver.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
 #include "data/data_media_types.h"

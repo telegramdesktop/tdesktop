@@ -422,6 +422,8 @@ PRIVATE
     data/data_document.h
     data/data_document_media.cpp
     data/data_document_media.h
+    data/data_document_resolver.cpp
+    data/data_document_resolver.h
     data/data_drafts.cpp
     data/data_drafts.h
     data/data_folder.cpp
