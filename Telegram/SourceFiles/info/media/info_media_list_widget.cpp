@@ -887,6 +887,16 @@ void ListWidget::unregisterHeavyItem(not_null<const BaseLayout*> item) {
 	}
 }
 
+void ListWidget::openPhoto(not_null<PhotoData*> photo, FullMsgId id) {
+	_controller->parentController()->openPhoto(photo, id);
+}
+
+void ListWidget::openDocument(
+		not_null<DocumentData*> document,
+		FullMsgId id) {
+	_controller->parentController()->openDocument(document, id);
+}
+
 SparseIdsMergedSlice::Key ListWidget::sliceKey(
 		UniversalMsgId universalId) const {
 	using Key = SparseIdsMergedSlice::Key;

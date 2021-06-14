@@ -40,7 +40,7 @@ public:
 
 };
 
-class ItemBase : public LayoutItemBase {
+class ItemBase : public LayoutItemBase, public base::has_weak_ptr {
 public:
 	ItemBase(not_null<Delegate*> delegate, not_null<HistoryItem*> parent);
 	~ItemBase();

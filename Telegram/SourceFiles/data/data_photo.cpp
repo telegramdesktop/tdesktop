@@ -491,9 +491,6 @@ void PhotoOpenClickHandler::onClickImpl() const {
 	}
 }
 
-void PhotoOpenClickHandlerOld::onClickImpl() const {
-}
-
 void PhotoSaveClickHandler::onClickImpl() const {
 	const auto data = photo();
 	if (!data->date) {

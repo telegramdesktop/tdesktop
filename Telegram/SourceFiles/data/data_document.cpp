@@ -329,9 +329,6 @@ void DocumentOpenClickHandler::onClickImpl() const {
 	}
 }
 
-void DocumentOpenClickHandlerOld::onClickImpl() const {
-}
-
 void DocumentOpenClickHandler::Open(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> data,

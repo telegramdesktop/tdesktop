@@ -378,15 +378,6 @@ private:
 
 };
 
-class DocumentOpenClickHandlerOld : public DocumentClickHandler {
-public:
-	using DocumentClickHandler::DocumentClickHandler;
-
-protected:
-	void onClickImpl() const override;
-
-};
-
 class DocumentCancelClickHandler : public DocumentClickHandler {
 public:
 	using DocumentClickHandler::DocumentClickHandler;

@@ -208,15 +208,6 @@ private:
 
 };
 
-class PhotoOpenClickHandlerOld : public PhotoClickHandler {
-public:
-	using PhotoClickHandler::PhotoClickHandler;
-
-protected:
-	void onClickImpl() const override;
-
-};
-
 class PhotoSaveClickHandler : public PhotoClickHandler {
 public:
 	using PhotoClickHandler::PhotoClickHandler;
