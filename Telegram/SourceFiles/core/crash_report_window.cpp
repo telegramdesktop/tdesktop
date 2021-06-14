@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/launcher.h"
 #include "core/sandbox.h"
 #include "core/update_checker.h"
+#include "core/ui_integration.h"
 #include "window/main_window.h"
 #include "platform/platform_specific.h"
 #include "base/zlib_help.h"
@@ -252,7 +253,11 @@ LastCrashedWindow::LastCrashedWindow(
 , _launch(std::move(launch)) {
 	excludeReportUsername();
 
-	if (!cInstallBetaVersion() && !cAlphaVersion()) { // currently accept crash reports only from testers
+	if (!cInstallBetaVersion() && !cAlphaVersion()) {
+		// Currently accept crash reports only from testers.
+		_sendingState = SendingNoReport;
+	} else if (Core::OpenGLLastCheckFailed()) {
+		// Nothing we can do right now with graphics driver crashes in GL.
 		_sendingState = SendingNoReport;
 	}
 	if (_sendingState != SendingNoReport) {

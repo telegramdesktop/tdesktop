@@ -120,7 +120,7 @@ void UiIntegration::openglCheckFinish() {
 }
 
 bool UiIntegration::openglLastCheckFailed() {
-	return QFile::exists(OpenGLCheckFilePath());
+	return OpenGLLastCheckFailed();
 }
 
 void UiIntegration::textActionsUpdated() {
@@ -318,6 +318,10 @@ QString UiIntegration::phraseFormattingStrikeOut() {
 
 QString UiIntegration::phraseFormattingMonospace() {
 	return tr::lng_menu_formatting_monospace(tr::now);
+}
+
+bool OpenGLLastCheckFailed() {
+	return QFile::exists(OpenGLCheckFilePath());
 }
 
 } // namespace Core

@@ -75,6 +75,6 @@ public:
 
 };
 
-[[nodiscard]] bool OpenglLastCheckFailed();
+[[nodiscard]] bool OpenGLLastCheckFailed();
 
 } // namespace Core
