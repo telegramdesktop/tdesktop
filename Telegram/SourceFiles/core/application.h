@@ -143,10 +143,6 @@ public:
 	// Media view interface.
 	void checkMediaViewActivation();
 	bool hideMediaView();
-	void showPhoto(not_null<const PhotoOpenClickHandler*> link);
-	void showPhoto(not_null<PhotoData*> photo, HistoryItem *item);
-	void showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> item);
-	void showDocument(not_null<DocumentData*> document, HistoryItem *item);
 	void showTheme(
 		not_null<DocumentData*> document,
 		const Data::CloudTheme &cloud);

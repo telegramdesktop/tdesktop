@@ -390,41 +390,6 @@ bool Application::hideMediaView() {
 	return false;
 }
 
-void Application::showPhoto(not_null<const PhotoOpenClickHandler*> link) {
-	const auto photo = link->photo();
-	const auto peer = link->peer();
-	const auto item = photo->owner().message(link->context());
-	return (!item && peer)
-		? showPhoto(photo, peer)
-		: showPhoto(photo, item);
-}
-
-void Application::showPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
-	Expects(_mediaView != nullptr);
-
-	_mediaView->showPhoto(photo, item);
-}
-
-void Application::showPhoto(
-		not_null<PhotoData*> photo,
-		not_null<PeerData*> peer) {
-	Expects(_mediaView != nullptr);
-
-	_mediaView->showPhoto(photo, peer);
-}
-
-void Application::showDocument(not_null<DocumentData*> document, HistoryItem *item) {
-	Expects(_mediaView != nullptr);
-
-	if (cUseExternalVideoPlayer()
-		&& document->isVideoFile()
-		&& !document->filepath().isEmpty()) {
-		File::Launch(document->location(false).fname);
-	} else {
-		_mediaView->showDocument(document, item);
-	}
-}
-
 void Application::showTheme(
 		not_null<DocumentData*> document,
 		const Data::CloudTheme &cloud) {

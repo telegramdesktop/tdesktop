@@ -216,6 +216,16 @@ void ResolveDocument(
 	}
 	const auto msgId = item ? item->fullId() : FullMsgId();
 
+	const auto showDocument = [&] {
+		if (cUseExternalVideoPlayer()
+			&& document->isVideoFile()
+			&& !document->filepath().isEmpty()) {
+			File::Launch(document->location(false).fname);
+		} else {
+			controller->openDocument(document, msgId, true);
+		}
+	};
+
 	const auto media = document->createMediaView();
 	const auto openImageInApp = [&] {
 		if (document->size >= App::kImageSizeLimit) {
@@ -229,7 +239,7 @@ void ResolveDocument(
 			const auto path = location.name();
 			if (Core::MimeTypeForFile(path).name().startsWith("image/")
 				&& QImageReader(path).canRead()) {
-				controller->openDocument(document, msgId, true);
+				showDocument();
 				return true;
 			}
 		} else if (document->mimeString().startsWith("image/")
@@ -237,7 +247,7 @@ void ResolveDocument(
 			auto bytes = media->bytes();
 			auto buffer = QBuffer(&bytes);
 			if (QImageReader(&buffer).canRead()) {
-				controller->openDocument(document, msgId, true);
+				showDocument();
 				return true;
 			}
 		}
@@ -245,7 +255,7 @@ void ResolveDocument(
 	};
 	const auto &location = document->location(true);
 	if (document->isTheme() && media->loaded(true)) {
-		controller->openDocument(document, msgId, true);
+		showDocument();
 		location.accessDisable();
 	} else if (media->canBePlayed()) {
 		if (document->isAudioFile()
@@ -257,7 +267,7 @@ void ResolveDocument(
 			&& HistoryView::Gif::CanPlayInline(document)) {
 			document->owner().requestAnimationPlayInline(item);
 		} else {
-			controller->openDocument(document, msgId, true);
+			showDocument();
 		}
 	} else {
 		document->saveFromDataSilent();
