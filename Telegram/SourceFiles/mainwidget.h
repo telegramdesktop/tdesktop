@@ -319,6 +319,8 @@ private:
 		Window::Column widgetColumn)> callback) override;
 	bool floatPlayerIsVisible(not_null<HistoryItem*> item) override;
 	void floatPlayerClosed(FullMsgId itemId);
+	void floatPlayerDoubleClickEvent(
+		not_null<const HistoryItem*> item) override;
 
 	void viewsIncrementDone(
 		QVector<MTPint> ids,

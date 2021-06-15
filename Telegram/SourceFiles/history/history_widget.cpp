@@ -5263,14 +5263,14 @@ bool HistoryWidget::replyToPreviousMessage() {
 		if (const auto view = item->mainView()) {
 			if (const auto previousView = view->previousDisplayedInBlocks()) {
 				const auto previous = previousView->data();
-				Ui::showPeerHistoryAtItem(previous);
+				controller()->showPeerHistoryAtItem(previous);
 				replyToMessage(previous);
 				return true;
 			}
 		}
 	} else if (const auto previousView = _history->findLastDisplayed()) {
 		const auto previous = previousView->data();
-		Ui::showPeerHistoryAtItem(previous);
+		controller()->showPeerHistoryAtItem(previous);
 		replyToMessage(previous);
 		return true;
 	}
@@ -5288,7 +5288,7 @@ bool HistoryWidget::replyToNextMessage() {
 		if (const auto view = item->mainView()) {
 			if (const auto nextView = view->nextDisplayedInBlocks()) {
 				const auto next = nextView->data();
-				Ui::showPeerHistoryAtItem(next);
+				controller()->showPeerHistoryAtItem(next);
 				replyToMessage(next);
 			} else {
 				clearHighlightMessages();

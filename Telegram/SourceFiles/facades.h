@@ -58,7 +58,6 @@ namespace Ui {
 void showPeerProfile(not_null<PeerData*> peer);
 void showPeerProfile(not_null<const History*> history);
 
-void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
 void showPeerHistory(not_null<const PeerData*> peer, MsgId msgId);
 void showPeerHistory(not_null<const History*> history, MsgId msgId);
 void showChatsList(not_null<Main::Session*> session);

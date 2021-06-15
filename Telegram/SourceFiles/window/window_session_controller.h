@@ -327,6 +327,8 @@ public:
 		const SectionShow &params = SectionShow::Way::ClearStack,
 		MsgId msgId = ShowAtUnreadMsgId) override;
 
+	void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
+
 	void showSpecialLayer(
 		object_ptr<Ui::LayerWidget> &&layer,
 		anim::type animated = anim::type::normal);

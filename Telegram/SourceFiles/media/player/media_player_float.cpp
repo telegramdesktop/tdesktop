@@ -35,15 +35,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media {
 namespace Player {
 
+using DoubleClickedCallback = Fn<void(not_null<const HistoryItem*>)>;
+
 Float::Float(
 	QWidget *parent,
 	not_null<HistoryItem*> item,
 	Fn<void(bool visible)> toggleCallback,
-	Fn<void(bool closed)> draggedCallback)
+	Fn<void(bool closed)> draggedCallback,
+	DoubleClickedCallback doubleClickedCallback)
 : RpWidget(parent)
 , _item(item)
 , _toggleCallback(std::move(toggleCallback))
-, _draggedCallback(std::move(draggedCallback)) {
+, _draggedCallback(std::move(draggedCallback))
+, _doubleClickedCallback(std::move(doubleClickedCallback)) {
 	auto media = _item->media();
 	Assert(media != nullptr);
 
@@ -131,10 +135,10 @@ void Float::finishDrag(bool closed) {
 }
 
 void Float::mouseDoubleClickEvent(QMouseEvent *e) {
-	if (_item) {
+	if (_item && _doubleClickedCallback) {
 		// Handle second click.
 		pauseResume();
-		Ui::showPeerHistoryAtItem(_item);
+		_doubleClickedCallback(_item);
 	}
 }
 
@@ -275,7 +279,8 @@ FloatController::Item::Item(
 	not_null<QWidget*> parent,
 	not_null<HistoryItem*> item,
 	ToggleCallback toggle,
-	DraggedCallback dragged)
+	DraggedCallback dragged,
+	DoubleClickedCallback doubleClicked)
 : animationSide(RectPart::Right)
 , column(Window::Column::Second)
 , corner(RectPart::TopRight)
@@ -287,7 +292,8 @@ FloatController::Item::Item(
 	},
 	[=, dragged = std::move(dragged)](bool closed) {
 		dragged(this, closed);
-	}) {
+	},
+	std::move(doubleClicked)) {
 }
 
 FloatController::FloatController(not_null<FloatDelegate*> delegate)
@@ -394,6 +400,9 @@ void FloatController::create(not_null<HistoryItem*> item) {
 		},
 		[=](not_null<Item*> instance, bool closed) {
 			finishDrag(instance, closed);
+		},
+		[=](not_null<const HistoryItem*> item) {
+			_delegate->floatPlayerDoubleClickEvent(item);
 		}));
 	current()->column = Core::App().settings().floatPlayerColumn();
 	current()->corner = Core::App().settings().floatPlayerCorner();

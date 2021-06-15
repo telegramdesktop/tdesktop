@@ -83,6 +83,10 @@ public:
 
 	void preventOrInvoke(Fn<void()> &&callback);
 
+	void invokeForSessionController(
+		not_null<Main::Account*> account,
+		Fn<void(not_null<SessionController*>)> &&callback);
+
 	void openInMediaView(Media::View::OpenRequest &&request);
 	[[nodiscard]] auto openInMediaViewRequests() const
 	-> rpl::producer<Media::View::OpenRequest>;

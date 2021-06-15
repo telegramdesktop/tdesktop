@@ -1426,12 +1426,12 @@ void OverlayWidget::subscribeToScreenGeometry() {
 }
 
 void OverlayWidget::toMessage() {
-	if (!_session) {
+	if (!_session || !_controller) {
 		return;
 	}
 	if (const auto item = _session->data().message(_msgid)) {
 		close();
-		Ui::showPeerHistoryAtItem(item);
+		_controller->showPeerHistoryAtItem(item);
 	}
 }
 

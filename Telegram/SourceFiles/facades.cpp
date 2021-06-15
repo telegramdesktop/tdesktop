@@ -269,10 +269,6 @@ void showChatsList(not_null<Main::Session*> session) {
 	}
 }
 
-void showPeerHistoryAtItem(not_null<const HistoryItem*> item) {
-	showPeerHistory(item->history()->peer, item->id);
-}
-
 void showPeerHistory(not_null<const History*> history, MsgId msgId) {
 	showPeerHistory(history->peer, msgId);
 }

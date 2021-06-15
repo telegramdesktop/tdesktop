@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
@@ -1134,6 +1135,18 @@ void SessionController::showPeerHistory(
 		peerId,
 		params,
 		msgId);
+}
+
+void SessionController::showPeerHistoryAtItem(
+		not_null<const HistoryItem*> item) {
+	_window->invokeForSessionController(
+		&item->history()->peer->session().account(),
+		[=](not_null<SessionController*> controller) {
+			controller->showPeerHistory(
+				item->history()->peer,
+				SectionShow::Way::ClearStack,
+				item->id);
+		});
 }
 
 void SessionController::showSection(

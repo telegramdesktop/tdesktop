@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "data/data_user.h"
 #include "data/data_countries.h"
 #include "boxes/confirm_box.h"
@@ -33,6 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dc_options.h"
 #include "window/window_slide_animation.h"
 #include "window/window_connecting_widget.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "window/section_widget.h"
 #include "base/platform/base_platform_info.h"
 #include "api/api_text_entities.h"
@@ -184,6 +188,14 @@ void Widget::floatPlayerEnumerateSections(Fn<void(
 
 bool Widget::floatPlayerIsVisible(not_null<HistoryItem*> item) {
 	return false;
+}
+
+void Widget::floatPlayerDoubleClickEvent(not_null<const HistoryItem*> item) {
+	getData()->controller->invokeForSessionController(
+		&item->history()->peer->session().account(),
+		[=](not_null<Window::SessionController*> controller) {
+			controller->showPeerHistoryAtItem(item);
+		});
 }
 
 QRect Widget::floatPlayerAvailableRect() {

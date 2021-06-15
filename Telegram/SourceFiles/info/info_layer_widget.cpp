@@ -73,6 +73,11 @@ bool LayerWidget::floatPlayerIsVisible(not_null<HistoryItem*> item) {
 	return false;
 }
 
+void LayerWidget::floatPlayerDoubleClickEvent(
+		not_null<const HistoryItem*> item) {
+	_controller->showPeerHistoryAtItem(item);
+}
+
 void LayerWidget::setupHeightConsumers() {
 	Expects(_content != nullptr);
 

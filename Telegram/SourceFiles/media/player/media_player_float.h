@@ -38,7 +38,8 @@ public:
 		QWidget *parent,
 		not_null<HistoryItem*> item,
 		Fn<void(bool visible)> toggleCallback,
-		Fn<void(bool closed)> draggedCallback);
+		Fn<void(bool closed)> draggedCallback,
+		Fn<void(not_null<const HistoryItem*>)> doubleClickedCallback);
 
 	[[nodiscard]] HistoryItem *item() const {
 		return _item;
@@ -101,6 +102,7 @@ private:
 	bool _drag = false;
 	QPoint _dragLocalPoint;
 	Fn<void(bool closed)> _draggedCallback;
+	Fn<void(not_null<const HistoryItem*>)> _doubleClickedCallback;
 
 };
 
@@ -137,6 +139,9 @@ public:
 	}
 	virtual rpl::producer<> floatPlayerAreaUpdates() {
 		return _areaUpdates.events();
+	}
+	virtual void floatPlayerDoubleClickEvent(
+		not_null<const HistoryItem*> item) {
 	}
 
 	struct FloatPlayerFilterWheelEventRequest {
@@ -205,7 +210,8 @@ private:
 			not_null<QWidget*> parent,
 			not_null<HistoryItem*> item,
 			ToggleCallback toggle,
-			DraggedCallback dragged);
+			DraggedCallback dragged,
+			Fn<void(not_null<const HistoryItem*>)> doubleClicked);
 
 		bool hiddenByWidget = false;
 		bool hiddenByHistory = false;

@@ -333,6 +333,15 @@ void Controller::preventOrInvoke(Fn<void()> &&callback) {
 	_widget.preventOrInvoke(std::move(callback));
 }
 
+void Controller::invokeForSessionController(
+		not_null<Main::Account*> account,
+		Fn<void(not_null<SessionController*>)> &&callback) {
+	_account->domain().activate(std::move(account));
+	if (_sessionController) {
+		callback(_sessionController.get());
+	}
+}
+
 QPoint Controller::getPointForCallPanelCenter() const {
 	Expects(_widget.windowHandle() != nullptr);
 

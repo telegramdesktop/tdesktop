@@ -42,6 +42,7 @@ public:
 	Widget(QWidget *parent, not_null<Main::Session*> session);
 
 	void setCloseCallback(Fn<void()> callback);
+	void setShowItemCallback(Fn<void(not_null<const HistoryItem*>)> callback);
 	void stopAndClose();
 	void setShadowGeometryToLeft(int x, int y, int w, int h);
 	void showShadow();
@@ -103,6 +104,7 @@ private:
 	AudioMsgId _lastSongId;
 	bool _voiceIsActive = false;
 	Fn<void()> _closeCallback;
+	Fn<void(not_null<const HistoryItem*>)> _showItemCallback;
 
 	bool _labelsOver = false;
 	bool _labelsDown = false;

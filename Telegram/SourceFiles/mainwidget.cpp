@@ -511,6 +511,11 @@ void MainWidget::floatPlayerClosed(FullMsgId itemId) {
 	}
 }
 
+void MainWidget::floatPlayerDoubleClickEvent(
+		not_null<const HistoryItem*> item) {
+	_controller->showPeerHistoryAtItem(item);
+}
+
 bool MainWidget::setForwardDraft(PeerId peerId, MessageIdsList &&items) {
 	Expects(peerId != 0);
 
@@ -939,6 +944,10 @@ void MainWidget::createPlayer() {
 			[this] { playerHeightUpdated(); },
 			_player->lifetime());
 		_player->entity()->setCloseCallback([=] { closeBothPlayers(); });
+		_player->entity()->setShowItemCallback([=](
+				not_null<const HistoryItem*> item) {
+			_controller->showPeerHistoryAtItem(item);
+		});
 		_playerVolume.create(this, _controller);
 		_player->entity()->volumeWidgetCreated(_playerVolume);
 		orderWidgets();

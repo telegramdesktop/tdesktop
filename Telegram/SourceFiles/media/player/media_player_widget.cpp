@@ -206,6 +206,11 @@ void Widget::setCloseCallback(Fn<void()> callback) {
 	_close->setClickedCallback([this] { stopAndClose(); });
 }
 
+void Widget::setShowItemCallback(
+		Fn<void(not_null<const HistoryItem*>)> callback) {
+	_showItemCallback = std::move(callback);
+}
+
 void Widget::stopAndClose() {
 	_voiceIsActive = false;
 	if (_type == AudioMsgId::Type::Voice) {
@@ -311,15 +316,16 @@ void Widget::mousePressEvent(QMouseEvent *e) {
 
 void Widget::mouseReleaseEvent(QMouseEvent *e) {
 	if (auto downLabels = base::take(_labelsDown)) {
-		if (_labelsOver == downLabels) {
-			if (_type == AudioMsgId::Type::Voice) {
-				const auto current = instance()->current(_type);
-				const auto document = current.audio();
-				const auto context = current.contextId();
-				if (document && context) {
-					if (const auto item = document->owner().message(context)) {
-						Ui::showPeerHistoryAtItem(item);
-					}
+		if (_labelsOver != downLabels) {
+			return;
+		}
+		if (_type == AudioMsgId::Type::Voice) {
+			const auto current = instance()->current(_type);
+			const auto document = current.audio();
+			const auto context = current.contextId();
+			if (document && context && _showItemCallback) {
+				if (const auto item = document->owner().message(context)) {
+					_showItemCallback(item);
 				}
 			}
 		}

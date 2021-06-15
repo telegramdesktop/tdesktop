@@ -1445,7 +1445,7 @@ void ListWidget::showContextMenu(
 		tr::lng_context_to_msg(tr::now),
 		[=] {
 			if (const auto item = owner->message(itemFullId)) {
-				Ui::showPeerHistoryAtItem(item);
+				_controller->parentController()->showPeerHistoryAtItem(item);
 			}
 		});
 

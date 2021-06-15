@@ -166,6 +166,8 @@ private:
 		not_null<Media::Player::FloatSectionDelegate*> widget,
 		Window::Column widgetColumn)> callback) override;
 	bool floatPlayerIsVisible(not_null<HistoryItem*> item) override;
+	void floatPlayerDoubleClickEvent(
+		not_null<const HistoryItem*> item) override;
 
 	// FloatSectionDelegate
 	QRect floatPlayerAvailableRect() override;
