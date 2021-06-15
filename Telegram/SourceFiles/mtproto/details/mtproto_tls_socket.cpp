@@ -446,13 +446,22 @@ void ClientHelloGenerator::writeTimestamp() {
 TlsSocket::TlsSocket(
 	not_null<QThread*> thread,
 	const bytes::vector &secret,
-	const QNetworkProxy &proxy)
+	const QNetworkProxy &proxy,
+	bool protocolForFiles)
 : AbstractSocket(thread)
 , _secret(secret) {
 	Expects(_secret.size() >= 21 && _secret[0] == bytes::type(0xEE));
 
 	_socket.moveToThread(thread);
 	_socket.setProxy(proxy);
+	if (protocolForFiles) {
+		_socket.setSocketOption(
+			QAbstractSocket::SendBufferSizeSocketOption,
+			kFilesSendBufferSize);
+		_socket.setSocketOption(
+			QAbstractSocket::ReceiveBufferSizeSocketOption,
+			kFilesReceiveBufferSize);
+	}
 	const auto wrap = [&](auto handler) {
 		return [=](auto &&...args) {
 			InvokeQueued(this, [=] { handler(args...); });

@@ -226,9 +226,17 @@ void SessionPrivate::appendTestConnection(
 		});
 	});
 
+	const auto protocolForFiles = isDownloadDcId(_shiftedDcId)
+		//|| isUploadDcId(_shiftedDcId)
+		|| (_realDcType == DcType::Cdn);
 	const auto protocolDcId = getProtocolDcId();
 	InvokeQueued(_testConnections.back().data, [=] {
-		weak->connectToServer(ip, port, protocolSecret, protocolDcId);
+		weak->connectToServer(
+			ip,
+			port,
+			protocolSecret,
+			protocolDcId,
+			protocolForFiles);
 	});
 }
 

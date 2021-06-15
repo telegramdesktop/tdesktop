@@ -81,7 +81,8 @@ public:
 		const QString &ip,
 		int port,
 		const bytes::vector &protocolSecret,
-		int16 protocolDcId) = 0;
+		int16 protocolDcId,
+		bool protocolForFiles) = 0;
 	virtual void timedOut() {
 	}
 	[[nodiscard]] virtual bool isConnected() const = 0;

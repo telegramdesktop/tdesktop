@@ -67,7 +67,8 @@ void HttpConnection::connectToServer(
 		const QString &address,
 		int port,
 		const bytes::vector &protocolSecret,
-		int16 protocolDcId) {
+		int16 protocolDcId,
+		bool protocolForFiles) {
 	_address = address;
 	connect(
 		&_manager,

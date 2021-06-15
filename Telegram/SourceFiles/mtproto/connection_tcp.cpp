@@ -512,7 +512,8 @@ void TcpConnection::connectToServer(
 		const QString &address,
 		int port,
 		const bytes::vector &protocolSecret,
-		int16 protocolDcId) {
+		int16 protocolDcId,
+		bool protocolForFiles) {
 	Expects(_address.isEmpty());
 	Expects(_port == 0);
 	Expects(_protocol == nullptr);
@@ -543,7 +544,8 @@ void TcpConnection::connectToServer(
 	_socket = AbstractSocket::Create(
 		thread(),
 		secret,
-		ToNetworkProxy(_proxy));
+		ToNetworkProxy(_proxy),
+		protocolForFiles);
 	_protocolDcId = protocolDcId;
 
 	_socket->connected(
