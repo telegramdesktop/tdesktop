@@ -429,6 +429,7 @@ private:
 	const std::unique_ptr<Ui::RpWidgetWrap> _surface;
 	const not_null<QWidget*> _widget;
 
+	Window::SessionController *_controller = nullptr;
 	Main::Session *_session = nullptr;
 	rpl::lifetime _sessionLifetime;
 	PhotoData *_photo = nullptr;

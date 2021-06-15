@@ -1223,6 +1223,7 @@ void SessionController::openPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId contextId) {
 	_window->openInMediaView(Media::View::OpenRequest(
+		this,
 		photo,
 		session().data().message(contextId)));
 }
@@ -1230,7 +1231,7 @@ void SessionController::openPhoto(
 void SessionController::openPhoto(
 		not_null<PhotoData*> photo,
 		not_null<PeerData*> peer) {
-	_window->openInMediaView(Media::View::OpenRequest(photo, peer));
+	_window->openInMediaView(Media::View::OpenRequest(this, photo, peer));
 }
 
 void SessionController::openDocument(
@@ -1240,6 +1241,7 @@ void SessionController::openDocument(
 	// TEMP.
 	if (showInMediaView) {
 		_window->openInMediaView(Media::View::OpenRequest(
+			this,
 			document,
 			session().data().message(contextId)));
 		return;

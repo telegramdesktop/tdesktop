@@ -14,6 +14,10 @@ class PeerData;
 class PhotoData;
 class HistoryItem;
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Media::View {
 
 struct OpenRequest {
@@ -21,23 +25,37 @@ public:
 	OpenRequest() {
 	}
 
-	OpenRequest(not_null<PhotoData*> photo, HistoryItem *item)
-	: _photo(photo)
-	, _item(item) {
-	}
-	OpenRequest(not_null<PhotoData*> photo, not_null<PeerData*> peer)
-	: _photo(photo)
-	, _peer(peer) {
-	}
-
-	OpenRequest(not_null<DocumentData*> document, HistoryItem *item)
-	: _document(document)
+	OpenRequest(
+		Window::SessionController *controller,
+		not_null<PhotoData*> photo,
+		HistoryItem *item)
+	: _controller(controller)
+	, _photo(photo)
 	, _item(item) {
 	}
 	OpenRequest(
+		Window::SessionController *controller,
+		not_null<PhotoData*> photo,
+		not_null<PeerData*> peer)
+	: _controller(controller)
+	, _photo(photo)
+	, _peer(peer) {
+	}
+
+	OpenRequest(
+		Window::SessionController *controller,
+		not_null<DocumentData*> document,
+		HistoryItem *item)
+	: _controller(controller)
+	, _document(document)
+	, _item(item) {
+	}
+	OpenRequest(
+		Window::SessionController *controller,
 		not_null<DocumentData*> document,
 		const Data::CloudTheme &cloudTheme)
-	: _document(document)
+	: _controller(controller)
+	, _document(document)
 	, _cloudTheme(cloudTheme) {
 	}
 
@@ -61,7 +79,12 @@ public:
 		return _cloudTheme;
 	}
 
+	Window::SessionController *controller() const {
+		return _controller;
+	}
+
 private:
+	Window::SessionController *_controller = nullptr;
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
 	PeerData *_peer = nullptr;

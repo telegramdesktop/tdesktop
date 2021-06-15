@@ -333,9 +333,9 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 
 Media::View::OpenRequest Result::openRequest() {
 	if (_document) {
-		return Media::View::OpenRequest(_document, nullptr);
+		return Media::View::OpenRequest(nullptr, _document, nullptr);
 	} else if (_photo) {
-		return Media::View::OpenRequest(_photo, nullptr);
+		return Media::View::OpenRequest(nullptr, _photo, nullptr);
 	}
 	return {};
 }

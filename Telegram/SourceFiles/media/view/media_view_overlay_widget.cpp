@@ -2316,6 +2316,10 @@ void OverlayWidget::showDocument(
 }
 
 void OverlayWidget::show(OpenRequest request) {
+	if (!request.controller()) {
+		return;
+	}
+
 	const auto document = request.document();
 	const auto photo = request.photo();
 	const auto contextItem = request.item();
@@ -2325,6 +2329,8 @@ void OverlayWidget::show(OpenRequest request) {
 			return;
 		}
 		setSession(&photo->session());
+		_controller = request.controller();
+		Assert(_session == (&_controller->session()));
 
 		if (contextPeer) {
 			setContext(contextPeer);
@@ -2345,6 +2351,8 @@ void OverlayWidget::show(OpenRequest request) {
 		activateControls();
 	} else if (document) {
 		setSession(&document->session());
+		_controller = request.controller();
+		Assert(_session == (&_controller->session()));
 
 		if (contextItem) {
 			setContext(contextItem);
