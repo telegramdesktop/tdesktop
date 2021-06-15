@@ -152,6 +152,7 @@ private:
 	QRect _paused;
 
 	Ui::GL::Image _names;
+	QRect _pausedTextRect;
 	std::vector<TileData> _tileData;
 	std::vector<int> _tileDataIndices;
 

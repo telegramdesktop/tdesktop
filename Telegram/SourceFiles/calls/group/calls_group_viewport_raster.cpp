@@ -232,9 +232,48 @@ void Viewport::RendererSW::paintTileControls(
 			&_pinBackground);
 	}
 
+	const auto &st = st::groupCallVideoTile;
+	const auto nameTop = y + (height
+		- st.namePosition.y()
+		- st::semiboldFont->height);
+
 	if (_pausedFrame) {
 		p.fillRect(x, y, width, height, QColor(0, 0, 0, kShadowMaxAlpha));
-		st::groupCallPaused.paintInCenter(p, { x, y, width, height });
+
+		const auto middle = (st::groupCallVideoPlaceholderHeight
+			- st::groupCallPaused.height()) / 2;
+		const auto pausedSpace = (nameTop - y)
+			- st::groupCallPaused.height()
+			- st::semiboldFont->height;
+		const auto pauseIconSkip = middle - st::groupCallVideoPlaceholderIconTop;
+		const auto pauseTextSkip = st::groupCallVideoPlaceholderTextTop
+			- st::groupCallVideoPlaceholderIconTop;
+		const auto pauseIconTop = !_owner->wide()
+			? (y + (height - st::groupCallPaused.height()) / 2)
+			: (pausedSpace < 3 * st::semiboldFont->height)
+			? (pausedSpace / 3)
+			: std::min(
+				y + (height / 2) - pauseIconSkip,
+				(nameTop
+					- st::semiboldFont->height * 3
+					- st::groupCallPaused.height()));
+		const auto pauseTextTop = (pausedSpace < 3 * st::semiboldFont->height)
+			? (nameTop - (pausedSpace / 3) - st::semiboldFont->height)
+			: std::min(
+				pauseIconTop + pauseTextSkip,
+				nameTop - st::semiboldFont->height * 2);
+
+		st::groupCallPaused.paint(
+			p,
+			x + (width - st::groupCallPaused.width()) / 2,
+			pauseIconTop,
+			width);
+		if (_owner->wide()) {
+			p.drawText(
+				QRect(x, pauseTextTop, width, y + height - pauseTextTop),
+				tr::lng_group_call_video_paused(tr::now),
+				style::al_top);
+		}
 	}
 
 	const auto shown = _owner->_controlsShownRatio;
@@ -242,7 +281,6 @@ void Viewport::RendererSW::paintTileControls(
 		return;
 	}
 
-	const auto &st = st::groupCallVideoTile;
 	const auto fullShift = st.namePosition.y() + st::normalFont->height;
 	const auto shift = anim::interpolate(fullShift, 0, shown);
 
@@ -291,11 +329,12 @@ void Viewport::RendererSW::paintTileControls(
 		- st.iconPosition.x() - icon.width()
 		- st.namePosition.x();
 	const auto nameLeft = x + st.namePosition.x();
-	const auto nameTop = y + (height
-		- st.namePosition.y()
-		- st::semiboldFont->height
-		+ shift);
-	row->name().drawLeftElided(p, nameLeft, nameTop, hasWidth, width);
+	row->name().drawLeftElided(
+		p,
+		nameLeft,
+		nameTop + shift,
+		hasWidth,
+		width);
 }
 
 } // namespace Calls::Group

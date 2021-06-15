@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_video_track.h"
 #include "media/view/media_view_pip.h"
 #include "calls/group/calls_group_members_row.h"
+#include "lang/lang_keys.h"
 #include "ui/gl/gl_shader.h"
 #include "data/data_peer.h"
 #include "styles/style_calls.h"
@@ -32,7 +33,7 @@ constexpr auto kBlurOpacity = 0.65;
 constexpr auto kDitherNoiseAmount = 0.002;
 constexpr auto kMinCameraVisiblePart = 0.75;
 
-constexpr auto kQuads = 8;
+constexpr auto kQuads = 9;
 constexpr auto kQuadVertices = kQuads * 4;
 constexpr auto kQuadValues = kQuadVertices * 4;
 constexpr auto kValues = kQuadValues + 8; // Blur texture coordinates.
@@ -554,16 +555,50 @@ void Viewport::RendererGL::paintTile(
 			texCoords.end());
 	}
 
-	// Paused.
-	const auto &pauseIcon = st::groupCallPaused;
-	const auto pausedIcon = _buttons.texturedRect(
+	const auto nameTop = y + (height
+		- st.namePosition.y()
+		- st::semiboldFont->height);
+
+	// Paused icon and text.
+	const auto middle = (st::groupCallVideoPlaceholderHeight
+		- st::groupCallPaused.height()) / 2;
+	const auto pausedSpace = (nameTop - y)
+		- st::groupCallPaused.height()
+		- st::semiboldFont->height;
+	const auto pauseIconSkip = middle - st::groupCallVideoPlaceholderIconTop;
+	const auto pauseTextSkip = st::groupCallVideoPlaceholderTextTop
+		- st::groupCallVideoPlaceholderIconTop;
+	const auto pauseIconTop = !_owner->wide()
+		? (y + (height - st::groupCallPaused.height()) / 2)
+		: (pausedSpace < 3 * st::semiboldFont->height)
+		? (pausedSpace / 3)
+		: std::min(
+			y + (height / 2) - pauseIconSkip,
+			(nameTop
+				- st::semiboldFont->height * 3
+				- st::groupCallPaused.height()));
+	const auto pauseTextTop = (pausedSpace < 3 * st::semiboldFont->height)
+		? (nameTop - (pausedSpace / 3) - st::semiboldFont->height)
+		: std::min(
+			pauseIconTop + pauseTextSkip,
+			nameTop - st::semiboldFont->height * 2);
+
+	const auto pauseIcon = _buttons.texturedRect(
 		QRect(
-			geometry.x() + (geometry.width() - pauseIcon.width()) / 2,
-			geometry.y() + (geometry.height() - pauseIcon.height()) / 2,
-			pauseIcon.width(),
-			pauseIcon.height()),
+			x + (width - st::groupCallPaused.width()) / 2,
+			pauseIconTop,
+			st::groupCallPaused.width(),
+			st::groupCallPaused.height()),
 		_paused);
-	const auto pausedRect = transformRect(pausedIcon.geometry);
+	const auto pauseRect = transformRect(pauseIcon.geometry);
+
+	const auto pausedPosition = QPoint(
+		x + (width - (_pausedTextRect.width() / cIntRetinaFactor())) / 2,
+		pauseTextTop);
+	const auto pausedText = _names.texturedRect(
+		QRect(pausedPosition, _pausedTextRect.size() / cIntRetinaFactor()),
+		_pausedTextRect);
+	const auto pausedRect = transformRect(pausedText.geometry);
 
 	// Pin.
 	const auto pin = _buttons.texturedRect(
@@ -597,10 +632,7 @@ void Viewport::RendererGL::paintTile(
 	// Name.
 	const auto namePosition = QPoint(
 		x + st.namePosition.x(),
-		y + (height
-			- st.namePosition.y()
-			- st::semiboldFont->height
-			+ nameShift));
+		nameTop + nameShift);
 	const auto name = _names.texturedRect(
 		QRect(namePosition, tileData.nameRect.size() / cIntRetinaFactor()),
 		tileData.nameRect,
@@ -706,17 +738,30 @@ void Viewport::RendererGL::paintTile(
 		name.texture.left(), name.texture.top(),
 
 		// Paused icon.
+		pauseRect.left(), pauseRect.top(),
+		pauseIcon.texture.left(), pauseIcon.texture.bottom(),
+
+		pauseRect.right(), pauseRect.top(),
+		pauseIcon.texture.right(), pauseIcon.texture.bottom(),
+
+		pauseRect.right(), pauseRect.bottom(),
+		pauseIcon.texture.right(), pauseIcon.texture.top(),
+
+		pauseRect.left(), pauseRect.bottom(),
+		pauseIcon.texture.left(), pauseIcon.texture.top(),
+
+		// Paused text.
 		pausedRect.left(), pausedRect.top(),
-		pausedIcon.texture.left(), pausedIcon.texture.bottom(),
+		pausedText.texture.left(), pausedText.texture.bottom(),
 
 		pausedRect.right(), pausedRect.top(),
-		pausedIcon.texture.right(), pausedIcon.texture.bottom(),
+		pausedText.texture.right(), pausedText.texture.bottom(),
 
 		pausedRect.right(), pausedRect.bottom(),
-		pausedIcon.texture.right(), pausedIcon.texture.top(),
+		pausedText.texture.right(), pausedText.texture.top(),
 
 		pausedRect.left(), pausedRect.bottom(),
-		pausedIcon.texture.left(), pausedIcon.texture.top(),
+		pausedText.texture.left(), pausedText.texture.top(),
 	};
 
 	_frameBuffer->bind();
@@ -787,7 +832,9 @@ void Viewport::RendererGL::paintTile(
 
 	const auto pinVisible = _owner->wide()
 		&& (pin.geometry.bottom() > y);
-	if (nameShift == fullNameShift && !pinVisible && paused == 0.) {
+	const auto nameVisible = (nameShift != fullNameShift);
+	const auto pausedVisible = (paused > 0.);
+	if (!nameVisible && !pinVisible && !pausedVisible) {
 		return;
 	}
 
@@ -804,30 +851,39 @@ void Viewport::RendererGL::paintTile(
 	f.glActiveTexture(GL_TEXTURE0);
 	_buttons.bind(f);
 
-	if (paused > 0) {
+	// Paused icon.
+	if (pausedVisible) {
 		_imageProgram->setUniformValue("g_opacity", GLfloat(paused));
 		FillTexturedRectangle(f, &*_imageProgram, 30);
 	}
 	_imageProgram->setUniformValue("g_opacity", GLfloat(1.f));
 
+	// Pin.
 	if (pinVisible) {
 		FillTexturedRectangle(f, &*_imageProgram, 14);
 		FillTexturedRectangle(f, &*_imageProgram, 18);
 	}
 
-	if (nameShift == fullNameShift) {
-		return;
-	}
-
 	// Mute.
-	if (!muteRect.empty()) {
+	if (nameVisible && !muteRect.empty()) {
 		FillTexturedRectangle(f, &*_imageProgram, 22);
 	}
 
+	if (!nameVisible && !pausedVisible) {
+		return;
+	}
+
+	_names.bind(f);
+
 	// Name.
-	if (!nameRect.empty()) {
-		_names.bind(f);
+	if (nameVisible && !nameRect.empty()) {
 		FillTexturedRectangle(f, &*_imageProgram, 26);
+	}
+
+	// Paused text.
+	if (pausedVisible && _owner->wide()) {
+		_imageProgram->setUniformValue("g_opacity", GLfloat(paused));
+		FillTexturedRectangle(f, &*_imageProgram, 34);
 	}
 }
 
@@ -1143,12 +1199,15 @@ void Viewport::RendererGL::validateDatas() {
 	const auto count = int(tiles.size());
 	const auto factor = cIntRetinaFactor();
 	const auto nameHeight = st::semiboldFont->height * factor;
+	const auto pausedText = tr::lng_group_call_video_paused(tr::now);
+	const auto pausedBottom = nameHeight;
+	const auto pausedWidth = st::semiboldFont->width(pausedText) * factor;
 	struct Request {
 		int index = 0;
 		bool updating = false;
 	};
 	auto requests = std::vector<Request>();
-	auto available = _names.image().width();
+	auto available = std::max(_names.image().width(), pausedWidth);
 	for (auto &data : _tileData) {
 		data.stale = true;
 	}
@@ -1180,7 +1239,7 @@ void Viewport::RendererGL::validateDatas() {
 			if (peer != j->peer
 				|| peer->nameVersion != j->nameVersion
 				|| width != j->nameRect.width()) {
-				const auto nameTop = index * nameHeight;
+				const auto nameTop = pausedBottom + index * nameHeight;
 				j->nameRect = QRect(0, nameTop, width, nameHeight);
 				requests.push_back({ .index = i, .updating = true });
 			}
@@ -1225,16 +1284,19 @@ void Viewport::RendererGL::validateDatas() {
 				.pause = paused,
 			});
 		}
+		const auto nameTop = pausedBottom + index * nameHeight;
 		_tileData[index].nameVersion = peer->nameVersion;
 		_tileData[index].nameRect = QRect(
 			0,
-			index * nameHeight,
+			nameTop,
 			nameWidth(i),
 			nameHeight);
 		_tileDataIndices[i] = index;
 	}
 	auto image = _names.takeImage();
-	const auto imageSize = QSize(available, _tileData.size() * nameHeight);
+	const auto imageSize = QSize(
+		available,
+		pausedBottom + _tileData.size() * nameHeight);
 	const auto allocate = (image.size() != imageSize);
 	auto paintToImage = allocate
 		? QImage(imageSize, QImage::Format_ARGB32_Premultiplied)
@@ -1245,6 +1307,7 @@ void Viewport::RendererGL::validateDatas() {
 	}
 	{
 		auto p = Painter(&paintToImage);
+		p.setPen(st::groupCallVideoTextFg);
 		if (!image.isNull()) {
 			p.setCompositionMode(QPainter::CompositionMode_Source);
 			p.drawImage(0, 0, image);
@@ -1265,8 +1328,11 @@ void Viewport::RendererGL::validateDatas() {
 					Qt::transparent);
 			}
 			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		} else if (allocate) {
+			p.setFont(st::semiboldFont);
+			p.drawText(0, st::semiboldFont->ascent, pausedText);
+			_pausedTextRect = QRect(0, 0, pausedWidth, nameHeight);
 		}
-		p.setPen(st::groupCallVideoTextFg);
 		for (const auto &request : requests) {
 			const auto i = request.index;
 			const auto index = _tileDataIndices[i];

@@ -1150,6 +1150,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 		: Variants::Tcp;
 	const auto mtproto = &_account->mtp();
 	const auto dcId = mtproto->mainDcId();
+	const auto forFiles = false;
 
 	item.state = ItemState::Checking;
 	const auto setup = [&](Checker &checker, const bytes::vector &secret) {
@@ -1168,7 +1169,8 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 			item.data.host,
 			item.data.port,
 			secret,
-			dcId);
+			dcId,
+			forFiles);
 		item.checkerv6 = nullptr;
 	} else {
 		const auto options = mtproto->dcOptions().lookup(
@@ -1190,7 +1192,8 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 				QString::fromStdString(endpoint.ip),
 				endpoint.port,
 				endpoint.secret,
-				dcId);
+				dcId,
+				forFiles);
 		};
 		connect(item.checker, Variants::IPv4);
 		connect(item.checkerv6, Variants::IPv6);

@@ -607,8 +607,10 @@ void OverlayWidget::RendererGL::paintUsingRaster(
 	}
 	method(Painter(&raster));
 
-	image.setImage(std::move(raster));
-	image.bind(*_f, size);
+	_f->glActiveTexture(GL_TEXTURE0);
+
+	image.setImage(std::move(raster), size);
+	image.bind(*_f);
 
 	const auto textured = image.texturedRect(rect, QRect(QPoint(), size));
 	const auto geometry = transformRect(textured.geometry);
@@ -633,9 +635,6 @@ void OverlayWidget::RendererGL::paintUsingRaster(
 	_imageProgram->bind();
 	_imageProgram->setUniformValue("viewport", _uniformViewport);
 	_imageProgram->setUniformValue("s_texture", GLint(0));
-
-	_f->glActiveTexture(GL_TEXTURE0);
-	image.bind(*_f, size);
 
 	toggleBlending(transparent);
 	FillTexturedRectangle(*_f, &*_imageProgram, bufferOffset);
