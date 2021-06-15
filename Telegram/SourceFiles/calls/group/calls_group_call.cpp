@@ -1606,6 +1606,12 @@ void GroupCall::toggleScheduleStartSubscribed(bool subscribed) {
 	}).send();
 }
 
+void GroupCall::setNoiseSuppression(bool enabled) {
+	if (_instance) {
+		_instance->setIsNoiseSuppressionEnabled(enabled);
+	}
+}
+
 void GroupCall::addVideoOutput(
 		const std::string &endpoint,
 		not_null<Webrtc::VideoTrack*> track) {
@@ -2171,6 +2177,8 @@ bool GroupCall::tryCreateController() {
 			return result;
 		},
 		.videoContentType = tgcalls::VideoContentType::Generic,
+		.initialEnableNoiseSuppression
+			= settings.groupCallNoiseSuppression(),
 		.requestMediaChannelDescriptions = [=, call = base::make_weak(this)](
 			const std::vector<uint32_t> &ssrcs,
 			std::function<void(

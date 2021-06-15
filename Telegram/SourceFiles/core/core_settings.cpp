@@ -195,7 +195,9 @@ QByteArray Settings::serialize() const {
 		for (const auto &[id, variant] : _emojiVariants) {
 			stream << id << quint8(variant);
 		}
-		stream << qint32(_disableOpenGL ? 1 : 0);
+		stream
+			<< qint32(_disableOpenGL ? 1 : 0)
+			<< qint32(_groupCallNoiseSuppression ? 1 : 0);
 	}
 	return result;
 }
@@ -272,6 +274,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	std::vector<RecentEmojiId> recentEmojiPreload;
 	base::flat_map<QString, uint8> emojiVariants;
 	qint32 disableOpenGL = _disableOpenGL ? 1 : 0;
+	qint32 groupCallNoiseSuppression = _groupCallNoiseSuppression ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -403,6 +406,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> disableOpenGL;
 	}
+	if (!stream.atEnd()) {
+		stream >> groupCallNoiseSuppression;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -513,6 +519,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		Ui::GL::ForceDisable(_disableOpenGL
 			|| Ui::Integration::Instance().openglLastCheckFailed());
 	}
+	_groupCallNoiseSuppression = (groupCallNoiseSuppression == 1);
 }
 
 bool Settings::chatWide() const {
@@ -740,6 +747,8 @@ void Settings::resetOnLastLogout() {
 	_groupCallPushToTalk = false;
 	_groupCallPushToTalkShortcut = QByteArray();
 	_groupCallPushToTalkDelay = 20;
+
+	_groupCallNoiseSuppression = true;
 
 	//_themesAccentColors = Window::Theme::AccentColors();
 

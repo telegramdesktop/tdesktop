@@ -235,6 +235,7 @@ public:
 	}
 	void startScheduledNow();
 	void toggleScheduleStartSubscribed(bool subscribed);
+	void setNoiseSuppression(bool enabled);
 
 	bool emitShareScreenError();
 	bool emitShareCameraError();

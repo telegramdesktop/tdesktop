@@ -306,6 +306,20 @@ void SettingsBox(
 	//AddDivider(layout);
 	//AddSkip(layout);
 
+	AddButton(
+		layout,
+		tr::lng_group_call_noise_suppression(),
+		st::groupCallSettingsButton
+	)->toggleOn(rpl::single(
+		settings.groupCallNoiseSuppression()
+	))->toggledChanges(
+	) | rpl::start_with_next([=](bool enabled) {
+		Core::App().settings().setGroupCallNoiseSuppression(enabled);
+		call->setNoiseSuppression(enabled);
+		Core::App().saveSettingsDelayed();
+	}, layout->lifetime());
+
+
 	using GlobalShortcut = base::GlobalShortcut;
 	struct PushToTalkState {
 		rpl::variable<QString> recordText = tr::lng_group_call_ptt_shortcut();

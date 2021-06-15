@@ -265,6 +265,12 @@ public:
 	void setGroupCallPushToTalkDelay(crl::time delay) {
 		_groupCallPushToTalkDelay = delay;
 	}
+	[[nodiscard]] bool groupCallNoiseSuppression() const {
+		return _groupCallNoiseSuppression;
+	}
+	void setGroupCallNoiseSuppression(bool value) {
+		_groupCallNoiseSuppression = value;
+	}
 	[[nodiscard]] Window::Theme::AccentColors &themesAccentColors() {
 		return _themesAccentColors;
 	}
@@ -594,6 +600,7 @@ private:
 	bool _callAudioDuckingEnabled = true;
 	bool _disableCalls = false;
 	bool _groupCallPushToTalk = false;
+	bool _groupCallNoiseSuppression = true;
 	QByteArray _groupCallPushToTalkShortcut;
 	crl::time _groupCallPushToTalkDelay = 20;
 	Window::Theme::AccentColors _themesAccentColors;
