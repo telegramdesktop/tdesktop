@@ -304,10 +304,10 @@ void Application::showOpenGLCrashNotification() {
 		Local::writeSettings();
 	};
 	_window->show(Box<ConfirmBox>(
-		"Last time OpenGL crashed on initialization. "
-		"Perhaps it is a problem with your graphics card driver.\n\n"
-		"Right now OpenGL was disabled. You can try to enable it back "
-		"or keep it disabled, if it continues crashing.",
+		"There may be a problem with your graphics drivers and OpenGL. "
+		"Try updating your drivers.\n\n"
+		"OpenGL has been disabled. You can try to enable it again "
+		"or keep it disabled if crashes continue.",
 		"Enable",
 		"Keep Disabled",
 		enable,

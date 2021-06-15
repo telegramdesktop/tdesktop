@@ -2058,6 +2058,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_ptt_delay" = "Push to Talk release delay: {delay}";
 "lng_group_call_share" = "Share Invite Link";
 "lng_group_call_noise_suppression" = "Enable Noise Suppression";
+"lng_group_call_limit#one" = "Video is only available\nfor the first {count} member";
+"lng_group_call_limit#other" = "Video is only available\nfor the first {count} members";
 "lng_group_call_share_speaker" = "Users with this link can speak";
 "lng_group_call_copy_speaker_link" = "Copy Speaker Link";
 "lng_group_call_copy_listener_link" = "Copy Listener Link";

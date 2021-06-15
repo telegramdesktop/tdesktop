@@ -26,6 +26,7 @@ public:
 	VideoTile(
 		const VideoEndpoint &endpoint,
 		VideoTileTrack track,
+		rpl::producer<QSize> trackSize,
 		rpl::producer<bool> pinned,
 		Fn<void()> update);
 

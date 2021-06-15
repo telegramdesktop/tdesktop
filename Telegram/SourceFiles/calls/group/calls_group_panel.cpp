@@ -854,6 +854,7 @@ void Panel::setupVideo(not_null<Viewport*> viewport) {
 		viewport->add(
 			endpoint,
 			VideoTileTrack{ track.track.get(), row },
+			track.trackSize.value(),
 			std::move(pinned));
 	};
 	for (const auto &[endpoint, track] : _call->activeVideoTracks()) {

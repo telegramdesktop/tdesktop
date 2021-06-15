@@ -1229,6 +1229,9 @@ groupCallVideoTile: GroupCallVideoTile {
 
 groupCallVideoSmallSkip: 4px;
 groupCallVideoLargeSkip: 6px;
+groupCallVideoPlaceholderHeight: 212px;
+groupCallVideoPlaceholderIconTop: 50px;
+groupCallVideoPlaceholderTextTop: 120px;
 
 groupCallTooltip: Tooltip(defaultTooltip) {
 	textBg: groupCallMembersBg;

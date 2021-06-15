@@ -25,11 +25,13 @@ constexpr auto kPausedVideoSize = 90;
 Viewport::VideoTile::VideoTile(
 	const VideoEndpoint &endpoint,
 	VideoTileTrack track,
+	rpl::producer<QSize> trackSize,
 	rpl::producer<bool> pinned,
 	Fn<void()> update)
 : _endpoint(endpoint)
 , _update(std::move(update))
-, _track(track) {
+, _track(track)
+, _trackSize(std::move(trackSize)) {
 	Expects(track.track != nullptr);
 	Expects(track.row != nullptr);
 
@@ -254,19 +256,7 @@ void Viewport::VideoTile::setup(rpl::producer<bool> pinned) {
 	}, _lifetime);
 
 	_track.track->renderNextFrame(
-	) | rpl::start_with_next([=] {
-		const auto size = _track.track->frameSize();
-		if (size.isEmpty()) {
-			_track.track->markFrameShown();
-		} else {
-			_trackSize = size;
-		}
-		_update();
-	}, _lifetime);
-
-	if (const auto size = _track.track->frameSize(); !size.isEmpty()) {
-		_trackSize = size;
-	}
+	) | rpl::start_with_next(_update, _lifetime);
 
 	updateTopControlsSize();
 }

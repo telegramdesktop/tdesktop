@@ -821,6 +821,9 @@ void GroupCall::setState(State state) {
 		if (const auto call = _peer->groupCall(); call && call->id() == _id) {
 			call->setInCall();
 		}
+		if (!videoIsWorking()) {
+			refreshHasNotShownVideo();
+		}
 	}
 
 	if (false
@@ -1043,6 +1046,9 @@ void GroupCall::markEndpointActive(
 		bool paused) {
 	if (!endpoint) {
 		return;
+	} else if (active && !videoIsWorking()) {
+		refreshHasNotShownVideo();
+		return;
 	}
 	const auto i = _activeVideoTracks.find(endpoint);
 	const auto changed = active
@@ -1067,26 +1073,34 @@ void GroupCall::markEndpointActive(
 				.peer = endpoint.peer,
 			}).first;
 		const auto track = i->second.track.get();
-		if (!track->frameSize().isEmpty()
-			|| track->state() == Webrtc::VideoState::Paused) {
+
+		track->renderNextFrame(
+		) | rpl::start_with_next([=] {
+			auto &activeTrack = _activeVideoTracks[endpoint];
+			const auto size = track->frameSize();
+			if (size.isEmpty()) {
+				track->markFrameShown();
+			} else if (!activeTrack.shown) {
+				activeTrack.shown = true;
+				markTrackShown(endpoint, true);
+			}
+			activeTrack.trackSize = size;
+		}, i->second.lifetime);
+
+		const auto size = track->frameSize();
+		i->second.trackSize = size;
+		if (!size.isEmpty() || paused) {
+			i->second.shown = true;
 			shown = true;
 		} else {
-			auto hasFrame = track->renderNextFrame() | rpl::map([=] {
-				return !track->frameSize().isEmpty();
-			});
-			auto isPaused = track->stateValue(
-			) | rpl::map([=](Webrtc::VideoState state) {
-				return (state == Webrtc::VideoState::Paused);
-			});
-			rpl::merge(
-				std::move(hasFrame),
-				std::move(isPaused)
-			) | rpl::filter([=](bool shouldShow) {
-				return shouldShow;
+			track->stateValue(
+			) | rpl::filter([=](Webrtc::VideoState state) {
+				return (state == Webrtc::VideoState::Paused)
+					&& !_activeVideoTracks[endpoint].shown;
 			}) | rpl::start_with_next([=] {
-				_activeVideoTracks[endpoint].shownTrackingLifetime.destroy();
+				_activeVideoTracks[endpoint].shown = true;
 				markTrackShown(endpoint, true);
-			}, i->second.shownTrackingLifetime);
+			}, i->second.lifetime);
 		}
 		addVideoOutput(i->first.id, { track->sink() });
 	} else {
@@ -1109,10 +1123,11 @@ void GroupCall::markTrackShown(const VideoEndpoint &endpoint, bool shown) {
 	const auto changed = shown
 		? _shownVideoTracks.emplace(endpoint).second
 		: _shownVideoTracks.remove(endpoint);
-	if (changed) {
-		_videoStreamShownUpdates.fire_copy({ endpoint, shown });
+	if (!changed) {
+		return;
 	}
-	if (shown && changed && endpoint.type == VideoEndpointType::Screen) {
+	_videoStreamShownUpdates.fire_copy({ endpoint, shown });
+	if (shown && endpoint.type == VideoEndpointType::Screen) {
 		crl::on_main(this, [=] {
 			if (_shownVideoTracks.contains(endpoint)) {
 				pinVideoEndpoint(endpoint);
@@ -2431,21 +2446,37 @@ void GroupCall::updateRequestedVideoChannelsDelayed() {
 	});
 }
 
+void GroupCall::refreshHasNotShownVideo() {
+	if (!_joinState.ssrc || hasNotShownVideo()) {
+		return;
+	}
+	const auto real = lookupReal();
+	Assert(real != nullptr);
+
+	const auto hasVideo = [&](const Data::GroupCallParticipant &data) {
+		return (data.peer != _joinAs)
+			&& (!GetCameraEndpoint(data.videoParams).empty()
+				|| !GetScreenEndpoint(data.videoParams).empty());
+	};
+	_hasNotShownVideo = _joinState.ssrc
+		&& ranges::any_of(real->participants(), hasVideo);
+}
+
 void GroupCall::fillActiveVideoEndpoints() {
 	const auto real = lookupReal();
 	Assert(real != nullptr);
 
-	if (const auto participant = real->participantByPeer(_joinAs)) {
-		_videoIsWorking = participant->videoJoined;
+	const auto me = real->participantByPeer(_joinAs);
+	if (me && me->videoJoined) {
+		_videoIsWorking = true;
+		_hasNotShownVideo = false;
 	} else {
+		refreshHasNotShownVideo();
 		_videoIsWorking = false;
-	}
-	if (!videoIsWorking()) {
 		toggleVideo(false);
 		toggleScreenSharing(std::nullopt);
 	}
 
-	const auto &participants = real->participants();
 	const auto &large = _videoEndpointLarge.current();
 	auto largeFound = false;
 	auto endpoints = _activeVideoTracks | ranges::views::transform([](
@@ -2469,7 +2500,7 @@ void GroupCall::fillActiveVideoEndpoints() {
 	};
 	using Type = VideoEndpointType;
 	if (_videoIsWorking.current()) {
-		for (const auto &participant : participants) {
+		for (const auto &participant : real->participants()) {
 			const auto camera = GetCameraEndpoint(participant.videoParams);
 			if (camera != _cameraEndpoint
 				&& camera != _screenEndpoint
@@ -2485,7 +2516,6 @@ void GroupCall::fillActiveVideoEndpoints() {
 				feedOne({ Type::Screen, participant.peer, screen }, paused);
 			}
 		}
-		const auto pausedState = Webrtc::VideoState::Paused;
 		feedOne(
 			{ Type::Camera, _joinAs, cameraSharingEndpoint() },
 			isCameraPaused());

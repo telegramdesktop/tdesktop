@@ -101,6 +101,7 @@ private:
 	std::unique_ptr<Controller> _listController;
 	not_null<Ui::VerticalLayout*> _layout;
 	const not_null<Ui::RpWidget*> _videoWrap;
+	const std::unique_ptr<Ui::RpWidget> _videoPlaceholder;
 	std::unique_ptr<Viewport> _viewport;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;
 	RpWidget *_topSkip = nullptr;

@@ -3274,7 +3274,6 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 		}
 		paintRadialLoading(renderer);
 	} else {
-		int a = 0;
 		if (_themePreviewShown) {
 			renderer->paintThemePreview(_themePreviewRect);
 		} else if (documentBubbleShown() && !_docRect.isEmpty()) {

@@ -39,6 +39,7 @@ enum class VideoQuality;
 struct VideoTileTrack {
 	Webrtc::VideoTrack *track = nullptr;
 	MembersRow *row = nullptr;
+	rpl::variable<QSize> trackSize;
 
 	[[nodiscard]] explicit operator bool() const {
 		return track != nullptr;
@@ -77,6 +78,7 @@ public:
 	void add(
 		const VideoEndpoint &endpoint,
 		VideoTileTrack track,
+		rpl::producer<QSize> trackSize,
 		rpl::producer<bool> pinned);
 	void remove(const VideoEndpoint &endpoint);
 	void showLarge(const VideoEndpoint &endpoint);
@@ -90,6 +92,8 @@ public:
 	[[nodiscard]] rpl::producer<bool> mouseInsideValue() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime();
+
+	static constexpr auto kShadowMaxAlpha = 80;
 
 private:
 	struct Textures;
@@ -131,8 +135,6 @@ private:
 			return (tile == other.tile) && (element == other.element);
 		}
 	};
-
-	static constexpr auto kShadowMaxAlpha = 80;
 
 	void setup();
 	[[nodiscard]] bool wide() const;

@@ -406,21 +406,22 @@ void Pip::RendererGL::paintTransformedContent(
 	_f->glActiveTexture(rgbaFrame ? GL_TEXTURE1 : GL_TEXTURE3);
 	_shadowImage.bind(*_f);
 
+	const auto globalFactor = cIntRetinaFactor();
 	const auto fadeAlpha = st::radialBg->c.alphaF() * geometry.fade;
 	const auto roundRect = transformRect(RoundingRect(geometry));
 	program->setUniformValue("roundRect", Uniform(roundRect));
 	program->setUniformValue("h_texture", GLint(rgbaFrame ? 1 : 3));
 	program->setUniformValue("h_size", QSizeF(_shadowImage.image().size()));
 	program->setUniformValue("h_extend", QVector4D(
-		st::callShadow.extend.left(),
-		st::callShadow.extend.top(),
-		st::callShadow.extend.right(),
-		st::callShadow.extend.bottom()));
+		st::callShadow.extend.left() * globalFactor,
+		st::callShadow.extend.top() * globalFactor,
+		st::callShadow.extend.right() * globalFactor,
+		st::callShadow.extend.bottom() * globalFactor));
 	program->setUniformValue("h_components", QVector4D(
-		float(st::callShadow.topLeft.width()),
-		float(st::callShadow.topLeft.height()),
-		float(st::callShadow.left.width()),
-		float(st::callShadow.top.height())));
+		float(st::callShadow.topLeft.width() * globalFactor),
+		float(st::callShadow.topLeft.height() * globalFactor),
+		float(st::callShadow.left.width() * globalFactor),
+		float(st::callShadow.top.height() * globalFactor)));
 	program->setUniformValue(
 		"roundRadius",
 		GLfloat(st::roundRadiusLarge * _factor));

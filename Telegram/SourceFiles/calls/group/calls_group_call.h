@@ -324,9 +324,11 @@ public:
 
 	struct VideoTrack {
 		std::unique_ptr<Webrtc::VideoTrack> track;
+		rpl::variable<QSize> trackSize;
 		PeerData *peer = nullptr;
-		rpl::lifetime shownTrackingLifetime;
+		rpl::lifetime lifetime;
 		Group::VideoQuality quality = Group::VideoQuality();
+		bool shown = false;
 
 		[[nodiscard]] explicit operator bool() const {
 			return (track != nullptr);
@@ -365,6 +367,12 @@ public:
 	}
 	[[nodiscard]] rpl::producer<bool> videoIsWorkingValue() const {
 		return _videoIsWorking.value();
+	}
+	[[nodiscard]] bool hasNotShownVideo() const {
+		return _hasNotShownVideo.current();
+	}
+	[[nodiscard]] rpl::producer<bool> hasNotShownVideoValue() const {
+		return _hasNotShownVideo.value();
 	}
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
@@ -514,6 +522,7 @@ private:
 	void updateRequestedVideoChannels();
 	void updateRequestedVideoChannelsDelayed();
 	void fillActiveVideoEndpoints();
+	void refreshHasNotShownVideo();
 
 	void editParticipant(
 		not_null<PeerData*> participantPeer,
@@ -570,6 +579,7 @@ private:
 	rpl::variable<MuteState> _muted = MuteState::Muted;
 	rpl::variable<bool> _canManage = false;
 	rpl::variable<bool> _videoIsWorking = false;
+	rpl::variable<bool> _hasNotShownVideo = false;
 	bool _initialMuteStateSent = false;
 	bool _acceptFields = false;
 
