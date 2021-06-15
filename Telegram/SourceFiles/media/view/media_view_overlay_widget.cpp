@@ -2249,76 +2249,6 @@ void OverlayWidget::activate() {
 	setFocus();
 }
 
-void OverlayWidget::showPhoto(
-		not_null<PhotoData*> photo,
-		HistoryItem *context) {
-	setSession(&photo->session());
-
-	if (context) {
-		setContext(context);
-	} else {
-		setContext(v::null);
-	}
-
-	clearControlsState();
-	_firstOpenedPeerPhoto = false;
-	assignMediaPointer(photo);
-
-	displayPhoto(photo, context);
-	preloadData(0);
-	activateControls();
-}
-
-void OverlayWidget::showPhoto(
-		not_null<PhotoData*> photo,
-		not_null<PeerData*> context) {
-	setSession(&photo->session());
-	setContext(context);
-
-	clearControlsState();
-	_firstOpenedPeerPhoto = true;
-	assignMediaPointer(photo);
-
-	displayPhoto(photo, nullptr);
-	preloadData(0);
-	activateControls();
-}
-
-void OverlayWidget::showDocument(
-		not_null<DocumentData*> document,
-		HistoryItem *context) {
-	showDocument(document, context, Data::CloudTheme(), false);
-}
-
-void OverlayWidget::showTheme(
-		not_null<DocumentData*> document,
-		const Data::CloudTheme &cloud) {
-	showDocument(document, nullptr, cloud, false);
-}
-
-void OverlayWidget::showDocument(
-		not_null<DocumentData*> document,
-		HistoryItem *context,
-		const Data::CloudTheme &cloud,
-		bool continueStreaming) {
-	setSession(&document->session());
-
-	if (context) {
-		setContext(context);
-	} else {
-		setContext(v::null);
-	}
-
-	clearControlsState();
-
-	_streamingStartPaused = false;
-	displayDocument(document, context, cloud, continueStreaming);
-	if (!isHidden()) {
-		preloadData(0);
-		activateControls();
-	}
-}
-
 void OverlayWidget::show(OpenRequest request) {
 	if (!request.controller()) {
 		return;
@@ -3168,12 +3098,17 @@ float64 OverlayWidget::playbackControlsCurrentSpeed() {
 void OverlayWidget::switchToPip() {
 	Expects(_streamed != nullptr);
 	Expects(_document != nullptr);
+	Expects(_controller != nullptr);
 
 	const auto document = _document;
 	const auto msgId = _msgid;
 	const auto closeAndContinue = [=] {
 		_showAsPip = false;
-		showDocument(document, document->owner().message(msgId), {}, true);
+		show(OpenRequest(
+			_controller,
+			document,
+			document->owner().message(msgId),
+			true));
 	};
 	_showAsPip = true;
 	_pip = std::make_unique<PipWrap>(

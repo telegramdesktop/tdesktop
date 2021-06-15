@@ -45,10 +45,12 @@ public:
 	OpenRequest(
 		Window::SessionController *controller,
 		not_null<DocumentData*> document,
-		HistoryItem *item)
+		HistoryItem *item,
+		bool continueStreaming = false)
 	: _controller(controller)
 	, _document(document)
-	, _item(item) {
+	, _item(item)
+	, _continueStreaming(continueStreaming) {
 	}
 	OpenRequest(
 		Window::SessionController *controller,
@@ -83,6 +85,10 @@ public:
 		return _controller;
 	}
 
+	bool continueStreaming() const {
+		return _continueStreaming;
+	}
+
 private:
 	Window::SessionController *_controller = nullptr;
 	DocumentData *_document = nullptr;
@@ -90,6 +96,7 @@ private:
 	PeerData *_peer = nullptr;
 	HistoryItem *_item = nullptr;
 	std::optional<Data::CloudTheme> _cloudTheme = std::nullopt;
+	bool _continueStreaming = false;
 
 };
 

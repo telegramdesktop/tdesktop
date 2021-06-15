@@ -78,15 +78,6 @@ public:
 	void setFocus();
 	void activate();
 
-	void showPhoto(not_null<PhotoData*> photo, HistoryItem *context);
-	void showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> context);
-	void showDocument(
-		not_null<DocumentData*> document,
-		HistoryItem *context);
-	void showTheme(
-		not_null<DocumentData*> document,
-		const Data::CloudTheme &cloud);
-
 	void show(OpenRequest request);
 
 	//void leaveToChildEvent(QEvent *e, QWidget *child) override {
@@ -291,11 +282,6 @@ private:
 	void resizeCenteredControls();
 	void resizeContentByScreenSize();
 
-	void showDocument(
-		not_null<DocumentData*> document,
-		HistoryItem *context,
-		const Data::CloudTheme &cloud,
-		bool continueStreaming);
 	void displayPhoto(not_null<PhotoData*> photo, HistoryItem *item);
 	void displayDocument(
 		DocumentData *document,
