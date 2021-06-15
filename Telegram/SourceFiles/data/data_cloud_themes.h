@@ -15,6 +15,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Data {
 
 class DocumentMedia;
@@ -47,9 +51,16 @@ public:
 
 	void applyUpdate(const MTPTheme &theme);
 
-	void resolve(const QString &slug, const FullMsgId &clickFromMessageId);
-	void showPreview(const MTPTheme &data);
-	void showPreview(const CloudTheme &cloud);
+	void resolve(
+		not_null<Window::Controller*> controller,
+		const QString &slug,
+		const FullMsgId &clickFromMessageId);
+	void showPreview(
+		not_null<Window::Controller*> controller,
+		const MTPTheme &data);
+	void showPreview(
+		not_null<Window::Controller*> controller,
+		const CloudTheme &cloud);
 	void applyFromDocument(const CloudTheme &cloud);
 
 private:
@@ -69,7 +80,9 @@ private:
 	[[nodiscard]] bool needReload() const;
 	void scheduleReload();
 	void reloadCurrent();
-	void previewFromDocument(const CloudTheme &cloud);
+	void previewFromDocument(
+		not_null<Window::Controller*> controller,
+		const CloudTheme &cloud);
 	void loadDocumentAndInvoke(
 		LoadingDocument &value,
 		const CloudTheme &cloud,

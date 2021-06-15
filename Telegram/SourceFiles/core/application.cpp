@@ -390,14 +390,6 @@ bool Application::hideMediaView() {
 	return false;
 }
 
-void Application::showTheme(
-		not_null<DocumentData*> document,
-		const Data::CloudTheme &cloud) {
-	Expects(_mediaView != nullptr);
-
-	_mediaView->showTheme(document, cloud);
-}
-
 PeerData *Application::ui_getPeerForMouseAction() {
 	if (_mediaView && !_mediaView->isHidden()) {
 		return _mediaView->ui_getPeerForMouseAction();

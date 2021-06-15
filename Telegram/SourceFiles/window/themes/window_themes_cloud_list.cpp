@@ -524,7 +524,9 @@ void CloudList::insert(int index, const Data::CloudTheme &theme) {
 		} else if (cloud.documentId) {
 			_window->session().data().cloudThemes().applyFromDocument(cloud);
 		} else {
-			_window->session().data().cloudThemes().showPreview(cloud);
+			_window->session().data().cloudThemes().showPreview(
+				&_window->window(),
+				cloud);
 		}
 	});
 	auto &element = *_elements.insert(

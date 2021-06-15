@@ -143,9 +143,6 @@ public:
 	// Media view interface.
 	void checkMediaViewActivation();
 	bool hideMediaView();
-	void showTheme(
-		not_null<DocumentData*> document,
-		const Data::CloudTheme &cloud);
 	[[nodiscard]] PeerData *ui_getPeerForMouseAction();
 
 	[[nodiscard]] QPoint getPointForCallPanelCenter() const;

@@ -84,6 +84,7 @@ bool ShowTheme(
 	const auto fromMessageId = context.value<ClickHandlerContext>().itemId;
 	Core::App().hideMediaView();
 	controller->session().data().cloudThemes().resolve(
+		&controller->window(),
 		match->captured(1),
 		fromMessageId);
 	return true;
