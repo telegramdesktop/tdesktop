@@ -349,7 +349,10 @@ public:
 
 	void openPhoto(not_null<PhotoData*> photo, FullMsgId contextId);
 	void openPhoto(not_null<PhotoData*> photo, not_null<PeerData*> peer);
-	void openDocument(not_null<DocumentData*> document, FullMsgId contextId);
+	void openDocument(
+		not_null<DocumentData*> document,
+		FullMsgId contextId,
+		bool showInMediaView = false);
 
 	void showChooseReportMessages(
 		not_null<PeerData*> peer,

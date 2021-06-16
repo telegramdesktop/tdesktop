@@ -220,9 +220,7 @@ void Document::createComponents(bool caption) {
 			_realParent->fullId());
 	}
 	if (const auto voice = Get<HistoryDocumentVoice>()) {
-		voice->_seekl = std::make_shared<VoiceSeekClickHandler>(
-			_data,
-			_realParent->fullId());
+		voice->_seekl = std::make_shared<VoiceSeekClickHandler>(_data, [] {});
 	}
 }
 

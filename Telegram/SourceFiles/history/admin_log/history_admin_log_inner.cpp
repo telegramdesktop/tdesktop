@@ -608,6 +608,13 @@ void InnerWidget::elementOpenPhoto(
 	_controller->openPhoto(photo, context);
 }
 
+void InnerWidget::elementOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView) {
+	_controller->openDocument(document, context, showInMediaView);
+}
+
 void InnerWidget::elementShowTooltip(
 	const TextWithEntities &text,
 	Fn<void()> hiddenCallback) {

@@ -91,6 +91,10 @@ public:
 	void elementOpenPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId context);
+	void elementOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView = false);
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback);

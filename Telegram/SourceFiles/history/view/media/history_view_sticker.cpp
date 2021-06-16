@@ -286,7 +286,11 @@ void Sticker::refreshLink() {
 		// .webp image and we allow to open it in media viewer.
 		_link = std::make_shared<DocumentOpenClickHandler>(
 			_data,
-			_parent->data()->fullId());
+			crl::guard(this, [=] {
+				_parent->delegate()->elementOpenDocument(
+					_data,
+					_parent->data()->fullId());
+			}));
 	}
 }
 

@@ -1235,8 +1235,15 @@ void SessionController::openPhoto(
 
 void SessionController::openDocument(
 		not_null<DocumentData*> document,
-		FullMsgId contextId) {
+		FullMsgId contextId,
+		bool showInMediaView) {
 	// TEMP.
+	if (showInMediaView) {
+		_window->openInMediaView(Media::View::OpenRequest(
+			document,
+			session().data().message(contextId)));
+		return;
+	}
 	Data::ResolveDocument(document, session().data().message(contextId));
 }
 

@@ -1306,6 +1306,13 @@ void ListWidget::elementOpenPhoto(
 	_controller->openPhoto(photo, context);
 }
 
+void ListWidget::elementOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView) {
+	_controller->openDocument(document, context, showInMediaView);
+}
+
 void ListWidget::elementShowTooltip(
 	const TextWithEntities &text,
 	Fn<void()> hiddenCallback) {

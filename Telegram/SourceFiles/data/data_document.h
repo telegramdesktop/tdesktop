@@ -362,11 +362,25 @@ protected:
 
 class DocumentOpenClickHandler : public DocumentClickHandler {
 public:
-	using DocumentClickHandler::DocumentClickHandler;
+	DocumentOpenClickHandler(
+		not_null<DocumentData*> document,
+		Fn<void()> &&callback);
 	static void Open(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> document,
 		HistoryItem *context);
+
+protected:
+	void onClickImpl() const override;
+
+private:
+	Fn<void()> _handler;
+
+};
+
+class DocumentOpenClickHandlerOld : public DocumentClickHandler {
+public:
+	using DocumentClickHandler::DocumentClickHandler;
 
 protected:
 	void onClickImpl() const override;

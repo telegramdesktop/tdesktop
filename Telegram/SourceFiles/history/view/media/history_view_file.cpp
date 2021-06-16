@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "history/history_item.h"
 #include "history/history.h"
+#include "history/view/history_view_element.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "styles/style_chat.h"
@@ -103,7 +104,11 @@ void File::setDocumentLinks(
 		not_null<HistoryItem*> realParent) {
 	const auto context = realParent->fullId();
 	setLinks(
-		std::make_shared<DocumentOpenClickHandler>(document, context),
+		std::make_shared<DocumentOpenClickHandler>(
+			document,
+			crl::guard(this, [=] {
+				_parent->delegate()->elementOpenDocument(document, context);
+			})),
 		std::make_shared<DocumentSaveClickHandler>(document, context),
 		std::make_shared<DocumentCancelClickHandler>(document, context));
 }

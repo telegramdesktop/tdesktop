@@ -316,15 +316,27 @@ DocumentClickHandler::DocumentClickHandler(
 , _document(document) {
 }
 
+DocumentOpenClickHandler::DocumentOpenClickHandler(
+	not_null<DocumentData*> document,
+	Fn<void()> &&callback)
+: DocumentClickHandler(document)
+, _handler(std::move(callback)) {
+}
+
+void DocumentOpenClickHandler::onClickImpl() const {
+	if (_handler) {
+		_handler();
+	}
+}
+
+void DocumentOpenClickHandlerOld::onClickImpl() const {
+}
+
 void DocumentOpenClickHandler::Open(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> data,
 		HistoryItem *context) {
 	Data::ResolveDocument(data, context);
-}
-
-void DocumentOpenClickHandler::onClickImpl() const {
-	Open(context(), document(), getActionItem());
 }
 
 void DocumentSaveClickHandler::Save(

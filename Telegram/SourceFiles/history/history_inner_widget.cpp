@@ -2573,6 +2573,13 @@ void HistoryInner::elementOpenPhoto(
 	_controller->openPhoto(photo, context);
 }
 
+void HistoryInner::elementOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView) {
+	_controller->openDocument(document, context, showInMediaView);
+}
+
 void HistoryInner::elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) {
@@ -3456,6 +3463,17 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 				FullMsgId context) override {
 			if (Instance) {
 				Instance->elementOpenPhoto(photo, context);
+			}
+		}
+		void elementOpenDocument(
+				not_null<DocumentData*> document,
+				FullMsgId context,
+				bool showInMediaView = false) override {
+			if (Instance) {
+				Instance->elementOpenDocument(
+					document,
+					context,
+					showInMediaView);
 			}
 		}
 		void elementShowTooltip(
