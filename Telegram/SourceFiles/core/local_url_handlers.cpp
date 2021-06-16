@@ -231,9 +231,15 @@ bool ShowWallPaper(
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
+	if (!params.value("gradient").isEmpty()) {
+		Ui::show(Box<InformBox>(
+			tr::lng_background_gradient_unsupported(tr::now)));
+		return false;
+	}
+	const auto color = params.value("color");
 	return BackgroundPreviewBox::Start(
 		controller,
-		params.value(qsl("slug")),
+		(color.isEmpty() ? params.value(qsl("slug")) : color),
 		params);
 }
 
@@ -578,9 +584,16 @@ QString TryConvertUrlToLocal(QString url) {
 			return qsl("tg://socks?") + socksMatch->captured(1);
 		} else if (auto proxyMatch = regex_match(qsl("^proxy/?\\?(.+)(#|$)"), query, matchOptions)) {
 			return qsl("tg://proxy?") + proxyMatch->captured(1);
-		} else if (auto bgMatch = regex_match(qsl("^bg/([a-zA-Z0-9\\.\\_\\-]+)(\\?(.+)?)?$"), query, matchOptions)) {
+		} else if (auto bgMatch = regex_match(qsl("^bg/([a-zA-Z0-9\\.\\_\\-\\~]+)(\\?(.+)?)?$"), query, matchOptions)) {
 			const auto params = bgMatch->captured(3);
-			return qsl("tg://bg?slug=") + bgMatch->captured(1) + (params.isEmpty() ? QString() : '&' + params);
+			const auto bg = bgMatch->captured(1);
+			const auto type = regex_match(qsl("^[a-fA-F0-9]{6}^"), bg)
+				? "color"
+				: (regex_match(qsl("^[a-fA-F0-9]{6}\\-[a-fA-F0-9]{6}$"), bg)
+					|| regex_match(qsl("^[a-fA-F0-9]{6}(\\~[a-fA-F0-9]{6}){1,3}$"), bg))
+				? "gradient"
+				: "slug";
+			return qsl("tg://bg?") + type + '=' + bg + (params.isEmpty() ? QString() : '&' + params);
 		} else if (auto postMatch = regex_match(qsl("^c/(\\-?\\d+)/(\\d+)(/?\\?|/?$)"), query, matchOptions)) {
 			auto params = query.mid(postMatch->captured(0).size()).toString();
 			return qsl("tg://privatepost?channel=%1&post=%2").arg(postMatch->captured(1), postMatch->captured(2)) + (params.isEmpty() ? QString() : '&' + params);
