@@ -2442,20 +2442,19 @@ void OverlayWidget::displayDocument(
 	refreshCaption(item);
 
 	_docIconRect = QRect((width() - st::mediaviewFileIconSize) / 2, (height() - st::mediaviewFileIconSize) / 2, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
-	if (documentBubbleShown()) {
-		if (!_document || !_document->hasThumbnail()) {
-			int32 colorIndex = documentColorIndex(_document, _docExt);
-			_docIconColor = documentColor(colorIndex);
-			const style::icon *(thumbs[]) = { &st::mediaviewFileBlue, &st::mediaviewFileGreen, &st::mediaviewFileRed, &st::mediaviewFileYellow };
-			_docIcon = thumbs[colorIndex];
+	int32 colorIndex = documentColorIndex(_document, _docExt);
+	_docIconColor = documentColor(colorIndex);
+	const style::icon *(thumbs[]) = { &st::mediaviewFileBlue, &st::mediaviewFileGreen, &st::mediaviewFileRed, &st::mediaviewFileYellow };
+	_docIcon = thumbs[colorIndex];
 
-			int32 extmaxw = (st::mediaviewFileIconSize - st::mediaviewFileExtPadding * 2);
-			_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
-			if (_docExtWidth > extmaxw) {
-				_docExt = st::mediaviewFileExtFont->elided(_docExt, extmaxw, Qt::ElideMiddle);
-				_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
-			}
-		} else {
+	int32 extmaxw = (st::mediaviewFileIconSize - st::mediaviewFileExtPadding * 2);
+	_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
+	if (_docExtWidth > extmaxw) {
+		_docExt = st::mediaviewFileExtFont->elided(_docExt, extmaxw, Qt::ElideMiddle);
+		_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
+	}
+	if (documentBubbleShown()) {
+		if (_document && _document->hasThumbnail()) {
 			_document->loadThumbnail(fileOrigin());
 			const auto tw = _documentMedia->thumbnailSize().width();
 			const auto th = _documentMedia->thumbnailSize().height();
