@@ -44,10 +44,8 @@ GroupMembersWidget::GroupMembersWidget(
 	QWidget *parent,
 	not_null<PeerData*> peer,
 	const style::PeerListItem &st)
-: PeerListWidget(parent, peer, QString(), st, tr::lng_profile_kick(tr::now)) {
-	_updateOnlineTimer.setSingleShot(true);
-	connect(&_updateOnlineTimer, SIGNAL(timeout()), this, SLOT(onUpdateOnlineDisplay()));
-
+: PeerListWidget(parent, peer, QString(), st, tr::lng_profile_kick(tr::now))
+, _updateOnlineTimer([=] { updateOnlineDisplay(); }) {
 	peer->session().changes().peerUpdates(
 		UpdateFlag::Admins
 		| UpdateFlag::Members
@@ -186,7 +184,7 @@ void GroupMembersWidget::updateItemStatusText(Item *item) {
 	}
 	if (_updateOnlineAt <= _now || _updateOnlineAt > member->onlineTextTill) {
 		_updateOnlineAt = member->onlineTextTill;
-		_updateOnlineTimer.start((_updateOnlineAt - _now + 1) * 1000);
+		_updateOnlineTimer.callOnce((_updateOnlineAt - _now + 1) * 1000);
 	}
 }
 
@@ -256,7 +254,6 @@ void GroupMembersWidget::updateOnlineCount() {
 	}
 	if (_onlineCount != newOnlineCount) {
 		_onlineCount = newOnlineCount;
-		onlineCountUpdated(_onlineCount);
 	}
 }
 
@@ -432,7 +429,7 @@ auto GroupMembersWidget::computeMember(not_null<UserData*> user)
 	return it->second;
 }
 
-void GroupMembersWidget::onUpdateOnlineDisplay() {
+void GroupMembersWidget::updateOnlineDisplay() {
 	if (_sortByOnline) {
 		_now = base::unixtime::now();
 
