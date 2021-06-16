@@ -13,7 +13,7 @@ class DocumentData;
 class HistoryItem;
 
 namespace Window {
-class Controller;
+class SessionController;
 } // namespace Window
 
 namespace Data {
@@ -30,7 +30,7 @@ base::binary_guard ReadImageAsync(
 	FnMut<void(QImage&&)> done);
 
 void ResolveDocument(
-	// not_null<Window::Controller*> controller,
+	not_null<Window::SessionController*> controller,
 	not_null<DocumentData*> document,
 	HistoryItem *item);
 

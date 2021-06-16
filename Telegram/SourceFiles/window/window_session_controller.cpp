@@ -1238,7 +1238,6 @@ void SessionController::openDocument(
 		not_null<DocumentData*> document,
 		FullMsgId contextId,
 		bool showInMediaView) {
-	// TEMP.
 	if (showInMediaView) {
 		_window->openInMediaView(Media::View::OpenRequest(
 			this,
@@ -1246,7 +1245,10 @@ void SessionController::openDocument(
 			session().data().message(contextId)));
 		return;
 	}
-	Data::ResolveDocument(document, session().data().message(contextId));
+	Data::ResolveDocument(
+		this,
+		document,
+		session().data().message(contextId));
 }
 
 SessionController::~SessionController() = default;

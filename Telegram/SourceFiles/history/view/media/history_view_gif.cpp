@@ -1387,7 +1387,10 @@ void Gif::playAnimation(bool autoplay) {
 		return;
 	} else if ((_streamed && autoplayEnabled())
 		|| (!autoplay && _data->isVideoFile())) {
-		Core::App().showDocument(_data, _parent->data());
+		_parent->delegate()->elementOpenDocument(
+			_data,
+			_parent->data()->fullId(),
+			true);
 		return;
 	}
 	if (_streamed) {

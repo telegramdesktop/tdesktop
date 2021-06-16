@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_rotation.h"
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
+#include "data/data_document_resolver.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
@@ -1554,8 +1555,11 @@ void OverlayWidget::handleDocumentClick() {
 	if (_document->loading()) {
 		saveCancel();
 	} else {
-		DocumentOpenClickHandler::Open(
-			fileOrigin(),
+		if (!_controller) {
+			return;
+		}
+		Data::ResolveDocument(
+			_controller,
 			_document,
 			_document->owner().message(_msgid));
 		if (_document->loading() && !_radial.animating()) {

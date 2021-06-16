@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "platform/platform_file_utilities.h"
 #include "ui/text/text_utilities.h"
-#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 
 #include <QtCore/QBuffer>
@@ -209,12 +208,13 @@ base::binary_guard ReadImageAsync(
 }
 
 void ResolveDocument(
-		// not_null<Window::Controller*> controller,
+		not_null<Window::SessionController*> controller,
 		not_null<DocumentData*> document,
 		HistoryItem *item) {
 	if (!document->date) {
 		return;
 	}
+	const auto msgId = item ? item->fullId() : FullMsgId();
 
 	const auto media = document->createMediaView();
 	const auto openImageInApp = [&] {
@@ -229,7 +229,7 @@ void ResolveDocument(
 			const auto path = location.name();
 			if (Core::MimeTypeForFile(path).name().startsWith("image/")
 				&& QImageReader(path).canRead()) {
-				Core::App().showDocument(document, item);
+				controller->openDocument(document, msgId, true);
 				return true;
 			}
 		} else if (document->mimeString().startsWith("image/")
@@ -237,7 +237,7 @@ void ResolveDocument(
 			auto bytes = media->bytes();
 			auto buffer = QBuffer(&bytes);
 			if (QImageReader(&buffer).canRead()) {
-				Core::App().showDocument(document, item);
+				controller->openDocument(document, msgId, true);
 				return true;
 			}
 		}
@@ -245,20 +245,19 @@ void ResolveDocument(
 	};
 	const auto &location = document->location(true);
 	if (document->isTheme() && media->loaded(true)) {
-		Core::App().showDocument(document, item);
+		controller->openDocument(document, msgId, true);
 		location.accessDisable();
 	} else if (media->canBePlayed()) {
 		if (document->isAudioFile()
 			|| document->isVoiceMessage()
 			|| document->isVideoMessage()) {
-			const auto msgId = item ? item->fullId() : FullMsgId();
 			::Media::Player::instance()->playPause({ document, msgId });
 		} else if (item
 			&& document->isAnimation()
 			&& HistoryView::Gif::CanPlayInline(document)) {
 			document->owner().requestAnimationPlayInline(item);
 		} else {
-			Core::App().showDocument(document, item);
+			controller->openDocument(document, msgId, true);
 		}
 	} else {
 		document->saveFromDataSilent();

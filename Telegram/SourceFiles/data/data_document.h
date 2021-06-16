@@ -365,10 +365,6 @@ public:
 	DocumentOpenClickHandler(
 		not_null<DocumentData*> document,
 		Fn<void()> &&callback);
-	static void Open(
-		Data::FileOrigin origin,
-		not_null<DocumentData*> document,
-		HistoryItem *context);
 
 protected:
 	void onClickImpl() const override;

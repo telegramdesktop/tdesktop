@@ -437,9 +437,7 @@ bool OpenMediaTimestamp(
 			documentId,
 			time * crl::time(1000));
 		if (document->isVideoFile()) {
-			Core::App().showDocument(
-				document,
-				session->data().message(itemId));
+			controller->openDocument(document, itemId, true);
 		} else if (document->isSong() || document->isVoiceMessage()) {
 			Media::Player::instance()->play({ document, itemId });
 		}

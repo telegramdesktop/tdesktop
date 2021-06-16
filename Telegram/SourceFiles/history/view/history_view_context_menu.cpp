@@ -157,11 +157,13 @@ void AddPhotoActions(
 	}
 }
 
-void OpenGif(not_null<Main::Session*> session, FullMsgId itemId) {
-	if (const auto item = session->data().message(itemId)) {
+void OpenGif(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId) {
+	if (const auto item = controller->session().data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
-				Core::App().showDocument(document, item);
+				controller->openDocument(document, itemId, true);
 			}
 		}
 	}
@@ -223,7 +225,7 @@ void AddDocumentActions(
 		}();
 		if (notAutoplayedGif) {
 			menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
-				OpenGif(session, contextId);
+				OpenGif(list->controller(), contextId);
 			});
 		}
 	}

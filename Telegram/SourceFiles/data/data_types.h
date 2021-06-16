@@ -199,7 +199,6 @@ class PhotoSaveClickHandler;
 class PhotoCancelClickHandler;
 class DocumentClickHandler;
 class DocumentSaveClickHandler;
-class DocumentOpenClickHandler;
 class DocumentCancelClickHandler;
 class DocumentWrappedClickHandler;
 class VoiceSeekClickHandler;
