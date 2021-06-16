@@ -133,8 +133,8 @@ QImage QrExact(const Qr::Data &data, int pixel, QColor color) {
 				skip,
 				skip,
 				Intro::details::TelegramLogoImage().scaled(
-					logoSize,
-					logoSize,
+					logoSize * cIntRetinaFactor(),
+					logoSize * cIntRetinaFactor(),
 					Qt::IgnoreAspectRatio,
 					Qt::SmoothTransformation));
 		}
