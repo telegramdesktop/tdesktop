@@ -762,14 +762,15 @@ void Viewport::setTileGeometry(not_null<VideoTile*> tile, QRect geometry) {
 	const auto min = std::min(geometry.width(), geometry.height());
 	const auto kMedium = style::ConvertScale(540);
 	const auto kSmall = style::ConvertScale(240);
+	const auto &endpoint = tile->endpoint();
 	const auto quality = (min >= kMedium)
 		? VideoQuality::Full
-		: (min >= kSmall)
+		: (min >= kSmall && endpoint.type != VideoEndpointType::Screen)
 		? VideoQuality::Medium
 		: VideoQuality::Thumbnail;
 	if (tile->updateRequestedQuality(quality)) {
 		_qualityRequests.fire(VideoQualityRequest{
-			.endpoint = tile->endpoint(),
+			.endpoint = endpoint,
 			.quality = quality,
 		});
 	}
