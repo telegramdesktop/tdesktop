@@ -88,6 +88,9 @@ public:
 	void elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context);
+	void elementOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context);
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback);

@@ -272,7 +272,7 @@ Photo::Photo(
 	not_null<PhotoData*> photo)
 : ItemBase(delegate, parent)
 , _data(photo)
-, _link(std::make_shared<PhotoOpenClickHandler>(photo, parent->fullId())) {
+, _link(std::make_shared<PhotoOpenClickHandlerOld>(photo, parent->fullId())) {
 	if (_data->inlineThumbnailBytes().isEmpty()
 		&& (_data->hasExact(Data::PhotoSize::Small)
 			|| _data->hasExact(Data::PhotoSize::Thumbnail))) {
@@ -1461,7 +1461,7 @@ Link::Link(
 			} else if (_page->type == WebPageType::Photo
 				|| _page->siteName == qstr("Twitter")
 				|| _page->siteName == qstr("Facebook")) {
-				_photol = std::make_shared<PhotoOpenClickHandler>(
+				_photol = std::make_shared<PhotoOpenClickHandlerOld>(
 					_page->photo,
 					parent->fullId());
 			} else {

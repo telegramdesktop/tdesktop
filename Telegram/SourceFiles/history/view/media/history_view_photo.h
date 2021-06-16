@@ -102,6 +102,8 @@ protected:
 private:
 	struct Streamed;
 
+	void showPhoto();
+
 	void create(FullMsgId contextId, PeerData *chat = nullptr);
 
 	void playAnimation(bool autoplay) override;

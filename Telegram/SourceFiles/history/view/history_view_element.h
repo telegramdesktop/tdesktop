@@ -60,6 +60,9 @@ public:
 	virtual void elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context) = 0;
+	virtual void elementOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) = 0;
 	virtual void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) = 0;
@@ -96,6 +99,9 @@ public:
 	void elementStartStickerLoop(not_null<const Element*> view) override;
 	void elementShowPollResults(
 		not_null<PollData*> poll,
+		FullMsgId context) override;
+	void elementOpenPhoto(
+		not_null<PhotoData*> photo,
 		FullMsgId context) override;
 	void elementShowTooltip(
 		const TextWithEntities &text,

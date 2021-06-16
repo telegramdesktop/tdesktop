@@ -234,6 +234,9 @@ public:
 	void elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context) override;
+	void elementOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) override;
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;

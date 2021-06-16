@@ -1300,6 +1300,12 @@ void ListWidget::elementShowPollResults(
 	_controller->showPollResults(poll, context);
 }
 
+void ListWidget::elementOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) {
+	_controller->openPhoto(photo, context);
+}
+
 void ListWidget::elementShowTooltip(
 	const TextWithEntities &text,
 	Fn<void()> hiddenCallback) {

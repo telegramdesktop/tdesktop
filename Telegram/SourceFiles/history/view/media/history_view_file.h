@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
-class File : public Media {
+class File : public Media, public base::has_weak_ptr {
 public:
 	File(
 		not_null<Element*> parent,
@@ -44,10 +44,11 @@ protected:
 	using FileClickHandlerPtr = std::shared_ptr<FileClickHandler>;
 
 	not_null<HistoryItem*> _realParent;
-	FileClickHandlerPtr _openl, _savel, _cancell;
+	ClickHandlerPtr _openl;
+	FileClickHandlerPtr _savel, _cancell;
 
 	void setLinks(
-		FileClickHandlerPtr &&openl,
+		ClickHandlerPtr &&openl,
 		FileClickHandlerPtr &&savel,
 		FileClickHandlerPtr &&cancell);
 	void setDocumentLinks(

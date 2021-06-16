@@ -39,7 +39,7 @@ void File::clickHandlerPressedChanged(
 }
 
 void File::setLinks(
-		FileClickHandlerPtr &&openl,
+		ClickHandlerPtr &&openl,
 		FileClickHandlerPtr &&savel,
 		FileClickHandlerPtr &&cancell) {
 	_openl = std::move(openl);
@@ -49,7 +49,6 @@ void File::setLinks(
 
 void File::refreshParentId(not_null<HistoryItem*> realParent) {
 	const auto contextId = realParent->fullId();
-	_openl->setMessageId(contextId);
 	_savel->setMessageId(contextId);
 	_cancell->setMessageId(contextId);
 }

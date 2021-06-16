@@ -2567,6 +2567,12 @@ void HistoryInner::elementShowPollResults(
 	_controller->showPollResults(poll, context);
 }
 
+void HistoryInner::elementOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) {
+	_controller->openPhoto(photo, context);
+}
+
 void HistoryInner::elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) {
@@ -3443,6 +3449,13 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 				FullMsgId context) override {
 			if (Instance) {
 				Instance->elementShowPollResults(poll, context);
+			}
+		}
+		void elementOpenPhoto(
+				not_null<PhotoData*> photo,
+				FullMsgId context) override {
+			if (Instance) {
+				Instance->elementOpenPhoto(photo, context);
 			}
 		}
 		void elementShowTooltip(

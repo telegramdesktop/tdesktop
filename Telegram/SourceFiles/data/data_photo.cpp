@@ -478,8 +478,20 @@ PhotoClickHandler::PhotoClickHandler(
 , _peer(peer) {
 }
 
+PhotoOpenClickHandler::PhotoOpenClickHandler(
+	not_null<PhotoData*> photo,
+	Fn<void()> &&callback)
+: PhotoClickHandler(photo)
+, _handler(std::move(callback)) {
+}
+
 void PhotoOpenClickHandler::onClickImpl() const {
-	Core::App().showPhoto(this);
+	if (_handler) {
+		_handler();
+	}
+}
+
+void PhotoOpenClickHandlerOld::onClickImpl() const {
 }
 
 void PhotoSaveClickHandler::onClickImpl() const {

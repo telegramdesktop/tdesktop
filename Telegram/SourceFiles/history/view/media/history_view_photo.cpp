@@ -86,7 +86,9 @@ Photo::~Photo() {
 
 void Photo::create(FullMsgId contextId, PeerData *chat) {
 	setLinks(
-		std::make_shared<PhotoOpenClickHandler>(_data, contextId, chat),
+		std::make_shared<PhotoOpenClickHandler>(_data, crl::guard(this, [=] {
+			showPhoto();
+		})),
 		std::make_shared<PhotoSaveClickHandler>(_data, contextId, chat),
 		std::make_shared<PhotoCancelClickHandler>(_data, contextId, chat));
 	if ((_dataMedia = _data->activeMediaView())) {
@@ -771,7 +773,7 @@ void Photo::playAnimation(bool autoplay) {
 	if (_streamed && autoplay) {
 		return;
 	} else if (_streamed && videoAutoplayEnabled()) {
-		Core::App().showPhoto(_data, _parent->data());
+		showPhoto();
 		return;
 	}
 	if (_streamed) {
@@ -842,6 +844,12 @@ void Photo::parentTextUpdated() {
 		? createCaption(_parent->data())
 		: Ui::Text::String();
 	history()->owner().requestViewResize(_parent);
+}
+
+void Photo::showPhoto() {
+	_parent->delegate()->elementOpenPhoto(
+		_data,
+		_parent->data()->fullId());
 }
 
 } // namespace HistoryView

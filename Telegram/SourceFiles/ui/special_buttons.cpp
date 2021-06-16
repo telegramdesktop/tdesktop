@@ -293,8 +293,8 @@ void UserpicButton::openPeerPhoto() {
 		return;
 	}
 	const auto photo = _peer->owner().photo(id);
-	if (photo->date) {
-		Core::App().showPhoto(photo, _peer);
+	if (photo->date && _controller) {
+		_controller->openPhoto(photo, _peer);
 	}
 }
 
