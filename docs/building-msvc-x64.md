@@ -209,7 +209,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 56f0e53eac
+    git checkout f03ef05abf
     git submodule init
     git submodule update
     mkdir out
