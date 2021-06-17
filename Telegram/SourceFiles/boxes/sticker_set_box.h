@@ -38,11 +38,16 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	enum class Error {
+		NotFound,
+	};
+
 	void updateTitleAndButtons();
 	void updateButtons();
 	void addStickers();
 	void copyStickersLink();
 	void archiveStickers();
+	void handleError(Error error);
 
 	const not_null<Window::SessionController*> _controller;
 	MTPInputStickerSet _set;
