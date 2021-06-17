@@ -22,60 +22,6 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		2004006,
-		"- Fix image compression option when sending files with drag-n-drop.\n"
-
-		"- Fix caption text selection in media albums.\n"
-
-		"- Fix drafts display in personal chats in the chats list.\n"
-
-		"- Bug fixes and other minor improvements.\n"
-	},
-	{
-		2004008,
-		"- Upgrade several third party libraries to latest versions.\n"
-	},
-	{
-		2004010,
-		"- Use inline bots and sticker by emoji suggestions in channel comments.\n"
-
-		"- Lock voice message recording, listen to your voice message before sending.\n"
-	},
-	{
-		2004011,
-		"- Improve locked voice message recording.\n"
-
-		"- Fix main window closing to tray on Windows.\n"
-
-		"- Fix crash in bot command sending.\n"
-
-		"- Fix adding additional photos when sending an album to a group with enabled slow mode.\n"
-	},
-	{
-		2004012,
-		"- Voice chats in groups. (alpha version)\n"
-	},
-	{
-		2004014,
-		"- Create voice chats in legacy groups.\n"
-
-		"- Fix sticker pack opening.\n"
-
-		"- Fix group status display.\n"
-
-		"- Fix group members display.\n"
-	},
-	{
-		2004015,
-		"- Improve design of voice chats.\n"
-
-		"- Fix sending of voice messages as replies.\n"
-
-		"- Fix 'Open With' menu position in macOS.\n"
-
-		"- Fix freeze on secondary screen disconnect.\n"
-	},
-	{
 		2005002,
 		"- Fix possible crash in video calls.\n"
 
@@ -172,6 +118,14 @@ std::map<int, const char*> BetaLogs() {
 		"- Fixed memory not being freed on Linux.\n"
 
 		"- Several crash fixes.\n"
+	},
+	{
+		2007009,
+		"- Added \"Enable noise suppression\" option to group calls Settings.\n"
+
+		"- Fix media viewer with Retina + Non-Retina dual monitor setup on macOS.\n"
+
+		"- Several bug and crash fixes.\n"
 	},
 	};
 };
