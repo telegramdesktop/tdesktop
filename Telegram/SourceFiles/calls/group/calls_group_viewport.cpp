@@ -765,7 +765,7 @@ void Viewport::setTileGeometry(not_null<VideoTile*> tile, QRect geometry) {
 	const auto &endpoint = tile->endpoint();
 	const auto quality = (min >= kMedium)
 		? VideoQuality::Full
-		: (min >= kSmall && endpoint.type != VideoEndpointType::Screen)
+		: (min >= kSmall)
 		? VideoQuality::Medium
 		: VideoQuality::Thumbnail;
 	if (tile->updateRequestedQuality(quality)) {

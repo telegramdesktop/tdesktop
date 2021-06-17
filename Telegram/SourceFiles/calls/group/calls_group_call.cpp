@@ -2424,9 +2424,10 @@ void GroupCall::updateRequestedVideoChannels() {
 				&& endpoint.type == VideoEndpointType::Screen)
 				? Quality::Full
 				: Quality::Thumbnail),
-			.maxQuality = (video.quality == Group::VideoQuality::Full
+			.maxQuality = ((video.quality == Group::VideoQuality::Full)
 				? Quality::Full
-				: video.quality == Group::VideoQuality::Medium
+				: (video.quality == Group::VideoQuality::Medium
+					&& endpoint.type != VideoEndpointType::Screen)
 				? Quality::Medium
 				: Quality::Thumbnail),
 		});
