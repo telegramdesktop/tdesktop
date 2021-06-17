@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 
 struct WebPageData;
+class VoiceSeekClickHandler;
 
 namespace Data {
 class Session;

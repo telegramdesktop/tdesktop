@@ -428,6 +428,8 @@ PRIVATE
     data/data_drafts.h
     data/data_folder.cpp
     data/data_folder.h
+    data/data_file_click_handler.cpp
+    data/data_file_click_handler.h
     data/data_file_origin.cpp
     data/data_file_origin.h
     data/data_flags.h

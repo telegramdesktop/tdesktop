@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "data/data_document_resolver.h"
+#include "data/data_file_click_handler.h"
 #include "window/themes/window_theme_preview.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"

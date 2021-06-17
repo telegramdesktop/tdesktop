@@ -193,15 +193,6 @@ struct GameData;
 struct PollData;
 
 class AudioMsgId;
-class PhotoClickHandler;
-class PhotoOpenClickHandler;
-class PhotoSaveClickHandler;
-class PhotoCancelClickHandler;
-class DocumentClickHandler;
-class DocumentSaveClickHandler;
-class DocumentCancelClickHandler;
-class DocumentWrappedClickHandler;
-class VoiceSeekClickHandler;
 
 using PhotoId = uint64;
 using VideoId = uint64;
@@ -360,33 +351,3 @@ inline bool operator!=(
 		const MessageCursor &b) {
 	return !(a == b);
 }
-
-class FileClickHandler : public LeftButtonClickHandler {
-public:
-	FileClickHandler(
-		not_null<Main::Session*> session,
-		FullMsgId context)
-	: _session(session)
-	, _context(context) {
-	}
-
-	[[nodiscard]] Main::Session &session() const {
-		return *_session;
-	}
-
-	void setMessageId(FullMsgId context) {
-		_context = context;
-	}
-
-	[[nodiscard]] FullMsgId context() const {
-		return _context;
-	}
-
-protected:
-	HistoryItem *getActionItem() const;
-
-private:
-	const not_null<Main::Session*> _session;
-	FullMsgId _context;
-
-};

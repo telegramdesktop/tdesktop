@@ -133,10 +133,6 @@ void MessageCursor::applyTo(not_null<Ui::InputField*> field) {
 	field->scrollTo(scroll);
 }
 
-HistoryItem *FileClickHandler::getActionItem() const {
-	return _session->data().message(context());
-}
-
 PeerId PeerFromMessage(const MTPmessage &message) {
 	return message.match([](const MTPDmessageEmpty &) {
 		return PeerId(0);

@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_channel.h"
+#include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_scheduled_messages.h"
 #include "core/file_utilities.h"
