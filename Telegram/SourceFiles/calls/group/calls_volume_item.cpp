@@ -30,7 +30,7 @@ constexpr auto kVolumeStickedValues =
 		{ 25. / kMaxVolumePercent, 2. / kMaxVolumePercent },
 		{ 50. / kMaxVolumePercent, 2. / kMaxVolumePercent },
 		{ 75. / kMaxVolumePercent, 2. / kMaxVolumePercent },
-		{ 100. / kMaxVolumePercent, 5. / kMaxVolumePercent },
+		{ 100. / kMaxVolumePercent, 10. / kMaxVolumePercent },
 		{ 125. / kMaxVolumePercent, 2. / kMaxVolumePercent },
 		{ 150. / kMaxVolumePercent, 2. / kMaxVolumePercent },
 		{ 175. / kMaxVolumePercent, 2. / kMaxVolumePercent },
