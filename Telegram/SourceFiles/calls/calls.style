@@ -862,7 +862,7 @@ groupCallButtonSkip: 40px;
 groupCallButtonSkipSmall: 5px;
 groupCallButtonBottomSkip: 113px;
 groupCallButtonBottomSkipSmall: 95px;
-groupCallButtonBottomSkipWide: 122px;
+groupCallButtonBottomSkipWide: 108px;
 groupCallControlsBackMargin: margins(10px, 0px, 10px, 0px);
 groupCallControlsBackRadius: 12px;
 groupCallMuteBottomSkip: 116px;
