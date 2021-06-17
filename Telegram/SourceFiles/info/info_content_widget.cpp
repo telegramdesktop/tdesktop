@@ -37,7 +37,7 @@ ContentWidget::ContentWidget(
 	not_null<Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _scroll(this, st::infoScroll) {
+, _scroll(this) {
 	using namespace rpl::mappers;
 
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -94,7 +94,7 @@ void ContentWidget::updateControlsGeometry() {
 	}
 }
 
-std::unique_ptr<ContentMemento> ContentWidget::createMemento() {
+std::shared_ptr<ContentMemento> ContentWidget::createMemento() {
 	auto result = doCreateMemento();
 	_controller->saveSearchState(result.get());
 	return result;
@@ -264,8 +264,6 @@ void ContentWidget::refreshSearchField(bool shown) {
 Key ContentMemento::key() const {
 	if (const auto peer = this->peer()) {
 		return Key(peer);
-	//} else if (const auto feed = this->feed()) { // #feed
-	//	return Key(feed);
 	} else if (const auto poll = this->poll()) {
 		return Key(poll, pollContextId());
 	} else {

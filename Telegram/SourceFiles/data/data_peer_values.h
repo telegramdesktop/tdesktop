@@ -111,6 +111,7 @@ inline auto PeerFullFlagValue(
 [[nodiscard]] rpl::producer<bool> CanWriteValue(ChannelData *channel);
 [[nodiscard]] rpl::producer<bool> CanWriteValue(not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> CanPinMessagesValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<bool> CanManageGroupCallValue(not_null<PeerData*> peer);
 
 [[nodiscard]] TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now);
 [[nodiscard]] crl::time OnlineChangeTimeout(TimeId online, TimeId now);
@@ -120,6 +121,7 @@ inline auto PeerFullFlagValue(
 [[nodiscard]] QString OnlineTextFull(not_null<UserData*> user, TimeId now);
 [[nodiscard]] bool OnlineTextActive(TimeId online, TimeId now);
 [[nodiscard]] bool OnlineTextActive(not_null<UserData*> user, TimeId now);
-[[nodiscard]] bool IsPeerAnOnlineUser(not_null<PeerData*> peer);
+[[nodiscard]] bool IsUserOnline(not_null<UserData*> user);
+[[nodiscard]] bool ChannelHasActiveCall(not_null<ChannelData*> channel);
 
 } // namespace Data

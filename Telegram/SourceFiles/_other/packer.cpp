@@ -47,6 +47,18 @@ typedef signed int int32;
 
 namespace{
 
+struct BIODeleter {
+	void operator()(BIO *value) {
+		BIO_free(value);
+	}
+};
+
+inline auto makeBIO(const void *buf, int len) {
+	return std::unique_ptr<BIO, BIODeleter>{
+		BIO_new_mem_buf(buf, len),
+	};
+}
+
 inline uint32 sha1Shift(uint32 v, uint32 shift) {
 	return ((v << shift) | (v >> (32 - shift)));
 }
@@ -149,6 +161,7 @@ int main(int argc, char *argv[])
 	QString remove;
 	int version = 0;
 	bool targetosx = false;
+	bool targetwin64 = false;
 	QFileInfoList files;
 	for (int i = 0; i < argc; ++i) {
 		if (string("-path") == argv[i] && i + 1 < argc) {
@@ -158,6 +171,7 @@ int main(int argc, char *argv[])
 			if (remove.isEmpty()) remove = info.canonicalPath() + "/";
 		} else if (string("-target") == argv[i] && i + 1 < argc) {
 			targetosx = (string("osx") == argv[i + 1]);
+			targetwin64 = (string("win64") == argv[i + 1]);
 		} else if (string("-version") == argv[i] && i + 1 < argc) {
 			version = QString(argv[i + 1]).toInt();
 		} else if (string("-beta") == argv[i]) {
@@ -428,7 +442,15 @@ int main(int argc, char *argv[])
 	uint32 siglen = 0;
 
 	cout << "Signing..\n";
-	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>((BetaChannel || AlphaVersion) ? PrivateBetaKey : PrivateKey), -1), 0, 0, 0);
+	RSA *prKey = [] {
+		const auto bio = makeBIO(
+			const_cast<char*>(
+				(BetaChannel || AlphaVersion)
+					? PrivateBetaKey
+					: PrivateKey),
+			-1);
+		return PEM_read_bio_RSAPrivateKey(bio.get(), 0, 0, 0);
+	}();
 	if (!prKey) {
 		cout << "Could not read RSA private key!\n";
 		return -1;
@@ -451,7 +473,15 @@ int main(int argc, char *argv[])
 	}
 
 	cout << "Checking signature..\n";
-	RSA *pbKey = PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<char*>((BetaChannel || AlphaVersion) ? PublicBetaKey : PublicKey), -1), 0, 0, 0);
+	RSA *pbKey = [] {
+		const auto bio = makeBIO(
+			const_cast<char*>(
+				(BetaChannel || AlphaVersion)
+					? PublicBetaKey
+					: PublicKey),
+			-1);
+		return PEM_read_bio_RSAPublicKey(bio.get(), 0, 0, 0);
+	}();
 	if (!pbKey) {
 		cout << "Could not read RSA public key!\n";
 		return -1;
@@ -464,7 +494,7 @@ int main(int argc, char *argv[])
 	cout << "Signature verified!\n";
 	RSA_free(pbKey);
 #ifdef Q_OS_WIN
-	QString outName(QString("tupdate%1").arg(AlphaVersion ? AlphaVersion : version));
+	QString outName((targetwin64 ? QString("tx64upd%1") : QString("tupdate%1")).arg(AlphaVersion ? AlphaVersion : version));
 #elif defined Q_OS_MAC
 	QString outName((targetosx ? QString("tosxupd%1") : QString("tmacupd%1")).arg(AlphaVersion ? AlphaVersion : version));
 #elif defined Q_OS_UNIX
@@ -508,7 +538,12 @@ QString countAlphaVersionSignature(quint64 version) { // duplicated in autoupdat
 
 	uint32 siglen = 0;
 
-	RSA *prKey = PEM_read_bio_RSAPrivateKey(BIO_new_mem_buf(const_cast<char*>(cAlphaPrivateKey.constData()), -1), 0, 0, 0);
+	RSA *prKey = [&] {
+		const auto bio = makeBIO(
+			const_cast<char*>(cAlphaPrivateKey.constData()),
+			-1);
+		return PEM_read_bio_RSAPrivateKey(bio.get(), 0, 0, 0);
+	}();
 	if (!prKey) {
 		cout << "Error: Could not read alpha private key!\n";
 		return QString();

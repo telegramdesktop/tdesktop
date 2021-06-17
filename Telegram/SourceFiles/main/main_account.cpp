@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "main/main_account.h"
 
+#include "base/platform/base_platform_info.h"
 #include "core/application.h"
-#include "core/launcher.h"
 #include "core/shortcuts.h"
 #include "storage/storage_account.h"
 #include "storage/storage_domain.h" // Storage::StartResult.
@@ -30,10 +30,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_domain.h"
 #include "main/main_session_settings.h"
-#include "facades.h"
 
 namespace Main {
 namespace {
+
+constexpr auto kWideIdsTag = ~uint64(0);
 
 [[nodiscard]] QString ComposeDataString(const QString &dataName, int index) {
 	auto result = dataName;
@@ -127,7 +128,7 @@ uint64 Account::willHaveSessionUniqueId(MTP::Config *config) const {
 	if (!_sessionUserId) {
 		return 0;
 	}
-	return uint64(uint32(_sessionUserId))
+	return _sessionUserId.bare
 		| (config && config->isTestMode() ? 0x0100'0000'0000'0000ULL : 0ULL);
 }
 
@@ -155,7 +156,7 @@ void Account::createSession(
 	createSession(
 		MTP_user(
 			MTP_flags(flags),
-			MTP_int(base::take(_sessionUserId)),
+			MTP_int(base::take(_sessionUserId).bare), // #TODO ids
 			MTPlong(), // access_hash
 			MTPstring(), // first_name
 			MTPstring(), // last_name
@@ -276,7 +277,8 @@ QByteArray Account::serializeMtpAuthorization() const {
 		};
 
 		auto result = QByteArray();
-		auto size = sizeof(qint32) + sizeof(qint32); // userId + mainDcId
+		// wide tag + userId + mainDcId
+		auto size = 2 * sizeof(quint64) + sizeof(qint32);
 		size += keysSize(keys) + keysSize(keysToDestroy);
 		result.reserve(size);
 		{
@@ -285,12 +287,17 @@ QByteArray Account::serializeMtpAuthorization() const {
 
 			const auto currentUserId = sessionExists()
 				? session().userId()
-				: 0;
-			stream << qint32(currentUserId) << qint32(mainDcId);
+				: UserId();
+			stream
+				<< quint64(kWideIdsTag)
+				<< quint64(currentUserId.bare)
+				<< qint32(mainDcId);
 			writeKeys(stream, keys);
 			writeKeys(stream, keysToDestroy);
 
-			DEBUG_LOG(("MTP Info: Keys written, userId: %1, dcId: %2").arg(currentUserId).arg(mainDcId));
+			DEBUG_LOG(("MTP Info: Keys written, userId: %1, dcId: %2"
+				).arg(currentUserId.bare
+				).arg(mainDcId));
 		}
 		return result;
 	};
@@ -343,8 +350,18 @@ void Account::setMtpAuthorization(const QByteArray &serialized) {
 	QDataStream stream(serialized);
 	stream.setVersion(QDataStream::Qt_5_1);
 
-	auto userId = Serialize::read<qint32>(stream);
-	auto mainDcId = Serialize::read<qint32>(stream);
+	auto legacyUserId = Serialize::read<qint32>(stream);
+	auto legacyMainDcId = Serialize::read<qint32>(stream);
+	auto userId = quint64();
+	auto mainDcId = qint32();
+	if (((uint64(legacyUserId) << 32) | uint64(legacyMainDcId))
+		== kWideIdsTag) {
+		userId = Serialize::read<quint64>(stream);
+		mainDcId = Serialize::read<qint32>(stream);
+	} else {
+		userId = legacyUserId;
+		mainDcId = legacyMainDcId;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("MTP Error: "
 			"Could not read main fields from mtp authorization."));
@@ -386,8 +403,8 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 
 	auto fields = base::take(_mtpFields);
 	fields.config = std::move(config);
-	fields.deviceModel = Core::App().launcher()->deviceModel();
-	fields.systemVersion = Core::App().launcher()->systemVersion();
+	fields.deviceModel = Platform::DeviceModelPretty();
+	fields.systemVersion = Platform::SystemVersionPretty();
 	_mtp = std::make_unique<MTP::Instance>(
 		MTP::Instance::Mode::Normal,
 		std::move(fields));
@@ -420,21 +437,17 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 
 	_mtpFields.mainDcId = _mtp->mainDcId();
 
-	_mtp->setUpdatesHandler(::rpcDone([=](
-			const mtpPrime *from,
-			const mtpPrime *end) {
-		return checkForUpdates(from, end)
-			|| checkForNewSession(from, end);
-	}));
-	_mtp->setGlobalFailHandler(::rpcFail([=](const RPCError &error) {
+	_mtp->setUpdatesHandler([=](const MTP::Response &message) {
+		checkForUpdates(message) || checkForNewSession(message);
+	});
+	_mtp->setGlobalFailHandler([=](const MTP::Error &, const MTP::Response &) {
 		if (const auto session = maybeSession()) {
 			crl::on_main(session, [=] { logOut(); });
 		}
-		return true;
-	}));
+	});
 	_mtp->setStateChangedHandler([=](MTP::ShiftedDcId dc, int32 state) {
 		if (dc == _mtp->mainDcId()) {
-			Global::RefConnectionTypeChanged().notify();
+			Core::App().settings().proxy().connectionTypeChangesNotify();
 		}
 	});
 	_mtp->setSessionResetHandler([=](MTP::ShiftedDcId shiftedDcId) {
@@ -468,18 +481,20 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 	_mtpValue = _mtp.get();
 }
 
-bool Account::checkForUpdates(const mtpPrime *from, const mtpPrime *end) {
+bool Account::checkForUpdates(const MTP::Response &message) {
 	auto updates = MTPUpdates();
-	if (!updates.read(from, end)) {
+	auto from = message.reply.constData();
+	if (!updates.read(from, from + message.reply.size())) {
 		return false;
 	}
 	_mtpUpdates.fire(std::move(updates));
 	return true;
 }
 
-bool Account::checkForNewSession(const mtpPrime *from, const mtpPrime *end) {
+bool Account::checkForNewSession(const MTP::Response &message) {
 	auto newSession = MTPNewSession();
-	if (!newSession.read(from, end)) {
+	auto from = message.reply.constData();
+	if (!newSession.read(from, from + message.reply.size())) {
 		return false;
 	}
 	_mtpNewSessionCreated.fire({});
@@ -534,8 +549,8 @@ void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
 	destroyFields.mainDcId = MTP::Instance::Fields::kNoneMainDc;
 	destroyFields.config = std::make_unique<MTP::Config>(_mtp->config());
 	destroyFields.keys = std::move(keys);
-	destroyFields.deviceModel = Core::App().launcher()->deviceModel();
-	destroyFields.systemVersion = Core::App().launcher()->systemVersion();
+	destroyFields.deviceModel = Platform::DeviceModelPretty();
+	destroyFields.systemVersion = Platform::SystemVersionPretty();
 	_mtpForKeysDestroy = std::make_unique<MTP::Instance>(
 		MTP::Instance::Mode::KeysDestroyer,
 		std::move(destroyFields));

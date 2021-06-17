@@ -51,7 +51,7 @@ void AppConfig::refresh() {
 			DEBUG_LOG(("getAppConfig result handled."));
 		}
 		_refreshed.fire({});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		refreshDelayed();
 	}).send();
@@ -182,6 +182,7 @@ void AppConfig::dismissSuggestion(const QString &key) {
 		return;
 	}
 	_api->request(MTPhelp_DismissSuggestion(
+		MTP_inputPeerEmpty(),
 		MTP_string(key)
 	)).send();
 }

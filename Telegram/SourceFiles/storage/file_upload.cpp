@@ -153,12 +153,9 @@ const QString &Uploader::File::filename() const {
 }
 
 Uploader::Uploader(not_null<ApiWrap*> api)
-: _api(api) {
-	nextTimer.setSingleShot(true);
-	connect(&nextTimer, SIGNAL(timeout()), this, SLOT(sendNext()));
-	stopSessionsTimer.setSingleShot(true);
-	connect(&stopSessionsTimer, SIGNAL(timeout()), this, SLOT(stopSessions()));
-
+: _api(api)
+, _nextTimer([=] { sendNext(); })
+, _stopSessionsTimer([=] { stopSessions(); }) {
 	const auto session = &_api->session();
 	photoReady(
 	) | rpl::start_with_next([=](const UploadedPhoto &data) {
@@ -423,16 +420,16 @@ void Uploader::sendNext() {
 		return;
 	}
 
-	bool stopping = stopSessionsTimer.isActive();
+	const auto stopping = _stopSessionsTimer.isActive();
 	if (queue.empty()) {
 		if (!stopping) {
-			stopSessionsTimer.start(kKillSessionTimeout);
+			_stopSessionsTimer.callOnce(kKillSessionTimeout);
 		}
 		return;
 	}
 
 	if (stopping) {
-		stopSessionsTimer.stop();
+		_stopSessionsTimer.cancel();
 	}
 	auto i = uploadingId.msg ? queue.find(uploadingId) : queue.begin();
 	if (!uploadingId.msg) {
@@ -469,7 +466,7 @@ void Uploader::sendNext() {
 					? uploadingData.file->to.options
 					: Api::SendOptions();
 				const auto edit = uploadingData.file &&
-					uploadingData.file->edit;
+					uploadingData.file->to.replaceMediaOf;
 				if (uploadingData.type() == SendMediaType::Photo) {
 					auto photoFilename = uploadingData.filename();
 					if (!photoFilename.endsWith(qstr(".jpg"), Qt::CaseInsensitive)) {
@@ -586,7 +583,7 @@ void Uploader::sendNext() {
 				MTP_bytes(toSend)
 			)).done([=](const MTPBool &result, mtpRequestId requestId) {
 				partLoaded(result, requestId);
-			}).fail([=](const RPCError &error, mtpRequestId requestId) {
+			}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 				partFailed(error, requestId);
 			}).toDC(MTP::uploadDcId(todc)).send();
 		} else {
@@ -596,7 +593,7 @@ void Uploader::sendNext() {
 				MTP_bytes(toSend)
 			)).done([=](const MTPBool &result, mtpRequestId requestId) {
 				partLoaded(result, requestId);
-			}).fail([=](const RPCError &error, mtpRequestId requestId) {
+			}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 				partFailed(error, requestId);
 			}).toDC(MTP::uploadDcId(todc)).send();
 		}
@@ -615,7 +612,7 @@ void Uploader::sendNext() {
 			MTP_bytes(part.value())
 		)).done([=](const MTPBool &result, mtpRequestId requestId) {
 			partLoaded(result, requestId);
-		}).fail([=](const RPCError &error, mtpRequestId requestId) {
+		}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 			partFailed(error, requestId);
 		}).toDC(MTP::uploadDcId(todc)).send();
 		requestsSent.emplace(requestId, part.value());
@@ -625,7 +622,7 @@ void Uploader::sendNext() {
 
 		parts.erase(part);
 	}
-	nextTimer.start(kUploadRequestInterval);
+	_nextTimer.callOnce(kUploadRequestInterval);
 }
 
 void Uploader::cancel(const FullMsgId &msgId) {
@@ -666,7 +663,7 @@ void Uploader::clear() {
 		_api->instance().stopSession(MTP::uploadDcId(i));
 		sentSizes[i] = 0;
 	}
-	stopSessionsTimer.stop();
+	_stopSessionsTimer.cancel();
 }
 
 void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
@@ -734,7 +731,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 	sendNext();
 }
 
-void Uploader::partFailed(const RPCError &error, mtpRequestId requestId) {
+void Uploader::partFailed(const MTP::Error &error, mtpRequestId requestId) {
 	// failed to upload current file
 	if ((requestsSent.find(requestId) != requestsSent.cend())
 		|| (docRequestsSent.find(requestId) != docRequestsSent.cend())) {

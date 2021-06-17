@@ -1,0 +1,16 @@
+name: Copyright year updater.
+
+on:
+  repository_dispatch:
+    types: ["Restart copyright_year_updater workflow."]
+  schedule:
+    # At 03:00 on January 1.
+    - cron: "0 3 1 1 *"
+
+jobs:
+  Copyright-year:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: desktop-app/action_code_updater@master
+        with:
+          type: "license-year"

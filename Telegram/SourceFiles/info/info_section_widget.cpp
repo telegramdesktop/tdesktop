@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/info_section_widget.h"
 
+#include "window/window_adaptive.h"
 #include "window/window_connecting_widget.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
@@ -51,7 +52,7 @@ void SectionWidget::init() {
 	_connecting = std::make_unique<Window::ConnectionState>(
 		_content.data(),
 		&controller()->session().account(),
-		Window::AdaptiveIsOneColumn());
+		controller()->adaptive().oneColumnValue());
 
 	_content->contentChanged(
 	) | rpl::start_with_next([=] {
@@ -92,7 +93,7 @@ bool SectionWidget::showInternal(
 	return _content->showInternal(memento, params);
 }
 
-std::unique_ptr<Window::SectionMemento> SectionWidget::createMemento() {
+std::shared_ptr<Window::SectionMemento> SectionWidget::createMemento() {
 	return _content->createMemento();
 }
 

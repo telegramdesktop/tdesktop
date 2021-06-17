@@ -64,9 +64,6 @@
 [submodule "Telegram/ThirdParty/hunspell"]
 	path = Telegram/ThirdParty/hunspell
 	url = https://github.com/hunspell/hunspell
-[submodule "Telegram/ThirdParty/materialdecoration"]
-	path = Telegram/ThirdParty/materialdecoration
-	url = https://github.com/desktop-app/materialdecoration.git
 [submodule "Telegram/ThirdParty/range-v3"]
 	path = Telegram/ThirdParty/range-v3
 	url = https://github.com/ericniebler/range-v3.git
@@ -91,3 +88,12 @@
 [submodule "Telegram/ThirdParty/tgcalls"]
 	path = Telegram/ThirdParty/tgcalls
 	url = https://github.com/TelegramMessenger/tgcalls.git
+[submodule "Telegram/lib_webview"]
+	path = Telegram/lib_webview
+	url = https://github.com/desktop-app/lib_webview.git
+[submodule "Telegram/ThirdParty/mallocng"]
+	path = Telegram/ThirdParty/mallocng
+	url = https://github.com/desktop-app/mallocng.git
+[submodule "Telegram/lib_waylandshells"]
+	path = Telegram/lib_waylandshells
+	url = https://github.com/desktop-app/lib_waylandshells.git

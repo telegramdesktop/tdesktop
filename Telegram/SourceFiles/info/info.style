@@ -9,6 +9,7 @@ using "ui/basic.style";
 
 using "boxes/boxes.style";
 using "ui/widgets/widgets.style";
+using "ui/chat/chat.style"; // GroupCallUserpics.
 
 InfoToggle {
 	color: color;
@@ -36,22 +37,17 @@ infoToggle: InfoToggle {
 	rippleAreaPadding: 8px;
 }
 
-infoScroll: ScrollArea(defaultScrollArea) {
-	bottomsh: 0px;
-	topsh: 0px;
-}
-
 infoMediaSearch: SearchFieldRow {
 	height: 44px;
 	padding: margins(8px, 6px, 8px, 6px);
-	field: contactsSearchField;
+	field: defaultMultiSelectSearchField;
 	fieldIcon: icon {{
 		"box_search-flip_horizontal",
 		menuIconFg,
 		point(6px, 8px)
 	}};
 	fieldIconSkip: 36px;
-	fieldCancel: contactsSearchCancel;
+	fieldCancel: defaultMultiSelectSearchCancel;
 	fieldCancelSkip: 40px;
 }
 infoLayerMediaSearch: SearchFieldRow(infoMediaSearch) {
@@ -62,7 +58,7 @@ infoLayerMediaSearch: SearchFieldRow(infoMediaSearch) {
 		point(9px, 9px)
 	}};
 	fieldIconSkip: 34px;
-	fieldCancel: CrossButton(contactsSearchCancel) {
+	fieldCancel: CrossButton(defaultMultiSelectSearchCancel) {
 		width: 50px;
 		cross: CrossAnimation {
 			size: 38px;
@@ -77,7 +73,7 @@ infoLayerMediaSearch: SearchFieldRow(infoMediaSearch) {
 infoTopBarSearchRow: SearchFieldRow(infoLayerMediaSearch) {
 	height: 52px;
 	padding: margins(0px, 12px, 8px, 10px);
-	fieldCancel: CrossButton(contactsSearchCancel) {
+	fieldCancel: CrossButton(defaultMultiSelectSearchCancel) {
 		width: 51px;
 		height: 52px;
 		cross: CrossAnimation {
@@ -348,10 +344,9 @@ infoProfileSeparatorPadding: margins(
 
 infoIconFg: menuIconFg;
 infoIconInformation: icon {{ "info_information", infoIconFg }};
-infoIconMembers: icon {{ "info_members", infoIconFg }};
+infoIconMembers: icon {{ "info/edit/group_manage_members", infoIconFg, point(-2px, 0px) }};
 infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
 infoIconActions: icon {{ "info_actions", infoIconFg }};
-//infoIconFeed: icon {{ "info_feed", infoIconFg }};
 infoIconMediaPhoto: icon {{ "info_media_photo", infoIconFg }};
 infoIconMediaVideo: icon {{ "info_media_video", infoIconFg }};
 infoIconMediaFile: icon {{ "info_media_file", infoIconFg }};
@@ -360,10 +355,11 @@ infoIconMediaLink: icon {{ "info_media_link", infoIconFg }};
 infoIconMediaGroup: icon {{ "info_common_groups", infoIconFg }};
 infoIconMediaVoice: icon {{ "info_media_voice", infoIconFg }};
 infoIconMediaRound: icon {{ "info_media_round", infoIconFg }};
-infoIconRecentActions: icon {{ "info_recent_actions", infoIconFg, point(-2px, 0px) }};
-infoIconAdministrators: icon {{ "info_administrators", infoIconFg, point(-2px, -1px) }};
+infoIconRecentActions: icon {{ "info/edit/group_manage_actions", infoIconFg, point(-2px, -1px) }};
+infoIconAdministrators: icon {{ "info/edit/group_manage_admins", infoIconFg, point(-3px, 0px) }};
 infoIconBlacklist: icon {{ "info_blacklist", infoIconFg, point(-2px, -2px) }};
-infoIconPermissions: icon {{ "info_permissions", infoIconFg }};
+infoIconPermissions: icon {{ "info/edit/group_manage_permissions", infoIconFg, point(0px, -2px) }};
+infoIconInviteLinks: icon {{ "info/edit/group_manage_links", infoIconFg, point(-2px, 0px) }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaIconPosition: point(20px, 24px);
@@ -402,7 +398,7 @@ infoProfileToggle: Toggle(defaultToggle) {
 infoProfileToggleOver: Toggle(infoProfileToggle) {
 	untoggledFg: menuIconFgOver;
 }
-infoProfileButton: SettingsButton {
+infoProfileButton: SettingsButton(defaultSettingsButton) {
 	textFg: windowBoldFg;
 	textFgOver: windowBoldFgOver;
 	textBg: windowBg;
@@ -496,7 +492,7 @@ infoMembersSearchActiveLayer: icon {
 		infoMembersButtonIconPosition
 	}
 };
-infoMembersSearchField: InputField(contactsSearchField) {
+infoMembersSearchField: InputField(defaultMultiSelectSearchField) {
 }
 infoMembersCancelSearch: CrossButton {
 	width: 44px;
@@ -692,8 +688,8 @@ editPeerSectionLabel: FlatLabel(boxTitle) {
 		linkFontOver: font(15px semibold underline);
 	}
 }
-editPeerUsernameTitleLabelMargins: margins(0px, 0px, 0px, 10px);
-editPeerUsernameAboutLabelMargins: margins(0px, 15px, 34px, 15px);
+editPeerUsernameTitleLabelMargins: margins(22px, 17px, 22px, 10px);
+editPeerUsernameFieldMargins: margins(22px, 0px, 22px, 20px);
 editPeerUsername: setupChannelLink;
 editPeerUsernameSkip: 8px;
 editPeerInviteLink: FlatLabel(defaultFlatLabel) {
@@ -701,7 +697,6 @@ editPeerInviteLink: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
 }
 editPeerInviteLinkButton: boxLinkButton;
-editPeerUsernameMargins: margins(22px, 17px, 22px, 2px);
 editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
 	textFg: boxTextFgGood;
 	style: boxTextStyle;
@@ -748,7 +743,14 @@ topBarSearch: IconButton {
 		color: windowBgOver;
 	}
 }
-topBarSkip: -2px;
+topBarCloseChoose: IconButton(topBarSearch) {
+	width: 56px;
+	icon: icon {{ "info_close", boxTitleCloseFg }};
+	iconOver: icon {{ "info_close", boxTitleCloseFgOver }};
+	iconPosition: point(10px, -1px);
+	rippleAreaPosition: point(7px, 7px);
+}
+topBarSkip: -5px;
 topBarCallSkip: -1px;
 topBarMenuToggle: IconButton(topBarSearch) {
 	width: 44px;
@@ -762,6 +764,11 @@ topBarMenuToggle: IconButton(topBarSearch) {
 topBarCall: IconButton(topBarSearch) {
 	icon: icon {{ "top_bar_call", menuIconFg }};
 	iconOver: icon {{ "top_bar_call", menuIconFgOver }};
+}
+topBarGroupCall: IconButton(topBarSearch) {
+	icon: icon {{ "top_bar_group_call", menuIconFg }};
+	iconOver: icon {{ "top_bar_group_call", menuIconFgOver }};
+	iconPosition: point(8px, 16px);
 }
 topBarInfo: IconButton(topBarSearch) {
 	icon: icon {{ "top_bar_profile", menuIconFg }};
@@ -826,3 +833,120 @@ separatePanelBack: IconButton(separatePanelClose) {
 	icon: infoTopBarBackIcon;
 	iconOver: infoTopBarBackIconOver;
 }
+
+inviteLinkField: FlatInput(defaultFlatInput) {
+	font: font(fsize);
+
+	height: 44px;
+	textMrg: margins(14px, 12px, 36px, 9px);
+}
+inviteLinkThreeDotsIcon: icon {{ "info/edit/dotsmini", dialogsMenuIconFg }};
+inviteLinkThreeDotsIconOver: icon {{ "info/edit/dotsmini", dialogsMenuIconFgOver }};
+inviteLinkThreeDots: IconButton(defaultIconButton) {
+	width: 36px;
+	height: 44px;
+
+	icon: inviteLinkThreeDotsIcon;
+	iconOver: inviteLinkThreeDotsIconOver;
+	iconPosition: point(-1px, -1px);
+
+	rippleAreaSize: 0px;
+}
+inviteLinkFieldPadding: margins(22px, 7px, 22px, 14px);
+
+inviteLinkButton: RoundButton(defaultActiveButton) {
+	height: 36px;
+	textTop: 9px;
+}
+inviteLinkButtonsPadding: margins(22px, 0px, 22px, 0px);
+inviteLinkButtonsSkip: 10px;
+inviteLinkCopy: RoundButton(inviteLinkButton) {
+	icon: icon {{ "info/edit/links_copy", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_copy", activeButtonFgOver }};
+	iconPosition: point(-1px, 2px);
+}
+inviteLinkShare: RoundButton(inviteLinkCopy) {
+	icon: icon {{ "info/edit/links_share", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_share", activeButtonFgOver }};
+}
+inviteLinkReactivate: RoundButton(inviteLinkCopy) {
+	icon: icon {{ "info/edit/links_reactivate", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_reactivate", activeButtonFgOver }};
+}
+inviteLinkDelete: RoundButton(inviteLinkCopy) {
+	icon: icon {{ "info/edit/links_delete", activeButtonFg }};
+	iconOver: icon {{ "info/edit/links_delete", activeButtonFgOver }};
+}
+inviteLinkUserpics: GroupCallUserpics {
+	size: 28px;
+	shift: 6px;
+	stroke: 2px;
+	align: align(left);
+}
+inviteLinkUserpicsSkip: 8px;
+inviteLinkJoinedFont: font(14px);
+inviteLinkJoinedRowPadding: margins(0px, 18px, 0px, 8px);
+
+inviteLinkCreateSkip: 10px;
+inviteLinkCreate: SettingsButton(defaultSettingsButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	font: semiboldFont;
+
+	height: 20px;
+	padding: margins(60px, 7px, 12px, 5px);
+
+	toggle: infoProfileToggle;
+	toggleOver: infoProfileToggleOver;
+	toggleSkip: 22px;
+
+	ripple: defaultRippleAnimation;
+}
+inviteLinkCreateIcon: icon {{ "info/edit/roundbtn_plus", windowFgActive }};
+inviteLinkCreateIconSize: 18px;
+inviteLinkListItem: PeerListItem(defaultPeerListItem) {
+	button: OutlineButton(defaultPeerListButton) {
+		font: normalFont;
+		padding: margins(11px, 5px, 11px, 5px);
+	}
+	height: 52px;
+	photoPosition: point(9px, 4px);
+	namePosition: point(60px, 6px);
+	statusPosition: point(60px, 26px);
+	photoSize: 44px;
+}
+inviteLinkList: PeerList(defaultPeerList) {
+	item: inviteLinkListItem;
+	padding: margins(0px, 4px, 0px, 0px);
+}
+inviteLinkAdminsList: PeerList(inviteLinkList) {
+	item: PeerListItem(inviteLinkListItem) {
+		photoPosition: point(16px, 9px);
+		namePosition: point(62px, 6px);
+		statusPosition: point(62px, 26px);
+		photoSize: 34px;
+	}
+	padding: margins(0px, 5px, 0px, 6px);
+}
+inviteLinkIconSkip: 7px;
+inviteLinkIconStroke: 2px;
+inviteLinkIcon: icon {{ "info/edit/links_link", mediaviewFileExtFg }};
+inviteLinkRevokedIcon: icon {{ "info/edit/links_revoked", mediaviewFileExtFg }};
+inviteLinkThreeDotsSkip: 12px;
+inviteLinkRevokedTitlePadding: margins(22px, 16px, 10px, 4px);
+inviteLinkLimitMargin: margins(22px, 8px, 22px, 8px);
+
+inviteLinkQrPixel: 8px;
+inviteLinkQrSkip: 24px;
+inviteLinkQrMargin: margins(0px, 0px, 0px, 13px);
+inviteLinkQrValuePadding: margins(22px, 0px, 22px, 12px);
+
+infoAboutGigagroup: FlatLabel(defaultFlatLabel) {
+	minWidth: 274px;
+}
+
+infoScrollDateHideTimeout: historyScrollDateHideTimeout;
+infoDateFadeDuration: historyDateFadeDuration;

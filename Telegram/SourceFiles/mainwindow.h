@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "platform/platform_specific.h"
 #include "platform/platform_main_window.h"
 #include "base/unique_qptr.h"
 #include "ui/layers/layer_widget.h"
@@ -19,6 +18,10 @@ namespace Intro {
 class Widget;
 enum class EnterPoint : uchar;
 } // namespace Intro
+
+namespace Media {
+class SystemMediaControlsManager;
+} // namespace Media
 
 namespace Window {
 class MediaPreviewWidget;
@@ -40,24 +43,27 @@ class LayerStackWidget;
 class MediaPreviewWidget;
 
 class MainWindow : public Platform::MainWindow {
-	Q_OBJECT
-
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 	~MainWindow();
 
 	void finishFirstShow();
 
+	void preventOrInvoke(Fn<void()> callback);
+
 	void setupPasscodeLock();
 	void clearPasscodeLock();
 	void setupIntro(Intro::EnterPoint point);
 	void setupMain();
 
+	void showSettings();
+
+	void setInnerFocus() override;
+
 	MainWidget *sessionContent() const;
 
 	[[nodiscard]] bool doWeMarkAsRead();
 
-	void activate();
 
 	bool takeThirdSectionFromLayer();
 
@@ -77,7 +83,7 @@ public:
 	}
 
 	void showMainMenu();
-	void updateTrayMenu(bool force = false) override;
+	void updateTrayMenu() override;
 	void fixOrder() override;
 
 	void showSpecialLayer(
@@ -101,8 +107,6 @@ public:
 		not_null<PhotoData*> photo);
 	void hideMediaPreview();
 
-	void showLogoutConfirmation();
-
 	void updateControlsGeometry() override;
 
 protected:
@@ -112,18 +116,6 @@ protected:
 	void initHook() override;
 	void updateIsActiveHook() override;
 	void clearWidgetsHook() override;
-
-public slots:
-	void showSettings();
-	void setInnerFocus();
-
-	void quitFromTray();
-	void showFromTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
-	void toggleDisplayNotifyFromTray();
-
-	void onShowAddContact();
-	void onShowNewGroup();
-	void onShowNewChannel();
 
 private:
 	[[nodiscard]] bool skipTrayClick() const;
@@ -138,12 +130,17 @@ private:
 
 	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
 
+	void toggleDisplayNotifyFromTray();
+
 	QPixmap grabInner();
+
+	std::unique_ptr<Media::SystemMediaControlsManager> _mediaControlsManager;
 
 	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 
 	crl::time _lastTrayClickTime = 0;
 	QPoint _lastMousePosition;
+	bool _activeForTrayIconAction = true;
 
 	object_ptr<Window::PasscodeLockWidget> _passcodeLock = { nullptr };
 	object_ptr<Intro::Widget> _intro = { nullptr };

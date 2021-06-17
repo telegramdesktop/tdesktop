@@ -283,6 +283,8 @@ void FilterBox::Inner::createActionsCheckboxes(const FilterValue &filter) {
 	if (isGroup) {
 		addFlag(Flag::f_pinned, tr::lng_admin_log_filter_messages_pinned(tr::now));
 	}
+	addFlag(Flag::f_group_call, tr::lng_admin_log_filter_voice_chats(tr::now));
+	addFlag(Flag::f_invites, tr::lng_admin_log_filter_invite_links(tr::now));
 	addFlag(Flag::f_leave, tr::lng_admin_log_filter_members_removed(tr::now));
 }
 

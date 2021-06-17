@@ -91,7 +91,7 @@ const auto kDictionaries = {
 	Dict{{ QLocale::Korean,              615, 1'256'987, "\xed\x95\x9c\xea\xb5\xad\xec\x96\xb4" }}, // ko_KR
 	Dict{{ QLocale::Lithuanian,          616,   267'427, "\x4c\x69\x65\x74\x75\x76\x69\xc5\xb3" }}, // lt_LT
 	Dict{{ QLocale::Latvian,             617,   641'602, "\x4c\x61\x74\x76\x69\x65\xc5\xa1\x75" }}, // lv_LV
-	Dict{{ QLocale::Norwegian,           618,   588'650, "\x4e\x6f\x72\x73\x6b" }}, // nb_NO
+	Dict{{ QLocale::NorwegianBokmal,     618,   588'650, "\x4e\x6f\x72\x73\x6b" }}, // nb_NO
 	Dict{{ QLocale::Dutch,               619,   743'406, "\x4e\x65\x64\x65\x72\x6c\x61\x6e\x64\x73" }}, // nl_NL
 	Dict{{ QLocale::Polish,              620, 1'015'747, "\x50\x6f\x6c\x73\x6b\x69" }}, // pl_PL
 	Dict{{ QLocale::Portuguese,          621, 1'231'999, "\x50\x6f\x72\x74\x75\x67\x75\xc3\xaa\x73 (Brazil)" }}, // pt_BR
@@ -178,7 +178,7 @@ void DownloadDictionaryInBackground(
 }
 
 void AddExceptions() {
-	const auto exceptions = ranges::view::all(
+	const auto exceptions = ranges::views::all(
 		kExceptions
 	) | ranges::views::transform([](const auto &word) {
 		return word.utf16();
@@ -251,9 +251,9 @@ MTP::DedicatedLoader::Location GetDownloadLocation(int id) {
 
 QString DictPathByLangId(int langId) {
 	EnsurePath();
-	return qsl("%1/%2")
-		.arg(DictionariesPath())
-		.arg(Spellchecker::LocaleFromLangId(langId).name());
+	return qsl("%1/%2").arg(
+		DictionariesPath(),
+		Spellchecker::LocaleFromLangId(langId).name());
 }
 
 QString DictionariesPath() {
@@ -281,9 +281,9 @@ bool RemoveDictionary(int langId) {
 		return true;
 	}
 	const auto fileName = Spellchecker::LocaleFromLangId(langId).name();
-	const auto folder = qsl("%1/%2/")
-		.arg(DictionariesPath())
-		.arg(fileName);
+	const auto folder = qsl("%1/%2/").arg(
+		DictionariesPath(),
+		fileName);
 	return QDir(folder).removeRecursively();
 }
 
@@ -294,9 +294,9 @@ bool WriteDefaultDictionary() {
 		return false;
 	}
 	const auto fileName = QLocale(en).name();
-	const auto folder = qsl("%1/%2/")
-		.arg(DictionariesPath())
-		.arg(fileName);
+	const auto folder = qsl("%1/%2/").arg(
+		DictionariesPath(),
+		fileName);
 	QDir(folder).removeRecursively();
 
 	const auto path = folder + fileName;
@@ -326,7 +326,7 @@ rpl::producer<QString> ButtonManageDictsState(
 			return QString();
 		}
 		const auto dicts = Core::App().settings().dictionariesEnabled();
-		const auto filtered = ranges::view::all(
+		const auto filtered = ranges::views::all(
 			dicts
 		) | ranges::views::filter(
 			DictionaryExists

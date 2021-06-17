@@ -22,7 +22,7 @@ void GenerateItems(
 	not_null<HistoryView::ElementDelegate*> delegate,
 	not_null<History*> history,
 	const MTPDchannelAdminLogEvent &event,
-	Fn<void(OwnedItem item)> callback);
+	Fn<void(OwnedItem item, TimeId sentDate)> callback);
 
 // Smart pointer wrapper for HistoryItem* that destroys the owned item.
 class OwnedItem {
@@ -37,17 +37,18 @@ public:
 	OwnedItem &operator=(OwnedItem &&other);
 	~OwnedItem();
 
-	HistoryView::Element *get() const {
+	[[nodiscard]] HistoryView::Element *get() const {
 		return _view.get();
 	}
-	HistoryView::Element *operator->() const {
+	[[nodiscard]] HistoryView::Element *operator->() const {
 		return get();
 	}
-	operator HistoryView::Element*() const {
+	[[nodiscard]] operator HistoryView::Element*() const {
 		return get();
 	}
 
 	void refreshView(not_null<HistoryView::ElementDelegate*> delegate);
+	void clearView();
 
 private:
 	HistoryItem *_data = nullptr;

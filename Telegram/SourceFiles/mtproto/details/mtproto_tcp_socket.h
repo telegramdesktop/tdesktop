@@ -13,7 +13,10 @@ namespace MTP::details {
 
 class TcpSocket final : public AbstractSocket {
 public:
-	TcpSocket(not_null<QThread*> thread, const QNetworkProxy &proxy);
+	TcpSocket(
+		not_null<QThread*> thread,
+		const QNetworkProxy &proxy,
+		bool protocolForFiles);
 
 	void connectToHost(const QString &address, int port) override;
 	bool isGoodStartNonce(bytes::const_span nonce) override;

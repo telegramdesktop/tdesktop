@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "mainwindow.h"
 #include "ui/widgets/checkbox.h"
-#include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -45,7 +44,6 @@ void AutoLockBox::prepare() {
 void AutoLockBox::durationChanged(int seconds) {
 	Core::App().settings().setAutoLock(seconds);
 	Core::App().saveSettingsDelayed();
-	Global::RefLocalPasscodeChanged().notify();
 
 	Core::App().checkAutoLock();
 	closeBox();

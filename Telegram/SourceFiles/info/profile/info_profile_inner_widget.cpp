@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
-#include "boxes/report_box.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -81,7 +80,8 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		_controller->parentController()));
 	_cover->showSection(
 	) | rpl::start_with_next([=](Section section) {
-		_controller->showSection(Info::Memento(_peer, section));
+		_controller->showSection(
+			std::make_shared<Info::Memento>(_peer, section));
 	}, _cover->lifetime());
 	_cover->setOnlineCount(rpl::single(0));
 	auto details = SetupDetails(_controller, parent, _peer);

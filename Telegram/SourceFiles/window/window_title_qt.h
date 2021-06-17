@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "window/window_title.h"
-#include "window/window_controls_layout.h"
+#include "ui/platform/ui_platform_window_title.h"
 #include "base/object_ptr.h"
 
 namespace style {
@@ -24,6 +24,8 @@ namespace Window {
 
 class TitleWidgetQt : public TitleWidget {
 public:
+	using Control = Ui::Platform::TitleControls::Control;
+
 	TitleWidgetQt(QWidget *parent);
 	~TitleWidgetQt();
 
@@ -34,6 +36,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
@@ -49,12 +53,11 @@ private:
 
 	void toggleFramelessWindow(bool enabled);
 	bool hasShadow() const;
-	int getResizeArea(Qt::Edge edge) const;
-	Qt::Edges edgesFromPos(const QPoint &pos);
+	Ui::IconButton *controlWidget(Control control) const;
+	QMargins resizeArea() const;
+	Qt::Edges edgesFromPos(const QPoint &pos) const;
 	void updateCursor(Qt::Edges edges);
 	void restoreCursor();
-	bool startMove();
-	bool startResize(Qt::Edges edges);
 
 	const style::WindowTitle &_st;
 	object_ptr<Ui::IconButton> _minimize;
@@ -67,9 +70,7 @@ private:
 	bool _windowWasFrameless = false;
 	bool _cursorOverriden = false;
 	bool _extentsSet = false;
-	bool _pressedForMove = false;
-	crl::time _pressedForMoveTime = 0;
-	QPoint _pressedForMovePoint;
+	bool _mousePressed = false;
 
 };
 

@@ -86,13 +86,13 @@ enum {
 	dbiAutoStart = 0x06,
 	dbiStartMinimized = 0x07,
 	dbiSoundFlashBounceNotifyOld = 0x08,
-	dbiWorkMode = 0x09,
+	dbiWorkModeOld = 0x09,
 	dbiSeenTrayTooltip = 0x0a,
 	dbiDesktopNotifyOld = 0x0b,
 	dbiAutoUpdate = 0x0c,
 	dbiLastUpdateCheck = 0x0d,
-	dbiWindowPosition = 0x0e,
-	dbiConnectionTypeOld = 0x0f,
+	dbiWindowPositionOld = 0x0e,
+	dbiConnectionTypeOldOld = 0x0f,
 	// 0x10 reserved
 	dbiDefaultAttach = 0x11,
 	dbiCatsAndDogsOld = 0x12,
@@ -101,7 +101,7 @@ enum {
 	dbiDownloadPathOldOld = 0x15,
 	dbiScaleOld = 0x16,
 	dbiEmojiTabOld = 0x17,
-	dbiRecentEmojiOldOld = 0x18,
+	dbiRecentEmojiOldOldOld = 0x18,
 	dbiLoggedPhoneNumberOld = 0x19,
 	dbiMutedPeersOld = 0x1a,
 	// 0x1b reserved
@@ -113,11 +113,11 @@ enum {
 	dbiTileBackgroundOld = 0x21,
 	dbiAutoLockOld = 0x22,
 	dbiDialogLastPath = 0x23,
-	dbiRecentEmojiOld = 0x24,
-	dbiEmojiVariantsOld = 0x25,
+	dbiRecentEmojiOldOld = 0x24,
+	dbiEmojiVariantsOldOld = 0x25,
 	dbiRecentStickers = 0x26,
 	dbiDcOptionOld = 0x27,
-	dbiTryIPv6 = 0x28,
+	dbiTryIPv6Old = 0x28,
 	dbiSongVolumeOld = 0x29,
 	dbiWindowsNotificationsOld = 0x30,
 	dbiIncludeMutedOld = 0x31,
@@ -129,8 +129,8 @@ enum {
 	dbiAutoPlayOld = 0x37,
 	dbiAdaptiveForWideOld = 0x38,
 	dbiHiddenPinnedMessagesOld = 0x39,
-	dbiRecentEmoji = 0x3a,
-	dbiEmojiVariants = 0x3b,
+	dbiRecentEmojiOld = 0x3a,
+	dbiEmojiVariantsOld = 0x3b,
 	dbiDialogsModeOld = 0x40,
 	dbiModerateModeOld = 0x41,
 	dbiVideoVolumeOld = 0x42,
@@ -146,7 +146,7 @@ enum {
 	dbiLastSeenWarningSeenOld = 0x4c,
 	dbiSessionSettings = 0x4d,
 	dbiLangPackKey = 0x4e,
-	dbiConnectionType = 0x4f,
+	dbiConnectionTypeOld = 0x4f,
 	dbiStickersFavedLimitOld = 0x50,
 	dbiSuggestStickersByEmojiOld = 0x51,
 	dbiSuggestEmojiOld = 0x52,
@@ -173,17 +173,6 @@ enum {
 
 	dbiVersion = 666,
 };
-
-enum {
-	dbictAuto = 0,
-	dbictHttpAuto = 1, // not used
-	dbictHttpProxy = 2,
-	dbictTcpProxy = 3,
-	dbictProxiesListOld = 4,
-	dbictProxiesList = 5,
-};
-
-inline constexpr auto kProxyTypeShift = 1024;
 
 } // namespace details
 } // namespace Storage

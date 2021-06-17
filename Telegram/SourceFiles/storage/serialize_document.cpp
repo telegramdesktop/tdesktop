@@ -149,6 +149,7 @@ DocumentData *Document::readFromStreamHelper(
 	if ((stream.status() != QDataStream::Ok)
 		|| (!dc && !access)
 		|| !thumb
+		|| !videoThumb
 		|| (thumb->valid()
 			&& (!storage || !storage->isDocumentThumbnail()))) {
 		stream.setStatus(QDataStream::ReadCorruptData);

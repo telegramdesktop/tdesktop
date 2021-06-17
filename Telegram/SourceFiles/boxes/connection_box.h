@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "base/object_ptr.h"
+#include "core/core_settings.h"
 #include "mtproto/connection_abstract.h"
 #include "mtproto/mtproto_proxy_data.h"
 
@@ -28,7 +29,7 @@ namespace Main {
 class Account;
 } // namespace Main
 
-class ProxiesBoxController : public base::Subscriber {
+class ProxiesBoxController {
 public:
 	using ProxyData = MTP::ProxyData;
 	using Type = ProxyData::Type;
@@ -110,6 +111,7 @@ private:
 	void addNewItem(const ProxyData &proxy);
 
 	const not_null<Main::Account*> _account;
+	Core::SettingsProxy &_settings;
 	int _idCounter = 0;
 	std::vector<Item> _list;
 	rpl::event_stream<ItemView> _views;
@@ -118,5 +120,7 @@ private:
 
 	ProxyData _lastSelectedProxy;
 	bool _lastSelectedProxyUsed = false;
+
+	rpl::lifetime _lifetime;
 
 };

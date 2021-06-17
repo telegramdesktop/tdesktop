@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_edit_scans.h"
 
 #include "passport/passport_panel_controller.h"
-#include "passport/passport_panel_details_row.h"
+#include "passport/ui/passport_details_row.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/box_content_divider.h"
@@ -55,7 +55,7 @@ std::variant<ReadScanError, QByteArray> ProcessImage(QByteArray &&bytes) {
 	auto result = QByteArray();
 	{
 		QBuffer buffer(&result);
-		if (!image.save(&buffer, QByteArray("JPG"), kJpegQuality)) {
+		if (!image.save(&buffer, "JPG", kJpegQuality)) {
 			return ReadScanError::Unknown;
 		}
 		base::take(image);

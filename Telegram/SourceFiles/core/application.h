@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "mtproto/mtproto_auth_key.h"
 #include "mtproto/mtproto_proxy_data.h"
-#include "base/observer.h"
 #include "base/timer.h"
 
 class MainWindow;
@@ -104,7 +103,7 @@ namespace Core {
 class Launcher;
 struct LocalUrlHandler;
 
-class Application final : public QObject, private base::Subscriber {
+class Application final : public QObject {
 public:
 	struct ProxyChange {
 		MTP::ProxyData was;
@@ -139,7 +138,6 @@ public:
 	bool minimizeActiveWindow();
 	[[nodiscard]] QWidget *getFileDialogParent();
 	void notifyFileDialogShown(bool shown);
-	[[nodiscard]] QWidget *getModalParent();
 	void checkSystemDarkMode();
 
 	// Media view interface.
@@ -227,6 +225,7 @@ public:
 	void checkStartUrl();
 	bool openLocalUrl(const QString &url, QVariant context);
 	bool openInternalUrl(const QString &url, QVariant context);
+	[[nodiscard]] QString changelogLink() const;
 
 	// Float player.
 	void setDefaultFloatPlayerDelegate(
@@ -271,12 +270,19 @@ public:
 
 	void handleAppActivated();
 	void handleAppDeactivated();
+	[[nodiscard]] rpl::producer<bool> appDeactivatedValue() const;
 
 	void switchDebugMode();
 	void switchFreeType();
 	void writeInstallBetaVersionsSetting();
 
+	void preventOrInvoke(Fn<void()> &&callback);
+
 	void call_handleObservables();
+
+	// Global runtime variables.
+	void setScreenIsLocked(bool locked);
+	bool screenIsLocked() const;
 
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
@@ -296,13 +302,12 @@ private:
 	void startEmojiImageLoader();
 	void startSystemDarkModeViewer();
 
-	void stateChanged(Qt::ApplicationState state);
-
 	friend void App::quit();
 	static void QuitAttempt();
 	void quitDelayed();
 	[[nodiscard]] bool readyToQuit();
 
+	void showOpenGLCrashNotification();
 	void clearPasscodeLock();
 
 	bool openCustomUrl(
@@ -349,7 +354,6 @@ private:
 	const std::unique_ptr<Lang::CloudManager> _langCloudManager;
 	const std::unique_ptr<ChatHelpers::EmojiKeywords> _emojiKeywords;
 	std::unique_ptr<Lang::Translator> _translator;
-	base::Observable<void> _passcodedChanged;
 	QPointer<Ui::BoxContent> _badProxyDisableBox;
 
 	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
@@ -360,23 +364,18 @@ private:
 	const QImage _logoNoMargin;
 
 	rpl::variable<bool> _passcodeLock;
+	bool _screenIsLocked = false;
 
 	crl::time _shouldLockAt = 0;
 	base::Timer _autoLockTimer;
 
-	base::Timer _saveSettingsTimer;
+	std::optional<base::Timer> _saveSettingsTimer;
 
-	struct LeaveSubscription {
-		LeaveSubscription(
-			QPointer<QWidget> pointer,
-			rpl::lifetime &&subscription)
-		: pointer(pointer), subscription(std::move(subscription)) {
-		}
-
-		QPointer<QWidget> pointer;
-		rpl::lifetime subscription;
+	struct LeaveFilter {
+		std::vector<QPointer<QWidget>> registered;
+		QPointer<QObject> filter;
 	};
-	std::vector<LeaveSubscription> _leaveSubscriptions;
+	base::flat_map<not_null<QWidget*>, LeaveFilter> _leaveFilters;
 
 	rpl::lifetime _lifetime;
 

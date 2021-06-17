@@ -49,6 +49,7 @@ using AuthKeyPtr = std::shared_ptr<AuthKey>;
 namespace Local {
 
 void start();
+void sync();
 void finish();
 
 void writeSettings();

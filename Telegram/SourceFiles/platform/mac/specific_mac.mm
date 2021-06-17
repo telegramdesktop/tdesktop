@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "storage/localstorage.h"
+#include "window/window_controller.h"
 #include "mainwindow.h"
 #include "history/history_location_manager.h"
 #include "base/platform/mac/base_utilities_mac.h"
@@ -32,31 +33,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <CoreFoundation/CFURL.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/hidsystem/ev_keymap.h>
-#include <SPMediaKeyTap.h>
 #include <mach-o/dyld.h>
 #include <AVFoundation/AVFoundation.h>
 
-QRect psDesktopRect() {
-	static QRect _monitorRect;
-	static crl::time _monitorLastGot = 0;
-	auto tnow = crl::now();
-	if (tnow > _monitorLastGot + 1000 || tnow < _monitorLastGot) {
-		_monitorLastGot = tnow;
-		_monitorRect = QApplication::desktop()->availableGeometry(App::wnd());
-	}
-	return _monitorRect;
-}
-
-void psWriteDump() {
-#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
-	double v = objc_appkitVersion();
-	CrashReports::dump() << "OS-Version: " << v;
-#endif // DESKTOP_APP_DISABLE_CRASH_REPORTS
-}
-
 void psActivateProcess(uint64 pid) {
 	if (!pid) {
-		objc_activateProgram(App::wnd() ? App::wnd()->winId() : 0);
+		const auto window = Core::App().activeWindow();
+		objc_activateProgram(window ? window->widget()->winId() : 0);
 	}
 }
 
@@ -120,6 +103,13 @@ std::optional<bool> IsDarkMode() {
 	return IsMac10_14OrGreater()
 		? std::make_optional(IsDarkMenuBar())
 		: std::nullopt;
+}
+
+void WriteCrashDumpDetails() {
+#ifndef DESKTOP_APP_DISABLE_CRASH_REPORTS
+	double v = objc_appkitVersion();
+	CrashReports::dump() << "OS-Version: " << v;
+#endif // DESKTOP_APP_DISABLE_CRASH_REPORTS
 }
 
 void RegisterCustomScheme(bool force) {
@@ -201,16 +191,6 @@ bool OpenSystemSettings(SystemSettingsType type) {
 
 void IgnoreApplicationActivationRightNow() {
 	objc_ignoreApplicationActivationRightNow();
-}
-
-Window::ControlsLayout WindowControlsLayout() {
-	return Window::ControlsLayout{
-		.left = {
-			Window::Control::Close,
-			Window::Control::Minimize,
-			Window::Control::Maximize,
-		}
-	};
 }
 
 } // namespace Platform

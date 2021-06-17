@@ -117,32 +117,9 @@ inline std::array<char, 32> hashMd5Hex(const void *data, int size) {
 
 // good random (using openssl implementation)
 void memset_rand(void *data, uint32 len);
-template <typename T>
-T rand_value() {
-	T result;
-	memset_rand(&result, sizeof(result));
-	return result;
-}
-
-template <typename T>
-inline T snap(const T &v, const T &_min, const T &_max) {
-	return (v < _min) ? _min : ((v > _max) ? _max : v);
-}
 
 QString translitRusEng(const QString &rus);
 QString rusKeyboardLayoutSwitch(const QString &from);
-
-enum DBINotifyView {
-	dbinvShowPreview = 0,
-	dbinvShowName = 1,
-	dbinvShowNothing = 2,
-};
-
-enum DBIWorkMode {
-	dbiwmWindowAndTray = 0,
-	dbiwmTrayOnly = 1,
-	dbiwmWindowOnly = 2,
-};
 
 static const int MatrixRowShift = 40000;
 
@@ -150,16 +127,22 @@ inline int rowscount(int fullCount, int countPerRow) {
 	return (fullCount + countPerRow - 1) / countPerRow;
 }
 inline int floorclamp(int value, int step, int lowest, int highest) {
-	return qMin(qMax(value / step, lowest), highest);
+	return std::clamp(value / step, lowest, highest);
 }
 inline int floorclamp(float64 value, int step, int lowest, int highest) {
-	return qMin(qMax(static_cast<int>(std::floor(value / step)), lowest), highest);
+	return std::clamp(
+		static_cast<int>(std::floor(value / step)),
+		lowest,
+		highest);
 }
 inline int ceilclamp(int value, int step, int lowest, int highest) {
-	return qMax(qMin((value + step - 1) / step, highest), lowest);
+	return std::clamp((value + step - 1) / step, lowest, highest);
 }
 inline int ceilclamp(float64 value, int32 step, int32 lowest, int32 highest) {
-	return qMax(qMin(static_cast<int>(std::ceil(value / step)), highest), lowest);
+	return std::clamp(
+		static_cast<int>(std::ceil(value / step)),
+		lowest,
+		highest);
 }
 
 static int32 FullArcLength = 360 * 16;
@@ -213,48 +196,5 @@ public:
 
 private:
 	T *_p;
-
-};
-
-// This pointer is used for static non-POD variables that are allocated
-// on first use by constructor and are never automatically freed.
-template <typename T>
-class StaticNeverFreedPointer {
-public:
-	explicit StaticNeverFreedPointer(T *p) : _p(p) {
-	}
-	StaticNeverFreedPointer(const StaticNeverFreedPointer<T> &other) = delete;
-	StaticNeverFreedPointer &operator=(const StaticNeverFreedPointer<T> &other) = delete;
-
-	T *data() const {
-		return _p;
-	}
-	T *release() {
-		return base::take(_p);
-	}
-	void reset(T *p = nullptr) {
-		delete _p;
-		_p = p;
-	}
-	bool isNull() const {
-		return data() == nullptr;
-	}
-
-	void clear() {
-		reset();
-	}
-	T *operator->() const {
-		return data();
-	}
-	T &operator*() const {
-		Assert(!isNull());
-		return *data();
-	}
-	explicit operator bool() const {
-		return !isNull();
-	}
-
-private:
-	T *_p = nullptr;
 
 };

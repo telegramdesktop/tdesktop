@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "window/themes/window_theme.h"
+#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "boxes/confirm_box.h"
 #include "base/timer.h"
@@ -34,16 +35,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace AdminLog {
 
-class FixedBar final : public TWidget, private base::Subscriber {
+class FixedBar final : public TWidget {
 public:
 	FixedBar(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		not_null<ChannelData*> channel);
 
-	base::Observable<void> showFilterSignal;
-	base::Observable<void> searchCancelledSignal;
-	base::Observable<QString> searchSignal;
+	[[nodiscard]] rpl::producer<> showFilterRequests() const;
+	[[nodiscard]] rpl::producer<> searchCancelRequests() const;
+	[[nodiscard]] rpl::producer<QString> searchRequests() const;
 
 	// When animating mode is enabled the content is hidden and the
 	// whole fixed bar acts like a back button.
@@ -85,6 +86,9 @@ private:
 	bool _animatingMode = false;
 	base::Timer _searchTimer;
 
+	rpl::event_stream<> _searchCancelRequests;
+	rpl::event_stream<QString> _searchRequests;
+
 };
 
 object_ptr<Window::SectionWidget> SectionMemento::createWidget(
@@ -110,13 +114,13 @@ FixedBar::FixedBar(
 , _backButton(
 	this,
 	&controller->session(),
-	tr::lng_admin_log_title_all(tr::now))
+	tr::lng_admin_log_title_all(tr::now),
+	controller->adaptive().oneColumnValue())
 , _search(this, st::topBarSearch)
 , _cancel(this, st::historyAdminLogCancelSearch)
 , _filter(this, tr::lng_admin_log_filter(), st::topBarButton) {
 	_backButton->moveToLeft(0, 0);
 	_backButton->setClickedCallback([=] { goBack(); });
-	_filter->setClickedCallback([=] { showFilterSignal.notify(); });
 	_search->setClickedCallback([=] { showSearch(); });
 	_cancel->setClickedCallback([=] { cancelSearch(); });
 	_field->hide();
@@ -158,7 +162,7 @@ void FixedBar::toggleSearch() {
 		_field->show();
 		_field->setFocus();
 	} else {
-		searchCancelledSignal.notify(true);
+		_searchCancelRequests.fire({});
 	}
 }
 
@@ -198,7 +202,7 @@ void FixedBar::searchUpdated() {
 }
 
 void FixedBar::applySearch() {
-	searchSignal.notify(_field->getLastText());
+	_searchRequests.fire_copy(_field->getLastText());
 }
 
 int FixedBar::resizeGetHeight(int newWidth) {
@@ -221,6 +225,18 @@ int FixedBar::resizeGetHeight(int newWidth) {
 	_field->setGeometryToLeft(fieldLeft, st::historyAdminLogSearchTop, cancelLeft - fieldLeft, _field->height());
 
 	return newHeight;
+}
+
+rpl::producer<> FixedBar::showFilterRequests() const {
+	return _filter->clicks() | rpl::to_empty;
+}
+
+rpl::producer<> FixedBar::searchCancelRequests() const {
+	return _searchCancelRequests.events();
+}
+
+rpl::producer<QString> FixedBar::searchRequests() const {
+	return _searchRequests.events();
 }
 
 void FixedBar::setAnimatingMode(bool enabled) {
@@ -266,14 +282,29 @@ Widget::Widget(
 , _whatIsThis(this, tr::lng_admin_log_about(tr::now).toUpper(), st::historyComposeButton) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
-	subscribe(_fixedBar->showFilterSignal, [this] { showFilter(); });
-	subscribe(_fixedBar->searchCancelledSignal, [this] { setInnerFocus(); });
-	subscribe(_fixedBar->searchSignal, [this](const QString &query) { _inner->applySearch(query); });
+	_fixedBar->showFilterRequests(
+	) | rpl::start_with_next([=] {
+		showFilter();
+	}, lifetime());
+	_fixedBar->searchCancelRequests(
+	) | rpl::start_with_next([=] {
+		setInnerFocus();
+	}, lifetime());
+	_fixedBar->searchRequests(
+	) | rpl::start_with_next([=](const QString &query) {
+		_inner->applySearch(query);
+	}, lifetime());
 	_fixedBar->show();
 
 	_fixedBarShadow->raise();
-	updateAdaptiveLayout();
-	subscribe(Adaptive::Changed(), [this] { updateAdaptiveLayout(); });
+
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		controller->adaptive().changed()
+	) | rpl::start_with_next([=] {
+		updateAdaptiveLayout();
+	}, lifetime());
 
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller, channel));
 	_inner->showSearchSignal(
@@ -311,7 +342,11 @@ void Widget::showFilter() {
 }
 
 void Widget::updateAdaptiveLayout() {
-	_fixedBarShadow->moveToLeft(Adaptive::OneColumn() ? 0 : st::lineWidth, _fixedBar->height());
+	_fixedBarShadow->moveToLeft(
+		controller()->adaptive().isOneColumn()
+			? 0
+			: st::lineWidth,
+		_fixedBar->height());
 }
 
 not_null<ChannelData*> Widget::channel() const {
@@ -321,7 +356,7 @@ not_null<ChannelData*> Widget::channel() const {
 Dialogs::RowDescriptor Widget::activeChat() const {
 	return {
 		channel()->owner().history(channel()),
-		FullMsgId(channel()->bareId(), ShowAtUnreadMsgId)
+		FullMsgId(peerToChannel(channel()->id), ShowAtUnreadMsgId)
 	};
 }
 
@@ -371,8 +406,8 @@ void Widget::setupShortcuts() {
 	}, lifetime());
 }
 
-std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
-	auto result = std::make_unique<SectionMemento>(channel());
+std::shared_ptr<Window::SectionMemento> Widget::createMemento() {
+	auto result = std::make_shared<SectionMemento>(channel());
 	saveState(result.get());
 	return result;
 }

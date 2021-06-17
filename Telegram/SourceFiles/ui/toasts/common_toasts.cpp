@@ -12,12 +12,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-void ShowMultilineToast(MultilineToastArgs &&args) {
-	Ui::Toast::Show(Ui::Toast::Config{
+base::weak_ptr<Toast::Instance> ShowMultilineToast(
+		MultilineToastArgs &&args) {
+	auto config = Ui::Toast::Config{
 		.text = std::move(args.text),
 		.st = &st::defaultMultilineToast,
+		.durationMs = (args.duration
+			? args.duration
+			: Ui::Toast::kDefaultDuration),
 		.multiline = true,
-	});
+	};
+	return args.parentOverride
+		? Ui::Toast::Show(args.parentOverride, std::move(config))
+		: Ui::Toast::Show(std::move(config));
 }
 
 } // namespace Ui

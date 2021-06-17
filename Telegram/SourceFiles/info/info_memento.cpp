@@ -10,9 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_widget.h"
 #include "info/media/info_media_widget.h"
 #include "info/members/info_members_widget.h"
-//#include "info/channels/info_channels_widget.h" // #feed
 #include "info/common_groups/info_common_groups_widget.h"
-//#include "info/feed/info_feed_profile_widget.h" // #feed
 #include "info/settings/info_settings_widget.h"
 #include "info/polls/info_polls_results_widget.h"
 #include "info/info_section_widget.h"
@@ -35,10 +33,6 @@ Memento::Memento(not_null<PeerData*> peer, Section section)
 : Memento(DefaultStack(peer, section)) {
 }
 
-//Memento::Memento(not_null<Data::Feed*> feed, Section section) // #feed
-//: Memento(DefaultStack(feed, section)) {
-//}
-//
 Memento::Memento(Settings::Tag settings, Section section)
 : Memento(DefaultStack(settings, section)) {
 }
@@ -47,41 +41,33 @@ Memento::Memento(not_null<PollData*> poll, FullMsgId contextId)
 : Memento(DefaultStack(poll, contextId)) {
 }
 
-Memento::Memento(std::vector<std::unique_ptr<ContentMemento>> stack)
+Memento::Memento(std::vector<std::shared_ptr<ContentMemento>> stack)
 : _stack(std::move(stack)) {
 }
 
-std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
+std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
 		not_null<PeerData*> peer,
 		Section section) {
-	auto result = std::vector<std::unique_ptr<ContentMemento>>();
+	auto result = std::vector<std::shared_ptr<ContentMemento>>();
 	result.push_back(DefaultContent(peer, section));
 	return result;
 }
 
-//std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack( // #feed
-//		not_null<Data::Feed*> feed,
-//		Section section) {
-//	auto result = std::vector<std::unique_ptr<ContentMemento>>();
-//	result.push_back(DefaultContent(feed, section));
-//	return result;
-//}
-//
-std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
+std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
 		Settings::Tag settings,
 		Section section) {
-	auto result = std::vector<std::unique_ptr<ContentMemento>>();
-	result.push_back(std::make_unique<Settings::Memento>(
+	auto result = std::vector<std::shared_ptr<ContentMemento>>();
+	result.push_back(std::make_shared<Settings::Memento>(
 		settings.self,
 		section.settingsType()));
 	return result;
 }
 
-std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
+std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
 		not_null<PollData*> poll,
 		FullMsgId contextId) {
-	auto result = std::vector<std::unique_ptr<ContentMemento>>();
-	result.push_back(std::make_unique<Polls::Memento>(poll, contextId));
+	auto result = std::vector<std::shared_ptr<ContentMemento>>();
+	result.push_back(std::make_shared<Polls::Memento>(poll, contextId));
 	return result;
 }
 
@@ -91,28 +77,12 @@ Section Memento::DefaultSection(not_null<PeerData*> peer) {
 	}
 	return Section(Section::Type::Profile);
 }
-// // #feed
-//Section Memento::DefaultSection(Dialogs::Key key) {
-//	if (const auto peer = key.peer()) {
-//		if (peer->sharedMediaInfo()) {
-//			return Section(Section::MediaType::Photo);
-//		}
-//	}
-//	return Section(Section::Type::Profile);
-//}
 
-Memento Memento::Default(not_null<PeerData*> peer) {
-	return Memento(peer, DefaultSection(peer));
+std::shared_ptr<Memento> Memento::Default(not_null<PeerData*> peer) {
+	return std::make_shared<Memento>(peer, DefaultSection(peer));
 }
-// // #feed
-//Memento Memento::Default(Dialogs::Key key) {
-//	if (const auto peer = key.peer()) {
-//		return Memento(peer->id, DefaultSection(key));
-//	}
-//	return Memento(key.feed(), DefaultSection(key));
-//}
 
-std::unique_ptr<ContentMemento> Memento::DefaultContent(
+std::shared_ptr<ContentMemento> Memento::DefaultContent(
 		not_null<PeerData*> peer,
 		Section section) {
 	if (auto to = peer->migrateTo()) {
@@ -123,35 +93,23 @@ std::unique_ptr<ContentMemento> Memento::DefaultContent(
 
 	switch (section.type()) {
 	case Section::Type::Profile:
-		return std::make_unique<Profile::Memento>(
+		return std::make_shared<Profile::Memento>(
 			peer,
 			migratedPeerId);
 	case Section::Type::Media:
-		return std::make_unique<Media::Memento>(
+		return std::make_shared<Media::Memento>(
 			peer,
 			migratedPeerId,
 			section.mediaType());
 	case Section::Type::CommonGroups:
-		return std::make_unique<CommonGroups::Memento>(peer->asUser());
+		return std::make_shared<CommonGroups::Memento>(peer->asUser());
 	case Section::Type::Members:
-		return std::make_unique<Members::Memento>(
+		return std::make_shared<Members::Memento>(
 			peer,
 			migratedPeerId);
 	}
 	Unexpected("Wrong section type in Info::Memento::DefaultContent()");
 }
-//
-//std::unique_ptr<ContentMemento> Memento::DefaultContent( // #feed
-//		not_null<Data::Feed*> feed,
-//		Section section) {
-//	switch (section.type()) {
-//	case Section::Type::Profile:
-//		return std::make_unique<FeedProfile::Memento>(feed);
-//	case Section::Type::Channels:
-//		return std::make_unique<Channels::Memento>(feed);
-//	}
-//	Unexpected("Wrong feed section in Info::Memento::DefaultContent()");
-//}
 
 object_ptr<Window::SectionWidget> Memento::createWidget(
 		QWidget *parent,
@@ -179,7 +137,7 @@ object_ptr<Ui::LayerWidget> Memento::createLayer(
 	return nullptr;
 }
 
-std::vector<std::unique_ptr<ContentMemento>> Memento::takeStack() {
+std::vector<std::shared_ptr<ContentMemento>> Memento::takeStack() {
 	return std::move(_stack);
 }
 

@@ -424,11 +424,11 @@ void Rows::remove(not_null<Row*> row) {
 
 void Rows::restore(not_null<Row*> row) {
 	row->removed = false;
-	Local::saveRecentLanguages(ranges::view::all(
+	Local::saveRecentLanguages(ranges::views::all(
 		_rows
-	) | ranges::view::filter([](const Row &row) {
+	) | ranges::views::filter([](const Row &row) {
 		return !row.removed;
-	}) | ranges::view::transform([](const Row &row) {
+	}) | ranges::views::transform([](const Row &row) {
 		return row.data;
 	}) | ranges::to_vector);
 }
@@ -464,7 +464,6 @@ void Rows::showMenu(int index) {
 			Fn<void()> callback) {
 		return _menu->addAction(text, std::move(callback));
 	};
-	const auto id = row->data.id;
 	if (canShare(row)) {
 		addAction(tr::lng_proxy_edit_share(tr::now), [=] { share(row); });
 	}
@@ -880,7 +879,7 @@ void Content::setupContent(
 		const auto inner = wrap->entity();
 		inner->add(object_ptr<Ui::FixedHeightWidget>(
 			inner,
-			st::boxVerticalMargin));
+			st::defaultBox.margin.top()));
 		const auto rows = inner->add(object_ptr<Rows>(
 			inner,
 			list,
@@ -888,7 +887,7 @@ void Content::setupContent(
 			areOfficial));
 		inner->add(object_ptr<Ui::FixedHeightWidget>(
 			inner,
-			st::boxVerticalMargin));
+			st::defaultBox.margin.top()));
 
 		rows->isEmpty() | rpl::start_with_next([=](bool empty) {
 			wrap->toggle(!empty, anim::type::instant);
@@ -1153,7 +1152,7 @@ void LanguageBox::setInnerFocus() {
 not_null<Ui::MultiSelect*> LanguageBox::createMultiSelect() {
 	const auto result = Ui::CreateChild<Ui::MultiSelect>(
 		this,
-		st::contactsMultiSelect,
+		st::defaultMultiSelect,
 		tr::lng_participant_filter());
 	result->resizeToWidth(st::boxWidth);
 	result->moveToLeft(0, 0);
@@ -1167,15 +1166,19 @@ base::binary_guard LanguageBox::Show() {
 	if (manager.languageList().empty()) {
 		auto guard = std::make_shared<base::binary_guard>(
 			result.make_guard());
-		auto alive = std::make_shared<std::unique_ptr<base::Subscription>>(
-			std::make_unique<base::Subscription>());
-		**alive = manager.languageListChanged().add_subscription([=] {
+		auto lifetime = std::make_shared<rpl::lifetime>();
+		manager.languageListChanged(
+		) | rpl::take(
+			1
+		) | rpl::start_with_next([=]() mutable {
 			const auto show = guard->alive();
-			*alive = nullptr;
+			if (lifetime) {
+				base::take(lifetime)->destroy();
+			}
 			if (show) {
 				Ui::show(Box<LanguageBox>());
 			}
-		});
+		}, *lifetime);
 	} else {
 		Ui::show(Box<LanguageBox>());
 	}

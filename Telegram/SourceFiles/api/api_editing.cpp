@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/mtproto_response.h"
 
 namespace Api {
 namespace {
@@ -131,7 +131,7 @@ void EditMessageWithUploadedMedia(
 			item->setIsLocalUpdateMedia(false);
 		}
 	};
-	const auto fail = [=](const RPCError &error) {
+	const auto fail = [=](const MTP::Error &error) {
 		const auto err = error.type();
 		const auto session = &item->history()->session();
 		const auto notModified = (err == u"MESSAGE_NOT_MODIFIED"_q);
@@ -157,7 +157,7 @@ void EditMessageWithUploadedMedia(
 void RescheduleMessage(
 		not_null<HistoryItem*> item,
 		SendOptions options) {
-	const auto empty = [](const auto &r) {};
+	const auto empty = [] {};
 	EditMessage(item, options, empty, empty);
 }
 
@@ -189,7 +189,7 @@ mtpRequestId EditCaption(
 		const TextWithEntities &caption,
 		SendOptions options,
 		Fn<void(const MTPUpdates &)> done,
-		Fn<void(const RPCError &)> fail) {
+		Fn<void(const MTP::Error &)> fail) {
 	return EditMessage(item, caption, options, done, fail);
 }
 
@@ -198,7 +198,7 @@ mtpRequestId EditTextMessage(
 		const TextWithEntities &caption,
 		SendOptions options,
 		Fn<void(const MTPUpdates &, mtpRequestId requestId)> done,
-		Fn<void(const RPCError &, mtpRequestId requestId)> fail) {
+		Fn<void(const MTP::Error &, mtpRequestId requestId)> fail) {
 	const auto callback = [=](
 			const auto &result,
 			Fn<void()> applyUpdates,

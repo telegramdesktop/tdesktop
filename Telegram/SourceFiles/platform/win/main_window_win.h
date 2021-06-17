@@ -24,6 +24,8 @@ class MainWindow : public Window::MainWindow {
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
+	void showFromTrayMenu() override;
+
 	HWND psHwnd() const;
 	HMENU psMenu() const;
 
@@ -32,14 +34,13 @@ public:
 	void updateCustomMargins();
 
 	void updateWindowIcon() override;
+	bool isActiveForTrayMenu() override;
 
 	void psRefreshTaskbarIcon();
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
-	static UINT TaskbarCreatedMsgId() {
-		return _taskbarCreatedMsgId;
-	}
+	[[nodiscard]] static uint32 TaskbarCreatedMsgId();
 	static void TaskbarCreated();
 
 	// Custom shadows.
@@ -55,6 +56,8 @@ public:
 	int deltaTop() const {
 		return _deltaTop;
 	}
+
+	[[nodiscard]] bool hasTabletView() const;
 
 	void psShowTrayMenu();
 
@@ -82,11 +85,17 @@ protected:
 
 	void showTrayTooltip() override;
 
-	void workmodeUpdated(DBIWorkMode mode) override;
+	void workmodeUpdated(Core::Settings::WorkMode mode) override;
+
+	bool initSizeFromSystem() override;
+
+	QRect computeDesktopRect() const override;
 
 	QTimer psUpdatedPositionTimer;
 
 private:
+	struct Private;
+
 	void setupNativeWindowFrame();
 	void updateIconCounters();
 	QMargins computeCustomMargins();
@@ -94,7 +103,7 @@ private:
 	void psDestroyIcons();
 	void fixMaximizedWindow();
 
-	static UINT _taskbarCreatedMsgId;
+	const std::unique_ptr<Private> _private;
 
 	std::optional<Ui::Platform::WindowShadow> _shadow;
 
@@ -102,6 +111,10 @@ private:
 	bool _inUpdateMargins = false;
 	bool _wasNativeFrame = false;
 	bool _hasActiveFrame = false;
+
+	// Workarounds for activation from tray icon.
+	crl::time _lastDeactivateTime = 0;
+	rpl::lifetime _showFromTrayLifetime;
 
 	HWND ps_hWnd = nullptr;
 	HWND ps_tbHider_hWnd = nullptr;

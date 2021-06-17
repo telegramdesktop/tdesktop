@@ -46,9 +46,9 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 		return version;
 	}();
 
-	result.name = QString("%1%2")
-		.arg(appName)
-		.arg(appVer.isEmpty() ? QString() : (' ' + appVer));
+	result.name = QString("%1%2").arg(
+		appName,
+		appVer.isEmpty() ? QString() : (' ' + appVer));
 
 	const auto country = qs(data.vcountry());
 	const auto platform = qs(data.vplatform());
@@ -61,10 +61,10 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 	result.activeTime = data.vdate_active().v
 		? data.vdate_active().v
 		: data.vdate_created().v;
-	result.info = QString("%1, %2%3")
-		.arg(qs(data.vdevice_model()))
-		.arg(platform.isEmpty() ? QString() : platform + ' ')
-		.arg(qs(data.vsystem_version()));
+	result.info = QString("%1, %2%3").arg(
+		qs(data.vdevice_model()),
+		platform.isEmpty() ? QString() : platform + ' ',
+		qs(data.vsystem_version()));
 	result.ip = qs(data.vip())
 		+ (country.isEmpty()
 			? QString()
@@ -107,12 +107,12 @@ void Authorizations::reload() {
 		result.match([&](const MTPDaccount_authorizations &auths) {
 			_list = (
 				auths.vauthorizations().v
-			) | ranges::view::transform([](const MTPAuthorization &d) {
+			) | ranges::views::transform([](const MTPAuthorization &d) {
 				return ParseEntry(d.c_authorization());
 			}) | ranges::to<List>;
 			_listChanges.fire({});
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 	}).send();
 }
@@ -123,15 +123,32 @@ void Authorizations::cancelCurrentRequest() {
 
 void Authorizations::requestTerminate(
 		Fn<void(const MTPBool &result)> &&done,
-		Fn<void(const RPCError &error)> &&fail,
+		Fn<void(const MTP::Error &error)> &&fail,
 		std::optional<uint64> hash) {
-	auto request = hash
-		? MTPaccount_ResetAuthorization(MTP_long(*hash))
-		: MTPaccount_ResetAuthorization();
-	_api.request(std::move(request))
-	.done(std::move(done))
-	.fail(std::move(fail))
-	.send();
+	const auto send = [&](auto request) {
+		_api.request(
+			std::move(request)
+		).done([=, done = std::move(done)](const MTPBool &result) {
+			done(result);
+			if (mtpIsTrue(result)) {
+				if (hash) {
+					_list.erase(
+						ranges::remove(_list, *hash, &Entry::hash),
+						end(_list));
+				} else {
+					_list.clear();
+				}
+				_listChanges.fire({});
+			}
+		}).fail(
+			std::move(fail)
+		).send();
+	};
+	if (hash) {
+		send(MTPaccount_ResetAuthorization(MTP_long(*hash)));
+	} else {
+		send(MTPauth_ResetAuthorizations());
+	}
 }
 
 Authorizations::List Authorizations::list() const {

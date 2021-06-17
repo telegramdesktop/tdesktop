@@ -51,12 +51,14 @@ public:
 	void startExport(
 		const Settings &settings,
 		const Environment &environment);
+	void skipFile(uint64 randomId);
 	void cancelExportFast();
 
 private:
 	using Step = ProcessingState::Step;
 	using DownloadProgress = ApiWrap::DownloadProgress;
 
+	[[nodiscard]] bool stopped() const;
 	void setState(State &&state);
 	void ioError(const QString &path);
 	bool ioCatchError(Output::Result result);
@@ -138,8 +140,8 @@ ControllerObject::ControllerObject(
 : _api(mtproto, weak.runner())
 , _state(PasswordCheckState{}) {
 	_api.errors(
-	) | rpl::start_with_next([=](RPCError &&error) {
-		setState(ApiErrorState{ std::move(error) });
+	) | rpl::start_with_next([=](const MTP::Error &error) {
+		setState(ApiErrorState{ error });
 	}, _lifetime);
 
 	_api.ioErrors(
@@ -166,8 +168,15 @@ rpl::producer<State> ControllerObject::state() const {
 	});
 }
 
+bool ControllerObject::stopped() const {
+	return v::is<CancelledState>(_state)
+		|| v::is<ApiErrorState>(_state)
+		|| v::is<OutputErrorState>(_state)
+		|| v::is<FinishedState>(_state);
+}
+
 void ControllerObject::setState(State &&state) {
-	if (v::is<CancelledState>(_state)) {
+	if (stopped()) {
 		return;
 	}
 	_state = std::move(state);
@@ -211,7 +220,7 @@ bool ControllerObject::ioCatchError(Output::Result result) {
 //	//)).done([=](const MTPaccount_Password &result) {
 //	//	_passwordRequestId = 0;
 //	//	passwordStateDone(result);
-//	//}).fail([=](const RPCError &error) {
+//	//}).fail([=](const MTP::Error &error) {
 //	//	apiError(error);
 //	//}).send();
 //}
@@ -243,6 +252,13 @@ void ControllerObject::startExport(
 	_writer = Output::CreateWriter(_settings.format);
 	fillExportSteps();
 	exportNext();
+}
+
+void ControllerObject::skipFile(uint64 randomId) {
+	if (stopped()) {
+		return;
+	}
+	_api.skipFile(randomId);
 }
 
 void ControllerObject::fillExportSteps() {
@@ -518,6 +534,7 @@ ProcessingState ControllerObject::stateUserpics(
 		result.entityIndex = _userpicsWritten + progress.itemIndex;
 		result.entityCount = std::max(_userpicsCount, result.entityIndex);
 		result.bytesType = ProcessingState::FileType::Photo;
+		result.bytesRandomId = progress.randomId;
 		if (!progress.path.isEmpty()) {
 			const auto last = progress.path.lastIndexOf('/');
 			result.bytesName = progress.path.mid(last + 1);
@@ -570,6 +587,7 @@ void ControllerObject::fillMessagesState(
 	result.itemIndex = _messagesWritten + progress.itemIndex;
 	result.itemCount = std::max(_messagesCount, result.itemIndex);
 	result.bytesType = ProcessingState::FileType::File; // TODO
+	result.bytesRandomId = progress.randomId;
 	if (!progress.path.isEmpty()) {
 		const auto last = progress.path.lastIndexOf('/');
 		result.bytesName = progress.path.mid(last + 1);
@@ -640,6 +658,12 @@ void Controller::startExport(
 
 	_wrapped.with([=](Implementation &unwrapped) {
 		unwrapped.startExport(settings, environment);
+	});
+}
+
+void Controller::skipFile(uint64 randomId) {
+	_wrapped.with([=](Implementation &unwrapped) {
+		unwrapped.skipFile(randomId);
 	});
 }
 

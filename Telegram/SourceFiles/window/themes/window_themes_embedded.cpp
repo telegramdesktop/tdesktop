@@ -22,6 +22,7 @@ constexpr auto kEnoughLightnessForContrast = 64;
 const auto kColorizeIgnoredKeys = base::flat_set<QLatin1String>{ {
 	qstr("boxTextFgGood"),
 	qstr("boxTextFgError"),
+	qstr("callIconFg"),
 	qstr("historyPeer1NameFg"),
 	qstr("historyPeer1NameFgSelected"),
 	qstr("historyPeer1UserpicBg"),
@@ -143,7 +144,9 @@ Colorizer ColorizerFrom(const EmbeddedScheme &scheme, const QColor &color) {
 			{ qstr("activeButtonFg"), Pair{ cColor("2da192"), cColor("282e33") } }, // activeButtonBg, windowBg
 			{ qstr("profileVerifiedCheckFg"), Pair{ cColor("3fc1b0"), cColor("282e33") } }, // profileVerifiedCheckBg, windowBg
 			{ qstr("overviewCheckFgActive"), Pair{ cColor("3fc1b0"), cColor("282e33") } }, // overviewCheckBgActive
-			{ qstr("callIconFg"), Pair{ cColor("5ad1c1"), cColor("1b1f23") } }, // callAnswerBg, callBgOpaque
+			// callIconFg is used not only over callAnswerBg,
+			// so this contrast-forcing breaks other buttons.
+			//{ qstr("callIconFg"), Pair{ cColor("5ad1c1"), cColor("1b1f23") } }, // callAnswerBg, callBgOpaque
 		} };
 		result.lightnessMin = 64;
 		break;

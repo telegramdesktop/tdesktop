@@ -151,6 +151,7 @@ QByteArray SerializeList(const std::vector<QByteArray> &values) {
 	}
 	return QByteArray();
 }
+
 QByteArray MakeLinks(const QByteArray &value) {
 	const auto domain = QByteArray("https://telegram.org/");
 	auto result = QByteArray();
@@ -190,27 +191,6 @@ QByteArray MakeLinks(const QByteArray &value) {
 	return result;
 }
 
-void SerializeMultiline(
-		QByteArray &appendTo,
-		const QByteArray &value,
-		int newline) {
-	const auto data = value.data();
-	auto offset = 0;
-	do {
-		appendTo.append("> ");
-		const auto win = (newline > 0 && *(data + newline - 1) == '\r');
-		if (win) --newline;
-		appendTo.append(data + offset, newline - offset).append(kLineBreak);
-		if (win) ++newline;
-		offset = newline + 1;
-		newline = value.indexOf('\n', offset);
-	} while (newline > 0);
-	if (const auto size = value.size(); size > offset) {
-		appendTo.append("> ");
-		appendTo.append(data + offset, size - offset).append(kLineBreak);
-	}
-}
-
 QByteArray JoinList(
 		const QByteArray &separator,
 		const std::vector<QByteArray> &list) {
@@ -240,9 +220,9 @@ QByteArray JoinList(
 QByteArray FormatText(
 		const std::vector<Data::TextPart> &data,
 		const QString &internalLinksDomain) {
-	return JoinList(QByteArray(), ranges::view::all(
+	return JoinList(QByteArray(), ranges::views::all(
 		data
-	) | ranges::view::transform([&](const Data::TextPart &part) {
+	) | ranges::views::transform([&](const Data::TextPart &part) {
 		const auto text = SerializeString(part.text);
 		using Type = Data::TextPart::Type;
 		switch (part.type) {
@@ -292,31 +272,6 @@ QByteArray FormatText(
 		}
 		Unexpected("Type in text entities serialization.");
 	}) | ranges::to_vector);
-}
-
-QByteArray SerializeKeyValue(
-		std::vector<std::pair<QByteArray, QByteArray>> &&values) {
-	auto result = QByteArray();
-	for (const auto &[key, value] : values) {
-		if (value.isEmpty()) {
-			continue;
-		}
-		result.append(key);
-		if (const auto newline = value.indexOf('\n'); newline >= 0) {
-			result.append(':').append(kLineBreak);
-			SerializeMultiline(result, value, newline);
-		} else {
-			result.append(": ").append(value).append(kLineBreak);
-		}
-	}
-	return result;
-}
-
-QByteArray SerializeBlockquote(
-		std::vector<std::pair<QByteArray, QByteArray>> &&values) {
-	return "<blockquote>"
-		+ SerializeKeyValue(std::move(values))
-		+ "</blockquote>";
 }
 
 Data::Utf8String FormatUsername(const Data::Utf8String &username) {
@@ -385,7 +340,6 @@ struct UserpicData {
 
 class PeersMap {
 public:
-	using PeerId = Data::PeerId;
 	using Peer = Data::Peer;
 	using User = Data::User;
 	using Chat = Data::Chat;
@@ -393,15 +347,14 @@ public:
 	PeersMap(const std::map<PeerId, Peer> &data);
 
 	const Peer &peer(PeerId peerId) const;
-	const User &user(int32 userId) const;
-	const Chat &chat(int32 chatId) const;
+	const User &user(UserId userId) const;
 
 	QByteArray wrapPeerName(PeerId peerId) const;
-	QByteArray wrapUserName(int32 userId) const;
-	QByteArray wrapUserNames(const std::vector<int32> &data) const;
+	QByteArray wrapUserName(UserId userId) const;
+	QByteArray wrapUserNames(const std::vector<UserId> &data) const;
 
 private:
-	const std::map<Data::PeerId, Data::Peer> &_data;
+	const std::map<PeerId, Data::Peer> &_data;
 
 };
 
@@ -425,19 +378,11 @@ auto PeersMap::peer(PeerId peerId) const -> const Peer & {
 	return empty;
 }
 
-auto PeersMap::user(int32 userId) const -> const User & {
-	if (const auto result = peer(Data::UserPeerId(userId)).user()) {
+auto PeersMap::user(UserId userId) const -> const User & {
+	if (const auto result = peer(peerFromUser(userId)).user()) {
 		return *result;
 	}
 	static auto empty = User();
-	return empty;
-}
-
-auto PeersMap::chat(int32 chatId) const -> const Chat & {
-	if (const auto result = peer(Data::ChatPeerId(chatId)).chat()) {
-		return *result;
-	}
-	static auto empty = Chat();
 	return empty;
 }
 
@@ -448,14 +393,14 @@ QByteArray PeersMap::wrapPeerName(PeerId peerId) const {
 		: SerializeString(result);
 }
 
-QByteArray PeersMap::wrapUserName(int32 userId) const {
+QByteArray PeersMap::wrapUserName(UserId userId) const {
 	const auto result = user(userId).name();
 	return result.isEmpty()
 		? QByteArray("Deleted Account")
 		: SerializeString(result);
 }
 
-QByteArray PeersMap::wrapUserNames(const std::vector<int32> &data) const {
+QByteArray PeersMap::wrapUserNames(const std::vector<UserId> &data) const {
 	auto list = std::vector<QByteArray>();
 	for (const auto userId : data) {
 		list.push_back(wrapUserName(userId));
@@ -514,12 +459,12 @@ struct HtmlWriter::MessageInfo {
 		Service,
 		Default,
 	};
-	int32 id = 0;
+	int id = 0;
 	Type type = Type::Service;
-	Data::PeerId fromId = 0;
-	int32 viaBotId = 0;
+	PeerId fromId = 0;
+	UserId viaBotId = 0;
 	TimeId date = 0;
-	Data::PeerId forwardedFromId = 0;
+	PeerId forwardedFromId = 0;
 	QString forwardedFromName;
 	bool forwarded = false;
 	bool showForwardedAsOriginal = false;
@@ -766,7 +711,9 @@ QByteArray HtmlWriter::Wrap::pushUserpic(const UserpicData &userpic) {
 			"line-height: " + size));
 		auto character = [](const QByteArray &from) {
 			const auto utf = QString::fromUtf8(from).trimmed();
-			return utf.isEmpty() ? QByteArray() : utf.mid(0, 1).toUtf8();
+			return utf.isEmpty()
+				? QByteArray()
+				: SerializeString(utf.mid(0, 1).toUtf8());
 		};
 		result.append(character(userpic.firstName));
 		result.append(character(userpic.lastName));
@@ -847,7 +794,7 @@ QByteArray HtmlWriter::Wrap::pushGenericListEntry(
 		result.append(SerializeString(subname));
 		result.append(popTag());
 	}
-	for (const auto detail : details) {
+	for (const auto &detail : details) {
 		result.append(pushDiv("details_entry details"));
 		result.append(SerializeString(detail));
 		result.append(popTag());
@@ -938,8 +885,7 @@ QByteArray HtmlWriter::Wrap::pushServiceMessage(
 	result.append(popTag());
 	if (photo) {
 		auto userpic = UserpicData();
-		userpic.colorIndex = Data::PeerColorIndex(
-			Data::BarePeerId(dialog.peerId));
+		userpic.colorIndex = Data::PeerColorIndex(dialog.peerId);
 		userpic.firstName = dialog.name;
 		userpic.lastName = dialog.lastName;
 		userpic.pixelSize = kServiceMessagePhotoSize;
@@ -997,16 +943,20 @@ auto HtmlWriter::Wrap::pushMessage(
 	const auto serviceText = v::match(message.action.content, [&](
 			const ActionChatCreate &data) {
 		return serviceFrom
-			+ " created group &laquo;" + data.title + "&raquo;"
+			+ " created group &laquo;"
+			+ SerializeString(data.title)
+			+ "&raquo;"
 			+ (data.userIds.empty()
 				? QByteArray()
 				: " with members " + peers.wrapUserNames(data.userIds));
 	}, [&](const ActionChatEditTitle &data) {
 		return isChannel
-			? ("Channel title changed to &laquo;" + data.title + "&raquo;")
+			? ("Channel title changed to &laquo;"
+				+ SerializeString(data.title)
+				+ "&raquo;")
 			: (serviceFrom
 				+ " changed group title to &laquo;"
-				+ data.title
+				+ SerializeString(data.title)
 				+ "&raquo;");
 	}, [&](const ActionChatEditPhoto &data) {
 		return isChannel
@@ -1029,14 +979,16 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ " joined group by link from "
 			+ peers.wrapUserName(data.inviterId);
 	}, [&](const ActionChannelCreate &data) {
-		return "Channel &laquo;" + data.title + "&raquo; created";
+		return "Channel &laquo;"
+			+ SerializeString(data.title)
+			+ "&raquo; created";
 	}, [&](const ActionChatMigrateTo &data) {
 		return serviceFrom
 			+ " converted this group to a supergroup";
 	}, [&](const ActionChannelMigrateFrom &data) {
 		return serviceFrom
 			+ " converted a basic group to this supergroup "
-			+ "&laquo;" + data.title + "&raquo;";
+			+ "&laquo;" + SerializeString(data.title) + "&raquo;";
 	}, [&](const ActionPinMessage &data) {
 		return serviceFrom
 			+ " pinned "
@@ -1062,7 +1014,7 @@ auto HtmlWriter::Wrap::pushMessage(
 		return data.message;
 	}, [&](const ActionBotAllowed &data) {
 		return "You allowed this bot to message you when you logged in on "
-			+ data.domain;
+			+ SerializeString(data.domain);
 	}, [&](const ActionSecureValuesSent &data) {
 		auto list = std::vector<QByteArray>();
 		for (const auto type : data.types) {
@@ -1110,10 +1062,46 @@ auto HtmlWriter::Wrap::pushMessage(
 		} else if (data.toSelf) {
 			return fromName + " is now within " + distance + " from you";
 		} else {
-			return fromName + " is now within " + distance + " from " + toName;
+			return fromName
+				+ " is now within "
+				+ distance
+				+ " from "
+				+ toName;
 		}
 	}, [&](const ActionPhoneNumberRequest &data) {
 		return serviceFrom + " requested your phone number";
+	}, [&](const ActionGroupCall &data) {
+		const auto durationText = (data.duration
+			? (" (" + QString::number(data.duration) + " seconds)")
+			: QString()).toUtf8();
+		return isChannel
+			? ("Voice chat" + durationText)
+			: (serviceFrom + " started voice chat" + durationText);
+	}, [&](const ActionInviteToGroupCall &data) {
+		return serviceFrom
+			+ " invited "
+			+ peers.wrapUserNames(data.userIds)
+			+ " to the voice chat";
+	}, [&](const ActionSetMessagesTTL &data) {
+		const auto periodText = (data.period == 7 * 86400)
+			? "7 days"
+			: (data.period == 86400)
+			? "24 hours"
+			: QByteArray();
+		return isChannel
+			? (data.period
+				? "New messages will auto-delete in " + periodText
+				: "New messages will not auto-delete")
+			: (data.period
+				? (serviceFrom
+					+ " has set messages to auto-delete in " + periodText)
+				: (serviceFrom
+					+ " has set messages not to auto-delete"));
+	}, [&](const ActionGroupCallScheduled &data) {
+		const auto dateText = FormatDateTime(data.date);
+		return isChannel
+			? "Voice chat scheduled for " + dateText
+			: (serviceFrom + " scheduled a voice chat for " + dateText);
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
@@ -1137,7 +1125,7 @@ auto HtmlWriter::Wrap::pushMessage(
 	auto forwardedUserpic = UserpicData();
 	if (message.forwarded) {
 		forwardedUserpic.colorIndex = message.forwardedFromId
-			? PeerColorIndex(BarePeerId(message.forwardedFromId))
+			? PeerColorIndex(message.forwardedFromId)
 			: PeerColorIndex(message.id);
 		forwardedUserpic.pixelSize = kHistoryUserpicSize;
 		if (message.forwardedFromId) {
@@ -1152,7 +1140,7 @@ auto HtmlWriter::Wrap::pushMessage(
 	if (message.showForwardedAsOriginal) {
 		userpic = forwardedUserpic;
 	} else {
-		userpic.colorIndex = PeerColorIndex(BarePeerId(fromPeerId));
+		userpic.colorIndex = PeerColorIndex(fromPeerId);
 		userpic.pixelSize = kHistoryUserpicSize;
 		FillUserpicNames(userpic, peers.peer(fromPeerId));
 	}
@@ -1806,7 +1794,7 @@ bool HtmlWriter::Wrap::forwardedNeedsWrap(
 	} else if (!message.forwardedFromId
 		|| message.forwardedFromId != previous->forwardedFromId) {
 		return true;
-	} else if (Data::IsChatPeerId(message.forwardedFromId)) {
+	} else if (!peerIsUser(message.forwardedFromId)) {
 		return true;
 	} else if (abs(message.forwardedDate - previous->forwardedDate)
 		> kJoinWithinSeconds) {
@@ -2204,7 +2192,7 @@ Result HtmlWriter::writeFrequentContacts(const Data::ContactsList &data) {
 				return {};
 			}();
 			auto userpic = UserpicData{
-				Data::PeerColorIndex(Data::BarePeerId(top.peer.id())),
+				Data::PeerColorIndex(top.peer.id()),
 				kEntryUserpicSize
 			};
 			userpic.firstName = name;
@@ -2559,7 +2547,7 @@ Result HtmlWriter::writeDialogEnd() {
 	auto userpic = UserpicData{
 		((_dialog.type == Type::Self || _dialog.type == Type::Replies)
 			? kSavedMessagesColorIndex
-			: Data::PeerColorIndex(Data::BarePeerId(_dialog.peerId))),
+			: Data::PeerColorIndex(_dialog.peerId)),
 		kEntryUserpicSize
 	};
 	userpic.firstName = NameString(_dialog);

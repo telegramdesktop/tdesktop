@@ -188,7 +188,7 @@ void FiltersMenu::refresh() {
 	}
 	_reorder->cancel();
 	auto now = base::flat_map<int, base::unique_qptr<Ui::SideBarButton>>();
-	for (const auto filter : filters->list()) {
+	for (const auto &filter : filters->list()) {
 		now.emplace(
 			filter.id(),
 			prepareButton(
@@ -371,9 +371,9 @@ void FiltersMenu::applyReorder(
 	Assert(i != end(_filters));
 	Assert(i->second == widget);
 
-	auto order = ranges::view::all(
+	auto order = ranges::views::all(
 		list
-	) | ranges::view::transform(
+	) | ranges::views::transform(
 		&Data::ChatFilter::id
 	) | ranges::to_vector;
 	base::reorder(order, oldPosition, newPosition);

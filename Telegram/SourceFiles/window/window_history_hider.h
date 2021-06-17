@@ -16,7 +16,7 @@ class RoundButton;
 
 namespace Window {
 
-class HistoryHider : public Ui::RpWidget, private base::Subscriber {
+class HistoryHider : public Ui::RpWidget {
 public:
 	// Forward messages (via drag-n-drop)
 	HistoryHider(QWidget *parent, MessageIdsList &&items);
@@ -33,7 +33,8 @@ public:
 	HistoryHider(
 		QWidget *parent,
 		const QString &text,
-		Fn<bool(PeerId)> confirm);
+		Fn<bool(PeerId)> confirm,
+		rpl::producer<bool> oneColumnValue);
 
 	void offerPeer(PeerId peer);
 
@@ -61,6 +62,7 @@ private:
 
 	QRect _box;
 	bool _hiding = false;
+	bool _isOneColumn = false;
 
 	int _chooseWidth = 0;
 

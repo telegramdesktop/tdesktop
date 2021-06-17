@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_media_view.h"
 #include "platform/platform_main_window.h"
+#include "window/window_controller.h"
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
@@ -85,8 +86,8 @@ object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
 // account, with 100% scale and without "px" dimensions, because thats
 // how it will look in real launched macOS app.
 int PreviewTitleHeight() {
-	if (auto window = qobject_cast<Platform::MainWindow*>(App::wnd())) {
-		if (auto height = window->getCustomTitleHeight()) {
+	if (auto window = Core::App().activeWindow()) {
+		if (auto height = window->widget()->getCustomTitleHeight()) {
 			return height;
 		}
 	}

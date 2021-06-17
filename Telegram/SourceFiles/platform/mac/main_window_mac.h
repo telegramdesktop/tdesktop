@@ -39,7 +39,7 @@ public:
 
 	class Private;
 
-public slots:
+public Q_SLOTS:
 	void psMacUndo();
 	void psMacRedo();
 	void psMacCut();
@@ -71,7 +71,7 @@ protected:
 
 	void updateGlobalMenuHook() override;
 
-	void workmodeUpdated(DBIWorkMode mode) override;
+	void workmodeUpdated(Core::Settings::WorkMode mode) override;
 
 	QSystemTrayIcon *trayIcon = nullptr;
 	QMenu *trayIconMenu = nullptr;

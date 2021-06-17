@@ -22,12 +22,13 @@ class FadeWrapScaled;
 
 namespace Ui {
 
-class SeparatePanel : public Ui::RpWidget, private base::Subscriber {
+class SeparatePanel final : public Ui::RpWidget {
 public:
 	SeparatePanel();
 
 	void setTitle(rpl::producer<QString> title);
 	void setInnerSize(QSize size);
+	[[nodiscard]] QRect innerGeometry() const;
 
 	void setHideOnDeactivate(bool hideOnDeactivate);
 	void showAndActivate();
@@ -38,12 +39,12 @@ public:
 		object_ptr<Ui::BoxContent> box,
 		Ui::LayerOptions options,
 		anim::type animated);
-	void showToast(const QString &text);
+	void showToast(const TextWithEntities &text);
 	void destroyLayer();
 
-	rpl::producer<> backRequests() const;
-	rpl::producer<> closeRequests() const;
-	rpl::producer<> closeEvents() const;
+	[[nodiscard]] rpl::producer<> backRequests() const;
+	[[nodiscard]] rpl::producer<> closeRequests() const;
+	[[nodiscard]] rpl::producer<> closeEvents() const;
 	void setBackAllowed(bool allowed);
 
 protected:

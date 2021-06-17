@@ -32,9 +32,6 @@ enum class UsernameState {
 
 class EditPeerTypeBox : public Ui::BoxContent {
 public:
-	// Edit just the invite link.
-	EditPeerTypeBox(QWidget*, not_null<PeerData*> peer);
-
 	EditPeerTypeBox(
 		QWidget*,
 		not_null<PeerData*> peer,
@@ -43,6 +40,11 @@ public:
 		std::optional<Privacy> privacySaved,
 		std::optional<QString> usernameSaved,
 		std::optional<rpl::producer<QString>> usernameError = {});
+
+	// For invite link only.
+	EditPeerTypeBox(
+		QWidget*,
+		not_null<PeerData*> peer);
 
 protected:
 	void prepare() override;

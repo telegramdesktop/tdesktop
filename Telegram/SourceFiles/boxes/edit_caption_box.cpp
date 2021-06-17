@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
+#include "history/view/media/history_view_document.h" // DrawThumbnailAsSongCover
 #include "platform/platform_specific.h"
 #include "lang/lang_keys.h"
 #include "media/streaming/media_streaming_instance.h"
@@ -46,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/text/format_song_document_name.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/chat/attach/attach_prepare.h"
@@ -171,7 +173,9 @@ EditCaptionBox::EditCaptionBox(
 			_thumbw = 0;
 			_thumbnailImageLoaded = true;
 		} else {
-			const auto thumbSize = st::msgFileThumbLayout.thumbSize;
+			const auto thumbSize = (!media->document()->isSongWithCover()
+				? st::msgFileThumbLayout
+				: st::msgFileLayout).thumbSize;
 			const auto tw = dimensions.width(), th = dimensions.height();
 			if (tw > th) {
 				_thumbw = (tw * thumbSize) / th;
@@ -183,19 +187,31 @@ EditCaptionBox::EditCaptionBox(
 				if (!image) {
 					return;
 				}
-				const auto options = Images::Option::Smooth
-					| Images::Option::RoundedSmall
-					| Images::Option::RoundedTopLeft
-					| Images::Option::RoundedTopRight
-					| Images::Option::RoundedBottomLeft
-					| Images::Option::RoundedBottomRight;
-				_thumb = App::pixmapFromImageInPlace(Images::prepare(
-					image->original(),
-					_thumbw * cIntRetinaFactor(),
-					0,
-					options,
-					thumbSize,
-					thumbSize));
+				if (media->document()->isSongWithCover()) {
+					const auto size = QSize(thumbSize, thumbSize);
+					_thumb = QPixmap(size);
+					_thumb.fill(Qt::transparent);
+					Painter p(&_thumb);
+
+					HistoryView::DrawThumbnailAsSongCover(
+						p,
+						_documentMedia,
+						QRect(QPoint(), size));
+				} else {
+					const auto options = Images::Option::Smooth
+						| Images::Option::RoundedSmall
+						| Images::Option::RoundedTopLeft
+						| Images::Option::RoundedTopRight
+						| Images::Option::RoundedBottomLeft
+						| Images::Option::RoundedBottomRight;
+					_thumb = App::pixmapFromImageInPlace(Images::prepare(
+						image->original(),
+						_thumbw * cIntRetinaFactor(),
+						0,
+						options,
+						thumbSize,
+						thumbSize));
+				}
 				_thumbnailImageLoaded = true;
 			};
 			_refreshThumbnail();
@@ -205,7 +221,7 @@ EditCaptionBox::EditCaptionBox(
 			const auto document = _documentMedia->owner();
 			const auto nameString = document->isVoiceMessage()
 				? tr::lng_media_audio(tr::now)
-				: document->composeNameString();
+				: Ui::Text::FormatSongNameFor(document).string();
 			setName(nameString, document->size);
 			_isImage = document->isImage();
 			_isAudio = document->isVoiceMessage()
@@ -471,13 +487,13 @@ void EditCaptionBox::handleStreamingError(Error &&error) {
 }
 
 void EditCaptionBox::streamingReady(Information &&info) {
-	const auto calculateGifDimensions = [&]() {
+	const auto calculateGifDimensions = [&] {
 		const auto scaled = QSize(
 			info.video.size.width(),
 			info.video.size.height()
 		).scaled(
-			st::sendMediaPreviewSize * cIntRetinaFactor(),
-			st::confirmMaxHeight * cIntRetinaFactor(),
+			st::sendMediaPreviewSize,
+			st::confirmMaxHeight,
 			Qt::KeepAspectRatio);
 		_thumbw = _gifw = scaled.width();
 		_thumbh = _gifh = scaled.height();
@@ -534,11 +550,19 @@ void EditCaptionBox::updateEditPreview() {
 	if (shouldAsDoc) {
 		auto nameString = filename;
 		if (const auto song = std::get_if<Info::Song>(fileMedia)) {
-			nameString = Ui::ComposeNameString(
+			nameString = Ui::Text::FormatSongName(
 				filename,
 				song->title,
-				song->performer);
+				song->performer).string();
 			_isAudio = true;
+
+			if (auto cover = song->cover; !cover.isNull()) {
+				_thumb = Ui::PrepareSongCoverForThumbnail(
+					cover,
+					st::msgFileLayout.thumbSize);
+				_thumbw = _thumb.width() / cIntRetinaFactor();
+				_thumbh = _thumb.height() / cIntRetinaFactor();
+			}
 		}
 
 		const auto getExt = [&] {
@@ -597,7 +621,7 @@ void EditCaptionBox::updateEditMediaButton() {
 	const auto icon = _doc
 		? &st::editMediaButtonIconFile
 		: &st::editMediaButtonIconPhoto;
-	const auto color = _doc ? &st::windowBgRipple : &st::callFingerprintBg;
+	const auto color = _doc ? &st::windowBgRipple : &st::roundedBg;
 	_editMedia->setIconOverride(icon);
 	_editMedia->setRippleColorOverride(color);
 	_editMedia->setForceRippled(!_doc, anim::type::instant);
@@ -810,15 +834,21 @@ void EditCaptionBox::setupDragArea() {
 	areas.photo->setDroppedCallback(droppedCallback(true));
 }
 
+bool EditCaptionBox::isThumbedLayout() const {
+	return (_thumbw && !_isAudio);
+}
+
 void EditCaptionBox::updateBoxSize() {
 	auto newHeight = st::boxPhotoPadding.top() + st::boxPhotoCaptionSkip + _field->height() + errorTopSkip() + st::normalFont->height;
 	if (_photo) {
 		newHeight += _wayWrap->height() / 2;
 	}
-	const auto &st = _thumbw ? st::msgFileThumbLayout : st::msgFileLayout;
+	const auto &st = isThumbedLayout()
+		? st::msgFileThumbLayout
+		: st::msgFileLayout;
 	if (_photo || _animated) {
 		newHeight += std::max(_thumbh, _gifh);
-	} else if (_thumbw || _doc) {
+	} else if (isThumbedLayout() || _doc) {
 		newHeight += 0 + st.thumbSize + 0;
 	} else {
 		newHeight += st::boxTitleFont->height;
@@ -902,7 +932,9 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 			icon->paintInCenter(p, inner);
 		}
 	} else if (_doc) {
-		const auto &st = _thumbw ? st::msgFileThumbLayout : st::msgFileLayout;
+		const auto &st = isThumbedLayout()
+			? st::msgFileThumbLayout
+			: st::msgFileLayout;
 		const auto w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
 		const auto h = 0 + st.thumbSize + 0;
 		const auto nameleft = 0 + st.thumbSize + st.padding.right();
@@ -918,18 +950,24 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 //		Ui::FillRoundCorner(p, x, y, w, h, st::msgInBg, Ui::MessageInCorners, &st::msgInShadow);
 
 		const auto rthumb = style::rtlrect(x + 0, y + 0, st.thumbSize, st.thumbSize, width());
-		if (_thumbw) {
+		if (isThumbedLayout()) {
 			p.drawPixmap(rthumb.topLeft(), _thumb);
 		} else {
 			p.setPen(Qt::NoPen);
-			p.setBrush(st::msgFileInBg);
 
-			{
+			if (_isAudio && _thumbw) {
+				p.drawPixmap(rthumb.topLeft(), _thumb);
+			} else {
+				p.setBrush(st::msgFileInBg);
 				PainterHighQualityEnabler hq(p);
 				p.drawEllipse(rthumb);
 			}
 
-			const auto icon = &(_isAudio ? st::historyFileInPlay : _isImage ? st::historyFileInImage : st::historyFileInDocument);
+			const auto icon = &(_isAudio
+				? (_thumbw ? st::historyFileSongPlay : st::historyFileInPlay)
+				: _isImage
+				? st::historyFileInImage
+				: st::historyFileInDocument);
 			icon->paintInCenter(p, rthumb);
 		}
 		p.setFont(st::semiboldFont);
@@ -1008,13 +1046,13 @@ void EditCaptionBox::save() {
 	if (!_preparedList.files.empty()) {
 		auto action = Api::SendAction(item->history());
 		action.options = options;
+		action.replaceMediaOf = item->fullId().msg;
 
 		_controller->session().api().editMedia(
 			std::move(_preparedList),
 			(!_asFile && _photo) ? SendMediaType::Photo : SendMediaType::File,
 			_field->getTextWithAppliedMarkdown(),
-			action,
-			item->fullId().msg);
+			action);
 		closeBox();
 		return;
 	}
@@ -1024,7 +1062,7 @@ void EditCaptionBox::save() {
 		closeBox();
 	});
 
-	const auto fail = crl::guard(this, [=](const RPCError &error) {
+	const auto fail = crl::guard(this, [=](const MTP::Error &error) {
 		_saveRequestId = 0;
 		const auto &type = error.type();
 		if (ranges::contains(Api::kDefaultEditMessagesErrors, type)) {

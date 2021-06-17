@@ -38,10 +38,14 @@ class HideAllButton;
 class Manager;
 std::unique_ptr<Manager> Create(System *system);
 
-class Manager final : public Notifications::Manager, private base::Subscriber {
+class Manager final : public Notifications::Manager {
 public:
 	Manager(System *system);
 	~Manager();
+
+	[[nodiscard]] ManagerType type() const override {
+		return ManagerType::Default;
+	}
 
 	template <typename Method>
 	void enumerateNotifications(Method method) {
@@ -72,6 +76,9 @@ private:
 	void doClearFromHistory(not_null<History*> history) override;
 	void doClearFromSession(not_null<Main::Session*> session) override;
 	void doClearFromItem(not_null<HistoryItem*> item) override;
+	bool doSkipAudio() const override;
+	bool doSkipToast() const override;
+	bool doSkipFlashBounce() const override;
 
 	void showNextFromQueue();
 	void unlinkFromShown(Notification *remove);
@@ -115,6 +122,7 @@ private:
 	std::deque<QueuedNotification> _queuedNotifications;
 
 	Ui::Animations::Simple _demoMasterOpacity;
+	bool _demoIsShown = false;
 
 	mutable QPixmap _hiddenUserpicPlaceholder;
 

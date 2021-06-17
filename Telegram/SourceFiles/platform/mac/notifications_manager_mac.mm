@@ -7,14 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/mac/notifications_manager_mac.h"
 
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
 #include "base/platform/mac/base_utilities_mac.h"
+#include "base/openssl_help.h"
 #include "history/history.h"
 #include "ui/empty_userpic.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
-#include "facades.h"
 #include "styles/style_window.h"
 
 #include <thread>
@@ -110,7 +112,7 @@ using Manager = Platform::Notifications::Manager;
 	const auto my = Window::Notifications::Manager::NotificationId{
 		.full = Manager::FullPeer{
 			.sessionId = notificationSessionId,
-			.peerId = notificationPeerId
+			.peerId = PeerId(notificationPeerId)
 		},
 		.msgId = notificationMsgId
 	};
@@ -139,37 +141,39 @@ using Manager = Platform::Notifications::Manager;
 namespace Platform {
 namespace Notifications {
 
-bool SkipAudio() {
-	queryDoNotDisturbState();
-	return DoNotDisturbEnabled;
+bool SkipAudioForCustom() {
+	return false;
 }
 
-bool SkipToast() {
-	if (Supported()) {
-		// Do not skip native notifications because of Do not disturb.
-		// They respect this setting anyway.
-		return false;
-	}
-	queryDoNotDisturbState();
-	return DoNotDisturbEnabled;
+bool SkipToastForCustom() {
+	return false;
 }
 
-bool SkipFlashBounce() {
-	return SkipAudio();
+bool SkipFlashBounceForCustom() {
+	return false;
 }
 
 bool Supported() {
 	return Platform::IsMac10_8OrGreater();
 }
 
-std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {
-	if (Supported()) {
-		return std::make_unique<Manager>(system);
-	}
-	return nullptr;
+bool Enforced() {
+	return Supported();
 }
 
-class Manager::Private : public QObject, private base::Subscriber {
+bool ByDefault() {
+	return Supported();
+}
+
+void Create(Window::Notifications::System *system) {
+	if (Supported()) {
+		system->setManager(std::make_unique<Manager>(system));
+	} else {
+		system->setManager(nullptr);
+	}
+}
+
+class Manager::Private : public QObject {
 public:
 	Private(Manager *manager);
 
@@ -221,20 +225,22 @@ private:
 		ClearFinish>;
 	std::vector<ClearTask> _clearingTasks;
 
+	rpl::lifetime _lifetime;
+
 };
 
 Manager::Private::Private(Manager *manager)
-: _managerId(rand_value<uint64>())
+: _managerId(openssl::RandomValue<uint64>())
 , _managerIdString(QString::number(_managerId))
 , _delegate([[NotificationDelegate alloc] initWithManager:manager managerId:_managerId]) {
-	updateDelegate();
-	subscribe(Global::RefWorkMode(), [this](DBIWorkMode mode) {
+	Core::App().settings().workModeValue(
+	) | rpl::start_with_next([=](Core::Settings::WorkMode mode) {
 		// We need to update the delegate _after_ the tray icon change was done in Qt.
 		// Because Qt resets the delegate.
 		crl::on_main(this, [=] {
 			updateDelegate();
 		});
-	});
+	}, _lifetime);
 }
 
 void Manager::Private::showNotification(
@@ -250,11 +256,11 @@ void Manager::Private::showNotification(
 
 	NSUserNotification *notification = [[[NSUserNotification alloc] init] autorelease];
 	if ([notification respondsToSelector:@selector(setIdentifier:)]) {
-		auto identifier = _managerIdString + '_' + QString::number(peer->id) + '_' + QString::number(msgId);
+		auto identifier = _managerIdString + '_' + QString::number(peer->id.value) + '_' + QString::number(msgId);
 		auto identifierValue = Q2NSString(identifier);
 		[notification setIdentifier:identifierValue];
 	}
-	[notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer->session().uniqueId()],@"session",[NSNumber numberWithUnsignedLongLong:peer->id],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:_managerId],@"manager",nil]];
+	[notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer->session().uniqueId()],@"session",[NSNumber numberWithUnsignedLongLong:peer->id.value],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:_managerId],@"manager",nil]];
 
 	[notification setTitle:Q2NSString(title)];
 	[notification setSubtitle:Q2NSString(subtitle)];
@@ -321,7 +327,7 @@ void Manager::Private::clearingThreadLoop() {
 					return clearFromSessions.contains(notificationSessionId)
 						|| clearFromPeers.contains(FullPeer{
 							.sessionId = notificationSessionId,
-							.peerId = notificationPeerId
+							.peerId = PeerId(notificationPeerId)
 						});
 				}
 			}
@@ -426,6 +432,19 @@ void Manager::doClearFromSession(not_null<Main::Session*> session) {
 
 QString Manager::accountNameSeparator() {
 	return QString::fromUtf8(" \xE2\x86\x92 ");
+}
+
+bool Manager::doSkipAudio() const {
+	queryDoNotDisturbState();
+	return DoNotDisturbEnabled;
+}
+
+bool Manager::doSkipToast() const {
+	return false;
+}
+
+bool Manager::doSkipFlashBounce() const {
+	return doSkipAudio();
 }
 
 } // namespace Notifications

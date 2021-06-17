@@ -122,8 +122,8 @@ private:
 		std::unique_ptr<SessionSettings> settings);
 	void watchProxyChanges();
 	void watchSessionChanges();
-	bool checkForUpdates(const mtpPrime *from, const mtpPrime *end);
-	bool checkForNewSession(const mtpPrime *from, const mtpPrime *end);
+	bool checkForUpdates(const MTP::Response &message);
+	bool checkForNewSession(const MTP::Response &message);
 
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
 	void resetAuthorizationKeys();

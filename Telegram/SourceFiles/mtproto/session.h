@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/mtproto_response.h"
 #include "mtproto/mtproto_proxy_data.h"
 #include "mtproto/details/mtproto_serialized_request.h"
 
@@ -84,11 +84,8 @@ public:
 	base::flat_map<mtpMsgId, SerializedRequest> &haveSentMap() {
 		return _haveSent;
 	}
-	base::flat_map<mtpRequestId, mtpBuffer> &haveReceivedResponses() {
-		return _receivedResponses;
-	}
-	std::vector<mtpBuffer> &haveReceivedUpdates() {
-		return _receivedUpdates;
+	std::vector<Response> &haveReceivedMessages() {
+		return _receivedMessages;
 	}
 
 	// SessionPrivate -> Session interface.
@@ -128,8 +125,7 @@ private:
 	base::flat_map<mtpMsgId, SerializedRequest> _haveSent; // map of msg_id -> request, that was sent
 	QReadWriteLock _haveSentLock;
 
-	base::flat_map<mtpRequestId, mtpBuffer> _receivedResponses; // map of request_id -> response that should be processed in the main thread
-	std::vector<mtpBuffer> _receivedUpdates; // list of updates that should be processed in the main thread
+	std::vector<Response> _receivedMessages; // list of responses / updates that should be processed in the main thread
 	QReadWriteLock _haveReceivedLock;
 
 };
@@ -192,11 +188,6 @@ private:
 
 	void killConnection();
 
-	bool rpcErrorOccured(
-		mtpRequestId requestId,
-		const RPCFailHandlerPtr &onFail,
-		const RPCError &err);
-
 	[[nodiscard]] bool releaseGenericKeyCreationOnDone(
 		const AuthKeyPtr &temporaryKey,
 		const AuthKeyPtr &persistentKeyUsedForBind);
@@ -220,7 +211,6 @@ private:
 
 	bool _ping = false;
 
-	base::Timer _timeouter;
 	base::Timer _sender;
 
 	rpl::lifetime _lifetime;

@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "boxes/edit_caption_box.h"
 #include "boxes/send_files_box.h"
+#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "base/event_filter.h"
@@ -191,8 +192,14 @@ RepliesWidget::RepliesWidget(
 
 	_rootView->raise();
 	_topBarShadow->raise();
-	updateAdaptiveLayout();
-	subscribe(Adaptive::Changed(), [=] { updateAdaptiveLayout(); });
+
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		controller->adaptive().changed()
+	) | rpl::start_with_next([=] {
+		updateAdaptiveLayout();
+	}, lifetime());
 
 	_inner = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
@@ -219,6 +226,13 @@ RepliesWidget::RepliesWidget(
 	_inner->replyToMessageRequested(
 	) | rpl::start_with_next([=](auto fullId) {
 		replyToMessage(fullId);
+	}, _inner->lifetime());
+
+	_inner->showMessageRequested(
+	) | rpl::start_with_next([=](auto fullId) {
+		if (const auto item = session().data().message(fullId)) {
+			showAtPosition(item->position());
+		}
 	}, _inner->lifetime());
 
 	_composeControls->sendActionUpdates(
@@ -320,13 +334,8 @@ void RepliesWidget::setupRootView() {
 	});
 	_rootView = std::make_unique<Ui::PinnedBar>(this, std::move(content));
 
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		base::ObservableViewer(Adaptive::Changed())
-	) | rpl::map([] {
-		return Adaptive::OneColumn();
-	}) | rpl::start_with_next([=](bool one) {
+	controller()->adaptive().oneColumnValue(
+	) | rpl::start_with_next([=](bool one) {
 		_rootView->setShadowGeometryPostprocess([=](QRect geometry) {
 			if (!one) {
 				geometry.setLeft(geometry.left() + st::lineWidth);
@@ -488,31 +497,24 @@ void RepliesWidget::setupComposeControls() {
 		showAtPosition(pos);
 	}, lifetime());
 
-	_composeControls->keyEvents(
+	_composeControls->scrollKeyEvents(
 	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
-		if (e->key() == Qt::Key_Up) {
-			if (!_composeControls->isEditingMessage()) {
-				// #TODO replies edit last sent message
-				//auto &messages = session().data().scheduledMessages();
-				//if (const auto item = messages.lastSentMessage(_history)) {
-				//	_inner->editMessageRequestNotify(item->fullId());
-				//} else {
-					_scroll->keyPressEvent(e);
-				//}
-			} else {
-				_scroll->keyPressEvent(e);
-			}
-			e->accept();
-		} else if (e->key() == Qt::Key_Down) {
+		_scroll->keyPressEvent(e);
+	}, lifetime());
+
+	_composeControls->editLastMessageRequests(
+	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
+		if (!_inner->lastMessageEditRequestNotify()) {
 			_scroll->keyPressEvent(e);
-			e->accept();
-		} else if (e->key() == Qt::Key_PageDown) {
-			_scroll->keyPressEvent(e);
-			e->accept();
-		} else if (e->key() == Qt::Key_PageUp) {
-			_scroll->keyPressEvent(e);
-			e->accept();
 		}
+	}, lifetime());
+
+	_composeControls->replyNextRequests(
+	) | rpl::start_with_next([=](ComposeControls::ReplyNextRequest &&data) {
+		using Direction = ComposeControls::ReplyNextRequest::Direction;
+		_inner->replyNextMessage(
+			data.replyId,
+			data.direction == Direction::Next);
 	}, lifetime());
 
 	_composeControls->setMimeDataHook([=](
@@ -529,6 +531,11 @@ void RepliesWidget::setupComposeControls() {
 	_composeControls->lockShowStarts(
 	) | rpl::start_with_next([=] {
 		updateScrollDownVisibility();
+	}, lifetime());
+
+	_composeControls->viewportEvents(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		_scroll->viewportEvent(e);
 	}, lifetime());
 
 	_composeControls->finishAnimating();
@@ -621,19 +628,14 @@ bool RepliesWidget::confirmSendingFiles(
 		return false;
 	}
 
-	//const auto cursor = _field->textCursor();
-	//const auto position = cursor.position();
-	//const auto anchor = cursor.anchor();
-	const auto text = _composeControls->getTextWithAppliedMarkdown();//_field->getTextWithTags();
 	using SendLimit = SendFilesBox::SendLimit;
 	auto box = Box<SendFilesBox>(
 		controller(),
 		std::move(list),
-		text,
+		_composeControls->getTextWithAppliedMarkdown(),
 		_history->peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
 		Api::SendType::Normal,
-		SendMenu::Type::Disabled); // #TODO replies schedule
-	_composeControls->setText({});
+		SendMenu::Type::SilentOnly); // #TODO replies schedule
 
 	const auto replyTo = replyToId();
 	box->setConfirmedCallback(crl::guard(this, [=](
@@ -649,18 +651,8 @@ bool RepliesWidget::confirmSendingFiles(
 			options,
 			ctrlShiftEnter);
 	}));
-	box->setCancelledCallback(crl::guard(this, [=] {
-		_composeControls->setText(text);
-		//auto cursor = _field->textCursor();
-		//cursor.setPosition(anchor);
-		//if (position != anchor) {
-		//	cursor.setPosition(position, QTextCursor::KeepAnchor);
-		//}
-		//_field->setTextCursor(cursor);
-		//if (!insertTextOnCancel.isEmpty()) {
-		//	_field->textCursor().insertText(insertTextOnCancel);
-		//}
-	}));
+	box->setCancelledCallback(_composeControls->restoreTextCallback(
+		insertTextOnCancel));
 
 	//ActivateWindow(controller());
 	const auto shown = Ui::show(std::move(box));
@@ -899,11 +891,7 @@ void RepliesWidget::send(Api::SendOptions options) {
 		return;
 	}
 
-	const auto webPageId = _composeControls->webPageId();/* _previewCancelled
-		? CancelledWebPageId
-		: ((_previewData && _previewData->pendingTill >= 0)
-			? _previewData->id
-			: WebPageId(0));*/
+	const auto webPageId = _composeControls->webPageId();
 
 	auto message = ApiWrap::MessageToSend(_history);
 	message.textWithTags = _composeControls->getTextWithAppliedMarkdown();
@@ -981,7 +969,7 @@ void RepliesWidget::edit(
 		}
 	};
 
-	const auto fail = [=](const RPCError &error, mtpRequestId requestId) {
+	const auto fail = [=](const MTP::Error &error, mtpRequestId requestId) {
 		if (requestId == *saveEditMsgRequestId) {
 			*saveEditMsgRequestId = 0;
 		}
@@ -1216,10 +1204,13 @@ bool RepliesWidget::showAtPositionNow(
 			calculateNextReplyReturn();
 		}
 		const auto currentScrollTop = _scroll->scrollTop();
-		const auto wanted = snap(*scrollTop, 0, _scroll->scrollTopMax());
+		const auto wanted = std::clamp(
+			*scrollTop,
+			0,
+			_scroll->scrollTopMax());
 		const auto fullDelta = (wanted - currentScrollTop);
 		const auto limit = _scroll->height();
-		const auto scrollDelta = snap(fullDelta, -limit, limit);
+		const auto scrollDelta = std::clamp(fullDelta, -limit, limit);
 		const auto type = (animated == anim::type::instant)
 			? AnimatedScroll::None
 			: (std::abs(fullDelta) > limit)
@@ -1295,7 +1286,7 @@ void RepliesWidget::scrollDownAnimationFinish() {
 
 void RepliesWidget::updateAdaptiveLayout() {
 	_topBarShadow->moveToLeft(
-		Adaptive::OneColumn() ? 0 : st::lineWidth,
+		controller()->adaptive().isOneColumn() ? 0 : st::lineWidth,
 		_topBar->height());
 }
 
@@ -1308,6 +1299,10 @@ Dialogs::RowDescriptor RepliesWidget::activeChat() const {
 		_history,
 		FullMsgId(_history->channelId(), ShowAtUnreadMsgId)
 	};
+}
+
+bool RepliesWidget::preventsClose(Fn<void()> &&continueCallback) const {
+	return _composeControls->preventsClose(std::move(continueCallback));
 }
 
 QPixmap RepliesWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
@@ -1358,8 +1353,8 @@ bool RepliesWidget::returnTabbedSelector() {
 	return _composeControls->returnTabbedSelector();
 }
 
-std::unique_ptr<Window::SectionMemento> RepliesWidget::createMemento() {
-	auto result = std::make_unique<RepliesMemento>(history(), _rootId);
+std::shared_ptr<Window::SectionMemento> RepliesWidget::createMemento() {
+	auto result = std::make_shared<RepliesMemento>(history(), _rootId);
 	saveState(result.get());
 	return result;
 }
@@ -1469,12 +1464,9 @@ void RepliesWidget::resizeEvent(QResizeEvent *e) {
 
 void RepliesWidget::recountChatWidth() {
 	auto layout = (width() < st::adaptiveChatWideWidth)
-		? Adaptive::ChatLayout::Normal
-		: Adaptive::ChatLayout::Wide;
-	if (layout != Global::AdaptiveChatLayout()) {
-		Global::SetAdaptiveChatLayout(layout);
-		Adaptive::Changed().notify(true);
-	}
+		? Window::Adaptive::ChatLayout::Normal
+		: Window::Adaptive::ChatLayout::Wide;
+	controller()->adaptive().setChatLayout(layout);
 }
 
 void RepliesWidget::updateControlsGeometry() {
@@ -1713,7 +1705,7 @@ void RepliesWidget::readTill(not_null<HistoryItem*> item) {
 }
 
 void RepliesWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
-	const auto reversed = ranges::view::reverse(items);
+	const auto reversed = ranges::views::reverse(items);
 	const auto good = ranges::find_if(reversed, [](auto item) {
 		return IsServerMsgId(item->id);
 	});

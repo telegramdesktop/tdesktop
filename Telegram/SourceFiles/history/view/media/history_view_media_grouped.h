@@ -31,6 +31,7 @@ public:
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
+	void drawHighlight(Painter &p, int top) const override;
 	void draw(
 		Painter &p,
 		const QRect &clip,
@@ -87,6 +88,10 @@ public:
 	bool allowsFastShare() const override {
 		return true;
 	}
+	bool customHighlight() const override {
+		return true;
+	}
+	bool hideForwardedFrom() const override;
 
 	void stopAnimation() override;
 	void checkAnimation() override;

@@ -92,7 +92,6 @@ private:
 };
 
 class LastCrashedWindow : public PreLaunchWindow {
-	 Q_OBJECT
 
 public:
 	LastCrashedWindow(
@@ -106,29 +105,19 @@ public:
 		return _lifetime;
 	}
 
-public slots:
-	void onViewReport();
-	void onSaveReport();
-	void onSendReport();
-	void onGetApp();
+	void saveReport();
+	void sendReport();
 
-	void onNetworkSettings();
-	void onNetworkSettingsSaved(QString host, quint32 port, QString username, QString password);
-	void onContinue();
+	void networkSettings();
+	void processContinue();
 
-	void onCheckingFinished();
-	void onSendingError(QNetworkReply::NetworkError e);
-	void onSendingFinished();
-	void onSendingProgress(qint64 uploaded, qint64 total);
+	void checkingFinished();
+	void sendingError(QNetworkReply::NetworkError e);
+	void sendingFinished();
+	void sendingProgress(qint64 uploaded, qint64 total);
 
-	void onUpdateRetry();
-	void onUpdateSkip();
-
-	void onUpdateChecking();
-	void onUpdateLatest();
-	void onUpdateDownloading(qint64 ready, qint64 total);
-	void onUpdateReady();
-	void onUpdateFailed();
+	void updateRetry();
+	void updateSkip();
 
 protected:
 	void closeEvent(QCloseEvent *e) override;
@@ -145,9 +134,6 @@ private:
 	void addReportFieldPart(const QLatin1String &name, const QLatin1String &prefix, QHttpMultiPart *multipart);
 
 	QByteArray _dumpraw;
-
-	QString _host, _username, _password;
-	quint32 _port;
 
 	PreLaunchLabel _label, _pleaseSendReport, _yourReportName, _minidump;
 	PreLaunchLog _report;
@@ -175,8 +161,6 @@ private:
 	SendingState _sendingState;
 
 	PreLaunchLabel _updating;
-	qint64 _sendingProgress = 0;
-	qint64 _sendingTotal = 0;
 
 	QNetworkAccessManager _sendManager;
 	QNetworkReply *_checkReply = nullptr;
@@ -209,16 +193,12 @@ private:
 };
 
 class NetworkSettingsWindow : public PreLaunchWindow {
-	Q_OBJECT
 
 public:
 	NetworkSettingsWindow(QWidget *parent, QString host, quint32 port, QString username, QString password);
 
-signals:
-	void saved(QString host, quint32 port, QString username, QString password);
-
-public slots:
-	void onSave();
+	[[nodiscard]] rpl::producer<MTP::ProxyData> saveRequests() const;
+	void save();
 
 protected:
 	void closeEvent(QCloseEvent *e);
@@ -233,17 +213,6 @@ private:
 
 	QWidget *_parent;
 
-};
-
-class ShowCrashReportWindow : public PreLaunchWindow {
-public:
-	ShowCrashReportWindow(const QString &text);
-
-protected:
-	void resizeEvent(QResizeEvent *e);
-	void closeEvent(QCloseEvent *e);
-
-private:
-	PreLaunchLog _log;
+	rpl::event_stream<MTP::ProxyData> _saveRequests;
 
 };

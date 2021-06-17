@@ -45,46 +45,46 @@ constexpr auto kRefreshTimeout = 7200 * crl::time(1000);
 
 	static const auto color1 = Lottie::ColorReplacements{
 		{
-			{ 0xf77e41U, 0xca907aU },
-			{ 0xffb139U, 0xedc5a5U },
-			{ 0xffd140U, 0xf7e3c3U },
-			{ 0xffdf79U, 0xfbefd6U },
+			{ 0xf77e41U, 0xcb7b55U },
+			{ 0xffb139U, 0xf6b689U },
+			{ 0xffd140U, 0xffcda7U },
+			{ 0xffdf79U, 0xffdfc5U },
 		},
 		1,
 	};
 	static const auto color2 = Lottie::ColorReplacements{
 		{
-			{ 0xf77e41U, 0xaa7c60U },
-			{ 0xffb139U, 0xc8a987U },
-			{ 0xffd140U, 0xddc89fU },
-			{ 0xffdf79U, 0xe6d6b2U },
+			{ 0xf77e41U, 0xa45a38U },
+			{ 0xffb139U, 0xdf986bU },
+			{ 0xffd140U, 0xedb183U },
+			{ 0xffdf79U, 0xf4c3a0U },
 		},
 		2,
 	};
 	static const auto color3 = Lottie::ColorReplacements{
 		{
-			{ 0xf77e41U, 0x8c6148U },
-			{ 0xffb139U, 0xad8562U },
-			{ 0xffd140U, 0xc49e76U },
-			{ 0xffdf79U, 0xd4b188U },
+			{ 0xf77e41U, 0x703a17U },
+			{ 0xffb139U, 0xab673dU },
+			{ 0xffd140U, 0xc37f4eU },
+			{ 0xffdf79U, 0xd89667U },
 		},
 		3,
 	};
 	static const auto color4 = Lottie::ColorReplacements{
 		{
-			{ 0xf77e41U, 0x6e3c2cU },
-			{ 0xffb139U, 0x925a34U },
-			{ 0xffd140U, 0xa16e46U },
-			{ 0xffdf79U, 0xac7a52U },
+			{ 0xf77e41U, 0x4a2409U },
+			{ 0xffb139U, 0x7d3e0eU },
+			{ 0xffd140U, 0x965529U },
+			{ 0xffdf79U, 0xa96337U },
 		},
 		4,
 	};
 	static const auto color5 = Lottie::ColorReplacements{
 		{
-			{ 0xf77e41U, 0x291c12U },
-			{ 0xffb139U, 0x472a22U },
-			{ 0xffd140U, 0x573b30U },
-			{ 0xffdf79U, 0x68493cU },
+			{ 0xf77e41U, 0x200f0aU },
+			{ 0xffb139U, 0x412924U },
+			{ 0xffd140U, 0x593d37U },
+			{ 0xffdf79U, 0x63453fU },
 		},
 		5,
 	};
@@ -220,7 +220,7 @@ void EmojiPack::refresh() {
 		result.match([&](const MTPDmessages_stickerSet &data) {
 			applySet(data);
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		refreshDelayed();
 	}).send();
@@ -247,7 +247,7 @@ void EmojiPack::applySet(const MTPDmessages_stickerSet &data) {
 			was.erase(i);
 		}
 	}
-	for (const auto &[emoji, Document] : was) {
+	for (const auto &[emoji, document] : was) {
 		refreshItems(emoji);
 	}
 }
@@ -260,6 +260,13 @@ void EmojiPack::refreshAll() {
 
 void EmojiPack::refreshItems(EmojiPtr emoji) {
 	const auto i = _items.find(IsolatedEmoji{ { emoji } });
+	if (!emoji->colored()) {
+		if (const auto count = emoji->variantsCount()) {
+			for (auto i = 0; i != count; ++i) {
+				refreshItems(emoji->variant(i + 1));
+			}
+		}
+	}
 	if (i == end(_items)) {
 		return;
 	}

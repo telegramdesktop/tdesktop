@@ -105,6 +105,8 @@ public:
 	bool displayEditedBadge() const override;
 	TimeId displayedEditDate() const override;
 	HistoryMessageReply *displayedReply() const override;
+	bool toggleSelectionByHandlerClick(
+		const ClickHandlerPtr &handler) const override;
 	int infoWidth() const override;
 
 	VerticalRepaintRange verticalRepaintRange() const override;
@@ -125,7 +127,8 @@ private:
 	void refreshEditedBadge();
 	void fromNameUpdated(int width) const;
 
-	[[nodiscard]] bool showForwardsFromSender() const;
+	[[nodiscard]] bool showForwardsFromSender(
+		not_null<HistoryMessageForwarded*> forwarded) const;
 	[[nodiscard]] TextSelection skipTextSelection(
 		TextSelection selection) const;
 	[[nodiscard]] TextSelection unskipTextSelection(

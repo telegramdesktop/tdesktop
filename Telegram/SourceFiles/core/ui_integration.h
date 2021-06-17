@@ -30,20 +30,22 @@ struct MarkedTextContext {
 	HashtagMentionType type = HashtagMentionType::Telegram;
 };
 
-class UiIntegration : public Ui::Integration {
+class UiIntegration final : public Ui::Integration {
 public:
 	void postponeCall(FnMut<void()> &&callable) override;
 	void registerLeaveSubscription(not_null<QWidget*> widget) override;
 	void unregisterLeaveSubscription(not_null<QWidget*> widget) override;
 
-	void writeLogEntry(const QString &entry) override;
 	QString emojiCacheFolder() override;
+
+	void openglCheckStart() override;
+	void openglCheckFinish() override;
+	bool openglLastCheckFailed() override;
 
 	void textActionsUpdated() override;
 	void activationFromTopPanel() override;
 
-	void startFontsBegin() override;
-	void startFontsEnd() override;
+	bool screenIsLocked() override;
 	QString timeFormat() override;
 
 	std::shared_ptr<ClickHandler> createLinkHandler(
@@ -72,5 +74,7 @@ public:
 	QString phraseFormattingMonospace() override;
 
 };
+
+[[nodiscard]] bool OpenGLLastCheckFailed();
 
 } // namespace Core

@@ -108,8 +108,8 @@ auto GenerateCodes() {
 				if (const auto strong = weak.get()) {
 					loadFor(strong);
 				} else {
-					for (const auto &[index, account] : Core::App().domain().accounts()) {
-						loadFor(account.get());
+					for (const auto &pair : Core::App().domain().accounts()) {
+						loadFor(pair.account.get());
 					}
 				}
 			}

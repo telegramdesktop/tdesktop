@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_slot_machine.h"
 #include "history/view/media/history_view_dice.h"
 #include "ui/image/image.h"
+#include "ui/text/format_song_document_name.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
@@ -80,19 +81,19 @@ constexpr auto kFastRevokeRestriction = 24 * 60 * TimeId(60);
 [[nodiscard]] Invoice ComputeInvoiceData(
 		not_null<HistoryItem*> item,
 		const MTPDmessageMediaInvoice &data) {
-	auto result = Invoice();
-	result.isTest = data.is_test();
-	result.amount = data.vtotal_amount().v;
-	result.currency = qs(data.vcurrency());
-	result.description = qs(data.vdescription());
-	result.title = TextUtilities::SingleLine(qs(data.vtitle()));
-	result.receiptMsgId = data.vreceipt_msg_id().value_or_empty();
-	if (const auto photo = data.vphoto()) {
-		result.photo = item->history()->owner().photoFromWeb(
-			*photo,
-			ImageLocation());
-	}
-	return result;
+	return {
+		.receiptMsgId = data.vreceipt_msg_id().value_or_empty(),
+		.amount = data.vtotal_amount().v,
+		.currency = qs(data.vcurrency()),
+		.title = TextUtilities::SingleLine(qs(data.vtitle())),
+		.description = qs(data.vdescription()),
+		.photo = (data.vphoto()
+			? item->history()->owner().photoFromWeb(
+				*data.vphoto(),
+				ImageLocation())
+			: nullptr),
+		.isTest = data.is_test(),
+	};
 }
 
 [[nodiscard]] QString WithCaptionDialogsText(
@@ -506,6 +507,7 @@ QString MediaFile::chatListText() const {
 		return Media::chatListText();
 	}
 	const auto type = [&] {
+		using namespace Ui::Text;
 		if (_document->isVideoMessage()) {
 			return tr::lng_in_dlg_video_message(tr::now);
 		} else if (_document->isAnimation()) {
@@ -514,7 +516,7 @@ QString MediaFile::chatListText() const {
 			return tr::lng_in_dlg_video(tr::now);
 		} else if (_document->isVoiceMessage()) {
 			return tr::lng_in_dlg_audio(tr::now);
-		} else if (const auto name = _document->composeNameString();
+		} else if (const auto name = FormatSongNameFor(_document).string();
 				!name.isEmpty()) {
 			return name;
 		} else if (_document->isAudioFile()) {
@@ -576,7 +578,7 @@ QString MediaFile::pinnedTextSubstring() const {
 
 TextForMimeData MediaFile::clipboardText() const {
 	const auto attachType = [&] {
-		const auto name = _document->composeNameString();
+		const auto name = Ui::Text::FormatSongNameFor(_document).string();
 		const auto addName = !name.isEmpty()
 			? qstr(" : ") + name
 			: QString();
@@ -782,11 +784,12 @@ bool MediaContact::updateSentMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaContact) {
 		return false;
 	}
-	if (_contact.userId != media.c_messageMediaContact().vuser_id().v) {
+	const auto userId = UserId(media.c_messageMediaContact().vuser_id());
+	if (_contact.userId != userId) {
 		parent()->history()->owner().unregisterContactItem(
 			_contact.userId,
 			parent());
-		_contact.userId = media.c_messageMediaContact().vuser_id().v;
+		_contact.userId = userId;
 		parent()->history()->owner().registerContactItem(
 			_contact.userId,
 			parent());
@@ -892,6 +895,11 @@ MediaCall::MediaCall(
 	const MTPDmessageActionPhoneCall &call)
 : Media(parent)
 , _call(ComputeCallData(call)) {
+	parent->history()->owner().registerCallItem(parent);
+}
+
+MediaCall::~MediaCall() {
+	parent()->history()->owner().unregisterCallItem(parent());
 }
 
 std::unique_ptr<Media> MediaCall::clone(not_null<HistoryItem*> parent) {
@@ -1266,9 +1274,9 @@ TextForMimeData MediaPoll::clipboardText() const {
 		+ _poll->question
 		+ qstr(" ]")
 		+ ranges::accumulate(
-			ranges::view::all(
+			ranges::views::all(
 				_poll->answers
-			) | ranges::view::transform([](const PollAnswer &answer) {
+			) | ranges::views::transform([](const PollAnswer &answer) {
 				return "\n- " + answer.text;
 			}),
 			QString());

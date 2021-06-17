@@ -26,11 +26,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/item_text_options.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
+#include "ui/gl/gl_surface.h"
 #include "boxes/confirm_box.h"
 #include "media/audio/media_audio.h"
 #include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_group_thumbs.h"
 #include "media/view/media_view_pip.h"
+#include "media/view/media_view_overlay_raster.h"
+#include "media/view/media_view_overlay_opengl.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/player/media_player_instance.h"
@@ -51,7 +54,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "base/platform/base_platform_info.h"
+#include "base/openssl_help.h"
 #include "base/unixtime.h"
+#include "base/qt_signal_producer.h"
+#include "base/event_filter.h"
 #include "main/main_account.h"
 #include "main/main_domain.h" // Domain::activeSessionValue.
 #include "main/main_session.h"
@@ -133,72 +139,14 @@ QWidget *PipDelegate::pipParentWidget() {
 	return _parent;
 }
 
-Images::Options VideoThumbOptions(DocumentData *document) {
+[[nodiscard]] Images::Options VideoThumbOptions(DocumentData *document) {
 	const auto result = Images::Option::Smooth | Images::Option::Blurred;
 	return (document && document->isVideoMessage())
 		? (result | Images::Option::Circled)
 		: result;
 }
 
-void PaintImageProfile(QPainter &p, const QImage &image, QRect rect, QRect fill) {
-	const auto argb = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-	const auto rgb = image.convertToFormat(QImage::Format_RGB32);
-	const auto argbp = QPixmap::fromImage(argb);
-	const auto rgbp = QPixmap::fromImage(rgb);
-	const auto width = image.width();
-	const auto height = image.height();
-	const auto xcopies = (fill.width() + width - 1) / width;
-	const auto ycopies = (fill.height() + height - 1) / height;
-	const auto copies = xcopies * ycopies;
-	auto times = QStringList();
-	const auto bench = [&](QString label, auto &&paint) {
-		const auto single = [&](QString label) {
-			auto now = crl::now();
-			const auto push = [&] {
-				times.push_back(QString("%1").arg(crl::now() - now, 4, 10, QChar(' ')));
-				now = crl::now();
-			};
-			paint(rect);
-			push();
-			{
-				PainterHighQualityEnabler hq(p);
-				paint(rect);
-			}
-			push();
-			for (auto i = 0; i < xcopies; ++i) {
-				for (auto j = 0; j < ycopies; ++j) {
-					paint(QRect(
-						fill.topLeft() + QPoint(i * width, j * height),
-						QSize(width, height)));
-				}
-			}
-			push();
-			LOG(("FRAME (%1): %2 (copies: %3)").arg(label).arg(times.join(' ')).arg(copies));
-			times = QStringList();
-			now = crl::now();
-		};
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		single(label + " S");
-		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-		single(label + " O");
-	};
-	bench("ARGB I", [&](QRect rect) {
-		p.drawImage(rect, argb);
-	});
-	bench("RGB  I", [&](QRect rect) {
-		p.drawImage(rect, rgb);
-	});
-	bench("ARGB P", [&](QRect rect) {
-		p.drawPixmap(rect, argbp);
-	});
-	bench("RGB  P", [&](QRect rect) {
-		p.drawPixmap(rect, rgbp);
-	});
-}
-
-QPixmap PrepareStaticImage(const QString &path) {
-	auto image = App::readImage(path, nullptr, false);
-#if defined Q_OS_MAC && !defined OS_MAC_OLD
+[[nodiscard]] QImage PrepareStaticImage(QImage image) {
 	if (image.width() > kMaxDisplayImageSize
 		|| image.height() > kMaxDisplayImageSize) {
 		image = image.scaled(
@@ -207,8 +155,36 @@ QPixmap PrepareStaticImage(const QString &path) {
 			Qt::KeepAspectRatio,
 			Qt::SmoothTransformation);
 	}
-#endif // Q_OS_MAC && !OS_MAC_OLD
-	return App::pixmapFromImageInPlace(std::move(image));
+	return image;
+}
+
+[[nodiscard]] QImage PrepareStaticImage(const QString &path) {
+	return PrepareStaticImage(App::readImage(path, nullptr, false));
+}
+
+[[nodiscard]] QImage PrepareStaticImage(const QByteArray &bytes) {
+	return PrepareStaticImage(App::readImage(bytes, nullptr, false));
+}
+
+[[nodiscard]] bool IsSemitransparent(const QImage &image) {
+	if (image.isNull()) {
+		return true;
+	} else if (!image.hasAlphaChannel()) {
+		return false;
+	}
+	Assert(image.format() == QImage::Format_ARGB32_Premultiplied);
+	constexpr auto kAlphaMask = 0xFF000000;
+	auto ints = reinterpret_cast<const uint32*>(image.bits());
+	const auto add = (image.bytesPerLine() / 4) - image.width();
+	for (auto y = 0; y != image.height(); ++y) {
+		for (auto till = ints + image.width(); ints != till; ++ints) {
+			if ((*ints & kAlphaMask) != kAlphaMask) {
+				return true;
+			}
+		}
+		ints += add;
+	}
+	return false;
 }
 
 } // namespace
@@ -240,20 +216,18 @@ struct OverlayWidget::Streamed {
 	Streamed(
 		not_null<DocumentData*> document,
 		Data::FileOrigin origin,
-		QWidget *controlsParent,
+		not_null<QWidget*> controlsParent,
 		not_null<PlaybackControls::Delegate*> controlsDelegate,
 		Fn<void()> waitingCallback);
 	Streamed(
 		not_null<PhotoData*> photo,
 		Data::FileOrigin origin,
-		QWidget *controlsParent,
+		not_null<QWidget*> controlsParent,
 		not_null<PlaybackControls::Delegate*> controlsDelegate,
 		Fn<void()> waitingCallback);
 
 	Streaming::Instance instance;
 	PlaybackControls controls;
-
-	QImage frameForDirectPaint;
 
 	bool withSound = false;
 	bool pausedBySeek = false;
@@ -279,7 +253,7 @@ struct OverlayWidget::PipWrap {
 OverlayWidget::Streamed::Streamed(
 	not_null<DocumentData*> document,
 	Data::FileOrigin origin,
-	QWidget *controlsParent,
+	not_null<QWidget*> controlsParent,
 	not_null<PlaybackControls::Delegate*> controlsDelegate,
 	Fn<void()> waitingCallback)
 : instance(document, origin, std::move(waitingCallback))
@@ -289,7 +263,7 @@ OverlayWidget::Streamed::Streamed(
 OverlayWidget::Streamed::Streamed(
 	not_null<PhotoData*> photo,
 	Data::FileOrigin origin,
-	QWidget *controlsParent,
+	not_null<QWidget*> controlsParent,
 	not_null<PlaybackControls::Delegate*> controlsDelegate,
 	Fn<void()> waitingCallback)
 : instance(photo, origin, std::move(waitingCallback))
@@ -314,16 +288,18 @@ OverlayWidget::PipWrap::PipWrap(
 }
 
 OverlayWidget::OverlayWidget()
-: OverlayParent(nullptr)
-, _transparentBrush(style::transparentPlaceholderBrush())
-, _docDownload(this, tr::lng_media_download(tr::now), st::mediaviewFileLink)
-, _docSaveAs(this, tr::lng_mediaview_save_as(tr::now), st::mediaviewFileLink)
-, _docCancel(this, tr::lng_cancel(tr::now), st::mediaviewFileLink)
+: _surface(Ui::GL::CreateSurface(
+	[=](Ui::GL::Capabilities capabilities) {
+		return chooseRenderer(capabilities);
+	}))
+, _widget(_surface->rpWidget())
+, _docDownload(_widget, tr::lng_media_download(tr::now), st::mediaviewFileLink)
+, _docSaveAs(_widget, tr::lng_mediaview_save_as(tr::now), st::mediaviewFileLink)
+, _docCancel(_widget, tr::lng_cancel(tr::now), st::mediaviewFileLink)
 , _radial([=](crl::time now) { return radialAnimationCallback(now); })
 , _lastAction(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction)
 , _stateAnimation([=](crl::time now) { return stateAnimationCallback(now); })
-, _dropdown(this, st::mediaviewDropdownMenu)
-, _dropdownShowTimer(this) {
+, _dropdown(_widget, st::mediaviewDropdownMenu) {
 	Lang::Updated(
 	) | rpl::start_with_next([=] {
 		refreshLang();
@@ -333,7 +309,7 @@ OverlayWidget::OverlayWidget()
 		? Core::App().settings().videoVolume()
 		: Core::Settings::kDefaultVolume;
 
-	setWindowTitle(qsl("Media viewer"));
+	_widget->setWindowTitle(qsl("Media viewer"));
 
 	const auto text = tr::lng_mediaview_saved_to(
 		tr::now,
@@ -344,59 +320,132 @@ OverlayWidget::OverlayWidget()
 		Ui::Text::WithEntities);
 	_saveMsgText.setMarkedText(st::mediaviewSaveMsgStyle, text, Ui::DialogTextOptions());
 	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::mediaviewSaveMsgPadding.left() + st::mediaviewSaveMsgPadding.right(), st::mediaviewSaveMsgStyle.font->height + st::mediaviewSaveMsgPadding.top() + st::mediaviewSaveMsgPadding.bottom());
+	_saveMsgImage = QImage(
+		_saveMsg.size() * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
 
-	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
+	_docRectImage = QImage(
+		st::mediaviewFileSize * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
+	_docRectImage.setDevicePixelRatio(cIntRetinaFactor());
+
+	_surface->shownValue(
+	) | rpl::start_with_next([=](bool shown) {
+		toggleApplicationEventFilter(shown);
+		if (shown) {
+			const auto screenList = QGuiApplication::screens();
+			DEBUG_LOG(("Viewer Pos: Shown, screen number: %1")
+				.arg(screenList.indexOf(window()->screen())));
+			moveToScreen();
+		} else {
+			clearAfterHide();
+		}
+	}, lifetime());
+
+	const auto mousePosition = [](not_null<QEvent*> e) {
+		return static_cast<QMouseEvent*>(e.get())->pos();
+	};
+	const auto mouseButton = [](not_null<QEvent*> e) {
+		return static_cast<QMouseEvent*>(e.get())->button();
+	};
+	base::install_event_filter(_widget, [=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Move) {
+			const auto position = static_cast<QMoveEvent*>(e.get())->pos();
+			DEBUG_LOG(("Viewer Pos: Moved to %1, %2")
+				.arg(position.x())
+				.arg(position.y()));
+		} else if (type == QEvent::Resize) {
+			const auto size = static_cast<QResizeEvent*>(e.get())->size();
+			DEBUG_LOG(("Viewer Pos: Resized to %1, %2")
+				.arg(size.width())
+				.arg(size.height()));
+			updateControlsGeometry();
+		} else if (type == QEvent::MouseButtonPress) {
+			handleMousePress(mousePosition(e), mouseButton(e));
+		} else if (type == QEvent::MouseButtonRelease) {
+			handleMouseRelease(mousePosition(e), mouseButton(e));
+		} else if (type == QEvent::MouseMove) {
+			handleMouseMove(mousePosition(e));
+		} else if (type == QEvent::KeyPress) {
+			handleKeyPress(static_cast<QKeyEvent*>(e.get()));
+		} else if (type == QEvent::ContextMenu) {
+			const auto event = static_cast<QContextMenuEvent*>(e.get());
+			const auto mouse = (event->reason() == QContextMenuEvent::Mouse);
+			const auto position = mouse
+				? std::make_optional(event->pos())
+				: std::nullopt;
+			if (handleContextMenu(position)) {
+				return base::EventFilterResult::Cancel;
+			}
+		} else if (type == QEvent::MouseButtonDblClick) {
+			if (handleDoubleClick(mousePosition(e), mouseButton(e))) {
+				return base::EventFilterResult::Cancel;
+			} else {
+				handleMousePress(mousePosition(e), mouseButton(e));
+			}
+		} else if (type == QEvent::TouchBegin
+			|| type == QEvent::TouchUpdate
+			|| type == QEvent::TouchEnd
+			|| type == QEvent::TouchCancel) {
+			if (handleTouchEvent(static_cast<QTouchEvent*>(e.get()))) {
+				return base::EventFilterResult::Cancel;;
+			}
+		} else if (type == QEvent::Wheel) {
+			handleWheelEvent(static_cast<QWheelEvent*>(e.get()));
+		}
+		return base::EventFilterResult::Continue;
+	});
 
 	if (Platform::IsLinux()) {
-		setWindowFlags(Qt::FramelessWindowHint
+		_widget->setWindowFlags(Qt::FramelessWindowHint
 			| Qt::MaximizeUsingFullscreenGeometryHint);
 	} else if (Platform::IsMac()) {
 		// Without Qt::Tool starting with Qt 5.15.1 this widget
 		// when being opened from a fullscreen main window was
 		// opening not as overlay over the main window, but as
 		// a separate fullscreen window with a separate space.
-		setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
+		_widget->setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
 	} else {
-		setWindowFlags(Qt::FramelessWindowHint);
+		_widget->setWindowFlags(Qt::FramelessWindowHint);
 	}
-	updateGeometry(QApplication::primaryScreen()->geometry());
-	moveToScreen();
-	setAttribute(Qt::WA_NoSystemBackground, true);
-	setAttribute(Qt::WA_TranslucentBackground, true);
-	setMouseTracking(true);
+	_widget->setAttribute(Qt::WA_NoSystemBackground, true);
+	_widget->setAttribute(Qt::WA_TranslucentBackground, true);
+	_widget->setMouseTracking(true);
 
 	hide();
-	createWinId();
+	_widget->createWinId();
 	if (Platform::IsLinux()) {
-		windowHandle()->setTransientParent(App::wnd()->windowHandle());
-		setWindowModality(Qt::WindowModal);
+		window()->setTransientParent(App::wnd()->windowHandle());
+		_widget->setWindowModality(Qt::WindowModal);
 	}
 	if (!Platform::IsMac()) {
-		setWindowState(Qt::WindowFullScreen);
+		_widget->setWindowState(Qt::WindowFullScreen);
 	}
 
-	connect(
-		windowHandle(),
-		&QWindow::visibleChanged,
-		this,
-		[=](bool visible) { handleVisibleChanged(visible); });
-	connect(
-		windowHandle(),
+	QObject::connect(
+		window(),
 		&QWindow::screenChanged,
-		this,
 		[=](QScreen *screen) { handleScreenChanged(screen); });
+	subscribeToScreenGeometry();
+	updateGeometry();
+	updateControlsGeometry();
 
 #if defined Q_OS_MAC && !defined OS_OSX
 	TouchBar::SetupMediaViewTouchBar(
-		winId(),
+		_widget->winId(),
 		static_cast<PlaybackControls::Delegate*>(this),
 		_touchbarTrackState.events(),
 		_touchbarDisplay.events(),
 		_touchbarFullscreenToggled.events());
 #endif // Q_OS_MAC && !OS_OSX
 
-	Core::App().calls().currentCallValue(
-	) | rpl::start_with_next([=](Calls::Call *call) {
+	using namespace rpl::mappers;
+	rpl::combine(
+		Core::App().calls().currentCallValue(),
+		Core::App().calls().currentGroupCallValue(),
+		_1 || _2
+	) | rpl::start_with_next([=](bool call) {
 		if (!_streamed || videoIsGifOrUserpic()) {
 			return;
 		} else if (call) {
@@ -406,27 +455,23 @@ OverlayWidget::OverlayWidget()
 		}
 	}, lifetime());
 
-	_saveMsgUpdater.setSingleShot(true);
-	connect(&_saveMsgUpdater, SIGNAL(timeout()), this, SLOT(updateImage()));
+	_saveMsgUpdater.setCallback([=] { updateImage(); });
 
-	setAttribute(Qt::WA_AcceptTouchEvents);
-	_touchTimer.setSingleShot(true);
-	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
+	_widget->setAttribute(Qt::WA_AcceptTouchEvents);
+	_touchTimer.setCallback([=] { handleTouchTimer(); });
 
-	_controlsHideTimer.setSingleShot(true);
-	connect(&_controlsHideTimer, SIGNAL(timeout()), this, SLOT(onHideControls()));
+	_controlsHideTimer.setCallback([=] { hideControls(); });
 
-	_docDownload->addClickHandler([=] { onDownload(); });
-	_docSaveAs->addClickHandler([=] { onSaveAs(); });
-	_docCancel->addClickHandler([=] { onSaveCancel(); });
+	_docDownload->addClickHandler([=] { downloadMedia(); });
+	_docSaveAs->addClickHandler([=] { saveAs(); });
+	_docCancel->addClickHandler([=] { saveCancel(); });
 
 	_dropdown->setHiddenCallback([this] { dropdownHidden(); });
-	_dropdownShowTimer->setSingleShot(true);
-	connect(_dropdownShowTimer, SIGNAL(timeout()), this, SLOT(onDropdown()));
+	_dropdownShowTimer.setCallback([=] { showDropdown(); });
 }
 
 void OverlayWidget::refreshLang() {
-	InvokeQueued(this, [this] { updateThemePreviewGeometry(); });
+	InvokeQueued(_widget, [=] { updateThemePreviewGeometry(); });
 }
 
 void OverlayWidget::moveToScreen() {
@@ -436,35 +481,64 @@ void OverlayWidget::moveToScreen() {
 		}
 		return nullptr;
 	};
-	const auto window = Core::App().activeWindow()
+	const auto applicationWindow = Core::App().activeWindow()
 		? Core::App().activeWindow()->widget().get()
 		: nullptr;
-	const auto activeWindowScreen = widgetScreen(window);
-	const auto myScreen = widgetScreen(this);
-	// Wayland doesn't support positioning, but Qt emits screenChanged anyway
-	// and geometry of the widget become broken
-	if (activeWindowScreen
-		&& myScreen
-		&& myScreen != activeWindowScreen
-		&& !Platform::IsWayland()) {
-		windowHandle()->setScreen(activeWindowScreen);
+	const auto activeWindowScreen = widgetScreen(applicationWindow);
+	const auto myScreen = widgetScreen(_widget);
+	if (activeWindowScreen && myScreen != activeWindowScreen) {
+		const auto screenList = QGuiApplication::screens();
+		DEBUG_LOG(("Viewer Pos: Currently on screen %1, moving to screen %2")
+			.arg(screenList.indexOf(myScreen))
+			.arg(screenList.indexOf(activeWindowScreen)));
+		window()->setScreen(activeWindowScreen);
+		DEBUG_LOG(("Viewer Pos: New actual screen: %1")
+			.arg(screenList.indexOf(window()->screen())));
+	}
+	updateGeometry();
+}
+
+void OverlayWidget::updateGeometry() {
+	if (Platform::IsWayland()) {
+		return;
+	}
+	const auto screen = window()->screen()
+		? window()->screen()
+		: QApplication::primaryScreen();
+	const auto available = screen->geometry();
+	const auto useSizeHack = _opengl && Platform::IsWindows();
+	const auto use = available.marginsAdded({ 0, 0, 0, 1 });
+	const auto mask = useSizeHack
+		? QRegion(QRect(QPoint(), available.size()))
+		: QRegion();
+	if ((_widget->geometry() == use)
+		&& (!useSizeHack || window()->mask() == mask)) {
+		return;
+	}
+	DEBUG_LOG(("Viewer Pos: Setting %1, %2, %3, %4")
+		.arg(use.x())
+		.arg(use.y())
+		.arg(use.width())
+		.arg(use.height()));
+	_widget->setGeometry(use);
+	if (useSizeHack) {
+		window()->setMask(mask);
 	}
 }
 
-void OverlayWidget::updateGeometry(const QRect &rect) {
-	setGeometry(rect);
-
+void OverlayWidget::updateControlsGeometry() {
 	auto navSkip = 2 * st::mediaviewControlMargin + st::mediaviewControlSize;
-	_closeNav = myrtlrect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, st::mediaviewControlMargin, st::mediaviewControlSize, st::mediaviewControlSize);
+	_closeNav = QRect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, st::mediaviewControlMargin, st::mediaviewControlSize, st::mediaviewControlSize);
 	_closeNavIcon = style::centerrect(_closeNav, st::mediaviewClose);
-	_leftNav = myrtlrect(st::mediaviewControlMargin, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
+	_leftNav = QRect(st::mediaviewControlMargin, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
 	_leftNavIcon = style::centerrect(_leftNav, st::mediaviewLeft);
-	_rightNav = myrtlrect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
+	_rightNav = QRect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
 	_rightNavIcon = style::centerrect(_rightNav, st::mediaviewRight);
 
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
 	_photoRadialRect = QRect(QPoint((width() - st::radialSize.width()) / 2, (height() - st::radialSize.height()) / 2), st::radialSize);
 
+	updateControls();
 	resizeContentByScreenSize();
 	update();
 }
@@ -501,43 +575,26 @@ QImage OverlayWidget::videoFrame() const {
 		: _streamed->instance.info().video.cover;
 }
 
-QImage OverlayWidget::videoFrameForDirectPaint() const {
-	Expects(_streamed != nullptr);
+Streaming::FrameWithInfo OverlayWidget::videoFrameWithInfo() const {
+	Expects(videoShown());
 
-	const auto result = videoFrame();
+	return _streamed->instance.player().ready()
+		? _streamed->instance.frameWithInfo()
+		: Streaming::FrameWithInfo{
+			.original = _streamed->instance.info().video.cover,
+			.format = Streaming::FrameFormat::ARGB32,
+			.index = -2,
+		};
+}
 
-#ifdef USE_OPENGL_OVERLAY_WIDGET
-	const auto bytesPerLine = result.bytesPerLine();
-	if (bytesPerLine == result.width() * 4) {
-		return result;
-	}
+QImage OverlayWidget::currentVideoFrameImage() const {
+	return _streamed->instance.player().ready()
+		? _streamed->instance.player().currentFrameImage()
+		: _streamed->instance.info().video.cover;
+}
 
-	// On macOS 10.8+ we use QOpenGLWidget as OverlayWidget base class.
-	// The OpenGL painter can't paint textures where byte data is with strides.
-	// So in that case we prepare a compact copy of the frame to render.
-	//
-	// See Qt commit ed557c037847e343caa010562952b398f806adcd
-	//
-	auto &cache = _streamed->frameForDirectPaint;
-	if (cache.size() != result.size()) {
-		cache = QImage(result.size(), result.format());
-	}
-	const auto height = result.height();
-	const auto line = cache.bytesPerLine();
-	Assert(line == result.width() * 4);
-	Assert(line < bytesPerLine);
-
-	auto from = result.bits();
-	auto to = cache.bits();
-	for (auto y = 0; y != height; ++y) {
-		memcpy(to, from, line);
-		to += line;
-		from += bytesPerLine;
-	}
-	return cache;
-#endif // USE_OPENGL_OVERLAY_WIDGET
-
-	return result;
+int OverlayWidget::streamedIndex() const {
+	return _streamedCreated;
 }
 
 bool OverlayWidget::documentContentShown() const {
@@ -550,6 +607,29 @@ bool OverlayWidget::documentBubbleShown() const {
 			&& !_themePreviewShown
 			&& !_streamed
 			&& _staticContent.isNull());
+}
+
+void OverlayWidget::setStaticContent(QImage image) {
+	constexpr auto kGood = QImage::Format_ARGB32_Premultiplied;
+	if (!image.isNull()
+		&& image.format() != kGood
+		&& image.format() != QImage::Format_RGB32) {
+		image = std::move(image).convertToFormat(kGood);
+	}
+	image.setDevicePixelRatio(cRetinaFactor());
+	_staticContent = std::move(image);
+	_staticContentTransparent = IsSemitransparent(_staticContent);
+}
+
+bool OverlayWidget::contentShown() const {
+	return _photo || documentContentShown();
+}
+
+bool OverlayWidget::opaqueContentShown() const {
+	return contentShown()
+		&& (!_staticContentTransparent
+			|| !_document
+			|| (!_document->isVideoMessage() && !_document->sticker()));
 }
 
 void OverlayWidget::clearStreaming(bool savePosition) {
@@ -569,7 +649,7 @@ void OverlayWidget::documentUpdated(DocumentData *doc) {
 				updateControls();
 			} else if (_document->loading()) {
 				updateDocSize();
-				update(_docRect);
+				_widget->update(_docRect);
 			}
 		} else if (_streamed) {
 			const auto ready = _documentMedia->loaded()
@@ -594,28 +674,10 @@ void OverlayWidget::updateDocSize() {
 		return;
 	}
 
-	if (_document->loading()) {
-		quint64 ready = _document->loadOffset(), total = _document->size;
-		QString readyStr, totalStr, mb;
-		if (total >= 1024 * 1024) { // more than 1 mb
-			qint64 readyTenthMb = (ready * 10 / (1024 * 1024)), totalTenthMb = (total * 10 / (1024 * 1024));
-			readyStr = QString::number(readyTenthMb / 10) + '.' + QString::number(readyTenthMb % 10);
-			totalStr = QString::number(totalTenthMb / 10) + '.' + QString::number(totalTenthMb % 10);
-			mb = qsl("MB");
-		} else if (total >= 1024) {
-			qint64 readyKb = (ready / 1024), totalKb = (total / 1024);
-			readyStr = QString::number(readyKb);
-			totalStr = QString::number(totalKb);
-			mb = qsl("KB");
-		} else {
-			readyStr = QString::number(ready);
-			totalStr = QString::number(total);
-			mb = qsl("B");
-		}
-		_docSize = tr::lng_media_save_progress(tr::now, lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
-	} else {
-		_docSize = Ui::FormatSizeText(_document->size);
-	}
+	const auto size = _document->size;
+	_docSize = _document->loading()
+		? Ui::FormatProgressText(_document->loadOffset(), size)
+		: Ui::FormatSizeText(size);
 	_docSizeWidth = st::mediaviewFont->width(_docSize);
 	int32 maxw = st::mediaviewFileSize.width() - st::mediaviewFileIconSize - st::mediaviewFilePadding * 3;
 	if (_docSizeWidth > maxw) {
@@ -659,10 +721,10 @@ void OverlayWidget::checkForSaveLoaded() {
 		return;
 	} else if (_savePhotoVideoWhenLoaded == SavePhotoVideo::QuickSave) {
 		_savePhotoVideoWhenLoaded = SavePhotoVideo::None;
-		onDownload();
+		downloadMedia();
 	} else if (_savePhotoVideoWhenLoaded == SavePhotoVideo::SaveAs) {
 		_savePhotoVideoWhenLoaded = SavePhotoVideo::None;
-		onSaveAs();
+		saveAs();
 	} else {
 		Unexpected("SavePhotoVideo in OverlayWidget::checkForSaveLoaded.");
 	}
@@ -702,7 +764,7 @@ void OverlayWidget::updateControls() {
 	_saveVisible = contentCanBeSaved();
 	_rotateVisible = !_themePreviewShown;
 	const auto navRect = [&](int i) {
-		return myrtlrect(width() - st::mediaviewIconSize.width() * i,
+		return QRect(width() - st::mediaviewIconSize.width() * i,
 			height() - st::mediaviewIconSize.height(),
 			st::mediaviewIconSize.width(),
 			st::mediaviewIconSize.height());
@@ -727,26 +789,20 @@ void OverlayWidget::updateControls() {
 		}
 		return dNow;
 	}();
-	if (d.date() == dNow.date()) {
-		_dateText = tr::lng_mediaview_today(tr::now, lt_time, d.time().toString(cTimeFormat()));
-	} else if (d.date().addDays(1) == dNow.date()) {
-		_dateText = tr::lng_mediaview_yesterday(tr::now, lt_time, d.time().toString(cTimeFormat()));
-	} else {
-		_dateText = tr::lng_mediaview_date_time(tr::now, lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(cTimeFormat()));
-	}
+	_dateText = Ui::FormatDateTime(d, cTimeFormat());
 	if (!_fromName.isEmpty()) {
 		_fromNameLabel.setText(st::mediaviewTextStyle, _fromName, Ui::NameTextOptions());
-		_nameNav = myrtlrect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, qMin(_fromNameLabel.maxWidth(), width() / 3), st::mediaviewFont->height);
-		_dateNav = myrtlrect(st::mediaviewTextLeft + _nameNav.width() + st::mediaviewTextSkip, height() - st::mediaviewTextTop, st::mediaviewFont->width(_dateText), st::mediaviewFont->height);
+		_nameNav = QRect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, qMin(_fromNameLabel.maxWidth(), width() / 3), st::mediaviewFont->height);
+		_dateNav = QRect(st::mediaviewTextLeft + _nameNav.width() + st::mediaviewTextSkip, height() - st::mediaviewTextTop, st::mediaviewFont->width(_dateText), st::mediaviewFont->height);
 	} else {
 		_nameNav = QRect();
-		_dateNav = myrtlrect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, st::mediaviewFont->width(_dateText), st::mediaviewFont->height);
+		_dateNav = QRect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, st::mediaviewFont->width(_dateText), st::mediaviewFont->height);
 	}
 	updateHeader();
 	refreshNavVisibility();
 	resizeCenteredControls();
 
-	updateOver(mapFromGlobal(QCursor::pos()));
+	updateOver(_widget->mapFromGlobal(QCursor::pos()));
 	update();
 }
 
@@ -803,33 +859,30 @@ void OverlayWidget::refreshCaptionGeometry() {
 		captionHeight);
 }
 
-void OverlayWidget::updateActions() {
-	_actions.clear();
-
+void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 	if (_document && _document->loading()) {
-		_actions.push_back({ tr::lng_cancel(tr::now), SLOT(onSaveCancel()) });
+		addAction(tr::lng_cancel(tr::now), [=] { saveCancel(); });
 	}
 	if (IsServerMsgId(_msgid.msg)) {
-		_actions.push_back({ tr::lng_context_to_msg(tr::now), SLOT(onToMessage()) });
+		addAction(tr::lng_context_to_msg(tr::now), [=] { toMessage(); });
 	}
 	if (_document && !_document->filepath(true).isEmpty()) {
-		_actions.push_back({ Platform::IsMac() ? tr::lng_context_show_in_finder(tr::now) : tr::lng_context_show_in_folder(tr::now), SLOT(onShowInFolder()) });
+		const auto text =  Platform::IsMac()
+			? tr::lng_context_show_in_finder(tr::now)
+			: tr::lng_context_show_in_folder(tr::now);
+		addAction(text, [=] { showInFolder(); });
 	}
 	if ((_document && documentContentShown()) || (_photo && _photoMedia->loaded())) {
-		_actions.push_back({ tr::lng_mediaview_copy(tr::now), SLOT(onCopy()) });
+		addAction(tr::lng_mediaview_copy(tr::now), [=] { copyMedia(); });
 	}
 	if ((_photo && _photo->hasAttachedStickers())
 		|| (_document && _document->hasAttachedStickers())) {
-		auto member = _photo
-			? SLOT(onPhotoAttachedStickers())
-			: SLOT(onDocumentAttachedStickers());
-		_actions.push_back({
+		addAction(
 			tr::lng_context_attached_stickers(tr::now),
-			std::move(member)
-		});
+			[=] { showAttachedStickers(); });
 	}
 	if (_canForwardItem) {
-		_actions.push_back({ tr::lng_mediaview_forward(tr::now), SLOT(onForward()) });
+		addAction(tr::lng_mediaview_forward(tr::now), [=] { forwardMedia(); });
 	}
 	const auto canDelete = [&] {
 		if (_canDeleteItem) {
@@ -849,12 +902,15 @@ void OverlayWidget::updateActions() {
 		return false;
 	}();
 	if (canDelete) {
-		_actions.push_back({ tr::lng_mediaview_delete(tr::now), SLOT(onDelete()) });
+		addAction(tr::lng_mediaview_delete(tr::now), [=] { deleteMedia(); });
 	}
-	_actions.push_back({ tr::lng_mediaview_save_as(tr::now), SLOT(onSaveAs()) });
+	addAction(tr::lng_mediaview_save_as(tr::now), [=] { saveAs(); });
 
 	if (const auto overviewType = computeOverviewType()) {
-		_actions.push_back({ _document ? tr::lng_mediaview_files_all(tr::now) : tr::lng_mediaview_photos_all(tr::now), SLOT(onOverview()) });
+		const auto text = _document
+			? tr::lng_mediaview_files_all(tr::now)
+			: tr::lng_mediaview_photos_all(tr::now);
+		addAction(text, [=] { showMediaOverview(); });
 	}
 }
 
@@ -940,17 +996,62 @@ void OverlayWidget::updateCursor() {
 		: (_over == OverNone ? style::cur_default : style::cur_pointer));
 }
 
-int OverlayWidget::contentRotation() const {
-	if (!_streamed) {
-		return _rotation;
-	}
-	return (_rotation + (_streamed
-		? _streamed->instance.info().video.rotation
-		: 0)) % 360;
+int OverlayWidget::finalContentRotation() const {
+	return _streamed
+		? ((_rotation + (_streamed
+			? _streamed->instance.info().video.rotation
+			: 0)) % 360)
+		: _rotation;
 }
 
-QRect OverlayWidget::contentRect() const {
+QRect OverlayWidget::finalContentRect() const {
 	return { _x, _y, _w, _h };
+}
+
+OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
+	const auto toRotation = qreal(finalContentRotation());
+	const auto toRectRotated = QRectF(finalContentRect());
+	const auto toRectCenter = toRectRotated.center();
+	const auto toRect = ((int(toRotation) % 180) == 90)
+		? QRectF(
+			toRectCenter.x() - toRectRotated.height() / 2.,
+			toRectCenter.y() - toRectRotated.width() / 2.,
+			toRectRotated.height(),
+			toRectRotated.width())
+		: toRectRotated;
+	if (!_geometryAnimation.animating()) {
+		return { toRect, toRotation };
+	}
+	const auto fromRect = _oldGeometry.rect;
+	const auto fromRotation = _oldGeometry.rotation;
+	const auto progress = _geometryAnimation.value(1.);
+	const auto rotationDelta = (toRotation - fromRotation);
+	const auto useRotationDelta = (rotationDelta > 180.)
+		? (rotationDelta - 360.)
+		: (rotationDelta <= -180.)
+		? (rotationDelta + 360.)
+		: rotationDelta;
+	const auto rotation = fromRotation + useRotationDelta * progress;
+	const auto useRotation = (rotation > 360.)
+		? (rotation - 360.)
+		: (rotation < 0.)
+		? (rotation + 360.)
+		: rotation;
+	const auto useRect = QRectF(
+		fromRect.x() + (toRect.x() - fromRect.x()) * progress,
+		fromRect.y() + (toRect.y() - fromRect.y()) * progress,
+		fromRect.width() + (toRect.width() - fromRect.width()) * progress,
+		fromRect.height() + (toRect.height() - fromRect.height()) * progress
+	);
+	return { useRect, useRotation };
+}
+
+void OverlayWidget::updateContentRect() {
+	if (_opengl) {
+		update();
+	} else {
+		update(finalContentRect());
+	}
 }
 
 void OverlayWidget::contentSizeChanged() {
@@ -1006,6 +1107,7 @@ void OverlayWidget::resizeContentByScreenSize() {
 	}
 	_x = (width() - _w) / 2;
 	_y = (height() - _h) / 2;
+	_geometryAnimation.stop();
 }
 
 float64 OverlayWidget::radialProgress() const {
@@ -1172,8 +1274,6 @@ void OverlayWidget::clearSession() {
 		_animationOpacities.clear();
 	}
 	clearStreaming();
-	delete _menu;
-	_menu = nullptr;
 	setContext(v::null);
 	_from = nullptr;
 	_fromName = QString();
@@ -1229,14 +1329,12 @@ void OverlayWidget::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pr
 	update(QRegion(_saveMsg) + _captionRect);
 }
 
-void OverlayWidget::showSaveMsgFile() {
-	File::ShowInFolder(_saveMsgFilename);
+rpl::lifetime &OverlayWidget::lifetime() {
+	return _surface->lifetime();
 }
 
-void OverlayWidget::updateMixerVideoVolume() const {
-	if (_streamed) {
-		Player::mixer()->setVideoVolume(Core::App().settings().videoVolume());
-	}
+void OverlayWidget::showSaveMsgFile() {
+	File::ShowInFolder(_saveMsgFilename);
 }
 
 void OverlayWidget::close() {
@@ -1245,7 +1343,7 @@ void OverlayWidget::close() {
 
 void OverlayWidget::activateControls() {
 	if (!_menu && !_mousePressed) {
-		_controlsHideTimer.start(int(st::mediaviewWaitHide));
+		_controlsHideTimer.callOnce(st::mediaviewWaitHide);
 	}
 	if (_fullScreenVideo) {
 		if (_streamed) {
@@ -1262,9 +1360,10 @@ void OverlayWidget::activateControls() {
 	}
 }
 
-void OverlayWidget::onHideControls(bool force) {
+void OverlayWidget::hideControls(bool force) {
 	if (!force) {
 		if (!_dropdown->isHidden()
+			|| (_streamed && _streamed->controls.hasMenu())
 			|| _menu
 			|| _mousePressed
 			|| (_fullScreenVideo
@@ -1278,7 +1377,7 @@ void OverlayWidget::onHideControls(bool force) {
 	}
 	if (_controlsState == ControlsHiding || _controlsState == ControlsHidden) return;
 
-	_lastMouseMovePos = mapFromGlobal(QCursor::pos());
+	_lastMouseMovePos = _widget->mapFromGlobal(QCursor::pos());
 	_controlsState = ControlsHiding;
 	_controlsAnimStarted = crl::now();
 	_controlsOpacity.start(0);
@@ -1290,51 +1389,42 @@ void OverlayWidget::onHideControls(bool force) {
 void OverlayWidget::dropdownHidden() {
 	setFocus();
 	_ignoringDropdown = true;
-	_lastMouseMovePos = mapFromGlobal(QCursor::pos());
+	_lastMouseMovePos = _widget->mapFromGlobal(QCursor::pos());
 	updateOver(_lastMouseMovePos);
 	_ignoringDropdown = false;
 	if (!_controlsHideTimer.isActive()) {
-		onHideControls(true);
-	}
-}
-
-void OverlayWidget::onScreenResized(int screen) {
-	if (isHidden()) {
-		return;
-	}
-
-	const auto screens = QApplication::screens();
-	const auto changed = (screen >= 0 && screen < screens.size())
-		? screens[screen]
-		: nullptr;
-	if (windowHandle()
-		&& windowHandle()->screen()
-		&& changed
-		&& windowHandle()->screen() == changed) {
-		updateGeometry(changed->geometry());
-	}
-	if (!windowHandle()
-		|| !windowHandle()->screen()
-		|| !changed
-		|| windowHandle()->screen() == changed) {
-		moveToScreen();
-	}
-}
-
-void OverlayWidget::handleVisibleChanged(bool visible) {
-	if (visible) {
-		const auto screen = windowHandle()->screen()
-			? windowHandle()->screen()
-			: QApplication::primaryScreen();
-		updateGeometry(screen->geometry());
+		hideControls(true);
 	}
 }
 
 void OverlayWidget::handleScreenChanged(QScreen *screen) {
-	updateGeometry(screen->geometry());
+	subscribeToScreenGeometry();
+	if (isHidden()) {
+		return;
+	}
+
+	const auto screenList = QGuiApplication::screens();
+	DEBUG_LOG(("Viewer Pos: Screen changed to: %1")
+		.arg(screenList.indexOf(screen)));
+
+	moveToScreen();
 }
 
-void OverlayWidget::onToMessage() {
+void OverlayWidget::subscribeToScreenGeometry() {
+	_screenGeometryLifetime.destroy();
+	const auto screen = window()->screen();
+	if (!screen) {
+		return;
+	}
+	base::qt_signal_producer(
+		screen,
+		&QScreen::geometryChanged
+	) | rpl::start_with_next([=] {
+		updateGeometry();
+	}, _screenGeometryLifetime);
+}
+
+void OverlayWidget::toMessage() {
 	if (!_session) {
 		return;
 	}
@@ -1349,13 +1439,13 @@ void OverlayWidget::notifyFileDialogShown(bool shown) {
 		return;
 	}
 	if (shown) {
-		Ui::Platform::BringToBack(this);
+		Ui::Platform::BringToBack(_widget);
 	} else {
-		Ui::Platform::ShowOverAll(this);
+		Ui::Platform::ShowOverAll(_widget);
 	}
 }
 
-void OverlayWidget::onSaveAs() {
+void OverlayWidget::saveAs() {
 	QString file;
 	if (_document) {
 		const auto &location = _document->location(true);
@@ -1409,9 +1499,10 @@ void OverlayWidget::onSaveAs() {
 		}
 	} else if (_photo && _photo->hasVideo()) {
 		if (const auto bytes = _photoMedia->videoContent(); !bytes.isEmpty()) {
+			const auto photo = _photo;
 			auto filter = qsl("Video Files (*.mp4);;") + FileDialog::AllFilesFilter();
 			FileDialog::GetWritePath(
-				this,
+				_widget.get(),
 				tr::lng_save_video(tr::now),
 				filter,
 				filedialogDefaultName(
@@ -1420,7 +1511,7 @@ void OverlayWidget::onSaveAs() {
 					QString(),
 					false,
 					_photo->date),
-				crl::guard(this, [=, photo = _photo](const QString &result) {
+				crl::guard(_widget, [=](const QString &result) {
 					QFile f(result);
 					if (!result.isEmpty()
 						&& _photo == photo
@@ -1438,9 +1529,10 @@ void OverlayWidget::onSaveAs() {
 		}
 
 		const auto image = _photoMedia->image(Data::PhotoSize::Large)->original();
+		const auto photo = _photo;
 		auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 		FileDialog::GetWritePath(
-			this,
+			_widget.get(),
 			tr::lng_save_photo(tr::now),
 			filter,
 			filedialogDefaultName(
@@ -1449,20 +1541,18 @@ void OverlayWidget::onSaveAs() {
 				QString(),
 				false,
 				_photo->date),
-			crl::guard(this, [=, photo = _photo](const QString &result) {
+			crl::guard(_widget, [=](const QString &result) {
 				if (!result.isEmpty() && _photo == photo) {
 					image.save(result, "JPG");
 				}
 			}));
 	}
-	activateWindow();
-	QApplication::setActiveWindow(this);
-	setFocus();
+	activate();
 }
 
-void OverlayWidget::onDocClick() {
+void OverlayWidget::handleDocumentClick() {
 	if (_document->loading()) {
-		onSaveCancel();
+		saveCancel();
 	} else {
 		DocumentOpenClickHandler::Open(
 			fileOrigin(),
@@ -1478,12 +1568,12 @@ PeerData *OverlayWidget::ui_getPeerForMouseAction() {
 	return _history ? _history->peer.get() : nullptr;
 }
 
-void OverlayWidget::onDownload() {
+void OverlayWidget::downloadMedia() {
 	if (!_photo && !_document) {
 		return;
 	}
 	if (Core::App().settings().askDownloadPath()) {
-		return onSaveAs();
+		return saveAs();
 	}
 
 	QString path;
@@ -1565,7 +1655,7 @@ void OverlayWidget::onDownload() {
 	}
 }
 
-void OverlayWidget::onSaveCancel() {
+void OverlayWidget::saveCancel() {
 	if (_document && _document->loading()) {
 		_document->cancel();
 		if (_documentMedia->canBePlayed()) {
@@ -1574,7 +1664,7 @@ void OverlayWidget::onSaveCancel() {
 	}
 }
 
-void OverlayWidget::onShowInFolder() {
+void OverlayWidget::showInFolder() {
 	if (!_document) return;
 
 	auto filepath = _document->filepath(true);
@@ -1584,7 +1674,7 @@ void OverlayWidget::onShowInFolder() {
 	}
 }
 
-void OverlayWidget::onForward() {
+void OverlayWidget::forwardMedia() {
 	if (!_session) {
 		return;
 	}
@@ -1603,7 +1693,7 @@ void OverlayWidget::onForward() {
 		{ 1, item->fullId() });
 }
 
-void OverlayWidget::onDelete() {
+void OverlayWidget::deleteMedia() {
 	if (!_session) {
 		return;
 	}
@@ -1636,8 +1726,10 @@ void OverlayWidget::onDelete() {
 	}
 }
 
-void OverlayWidget::onOverview() {
-	if (_menu) _menu->hideMenu(true);
+void OverlayWidget::showMediaOverview() {
+	if (_menu) {
+		_menu->hideMenu(true);
+	}
 	update();
 	if (const auto overviewType = computeOverviewType()) {
 		close();
@@ -1645,12 +1737,10 @@ void OverlayWidget::onOverview() {
 	}
 }
 
-void OverlayWidget::onCopy() {
+void OverlayWidget::copyMedia() {
 	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
 	if (_document) {
-		QGuiApplication::clipboard()->setImage(videoShown()
-			? transformVideoFrame(videoFrame())
-			: transformStaticContent(_staticContent));
+		QGuiApplication::clipboard()->setImage(transformedShownContent());
 	} else if (_photo && _photoMedia->loaded()) {
 		const auto image = _photoMedia->image(
 			Data::PhotoSize::Large)->original();
@@ -1658,31 +1748,23 @@ void OverlayWidget::onCopy() {
 	}
 }
 
-void OverlayWidget::onPhotoAttachedStickers() {
-	if (!_session || !_photo) {
+void OverlayWidget::showAttachedStickers() {
+	if (!_session) {
 		return;
 	}
 	const auto &active = _session->windows();
 	if (active.empty()) {
 		return;
 	}
-	_session->api().attachedStickers().requestAttachedStickerSets(
-		active.front(),
-		_photo);
-	close();
-}
-
-void OverlayWidget::onDocumentAttachedStickers() {
-	if (!_session || !_document) {
+	const auto window = active.front();
+	auto &attachedStickers = _session->api().attachedStickers();
+	if (_photo) {
+		attachedStickers.requestAttachedStickerSets(window, _photo);
+	} else if (_document) {
+		attachedStickers.requestAttachedStickerSets(window, _document);
+	} else {
 		return;
 	}
-	const auto &active = _session->windows();
-	if (active.empty()) {
-		return;
-	}
-	_session->api().attachedStickers().requestAttachedStickerSets(
-		active.front(),
-		_document);
 	close();
 }
 
@@ -1746,7 +1828,7 @@ Data::FileOrigin OverlayWidget::fileOrigin() const {
 	if (_msgid) {
 		return _msgid;
 	} else if (_photo && _user) {
-		return Data::FileOriginUserPhoto(_user->bareId(), _photo->id);
+		return Data::FileOriginUserPhoto(peerToUser(_user->id), _photo->id);
 	} else if (_photo && _peer && _peer->userpicPhotoId() == _photo->id) {
 		return Data::FileOriginPeerPhoto(_peer->id);
 	}
@@ -1761,7 +1843,7 @@ Data::FileOrigin OverlayWidget::fileOrigin(const Entity &entity) const {
 	}
 	const auto photo = v::get<not_null<PhotoData*>>(entity.data);
 	if (_user) {
-		return Data::FileOriginUserPhoto(_user->bareId(), photo->id);
+		return Data::FileOriginUserPhoto(peerToUser(_user->id), photo->id);
 	} else if (_peer && _peer->userpicPhotoId() == photo->id) {
 		return Data::FileOriginPeerPhoto(_peer->id);
 	}
@@ -1842,10 +1924,7 @@ void OverlayWidget::handleSharedMediaUpdate(SharedMediaWithLastSlice &&update) {
 
 std::optional<OverlayWidget::UserPhotosKey> OverlayWidget::userPhotosKey() const {
 	if (!_msgid && _user && _photo) {
-		return UserPhotosKey {
-			_user->bareId(),
-			_photo->id
-		};
+		return UserPhotosKey{ peerToUser(_user->id), _photo->id };
 	}
 	return std::nullopt;
 }
@@ -2117,6 +2196,55 @@ void OverlayWidget::clearControlsState() {
 	}
 }
 
+not_null<QWindow*> OverlayWidget::window() const {
+	return _widget->windowHandle();
+}
+
+int OverlayWidget::width() const {
+	return _widget->width();
+}
+
+int OverlayWidget::height() const {
+	return _widget->height();
+}
+
+void OverlayWidget::update() {
+	_widget->update();
+}
+
+void OverlayWidget::update(const QRegion &region) {
+	_widget->update(region);
+}
+
+bool OverlayWidget::isHidden() const {
+	return _widget->isHidden();
+}
+
+not_null<QWidget*> OverlayWidget::widget() const {
+	return _widget;
+}
+
+void OverlayWidget::hide() {
+	clearBeforeHide();
+	applyHideWindowWorkaround();
+	_widget->hide();
+}
+
+void OverlayWidget::setCursor(style::cursor cursor) {
+	_widget->setCursor(cursor);
+}
+
+void OverlayWidget::setFocus() {
+	_widget->setFocus();
+}
+
+void OverlayWidget::activate() {
+	_widget->raise();
+	_widget->activateWindow();
+	QApplication::setActiveWindow(_widget);
+	setFocus();
+}
+
 void OverlayWidget::showPhoto(
 		not_null<PhotoData*> photo,
 		HistoryItem *context) {
@@ -2181,17 +2309,16 @@ void OverlayWidget::showDocument(
 
 	_streamingStartPaused = false;
 	displayDocument(document, context, cloud, continueStreaming);
-	preloadData(0);
-	activateControls();
+	if (!isHidden()) {
+		preloadData(0);
+		activateControls();
+	}
 }
 
 void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	if (photo->isNull()) {
 		displayDocument(nullptr, item);
 		return;
-	}
-	if (isHidden()) {
-		moveToScreen();
 	}
 	_touchbarDisplay.fire(TouchBarItemType::Photo);
 
@@ -2205,7 +2332,7 @@ void OverlayWidget::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) 
 
 	refreshMediaViewer();
 
-	_staticContent = QPixmap();
+	_staticContent = QImage();
 	if (_photo->videoCanBePlayed()) {
 		initStreaming();
 	}
@@ -2259,11 +2386,8 @@ void OverlayWidget::displayDocument(
 		HistoryItem *item,
 		const Data::CloudTheme &cloud,
 		bool continueStreaming) {
-	if (isHidden()) {
-		moveToScreen();
-	}
 	_fullScreenVideo = false;
-	_staticContent = QPixmap();
+	_staticContent = QImage();
 	clearStreaming(_document != doc);
 	destroyThemePreview();
 	assignMediaPointer(doc);
@@ -2278,11 +2402,12 @@ void OverlayWidget::displayDocument(
 	if (_document) {
 		if (_document->sticker()) {
 			if (const auto image = _documentMedia->getStickerLarge()) {
-				_staticContent = image->pix();
+				setStaticContent(image->original());
 			} else if (const auto thumbnail = _documentMedia->thumbnail()) {
-				_staticContent = thumbnail->pixBlurred(
+				setStaticContent(thumbnail->pixBlurred(
 					_document->dimensions.width(),
-					_document->dimensions.height());
+					_document->dimensions.height()
+				).toImage());
 			}
 		} else {
 			if (_documentMedia->canBePlayed()
@@ -2300,7 +2425,13 @@ void OverlayWidget::displayDocument(
 				if (location.accessEnable()) {
 					const auto &path = location.name();
 					if (QImageReader(path).canRead()) {
-						_staticContent = PrepareStaticImage(path);
+						setStaticContent(PrepareStaticImage(path));
+						_touchbarDisplay.fire(TouchBarItemType::Photo);
+					}
+				} else if (!_documentMedia->bytes().isEmpty()) {
+					setStaticContent(
+						PrepareStaticImage(_documentMedia->bytes()));
+					if (!_staticContent.isNull()) {
 						_touchbarDisplay.fire(TouchBarItemType::Photo);
 					}
 				}
@@ -2363,11 +2494,10 @@ void OverlayWidget::displayDocument(
 		// _docSize is updated in updateControls()
 
 		_docRect = QRect((width() - st::mediaviewFileSize.width()) / 2, (height() - st::mediaviewFileSize.height()) / 2, st::mediaviewFileSize.width(), st::mediaviewFileSize.height());
-		_docIconRect = myrtlrect(_docRect.x() + st::mediaviewFilePadding, _docRect.y() + st::mediaviewFilePadding, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_docIconRect = QRect(_docRect.x() + st::mediaviewFilePadding, _docRect.y() + st::mediaviewFilePadding, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	} else if (_themePreviewShown) {
 		updateThemePreviewGeometry();
 	} else if (!_staticContent.isNull()) {
-		_staticContent.setDevicePixelRatio(cRetinaFactor());
 		const auto size = style::ConvertScale(
 			flipSizeByRotation(_staticContent.size()));
 		_w = size.width();
@@ -2378,9 +2508,16 @@ void OverlayWidget::displayDocument(
 		_h = contentSize.height();
 	}
 	contentSizeChanged();
+	if (videoShown()) {
+		applyVideoSize();
+	}
 	refreshFromLabel(item);
 	_blurred = false;
-	displayFinished();
+	if (_showAsPip && _streamed && !videoIsGifOrUserpic()) {
+		switchToPip();
+	} else {
+		displayFinished();
+	}
 }
 
 void OverlayWidget::updateThemePreviewGeometry() {
@@ -2409,16 +2546,19 @@ void OverlayWidget::updateThemePreviewGeometry() {
 void OverlayWidget::displayFinished() {
 	updateControls();
 	if (isHidden()) {
-		Ui::Platform::UpdateOverlayed(this);
+		moveToScreen();
+		//setAttribute(Qt::WA_DontShowOnScreen);
+		//OverlayParent::setVisibleHook(true);
+		//OverlayParent::setVisibleHook(false);
+		//setAttribute(Qt::WA_DontShowOnScreen, false);
+		Ui::Platform::UpdateOverlayed(_widget);
 		if (Platform::IsLinux()) {
-			showFullScreen();
+			_widget->showFullScreen();
 		} else {
-			show();
+			_widget->show();
 		}
-		Ui::Platform::ShowOverAll(this);
-		activateWindow();
-		QApplication::setActiveWindow(this);
-		setFocus();
+		Ui::Platform::ShowOverAll(_widget);
+		activate();
 	}
 }
 
@@ -2468,17 +2608,21 @@ bool OverlayWidget::initStreaming(bool continueStreaming) {
 void OverlayWidget::startStreamingPlayer() {
 	Expects(_streamed != nullptr);
 
-	if (_streamed->instance.player().playing()) {
+	const auto &player = _streamed->instance.player();
+	if (player.playing()) {
 		if (!_streamed->withSound) {
 			return;
 		}
+		_pip = nullptr;
+	} else if (!player.paused() && !player.finished() && !player.failed()) {
 		_pip = nullptr;
 	} else if (_pip && _streamed->withSound) {
 		return;
 	}
 
 	const auto position = _document
-		? _document->session().settings().mediaLastPlaybackPosition(_document->id)
+		? _document->session().settings().mediaLastPlaybackPosition(
+			_document->id)
 		: _photo
 		? _photo->videoStartPosition()
 		: 0;
@@ -2528,7 +2672,7 @@ void OverlayWidget::initStreamingThumbnail() {
 	const auto h = size.height();
 	const auto options = VideoThumbOptions(_document);
 	const auto goodOptions = (options & ~Images::Option::Blurred);
-	_staticContent = (good
+	setStaticContent((good
 		? good
 		: thumbnail
 		? thumbnail
@@ -2539,25 +2683,27 @@ void OverlayWidget::initStreamingThumbnail() {
 			h,
 			good ? goodOptions : options,
 			w / cIntRetinaFactor(),
-			h / cIntRetinaFactor());
-	_staticContent.setDevicePixelRatio(cRetinaFactor());
+			h / cIntRetinaFactor()
+		).toImage());
 }
 
 void OverlayWidget::streamingReady(Streaming::Information &&info) {
 	if (videoShown()) {
 		applyVideoSize();
+	} else {
+		updateContentRect();
 	}
-	update(contentRect());
 }
 
 void OverlayWidget::applyVideoSize() {
 	const auto contentSize = style::ConvertScale(videoSize());
 	if (contentSize != QSize(_width, _height)) {
-		update(contentRect());
+		updateContentRect();
 		_w = contentSize.width();
 		_h = contentSize.height();
 		contentSizeChanged();
 	}
+	updateContentRect();
 }
 
 bool OverlayWidget::createStreamingObjects() {
@@ -2567,14 +2713,14 @@ bool OverlayWidget::createStreamingObjects() {
 		_streamed = std::make_unique<Streamed>(
 			_document,
 			fileOrigin(),
-			this,
+			_widget,
 			static_cast<PlaybackControls::Delegate*>(this),
 			[=] { waitingAnimationCallback(); });
 	} else {
 		_streamed = std::make_unique<Streamed>(
 			_photo,
 			fileOrigin(),
-			this,
+			_widget,
 			static_cast<PlaybackControls::Delegate*>(this),
 			[=] { waitingAnimationCallback(); });
 	}
@@ -2582,6 +2728,7 @@ bool OverlayWidget::createStreamingObjects() {
 		_streamed = nullptr;
 		return false;
 	}
+	++_streamedCreated;
 	_streamed->instance.setPriority(kOverlayLoaderPriority);
 	_streamed->instance.lockPlayer();
 	_streamed->withSound = _document
@@ -2599,27 +2746,28 @@ bool OverlayWidget::createStreamingObjects() {
 	return true;
 }
 
-QImage OverlayWidget::transformVideoFrame(QImage frame) const {
-	Expects(videoShown());
-
-	const auto rotation = contentRotation();
-	if (rotation != 0) {
-		frame = RotateFrameImage(std::move(frame), rotation);
-	}
-	const auto requiredSize = videoSize();
-	if (frame.size() != requiredSize) {
-		frame = frame.scaled(
-			requiredSize,
-			Qt::IgnoreAspectRatio,
-			Qt::SmoothTransformation);
-	}
-	return frame;
+QImage OverlayWidget::transformedShownContent() const {
+	return transformShownContent(
+		videoShown() ? currentVideoFrameImage() : _staticContent,
+		finalContentRotation());
 }
 
-QImage OverlayWidget::transformStaticContent(QPixmap content) const {
-	return _rotation
-		? RotateFrameImage(content.toImage(), _rotation)
-		: content.toImage();
+QImage OverlayWidget::transformShownContent(
+		QImage content,
+		int rotation) const {
+	if (rotation) {
+		content = RotateFrameImage(std::move(content), rotation);
+	}
+	if (videoShown()) {
+		const auto requiredSize = videoSize();
+		if (content.size() != requiredSize) {
+			content = content.scaled(
+				requiredSize,
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
+		}
+	}
+	return content;
 }
 
 void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
@@ -2630,7 +2778,7 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 	}, [&](const PreloadedVideo &update) {
 		updatePlaybackState();
 	}, [&](const UpdateVideo &update) {
-		this->update(contentRect());
+		updateContentRect();
 		Core::App().updateNonIdle();
 		updatePlaybackState();
 	}, [&](const PreloadedAudio &update) {
@@ -2702,8 +2850,8 @@ void OverlayWidget::initThemePreview() {
 
 	const auto weakSession = base::make_weak(&_document->session());
 	const auto path = _document->location().name();
-	const auto id = _themePreviewId = rand_value<uint64>();
-	const auto weak = Ui::MakeWeak(this);
+	const auto id = _themePreviewId = openssl::RandomValue<uint64>();
+	const auto weak = Ui::MakeWeak(_widget);
 	crl::async([=, data = std::move(current)]() mutable {
 		auto preview = GeneratePreview(
 			bytes,
@@ -2720,7 +2868,7 @@ void OverlayWidget::initThemePreview() {
 			_themePreview = std::move(result);
 			if (_themePreview) {
 				_themeApply.create(
-					this,
+					_widget,
 					tr::lng_theme_preview_apply(),
 					st::themePreviewApplyButton);
 				_themeApply->show();
@@ -2736,14 +2884,14 @@ void OverlayWidget::initThemePreview() {
 					}
 				});
 				_themeCancel.create(
-					this,
+					_widget,
 					tr::lng_cancel(),
 					st::themePreviewCancelButton);
 				_themeCancel->show();
 				_themeCancel->setClickedCallback([this] { close(); });
 				if (const auto slug = _themeCloudData.slug; !slug.isEmpty()) {
 					_themeShare.create(
-						this,
+						_widget,
 						tr::lng_theme_share(),
 						st::themePreviewCancelButton);
 					_themeShare->show();
@@ -2751,7 +2899,7 @@ void OverlayWidget::initThemePreview() {
 						QGuiApplication::clipboard()->setText(
 							session->createInternalLinkFull("addtheme/" + slug));
 						Ui::Toast::Show(
-							this,
+							_widget,
 							tr::lng_background_link_copied(tr::now));
 					});
 				} else {
@@ -2807,6 +2955,8 @@ void OverlayWidget::playbackControlsToPictureInPicture() {
 }
 
 void OverlayWidget::playbackControlsRotate() {
+	_oldGeometry = contentGeometry();
+	_geometryAnimation.stop();
 	if (_photo) {
 		auto &storage = _photo->owner().mediaRotation();
 		storage.set(_photo, storage.get(_photo) - 90);
@@ -2818,10 +2968,17 @@ void OverlayWidget::playbackControlsRotate() {
 		_rotation = storage.get(_document);
 		if (videoShown()) {
 			applyVideoSize();
-			update(contentRect());
 		} else {
 			redisplayContent();
 		}
+	}
+	if (_opengl) {
+		_geometryAnimation.start(
+			[=] { update(); },
+			0.,
+			1.,
+			st::widgetFadeDuration/*,
+			st::easeOutCirc*/);
 	}
 }
 
@@ -2854,9 +3011,9 @@ void OverlayWidget::restartAtSeekPosition(crl::time position) {
 	if (videoShown()) {
 		_streamed->instance.saveFrameToCover();
 		const auto saved = base::take(_rotation);
-		_staticContent = Images::PixmapFast(transformVideoFrame(videoFrame()));
+		setStaticContent(transformedShownContent());
 		_rotation = saved;
-		update(contentRect());
+		updateContentRect();
 	}
 	auto options = Streaming::PlaybackOptions();
 	options.position = position;
@@ -2901,9 +3058,11 @@ void OverlayWidget::playbackControlsSeekFinished(crl::time position) {
 }
 
 void OverlayWidget::playbackControlsVolumeChanged(float64 volume) {
+	if (_streamed) {
+		Player::mixer()->setVideoVolume(volume);
+	}
 	Core::App().settings().setVideoVolume(volume);
 	Core::App().saveSettingsDelayed();
-	updateMixerVideoVolume();
 }
 
 float64 OverlayWidget::playbackControlsCurrentVolume() {
@@ -2948,18 +3107,25 @@ void OverlayWidget::switchToPip() {
 	const auto document = _document;
 	const auto msgId = _msgid;
 	const auto closeAndContinue = [=] {
+		_showAsPip = false;
 		showDocument(document, document->owner().message(msgId), {}, true);
 	};
+	_showAsPip = true;
 	_pip = std::make_unique<PipWrap>(
-		this,
+		_widget,
 		document,
 		msgId,
 		_streamed->instance.shared(),
 		closeAndContinue,
 		[=] { _pip = nullptr; });
-	close();
-	if (const auto window = Core::App().activeWindow()) {
-		window->activate();
+	if (isHidden()) {
+		clearBeforeHide();
+		clearAfterHide();
+	} else {
+		close();
+		if (const auto window = Core::App().activeWindow()) {
+			window->activate();
+		}
 	}
 }
 
@@ -3038,16 +3204,19 @@ void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {
 	}
 	const auto use = flipSizeByRotation({ _width, _height })
 		* cIntRetinaFactor();
-	_staticContent = image->pixNoCache(
+	setStaticContent(image->pixNoCache(
 		use.width(),
 		use.height(),
 		Images::Option::Smooth
-		| (blurred ? Images::Option::Blurred : Images::Option(0)));
-	_staticContent.setDevicePixelRatio(cRetinaFactor());
+		| (blurred ? Images::Option::Blurred : Images::Option(0))
+	).toImage());
 	_blurred = blurred;
 }
 
 void OverlayWidget::validatePhotoCurrentImage() {
+	if (!_photo) {
+		return;
+	}
 	validatePhotoImage(_photoMedia->image(Data::PhotoSize::Large), false);
 	validatePhotoImage(_photoMedia->image(Data::PhotoSize::Thumbnail), true);
 	validatePhotoImage(_photoMedia->image(Data::PhotoSize::Small), true);
@@ -3065,255 +3234,72 @@ void OverlayWidget::validatePhotoCurrentImage() {
 	}
 }
 
-void OverlayWidget::paintEvent(QPaintEvent *e) {
-	const auto r = e->rect();
-	const auto region = e->region();
-	const auto contentShown = _photo || documentContentShown();
-	const auto bgRegion = contentShown
-		? (region - contentRect())
-		: region;
-
-	auto ms = crl::now();
-
-	Painter p(this);
-
-	bool name = false;
-
-	p.setClipRegion(region);
-
-	// main bg
-	const auto m = p.compositionMode();
-	p.setCompositionMode(QPainter::CompositionMode_Source);
-	const auto bgColor = _fullScreenVideo ? st::mediaviewVideoBg : st::mediaviewBg;
-	for (const auto rect : bgRegion) {
-		p.fillRect(rect, bgColor);
+Ui::GL::ChosenRenderer OverlayWidget::chooseRenderer(
+		Ui::GL::Capabilities capabilities) {
+	const auto use = Platform::IsMac()
+		? true
+		: capabilities.transparency;
+	LOG(("OpenGL: %1 (OverlayWidget)").arg(Logs::b(use)));
+	if (use) {
+		_opengl = true;
+		return {
+			.renderer = std::make_unique<RendererGL>(this),
+			.backend = Ui::GL::Backend::OpenGL,
+		};
 	}
-	p.setCompositionMode(m);
+	return {
+		.renderer = std::make_unique<RendererSW>(this),
+		.backend = Ui::GL::Backend::Raster,
+	};
+}
 
-	// photo
-	if (_photo) {
-		validatePhotoCurrentImage();
-	}
-	p.setOpacity(1);
-	if (contentShown) {
-		const auto rect = contentRect();
-		if (rect.intersects(r)) {
-			if (videoShown()) {
-				paintTransformedVideoFrame(p);
-			} else {
-				paintTransformedStaticContent(p);
+void OverlayWidget::paint(not_null<Renderer*> renderer) {
+	renderer->paintBackground();
+	if (contentShown()) {
+		if (videoShown()) {
+			renderer->paintTransformedVideoFrame(contentGeometry());
+			if (_streamed->instance.player().ready()) {
+				_streamed->instance.markFrameShown();
 			}
-
-			const auto radial = _radial.animating();
-			const auto radialOpacity = radial ? _radial.opacity() : 0.;
-			paintRadialLoading(p, radial, radialOpacity);
+		} else {
+			validatePhotoCurrentImage();
+			const auto fillTransparentBackground = (!_document
+				|| (!_document->sticker() && !_document->isVideoMessage()))
+				&& _staticContentTransparent;
+			renderer->paintTransformedStaticContent(
+				_staticContent,
+				contentGeometry(),
+				_staticContentTransparent,
+				fillTransparentBackground);
 		}
-		if (_saveMsgStarted && _saveMsg.intersects(r)) {
-			float64 dt = float64(ms) - _saveMsgStarted, hidingDt = dt - st::mediaviewSaveMsgShowing - st::mediaviewSaveMsgShown;
-			if (dt < st::mediaviewSaveMsgShowing + st::mediaviewSaveMsgShown + st::mediaviewSaveMsgHiding) {
-				if (hidingDt >= 0 && _saveMsgOpacity.to() > 0.5) {
-					_saveMsgOpacity.start(0);
-				}
-				float64 progress = (hidingDt >= 0) ? (hidingDt / st::mediaviewSaveMsgHiding) : (dt / st::mediaviewSaveMsgShowing);
-				_saveMsgOpacity.update(qMin(progress, 1.), anim::linear);
-				if (_saveMsgOpacity.current() > 0) {
-					p.setOpacity(_saveMsgOpacity.current());
-					Ui::FillRoundRect(p, _saveMsg, st::mediaviewSaveMsgBg, Ui::MediaviewSaveCorners);
-					st::mediaviewSaveMsgCheck.paint(p, _saveMsg.topLeft() + st::mediaviewSaveMsgCheckPos, width());
-
-					p.setPen(st::mediaviewSaveMsgFg);
-					p.setTextPalette(st::mediaviewTextPalette);
-					_saveMsgText.draw(p, _saveMsg.x() + st::mediaviewSaveMsgPadding.left(), _saveMsg.y() + st::mediaviewSaveMsgPadding.top(), _saveMsg.width() - st::mediaviewSaveMsgPadding.left() - st::mediaviewSaveMsgPadding.right());
-					p.restoreTextPalette();
-					p.setOpacity(1);
-				}
-				if (!_blurred) {
-					auto nextFrame = (dt < st::mediaviewSaveMsgShowing || hidingDt >= 0) ? int(AnimationTimerDelta) : (st::mediaviewSaveMsgShowing + st::mediaviewSaveMsgShown + 1 - dt);
-					_saveMsgUpdater.start(nextFrame);
-				}
-			} else {
-				_saveMsgStarted = 0;
-			}
-		}
-	} else if (_themePreviewShown) {
-		paintThemePreview(p, r);
-	} else if (documentBubbleShown()) {
-		if (_docRect.intersects(r)) {
-			p.fillRect(_docRect, st::mediaviewFileBg);
-			if (_docIconRect.intersects(r)) {
-				const auto radial = _radial.animating();
-				const auto radialOpacity = radial ? _radial.opacity() : 0.;
-				if (!_document || !_document->hasThumbnail()) {
-					p.fillRect(_docIconRect, _docIconColor);
-					if ((!_document || _documentMedia->loaded()) && (!radial || radialOpacity < 1) && _docIcon) {
-						_docIcon->paint(p, _docIconRect.x() + (_docIconRect.width() - _docIcon->width()), _docIconRect.y(), width());
-						p.setPen(st::mediaviewFileExtFg);
-						p.setFont(st::mediaviewFileExtFont);
-						if (!_docExt.isEmpty()) {
-							p.drawText(_docIconRect.x() + (_docIconRect.width() - _docExtWidth) / 2, _docIconRect.y() + st::mediaviewFileExtTop + st::mediaviewFileExtFont->ascent, _docExt);
-						}
-					}
-				} else if (const auto thumbnail = _documentMedia->thumbnail()) {
-					int32 rf(cIntRetinaFactor());
-					p.drawPixmap(_docIconRect.topLeft(), thumbnail->pix(_docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mediaviewFileIconSize * rf, st::mediaviewFileIconSize * rf));
-				}
-
-				paintRadialLoading(p, radial, radialOpacity);
-			}
-
-			if (!_docIconRect.contains(r)) {
-				name = true;
-				p.setPen(st::mediaviewFileNameFg);
-				p.setFont(st::mediaviewFileNameFont);
-				p.drawTextLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileNameTop, width(), _docName, _docNameWidth);
-
-				p.setPen(st::mediaviewFileSizeFg);
-				p.setFont(st::mediaviewFont);
-				p.drawTextLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileSizeTop, width(), _docSize, _docSizeWidth);
-			}
+		paintRadialLoading(renderer);
+	} else {
+		if (_themePreviewShown) {
+			renderer->paintThemePreview(_themePreviewRect);
+		} else if (documentBubbleShown() && !_docRect.isEmpty()) {
+			renderer->paintDocumentBubble(_docRect, _docIconRect);
 		}
 	}
+	updateSaveMsgState();
+	if (_saveMsgStarted && _saveMsgOpacity.current() > 0.) {
+		renderer->paintSaveMsg(_saveMsg);
+	}
 
-	float64 co = _fullScreenVideo ? 0. : _controlsOpacity.current();
-	if (co > 0) {
-		// left nav bar
-		if (_leftNav.intersects(r) && _leftNavVisible) {
-			auto o = overLevel(OverLeftNav);
-			if (o > 0) {
-				p.setOpacity(o * co);
-				for (const auto &rect : region) {
-					const auto fill = _leftNav.intersected(rect);
-					if (!fill.isEmpty()) p.fillRect(fill, st::mediaviewControlBg);
-				}
-			}
-			if (_leftNavIcon.intersects(r)) {
-				p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
-				st::mediaviewLeft.paintInCenter(p, _leftNavIcon);
-			}
-		}
-
-		// right nav bar
-		if (_rightNav.intersects(r) && _rightNavVisible) {
-			auto o = overLevel(OverRightNav);
-			if (o > 0) {
-				p.setOpacity(o * co);
-				for (const auto &rect : region) {
-					const auto fill = _rightNav.intersected(rect);
-					if (!fill.isEmpty()) p.fillRect(fill, st::mediaviewControlBg);
-				}
-			}
-			if (_rightNavIcon.intersects(r)) {
-				p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
-				st::mediaviewRight.paintInCenter(p, _rightNavIcon);
-			}
-		}
-
-		// close button
-		if (_closeNav.intersects(r)) {
-			auto o = overLevel(OverClose);
-			if (o > 0) {
-				p.setOpacity(o * co);
-				for (const auto &rect : region) {
-					const auto fill = _closeNav.intersected(rect);
-					if (!fill.isEmpty()) p.fillRect(fill, st::mediaviewControlBg);
-				}
-			}
-			if (_closeNavIcon.intersects(r)) {
-				p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
-				st::mediaviewClose.paintInCenter(p, _closeNavIcon);
-			}
-		}
-
-		// save button
-		if (_saveVisible && _saveNavIcon.intersects(r)) {
-			auto o = overLevel(OverSave);
-			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
-			st::mediaviewSave.paintInCenter(p, _saveNavIcon);
-		}
-
-		// rotate button
-		if (_rotateVisible && _rotateNavIcon.intersects(r)) {
-			auto o = overLevel(OverRotate);
-			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
-			st::mediaviewRotate.paintInCenter(p, _rotateNavIcon);
-		}
-
-		// more area
-		if (_moreNavIcon.intersects(r)) {
-			auto o = overLevel(OverMore);
-			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
-			st::mediaviewMore.paintInCenter(p, _moreNavIcon);
-		}
-
-		p.setPen(st::mediaviewControlFg);
-		p.setFont(st::mediaviewThickFont);
-
-		// header
-		if (_headerNav.intersects(r)) {
-			auto o = _headerHasLink ? overLevel(OverHeader) : 0;
-			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
-			p.drawText(_headerNav.left(), _headerNav.top() + st::mediaviewThickFont->ascent, _headerText);
-
-			if (o > 0) {
-				p.setOpacity(o * co);
-				p.drawLine(_headerNav.left(), _headerNav.top() + st::mediaviewThickFont->ascent + 1, _headerNav.right(), _headerNav.top() + st::mediaviewThickFont->ascent + 1);
-			}
-		}
-
-		p.setFont(st::mediaviewFont);
-
-		// name
-		if (_nameNav.isValid() && _nameNav.intersects(r)) {
-			float64 o = _from ? overLevel(OverName) : 0.;
-			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
-			_fromNameLabel.drawElided(p, _nameNav.left(), _nameNav.top(), _nameNav.width());
-
-			if (o > 0) {
-				p.setOpacity(o * co);
-				p.drawLine(_nameNav.left(), _nameNav.top() + st::mediaviewFont->ascent + 1, _nameNav.right(), _nameNav.top() + st::mediaviewFont->ascent + 1);
-			}
-		}
-
-		// date
-		if (_dateNav.intersects(r)) {
-			float64 o = overLevel(OverDate);
-			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
-			p.drawText(_dateNav.left(), _dateNav.top() + st::mediaviewFont->ascent, _dateText);
-
-			if (o > 0) {
-				p.setOpacity(o * co);
-				p.drawLine(_dateNav.left(), _dateNav.top() + st::mediaviewFont->ascent + 1, _dateNav.right(), _dateNav.top() + st::mediaviewFont->ascent + 1);
-			}
-		}
-
-		// caption
+	const auto opacity = _fullScreenVideo ? 0. : _controlsOpacity.current();
+	if (opacity > 0) {
+		paintControls(renderer, opacity);
+		renderer->paintFooter(footerGeometry(), opacity);
 		if (!_caption.isEmpty()) {
-			QRect outer(_captionRect.marginsAdded(st::mediaviewCaptionPadding));
-			if (outer.intersects(r)) {
-				p.setOpacity(co);
-				p.setBrush(st::mediaviewCaptionBg);
-				p.setPen(Qt::NoPen);
-				p.drawRoundedRect(outer, st::mediaviewCaptionRadius, st::mediaviewCaptionRadius);
-				if (_captionRect.intersects(r)) {
-					p.setTextPalette(st::mediaviewTextPalette);
-					p.setPen(st::mediaviewCaptionFg);
-					_caption.drawElided(p, _captionRect.x(), _captionRect.y(), _captionRect.width(), _captionRect.height() / st::mediaviewCaptionStyle.font->height);
-					p.restoreTextPalette();
-				}
-			}
+			renderer->paintCaption(captionGeometry(), opacity);
 		}
-
-		if (_groupThumbs && _groupThumbsRect.intersects(r)) {
-			p.setOpacity(co);
-			_groupThumbs->paint(
-				p,
-				_groupThumbsLeft,
-				_groupThumbsTop,
-				width());
-			if (_groupThumbs->hidden()) {
-				_groupThumbs = nullptr;
-				_groupThumbsRect = QRect();
-			}
+		if (_groupThumbs) {
+			renderer->paintGroupThumbs(
+				QRect(
+					_groupThumbsLeft,
+					_groupThumbsTop,
+					width() - 2 * _groupThumbsLeft,
+					_groupThumbs->height()),
+				opacity);
 		}
 	}
 	checkGroupThumbsAnimation();
@@ -3326,63 +3312,8 @@ void OverlayWidget::checkGroupThumbsAnimation() {
 	}
 }
 
-void OverlayWidget::paintTransformedVideoFrame(Painter &p) {
-	Expects(_streamed != nullptr);
-
-	const auto rect = contentRect();
-	const auto image = videoFrameForDirectPaint();
-
-	PainterHighQualityEnabler hq(p);
-
-	const auto rotation = contentRotation();
-	if (UsePainterRotation(rotation)) {
-		if (rotation) {
-			p.save();
-			p.rotate(rotation);
-		}
-		p.drawImage(RotatedRect(rect, rotation), image);
-		if (rotation) {
-			p.restore();
-		}
-	} else {
-		p.drawImage(rect, transformVideoFrame(image));
-	}
-	if (_streamed->instance.player().ready()) {
-		_streamed->instance.markFrameShown();
-	}
-}
-
-void OverlayWidget::paintTransformedStaticContent(Painter &p) {
-	const auto rect = contentRect();
-
-	PainterHighQualityEnabler hq(p);
-	if ((!_document || !_documentMedia->getStickerLarge())
-		&& (_staticContent.isNull()
-			|| _staticContent.hasAlpha())) {
-		p.fillRect(rect, _transparentBrush);
-	}
-	if (_staticContent.isNull()) {
-		return;
-	}
-	const auto rotation = contentRotation();
-	if (UsePainterRotation(rotation)) {
-		if (rotation) {
-			p.save();
-			p.rotate(rotation);
-		}
-		p.drawPixmap(RotatedRect(rect, rotation), _staticContent);
-		if (rotation) {
-			p.restore();
-		}
-	} else {
-		p.drawImage(rect, transformStaticContent(_staticContent));
-	}
-}
-
-void OverlayWidget::paintRadialLoading(
-		Painter &p,
-		bool radial,
-		float64 radialOpacity) {
+void OverlayWidget::paintRadialLoading(not_null<Renderer*> renderer) {
+	const auto radial = _radial.animating();
 	if (_streamed) {
 		if (!_streamed->instance.waitingShown()) {
 			return;
@@ -3391,27 +3322,11 @@ void OverlayWidget::paintRadialLoading(
 		return;
 	}
 
+	const auto radialOpacity = radial ? _radial.opacity() : 0.;
 	const auto inner = radialRect();
 	Assert(!inner.isEmpty());
 
-#ifdef USE_OPENGL_OVERLAY_WIDGET
-	{
-		if (_radialCache.size() != inner.size() * cIntRetinaFactor()) {
-			_radialCache = QImage(
-				inner.size() * cIntRetinaFactor(),
-				QImage::Format_ARGB32_Premultiplied);
-			_radialCache.setDevicePixelRatio(cRetinaFactor());
-		}
-		_radialCache.fill(Qt::transparent);
-
-		Painter q(&_radialCache);
-		const auto moved = inner.translated(-inner.topLeft());
-		paintRadialLoadingContent(q, moved, radial, radialOpacity);
-	}
-	p.drawImage(inner.topLeft(), _radialCache);
-#else // USE_OPENGL_OVERLAY_WIDGET
-	paintRadialLoadingContent(p, inner, radial, radialOpacity);
-#endif // USE_OPENGL_OVERLAY_WIDGET
+	renderer->paintRadialLoading(inner, radial, radialOpacity);
 }
 
 void OverlayWidget::paintRadialLoadingContent(
@@ -3473,19 +3388,22 @@ void OverlayWidget::paintRadialLoadingContent(
 	}
 }
 
-void OverlayWidget::paintThemePreview(Painter &p, QRect clip) {
-	auto fill = _themePreviewRect.intersected(clip);
+void OverlayWidget::paintThemePreviewContent(
+		Painter &p,
+		QRect outer,
+		QRect clip) {
+	const auto fill = outer.intersected(clip);
 	if (!fill.isEmpty()) {
 		if (_themePreview) {
 			p.drawImage(
-				myrtlrect(_themePreviewRect).topLeft(),
+				outer.topLeft(),
 				_themePreview->preview);
 		} else {
 			p.fillRect(fill, st::themePreviewBg);
 			p.setFont(st::themePreviewLoadingFont);
 			p.setPen(st::themePreviewLoadingFg);
 			p.drawText(
-				_themePreviewRect,
+				outer,
 				(_themePreviewId
 					? tr::lng_theme_preview_generating(tr::now)
 					: tr::lng_theme_preview_invalid(tr::now)),
@@ -3493,111 +3411,384 @@ void OverlayWidget::paintThemePreview(Painter &p, QRect clip) {
 		}
 	}
 
-	auto fillOverlay = [&](QRect fill) {
-		auto clipped = fill.intersected(clip);
+	const auto fillOverlay = [&](QRect fill) {
+		const auto clipped = fill.intersected(clip);
 		if (!clipped.isEmpty()) {
 			p.setOpacity(st::themePreviewOverlayOpacity);
 			p.fillRect(clipped, st::themePreviewBg);
 			p.setOpacity(1.);
 		}
 	};
-	auto titleRect = QRect(_themePreviewRect.x(), _themePreviewRect.y(), _themePreviewRect.width(), st::themePreviewMargin.top());
+	auto titleRect = QRect(
+		outer.x(),
+		outer.y(),
+		outer.width(),
+		st::themePreviewMargin.top());
 	if (titleRect.x() < 0) {
-		titleRect = QRect(0, _themePreviewRect.y(), width(), st::themePreviewMargin.top());
+		titleRect = QRect(
+			0,
+			outer.y(),
+			width(),
+			st::themePreviewMargin.top());
 	}
-	if (auto fillTitleRect = (titleRect.y() < 0)) {
+	if (const auto fillTitleRect = (titleRect.y() < 0)) {
 		titleRect.moveTop(0);
 		fillOverlay(titleRect);
 	}
-	titleRect = titleRect.marginsRemoved(QMargins(st::themePreviewMargin.left(), st::themePreviewTitleTop, st::themePreviewMargin.right(), titleRect.height() - st::themePreviewTitleTop - st::themePreviewTitleFont->height));
+	titleRect = titleRect.marginsRemoved(QMargins(
+		st::themePreviewMargin.left(),
+		st::themePreviewTitleTop,
+		st::themePreviewMargin.right(),
+		(titleRect.height()
+			- st::themePreviewTitleTop
+			- st::themePreviewTitleFont->height)));
 	if (titleRect.intersects(clip)) {
 		p.setFont(st::themePreviewTitleFont);
 		p.setPen(st::themePreviewTitleFg);
 		const auto title = _themeCloudData.title.isEmpty()
 			? tr::lng_theme_preview_title(tr::now)
 			: _themeCloudData.title;
-		const auto elided = st::themePreviewTitleFont->elided(title, titleRect.width());
+		const auto elided = st::themePreviewTitleFont->elided(
+			title,
+			titleRect.width());
 		p.drawTextLeft(titleRect.x(), titleRect.y(), width(), elided);
 	}
 
-	auto buttonsRect = QRect(_themePreviewRect.x(), _themePreviewRect.y() + _themePreviewRect.height() - st::themePreviewMargin.bottom(), _themePreviewRect.width(), st::themePreviewMargin.bottom());
-	if (auto fillButtonsRect = (buttonsRect.y() + buttonsRect.height() > height())) {
+	auto buttonsRect = QRect(
+		outer.x(),
+		outer.y() + outer.height() - st::themePreviewMargin.bottom(),
+		outer.width(),
+		st::themePreviewMargin.bottom());
+	if (const auto fillButtonsRect
+		= (buttonsRect.y() + buttonsRect.height() > height())) {
 		buttonsRect.moveTop(height() - buttonsRect.height());
 		fillOverlay(buttonsRect);
 	}
 	if (_themeShare && _themeCloudData.usersCount > 0) {
 		p.setFont(st::boxTextFont);
 		p.setPen(st::windowSubTextFg);
-		const auto left = _themeShare->x() + _themeShare->width() - (st::themePreviewCancelButton.width / 2);
-		const auto baseline = _themeShare->y() + st::themePreviewCancelButton.padding.top() + +st::themePreviewCancelButton.textTop + st::themePreviewCancelButton.font->ascent;
-		p.drawText(left, baseline, tr::lng_theme_preview_users(tr::now, lt_count, _themeCloudData.usersCount));
+		const auto left = outer.x()
+			+ (_themeShare->x() - _themePreviewRect.x())
+			+ _themeShare->width()
+			- (st::themePreviewCancelButton.width / 2);
+		const auto baseline = outer.y()
+			+ (_themeShare->y() - _themePreviewRect.y())
+			+ st::themePreviewCancelButton.padding.top()
+			+ st::themePreviewCancelButton.textTop
+			+ st::themePreviewCancelButton.font->ascent;
+		p.drawText(
+			left,
+			baseline,
+			tr::lng_theme_preview_users(
+				tr::now,
+				lt_count,
+				_themeCloudData.usersCount));
 	}
 }
 
-void OverlayWidget::keyPressEvent(QKeyEvent *e) {
-	const auto ctrl = e->modifiers().testFlag(Qt::ControlModifier);
+void OverlayWidget::paintDocumentBubbleContent(
+		Painter &p,
+		QRect outer,
+		QRect icon,
+		QRect clip) const {
+	p.fillRect(outer, st::mediaviewFileBg);
+	if (icon.intersects(clip)) {
+		if (!_document || !_document->hasThumbnail()) {
+			p.fillRect(icon, _docIconColor);
+			const auto radial = _radial.animating();
+			const auto radialOpacity = radial ? _radial.opacity() : 0.;
+			if ((!_document || _documentMedia->loaded()) && (!radial || radialOpacity < 1) && _docIcon) {
+				_docIcon->paint(p, icon.x() + (icon.width() - _docIcon->width()), icon.y(), width());
+				p.setPen(st::mediaviewFileExtFg);
+				p.setFont(st::mediaviewFileExtFont);
+				if (!_docExt.isEmpty()) {
+					p.drawText(icon.x() + (icon.width() - _docExtWidth) / 2, icon.y() + st::mediaviewFileExtTop + st::mediaviewFileExtFont->ascent, _docExt);
+				}
+			}
+		} else if (const auto thumbnail = _documentMedia->thumbnail()) {
+			int32 rf(cIntRetinaFactor());
+			p.drawPixmap(icon.topLeft(), thumbnail->pix(_docThumbw), QRect(_docThumbx * rf, _docThumby * rf, st::mediaviewFileIconSize * rf, st::mediaviewFileIconSize * rf));
+		}
+	}
+	if (!icon.contains(clip)) {
+		p.setPen(st::mediaviewFileNameFg);
+		p.setFont(st::mediaviewFileNameFont);
+		p.drawTextLeft(outer.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, outer.y() + st::mediaviewFilePadding + st::mediaviewFileNameTop, width(), _docName, _docNameWidth);
+
+		p.setPen(st::mediaviewFileSizeFg);
+		p.setFont(st::mediaviewFont);
+		p.drawTextLeft(outer.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, outer.y() + st::mediaviewFilePadding + st::mediaviewFileSizeTop, width(), _docSize, _docSizeWidth);
+	}
+}
+
+void OverlayWidget::paintSaveMsgContent(
+		Painter &p,
+		QRect outer,
+		QRect clip) {
+	p.setOpacity(_saveMsgOpacity.current());
+	Ui::FillRoundRect(p, outer, st::mediaviewSaveMsgBg, Ui::MediaviewSaveCorners);
+	st::mediaviewSaveMsgCheck.paint(p, outer.topLeft() + st::mediaviewSaveMsgCheckPos, width());
+
+	p.setPen(st::mediaviewSaveMsgFg);
+	p.setTextPalette(st::mediaviewTextPalette);
+	_saveMsgText.draw(p, outer.x() + st::mediaviewSaveMsgPadding.left(), outer.y() + st::mediaviewSaveMsgPadding.top(), outer.width() - st::mediaviewSaveMsgPadding.left() - st::mediaviewSaveMsgPadding.right());
+	p.restoreTextPalette();
+	p.setOpacity(1);
+}
+
+void OverlayWidget::paintControls(
+		not_null<Renderer*> renderer,
+		float64 opacity) {
+	struct Control {
+		OverState state = OverNone;
+		bool visible = false;
+		const QRect &outer;
+		const QRect &inner;
+		const style::icon &icon;
+	};
+	const QRect kEmpty;
+	// When adding / removing controls please update RendererGL.
+	const Control controls[] = {
+		{
+			OverLeftNav,
+			_leftNavVisible,
+			_leftNav,
+			_leftNavIcon,
+			st::mediaviewLeft },
+		{
+			OverRightNav,
+			_rightNavVisible,
+			_rightNav,
+			_rightNavIcon,
+			st::mediaviewRight },
+		{
+			OverClose,
+			true,
+			_closeNav,
+			_closeNavIcon,
+			st::mediaviewClose },
+		{
+			OverSave,
+			_saveVisible,
+			kEmpty,
+			_saveNavIcon,
+			st::mediaviewSave },
+		{
+			OverRotate,
+			_rotateVisible,
+			kEmpty,
+			_rotateNavIcon,
+			st::mediaviewRotate },
+		{
+			OverMore,
+			true,
+			kEmpty,
+			_moreNavIcon,
+			st::mediaviewMore },
+	};
+
+	renderer->paintControlsStart();
+	for (const auto &control : controls) {
+		if (!control.visible) {
+			continue;
+		}
+		const auto bg = overLevel(control.state);
+		const auto icon = bg * st::mediaviewIconOverOpacity
+			+ (1 - bg) * st::mediaviewIconOpacity;
+		renderer->paintControl(
+			control.state,
+			control.outer,
+			bg * opacity,
+			control.inner,
+			icon * opacity,
+			control.icon);
+	}
+}
+
+void OverlayWidget::paintFooterContent(
+		Painter &p,
+		QRect outer,
+		QRect clip,
+		float64 opacity) {
+	p.setPen(st::mediaviewControlFg);
+	p.setFont(st::mediaviewThickFont);
+
+	// header
+	const auto shift = outer.topLeft() - _headerNav.topLeft();
+	const auto header = _headerNav.translated(shift);
+	const auto name = _nameNav.translated(shift);
+	const auto date = _dateNav.translated(shift);
+	if (header.intersects(clip)) {
+		auto o = _headerHasLink ? overLevel(OverHeader) : 0;
+		p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * opacity);
+		p.drawText(header.left(), header.top() + st::mediaviewThickFont->ascent, _headerText);
+
+		if (o > 0) {
+			p.setOpacity(o * opacity);
+			p.drawLine(header.left(), header.top() + st::mediaviewThickFont->ascent + 1, header.right(), header.top() + st::mediaviewThickFont->ascent + 1);
+		}
+	}
+
+	p.setFont(st::mediaviewFont);
+
+	// name
+	if (_nameNav.isValid() && name.intersects(clip)) {
+		float64 o = _from ? overLevel(OverName) : 0.;
+		p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * opacity);
+		_fromNameLabel.drawElided(p, name.left(), name.top(), name.width());
+
+		if (o > 0) {
+			p.setOpacity(o * opacity);
+			p.drawLine(name.left(), name.top() + st::mediaviewFont->ascent + 1, name.right(), name.top() + st::mediaviewFont->ascent + 1);
+		}
+	}
+
+	// date
+	if (date.intersects(clip)) {
+		float64 o = overLevel(OverDate);
+		p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * opacity);
+		p.drawText(date.left(), date.top() + st::mediaviewFont->ascent, _dateText);
+
+		if (o > 0) {
+			p.setOpacity(o * opacity);
+			p.drawLine(date.left(), date.top() + st::mediaviewFont->ascent + 1, date.right(), date.top() + st::mediaviewFont->ascent + 1);
+		}
+	}
+}
+
+QRect OverlayWidget::footerGeometry() const {
+	return _headerNav.united(_nameNav).united(_dateNav);
+}
+
+void OverlayWidget::paintCaptionContent(
+		Painter &p,
+		QRect outer,
+		QRect clip,
+		float64 opacity) {
+	const auto inner = outer.marginsRemoved(st::mediaviewCaptionPadding);
+	p.setOpacity(opacity);
+	p.setBrush(st::mediaviewCaptionBg);
+	p.setPen(Qt::NoPen);
+	p.drawRoundedRect(outer, st::mediaviewCaptionRadius, st::mediaviewCaptionRadius);
+	if (inner.intersects(clip)) {
+		p.setTextPalette(st::mediaviewTextPalette);
+		p.setPen(st::mediaviewCaptionFg);
+		_caption.drawElided(p, inner.x(), inner.y(), inner.width(), inner.height() / st::mediaviewCaptionStyle.font->height);
+		p.restoreTextPalette();
+	}
+}
+
+QRect OverlayWidget::captionGeometry() const {
+	return _captionRect.marginsAdded(st::mediaviewCaptionPadding);
+}
+
+void OverlayWidget::paintGroupThumbsContent(
+		Painter &p,
+		QRect outer,
+		QRect clip,
+		float64 opacity) {
+	p.setOpacity(opacity);
+	_groupThumbs->paint(p, outer.x(), outer.y(), width());
+	if (_groupThumbs->hidden()) {
+		_groupThumbs = nullptr;
+		_groupThumbsRect = QRect();
+	}
+}
+
+void OverlayWidget::updateSaveMsgState() {
+	if (!_saveMsgStarted) {
+		return;
+	}
+	float64 dt = float64(crl::now()) - _saveMsgStarted;
+	float64 hidingDt = dt - st::mediaviewSaveMsgShowing - st::mediaviewSaveMsgShown;
+	if (dt >= st::mediaviewSaveMsgShowing
+		+ st::mediaviewSaveMsgShown
+		+ st::mediaviewSaveMsgHiding) {
+		_saveMsgStarted = 0;
+		return;
+	}
+	if (hidingDt >= 0 && _saveMsgOpacity.to() > 0.5) {
+		_saveMsgOpacity.start(0);
+	}
+	float64 progress = (hidingDt >= 0) ? (hidingDt / st::mediaviewSaveMsgHiding) : (dt / st::mediaviewSaveMsgShowing);
+	_saveMsgOpacity.update(qMin(progress, 1.), anim::linear);
+	if (!_blurred) {
+		const auto nextFrame = (dt < st::mediaviewSaveMsgShowing || hidingDt >= 0)
+			? int(AnimationTimerDelta)
+			: (st::mediaviewSaveMsgShowing + st::mediaviewSaveMsgShown + 1 - dt);
+		_saveMsgUpdater.callOnce(nextFrame);
+	}
+}
+
+void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
+	const auto key = e->key();
+	const auto modifiers = e->modifiers();
+	const auto ctrl = modifiers.testFlag(Qt::ControlModifier);
 	if (_streamed) {
 		// Ctrl + F for full screen toggle is in eventFilter().
-		const auto toggleFull = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return)
-			&& (e->modifiers().testFlag(Qt::AltModifier) || ctrl);
+		const auto toggleFull = (modifiers.testFlag(Qt::AltModifier) || ctrl)
+			&& (key == Qt::Key_Enter || key == Qt::Key_Return);
 		if (toggleFull) {
 			playbackToggleFullScreen();
 			return;
-		} else if (e->key() == Qt::Key_Space) {
+		} else if (key == Qt::Key_Space) {
 			playbackPauseResume();
 			return;
 		} else if (_fullScreenVideo) {
-			if (e->key() == Qt::Key_Escape) {
+			if (key == Qt::Key_Escape) {
 				playbackToggleFullScreen();
 			}
 			return;
 		}
 	}
-	if (!_menu && e->key() == Qt::Key_Escape) {
+	if (!_menu && key == Qt::Key_Escape) {
 		if (_document && _document->loading() && !_streamed) {
-			onDocClick();
+			handleDocumentClick();
 		} else {
 			close();
 		}
 	} else if (e == QKeySequence::Save || e == QKeySequence::SaveAs) {
-		onSaveAs();
-	} else if (e->key() == Qt::Key_Copy || (e->key() == Qt::Key_C && ctrl)) {
-		onCopy();
-	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
+		saveAs();
+	} else if (key == Qt::Key_Copy || (key == Qt::Key_C && ctrl)) {
+		copyMedia();
+	} else if (key == Qt::Key_Enter
+		|| key == Qt::Key_Return
+		|| key == Qt::Key_Space) {
 		if (_streamed) {
 			playbackPauseResume();
-		} else if (_document && !_document->loading() && (documentBubbleShown() || !_documentMedia->loaded())) {
-			onDocClick();
+		} else if (_document
+			&& !_document->loading()
+			&& (documentBubbleShown() || !_documentMedia->loaded())) {
+			handleDocumentClick();
 		}
-	} else if (e->key() == Qt::Key_Left) {
+	} else if (key == Qt::Key_Left) {
 		if (_controlsHideTimer.isActive()) {
 			activateControls();
 		}
 		moveToNext(-1);
-	} else if (e->key() == Qt::Key_Right) {
+	} else if (key == Qt::Key_Right) {
 		if (_controlsHideTimer.isActive()) {
 			activateControls();
 		}
 		moveToNext(1);
 	} else if (ctrl) {
-		if (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Asterisk || e->key() == ']') {
+		if (key == Qt::Key_Plus
+			|| key == Qt::Key_Equal
+			|| key == Qt::Key_Asterisk
+			|| key == ']') {
 			zoomIn();
-		} else if (e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore) {
+		} else if (key == Qt::Key_Minus || key == Qt::Key_Underscore) {
 			zoomOut();
-		} else if (e->key() == Qt::Key_0) {
+		} else if (key == Qt::Key_0) {
 			zoomReset();
-		} else if (e->key() == Qt::Key_I) {
+		} else if (key == Qt::Key_I) {
 			update();
 		}
 	}
 }
 
-void OverlayWidget::wheelEvent(QWheelEvent *e) {
-#ifdef OS_MAC_OLD
-	constexpr auto step = 120;
-#else // OS_MAC_OLD
-	constexpr auto step = static_cast<int>(QWheelEvent::DefaultDeltasPerStep);
-#endif // OS_MAC_OLD
+void OverlayWidget::handleWheelEvent(not_null<QWheelEvent*> e) {
+	constexpr auto step = int(QWheelEvent::DefaultDeltasPerStep);
 
 	_verticalWheelDelta += e->angleDelta().y();
 	while (qAbs(_verticalWheelDelta) >= step) {
@@ -3605,23 +3796,15 @@ void OverlayWidget::wheelEvent(QWheelEvent *e) {
 			_verticalWheelDelta += step;
 			if (e->modifiers().testFlag(Qt::ControlModifier)) {
 				zoomOut();
-			} else {
-#ifndef OS_MAC_OLD
-				if (e->source() == Qt::MouseEventNotSynthesized) {
-					moveToNext(1);
-				}
-#endif // OS_MAC_OLD
+			} else if (e->source() == Qt::MouseEventNotSynthesized) {
+				moveToNext(1);
 			}
 		} else {
 			_verticalWheelDelta -= step;
 			if (e->modifiers().testFlag(Qt::ControlModifier)) {
 				zoomIn();
-			} else {
-#ifndef OS_MAC_OLD
-				if (e->source() == Qt::MouseEventNotSynthesized) {
-					moveToNext(-1);
-				}
-#endif // OS_MAC_OLD
+			} else if (e->source() == Qt::MouseEventNotSynthesized) {
+				moveToNext(-1);
 			}
 		}
 	}
@@ -3637,6 +3820,9 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 	const auto contentSize = videoShown()
 		? style::ConvertScale(videoSize())
 		: QSize(_width, _height);
+	_oldGeometry = contentGeometry();
+	_geometryAnimation.stop();
+
 	_w = contentSize.width();
 	_h = contentSize.height();
 	if (z >= 0) {
@@ -3660,6 +3846,14 @@ void OverlayWidget::setZoomLevel(int newZoom, bool force) {
 		_y = qRound(ny / (-z + 1) + height() / 2.);
 	}
 	snapXY();
+	if (_opengl) {
+		_geometryAnimation.start(
+			[=] { update(); },
+			0.,
+			1.,
+			st::widgetFadeDuration/*,
+			anim::easeOutCirc*/);
+	}
 	update();
 }
 
@@ -3778,7 +3972,7 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 
 	clearSession();
 	_session = session;
-	setWindowIcon(Window::CreateIcon(session));
+	_widget->setWindowIcon(Window::CreateIcon(session));
 
 	session->downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
@@ -3851,7 +4045,7 @@ void OverlayWidget::preloadData(int delta) {
 	if (!_index) {
 		return;
 	}
-	auto from = *_index + (delta ? delta : -1);
+	auto from = *_index + (delta ? -delta : -1);
 	auto till = *_index + (delta ? delta * kPreloadCount : 1);
 	if (from > till) std::swap(from, till);
 
@@ -3877,19 +4071,23 @@ void OverlayWidget::preloadData(int delta) {
 	_preloadDocuments = std::move(documents);
 }
 
-void OverlayWidget::mousePressEvent(QMouseEvent *e) {
-	updateOver(e->pos());
-	if (_menu || !_receiveMouse) return;
+void OverlayWidget::handleMousePress(
+		QPoint position,
+		Qt::MouseButton button) {
+	updateOver(position);
+	if (_menu || !_receiveMouse) {
+		return;
+	}
 
 	ClickHandler::pressed();
 
-	if (e->button() == Qt::LeftButton) {
+	if (button == Qt::LeftButton) {
 		_down = OverNone;
 		if (!ClickHandler::getPressed()) {
 			if (_over == OverLeftNav && moveToNext(-1)) {
-				_lastAction = e->pos();
+				_lastAction = position;
 			} else if (_over == OverRightNav && moveToNext(1)) {
-				_lastAction = e->pos();
+				_lastAction = position;
 			} else if (_over == OverName
 				|| _over == OverDate
 				|| _over == OverHeader
@@ -3900,31 +4098,32 @@ void OverlayWidget::mousePressEvent(QMouseEvent *e) {
 				|| _over == OverClose
 				|| _over == OverVideo) {
 				_down = _over;
-			} else if (!_saveMsg.contains(e->pos()) || !_saveMsgStarted) {
+			} else if (!_saveMsg.contains(position) || !_saveMsgStarted) {
 				_pressed = true;
 				_dragging = 0;
 				updateCursor();
-				_mStart = e->pos();
+				_mStart = position;
 				_xStart = _x;
 				_yStart = _y;
 			}
 		}
-	} else if (e->button() == Qt::MiddleButton) {
+	} else if (button == Qt::MiddleButton) {
 		zoomReset();
 	}
 	activateControls();
 }
 
-void OverlayWidget::mouseDoubleClickEvent(QMouseEvent *e) {
-	updateOver(e->pos());
+bool OverlayWidget::handleDoubleClick(
+		QPoint position,
+		Qt::MouseButton button) {
+	updateOver(position);
 
-	if (_over == OverVideo && _streamed) {
-		playbackToggleFullScreen();
-		playbackPauseResume();
-	} else {
-		e->ignore();
-		return OverlayParent::mouseDoubleClickEvent(e);
+	if (_over != OverVideo || !_streamed || button != Qt::LeftButton) {
+		return false;
 	}
+	playbackToggleFullScreen();
+	playbackPauseResume();
+	return true;
 }
 
 void OverlayWidget::snapXY() {
@@ -3940,13 +4139,17 @@ void OverlayWidget::snapXY() {
 	if (_y > ymax) _y = ymax;
 }
 
-void OverlayWidget::mouseMoveEvent(QMouseEvent *e) {
-	updateOver(e->pos());
-	if (_lastAction.x() >= 0 && (e->pos() - _lastAction).manhattanLength() >= st::mediaviewDeltaFromLastAction) {
+void OverlayWidget::handleMouseMove(QPoint position) {
+	updateOver(position);
+	if (_lastAction.x() >= 0
+		&& ((position - _lastAction).manhattanLength()
+			>= st::mediaviewDeltaFromLastAction)) {
 		_lastAction = QPoint(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction);
 	}
 	if (_pressed) {
-		if (!_dragging && (e->pos() - _mStart).manhattanLength() >= QApplication::startDragDistance()) {
+		if (!_dragging
+			&& ((position - _mStart).manhattanLength()
+				>= QApplication::startDragDistance())) {
 			_dragging = QRect(_x, _y, _w, _h).contains(_mStart) ? 1 : -1;
 			if (_dragging > 0) {
 				if (_w > width() || _h > height()) {
@@ -3957,8 +4160,8 @@ void OverlayWidget::mouseMoveEvent(QMouseEvent *e) {
 			}
 		}
 		if (_dragging > 0) {
-			_x = _xStart + (e->pos() - _mStart).x();
-			_y = _yStart + (e->pos() - _mStart).y();
+			_x = _xStart + (position - _mStart).x();
+			_y = _yStart + (position - _mStart).y();
 			snapXY();
 			update();
 		}
@@ -3984,9 +4187,9 @@ bool OverlayWidget::updateOverState(OverState newState) {
 	bool result = true;
 	if (_over != newState) {
 		if (newState == OverMore && !_ignoringDropdown) {
-			_dropdownShowTimer->start(0);
+			_dropdownShowTimer.callOnce(0);
 		} else {
-			_dropdownShowTimer->stop();
+			_dropdownShowTimer.cancel();
 		}
 		updateOverRect(_over);
 		updateOverRect(newState);
@@ -4074,7 +4277,7 @@ void OverlayWidget::updateOver(QPoint pos) {
 		updateOverState(OverMore);
 	} else if (_closeNav.contains(pos)) {
 		updateOverState(OverClose);
-	} else if (documentContentShown() && contentRect().contains(pos)) {
+	} else if (documentContentShown() && finalContentRect().contains(pos)) {
 		if ((_document->isVideoFile() || _document->isVideoMessage()) && _streamed) {
 			updateOverState(OverVideo);
 		} else if (!_streamed && !_documentMedia->loaded()) {
@@ -4087,8 +4290,10 @@ void OverlayWidget::updateOver(QPoint pos) {
 	}
 }
 
-void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
-	updateOver(e->pos());
+void OverlayWidget::handleMouseRelease(
+		QPoint position,
+		Qt::MouseButton button) {
+	updateOver(position);
 
 	if (const auto activated = ClickHandler::unpressed()) {
 		if (activated->dragText() == qstr("internal:show_saved_message")) {
@@ -4100,7 +4305,7 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 		if (_session) {
 			Core::App().domain().activate(&_session->account());
 		}
-		ActivateClickHandler(this, activated, e->button());
+		ActivateClickHandler(_widget, activated, button);
 		return;
 	}
 
@@ -4110,17 +4315,17 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 			Ui::showPeerProfile(_from);
 		}
 	} else if (_over == OverDate && _down == OverDate) {
-		onToMessage();
+		toMessage();
 	} else if (_over == OverHeader && _down == OverHeader) {
-		onOverview();
+		showMediaOverview();
 	} else if (_over == OverSave && _down == OverSave) {
-		onDownload();
+		downloadMedia();
 	} else if (_over == OverRotate && _down == OverRotate) {
 		playbackControlsRotate();
 	} else if (_over == OverIcon && _down == OverIcon) {
-		onDocClick();
+		handleDocumentClick();
 	} else if (_over == OverMore && _down == OverMore) {
-		QTimer::singleShot(0, this, SLOT(onDropdown()));
+		InvokeQueued(_widget, [=] { showDropdown(); });
 	} else if (_over == OverClose && _down == OverClose) {
 		close();
 	} else if (_over == OverVideo && _down == OverVideo) {
@@ -4130,22 +4335,23 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 	} else if (_pressed) {
 		if (_dragging) {
 			if (_dragging > 0) {
-				_x = _xStart + (e->pos() - _mStart).x();
-				_y = _yStart + (e->pos() - _mStart).y();
+				_x = _xStart + (position - _mStart).x();
+				_y = _yStart + (position - _mStart).y();
 				snapXY();
 				update();
 			}
 			_dragging = 0;
 			setCursor(style::cur_default);
-		} else if ((e->pos() - _lastAction).manhattanLength() >= st::mediaviewDeltaFromLastAction) {
+		} else if ((position - _lastAction).manhattanLength()
+			>= st::mediaviewDeltaFromLastAction) {
 			if (_themePreviewShown) {
-				if (!_themePreviewRect.contains(e->pos())) {
+				if (!_themePreviewRect.contains(position)) {
 					close();
 				}
 			} else if (!_document
 				|| documentContentShown()
 				|| !documentBubbleShown()
-				|| !_docRect.contains(e->pos())) {
+				|| !_docRect.contains(position)) {
 				close();
 			}
 		}
@@ -4157,61 +4363,74 @@ void OverlayWidget::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void OverlayWidget::contextMenuEvent(QContextMenuEvent *e) {
-	if (e->reason() != QContextMenuEvent::Mouse || QRect(_x, _y, _w, _h).contains(e->pos())) {
-		if (_menu) {
-			_menu->deleteLater();
-			_menu = nullptr;
-		}
-		_menu = new Ui::PopupMenu(this, st::mediaviewPopupMenu);
-		updateActions();
-		for_const (auto &action, _actions) {
-			_menu->addAction(action.text, this, action.member);
-		}
-		connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroy(QObject*)));
-		_menu->popup(e->globalPos());
-		e->accept();
-		activateControls();
+bool OverlayWidget::handleContextMenu(std::optional<QPoint> position) {
+	if (position && !QRect(_x, _y, _w, _h).contains(*position)) {
+		return false;
 	}
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		_widget,
+		st::mediaviewPopupMenu);
+	fillContextMenuActions([&] (const QString &text, Fn<void()> handler) {
+		_menu->addAction(text, std::move(handler));
+	});
+	_menu->setDestroyedCallback(crl::guard(_widget, [=] {
+		activateControls();
+		_receiveMouse = false;
+		InvokeQueued(_widget, [=] { receiveMouse(); });
+	}));
+	_menu->popup(QCursor::pos());
+	activateControls();
+	return true;
 }
 
-void OverlayWidget::touchEvent(QTouchEvent *e) {
+bool OverlayWidget::handleTouchEvent(not_null<QTouchEvent*> e) {
+	if (e->device()->type() != QTouchDevice::TouchScreen) {
+		return false;
+	} else if (e->type() == QEvent::TouchBegin
+		&& !e->touchPoints().isEmpty()
+		&& _widget->childAt(
+			_widget->mapFromGlobal(
+				e->touchPoints().cbegin()->screenPos().toPoint()))) {
+		return false;
+	}
 	switch (e->type()) {
 	case QEvent::TouchBegin: {
-		if (_touchPress || e->touchPoints().isEmpty()) return;
-		_touchTimer.start(QApplication::startDragTime());
+		if (_touchPress || e->touchPoints().isEmpty()) {
+			break;
+		}
+		_touchTimer.callOnce(QApplication::startDragTime());
 		_touchPress = true;
 		_touchMove = _touchRightButton = false;
 		_touchStart = e->touchPoints().cbegin()->screenPos().toPoint();
 	} break;
 
 	case QEvent::TouchUpdate: {
-		if (!_touchPress || e->touchPoints().isEmpty()) return;
+		if (!_touchPress || e->touchPoints().isEmpty()) {
+			break;
+		}
 		if (!_touchMove && (e->touchPoints().cbegin()->screenPos().toPoint() - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
 			_touchMove = true;
 		}
 	} break;
 
 	case QEvent::TouchEnd: {
-		if (!_touchPress) return;
-		auto weak = Ui::MakeWeak(this);
+		if (!_touchPress) {
+			break;
+		}
+		auto weak = Ui::MakeWeak(_widget);
 		if (!_touchMove) {
-			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
-			auto mapped = mapFromGlobal(_touchStart);
+			const auto button = _touchRightButton
+				? Qt::RightButton
+				: Qt::LeftButton;
+			const auto position = _widget->mapFromGlobal(_touchStart);
 
-			QMouseEvent pressEvent(QEvent::MouseButtonPress, mapped, mapped, _touchStart, btn, Qt::MouseButtons(btn), Qt::KeyboardModifiers());
-			pressEvent.accept();
-			if (weak) mousePressEvent(&pressEvent);
-
-			QMouseEvent releaseEvent(QEvent::MouseButtonRelease, mapped, mapped, _touchStart, btn, Qt::MouseButtons(btn), Qt::KeyboardModifiers());
-			if (weak) mouseReleaseEvent(&releaseEvent);
-
+			if (weak) handleMousePress(position, button);
+			if (weak) handleMouseRelease(position, button);
 			if (weak && _touchRightButton) {
-				QContextMenuEvent contextEvent(QContextMenuEvent::Mouse, mapped, _touchStart);
-				contextMenuEvent(&contextEvent);
+				handleContextMenu(position);
 			}
 		} else if (_touchMove) {
-			if ((!_leftNavVisible || !_leftNav.contains(mapFromGlobal(_touchStart))) && (!_rightNavVisible || !_rightNav.contains(mapFromGlobal(_touchStart)))) {
+			if ((!_leftNavVisible || !_leftNav.contains(_widget->mapFromGlobal(_touchStart))) && (!_rightNavVisible || !_rightNav.contains(_widget->mapFromGlobal(_touchStart)))) {
 				QPoint d = (e->touchPoints().cbegin()->screenPos().toPoint() - _touchStart);
 				if (d.x() * d.x() > d.y() * d.y() && (d.x() > st::mediaviewSwipeDistance || d.x() < -st::mediaviewSwipeDistance)) {
 					moveToNext(d.x() > 0 ? -1 : 1);
@@ -4219,64 +4438,66 @@ void OverlayWidget::touchEvent(QTouchEvent *e) {
 			}
 		}
 		if (weak) {
-			_touchTimer.stop();
+			_touchTimer.cancel();
 			_touchPress = _touchMove = _touchRightButton = false;
 		}
 	} break;
 
 	case QEvent::TouchCancel: {
 		_touchPress = false;
-		_touchTimer.stop();
+		_touchTimer.cancel();
 	} break;
 	}
+	return true;
 }
 
-bool OverlayWidget::eventHook(QEvent *e) {
-	if (e->type() == QEvent::UpdateRequest) {
-		_wasRepainted = true;
-	} else if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
-		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
-		if (ev->device()->type() == QTouchDevice::TouchScreen) {
-			if (ev->type() != QEvent::TouchBegin || ev->touchPoints().isEmpty() || !childAt(mapFromGlobal(ev->touchPoints().cbegin()->screenPos().toPoint()))) {
-				touchEvent(ev);
-				return true;
-			}
-		}
-	} else if (e->type() == QEvent::Wheel) {
-		QWheelEvent *ev = static_cast<QWheelEvent*>(e);
-		if (ev->phase() == Qt::ScrollBegin) {
-			_accumScroll = ev->angleDelta();
-		} else {
-			_accumScroll += ev->angleDelta();
-			if (ev->phase() == Qt::ScrollEnd) {
-				if (ev->angleDelta().x() != 0) {
-					if (_accumScroll.x() * _accumScroll.x() > _accumScroll.y() * _accumScroll.y() && _accumScroll.x() != 0) {
-						moveToNext(_accumScroll.x() > 0 ? -1 : 1);
-					}
-					_accumScroll = QPoint();
-				}
-			}
-		}
+void OverlayWidget::toggleApplicationEventFilter(bool install) {
+	if (!install) {
+		_applicationEventFilter = nullptr;
+		return;
+	} else if (_applicationEventFilter) {
+		return;
 	}
-	return OverlayParent::eventHook(e);
+	class Filter final : public QObject {
+	public:
+		explicit Filter(not_null<OverlayWidget*> owner) : _owner(owner) {
+		}
+
+	private:
+		bool eventFilter(QObject *obj, QEvent *e) override {
+			return obj && e && _owner->filterApplicationEvent(obj, e);
+		}
+
+		const not_null<OverlayWidget*> _owner;
+
+	};
+
+	_applicationEventFilter = std::make_unique<Filter>(this);
+	qApp->installEventFilter(_applicationEventFilter.get());
 }
 
-bool OverlayWidget::eventFilter(QObject *obj, QEvent *e) {
-	auto type = e->type();
+bool OverlayWidget::filterApplicationEvent(
+		not_null<QObject*> object,
+		not_null<QEvent*> e) {
+	const auto type = e->type();
 	if (type == QEvent::ShortcutOverride) {
-		const auto keyEvent = static_cast<QKeyEvent*>(e);
+		const auto keyEvent = static_cast<QKeyEvent*>(e.get());
 		const auto ctrl = keyEvent->modifiers().testFlag(Qt::ControlModifier);
 		if (keyEvent->key() == Qt::Key_F && ctrl && _streamed) {
 			playbackToggleFullScreen();
 		}
 		return true;
-	}
-	if ((type == QEvent::MouseMove || type == QEvent::MouseButtonPress || type == QEvent::MouseButtonRelease) && obj->isWidgetType()) {
-		if (isAncestorOf(static_cast<QWidget*>(obj))) {
-			const auto mouseEvent = static_cast<QMouseEvent*>(e);
-			const auto mousePosition = mapFromGlobal(mouseEvent->globalPos());
+	} else if (type == QEvent::MouseMove
+		|| type == QEvent::MouseButtonPress
+		|| type == QEvent::MouseButtonRelease) {
+		if (object->isWidgetType()
+			&& _widget->isAncestorOf(static_cast<QWidget*>(object.get()))) {
+			const auto mouseEvent = static_cast<QMouseEvent*>(e.get());
+			const auto mousePosition = _widget->mapFromGlobal(
+				mouseEvent->globalPos());
 			const auto delta = (mousePosition - _lastMouseMovePos);
-			auto activate = delta.manhattanLength() >= st::mediaviewDeltaFromLastAction;
+			auto activate = delta.manhattanLength()
+				>= st::mediaviewDeltaFromLastAction;
 			if (activate) {
 				_lastMouseMovePos = mousePosition;
 			}
@@ -4292,93 +4513,85 @@ bool OverlayWidget::eventFilter(QObject *obj, QEvent *e) {
 			}
 		}
 	}
-	return OverlayParent::eventFilter(obj, e);
+	return false;
 }
 
 void OverlayWidget::applyHideWindowWorkaround() {
-#ifdef USE_OPENGL_OVERLAY_WIDGET
-	// QOpenGLWidget can't properly destroy a child widget if
-	// it is hidden exactly after that, so it must be repainted
-	// before it is hidden without the child widget.
-	if (!isHidden()) {
-		_dropdown->hideFast();
-		hideChildren();
-		_wasRepainted = false;
-		repaint();
-		if (!_wasRepainted) {
-			// Qt has some optimization to prevent too frequent repaints.
-			// If the previous repaint was less than 1/60 second it silently
-			// converts repaint() call to an update() call. But we have to
-			// repaint right now, before hide(), with _streamingControls destroyed.
-			auto event = QEvent(QEvent::UpdateRequest);
-			QApplication::sendEvent(this, &event);
+	// QOpenGLWidget can't properly destroy a child widget if it is hidden
+	// exactly after that, the child is cached in the backing store.
+	// So on next paint we force full backing store repaint.
+	if (_opengl && !isHidden() && !_hideWorkaround) {
+		_hideWorkaround = std::make_unique<Ui::RpWidget>(_widget);
+		_hideWorkaround->setGeometry(_widget->rect());
+		_hideWorkaround->show();
+		_hideWorkaround->paintRequest(
+		) | rpl::start_with_next([=] {
+			QPainter(_hideWorkaround.get()).fillRect(_hideWorkaround->rect(), QColor(0, 1, 0, 1));
+			crl::on_main(_hideWorkaround.get(), [=] {
+				_hideWorkaround.reset();
+			});
+		}, _hideWorkaround->lifetime());
+		_hideWorkaround->update();
+
+		if (Platform::IsWindows()) {
+			Ui::Platform::UpdateOverlayed(_widget);
 		}
 	}
-#endif // USE_OPENGL_OVERLAY_WIDGET
 }
 
-void OverlayWidget::setVisibleHook(bool visible) {
-	if (!visible) {
-		applyHideWindowWorkaround();
-		_sharedMedia = nullptr;
-		_sharedMediaData = std::nullopt;
-		_sharedMediaDataKey = std::nullopt;
-		_userPhotos = nullptr;
-		_userPhotosData = std::nullopt;
-		_collage = nullptr;
-		_collageData = std::nullopt;
-		assignMediaPointer(nullptr);
-		_preloadPhotos.clear();
-		_preloadDocuments.clear();
-		if (_menu) _menu->hideMenu(true);
-		_controlsHideTimer.stop();
-		_controlsState = ControlsShown;
-		_controlsOpacity = anim::value(1, 1);
-		_groupThumbs = nullptr;
-		_groupThumbsRect = QRect();
+// #TODO unite and check
+void OverlayWidget::clearBeforeHide() {
+	_sharedMedia = nullptr;
+	_sharedMediaData = std::nullopt;
+	_sharedMediaDataKey = std::nullopt;
+	_userPhotos = nullptr;
+	_userPhotosData = std::nullopt;
+	_collage = nullptr;
+	_collageData = std::nullopt;
+	assignMediaPointer(nullptr);
+	_preloadPhotos.clear();
+	_preloadDocuments.clear();
+	if (_menu) {
+		_menu->hideMenu(true);
 	}
-	OverlayParent::setVisibleHook(visible);
-	if (visible) {
-		QCoreApplication::instance()->installEventFilter(this);
-	} else {
-		QCoreApplication::instance()->removeEventFilter(this);
-
-		clearStreaming();
-		destroyThemePreview();
-		_radial.stop();
-		_staticContent = QPixmap();
-		_themePreview = nullptr;
-		_themeApply.destroyDelayed();
-		_themeCancel.destroyDelayed();
-		_themeShare.destroyDelayed();
+	_controlsHideTimer.cancel();
+	_controlsState = ControlsShown;
+	_controlsOpacity = anim::value(1, 1);
+	_groupThumbs = nullptr;
+	_groupThumbsRect = QRect();
+	for (const auto child : _widget->children()) {
+		if (child->isWidgetType()) {
+			static_cast<QWidget*>(child)->hide();
+		}
 	}
 }
 
-void OverlayWidget::onMenuDestroy(QObject *obj) {
-	if (_menu == obj) {
-		_menu = nullptr;
-		activateControls();
-	}
-	_receiveMouse = false;
-	QTimer::singleShot(0, this, SLOT(receiveMouse()));
+void OverlayWidget::clearAfterHide() {
+	clearStreaming();
+	destroyThemePreview();
+	_radial.stop();
+	_staticContent = QImage();
+	_themePreview = nullptr;
+	_themeApply.destroyDelayed();
+	_themeCancel.destroyDelayed();
+	_themeShare.destroyDelayed();
 }
 
 void OverlayWidget::receiveMouse() {
 	_receiveMouse = true;
 }
 
-void OverlayWidget::onDropdown() {
-	updateActions();
+void OverlayWidget::showDropdown() {
 	_dropdown->clearActions();
-	for_const (auto &action, _actions) {
-		_dropdown->addAction(action.text, this, action.member);
-	}
+	fillContextMenuActions([&] (const QString &text, Fn<void()> handler) {
+		_dropdown->addAction(text, std::move(handler));
+	});
 	_dropdown->moveToRight(0, height() - _dropdown->height());
 	_dropdown->showAnimated(Ui::PanelAnimation::Origin::BottomRight);
 	_dropdown->setFocus();
 }
 
-void OverlayWidget::onTouchTimer() {
+void OverlayWidget::handleTouchTimer() {
 	_touchRightButton = true;
 }
 
@@ -4461,7 +4674,7 @@ void OverlayWidget::updateHeader() {
 		hwidth = width() / 3;
 		_headerText = st::mediaviewThickFont->elided(_headerText, hwidth, Qt::ElideMiddle);
 	}
-	_headerNav = myrtlrect(st::mediaviewTextLeft, height() - st::mediaviewHeaderTop, hwidth, st::mediaviewThickFont->height);
+	_headerNav = QRect(st::mediaviewTextLeft, height() - st::mediaviewHeaderTop, hwidth, st::mediaviewThickFont->height);
 }
 
 float64 OverlayWidget::overLevel(OverState control) const {

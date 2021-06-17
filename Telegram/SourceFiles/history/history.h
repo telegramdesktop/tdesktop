@@ -259,7 +259,7 @@ public:
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
 	MsgId msgIdForRead() const;
-	HistoryItem *lastSentMessage() const;
+	HistoryItem *lastEditableMessage() const;
 
 	void resizeToWidth(int newWidth);
 	void forceFullResize();
@@ -339,9 +339,9 @@ public:
 	}
 	void clearDrafts();
 	Data::Draft *createCloudDraft(const Data::Draft *fromDraft);
-	bool skipCloudDraft(const QString &text, MsgId replyTo, TimeId date) const;
-	void setSentDraftText(const QString &text);
-	void clearSentDraftText(const QString &text);
+	bool skipCloudDraftUpdate(TimeId date) const;
+	void startSavingCloudDraft();
+	void finishSavingCloudDraft(TimeId savedAt);
 	void takeLocalDraft(not_null<History*> from);
 	void applyCloudDraft();
 	void draftSavedToCloud();
@@ -365,6 +365,7 @@ public:
 	bool chatListMessageKnown() const override;
 	void requestChatListMessage() override;
 	const QString &chatListName() const override;
+	const QString &chatListNameSortKey() const override;
 	const base::flat_set<QString> &chatListNameWords() const override;
 	const base::flat_set<QChar> &chatListFirstLetters() const override;
 	void loadUserpic() override;
@@ -374,6 +375,8 @@ public:
 		int x,
 		int y,
 		int size) const override;
+
+	void refreshChatListNameSortKey();
 
 	void setFakeChatListMessageFrom(const MTPmessages_Messages &data);
 	void checkChatListMessageRemoved(not_null<HistoryItem*> item);
@@ -566,6 +569,8 @@ private:
 	// be a migrate message, but _chatListMessage should be the one before.
 	std::optional<HistoryItem*> _chatListMessage;
 
+	QString _chatListNameSortKey;
+
 	bool _unreadMark = false;
 	bool _fakeUnreadWhileOpened = false;
 
@@ -579,8 +584,8 @@ private:
 	std::unique_ptr<BuildingBlock> _buildingFrontBlock;
 
 	Data::HistoryDrafts _drafts;
-	std::optional<QString> _lastSentDraftText;
-	TimeId _lastSentDraftTime = 0;
+	TimeId _acceptCloudDraftsAfter = 0;
+	int _savingCloudDraftRequests = 0;
 	MessageIdsList _forwardDraft;
 
 	QString _topPromotedMessage;

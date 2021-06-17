@@ -9,50 +9,143 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 
-#include <QtGui/QWindow>
+#include <connection_thread.h>
+#include <registry.h>
+#include <surface.h>
+#include <xdgforeign.h>
+#include <plasmashell.h>
+#include <appmenu.h>
 
-#include <private/qwaylanddisplay_p.h>
-#include <private/qwaylandwindow_p.h>
-#include <private/qwaylandshellsurface_p.h>
-
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0) && !defined DESKTOP_APP_QT_PATCHED
-#include <wayland-client.h>
-#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
-
-using QtWaylandClient::QWaylandWindow;
+using namespace KWayland::Client;
 
 namespace Platform {
 namespace internal {
 
-namespace {
+class WaylandIntegration::Private : public QObject {
+public:
+	Private();
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0) && !defined DESKTOP_APP_QT_PATCHED
-enum wl_shell_surface_resize WlResizeFromEdges(Qt::Edges edges) {
-	if (edges == (Qt::TopEdge | Qt::LeftEdge))
-		return WL_SHELL_SURFACE_RESIZE_TOP_LEFT;
-	if (edges == Qt::TopEdge)
-		return WL_SHELL_SURFACE_RESIZE_TOP;
-	if (edges == (Qt::TopEdge | Qt::RightEdge))
-		return WL_SHELL_SURFACE_RESIZE_TOP_RIGHT;
-	if (edges == Qt::RightEdge)
-		return WL_SHELL_SURFACE_RESIZE_RIGHT;
-	if (edges == (Qt::RightEdge | Qt::BottomEdge))
-		return WL_SHELL_SURFACE_RESIZE_BOTTOM_RIGHT;
-	if (edges == Qt::BottomEdge)
-		return WL_SHELL_SURFACE_RESIZE_BOTTOM;
-	if (edges == (Qt::BottomEdge | Qt::LeftEdge))
-		return WL_SHELL_SURFACE_RESIZE_BOTTOM_LEFT;
-	if (edges == Qt::LeftEdge)
-		return WL_SHELL_SURFACE_RESIZE_LEFT;
+	[[nodiscard]] Registry &registry() {
+		return _registry;
+	}
 
-	return WL_SHELL_SURFACE_RESIZE_NONE;
+	[[nodiscard]] XdgExporter *xdgExporter() {
+		return _xdgExporter.get();
+	}
+
+	[[nodiscard]] PlasmaShell *plasmaShell() {
+		return _plasmaShell.get();
+	}
+
+	[[nodiscard]] AppMenuManager *appMenuManager() {
+		return _appMenuManager.get();
+	}
+
+	[[nodiscard]] QEventLoop &interfacesLoop() {
+		return _interfacesLoop;
+	}
+
+	[[nodiscard]] bool interfacesAnnounced() const {
+		return _interfacesAnnounced;
+	}
+
+private:
+	ConnectionThread _connection;
+	ConnectionThread *_applicationConnection = nullptr;
+	Registry _registry;
+	Registry _applicationRegistry;
+	std::unique_ptr<XdgExporter> _xdgExporter;
+	std::unique_ptr<PlasmaShell> _plasmaShell;
+	std::unique_ptr<AppMenuManager> _appMenuManager;
+	QEventLoop _interfacesLoop;
+	bool _interfacesAnnounced = false;
+};
+
+WaylandIntegration::Private::Private()
+: _applicationConnection(ConnectionThread::fromApplication(this)) {
+	_applicationRegistry.create(_applicationConnection);
+	_applicationRegistry.setup();
+
+	connect(
+		_applicationConnection,
+		&ConnectionThread::connectionDied,
+		&_applicationRegistry,
+		&Registry::destroy);
+
+	connect(&_connection, &ConnectionThread::connected, [=] {
+		LOG(("Successfully connected to Wayland server at socket: %1")
+			.arg(_connection.socketName()));
+
+		_registry.create(&_connection);
+		_registry.setup();
+	});
+
+	connect(
+		&_connection,
+		&ConnectionThread::connectionDied,
+		&_registry,
+		&Registry::destroy);
+
+	connect(&_registry, &Registry::interfacesAnnounced, [=] {
+		_interfacesAnnounced = true;
+		if (_interfacesLoop.isRunning()) {
+			_interfacesLoop.quit();
+		}
+	});
+
+	connect(
+		&_applicationRegistry,
+		&Registry::exporterUnstableV2Announced,
+		[=](uint name, uint version) {
+			_xdgExporter = std::unique_ptr<XdgExporter>{
+				_applicationRegistry.createXdgExporter(name, version),
+			};
+
+			connect(
+				_applicationConnection,
+				&ConnectionThread::connectionDied,
+				_xdgExporter.get(),
+				&XdgExporter::destroy);
+		});
+
+	connect(
+		&_applicationRegistry,
+		&Registry::plasmaShellAnnounced,
+		[=](uint name, uint version) {
+			_plasmaShell = std::unique_ptr<PlasmaShell>{
+				_applicationRegistry.createPlasmaShell(name, version),
+			};
+
+			connect(
+				_applicationConnection,
+				&ConnectionThread::connectionDied,
+				_plasmaShell.get(),
+				&PlasmaShell::destroy);
+		});
+
+	connect(
+		&_applicationRegistry,
+		&Registry::appMenuAnnounced,
+		[=](uint name, uint version) {
+			_appMenuManager = std::unique_ptr<AppMenuManager>{
+				_applicationRegistry.createAppMenuManager(name, version),
+			};
+
+			connect(
+				_applicationConnection,
+				&ConnectionThread::connectionDied,
+				_appMenuManager.get(),
+				&AppMenuManager::destroy);
+		});
+
+	_connection.initConnection();
 }
-#endif // Qt < 5.13 && !DESKTOP_APP_QT_PATCHED
 
-} // namespace
-
-WaylandIntegration::WaylandIntegration() {
+WaylandIntegration::WaylandIntegration()
+: _private(std::make_unique<Private>()) {
 }
+
+WaylandIntegration::~WaylandIntegration() = default;
 
 WaylandIntegration *WaylandIntegration::Instance() {
 	if (!IsWayland()) return nullptr;
@@ -60,57 +153,81 @@ WaylandIntegration *WaylandIntegration::Instance() {
 	return &instance;
 }
 
-bool WaylandIntegration::startMove(QWindow *window) {
-	// There are startSystemMove on Qt 5.15
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
-	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
-		window->handle())) {
-		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
-			if (const auto shellSurface = waylandWindow->shellSurface()) {
-				return shellSurface->move(seat);
-			}
-		}
+void WaylandIntegration::waitForInterfaceAnnounce() {
+	Expects(!_private->interfacesLoop().isRunning());
+	if (!_private->interfacesAnnounced()) {
+		_private->interfacesLoop().exec();
 	}
-#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
-
-	return false;
 }
 
-bool WaylandIntegration::startResize(QWindow *window, Qt::Edges edges) {
-	// There are startSystemResize on Qt 5.15
-#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0) && !defined DESKTOP_APP_QT_PATCHED
-	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
-		window->handle())) {
-		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
-			if (const auto shellSurface = waylandWindow->shellSurface()) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0)
-				shellSurface->resize(seat, edges);
-				return true;
-#else // Qt >= 5.13
-				shellSurface->resize(seat, WlResizeFromEdges(edges));
-				return true;
-#endif // Qt < 5.13
-			}
-		}
-	}
-#endif // Qt < 5.15 && !DESKTOP_APP_QT_PATCHED
-
-	return false;
+bool WaylandIntegration::supportsXdgDecoration() {
+	return _private->registry().hasInterface(
+		Registry::Interface::XdgDecorationUnstableV1);
 }
 
-bool WaylandIntegration::showWindowMenu(QWindow *window) {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 13, 0) || defined DESKTOP_APP_QT_PATCHED
-	if (const auto waylandWindow = static_cast<QWaylandWindow*>(
-		window->handle())) {
-		if (const auto seat = waylandWindow->display()->lastInputDevice()) {
-			if (const auto shellSurface = waylandWindow->shellSurface()) {
-				return shellSurface->showWindowMenu(seat);
+QString WaylandIntegration::nativeHandle(QWindow *window) {
+	if (const auto exporter = _private->xdgExporter()) {
+		if (const auto surface = Surface::fromWindow(window)) {
+			if (const auto exported = exporter->exportTopLevel(
+				surface,
+				surface)) {
+				QEventLoop loop;
+				QObject::connect(
+					exported,
+					&XdgExported::done,
+					&loop,
+					&QEventLoop::quit);
+				loop.exec();
+				return exported->handle();
 			}
 		}
 	}
-#endif // Qt >= 5.13 || DESKTOP_APP_QT_PATCHED
+	return {};
+}
 
-	return false;
+bool WaylandIntegration::skipTaskbarSupported() {
+	return _private->plasmaShell();
+}
+
+void WaylandIntegration::skipTaskbar(QWindow *window, bool skip) {
+	const auto shell = _private->plasmaShell();
+	if (!shell) {
+		return;
+	}
+
+	const auto surface = Surface::fromWindow(window);
+	if (!surface) {
+		return;
+	}
+
+	const auto plasmaSurface = shell->createSurface(surface, surface);
+	if (!plasmaSurface) {
+		return;
+	}
+
+	plasmaSurface->setSkipTaskbar(skip);
+}
+
+void WaylandIntegration::registerAppMenu(
+		QWindow *window,
+		const QString &serviceName,
+		const QString &objectPath) {
+	const auto manager = _private->appMenuManager();
+	if (!manager) {
+		return;
+	}
+
+	const auto surface = Surface::fromWindow(window);
+	if (!surface) {
+		return;
+	}
+
+	const auto appMenu = manager->create(surface, surface);
+	if (!appMenu) {
+		return;
+	}
+
+	appMenu->setAddress(serviceName, objectPath);
 }
 
 } // namespace internal

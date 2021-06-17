@@ -8,14 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "platform/platform_notifications_manager.h"
-#include "base/weak_ptr.h"
 
 namespace Platform {
 namespace Notifications {
 
-class Manager
-	: public Window::Notifications::NativeManager
-	, public base::has_weak_ptr {
+class Manager : public Window::Notifications::NativeManager {
 public:
 	Manager(not_null<Window::Notifications::System*> system);
 	void clearNotification(NotificationId id);
@@ -34,6 +31,9 @@ protected:
 	void doClearAllFast() override;
 	void doClearFromHistory(not_null<History*> history) override;
 	void doClearFromSession(not_null<Main::Session*> session) override;
+	bool doSkipAudio() const override;
+	bool doSkipToast() const override;
+	bool doSkipFlashBounce() const override;
 
 private:
 	class Private;

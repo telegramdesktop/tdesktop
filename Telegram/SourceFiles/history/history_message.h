@@ -118,6 +118,7 @@ public:
 	void refreshSentMedia(const MTPMessageMedia *media);
 	void returnSavedMedia() override;
 	void setMedia(const MTPMessageMedia &media);
+	void checkBuyButton() override;
 	[[nodiscard]] static std::unique_ptr<Data::Media> CreateMedia(
 		not_null<HistoryMessage*> item,
 		const MTPMessageMedia &media);
@@ -187,6 +188,12 @@ public:
 	[[nodiscard]] MsgId dependencyMsgId() const override {
 		return replyToId();
 	}
+
+	void applySentMessage(const MTPDmessage &data) override;
+	void applySentMessage(
+		const QString &text,
+		const MTPDupdateShortSentMessage &data,
+		bool wasAlready) override;
 
 	// dynamic_cast optimization.
 	[[nodiscard]] HistoryMessage *toHistoryMessage() override {

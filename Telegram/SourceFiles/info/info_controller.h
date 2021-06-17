@@ -31,12 +31,10 @@ struct Tag {
 class Key {
 public:
 	Key(not_null<PeerData*> peer);
-	//Key(not_null<Data::Feed*> feed); // #feed
 	Key(Settings::Tag settings);
 	Key(not_null<PollData*> poll, FullMsgId contextId);
 
 	PeerData *peer() const;
-	//Data::Feed *feed() const; // #feed
 	UserData *settingsSelf() const;
 	PollData *poll() const;
 	FullMsgId pollContextId() const;
@@ -48,7 +46,6 @@ private:
 	};
 	std::variant<
 		not_null<PeerData*>,
-		//not_null<Data::Feed*>, // #feed
 		Settings::Tag,
 		PollKey> _value;
 
@@ -66,7 +63,6 @@ public:
 		Media,
 		CommonGroups,
 		Members,
-		//Channels, // #feed
 		Settings,
 		PollResults,
 	};
@@ -116,9 +112,6 @@ public:
 
 	PeerData *peer() const;
 	PeerId migratedPeerId() const;
-	//Data::Feed *feed() const { // #feed
-	//	return key().feed();
-	//}
 	UserData *settingsSelf() const {
 		return key().settingsSelf();
 	}
@@ -136,7 +129,7 @@ public:
 	virtual rpl::producer<QString> mediaSourceQueryValue() const;
 
 	void showSection(
-		Window::SectionMemento &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const Window::SectionShow &params = Window::SectionShow()) override;
 	void showBackFromStack(
 		const Window::SectionShow &params = Window::SectionShow()) override;
@@ -202,7 +195,7 @@ public:
 	void saveSearchState(not_null<ContentMemento*> memento);
 
 	void showSection(
-		Window::SectionMemento &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const Window::SectionShow &params = Window::SectionShow()) override;
 	void showBackFromStack(
 		const Window::SectionShow &params = Window::SectionShow()) override;

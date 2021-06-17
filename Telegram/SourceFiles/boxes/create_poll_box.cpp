@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "base/event_filter.h"
 #include "base/call_delayed.h"
+#include "base/openssl_help.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -535,8 +536,8 @@ std::vector<PollAnswer> Options::toPollAnswers() const {
 	};
 	ranges::copy(
 		_list
-		| ranges::view::filter(&Option::isGood)
-		| ranges::view::transform(makeAnswer),
+		| ranges::views::filter(&Option::isGood)
+		| ranges::views::transform(makeAnswer),
 		ranges::back_inserter(result));
 	return result;
 }
@@ -592,7 +593,7 @@ void Options::removeEmptyTail() {
 		_list,
 		&Option::hasFocus);
 	const auto end = _list.end();
-	const auto reversed = ranges::view::reverse(_list);
+	const auto reversed = ranges::views::reverse(_list);
 	const auto emptyItem = ranges::find_if(
 		reversed,
 		ranges::not_fn(&Option::isEmpty)).base();
@@ -754,11 +755,13 @@ CreatePollBox::CreatePollBox(
 	not_null<Window::SessionController*> controller,
 	PollData::Flags chosen,
 	PollData::Flags disabled,
-	Api::SendType sendType)
+	Api::SendType sendType,
+	SendMenu::Type sendMenuType)
 : _controller(controller)
 , _chosen(chosen)
 , _disabled(disabled)
-, _sendType(sendType) {
+, _sendType(sendType)
+, _sendMenuType(sendMenuType) {
 }
 
 rpl::producer<CreatePollBox::Result> CreatePollBox::submitRequests() const {
@@ -883,7 +886,7 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	using namespace Settings;
 
-	const auto id = rand_value<uint64>();
+	const auto id = openssl::RandomValue<uint64>();
 	const auto error = lifetime().make_state<Errors>(Error::Question);
 
 	auto result = object_ptr<Ui::VerticalLayout>(this);
@@ -1101,26 +1104,23 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 	}, lifetime());
 
 	const auto isNormal = (_sendType == Api::SendType::Normal);
-	const auto isScheduled = (_sendType == Api::SendType::Scheduled);
 
 	const auto submit = addButton(
 		isNormal
 			? tr::lng_polls_create_button()
 			: tr::lng_schedule_button(),
 		[=] { isNormal ? send({}) : sendScheduled(); });
-	if (isNormal || isScheduled) {
-		const auto sendMenuType = [=] {
-			collectError();
-			return (*error || isScheduled)
-				? SendMenu::Type::Disabled
-				: SendMenu::Type::Scheduled;
-		};
-		SendMenu::SetupMenuAndShortcuts(
-			submit.data(),
-			sendMenuType,
-			sendSilent,
-			sendScheduled);
-	}
+	const auto sendMenuType = [=] {
+		collectError();
+		return (*error)
+			? SendMenu::Type::Disabled
+			: _sendMenuType;
+	};
+	SendMenu::SetupMenuAndShortcuts(
+		submit.data(),
+		sendMenuType,
+		sendSilent,
+		sendScheduled);
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 
 	return result;

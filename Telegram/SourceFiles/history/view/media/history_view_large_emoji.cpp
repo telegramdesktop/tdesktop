@@ -38,7 +38,7 @@ auto ResolveImages(
 auto NonEmpty(const std::array<std::shared_ptr<EmojiImage>, Ui::Text::kIsolatedEmojiLimit> &images) {
 	using namespace rpl::mappers;
 
-	return images | ranges::view::filter(_1 != nullptr);
+	return images | ranges::views::filter(_1 != nullptr);
 }
 
 } // namespace

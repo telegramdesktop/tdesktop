@@ -57,7 +57,6 @@ public:
 		Fn<void()> callback = nullptr);
 	void dialogEntryApplied(not_null<History*> history);
 	void changeDialogUnreadMark(not_null<History*> history, bool unread);
-	//void changeDialogUnreadMark(not_null<Data::Feed*> feed, bool unread); // #feed
 	void requestFakeChatListMessage(not_null<History*> history);
 
 	void deleteMessages(

@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "ui/inactive_press.h"
 #include "mainwindow.h"
-#include "facades.h"
 #include "app.h"
 
 #include <QtGui/QWindow>
@@ -91,10 +90,6 @@ EventFilter *EventFilter::CreateInstance(not_null<MainWindow*> window) {
 	Expects(instance == nullptr);
 
 	return (instance = new EventFilter(window));
-}
-
-EventFilter *EventFilter::GetInstance() {
-	return instance;
 }
 
 void EventFilter::Destroy() {
@@ -240,9 +235,9 @@ bool EventFilter::mainWindowEvent(
 
 	case WM_WTSSESSION_CHANGE: {
 		if (wParam == WTS_SESSION_LOGOFF || wParam == WTS_SESSION_LOCK) {
-			setSessionLoggedOff(true);
+			Core::App().setScreenIsLocked(true);
 		} else if (wParam == WTS_SESSION_LOGON || wParam == WTS_SESSION_UNLOCK) {
-			setSessionLoggedOff(false);
+			Core::App().setScreenIsLocked(false);
 		}
 	} return false;
 
@@ -259,16 +254,17 @@ bool EventFilter::mainWindowEvent(
 		} else {
 			_window->shadowsDeactivate();
 		}
-		if (Global::started()) {
-			_window->update();
-		}
+		_window->update();
 	} return false;
 
 	case WM_WINDOWPOSCHANGING:
 	case WM_WINDOWPOSCHANGED: {
 		WINDOWPLACEMENT wp;
 		wp.length = sizeof(WINDOWPLACEMENT);
-		if (GetWindowPlacement(hWnd, &wp) && (wp.showCmd == SW_SHOWMAXIMIZED || wp.showCmd == SW_SHOWMINIMIZED)) {
+		if (_window->hasTabletView()
+			|| (GetWindowPlacement(hWnd, &wp)
+				&& (wp.showCmd == SW_SHOWMAXIMIZED
+					|| wp.showCmd == SW_SHOWMINIMIZED))) {
 			_window->shadowsUpdate(Change::Hidden);
 		} else {
 			_window->shadowsUpdate(Change::Moved | Change::Resized, (WINDOWPOS*)lParam);
@@ -284,7 +280,7 @@ bool EventFilter::mainWindowEvent(
 				} else if (wParam == SIZE_MINIMIZED) {
 					state = Qt::WindowMinimized;
 				}
-				emit _window->windowHandle()->windowStateChanged(state);
+				_window->windowHandle()->windowStateChanged(state);
 			} else {
 				_window->positionUpdated();
 			}

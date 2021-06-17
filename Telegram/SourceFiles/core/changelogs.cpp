@@ -22,60 +22,6 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		2001008,
-		"- Add support for full group message history export.\n"
-
-		"- Allow export of a single chat message history in JSON format."
-	},
-	{
-		2001014,
-		"- Support for multiple accounts."
-	},
-	{
-		2001017,
-		"- Fix messages editing in a non-active account.\n"
-
-		"- Fix large animated emoji messages editing.\n"
-
-		"- Fix high definition GIF animations opening in media viewer.\n"
-
-		"- Multiple crash fixes."
-	},
-	{
-		2001018,
-		"- Fix a possible crash in Picture-in-Picture video player.\n"
-
-		"- Fix copying links from message texts.\n"
-
-		"- Raise file size limit to 2000 MB.\n"
-
-		"- Allow using system window frame in Windows and Linux."
-	},
-	{
-		2001019,
-		"- File uploading in an inactive account correctly finishes.\n"
-
-		"- Stickers panel works correctly after switching between accounts.\n"
-
-		"- Large .webp files are not shown as stickers.\n"
-
-		"- MacBook TouchBar support was fully rewritten with fixes for multiple accounts.\n"
-
-		"- Custom window title bar works in all Linux versions.\n"
-
-		"- Passcode doesn't auto-lock while you're active in other apps on Linux X11."
-	},
-	{
-		2001021,
-		"- Edit your scheduled messages.\n"
-
-		"- See the unread messages indicator for your additional accounts on the main menu button.\n"
-
-		"- Use Auto-Night Mode to make Telegram night mode match the system Dark Mode settings.\n"
-
-		"- Enjoy dark native window frame for Telegram night mode on Windows.\n"
-	},
-	{
 		2004006,
 		"- Fix image compression option when sending files with drag-n-drop.\n"
 
@@ -104,6 +50,128 @@ std::map<int, const char*> BetaLogs() {
 		"- Fix crash in bot command sending.\n"
 
 		"- Fix adding additional photos when sending an album to a group with enabled slow mode.\n"
+	},
+	{
+		2004012,
+		"- Voice chats in groups. (alpha version)\n"
+	},
+	{
+		2004014,
+		"- Create voice chats in legacy groups.\n"
+
+		"- Fix sticker pack opening.\n"
+
+		"- Fix group status display.\n"
+
+		"- Fix group members display.\n"
+	},
+	{
+		2004015,
+		"- Improve design of voice chats.\n"
+
+		"- Fix sending of voice messages as replies.\n"
+
+		"- Fix 'Open With' menu position in macOS.\n"
+
+		"- Fix freeze on secondary screen disconnect.\n"
+	},
+	{
+		2005002,
+		"- Fix possible crash in video calls.\n"
+
+		"- Fix possible crash in connecting to voice chats.\n"
+
+		"- Use different audio module code on Windows in calls.\n"
+	},
+	{
+		2005003,
+		"- Allow using mouse buttons in Push-to-Talk shortcut.\n"
+
+		"- Fix blurred thumbnails in Shared Links section.\n"
+	},
+	{
+		2005004,
+		"- Implement new audio module code for calls and voice chats.\n"
+
+		"- Allow retracting votes from polls in comments to channel posts.\n"
+
+		"- Show small voice chat button for empty voice chats.\n"
+
+		"- Fix media viewer updating when screen resolution is changed.\n"
+	},
+	{
+		2005005,
+		"- Fix recording of audio in voice chats.\n"
+
+		"- Fix media viewer zoom and crashing.\n"
+	},
+	{
+		2005006,
+		"- Press Up arrow to edit your last sent comment.\n"
+
+		"- Add more information to date tooltips "
+		"in Recent Actions and channel comments.\n"
+
+		"- Bug and crash fixes.\n"
+	},
+	{
+		2006002,
+		"- Fix text disappearing because of cloud drafts sync.\n"
+	},
+	{
+		2006003,
+		"- Fix audio device selection in voice chats.\n"
+
+		"- Fix blinking self profile photo "
+		"in case the profile photo privacy is used.\n"
+
+		"- Fix voice chat admin menu on macOS.\n"
+	},
+	{
+		2006004,
+		"- Fix freeze in voice chats.\n"
+
+		"- Make default interface scale 110% on macOS Retina screens.\n"
+	},
+	{
+		2006005,
+		"- Improvements and fixes in new voice chat features.\n"
+	},
+	{
+		2006007,
+		"- Improve voice chat participants list updating.\n"
+	},
+	{
+		2006008,
+		"- Fix connecting and getting allowed to speak on voice chats.\n"
+
+		"- MPRIS support on Linux.\n"
+	},
+	{
+		2007005,
+		"- Add \"Voice chats\" filter in \"Recent actions\" for channels.\n"
+
+		"- Write local drafts to disk on a background thread.\n"
+
+		"- Support autoupdate for Telegram in write-protected folders on Linux.\n"
+
+		"- Fix crash in native notifications on Linux.\n"
+
+		"- Fix crash in file dialog on Linux.\n"
+	},
+	{
+		2007007,
+		"- Optimized video playback in media viewer and Picture-in-Picture mode.\n"
+
+		"- Added integration with System Media Transport Controls on Windows 10.\n"
+
+		"- Added \"Now Playing\" integration for music playback on macOS.\n"
+
+		"- Added \"Archive Sticker\" into the \"...\" menu of the Sticker Set Box.\n"
+
+		"- Fixed memory not being freed on Linux.\n"
+
+		"- Several crash fixes.\n"
 	},
 	};
 };
@@ -176,7 +244,7 @@ void Changelogs::addLocalLogs() {
 			lt_changes,
 			tr::lng_new_version_minor(tr::now),
 			lt_link,
-			qsl("https://desktop.telegram.org/changelog"));
+			Core::App().changelogLink());
 		addLocalLog(text.trimmed());
 	}
 }
@@ -208,7 +276,7 @@ void Changelogs::addBetaLog(int changeVersion, const char *changes) {
 		return result.replace(simple, separator);
 	}();
 	const auto version = FormatVersionDisplay(changeVersion);
-	const auto log = qsl("New in version %1:\n\n").arg(version) + text;
+	const auto log = qsl("New in version %1 beta:\n\n").arg(version) + text;
 	addLocalLog(log);
 }
 

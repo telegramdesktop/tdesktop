@@ -64,6 +64,12 @@ public:
 	[[nodiscard]] QImage frame(
 		const FrameRequest &request,
 		const Instance *instance = nullptr) const;
+
+	[[nodiscard]] FrameWithInfo frameWithInfo(
+		const Instance *instance = nullptr) const; // !requireARGB32
+
+	[[nodiscard]] QImage currentFrameImage() const; // Converts if needed.
+
 	void unregisterInstance(not_null<const Instance*> instance);
 	bool markFrameShown();
 

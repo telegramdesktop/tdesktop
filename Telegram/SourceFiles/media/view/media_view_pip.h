@@ -22,6 +22,10 @@ namespace Ui {
 class IconButton;
 template <typename Widget>
 class FadeWrap;
+namespace GL {
+struct ChosenRenderer;
+struct Capabilities;
+} // namespace GL
 } // namespace Ui
 
 namespace Media {
@@ -38,17 +42,7 @@ class PlaybackProgress;
 [[nodiscard]] QSize FlipSizeByRotation(QSize size, int rotation);
 [[nodiscard]] QImage RotateFrameImage(QImage image, int rotation);
 
-#if defined Q_OS_MAC && !defined OS_MAC_OLD
-#define USE_OPENGL_OVERLAY_WIDGET
-#endif // Q_OS_MAC && !OS_MAC_OLD
-
-#ifdef USE_OPENGL_OVERLAY_WIDGET
-using PipParent = Ui::RpWidgetWrap<QOpenGLWidget>;
-#else // USE_OPENGL_OVERLAY_WIDGET
-using PipParent = Ui::RpWidget;
-#endif // USE_OPENGL_OVERLAY_WIDGET
-
-class PipPanel final : public PipParent {
+class PipPanel final {
 public:
 	struct Position {
 		RectParts attached = RectPart(0);
@@ -56,27 +50,33 @@ public:
 		QRect geometry;
 		QRect screen;
 	};
-	using FrameRequest = Streaming::FrameRequest;
 
 	PipPanel(
 		QWidget *parent,
-		Fn<void(QPainter&, FrameRequest)> paint);
+		Fn<Ui::GL::ChosenRenderer(Ui::GL::Capabilities)> renderer);
+	void init();
+
+	[[nodiscard]] not_null<QWidget*> widget() const;
+	[[nodiscard]] not_null<Ui::RpWidgetWrap*> rp() const;
+
+	void update();
+	void setGeometry(QRect geometry);
 
 	void setAspectRatio(QSize ratio);
 	[[nodiscard]] Position countPosition() const;
 	void setPosition(Position position);
 	[[nodiscard]] QRect inner() const;
 	[[nodiscard]] RectParts attached() const;
+	[[nodiscard]] bool useTransparency() const;
+
 	void setDragDisabled(bool disabled);
 	[[nodiscard]] bool dragging() const;
 
-	[[nodiscard]] rpl::producer<> saveGeometryRequests() const;
+	void handleMousePress(QPoint position, Qt::MouseButton button);
+	void handleMouseRelease(QPoint position, Qt::MouseButton button);
+	void handleMouseMove(QPoint position);
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
+	[[nodiscard]] rpl::producer<> saveGeometryRequests() const;
 
 private:
 	void setPositionDefault();
@@ -91,8 +91,8 @@ private:
 	void moveAnimated(QPoint to);
 	void updateDecorations();
 
-	QPointer<QWidget> _parent;
-	Fn<void(QPainter&, FrameRequest)> _paint;
+	const std::unique_ptr<Ui::RpWidgetWrap> _content;
+	const QPointer<QWidget> _parent;
 	RectParts _attached = RectParts();
 	RectParts _snapped = RectParts();
 	QSize _ratio;
@@ -139,6 +139,8 @@ private:
 		Close,
 		Enlarge,
 		Playback,
+		VolumeToggle,
+		VolumeController,
 		Other,
 	};
 	enum class ThumbState {
@@ -154,13 +156,31 @@ private:
 		OverState state = OverState::None;
 		Ui::Animations::Simple active;
 	};
+	struct ContentGeometry {
+		QRect inner;
+		RectParts attached = RectParts();
+		float64 fade = 0.;
+		QSize outer;
+		int rotation = 0;
+		int videoRotation = 0;
+		bool useTransparency = false;
+	};
+	struct StaticContent {
+		QImage image;
+		bool blurred = false;
+	};
 	using FrameRequest = Streaming::FrameRequest;
+	class Renderer;
+	class RendererGL;
+	class RendererSW;
 
 	void setupPanel();
 	void setupButtons();
 	void setupStreaming();
-	void paint(QPainter &p, FrameRequest request);
 	void playbackPauseResume();
+	void volumeChanged(float64 volume);
+	void volumeToggled();
+	void volumeControllerUpdate(QPoint position);
 	void waitingAnimationCallback();
 	void handleStreamingUpdate(Streaming::Update &&update);
 	void handleStreamingError(Streaming::Error &&error);
@@ -172,15 +192,21 @@ private:
 
 	[[nodiscard]] bool canUseVideoFrame() const;
 	[[nodiscard]] QImage videoFrame(const FrameRequest &request) const;
-	[[nodiscard]] QImage videoFrameForDirectPaint(
-		const FrameRequest &request) const;
+	[[nodiscard]] Streaming::FrameWithInfo videoFrameWithInfo() const; // YUV
+	[[nodiscard]] QImage staticContent() const;
 	[[nodiscard]] OverState computeState(QPoint position) const;
 	void setOverState(OverState state);
 	void setPressedState(std::optional<OverState> state);
-	[[nodiscard]] OverState activeState() const;
+	[[nodiscard]] OverState shownActiveState() const;
 	[[nodiscard]] float64 activeValue(const Button &button) const;
 	void updateActiveState(OverState was);
 	void updatePlaybackTexts(int64 position, int64 length, int64 frequency);
+
+	[[nodiscard]] static OverState ResolveShownOver(OverState state);
+
+	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
+		Ui::GL::Capabilities capabilities);
+	void paint(not_null<Renderer*> renderer) const;
 
 	void handleMouseMove(QPoint position);
 	void handleMousePress(QPoint position, Qt::MouseButton button);
@@ -189,13 +215,28 @@ private:
 	void handleLeave();
 	void handleClose();
 
-	void paintControls(QPainter &p) const;
-	void paintFade(QPainter &p) const;
-	void paintButtons(QPainter &p) const;
-	void paintPlayback(QPainter &p) const;
-	void paintPlaybackTexts(QPainter &p) const;
-	void paintRadialLoading(QPainter &p) const;
-	void paintRadialLoadingContent(QPainter &p, const QRect &inner) const;
+	void paintRadialLoadingContent(
+		QPainter &p,
+		const QRect &inner,
+		QColor fg) const;
+	void paintButtons(not_null<Renderer*> renderer, float64 shown) const;
+	void paintPlayback(not_null<Renderer*> renderer, float64 shown) const;
+	void paintPlaybackContent(QPainter &p, QRect outer, float64 shown) const;
+	void paintPlaybackProgress(QPainter &p, QRect outer) const;
+	void paintProgressBar(
+		QPainter &p,
+		const QRect &rect,
+		float64 progress,
+		int radius,
+		float64 active) const;
+	void paintPlaybackTexts(QPainter &p, QRect outer) const;
+	void paintVolumeController(
+		not_null<Renderer*> renderer,
+		float64 shown) const;
+	void paintVolumeControllerContent(
+		QPainter &p,
+		QRect outer,
+		float64 shown) const;
 	[[nodiscard]] QRect countRadialRect() const;
 
 	void seekUpdate(QPoint position);
@@ -206,6 +247,7 @@ private:
 	not_null<DocumentData*> _data;
 	FullMsgId _contextId;
 	Streaming::Instance _instance;
+	bool _opengl = false;
 	PipPanel _panel;
 	QSize _size;
 	std::unique_ptr<PlaybackProgress> _playbackProgress;
@@ -217,6 +259,7 @@ private:
 	QString _timeAlready, _timeLeft;
 	int _timeLeftWidth = 0;
 	int _rotation = 0;
+	float64 _lastPositiveVolume = 1.;
 	crl::time _seekPositionMs = -1;
 	crl::time _lastDurationMs = 0;
 	OverState _over = OverState::None;
@@ -226,20 +269,15 @@ private:
 	Button _enlarge;
 	Button _playback;
 	Button _play;
+	Button _volumeToggle;
+	Button _volumeController;
 	Ui::Animations::Simple _controlsShown;
-	Ui::RoundRect _roundRect;
 
 	FnMut<void()> _closeAndContinue;
 	FnMut<void()> _destroy;
 
-#ifdef USE_OPENGL_OVERLAY_WIDGET
-	mutable QImage _frameForDirectPaint;
-	mutable QImage _radialCache;
-#endif // USE_OPENGL_OVERLAY_WIDGET
-
 	mutable QImage _preparedCoverStorage;
-	mutable FrameRequest _preparedCoverRequest;
-	mutable ThumbState _preparedCoverState;
+	mutable ThumbState _preparedCoverState = ThumbState::Empty;
 
 };
 

@@ -60,6 +60,7 @@ class Histories;
 class DocumentMedia;
 class PhotoMedia;
 class Stickers;
+class GroupCall;
 
 class Session final {
 public:
@@ -76,6 +77,8 @@ public:
 	[[nodiscard]] Main::Session &session() const {
 		return *_session;
 	}
+
+	[[nodiscard]] QString nameSortKey(const QString &name) const;
 
 	[[nodiscard]] Groups &groups() {
 		return _groups;
@@ -152,6 +155,26 @@ public:
 	PeerData *processChats(const MTPVector<MTPChat> &data);
 
 	void applyMaximumChatVersions(const MTPVector<MTPChat> &data);
+
+	void registerGroupCall(not_null<GroupCall*> call);
+	void unregisterGroupCall(not_null<GroupCall*> call);
+	GroupCall *groupCall(uint64 callId) const;
+
+	[[nodiscard]] auto invitedToCallUsers(uint64 callId) const
+		-> const base::flat_set<not_null<UserData*>> &;
+	void registerInvitedToCallUser(
+		uint64 callId,
+		not_null<PeerData*> peer,
+		not_null<UserData*> user);
+	void unregisterInvitedToCallUser(uint64 callId, not_null<UserData*> user);
+
+	struct InviteToCall {
+		uint64 id = 0;
+		not_null<UserData*> user;
+	};
+	[[nodiscard]] rpl::producer<InviteToCall> invitesToCalls() const {
+		return _invitesToCalls.events();
+	}
 
 	void enumerateUsers(Fn<void(not_null<UserData*>)> action) const;
 	void enumerateGroups(Fn<void(not_null<PeerData*>)> action) const;
@@ -304,8 +327,15 @@ public:
 		const Dialogs::Key &key1,
 		const Dialogs::Key &key2);
 
+	void setSuggestToGigagroup(not_null<ChannelData*> group, bool suggest);
+	[[nodiscard]] bool suggestToGigagroup(
+		not_null<ChannelData*> group) const;
+
 	void registerMessage(not_null<HistoryItem*> item);
 	void unregisterMessage(not_null<HistoryItem*> item);
+
+	void registerMessageTTL(TimeId when, not_null<HistoryItem*> item);
+	void unregisterMessageTTL(TimeId when, not_null<HistoryItem*> item);
 
 	// Returns true if item found and it is not detached.
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &data);
@@ -336,6 +366,8 @@ public:
 	void unregisterDependentMessage(
 		not_null<HistoryItem*> dependent,
 		not_null<HistoryItem*> dependency);
+
+	void destroyAllCallItems();
 
 	void registerMessageRandomId(uint64 randomId, FullMsgId itemId);
 	void unregisterMessageRandomId(uint64 randomId);
@@ -380,6 +412,9 @@ public:
 	[[nodiscard]] auto sendActionAnimationUpdated() const
 		-> rpl::producer<SendActionAnimationUpdate>;
 	void updateSendActionAnimation(SendActionAnimationUpdate &&update);
+	[[nodiscard]] auto speakingAnimationUpdated() const
+		-> rpl::producer<not_null<History*>>;
+	void updateSpeakingAnimation(not_null<History*> history);
 
 	using SendActionPainter = HistoryView::SendActionPainter;
 	[[nodiscard]] std::shared_ptr<SendActionPainter> repliesSendActionPainter(
@@ -546,6 +581,8 @@ public:
 	void unregisterContactItem(
 		UserId contactId,
 		not_null<HistoryItem*> item);
+	void registerCallItem(not_null<HistoryItem*> item);
+	void unregisterCallItem(not_null<HistoryItem*> item);
 
 	void documentMessageRemoved(not_null<DocumentData*> document);
 
@@ -572,9 +609,6 @@ public:
 	[[nodiscard]] Folder *folderLoaded(FolderId id) const;
 	not_null<Folder*> processFolder(const MTPFolder &data);
 	not_null<Folder*> processFolder(const MTPDfolder &data);
-	//void setDefaultFeedId(FeedId id); // #feed
-	//FeedId defaultFeedId() const;
-	//rpl::producer<FeedId> defaultFeedIdValue() const;
 
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList(
 		Data::Folder *folder = nullptr);
@@ -657,6 +691,9 @@ private:
 	void setupUserIsContactViewer();
 
 	void checkSelfDestructItems();
+
+	void scheduleNextTTLs();
+	void checkTTLs();
 
 	int computeUnreadBadge(const Dialogs::UnreadState &state) const;
 	bool computeUnreadBadgeMuted(const Dialogs::UnreadState &state) const;
@@ -829,6 +866,8 @@ private:
 	std::map<
 		not_null<HistoryItem*>,
 		base::flat_set<not_null<HistoryItem*>>> _dependentMessages;
+	std::map<TimeId, base::flat_set<not_null<HistoryItem*>>> _ttlMessages;
+	base::Timer _ttlCheckTimer;
 
 	base::flat_map<uint64, FullMsgId> _messageByRandomId;
 	base::flat_map<uint64, SentData> _sentMessagesData;
@@ -884,6 +923,7 @@ private:
 	std::unordered_map<
 		UserId,
 		base::flat_set<not_null<ViewElement*>>> _contactViews;
+	std::unordered_set<not_null<HistoryItem*>> _callItems;
 
 	base::flat_set<not_null<WebPageData*>> _webpagesUpdated;
 	base::flat_set<not_null<GameData*>> _gamesUpdated;
@@ -891,12 +931,12 @@ private:
 
 	rpl::event_stream<not_null<WebPageData*>> _webpageUpdates;
 	rpl::event_stream<not_null<ChannelData*>> _channelDifferenceTooLong;
+	base::flat_set<not_null<ChannelData*>> _suggestToGigagroup;
 
 	base::flat_multi_map<TimeId, not_null<PollData*>> _pollsClosings;
 	base::Timer _pollsClosingTimer;
 
 	base::flat_map<FolderId, std::unique_ptr<Folder>> _folders;
-	//rpl::variable<FeedId> _defaultFeedId = FeedId(); // #feed
 
 	std::unordered_map<
 		not_null<const HistoryItem*>,
@@ -905,6 +945,10 @@ private:
 	rpl::event_stream<> _pinnedDialogsOrderUpdated;
 
 	base::flat_set<not_null<ViewElement*>> _heavyViewParts;
+
+	base::flat_map<uint64, not_null<GroupCall*>> _groupCalls;
+	rpl::event_stream<InviteToCall> _invitesToCalls;
+	base::flat_map<uint64, base::flat_set<not_null<UserData*>>> _invitedToCallUsers;
 
 	History *_topPromoted = nullptr;
 
@@ -927,6 +971,7 @@ private:
 	std::unique_ptr<CredentialsWithGeneration> _passportCredentials;
 
 	rpl::event_stream<SendActionAnimationUpdate> _sendActionAnimationUpdate;
+	rpl::event_stream<not_null<History*>> _speakingAnimationUpdate;
 
 	std::vector<WallPaper> _wallpapers;
 	int32 _wallpapersHash = 0;

@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/themes/window_theme.h"
 #include "lang/lang_instance.h"
-#include "facades.h"
 
 #include <QtCore/QDirIterator>
 
@@ -338,8 +337,13 @@ bool _readOldMtpData(bool remove, ReadSettingsContext &context) {
 
 } // namespace
 
+void sync() {
+	Storage::details::Sync();
+}
+
 void finish() {
 	delete base::take(_localLoader);
+	Storage::details::Finish();
 }
 
 void InitialLoadTheme();
@@ -461,19 +465,6 @@ void writeSettings() {
 	size += sizeof(quint32) + Serialize::bytearraySize(applicationSettings);
 	size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
 
-	auto &proxies = Global::RefProxiesList();
-	const auto &proxy = Global::SelectedProxy();
-	auto proxyIt = ranges::find(proxies, proxy);
-	if (proxy.type != MTP::ProxyData::Type::None
-		&& proxyIt == end(proxies)) {
-		proxies.push_back(proxy);
-		proxyIt = end(proxies) - 1;
-	}
-	size += sizeof(quint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
-	for (const auto &proxy : proxies) {
-		size += sizeof(qint32) + Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
-	}
-
 	// Theme keys and night mode.
 	size += sizeof(quint32) + sizeof(quint64) * 2 + sizeof(quint32);
 	size += sizeof(quint32) + sizeof(quint64) * 2;
@@ -486,7 +477,6 @@ void writeSettings() {
 	data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 	data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
 	data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
-	data.stream << quint32(dbiWorkMode) << qint32(Global::WorkMode().value());
 	data.stream << quint32(dbiSeenTrayTooltip) << qint32(cSeenTrayTooltip());
 	data.stream << quint32(dbiAutoUpdate) << qint32(cAutoUpdate());
 	data.stream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
@@ -496,17 +486,6 @@ void writeSettings() {
 	data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 	data.stream << quint32(dbiAnimationsDisabled) << qint32(anim::Disabled() ? 1 : 0);
 
-	data.stream << quint32(dbiConnectionType) << qint32(dbictProxiesList);
-	data.stream << qint32(proxies.size());
-	data.stream << qint32(proxyIt - begin(proxies)) + 1;
-	data.stream << qint32(Global::ProxySettings());
-	data.stream << qint32(Global::UseProxyForCalls() ? 1 : 0);
-	for (const auto &proxy : proxies) {
-		data.stream << qint32(kProxyTypeShift + int(proxy.type));
-		data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
-	}
-
-	data.stream << quint32(dbiTryIPv6) << qint32(Global::TryIPv6());
 	data.stream
 		<< quint32(dbiThemeKey)
 		<< quint64(_themeKeyDay)
@@ -528,12 +507,6 @@ void writeSettings() {
 	if (_languagesKey) {
 		data.stream << quint32(dbiLanguagesKey) << quint64(_languagesKey);
 	}
-
-	auto position = cWindowPos();
-	data.stream << quint32(dbiWindowPosition) << qint32(position.x) << qint32(position.y) << qint32(position.w) << qint32(position.h);
-	data.stream << qint32(position.moncrc) << qint32(position.maximized);
-
-	DEBUG_LOG(("Window Pos: Writing to storage %1, %2, %3, %4 (maximized %5)").arg(position.x).arg(position.y).arg(position.w).arg(position.h).arg(Logs::b(position.maximized)));
 
 	settings.writeEncrypted(data, SettingsKey);
 }
@@ -909,10 +882,11 @@ Window::Theme::Saved readThemeUsingKey(FileKey key) {
 	auto result = Saved();
 	auto &object = result.object;
 	auto &cache = result.cache;
+	auto field1 = qint32();
+	auto field2 = quint32();
 	theme.stream >> object.content;
 	theme.stream >> tag >> object.pathAbsolute;
 	if (tag == kThemeNewPathRelativeTag) {
-		auto creator = qint32();
 		theme.stream
 			>> object.pathRelative
 			>> object.cloud.id
@@ -920,8 +894,7 @@ Window::Theme::Saved readThemeUsingKey(FileKey key) {
 			>> object.cloud.slug
 			>> object.cloud.title
 			>> object.cloud.documentId
-			>> creator;
-		object.cloud.createdBy = creator;
+			>> field1;
 	} else {
 		object.pathRelative = tag;
 	}
@@ -953,18 +926,29 @@ Window::Theme::Saved readThemeUsingKey(FileKey key) {
 			}
 		}
 	}
+	int32 cachePaletteChecksum = 0;
+	int32 cacheContentChecksum = 0;
+	QByteArray cacheColors;
+	QByteArray cacheBackground;
+	theme.stream
+		>> cachePaletteChecksum
+		>> cacheContentChecksum
+		>> cacheColors
+		>> cacheBackground
+		>> field2;
 	if (!ignoreCache) {
-		quint32 backgroundIsTiled = 0;
-		theme.stream
-			>> cache.paletteChecksum
-			>> cache.contentChecksum
-			>> cache.colors
-			>> cache.background
-			>> backgroundIsTiled;
-		cache.tiled = (backgroundIsTiled == 1);
 		if (theme.stream.status() != QDataStream::Ok) {
 			return {};
 		}
+		cache.paletteChecksum = cachePaletteChecksum;
+		cache.contentChecksum = cacheContentChecksum;
+		cache.colors = std::move(cacheColors);
+		cache.background = std::move(cacheBackground);
+		cache.tiled = ((field2 & quint32(0xFF)) == 1);
+	}
+	if (tag == kThemeNewPathRelativeTag) {
+		object.cloud.createdBy = UserId(
+			((quint64(field2) >> 8) << 32) | quint64(quint32(field1)));
 	}
 	return result;
 }
@@ -1017,6 +1001,11 @@ void writeTheme(const Window::Theme::Saved &saved) {
 		+ Serialize::bytearraySize(cache.colors)
 		+ Serialize::bytearraySize(cache.background)
 		+ sizeof(quint32);
+	const auto bareCreatedById = object.cloud.createdBy.bare;
+	Assert((bareCreatedById & PeerId::kChatTypeMask) == bareCreatedById);
+	const auto field1 = qint32(quint32(bareCreatedById & 0xFFFFFFFFULL));
+	const auto field2 = quint32(cache.tiled ? 1 : 0)
+		| (quint32(bareCreatedById >> 32) << 8);
 	EncryptedDescriptor data(size);
 	data.stream
 		<< object.content
@@ -1028,12 +1017,12 @@ void writeTheme(const Window::Theme::Saved &saved) {
 		<< object.cloud.slug
 		<< object.cloud.title
 		<< object.cloud.documentId
-		<< qint32(object.cloud.createdBy)
+		<< field1
 		<< cache.paletteChecksum
 		<< cache.contentChecksum
 		<< cache.colors
 		<< cache.background
-		<< quint32(cache.tiled ? 1 : 0);
+		<< field2;
 
 	FileWriteDescriptor file(themeKey, _basePath);
 	file.writeEncrypted(data, SettingsKey);

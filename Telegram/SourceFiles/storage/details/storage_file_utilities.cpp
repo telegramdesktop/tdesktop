@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_file_utilities.h"
 #include "base/openssl_help.h"
 
+#include <crl/crl_object_on_thread.h>
 #include <QtCore/QtEndian>
 #include <QtCore/QSaveFile>
 
@@ -22,6 +23,217 @@ constexpr char TdfMagic[] = { 'T', 'D', 'F', '$' };
 constexpr auto TdfMagicLen = int(sizeof(TdfMagic));
 
 constexpr auto kStrongIterationsCount = 100'000;
+
+struct WriteEntry {
+	QString basePath;
+	QString base;
+	QByteArray data;
+	QByteArray md5;
+};
+
+class WriteManager final {
+public:
+	explicit WriteManager(crl::weak_on_thread<WriteManager> weak);
+
+	void write(WriteEntry &&entry);
+	void writeSync(WriteEntry &&entry);
+	void writeSyncAll();
+
+private:
+	void scheduleWrite();
+	void writeScheduled();
+	bool writeOneScheduledNow();
+	void writeNow(WriteEntry &&entry);
+
+	template <typename File>
+	[[nodiscard]] bool open(File &file, const WriteEntry &entry, char postfix);
+
+	[[nodiscard]] QString path(const WriteEntry &entry, char postfix) const;
+	[[nodiscard]] bool writeHeader(
+		const QString &basePath,
+		QFileDevice &file);
+
+	crl::weak_on_thread<WriteManager> _weak;
+	std::deque<WriteEntry> _scheduled;
+
+};
+
+class AsyncWriteManager final {
+public:
+	void write(WriteEntry &&entry);
+	void writeSync(WriteEntry &&entry);
+	void sync();
+	void stop();
+
+private:
+	std::optional<crl::object_on_thread<WriteManager>> _manager;
+	bool _finished = false;
+
+};
+
+WriteManager::WriteManager(crl::weak_on_thread<WriteManager> weak)
+: _weak(std::move(weak)) {
+}
+
+void WriteManager::write(WriteEntry &&entry) {
+	const auto i = ranges::find(_scheduled, entry.base, &WriteEntry::base);
+	if (i == end(_scheduled)) {
+		_scheduled.push_back(std::move(entry));
+	} else {
+		*i = std::move(entry);
+	}
+	scheduleWrite();
+}
+
+void WriteManager::writeSync(WriteEntry &&entry) {
+	const auto i = ranges::find(_scheduled, entry.base, &WriteEntry::base);
+	if (i != end(_scheduled)) {
+		_scheduled.erase(i);
+	}
+	writeNow(std::move(entry));
+}
+
+void WriteManager::writeNow(WriteEntry &&entry) {
+	const auto path = [&](char postfix) {
+		return this->path(entry, postfix);
+	};
+	const auto open = [&](auto &file, char postfix) {
+		return this->open(file, entry, postfix);
+	};
+	const auto write = [&](auto &file) {
+		file.write(entry.data);
+		file.write(entry.md5);
+	};
+	const auto safe = path('s');
+	const auto simple = path('0');
+	const auto backup = path('1');
+	QSaveFile save;
+	if (open(save, 's')) {
+		write(save);
+		if (save.commit()) {
+			QFile::remove(simple);
+			QFile::remove(backup);
+			return;
+		}
+		LOG(("Storage Error: Could not commit '%1'.").arg(safe));
+	}
+	QFile plain;
+	if (open(plain, '0')) {
+		write(plain);
+		base::Platform::FlushFileData(plain);
+		plain.close();
+
+		QFile::remove(backup);
+		if (base::Platform::RenameWithOverwrite(simple, safe)) {
+			return;
+		}
+		QFile::remove(safe);
+		LOG(("Storage Error: Could not rename '%1' to '%2', removing.").arg(
+			simple,
+			safe));
+	}
+}
+
+void WriteManager::writeSyncAll() {
+	while (writeOneScheduledNow()) {
+	}
+}
+
+bool WriteManager::writeOneScheduledNow() {
+	if (_scheduled.empty()) {
+		return false;
+	}
+
+	auto entry = std::move(_scheduled.front());
+	_scheduled.pop_front();
+
+	writeNow(std::move(entry));
+	return true;
+}
+
+bool WriteManager::writeHeader(const QString &basePath, QFileDevice &file) {
+	if (!file.open(QIODevice::WriteOnly)) {
+		const auto dir = QDir(basePath);
+		if (dir.exists()) {
+			return false;
+		} else if (!QDir().mkpath(dir.absolutePath())) {
+			return false;
+		} else if (!file.open(QIODevice::WriteOnly)) {
+			return false;
+		}
+	}
+	file.write(TdfMagic, TdfMagicLen);
+	const auto version = qint32(AppVersion);
+	file.write((const char*)&version, sizeof(version));
+	return true;
+}
+
+QString WriteManager::path(const WriteEntry &entry, char postfix) const {
+	return entry.base + postfix;
+}
+
+template <typename File>
+bool WriteManager::open(File &file, const WriteEntry &entry, char postfix) {
+	const auto name = path(entry, postfix);
+	file.setFileName(name);
+	if (!writeHeader(entry.basePath, file)) {
+		LOG(("Storage Error: Could not open '%1' for writing.").arg(name));
+		return false;
+	}
+	return true;
+}
+
+void WriteManager::scheduleWrite() {
+	_weak.with([](WriteManager &that) {
+		that.writeScheduled();
+	});
+}
+
+void WriteManager::writeScheduled() {
+	if (writeOneScheduledNow() && !_scheduled.empty()) {
+		scheduleWrite();
+	}
+}
+
+void AsyncWriteManager::write(WriteEntry &&entry) {
+	Expects(!_finished);
+
+	if (!_manager) {
+		_manager.emplace();
+	}
+	_manager->with([entry = std::move(entry)](WriteManager &manager) mutable {
+		manager.write(std::move(entry));
+	});
+}
+
+void AsyncWriteManager::writeSync(WriteEntry &&entry) {
+	Expects(!_finished);
+
+	if (!_manager) {
+		_manager.emplace();
+	}
+	_manager->with_sync([&](WriteManager &manager) {
+		manager.writeSync(std::move(entry));
+	});
+}
+
+void AsyncWriteManager::sync() {
+	if (_manager) {
+		_manager->with_sync([](WriteManager &manager) {
+			manager.writeSyncAll();
+		});
+	}
+}
+
+void AsyncWriteManager::stop() {
+	if (_manager) {
+		sync();
+		_manager.reset();
+	}
+	_finished = true;
+}
+
+AsyncWriteManager Manager;
 
 } // namespace
 
@@ -38,15 +250,15 @@ QString ToFilePart(FileKey val) {
 
 bool KeyAlreadyUsed(QString &name) {
 	name += '0';
-	if (QFileInfo(name).exists()) {
+	if (QFileInfo::exists(name)) {
 		return true;
 	}
 	name[name.size() - 1] = '1';
-	if (QFileInfo(name).exists()) {
+	if (QFileInfo::exists(name)) {
 		return true;
 	}
 	name[name.size() - 1] = 's';
-	if (QFileInfo(name).exists()) {
+	if (QFileInfo::exists(name)) {
 		return true;
 	}
 	return false;
@@ -58,7 +270,7 @@ FileKey GenerateKey(const QString &basePath) {
 	path.reserve(basePath.size() + 0x11);
 	path += basePath;
 	do {
-		result = rand_value<FileKey>();
+		result = openssl::RandomValue<FileKey>();
 		path.resize(basePath.size());
 		path += ToFilePart(result);
 	} while (!result || KeyAlreadyUsed(path));
@@ -165,55 +377,22 @@ void EncryptedDescriptor::finish() {
 
 FileWriteDescriptor::FileWriteDescriptor(
 	const FileKey &key,
-	const QString &basePath)
-: FileWriteDescriptor(ToFilePart(key), basePath) {
+	const QString &basePath,
+	bool sync)
+: FileWriteDescriptor(ToFilePart(key), basePath, sync) {
 }
 
 FileWriteDescriptor::FileWriteDescriptor(
 	const QString &name,
-	const QString &basePath)
-: _basePath(basePath) {
+	const QString &basePath,
+	bool sync)
+: _basePath(basePath)
+, _sync(sync) {
 	init(name);
 }
 
 FileWriteDescriptor::~FileWriteDescriptor() {
 	finish();
-}
-
-QString FileWriteDescriptor::path(char postfix) const {
-	return _base + postfix;
-}
-
-template <typename File>
-bool FileWriteDescriptor::open(File &file, char postfix) {
-	const auto name = path(postfix);
-	file.setFileName(name);
-	if (!writeHeader(file)) {
-		LOG(("Storage Error: Could not open '%1' for writing.").arg(name));
-		return false;
-	}
-	return true;
-}
-
-bool FileWriteDescriptor::writeHeader(QFileDevice &file) {
-	if (!file.open(QIODevice::WriteOnly)) {
-		const auto dir = QDir(_basePath);
-		if (dir.exists()) {
-			return false;
-		} else if (!QDir().mkpath(dir.absolutePath())) {
-			return false;
-		} else if (!file.open(QIODevice::WriteOnly)) {
-			return false;
-		}
-	}
-	file.write(TdfMagic, TdfMagicLen);
-	const auto version = qint32(AppVersion);
-	file.write((const char*)&version, sizeof(version));
-	return true;
-}
-
-void FileWriteDescriptor::writeFooter(QFileDevice &file) {
-	file.write((const char*)_md5.result(), 0x10);
 }
 
 void FileWriteDescriptor::init(const QString &name) {
@@ -257,35 +436,16 @@ void FileWriteDescriptor::finish() {
 
 	_buffer.close();
 
-	const auto safe = path('s');
-	const auto simple = path('0');
-	const auto backup = path('1');
-	QSaveFile save;
-	if (open(save, 's')) {
-		save.write(_safeData);
-		writeFooter(save);
-		if (save.commit()) {
-			QFile::remove(simple);
-			QFile::remove(backup);
-			return;
-		}
-		LOG(("Storage Error: Could not commit '%1'.").arg(safe));
-	}
-	QFile plain;
-	if (open(plain, '0')) {
-		plain.write(_safeData);
-		writeFooter(plain);
-		base::Platform::FlushFileData(plain);
-		plain.close();
-
-		QFile::remove(backup);
-		if (base::Platform::RenameWithOverwrite(simple, safe)) {
-			return;
-		}
-		QFile::remove(safe);
-		LOG(("Storage Error: Could not rename '%1' to '%2', removing."
-			).arg(simple
-			).arg(safe));
+	auto entry = WriteEntry{
+		.basePath = _basePath,
+		.base = _base,
+		.data = _safeData,
+		.md5 = QByteArray((const char*)_md5.result(), 0x10)
+	};
+	if (_sync) {
+		Manager.writeSync(std::move(entry));
+	} else {
+		Manager.write(std::move(entry));
 	}
 }
 
@@ -319,7 +479,7 @@ bool ReadFile(
 	// detect order of read attempts
 	QString toTry[2];
 	const auto modern = base + 's';
-	if (QFileInfo(modern).exists()) {
+	if (QFileInfo::exists(modern)) {
 		toTry[0] = modern;
 	} else {
 		// Legacy way.
@@ -360,9 +520,9 @@ bool ReadFile(
 			continue;
 		}
 		if (memcmp(magic, TdfMagic, TdfMagicLen)) {
-			DEBUG_LOG(("App Info: bad magic %1 in '%2'"
-				).arg(Logs::mb(magic, TdfMagicLen).str()
-				).arg(name));
+			DEBUG_LOG(("App Info: bad magic %1 in '%2'").arg(
+				Logs::mb(magic, TdfMagicLen).str(),
+				name));
 			continue;
 		}
 
@@ -502,6 +662,14 @@ bool ReadEncryptedFile(
 		const QString &basePath,
 		const MTP::AuthKeyPtr &key) {
 	return ReadEncryptedFile(result, ToFilePart(fkey), basePath, key);
+}
+
+void Sync() {
+	Manager.sync();
+}
+
+void Finish() {
+	Manager.stop();
 }
 
 } // namespace details

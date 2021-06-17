@@ -61,8 +61,7 @@ struct CacheEntry {
 class Inner
 	: public Ui::RpWidget
 	, public Ui::AbstractTooltipShower
-	, public Context
-	, private base::Subscriber {
+	, public Context {
 
 public:
 	Inner(QWidget *parent, not_null<Window::SessionController*> controller);

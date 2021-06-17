@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image_location_factory.h"
+#include "base/openssl_help.h"
 #include "base/unixtime.h"
 #include "styles/style_chat_helpers.h"
 
@@ -313,7 +314,7 @@ bool Stickers::applyArchivedResultFake() {
 		const auto raw = set.get();
 		if ((raw->flags & MTPDstickerSet::Flag::f_installed_date)
 			&& !(raw->flags & MTPDstickerSet_ClientFlag::f_special)) {
-			if (rand_value<uint32>() % 128 < 64) {
+			if (openssl::RandomValue<uint32>() % 128 < 64) {
 				const auto data = MTP_stickerSet(
 					MTP_flags(raw->flags | MTPDstickerSet::Flag::f_archived),
 					MTP_int(raw->installDate),
@@ -321,7 +322,8 @@ bool Stickers::applyArchivedResultFake() {
 					MTP_long(raw->access),
 					MTP_string(raw->title),
 					MTP_string(raw->shortName),
-					MTP_photoSizeEmpty(MTP_string()),
+					MTP_vector<MTPPhotoSize>(),
+					MTP_int(0),
 					MTP_int(0),
 					MTP_int(raw->count),
 					MTP_int(raw->hash));
@@ -419,7 +421,7 @@ bool Stickers::isFaved(not_null<const DocumentData*> document) {
 	if (it == sets.cend()) {
 		return false;
 	}
-	for (const auto sticker : it->second->stickers) {
+	for (const auto sticker : std::as_const(it->second->stickers)) {
 		if (sticker == document) {
 			return true;
 		}
@@ -544,7 +546,7 @@ void Stickers::requestSetToPushFaved(not_null<DocumentData*> document) {
 			}
 		}
 		addAnyway(std::move(list));
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		// Perhaps this is a deleted sticker pack. Add anyway.
 		addAnyway({});
 	}).send();
@@ -786,9 +788,9 @@ void Stickers::featuredSetsReceived(
 		const QVector<MTPStickerSetCovered> &list,
 		const QVector<MTPlong> &unread,
 		int32 hash) {
-	auto &&unreadIds = ranges::view::all(
+	auto &&unreadIds = ranges::views::all(
 		unread
-	) | ranges::view::transform([](const MTPlong &id) {
+	) | ranges::views::transform([](const MTPlong &id) {
 		return id.v;
 	});
 	const auto unreadMap = base::flat_set<uint64>{
@@ -814,10 +816,20 @@ void Stickers::featuredSetsReceived(
 		auto it = sets.find(data->vid().v);
 		const auto title = getSetTitle(*data);
 		const auto installDate = data->vinstalled_date().value_or_empty();
-		const auto thumb = data->vthumb();
-		const auto thumbnail = thumb
-			? Images::FromPhotoSize(&session(), *data, *thumb)
-			: ImageWithLocation();
+		const auto thumbnail = [&] {
+			if (const auto thumbs = data->vthumbs()) {
+				for (const auto &thumb : thumbs->v) {
+					const auto result = Images::FromPhotoSize(
+						&session(),
+						*data,
+						thumb);
+					if (result.location.valid()) {
+						return result;
+					}
+				}
+			}
+			return ImageWithLocation();
+		}();
 		if (it == sets.cend()) {
 			auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured
 				| MTPDstickerSet_ClientFlag::f_not_loaded;
@@ -891,7 +903,7 @@ void Stickers::featuredSetsReceived(
 
 	if (!setsToRequest.empty()) {
 		auto &api = session().api();
-		for (const auto [setId, accessHash] : setsToRequest) {
+		for (const auto &[setId, accessHash] : setsToRequest) {
 			api.scheduleStickerSetRequest(setId, accessHash);
 		}
 		api.requestStickerSets();
@@ -1082,14 +1094,14 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 		}
 	}
 
-	ranges::action::sort(
+	ranges::actions::sort(
 		result,
 		std::greater<>(),
 		&StickerWithDate::date);
 
-	return ranges::view::all(
+	return ranges::views::all(
 		result
-	) | ranges::view::transform([](const StickerWithDate &data) {
+	) | ranges::views::transform([](const StickerWithDate &data) {
 		return data.document;
 	}) | ranges::to_vector;
 }
@@ -1126,10 +1138,20 @@ StickersSet *Stickers::feedSet(const MTPDstickerSet &data) {
 	auto it = sets.find(data.vid().v);
 	auto title = getSetTitle(data);
 	auto flags = MTPDstickerSet::Flags(0);
-	const auto thumb = data.vthumb();
-	const auto thumbnail = thumb
-		? Images::FromPhotoSize(&session(), data, *thumb)
-		: ImageWithLocation();
+	const auto thumbnail = [&] {
+		if (const auto thumbs = data.vthumbs()) {
+			for (const auto &thumb : thumbs->v) {
+				const auto result = Images::FromPhotoSize(
+					&session(),
+					data,
+					thumb);
+				if (result.location.valid()) {
+					return result;
+				}
+			}
+		}
+		return ImageWithLocation();
+	}();
 	if (it == sets.cend()) {
 		it = sets.emplace(data.vid().v, std::make_unique<StickersSet>(
 			&owner(),

@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/linux_desktop_environment.h"
 
-#include "platform/linux/specific_linux.h"
 #include "base/qt_adapters.h"
 
 namespace Platform {
@@ -15,9 +14,8 @@ namespace DesktopEnvironment {
 namespace {
 
 QString GetEnv(const char *name) {
-	auto result = getenv(name);
-	auto value = result ? QString::fromLatin1(result) : QString();
-	LOG(("Getting DE, %1: '%2'").arg(name).arg(value));
+	auto value = qEnvironmentVariable(name);
+	LOG(("Getting DE, %1: '%2'").arg(name, value));
 	return value;
 }
 

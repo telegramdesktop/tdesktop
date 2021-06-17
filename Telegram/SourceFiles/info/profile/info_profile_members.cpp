@@ -212,10 +212,10 @@ void Members::setupButtons() {
 
 void Members::setupList() {
 	auto topSkip = _header ? _header->height() : 0;
+	_listController->setStyleOverrides(&st::infoMembersList);
 	_list = object_ptr<ListWidget>(
 		this,
-		_listController.get(),
-		st::infoMembersList);
+		_listController.get());
 	_list->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
 		auto addmin = (request.ymin < 0 || !_header)
@@ -326,9 +326,9 @@ void Members::addMember() {
 		AddParticipantsBoxController::Start(_controller, chat);
 	} else if (const auto channel = _peer->asChannel()) {
 		const auto state = _listController->saveState();
-		const auto users = ranges::view::all(
+		const auto users = ranges::views::all(
 			state->list
-		) | ranges::view::transform([](not_null<PeerData*> peer) {
+		) | ranges::views::transform([](not_null<PeerData*> peer) {
 			return peer->asUser();
 		}) | ranges::to_vector;
 		AddParticipantsBoxController::Start(
@@ -342,14 +342,14 @@ void Members::showMembersWithSearch(bool withSearch) {
 	//if (!_searchShown) {
 	//	toggleSearch();
 	//}
-	auto contentMemento = std::make_unique<Info::Members::Memento>(
+	auto contentMemento = std::make_shared<Info::Members::Memento>(
 		_controller);
 	contentMemento->setState(saveState());
 	contentMemento->setSearchStartsFocused(withSearch);
-	auto mementoStack = std::vector<std::unique_ptr<ContentMemento>>();
+	auto mementoStack = std::vector<std::shared_ptr<ContentMemento>>();
 	mementoStack.push_back(std::move(contentMemento));
 	_controller->showSection(
-		Info::Memento(std::move(mementoStack)));
+		std::make_shared<Info::Memento>(std::move(mementoStack)));
 }
 
 //void Members::toggleSearch(anim::type animated) {
@@ -421,10 +421,6 @@ bool Members::peerListIsRowChecked(not_null<PeerListRow*> row) {
 
 int Members::peerListSelectedRowsCount() {
 	return 0;
-}
-
-std::vector<not_null<PeerData*>> Members::peerListCollectSelectedRows() {
-	return {};
 }
 
 void Members::peerListScrollToTop() {

@@ -36,8 +36,14 @@ dialogsPadding: point(10px, 8px);
 
 dialogsOnlineBadgeStroke: 2px;
 dialogsOnlineBadgeSize: 10px;
-dialogsOnlineBadgeSkip: point(10px, 12px);
+dialogsOnlineBadgeSkip: point(0px, 2px);
 dialogsOnlineBadgeDuration: 150;
+
+dialogsCallBadgeSize: 16px;
+dialogsCallBadgeSkip: point(-1px, 1px);
+
+dialogsSpeakingStrokeNumerator: 16px;
+dialogsSpeakingDenominator: 8.;
 
 dialogsImportantBarHeight: 37px;
 
@@ -45,10 +51,6 @@ dialogsSkip: 8px;
 
 dialogsWidthDuration: 120;
 dialogsTextWidthMin: 150px;
-dialogsScroll: ScrollArea(defaultScrollArea) {
-	topsh: 0px;
-	bottomsh: 0px;
-}
 
 dialogsTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgService;
@@ -187,9 +189,6 @@ dialogsChannelIconActive: icon {{ "dialogs_channel", dialogsChatIconFgActive, po
 dialogsBotIcon: icon {{ "dialogs_bot", dialogsChatIconFg, point(1px, 3px) }};
 dialogsBotIconOver: icon {{ "dialogs_bot", dialogsChatIconFgOver, point(1px, 3px) }};
 dialogsBotIconActive: icon {{ "dialogs_bot", dialogsChatIconFgActive, point(1px, 3px) }};
-//dialogsFeedIcon: icon {{ "dialogs_feed", dialogsChatIconFg, point(4px, 4px) }}; // #feed
-//dialogsFeedIconOver: icon {{ "dialogs_feed", dialogsChatIconFgOver, point(4px, 4px) }};
-//dialogsFeedIconActive: icon {{ "dialogs_feed", dialogsChatIconFgActive, point(4px, 4px) }};
 dialogsArchiveUserpic: icon {{ "archive_userpic", historyPeerUserpicFg }};
 dialogsRepliesUserpic: icon {{ "replies_userpic", historyPeerUserpicFg }};
 

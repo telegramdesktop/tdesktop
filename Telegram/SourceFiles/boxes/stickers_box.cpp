@@ -68,9 +68,7 @@ private:
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class StickersBox::Inner
-	: public Ui::RpWidget
-	, private base::Subscriber {
+class StickersBox::Inner : public Ui::RpWidget {
 public:
 	using Section = StickersBox::Section;
 
@@ -85,7 +83,9 @@ public:
 
 	[[nodiscard]] Main::Session &session() const;
 
-	base::Observable<int> scrollToY;
+	rpl::producer<int> scrollsToY() const {
+		return _scrollsToY.events();
+	}
 	void setInnerFocus();
 
 	void saveGroupSet();
@@ -276,6 +276,8 @@ private:
 	int _above = -1;
 	rpl::event_stream<int> _draggingScrollDelta;
 
+	rpl::event_stream<int> _scrollsToY;
+
 	int _minHeight = 0;
 
 	int _scrollbar = 0;
@@ -387,9 +389,10 @@ StickersBox::StickersBox(
 , _section(Section::Installed)
 , _installed(0, this, controller, megagroup)
 , _megagroupSet(megagroup) {
-	subscribe(_installed.widget()->scrollToY, [=](int y) {
+	_installed.widget()->scrollsToY(
+	) | rpl::start_with_next([=](int y) {
 		onScrollToY(y);
-	});
+	}, lifetime());
 }
 
 StickersBox::StickersBox(
@@ -778,7 +781,7 @@ void StickersBox::installSet(uint64 setId) {
 			MTP_boolFalse()
 		)).done([=](const MTPmessages_StickerSetInstallResult &result) {
 			installDone(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			installFail(error, setId);
 		}).send();
 
@@ -793,7 +796,7 @@ void StickersBox::installDone(const MTPmessages_StickerSetInstallResult &result)
 	}
 }
 
-void StickersBox::installFail(const RPCError &error, uint64 setId) {
+void StickersBox::installFail(const MTP::Error &error, uint64 setId) {
 	const auto &sets = session().data().stickers().sets();
 	const auto it = sets.find(setId);
 	if (it == sets.cend()) {
@@ -1369,7 +1372,7 @@ void StickersBox::Inner::setActionDown(int newActionDown) {
 			if (_section == Section::Installed) {
 				if (row->removed) {
 					auto rippleSize = QSize(_undoWidth - st::stickersUndoRemove.width, st::stickersUndoRemove.height);
-					auto rippleMask = Ui::RippleAnimation::roundRectMask(rippleSize, st::buttonRadius);
+					auto rippleMask = Ui::RippleAnimation::roundRectMask(rippleSize, st::roundRadiusSmall);
 					ensureRipple(st::stickersUndoRemove.ripple, std::move(rippleMask), removeButton);
 				} else {
 					auto rippleSize = st::stickersRemove.rippleAreaSize;
@@ -1378,7 +1381,7 @@ void StickersBox::Inner::setActionDown(int newActionDown) {
 				}
 			} else if (!row->installed || row->archived || row->removed) {
 				auto rippleSize = QSize(_addWidth - st::stickersTrendingAdd.width, st::stickersTrendingAdd.height);
-				auto rippleMask = Ui::RippleAnimation::roundRectMask(rippleSize, st::buttonRadius);
+				auto rippleMask = Ui::RippleAnimation::roundRectMask(rippleSize, st::roundRadiusSmall);
 				ensureRipple(st::stickersTrendingAdd.ripple, std::move(rippleMask), removeButton);
 			}
 		}
@@ -1436,7 +1439,7 @@ void StickersBox::Inner::setPressed(SelectedRow pressed) {
 		auto &set = _rows[pressedIndex];
 		auto rippleMask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
 		if (!set->ripple) {
-			set->ripple = std::make_unique<Ui::RippleAnimation>(st::contactsRipple, std::move(rippleMask), [this, pressedIndex] {
+			set->ripple = std::make_unique<Ui::RippleAnimation>(st::defaultRippleAnimation, std::move(rippleMask), [this, pressedIndex] {
 				update(0, _itemsTop + pressedIndex * _rowHeight, width(), _rowHeight);
 			});
 		}
@@ -1765,7 +1768,7 @@ void StickersBox::Inner::handleMegagroupSetAddressChange() {
 			setMegagroupSelectedSet(MTP_inputStickerSetID(
 				MTP_long(set->id),
 				MTP_long(set->access)));
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			_megagroupSetRequestId = 0;
 			setMegagroupSelectedSet(MTP_inputStickerSetEmpty());
 		}).send();
@@ -1898,7 +1901,7 @@ void StickersBox::Inner::rebuild() {
 void StickersBox::Inner::setMegagroupSelectedSet(const MTPInputStickerSet &set) {
 	_megagroupSetInput = set;
 	rebuild();
-	scrollToY.notify(0, true);
+	_scrollsToY.fire(0);
 	updateSelected();
 }
 

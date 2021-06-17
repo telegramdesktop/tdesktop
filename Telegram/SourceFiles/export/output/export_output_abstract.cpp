@@ -131,7 +131,7 @@ Stats AbstractWriter::produceTestExample(
 	topUser.rating = 0.5;
 	auto topChat = Data::TopPeer();
 	auto chat = Data::Chat();
-	chat.id = counter();
+	chat.bareId = counter();
 	chat.title = "Group chat";
 	auto peerChat = Data::Peer{ chat };
 	topChat.peer = peerChat;
@@ -148,7 +148,7 @@ Stats AbstractWriter::produceTestExample(
 	topBot.peer = peerBot;
 	topBot.rating = 0.125;
 
-	auto peers = std::map<Data::PeerId, Data::Peer>();
+	auto peers = std::map<PeerId, Data::Peer>();
 	peers.emplace(peerUser.id(), peerUser);
 	peers.emplace(peerBot.id(), peerBot);
 	peers.emplace(peerChat.id(), peerChat);
@@ -197,7 +197,7 @@ Stats AbstractWriter::produceTestExample(
 		message.edited = date();
 		static auto count = 0;
 		if (++count % 3 == 0) {
-			message.forwardedFromId = Data::UserPeerId(user.info.userId);
+			message.forwardedFromId = peerFromUser(user.info.userId);
 			message.forwardedDate = date();
 		} else if (count % 3 == 2) {
 			message.forwardedFromName = "Test hidden forward";
@@ -357,14 +357,14 @@ Stats AbstractWriter::produceTestExample(
 	sliceChat1.list.push_back([&] {
 		auto message = serviceMessage();
 		auto action = Data::ActionChatMigrateTo();
-		action.channelId = chat.id;
+		action.channelId = ChannelId(chat.bareId);
 		message.action.content = action;
 		return message;
 	}());
 	sliceChat1.list.push_back([&] {
 		auto message = serviceMessage();
 		auto action = Data::ActionChannelMigrateFrom();
-		action.chatId = chat.id;
+		action.chatId = ChatId(chat.bareId);
 		action.title = "Supergroup now";
 		message.action.content = action;
 		return message;

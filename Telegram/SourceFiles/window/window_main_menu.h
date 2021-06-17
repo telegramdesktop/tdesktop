@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class IconButton;
 class FlatLabel;
-class Menu;
 class UserpicButton;
 class PopupMenu;
 class ScrollArea;
@@ -25,6 +24,9 @@ class RippleButton;
 class PlainShadow;
 template <typename Widget>
 class SlideWrap;
+namespace Menu {
+class Menu;
+} // namespace Menu
 } // namespace Ui
 
 namespace Main {
@@ -84,7 +86,7 @@ private:
 	not_null<Ui::SlideWrap<Ui::VerticalLayout>*> _accounts;
 	Ui::SlideWrap<Ui::RippleButton> *_addAccount = nullptr;
 	not_null<Ui::SlideWrap<Ui::PlainShadow>*> _shadow;
-	not_null<Ui::Menu*> _menu;
+	not_null<Ui::Menu::Menu*> _menu;
 	not_null<Ui::RpWidget*> _footer;
 	not_null<Ui::FlatLabel*> _telegram;
 	not_null<Ui::FlatLabel*> _version;

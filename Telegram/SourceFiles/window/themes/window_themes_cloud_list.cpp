@@ -475,12 +475,12 @@ bool CloudList::insertTillLimit(
 	}) - begin(_elements);
 	auto positionForBad = end(_elements) - begin(_elements);
 
-	auto insertElements = ranges::view::all(
+	auto insertElements = ranges::views::all(
 		list
-	) | ranges::view::filter([&](const Data::CloudTheme &theme) {
+	) | ranges::views::filter([&](const Data::CloudTheme &theme) {
 		const auto i = ranges::find(_elements, theme.id, &Element::id);
 		return (i == end(_elements));
-	}) | ranges::view::take(insertCount);
+	}) | ranges::views::take(insertCount);
 
 	for (const auto &theme : insertElements) {
 		const auto good = isGood(theme);
@@ -665,7 +665,7 @@ void CloudList::subscribeToDownloadFinished() {
 	}
 	_window->session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
-		auto &&waiting = _elements | ranges::view::filter(&Element::waiting);
+		auto &&waiting = _elements | ranges::views::filter(&Element::waiting);
 		const auto still = ranges::count_if(waiting, [&](Element &element) {
 			if (!element.media) {
 				element.waiting = false;

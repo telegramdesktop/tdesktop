@@ -120,7 +120,7 @@ void UsernameBox::save() {
 		MTP_string(_sentUsername)
 	)).done([=](const MTPUser &result) {
 		updateDone(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		updateFail(error);
 	}).send();
 }
@@ -135,7 +135,7 @@ void UsernameBox::check() {
 			MTP_string(name)
 		)).done([=](const MTPBool &result) {
 			checkDone(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			checkFail(error);
 		}).send();
 	}
@@ -190,7 +190,7 @@ void UsernameBox::updateDone(const MTPUser &user) {
 	closeBox();
 }
 
-void UsernameBox::updateFail(const RPCError &error) {
+void UsernameBox::updateFail(const MTP::Error &error) {
 	_saveRequestId = 0;
 	const auto self = _session->user();
 	const auto &err = error.type();
@@ -232,7 +232,7 @@ void UsernameBox::checkDone(const MTPBool &result) {
 	}
 }
 
-void UsernameBox::checkFail(const RPCError &error) {
+void UsernameBox::checkFail(const MTP::Error &error) {
 	_checkRequestId = 0;
 	QString err(error.type());
 	if (err == qstr("USERNAME_INVALID")) {

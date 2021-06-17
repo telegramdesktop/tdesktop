@@ -29,9 +29,6 @@ namespace Info {
 Key::Key(not_null<PeerData*> peer) : _value(peer) {
 }
 
-//Key::Key(not_null<Data::Feed*> feed) : _value(feed) { // #feed
-//}
-
 Key::Key(Settings::Tag settings) : _value(settings) {
 }
 
@@ -45,13 +42,6 @@ PeerData *Key::peer() const {
 	}
 	return nullptr;
 }
-
-//Data::Feed *Key::feed() const { // #feed
-//	if (const auto feed = std::get_if<not_null<Data::Feed*>>(&_value)) {
-//		return *feed;
-//	}
-//	return nullptr;
-//}
 
 UserData *Key::settingsSelf() const {
 	if (const auto tag = std::get_if<Settings::Tag>(&_value)) {
@@ -123,7 +113,7 @@ PollData *AbstractController::poll() const {
 }
 
 void AbstractController::showSection(
-		Window::SectionMemento &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const Window::SectionShow &params) {
 	return parentController()->showSection(std::move(memento), params);
 }
@@ -170,7 +160,7 @@ void Controller::setupMigrationViewer() {
 		const auto section = _section;
 		InvokeQueued(_widget, [=] {
 			window->showSection(
-				Memento(peer, section),
+				std::make_shared<Memento>(peer, section),
 				Window::SectionShow(
 					Window::SectionShow::Way::Backward,
 					anim::type::instant,
@@ -191,7 +181,6 @@ bool Controller::validateMementoPeer(
 		not_null<ContentMemento*> memento) const {
 	return memento->peer() == peer()
 		&& memento->migratedPeerId() == migratedPeerId()
-		//&& memento->feed() == feed() // #feed
 		&& memento->settingsSelf() == settingsSelf();
 }
 
@@ -212,10 +201,7 @@ void Controller::updateSearchControllers(
 		&& SharedMediaAllowSearch(mediaType);
 	auto hasCommonGroupsSearch
 		= (type == Type::CommonGroups);
-	auto hasMembersSearch
-		= (type == Type::Members
-			|| type == Type::Profile/* // #feed
-			|| type == Type::Channels*/);
+	auto hasMembersSearch = (type == Type::Members || type == Type::Profile);
 	auto searchQuery = memento->searchFieldQuery();
 	if (isMedia) {
 		_searchController
@@ -261,9 +247,9 @@ void Controller::saveSearchState(not_null<ContentMemento*> memento) {
 }
 
 void Controller::showSection(
-		Window::SectionMemento &&memento,
+		std::shared_ptr<Window::SectionMemento> memento,
 		const Window::SectionShow &params) {
-	if (!_widget->showInternal(&memento, params)) {
+	if (!_widget->showInternal(memento.get(), params)) {
 		AbstractController::showSection(std::move(memento), params);
 	}
 }

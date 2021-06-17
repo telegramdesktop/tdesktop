@@ -91,12 +91,8 @@ void Document::play(const PlaybackOptions &options) {
 }
 
 void Document::saveFrameToCover() {
-	auto request = Streaming::FrameRequest();
-	//request.radius = (_doc && _doc->isVideoMessage())
-	//	? ImageRoundRadius::Ellipse
-	//	: ImageRoundRadius::None;
 	_info.video.cover = _player.ready()
-		? _player.frame(request)
+		? _player.currentFrameImage()
 		: _info.video.cover;
 }
 

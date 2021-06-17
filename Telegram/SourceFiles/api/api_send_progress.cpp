@@ -19,7 +19,8 @@ namespace Api {
 namespace {
 
 constexpr auto kCancelTypingActionTimeout = crl::time(5000);
-constexpr auto kSetMyActionForMs = 10 * crl::time(1000);
+constexpr auto kSendMySpeakingInterval = 3 * crl::time(1000);
+constexpr auto kSendMyTypingInterval = 5 * crl::time(1000);
 constexpr auto kSendTypingsToOfflineFor = TimeId(30);
 
 } // namespace
@@ -64,7 +65,10 @@ void SendProgressManager::update(
 		SendProgressType type,
 		int progress) {
 	const auto peer = history->peer;
-	if (peer->isSelf() || (peer->isChannel() && !peer->isMegagroup())) {
+	if (peer->isSelf()
+		|| (peer->isChannel()
+			&& !peer->isMegagroup()
+			&& type != SendProgressType::Speaking)) {
 		return;
 	}
 
@@ -82,12 +86,15 @@ bool SendProgressManager::updated(const Key &key, bool doing) {
 	const auto now = crl::now();
 	const auto i = _updated.find(key);
 	if (doing) {
+		const auto sendEach = (key.type == SendProgressType::Speaking)
+			? kSendMySpeakingInterval
+			: kSendMyTypingInterval;
 		if (i == end(_updated)) {
-			_updated.emplace(key, now + kSetMyActionForMs);
-		} else if (i->second > now + (kSetMyActionForMs / 2)) {
+			_updated.emplace(key, now + 2 * sendEach);
+		} else if (i->second > now + sendEach) {
 			return false;
 		} else {
-			i->second = now + kSetMyActionForMs;
+			i->second = now + 2 * sendEach;
 		}
 	} else {
 		if (i == end(_updated)) {
@@ -121,6 +128,7 @@ void SendProgressManager::send(const Key &key, int progress) {
 		case Type::ChooseLocation: return MTP_sendMessageGeoLocationAction();
 		case Type::ChooseContact: return MTP_sendMessageChooseContactAction();
 		case Type::PlayGame: return MTP_sendMessageGamePlayAction();
+		case Type::Speaking: return MTP_speakingInGroupCallAction();
 		default: return MTP_sendMessageTypingAction();
 		}
 	}();

@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "core/application.h"
 #include "main/main_account.h"
-//#include "storage/storage_feed_messages.h" // #feed
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
 #include "apiwrap.h"
@@ -33,16 +32,6 @@ constexpr auto kShowChatNamesCount = 8;
 
 } // namespace
 
-// #feed
-//MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position) {
-//	Expects(position.type() == mtpc_feedPosition);
-//
-//	const auto &data = position.c_feedPosition();
-//	return MessagePosition(data.vdate().v, FullMsgId(
-//		peerToChannel(peerFromMTP(data.vpeer())),
-//		data.vid().v));
-//}
-
 Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 : Entry(owner, Type::Folder)
 , _id(id)
@@ -50,7 +39,8 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 	&owner->session(),
 	FilterId(),
 	owner->session().serverConfig().pinnedDialogsInFolderMax.value())
-, _name(tr::lng_archived_name(tr::now)) {
+, _name(tr::lng_archived_name(tr::now))
+, _chatListNameSortKey(owner->nameSortKey(_name)) {
 	indexNameParts();
 
 	session().changes().peerUpdates(
@@ -166,9 +156,9 @@ bool Folder::applyChatListMessage(HistoryItem *item) {
 }
 
 void Folder::computeChatListMessage() {
-	auto &&items = ranges::view::all(
+	auto &&items = ranges::views::all(
 		*_chatsList.indexed()
-	) | ranges::view::filter([](not_null<Dialogs::Row*> row) {
+	) | ranges::views::filter([](not_null<Dialogs::Row*> row) {
 		return row->entry()->chatListMessage() != nullptr;
 	});
 	const auto chatListDate = [](not_null<Dialogs::Row*> row) {
@@ -197,13 +187,13 @@ void Folder::reorderLastHistories() {
 	};
 	_lastHistories.erase(_lastHistories.begin(), _lastHistories.end());
 	_lastHistories.reserve(kShowChatNamesCount + 1);
-	auto &&histories = ranges::view::all(
+	auto &&histories = ranges::views::all(
 		*_chatsList.indexed()
-	) | ranges::view::transform([](not_null<Dialogs::Row*> row) {
+	) | ranges::views::transform([](not_null<Dialogs::Row*> row) {
 		return row->history();
-	}) | ranges::view::filter([](History *history) {
+	}) | ranges::views::filter([](History *history) {
 		return (history != nullptr);
-	}) | ranges::view::transform([](History *history) {
+	}) | ranges::views::transform([](History *history) {
 		return not_null<History*>(history);
 	});
 	for (const auto history : histories) {
@@ -225,14 +215,6 @@ not_null<Dialogs::MainList*> Folder::chatsList() {
 }
 
 void Folder::loadUserpic() {
-	//constexpr auto kPaintUserpicsCount = 4; // #feed
-	//auto load = kPaintUserpicsCount;
-	//for (const auto history : _histories) {
-	//	history->peer->loadUserpic();
-	//	if (!--load) {
-	//		break;
-	//	}
-	//}
 }
 
 void Folder::paintUserpic(
@@ -294,18 +276,6 @@ void Folder::paintUserpic(
 		}
 		p.restore();
 	}
-	//const auto small = (size - st::lineWidth) / 2; // #feed
-	//const auto delta = size - small;
-	//auto index = 0;
-	//for (const auto history : _histories) {
-	//	history->peer->paintUserpic(p, x, y, small);
-	//	switch (++index) {
-	//	case 1:
-	//	case 3: x += delta; break;
-	//	case 2: x -= delta; y += delta; break;
-	//	case 4: return;
-	//	}
-	//}
 }
 
 const std::vector<not_null<History*>> &Folder::lastHistories() const {
@@ -351,15 +321,6 @@ void Folder::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 	owner().setChatPinned(this, FilterId(), data.is_pinned());
 }
 
-// #feed
-//MessagePosition Folder::unreadPosition() const {
-//	return _unreadPosition.current();
-//}
-//
-//rpl::producer<MessagePosition> Folder::unreadPositionChanges() const {
-//	return _unreadPosition.changes();
-//}
-
 int Folder::fixedOnTopIndex() const {
 	return kArchiveFixOnTopIndex;
 }
@@ -381,7 +342,7 @@ Dialogs::UnreadState Folder::chatListUnreadState() const {
 }
 
 bool Folder::chatListUnreadMark() const {
-	return false; // #feed unread mark
+	return false;
 }
 
 bool Folder::chatListMutedBadge() const {
@@ -406,6 +367,10 @@ const base::flat_set<QString> &Folder::chatListNameWords() const {
 
 const base::flat_set<QChar> &Folder::chatListFirstLetters() const {
 	return _nameFirstLetters;
+}
+
+const QString &Folder::chatListNameSortKey() const {
+	return _chatListNameSortKey;
 }
 
 } // namespace Data

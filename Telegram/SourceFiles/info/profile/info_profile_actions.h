@@ -33,11 +33,6 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 	not_null<Controller*> controller,
 	not_null<Ui::RpWidget*> parent,
 	not_null<PeerData*> peer);
-// // #feed
-//object_ptr<Ui::RpWidget> SetupFeedDetails(
-//	not_null<Controller*> controller,
-//	not_null<Ui::RpWidget*> parent,
-//	not_null<Data::Feed*> feed);
 
 } // namespace Profile
 } // namespace Info

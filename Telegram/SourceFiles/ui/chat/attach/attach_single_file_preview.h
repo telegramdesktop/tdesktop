@@ -32,6 +32,8 @@ private:
 	void preparePreview(const PreparedFile &file);
 	void prepareThumb(const QImage &preview);
 
+	bool isThumbedLayout() const;
+
 	QPixmap _fileThumb;
 	QString _name;
 	QString _statusText;

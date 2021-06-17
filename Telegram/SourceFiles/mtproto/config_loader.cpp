@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/config_loader.h"
 
+#include "base/openssl_help.h"
 #include "mtproto/special_config_request.h"
 #include "mtproto/facade.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtp_instance.h"
-#include "facades.h"
 
 namespace MTP {
 namespace details {
@@ -26,10 +26,12 @@ constexpr auto kSpecialRequestTimeoutMs = 6000; // 4 seconds timeout for it to w
 ConfigLoader::ConfigLoader(
 	not_null<Instance*> instance,
 	const QString &phone,
-	RPCDoneHandlerPtr onDone,
-	RPCFailHandlerPtr onFail)
+	Fn<void(const MTPConfig &result)> onDone,
+	FailHandler onFail,
+	bool proxyEnabled)
 : _instance(instance)
 , _phone(phone)
+, _proxyEnabled(proxyEnabled)
 , _doneHandler(onDone)
 , _failHandler(onFail) {
 	_enumDCTimer.setCallback([this] { enumerate(); });
@@ -49,9 +51,18 @@ void ConfigLoader::load() {
 }
 
 mtpRequestId ConfigLoader::sendRequest(ShiftedDcId shiftedDcId) {
+	auto done = [done = _doneHandler](const Response &response) {
+		auto from = response.reply.constData();
+		auto result = MTPConfig();
+		if (!result.read(from, from + response.reply.size())) {
+			return false;
+		}
+		done(result);
+		return true;
+	};
 	return _instance->send(
 		MTPhelp_GetConfig(),
-		base::duplicate(_doneHandler),
+		std::move(done),
 		base::duplicate(_failHandler),
 		shiftedDcId);
 }
@@ -105,7 +116,7 @@ void ConfigLoader::enumerate() {
 }
 
 void ConfigLoader::refreshSpecialLoader() {
-	if (Global::ProxySettings() == ProxyData::Settings::Enabled) {
+	if (_proxyEnabled) {
 		_specialLoader.reset();
 		return;
 	}
@@ -164,7 +175,7 @@ void ConfigLoader::addSpecialEndpoint(
 
 void ConfigLoader::sendSpecialRequest() {
 	terminateSpecialRequest();
-	if (Global::ProxySettings() == ProxyData::Settings::Enabled) {
+	if (_proxyEnabled) {
 		_specialLoader.reset();
 		return;
 	}
@@ -174,7 +185,8 @@ void ConfigLoader::sendSpecialRequest() {
 	}
 
 	const auto weak = base::make_weak(this);
-	const auto index = rand_value<uint32>() % _specialEndpoints.size();
+	const auto index = openssl::RandomValue<uint32>()
+		% _specialEndpoints.size();
 	const auto endpoint = _specialEndpoints.begin() + index;
 	_specialEnumCurrent = specialToRealDcId(endpoint->dcId);
 
@@ -189,11 +201,17 @@ void ConfigLoader::sendSpecialRequest() {
 		endpoint->secret);
 	_specialEnumRequest = _instance->send(
 		MTPhelp_GetConfig(),
-		rpcDone([weak](const MTPConfig &result) {
+		[weak](const Response &response) {
+			auto result = MTPConfig();
+			auto from = response.reply.constData();
+			if (!result.read(from, from + response.reply.size())) {
+				return false;
+			}
 			if (const auto strong = weak.get()) {
 				strong->specialConfigLoaded(result);
 			}
-		}),
+			return true;
+		},
 		base::duplicate(_failHandler),
 		_specialEnumCurrent);
 	_triedSpecialEndpoints.push_back(*endpoint);
@@ -214,6 +232,10 @@ void ConfigLoader::specialConfigLoaded(const MTPConfig &result) {
 	// We use special config only for dc options.
 	// For everything else we wait for normal config from main dc.
 	_instance->dcOptions().setFromList(data.vdc_options());
+}
+
+void ConfigLoader::setProxyEnabled(bool value) {
+	_proxyEnabled = value;
 }
 
 } // namespace details

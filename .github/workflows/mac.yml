@@ -56,10 +56,10 @@ jobs:
       GIT: "https://github.com"
       PREFIX: "/usr/local/macos"
       MACOSX_DEPLOYMENT_TARGET: "10.12"
-      XZ: "xz-5.2.4"
-      QT: "5_15_1"
+      XZ: "xz-5.2.5"
+      QT: "5_15_2"
       OPENSSL_VER: "1_1_1"
-      QT_PREFIX: "/usr/local/desktop-app/Qt-5.15.1"
+      QT_PREFIX: "/usr/local/desktop-app/Qt-5.15.2"
       LIBICONV_VER: "libiconv-1.16"
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
@@ -83,6 +83,9 @@ jobs:
           brew install automake fdk-aac lame libass libtool libvorbis libvpx \
           ninja opus sdl shtool texi2html theora x264 xvid yasm pkg-config
 
+          # Disable spotlight.
+          sudo mdutil -a -i off
+
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
           xcodebuild -version > CACHE_KEY.txt
@@ -101,6 +104,8 @@ jobs:
           mkdir -p Libraries/macos
           cd Libraries/macos
           echo "LibrariesPath=`pwd`" >> $GITHUB_ENV
+
+          curl -o tg_owt-version.json https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master
 
       - name: Patches.
         run: |
@@ -140,7 +145,7 @@ jobs:
           cd mozjpeg
           cmake -B build . \
           -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_INSTALL_PREFIX=/usr/local/macos \
+          -DCMAKE_INSTALL_PREFIX=$PREFIX \
           -DWITH_JPEG8=ON \
           -DPNG_SUPPORTED=OFF
           cmake --build build -j$(nproc)
@@ -200,6 +205,16 @@ jobs:
           cd $LibrariesPath
           sudo cp -R opus-cache/. /
 
+      - name: Rnnoise.
+        run: |
+          cd $LibrariesPath
+
+          git clone $GIT/desktop-app/rnnoise.git
+          mkdir -p rnnoise/out/Debug
+          cd rnnoise/out/Debug
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug ../..
+          ninja
+
       - name: Libiconv cache.
         id: cache-libiconv
         uses: actions/cache@v2
@@ -235,7 +250,7 @@ jobs:
 
           git clone $GIT/FFmpeg/FFmpeg.git ffmpeg
           cd ffmpeg
-          git checkout release/4.2
+          git checkout release/4.4
           CFLAGS=`freetype-config --cflags`
           LDFLAGS=`freetype-config --libs`
           PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
@@ -312,7 +327,6 @@ jobs:
           --enable-decoder=pcm_u32be \
           --enable-decoder=pcm_u32le \
           --enable-decoder=pcm_u8 \
-          --enable-decoder=pcm_zork \
           --enable-decoder=vorbis \
           --enable-decoder=wavpack \
           --enable-decoder=wmalossless \
@@ -348,7 +362,7 @@ jobs:
       - name: FFmpeg install.
         run: |
           cd $LibrariesPath
-          #List of files from cmake/external/ffmpeg/CMakeLists.txt.
+          # List of files from cmake/external/ffmpeg/CMakeLists.txt.
           copyLib() {
             mkdir -p ffmpeg/$1
             \cp -fR ffmpeg-cache/lib/$1.a ffmpeg/$1/$1.a
@@ -359,17 +373,15 @@ jobs:
           copyLib libswscale
           copyLib libavutil
 
-          sudo cp -R ffmpeg-cache/. /usr/local/
+          sudo cp -R ffmpeg-cache/. $PREFIX
           sudo cp -R ffmpeg-cache/include/. ffmpeg/
 
       - name: OpenAL Soft.
         run: |
           cd $LibrariesPath
 
-          git clone https://github.com/telegramdesktop/openal-soft.git
-          cd openal-soft
-          git checkout fix_mono
-          cd build
+          git clone --branch capture_with_webrtc $GIT/telegramdesktop/openal-soft.git
+          cd openal-soft/build
 
           CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake \
           -D CMAKE_INSTALL_PREFIX:PATH=$PREFIX \
@@ -419,20 +431,20 @@ jobs:
           build/gyp_crashpad.py -Dmac_deployment_target=10.10
           ninja -C out/Debug
 
-      - name: Qt 5.15.1 cache.
+      - name: Qt 5.15.2 cache.
         id: cache-qt
         uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/qt-cache
-          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_15_1/*') }}
-      - name: Use cached Qt 5.15.1.
+          key: ${{ runner.OS }}-qt-${{ env.CACHE_KEY }}-${{ hashFiles('**/qtbase_5_15_2/*') }}
+      - name: Use cached Qt 5.15.2.
         if: steps.cache-qt.outputs.cache-hit == 'true'
         run: |
           cd $LibrariesPath
-          mv qt-cache Qt-5.15.1
+          mv qt-cache Qt-5.15.2
           sudo mkdir -p $QT_PREFIX
-          sudo mv -f Qt-5.15.1 "$(dirname "$QT_PREFIX")"/
-      - name: Qt 5.15.1 build.
+          sudo mv -f Qt-5.15.2 "$(dirname "$QT_PREFIX")"/
+      - name: Qt 5.15.2 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           cd $LibrariesPath
@@ -440,7 +452,7 @@ jobs:
           git clone git://code.qt.io/qt/qt5.git qt_$QT
           cd qt_$QT
           perl init-repository --module-subset=qtbase,qtimageformats
-          git checkout v5.15.1
+          git checkout v5.15.2
           git submodule update qtbase
           git submodule update qtimageformats
           cd qtbase
@@ -460,9 +472,9 @@ jobs:
           -nomake examples \
           -nomake tests \
           -platform macx-clang \
-          -I "/usr/local/macos/include" \
-          LIBJPEG_LIBS="/usr/local/macos/lib/libjpeg.a" \
-          ZLIB_LIBS="/usr/local/macos/lib/libz.a"
+          -I "$PREFIX/include" \
+          LIBJPEG_LIBS="$PREFIX/lib/libjpeg.a" \
+          ZLIB_LIBS="$PREFIX/lib/libz.a"
 
           make -j$(nproc)
           sudo make install
@@ -475,21 +487,23 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{ env.LibrariesPath }}/tg_owt
-          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}
+          key: ${{ runner.OS }}-webrtc-${{ env.CACHE_KEY }}-${{ hashFiles('**/tg_owt-version.json') }}
       - name: WebRTC.
         if: steps.cache-webrtc.outputs.cache-hit != 'true'
         run: |
           cd $LibrariesPath
 
-          git clone $GIT/desktop-app/tg_owt.git
+          git clone --recursive $GIT/desktop-app/tg_owt.git
           mkdir -p tg_owt/out/Debug
           cd tg_owt/out/Debug
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+          cmake -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
           -DTG_OWT_SPECIAL_TARGET=mac \
-          -DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/macos/include \
+          -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
+          -DTG_OWT_LIBJPEG_INCLUDE_PATH=$PREFIX/include \
           -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_$OPENSSL_VER/include \
           -DTG_OWT_OPUS_INCLUDE_PATH=$PREFIX/include/opus \
-          -DTG_OWT_FFMPEG_INCLUDE_PATH=/usr/local/include \
+          -DTG_OWT_FFMPEG_INCLUDE_PATH=$PREFIX/include \
           ../..
           ninja
 

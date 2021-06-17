@@ -50,6 +50,10 @@ QRect ContinuousSlider::getSeekRect() const {
 		: QRect(0, decrease.height() / 2, width(), height() - decrease.width());
 }
 
+float64 ContinuousSlider::value() const {
+	return getCurrentValue();
+}
+
 void ContinuousSlider::setValue(float64 value) {
 	setValue(value, -1);
 }
@@ -78,7 +82,7 @@ float64 ContinuousSlider::computeValue(const QPoint &pos) const {
 	const auto result = isHorizontal() ?
 		(pos.x() - seekRect.x()) / float64(seekRect.width()) :
 		(1. - (pos.y() - seekRect.y()) / float64(seekRect.height()));
-	const auto snapped = snap(result, 0., 1.);
+	const auto snapped = std::clamp(result, 0., 1.);
 	return _adjustCallback ? _adjustCallback(snapped) : snapped;
 }
 
@@ -120,7 +124,7 @@ void ContinuousSlider::wheelEvent(QWheelEvent *e) {
 		deltaX *= -1;
 	}
 	auto delta = (qAbs(deltaX) > qAbs(deltaY)) ? deltaX : deltaY;
-	auto finalValue = snap(_value + delta * coef, 0., 1.);
+	auto finalValue = std::clamp(_value + delta * coef, 0., 1.);
 	setValue(finalValue);
 	if (_changeProgressCallback) {
 		_changeProgressCallback(finalValue);
@@ -215,6 +219,10 @@ void MediaSlider::disablePaint(bool disabled) {
 	_paintDisabled = disabled;
 }
 
+void MediaSlider::addDivider(float64 atValue, const QSize &size) {
+	_dividers.push_back(Divider{ atValue, size });
+}
+
 void MediaSlider::paintEvent(QPaintEvent *e) {
 	if (_paintDisabled) {
 		return;
@@ -280,6 +288,33 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 		p.setClipRect(endClipRect);
 		p.setBrush(horizontal ? inactiveFg : activeFg);
 		p.drawRoundedRect(endRect, radius, radius);
+	}
+	if (!_dividers.empty()) {
+		p.setClipRect(rect());
+		for (const auto &divider : _dividers) {
+			const auto dividerValue = horizontal
+				? divider.atValue
+				: (1. - divider.atValue);
+			const auto dividerMid = std::round(from
+				+ dividerValue * length);
+			const auto &size = divider.size;
+			const auto rect = horizontal
+				? QRect(
+					dividerMid - size.width() / 2,
+					(height() - size.height()) / 2,
+					size.width(),
+					size.height())
+				: QRect(
+					(width() - size.height()) / 2,
+					dividerMid - size.width() / 2,
+					size.height(),
+					size.width());
+			p.setBrush(((value < dividerValue) == horizontal)
+				? inactiveFg
+				: activeFg);
+			const auto dividerRadius = size.width() / 2.;
+			p.drawRoundedRect(rect, dividerRadius, dividerRadius);
+		}
 	}
 	const auto markerSizeRatio = disabled ? 0. : (_alwaysDisplayMarker ? 1. : over);
 	if (markerSizeRatio > 0) {

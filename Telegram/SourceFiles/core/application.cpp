@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "base/timer.h"
+#include "base/event_filter.h"
 #include "base/concurrent_timer.h"
+#include "base/qt_signal_producer.h"
 #include "base/unixtime.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
@@ -20,11 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h"
 #include "core/launcher.h"
 #include "core/ui_integration.h"
-#include "core/core_settings.h"
 #include "chat_helpers/emoji_keywords.h"
 #include "chat_helpers/stickers_emoji_image_loader.h"
-#include "base/platform/base_platform_info.h"
 #include "base/platform/base_platform_last_input.h"
+#include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
 #include "dialogs/dialogs_entry.h"
@@ -64,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_domain.h"
 #include "storage/storage_databases.h"
 #include "storage/localstorage.h"
+#include "payments/payments_checkout_process.h"
 #include "export/export_manager.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -73,7 +75,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_phone_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/share_box.h"
-#include "facades.h"
 #include "app.h"
 
 #include <QtWidgets/QDesktopWidget>
@@ -137,26 +138,28 @@ Application::Application(not_null<Launcher*> launcher)
 			UpdateChecker().setMtproto(session);
 		}
 	}, _lifetime);
-
-	_domain->activeValue(
-	) | rpl::filter(rpl::mappers::_1 != nullptr
-	) | rpl::take(1) | rpl::start_with_next([=] {
-		if (_window) {
-			// Global::DesktopNotify is used in updateTrayMenu.
-			// This should be called when user settings are read.
-			// Right now after they are read the startMtp() is called.
-			_window->widget()->updateTrayMenu();
-		}
-	}, _lifetime);
 }
 
 Application::~Application() {
+	if (_saveSettingsTimer && _saveSettingsTimer->isActive()) {
+		Local::writeSettings();
+	}
+
 	// Depend on activeWindow() for now :(
 	Shortcuts::Finish();
 
 	_window = nullptr;
 	_mediaView = nullptr;
 	_notifications->clearAllFast();
+
+	// We must manually destroy all windows before going further.
+	// DestroyWindow on Windows (at least with an active WebView) enters
+	// event loop and invoke scheduled crl::on_main callbacks.
+	//
+	// For example Domain::removeRedundantAccounts() is called from
+	// Domain::finish() and there is a violation on Ensures(started()).
+	Payments::CheckoutProcess::ClearAll();
+
 	_domain->finish();
 
 	Local::finish();
@@ -173,7 +176,6 @@ Application::~Application() {
 	Media::Player::finish(_audio.get());
 	style::stopManager();
 
-	Global::finish();
 	ThirdParty::finish();
 
 	Instance = nullptr;
@@ -183,8 +185,7 @@ void Application::run() {
 	style::internal::StartFonts();
 
 	ThirdParty::start();
-	Global::start();
-	refreshGlobalProxy(); // Depends on Global::start().
+	refreshGlobalProxy(); // Depends on Core::IsAppLaunched().
 
 	// Depends on OpenSSL on macOS, so on ThirdParty::start().
 	// Depends on notifications settings.
@@ -206,8 +207,6 @@ void Application::run() {
 		App::quit();
 		return;
 	}
-
-	Core::App().settings().setWindowControlsLayout(Platform::WindowControlsLayout());
 
 	_translator = std::make_unique<Lang::Translator>();
 	QCoreApplication::instance()->installTranslator(_translator.get());
@@ -245,11 +244,15 @@ void Application::run() {
 	}, _window->widget()->lifetime());
 
 	QCoreApplication::instance()->installEventFilter(this);
-	connect(
-		static_cast<QGuiApplication*>(QCoreApplication::instance()),
-		&QGuiApplication::applicationStateChanged,
-		this,
-		&Application::stateChanged);
+
+	appDeactivatedValue(
+	) | rpl::start_with_next([=](bool deactivated) {
+		if (deactivated) {
+			handleAppDeactivated();
+		} else {
+			handleAppActivated();
+		}
+	}, _lifetime);
 
 	DEBUG_LOG(("Application Info: window created..."));
 
@@ -276,6 +279,36 @@ void Application::run() {
 	for (const auto &error : Shortcuts::Errors()) {
 		LOG(("Shortcuts Error: %1").arg(error));
 	}
+
+	if (!Platform::IsMac()
+		&& Ui::Integration::Instance().openglLastCheckFailed()) {
+		showOpenGLCrashNotification();
+	}
+}
+
+void Application::showOpenGLCrashNotification() {
+	const auto enable = [=] {
+		Ui::GL::ForceDisable(false);
+		Ui::Integration::Instance().openglCheckFinish();
+		Core::App().settings().setDisableOpenGL(false);
+		Local::writeSettings();
+		App::restart();
+	};
+	const auto keepDisabled = [=] {
+		Ui::GL::ForceDisable(true);
+		Ui::Integration::Instance().openglCheckFinish();
+		Core::App().settings().setDisableOpenGL(true);
+		Local::writeSettings();
+	};
+	_window->show(Box<ConfirmBox>(
+		"There may be a problem with your graphics drivers and OpenGL. "
+		"Try updating your drivers.\n\n"
+		"OpenGL has been disabled. You can try to enable it again "
+		"or keep it disabled if crashes continue.",
+		"Enable",
+		"Keep Disabled",
+		enable,
+		keepDisabled));
 }
 
 void Application::startDomain() {
@@ -285,8 +318,6 @@ void Application::startDomain() {
 		startSettingsAndBackground();
 	}
 	if (state != Storage::StartResult::Success) {
-		Global::SetLocalPasscode(true);
-		Global::RefLocalPasscodeChanged().notify();
 		lockByPasscode();
 		DEBUG_LOG(("Application Info: passcode needed..."));
 	}
@@ -364,8 +395,6 @@ void Application::showPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	Expects(_mediaView != nullptr);
 
 	_mediaView->showPhoto(photo, item);
-	_mediaView->activateWindow();
-	_mediaView->setFocus();
 }
 
 void Application::showPhoto(
@@ -374,8 +403,6 @@ void Application::showPhoto(
 	Expects(_mediaView != nullptr);
 
 	_mediaView->showPhoto(photo, peer);
-	_mediaView->activateWindow();
-	_mediaView->setFocus();
 }
 
 void Application::showDocument(not_null<DocumentData*> document, HistoryItem *item) {
@@ -387,8 +414,6 @@ void Application::showDocument(not_null<DocumentData*> document, HistoryItem *it
 		File::Launch(document->location(false).fname);
 	} else {
 		_mediaView->showDocument(document, item);
-		_mediaView->activateWindow();
-		_mediaView->setFocus();
 	}
 }
 
@@ -398,8 +423,6 @@ void Application::showTheme(
 	Expects(_mediaView != nullptr);
 
 	_mediaView->showTheme(document, cloud);
-	_mediaView->activateWindow();
-	_mediaView->setFocus();
 }
 
 PeerData *Application::ui_getPeerForMouseAction() {
@@ -460,7 +483,9 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 }
 
 void Application::saveSettingsDelayed(crl::time delay) {
-	_saveSettingsTimer.callOnce(delay);
+	if (_saveSettingsTimer) {
+		_saveSettingsTimer->callOnce(delay);
+	}
 }
 
 void Application::saveSettings() {
@@ -495,17 +520,17 @@ void Application::setCurrentProxy(
 		const MTP::ProxyData &proxy,
 		MTP::ProxyData::Settings settings) {
 	const auto current = [&] {
-		return (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled)
-			? Global::SelectedProxy()
+		return _settings.proxy().isEnabled()
+			? _settings.proxy().selected()
 			: MTP::ProxyData();
 	};
 	const auto was = current();
-	Global::SetSelectedProxy(proxy);
-	Global::SetProxySettings(settings);
+	_settings.proxy().setSelected(proxy);
+	_settings.proxy().setSettings(settings);
 	const auto now = current();
 	refreshGlobalProxy();
 	_proxyChanges.fire({ was, now });
-	Global::RefConnectionTypeChanged().notify();
+	_settings.proxy().connectionTypeChangesNotify();
 }
 
 auto Application::proxyChanges() const -> rpl::producer<ProxyChange> {
@@ -513,11 +538,10 @@ auto Application::proxyChanges() const -> rpl::producer<ProxyChange> {
 }
 
 void Application::badMtprotoConfigurationError() {
-	if (Global::ProxySettings() == MTP::ProxyData::Settings::Enabled
-		&& !_badProxyDisableBox) {
+	if (_settings.proxy().isEnabled() && !_badProxyDisableBox) {
 		const auto disableCallback = [=] {
 			setCurrentProxy(
-				Global::SelectedProxy(),
+				_settings.proxy().selected(),
 				MTP::ProxyData::Settings::System);
 		};
 		_badProxyDisableBox = Ui::show(Box<InformBox>(
@@ -528,7 +552,10 @@ void Application::badMtprotoConfigurationError() {
 
 void Application::startLocalStorage() {
 	Local::start();
-	_saveSettingsTimer.setCallback([=] { saveSettings(); });
+	_saveSettingsTimer.emplace([=] { saveSettings(); });
+	_settings.saveDelayedRequests() | rpl::start_with_next([=] {
+		saveSettingsDelayed();
+	}, _lifetime);
 }
 
 void Application::startEmojiImageLoader() {
@@ -557,6 +584,14 @@ void Application::startEmojiImageLoader() {
 			loader.switchTo(std::move(source));
 		});
 	}, _lifetime);
+}
+
+void Application::setScreenIsLocked(bool locked) {
+	_screenIsLocked = locked;
+}
+
+bool Application::screenIsLocked() const {
+	return _screenIsLocked;
 }
 
 void Application::setDefaultFloatPlayerDelegate(
@@ -633,14 +668,6 @@ void Application::checkLocalTime() {
 	}
 }
 
-void Application::stateChanged(Qt::ApplicationState state) {
-	if (state == Qt::ApplicationActive) {
-		handleAppActivated();
-	} else {
-		handleAppDeactivated();
-	}
-}
-
 void Application::handleAppActivated() {
 	checkLocalTime();
 	if (_window) {
@@ -653,6 +680,20 @@ void Application::handleAppDeactivated() {
 		_window->updateIsActiveBlur();
 	}
 	Ui::Tooltip::Hide();
+}
+
+rpl::producer<bool> Application::appDeactivatedValue() const {
+	const auto &app =
+		static_cast<QGuiApplication*>(QCoreApplication::instance());
+	return rpl::single(
+		app->applicationState()
+	) | rpl::then(
+		base::qt_signal_producer(
+			app,
+			&QGuiApplication::applicationStateChanged
+	)) | rpl::map([=](Qt::ApplicationState state) {
+		return (state != Qt::ApplicationActive);
+	});
 }
 
 void Application::call_handleObservables() {
@@ -753,6 +794,39 @@ bool Application::openInternalUrl(const QString &url, QVariant context) {
 	return openCustomUrl("internal:", InternalUrlHandlers(), url, context);
 }
 
+QString Application::changelogLink() const {
+	const auto base = u"https://desktop.telegram.org/changelog"_q;
+	const auto languages = {
+		"id",
+		"de",
+		"fr",
+		"nl",
+		"pl",
+		"tr",
+		"uk",
+		"fa",
+		"ru",
+		"ms",
+		"es",
+		"it",
+		"uz",
+		"pt-br",
+		"be",
+		"ar",
+		"ko",
+	};
+	const auto current = _langpack->id().replace("-raw", "");
+	if (current.isEmpty()) {
+		return base;
+	}
+	for (const auto language : languages) {
+		if (current == language || current.split(u'-')[0] == language) {
+			return base + "?setln=" + language;
+		}
+	}
+	return base;
+}
+
 bool Application::openCustomUrl(
 		const QString &protocol,
 		const std::vector<LocalUrlHandler> &handlers,
@@ -778,9 +852,17 @@ bool Application::openCustomUrl(
 
 }
 
+void Application::preventOrInvoke(Fn<void()> &&callback) {
+	_window->preventOrInvoke(std::move(callback));
+}
+
 void Application::lockByPasscode() {
-	_passcodeLock = true;
-	_window->setupPasscodeLock();
+	preventOrInvoke([=] {
+		if (_window) {
+			_passcodeLock = true;
+			_window->setupPasscodeLock();
+		}
+	});
 }
 
 void Application::unlockPasscode() {
@@ -830,7 +912,7 @@ bool Application::someSessionExists() const {
 }
 
 void Application::checkAutoLock() {
-	if (!Global::LocalPasscode()
+	if (!_domain->local().hasLocalPasscode()
 		|| passcodeLocked()
 		|| !someSessionExists()) {
 		_shouldLockAt = 0;
@@ -869,9 +951,12 @@ void Application::localPasscodeChanged() {
 bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
 	if (App::quitting() || !_window) {
 		return false;
+	} else if (_calls->hasActivePanel(session)) {
+		return true;
 	} else if (const auto controller = _window->sessionController()) {
-		if (&controller->session() == session) {
-			return _window->widget()->isActive();
+		if (&controller->session() == session
+			&& _window->widget()->isActive()) {
+			return true;
 		}
 	}
 	return false;
@@ -893,27 +978,34 @@ bool Application::closeActiveWindow() {
 	if (hideMediaView()) {
 		return true;
 	}
-	if (const auto window = activeWindow()) {
-		window->close();
-		return true;
+	if (!calls().closeCurrentActiveCall()) {
+		if (const auto window = activeWindow()) {
+			if (window->widget()->isVisible()
+				&& window->widget()->isActive()) {
+				window->close();
+				return true;
+			}
+		}
 	}
 	return false;
 }
 
 bool Application::minimizeActiveWindow() {
 	hideMediaView();
-	if (const auto window = activeWindow()) {
-		window->minimize();
-		return true;
+	if (!calls().minimizeCurrentActiveCall()) {
+		if (const auto window = activeWindow()) {
+			window->minimize();
+			return true;
+		}
 	}
 	return false;
 }
 
 QWidget *Application::getFileDialogParent() {
-	return (_mediaView && _mediaView->isVisible())
-		? (QWidget*)_mediaView.get()
+	return (_mediaView && !_mediaView->isHidden())
+		? static_cast<QWidget*>(_mediaView->widget())
 		: activeWindow()
-		? (QWidget*)activeWindow()->widget()
+		? static_cast<QWidget*>(activeWindow()->widget())
 		: nullptr;
 }
 
@@ -923,18 +1015,9 @@ void Application::notifyFileDialogShown(bool shown) {
 	}
 }
 
-QWidget *Application::getModalParent() {
-	return (Platform::IsWayland() && activeWindow())
-		? activeWindow()->widget().get()
-		: nullptr;
-}
-
-
 void Application::checkMediaViewActivation() {
 	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->activateWindow();
-		QApplication::setActiveWindow(_mediaView.get());
-		_mediaView->setFocus();
+		_mediaView->activate();
 	}
 }
 
@@ -948,30 +1031,49 @@ QPoint Application::getPointForCallPanelCenter() const {
 // macOS Qt bug workaround, sometimes no leaveEvent() gets to the nested widgets.
 void Application::registerLeaveSubscription(not_null<QWidget*> widget) {
 #ifdef Q_OS_MAC
-	if (const auto topLevel = widget->window()) {
-		if (topLevel == _window->widget()) {
-			auto weak = Ui::MakeWeak(widget);
-			auto subscription = _window->widget()->leaveEvents(
-			) | rpl::start_with_next([weak] {
-				if (const auto window = weak.data()) {
-					QEvent ev(QEvent::Leave);
-					QGuiApplication::sendEvent(window, &ev);
+	if (const auto window = widget->window()) {
+		auto i = _leaveFilters.find(window);
+		if (i == end(_leaveFilters)) {
+			const auto check = [=](not_null<QEvent*> e) {
+				if (e->type() == QEvent::Leave) {
+					if (const auto taken = _leaveFilters.take(window)) {
+						for (const auto weak : taken->registered) {
+							if (const auto widget = weak.data()) {
+								QEvent ev(QEvent::Leave);
+								QCoreApplication::sendEvent(widget, &ev);
+							}
+						}
+						delete taken->filter.data();
+					}
 				}
+				return base::EventFilterResult::Continue;
+			};
+			const auto filter = base::install_event_filter(window, check);
+			QObject::connect(filter, &QObject::destroyed, [=] {
+				_leaveFilters.remove(window);
 			});
-			_leaveSubscriptions.emplace_back(weak, std::move(subscription));
+			i = _leaveFilters.emplace(
+				window,
+				LeaveFilter{ .filter = filter.get() }).first;
 		}
+		i->second.registered.push_back(widget.get());
 	}
 #endif // Q_OS_MAC
 }
 
 void Application::unregisterLeaveSubscription(not_null<QWidget*> widget) {
 #ifdef Q_OS_MAC
-	_leaveSubscriptions = std::move(
-		_leaveSubscriptions
-	) | ranges::action::remove_if([&](const LeaveSubscription &subscription) {
-		auto pointer = subscription.pointer.data();
-		return !pointer || (pointer == widget);
-	});
+	if (const auto topLevel = widget->window()) {
+		const auto i = _leaveFilters.find(topLevel);
+		if (i != end(_leaveFilters)) {
+			i->second.registered = std::move(
+				i->second.registered
+			) | ranges::actions::remove_if([&](QPointer<QWidget> widget) {
+				const auto pointer = widget.data();
+				return !pointer || (pointer == widget);
+			});
+		}
+	}
 #endif // Q_OS_MAC
 }
 
@@ -1046,7 +1148,7 @@ void Application::startShortcuts() {
 			return true;
 		});
 		request->check(Command::Lock) && request->handle([=] {
-			if (!passcodeLocked() && Global::LocalPasscode()) {
+			if (!passcodeLocked() && _domain->local().hasLocalPasscode()) {
 				lockByPasscode();
 				return true;
 			}

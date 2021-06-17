@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "boxes/sticker_set_box.h"
 #include "base/platform/base_platform_info.h"
+#include "base/unixtime.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
@@ -430,9 +431,14 @@ void InnerWidget::requestAdmins() {
 				const QVector<MTPChannelParticipant> &list) {
 			auto filtered = (
 				list
-			) | ranges::view::transform([&](const MTPChannelParticipant &p) {
-				const auto userId = p.match([](const auto &data) {
-					return data.vuser_id().v;
+			) | ranges::views::transform([&](const MTPChannelParticipant &p) {
+				const auto participantId = p.match([](
+						const MTPDchannelParticipantBanned &data) {
+					return peerFromMTP(data.vpeer());
+				}, [](const MTPDchannelParticipantLeft &data) {
+					return peerFromMTP(data.vpeer());
+				}, [](const auto &data) {
+					return peerFromUser(data.vuser_id());
 				});
 				const auto canEdit = p.match([](
 						const MTPDchannelParticipantAdmin &data) {
@@ -440,12 +446,15 @@ void InnerWidget::requestAdmins() {
 				}, [](const auto &) {
 					return false;
 				});
-				return std::make_pair(userId, canEdit);
-			}) | ranges::view::transform([&](auto &&pair) {
+				return std::make_pair(participantId, canEdit);
+			}) | ranges::views::transform([&](auto &&pair) {
 				return std::make_pair(
-					session().data().userLoaded(pair.first),
+					(peerIsUser(pair.first)
+						? session().data().userLoaded(
+							peerToUser(pair.first))
+						: nullptr),
 					pair.second);
-			}) | ranges::view::filter([&](auto &&pair) {
+			}) | ranges::views::filter([&](auto &&pair) {
 				return (pair.first != nullptr);
 			});
 
@@ -509,8 +518,17 @@ QString InnerWidget::tooltipText() const {
 	if (_mouseCursorState == CursorState::Date
 		&& _mouseAction == MouseAction::None) {
 		if (const auto view = App::hoveredItem()) {
-			auto dateText = view->dateTime().toString(
-				QLocale::system().dateTimeFormat(QLocale::LongFormat));
+			const auto format = QLocale::system().dateTimeFormat(
+				QLocale::LongFormat);
+			auto dateText = HistoryView::DateTooltipText(view);
+
+			const auto sentIt = _itemDates.find(view->data());
+			if (sentIt != end(_itemDates)) {
+				dateText += '\n' + tr::lng_sent_date(
+					tr::now,
+					lt_date,
+					base::unixtime::parse(sentIt->second).toString(format));
+			}
 			return dateText;
 		}
 	} else if (_mouseCursorState == CursorState::Forwarded
@@ -556,7 +574,7 @@ bool InnerWidget::elementUnderCursor(
 }
 
 crl::time InnerWidget::elementHighlightTime(
-		not_null<const HistoryView::Element*> element) {
+		not_null<const HistoryItem*> item) {
 	return crl::time(0);
 }
 
@@ -608,12 +626,19 @@ void InnerWidget::elementSendBotCommand(
 void InnerWidget::elementHandleViaClick(not_null<UserData*> bot) {
 }
 
+bool InnerWidget::elementIsChatWide() {
+	return _controller->adaptive().isChatWide();
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));
 	memento->setAdminsCanEdit(std::move(_adminsCanEdit));
 	memento->setSearchQuery(std::move(_searchQuery));
 	if (!_filterChanged) {
+		for (auto &item : _items) {
+			item.clearView();
+		}
 		memento->setItems(
 			base::take(_items),
 			base::take(_eventIds),
@@ -687,7 +712,7 @@ void InnerWidget::preloadMore(Direction direction) {
 		if (!loadedFlag) {
 			addEvents(direction, results.vevents().v);
 		}
-	}).fail([this, &requestId, &loadedFlag](const RPCError &error) {
+	}).fail([this, &requestId, &loadedFlag](const MTP::Error &error) {
 		requestId = 0;
 		loadedFlag = true;
 		update();
@@ -722,7 +747,10 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 			}
 
 			auto count = 0;
-			const auto addOne = [&](OwnedItem item) {
+			const auto addOne = [&](OwnedItem item, TimeId sentDate) {
+				if (sentDate) {
+					_itemDates.emplace(item->data(), sentDate);
+				}
 				_eventIds.emplace(id);
 				_itemsByData.emplace(item->data(), item.get());
 				addToItems.push_back(std::move(item));
@@ -805,7 +833,7 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 
 	const auto resizeAllItems = (_itemsWidth != newWidth);
 	auto newHeight = 0;
-	for (const auto &item : ranges::view::reverse(_items)) {
+	for (const auto &item : ranges::views::reverse(_items)) {
 		item->setY(newHeight);
 		if (item->pendingResize() || resizeAllItems) {
 			newHeight += item->resizeGetHeight(newWidth);
@@ -917,14 +945,17 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						p.setOpacity(opacity);
 						const auto dateY = /*noFloatingDate ? itemtop :*/ (dateTop - st::msgServiceMargin.top());
 						const auto width = view->width();
+						const auto chatWide =
+							_controller->adaptive().isChatWide();
 						if (const auto date = view->Get<HistoryView::DateBadge>()) {
-							date->paint(p, dateY, width);
+							date->paint(p, dateY, width, chatWide);
 						} else {
 							HistoryView::ServiceMessagePainter::paintDate(
 								p,
 								view->dateTime(),
 								dateY,
-								width);
+								width,
+								chatWide);
 						}
 					}
 				}
@@ -1075,12 +1106,15 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (lnkPhoto) {
 			const auto photo = lnkPhoto->photo();
-			_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
-				savePhotoToFile(photo);
-			}));
-			_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
-				copyContextImage(photo);
-			});
+			const auto media = photo->activeMediaView();
+			if (!photo->isNull() && media && media->loaded()) {
+				_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
+					savePhotoToFile(photo);
+				}));
+				_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
+					copyContextImage(photo);
+				});
+			}
 			if (photo->hasAttachedStickers()) {
 				const auto controller = _controller;
 				auto callback = [=] {
@@ -1177,7 +1211,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	}
 
-	if (_menu->actions().empty()) {
+	if (_menu->empty()) {
 		_menu = nullptr;
 	} else {
 		_menu->popup(e->globalPos());
@@ -1288,11 +1322,11 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 				Ui::LayerOption::KeepOther);
 		};
 		if (base::contains(_admins, user)) {
-			editRestrictions(true, MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+			editRestrictions(true, ChannelData::EmptyRestrictedRights(user));
 		} else {
 			_api.request(MTPchannels_GetParticipant(
 				_channel->inputChannel,
-				user->inputUser
+				user->input
 			)).done([=](const MTPchannels_ChannelParticipant &result) {
 				Expects(result.type() == mtpc_channels_channelParticipant);
 
@@ -1305,15 +1339,11 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 				} else {
 					auto hasAdminRights = (type == mtpc_channelParticipantAdmin)
 						|| (type == mtpc_channelParticipantCreator);
-					auto bannedRights = MTP_chatBannedRights(
-						MTP_flags(0),
-						MTP_int(0));
+					auto bannedRights = ChannelData::EmptyRestrictedRights(user);
 					editRestrictions(hasAdminRights, bannedRights);
 				}
-			}).fail([=](const RPCError &error) {
-				auto bannedRights = MTP_chatBannedRights(
-					MTP_flags(0),
-					MTP_int(0));
+			}).fail([=](const MTP::Error &error) {
+				auto bannedRights = ChannelData::EmptyRestrictedRights(user);
 				editRestrictions(false, bannedRights);
 			}).send();
 		}
@@ -1336,8 +1366,7 @@ void InnerWidget::restrictUser(
 }
 
 void InnerWidget::restrictUserDone(not_null<UserData*> user, const MTPChatBannedRights &rights) {
-	Expects(rights.type() == mtpc_chatBannedRights);
-	if (rights.c_chatBannedRights().vflags().v) {
+	if (Data::ChatBannedRightsFlags(rights)) {
 		_admins.erase(std::remove(_admins.begin(), _admins.end(), user), _admins.end());
 		_adminsCanEdit.erase(std::remove(_adminsCanEdit.begin(), _adminsCanEdit.end(), user), _adminsCanEdit.end());
 	}
@@ -1502,7 +1531,7 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 		if (_selectedItem && !_pressWasInactive) {
 			if (_selectedText.from == _selectedText.to) {
 				_selectedItem = nullptr;
-				App::wnd()->setInnerFocus();
+				_controller->widget()->setInnerFocus();
 			}
 		}
 	}
@@ -1522,7 +1551,9 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 
 void InnerWidget::updateSelected() {
 	auto mousePosition = mapFromGlobal(_mousePosition);
-	auto point = QPoint(snap(mousePosition.x(), 0, width()), snap(mousePosition.y(), _visibleTop, _visibleBottom));
+	auto point = QPoint(
+		std::clamp(mousePosition.x(), 0, width()),
+		std::clamp(mousePosition.y(), _visibleTop, _visibleBottom));
 
 	auto itemPoint = QPoint();
 	auto begin = std::rbegin(_items), end = std::rend(_items);

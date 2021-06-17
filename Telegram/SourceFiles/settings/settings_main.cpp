@@ -259,6 +259,8 @@ void SetupInterfaceScale(
 	slider->sectionActivated(
 	) | rpl::map([=](int section) {
 		return scaleByIndex(section);
+	}) | rpl::filter([=](int scale) {
+		return cEvalScale(scale) != cEvalScale(cConfigScale());
 	}) | rpl::start_with_next([=](int scale) {
 		setScale(
 			(scale == cScreenScale()) ? style::kScaleAuto : scale,
@@ -319,7 +321,7 @@ void SetupHelp(
 						Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 					}
 				});
-			}).fail([=](const RPCError &error) {
+			}).fail([=](const MTP::Error &error) {
 				*requestId = 0;
 			}).send();
 		});

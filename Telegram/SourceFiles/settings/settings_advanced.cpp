@@ -27,11 +27,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "core/application.h"
 #include "storage/localstorage.h"
+#include "storage/storage_domain.h"
 #include "data/data_session.h"
 #include "main/main_account.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mtproto/facade.h"
-#include "facades.h"
 #include "app.h"
 #include "styles/style_settings.h"
 
@@ -48,7 +49,7 @@ void SetupConnectionType(
 		not_null<Ui::VerticalLayout*> container) {
 	const auto connectionType = [=] {
 		const auto transport = account->mtp().dctransport();
-		if (Global::ProxySettings() != MTP::ProxyData::Settings::Enabled) {
+		if (!Core::App().settings().proxy().isEnabled()) {
 			return transport.isEmpty()
 				? tr::lng_connection_auto_connecting(tr::now)
 				: tr::lng_connection_auto(tr::now, lt_transport, transport);
@@ -62,7 +63,7 @@ void SetupConnectionType(
 		container,
 		tr::lng_settings_connection_type(),
 		rpl::merge(
-			base::ObservableViewer(Global::RefConnectionTypeChanged()),
+			Core::App().settings().proxy().connectionTypeChanges(),
 			// Handle language switch.
 			tr::lng_connection_auto_connecting() | rpl::to_empty
 		) | rpl::map(connectionType),
@@ -313,7 +314,11 @@ void SetupSpellchecker(
 #endif // !TDESKTOP_DISABLE_SPELLCHECK
 }
 
-void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
+void SetupSystemIntegrationContent(
+		Window::SessionController *controller,
+		not_null<Ui::VerticalLayout*> container) {
+	using WorkMode = Core::Settings::WorkMode;
+
 	const auto checkbox = [&](rpl::producer<QString> &&label, bool checked) {
 		return object_ptr<Ui::Checkbox>(
 			container,
@@ -339,18 +344,18 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 	};
 	if (Platform::TrayIconSupported()) {
 		const auto trayEnabled = [] {
-			const auto workMode = Global::WorkMode().value();
-			return (workMode == dbiwmTrayOnly)
-				|| (workMode == dbiwmWindowAndTray);
+			const auto workMode = Core::App().settings().workMode();
+			return (workMode == WorkMode::TrayOnly)
+				|| (workMode == WorkMode::WindowAndTray);
 		};
 		const auto tray = addCheckbox(
 			tr::lng_settings_workmode_tray(),
 			trayEnabled());
 
 		const auto taskbarEnabled = [] {
-			const auto workMode = Global::WorkMode().value();
-			return (workMode == dbiwmWindowOnly)
-				|| (workMode == dbiwmWindowAndTray);
+			const auto workMode = Core::App().settings().workMode();
+			return (workMode == WorkMode::WindowOnly)
+				|| (workMode == WorkMode::WindowAndTray);
 		};
 		const auto taskbar = Platform::SkipTaskbarSupported()
 			? addCheckbox(
@@ -361,14 +366,15 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 		const auto updateWorkmode = [=] {
 			const auto newMode = tray->checked()
 				? ((!taskbar || taskbar->checked())
-					? dbiwmWindowAndTray
-					: dbiwmTrayOnly)
-				: dbiwmWindowOnly;
-			if ((newMode == dbiwmWindowAndTray || newMode == dbiwmTrayOnly)
-				&& Global::WorkMode().value() != newMode) {
+					? WorkMode::WindowAndTray
+					: WorkMode::TrayOnly)
+				: WorkMode::WindowOnly;
+			if ((newMode == WorkMode::WindowAndTray
+				|| newMode == WorkMode::TrayOnly)
+				&& Core::App().settings().workMode() != newMode) {
 				cSetSeenTrayTooltip(false);
 			}
-			Global::RefWorkMode().set(newMode);
+			Core::App().settings().setWorkMode(newMode);
 			Local::writeSettings();
 		};
 
@@ -409,9 +415,10 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 			Core::App().saveSettingsDelayed();
 		}, nativeFrame->lifetime());
 	}
-	if (Platform::AutostartSupported()) {
-		const auto minimizedToggled = [] {
-			return cStartMinimized() && !Global::LocalPasscode();
+	if (Platform::AutostartSupported() && controller) {
+		const auto minimizedToggled = [=] {
+			return cStartMinimized()
+				&& !controller->session().domain().local().hasLocalPasscode();
 		};
 
 		const auto autostart = addCheckbox(
@@ -441,7 +448,7 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 		) | rpl::filter([=](bool checked) {
 			return (checked != minimizedToggled());
 		}) | rpl::start_with_next([=](bool checked) {
-			if (Global::LocalPasscode()) {
+			if (controller->session().domain().local().hasLocalPasscode()) {
 				minimized->entity()->setChecked(false);
 				Ui::show(Box<InformBox>(
 					tr::lng_error_start_minimized_passcoded(tr::now)));
@@ -451,8 +458,7 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 			}
 		}, minimized->lifetime());
 
-		base::ObservableViewer(
-			Global::RefLocalPasscodeChanged()
+		controller->session().domain().local().localPasscodeChanged(
 		) | rpl::start_with_next([=] {
 			minimized->entity()->setChecked(minimizedToggled());
 		}, minimized->lifetime());
@@ -474,9 +480,11 @@ void SetupSystemIntegrationContent(not_null<Ui::VerticalLayout*> container) {
 	}
 }
 
-void SetupSystemIntegrationOptions(not_null<Ui::VerticalLayout*> container) {
+void SetupSystemIntegrationOptions(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container) {
 	auto wrap = object_ptr<Ui::VerticalLayout>(container);
-	SetupSystemIntegrationContent(wrap.data());
+	SetupSystemIntegrationContent(controller, wrap.data());
 	if (wrap->count() > 0) {
 		container->add(object_ptr<Ui::OverrideMargins>(
 			container,
@@ -502,13 +510,49 @@ void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
 	}, container->lifetime());
 }
 
+void SetupOpenGL(not_null<Ui::VerticalLayout*> container) {
+	const auto toggles = container->lifetime().make_state<
+		rpl::event_stream<bool>
+	>();
+	const auto button = AddButton(
+		container,
+		tr::lng_settings_enable_opengl(),
+		st::settingsButton
+	)->toggleOn(
+		toggles->events_starting_with_copy(
+			!Core::App().settings().disableOpenGL())
+	);
+	button->toggledValue(
+	) | rpl::filter([](bool enabled) {
+		return (enabled == Core::App().settings().disableOpenGL());
+	}) | rpl::start_with_next([=](bool enabled) {
+		const auto confirmed = crl::guard(button, [=] {
+			Core::App().settings().setDisableOpenGL(!enabled);
+			Local::writeSettings();
+			App::restart();
+		});
+		const auto cancelled = crl::guard(button, [=] {
+			toggles->fire(!enabled);
+		});
+		Ui::show(Box<ConfirmBox>(
+			tr::lng_settings_need_restart(tr::now),
+			tr::lng_settings_restart_now(tr::now),
+			confirmed,
+			cancelled));
+	}, container->lifetime());
+}
+
 void SetupPerformance(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
 	SetupAnimations(container);
+	if (!Platform::IsMac()) {
+		SetupOpenGL(container);
+	}
 }
 
 void SetupSystemIntegration(
+		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(Type)> showOther) {
 	AddDivider(container);
@@ -521,7 +565,7 @@ void SetupSystemIntegration(
 	)->addClickHandler([=] {
 		showOther(Type::Calls);
 	});
-	SetupSystemIntegrationOptions(container);
+	SetupSystemIntegrationOptions(controller, container);
 	AddSkip(container);
 }
 
@@ -566,7 +610,7 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	AddSkip(content);
 	SetupDataStorage(controller, content);
 	SetupAutoDownload(controller, content);
-	SetupSystemIntegration(content, [=](Type type) {
+	SetupSystemIntegration(controller, content, [=](Type type) {
 		_showOther.fire_copy(type);
 	});
 

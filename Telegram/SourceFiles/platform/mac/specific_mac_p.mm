@@ -16,11 +16,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
+#include "window/window_controller.h"
 #include "base/platform/mac/base_utilities_mac.h"
 #include "base/platform/base_platform_info.h"
 #include "lang/lang_keys.h"
 #include "base/timer.h"
 #include "styles/style_window.h"
+#include "platform/platform_specific.h"
 
 #include <QtGui/QWindow>
 #include <QtWidgets/QApplication>
@@ -31,16 +33,54 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <CoreFoundation/CFURL.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/hidsystem/ev_keymap.h>
-#include <SPMediaKeyTap.h>
+
+using Platform::Q2NSString;
+using Platform::NS2QString;
 
 namespace {
 
 constexpr auto kIgnoreActivationTimeoutMs = 500;
 
+NSMenuItem *CreateMenuItem(
+		QString title,
+		rpl::lifetime &lifetime,
+		Fn<void()> callback,
+		bool enabled = true) {
+	id block = [^{
+		Core::Sandbox::Instance().customEnterFromEventLoop(callback);
+	} copy];
+
+	NSMenuItem *item = [[NSMenuItem alloc]
+		initWithTitle:Q2NSString(title)
+		action:@selector(invoke)
+		keyEquivalent:@""];
+	[item setTarget:block];
+	[item setEnabled:enabled];
+
+	lifetime.add([=] {
+		[block release];
+	});
+	return [item autorelease];
+}
+
 } // namespace
 
-using Platform::Q2NSString;
-using Platform::NS2QString;
+@interface RpMenu : NSMenu {
+}
+
+- (rpl::lifetime &) lifetime;
+
+@end // @interface Menu
+
+@implementation RpMenu {
+	rpl::lifetime _lifetime;
+}
+
+- (rpl::lifetime &) lifetime {
+	return _lifetime;
+}
+
+@end // @implementation Menu
 
 @interface qVisualize : NSObject {
 }
@@ -90,61 +130,46 @@ using Platform::NS2QString;
 }
 
 - (BOOL) applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag;
-- (void) applicationDidFinishLaunching:(NSNotification *)aNotification;
 - (void) applicationDidBecomeActive:(NSNotification *)aNotification;
 - (void) applicationDidResignActive:(NSNotification *)aNotification;
 - (void) receiveWakeNote:(NSNotification*)note;
 
-- (void) setWatchingMediaKeys:(bool)watching;
-- (bool) isWatchingMediaKeys;
-- (void) mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)event;
-
 - (void) ignoreApplicationActivationRightNow;
+
+- (NSMenu *) applicationDockMenu:(NSApplication *)sender;
 
 @end // @interface ApplicationDelegate
 
 ApplicationDelegate *_sharedDelegate = nil;
 
 @implementation ApplicationDelegate {
-	SPMediaKeyTap *_keyTap;
-	bool _watchingMediaKeys;
 	bool _ignoreActivation;
 	base::Timer _ignoreActivationStop;
 }
 
 - (BOOL) applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag {
-	if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
+	if (const auto window = Core::App().activeWindow()) {
+		if (window->widget()->isHidden()) {
+			window->widget()->showFromTray();
+		}
+	}
 	return YES;
 }
 
 - (void) applicationDidFinishLaunching:(NSNotification *)aNotification {
-	_keyTap = nullptr;
-	_watchingMediaKeys = false;
 	_ignoreActivation = false;
 	_ignoreActivationStop.setCallback([self] {
 		_ignoreActivation = false;
 	});
-#ifndef OS_MAC_STORE
-	if ([SPMediaKeyTap usesGlobalMediaKeyTap]) {
-		if (!Platform::IsMac10_14OrGreater()) {
-			_keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
-		} else {
-			// In macOS Mojave it requires accessibility features.
-			LOG(("Media key monitoring disabled starting with Mojave."));
-		}
-	} else {
-		LOG(("Media key monitoring disabled"));
-	}
-#endif // else for !OS_MAC_STORE
 }
 
 - (void) applicationDidBecomeActive:(NSNotification *)aNotification {
 	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 		if (Core::IsAppLaunched() && !_ignoreActivation) {
 			Core::App().handleAppActivated();
-			if (auto window = App::wnd()) {
-				if (window->isHidden()) {
-					window->showFromTray();
+			if (auto window = Core::App().activeWindow()) {
+				if (window->widget()->isHidden()) {
+					window->widget()->showFromTray();
 				}
 			}
 		}
@@ -169,36 +194,49 @@ ApplicationDelegate *_sharedDelegate = nil;
 	});
 }
 
-- (void) setWatchingMediaKeys:(bool)watching {
-	if (_watchingMediaKeys != watching) {
-		_watchingMediaKeys = watching;
-		if (_keyTap) {
-#ifndef OS_MAC_STORE
-			if (_watchingMediaKeys) {
-				[_keyTap startWatchingMediaKeys];
-			} else {
-				[_keyTap stopWatchingMediaKeys];
-			}
-#endif // else for !OS_MAC_STORE
-		}
-	}
-}
-
-- (bool) isWatchingMediaKeys {
-	return _watchingMediaKeys;
-}
-
-- (void) mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)e {
-	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-		if (e && [e type] == NSSystemDefined && [e subtype] == SPSystemDefinedEventMediaKeys) {
-			objc_handleMediaKeyEvent(e);
-		}
-	});
-}
-
 - (void) ignoreApplicationActivationRightNow {
 	_ignoreActivation = true;
 	_ignoreActivationStop.callOnce(kIgnoreActivationTimeoutMs);
+}
+
+- (NSMenu *) applicationDockMenu:(NSApplication *)sender {
+	RpMenu* dockMenu = [[[RpMenu alloc] initWithTitle: @""] autorelease];
+	[dockMenu setAutoenablesItems:false];
+
+	auto notifyCallback = [] {
+		auto &settings = Core::App().settings();
+		settings.setDesktopNotify(!settings.desktopNotify());
+	};
+	[dockMenu addItem:CreateMenuItem(
+		Core::App().settings().desktopNotify()
+			? tr::lng_disable_notifications_from_tray(tr::now)
+			: tr::lng_enable_notifications_from_tray(tr::now),
+		[dockMenu lifetime],
+		std::move(notifyCallback))];
+
+	using namespace Media::Player;
+	const auto state = instance()->getState(instance()->getActiveType());
+	if (!IsStoppedOrStopping(state.state)) {
+		[dockMenu addItem:[NSMenuItem separatorItem]];
+		[dockMenu addItem:CreateMenuItem(
+			tr::lng_mac_menu_player_previous(tr::now),
+			[dockMenu lifetime],
+			[] { instance()->previous(); },
+			instance()->previousAvailable(instance()->getActiveType()))];
+		[dockMenu addItem:CreateMenuItem(
+			IsPausedOrPausing(state.state)
+				? tr::lng_mac_menu_player_resume(tr::now)
+				: tr::lng_mac_menu_player_pause(tr::now),
+			[dockMenu lifetime],
+			[] { instance()->playPause(); })];
+		[dockMenu addItem:CreateMenuItem(
+			tr::lng_mac_menu_player_next(tr::now),
+			[dockMenu lifetime],
+			[] { instance()->next(); },
+			instance()->nextAvailable(instance()->getActiveType()))];
+	}
+
+	return dockMenu;
 }
 
 @end // @implementation ApplicationDelegate
@@ -206,9 +244,6 @@ ApplicationDelegate *_sharedDelegate = nil;
 namespace Platform {
 
 void SetWatchingMediaKeys(bool watching) {
-	if (_sharedDelegate) {
-		[_sharedDelegate setWatchingMediaKeys:watching];
-	}
 }
 
 void SetApplicationIcon(const QIcon &icon) {
@@ -222,43 +257,6 @@ void SetApplicationIcon(const QIcon &icon) {
 }
 
 } // namespace Platform
-
-bool objc_handleMediaKeyEvent(void *ev) {
-	auto e = reinterpret_cast<NSEvent*>(ev);
-
-	int keyCode = (([e data1] & 0xFFFF0000) >> 16);
-	int keyFlags = ([e data1] & 0x0000FFFF);
-	int keyState = (((keyFlags & 0xFF00) >> 8)) == 0xA;
-	int keyRepeat = (keyFlags & 0x1);
-
-	if (!_sharedDelegate || ![_sharedDelegate isWatchingMediaKeys]) {
-		return false;
-	}
-
-	switch (keyCode) {
-	case NX_KEYTYPE_PLAY:
-		if (keyState == 0) { // Play pressed and released
-			Media::Player::instance()->playPause();
-			return true;
-		}
-		break;
-
-	case NX_KEYTYPE_FAST:
-		if (keyState == 0) { // Next pressed and released
-			Media::Player::instance()->next();
-			return true;
-		}
-		break;
-
-	case NX_KEYTYPE_REWIND:
-		if (keyState == 0) { // Previous pressed and released
-			Media::Player::instance()->previous();
-			return true;
-		}
-		break;
-	}
-	return false;
-}
 
 void objc_debugShowAlert(const QString &str) {
 	@autoreleasepool {

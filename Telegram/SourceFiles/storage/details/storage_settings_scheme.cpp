@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "platform/platform_specific.h"
 #include "boxes/send_files_box.h"
-#include "facades.h"
 
 namespace Storage {
 namespace details {
@@ -422,19 +421,22 @@ bool ReadSetting(
 		context.sessionSettings().addFromSerialized(v);
 	} break;
 
-	case dbiWorkMode: {
+	case dbiWorkModeOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		auto newMode = [v] {
-			switch (v) {
-			case dbiwmTrayOnly: return dbiwmTrayOnly;
-			case dbiwmWindowOnly: return dbiwmWindowOnly;
+		const auto newMode = [v] {
+			using WorkMode = Core::Settings::WorkMode;
+			switch (static_cast<WorkMode>(v)) {
+			case WorkMode::TrayOnly: return WorkMode::TrayOnly;
+			case WorkMode::WindowOnly: return WorkMode::WindowOnly;
 			};
-			return dbiwmWindowAndTray;
-		};
-		Global::RefWorkMode().set(newMode());
+			return WorkMode::WindowAndTray;
+		}();
+		Core::App().settings().setWorkMode(newMode);
+
+		context.legacyRead = true;
 	} break;
 
 	case dbiTxtDomainStringOldOld: {
@@ -454,10 +456,17 @@ bool ReadSetting(
 		context.legacyRead = true;
 	} break;
 
-	case dbiConnectionTypeOld: {
+	case dbiConnectionTypeOldOld: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
+
+		// const auto dbictAuto = 0;
+		// const auto dbictHttpAuto = 1; // not used
+		const auto dbictHttpProxy = 2;
+		const auto dbictTcpProxy = 3;
+		// const auto dbictProxiesListOld = 4;
+		// const auto dbictProxiesList = 5;
 
 		MTP::ProxyData proxy;
 		switch (v) {
@@ -473,42 +482,58 @@ bool ReadSetting(
 				: MTP::ProxyData::Type::Http;
 		} break;
 		};
-		Global::SetSelectedProxy(proxy ? proxy : MTP::ProxyData());
-		Global::SetProxySettings(proxy
+		auto &proxySettings = Core::App().settings().proxy();
+		proxySettings.setSelected(proxy ? proxy : MTP::ProxyData());
+		proxySettings.setSettings(proxy
 			? MTP::ProxyData::Settings::Enabled
 			: MTP::ProxyData::Settings::System);
-		if (proxy) {
-			Global::SetProxiesList({ 1, proxy });
-		} else {
-			Global::SetProxiesList({});
-		}
+		proxySettings.list() = proxy
+			? std::vector<MTP::ProxyData>{ 1, proxy }
+			: std::vector<MTP::ProxyData>{};
 		Core::App().refreshGlobalProxy();
 		context.legacyRead = true;
 	} break;
 
-	case dbiConnectionType: {
+	case dbiConnectionTypeOld: {
 		qint32 connectionType;
 		stream >> connectionType;
 		if (!CheckStreamStatus(stream)) {
 			return false;
 		}
 
+		auto &proxySettings = Core::App().settings().proxy();
+
+		const auto legacyProxyTypeShift = 1024;
+
+		// const auto dbictAuto = 0;
+		// const auto dbictHttpAuto = 1; // not used
+		const auto dbictHttpProxy = 2;
+		const auto dbictTcpProxy = 3;
+		const auto dbictProxiesListOld = 4;
+		const auto dbictProxiesList = 5;
+
 		const auto readProxy = [&] {
+			using Type = MTP::ProxyData::Type;
 			qint32 proxyType, port;
 			MTP::ProxyData proxy;
-			stream >> proxyType >> proxy.host >> port >> proxy.user >> proxy.password;
+			stream
+				>> proxyType
+				>> proxy.host
+				>> port
+				>> proxy.user
+				>> proxy.password;
 			proxy.port = port;
 			proxy.type = (proxyType == dbictTcpProxy)
-				? MTP::ProxyData::Type::Socks5
+				? Type::Socks5
 				: (proxyType == dbictHttpProxy)
-				? MTP::ProxyData::Type::Http
-				: (proxyType == kProxyTypeShift + int(MTP::ProxyData::Type::Socks5))
-				? MTP::ProxyData::Type::Socks5
-				: (proxyType == kProxyTypeShift + int(MTP::ProxyData::Type::Http))
-				? MTP::ProxyData::Type::Http
-				: (proxyType == kProxyTypeShift + int(MTP::ProxyData::Type::Mtproto))
-				? MTP::ProxyData::Type::Mtproto
-				: MTP::ProxyData::Type::None;
+				? Type::Http
+				: (proxyType == legacyProxyTypeShift + int(Type::Socks5))
+				? Type::Socks5
+				: (proxyType == legacyProxyTypeShift + int(Type::Http))
+				? Type::Http
+				: (proxyType == legacyProxyTypeShift + int(Type::Mtproto))
+				? Type::Mtproto
+				: Type::None;
 			return proxy;
 		};
 		if (connectionType == dbictProxiesListOld
@@ -537,7 +562,7 @@ bool ReadSetting(
 			if (!CheckStreamStatus(stream)) {
 				return false;
 			}
-			Global::SetProxiesList(list);
+			proxySettings.list() = list;
 			if (connectionType == dbictProxiesListOld) {
 				settings = static_cast<qint32>(
 					(index > 0 && index <= list.size()
@@ -545,49 +570,47 @@ bool ReadSetting(
 						: MTP::ProxyData::Settings::System));
 				index = std::abs(index);
 			}
-			if (index > 0 && index <= list.size()) {
-				Global::SetSelectedProxy(list[index - 1]);
-			} else {
-				Global::SetSelectedProxy(MTP::ProxyData());
-			}
+			proxySettings.setSelected((index > 0 && index <= list.size())
+				? list[index - 1]
+				: MTP::ProxyData());
 
 			const auto unchecked = static_cast<MTP::ProxyData::Settings>(settings);
 			switch (unchecked) {
 			case MTP::ProxyData::Settings::Enabled:
-				Global::SetProxySettings(Global::SelectedProxy()
+				proxySettings.setSettings(proxySettings.selected()
 					? MTP::ProxyData::Settings::Enabled
 					: MTP::ProxyData::Settings::System);
 				break;
 			case MTP::ProxyData::Settings::Disabled:
 			case MTP::ProxyData::Settings::System:
-				Global::SetProxySettings(unchecked);
+				proxySettings.setSettings(unchecked);
 				break;
 			default:
-				Global::SetProxySettings(MTP::ProxyData::Settings::System);
+				proxySettings.setSettings(MTP::ProxyData::Settings::System);
 				break;
 			}
-			Global::SetUseProxyForCalls(calls == 1);
+			proxySettings.setUseProxyForCalls(calls == 1);
 		} else {
 			const auto proxy = readProxy();
 			if (!CheckStreamStatus(stream)) {
 				return false;
 			}
 			if (proxy) {
-				Global::SetProxiesList({ 1, proxy });
-				Global::SetSelectedProxy(proxy);
-				if (connectionType == dbictTcpProxy
-					|| connectionType == dbictHttpProxy) {
-					Global::SetProxySettings(MTP::ProxyData::Settings::Enabled);
-				} else {
-					Global::SetProxySettings(MTP::ProxyData::Settings::System);
-				}
+				proxySettings.list() = { 1, proxy };
+				proxySettings.setSelected(proxy);
+				proxySettings.setSettings((connectionType == dbictTcpProxy
+					|| connectionType == dbictHttpProxy)
+						? MTP::ProxyData::Settings::Enabled
+						: MTP::ProxyData::Settings::System);
 			} else {
-				Global::SetProxiesList({});
-				Global::SetSelectedProxy(MTP::ProxyData());
-				Global::SetProxySettings(MTP::ProxyData::Settings::System);
+				proxySettings.list() = {};
+				proxySettings.setSelected(MTP::ProxyData());
+				proxySettings.setSettings(MTP::ProxyData::Settings::System);
 			}
 		}
 		Core::App().refreshGlobalProxy();
+
+		context.legacyRead = true;
 	} break;
 
 	case dbiThemeKeyOld: {
@@ -636,12 +659,13 @@ bool ReadSetting(
 		context.languagesKey = languagesKey;
 	} break;
 
-	case dbiTryIPv6: {
+	case dbiTryIPv6Old: {
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
+		Core::App().settings().proxy().setTryIPv6(v == 1);
 
-		Global::SetTryIPv6(v == 1);
+		context.legacyRead = true;
 	} break;
 
 	case dbiSeenTrayTooltip: {
@@ -721,14 +745,25 @@ bool ReadSetting(
 		context.legacyRead = true;
 	} break;
 
-	case dbiWindowPosition: {
-		auto position = TWindowPos();
+	case dbiWindowPositionOld: {
+		auto position = Core::WindowPosition();
+		if (!CheckStreamStatus(stream)) {
+			return false;
+		}
 		stream >> position.x >> position.y >> position.w >> position.h;
 		stream >> position.moncrc >> position.maximized;
 		if (!CheckStreamStatus(stream)) return false;
 
-		DEBUG_LOG(("Window Pos: Read from storage %1, %2, %3, %4 (maximized %5)").arg(position.x).arg(position.y).arg(position.w).arg(position.h).arg(Logs::b(position.maximized)));
-		cSetWindowPos(position);
+		DEBUG_LOG(("Window Pos: Read from legacy storage %1, %2, %3, %4 (scale %5%, maximized %6)")
+			.arg(position.x)
+			.arg(position.y)
+			.arg(position.w)
+			.arg(position.h)
+			.arg(position.scale)
+			.arg(Logs::b(position.maximized)));
+
+		Core::App().settings().setWindowPosition(position);
+		context.legacyRead = true;
 	} break;
 
 	case dbiLoggedPhoneNumberOld: { // deprecated
@@ -827,7 +862,6 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 		Core::App().settings().setAutoLock(v);
-		Global::RefLocalPasscodeChanged().notify();
 		context.legacyRead = true;
 	} break;
 
@@ -869,11 +903,16 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		switch (v) {
-		case dbinvShowNothing: Core::App().settings().setNotifyView(dbinvShowNothing); break;
-		case dbinvShowName: Core::App().settings().setNotifyView(dbinvShowName); break;
-		default: Core::App().settings().setNotifyView(dbinvShowPreview); break;
-		}
+		const auto newView = [&] {
+			using Notify = Core::Settings::NotifyView;
+			switch (static_cast<Notify>(v)) {
+			case Notify::ShowNothing: return Notify::ShowNothing;
+			case Notify::ShowName: return Notify::ShowName;
+			}
+			return Notify::ShowPreview;
+		}();
+		Core::App().settings().setNotifyView(newView);
+
 		context.legacyRead = true;
 	} break;
 
@@ -933,13 +972,13 @@ bool ReadSetting(
 		context.legacyRead = true;
 	} break;
 
-	case dbiRecentEmojiOldOld: {
-		RecentEmojiPreloadOldOld v;
+	case dbiRecentEmojiOldOldOld: {
+		auto v = QVector<QPair<uint32, ushort>>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
 		if (!v.isEmpty()) {
-			RecentEmojiPreload p;
+			auto p = QVector<QPair<QString, ushort>>();
 			p.reserve(v.size());
 			for (auto &item : v) {
 				auto oldKey = uint64(item.first);
@@ -960,18 +999,18 @@ bool ReadSetting(
 					p.push_back(qMakePair(id, item.second));
 				}
 			}
-			cSetRecentEmojiPreload(p);
+			Core::App().settings().setLegacyRecentEmojiPreload(std::move(p));
 		}
 		context.legacyRead = true;
 	} break;
 
-	case dbiRecentEmojiOld: {
-		RecentEmojiPreloadOld v;
+	case dbiRecentEmojiOldOld: {
+		auto v = QVector<QPair<uint64, ushort>>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
 		if (!v.isEmpty()) {
-			RecentEmojiPreload p;
+			auto p = QVector<QPair<QString, ushort>>();
 			p.reserve(v.size());
 			for (auto &item : v) {
 				auto id = Ui::Emoji::IdFromOldKey(item.first);
@@ -979,17 +1018,18 @@ bool ReadSetting(
 					p.push_back(qMakePair(id, item.second));
 				}
 			}
-			cSetRecentEmojiPreload(p);
+			Core::App().settings().setLegacyRecentEmojiPreload(std::move(p));
 		}
 		context.legacyRead = true;
 	} break;
 
-	case dbiRecentEmoji: {
-		RecentEmojiPreload v;
+	case dbiRecentEmojiOld: {
+		auto v = QVector<QPair<QString, ushort>>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		cSetRecentEmojiPreload(v);
+		Core::App().settings().setLegacyRecentEmojiPreload(std::move(v));
+		context.legacyRead = true;
 	} break;
 
 	case dbiRecentStickers: {
@@ -1000,12 +1040,12 @@ bool ReadSetting(
 		cSetRecentStickersPreload(v);
 	} break;
 
-	case dbiEmojiVariantsOld: {
-		EmojiColorVariantsOld v;
+	case dbiEmojiVariantsOldOld: {
+		auto v = QMap<uint32, uint64>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		EmojiColorVariants variants;
+		auto variants = QMap<QString, int>();
 		for (auto i = v.cbegin(), e = v.cend(); i != e; ++i) {
 			auto id = Ui::Emoji::IdFromOldKey(static_cast<uint64>(i.key()));
 			if (!id.isEmpty()) {
@@ -1015,26 +1055,27 @@ bool ReadSetting(
 				}
 			}
 		}
-		cSetEmojiVariants(variants);
+		Core::App().settings().setLegacyEmojiVariants(std::move(variants));
 		context.legacyRead = true;
 	} break;
 
-	case dbiEmojiVariants: {
-		EmojiColorVariants v;
+	case dbiEmojiVariantsOld: {
+		auto v = QMap<QString, int>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		cSetEmojiVariants(v);
+		Core::App().settings().setLegacyEmojiVariants(std::move(v));
+		context.legacyRead = true;
 	} break;
 
 	case dbiHiddenPinnedMessagesOld: {
-		auto v = QMap<PeerId, MsgId>();
+		auto v = QMap<uint64, MsgId>();
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
 		for (auto i = v.begin(), e = v.end(); i != e; ++i) {
 			context.sessionSettings().setHiddenPinnedMessageId(
-				i.key(),
+				DeserializePeerId(i.key()),
 				i.value());
 		}
 		context.legacyRead = true;
@@ -1053,7 +1094,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Core::App().settings().setSongVolume(snap(v / 1e6, 0., 1.));
+		Core::App().settings().setSongVolume(std::clamp(v / 1e6, 0., 1.));
 		context.legacyRead = true;
 	} break;
 
@@ -1062,7 +1103,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Core::App().settings().setVideoVolume(snap(v / 1e6, 0., 1.));
+		Core::App().settings().setVideoVolume(std::clamp(v / 1e6, 0., 1.));
 		context.legacyRead = true;
 	} break;
 

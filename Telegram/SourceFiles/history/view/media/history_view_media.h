@@ -84,6 +84,8 @@ public:
 	}
 	virtual void refreshParentId(not_null<HistoryItem*> realParent) {
 	}
+	virtual void drawHighlight(Painter &p, int top) const {
+	}
 	virtual void draw(
 		Painter &p,
 		const QRect &r,
@@ -177,6 +179,7 @@ public:
 			const QRect &geometry,
 			RectParts sides,
 			RectParts corners,
+			float64 highlightOpacity,
 			not_null<uint64*> cacheKey,
 			not_null<QPixmap*> cache) const {
 		Unexpected("Grouping method call.");
@@ -273,6 +276,9 @@ public:
 		Painter &p,
 		const QRect &bubble,
 		crl::time ms) const {
+	}
+	[[nodiscard]] virtual bool customHighlight() const {
+		return false;
 	}
 
 	virtual bool hasHeavyPart() const {

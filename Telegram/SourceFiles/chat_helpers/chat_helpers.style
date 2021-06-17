@@ -74,7 +74,7 @@ stickersFeaturedUnreadBg: msgFileInBg;
 stickersFeaturedUnreadSize: 5px;
 stickersFeaturedUnreadSkip: 5px;
 stickersFeaturedUnreadTop: 7px;
-stickersFeaturedInstalled: icon {{ "send_control_save", lightButtonFg }};
+stickersFeaturedInstalled: icon {{ "chat/input_save", lightButtonFg }};
 
 stickersMaxHeight: 320px;
 stickersPadding: margins(19px, 13px, 19px, 13px);
@@ -231,9 +231,9 @@ inlineBotsScroll: ScrollArea(defaultSolidScroll) {
 	deltab: stickerPanPadding;
 }
 
-gifsSearchField: contactsSearchField;
+gifsSearchField: defaultMultiSelectSearchField;
 gifsSearchFieldPosition: point(42px, 7px);
-gifsSearchCancel: contactsSearchCancel;
+gifsSearchCancel: defaultMultiSelectSearchCancel;
 gifsSearchCancelPosition: point(1px, 1px);
 gifsSearchIcon: boxFieldSearchIcon;
 gifsSearchIconPosition: point(6px, 7px);
@@ -248,10 +248,6 @@ emojiSuggestionsPadding: margins(emojiColorsPadding, 0px, emojiColorsPadding, 0p
 emojiSuggestionsFadeAfter: 20px;
 
 mentionHeight: 40px;
-mentionScroll: ScrollArea(defaultScrollArea) {
-	topsh: 0px;
-	bottomsh: 0px;
-}
 mentionPadding: margins(8px, 5px, 8px, 5px);
 mentionTop: 11px;
 mentionFont: linkFont;

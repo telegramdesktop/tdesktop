@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toasts/common_toasts.h"
 #include "base/timer_rpl.h"
 #include "apiwrap.h"
+#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "base/event_filter.h"
@@ -127,8 +128,13 @@ PinnedWidget::PinnedWidget(
 	}, _topBar->lifetime());
 
 	_topBarShadow->raise();
-	updateAdaptiveLayout();
-	subscribe(Adaptive::Changed(), [=] { updateAdaptiveLayout(); });
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		controller->adaptive().changed()
+	) | rpl::start_with_next([=] {
+		updateAdaptiveLayout();
+	}, lifetime());
 
 	_inner = _scroll->setOwnedWidget(object_ptr<ListWidget>(
 		this,
@@ -221,10 +227,13 @@ bool PinnedWidget::showAtPositionNow(
 	const auto use = item ? item->position() : position;
 	if (const auto scrollTop = _inner->scrollTopForPosition(use)) {
 		const auto currentScrollTop = _scroll->scrollTop();
-		const auto wanted = snap(*scrollTop, 0, _scroll->scrollTopMax());
+		const auto wanted = std::clamp(
+			*scrollTop,
+			0,
+			_scroll->scrollTopMax());
 		const auto fullDelta = (wanted - currentScrollTop);
 		const auto limit = _scroll->height();
-		const auto scrollDelta = snap(fullDelta, -limit, limit);
+		const auto scrollDelta = std::clamp(fullDelta, -limit, limit);
 		const auto type = (animated == anim::type::instant)
 			? AnimatedScroll::None
 			: (std::abs(fullDelta) > limit)
@@ -294,7 +303,7 @@ void PinnedWidget::scrollDownAnimationFinish() {
 
 void PinnedWidget::updateAdaptiveLayout() {
 	_topBarShadow->moveToLeft(
-		Adaptive::OneColumn() ? 0 : st::lineWidth,
+		controller()->adaptive().isOneColumn() ? 0 : st::lineWidth,
 		_topBar->height());
 }
 
@@ -342,8 +351,8 @@ void PinnedWidget::setInternalState(
 	restoreState(memento);
 }
 
-std::unique_ptr<Window::SectionMemento> PinnedWidget::createMemento() {
-	auto result = std::make_unique<PinnedMemento>(history());
+std::shared_ptr<Window::SectionMemento> PinnedWidget::createMemento() {
+	auto result = std::make_shared<PinnedMemento>(history());
 	saveState(result.get());
 	return result;
 }
@@ -384,12 +393,9 @@ void PinnedWidget::resizeEvent(QResizeEvent *e) {
 
 void PinnedWidget::recountChatWidth() {
 	auto layout = (width() < st::adaptiveChatWideWidth)
-		? Adaptive::ChatLayout::Normal
-		: Adaptive::ChatLayout::Wide;
-	if (layout != Global::AdaptiveChatLayout()) {
-		Global::SetAdaptiveChatLayout(layout);
-		Adaptive::Changed().notify(true);
-	}
+		? Window::Adaptive::ChatLayout::Normal
+		: Window::Adaptive::ChatLayout::Wide;
+	controller()->adaptive().setChatLayout(layout);
 }
 
 void PinnedWidget::setMessagesCount(int count) {

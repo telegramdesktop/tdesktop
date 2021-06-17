@@ -15,19 +15,33 @@ inline constexpr auto FileStatusSizeFailed = 0x7FFFFFF2;
 
 [[nodiscard]] QString FormatSizeText(qint64 size);
 [[nodiscard]] QString FormatDownloadText(qint64 ready, qint64 total);
+[[nodiscard]] QString FormatProgressText(qint64 ready, qint64 total);
+[[nodiscard]] QString FormatDateTime(QDateTime date, QString format);
 [[nodiscard]] QString FormatDurationText(qint64 duration);
 [[nodiscard]] QString FormatDurationWords(qint64 duration);
 [[nodiscard]] QString FormatDurationAndSizeText(qint64 duration, qint64 size);
 [[nodiscard]] QString FormatGifAndSizeText(qint64 size);
 [[nodiscard]] QString FormatPlayedText(qint64 played, qint64 duration);
 
-[[nodiscard]] QString FillAmountAndCurrency(
-	uint64 amount,
-	const QString &currency);
+struct CurrencyRule {
+	const char *international = "";
+	char thousands = ',';
+	char decimal = '.';
+	bool left = true;
+	bool space = false;
+	int exponent = 2;
+	bool stripDotZero = false;
+};
 
-[[nodiscard]] QString ComposeNameString(
-	const QString &filename,
-	const QString &songTitle,
-	const QString &songPerformer);
+[[nodiscard]] QString FillAmountAndCurrency(
+	int64 amount,
+	const QString &currency,
+	bool forceStripDotZero = false);
+[[nodiscard]] CurrencyRule LookupCurrencyRule(const QString &currency);
+[[nodiscard]] QString FormatWithSeparators(
+	double amount,
+	int precision,
+	char decimal,
+	char thousands);
 
 } // namespace Ui

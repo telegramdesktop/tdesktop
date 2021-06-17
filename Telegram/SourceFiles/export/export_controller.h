@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/variant.h"
-#include "mtproto/mtproto_rpc_sender.h"
+#include "mtproto/mtproto_response.h"
 
 #include <QtCore/QPointer>
 #include <crl/crl_object_on_queue.h>
@@ -74,6 +74,7 @@ struct ProcessingState {
 	int itemIndex = 0;
 	int itemCount = 0;
 
+	uint64 bytesRandomId = 0;
 	FileType bytesType = FileType::None;
 	QString bytesName;
 	int bytesLoaded = 0;
@@ -81,7 +82,7 @@ struct ProcessingState {
 };
 
 struct ApiErrorState {
-	RPCError data;
+	MTP::Error data;
 };
 
 struct OutputErrorState {
@@ -136,6 +137,7 @@ public:
 	void startExport(
 		const Settings &settings,
 		const Environment &environment);
+	void skipFile(uint64 randomId);
 	void cancelExportFast();
 
 	rpl::lifetime &lifetime();

@@ -76,6 +76,8 @@ public:
 	virtual MsgId dependencyMsgId() const {
 		return 0;
 	}
+	virtual void checkBuyButton() {
+	}
 	[[nodiscard]] virtual bool notificationReady() const {
 		return true;
 	}
@@ -259,6 +261,12 @@ public:
 	}
 	[[nodiscard]] virtual Storage::SharedMediaTypesMask sharedMediaTypes() const = 0;
 
+	virtual void applySentMessage(const MTPDmessage &data);
+	virtual void applySentMessage(
+		const QString &text,
+		const MTPDupdateShortSentMessage &data,
+		bool wasAlready);
+
 	void indexAsNewItem();
 
 	[[nodiscard]] virtual QString notificationHeader() const {
@@ -390,7 +398,9 @@ public:
 	void updateDate(TimeId newDate);
 	[[nodiscard]] bool canUpdateDate() const;
 
-	[[nodiscard]] bool canBeEditedFromHistory() const;
+	[[nodiscard]] TimeId ttlDestroyAt() const {
+		return _ttlDestroyAt;
+	}
 
 	virtual ~HistoryItem();
 
@@ -408,6 +418,7 @@ protected:
 	virtual void markMediaAsReadHook() {
 	}
 
+	void applyServiceDateEdition(const MTPDmessageService &data);
 	void finishEdition(int oldKeyboardTop);
 	void finishEditionToEmpty();
 
@@ -419,6 +430,10 @@ protected:
 	void invalidateChatListEntry();
 
 	void setGroupId(MessageGroupId groupId);
+
+	void applyTTL(const MTPDmessage &data);
+	void applyTTL(const MTPDmessageService &data);
+	void applyTTL(TimeId destroyAt);
 
 	Ui::Text::String _text = { st::msgMinWidth };
 	int _textWidth = -1;
@@ -433,7 +448,9 @@ protected:
 	std::unique_ptr<Data::Media> _media;
 
 private:
+
 	TimeId _date = 0;
+	TimeId _ttlDestroyAt = 0;
 
 	HistoryView::Element *_mainView = nullptr;
 	friend class HistoryView::Element;

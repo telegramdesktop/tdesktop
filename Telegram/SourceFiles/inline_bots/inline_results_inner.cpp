@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_results_inner.h"
 
 #include "api/api_common.h"
+#include "chat_helpers/gifs_list_widget.h" // ChatHelpers::AddGifAction
 #include "chat_helpers/send_context_menu.h" // SendMenu::FillSendMenu
 #include "data/data_file_origin.h"
 #include "data/data_user.h"
@@ -37,7 +38,7 @@ Inner::Inner(
 , _controller(controller)
 , _updateInlineItems([=] { updateInlineItems(); })
 , _previewTimer([=] { showPreview(); }) {
-	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, st::inlineResultsMinHeight);
+	resize(st::emojiPanWidth - st::emojiScroll.width - st::roundRadiusSmall, st::inlineResultsMinHeight);
 
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -47,11 +48,13 @@ Inner::Inner(
 		update();
 	}, lifetime());
 
-	subscribe(controller->gifPauseLevelChanged(), [this] {
-		if (!_controller->isGifPausedAtLeastFor(Window::GifPauseReason::InlineResults)) {
+	controller->gifPauseLevelChanged(
+	) | rpl::start_with_next([=] {
+		if (!_controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::InlineResults)) {
 			update();
 		}
-	});
+	}, lifetime());
 
 	_controller->session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::Rights
@@ -85,8 +88,8 @@ void Inner::checkRestrictedPeer() {
 			if (!_restrictedLabel) {
 				_restrictedLabel.create(this, *error, st::stickersRestrictedLabel);
 				_restrictedLabel->show();
-				_restrictedLabel->move(st::inlineResultsLeft - st::buttonRadius, st::stickerPanPadding);
-				_restrictedLabel->resizeToNaturalWidth(width() - (st::inlineResultsLeft - st::buttonRadius) * 2);
+				_restrictedLabel->move(st::inlineResultsLeft - st::roundRadiusSmall, st::stickerPanPadding);
+				_restrictedLabel->resizeToNaturalWidth(width() - (st::inlineResultsLeft - st::roundRadiusSmall) * 2);
 				if (_switchPmButton) {
 					_switchPmButton->hide();
 				}
@@ -181,7 +184,7 @@ void Inner::paintInlineItems(Painter &p, const QRect &r) {
 		auto &inlineRow = _rows[row];
 		if (top >= r.top() + r.height()) break;
 		if (top + inlineRow.height > r.top()) {
-			auto left = st::inlineResultsLeft - st::buttonRadius;
+			auto left = st::inlineResultsLeft - st::roundRadiusSmall;
 			if (row == rows - 1) context.lastRow = true;
 			for (int col = 0, cols = inlineRow.items.size(); col < cols; ++col) {
 				if (left >= tox) break;
@@ -305,7 +308,15 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 		SendMenu::DefaultSilentCallback(send),
 		SendMenu::DefaultScheduleCallback(this, type, send));
 
-	if (!_menu->actions().empty()) {
+	auto item = _rows[row].items[column];
+	if (const auto previewDocument = item->getPreviewDocument()) {
+		auto callback = [&](const QString &text, Fn<void()> &&done) {
+			_menu->addAction(text, std::move(done));
+		};
+		ChatHelpers::AddGifAction(std::move(callback), previewDocument);
+	}
+
+	if (!_menu->empty()) {
 		_menu->popup(QCursor::pos());
 	}
 }
@@ -430,7 +441,7 @@ Inner::Row &Inner::layoutInlineRow(Row &row, int32 sumWidth) {
 	});
 
 	row.height = 0;
-	int availw = width() - (st::inlineResultsLeft - st::buttonRadius);
+	int availw = width() - (st::inlineResultsLeft - st::roundRadiusSmall);
 	for (int i = 0; i < count; ++i) {
 		int index = indices[i];
 		int w = sumWidth ? (row.items.at(index)->maxWidth() * availw / sumWidth) : row.items.at(index)->maxWidth();
@@ -478,7 +489,7 @@ void Inner::refreshSwitchPmButton(const CacheEntry *entry) {
 		_switchPmButton->setText(rpl::single(entry->switchPmText));
 		_switchPmStartToken = entry->switchPmStartToken;
 		const auto buttonTop = st::stickerPanPadding;
-		_switchPmButton->move(st::inlineResultsLeft - st::buttonRadius, buttonTop);
+		_switchPmButton->move(st::inlineResultsLeft - st::roundRadiusSmall, buttonTop);
 		if (isRestrictedView()) {
 			_switchPmButton->hide();
 		}
@@ -652,7 +663,7 @@ void Inner::updateSelected() {
 	auto newSelected = -1;
 	auto p = mapFromGlobal(_lastMousePos);
 
-	int sx = (rtl() ? width() - p.x() : p.x()) - (st::inlineResultsLeft - st::buttonRadius);
+	int sx = (rtl() ? width() - p.x() : p.x()) - (st::inlineResultsLeft - st::roundRadiusSmall);
 	int sy = p.y() - st::stickerPanPadding;
 	if (_switchPmButton) {
 		sy -= _switchPmButton->height() + st::inlineResultsSkip;
@@ -713,14 +724,14 @@ void Inner::updateSelected() {
 			_pressed = _selected;
 			if (row >= 0 && col >= 0) {
 				auto layout = _rows.at(row).items.at(col);
-				if (const auto w = App::wnd()) {
-					if (const auto previewDocument = layout->getPreviewDocument()) {
-						w->showMediaPreview(
-							Data::FileOrigin(),
-							previewDocument);
-					} else if (auto previewPhoto = layout->getPreviewPhoto()) {
-						w->showMediaPreview(Data::FileOrigin(), previewPhoto);
-					}
+				if (const auto previewDocument = layout->getPreviewDocument()) {
+					_controller->widget()->showMediaPreview(
+						Data::FileOrigin(),
+						previewDocument);
+				} else if (auto previewPhoto = layout->getPreviewPhoto()) {
+					_controller->widget()->showMediaPreview(
+						Data::FileOrigin(),
+						previewPhoto);
 				}
 			}
 		}
@@ -740,12 +751,14 @@ void Inner::showPreview() {
 	int row = _pressed / MatrixRowShift, col = _pressed % MatrixRowShift;
 	if (row < _rows.size() && col < _rows.at(row).items.size()) {
 		auto layout = _rows.at(row).items.at(col);
-		if (const auto w = App::wnd()) {
-			if (const auto previewDocument = layout->getPreviewDocument()) {
-				_previewShown = w->showMediaPreview(Data::FileOrigin(), previewDocument);
-			} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
-				_previewShown = w->showMediaPreview(Data::FileOrigin(), previewPhoto);
-			}
+		if (const auto previewDocument = layout->getPreviewDocument()) {
+			_previewShown = _controller->widget()->showMediaPreview(
+				Data::FileOrigin(),
+				previewDocument);
+		} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
+			_previewShown = _controller->widget()->showMediaPreview(
+				Data::FileOrigin(),
+				previewPhoto);
 		}
 	}
 }

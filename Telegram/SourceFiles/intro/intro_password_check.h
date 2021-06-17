@@ -49,9 +49,9 @@ private:
 	void updateControlsGeometry();
 
 	void pwdSubmitDone(bool recover, const MTPauth_Authorization &result);
-	void pwdSubmitFail(const RPCError &error);
-	void codeSubmitFail(const RPCError &error);
-	void recoverStartFail(const RPCError &error);
+	void pwdSubmitFail(const MTP::Error &error);
+	void codeSubmitFail(const MTP::Error &error);
+	void recoverStartFail(const MTP::Error &error);
 
 	void recoverStarted(const MTPauth_PasswordRecovery &result);
 

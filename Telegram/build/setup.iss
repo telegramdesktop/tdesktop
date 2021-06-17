@@ -20,7 +20,6 @@ DefaultDirName={userappdata}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir={#ReleasePath}
-OutputBaseFilename=tsetup.{#MyAppVersionFull}
 SetupIconFile={#SourcePath}..\Resources\art\icon256.ico
 UninstallDisplayIcon={app}\Telegram.exe
 Compression=lzma
@@ -31,6 +30,14 @@ VersionInfoVersion={#MyAppVersion}.0
 CloseApplications=force
 DisableDirPage=no
 DisableProgramGroupPage=no
+
+#if MyBuildTarget == "win64"
+ArchitecturesAllowed=x64
+ArchitecturesInstallIn64BitMode=x64
+OutputBaseFilename=tsetup-x64.{#MyAppVersionFull}
+#else
+OutputBaseFilename=tsetup.{#MyAppVersionFull}
+#endif
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

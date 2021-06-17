@@ -109,18 +109,18 @@ auto SuggestionsWidget::getRowsByQuery() const -> std::vector<Row> {
 		return {};
 	}
 	using Entry = ChatHelpers::EmojiKeywords::Result;
-	auto result = ranges::view::all(
+	auto result = ranges::views::all(
 		list
-	) | ranges::view::transform([](const Entry &result) {
+	) | ranges::views::transform([](const Entry &result) {
 		return Row(result.emoji, result.replacement);
 	}) | ranges::to_vector;
 
 	auto lastRecent = begin(result);
-	const auto &recent = GetRecentEmoji();
+	const auto &recent = Core::App().settings().recentEmoji();
 	for (const auto &item : recent) {
-		const auto emoji = item.first->original()
-			? item.first->original()
-			: item.first;
+		const auto emoji = item.emoji->original()
+			? item.emoji->original()
+			: item.emoji;
 		const auto it = ranges::find(result, emoji, [](const Row &row) {
 			return row.emoji.get();
 		});
@@ -133,12 +133,12 @@ auto SuggestionsWidget::getRowsByQuery() const -> std::vector<Row> {
 	for (auto &item : result) {
 		item.emoji = [&] {
 			const auto result = item.emoji;
-			const auto &variants = cEmojiVariants();
+			const auto &variants = Core::App().settings().emojiVariants();
 			const auto i = result->hasVariants()
-				? variants.constFind(result->nonColoredId())
-				: variants.cend();
-			return (i != variants.cend())
-				? result->variant(i.value())
+				? variants.find(result->nonColoredId())
+				: end(variants);
+			return (i != end(variants))
+				? result->variant(i->second)
 				: result.get();
 		}();
 	}
@@ -179,12 +179,15 @@ void SuggestionsWidget::scrollByWheelEvent(not_null<QWheelEvent*> e) {
 			const auto delta = e->pixelDelta().x()
 				? e->pixelDelta().x()
 				: e->angleDelta().x();
-			return snap(current - ((rtl() ? -1 : 1) * delta), 0, _scrollMax);
+			return std::clamp(
+				current - ((rtl() ? -1 : 1) * delta),
+				0,
+				_scrollMax);
 		} else if (vertical) {
 			const auto delta = e->pixelDelta().y()
 				? e->pixelDelta().y()
 				: e->angleDelta().y();
-			return snap(current - delta, 0, _scrollMax);
+			return std::clamp(current - delta, 0, _scrollMax);
 		}
 		return current;
 	}();
@@ -241,7 +244,7 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 
 void SuggestionsWidget::paintFadings(Painter &p) const {
 	const auto scroll = scrollCurrent();
-	const auto o_left = snap(
+	const auto o_left = std::clamp(
 		scroll / float64(st::emojiSuggestionsFadeAfter),
 		0.,
 		1.);
@@ -256,7 +259,7 @@ void SuggestionsWidget::paintFadings(Painter &p) const {
 		st::emojiSuggestionsFadeLeft.fill(p, rect);
 		p.setOpacity(1.);
 	}
-	const auto o_right = snap(
+	const auto o_right = std::clamp(
 		(_scrollMax - scroll) / float64(st::emojiSuggestionsFadeAfter),
 		0.,
 		1.);
@@ -422,7 +425,7 @@ void SuggestionsWidget::mouseMoveEvent(QMouseEvent *e) {
 	const auto globalPosition = e->globalPos();
 	if (_dragScrollStart >= 0) {
 		const auto delta = (_mousePressPosition.x() - globalPosition.x());
-		const auto scroll = snap(
+		const auto scroll = std::clamp(
 			_dragScrollStart + (rtl() ? -1 : 1) * delta,
 			0,
 			_scrollMax);
@@ -523,14 +526,14 @@ SuggestionsController::SuggestionsController(
 	setReplaceCallback(nullptr);
 
 	const auto fieldCallback = [=](not_null<QEvent*> event) {
-		return fieldFilter(event)
+		return (_container && fieldFilter(event))
 			? base::EventFilterResult::Cancel
 			: base::EventFilterResult::Continue;
 	};
 	_fieldFilter.reset(base::install_event_filter(_field, fieldCallback));
 
 	const auto outerCallback = [=](not_null<QEvent*> event) {
-		return outerFilter(event)
+		return (_container && outerFilter(event))
 			? base::EventFilterResult::Cancel
 			: base::EventFilterResult::Continue;
 	};

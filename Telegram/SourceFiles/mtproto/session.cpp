@@ -10,9 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/details/mtproto_dcenter.h"
 #include "mtproto/session_private.h"
 #include "mtproto/mtproto_auth_key.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "base/unixtime.h"
 #include "base/openssl_help.h"
-#include "facades.h"
 
 namespace MTP {
 namespace details {
@@ -162,7 +163,6 @@ Session::Session(
 , _data(std::make_shared<SessionData>(this))
 , _thread(thread)
 , _sender([=] { needToResumeAndSend(); }) {
-	_timeouter.callEach(1000);
 	refreshOptions();
 	watchDcKeyChanges();
 	watchDcOptionsChanges();
@@ -225,13 +225,6 @@ void Session::start() {
 		_shiftedDcId);
 }
 
-bool Session::rpcErrorOccured(
-		mtpRequestId requestId,
-		const RPCFailHandlerPtr &onFail,
-		const RPCError &error) { // return true if need to clean request data
-	return _instance->rpcErrorOccured(requestId, onFail, error);
-}
-
 void Session::restart() {
 	if (_killed) {
 		DEBUG_LOG(("Session Error: can't restart a killed session"));
@@ -246,22 +239,19 @@ void Session::restart() {
 }
 
 void Session::refreshOptions() {
-	const auto &proxy = Global::SelectedProxy();
-	const auto proxyType =
-		(Global::ProxySettings() == ProxyData::Settings::Enabled
-			? proxy.type
-			: ProxyData::Type::None);
+	auto &settings = Core::App().settings().proxy();
+	const auto &proxy = settings.selected();
+	const auto isEnabled = settings.isEnabled();
+	const auto proxyType = (isEnabled ? proxy.type : ProxyData::Type::None);
 	const auto useTcp = (proxyType != ProxyData::Type::Http);
 	const auto useHttp = (proxyType != ProxyData::Type::Mtproto);
 	const auto useIPv4 = true;
-	const auto useIPv6 = Global::TryIPv6();
+	const auto useIPv6 = settings.tryIPv6();
 	_data->setOptions(SessionOptions(
 		_instance->systemLangCode(),
 		_instance->cloudLangCode(),
 		_instance->langPackName(),
-		(Global::ProxySettings() == ProxyData::Settings::Enabled
-			? proxy
-			: ProxyData()),
+		(isEnabled ? proxy : ProxyData()),
 		useIPv4,
 		useIPv6,
 		useHttp,
@@ -560,25 +550,17 @@ void Session::tryToReceive() {
 	}
 	while (true) {
 		auto lock = QWriteLocker(_data->haveReceivedMutex());
-		const auto responses = base::take(_data->haveReceivedResponses());
-		const auto updates = base::take(_data->haveReceivedUpdates());
+		const auto messages = base::take(_data->haveReceivedMessages());
 		lock.unlock();
-		if (responses.empty() && updates.empty()) {
+		if (messages.empty()) {
 			break;
 		}
-		for (const auto &[requestId, response] : responses) {
-			_instance->execCallback(
-				requestId,
-				response.constData(),
-				response.constData() + response.size());
-		}
-
-		// Call globalCallback only in main session.
-		if (_shiftedDcId == BareDcId(_shiftedDcId)) {
-			for (const auto &update : updates) {
-				_instance->globalCallback(
-					update.constData(),
-					update.constData() + update.size());
+		for (const auto &message : messages) {
+			if (message.requestId) {
+				_instance->processCallback(message);
+			} else if (_shiftedDcId == BareDcId(_shiftedDcId)) {
+				// Process updates only in main session.
+				_instance->processUpdate(message);
 			}
 		}
 	}

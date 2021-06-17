@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/cross_line.h"
 #include "styles/style_window.h"
 #include "styles/style_widgets.h"
 
@@ -72,7 +73,7 @@ public:
 		const style::UserpicButton &st);
 	UserpicButton(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller,
+		not_null<::Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		Role role,
 		const style::UserpicButton &st);
@@ -131,7 +132,7 @@ private:
 	void uploadNewPeerPhoto();
 
 	const style::UserpicButton &_st;
-	Window::SessionController *_controller = nullptr;
+	::Window::SessionController *_controller = nullptr;
 	PeerData *_peer = nullptr;
 	std::shared_ptr<Data::CloudImageView> _userpicView;
 	QString _cropTitle;
@@ -154,36 +155,9 @@ private:
 	Ui::Animations::Simple _changeOverlayShown;
 
 };
-// // #feed
-//class FeedUserpicButton : public AbstractButton {
-//public:
-//	FeedUserpicButton(
-//		QWidget *parent,
-//		not_null<Window::SessionController*> controller,
-//		not_null<Data::Feed*> feed,
-//		const style::FeedUserpicButton &st);
-//
-//private:
-//	struct Part {
-//		not_null<ChannelData*> channel;
-//		base::unique_qptr<UserpicButton> button;
-//	};
-//
-//	void prepare();
-//	void checkParts();
-//	bool partsAreValid() const;
-//	void refreshParts();
-//	QPoint countInnerPosition() const;
-//
-//	const style::FeedUserpicButton &_st;
-//	not_null<Window::SessionController*> _controller;
-//	not_null<Data::Feed*> _feed;
-//	std::vector<Part> _parts;
-//
-//};
 
 class SilentToggle
-	: public Ui::IconButton
+	: public Ui::RippleButton
 	, public Ui::AbstractTooltipShower {
 public:
 	SilentToggle(QWidget *parent, not_null<ChannelData*> channel);
@@ -203,11 +177,18 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
 private:
-	void refreshIconOverrides();
+	const style::IconButton &_st;
+	const QColor &_colorOver;
 
 	not_null<ChannelData*> _channel;
 	bool _checked = false;
+
+	Ui::CrossLineAnimation _crossLine;
+	Ui::Animations::Simple _crossLineAnimation;
 
 };
 

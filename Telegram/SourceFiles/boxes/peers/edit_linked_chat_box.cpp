@@ -82,7 +82,7 @@ int Controller::contentWidth() const {
 
 void Controller::prepare() {
 	const auto appendRow = [&](not_null<PeerData*> chat) {
-		if (delegate()->peerListFindRow(chat->id)) {
+		if (delegate()->peerListFindRow(chat->id.value)) {
 			return;
 		}
 		auto row = std::make_unique<PeerListRow>(chat);

@@ -163,9 +163,11 @@ introBackButton: IconButton(defaultIconButton) {
 	}
 }
 
-introQrTop: -6px;
+introQrTop: -18px;
 introQrPixel: 50px; // large enough
 introQrMaxSize: 180px;
+introQrBackgroundSkip: 12px;
+introQrBackgroundRadius: 8px;
 introQrLabelsWidth: 292px;
 introQrTitleWidth: 320px;
 introQrTitle: FlatLabel(defaultFlatLabel) {

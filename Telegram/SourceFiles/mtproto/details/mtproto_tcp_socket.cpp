@@ -12,10 +12,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP::details {
 
-TcpSocket::TcpSocket(not_null<QThread*> thread, const QNetworkProxy &proxy)
+TcpSocket::TcpSocket(
+	not_null<QThread*> thread,
+	const QNetworkProxy &proxy,
+	bool protocolForFiles)
 : AbstractSocket(thread) {
 	_socket.moveToThread(thread);
 	_socket.setProxy(proxy);
+	if (protocolForFiles) {
+		_socket.setSocketOption(
+			QAbstractSocket::SendBufferSizeSocketOption,
+			kFilesSendBufferSize);
+		_socket.setSocketOption(
+			QAbstractSocket::ReceiveBufferSizeSocketOption,
+			kFilesReceiveBufferSize);
+	}
 	const auto wrap = [&](auto handler) {
 		return [=](auto &&...args) {
 			InvokeQueued(this, [=] { handler(args...); });
@@ -122,9 +133,9 @@ void TcpSocket::LogError(int errorCode, const QString &errorText) {
 		LOG(("TCP Error: socket timeout - %1").arg(errorText));
 		break;
 
-	case QAbstractSocket::NetworkError:
-		LOG(("TCP Error: network - %1").arg(errorText));
-		break;
+	case QAbstractSocket::NetworkError: {
+		DEBUG_LOG(("TCP Error: network - %1").arg(errorText));
+	} break;
 
 	case QAbstractSocket::ProxyAuthenticationRequiredError:
 	case QAbstractSocket::ProxyConnectionRefusedError:

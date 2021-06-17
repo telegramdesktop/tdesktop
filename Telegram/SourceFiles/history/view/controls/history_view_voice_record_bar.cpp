@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_send_progress.h"
 #include "base/event_filter.h"
+#include "base/openssl_help.h"
 #include "base/unixtime.h"
 #include "boxes/confirm_box.h"
 #include "core/application.h"
@@ -29,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_media_player.h"
 #include "ui/controls/send_button.h"
+#include "ui/effects/animation_value.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
 #include "window/window_session_controller.h"
@@ -60,10 +62,6 @@ enum class FilterType {
 	ShowBox,
 	Cancel,
 };
-
-inline float64 InterpolateF(int a, int b, float64 b_ratio) {
-	return a + float64(b - a) * b_ratio;
-}
 
 [[nodiscard]] auto InactiveColor(const QColor &c) {
 	return QColor(c.red(), c.green(), c.blue(), kInactiveWaveformBarAlpha);
@@ -102,7 +100,7 @@ inline float64 InterpolateF(int a, int b, float64 b_ratio) {
 [[nodiscard]] not_null<DocumentData*> DummyDocument(
 		not_null<Data::Session*> owner) {
 	return owner->document(
-		rand_value<DocumentId>(),
+		openssl::RandomValue<DocumentId>(),
 		uint64(0),
 		QByteArray(),
 		base::unixtime::now(),
@@ -614,10 +612,13 @@ public:
 	RecordLock(not_null<Ui::RpWidget*> parent);
 
 	void requestPaintProgress(float64 progress);
+	void requestPaintLockToStopProgress(float64 progress);
 
 	[[nodiscard]] rpl::producer<> locks() const;
 	[[nodiscard]] bool isLocked() const;
 	[[nodiscard]] bool isStopState() const;
+
+	[[nodiscard]] float64 lockToStopProgress() const;
 
 protected:
 	QImage prepareRippleMask() const override;
@@ -633,9 +634,9 @@ private:
 	const QRect _rippleRect;
 	const QPen _arcPen;
 
-	Ui::Animations::Simple _lockAnimation;
 	Ui::Animations::Simple _lockEnderAnimation;
 
+	float64 _lockToStopProgress = 0.;
 	rpl::variable<float64> _progress = 0.;
 };
 
@@ -665,8 +666,8 @@ void RecordLock::init() {
 		if (!shown) {
 			setCursor(style::cur_default);
 			setAttribute(Qt::WA_TransparentForMouseEvents, true);
-			_lockAnimation.stop();
 			_lockEnderAnimation.stop();
+			_lockToStopProgress = 0.;
 			_progress = 0.;
 		}
 	}, lifetime());
@@ -678,31 +679,12 @@ void RecordLock::init() {
 			const auto top = anim::interpolate(
 				0,
 				height() - st::historyRecordLockTopShadow.height() * 2,
-				_lockAnimation.value(1.));
+				_lockToStopProgress);
 			p.translate(0, top);
 			drawProgress(p);
 			return;
 		}
 		drawProgress(p);
-	}, lifetime());
-
-	locks(
-	) | rpl::start_with_next([=] {
-		const auto &duration = st::historyRecordVoiceShowDuration;
-		const auto from = 0.;
-		const auto to = 1.;
-		auto callback = [=](float64 value) {
-			update();
-			if (value == to) {
-				setCursor(style::cur_pointer);
-				setAttribute(Qt::WA_TransparentForMouseEvents, false);
-
-				resize(
-					st::historyRecordLockTopShadow.width(),
-					st::historyRecordLockTopShadow.width());
-			}
-		};
-		_lockAnimation.start(std::move(callback), from, to, duration);
 	}, lifetime());
 }
 
@@ -776,8 +758,6 @@ void RecordLock::drawProgress(Painter &p) {
 	}
 	{
 		PainterHighQualityEnabler hq(p);
-		const auto lockToStopProgress =
-			_lockAnimation.value(isLocked() ? 1. : 0);
 		const auto &arcOffset = st::historyRecordLockIconLineSkip;
 		const auto &size = st::historyRecordLockIconSize;
 
@@ -786,18 +766,18 @@ void RecordLock::drawProgress(Painter &p) {
 
 		const auto &blockHeight = st::historyRecordLockIconBottomHeight;
 
-		const auto blockRectWidth = InterpolateF(
+		const auto blockRectWidth = anim::interpolateF(
 			size.width(),
 			st::historyRecordStopIconWidth,
-			lockToStopProgress);
-		const auto blockRectHeight = InterpolateF(
+			_lockToStopProgress);
+		const auto blockRectHeight = anim::interpolateF(
 			blockHeight,
 			st::historyRecordStopIconWidth,
-			lockToStopProgress);
-		const auto blockRectTop = InterpolateF(
+			_lockToStopProgress);
+		const auto blockRectTop = anim::interpolateF(
 			size.height() - blockHeight,
 			std::round((size.height() - blockRectHeight) / 2.),
-			lockToStopProgress);
+			_lockToStopProgress);
 
 		const auto blockRect = QRectF(
 			(size.width() - blockRectWidth) / 2,
@@ -812,11 +792,11 @@ void RecordLock::drawProgress(Painter &p) {
 			inner.x() + (inner.width() - size.width()) / 2,
 			inner.y() + (originTop.height() * 2 - size.height()) / 2);
 		{
-			const auto xRadius = anim::interpolate(2, 3, lockToStopProgress);
+			const auto xRadius = anim::interpolate(2, 3, _lockToStopProgress);
 			p.drawRoundedRect(blockRect, xRadius, 3);
 		}
 
-		const auto offsetTranslate = lockToStopProgress *
+		const auto offsetTranslate = _lockToStopProgress *
 			(lineHeight + arcHeight + _arcPen.width() * 2);
 		p.translate(
 			size.width() - arcOffset,
@@ -838,7 +818,7 @@ void RecordLock::drawProgress(Painter &p) {
 			0,
 			180 * 16);
 
-		const auto lockProgress = 1. - _lockAnimation.value(1.);
+		const auto lockProgress = 1. - _lockToStopProgress;
 		if (progress == 1. && lockProgress < 1.) {
 			p.drawLine(
 				-arcWidth,
@@ -869,6 +849,23 @@ void RecordLock::requestPaintProgress(float64 progress) {
 	setProgress(progress);
 }
 
+void RecordLock::requestPaintLockToStopProgress(float64 progress) {
+	_lockToStopProgress = progress;
+	if (isStopState()) {
+		setCursor(style::cur_pointer);
+		setAttribute(Qt::WA_TransparentForMouseEvents, false);
+
+		resize(
+			st::historyRecordLockTopShadow.width(),
+			st::historyRecordLockTopShadow.width());
+	}
+	update();
+}
+
+float64 RecordLock::lockToStopProgress() const {
+	return _lockToStopProgress;
+}
+
 void RecordLock::setProgress(float64 progress) {
 	_progress = progress;
 	update();
@@ -879,7 +876,7 @@ bool RecordLock::isLocked() const {
 }
 
 bool RecordLock::isStopState() const {
-	return isLocked() && (_lockAnimation.value(1.) == 1.);
+	return isLocked() && (_lockToStopProgress == 1.);
 }
 
 rpl::producer<> RecordLock::locks() const {
@@ -893,6 +890,75 @@ QImage RecordLock::prepareRippleMask() const {
 
 QPoint RecordLock::prepareRippleStartPosition() const {
 	return mapFromGlobal(QCursor::pos()) - _rippleRect.topLeft();
+}
+
+class CancelButton final : public Ui::RippleButton {
+public:
+	CancelButton(not_null<Ui::RpWidget*> parent, int height);
+
+	void requestPaintProgress(float64 progress);
+
+protected:
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
+private:
+	void init();
+
+	const int _width;
+	const QRect _rippleRect;
+
+	rpl::variable<float64> _showProgress = 0.;
+
+	Ui::Text::String _text;
+
+};
+
+CancelButton::CancelButton(not_null<Ui::RpWidget*> parent, int height)
+: Ui::RippleButton(parent, st::defaultLightButton.ripple)
+, _width(st::historyRecordCancelButtonWidth)
+, _rippleRect(QRect(0, (height - _width) / 2, _width, _width))
+, _text(st::semiboldTextStyle, tr::lng_selected_clear(tr::now).toUpper()) {
+	resize(_width, height);
+	init();
+}
+
+void CancelButton::init() {
+	_showProgress.value(
+	) | rpl::map(rpl::mappers::_1 > 0.) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool hasProgress) {
+		setVisible(hasProgress);
+	}, lifetime());
+
+	paintRequest(
+	) | rpl::start_with_next([=] {
+		Painter p(this);
+
+		p.setOpacity(_showProgress.current());
+
+		paintRipple(p, _rippleRect.x(), _rippleRect.y());
+
+		p.setPen(st::historyRecordCancelButtonFg);
+		_text.draw(
+			p,
+			0,
+			(height() - _text.minHeight()) / 2,
+			width(),
+			style::al_center);
+	}, lifetime());
+}
+
+QImage CancelButton::prepareRippleMask() const {
+	return Ui::RippleAnimation::ellipseMask(_rippleRect.size());
+}
+
+QPoint CancelButton::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos()) - _rippleRect.topLeft();
+}
+
+void CancelButton::requestPaintProgress(float64 progress) {
+	_showProgress = progress;
+	update();
 }
 
 VoiceRecordBar::VoiceRecordBar(
@@ -909,7 +975,12 @@ VoiceRecordBar::VoiceRecordBar(
 , _level(std::make_unique<VoiceRecordButton>(
 	sectionWidget,
 	_controller->widget()->leaveEvents()))
+, _cancel(std::make_unique<CancelButton>(this, recorderHeight))
 , _startTimer([=] { startRecording(); })
+, _message(
+	st::historyRecordTextStyle,
+	tr::lng_record_cancel(tr::now),
+	TextParseOptions{ TextParseMultiline, 0, 0, Qt::LayoutDirectionAuto })
 , _cancelFont(st::historyRecordFont) {
 	resize(QSize(parent->width(), recorderHeight));
 	init();
@@ -996,6 +1067,7 @@ void VoiceRecordBar::init() {
 				_cancelFont->width(FormatVoiceDuration(kMaxSamples)),
 				ascent);
 		}
+		_cancel->moveToLeft((size.width() - _cancel->width()) / 2, 0);
 		updateMessageGeometry();
 		updateLockGeometry();
 	}, lifetime());
@@ -1009,6 +1081,14 @@ void VoiceRecordBar::init() {
 		p.fillRect(clip, st::historyComposeAreaBg);
 
 		p.setOpacity(std::min(p.opacity(), 1. - showListenAnimationRatio()));
+		const auto opacity = p.opacity();
+		_cancel->requestPaintProgress(_lock->isStopState()
+			? (opacity * _lock->lockToStopProgress())
+			: 0.);
+
+		if (!opacity) {
+			return;
+		}
 		if (clip.intersects(_messageRect)) {
 			// The message should be painted first to avoid flickering.
 			drawMessage(p, activeAnimationRatio());
@@ -1059,7 +1139,8 @@ void VoiceRecordBar::init() {
 			const auto &duration = st::historyRecordVoiceShowDuration;
 			auto callback = [=](float64 value) {
 				_listen->requestPaintProgress(value);
-				_level->requestPaintProgress(to - value);
+				const auto reverseValue = to - value;
+				_level->requestPaintProgress(reverseValue);
 				update();
 				if (to == value) {
 					_recordingLifetime.destroy();
@@ -1073,7 +1154,6 @@ void VoiceRecordBar::init() {
 
 	_lock->locks(
 	) | rpl::start_with_next([=] {
-		installClickOutsideFilter();
 		_level->setType(VoiceRecordButton::Type::Send);
 
 		_level->clicks(
@@ -1088,23 +1168,15 @@ void VoiceRecordBar::init() {
 		) | rpl::start_with_next([=](bool enter) {
 			_inField = enter;
 		}, _recordingLifetime);
-	}, lifetime());
 
-	rpl::merge(
-		_lock->locks(),
-		shownValue() | rpl::to_empty
-	) | rpl::start_with_next([=] {
-		const auto direction = Qt::LayoutDirectionAuto;
-		_message.setText(
-			st::historyRecordTextStyle,
-			_lock->isLocked()
-				? tr::lng_record_lock_cancel(tr::now)
-				: tr::lng_record_cancel(tr::now),
-			TextParseOptions{ TextParseMultiline, 0, 0, direction });
-
-		updateMessageGeometry();
-		// Update a whole widget to clear a previous text.
-		update();
+		const auto &duration = st::historyRecordVoiceShowDuration;
+		const auto from = 0.;
+		const auto to = 1.;
+		auto callback = [=](float64 value) {
+			_lock->requestPaintLockToStopProgress(value);
+			update();
+		};
+		_lockToStopAnimation.start(std::move(callback), from, to, duration);
 	}, lifetime());
 
 	_send->events(
@@ -1139,6 +1211,10 @@ void VoiceRecordBar::init() {
 
 		installListenStateFilter();
 	}, lifetime());
+
+	_cancel->setClickedCallback([=] {
+		hideAnimated();
+	});
 }
 
 void VoiceRecordBar::activeAnimate(bool active) {
@@ -1174,10 +1250,6 @@ void VoiceRecordBar::visibilityAnimate(bool show, Fn<void()> &&callback) {
 		}
 	};
 	_showAnimation.start(std::move(animationCallback), from, to, duration);
-}
-
-void VoiceRecordBar::setEscFilter(Fn<bool()> &&callback) {
-	_escFilter = std::move(callback);
 }
 
 void VoiceRecordBar::setStartRecordingFilter(Fn<bool()> &&callback) {
@@ -1230,6 +1302,9 @@ void VoiceRecordBar::startRecording() {
 		}, [=] {
 			stop(false);
 		}, _recordingLifetime);
+		_recordingLifetime.add([=] {
+			_recording = false;
+		});
 	};
 	visibilityAnimate(true, std::move(appearanceCallback));
 	show();
@@ -1290,12 +1365,12 @@ void VoiceRecordBar::stop(bool send) {
 void VoiceRecordBar::finish() {
 	_recordingLifetime.destroy();
 	_lockShowing = false;
-	_recording = false;
 	_inField = false;
 	_redCircleProgress = 0.;
 	_recordingSamples = 0;
 
 	_showAnimation.stop();
+	_lockToStopAnimation.stop();
 
 	_listen = nullptr;
 
@@ -1313,7 +1388,9 @@ void VoiceRecordBar::hideFast() {
 void VoiceRecordBar::stopRecording(StopType type) {
 	using namespace ::Media::Capture;
 	if (type == StopType::Cancel) {
-		instance()->stop();
+		instance()->stop(crl::guard(this, [=](Result &&data) {
+			_cancelRequests.fire({});
+		}));
 		return;
 	}
 	instance()->stop(crl::guard(this, [=](Result &&data) {
@@ -1383,12 +1460,17 @@ void VoiceRecordBar::drawMessage(Painter &p, float64 recordActive) {
 			st::historyRecordCancelActive,
 			1. - recordActive));
 
+	const auto opacity = p.opacity();
+	p.setOpacity(opacity * (1. - _lock->lockToStopProgress()));
+
 	_message.draw(
 		p,
 		_messageRect.x(),
 		_messageRect.y(),
 		_messageRect.width(),
 		style::al_center);
+
+	p.setOpacity(opacity);
 }
 
 void VoiceRecordBar::requestToSendWithOptions(Api::SendOptions options) {
@@ -1410,15 +1492,24 @@ rpl::producer<VoiceToSend> VoiceRecordBar::sendVoiceRequests() const {
 	return _sendVoiceRequests.events();
 }
 
+rpl::producer<> VoiceRecordBar::cancelRequests() const {
+	return _cancelRequests.events();
+}
+
 bool VoiceRecordBar::isRecording() const {
 	return _recording.current();
+}
+
+bool VoiceRecordBar::isActive() const {
+	return isRecording() || isListenState();
 }
 
 void VoiceRecordBar::hideAnimated() {
 	if (isHidden()) {
 		return;
 	}
-	visibilityAnimate(false, [=] { hide(); });
+	_lockShowing = false;
+	visibilityAnimate(false, [=] { hideFast(); });
 }
 
 void VoiceRecordBar::finishAnimating() {
@@ -1431,6 +1522,13 @@ rpl::producer<bool> VoiceRecordBar::recordingStateChanges() const {
 
 rpl::producer<bool> VoiceRecordBar::lockShowStarts() const {
 	return _lockShowing.changes();
+}
+
+rpl::producer<not_null<QEvent*>> VoiceRecordBar::lockViewportEvents() const {
+	return _lock->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return e->type() == QEvent::Wheel;
+		});
 }
 
 rpl::producer<> VoiceRecordBar::updateSendButtonTypeRequests() const {
@@ -1486,76 +1584,6 @@ void VoiceRecordBar::orderControls() {
 	_lock->raise();
 }
 
-void VoiceRecordBar::installClickOutsideFilter() {
-	const auto box = _recordingLifetime.make_state<QPointer<ConfirmBox>>();
-	const auto showBox = [=] {
-		if (*box) {
-			return;
-		}
-		auto sure = [=](Fn<void()> &&close) {
-			stop(false);
-			close();
-		};
-		*box = Ui::show(Box<ConfirmBox>(
-			tr::lng_record_lock_cancel_sure(tr::now),
-			tr::lng_record_lock_discard(tr::now),
-			st::attentionBoxButton,
-			std::move(sure)));
-	};
-
-	const auto computeResult = [=](not_null<QEvent*> e) {
-		using Type = FilterType;
-		if (!_lock->isLocked()) {
-			return Type::Continue;
-		}
-		const auto type = e->type();
-		const auto noBox = !(*box);
-		if (type == QEvent::KeyPress) {
-			const auto key = static_cast<QKeyEvent*>(e.get())->key();
-			const auto isEsc = (key == Qt::Key_Escape);
-			const auto isEnter = (key == Qt::Key_Enter
-				|| key == Qt::Key_Return);
-			if (noBox) {
-				if (isEnter) {
-					stop(true);
-					return Type::Cancel;
-				} else if (isEsc && (_escFilter && _escFilter())) {
-					return Type::Continue;
-				}
-				return Type::ShowBox;
-			}
-			return (isEsc || isEnter) ? Type::Continue : Type::ShowBox;
-		} else if (type == QEvent::ContextMenu || type == QEvent::Shortcut) {
-			return Type::ShowBox;
-		} else if (type == QEvent::MouseButtonPress) {
-			return (noBox && !_inField.current() && !_lock->underMouse())
-				? Type::ShowBox
-				: Type::Continue;
-		}
-		return Type::Continue;
-	};
-
-	auto filterCallback = [=](not_null<QEvent*> e) {
-		using Result = base::EventFilterResult;
-		switch(computeResult(e)) {
-		case FilterType::ShowBox: {
-			showBox();
-			return Result::Cancel;
-		}
-		case FilterType::Continue: return Result::Continue;
-		case FilterType::Cancel: return Result::Cancel;
-		default: return Result::Continue;
-		}
-	};
-
-	auto filter = base::install_event_filter(
-		QCoreApplication::instance(),
-		std::move(filterCallback));
-
-	_recordingLifetime.make_state<base::unique_qptr<QObject>>(
-		std::move(filter));
-}
-
 void VoiceRecordBar::installListenStateFilter() {
 	auto keyFilterCallback = [=](not_null<QEvent*> e) {
 		using Result = base::EventFilterResult;
@@ -1568,24 +1596,15 @@ void VoiceRecordBar::installListenStateFilter() {
 			const auto keyEvent = static_cast<QKeyEvent*>(e.get());
 			const auto key = keyEvent->key();
 			const auto isSpace = (key == Qt::Key_Space);
-			const auto isEsc = (key == Qt::Key_Escape);
 			const auto isEnter = (key == Qt::Key_Enter
 				|| key == Qt::Key_Return);
 			if (isSpace && !keyEvent->isAutoRepeat() && _listen) {
 				_listen->playPause();
 				return Result::Cancel;
 			}
-			if (isEnter) {
+			if (isEnter && !_warningShown) {
 				requestToSendWithOptions({});
 				return Result::Cancel;
-			}
-			if (isEsc) {
-				if (_escFilter && _escFilter()) {
-					return Result::Continue;
-				} else {
-					hideAnimated();
-					return Result::Cancel;
-				}
 			}
 			return Result::Continue;
 		}
@@ -1599,6 +1618,34 @@ void VoiceRecordBar::installListenStateFilter() {
 
 	_listen->lifetime().make_state<base::unique_qptr<QObject>>(
 		std::move(keyFilter));
+}
+
+void VoiceRecordBar::showDiscardBox(
+		Fn<void()> &&callback,
+		anim::type animated) {
+	if (!isActive()) {
+		return;
+	}
+	auto sure = [=, callback = std::move(callback)](Fn<void()> &&close) {
+		if (animated == anim::type::instant) {
+			hideFast();
+		} else {
+			hideAnimated();
+		}
+		close();
+		_warningShown = false;
+		if (callback) {
+			callback();
+		}
+	};
+	Ui::show(Box<ConfirmBox>(
+		(isListenState()
+			? tr::lng_record_listen_cancel_sure
+			: tr::lng_record_lock_cancel_sure)(tr::now),
+		tr::lng_record_lock_discard(tr::now),
+		st::attentionBoxButton,
+		std::move(sure)));
+	_warningShown = true;
 }
 
 } // namespace HistoryView::Controls

@@ -54,7 +54,7 @@ Row *IndexedList::addByName(Key key) {
 
 void IndexedList::adjustByDate(const RowsByLetter &links) {
 	_list.adjustByDate(links.main);
-	for (const auto [ch, row] : links.letters) {
+	for (const auto &[ch, row] : links.letters) {
 		if (auto it = _index.find(ch); it != _index.cend()) {
 			it->second.adjustByDate(row);
 		}

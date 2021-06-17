@@ -107,9 +107,10 @@ Widget::Widget(
 
 	fixOrder();
 
-	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [=] {
+	Lang::CurrentCloudManager().firstLanguageSuggestion(
+	) | rpl::start_with_next([=] {
 		createLanguageLink();
-	});
+	}, lifetime());
 
 	_account->mtpUpdates(
 	) | rpl::start_with_next([=](const MTPUpdates &updates) {
@@ -120,8 +121,6 @@ Widget::Widget(
 	_back->hide(anim::type::instant);
 
 	_next->entity()->setClickedCallback([=] { getStep()->submit(); });
-
-	_settings->entity()->setClickedCallback([] { App::wnd()->showSettings(); });
 
 	if (_changeLanguage) {
 		_changeLanguage->finishAnimating();
@@ -151,6 +150,10 @@ Widget::Widget(
 			checkUpdateStatus();
 		}, lifetime());
 	}
+}
+
+rpl::producer<> Widget::showSettingsRequested() const {
+	return _settings->entity()->clicks() | rpl::to_empty;
 }
 
 not_null<Media::Player::FloatDelegate*> Widget::floatPlayerDelegate() {
@@ -478,16 +481,23 @@ void Widget::resetAccount() {
 			_resetRequest = 0;
 
 			Ui::hideLayer();
-			moveToStep(
-				new SignupWidget(this, _account, getData()),
-				StackAction::Replace,
-				Animate::Forward);
-		}).fail([=](const RPCError &error) {
+			if (getData()->phone.isEmpty()) {
+				moveToStep(
+					new QrWidget(this, _account, getData()),
+					StackAction::Replace,
+					Animate::Back);
+			} else {
+				moveToStep(
+					new SignupWidget(this, _account, getData()),
+					StackAction::Replace,
+					Animate::Forward);
+			}
+		}).fail([=](const MTP::Error &error) {
 			_resetRequest = 0;
 
 			const auto &type = error.type();
 			if (type.startsWith(qstr("2FA_CONFIRM_WAIT_"))) {
-				const auto seconds = type.mid(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
+				const auto seconds = type.midRef(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
 				const auto days = (seconds + 59) / 86400;
 				const auto hours = ((seconds + 59) % 86400) / 3600;
 				const auto minutes = ((seconds + 59) % 3600) / 60;
@@ -557,7 +567,7 @@ void Widget::getNearestDC() {
 		const auto nearestCountry = qs(nearest.vcountry());
 		if (getData()->country != nearestCountry) {
 			getData()->country = nearestCountry;
-			getData()->updated.notify();
+			getData()->updated.fire({});
 		}
 	}).send();
 }

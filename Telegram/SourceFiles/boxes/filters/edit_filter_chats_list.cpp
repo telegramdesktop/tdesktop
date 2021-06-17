@@ -62,23 +62,6 @@ public:
 
 };
 
-class TypeDelegate final : public PeerListContentDelegate {
-public:
-	void peerListSetTitle(rpl::producer<QString> title) override;
-	void peerListSetAdditionalTitle(rpl::producer<QString> title) override;
-	bool peerListIsRowChecked(not_null<PeerListRow*> row) override;
-	int peerListSelectedRowsCount() override;
-	std::vector<not_null<PeerData*>> peerListCollectSelectedRows() override;
-	void peerListScrollToTop() override;
-	void peerListAddSelectedPeerInBunch(
-		not_null<PeerData*> peer) override;
-	void peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) override;
-	void peerListFinishSelectedRowsBunch() override;
-	void peerListSetDescription(
-		object_ptr<Ui::FlatLabel> description) override;
-
-};
-
 class TypeController final : public PeerListController {
 public:
 	TypeController(
@@ -136,7 +119,7 @@ private:
 }
 
 [[nodiscard]] uint64 TypeId(Flag flag) {
-	return PeerIdFakeShift | static_cast<uint64>(flag);
+	return PeerId(FakeChatId(static_cast<BareId>(flag))).value;
 }
 
 TypeRow::TypeRow(Flag flag) : PeerListRow(TypeId(flag)) {
@@ -193,44 +176,6 @@ PaintRoundImageCallback ExceptionRow::generatePaintUserpicCallback() {
 			peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 		}
 	};
-}
-
-void TypeDelegate::peerListSetTitle(rpl::producer<QString> title) {
-}
-
-void TypeDelegate::peerListSetAdditionalTitle(rpl::producer<QString> title) {
-}
-
-bool TypeDelegate::peerListIsRowChecked(not_null<PeerListRow*> row) {
-	return false;
-}
-
-int TypeDelegate::peerListSelectedRowsCount() {
-	return 0;
-}
-
-auto TypeDelegate::peerListCollectSelectedRows()
--> std::vector<not_null<PeerData*>> {
-	return {};
-}
-
-void TypeDelegate::peerListScrollToTop() {
-}
-
-void TypeDelegate::peerListAddSelectedPeerInBunch(not_null<PeerData*> peer) {
-	Unexpected("Item selection in Info::Profile::Members.");
-}
-
-void TypeDelegate::peerListAddSelectedRowInBunch(not_null<PeerListRow*> row) {
-	Unexpected("Item selection in Info::Profile::Members.");
-}
-
-void TypeDelegate::peerListFinishSelectedRowsBunch() {
-}
-
-void TypeDelegate::peerListSetDescription(
-		object_ptr<Ui::FlatLabel> description) {
-	description.destroy();
 }
 
 TypeController::TypeController(
@@ -347,13 +292,13 @@ void PaintFilterChatsTypeIcon(
 }
 
 EditFilterChatsListController::EditFilterChatsListController(
-	not_null<Window::SessionNavigation*> navigation,
+	not_null<Main::Session*> session,
 	rpl::producer<QString> title,
 	Flags options,
 	Flags selected,
 	const base::flat_set<not_null<History*>> &peers)
-: ChatsListBoxController(navigation)
-, _navigation(navigation)
+: ChatsListBoxController(session)
+, _session(session)
 , _title(std::move(title))
 , _peers(peers)
 , _options(options)
@@ -361,7 +306,7 @@ EditFilterChatsListController::EditFilterChatsListController(
 }
 
 Main::Session &EditFilterChatsListController::session() const {
-	return _navigation->session();
+	return *_session;
 }
 
 void EditFilterChatsListController::rowClicked(not_null<PeerListRow*> row) {
@@ -418,15 +363,17 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 	container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
 		st::membersMarginTop));
-	const auto delegate = container->lifetime().make_state<TypeDelegate>();
+	const auto delegate = container->lifetime().make_state<
+		PeerListContentDelegateSimple
+	>();
 	const auto controller = container->lifetime().make_state<TypeController>(
 		&session(),
 		_options,
 		_selected);
+	controller->setStyleOverrides(&st::windowFilterSmallList);
 	const auto content = result->add(object_ptr<PeerListContent>(
 		container,
-		controller,
-		st::windowFilterSmallList));
+		controller));
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 	for (const auto flag : kAllTypes) {

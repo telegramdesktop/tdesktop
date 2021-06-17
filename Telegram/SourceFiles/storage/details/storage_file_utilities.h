@@ -56,10 +56,12 @@ class FileWriteDescriptor final {
 public:
 	FileWriteDescriptor(
 		const FileKey &key,
-		const QString &basePath);
+		const QString &basePath,
+		bool sync = false);
 	FileWriteDescriptor(
 		const QString &name,
-		const QString &basePath);
+		const QString &basePath,
+		bool sync = false);
 	~FileWriteDescriptor();
 
 	void writeData(const QByteArray &data);
@@ -69,11 +71,6 @@ public:
 
 private:
 	void init(const QString &name);
-	[[nodiscard]] QString path(char postfix) const;
-	template <typename File>
-	[[nodiscard]] bool open(File &file, char postfix);
-	[[nodiscard]] bool writeHeader(QFileDevice &file);
-	void writeFooter(QFileDevice &file);
 	void finish();
 
 	const QString _basePath;
@@ -83,6 +80,7 @@ private:
 	QString _base;
 	HashMd5 _md5;
 	int _fullSize = 0;
+	bool _sync = false;
 
 };
 
@@ -107,6 +105,9 @@ bool ReadEncryptedFile(
 	const FileKey &fkey,
 	const QString &basePath,
 	const MTP::AuthKeyPtr &key);
+
+void Sync();
+void Finish();
 
 } // namespace details
 } // namespace Storage

@@ -44,6 +44,11 @@ public:
 	[[nodiscard]] int oldVersion() const;
 	void clearOldVersion();
 
+	[[nodiscard]] QString webviewDataPath() const;
+
+	[[nodiscard]] rpl::producer<> localPasscodeChanged() const;
+	[[nodiscard]] bool hasLocalPasscode() const;
+
 private:
 	enum class StartModernResult {
 		Success,
@@ -67,6 +72,9 @@ private:
 	QByteArray _passcodeKeySalt;
 	QByteArray _passcodeKeyEncrypted;
 	int _oldVersion = 0;
+
+	bool _hasLocalPasscode = false;
+	rpl::event_stream<> _passcodeKeyChanged;
 
 };
 

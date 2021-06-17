@@ -320,7 +320,7 @@ void EditExceptions(
 	const auto include = (options & Flag::Contacts) != Flags(0);
 	const auto rules = data->current();
 	auto controller = std::make_unique<EditFilterChatsListController>(
-		window,
+		&window->session(),
 		(include
 			? tr::lng_filters_include_title()
 			: tr::lng_filters_exclude_title()),
@@ -331,11 +331,11 @@ void EditExceptions(
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->setCloseByOutsideClick(false);
 		box->addButton(tr::lng_settings_save(), crl::guard(context, [=] {
-			const auto peers = box->peerListCollectSelectedRows();
+			const auto peers = box->collectSelectedRows();
 			const auto rules = data->current();
-			auto &&histories = ranges::view::all(
+			auto &&histories = ranges::views::all(
 				peers
-			) | ranges::view::transform([=](not_null<PeerData*> peer) {
+			) | ranges::views::transform([=](not_null<PeerData*> peer) {
 				return window->session().data().history(peer);
 			});
 			auto changed = base::flat_set<not_null<History*>>{

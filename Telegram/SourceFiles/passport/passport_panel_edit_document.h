@@ -24,15 +24,19 @@ template <typename Widget>
 class SlideWrap;
 } // namespace Ui
 
+namespace Passport::Ui {
+using namespace ::Ui;
+enum class PanelDetailsType;
+class PanelDetailsRow;
+} // namespace Passport::Ui
+
 namespace Passport {
 
 class PanelController;
 struct ValueMap;
 struct ScanInfo;
 class EditScans;
-class PanelDetailsRow;
 enum class FileType;
-enum class PanelDetailsType;
 struct ScanListData;
 
 struct EditDocumentScheme {
@@ -50,7 +54,7 @@ struct EditDocumentScheme {
 		using Validator = Fn<std::optional<QString>(const QString &value)>;
 		using Formatter = Fn<QString(const QString &value)>;
 		ValueClass valueClass = ValueClass::Fields;
-		PanelDetailsType inputType = PanelDetailsType();
+		Ui::PanelDetailsType inputType = Ui::PanelDetailsType();
 		QString key;
 		QString label;
 		Validator error;
@@ -140,7 +144,7 @@ private:
 		const Scheme::Row &row,
 		const ValueMap &fields,
 		int maxLabelWidth);
-	not_null<PanelDetailsRow*> findRow(const QString &key) const;
+	not_null<Ui::PanelDetailsRow*> findRow(const QString &key) const;
 
 	not_null<PanelController*> _controller;
 	Scheme _scheme;
@@ -151,7 +155,7 @@ private:
 
 	QPointer<EditScans> _editScans;
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> _commonError;
-	std::map<int, QPointer<PanelDetailsRow>> _details;
+	std::map<int, QPointer<Ui::PanelDetailsRow>> _details;
 	bool _fieldsChanged = false;
 	bool _additionalShown = false;
 

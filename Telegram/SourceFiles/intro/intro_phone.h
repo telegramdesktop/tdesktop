@@ -50,7 +50,7 @@ private:
 	void countryChanged();
 
 	void phoneSubmitDone(const MTPauth_SentCode &result);
-	void phoneSubmitFail(const RPCError &error);
+	void phoneSubmitFail(const MTP::Error &error);
 
 	QString fullNumber() const;
 	void stopCheck();

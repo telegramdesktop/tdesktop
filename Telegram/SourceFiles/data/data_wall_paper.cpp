@@ -216,6 +216,8 @@ MTPWallPaperSettings WallPaper::mtpSettings() const {
 			? MTP_int(SerializeMaybeColor(_backgroundColor))
 			: MTP_int(0)),
 		MTP_int(0), // second_background_color
+		MTP_int(0), // third_background_color
+		MTP_int(0), // fourth_background_color
 		MTP_int(_intensity),
 		MTP_int(0) // rotation
 	);
@@ -365,11 +367,14 @@ QByteArray WallPaper::serialize() const {
 		+ Serialize::stringSize(_slug)
 		+ sizeof(qint32) // _settings
 		+ sizeof(quint32) // _backgroundColor
-		+ sizeof(qint32); // _intensity
+		+ sizeof(qint32) // _intensity
+		+ (2 * sizeof(qint32)); // ownerId
 
 	auto result = QByteArray();
 	result.reserve(size);
 	{
+		const auto field1 = qint32(uint32(_ownerId.bare & 0xFFFFFFFF));
+		const auto field2 = qint32(uint32(_ownerId.bare >> 32));
 		auto stream = QDataStream(&result, QIODevice::WriteOnly);
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream
@@ -380,7 +385,8 @@ QByteArray WallPaper::serialize() const {
 			<< qint32(_settings)
 			<< SerializeMaybeColor(_backgroundColor)
 			<< qint32(_intensity)
-			<< qint32(_ownerId);
+			<< field1
+			<< field2;
 	}
 	return result;
 }
@@ -393,7 +399,7 @@ std::optional<WallPaper> WallPaper::FromSerialized(
 
 	auto id = quint64();
 	auto accessHash = quint64();
-	auto ownerId = qint32();
+	auto ownerId = UserId();
 	auto flags = qint32();
 	auto slug = QString();
 	auto settings = qint32();
@@ -411,7 +417,14 @@ std::optional<WallPaper> WallPaper::FromSerialized(
 		>> backgroundColor
 		>> intensity;
 	if (!stream.atEnd()) {
-		stream >> ownerId;
+		auto field1 = qint32();
+		auto field2 = qint32();
+		stream >> field1;
+		if (!stream.atEnd()) {
+			stream >> field2;
+		}
+		ownerId = UserId(
+			BareId(uint32(field1)) | (BareId(uint32(field2)) << 32));
 	}
 	if (stream.status() != QDataStream::Ok) {
 		return std::nullopt;

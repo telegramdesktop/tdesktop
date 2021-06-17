@@ -119,6 +119,7 @@ struct FrameRequest {
 	QSize outer;
 	ImageRoundRadius radius = ImageRoundRadius();
 	RectParts corners = RectPart::AllCorners;
+	bool requireARGB32 = true;
 	bool strict = true;
 
 	static FrameRequest NonStrict() {
@@ -135,15 +136,43 @@ struct FrameRequest {
 		return (resize == other.resize)
 			&& (outer == other.outer)
 			&& (radius == other.radius)
-			&& (corners == other.corners);
+			&& (corners == other.corners)
+			&& (requireARGB32 == other.requireARGB32);
 	}
 	[[nodiscard]] bool operator!=(const FrameRequest &other) const {
 		return !(*this == other);
 	}
 
 	[[nodiscard]] bool goodFor(const FrameRequest &other) const {
-		return (*this == other) || (strict && !other.strict);
+		return (requireARGB32 == other.requireARGB32)
+			&& ((*this == other) || (strict && !other.strict));
 	}
+};
+
+enum class FrameFormat {
+	None,
+	ARGB32,
+	YUV420,
+};
+
+struct FrameChannel {
+	const void *data = nullptr;
+	int stride = 0;
+};
+
+struct FrameYUV420 {
+	QSize size;
+	QSize chromaSize;
+	FrameChannel y;
+	FrameChannel u;
+	FrameChannel v;
+};
+
+struct FrameWithInfo {
+	QImage original;
+	FrameYUV420 *yuv420 = nullptr;
+	FrameFormat format = FrameFormat::None;
+	int index = -1;
 };
 
 } // namespace Streaming

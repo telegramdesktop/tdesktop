@@ -262,20 +262,20 @@ void SessionsContent::terminateOne(uint64 hash) {
 	const auto weak = Ui::MakeWeak(this);
 	auto callback = [=] {
 		auto done = crl::guard(weak, [=](const MTPBool &result) {
+			if (mtpIsFalse(result)) {
+				return;
+			}
 			_inner->terminatingOne(hash, false);
-			const auto getHash = [](const Entry &entry) {
-				return entry.hash;
-			};
 			const auto removeByHash = [&](std::vector<Entry> &list) {
 				list.erase(
-					ranges::remove(list, hash, getHash),
+					ranges::remove(list, hash, &Entry::hash),
 					end(list));
 			};
 			removeByHash(_data.incomplete);
 			removeByHash(_data.list);
 			_inner->showData(_data);
 		});
-		auto fail = crl::guard(weak, [=](const RPCError &error) {
+		auto fail = crl::guard(weak, [=](const MTP::Error &error) {
 			_inner->terminatingOne(hash, false);
 		});
 		_authorizations->requestTerminate(
@@ -292,11 +292,11 @@ void SessionsContent::terminateAll() {
 	auto callback = [=] {
 		const auto reset = crl::guard(weak, [=] {
 			_authorizations->cancelCurrentRequest();
-			shortPollSessions();
+			_authorizations->reload();
 		});
 		_authorizations->requestTerminate(
 			[=](const MTPBool &result) { reset(); },
-			[=](const RPCError &result) { reset(); });
+			[=](const MTP::Error &result) { reset(); });
 		_loading = true;
 	};
 	terminate(std::move(callback), tr::lng_settings_reset_sure(tr::now));

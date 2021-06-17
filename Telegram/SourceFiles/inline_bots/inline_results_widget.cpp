@@ -41,7 +41,7 @@ Widget::Widget(
 	_width = width();
 	_height = height();
 
-	_scroll->resize(st::emojiPanWidth - st::buttonRadius, _contentHeight);
+	_scroll->resize(st::emojiPanWidth - st::roundRadiusSmall, _contentHeight);
 
 	_scroll->move(verticalRect().topLeft());
 	_inner = _scroll->setOwnedWidget(object_ptr<Inner>(this, controller));
@@ -71,7 +71,7 @@ Widget::Widget(
 	// But we should force it to repaint so that GIFs will continue to animate without update() calls.
 	// We do that by creating a transparent widget above our _inner.
 	auto forceRepaintOnScroll = object_ptr<TWidget>(this);
-	forceRepaintOnScroll->setGeometry(innerRect().x() + st::buttonRadius, innerRect().y() + st::buttonRadius, st::buttonRadius, st::buttonRadius);
+	forceRepaintOnScroll->setGeometry(innerRect().x() + st::roundRadiusSmall, innerRect().y() + st::roundRadiusSmall, st::roundRadiusSmall, st::roundRadiusSmall);
 	forceRepaintOnScroll->setAttribute(Qt::WA_TransparentForMouseEvents);
 	forceRepaintOnScroll->show();
 
@@ -87,7 +87,10 @@ void Widget::moveBottom(int bottom) {
 void Widget::updateContentHeight() {
 	auto addedHeight = innerPadding().top() + innerPadding().bottom();
 	auto wantedContentHeight = qRound(st::emojiPanHeightRatio * _bottom) - addedHeight;
-	auto contentHeight = snap(wantedContentHeight, st::inlineResultsMinHeight, st::inlineResultsMaxHeight);
+	auto contentHeight = std::clamp(
+		wantedContentHeight,
+		st::inlineResultsMinHeight,
+		st::inlineResultsMaxHeight);
 	accumulate_min(contentHeight, _bottom - addedHeight);
 	accumulate_min(contentHeight, _contentMaxHeight);
 	auto resultTop = _bottom - addedHeight - contentHeight;
@@ -154,7 +157,7 @@ void Widget::paintContent(Painter &p) {
 	auto sidesTop = horizontal.y();
 	auto sidesHeight = horizontal.height();
 	p.fillRect(myrtlrect(inner.x() + inner.width() - st::emojiScroll.width, sidesTop, st::emojiScroll.width, sidesHeight), st::emojiPanBg);
-	p.fillRect(myrtlrect(inner.x(), sidesTop, st::buttonRadius, sidesHeight), st::emojiPanBg);
+	p.fillRect(myrtlrect(inner.x(), sidesTop, st::roundRadiusSmall, sidesHeight), st::emojiPanBg);
 }
 
 void Widget::moveByBottom() {
@@ -210,7 +213,7 @@ void Widget::startShowAnimation() {
 		showChildren();
 		auto image = grabForPanelAnimation();
 		_a_opacity = base::take(opacityAnimation);
-		_cache = base::take(_cache);
+		_cache = base::take(cache);
 
 		_showAnimation = std::make_unique<Ui::PanelAnimation>(st::emojiPanAnimation, Ui::PanelAnimation::Origin::BottomLeft);
 		auto inner = rect().marginsRemoved(st::emojiPanMargins);
@@ -303,11 +306,11 @@ QRect Widget::innerRect() const {
 }
 
 QRect Widget::horizontalRect() const {
-	return innerRect().marginsRemoved(style::margins(0, st::buttonRadius, 0, st::buttonRadius));
+	return innerRect().marginsRemoved(style::margins(0, st::roundRadiusSmall, 0, st::roundRadiusSmall));
 }
 
 QRect Widget::verticalRect() const {
-	return innerRect().marginsRemoved(style::margins(st::buttonRadius, 0, st::buttonRadius, 0));
+	return innerRect().marginsRemoved(style::margins(st::roundRadiusSmall, 0, st::roundRadiusSmall, 0));
 }
 
 void Widget::clearInlineBot() {
@@ -319,8 +322,8 @@ bool Widget::overlaps(const QRect &globalRect) const {
 
 	auto testRect = QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size());
 	auto inner = rect().marginsRemoved(st::emojiPanMargins);
-	return inner.marginsRemoved(QMargins(st::buttonRadius, 0, st::buttonRadius, 0)).contains(testRect)
-		|| inner.marginsRemoved(QMargins(0, st::buttonRadius, 0, st::buttonRadius)).contains(testRect);
+	return inner.marginsRemoved(QMargins(st::roundRadiusSmall, 0, st::roundRadiusSmall, 0)).contains(testRect)
+		|| inner.marginsRemoved(QMargins(0, st::roundRadiusSmall, 0, st::roundRadiusSmall)).contains(testRect);
 }
 
 void Widget::inlineBotChanged() {
@@ -445,7 +448,7 @@ void Widget::onInlineRequest() {
 		MTP_string(nextOffset)
 	)).done([=](const MTPmessages_BotResults &result) {
 		inlineResultsDone(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		// show error?
 		_requesting.fire(false);
 		_inlineRequestId = 0;

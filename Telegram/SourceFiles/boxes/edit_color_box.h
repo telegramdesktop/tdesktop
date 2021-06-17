@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 
-class EditColorBox : public Ui::BoxContent, private base::Subscriber {
+class EditColorBox : public Ui::BoxContent {
 public:
 	enum class Mode {
 		RGBA,
@@ -66,10 +66,10 @@ private:
 	[[nodiscard]] QColor applyLimits(QColor color) const;
 
 	int percentFromByte(int byte) {
-		return snap(qRound(byte * 100 / 255.), 0, 100);
+		return std::clamp(qRound(byte * 100 / 255.), 0, 100);
 	}
 	int percentToByte(int percent) {
-		return snap(qRound(percent * 255 / 100.), 0, 255);
+		return std::clamp(qRound(percent * 255 / 100.), 0, 255);
 	}
 
 	class Picker;

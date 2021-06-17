@@ -155,9 +155,7 @@ private:
 		return (a && b) ? base::make_optional(*a + *b) : std::nullopt;
 	}
 	static Value ComputeId(PeerId peerId, MsgId msgId) {
-		return FullMsgId(
-			peerIsChannel(peerId) ? peerToBareInt(peerId) : 0,
-			msgId);
+		return FullMsgId(peerToChannel(peerId), msgId);
 	}
 	static Value ComputeId(const Key &key) {
 		if (const auto messageId = std::get_if<MessageId>(&key.universalId)) {

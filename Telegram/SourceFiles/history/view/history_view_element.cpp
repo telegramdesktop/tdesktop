@@ -16,11 +16,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
 #include "history/history.h"
+#include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/main_session.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "window/window_session_controller.h"
+#include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_media_types.h"
@@ -37,18 +40,19 @@ constexpr int kAttachMessageToPreviousSecondsDelta = 900;
 
 bool IsAttachedToPreviousInSavedMessages(
 		not_null<HistoryItem*> previous,
-		not_null<HistoryItem*> item) {
-	const auto forwarded = previous->Has<HistoryMessageForwarded>();
+		HistoryMessageForwarded *prevForwarded,
+		not_null<HistoryItem*> item,
+		HistoryMessageForwarded *forwarded) {
 	const auto sender = previous->senderOriginal();
-	if (forwarded != item->Has<HistoryMessageForwarded>()) {
+	if ((prevForwarded != nullptr) != (forwarded != nullptr)) {
 		return false;
 	} else if (sender != item->senderOriginal()) {
 		return false;
-	} else if (!forwarded || sender) {
+	} else if (!prevForwarded || sender) {
 		return true;
 	}
-	const auto previousInfo = previous->hiddenForwardedInfo();
-	const auto itemInfo = item->hiddenForwardedInfo();
+	const auto previousInfo = prevForwarded->hiddenSenderInfo.get();
+	const auto itemInfo = forwarded->hiddenSenderInfo.get();
 	Assert(previousInfo != nullptr);
 	Assert(itemInfo != nullptr);
 	return (*previousInfo == *itemInfo);
@@ -79,7 +83,7 @@ bool SimpleElementDelegate::elementUnderCursor(
 }
 
 crl::time SimpleElementDelegate::elementHighlightTime(
-	not_null<const Element*> element) {
+		not_null<const HistoryItem*> item) {
 	return crl::time(0);
 }
 
@@ -129,6 +133,10 @@ void SimpleElementDelegate::elementSendBotCommand(
 void SimpleElementDelegate::elementHandleViaClick(not_null<UserData*> bot) {
 }
 
+bool SimpleElementDelegate::elementIsChatWide() {
+	return false;
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {
@@ -157,6 +165,52 @@ TextSelection ShiftItemSelection(
 	return ShiftItemSelection(selection, byText.length());
 }
 
+QString DateTooltipText(not_null<Element*> view) {
+	const auto format = QLocale::system().dateTimeFormat(QLocale::LongFormat);
+	auto dateText = view->dateTime().toString(format);
+	if (const auto editedDate = view->displayedEditDate()) {
+		dateText += '\n' + tr::lng_edited_date(
+			tr::now,
+			lt_date,
+			base::unixtime::parse(editedDate).toString(format));
+	}
+	if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
+		dateText += '\n' + tr::lng_forwarded_date(
+			tr::now,
+			lt_date,
+			base::unixtime::parse(forwarded->originalDate).toString(format));
+		if (const auto media = view->media()) {
+			if (media->hidesForwardedInfo()) {
+				const auto from = forwarded->originalSender
+					? forwarded->originalSender->shortName()
+					: forwarded->hiddenSenderInfo->firstName;
+				if (forwarded->imported) {
+					dateText += '\n' + tr::lng_signed_author(
+						tr::now,
+						lt_user,
+						from);
+				} else {
+					dateText += '\n' + tr::lng_forwarded(
+						tr::now,
+						lt_user,
+						from);
+				}
+			}
+		}
+		if (forwarded->imported) {
+			dateText = tr::lng_forwarded_imported(tr::now)
+				+ "\n\n" + dateText;
+		}
+	}
+	if (const auto msgsigned = view->data()->Get<HistoryMessageSigned>()) {
+		if (msgsigned->isElided && !msgsigned->isAnonymousRank) {
+			dateText += '\n'
+				+ tr::lng_signed_author(tr::now, lt_user, msgsigned->author);
+		}
+	}
+	return dateText;
+}
+
 void UnreadBar::init(const QString &string) {
 	text = string;
 	width = st::semiboldFont->width(text);
@@ -170,7 +224,7 @@ int UnreadBar::marginTop() {
 	return st::lineWidth + st::historyUnreadBarMargin;
 }
 
-void UnreadBar::paint(Painter &p, int y, int w) const {
+void UnreadBar::paint(Painter &p, int y, int w, bool chatWide) const {
 	const auto bottom = y + height();
 	y += marginTop();
 	p.fillRect(
@@ -190,7 +244,7 @@ void UnreadBar::paint(Painter &p, int y, int w) const {
 
 	int left = st::msgServiceMargin.left();
 	int maxwidth = w;
-	if (Core::App().settings().chatWide()) {
+	if (chatWide) {
 		maxwidth = qMin(
 			maxwidth,
 			st::msgMaxWidth
@@ -222,8 +276,8 @@ int DateBadge::height() const {
 		+ st::msgServiceMargin.bottom();
 }
 
-void DateBadge::paint(Painter &p, int y, int w) const {
-	ServiceMessagePainter::paintDate(p, text, width, y, w);
+void DateBadge::paint(Painter &p, int y, int w, bool chatWide) const {
+	ServiceMessagePainter::paintDate(p, text, width, y, w, chatWide);
 }
 
 Element::Element(
@@ -280,29 +334,44 @@ void Element::refreshDataIdHook() {
 void Element::paintHighlight(
 		Painter &p,
 		int geometryHeight) const {
-	const auto animms = delegate()->elementHighlightTime(this);
-	if (!animms
-		|| animms >= st::activeFadeInDuration + st::activeFadeOutDuration) {
-		return;
-	}
-
 	const auto top = marginTop();
 	const auto bottom = marginBottom();
 	const auto fill = qMin(top, bottom);
 	const auto skiptop = top - fill;
 	const auto fillheight = fill + geometryHeight + fill;
 
-	const auto dt = (animms > st::activeFadeInDuration)
+	paintCustomHighlight(p, skiptop, fillheight, data());
+}
+
+float64 Element::highlightOpacity(not_null<const HistoryItem*> item) const {
+	const auto animms = delegate()->elementHighlightTime(item);
+	if (!animms
+		|| animms >= st::activeFadeInDuration + st::activeFadeOutDuration) {
+		return 0.;
+	}
+
+	return (animms > st::activeFadeInDuration)
 		? (1. - (animms - st::activeFadeInDuration)
 			/ float64(st::activeFadeOutDuration))
 		: (animms / float64(st::activeFadeInDuration));
+}
+
+void Element::paintCustomHighlight(
+		Painter &p,
+		int y,
+		int height,
+		not_null<const HistoryItem*> item) const {
+	const auto opacity = highlightOpacity(item);
+	if (opacity == 0.) {
+		return;
+	}
 	const auto o = p.opacity();
-	p.setOpacity(o * dt);
+	p.setOpacity(o * opacity);
 	p.fillRect(
 		0,
-		skiptop,
+		y,
 		width(),
-		fillheight,
+		height,
 		st::defaultTextPalette.selectOverlay);
 	p.setOpacity(o);
 }
@@ -442,15 +511,45 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 			&& mayBeAttached(item)
 			&& mayBeAttached(prev);
 		if (possible) {
+			const auto forwarded = item->Get<HistoryMessageForwarded>();
+			const auto prevForwarded = prev->Get<HistoryMessageForwarded>();
 			if (item->history()->peer->isSelf()
-				|| item->history()->peer->isRepliesChat()) {
-				return IsAttachedToPreviousInSavedMessages(prev, item);
+				|| item->history()->peer->isRepliesChat()
+				|| (forwarded && forwarded->imported)
+				|| (prevForwarded && prevForwarded->imported)) {
+				return IsAttachedToPreviousInSavedMessages(
+					prev,
+					prevForwarded,
+					item,
+					forwarded);
 			} else {
 				return prev->from() == item->from();
 			}
 		}
 	}
 	return false;
+}
+
+ClickHandlerPtr Element::fromLink() const {
+	const auto item = data();
+	const auto from = item->displayFrom();
+	if (from) {
+		return from->openLink();
+	}
+	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		if (forwarded->imported) {
+			static const auto imported = std::make_shared<LambdaClickHandler>([] {
+				Ui::ShowMultilineToast({
+					.text = { tr::lng_forwarded_imported(tr::now) },
+				});
+			});
+			return imported;
+		}
+	}
+	static const auto hidden = std::make_shared<LambdaClickHandler>([] {
+		Ui::Toast::Show(tr::lng_forwarded_hidden(tr::now));
+	});
+	return hidden;
 }
 
 void Element::createUnreadBar(rpl::producer<QString> text) {
@@ -639,6 +738,11 @@ TimeId Element::displayedEditDate() const {
 
 HistoryMessageReply *Element::displayedReply() const {
 	return nullptr;
+}
+
+bool Element::toggleSelectionByHandlerClick(
+	const ClickHandlerPtr &handler) const {
+	return false;
 }
 
 bool Element::hasVisibleText() const {

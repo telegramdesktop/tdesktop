@@ -93,16 +93,6 @@ QImage FromInlineBytes(const QByteArray &bytes) {
 	return App::readImage(ExpandInlineBytes(bytes));
 }
 
-QSize GetSizeForDocument(const QVector<MTPDocumentAttribute> &attributes) {
-	for (const auto &attribute : attributes) {
-		if (attribute.type() == mtpc_documentAttributeImageSize) {
-			auto &size = attribute.c_documentAttributeImageSize();
-			return QSize(size.vw().v, size.vh().v);
-		}
-	}
-	return QSize();
-}
-
 } // namespace Images
 
 Image::Image(const QString &path) : Image(ReadContent(path)) {
@@ -343,7 +333,8 @@ const QPixmap &Image::pixBlurredSingle(
 		int outerw,
 		int outerh,
 		ImageRoundRadius radius,
-		RectParts corners) const {
+		RectParts corners,
+		const style::color *colored) const {
 	if (w <= 0 || !width() || !height()) {
 		w = width() * cIntRetinaFactor();
 	} else {
@@ -365,11 +356,14 @@ const QPixmap &Image::pixBlurredSingle(
 	} else if (radius == ImageRoundRadius::Ellipse) {
 		options |= Option::Circled | cornerOptions(corners);
 	}
+	if (colored) {
+		options |= Option::Colored;
+	}
 
 	auto k = SinglePixKey(options);
 	auto i = _cache.find(k);
 	if (i == _cache.cend() || i->second.width() != (outerw * cIntRetinaFactor()) || i->second.height() != (outerh * cIntRetinaFactor())) {
-		auto p = pixNoCache(w, h, options, outerw, outerh);
+		auto p = pixNoCache(w, h, options, outerw, outerh, colored);
 		p.setDevicePixelRatio(cRetinaFactor());
 		i = _cache.emplace_or_assign(k, p).first;
 	}

@@ -276,10 +276,11 @@ Account::ReadMapResult Account::readMapWith(
 			map.stream >> count;
 			for (quint32 i = 0; i < count; ++i) {
 				FileKey key;
-				quint64 p;
-				map.stream >> key >> p;
-				draftsMap.emplace(p, key);
-				draftsNotReadMap.emplace(p, true);
+				quint64 peerIdSerialized;
+				map.stream >> key >> peerIdSerialized;
+				const auto peerId = DeserializePeerId(peerIdSerialized);
+				draftsMap.emplace(peerId, key);
+				draftsNotReadMap.emplace(peerId, true);
 			}
 		} break;
 		case lskSelfSerialized: {
@@ -290,9 +291,10 @@ Account::ReadMapResult Account::readMapWith(
 			map.stream >> count;
 			for (quint32 i = 0; i < count; ++i) {
 				FileKey key;
-				quint64 p;
-				map.stream >> key >> p;
-				draftCursorsMap.emplace(p, key);
+				quint64 peerIdSerialized;
+				map.stream >> key >> peerIdSerialized;
+				const auto peerId = DeserializePeerId(peerIdSerialized);
+				draftCursorsMap.emplace(peerId, key);
 			}
 		} break;
 		case lskLegacyImages:
@@ -494,13 +496,13 @@ void Account::writeMap() {
 	if (!_draftsMap.empty()) {
 		mapData.stream << quint32(lskDraft) << quint32(_draftsMap.size());
 		for (const auto &[key, value] : _draftsMap) {
-			mapData.stream << quint64(value) << quint64(key);
+			mapData.stream << quint64(value) << SerializePeerId(key);
 		}
 	}
 	if (!_draftCursorsMap.empty()) {
 		mapData.stream << quint32(lskDraftPosition) << quint32(_draftCursorsMap.size());
 		for (const auto &[key, value] : _draftCursorsMap) {
-			mapData.stream << quint64(value) << quint64(key);
+			mapData.stream << quint64(value) << SerializePeerId(key);
 		}
 	}
 	if (_locationsKey) {
@@ -575,6 +577,8 @@ void Account::reset() {
 		QDir(LegacyTempDirectory()).removeRecursively();
 		QDir(temp).removeRecursively();
 	});
+
+	Local::sync();
 }
 
 void Account::writeLocations() {
@@ -732,13 +736,6 @@ void Account::writeSessionSettings(Main::SessionSettings *stored) {
 		writeMapQueued();
 	}
 
-	auto recentEmojiPreloadData = cRecentEmojiPreload();
-	if (recentEmojiPreloadData.isEmpty()) {
-		recentEmojiPreloadData.reserve(GetRecentEmoji().size());
-		for (auto &item : GetRecentEmoji()) {
-			recentEmojiPreloadData.push_back(qMakePair(item.first->id(), item.second));
-		}
-	}
 	auto userDataInstance = stored
 		? stored
 		: _owner->getSessionSettings();
@@ -757,13 +754,6 @@ void Account::writeSessionSettings(Main::SessionSettings *stored) {
 
 	uint32 size = 24 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32);
-
-	size += sizeof(quint32) + sizeof(qint32);
-	for (auto &item : recentEmojiPreloadData) {
-		size += Serialize::stringSize(item.first) + sizeof(item.second);
-	}
-
-	size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
 	size += sizeof(quint32) + sizeof(qint32) + recentStickers.size() * (sizeof(uint64) + sizeof(ushort));
 	size += sizeof(quint32) + 3 * sizeof(qint32);
 	size += sizeof(quint32) + 2 * sizeof(qint32);
@@ -778,8 +768,6 @@ void Account::writeSessionSettings(Main::SessionSettings *stored) {
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiSessionSettings) << userData;
 	}
-	data.stream << quint32(dbiRecentEmoji) << recentEmojiPreloadData;
-	data.stream << quint32(dbiEmojiVariants) << cEmojiVariants();
 	data.stream << quint32(dbiRecentStickers) << recentStickers;
 
 	FileWriteDescriptor file(_settingsKey, _basePath);
@@ -958,7 +946,7 @@ void EnumerateDrafts(
 			key,
 			draft->msgId,
 			draft->textWithTags,
-			draft->previewCancelled,
+			draft->previewState,
 			draft->cursor);
 	}
 	if (replaceKey
@@ -969,7 +957,7 @@ void EnumerateDrafts(
 			replaceKey,
 			replaceDraft.msgId,
 			replaceDraft.textWithTags,
-			replaceDraft.previewCancelled,
+			replaceDraft.previewState,
 			replaceCursor);
 	}
 }
@@ -1017,12 +1005,12 @@ void Account::writeDrafts(
 			auto&&, // key
 			MsgId, // msgId
 			const TextWithTags &text,
-			bool, // previewCancelled
+			Data::PreviewState,
 			auto&&) { // cursor
 		size += sizeof(qint32) // key
 			+ Serialize::stringSize(text.text)
 			+ sizeof(quint32) + TextUtilities::SerializeTagsSize(text.tags)
-			+ 2 * sizeof(qint32); // msgId, previewCancelled
+			+ 2 * sizeof(qint32); // msgId, previewState
 	};
 	EnumerateDrafts(
 		map,
@@ -1036,21 +1024,21 @@ void Account::writeDrafts(
 	EncryptedDescriptor data(size);
 	data.stream
 		<< quint64(kMultiDraftTag)
-		<< quint64(peerId)
+		<< SerializePeerId(peerId)
 		<< quint32(count);
 
 	const auto writeCallback = [&](
 			const Data::DraftKey &key,
 			MsgId msgId,
 			const TextWithTags &text,
-			bool previewCancelled,
+			Data::PreviewState previewState,
 			auto&&) { // cursor
 		data.stream
 			<< key.serialize()
 			<< text.text
 			<< TextUtilities::SerializeTags(text.tags)
 			<< qint32(msgId)
-			<< qint32(previewCancelled ? 1 : 0);
+			<< qint32(previewState);
 	};
 	EnumerateDrafts(
 		map,
@@ -1102,14 +1090,14 @@ void Account::writeDraftCursors(
 	EncryptedDescriptor data(size);
 	data.stream
 		<< quint64(kMultiDraftTag)
-		<< quint64(peerId)
+		<< SerializePeerId(peerId)
 		<< quint32(count);
 
 	const auto writeCallback = [&](
 			auto&&, // key
 			MsgId, // msgId
 			auto&&, // text
-			bool, // previewCancelled
+			Data::PreviewState,
 			const MessageCursor &cursor) { // cursor
 		data.stream
 			<< qint32(cursor.position)
@@ -1155,9 +1143,10 @@ void Account::readDraftCursors(PeerId peerId, Data::HistoryDrafts &map) {
 		readDraftCursorsLegacy(peerId, draft, tag, map);
 		return;
 	}
-	quint64 draftPeer = 0;
+	quint64 draftPeerSerialized = 0;
 	quint32 count = 0;
-	draft.stream >> draftPeer >> count;
+	draft.stream >> draftPeerSerialized >> count;
+	const auto draftPeer = DeserializePeerId(draftPeerSerialized);
 	if (!count || count > 1000 || draftPeer != peerId) {
 		clearDraftCursors(peerId);
 		return;
@@ -1174,15 +1163,16 @@ void Account::readDraftCursors(PeerId peerId, Data::HistoryDrafts &map) {
 void Account::readDraftCursorsLegacy(
 		PeerId peerId,
 		details::FileReadDescriptor &draft,
-		quint64 draftPeer,
+		quint64 draftPeerSerialized,
 		Data::HistoryDrafts &map) {
 	qint32 localPosition = 0, localAnchor = 0, localScroll = QFIXED_MAX;
 	qint32 editPosition = 0, editAnchor = 0, editScroll = QFIXED_MAX;
-	draft.stream >> draftPeer >> localPosition >> localAnchor >> localScroll;
+	draft.stream >> localPosition >> localAnchor >> localScroll;
 	if (!draft.stream.atEnd()) {
 		draft.stream >> editPosition >> editAnchor >> editScroll;
 	}
 
+	const auto draftPeer = DeserializePeerId(draftPeerSerialized);
 	if (draftPeer != peerId) {
 		clearDraftCursors(peerId);
 		return;
@@ -1237,8 +1227,9 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 		return;
 	}
 	quint32 count = 0;
-	quint64 draftPeer = 0;
-	draft.stream >> draftPeer >> count;
+	quint64 draftPeerSerialized = 0;
+	draft.stream >> draftPeerSerialized >> count;
+	const auto draftPeer = DeserializePeerId(draftPeerSerialized);
 	if (!count || count > 1000 || draftPeer != peerId) {
 		ClearKey(j->second, _basePath);
 		_draftsMap.erase(j);
@@ -1249,23 +1240,29 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 	for (auto i = 0; i != count; ++i) {
 		TextWithTags data;
 		QByteArray tagsSerialized;
-		qint32 keyValue = 0, messageId = 0, previewCancelled = 0;
+		qint32 keyValue = 0, messageId = 0, uncheckedPreviewState = 0;
 		draft.stream
 			>> keyValue
 			>> data.text
 			>> tagsSerialized
 			>> messageId
-			>> previewCancelled;
+			>> uncheckedPreviewState;
 		data.tags = TextUtilities::DeserializeTags(
 			tagsSerialized,
 			data.text.size());
+		auto previewState = Data::PreviewState::Allowed;
+		switch (static_cast<Data::PreviewState>(uncheckedPreviewState)) {
+		case Data::PreviewState::Cancelled:
+		case Data::PreviewState::EmptyOnEdit:
+			previewState = Data::PreviewState(uncheckedPreviewState);
+		}
 		const auto key = Data::DraftKey::FromSerialized(keyValue);
 		if (key && key != Data::DraftKey::Cloud()) {
 			map.emplace(key, std::make_unique<Data::Draft>(
 				data,
 				messageId,
 				MessageCursor(),
-				previewCancelled));
+				previewState));
 		}
 	}
 	if (draft.stream.status() != QDataStream::Ok) {
@@ -1281,7 +1278,7 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 void Account::readDraftsWithCursorsLegacy(
 		not_null<History*> history,
 		details::FileReadDescriptor &draft,
-		quint64 draftPeer) {
+		quint64 draftPeerSerialized) {
 	TextWithTags msgData, editData;
 	QByteArray msgTagsSerialized, editTagsSerialized;
 	qint32 msgReplyTo = 0, msgPreviewCancelled = 0, editMsgId = 0, editPreviewCancelled = 0;
@@ -1303,6 +1300,7 @@ void Account::readDraftsWithCursorsLegacy(
 		}
 	}
 	const auto peerId = history->peer->id;
+	const auto draftPeer = DeserializePeerId(draftPeerSerialized);
 	if (draftPeer != peerId) {
 		const auto j = _draftsMap.find(peerId);
 		if (j != _draftsMap.cend()) {
@@ -1326,14 +1324,18 @@ void Account::readDraftsWithCursorsLegacy(
 			msgData,
 			msgReplyTo,
 			MessageCursor(),
-			msgPreviewCancelled));
+			(msgPreviewCancelled
+				? Data::PreviewState::Cancelled
+				: Data::PreviewState::Allowed)));
 	}
 	if (editMsgId) {
 		map.emplace(Data::DraftKey::LocalEdit(), std::make_unique<Data::Draft>(
 			editData,
 			editMsgId,
 			MessageCursor(),
-			editPreviewCancelled));
+			(editPreviewCancelled
+				? Data::PreviewState::Cancelled
+				: Data::PreviewState::Allowed)));
 	}
 	readDraftCursors(peerId, map);
 	history->setDraftsMap(std::move(map));
@@ -1568,7 +1570,7 @@ void Account::writeStickerSets(
 			continue;
 		}
 
-		for (const auto sticker : raw->stickers) {
+		for (const auto sticker : std::as_const(raw->stickers)) {
 			size += Serialize::Document::sizeInStream(sticker);
 		}
 
@@ -1655,8 +1657,6 @@ void Account::readStickerSets(
 		return failed();
 	}
 	for (auto i = 0; i != count; ++i) {
-		using LocationType = StorageFileLocation::Type;
-
 		quint64 setId = 0, setAccess = 0;
 		QString setTitle, setShortName;
 		qint32 scnt = 0;
@@ -1681,10 +1681,8 @@ void Account::readStickerSets(
 		if (!thumbnail || !CheckStreamStatus(stickers.stream)) {
 			return failed();
 		} else if (thumbnail->valid() && thumbnail->isLegacy()) {
-			setThumbnail = thumbnail->convertToModern(
-				LocationType::StickerSetThumb,
-				setId,
-				setAccess);
+			// No thumb_version information in legacy location.
+			return failed();
 		} else {
 			setThumbnail = *thumbnail;
 		}
@@ -2499,8 +2497,12 @@ void Account::writeTrustedBots() {
 	quint32 size = sizeof(qint32) + _trustedBots.size() * sizeof(quint64);
 	EncryptedDescriptor data(size);
 	data.stream << qint32(_trustedBots.size());
-	for_const (auto botId, _trustedBots) {
-		data.stream << quint64(botId);
+	for (const auto &[peerId, mask] : _trustedBots) {
+		// value: 8 bit mask, 56 bit bot peer_id.
+		auto value = SerializePeerId(peerId);
+		Assert((value >> 56) == 0);
+		value |= (quint64(mask) << 56);
+		data.stream << value;
 	}
 
 	FileWriteDescriptor file(_trustedBotsKey, _basePath);
@@ -2521,25 +2523,62 @@ void Account::readTrustedBots() {
 	qint32 size = 0;
 	trusted.stream >> size;
 	for (int i = 0; i < size; ++i) {
-		quint64 botId = 0;
-		trusted.stream >> botId;
-		_trustedBots.insert(botId);
+		auto value = quint64();
+		trusted.stream >> value;
+		const auto mask = base::flags<BotTrustFlag>::from_raw(
+			uchar(value >> 56));
+		const auto peerIdSerialized = value & ~(0xFFULL << 56);
+		const auto peerId = DeserializePeerId(peerIdSerialized);
+		_trustedBots.emplace(peerId, mask);
 	}
 }
 
-void Account::markBotTrusted(not_null<UserData*> bot) {
-	if (!isBotTrusted(bot)) {
-		_trustedBots.insert(bot->id);
-		writeTrustedBots();
+void Account::markBotTrustedOpenGame(PeerId botId) {
+	if (isBotTrustedOpenGame(botId)) {
+		return;
 	}
+	const auto i = _trustedBots.find(botId);
+	if (i == end(_trustedBots)) {
+		_trustedBots.emplace(botId, BotTrustFlag());
+	} else {
+		i->second &= ~BotTrustFlag::NoOpenGame;
+	}
+	writeTrustedBots();
 }
 
-bool Account::isBotTrusted(not_null<UserData*> bot) {
+bool Account::isBotTrustedOpenGame(PeerId botId) {
 	if (!_trustedBotsRead) {
 		readTrustedBots();
 		_trustedBotsRead = true;
 	}
-	return _trustedBots.contains(bot->id);
+	const auto i = _trustedBots.find(botId);
+	return (i != end(_trustedBots))
+		&& ((i->second & BotTrustFlag::NoOpenGame) == 0);
+}
+
+void Account::markBotTrustedPayment(PeerId botId) {
+	if (isBotTrustedPayment(botId)) {
+		return;
+	}
+	const auto i = _trustedBots.find(botId);
+	if (i == end(_trustedBots)) {
+		_trustedBots.emplace(
+			botId,
+			BotTrustFlag::NoOpenGame | BotTrustFlag::Payment);
+	} else {
+		i->second |= BotTrustFlag::Payment;
+	}
+	writeTrustedBots();
+}
+
+bool Account::isBotTrustedPayment(PeerId botId) {
+	if (!_trustedBotsRead) {
+		readTrustedBots();
+		_trustedBotsRead = true;
+	}
+	const auto i = _trustedBots.find(botId);
+	return (i != end(_trustedBots))
+		&& ((i->second & BotTrustFlag::Payment) != 0);
 }
 
 bool Account::encrypt(

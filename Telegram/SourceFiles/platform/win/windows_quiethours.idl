@@ -1,0 +1,79 @@
+// © Rafael Rivera
+// License: MIT
+
+import "oaidl.idl";
+
+[uuid(e0b5ef8b-a9b4-497a-8f71-08dd5c8ab2bf)]
+library QuietHours
+{
+	[uuid(f53321fa-34f8-4b7f-b9a3-361877cb94cf)]
+	coclass QuietHoursSettings
+	{
+		[default] interface IQuietHoursSettings;
+	}
+
+	[uuid(af86e2e0-b12d-4c6a-9c5a-d7aa65101e90)]
+	interface IQuietMoment : IUnknown
+	{
+		// Incomplete
+	}
+
+	[uuid(e813fe81-62b6-417d-b951-9d2e08486ac1)]
+	interface IQuietHoursProfile : IUnknown
+	{
+		[propget] HRESULT DisplayName([out, string, retval] LPWSTR* displayName);
+		[propget] HRESULT ProfileId([out, string, retval] LPWSTR* profileId);
+		HRESULT GetSetting(int setting, [out, retval] int* value);
+		HRESULT PutSetting(int setting, int value);
+		[propget] HRESULT IsCustomizable([out, retval] BOOL* result);
+		HRESULT GetAllowedContacts([out] UINT32* count, [out, retval] LPWSTR* allowedContacts);
+		HRESULT AddAllowedContact([in, string] LPWSTR allowedContact);
+		HRESULT RemoveAllowedContact([in, string] LPWSTR allowedContact);
+		HRESULT GetAllowedApps([out] UINT32* count, [out, retval] LPWSTR** allowedApps);
+		HRESULT AddAllowedApp([in, string] LPWSTR allowedApp);
+		HRESULT RemoveAllowedApp([in, string] LPWSTR allowedApp);
+		[propget] HRESULT Description([out, string, retval] LPWSTR* description);
+		[propget] HRESULT CustomizeLinkText([out, string, retval] LPWSTR* linkText);
+		[propget] HRESULT RestrictiveLevel([out, string, retval] LPWSTR* restrictiveLevel);
+	}
+
+	[uuid(cd86a976-8ea9-404b-a197-42e73dbaa901)]
+	interface IQuietHoursPinnedContactManager : IUnknown
+	{
+		HRESULT GetPinnedContactList([out] UINT32* count, [out, string, retval] LPWSTR* pinnedContacts);
+	}
+
+	[uuid(b0217783-87b7-422c-b902-5c148c14f150)]
+	interface IQuietMomentsManager : IUnknown
+	{
+		HRESULT GetAllQuietMomentModes([out] UINT32* count, [out, retval] UINT32** quietMomentModes);
+		HRESULT GetQuietMoment([in] UINT32 quietMomentId, [out, retval] IQuietMoment** quietMoment);
+		HRESULT TurnOffCurrentlyActiveQuietMoment();
+		HRESULT GetActiveQuietMoment([out, retval] UINT32* quietMomentId);
+	}
+
+	typedef struct _QH_PROFILE_DATA
+	{
+		char do_not_use__incomplete; // Incomplete
+	} QH_PROFILE_DATA;
+
+	[uuid(6bff4732-81ec-4ffb-ae67-b6c1bc29631f)]
+	interface IQuietHoursSettings : IUnknown
+	{
+		[propget] HRESULT UserSelectedProfile([out, string, retval] LPWSTR* profileId);
+		[propput] HRESULT UserSelectedProfile([in] LPWSTR profileId);
+		HRESULT GetProfile([in, string] LPWSTR profileId, [out, retval] IQuietHoursProfile**);
+		HRESULT GetAllProfileData(UINT32* count, QH_PROFILE_DATA*);
+		HRESULT GetDisplayNameForProfile([in, string] LPWSTR profileId, [out, string, retval] LPWSTR* displayName);
+		[propget] HRESULT QuietMomentsManager([out, retval] IQuietMomentsManager**);
+		[propget] HRESULT OffProfileId([out, string, retval] LPWSTR* profileId);
+		[propget] HRESULT ActiveQuietMomentProfile([out, string, retval] LPWSTR* profileId);
+		[propput] HRESULT ActiveQuietMomentProfile([in] LPWSTR profileId);
+		[propget] HRESULT ActiveProfile([out, string, retval] LPWSTR* profileId);
+		[propget] HRESULT QuietHoursPinnedContactManager([out, retval] IQuietHoursPinnedContactManager**);
+		[propput] HRESULT QuietMomentsShowSummaryEnabled([out, retval] BOOL* isEnabled);
+		HRESULT GetAlwaysAllowedApps([out] UINT32* count, [out, string, retval] LPWSTR** allowedApps);
+		HRESULT StartProcessing();
+		HRESULT StopProcessing();
+	}
+}

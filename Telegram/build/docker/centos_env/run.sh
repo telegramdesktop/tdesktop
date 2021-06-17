@@ -15,7 +15,7 @@ fi
 
 Command="$1"
 if [ "$Command" == "" ]; then
-  Command="scl enable devtoolset-8 -- bash"
+  Command="scl enable devtoolset-9 -- bash"
 fi
 
-docker run -it --rm --cpus=8 --memory=10g -v $HOME/Telegram/DesktopPrivate:/usr/src/DesktopPrivate -v $HOME/Telegram/tdesktop:/usr/src/tdesktop tdesktop:centos_env $Command
+docker run -it --rm --cpus=8 --memory=22g -v $HOME/Telegram/DesktopPrivate:/usr/src/DesktopPrivate -v $HOME/Telegram/tdesktop:/usr/src/tdesktop tdesktop:centos_env $Command

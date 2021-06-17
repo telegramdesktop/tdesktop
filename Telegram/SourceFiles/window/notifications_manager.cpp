@@ -14,12 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
-//#include "history/feed/history_feed_section.h" // #feed
 #include "lang/lang_keys.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "base/unixtime.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "mainwindow.h"
@@ -52,9 +52,9 @@ constexpr auto kSystemAlertDuration = crl::time(0);
 System::System()
 : _waitTimer([=] { showNext(); })
 , _waitForAllGroupedTimer([=] { showGrouped(); }) {
-	subscribe(settingsChanged(), [=](ChangeType type) {
+	settingsChanged(
+	) | rpl::start_with_next([=](ChangeType type) {
 		if (type == ChangeType::DesktopEnabled) {
-			App::wnd()->updateTrayMenu();
 			clearAll();
 		} else if (type == ChangeType::ViewParams) {
 			updateAll();
@@ -62,14 +62,25 @@ System::System()
 			|| type == ChangeType::CountMessages) {
 			Core::App().domain().notifyUnreadBadgeChanged();
 		}
-	});
+	}, lifetime());
 }
 
 void System::createManager() {
-	_manager = Platform::Notifications::Create(this);
+	Platform::Notifications::Create(this);
+}
+
+void System::setManager(std::unique_ptr<Manager> manager) {
+	_manager = std::move(manager);
 	if (!_manager) {
 		_manager = std::make_unique<Default::Manager>(this);
 	}
+}
+
+std::optional<ManagerType> System::managerType() const {
+	if (_manager) {
+		return _manager->type();
+	}
+	return std::nullopt;
 }
 
 Main::Session *System::findSession(uint64 sessionId) const {
@@ -94,6 +105,12 @@ System::SkipState System::skipNotification(
 		return { SkipState::Skip };
 	}
 	const auto scheduled = item->out() && item->isFromScheduled();
+
+	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		if (forwarded->imported) {
+			return { SkipState::Skip };
+		}
+	}
 
 	history->owner().requestNotifySettings(history->peer);
 	if (notifyBy) {
@@ -122,6 +139,8 @@ System::SkipState System::skipNotification(
 }
 
 void System::schedule(not_null<HistoryItem*> item) {
+	Expects(_manager != nullptr);
+
 	const auto history = item->history();
 	const auto skip = skipNotification(item);
 	if (skip.value == SkipState::Skip) {
@@ -151,7 +170,7 @@ void System::schedule(not_null<HistoryItem*> item) {
 		_whenAlerts[history].emplace(when, notifyBy);
 	}
 	if (Core::App().settings().desktopNotify()
-		&& !Platform::Notifications::SkipToast()) {
+		&& !_manager->skipToast()) {
 		auto &whenMap = _whenMaps[history];
 		if (whenMap.find(item->id) == whenMap.end()) {
 			whenMap.emplace(item->id, when);
@@ -375,23 +394,23 @@ void System::showNext() {
 	}
 	const auto &settings = Core::App().settings();
 	if (alert) {
-		if (settings.flashBounceNotify() && !Platform::Notifications::SkipFlashBounce()) {
-			if (const auto widget = App::wnd()) {
-				if (const auto window = widget->windowHandle()) {
-					window->alert(kSystemAlertDuration);
-					// (window, SLOT(_q_clearAlert())); in the future.
+		if (settings.flashBounceNotify() && !_manager->skipFlashBounce()) {
+			if (const auto window = Core::App().activeWindow()) {
+				if (const auto handle = window->widget()->windowHandle()) {
+					handle->alert(kSystemAlertDuration);
+					// (handle, SLOT(_q_clearAlert())); in the future.
 				}
 			}
 		}
-		if (settings.soundNotify() && !Platform::Notifications::SkipAudio()) {
+		if (settings.soundNotify() && !_manager->skipAudio()) {
 			ensureSoundCreated();
 			_soundTrack->playOnce();
-			emit Media::Player::mixer()->suppressAll(_soundTrack->getLengthMs());
-			emit Media::Player::mixer()->faderOnTimer();
+			Media::Player::mixer()->suppressAll(_soundTrack->getLengthMs());
+			Media::Player::mixer()->faderOnTimer();
 		}
 	}
 
-	if (_waiters.empty() || !settings.desktopNotify() || Platform::Notifications::SkipToast()) {
+	if (_waiters.empty() || !settings.desktopNotify() || _manager->skipToast()) {
 		if (nextAlert) {
 			_waitTimer.callOnce(nextAlert - ms);
 		}
@@ -560,14 +579,25 @@ void System::updateAll() {
 	}
 }
 
-Manager::DisplayOptions Manager::GetNotificationOptions(HistoryItem *item) {
+rpl::producer<ChangeType> System::settingsChanged() const {
+	return _settingsChanged.events();
+}
+
+void System::notifySettingsChanged(ChangeType type) {
+	return _settingsChanged.fire(std::move(type));
+}
+
+Manager::DisplayOptions Manager::getNotificationOptions(
+		HistoryItem *item) const {
 	const auto hideEverything = Core::App().passcodeLocked()
-		|| Global::ScreenIsLocked();
+		|| forceHideDetails();
 
 	const auto view = Core::App().settings().notifyView();
 	DisplayOptions result;
-	result.hideNameAndPhoto = hideEverything || (view > dbinvShowName);
-	result.hideMessageText = hideEverything || (view > dbinvShowPreview);
+	result.hideNameAndPhoto = hideEverything
+		|| (view > Core::Settings::NotifyView::ShowName);
+	result.hideMessageText = hideEverything
+		|| (view > Core::Settings::NotifyView::ShowPreview);
 	result.hideReplyButton = result.hideMessageText
 		|| !item
 		|| ((item->out() || item->history()->peer->isSelf())
@@ -620,9 +650,9 @@ void Manager::notificationActivated(NotificationId id) {
 			} else {
 				openNotificationMessage(history, id.msgId);
 			}
+			onAfterNotificationActivated(id, window);
 		}
 	}
-	onAfterNotificationActivated(id);
 }
 
 void Manager::openNotificationMessage(
@@ -640,17 +670,8 @@ void Manager::openNotificationMessage(
 		}
 		return true;
 	}();
-	//const auto messageFeed = [&] { // #feed
-	//	if (const auto channel = history->peer->asChannel()) {
-	//		return channel->feed();
-	//	}
-	//	return (Data::Feed*)nullptr;
-	//}();
 	if (openExactlyMessage) {
 		Ui::showPeerHistory(history, messageId);
-	//} else if (messageFeed) { // #feed
-	//	App::wnd()->sessionController()->showSection(
-	//		HistoryFeed::Memento(messageFeed));
 	} else {
 		Ui::showPeerHistory(history, ShowAtUnreadMsgId);
 	}
@@ -689,7 +710,7 @@ void Manager::notificationReplied(
 void NativeManager::doShowNotification(
 		not_null<HistoryItem*> item,
 		int forwardedCount) {
-	const auto options = GetNotificationOptions(item);
+	const auto options = getNotificationOptions(item);
 
 	const auto peer = item->history()->peer;
 	const auto scheduled = !options.hideNameAndPhoto
@@ -723,6 +744,10 @@ void NativeManager::doShowNotification(
 		text,
 		options.hideNameAndPhoto,
 		options.hideReplyButton);
+}
+
+bool NativeManager::forceHideDetails() const {
+	return Core::App().screenIsLocked();
 }
 
 System::~System() = default;

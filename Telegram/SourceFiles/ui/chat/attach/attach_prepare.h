@@ -132,4 +132,6 @@ struct PreparedGroup {
 [[nodiscard]] int MaxAlbumItems();
 [[nodiscard]] bool ValidateThumbDimensions(int width, int height);
 
+[[nodiscard]] QPixmap PrepareSongCoverForThumbnail(QImage image, int size);
+
 } // namespace Ui

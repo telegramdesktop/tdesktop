@@ -31,7 +31,7 @@ constexpr auto kMaxUserFirstLastName = 64; // See also add_contact_box.
 QString UserPhone(not_null<UserData*> user) {
 	const auto phone = user->phone();
 	return phone.isEmpty()
-		? user->owner().findContactPhone(user->bareId())
+		? user->owner().findContactPhone(peerToUser(user->id))
 		: phone;
 }
 
@@ -75,7 +75,7 @@ void SendRequest(
 				lt_user,
 				first));
 		}
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 	}).send();
 }
 

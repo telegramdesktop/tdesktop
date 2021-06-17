@@ -920,7 +920,7 @@ void SendFilesBox::updateControlsGeometry() {
 		_groupFiles.data(),
 		_sendImagesAsPhotos.data(),
 	};
-	for (const auto pointer : ranges::view::reverse(pointers)) {
+	for (const auto pointer : ranges::views::reverse(pointers)) {
 		if (pointer && !pointer->isHidden()) {
 			pointer->moveToLeft(
 				st::boxPhotoPadding.left(),

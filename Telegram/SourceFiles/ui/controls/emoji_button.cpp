@@ -33,23 +33,26 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 	const auto loadingState = _loading
 		? _loading->computeState()
 		: RadialState{ 0., 0, RadialState::kFull };
+	const auto icon = _iconOverride ? _iconOverride : &(over ? _st.iconOver : _st.icon);
+	auto position = _st.iconPosition;
+	if (position.x() < 0) {
+		position.setX((width() - icon->width()) / 2);
+	}
+	if (position.y() < 0) {
+		position.setY((height() - icon->height()) / 2);
+	}
+	const auto skipx = icon->width() / 4;
+	const auto skipy = icon->height() / 4;
+	const auto inner = QRect(
+		position + QPoint(skipx, skipy),
+		QSize(icon->width() - 2 * skipx, icon->height() - 2 * skipy));
+
 	if (loadingState.shown < 1.) {
 		p.setOpacity(1. - loadingState.shown);
-
-		const auto icon = _iconOverride ? _iconOverride : &(over ? _st.iconOver : _st.icon);
-		auto position = _st.iconPosition;
-		if (position.x() < 0) {
-			position.setX((width() - icon->width()) / 2);
-		}
-		if (position.y() < 0) {
-			position.setY((height() - icon->height()) / 2);
-		}
 		icon->paint(p, position, width());
-
 		p.setOpacity(1.);
 	}
 
-	QRect inner(QPoint((width() - st::historyEmojiCircle.width()) / 2, (height() - st::historyEmojiCircle.height()) / 2), st::historyEmojiCircle);
 	const auto color = (_colorOverride
 		? *_colorOverride
 		: (over

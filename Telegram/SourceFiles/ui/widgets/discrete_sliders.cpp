@@ -47,6 +47,10 @@ void DiscreteSlider::setActiveSectionFast(int index) {
 void DiscreteSlider::finishAnimating() {
 	_a_left.stop();
 	update();
+	_callbackAfterMs = 0;
+	if (_timerId >= 0) {
+		activateCallback();
+	}
 }
 
 void DiscreteSlider::setSelectOnPress(bool selectOnPress) {
@@ -280,7 +284,11 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 	auto activeLeft = getCurrentActiveLeft();
 
 	enumerateSections([&](Section &section) {
-		auto active = 1. - snap(qAbs(activeLeft - section.left) / float64(section.width), 0., 1.);
+		auto active = 1.
+			- std::clamp(
+				qAbs(activeLeft - section.left) / float64(section.width),
+				0.,
+				1.);
 		if (section.ripple) {
 			auto color = anim::color(_st.rippleBg, _st.rippleBgActive, active);
 			section.ripple->paint(p, section.left, 0, width(), &color);

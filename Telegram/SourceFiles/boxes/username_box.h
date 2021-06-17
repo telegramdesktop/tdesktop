@@ -32,10 +32,10 @@ protected:
 
 private:
 	void updateDone(const MTPUser &result);
-	void updateFail(const RPCError &error);
+	void updateFail(const MTP::Error &error);
 
 	void checkDone(const MTPBool &result);
-	void checkFail(const RPCError &error);
+	void checkFail(const MTP::Error &error);
 
 	void save();
 

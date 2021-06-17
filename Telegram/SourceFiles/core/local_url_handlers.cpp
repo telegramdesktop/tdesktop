@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/local_url_handlers.h"
 
+#include "api/api_authorizations.h"
 #include "api/api_text_entities.h"
 #include "api/api_chat_invite.h"
 #include "base/qthelp_regex.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/language_box.h"
 #include "passport/passport_form_controller.h"
 #include "window/window_session_controller.h"
+#include "ui/toast/toast.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_cloud_themes.h"
@@ -39,6 +41,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
 #include "app.h"
+
+#include <QtGui/QGuiApplication>
 
 namespace Core {
 namespace {
@@ -188,7 +192,7 @@ bool ShowPassportForm(
 	if (!controller) {
 		return false;
 	}
-	const auto botId = params.value("bot_id", QString()).toInt();
+	const auto botId = params.value("bot_id", QString()).toULongLong();
 	const auto scope = params.value("scope", QString());
 	const auto callback = params.value("callback_url", QString());
 	const auto publicKey = params.value("public_key", QString());
@@ -227,9 +231,15 @@ bool ShowWallPaper(
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
+	if (!params.value("gradient").isEmpty()) {
+		Ui::show(Box<InformBox>(
+			tr::lng_background_gradient_unsupported(tr::now)));
+		return false;
+	}
+	const auto color = params.value("color");
 	return BackgroundPreviewBox::Start(
 		controller,
-		params.value(qsl("slug")),
+		(color.isEmpty() ? params.value(qsl("slug")) : color),
 		params);
 }
 
@@ -296,6 +306,9 @@ bool ResolveUsername(
 			}
 			: Navigation::RepliesByLinkInfo{ v::null },
 		.startToken = startToken,
+		.voicechatHash = (params.contains(u"voicechat"_q)
+			? std::make_optional(params.value(u"voicechat"_q))
+			: std::nullopt),
 		.clickFromMessageId = fromMessageId,
 	});
 	return true;
@@ -311,7 +324,8 @@ bool ResolvePrivatePost(
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	const auto channelId = params.value(qsl("channel")).toInt();
+	const auto channelId = ChannelId(
+		params.value(qsl("channel")).toULongLong());
 	const auto msgId = params.value(qsl("post")).toInt();
 	const auto commentParam = params.value(qsl("comment"));
 	const auto commentId = commentParam.toInt();
@@ -346,12 +360,14 @@ bool ResolveSettings(
 	if (!controller) {
 		return false;
 	}
+	controller->window().activate();
 	const auto section = match->captured(1).mid(1).toLower();
 	if (section.isEmpty()) {
 		controller->window().showSettings();
 		return true;
 	}
 	if (section == qstr("devices")) {
+		controller->session().api().authorizations().reload();
 		Ui::show(Box<SessionsBox>(&controller->session()));
 		return true;
 	} else if (section == qstr("language")) {
@@ -424,12 +440,29 @@ bool OpenMediaTimestamp(
 			Core::App().showDocument(
 				document,
 				session->data().message(itemId));
-		} else if (document->isSong()) {
+		} else if (document->isSong() || document->isVoiceMessage()) {
 			Media::Player::instance()->play({ document, itemId });
 		}
 		return true;
 	}
 	return false;
+}
+
+bool ShowInviteLink(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto base64link = match->captured(1).toLatin1();
+	const auto link = QString::fromUtf8(QByteArray::fromBase64(base64link));
+	if (link.isEmpty()) {
+		return false;
+	}
+	QGuiApplication::clipboard()->setText(link);
+	Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
+	return true;
 }
 
 } // namespace
@@ -506,6 +539,10 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 			qsl("^media_timestamp/?\\?base=([a-zA-Z0-9\\.\\_\\-]+)&t=(\\d+)(&|$)"),
 			OpenMediaTimestamp
 		},
+		{
+			qsl("^show_invite_link/?\\?link=([a-zA-Z0-9_\\+\\/\\=\\-]+)(&|$)"),
+			ShowInviteLink
+		},
 	};
 	return Result;
 }
@@ -520,8 +557,8 @@ QString TryConvertUrlToLocal(QString url) {
 	auto telegramMeMatch = regex_match(qsl("^(https?://)?(www\\.)?(telegram\\.(me|dog)|t\\.me)/(.+)$"), url, matchOptions);
 	if (telegramMeMatch) {
 		auto query = telegramMeMatch->capturedRef(5);
-		if (auto joinChatMatch = regex_match(qsl("^joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
-			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(1));
+		if (auto joinChatMatch = regex_match(qsl("^(joinchat/|\\+|\\%20)([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
+			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(2));
 		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://addstickers?set=") + url_encode(stickerSetMatch->captured(1));
 		} else if (auto themeMatch = regex_match(qsl("^addtheme/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
@@ -547,12 +584,19 @@ QString TryConvertUrlToLocal(QString url) {
 			return qsl("tg://socks?") + socksMatch->captured(1);
 		} else if (auto proxyMatch = regex_match(qsl("^proxy/?\\?(.+)(#|$)"), query, matchOptions)) {
 			return qsl("tg://proxy?") + proxyMatch->captured(1);
-		} else if (auto bgMatch = regex_match(qsl("^bg/([a-zA-Z0-9\\.\\_\\-]+)(\\?(.+)?)?$"), query, matchOptions)) {
+		} else if (auto bgMatch = regex_match(qsl("^bg/([a-zA-Z0-9\\.\\_\\-\\~]+)(\\?(.+)?)?$"), query, matchOptions)) {
 			const auto params = bgMatch->captured(3);
-			return qsl("tg://bg?slug=") + bgMatch->captured(1) + (params.isEmpty() ? QString() : '&' + params);
+			const auto bg = bgMatch->captured(1);
+			const auto type = regex_match(qsl("^[a-fA-F0-9]{6}^"), bg)
+				? "color"
+				: (regex_match(qsl("^[a-fA-F0-9]{6}\\-[a-fA-F0-9]{6}$"), bg)
+					|| regex_match(qsl("^[a-fA-F0-9]{6}(\\~[a-fA-F0-9]{6}){1,3}$"), bg))
+				? "gradient"
+				: "slug";
+			return qsl("tg://bg?") + type + '=' + bg + (params.isEmpty() ? QString() : '&' + params);
 		} else if (auto postMatch = regex_match(qsl("^c/(\\-?\\d+)/(\\d+)(/?\\?|/?$)"), query, matchOptions)) {
 			auto params = query.mid(postMatch->captured(0).size()).toString();
-			return qsl("tg://privatepost?channel=%1&post=%2").arg(postMatch->captured(1)).arg(postMatch->captured(2)) + (params.isEmpty() ? QString() : '&' + params);
+			return qsl("tg://privatepost?channel=%1&post=%2").arg(postMatch->captured(1), postMatch->captured(2)) + (params.isEmpty() ? QString() : '&' + params);
 		} else if (auto usernameMatch = regex_match(qsl("^([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), query, matchOptions)) {
 			auto params = query.mid(usernameMatch->captured(0).size()).toString();
 			auto postParam = QString();

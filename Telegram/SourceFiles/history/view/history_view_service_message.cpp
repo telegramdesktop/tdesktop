@@ -16,8 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "ui/text/text_options.h"
-#include "core/core_settings.h"
-#include "core/application.h"
 #include "mainwidget.h"
 #include "layout.h"
 #include "lang/lang_keys.h"
@@ -50,6 +48,8 @@ public:
 
 	// corners[(CircleMask value) * MaskMultiplier | (CornerVerticalSide value) | (CornerHorizontalSide value)]
 	QPixmap corners[8];
+
+	base::flat_map<std::pair<int, uint32>, QPixmap> overridenCorners;
 };
 Data::GlobalStructurePointer<ServiceMessageStyleData> serviceMessageStyle;
 
@@ -86,10 +86,20 @@ void createCircleMasks() {
 	serviceMessageStyle->circle[InvertedMask] = style::createInvertedCircleMask(sizeInverted);
 }
 
-QPixmap circleCorner(int corner) {
-	if (serviceMessageStyle->corners[corner].isNull()) {
+uint32 ColorToUint(const style::color &bg) {
+	const auto &c = bg->c;
+	return c.red() << 24 | c.green() << 16 | c.blue() << 8 | c.alpha();
+}
+
+QPixmap circleCorner(int corner, const style::color &bg) {
+	auto &currentCorner = (bg == st::msgServiceBg)
+		? serviceMessageStyle->corners[corner]
+		: serviceMessageStyle->overridenCorners[{ corner, ColorToUint(bg) }];
+	if (currentCorner.isNull()) {
 		int maskType = corner / MaskMultiplier;
-		int radius = (maskType == NormalMask ? historyServiceMsgRadius() : historyServiceMsgInvertedRadius());
+		int radius = (maskType == NormalMask
+			? historyServiceMsgRadius()
+			: historyServiceMsgInvertedRadius());
 		int size = radius * cIntRetinaFactor();
 
 		int xoffset = 0, yoffset = 0;
@@ -100,11 +110,14 @@ QPixmap circleCorner(int corner) {
 			yoffset = size;
 		}
 		auto part = QRect(xoffset, yoffset, size, size);
-		auto result = style::colorizeImage(serviceMessageStyle->circle[maskType], st::msgServiceBg, part);
+		auto result = style::colorizeImage(
+			serviceMessageStyle->circle[maskType],
+			bg,
+			part);
 		result.setDevicePixelRatio(cRetinaFactor());
-		serviceMessageStyle->corners[corner] = App::pixmapFromImageInPlace(std::move(result));
+		currentCorner = App::pixmapFromImageInPlace(std::move(result));
 	}
-	return serviceMessageStyle->corners[corner];
+	return currentCorner;
 }
 
 enum class SideStyle {
@@ -114,38 +127,63 @@ enum class SideStyle {
 };
 
 // Returns amount of pixels already painted vertically (so you can skip them in the complex rect shape).
-int paintBubbleSide(Painter &p, int x, int y, int width, SideStyle style, CornerVerticalSide side) {
+int paintBubbleSide(
+		Painter &p,
+		int x,
+		int y,
+		int width,
+		SideStyle style,
+		CornerVerticalSide side,
+		const style::color &bg) {
 	if (style == SideStyle::Rounded) {
-		auto left = circleCorner((NormalMask * MaskMultiplier) | side | CornerLeft);
+		const auto corner = (NormalMask * MaskMultiplier) | side;
+		auto left = circleCorner(corner | CornerLeft, bg);
 		int leftWidth = left.width() / cIntRetinaFactor();
 		p.drawPixmap(x, y, left);
 
-		auto right = circleCorner((NormalMask * MaskMultiplier) | side | CornerRight);
+		auto right = circleCorner(corner | CornerRight, bg);
 		int rightWidth = right.width() / cIntRetinaFactor();
 		p.drawPixmap(x + width - rightWidth, y, right);
 
 		int cornerHeight = left.height() / cIntRetinaFactor();
-		p.fillRect(x + leftWidth, y, width - leftWidth - rightWidth, cornerHeight, st::msgServiceBg);
+		p.fillRect(
+			x + leftWidth,
+			y,
+			width - leftWidth - rightWidth,
+			cornerHeight,
+			bg);
 		return cornerHeight;
 	} else if (style == SideStyle::Inverted) {
 		// CornerLeft and CornerRight are inverted for SideStyle::Inverted sprites.
-		auto left = circleCorner((InvertedMask * MaskMultiplier) | side | CornerRight);
+		const auto corner = (InvertedMask * MaskMultiplier) | side;
+		auto left = circleCorner(corner | CornerRight, bg);
 		int leftWidth = left.width() / cIntRetinaFactor();
 		p.drawPixmap(x - leftWidth, y, left);
 
-		auto right = circleCorner((InvertedMask * MaskMultiplier) | side | CornerLeft);
+		auto right = circleCorner(corner | CornerLeft, bg);
 		p.drawPixmap(x + width, y, right);
 	}
 	return 0;
 }
 
-void paintBubblePart(Painter &p, int x, int y, int width, int height, SideStyle topStyle, SideStyle bottomStyle, bool forceShrink = false) {
-	if (topStyle == SideStyle::Inverted || bottomStyle == SideStyle::Inverted || forceShrink) {
+void paintBubblePart(
+		Painter &p,
+		int x,
+		int y,
+		int width,
+		int height,
+		SideStyle topStyle,
+		SideStyle bottomStyle,
+		const style::color &bg,
+		bool forceShrink = false) {
+	if ((topStyle == SideStyle::Inverted)
+		|| (bottomStyle == SideStyle::Inverted)
+		|| forceShrink) {
 		width -= historyServiceMsgInvertedShrink() * 2;
 		x += historyServiceMsgInvertedShrink();
 	}
 
-	if (int skip = paintBubbleSide(p, x, y, width, topStyle, CornerTop)) {
+	if (int skip = paintBubbleSide(p, x, y, width, topStyle, CornerTop, bg)) {
 		y += skip;
 		height -= skip;
 	}
@@ -155,27 +193,50 @@ void paintBubblePart(Painter &p, int x, int y, int width, int height, SideStyle 
 	} else if (bottomStyle == SideStyle::Inverted) {
 		bottomSize = historyServiceMsgInvertedRadius();
 	}
-	if (int skip = paintBubbleSide(p, x, y + height - bottomSize, width, bottomStyle, CornerBottom)) {
+	const auto skip = paintBubbleSide(
+		p,
+		x,
+		y + height - bottomSize,
+		width,
+		bottomStyle,
+		CornerBottom,
+		bg);
+	if (skip) {
 		height -= skip;
 	}
 
-	p.fillRect(x, y, width, height, st::msgServiceBg);
+	p.fillRect(x, y, width, height, bg);
 }
 
-void paintPreparedDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w) {
+void paintPreparedDate(
+		Painter &p,
+		const QString &dateText,
+		int dateTextWidth,
+		int y,
+		int w,
+		bool chatWide,
+		const style::color &bg,
+		const style::color &fg) {
 	int left = st::msgServiceMargin.left();
-	int maxwidth = w;
-	if (Core::App().settings().chatWide()) {
-		maxwidth = qMin(maxwidth, WideChatWidth());
-	}
+	const auto maxwidth = chatWide
+		? std::min(w, WideChatWidth())
+		: w;
 	w = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
 
 	left += (w - dateTextWidth - st::msgServicePadding.left() - st::msgServicePadding.right()) / 2;
 	int height = st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
-	ServiceMessagePainter::paintBubble(p, left, y + st::msgServiceMargin.top(), dateTextWidth + st::msgServicePadding.left() + st::msgServicePadding.left(), height);
+	ServiceMessagePainter::paintBubble(
+		p,
+		left,
+		y + st::msgServiceMargin.top(),
+		dateTextWidth
+			+ st::msgServicePadding.left()
+			+ st::msgServicePadding.left(),
+		height,
+		bg);
 
 	p.setFont(st::msgServiceFont);
-	p.setPen(st::msgServiceFg);
+	p.setPen(fg);
 	p.drawText(left + st::msgServicePadding.left(), y + st::msgServiceMargin.top() + st::msgServicePadding.top() + st::msgServiceFont->ascent, dateText);
 }
 
@@ -194,27 +255,77 @@ int WideChatWidth() {
 	return st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left();
 }
 
-void ServiceMessagePainter::paintDate(Painter &p, const QDateTime &date, int y, int w) {
-	auto dateText = langDayOfMonthFull(date.date());
-	auto dateTextWidth = st::msgServiceFont->width(dateText);
-	paintPreparedDate(p, dateText, dateTextWidth, y, w);
+void ServiceMessagePainter::paintDate(
+		Painter &p,
+		const QDateTime &date,
+		int y,
+		int w,
+		bool chatWide,
+		const style::color &bg,
+		const style::color &fg) {
+	const auto dateText = langDayOfMonthFull(date.date());
+	const auto dateTextWidth = st::msgServiceFont->width(dateText);
+	paintPreparedDate(p, dateText, dateTextWidth, y, w, chatWide, bg, fg);
 }
 
-void ServiceMessagePainter::paintDate(Painter &p, const QString &dateText, int y, int w) {
-	paintPreparedDate(p, dateText, st::msgServiceFont->width(dateText), y, w);
+void ServiceMessagePainter::paintDate(
+		Painter &p,
+		const QString &dateText,
+		int y,
+		int w,
+		bool chatWide,
+		const style::color &bg,
+		const style::color &fg) {
+	paintPreparedDate(
+		p,
+		dateText,
+		st::msgServiceFont->width(dateText),
+		y,
+		w,
+		chatWide,
+		bg,
+		fg);
 }
 
-void ServiceMessagePainter::paintDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w) {
-	paintPreparedDate(p, dateText, dateTextWidth, y, w);
+void ServiceMessagePainter::paintDate(
+		Painter &p,
+		const QString &dateText,
+		int dateTextWidth,
+		int y,
+		int w,
+		bool chatWide,
+		const style::color &bg,
+		const style::color &fg) {
+	paintPreparedDate(p, dateText, dateTextWidth, y, w, chatWide, bg, fg);
 }
 
-void ServiceMessagePainter::paintBubble(Painter &p, int x, int y, int w, int h) {
+void ServiceMessagePainter::paintBubble(
+		Painter &p,
+		int x,
+		int y,
+		int w,
+		int h,
+		const style::color &bg) {
 	createCircleMasks();
 
-	paintBubblePart(p, x, y, w, h, SideStyle::Rounded, SideStyle::Rounded);
+	paintBubblePart(
+		p,
+		x,
+		y,
+		w,
+		h,
+		SideStyle::Rounded,
+		SideStyle::Rounded,
+		bg);
 }
 
-void ServiceMessagePainter::paintComplexBubble(Painter &p, int left, int width, const Ui::Text::String &text, const QRect &textRect) {
+void ServiceMessagePainter::paintComplexBubble(
+		Painter &p,
+		int left,
+		int width,
+		const Ui::Text::String &text,
+		const QRect &textRect,
+		const style::color &bg) {
 	createCircleMasks();
 
 	auto lineWidths = countLineWidths(text, textRect);
@@ -250,7 +361,16 @@ void ServiceMessagePainter::paintComplexBubble(Painter &p, int left, int width, 
 			richHeight -= st::msgServicePadding.top();
 		}
 		forceShrink = previousShrink && (richWidth == previousRichWidth);
-		paintBubblePart(p, left + ((width - richWidth) / 2), y, richWidth, richHeight, topStyle, bottomStyle, forceShrink);
+		paintBubblePart(
+			p,
+			left + ((width - richWidth) / 2),
+			y,
+			richWidth,
+			richHeight,
+			topStyle,
+			bottomStyle,
+			bg,
+			forceShrink);
 		y += richHeight;
 
 		previousShrink = forceShrink || (topStyle == SideStyle::Inverted) || (bottomStyle == SideStyle::Inverted);
@@ -321,7 +441,7 @@ not_null<HistoryService*> Service::message() const {
 
 QRect Service::countGeometry() const {
 	auto result = QRect(0, 0, width(), height());
-	if (Core::App().settings().chatWide()) {
+	if (delegate()->elementIsChatWide()) {
 		result.setWidth(qMin(result.width(), st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 	}
 	return result.marginsRemoved(st::msgServiceMargin);
@@ -344,7 +464,7 @@ QSize Service::performCountCurrentSize(int newWidth) {
 		item->_textHeight = 0;
 	} else {
 		auto contentWidth = newWidth;
-		if (Core::App().settings().chatWide()) {
+		if (delegate()->elementIsChatWide()) {
 			accumulate_min(contentWidth, st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left());
 		}
 		contentWidth -= st::msgServiceMargin.left() + st::msgServiceMargin.left(); // two small margins
@@ -384,9 +504,6 @@ QSize Service::performCountOptimalSize() {
 }
 
 bool Service::isHidden() const {
-	//if (context() == Context::Feed) { // #feed
-	//	return true;
-	//}
 	return Element::isHidden();
 }
 
@@ -421,7 +538,7 @@ void Service::draw(
 	if (const auto bar = Get<UnreadBar>()) {
 		unreadbarh = bar->height();
 		if (clip.intersects(QRect(0, 0, width(), unreadbarh))) {
-			bar->paint(p, 0, width());
+			bar->paint(p, 0, width(), delegate()->elementIsChatWide());
 		}
 		p.translate(0, unreadbarh);
 		clip.translate(0, -unreadbarh);
@@ -516,17 +633,18 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 			point - trect.topLeft(),
 			trect.width(),
 			textRequest));
-		if (auto gamescore = item->Get<HistoryServiceGameScore>()) {
-			if (!result.link
-				&& result.cursor == CursorState::Text
-				&& g.contains(point)) {
+		if (!result.link
+			&& result.cursor == CursorState::Text
+			&& g.contains(point)) {
+			if (const auto gamescore = item->Get<HistoryServiceGameScore>()) {
 				result.link = gamescore->lnk;
-			}
-		} else if (auto payment = item->Get<HistoryServicePayment>()) {
-			if (!result.link
-				&& result.cursor == CursorState::Text
-				&& g.contains(point)) {
-				result.link = payment->lnk;
+			} else if (const auto payment = item->Get<HistoryServicePayment>()) {
+				result.link = payment->invoiceLink;
+			} else if (const auto call = item->Get<HistoryServiceOngoingCall>()) {
+				const auto peer = history()->peer;
+				if (PeerHasThisCall(peer, call->id).value_or(false)) {
+					result.link = call->link;
+				}
 			}
 		}
 	} else if (media) {

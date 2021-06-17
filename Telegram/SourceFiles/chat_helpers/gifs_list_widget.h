@@ -40,12 +40,13 @@ enum class Type;
 
 namespace ChatHelpers {
 
-void DeleteSavedGif(not_null<DocumentData*> document);
+void AddGifAction(
+	Fn<void(QString, Fn<void()> &&)> callback,
+	not_null<DocumentData*> document);
 
 class GifsListWidget
 	: public TabbedSelector::Inner
-	, public InlineBots::Layout::Context
-	, private base::Subscriber {
+	, public InlineBots::Layout::Context {
 public:
 	using InlineChosen = TabbedSelector::InlineChosen;
 

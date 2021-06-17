@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mainwindow.h"
+#include "window/window_adaptive.h"
 #include "ui/layers/layer_widget.h"
 
 namespace Main {
@@ -39,12 +40,16 @@ public:
 	}
 	[[nodiscard]] bool locked() const;
 
+	[[nodiscard]] Adaptive &adaptive() const;
+
 	void finishFirstShow();
 
 	void setupPasscodeLock();
 	void clearPasscodeLock();
 	void setupIntro();
 	void setupMain();
+
+	void showLogoutConfirmation();
 
 	void showSettings();
 
@@ -72,6 +77,8 @@ public:
 	void minimize();
 	void close();
 
+	void preventOrInvoke(Fn<void()> &&callback);
+
 	QPoint getPointForCallPanelCenter() const;
 
 private:
@@ -86,6 +93,7 @@ private:
 
 	Main::Account *_account = nullptr;
 	::MainWindow _widget;
+	const std::unique_ptr<Adaptive> _adaptive;
 	std::unique_ptr<SessionController> _sessionController;
 	base::Timer _isActiveTimer;
 	QPointer<Ui::BoxContent> _termsBox;

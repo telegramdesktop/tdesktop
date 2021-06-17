@@ -320,6 +320,20 @@ rpl::producer<bool> CanPinMessagesValue(not_null<PeerData*> peer) {
 	Unexpected("Peer type in CanPinMessagesValue.");
 }
 
+rpl::producer<bool> CanManageGroupCallValue(not_null<PeerData*> peer) {
+	const auto flag = MTPDchatAdminRights::Flag::f_manage_call;
+	if (const auto chat = peer->asChat()) {
+		return chat->amCreator()
+			? (rpl::single(true) | rpl::type_erased())
+			: AdminRightValue(chat, flag);
+	} else if (const auto channel = peer->asChannel()) {
+		return channel->amCreator()
+			? (rpl::single(true) | rpl::type_erased())
+			: AdminRightValue(channel, flag);
+	}
+	return rpl::single(false);
+}
+
 TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now) {
 	if (user->isServiceUser() || user->isBot()) {
 		return -1;
@@ -350,7 +364,7 @@ TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now) {
 crl::time OnlineChangeTimeout(TimeId online, TimeId now) {
 	const auto result = OnlinePhraseChangeInSeconds(online, now);
 	Assert(result >= 0);
-	return snap(
+	return std::clamp(
 		result * crl::time(1000),
 		kMinOnlineChangeTimeout,
 		kMaxOnlineChangeTimeout);
@@ -438,11 +452,12 @@ bool OnlineTextActive(not_null<UserData*> user, TimeId now) {
 	return OnlineTextActive(user->onlineTill, now);
 }
 
-bool IsPeerAnOnlineUser(not_null<PeerData*> peer) {
-	if (const auto user = peer->asUser()) {
-		return OnlineTextActive(user, base::unixtime::now());
-	}
-	return false;
+bool IsUserOnline(not_null<UserData*> user) {
+	return OnlineTextActive(user, base::unixtime::now());
+}
+
+bool ChannelHasActiveCall(not_null<ChannelData*> channel) {
+	return (channel->flags() & MTPDchannel::Flag::f_call_not_empty);
 }
 
 } // namespace Data

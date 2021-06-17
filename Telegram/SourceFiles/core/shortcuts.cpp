@@ -13,8 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "media/player/media_player_instance.h"
 #include "base/platform/base_platform_info.h"
+#include "platform/platform_specific.h"
 #include "base/parse_helper.h"
-#include "facades.h"
 
 #include <QtWidgets/QShortcut>
 #include <QtCore/QJsonDocument>
@@ -371,9 +371,9 @@ void Manager::fillDefaults() {
 	set(qsl("ctrl+4"), Command::ChatPinned4);
 	set(qsl("ctrl+5"), Command::ChatPinned5);
 
-	auto &&folders = ranges::view::zip(
+	auto &&folders = ranges::views::zip(
 		kShowFolder,
-		ranges::view::ints(1, ranges::unreachable));
+		ranges::views::ints(1, ranges::unreachable));
 
 	for (const auto [command, index] : folders) {
 		set(qsl("%1+%2").arg(ctrl).arg(index), command);
@@ -552,8 +552,6 @@ rpl::producer<not_null<Request*>> Requests() {
 }
 
 void Start() {
-	Assert(Global::started());
-
 	Data.fill();
 }
 

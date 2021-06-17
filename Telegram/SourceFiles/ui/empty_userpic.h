@@ -11,6 +11,8 @@ namespace Ui {
 
 class EmptyUserpic {
 public:
+	[[nodiscard]] static QString ExternalName();
+
 	EmptyUserpic(const style::color &color, const QString &name);
 
 	void paint(

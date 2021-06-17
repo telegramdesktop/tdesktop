@@ -59,6 +59,8 @@ FFmpeg::AvErrorWrap ProcessPacket(Stream &stream, FFmpeg::Packet &&packet) {
 				return FFmpeg::AvErrorWrap(); // Try to skip a bad packet.
 			}
 		}
+	} else {
+		stream.invalidDataPackets = 0;
 	}
 	return error;
 }
@@ -89,7 +91,9 @@ bool GoodForRequest(
 		const QImage &image,
 		int rotation,
 		const FrameRequest &request) {
-	if (request.resize.isEmpty()) {
+	if (image.isNull()) {
+		return false;
+	} else if (request.resize.isEmpty()) {
 		return true;
 	} else if (rotation != 0) {
 		return false;
@@ -137,8 +141,8 @@ QImage ConvertFrame(
 			- storage.width();
 		const auto deltaFrom = (frame->linesize[0] / sizeof(uint32))
 			- frame->width;
-		for (const auto y : ranges::view::ints(0, frame->height)) {
-			for (const auto x : ranges::view::ints(0, frame->width)) {
+		for (const auto y : ranges::views::ints(0, frame->height)) {
+			for (const auto x : ranges::views::ints(0, frame->width)) {
 				// Wipe out possible alpha values.
 				*to++ = 0xFF000000U | *from++;
 			}
@@ -170,6 +174,19 @@ QImage ConvertFrame(
 
 	FFmpeg::ClearFrameMemory(frame);
 	return storage;
+}
+
+FrameYUV420 ExtractYUV420(Stream &stream, AVFrame *frame) {
+	return {
+		.size = { frame->width, frame->height },
+		.chromaSize = {
+			AV_CEIL_RSHIFT(frame->width, 1), // SWScale does that.
+			AV_CEIL_RSHIFT(frame->height, 1)
+		},
+		.y = { .data = frame->data[0], .stride = frame->linesize[0] },
+		.u = { .data = frame->data[1], .stride = frame->linesize[1] },
+		.v = { .data = frame->data[2], .stride = frame->linesize[2] },
+	};
 }
 
 void PaintFrameOuter(QPainter &p, const QRect &inner, QSize outer) {

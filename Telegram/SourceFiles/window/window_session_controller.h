@@ -9,12 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/variable.h>
 #include "base/flags.h"
-#include "base/observer.h"
 #include "base/object_ptr.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 #include "ui/effects/animation_value.h"
+#include "window/window_adaptive.h"
 
 class PhotoData;
 class MainWidget;
@@ -45,6 +45,7 @@ class FormController;
 
 namespace Ui {
 class LayerWidget;
+enum class ReportReason;
 } // namespace Ui
 
 namespace Window {
@@ -132,7 +133,7 @@ public:
 	Main::Session &session() const;
 
 	virtual void showSection(
-		SectionMemento &&memento,
+		std::shared_ptr<SectionMemento> memento,
 		const SectionShow &params = SectionShow()) = 0;
 	virtual void showBackFromStack(
 		const SectionShow &params = SectionShow()) = 0;
@@ -150,6 +151,7 @@ public:
 		MsgId messageId = ShowAtUnreadMsgId;
 		RepliesByLinkInfo repliesInfo;
 		QString startToken;
+		std::optional<QString> voicechatHash;
 		FullMsgId clickFromMessageId;
 	};
 	void showPeerByLink(const PeerByLinkInfo &info);
@@ -225,7 +227,7 @@ private:
 
 };
 
-class SessionController : public SessionNavigation, private base::Subscriber {
+class SessionController : public SessionNavigation {
 public:
 	SessionController(
 		not_null<Main::Session*> session,
@@ -237,6 +239,7 @@ public:
 	}
 	[[nodiscard]] not_null<::MainWindow*> widget() const;
 	[[nodiscard]] not_null<MainWidget*> content() const;
+	[[nodiscard]] Adaptive &adaptive() const;
 
 	// We need access to this from MainWidget::MainWidget, where
 	// we can't call content() yet.
@@ -273,8 +276,8 @@ public:
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);
-	base::Observable<void> &gifPauseLevelChanged() {
-		return _gifPauseLevelChanged;
+	rpl::producer<> gifPauseLevelChanged() const {
+		return _gifPauseLevelChanged.events();
 	}
 	bool isGifPausedAtLeastFor(GifPauseReason reason) const;
 	void floatPlayerAreaUpdated();
@@ -296,8 +299,18 @@ public:
 	void resizeForThirdSection();
 	void closeThirdSection();
 
+	enum class GroupCallJoinConfirm {
+		None,
+		IfNowInAnother,
+		Always,
+	};
+	void startOrJoinGroupCall(
+		not_null<PeerData*> peer,
+		QString joinHash = QString(),
+		GroupCallJoinConfirm confirm = GroupCallJoinConfirm::IfNowInAnother);
+
 	void showSection(
-		SectionMemento &&memento,
+		std::shared_ptr<SectionMemento> memento,
 		const SectionShow &params = SectionShow()) override;
 	void showBackFromStack(
 		const SectionShow &params = SectionShow()) override;
@@ -321,8 +334,18 @@ public:
 		Dialogs::Key chat,
 		QDate requestedDate);
 
+	void showAddContact();
+	void showNewGroup();
+	void showNewChannel();
+
 	void showPassportForm(const Passport::FormRequest &request);
 	void clearPassportForm();
+
+	void showChooseReportMessages(
+		not_null<PeerData*> peer,
+		Ui::ReportReason reason,
+		Fn<void(MessageIdsList)> done);
+	void clearChooseReportMessages();
 
 	base::Variable<bool> &dialogsListFocused() {
 		return _dialogsListFocused;
@@ -384,7 +407,7 @@ private:
 	std::unique_ptr<FiltersMenu> _filters;
 
 	GifPauseReasons _gifPauseReasons = 0;
-	base::Observable<void> _gifPauseLevelChanged;
+	rpl::event_stream<> _gifPauseLevelChanged;
 
 	// Depends on _gifPause*.
 	const std::unique_ptr<ChatHelpers::TabbedSelector> _tabbedSelector;

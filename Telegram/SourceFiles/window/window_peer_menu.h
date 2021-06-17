@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "chat_helpers/send_context_menu.h"
 #include "data/data_poll.h"
 
 class History;
@@ -62,14 +63,14 @@ void PeerMenuShareContactBox(
 void PeerMenuAddChannelMembers(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel);
-//void PeerMenuUngroupFeed(not_null<Data::Feed*> feed); // #feed
 void PeerMenuCreatePoll(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	MsgId replyToId = 0,
 	PollData::Flags chosen = PollData::Flags(),
 	PollData::Flags disabled = PollData::Flags(),
-	Api::SendType sendType = Api::SendType::Normal);
+	Api::SendType sendType = Api::SendType::Normal,
+	SendMenu::Type sendMenuType = SendMenu::Type::Scheduled);
 
 struct ClearChat {
 };
@@ -83,6 +84,11 @@ void PeerMenuBlockUserBox(
 	std::variant<v::null_t, bool> suggestReport,
 	std::variant<v::null_t, ClearChat, ClearReply> suggestClear);
 void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user);
+
+void BlockSenderFromRepliesBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Window::SessionController*> controller,
+	FullMsgId id);
 
 void ToggleHistoryArchived(not_null<History*> history, bool archived);
 Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer);

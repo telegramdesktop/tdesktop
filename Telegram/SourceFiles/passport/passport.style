@@ -61,9 +61,6 @@ passportPasswordForgotBottom: 36px;
 passportPanelScroll: ScrollArea(defaultScrollArea) {
 	deltat: 6px;
 	deltab: 6px;
-
-	topsh: 0px;
-	bottomsh: 0px;
 }
 
 passportPanelAuthorize: RoundButton(passportPasswordSubmit) {
@@ -123,7 +120,7 @@ passportRowTitleFg: windowFg;
 passportRowDescriptionFg: windowSubTextFg;
 
 passportScansHeaderPadding: margins(22px, 10px, 22px, 10px);
-passportUploadButton: SettingsButton {
+passportUploadButton: SettingsButton(defaultSettingsButton) {
 	textFg: windowActiveTextFg;
 	textFgOver: windowActiveTextFg;
 	textBg: windowBg;

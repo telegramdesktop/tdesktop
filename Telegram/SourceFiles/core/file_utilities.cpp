@@ -94,7 +94,7 @@ QString filedialogDefaultName(
 		const auto nameBase = (dir.endsWith('/') ? dir : (dir + '/'))
 			+ base;
 		name = nameBase + extension;
-		for (int i = 0; QFileInfo(name).exists(); ++i) {
+		for (int i = 0; QFileInfo::exists(name); ++i) {
 			name = nameBase + qsl(" (%1)").arg(i + 2) + extension;
 		}
 	}
@@ -115,7 +115,7 @@ QString filedialogNextFilename(
 	const auto dir = directory.absolutePath();
 	const auto nameBase = (dir.endsWith('/') ? dir : (dir + '/')) + prefix;
 	auto result = nameBase + extension;
-	for (int i = 0; result.toLower() != cur.toLower() && QFileInfo(result).exists(); ++i) {
+	for (int i = 0; result.toLower() != cur.toLower() && QFileInfo::exists(result); ++i) {
 		result = nameBase + qsl(" (%1)").arg(i + 2) + extension;
 	}
 	return result;

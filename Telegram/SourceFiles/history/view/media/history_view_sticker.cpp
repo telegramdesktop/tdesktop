@@ -19,10 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/click_handler_types.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
-#include "mainwindow.h" // App::wnd()->sessionController.
 #include "window/window_session_controller.h" // isGifPausedAtLeastFor.
 #include "data/data_session.h"
 #include "data/data_document.h"
@@ -270,9 +270,23 @@ void Sticker::refreshLink() {
 				that->_parent);
 		});
 	} else if (sticker && sticker->set.type() != mtpc_inputStickerSetEmpty) {
-		_link = std::make_shared<LambdaClickHandler>([document = _data] {
-			StickerSetBox::Show(App::wnd()->sessionController(), document);
+		_link = std::make_shared<LambdaClickHandler>([document = _data](ClickContext context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			if (const auto window = my.sessionWindow.get()) {
+				StickerSetBox::Show(window, document);
+			}
 		});
+	} else if (sticker
+		&& (_data->dimensions.width() > kStickerSideSize
+			|| _data->dimensions.height() > kStickerSideSize)
+		&& !_parent->data()->isSending()
+		&& !_parent->data()->hasFailed()) {
+		// In case we have a .webp file that is displayed as a sticker, but
+		// that doesn't fit in 512x512, we assume it may be a regular large
+		// .webp image and we allow to open it in media viewer.
+		_link = std::make_shared<DocumentOpenClickHandler>(
+			_data,
+			_parent->data()->fullId());
 	}
 }
 

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/openssl_help.h"
 #include "base/variant.h"
 #include "api/api_common.h"
 #include "ui/chat/attach/attach_prepare.h"
@@ -22,13 +23,47 @@ enum class SendMediaType {
 };
 
 struct SendMediaPrepare {
-	SendMediaPrepare(const QString &file, const PeerId &peer, SendMediaType type, MsgId replyTo) : id(rand_value<PhotoId>()), file(file), peer(peer), type(type), replyTo(replyTo) {
+	SendMediaPrepare(
+		const QString &file,
+		const PeerId &peer,
+		SendMediaType type,
+		MsgId replyTo) : id(openssl::RandomValue<PhotoId>()),
+		file(file),
+		peer(peer),
+		type(type),
+		replyTo(replyTo) {
 	}
-	SendMediaPrepare(const QImage &img, const PeerId &peer, SendMediaType type, MsgId replyTo) : id(rand_value<PhotoId>()), img(img), peer(peer), type(type), replyTo(replyTo) {
+	SendMediaPrepare(
+		const QImage &img,
+		const PeerId &peer,
+		SendMediaType type,
+		MsgId replyTo) : id(openssl::RandomValue<PhotoId>()),
+		img(img),
+		peer(peer),
+		type(type),
+		replyTo(replyTo) {
 	}
-	SendMediaPrepare(const QByteArray &data, const PeerId &peer, SendMediaType type, MsgId replyTo) : id(rand_value<PhotoId>()), data(data), peer(peer), type(type), replyTo(replyTo) {
+	SendMediaPrepare(
+		const QByteArray &data,
+		const PeerId &peer,
+		SendMediaType type,
+		MsgId replyTo) : id(openssl::RandomValue<PhotoId>()),
+		data(data),
+		peer(peer),
+		type(type),
+		replyTo(replyTo) {
 	}
-	SendMediaPrepare(const QByteArray &data, int duration, const PeerId &peer, SendMediaType type, MsgId replyTo) : id(rand_value<PhotoId>()), data(data), peer(peer), type(type), duration(duration), replyTo(replyTo) {
+	SendMediaPrepare(
+		const QByteArray &data,
+		int duration,
+		const PeerId &peer,
+		SendMediaType type,
+		MsgId replyTo) : id(openssl::RandomValue<PhotoId>()),
+		data(data),
+		peer(peer),
+		type(type),
+		duration(duration),
+		replyTo(replyTo) {
 	}
 	PhotoId id;
 	QString file;
@@ -109,10 +144,10 @@ public:
 
 	~TaskQueue();
 
-signals:
+Q_SIGNALS:
 	void taskAdded();
 
-public slots:
+public Q_SLOTS:
 	void onTaskProcessed();
 	void stop();
 
@@ -138,10 +173,10 @@ public:
 	TaskQueueWorker(TaskQueue *queue) : _queue(queue) {
 	}
 
-signals:
+Q_SIGNALS:
 	void taskProcessed();
 
-public slots:
+public Q_SLOTS:
 	void onTaskAdded();
 
 private:
@@ -177,14 +212,20 @@ struct SendingAlbum {
 };
 
 struct FileLoadTo {
-	FileLoadTo(const PeerId &peer, Api::SendOptions options, MsgId replyTo)
+	FileLoadTo(
+		const PeerId &peer,
+		Api::SendOptions options,
+		MsgId replyTo,
+		MsgId replaceMediaOf)
 	: peer(peer)
 	, options(options)
-	, replyTo(replyTo) {
+	, replyTo(replyTo)
+	, replaceMediaOf(replaceMediaOf) {
 	}
 	PeerId peer;
 	Api::SendOptions options;
 	MsgId replyTo;
+	MsgId replaceMediaOf;
 };
 
 struct FileLoadResult {
@@ -226,8 +267,6 @@ struct FileLoadResult {
 	PreparedPhotoThumbs photoThumbs;
 	TextWithTags caption;
 
-	bool edit = false;
-
 	void setFileData(const QByteArray &filedata);
 	void setThumbData(const QByteArray &thumbdata);
 
@@ -252,8 +291,7 @@ public:
 		SendMediaType type,
 		const FileLoadTo &to,
 		const TextWithTags &caption,
-		std::shared_ptr<SendingAlbum> album = nullptr,
-		MsgId msgIdToEdit = 0);
+		std::shared_ptr<SendingAlbum> album = nullptr);
 	FileLoadTask(
 		not_null<Main::Session*> session,
 		const QByteArray &voice,
@@ -311,7 +349,6 @@ private:
 	VoiceWaveform _waveform;
 	SendMediaType _type;
 	TextWithTags _caption;
-	MsgId _msgIdToEdit = 0;
 
 	std::shared_ptr<FileLoadResult> _result;
 

@@ -29,7 +29,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout e052c49
+    git checkout 8764c08
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -58,7 +58,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout e052c49
+    git checkout 8764c08
     cd ..
 
     git clone https://git.tukaani.org/xz.git
@@ -68,17 +68,8 @@ Go to ***BuildPath*** and run
     cd build
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.12 -D CMAKE_INSTALL_PREFIX:STRING=/usr/local/macos ..
     make $MAKE_THREADS_CNT
-    cd ../..
-
-    xz_ver=5.2.4
-    wget https://tukaani.org/xz/xz-$xz_ver.tar.gz
-    tar -xvzf xz-$xz_ver.tar.gz
-    rm xz-$xz_ver.tar.gz
-    cd xz-$xz_ver
-    CFLAGS="$MIN_VER" LDFLAGS="$MIN_VER" ./configure --prefix=/usr/local/macos
-    make $MAKE_THREADS_CNT
     sudo make install
-    cd ..
+    cd ../..
 
     git clone https://github.com/desktop-app/zlib.git
     cd zlib
@@ -106,7 +97,7 @@ Go to ***BuildPath*** and run
     make build_libs $MAKE_THREADS_CNT
     cd ..
 
-    git clone https://github.com/xiph/opus
+    git clone https://github.com/xiph/opus.git
     cd opus
     git checkout v1.3
     ./autogen.sh
@@ -114,6 +105,21 @@ Go to ***BuildPath*** and run
     make $MAKE_THREADS_CNT
     sudo make install
     cd ..
+
+    git clone https://github.com/desktop-app/rnnoise.git
+    cd rnnoise
+    mkdir out
+    cd out
+    mkdir Debug
+    cd Debug
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug ../..
+    ninja
+    cd ..
+    mkdir Release
+    cd Release
+    cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ../..
+    ninja
+    cd ../../..
 
     libiconv_ver=1.16
     wget https://ftp.gnu.org/pub/gnu/libiconv/libiconv-$libiconv_ver.tar.gz
@@ -127,15 +133,15 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
-    git checkout release/4.2
+    git checkout release/4.4
     CFLAGS=`freetype-config --cflags`
     LDFLAGS=`freetype-config --libs`
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig
     cp ../patches/macos_yasm_wrap.sh ./
 
     ./configure --prefix=/usr/local/macos \
-    --extra-cflags="$MIN_VER $UNGUARDED" \
-    --extra-cxxflags="$MIN_VER $UNGUARDED" \
+    --extra-cflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1" \
+    --extra-cxxflags="$MIN_VER $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1" \
     --extra-ldflags="$MIN_VER" \
     --x86asmexe=`pwd`/macos_yasm_wrap.sh \
     --enable-protocol=file \
@@ -205,7 +211,6 @@ Go to ***BuildPath*** and run
     --enable-decoder=pcm_u32be \
     --enable-decoder=pcm_u32le \
     --enable-decoder=pcm_u8 \
-    --enable-decoder=pcm_zork \
     --enable-decoder=vorbis \
     --enable-decoder=wavpack \
     --enable-decoder=wmalossless \
@@ -240,10 +245,8 @@ Go to ***BuildPath*** and run
     sudo make install
     cd ..
 
-    git clone https://github.com/telegramdesktop/openal-soft.git
-    cd openal-soft
-    git checkout fix_mono
-    cd build
+    git clone --branch capture_with_webrtc https://github.com/telegramdesktop/openal-soft.git
+    cd openal-soft/build
     CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -D CMAKE_INSTALL_PREFIX:PATH=/usr/local/macos -D ALSOFT_EXAMPLES=OFF -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.12 ..
     make $MAKE_THREADS_CNT
     sudo make install
@@ -269,16 +272,16 @@ Go to ***BuildPath*** and run
     ninja -C out/Release
     cd ..
 
-    git clone git://code.qt.io/qt/qt5.git qt_5_15_1
-    cd qt_5_15_1
+    git clone git://code.qt.io/qt/qt5.git qt_5_15_2
+    cd qt_5_15_2
     perl init-repository --module-subset=qtbase,qtimageformats
-    git checkout v5.15.1
+    git checkout v5.15.2
     git submodule update qtbase qtimageformats
     cd qtbase
-    find ../../patches/qtbase_5_15_1 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_5_15_2 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
-    ./configure -prefix "/usr/local/desktop-app/Qt-5.15.1" \
+    ./configure -prefix "/usr/local/desktop-app/Qt-5.15.2" \
         -debug-and-release \
         -force-debug-info \
         -opensource \
@@ -300,12 +303,16 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
+    git checkout 56f0e53eac
+    git submodule init
+    git submodule update
     mkdir out
     cd out
     mkdir Debug
     cd Debug
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Debug \
+        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=mac \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/macos/include \
         -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \
@@ -317,6 +324,7 @@ Go to ***BuildPath*** and run
     cd Release
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
+        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
         -DTG_OWT_SPECIAL_TARGET=mac \
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=/usr/local/macos/include \
         -DTG_OWT_OPENSSL_INCLUDE_PATH=`pwd`/../../../openssl_1_1_1/include \

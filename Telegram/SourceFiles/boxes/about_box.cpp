@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "core/click_handler_types.h"
 #include "core/update_checker.h"
+#include "core/application.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -88,8 +89,10 @@ void AboutBox::resizeEvent(QResizeEvent *e) {
 void AboutBox::showVersionHistory() {
 	if (cRealAlphaVersion()) {
 		auto url = qsl("https://tdesktop.com/");
-		if (Platform::IsWindows()) {
+		if (Platform::IsWindows32Bit()) {
 			url += qsl("win/%1.zip");
+		} else if (Platform::IsWindows64Bit()) {
+			url += qsl("win64/%1.zip");
 		} else if (Platform::IsOSXBuild()) {
 			url += qsl("osx/%1.zip");
 		} else if (Platform::IsMac()) {
@@ -107,7 +110,7 @@ void AboutBox::showVersionHistory() {
 
 		Ui::show(Box<InformBox>("The link to the current private alpha version of Telegram Desktop was copied to the clipboard."));
 	} else {
-		UrlClickHandler::Open(qsl("https://desktop.telegram.org/changelog"));
+		UrlClickHandler::Open(Core::App().changelogLink());
 	}
 }
 
@@ -142,6 +145,9 @@ QString currentVersionText() {
 		result += qsl(" alpha %1").arg(cAlphaVersion() % 1000);
 	} else if (AppBetaVersion) {
 		result += " beta";
+	}
+	if (Platform::IsWindows64Bit()) {
+		result += " x64";
 	}
 	return result;
 }

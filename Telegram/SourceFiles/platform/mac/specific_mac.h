@@ -22,18 +22,6 @@ inline QImage GetImageFromClipboard() {
 	return {};
 }
 
-inline bool StartSystemMove(QWindow *window) {
-	return false;
-}
-
-inline bool StartSystemResize(QWindow *window, Qt::Edges edges) {
-	return false;
-}
-
-inline bool ShowWindowMenu(QWindow *window) {
-	return false;
-}
-
 inline bool AutostartSupported() {
 	return false;
 }
@@ -43,18 +31,6 @@ inline bool TrayIconSupported() {
 }
 
 inline bool SkipTaskbarSupported() {
-	return false;
-}
-
-inline bool SetWindowExtents(QWindow *window, const QMargins &extents) {
-	return false;
-}
-
-inline bool UnsetWindowExtents(QWindow *window) {
-	return false;
-}
-
-inline bool WindowsNeedShadow() {
 	return false;
 }
 
@@ -76,14 +52,10 @@ inline void psCheckLocalSocket(const QString &serverName) {
 	}
 }
 
-void psWriteDump();
-
 void psActivateProcess(uint64 pid = 0);
 QString psAppDataPath();
 void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
-
-QRect psDesktopRect();
 
 int psCleanup();
 int psFixPrevious();

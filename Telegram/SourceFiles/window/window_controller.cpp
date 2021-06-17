@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "export/export_manager.h"
 #include "platform/platform_window_title.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -40,6 +41,7 @@ namespace Window {
 
 Controller::Controller()
 : _widget(this)
+, _adaptive(std::make_unique<Adaptive>())
 , _isActiveTimer([=] { updateIsActive(); }) {
 	_widget.init();
 }
@@ -81,7 +83,7 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 			_sessionController->filtersMenuChanged(
 			) | rpl::start_with_next([=] {
 				sideBarChanged();
-			}, session->lifetime());
+			}, _sessionController->lifetime());
 		}
 		if (session && session->settings().dialogsFiltersEnabled()) {
 			_sessionController->toggleFiltersMenu(true);
@@ -92,11 +94,18 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 		if (session) {
 			setupMain();
 
+			session->updates().isIdleValue(
+			) | rpl::filter([=](bool idle) {
+				return !idle;
+			}) | rpl::start_with_next([=] {
+				widget()->checkHistoryActivation();
+			}, _sessionController->lifetime());
+
 			session->termsLockValue(
 			) | rpl::start_with_next([=] {
 				checkLockByTerms();
 				_widget.updateGlobalMenu();
-			}, _lifetime);
+			}, _sessionController->lifetime());
 		} else {
 			setupIntro();
 			_widget.updateGlobalMenu();
@@ -257,6 +266,7 @@ void Controller::showSettings() {
 
 int Controller::verticalShadowTop() const {
 	return (Platform::NativeTitleRequiresShadow()
+		&& Platform::AllowNativeWindowFrameToggle()
 		&& Core::App().settings().nativeWindowFrame())
 		? st::lineWidth
 		: 0;
@@ -306,7 +316,8 @@ void Controller::updateIsActive() {
 }
 
 void Controller::minimize() {
-	if (Global::WorkMode().value() == dbiwmTrayOnly) {
+	if (Core::App().settings().workMode()
+			== Core::Settings::WorkMode::TrayOnly) {
 		_widget.minimizeToTray();
 	} else {
 		_widget.setWindowState(_widget.windowState() | Qt::WindowMinimized);
@@ -317,12 +328,49 @@ void Controller::close() {
 	_widget.close();
 }
 
+void Controller::preventOrInvoke(Fn<void()> &&callback) {
+	_widget.preventOrInvoke(std::move(callback));
+}
+
 QPoint Controller::getPointForCallPanelCenter() const {
 	Expects(_widget.windowHandle() != nullptr);
 
 	return _widget.isActive()
 		? _widget.geometry().center()
 		: _widget.windowHandle()->screen()->geometry().center();
+}
+
+void Controller::showLogoutConfirmation() {
+	const auto account = Core::App().passcodeLocked()
+		? nullptr
+		: sessionController()
+		? &sessionController()->session().account()
+		: nullptr;
+	const auto weak = base::make_weak(account);
+	const auto callback = [=] {
+		if (account && !weak) {
+			return;
+		}
+		if (account
+			&& account->sessionExists()
+			&& Core::App().exportManager().inProgress(&account->session())) {
+			Ui::hideLayer();
+			Core::App().exportManager().stopWithConfirmation([=] {
+				Core::App().logout(account);
+			});
+		} else {
+			Core::App().logout(account);
+		}
+	};
+	show(Box<ConfirmBox>(
+		tr::lng_sure_logout(tr::now),
+		tr::lng_settings_logout(tr::now),
+		st::attentionBoxButton,
+		callback));
+}
+
+Window::Adaptive &Controller::adaptive() const {
+	return *_adaptive;
 }
 
 } // namespace Window

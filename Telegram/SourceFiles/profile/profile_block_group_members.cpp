@@ -84,7 +84,7 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 				return it->second.rights;
 			}
 		}
-		return MTP_chatBannedRights(MTP_flags(0), MTP_int(0));
+		return ChannelData::EmptyRestrictedRights(user);
 	}();
 
 	const auto peer = this->peer();
@@ -140,7 +140,7 @@ void GroupMembersWidget::refreshUserOnline(UserData *user) {
 
 	_now = base::unixtime::now();
 
-	auto member = getMember(it.value());
+	auto member = getMember(it->second);
 	member->statusHasOnlineColor = !user->isBot()
 		&& Data::OnlineTextActive(user->onlineTill, _now);
 	member->onlineTill = user->onlineTill;
@@ -256,7 +256,7 @@ void GroupMembersWidget::updateOnlineCount() {
 	}
 	if (_onlineCount != newOnlineCount) {
 		_onlineCount = newOnlineCount;
-		emit onlineCountUpdated(_onlineCount);
+		onlineCountUpdated(_onlineCount);
 	}
 }
 
@@ -420,16 +420,16 @@ void GroupMembersWidget::setItemFlags(
 
 auto GroupMembersWidget::computeMember(not_null<UserData*> user)
 -> not_null<Member*> {
-	auto it = _membersByUser.constFind(user);
+	auto it = _membersByUser.find(user);
 	if (it == _membersByUser.cend()) {
 		auto member = new Member(user);
-		it = _membersByUser.insert(user, member);
+		it = _membersByUser.emplace(user, member).first;
 		member->statusHasOnlineColor = !user->isBot()
 			&& Data::OnlineTextActive(user->onlineTill, _now);
 		member->onlineTill = user->onlineTill;
 		member->onlineForSort = Data::SortByOnlineValue(user, _now);
 	}
-	return it.value();
+	return it->second;
 }
 
 void GroupMembersWidget::onUpdateOnlineDisplay() {
@@ -461,7 +461,7 @@ void GroupMembersWidget::onUpdateOnlineDisplay() {
 
 GroupMembersWidget::~GroupMembersWidget() {
 	auto members = base::take(_membersByUser);
-	for_const (auto member, members) {
+	for (const auto &[_, member] : members) {
 		delete member;
 	}
 }

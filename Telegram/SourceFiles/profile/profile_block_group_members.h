@@ -36,10 +36,10 @@ public:
 
 	~GroupMembersWidget();
 
-signals:
+Q_SIGNALS:
 	void onlineCountUpdated(int onlineCount);
 
-private slots:
+private Q_SLOTS:
 	void onUpdateOnlineDisplay();
 
 private:
@@ -79,7 +79,7 @@ private:
 		not_null<ChannelData*> megagroup);
 	bool addUsersToEnd(not_null<ChannelData*> megagroup);
 
-	QMap<UserData*, Member*> _membersByUser;
+	base::flat_map<UserData*, Member*> _membersByUser;
 	bool _sortByOnline = false;
 	TimeId _now = 0;
 

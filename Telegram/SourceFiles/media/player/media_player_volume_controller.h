@@ -64,7 +64,7 @@ protected:
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
-private slots:
+private Q_SLOTS:
 	void onShowStart();
 	void onHideStart();
 

@@ -18,6 +18,7 @@ namespace Ui {
 class VerticalLayout;
 class FlatLabel;
 class SettingsButton;
+class AbstractButton;
 } // namespace Ui
 
 namespace Window {
@@ -70,12 +71,18 @@ void AddDivider(not_null<Ui::VerticalLayout*> container);
 void AddDividerText(
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text);
+not_null<Ui::RpWidget*> AddButtonIcon(
+	not_null<Ui::AbstractButton*> button,
+	const style::icon *leftIcon,
+	int iconLeft,
+	const style::color *leftIconOver);
 object_ptr<Button> CreateButton(
 	not_null<QWidget*> parent,
 	rpl::producer<QString> text,
 	const style::SettingsButton &st,
 	const style::icon *leftIcon = nullptr,
-	int iconLeft = 0);
+	int iconLeft = 0,
+	const style::color *leftIconOver = nullptr);
 not_null<Button*> AddButton(
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text,

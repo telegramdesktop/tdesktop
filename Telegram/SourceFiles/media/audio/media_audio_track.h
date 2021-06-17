@@ -96,10 +96,6 @@ public:
 
 	std::unique_ptr<Track> createTrack();
 
-	base::Observable<Track*> &trackFinished() {
-		return _trackFinished;
-	}
-
 	void detachTracks();
 	void reattachTracks();
 	bool hasActiveTracks() const;
@@ -119,7 +115,6 @@ private:
 
 private:
 	std::set<Track*> _tracks;
-	base::Observable<Track*> _trackFinished;
 
 	base::Timer _updateTimer;
 

@@ -30,9 +30,11 @@ namespace {
 [[nodiscard]] ProxyData::Status HexMtprotoPasswordStatus(
 		const QString &password) {
 	const auto size = password.size() / 2;
+	const auto type1 = password[0].toLower();
+	const auto type2 = password[1].toLower();
 	const auto valid = (size == 16)
-		|| (size == 17 && (password[0] == 'd') && (password[1] == 'd'))
-		|| (size >= 21 && (password[0] == 'e') && (password[1] == 'e'));
+		|| (size == 17 && (type1 == 'd') && (type2 == 'd'))
+		|| (size >= 21 && (type1 == 'e') && (type2 == 'e'));
 	if (valid) {
 		return ProxyData::Status::Valid;
 	} else if (size < 16) {

@@ -51,8 +51,7 @@ class BlockPeerBoxController
 	: public ChatsListBoxController
 	, private base::Subscriber {
 public:
-	explicit BlockPeerBoxController(
-		not_null<Window::SessionNavigation*> navigation);
+	explicit BlockPeerBoxController(not_null<Main::Session*> session);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -72,19 +71,19 @@ protected:
 private:
 	void updateIsBlocked(not_null<PeerListRow*> row, PeerData *peer) const;
 
-	const not_null<Window::SessionNavigation*> _navigation;
+	const not_null<Main::Session*> _session;
 	Fn<void(not_null<PeerData*> peer)> _blockPeerCallback;
 
 };
 
 BlockPeerBoxController::BlockPeerBoxController(
-	not_null<Window::SessionNavigation*> navigation)
-: ChatsListBoxController(navigation)
-, _navigation(navigation) {
+	not_null<Main::Session*> session)
+: ChatsListBoxController(session)
+, _session(session) {
 }
 
 Main::Session &BlockPeerBoxController::session() const {
-	return _navigation->session();
+	return *_session;
 }
 
 void BlockPeerBoxController::prepareViewHook() {
@@ -92,7 +91,7 @@ void BlockPeerBoxController::prepareViewHook() {
 	session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::IsBlocked
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
-		if (auto row = delegate()->peerListFindRow(update.peer->id)) {
+		if (auto row = delegate()->peerListFindRow(update.peer->id.value)) {
 			updateIsBlocked(row, update.peer);
 			delegate()->peerListUpdateRow(row);
 		}
@@ -168,7 +167,8 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		MTPstring(), // post_author
 		MTPlong(), // grouped_id
 		//MTPMessageReactions(),
-		MTPVector<MTPRestrictionReason>()
+		MTPVector<MTPRestrictionReason>(),
+		MTPint() // ttl_period
 	).match([&](const MTPDmessage &data) {
 		return history->makeMessage(
 			data,
@@ -246,7 +246,7 @@ void BlockedBoxController::loadMoreRows() {
 		} break;
 		default: Unexpected("Bad type() in MTPcontacts_GetBlocked() result.");
 		}
-	}).fail([this](const RPCError &error) {
+	}).fail([this](const MTP::Error &error) {
 		_loadRequestId = 0;
 	}).send();
 }
@@ -286,7 +286,7 @@ void BlockedBoxController::handleBlockedEvent(not_null<PeerData*> user) {
 			delegate()->peerListRefreshRows();
 			delegate()->peerListScrollToTop();
 		}
-	} else if (auto row = delegate()->peerListFindRow(user->id)) {
+	} else if (auto row = delegate()->peerListFindRow(user->id.value)) {
 		delegate()->peerListRemoveRow(row);
 		delegate()->peerListRefreshRows();
 	}
@@ -294,7 +294,8 @@ void BlockedBoxController::handleBlockedEvent(not_null<PeerData*> user) {
 
 void BlockedBoxController::BlockNewPeer(
 		not_null<Window::SessionController*> window) {
-	auto controller = std::make_unique<BlockPeerBoxController>(window);
+	auto controller = std::make_unique<BlockPeerBoxController>(
+		&window->session());
 	auto initBox = [=, controller = controller.get()](
 			not_null<PeerListBox*> box) {
 		controller->setBlockPeerCallback([=](not_null<PeerData*> peer) {
@@ -309,7 +310,7 @@ void BlockedBoxController::BlockNewPeer(
 }
 
 bool BlockedBoxController::appendRow(not_null<PeerData*> peer) {
-	if (delegate()->peerListFindRow(peer->id)) {
+	if (delegate()->peerListFindRow(peer->id.value)) {
 		return false;
 	}
 	delegate()->peerListAppendRow(createRow(peer));
@@ -317,7 +318,7 @@ bool BlockedBoxController::appendRow(not_null<PeerData*> peer) {
 }
 
 bool BlockedBoxController::prependRow(not_null<PeerData*> peer) {
-	if (delegate()->peerListFindRow(peer->id)) {
+	if (delegate()->peerListFindRow(peer->id.value)) {
 		return false;
 	}
 	delegate()->peerListPrependRow(createRow(peer));
@@ -745,7 +746,7 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 	auto message = GenerateForwardedItem(
 		delegate(),
 		_controller->session().data().history(
-			peerFromUser(PeerData::kServiceNotificationsId)),
+			PeerData::kServiceNotificationsId),
 		tr::lng_edit_privacy_forwards_sample_message(tr::now));
 	const auto view = message.get();
 

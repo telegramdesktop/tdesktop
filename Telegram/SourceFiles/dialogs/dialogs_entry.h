@@ -155,6 +155,7 @@ public:
 	virtual bool chatListMessageKnown() const = 0;
 	virtual void requestChatListMessage() = 0;
 	virtual const QString &chatListName() const = 0;
+	virtual const QString &chatListNameSortKey() const = 0;
 	virtual const base::flat_set<QString> &chatListNameWords() const = 0;
 	virtual const base::flat_set<QChar> &chatListFirstLetters() const = 0;
 

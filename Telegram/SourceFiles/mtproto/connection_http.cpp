@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mtproto/connection_http.h"
 
+#include "base/openssl_help.h"
 #include "base/qthelp_url.h"
 
 namespace MTP {
@@ -20,7 +21,7 @@ constexpr auto kFullConnectionTimeout = crl::time(8000);
 
 HttpConnection::HttpConnection(QThread *thread, const ProxyData &proxy)
 : AbstractConnection(thread, proxy)
-, _checkNonce(rand_value<MTPint128>()) {
+, _checkNonce(openssl::RandomValue<MTPint128>()) {
 	_manager.moveToThread(thread);
 	_manager.setProxy(ToNetworkProxy(proxy));
 }
@@ -66,7 +67,8 @@ void HttpConnection::connectToServer(
 		const QString &address,
 		int port,
 		const bytes::vector &protocolSecret,
-		int16 protocolDcId) {
+		int16 protocolDcId,
+		bool protocolForFiles) {
 	_address = address;
 	connect(
 		&_manager,
@@ -121,7 +123,13 @@ qint32 HttpConnection::handleError(QNetworkReply *reply) { // returnes "maybe ba
 	case QNetworkReply::TemporaryNetworkFailureError:
 	case QNetworkReply::NetworkSessionFailedError:
 	case QNetworkReply::BackgroundRequestNotAllowedError:
-	case QNetworkReply::UnknownNetworkError: LOG(("HTTP Error: network error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
+	case QNetworkReply::UnknownNetworkError:
+		if (reply->error() == QNetworkReply::UnknownNetworkError) {
+			DEBUG_LOG(("HTTP Error: network error %1 - %2").arg(reply->error()).arg(reply->errorString()));
+		} else {
+			LOG(("HTTP Error: network error %1 - %2").arg(reply->error()).arg(reply->errorString()));
+		}
+		break;
 
 	// proxy errors (101-199):
 	case QNetworkReply::ProxyConnectionRefusedError:
@@ -162,11 +170,11 @@ void HttpConnection::requestFinished(QNetworkReply *reply) {
 
 		mtpBuffer data = handleResponse(reply);
 		if (data.size() == 1) {
-			emit error(data[0]);
+			error(data[0]);
 		} else if (!data.isEmpty()) {
 			if (_status == Status::Ready) {
 				_receivedQueue.push_back(data);
-				emit receivedData();
+				receivedData();
 			} else if (const auto res_pq = readPQFakeReply(data)) {
 				const auto &data = res_pq->c_resPQ();
 				if (data.vnonce() == _checkNonce) {
@@ -175,16 +183,16 @@ void HttpConnection::requestFinished(QNetworkReply *reply) {
 						).arg(_address));
 					_status = Status::Ready;
 					_pingTime = crl::now() - _pingTime;
-					emit connected();
+					connected();
 				} else {
 					DEBUG_LOG(("Connection Error: "
 						"Wrong nonce received in HTTP fake pq-responce"));
-					emit error(kErrorCodeOther);
+					error(kErrorCodeOther);
 				}
 			} else {
 				DEBUG_LOG(("Connection Error: "
 					"Could not parse HTTP fake pq-responce"));
-				emit error(kErrorCodeOther);
+				error(kErrorCodeOther);
 			}
 		}
 	} else {
@@ -192,7 +200,7 @@ void HttpConnection::requestFinished(QNetworkReply *reply) {
 			return;
 		}
 
-		emit error(handleError(reply));
+		error(handleError(reply));
 	}
 }
 

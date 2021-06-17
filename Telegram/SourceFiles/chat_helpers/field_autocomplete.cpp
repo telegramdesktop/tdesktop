@@ -33,8 +33,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "base/unixtime.h"
+#include "base/openssl_help.h"
+#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
-#include "facades.h"
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat_helpers.h"
@@ -122,6 +123,8 @@ private:
 
 	bool _previewShown = false;
 
+	bool _isOneColumn = false;
+
 	Fn<SendMenu::Type()> _sendMenuType;
 
 	rpl::event_stream<FieldAutocomplete::MentionChosen> _mentionChosen;
@@ -139,7 +142,7 @@ FieldAutocomplete::FieldAutocomplete(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _scroll(this, st::mentionScroll) {
+, _scroll(this) {
 	hide();
 
 	_scroll->setGeometry(rect());
@@ -307,9 +310,9 @@ FieldAutocomplete::StickerRows FieldAutocomplete::getStickerSuggestions() {
 		_emoji,
 		_stickersSeed
 	);
-	auto result = ranges::view::all(
+	auto result = ranges::views::all(
 		list
-	) | ranges::view::transform([](not_null<DocumentData*> sticker) {
+	) | ranges::views::transform([](not_null<DocumentData*> sticker) {
 		return StickerSuggestion{
 			sticker,
 			sticker->createMediaView()
@@ -405,7 +408,6 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				mrows.push_back({ i->second });
 			}
 		} else if (_channel && _channel->isMegagroup()) {
-			QMultiMap<int32, UserData*> ordered;
 			if (_channel->lastParticipantsRequestNeeded()) {
 				_channel->session().api().requestLastParticipants(_channel);
 			} else {
@@ -436,7 +438,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 	} else if (_type == Type::BotCommands) {
 		bool listAllSuggestions = _filter.isEmpty();
 		bool hasUsername = _filter.indexOf('@') > 0;
-		QMap<UserData*, bool> bots;
+		base::flat_map<UserData*, bool> bots;
 		int32 cnt = 0;
 		if (_chat) {
 			if (_chat->noParticipantInfo()) {
@@ -451,7 +453,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					if (user->botInfo->commands.isEmpty()) {
 						continue;
 					}
-					bots.insert(user, true);
+					bots.emplace(user, true);
 					cnt += user->botInfo->commands.size();
 				}
 			}
@@ -460,7 +462,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				_user->session().api().requestFullPeer(_user);
 			}
 			cnt = _user->botInfo->commands.size();
-			bots.insert(_user, true);
+			bots.emplace(_user, true);
 		} else if (_channel && _channel->isMegagroup()) {
 			if (_channel->mgInfo->bots.empty()) {
 				if (!_channel->mgInfo->botStatus) {
@@ -476,7 +478,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					if (user->botInfo->commands.isEmpty()) {
 						continue;
 					}
-					bots.insert(user, true);
+					bots.emplace(user, true);
 					cnt += user->botInfo->commands.size();
 				}
 			}
@@ -510,9 +512,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					}
 				}
 			}
-			if (!bots.isEmpty()) {
-				for (QMap<UserData*, bool>::const_iterator i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
-					UserData *user = i.key();
+			if (!bots.empty()) {
+				for (auto i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
+					UserData *user = i->first;
 					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
 						if (!listAllSuggestions) {
 							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
@@ -636,7 +638,7 @@ void FieldAutocomplete::showAnimated() {
 		return;
 	}
 	if (_cache.isNull()) {
-		_stickersSeed = rand_value<uint64>();
+		_stickersSeed = openssl::RandomValue<uint64>();
 		_scroll->show();
 		_cache = Ui::GrabWidget(this);
 	}
@@ -741,6 +743,12 @@ FieldAutocomplete::Inner::Inner(
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
+
+	controller->adaptive().changed(
+	) | rpl::start_with_next([=] {
+		_isOneColumn = controller->adaptive().isOneColumn();
+		update();
+	}, lifetime());
 }
 
 void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
@@ -759,7 +767,7 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 	auto htagwidth = width()
 		- st::mentionPadding.right()
 		- htagleft
-		- st::mentionScroll.width;
+		- st::defaultScrollArea.width;
 
 	if (!_srows->empty()) {
 		int32 rows = rowscount(_srows->size(), _stickersPerRow);
@@ -801,8 +809,8 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				} else {
 					const auto coef = std::min(
 						std::min(
-							(st::stickerPanSize.width() - st::buttonRadius * 2) / float64(document->dimensions.width()),
-							(st::stickerPanSize.height() - st::buttonRadius * 2) / float64(document->dimensions.height())),
+							(st::stickerPanSize.width() - st::roundRadiusSmall * 2) / float64(document->dimensions.width()),
+							(st::stickerPanSize.height() - st::roundRadiusSmall * 2) / float64(document->dimensions.height())),
 						1.);
 					w = std::max(qRound(coef * document->dimensions.width()), 1);
 					h = std::max(qRound(coef * document->dimensions.height()), 1);
@@ -937,9 +945,9 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				}
 			}
 		}
-		p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerBottom() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
+		p.fillRect(_isOneColumn ? 0 : st::lineWidth, _parent->innerBottom() - st::lineWidth, width() - (_isOneColumn ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
 	}
-	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerTop(), width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
+	p.fillRect(_isOneColumn ? 0 : st::lineWidth, _parent->innerTop(), width() - (_isOneColumn ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
 }
 
 void FieldAutocomplete::Inner::resizeEvent(QResizeEvent *e) {
@@ -1013,7 +1021,7 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 		FieldAutocomplete::ChooseMethod method,
 		int index,
 		Api::SendOptions options) const {
-	if (index < 0) {
+	if (index < 0 || (method == ChooseMethod::ByEnter && _mouseSelection)) {
 		return false;
 	}
 	if (!_srows->empty()) {
@@ -1045,9 +1053,9 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 			const auto insertUsername = (botStatus == 0
 				|| botStatus == 2
 				|| _parent->filter().indexOf('@') > 0);
-			const auto commandString = QString("/%1%2")
-				.arg(command->command)
-				.arg(insertUsername ? ('@' + user->username) : QString());
+			const auto commandString = QString("/%1%2").arg(
+				command->command,
+				insertUsername ? ('@' + user->username) : QString());
 
 			_botCommandChosen.fire({ commandString, method });
 			return true;
@@ -1138,7 +1146,7 @@ void FieldAutocomplete::Inner::contextMenuEvent(QContextMenuEvent *e) {
 		SendMenu::DefaultSilentCallback(send),
 		SendMenu::DefaultScheduleCallback(this, type, send));
 
-	if (!_menu->actions().empty()) {
+	if (!_menu->empty()) {
 		_menu->popup(QCursor::pos());
 	}
 }
@@ -1220,8 +1228,8 @@ void FieldAutocomplete::Inner::setupLottie(StickerSuggestion &suggestion) {
 
 QSize FieldAutocomplete::Inner::stickerBoundingBox() const {
 	return QSize(
-		st::stickerPanSize.width() - st::buttonRadius * 2,
-		st::stickerPanSize.height() - st::buttonRadius * 2);
+		st::stickerPanSize.width() - st::roundRadiusSmall * 2,
+		st::stickerPanSize.height() - st::roundRadiusSmall * 2);
 }
 
 void FieldAutocomplete::Inner::repaintSticker(
@@ -1279,11 +1287,9 @@ void FieldAutocomplete::Inner::selectByMouse(QPoint globalPosition) {
 		if (_down >= 0 && _sel >= 0 && _down != _sel) {
 			_down = _sel;
 			if (_down >= 0 && _down < _srows->size()) {
-				if (const auto w = App::wnd()) {
-					w->showMediaPreview(
-						(*_srows)[_down].document->stickerSetOrigin(),
-						(*_srows)[_down].document);
-				}
+				_controller->widget()->showMediaPreview(
+					(*_srows)[_down].document->stickerSetOrigin(),
+					(*_srows)[_down].document);
 			}
 		}
 	}
@@ -1301,12 +1307,10 @@ void FieldAutocomplete::Inner::onParentGeometryChanged() {
 
 void FieldAutocomplete::Inner::showPreview() {
 	if (_down >= 0 && _down < _srows->size()) {
-		if (const auto w = App::wnd()) {
-			w->showMediaPreview(
-				(*_srows)[_down].document->stickerSetOrigin(),
-				(*_srows)[_down].document);
-			_previewShown = true;
-		}
+		_controller->widget()->showMediaPreview(
+			(*_srows)[_down].document->stickerSetOrigin(),
+			(*_srows)[_down].document);
+		_previewShown = true;
 	}
 }
 

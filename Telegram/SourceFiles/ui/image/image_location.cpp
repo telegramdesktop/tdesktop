@@ -23,8 +23,11 @@ constexpr auto kDocumentBaseCacheTag = 0x0000000000010000ULL;
 constexpr auto kDocumentBaseCacheMask = 0x000000000000FF00ULL;
 constexpr auto kPhotoBaseCacheTag = 0x0000000000020000ULL;
 constexpr auto kPhotoBaseCacheMask = 0x000000000000FF00ULL;
-constexpr auto kSerializeTypeShift = quint8(0x08);
+
 constexpr auto kNonStorageLocationToken = quint8(0x10);
+constexpr auto kLegacyInMessagePeerIdFlag = quint8(0x08);
+constexpr auto kModernLocationFlag = quint8(0x20);
+constexpr auto kInMessageFieldsFlag = quint8(0x40);
 
 enum class NonStorageLocationType : quint8 {
 	Web,
@@ -34,24 +37,24 @@ enum class NonStorageLocationType : quint8 {
 };
 
 MTPInputPeer GenerateInputPeer(
-		uint64 id,
+		PeerId id,
 		uint64 accessHash,
-		int32 inMessagePeerId,
+		PeerId inMessagePeerId,
 		int32 inMessageId,
-		int32 self) {
+		UserId self) {
 	const auto bareId = [&] {
 		return peerToBareMTPInt(id);
 	};
-	if (inMessagePeerId > 0 && inMessageId) {
+	if (inMessageId && peerIsUser(inMessagePeerId)) {
 		return MTP_inputPeerUserFromMessage(
 			GenerateInputPeer(id, accessHash, 0, 0, self),
 			MTP_int(inMessageId),
-			MTP_int(inMessagePeerId));
-	} else if (inMessagePeerId < 0 && inMessageId) {
+			MTP_int(peerToUser(inMessagePeerId).bare)); // #TODO ids
+	} else if (inMessageId && peerIsChannel(inMessagePeerId)) {
 		return MTP_inputPeerChannelFromMessage(
 			GenerateInputPeer(id, accessHash, 0, 0, self),
 			MTP_int(inMessageId),
-			MTP_int(-inMessagePeerId));
+			MTP_int(peerToChannel(inMessagePeerId).bare)); // #TODO ids
 	} else if (!id) {
 		return MTP_inputPeerEmpty();
 	} else if (id == peerFromUser(self)) {
@@ -73,7 +76,7 @@ WebFileLocation WebFileLocation::Null;
 
 StorageFileLocation::StorageFileLocation(
 	int32 dcId,
-	int32 self,
+	UserId self,
 	const MTPInputFileLocation &tl)
 : _dcId(dcId) {
 	tl.match([&](const MTPDinputFileLocation &data) {
@@ -119,15 +122,15 @@ StorageFileLocation::StorageFileLocation(
 		const auto fillPeer = base::overload([&](
 				const MTPDinputPeerEmpty &data) {
 			_id = 0;
-		}, [&](const MTPDinputPeerSelf & data) {
-			_id = peerFromUser(self);
-		}, [&](const MTPDinputPeerChat & data) {
-			_id = peerFromChat(data.vchat_id());
-		}, [&](const MTPDinputPeerUser & data) {
-			_id = peerFromUser(data.vuser_id());
+		}, [&](const MTPDinputPeerSelf &data) {
+			_id = peerFromUser(self).value;
+		}, [&](const MTPDinputPeerChat &data) {
+			_id = peerFromChat(data.vchat_id()).value;
+		}, [&](const MTPDinputPeerUser &data) {
+			_id = peerFromUser(data.vuser_id()).value;
 			_accessHash = data.vaccess_hash().v;
-		}, [&](const MTPDinputPeerChannel & data) {
-			_id = peerFromChannel(data.vchannel_id());
+		}, [&](const MTPDinputPeerChannel &data) {
+			_id = peerFromChannel(data.vchannel_id()).value;
 			_accessHash = data.vaccess_hash().v;
 		});
 		data.vpeer().match(fillPeer, [&](
@@ -136,19 +139,21 @@ StorageFileLocation::StorageFileLocation(
 				// Bad data provided.
 				_id = _accessHash = 0;
 			});
-			_inMessagePeerId = data.vuser_id().v;
+			_inMessagePeerId = peerFromUser(data.vuser_id());
 			_inMessageId = data.vmsg_id().v;
 		}, [&](const MTPDinputPeerChannelFromMessage &data) {
 			data.vpeer().match(fillPeer, [&](auto &&) {
 				// Bad data provided.
 				_id = _accessHash = 0;
 			});
-			_inMessagePeerId = -data.vchannel_id().v;
+			_inMessagePeerId = peerFromChannel(data.vchannel_id());
 			_inMessageId = data.vmsg_id().v;
 		});
-		_volumeId = data.vvolume_id().v;
-		_localId = data.vlocal_id().v;
+		_volumeId = data.vphoto_id().v;
 		_sizeLetter = data.is_big() ? 'c' : 'a';
+
+		// _localId place is used in serialization.
+		Ensures(_localId == 0);
 	}, [&](const MTPDinputStickerSetThumb &data) {
 		_type = Type::StickerSetThumb;
 		data.vstickerset().match([&](const MTPDinputStickerSetEmpty &data) {
@@ -156,31 +161,41 @@ StorageFileLocation::StorageFileLocation(
 		}, [&](const MTPDinputStickerSetID &data) {
 			_id = data.vid().v;
 			_accessHash = data.vaccess_hash().v;
-		}, [&](const MTPDinputStickerSetShortName &data) {
-			Unexpected("inputStickerSetShortName in StorageFileLocation.");
-		}, [&](const MTPDinputStickerSetAnimatedEmoji &data) {
-			Unexpected(
-				"inputStickerSetAnimatedEmoji in StorageFileLocation.");
-		}, [&](const MTPDinputStickerSetDice &data) {
-			Unexpected("inputStickerSetDice in StorageFileLocation.");
+		}, [&](const auto &data) {
+			Unexpected("InputStickerSet type in StorageFileLocation.");
 		});
-		_volumeId = data.vvolume_id().v;
-		_localId = data.vlocal_id().v;
+		_volumeId = 0;
+		_localId = data.vthumb_version().v;
+	}, [&](const MTPDinputGroupCallStream &data) {
+		_type = Type::GroupCallStream;
+		data.vcall().match([&](const MTPDinputGroupCall &data) {
+			_id = data.vid().v;
+			_accessHash = data.vaccess_hash().v;
+		});
+		_volumeId = data.vtime_ms().v;
+		_localId = data.vscale().v;
 	});
 }
 
-StorageFileLocation StorageFileLocation::convertToModern(
-		Type type,
+StorageFileLocation StorageFileLocation::convertToModernPeerPhoto(
 		uint64 id,
-		uint64 accessHash) const {
-	Expects(_type == Type::Legacy);
-	Expects(type == Type::PeerPhoto || type == Type::StickerSetThumb);
+		uint64 accessHash,
+		uint64 photoId) const {
+	if (_type != Type::Legacy && _type != Type::PeerPhoto) {
+		return *this;
+	} else if (!photoId) {
+		return StorageFileLocation();
+	}
 
 	auto result = *this;
-	result._type = type;
+	result._type = Type::PeerPhoto;
 	result._id = id;
 	result._accessHash = accessHash;
-	result._sizeLetter = (type == Type::PeerPhoto) ? uint8('a') : uint8(0);
+	result._sizeLetter = uint8('a');
+	result._volumeId = photoId;
+	result._localId = 0;
+	result._inMessagePeerId = 0;
+	result._inMessageId = 0;
 	return result;
 }
 
@@ -192,7 +207,7 @@ uint64 StorageFileLocation::objectId() const {
 	return _id;
 }
 
-MTPInputFileLocation StorageFileLocation::tl(int32 self) const {
+MTPInputFileLocation StorageFileLocation::tl(UserId self) const {
 	switch (_type) {
 	case Type::Legacy:
 		return MTP_inputFileLocation(
@@ -236,17 +251,21 @@ MTPInputFileLocation StorageFileLocation::tl(int32 self) const {
 				? MTPDinputPeerPhotoFileLocation::Flag::f_big
 				: MTPDinputPeerPhotoFileLocation::Flag(0)),
 			GenerateInputPeer(
-				_id,
+				PeerId(_id),
 				_accessHash,
 				_inMessagePeerId,
 				_inMessageId,
 				self),
-			MTP_long(_volumeId),
-			MTP_int(_localId));
+			MTP_long(_volumeId));
 
 	case Type::StickerSetThumb:
 		return MTP_inputStickerSetThumb(
 			MTP_inputStickerSetID(MTP_long(_id), MTP_long(_accessHash)),
+			MTP_int(_localId));
+
+	case Type::GroupCallStream:
+		return MTP_inputGroupCallStream(
+			MTP_inputGroupCall(MTP_long(_id), MTP_long(_accessHash)),
 			MTP_long(_volumeId),
 			MTP_int(_localId));
 
@@ -262,15 +281,29 @@ QByteArray StorageFileLocation::serialize() const {
 		buffer.open(QIODevice::WriteOnly);
 		auto stream = QDataStream(&buffer);
 		stream.setVersion(QDataStream::Qt_5_1);
+
+		Assert(!(quint8(_type) & kModernLocationFlag)
+			&& !(quint8(_type) & kInMessageFieldsFlag));
+		auto typeWithFlags = quint8(_type);
+		typeWithFlags |= kModernLocationFlag;
+		auto field1 = qint32(_localId);
+		auto field2 = qint32(0);
+		if (_inMessagePeerId != 0) {
+			Assert(field1 == 0);
+			typeWithFlags |= kInMessageFieldsFlag;
+			field1 = qint32(uint32(_inMessagePeerId.value >> 32));
+			field2 = qint32(uint32(_inMessagePeerId.value & 0xFFFFFFFFULL));
+		}
+		Assert(typeWithFlags != kNonStorageLocationToken);
 		stream
 			<< quint16(_dcId)
-			<< quint8(kSerializeTypeShift | quint8(_type))
+			<< typeWithFlags
 			<< quint8(_sizeLetter)
-			<< qint32(_localId)
+			<< field1
 			<< quint64(_id)
 			<< quint64(_accessHash)
 			<< quint64(_volumeId)
-			<< qint32(_inMessagePeerId)
+			<< field2
 			<< qint32(_inMessageId)
 			<< _fileReference;
 	}
@@ -284,52 +317,88 @@ int StorageFileLocation::serializeSize() const {
 }
 
 std::optional<StorageFileLocation> StorageFileLocation::FromSerialized(
-	const QByteArray &serialized) {
+		const QByteArray &serialized) {
 	if (serialized.isEmpty()) {
 		return StorageFileLocation();
 	}
 
 	quint16 dcId = 0;
-	quint8 type = 0;
+	quint8 typeWithFlags = 0;
 	quint8 sizeLetter = 0;
-	qint32 localId = 0;
+	qint32 field1 = 0;
 	quint64 id = 0;
 	quint64 accessHash = 0;
 	quint64 volumeId = 0;
-	qint32 inMessagePeerId = 0;
+	qint32 field2 = 0;
 	qint32 inMessageId = 0;
 	QByteArray fileReference;
 	auto stream = QDataStream(serialized);
 	stream.setVersion(QDataStream::Qt_5_1);
 	stream
 		>> dcId
-		>> type;
-	if (type == kNonStorageLocationToken) {
+		>> typeWithFlags;
+	if (typeWithFlags == kNonStorageLocationToken) {
 		return std::nullopt;
 	}
 	stream
 		>> sizeLetter
-		>> localId
+		>> field1
 		>> id
 		>> accessHash
 		>> volumeId;
-	if (type & kSerializeTypeShift) {
-		type &= ~kSerializeTypeShift;
-		stream >> inMessagePeerId >> inMessageId;
+	const auto modern = ((typeWithFlags & kModernLocationFlag) != 0);
+	const auto inMessageFields
+		= ((typeWithFlags & kInMessageFieldsFlag) != 0);
+	if (modern) {
+		stream >> field2 >> inMessageId;
+		typeWithFlags &= ~kModernLocationFlag;
+		if (inMessageFields) {
+			typeWithFlags &= ~kInMessageFieldsFlag;
+		}
+	} else if (typeWithFlags & kLegacyInMessagePeerIdFlag) {
+		typeWithFlags &= ~kLegacyInMessagePeerIdFlag;
+		stream >> field2 >> inMessageId;
 	}
 	stream >> fileReference;
 
 	auto result = StorageFileLocation();
 	result._dcId = dcId;
-	result._type = Type(type);
+	result._type = Type(typeWithFlags);
 	result._sizeLetter = sizeLetter;
-	result._localId = localId;
-	result._id = id;
 	result._accessHash = accessHash;
 	result._volumeId = volumeId;
-	result._inMessagePeerId = inMessagePeerId;
 	result._inMessageId = inMessageId;
 	result._fileReference = fileReference;
+
+	if (modern) {
+		result._id = id;
+		if (inMessageFields) {
+			result._localId = 0;
+			result._inMessagePeerId = PeerId(
+				(uint64(uint32(field1)) << 32) | uint64(uint32(field2)));
+		} else {
+			result._localId = field1;
+			result._inMessagePeerId = 0;
+		}
+	} else {
+		result._id = (result._type == Type::PeerPhoto)
+			? DeserializePeerId(id).value
+			: id;
+		result._localId = (result._type == Type::PeerPhoto)
+			? 0
+			: field1;
+		result._inMessagePeerId = (field2 && result._type == Type::PeerPhoto)
+			? ((field2 > 0)
+				? peerFromUser(UserId(field2))
+				: peerFromChannel(ChannelId(-field2)))
+			: PeerId();
+	}
+	if (result._type == Type::StickerSetThumb && result._volumeId != 0) {
+		// Legacy field values that cannot be converted to modern.
+		// No information about thumb_version, which is required.
+		return std::nullopt;
+	}
+
 	return (stream.status() == QDataStream::Ok && result.valid())
 		? std::make_optional(result)
 		: std::nullopt;
@@ -358,6 +427,9 @@ bool StorageFileLocation::valid() const {
 	case Type::PeerPhoto:
 	case Type::StickerSetThumb:
 		return (_dcId != 0) && (_id != 0);
+
+	case Type::GroupCallStream:
+		return (_dcId != 0) && (_id != 0) && (_volumeId != 0);
 	}
 	return false;
 }
@@ -401,6 +473,14 @@ Storage::Cache::Key StorageFileLocation::cacheKey() const {
 
 	case Type::Takeout:
 		return Key{ shifted, 0 };
+
+	case Type::GroupCallStream:
+		return Key{
+			(shifted
+				| sliced
+				| (uint32(_localId) << 16)
+				| (_volumeId << 20)),
+			_id };
 	}
 	return Key();
 }
@@ -443,6 +523,7 @@ Storage::Cache::Key StorageFileLocation::bigFileBaseCacheKey() const {
 	case Type::Encrypted:
 	case Type::Secure:
 	case Type::Takeout:
+	case Type::GroupCallStream:
 		Unexpected("Not implemented file location type.");
 
 	};
@@ -522,6 +603,11 @@ bool operator==(const StorageFileLocation &a, const StorageFileLocation &b) {
 			&& (a._volumeId == b._volumeId)
 			&& (a._localId == b._localId)
 			&& (a._id == b._id);
+
+	case Type::GroupCallStream:
+		return (a._dcId == b._dcId)
+			&& (a._id == b._id)
+			&& (a._localId == b._localId);
 	};
 	Unexpected("Type in StorageFileLocation::operator==.");
 }
@@ -573,6 +659,10 @@ bool operator<(const StorageFileLocation &a, const StorageFileLocation &b) {
 	case Type::StickerSetThumb:
 		return std::tie(a._id, a._localId, a._volumeId, a._dcId)
 			< std::tie(b._id, b._localId, b._volumeId, b._dcId);
+
+	case Type::GroupCallStream:
+		return std::tie(a._id, a._localId, a._dcId)
+			< std::tie(b._id, b._localId, b._dcId);
 	};
 	Unexpected("Type in StorageFileLocation::operator==.");
 }
@@ -804,15 +894,17 @@ std::optional<DownloadLocation> DownloadLocation::FromSerialized(
 	return std::nullopt;
 }
 
-DownloadLocation DownloadLocation::convertToModern(
-		StorageFileLocation::Type type,
+DownloadLocation DownloadLocation::convertToModernPeerPhoto(
 		uint64 id,
-		uint64 accessHash) const {
+		uint64 accessHash,
+		uint64 photoId) const {
 	if (!v::is<StorageFileLocation>(data)) {
 		return *this;
 	}
 	auto &file = v::get<StorageFileLocation>(data);
-	return DownloadLocation{ file.convertToModern(type, id, accessHash) };
+	return DownloadLocation{
+		file.convertToModernPeerPhoto(id, accessHash, photoId)
+	};
 }
 
 Storage::Cache::Key DownloadLocation::cacheKey() const {

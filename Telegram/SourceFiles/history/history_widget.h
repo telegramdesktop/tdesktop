@@ -19,11 +19,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/timer.h"
 
-class RPCError;
 struct FileLoadResult;
 struct SendingAlbum;
 enum class SendMediaType;
 class MessageLinksParser;
+
+namespace MTP {
+class Error;
+} // namespace MTP
+
+namespace Data {
+enum class PreviewState : char;
+} // namespace Data
 
 namespace SendMenu {
 enum class Type;
@@ -61,8 +68,10 @@ class FlatButton;
 class LinkButton;
 class RoundButton;
 class PinnedBar;
+class GroupCallBar;
 struct PreparedList;
 class SendFilesWay;
+enum class ReportReason;
 namespace Toast {
 class Instance;
 } // namespace Toast
@@ -90,9 +99,11 @@ class TopBarWidget;
 class ContactStatus;
 class Element;
 class PinnedTracker;
+class GroupCallTracker;
 namespace Controls {
 class RecordLock;
 class VoiceRecordBar;
+class TTLButton;
 } // namespace Controls
 } // namespace HistoryView
 
@@ -117,6 +128,8 @@ public:
 
 	void historyLoaded();
 
+	[[nodiscard]] bool preventsClose(Fn<void()> &&continueCallback) const;
+
 	// When resizing the widget with top edge moved up or down and we
 	// want to add this top movement to the scroll position, so inner
 	// content will not move.
@@ -132,6 +145,7 @@ public:
 
 	bool isItemCompletelyHidden(HistoryItem *item) const;
 	void updateTopBarSelection();
+	void updateTopBarChooseForReport();
 
 	void loadMessages();
 	void loadMessagesDown();
@@ -221,6 +235,9 @@ public:
 	void applyDraft(
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
 	void showHistory(const PeerId &peer, MsgId showAtMsgId, bool reload = false);
+	void setChooseReportMessagesDetails(
+		Ui::ReportReason reason,
+		Fn<void(MessageIdsList)> callback);
 	void clearAllLoadRequests();
 	void clearDelayedShowAtRequest();
 	void clearDelayedShowAt();
@@ -304,12 +321,19 @@ private:
 		ScrollChangeType type;
 		int value;
 	};
+	struct ChooseMessagesForReport {
+		Ui::ReportReason reason = {};
+		Fn<void(MessageIdsList)> callback;
+		bool active = false;
+	};
 	enum class TextUpdateEvent {
 		SaveDraft = (1 << 0),
 		SendTyping = (1 << 1),
 	};
 	using TextUpdateEvents = base::flags<TextUpdateEvent>;
 	friend inline constexpr bool is_flag_type(TextUpdateEvent) { return true; };
+
+	void checkSuggestToGigagroup();
 
 	void initTabbedSelector();
 	void initVoiceRecordBar();
@@ -368,6 +392,7 @@ private:
 
 	[[nodiscard]] int computeMaxFieldHeight() const;
 	void toggleMuteUnmute();
+	void reportSelectedMessages();
 	void toggleKeyboard(bool manual = true);
 	void startBotCommand();
 	void hidePinnedMessage();
@@ -475,6 +500,9 @@ private:
 		int wasScrollTop,
 		int nowScrollTop);
 
+	void checkMessagesTTL();
+	void setupGroupCallTracker();
+
 	void sendInlineResult(InlineBots::ResultSelected result);
 
 	void drawField(Painter &p, const QRect &rect);
@@ -501,7 +529,7 @@ private:
 	void requestPreview();
 	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
 	void messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, int requestId);
-	void messagesFailed(const RPCError &error, int requestId);
+	void messagesFailed(const MTP::Error &error, int requestId);
 	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
 
@@ -552,7 +580,7 @@ private:
 	void handleSupportSwitch(not_null<History*> updated);
 
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
-	void inlineBotResolveFail(const RPCError &error, const QString &username);
+	void inlineBotResolveFail(const MTP::Error &error, const QString &username);
 
 	bool isRecording() const;
 
@@ -560,6 +588,7 @@ private:
 	bool isBlocked() const;
 	bool isJoinChannel() const;
 	bool isMuteUnmute() const;
+	bool isReportMessages() const;
 	bool updateCmdStartShown();
 	void updateSendButtonType();
 	bool showRecordButton() const;
@@ -591,9 +620,14 @@ private:
 	std::unique_ptr<HistoryView::PinnedTracker> _pinnedTracker;
 	std::unique_ptr<Ui::PinnedBar> _pinnedBar;
 	int _pinnedBarHeight = 0;
-	bool _preserveScrollTop = false;
 	FullMsgId _pinnedClickedId;
 	std::optional<FullMsgId> _minPinnedId;
+
+	std::unique_ptr<HistoryView::GroupCallTracker> _groupCallTracker;
+	std::unique_ptr<Ui::GroupCallBar> _groupCallBar;
+	int _groupCallBarHeight = 0;
+
+	bool _preserveScrollTop = false;
 
 	mtpRequestId _saveEditMsgRequestId = 0;
 
@@ -606,7 +640,7 @@ private:
 	Ui::Text::String _previewTitle;
 	Ui::Text::String _previewDescription;
 	base::Timer _previewTimer;
-	bool _previewCancelled = false;
+	Data::PreviewState _previewState = Data::PreviewState();
 
 	bool _replyForwardPressed = false;
 
@@ -670,6 +704,7 @@ private:
 	object_ptr<Ui::FlatButton> _botStart;
 	object_ptr<Ui::FlatButton> _joinChannel;
 	object_ptr<Ui::FlatButton> _muteUnmute;
+	object_ptr<Ui::FlatButton> _reportMessages;
 	object_ptr<Ui::IconButton> _attachToggle;
 	object_ptr<Ui::EmojiButton> _tabbedSelectorToggle;
 	object_ptr<Ui::IconButton> _botKeyboardShow;
@@ -677,6 +712,7 @@ private:
 	object_ptr<Ui::IconButton> _botCommandStart;
 	object_ptr<Ui::SilentToggle> _silent = { nullptr };
 	object_ptr<Ui::IconButton> _scheduled = { nullptr };
+	std::unique_ptr<HistoryView::Controls::TTLButton> _ttlInfo;
 	const std::unique_ptr<VoiceRecordBar> _voiceRecordBar;
 	bool _cmdStartShown = false;
 	object_ptr<Ui::InputField> _field;
@@ -722,6 +758,7 @@ private:
 	base::Timer _saveCloudDraftTimer;
 
 	base::weak_ptr<Ui::Toast::Instance> _topToast;
+	std::unique_ptr<ChooseMessagesForReport> _chooseForReport;
 
 	object_ptr<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;

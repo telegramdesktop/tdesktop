@@ -28,6 +28,7 @@ namespace HistoryView::Controls {
 class VoiceRecordButton;
 class ListenWrap;
 class RecordLock;
+class CancelButton;
 
 class VoiceRecordBar final : public Ui::RpWidget {
 public:
@@ -47,6 +48,10 @@ public:
 		int recorderHeight);
 	~VoiceRecordBar();
 
+	void showDiscardBox(
+		Fn<void()> &&callback,
+		anim::type animated = anim::type::instant);
+
 	void startRecording();
 	void finishAnimating();
 	void hideAnimated();
@@ -57,20 +62,22 @@ public:
 
 	[[nodiscard]] rpl::producer<SendActionUpdate> sendActionUpdates() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
+	[[nodiscard]] rpl::producer<> cancelRequests() const;
 	[[nodiscard]] rpl::producer<bool> recordingStateChanges() const;
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
+	[[nodiscard]] rpl::producer<not_null<QEvent*>> lockViewportEvents() const;
 	[[nodiscard]] rpl::producer<> updateSendButtonTypeRequests() const;
 
 	void requestToSendWithOptions(Api::SendOptions options);
 
 	void setLockBottom(rpl::producer<int> &&bottom);
 	void setSendButtonGeometryValue(rpl::producer<QRect> &&geometry);
-	void setEscFilter(Fn<bool()> &&callback);
 	void setStartRecordingFilter(Fn<bool()> &&callback);
 
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isListenState() const;
+	[[nodiscard]] bool isActive() const;
 
 private:
 	enum class StopType {
@@ -98,7 +105,6 @@ private:
 	void drawMessage(Painter &p, float64 recordActive);
 
 	void startRedCircleAnimation();
-	void installClickOutsideFilter();
 	void installListenStateFilter();
 
 	bool isTypeRecord() const;
@@ -118,12 +124,14 @@ private:
 	const std::shared_ptr<Ui::SendButton> _send;
 	const std::unique_ptr<RecordLock> _lock;
 	const std::unique_ptr<VoiceRecordButton> _level;
+	const std::unique_ptr<CancelButton> _cancel;
 	std::unique_ptr<ListenWrap> _listen;
 
 	base::Timer _startTimer;
 
 	rpl::event_stream<SendActionUpdate> _sendActionUpdates;
 	rpl::event_stream<VoiceToSend> _sendVoiceRequests;
+	rpl::event_stream<> _cancelRequests;
 	rpl::event_stream<> _listenChanges;
 
 	int _centerY = 0;
@@ -133,8 +141,9 @@ private:
 
 	Ui::Text::String _message;
 
-	Fn<bool()> _escFilter;
 	Fn<bool()> _startRecordingFilter;
+
+	bool _warningShown = false;
 
 	rpl::variable<bool> _recording = false;
 	rpl::variable<bool> _inField = false;
@@ -147,6 +156,7 @@ private:
 	rpl::lifetime _recordingLifetime;
 
 	Ui::Animations::Simple _showLockAnimation;
+	Ui::Animations::Simple _lockToStopAnimation;
 	Ui::Animations::Simple _showListenAnimation;
 	Ui::Animations::Simple _activeAnimation;
 	Ui::Animations::Simple _showAnimation;

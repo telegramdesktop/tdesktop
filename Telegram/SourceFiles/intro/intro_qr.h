@@ -47,7 +47,7 @@ private:
 	void checkForTokenUpdate(const MTPUpdates &updates);
 	void checkForTokenUpdate(const MTPUpdate &update);
 	void handleTokenResult(const MTPauth_LoginToken &result);
-	void showTokenError(const RPCError &error);
+	void showTokenError(const MTP::Error &error);
 	void importTo(MTP::DcId dcId, const QByteArray &token);
 	void showToken(const QByteArray &token);
 	void done(const MTPauth_Authorization &authorization);
@@ -58,6 +58,8 @@ private:
 	bool _forceRefresh = false;
 
 };
+
+[[nodiscard]] QImage TelegramLogoImage();
 
 } // namespace details
 } // namespace Intro

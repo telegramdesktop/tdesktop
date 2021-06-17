@@ -71,14 +71,6 @@ void ShowPhoneBannedError(const QString &phone) {
 		[=] { SendToBannedHelp(phone); close(); }));
 }
 
-QString ExtractPhonePrefix(const QString &phone) {
-	const auto pattern = phoneNumberParse(phone);
-	if (!pattern.isEmpty()) {
-		return phone.mid(0, pattern[0]);
-	}
-	return QString();
-}
-
 SentCodeField::SentCodeField(
 	QWidget *parent,
 	const style::InputField &st,
@@ -249,7 +241,7 @@ void ConfirmPhoneBox::checkPhoneAndHash() {
 		MTP_codeSettings(MTP_flags(0))
 	)).done([=](const MTPauth_SentCode &result) {
 		sendCodeDone(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		sendCodeFail(error);
 	}).handleFloodErrors().send();
 }
@@ -278,9 +270,9 @@ void ConfirmPhoneBox::sendCodeDone(const MTPauth_SentCode &result) {
 	});
 }
 
-void ConfirmPhoneBox::sendCodeFail(const RPCError &error) {
+void ConfirmPhoneBox::sendCodeFail(const MTP::Error &error) {
 	auto errorText = Lang::Hard::ServerError();
-	if (MTP::isFloodError(error)) {
+	if (MTP::IsFloodError(error)) {
 		errorText = tr::lng_flood_error(tr::now);
 	} else if (error.code() == 400) {
 		errorText = tr::lng_confirm_phone_link_invalid(tr::now);
@@ -348,7 +340,7 @@ void ConfirmPhoneBox::sendCode() {
 		MTP_string(code)
 	)).done([=](const MTPBool &result) {
 		confirmDone(result);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		confirmFail(error);
 	}).handleFloodErrors().send();
 }
@@ -358,9 +350,9 @@ void ConfirmPhoneBox::confirmDone(const MTPBool &result) {
 	Ui::show(Box<InformBox>(tr::lng_confirm_phone_success(tr::now, lt_phone, App::formatPhone(_phone))));
 }
 
-void ConfirmPhoneBox::confirmFail(const RPCError &error) {
+void ConfirmPhoneBox::confirmFail(const MTP::Error &error) {
 	auto errorText = Lang::Hard::ServerError();
-	if (MTP::isFloodError(error)) {
+	if (MTP::IsFloodError(error)) {
 		errorText = tr::lng_flood_error(tr::now);
 	} else {
 		auto &errorType = error.type();

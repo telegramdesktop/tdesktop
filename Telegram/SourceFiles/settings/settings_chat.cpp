@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_themes_embedded.h"
 #include "window/themes/window_theme_editor_box.h"
 #include "window/themes/window_themes_cloud_list.h"
+#include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "storage/localstorage.h"
@@ -44,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "chat_helpers/emoji_sets_manager.h"
 #include "base/platform/base_platform_info.h"
+#include "platform/platform_specific.h"
 #include "base/call_delayed.h"
 #include "support/support_common.h"
 #include "support/support_templates.h"
@@ -966,19 +968,15 @@ void SetupChatBackground(
 		tile->setChecked(tiled);
 	}, tile->lifetime());
 
-	adaptive->toggleOn(rpl::single(
-		rpl::empty_value()
-	) | rpl::then(base::ObservableViewer(
-		Adaptive::Changed()
-	)) | rpl::map([] {
-		return (Global::AdaptiveChatLayout() == Adaptive::ChatLayout::Wide);
+	adaptive->toggleOn(controller->adaptive().chatLayoutValue(
+	) | rpl::map([](Window::Adaptive::ChatLayout layout) {
+		return (layout == Window::Adaptive::ChatLayout::Wide);
 	}));
 
 	adaptive->entity()->checkedChanges(
 	) | rpl::start_with_next([=](bool checked) {
 		Core::App().settings().setAdaptiveForWide(checked);
 		Core::App().saveSettingsDelayed();
-		Adaptive::Changed().notify();
 	}, adaptive->lifetime());
 }
 
@@ -1038,9 +1036,9 @@ void SetupDefaultThemes(
 	};
 
 	auto checks = base::flat_map<Type,not_null<Check*>>();
-	auto buttons = ranges::view::all(
+	auto buttons = ranges::views::all(
 		kSchemesList
-	) | ranges::view::transform([&](const Scheme &scheme) {
+	) | ranges::views::transform([&](const Scheme &scheme) {
 		auto check = std::make_unique<Check>(
 			ColorsFromScheme(scheme),
 			false);

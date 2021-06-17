@@ -14,9 +14,6 @@ namespace Images {
 [[nodiscard]] QByteArray ExpandInlineBytes(const QByteArray &bytes);
 [[nodiscard]] QImage FromInlineBytes(const QByteArray &bytes);
 
-[[nodiscard]] QSize GetSizeForDocument(
-	const QVector<MTPDocumentAttribute> &attributes);
-
 } // namespace Images
 
 class Image final {
@@ -70,7 +67,8 @@ public:
 		int outerw,
 		int outerh,
 		ImageRoundRadius radius,
-		RectParts corners = RectPart::AllCorners) const;
+		RectParts corners = RectPart::AllCorners,
+		const style::color *colored = nullptr) const;
 	[[nodiscard]] const QPixmap &pixCircled(int w = 0, int h = 0) const;
 	[[nodiscard]] const QPixmap &pixBlurredCircled(int w = 0, int h = 0) const;
 	[[nodiscard]] QPixmap pixNoCache(

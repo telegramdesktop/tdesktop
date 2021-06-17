@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/cached_round_corners.h"
 #include "mainwidget.h"
-#include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_chat.h"
 
@@ -21,7 +20,8 @@ namespace Window {
 HistoryHider::HistoryHider(
 	QWidget *parent,
 	const QString &text,
-	Fn<bool(PeerId)> confirm)
+	Fn<bool(PeerId)> confirm,
+	rpl::producer<bool> oneColumnValue)
 : RpWidget(parent)
 , _text(text)
 , _confirm(std::move(confirm)) {
@@ -30,12 +30,16 @@ HistoryHider::HistoryHider(
 		refreshLang();
 	}, lifetime());
 
-	subscribe(Global::RefPeerChooseCancel(), [=] { startHide(); });
-
 	_chooseWidth = st::historyForwardChooseFont->width(_text);
 
 	resizeEvent(0);
 	_a_opacity.start([this] { update(); }, 0., 1., st::boxDuration);
+
+	std::move(
+		oneColumnValue
+	) | rpl::start_with_next([=](bool oneColumn) {
+		_isOneColumn = oneColumn;
+	}, lifetime());
 }
 
 void HistoryHider::refreshLang() {
@@ -81,7 +85,7 @@ void HistoryHider::startHide() {
 	if (_hiding) return;
 
 	_hiding = true;
-	if (Adaptive::OneColumn()) {
+	if (_isOneColumn) {
 		crl::on_main(this, [=] { _hidden.fire({}); });
 	} else {
 		_a_opacity.start([=] { animationCallback(); }, 1., 0., st::boxDuration);

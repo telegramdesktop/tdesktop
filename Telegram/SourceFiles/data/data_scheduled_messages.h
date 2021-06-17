@@ -32,7 +32,6 @@ public:
 	[[nodiscard]] HistoryItem *lookupItem(PeerId peer, MsgId msg) const;
 	[[nodiscard]] HistoryItem *lookupItem(FullMsgId itemId) const;
 	[[nodiscard]] int count(not_null<History*> history) const;
-	[[nodiscard]] HistoryItem *lastSentMessage(not_null<History*> history);
 
 	void checkEntitiesAndUpdate(const MTPDmessage &data);
 	void apply(const MTPDupdateNewScheduledMessage &update);

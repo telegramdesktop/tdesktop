@@ -50,8 +50,8 @@ const style::InfoTopBar &TopBarStyle(Wrap wrap) {
 } // namespace
 
 struct WrapWidget::StackItem {
-	std::unique_ptr<ContentMemento> section;
-//	std::unique_ptr<ContentMemento> anotherTab;
+	std::shared_ptr<ContentMemento> section;
+//	std::shared_ptr<ContentMemento> anotherTab;
 };
 
 WrapWidget::WrapWidget(
@@ -96,7 +96,7 @@ void WrapWidget::setupShortcuts() {
 }
 
 void WrapWidget::restoreHistoryStack(
-		std::vector<std::unique_ptr<ContentMemento>> stack) {
+		std::vector<std::shared_ptr<ContentMemento>> stack) {
 	Expects(!stack.empty());
 	Expects(!hasStackHistory());
 
@@ -134,8 +134,6 @@ void WrapWidget::startInjectingActivePeerProfiles() {
 void WrapWidget::injectActiveProfile(Dialogs::Key key) {
 	if (const auto peer = key.peer()) {
 		injectActivePeerProfile(peer);
-	//} else if (const auto feed = key.feed()) { // #feed
-	//	injectActiveFeedProfile(feed);
 	}
 }
 
@@ -170,25 +168,9 @@ void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
 			Memento(peer, section).takeStack().front()));
 	}
 }
-// // #feed
-//void WrapWidget::injectActiveFeedProfile(not_null<Data::Feed*> feed) {
-//	const auto firstFeed = hasStackHistory()
-//		? _historyStack.front().section->feed()
-//		: _controller->feed();
-//	const auto firstSectionType = hasStackHistory()
-//		? _historyStack.front().section->section().type()
-//		: _controller->section().type();
-//	const auto expectedType = Section::Type::Profile;
-//	if (firstSectionType != expectedType
-//		|| firstFeed != feed) {
-//		auto section = Section(Section::Type::Profile);
-//		injectActiveProfileMemento(std::move(
-//			Memento(feed, section).takeStack().front()));
-//	}
-//}
 
 void WrapWidget::injectActiveProfileMemento(
-		std::unique_ptr<ContentMemento> memento) {
+		std::shared_ptr<ContentMemento> memento) {
 	auto injected = StackItem();
 	injected.section = std::move(memento);
 	_historyStack.insert(
@@ -217,8 +199,6 @@ Key WrapWidget::key() const {
 Dialogs::RowDescriptor WrapWidget::activeChat() const {
 	if (const auto peer = key().peer()) {
 		return Dialogs::RowDescriptor(peer->owner().history(peer), FullMsgId());
-	//} else if (const auto feed = key().feed()) { // #feed
-	//	return Dialogs::RowDescriptor(feed, FullMsgId());
 	} else if (key().settingsSelf() || key().poll()) {
 		return Dialogs::RowDescriptor();
 	}
@@ -582,12 +562,6 @@ void WrapWidget::showTopBarMenu() {
 				.section = Dialogs::EntryState::Section::Profile,
 			},
 			addAction);
-	//} else if (const auto feed = key().feed()) { // #feed
-	//	Window::FillFeedMenu(
-	//		_controller->parentController(),
-	//		feed,
-	//		addAction,
-	//		Window::PeerMenuSource::Profile);
 	} else if (const auto self = key().settingsSelf()) {
 		const auto showOther = [=](::Settings::Type type) {
 			const auto controller = _controller.get();
@@ -712,13 +686,13 @@ rpl::producer<SelectedItems> WrapWidget::selectedListValue() const {
 
 // Was done for top level tabs support.
 //
-//std::unique_ptr<ContentMemento> WrapWidget::createTabMemento(
+//std::shared_ptr<ContentMemento> WrapWidget::createTabMemento(
 //		Tab tab) {
 //	switch (tab) {
-//	case Tab::Profile: return std::make_unique<Profile::Memento>(
+//	case Tab::Profile: return std::make_shared<Profile::Memento>(
 //		_controller->peerId(),
 //		_controller->migratedPeerId());
-//	case Tab::Media: return std::make_unique<Media::Memento>(
+//	case Tab::Media: return std::make_shared<Media::Memento>(
 //		_controller->peerId(),
 //		_controller->migratedPeerId(),
 //		Media::Type::Photo);
@@ -884,8 +858,8 @@ void WrapWidget::highlightTopBar() {
 	}
 }
 
-std::unique_ptr<Window::SectionMemento> WrapWidget::createMemento() {
-	auto stack = std::vector<std::unique_ptr<ContentMemento>>();
+std::shared_ptr<Window::SectionMemento> WrapWidget::createMemento() {
+	auto stack = std::vector<std::shared_ptr<ContentMemento>>();
 	stack.reserve(_historyStack.size() + 1);
 	for (auto &stackItem : base::take(_historyStack)) {
 		stack.push_back(std::move(stackItem.section));
@@ -895,7 +869,7 @@ std::unique_ptr<Window::SectionMemento> WrapWidget::createMemento() {
 	// We're not in valid state anymore and supposed to be destroyed.
 	_controller = nullptr;
 
-	return std::make_unique<Memento>(std::move(stack));
+	return std::make_shared<Memento>(std::move(stack));
 }
 
 rpl::producer<int> WrapWidget::desiredHeightValue() const {

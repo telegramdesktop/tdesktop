@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <cstdio>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/sendfile.h>
 #include <cstdlib>
 #include <unistd.h>
 #include <dirent.h>
@@ -87,7 +88,7 @@ void writeLog(const char *format, ...) {
 	va_end(args);
 }
 
-bool copyFile(const char *from, const char *to) {
+bool copyFile(const char *from, const char *to, bool writeprotected) {
 	FILE *ffrom = fopen(from, "rb"), *fto = fopen(to, "wb");
 	if (!ffrom) {
 		if (fto) fclose(fto);
@@ -97,11 +98,6 @@ bool copyFile(const char *from, const char *to) {
 		fclose(ffrom);
 		return false;
 	}
-	static const int BufSize = 65536;
-	char buf[BufSize];
-	while (size_t size = fread(buf, 1, BufSize, ffrom)) {
-		fwrite(buf, 1, size, fto);
-	}
 
 	struct stat fst; // from http://stackoverflow.com/questions/5486774/keeping-fileowner-and-permissions-after-copying-file-in-c
 	//let's say this wont fail since you already worked OK on that fp
@@ -110,8 +106,35 @@ bool copyFile(const char *from, const char *to) {
 		fclose(fto);
 		return false;
 	}
+
+	ssize_t copied = sendfile(
+		fileno(fto),
+		fileno(ffrom),
+		nullptr,
+		fst.st_size);
+
+	if (copied == -1) {
+		writeLog(
+			"Copy by sendfile '%s' to '%s' failed, error: %d, fallback now.",
+			from,
+			to,
+			int(errno));
+		static const int BufSize = 65536;
+		char buf[BufSize];
+		while (size_t size = fread(buf, 1, BufSize, ffrom)) {
+			fwrite(buf, 1, size, fto);
+		}
+	} else {
+		writeLog(
+			"Copy by sendfile '%s' to '%s' done, size: %d, result: %d.",
+			from,
+			to,
+			int(fst.st_size),
+			int(copied));
+	}
+
 	//update to the same uid/gid
-	if (fchown(fileno(fto), fst.st_uid, fst.st_gid) != 0) {
+	if (!writeprotected && fchown(fileno(fto), fst.st_uid, fst.st_gid) != 0) {
 		fclose(ffrom);
 		fclose(fto);
 		return false;
@@ -210,7 +233,7 @@ void delFolder() {
 	rmdir(delFolder.c_str());
 }
 
-bool update() {
+bool update(bool writeprotected) {
 	writeLog("Update started..");
 
 	string updDir = workDir + "tupdates/temp", readyFilePath = workDir + "tupdates/temp/ready", tdataDir = workDir + "tupdates/temp/tdata";
@@ -323,7 +346,7 @@ bool update() {
 		writeLog("Copying file '%s' to '%s'..", fname.c_str(), tofname.c_str());
 		int copyTries = 0, triesLimit = 30;
 		do {
-			if (!copyFile(fname.c_str(), tofname.c_str())) {
+			if (!copyFile(fname.c_str(), tofname.c_str(), writeprotected)) {
 				++copyTries;
 				usleep(100000);
 			} else {
@@ -358,6 +381,7 @@ int main(int argc, char *argv[]) {
 	bool needupdate = true;
 	bool autostart = false;
 	bool debug = false;
+	bool writeprotected = false;
 	bool tosettings = false;
 	bool startintray = false;
 	bool testmode = false;
@@ -383,6 +407,8 @@ int main(int argc, char *argv[]) {
 			tosettings = true;
 		} else if (equal(argv[i], "-workdir_custom")) {
 			customWorkingDir = true;
+		} else if (equal(argv[i], "-writeprotected")) {
+			writeprotected = true;
 		} else if (equal(argv[i], "-key") && ++i < argc) {
 			key = argv[i];
 		} else if (equal(argv[i], "-workpath") && ++i < argc) {
@@ -404,6 +430,7 @@ int main(int argc, char *argv[]) {
 	}
 	if (needupdate) writeLog("Need to update!");
 	if (autostart) writeLog("From autostart!");
+	if (writeprotected) writeLog("Write Protected folder!");
 
 	updaterName = CurrentExecutablePath(argc, argv);
 	writeLog("Updater binary full path is: %s", updaterName.c_str());
@@ -454,7 +481,7 @@ int main(int argc, char *argv[]) {
 				} else {
 					writeLog("Passed workpath is '%s'", workDir.c_str());
 				}
-				update();
+				update(writeprotected);
 			}
 		} else {
 			writeLog("Error: bad exe name!");
@@ -494,14 +521,17 @@ int main(int argc, char *argv[]) {
 	}
 	args.push_back(nullptr);
 
-	pid_t pid = fork();
-	switch (pid) {
-	case -1:
-		writeLog("fork() failed!");
-		return 1;
-	case 0:
-		execv(path, args.data());
-		return 1;
+	// let the parent launch instead
+	if (!writeprotected) {
+		pid_t pid = fork();
+		switch (pid) {
+		case -1:
+			writeLog("fork() failed!");
+			return 1;
+		case 0:
+			execv(args[0], args.data());
+			return 1;
+		}
 	}
 
 	writeLog("Executed Telegram, closing log and quitting..");

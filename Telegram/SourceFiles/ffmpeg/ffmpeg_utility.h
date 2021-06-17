@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/bytes.h"
+#include "base/algorithm.h"
 
 #include <crl/crl_time.h>
 
@@ -61,55 +62,42 @@ private:
 
 class Packet {
 public:
-	Packet() {
-		setEmpty();
-	}
-	Packet(const AVPacket &data) {
-		bytes::copy(_data, bytes::object_as_span(&data));
-	}
-	Packet(Packet &&other) {
-		bytes::copy(_data, other._data);
-		if (!other.empty()) {
-			other.release();
-		}
+	Packet() = default;
+	Packet(Packet &&other) : _data(base::take(other._data)) {
 	}
 	Packet &operator=(Packet &&other) {
 		if (this != &other) {
-			av_packet_unref(&fields());
-			bytes::copy(_data, other._data);
-			if (!other.empty()) {
-				other.release();
-			}
+			release();
+			_data = base::take(other._data);
 		}
 		return *this;
 	}
 	~Packet() {
-		av_packet_unref(&fields());
+		release();
 	}
 
 	[[nodiscard]] AVPacket &fields() {
-		return *reinterpret_cast<AVPacket*>(_data);
+		if (!_data) {
+			_data = av_packet_alloc();
+		}
+		return *_data;
 	}
 	[[nodiscard]] const AVPacket &fields() const {
-		return *reinterpret_cast<const AVPacket*>(_data);
+		if (!_data) {
+			_data = av_packet_alloc();
+		}
+		return *_data;
 	}
 
 	[[nodiscard]] bool empty() const {
-		return !fields().data;
+		return !_data || !fields().data;
 	}
 	void release() {
-		setEmpty();
+		av_packet_free(&_data);
 	}
 
 private:
-	void setEmpty() {
-		auto &native = fields();
-		av_init_packet(&native);
-		native.data = nullptr;
-		native.size = 0;
-	}
-
-	alignas(alignof(AVPacket)) bytes::type _data[sizeof(AVPacket)];
+	mutable AVPacket *_data = nullptr;
 
 };
 

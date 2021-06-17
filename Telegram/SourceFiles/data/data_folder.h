@@ -23,8 +23,6 @@ namespace Data {
 class Session;
 class Folder;
 
-//MessagePosition FeedPositionFromMTP(const MTPFeedPosition &position); // #feed
-
 class Folder final : public Dialogs::Entry, public base::has_weak_ptr {
 public:
 	static constexpr auto kId = 1;
@@ -43,9 +41,6 @@ public:
 	void applyDialog(const MTPDdialogFolder &data);
 	void applyPinnedUpdate(const MTPDupdateDialogPinned &data);
 
-	//MessagePosition unreadPosition() const; // #feed
-	//rpl::producer<MessagePosition> unreadPositionChanges() const; // #feed
-
 	TimeId adjustedChatListTimeId() const override;
 
 	int fixedOnTopIndex() const override;
@@ -58,6 +53,7 @@ public:
 	bool chatListMessageKnown() const override;
 	void requestChatListMessage() override;
 	const QString &chatListName() const override;
+	const QString &chatListNameSortKey() const override;
 	const base::flat_set<QString> &chatListNameWords() const override;
 	const base::flat_set<QChar> &chatListFirstLetters() const override;
 
@@ -102,6 +98,7 @@ private:
 	QString _name;
 	base::flat_set<QString> _nameWords;
 	base::flat_set<QChar> _nameFirstLetters;
+	QString _chatListNameSortKey;
 
 	std::vector<not_null<History*>> _lastHistories;
 	HistoryItem *_chatListMessage = nullptr;

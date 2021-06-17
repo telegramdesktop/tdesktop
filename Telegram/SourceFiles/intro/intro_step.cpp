@@ -75,15 +75,16 @@ Step::Step(
 			? st::introCoverDescription
 			: st::introDescription)) {
 	hide();
-	subscribe(Window::Theme::Background(), [this](
-			const Window::Theme::BackgroundUpdate &update) {
-		if (update.paletteChanged()) {
-			if (!_coverMask.isNull()) {
-				_coverMask = QPixmap();
-				prepareCoverMask();
-			}
+	base::ObservableViewer(
+		*Window::Theme::Background()
+	) | rpl::filter([](const Window::Theme::BackgroundUpdate &update) {
+		return update.paletteChanged();
+	}) | rpl::start_with_next([=] {
+		if (!_coverMask.isNull()) {
+			_coverMask = QPixmap();
+			prepareCoverMask();
 		}
-	});
+	}, lifetime());
 
 	_errorText.value(
 	) | rpl::start_with_next([=](const QString &text) {
@@ -153,10 +154,11 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 		const auto raw = existing.get();
 		if (const auto session = raw->maybeSession()) {
 			if (raw->mtp().environment() == _account->mtp().environment()
-				&& user.c_user().vid().v == session->userId()) {
+				&& UserId(user.c_user().vid()) == session->userId()) {
 				_account->logOut();
 				crl::on_main(raw, [=] {
 					Core::App().domain().activate(raw);
+					Local::sync();
 				});
 				return;
 			}
@@ -166,7 +168,7 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 	api().request(MTPmessages_GetDialogFilters(
 	)).done([=](const MTPVector<MTPDialogFilter> &result) {
 		createSession(user, photo, result.v);
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		createSession(user, photo, QVector<MTPDialogFilter>());
 	}).send();
 }
@@ -203,6 +205,7 @@ void Step::createSession(
 	if (session.supportMode()) {
 		PrepareSupportMode(&session);
 	}
+	Local::sync();
 }
 
 void Step::paintEvent(QPaintEvent *e) {
@@ -411,7 +414,11 @@ int Step::contentTop() const {
 	accumulate_max(result, st::introStepTopMin);
 	if (_hasCover) {
 		const auto currentHeightFull = result + st::introNextTop + st::introContentTopAdd;
-		auto added = 1. - snap(float64(currentHeightFull - st::windowMinHeight) / (st::introStepHeightFull - st::windowMinHeight), 0., 1.);
+		auto added = 1. - std::clamp(
+			float64(currentHeightFull - st::windowMinHeight)
+				/ (st::introStepHeightFull - st::windowMinHeight),
+			0.,
+			1.);
 		result += qRound(added * st::introContentTopAdd);
 	}
 	return result;

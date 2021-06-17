@@ -340,7 +340,7 @@ bool Domain::removePasscodeIfEmpty() {
 		return false;
 	}
 	Local::reset();
-	if (!Global::LocalPasscode()) {
+	if (!_local->hasLocalPasscode()) {
 		return false;
 	}
 	// We completely logged out, remove the passcode if it was there.
@@ -383,6 +383,12 @@ void Domain::checkForLastProductionConfig(
 		}
 	}
 	Core::App().refreshFallbackProductionConfig(mtp->config());
+}
+
+void Domain::maybeActivate(not_null<Main::Account*> account) {
+	Core::App().preventOrInvoke(crl::guard(account, [=] {
+		activate(account);
+	}));
 }
 
 void Domain::activate(not_null<Main::Account*> account) {

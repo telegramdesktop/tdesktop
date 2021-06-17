@@ -52,7 +52,7 @@ void DicePack::load() {
 		result.match([&](const MTPDmessages_stickerSet &data) {
 			applySet(data);
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 	}).send();
 }
@@ -75,7 +75,7 @@ void DicePack::applySet(const MTPDmessages_stickerSet &data) {
 	if (isSlotMachine) {
 		return;
 	}
-	for (const auto pack : data.vpacks().v) {
+	for (const auto &pack : data.vpacks().v) {
 		pack.match([&](const MTPDstickerPack &data) {
 			const auto emoji = qs(data.vemoticon());
 			if (emoji.isEmpty()) {
@@ -125,7 +125,7 @@ void DicePack::generateLocal(int index, const QString &name) {
 		QByteArray(),
 		nullptr,
 		SendMediaType::File,
-		FileLoadTo(0, {}, 0),
+		FileLoadTo(0, {}, 0, 0),
 		{});
 	task.process({ .generateGoodThumbnail = false });
 	const auto result = task.peekResult();

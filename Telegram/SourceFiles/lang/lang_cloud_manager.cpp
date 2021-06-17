@@ -182,6 +182,14 @@ Pack CloudManager::packTypeFromId(const QString &id) const {
 	return Pack::None;
 }
 
+rpl::producer<> CloudManager::languageListChanged() const {
+	return _languageListChanged.events();
+}
+
+rpl::producer<> CloudManager::firstLanguageSuggestion() const {
+	return _firstLanguageSuggestion.events();
+}
+
 void CloudManager::requestLangPackDifference(const QString &langId) {
 	Expects(!langId.isEmpty());
 
@@ -226,7 +234,7 @@ void CloudManager::requestLangPackDifference(Pack pack) {
 		)).done([=](const MTPLangPackDifference &result) {
 			packRequestId(pack) = 0;
 			applyLangPackDifference(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			packRequestId(pack) = 0;
 		}).send();
 	} else {
@@ -236,7 +244,7 @@ void CloudManager::requestLangPackDifference(Pack pack) {
 		)).done([=](const MTPLangPackDifference &result) {
 			packRequestId(pack) = 0;
 			applyLangPackDifference(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			packRequestId(pack) = 0;
 		}).send();
 	}
@@ -251,7 +259,7 @@ void CloudManager::setSuggestedLanguage(const QString &langCode) {
 
 	if (!_languageWasSuggested) {
 		_languageWasSuggested = true;
-		_firstLanguageSuggestion.notify();
+		_firstLanguageSuggestion.fire({});
 
 		if (Core::App().offerLegacyLangPackSwitch()
 			&& _langpack.id().isEmpty()
@@ -290,9 +298,9 @@ void CloudManager::applyLangPackDifference(
 		}
 	} else {
 		LOG(("Lang Warning: "
-			"Ignoring update for '%1' because our language is '%2'"
-			).arg(langpackId
-			).arg(_langpack.id()));
+			"Ignoring update for '%1' because our language is '%2'").arg(
+			langpackId,
+			_langpack.id()));
 	}
 }
 
@@ -311,10 +319,10 @@ void CloudManager::requestLanguageList() {
 		}
 		if (_languages != languages) {
 			_languages = languages;
-			_languagesChanged.notify();
+			_languageListChanged.fire({});
 		}
 		_languagesRequestId = 0;
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_languagesRequestId = 0;
 	}).send();
 }
@@ -324,9 +332,10 @@ void CloudManager::offerSwitchLangPack() {
 	Expects(_offerSwitchToId != DefaultLanguageId());
 
 	if (!showOfferSwitchBox()) {
-		subscribe(languageListChanged(), [this] {
+		languageListChanged(
+		) | rpl::start_with_next([=] {
 			showOfferSwitchBox();
-		});
+		}, _lifetime);
 		requestLanguageList();
 	}
 }
@@ -453,7 +462,7 @@ void CloudManager::sendSwitchingToLanguageRequest() {
 				Ui::show(Box<NotReadyBox>(data));
 			}
 		});
-	}).fail([=](const RPCError &error) {
+	}).fail([=](const MTP::Error &error) {
 		_switchingToLanguageRequest = 0;
 		if (error.type() == "LANG_CODE_NOT_SUPPORTED") {
 			Ui::show(Box<InformBox>(tr::lng_language_not_found(tr::now)));
@@ -500,7 +509,7 @@ void CloudManager::switchToLanguage(const Language &data) {
 					tr::lng_cancel(tr::now),
 					[=] { performSwitchAndRestart(data); }),
 				Ui::LayerOption::KeepOther);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			_getKeysForSwitchRequestId = 0;
 		}).send();
 	}

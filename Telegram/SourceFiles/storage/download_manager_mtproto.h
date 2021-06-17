@@ -12,7 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 
 class ApiWrap;
-class RPCError;
+
+namespace MTP {
+class Error;
+} // namespace MTP
 
 namespace Storage {
 
@@ -51,6 +54,7 @@ public:
 		int index,
 		int amountAtRequestStart,
 		crl::time timeAtRequestStart);
+	void checkSendNextAfterSuccess(MTP::DcId dcId);
 	[[nodiscard]] int chooseSessionIndex(MTP::DcId dcId) const;
 
 private:
@@ -218,12 +222,12 @@ private:
 
 	void partLoaded(int offset, const QByteArray &bytes);
 
-	bool partFailed(const RPCError &error, mtpRequestId requestId);
+	bool partFailed(const MTP::Error &error, mtpRequestId requestId);
 	bool normalPartFailed(
 		QByteArray fileReference,
-		const RPCError &error,
+		const MTP::Error &error,
 		mtpRequestId requestId);
-	bool cdnPartFailed(const RPCError &error, mtpRequestId requestId);
+	bool cdnPartFailed(const MTP::Error &error, mtpRequestId requestId);
 
 	[[nodiscard]] mtpRequestId sendRequest(const RequestData &requestData);
 	void placeSentRequest(

@@ -26,32 +26,12 @@ inline QImage GetImageFromClipboard() {
 	return {};
 }
 
-inline bool StartSystemMove(QWindow *window) {
-	return false;
-}
-
-inline bool StartSystemResize(QWindow *window, Qt::Edges edges) {
-	return false;
-}
-
 inline bool TrayIconSupported() {
 	return true;
 }
 
 inline bool SkipTaskbarSupported() {
 	return true;
-}
-
-inline bool SetWindowExtents(QWindow *window, const QMargins &extents) {
-	return false;
-}
-
-inline bool UnsetWindowExtents(QWindow *window) {
-	return false;
-}
-
-inline bool WindowsNeedShadow() {
-	return false;
 }
 
 namespace ThirdParty {
@@ -67,15 +47,11 @@ inline void finish() {
 inline void psCheckLocalSocket(const QString &) {
 }
 
-void psWriteDump();
-
 void psActivateProcess(uint64 pid = 0);
 QString psAppDataPath();
 QString psAppDataPathOld();
 void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
-
-QRect psDesktopRect();
 
 int psCleanup();
 int psFixPrevious();

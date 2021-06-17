@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/base_file_utilities.h"
 #include "base/zlib_help.h"
 #include "base/unixtime.h"
+#include "base/openssl_help.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_cloud_themes.h"
@@ -283,9 +284,9 @@ void ImportFromFile(
 			name,
 			ColorHexString(color->c));
 		if (data == "error") {
-			LOG(("Theme Error: could not adjust '%1: %2' in content"
-				).arg(QString::fromLatin1(name)
-				).arg(QString::fromLatin1(ColorHexString(color->c))));
+			LOG(("Theme Error: could not adjust '%1: %2' in content").arg(
+				QString::fromLatin1(name),
+				QString::fromLatin1(ColorHexString(color->c))));
 			return QByteArray();
 		}
 	}
@@ -341,7 +342,7 @@ bool CopyColorsToPalette(
 	auto result = QString();
 	result.reserve(kRandomSlugSize);
 	for (auto i = 0; i != kRandomSlugSize; ++i) {
-		const auto value = rand_value<uint8>() % values;
+		const auto value = openssl::RandomValue<uint8>() % values;
 		if (value < letters) {
 			result.append(char('A' + value));
 		} else if (value < 2 * letters) {
@@ -432,7 +433,6 @@ SendMediaReady PrepareThemeMedia(
 			QByteArray bytes = QByteArray()) {
 		sizes.push_back(MTP_photoSize(
 			MTP_string(type),
-			MTP_fileLocationToBeDeprecated(MTP_long(0), MTP_int(0)),
 			MTP_int(image.width()),
 			MTP_int(image.height()), MTP_int(0)));
 		thumbnails.emplace(type[0], PreparedPhotoThumb{
@@ -447,7 +447,7 @@ SendMediaReady PrepareThemeMedia(
 	auto attributes = QVector<MTPDocumentAttribute>(
 		1,
 		MTP_documentAttributeFilename(MTP_string(filename)));
-	const auto id = rand_value<DocumentId>();
+	const auto id = openssl::RandomValue<DocumentId>();
 	const auto document = MTP_document(
 		MTP_flags(0),
 		MTP_long(id),
@@ -544,7 +544,7 @@ Fn<void()> SavePreparedTheme(
 			MTPInputThemeSettings()
 		)).done([=](const MTPTheme &result) {
 			finish(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			fail(SaveErrorType::Other, error.type());
 		}).send();
 	};
@@ -567,7 +567,7 @@ Fn<void()> SavePreparedTheme(
 			MTPInputThemeSettings()
 		)).done([=](const MTPTheme &result) {
 			finish(result);
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			fail(SaveErrorType::Other, error.type());
 		}).send();
 	};
@@ -585,7 +585,7 @@ Fn<void()> SavePreparedTheme(
 			} else {
 				updateTheme(result);
 			}
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			fail(SaveErrorType::Other, error.type());
 		}).send();
 	};
@@ -634,7 +634,7 @@ Fn<void()> SavePreparedTheme(
 			MTPInputThemeSettings()
 		)).done([=](const MTPTheme &result) {
 			save();
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			if (error.type() == qstr("THEME_FILE_INVALID")) {
 				save();
 			} else {
@@ -770,7 +770,7 @@ void SaveTheme(
 			result.match([&](const MTPDtheme &data) {
 				save(CloudTheme::Parse(&window->account().session(), data));
 			});
-		}).fail([=](const RPCError &error) {
+		}).fail([=](const MTP::Error &error) {
 			save(CloudTheme());
 		}).send();
 	} else {

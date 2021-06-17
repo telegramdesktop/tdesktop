@@ -8,6 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/notifications_manager_win.h"
 
 #include "window/notifications_utilities.h"
+#include "window/window_session_controller.h"
+#include "base/platform/win/base_windows_wrl.h"
+#include "base/platform/base_platform_info.h"
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_event_filter.h"
 #include "platform/win/windows_dlls.h"
@@ -16,19 +19,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
+#include "windows_quiethours_h.h"
 
 #include <Shobjidl.h>
 #include <shellapi.h>
 
-#include <roapi.h>
-#include <wrl/client.h>
-
 #ifndef __MINGW32__
-#include "platform/win/wrapper_wrl_implements_h.h"
+#include "base/platform/win/wrl/wrl_implements_h.h"
 #include <windows.ui.notifications.h>
-
-#include <strsafe.h>
-#include <intsafe.h>
 
 HICON qt_pixmapToWinHICON(const QPixmap &);
 
@@ -44,68 +42,16 @@ namespace Notifications {
 #ifndef __MINGW32__
 namespace {
 
-class StringReferenceWrapper {
-public:
-	StringReferenceWrapper(_In_reads_(length) PCWSTR stringRef, _In_ UINT32 length) throw() {
-		HRESULT hr = Dlls::WindowsCreateStringReference(stringRef, length, &_header, &_hstring);
-		if (!SUCCEEDED(hr)) {
-			RaiseException(static_cast<DWORD>(STATUS_INVALID_PARAMETER), EXCEPTION_NONCONTINUABLE, 0, nullptr);
-		}
-	}
-
-	~StringReferenceWrapper() {
-		Dlls::WindowsDeleteString(_hstring);
-	}
-
-	template <size_t N>
-	StringReferenceWrapper(_In_reads_(N) wchar_t const (&stringRef)[N]) throw() {
-		UINT32 length = N - 1;
-		HRESULT hr = Dlls::WindowsCreateStringReference(stringRef, length, &_header, &_hstring);
-		if (!SUCCEEDED(hr)) {
-			RaiseException(static_cast<DWORD>(STATUS_INVALID_PARAMETER), EXCEPTION_NONCONTINUABLE, 0, nullptr);
-		}
-	}
-
-	template <size_t _>
-	StringReferenceWrapper(_In_reads_(_) wchar_t(&stringRef)[_]) throw() {
-		UINT32 length;
-		HRESULT hr = SizeTToUInt32(wcslen(stringRef), &length);
-		if (!SUCCEEDED(hr)) {
-			RaiseException(static_cast<DWORD>(STATUS_INVALID_PARAMETER), EXCEPTION_NONCONTINUABLE, 0, nullptr);
-		}
-
-		Dlls::WindowsCreateStringReference(stringRef, length, &_header, &_hstring);
-	}
-
-	HSTRING Get() const throw() {
-		return _hstring;
-	}
-
-private:
-	HSTRING _hstring;
-	HSTRING_HEADER _header;
-
-};
-
-template<class T>
-_Check_return_ __inline HRESULT _1_GetActivationFactory(_In_ HSTRING activatableClassId, _COM_Outptr_ T** factory) {
-	return Dlls::RoGetActivationFactory(activatableClassId, IID_INS_ARGS(factory));
-}
-
-template<typename T>
-inline HRESULT wrap_GetActivationFactory(_In_ HSTRING activatableClassId, _Inout_ Details::ComPtrRef<T> factory) throw() {
-	return _1_GetActivationFactory(activatableClassId, factory.ReleaseAndGetAddressOf());
-}
+using base::Platform::GetActivationFactory;
+using base::Platform::StringReferenceWrapper;
 
 bool init() {
-	if (QSysInfo::windowsVersion() < QSysInfo::WV_WINDOWS8) {
+	if (!IsWindows8OrGreater()) {
 		return false;
 	}
 	if ((Dlls::SetCurrentProcessExplicitAppUserModelID == nullptr)
 		|| (Dlls::PropVariantToString == nullptr)
-		|| (Dlls::RoGetActivationFactory == nullptr)
-		|| (Dlls::WindowsCreateStringReference == nullptr)
-		|| (Dlls::WindowsDeleteString == nullptr)) {
+		|| !base::Platform::SupportsWRL()) {
 		return false;
 	}
 
@@ -310,8 +256,187 @@ void Check() {
 	InitSucceeded = init();
 }
 
+bool QuietHoursEnabled = false;
+DWORD QuietHoursValue = 0;
+
+[[nodiscard]] bool UseQuietHoursRegistryEntry() {
+	static const bool result = [] {
+		// Taken from QSysInfo.
+		OSVERSIONINFO result = { sizeof(OSVERSIONINFO), 0, 0, 0, 0,{ '\0' } };
+		if (const auto library = GetModuleHandle(L"ntdll.dll")) {
+			using RtlGetVersionFunction = NTSTATUS(NTAPI*)(LPOSVERSIONINFO);
+			const auto RtlGetVersion = reinterpret_cast<RtlGetVersionFunction>(
+				GetProcAddress(library, "RtlGetVersion"));
+			if (RtlGetVersion) {
+				RtlGetVersion(&result);
+			}
+		}
+		// At build 17134 (Redstone 4) the "Quiet hours" was replaced
+		// by "Focus assist" and it looks like it doesn't use registry.
+		return (result.dwMajorVersion == 10
+			&& result.dwMinorVersion == 0
+			&& result.dwBuildNumber < 17134);
+	}();
+	return result;
+}
+
+// Thanks https://stackoverflow.com/questions/35600128/get-windows-quiet-hours-from-win32-or-c-sharp-api
+void QueryQuietHours() {
+	if (!UseQuietHoursRegistryEntry()) {
+		// There are quiet hours in Windows starting from Windows 8.1
+		// But there were several reports about the notifications being shut
+		// down according to the registry while no quiet hours were enabled.
+		// So we try this method only starting with Windows 10.
+		return;
+	}
+
+	LPCWSTR lpKeyName = L"Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings";
+	LPCWSTR lpValueName = L"NOC_GLOBAL_SETTING_TOASTS_ENABLED";
+	HKEY key;
+	auto result = RegOpenKeyEx(HKEY_CURRENT_USER, lpKeyName, 0, KEY_READ, &key);
+	if (result != ERROR_SUCCESS) {
+		return;
+	}
+
+	DWORD value = 0, type = 0, size = sizeof(value);
+	result = RegQueryValueEx(key, lpValueName, 0, &type, (LPBYTE)&value, &size);
+	RegCloseKey(key);
+
+	auto quietHoursEnabled = (result == ERROR_SUCCESS) && (value == 0);
+	if (QuietHoursEnabled != quietHoursEnabled) {
+		QuietHoursEnabled = quietHoursEnabled;
+		QuietHoursValue = value;
+		LOG(("Quiet hours changed, entry value: %1").arg(value));
+	} else if (QuietHoursValue != value) {
+		QuietHoursValue = value;
+		LOG(("Quiet hours value changed, was value: %1, entry value: %2").arg(QuietHoursValue).arg(value));
+	}
+}
+
+bool FocusAssistBlocks = false;
+
+// Thanks https://www.withinrafael.com/2019/09/19/determine-if-your-app-is-in-a-focus-assist-profiles-priority-list/
+void QueryFocusAssist() {
+	ComPtr<IQuietHoursSettings> quietHoursSettings;
+	auto hr = CoCreateInstance(
+		CLSID_QuietHoursSettings,
+		nullptr,
+		CLSCTX_LOCAL_SERVER,
+		IID_PPV_ARGS(&quietHoursSettings));
+	if (!SUCCEEDED(hr) || !quietHoursSettings) {
+		return;
+	}
+
+	auto profileId = LPWSTR{};
+	const auto guardProfileId = gsl::finally([&] {
+		if (profileId) CoTaskMemFree(profileId);
+	});
+	hr = quietHoursSettings->get_UserSelectedProfile(&profileId);
+	if (!SUCCEEDED(hr) || !profileId) {
+		return;
+	}
+	const auto profileName = QString::fromWCharArray(profileId);
+	if (profileName.endsWith(".alarmsonly", Qt::CaseInsensitive)) {
+		if (!FocusAssistBlocks) {
+			LOG(("Focus Assist: Alarms Only."));
+			FocusAssistBlocks = true;
+		}
+		return;
+	} else if (!profileName.endsWith(".priorityonly", Qt::CaseInsensitive)) {
+		if (!profileName.endsWith(".unrestricted", Qt::CaseInsensitive)) {
+			LOG(("Focus Assist Warning: Unknown profile '%1'"
+				).arg(profileName));
+		}
+		if (FocusAssistBlocks) {
+			LOG(("Focus Assist: Unrestricted."));
+			FocusAssistBlocks = false;
+		}
+		return;
+	}
+	const auto appUserModelId = std::wstring(AppUserModelId::getId());
+	auto blocked = true;
+	const auto guard = gsl::finally([&] {
+		if (FocusAssistBlocks != blocked) {
+			LOG(("Focus Assist: %1, AppUserModelId: %2, Blocks: %3"
+				).arg(profileName
+				).arg(QString::fromStdWString(appUserModelId)
+				).arg(Logs::b(blocked)));
+			FocusAssistBlocks = blocked;
+		}
+	});
+
+	ComPtr<IQuietHoursProfile> profile;
+	hr = quietHoursSettings->GetProfile(profileId, &profile);
+	if (!SUCCEEDED(hr) || !profile) {
+		return;
+	}
+
+	UINT32 count = 0;
+	auto apps = (LPWSTR*)nullptr;
+	const auto guardApps = gsl::finally([&] {
+		if (apps) CoTaskMemFree(apps);
+	});
+	hr = profile->GetAllowedApps(&count, &apps);
+	if (!SUCCEEDED(hr) || !apps) {
+		return;
+	}
+	for (UINT32 i = 0; i < count; i++) {
+		auto app = apps[i];
+		const auto guardApp = gsl::finally([&] {
+			if (app) CoTaskMemFree(app);
+		});
+		if (app == appUserModelId) {
+			blocked = false;
+		}
+	}
+}
+
+QUERY_USER_NOTIFICATION_STATE UserNotificationState = QUNS_ACCEPTS_NOTIFICATIONS;
+
+void QueryUserNotificationState() {
+	if (Dlls::SHQueryUserNotificationState != nullptr) {
+		QUERY_USER_NOTIFICATION_STATE state;
+		if (SUCCEEDED(Dlls::SHQueryUserNotificationState(&state))) {
+			UserNotificationState = state;
+		}
+	}
+}
+
+static constexpr auto kQuerySettingsEachMs = 1000;
+crl::time LastSettingsQueryMs = 0;
+
+void QuerySystemNotificationSettings() {
+	auto ms = crl::now();
+	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + kQuerySettingsEachMs) {
+		return;
+	}
+	LastSettingsQueryMs = ms;
+	QueryQuietHours();
+	QueryFocusAssist();
+	QueryUserNotificationState();
+}
+
 } // namespace
 #endif // !__MINGW32__
+
+bool SkipAudioForCustom() {
+	QuerySystemNotificationSettings();
+
+	return (UserNotificationState == QUNS_NOT_PRESENT)
+		|| (UserNotificationState == QUNS_PRESENTATION_MODE)
+		|| Core::App().screenIsLocked();
+}
+
+bool SkipToastForCustom() {
+	QuerySystemNotificationSettings();
+
+	return (UserNotificationState == QUNS_PRESENTATION_MODE)
+		|| (UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN);
+}
+
+bool SkipFlashBounceForCustom() {
+	return SkipToastForCustom();
+}
 
 bool Supported() {
 #ifndef __MINGW32__
@@ -325,16 +450,25 @@ bool Supported() {
 	return false;
 }
 
-std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {
+bool Enforced() {
+	return false;
+}
+
+bool ByDefault() {
+	return false;
+}
+
+void Create(Window::Notifications::System *system) {
 #ifndef __MINGW32__
 	if (Core::App().settings().nativeNotifications() && Supported()) {
 		auto result = std::make_unique<Manager>(system);
 		if (result->init()) {
-			return std::move(result);
+			system->setManager(std::move(result));
+			return;
 		}
 	}
 #endif // !__MINGW32__
-	return nullptr;
+	system->setManager(nullptr);
 }
 
 #ifndef __MINGW32__
@@ -358,7 +492,9 @@ public:
 	void clearFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
 	void beforeNotificationActivated(NotificationId id);
-	void afterNotificationActivated(NotificationId id);
+	void afterNotificationActivated(
+		NotificationId id,
+		not_null<Window::SessionController*> window);
 	void clearNotification(NotificationId id);
 
 	~Private();
@@ -390,7 +526,7 @@ Manager::Private::Private(Manager *instance, Type type)
 }
 
 bool Manager::Private::init() {
-	if (!SUCCEEDED(wrap_GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotificationManager).Get(), &_notificationManager))) {
+	if (!SUCCEEDED(GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotificationManager).Get(), &_notificationManager))) {
 		return false;
 	}
 
@@ -399,7 +535,7 @@ bool Manager::Private::init() {
 		return false;
 	}
 
-	if (!SUCCEEDED(wrap_GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotification).Get(), &_notificationFactory))) {
+	if (!SUCCEEDED(GetActivationFactory(StringReferenceWrapper(RuntimeClass_Windows_UI_Notifications_ToastNotification).Get(), &_notificationFactory))) {
 		return false;
 	}
 	return true;
@@ -470,10 +606,10 @@ void Manager::Private::beforeNotificationActivated(NotificationId id) {
 	clearNotification(id);
 }
 
-void Manager::Private::afterNotificationActivated(NotificationId id) {
-	if (auto window = App::wnd()) {
-		SetForegroundWindow(window->psHwnd());
-	}
+void Manager::Private::afterNotificationActivated(
+		NotificationId id,
+		not_null<Window::SessionController*> window) {
+	SetForegroundWindow(window->widget()->psHwnd());
 }
 
 void Manager::Private::clearNotification(NotificationId id) {
@@ -664,124 +800,28 @@ void Manager::onBeforeNotificationActivated(NotificationId id) {
 	_private->beforeNotificationActivated(id);
 }
 
-void Manager::onAfterNotificationActivated(NotificationId id) {
-	_private->afterNotificationActivated(id);
+void Manager::onAfterNotificationActivated(
+		NotificationId id,
+		not_null<Window::SessionController*> window) {
+	_private->afterNotificationActivated(id, window);
+}
+
+bool Manager::doSkipAudio() const {
+	return SkipAudioForCustom()
+		|| QuietHoursEnabled
+		|| FocusAssistBlocks;
+}
+
+bool Manager::doSkipToast() const {
+	return false;
+}
+
+bool Manager::doSkipFlashBounce() const {
+	return SkipFlashBounceForCustom()
+		|| QuietHoursEnabled
+		|| FocusAssistBlocks;
 }
 #endif // !__MINGW32__
-
-namespace {
-
-bool QuietHoursEnabled = false;
-DWORD QuietHoursValue = 0;
-
-bool useQuietHoursRegistryEntry() {
-	// Taken from QSysInfo.
-	OSVERSIONINFO result = { sizeof(OSVERSIONINFO), 0, 0, 0, 0,{ '\0' } };
-	if (const auto library = GetModuleHandle(L"ntdll.dll")) {
-		using RtlGetVersionFunction = NTSTATUS(NTAPI*)(LPOSVERSIONINFO);
-		const auto RtlGetVersion = reinterpret_cast<RtlGetVersionFunction>(
-			GetProcAddress(library, "RtlGetVersion"));
-		if (RtlGetVersion) {
-			RtlGetVersion(&result);
-		}
-	}
-	// At build 17134 (Redstone 4) the "Quiet hours" was replaced
-	// by "Focus assist" and it looks like it doesn't use registry.
-	return (result.dwMajorVersion == 10
-		&& result.dwMinorVersion == 0
-		&& result.dwBuildNumber < 17134);
-}
-
-// Thanks https://stackoverflow.com/questions/35600128/get-windows-quiet-hours-from-win32-or-c-sharp-api
-void queryQuietHours() {
-	if (!useQuietHoursRegistryEntry()) {
-		// There are quiet hours in Windows starting from Windows 8.1
-		// But there were several reports about the notifications being shut
-		// down according to the registry while no quiet hours were enabled.
-		// So we try this method only starting with Windows 10.
-		return;
-	}
-
-	LPCWSTR lpKeyName = L"Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings";
-	LPCWSTR lpValueName = L"NOC_GLOBAL_SETTING_TOASTS_ENABLED";
-	HKEY key;
-	auto result = RegOpenKeyEx(HKEY_CURRENT_USER, lpKeyName, 0, KEY_READ, &key);
-	if (result != ERROR_SUCCESS) {
-		return;
-	}
-
-	DWORD value = 0, type = 0, size = sizeof(value);
-	result = RegQueryValueEx(key, lpValueName, 0, &type, (LPBYTE)&value, &size);
-	RegCloseKey(key);
-
-	auto quietHoursEnabled = (result == ERROR_SUCCESS) && (value == 0);
-	if (QuietHoursEnabled != quietHoursEnabled) {
-		QuietHoursEnabled = quietHoursEnabled;
-		QuietHoursValue = value;
-		LOG(("Quiet hours changed, entry value: %1").arg(value));
-	} else if (QuietHoursValue != value) {
-		QuietHoursValue = value;
-		LOG(("Quiet hours value changed, was value: %1, entry value: %2").arg(QuietHoursValue).arg(value));
-	}
-}
-
-QUERY_USER_NOTIFICATION_STATE UserNotificationState = QUNS_ACCEPTS_NOTIFICATIONS;
-
-void queryUserNotificationState() {
-	if (Dlls::SHQueryUserNotificationState != nullptr) {
-		QUERY_USER_NOTIFICATION_STATE state;
-		if (SUCCEEDED(Dlls::SHQueryUserNotificationState(&state))) {
-			UserNotificationState = state;
-		}
-	}
-}
-
-static constexpr auto kQuerySettingsEachMs = 1000;
-crl::time LastSettingsQueryMs = 0;
-
-void querySystemNotificationSettings() {
-	auto ms = crl::now();
-	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + kQuerySettingsEachMs) {
-		return;
-	}
-	LastSettingsQueryMs = ms;
-	queryQuietHours();
-	queryUserNotificationState();
-}
-
-} // namespace
-
-bool SkipAudio() {
-	querySystemNotificationSettings();
-
-	if (UserNotificationState == QUNS_NOT_PRESENT
-		|| UserNotificationState == QUNS_PRESENTATION_MODE
-		|| QuietHoursEnabled) {
-		return true;
-	}
-	if (const auto filter = EventFilter::GetInstance()) {
-		if (filter->sessionLoggedOff()) {
-			return true;
-		}
-	}
-	return false;
-}
-
-bool SkipToast() {
-	querySystemNotificationSettings();
-
-	if (UserNotificationState == QUNS_PRESENTATION_MODE
-		|| UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN
-		//|| UserNotificationState == QUNS_BUSY
-		|| QuietHoursEnabled) {
-		return true;
-	}
-	return false;
-}
-
-bool SkipFlashBounce() {
-	return SkipToast();
-}
 
 } // namespace Notifications
 } // namespace Platform

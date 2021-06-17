@@ -360,7 +360,7 @@ void LocalStorageBox::clearByTag(uint16 tag) {
 void LocalStorageBox::setupControls() {
 	const auto container = setInnerWidget(
 		object_ptr<Ui::VerticalLayout>(this),
-		st::contactsMultiSelect.scroll);
+		st::defaultMultiSelect.scroll);
 	const auto createRow = [&](
 			uint16 tag,
 			Fn<QString(size_type)> title,

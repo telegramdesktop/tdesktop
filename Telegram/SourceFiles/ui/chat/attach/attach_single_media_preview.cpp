@@ -69,7 +69,7 @@ SingleMediaPreview::SingleMediaPreview(
 , _sticker(sticker)
 , _editMedia(this, st::sendBoxAlbumGroupButtonMedia)
 , _deleteMedia(this, st::sendBoxAlbumGroupButtonMedia)
-, _buttonsRect(st::sendBoxAlbumGroupRadius, st::callFingerprintBg) {
+, _buttonsRect(st::sendBoxAlbumGroupRadius, st::roundedBg) {
 	Expects(!preview.isNull());
 
 	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupButtonMediaDelete);

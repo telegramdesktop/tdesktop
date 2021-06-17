@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "window/window_controls_layout.h"
-
 namespace Platform {
 
 void start();
@@ -41,14 +39,8 @@ void IgnoreApplicationActivationRightNow();
 bool AutostartSupported();
 bool TrayIconSupported();
 bool SkipTaskbarSupported();
-QImage GetImageFromClipboard();
-bool StartSystemMove(QWindow *window);
-bool StartSystemResize(QWindow *window, Qt::Edges edges);
-bool ShowWindowMenu(QWindow *window);
-bool WindowsNeedShadow();
-bool SetWindowExtents(QWindow *window, const QMargins &extents);
-bool UnsetWindowExtents(QWindow *window);
-Window::ControlsLayout WindowControlsLayout();
+[[nodiscard]] QImage GetImageFromClipboard();
+void WriteCrashDumpDetails();
 
 [[nodiscard]] std::optional<bool> IsDarkMode();
 [[nodiscard]] inline bool IsDarkModeSupported() {

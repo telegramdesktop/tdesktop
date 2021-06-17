@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "base/concurrent_timer.h"
 
+#include <QtCore/QLoggingCategory>
+
 namespace Core {
 namespace {
 
@@ -98,6 +100,9 @@ void ComputeDebugMode() {
 	if (cDebugMode()) {
 		Logs::SetDebugEnabled(true);
 	}
+	if (Logs::DebugEnabled()) {
+		QLoggingCategory::setFilterRules("qt.qpa.gl.debug=true");
+	}
 }
 
 void ComputeExternalUpdater() {
@@ -108,7 +113,7 @@ void ComputeExternalUpdater() {
 		while (!fileStream.atEnd()) {
 			const auto path = fileStream.readLine();
 
-			if (path == (cWorkingDir() + cExeName())) {
+			if (path == (cExeDir() + cExeName())) {
 				SetUpdaterDisabledAtStartup();
 				return;
 			}
@@ -183,16 +188,14 @@ bool MoveLegacyAlphaFolder(const QString &folder, const QString &file) {
 		const auto newFile = was + "/tdata/alpha";
 		if (QFile::exists(oldFile) && !QFile::exists(newFile)) {
 			if (!QFile(oldFile).copy(newFile)) {
-				LOG(("FATAL: Could not copy '%1' to '%2'"
-					).arg(oldFile
-					).arg(newFile));
+				LOG(("FATAL: Could not copy '%1' to '%2'").arg(
+					oldFile,
+					newFile));
 				return false;
 			}
 		}
 		if (!QDir().rename(was, now)) {
-			LOG(("FATAL: Could not rename '%1' to '%2'"
-				).arg(was
-				).arg(now));
+			LOG(("FATAL: Could not rename '%1' to '%2'").arg(was, now));
 			return false;
 		}
 	}
@@ -270,14 +273,10 @@ std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 
 Launcher::Launcher(
 	int argc,
-	char *argv[],
-	const QString &deviceModel,
-	const QString &systemVersion)
+	char *argv[])
 : _argc(argc)
 , _argv(argv)
-, _baseIntegration(_argc, _argv)
-, _deviceModel(deviceModel)
-, _systemVersion(systemVersion) {
+, _baseIntegration(_argc, _argv) {
 	base::Integration::Set(&_baseIntegration);
 }
 
@@ -285,19 +284,7 @@ void Launcher::init() {
 	_arguments = readArguments(_argc, _argv);
 
 	prepareSettings();
-
-	static QtMessageHandler originalMessageHandler = nullptr;
-	originalMessageHandler = qInstallMessageHandler([](
-		QtMsgType type,
-		const QMessageLogContext &context,
-		const QString &msg) {
-		if (originalMessageHandler) {
-			originalMessageHandler(type, context, msg);
-		}
-		if (Logs::DebugEnabled() || !Logs::started()) {
-			LOG((msg));
-		}
-	});
+	initQtMessageLogging();
 
 	QApplication::setApplicationName(qsl("TelegramDesktop"));
 
@@ -327,6 +314,23 @@ int Launcher::exec() {
 
 	// Must be started before Platform is started.
 	Logs::start(this);
+
+	if (Logs::DebugEnabled()) {
+		const auto openalLogPath = QDir::toNativeSeparators(
+			cWorkingDir() + qsl("DebugLogs/last_openal_log.txt"));
+
+		qputenv("ALSOFT_LOGLEVEL", "3");
+
+#ifdef Q_OS_WIN
+		_wputenv_s(
+			L"ALSOFT_LOGFILE",
+			openalLogPath.toStdWString().c_str());
+#else // Q_OS_WIN
+		qputenv(
+			"ALSOFT_LOGFILE",
+			QFile::encodeName(openalLogPath));
+#endif // !Q_OS_WIN
+	}
 
 	// Must be started before Sandbox is created.
 	Platform::start();
@@ -419,12 +423,22 @@ void Launcher::prepareSettings() {
 	processArguments();
 }
 
-QString Launcher::deviceModel() const {
-	return _deviceModel;
-}
-
-QString Launcher::systemVersion() const {
-	return _systemVersion;
+void Launcher::initQtMessageLogging() {
+	static QtMessageHandler OriginalMessageHandler = nullptr;
+	OriginalMessageHandler = qInstallMessageHandler([](
+			QtMsgType type,
+			const QMessageLogContext &context,
+			const QString &msg) {
+		if (OriginalMessageHandler) {
+			OriginalMessageHandler(type, context, msg);
+		}
+		if (Logs::DebugEnabled() || !Logs::started()) {
+			if (!Logs::WritingEntry()) {
+				// Sometimes Qt logs something inside our own logging.
+				LOG((msg));
+			}
+		}
+	});
 }
 
 uint64 Launcher::installationTag() const {
@@ -458,7 +472,7 @@ void Launcher::processArguments() {
 	auto parseResult = QMap<QByteArray, QStringList>();
 	auto parsingKey = QByteArray();
 	auto parsingFormat = KeyFormat::NoValues;
-	for (const auto &argument : _arguments) {
+	for (const auto &argument : std::as_const(_arguments)) {
 		switch (parsingFormat) {
 		case KeyFormat::OneValue: {
 			parseResult[parsingKey] = QStringList(argument.mid(0, 8192));

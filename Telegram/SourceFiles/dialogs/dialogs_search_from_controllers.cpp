@@ -61,7 +61,7 @@ void SearchFromController::prepare() {
 	AddSpecialBoxController::prepare();
 	delegate()->peerListSetTitle(tr::lng_search_messages_from());
 	if (const auto megagroup = peer()->asMegagroup()) {
-		if (!delegate()->peerListFindRow(megagroup->id)) {
+		if (!delegate()->peerListFindRow(megagroup->id.value)) {
 			delegate()->peerListAppendRow(
 				std::make_unique<PeerListRow>(megagroup));
 			setDescriptionText({});

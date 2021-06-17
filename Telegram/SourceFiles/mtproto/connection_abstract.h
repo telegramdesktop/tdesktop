@@ -81,7 +81,8 @@ public:
 		const QString &ip,
 		int port,
 		const bytes::vector &protocolSecret,
-		int16 protocolDcId) = 0;
+		int16 protocolDcId,
+		bool protocolForFiles) = 0;
 	virtual void timedOut() {
 	}
 	[[nodiscard]] virtual bool isConnected() const = 0;
@@ -127,7 +128,7 @@ public:
 	// Used to emit error(...) with no real code from the server.
 	static constexpr auto kErrorCodeOther = -499;
 
-signals:
+Q_SIGNALS:
 	void receivedData();
 	void receivedSome(); // to stop restart timer
 

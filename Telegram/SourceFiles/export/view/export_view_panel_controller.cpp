@@ -215,7 +215,7 @@ void PanelController::showError(const ApiErrorState &error) {
 	if (error.data.type() == qstr("TAKEOUT_INVALID")) {
 		showError(tr::lng_export_invalid(tr::now));
 	} else if (error.data.type().startsWith(qstr("TAKEOUT_INIT_DELAY_"))) {
-		const auto seconds = std::max(error.data.type().mid(
+		const auto seconds = std::max(error.data.type().midRef(
 			qstr("TAKEOUT_INIT_DELAY_").size()).toInt(), 1);
 		const auto now = QDateTime::currentDateTime();
 		const auto when = now.addSecs(seconds);
@@ -298,6 +298,11 @@ void PanelController::showProgress() {
 		rpl::single(
 			ContentFromState(_settings.get(), ProcessingState())
 		) | rpl::then(progressState()));
+
+	progress->skipFileClicks(
+	) | rpl::start_with_next([=](uint64 randomId) {
+		_process->skipFile(randomId);
+	}, progress->lifetime());
 
 	progress->cancelClicks(
 	) | rpl::start_with_next([=] {

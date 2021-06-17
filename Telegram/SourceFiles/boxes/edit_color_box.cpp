@@ -27,8 +27,8 @@ public:
 		return _y;
 	}
 
-	base::Observable<void> &changed() {
-		return _changed;
+	rpl::producer<> changed() const {
+		return _changed.events();
 	}
 	void setHSB(HSB hsb);
 	void setRGB(int red, int green, int blue);
@@ -61,7 +61,7 @@ private:
 	float64 _y = 0.;
 
 	bool _choosing = false;
-	base::Observable<void> _changed;
+	rpl::event_stream<> _changed;
 
 };
 
@@ -228,13 +228,13 @@ void EditColorBox::Picker::preparePaletteHSL() {
 }
 
 void EditColorBox::Picker::updateCurrentPoint(QPoint localPosition) {
-	auto x = snap(localPosition.x(), 0, width()) / float64(width());
-	auto y = snap(localPosition.y(), 0, height()) / float64(height());
+	auto x = std::clamp(localPosition.x(), 0, width()) / float64(width());
+	auto y = std::clamp(localPosition.y(), 0, height()) / float64(height());
 	if (_x != x || _y != y) {
 		_x = x;
 		_y = y;
 		update();
-		_changed.notify();
+		_changed.fire({});
 	}
 }
 
@@ -245,14 +245,14 @@ void EditColorBox::Picker::setHSB(HSB hsb) {
 		_topright = _topright.toRgb();
 		_bottomleft = _bottomright = QColor(0, 0, 0);
 
-		_x = snap(hsb.saturation / 255., 0., 1.);
-		_y = 1. - snap(hsb.brightness / 255., 0., 1.);
+		_x = std::clamp(hsb.saturation / 255., 0., 1.);
+		_y = 1. - std::clamp(hsb.brightness / 255., 0., 1.);
 	} else {
 		_topleft = _topright = QColor::fromHsl(0, 255, hsb.brightness);
 		_bottomleft = _bottomright = QColor::fromHsl(0, 0, hsb.brightness);
 
-		_x = snap(hsb.hue / 360., 0., 1.);
-		_y = 1. - snap(hsb.saturation / 255., 0., 1.);
+		_x = std::clamp(hsb.hue / 360., 0., 1.);
+		_y = 1. - std::clamp(hsb.saturation / 255., 0., 1.);
 	}
 
 	_paletteInvalidated = true;
@@ -284,14 +284,14 @@ public:
 	};
 	Slider(QWidget *parent, Direction direction, Type type, QColor color);
 
-	base::Observable<void> &changed() {
-		return _changed;
+	rpl::producer<> changed() const {
+		return _changed.events();
 	}
 	float64 value() const {
 		return _value;
 	}
 	void setValue(float64 value) {
-		_value = snap(value, 0., 1.);
+		_value = std::clamp(value, 0., 1.);
 		update();
 	}
 	void setHSB(HSB hsb);
@@ -335,7 +335,7 @@ private:
 	QBrush _transparent;
 
 	bool _choosing = false;
-	base::Observable<void> _changed;
+	rpl::event_stream<> _changed;
 
 };
 
@@ -349,7 +349,9 @@ EditColorBox::Slider::Slider(
 , _type(type)
 , _color(color.red(), color.green(), color.blue())
 , _value(valueFromColor(color))
-, _transparent((_type == Type::Opacity) ? style::transparentPlaceholderBrush() : QBrush()) {
+, _transparent((_type == Type::Opacity)
+		? style::TransparentPlaceholder()
+		: QBrush()) {
 	prepareMinSize();
 }
 
@@ -508,12 +510,12 @@ float64 EditColorBox::Slider::valueFromColor(QColor color) const {
 }
 
 float64 EditColorBox::Slider::valueFromHue(int hue) const {
-	return (1. - snap(hue, 0, 360) / 360.);
+	return (1. - std::clamp(hue, 0, 360) / 360.);
 }
 
 void EditColorBox::Slider::setAlpha(int alpha) {
 	if (_type == Type::Opacity) {
-		_value = snap(alpha, 0, 255) / 255.;
+		_value = std::clamp(alpha, 0, 255) / 255.;
 		update();
 	}
 }
@@ -534,11 +536,11 @@ void EditColorBox::Slider::updatePixmapFromMask() {
 void EditColorBox::Slider::updateCurrentPoint(QPoint localPosition) {
 	auto coord = (isHorizontal() ? localPosition.x() : localPosition.y()) - st::colorSliderSkip;
 	auto maximum = (isHorizontal() ? width() : height()) - 2 * st::colorSliderSkip;
-	auto value = snap(coord, 0, maximum) / float64(maximum);
+	auto value = std::clamp(coord, 0, maximum) / float64(maximum);
 	if (_value != value) {
 		_value = value;
 		update();
-		_changed.notify();
+		_changed.fire({});
 	}
 }
 
@@ -663,12 +665,12 @@ void EditColorBox::Field::wheelEvent(QWheelEvent *e) {
 
 void EditColorBox::Field::changeValue(int delta) {
 	auto currentValue = value();
-	auto newValue = snap(currentValue + delta, 0, _limit);
+	auto newValue = std::clamp(currentValue + delta, 0, _limit);
 	if (newValue != currentValue) {
 		setText(QString::number(newValue));
 		setFocus();
 		selectAll();
-		emit changed();
+		changed();
 	}
 }
 
@@ -758,7 +760,7 @@ EditColorBox::EditColorBox(
 , _greenField(this, st::colorValueInput, "G", 255)
 , _blueField(this, st::colorValueInput, "B", 255)
 , _result(this, st::colorResultInput)
-, _transparent(style::transparentPlaceholderBrush())
+, _transparent(style::TransparentPlaceholder())
 , _current(current)
 , _new(current) {
 	if (_mode == Mode::RGBA) {
@@ -824,16 +826,14 @@ void EditColorBox::prepare() {
 	auto height = st::colorEditSkip + st::colorPickerSize + st::colorEditSkip + st::colorSliderWidth + st::colorEditSkip;
 	setDimensions(st::colorEditWidth, height);
 
-	subscribe(_picker->changed(), [=] { updateFromControls(); });
-	if (_hueSlider) {
-		subscribe(_hueSlider->changed(), [=] { updateFromControls(); });
-	}
-	if (_opacitySlider) {
-		subscribe(_opacitySlider->changed(), [=] { updateFromControls(); });
-	}
-	if (_lightnessSlider) {
-		subscribe(_lightnessSlider->changed(), [=] { updateFromControls(); });
-	}
+	rpl::merge(
+		_picker->changed(),
+		(_hueSlider ? _hueSlider->changed() : rpl::never<>()),
+		(_opacitySlider ? _opacitySlider->changed() : rpl::never<>()),
+		(_lightnessSlider ? _lightnessSlider->changed() : rpl::never<>())
+	) | rpl::start_with_next([=] {
+		updateFromControls();
+	}, lifetime());
 
 	boxClosing() | rpl::start_with_next([=] {
 		if (_cancelCallback) {

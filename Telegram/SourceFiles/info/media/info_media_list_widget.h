@@ -271,6 +271,11 @@ private:
 	void updateDragSelection();
 	void clearDragSelection();
 
+	void updateDateBadgeFor(int top);
+	void scrollDateCheck();
+	void scrollDateHide();
+	void toggleScrollDateShown();
+
 	void trySwitchToWordSelection();
 	void switchToWordSelection();
 	void validateTrippleClickStartTime();
@@ -282,7 +287,7 @@ private:
 	const not_null<AbstractController*> _controller;
 	const not_null<PeerData*> _peer;
 	PeerData * const _migrated = nullptr;
-	Type _type = Type::Photo;
+	const Type _type = Type::Photo;
 
 	static constexpr auto kMinimalIdsLimit = 16;
 	static constexpr auto kDefaultAroundId = (ServerMaxMsgId - 1);
@@ -316,6 +321,16 @@ private:
 	style::cursor _cursor = style::cur_default;
 	DragSelectAction _dragSelectAction = DragSelectAction::None;
 	bool _wasSelectedText = false; // was some text selected in current drag action
+
+	struct DateBadge {
+		SingleQueuedInvokation check;
+		base::Timer hideTimer;
+		Ui::Animations::Simple opacity;
+		bool goodType = false;
+		bool shown = false;
+		QString text;
+		QRect rect;
+	} _dateBadge;
 
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	rpl::event_stream<> _checkForHide;

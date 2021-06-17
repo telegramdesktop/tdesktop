@@ -72,6 +72,7 @@ public:
 		const QRect &geometry,
 		RectParts sides,
 		RectParts corners,
+		float64 highlightOpacity,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const override;
 	TextState getStateGrouped(
@@ -141,5 +142,11 @@ private:
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 
 };
+
+bool DrawThumbnailAsSongCover(
+	Painter &p,
+	const std::shared_ptr<Data::DocumentMedia> &dataMedia,
+	const QRect &rect,
+	const bool selected = false);
 
 } // namespace HistoryView
