@@ -490,6 +490,7 @@ groupCallMenu: Menu(defaultMenu) {
 	itemFgShortcutDisabled: groupCallMemberNotJoinedStatus;
 
 	separatorFg: groupCallMenuBgOver;
+	separatorPadding: margins(0px, 4px, 0px, 4px);
 
 	arrow: icon {{ "dropdown_submenu_arrow", groupCallMemberNotJoinedStatus }};
 
@@ -512,6 +513,12 @@ groupCallPopupMenu: PopupMenu(defaultPopupMenu) {
 	shadow: groupCallMenuShadow;
 	menu: groupCallMenu;
 	animation: groupCallPanelAnimation;
+}
+groupCallPopupMenuWithVolume: PopupMenu(groupCallPopupMenu) {
+	scrollPadding: margins(0px, 3px, 0px, 8px);
+	menu: Menu(groupCallMenu) {
+		widthMin: 210px;
+	}
 }
 
 groupCallRecordingTimerPadding: margins(0px, 4px, 0px, 4px);
@@ -1071,6 +1078,8 @@ groupCallMuteCrossLine: CrossLineAnimation {
 
 groupCallMenuSpeakerArcsSkip: 1px;
 groupCallMenuVolumeSkip: 5px;
+groupCallMenuVolumePadding: margins(17px, 6px, 17px, 5px);
+groupCallMenuVolumeMargin: margins(55px, 0px, 15px, 0px);
 groupCallMenuVolumeSlider: MediaSlider(defaultContinuousSlider) {
 	activeFg: groupCallMembersFg;
 	inactiveFg: groupCallMemberInactiveIcon;
@@ -1078,6 +1087,8 @@ groupCallMenuVolumeSlider: MediaSlider(defaultContinuousSlider) {
 	inactiveFgOver: groupCallMemberInactiveIcon;
 	activeFgDisabled: groupCallMemberInactiveIcon;
 	receivedTillFg: groupCallMemberInactiveIcon;
+	width: 7px;
+	seekSize: size(7px, 7px);
 }
 
 groupCallSpeakerArcsAnimation: ArcsAnimation {

@@ -178,7 +178,7 @@ public:
 			callback(convert(index));
 		});
 	}
-
+	void setActiveFgOverride(std::optional<QColor> color);
 	void addDivider(float64 atValue, const QSize &size);
 
 protected:
@@ -198,6 +198,7 @@ private:
 	bool _paintDisabled = false;
 
 	std::vector<Divider> _dividers;
+	std::optional<QColor> _activeFgOverride;
 
 };
 

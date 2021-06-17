@@ -36,10 +36,6 @@ constexpr auto kVolumeStickedValues =
 		{ 175. / kMaxVolumePercent, 2. / kMaxVolumePercent },
 	}};
 
-QString VolumeString(int volumePercent) {
-	return u"%1%"_q.arg(volumePercent);
-}
-
 } // namespace
 
 MenuVolumeItem::MenuVolumeItem(
@@ -75,20 +71,21 @@ MenuVolumeItem::MenuVolumeItem(
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &size) {
 		const auto geometry = QRect(QPoint(), size);
-		_itemRect = geometry - _st.itemPadding;
+		_itemRect = geometry - st::groupCallMenuVolumePadding;
 		_speakerRect = QRect(_itemRect.topLeft(), _stCross.icon.size());
 		_arcPosition = _speakerRect.center()
 			+ QPoint(0, st::groupCallMenuSpeakerArcsSkip);
-		_volumeRect = QRect(
-			_arcPosition.x()
-				+ st::groupCallMenuVolumeSkip
-				+ _arcs->finishedWidth(),
+		const auto sliderLeft = _arcPosition.x()
+			+ st::groupCallMenuVolumeSkip
+			+ _arcs->maxWidth()
+			+ st::groupCallMenuVolumeSkip;
+		_slider->setGeometry(
+			st::groupCallMenuVolumeMargin.left(),
 			_speakerRect.y(),
-			_st.itemStyle.font->width(VolumeString(kMaxVolumePercent)),
+			(geometry.width()
+				- st::groupCallMenuVolumeMargin.left()
+				- st::groupCallMenuVolumeMargin.right()),
 			_speakerRect.height());
-
-		_slider->setGeometry(_itemRect
-			- style::margins(0, contentHeight() / 2, 0, 0));
 	}, lifetime());
 
 	setCloudVolume(startVolume);
@@ -110,15 +107,12 @@ MenuVolumeItem::MenuVolumeItem(
 			unmuteColor(),
 			muteColor(),
 			muteProgress);
-		p.setPen(mutePen);
-		p.setFont(_st.itemStyle.font);
-		p.drawText(_volumeRect, VolumeString(volume), style::al_left);
 
 		_crossLineMute->paint(
 			p,
 			_speakerRect.topLeft(),
 			muteProgress,
-			(!muteProgress) ? std::nullopt : std::optional<QColor>(mutePen));
+			(muteProgress > 0) ? std::make_optional(mutePen) : std::nullopt);
 
 		{
 			p.translate(_arcPosition);
@@ -133,7 +127,7 @@ MenuVolumeItem::MenuVolumeItem(
 			_toggleMuteLocallyRequests.fire_copy(newMuted);
 
 			_crossLineAnimation.start(
-				[=] { update(_speakerRect.united(_volumeRect)); },
+				[=] { update(_speakerRect); },
 				_localMuted ? 0. : 1.,
 				_localMuted ? 1. : 0.,
 				st::callPanelDuration);
@@ -141,8 +135,8 @@ MenuVolumeItem::MenuVolumeItem(
 		if (value > 0) {
 			_changeVolumeLocallyRequests.fire(value * _maxVolume);
 		}
-		update(_volumeRect);
 		_arcs->setValue(value);
+		updateSliderColor(value);
 	});
 
 	const auto returnVolume = [=] {
@@ -169,6 +163,7 @@ MenuVolumeItem::MenuVolumeItem(
 		if (!_cloudMuted && !muted) {
 			_changeVolumeRequests.fire_copy(newVolume);
 		}
+		updateSliderColor(value);
 	});
 
 	std::move(
@@ -209,30 +204,15 @@ MenuVolumeItem::MenuVolumeItem(
 }
 
 void MenuVolumeItem::initArcsAnimation() {
-	const auto volumeLeftWas = lifetime().make_state<int>(0);
 	const auto lastTime = lifetime().make_state<int>(0);
 	_arcsAnimation.init([=](crl::time now) {
 		_arcs->update(now);
 		update(_speakerRect);
-
-		const auto wasRect = _volumeRect;
-		_volumeRect.moveLeft(anim::interpolate(
-			*volumeLeftWas,
-			_arcPosition.x()
-				+ st::groupCallMenuVolumeSkip
-				+ _arcs->finishedWidth(),
-			std::clamp(
-				(now - (*lastTime))
-					/ float64(st::groupCallSpeakerArcsAnimation.duration),
-				0.,
-				1.)));
-		update(_speakerRect.united(wasRect.united(_volumeRect)));
 	});
 
 	_arcs->startUpdateRequests(
 	) | rpl::start_with_next([=] {
 		if (!_arcsAnimation.animating()) {
-			*volumeLeftWas = _volumeRect.left();
 			*lastTime = crl::now();
 			_arcsAnimation.start();
 		}
@@ -269,8 +249,30 @@ void MenuVolumeItem::setCloudVolume(int volume) {
 }
 
 void MenuVolumeItem::setSliderVolume(int volume) {
-	_slider->setValue(float64(volume) / _maxVolume);
-	update(_volumeRect);
+	const auto value = float64(volume) / _maxVolume;
+	_slider->setValue(value);
+	updateSliderColor(value);
+}
+
+void MenuVolumeItem::updateSliderColor(float64 value) {
+	value = std::clamp(value, 0., 1.);
+	const auto color = [](int rgb) {
+		return QColor(
+			int((rgb & 0xFF0000) >> 16),
+			int((rgb & 0x00FF00) >> 8),
+			int(rgb & 0x0000FF));
+	};
+	const auto colors = std::array<QColor, 4>{ {
+		color(0xF66464),
+		color(0xD0B738),
+		color(0x24CD80),
+		color(0x3BBCEC),
+	} };
+	_slider->setActiveFgOverride((value < 0.25)
+		? anim::color(colors[0], colors[1], value / 0.25)
+		: (value < 0.5)
+		? anim::color(colors[1], colors[2], (value - 0.25) / 0.25)
+		: anim::color(colors[2], colors[3], (value - 0.5) / 0.5));
 }
 
 not_null<QAction*> MenuVolumeItem::action() const {
@@ -282,9 +284,9 @@ bool MenuVolumeItem::isEnabled() const {
 }
 
 int MenuVolumeItem::contentHeight() const {
-	return _st.itemPadding.top()
-		+ _st.itemPadding.bottom()
-		+ _stCross.icon.height() * 2;
+	return st::groupCallMenuVolumePadding.top()
+		+ st::groupCallMenuVolumePadding.bottom()
+		+ _stCross.icon.height();
 }
 
 rpl::producer<bool> MenuVolumeItem::toggleMuteRequests() const {
