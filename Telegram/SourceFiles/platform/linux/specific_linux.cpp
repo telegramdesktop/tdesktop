@@ -744,6 +744,10 @@ namespace Platform {
 void start() {
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 
+#ifndef DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
+	qputenv("QT_WAYLAND_SHELL_INTEGRATION", "desktop-app-xdg-shell");
+#endif // !DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
+
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
 
