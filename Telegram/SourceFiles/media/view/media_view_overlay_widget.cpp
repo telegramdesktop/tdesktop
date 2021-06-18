@@ -2276,9 +2276,7 @@ void OverlayWidget::show(OpenRequest request) {
 		}
 
 		clearControlsState();
-		if (contextPeer) {
-			_firstOpenedPeerPhoto = true;
-		}
+		_firstOpenedPeerPhoto = (contextPeer != nullptr);
 		assignMediaPointer(photo);
 
 		displayPhoto(photo, contextPeer ? nullptr : contextItem);

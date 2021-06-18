@@ -44,11 +44,10 @@ protected:
 	using FileClickHandlerPtr = std::shared_ptr<FileClickHandler>;
 
 	not_null<HistoryItem*> _realParent;
-	ClickHandlerPtr _openl;
-	FileClickHandlerPtr _savel, _cancell;
+	FileClickHandlerPtr _openl, _savel, _cancell;
 
 	void setLinks(
-		ClickHandlerPtr &&openl,
+		FileClickHandlerPtr &&openl,
 		FileClickHandlerPtr &&savel,
 		FileClickHandlerPtr &&cancell);
 	void setDocumentLinks(

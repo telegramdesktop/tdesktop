@@ -74,13 +74,14 @@ class DocumentOpenClickHandler : public DocumentClickHandler {
 public:
 	DocumentOpenClickHandler(
 		not_null<DocumentData*> document,
-		Fn<void()> &&callback);
+		Fn<void(FullMsgId)> &&callback,
+		FullMsgId context = FullMsgId());
 
 protected:
 	void onClickImpl() const override;
 
 private:
-	Fn<void()> _handler;
+	const Fn<void(FullMsgId)> _handler;
 
 };
 
@@ -148,13 +149,16 @@ private:
 
 class PhotoOpenClickHandler : public PhotoClickHandler {
 public:
-	PhotoOpenClickHandler(not_null<PhotoData*> photo, Fn<void()> &&callback);
+	PhotoOpenClickHandler(
+		not_null<PhotoData*> photo,
+		Fn<void(FullMsgId)> &&callback,
+		FullMsgId context = FullMsgId());
 
 protected:
 	void onClickImpl() const override;
 
 private:
-	Fn<void()> _handler;
+	const Fn<void(FullMsgId)> _handler;
 
 };
 

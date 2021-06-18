@@ -102,7 +102,7 @@ protected:
 private:
 	struct Streamed;
 
-	void showPhoto();
+	void showPhoto(FullMsgId id);
 
 	void create(FullMsgId contextId, PeerData *chat = nullptr);
 

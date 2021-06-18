@@ -48,7 +48,7 @@ void File::clickHandlerPressedChanged(
 }
 
 void File::setLinks(
-		ClickHandlerPtr &&openl,
+		FileClickHandlerPtr &&openl,
 		FileClickHandlerPtr &&savel,
 		FileClickHandlerPtr &&cancell) {
 	_openl = std::move(openl);
@@ -58,6 +58,7 @@ void File::setLinks(
 
 void File::refreshParentId(not_null<HistoryItem*> realParent) {
 	const auto contextId = realParent->fullId();
+	_openl->setMessageId(contextId);
 	_savel->setMessageId(contextId);
 	_cancell->setMessageId(contextId);
 }
@@ -114,9 +115,10 @@ void File::setDocumentLinks(
 	setLinks(
 		std::make_shared<DocumentOpenClickHandler>(
 			document,
-			crl::guard(this, [=] {
-				_parent->delegate()->elementOpenDocument(document, context);
-			})),
+			crl::guard(this, [=](FullMsgId id) {
+				_parent->delegate()->elementOpenDocument(document, id);
+			}),
+			context),
 		std::make_shared<DocumentSaveClickHandler>(document, context),
 		std::make_shared<DocumentCancelClickHandler>(document, context));
 }

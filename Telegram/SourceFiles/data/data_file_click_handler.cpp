@@ -62,15 +62,15 @@ DocumentClickHandler::DocumentClickHandler(
 
 DocumentOpenClickHandler::DocumentOpenClickHandler(
 	not_null<DocumentData*> document,
-	Fn<void()> &&callback)
-: DocumentClickHandler(document)
+	Fn<void(FullMsgId)> &&callback,
+	FullMsgId context)
+: DocumentClickHandler(document, context)
 , _handler(std::move(callback)) {
+	Expects(_handler != nullptr);
 }
 
 void DocumentOpenClickHandler::onClickImpl() const {
-	if (_handler) {
-		_handler();
-	}
+	_handler(context());
 }
 
 void DocumentSaveClickHandler::Save(
@@ -170,15 +170,15 @@ PeerData *PhotoClickHandler::peer() const {
 
 PhotoOpenClickHandler::PhotoOpenClickHandler(
 	not_null<PhotoData*> photo,
-	Fn<void()> &&callback)
-: PhotoClickHandler(photo)
+	Fn<void(FullMsgId)> &&callback,
+	FullMsgId context)
+: PhotoClickHandler(photo, context)
 , _handler(std::move(callback)) {
+	Expects(_handler != nullptr);
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {
-	if (_handler) {
-		_handler();
-	}
+	_handler(context());
 }
 
 void PhotoSaveClickHandler::onClickImpl() const {
