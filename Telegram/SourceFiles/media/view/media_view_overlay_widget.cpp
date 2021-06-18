@@ -2302,7 +2302,7 @@ void OverlayWidget::show(OpenRequest request) {
 			request.cloudTheme()
 				? *request.cloudTheme()
 				: Data::CloudTheme(),
-			false);
+			request.continueStreaming());
 		if (!isHidden()) {
 			preloadData(0);
 			activateControls();
