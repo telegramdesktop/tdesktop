@@ -59,7 +59,7 @@ Version **1.8.15** was the last that supports older systems
 * xxHash ([BSD License](https://github.com/Cyan4973/xxHash/blob/dev/LICENSE))
 * QR Code generator ([MIT License](https://github.com/nayuki/QR-Code-generator#license))
 * CMake ([New BSD License](https://github.com/Kitware/CMake/blob/master/Copyright.txt))
-* Hunspell ([GPL](https://github.com/hunspell/hunspell/blob/master/COPYING))
+* Hunspell ([LGPL](https://github.com/hunspell/hunspell/blob/master/COPYING.LESSER))
 
 ## Build instructions
 
