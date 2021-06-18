@@ -139,7 +139,7 @@ protected:
 	virtual void initHook() {
 	}
 
-	virtual void updateIsActiveHook() {
+	virtual void activeChangedHook() {
 	}
 
 	virtual void handleActiveChangedHook() {

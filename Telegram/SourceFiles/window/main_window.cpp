@@ -237,8 +237,11 @@ void MainWindow::clearWidgets() {
 }
 
 void MainWindow::updateIsActive() {
-	_isActive = computeIsActive();
-	updateIsActiveHook();
+	const auto isActive = computeIsActive();
+	if (_isActive != isActive) {
+		_isActive = isActive;
+		activeChangedHook();
+	}
 }
 
 bool MainWindow::computeIsActive() const {

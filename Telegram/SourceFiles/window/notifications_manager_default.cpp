@@ -158,8 +158,11 @@ float64 Manager::demoMasterOpacity() const {
 void Manager::checkLastInput() {
 	auto replying = hasReplyingNotification();
 	auto waiting = false;
-	for_const (auto &notification, _notifications) {
-		if (!notification->checkLastInput(replying)) {
+	const auto lastInputTime = base::Platform::LastUserInputTimeSupported()
+		? std::make_optional(Core::App().lastNonIdleTime())
+		: std::nullopt;
+	for (const auto &notification : _notifications) {
+		if (!notification->checkLastInput(replying, lastInputTime)) {
 			waiting = true;
 		}
 	}
@@ -682,12 +685,14 @@ void Notification::prepareActionsCache() {
 	_buttonsCache = App::pixmapFromImageInPlace(std::move(actionsCacheImg));
 }
 
-bool Notification::checkLastInput(bool hasReplyingNotifications) {
+bool Notification::checkLastInput(
+		bool hasReplyingNotifications,
+		std::optional<crl::time> lastInputTime) {
 	if (!_waitingForInput) return true;
 
-	const auto waitForUserInput = base::Platform::LastUserInputTimeSupported()
-		? (Core::App().lastNonIdleTime() <= _started)
-		: false;
+	const auto waitForUserInput = lastInputTime.has_value()
+		&& (*lastInputTime <= _started);
+
 	if (!waitForUserInput) {
 		_waitingForInput = false;
 		if (!hasReplyingNotifications) {

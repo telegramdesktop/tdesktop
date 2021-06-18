@@ -849,7 +849,7 @@ bool Application::passcodeLocked() const {
 void Application::updateNonIdle() {
 	_lastNonIdleTime = crl::now();
 	if (const auto session = maybeActiveSession()) {
-		session->updates().checkIdleFinish();
+		session->updates().checkIdleFinish(_lastNonIdleTime);
 	}
 }
 
@@ -876,19 +876,21 @@ bool Application::someSessionExists() const {
 	return false;
 }
 
-void Application::checkAutoLock() {
+void Application::checkAutoLock(crl::time lastNonIdleTime) {
 	if (!_domain->local().hasLocalPasscode()
 		|| passcodeLocked()
 		|| !someSessionExists()) {
 		_shouldLockAt = 0;
 		_autoLockTimer.cancel();
 		return;
+	} else if (!lastNonIdleTime) {
+		lastNonIdleTime = this->lastNonIdleTime();
 	}
 
 	checkLocalTime();
 	const auto now = crl::now();
 	const auto shouldLockInMs = _settings.autoLock() * 1000LL;
-	const auto checkTimeMs = now - lastNonIdleTime();
+	const auto checkTimeMs = now - lastNonIdleTime;
 	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
 		_shouldLockAt = 0;
 		_autoLockTimer.cancel();
@@ -910,7 +912,7 @@ void Application::checkAutoLockIn(crl::time time) {
 void Application::localPasscodeChanged() {
 	_shouldLockAt = 0;
 	_autoLockTimer.cancel();
-	checkAutoLock();
+	checkAutoLock(crl::now());
 }
 
 bool Application::hasActiveWindow(not_null<Main::Session*> session) const {

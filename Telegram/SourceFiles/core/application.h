@@ -245,7 +245,7 @@ public:
 	rpl::producer<bool> passcodeLockChanges() const;
 	rpl::producer<bool> passcodeLockValue() const;
 
-	void checkAutoLock();
+	void checkAutoLock(crl::time lastNonIdleTime = 0);
 	void checkAutoLockIn(crl::time time);
 	void localPasscodeChanged();
 

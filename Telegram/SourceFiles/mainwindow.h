@@ -114,7 +114,7 @@ protected:
 	void closeEvent(QCloseEvent *e) override;
 
 	void initHook() override;
-	void updateIsActiveHook() override;
+	void activeChangedHook() override;
 	void clearWidgetsHook() override;
 
 private:

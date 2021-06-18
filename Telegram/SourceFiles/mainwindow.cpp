@@ -945,7 +945,7 @@ void MainWindow::sendPaths() {
 	}
 }
 
-void MainWindow::updateIsActiveHook() {
+void MainWindow::activeChangedHook() {
 	if (const auto controller = sessionController()) {
 		controller->session().updates().updateOnline();
 	}

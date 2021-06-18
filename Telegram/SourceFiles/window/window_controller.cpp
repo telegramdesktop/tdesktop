@@ -67,7 +67,7 @@ void Controller::showAccount(not_null<Main::Account*> account) {
 		for (auto &[index, account] : _account->domain().accounts()) {
 			if (const auto anotherSession = account->maybeSession()) {
 				if (anotherSession->uniqueId() == prevSessionUniqueId) {
-					anotherSession->updates().updateOnline();
+					anotherSession->updates().updateOnline(crl::now());
 					return;
 				}
 			}
