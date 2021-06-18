@@ -439,7 +439,7 @@ void Viewport::RendererGL::paint(
 	validateDatas();
 	auto index = 0;
 	for (const auto &tile : _owner->_tiles) {
-		if (!tile->shown()) {
+		if (!tile->visible()) {
 			index++;
 			continue;
 		}

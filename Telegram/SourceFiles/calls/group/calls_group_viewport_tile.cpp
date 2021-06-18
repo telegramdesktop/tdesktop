@@ -82,14 +82,14 @@ bool Viewport::VideoTile::screencast() const {
 void Viewport::VideoTile::setGeometry(
 		QRect geometry,
 		TileAnimation animation) {
-	_shown = true;
+	_hidden = false;
 	_geometry = geometry;
 	_animation = animation;
 	updateTopControlsPosition();
 }
 
 void Viewport::VideoTile::hide() {
-	_shown = false;
+	_hidden = true;
 	_quality = std::nullopt;
 }
 
@@ -106,7 +106,7 @@ void Viewport::VideoTile::toggleTopControlsShown(bool shown) {
 }
 
 bool Viewport::VideoTile::updateRequestedQuality(VideoQuality quality) {
-	if (!_shown) {
+	if (_hidden) {
 		_quality = std::nullopt;
 		return false;
 	} else if (_quality && *_quality == quality) {
@@ -249,7 +249,7 @@ void Viewport::VideoTile::setup(rpl::producer<bool> pinned) {
 	}) | rpl::start_with_next([=](bool pinned) {
 		_pinned = pinned;
 		updateTopControlsSize();
-		if (_shown) {
+		if (!_hidden) {
 			updateTopControlsPosition();
 			_update();
 		}

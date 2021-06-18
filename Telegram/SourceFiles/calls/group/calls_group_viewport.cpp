@@ -191,7 +191,7 @@ void Viewport::updateSelected(QPoint position) {
 		return;
 	}
 	for (const auto &tile : _tiles) {
-		const auto geometry = tile->shown()
+		const auto geometry = tile->visible()
 			? tile->geometry()
 			: QRect();
 		if (geometry.contains(position)) {
@@ -763,7 +763,11 @@ void Viewport::setTileGeometry(not_null<VideoTile*> tile, QRect geometry) {
 	const auto kMedium = style::ConvertScale(540);
 	const auto kSmall = style::ConvertScale(240);
 	const auto &endpoint = tile->endpoint();
-	const auto quality = (min >= kMedium)
+	const auto forceThumbnailQuality = !wide()
+		&& (ranges::count(_tiles, false, &VideoTile::hidden) > 1);
+	const auto quality = forceThumbnailQuality
+		? VideoQuality::Thumbnail
+		: (min >= kMedium)
 		? VideoQuality::Full
 		: (min >= kSmall)
 		? VideoQuality::Medium

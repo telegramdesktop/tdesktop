@@ -49,6 +49,8 @@ constexpr auto kUpdateSendActionEach = crl::time(500);
 constexpr auto kPlayConnectingEach = crl::time(1056) + 2 * crl::time(1000);
 constexpr auto kFixManualLargeVideoDuration = 5 * crl::time(1000);
 constexpr auto kFixSpeakingLargeVideoDuration = 3 * crl::time(1000);
+constexpr auto kFullAsMediumsCount = 4; // 1 Full is like 4 Mediums.
+constexpr auto kMaxMediumQualities = 16; // 4 Fulls or 16 Mediums.
 
 [[nodiscard]] std::unique_ptr<Webrtc::MediaDevices> CreateMediaDevices() {
 	const auto &settings = Core::App().settings();
@@ -2435,6 +2437,9 @@ void GroupCall::updateRequestedVideoChannels() {
 	channels.reserve(_activeVideoTracks.size());
 	const auto &camera = cameraSharingEndpoint();
 	const auto &screen = screenSharingEndpoint();
+	auto mediums = 0;
+	auto fullcameras = 0;
+	auto fullscreencasts = 0;
 	for (const auto &[endpoint, video] : _activeVideoTracks) {
 		const auto &endpointId = endpoint.id;
 		if (endpointId == camera || endpointId == screen) {
@@ -2447,23 +2452,73 @@ void GroupCall::updateRequestedVideoChannels() {
 		if (!params) {
 			continue;
 		}
+		const auto min = (video->quality == Group::VideoQuality::Full
+			&& endpoint.type == VideoEndpointType::Screen)
+			? Quality::Full
+			: Quality::Thumbnail;
+		const auto max = (video->quality == Group::VideoQuality::Full)
+			? Quality::Full
+			: (video->quality == Group::VideoQuality::Medium
+				&& endpoint.type != VideoEndpointType::Screen)
+			? Quality::Medium
+			: Quality::Thumbnail;
+		if (max == Quality::Full) {
+			if (endpoint.type == VideoEndpointType::Screen) {
+				++fullscreencasts;
+			} else {
+				++fullcameras;
+			}
+		} else if (max == Quality::Medium) {
+			++mediums;
+		}
 		channels.push_back({
 			.audioSsrc = participant->ssrc,
 			.endpointId = endpointId,
 			.ssrcGroups = (params->camera.endpointId == endpointId
 				? params->camera.ssrcGroups
 				: params->screen.ssrcGroups),
-			.minQuality = ((video->quality == Group::VideoQuality::Full
-				&& endpoint.type == VideoEndpointType::Screen)
-				? Quality::Full
-				: Quality::Thumbnail),
-			.maxQuality = ((video->quality == Group::VideoQuality::Full)
-				? Quality::Full
-				: (video->quality == Group::VideoQuality::Medium
-					&& endpoint.type != VideoEndpointType::Screen)
-				? Quality::Medium
-				: Quality::Thumbnail),
+			.minQuality = min,
+			.maxQuality = max,
 		});
+	}
+
+	// We limit `count(Full) * kFullAsMediumsCount + count(medium)`.
+	//
+	// Try to preserve all qualities; If not
+	// Try to preserve all screencasts as Full and cameras as Medium; If not
+	// Try to preserve all screencasts as Full; If not
+	// Try to preserve all cameras as Medium;
+	const auto mediumsCount = mediums
+		+ (fullcameras + fullscreencasts) * kFullAsMediumsCount;
+	const auto downgradeSome = (mediumsCount > kMaxMediumQualities);
+	const auto downgradeAll = (fullscreencasts * kFullAsMediumsCount)
+		> kMaxMediumQualities;
+	if (downgradeSome) {
+		for (auto &channel : channels) {
+			if (channel.maxQuality == Quality::Full) {
+				const auto camera = (channel.minQuality != Quality::Full);
+				if (camera) {
+					channel.maxQuality = Quality::Medium;
+				} else if (downgradeAll) {
+					channel.maxQuality
+						= channel.minQuality
+						= Quality::Thumbnail;
+					--fullscreencasts;
+				}
+			}
+		}
+		mediums += fullcameras;
+		fullcameras = 0;
+		if (downgradeAll) {
+			fullscreencasts = 0;
+		}
+	}
+	if (mediums > kMaxMediumQualities) {
+		for (auto &channel : channels) {
+			if (channel.maxQuality == Quality::Medium) {
+				channel.maxQuality = Quality::Thumbnail;
+			}
+		}
 	}
 	_instance->setRequestedVideoChannels(std::move(channels));
 }

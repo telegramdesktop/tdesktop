@@ -45,7 +45,7 @@ void Viewport::RendererSW::paintFallback(
 		tileData.stale = true;
 	}
 	for (const auto &tile : _owner->_tiles) {
-		if (!tile->shown()) {
+		if (!tile->visible()) {
 			continue;
 		}
 		paintTile(p, tile.get(), bounding, bg);
