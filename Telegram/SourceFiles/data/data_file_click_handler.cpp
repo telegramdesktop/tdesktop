@@ -10,18 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
-#include "data/data_session.h"
-#include "main/main_session.h"
 
-FileClickHandler::FileClickHandler(
-	not_null<Main::Session*> session,
-	FullMsgId context)
-: _session(session)
-, _context(context) {
-}
-
-Main::Session &FileClickHandler::session() const {
-	return *_session;
+FileClickHandler::FileClickHandler(FullMsgId context)
+: _context(context) {
 }
 
 void FileClickHandler::setMessageId(FullMsgId context) {
@@ -30,10 +21,6 @@ void FileClickHandler::setMessageId(FullMsgId context) {
 
 FullMsgId FileClickHandler::context() const {
 	return _context;
-}
-
-HistoryItem *FileClickHandler::getActionItem() const {
-	return _session->data().message(context());
 }
 
 not_null<DocumentData*> DocumentClickHandler::document() const {
@@ -55,7 +42,7 @@ void DocumentWrappedClickHandler::onClickImpl() const {
 DocumentClickHandler::DocumentClickHandler(
 	not_null<DocumentData*> document,
 	FullMsgId context)
-: FileClickHandler(&document->session(), context)
+: FileClickHandler(context)
 , _document(document) {
 }
 
@@ -156,7 +143,7 @@ PhotoClickHandler::PhotoClickHandler(
 	not_null<PhotoData*> photo,
 	FullMsgId context,
 	PeerData *peer)
-: FileClickHandler(&photo->session(), context)
+: FileClickHandler(context)
 , _photo(photo)
 , _peer(peer) {
 }

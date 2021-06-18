@@ -14,27 +14,15 @@ class DocumentData;
 class HistoryItem;
 class PhotoData;
 
-namespace Main {
-class Session;
-} // namespace Main
-
 class FileClickHandler : public LeftButtonClickHandler {
 public:
-	FileClickHandler(
-		not_null<Main::Session*> session,
-		FullMsgId context);
-
-	[[nodiscard]] Main::Session &session() const;
+	FileClickHandler(FullMsgId context);
 
 	void setMessageId(FullMsgId context);
 
 	[[nodiscard]] FullMsgId context() const;
 
-protected:
-	HistoryItem *getActionItem() const;
-
 private:
-	const not_null<Main::Session*> _session;
 	FullMsgId _context;
 
 };
