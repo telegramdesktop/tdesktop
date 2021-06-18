@@ -87,10 +87,16 @@ private:
 
 class DocumentCancelClickHandler : public DocumentClickHandler {
 public:
-	using DocumentClickHandler::DocumentClickHandler;
+	DocumentCancelClickHandler(
+		not_null<DocumentData*> document,
+		Fn<void(FullMsgId)> &&callback,
+		FullMsgId context = FullMsgId());
 
 protected:
 	void onClickImpl() const override;
+
+private:
+	const Fn<void(FullMsgId)> _handler;
 
 };
 
@@ -173,9 +179,15 @@ protected:
 
 class PhotoCancelClickHandler : public PhotoClickHandler {
 public:
-	using PhotoClickHandler::PhotoClickHandler;
+	PhotoCancelClickHandler(
+		not_null<PhotoData*> photo,
+		Fn<void(FullMsgId)> &&callback,
+		FullMsgId context = FullMsgId());
 
 protected:
 	void onClickImpl() const override;
+
+private:
+	const Fn<void(FullMsgId)> _handler;
 
 };

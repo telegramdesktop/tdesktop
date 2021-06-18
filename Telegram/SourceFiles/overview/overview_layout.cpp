@@ -193,7 +193,10 @@ void RadialProgressItem::setDocumentLinks(
 			}),
 			context),
 		std::make_shared<DocumentSaveClickHandler>(document, context),
-		std::make_shared<DocumentCancelClickHandler>(document, context));
+		std::make_shared<DocumentCancelClickHandler>(
+			document,
+			nullptr,
+			context));
 }
 
 void RadialProgressItem::clickHandlerActiveChanged(

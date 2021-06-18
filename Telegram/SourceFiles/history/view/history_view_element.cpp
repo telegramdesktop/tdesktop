@@ -118,6 +118,9 @@ void SimpleElementDelegate::elementOpenDocument(
 	bool showInMediaView) {
 }
 
+void SimpleElementDelegate::elementCancelUpload(const FullMsgId &context) {
+}
+
 void SimpleElementDelegate::elementShowTooltip(
 	const TextWithEntities &text,
 	Fn<void()> hiddenCallback) {

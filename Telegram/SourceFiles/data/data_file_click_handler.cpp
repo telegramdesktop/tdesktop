@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
-#include "mainwidget.h" // App::main
 
 FileClickHandler::FileClickHandler(
 	not_null<Main::Session*> session,
@@ -111,18 +110,20 @@ void DocumentSaveClickHandler::onClickImpl() const {
 	Save(context(), document());
 }
 
+DocumentCancelClickHandler::DocumentCancelClickHandler(
+	not_null<DocumentData*> document,
+	Fn<void(FullMsgId)> &&callback,
+	FullMsgId context)
+: DocumentClickHandler(document, context)
+, _handler(std::move(callback)) {
+}
+
 void DocumentCancelClickHandler::onClickImpl() const {
 	const auto data = document();
 	if (!data->date) {
 		return;
-	} else if (data->uploading()) {
-		if (const auto item = data->owner().message(context())) {
-			if (const auto m = App::main()) { // multi good
-				if (&m->session() == &data->session()) {
-					m->cancelUploadLayer(item);
-				}
-			}
-		}
+	} else if (data->uploading() && _handler) {
+		_handler(context());
 	} else {
 		data->cancel();
 	}
@@ -191,18 +192,20 @@ void PhotoSaveClickHandler::onClickImpl() const {
 	}
 }
 
+PhotoCancelClickHandler::PhotoCancelClickHandler(
+	not_null<PhotoData*> photo,
+	Fn<void(FullMsgId)> &&callback,
+	FullMsgId context)
+: PhotoClickHandler(photo, context)
+, _handler(std::move(callback)) {
+}
+
 void PhotoCancelClickHandler::onClickImpl() const {
 	const auto data = photo();
 	if (!data->date) {
 		return;
-	} else if (data->uploading()) {
-		if (const auto item = data->owner().message(context())) {
-			if (const auto m = App::main()) { // multi good
-				if (&m->session() == &data->session()) {
-					m->cancelUploadLayer(item);
-				}
-			}
-		}
+	} else if (data->uploading() && _handler) {
+		_handler(context());
 	} else {
 		data->cancel();
 	}

@@ -343,9 +343,9 @@ Media::View::OpenRequest Result::openRequest() {
 
 void Result::cancelFile() {
 	if (_document) {
-		DocumentCancelClickHandler(_document).onClick({});
+		DocumentCancelClickHandler(_document, nullptr).onClick({});
 	} else if (_photo) {
-		PhotoCancelClickHandler(_photo).onClick({});
+		PhotoCancelClickHandler(_photo, nullptr).onClick({});
 	}
 }
 

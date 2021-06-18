@@ -616,6 +616,12 @@ void InnerWidget::elementOpenDocument(
 	_controller->openDocument(document, context, showInMediaView);
 }
 
+void InnerWidget::elementCancelUpload(const FullMsgId &context) {
+	if (const auto item = session().data().message(context)) {
+		_controller->content()->cancelUploadLayer(item);
+	}
+}
+
 void InnerWidget::elementShowTooltip(
 	const TextWithEntities &text,
 	Fn<void()> hiddenCallback) {

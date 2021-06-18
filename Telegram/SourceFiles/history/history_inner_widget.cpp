@@ -2581,6 +2581,12 @@ void HistoryInner::elementOpenDocument(
 	_controller->openDocument(document, context, showInMediaView);
 }
 
+void HistoryInner::elementCancelUpload(const FullMsgId &context) {
+	if (const auto item = session().data().message(context)) {
+		_controller->content()->cancelUploadLayer(item);
+	}
+}
+
 void HistoryInner::elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) {
@@ -3475,6 +3481,11 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 					document,
 					context,
 					showInMediaView);
+			}
+		}
+		void elementCancelUpload(const FullMsgId &context) override {
+			if (Instance) {
+				Instance->elementCancelUpload(context);
 			}
 		}
 		void elementShowTooltip(

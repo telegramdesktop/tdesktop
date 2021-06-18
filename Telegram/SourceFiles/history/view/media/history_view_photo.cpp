@@ -92,7 +92,12 @@ void Photo::create(FullMsgId contextId, PeerData *chat) {
 			crl::guard(this, [=](FullMsgId id) { showPhoto(id); }),
 			contextId),
 		std::make_shared<PhotoSaveClickHandler>(_data, contextId, chat),
-		std::make_shared<PhotoCancelClickHandler>(_data, contextId, chat));
+		std::make_shared<PhotoCancelClickHandler>(
+			_data,
+			crl::guard(this, [=](FullMsgId id) {
+				_parent->delegate()->elementCancelUpload(id);
+			}),
+			contextId));
 	if ((_dataMedia = _data->activeMediaView())) {
 		dataMediaCreated();
 	} else if (_data->inlineThumbnailBytes().isEmpty()
