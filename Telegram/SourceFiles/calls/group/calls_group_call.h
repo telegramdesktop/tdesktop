@@ -98,6 +98,8 @@ struct VideoEndpoint {
 	std::string id;
 
 	[[nodiscard]] bool empty() const noexcept {
+		Expects(id.empty() || peer != nullptr);
+
 		return id.empty();
 	}
 	[[nodiscard]] explicit operator bool() const noexcept {
@@ -193,6 +195,15 @@ public:
 	};
 
 	using GlobalShortcutManager = base::GlobalShortcutManager;
+
+	struct VideoTrack;
+
+	[[nodiscard]] static not_null<PeerData*> TrackPeer(
+		const std::unique_ptr<VideoTrack> &track);
+	[[nodiscard]] static not_null<Webrtc::VideoTrack*> TrackPointer(
+		const std::unique_ptr<VideoTrack> &track);
+	[[nodiscard]] static rpl::producer<QSize> TrackSizeValue(
+		const std::unique_ptr<VideoTrack> &track);
 
 	GroupCall(
 		not_null<Delegate*> delegate,
@@ -321,27 +332,8 @@ public:
 	-> rpl::producer<VideoEndpoint> {
 		return _videoEndpointLarge.value();
 	}
-
-	struct VideoTrack {
-		std::unique_ptr<Webrtc::VideoTrack> track;
-		rpl::variable<QSize> trackSize;
-		PeerData *peer = nullptr;
-		rpl::lifetime lifetime;
-		Group::VideoQuality quality = Group::VideoQuality();
-		bool shown = false;
-
-		[[nodiscard]] explicit operator bool() const {
-			return (track != nullptr);
-		}
-		[[nodiscard]] bool operator==(const VideoTrack &other) const {
-			return (track == other.track) && (peer == other.peer);
-		}
-		[[nodiscard]] bool operator!=(const VideoTrack &other) const {
-			return !(*this == other);
-		}
-	};
 	[[nodiscard]] auto activeVideoTracks() const
-	-> const base::flat_map<VideoEndpoint, VideoTrack> & {
+	-> const base::flat_map<VideoEndpoint, std::unique_ptr<VideoTrack>> & {
 		return _activeVideoTracks;
 	}
 	[[nodiscard]] auto shownVideoTracks() const
@@ -625,7 +617,9 @@ private:
 	rpl::event_stream<VideoStateToggle> _videoStreamActiveUpdates;
 	rpl::event_stream<VideoStateToggle> _videoStreamPausedUpdates;
 	rpl::event_stream<VideoStateToggle> _videoStreamShownUpdates;
-	base::flat_map<VideoEndpoint, VideoTrack> _activeVideoTracks;
+	base::flat_map<
+		VideoEndpoint,
+		std::unique_ptr<VideoTrack>> _activeVideoTracks;
 	base::flat_set<VideoEndpoint> _shownVideoTracks;
 	rpl::variable<VideoEndpoint> _videoEndpointLarge;
 	rpl::variable<bool> _videoEndpointPinned = false;

@@ -187,6 +187,28 @@ struct GroupCall::SinkPointer {
 	std::weak_ptr<Webrtc::SinkInterface> data;
 };
 
+struct GroupCall::VideoTrack {
+	VideoTrack(bool paused, bool requireARGB32, not_null<PeerData*> peer);
+
+	Webrtc::VideoTrack track;
+	rpl::variable<QSize> trackSize;
+	not_null<PeerData*> peer;
+	rpl::lifetime lifetime;
+	Group::VideoQuality quality = Group::VideoQuality();
+	bool shown = false;
+};
+
+GroupCall::VideoTrack::VideoTrack(
+	bool paused,
+	bool requireARGB32,
+	not_null<PeerData*> peer)
+: track((paused
+	? Webrtc::VideoState::Paused
+	: Webrtc::VideoState::Active),
+	requireARGB32)
+, peer(peer) {
+}
+
 [[nodiscard]] bool IsGroupCallAdmin(
 		not_null<PeerData*> peer,
 		not_null<PeerData*> participantPeer) {
@@ -449,6 +471,21 @@ void GroupCall::MediaChannelDescriptionsTask::cancel() {
 			}
 		});
 	}
+}
+
+not_null<PeerData*> GroupCall::TrackPeer(
+		const std::unique_ptr<VideoTrack> &track) {
+	return track->peer;
+}
+
+not_null<Webrtc::VideoTrack*> GroupCall::TrackPointer(
+		const std::unique_ptr<VideoTrack> &track) {
+	return &track->track;
+}
+
+rpl::producer<QSize> GroupCall::TrackSizeValue(
+		const std::unique_ptr<VideoTrack> &track) {
+	return track->trackSize.value();
 }
 
 GroupCall::GroupCall(
@@ -1064,43 +1101,39 @@ void GroupCall::markEndpointActive(
 	if (active) {
 		const auto i = _activeVideoTracks.emplace(
 			endpoint,
-			VideoTrack{
-				.track = std::make_unique<Webrtc::VideoTrack>(
-					(paused
-						? Webrtc::VideoState::Paused
-						: Webrtc::VideoState::Active),
-					_requireARGB32),
-				.peer = endpoint.peer,
-			}).first;
-		const auto track = i->second.track.get();
+			std::make_unique<VideoTrack>(
+				paused,
+				_requireARGB32,
+				endpoint.peer)).first;
+		const auto track = &i->second->track;
 
 		track->renderNextFrame(
 		) | rpl::start_with_next([=] {
-			auto &activeTrack = _activeVideoTracks[endpoint];
+			const auto activeTrack = _activeVideoTracks[endpoint].get();
 			const auto size = track->frameSize();
 			if (size.isEmpty()) {
 				track->markFrameShown();
-			} else if (!activeTrack.shown) {
-				activeTrack.shown = true;
+			} else if (!activeTrack->shown) {
+				activeTrack->shown = true;
 				markTrackShown(endpoint, true);
 			}
-			activeTrack.trackSize = size;
-		}, i->second.lifetime);
+			activeTrack->trackSize = size;
+		}, i->second->lifetime);
 
 		const auto size = track->frameSize();
-		i->second.trackSize = size;
+		i->second->trackSize = size;
 		if (!size.isEmpty() || paused) {
-			i->second.shown = true;
+			i->second->shown = true;
 			shown = true;
 		} else {
 			track->stateValue(
 			) | rpl::filter([=](Webrtc::VideoState state) {
 				return (state == Webrtc::VideoState::Paused)
-					&& !_activeVideoTracks[endpoint].shown;
+					&& !_activeVideoTracks[endpoint]->shown;
 			}) | rpl::start_with_next([=] {
-				_activeVideoTracks[endpoint].shown = true;
+				_activeVideoTracks[endpoint]->shown = true;
 				markTrackShown(endpoint, true);
-			}, i->second.lifetime);
+			}, i->second->lifetime);
 		}
 		addVideoOutput(i->first.id, { track->sink() });
 	} else {
@@ -1144,7 +1177,7 @@ void GroupCall::markTrackPaused(const VideoEndpoint &endpoint, bool paused) {
 	const auto i = _activeVideoTracks.find(endpoint);
 	Assert(i != end(_activeVideoTracks));
 
-	i->second.track->setState(paused
+	i->second->track.setState(paused
 		? Webrtc::VideoState::Paused
 		: Webrtc::VideoState::Active);
 }
@@ -2420,13 +2453,13 @@ void GroupCall::updateRequestedVideoChannels() {
 			.ssrcGroups = (params->camera.endpointId == endpointId
 				? params->camera.ssrcGroups
 				: params->screen.ssrcGroups),
-			.minQuality = ((video.quality == Group::VideoQuality::Full
+			.minQuality = ((video->quality == Group::VideoQuality::Full
 				&& endpoint.type == VideoEndpointType::Screen)
 				? Quality::Full
 				: Quality::Thumbnail),
-			.maxQuality = ((video.quality == Group::VideoQuality::Full)
+			.maxQuality = ((video->quality == Group::VideoQuality::Full)
 				? Quality::Full
-				: (video.quality == Group::VideoQuality::Medium
+				: (video->quality == Group::VideoQuality::Medium
 					&& endpoint.type != VideoEndpointType::Screen)
 				? Quality::Medium
 				: Quality::Thumbnail),
@@ -2911,10 +2944,10 @@ void GroupCall::requestVideoQuality(
 		return;
 	}
 	const auto i = _activeVideoTracks.find(endpoint);
-	if (i == end(_activeVideoTracks) || i->second.quality == quality) {
+	if (i == end(_activeVideoTracks) || i->second->quality == quality) {
 		return;
 	}
-	i->second.quality = quality;
+	i->second->quality = quality;
 	updateRequestedVideoChannelsDelayed();
 }
 

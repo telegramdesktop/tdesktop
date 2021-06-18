@@ -1251,7 +1251,7 @@ groupCallTooltip: Tooltip(defaultTooltip) {
 }
 groupCallNiceTooltip: ImportantTooltip(defaultImportantTooltip) {
 	bg: importantTooltipBg;
-	padding: margins(10px, 3px, 10px, 5px);
+	padding: margins(10px, 1px, 10px, 3px);
 	radius: 4px;
 	arrow: 4px;
 }
@@ -1261,6 +1261,17 @@ groupCallNiceTooltipLabel: FlatLabel(defaultImportantTooltipLabel) {
 		linkFont: font(11px);
 		linkFontOver: font(11px underline);
 	}
+}
+groupCallStickedTooltip: ImportantTooltip(groupCallNiceTooltip) {
+	padding: margins(10px, 1px, 6px, 3px);
+}
+groupCallStickedTooltipClose: IconButton(defaultIconButton) {
+	width: 20px;
+	height: 20px;
+	iconPosition: point(4px, 3px);
+	icon: icon {{ "calls/video_tooltip", importantTooltipFg }};
+	iconOver: icon {{ "calls/video_tooltip", importantTooltipFg }};
+	ripple: emptyRippleAnimation;
 }
 groupCallNiceTooltipTop: 4px;
 groupCallPaused: icon {{ "calls/video_large_paused", groupCallVideoTextFg }};
