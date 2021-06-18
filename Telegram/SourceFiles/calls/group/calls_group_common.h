@@ -68,4 +68,13 @@ enum class Error {
 	DisabledNoScreen,
 };
 
+enum class StickedTooltip {
+	Camera     = 0x01,
+	Microphone = 0x02,
+};
+constexpr inline bool is_flag_type(StickedTooltip) {
+	return true;
+}
+using StickedTooltips = base::flags<StickedTooltip>;
+
 } // namespace Calls::Group

@@ -493,8 +493,10 @@ void SettingsBox(
 				tr::now,
 				lt_delay,
 				FormatDelay(delay)));
-			Core::App().settings().setGroupCallPushToTalkDelay(delay);
-			applyAndSave();
+			if (Core::App().settings().groupCallPushToTalkDelay() != delay) {
+				Core::App().settings().setGroupCallPushToTalkDelay(delay);
+				applyAndSave();
+			}
 		};
 		callback(value);
 		const auto slider = pushToTalkInner->add(

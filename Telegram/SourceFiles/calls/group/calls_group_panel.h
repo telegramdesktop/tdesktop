@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/object_ptr.h"
 #include "calls/group/calls_group_call.h"
+#include "calls/group/calls_group_common.h"
 #include "calls/group/calls_choose_join_as.h"
 #include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/effects/animations.h"
@@ -64,6 +65,7 @@ class Toasts;
 class Members;
 class Viewport;
 enum class PanelMode;
+enum class StickedTooltip;
 
 class Panel final : private Ui::DesktopCapture::ChooseSourceDelegate {
 public:
@@ -88,19 +90,12 @@ private:
 		Normal,
 		Sticked,
 	};
-	enum class StickedTooltip {
-		Camera = 0x01,
-		Microphone = 0x02,
-	};
-	friend constexpr inline bool is_flag_type(StickedTooltip) {
-		return true;
-	};
-	using StickedTooltips = base::flags<StickedTooltip>;
 	enum class StickedTooltipHide {
 		Unavailable,
 		Activated,
 		Discarded,
 	};
+	class MicLevelTester;
 
 	std::unique_ptr<Ui::Window> createWindow();
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
@@ -235,6 +230,8 @@ private:
 
 	const std::unique_ptr<Toasts> _toasts;
 	base::weak_ptr<Ui::Toast::Instance> _lastToast;
+
+	std::unique_ptr<MicLevelTester> _micLevelTester;
 
 	rpl::lifetime _peerLifetime;
 

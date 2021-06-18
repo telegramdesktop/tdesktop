@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "webrtc/webrtc_create_adm.h"
 #include "ui/gl/gl_detection.h"
+#include "calls/group/calls_group_common.h"
 #include "facades.h"
 
 namespace Core {
@@ -94,23 +95,35 @@ QByteArray Settings::serialize() const {
 		+ sizeof(qint32) * 5
 		+ Serialize::stringSize(_downloadPath.current())
 		+ Serialize::bytearraySize(_downloadPathBookmark)
-		+ sizeof(qint32) * 12
+		+ sizeof(qint32) * 9
 		+ Serialize::stringSize(_callOutputDeviceId)
 		+ Serialize::stringSize(_callInputDeviceId)
-		+ Serialize::stringSize(_callVideoInputDeviceId)
-		+ sizeof(qint32) * 5
-		+ Serialize::bytearraySize(proxy);
+		+ sizeof(qint32) * 5;
 	for (const auto &[key, value] : _soundOverrides) {
 		size += Serialize::stringSize(key) + Serialize::stringSize(value);
 	}
+	size += sizeof(qint32) * 13
+		+ Serialize::bytearraySize(_videoPipGeometry)
+		+ sizeof(qint32)
+		+ (_dictionariesEnabled.current().size() * sizeof(quint64))
+		+ sizeof(qint32) * 12
+		+ Serialize::stringSize(_callVideoInputDeviceId)
+		+ sizeof(qint32) * 2
+		+ Serialize::bytearraySize(_groupCallPushToTalkShortcut)
+		+ sizeof(qint64)
+		+ sizeof(qint32) * 2
+		+ Serialize::bytearraySize(windowPosition)
+		+ sizeof(qint32);
 	for (const auto &[id, rating] : recentEmojiPreloadData) {
 		size += Serialize::stringSize(id) + sizeof(quint16);
 	}
+	size += sizeof(qint32);
 	for (const auto &[id, variant] : _emojiVariants) {
 		size += Serialize::stringSize(id) + sizeof(quint8);
 	}
-	size += Serialize::bytearraySize(_videoPipGeometry);
-	size += Serialize::bytearraySize(windowPosition);
+	size += sizeof(qint32) * 3
+		+ Serialize::bytearraySize(proxy)
+		+ sizeof(qint32);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -200,8 +213,9 @@ QByteArray Settings::serialize() const {
 		stream
 			<< qint32(_disableOpenGL ? 1 : 0)
 			<< qint32(_groupCallNoiseSuppression ? 1 : 0)
-			<< _workMode.current()
-			<< proxy;
+			<< qint32(_workMode.current())
+			<< proxy
+			<< qint32(_hiddenGroupCallTooltips.value());
 	}
 	return result;
 }
@@ -281,6 +295,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 groupCallNoiseSuppression = _groupCallNoiseSuppression ? 1 : 0;
 	qint32 workMode = static_cast<qint32>(_workMode.current());
 	QByteArray proxy;
+	qint32 hiddenGroupCallTooltips = qint32(_hiddenGroupCallTooltips.value());
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -421,6 +436,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> proxy;
 	}
+	if (!stream.atEnd()) {
+		stream >> hiddenGroupCallTooltips;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -540,6 +558,16 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	case WorkMode::TrayOnly:
 	case WorkMode::WindowOnly: _workMode = uncheckedWorkMode; break;
 	}
+	_hiddenGroupCallTooltips = [&] {
+		using Tooltip = Calls::Group::StickedTooltip;
+		return Tooltip(0)
+			| ((hiddenGroupCallTooltips & int(Tooltip::Camera))
+				? Tooltip::Camera
+				: Tooltip(0))
+			| ((hiddenGroupCallTooltips & int(Tooltip::Microphone))
+				? Tooltip::Microphone
+				: Tooltip(0));
+	}();
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -795,6 +823,7 @@ void Settings::resetOnLastLogout() {
 	_notifyFromAll = true;
 	_tabbedReplacedWithInfo = false; // per-window
 	_systemDarkModeEnabled = false;
+	_hiddenGroupCallTooltips = 0;
 
 	_recentEmojiPreload.clear();
 	_recentEmoji.clear();

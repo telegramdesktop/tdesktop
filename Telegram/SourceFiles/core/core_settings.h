@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_themes_embedded.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "platform/platform_notifications_manager.h"
+#include "base/flags.h"
 #include "emoji.h"
 
 enum class RectPart;
@@ -26,6 +27,10 @@ enum class Column;
 namespace Webrtc {
 enum class Backend;
 } // namespace Webrtc
+
+namespace Calls::Group {
+enum class StickedTooltip;
+} // namespace Calls::Group
 
 namespace Core {
 
@@ -574,6 +579,13 @@ public:
 		_disableOpenGL = value;
 	}
 
+	[[nodiscard]] base::flags<Calls::Group::StickedTooltip> hiddenGroupCallTooltips() const {
+		return _hiddenGroupCallTooltips;
+	}
+	void setHiddenGroupCallTooltip(Calls::Group::StickedTooltip value) {
+		_hiddenGroupCallTooltips |= value;
+	}
+
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
@@ -671,6 +683,7 @@ private:
 	WindowPosition _windowPosition; // per-window
 	bool _disableOpenGL = false;
 	rpl::variable<WorkMode> _workMode = WorkMode::WindowAndTray;
+	base::flags<Calls::Group::StickedTooltip> _hiddenGroupCallTooltips;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

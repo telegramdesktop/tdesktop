@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h" // api().kickParticipant.
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_media_devices.h" // UniqueDesktopCaptureSource.
+#include "webrtc/webrtc_audio_input_tester.h"
 #include "styles/style_calls.h"
 #include "styles/style_layers.h"
 
@@ -71,6 +72,10 @@ constexpr auto kRecordingOpacity = 0.6;
 constexpr auto kStartNoConfirmation = TimeId(10);
 constexpr auto kControlsBackgroundOpacity = 0.8;
 constexpr auto kOverrideActiveColorBgAlpha = 172;
+constexpr auto kMicrophoneTooltipAfterLoudCount = 3;
+constexpr auto kDropLoudAfterQuietCount = 5;
+constexpr auto kMicrophoneTooltipLevelThreshold = 0.2;
+constexpr auto kMicrophoneTooltipCheckInterval = crl::time(500);
 
 } // namespace
 
@@ -83,6 +88,49 @@ struct Panel::ControlsBackgroundNarrow {
 	Ui::RpWidget shadow;
 	Ui::RpWidget blocker;
 };
+
+class Panel::MicLevelTester final {
+public:
+	explicit MicLevelTester(Fn<void()> show);
+
+	[[nodiscard]] bool showTooltip() const;
+
+private:
+	void check();
+
+	Fn<void()> _show;
+	base::Timer _timer;
+	Webrtc::AudioInputTester _tester;
+	int _loudCount = 0;
+	int _quietCount = 0;
+
+};
+
+Panel::MicLevelTester::MicLevelTester(Fn<void()> show)
+: _show(std::move(show))
+, _timer([=] { check(); })
+, _tester(
+		Core::App().settings().callAudioBackend(),
+		Core::App().settings().callInputDeviceId()) {
+	_timer.callEach(kMicrophoneTooltipCheckInterval);
+}
+
+bool Panel::MicLevelTester::showTooltip() const {
+	return (_loudCount >= kMicrophoneTooltipAfterLoudCount);
+}
+
+void Panel::MicLevelTester::check() {
+	const auto level = _tester.getAndResetLevel();
+	if (level >= kMicrophoneTooltipLevelThreshold) {
+		_quietCount = 0;
+		if (++_loudCount >= kMicrophoneTooltipAfterLoudCount) {
+			_show();
+		}
+	} else if (_loudCount > 0 && ++_quietCount >= kDropLoudAfterQuietCount) {
+		_quietCount = 0;
+		_loudCount = 0;
+	}
+}
 
 Panel::Panel(not_null<GroupCall*> call)
 : _call(call)
@@ -112,6 +160,7 @@ Panel::Panel(not_null<GroupCall*> call)
 			: Ui::CallMuteButtonType::ScheduledSilent),
 	}))
 , _hangup(widget(), st::groupCallHangup)
+, _stickedTooltipsShown(Core::App().settings().hiddenGroupCallTooltips())
 , _toasts(std::make_unique<Toasts>(this)) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_layerBg->setHideByBackgroundClick(true);
@@ -418,7 +467,9 @@ void Panel::initControls() {
 	}
 
 	_call->stateValue(
-	) | rpl::filter([](State state) {
+	) | rpl::before_next([=] {
+		showStickedTooltip();
+	}) | rpl::filter([](State state) {
 		return (state == State::HangingUp)
 			|| (state == State::Ended)
 			|| (state == State::FailedHangingUp)
@@ -515,11 +566,6 @@ void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
 			}
 			_video->setProgress(sharing ? 1. : 0.);
 		}, _video->lifetime());
-		_call->mutedValue(
-		) | rpl::start_with_next([=] {
-			updateButtonsGeometry();
-			showStickedTooltip();
-		}, _video->lifetime());
 	}
 	if (!_screenShare) {
 		_screenShare.create(widget(), st::groupCallScreenShareSmall);
@@ -562,7 +608,8 @@ void Panel::hideStickedTooltip(
 	if (hide != StickedTooltipHide::Unavailable) {
 		_stickedTooltipsShown |= type;
 		if (hide == StickedTooltipHide::Discarded) {
-			// #TODO calls save to settings.
+			Core::App().settings().setHiddenGroupCallTooltip(type);
+			Core::App().saveSettingsDelayed();
 		}
 	}
 	const auto control = (type == StickedTooltip::Camera)
@@ -886,6 +933,9 @@ void Panel::raiseControls() {
 		}
 	}
 	_mute->raise();
+	if (_niceTooltip) {
+		_niceTooltip->raise();
+	}
 }
 
 void Panel::setupVideo(not_null<Viewport*> viewport) {
@@ -1050,6 +1100,18 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 		_call->isSharingScreenValue()
 	) | rpl::start_with_next([=] {
 		refreshTopButton();
+	}, widget()->lifetime());
+
+	_call->mutedValue(
+	) | rpl::skip(1) | rpl::start_with_next([=](MuteState state) {
+		updateButtonsGeometry();
+		if (state == MuteState::Active
+			|| state == MuteState::PushToTalk) {
+			hideStickedTooltip(
+				StickedTooltip::Microphone,
+				StickedTooltipHide::Activated);
+		}
+		showStickedTooltip();
 	}, widget()->lifetime());
 
 	updateControlsGeometry();
@@ -1407,7 +1469,10 @@ bool Panel::updateMode() {
 		_call->showVideoEndpointLarge({});
 	}
 	refreshVideoButtons(wide);
-	_niceTooltip.destroy();
+	if (!_stickedTooltipClose
+		|| _niceTooltipControl.data() != _mute->outer().get()) {
+		_niceTooltip.destroy();
+	}
 	_mode = mode;
 	if (_title) {
 		_title->setTextColorOverride(wide
@@ -1631,7 +1696,10 @@ void Panel::trackControlOver(not_null<Ui::RpWidget*> control, bool over) {
 
 void Panel::showStickedTooltip() {
 	static const auto kHasCamera = !Webrtc::GetVideoInputList().empty();
+	const auto callReady = (_call->state() == State::Joined
+		|| _call->state() == State::Connecting);
 	if (!(_stickedTooltipsShown & StickedTooltip::Camera)
+		&& callReady
 		&& (_mode.current() == PanelMode::Wide)
 		&& _video
 		&& _call->videoIsWorking()
@@ -1645,13 +1713,25 @@ void Panel::showStickedTooltip() {
 		StickedTooltipHide::Unavailable);
 
 	if (!(_stickedTooltipsShown & StickedTooltip::Microphone)
-		&& (_mode.current() == PanelMode::Wide)
+		&& callReady
 		&& _mute
-		&& !_call->mutedByAdmin()
-		&& false) { // Check if there is incoming sound.
-		showNiceTooltip(_mute->outer(), NiceTooltipType::Sticked);
+		&& !_call->mutedByAdmin()) {
+		if (_stickedTooltipClose) {
+			// Showing already.
+			return;
+		} else if (!_micLevelTester) {
+			// Check if there is incoming sound.
+			_micLevelTester = std::make_unique<MicLevelTester>([=] {
+				showStickedTooltip();
+			});
+		}
+		if (_micLevelTester->showTooltip()) {
+			_micLevelTester = nullptr;
+			showNiceTooltip(_mute->outer(), NiceTooltipType::Sticked);
+		}
 		return;
 	}
+	_micLevelTester = nullptr;
 	hideStickedTooltip(
 		StickedTooltip::Microphone,
 		StickedTooltipHide::Unavailable);
@@ -1685,11 +1765,12 @@ void Panel::showNiceTooltip(
 		}
 		return rpl::producer<QString>();
 	}();
-	if (!text
-		|| _wideControlsAnimation.animating()
-		|| !_wideControlsShown
-		|| _stickedTooltipClose) {
+	if (!text || _stickedTooltipClose) {
 		return;
+	} else if (_wideControlsAnimation.animating() || !_wideControlsShown) {
+		if (type == NiceTooltipType::Normal) {
+			return;
+		}
 	}
 	const auto inner = [&]() -> Ui::RpWidget* {
 		const auto normal = (type == NiceTooltipType::Normal);

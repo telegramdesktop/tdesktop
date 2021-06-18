@@ -1251,7 +1251,7 @@ groupCallTooltip: Tooltip(defaultTooltip) {
 }
 groupCallNiceTooltip: ImportantTooltip(defaultImportantTooltip) {
 	bg: importantTooltipBg;
-	padding: margins(10px, 1px, 10px, 3px);
+	padding: margins(10px, 3px, 10px, 5px);
 	radius: 4px;
 	arrow: 4px;
 }
