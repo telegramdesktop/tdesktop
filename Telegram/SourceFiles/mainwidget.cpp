@@ -68,7 +68,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
 #include "boxes/add_contact_box.h"
-#include "storage/file_upload.h"
 #include "mainwindow.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "boxes/confirm_box.h"
@@ -748,36 +747,6 @@ void MainWidget::showSendPathsLayer() {
 			cSetSendPaths(QStringList());
 		});
 	}
-}
-
-void MainWidget::cancelUploadLayer(not_null<HistoryItem*> item) {
-	const auto itemId = item->fullId();
-	session().uploader().pause(itemId);
-	const auto stopUpload = [=] {
-		Ui::hideLayer();
-		auto &data = session().data();
-		if (const auto item = data.message(itemId)) {
-			if (!item->isEditingMedia()) {
-				const auto history = item->history();
-				item->destroy();
-				history->requestChatListMessage();
-			} else {
-				item->returnSavedMedia();
-				session().uploader().cancel(item->fullId());
-			}
-			data.sendHistoryChangeNotifications();
-		}
-		session().uploader().unpause();
-	};
-	const auto continueUpload = [=] {
-		session().uploader().unpause();
-	};
-	Ui::show(Box<ConfirmBox>(
-		tr::lng_selected_cancel_sure_this(tr::now),
-		tr::lng_selected_upload_stop(tr::now),
-		tr::lng_continue(tr::now),
-		stopUpload,
-		continueUpload));
 }
 
 void MainWidget::deletePhotoLayer(PhotoData *photo) {

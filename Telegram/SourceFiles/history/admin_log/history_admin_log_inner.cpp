@@ -618,7 +618,7 @@ void InnerWidget::elementOpenDocument(
 
 void InnerWidget::elementCancelUpload(const FullMsgId &context) {
 	if (const auto item = session().data().message(context)) {
-		_controller->content()->cancelUploadLayer(item);
+		_controller->cancelUploadLayer(item);
 	}
 }
 

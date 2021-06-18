@@ -2583,7 +2583,7 @@ void HistoryInner::elementOpenDocument(
 
 void HistoryInner::elementCancelUpload(const FullMsgId &context) {
 	if (const auto item = session().data().message(context)) {
-		_controller->content()->cancelUploadLayer(item);
+		_controller->cancelUploadLayer(item);
 	}
 }
 
@@ -3241,7 +3241,7 @@ void HistoryInner::deleteItem(FullMsgId itemId) {
 void HistoryInner::deleteItem(not_null<HistoryItem*> item) {
 	if (auto message = item->toHistoryMessage()) {
 		if (message->uploading()) {
-			_controller->content()->cancelUploadLayer(item);
+			_controller->cancelUploadLayer(item);
 			return;
 		}
 	}

@@ -728,7 +728,7 @@ bool AddDeleteMessageAction(
 			}
 			if (const auto message = item->toHistoryMessage()) {
 				if (message->uploading()) {
-					controller->content()->cancelUploadLayer(item);
+					controller->cancelUploadLayer(item);
 					return;
 				}
 			}

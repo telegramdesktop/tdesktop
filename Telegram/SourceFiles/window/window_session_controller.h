@@ -328,6 +328,7 @@ public:
 		MsgId msgId = ShowAtUnreadMsgId) override;
 
 	void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
+	void cancelUploadLayer(not_null<HistoryItem*> item);
 
 	void showSpecialLayer(
 		object_ptr<Ui::LayerWidget> &&layer,

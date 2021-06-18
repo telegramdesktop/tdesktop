@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_invite.h"
 #include "api/api_global_privacy.h"
 #include "support/support_helper.h"
+#include "storage/file_upload.h"
 #include "facades.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
@@ -1147,6 +1148,37 @@ void SessionController::showPeerHistoryAtItem(
 				SectionShow::Way::ClearStack,
 				item->id);
 		});
+}
+
+void SessionController::cancelUploadLayer(not_null<HistoryItem*> item) {
+	const auto itemId = item->fullId();
+	session().uploader().pause(itemId);
+	const auto stopUpload = [=] {
+		Ui::hideLayer();
+		auto &data = session().data();
+		if (const auto item = data.message(itemId)) {
+			if (!item->isEditingMedia()) {
+				const auto history = item->history();
+				item->destroy();
+				history->requestChatListMessage();
+			} else {
+				item->returnSavedMedia();
+				session().uploader().cancel(item->fullId());
+			}
+			data.sendHistoryChangeNotifications();
+		}
+		session().uploader().unpause();
+	};
+	const auto continueUpload = [=] {
+		session().uploader().unpause();
+	};
+
+	show(Box<ConfirmBox>(
+		tr::lng_selected_cancel_sure_this(tr::now),
+		tr::lng_selected_upload_stop(tr::now),
+		tr::lng_continue(tr::now),
+		stopUpload,
+		continueUpload));
 }
 
 void SessionController::showSection(
