@@ -97,7 +97,8 @@ private:
 	};
 	class MicLevelTester;
 
-	std::unique_ptr<Ui::Window> createWindow();
+	[[nodiscard]] std::unique_ptr<Ui::Window> createWindow();
+	[[nodiscard]] std::unique_ptr<Ui::RpWidget> createBodyWidget();
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
 	[[nodiscard]] PanelMode mode() const;
@@ -179,6 +180,8 @@ private:
 
 	Ui::GL::Backend _backend = Ui::GL::Backend();
 	const std::unique_ptr<Ui::Window> _window;
+	const std::unique_ptr<Ui::RpWidget> _nativeBodyWindow;
+	const not_null<Ui::RpWidget*> _body;
 	const std::unique_ptr<Ui::LayerManager> _layerBg;
 	rpl::variable<PanelMode> _mode;
 

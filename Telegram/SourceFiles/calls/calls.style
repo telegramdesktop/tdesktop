@@ -1082,11 +1082,11 @@ groupCallMenuVolumePadding: margins(17px, 6px, 17px, 5px);
 groupCallMenuVolumeMargin: margins(55px, 0px, 15px, 0px);
 groupCallMenuVolumeSlider: MediaSlider(defaultContinuousSlider) {
 	activeFg: groupCallMembersFg;
-	inactiveFg: groupCallMemberInactiveIcon;
+	inactiveFg: groupCallMembersBgOver;
 	activeFgOver: groupCallMembersFg;
-	inactiveFgOver: groupCallMemberInactiveIcon;
-	activeFgDisabled: groupCallMemberInactiveIcon;
-	receivedTillFg: groupCallMemberInactiveIcon;
+	inactiveFgOver: groupCallMembersBgOver;
+	activeFgDisabled: groupCallMembersBgOver;
+	receivedTillFg: groupCallMembersBgOver;
 	width: 7px;
 	seekSize: size(7px, 7px);
 }

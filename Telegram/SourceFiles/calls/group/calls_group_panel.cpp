@@ -76,6 +76,7 @@ constexpr auto kMicrophoneTooltipAfterLoudCount = 3;
 constexpr auto kDropLoudAfterQuietCount = 5;
 constexpr auto kMicrophoneTooltipLevelThreshold = 0.2;
 constexpr auto kMicrophoneTooltipCheckInterval = crl::time(500);
+constexpr auto kUseNativeChild = Platform::IsWindows();
 
 } // namespace
 
@@ -135,11 +136,13 @@ void Panel::MicLevelTester::check() {
 Panel::Panel(not_null<GroupCall*> call)
 : _call(call)
 , _peer(call->peer())
-, _window(createWindow())
-, _layerBg(std::make_unique<Ui::LayerManager>(_window->body()))
+, _window(std::make_unique<Ui::Window>())
+, _nativeBodyWindow(createBodyWidget())
+, _body(_nativeBodyWindow ? _nativeBodyWindow.get() : _window->body().get())
+, _layerBg(std::make_unique<Ui::LayerManager>(widget()))
 #ifndef Q_OS_MAC
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
-	_window->body(),
+	widget(),
 	st::groupCallTitle))
 #endif // !Q_OS_MAC
 , _viewport(std::make_unique<Viewport>(widget(), PanelMode::Wide, _backend))
@@ -190,21 +193,68 @@ Panel::~Panel() {
 
 std::unique_ptr<Ui::Window> Panel::createWindow() {
 	auto result = std::make_unique<Ui::Window>();
+	if constexpr (!kUseNativeChild) {
+		const auto capabilities = Ui::GL::CheckCapabilities(result.get());
+		const auto use = Platform::IsMac()
+			? true
+			: Platform::IsWindows()
+			? capabilities.supported
+			: capabilities.transparency;
+		LOG(("OpenGL: %1 (Calls::Group::Panel)").arg(Logs::b(use)));
+		_backend = use ? Ui::GL::Backend::OpenGL : Ui::GL::Backend::Raster;
+
+		if (!use) {
+			// We have to create a new window, if OpenGL initialization failed.
+			result = std::make_unique<Ui::Window>();
+		}
+	}
+	return result;
+}
+
+std::unique_ptr<Ui::RpWidget> Panel::createBodyWidget() {
+	if constexpr (!kUseNativeChild) {
+		return nullptr;
+	}
+	const auto create = [] {
+		auto result = std::make_unique<Ui::RpWidget>();
+		result->setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
+		result->setAttribute(Qt::WA_NativeWindow);
+		result->setAttribute(Qt::WA_DontCreateNativeAncestors);
+		result->setAttribute(Qt::WA_OpaquePaintEvent);
+		result->setAttribute(Qt::WA_NoSystemBackground);
+		return result;
+	};
+
+	auto result = create();
 	const auto capabilities = Ui::GL::CheckCapabilities(result.get());
 	const auto use = Platform::IsMac()
 		? true
 		: Platform::IsWindows()
 		? capabilities.supported
 		: capabilities.transparency;
-	LOG(("OpenGL: %1 (Calls::Group::Viewport)").arg(Logs::b(use)));
+	LOG(("OpenGL: %1 (Calls::Group::Panel)").arg(Logs::b(use)));
 	_backend = use ? Ui::GL::Backend::OpenGL : Ui::GL::Backend::Raster;
 
-	if (use) {
-		return result;
+	if (!use) {
+		// We have to create a new window, if OpenGL initialization failed.
+		result = create();
 	}
 
-	// We have to create a new window, if OpenGL initialization failed.
-	return std::make_unique<Ui::Window>();
+	const auto raw = result.get();
+	raw->setParent(_window->body());
+	raw->show();
+	raw->update();
+	_window->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		raw->setGeometry(QRect(QPoint(), size));
+	}, raw->lifetime());
+
+	_window->body()->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		QPainter(_window->body()).fillRect(clip, QColor(255, 0, 0));
+	}, _window->body()->lifetime());
+
+	return result;
 }
 
 void Panel::setupRealCallViewers() {
@@ -2234,7 +2284,7 @@ bool Panel::handleClose() {
 }
 
 not_null<Ui::RpWidget*> Panel::widget() const {
-	return _window->body();
+	return _body.get();
 }
 
 } // namespace Calls::Group
