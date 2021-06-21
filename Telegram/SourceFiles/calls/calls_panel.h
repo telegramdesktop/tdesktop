@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "calls/calls_call.h"
 #include "ui/effects/animations.h"
+#include "ui/gl/gl_window.h"
 #include "ui/rp_widget.h"
 
 class Image;
@@ -60,6 +61,8 @@ public:
 	void replaceCall(not_null<Call*> call);
 	void closeBeforeDestroy();
 
+	rpl::lifetime &lifetime();
+
 private:
 	class Incoming;
 	using State = Call::State;
@@ -70,7 +73,7 @@ private:
 		Redial,
 	};
 
-	std::unique_ptr<Ui::Window> createWindow();
+	[[nodiscard]] not_null<Ui::Window*> window() const;
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
 	void paint(QRect clip);
@@ -106,8 +109,7 @@ private:
 	Call *_call = nullptr;
 	not_null<UserData*> _user;
 
-	Ui::GL::Backend _backend = Ui::GL::Backend();
-	const std::unique_ptr<Ui::Window> _window;
+	Ui::GL::Window _window;
 	std::unique_ptr<Incoming> _incoming;
 
 #ifndef Q_OS_MAC

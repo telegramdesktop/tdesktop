@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_choose_join_as.h"
 #include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/effects/animations.h"
+#include "ui/gl/gl_window.h"
 #include "ui/rp_widget.h"
 
 class Image;
@@ -38,14 +39,10 @@ template <typename Widget>
 class FadeWrap;
 template <typename Widget>
 class PaddingWrap;
-class Window;
 class ScrollArea;
 class GenericBox;
 class LayerManager;
 class GroupCallScheduledLeft;
-namespace GL {
-enum class Backend;
-} // namespace GL
 namespace Toast {
 class Instance;
 } // namespace Toast
@@ -82,6 +79,8 @@ public:
 	void showAndActivate();
 	void closeBeforeDestroy();
 
+	rpl::lifetime &lifetime();
+
 private:
 	using State = GroupCall::State;
 	struct ControlsBackgroundNarrow;
@@ -97,8 +96,7 @@ private:
 	};
 	class MicLevelTester;
 
-	[[nodiscard]] std::unique_ptr<Ui::Window> createWindow();
-	[[nodiscard]] std::unique_ptr<Ui::RpWidget> createBodyWidget();
+	[[nodiscard]] not_null<Ui::Window*> window() const;
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
 	[[nodiscard]] PanelMode mode() const;
@@ -178,10 +176,7 @@ private:
 	const not_null<GroupCall*> _call;
 	not_null<PeerData*> _peer;
 
-	Ui::GL::Backend _backend = Ui::GL::Backend();
-	const std::unique_ptr<Ui::Window> _window;
-	const std::unique_ptr<Ui::RpWidget> _nativeBodyWindow;
-	const not_null<Ui::RpWidget*> _body;
+	Ui::GL::Window _window;
 	const std::unique_ptr<Ui::LayerManager> _layerBg;
 	rpl::variable<PanelMode> _mode;
 

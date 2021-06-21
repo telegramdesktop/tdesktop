@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participants_box.h" // SubscribeToMigration.
 #include "window/window_controller.h" // Controller::sessionController.
 #include "window/window_session_controller.h"
-#include "media/view/media_view_pip.h"
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
 

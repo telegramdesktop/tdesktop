@@ -42,7 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
 #include "window/main_window.h"
-#include "media/view/media_view_pip.h" // Utilities for frame rotation.
 #include "app.h"
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"
@@ -51,16 +50,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QDesktopWidget>
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>
+#include <QtCore/QTimer>
 
 namespace Calls {
 
 Panel::Panel(not_null<Call*> call)
 : _call(call)
 , _user(call->user())
-, _window(createWindow())
 #ifndef Q_OS_MAC
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
-	_window->body(),
+	widget(),
 	st::callTitle,
 	[=](bool maximized) { toggleFullScreen(maximized); }))
 #endif // !Q_OS_MAC
@@ -86,46 +85,27 @@ Panel::Panel(not_null<Call*> call)
 
 Panel::~Panel() = default;
 
-std::unique_ptr<Ui::Window> Panel::createWindow() {
-	auto result = std::make_unique<Ui::Window>();
-	const auto capabilities = Ui::GL::CheckCapabilities(result.get());
-	const auto use = Platform::IsMac()
-		? true
-		: Platform::IsWindows()
-		? capabilities.supported
-		: capabilities.transparency;
-	LOG(("OpenGL: %1 (Incoming)").arg(Logs::b(use)));
-	_backend = use ? Ui::GL::Backend::OpenGL : Ui::GL::Backend::Raster;
-
-	if (use) {
-		return result;
-	}
-
-	// We have to create a new window, if OpenGL initialization failed.
-	return std::make_unique<Ui::Window>();
-}
-
 bool Panel::isActive() const {
-	return _window->isActiveWindow()
-		&& _window->isVisible()
-		&& !(_window->windowState() & Qt::WindowMinimized);
+	return window()->isActiveWindow()
+		&& window()->isVisible()
+		&& !(window()->windowState() & Qt::WindowMinimized);
 }
 
 void Panel::showAndActivate() {
-	if (_window->isHidden()) {
-		_window->show();
+	if (window()->isHidden()) {
+		window()->show();
 	}
-	const auto state = _window->windowState();
+	const auto state = window()->windowState();
 	if (state & Qt::WindowMinimized) {
-		_window->setWindowState(state & ~Qt::WindowMinimized);
+		window()->setWindowState(state & ~Qt::WindowMinimized);
 	}
-	_window->raise();
-	_window->activateWindow();
-	_window->setFocus();
+	window()->raise();
+	window()->activateWindow();
+	window()->setFocus();
 }
 
 void Panel::minimize() {
-	_window->setWindowState(_window->windowState() | Qt::WindowMinimized);
+	window()->setWindowState(window()->windowState() | Qt::WindowMinimized);
 }
 
 void Panel::replaceCall(not_null<Call*> call) {
@@ -134,26 +114,26 @@ void Panel::replaceCall(not_null<Call*> call) {
 }
 
 void Panel::initWindow() {
-	_window->setAttribute(Qt::WA_OpaquePaintEvent);
-	_window->setAttribute(Qt::WA_NoSystemBackground);
-	_window->setWindowIcon(
+	window()->setAttribute(Qt::WA_OpaquePaintEvent);
+	window()->setAttribute(Qt::WA_NoSystemBackground);
+	window()->setWindowIcon(
 		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
-	_window->setTitle(u" "_q);
-	_window->setTitleStyle(st::callTitle);
+	window()->setTitle(u" "_q);
+	window()->setTitleStyle(st::callTitle);
 
-	_window->events(
+	window()->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Close) {
 			handleClose();
 		} else if (e->type() == QEvent::KeyPress) {
 			if ((static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Escape)
-				&& _window->isFullScreen()) {
-				_window->showNormal();
+				&& window()->isFullScreen()) {
+				window()->showNormal();
 			}
 		}
-	}, _window->lifetime());
+	}, window()->lifetime());
 
-	_window->setBodyTitleArea([=](QPoint widgetPoint) {
+	window()->setBodyTitleArea([=](QPoint widgetPoint) {
 		using Flag = Ui::WindowTitleHitTestFlag;
 		if (!widget()->rect().contains(widgetPoint)) {
 			return Flag::None | Flag(0);
@@ -179,28 +159,31 @@ void Panel::initWindow() {
 			: (Flag::Move | Flag::FullScreen);
 	});
 
-#ifdef Q_OS_WIN
-	// On Windows we replace snap-to-top maximizing with fullscreen.
-	//
-	// We have to switch first to showNormal, so that showFullScreen
-	// will remember correct normal window geometry and next showNormal
-	// will show it instead of a moving maximized window.
-	//
-	// We have to do it in InvokeQueued, otherwise it still captures
-	// the maximized window geometry and saves it.
-	//
-	// I couldn't find a less glitchy way to do that *sigh*.
-	const auto object = _window->windowHandle();
-	const auto signal = &QWindow::windowStateChanged;
-	QObject::connect(object, signal, [=](Qt::WindowState state) {
-		if (state == Qt::WindowMaximized) {
-			InvokeQueued(object, [=] {
-				_window->showNormal();
-				_window->showFullScreen();
-			});
-		}
-	});
-#endif // Q_OS_WIN
+	// Don't do that, it looks awful :(
+//#ifdef Q_OS_WIN
+//	// On Windows we replace snap-to-top maximizing with fullscreen.
+//	//
+//	// We have to switch first to showNormal, so that showFullScreen
+//	// will remember correct normal window geometry and next showNormal
+//	// will show it instead of a moving maximized window.
+//	//
+//	// We have to do it in InvokeQueued, otherwise it still captures
+//	// the maximized window geometry and saves it.
+//	//
+//	// I couldn't find a less glitchy way to do that *sigh*.
+//	const auto object = window()->windowHandle();
+//	const auto signal = &QWindow::windowStateChanged;
+//	QObject::connect(object, signal, [=](Qt::WindowState state) {
+//		if (state == Qt::WindowMaximized) {
+//			InvokeQueued(object, [=] {
+//				window()->showNormal();
+//				InvokeQueued(object, [=] {
+//					window()->showFullScreen();
+//				});
+//			});
+//		}
+//	});
+//#endif // Q_OS_WIN
 }
 
 void Panel::initWidget() {
@@ -339,7 +322,7 @@ void Panel::reinitWithCall(Call *call) {
 	_incoming = std::make_unique<Incoming>(
 		widget(),
 		_call->videoIncoming(),
-		_backend);
+		_window.backend());
 	_incoming->widget()->hide();
 
 	_call->mutedValue(
@@ -519,16 +502,20 @@ void Panel::showControls() {
 }
 
 void Panel::closeBeforeDestroy() {
-	_window->close();
+	window()->close();
 	reinitWithCall(nullptr);
+}
+
+rpl::lifetime &Panel::lifetime() {
+	return window()->lifetime();
 }
 
 void Panel::initGeometry() {
 	const auto center = Core::App().getPointForCallPanelCenter();
 	const auto initRect = QRect(0, 0, st::callWidth, st::callHeight);
-	_window->setGeometry(initRect.translated(center - initRect.center()));
-	_window->setMinimumSize({ st::callWidthMin, st::callHeightMin });
-	_window->show();
+	window()->setGeometry(initRect.translated(center - initRect.center()));
+	window()->setMinimumSize({ st::callWidthMin, st::callHeightMin });
+	window()->show();
 	updateControlsGeometry();
 }
 
@@ -546,9 +533,9 @@ void Panel::refreshOutgoingPreviewInBody(State state) {
 
 void Panel::toggleFullScreen(bool fullscreen) {
 	if (fullscreen) {
-		_window->showFullScreen();
+		window()->showFullScreen();
 	} else {
-		_window->showNormal();
+		window()->showNormal();
 	}
 }
 
@@ -724,8 +711,12 @@ void Panel::handleClose() {
 	}
 }
 
+not_null<Ui::Window*> Panel::window() const {
+	return _window.window();
+}
+
 not_null<Ui::RpWidget*> Panel::widget() const {
-	return _window->body();
+	return _window.widget();
 }
 
 void Panel::stateChanged(State state) {
@@ -741,7 +732,7 @@ void Panel::stateChanged(State state) {
 		auto toggleButton = [&](auto &&button, bool visible) {
 			button->toggle(
 				visible,
-				_window->isHidden()
+				window()->isHidden()
 				? anim::type::instant
 				: anim::type::normal);
 		};
