@@ -158,7 +158,8 @@ Panel::Panel(not_null<GroupCall*> call)
 			: Ui::CallMuteButtonType::ScheduledSilent),
 	}))
 , _hangup(widget(), st::groupCallHangup)
-, _stickedTooltipsShown(Core::App().settings().hiddenGroupCallTooltips())
+, _stickedTooltipsShown(Core::App().settings().hiddenGroupCallTooltips()
+	& ~StickedTooltip::Microphone) // Always show tooltip about mic.
 , _toasts(std::make_unique<Toasts>(this)) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_layerBg->setHideByBackgroundClick(true);
