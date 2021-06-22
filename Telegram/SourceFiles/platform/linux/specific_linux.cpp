@@ -743,11 +743,8 @@ void start() {
 	Glib::set_prgname(cExeName().toStdString());
 	Glib::set_application_name(std::string(AppName));
 
-	if (const auto integration = BaseGtkIntegration::Instance()) {
-		integration->prepareEnvironment();
-	} else {
-		g_warning("GTK integration is disabled, some features unavailable.");
-	}
+	GtkIntegration::Start(GtkIntegration::Type::Base);
+	GtkIntegration::Start(GtkIntegration::Type::TDesktop);
 
 #ifdef DESKTOP_APP_USE_PACKAGED_RLOTTIE
 	g_warning(
@@ -944,13 +941,16 @@ bool OpenSystemSettings(SystemSettingsType type) {
 namespace ThirdParty {
 
 void start() {
+	GtkIntegration::Autorestart(GtkIntegration::Type::Base);
+	GtkIntegration::Autorestart(GtkIntegration::Type::TDesktop);
+
 	if (const auto integration = BaseGtkIntegration::Instance()) {
-		integration->load();
+		integration->load(GtkIntegration::AllowedBackends());
 		integration->initializeSettings();
 	}
 
 	if (const auto integration = GtkIntegration::Instance()) {
-		integration->load();
+		integration->load(GtkIntegration::AllowedBackends());
 	}
 
 	// wait for interface announce to know if native window frame is supported

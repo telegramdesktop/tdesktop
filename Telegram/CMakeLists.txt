@@ -112,6 +112,7 @@ if (LINUX)
     endif()
 
     if (NOT DESKTOP_APP_DISABLE_GTK_INTEGRATION)
+        target_link_libraries(Telegram PRIVATE rt)
         find_package(PkgConfig REQUIRED)
 
         if (DESKTOP_APP_USE_PACKAGED AND NOT DESKTOP_APP_USE_PACKAGED_LAZY)

@@ -10,9 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_gtk_integration.h"
 #include "base/platform/linux/base_linux_gtk_integration_p.h"
 #include "platform/linux/linux_gtk_integration_p.h"
-#include "platform/linux/linux_wayland_integration.h"
-
-#include <QtGui/QWindow>
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 extern "C" {
@@ -98,21 +95,17 @@ void GdkHelperLoad(QLibrary &lib) {
 	}
 }
 
-void GdkSetTransientFor(GdkWindow *window, QWindow *parent) {
+void GdkSetTransientFor(GdkWindow *window, const QString &parent) {
 #ifndef DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
 	if (gdk_wayland_window_get_type != nullptr
 		&& gdk_wayland_window_set_transient_for_exported != nullptr
-		&& GDK_IS_WAYLAND_WINDOW(window)) {
-		if (const auto integration = WaylandIntegration::Instance()) {
-			if (const auto handle = integration->nativeHandle(parent)
-				; !handle.isEmpty()) {
-				auto handleUtf8 = handle.toUtf8();
-				gdk_wayland_window_set_transient_for_exported(
-					window,
-					handleUtf8.data());
-				return;
-			}
-		}
+		&& GDK_IS_WAYLAND_WINDOW(window)
+		&& parent.startsWith("wayland:")) {
+		auto handle = parent.mid(8).toUtf8();
+		gdk_wayland_window_set_transient_for_exported(
+			window,
+			handle.data());
+		return;
 	}
 #endif // !DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
 
@@ -121,23 +114,33 @@ void GdkSetTransientFor(GdkWindow *window, QWindow *parent) {
 		&& gdk_x11_display_get_xdisplay != nullptr
 		&& gdk_x11_window_get_xid != nullptr
 		&& gdk_window_get_display != nullptr
-		&& GDK_IS_X11_WINDOW(window)) {
-		XSetTransientForHint(
-			gdk_x11_display_get_xdisplay(gdk_window_get_display(window)),
-			gdk_x11_window_get_xid(window),
-			parent->winId());
-		return;
+		&& GDK_IS_X11_WINDOW(window)
+		&& parent.startsWith("x11:")) {
+		auto ok = false;
+		const auto winId = parent.mid(4).toInt(&ok, 16);
+		if (ok) {
+			XSetTransientForHint(
+				gdk_x11_display_get_xdisplay(gdk_window_get_display(window)),
+				gdk_x11_window_get_xid(window),
+				winId);
+			return;
+		}
 	}
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	if (gdk_x11_drawable_get_xdisplay != nullptr
-		&& gdk_x11_drawable_get_xid != nullptr) {
-		XSetTransientForHint(
-			gdk_x11_drawable_get_xdisplay(window),
-			gdk_x11_drawable_get_xid(window),
-			parent->winId());
-		return;
+		&& gdk_x11_drawable_get_xid != nullptr
+		&& parent.startsWith("x11:")) {
+		auto ok = false;
+		const auto winId = parent.mid(4).toInt(&ok, 16);
+		if (ok) {
+			XSetTransientForHint(
+				gdk_x11_drawable_get_xdisplay(window),
+				gdk_x11_drawable_get_xid(window),
+				winId);
+			return;
+		}
 	}
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 }

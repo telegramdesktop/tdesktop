@@ -11,7 +11,11 @@ namespace Platform {
 namespace File {
 namespace internal {
 
-bool ShowGtkOpenWithDialog(const QString &filepath);
+bool ShowGtkOpenWithDialog(
+	const QString &parent,
+	const QString &filepath);
+
+[[nodiscard]] rpl::producer<bool> GtkOpenWithDialogResponse();
 
 } // namespace internal
 } // namespace File

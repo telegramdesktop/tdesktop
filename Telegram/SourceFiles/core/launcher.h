@@ -19,7 +19,7 @@ public:
 
 	static std::unique_ptr<Launcher> Create(int argc, char *argv[]);
 
-	int exec();
+	virtual int exec();
 
 	QString argumentsString() const;
 	bool customWorkingDir() const;
