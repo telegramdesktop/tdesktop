@@ -20,16 +20,13 @@ public:
 
 	[[nodiscard]] std::optional<int> scaleFactor() const;
 
-	using FileDialogType = ::FileDialog::internal::Type;
-	[[nodiscard]] bool useFileDialog(
-		FileDialogType type = FileDialogType::ReadFile) const;
-	[[nodiscard]] bool getFileDialog(
+	[[nodiscard]] std::optional<bool> getFileDialog(
 		QPointer<QWidget> parent,
 		QStringList &files,
 		QByteArray &remoteContent,
 		const QString &caption,
 		const QString &filter,
-		FileDialogType type,
+		::FileDialog::internal::Type type,
 		QString startFile) const;
 
 	[[nodiscard]] bool showOpenWithDialog(const QString &filepath) const;

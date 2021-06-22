@@ -22,10 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace FileDialog {
 namespace Gtk {
+namespace {
 
 using namespace Platform::Gtk;
-
-namespace {
+using Type = ::FileDialog::internal::Type;
 
 // GTK file chooser image preview: thanks to Chromium
 
@@ -640,16 +640,7 @@ void GtkFileDialog::setNameFilters(const QStringList &filters) {
 
 } // namespace
 
-bool Use(Type type) {
-	if (!Supported()) {
-		return false;
-	}
-
-	return qEnvironmentVariableIsSet("TDESKTOP_USE_GTK_FILE_DIALOG")
-		|| DesktopEnvironment::IsGtkBased();
-}
-
-bool Get(
+std::optional<bool> Get(
 		QPointer<QWidget> parent,
 		QStringList &files,
 		QByteArray &remoteContent,
@@ -657,6 +648,12 @@ bool Get(
 		const QString &filter,
 		Type type,
 		QString startFile) {
+	if (!Supported()
+		|| (!qEnvironmentVariableIsSet("TDESKTOP_USE_GTK_FILE_DIALOG")
+			&& !DesktopEnvironment::IsGtkBased())) {
+		return std::nullopt;
+	}
+
 	if (cDialogLastPath().isEmpty()) {
 		InitLastPath();
 	}

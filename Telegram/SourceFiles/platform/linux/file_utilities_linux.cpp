@@ -171,7 +171,7 @@ bool Get(
 		parent = parent->window();
 	}
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (XDP::Use(type)) {
+	{
 		const auto result = XDP::Get(
 			parent,
 			files,
@@ -187,15 +187,17 @@ bool Get(
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	if (const auto integration = GtkIntegration::Instance()) {
-		if (integration->useFileDialog(type)) {
-			return integration->getFileDialog(
-				parent,
-				files,
-				remoteContent,
-				caption,
-				filter,
-				type,
-				startFile);
+		const auto result = integration->getFileDialog(
+			parent,
+			files,
+			remoteContent,
+			caption,
+			filter,
+			type,
+			startFile);
+
+		if (result.has_value()) {
+			return *result;
 		}
 	}
 	// avoid situation when portals don't work

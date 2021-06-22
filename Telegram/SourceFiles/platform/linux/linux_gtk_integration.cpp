@@ -158,17 +158,13 @@ std::optional<int> GtkIntegration::scaleFactor() const {
 	return gdk_monitor_get_scale_factor(monitor);
 }
 
-bool GtkIntegration::useFileDialog(FileDialogType type) const {
-	return FileDialog::Gtk::Use(type);
-}
-
-bool GtkIntegration::getFileDialog(
+std::optional<bool> GtkIntegration::getFileDialog(
 		QPointer<QWidget> parent,
 		QStringList &files,
 		QByteArray &remoteContent,
 		const QString &caption,
 		const QString &filter,
-		FileDialogType type,
+		::FileDialog::internal::Type type,
 		QString startFile) const {
 	return FileDialog::Gtk::Get(
 		parent,
