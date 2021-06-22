@@ -93,6 +93,9 @@ jobs:
           DEFINE=""
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
+            if [ "${{ matrix.defines }}" == "DESKTOP_APP_DISABLE_DBUS_INTEGRATION" ]; then
+              DEFINE="$DEFINE -D DESKTOP_APP_DISABLE_GTK_INTEGRATION=ON"
+            fi
             echo Define from matrix: $DEFINE
             echo "ARTIFACT_NAME=Telegram_${{ matrix.defines }}" >> $GITHUB_ENV
           else

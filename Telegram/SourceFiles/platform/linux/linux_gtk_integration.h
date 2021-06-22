@@ -12,16 +12,39 @@ namespace internal {
 
 class GtkIntegration {
 public:
+	enum class Type {
+		Base,
+		Webview,
+		TDesktop,
+	};
+
 	static GtkIntegration *Instance();
 
-	void load();
+	void load(const QString &allowedBackends);
+	int exec(const QString &parentDBusName, int ppid);
 
 	[[nodiscard]] bool showOpenWithDialog(const QString &filepath) const;
 
 	[[nodiscard]] QImage getImageFromClipboard() const;
 
+	static QString AllowedBackends();
+
+	static int Exec(
+		Type type,
+		const QString &parentDBusName,
+		int ppid,
+		uint instanceNumber = 0);
+
+	static void Start(Type type);
+
+	static void Autorestart(Type type);
+
 private:
 	GtkIntegration();
+	~GtkIntegration();
+
+	class Private;
+	const std::unique_ptr<Private> _private;
 };
 
 } // namespace internal
