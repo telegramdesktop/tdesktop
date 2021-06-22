@@ -82,12 +82,7 @@ PRIVATE
     desktop-app::external_xxhash
 )
 
-if (WIN32)
-    target_link_libraries(Telegram
-    PRIVATE
-        desktop-app::lib_webview_winrt
-    )
-elseif (LINUX)
+if (LINUX)
     target_link_libraries(Telegram
     PRIVATE
         desktop-app::external_glibmm
