@@ -1,3 +1,9 @@
+2.7.10 beta (22.06.21)
+
+- Added ability to mix together bold, italic and other formatting.
+- Fix voice chats and video calls OpenGL with some drivers on Windows.
+- Several bug fixes.
+
 2.7.9 beta (17.06.21)
 
 - Added "Enable noise suppression" option to group calls Settings.

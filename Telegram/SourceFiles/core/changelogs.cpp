@@ -127,6 +127,14 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Several bug and crash fixes.\n"
 	},
+	{
+		2007010,
+		"- Added ability to mix together bold, italic and other formatting.\n"
+
+		"- Fix voice chats and video calls OpenGL with some drivers on Windows.\n"
+
+		"- Several bug fixes.\n"
+	},
 	};
 };
 
