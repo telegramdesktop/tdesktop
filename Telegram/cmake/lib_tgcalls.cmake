@@ -101,6 +101,10 @@ PRIVATE
     platform/darwin/GLVideoView.mm
     platform/darwin/GLVideoViewMac.h
     platform/darwin/GLVideoViewMac.mm
+    platform/darwin/TGCMIOCapturer.h
+    platform/darwin/TGCMIOCapturer.m
+    platform/darwin/TGCMIODevice.h
+    platform/darwin/TGCMIODevice.mm
     platform/darwin/TGRTCCVPixelBuffer.h
     platform/darwin/TGRTCCVPixelBuffer.mm
     platform/darwin/TGRTCDefaultVideoDecoderFactory.h
@@ -121,11 +125,13 @@ PRIVATE
     platform/darwin/VideoCameraCapturerMac.mm
     platform/darwin/VideoCapturerInterfaceImpl.h
     platform/darwin/VideoCapturerInterfaceImpl.mm
+    platform/darwin/VideoCMIOCapture.h
+    platform/darwin/VideoCMIOCapture.mm
     platform/darwin/VideoMetalView.h
     platform/darwin/VideoMetalView.mm
     platform/darwin/VideoMetalViewMac.h
     platform/darwin/VideoMetalViewMac.mm
-
+    
     # POSIX
 
     # Teleram Desktop
