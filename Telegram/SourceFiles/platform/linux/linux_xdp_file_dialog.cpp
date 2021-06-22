@@ -28,6 +28,8 @@ namespace FileDialog {
 namespace XDP {
 namespace {
 
+using Type = ::FileDialog::internal::Type;
+
 constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
 constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
 constexpr auto kXDGDesktopPortalFileChooserInterface = "org.freedesktop.portal.FileChooser"_cs;
@@ -703,11 +705,6 @@ void Start() {
 	ComputeFileChooserPortalVersion();
 }
 
-bool Use(Type type) {
-	return FileChooserPortalVersion.has_value()
-		&& (type != Type::ReadFolder || *FileChooserPortalVersion >= 3);
-}
-
 std::optional<bool> Get(
 		QPointer<QWidget> parent,
 		QStringList &files,
@@ -716,6 +713,11 @@ std::optional<bool> Get(
 		const QString &filter,
 		Type type,
 		QString startFile) {
+	if (!FileChooserPortalVersion.has_value()
+		|| (type == Type::ReadFolder && *FileChooserPortalVersion < 3)) {
+		return std::nullopt;
+	}
+
 	static const auto docRegExp = QRegularExpression("^/run/user/\\d+/doc");
 	if (cDialogLastPath().isEmpty()
 		|| cDialogLastPath().contains(docRegExp)) {

@@ -13,16 +13,13 @@ namespace Platform {
 namespace FileDialog {
 namespace Gtk {
 
-using Type = ::FileDialog::internal::Type;
-
-bool Use(Type type = Type::ReadFile);
-bool Get(
+std::optional<bool> Get(
 	QPointer<QWidget> parent,
 	QStringList &files,
 	QByteArray &remoteContent,
 	const QString &caption,
 	const QString &filter,
-	Type type,
+	::FileDialog::internal::Type type,
 	QString startFile);
 
 } // namespace Gtk
