@@ -2138,7 +2138,7 @@ void InnerWidget::peerSearchReceived(
 		} else {
 			LOG(("API Error: "
 				"user %1 was not loaded in InnerWidget::peopleReceived()"
-				).arg(peer->id.value));
+				).arg(peerFromMTP(mtpPeer).value));
 		}
 	}
 	for (const auto &mtpPeer : result) {
@@ -2153,7 +2153,7 @@ void InnerWidget::peerSearchReceived(
 		} else {
 			LOG(("API Error: "
 				"user %1 was not loaded in InnerWidget::peopleReceived()"
-				).arg(peer->id.value));
+				).arg(peerFromMTP(mtpPeer).value));
 		}
 	}
 	refresh();
