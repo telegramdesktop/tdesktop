@@ -105,7 +105,9 @@ void Toasts::setupPinnedVideo() {
 			? _call->videoEndpointLargeValue()
 			: rpl::single(_call->videoEndpointLarge());
 	}) | rpl::flatten_latest(
-	) | rpl::start_with_next([=](const VideoEndpoint &endpoint) {
+	) | rpl::filter([=] {
+		return (_call->shownVideoTracks().size() > 1);
+	}) | rpl::start_with_next([=](const VideoEndpoint &endpoint) {
 		const auto pinned = _call->videoEndpointPinned();
 		const auto peer = endpoint.peer;
 		if (!peer) {
