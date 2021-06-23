@@ -260,7 +260,14 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 		: seekRect.height();
 	const auto from = 0;
 	const auto length = (horizontal ? width() : height());
-	const auto mid = qRound(from + value * length);
+	const auto alwaysSeekSize = horizontal
+		? _st.seekSize.width()
+		: _st.seekSize.height();
+	const auto mid = _alwaysDisplayMarker
+		? qRound(from
+			+ (alwaysSeekSize / 2.)
+			+ value * (length - alwaysSeekSize))
+		: qRound(from + value * length);
 	const auto till = std::max(mid, qRound(from + receivedTill * length));
 	const auto end = from + length;
 	const auto activeFg = disabled
