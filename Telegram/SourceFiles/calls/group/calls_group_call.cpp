@@ -1989,6 +1989,10 @@ bool GroupCall::emitShareCameraError() {
 
 void GroupCall::emitShareCameraError(Error error) {
 	_cameraState = Webrtc::VideoState::Inactive;
+	if (error == Error::CameraFailed
+		&& Webrtc::GetVideoInputList().empty()) {
+		error = Error::NoCamera;
+	}
 	_errors.fire_copy(error);
 }
 
@@ -2042,8 +2046,14 @@ void GroupCall::setupOutgoingVideo() {
 				_cameraCapture = _delegate->groupCallGetVideoCapture(
 					_cameraInputId);
 				if (!_cameraCapture) {
-					return emitShareCameraError(Error::NoCamera);
+					return emitShareCameraError(Error::CameraFailed);
 				}
+				const auto weak = base::make_weak(this);
+				_cameraCapture->setOnFatalError([=] {
+					crl::on_main(weak, [=] {
+						emitShareCameraError(Error::CameraFailed);
+					});
+				});
 			} else {
 				_cameraCapture->switchToDevice(_cameraInputId.toStdString());
 			}

@@ -2030,6 +2030,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_chat_no_camera" = "You can't turn on video in this chat.";
 "lng_group_call_chat_no_screen" = "You can't share your screen in this chat.";
 "lng_group_call_failed_screen" = "An error occured. Screencast has stopped.";
+"lng_group_call_failed_camera" = "Could not enable camera. Perhaps another app is using the camera already. Try closing other apps.";
 "lng_group_call_tooltip_screen" = "Share screen";
 "lng_group_call_tooltip_camera" = "Your camera is off. Click here to enable camera.";
 "lng_group_call_tooltip_microphone" = "You are on mute. Click here to speak.";

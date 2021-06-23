@@ -155,6 +155,8 @@ void Toasts::setupError() {
 		const auto key = [&] {
 			switch (error) {
 			case Error::NoCamera: return tr::lng_call_error_no_camera;
+			case Error::CameraFailed:
+				return tr::lng_group_call_failed_camera;
 			case Error::ScreenFailed:
 				return tr::lng_group_call_failed_screen;
 			case Error::MutedNoCamera:

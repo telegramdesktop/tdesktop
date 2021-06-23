@@ -61,6 +61,7 @@ enum class VideoQuality {
 
 enum class Error {
 	NoCamera,
+	CameraFailed,
 	ScreenFailed,
 	MutedNoCamera,
 	MutedNoScreen,
