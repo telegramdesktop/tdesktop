@@ -520,6 +520,10 @@ groupCallPopupMenuWithVolume: PopupMenu(groupCallPopupMenu) {
 		widthMin: 210px;
 	}
 }
+groupCallPopupVolumeMenu: Menu(groupCallMenu) {
+	widthMin: 210px;
+	itemBgOver: groupCallMenuBg;
+}
 
 groupCallRecordingTimerPadding: margins(0px, 4px, 0px, 4px);
 groupCallRecordingTimerFont: font(12px);

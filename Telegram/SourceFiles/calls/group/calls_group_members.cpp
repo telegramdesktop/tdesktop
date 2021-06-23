@@ -1455,7 +1455,7 @@ void Members::Controller::addMuteActionsToContextMenu(
 
 		auto volumeItem = base::make_unique_q<MenuVolumeItem>(
 			menu->menu(),
-			st::groupCallPopupMenuWithVolume.menu,
+			st::groupCallPopupVolumeMenu,
 			otherParticipantStateValue,
 			row->volume(),
 			Group::kMaxVolume,
