@@ -841,19 +841,19 @@ void Panel::enlargeVideo() {
 		std::min(available.height(), st::groupCallWideModeSize.height()));
 	auto geometry = QRect(window()->pos(), QSize(width, height));
 	if (geometry.x() < available.x()) {
-		geometry.setX(std::min(available.x(), window()->x()));
+		geometry.moveLeft(std::min(available.x(), window()->x()));
 	}
 	if (geometry.x() + geometry.width()
 		> available.x() + available.width()) {
-		geometry.setX(std::max(
+		geometry.moveLeft(std::max(
 			available.x() + available.width(),
 			window()->x() + window()->width()) - geometry.width());
 	}
 	if (geometry.y() < available.y()) {
-		geometry.setY(std::min(available.y(), window()->y()));
+		geometry.moveTop(std::min(available.y(), window()->y()));
 	}
 	if (geometry.y() + geometry.height() > available.y() + available.height()) {
-		geometry.setY(std::max(
+		geometry.moveTop(std::max(
 			available.y() + available.height(),
 			window()->y() + window()->height()) - geometry.height());
 	}
