@@ -1494,6 +1494,10 @@ void Members::Controller::addMuteActionsToContextMenu(
 			}
 		}, volumeItem->lifetime());
 
+		if (!menu->empty()) {
+			menu->addSeparator();
+		}
+
 		menu->addAction(std::move(volumeItem));
 
 		if (!isMe(participantPeer)) {
