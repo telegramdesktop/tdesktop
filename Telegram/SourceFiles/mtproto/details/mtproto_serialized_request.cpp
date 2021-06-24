@@ -12,8 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP::details {
 namespace {
 
-uint32 CountPaddingPrimesCount(uint32 requestSize, bool extended, bool old) {
-	if (old) {
+uint32 CountPaddingPrimesCount(
+		uint32 requestSize,
+		bool extended,
+		bool forAuthKeyInner) {
+	if (forAuthKeyInner) {
 		return ((8 + requestSize) & 0x03)
 			? (4 - ((8 + requestSize) & 0x03))
 			: 0;
@@ -100,12 +103,15 @@ uint32 SerializedRequest::getSeqNo() const {
 	return uint32((*_data)[kSeqNoPosition]);
 }
 
-void SerializedRequest::addPadding(bool extended, bool old) {
+void SerializedRequest::addPadding(bool extended, bool forAuthKeyInner) {
 	Expects(_data != nullptr);
 	Expects(_data->size() > kMessageBodyPosition);
 
 	const auto requestSize = (tl::count_length(*this) >> 2);
-	const auto padding = CountPaddingPrimesCount(requestSize, extended, old);
+	const auto padding = CountPaddingPrimesCount(
+		requestSize,
+		extended,
+		forAuthKeyInner);
 	const auto fullSize = kMessageBodyPosition + requestSize + padding;
 	if (uint32(_data->size()) != fullSize) {
 		_data->resize(fullSize);
