@@ -198,12 +198,6 @@ void ResolvingConnection::sendData(mtpBuffer &&buffer) {
 	_child->sendData(std::move(buffer));
 }
 
-bool ResolvingConnection::requiresExtendedPadding() const {
-	Expects(_child != nullptr);
-
-	return _child->requiresExtendedPadding();
-}
-
 void ResolvingConnection::disconnectFromServer() {
 	_address = QString();
 	_port = 0;

@@ -14,7 +14,6 @@ namespace {
 
 uint32 CountPaddingPrimesCount(
 		uint32 requestSize,
-		bool extended,
 		bool forAuthKeyInner) {
 	if (forAuthKeyInner) {
 		return ((8 + requestSize) & 0x03)
@@ -30,12 +29,8 @@ uint32 CountPaddingPrimesCount(
 		result += 4;
 	}
 
-	if (extended) {
-		// Some more random padding.
-		result += ((openssl::RandomValue<uchar>() & 0x0F) << 2);
-	}
-
-	return result;
+	// Some more random padding.
+	return result + ((openssl::RandomValue<uchar>() & 0x0F) << 2);
 }
 
 } // namespace
@@ -103,14 +98,13 @@ uint32 SerializedRequest::getSeqNo() const {
 	return uint32((*_data)[kSeqNoPosition]);
 }
 
-void SerializedRequest::addPadding(bool extended, bool forAuthKeyInner) {
+void SerializedRequest::addPadding(bool forAuthKeyInner) {
 	Expects(_data != nullptr);
 	Expects(_data->size() > kMessageBodyPosition);
 
 	const auto requestSize = (tl::count_length(*this) >> 2);
 	const auto padding = CountPaddingPrimesCount(
 		requestSize,
-		extended,
 		forAuthKeyInner);
 	const auto fullSize = kMessageBodyPosition + requestSize + padding;
 	if (uint32(_data->size()) != fullSize) {

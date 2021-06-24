@@ -189,9 +189,7 @@ ConnectionPointer AbstractConnection::Create(
 }
 
 uint32 AbstractConnection::extendedNotSecurePadding() const {
-	return requiresExtendedPadding()
-		? uint32(openssl::RandomValue<uchar>() & 0x3F)
-		: 0;
+	return uint32(openssl::RandomValue<uchar>() & 0x3F);
 }
 
 } // namespace details

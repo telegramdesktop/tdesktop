@@ -92,9 +92,6 @@ public:
 	[[nodiscard]] virtual bool needHttpWait() {
 		return false;
 	}
-	[[nodiscard]] virtual bool requiresExtendedPadding() const {
-		return false;
-	}
 
 	[[nodiscard]] virtual int32 debugState() const = 0;
 

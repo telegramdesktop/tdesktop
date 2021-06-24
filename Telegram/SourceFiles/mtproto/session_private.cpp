@@ -2596,7 +2596,7 @@ void SessionPrivate::destroyTemporaryKey() {
 bool SessionPrivate::sendSecureRequest(
 		SerializedRequest &&request,
 		bool needAnyResponse) {
-	request.addPadding(_connection->requiresExtendedPadding(), false);
+	request.addPadding(false);
 
 	uint32 fullSize = request->size();
 	if (fullSize < 9) {

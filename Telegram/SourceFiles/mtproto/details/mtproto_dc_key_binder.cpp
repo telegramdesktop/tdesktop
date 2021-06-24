@@ -25,7 +25,7 @@ namespace {
 	auto serialized = SerializedRequest::Serialize(data);
 	serialized.setMsgId(realMsgId);
 	serialized.setSeqNo(0);
-	serialized.addPadding(false, true);
+	serialized.addPadding(true);
 
 	constexpr auto kMsgIdPosition = SerializedRequest::kMessageIdPosition;
 	constexpr auto kMinMessageSize = 5;
