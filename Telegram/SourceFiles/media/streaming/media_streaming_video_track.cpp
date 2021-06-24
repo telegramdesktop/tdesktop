@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_utility.h"
 #include "media/audio/media_audio.h"
 #include "base/concurrent_timer.h"
+#include "core/crash_reports.h"
 
 namespace Media {
 namespace Streaming {
@@ -288,6 +289,7 @@ void VideoTrackObject::readFrames() {
 			}
 		}, [&](Shared::PrepareNextCheck delay) {
 			Expects(delay == kTimeUnknown || delay > 0);
+
 			if (delay != kTimeUnknown) {
 				queueReadFrames(delay);
 			}
@@ -303,7 +305,8 @@ auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
 -> ReadEnoughState {
 	const auto dropStaleFrames = !_options.waitForMarkAsShown;
 	const auto state = _shared->prepareState(trackTime, dropStaleFrames);
-	return v::match(state, [&](Shared::PrepareFrame frame) -> ReadEnoughState {
+	return v::match(state, [&](Shared::PrepareFrame frame)
+	-> ReadEnoughState {
 		while (true) {
 			const auto result = readFrame(frame);
 			if (result != FrameResult::Done) {
@@ -314,6 +317,8 @@ auto VideoTrackObject::readEnoughFrames(crl::time trackTime)
 			}
 		}
 	}, [&](Shared::PrepareNextCheck delay) -> ReadEnoughState {
+		Expects(delay == kTimeUnknown || delay > 0); // Debugging crash.
+
 		return delay;
 	}, [&](v::null_t) -> ReadEnoughState {
 		return FrameResult::Done;
@@ -752,6 +757,16 @@ auto VideoTrack::Shared::prepareState(
 			next->displayed = kDisplaySkipped;
 			return next;
 		} else {
+			if (frame->position - trackTime + 1 <= 0) { // Debugging crash.
+				CrashReports::SetAnnotation(
+					"DelayValues",
+					(QString::number(frame->position)
+						+ " + 1 <= "
+						+ QString::number(trackTime)));
+			}
+			Assert(frame->position >= trackTime);
+			Assert(frame->position - trackTime + 1 > 0);
+
 			return PrepareNextCheck(frame->position - trackTime + 1);
 		}
 	};
