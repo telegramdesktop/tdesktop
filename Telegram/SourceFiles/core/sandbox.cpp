@@ -183,8 +183,6 @@ void Sandbox::launchApplication() {
 }
 
 void Sandbox::setupScreenScale() {
-	Ui::DisableCustomScaling();
-
 	const auto dpi = Sandbox::primaryScreen()->logicalDotsPerInch();
 	LOG(("Primary screen DPI: %1").arg(dpi));
 	if (dpi <= 108) {
@@ -315,6 +313,7 @@ void Sandbox::singleInstanceChecked() {
 		Logs::multipleInstances();
 	}
 
+	Ui::DisableCustomScaling();
 	refreshGlobalProxy();
 	if (!Logs::started() || (!cManyInstance() && !Logs::instanceChecked())) {
 		new NotStartedWindow();
