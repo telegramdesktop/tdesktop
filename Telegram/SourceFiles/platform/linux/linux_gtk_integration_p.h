@@ -52,6 +52,7 @@ inline void (*gtk_file_chooser_set_preview_widget_active)(GtkFileChooser *choose
 inline GtkFileFilter* (*gtk_file_filter_new)(void) = nullptr;
 inline GtkWidget* (*gtk_image_new)(void) = nullptr;
 inline void (*gtk_image_set_from_pixbuf)(GtkImage *image, GdkPixbuf *pixbuf) = nullptr;
+inline GType (*gtk_app_chooser_get_type)(void) G_GNUC_CONST = nullptr;
 inline GtkWidget* (*gtk_app_chooser_dialog_new)(GtkWindow *parent, GtkDialogFlags flags, GFile *file) = nullptr;
 inline GAppInfo* (*gtk_app_chooser_get_app_info)(GtkAppChooser *self) = nullptr;
 inline void (*gdk_window_set_modal_hint)(GdkWindow *window, gboolean modal) = nullptr;
@@ -90,12 +91,6 @@ inline GType (*gtk_window_get_type)(void) G_GNUC_CONST = nullptr;
 template <typename Object>
 inline GtkWindow *gtk_window_cast(Object *obj) {
 	return g_type_cic_helper<GtkWindow, Object>(obj, gtk_window_get_type());
-}
-
-inline GType (*gtk_app_chooser_get_type)(void) G_GNUC_CONST = nullptr;
-template <typename Object>
-inline GtkAppChooser *gtk_app_chooser_cast(Object *obj) {
-	return g_type_cic_helper<GtkAppChooser, Object>(obj, gtk_app_chooser_get_type());
 }
 
 template <typename Object>
