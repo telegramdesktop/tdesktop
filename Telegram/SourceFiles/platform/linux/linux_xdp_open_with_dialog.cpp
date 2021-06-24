@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 
 #include <fcntl.h>
-#include <gio/gunixfdlist.h>
 #include <glibmm.h>
 #include <giomm.h>
 #include <private/qguiapplication_p.h>
@@ -79,7 +78,6 @@ bool XDPOpenWithDialog::exec() {
 		}
 
 		const auto fdGuard = gsl::finally([&] { ::close(fd); });
-		auto outFdList = Glib::RefPtr<Gio::UnixFDList>();
 
 		const auto parentWindowId = [&]() -> Glib::ustring {
 			std::stringstream result;
@@ -138,6 +136,10 @@ bool XDPOpenWithDialog::exec() {
 			}
 		});
 
+		const auto fdList = Gio::UnixFDList::create();
+		fdList->append(fd);
+		auto outFdList = Glib::RefPtr<Gio::UnixFDList>();
+
 		connection->call_sync(
 			std::string(kXDGDesktopPortalObjectPath),
 			std::string(kXDGDesktopPortalOpenURIInterface),
@@ -159,7 +161,7 @@ bool XDPOpenWithDialog::exec() {
 					},
 				}),
 			}),
-			Glib::wrap(g_unix_fd_list_new_from_array(&fd, 1)),
+			fdList,
 			outFdList,
 			std::string(kXDGDesktopPortalService));
 
