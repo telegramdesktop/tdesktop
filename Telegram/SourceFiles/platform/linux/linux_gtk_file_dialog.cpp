@@ -135,13 +135,11 @@ public:
 
 protected:
 	static void onResponse(QGtkDialog *dialog, int response);
-	static void onUpdatePreview(QGtkDialog *dialog);
 
 private:
 	void onParentWindowDestroyed();
 
 	GtkWidget *gtkWidget = nullptr;
-	GtkWidget *_preview = nullptr;
 
 	rpl::event_stream<> _accept;
 	rpl::event_stream<> _reject;
@@ -192,6 +190,7 @@ public:
 private:
 	static void onSelectionChanged(GtkDialog *dialog, GtkFileDialog *helper);
 	static void onCurrentFolderChanged(GtkFileDialog *helper);
+	static void onUpdatePreview(GtkDialog *gtkDialog, GtkFileDialog *helper);
 	void applyOptions();
 	void setNameFilters(const QStringList &filters);
 
@@ -215,6 +214,7 @@ private:
 	QHash<QString, GtkFileFilter*> _filters;
 	QHash<GtkFileFilter*, QString> _filterNames;
 	QScopedPointer<QGtkDialog> d;
+	GtkWidget *_preview = nullptr;
 
 	rpl::lifetime _lifetime;
 };
@@ -222,11 +222,6 @@ private:
 QGtkDialog::QGtkDialog(GtkWidget *gtkWidget) : gtkWidget(gtkWidget) {
 	g_signal_connect_swapped(G_OBJECT(gtkWidget), "response", G_CALLBACK(onResponse), this);
 	g_signal_connect(G_OBJECT(gtkWidget), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), nullptr);
-	if (PreviewSupported()) {
-		_preview = gtk_image_new();
-		g_signal_connect_swapped(G_OBJECT(gtkWidget), "update-preview", G_CALLBACK(onUpdatePreview), this);
-		gtk_file_chooser_set_preview_widget(GTK_FILE_CHOOSER(gtkWidget), _preview);
-	}
 }
 
 QGtkDialog::~QGtkDialog() {
@@ -304,32 +299,6 @@ void QGtkDialog::onResponse(QGtkDialog *dialog, int response) {
 		dialog->_reject.fire({});
 }
 
-void QGtkDialog::onUpdatePreview(QGtkDialog* dialog) {
-	auto filename = gtk_file_chooser_get_preview_filename(GTK_FILE_CHOOSER(dialog->gtkWidget));
-	if (!filename) {
-		gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(dialog->gtkWidget), false);
-		return;
-	}
-
-	// Don't attempt to open anything which isn't a regular file. If a named pipe,
-	// this may hang. See https://crbug.com/534754.
-	struct stat stat_buf;
-	if (stat(filename, &stat_buf) != 0 || !S_ISREG(stat_buf.st_mode)) {
-		g_free(filename);
-		gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(dialog->gtkWidget), false);
-		return;
-	}
-
-	// This will preserve the image's aspect ratio.
-	auto pixbuf = gdk_pixbuf_new_from_file_at_size(filename, kPreviewWidth, kPreviewHeight, nullptr);
-	g_free(filename);
-	if (pixbuf) {
-		gtk_image_set_from_pixbuf(GTK_IMAGE(dialog->_preview), pixbuf);
-		g_object_unref(pixbuf);
-	}
-	gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(dialog->gtkWidget), pixbuf ? true : false);
-}
-
 void QGtkDialog::onParentWindowDestroyed() {
 	// The Gtk*DialogHelper classes own this object. Make sure the parent doesn't delete it.
 	setParent(nullptr);
@@ -362,6 +331,12 @@ GtkFileDialog::GtkFileDialog(QWidget *parent, const QString &caption, const QStr
 
 	g_signal_connect(GTK_FILE_CHOOSER(d->gtkDialog()), "selection-changed", G_CALLBACK(onSelectionChanged), this);
 	g_signal_connect_swapped(GTK_FILE_CHOOSER(d->gtkDialog()), "current-folder-changed", G_CALLBACK(onCurrentFolderChanged), this);
+
+	if (PreviewSupported()) {
+		_preview = gtk_image_new();
+		g_signal_connect(G_OBJECT(d->gtkDialog()), "update-preview", G_CALLBACK(onUpdatePreview), this);
+		gtk_file_chooser_set_preview_widget(GTK_FILE_CHOOSER(d->gtkDialog()), _preview);
+	}
 }
 
 GtkFileDialog::~GtkFileDialog() {
@@ -523,6 +498,32 @@ void GtkFileDialog::onSelectionChanged(GtkDialog *gtkDialog, GtkFileDialog *help
 
 void GtkFileDialog::onCurrentFolderChanged(GtkFileDialog *dialog) {
 //	emit dialog->directoryEntered(dialog->directory());
+}
+
+void GtkFileDialog::onUpdatePreview(GtkDialog *gtkDialog, GtkFileDialog *helper) {
+	auto filename = gtk_file_chooser_get_preview_filename(GTK_FILE_CHOOSER(gtkDialog));
+	if (!filename) {
+		gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(gtkDialog), false);
+		return;
+	}
+
+	// Don't attempt to open anything which isn't a regular file. If a named pipe,
+	// this may hang. See https://crbug.com/534754.
+	struct stat stat_buf;
+	if (stat(filename, &stat_buf) != 0 || !S_ISREG(stat_buf.st_mode)) {
+		g_free(filename);
+		gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(gtkDialog), false);
+		return;
+	}
+
+	// This will preserve the image's aspect ratio.
+	auto pixbuf = gdk_pixbuf_new_from_file_at_size(filename, kPreviewWidth, kPreviewHeight, nullptr);
+	g_free(filename);
+	if (pixbuf) {
+		gtk_image_set_from_pixbuf(GTK_IMAGE(helper->_preview), pixbuf);
+		g_object_unref(pixbuf);
+	}
+	gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(gtkDialog), pixbuf ? true : false);
 }
 
 GtkFileChooserAction gtkFileChooserAction(QFileDialog::FileMode fileMode, QFileDialog::AcceptMode acceptMode) {
