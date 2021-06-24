@@ -765,9 +765,10 @@ void Viewport::setTileGeometry(not_null<VideoTile*> tile, QRect geometry) {
 	const auto &endpoint = tile->endpoint();
 	const auto forceThumbnailQuality = !wide()
 		&& (ranges::count(_tiles, false, &VideoTile::hidden) > 1);
+	const auto forceFullQuality = wide() && (tile.get() == _large);
 	const auto quality = forceThumbnailQuality
 		? VideoQuality::Thumbnail
-		: (min >= kMedium)
+		: (forceFullQuality || min >= kMedium)
 		? VideoQuality::Full
 		: (min >= kSmall)
 		? VideoQuality::Medium
