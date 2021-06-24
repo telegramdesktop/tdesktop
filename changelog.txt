@@ -1,3 +1,11 @@
+2.8 (24.06.21)
+
+- Start video conferences from Voice Chats in any group.
+- Share your screen or video from your camera with up to 30 participants (limit to be increased soon).
+- Talk without video with an unlimited number of participants.
+- Create voice chats from the info page of any group where you are an admin.
+- Group video calls are supported natively on all devices, including iPads and laptops.
+
 2.7.10 beta (22.06.21)
 
 - Added ability to mix together bold, italic and other formatting.
