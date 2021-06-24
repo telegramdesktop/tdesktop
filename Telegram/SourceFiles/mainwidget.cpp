@@ -35,7 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
-#include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/image/image.h"
 #include "ui/focus_persister.h"
@@ -1423,6 +1423,9 @@ void MainWidget::showChooseReportMessages(
 		peer->id,
 		SectionShow::Way::Forward,
 		ShowForChooseMessagesMsgId);
+	Ui::ShowMultilineToast({
+		.text = { tr::lng_report_please_select_messages(tr::now) },
+	});
 }
 
 void MainWidget::clearChooseReportMessages() {

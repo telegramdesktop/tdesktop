@@ -1007,6 +1007,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_group_title" = "Report group";
 "lng_report_bot_title" = "Report bot";
 "lng_report_message_title" = "Report message";
+"lng_report_please_select_messages" = "Please select messages to report.";
 "lng_report_select_messages" = "Select messages";
 "lng_report_messages_none" = "Select Messages";
 "lng_report_messages_count#one" = "Report {count} Message";
