@@ -30,7 +30,7 @@ base::binary_guard ReadImageAsync(
 	FnMut<void(QImage&&)> done);
 
 void ResolveDocument(
-	not_null<Window::SessionController*> controller,
+	Window::SessionController *controller,
 	not_null<DocumentData*> document,
 	HistoryItem *item);
 

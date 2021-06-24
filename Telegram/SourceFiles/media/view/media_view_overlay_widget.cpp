@@ -1427,12 +1427,15 @@ void OverlayWidget::subscribeToScreenGeometry() {
 }
 
 void OverlayWidget::toMessage() {
-	if (!_session || !_controller) {
+	if (!_session) {
 		return;
 	}
+
 	if (const auto item = _session->data().message(_msgid)) {
 		close();
-		_controller->showPeerHistoryAtItem(item);
+		if (const auto window = findWindow()) {
+			window->showPeerHistoryAtItem(item);
+		}
 	}
 }
 
@@ -1556,11 +1559,8 @@ void OverlayWidget::handleDocumentClick() {
 	if (_document->loading()) {
 		saveCancel();
 	} else {
-		if (!_controller) {
-			return;
-		}
 		Data::ResolveDocument(
-			_controller,
+			findWindow(),
 			_document,
 			_document->owner().message(_msgid));
 		if (_document->loading() && !_radial.animating()) {
@@ -2251,10 +2251,6 @@ void OverlayWidget::activate() {
 }
 
 void OverlayWidget::show(OpenRequest request) {
-	if (!request.controller()) {
-		return;
-	}
-
 	const auto document = request.document();
 	const auto photo = request.photo();
 	const auto contextItem = request.item();
@@ -2264,8 +2260,6 @@ void OverlayWidget::show(OpenRequest request) {
 			return;
 		}
 		setSession(&photo->session());
-		_controller = request.controller();
-		Assert(_session == (&_controller->session()));
 
 		if (contextPeer) {
 			setContext(contextPeer);
@@ -2284,8 +2278,6 @@ void OverlayWidget::show(OpenRequest request) {
 		activateControls();
 	} else if (document) {
 		setSession(&document->session());
-		_controller = request.controller();
-		Assert(_session == (&_controller->session()));
 
 		if (contextItem) {
 			setContext(contextItem);
@@ -2307,6 +2299,9 @@ void OverlayWidget::show(OpenRequest request) {
 			preloadData(0);
 			activateControls();
 		}
+	}
+	if (const auto controller = request.controller()) {
+		_window = base::make_weak(&controller->window());
 	}
 }
 
@@ -3097,14 +3092,13 @@ float64 OverlayWidget::playbackControlsCurrentSpeed() {
 void OverlayWidget::switchToPip() {
 	Expects(_streamed != nullptr);
 	Expects(_document != nullptr);
-	Expects(_controller != nullptr);
 
 	const auto document = _document;
 	const auto msgId = _msgid;
 	const auto closeAndContinue = [=] {
 		_showAsPip = false;
 		show(OpenRequest(
-			_controller,
+			findWindow(),
 			document,
 			document->owner().message(msgId),
 			true));
@@ -4536,6 +4530,36 @@ void OverlayWidget::applyHideWindowWorkaround() {
 			Ui::Platform::UpdateOverlayed(_widget);
 		}
 	}
+}
+
+Window::SessionController *OverlayWidget::findWindow() const {
+	if (!_session) {
+		return nullptr;
+	}
+
+	const auto window = _window.get();
+	if (window) {
+		if (const auto controller = window->sessionController()) {
+			if (&controller->session() == _session) {
+				return controller;
+			}
+		}
+	}
+
+	const auto &active = _session->windows();
+	if (!active.empty()) {
+		return active.front();
+	} else if (window) {
+		Window::SessionController *controllerPtr = nullptr;
+		window->invokeForSessionController(
+			&_session->account(),
+			[&](not_null<Window::SessionController*> newController) {
+				controllerPtr = newController;
+			});
+		return controllerPtr;
+	}
+
+	return nullptr;
 }
 
 // #TODO unite and check

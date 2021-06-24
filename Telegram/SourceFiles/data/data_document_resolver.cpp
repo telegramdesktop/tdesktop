@@ -209,7 +209,7 @@ base::binary_guard ReadImageAsync(
 }
 
 void ResolveDocument(
-		not_null<Window::SessionController*> controller,
+		Window::SessionController *controller,
 		not_null<DocumentData*> document,
 		HistoryItem *item) {
 	if (!document->date) {
@@ -222,7 +222,7 @@ void ResolveDocument(
 			&& document->isVideoFile()
 			&& !document->filepath().isEmpty()) {
 			File::Launch(document->location(false).fname);
-		} else {
+		} else if (controller) {
 			controller->openDocument(document, msgId, true);
 		}
 	};

@@ -21,7 +21,7 @@ struct OpenRequest;
 
 namespace Window {
 
-class Controller final {
+class Controller final : public base::has_weak_ptr {
 public:
 	Controller();
 	~Controller();

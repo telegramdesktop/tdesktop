@@ -411,11 +411,13 @@ private:
 
 	void applyHideWindowWorkaround();
 
+	Window::SessionController *findWindow() const;
+
 	bool _opengl = false;
 	const std::unique_ptr<Ui::RpWidgetWrap> _surface;
 	const not_null<QWidget*> _widget;
 
-	Window::SessionController *_controller = nullptr;
+	base::weak_ptr<Window::Controller> _window;
 	Main::Session *_session = nullptr;
 	rpl::lifetime _sessionLifetime;
 	PhotoData *_photo = nullptr;
