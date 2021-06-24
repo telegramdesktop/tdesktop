@@ -225,7 +225,7 @@ QGtkDialog::QGtkDialog(GtkWidget *gtkWidget) : gtkWidget(gtkWidget) {
 	if (PreviewSupported()) {
 		_preview = gtk_image_new();
 		g_signal_connect_swapped(G_OBJECT(gtkWidget), "update-preview", G_CALLBACK(onUpdatePreview), this);
-		gtk_file_chooser_set_preview_widget(gtk_file_chooser_cast(gtkWidget), _preview);
+		gtk_file_chooser_set_preview_widget(GTK_FILE_CHOOSER(gtkWidget), _preview);
 	}
 }
 
@@ -235,7 +235,7 @@ QGtkDialog::~QGtkDialog() {
 }
 
 GtkDialog *QGtkDialog::gtkDialog() const {
-	return gtk_dialog_cast(gtkWidget);
+	return GTK_DIALOG(gtkWidget);
 }
 
 void QGtkDialog::exec() {
@@ -305,9 +305,9 @@ void QGtkDialog::onResponse(QGtkDialog *dialog, int response) {
 }
 
 void QGtkDialog::onUpdatePreview(QGtkDialog* dialog) {
-	auto filename = gtk_file_chooser_get_preview_filename(gtk_file_chooser_cast(dialog->gtkWidget));
+	auto filename = gtk_file_chooser_get_preview_filename(GTK_FILE_CHOOSER(dialog->gtkWidget));
 	if (!filename) {
-		gtk_file_chooser_set_preview_widget_active(gtk_file_chooser_cast(dialog->gtkWidget), false);
+		gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(dialog->gtkWidget), false);
 		return;
 	}
 
@@ -316,7 +316,7 @@ void QGtkDialog::onUpdatePreview(QGtkDialog* dialog) {
 	struct stat stat_buf;
 	if (stat(filename, &stat_buf) != 0 || !S_ISREG(stat_buf.st_mode)) {
 		g_free(filename);
-		gtk_file_chooser_set_preview_widget_active(gtk_file_chooser_cast(dialog->gtkWidget), false);
+		gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(dialog->gtkWidget), false);
 		return;
 	}
 
@@ -324,10 +324,10 @@ void QGtkDialog::onUpdatePreview(QGtkDialog* dialog) {
 	auto pixbuf = gdk_pixbuf_new_from_file_at_size(filename, kPreviewWidth, kPreviewHeight, nullptr);
 	g_free(filename);
 	if (pixbuf) {
-		gtk_image_set_from_pixbuf(gtk_image_cast(dialog->_preview), pixbuf);
+		gtk_image_set_from_pixbuf(GTK_IMAGE(dialog->_preview), pixbuf);
 		g_object_unref(pixbuf);
 	}
-	gtk_file_chooser_set_preview_widget_active(gtk_file_chooser_cast(dialog->gtkWidget), pixbuf ? true : false);
+	gtk_file_chooser_set_preview_widget_active(GTK_FILE_CHOOSER(dialog->gtkWidget), pixbuf ? true : false);
 }
 
 void QGtkDialog::onParentWindowDestroyed() {
@@ -360,8 +360,8 @@ GtkFileDialog::GtkFileDialog(QWidget *parent, const QString &caption, const QStr
 		onRejected();
 	}, _lifetime);
 
-	g_signal_connect(gtk_file_chooser_cast(d->gtkDialog()), "selection-changed", G_CALLBACK(onSelectionChanged), this);
-	g_signal_connect_swapped(gtk_file_chooser_cast(d->gtkDialog()), "current-folder-changed", G_CALLBACK(onCurrentFolderChanged), this);
+	g_signal_connect(GTK_FILE_CHOOSER(d->gtkDialog()), "selection-changed", G_CALLBACK(onSelectionChanged), this);
+	g_signal_connect_swapped(GTK_FILE_CHOOSER(d->gtkDialog()), "current-folder-changed", G_CALLBACK(onCurrentFolderChanged), this);
 }
 
 GtkFileDialog::~GtkFileDialog() {
@@ -435,7 +435,7 @@ bool GtkFileDialog::defaultNameFilterDisables() const {
 
 void GtkFileDialog::setDirectory(const QString &directory) {
 	GtkDialog *gtkDialog = d->gtkDialog();
-	gtk_file_chooser_set_current_folder(gtk_file_chooser_cast(gtkDialog), directory.toUtf8().constData());
+	gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(gtkDialog), directory.toUtf8().constData());
 }
 
 QDir GtkFileDialog::directory() const {
@@ -446,7 +446,7 @@ QDir GtkFileDialog::directory() const {
 
 	QString ret;
 	GtkDialog *gtkDialog = d->gtkDialog();
-	gchar *folder = gtk_file_chooser_get_current_folder(gtk_file_chooser_cast(gtkDialog));
+	gchar *folder = gtk_file_chooser_get_current_folder(GTK_FILE_CHOOSER(gtkDialog));
 	if (folder) {
 		ret = QString::fromUtf8(folder);
 		g_free(folder);
@@ -467,7 +467,7 @@ QStringList GtkFileDialog::selectedFiles() const {
 
 	QStringList selection;
 	GtkDialog *gtkDialog = d->gtkDialog();
-	GSList *filenames = gtk_file_chooser_get_filenames(gtk_file_chooser_cast(gtkDialog));
+	GSList *filenames = gtk_file_chooser_get_filenames(GTK_FILE_CHOOSER(gtkDialog));
 	for (GSList *it  = filenames; it; it = it->next)
 		selection += QString::fromUtf8((const char*)it->data);
 	g_slist_free(filenames);
@@ -482,13 +482,13 @@ void GtkFileDialog::selectNameFilter(const QString &filter) {
 	GtkFileFilter *gtkFilter = _filters.value(filter);
 	if (gtkFilter) {
 		GtkDialog *gtkDialog = d->gtkDialog();
-		gtk_file_chooser_set_filter(gtk_file_chooser_cast(gtkDialog), gtkFilter);
+		gtk_file_chooser_set_filter(GTK_FILE_CHOOSER(gtkDialog), gtkFilter);
 	}
 }
 
 QString GtkFileDialog::selectedNameFilter() const {
 	GtkDialog *gtkDialog = d->gtkDialog();
-	GtkFileFilter *gtkFilter = gtk_file_chooser_get_filter(gtk_file_chooser_cast(gtkDialog));
+	GtkFileFilter *gtkFilter = gtk_file_chooser_get_filter(GTK_FILE_CHOOSER(gtkDialog));
 	return _filterNames.value(gtkFilter);
 }
 
@@ -546,17 +546,17 @@ GtkFileChooserAction gtkFileChooserAction(QFileDialog::FileMode fileMode, QFileD
 void GtkFileDialog::applyOptions() {
 	GtkDialog *gtkDialog = d->gtkDialog();
 
-	gtk_window_set_title(gtk_window_cast(gtkDialog), _windowTitle.toUtf8().constData());
-	gtk_file_chooser_set_local_only(gtk_file_chooser_cast(gtkDialog), true);
+	gtk_window_set_title(GTK_WINDOW(gtkDialog), _windowTitle.toUtf8().constData());
+	gtk_file_chooser_set_local_only(GTK_FILE_CHOOSER(gtkDialog), true);
 
 	const GtkFileChooserAction action = gtkFileChooserAction(_fileMode, _acceptMode);
-	gtk_file_chooser_set_action(gtk_file_chooser_cast(gtkDialog), action);
+	gtk_file_chooser_set_action(GTK_FILE_CHOOSER(gtkDialog), action);
 
 	const bool selectMultiple = (_fileMode == QFileDialog::ExistingFiles);
-	gtk_file_chooser_set_select_multiple(gtk_file_chooser_cast(gtkDialog), selectMultiple);
+	gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(gtkDialog), selectMultiple);
 
 	const bool confirmOverwrite = !_options.testFlag(QFileDialog::DontConfirmOverwrite);
-	gtk_file_chooser_set_do_overwrite_confirmation(gtk_file_chooser_cast(gtkDialog), confirmOverwrite);
+	gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(gtkDialog), confirmOverwrite);
 
 	if (!_nameFilters.isEmpty())
 		setNameFilters(_nameFilters);
@@ -567,12 +567,12 @@ void GtkFileDialog::applyOptions() {
 	for_const (const auto &filename, _initialFiles) {
 		if (_acceptMode == QFileDialog::AcceptSave) {
 			QFileInfo fi(filename);
-			gtk_file_chooser_set_current_folder(gtk_file_chooser_cast(gtkDialog), fi.path().toUtf8().constData());
-			gtk_file_chooser_set_current_name(gtk_file_chooser_cast(gtkDialog), fi.fileName().toUtf8().constData());
+			gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(gtkDialog), fi.path().toUtf8().constData());
+			gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(gtkDialog), fi.fileName().toUtf8().constData());
 		} else if (filename.endsWith('/')) {
-			gtk_file_chooser_set_current_folder(gtk_file_chooser_cast(gtkDialog), filename.toUtf8().constData());
+			gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(gtkDialog), filename.toUtf8().constData());
 		} else {
-			gtk_file_chooser_select_filename(gtk_file_chooser_cast(gtkDialog), filename.toUtf8().constData());
+			gtk_file_chooser_select_filename(GTK_FILE_CHOOSER(gtkDialog), filename.toUtf8().constData());
 		}
 	}
 
@@ -584,19 +584,19 @@ void GtkFileDialog::applyOptions() {
 		GtkWidget *acceptButton = gtk_dialog_get_widget_for_response(gtkDialog, GTK_RESPONSE_OK);
 		if (acceptButton) {
 			/*if (opts->isLabelExplicitlySet(QFileDialogOptions::Accept))
-				gtk_button_set_label(gtk_button_cast(acceptButton), opts->labelText(QFileDialogOptions::Accept).toUtf8().constData());
+				gtk_button_set_label(GTK_BUTTON(acceptButton), opts->labelText(QFileDialogOptions::Accept).toUtf8().constData());
 			else*/ if (_acceptMode == QFileDialog::AcceptOpen)
-				gtk_button_set_label(gtk_button_cast(acceptButton), tr::lng_open_link(tr::now).toUtf8().constData());
+				gtk_button_set_label(GTK_BUTTON(acceptButton), tr::lng_open_link(tr::now).toUtf8().constData());
 			else
-				gtk_button_set_label(gtk_button_cast(acceptButton), tr::lng_settings_save(tr::now).toUtf8().constData());
+				gtk_button_set_label(GTK_BUTTON(acceptButton), tr::lng_settings_save(tr::now).toUtf8().constData());
 		}
 
 		GtkWidget *rejectButton = gtk_dialog_get_widget_for_response(gtkDialog, GTK_RESPONSE_CANCEL);
 		if (rejectButton) {
 			/*if (opts->isLabelExplicitlySet(QFileDialogOptions::Reject))
-				gtk_button_set_label(gtk_button_cast(rejectButton), opts->labelText(QFileDialogOptions::Reject).toUtf8().constData());
+				gtk_button_set_label(GTK_BUTTON(rejectButton), opts->labelText(QFileDialogOptions::Reject).toUtf8().constData());
 			else*/
-				gtk_button_set_label(gtk_button_cast(rejectButton), tr::lng_cancel(tr::now).toUtf8().constData());
+				gtk_button_set_label(GTK_BUTTON(rejectButton), tr::lng_cancel(tr::now).toUtf8().constData());
 		}
 	}
 }
@@ -604,7 +604,7 @@ void GtkFileDialog::applyOptions() {
 void GtkFileDialog::setNameFilters(const QStringList &filters) {
 	GtkDialog *gtkDialog = d->gtkDialog();
 	Q_FOREACH (GtkFileFilter *filter, _filters)
-		gtk_file_chooser_remove_filter(gtk_file_chooser_cast(gtkDialog), filter);
+		gtk_file_chooser_remove_filter(GTK_FILE_CHOOSER(gtkDialog), filter);
 
 	_filters.clear();
 	_filterNames.clear();
@@ -631,7 +631,7 @@ void GtkFileDialog::setNameFilters(const QStringList &filters) {
 			gtk_file_filter_add_pattern(gtkFilter, caseInsensitiveExt.toUtf8().constData());
 		}
 
-		gtk_file_chooser_add_filter(gtk_file_chooser_cast(gtkDialog), gtkFilter);
+		gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(gtkDialog), gtkFilter);
 
 		_filters.insert(filter, gtkFilter);
 		_filterNames.insert(gtkFilter, filter);
