@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 
 #include <private/qguiapplication_p.h>
+#include <giomm.h>
 
 namespace Platform {
 namespace File {
@@ -20,6 +21,12 @@ namespace internal {
 namespace {
 
 using namespace Platform::Gtk;
+
+struct GtkWidgetDeleter {
+	void operator()(GtkWidget *widget) {
+		gtk_widget_destroy(widget);
+	}
+};
 
 bool Supported() {
 	return (gtk_app_chooser_dialog_new != nullptr)
@@ -34,48 +41,42 @@ bool Supported() {
 class GtkOpenWithDialog : public QWindow {
 public:
 	GtkOpenWithDialog(const QString &filepath);
-	~GtkOpenWithDialog();
 
 	bool exec();
 
 private:
 	static void handleResponse(GtkOpenWithDialog *dialog, int responseId);
 
-	GFile *_gfileInstance = nullptr;
-	GtkWidget *_gtkWidget = nullptr;
+	const Glib::RefPtr<Gio::File> _file;
+	const std::unique_ptr<GtkWidget, GtkWidgetDeleter> _gtkWidget;
 	QEventLoop _loop;
 	std::optional<bool> _result;
 };
 
 GtkOpenWithDialog::GtkOpenWithDialog(const QString &filepath)
-: _gfileInstance(g_file_new_for_path(filepath.toUtf8().constData()))
+: _file(Gio::File::create_for_path(filepath.toStdString()))
 , _gtkWidget(gtk_app_chooser_dialog_new(
 		nullptr,
 		GTK_DIALOG_MODAL,
-		_gfileInstance)) {
+		_file->gobj())) {
 	g_signal_connect_swapped(
-		_gtkWidget,
+		_gtkWidget.get(),
 		"response",
 		G_CALLBACK(handleResponse),
 		this);
 }
 
-GtkOpenWithDialog::~GtkOpenWithDialog() {
-	gtk_widget_destroy(_gtkWidget);
-	g_object_unref(_gfileInstance);
-}
-
 bool GtkOpenWithDialog::exec() {
-	gtk_widget_realize(_gtkWidget);
+	gtk_widget_realize(_gtkWidget.get());
 
 	if (const auto activeWindow = Core::App().activeWindow()) {
 		Platform::internal::GdkSetTransientFor(
-			gtk_widget_get_window(_gtkWidget),
+			gtk_widget_get_window(_gtkWidget.get()),
 			activeWindow->widget()->windowHandle());
 	}
 
 	QGuiApplicationPrivate::showModalWindow(this);
-	gtk_widget_show(_gtkWidget);
+	gtk_widget_show(_gtkWidget.get());
 
 	if (!_result.has_value()) {
 		_loop.exec();
@@ -86,20 +87,20 @@ bool GtkOpenWithDialog::exec() {
 }
 
 void GtkOpenWithDialog::handleResponse(GtkOpenWithDialog *dialog, int responseId) {
-	GAppInfo *chosenAppInfo = nullptr;
+	Glib::RefPtr<Gio::AppInfo> chosenAppInfo;
 	dialog->_result = true;
 
 	switch (responseId) {
 	case GTK_RESPONSE_OK:
-		chosenAppInfo = gtk_app_chooser_get_app_info(
-			gtk_app_chooser_cast(dialog->_gtkWidget));
+		chosenAppInfo = Glib::wrap(gtk_app_chooser_get_app_info(
+			GTK_APP_CHOOSER(dialog->_gtkWidget.get())));
 
 		if (chosenAppInfo) {
-			GList *uris = nullptr;
-			uris = g_list_prepend(uris, g_file_get_uri(dialog->_gfileInstance));
-			g_app_info_launch_uris(chosenAppInfo, uris, nullptr, nullptr);
-			g_list_free(uris);
-			g_object_unref(chosenAppInfo);
+			try {
+				chosenAppInfo->launch_uri(dialog->_file->get_uri());
+			} catch (...) {
+			}
+			chosenAppInfo = {};
 		}
 
 		break;
