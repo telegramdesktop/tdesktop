@@ -126,6 +126,8 @@ private:
 
 	mutable QPixmap _hiddenUserpicPlaceholder;
 
+	rpl::lifetime _lifetime;
+
 };
 
 namespace internal {

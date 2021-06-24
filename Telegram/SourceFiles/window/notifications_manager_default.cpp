@@ -76,7 +76,7 @@ Manager::Manager(System *system)
 	system->settingsChanged(
 	) | rpl::start_with_next([=](ChangeType change) {
 		settingsChanged(change);
-	}, system->lifetime());
+	}, _lifetime);
 }
 
 Manager::QueuedNotification::QueuedNotification(
