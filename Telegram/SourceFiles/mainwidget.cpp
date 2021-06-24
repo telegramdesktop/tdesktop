@@ -380,7 +380,7 @@ MainWidget::MainWidget(
 		}
 	});
 
-	_controller->adaptive().changed(
+	_controller->adaptive().changes(
 	) | rpl::start_with_next([=] {
 		handleAdaptiveLayoutUpdate();
 	}, lifetime());

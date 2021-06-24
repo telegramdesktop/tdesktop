@@ -126,10 +126,7 @@ ScheduledWidget::ScheduledWidget(
 	}, _topBar->lifetime());
 
 	_topBarShadow->raise();
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
-		controller->adaptive().changed()
+	controller->adaptive().value(
 	) | rpl::start_with_next([=] {
 		updateAdaptiveLayout();
 	}, lifetime());

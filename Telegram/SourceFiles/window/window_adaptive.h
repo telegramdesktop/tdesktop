@@ -27,7 +27,8 @@ public:
 	void setWindowLayout(WindowLayout value);
 	void setChatLayout(ChatLayout value);
 
-	[[nodiscard]] rpl::producer<> changed() const;
+	[[nodiscard]] rpl::producer<> value() const;
+	[[nodiscard]] rpl::producer<> changes() const;
 	[[nodiscard]] rpl::producer<bool> oneColumnValue() const;
 	[[nodiscard]] rpl::producer<ChatLayout> chatLayoutValue() const;
 

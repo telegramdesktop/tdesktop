@@ -266,7 +266,7 @@ Widget::Widget(
 		}, lifetime());
 	}
 
-	controller->adaptive().changed(
+	controller->adaptive().changes(
 	) | rpl::start_with_next([=] {
 		updateForwardBar();
 	}, lifetime());

@@ -413,7 +413,7 @@ HistoryWidget::HistoryWidget(
 		Window::ActivateWindow(controller);
 	});
 
-	controller->adaptive().changed(
+	controller->adaptive().changes(
 	) | rpl::start_with_next([=] {
 		if (_history) {
 			_history->forceFullResize();

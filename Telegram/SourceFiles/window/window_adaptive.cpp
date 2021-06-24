@@ -25,9 +25,16 @@ void Adaptive::setChatLayout(ChatLayout value) {
 	_chatLayout = value;
 }
 
-rpl::producer<> Adaptive::changed() const {
+rpl::producer<> Adaptive::value() const {
 	return rpl::merge(
 		Core::App().settings().adaptiveForWideValue() | rpl::to_empty,
+		_chatLayout.changes() | rpl::to_empty,
+		_layout.changes() | rpl::to_empty);
+}
+
+rpl::producer<> Adaptive::changes() const {
+	return rpl::merge(
+		Core::App().settings().adaptiveForWideChanges() | rpl::to_empty,
 		_chatLayout.changes() | rpl::to_empty,
 		_layout.changes() | rpl::to_empty);
 }

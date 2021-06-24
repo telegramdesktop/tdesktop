@@ -744,7 +744,7 @@ FieldAutocomplete::Inner::Inner(
 		update();
 	}, lifetime());
 
-	controller->adaptive().changed(
+	controller->adaptive().value(
 	) | rpl::start_with_next([=] {
 		_isOneColumn = controller->adaptive().isOneColumn();
 		update();

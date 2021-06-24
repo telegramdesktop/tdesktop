@@ -95,6 +95,9 @@ public:
 	[[nodiscard]] rpl::producer<bool> adaptiveForWideValue() const {
 		return _adaptiveForWide.value();
 	}
+	[[nodiscard]] rpl::producer<bool> adaptiveForWideChanges() const {
+		return _adaptiveForWide.changes();
+	}
 	void setAdaptiveForWide(bool value) {
 		_adaptiveForWide = value;
 	}
