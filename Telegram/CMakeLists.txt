@@ -125,7 +125,7 @@ if (LINUX)
                 target_link_libraries(Telegram PRIVATE PkgConfig::X11)
             endif()
         else()
-            pkg_search_module(GTK REQUIRED gtk+-3.0 gtk+-2.0)
+            pkg_check_modules(GTK REQUIRED gtk+-3.0)
             target_include_directories(Telegram PRIVATE ${GTK_INCLUDE_DIRS})
 
             if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)

@@ -12,10 +12,6 @@ extern "C" {
 #include <gdk/gdk.h>
 } // extern "C"
 
-// To be able to compile with gtk-2.0 headers as well
-typedef struct _GdkMonitor GdkMonitor;
-typedef struct _GtkAppChooser GtkAppChooser;
-
 namespace Platform {
 namespace Gtk {
 
