@@ -268,7 +268,9 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 			+ (alwaysSeekSize / 2.)
 			+ value * (length - alwaysSeekSize))
 		: qRound(from + value * length);
-	const auto till = std::max(mid, qRound(from + receivedTill * length));
+	const auto till = horizontal
+		? mid
+		: std::max(mid, qRound(from + receivedTill * length));
 	const auto end = from + length;
 	const auto activeFg = disabled
 		? _st.activeFgDisabled
