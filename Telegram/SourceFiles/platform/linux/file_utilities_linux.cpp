@@ -117,20 +117,6 @@ bool Get(
 		}
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (const auto integration = GtkIntegration::Instance()) {
-		const auto result = integration->getFileDialog(
-			parent,
-			files,
-			remoteContent,
-			caption,
-			filter,
-			type,
-			startFile);
-
-		if (result.has_value()) {
-			return *result;
-		}
-	}
 	return ::FileDialog::internal::GetDefault(
 		parent,
 		files,

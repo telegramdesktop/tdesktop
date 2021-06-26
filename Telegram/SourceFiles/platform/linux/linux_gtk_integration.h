@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/file_utilities.h"
-
 namespace Platform {
 namespace internal {
 
@@ -19,15 +17,6 @@ public:
 	void load();
 
 	[[nodiscard]] std::optional<int> scaleFactor() const;
-
-	[[nodiscard]] std::optional<bool> getFileDialog(
-		QPointer<QWidget> parent,
-		QStringList &files,
-		QByteArray &remoteContent,
-		const QString &caption,
-		const QString &filter,
-		::FileDialog::internal::Type type,
-		QString startFile) const;
 
 	[[nodiscard]] bool showOpenWithDialog(const QString &filepath) const;
 
