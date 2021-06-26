@@ -268,8 +268,8 @@ Go to ***BuildPath*** and run
     cd ../../..
 
     build/gyp_crashpad.py -Dmac_deployment_target=10.10
-    ninja -C out/Debug
-    ninja -C out/Release
+    ninja -C out/Debug base crashpad_util crashpad_client crashpad_handler
+    ninja -C out/Release base crashpad_util crashpad_client crashpad_handler
     cd ..
 
     git clone git://code.qt.io/qt/qt5.git qt_5_15_2
