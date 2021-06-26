@@ -635,7 +635,6 @@ RUN echo './configure -prefix '$'\"''$QT_PREFIX'$'\"'' \
 	-qt-harfbuzz \
 	-qt-pcre \
 	-no-icu \
-	-no-gtk \
 	-no-feature-xcb-sm \
 	-no-feature-wayland-server \
 	-static \
