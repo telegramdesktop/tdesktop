@@ -76,9 +76,6 @@
 [submodule "Telegram/ThirdParty/hime"]
 	path = Telegram/ThirdParty/hime
 	url = https://github.com/hime-ime/hime.git
-[submodule "Telegram/ThirdParty/qt5ct"]
-	path = Telegram/ThirdParty/qt5ct
-	url = https://github.com/desktop-app/qt5ct.git
 [submodule "Telegram/ThirdParty/fcitx5-qt"]
 	path = Telegram/ThirdParty/fcitx5-qt
 	url = https://github.com/fcitx/fcitx5-qt.git
