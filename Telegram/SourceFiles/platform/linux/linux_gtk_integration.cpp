@@ -71,11 +71,6 @@ void GtkIntegration::load() {
 
 	LOAD_GTK_SYMBOL(lib, gdk_atom_intern);
 
-	LOAD_GTK_SYMBOL(lib, gdk_display_get_default);
-	LOAD_GTK_SYMBOL(lib, gdk_display_get_monitor);
-	LOAD_GTK_SYMBOL(lib, gdk_display_get_primary_monitor);
-	LOAD_GTK_SYMBOL(lib, gdk_monitor_get_scale_factor);
-
 	LOAD_GTK_SYMBOL(lib, gdk_pixbuf_get_has_alpha);
 	LOAD_GTK_SYMBOL(lib, gdk_pixbuf_get_pixels);
 	LOAD_GTK_SYMBOL(lib, gdk_pixbuf_get_width);
@@ -89,33 +84,6 @@ void GtkIntegration::load() {
 	LOAD_GTK_SYMBOL(lib, gtk_app_chooser_get_type);
 
 	Loaded = true;
-}
-
-std::optional<int> GtkIntegration::scaleFactor() const {
-	if ((gdk_display_get_default == nullptr)
-		|| (gdk_display_get_monitor == nullptr)
-		|| (gdk_display_get_primary_monitor == nullptr)
-		|| (gdk_monitor_get_scale_factor == nullptr)) {
-		return std::nullopt;
-	}
-
-	const auto display = gdk_display_get_default();
-	if (!display) {
-		return std::nullopt;
-	}
-
-	const auto monitor = [&] {
-		if (const auto primary = gdk_display_get_primary_monitor(display)) {
-			return primary;
-		}
-		return gdk_display_get_monitor(display, 0);
-	}();
-
-	if (!monitor) {
-		return std::nullopt;
-	}
-
-	return gdk_monitor_get_scale_factor(monitor);
 }
 
 bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {

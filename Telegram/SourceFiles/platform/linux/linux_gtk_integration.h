@@ -16,8 +16,6 @@ public:
 
 	void load();
 
-	[[nodiscard]] std::optional<int> scaleFactor() const;
-
 	[[nodiscard]] bool showOpenWithDialog(const QString &filepath) const;
 
 	[[nodiscard]] QImage getImageFromClipboard() const;
