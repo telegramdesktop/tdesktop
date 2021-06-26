@@ -403,22 +403,6 @@ bool GenerateDesktopFile(
 	}
 }
 
-void SetGtkScaleFactor() {
-	const auto integration = GtkIntegration::Instance();
-	const auto ratio = Core::Sandbox::Instance().devicePixelRatio();
-	if (!integration || ratio > 1.) {
-		return;
-	}
-
-	const auto scaleFactor = integration->scaleFactor().value_or(1);
-	if (scaleFactor == 1) {
-		return;
-	}
-
-	LOG(("GTK scale factor: %1").arg(scaleFactor));
-	cSetScreenScale(style::CheckScale(scaleFactor * 100));
-}
-
 void SetDarkMode() {
 	static const auto Inited = [] {
 		QObject::connect(
@@ -974,7 +958,6 @@ void start() {
 		integration->waitForInterfaceAnnounce();
 	}
 
-	SetGtkScaleFactor();
 	crl::async(SetDarkMode);
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION

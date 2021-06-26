@@ -20,10 +20,6 @@ GtkIntegration *GtkIntegration::Instance() {
 void GtkIntegration::load() {
 }
 
-std::optional<int> GtkIntegration::scaleFactor() const {
-	return std::nullopt;
-}
-
 bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
 	return false;
 }
