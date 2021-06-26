@@ -1,3 +1,7 @@
+2.8.1 (26.06.21)
+
+- Fix crash in audio player volume slider.
+
 2.8 (24.06.21)
 
 - Start video conferences from Voice Chats in any group.
