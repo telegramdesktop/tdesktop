@@ -302,6 +302,7 @@ parts:
       - libfreetype-dev
       - libgl-dev
       - libglib2.0-dev
+      - libgtk-3-dev
       - libharfbuzz-dev
       - libicu-dev
       - libpcre2-dev
@@ -337,6 +338,7 @@ parts:
       - libfreetype6
       - libgl1
       - libglib2.0-0
+      - libgtk-3-0
       - libharfbuzz0b
       - libicu66
       - libpcre2-16-0
@@ -397,7 +399,6 @@ parts:
         -release \
         -opensource \
         -confirm-license \
-        -no-gtk \
         -no-feature-xcb-sm \
         -no-feature-xcomposite-egl \
         -no-feature-xcomposite-glx \
