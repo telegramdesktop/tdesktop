@@ -33,19 +33,9 @@ constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_c
 constexpr auto kXDGDesktopPortalOpenURIInterface = "org.freedesktop.portal.OpenURI"_cs;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 
-class XDPOpenWithDialog : public QWindow {
-public:
-	XDPOpenWithDialog(const QString &filepath)
-	: _filepath(filepath.toStdString()) {
-	}
+} // namespace
 
-	bool exec();
-
-private:
-	Glib::ustring _filepath;
-};
-
-bool XDPOpenWithDialog::exec() {
+bool ShowXDPOpenWithDialog(const QString &filepath) {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
@@ -69,8 +59,10 @@ bool XDPOpenWithDialog::exec() {
 			return false;
 		}
 
+		const auto filepathUtf8 = filepath.toUtf8();
+
 		const auto fd = open(
-			_filepath.c_str(),
+			filepathUtf8.constData(),
 			O_RDONLY);
 
 		if (fd == -1) {
@@ -113,7 +105,9 @@ bool XDPOpenWithDialog::exec() {
 			+ '/'
 			+ handleToken;
 
-		QEventLoop loop;
+		const auto context = Glib::MainContext::create();
+		const auto loop = Glib::MainLoop::create(context);
+		g_main_context_push_thread_default(context->gobj());
 
 		const auto signalId = connection->signal_subscribe(
 			[&](
@@ -123,7 +117,7 @@ bool XDPOpenWithDialog::exec() {
 				const Glib::ustring &interface_name,
 				const Glib::ustring &signal_name,
 				const Glib::VariantContainerBase &parameters) {
-				loop.quit();
+				loop->quit();
 			},
 			std::string(kXDGDesktopPortalService),
 			"org.freedesktop.portal.Request",
@@ -166,9 +160,11 @@ bool XDPOpenWithDialog::exec() {
 			std::string(kXDGDesktopPortalService));
 
 		if (signalId != 0) {
-			QGuiApplicationPrivate::showModalWindow(this);
-			loop.exec();
-			QGuiApplicationPrivate::hideModalWindow(this);
+			QWindow window;
+			QGuiApplicationPrivate::showModalWindow(&window);
+			loop->run();
+			g_main_context_pop_thread_default(context->gobj());
+			QGuiApplicationPrivate::hideModalWindow(&window);
 		}
 
 		return true;
@@ -176,12 +172,6 @@ bool XDPOpenWithDialog::exec() {
 	}
 
 	return false;
-}
-
-} // namespace
-
-bool ShowXDPOpenWithDialog(const QString &filepath) {
-	return XDPOpenWithDialog(filepath).exec();
 }
 
 } // namespace internal

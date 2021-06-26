@@ -85,12 +85,7 @@ constexpr auto kSnapcraftSettingsInterface = kSnapcraftSettingsService;
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 std::unique_ptr<internal::NotificationServiceWatcher> NSWInstance;
 
-class PortalAutostart : public QWindow {
-public:
-	PortalAutostart(bool start, bool silent = false);
-};
-
-PortalAutostart::PortalAutostart(bool start, bool silent) {
+void PortalAutostart(bool start, bool silent) {
 	if (cExeName().isEmpty()) {
 		return;
 	}
@@ -149,7 +144,9 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 			+ '/'
 			+ handleToken;
 
-		QEventLoop loop;
+		const auto context = Glib::MainContext::create();
+		const auto loop = Glib::MainLoop::create(context);
+		g_main_context_push_thread_default(context->gobj());
 
 		const auto signalId = connection->signal_subscribe(
 			[&](
@@ -175,7 +172,7 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 					}
 				}
 
-				loop.quit();
+				loop->quit();
 			},
 			std::string(kXDGDesktopPortalService),
 			"org.freedesktop.portal.Request",
@@ -199,9 +196,11 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 			std::string(kXDGDesktopPortalService));
 
 		if (signalId != 0) {
-			QGuiApplicationPrivate::showModalWindow(this);
-			loop.exec();
-			QGuiApplicationPrivate::hideModalWindow(this);
+			QWindow window;
+			QGuiApplicationPrivate::showModalWindow(&window);
+			loop->run();
+			g_main_context_pop_thread_default(context->gobj());
+			QGuiApplicationPrivate::hideModalWindow(&window);
 		}
 	} catch (const Glib::Error &e) {
 		if (!silent) {
@@ -211,12 +210,7 @@ PortalAutostart::PortalAutostart(bool start, bool silent) {
 	}
 }
 
-class SnapDefaultHandler : public QWindow {
-public:
-	SnapDefaultHandler(const QString &protocol);
-};
-
-SnapDefaultHandler::SnapDefaultHandler(const QString &protocol) {
+void SnapDefaultHandler(const QString &protocol) {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
@@ -241,7 +235,9 @@ SnapDefaultHandler::SnapDefaultHandler(const QString &protocol) {
 			return;
 		}
 
-		QEventLoop loop;
+		const auto context = Glib::MainContext::create();
+		const auto loop = Glib::MainLoop::create(context);
+		g_main_context_push_thread_default(context->gobj());
 
 		connection->call(
 			std::string(kSnapcraftSettingsObjectPath),
@@ -260,13 +256,15 @@ SnapDefaultHandler::SnapDefaultHandler(const QString &protocol) {
 						QString::fromStdString(e.what())));
 				}
 
-				loop.quit();
+				loop->quit();
 			},
 			std::string(kSnapcraftSettingsService));
 
-		QGuiApplicationPrivate::showModalWindow(this);
-		loop.exec();
-		QGuiApplicationPrivate::hideModalWindow(this);
+		QWindow window;
+		QGuiApplicationPrivate::showModalWindow(&window);
+		loop->run();
+		g_main_context_pop_thread_default(context->gobj());
+		QGuiApplicationPrivate::hideModalWindow(&window);
 	} catch (const Glib::Error &e) {
 		LOG(("Snap Default Handler Error: %1").arg(
 			QString::fromStdString(e.what())));
