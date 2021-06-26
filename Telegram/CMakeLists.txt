@@ -862,8 +862,6 @@ PRIVATE
     platform/linux/linux_gdk_helper.h
     platform/linux/linux_gsd_media_keys.cpp
     platform/linux/linux_gsd_media_keys.h
-    platform/linux/linux_gtk_file_dialog.cpp
-    platform/linux/linux_gtk_file_dialog.h
     platform/linux/linux_gtk_integration_dummy.cpp
     platform/linux/linux_gtk_integration_p.h
     platform/linux/linux_gtk_integration.cpp
@@ -1195,8 +1193,6 @@ if (DESKTOP_APP_DISABLE_GTK_INTEGRATION)
     remove_target_sources(Telegram ${src_loc}
         platform/linux/linux_gdk_helper.cpp
         platform/linux/linux_gdk_helper.h
-        platform/linux/linux_gtk_file_dialog.cpp
-        platform/linux/linux_gtk_file_dialog.h
         platform/linux/linux_gtk_integration_p.h
         platform/linux/linux_gtk_integration.cpp
         platform/linux/linux_gtk_open_with_dialog.cpp

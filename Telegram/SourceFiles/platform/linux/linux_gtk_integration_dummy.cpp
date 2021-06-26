@@ -24,17 +24,6 @@ std::optional<int> GtkIntegration::scaleFactor() const {
 	return std::nullopt;
 }
 
-std::optional<bool> GtkIntegration::getFileDialog(
-		QPointer<QWidget> parent,
-		QStringList &files,
-		QByteArray &remoteContent,
-		const QString &caption,
-		const QString &filter,
-		::FileDialog::internal::Type type,
-		QString startFile) const {
-	return std::nullopt;
-}
-
 bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
 	return false;
 }

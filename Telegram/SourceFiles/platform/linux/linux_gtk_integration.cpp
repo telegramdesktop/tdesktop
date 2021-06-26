@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_gtk_integration_p.h"
 #include "platform/linux/linux_gtk_integration_p.h"
 #include "platform/linux/linux_gdk_helper.h"
-#include "platform/linux/linux_gtk_file_dialog.h"
 #include "platform/linux/linux_gtk_open_with_dialog.h"
 
 namespace Platform {
@@ -61,48 +60,14 @@ void GtkIntegration::load() {
 	auto &lib = BaseGtkIntegration::Instance()->library();
 
 	LOAD_GTK_SYMBOL(lib, gtk_widget_show);
-	LOAD_GTK_SYMBOL(lib, gtk_widget_hide);
 	LOAD_GTK_SYMBOL(lib, gtk_widget_get_window);
 	LOAD_GTK_SYMBOL(lib, gtk_widget_realize);
-	LOAD_GTK_SYMBOL(lib, gtk_widget_hide_on_delete);
 	LOAD_GTK_SYMBOL(lib, gtk_widget_destroy);
 	LOAD_GTK_SYMBOL(lib, gtk_clipboard_get);
-	LOAD_GTK_SYMBOL(lib, gtk_clipboard_store);
 	LOAD_GTK_SYMBOL(lib, gtk_clipboard_wait_for_contents);
 	LOAD_GTK_SYMBOL(lib, gtk_clipboard_wait_for_image);
 	LOAD_GTK_SYMBOL(lib, gtk_selection_data_targets_include_image);
 	LOAD_GTK_SYMBOL(lib, gtk_selection_data_free);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_dialog_new);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_get_type);
-	LOAD_GTK_SYMBOL(lib, gtk_image_get_type);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_set_current_folder);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_get_current_folder);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_set_current_name);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_select_filename);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_get_filenames);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_set_filter);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_get_filter);
-	LOAD_GTK_SYMBOL(lib, gtk_window_get_type);
-	LOAD_GTK_SYMBOL(lib, gtk_window_set_title);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_set_local_only);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_set_action);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_set_select_multiple);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_set_do_overwrite_confirmation);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_remove_filter);
-	LOAD_GTK_SYMBOL(lib, gtk_file_filter_set_name);
-	LOAD_GTK_SYMBOL(lib, gtk_file_filter_add_pattern);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_add_filter);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_set_preview_widget);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_get_preview_filename);
-	LOAD_GTK_SYMBOL(lib, gtk_file_chooser_set_preview_widget_active);
-	LOAD_GTK_SYMBOL(lib, gtk_file_filter_new);
-	LOAD_GTK_SYMBOL(lib, gtk_image_new);
-	LOAD_GTK_SYMBOL(lib, gtk_image_set_from_pixbuf);
-
-	LOAD_GTK_SYMBOL(lib, gdk_window_set_modal_hint);
-	LOAD_GTK_SYMBOL(lib, gdk_window_focus);
-	LOAD_GTK_SYMBOL(lib, gtk_dialog_get_type);
-	LOAD_GTK_SYMBOL(lib, gtk_dialog_run);
 
 	LOAD_GTK_SYMBOL(lib, gdk_atom_intern);
 
@@ -111,7 +76,6 @@ void GtkIntegration::load() {
 	LOAD_GTK_SYMBOL(lib, gdk_display_get_primary_monitor);
 	LOAD_GTK_SYMBOL(lib, gdk_monitor_get_scale_factor);
 
-	LOAD_GTK_SYMBOL(lib, gdk_pixbuf_new_from_file_at_size);
 	LOAD_GTK_SYMBOL(lib, gdk_pixbuf_get_has_alpha);
 	LOAD_GTK_SYMBOL(lib, gdk_pixbuf_get_pixels);
 	LOAD_GTK_SYMBOL(lib, gdk_pixbuf_get_width);
@@ -119,10 +83,6 @@ void GtkIntegration::load() {
 	LOAD_GTK_SYMBOL(lib, gdk_pixbuf_get_rowstride);
 
 	GdkHelperLoad(lib);
-
-	LOAD_GTK_SYMBOL(lib, gtk_dialog_get_widget_for_response);
-	LOAD_GTK_SYMBOL(lib, gtk_button_set_label);
-	LOAD_GTK_SYMBOL(lib, gtk_button_get_type);
 
 	LOAD_GTK_SYMBOL(lib, gtk_app_chooser_dialog_new);
 	LOAD_GTK_SYMBOL(lib, gtk_app_chooser_get_app_info);
@@ -156,24 +116,6 @@ std::optional<int> GtkIntegration::scaleFactor() const {
 	}
 
 	return gdk_monitor_get_scale_factor(monitor);
-}
-
-std::optional<bool> GtkIntegration::getFileDialog(
-		QPointer<QWidget> parent,
-		QStringList &files,
-		QByteArray &remoteContent,
-		const QString &caption,
-		const QString &filter,
-		::FileDialog::internal::Type type,
-		QString startFile) const {
-	return FileDialog::Gtk::Get(
-		parent,
-		files,
-		remoteContent,
-		caption,
-		filter,
-		type,
-		startFile);
 }
 
 bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
