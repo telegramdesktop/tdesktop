@@ -16,11 +16,6 @@ namespace Ui {
 class PopupMenu;
 } // namespace Ui
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-class QTemporaryFile;
-class StatusNotifierItem;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {
@@ -71,7 +66,9 @@ protected:
 
 private:
 	class Private;
+	friend class Private;
 	const std::unique_ptr<Private> _private;
+
 	bool _sniAvailable = false;
 	base::unique_qptr<Ui::PopupMenu> _trayIconMenuXEmbed;
 
@@ -113,22 +110,6 @@ private:
 	void psLinuxStrikeOut();
 	void psLinuxMonospace();
 	void psLinuxClearFormat();
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	StatusNotifierItem *_sniTrayIcon = nullptr;
-	uint _sniRegisteredSignalId = 0;
-	uint _sniWatcherId = 0;
-	std::unique_ptr<QTemporaryFile> _trayIconFile;
-
-	void setSNITrayIcon(int counter, bool muted);
-	void attachToSNITrayIcon();
-	void handleSNIHostRegistered();
-
-	void handleSNIOwnerChanged(
-		const QString &service,
-		const QString &oldOwner,
-		const QString &newOwner);
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 };
 
