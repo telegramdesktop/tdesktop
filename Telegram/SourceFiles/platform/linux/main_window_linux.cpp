@@ -558,6 +558,27 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 }
 
 void MainWindow::initHook() {
+	base::install_event_filter(windowHandle(), [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::Expose) {
+			auto ee = static_cast<QExposeEvent*>(e.get());
+			if (ee->region().isNull()) {
+				return base::EventFilterResult::Continue;
+			}
+			if (!windowHandle()
+				|| windowHandle()->parent()
+				|| !windowHandle()->isVisible()) {
+				return base::EventFilterResult::Continue;
+			}
+			handleNativeSurfaceChanged(true);
+		} else if (e->type() == QEvent::Hide) {
+			if (!windowHandle() || windowHandle()->parent()) {
+				return base::EventFilterResult::Continue;
+			}
+			handleNativeSurfaceChanged(false);
+		}
+		return base::EventFilterResult::Continue;
+	});
+
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	_sniAvailable = IsSNIAvailable();
 
@@ -600,27 +621,6 @@ void MainWindow::initHook() {
 			});
 	} catch (...) {
 	}
-
-	base::install_event_filter(windowHandle(), [=](not_null<QEvent*> e) {
-		if (e->type() == QEvent::Expose) {
-			auto ee = static_cast<QExposeEvent*>(e.get());
-			if (ee->region().isNull()) {
-				return base::EventFilterResult::Continue;
-			}
-			if (!windowHandle()
-				|| windowHandle()->parent()
-				|| !windowHandle()->isVisible()) {
-				return base::EventFilterResult::Continue;
-			}
-			handleNativeSurfaceChanged(true);
-		} else if (e->type() == QEvent::Hide) {
-			if (!windowHandle() || windowHandle()->parent()) {
-				return base::EventFilterResult::Continue;
-			}
-			handleNativeSurfaceChanged(false);
-		}
-		return base::EventFilterResult::Continue;
-	});
 
 	if (UseUnityCounter()) {
 		LOG(("Using Unity launcher counter."));
