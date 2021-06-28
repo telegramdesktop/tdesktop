@@ -22,7 +22,7 @@ def error(message):
     print('[ERROR] ' + message)
     finish(1)
 
-if sys.platform == 'win32' and not 'COMSPEC' in os.environ:
+if sys.platform == 'win32' and 'COMSPEC' not in os.environ:
     error('COMSPEC environment variable is not set.')
 
 executePath = os.getcwd()
@@ -39,9 +39,9 @@ if os.path.isfile(officialTargetFile):
             officialTarget = line.strip()
 
 arch = ''
-if officialTarget == 'win' or officialTarget == 'uwp':
+if officialTarget in ['win', 'uwp']:
     arch = 'x86'
-elif officialTarget == 'win64' or officialTarget == 'uwp64':
+elif officialTarget in ['win64', 'uwp64']:
     arch = 'x64'
 
 if officialTarget != '':
