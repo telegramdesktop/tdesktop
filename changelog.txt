@@ -1,3 +1,7 @@
+2.8.3 (28.06.21)
+
+- Fix crashes in OpenSSL on macOS.
+
 2.8.2 (27.06.21)
 
 - Attempt to fix random crashes on macOS.
