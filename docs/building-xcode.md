@@ -92,8 +92,8 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/openssl/openssl openssl_1_1_1
     cd openssl_1_1_1
-    git checkout OpenSSL_1_1_1-stable
-    ./Configure --prefix=/usr/local/macos no-tests darwin64-x86_64-cc -static $MIN_VER
+    git checkout OpenSSL_1_1_1k
+    ./Configure --prefix=/usr/local/macos no-tests darwin64-x86_64-cc -static -g3 $MIN_VER
     make build_libs $MAKE_THREADS_CNT
     cd ..
 
