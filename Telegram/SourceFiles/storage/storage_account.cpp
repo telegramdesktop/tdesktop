@@ -46,9 +46,12 @@ constexpr auto kStickersSerializeVersion = 2;
 constexpr auto kMaxSavedStickerSetsCount = 1000;
 constexpr auto kDefaultStickerInstallDate = TimeId(1);
 
-constexpr auto kSinglePeerTypeUser = qint32(1);
-constexpr auto kSinglePeerTypeChat = qint32(2);
-constexpr auto kSinglePeerTypeChannel = qint32(3);
+constexpr auto kSinglePeerTypeUserOld = qint32(1);
+constexpr auto kSinglePeerTypeChatOld = qint32(2);
+constexpr auto kSinglePeerTypeChannelOld = qint32(3);
+constexpr auto kSinglePeerTypeUser = qint32(8 + 1);
+constexpr auto kSinglePeerTypeChat = qint32(8 + 2);
+constexpr auto kSinglePeerTypeChannel = qint32(8 + 3);
 constexpr auto kSinglePeerTypeSelf = qint32(4);
 constexpr auto kSinglePeerTypeEmpty = qint32(0);
 constexpr auto kMultiDraftTag = quint64(0xFFFFFFFFFFFFFF01ULL);
@@ -2505,14 +2508,14 @@ void Account::writeExportSettings(const Export::Settings &settings) {
 	settings.singlePeer.match([&](const MTPDinputPeerUser & user) {
 		data.stream
 			<< kSinglePeerTypeUser
-			<< qint32(user.vuser_id().v)
+			<< quint64(user.vuser_id().v)
 			<< quint64(user.vaccess_hash().v);
 	}, [&](const MTPDinputPeerChat & chat) {
-		data.stream << kSinglePeerTypeChat << qint32(chat.vchat_id().v);
+		data.stream << kSinglePeerTypeChat << quint64(chat.vchat_id().v);
 	}, [&](const MTPDinputPeerChannel & channel) {
 		data.stream
 			<< kSinglePeerTypeChannel
-			<< qint32(channel.vchannel_id().v)
+			<< quint64(channel.vchannel_id().v)
 			<< quint64(channel.vaccess_hash().v);
 	}, [&](const MTPDinputPeerSelf &) {
 		data.stream << kSinglePeerTypeSelf;
@@ -2543,7 +2546,8 @@ Export::Settings Account::readExportSettings() {
 	quint32 mediaTypes = 0, mediaSizeLimit = 0;
 	quint32 format = 0, availableAt = 0;
 	QString path;
-	qint32 singlePeerType = 0, singlePeerBareId = 0;
+	qint32 singlePeerType = 0, singlePeerBareIdOld = 0;
+	quint64 singlePeerBareId = 0;
 	quint64 singlePeerAccessHash = 0;
 	qint32 singlePeerFrom = 0, singlePeerTill = 0;
 	file.stream
@@ -2557,6 +2561,12 @@ Export::Settings Account::readExportSettings() {
 	if (!file.stream.atEnd()) {
 		file.stream >> singlePeerType;
 		switch (singlePeerType) {
+		case kSinglePeerTypeUserOld:
+		case kSinglePeerTypeChannelOld: {
+			file.stream >> singlePeerBareIdOld >> singlePeerAccessHash;
+		} break;
+		case kSinglePeerTypeChatOld: file.stream >> singlePeerBareIdOld; break;
+
 		case kSinglePeerTypeUser:
 		case kSinglePeerTypeChannel: {
 			file.stream >> singlePeerBareId >> singlePeerAccessHash;
@@ -2580,6 +2590,17 @@ Export::Settings Account::readExportSettings() {
 	result.availableAt = availableAt;
 	result.singlePeer = [&] {
 		switch (singlePeerType) {
+		case kSinglePeerTypeUserOld:
+			return MTP_inputPeerUser(
+				MTP_long(singlePeerBareIdOld),
+				MTP_long(singlePeerAccessHash));
+		case kSinglePeerTypeChatOld:
+			return MTP_inputPeerChat(MTP_long(singlePeerBareIdOld));
+		case kSinglePeerTypeChannelOld:
+			return MTP_inputPeerChannel(
+				MTP_long(singlePeerBareIdOld),
+				MTP_long(singlePeerAccessHash));
+
 		case kSinglePeerTypeUser:
 			return MTP_inputPeerUser(
 				MTP_long(singlePeerBareId),
