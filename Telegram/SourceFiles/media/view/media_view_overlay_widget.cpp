@@ -508,8 +508,16 @@ void OverlayWidget::updateGeometry() {
 		? window()->screen()
 		: QApplication::primaryScreen();
 	const auto available = screen->geometry();
-	const auto useSizeHack = _opengl && Platform::IsWindows();
-	const auto use = available.marginsAdded({ 0, 0, 0, 1 });
+	const auto openglWidget = _opengl
+		? static_cast<QOpenGLWidget*>(_widget.get())
+		: nullptr;
+	const auto useSizeHack = Platform::IsWindows()
+		&& openglWidget
+		&& (openglWidget->format().renderableType()
+			!= QSurfaceFormat::OpenGLES);
+	const auto use = useSizeHack
+		? available.marginsAdded({ 0, 0, 0, 1 })
+		: available;
 	const auto mask = useSizeHack
 		? QRegion(QRect(QPoint(), available.size()))
 		: QRegion();
