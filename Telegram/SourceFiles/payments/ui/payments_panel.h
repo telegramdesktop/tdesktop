@@ -17,7 +17,6 @@ class Checkbox;
 } // namespace Ui
 
 namespace Webview {
-class Window;
 struct Available;
 } // namespace Webview
 
@@ -88,6 +87,7 @@ public:
 
 private:
 	struct Progress;
+	struct WebviewWithLifetime;
 
 	bool createWebview();
 	void showWebviewProgress();
@@ -103,7 +103,7 @@ private:
 
 	const not_null<PanelDelegate*> _delegate;
 	std::unique_ptr<SeparatePanel> _widget;
-	std::unique_ptr<Webview::Window> _webview;
+	std::unique_ptr<WebviewWithLifetime> _webview;
 	std::unique_ptr<RpWidget> _webviewBottom;
 	std::unique_ptr<Progress> _progress;
 	QPointer<Checkbox> _saveWebviewInformation;
