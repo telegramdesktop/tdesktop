@@ -50,6 +50,12 @@ struct SharedMediaMergedKey {
 
 };
 
+rpl::producer<SparseIdsMergedSlice> SharedScheduledMediaViewer(
+	not_null<Main::Session*> session,
+	SharedMediaMergedKey key,
+	int limitBefore,
+	int limitAfter);
+
 rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
 	not_null<Main::Session*> session,
 	SharedMediaMergedKey key,

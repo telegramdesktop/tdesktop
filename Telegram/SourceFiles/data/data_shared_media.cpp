@@ -16,8 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "data/data_document.h"
 #include "data/data_media_types.h"
 #include "data/data_photo.h"
+#include "data/data_scheduled_messages.h"
 #include "data/data_sparse_ids.h"
 #include "data/data_session.h"
 #include "info/info_memento.h"
@@ -29,6 +31,42 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 using Type = Storage::SharedMediaType;
+
+bool IsItemGoodForType(const not_null<HistoryItem*> item, Type type) {
+	const auto media = item->media();
+	if (!media) {
+		return false;
+	}
+	const auto photo = media->photo();
+	const auto photoType = (type == Type::Photo);
+	if (photoType && photo) {
+		return true;
+	}
+
+	const auto document = media->document();
+	if (!document) {
+		return false;
+	}
+	const auto voiceType = (type == Type::VoiceFile)
+		|| (type == Type::RoundVoiceFile);
+	const auto voiceDoc = (document->isVoiceMessage()
+		|| document->isVideoMessage());
+
+	const auto audioType = (type == Type::MusicFile);
+	const auto audioDoc = document->isAudioFile();
+
+	const auto gifType = (type == Type::GIF);
+	const auto gifDoc = document->isGifv();
+
+	const auto videoType = (type == Type::Video);
+	const auto videoDoc = document->isVideoFile();
+
+	return (audioType && audioDoc)
+		|| (voiceType && voiceDoc)
+		|| (gifType && gifDoc)
+		|| (videoType && videoDoc)
+		|| (photoType && document->isImage());
+}
 
 } // namespace
 
@@ -151,6 +189,55 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 
 		return lifetime;
 	};
+}
+
+rpl::producer<SparseIdsMergedSlice> SharedScheduledMediaViewer(
+		not_null<Main::Session*> session,
+		SharedMediaMergedKey key,
+		int limitBefore,
+		int limitAfter) {
+	Expects(!IsServerMsgId(key.mergedKey.universalId));
+	Expects((key.mergedKey.universalId != 0)
+		|| (limitBefore == 0 && limitAfter == 0));
+
+	const auto history = session->data().history(key.mergedKey.peerId);
+
+	return rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		session->data().scheduledMessages().updates(history)
+	) | rpl::map([=] {
+		const auto list = session->data().scheduledMessages().list(history);
+
+		auto items = ranges::views::all(
+			list.ids
+		) | ranges::views::transform([=](const FullMsgId &fullId) {
+			return session->data().message(fullId);
+		}) | ranges::views::filter([=](HistoryItem *item) {
+			return item
+				? IsItemGoodForType(item, key.type)
+				: false;
+		}) | ranges::to_vector;
+
+		ranges::sort(items, ranges::less(), &HistoryItem::position);
+
+		auto finishMsgIds = ranges::views::all(
+			items
+		) | ranges::views::transform([=](not_null<HistoryItem*> item) {
+			return item->fullId().msg;
+		}) | ranges::to_vector;
+
+		const auto fullCount = finishMsgIds.size();
+
+		auto unsorted = SparseUnsortedIdsSlice(
+			std::move(finishMsgIds),
+			fullCount,
+			list.skippedBefore,
+			list.skippedAfter);
+		return SparseIdsMergedSlice(
+			key.mergedKey,
+			std::move(unsorted));
+	});
 }
 
 rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(

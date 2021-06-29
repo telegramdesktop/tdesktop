@@ -22,6 +22,8 @@ public:
 
 };
 
+using SparseUnsortedIdsSlice = AbstractSparseIds<std::vector<MsgId>>;
+
 class SparseIdsMergedSlice {
 public:
 	using UniversalMsgId = MsgId;
@@ -29,9 +31,11 @@ public:
 		Key(
 			PeerId peerId,
 			PeerId migratedPeerId,
-			UniversalMsgId universalId)
+			UniversalMsgId universalId,
+			bool scheduled = false)
 		: peerId(peerId)
-		, migratedPeerId(migratedPeerId)
+		, scheduled(scheduled)
+		, migratedPeerId(scheduled ? 0 : migratedPeerId)
 		, universalId(universalId) {
 		}
 
@@ -45,6 +49,7 @@ public:
 		}
 
 		PeerId peerId = 0;
+		bool scheduled = false;
 		PeerId migratedPeerId = 0;
 		UniversalMsgId universalId = 0;
 
@@ -55,6 +60,9 @@ public:
 		Key key,
 		SparseIdsSlice part,
 		std::optional<SparseIdsSlice> migrated);
+	SparseIdsMergedSlice(
+		Key key,
+		SparseUnsortedIdsSlice scheduled);
 
 	std::optional<int> fullCount() const;
 	std::optional<int> skippedBefore() const;
@@ -133,6 +141,7 @@ private:
 	Key _key;
 	SparseIdsSlice _part;
 	std::optional<SparseIdsSlice> _migrated;
+	std::optional<SparseUnsortedIdsSlice> _scheduled;
 
 };
 
