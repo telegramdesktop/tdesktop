@@ -12,12 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 SparseIdsSlice::SparseIdsSlice(
 	const base::flat_set<MsgId> &ids,
-	MsgRange range,
 	std::optional<int> fullCount,
 	std::optional<int> skippedBefore,
 	std::optional<int> skippedAfter)
 : _ids(ids)
-, _range(range)
 , _fullCount(fullCount)
 , _skippedBefore(skippedBefore)
 , _skippedAfter(skippedAfter) {
@@ -245,7 +243,6 @@ bool SparseIdsSliceBuilder::removeOne(MsgId messageId) {
 
 bool SparseIdsSliceBuilder::removeAll() {
 	_ids = {};
-	_range = { 0, ServerMaxMsgId };
 	_fullCount = 0;
 	_skippedBefore = 0;
 	_skippedAfter = 0;
@@ -254,9 +251,6 @@ bool SparseIdsSliceBuilder::removeAll() {
 
 bool SparseIdsSliceBuilder::invalidateBottom() {
 	_fullCount = _skippedAfter = std::nullopt;
-	if (_range.till == ServerMaxMsgId) {
-		_range.till = _ids.empty() ? _range.from : _ids.back();
-	}
 	checkInsufficient();
 	return true;
 }
@@ -389,7 +383,6 @@ void SparseIdsSliceBuilder::requestMessagesCount() {
 SparseIdsSlice SparseIdsSliceBuilder::snapshot() const {
 	return SparseIdsSlice(
 		_ids,
-		_range,
 		_fullCount,
 		_skippedBefore,
 		_skippedAfter);

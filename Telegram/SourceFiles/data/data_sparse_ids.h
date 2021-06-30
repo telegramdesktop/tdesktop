@@ -21,7 +21,6 @@ public:
 	SparseIdsSlice() = default;
 	SparseIdsSlice(
 		const base::flat_set<MsgId> &ids,
-		MsgRange range,
 		std::optional<int> fullCount,
 		std::optional<int> skippedBefore,
 		std::optional<int> skippedAfter);
@@ -37,7 +36,6 @@ public:
 
 private:
 	base::flat_set<MsgId> _ids;
-	MsgRange _range;
 	std::optional<int> _fullCount;
 	std::optional<int> _skippedBefore;
 	std::optional<int> _skippedAfter;
@@ -205,7 +203,6 @@ private:
 
 	Key _key;
 	base::flat_set<MsgId> _ids;
-	MsgRange _range;
 	std::optional<int> _fullCount;
 	std::optional<int> _skippedBefore;
 	std::optional<int> _skippedAfter;
