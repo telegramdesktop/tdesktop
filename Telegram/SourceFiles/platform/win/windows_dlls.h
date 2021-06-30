@@ -22,9 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 namespace Dlls {
 
-void init();
-void start();
-
 // UXTHEME.DLL
 inline HRESULT(__stdcall *SetWindowTheme)(
 	HWND hWnd,
