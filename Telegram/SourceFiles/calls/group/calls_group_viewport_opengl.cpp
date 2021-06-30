@@ -988,6 +988,7 @@ void Viewport::RendererGL::bindFrame(
 		program.argb32->setUniformValue("s_texture", GLint(0));
 	} else {
 		const auto yuv = data.yuv420;
+		const auto format = Ui::GL::CurrentSingleComponentFormat();
 		program.yuv420->bind();
 		f.glActiveTexture(GL_TEXTURE0);
 		tileData.textures.bind(f, 0);
@@ -995,8 +996,8 @@ void Viewport::RendererGL::bindFrame(
 			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 			uploadTexture(
 				f,
-				GL_RED,
-				GL_RED,
+				format,
+				format,
 				yuv->size,
 				tileData.textureSize,
 				yuv->y.stride,
@@ -1009,8 +1010,8 @@ void Viewport::RendererGL::bindFrame(
 		if (upload) {
 			uploadTexture(
 				f,
-				GL_RED,
-				GL_RED,
+				format,
+				format,
 				yuv->chromaSize,
 				tileData.textureChromaSize,
 				yuv->u.stride,
@@ -1021,8 +1022,8 @@ void Viewport::RendererGL::bindFrame(
 		if (upload) {
 			uploadTexture(
 				f,
-				GL_RED,
-				GL_RED,
+				format,
+				format,
 				yuv->chromaSize,
 				tileData.textureChromaSize,
 				yuv->v.stride,
@@ -1368,16 +1369,17 @@ void Viewport::RendererGL::validateNoiseTexture(
 	if (_noiseTexture.created()) {
 		return;
 	}
+	const auto format = Ui::GL::CurrentSingleComponentFormat();
 	_noiseTexture.ensureCreated(f, GL_NEAREST, GL_REPEAT);
 	_noiseTexture.bind(f, 0);
 	f.glTexImage2D(
 		GL_TEXTURE_2D,
 		0,
-		GL_RED,
+		format,
 		kNoiseTextureSize,
 		kNoiseTextureSize,
 		0,
-		GL_RED,
+		format,
 		GL_UNSIGNED_BYTE,
 		nullptr);
 

@@ -223,6 +223,7 @@ void Panel::Incoming::RendererGL::paint(
 		Assert(data.format == Webrtc::FrameFormat::YUV420);
 		Assert(!data.yuv420->size.isEmpty());
 		const auto yuv = data.yuv420;
+		const auto format = Ui::GL::CurrentSingleComponentFormat();
 
 		f.glActiveTexture(GL_TEXTURE0);
 		_textures.bind(f, 1);
@@ -230,8 +231,8 @@ void Panel::Incoming::RendererGL::paint(
 			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 			uploadTexture(
 				f,
-				GL_RED,
-				GL_RED,
+				format,
+				format,
 				yuv->size,
 				_lumaSize,
 				yuv->y.stride,
@@ -243,8 +244,8 @@ void Panel::Incoming::RendererGL::paint(
 		if (upload) {
 			uploadTexture(
 				f,
-				GL_RED,
-				GL_RED,
+				format,
+				format,
 				yuv->chromaSize,
 				_chromaSize,
 				yuv->u.stride,
@@ -255,8 +256,8 @@ void Panel::Incoming::RendererGL::paint(
 		if (upload) {
 			uploadTexture(
 				f,
-				GL_RED,
-				GL_RED,
+				format,
+				format,
 				yuv->chromaSize,
 				_chromaSize,
 				yuv->v.stride,

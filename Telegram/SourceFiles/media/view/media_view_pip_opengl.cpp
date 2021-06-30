@@ -297,13 +297,14 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 	const auto upload = (_trackFrameIndex != data.index);
 	_trackFrameIndex = data.index;
 
+	const auto format = Ui::GL::CurrentSingleComponentFormat();
 	_f->glActiveTexture(GL_TEXTURE0);
 	_textures.bind(*_f, 1);
 	if (upload) {
 		_f->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 		uploadTexture(
-			GL_RED,
-			GL_RED,
+			format,
+			format,
 			yuv->size,
 			_lumaSize,
 			yuv->y.stride,
@@ -314,8 +315,8 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 	_textures.bind(*_f, 2);
 	if (upload) {
 		uploadTexture(
-			GL_RED,
-			GL_RED,
+			format,
+			format,
 			yuv->chromaSize,
 			_chromaSize,
 			yuv->u.stride,
@@ -325,8 +326,8 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 	_textures.bind(*_f, 3);
 	if (upload) {
 		uploadTexture(
-			GL_RED,
-			GL_RED,
+			format,
+			format,
 			yuv->chromaSize,
 			_chromaSize,
 			yuv->v.stride,
