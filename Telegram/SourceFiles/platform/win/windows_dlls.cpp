@@ -12,8 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <VersionHelpers.h>
 #include <QtCore/QSysInfo>
 
-#include <d3d11.h>
-
 #define LOAD_SYMBOL(lib, name) ::base::Platform::LoadMethod(lib, #name, name)
 
 namespace Platform {
@@ -46,6 +44,7 @@ void init() {
 		u"rstrtmgr.dll"_q,
 		u"psapi.dll"_q,
 		u"user32.dll"_q,
+		u"d3d9.dll"_q,
 		u"d3d11.dll"_q,
 		u"dxgi.dll"_q,
 	};
@@ -53,26 +52,6 @@ void init() {
 		SafeLoadLibrary(lib);
 	}
 }
-
-// D3D11.DLL
-
-HRESULT (__stdcall *D3D11CreateDevice)(
-	_In_opt_ IDXGIAdapter* pAdapter,
-	D3D_DRIVER_TYPE DriverType,
-	HMODULE Software,
-	UINT Flags,
-	_In_reads_opt_(FeatureLevels) CONST D3D_FEATURE_LEVEL* pFeatureLevels,
-	UINT FeatureLevels,
-	UINT SDKVersion,
-	_COM_Outptr_opt_ ID3D11Device** ppDevice,
-	_Out_opt_ D3D_FEATURE_LEVEL* pFeatureLevel,
-	_COM_Outptr_opt_ ID3D11DeviceContext** ppImmediateContext);
-
-// DXGI.DLL
-
-HRESULT (__stdcall *CreateDXGIFactory1)(
-	REFIID riid,
-	_COM_Outptr_ void **ppFactory);
 
 void start() {
 	init();
@@ -123,47 +102,7 @@ void start() {
 
 	const auto LibUser32 = SafeLoadLibrary(u"user32.dll"_q);
 	LOAD_SYMBOL(LibUser32, SetWindowCompositionAttribute);
-
-	const auto LibD3D11 = SafeLoadLibrary(u"d3d11.dll"_q);
-	LOAD_SYMBOL(LibD3D11, D3D11CreateDevice);
-
-	const auto LibDXGI = SafeLoadLibrary(u"dxgi.dll"_q);
-	LOAD_SYMBOL(LibDXGI, CreateDXGIFactory1);
 }
 
 } // namespace Dlls
 } // namespace Platform
-
-HRESULT WINAPI D3D11CreateDevice(
-		_In_opt_ IDXGIAdapter* pAdapter,
-		D3D_DRIVER_TYPE DriverType,
-		HMODULE Software,
-		UINT Flags,
-		_In_reads_opt_(FeatureLevels) CONST D3D_FEATURE_LEVEL* pFeatureLevels,
-		UINT FeatureLevels,
-		UINT SDKVersion,
-		_COM_Outptr_opt_ ID3D11Device** ppDevice,
-		_Out_opt_ D3D_FEATURE_LEVEL* pFeatureLevel,
-		_COM_Outptr_opt_ ID3D11DeviceContext** ppImmediateContext) {
-	return Platform::Dlls::D3D11CreateDevice
-		? Platform::Dlls::D3D11CreateDevice(
-			pAdapter,
-			DriverType,
-			Software,
-			Flags,
-			pFeatureLevels,
-			FeatureLevels,
-			SDKVersion,
-			ppDevice,
-			pFeatureLevel,
-			ppImmediateContext)
-		: S_FALSE;
-}
-
-HRESULT WINAPI CreateDXGIFactory1(
-		REFIID riid,
-		_COM_Outptr_ void **ppFactory) {
-	return Platform::Dlls::CreateDXGIFactory1
-		? Platform::Dlls::CreateDXGIFactory1(riid, ppFactory)
-		: S_FALSE;
-}

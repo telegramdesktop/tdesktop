@@ -198,7 +198,6 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     configure ^
         -prefix "%LibrariesPath%\Al-5.15.2" ^
-        -recheck ^
         -debug-and-release ^
         -force-debug-info ^
         -opensource ^
@@ -212,6 +211,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
         QMAKE_LIBS_OPENGL_ES2_RELEASE="%LibrariesPath%\angle\out\Release\obj\libGLESv2_static.lib %LibrariesPath%\angle\out\Release\obj\libANGLE_static.lib d3d11.lib d3d9.lib dxgi.lib dxguid.lib" ^
         -egl ^
         -D "EGLAPI=" ^
+        -D "DESKTOP_APP_QT_STATIC_ANGLE=" ^
         QMAKE_LIBS_EGL_DEBUG="%LibrariesPath%\angle\out\Debug\obj\libEGL_static.lib %LibrariesPath%\angle\out\Debug\obj\libGLESv2_static.lib %LibrariesPath%\angle\out\Debug\obj\libANGLE_static.lib d3d11.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
         QMAKE_LIBS_EGL_RELEASE="%LibrariesPath%\angle\out\Release\obj\libEGL_static.lib %LibrariesPath%\angle\out\Release\obj\libGLESv2_static.lib %LibrariesPath%\angle\out\Release\obj\libANGLE_static.lib d3d11.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
         -openssl-linked ^
