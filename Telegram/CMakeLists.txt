@@ -1356,6 +1356,32 @@ endif()
 
 set_target_properties(Telegram PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
+if (WIN32)
+    target_link_options(Telegram
+    PRIVATE
+        /DELAYLOAD:secur32.dll
+        /DELAYLOAD:winmm.dll
+        /DELAYLOAD:ws2_32.dll
+        /DELAYLOAD:user32.dll
+        /DELAYLOAD:gdi32.dll
+        /DELAYLOAD:advapi32.dll
+        /DELAYLOAD:shell32.dll
+        /DELAYLOAD:ole32.dll
+        /DELAYLOAD:oleaut32.dll
+        /DELAYLOAD:shlwapi.dll
+        /DELAYLOAD:iphlpapi.dll
+        /DELAYLOAD:gdiplus.dll
+        /DELAYLOAD:version.dll
+        /DELAYLOAD:dwmapi.dll
+        /DELAYLOAD:crypt32.dll
+        /DELAYLOAD:bcrypt.dll
+        /DELAYLOAD:imm32.dll
+        /DELAYLOAD:netapi32.dll
+        /DELAYLOAD:userenv.dll
+        /DELAYLOAD:wtsapi32.dll
+    )
+endif()
+
 if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT build_winstore)
     add_executable(Updater WIN32)
     init_target(Updater)
@@ -1372,8 +1398,19 @@ if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT
 
     set_target_properties(Updater PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${output_folder})
 
-    if (WIN32 AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        target_link_options(Updater PRIVATE -municode)
+    if (WIN32)
+        if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+            target_link_options(Updater
+            PRIVATE
+                /DELAYLOAD:user32.dll
+                /DELAYLOAD:advapi32.dll
+                /DELAYLOAD:shell32.dll
+                /DELAYLOAD:ole32.dll
+                /DELAYLOAD:shlwapi.dll
+            )
+        else()
+            target_link_options(Updater PRIVATE -municode)
+        endif()
     endif()
 
     if (LINUX)

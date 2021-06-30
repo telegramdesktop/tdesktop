@@ -7,6 +7,70 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "updater.h"
 
+using Handle = HINSTANCE;
+
+Handle SafeLoadLibrary(const wchar_t *name, bool required = false) {
+	static const auto SystemPath = [] {
+		WCHAR buffer[MAX_PATH + 1] = { 0 };
+		return GetSystemDirectory(buffer, MAX_PATH)
+			? std::wstring(buffer)
+			: std::wstring();
+	}();
+	static const auto WindowsPath = [] {
+		WCHAR buffer[MAX_PATH + 1] = { 0 };
+		return GetWindowsDirectory(buffer, MAX_PATH)
+			? std::wstring(buffer)
+			: std::wstring();
+	}();
+	const auto tryPath = [&](const std::wstring &path) {
+		if (!path.empty()) {
+			const auto full = path + L'\\' + name;
+			if (const auto result = Handle(LoadLibrary(full.c_str()))) {
+				return result;
+			}
+		}
+		return Handle();
+	};
+	if (const auto result1 = tryPath(SystemPath)) {
+		return result1;
+	} else if (const auto result2 = tryPath(WindowsPath)) {
+		return result2;
+	} else if (required) {
+		const auto text = L"Could not load required DLL '"
+			+ std::wstring(name)
+			+ L"'!";
+		MessageBox(nullptr, text.c_str(), L"Fatal Error", MB_ICONERROR);
+	}
+	return nullptr;
+}
+
+[[nodiscard]] bool Init() {
+	// Remove the current directory from the DLL search order.
+	SetDllDirectory(L"");
+
+	const auto required = {
+		L"user32.dll",
+		L"advapi32.dll",
+		L"shell32.dll",
+		L"ole32.dll",
+		L"shlwapi.dll",
+		L"propsys.dll",
+	};
+	const auto optional = {
+		L"profapi.dll",
+		L"cryptbase.dll",
+	};
+	for (const auto lib : required) {
+		if (!SafeLoadLibrary(lib, true)) {
+			return false;
+		}
+	}
+	for (const auto lib : optional) {
+		SafeLoadLibrary(lib);
+	}
+	return true;
+}
+
 bool _debug = false;
 
 wstring updaterName, updaterDir, updateTo, exeName, customWorkingDir, customKeyFile;
@@ -329,6 +393,10 @@ void updateRegistry() {
 }
 
 int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdParamarg, int cmdShow) {
+	if (!Init()) {
+		return -1;
+	}
+
 	openLog();
 
 	_oldWndExceptionFilter = SetUnhandledExceptionFilter(_exceptionFilter);

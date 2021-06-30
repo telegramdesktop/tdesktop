@@ -25,30 +25,55 @@ void init() {
 	if (inited) return;
 	inited = true;
 
-	// Remove the current directory from the DLL search order.
-	::SetDllDirectory(L"");
+	base::Platform::CheckDynamicLibraries();
 
-	const auto list = {
+	// Remove the current directory from the DLL search order.
+	SetDllDirectory(L"");
+
+	const auto required = {
+		u"secur32.dll"_q,
+		u"winmm.dll"_q,
+		u"ws2_32.dll"_q,
+		u"user32.dll"_q,
+		u"gdi32.dll"_q,
+		u"advapi32.dll"_q,
+		u"shell32.dll"_q,
+		u"ole32.dll"_q,
+		u"oleaut32.dll"_q,
+		u"shlwapi.dll"_q,
+		u"iphlpapi.dll"_q,
+		u"gdiplus.dll"_q,
+		u"version.dll"_q,
+		u"dwmapi.dll"_q,
+		u"crypt32.dll"_q,
+		u"bcrypt.dll"_q,
+		u"imm32.dll"_q,
+		u"netapi32.dll"_q,
+		u"userenv.dll"_q,
+		u"wtsapi32.dll"_q,
+		u"propsys.dll"_q,
+		u"psapi.dll"_q,
+		u"uxtheme.dll"_q,
+	};
+	const auto optional = {
 		u"dbghelp.dll"_q,
 		u"dbgcore.dll"_q,
-		u"propsys.dll"_q,
 		u"winsta.dll"_q,
-		u"textinputframework.dll"_q,
 		u"uxtheme.dll"_q,
 		u"igdumdim32.dll"_q,
 		u"amdhdl32.dll"_q,
-		u"wtsapi32.dll"_q,
-		u"propsys.dll"_q,
 		u"combase.dll"_q,
-		u"dwmapi.dll"_q,
 		u"rstrtmgr.dll"_q,
-		u"psapi.dll"_q,
-		u"user32.dll"_q,
 		u"d3d9.dll"_q,
 		u"d3d11.dll"_q,
 		u"dxgi.dll"_q,
+		u"profapi.dll"_q,
+		u"cryptbase.dll"_q,
 	};
-	for (const auto &lib : list) {
+	for (const auto &lib : required) {
+		SafeLoadLibrary(lib, true);
+	}
+	for (const auto &lib : optional) {
 		SafeLoadLibrary(lib);
 	}
 }
@@ -83,19 +108,17 @@ void start() {
 	//	}
 	//}
 
-	if (IsWindowsVistaOrGreater()) {
-		const auto LibWtsApi32 = SafeLoadLibrary(u"wtsapi32.dll"_q);
-		LOAD_SYMBOL(LibWtsApi32, WTSRegisterSessionNotification);
-		LOAD_SYMBOL(LibWtsApi32, WTSUnRegisterSessionNotification);
+	const auto LibWtsApi32 = SafeLoadLibrary(u"wtsapi32.dll"_q);
+	LOAD_SYMBOL(LibWtsApi32, WTSRegisterSessionNotification);
+	LOAD_SYMBOL(LibWtsApi32, WTSUnRegisterSessionNotification);
 
-		const auto LibPropSys = SafeLoadLibrary(u"propsys.dll"_q);
-		LOAD_SYMBOL(LibPropSys, PropVariantToString);
-		LOAD_SYMBOL(LibPropSys, PSStringFromPropertyKey);
+	const auto LibPropSys = SafeLoadLibrary(u"propsys.dll"_q);
+	LOAD_SYMBOL(LibPropSys, PropVariantToString);
+	LOAD_SYMBOL(LibPropSys, PSStringFromPropertyKey);
 
-		const auto LibDwmApi = SafeLoadLibrary(u"dwmapi.dll"_q);
-		LOAD_SYMBOL(LibDwmApi, DwmIsCompositionEnabled);
-		LOAD_SYMBOL(LibDwmApi, DwmSetWindowAttribute);
-	}
+	const auto LibDwmApi = SafeLoadLibrary(u"dwmapi.dll"_q);
+	LOAD_SYMBOL(LibDwmApi, DwmIsCompositionEnabled);
+	LOAD_SYMBOL(LibDwmApi, DwmSetWindowAttribute);
 
 	const auto LibPsApi = SafeLoadLibrary(u"psapi.dll"_q);
 	LOAD_SYMBOL(LibPsApi, GetProcessMemoryInfo);
