@@ -87,7 +87,6 @@ if (LINUX)
     PRIVATE
         desktop-app::external_glibmm
         desktop-app::external_glib
-        desktop-app::external_mallocng
     )
 
     if (NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)

@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <gio/gio.h>
 #include <glibmm.h>
 #include <giomm.h>
+#include <jemalloc/jemalloc.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -740,6 +741,9 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
+	auto backgroundThread = true;
+	mallctl("background_thread", nullptr, nullptr, &backgroundThread, sizeof(bool));
+
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 
 #ifndef DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
