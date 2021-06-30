@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_abstract_sparse_ids.h"
 #include "data/data_messages.h"
 
 namespace Storage {
@@ -14,31 +15,10 @@ struct SparseIdsListResult;
 struct SparseIdsSliceUpdate;
 } // namespace Storage
 
-class SparseIdsSlice {
+class SparseIdsSlice final : public AbstractSparseIds<base::flat_set<MsgId>> {
 public:
 	using Key = MsgId;
-
-	SparseIdsSlice() = default;
-	SparseIdsSlice(
-		const base::flat_set<MsgId> &ids,
-		std::optional<int> fullCount,
-		std::optional<int> skippedBefore,
-		std::optional<int> skippedAfter);
-
-	std::optional<int> fullCount() const { return _fullCount; }
-	std::optional<int> skippedBefore() const { return _skippedBefore; }
-	std::optional<int> skippedAfter() const { return _skippedAfter; }
-	std::optional<int> indexOf(MsgId msgId) const;
-	int size() const { return _ids.size(); }
-	MsgId operator[](int index) const;
-	std::optional<int> distance(MsgId a, MsgId b) const;
-	std::optional<MsgId> nearest(MsgId msgId) const;
-
-private:
-	base::flat_set<MsgId> _ids;
-	std::optional<int> _fullCount;
-	std::optional<int> _skippedBefore;
-	std::optional<int> _skippedAfter;
+	using AbstractSparseIds<base::flat_set<MsgId>>::AbstractSparseIds;
 
 };
 

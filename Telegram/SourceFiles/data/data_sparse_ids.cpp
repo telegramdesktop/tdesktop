@@ -10,51 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/combine.h>
 #include "storage/storage_sparse_ids_list.h"
 
-SparseIdsSlice::SparseIdsSlice(
-	const base::flat_set<MsgId> &ids,
-	std::optional<int> fullCount,
-	std::optional<int> skippedBefore,
-	std::optional<int> skippedAfter)
-: _ids(ids)
-, _fullCount(fullCount)
-, _skippedBefore(skippedBefore)
-, _skippedAfter(skippedAfter) {
-}
-
-std::optional<int> SparseIdsSlice::indexOf(MsgId msgId) const {
-	auto it = _ids.find(msgId);
-	if (it != _ids.end()) {
-		return (it - _ids.begin());
-	}
-	return std::nullopt;
-}
-
-MsgId SparseIdsSlice::operator[](int index) const {
-	Expects(index >= 0 && index < size());
-
-	return *(_ids.begin() + index);
-}
-
-std::optional<int> SparseIdsSlice::distance(
-		MsgId a,
-		MsgId b) const {
-	if (auto i = indexOf(a)) {
-		if (auto j = indexOf(b)) {
-			return *j - *i;
-		}
-	}
-	return std::nullopt;
-}
-
-std::optional<MsgId> SparseIdsSlice::nearest(MsgId msgId) const {
-	if (auto it = ranges::lower_bound(_ids, msgId); it != _ids.end()) {
-		return *it;
-	} else if (_ids.empty()) {
-		return std::nullopt;
-	}
-	return _ids.back();
-}
-
 SparseIdsMergedSlice::SparseIdsMergedSlice(Key key)
 : SparseIdsMergedSlice(
 	key,
