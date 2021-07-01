@@ -1,3 +1,8 @@
+2.8.5 beta (02.07.21)
+
+- Use ANGLE for OpenGL over DirectX 9 / DirectX 11 (Windows).
+- Use GTK from a child process (Linux).
+
 2.8.4 (01.07.21)
 
 - Crash fixes in WebView on Windows.
