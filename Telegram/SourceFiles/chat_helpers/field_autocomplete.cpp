@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/text/text_options.h"
 #include "ui/image/image.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/ui_utility.h"
@@ -441,7 +442,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 	} else if (_type == Type::BotCommands) {
 		bool listAllSuggestions = _filter.isEmpty();
 		bool hasUsername = _filter.indexOf('@') > 0;
-		base::flat_map<UserData*, bool> bots;
+		base::flat_set<not_null<UserData*>> bots;
 		int32 cnt = 0;
 		if (_chat) {
 			if (_chat->noParticipantInfo()) {
@@ -453,10 +454,10 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					} else if (!user->botInfo->inited) {
 						user->session().api().requestFullPeer(user);
 					}
-					if (user->botInfo->commands.isEmpty()) {
+					if (user->botInfo->commands.empty()) {
 						continue;
 					}
-					bots.emplace(user, true);
+					bots.emplace(user);
 					cnt += user->botInfo->commands.size();
 				}
 			}
@@ -465,7 +466,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				_user->session().api().requestFullPeer(_user);
 			}
 			cnt = _user->botInfo->commands.size();
-			bots.emplace(_user, true);
+			bots.emplace(_user);
 		} else if (_channel && _channel->isMegagroup()) {
 			if (_channel->mgInfo->bots.empty()) {
 				if (!_channel->mgInfo->botStatus) {
@@ -478,15 +479,25 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					} else if (!user->botInfo->inited) {
 						user->session().api().requestFullPeer(user);
 					}
-					if (user->botInfo->commands.isEmpty()) {
+					if (user->botInfo->commands.empty()) {
 						continue;
 					}
-					bots.emplace(user, true);
+					bots.emplace(user);
 					cnt += user->botInfo->commands.size();
 				}
 			}
 		}
 		if (cnt) {
+			const auto make = [&](
+					not_null<UserData*> user,
+					const BotCommand &command) {
+				return BotCommandRow{
+					user,
+					command.command,
+					command.description,
+					user->activeUserpicView()
+				};
+			};
 			brows.reserve(cnt);
 			int32 botStatus = _chat ? _chat->botStatus : ((_channel && _channel->isMegagroup()) ? _channel->mgInfo->botStatus : -1);
 			if (_chat) {
@@ -498,32 +509,32 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					} else if (!user->botInfo->inited) {
 						user->session().api().requestFullPeer(user);
 					}
-					if (user->botInfo->commands.isEmpty()) {
+					if (user->botInfo->commands.empty()) {
 						continue;
 					}
 					bots.remove(user);
-					for (auto j = 0, l = user->botInfo->commands.size(); j != l; ++j) {
+					for (const auto &command : user->botInfo->commands) {
 						if (!listAllSuggestions) {
 							auto toFilter = (hasUsername || botStatus == 0 || botStatus == 2)
-								? user->botInfo->commands.at(j).command + '@' + user->username
-								: user->botInfo->commands.at(j).command;
+								? command.command + '@' + user->username
+								: command.command;
 							if (!toFilter.startsWith(_filter, Qt::CaseInsensitive)/* || toFilter.size() == _filter.size()*/) {
 								continue;
 							}
 						}
-						brows.push_back({ user, &user->botInfo->commands.at(j) });
+						brows.push_back(make(user, command));
 					}
 				}
 			}
 			if (!bots.empty()) {
 				for (auto i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
-					UserData *user = i->first;
-					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
+					const auto user = *i;
+					for (const auto &command : user->botInfo->commands) {
 						if (!listAllSuggestions) {
-							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
+							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? command.command + '@' + user->username : command.command;
 							if (!toFilter.startsWith(_filter, Qt::CaseInsensitive)/* || toFilter.size() == _filter.size()*/) continue;
 						}
-						brows.push_back({ user, &user->botInfo->commands.at(j) });
+						brows.push_back(make(user, command));
 					}
 				}
 			}
@@ -940,8 +951,7 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				auto &row = _brows->at(i);
 				const auto user = row.user;
 
-				const auto command = row.command;
-				auto toHighlight = command->command;
+				auto toHighlight = row.command;
 				int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
 				if (hasUsername || botStatus == 0 || botStatus == 2) {
 					toHighlight += '@' + user->username;
@@ -959,9 +969,16 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				auto addleft = commandTextWidth + st::mentionPadding.left();
 				auto widthleft = mentionwidth - addleft;
 
-				if (widthleft > st::mentionFont->elidew && !command->descriptionText().isEmpty()) {
+				if (!row.description.isEmpty()
+					&& row.descriptionText.isEmpty()) {
+					row.descriptionText.setText(
+						st::defaultTextStyle,
+						row.description,
+						Ui::NameTextOptions());
+				}
+				if (widthleft > st::mentionFont->elidew && !row.descriptionText.isEmpty()) {
 					p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
-					command->descriptionText().drawElided(p, mentionleft + addleft, i * st::mentionHeight + st::mentionTop, widthleft);
+					row.descriptionText.drawElided(p, mentionleft + addleft, i * st::mentionHeight + st::mentionTop, widthleft);
 				}
 			}
 		}
@@ -1063,7 +1080,7 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 	} else if (!_brows->empty()) {
 		if (index < _brows->size()) {
 			const auto user = _brows->at(index).user;
-			const auto command = _brows->at(index).command;
+			const auto &command = _brows->at(index).command;
 			const auto botStatus = _parent->chat()
 				? _parent->chat()->botStatus
 				: ((_parent->channel() && _parent->channel()->isMegagroup())
@@ -1074,7 +1091,7 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 				|| botStatus == 2
 				|| _parent->filter().indexOf('@') > 0);
 			const auto commandString = QString("/%1%2").arg(
-				command->command,
+				command,
 				insertUsername ? ('@' + user->username) : QString());
 
 			_botCommandChosen.fire({ commandString, method });
