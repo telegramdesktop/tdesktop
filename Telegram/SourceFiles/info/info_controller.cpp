@@ -70,7 +70,22 @@ rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
 		int limitAfter) const {
 	Expects(peer() != nullptr);
 
-	return SharedMediaMergedViewer(
+	const auto isScheduled = [&] {
+		if (IsServerMsgId(aroundId)) {
+			return false;
+		}
+		const auto channelId = peerToChannel(peer()->id);
+		if (const auto item = session().data().message(channelId, aroundId)) {
+			return item->isScheduled();
+		}
+		return false;
+	}();
+
+	auto mediaViewer = isScheduled
+		? SharedScheduledMediaViewer
+		: SharedMediaMergedViewer;
+
+	return mediaViewer(
 		&session(),
 		SharedMediaMergedKey(
 			SparseIdsMergedSlice::Key(

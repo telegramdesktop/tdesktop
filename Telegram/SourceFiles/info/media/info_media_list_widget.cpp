@@ -913,7 +913,7 @@ SparseIdsMergedSlice::Key ListWidget::sliceKey(
 
 void ListWidget::refreshViewer() {
 	_viewerLifetime.destroy();
-	auto idForViewer = sliceKey(_universalAroundId).universalId;
+	const auto idForViewer = sliceKey(_universalAroundId).universalId;
 	_controller->mediaSource(
 		idForViewer,
 		_idsLimit,
