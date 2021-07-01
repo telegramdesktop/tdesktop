@@ -489,9 +489,9 @@ HistoryWidget::HistoryWidget(
 	}, lifetime());
 
 	session().data().botCommandsChanges(
-	) | rpl::filter([=](not_null<UserData*> user) {
-		return _peer && (_peer == user || !_peer->isUser());
-	}) | rpl::start_with_next([=](not_null<UserData*> user) {
+	) | rpl::filter([=](not_null<PeerData*> peer) {
+		return _peer && (_peer == peer);
+	}) | rpl::start_with_next([=] {
 		if (_fieldAutocomplete->clearFilteredBotCommands()) {
 			checkFieldAutocomplete();
 		}

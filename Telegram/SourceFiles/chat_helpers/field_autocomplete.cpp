@@ -442,23 +442,24 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 	} else if (_type == Type::BotCommands) {
 		bool listAllSuggestions = _filter.isEmpty();
 		bool hasUsername = _filter.indexOf('@') > 0;
-		base::flat_set<not_null<UserData*>> bots;
+		base::flat_map<
+			not_null<UserData*>,
+			not_null<const std::vector<BotCommand>*>> bots;
 		int32 cnt = 0;
 		if (_chat) {
 			if (_chat->noParticipantInfo()) {
 				_chat->session().api().requestFullPeer(_chat);
 			} else if (!_chat->participants.empty()) {
+				const auto &commands = _chat->botCommands();
 				for (const auto user : _chat->participants) {
 					if (!user->isBot()) {
 						continue;
-					} else if (!user->botInfo->inited) {
-						user->session().api().requestFullPeer(user);
 					}
-					if (user->botInfo->commands.empty()) {
-						continue;
+					const auto i = commands.find(peerToUser(user->id));
+					if (i != end(commands)) {
+						bots.emplace(user, &i->second);
+						cnt += i->second.size();
 					}
-					bots.emplace(user);
-					cnt += user->botInfo->commands.size();
 				}
 			}
 		} else if (_user && _user->isBot()) {
@@ -466,24 +467,23 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				_user->session().api().requestFullPeer(_user);
 			}
 			cnt = _user->botInfo->commands.size();
-			bots.emplace(_user);
+			bots.emplace(_user, &_user->botInfo->commands);
 		} else if (_channel && _channel->isMegagroup()) {
 			if (_channel->mgInfo->bots.empty()) {
 				if (!_channel->mgInfo->botStatus) {
 					_channel->session().api().requestBots(_channel);
 				}
 			} else {
+				const auto &commands = _channel->mgInfo->botCommands();
 				for (const auto user : _channel->mgInfo->bots) {
 					if (!user->isBot()) {
 						continue;
-					} else if (!user->botInfo->inited) {
-						user->session().api().requestFullPeer(user);
 					}
-					if (user->botInfo->commands.empty()) {
-						continue;
+					const auto i = commands.find(peerToUser(user->id));
+					if (i != end(commands)) {
+						bots.emplace(user, &i->second);
+						cnt += i->second.size();
 					}
-					bots.emplace(user);
-					cnt += user->botInfo->commands.size();
 				}
 			}
 		}
@@ -504,16 +504,12 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				for (const auto &user : _chat->lastAuthors) {
 					if (!user->isBot()) {
 						continue;
-					} else if (!bots.contains(user)) {
-						continue;
-					} else if (!user->botInfo->inited) {
-						user->session().api().requestFullPeer(user);
 					}
-					if (user->botInfo->commands.empty()) {
+					const auto i = bots.find(user);
+					if (i == end(bots)) {
 						continue;
 					}
-					bots.remove(user);
-					for (const auto &command : user->botInfo->commands) {
+					for (const auto &command : *i->second) {
 						if (!listAllSuggestions) {
 							auto toFilter = (hasUsername || botStatus == 0 || botStatus == 2)
 								? command.command + '@' + user->username
@@ -524,12 +520,13 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 						}
 						brows.push_back(make(user, command));
 					}
+					bots.erase(i);
 				}
 			}
 			if (!bots.empty()) {
 				for (auto i = bots.cbegin(), e = bots.cend(); i != e; ++i) {
-					const auto user = *i;
-					for (const auto &command : user->botInfo->commands) {
+					const auto user = i->first;
+					for (const auto &command : *i->second) {
 						if (!listAllSuggestions) {
 							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? command.command + '@' + user->username : command.command;
 							if (!toFilter.startsWith(_filter, Qt::CaseInsensitive)/* || toFilter.size() == _filter.size()*/) continue;

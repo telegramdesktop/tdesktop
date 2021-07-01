@@ -46,6 +46,10 @@ void MegagroupInfo::setLocation(const ChannelLocation &location) {
 	_location = location;
 }
 
+bool MegagroupInfo::updateBotCommands(const MTPVector<MTPBotInfo> &data) {
+	return Data::UpdateBotCommands(_botCommands, data);
+}
+
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
 , inputChannel(
@@ -803,15 +807,6 @@ void ApplyChannelUpdate(
 		const auto chat = channel->owner().chat(migratedFrom->v);
 		Data::ApplyMigration(chat, channel);
 	}
-	for (const auto &item : update.vbot_info().v) {
-		auto &owner = channel->owner();
-		item.match([&](const MTPDbotInfo &info) {
-			if (const auto user = owner.userLoaded(info.vuser_id().v)) {
-				user->setBotInfo(item);
-				session->api().fullPeerUpdated().notify(user);
-			}
-		});
-	}
 	channel->setAbout(qs(update.vabout()));
 	channel->setMembersCount(update.vparticipants_count().value_or_empty());
 	channel->setAdminsCount(update.vadmins_count().value_or_empty());
@@ -867,6 +862,9 @@ void ApplyChannelUpdate(
 		SetTopPinnedMessageId(channel, pinned->v);
 	}
 	if (channel->isMegagroup()) {
+		if (channel->mgInfo->updateBotCommands(update.vbot_info())) {
+			channel->owner().botCommandsChanged(channel);
+		}
 		const auto stickerSet = update.vstickerset();
 		const auto set = stickerSet ? &stickerSet->c_stickerSet() : nullptr;
 		const auto newSetId = (set ? set->vid().v : 0);

@@ -129,38 +129,9 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			botInfo->description = desc;
 			botInfo->text = Ui::Text::String(st::msgMinWidth);
 		}
-
-		auto &v = d.vcommands().v;
-		botInfo->commands.reserve(v.size());
-		auto changedCommands = false;
-		int32 j = 0;
-		for (const auto &command : v) {
-			command.match([&](const MTPDbotCommand &data) {
-				const auto command = qs(data.vcommand());
-				const auto description = qs(data.vdescription());
-				if (botInfo->commands.size() <= j) {
-					botInfo->commands.push_back({
-						.command = command,
-						.description = description,
-					});
-					changedCommands = true;
-				} else {
-					if (botInfo->commands[j].command != command) {
-						botInfo->commands[j].command = command;
-						changedCommands = true;
-					}
-					if (botInfo->commands[j].description != description) {
-						botInfo->commands[j].description = description;
-						changedCommands = true;
-					}
-				}
-				++j;
-			});
-		}
-		while (j < botInfo->commands.size()) {
-			botInfo->commands.pop_back();
-			changedCommands = true;
-		}
+		const auto changedCommands = Data::UpdateBotCommands(
+			botInfo->commands,
+			d.vcommands());
 
 		botInfo->inited = true;
 

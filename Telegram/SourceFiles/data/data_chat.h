@@ -173,6 +173,12 @@ public:
 	void setGroupCallDefaultJoinAs(PeerId peerId);
 	[[nodiscard]] PeerId groupCallDefaultJoinAs() const;
 
+	void setBotCommands(const MTPVector<MTPBotInfo> &data);
+	[[nodiscard]] auto botCommands() const
+		-> const base::flat_map<UserId, std::vector<BotCommand>> & {
+		return _botCommands;
+	}
+
 	// Still public data members.
 	const MTPint inputChat;
 
@@ -198,6 +204,7 @@ private:
 
 	std::unique_ptr<Data::GroupCall> _call;
 	PeerId _callDefaultJoinAs = 0;
+	base::flat_map<UserId, std::vector<BotCommand>> _botCommands;
 
 	ChannelData *_migratedTo = nullptr;
 	rpl::lifetime _lifetime;

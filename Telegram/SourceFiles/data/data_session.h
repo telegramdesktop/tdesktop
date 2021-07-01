@@ -215,8 +215,8 @@ public:
 
 	void userIsBotChanged(not_null<UserData*> user);
 	[[nodiscard]] rpl::producer<not_null<UserData*>> userIsBotChanges() const;
-	void botCommandsChanged(not_null<UserData*> user);
-	[[nodiscard]] rpl::producer<not_null<UserData*>> botCommandsChanges() const;
+	void botCommandsChanged(not_null<PeerData*> peer);
+	[[nodiscard]] rpl::producer<not_null<PeerData*>> botCommandsChanges() const;
 
 	struct ItemVisibilityQuery {
 		not_null<HistoryItem*> item;
@@ -831,7 +831,7 @@ private:
 	rpl::event_stream<Data::Folder*> _chatsListLoadedEvents;
 	rpl::event_stream<Data::Folder*> _chatsListChanged;
 	rpl::event_stream<not_null<UserData*>> _userIsBotChanges;
-	rpl::event_stream<not_null<UserData*>> _botCommandsChanges;
+	rpl::event_stream<not_null<PeerData*>> _botCommandsChanges;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
 	rpl::event_stream<IdChange> _itemIdChanges;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanges;

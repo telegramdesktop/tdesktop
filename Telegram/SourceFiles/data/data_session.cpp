@@ -1088,11 +1088,11 @@ rpl::producer<not_null<UserData*>> Session::userIsBotChanges() const {
 	return _userIsBotChanges.events();
 }
 
-void Session::botCommandsChanged(not_null<UserData*> user) {
-	_botCommandsChanges.fire_copy(user);
+void Session::botCommandsChanged(not_null<PeerData*> peer) {
+	_botCommandsChanges.fire_copy(peer);
 }
 
-rpl::producer<not_null<UserData*>> Session::botCommandsChanges() const {
+rpl::producer<not_null<PeerData*>> Session::botCommandsChanges() const {
 	return _botCommandsChanges.events();
 }
 

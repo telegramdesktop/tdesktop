@@ -22,6 +22,11 @@ using ChatRestriction = MTPDchatBannedRights::Flag;
 using ChatAdminRights = MTPDchatAdminRights::Flags;
 using ChatRestrictions = MTPDchatBannedRights::Flags;
 
+struct BotCommand {
+	QString command;
+	QString description;
+};
+
 namespace Ui {
 class EmptyUserpic;
 } // namespace Ui
@@ -99,6 +104,13 @@ struct UnavailableReason {
 	const MTPChatBannedRights &rights);
 [[nodiscard]] TimeId ChatBannedRightsUntilDate(
 	const MTPChatBannedRights &rights);
+
+bool UpdateBotCommands(
+	std::vector<BotCommand> &commands,
+	const MTPVector<MTPBotCommand> &data);
+bool UpdateBotCommands(
+	base::flat_map<UserId, std::vector<BotCommand>> &commands,
+	const MTPVector<MTPBotInfo> &data);
 
 } // namespace Data
 

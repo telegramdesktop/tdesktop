@@ -246,6 +246,12 @@ PeerId ChatData::groupCallDefaultJoinAs() const {
 	return _callDefaultJoinAs;
 }
 
+void ChatData::setBotCommands(const MTPVector<MTPBotInfo> &data) {
+	if (Data::UpdateBotCommands(_botCommands, data)) {
+		owner().botCommandsChanged(this);
+	}
+}
+
 namespace Data {
 
 void ApplyChatUpdate(
@@ -393,15 +399,9 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 
 	chat->setMessagesTTL(update.vttl_period().value_or_empty());
 	if (const auto info = update.vbot_info()) {
-		for (const auto &item : info->v) {
-			item.match([&](const MTPDbotInfo &data) {
-				const auto userId = data.vuser_id().v;
-				if (const auto bot = chat->owner().userLoaded(userId)) {
-					bot->setBotInfo(item);
-					chat->session().api().fullPeerUpdated().notify(bot);
-				}
-			});
-		}
+		chat->setBotCommands(*info);
+	} else {
+		chat->setBotCommands(MTP_vector<MTPBotInfo>());
 	}
 	chat->setFullFlags(update.vflags().v);
 	if (const auto photo = update.vchat_photo()) {

@@ -10,11 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "dialogs/dialogs_key.h"
 
-struct BotCommand {
-	QString command;
-	QString description;
-};
-
 struct BotInfo {
 	bool inited = false;
 	bool readsAllHistory = false;

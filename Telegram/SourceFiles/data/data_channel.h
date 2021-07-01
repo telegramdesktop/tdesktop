@@ -56,6 +56,12 @@ public:
 	const ChannelLocation *getLocation() const;
 	void setLocation(const ChannelLocation &location);
 
+	bool updateBotCommands(const MTPVector<MTPBotInfo> &data);
+	[[nodiscard]] auto botCommands() const
+		-> const base::flat_map<UserId, std::vector<BotCommand>> & {
+		return _botCommands;
+	}
+
 	std::deque<not_null<UserData*>> lastParticipants;
 	base::flat_map<not_null<UserData*>, Admin> lastAdmins;
 	base::flat_map<not_null<UserData*>, Restricted> lastRestricted;
@@ -82,6 +88,7 @@ public:
 private:
 	ChatData *_migratedFrom = nullptr;
 	ChannelLocation _location;
+	base::flat_map<UserId, std::vector<BotCommand>> _botCommands;
 
 };
 

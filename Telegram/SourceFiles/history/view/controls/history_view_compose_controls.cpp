@@ -1234,10 +1234,9 @@ void ComposeControls::initAutocomplete() {
 	_field->rawTextEdit()->installEventFilter(_autocomplete.get());
 
 	_window->session().data().botCommandsChanges(
-	) | rpl::filter([=](not_null<UserData*> user) {
-		const auto peer = _history ? _history->peer.get() : nullptr;
-		return peer && (peer == user || !peer->isUser());
-	}) | rpl::start_with_next([=](not_null<UserData*> user) {
+	) | rpl::filter([=](not_null<PeerData*> peer) {
+		return _history && (_history->peer == peer);
+	}) | rpl::start_with_next([=] {
 		if (_autocomplete->clearFilteredBotCommands()) {
 			checkAutocomplete();
 		}

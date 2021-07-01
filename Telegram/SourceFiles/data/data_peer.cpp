@@ -84,6 +84,75 @@ PeerId FakePeerIdForJustName(const QString &name) {
 		: base::crc32(name.constData(), name.size() * sizeof(QChar)));
 }
 
+bool UpdateBotCommands(
+		std::vector<BotCommand> &commands,
+		const MTPVector<MTPBotCommand> &data) {
+	const auto &v = data.v;
+	commands.reserve(v.size());
+	auto result = false;
+	auto index = 0;
+	for (const auto &command : v) {
+		command.match([&](const MTPDbotCommand &data) {
+			const auto command = qs(data.vcommand());
+			const auto description = qs(data.vdescription());
+			if (commands.size() <= index) {
+				commands.push_back({
+					.command = command,
+					.description = description,
+				});
+				result = true;
+			} else {
+				auto &entry = commands[index];
+				if (entry.command != command
+					|| entry.description != description) {
+					entry.command = command;
+					entry.description = description;
+					result = true;
+				}
+			}
+			++index;
+		});
+	}
+	if (index < commands.size()) {
+		result = true;
+	}
+	commands.resize(index);
+	return result;
+}
+
+bool UpdateBotCommands(
+		base::flat_map<UserId, std::vector<BotCommand>> &commands,
+		const MTPVector<MTPBotInfo> &data) {
+	auto result = false;
+	auto filled = base::flat_set<UserId>();
+	filled.reserve(data.v.size());
+	for (const auto &item : data.v) {
+		item.match([&](const MTPDbotInfo &data) {
+			const auto id = UserId(data.vuser_id().v);
+			if (!filled.emplace(id).second) {
+				LOG(("API Error: Two BotInfo for a single bot."));
+				return;
+			}
+			if (data.vcommands().v.isEmpty()) {
+				if (commands.remove(id)) {
+					result = true;
+				}
+			} else if (UpdateBotCommands(commands[id], data.vcommands())) {
+				result = true;
+			}
+		});
+	}
+	for (auto i = begin(commands); i != end(commands);) {
+		if (filled.contains(i->first)) {
+			++i;
+		} else {
+			i = commands.erase(i);
+			result = true;
+		}
+	}
+	return result;
+}
+
 } // namespace Data
 
 PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)

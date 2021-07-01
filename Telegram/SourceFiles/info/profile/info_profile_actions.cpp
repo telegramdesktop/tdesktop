@@ -515,10 +515,10 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 		if (!user->isBot()) {
 			return QString();
 		}
-		for_const (auto &data, user->botInfo->commands) {
-			auto isSame = data.command.compare(
+		for (const auto &data : user->botInfo->commands) {
+			const auto isSame = !data.command.compare(
 				command,
-				Qt::CaseInsensitive) == 0;
+				Qt::CaseInsensitive);
 			if (isSame) {
 				return data.command;
 			}
