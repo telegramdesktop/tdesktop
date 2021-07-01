@@ -77,11 +77,13 @@ public:
 			PeerId peerId,
 			PeerId migratedPeerId,
 			Type type,
-			UniversalMsgId universalId)
+			UniversalMsgId universalId,
+			bool scheduled = false)
 		: peerId(peerId)
 		, migratedPeerId(migratedPeerId)
 		, type(type)
-		, universalId(universalId) {
+		, universalId(universalId)
+		, scheduled(scheduled) {
 			Expects(v::is<MessageId>(universalId) || type == Type::ChatPhoto);
 		}
 
@@ -99,6 +101,7 @@ public:
 		PeerId migratedPeerId = 0;
 		Type type = Type::kCount;
 		UniversalMsgId universalId;
+		bool scheduled = false;
 
 	};
 
