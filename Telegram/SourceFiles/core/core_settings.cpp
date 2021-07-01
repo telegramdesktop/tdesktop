@@ -549,7 +549,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_disableOpenGL = (disableOpenGL == 1);
 	if (!Platform::IsMac()) {
 		Ui::GL::ForceDisable(_disableOpenGL
-			|| Ui::Integration::Instance().openglLastCheckFailed());
+			|| Ui::GL::LastCrashCheckFailed());
 	}
 	_groupCallNoiseSuppression = (groupCallNoiseSuppression == 1);
 	const auto uncheckedWorkMode = static_cast<WorkMode>(workMode);

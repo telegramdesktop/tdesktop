@@ -37,10 +37,8 @@ public:
 	void unregisterLeaveSubscription(not_null<QWidget*> widget) override;
 
 	QString emojiCacheFolder() override;
-
-	void openglCheckStart() override;
-	void openglCheckFinish() override;
-	bool openglLastCheckFailed() override;
+	QString openglCheckFilePath() override;
+	QString angleBackendFilePath() override;
 
 	void textActionsUpdated() override;
 	void activationFromTopPanel() override;

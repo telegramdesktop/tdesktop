@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_lock_widgets.h"
 #include "history/history_location_manager.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/gl/gl_detection.h"
 #include "ui/image/image.h"
 #include "ui/text/text_options.h"
 #include "ui/emoji_config.h"
@@ -281,8 +282,7 @@ void Application::run() {
 		LOG(("Shortcuts Error: %1").arg(error));
 	}
 
-	if (!Platform::IsMac()
-		&& Ui::Integration::Instance().openglLastCheckFailed()) {
+	if (!Platform::IsMac() && Ui::GL::LastCrashCheckFailed()) {
 		showOpenGLCrashNotification();
 	}
 
@@ -297,14 +297,14 @@ void Application::run() {
 void Application::showOpenGLCrashNotification() {
 	const auto enable = [=] {
 		Ui::GL::ForceDisable(false);
-		Ui::Integration::Instance().openglCheckFinish();
+		Ui::GL::CrashCheckFinish();
 		Core::App().settings().setDisableOpenGL(false);
 		Local::writeSettings();
 		App::restart();
 	};
 	const auto keepDisabled = [=] {
 		Ui::GL::ForceDisable(true);
-		Ui::Integration::Instance().openglCheckFinish();
+		Ui::GL::CrashCheckFinish();
 		Core::App().settings().setDisableOpenGL(true);
 		Local::writeSettings();
 	};

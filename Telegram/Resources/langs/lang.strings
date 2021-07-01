@@ -452,6 +452,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_performance" = "Performance";
 "lng_settings_enable_animations" = "Enable animations";
 "lng_settings_enable_opengl" = "Enable OpenGL rendering for media";
+"lng_settings_angle_backend" = "ANGLE graphics backend";
+"lng_settings_angle_backend_auto" = "Auto";
+"lng_settings_angle_backend_d3d9" = "Direct3D 9";
+"lng_settings_angle_backend_d3d11" = "Direct3D 11";
+"lng_settings_angle_backend_d3d11on12" = "D3D11on12";
+"lng_settings_angle_backend_opengl" = "OpenGL";
+"lng_settings_angle_backend_disabled" = "Disabled";
 "lng_settings_sensitive_title" = "Sensitive content";
 "lng_settings_sensitive_disable_filtering" = "Disable filtering";
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
