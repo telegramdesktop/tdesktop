@@ -172,6 +172,21 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     SET PATH=%PATH_BACKUP_%
     cd ..
 
+    git clone https://chromium.googlesource.com/angle/angle
+    cd angle
+    git checkout chromium/4472
+    python scripts/bootstrap.py
+    gclient sync
+
+    git apply ../patches/angle.patch
+
+    gn gen out/Debug --args="is_component_build = false is_debug = true target_cpu = \"x64\" is_clang = false enable_iterator_debugging = true angle_enable_swiftshader=false angle_enable_vulkan=false"
+
+    gn gen out/Release --args="is_component_build = false is_debug = false target_cpu = \"x64\" is_clang = false enable_iterator_debugging = false angle_enable_swiftshader=false angle_enable_vulkan=false"
+
+    ninja -C out/Debug libANGLE_static libGLESv2_static libEGL_static
+    ninja -C out/Release libANGLE_static libGLESv2_static libEGL_static
+
     SET LibrariesPath=%cd%
     git clone git://code.qt.io/qt/qt5.git qt_5_15_2
     cd qt_5_15_2
@@ -190,7 +205,16 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
         -confirm-license ^
         -static ^
         -static-runtime ^
-        -opengl dynamic ^
+        -opengl es2 -no-angle ^
+        -I "%LibrariesPath%\angle\include" ^
+        -D "GL_APICALL=" ^
+        QMAKE_LIBS_OPENGL_ES2_DEBUG="%LibrariesPath%\angle\out\Debug\obj\libGLESv2_static.lib %LibrariesPath%\angle\out\Debug\obj\libANGLE_static.lib d3d9.lib dxgi.lib dxguid.lib" ^
+        QMAKE_LIBS_OPENGL_ES2_RELEASE="%LibrariesPath%\angle\out\Release\obj\libGLESv2_static.lib %LibrariesPath%\angle\out\Release\obj\libANGLE_static.lib d3d9.lib dxgi.lib dxguid.lib" ^
+        -egl ^
+        -D "EGLAPI=" ^
+        -D "DESKTOP_APP_QT_STATIC_ANGLE=" ^
+        QMAKE_LIBS_EGL_DEBUG="%LibrariesPath%\angle\out\Debug\obj\libEGL_static.lib %LibrariesPath%\angle\out\Debug\obj\libGLESv2_static.lib %LibrariesPath%\angle\out\Debug\obj\libANGLE_static.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
+        QMAKE_LIBS_EGL_RELEASE="%LibrariesPath%\angle\out\Release\obj\libEGL_static.lib %LibrariesPath%\angle\out\Release\obj\libGLESv2_static.lib %LibrariesPath%\angle\out\Release\obj\libANGLE_static.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
         -openssl-linked ^
         -I "%LibrariesPath%\openssl_1_1_1\include" ^
         OPENSSL_LIBS_DEBUG="%LibrariesPath%\openssl_1_1_1\out64.dbg\libssl.lib %LibrariesPath%\openssl_1_1_1\out64.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
