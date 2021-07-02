@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/image/image_location_factory.h"
 #include "ui/text/text_utilities.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "ui/emoji_config.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/popup_menu.h"
@@ -127,6 +128,8 @@ private:
 	MTPDstickerSet::Flags _setFlags = 0;
 	TimeId _setInstallDate = TimeId(0);
 	ImageWithLocation _setThumbnail;
+
+	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 
 	MTPInputStickerSet _input;
 
@@ -328,6 +331,10 @@ StickerSetBox::Inner::Inner(
 : RpWidget(parent)
 , _controller(controller)
 , _api(&_controller->session().mtp())
+, _pathGradient(std::make_unique<Ui::PathShiftGradient>(
+	st::windowBgRipple,
+	st::windowBgOver,
+	[=] { update(); }))
 , _input(set)
 , _previewTimer([=] { showPreview(); }) {
 	set.match([&](const MTPDinputStickerSetID &data) {
@@ -652,6 +659,8 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 		+ ((_elements.size() % kStickersPanelPerRow) ? 1 : 0);
 	int32 from = qFloor(e->rect().top() / st::stickersSize.height()), to = qFloor(e->rect().bottom() / st::stickersSize.height()) + 1;
 
+	_pathGradient->startFrame(0, width(), width() / 2);
+
 	for (int32 i = from; i < to; ++i) {
 		for (int32 j = 0; j < kStickersPanelPerRow; ++j) {
 			int32 index = i * kStickersPanelPerRow + j;
@@ -747,7 +756,8 @@ void StickerSetBox::Inner::paintSticker(
 	const auto &media = element.documentMedia;
 	media->checkStickerSmall();
 
-	if (document->sticker()->animated
+	const auto isAnimated = document->sticker()->animated;
+	if (isAnimated
 		&& !element.animated
 		&& media->loaded()) {
 		const_cast<Inner*>(this)->setupLottie(index);
@@ -755,7 +765,7 @@ void StickerSetBox::Inner::paintSticker(
 
 	auto w = 1;
 	auto h = 1;
-	if (element.animated && !document->dimensions.isEmpty()) {
+	if (isAnimated && !document->dimensions.isEmpty()) {
 		const auto request = Lottie::FrameRequest{ boundingBoxSize() * cIntRetinaFactor() };
 		const auto size = request.size(document->dimensions, true) / cIntRetinaFactor();
 		w = std::max(size.width(), 1);
@@ -767,6 +777,16 @@ void StickerSetBox::Inner::paintSticker(
 		h = std::max(qRound(coef * document->dimensions.height()), 1);
 	}
 	QPoint ppos = position + QPoint((st::stickersSize.width() - w) / 2, (st::stickersSize.height() - h) / 2);
+
+
+	ChatHelpers::PaintStickerThumbnailPath(
+		p,
+		media.get(),
+		QRect(ppos, QSize(w, h)),
+		_pathGradient.get());
+	return; AssertIsDebug();
+
+
 	if (element.animated && element.animated->ready()) {
 		const auto frame = element.animated->frame();
 		p.drawImage(
@@ -784,7 +804,7 @@ void StickerSetBox::Inner::paintSticker(
 			p,
 			media.get(),
 			QRect(ppos, QSize(w, h)),
-			st::windowBgRipple->c);
+			_pathGradient.get());
 	}
 }
 

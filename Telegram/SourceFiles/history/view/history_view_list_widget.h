@@ -253,6 +253,7 @@ public:
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;
+	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 
 	~ListWidget();
 
@@ -508,6 +509,8 @@ private:
 	base::flat_map<
 		not_null<PeerData*>,
 		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
+
+	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 
 	int _minHeight = 0;
 	int _visibleTop = 0;

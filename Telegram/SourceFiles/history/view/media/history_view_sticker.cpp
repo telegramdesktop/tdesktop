@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
 #include "ui/image/image.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "ui/emoji_config.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -232,11 +233,20 @@ bool Sticker::paintPixmap(Painter &p, const QRect &r, bool selected) {
 }
 
 void Sticker::paintPath(Painter &p, const QRect &r, bool selected) {
+	const auto pathGradient = _parent->delegate()->elementPathShiftGradient();
+	if (selected) {
+		pathGradient->overrideColors(
+			st::msgServiceBgSelected,
+			st::msgServiceBg);
+	} else {
+		pathGradient->clearOverridenColors();
+	}
+	p.setBrush(selected ? st::msgServiceBgSelected : st::msgServiceBg);
 	ChatHelpers::PaintStickerThumbnailPath(
 		p,
 		_dataMedia.get(),
 		r,
-		(selected ? st::msgServiceBgSelected : st::msgServiceBg)->c);
+		pathGradient);
 }
 
 QPixmap Sticker::paintedPixmap(bool selected) const {

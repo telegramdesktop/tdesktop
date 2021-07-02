@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "window/window_session_controller.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "data/data_session.h"
@@ -60,10 +61,22 @@ bool IsAttachedToPreviousInSavedMessages(
 
 } // namespace
 
-SimpleElementDelegate::SimpleElementDelegate(
-	not_null<Window::SessionController*> controller)
-: _controller(controller) {
+std::unique_ptr<Ui::PathShiftGradient> MakePathShiftGradient(
+		Fn<void()> update) {
+	return std::make_unique<Ui::PathShiftGradient>(
+		st::msgServiceBg,
+		st::msgServiceBgSelected,
+		std::move(update));
 }
+
+SimpleElementDelegate::SimpleElementDelegate(
+	not_null<Window::SessionController*> controller,
+	Fn<void()> update)
+: _controller(controller)
+, _pathGradient(MakePathShiftGradient(std::move(update))) {
+}
+
+SimpleElementDelegate::~SimpleElementDelegate() = default;
 
 std::unique_ptr<HistoryView::Element> SimpleElementDelegate::elementCreate(
 		not_null<HistoryMessage*> message,
@@ -149,6 +162,11 @@ void SimpleElementDelegate::elementHandleViaClick(not_null<UserData*> bot) {
 
 bool SimpleElementDelegate::elementIsChatWide() {
 	return false;
+}
+
+auto SimpleElementDelegate::elementPathShiftGradient()
+-> not_null<Ui::PathShiftGradient*> {
+	return _pathGradient.get();
 }
 
 TextSelection UnshiftItemSelection(

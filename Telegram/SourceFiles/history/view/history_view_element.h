@@ -22,6 +22,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Ui {
+class PathShiftGradient;
+} // namespace Ui
+
 namespace HistoryView {
 
 enum class PointState : char;
@@ -79,13 +83,22 @@ public:
 		const FullMsgId &context) = 0;
 	virtual void elementHandleViaClick(not_null<UserData*> bot) = 0;
 	virtual bool elementIsChatWide() = 0;
+	virtual not_null<Ui::PathShiftGradient*> elementPathShiftGradient() = 0;
+
+	virtual ~ElementDelegate() {
+	}
 
 };
 
+[[nodiscard]] std::unique_ptr<Ui::PathShiftGradient> MakePathShiftGradient(
+	Fn<void()> update);
+
 class SimpleElementDelegate : public ElementDelegate {
 public:
-	explicit SimpleElementDelegate(
-		not_null<Window::SessionController*> controller);
+	SimpleElementDelegate(
+		not_null<Window::SessionController*> controller,
+		Fn<void()> update);
+	~SimpleElementDelegate();
 
 	std::unique_ptr<Element> elementCreate(
 		not_null<HistoryMessage*> message,
@@ -124,9 +137,11 @@ public:
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;
+	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 
 private:
 	const not_null<Window::SessionController*> _controller;
+	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 
 };
 

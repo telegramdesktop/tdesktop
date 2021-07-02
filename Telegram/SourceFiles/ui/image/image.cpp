@@ -108,9 +108,10 @@ QByteArray ExpandPathInlineBytes(const QByteArray &bytes) {
 			} else if (c >= 64) {
 				result.append('-');
 			}
-			char buffer[3] = { 0 };
-			std::to_chars(buffer, buffer + 3, (c & 63));
-			result.append(buffer);
+			//char buffer[3] = { 0 }; // Unavailable on macOS < 10.15.
+			//std::to_chars(buffer, buffer + 3, (c & 63));
+			//result.append(buffer);
+			result.append(QByteArray::number(c & 63));
 		}
 	}
 	result.append('z');

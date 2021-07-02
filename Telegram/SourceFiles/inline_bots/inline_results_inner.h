@@ -29,6 +29,7 @@ class RoundButton;
 class FlatLabel;
 class RippleAnimation;
 class PopupMenu;
+class PathShiftGradient;
 } // namespace Ui
 
 namespace Window {
@@ -154,6 +155,7 @@ private:
 		bool open);
 
 	not_null<Window::SessionController*> _controller;
+	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

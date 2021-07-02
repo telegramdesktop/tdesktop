@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/toast/toast.h"
 #include "ui/inactive_press.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "lang/lang_keys.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "data/data_session.h"
@@ -251,6 +252,7 @@ ListWidget::ListWidget(
 , _controller(controller)
 , _context(_delegate->listContext())
 , _itemAverageHeight(itemMinimalHeight())
+, _pathGradient(MakePathShiftGradient([=] { update(); }))
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _applyUpdatedScrollState([this] { applyUpdatedScrollState(); })
 , _selectEnabled(_delegate->listAllowsMultiSelect())
@@ -1351,6 +1353,10 @@ bool ListWidget::elementIsChatWide() {
 	return _isChatWide;
 }
 
+not_null<Ui::PathShiftGradient*> ListWidget::elementPathShiftGradient() {
+	return _pathGradient.get();
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();
@@ -1498,6 +1504,11 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	});
 
 	Painter p(this);
+
+	_pathGradient->startFrame(
+		0,
+		width(),
+		std::min(st::msgMaxWidth / 2, width() / 2));
 
 	auto ms = crl::now();
 	auto clip = e->rect();

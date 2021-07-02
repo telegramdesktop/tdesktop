@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class Image;
 
+namespace Ui {
+class PathShiftGradient;
+} // namespace Ui
+
 namespace Data {
 class CloudImageView;
 } // namespace Data
@@ -27,11 +31,12 @@ class ItemBase;
 class PaintContext : public PaintContextBase {
 public:
 	PaintContext(crl::time ms, bool selecting, bool paused, bool lastRow)
-		: PaintContextBase(ms, selecting)
-		, paused(paused)
-		, lastRow(lastRow) {
+	: PaintContextBase(ms, selecting)
+	, paused(paused)
+	, lastRow(lastRow) {
 	}
 	bool paused, lastRow;
+	Ui::PathShiftGradient *pathGradient = nullptr;
 
 };
 

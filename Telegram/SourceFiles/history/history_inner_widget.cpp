@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "ui/text/text_options.h"
 #include "ui/boxes/report_box.h"
 #include "ui/layers/generic_box.h"
@@ -156,6 +157,7 @@ HistoryInner::HistoryInner(
 , _peer(history->peer)
 , _history(history)
 , _migrated(history->migrateFrom())
+, _pathGradient(HistoryView::MakePathShiftGradient([=] { update(); }))
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _scrollDateHideTimer([this] { scrollDateHideByTimer(); }) {
 	Instance = this;
@@ -550,6 +552,11 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	const auto guard = gsl::finally([&] {
 		_userpicsCache.clear();
 	});
+
+	_pathGradient->startFrame(
+		0,
+		width(),
+		std::min(st::msgMaxWidth / 2, width() / 2));
 
 	Painter p(this);
 	auto clip = e->rect();
@@ -2623,6 +2630,10 @@ bool HistoryInner::elementIsChatWide() {
 	return _isChatWide;
 }
 
+not_null<Ui::PathShiftGradient*> HistoryInner::elementPathShiftGradient() {
+	return _pathGradient.get();
+}
+
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
@@ -3412,7 +3423,7 @@ void HistoryInner::onParentGeometryChanged() {
 }
 
 not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
-	class Result : public HistoryView::ElementDelegate {
+	class Result final : public HistoryView::ElementDelegate {
 	public:
 		HistoryView::Context elementContext() override {
 			return HistoryView::Context::History;
@@ -3520,6 +3531,11 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 			return Instance
 				? Instance->elementIsChatWide()
 				: false;
+		}
+		not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override {
+			Expects(Instance != nullptr);
+
+			return Instance->elementPathShiftGradient();
 		}
 	};
 

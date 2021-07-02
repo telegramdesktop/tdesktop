@@ -25,6 +25,7 @@ class LinkButton;
 class PopupMenu;
 class RippleAnimation;
 class BoxContent;
+class PathShiftGradient;
 } // namespace Ui
 
 namespace Lottie {
@@ -360,6 +361,8 @@ private:
 	OverState _selected;
 	OverState _pressed;
 	QPoint _lastMousePosition;
+
+	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 
 	Ui::Text::String _megagroupSetAbout;
 	QString _megagroupSetButtonText;

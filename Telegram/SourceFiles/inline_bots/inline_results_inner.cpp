@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "history/view/history_view_cursor_state.h"
 #include "styles/style_chat_helpers.h"
 
@@ -36,6 +37,10 @@ Inner::Inner(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
+, _pathGradient(std::make_unique<Ui::PathShiftGradient>(
+	st::windowBgRipple,
+	st::windowBgOver,
+	[=] { update(); }))
 , _updateInlineItems([=] { updateInlineItems(); })
 , _previewTimer([=] { showPreview(); }) {
 	resize(st::emojiPanWidth - st::emojiScroll.width - st::roundRadiusSmall, st::inlineResultsMinHeight);
@@ -172,6 +177,8 @@ void Inner::paintInlineItems(Painter &p, const QRect &r) {
 	}
 	auto gifPaused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::InlineResults);
 	InlineBots::Layout::PaintContext context(crl::now(), false, gifPaused, false);
+	context.pathGradient = _pathGradient.get();
+	context.pathGradient->startFrame(0, width(), width() / 2);
 
 	auto top = st::stickerPanPadding;
 	if (_switchPmButton) {

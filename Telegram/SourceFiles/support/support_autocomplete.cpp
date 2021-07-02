@@ -508,7 +508,7 @@ ConfirmContactBox::ConfirmContactBox(
 	not_null<History*> history,
 	const Contact &data,
 	Fn<void(Qt::KeyboardModifiers)> submit)
-: SimpleElementDelegate(controller)
+: SimpleElementDelegate(controller, [=] { update(); })
 , _comment(GenerateCommentItem(this, history, data))
 , _contact(GenerateContactItem(this, history, data))
 , _submit(submit) {

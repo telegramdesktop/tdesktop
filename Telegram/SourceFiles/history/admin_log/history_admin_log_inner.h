@@ -129,6 +129,7 @@ public:
 		const FullMsgId &context) override;
 	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;
+	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 
 	~InnerWidget();
 
@@ -247,6 +248,8 @@ private:
 	const not_null<ChannelData*> _channel;
 	const not_null<History*> _history;
 	MTP::Sender _api;
+
+	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 
 	std::vector<OwnedItem> _items;
 	std::set<uint64> _eventIds;

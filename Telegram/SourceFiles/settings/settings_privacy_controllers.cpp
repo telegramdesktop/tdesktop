@@ -691,7 +691,7 @@ rpl::producer<QString> CallsPeer2PeerPrivacyController::exceptionsDescription() 
 
 ForwardsPrivacyController::ForwardsPrivacyController(
 	not_null<Window::SessionController*> controller)
-: SimpleElementDelegate(controller)
+: SimpleElementDelegate(controller, [] {})
 , _controller(controller) {
 }
 

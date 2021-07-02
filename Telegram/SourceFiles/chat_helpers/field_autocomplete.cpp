@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/image/image.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "base/unixtime.h"
@@ -124,6 +125,8 @@ private:
 	bool _previewShown = false;
 
 	bool _isOneColumn = false;
+
+	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 
 	Fn<SendMenu::Type()> _sendMenuType;
 
@@ -738,6 +741,10 @@ FieldAutocomplete::Inner::Inner(
 , _hrows(hrows)
 , _brows(brows)
 , _srows(srows)
+, _pathGradient(std::make_unique<Ui::PathShiftGradient>(
+	st::windowBgRipple,
+	st::windowBgOver,
+	[=] { update(); }))
 , _previewTimer([=] { showPreview(); }) {
 	controller->session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
@@ -770,6 +777,11 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 		- st::defaultScrollArea.width;
 
 	if (!_srows->empty()) {
+		_pathGradient->startFrame(
+			0,
+			width(),
+			std::min(st::msgMaxWidth / 2, width() / 2));
+
 		int32 rows = rowscount(_srows->size(), _stickersPerRow);
 		int32 fromrow = floorclamp(r.y() - st::stickerPanPadding, st::stickerPanSize.height(), 0, rows);
 		int32 torow = ceilclamp(r.y() + r.height() - st::stickerPanPadding, st::stickerPanSize.height(), 0, rows);
@@ -815,6 +827,17 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 					w = std::max(qRound(coef * document->dimensions.width()), 1);
 					h = std::max(qRound(coef * document->dimensions.height()), 1);
 				}
+
+
+				QPoint ppos = pos + QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
+				ChatHelpers::PaintStickerThumbnailPath(
+					p,
+					media.get(),
+					QRect(ppos, QSize(w, h)),
+					_pathGradient.get());
+				continue; AssertIsDebug();
+
+
 				if (sticker.animated && sticker.animated->ready()) {
 					const auto frame = sticker.animated->frame();
 					const auto size = frame.size() / cIntRetinaFactor();
@@ -838,7 +861,7 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 						p,
 						media.get(),
 						QRect(ppos, QSize(w, h)),
-						st::windowBgRipple->c);
+						_pathGradient.get());
 				}
 			}
 		}

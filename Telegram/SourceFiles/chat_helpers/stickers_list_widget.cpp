@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "ui/image/image.h"
 #include "ui/cached_round_corners.h"
 #include "lottie/lottie_multi_player.h"
@@ -899,6 +900,10 @@ StickersListWidget::StickersListWidget(
 : Inner(parent, controller)
 , _api(&controller->session().mtp())
 , _section(Section::Stickers)
+, _pathGradient(std::make_unique<Ui::PathShiftGradient>(
+	st::windowBgRipple,
+	st::windowBgOver,
+	[=] { update(); }))
 , _megagroupSetAbout(st::columnMinimalWidthThird - st::emojiScroll.width - st::emojiPanHeaderLeft)
 , _addText(tr::lng_stickers_featured_add(tr::now).toUpper())
 , _addWidth(st::stickersTrendingAdd.font->width(_addText))
@@ -1531,6 +1536,8 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 		toColumn = _columnCount - toColumn;
 	}
 
+	_pathGradient->startFrame(0, width(), width() / 2);
+
 	auto &sets = shownSets();
 	auto selectedSticker = std::get_if<OverSticker>(&_selected);
 	auto selectedButton = std::get_if<OverButton>(!v::is_null(_pressed)
@@ -1889,6 +1896,16 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 		h = std::max(qRound(coef * document->dimensions.height()), 1);
 	}
 	auto ppos = pos + QPoint((_singleSize.width() - w) / 2, (_singleSize.height() - h) / 2);
+
+
+	PaintStickerThumbnailPath(
+		p,
+		media.get(),
+		QRect(ppos, QSize{ w, h }),
+		_pathGradient.get());
+	return; AssertIsDebug();
+
+
 	if (sticker.animated && sticker.animated->ready()) {
 		auto request = Lottie::FrameRequest();
 		request.box = boundingBoxSize() * cIntRetinaFactor();
@@ -1923,7 +1940,7 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 				p,
 				media.get(),
 				QRect(ppos, QSize{ w, h }),
-				st::windowBgRipple->c);
+				_pathGradient.get());
 		}
 	}
 

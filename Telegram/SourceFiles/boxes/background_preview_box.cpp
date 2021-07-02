@@ -399,7 +399,7 @@ BackgroundPreviewBox::BackgroundPreviewBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
 	const Data::WallPaper &paper)
-: SimpleElementDelegate(controller)
+: SimpleElementDelegate(controller, [=] { update(); })
 , _controller(controller)
 , _text1(GenerateTextItem(
 	delegate(),

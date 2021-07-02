@@ -34,7 +34,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd ThirdParty
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 7f8a282
+    git checkout d051cbc
     cd ../
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
@@ -65,7 +65,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 7f8a282
+    git checkout d051cbc
     cd ..
 
     git clone https://github.com/desktop-app/lzma.git
@@ -178,11 +178,11 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     python scripts/bootstrap.py
     gclient sync
 
-    git apply ../patches/angle.patch
+    for /r %i in (..\patches\angle\*) do git apply %i
 
-    gn gen out/Debug --args="is_component_build = false is_debug = true target_cpu = \"x64\" is_clang = false enable_iterator_debugging = true angle_enable_swiftshader=false angle_enable_vulkan=false"
+    gn gen out/Debug --args="is_component_build=false is_debug=true target_cpu=\"x64\" is_clang=false enable_iterator_debugging=true angle_enable_swiftshader=false angle_enable_vulkan=false angle_default_d3d9=true"
 
-    gn gen out/Release --args="is_component_build = false is_debug = false target_cpu = \"x64\" is_clang = false enable_iterator_debugging = false angle_enable_swiftshader=false angle_enable_vulkan=false"
+    gn gen out/Release --args="is_component_build=false is_debug=false target_cpu=\"x64\" is_clang=false enable_iterator_debugging=false angle_enable_swiftshader=false angle_enable_vulkan=false angle_default_d3d9=true"
 
     ninja -C out/Debug libANGLE_static libGLESv2_static libEGL_static
     ninja -C out/Release libANGLE_static libGLESv2_static libEGL_static

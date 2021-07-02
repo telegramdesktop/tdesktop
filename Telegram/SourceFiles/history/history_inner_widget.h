@@ -36,6 +36,7 @@ class SessionController;
 namespace Ui {
 class PopupMenu;
 enum class ReportReason;
+class PathShiftGradient;
 } // namespace Ui
 
 class HistoryWidget;
@@ -105,6 +106,7 @@ public:
 		const FullMsgId &context);
 	void elementHandleViaClick(not_null<UserData*> bot);
 	bool elementIsChatWide();
+	not_null<Ui::PathShiftGradient*> elementPathShiftGradient();
 
 	void updateBotInfo(bool recount = true);
 
@@ -365,6 +367,7 @@ private:
 	SelectedItems _selected;
 	std::optional<Ui::ReportReason> _chooseForReportReason;
 
+	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 	bool _isChatWide = false;
 
 	base::flat_set<not_null<const HistoryItem*>> _animatedStickersPlayed;

@@ -26,6 +26,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Ui {
+class PathShiftGradient;
+} // namespace Ui
+
 namespace Data {
 class DocumentMedia;
 class StickersSetThumbnailView;
@@ -75,6 +79,12 @@ bool PaintStickerThumbnailPath(
 	QPainter &p,
 	not_null<Data::DocumentMedia*> media,
 	QRect target,
-	QColor fg);
+	QLinearGradient *gradient = nullptr);
+
+bool PaintStickerThumbnailPath(
+	QPainter &p,
+	not_null<Data::DocumentMedia*> media,
+	QRect target,
+	not_null<Ui::PathShiftGradient*> gradient);
 
 } // namespace ChatHelpers
