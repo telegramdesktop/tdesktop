@@ -411,6 +411,9 @@ bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
 			const auto context = Glib::MainContext::create();
 			const auto loop = Glib::MainLoop::create(context);
 			g_main_context_push_thread_default(context->gobj());
+			const auto contextGuard = gsl::finally([&] {
+				g_main_context_pop_thread_default(context->gobj());
+			});
 			bool result = false;
 
 			const auto signalId = _private->dbusConnection->signal_subscribe(
@@ -442,11 +445,12 @@ bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
 				}
 			});
 
-			QWindow window;
-			QGuiApplicationPrivate::showModalWindow(&window);
-			loop->run();
-			g_main_context_pop_thread_default(context->gobj());
-			QGuiApplicationPrivate::hideModalWindow(&window);
+			if (signalId != 0) {
+				QWindow window;
+				QGuiApplicationPrivate::showModalWindow(&window);
+				loop->run();
+				QGuiApplicationPrivate::hideModalWindow(&window);
+			}
 
 			return result;
 		} catch (...) {
