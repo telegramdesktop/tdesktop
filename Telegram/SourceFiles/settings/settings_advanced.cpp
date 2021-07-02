@@ -514,6 +514,7 @@ void SetupAnimations(not_null<Ui::VerticalLayout*> container) {
 	}, container->lifetime());
 }
 
+#ifdef Q_OS_WIN
 void SetupANGLE(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
@@ -584,6 +585,7 @@ void SetupANGLE(
 		}));
 	});
 }
+#endif // Q_OS_WIN
 
 void SetupOpenGL(
 		not_null<Window::SessionController*> controller,
@@ -623,11 +625,13 @@ void SetupPerformance(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {
 	SetupAnimations(container);
-	if constexpr (Platform::IsWindows()) {
-		SetupANGLE(controller, container);
-	} else if constexpr (Platform::IsLinux()) {
+#ifdef Q_OS_WIN
+	SetupANGLE(controller, container);
+#else // Q_OS_WIN
+	if constexpr (!Platform::IsMac()) {
 		SetupOpenGL(controller, container);
 	}
+#endif // Q_OS_WIN
 }
 
 void SetupSystemIntegration(
