@@ -151,8 +151,6 @@ QSize Sticker::GetAnimatedEmojiSize(
 
 void Sticker::draw(Painter &p, const QRect &r, bool selected) {
 	ensureDataMediaCreated();
-	paintPath(p, r, selected);
-	return;
 	if (readyToDrawLottie()) {
 		paintLottie(p, r, selected);
 	} else if (!_data->sticker()
