@@ -778,15 +778,6 @@ void StickerSetBox::Inner::paintSticker(
 	}
 	QPoint ppos = position + QPoint((st::stickersSize.width() - w) / 2, (st::stickersSize.height() - h) / 2);
 
-
-	ChatHelpers::PaintStickerThumbnailPath(
-		p,
-		media.get(),
-		QRect(ppos, QSize(w, h)),
-		_pathGradient.get());
-	return; AssertIsDebug();
-
-
 	if (element.animated && element.animated->ready()) {
 		const auto frame = element.animated->frame();
 		p.drawImage(

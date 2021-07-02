@@ -828,16 +828,6 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 					h = std::max(qRound(coef * document->dimensions.height()), 1);
 				}
 
-
-				QPoint ppos = pos + QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
-				ChatHelpers::PaintStickerThumbnailPath(
-					p,
-					media.get(),
-					QRect(ppos, QSize(w, h)),
-					_pathGradient.get());
-				continue; AssertIsDebug();
-
-
 				if (sticker.animated && sticker.animated->ready()) {
 					const auto frame = sticker.animated->frame();
 					const auto size = frame.size() / cIntRetinaFactor();

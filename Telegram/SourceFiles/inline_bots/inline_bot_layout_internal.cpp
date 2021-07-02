@@ -468,22 +468,6 @@ void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 		p.setOpacity(1);
 	}
 
-	if (context->pathGradient) {
-		const auto thumbSize = getThumbSize();
-		const auto w = thumbSize.width();
-		const auto h = thumbSize.height();
-		ChatHelpers::PaintStickerThumbnailPath(
-			p,
-			_dataMedia.get(),
-			QRect(
-				(st::stickerPanSize.width() - w) / 2,
-				(st::stickerPanSize.height() - h) / 2,
-				w,
-				h),
-			context->pathGradient);
-	}
-	return; AssertIsDebug();
-
 	prepareThumbnail();
 	if (_lottie && _lottie->ready()) {
 		const auto frame = _lottie->frame();

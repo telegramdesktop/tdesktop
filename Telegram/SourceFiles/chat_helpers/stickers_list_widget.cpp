@@ -1897,15 +1897,6 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 	}
 	auto ppos = pos + QPoint((_singleSize.width() - w) / 2, (_singleSize.height() - h) / 2);
 
-
-	PaintStickerThumbnailPath(
-		p,
-		media.get(),
-		QRect(ppos, QSize{ w, h }),
-		_pathGradient.get());
-	return; AssertIsDebug();
-
-
 	if (sticker.animated && sticker.animated->ready()) {
 		auto request = Lottie::FrameRequest();
 		request.box = boundingBoxSize() * cIntRetinaFactor();
