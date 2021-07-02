@@ -108,6 +108,9 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 		const auto context = Glib::MainContext::create();
 		const auto loop = Glib::MainLoop::create(context);
 		g_main_context_push_thread_default(context->gobj());
+		const auto contextGuard = gsl::finally([&] {
+			g_main_context_pop_thread_default(context->gobj());
+		});
 
 		const auto signalId = connection->signal_subscribe(
 			[&](
@@ -163,7 +166,6 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 			QWindow window;
 			QGuiApplicationPrivate::showModalWindow(&window);
 			loop->run();
-			g_main_context_pop_thread_default(context->gobj());
 			QGuiApplicationPrivate::hideModalWindow(&window);
 		}
 
