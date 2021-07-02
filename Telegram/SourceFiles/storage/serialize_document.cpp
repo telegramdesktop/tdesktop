@@ -18,7 +18,7 @@ namespace Serialize {
 namespace {
 
 constexpr auto kVersionTag = int32(0x7FFFFFFF);
-constexpr auto kVersion = 1;
+constexpr auto kVersion = 2;
 
 enum StickerSetType {
 	StickerSetTypeEmpty = 0,
@@ -54,7 +54,10 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 	writeImageLocation(stream, document->thumbnailLocation());
 	stream << qint32(document->thumbnailByteSize());
 	writeImageLocation(stream, document->videoThumbnailLocation());
-	stream << qint32(document->videoThumbnailByteSize());
+	stream
+		<< qint32(document->videoThumbnailByteSize())
+		<< qint32(document->inlineThumbnailIsPath() ? 1 : 0)
+		<< document->inlineThumbnailBytes();
 }
 
 DocumentData *Document::readFromStreamHelper(
@@ -124,11 +127,16 @@ DocumentData *Document::readFromStreamHelper(
 	}
 	std::optional<ImageLocation> videoThumb;
 	qint32 thumbnailByteSize = 0, videoThumbnailByteSize = 0;
+	qint32 inlineThumbnailIsPath = 0;
+	QByteArray inlineThumbnailBytes;
 	const auto thumb = readImageLocation(streamAppVersion, stream);
 	if (version >= 1) {
 		stream >> thumbnailByteSize;
 		videoThumb = readImageLocation(streamAppVersion, stream);
 		stream >> videoThumbnailByteSize;
+		if (version >= 2) {
+			stream >> inlineThumbnailIsPath >> inlineThumbnailBytes;
+		}
 	} else {
 		videoThumb = ImageLocation();
 	}
@@ -164,7 +172,10 @@ DocumentData *Document::readFromStreamHelper(
 		date,
 		attributes,
 		mime,
-		InlineImageLocation(),
+		InlineImageLocation{
+			inlineThumbnailBytes,
+			(inlineThumbnailIsPath == 1),
+		},
 		ImageWithLocation{
 			.location = *thumb,
 			.bytesCount = thumbnailByteSize
@@ -195,8 +206,10 @@ DocumentData *Document::readFromStream(
 int Document::sizeInStream(DocumentData *document) {
 	int result = 0;
 
-	// id + access + date + version
-	result += sizeof(quint64) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32);
+	// id + access + date
+	result += sizeof(quint64) + sizeof(quint64) + sizeof(qint32);
+	// file_reference + version tag + version
+	result += bytearraySize(document->_fileReference) + sizeof(qint32) * 2;
 	// + namelen + name + mimelen + mime + dc + size
 	result += stringSize(document->filename()) + stringSize(document->mimeString()) + sizeof(qint32) + sizeof(qint32);
 	// + width + height
@@ -213,6 +226,11 @@ int Document::sizeInStream(DocumentData *document) {
 	}
 	// + thumb loc
 	result += Serialize::imageLocationSize(document->thumbnailLocation());
+	result += sizeof(qint32); // thumbnail_byte_size
+	result += Serialize::imageLocationSize(document->videoThumbnailLocation());
+	result += sizeof(qint32); // video_thumbnail_byte_size
+
+	result += sizeof(qint32) + Serialize::bytearraySize(document->inlineThumbnailBytes());
 
 	return result;
 }
