@@ -779,6 +779,12 @@ void StickerSetBox::Inner::paintSticker(
 			ppos,
 			width(),
 			image->pix(w, h));
+	} else {
+		ChatHelpers::PaintStickerThumbnailPath(
+			p,
+			media.get(),
+			QRect(ppos, QSize(w, h)),
+			st::windowBgRipple->c);
 	}
 }
 

@@ -1995,7 +1995,7 @@ void Account::importOldRecentStickers() {
 			date,
 			attributes,
 			mime,
-			QByteArray(),
+			InlineImageLocation(),
 			ImageWithLocation(),
 			ImageWithLocation(),
 			dc,

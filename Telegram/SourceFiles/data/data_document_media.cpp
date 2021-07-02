@@ -172,7 +172,7 @@ void DocumentMedia::setGoodThumbnail(QImage thumbnail) {
 }
 
 Image *DocumentMedia::thumbnailInline() const {
-	if (!_inlineThumbnail) {
+	if (!_inlineThumbnail && !_owner->inlineThumbnailIsPath()) {
 		const auto bytes = _owner->inlineThumbnailBytes();
 		if (!bytes.isEmpty()) {
 			auto image = Images::FromInlineBytes(bytes);
@@ -184,6 +184,19 @@ Image *DocumentMedia::thumbnailInline() const {
 		}
 	}
 	return _inlineThumbnail.get();
+}
+
+const QPainterPath &DocumentMedia::thumbnailPath() const {
+	if (_pathThumbnail.isEmpty() && _owner->inlineThumbnailIsPath()) {
+		const auto bytes = _owner->inlineThumbnailBytes();
+		if (!bytes.isEmpty()) {
+			_pathThumbnail = Images::PathFromInlineBytes(bytes);
+			if (_pathThumbnail.isEmpty()) {
+				_owner->clearInlineThumbnailBytes();
+			}
+		}
+	}
+	return _pathThumbnail;
 }
 
 Image *DocumentMedia::thumbnail() const {

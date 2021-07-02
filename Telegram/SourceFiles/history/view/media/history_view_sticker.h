@@ -84,7 +84,8 @@ public:
 private:
 	[[nodiscard]] bool isEmojiSticker() const;
 	void paintLottie(Painter &p, const QRect &r, bool selected);
-	void paintPixmap(Painter &p, const QRect &r, bool selected);
+	bool paintPixmap(Painter &p, const QRect &r, bool selected);
+	void paintPath(Painter &p, const QRect &r, bool selected);
 	[[nodiscard]] QPixmap paintedPixmap(bool selected) const;
 
 	void ensureDataMediaCreated() const;

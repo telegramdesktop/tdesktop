@@ -442,12 +442,17 @@ bool DocumentData::checkWallPaperProperties() {
 }
 
 void DocumentData::updateThumbnails(
-		const QByteArray &inlineThumbnailBytes,
+		const InlineImageLocation &inlineThumbnail,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &videoThumbnail) {
-	if (!inlineThumbnailBytes.isEmpty()
+	if (!inlineThumbnail.bytes.isEmpty()
 		&& _inlineThumbnailBytes.isEmpty()) {
-		_inlineThumbnailBytes = inlineThumbnailBytes;
+		_inlineThumbnailBytes = inlineThumbnail.bytes;
+		if (inlineThumbnail.isPath) {
+			_flags |= Flag::InlineThumbnailIsPath;
+		} else {
+			_flags &= ~Flag::InlineThumbnailIsPath;
+		}
 	}
 	Data::UpdateCloudFile(
 		_thumbnail,

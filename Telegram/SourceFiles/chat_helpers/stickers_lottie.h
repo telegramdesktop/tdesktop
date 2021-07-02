@@ -71,4 +71,10 @@ enum class StickerLottieSize : uchar {
 	QSize box,
 	std::shared_ptr<Lottie::FrameRenderer> renderer = nullptr);
 
+bool PaintStickerThumbnailPath(
+	QPainter &p,
+	not_null<Data::DocumentMedia*> media,
+	QRect target,
+	QColor fg);
+
 } // namespace ChatHelpers

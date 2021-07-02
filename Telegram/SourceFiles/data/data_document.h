@@ -171,12 +171,15 @@ public:
 	[[nodiscard]] int videoThumbnailByteSize() const;
 
 	void updateThumbnails(
-		const QByteArray &inlineThumbnailBytes,
+		const InlineImageLocation &inlineThumbnail,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &videoThumbnail);
 
 	[[nodiscard]] QByteArray inlineThumbnailBytes() const {
 		return _inlineThumbnailBytes;
+	}
+	[[nodiscard]] bool inlineThumbnailIsPath() const {
+		return (_flags & Flag::InlineThumbnailIsPath);
 	}
 	void clearInlineThumbnailBytes() {
 		_inlineThumbnailBytes = QByteArray();
@@ -257,6 +260,7 @@ private:
 		DownloadCancelled = 0x10,
 		LoadedInMediaCache = 0x20,
 		HasAttachedStickers = 0x40,
+		InlineThumbnailIsPath = 0x80,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };

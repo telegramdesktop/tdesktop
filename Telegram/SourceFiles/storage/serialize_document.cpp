@@ -164,7 +164,7 @@ DocumentData *Document::readFromStreamHelper(
 		date,
 		attributes,
 		mime,
-		QByteArray(),
+		InlineImageLocation(),
 		ImageWithLocation{
 			.location = *thumb,
 			.bytesCount = thumbnailByteSize

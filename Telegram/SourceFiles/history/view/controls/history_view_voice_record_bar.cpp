@@ -106,7 +106,7 @@ enum class FilterType {
 		base::unixtime::now(),
 		QVector<MTPDocumentAttribute>(),
 		QString(),
-		QByteArray(),
+		InlineImageLocation(),
 		ImageWithLocation(),
 		ImageWithLocation(),
 		owner->session().mainDcId(),

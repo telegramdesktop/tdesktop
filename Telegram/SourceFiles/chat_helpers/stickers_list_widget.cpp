@@ -1918,6 +1918,12 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int section, 
 			if (sticker.savedFrame.isNull()) {
 				sticker.savedFrame = pixmap;
 			}
+		} else {
+			PaintStickerThumbnailPath(
+				p,
+				media.get(),
+				QRect(ppos, QSize{ w, h }),
+				st::windowBgRipple->c);
 		}
 	}
 

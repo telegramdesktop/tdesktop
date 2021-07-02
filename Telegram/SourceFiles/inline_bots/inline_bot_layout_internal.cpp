@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "data/stickers/data_stickers.h"
-#include "chat_helpers/gifs_list_widget.h" // ChatHelpers::AddGifAction
+#include "chat_helpers/gifs_list_widget.h" // ChatHelpers::AddGifAction.
 #include "chat_helpers/stickers_lottie.h"
 #include "inline_bots/inline_bot_result.h"
 #include "lottie/lottie_single_player.h"
@@ -483,6 +483,19 @@ void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 		int w = _thumb.width() / cIntRetinaFactor(), h = _thumb.height() / cIntRetinaFactor();
 		QPoint pos = QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
 		p.drawPixmap(pos, _thumb);
+	} else {
+		const auto thumbSize = getThumbSize();
+		const auto w = thumbSize.width();
+		const auto h = thumbSize.height();
+		ChatHelpers::PaintStickerThumbnailPath(
+			p,
+			_dataMedia.get(),
+			QRect(
+				(st::stickerPanSize.width() - w) / 2,
+				(st::stickerPanSize.height() - h) / 2,
+				w,
+				h),
+			st::windowBgRipple->c);
 	}
 }
 

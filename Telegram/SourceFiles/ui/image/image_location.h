@@ -620,6 +620,11 @@ struct ImageWithLocation {
 	int progressivePartSize = 0;
 };
 
+struct InlineImageLocation {
+	QByteArray bytes;
+	bool isPath = false;
+};
+
 InMemoryKey inMemoryKey(const StorageFileLocation &location);
 
 inline InMemoryKey inMemoryKey(const StorageImageLocation &location) {

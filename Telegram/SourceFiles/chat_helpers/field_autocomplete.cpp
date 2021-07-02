@@ -832,6 +832,13 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				} else if (const auto image = media->getStickerSmall()) {
 					QPoint ppos = pos + QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
 					p.drawPixmapLeft(ppos, width(), image->pix(w, h));
+				} else {
+					QPoint ppos = pos + QPoint((st::stickerPanSize.width() - w) / 2, (st::stickerPanSize.height() - h) / 2);
+					ChatHelpers::PaintStickerThumbnailPath(
+						p,
+						media.get(),
+						QRect(ppos, QSize(w, h)),
+						st::windowBgRipple->c);
 				}
 			}
 		}

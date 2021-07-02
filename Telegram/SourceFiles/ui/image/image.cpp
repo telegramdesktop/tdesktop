@@ -93,6 +93,206 @@ QImage FromInlineBytes(const QByteArray &bytes) {
 	return App::readImage(ExpandInlineBytes(bytes));
 }
 
+// Thanks TDLib for code.
+QByteArray ExpandPathInlineBytes(const QByteArray &bytes) {
+	auto result = QByteArray();
+	result.reserve(3 * (bytes.size() + 1));
+	result.append('M');
+	for (unsigned char c : bytes) {
+		if (c >= 128 + 64) {
+			result.append("AACAAAAHAAALMAAAQASTAVAAAZ"
+				"aacaaaahaaalmaaaqastava.az0123456789-,"[c - 128 - 64]);
+		} else {
+			if (c >= 128) {
+				result.append(',');
+			} else if (c >= 64) {
+				result.append('-');
+			}
+			char buffer[3] = { 0 };
+			std::to_chars(buffer, buffer + 3, (c & 63));
+			result.append(buffer);
+		}
+	}
+	result.append('z');
+	return result;
+}
+
+QPainterPath PathFromInlineBytes(const QByteArray &bytes) {
+	if (bytes.isEmpty()) {
+		return QPainterPath();
+	}
+	const auto expanded = ExpandPathInlineBytes(bytes);
+	const auto path = expanded.data(); // Allows checking for '\0' by index.
+	auto position = 0;
+
+	const auto isAlpha = [](char c) {
+		c |= 0x20;
+		return 'a' <= c && c <= 'z';
+	};
+	const auto isDigit = [](char c) {
+		return '0' <= c && c <= '9';
+	};
+	const auto skipCommas = [&] {
+		while (path[position] == ',') {
+			++position;
+		}
+	};
+	const auto getNumber = [&] {
+		skipCommas();
+		auto sign = 1;
+		if (path[position] == '-') {
+			sign = -1;
+			++position;
+		}
+		double res = 0;
+		while (isDigit(path[position])) {
+			res = res * 10 + path[position++] - '0';
+		}
+		if (path[position] == '.') {
+			++position;
+			double mul = 0.1;
+			while (isDigit(path[position])) {
+				res += (path[position] - '0') * mul;
+				mul *= 0.1;
+				++position;
+			}
+		}
+		return sign * res;
+	};
+
+	auto result = QPainterPath();
+	auto x = 0.;
+	auto y = 0.;
+	while (path[position] != '\0') {
+		skipCommas();
+		if (path[position] == '\0') {
+			break;
+		}
+
+		while (path[position] == 'm' || path[position] == 'M') {
+			auto command = path[position++];
+			do {
+				if (command == 'm') {
+					x += getNumber();
+					y += getNumber();
+				} else {
+					x = getNumber();
+					y = getNumber();
+				}
+				skipCommas();
+			} while (path[position] != '\0' && !isAlpha(path[position]));
+		}
+
+		auto xStart = x;
+		auto yStart = y;
+		result.moveTo(xStart, yStart);
+		auto haveLastEndControlPoint = false;
+		auto xLastEndControlPoint = 0.;
+		auto yLastEndControlPoint = 0.;
+		auto isClosed = false;
+		auto command = '-';
+		while (!isClosed) {
+			skipCommas();
+			if (path[position] == '\0') {
+				LOG(("SVG Error: Receive unclosed path: %1"
+					).arg(QString::fromLatin1(path)));
+				return QPainterPath();
+			}
+			if (isAlpha(path[position])) {
+				command = path[position++];
+			}
+			switch (command) {
+			case 'l':
+			case 'L':
+			case 'h':
+			case 'H':
+			case 'v':
+			case 'V':
+				if (command == 'l' || command == 'h') {
+					x += getNumber();
+				} else if (command == 'L' || command == 'H') {
+					x = getNumber();
+				}
+				if (command == 'l' || command == 'v') {
+					y += getNumber();
+				} else if (command == 'L' || command == 'V') {
+					y = getNumber();
+				}
+				result.lineTo(x, y);
+				haveLastEndControlPoint = false;
+				break;
+			case 'C':
+			case 'c':
+			case 'S':
+			case 's': {
+				auto xStartControlPoint = 0.;
+				auto yStartControlPoint = 0.;
+				if (command == 'S' || command == 's') {
+					if (haveLastEndControlPoint) {
+						xStartControlPoint = 2 * x - xLastEndControlPoint;
+						yStartControlPoint = 2 * y - yLastEndControlPoint;
+					} else {
+						xStartControlPoint = x;
+						yStartControlPoint = y;
+					}
+				} else {
+					xStartControlPoint = getNumber();
+					yStartControlPoint = getNumber();
+					if (command == 'c') {
+						xStartControlPoint += x;
+						yStartControlPoint += y;
+					}
+				}
+
+				xLastEndControlPoint = getNumber();
+				yLastEndControlPoint = getNumber();
+				if (command == 'c' || command == 's') {
+					xLastEndControlPoint += x;
+					yLastEndControlPoint += y;
+				}
+				haveLastEndControlPoint = true;
+
+				if (command == 'c' || command == 's') {
+					x += getNumber();
+					y += getNumber();
+				} else {
+					x = getNumber();
+					y = getNumber();
+				}
+				result.cubicTo(
+					xStartControlPoint,
+					yStartControlPoint,
+					xLastEndControlPoint,
+					yLastEndControlPoint,
+					x,
+					y);
+				break;
+			}
+			case 'm':
+			case 'M':
+				--position;
+				[[fallthrough]];
+			case 'z':
+			case 'Z':
+				if (x != xStart || y != yStart) {
+					x = xStart;
+					y = yStart;
+					result.lineTo(x, y);
+				}
+				isClosed = true;
+				break;
+			default:
+				LOG(("SVG Error: Receive invalid command %1 at pos %2: %3"
+					).arg(command
+					).arg(position
+					).arg(QString::fromLatin1(path)));
+				return QPainterPath();
+			}
+		}
+	}
+	return result;
+}
+
 } // namespace Images
 
 Image::Image(const QString &path) : Image(ReadContent(path)) {

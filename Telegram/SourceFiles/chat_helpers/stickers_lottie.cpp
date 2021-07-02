@@ -188,4 +188,27 @@ std::unique_ptr<Lottie::SinglePlayer> LottieThumbnail(
 		box);
 }
 
+bool PaintStickerThumbnailPath(
+		QPainter &p,
+		not_null<Data::DocumentMedia*> media,
+		QRect target,
+		QColor fg) {
+	const auto &path = media->thumbnailPath();
+	const auto dimensions = media->owner()->dimensions;
+	if (path.isEmpty() || dimensions.isEmpty()) {
+		return false;
+	}
+	p.save();
+	auto hq = PainterHighQualityEnabler(p);
+	p.setBrush(fg);
+	p.setPen(Qt::NoPen);
+	p.translate(target.topLeft());
+	p.scale(
+		target.width() / float64(dimensions.width()),
+		target.height() / float64(dimensions.height()));
+	p.drawPath(path);
+	p.restore();
+	return true;
+}
+
 } // namespace ChatHelpers
