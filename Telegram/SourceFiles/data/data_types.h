@@ -95,7 +95,7 @@ class PeerData;
 class UserData;
 class ChatData;
 class ChannelData;
-class BotCommand;
+struct BotCommand;
 struct BotInfo;
 
 namespace Data {
