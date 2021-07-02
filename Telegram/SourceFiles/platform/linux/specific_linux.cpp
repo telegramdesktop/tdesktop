@@ -148,6 +148,9 @@ void PortalAutostart(bool start, bool silent) {
 		const auto context = Glib::MainContext::create();
 		const auto loop = Glib::MainLoop::create(context);
 		g_main_context_push_thread_default(context->gobj());
+		const auto contextGuard = gsl::finally([&] {
+			g_main_context_pop_thread_default(context->gobj());
+		});
 
 		const auto signalId = connection->signal_subscribe(
 			[&](
@@ -200,7 +203,6 @@ void PortalAutostart(bool start, bool silent) {
 			QWindow window;
 			QGuiApplicationPrivate::showModalWindow(&window);
 			loop->run();
-			g_main_context_pop_thread_default(context->gobj());
 			QGuiApplicationPrivate::hideModalWindow(&window);
 		}
 	} catch (const Glib::Error &e) {
