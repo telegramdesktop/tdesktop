@@ -17,6 +17,12 @@ photoEditorControlsHeight: 146px;
 photoEditorControlsBottomSkip: 20px;
 photoEditorControlsCenterSkip: 6px;
 
+photoEditorContentMargins: margins(
+	photoEditorControlsBottomSkip,
+	photoEditorControlsBottomSkip,
+	photoEditorControlsBottomSkip,
+	photoEditorControlsHeight);
+
 photoEditorBarAnimationDuration: 200;
 
 photoEditorButtonIconFg: mediaviewPipControlsFg;

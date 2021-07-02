@@ -80,11 +80,11 @@ PhotoEditor::PhotoEditor(
 			return;
 		}
 		const auto geometry = QRect(QPoint(), size);
-		const auto contentRect = geometry
-			- style::margins(0, 0, 0, st::photoEditorControlsHeight);
+		const auto contentRect = geometry - st::photoEditorContentMargins;
 		_content->setGeometry(contentRect);
+		const auto contentBottom = contentRect.top() + contentRect.height();
 		const auto controlsRect = geometry
-			- style::margins(0, contentRect.height(), 0, 0);
+			- style::margins(0, contentBottom, 0, 0);
 		_controls->setGeometry(controlsRect);
 	}, lifetime());
 
