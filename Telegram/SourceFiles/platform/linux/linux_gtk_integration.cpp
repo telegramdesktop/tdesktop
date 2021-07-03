@@ -154,11 +154,28 @@ void GtkIntegration::Private::handleMethodCall(
 			const auto filepath = base::Platform::GlibVariantCast<
 				Glib::ustring>(parametersCopy.get_child(1));
 
-			const auto result = File::internal::ShowGtkOpenWithDialog(
+			const auto dialog = File::internal::CreateGtkOpenWithDialog(
 				QString::fromStdString(parent),
-				QString::fromStdString(filepath));
+				QString::fromStdString(filepath)).release();
 
-			if (result) {
+			if (dialog) {
+				dialog->response(
+				) | rpl::start_with_next([=](bool response) {
+					try {
+						connection->emit_signal(
+							std::string(kObjectPath),
+							std::string(kInterface),
+							"OpenWithDialogResponse",
+							parentDBusName,
+							base::Platform::MakeGlibVariant(std::tuple{
+								response,
+							}));
+					} catch (...) {
+					}
+
+					delete dialog;
+				}, dialog->lifetime());
+
 				invocation->return_value({});
 				return;
 			}
@@ -340,23 +357,6 @@ int GtkIntegration::exec(const QString &parentDBusName, int ppid) {
 		_private->introspectionData->lookup_interface(),
 		_private->interfaceVTable);
 
-	rpl::lifetime lifetime;
-
-	File::internal::GtkOpenWithDialogResponse(
-	) | rpl::start_with_next([=](bool response) {
-		try {
-			_private->dbusConnection->emit_signal(
-				std::string(kObjectPath),
-				std::string(kInterface),
-				"OpenWithDialogResponse",
-				_private->parentDBusName,
-				base::Platform::MakeGlibVariant(std::tuple{
-					response,
-				}));
-		} catch (...) {
-		}
-	}, lifetime);
-
 	const auto app = Gio::Application::create(_private->serviceName);
 	app->hold();
 	_private->parentServiceWatcherId = base::Platform::DBus::RegisterServiceWatcher(
@@ -459,21 +459,24 @@ bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
 		return false;
 	}
 
-	if (!File::internal::ShowGtkOpenWithDialog(parent, filepath)) {
+	const auto dialog = File::internal::CreateGtkOpenWithDialog(
+		parent,
+		filepath);
+
+	if (!dialog) {
 		return false;
 	}
 
 	const auto context = Glib::MainContext::create();
 	const auto loop = Glib::MainLoop::create(context);
 	g_main_context_push_thread_default(context->gobj());
-	rpl::lifetime lifetime;
 	bool result = false;
 
-	File::internal::GtkOpenWithDialogResponse(
+	dialog->response(
 	) | rpl::start_with_next([&](bool response) {
 		result = response;
 		loop->quit();
-	}, lifetime);
+	}, dialog->lifetime());
 
 	QWindow window;
 	QGuiApplicationPrivate::showModalWindow(&window);

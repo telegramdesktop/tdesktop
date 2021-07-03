@@ -19,8 +19,6 @@ namespace {
 
 using namespace Platform::Gtk;
 
-rpl::event_stream<bool> GtkOpenWithDialogResponseStream;
-
 struct GtkWidgetDeleter {
 	void operator()(GtkWidget *widget) {
 		gtk_widget_destroy(widget);
@@ -37,20 +35,25 @@ bool Supported() {
 		&& (gtk_widget_destroy != nullptr);
 }
 
-class GtkOpenWithDialog {
+} // namespace
+
+class GtkOpenWithDialog::Private {
 public:
-	GtkOpenWithDialog(
+	Private(
 		const QString &parent,
 		const QString &filepath);
 
 private:
-	static void handleResponse(GtkOpenWithDialog *dialog, int responseId);
+	friend class GtkOpenWithDialog;
+
+	static void handleResponse(Private *dialog, int responseId);
 
 	const Glib::RefPtr<Gio::File> _file;
 	const std::unique_ptr<GtkWidget, GtkWidgetDeleter> _gtkWidget;
+	rpl::event_stream<bool> _responseStream;
 };
 
-GtkOpenWithDialog::GtkOpenWithDialog(
+GtkOpenWithDialog::Private::Private(
 		const QString &parent,
 		const QString &filepath)
 : _file(Gio::File::create_for_path(filepath.toStdString()))
@@ -73,7 +76,7 @@ GtkOpenWithDialog::GtkOpenWithDialog(
 	gtk_widget_show(_gtkWidget.get());
 }
 
-void GtkOpenWithDialog::handleResponse(GtkOpenWithDialog *dialog, int responseId) {
+void GtkOpenWithDialog::Private::handleResponse(Private *dialog, int responseId) {
 	Glib::RefPtr<Gio::AppInfo> chosenAppInfo;
 	bool result = true;
 
@@ -101,24 +104,29 @@ void GtkOpenWithDialog::handleResponse(GtkOpenWithDialog *dialog, int responseId
 		break;
 	}
 
-	GtkOpenWithDialogResponseStream.fire_copy(result);
-	delete dialog;
+	dialog->_responseStream.fire_copy(result);
 }
 
-} // namespace
+GtkOpenWithDialog::GtkOpenWithDialog(
+		const QString &parent,
+		const QString &filepath)
+: _private(std::make_unique<Private>(parent, filepath)) {
+}
 
-bool ShowGtkOpenWithDialog(
+GtkOpenWithDialog::~GtkOpenWithDialog() = default;
+
+rpl::producer<bool> GtkOpenWithDialog::response() {
+	return _private->_responseStream.events();
+}
+
+std::unique_ptr<GtkOpenWithDialog> CreateGtkOpenWithDialog(
 		const QString &parent,
 		const QString &filepath) {
 	if (!Supported()) {
-		return false;
+		return nullptr;
 	}
 
-	return new GtkOpenWithDialog(parent, filepath);
-}
-
-rpl::producer<bool> GtkOpenWithDialogResponse() {
-	return GtkOpenWithDialogResponseStream.events();
+	return std::make_unique<GtkOpenWithDialog>(parent, filepath);
 }
 
 } // namespace internal
