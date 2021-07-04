@@ -138,6 +138,12 @@ Paint::Paint(
 		clearRedoList();
 		updateUndoState();
 	}, lifetime());
+
+	_scene->removesItem(
+	) | rpl::start_with_next([=] {
+		updateUndoState();
+	}, lifetime());
+
 }
 
 void Paint::applyTransform(QRect geometry, int angle, bool flipped) {

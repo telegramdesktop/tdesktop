@@ -67,6 +67,7 @@ void Scene::removeItem(not_null<QGraphicsItem*> item) {
 
 void Scene::removeItem(const ItemPtr &item) {
 	_items.erase(ranges::remove(_items, item), end(_items));
+	_removesItem.fire({});
 }
 
 void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
@@ -99,6 +100,10 @@ void Scene::applyBrush(const QColor &color, float size) {
 
 rpl::producer<> Scene::addsItem() const {
 	return _addsItem.events();
+}
+
+rpl::producer<> Scene::removesItem() const {
+	return _removesItem.events();
 }
 
 std::vector<ItemPtr> Scene::items(

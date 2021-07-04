@@ -36,6 +36,7 @@ public:
 	void removeItem(not_null<QGraphicsItem*> item);
 	void removeItem(const ItemPtr &item);
 	[[nodiscard]] rpl::producer<> addsItem() const;
+	[[nodiscard]] rpl::producer<> removesItem() const;
 
 	[[nodiscard]] std::vector<MTPInputDocument> attachedStickers() const;
 
@@ -52,7 +53,7 @@ private:
 	float64 _lastLineZ = 0.;
 	int _itemNumber = 0;
 
-	rpl::event_stream<> _addsItem;
+	rpl::event_stream<> _addsItem, _removesItem;
 	rpl::lifetime _lifetime;
 
 };
