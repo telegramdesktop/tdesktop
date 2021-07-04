@@ -8,18 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_image.h"
 
 namespace Editor {
-namespace {
-
-} // namespace
 
 ItemImage::ItemImage(
 	const QPixmap &&pixmap,
-	rpl::producer<float64> zoomValue,
-	std::shared_ptr<float64> zPtr,
-	int size,
-	int x,
-	int y)
-: ItemBase(std::move(zoomValue), std::move(zPtr), size, x, y)
+	ItemBase::Data data)
+: ItemBase(std::move(data))
 , _pixmap(std::move(pixmap)) {
 	setAspectRatio(_pixmap.isNull()
 		? 1.0
@@ -39,20 +32,9 @@ void ItemImage::performFlip() {
 	update();
 }
 
-std::shared_ptr<ItemBase> ItemImage::duplicate(
-		rpl::producer<float64> zoomValue,
-		std::shared_ptr<float64> zPtr,
-		int size,
-		int x,
-		int y) const {
+std::shared_ptr<ItemBase> ItemImage::duplicate(ItemBase::Data data) const {
 	auto pixmap = _pixmap;
-	return std::make_shared<ItemImage>(
-		std::move(pixmap),
-		std::move(zoomValue),
-		std::move(zPtr),
-		size,
-		x,
-		y);
+	return std::make_shared<ItemImage>(std::move(pixmap), std::move(data));
 }
 
 } // namespace Editor

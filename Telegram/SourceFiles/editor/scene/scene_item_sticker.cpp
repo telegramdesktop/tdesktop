@@ -24,12 +24,8 @@ namespace {
 
 ItemSticker::ItemSticker(
 	not_null<DocumentData*> document,
-	rpl::producer<float64> zoomValue,
-	std::shared_ptr<float64> zPtr,
-	int size,
-	int x,
-	int y)
-: ItemBase(std::move(zoomValue), std::move(zPtr), size, x, y)
+	ItemBase::Data data)
+: ItemBase(std::move(data))
 , _document(document)
 , _mediaView(_document->createMediaView()) {
 	const auto stickerData = document->sticker();
@@ -112,19 +108,8 @@ void ItemSticker::performFlip() {
 	update();
 }
 
-std::shared_ptr<ItemBase> ItemSticker::duplicate(
-		rpl::producer<float64> zoomValue,
-		std::shared_ptr<float64> zPtr,
-		int size,
-		int x,
-		int y) const {
-	return std::make_shared<ItemSticker>(
-		_document,
-		std::move(zoomValue),
-		std::move(zPtr),
-		size,
-		x,
-		y);
+std::shared_ptr<ItemBase> ItemSticker::duplicate(ItemBase::Data data) const {
+	return std::make_shared<ItemSticker>(_document, std::move(data));
 }
 
 } // namespace Editor

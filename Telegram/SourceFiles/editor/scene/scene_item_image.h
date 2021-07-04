@@ -15,23 +15,14 @@ class ItemImage : public ItemBase {
 public:
 	ItemImage(
 		const QPixmap &&pixmap,
-		rpl::producer<float64> zoomValue,
-		std::shared_ptr<float64> zPtr,
-		int size,
-		int x,
-		int y);
+		ItemBase::Data data);
 	void paint(
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *widget) override;
 protected:
 	void performFlip() override;
-	std::shared_ptr<ItemBase> duplicate(
-		rpl::producer<float64> zoomValue,
-		std::shared_ptr<float64> zPtr,
-		int size,
-		int x,
-		int y) const override;
+	std::shared_ptr<ItemBase> duplicate(ItemBase::Data data) const override;
 private:
 	QPixmap _pixmap;
 

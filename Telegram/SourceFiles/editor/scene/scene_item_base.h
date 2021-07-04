@@ -36,12 +36,15 @@ private:
 class ItemBase : public NumberedItem {
 public:
 
-	ItemBase(
-		rpl::producer<float64> zoomValue,
-		std::shared_ptr<float64> zPtr,
-		int size,
-		int x,
-		int y);
+	struct Data {
+		rpl::producer<float64> zoomValue;
+		std::shared_ptr<float64> zPtr;
+		int size = 0;
+		int x = 0;
+		int y = 0;
+	};
+
+	ItemBase(Data data);
 	QRectF boundingRect() const override;
 	void paint(
 		QPainter *p,
@@ -77,12 +80,7 @@ protected:
 	void setAspectRatio(float64 aspectRatio);
 
 	virtual void performFlip();
-	virtual std::shared_ptr<ItemBase> duplicate(
-		rpl::producer<float64> zoomValue,
-		std::shared_ptr<float64> zPtr,
-		int size,
-		int x,
-		int y) const = 0;
+	virtual std::shared_ptr<ItemBase> duplicate(Data data) const = 0;
 private:
 	HandleType handleType(const QPointF &pos) const;
 	QRectF rightHandleRect() const;

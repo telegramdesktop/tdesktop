@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/confirm_box.h"
 #include "editor/controllers/controllers.h"
 #include "editor/scene/scene.h"
-#include "editor/scene/scene_item_base.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_image.h"
 #include "editor/scene/scene_item_sticker.h"
@@ -110,17 +109,9 @@ Paint::Paint(
 
 		controllers->stickersPanelController->stickerChosen(
 		) | rpl::start_with_next([=](not_null<DocumentData*> document) {
-			const auto s = _scene->sceneRect().size();
-			const auto size = std::min(s.width(), s.height()) / 2;
-			const auto x = s.width() / 2;
-			const auto y = s.height() / 2;
 			const auto item = std::make_shared<ItemSticker>(
 				document,
-				_transform.zoom.value(),
-				_lastZ,
-				size,
-				x,
-				y);
+				itemBaseData());
 			item->setFlip(_transform.flipped);
 			item->setRotation(-_transform.angle);
 			_scene->addItem(item);
@@ -271,10 +262,6 @@ void Paint::handleMimeData(const QMimeData *data) {
 		if (image.isNull()) {
 			return;
 		}
-		const auto s = _scene->sceneRect().size();
-		const auto size = std::min(s.width(), s.height()) / 2;
-		const auto x = s.width() / 2;
-		const auto y = s.height() / 2;
 		if (!Ui::ValidateThumbDimensions(image.width(), image.height())) {
 			_controllers->showBox(
 				Box<InformBox>(tr::lng_edit_media_invalid_file(tr::now)));
@@ -283,11 +270,7 @@ void Paint::handleMimeData(const QMimeData *data) {
 
 		const auto item = std::make_shared<ItemImage>(
 			Ui::PixmapFromImage(std::move(image)),
-			_transform.zoom.value(),
-			_lastZ,
-			size,
-			x,
-			y);
+			itemBaseData());
 		item->setFlip(_transform.flipped);
 		item->setRotation(-_transform.angle);
 		_scene->addItem(item);
@@ -305,6 +288,20 @@ void Paint::handleMimeData(const QMimeData *data) {
 	} else if (data->hasImage()) {
 		add(qvariant_cast<QImage>(data->imageData()));
 	}
+}
+
+ItemBase::Data Paint::itemBaseData() const {
+	const auto s = _scene->sceneRect().toRect().size();
+	const auto size = std::min(s.width(), s.height()) / 2;
+	const auto x = s.width() / 2;
+	const auto y = s.height() / 2;
+	return ItemBase::Data{
+		.zoomValue = _transform.zoom.value(),
+		.zPtr = _lastZ,
+		.size = size,
+		.x = x,
+		.y = y,
+	};
 }
 
 } // namespace Editor

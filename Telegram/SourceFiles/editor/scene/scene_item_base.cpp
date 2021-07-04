@@ -45,20 +45,15 @@ void NumberedItem::setNumber(int number) {
 	_number = number;
 }
 
-ItemBase::ItemBase(
-	rpl::producer<float64> zoomValue,
-	std::shared_ptr<float64> zPtr,
-	int size,
-	int x,
-	int y)
-: _lastZ(zPtr)
-, _horizontalSize(size)
-, _zoom(std::move(zoomValue)) {
+ItemBase::ItemBase(Data data)
+: _lastZ(data.zPtr)
+, _horizontalSize(data.size)
+, _zoom(std::move(data.zoomValue)) {
 	setFlags(QGraphicsItem::ItemIsMovable
 		| QGraphicsItem::ItemIsSelectable
 		| QGraphicsItem::ItemIsFocusable);
 	setAcceptHoverEvents(true);
-	setPos(x, y);
+	setPos(data.x, data.y);
 	setZValue((*_lastZ)++);
 
 	const auto &handleSize = st::photoEditorItemHandleSize;
@@ -237,12 +232,12 @@ void ItemBase::actionDelete() {
 
 void ItemBase::actionDuplicate() {
 	if (const auto s = static_cast<Scene*>(scene())) {
-		const auto newItem = duplicate(
-			_zoom.value(),
-			_lastZ,
-			_horizontalSize,
-			scenePos().x() + _horizontalSize / 3,
-			scenePos().y() + _verticalSize / 3);
+		const auto newItem = duplicate(Data{
+			.zoomValue = _zoom.value(),
+			.zPtr = _lastZ,
+			.size = int(_horizontalSize),
+			.x = int(scenePos().x() + _horizontalSize / 3),
+			.y = int(scenePos().y() + _verticalSize / 3) });
 		newItem->setFlip(flipped());
 		newItem->setRotation(rotation());
 		if (hasFocus()) {

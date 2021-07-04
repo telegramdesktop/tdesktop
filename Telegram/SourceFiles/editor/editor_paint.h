@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 
 #include "editor/photo_editor_common.h"
+#include "editor/scene/scene_item_base.h"
 
 class QGraphicsItem;
 class QGraphicsView;
@@ -17,7 +18,6 @@ class QGraphicsView;
 namespace Editor {
 
 struct Controllers;
-class ItemBase;
 class Scene;
 
 // Paint control.
@@ -44,6 +44,8 @@ private:
 		std::shared_ptr<QGraphicsItem> item;
 		bool undid = false;
 	};
+
+	ItemBase::Data itemBaseData() const;
 
 	bool hasUndo() const;
 	bool hasRedo() const;
