@@ -55,6 +55,8 @@ ItemBase::ItemBase(Data data)
 	setAcceptHoverEvents(true);
 	setPos(data.x, data.y);
 	setZValue((*_lastZ)++);
+	setFlip(data.flipped);
+	setRotation(data.rotation);
 
 	const auto &handleSize = st::photoEditorItemHandleSize;
 	_zoom.value(
@@ -237,9 +239,10 @@ void ItemBase::actionDuplicate() {
 			.zPtr = _lastZ,
 			.size = int(_horizontalSize),
 			.x = int(scenePos().x() + _horizontalSize / 3),
-			.y = int(scenePos().y() + _verticalSize / 3) });
-		newItem->setFlip(flipped());
-		newItem->setRotation(rotation());
+			.y = int(scenePos().y() + _verticalSize / 3),
+			.flipped = flipped(),
+			.rotation = int(rotation()),
+		});
 		if (hasFocus()) {
 			newItem->setFocus();
 		}

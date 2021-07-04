@@ -42,6 +42,8 @@ public:
 		int size = 0;
 		int x = 0;
 		int y = 0;
+		bool flipped = false;
+		int rotation = 0;
 	};
 
 	ItemBase(Data data);

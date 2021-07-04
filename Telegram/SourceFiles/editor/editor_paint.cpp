@@ -112,8 +112,6 @@ Paint::Paint(
 			const auto item = std::make_shared<ItemSticker>(
 				document,
 				itemBaseData());
-			item->setFlip(_transform.flipped);
-			item->setRotation(-_transform.angle);
 			_scene->addItem(item);
 			_scene->clearSelection();
 		}, lifetime());
@@ -271,8 +269,6 @@ void Paint::handleMimeData(const QMimeData *data) {
 		const auto item = std::make_shared<ItemImage>(
 			Ui::PixmapFromImage(std::move(image)),
 			itemBaseData());
-		item->setFlip(_transform.flipped);
-		item->setRotation(-_transform.angle);
 		_scene->addItem(item);
 		_scene->clearSelection();
 	};
@@ -301,6 +297,8 @@ ItemBase::Data Paint::itemBaseData() const {
 		.size = size,
 		.x = x,
 		.y = y,
+		.flipped = _transform.flipped,
+		.rotation = -_transform.angle,
 	};
 }
 
