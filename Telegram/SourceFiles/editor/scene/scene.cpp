@@ -66,6 +66,9 @@ void Scene::removeItem(not_null<QGraphicsItem*> item) {
 }
 
 void Scene::removeItem(const ItemPtr &item) {
+	// Scene loses ownership of an item.
+	QGraphicsScene::removeItem(item.get());
+
 	_items.erase(ranges::remove(_items, item), end(_items));
 	_removesItem.fire({});
 }
