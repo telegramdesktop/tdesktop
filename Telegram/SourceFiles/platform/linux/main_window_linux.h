@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_main_window.h"
 #include "base/unique_qptr.h"
 
-class QMenuBar;
-
 namespace Ui {
 class PopupMenu;
 } // namespace Ui
@@ -72,7 +70,7 @@ private:
 	bool _sniAvailable = false;
 	base::unique_qptr<Ui::PopupMenu> _trayIconMenuXEmbed;
 
-	QMenuBar *psMainMenu = nullptr;
+	QMenu *psMainMenu = nullptr;
 	QAction *psLogout = nullptr;
 	QAction *psUndo = nullptr;
 	QAction *psRedo = nullptr;
