@@ -1296,6 +1296,8 @@ void SessionController::openDocument(
 		session().data().message(contextId));
 }
 
-SessionController::~SessionController() = default;
+SessionController::~SessionController() {
+	resetFakeUnreadWhileOpened();
+}
 
 } // namespace Window
