@@ -35,9 +35,20 @@ DisableProgramGroupPage=no
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 OutputBaseFilename=tsetup-x64.{#MyAppVersionFull}
+AppVerName={#MyAppName} {#MyAppVersion} (64bit)
+VersionInfoDescription={#MyAppName} 64bit installer
+VersionInfoProductName={#MyAppName} {#MyAppVersion} (64bit)
+UninstallDisplayName={#MyAppName} (64bit)
+
 #else
+AppVerName={#MyAppName} {#MyAppVersion} (32bit)
 OutputBaseFilename=tsetup.{#MyAppVersionFull}
+VersionInfoDescription={#MyAppName} 32bit installer
+VersionInfoProductName={#MyAppName} {#MyAppVersion} (32bit)
+UninstallDisplayName={#MyAppName} (32bit)
 #endif
+
+AppCopyright={#MyAppPublisher}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
