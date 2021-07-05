@@ -123,7 +123,7 @@ QByteArray Settings::serialize() const {
 	}
 	size += sizeof(qint32) * 3
 		+ Serialize::bytearraySize(proxy)
-		+ sizeof(qint32);
+		+ sizeof(qint32) * 2;
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -211,11 +211,12 @@ QByteArray Settings::serialize() const {
 			stream << id << quint8(variant);
 		}
 		stream
-			<< qint32(_disableOpenGL ? 1 : 0)
+			<< qint32(0) // Old Disable OpenGL
 			<< qint32(_groupCallNoiseSuppression ? 1 : 0)
 			<< qint32(_workMode.current())
 			<< proxy
-			<< qint32(_hiddenGroupCallTooltips.value());
+			<< qint32(_hiddenGroupCallTooltips.value())
+			<< qint32(_disableOpenGL ? 1 : 0);
 	}
 	return result;
 }
@@ -425,7 +426,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		}
 	}
 	if (!stream.atEnd()) {
-		stream >> disableOpenGL;
+		qint32 disableOpenGLOld;
+		stream >> disableOpenGLOld;
 	}
 	if (!stream.atEnd()) {
 		stream >> groupCallNoiseSuppression;
@@ -438,6 +440,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}
 	if (!stream.atEnd()) {
 		stream >> hiddenGroupCallTooltips;
+	}
+	if (!stream.atEnd()) {
+		stream >> disableOpenGL;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
