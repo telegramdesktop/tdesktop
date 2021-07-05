@@ -298,7 +298,7 @@ void SessionPrivate::clearOldContainers() {
 
 			resent = resent || !ids.empty();
 			for (const auto innerMsgId : ids) {
-				resend(innerMsgId, -1, true);
+				resend(innerMsgId, -1);
 			}
 		} else {
 			nextTimeout = std::min(i->second.sent - checkTime, nextTimeout);
@@ -1555,7 +1555,7 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 
 				DEBUG_LOG(("Message Info: unixtime updated, now %1, resending in container...").arg(info.serverTime));
 
-				resend(resendId, 0, true);
+				resend(resendId);
 			} else { // must create new session, because msg_id and msg_seqno are inconsistent
 				if (info.badTime) {
 					if (info.serverSalt) {
@@ -1853,7 +1853,7 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 			}
 		}
 		for (const auto msgId : toResend) {
-			resend(msgId, 10, true);
+			resend(msgId, 10);
 		}
 
 		mtpBuffer update(from - start);
@@ -2165,7 +2165,7 @@ void SessionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, const QByteAr
 		}
 		if ((state & 0x07) != 0x04) { // was received
 			DEBUG_LOG(("Message Info: state was received for msgId %1, state %2, resending in container").arg(requestMsgId).arg((int32)state));
-			resend(requestMsgId, 10, true);
+			resend(requestMsgId, 10);
 		} else {
 			DEBUG_LOG(("Message Info: state was received for msgId %1, state %2, ack").arg(requestMsgId).arg((int32)state));
 			acked.push_back(MTP_long(requestMsgId));
@@ -2183,10 +2183,7 @@ void SessionPrivate::clearSpecialMsgId(mtpMsgId msgId) {
 	}
 }
 
-void SessionPrivate::resend(
-		mtpMsgId msgId,
-		crl::time msCanWait,
-		bool forceContainer) {
+void SessionPrivate::resend(mtpMsgId msgId, crl::time msCanWait) {
 	const auto guard = gsl::finally([&] {
 		clearSpecialMsgId(msgId);
 		if (msCanWait >= 0) {
@@ -2200,7 +2197,7 @@ void SessionPrivate::resend(
 		_sentContainers.erase(i);
 
 		for (const auto innerMsgId : ids) {
-			resend(innerMsgId, -1, true);
+			resend(innerMsgId, -1);
 		}
 		return;
 	}
@@ -2215,7 +2212,7 @@ void SessionPrivate::resend(
 	lock.unlock();
 
 	request->lastSentTime = crl::now();
-	request->forceSendInContainer = forceContainer;
+	request->forceSendInContainer = true;
 	_resendingIds.emplace(msgId, request->requestId);
 	{
 		QWriteLocker locker(_sessionData->toSendMutex());
