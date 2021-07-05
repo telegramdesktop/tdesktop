@@ -48,11 +48,13 @@ void EditGroupCallTitleBox(
 	box->setFocusCallback([=] {
 		input->setFocusFast();
 	});
-	box->addButton(tr::lng_settings_save(), [=] {
+	const auto submit = [=] {
 		const auto result = input->getLastText().trimmed();
 		box->closeBox();
 		done(result);
-	});
+	};
+	QObject::connect(input, &Ui::InputField::submitted, submit);
+	box->addButton(tr::lng_settings_save(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
@@ -76,11 +78,13 @@ void StartGroupCallRecordingBox(
 	box->setFocusCallback([=] {
 		input->setFocusFast();
 	});
-	box->addButton(tr::lng_group_call_recording_start_button(), [=] {
+	const auto submit = [=] {
 		const auto result = input->getLastText().trimmed();
 		box->closeBox();
 		done(result);
-	});
+	};
+	QObject::connect(input, &Ui::InputField::submitted, submit);
+	box->addButton(tr::lng_group_call_recording_start_button(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
