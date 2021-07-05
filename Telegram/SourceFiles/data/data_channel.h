@@ -82,6 +82,9 @@ public:
 	void setLocation(const ChannelLocation &location);
 
 	bool updateBotCommands(const MTPVector<MTPBotInfo> &data);
+	bool updateBotCommands(
+		UserId botId,
+		const MTPVector<MTPBotCommand> &data);
 	[[nodiscard]] auto botCommands() const
 		-> const base::flat_map<UserId, std::vector<BotCommand>> & {
 		return _botCommands;

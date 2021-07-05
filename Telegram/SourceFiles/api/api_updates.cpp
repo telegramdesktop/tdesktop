@@ -1889,6 +1889,26 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateBotCommands: {
+		const auto &d = update.c_updateBotCommands();
+		if (const auto peer = session().data().peerLoaded(peerFromMTP(d.vpeer()))) {
+			const auto botId = UserId(d.vbot_id().v);
+			if (const auto user = peer->asUser()) {
+				if (user->isBot() && user->id == peerFromUser(botId)) {
+					if (Data::UpdateBotCommands(user->botInfo->commands, d.vcommands())) {
+						session().data().botCommandsChanged(user);
+					}
+				}
+			} else if (const auto chat = peer->asChat()) {
+				chat->setBotCommands(botId, d.vcommands());
+			} else if (const auto megagroup = peer->asMegagroup()) {
+				if (megagroup->mgInfo->updateBotCommands(botId, d.vcommands())) {
+					session().data().botCommandsChanged(megagroup);
+				}
+			}
+		}
+	} break;
+
 	case mtpc_updateServiceNotification: {
 		const auto &d = update.c_updateServiceNotification();
 		const auto text = TextWithEntities {

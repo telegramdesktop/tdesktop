@@ -122,6 +122,15 @@ bool UpdateBotCommands(
 
 bool UpdateBotCommands(
 		base::flat_map<UserId, std::vector<BotCommand>> &commands,
+		UserId botId,
+		const MTPVector<MTPBotCommand> &data) {
+	return data.v.isEmpty()
+		? commands.remove(botId)
+		: UpdateBotCommands(commands[botId], data);
+}
+
+bool UpdateBotCommands(
+		base::flat_map<UserId, std::vector<BotCommand>> &commands,
 		const MTPVector<MTPBotInfo> &data) {
 	auto result = false;
 	auto filled = base::flat_set<UserId>();
@@ -132,12 +141,7 @@ bool UpdateBotCommands(
 			if (!filled.emplace(id).second) {
 				LOG(("API Error: Two BotInfo for a single bot."));
 				return;
-			}
-			if (data.vcommands().v.isEmpty()) {
-				if (commands.remove(id)) {
-					result = true;
-				}
-			} else if (UpdateBotCommands(commands[id], data.vcommands())) {
+			} else if (UpdateBotCommands(commands, id, data.vcommands())) {
 				result = true;
 			}
 		});

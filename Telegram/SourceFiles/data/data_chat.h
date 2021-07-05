@@ -156,6 +156,9 @@ public:
 	[[nodiscard]] PeerId groupCallDefaultJoinAs() const;
 
 	void setBotCommands(const MTPVector<MTPBotInfo> &data);
+	void setBotCommands(
+		UserId botId,
+		const MTPVector<MTPBotCommand> &data);
 	[[nodiscard]] auto botCommands() const
 		-> const base::flat_map<UserId, std::vector<BotCommand>> & {
 		return _botCommands;

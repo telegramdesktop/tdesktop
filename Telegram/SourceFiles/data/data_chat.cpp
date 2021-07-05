@@ -250,6 +250,14 @@ void ChatData::setBotCommands(const MTPVector<MTPBotInfo> &data) {
 	}
 }
 
+void ChatData::setBotCommands(
+		UserId botId,
+		const MTPVector<MTPBotCommand> &data) {
+	if (Data::UpdateBotCommands(_botCommands, botId, data)) {
+		owner().botCommandsChanged(this);
+	}
+}
+
 namespace Data {
 
 void ApplyChatUpdate(

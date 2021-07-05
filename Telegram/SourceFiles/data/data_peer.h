@@ -170,6 +170,10 @@ bool UpdateBotCommands(
 	const MTPVector<MTPBotCommand> &data);
 bool UpdateBotCommands(
 	base::flat_map<UserId, std::vector<BotCommand>> &commands,
+	UserId botId,
+	const MTPVector<MTPBotCommand> &data);
+bool UpdateBotCommands(
+	base::flat_map<UserId, std::vector<BotCommand>> &commands,
 	const MTPVector<MTPBotInfo> &data);
 
 } // namespace Data
