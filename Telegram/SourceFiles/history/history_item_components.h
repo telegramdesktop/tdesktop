@@ -237,6 +237,7 @@ struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMa
 
 	std::vector<std::vector<Button>> rows;
 	MTPDreplyKeyboardMarkup::Flags flags = 0;
+	QString placeholder;
 
 	std::unique_ptr<ReplyKeyboard> inlineKeyboard;
 

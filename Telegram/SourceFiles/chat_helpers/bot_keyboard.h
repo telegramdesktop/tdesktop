@@ -31,8 +31,12 @@ public:
 	// With force=true the markup is updated even if it is
 	// already shown for the passed history item.
 	bool updateMarkup(HistoryItem *last, bool force = false);
-	bool hasMarkup() const;
-	bool forceReply() const;
+	[[nodiscard]] bool hasMarkup() const;
+	[[nodiscard]] bool forceReply() const;
+
+	[[nodiscard]] QString placeholder() const {
+		return _placeholder;
+	}
 
 	void step_selected(crl::time ms, bool timer);
 	void resizeToWidth(int newWidth, int maxOuterHeight) {
@@ -40,10 +44,10 @@ public:
 		return TWidget::resizeToWidth(newWidth);
 	}
 
-	bool maximizeSize() const;
-	bool singleUse() const;
+	[[nodiscard]] bool maximizeSize() const;
+	[[nodiscard]] bool singleUse() const;
 
-	FullMsgId forMsgId() const {
+	[[nodiscard]] FullMsgId forMsgId() const {
 		return _wasForMsgId;
 	}
 
@@ -76,6 +80,7 @@ private:
 
 	const not_null<Main::Session*> _session;
 	FullMsgId _wasForMsgId;
+	QString _placeholder;
 	int _height = 0;
 	int _maxOuterHeight = 0;
 	bool _maximizeSize = false;

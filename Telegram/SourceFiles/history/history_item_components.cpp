@@ -934,6 +934,7 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 	case mtpc_replyKeyboardMarkup: {
 		auto &d = markup.c_replyKeyboardMarkup();
 		flags = d.vflags().v;
+		placeholder = d.vplaceholder() ? qs(*d.vplaceholder()) : QString();
 
 		createFromButtonRows(d.vrows().v);
 	} break;
@@ -941,6 +942,7 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 	case mtpc_replyInlineMarkup: {
 		auto &d = markup.c_replyInlineMarkup();
 		flags = MTPDreplyKeyboardMarkup::Flags(0) | MTPDreplyKeyboardMarkup_ClientFlag::f_inline;
+		placeholder = QString();
 
 		createFromButtonRows(d.vrows().v);
 	} break;
@@ -948,11 +950,13 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 	case mtpc_replyKeyboardHide: {
 		auto &d = markup.c_replyKeyboardHide();
 		flags = mtpCastFlags(d.vflags()) | MTPDreplyKeyboardMarkup_ClientFlag::f_zero;
+		placeholder = QString();
 	} break;
 
 	case mtpc_replyKeyboardForceReply: {
 		auto &d = markup.c_replyKeyboardForceReply();
 		flags = mtpCastFlags(d.vflags()) | MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
+		placeholder = d.vplaceholder() ? qs(*d.vplaceholder()) : QString();
 	} break;
 	}
 }
@@ -960,6 +964,7 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 void HistoryMessageReplyMarkup::create(
 		const HistoryMessageReplyMarkup &markup) {
 	flags = markup.flags;
+	placeholder = markup.placeholder;
 	inlineKeyboard = nullptr;
 
 	rows.clear();
