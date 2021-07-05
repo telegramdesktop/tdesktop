@@ -1062,7 +1062,9 @@ void RecoverBox::submit() {
 
 	const auto send = crl::guard(this, [=] {
 		_submitRequest = _api.request(MTPauth_RecoverPassword(
-			MTP_string(code)
+			MTP_flags(0),
+			MTP_string(code),
+			MTPaccount_PasswordInputSettings()
 		)).done([=](const MTPauth_Authorization &result) {
 			codeSubmitDone(result);
 		}).fail([=](const MTP::Error &error) {

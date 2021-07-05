@@ -339,9 +339,11 @@ void PasswordCheckWidget::submit() {
 			return;
 		}
 		const auto send = crl::guard(this, [=] {
-			_sentRequest = api().request(
-				MTPauth_RecoverPassword(MTP_string(code))
-			).done([=](const MTPauth_Authorization &result) {
+			_sentRequest = api().request(MTPauth_RecoverPassword(
+				MTP_flags(0),
+				MTP_string(code),
+				MTPaccount_PasswordInputSettings()
+			)).done([=](const MTPauth_Authorization &result) {
 				pwdSubmitDone(true, result);
 			}).fail([=](const MTP::Error &error) {
 				codeSubmitFail(error);
