@@ -213,7 +213,7 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
         -static ^
         -static-runtime ^
         -opengl es2 -no-angle ^
-        -I "%LibrariesPath%\angle\include" ^
+        -I "%LibrariesPath%\tg_angle\include" ^
         -D "GL_APICALL=" ^
         QMAKE_LIBS_OPENGL_ES2_DEBUG="%LibrariesPath%\tg_angle\out\Debug\tg_angle.lib d3d9.lib dxgi.lib dxguid.lib" ^
         QMAKE_LIBS_OPENGL_ES2_RELEASE="%LibrariesPath%\tg_angle\out\Release\tg_angle.lib d3d9.lib dxgi.lib dxguid.lib" ^
