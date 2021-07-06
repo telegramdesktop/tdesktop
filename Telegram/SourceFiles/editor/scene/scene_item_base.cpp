@@ -26,6 +26,9 @@ const auto kDuplicateSequence = QKeySequence("ctrl+d");
 const auto kFlipSequence = QKeySequence("ctrl+s");
 const auto kDeleteSequence = QKeySequence("delete");
 
+constexpr auto kMinSizeRatio = 0.05;
+constexpr auto kMaxSizeRatio = 1.00;
+
 auto Normalized(float64 angle) {
 	return angle
 		+ ((std::abs(angle) < 360) ? 0 : (-360 * (angle < 0 ? -1 : 1)));
@@ -47,6 +50,7 @@ void NumberedItem::setNumber(int number) {
 
 ItemBase::ItemBase(Data data)
 : _lastZ(data.zPtr)
+, _imageSize(data.imageSize)
 , _horizontalSize(data.size)
 , _zoom(std::move(data.zoomValue)) {
 	setFlags(QGraphicsItem::ItemIsMovable
@@ -67,14 +71,19 @@ ItemBase::ItemBase(Data data)
 			_scaledHandleSize,
 			_scaledHandleSize,
 			_scaledHandleSize) * 0.5;
+
+		const auto maxSide = std::max(
+			_imageSize.width(),
+			_imageSize.height());
 		_sizeLimits = {
-			.min = int(st::photoEditorItemMinSize / zoom),
-			.max = int(st::photoEditorItemMaxSize / zoom),
+			.min = int(maxSide * kMinSizeRatio),
+			.max = int(maxSide * kMaxSizeRatio),
 		};
 		_horizontalSize = std::clamp(
 			_horizontalSize,
 			float64(_sizeLimits.min),
 			float64(_sizeLimits.max));
+		updateVerticalSize();
 
 		updatePens(QPen(
 			QBrush(),
@@ -242,6 +251,7 @@ void ItemBase::actionDuplicate() {
 			.y = int(scenePos().y() + _verticalSize / 3),
 			.flipped = flipped(),
 			.rotation = int(rotation()),
+			.imageSize = _imageSize,
 		});
 		if (hasFocus()) {
 			newItem->setFocus();
@@ -308,8 +318,8 @@ void ItemBase::updateVerticalSize() {
 	const auto verticalSize = _horizontalSize * _aspectRatio;
 	_verticalSize = std::max(
 		verticalSize,
-		float64(st::photoEditorItemMinSize));
-	if (verticalSize < st::photoEditorItemMinSize) {
+		float64(_sizeLimits.min));
+	if (verticalSize < _sizeLimits.min) {
 		_horizontalSize = _verticalSize / _aspectRatio;
 	}
 }

@@ -299,6 +299,7 @@ ItemBase::Data Paint::itemBaseData() const {
 		.y = y,
 		.flipped = _transform.flipped,
 		.rotation = -_transform.angle,
+		.imageSize = _imageSize,
 	};
 }
 

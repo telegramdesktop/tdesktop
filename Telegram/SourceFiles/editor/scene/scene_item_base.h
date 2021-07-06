@@ -44,6 +44,7 @@ public:
 		int y = 0;
 		bool flipped = false;
 		int rotation = 0;
+		QSize imageSize;
 	};
 
 	ItemBase(Data data);
@@ -93,6 +94,7 @@ private:
 	void handleActionKey(not_null<QKeyEvent*> e);
 
 	const std::shared_ptr<float64> _lastZ;
+	const QSize _imageSize;
 
 	struct {
 		QPen select;

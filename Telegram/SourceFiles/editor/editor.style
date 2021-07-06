@@ -92,5 +92,3 @@ photoEditorCropPointSize: 10px;
 photoEditorCropMinSize: 20px;
 
 photoEditorItemHandleSize: 10px;
-photoEditorItemMinSize: 32px;
-photoEditorItemMaxSize: 512px;
