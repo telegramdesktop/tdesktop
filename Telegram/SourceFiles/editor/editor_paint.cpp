@@ -132,7 +132,7 @@ Paint::Paint(
 		controllers->stickersPanelController
 			? controllers->stickersPanelController->stickerChosen(
 				) | rpl::to_empty
-			: rpl::never<>(),
+			: rpl::never<>() | rpl::type_erased(),
 		_scene->addsItem()
 	) | rpl::start_with_next([=] {
 		clearRedoList();

@@ -4256,7 +4256,7 @@ void HistoryWidget::updateFieldPlaceholder() {
 		return;
 	}
 
-	_field->setPlaceholder([&] {
+	_field->setPlaceholder([&]() -> rpl::producer<QString> {
 		if (_editMsgId) {
 			return tr::lng_edit_message_text();
 		} else if (!_history) {
