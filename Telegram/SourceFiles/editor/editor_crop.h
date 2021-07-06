@@ -39,7 +39,7 @@ protected:
 private:
 	struct InfoAtDown {
 		QRectF rect;
-		Qt::Edges edge = 0;
+		Qt::Edges edge;
 		QPoint point;
 		float64 cropRatio = 0.;
 

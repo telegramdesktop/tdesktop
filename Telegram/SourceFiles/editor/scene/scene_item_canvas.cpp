@@ -78,7 +78,7 @@ std::vector<QPointF> InterpolatedPoints(
 } // namespace
 
 ItemCanvas::ItemCanvas() {
-	setAcceptedMouseButtons(0);
+	setAcceptedMouseButtons({});
 }
 
 void ItemCanvas::clearPixmap() {

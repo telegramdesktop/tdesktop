@@ -47,7 +47,7 @@ private:
 	rpl::event_stream<int> _keyPresses;
 
 	QRect _imageRect;
-	QMatrix _imageMatrix;
+	QTransform _imageMatrix;
 	PhotoEditorMode _mode;
 
 };

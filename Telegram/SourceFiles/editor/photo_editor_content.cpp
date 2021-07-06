@@ -88,7 +88,7 @@ PhotoEditorContent::PhotoEditorContent(
 
 		p.fillRect(clip, Qt::transparent);
 
-		p.setMatrix(_imageMatrix);
+		p.setTransform(_imageMatrix);
 
 		p.drawPixmap(
 			_imageRect,
