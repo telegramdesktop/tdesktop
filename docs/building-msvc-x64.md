@@ -28,7 +28,6 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 * Download **Ninja** executable from [https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip](https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip) and unpack to ***BuildPath*\\ThirdParty\\Ninja**
 * Download **Git** installer from [https://git-scm.com/download/win](https://git-scm.com/download/win) and install it.
 * Download **NuGet** executable from [https://dist.nuget.org/win-x86-commandline/latest/nuget.exe](https://dist.nuget.org/win-x86-commandline/latest/nuget.exe) and put to ***BuildPath*\\ThirdParty\\NuGet**
-* Download **depot_tools** bundle from [https://storage.googleapis.com/chrome-infra/depot_tools.zip](https://storage.googleapis.com/chrome-infra/depot_tools.zip) and extract it to ***BuildPath*\\ThirdParty\\depot_tools**
 
 Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
@@ -43,18 +42,15 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git apply ../patches/gyp.diff
     cd ..\..
 
-Add **depot_tools**, **GYP**, **Ninja** and **NuGet** to your PATH:
+Add **GYP**, **Ninja** and **NuGet** to your PATH:
 
 * Open **Control Panel** -> **System** -> **Advanced system settings**.
 * Press **Environment Variables...**.
 * Select **Path**.
 * Press **Edit**.
-* Add ***BuildPath*\\ThirdParty\\depot_tools** value.
 * Add ***BuildPath*\\ThirdParty\\gyp** value.
 * Add ***BuildPath*\\ThirdParty\\Ninja** value.
 * Add ***BuildPath*\\ThirdParty\\NuGet** value.
-* Make sure that **depot_tools** value goes before **%USERPROFILE%\AppData\Local\Microsoft\WindowsApps**, otherwise Python won't work.
-* Add a global **DEPOT_TOOLS_WIN_TOOLCHAIN** environment variable with value **0**.
 
 ## Clone source code and prepare libraries
 
@@ -176,22 +172,27 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     SET PATH=%PATH_BACKUP_%
     cd ..
 
-    git clone https://chromium.googlesource.com/angle/angle
-    cd angle
-    git checkout chromium/4472
-    python scripts/bootstrap.py
-    gclient sync
-
-    for /r %i in (..\patches\angle\*) do git apply %i
-
-    gn gen out/Debug --args="is_component_build=false is_debug=true target_cpu=\"x64\" is_clang=false enable_iterator_debugging=true angle_enable_swiftshader=false angle_enable_vulkan=false angle_default_d3d9=true"
-
-    gn gen out/Release --args="is_component_build=false is_debug=false target_cpu=\"x64\" is_clang=false enable_iterator_debugging=false angle_enable_swiftshader=false angle_enable_vulkan=false angle_default_d3d9=true"
-
-    ninja -C out/Debug libANGLE_static libGLESv2_static libEGL_static
-    ninja -C out/Release libANGLE_static libGLESv2_static libEGL_static
-
+    git clone https://github.com/desktop-app/tg_angle.git
+    cd tg_angle
+    git checkout f7b17cd
+    mkdir out
+    cd out
+    mkdir Debug
+    cd Debug
+    cmake -G Ninja ^
+        -DCMAKE_BUILD_TYPE=Debug ^
+        -DTG_ANGLE_SPECIAL_TARGET=win64 ^
+        -DTG_ANGLE_ZLIB_INCLUDE_PATH=%cd%/../../../zlib ../..
+    ninja
     cd ..
+    mkdir Release
+    cd Release
+    cmake -G Ninja ^
+        -DCMAKE_BUILD_TYPE=Release ^
+        -DTG_ANGLE_SPECIAL_TARGET=win64 ^
+        -DTG_ANGLE_ZLIB_INCLUDE_PATH=%cd%/../../../zlib ../..
+    ninja
+    cd ..\..\..
 
     SET LibrariesPath=%cd%
     git clone git://code.qt.io/qt/qt5.git qt_5_15_2
@@ -214,13 +215,13 @@ Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
         -opengl es2 -no-angle ^
         -I "%LibrariesPath%\angle\include" ^
         -D "GL_APICALL=" ^
-        QMAKE_LIBS_OPENGL_ES2_DEBUG="%LibrariesPath%\angle\out\Debug\obj\libGLESv2_static.lib %LibrariesPath%\angle\out\Debug\obj\libANGLE_static.lib d3d9.lib dxgi.lib dxguid.lib" ^
-        QMAKE_LIBS_OPENGL_ES2_RELEASE="%LibrariesPath%\angle\out\Release\obj\libGLESv2_static.lib %LibrariesPath%\angle\out\Release\obj\libANGLE_static.lib d3d9.lib dxgi.lib dxguid.lib" ^
+        QMAKE_LIBS_OPENGL_ES2_DEBUG="%LibrariesPath%\tg_angle\out\Debug\tg_angle.lib d3d9.lib dxgi.lib dxguid.lib" ^
+        QMAKE_LIBS_OPENGL_ES2_RELEASE="%LibrariesPath%\tg_angle\out\Release\tg_angle.lib d3d9.lib dxgi.lib dxguid.lib" ^
         -egl ^
         -D "EGLAPI=" ^
         -D "DESKTOP_APP_QT_STATIC_ANGLE=" ^
-        QMAKE_LIBS_EGL_DEBUG="%LibrariesPath%\angle\out\Debug\obj\libEGL_static.lib %LibrariesPath%\angle\out\Debug\obj\libGLESv2_static.lib %LibrariesPath%\angle\out\Debug\obj\libANGLE_static.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
-        QMAKE_LIBS_EGL_RELEASE="%LibrariesPath%\angle\out\Release\obj\libEGL_static.lib %LibrariesPath%\angle\out\Release\obj\libGLESv2_static.lib %LibrariesPath%\angle\out\Release\obj\libANGLE_static.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
+        QMAKE_LIBS_EGL_DEBUG="%LibrariesPath%\tg_angle\out\Debug\tg_angle.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
+        QMAKE_LIBS_EGL_RELEASE="%LibrariesPath%\tg_angle\out\Release\tg_angle.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
         -openssl-linked ^
         -I "%LibrariesPath%\openssl_1_1_1\include" ^
         OPENSSL_LIBS_DEBUG="%LibrariesPath%\openssl_1_1_1\out64.dbg\libssl.lib %LibrariesPath%\openssl_1_1_1\out64.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
