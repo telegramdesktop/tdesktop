@@ -25,22 +25,20 @@ namespace {
 Error::Error(const MTPrpcError &error)
 : _code(error.c_rpc_error().verror_code().v) {
 	QString text = qs(error.c_rpc_error().verror_message());
-	if (_code < 0 || _code >= 500) {
+	const auto expression = QRegularExpression(
+		"^([A-Z0-9_]+)(: .*)?$",
+		(QRegularExpression::DotMatchesEverythingOption
+			| QRegularExpression::MultilineOption));
+	const auto match = expression.match(text);
+	if (match.hasMatch()) {
+		_type = match.captured(1);
+		_description = match.captured(2).mid(2);
+	} else if (_code < 0 || _code >= 500) {
 		_type = "INTERNAL_SERVER_ERROR";
 		_description = text;
 	} else {
-		const auto expression = QRegularExpression(
-			"^([A-Z0-9_]+)(: .*)?$",
-			(QRegularExpression::DotMatchesEverythingOption
-				| QRegularExpression::MultilineOption));
-		const auto match = expression.match(text);
-		if (match.hasMatch()) {
-			_type = match.captured(1);
-			_description = match.captured(2).mid(2);
-		} else {
-			_type = "CLIENT_BAD_RPC_ERROR";
-			_description = "Bad rpc error received, text = '" + text + '\'';
-		}
+		_type = "CLIENT_BAD_RPC_ERROR";
+		_description = "Bad rpc error received, text = '" + text + '\'';
 	}
 }
 

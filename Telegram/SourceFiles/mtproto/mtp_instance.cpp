@@ -264,6 +264,8 @@ private:
 	QReadWriteLock _requestMapLock;
 
 	std::deque<std::pair<mtpRequestId, crl::time>> _delayedRequests;
+	base::flat_map<mtpRequestId, mtpRequestId> _dependentRequests;
+	mutable QMutex _dependentRequestsLock;
 
 	std::map<mtpRequestId, int> _requestsDelays;
 
@@ -1010,9 +1012,40 @@ void Instance::Private::unregisterRequest(mtpRequestId requestId) {
 		QWriteLocker locker(&_requestMapLock);
 		_requestMap.erase(requestId);
 	}
+	{
+		QMutexLocker locker(&_requestByDcLock);
+		_requestsByDc.erase(requestId);
+	}
+	{
+		QMutexLocker locker(&_dependentRequestsLock);
+		for (auto i = begin(_dependentRequests); i != end(_dependentRequests);) {
+			if (i->first == requestId) {
+				i = _dependentRequests.erase(i);
+			} else if (i->second == requestId) {
+				const auto resendingId = i->first;
+				i = _dependentRequests.erase(i);
 
-	QMutexLocker locker(&_requestByDcLock);
-	_requestsByDc.erase(requestId);
+				if (const auto shiftedDcId = queryRequestByDc(resendingId)) {
+					SerializedRequest request;
+					{
+						QReadLocker locker(&_requestMapLock);
+						auto it = _requestMap.find(resendingId);
+						if (it == _requestMap.cend()) {
+							LOG(("MTP Error: could not find dependent request %1").arg(resendingId));
+							return;
+						}
+						request = it->second;
+					}
+					request->after = SerializedRequest();
+					const auto session = getSession(qAbs(*shiftedDcId));
+					request->needsLayer = true;
+					session->sendPrepared(request);
+				}
+			} else {
+				++i;
+			}
+		}
+	}
 }
 
 void Instance::Private::storeRequest(
@@ -1339,6 +1372,47 @@ bool Instance::Private::onErrorDefault(
 			(dcWithShift < 0) ? -newdcWithShift : newdcWithShift);
 		session->sendPrepared(request);
 		return true;
+	} else if (type == qstr("MSG_WAIT_TIMEOUT") || type == qstr("MSG_WAIT_FAILED")) {
+		SerializedRequest request;
+		{
+			QReadLocker locker(&_requestMapLock);
+			auto it = _requestMap.find(requestId);
+			if (it == _requestMap.cend()) {
+				LOG(("MTP Error: could not find MSG_WAIT_* request %1").arg(requestId));
+				return false;
+			}
+			request = it->second;
+		}
+		if (!request->after) {
+			LOG(("MTP Error: MSG_WAIT_* for not dependent request %1").arg(requestId));
+			return false;
+		}
+		auto dcWithShift = ShiftedDcId(0);
+		if (const auto shiftedDcId = queryRequestByDc(requestId)) {
+			dcWithShift = *shiftedDcId;
+			if (const auto afterDcId = queryRequestByDc(request->after->requestId)) {
+				if (*shiftedDcId != *afterDcId) {
+					request->after = SerializedRequest();
+				}
+			} else {
+				request->after = SerializedRequest();
+			}
+		} else {
+			LOG(("MTP Error: could not find MSG_WAIT_* request %1 by dc").arg(requestId));
+		}
+		if (!dcWithShift) {
+			return false;
+		}
+
+		if (!request->after) {
+			const auto session = getSession(qAbs(dcWithShift));
+			request->needsLayer = true;
+			session->sendPrepared(request);
+		} else {
+			QMutexLocker locker(&_dependentRequestsLock);
+			_dependentRequests.emplace(requestId, request->after->requestId);
+		}
+		return true;
 	} else if (code < 0
 		|| code >= 500
 		|| (m1 = QRegularExpression("^FLOOD_WAIT_(\\d+)$").match(type)).hasMatch()
@@ -1435,66 +1509,6 @@ bool Instance::Private::onErrorDefault(
 		return true;
 	} else if (type == qstr("CONNECTION_LANG_CODE_INVALID")) {
 		Lang::CurrentCloudManager().resetToDefault();
-	} else if (type == qstr("MSG_WAIT_FAILED")) {
-		SerializedRequest request;
-		{
-			QReadLocker locker(&_requestMapLock);
-			auto it = _requestMap.find(requestId);
-			if (it == _requestMap.cend()) {
-				LOG(("MTP Error: could not find request %1").arg(requestId));
-				return false;
-			}
-			request = it->second;
-		}
-		if (!request->after) {
-			LOG(("MTP Error: wait failed for not dependent request %1").arg(requestId));
-			return false;
-		}
-		auto dcWithShift = ShiftedDcId(0);
-		if (const auto shiftedDcId = queryRequestByDc(requestId)) {
-			if (const auto afterDcId = queryRequestByDc(request->after->requestId)) {
-				dcWithShift = *shiftedDcId;
-				if (*shiftedDcId != *afterDcId) {
-					request->after = SerializedRequest();
-				}
-			} else {
-				LOG(("MTP Error: could not find dependent request %1 by dc").arg(request->after->requestId));
-			}
-		} else {
-			LOG(("MTP Error: could not find request %1 by dc").arg(requestId));
-		}
-		if (!dcWithShift) return false;
-
-		if (!request->after) {
-			const auto session = getSession(qAbs(dcWithShift));
-			request->needsLayer = true;
-			session->sendPrepared(request);
-		} else {
-			auto newdc = BareDcId(qAbs(dcWithShift));
-			auto &waiters(_authWaiters[newdc]);
-			if (base::contains(waiters, request->after->requestId)) {
-				if (!base::contains(waiters, requestId)) {
-					waiters.push_back(requestId);
-				}
-				if (_badGuestDcRequests.find(request->after->requestId) != _badGuestDcRequests.cend()) {
-					if (_badGuestDcRequests.find(requestId) == _badGuestDcRequests.cend()) {
-						_badGuestDcRequests.insert(requestId);
-					}
-				}
-			} else {
-				auto i = _delayedRequests.begin(), e = _delayedRequests.end();
-				for (; i != e; ++i) {
-					if (i->first == requestId) return true;
-					if (i->first == request->after->requestId) break;
-				}
-				if (i != e) {
-					_delayedRequests.insert(i, std::make_pair(requestId, i->second));
-				}
-
-				checkDelayedRequests();
-			}
-		}
-		return true;
 	}
 	if (badGuestDc) _badGuestDcRequests.erase(requestId);
 	return false;
