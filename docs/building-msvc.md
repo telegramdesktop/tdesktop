@@ -28,6 +28,7 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 * Download **Ninja** executable from [https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip](https://github.com/ninja-build/ninja/releases/download/v1.7.2/ninja-win.zip) and unpack to ***BuildPath*\\ThirdParty\\Ninja**
 * Download **Git** installer from [https://git-scm.com/download/win](https://git-scm.com/download/win) and install it.
 * Download **NuGet** executable from [https://dist.nuget.org/win-x86-commandline/latest/nuget.exe](https://dist.nuget.org/win-x86-commandline/latest/nuget.exe) and put to ***BuildPath*\\ThirdParty\\NuGet**
+* Download **depot_tools** bundle from [https://storage.googleapis.com/chrome-infra/depot_tools.zip](https://storage.googleapis.com/chrome-infra/depot_tools.zip) and extract it to ***BuildPath*\\ThirdParty\\depot_tools**
 
 Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
@@ -42,15 +43,18 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git apply ../patches/gyp.diff
     cd ..\..
 
-Add **GYP** and **Ninja** to your PATH:
+Add **depot_tools**, **GYP**, **Ninja** and **NuGet** to your PATH:
 
-* Open **Control Panel** -> **System** -> **Advanced system settings**
-* Press **Environment Variables...**
-* Select **Path**
-* Press **Edit**
-* Add ***BuildPath*\\ThirdParty\\gyp** value
-* Add ***BuildPath*\\ThirdParty\\Ninja** value
-* Add ***BuildPath*\\ThirdParty\\NuGet** value
+* Open **Control Panel** -> **System** -> **Advanced system settings**.
+* Press **Environment Variables...**.
+* Select **Path**.
+* Press **Edit**.
+* Add ***BuildPath*\\ThirdParty\\depot_tools** value.
+* Add ***BuildPath*\\ThirdParty\\gyp** value.
+* Add ***BuildPath*\\ThirdParty\\Ninja** value.
+* Add ***BuildPath*\\ThirdParty\\NuGet** value.
+* Make sure that **depot_tools** value goes before **%USERPROFILE%\AppData\Local\Microsoft\WindowsApps**, otherwise Python won't work.
+* Add a global **DEPOT_TOOLS_WIN_TOOLCHAIN** environment variable with value **0**.
 
 ## Clone source code and prepare libraries
 
@@ -186,6 +190,8 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     ninja -C out/Debug libANGLE_static libGLESv2_static libEGL_static
     ninja -C out/Release libANGLE_static libGLESv2_static libEGL_static
+
+    cd ..
 
     SET LibrariesPath=%cd%
     git clone git://code.qt.io/qt/qt5.git qt_5_15_2
