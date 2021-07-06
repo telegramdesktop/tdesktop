@@ -157,6 +157,7 @@ void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
 		.flipped = flipped,
 		.zoom = size.width() / float64(_scene->sceneRect().width()),
 	};
+	_scene->updateZoom(_transform.zoom);
 }
 
 std::shared_ptr<Scene> Paint::saveScene() const {
@@ -291,7 +292,7 @@ ItemBase::Data Paint::itemBaseData() const {
 	const auto x = s.width() / 2;
 	const auto y = s.height() / 2;
 	return ItemBase::Data{
-		.zoomValue = _transform.zoom.value(),
+		.initialZoom = _transform.zoom,
 		.zPtr = _scene->lastZ(),
 		.size = size,
 		.x = x,

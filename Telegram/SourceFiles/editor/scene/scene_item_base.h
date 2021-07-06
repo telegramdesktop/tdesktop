@@ -35,9 +35,10 @@ private:
 
 class ItemBase : public NumberedItem {
 public:
+	enum { Type = UserType + 2 };
 
 	struct Data {
-		rpl::producer<float64> zoomValue;
+		float64 initialZoom = 0.;
 		std::shared_ptr<float64> zPtr;
 		int size = 0;
 		int x = 0;
@@ -53,9 +54,12 @@ public:
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *widget) override;
+	int type() const override;
 
 	bool flipped() const;
 	void setFlip(bool value);
+
+	void updateZoom(float64 zoom);
 protected:
 	enum HandleType {
 		None,
@@ -118,9 +122,6 @@ private:
 	HandleType _handle = HandleType::None;
 
 	bool _flipped = false;
-
-	rpl::variable<float64> _zoom;
-	rpl::lifetime _lifetime;
 
 };
 

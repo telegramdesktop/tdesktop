@@ -51,8 +51,7 @@ void NumberedItem::setNumber(int number) {
 ItemBase::ItemBase(Data data)
 : _lastZ(data.zPtr)
 , _imageSize(data.imageSize)
-, _horizontalSize(data.size)
-, _zoom(std::move(data.zoomValue)) {
+, _horizontalSize(data.size) {
 	setFlags(QGraphicsItem::ItemIsMovable
 		| QGraphicsItem::ItemIsSelectable
 		| QGraphicsItem::ItemIsFocusable);
@@ -61,37 +60,7 @@ ItemBase::ItemBase(Data data)
 	setZValue((*_lastZ)++);
 	setFlip(data.flipped);
 	setRotation(data.rotation);
-
-	const auto &handleSize = st::photoEditorItemHandleSize;
-	_zoom.value(
-	) | rpl::start_with_next([=](float64 zoom) {
-		_scaledHandleSize = handleSize / zoom;
-		_scaledInnerMargins = QMarginsF(
-			_scaledHandleSize,
-			_scaledHandleSize,
-			_scaledHandleSize,
-			_scaledHandleSize) * 0.5;
-
-		const auto maxSide = std::max(
-			_imageSize.width(),
-			_imageSize.height());
-		_sizeLimits = {
-			.min = int(maxSide * kMinSizeRatio),
-			.max = int(maxSide * kMaxSizeRatio),
-		};
-		_horizontalSize = std::clamp(
-			_horizontalSize,
-			float64(_sizeLimits.min),
-			float64(_sizeLimits.max));
-		updateVerticalSize();
-
-		updatePens(QPen(
-			QBrush(),
-			1 / zoom,
-			Qt::DashLine,
-			Qt::SquareCap,
-			Qt::RoundJoin));
-	}, _lifetime);
+	updateZoom(data.initialZoom);
 }
 
 QRectF ItemBase::boundingRect() const {
@@ -243,8 +212,9 @@ void ItemBase::actionDelete() {
 
 void ItemBase::actionDuplicate() {
 	if (const auto s = static_cast<Scene*>(scene())) {
+		const auto zoom = st::photoEditorItemHandleSize / _scaledHandleSize;
 		const auto newItem = duplicate(Data{
-			.zoomValue = _zoom.value(),
+			.initialZoom = zoom,
 			.zPtr = _lastZ,
 			.size = int(_horizontalSize),
 			.x = int(scenePos().x() + _horizontalSize / 3),
@@ -346,6 +316,39 @@ void ItemBase::setFlip(bool value) {
 		performFlip();
 		_flipped = value;
 	}
+}
+
+int ItemBase::type() const {
+	return ItemBase::Type;
+}
+
+void ItemBase::updateZoom(float64 zoom) {
+	_scaledHandleSize = st::photoEditorItemHandleSize / zoom;
+	_scaledInnerMargins = QMarginsF(
+		_scaledHandleSize,
+		_scaledHandleSize,
+		_scaledHandleSize,
+		_scaledHandleSize) * 0.5;
+
+	const auto maxSide = std::max(
+		_imageSize.width(),
+		_imageSize.height());
+	_sizeLimits = {
+		.min = int(maxSide * kMinSizeRatio),
+		.max = int(maxSide * kMaxSizeRatio),
+	};
+	_horizontalSize = std::clamp(
+		_horizontalSize,
+		float64(_sizeLimits.min),
+		float64(_sizeLimits.max));
+	updateVerticalSize();
+
+	updatePens(QPen(
+		QBrush(),
+		1 / zoom,
+		Qt::DashLine,
+		Qt::SquareCap,
+		Qt::RoundJoin));
 }
 
 void ItemBase::performFlip() {

@@ -21,7 +21,7 @@ namespace Editor {
 
 class ItemSticker : public ItemBase {
 public:
-	enum { Type = ItemBase::Type + 2 };
+	enum { Type = ItemBase::Type + 1 };
 
 	ItemSticker(
 		not_null<DocumentData*> document,

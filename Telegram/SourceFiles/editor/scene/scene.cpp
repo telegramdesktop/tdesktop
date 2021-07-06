@@ -139,6 +139,14 @@ std::shared_ptr<float64> Scene::lastZ() const {
 	return _lastZ;
 }
 
+void Scene::updateZoom(float64 zoom) {
+	for (const auto &item : items()) {
+		if (item->type() >= ItemBase::Type) {
+			static_cast<ItemBase*>(item.get())->updateZoom(zoom);
+		}
+	}
+}
+
 Scene::~Scene() {
 	// Prevent destroying by scene of all items.
 	QGraphicsScene::removeItem(_canvas.get());

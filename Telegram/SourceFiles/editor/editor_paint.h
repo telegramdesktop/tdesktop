@@ -62,7 +62,7 @@ private:
 	struct {
 		int angle = 0;
 		bool flipped = false;
-		rpl::variable<float64> zoom = 0.;
+		float64 zoom = 0.;
 	} _transform;
 
 	std::vector<SavedItem> _previousItems;

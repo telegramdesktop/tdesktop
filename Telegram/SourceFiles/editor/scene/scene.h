@@ -42,6 +42,8 @@ public:
 
 	[[nodiscard]] std::shared_ptr<float64> lastZ() const;
 
+	void updateZoom(float64 zoom);
+
 	void cancelDrawing();
 protected:
 	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
