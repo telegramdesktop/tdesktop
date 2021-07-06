@@ -104,6 +104,7 @@ jobs:
         shell: bash
         run: |
           curl -o $LibrariesPath/tg_owt-version.json https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master
+          curl -o $LibrariesPath/tg_angle-version.json https://api.github.com/repos/desktop-app/tg_angle/git/refs/heads/master
           echo $MANUAL_CACHING >> CACHE_KEY.txt
           if [ "$AUTO_CACHING" == "1" ]; then
             thisFile=$REPO_NAME/.github/workflows/win.yml
@@ -316,6 +317,33 @@ jobs:
 
           rmdir /S /Q .git
 
+      - name: Angle cache.
+        id: cache-angle
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.LibrariesPath }}/tg_angle
+          key: ${{ runner.OS }}-angle-${{ env.CACHE_KEY }}-${{ hashFiles('**/tg_angle-version.json') }}
+      - name: Angle.
+        if: steps.cache-angle.outputs.cache-hit != 'true'
+        run: |
+          %VC%
+
+          git clone --recursive %GIT%/desktop-app/tg_angle.git
+          mkdir tg_angle\out\Debug
+          cd tg_angle\out\Debug
+          cmake -G Ninja ^
+          -DCMAKE_BUILD_TYPE=Debug ^
+          -DTG_ANGLE_SPECIAL_TARGET=win64 ^
+          -DTG_ANGLE_ZLIB_INCLUDE_PATH=%cd%/../../../zlib ../..
+          ninja
+
+          :: Cleanup.
+          cd %LibrariesPath%\tg_angle
+          move out\Debug\tg_angle.lib tg_angle.lib
+          rmdir /S /Q out
+          mkdir out\Debug
+          move tg_angle.lib out\Debug\tg_angle.lib
+
       - name: Qt 5.15.2 cache.
         id: cache-qt
         uses: actions/cache@v2
@@ -338,7 +366,12 @@ jobs:
           cd ..
 
           SET SSL=%LibrariesPath%\openssl_%OPENSSL_VER%
-          SET LIBS=libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib
+          SET SSL_LIBS=libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib
+
+          SET ANGLE=%LibrariesPath%\tg_angle
+          SET ANGLE_LIBS=d3d9.lib dxgi.lib dxguid.lib
+
+          SET ZLIB=%LibrariesPath%\zlib\contrib\vstudio\vc14\x86
 
           configure ^
           -prefix "%LibrariesPath%\Qt-%QT_VER%" ^
@@ -347,18 +380,29 @@ jobs:
           -opensource ^
           -confirm-license ^
           -static ^
-          -static-runtime -I "%SSL%\include" ^
-          -opengl dynamic ^
+          -static-runtime ^
+          -opengl es2 -no-angle ^
+          -I "%ANGLE%\include" ^
+          -D "GL_APICALL=" ^
+          QMAKE_LIBS_OPENGL_ES2_DEBUG="%ANGLE%\out\Debug\tg_angle.lib %ZLIB%\ZlibStatDebug\zlibstat.lib %ANGLE_LIBS%" ^
+          QMAKE_LIBS_OPENGL_ES2_RELEASE="%ANGLE%\out\Release\tg_angle.lib %ZLIB%\ZlibStatReleaseWithoutAsm\zlibstat.lib %ANGLE_LIBS%" ^
+          -egl ^
+          -D "EGLAPI=" ^
+          -D "DESKTOP_APP_QT_STATIC_ANGLE=" ^
+          QMAKE_LIBS_EGL_DEBUG="%ANGLE%\out\Debug\tg_angle.lib %ZLIB%\ZlibStatDebug\zlibstat.lib %ANGLE_LIBS% Gdi32.lib User32.lib" ^
+          QMAKE_LIBS_EGL_RELEASE="%ANGLE%\out\Release\tg_angle.lib %ZLIB%\ZlibStatReleaseWithoutAsm\zlibstat.lib %ANGLE_LIBS% Gdi32.lib User32.lib" ^
           -openssl-linked ^
-          OPENSSL_LIBS_DEBUG="%SSL%\out32.dbg\libssl.lib %SSL%\out32.dbg\%LIBS%" ^
-          OPENSSL_LIBS_RELEASE="%SSL%\out32\libssl.lib %SSL%\out32\%LIBS%" ^
+          -I "%SSL%\include" ^
+          OPENSSL_LIBS_DEBUG="%SSL%\out32.dbg\libssl.lib %SSL%\out32.dbg\%SSL_LIBS%" ^
+          OPENSSL_LIBS_RELEASE="%SSL%\out32\libssl.lib %SSL%\out32\%SSL_LIBS%" ^
+          -I "%LibrariesPath%\mozjpeg" ^
+          LIBJPEG_LIBS_DEBUG="%LibrariesPath%\mozjpeg\Debug\jpeg-static.lib" ^
+          LIBJPEG_LIBS_RELEASE="%LibrariesPath%\mozjpeg\Release\jpeg-static.lib" ^
           -mp ^
           -nomake examples ^
           -nomake tests ^
-          -platform win32-msvc ^
-          -I "%LibrariesPath%\mozjpeg" ^
-          LIBJPEG_LIBS_DEBUG="%LibrariesPath%\mozjpeg\Debug\jpeg-static.lib" ^
-          LIBJPEG_LIBS_RELEASE="%LibrariesPath%\mozjpeg\Release\jpeg-static.lib"
+          -platform win32-msvc
+
       - name: Qt 5.15.2 build.
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
