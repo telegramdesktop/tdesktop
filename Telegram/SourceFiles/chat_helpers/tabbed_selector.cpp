@@ -905,8 +905,8 @@ void TabbedSelector::fillTabsSliderSections() {
 			? !masks()->mySetsEmpty()
 			: true;
 	}) | ranges::views::transform([&](const Tab &tab) {
-		return [type = tab.type()] {
-			switch (type) {
+		return [&] {
+			switch (tab.type()) {
 			case SelectorTab::Emoji:
 				return tr::lng_switch_emoji;
 			case SelectorTab::Stickers:
@@ -916,6 +916,7 @@ void TabbedSelector::fillTabsSliderSections() {
 			case SelectorTab::Masks:
 				return tr::lng_switch_masks;
 			}
+			Unexpected("SelectorTab value in fillTabsSliderSections.");
 		}()(tr::now).toUpper();
 	}) | ranges::to_vector;
 	_tabsSlider->setSections(sections);
