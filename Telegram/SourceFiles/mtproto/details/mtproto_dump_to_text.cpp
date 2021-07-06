@@ -75,7 +75,7 @@ bool DumpToTextCore(DumpToTextBuffer &to, const mtpPrime *&from, const mtpPrime 
 	case mtpc_vector: {
 		if (from < end) {
 			int32 cnt = *(from++);
-			to.add("[ vector<0x").add(QString::number(vcons, 16)).add(">");
+			to.add("[ vector<0x").add(QString::number(vcons, 16)).add("> (").add(QString::number(cnt)).add(")");
 			if (cnt) {
 				to.add("\n").addSpaces(level);
 				for (int32 i = 0; i < cnt; ++i) {
