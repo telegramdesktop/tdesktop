@@ -40,6 +40,8 @@ public:
 
 	[[nodiscard]] std::vector<MTPInputDocument> attachedStickers() const;
 
+	[[nodiscard]] std::shared_ptr<float64> lastZ() const;
+
 	void cancelDrawing();
 protected:
 	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
@@ -47,6 +49,7 @@ protected:
 	void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
 private:
 	const std::shared_ptr<ItemCanvas> _canvas;
+	const std::shared_ptr<float64> _lastZ;
 
 	std::vector<ItemPtr> _items;
 

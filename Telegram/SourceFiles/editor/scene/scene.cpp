@@ -27,7 +27,8 @@ bool SkipMouseEvent(not_null<QGraphicsSceneMouseEvent*> event) {
 
 Scene::Scene(const QRectF &rect)
 : QGraphicsScene(rect)
-, _canvas(std::make_shared<ItemCanvas>()) {
+, _canvas(std::make_shared<ItemCanvas>())
+, _lastZ(std::make_shared<float64>(9000.)) {
 	QGraphicsScene::addItem(_canvas.get());
 	_canvas->clearPixmap();
 
@@ -132,6 +133,10 @@ std::vector<MTPInputDocument> Scene::attachedStickers() const {
 	}) | ranges::views::transform([](const ItemPtr &i) {
 		return static_cast<ItemSticker*>(i.get())->sticker();
 	}) | ranges::to_vector;
+}
+
+std::shared_ptr<float64> Scene::lastZ() const {
+	return _lastZ;
 }
 
 Scene::~Scene() {

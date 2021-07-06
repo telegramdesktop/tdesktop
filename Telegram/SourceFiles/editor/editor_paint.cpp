@@ -52,7 +52,6 @@ Paint::Paint(
 	std::shared_ptr<Controllers> controllers)
 : RpWidget(parent)
 , _controllers(controllers)
-, _lastZ(std::make_shared<float64>(9000.))
 , _scene(EnsureScene(modifications, imageSize))
 , _view(base::make_unique_q<QGraphicsView>(_scene.get(), this))
 , _imageSize(imageSize) {
@@ -293,7 +292,7 @@ ItemBase::Data Paint::itemBaseData() const {
 	const auto y = s.height() / 2;
 	return ItemBase::Data{
 		.zoomValue = _transform.zoom.value(),
-		.zPtr = _lastZ,
+		.zPtr = _scene->lastZ(),
 		.size = size,
 		.x = x,
 		.y = y,

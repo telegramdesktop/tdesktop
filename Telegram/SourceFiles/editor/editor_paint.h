@@ -55,7 +55,6 @@ private:
 	bool isItemHidden(const std::shared_ptr<QGraphicsItem> &item) const;
 
 	const std::shared_ptr<Controllers> _controllers;
-	const std::shared_ptr<float64> _lastZ;
 	const std::shared_ptr<Scene> _scene;
 	const base::unique_qptr<QGraphicsView> _view;
 	const QSize _imageSize;
