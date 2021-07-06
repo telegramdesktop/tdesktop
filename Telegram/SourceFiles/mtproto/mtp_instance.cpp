@@ -1017,32 +1017,42 @@ void Instance::Private::unregisterRequest(mtpRequestId requestId) {
 		_requestsByDc.erase(requestId);
 	}
 	{
-		QMutexLocker locker(&_dependentRequestsLock);
-		for (auto i = begin(_dependentRequests); i != end(_dependentRequests);) {
-			if (i->first == requestId) {
-				i = _dependentRequests.erase(i);
-			} else if (i->second == requestId) {
-				const auto resendingId = i->first;
-				i = _dependentRequests.erase(i);
+		auto toRemove = base::flat_set<mtpRequestId>();
+		auto toResend = base::flat_set<mtpRequestId>();
 
-				if (const auto shiftedDcId = queryRequestByDc(resendingId)) {
-					SerializedRequest request;
-					{
-						QReadLocker locker(&_requestMapLock);
-						auto it = _requestMap.find(resendingId);
-						if (it == _requestMap.cend()) {
-							LOG(("MTP Error: could not find dependent request %1").arg(resendingId));
-							return;
-						}
-						request = it->second;
-					}
-					request->after = SerializedRequest();
-					const auto session = getSession(qAbs(*shiftedDcId));
-					request->needsLayer = true;
-					session->sendPrepared(request);
+		toRemove.emplace(requestId);
+
+		QMutexLocker locker(&_dependentRequestsLock);
+
+		auto handling = 0;
+		do {
+			handling = toResend.size();
+			for (const auto [resendingId, afterId] : _dependentRequests) {
+				if (toRemove.contains(afterId)) {
+					toRemove.emplace(resendingId);
+					toResend.emplace(resendingId);
 				}
-			} else {
-				++i;
+			}
+		} while (handling != toResend.size());
+
+		for (const auto removingId : toRemove) {
+			_dependentRequests.remove(removingId);
+		}
+		locker.unlock();
+
+		for (const auto resendingId : toResend) {
+			if (const auto shiftedDcId = queryRequestByDc(resendingId)) {
+				SerializedRequest request;
+				{
+					QReadLocker locker(&_requestMapLock);
+					auto it = _requestMap.find(resendingId);
+					if (it == _requestMap.cend()) {
+						LOG(("MTP Error: could not find dependent request %1").arg(resendingId));
+						return;
+					}
+					request = it->second;
+				}
+				getSession(qAbs(*shiftedDcId))->sendPrepared(request);
 			}
 		}
 	}
@@ -1405,9 +1415,7 @@ bool Instance::Private::onErrorDefault(
 		}
 
 		if (!request->after) {
-			const auto session = getSession(qAbs(dcWithShift));
-			request->needsLayer = true;
-			session->sendPrepared(request);
+			getSession(qAbs(dcWithShift))->sendPrepared(request);
 		} else {
 			QMutexLocker locker(&_dependentRequestsLock);
 			_dependentRequests.emplace(requestId, request->after->requestId);
