@@ -135,6 +135,17 @@ std::map<int, const char*> BetaLogs() {
 
 		"- Several bug fixes.\n"
 	},
+	{
+		2008006,
+		"- Added a simple image editor. "
+		"Crop photos or highlight parts of screenshots before sending.\n"
+
+		"- Use Direct3D 9 backend in ANGLE by default (Windows).\n"
+
+		"- Fix \"Show in Finder\" not focusing the Finder window (macOS).\n"
+		
+		"- Use GTK from a child process (Linux).\n"
+	},
 	};
 };
 

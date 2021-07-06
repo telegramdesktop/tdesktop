@@ -1,3 +1,10 @@
+2.8.6 beta (06.07.21)
+
+- Added a simple image editor. Crop photos or highlight parts of screenshots before sending.
+- Use Direct3D 9 backend in ANGLE by default (Windows).
+- Fix "Show in Finder" not focusing the Finder window (macOS).
+- Use GTK from a child process (Linux).
+
 2.8.5 beta (02.07.21)
 
 - Use ANGLE for OpenGL over DirectX 9 / DirectX 11 (Windows).
