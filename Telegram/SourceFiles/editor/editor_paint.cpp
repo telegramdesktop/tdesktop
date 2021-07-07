@@ -81,8 +81,8 @@ Paint::Paint(
 			(*it)->setVisible(!isUndo);
 		}
 
-		_hasUndo = hasUndo();
-		_hasRedo = hasRedo();
+		_hasUndo = _scene->hasUndo();
+		_hasRedo = _scene->hasRedo();
 	}, lifetime());
 
 	controllers->undoController->setCanPerformChanges(rpl::merge(
@@ -217,16 +217,6 @@ void Paint::keepResult() {
 	}) | ranges::to_vector;
 }
 
-bool Paint::hasUndo() const {
-	return ranges::any_of(_scene->items(), &QGraphicsItem::isVisible);
-}
-
-bool Paint::hasRedo() const {
-	return ranges::any_of(
-		_scene->items(),
-		[=](const ItemPtr &i) { return isItemHidden(i); });
-}
-
 void Paint::clearRedoList() {
 	const auto items = _scene->items(Qt::AscendingOrder);
 	auto &&filtered = ranges::views::all(
@@ -252,8 +242,8 @@ bool Paint::isItemToRemove(const ItemPtr &item) const {
 }
 
 void Paint::updateUndoState() {
-	_hasUndo = hasUndo();
-	_hasRedo = hasRedo();
+	_hasUndo = _scene->hasUndo();
+	_hasRedo = _scene->hasRedo();
 }
 
 void Paint::applyBrush(const Brush &brush) {

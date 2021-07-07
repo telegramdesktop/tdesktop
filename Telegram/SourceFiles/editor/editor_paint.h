@@ -49,8 +49,6 @@ private:
 
 	ItemBase::Data itemBaseData() const;
 
-	bool hasUndo() const;
-	bool hasRedo() const;
 	void clearRedoList();
 
 	bool isItemToRemove(const std::shared_ptr<QGraphicsItem> &item) const;

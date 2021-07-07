@@ -163,6 +163,14 @@ void Scene::restoreItemsState(SaveState state) {
 	}
 }
 
+bool Scene::hasUndo() const {
+	return ranges::any_of(_items, &NumberedItem::isNormalStatus);
+}
+
+bool Scene::hasRedo() const {
+	return ranges::any_of(_items, &NumberedItem::isUndidStatus);
+}
+
 Scene::~Scene() {
 	// Prevent destroying by scene of all items.
 	QGraphicsScene::removeItem(_canvas.get());

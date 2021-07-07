@@ -49,6 +49,9 @@ public:
 
 	void saveItemsState(SaveState state);
 	void restoreItemsState(SaveState state);
+
+	[[nodiscard]] bool hasUndo() const;
+	[[nodiscard]] bool hasRedo() const;
 protected:
 	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
