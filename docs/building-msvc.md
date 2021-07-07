@@ -215,13 +215,13 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
         -opengl es2 -no-angle ^
         -I "%LibrariesPath%\tg_angle\include" ^
         -D "GL_APICALL=" ^
-        QMAKE_LIBS_OPENGL_ES2_DEBUG="%LibrariesPath%\tg_angle\out\Debug\tg_angle.lib d3d9.lib dxgi.lib dxguid.lib" ^
-        QMAKE_LIBS_OPENGL_ES2_RELEASE="%LibrariesPath%\tg_angle\out\Release\tg_angle.lib d3d9.lib dxgi.lib dxguid.lib" ^
+        QMAKE_LIBS_OPENGL_ES2_DEBUG="%LibrariesPath%\tg_angle\out\Debug\tg_angle.lib %LibrariesPath%\zlib\contrib\vstudio\vc14\x86\ZlibStatDebug\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib" ^
+        QMAKE_LIBS_OPENGL_ES2_RELEASE="%LibrariesPath%\tg_angle\out\Release\tg_angle.lib %LibrariesPath%\zlib\contrib\vstudio\vc14\x86\ZlibStatReleaseWithoutAsm\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib" ^
         -egl ^
         -D "EGLAPI=" ^
         -D "DESKTOP_APP_QT_STATIC_ANGLE=" ^
-        QMAKE_LIBS_EGL_DEBUG="%LibrariesPath%\tg_angle\out\Debug\tg_angle.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
-        QMAKE_LIBS_EGL_RELEASE="%LibrariesPath%\tg_angle\out\Release\tg_angle.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
+        QMAKE_LIBS_EGL_DEBUG="%LibrariesPath%\tg_angle\out\Debug\tg_angle.lib %LibrariesPath%\zlib\contrib\vstudio\vc14\x86\ZlibStatDebug\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
+        QMAKE_LIBS_EGL_RELEASE="%LibrariesPath%\tg_angle\out\Release\tg_angle.lib %LibrariesPath%\zlib\contrib\vstudio\vc14\x86\ZlibStatReleaseWithoutAsm\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
         -openssl-linked ^
         -I "%LibrariesPath%\openssl_1_1_1\include" ^
         OPENSSL_LIBS_DEBUG="%LibrariesPath%\openssl_1_1_1\out32.dbg\libssl.lib %LibrariesPath%\openssl_1_1_1\out32.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
