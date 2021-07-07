@@ -25,7 +25,7 @@ GtkIntegration *GtkIntegration::Instance() {
 void GtkIntegration::load(const QString &allowedBackends) {
 }
 
-int GtkIntegration::exec(const QString &parentDBusName, int ppid) {
+int GtkIntegration::exec(const QString &parentDBusName) {
 	return 1;
 }
 
@@ -44,8 +44,7 @@ QString GtkIntegration::AllowedBackends() {
 int GtkIntegration:Exec(
 		Type type,
 		const QString &parentDBusName,
-		int ppid,
-		uint instanceNumber) {
+		const QString &serviceName) {
 	return 1;
 }
 

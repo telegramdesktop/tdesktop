@@ -746,6 +746,7 @@ void start() {
 	Glib::set_application_name(std::string(AppName));
 
 	GtkIntegration::Start(GtkIntegration::Type::Base);
+	GtkIntegration::Start(GtkIntegration::Type::Webview);
 	GtkIntegration::Start(GtkIntegration::Type::TDesktop);
 
 #ifdef DESKTOP_APP_USE_PACKAGED_RLOTTIE

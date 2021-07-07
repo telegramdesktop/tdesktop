@@ -16,11 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/base_platform_info.h"
+#include "webview/platform/linux/webview_linux_webkit2gtk.h"
 #include "platform/linux/linux_gtk_integration_p.h"
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_gtk_open_with_dialog.h"
 #include "platform/linux/linux_wayland_integration.h"
-#include "webview/webview_interface.h"
 #include "window/window_controller.h"
 #include "core/application.h"
 
@@ -42,6 +42,8 @@ using BaseGtkIntegration = base::Platform::GtkIntegration;
 namespace {
 
 constexpr auto kService = "org.telegram.desktop.GtkIntegration-%1"_cs;
+constexpr auto kBaseService = "org.telegram.desktop.BaseGtkIntegration-%1"_cs;
+constexpr auto kWebviewService = "org.telegram.desktop.GtkIntegration.WebviewHelper-%1-%2"_cs;
 constexpr auto kObjectPath = "/org/telegram/desktop/GtkIntegration"_cs;
 constexpr auto kInterface = "org.telegram.desktop.GtkIntegration"_cs;
 constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
@@ -65,6 +67,8 @@ constexpr auto kIntrospectionXML = R"INTROSPECTION(<node>
 		</signal>
 	</interface>
 </node>)INTROSPECTION"_cs;
+
+Glib::ustring ServiceName;
 
 bool GetImageFromClipboardSupported() {
 	return (gtk_clipboard_get != nullptr)
@@ -93,8 +97,7 @@ public:
 			return Glib::RefPtr<Gio::DBus::Connection>();
 		}
 	}())
-	, interfaceVTable(sigc::mem_fun(this, &Private::handleMethodCall))
-	, serviceName(kService.utf16().arg(getpid()).toStdString()) {
+	, interfaceVTable(sigc::mem_fun(this, &Private::handleMethodCall)) {
 	}
 
 	void handleMethodCall(
@@ -109,7 +112,6 @@ public:
 	const Glib::RefPtr<Gio::DBus::Connection> dbusConnection;
 	const Gio::DBus::InterfaceVTable interfaceVTable;
 	Glib::RefPtr<Gio::DBus::NodeInfo> introspectionData;
-	Glib::ustring serviceName;
 	Glib::ustring parentDBusName;
 	bool remoting = true;
 	uint registerId = 0;
@@ -303,7 +305,7 @@ void GtkIntegration::load(const QString &allowedBackends) {
 				base::Platform::MakeGlibVariant(std::tuple{
 					Glib::ustring(allowedBackends.toStdString()),
 				}),
-				_private->serviceName);
+				ServiceName);
 		} catch (...) {
 		}
 
@@ -344,9 +346,8 @@ void GtkIntegration::load(const QString &allowedBackends) {
 	Loaded = true;
 }
 
-int GtkIntegration::exec(const QString &parentDBusName, int ppid) {
+int GtkIntegration::exec(const QString &parentDBusName) {
 	_private->remoting = false;
-	_private->serviceName = kService.utf16().arg(ppid).toStdString();
 	_private->parentDBusName = parentDBusName.toStdString();
 
 	_private->introspectionData = Gio::DBus::NodeInfo::create_for_xml(
@@ -357,7 +358,7 @@ int GtkIntegration::exec(const QString &parentDBusName, int ppid) {
 		_private->introspectionData->lookup_interface(),
 		_private->interfaceVTable);
 
-	const auto app = Gio::Application::create(_private->serviceName);
+	const auto app = Gio::Application::create(ServiceName);
 	app->hold();
 	_private->parentServiceWatcherId = base::Platform::DBus::RegisterServiceWatcher(
 		_private->dbusConnection,
@@ -406,7 +407,7 @@ bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
 					Glib::ustring(parent.toStdString()),
 					Glib::ustring(filepath.toStdString()),
 				}),
-				_private->serviceName);
+				ServiceName);
 
 			const auto context = Glib::MainContext::create();
 			const auto loop = Glib::MainLoop::create(context);
@@ -434,7 +435,7 @@ bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
 					} catch (...) {
 					}
 				},
-				_private->serviceName,
+				ServiceName,
 				std::string(kInterface),
 				"OpenWithDialogResponse",
 				std::string(kObjectPath));
@@ -505,7 +506,7 @@ QImage GtkIntegration::getImageFromClipboard() const {
 				{},
 				{},
 				outFdList,
-				_private->serviceName);
+				ServiceName);
 
 			const auto streamSize = base::Platform::GlibVariantCast<int>(
 				reply.get_child(1));
@@ -609,25 +610,22 @@ QString GtkIntegration::AllowedBackends() {
 int GtkIntegration::Exec(
 		Type type,
 		const QString &parentDBusName,
-		int ppid,
-		uint instanceNumber) {
+		const QString &serviceName) {
 	Glib::init();
 	Gio::init();
 
 	if (type == Type::Base) {
+		BaseGtkIntegration::SetServiceName(serviceName);
 		if (const auto integration = BaseGtkIntegration::Instance()) {
-			return integration->exec(parentDBusName, ppid);
+			return integration->exec(parentDBusName);
 		}
 	} else if (type == Type::Webview) {
-		if (const auto instance = Webview::CreateInstance({})) {
-			return instance->exec(
-				parentDBusName.toStdString(),
-				ppid,
-				instanceNumber);
-		}
+		Webview::WebKit2Gtk::SetServiceName(serviceName.toStdString());
+		return Webview::WebKit2Gtk::Exec(parentDBusName.toStdString());
 	} else if (type == Type::TDesktop) {
+		ServiceName = serviceName.toStdString();
 		if (const auto integration = Instance()) {
-			return integration->exec(parentDBusName, ppid);
+			return integration->exec(parentDBusName);
 		}
 	}
 
@@ -635,8 +633,25 @@ int GtkIntegration::Exec(
 }
 
 void GtkIntegration::Start(Type type) {
-	if (type != Type::Base && type != Type::TDesktop) {
+	if (type != Type::Base
+		&& type != Type::Webview
+		&& type != Type::TDesktop) {
 		return;
+	}
+
+	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
+	char h[33] = { 0 };
+	hashMd5Hex(d.constData(), d.size(), h);
+
+	if (type == Type::Base) {
+		BaseGtkIntegration::SetServiceName(kBaseService.utf16().arg(h));
+	} else if (type == Type::Webview) {
+		Webview::WebKit2Gtk::SetServiceName(
+			kWebviewService.utf16().arg(h).arg("%1").toStdString());
+
+		return;
+	} else {
+		ServiceName = kService.utf16().arg(h).toStdString();
 	}
 
 	const auto dbusName = [] {
@@ -659,7 +674,9 @@ void GtkIntegration::Start(Type type) {
 			? qsl("-basegtkintegration")
 			: qsl("-gtkintegration"),
 		dbusName,
-		QString::number(getpid()),
+		(type == Type::Base)
+			? kBaseService.utf16().arg(h)
+			: kService.utf16().arg(h),
 	});
 }
 
@@ -672,18 +689,11 @@ void GtkIntegration::Autorestart(Type type) {
 		static const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
-		const auto baseServiceName = [] {
-			if (const auto integration = BaseGtkIntegration::Instance()) {
-				return integration->serviceName();
-			}
-			return QString();
-		}();
-
 		base::Platform::DBus::RegisterServiceWatcher(
 			connection,
 			(type == Type::Base)
-				? baseServiceName.toStdString()
-				: kService.utf16().arg(getpid()).toStdString(),
+				? Glib::ustring(BaseGtkIntegration::ServiceName().toStdString())
+				: ServiceName,
 			[=](
 				const Glib::ustring &service,
 				const Glib::ustring &oldOwner,
