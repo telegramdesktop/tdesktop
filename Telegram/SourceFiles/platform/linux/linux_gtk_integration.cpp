@@ -499,14 +499,25 @@ QImage GtkIntegration::getImageFromClipboard() const {
 		try {
 			Glib::RefPtr<Gio::UnixFDList> outFdList;
 
-			auto reply = _private->dbusConnection->call_sync(
+			const auto loop = Glib::MainLoop::create();
+			Glib::VariantContainerBase reply;
+			_private->dbusConnection->call(
 				std::string(kObjectPath),
 				std::string(kInterface),
 				"GetImageFromClipboard",
 				{},
-				{},
-				outFdList,
+				[&](const Glib::RefPtr<Gio::AsyncResult> &result) {
+					try {
+						reply = _private->dbusConnection->call_finish(
+							result,
+							outFdList);
+					} catch (...) {
+					}
+					loop->quit();
+				},
 				ServiceName);
+
+			loop->run();
 
 			const auto streamSize = base::Platform::GlibVariantCast<int>(
 				reply.get_child(1));
