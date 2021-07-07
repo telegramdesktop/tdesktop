@@ -43,7 +43,7 @@ std::shared_ptr<Scene> EnsureScene(
 
 } // namespace
 
-using ItemPtr = Scene::ItemPtr;
+using ItemPtr = std::shared_ptr<QGraphicsItem>;
 
 Paint::Paint(
 	not_null<Ui::RpWidget*> parent,

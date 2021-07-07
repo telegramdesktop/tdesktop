@@ -25,7 +25,7 @@ class NumberedItem;
 
 class Scene final : public QGraphicsScene {
 public:
-	using ItemPtr = std::shared_ptr<QGraphicsItem>;
+	using ItemPtr = std::shared_ptr<NumberedItem>;
 
 	Scene(const QRectF &rect);
 	~Scene();
@@ -33,9 +33,9 @@ public:
 
 	[[nodiscard]] std::vector<ItemPtr> items(
 		Qt::SortOrder order = Qt::DescendingOrder) const;
-	void addItem(std::shared_ptr<NumberedItem> item);
+	void addItem(ItemPtr item);
 	void removeItem(not_null<QGraphicsItem*> item);
-	void removeItem(const ItemPtr &item);
+	void removeItem(const std::shared_ptr<QGraphicsItem> &item);
 	[[nodiscard]] rpl::producer<> addsItem() const;
 	[[nodiscard]] rpl::producer<> removesItem() const;
 

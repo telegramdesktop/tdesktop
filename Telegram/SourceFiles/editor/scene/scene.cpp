@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Editor {
 namespace {
 
-using ItemPtr = Scene::ItemPtr;
+using ItemPtr = std::shared_ptr<NumberedItem>;
 
 bool SkipMouseEvent(not_null<QGraphicsSceneMouseEvent*> event) {
 	return event->isAccepted() || (event->button() == Qt::RightButton);
@@ -66,7 +66,7 @@ void Scene::removeItem(not_null<QGraphicsItem*> item) {
 	removeItem(*it);
 }
 
-void Scene::removeItem(const ItemPtr &item) {
+void Scene::removeItem(const std::shared_ptr<QGraphicsItem> &item) {
 	// Scene loses ownership of an item.
 	QGraphicsScene::removeItem(item.get());
 
@@ -115,8 +115,8 @@ std::vector<ItemPtr> Scene::items(
 	auto copyItems = _items;
 
 	ranges::sort(copyItems, [&](ItemPtr a, ItemPtr b) {
-		const auto numA = static_cast<NumberedItem*>(a.get())->number();
-		const auto numB = static_cast<NumberedItem*>(b.get())->number();
+		const auto numA = a->number();
+		const auto numB = b->number();
 		return (order == Qt::AscendingOrder) ? (numA < numB) : (numA > numB);
 	});
 
