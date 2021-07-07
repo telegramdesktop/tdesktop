@@ -52,6 +52,9 @@ public:
 
 	[[nodiscard]] bool hasUndo() const;
 	[[nodiscard]] bool hasRedo() const;
+
+	void performUndo();
+	void performRedo();
 protected:
 	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;

@@ -67,18 +67,10 @@ Paint::Paint(
 	// Undo / Redo.
 	controllers->undoController->performRequestChanges(
 	) | rpl::start_with_next([=](const Undo &command) {
-		const auto isUndo = (command == Undo::Undo);
-
-		const auto filtered = _scene->items(isUndo
-			? Qt::DescendingOrder
-			: Qt::AscendingOrder);
-
-		auto proj = [&](const ItemPtr &i) {
-			return isUndo ? i->isVisible() : isItemHidden(i);
-		};
-		const auto it = ranges::find_if(filtered, std::move(proj));
-		if (it != filtered.end()) {
-			(*it)->setVisible(!isUndo);
+		if (command == Undo::Undo) {
+			_scene->performUndo();
+		} else {
+			_scene->performRedo();
 		}
 
 		_hasUndo = _scene->hasUndo();

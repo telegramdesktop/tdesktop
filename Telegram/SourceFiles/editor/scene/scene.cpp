@@ -171,6 +171,24 @@ bool Scene::hasRedo() const {
 	return ranges::any_of(_items, &NumberedItem::isUndidStatus);
 }
 
+void Scene::performUndo() {
+	const auto filtered = items(Qt::DescendingOrder);
+
+	const auto it = ranges::find_if(filtered, &NumberedItem::isNormalStatus);
+	if (it != filtered.end()) {
+		(*it)->setStatus(NumberedItem::Status::Undid);
+	}
+}
+
+void Scene::performRedo() {
+	const auto filtered = items(Qt::AscendingOrder);
+
+	const auto it = ranges::find_if(filtered, &NumberedItem::isUndidStatus);
+	if (it != filtered.end()) {
+		(*it)->setStatus(NumberedItem::Status::Normal);
+	}
+}
+
 Scene::~Scene() {
 	// Prevent destroying by scene of all items.
 	QGraphicsScene::removeItem(_canvas.get());
