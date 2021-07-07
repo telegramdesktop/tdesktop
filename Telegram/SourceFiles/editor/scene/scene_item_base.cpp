@@ -383,4 +383,27 @@ void ItemBase::applyData(const Data &data) {
 	update();
 }
 
+void ItemBase::save(SaveState state) {
+	if (state == SaveState::Keep) {
+		const auto z = zValue();
+		_keeped = {
+			.data = generateData(),
+			.zValue = z,
+			.visible = isVisible(),
+		};
+	} else if (state == SaveState::Save) {
+		_saved = _keeped;
+	}
+}
+
+void ItemBase::restore(SaveState state) {
+	const auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
+	if (!saved.zValue) {
+		return;
+	}
+	applyData(saved.data);
+	setZValue(saved.zValue);
+	setVisible(saved.visible);
+}
+
 } // namespace Editor

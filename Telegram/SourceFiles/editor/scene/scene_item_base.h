@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/unique_qptr.h"
+#include "editor/photo_editor_inner_common.h"
 
 #include <QGraphicsItem>
 
@@ -60,6 +61,9 @@ public:
 	void setFlip(bool value);
 
 	void updateZoom(float64 zoom);
+
+	void save(SaveState state);
+	void restore(SaveState state);
 protected:
 	enum HandleType {
 		None,
@@ -113,8 +117,14 @@ private:
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	struct {
-		int min = 0.;
-		int max = 0.;
+		Data data;
+		float64 zValue = 0.;
+		bool visible = true;
+	} _saved, _keeped;
+
+	struct {
+		int min = 0;
+		int max = 0;
 	} _sizeLimits;
 	float64 _scaledHandleSize = 1.0;
 	QMarginsF _scaledInnerMargins;

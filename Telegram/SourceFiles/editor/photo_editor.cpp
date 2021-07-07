@@ -136,6 +136,10 @@ PhotoEditor::PhotoEditor(
 				.action = PhotoEditorMode::Action::Save,
 			};
 		} else if (mode == PhotoEditorMode::Mode::Transform) {
+			_mode = PhotoEditorMode{
+				.mode = PhotoEditorMode::Mode::Out,
+				.action = PhotoEditorMode::Action::Save,
+			};
 			save();
 		}
 	}, lifetime());
@@ -149,6 +153,10 @@ PhotoEditor::PhotoEditor(
 				.action = PhotoEditorMode::Action::Discard,
 			};
 		} else if (mode == PhotoEditorMode::Mode::Transform) {
+			_mode = PhotoEditorMode{
+				.mode = PhotoEditorMode::Mode::Out,
+				.action = PhotoEditorMode::Action::Discard,
+			};
 			_cancel.fire({});
 		}
 	}, lifetime());

@@ -147,6 +147,22 @@ void Scene::updateZoom(float64 zoom) {
 	}
 }
 
+void Scene::saveItemsState(SaveState state) {
+	for (const auto &item : items()) {
+		if (item->type() >= ItemBase::Type) {
+			static_cast<ItemBase*>(item.get())->save(state);
+		}
+	}
+}
+
+void Scene::restoreItemsState(SaveState state) {
+	for (const auto &item : items()) {
+		if (item->type() >= ItemBase::Type) {
+			static_cast<ItemBase*>(item.get())->restore(state);
+		}
+	}
+}
+
 Scene::~Scene() {
 	// Prevent destroying by scene of all items.
 	QGraphicsScene::removeItem(_canvas.get());

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <base/unique_qptr.h>
+#include <editor/photo_editor_inner_common.h>
 
 #include <QGraphicsScene>
 
@@ -45,6 +46,9 @@ public:
 	void updateZoom(float64 zoom);
 
 	void cancelDrawing();
+
+	void saveItemsState(SaveState state);
+	void restoreItemsState(SaveState state);
 protected:
 	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;

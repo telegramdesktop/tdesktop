@@ -15,6 +15,7 @@ struct PhotoEditorMode {
 	enum class Mode {
 		Transform,
 		Paint,
+		Out,
 	} mode = Mode::Transform;
 
 	enum class Action {
@@ -27,6 +28,11 @@ struct PhotoEditorMode {
 struct Brush {
 	float sizeRatio = 0.;
 	QColor color;
+};
+
+enum class SaveState {
+	Save,
+	Keep,
 };
 
 } // namespace Editor

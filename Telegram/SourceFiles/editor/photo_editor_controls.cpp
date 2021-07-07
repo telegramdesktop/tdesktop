@@ -267,6 +267,9 @@ PhotoEditorControls::PhotoEditorControls(
 
 	_mode.changes(
 	) | rpl::start_with_next([=](const PhotoEditorMode &mode) {
+		if (mode.mode == PhotoEditorMode::Mode::Out) {
+			return;
+		}
 		const auto animated = (_paintBottomButtons->isVisible()
 				== _transformButtons->isVisible())
 			? anim::type::instant

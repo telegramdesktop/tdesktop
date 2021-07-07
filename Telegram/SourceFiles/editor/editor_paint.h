@@ -31,6 +31,7 @@ public:
 		std::shared_ptr<Controllers> controllers);
 
 	[[nodiscard]] std::shared_ptr<Scene> saveScene() const;
+	void restoreScene();
 
 	void applyTransform(QRect geometry, int angle, bool flipped);
 	void applyBrush(const Brush &brush);

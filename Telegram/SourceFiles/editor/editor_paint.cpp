@@ -161,6 +161,7 @@ void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
 }
 
 std::shared_ptr<Scene> Paint::saveScene() const {
+	_scene->saveItemsState(SaveState::Save);
 	_scene->clearSelection();
 	return _scene->items().empty()
 		? nullptr
@@ -169,7 +170,12 @@ std::shared_ptr<Scene> Paint::saveScene() const {
 		: _scene;
 }
 
+void Paint::restoreScene() {
+	_scene->restoreItemsState(SaveState::Save);
+}
+
 void Paint::cancel() {
+	_scene->restoreItemsState(SaveState::Keep);
 	_scene->clearSelection();
 	_scene->cancelDrawing();
 
@@ -194,6 +200,7 @@ void Paint::cancel() {
 }
 
 void Paint::keepResult() {
+	_scene->saveItemsState(SaveState::Keep);
 	_scene->clearSelection();
 	_scene->cancelDrawing();
 

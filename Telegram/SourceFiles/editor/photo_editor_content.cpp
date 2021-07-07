@@ -113,6 +113,12 @@ void PhotoEditorContent::save(PhotoModifications &modifications) {
 }
 
 void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
+	if (mode.mode == PhotoEditorMode::Mode::Out) {
+		if (mode.action == PhotoEditorMode::Action::Discard) {
+			_paint->restoreScene();
+		}
+		return;
+	}
 	const auto isTransform = (mode.mode == PhotoEditorMode::Mode::Transform);
 	_crop->setVisible(isTransform);
 
@@ -139,9 +145,9 @@ bool PhotoEditorContent::handleKeyPress(not_null<QKeyEvent*> e) const {
 
 void PhotoEditorContent::setupDragArea() {
 	auto dragEnterFilter = [=](const QMimeData *data) {
-		return (_mode.mode == PhotoEditorMode::Mode::Transform)
-			? false
-			: Storage::ValidatePhotoEditorMediaDragData(data);
+		return (_mode.mode == PhotoEditorMode::Mode::Paint)
+			? Storage::ValidatePhotoEditorMediaDragData(data)
+			: false;
 	};
 
 	const auto areas = DragArea::SetupDragAreaToContainer(
