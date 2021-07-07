@@ -60,6 +60,16 @@ bool NumberedItem::isUndidStatus() const {
 	return _status == Status::Undid;
 }
 
+void NumberedItem::save(SaveState state) {
+}
+
+void NumberedItem::restore(SaveState state) {
+}
+
+bool NumberedItem::hasState(SaveState state) const {
+	return false;
+}
+
 void NumberedItem::setStatus(Status status) {
 	if (status != _status) {
 		_status = status;
@@ -416,13 +426,18 @@ void ItemBase::save(SaveState state) {
 }
 
 void ItemBase::restore(SaveState state) {
-	const auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
-	if (!saved.zValue) {
+	if (!hasState(state)) {
 		return;
 	}
+	const auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
 	applyData(saved.data);
 	setZValue(saved.zValue);
 	setVisible(saved.visible);
+}
+
+bool ItemBase::hasState(SaveState state) const {
+	const auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
+	return saved.zValue;
 }
 
 } // namespace Editor

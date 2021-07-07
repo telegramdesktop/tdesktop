@@ -38,4 +38,24 @@ bool ItemLine::collidesWithPath(
 	return false;
 }
 
+void ItemLine::save(SaveState state) {
+	if (state == SaveState::Keep) {
+		_keeped = true;
+	} else if (state == SaveState::Save) {
+		_saved = true;
+	}
+}
+
+void ItemLine::restore(SaveState state) {
+}
+
+bool ItemLine::hasState(SaveState state) const {
+	if (state == SaveState::Keep) {
+		return _keeped;
+	} else if (state == SaveState::Save) {
+		return _saved;
+	}
+	return false;
+}
+
 } // namespace Editor

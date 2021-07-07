@@ -40,6 +40,10 @@ public:
 	void setStatus(Status status);
 	[[nodiscard]] bool isNormalStatus() const;
 	[[nodiscard]] bool isUndidStatus() const;
+
+	virtual void save(SaveState state);
+	virtual void restore(SaveState state);
+	virtual bool hasState(SaveState state) const;
 private:
 	int _number = 0;
 	Status _status = Status::Normal;
@@ -73,8 +77,9 @@ public:
 
 	void updateZoom(float64 zoom);
 
-	void save(SaveState state);
-	void restore(SaveState state);
+	bool hasState(SaveState state) const override;
+	void save(SaveState state) override;
+	void restore(SaveState state) override;
 protected:
 	enum HandleType {
 		None,
