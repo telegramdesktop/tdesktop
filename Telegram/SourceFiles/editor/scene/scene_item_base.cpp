@@ -56,11 +56,7 @@ ItemBase::ItemBase(Data data)
 		| QGraphicsItem::ItemIsSelectable
 		| QGraphicsItem::ItemIsFocusable);
 	setAcceptHoverEvents(true);
-	setPos(data.x, data.y);
-	setZValue((*_lastZ)++);
-	setFlip(data.flipped);
-	setRotation(data.rotation);
-	updateZoom(data.initialZoom);
+	applyData(data);
 }
 
 QRectF ItemBase::boundingRect() const {
@@ -212,17 +208,10 @@ void ItemBase::actionDelete() {
 
 void ItemBase::actionDuplicate() {
 	if (const auto s = static_cast<Scene*>(scene())) {
-		const auto zoom = st::photoEditorItemHandleSize / _scaledHandleSize;
-		const auto newItem = duplicate(Data{
-			.initialZoom = zoom,
-			.zPtr = _lastZ,
-			.size = int(_horizontalSize),
-			.x = int(scenePos().x() + _horizontalSize / 3),
-			.y = int(scenePos().y() + _verticalSize / 3),
-			.flipped = flipped(),
-			.rotation = int(rotation()),
-			.imageSize = _imageSize,
-		});
+		auto data = generateData();
+		data.x += int(_horizontalSize / 3);
+		data.y += int(_verticalSize / 3);
+		const auto newItem = duplicate(std::move(data));
 		if (hasFocus()) {
 			newItem->setFocus();
 		}
@@ -367,6 +356,31 @@ void ItemBase::updatePens(QPen pen) {
 	_pens.handleInactive.setColor(Qt::gray);
 	_pens.handle.setStyle(Qt::SolidLine);
 	_pens.handleInactive.setStyle(Qt::SolidLine);
+}
+
+ItemBase::Data ItemBase::generateData() const {
+	return {
+		.initialZoom = (st::photoEditorItemHandleSize / _scaledHandleSize),
+		.zPtr = _lastZ,
+		.size = int(_horizontalSize),
+		.x = int(scenePos().x()),
+		.y = int(scenePos().y()),
+		.flipped = flipped(),
+		.rotation = int(rotation()),
+		.imageSize = _imageSize,
+	};
+}
+
+void ItemBase::applyData(const Data &data) {
+	// _lastZ is const.
+	// _imageSize is const.
+	_horizontalSize = data.size;
+	setPos(data.x, data.y);
+	setZValue((*_lastZ)++);
+	setFlip(data.flipped);
+	setRotation(data.rotation);
+	updateZoom(data.initialZoom);
+	update();
 }
 
 } // namespace Editor

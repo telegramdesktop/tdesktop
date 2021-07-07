@@ -97,6 +97,9 @@ private:
 	void updatePens(QPen pen);
 	void handleActionKey(not_null<QKeyEvent*> e);
 
+	Data generateData() const;
+	void applyData(const Data &data);
+
 	const std::shared_ptr<float64> _lastZ;
 	const QSize _imageSize;
 
