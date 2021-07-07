@@ -24,14 +24,25 @@ namespace Editor {
 
 class NumberedItem : public QGraphicsItem {
 public:
+	enum class Status {
+		Normal,
+		Undid,
+	};
+
 	enum { Type = UserType + 1 };
 	using QGraphicsItem::QGraphicsItem;
 
 	int type() const override;
 	void setNumber(int number);
 	[[nodiscard]] int number() const;
+
+	[[nodiscard]] Status status() const;
+	void setStatus(Status status);
+	[[nodiscard]] bool isNormalStatus() const;
+	[[nodiscard]] bool isUndidStatus() const;
 private:
 	int _number = 0;
+	Status _status = Status::Normal;
 };
 
 class ItemBase : public NumberedItem {

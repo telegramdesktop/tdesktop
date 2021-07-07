@@ -48,6 +48,25 @@ void NumberedItem::setNumber(int number) {
 	_number = number;
 }
 
+NumberedItem::Status NumberedItem::status() const {
+	return _status;
+}
+
+bool NumberedItem::isNormalStatus() const {
+	return _status == Status::Normal;
+}
+
+bool NumberedItem::isUndidStatus() const {
+	return _status == Status::Undid;
+}
+
+void NumberedItem::setStatus(Status status) {
+	if (status != _status) {
+		_status = status;
+		setVisible(status == Status::Normal);
+	}
+}
+
 ItemBase::ItemBase(Data data)
 : _lastZ(data.zPtr)
 , _imageSize(data.imageSize)
