@@ -21,7 +21,7 @@ public:
 	static GtkIntegration *Instance();
 
 	void load(const QString &allowedBackends);
-	int exec(const QString &parentDBusName, int ppid);
+	int exec(const QString &parentDBusName);
 
 	[[nodiscard]] bool showOpenWithDialog(const QString &filepath) const;
 
@@ -32,8 +32,7 @@ public:
 	static int Exec(
 		Type type,
 		const QString &parentDBusName,
-		int ppid,
-		uint instanceNumber = 0);
+		const QString &serviceName);
 
 	static void Start(Type type);
 

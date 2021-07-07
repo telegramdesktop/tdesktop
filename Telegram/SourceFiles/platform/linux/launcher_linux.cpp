@@ -58,18 +58,17 @@ int Launcher::exec() {
 			return GtkIntegration::Exec(
 				GtkIntegration::Type::Base,
 				QString::fromStdString(*(i + 1)),
-				std::stoi(*(i + 2)));
-		} else if (*i == "-webviewhelper" && std::distance(i, e) > 3) {
+				QString::fromStdString(*(i + 2)));
+		} else if (*i == "-webviewhelper" && std::distance(i, e) > 2) {
 			return GtkIntegration::Exec(
 				GtkIntegration::Type::Webview,
 				QString::fromStdString(*(i + 1)),
-				std::stoi(*(i + 2)),
-				std::stoi(*(i + 3)));
+				QString::fromStdString(*(i + 2)));
 		} else if (*i == "-gtkintegration" && std::distance(i, e) > 2) {
 			return GtkIntegration::Exec(
 				GtkIntegration::Type::TDesktop,
 				QString::fromStdString(*(i + 1)),
-				std::stoi(*(i + 2)));
+				QString::fromStdString(*(i + 2)));
 		}
 	}
 
