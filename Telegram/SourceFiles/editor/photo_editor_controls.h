@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 #include "editor/photo_editor_common.h"
+#include "editor/photo_editor_inner_common.h"
 
 namespace Ui {
 class IconButton;

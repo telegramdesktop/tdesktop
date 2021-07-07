@@ -11,19 +11,6 @@ namespace Editor {
 
 class Scene;
 
-struct PhotoEditorMode {
-	enum class Mode {
-		Transform,
-		Paint,
-	} mode = Mode::Transform;
-
-	enum class Action {
-		None,
-		Save,
-		Discard,
-	} action = Action::None;
-};
-
 struct PhotoModifications {
 	int angle = 0;
 	bool flipped = false;
@@ -44,11 +31,6 @@ struct EditorData {
 
 	CropType cropType = CropType::Rect;
 	bool keepAspectRatio = false;
-};
-
-struct Brush {
-	float sizeRatio = 0.;
-	QColor color;
 };
 
 [[nodiscard]] QImage ImageModified(

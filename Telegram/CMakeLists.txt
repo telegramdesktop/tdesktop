@@ -525,6 +525,7 @@ PRIVATE
     editor/photo_editor_content.h
     editor/photo_editor_controls.cpp
     editor/photo_editor_controls.h
+    editor/photo_editor_inner_common.h
     editor/photo_editor_layer_widget.cpp
     editor/photo_editor_layer_widget.h
     editor/scene/scene.cpp

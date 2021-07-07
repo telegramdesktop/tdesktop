@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 
 #include "editor/photo_editor_common.h"
+#include "editor/photo_editor_inner_common.h"
 #include "editor/scene/scene_item_base.h"
 
 class QGraphicsItem;
