@@ -60,10 +60,9 @@ void SendRequest(
 			user->username);
 		user->session().api().applyUpdates(result);
 		if (const auto settings = user->settings()) {
-			using Flag = MTPDpeerSettings::Flag;
-			const auto flags = Flag::f_add_contact
-				| Flag::f_block_contact
-				| Flag::f_report_spam;
+			const auto flags = PeerSetting::AddContact
+				| PeerSetting::BlockContact
+				| PeerSetting::ReportSpam;
 			user->setSettings(*settings & ~flags);
 		}
 		if (box) {
@@ -241,9 +240,8 @@ void Controller::setupWarning() {
 
 void Controller::setupSharePhoneNumber() {
 	const auto settings = _user->settings();
-	using Setting = MTPDpeerSettings::Flag;
 	if (!settings
-		|| !((*settings) & Setting::f_need_contacts_exception)) {
+		|| !((*settings) & PeerSetting::NeedContactsException)) {
 		return;
 	}
 	_sharePhone = _box->addRow(

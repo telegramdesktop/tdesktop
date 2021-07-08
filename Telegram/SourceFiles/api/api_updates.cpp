@@ -1817,11 +1817,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updatePeerSettings();
 		const auto peerId = peerFromMTP(d.vpeer());
 		if (const auto peer = session().data().peerLoaded(peerId)) {
-			const auto settings = d.vsettings().match([](
-					const MTPDpeerSettings &data) {
-				return data.vflags().v;
-			});
-			peer->setSettings(settings);
+			peer->setSettings(d.vsettings());
 		}
 	} break;
 

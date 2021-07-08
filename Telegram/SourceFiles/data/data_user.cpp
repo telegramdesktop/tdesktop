@@ -192,11 +192,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	if (const auto photo = update.vprofile_photo()) {
 		user->owner().processPhoto(*photo);
 	}
-	const auto settings = update.vsettings().match([&](
-			const MTPDpeerSettings &data) {
-		return data.vflags().v;
-	});
-	user->setSettings(settings);
+	user->setSettings(update.vsettings());
 	user->session().api().applyNotifySettings(
 		MTP_inputNotifyPeer(user->input),
 		update.vnotify_settings());

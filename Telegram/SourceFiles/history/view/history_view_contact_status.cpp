@@ -40,15 +40,14 @@ bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 	} else if (!(*settings)) {
 		return true;
 	}
-	using Setting = MTPDpeerSettings::Flag;
 	if (const auto user = peer->asUser()) {
 		if (user->isBlocked()) {
 			return true;
 		} else if (user->isContact()
-			&& !((*settings) & Setting::f_share_contact)) {
+			&& !((*settings) & PeerSetting::ShareContact)) {
 			return true;
 		}
-	} else if (!((*settings) & Setting::f_report_spam)) {
+	} else if (!((*settings) & PeerSetting::ReportSpam)) {
 		return true;
 	}
 	return false;
@@ -231,7 +230,6 @@ void ContactStatus::setupWidgets(not_null<Ui::RpWidget*> parent) {
 auto ContactStatus::PeerState(not_null<PeerData*> peer)
 -> rpl::producer<State> {
 	using SettingsChange = PeerData::Settings::Change;
-	using Setting = MTPDpeerSettings::Flag;
 	if (const auto user = peer->asUser()) {
 		using FlagsChange = UserData::Flags::Change;
 		using Flag = UserDataFlag;
@@ -250,16 +248,16 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 			if (flags.value & Flag::Blocked) {
 				return State::None;
 			} else if (user->isContact()) {
-				if (settings.value & Setting::f_share_contact) {
+				if (settings.value & PeerSetting::ShareContact) {
 					return State::SharePhoneNumber;
 				} else {
 					return State::None;
 				}
-			} else if (settings.value & Setting::f_autoarchived) {
+			} else if (settings.value & PeerSetting::AutoArchived) {
 				return State::UnarchiveOrBlock;
-			} else if (settings.value & Setting::f_block_contact) {
+			} else if (settings.value & PeerSetting::BlockContact) {
 				return State::AddOrBlock;
-			} else if (settings.value & Setting::f_add_contact) {
+			} else if (settings.value & PeerSetting::AddContact) {
 				return State::Add;
 			} else {
 				return State::None;
@@ -269,9 +267,9 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 
 	return peer->settingsValue(
 	) | rpl::map([=](SettingsChange settings) {
-		return (settings.value & Setting::f_autoarchived)
+		return (settings.value & PeerSetting::AutoArchived)
 			? State::UnarchiveOrReport
-			: (settings.value & Setting::f_report_spam)
+			: (settings.value & PeerSetting::ReportSpam)
 			? State::ReportSpam
 			: State::None;
 	});
@@ -362,10 +360,9 @@ void ContactStatus::setupUnarchiveHandler(not_null<PeerData*> peer) {
 		Window::ToggleHistoryArchived(peer->owner().history(peer), false);
 		peer->owner().resetNotifySettingsToDefault(peer);
 		if (const auto settings = peer->settings()) {
-			using Flag = MTPDpeerSettings::Flag;
-			const auto flags = Flag::f_autoarchived
-				| Flag::f_block_contact
-				| Flag::f_report_spam;
+			const auto flags = PeerSetting::AutoArchived
+				| PeerSetting::BlockContact
+				| PeerSetting::ReportSpam;
 			peer->setSettings(*settings & ~flags);
 		}
 	}, _bar.lifetime());

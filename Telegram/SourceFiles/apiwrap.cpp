@@ -1224,9 +1224,7 @@ void ApiWrap::requestPeerSettings(not_null<PeerData*> peer) {
 	request(MTPmessages_GetPeerSettings(
 		peer->input
 	)).done([=](const MTPPeerSettings &result) {
-		peer->setSettings(result.match([&](const MTPDpeerSettings &data) {
-			return data.vflags().v;
-		}));
+		peer->setSettings(result);
 		_requestedPeerSettings.erase(peer);
 	}).fail([=](const MTP::Error &error) {
 		_requestedPeerSettings.erase(peer);

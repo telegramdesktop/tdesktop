@@ -188,25 +188,26 @@ private:
 
 };
 
-class PeerData {
-private:
-	static constexpr auto kSettingsUnknown = MTPDpeerSettings::Flag(1U << 9);
+enum class PeerSetting {
+	ReportSpam = (1 << 0),
+	AddContact = (1 << 1),
+	BlockContact = (1 << 2),
+	ShareContact = (1 << 3),
+	NeedContactsException = (1 << 4),
+	AutoArchived = (1 << 5),
+	Unknown = (1 << 6),
+};
+inline constexpr bool is_flag_type(PeerSetting) { return true; };
+using PeerSettings = base::flags<PeerSetting>;
 
+class PeerData {
 protected:
 	PeerData(not_null<Data::Session*> owner, PeerId id);
 	PeerData(const PeerData &other) = delete;
 	PeerData &operator=(const PeerData &other) = delete;
 
 public:
-	static constexpr auto kEssentialSettings = 0
-		| MTPDpeerSettings::Flag::f_report_spam
-		| MTPDpeerSettings::Flag::f_add_contact
-		| MTPDpeerSettings::Flag::f_block_contact
-		| MTPDpeerSettings::Flag::f_share_contact
-		| kSettingsUnknown;
-	using Settings = Data::Flags<
-		MTPDpeerSettings::Flags,
-		kEssentialSettings.value()>;
+	using Settings = Data::Flags<PeerSettings>;
 
 	virtual ~PeerData();
 
@@ -414,19 +415,21 @@ public:
 
 	void checkFolder(FolderId folderId);
 
-	void setSettings(MTPDpeerSettings::Flags which) {
+	void setSettings(PeerSettings which) {
 		_settings.set(which);
 	}
 	auto settings() const {
-		return (_settings.current() & kSettingsUnknown)
+		return (_settings.current() & PeerSetting::Unknown)
 			? std::nullopt
 			: std::make_optional(_settings.current());
 	}
 	auto settingsValue() const {
-		return (_settings.current() & kSettingsUnknown)
+		return (_settings.current() & PeerSetting::Unknown)
 			? _settings.changes()
 			: (_settings.value() | rpl::type_erased());
 	}
+
+	void setSettings(const MTPPeerSettings &data);
 
 	enum class BlockStatus : char {
 		Unknown,
@@ -503,7 +506,7 @@ private:
 	TimeId _ttlPeriod = 0;
 	bool _hasPinnedMessages = false;
 
-	Settings _settings = { kSettingsUnknown };
+	Settings _settings = PeerSettings(PeerSetting::Unknown);
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
 

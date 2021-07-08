@@ -574,6 +574,22 @@ void PeerData::checkFolder(FolderId folderId) {
 	}
 }
 
+void PeerData::setSettings(const MTPPeerSettings &data) {
+	data.match([&](const MTPDpeerSettings &data) {
+		using Flag = PeerSetting;
+		setSettings((data.is_add_contact() ? Flag::AddContact : Flag())
+			| (data.is_autoarchived() ? Flag::AutoArchived : Flag())
+			| (data.is_block_contact() ? Flag::BlockContact : Flag())
+			//| (data.is_invite_members() ? Flag::InviteMembers : Flag())
+			| (data.is_need_contacts_exception()
+				? Flag::NeedContactsException
+				: Flag())
+			//| (data.is_report_geo() ? Flag::ReportGeo : Flag())
+			| (data.is_report_spam() ? Flag::ReportSpam : Flag())
+			| (data.is_share_contact() ? Flag::ShareContact : Flag()));
+	});
+}
+
 void PeerData::fillNames() {
 	_nameWords.clear();
 	_nameFirstLetters.clear();
