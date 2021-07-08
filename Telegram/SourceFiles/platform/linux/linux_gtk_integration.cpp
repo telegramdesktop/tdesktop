@@ -110,7 +110,7 @@ std::vector<uchar> GetImageFromClipboard() {
 		for (const auto &format : supportedFormats) {
 			if (auto result = GtkSelectionDataPointer(
 				gtk_clipboard_wait_for_contents(clipboard, format))
-				; gtk_selection_data_get_length(result.get()) > 0) {
+				; result && gtk_selection_data_get_length(result.get()) > 0) {
 				return result;
 			}
 		}
