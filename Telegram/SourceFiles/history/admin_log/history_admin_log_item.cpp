@@ -225,7 +225,6 @@ TextWithEntities GenerateBannedChangeText(
 		ChatRestrictionsInfo newRights,
 		ChatRestrictionsInfo prevRights) {
 	using Flag = ChatRestriction;
-	using Flags = ChatRestrictions;
 
 	auto newFlags = newRights.flags;
 	auto newUntil = newRights.until;
