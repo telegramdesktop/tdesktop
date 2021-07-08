@@ -107,8 +107,10 @@ void PhotoEditorContent::applyModifications(
 void PhotoEditorContent::save(PhotoModifications &modifications) {
 	modifications.crop = _crop->saveCropRect();
 	_paint->keepResult();
+
+	const auto savedScene = _paint->saveScene();
 	if (!modifications.paint) {
-		modifications.paint = _paint->saveScene();
+		modifications.paint = savedScene;
 	}
 }
 

@@ -153,84 +153,28 @@ void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
 }
 
 std::shared_ptr<Scene> Paint::saveScene() const {
-	_scene->saveItemsState(SaveState::Save);
-	_scene->clearSelection();
+	_scene->save(SaveState::Save);
 	return _scene->items().empty()
-		? nullptr
-		: ranges::none_of(_scene->items(), &QGraphicsItem::isVisible)
 		? nullptr
 		: _scene;
 }
 
 void Paint::restoreScene() {
-	_scene->restoreItemsState(SaveState::Save);
+	_scene->restore(SaveState::Save);
 }
 
 void Paint::cancel() {
-	_scene->restoreItemsState(SaveState::Keep);
-	_scene->clearSelection();
-	_scene->cancelDrawing();
-
-	const auto filtered = _scene->items(Qt::AscendingOrder);
-	if (filtered.empty()) {
-		return;
-	}
-
-	for (const auto &item : filtered) {
-		const auto it = ranges::find(
-			_previousItems,
-			item,
-			&SavedItem::item);
-		if (it == end(_previousItems)) {
-			_scene->removeItem(item);
-		} else {
-			it->item->setVisible(!it->undid);
-		}
-	}
-
-	_itemsToRemove.clear();
+	_scene->restore(SaveState::Keep);
 }
 
 void Paint::keepResult() {
-	_scene->saveItemsState(SaveState::Keep);
-	_scene->clearSelection();
-	_scene->cancelDrawing();
-
-	for (const auto &item : _itemsToRemove) {
-		_scene->removeItem(item);
-	}
-	_itemsToRemove.clear();
-
-	const auto items = _scene->items();
-	_previousItems = ranges::views::all(
-		items
-	) | ranges::views::transform([=](ItemPtr i) -> SavedItem {
-		return { i, !i->isVisible() };
-	}) | ranges::to_vector;
+	_scene->save(SaveState::Keep);
 }
 
 void Paint::clearRedoList() {
-	const auto items = _scene->items(Qt::AscendingOrder);
-	auto &&filtered = ranges::views::all(
-		items
-	) | ranges::views::filter(
-		[=](const ItemPtr &i) { return isItemHidden(i); }
-	);
-
-	ranges::for_each(std::move(filtered), [&](ItemPtr item) {
-		item->hide();
-		_itemsToRemove.push_back(item);
-	});
+	_scene->clearRedoList();
 
 	_hasRedo = false;
-}
-
-bool Paint::isItemHidden(const ItemPtr &item) const {
-	return !item->isVisible() && !isItemToRemove(item);
-}
-
-bool Paint::isItemToRemove(const ItemPtr &item) const {
-	return ranges::contains(_itemsToRemove, item);
 }
 
 void Paint::updateUndoState() {

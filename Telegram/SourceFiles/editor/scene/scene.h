@@ -35,7 +35,7 @@ public:
 		Qt::SortOrder order = Qt::DescendingOrder) const;
 	void addItem(ItemPtr item);
 	void removeItem(not_null<QGraphicsItem*> item);
-	void removeItem(const std::shared_ptr<QGraphicsItem> &item);
+	void removeItem(const ItemPtr &item);
 	[[nodiscard]] rpl::producer<> addsItem() const;
 	[[nodiscard]] rpl::producer<> removesItem() const;
 
@@ -47,19 +47,22 @@ public:
 
 	void cancelDrawing();
 
-	void saveItemsState(SaveState state);
-	void restoreItemsState(SaveState state);
-
 	[[nodiscard]] bool hasUndo() const;
 	[[nodiscard]] bool hasRedo() const;
 
 	void performUndo();
 	void performRedo();
+
+	void save(SaveState state);
+	void restore(SaveState state);
+
+	void clearRedoList();
 protected:
 	void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
 private:
+	void removeIf(Fn<bool(const ItemPtr &)> proj);
 	const std::shared_ptr<ItemCanvas> _canvas;
 	const std::shared_ptr<float64> _lastZ;
 

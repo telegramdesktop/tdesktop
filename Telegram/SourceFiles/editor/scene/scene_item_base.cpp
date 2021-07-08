@@ -60,6 +60,10 @@ bool NumberedItem::isUndidStatus() const {
 	return _status == Status::Undid;
 }
 
+bool NumberedItem::isRemovedStatus() const {
+	return _status == Status::Removed;
+}
+
 void NumberedItem::save(SaveState state) {
 }
 
@@ -413,16 +417,13 @@ void ItemBase::applyData(const Data &data) {
 }
 
 void ItemBase::save(SaveState state) {
-	if (state == SaveState::Keep) {
-		const auto z = zValue();
-		_keeped = {
-			.data = generateData(),
-			.zValue = z,
-			.visible = isVisible(),
-		};
-	} else if (state == SaveState::Save) {
-		_saved = _keeped;
-	}
+	const auto z = zValue();
+	auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
+	saved = {
+		.data = generateData(),
+		.zValue = z,
+		.status = status(),
+	};
 }
 
 void ItemBase::restore(SaveState state) {
@@ -432,7 +433,7 @@ void ItemBase::restore(SaveState state) {
 	const auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
 	applyData(saved.data);
 	setZValue(saved.zValue);
-	setVisible(saved.visible);
+	setStatus(saved.status);
 }
 
 bool ItemBase::hasState(SaveState state) const {

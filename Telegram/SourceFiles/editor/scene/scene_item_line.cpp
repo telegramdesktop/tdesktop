@@ -39,23 +39,24 @@ bool ItemLine::collidesWithPath(
 }
 
 void ItemLine::save(SaveState state) {
-	if (state == SaveState::Keep) {
-		_keeped = true;
-	} else if (state == SaveState::Save) {
-		_saved = true;
-	}
+	auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
+	saved = {
+		.saved = true,
+		.status = status(),
+	};
 }
 
 void ItemLine::restore(SaveState state) {
+	if (!hasState(state)) {
+		return;
+	}
+	const auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
+	setStatus(saved.status);
 }
 
 bool ItemLine::hasState(SaveState state) const {
-	if (state == SaveState::Keep) {
-		return _keeped;
-	} else if (state == SaveState::Save) {
-		return _saved;
-	}
-	return false;
+	const auto &saved = (state == SaveState::Keep) ? _keeped : _saved;
+	return saved.saved;
 }
 
 } // namespace Editor

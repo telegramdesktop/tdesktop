@@ -27,6 +27,7 @@ public:
 	enum class Status {
 		Normal,
 		Undid,
+		Removed,
 	};
 
 	enum { Type = UserType + 1 };
@@ -40,6 +41,7 @@ public:
 	void setStatus(Status status);
 	[[nodiscard]] bool isNormalStatus() const;
 	[[nodiscard]] bool isUndidStatus() const;
+	[[nodiscard]] bool isRemovedStatus() const;
 
 	virtual void save(SaveState state);
 	virtual void restore(SaveState state);
@@ -135,7 +137,7 @@ private:
 	struct {
 		Data data;
 		float64 zValue = 0.;
-		bool visible = true;
+		NumberedItem::Status status;
 	} _saved, _keeped;
 
 	struct {

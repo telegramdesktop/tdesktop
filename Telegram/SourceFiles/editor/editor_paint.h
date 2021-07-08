@@ -51,9 +51,6 @@ private:
 
 	void clearRedoList();
 
-	bool isItemToRemove(const std::shared_ptr<QGraphicsItem> &item) const;
-	bool isItemHidden(const std::shared_ptr<QGraphicsItem> &item) const;
-
 	const std::shared_ptr<Controllers> _controllers;
 	const std::shared_ptr<Scene> _scene;
 	const base::unique_qptr<QGraphicsView> _view;
@@ -64,9 +61,6 @@ private:
 		bool flipped = false;
 		float64 zoom = 0.;
 	} _transform;
-
-	std::vector<SavedItem> _previousItems;
-	std::vector<std::shared_ptr<QGraphicsItem>> _itemsToRemove;
 
 	rpl::variable<bool> _hasUndo = true;
 	rpl::variable<bool> _hasRedo = true;

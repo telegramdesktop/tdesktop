@@ -66,11 +66,8 @@ void Scene::removeItem(not_null<QGraphicsItem*> item) {
 	removeItem(*it);
 }
 
-void Scene::removeItem(const std::shared_ptr<QGraphicsItem> &item) {
-	// Scene loses ownership of an item.
-	QGraphicsScene::removeItem(item.get());
-
-	_items.erase(ranges::remove(_items, item), end(_items));
+void Scene::removeItem(const ItemPtr &item) {
+	item->setStatus(NumberedItem::Status::Removed);
 	_removesItem.fire({});
 }
 
@@ -147,22 +144,6 @@ void Scene::updateZoom(float64 zoom) {
 	}
 }
 
-void Scene::saveItemsState(SaveState state) {
-	for (const auto &item : items()) {
-		if (item->type() >= ItemBase::Type) {
-			static_cast<ItemBase*>(item.get())->save(state);
-		}
-	}
-}
-
-void Scene::restoreItemsState(SaveState state) {
-	for (const auto &item : items()) {
-		if (item->type() >= ItemBase::Type) {
-			static_cast<ItemBase*>(item.get())->restore(state);
-		}
-	}
-}
-
 bool Scene::hasUndo() const {
 	return ranges::any_of(_items, &NumberedItem::isNormalStatus);
 }
@@ -187,6 +168,55 @@ void Scene::performRedo() {
 	if (it != filtered.end()) {
 		(*it)->setStatus(NumberedItem::Status::Normal);
 	}
+}
+
+void Scene::removeIf(Fn<bool(const ItemPtr &)> proj) {
+	auto copy = std::vector<ItemPtr>();
+	for (const auto &item : _items) {
+		const auto toRemove = proj(item);
+		if (toRemove) {
+			// Scene loses ownership of an item.
+			// It seems for some reason this line causes a crash. =(
+			// QGraphicsScene::removeItem(item.get());
+		} else {
+			copy.push_back(item);
+		}
+	}
+	_items = std::move(copy);
+}
+
+void Scene::clearRedoList() {
+	for (const auto &item : _items) {
+		if (item->isUndidStatus()) {
+			item->setStatus(NumberedItem::Status::Removed);
+		}
+	}
+}
+
+void Scene::save(SaveState state) {
+	removeIf([](const ItemPtr &item) {
+		return item->isRemovedStatus()
+			&& !item->hasState(SaveState::Keep)
+			&& !item->hasState(SaveState::Save);
+	});
+
+	for (const auto &item : _items) {
+		item->save(state);
+	}
+	clearSelection();
+	cancelDrawing();
+}
+
+void Scene::restore(SaveState state) {
+	removeIf([=](const ItemPtr &item) {
+		return !item->hasState(state);
+	});
+
+	for (const auto &item : _items) {
+		item->restore(state);
+	}
+	clearSelection();
+	cancelDrawing();
 }
 
 Scene::~Scene() {

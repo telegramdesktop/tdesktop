@@ -34,7 +34,10 @@ private:
 	const QPixmap _pixmap;
 	const QRectF _rect;
 
-	bool _saved, _keeped = false;
+	struct {
+		bool saved = false;
+		NumberedItem::Status status;
+	} _saved, _keeped;
 
 };
 
