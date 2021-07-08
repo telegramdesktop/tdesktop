@@ -363,4 +363,10 @@ CurrencyRule LookupCurrencyRule(const QString &currency) {
 	return result;
 }
 
+QString FormatImageSizeText(const QSize &size) {
+	return QString::number(size.width())
+		+ QChar(215)
+		+ QString::number(size.height());
+}
+
 } // namespace Ui

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/output/export_output_result.h"
 #include "export/data/export_data_types.h"
 #include "core/utils.h"
+#include "ui/text/format_values.h"
 
 #include <QtCore/QSize>
 #include <QtCore/QFile>
@@ -1536,9 +1537,8 @@ QByteArray HtmlWriter::Wrap::pushPhotoMedia(
 	if (thumb.isEmpty()) {
 		auto generic = MediaData();
 		generic.title = "Photo";
-		generic.status = NumberToString(data.image.width)
-			+ "x"
-			+ NumberToString(data.image.height);
+		generic.status = Ui::FormatImageSizeText(
+			QSize(data.image.width, data.image.height)).toUtf8();
 		if (data.image.file.relativePath.isEmpty()) {
 			generic.status += ", " + FormatFileSize(data.image.file.size);
 		} else {

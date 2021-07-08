@@ -92,7 +92,8 @@ void SingleFilePreview::preparePreview(const PreparedFile &file) {
 	if (filepath.isEmpty()) {
 		auto filename = "image.png";
 		_name = filename;
-		_statusText = u"%1x%2"_q.arg(preview.width()).arg(preview.height());
+		_statusText = FormatImageSizeText(preview.size()
+			/ preview.devicePixelRatio());
 		_fileIsImage = true;
 	} else {
 		auto fileinfo = QFileInfo(filepath);
