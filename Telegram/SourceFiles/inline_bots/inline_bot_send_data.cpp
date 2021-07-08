@@ -84,7 +84,7 @@ QString SendDataCommon::getErrorOnSend(
 		not_null<History*> history) const {
 	const auto error = Data::RestrictionError(
 		history->peer,
-		ChatRestriction::f_send_messages);
+		ChatRestriction::SendMessages);
 	return error.value_or(QString());
 }
 
@@ -177,7 +177,7 @@ QString SendPhoto::getErrorOnSend(
 		not_null<History*> history) const {
 	const auto error = Data::RestrictionError(
 		history->peer,
-		ChatRestriction::f_send_media);
+		ChatRestriction::SendMedia);
 	return error.value_or(QString());
 }
 
@@ -212,13 +212,13 @@ QString SendFile::getErrorOnSend(
 		not_null<History*> history) const {
 	const auto errorMedia = Data::RestrictionError(
 		history->peer,
-		ChatRestriction::f_send_media);
+		ChatRestriction::SendMedia);
 	const auto errorStickers = Data::RestrictionError(
 		history->peer,
-		ChatRestriction::f_send_stickers);
+		ChatRestriction::SendStickers);
 	const auto errorGifs = Data::RestrictionError(
 		history->peer,
-		ChatRestriction::f_send_gifs);
+		ChatRestriction::SendGifs);
 	return errorMedia
 		? *errorMedia
 		: (errorStickers && (_document->sticker() != nullptr))
@@ -260,7 +260,7 @@ QString SendGame::getErrorOnSend(
 		not_null<History*> history) const {
 	const auto error = Data::RestrictionError(
 		history->peer,
-		ChatRestriction::f_send_games);
+		ChatRestriction::SendGames);
 	return error.value_or(QString());
 }
 

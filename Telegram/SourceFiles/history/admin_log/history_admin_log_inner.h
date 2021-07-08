@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "base/timer.h"
 
+struct ChatRestrictionsInfo;
+
 namespace Data {
 class CloudImageView;
 } // namespace Data
@@ -196,8 +198,8 @@ private:
 	void copySelectedText();
 	TextForMimeData getSelectedText() const;
 	void suggestRestrictUser(not_null<UserData*> user);
-	void restrictUser(not_null<UserData*> user, const MTPChatBannedRights &oldRights, const MTPChatBannedRights &newRights);
-	void restrictUserDone(not_null<UserData*> user, const MTPChatBannedRights &rights);
+	void restrictUser(not_null<UserData*> user, ChatRestrictionsInfo oldRights, ChatRestrictionsInfo newRights);
+	void restrictUserDone(not_null<UserData*> user, ChatRestrictionsInfo rights);
 
 	void requestAdmins();
 	void checkPreloadMore();

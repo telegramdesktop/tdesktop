@@ -14,27 +14,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "info/profile/info_profile_members_controllers.h"
 
+struct ChatAdminRightsInfo;
+struct ChatRestrictionsInfo;
+
 namespace Window {
 class SessionNavigation;
 } // namespace Window
 
 Fn<void(
-	const MTPChatAdminRights &oldRights,
-	const MTPChatAdminRights &newRights,
+	ChatAdminRightsInfo oldRights,
+	ChatAdminRightsInfo newRights,
 	const QString &rank)> SaveAdminCallback(
 		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		Fn<void(
-			const MTPChatAdminRights &newRights,
+			ChatAdminRightsInfo newRights,
 			const QString &rank)> onDone,
 		Fn<void()> onFail);
 
 Fn<void(
-	const MTPChatBannedRights &oldRights,
-	const MTPChatBannedRights &newRights)> SaveRestrictedCallback(
+	ChatRestrictionsInfo oldRights,
+	ChatRestrictionsInfo newRights)> SaveRestrictedCallback(
 		not_null<PeerData*> peer,
 		not_null<PeerData*> participant,
-		Fn<void(const MTPChatBannedRights &newRights)> onDone,
+		Fn<void(ChatRestrictionsInfo newRights)> onDone,
 		Fn<void()> onFail);
 
 void SubscribeToMigration(
@@ -92,10 +95,10 @@ public:
 		not_null<PeerData*> participant) const;
 	[[nodiscard]] bool canRemoveParticipant(
 		not_null<PeerData*> participant) const;
-	[[nodiscard]] std::optional<MTPChatAdminRights> adminRights(
+	[[nodiscard]] std::optional<ChatAdminRightsInfo> adminRights(
 		not_null<UserData*> user) const;
 	QString adminRank(not_null<UserData*> user) const;
-	[[nodiscard]] std::optional<MTPChatBannedRights> restrictedRights(
+	[[nodiscard]] std::optional<ChatRestrictionsInfo> restrictedRights(
 		not_null<PeerData*> participant) const;
 	[[nodiscard]] bool isCreator(not_null<UserData*> user) const;
 	[[nodiscard]] bool isExternal(not_null<PeerData*> participant) const;
@@ -122,11 +125,11 @@ private:
 	base::flat_set<not_null<UserData*>> _admins;
 
 	// Data for channels.
-	base::flat_map<not_null<UserData*>, MTPChatAdminRights> _adminRights;
+	base::flat_map<not_null<UserData*>, ChatAdminRightsInfo> _adminRights;
 	base::flat_map<not_null<UserData*>, QString> _adminRanks;
 	base::flat_set<not_null<UserData*>> _adminCanEdit;
 	base::flat_map<not_null<UserData*>, not_null<UserData*>> _adminPromotedBy;
-	std::map<not_null<PeerData*>, MTPChatBannedRights> _restrictedRights;
+	std::map<not_null<PeerData*>, ChatRestrictionsInfo> _restrictedRights;
 	std::set<not_null<PeerData*>> _kicked;
 	std::map<not_null<PeerData*>, not_null<UserData*>> _restrictedBy;
 	std::set<not_null<PeerData*>> _external;
@@ -221,12 +224,12 @@ private:
 	void showAdmin(not_null<UserData*> user);
 	void editAdminDone(
 		not_null<UserData*> user,
-		const MTPChatAdminRights &rights,
+		ChatAdminRightsInfo rights,
 		const QString &rank);
 	void showRestricted(not_null<UserData*> user);
 	void editRestrictedDone(
 		not_null<PeerData*> participant,
-		const MTPChatBannedRights &rights);
+		ChatRestrictionsInfo rights);
 	void removeKicked(
 		not_null<PeerListRow*> row,
 		not_null<PeerData*> participant);

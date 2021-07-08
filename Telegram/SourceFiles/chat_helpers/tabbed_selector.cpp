@@ -803,11 +803,11 @@ void TabbedSelector::checkRestrictedPeer() {
 		const auto error = (_currentTabType == SelectorTab::Stickers)
 			? Data::RestrictionError(
 				_currentPeer,
-				ChatRestriction::f_send_stickers)
+				ChatRestriction::SendStickers)
 			: (_currentTabType == SelectorTab::Gifs)
 			? Data::RestrictionError(
 				_currentPeer,
-				ChatRestriction::f_send_gifs)
+				ChatRestriction::SendGifs)
 			: std::nullopt;
 		if (error) {
 			if (!_restrictedLabel) {

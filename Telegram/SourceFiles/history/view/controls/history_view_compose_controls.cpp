@@ -1264,7 +1264,7 @@ void ComposeControls::updateStickersByEmoji() {
 	const auto emoji = [&] {
 		const auto errorForStickers = Data::RestrictionError(
 			_history->peer,
-			ChatRestriction::f_send_stickers);
+			ChatRestriction::SendStickers);
 		if (!isEditingMessage() && !errorForStickers) {
 			const auto &text = _field->getTextWithTags().text;
 			auto length = 0;
@@ -1297,7 +1297,7 @@ void ComposeControls::updateFieldPlaceholder() {
 				return session().data().notifySilentPosts(channel)
 					? tr::lng_broadcast_silent_ph()
 					: tr::lng_broadcast_ph();
-			} else if (channel->adminRights() & ChatAdminRight::f_anonymous) {
+			} else if (channel->adminRights() & ChatAdminRight::Anonymous) {
 				return tr::lng_send_anonymous_ph();
 			} else {
 				return tr::lng_message_ph();
@@ -1652,7 +1652,7 @@ void ComposeControls::initVoiceRecordBar() {
 		const auto error = _history
 			? Data::RestrictionError(
 				_history->peer,
-				ChatRestriction::f_send_media)
+				ChatRestriction::SendMedia)
 			: std::nullopt;
 		if (error) {
 			_window->show(Box<InformBox>(*error));
@@ -2171,7 +2171,7 @@ void ComposeControls::initWebpageProcess() {
 
 	const auto checkPreview = crl::guard(_wrap.get(), [=] {
 		const auto previewRestricted = peer
-			&& peer->amRestricted(ChatRestriction::f_embed_links);
+			&& peer->amRestricted(ChatRestriction::EmbedLinks);
 		if (_previewState != Data::PreviewState::Allowed
 			|| previewRestricted) {
 			_previewCancel();

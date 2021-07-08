@@ -410,7 +410,7 @@ void RepliesWidget::setupComposeControls() {
 	) | rpl::map([=] {
 		return Data::RestrictionError(
 			_history->peer,
-			ChatRestriction::f_send_messages);
+			ChatRestriction::SendMessages);
 	});
 
 	_composeControls->setHistory({
@@ -541,7 +541,7 @@ void RepliesWidget::setupComposeControls() {
 void RepliesWidget::chooseAttach() {
 	if (const auto error = Data::RestrictionError(
 			_history->peer,
-			ChatRestriction::f_send_media)) {
+			ChatRestriction::SendMedia)) {
 		Ui::ShowMultilineToast({
 			.text = { *error },
 		});
@@ -749,7 +749,7 @@ bool RepliesWidget::showSlowmodeError() {
 std::optional<QString> RepliesWidget::writeRestriction() const {
 	return Data::RestrictionError(
 		_history->peer,
-		ChatRestriction::f_send_messages);
+		ChatRestriction::SendMessages);
 }
 
 void RepliesWidget::pushReplyReturn(not_null<HistoryItem*> item) {
@@ -818,7 +818,7 @@ bool RepliesWidget::showSendingFilesError(
 		const auto peer = _history->peer;
 		const auto error = Data::RestrictionError(
 			peer,
-			ChatRestriction::f_send_media);
+			ChatRestriction::SendMedia);
 		if (error) {
 			return *error;
 		}
@@ -1013,7 +1013,7 @@ bool RepliesWidget::sendExistingDocument(
 		Api::SendOptions options) {
 	const auto error = Data::RestrictionError(
 		_history->peer,
-		ChatRestriction::f_send_stickers);
+		ChatRestriction::SendStickers);
 	if (error) {
 		controller()->show(
 			Box<InformBox>(*error),
@@ -1049,7 +1049,7 @@ bool RepliesWidget::sendExistingPhoto(
 		Api::SendOptions options) {
 	const auto error = Data::RestrictionError(
 		_history->peer,
-		ChatRestriction::f_send_media);
+		ChatRestriction::SendMedia);
 	if (error) {
 		controller()->show(
 			Box<InformBox>(*error),

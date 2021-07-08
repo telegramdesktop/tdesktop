@@ -230,8 +230,7 @@ GroupCall::VideoTrack::VideoTrack(
 			if (i == mgInfo->lastAdmins.end()) {
 				return false;
 			}
-			const auto &rights = i->second.rights;
-			return rights.c_chatAdminRights().is_manage_call();
+			return (i->second.rights.flags & ChatAdminRight::ManageCall);
 		}
 	}
 	return false;

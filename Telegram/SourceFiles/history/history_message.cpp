@@ -70,7 +70,7 @@ namespace {
 	if (const auto media = fwd->media()) {
 		if (dynamic_cast<Data::MediaWebPage*>(media)) {
 			// Drop web page if we're not allowed to send it.
-			if (peer->amRestricted(ChatRestriction::f_embed_links)) {
+			if (peer->amRestricted(ChatRestriction::EmbedLinks)) {
 				result &= ~MTPDmessage::Flag::f_media;
 			}
 		}
@@ -152,7 +152,7 @@ QString GetErrorTextForSending(
 	}
 	const auto error = Data::RestrictionError(
 		peer,
-		ChatRestriction::f_send_inline);
+		ChatRestriction::SendInline);
 	if (error && HasInlineItems(items)) {
 		return *error;
 	}
@@ -639,7 +639,7 @@ HistoryMessage::HistoryMessage(
 
 	const auto ignoreMedia = [&] {
 		if (mediaOriginal && mediaOriginal->webpage()) {
-			if (peer->amRestricted(ChatRestriction::f_embed_links)) {
+			if (peer->amRestricted(ChatRestriction::EmbedLinks)) {
 				return true;
 			}
 		}

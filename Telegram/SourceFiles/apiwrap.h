@@ -20,6 +20,7 @@ struct MessageGroupId;
 struct SendingAlbum;
 enum class SendMediaType;
 struct FileLoadTo;
+struct ChatRestrictionsInfo;
 
 namespace Main {
 class Session;
@@ -264,7 +265,7 @@ public:
 	void kickParticipant(
 		not_null<ChannelData*> channel,
 		not_null<PeerData*> participant,
-		const MTPChatBannedRights &currentRights);
+		ChatRestrictionsInfo currentRights);
 	void unblockParticipant(
 		not_null<ChannelData*> channel,
 		not_null<PeerData*> participant);

@@ -1526,7 +1526,6 @@ void ApiWrap::applyLastParticipantsList(
 		| MegagroupInfo::LastParticipantsOnceReceived;
 
 	auto botStatus = channel->mgInfo->botStatus;
-	const auto emptyAdminRights = MTP_chatAdminRights(MTP_flags(0));
 	for (const auto &p : list) {
 		const auto participantId = p.match([](
 				const MTPDchannelParticipantBanned &data) {
@@ -1547,13 +1546,14 @@ void ApiWrap::applyLastParticipantsList(
 			? channel->amCreator()
 			: false;
 		const auto adminRights = (p.type() == mtpc_channelParticipantAdmin)
-			? p.c_channelParticipantAdmin().vadmin_rights()
+			? ChatAdminRightsInfo(p.c_channelParticipantAdmin().vadmin_rights())
 			: (p.type() == mtpc_channelParticipantCreator)
-			? p.c_channelParticipantCreator().vadmin_rights()
-			: emptyAdminRights;
+			? ChatAdminRightsInfo(p.c_channelParticipantCreator().vadmin_rights())
+			: ChatAdminRightsInfo();
 		const auto restrictedRights = (p.type() == mtpc_channelParticipantBanned)
-			? p.c_channelParticipantBanned().vbanned_rights()
-			: ChannelData::EmptyRestrictedRights(participant);
+			? ChatRestrictionsInfo(
+				p.c_channelParticipantBanned().vbanned_rights())
+			: ChatRestrictionsInfo();
 		if (p.type() == mtpc_channelParticipantCreator) {
 			Assert(user != nullptr);
 			const auto &creator = p.c_channelParticipantCreator();
@@ -1569,11 +1569,11 @@ void ApiWrap::applyLastParticipantsList(
 		if (user
 			&& !base::contains(channel->mgInfo->lastParticipants, user)) {
 			channel->mgInfo->lastParticipants.push_back(user);
-			if (adminRights.c_chatAdminRights().vflags().v) {
+			if (adminRights.flags) {
 				channel->mgInfo->lastAdmins.emplace(
 					user,
 					MegagroupInfo::Admin{ adminRights, adminCanEdit });
-			} else if (Data::ChatBannedRightsFlags(restrictedRights) != 0) {
+			} else if (restrictedRights.flags) {
 				channel->mgInfo->lastRestricted.emplace(
 					user,
 					MegagroupInfo::Restricted{ restrictedRights });
@@ -1731,7 +1731,7 @@ void ApiWrap::kickParticipant(
 void ApiWrap::kickParticipant(
 		not_null<ChannelData*> channel,
 		not_null<PeerData*> participant,
-		const MTPChatBannedRights &currentRights) {
+		ChatRestrictionsInfo currentRights) {
 	const auto kick = KickRequest(channel, participant);
 	if (_kickRequests.contains(kick)) return;
 
@@ -1739,7 +1739,10 @@ void ApiWrap::kickParticipant(
 	const auto requestId = request(MTPchannels_EditBanned(
 		channel->inputChannel,
 		participant->input,
-		rights
+		MTP_chatBannedRights(
+			MTP_flags(
+				MTPDchatBannedRights::Flags::from_raw(uint32(rights.flags))),
+			MTP_int(rights.until))
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 
@@ -1763,7 +1766,7 @@ void ApiWrap::unblockParticipant(
 	const auto requestId = request(MTPchannels_EditBanned(
 		channel->inputChannel,
 		participant->input,
-		ChannelData::EmptyRestrictedRights(participant)
+		MTP_chatBannedRights(MTP_flags(0), MTP_int(0))
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 

@@ -271,7 +271,7 @@ void ScheduledWidget::setupComposeControls() {
 void ScheduledWidget::chooseAttach() {
 	if (const auto error = Data::RestrictionError(
 			_history->peer,
-			ChatRestriction::f_send_media)) {
+			ChatRestriction::SendMedia)) {
 		Ui::ShowMultilineToast({
 			.text = { *error },
 		});
@@ -461,7 +461,7 @@ bool ScheduledWidget::showSendingFilesError(
 	const auto text = [&] {
 		const auto error = Data::RestrictionError(
 			_history->peer,
-			ChatRestriction::f_send_media);
+			ChatRestriction::SendMedia);
 		if (error) {
 			return *error;
 		}
@@ -645,7 +645,7 @@ bool ScheduledWidget::sendExistingDocument(
 		Api::SendOptions options) {
 	const auto error = Data::RestrictionError(
 		_history->peer,
-		ChatRestriction::f_send_stickers);
+		ChatRestriction::SendStickers);
 	if (error) {
 		controller()->show(
 			Box<InformBox>(*error),
@@ -677,7 +677,7 @@ bool ScheduledWidget::sendExistingPhoto(
 		Api::SendOptions options) {
 	const auto error = Data::RestrictionError(
 		_history->peer,
-		ChatRestriction::f_send_media);
+		ChatRestriction::SendMedia);
 	if (error) {
 		controller()->show(
 			Box<InformBox>(*error),

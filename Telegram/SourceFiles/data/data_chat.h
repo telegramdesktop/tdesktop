@@ -85,7 +85,7 @@ public:
 	[[nodiscard]] auto adminRightsValue() const {
 		return _adminRights.value();
 	}
-	void setAdminRights(const MTPChatAdminRights &rights);
+	void setAdminRights(ChatAdminRights rights);
 	[[nodiscard]] bool hasAdminRights() const {
 		return (adminRights() != 0);
 	}
@@ -96,7 +96,7 @@ public:
 	[[nodiscard]] auto defaultRestrictionsValue() const {
 		return _defaultRestrictions.value();
 	}
-	void setDefaultRestrictions(const MTPChatBannedRights &rights);
+	void setDefaultRestrictions(ChatRestrictions rights);
 
 	[[nodiscard]] bool isForbidden() const {
 		return flags() & MTPDchat_ClientFlag::f_forbidden;
@@ -123,7 +123,8 @@ public:
 		return flags() & MTPDchat::Flag::f_migrated_to;
 	}
 
-	[[nodiscard]] AdminRights defaultAdminRights(not_null<UserData*> user);
+	[[nodiscard]] ChatAdminRightsInfo defaultAdminRights(
+		not_null<UserData*> user);
 
 	// Like in ChannelData.
 	[[nodiscard]] bool canWrite() const;

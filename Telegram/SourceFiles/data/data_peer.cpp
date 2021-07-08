@@ -501,11 +501,11 @@ bool PeerData::canPinMessages() const {
 		return user->fullFlags() & MTPDuserFull::Flag::f_can_pin_message;
 	} else if (const auto chat = asChat()) {
 		return chat->amIn()
-			&& !chat->amRestricted(ChatRestriction::f_pin_messages);
+			&& !chat->amRestricted(ChatRestriction::PinMessages);
 	} else if (const auto channel = asChannel()) {
 		return channel->isMegagroup()
-			? !channel->amRestricted(ChatRestriction::f_pin_messages)
-			: ((channel->adminRights() & ChatAdminRight::f_edit_messages)
+			? !channel->amRestricted(ChatRestriction::PinMessages)
+			: ((channel->adminRights() & ChatAdminRight::EditMessages)
 				|| channel->amCreator());
 	}
 	Unexpected("Peer type in PeerData::canPinMessages.");
@@ -851,12 +851,12 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 		ChatRestriction right) const {
 	using Result = Data::RestrictionCheckResult;
 	const auto allowByAdminRights = [](auto right, auto chat) -> bool {
-		if (right == ChatRestriction::f_invite_users) {
-			return chat->adminRights() & ChatAdminRight::f_invite_users;
-		} else if (right == ChatRestriction::f_change_info) {
-			return chat->adminRights() & ChatAdminRight::f_change_info;
-		} else if (right == ChatRestriction::f_pin_messages) {
-			return chat->adminRights() & ChatAdminRight::f_pin_messages;
+		if (right == ChatRestriction::InviteUsers) {
+			return chat->adminRights() & ChatAdminRight::InviteUsers;
+		} else if (right == ChatRestriction::ChangeInfo) {
+			return chat->adminRights() & ChatAdminRight::ChangeInfo;
+		} else if (right == ChatRestriction::PinMessages) {
+			return chat->adminRights() & ChatAdminRight::PinMessages;
 		} else {
 			return chat->hasAdminRights();
 		}
@@ -864,7 +864,7 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 	if (const auto channel = asChannel()) {
 		const auto defaultRestrictions = channel->defaultRestrictions()
 			| (channel->isPublic()
-				? (ChatRestriction::f_pin_messages | ChatRestriction::f_change_info)
+				? (ChatRestriction::PinMessages | ChatRestriction::ChangeInfo)
 				: ChatRestrictions(0));
 		return (channel->amCreator() || allowByAdminRights(right, channel))
 			? Result::Allowed()
@@ -886,7 +886,7 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 bool PeerData::amAnonymous() const {
 	return isBroadcast()
 		|| (isChannel()
-			&& (asChannel()->adminRights() & ChatAdminRight::f_anonymous));
+			&& (asChannel()->adminRights() & ChatAdminRight::Anonymous));
 }
 
 bool PeerData::canRevokeFullHistory() const {
@@ -967,10 +967,10 @@ bool PeerData::canSendPolls() const {
 bool PeerData::canManageGroupCall() const {
 	if (const auto chat = asChat()) {
 		return chat->amCreator()
-			|| (chat->adminRights() & ChatAdminRight::f_manage_call);
+			|| (chat->adminRights() & ChatAdminRight::ManageCall);
 	} else if (const auto group = asChannel()) {
 		return group->amCreator()
-			|| (group->adminRights() & ChatAdminRight::f_manage_call);
+			|| (group->adminRights() & ChatAdminRight::ManageCall);
 	}
 	return false;
 }
@@ -1034,17 +1034,17 @@ std::vector<ChatRestrictions> ListOfRestrictions() {
 	using Flag = ChatRestriction;
 
 	return {
-		Flag::f_send_messages,
-		Flag::f_send_media,
-		Flag::f_send_stickers
-		| Flag::f_send_gifs
-		| Flag::f_send_games
-		| Flag::f_send_inline,
-		Flag::f_embed_links,
-		Flag::f_send_polls,
-		Flag::f_invite_users,
-		Flag::f_pin_messages,
-		Flag::f_change_info,
+		Flag::SendMessages,
+		Flag::SendMedia,
+		Flag::SendStickers
+		| Flag::SendGifs
+		| Flag::SendGames
+		| Flag::SendInline,
+		Flag::EmbedLinks,
+		Flag::SendPolls,
+		Flag::InviteUsers,
+		Flag::PinMessages,
+		Flag::ChangeInfo,
 	};
 }
 
@@ -1063,23 +1063,23 @@ std::optional<QString> RestrictionError(
 				auto time = restrictedUntilDateTime.toString(cTimeFormat());
 
 				switch (restriction) {
-				case Flag::f_send_polls:
+				case Flag::SendPolls:
 					return tr::lng_restricted_send_polls_until(
 						tr::now, lt_date, date, lt_time, time);
-				case Flag::f_send_messages:
+				case Flag::SendMessages:
 					return tr::lng_restricted_send_message_until(
 						tr::now, lt_date, date, lt_time, time);
-				case Flag::f_send_media:
+				case Flag::SendMedia:
 					return tr::lng_restricted_send_media_until(
 						tr::now, lt_date, date, lt_time, time);
-				case Flag::f_send_stickers:
+				case Flag::SendStickers:
 					return tr::lng_restricted_send_stickers_until(
 						tr::now, lt_date, date, lt_time, time);
-				case Flag::f_send_gifs:
+				case Flag::SendGifs:
 					return tr::lng_restricted_send_gifs_until(
 						tr::now, lt_date, date, lt_time, time);
-				case Flag::f_send_inline:
-				case Flag::f_send_games:
+				case Flag::SendInline:
+				case Flag::SendGames:
 					return tr::lng_restricted_send_inline_until(
 						tr::now, lt_date, date, lt_time, time);
 				}
@@ -1087,28 +1087,28 @@ std::optional<QString> RestrictionError(
 			}
 		}
 		switch (restriction) {
-		case Flag::f_send_polls:
+		case Flag::SendPolls:
 			return all
 				? tr::lng_restricted_send_polls_all(tr::now)
 				: tr::lng_restricted_send_polls(tr::now);
-		case Flag::f_send_messages:
+		case Flag::SendMessages:
 			return all
 				? tr::lng_restricted_send_message_all(tr::now)
 				: tr::lng_restricted_send_message(tr::now);
-		case Flag::f_send_media:
+		case Flag::SendMedia:
 			return all
 				? tr::lng_restricted_send_media_all(tr::now)
 				: tr::lng_restricted_send_media(tr::now);
-		case Flag::f_send_stickers:
+		case Flag::SendStickers:
 			return all
 				? tr::lng_restricted_send_stickers_all(tr::now)
 				: tr::lng_restricted_send_stickers(tr::now);
-		case Flag::f_send_gifs:
+		case Flag::SendGifs:
 			return all
 				? tr::lng_restricted_send_gifs_all(tr::now)
 				: tr::lng_restricted_send_gifs(tr::now);
-		case Flag::f_send_inline:
-		case Flag::f_send_games:
+		case Flag::SendInline:
+		case Flag::SendGames:
 			return all
 				? tr::lng_restricted_send_inline_all(tr::now)
 				: tr::lng_restricted_send_inline(tr::now);
@@ -1236,9 +1236,15 @@ std::optional<int> ResolvePinnedCount(
 		: std::nullopt;
 }
 
+ChatAdminRights ChatAdminRightsFlags(const MTPChatAdminRights &rights) {
+	return rights.match([](const MTPDchatAdminRights &data) {
+		return ChatAdminRights::from_raw(int32(data.vflags().v));
+	});
+}
+
 ChatRestrictions ChatBannedRightsFlags(const MTPChatBannedRights &rights) {
 	return rights.match([](const MTPDchatBannedRights &data) {
-		return data.vflags().v;
+		return ChatRestrictions::from_raw(int32(data.vflags().v));
 	});
 }
 

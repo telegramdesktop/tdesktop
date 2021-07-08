@@ -590,15 +590,14 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		chat->date = data.vdate().v;
 
 		if (const auto rights = data.vadmin_rights()) {
-			chat->setAdminRights(*rights);
+			chat->setAdminRights(ChatAdminRightsInfo(*rights).flags);
 		} else {
-			chat->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
+			chat->setAdminRights(ChatAdminRights());
 		}
 		if (const auto rights = data.vdefault_banned_rights()) {
-			chat->setDefaultRestrictions(*rights);
+			chat->setDefaultRestrictions(ChatRestrictionsInfo(*rights).flags);
 		} else {
-			chat->setDefaultRestrictions(
-				MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+			chat->setDefaultRestrictions(ChatRestrictions());
 		}
 
 		if (const auto migratedTo = data.vmigrated_to()) {
@@ -639,9 +638,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		chat->count = -1;
 		chat->invalidateParticipants();
 		chat->setFlags(MTPDchat_ClientFlag::f_forbidden | 0);
-		chat->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
-		chat->setDefaultRestrictions(
-			MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+		chat->setAdminRights(ChatAdminRights());
+		chat->setDefaultRestrictions(ChatRestrictions());
 
 		if (canAddMembers != chat->canAddMembers()) {
 			flags |= UpdateFlag::Rights;
@@ -663,10 +661,9 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			channel->setMembersCount(count->v);
 		}
 		if (const auto rights = data.vdefault_banned_rights()) {
-			channel->setDefaultRestrictions(*rights);
+			channel->setDefaultRestrictions(ChatRestrictionsInfo(*rights).flags);
 		} else {
-			channel->setDefaultRestrictions(
-				MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+			channel->setDefaultRestrictions(ChatRestrictions());
 		}
 		const auto callFlag = MTPDchannel::Flag::f_call_not_empty;
 		const auto callNotEmpty = (data.vflags().v & callFlag)
@@ -689,15 +686,14 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			}
 		} else {
 			if (const auto rights = data.vadmin_rights()) {
-				channel->setAdminRights(*rights);
+				channel->setAdminRights(ChatAdminRightsInfo(*rights).flags);
 			} else if (channel->hasAdminRights()) {
-				channel->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
+				channel->setAdminRights(ChatAdminRights());
 			}
 			if (const auto rights = data.vbanned_rights()) {
-				channel->setRestrictions(*rights);
+				channel->setRestrictions(ChatRestrictionsInfo(*rights));
 			} else if (channel->hasRestrictions()) {
-				channel->setRestrictions(
-					MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+				channel->setRestrictions(ChatRestrictionsInfo());
 			}
 			channel->setAccessHash(
 				data.vaccess_hash().value_or(channel->access));
@@ -741,10 +737,10 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		channel->setFlags((channel->flags() & ~mask) | (mtpCastFlags(data.vflags()) & mask) | MTPDchannel_ClientFlag::f_forbidden);
 
 		if (channel->hasAdminRights()) {
-			channel->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
+			channel->setAdminRights(ChatAdminRights());
 		}
 		if (channel->hasRestrictions()) {
-			channel->setRestrictions(MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+			channel->setRestrictions(ChatRestrictionsInfo());
 		}
 
 		channel->setName(qs(data.vtitle()), QString());

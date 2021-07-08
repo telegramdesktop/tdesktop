@@ -32,22 +32,22 @@ struct ChannelLocation {
 class MegagroupInfo {
 public:
 	struct Admin {
-		explicit Admin(MTPChatAdminRights rights)
+		explicit Admin(ChatAdminRightsInfo rights)
 		: rights(rights) {
 		}
-		Admin(MTPChatAdminRights rights, bool canEdit)
+		Admin(ChatAdminRightsInfo rights, bool canEdit)
 		: rights(rights)
 		, canEdit(canEdit) {
 		}
-		MTPChatAdminRights rights;
+		ChatAdminRightsInfo rights;
 		bool canEdit = false;
 	};
 
 	struct Restricted {
-		explicit Restricted(MTPChatBannedRights rights)
+		explicit Restricted(ChatRestrictionsInfo rights)
 		: rights(rights) {
 		}
-		MTPChatBannedRights rights;
+		ChatRestrictionsInfo rights;
 	};
 
 	ChatData *getMigrateFromChat() const;
@@ -214,9 +214,7 @@ public:
 		return flags() & MTPDchannel::Flag::f_fake;
 	}
 
-	static MTPChatBannedRights EmptyRestrictedRights(
-		not_null<PeerData*> participant);
-	static MTPChatBannedRights KickedRestrictedRights(
+	[[nodiscard]] static ChatRestrictionsInfo KickedRestrictedRights(
 		not_null<PeerData*> participant);
 	static constexpr auto kRestrictUntilForever = TimeId(INT_MAX);
 	[[nodiscard]] static bool IsRestrictedForever(TimeId until) {
@@ -224,13 +222,13 @@ public:
 	}
 	void applyEditAdmin(
 		not_null<UserData*> user,
-		const MTPChatAdminRights &oldRights,
-		const MTPChatAdminRights &newRights,
+		ChatAdminRightsInfo oldRights,
+		ChatAdminRightsInfo newRights,
 		const QString &rank);
 	void applyEditBanned(
 		not_null<PeerData*> participant,
-		const MTPChatBannedRights &oldRights,
-		const MTPChatBannedRights &newRights);
+		ChatRestrictionsInfo oldRights,
+		ChatRestrictionsInfo newRights);
 
 	void markForbidden();
 
@@ -264,7 +262,7 @@ public:
 	[[nodiscard]] auto adminRightsValue() const {
 		return _adminRights.value();
 	}
-	void setAdminRights(const MTPChatAdminRights &rights);
+	void setAdminRights(ChatAdminRights rights);
 	[[nodiscard]] bool hasAdminRights() const {
 		return (adminRights() != 0);
 	}
@@ -278,7 +276,7 @@ public:
 	[[nodiscard]] TimeId restrictedUntil() const {
 		return _restrictedUntil;
 	}
-	void setRestrictions(const MTPChatBannedRights &rights);
+	void setRestrictions(ChatRestrictionsInfo rights);
 	[[nodiscard]] bool hasRestrictions() const {
 		return (restrictions() != 0);
 	}
@@ -293,7 +291,7 @@ public:
 	[[nodiscard]] auto defaultRestrictionsValue() const {
 		return _defaultRestrictions.value();
 	}
-	void setDefaultRestrictions(const MTPChatBannedRights &rights);
+	void setDefaultRestrictions(ChatRestrictions rights);
 
 	// Like in ChatData.
 	[[nodiscard]] bool canWrite() const;

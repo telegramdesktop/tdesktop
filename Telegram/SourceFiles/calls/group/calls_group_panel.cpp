@@ -1368,12 +1368,12 @@ void Panel::kickParticipantSure(not_null<PeerData*> participantPeer) {
 		const auto currentRestrictedRights = [&] {
 			const auto user = participantPeer->asUser();
 			if (!channel->mgInfo || !user) {
-				return ChannelData::EmptyRestrictedRights(participantPeer);
+				return ChatRestrictionsInfo();
 			}
 			const auto i = channel->mgInfo->lastRestricted.find(user);
 			return (i != channel->mgInfo->lastRestricted.cend())
 				? i->second.rights
-				: ChannelData::EmptyRestrictedRights(participantPeer);
+				: ChatRestrictionsInfo();
 		}();
 		channel->session().api().kickParticipant(
 			channel,

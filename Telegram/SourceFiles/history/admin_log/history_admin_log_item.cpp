@@ -158,16 +158,11 @@ const auto CollectChanges = [](auto &phraseMap, auto plusFlags, auto minusFlags)
 TextWithEntities GenerateAdminChangeText(
 		not_null<ChannelData*> channel,
 		const TextWithEntities &user,
-		const MTPChatAdminRights *newRights,
-		const MTPChatAdminRights *prevRights) {
-	Expects(!newRights || newRights->type() == mtpc_chatAdminRights);
-	Expects(!prevRights || prevRights->type() == mtpc_chatAdminRights);
+		ChatAdminRightsInfo newRights,
+		ChatAdminRightsInfo prevRights) {
+	using Flag = ChatAdminRight;
+	using Flags = ChatAdminRights;
 
-	using Flag = MTPDchatAdminRights::Flag;
-	using Flags = MTPDchatAdminRights::Flags;
-
-	auto newFlags = newRights ? newRights->c_chatAdminRights().vflags().v : MTPDchatAdminRights::Flags(0);
-	auto prevFlags = prevRights ? prevRights->c_chatAdminRights().vflags().v : MTPDchatAdminRights::Flags(0);
 	auto result = tr::lng_admin_log_promoted(tr::now, lt_user, user, Ui::Text::WithEntities);
 
 	auto useInviteLinkPhrase = channel->isMegagroup() && channel->anyoneCanAddMembers();
@@ -175,25 +170,25 @@ TextWithEntities GenerateAdminChangeText(
 		? tr::lng_admin_log_admin_invite_link
 		: tr::lng_admin_log_admin_invite_users;
 	static auto phraseMap = std::map<Flags, tr::phrase<>> {
-		{ Flag::f_change_info, tr::lng_admin_log_admin_change_info },
-		{ Flag::f_post_messages, tr::lng_admin_log_admin_post_messages },
-		{ Flag::f_edit_messages, tr::lng_admin_log_admin_edit_messages },
-		{ Flag::f_delete_messages, tr::lng_admin_log_admin_delete_messages },
-		{ Flag::f_ban_users, tr::lng_admin_log_admin_ban_users },
-		{ Flag::f_invite_users, invitePhrase },
-		{ Flag::f_pin_messages, tr::lng_admin_log_admin_pin_messages },
-		{ Flag::f_manage_call, tr::lng_admin_log_admin_manage_calls },
-		{ Flag::f_add_admins, tr::lng_admin_log_admin_add_admins },
+		{ Flag::ChangeInfo, tr::lng_admin_log_admin_change_info },
+		{ Flag::PostMessages, tr::lng_admin_log_admin_post_messages },
+		{ Flag::EditMessages, tr::lng_admin_log_admin_edit_messages },
+		{ Flag::DeleteMessages, tr::lng_admin_log_admin_delete_messages },
+		{ Flag::BanUsers, tr::lng_admin_log_admin_ban_users },
+		{ Flag::InviteUsers, invitePhrase },
+		{ Flag::PinMessages, tr::lng_admin_log_admin_pin_messages },
+		{ Flag::ManageCall, tr::lng_admin_log_admin_manage_calls },
+		{ Flag::AddAdmins, tr::lng_admin_log_admin_add_admins },
 	};
-	phraseMap[Flag::f_invite_users] = invitePhrase;
+	phraseMap[Flag::InviteUsers] = invitePhrase;
 
 	if (!channel->isMegagroup()) {
 		// Don't display "Ban users" changes in channels.
-		newFlags &= ~Flag::f_ban_users;
-		prevFlags &= ~Flag::f_ban_users;
+		newRights.flags &= ~Flag::BanUsers;
+		prevRights.flags &= ~Flag::BanUsers;
 	}
 
-	auto changes = CollectChanges(phraseMap, newFlags, prevFlags);
+	auto changes = CollectChanges(phraseMap, newRights.flags, prevRights.flags);
 	if (!changes.isEmpty()) {
 		result.text.append('\n' + changes);
 	}
@@ -202,45 +197,43 @@ TextWithEntities GenerateAdminChangeText(
 };
 
 QString GenerateBannedChangeText(
-		const MTPChatBannedRights *newRights,
-		const MTPChatBannedRights *prevRights) {
-	using Flag = MTPDchatBannedRights::Flag;
-	using Flags = MTPDchatBannedRights::Flags;
+		ChatRestrictionsInfo newRights,
+		ChatRestrictionsInfo prevRights) {
+	using Flag = ChatRestriction;
+	using Flags = ChatRestrictions;
 
-	auto newFlags = newRights ? Data::ChatBannedRightsFlags(*newRights) : Flags(0);
-	auto prevFlags = prevRights ? Data::ChatBannedRightsFlags(*prevRights) : Flags(0);
 	static auto phraseMap = std::map<Flags, tr::phrase<>>{
-		{ Flag::f_view_messages, tr::lng_admin_log_banned_view_messages },
-		{ Flag::f_send_messages, tr::lng_admin_log_banned_send_messages },
-		{ Flag::f_send_media, tr::lng_admin_log_banned_send_media },
-		{ Flag::f_send_stickers
-			| Flag::f_send_gifs
-			| Flag::f_send_inline
-			| Flag::f_send_games, tr::lng_admin_log_banned_send_stickers },
-		{ Flag::f_embed_links, tr::lng_admin_log_banned_embed_links },
-		{ Flag::f_send_polls, tr::lng_admin_log_banned_send_polls },
-		{ Flag::f_change_info, tr::lng_admin_log_admin_change_info },
-		{ Flag::f_invite_users, tr::lng_admin_log_admin_invite_users },
-		{ Flag::f_pin_messages, tr::lng_admin_log_admin_pin_messages },
+		{ Flag::ViewMessages, tr::lng_admin_log_banned_view_messages },
+		{ Flag::SendMessages, tr::lng_admin_log_banned_send_messages },
+		{ Flag::SendMedia, tr::lng_admin_log_banned_send_media },
+		{ Flag::SendStickers
+			| Flag::SendGifs
+			| Flag::SendInline
+			| Flag::SendGames, tr::lng_admin_log_banned_send_stickers },
+		{ Flag::EmbedLinks, tr::lng_admin_log_banned_embed_links },
+		{ Flag::SendPolls, tr::lng_admin_log_banned_send_polls },
+		{ Flag::ChangeInfo, tr::lng_admin_log_admin_change_info },
+		{ Flag::InviteUsers, tr::lng_admin_log_admin_invite_users },
+		{ Flag::PinMessages, tr::lng_admin_log_admin_pin_messages },
 	};
-	return CollectChanges(phraseMap, prevFlags, newFlags);
+	return CollectChanges(phraseMap, prevRights.flags, newRights.flags);
 }
 
 TextWithEntities GenerateBannedChangeText(
 		PeerId participantId,
 		const TextWithEntities &user,
-		const MTPChatBannedRights *newRights,
-		const MTPChatBannedRights *prevRights) {
-	using Flag = MTPDchatBannedRights::Flag;
-	using Flags = MTPDchatBannedRights::Flags;
+		ChatRestrictionsInfo newRights,
+		ChatRestrictionsInfo prevRights) {
+	using Flag = ChatRestriction;
+	using Flags = ChatRestrictions;
 
-	auto newFlags = newRights ? Data::ChatBannedRightsFlags(*newRights) : Flags(0);
-	auto newUntil = newRights ? Data::ChatBannedRightsUntilDate(*newRights) : TimeId(0);
-	auto prevFlags = prevRights ? Data::ChatBannedRightsFlags(*prevRights) : Flags(0);
+	auto newFlags = newRights.flags;
+	auto newUntil = newRights.until;
+	auto prevFlags = prevRights.flags;
 	auto indefinitely = ChannelData::IsRestrictedForever(newUntil);
-	if (newFlags & Flag::f_view_messages) {
+	if (newFlags & Flag::ViewMessages) {
 		return tr::lng_admin_log_banned(tr::now, lt_user, user, Ui::Text::WithEntities);
-	} else if (newFlags == 0 && (prevFlags & Flag::f_view_messages) && !peerIsUser(participantId)) {
+	} else if (newFlags == 0 && (prevFlags & Flag::ViewMessages) && !peerIsUser(participantId)) {
 		return tr::lng_admin_log_unbanned(tr::now, lt_user, user, Ui::Text::WithEntities);
 	}
 	auto untilText = indefinitely
@@ -390,14 +383,16 @@ auto GenerateParticipantChangeTextInner(
 			return GenerateAdminChangeText(
 				channel,
 				user,
-				nullptr,
-				&oldParticipant->c_channelParticipantAdmin().vadmin_rights());
+				ChatAdminRightsInfo(),
+				ChatAdminRightsInfo(
+					oldParticipant->c_channelParticipantAdmin().vadmin_rights()));
 		} else if (oldType == mtpc_channelParticipantBanned) {
 			return GenerateBannedChangeText(
 				participantId,
 				user,
-				nullptr,
-				&oldParticipant->c_channelParticipantBanned().vbanned_rights());
+				ChatRestrictionsInfo(),
+				ChatRestrictionsInfo(
+					oldParticipant->c_channelParticipantBanned().vbanned_rights()));
 		}
 		return tr::lng_admin_log_invited(tr::now, lt_user, user, Ui::Text::WithEntities);
 	};
@@ -417,10 +412,11 @@ auto GenerateParticipantChangeTextInner(
 		return GenerateAdminChangeText(
 			channel,
 			user,
-			&data.vadmin_rights(),
+			ChatAdminRightsInfo(data.vadmin_rights()),
 			(oldType == mtpc_channelParticipantAdmin
-				? &oldParticipant->c_channelParticipantAdmin().vadmin_rights()
-				: nullptr));
+				? ChatAdminRightsInfo(
+					oldParticipant->c_channelParticipantAdmin().vadmin_rights())
+				: ChatAdminRightsInfo()));
 	}, [&](const MTPDchannelParticipantBanned &data) {
 		const auto participantId = peerFromMTP(data.vpeer());
 		const auto user = GenerateParticipantString(
@@ -429,10 +425,11 @@ auto GenerateParticipantChangeTextInner(
 		return GenerateBannedChangeText(
 			participantId,
 			user,
-			&data.vbanned_rights(),
+			ChatRestrictionsInfo(data.vbanned_rights()),
 			(oldType == mtpc_channelParticipantBanned
-				? &oldParticipant->c_channelParticipantBanned().vbanned_rights()
-				: nullptr));
+				? ChatRestrictionsInfo(
+					oldParticipant->c_channelParticipantBanned().vbanned_rights())
+				: ChatRestrictionsInfo()));
 	}, [&](const MTPDchannelParticipantLeft &data) {
 		return generateOther(peerFromMTP(data.vpeer()));
 	}, [&](const auto &data) {
@@ -446,9 +443,9 @@ TextWithEntities GenerateParticipantChangeText(not_null<ChannelData*> channel, c
 	return result;
 }
 
-TextWithEntities GenerateDefaultBannedRightsChangeText(not_null<ChannelData*> channel, const MTPChatBannedRights &rights, const MTPChatBannedRights &oldRights) {
+TextWithEntities GenerateDefaultBannedRightsChangeText(not_null<ChannelData*> channel, ChatRestrictionsInfo rights, ChatRestrictionsInfo oldRights) {
 	auto result = TextWithEntities{ tr::lng_admin_log_changed_default_permissions(tr::now) };
-	const auto changes = GenerateBannedChangeText(&rights, &oldRights);
+	const auto changes = GenerateBannedChangeText(rights, oldRights);
 	if (!changes.isEmpty()) {
 		result.text.append('\n' + changes);
 	}
@@ -850,7 +847,10 @@ void GenerateItems(
 		auto bodyClientFlags = MTPDmessage_ClientFlag::f_admin_log_entry;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
-		auto bodyText = GenerateDefaultBannedRightsChangeText(channel, action.vnew_banned_rights(), action.vprev_banned_rights());
+		auto bodyText = GenerateDefaultBannedRightsChangeText(
+			channel,
+			ChatRestrictionsInfo(action.vnew_banned_rights()),
+			ChatRestrictionsInfo(action.vprev_banned_rights()));
 		addPart(history->makeMessage(
 			history->nextNonHistoryEntryId(),
 			bodyFlags,

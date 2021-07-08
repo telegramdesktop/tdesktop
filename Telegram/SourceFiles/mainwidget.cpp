@@ -610,7 +610,7 @@ bool MainWidget::sendPaths(PeerId peerId) {
 		return false;
 	} else if (const auto error = Data::RestrictionError(
 			peer,
-			ChatRestriction::f_send_media)) {
+			ChatRestriction::SendMedia)) {
 		Ui::show(Box<InformBox>(*error));
 		return false;
 	}

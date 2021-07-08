@@ -88,7 +88,7 @@ void Inner::checkRestrictedPeer() {
 	if (_inlineQueryPeer) {
 		const auto error = Data::RestrictionError(
 			_inlineQueryPeer,
-			ChatRestriction::f_send_inline);
+			ChatRestriction::SendInline);
 		if (error) {
 			if (!_restrictedLabel) {
 				_restrictedLabel.create(this, *error, st::stickersRestrictedLabel);

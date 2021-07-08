@@ -787,7 +787,7 @@ void HistoryWidget::initVoiceRecordBar() {
 
 	_voiceRecordBar->setStartRecordingFilter([=] {
 		const auto error = _peer
-			? Data::RestrictionError(_peer, ChatRestriction::f_send_media)
+			? Data::RestrictionError(_peer, ChatRestriction::SendMedia)
 			: std::nullopt;
 		if (error) {
 			controller()->show(Box<InformBox>(*error));
@@ -1331,7 +1331,7 @@ void HistoryWidget::updateStickersByEmoji() {
 	const auto emoji = [&] {
 		const auto errorForStickers = Data::RestrictionError(
 			_peer,
-			ChatRestriction::f_send_stickers);
+			ChatRestriction::SendStickers);
 		if (!_editMsgId && !errorForStickers) {
 			const auto &text = _field->getTextWithTags().text;
 			auto length = 0;
@@ -2185,7 +2185,7 @@ bool HistoryWidget::canWriteMessage() const {
 
 std::optional<QString> HistoryWidget::writeRestriction() const {
 	return _peer
-		? Data::RestrictionError(_peer, ChatRestriction::f_send_messages)
+		? Data::RestrictionError(_peer, ChatRestriction::SendMessages)
 		: std::nullopt;
 }
 
@@ -3528,7 +3528,7 @@ void HistoryWidget::chooseAttach() {
 		return;
 	} else if (const auto error = Data::RestrictionError(
 			_peer,
-			ChatRestriction::f_send_media)) {
+			ChatRestriction::SendMedia)) {
 		Ui::ShowMultilineToast({
 			.text = { *error },
 		});
@@ -4269,7 +4269,7 @@ void HistoryWidget::updateFieldPlaceholder() {
 				return session().data().notifySilentPosts(channel)
 					? tr::lng_broadcast_silent_ph()
 					: tr::lng_broadcast_ph();
-			} else if (channel->adminRights() & ChatAdminRight::f_anonymous) {
+			} else if (channel->adminRights() & ChatAdminRight::Anonymous) {
 				return tr::lng_send_anonymous_ph();
 			} else {
 				return tr::lng_message_ph();
@@ -4287,7 +4287,7 @@ bool HistoryWidget::showSendingFilesError(
 		const auto error = _peer
 			? Data::RestrictionError(
 				_peer,
-				ChatRestriction::f_send_media)
+				ChatRestriction::SendMedia)
 			: std::nullopt;
 		if (error) {
 			return *error;
@@ -5681,7 +5681,7 @@ bool HistoryWidget::sendExistingDocument(
 		not_null<DocumentData*> document,
 		Api::SendOptions options) {
 	const auto error = _peer
-		? Data::RestrictionError(_peer, ChatRestriction::f_send_stickers)
+		? Data::RestrictionError(_peer, ChatRestriction::SendStickers)
 		: std::nullopt;
 	if (error) {
 		controller()->show(
@@ -5717,7 +5717,7 @@ bool HistoryWidget::sendExistingPhoto(
 		not_null<PhotoData*> photo,
 		Api::SendOptions options) {
 	const auto error = _peer
-		? Data::RestrictionError(_peer, ChatRestriction::f_send_media)
+		? Data::RestrictionError(_peer, ChatRestriction::SendMedia)
 		: std::nullopt;
 	if (error) {
 		controller()->show(
@@ -6091,7 +6091,7 @@ void HistoryWidget::previewCancel() {
 
 void HistoryWidget::checkPreview() {
 	const auto previewRestricted = [&] {
-		return _peer && _peer->amRestricted(ChatRestriction::f_embed_links);
+		return _peer && _peer->amRestricted(ChatRestriction::EmbedLinks);
 	}();
 	if (_previewState != Data::PreviewState::Allowed || previewRestricted) {
 		previewCancel();

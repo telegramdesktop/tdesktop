@@ -140,7 +140,7 @@ void AddButtonDelete(
 
 void SaveDefaultRestrictions(
 		not_null<PeerData*> peer,
-		MTPChatBannedRights rights,
+		ChatRestrictions rights,
 		Fn<void()> done) {
 	const auto api = &peer->session().api();
 	const auto key = Api::RequestKey("default_restrictions", peer->id);
@@ -148,7 +148,10 @@ void SaveDefaultRestrictions(
 	const auto requestId = api->request(
 		MTPmessages_EditChatDefaultBannedRights(
 			peer->input,
-			rights)
+			MTP_chatBannedRights(
+				MTP_flags(
+					MTPDchatBannedRights::Flags::from_raw(uint32(rights))),
+				MTP_int(0)))
 	).done([=](const MTPUpdates &result) {
 		api->clearModifyRequest(key);
 		api->applyUpdates(result);
@@ -215,7 +218,7 @@ void ShowEditPermissions(
 		const auto close = crl::guard(box, [=] { box->closeBox(); });
 		SaveDefaultRestrictions(
 			peer,
-			MTP_chatBannedRights(MTP_flags(result.rights), MTP_int(0)),
+			result.rights,
 			close);
 		if (const auto channel = peer->asChannel()) {
 			SaveSlowmodeSeconds(channel, result.slowmodeSeconds, close);
@@ -260,7 +263,7 @@ void ShowEditInviteLinks(
 		const auto close = crl::guard(box, [=] { box->closeBox(); });
 		SaveDefaultRestrictions(
 			peer,
-			MTP_chatBannedRights(MTP_flags(result.rights), MTP_int(0)),
+			result.rights,
 			close);
 		if (const auto channel = peer->asChannel()) {
 			SaveSlowmodeSeconds(channel, result.slowmodeSeconds, close);
