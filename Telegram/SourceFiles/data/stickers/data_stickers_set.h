@@ -62,6 +62,7 @@ public:
 	[[nodiscard]] Main::Session &session() const;
 
 	[[nodiscard]] MTPInputStickerSet mtpInput() const;
+	[[nodiscard]] StickerSetIdentifier identifier() const;
 
 	void setThumbnail(const ImageWithLocation &data);
 
@@ -95,4 +96,7 @@ private:
 
 };
 
-} // namespace Stickers
+[[nodiscard]] MTPInputStickerSet InputStickerSet(StickerSetIdentifier id);
+[[nodiscard]] StickerSetIdentifier FromInputSet(const MTPInputStickerSet &id);
+
+} // namespace Data

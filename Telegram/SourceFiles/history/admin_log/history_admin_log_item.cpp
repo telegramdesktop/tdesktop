@@ -818,7 +818,7 @@ void GenerateItems(
 			auto setLink = std::make_shared<LambdaClickHandler>([set] {
 				Ui::show(Box<StickerSetBox>(
 					App::wnd()->sessionController(),
-					set));
+					Data::FromInputSet(set)));
 			});
 			auto message = HistoryService::PreparedText { text };
 			message.links.push_back(fromLink);

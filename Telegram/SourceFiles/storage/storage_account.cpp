@@ -1750,7 +1750,7 @@ void Account::readStickerSets(
 				ImageWithLocation{ .location = setThumbnail });
 		}
 		const auto set = it->second.get();
-		auto inputSet = MTP_inputStickerSetID(MTP_long(set->id), MTP_long(set->access));
+		const auto inputSet = set->identifier();
 		const auto fillStickers = set->stickers.isEmpty();
 
 		if (scnt < 0) { // disabled not loaded set
@@ -1783,7 +1783,7 @@ void Account::readStickerSets(
 			if (fillStickers) {
 				set->stickers.push_back(document);
 				if (!(set->flags & MTPDstickerSet_ClientFlag::f_special)) {
-					if (document->sticker()->set.type() != mtpc_inputStickerSetID) {
+					if (!document->sticker()->set.id) {
 						document->sticker()->set = inputSet;
 					}
 				}

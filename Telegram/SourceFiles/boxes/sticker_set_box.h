@@ -26,7 +26,7 @@ public:
 	StickerSetBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
-		const MTPInputStickerSet &set);
+		const StickerSetIdentifier &set);
 
 	static QPointer<Ui::BoxContent> Show(
 		not_null<Window::SessionController*> controller,
@@ -49,7 +49,7 @@ private:
 	void handleError(Error error);
 
 	const not_null<Window::SessionController*> _controller;
-	MTPInputStickerSet _set;
+	const StickerSetIdentifier _set;
 
 	class Inner;
 	QPointer<Inner> _inner;

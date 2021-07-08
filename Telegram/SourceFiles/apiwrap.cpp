@@ -3028,11 +3028,16 @@ void ApiWrap::requestRecentStickersForce(bool attached) {
 	requestRecentStickersWithHash(0, attached);
 }
 
-void ApiWrap::setGroupStickerSet(not_null<ChannelData*> megagroup, const MTPInputStickerSet &set) {
+void ApiWrap::setGroupStickerSet(
+		not_null<ChannelData*> megagroup,
+		const StickerSetIdentifier &set) {
 	Expects(megagroup->mgInfo != nullptr);
 
 	megagroup->mgInfo->stickerSet = set;
-	request(MTPchannels_SetStickers(megagroup->inputChannel, set)).send();
+	request(MTPchannels_SetStickers(
+		megagroup->inputChannel,
+		Data::InputStickerSet(set)
+	)).send();
 	_session->data().stickers().notifyUpdated();
 }
 

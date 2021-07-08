@@ -2134,8 +2134,7 @@ QPoint StickersListWidget::buttonRippleTopLeft(int section) const {
 }
 
 void StickersListWidget::showStickerSetBox(not_null<DocumentData*> document) {
-	if (document->sticker()
-		&& document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+	if (document->sticker() && document->sticker()->set) {
 		_displayingSet = true;
 		checkHideWithBox(StickerSetBox::Show(controller(), document));
 	}
@@ -2714,7 +2713,7 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 	auto isShownHere = [place](bool hidden) {
 		return (hidden == (place == GroupStickersPlace::Hidden));
 	};
-	if (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetEmpty) {
+	if (!_megagroupSet->mgInfo->stickerSet) {
 		if (canEdit) {
 			auto hidden = session().settings().isGroupStickersSectionHidden(
 				_megagroupSet->id);
@@ -2745,12 +2744,12 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 	if (canEdit && hidden) {
 		removeHiddenForGroup();
 	}
-	if (_megagroupSet->mgInfo->stickerSet.type() != mtpc_inputStickerSetID) {
+	const auto &set = _megagroupSet->mgInfo->stickerSet;
+	if (!set.id) {
 		return;
 	}
-	auto &set = _megagroupSet->mgInfo->stickerSet.c_inputStickerSetID();
 	const auto &sets = session().data().stickers().sets();
-	const auto it = sets.find(set.vid().v);
+	const auto it = sets.find(set.id);
 	if (it != sets.cend()) {
 		const auto set = it->second.get();
 		auto isInstalled = (set->flags & MTPDstickerSet::Flag::f_installed_date)
@@ -2771,13 +2770,12 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 				PrepareStickers(set->stickers));
 		}
 		return;
-	} else if (!isShownHere(hidden)
-		|| _megagroupSetIdRequested == set.vid().v) {
+	} else if (!isShownHere(hidden) || _megagroupSetIdRequested == set.id) {
 		return;
 	}
-	_megagroupSetIdRequested = set.vid().v;
+	_megagroupSetIdRequested = set.id;
 	_api.request(MTPmessages_GetStickerSet(
-		_megagroupSet->mgInfo->stickerSet
+		Data::InputStickerSet(set)
 	)).done([=](const MTPmessages_StickerSet &result) {
 		if (const auto set = session().data().stickers().feedSetFull(result)) {
 			refreshStickers();
@@ -3083,8 +3081,8 @@ void StickersListWidget::displaySet(uint64 setId) {
 				Box<StickersBox>(controller(), _megagroupSet),
 				Ui::LayerOption::KeepOther).data());
 			return;
-		} else if (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetID) {
-			setId = _megagroupSet->mgInfo->stickerSet.c_inputStickerSetID().vid().v;
+		} else if (_megagroupSet->mgInfo->stickerSet.id) {
+			setId = _megagroupSet->mgInfo->stickerSet.id;
 		} else {
 			return;
 		}
@@ -3094,7 +3092,7 @@ void StickersListWidget::displaySet(uint64 setId) {
 	if (it != sets.cend()) {
 		_displayingSet = true;
 		checkHideWithBox(controller()->show(
-			Box<StickerSetBox>(controller(), it->second->mtpInput()),
+			Box<StickerSetBox>(controller(), it->second->identifier()),
 			Ui::LayerOption::KeepOther).data());
 	}
 }
@@ -3160,8 +3158,8 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 	controller()->show(Box<ConfirmBox>(tr::lng_stickers_remove_group_set(tr::now), crl::guard(this, [this, group = _megagroupSet] {
 		Expects(group->mgInfo != nullptr);
 
-		if (group->mgInfo->stickerSet.type() != mtpc_inputStickerSetEmpty) {
-			session().api().setGroupStickerSet(group, MTP_inputStickerSetEmpty());
+		if (group->mgInfo->stickerSet) {
+			session().api().setGroupStickerSet(group, {});
 		}
 		Ui::hideLayer();
 		_removingSetId = 0;

@@ -291,7 +291,7 @@ void Sticker::refreshLink() {
 			that->_parent->history()->owner().requestViewRepaint(
 				that->_parent);
 		});
-	} else if (sticker && sticker->set.type() != mtpc_inputStickerSetEmpty) {
+	} else if (sticker && sticker->set) {
 		_link = std::make_shared<LambdaClickHandler>([document = _data](ClickContext context) {
 			const auto my = context.other.value<ClickHandlerContext>();
 			if (const auto window = my.sessionWindow.get()) {

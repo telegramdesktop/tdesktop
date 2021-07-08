@@ -80,6 +80,13 @@ MTPInputStickerSet StickersSet::mtpInput() const {
 		: MTP_inputStickerSetShortName(MTP_string(shortName));
 }
 
+StickerSetIdentifier StickersSet::identifier() const {
+	return StickerSetIdentifier{
+		.id = id,
+		.accessHash = access,
+	};
+}
+
 void StickersSet::setThumbnail(const ImageWithLocation &data) {
 	Data::UpdateCloudFile(
 		_thumbnail,
@@ -152,6 +159,27 @@ std::shared_ptr<StickersSetThumbnailView> StickersSet::createThumbnailView() {
 
 std::shared_ptr<StickersSetThumbnailView> StickersSet::activeThumbnailView() {
 	return _thumbnailView.lock();
+}
+
+MTPInputStickerSet InputStickerSet(StickerSetIdentifier id) {
+	return !id
+		? MTP_inputStickerSetEmpty()
+		: id.id
+		? MTP_inputStickerSetID(MTP_long(id.id), MTP_long(id.accessHash))
+		: MTP_inputStickerSetShortName(MTP_string(id.shortName));
+}
+
+StickerSetIdentifier FromInputSet(const MTPInputStickerSet &id) {
+	return id.match([](const MTPDinputStickerSetID &data) {
+		return StickerSetIdentifier{
+			.id = data.vid().v,
+			.accessHash = data.vaccess_hash().v,
+		};
+	}, [](const MTPDinputStickerSetShortName &data) {
+		return StickerSetIdentifier{ .shortName = qs(data.vshort_name()) };
+	}, [](const auto &) {
+		return StickerSetIdentifier();
+	});
 }
 
 } // namespace Stickers

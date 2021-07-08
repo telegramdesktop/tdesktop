@@ -868,15 +868,14 @@ void ApplyChannelUpdate(
 		const auto stickerSet = update.vstickerset();
 		const auto set = stickerSet ? &stickerSet->c_stickerSet() : nullptr;
 		const auto newSetId = (set ? set->vid().v : 0);
-		const auto oldSetId = (channel->mgInfo->stickerSet.type() == mtpc_inputStickerSetID)
-			? channel->mgInfo->stickerSet.c_inputStickerSetID().vid().v
-			: 0;
+		const auto oldSetId = channel->mgInfo->stickerSet.id;
 		const auto stickersChanged = (canEditStickers != channel->canEditStickers())
 			|| (oldSetId != newSetId);
 		if (oldSetId != newSetId) {
-			channel->mgInfo->stickerSet = set
-				? MTP_inputStickerSetID(set->vid(), set->vaccess_hash())
-				: MTP_inputStickerSetEmpty();
+			channel->mgInfo->stickerSet = StickerSetIdentifier{
+				.id = set ? set->vid().v : 0,
+				.accessHash = set ? set->vaccess_hash().v : 0,
+			};
 		}
 		if (stickersChanged) {
 			session->changes().peerUpdated(channel, UpdateFlag::StickersSet);

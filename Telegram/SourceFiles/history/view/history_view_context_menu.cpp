@@ -230,8 +230,7 @@ void AddDocumentActions(
 			});
 		}
 	}
-	if (document->sticker()
-		&& document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+	if (document->sticker() && document->sticker()->set) {
 		menu->addAction(
 			(document->isStickerSetInstalled()
 				? tr::lng_context_pack_info(tr::now)

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_media.h"
 
 #include "data/data_document.h"
+#include "data/stickers/data_stickers_set.h"
 #include "history/history_item.h"
 
 namespace Api {
@@ -47,7 +48,7 @@ MTPVector<MTPDocumentAttribute> ComposeSendingDocumentAttributes(
 		attributes.push_back(MTP_documentAttributeSticker(
 			MTP_flags(0),
 			MTP_string(document->sticker()->alt),
-			document->sticker()->set,
+			Data::InputStickerSet(document->sticker()->set),
 			MTPMaskCoords()));
 	} else if (const auto song = document->song()) {
 		const auto flags = MTPDdocumentAttributeAudio::Flag::f_title

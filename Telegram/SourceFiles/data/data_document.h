@@ -62,7 +62,7 @@ struct StickerData : public DocumentAdditionalData {
 
 	bool animated = false;
 	QString alt;
-	MTPInputStickerSet set = MTP_inputStickerSetEmpty();
+	StickerSetIdentifier set;
 };
 
 struct SongData : public DocumentAdditionalData {

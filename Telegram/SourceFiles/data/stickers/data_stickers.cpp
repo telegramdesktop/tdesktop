@@ -111,8 +111,7 @@ rpl::producer<uint64> Stickers::stickerSetInstalled() const {
 }
 
 void Stickers::incrementSticker(not_null<DocumentData*> document) {
-	if (!document->sticker()
-		|| document->sticker()->set.type() == mtpc_inputStickerSetEmpty) {
+	if (!document->sticker() || !document->sticker()->set) {
 		return;
 	}
 
@@ -555,7 +554,7 @@ void Stickers::requestSetToPushFaved(not_null<DocumentData*> document) {
 		setIsFaved(document, std::move(list));
 	};
 	session().api().request(MTPmessages_GetStickerSet(
-		document->sticker()->set
+		Data::InputStickerSet(document->sticker()->set)
 	)).done([=](const MTPmessages_StickerSet &result) {
 		Expects(result.type() == mtpc_messages_stickerSet);
 
@@ -1060,9 +1059,8 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 		Expects(document->sticker() != nullptr);
 
 		const auto sticker = document->sticker();
-		if (sticker->set.type() == mtpc_inputStickerSetID) {
-			const auto setId = sticker->set.c_inputStickerSetID().vid().v;
-			const auto setIt = sets.find(setId);
+		if (sticker->set.id) {
+			const auto setIt = sets.find(sticker->set.id);
 			if (setIt != sets.end()) {
 				return InstallDateAdjusted(setIt->second->installDate, document);
 			}
@@ -1170,11 +1168,11 @@ std::optional<std::vector<not_null<EmojiPtr>>> Stickers::getEmojiListFromSet(
 		not_null<DocumentData*> document) {
 	if (auto sticker = document->sticker()) {
 		auto &inputSet = sticker->set;
-		if (inputSet.type() != mtpc_inputStickerSetID) {
+		if (!inputSet.id) {
 			return std::nullopt;
 		}
 		const auto &sets = this->sets();
-		auto it = sets.find(inputSet.c_inputStickerSetID().vid().v);
+		auto it = sets.find(inputSet.id);
 		if (it == sets.cend()) {
 			return std::nullopt;
 		}
@@ -1289,9 +1287,7 @@ StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
 
 	const auto &d_docs = d.vdocuments().v;
 	auto customIt = sets.find(Stickers::CustomSetId);
-	const auto inputSet = MTP_inputStickerSetID(
-		MTP_long(set->id),
-		MTP_long(set->access));
+	const auto inputSet = set->identifier();
 
 	auto pack = StickersPack();
 	pack.reserve(d_docs.size());
@@ -1300,7 +1296,7 @@ StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
 		if (!document->sticker()) continue;
 
 		pack.push_back(document);
-		if (document->sticker()->set.type() != mtpc_inputStickerSetID) {
+		if (!document->sticker()->set.id) {
 			document->sticker()->set = inputSet;
 		}
 		if (customIt != sets.cend()) {

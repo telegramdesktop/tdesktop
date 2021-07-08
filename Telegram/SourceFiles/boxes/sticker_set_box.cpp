@@ -59,7 +59,7 @@ public:
 	Inner(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		const MTPInputStickerSet &set);
+		const StickerSetIdentifier &set);
 
 	bool loaded() const;
 	bool notInstalled() const;
@@ -134,7 +134,7 @@ private:
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 
-	MTPInputStickerSet _input;
+	StickerSetIdentifier _input;
 
 	mtpRequestId _installRequest = 0;
 
@@ -153,7 +153,7 @@ private:
 StickerSetBox::StickerSetBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
-	const MTPInputStickerSet &set)
+	const StickerSetIdentifier &set)
 : _controller(controller)
 , _set(set) {
 }
@@ -162,7 +162,7 @@ QPointer<Ui::BoxContent> StickerSetBox::Show(
 		not_null<Window::SessionController*> controller,
 		not_null<DocumentData*> document) {
 	if (const auto sticker = document->sticker()) {
-		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
+		if (sticker->set) {
 			return controller->show(
 				Box<StickerSetBox>(controller, sticker->set),
 				Ui::LayerOption::KeepOther).data();
@@ -344,28 +344,21 @@ void StickerSetBox::resizeEvent(QResizeEvent *e) {
 StickerSetBox::Inner::Inner(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
-	const MTPInputStickerSet &set)
+	const StickerSetIdentifier &set)
 : RpWidget(parent)
 , _controller(controller)
 , _api(&_controller->session().mtp())
+, _setId(set.id)
+, _setAccess(set.accessHash)
+, _setShortName(set.shortName)
 , _pathGradient(std::make_unique<Ui::PathShiftGradient>(
 	st::windowBgRipple,
 	st::windowBgOver,
 	[=] { update(); }))
 , _input(set)
 , _previewTimer([=] { showPreview(); }) {
-	set.match([&](const MTPDinputStickerSetID &data) {
-		_setId = data.vid().v;
-		_setAccess = data.vaccess_hash().v;
-	}, [&](const MTPDinputStickerSetShortName &data) {
-		_setShortName = qs(data.vshort_name());
-	}, [](const MTPDinputStickerSetEmpty &) {
-	}, [](const MTPDinputStickerSetAnimatedEmoji &) {
-	}, [](const MTPDinputStickerSetDice &) {
-	});
-
 	_api.request(MTPmessages_GetStickerSet(
-		_input
+		Data::InputStickerSet(_input)
 	)).done([=](const MTPmessages_StickerSet &result) {
 		gotSet(result);
 	}).fail([=](const MTP::Error &error) {
@@ -881,7 +874,7 @@ void StickerSetBox::Inner::install() {
 		return;
 	}
 	_installRequest = _api.request(MTPmessages_InstallStickerSet(
-		_input,
+		Data::InputStickerSet(_input),
 		MTP_bool(false)
 	)).done([=](const MTPmessages_StickerSetInstallResult &result) {
 		installDone(result);
@@ -892,7 +885,7 @@ void StickerSetBox::Inner::install() {
 
 void StickerSetBox::Inner::archiveStickers() {
 	_api.request(MTPmessages_InstallStickerSet(
-		_input,
+		Data::InputStickerSet(_input),
 		MTP_boolTrue()
 	)).done([=](const MTPmessages_StickerSetInstallResult &result) {
 		if (result.type() == mtpc_messages_stickerSetInstallResultSuccess) {

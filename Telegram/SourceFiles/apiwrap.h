@@ -288,7 +288,7 @@ public:
 	void requestRecentStickersForce(bool attached = false);
 	void setGroupStickerSet(
 		not_null<ChannelData*> megagroup,
-		const MTPInputStickerSet &set);
+		const StickerSetIdentifier &set);
 	std::vector<not_null<DocumentData*>> *stickersByEmoji(
 		not_null<EmojiPtr> emoji);
 

@@ -70,7 +70,7 @@ bool ShowStickerSet(
 	Core::App().hideMediaView();
 	controller->show(Box<StickerSetBox>(
 		controller,
-		MTP_inputStickerSetShortName(MTP_string(match->captured(1)))));
+		StickerSetIdentifier{ .shortName = match->captured(1) }));
 	return true;
 }
 

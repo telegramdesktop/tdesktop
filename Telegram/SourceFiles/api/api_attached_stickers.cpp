@@ -52,8 +52,10 @@ void AttachedStickers::request(
 		});
 
 		const auto setId = (setData->vid().v && setData->vaccess_hash().v)
-			? MTP_inputStickerSetID(setData->vid(), setData->vaccess_hash())
-			: MTP_inputStickerSetShortName(setData->vshort_name());
+			? StickerSetIdentifier{
+				.id = setData->vid().v,
+				.accessHash = setData->vaccess_hash().v }
+			: StickerSetIdentifier{ .shortName = qs(setData->vshort_name()) };
 		strongController->show(
 			Box<StickerSetBox>(strongController, setId),
 			Ui::LayerOption::KeepOther);

@@ -34,19 +34,14 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 	stream << document->filename() << document->mimeString() << qint32(document->_dc) << qint32(document->size);
 	stream << qint32(document->dimensions.width()) << qint32(document->dimensions.height());
 	stream << qint32(document->type);
-	if (auto sticker = document->sticker()) {
+	if (const auto sticker = document->sticker()) {
 		stream << document->sticker()->alt;
-		switch (document->sticker()->set.type()) {
-		case mtpc_inputStickerSetID: {
+		if (document->sticker()->set.id) {
 			stream << qint32(StickerSetTypeID);
-		} break;
-		case mtpc_inputStickerSetShortName: {
+		} else if (!document->sticker()->set.shortName.isEmpty()) {
 			stream << qint32(StickerSetTypeShortName);
-		} break;
-		case mtpc_inputStickerSetEmpty:
-		default: {
+		} else {
 			stream << qint32(StickerSetTypeEmpty);
-		} break;
 		}
 	} else {
 		stream << qint32(document->getDuration());

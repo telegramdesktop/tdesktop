@@ -257,12 +257,10 @@ QString DocumentFileNameForSave(
 }
 
 Data::FileOrigin StickerData::setOrigin() const {
-	return set.match([&](const MTPDinputStickerSetID &data) {
-		return Data::FileOrigin(
-			Data::FileOriginStickerSet(data.vid().v, data.vaccess_hash().v));
-	}, [&](const auto &) {
-		return Data::FileOrigin();
-	});
+	return set.id
+		? Data::FileOrigin(
+			Data::FileOriginStickerSet(set.id, set.accessHash))
+		: Data::FileOrigin();
 }
 
 VoiceData::~VoiceData() {
@@ -320,9 +318,21 @@ void DocumentData::setattributes(
 			}
 			if (sticker()) {
 				sticker()->alt = qs(data.valt());
-				if (sticker()->set.type() != mtpc_inputStickerSetID
+				if (!sticker()->set.id
 					|| data.vstickerset().type() == mtpc_inputStickerSetID) {
-					sticker()->set = data.vstickerset();
+					sticker()->set = data.vstickerset().match([&](
+							const MTPDinputStickerSetID &data) {
+						return StickerSetIdentifier{
+							.id = data.vid().v,
+							.accessHash = data.vaccess_hash().v,
+						};
+					}, [&](const MTPDinputStickerSetShortName &data) {
+						return StickerSetIdentifier{
+							.shortName = qs(data.vshort_name()),
+						};
+					}, [](const auto &) {
+						return StickerSetIdentifier();
+					});
 				}
 			}
 		}, [&](const MTPDdocumentAttributeVideo &data) {
@@ -1042,13 +1052,13 @@ bool DocumentData::isStickerSetInstalled() const {
 	Expects(sticker() != nullptr);
 
 	const auto &sets = _owner->stickers().sets();
-	return sticker()->set.match([&](const MTPDinputStickerSetID &data) {
-		const auto i = sets.find(data.vid().v);
+	if (const auto id = sticker()->set.id) {
+		const auto i = sets.find(id);
 		return (i != sets.cend())
 			&& !(i->second->flags & MTPDstickerSet::Flag::f_archived)
 			&& (i->second->flags & MTPDstickerSet::Flag::f_installed_date);
-	}, [&](const MTPDinputStickerSetShortName &data) {
-		const auto name = qs(data.vshort_name()).toLower();
+	} else if (!sticker()->set.shortName.isEmpty()) {
+		const auto name = sticker()->set.shortName.toLower();
 		for (const auto &[id, set] : sets) {
 			if (set->shortName.toLower() == name) {
 				return !(set->flags & MTPDstickerSet::Flag::f_archived)
@@ -1056,13 +1066,9 @@ bool DocumentData::isStickerSetInstalled() const {
 			}
 		}
 		return false;
-	}, [](const MTPDinputStickerSetEmpty &) {
+	} else {
 		return false;
-	}, [](const MTPDinputStickerSetAnimatedEmoji &) {
-		return false;
-	}, [](const MTPDinputStickerSetDice &) {
-		return false;
-	});
+	}
 }
 
 Image *DocumentData::getReplyPreview(Data::FileOrigin origin) {
