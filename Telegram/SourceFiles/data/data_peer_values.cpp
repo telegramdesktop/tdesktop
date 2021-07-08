@@ -175,7 +175,7 @@ rpl::producer<bool> CanWriteValue(UserData *user) {
 	if (user->isRepliesChat()) {
 		return rpl::single(false);
 	}
-	return PeerFlagValue(user, MTPDuser::Flag::f_deleted)
+	return PeerFlagValue(user, UserDataFlag::Deleted)
 		| rpl::map(!_1);
 }
 
@@ -260,10 +260,10 @@ rpl::producer<bool> CanWriteValue(not_null<PeerData*> peer) {
 rpl::producer<bool> CanPinMessagesValue(not_null<PeerData*> peer) {
 	using namespace rpl::mappers;
 	if (const auto user = peer->asUser()) {
-		return PeerFullFlagsValue(
+		return PeerFlagsValue(
 			user,
-			MTPDuserFull::Flag::f_can_pin_message
-		) | rpl::map(_1 != MTPDuserFull::Flag(0));
+			UserDataFlag::CanPinMessages
+		) | rpl::map(_1 != UserDataFlag(0));
 	} else if (const auto chat = peer->asChat()) {
 		const auto mask = 0
 			| MTPDchat::Flag::f_deactivated

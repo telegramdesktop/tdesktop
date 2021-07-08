@@ -234,28 +234,20 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 	using Setting = MTPDpeerSettings::Flag;
 	if (const auto user = peer->asUser()) {
 		using FlagsChange = UserData::Flags::Change;
-		using FullFlagsChange = UserData::FullFlags::Change;
-		using Flag = MTPDuser::Flag;
-		using FullFlag = MTPDuserFull::Flag;
+		using Flag = UserDataFlag;
 
-		auto isContactChanges = user->flagsValue(
+		auto changes = user->flagsValue(
 		) | rpl::filter([](FlagsChange flags) {
 			return flags.diff
-				& (Flag::f_contact | Flag::f_mutual_contact);
-		});
-		auto isBlockedChanges = user->fullFlagsValue(
-		) | rpl::filter([](FullFlagsChange full) {
-			return full.diff & FullFlag::f_blocked;
+				& (Flag::Contact | Flag::MutualContact | Flag::Blocked);
 		});
 		return rpl::combine(
-			std::move(isContactChanges),
-			std::move(isBlockedChanges),
+			std::move(changes),
 			user->settingsValue()
 		) | rpl::map([=](
 				FlagsChange flags,
-				FullFlagsChange full,
 				SettingsChange settings) {
-			if (full.value & FullFlag::f_blocked) {
+			if (flags.value & Flag::Blocked) {
 				return State::None;
 			} else if (user->isContact()) {
 				if (settings.value & Setting::f_share_contact) {

@@ -394,7 +394,19 @@ rpl::producer<Badge> BadgeValueFromFlags(Peer peer) {
 
 rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
-		return BadgeValueFromFlags<MTPDuser::Flag>(user);
+		using Flag = UserDataFlag;
+		return Data::PeerFlagsValue(
+			user,
+			Flag::Verified | Flag::Scam | Flag::Fake
+		) | rpl::map([=](base::flags<Flag> value) {
+			return (value & Flag::Verified)
+				? Badge::Verified
+				: (value & Flag::Scam)
+				? Badge::Scam
+				: (value & Flag::Fake)
+				? Badge::Fake
+				: Badge::None;
+		});
 	} else if (const auto channel = peer->asChannel()) {
 		return BadgeValueFromFlags<MTPDchannel::Flag>(channel);
 	}

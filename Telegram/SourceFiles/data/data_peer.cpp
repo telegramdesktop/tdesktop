@@ -498,7 +498,7 @@ QString PeerData::computeUnavailableReason() const {
 // This is duplicated in CanPinMessagesValue().
 bool PeerData::canPinMessages() const {
 	if (const auto user = asUser()) {
-		return user->fullFlags() & MTPDuserFull::Flag::f_can_pin_message;
+		return user->flags() & UserDataFlag::CanPinMessages;
 	} else if (const auto chat = asChat()) {
 		return chat->amIn()
 			&& !chat->amRestricted(ChatRestriction::PinMessages);
@@ -1000,11 +1000,11 @@ void PeerData::setIsBlocked(bool is) {
 	if (_blockStatus != status) {
 		_blockStatus = status;
 		if (const auto user = asUser()) {
-			const auto flags = user->fullFlags();
+			const auto flags = user->flags();
 			if (is) {
-				user->setFullFlags(flags | MTPDuserFull::Flag::f_blocked);
+				user->setFlags(flags | UserDataFlag::Blocked);
 			} else {
-				user->setFullFlags(flags & ~MTPDuserFull::Flag::f_blocked);
+				user->setFlags(flags & ~UserDataFlag::Blocked);
 			}
 		}
 		session().changes().peerUpdated(this, UpdateFlag::IsBlocked);

@@ -392,8 +392,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		result->inputUser = MTP_inputUser(data.vid(), MTP_long(0));
 		result->setName(tr::lng_deleted(tr::now), QString(), QString(), QString());
 		result->setPhoto(MTP_userProfilePhotoEmpty());
-		//result->setFlags(MTPDuser_ClientFlag::f_inaccessible | 0);
-		result->setFlags(MTPDuser::Flag::f_deleted);
+		result->setFlags(UserDataFlag::Deleted);
 		if (!result->phone().isEmpty()) {
 			result->setPhone(QString());
 			flags |= UpdateFlag::PhoneNumber;
@@ -408,11 +407,30 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		minimal = data.is_min();
 
 		const auto canShareThisContact = result->canShareThisContactFast();
+
+		using Flag = UserDataFlag;
+		const auto flagsMask = Flag::Deleted
+			| Flag::Verified
+			| Flag::Scam
+			| Flag::Fake
+			| Flag::BotInlineGeo
+			| Flag::Support
+			| (!minimal
+				? Flag::Contact
+				| Flag::MutualContact
+				: Flag());
+		const auto flagsSet = (data.is_deleted() ? Flag::Deleted : Flag())
+			| (data.is_verified() ? Flag::Verified : Flag())
+			| (data.is_scam() ? Flag::Scam : Flag())
+			| (data.is_fake() ? Flag::Fake : Flag())
+			| (data.is_bot_inline_geo() ? Flag::BotInlineGeo : Flag())
+			| (data.is_support() ? Flag::Support : Flag())
+			| (!minimal
+				? (data.is_contact() ? Flag::Contact : Flag())
+				| (data.is_mutual_contact() ? Flag::MutualContact : Flag())
+				: Flag());
+		result->setFlags((result->flags() & ~flagsMask) | flagsSet);
 		if (minimal) {
-			const auto mask = 0
-				//| MTPDuser_ClientFlag::f_inaccessible
-				| MTPDuser::Flag::f_deleted;
-			result->setFlags((result->flags() & ~mask) | (data.vflags().v & mask));
 			if (result->input.type() == mtpc_inputPeerEmpty) {
 				result->input = MTP_inputPeerUser(
 					data.vid(),
@@ -424,7 +442,6 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 					MTP_long(data.vaccess_hash().value_or_empty()));
 			}
 		} else {
-			result->setFlags(data.vflags().v);
 			if (data.is_self()) {
 				result->input = MTP_inputPeerSelf();
 				result->inputUser = MTP_inputUserSelf();

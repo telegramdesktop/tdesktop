@@ -238,7 +238,31 @@ PeerData *readPeer(
 			user->setPhone(phone);
 			user->setName(first, last, pname, username);
 
-			user->setFlags(MTPDuser::Flags::from_raw(flags));
+			using Saved = MTPDuser::Flag;
+			using Flag = UserDataFlag;
+			struct Conversion {
+				Saved saved;
+				Flag flag;
+			};
+			const auto conversions = {
+				Conversion{ Saved::f_deleted, Flag::Deleted },
+				Conversion{ Saved::f_verified, Flag::Verified },
+				Conversion{ Saved::f_scam, Flag::Scam },
+				Conversion{ Saved::f_fake, Flag::Fake },
+				Conversion{ Saved::f_bot_inline_geo, Flag::BotInlineGeo },
+				Conversion{ Saved::f_support, Flag::Support },
+				Conversion{ Saved::f_contact, Flag::Contact },
+				Conversion{ Saved::f_mutual_contact, Flag::MutualContact },
+			};
+			auto flagsMask = Flag() | Flag();
+			auto flagsSet = Flag() | Flag();
+			for (const auto &conversion : conversions) {
+				flagsMask |= conversion.flag;
+				if (flags & int(conversion.saved)) {
+					flagsSet |= conversion.flag;
+				}
+			}
+			user->setFlags((user->flags() & ~flagsMask) | flagsSet);
 			user->setAccessHash(access);
 			user->onlineTill = onlineTill;
 			user->setIsContact(contact == 1);
