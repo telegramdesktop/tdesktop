@@ -1000,7 +1000,7 @@ void Updates::handleSendActionUpdate(
 			const auto channel = peer->asChannel();
 			const auto active = chat
 				? (chat->flags() & ChatDataFlag::CallActive)
-				: (channel->flags() & MTPDchannel::Flag::f_call_active);
+				: (channel->flags() & ChannelDataFlag::CallActive);
 			if (active) {
 				_pendingSpeakingCallParticipants.emplace(
 					peer).first->second[fromId] = now;

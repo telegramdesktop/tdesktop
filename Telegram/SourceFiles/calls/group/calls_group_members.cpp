@@ -1656,7 +1656,7 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 		) | rpl::map([=] {
 			return Data::PeerFlagValue(
 				channel,
-				MTPDchannel::Flag::f_username);
+				ChannelDataFlag::Username);
 		}) | rpl::flatten_latest());
 	} else {
 		_canAddMembers = Data::CanWriteValue(peer.get());

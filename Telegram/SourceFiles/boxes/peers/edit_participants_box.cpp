@@ -1963,7 +1963,7 @@ void ParticipantsBoxController::subscribeToCreatorChange(
 	const auto isCreator = channel->amCreator();
 	channel->flagsValue(
 	) | rpl::filter([](const ChannelData::Flags::Change &change) {
-		return (change.diff & MTPDchannel::Flag::f_creator);
+		return (change.diff & ChannelDataFlag::Creator);
 	}) | rpl::filter([=] {
 		return (isCreator != channel->amCreator());
 	}) | rpl::start_with_next([=] {

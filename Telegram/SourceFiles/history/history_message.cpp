@@ -789,7 +789,7 @@ bool HistoryMessage::checkCommentsLinkedChat(ChannelId id) const {
 		return true;
 	} else if (const auto channel = history()->peer->asChannel()) {
 		if (channel->linkedChatKnown()
-			|| !(channel->flags() & MTPDchannel::Flag::f_has_link)) {
+			|| !(channel->flags() & ChannelDataFlag::HasLink)) {
 			const auto linked = channel->linkedChat();
 			if (!linked || peerToChannel(linked->id) != id) {
 				return false;

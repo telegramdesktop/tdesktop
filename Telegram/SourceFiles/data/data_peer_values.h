@@ -65,10 +65,6 @@ inline auto PeerFlagValue(
 	return SingleFlagValue(PeerFlagsValue(peer), flag);
 }
 
-rpl::producer<bool> PeerFlagValue(
-	ChannelData *channel,
-	MTPDchannel_ClientFlag flag);
-
 template <
 	typename PeerType,
 	typename = typename PeerType::FullFlags::Change>

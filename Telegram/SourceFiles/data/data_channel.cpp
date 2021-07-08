@@ -58,14 +58,14 @@ ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 	_flags.changes(
 	) | rpl::start_with_next([=](const Flags::Change &change) {
 		if (change.diff
-			& (MTPDchannel::Flag::f_left | MTPDchannel_ClientFlag::f_forbidden)) {
+			& (Flag::Left | Flag::Forbidden)) {
 			if (const auto chat = getMigrateFromChat()) {
 				session().changes().peerUpdated(chat, UpdateFlag::Migration);
 				session().changes().peerUpdated(this, UpdateFlag::Migration);
 			}
 		}
-		if (change.diff & MTPDchannel::Flag::f_megagroup) {
-			if (change.value & MTPDchannel::Flag::f_megagroup) {
+		if (change.diff & Flag::Megagroup) {
+			if (change.value & Flag::Megagroup) {
 				if (!mgInfo) {
 					mgInfo = std::make_unique<MegagroupInfo>();
 				}
@@ -73,7 +73,7 @@ ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 				mgInfo = nullptr;
 			}
 		}
-		if (change.diff & MTPDchannel::Flag::f_call_not_empty) {
+		if (change.diff & Flag::CallNotEmpty) {
 			if (const auto history = this->owner().historyLoaded(this)) {
 				history->updateChatListEntry();
 			}
@@ -412,7 +412,7 @@ bool ChannelData::anyoneCanAddMembers() const {
 }
 
 bool ChannelData::hiddenPreHistory() const {
-	return (fullFlags() & MTPDchannelFull::Flag::f_hidden_prehistory);
+	return (flags() & Flag::PreHistoryHidden);
 }
 
 bool ChannelData::canAddMembers() const {
@@ -437,15 +437,14 @@ bool ChannelData::canPublish() const {
 
 bool ChannelData::canWrite() const {
 	// Duplicated in Data::CanWriteValue().
-	const auto allowed = amIn() || (flags() & MTPDchannel::Flag::f_has_link);
+	const auto allowed = amIn() || (flags() & Flag::HasLink);
 	return allowed && (canPublish()
 			|| (!isBroadcast()
 				&& !amRestricted(Restriction::SendMessages)));
 }
 
 bool ChannelData::canViewMembers() const {
-	return fullFlags()
-		& MTPDchannelFull::Flag::f_can_view_participants;
+	return flags() & Flag::CanViewParticipants;
 }
 
 bool ChannelData::canViewAdmins() const {
@@ -480,11 +479,11 @@ bool ChannelData::canEditPreHistoryHidden() const {
 
 bool ChannelData::canEditUsername() const {
 	return amCreator()
-		&& (fullFlags() & MTPDchannelFull::Flag::f_can_set_username);
+		&& (flags() & Flag::CanSetUsername);
 }
 
 bool ChannelData::canEditStickers() const {
-	return (fullFlags() & MTPDchannelFull::Flag::f_can_set_stickers);
+	return (flags() & Flag::CanSetStickers);
 }
 
 bool ChannelData::canDelete() const {
@@ -688,7 +687,7 @@ void ChannelData::migrateCall(std::unique_ptr<Data::GroupCall> call) {
 	_call = std::move(call);
 	_call->setPeer(this);
 	session().changes().peerUpdated(this, UpdateFlag::GroupCall);
-	addFlags(MTPDchannel::Flag::f_call_active);
+	addFlags(Flag::CallActive);
 }
 
 void ChannelData::setGroupCall(
@@ -714,7 +713,7 @@ void ChannelData::setGroupCall(
 			scheduleDate);
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
-		addFlags(MTPDchannel::Flag::f_call_active);
+		addFlags(Flag::CallActive);
 	});
 }
 
@@ -725,8 +724,7 @@ void ChannelData::clearGroupCall() {
 	owner().unregisterGroupCall(_call.get());
 	_call = nullptr;
 	session().changes().peerUpdated(this, UpdateFlag::GroupCall);
-	removeFlags(MTPDchannel::Flag::f_call_active
-		| MTPDchannel::Flag::f_call_not_empty);
+	removeFlags(Flag::CallActive | Flag::CallNotEmpty);
 }
 
 void ChannelData::setGroupCallDefaultJoinAs(PeerId peerId) {
@@ -791,10 +789,21 @@ void ApplyChannelUpdate(
 	}
 
 	channel->setMessagesTTL(update.vttl_period().value_or_empty());
-	channel->setFullFlags(update.vflags().v);
+	using Flag = ChannelDataFlag;
+	const auto mask = Flag::CanSetUsername
+		| Flag::CanViewParticipants
+		| Flag::CanSetStickers
+		| Flag::PreHistoryHidden
+		| Flag::Location;
+	channel->setFlags((channel->flags() & ~mask)
+		| (update.is_can_set_username() ? Flag::CanSetUsername : Flag())
+		| (update.is_can_view_participants() ? Flag::CanViewParticipants : Flag())
+		| (update.is_can_set_stickers() ? Flag::CanSetStickers : Flag())
+		| (update.is_hidden_prehistory() ? Flag::PreHistoryHidden : Flag())
+		| (update.vlocation() ? Flag::Location : Flag()));
 	channel->setUserpicPhoto(update.vchat_photo());
 	if (const auto migratedFrom = update.vmigrated_from_chat_id()) {
-		channel->addFlags(MTPDchannel::Flag::f_megagroup);
+		channel->addFlags(Flag::Megagroup);
 		const auto chat = channel->owner().chat(migratedFrom->v);
 		Data::ApplyMigration(chat, channel);
 	}

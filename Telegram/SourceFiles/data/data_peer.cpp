@@ -250,10 +250,9 @@ void PeerData::updateNameDelayed(
 		if (asChannel()->username != newUsername) {
 			asChannel()->username = newUsername;
 			if (newUsername.isEmpty()) {
-				asChannel()->removeFlags(
-					MTPDchannel::Flag::f_username);
+				asChannel()->removeFlags(ChannelDataFlag::Username);
 			} else {
-				asChannel()->addFlags(MTPDchannel::Flag::f_username);
+				asChannel()->addFlags(ChannelDataFlag::Username);
 			}
 			flags |= UpdateFlag::Username;
 		}
@@ -909,7 +908,7 @@ bool PeerData::slowmodeApplied() const {
 	if (const auto channel = asChannel()) {
 		return !channel->amCreator()
 			&& !channel->hasAdminRights()
-			&& (channel->flags() & MTPDchannel::Flag::f_slowmode_enabled);
+			&& (channel->flags() & ChannelDataFlag::SlowmodeEnabled);
 	}
 	return false;
 }
@@ -928,9 +927,9 @@ rpl::producer<bool> PeerData::slowmodeAppliedValue() const {
 
 	auto slowmodeEnabled = channel->flagsValue(
 	) | rpl::filter([=](const ChannelData::Flags::Change &change) {
-		return (change.diff & MTPDchannel::Flag::f_slowmode_enabled) != 0;
+		return (change.diff & ChannelDataFlag::SlowmodeEnabled) != 0;
 	}) | rpl::map([=](const ChannelData::Flags::Change &change) {
-		return (change.value & MTPDchannel::Flag::f_slowmode_enabled) != 0;
+		return (change.value & ChannelDataFlag::SlowmodeEnabled) != 0;
 	}) | rpl::distinct_until_changed();
 
 	return rpl::combine(

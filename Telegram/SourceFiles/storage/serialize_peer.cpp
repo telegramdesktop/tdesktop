@@ -326,7 +326,6 @@ PeerData *readPeer(
 					Conversion{ Saved::f_call_active, Flag::CallActive },
 					Conversion{ Saved::f_call_not_empty, Flag::CallNotEmpty },
 				};
-
 				auto flagsMask = Flag() | Flag();
 				auto flagsSet = Flag() | Flag();
 				if (streamAppVersion >= 9012) {
@@ -359,13 +358,17 @@ PeerData *readPeer(
 		quint64 access;
 		qint32 date, version, oldForbidden;
 		quint32 flags;
-		stream >> name >> access >> date >> version >> oldForbidden >> flags >> inviteLink;
+		stream
+			>> name
+			>> access
+			>> date
+			>> version
+			>> oldForbidden
+			>> flags
+			>> inviteLink;
 
 		userpicAccessHash = access;
 
-		if (oldForbidden) {
-			flags |= quint32(MTPDchannel_ClientFlag::f_forbidden);
-		}
 		if (apply) {
 			channel->setName(name, QString());
 			channel->access = access;
@@ -375,7 +378,48 @@ PeerData *readPeer(
 			// So we don't restore the version field, info is still unknown.
 			channel->setVersion(0);
 
-			channel->setFlags(MTPDchannel::Flags::from_raw(flags));
+			if (streamAppVersion >= 2008007) {
+				channel->setFlags(ChannelDataFlags::from_raw(flags));
+			} else {
+				using Saved = MTPDchannel::Flag;
+				using Flag = ChannelDataFlag;
+				struct Conversion {
+					Saved saved;
+					Flag flag;
+				};
+				const auto conversions = {
+					Conversion{ Saved::f_broadcast, Flag::Broadcast },
+					Conversion{ Saved::f_verified, Flag::Verified},
+					Conversion{ Saved::f_scam, Flag::Scam},
+					Conversion{ Saved::f_fake, Flag::Fake},
+					Conversion{ Saved::f_megagroup, Flag::Megagroup},
+					Conversion{ Saved::f_gigagroup, Flag::Gigagroup},
+					Conversion{ Saved::f_username, Flag::Username},
+					Conversion{ Saved::f_signatures, Flag::Signatures},
+					Conversion{ Saved::f_has_link, Flag::HasLink},
+					Conversion{
+						Saved::f_slowmode_enabled,
+						Flag::SlowmodeEnabled },
+					Conversion{ Saved::f_call_active, Flag::CallActive },
+					Conversion{ Saved::f_call_not_empty, Flag::CallNotEmpty },
+					Conversion{ Saved(1U << 31), Flag::Forbidden },
+					Conversion{ Saved::f_left, Flag::Left },
+					Conversion{ Saved::f_creator, Flag::Creator },
+				};
+				auto flagsMask = Flag() | Flag();
+				auto flagsSet = Flag() | Flag();
+				for (const auto &conversion : conversions) {
+					flagsMask |= conversion.flag;
+					if (flags & int(conversion.saved)) {
+						flagsSet |= conversion.flag;
+					}
+				}
+				if (oldForbidden) {
+					flagsSet |= Flag::Forbidden;
+				}
+				channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
+			}
+
 			channel->setInviteLink(inviteLink);
 
 			// #TODO ids

@@ -988,7 +988,7 @@ void History::applyServiceChanges(
 		}
 	}, [&](const MTPDmessageActionChannelMigrateFrom &data) {
 		if (const auto channel = peer->asChannel()) {
-			channel->addFlags(MTPDchannel::Flag::f_megagroup);
+			channel->addFlags(ChannelDataFlag::Megagroup);
 			if (const auto chat = owner().chatLoaded(data.vchat_id().v)) {
 				Data::ApplyMigration(chat, channel);
 			}

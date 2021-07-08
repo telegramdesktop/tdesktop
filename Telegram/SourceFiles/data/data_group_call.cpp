@@ -175,7 +175,7 @@ void GroupCall::changePeerEmptyCallFlag() {
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
 	constexpr auto chatFlag = ChatDataFlag::CallNotEmpty;
-	constexpr auto channelFlag = MTPDchannel::Flag::f_call_not_empty;
+	constexpr auto channelFlag = ChannelDataFlag::CallNotEmpty;
 	if (_peer->groupCall() != this) {
 		return;
 	} else if (_serverParticipantsCount > 0) {

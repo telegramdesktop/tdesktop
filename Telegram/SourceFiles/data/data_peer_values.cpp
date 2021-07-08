@@ -157,12 +157,6 @@ inline auto DefaultRestrictionValue(
 	return SingleFlagValue(DefaultRestrictionsValue(chat), flag);
 }
 
-rpl::producer<bool> PeerFlagValue(
-		ChannelData *channel,
-		MTPDchannel_ClientFlag flag) {
-	return PeerFlagValue(channel, static_cast<MTPDchannel::Flag>(flag));
-}
-
 rpl::producer<bool> CanWriteValue(UserData *user) {
 	using namespace rpl::mappers;
 
@@ -204,12 +198,13 @@ rpl::producer<bool> CanWriteValue(ChatData *chat) {
 }
 
 rpl::producer<bool> CanWriteValue(ChannelData *channel) {
+	using Flag = ChannelDataFlag;
 	const auto mask = 0
-		| MTPDchannel::Flag::f_left
-		| MTPDchannel::Flag::f_has_link
-		| MTPDchannel_ClientFlag::f_forbidden
-		| MTPDchannel::Flag::f_creator
-		| MTPDchannel::Flag::f_broadcast;
+		| Flag::Left
+		| Flag::HasLink
+		| Flag::Forbidden
+		| Flag::Creator
+		| Flag::Broadcast;
 	return rpl::combine(
 		PeerFlagsValue(channel, mask),
 		AdminRightValue(
@@ -222,18 +217,16 @@ rpl::producer<bool> CanWriteValue(ChannelData *channel) {
 			channel,
 			ChatRestriction::SendMessages),
 		[](
-				MTPDchannel::Flags flags,
+				ChannelDataFlags flags,
 				bool postMessagesRight,
 				bool sendMessagesRestriction,
 				bool defaultSendMessagesRestriction) {
-			const auto notAmInFlags = 0
-				| MTPDchannel::Flag::f_left
-				| MTPDchannel_ClientFlag::f_forbidden;
+			const auto notAmInFlags = Flag::Left | Flag::Forbidden;
 			const auto allowed = !(flags & notAmInFlags)
-				|| (flags & MTPDchannel::Flag::f_has_link);
+				|| (flags & Flag::HasLink);
 			return allowed && (postMessagesRight
-					|| (flags & MTPDchannel::Flag::f_creator)
-					|| (!(flags & MTPDchannel::Flag::f_broadcast)
+					|| (flags & Flag::Creator)
+					|| (!(flags & Flag::Broadcast)
 						&& !sendMessagesRestriction
 						&& !defaultSendMessagesRestriction));
 		});
@@ -290,18 +283,17 @@ rpl::producer<bool> CanPinMessagesValue(not_null<PeerData*> peer) {
 		return rpl::combine(
 			AdminRightValue(megagroup, ChatAdminRight::PinMessages),
 			DefaultRestrictionValue(megagroup, ChatRestriction::PinMessages),
-			PeerFlagValue(megagroup, MTPDchannel::Flag::f_username),
-			PeerFullFlagValue(megagroup, MTPDchannelFull::Flag::f_location),
+			PeerFlagsValue(
+				megagroup,
+				ChannelDataFlag::Username | ChannelDataFlag::Location),
 			megagroup->restrictionsValue()
 		) | rpl::map([=](
 				bool adminRightAllows,
 				bool defaultRestriction,
-				bool hasUsername,
-				bool hasLocation,
+				ChannelDataFlags usernameOrLocation,
 				Data::Flags<ChatRestrictions>::Change restrictions) {
 			return adminRightAllows
-				|| (!hasUsername
-					&& !hasLocation
+				|| (!usernameOrLocation
 					&& !defaultRestriction
 					&& !(restrictions.value & ChatRestriction::PinMessages));
 		});
@@ -451,7 +443,7 @@ bool IsUserOnline(not_null<UserData*> user) {
 }
 
 bool ChannelHasActiveCall(not_null<ChannelData*> channel) {
-	return (channel->flags() & MTPDchannel::Flag::f_call_not_empty);
+	return (channel->flags() & ChannelDataFlag::CallNotEmpty);
 }
 
 } // namespace Data

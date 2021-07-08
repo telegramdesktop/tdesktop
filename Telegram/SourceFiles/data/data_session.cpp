@@ -620,7 +620,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		if (const auto migratedTo = data.vmigrated_to()) {
 			migratedTo->match([&](const MTPDinputChannel &input) {
 				const auto channel = this->channel(input.vchannel_id().v);
-				channel->addFlags(MTPDchannel::Flag::f_megagroup);
+				channel->addFlags(ChannelDataFlag::Megagroup);
 				if (!channel->access) {
 					channel->setAccessHash(input.vaccess_hash().v);
 				}
@@ -695,21 +695,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		} else {
 			channel->setDefaultRestrictions(ChatRestrictions());
 		}
-		const auto callFlag = MTPDchannel::Flag::f_call_not_empty;
-		const auto callNotEmpty = (data.vflags().v & callFlag)
-			|| (channel->groupCall()
-				&& channel->groupCall()->fullCount() > 0);
+
 		if (minimal) {
-			auto mask = 0
-				| MTPDchannel::Flag::f_broadcast
-				| MTPDchannel::Flag::f_verified
-				| MTPDchannel::Flag::f_megagroup
-				| MTPDchannel::Flag::f_call_active
-				| MTPDchannel::Flag::f_call_not_empty
-				| MTPDchannel_ClientFlag::f_forbidden;
-			channel->setFlags((channel->flags() & ~mask)
-				| (data.vflags().v & mask)
-				| (callNotEmpty ? callFlag : MTPDchannel::Flag(0)));
 			if (channel->input.type() == mtpc_inputPeerEmpty
 				|| channel->inputChannel.type() == mtpc_inputChannelEmpty) {
 				channel->setAccessHash(data.vaccess_hash().value_or_empty());
@@ -737,9 +724,47 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			} else {
 				channel->setUnavailableReasons({});
 			}
-			channel->setFlags(data.vflags().v
-				| (callNotEmpty ? callFlag : MTPDchannel::Flag(0)));
 		}
+
+		using Flag = ChannelDataFlag;
+		const auto flagsMask = Flag::Broadcast
+			| Flag::Verified
+			| Flag::Scam
+			| Flag::Fake
+			| Flag::Megagroup
+			| Flag::Gigagroup
+			| Flag::Username
+			| Flag::Signatures
+			| Flag::HasLink
+			| Flag::SlowmodeEnabled
+			| Flag::CallActive
+			| Flag::CallNotEmpty
+			| Flag::Forbidden
+			| (!minimal
+				? Flag::Left
+				| Flag::Creator
+				: Flag());
+		const auto flagsSet = (data.is_broadcast() ? Flag::Broadcast : Flag())
+			| (data.is_verified() ? Flag::Verified : Flag())
+			| (data.is_scam() ? Flag::Scam : Flag())
+			| (data.is_fake() ? Flag::Fake : Flag())
+			| (data.is_megagroup() ? Flag::Megagroup : Flag())
+			| (data.is_gigagroup() ? Flag::Gigagroup : Flag())
+			| (data.vusername() ? Flag::Username : Flag())
+			| (data.is_signatures() ? Flag::Signatures : Flag())
+			| (data.is_has_link() ? Flag::HasLink : Flag())
+			| (data.is_slowmode_enabled() ? Flag::SlowmodeEnabled : Flag())
+			| (data.is_call_active() ? Flag::CallActive : Flag())
+			| ((data.is_call_not_empty()
+				|| (channel->groupCall()
+					&& channel->groupCall()->fullCount() > 0))
+				? Flag::CallNotEmpty
+				: Flag())
+			| (!minimal
+				? (data.is_left() ? Flag::Left : Flag())
+				| (data.is_creator() ? Flag::Creator : Flag())
+				: Flag());
+		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
 
 		channel->setName(
 			qs(data.vtitle()),
@@ -763,8 +788,14 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		auto canViewMembers = channel->canViewMembers();
 		auto canAddMembers = channel->canAddMembers();
 
-		auto mask = mtpCastFlags(MTPDchannelForbidden::Flag::f_broadcast | MTPDchannelForbidden::Flag::f_megagroup);
-		channel->setFlags((channel->flags() & ~mask) | (mtpCastFlags(data.vflags()) & mask) | MTPDchannel_ClientFlag::f_forbidden);
+		using Flag = ChannelDataFlag;
+		const auto flagsMask = Flag::Broadcast
+			| Flag::Megagroup
+			| Flag::Forbidden;
+		const auto flagsSet = (data.is_broadcast() ? Flag::Broadcast : Flag())
+			| (data.is_megagroup() ? Flag::Megagroup : Flag())
+			| Flag::Forbidden;
+		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
 
 		if (channel->hasAdminRights()) {
 			channel->setAdminRights(ChatAdminRights());
@@ -954,7 +985,7 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 			: History::ClearType::DeleteChat);
 	}
 	if (const auto channel = peer->asMegagroup()) {
-		channel->addFlags(MTPDchannel::Flag::f_left);
+		channel->addFlags(ChannelDataFlag::Left);
 		if (const auto from = channel->getMigrateFromChat()) {
 			if (const auto migrated = historyLoaded(from)) {
 				migrated->updateChatListExistence();

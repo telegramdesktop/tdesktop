@@ -380,13 +380,13 @@ template <typename Flag, typename Peer>
 rpl::producer<Badge> BadgeValueFromFlags(Peer peer) {
 	return Data::PeerFlagsValue(
 		peer,
-		Flag::f_verified | Flag::f_scam | Flag::f_fake
+		Flag::Verified | Flag::Scam | Flag::Fake
 	) | rpl::map([=](base::flags<Flag> value) {
-		return (value & Flag::f_verified)
+		return (value & Flag::Verified)
 			? Badge::Verified
-			: (value & Flag::f_scam)
+			: (value & Flag::Scam)
 			? Badge::Scam
-			: (value & Flag::f_fake)
+			: (value & Flag::Fake)
 			? Badge::Fake
 			: Badge::None;
 	});
@@ -394,21 +394,9 @@ rpl::producer<Badge> BadgeValueFromFlags(Peer peer) {
 
 rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
-		using Flag = UserDataFlag;
-		return Data::PeerFlagsValue(
-			user,
-			Flag::Verified | Flag::Scam | Flag::Fake
-		) | rpl::map([=](base::flags<Flag> value) {
-			return (value & Flag::Verified)
-				? Badge::Verified
-				: (value & Flag::Scam)
-				? Badge::Scam
-				: (value & Flag::Fake)
-				? Badge::Fake
-				: Badge::None;
-		});
+		return BadgeValueFromFlags<UserDataFlag>(user);
 	} else if (const auto channel = peer->asChannel()) {
-		return BadgeValueFromFlags<MTPDchannel::Flag>(channel);
+		return BadgeValueFromFlags<ChannelDataFlag>(channel);
 	}
 	return rpl::single(Badge::None);
 }
