@@ -1,3 +1,7 @@
+2.8.7 beta (08.07.21)
+
+- (to be filled later =)
+
 2.8.6 beta (06.07.21)
 
 - Added a simple image editor. Crop photos or highlight parts of screenshots before sending.
