@@ -112,29 +112,33 @@ uint32 peerSize(not_null<PeerData*> peer) {
 	uint32 result = sizeof(quint64)
 		+ sizeof(quint64)
 		+ imageLocationSize(peer->userpicLocation());
-	if (peer->isUser()) {
-		UserData *user = peer->asUser();
-
-		// first + last + phone + username + access
-		result += stringSize(user->firstName) + stringSize(user->lastName) + stringSize(user->phone()) + stringSize(user->username) + sizeof(quint64);
-
-		// flags
-		if (AppVersion >= 9012) {
-			result += sizeof(qint32);
-		}
-
-		// onlineTill + contact + botInfoVersion
-		result += sizeof(qint32) + sizeof(qint32) + sizeof(qint32);
-	} else if (peer->isChat()) {
-		ChatData *chat = peer->asChat();
-
-		// name + count + date + version + admin + old forbidden + left + inviteLink
-		result += stringSize(chat->name) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(quint32) + stringSize(chat->inviteLink());
-	} else if (peer->isChannel()) {
-		ChannelData *channel = peer->asChannel();
-
-		// name + access + date + version + old forbidden + flags + inviteLink
-		result += stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(quint32) + stringSize(channel->inviteLink());
+	if (const auto user = peer->asUser()) {
+		result += stringSize(user->firstName)
+			+ stringSize(user->lastName)
+			+ stringSize(user->phone())
+			+ stringSize(user->username)
+			+ sizeof(quint64) // access
+			+ sizeof(qint32) // flags
+			+ sizeof(qint32) // onlineTill
+			+ sizeof(qint32) // contact
+			+ sizeof(qint32); // botInfoVersion
+	} else if (const auto chat = peer->asChat()) {
+		result += stringSize(chat->name)
+			+ sizeof(qint32) // count
+			+ sizeof(qint32) // date
+			+ sizeof(qint32) // version
+			+ sizeof(qint32) // creator id 1
+			+ sizeof(qint32) // creator id 2
+			+ sizeof(quint32) // flags
+			+ stringSize(chat->inviteLink());
+	} else if (const auto channel = peer->asChannel()) {
+		result += stringSize(channel->name)
+			+ sizeof(quint64) // access
+			+ sizeof(qint32) // date
+			+ sizeof(qint32) // version
+			+ sizeof(qint32) // old forbidden
+			+ sizeof(quint32) // flags
+			+ stringSize(channel->inviteLink());
 	}
 	return result;
 }
@@ -143,22 +147,17 @@ void writePeer(QDataStream &stream, not_null<PeerData*> peer) {
 	stream << SerializePeerId(peer->id) << quint64(peer->userpicPhotoId());
 	writeImageLocation(stream, peer->userpicLocation());
 	if (const auto user = peer->asUser()) {
+		const auto botInlinePlaceholder = user->isBot()
+			? user->botInfo->inlinePlaceholder
+			: QString();
 		stream
 			<< user->firstName
 			<< user->lastName
 			<< user->phone()
 			<< user->username
-			<< quint64(user->accessHash());
-		if (AppVersion >= 9012) {
-			stream << qint32(user->flags());
-		}
-		if (AppVersion >= 9016) {
-			const auto botInlinePlaceholder = user->isBot()
-				? user->botInfo->inlinePlaceholder
-				: QString();
-			stream << botInlinePlaceholder;
-		}
-		stream
+			<< quint64(user->accessHash())
+			<< qint32(user->flags())
+			<< botInlinePlaceholder
 			<< qint32(user->onlineTill)
 			<< qint32(user->isContact() ? 1 : 0)
 			<< qint32(user->isBot() ? user->botInfo->version : -1);
@@ -227,42 +226,45 @@ PeerData *readPeer(
 
 		userpicAccessHash = access;
 
-		const auto showPhone = !user->isServiceUser()
-			&& (user->id != selfId)
-			&& (contact <= 0);
-		const auto pname = (showPhone && !phone.isEmpty())
-			? App::formatPhone(phone)
-			: QString();
-
 		if (apply) {
+			const auto showPhone = !user->isServiceUser()
+				&& (user->id != selfId)
+				&& (contact <= 0);
+			const auto pname = (showPhone && !phone.isEmpty())
+				? App::formatPhone(phone)
+				: QString();
+
 			user->setPhone(phone);
 			user->setName(first, last, pname, username);
-
-			using Saved = MTPDuser::Flag;
-			using Flag = UserDataFlag;
-			struct Conversion {
-				Saved saved;
-				Flag flag;
-			};
-			const auto conversions = {
-				Conversion{ Saved::f_deleted, Flag::Deleted },
-				Conversion{ Saved::f_verified, Flag::Verified },
-				Conversion{ Saved::f_scam, Flag::Scam },
-				Conversion{ Saved::f_fake, Flag::Fake },
-				Conversion{ Saved::f_bot_inline_geo, Flag::BotInlineGeo },
-				Conversion{ Saved::f_support, Flag::Support },
-				Conversion{ Saved::f_contact, Flag::Contact },
-				Conversion{ Saved::f_mutual_contact, Flag::MutualContact },
-			};
-			auto flagsMask = Flag() | Flag();
-			auto flagsSet = Flag() | Flag();
-			for (const auto &conversion : conversions) {
-				flagsMask |= conversion.flag;
-				if (flags & int(conversion.saved)) {
-					flagsSet |= conversion.flag;
+			if (streamAppVersion >= 2008007) {
+				user->setFlags(UserDataFlags::from_raw(flags));
+			} else {
+				using Saved = MTPDuser::Flag;
+				using Flag = UserDataFlag;
+				struct Conversion {
+					Saved saved;
+					Flag flag;
+				};
+				const auto conversions = {
+					Conversion{ Saved::f_deleted, Flag::Deleted },
+					Conversion{ Saved::f_verified, Flag::Verified },
+					Conversion{ Saved::f_scam, Flag::Scam },
+					Conversion{ Saved::f_fake, Flag::Fake },
+					Conversion{ Saved::f_bot_inline_geo, Flag::BotInlineGeo },
+					Conversion{ Saved::f_support, Flag::Support },
+					Conversion{ Saved::f_contact, Flag::Contact },
+					Conversion{ Saved::f_mutual_contact, Flag::MutualContact },
+				};
+				auto flagsMask = Flag() | Flag();
+				auto flagsSet = Flag() | Flag();
+				for (const auto &conversion : conversions) {
+					flagsMask |= conversion.flag;
+					if (flags & int(conversion.saved)) {
+						flagsSet |= conversion.flag;
+					}
 				}
+				user->setFlags((user->flags() & ~flagsMask) | flagsSet);
 			}
-			user->setFlags((user->flags() & ~flagsMask) | flagsSet);
 			user->setAccessHash(access);
 			user->onlineTill = onlineTill;
 			user->setIsContact(contact == 1);
@@ -283,25 +285,19 @@ PeerData *readPeer(
 	} else if (const auto chat = result->asChat()) {
 		QString name, inviteLink;
 		qint32 count, date, version, field1, field2;
-		quint32 flagsData, flags;
-		stream >> name >> count >> date >> version >> field1 >> field2 >> flagsData >> inviteLink;
-
-		const auto creator = UserId(
-			BareId(uint32(field1)) | (BareId(uint32(field2) >> 8) << 32));
-		const auto oldForbidden = ((uint32(field2) & 0xFF) == 1);
-
-		if (streamAppVersion >= 9012) {
-			flags = flagsData;
-		} else {
-			// flagsData was haveLeft
-			flags = (flagsData == 1)
-				? MTPDchat::Flags(MTPDchat::Flag::f_left)
-				: MTPDchat::Flags(0);
-		}
-		if (oldForbidden) {
-			flags |= quint32(MTPDchat_ClientFlag::f_forbidden);
-		}
+		quint32 flags;
+		stream
+			>> name
+			>> count
+			>> date
+			>> version
+			>> field1
+			>> field2
+			>> flags
+			>> inviteLink;
 		if (apply) {
+			const auto creator = UserId(
+				BareId(uint32(field1)) | (BareId(uint32(field2) >> 8) << 32));
 			chat->setName(name);
 			chat->count = count;
 			chat->date = date;
@@ -310,8 +306,49 @@ PeerData *readPeer(
 			// So we don't restore the version field, info is still unknown.
 			chat->setVersion(0);
 
+			if (streamAppVersion >= 2008007) {
+				chat->setFlags(ChatDataFlags::from_raw(flags));
+			} else {
+				const auto oldForbidden = ((uint32(field2) & 0xFF) == 1);
+
+				using Saved = MTPDchat::Flag;
+				using Flag = ChatDataFlag;
+				struct Conversion {
+					Saved saved;
+					Flag flag;
+				};
+				const auto conversions = {
+					Conversion{ Saved::f_left, Flag::Left },
+					Conversion{ Saved::f_kicked, Flag::Kicked },
+					Conversion{ Saved::f_creator, Flag::Creator },
+					Conversion{ Saved::f_deactivated, Flag::Deactivated },
+					Conversion{ Saved(1U << 31), Flag::Forbidden },
+					Conversion{ Saved::f_call_active, Flag::CallActive },
+					Conversion{ Saved::f_call_not_empty, Flag::CallNotEmpty },
+				};
+
+				auto flagsMask = Flag() | Flag();
+				auto flagsSet = Flag() | Flag();
+				if (streamAppVersion >= 9012) {
+					for (const auto &conversion : conversions) {
+						flagsMask |= conversion.flag;
+						if (flags & int(conversion.saved)) {
+							flagsSet |= conversion.flag;
+						}
+					}
+				} else {
+					// flags was haveLeft
+					if (flags == 1) {
+						flagsSet |= Flag::Left;
+					}
+				}
+				if (oldForbidden) {
+					flagsSet |= Flag::Forbidden;
+				}
+				chat->setFlags((chat->flags() & ~flagsMask) | flagsSet);
+			}
+
 			chat->creator = creator;
-			chat->setFlags(MTPDchat::Flags::from_raw(flags));
 			chat->setInviteLink(inviteLink);
 
 			// #TODO ids

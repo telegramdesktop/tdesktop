@@ -158,12 +158,6 @@ inline auto DefaultRestrictionValue(
 }
 
 rpl::producer<bool> PeerFlagValue(
-		ChatData *chat,
-		MTPDchat_ClientFlag flag) {
-	return PeerFlagValue(chat, static_cast<MTPDchat::Flag>(flag));
-}
-
-rpl::producer<bool> PeerFlagValue(
 		ChannelData *channel,
 		MTPDchannel_ClientFlag flag) {
 	return PeerFlagValue(channel, static_cast<MTPDchannel::Flag>(flag));
@@ -182,11 +176,11 @@ rpl::producer<bool> CanWriteValue(UserData *user) {
 rpl::producer<bool> CanWriteValue(ChatData *chat) {
 	using namespace rpl::mappers;
 	const auto mask = 0
-		| MTPDchat::Flag::f_deactivated
-		| MTPDchat_ClientFlag::f_forbidden
-		| MTPDchat::Flag::f_left
-		| MTPDchat::Flag::f_creator
-		| MTPDchat::Flag::f_kicked;
+		| ChatDataFlag::Deactivated
+		| ChatDataFlag::Forbidden
+		| ChatDataFlag::Left
+		| ChatDataFlag::Creator
+		| ChatDataFlag::Kicked;
 	return rpl::combine(
 		PeerFlagsValue(chat, mask),
 		AdminRightsValue(chat),
@@ -194,16 +188,16 @@ rpl::producer<bool> CanWriteValue(ChatData *chat) {
 			chat,
 			ChatRestriction::SendMessages),
 		[](
-				MTPDchat::Flags flags,
+				ChatDataFlags flags,
 				Data::Flags<ChatAdminRights>::Change adminRights,
 				bool defaultSendMessagesRestriction) {
 			const auto amOutFlags = 0
-				| MTPDchat::Flag::f_deactivated
-				| MTPDchat_ClientFlag::f_forbidden
-				| MTPDchat::Flag::f_left
-				| MTPDchat::Flag::f_kicked;
+				| ChatDataFlag::Deactivated
+				| ChatDataFlag::Forbidden
+				| ChatDataFlag::Left
+				| ChatDataFlag::Kicked;
 			return !(flags & amOutFlags)
-				&& ((flags & MTPDchat::Flag::f_creator)
+				&& ((flags & ChatDataFlag::Creator)
 					|| (adminRights.value != ChatAdminRights(0))
 					|| !defaultSendMessagesRestriction);
 		});
@@ -266,26 +260,26 @@ rpl::producer<bool> CanPinMessagesValue(not_null<PeerData*> peer) {
 		) | rpl::map(_1 != UserDataFlag(0));
 	} else if (const auto chat = peer->asChat()) {
 		const auto mask = 0
-			| MTPDchat::Flag::f_deactivated
-			| MTPDchat_ClientFlag::f_forbidden
-			| MTPDchat::Flag::f_left
-			| MTPDchat::Flag::f_creator
-			| MTPDchat::Flag::f_kicked;
+			| ChatDataFlag::Deactivated
+			| ChatDataFlag::Forbidden
+			| ChatDataFlag::Left
+			| ChatDataFlag::Creator
+			| ChatDataFlag::Kicked;
 		return rpl::combine(
 			PeerFlagsValue(chat, mask),
 			AdminRightValue(chat, ChatAdminRight::PinMessages),
 			DefaultRestrictionValue(chat, ChatRestriction::PinMessages),
-			[](
-				MTPDchat::Flags flags,
+		[](
+				ChatDataFlags flags,
 				bool adminRightAllows,
 				bool defaultRestriction) {
 			const auto amOutFlags = 0
-				| MTPDchat::Flag::f_deactivated
-				| MTPDchat_ClientFlag::f_forbidden
-				| MTPDchat::Flag::f_left
-				| MTPDchat::Flag::f_kicked;
+				| ChatDataFlag::Deactivated
+				| ChatDataFlag::Forbidden
+				| ChatDataFlag::Left
+				| ChatDataFlag::Kicked;
 			return !(flags & amOutFlags)
-				&& ((flags & MTPDchat::Flag::f_creator)
+				&& ((flags & ChatDataFlag::Creator)
 					|| adminRightAllows
 					|| !defaultRestriction);
 		});

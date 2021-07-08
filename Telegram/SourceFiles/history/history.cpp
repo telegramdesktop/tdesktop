@@ -980,7 +980,7 @@ void History::applyServiceChanges(
 		}
 	}, [&](const MTPDmessageActionChatMigrateTo &data) {
 		if (const auto chat = peer->asChat()) {
-			chat->addFlags(MTPDchat::Flag::f_deactivated);
+			chat->addFlags(ChatDataFlag::Deactivated);
 			if (const auto channel = owner().channelLoaded(
 					data.vchannel_id().v)) {
 				Data::ApplyMigration(chat, channel);

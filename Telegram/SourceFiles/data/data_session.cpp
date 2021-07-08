@@ -632,12 +632,25 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			});
 		}
 
-		const auto callFlag = MTPDchat::Flag::f_call_not_empty;
-		const auto callNotEmpty = (data.vflags().v & callFlag)
-			|| (chat->groupCall()
-				&& chat->groupCall()->fullCount() > 0);
-		chat->setFlags(data.vflags().v
-			| (callNotEmpty ? callFlag : MTPDchat::Flag(0)));
+		using Flag = ChatDataFlag;
+		const auto flagsMask = Flag::Left
+			| Flag::Kicked
+			| Flag::Creator
+			| Flag::Deactivated
+			| Flag::Forbidden
+			| Flag::CallActive
+			| Flag::CallNotEmpty;
+		const auto flagsSet = (data.is_left() ? Flag::Left : Flag())
+			| (data.is_kicked() ? Flag::Kicked : Flag())
+			| (data.is_creator() ? Flag::Creator : Flag())
+			| (data.is_deactivated() ? Flag::Deactivated : Flag())
+			| (data.is_call_active() ? Flag::CallActive : Flag())
+			| ((data.is_call_not_empty()
+				|| (chat->groupCall()
+					&& chat->groupCall()->fullCount() > 0))
+				? Flag::CallNotEmpty
+				: Flag());
+		chat->setFlags((chat->flags() & ~flagsMask) | flagsSet);
 		chat->count = data.vparticipants_count().v;
 
 		if (canAddMembers != chat->canAddMembers()) {
@@ -654,7 +667,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		chat->date = 0;
 		chat->count = -1;
 		chat->invalidateParticipants();
-		chat->setFlags(MTPDchat_ClientFlag::f_forbidden | 0);
+		chat->setFlags(ChatDataFlag::Forbidden);
 		chat->setAdminRights(ChatAdminRights());
 		chat->setDefaultRestrictions(ChatRestrictions());
 

@@ -113,24 +113,6 @@ enum class MTPDstickerSet_ClientFlag : uint32 {
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDstickerSet)
 
-//enum class MTPDuser_ClientFlag : uint32 {
-//	// forbidden constructor received
-//	f_inaccessible = (1U << 31),
-//
-//	// update this when adding new client side flags
-//	MIN_FIELD = (1U << 31),
-//};
-//DEFINE_MTP_CLIENT_FLAGS(MTPDuser)
-
-enum class MTPDchat_ClientFlag : uint32 {
-	// forbidden constructor received
-	f_forbidden = (1U << 31),
-
-	// update this when adding new client side flags
-	MIN_FIELD = (1U << 31),
-};
-DEFINE_MTP_CLIENT_FLAGS(MTPDchat)
-
 enum class MTPDchannel_ClientFlag : uint32 {
 	// forbidden constructor received
 	f_forbidden = (1U << 31),

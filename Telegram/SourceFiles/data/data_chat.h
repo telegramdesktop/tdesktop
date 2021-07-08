@@ -9,26 +9,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer.h"
 
+enum class ChatDataFlag {
+	Left = (1 << 0),
+	Kicked = (1 << 1),
+	Creator = (1 << 2),
+	Deactivated = (1 << 3),
+	Forbidden = (1 << 4),
+	CallActive = (1 << 5),
+	CallNotEmpty = (1 << 6),
+	CanSetUsername = (1 << 7),
+};
+inline constexpr bool is_flag_type(ChatDataFlag) { return true; };
+using ChatDataFlags = base::flags<ChatDataFlag>;
+
 class ChatData : public PeerData {
 public:
-	static constexpr auto kEssentialFlags = 0
-		| MTPDchat::Flag::f_creator
-		| MTPDchat::Flag::f_kicked
-		| MTPDchat::Flag::f_left
-		| MTPDchat::Flag::f_deactivated
-		| MTPDchat::Flag::f_migrated_to
-		| MTPDchat::Flag::f_admin_rights
-		| MTPDchat::Flag::f_call_not_empty
-		| MTPDchat::Flag::f_default_banned_rights;
-	using Flags = Data::Flags<
-		MTPDchat::Flags,
-		kEssentialFlags>;
-
-	static constexpr auto kEssentialFullFlags = 0
-		| MTPDchatFull::Flag::f_can_set_username;
-	using FullFlags = Data::Flags<
-		MTPDchatFull::Flags,
-		kEssentialFullFlags>;
+	using Flag = ChatDataFlag;
+	using Flags = Data::Flags<ChatDataFlags>;
 
 	using AdminRight = ChatAdminRight;
 	using Restriction = ChatRestriction;
@@ -47,13 +44,13 @@ public:
 		return (count > 0 || amIn()) && participants.empty();
 	}
 
-	void setFlags(MTPDchat::Flags which) {
+	void setFlags(ChatDataFlags which) {
 		_flags.set(which);
 	}
-	void addFlags(MTPDchat::Flags which) {
+	void addFlags(ChatDataFlags which) {
 		_flags.add(which);
 	}
-	void removeFlags(MTPDchat::Flags which) {
+	void removeFlags(ChatDataFlags which) {
 		_flags.remove(which);
 	}
 	[[nodiscard]] auto flags() const {
@@ -61,22 +58,6 @@ public:
 	}
 	[[nodiscard]] auto flagsValue() const {
 		return _flags.value();
-	}
-
-	void setFullFlags(MTPDchatFull::Flags which) {
-		_fullFlags.set(which);
-	}
-	void addFullFlags(MTPDchatFull::Flags which) {
-		_fullFlags.add(which);
-	}
-	void removeFullFlags(MTPDchatFull::Flags which) {
-		_fullFlags.remove(which);
-	}
-	[[nodiscard]] auto fullFlags() const {
-		return _fullFlags.current();
-	}
-	[[nodiscard]] auto fullFlagsValue() const {
-		return _fullFlags.value();
 	}
 
 	[[nodiscard]] auto adminRights() const {
@@ -99,7 +80,7 @@ public:
 	void setDefaultRestrictions(ChatRestrictions rights);
 
 	[[nodiscard]] bool isForbidden() const {
-		return flags() & MTPDchat_ClientFlag::f_forbidden;
+		return flags() & Flag::Forbidden;
 	}
 	[[nodiscard]] bool amIn() const {
 		return !isForbidden()
@@ -108,19 +89,19 @@ public:
 			&& !wasKicked();
 	}
 	[[nodiscard]] bool haveLeft() const {
-		return flags() & MTPDchat::Flag::f_left;
+		return flags() & ChatDataFlag::Left;
 	}
 	[[nodiscard]] bool wasKicked() const {
-		return flags() & MTPDchat::Flag::f_kicked;
+		return flags() & ChatDataFlag::Kicked;
 	}
 	[[nodiscard]] bool amCreator() const {
-		return flags() & MTPDchat::Flag::f_creator;
+		return flags() & ChatDataFlag::Creator;
 	}
 	[[nodiscard]] bool isDeactivated() const {
-		return flags() & MTPDchat::Flag::f_deactivated;
+		return flags() & ChatDataFlag::Deactivated;
 	}
 	[[nodiscard]] bool isMigrated() const {
-		return flags() & MTPDchat::Flag::f_migrated_to;
+		return (_migratedTo != nullptr);
 	}
 
 	[[nodiscard]] ChatAdminRightsInfo defaultAdminRights(
@@ -196,7 +177,6 @@ public:
 
 private:
 	Flags _flags;
-	FullFlags _fullFlags;
 	QString _inviteLink;
 
 	RestrictionFlags _defaultRestrictions;

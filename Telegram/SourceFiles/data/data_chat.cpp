@@ -28,7 +28,7 @@ ChatData::ChatData(not_null<Data::Session*> owner, PeerId id)
 , inputChat(MTP_int(peerToChat(id).bare)) {
 	_flags.changes(
 	) | rpl::start_with_next([=](const Flags::Change &change) {
-		if (change.diff & MTPDchat::Flag::f_call_not_empty) {
+		if (change.diff & ChatDataFlag::CallNotEmpty) {
 			if (const auto history = this->owner().historyLoaded(this)) {
 				history->updateChatListEntry();
 			}
@@ -74,7 +74,7 @@ bool ChatData::canEditPermissions() const {
 
 bool ChatData::canEditUsername() const {
 	return amCreator()
-		&& (fullFlags() & MTPDchatFull::Flag::f_can_set_username);
+		&& (flags() & ChatDataFlag::CanSetUsername);
 }
 
 bool ChatData::canEditPreHistoryHidden() const {
@@ -219,7 +219,7 @@ void ChatData::setGroupCall(
 			scheduleDate);
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
-		addFlags(MTPDchat::Flag::f_call_active);
+		addFlags(ChatDataFlag::CallActive);
 	});
 }
 
@@ -233,8 +233,7 @@ void ChatData::clearGroupCall() {
 		_call = nullptr;
 	}
 	session().changes().peerUpdated(this, UpdateFlag::GroupCall);
-	removeFlags(MTPDchat::Flag::f_call_active
-		| MTPDchat::Flag::f_call_not_empty);
+	removeFlags(ChatDataFlag::CallActive | ChatDataFlag::CallNotEmpty);
 }
 
 void ChatData::setGroupCallDefaultJoinAs(PeerId peerId) {
@@ -403,7 +402,10 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 	} else {
 		chat->setBotCommands(MTP_vector<MTPBotInfo>());
 	}
-	chat->setFullFlags(update.vflags().v);
+	using Flag = ChatDataFlag;
+	const auto mask = Flag::CanSetUsername;
+	chat->setFlags((chat->flags() & ~mask)
+		| (update.is_can_set_username() ? Flag::CanSetUsername : Flag()));
 	if (const auto photo = update.vchat_photo()) {
 		chat->setUserpicPhoto(*photo);
 	} else {

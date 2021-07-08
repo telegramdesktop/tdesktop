@@ -48,7 +48,7 @@ constexpr auto kPinnedMessageTextLimit = 16;
 	if (peer->groupCall() != nullptr) {
 		return true;
 	} else if (const auto chat = peer->asChat()) {
-		return !(chat->flags() & MTPDchat::Flag::f_call_active);
+		return !(chat->flags() & ChatDataFlag::CallActive);
 	} else if (const auto channel = peer->asChannel()) {
 		return !(channel->flags() & MTPDchannel::Flag::f_call_active);
 	}
