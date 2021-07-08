@@ -171,11 +171,11 @@ bool BotKeyboard::moderateKeyActivate(int key) {
 						App::sendBotCommand(user, user, qsl("/pattern"));
 					} else if (key == Qt::Key_4) {
 						App::sendBotCommand(user, user, qsl("/abuse"));
-					} else if (key == Qt::Key_0) {
+					} else if (key == Qt::Key_0 || key == Qt::Key_E || key == Qt::Key_9) {
 						App::sendBotCommand(user, user, qsl("/undo"));
-					} else if (key == Qt::Key_7) {
+					} else if (key == Qt::Key_Plus || key == Qt::Key_QuoteLeft || key == Qt::Key_7) {
 						App::sendBotCommand(user, user, qsl("/next"));
-					} else if (key == Qt::Key_8) {
+					} else if (key == Qt::Key_Period || key == Qt::Key_S || key == Qt::Key_8) {
 						App::sendBotCommand(user, user, qsl("/stats"));
 					}
 					return true;
