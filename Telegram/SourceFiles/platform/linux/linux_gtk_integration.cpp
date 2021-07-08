@@ -68,6 +68,16 @@ constexpr auto kIntrospectionXML = R"INTROSPECTION(<node>
 	</interface>
 </node>)INTROSPECTION"_cs;
 
+struct GtkSelectionDataDeleter {
+	void operator()(GtkSelectionData *gsel) {
+		if (gsel) {
+			gtk_selection_data_free(gsel);
+		}
+	}
+};
+
+using GtkSelectionDataPointer = std::unique_ptr<GtkSelectionData, GtkSelectionDataDeleter>;
+
 Glib::ustring ServiceName;
 
 bool GetImageFromClipboardSupported() {
@@ -96,11 +106,11 @@ std::vector<uchar> GetImageFromClipboard() {
 		gdk_atom_intern("image/bmp", true),
 	};
 
-	const auto gsel = [&]() -> GtkSelectionData* {
+	const auto gsel = [&]() -> GtkSelectionDataPointer {
 		for (const auto &format : supportedFormats) {
-			if (const auto result = gtk_clipboard_wait_for_contents(
-				clipboard,
-				format); gtk_selection_data_get_length(result) > 0) {
+			if (auto result = GtkSelectionDataPointer(
+				gtk_clipboard_wait_for_contents(clipboard, format))
+				; gtk_selection_data_get_length(result.get()) > 0) {
 				return result;
 			}
 		}
@@ -111,12 +121,8 @@ std::vector<uchar> GetImageFromClipboard() {
 		return {};
 	}
 
-	const auto guard = gsl::finally([&] {
-		gtk_selection_data_free(gsel);
-	});
-
-	const auto data = gtk_selection_data_get_data(gsel);
-	const auto length = gtk_selection_data_get_length(gsel);
+	const auto data = gtk_selection_data_get_data(gsel.get());
+	const auto length = gtk_selection_data_get_length(gsel.get());
 	return std::vector<uchar>(data, data + length);
 }
 
