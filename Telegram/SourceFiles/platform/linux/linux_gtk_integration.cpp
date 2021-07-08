@@ -73,15 +73,51 @@ Glib::ustring ServiceName;
 bool GetImageFromClipboardSupported() {
 	return (gtk_clipboard_get != nullptr)
 		&& (gtk_clipboard_wait_for_contents != nullptr)
-		&& (gtk_clipboard_wait_for_image != nullptr)
-		&& (gtk_selection_data_targets_include_image != nullptr)
+		&& (gtk_selection_data_get_data != nullptr)
+		&& (gtk_selection_data_get_length != nullptr)
 		&& (gtk_selection_data_free != nullptr)
-		&& (gdk_pixbuf_get_pixels != nullptr)
-		&& (gdk_pixbuf_get_width != nullptr)
-		&& (gdk_pixbuf_get_height != nullptr)
-		&& (gdk_pixbuf_get_rowstride != nullptr)
-		&& (gdk_pixbuf_get_has_alpha != nullptr)
 		&& (gdk_atom_intern != nullptr);
+}
+
+std::vector<uchar> GetImageFromClipboard() {
+	if (!GetImageFromClipboardSupported()) {
+		return {};
+	}
+
+	const auto clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+	if (!clipboard) {
+		return {};
+	}
+
+	static const auto supportedFormats = {
+		gdk_atom_intern("image/png", true),
+		gdk_atom_intern("image/jpeg", true),
+		gdk_atom_intern("image/gif", true),
+		gdk_atom_intern("image/bmp", true),
+	};
+
+	const auto gsel = [&]() -> GtkSelectionData* {
+		for (const auto &format : supportedFormats) {
+			if (const auto result = gtk_clipboard_wait_for_contents(
+				clipboard,
+				format); gtk_selection_data_get_length(result) > 0) {
+				return result;
+			}
+		}
+		return nullptr;
+	}();
+
+	if (!gsel) {
+		return {};
+	}
+
+	const auto guard = gsl::finally([&] {
+		gtk_selection_data_free(gsel);
+	});
+
+	const auto data = gtk_selection_data_get_data(gsel);
+	const auto length = gtk_selection_data_get_length(gsel);
+	return std::vector<uchar>(data, data + length);
 }
 
 } // namespace
@@ -182,26 +218,8 @@ void GtkIntegration::Private::handleMethodCall(
 				return;
 			}
 		} else if (method_name == "GetImageFromClipboard") {
-			const auto image = integration->getImageFromClipboard();
-			if (!image.isNull()) {
-				const auto bitsPerSample = 8;
-				const auto channels = image.hasAlphaChannel() ? 4 : 3;
-
-				QVector<uchar> dataVector(
-						image.constBits(),
-						image.constBits() + image.sizeInBytes());
-
-				QByteArray streamData;
-				QDataStream stream(&streamData, QIODevice::WriteOnly);
-				stream
-					<< image.width()
-					<< image.height()
-					<< image.bytesPerLine()
-					<< image.hasAlphaChannel()
-					<< bitsPerSample
-					<< channels
-					<< dataVector;
-
+			const auto image = GetImageFromClipboard();
+			if (!image.empty()) {
 				const auto fd = shm_open(
 					kGifcShmId.utf8().constData(),
 					O_RDWR | O_CREAT,
@@ -216,13 +234,13 @@ void GtkIntegration::Private::handleMethodCall(
 					shm_unlink(kGifcShmId.utf8().constData());
 				});
 
-				if (ftruncate(fd, streamData.size())) {
+				if (ftruncate(fd, image.size())) {
 					throw std::exception();
 				}
 
 				const auto mapped = mmap(
 					nullptr,
-					streamData.size(),
+					image.size(),
 					PROT_WRITE,
 					MAP_SHARED,
 					fd,
@@ -233,10 +251,10 @@ void GtkIntegration::Private::handleMethodCall(
 				}
 
 				const auto mappedGuard = gsl::finally([&] {
-					munmap(mapped, streamData.size());
+					munmap(mapped, image.size());
 				});
 
-				memcpy(mapped, streamData.constData(), streamData.size());
+				memcpy(mapped, image.data(), image.size());
 
 				const auto fdList = Gio::UnixFDList::create();
 				fdList->append(fd);
@@ -244,7 +262,7 @@ void GtkIntegration::Private::handleMethodCall(
 				invocation->return_value(
 					Glib::VariantContainerBase::create_tuple({
 						Glib::wrap(g_variant_new_handle(0)),
-						Glib::Variant<int>::create(streamData.size()),
+						Glib::Variant<int>::create(image.size()),
 					}),
 					fdList);
 
@@ -325,24 +343,17 @@ void GtkIntegration::load(const QString &allowedBackends) {
 	LOAD_GTK_SYMBOL(lib, gtk_widget_destroy);
 	LOAD_GTK_SYMBOL(lib, gtk_clipboard_get);
 	LOAD_GTK_SYMBOL(lib, gtk_clipboard_wait_for_contents);
-	LOAD_GTK_SYMBOL(lib, gtk_clipboard_wait_for_image);
-	LOAD_GTK_SYMBOL(lib, gtk_selection_data_targets_include_image);
+	LOAD_GTK_SYMBOL(lib, gtk_selection_data_get_data);
+	LOAD_GTK_SYMBOL(lib, gtk_selection_data_get_length);
 	LOAD_GTK_SYMBOL(lib, gtk_selection_data_free);
-
-	LOAD_GTK_SYMBOL(lib, gdk_atom_intern);
-
-	LOAD_GTK_SYMBOL(lib, gdk_pixbuf_get_has_alpha);
-	LOAD_GTK_SYMBOL(lib, gdk_pixbuf_get_pixels);
-	LOAD_GTK_SYMBOL(lib, gdk_pixbuf_get_width);
-	LOAD_GTK_SYMBOL(lib, gdk_pixbuf_get_height);
-	LOAD_GTK_SYMBOL(lib, gdk_pixbuf_get_rowstride);
-
-	GdkHelperLoad(lib);
 
 	LOAD_GTK_SYMBOL(lib, gtk_app_chooser_dialog_new);
 	LOAD_GTK_SYMBOL(lib, gtk_app_chooser_get_app_info);
 	LOAD_GTK_SYMBOL(lib, gtk_app_chooser_get_type);
 
+	LOAD_GTK_SYMBOL(lib, gdk_atom_intern);
+
+	GdkHelperLoad(lib);
 	Loaded = true;
 }
 
@@ -489,11 +500,9 @@ bool GtkIntegration::showOpenWithDialog(const QString &filepath) const {
 }
 
 QImage GtkIntegration::getImageFromClipboard() const {
-	QImage data;
-
 	if (_private->remoting) {
 		if (!_private->dbusConnection) {
-			return data;
+			return {};
 		}
 
 		try {
@@ -519,95 +528,38 @@ QImage GtkIntegration::getImageFromClipboard() const {
 
 			loop->run();
 
-			const auto streamSize = base::Platform::GlibVariantCast<int>(
+			if (!reply) {
+				return {};
+			}
+
+			const auto dataSize = base::Platform::GlibVariantCast<int>(
 				reply.get_child(1));
 
 			const auto mapped = mmap(
 				nullptr,
-				streamSize,
+				dataSize,
 				PROT_READ,
 				MAP_SHARED,
 				outFdList->get(0),
 				0);
 
 			if (mapped == MAP_FAILED) {
-				return data;
+				return {};
 			}
 
-			QByteArray streamData;
-			streamData.resize(streamSize);
-			memcpy(streamData.data(), mapped, streamData.size());
-			munmap(mapped, streamData.size());
+			std::vector<uchar> result(dataSize);
+			memcpy(result.data(), mapped, result.size());
+			munmap(mapped, result.size());
 
-			int imageWidth = 0;
-			int imageHeight = 0;
-			int imageBytesPerLine = 0;
-			bool imageHasAlphaChannel = false;
-			int imageBitsPerSample = 0;
-			int imageChannels = 0;
-			QVector<uchar> imageData;
-
-			QDataStream stream(streamData);
-			stream
-				>> imageWidth
-				>> imageHeight
-				>> imageBytesPerLine
-				>> imageHasAlphaChannel
-				>> imageBitsPerSample
-				>> imageChannels
-				>> imageData;
-
-			data = QImage(
-				imageData.data(),
-				imageWidth,
-				imageHeight,
-				imageBytesPerLine,
-				imageHasAlphaChannel
-					? QImage::Format_RGBA8888
-					: QImage::Format_RGB888).copy();
-
-			return data;
+			return QImage::fromData(result.data(), result.size());
 		} catch (...) {
 		}
 
-		return data;
+		return {};
 	}
 
-	if (!GetImageFromClipboardSupported()) {
-		return data;
-	}
-
-	const auto clipboard = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
-	if (!clipboard) {
-		return data;
-	}
-
-	auto gsel = gtk_clipboard_wait_for_contents(
-		clipboard,
-		gdk_atom_intern("TARGETS", true));
-
-	if (gsel) {
-		if (gtk_selection_data_targets_include_image(gsel, false)) {
-			auto img = gtk_clipboard_wait_for_image(clipboard);
-
-			if (img) {
-				data = QImage(
-					gdk_pixbuf_get_pixels(img),
-					gdk_pixbuf_get_width(img),
-					gdk_pixbuf_get_height(img),
-					gdk_pixbuf_get_rowstride(img),
-					gdk_pixbuf_get_has_alpha(img)
-						? QImage::Format_RGBA8888
-						: QImage::Format_RGB888).copy();
-
-				g_object_unref(img);
-			}
-		}
-
-		gtk_selection_data_free(gsel);
-	}
-
-	return data;
+	const auto result = GetImageFromClipboard();
+	return QImage::fromData(result.data(), result.size());
 }
 
 QString GtkIntegration::AllowedBackends() {
