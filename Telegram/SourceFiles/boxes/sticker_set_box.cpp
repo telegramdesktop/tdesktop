@@ -422,7 +422,6 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			_setAccess = set.vaccess_hash().v;
 			_setCount = set.vcount().v;
 			_setHash = set.vhash().v;
-			using Flag = Data::StickersSetFlag;
 			_setFlags = Data::ParseStickersSetFlags(set);
 			_setInstallDate = set.vinstalled_date().value_or(0);
 			_setThumbnail = [&] {
