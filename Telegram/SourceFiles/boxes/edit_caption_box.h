@@ -8,11 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
-#include "storage/storage_media_prepare.h"
-#include "ui/wrap/slide_wrap.h"
 #include "ui/chat/attach/attach_prepare.h"
-
-class Image;
 
 namespace ChatHelpers {
 class TabbedPanel;
@@ -23,36 +19,19 @@ class SessionController;
 } // namespace Window
 
 namespace Data {
-class Media;
 class PhotoMedia;
-class DocumentMedia;
 } // namespace Data
 
 namespace Ui {
-class AbstractButton;
+class AbstractSinglePreview;
 class InputField;
 class EmojiButton;
-class IconButton;
-class Checkbox;
+class VerticalLayout;
+class FadeShadow;
 enum class AlbumType;
-class AttachControlsWidget;
 } // namespace Ui
 
-namespace Window {
-class SessionController;
-} // namespace Window
-
-namespace Media {
-namespace Streaming {
-class Instance;
-class Document;
-struct Update;
-enum class Error;
-struct Information;
-} // namespace Streaming
-} // namespace Media
-
-class EditCaptionBox final : public Ui::BoxContent, private base::Subscriber {
+class EditCaptionBox final : public Ui::BoxContent {
 public:
 	EditCaptionBox(
 		QWidget*,
@@ -69,15 +48,15 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
+	void rebuildPreview();
+	void setupEditEventHandler();
+	void setupPhotoEditorEventHandler();
+	void setupShadows();
+	void setupField();
+	void setupControls();
+
 	void updateBoxSize();
-	void prepareStreamedPreview();
-	void checkStreamedIsStarted();
-	void setupStreamedPreview(
-		std::shared_ptr<::Media::Streaming::Document> shared);
-	void handleStreamingUpdate(::Media::Streaming::Update &&update);
-	void handleStreamingError(::Media::Streaming::Error &&error);
-	void streamingReady(::Media::Streaming::Information &&info);
-	void startStreamedPlayer();
+	void captionResized();
 
 	void setupEmojiPanel();
 	void updateEmojiPanelGeometry();
@@ -86,74 +65,43 @@ private:
 	void setupDragArea();
 
 	void save();
-	void captionResized();
 
-	void setName(QString nameString, qint64 size);
 	bool fileFromClipboard(not_null<const QMimeData*> data);
-	void updateEditPreview();
-	void updateEditMediaButton();
-	void updateCaptionMaxHeight();
 
 	int errorTopSkip() const;
 
-	void createEditMediaButton();
 	bool setPreparedList(Ui::PreparedList &&list);
 
-	bool isThumbedLayout() const;
-
-	inline QString getNewMediaPath() {
-		return _preparedList.files.empty()
-			? QString()
-			: _preparedList.files.front().path;
-	}
-
 	const not_null<Window::SessionController*> _controller;
+	const not_null<HistoryItem*> _historyItem;
+	const bool _isAllowedEditMedia = false;
+	const Ui::AlbumType _albumType;
 
-	FullMsgId _msgId;
-	std::shared_ptr<Data::PhotoMedia> _photoMedia;
-	std::shared_ptr<Data::DocumentMedia> _documentMedia;
-	bool _thumbnailImageLoaded = false;
-	Fn<void()> _refreshThumbnail;
-	bool _animated = false;
-	bool _photo = false;
-	bool _doc = false;
+	const base::unique_qptr<Ui::VerticalLayout> _controls;
+	const base::unique_qptr<Ui::ScrollArea> _scroll;
+	const base::unique_qptr<Ui::InputField> _field;
+	const base::unique_qptr<Ui::EmojiButton> _emojiToggle;
+	const base::unique_qptr<Ui::FadeShadow> _topShadow,_bottomShadow;
 
-	QPixmap _thumb;
-	std::unique_ptr<::Media::Streaming::Instance> _streamed;
-
-	object_ptr<Ui::InputField> _field = { nullptr };
-	object_ptr<Ui::EmojiButton> _emojiToggle = { nullptr };
+	base::unique_qptr<Ui::AbstractSinglePreview> _content;
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
-	base::unique_qptr<Ui::AbstractButton> _photoEditorButton;
 
-	int _thumbx = 0;
-	int _thumbw = 0;
-	int _thumbh = 0;
-	Ui::Text::String _name;
-	QString _status;
-	bool _isAudio = false;
-	bool _isImage = false;
-
-	int _gifw = 0;
-	int _gifh = 0;
-	int _gifx = 0;
+	std::shared_ptr<Data::PhotoMedia> _photoMedia;
 
 	Ui::PreparedList _preparedList;
 
 	mtpRequestId _saveRequestId = 0;
 
-	object_ptr<Ui::AttachControlsWidget> _editMedia = nullptr;
-	object_ptr<Ui::IconButton> _editFile = nullptr;
-	Ui::SlideWrap<Ui::RpWidget> *_wayWrap = nullptr;
-	Ui::SlideWrap<Ui::RpWidget> *_hintLabel = nullptr;
-	QString _newMediaPath;
-	Ui::AlbumType _albumType = Ui::AlbumType();
-	bool _isAllowedEditMedia = false;
 	bool _asFile = false;
-	rpl::event_stream<> _editMediaClicks;
-	rpl::event_stream<> _photoEditorOpens;
 
 	QString _error;
+
+	rpl::variable<bool> _isPhoto = false;
+	rpl::variable<int> _footerHeight = 0;
+
+	rpl::event_stream<> _editMediaClicks;
+	rpl::event_stream<> _photoEditorOpens;
+	rpl::event_stream<int> _contentHeight;
 
 };
