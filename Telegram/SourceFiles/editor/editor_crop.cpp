@@ -269,10 +269,12 @@ void Crop::performCrop(const QPoint &pos) {
 		}
 
 		const auto &minSize = st::photoEditorCropMinSize;
-		const auto xMin = int(xFactor * crop.width()
-			- xFactor * minSize * ((cropRatio > 1.) ? cropRatio : 1.));
-		const auto yMin = int(yFactor * crop.height()
-			- yFactor * minSize * ((cropRatio < 1.) ? (1. / cropRatio) : 1.));
+		const auto xMin = xFactor * int(crop.width() - minSize);
+		// const auto xMin = int(xFactor * crop.width()
+		// 	- xFactor * minSize * ((cropRatio > 1.) ? cropRatio : 1.));
+		const auto yMin = yFactor * int(crop.height() - minSize);
+		// const auto yMin = int(yFactor * crop.height()
+		// 	- yFactor * minSize * ((cropRatio < 1.) ? (1. / cropRatio) : 1.));
 
 		const auto x = std::clamp(
 			diff.x(),
