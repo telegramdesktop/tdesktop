@@ -543,6 +543,8 @@ void GroupCall::applyParticipantsSlice(
 						.was = *i,
 					};
 					_participantPeerByAudioSsrc.erase(i->ssrc);
+					_participantPeerByAudioSsrc.erase(
+						GetAdditionalAudioSsrc(i->videoParams));
 					_speakingByActiveFinishes.remove(participantPeer);
 					_participants.erase(i);
 					if (sliceSource != ApplySliceSource::FullReloaded) {
@@ -599,18 +601,33 @@ void GroupCall::applyParticipantsSlice(
 				.raisedHandRating = raisedHandRating,
 				.ssrc = uint32(data.vsource().v),
 				.volume = volume,
-				.applyVolumeFromMin = applyVolumeFromMin,
-				.speaking = canSelfUnmute && (was ? was->speaking : false),
+				.sounding = canSelfUnmute && was && was->sounding,
+				.speaking = canSelfUnmute && was && was->speaking,
+				.additionalSounding = (canSelfUnmute
+					&& was
+					&& was->additionalSounding),
+				.additionalSpeaking = (canSelfUnmute
+					&& was
+					&& was->additionalSpeaking),
 				.muted = data.is_muted(),
 				.mutedByMe = mutedByMe,
 				.canSelfUnmute = canSelfUnmute,
 				.onlyMinLoaded = onlyMinLoaded,
 				.videoJoined = videoJoined,
+				.applyVolumeFromMin = applyVolumeFromMin,
 			};
 			if (i == end(_participants)) {
-				_participantPeerByAudioSsrc.emplace(
-					value.ssrc,
-					participantPeer);
+				if (value.ssrc) {
+					_participantPeerByAudioSsrc.emplace(
+						value.ssrc,
+						participantPeer);
+				}
+				if (const auto additional = GetAdditionalAudioSsrc(
+						value.videoParams)) {
+					_participantPeerByAudioSsrc.emplace(
+						additional,
+						participantPeer);
+				}
 				_participants.push_back(value);
 				if (const auto user = participantPeer->asUser()) {
 					_peer->owner().unregisterInvitedToCallUser(_id, user);
@@ -618,9 +635,22 @@ void GroupCall::applyParticipantsSlice(
 			} else {
 				if (i->ssrc != value.ssrc) {
 					_participantPeerByAudioSsrc.erase(i->ssrc);
-					_participantPeerByAudioSsrc.emplace(
-						value.ssrc,
-						participantPeer);
+					if (value.ssrc) {
+						_participantPeerByAudioSsrc.emplace(
+							value.ssrc,
+							participantPeer);
+					}
+				}
+				if (GetAdditionalAudioSsrc(i->videoParams)
+					!= GetAdditionalAudioSsrc(value.videoParams)) {
+					_participantPeerByAudioSsrc.erase(
+						GetAdditionalAudioSsrc(i->videoParams));
+					if (const auto additional = GetAdditionalAudioSsrc(
+						value.videoParams)) {
+						_participantPeerByAudioSsrc.emplace(
+							additional,
+							participantPeer);
+					}
 				}
 				*i = value;
 			}
@@ -662,11 +692,22 @@ void GroupCall::applyLastSpoke(
 	if (speaking) {
 		_participantSpeaking.fire({ participant });
 	}
-	if (participant->sounding != sounding
-		|| participant->speaking != speaking) {
+	const auto useAdditional = (ssrc != participant->ssrc);
+	const auto nowSounding = useAdditional
+		? participant->additionalSounding
+		: participant->sounding;
+	const auto nowSpeaking = useAdditional
+		? participant->additionalSpeaking
+		: participant->speaking;
+	if (nowSounding != sounding || nowSpeaking != speaking) {
 		const auto was = *participant;
-		participant->sounding = sounding;
-		participant->speaking = speaking;
+		if (useAdditional) {
+			participant->additionalSounding = sounding;
+			participant->additionalSpeaking = speaking;
+		} else {
+			participant->sounding = sounding;
+			participant->speaking = speaking;
+		}
 		_participantUpdates.fire({
 			.was = was,
 			.now = *participant,

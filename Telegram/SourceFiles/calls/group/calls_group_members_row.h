@@ -85,9 +85,6 @@ public:
 	[[nodiscard]] State state() const {
 		return _state;
 	}
-	[[nodiscard]] uint32 ssrc() const {
-		return _ssrc;
-	}
 	[[nodiscard]] bool sounding() const {
 		return _sounding;
 	}
@@ -179,7 +176,6 @@ private:
 	void setSounding(bool sounding);
 	void setSpeaking(bool speaking);
 	void setState(State state);
-	void setSsrc(uint32 ssrc);
 	void setVolume(int volume);
 
 	void ensureUserpicCache(
@@ -212,7 +208,6 @@ private:
 	QString _aboutText;
 	crl::time _speakingLastTime = 0;
 	uint64 _raisedHandRating = 0;
-	uint32 _ssrc = 0;
 	int _volume = Group::kDefaultVolume;
 	bool _sounding : 1;
 	bool _speaking : 1;

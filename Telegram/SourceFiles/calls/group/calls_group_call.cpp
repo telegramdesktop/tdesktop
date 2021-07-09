@@ -233,10 +233,11 @@ GroupCall::VideoTrack::VideoTrack(
 struct VideoParams {
 	std::string endpointId;
 	std::vector<tgcalls::MediaSsrcGroup> ssrcGroups;
+	uint32 additionalSsrc = 0;
 	bool paused = false;
 
 	[[nodiscard]] bool empty() const {
-		return endpointId.empty() || ssrcGroups.empty();
+		return !additionalSsrc && (endpointId.empty() || ssrcGroups.empty());
 	}
 	[[nodiscard]] explicit operator bool() const {
 		return !empty();
@@ -255,7 +256,8 @@ struct ParticipantVideoParams {
 		return !was;
 	}
 	return now->match([&](const MTPDgroupCallParticipantVideo &data) {
-		if (data.is_paused() != was.paused) {
+		if (data.is_paused() != was.paused
+			|| data.vaudio_source().value_or_empty() != was.additionalSsrc) {
 			return false;
 		}
 		if (gsl::make_span(data.vendpoint().v)
@@ -304,6 +306,7 @@ struct ParticipantVideoParams {
 	params->match([&](const MTPDgroupCallParticipantVideo &data) {
 		result.paused = data.is_paused();
 		result.endpointId = data.vendpoint().v.toStdString();
+		result.additionalSsrc = data.vaudio_source().value_or_empty();
 		const auto &list = data.vsource_groups().v;
 		result.ssrcGroups.reserve(list.size());
 		for (const auto &group : list) {
@@ -341,6 +344,11 @@ bool IsCameraPaused(const std::shared_ptr<ParticipantVideoParams> &params) {
 
 bool IsScreenPaused(const std::shared_ptr<ParticipantVideoParams> &params) {
 	return params && params->screen.paused;
+}
+
+uint32 GetAdditionalAudioSsrc(
+		const std::shared_ptr<ParticipantVideoParams> &params) {
+	return params ? params->screen.additionalSsrc : 0;
 }
 
 std::shared_ptr<ParticipantVideoParams> ParseVideoParams(
@@ -2763,7 +2771,7 @@ void GroupCall::checkJoined() {
 		MTP_vector<MTPint>(std::move(sources))
 	)).done([=](const MTPVector<MTPint> &result) {
 		if (!ranges::contains(result.v, MTP_int(_joinState.ssrc))) {
-			LOG(("Call Info: Rejoin after no _mySsrc in checkGroupCall."));
+			LOG(("Call Info: Rejoin after no my ssrc in checkGroupCall."));
 			_joinState.nextActionPending = true;
 			checkNextJoinAction();
 		} else {
