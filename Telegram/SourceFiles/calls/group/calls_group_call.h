@@ -484,6 +484,9 @@ private:
 	void sendSelfUpdate(SendUpdateType type);
 	void updateInstanceMuteState();
 	void updateInstanceVolumes();
+	void updateInstanceVolume(
+		const std::optional<Data::GroupCallParticipant> &was,
+		const Data::GroupCallParticipant &now);
 	void applyMeInCallLocally();
 	void rejoin();
 	void leave();

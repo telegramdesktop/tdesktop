@@ -986,22 +986,12 @@ void GroupCall::join(const MTPInputGroupCall &inputCall) {
 		return (_instance != nullptr);
 	}) | rpl::start_with_next([=](const Update &update) {
 		if (!update.now) {
-			_instance->removeSsrcs({ update.was->ssrc });
+			_instance->removeSsrcs({
+				update.was->ssrc,
+				GetAdditionalAudioSsrc(update.was->videoParams),
+			});
 		} else {
-			const auto &now = *update.now;
-			const auto &was = update.was;
-			const auto volumeChanged = was
-				? (was->volume != now.volume
-					|| was->mutedByMe != now.mutedByMe)
-				: (now.volume != Group::kDefaultVolume || now.mutedByMe);
-			if (volumeChanged) {
-				_instance->setVolume(
-					now.ssrc,
-					(now.mutedByMe
-						? 0.
-						: (now.volume
-							/ float64(Group::kDefaultVolume))));
-			}
+			updateInstanceVolume(update.was, *update.now);
 		}
 	}, _lifetime);
 
@@ -2642,15 +2632,33 @@ void GroupCall::updateInstanceVolumes() {
 
 	const auto &participants = real->participants();
 	for (const auto &participant : participants) {
-		const auto setVolume = participant.mutedByMe
-			|| (participant.volume != Group::kDefaultVolume);
-		if (setVolume && participant.ssrc) {
-			_instance->setVolume(
-				participant.ssrc,
-				(participant.mutedByMe
-					? 0.
-					: (participant.volume / float64(Group::kDefaultVolume))));
-		}
+		updateInstanceVolume(std::nullopt, participant);
+	}
+}
+
+void GroupCall::updateInstanceVolume(
+		const std::optional<Data::GroupCallParticipant> &was,
+		const Data::GroupCallParticipant &now) {
+	const auto nonDefault = now.mutedByMe
+		|| (now.volume != Group::kDefaultVolume);
+	const auto volumeChanged = was
+		? (was->volume != now.volume || was->mutedByMe != now.mutedByMe)
+		: nonDefault;
+	const auto additionalSsrc = GetAdditionalAudioSsrc(now.videoParams);
+	const auto set = now.ssrc
+		&& (volumeChanged || (was && was->ssrc != now.ssrc));
+	const auto additionalSet = additionalSsrc
+		&& (volumeChanged
+			|| (was && (GetAdditionalAudioSsrc(was->videoParams)
+				!= additionalSsrc)));
+	const auto localVolume = now.mutedByMe
+		? 0.
+		: (now.volume / float64(Group::kDefaultVolume));
+	if (set) {
+		_instance->setVolume(now.ssrc, localVolume);
+	}
+	if (additionalSet) {
+		_instance->setVolume(additionalSsrc, localVolume);
 	}
 }
 
