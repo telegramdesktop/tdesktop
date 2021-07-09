@@ -2284,6 +2284,7 @@ bool GroupCall::tryCreateScreencast() {
 				setScreenInstanceConnected(networkState);
 			});
 		},
+		.createAudioDeviceModule = Webrtc::LoopbackAudioDeviceModuleCreator(),
 		.videoCapture = _screenCapture,
 		.videoContentType = tgcalls::VideoContentType::Screencast,
 	};
@@ -2291,6 +2292,11 @@ bool GroupCall::tryCreateScreencast() {
 	LOG(("Call Info: Creating group screen instance"));
 	_screenInstance = std::make_unique<tgcalls::GroupInstanceCustomImpl>(
 		std::move(descriptor));
+
+#ifdef Q_OS_WIN
+	_screenInstance->setIsMuted(false);
+#endif // Q_OS_WIN
+
 	return true;
 }
 

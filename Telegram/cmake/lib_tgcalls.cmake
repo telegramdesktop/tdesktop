@@ -35,6 +35,8 @@ PRIVATE
     CryptoHelper.h
     EncryptedConnection.cpp
     EncryptedConnection.h
+    FakeAudioDeviceModule.cpp
+    FakeAudioDeviceModule.h
     InstanceImpl.cpp
     InstanceImpl.h
     LogSinkImpl.cpp
