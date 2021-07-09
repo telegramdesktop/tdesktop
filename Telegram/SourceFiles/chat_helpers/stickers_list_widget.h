@@ -192,7 +192,7 @@ private:
 		Set(
 			uint64 id,
 			Data::StickersSet *set,
-			MTPDstickerSet::Flags flags,
+			Data::StickersSetFlags flags,
 			const QString &title,
 			const QString &shortName,
 			int count,
@@ -204,7 +204,7 @@ private:
 
 		uint64 id = 0;
 		Data::StickersSet *set = nullptr;
-		MTPDstickerSet::Flags flags = MTPDstickerSet::Flags();
+		Data::StickersSetFlags flags;
 		QString title;
 		QString shortName;
 		std::vector<Sticker> stickers;
@@ -218,7 +218,7 @@ private:
 	};
 	struct FeaturedSet {
 		uint64 id = 0;
-		MTPDstickerSet::Flags flags = MTPDstickerSet::Flags();
+		Data::StickersSetFlags flags;
 		std::vector<Sticker> stickers;
 	};
 

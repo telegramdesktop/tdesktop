@@ -1946,9 +1946,7 @@ void ApiWrap::saveStickerSets(
 		? _session->data().stickers().maskSetsOrderRef()
 		: _session->data().stickers().setsOrderRef();
 
-	using Flag = MTPDstickerSet::Flag;
-	using ClientFlag = MTPDstickerSet_ClientFlag;
-
+	using Flag = Data::StickersSetFlag;
 	for (const auto removedSetId : localRemoved) {
 		if ((removedSetId == Data::Stickers::CloudRecentSetId)
 			|| (removedSetId == Data::Stickers::CloudRecentAttachedSetId)) {
@@ -2000,10 +1998,10 @@ void ApiWrap::saveStickerSets(
 					++i;
 				}
 			}
-			const auto archived = !!(set->flags & Flag::f_archived);
+			const auto archived = !!(set->flags & Flag::Archived);
 			if (!archived) {
-				const auto featured = !!(set->flags & ClientFlag::f_featured);
-				const auto special = !!(set->flags & ClientFlag::f_special);
+				const auto featured = !!(set->flags & Flag::Featured);
+				const auto special = !!(set->flags & Flag::Special);
 				const auto setId = set->mtpInput();
 
 				auto requestId = request(MTPmessages_UninstallStickerSet(
@@ -2026,8 +2024,7 @@ void ApiWrap::saveStickerSets(
 					if (archived) {
 						writeArchived = true;
 					}
-					set->flags &= ~(Flag::f_installed_date
-						| Flag::f_archived);
+					set->flags &= ~(Flag::Installed | Flag::Archived);
 					set->installDate = TimeId(0);
 				}
 			}
@@ -2036,10 +2033,10 @@ void ApiWrap::saveStickerSets(
 
 	// Clear all installed flags, set only for sets from order.
 	for (auto &[id, set] : sets) {
-		const auto archived = !!(set->flags & Flag::f_archived);
-		const auto masks = !!(set->flags & MTPDstickerSet::Flag::f_masks);
+		const auto archived = !!(set->flags & Flag::Archived);
+		const auto masks = !!(set->flags & Flag::Masks);
 		if (!archived && (setsMasks == masks)) {
-			set->flags &= ~Flag::f_installed_date;
+			set->flags &= ~Flag::Installed;
 		}
 	}
 
@@ -2050,7 +2047,7 @@ void ApiWrap::saveStickerSets(
 			continue;
 		}
 		const auto set = it->second.get();
-		const auto archived = !!(set->flags & Flag::f_archived);
+		const auto archived = !!(set->flags & Flag::Archived);
 		if (archived && !localRemoved.contains(set->id)) {
 			const auto mtpSetId = set->mtpInput();
 
@@ -2069,11 +2066,11 @@ void ApiWrap::saveStickerSets(
 
 			setDisenableRequests.insert(requestId);
 
-			set->flags &= ~Flag::f_archived;
+			set->flags &= ~Flag::Archived;
 			writeArchived = true;
 		}
 		orderRef.push_back(setId);
-		set->flags |= Flag::f_installed_date;
+		set->flags |= Flag::Installed;
 		if (!set->installDate) {
 			set->installDate = base::unixtime::now();
 		}
@@ -2081,10 +2078,10 @@ void ApiWrap::saveStickerSets(
 
 	for (auto it = sets.begin(); it != sets.cend();) {
 		const auto set = it->second.get();
-		if ((set->flags & ClientFlag::f_featured)
-			|| (set->flags & Flag::f_installed_date)
-			|| (set->flags & Flag::f_archived)
-			|| (set->flags & ClientFlag::f_special)) {
+		if ((set->flags & Flag::Featured)
+			|| (set->flags & Flag::Installed)
+			|| (set->flags & Flag::Archived)
+			|| (set->flags & Flag::Special)) {
 			++it;
 		} else {
 			it = sets.erase(it);
@@ -3303,7 +3300,7 @@ void ApiWrap::readFeaturedSets() {
 	for (const auto setId : _featuredSetsRead) {
 		const auto it = sets.find(setId);
 		if (it != sets.cend()) {
-			it->second->flags &= ~MTPDstickerSet_ClientFlag::f_unread;
+			it->second->flags &= ~Data::StickersSetFlag::Unread;
 			wrappedIds.append(MTP_long(setId));
 			if (count) {
 				--count;

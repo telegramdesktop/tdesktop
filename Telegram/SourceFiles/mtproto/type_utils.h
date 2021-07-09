@@ -94,21 +94,3 @@ enum class MTPDreplyKeyboardMarkup_ClientFlag : uint32 {
 	MIN_FIELD = (1U << 27),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDreplyKeyboardMarkup)
-
-enum class MTPDstickerSet_ClientFlag : uint32 {
-	// sticker set is not yet loaded
-	f_not_loaded = (1U << 30),
-
-	// sticker set is one of featured (should be saved locally)
-	f_featured = (1U << 29),
-
-	// sticker set is an unread featured set
-	f_unread = (1U << 28),
-
-	// special set like recent or custom stickers
-	f_special = (1U << 27),
-
-	// update this when adding new client side flags
-	MIN_FIELD = (1U << 27),
-};
-DEFINE_MTP_CLIENT_FLAGS(MTPDstickerSet)

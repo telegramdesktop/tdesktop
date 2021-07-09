@@ -45,6 +45,22 @@ private:
 
 };
 
+enum class StickersSetFlag {
+	Installed = (1 << 0),
+	Archived = (1 << 1),
+	Masks = (1 << 2),
+	Official = (1 << 3),
+	NotLoaded = (1 << 4),
+	Featured = (1 << 5),
+	Unread = (1 << 6),
+	Special = (1 << 7),
+};
+inline constexpr bool is_flag_type(StickersSetFlag) { return true; };
+using StickersSetFlags = base::flags<StickersSetFlag>;
+
+[[nodiscard]] StickersSetFlags ParseStickersSetFlags(
+	const MTPDstickerSet &data);
+
 class StickersSet final {
 public:
 	StickersSet(
@@ -55,7 +71,7 @@ public:
 		const QString &shortName,
 		int count,
 		int32 hash,
-		MTPDstickerSet::Flags flags,
+		StickersSetFlags flags,
 		TimeId installDate);
 
 	[[nodiscard]] Data::Session &owner() const;
@@ -81,7 +97,7 @@ public:
 	QString title, shortName;
 	int count = 0;
 	int32 hash = 0;
-	MTPDstickerSet::Flags flags;
+	StickersSetFlags flags;
 	TimeId installDate = 0;
 	StickersPack covers;
 	StickersPack stickers;

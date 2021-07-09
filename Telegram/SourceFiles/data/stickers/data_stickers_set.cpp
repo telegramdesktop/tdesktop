@@ -45,6 +45,14 @@ QByteArray StickersSetThumbnailView::content() const {
 	return _content;
 }
 
+StickersSetFlags ParseStickersSetFlags(const MTPDstickerSet &data) {
+	using Flag = StickersSetFlag;
+	return (data.is_archived() ? Flag::Archived : Flag())
+		| (data.is_official() ? Flag::Official : Flag())
+		| (data.is_masks() ? Flag::Masks : Flag())
+		| (data.vinstalled_date() ? Flag::Installed : Flag());
+}
+
 StickersSet::StickersSet(
 	not_null<Data::Session*> owner,
 	uint64 id,
@@ -53,7 +61,7 @@ StickersSet::StickersSet(
 	const QString &shortName,
 	int count,
 	int32 hash,
-	MTPDstickerSet::Flags flags,
+	StickersSetFlags flags,
 	TimeId installDate)
 : id(id)
 , access(access)

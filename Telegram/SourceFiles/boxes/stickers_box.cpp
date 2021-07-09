@@ -45,6 +45,7 @@ namespace {
 using Data::StickersSet;
 using Data::StickersSetsOrder;
 using Data::StickersSetThumbnailView;
+using SetFlag = Data::StickersSetFlag;
 
 constexpr auto kArchivedLimitFirstRequest = 10;
 constexpr auto kArchivedLimitPerPage = 30;
@@ -429,8 +430,11 @@ void StickersBox::showAttachedStickers() {
 		if (const auto set = session().data().stickers().feedSet(*setData)) {
 			if (_attached.widget()->appendSet(set)) {
 				addedSet = true;
-				if (set->stickers.isEmpty() || (set->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
-					session().api().scheduleStickerSetRequest(set->id, set->access);
+				if (set->stickers.isEmpty()
+					|| (set->flags & SetFlag::NotLoaded)) {
+					session().api().scheduleStickerSetRequest(
+						set->id,
+						set->access);
 				}
 			}
 		}
@@ -495,8 +499,11 @@ void StickersBox::getArchivedDone(
 			}
 			if (_archived.widget()->appendSet(set)) {
 				addedSet = true;
-				if (set->stickers.isEmpty() || (set->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
-					session().api().scheduleStickerSetRequest(set->id, set->access);
+				if (set->stickers.isEmpty()
+					|| (set->flags & SetFlag::NotLoaded)) {
+					session().api().scheduleStickerSetRequest(
+						set->id,
+						set->access);
 				}
 			}
 		}
@@ -682,7 +689,7 @@ void StickersBox::loadMoreArchived() {
 		--setIt;
 		auto it = sets.find(*setIt);
 		if (it != sets.cend()) {
-			if (it->second->flags & MTPDstickerSet::Flag::f_archived) {
+			if (it->second->flags & SetFlag::Archived) {
 				lastId = it->second->id;
 				break;
 			}
@@ -834,8 +841,8 @@ void StickersBox::installSet(uint64 setId) {
 			}
 		}
 	}
-	if (!(set->flags & MTPDstickerSet::Flag::f_installed_date)
-		|| (set->flags & MTPDstickerSet::Flag::f_archived)) {
+	if (!(set->flags & SetFlag::Installed)
+		|| (set->flags & SetFlag::Archived)) {
 		_api.request(MTPmessages_InstallStickerSet(
 			set->mtpInput(),
 			MTP_boolFalse()
@@ -896,7 +903,8 @@ void StickersBox::requestArchivedSets() {
 		auto it = sets.find(setId);
 		if (it != sets.cend()) {
 			const auto set = it->second.get();
-			if (set->stickers.isEmpty() && (set->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
+			if (set->stickers.isEmpty()
+				&& (set->flags & SetFlag::NotLoaded)) {
 				session().api().scheduleStickerSetRequest(setId, set->access);
 			}
 		}
@@ -1042,7 +1050,7 @@ bool StickersBox::Inner::Row::isRecentSet() const {
 }
 
 bool StickersBox::Inner::Row::isMasksSet() const {
-	return (set->flags & MTPDstickerSet::Flag::f_masks);
+	return (set->flags & SetFlag::Masks);
 }
 
 StickersBox::Inner::Inner(
@@ -1909,7 +1917,7 @@ void StickersBox::Inner::rebuildMegagroupSet() {
 	const auto &sets = session().data().stickers().sets();
 	auto it = sets.find(setId);
 	if (it == sets.cend()
-		|| (it->second->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
+		|| (it->second->flags & SetFlag::NotLoaded)) {
 		session().api().scheduleStickerSetRequest(
 			_megagroupSetInput.id,
 			_megagroupSetInput.accessHash);
@@ -2011,7 +2019,7 @@ void StickersBox::Inner::rebuild(bool masks) {
 		rebuildAppendSet(set, maxNameWidth);
 
 		if (set->stickers.isEmpty()
-			|| (set->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
+			|| (set->flags & SetFlag::NotLoaded)) {
 			session().api().scheduleStickerSetRequest(set->id, set->access);
 		}
 	}
@@ -2226,11 +2234,11 @@ void StickersBox::Inner::fillSetFlags(
 		bool *outOfficial,
 		bool *outUnread,
 		bool *outArchived) {
-	*outInstalled = (set->flags & MTPDstickerSet::Flag::f_installed_date);
-	*outOfficial = (set->flags & MTPDstickerSet::Flag::f_official);
-	*outArchived = (set->flags & MTPDstickerSet::Flag::f_archived);
+	*outInstalled = (set->flags & SetFlag::Installed);
+	*outOfficial = (set->flags & SetFlag::Official);
+	*outArchived = (set->flags & SetFlag::Archived);
 	if (_section == Section::Featured) {
-		*outUnread = (set->flags & MTPDstickerSet_ClientFlag::f_unread);
+		*outUnread = (set->flags & SetFlag::Unread);
 	} else {
 		*outUnread = false;
 	}

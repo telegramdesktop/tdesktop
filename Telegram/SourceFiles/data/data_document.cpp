@@ -1051,18 +1051,20 @@ bool DocumentData::saveFromDataChecked() {
 bool DocumentData::isStickerSetInstalled() const {
 	Expects(sticker() != nullptr);
 
+	using SetFlag = Data::StickersSetFlag;
+
 	const auto &sets = _owner->stickers().sets();
 	if (const auto id = sticker()->set.id) {
 		const auto i = sets.find(id);
 		return (i != sets.cend())
-			&& !(i->second->flags & MTPDstickerSet::Flag::f_archived)
-			&& (i->second->flags & MTPDstickerSet::Flag::f_installed_date);
+			&& !(i->second->flags & SetFlag::Archived)
+			&& (i->second->flags & SetFlag::Installed);
 	} else if (!sticker()->set.shortName.isEmpty()) {
 		const auto name = sticker()->set.shortName.toLower();
 		for (const auto &[id, set] : sets) {
 			if (set->shortName.toLower() == name) {
-				return !(set->flags & MTPDstickerSet::Flag::f_archived)
-					&& (set->flags & MTPDstickerSet::Flag::f_installed_date);
+				return !(set->flags & SetFlag::Archived)
+					&& (set->flags & SetFlag::Installed);
 			}
 		}
 		return false;

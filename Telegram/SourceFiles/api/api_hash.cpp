@@ -40,6 +40,7 @@ namespace {
 int32 CountStickersHash(
 		not_null<Main::Session*> session,
 		bool checkOutdatedInfo) {
+	using Flag = Data::StickersSetFlag;
 	auto result = HashInit();
 	bool foundOutdated = false;
 	const auto &sets = session->data().stickers().sets();
@@ -50,8 +51,8 @@ int32 CountStickersHash(
 			const auto set = it->second.get();
 			if (set->id == Data::Stickers::DefaultSetId) {
 				foundOutdated = true;
-			} else if (!(set->flags & MTPDstickerSet_ClientFlag::f_special)
-				&& !(set->flags & MTPDstickerSet::Flag::f_archived)) {
+			} else if (!(set->flags & Flag::Special)
+				&& !(set->flags & Flag::Archived)) {
 				HashUpdate(result, set->hash);
 			}
 		}
@@ -84,7 +85,7 @@ int32 CountFeaturedStickersHash(not_null<Main::Session*> session) {
 
 		const auto it = sets.find(setId);
 		if (it != sets.cend()
-			&& (it->second->flags & MTPDstickerSet_ClientFlag::f_unread)) {
+			&& (it->second->flags & Data::StickersSetFlag::Unread)) {
 			HashUpdate(result, 1);
 		}
 	}

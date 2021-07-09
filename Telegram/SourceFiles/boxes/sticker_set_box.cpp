@@ -51,6 +51,7 @@ constexpr auto kStickersPanelPerRow = 5;
 using Data::StickersSet;
 using Data::StickersPack;
 using Data::StickersByEmojiMap;
+using SetFlag = Data::StickersSetFlag;
 
 } // namespace
 
@@ -77,7 +78,7 @@ public:
 	void archiveStickers();
 
 	bool isMasksSet() const {
-		return (_setFlags & MTPDstickerSet::Flag::f_masks);
+		return (_setFlags & SetFlag::Masks);
 	}
 
 	~Inner();
@@ -128,7 +129,7 @@ private:
 	QString _setTitle, _setShortName;
 	int _setCount = 0;
 	int32 _setHash = 0;
-	MTPDstickerSet::Flags _setFlags = 0;
+	Data::StickersSetFlags _setFlags;
 	TimeId _setInstallDate = TimeId(0);
 	ImageWithLocation _setThumbnail;
 
@@ -421,7 +422,8 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			_setAccess = set.vaccess_hash().v;
 			_setCount = set.vcount().v;
 			_setHash = set.vhash().v;
-			_setFlags = set.vflags().v;
+			using Flag = Data::StickersSetFlag;
+			_setFlags = Data::ParseStickersSetFlags(set);
 			_setInstallDate = set.vinstalled_date().value_or(0);
 			_setThumbnail = [&] {
 				if (const auto thumbs = set.vthumbs()) {
@@ -441,12 +443,11 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			const auto it = sets.find(_setId);
 			if (it != sets.cend()) {
 				const auto set = it->second.get();
-				using ClientFlag = MTPDstickerSet_ClientFlag;
 				const auto clientFlags = set->flags
-					& (ClientFlag::f_featured
-						| ClientFlag::f_not_loaded
-						| ClientFlag::f_unread
-						| ClientFlag::f_special);
+					& (SetFlag::Featured
+						| SetFlag::NotLoaded
+						| SetFlag::Unread
+						| SetFlag::Special);
 				_setFlags |= clientFlags;
 				set->flags = _setFlags;
 				set->installDate = _setInstallDate;
@@ -492,7 +493,7 @@ void StickerSetBox::Inner::installDone(
 	auto &sets = stickers.setsRef();
 	const auto isMasks = isMasksSet();
 
-	const bool wasArchived = (_setFlags & MTPDstickerSet::Flag::f_archived);
+	const bool wasArchived = (_setFlags & SetFlag::Archived);
 	if (wasArchived) {
 		const auto index = (isMasks
 			? stickers.archivedMaskSetsOrderRef()
@@ -504,8 +505,8 @@ void StickerSetBox::Inner::installDone(
 		}
 	}
 	_setInstallDate = base::unixtime::now();
-	_setFlags &= ~MTPDstickerSet::Flag::f_archived;
-	_setFlags |= MTPDstickerSet::Flag::f_installed_date;
+	_setFlags &= ~SetFlag::Archived;
+	_setFlags |= SetFlag::Installed;
 	auto it = sets.find(_setId);
 	if (it == sets.cend()) {
 		it = sets.emplace(
@@ -843,8 +844,8 @@ bool StickerSetBox::Inner::notInstalled() const {
 	const auto &sets = _controller->session().data().stickers().sets();
 	const auto it = sets.find(_setId);
 	if ((it == sets.cend())
-		|| !(it->second->flags & MTPDstickerSet::Flag::f_installed_date)
-		|| (it->second->flags & MTPDstickerSet::Flag::f_archived)) {
+		|| !(it->second->flags & SetFlag::Installed)
+		|| (it->second->flags & SetFlag::Archived)) {
 		return !_pack.empty();
 	}
 	return false;
