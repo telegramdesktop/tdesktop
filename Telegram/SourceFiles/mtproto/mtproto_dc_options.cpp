@@ -56,7 +56,7 @@ const BuiltInDc kBuiltInDcsIPv6Test[] = {
 	{ 3, "2001:0b28:f23d:f003:0000:0000:0000:000e", 443 }
 };
 
-const char *(kPublicRSAKeys[]) = { "\
+const char *(kTestPublicRSAKeys[]) = { "\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIIBCgKCAQEAyMEdY1aR+sCR3ZSJrtztKTKqigvO/vBfqACJLZtS7QMgCGXJ6XIR\n\
 yy7mx66W0/sOFa7/1mAZtEoIokDP3ShoqF4fVNb6XeqgQfaUHd8wJpDWHcR2OFwv\n\
@@ -64,7 +64,9 @@ plUUI1PLTktZ9uW2WE23b+ixNwJjJGwBDJPQEQFBE+vfmH0JP503wr5INS1poWg/\n\
 j25sIWeYPHYeOrFp/eXaqhISP6G+q2IeTaWTXpwZj4LzXq5YOpk4bYEQ6mvRq7D1\n\
 aHWfYmlEGepfaYR8Q0YqvvhYtMte3ITnuSJs171+GDqpdKcSwHnd6FudwGO4pcCO\n\
 j4WcDuXc2CTHgH8gFTNhp/Y8/SpDOhvn9QIDAQAB\n\
------END RSA PUBLIC KEY-----", "\
+-----END RSA PUBLIC KEY-----" };
+
+const char *(kPublicRSAKeys[]) = { "\
 -----BEGIN RSA PUBLIC KEY-----\n\
 MIIBCgKCAQEA6LszBcC1LGzyr992NzE0ieY+BSaOW622Aa9Bd4ZHLl+TuFQ4lo4g\n\
 5nKaMBwK/BIb9xUfg0Q29/2mgIR6Zr9krM7HjuIcCzFvDtr+L0GQjae9H0pRB2OO\n\
@@ -137,7 +139,10 @@ bool DcOptions::ValidateSecret(bytes::const_span secret) {
 }
 
 void DcOptions::readBuiltInPublicKeys() {
-	for (const auto key : kPublicRSAKeys) {
+	const auto builtin = (_environment == Environment::Test)
+		? gsl::make_span(kTestPublicRSAKeys)
+		: gsl::make_span(kPublicRSAKeys);
+	for (const auto key : builtin) {
 		const auto keyBytes = bytes::make_span(key, strlen(key));
 		auto parsed = RSAPublicKey(keyBytes);
 		if (parsed.valid()) {
