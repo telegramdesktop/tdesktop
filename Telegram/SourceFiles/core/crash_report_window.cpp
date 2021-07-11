@@ -126,7 +126,7 @@ PreLaunchLog::PreLaunchLog(QWidget *parent) : QTextEdit(parent) {
 	setPalette(p);
 
 	setReadOnly(true);
-	setFrameStyle(QFrame::NoFrame | QFrame::Plain);
+	setFrameStyle(int(QFrame::NoFrame) | QFrame::Plain);
 	viewport()->setAutoFillBackground(false);
 	setContentsMargins(0, 0, 0, 0);
 	document()->setDocumentMargin(0);

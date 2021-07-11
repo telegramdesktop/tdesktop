@@ -2678,7 +2678,7 @@ MessageIdsList HistoryInner::getSelectedItems() const {
 		return selected.first->fullId();
 	}) | to_vector;
 
-	result |= actions::sort(ordered_less{}, [](const FullMsgId &msgId) {
+	result |= actions::sort(less{}, [](const FullMsgId &msgId) {
 		return msgId.channel ? msgId.msg : (msgId.msg - ServerMaxMsgId);
 	});
 	return result;

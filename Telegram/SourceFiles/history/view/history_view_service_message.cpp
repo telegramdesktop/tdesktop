@@ -136,7 +136,7 @@ int paintBubbleSide(
 		CornerVerticalSide side,
 		const style::color &bg) {
 	if (style == SideStyle::Rounded) {
-		const auto corner = (NormalMask * MaskMultiplier) | side;
+		const auto corner = (int(NormalMask) * MaskMultiplier) | side;
 		auto left = circleCorner(corner | CornerLeft, bg);
 		int leftWidth = left.width() / cIntRetinaFactor();
 		p.drawPixmap(x, y, left);
@@ -155,7 +155,7 @@ int paintBubbleSide(
 		return cornerHeight;
 	} else if (style == SideStyle::Inverted) {
 		// CornerLeft and CornerRight are inverted for SideStyle::Inverted sprites.
-		const auto corner = (InvertedMask * MaskMultiplier) | side;
+		const auto corner = (int(InvertedMask) * MaskMultiplier) | side;
 		auto left = circleCorner(corner | CornerRight, bg);
 		int leftWidth = left.width() / cIntRetinaFactor();
 		p.drawPixmap(x - leftWidth, y, left);
