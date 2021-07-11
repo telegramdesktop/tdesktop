@@ -292,7 +292,7 @@ ChatRestrictions FixDependentRestrictions(ChatRestrictions restrictions) {
 
 	// Apply the strictest.
 	const auto fixOne = [&] {
-		for (const auto [first, second] : dependencies) {
+		for (const auto &[first, second] : dependencies) {
 			if ((restrictions & second) && !(restrictions & first)) {
 				restrictions |= first;
 				return true;

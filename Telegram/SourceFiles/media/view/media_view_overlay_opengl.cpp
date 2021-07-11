@@ -512,7 +512,7 @@ void OverlayWidget::RendererGL::validateControls() {
 	};
 	auto maxWidth = 0;
 	auto fullHeight = 0;
-	for (const auto meta : metas) {
+	for (const auto &meta : metas) {
 		maxWidth = std::max(meta.icon->width(), maxWidth);
 		fullHeight += meta.icon->height();
 	}
@@ -525,7 +525,7 @@ void OverlayWidget::RendererGL::validateControls() {
 		auto p = QPainter(&image);
 		auto index = 0;
 		auto height = 0;
-		for (const auto meta : metas) {
+		for (const auto &meta : metas) {
 			meta.icon->paint(p, 0, height, maxWidth);
 			_controlsTextures[index++] = QRect(
 				QPoint(0, height) * _factor,

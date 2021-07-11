@@ -211,6 +211,14 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     )
 endif()
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(lib_tgcalls
+    PRIVATE
+        -Wno-deprecated-volatile
+        -Wno-ambiguous-reversed-operator
+    )
+endif()
+
 remove_target_sources(lib_tgcalls ${tgcalls_loc}
     platform/android/AndroidContext.cpp
     platform/android/AndroidContext.h

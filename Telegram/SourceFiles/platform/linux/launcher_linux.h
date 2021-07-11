@@ -15,7 +15,7 @@ class Launcher : public Core::Launcher {
 public:
 	Launcher(int argc, char *argv[]);
 
-	int exec();
+	int exec() override;
 
 private:
 	void initHook() override;

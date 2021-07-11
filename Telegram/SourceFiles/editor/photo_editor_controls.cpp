@@ -127,11 +127,11 @@ ButtonBar::ButtonBar(
 		if (children.empty()) {
 			return;
 		}
-		const auto widgets = ranges::view::all(
+		const auto widgets = ranges::views::all(
 			children
-		) | ranges::view::filter([](not_null<const QObject*> object) {
+		) | ranges::views::filter([](not_null<const QObject*> object) {
 			return object->isWidgetType();
-		}) | ranges::view::transform([](not_null<QObject*> object) {
+		}) | ranges::views::transform([](not_null<QObject*> object) {
 			return static_cast<Ui::RpWidget*>(object.get());
 		}) | ranges::to_vector;
 
