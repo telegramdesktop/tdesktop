@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/chat/attach/attach_abstract_single_preview.h"
+#include "ui/chat/attach/attach_controls.h"
 #include "base/object_ptr.h"
 
 namespace Ui {
@@ -16,7 +17,7 @@ class IconButton;
 
 class AbstractSingleFilePreview : public AbstractSinglePreview {
 public:
-	AbstractSingleFilePreview(QWidget *parent);
+	AbstractSingleFilePreview(QWidget *parent, AttachControls::Type type);
 	~AbstractSingleFilePreview();
 
 	[[nodiscard]] rpl::producer<> deleteRequests() const override;
@@ -44,6 +45,8 @@ private:
 	void resizeEvent(QResizeEvent *e) override;
 
 	void updateTextWidthFor(Data &data);
+
+	const AttachControls::Type _type;
 
 	Data _data;
 

@@ -25,7 +25,8 @@ class ItemSingleFilePreview final : public AbstractSingleFilePreview {
 public:
 	ItemSingleFilePreview(
 		QWidget *parent,
-		not_null<HistoryItem*> item);
+		not_null<HistoryItem*> item,
+		AttachControls::Type type);
 
 private:
 	void preparePreview(not_null<DocumentData*> document);

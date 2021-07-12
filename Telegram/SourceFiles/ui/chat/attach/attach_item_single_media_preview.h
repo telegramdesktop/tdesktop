@@ -33,7 +33,8 @@ public:
 	ItemSingleMediaPreview(
 		QWidget *parent,
 		Fn<bool()> gifPaused,
-		not_null<HistoryItem*> item);
+		not_null<HistoryItem*> item,
+		AttachControls::Type type);
 
 	std::shared_ptr<::Data::PhotoMedia> sharedPhotoMedia() const;
 

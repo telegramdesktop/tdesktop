@@ -22,12 +22,14 @@ constexpr auto kMinPreviewWidth = 20;
 
 } // namespace
 
-AbstractSingleMediaPreview::AbstractSingleMediaPreview(QWidget *parent)
+AbstractSingleMediaPreview::AbstractSingleMediaPreview(
+	QWidget *parent,
+	AttachControls::Type type)
 : AbstractSinglePreview(parent)
 , _minThumbH(st::sendBoxAlbumGroupSize.height()
 	+ st::sendBoxAlbumGroupSkipTop * 2)
 , _photoEditorButton(base::make_unique_q<AbstractButton>(this))
-, _controls(base::make_unique_q<AttachControlsWidget>(this)) {
+, _controls(base::make_unique_q<AttachControlsWidget>(this, type)) {
 }
 
 AbstractSingleMediaPreview::~AbstractSingleMediaPreview() = default;

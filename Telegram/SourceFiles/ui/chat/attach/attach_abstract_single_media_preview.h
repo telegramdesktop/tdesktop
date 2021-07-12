@@ -8,15 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/chat/attach/attach_abstract_single_preview.h"
+#include "ui/chat/attach/attach_controls.h"
 #include "ui/abstract_button.h"
 
 namespace Ui {
 
-class AttachControlsWidget;
-
 class AbstractSingleMediaPreview : public AbstractSinglePreview {
 public:
-	AbstractSingleMediaPreview(QWidget *parent);
+	AbstractSingleMediaPreview(QWidget *parent, AttachControls::Type type);
 	~AbstractSingleMediaPreview();
 
 	[[nodiscard]] rpl::producer<> deleteRequests() const override;

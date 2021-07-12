@@ -23,7 +23,8 @@ public:
 	static SingleMediaPreview *Create(
 		QWidget *parent,
 		Fn<bool()> gifPaused,
-		const PreparedFile &file);
+		const PreparedFile &file,
+		AttachControls::Type type = AttachControls::Type::Full);
 
 	SingleMediaPreview(
 		QWidget *parent,
@@ -31,7 +32,8 @@ public:
 		QImage preview,
 		bool animated,
 		bool sticker,
-		const QString &animatedPreviewPath);
+		const QString &animatedPreviewPath,
+		AttachControls::Type type);
 
 protected:
 	bool drawBackground() const override;

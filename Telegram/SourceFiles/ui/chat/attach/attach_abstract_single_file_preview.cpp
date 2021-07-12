@@ -16,13 +16,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-AbstractSingleFilePreview::AbstractSingleFilePreview(QWidget *parent)
+AbstractSingleFilePreview::AbstractSingleFilePreview(
+	QWidget *parent,
+	AttachControls::Type type)
 : AbstractSinglePreview(parent)
+, _type(type)
 , _editMedia(this, st::sendBoxAlbumGroupButtonFile)
 , _deleteMedia(this, st::sendBoxAlbumGroupButtonFile) {
 
 	_editMedia->setIconOverride(&st::sendBoxAlbumGroupEditButtonIconFile);
 	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupDeleteButtonIconFile);
+
+	if (type == AttachControls::Type::Full) {
+		_deleteMedia->show();
+		_editMedia->show();
+	} else if (type == AttachControls::Type::EditOnly) {
+		_deleteMedia->hide();
+		_editMedia->show();
+	}
 }
 
 AbstractSingleFilePreview::~AbstractSingleFilePreview() = default;
@@ -136,8 +147,10 @@ void AbstractSingleFilePreview::resizeEvent(QResizeEvent *e) {
 	const auto x = (width() - w) / 2;
 	const auto top = st::sendBoxFileGroupSkipTop;
 	auto right = st::sendBoxFileGroupSkipRight + x;
-	_deleteMedia->moveToRight(right, top);
-	right += st::sendBoxFileGroupEditInternalSkip + _deleteMedia->width();
+	if (_type != AttachControls::Type::EditOnly) {
+		_deleteMedia->moveToRight(right, top);
+		right += st::sendBoxFileGroupEditInternalSkip + _deleteMedia->width();
+	}
 	_editMedia->moveToRight(right, top);
 }
 
@@ -152,12 +165,17 @@ void AbstractSingleFilePreview::updateTextWidthFor(Data &data) {
 	const auto nameleft = st.thumbSize + st.padding.right();
 	const auto nametop = st.nameTop;
 	const auto statustop = st.statusTop;
+	const auto buttonsCount = (_type == AttachControls::Type::EditOnly)
+		? 1
+		: (_type == AttachControls::Type::Full)
+		? 2
+		: 0;
 	const auto availableFileWidth = st::sendMediaPreviewSize
 		- st.thumbSize
 		- st.padding.right()
 		// Right buttons.
-		- st::sendBoxAlbumGroupButtonFile.width * 2
-		- st::sendBoxAlbumGroupEditInternalSkip * 2
+		- st::sendBoxAlbumGroupButtonFile.width * buttonsCount
+		- st::sendBoxAlbumGroupEditInternalSkip * buttonsCount
 		- st::sendBoxAlbumGroupSkipRight;
 	data.nameWidth = st::semiboldFont->width(data.name);
 	if (data.nameWidth > availableFileWidth) {

@@ -32,8 +32,9 @@ using namespace ::Media::Streaming;
 ItemSingleMediaPreview::ItemSingleMediaPreview(
 	QWidget *parent,
 	Fn<bool()> gifPaused,
-	not_null<HistoryItem*> item)
-: AbstractSingleMediaPreview(parent)
+	not_null<HistoryItem*> item,
+	AttachControls::Type type)
+: AbstractSingleMediaPreview(parent, type)
 , _gifPaused(std::move(gifPaused))
 , _fullId(item->fullId()) {
 	const auto media = item->media();

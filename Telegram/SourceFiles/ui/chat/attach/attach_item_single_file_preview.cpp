@@ -23,8 +23,9 @@ namespace Ui {
 
 ItemSingleFilePreview::ItemSingleFilePreview(
 	QWidget *parent,
-	not_null<HistoryItem*> item)
-: AbstractSingleFilePreview(parent) {
+	not_null<HistoryItem*> item,
+	AttachControls::Type type)
+: AbstractSingleFilePreview(parent, type) {
 	const auto media = item->media();
 	Assert(media != nullptr);
 	const auto document = media->document();

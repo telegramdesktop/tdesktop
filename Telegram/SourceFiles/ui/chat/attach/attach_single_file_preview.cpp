@@ -19,8 +19,9 @@ namespace Ui {
 
 SingleFilePreview::SingleFilePreview(
 	QWidget *parent,
-	const PreparedFile &file)
-: AbstractSingleFilePreview(parent) {
+	const PreparedFile &file,
+	AttachControls::Type type)
+: AbstractSingleFilePreview(parent, type) {
 	preparePreview(file);
 }
 
