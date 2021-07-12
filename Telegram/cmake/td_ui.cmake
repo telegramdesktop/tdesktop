@@ -110,6 +110,7 @@ PRIVATE
     ui/chat/attach/attach_abstract_single_file_preview.h
     ui/chat/attach/attach_abstract_single_media_preview.cpp
     ui/chat/attach/attach_abstract_single_media_preview.h
+    ui/chat/attach/attach_abstract_single_preview.h
     ui/chat/attach/attach_album_preview.cpp
     ui/chat/attach/attach_album_preview.h
     ui/chat/attach/attach_album_thumbnail.cpp

@@ -7,21 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
+#include "ui/chat/attach/attach_abstract_single_preview.h"
 #include "ui/abstract_button.h"
 
 namespace Ui {
 
 class AttachControlsWidget;
 
-class AbstractSingleMediaPreview : public RpWidget {
+class AbstractSingleMediaPreview : public AbstractSinglePreview {
 public:
 	AbstractSingleMediaPreview(QWidget *parent);
 	~AbstractSingleMediaPreview();
 
-	[[nodiscard]] rpl::producer<> deleteRequests() const;
-	[[nodiscard]] rpl::producer<> editRequests() const;
-	[[nodiscard]] rpl::producer<> modifyRequests() const;
+	[[nodiscard]] rpl::producer<> deleteRequests() const override;
+	[[nodiscard]] rpl::producer<> editRequests() const override;
+	[[nodiscard]] rpl::producer<> modifyRequests() const override;
 
 	[[nodiscard]] bool isPhoto() const;
 

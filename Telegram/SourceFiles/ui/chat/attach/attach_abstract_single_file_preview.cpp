@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 AbstractSingleFilePreview::AbstractSingleFilePreview(QWidget *parent)
-: RpWidget(parent)
+: AbstractSinglePreview(parent)
 , _editMedia(this, st::sendBoxAlbumGroupButtonFile)
 , _deleteMedia(this, st::sendBoxAlbumGroupButtonFile) {
 
@@ -35,6 +35,10 @@ rpl::producer<> AbstractSingleFilePreview::editRequests() const {
 
 rpl::producer<> AbstractSingleFilePreview::deleteRequests() const {
 	return _deleteMedia->clicks() | rpl::to_empty;
+}
+
+rpl::producer<> AbstractSingleFilePreview::modifyRequests() const {
+	return rpl::never<>();
 }
 
 void AbstractSingleFilePreview::prepareThumbFor(

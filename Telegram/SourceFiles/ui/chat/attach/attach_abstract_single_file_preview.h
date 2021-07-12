@@ -7,20 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
+#include "ui/chat/attach/attach_abstract_single_preview.h"
 #include "base/object_ptr.h"
 
 namespace Ui {
 
 class IconButton;
 
-class AbstractSingleFilePreview : public RpWidget {
+class AbstractSingleFilePreview : public AbstractSinglePreview {
 public:
 	AbstractSingleFilePreview(QWidget *parent);
 	~AbstractSingleFilePreview();
 
-	[[nodiscard]] rpl::producer<> deleteRequests() const;
-	[[nodiscard]] rpl::producer<> editRequests() const;
+	[[nodiscard]] rpl::producer<> deleteRequests() const override;
+	[[nodiscard]] rpl::producer<> editRequests() const override;
+	[[nodiscard]] rpl::producer<> modifyRequests() const override;
 
 protected:
 	struct Data {

@@ -23,7 +23,7 @@ constexpr auto kMinPreviewWidth = 20;
 } // namespace
 
 AbstractSingleMediaPreview::AbstractSingleMediaPreview(QWidget *parent)
-: RpWidget(parent)
+: AbstractSinglePreview(parent)
 , _minThumbH(st::sendBoxAlbumGroupSize.height()
 	+ st::sendBoxAlbumGroupSkipTop * 2)
 , _photoEditorButton(base::make_unique_q<AbstractButton>(this))
