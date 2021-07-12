@@ -33,11 +33,6 @@ constexpr auto kWaitForUpdatesTimeout = 3 * crl::time(1000);
 	});
 }
 
-[[nodiscard]] const std::string &EmptyEndpoint() {
-	static const auto result = std::string();
-	return result;
-}
-
 } // namespace
 
 const std::string &GroupCallParticipant::cameraEndpoint() const {

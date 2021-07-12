@@ -320,12 +320,6 @@ QByteArray FormatTimeText(TimeId date) {
 		+ Data::NumberToString(parsed.minute(), 2);
 }
 
-QByteArray SerializeLink(
-		const Data::Utf8String &text,
-		const QString &path) {
-	return "<a href=\"" + path.toUtf8() + "\">" + text + "</a>";
-}
-
 } // namespace
 
 namespace details {

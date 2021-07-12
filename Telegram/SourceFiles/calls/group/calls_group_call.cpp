@@ -74,12 +74,6 @@ constexpr auto kMaxMediumQualities = 16; // 4 Fulls or 16 Mediums.
 	return msgId / double(1ULL << 32);
 }
 
-[[nodiscard]] std::string ReadJsonString(
-		const QJsonObject &object,
-		const char *key) {
-	return object.value(key).toString().toStdString();
-}
-
 [[nodiscard]] uint64 FindLocalRaisedHandRating(
 		const std::vector<Data::GroupCallParticipant> &list) {
 	const auto i = ranges::max_element(

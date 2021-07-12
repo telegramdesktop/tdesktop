@@ -142,10 +142,6 @@ auto Colors() {
 	return result;
 }
 
-bool IsMuted(CallMuteButtonType type) {
-	return (type != CallMuteButtonType::Active);
-}
-
 bool IsConnecting(CallMuteButtonType type) {
 	return (type == CallMuteButtonType::Connecting);
 }

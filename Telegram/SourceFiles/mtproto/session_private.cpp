@@ -72,15 +72,6 @@ using namespace details;
 	return idsStr + "]";
 }
 
-[[nodiscard]] QString LogIds(const QVector<uint64> &ids) {
-	if (!ids.size()) return "[]";
-	auto idsStr = QString("[%1").arg(*ids.cbegin());
-	for (const auto id : ids) {
-		idsStr += QString(", %2").arg(id);
-	}
-	return idsStr + "]";
-}
-
 [[nodiscard]] QString ComputeAppVersion() {
 	return QString::fromLatin1(AppVersionStr) + ([] {
 #if defined OS_MAC_STORE

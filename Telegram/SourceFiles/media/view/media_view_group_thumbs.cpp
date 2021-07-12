@@ -38,6 +38,7 @@ int Round(float64 value) {
 using Context = GroupThumbs::Context;
 using Key = GroupThumbs::Key;
 
+#if 0
 [[nodiscard]] QString DebugSerializeMsgId(FullMsgId itemId) {
 	return QString("msg%1_%2").arg(itemId.channel.bare).arg(itemId.msg);
 }
@@ -73,6 +74,7 @@ using Key = GroupThumbs::Key;
 		return "null";
 	});
 }
+#endif
 
 Data::FileOrigin ComputeFileOrigin(const Key &key, const Context &context) {
 	return v::match(key, [&](PhotoId photoId) {
@@ -511,6 +513,7 @@ void GroupThumbs::RefreshFromSlice(
 	}
 }
 
+#if 0
 template <typename Slice>
 void ValidateSlice(
 		const Slice &slice,
@@ -544,6 +547,7 @@ void ValidateSlice(
 		}
 	}
 }
+#endif
 
 template <typename Slice>
 void GroupThumbs::fillItems(

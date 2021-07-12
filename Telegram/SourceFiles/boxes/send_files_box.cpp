@@ -68,10 +68,6 @@ inline bool CanAddUrls(const QList<QUrl> &urls) {
 	return !urls.isEmpty() && ranges::all_of(urls, &QUrl::isLocalFile);
 }
 
-inline bool IsSingleItem(const Ui::PreparedList &list) {
-	return list.files.size() == 1;
-}
-
 void FileDialogCallback(
 		FileDialog::OpenResult &&result,
 		Fn<bool(const Ui::PreparedList&)> checkResult,

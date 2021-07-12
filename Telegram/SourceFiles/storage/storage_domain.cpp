@@ -28,12 +28,6 @@ using namespace details;
 	return "key_" + dataName;
 }
 
-[[nodiscard]] QString ComputeInfoName(const QString &dataName) {
-	// We dropped old test authorizations when migrated to multi auth.
-	//return "info_" + dataName + (cTestMode() ? "[test]" : "");
-	return "info_" + dataName;
-}
-
 } // namespace
 
 Domain::Domain(not_null<Main::Domain*> owner, const QString &dataName)

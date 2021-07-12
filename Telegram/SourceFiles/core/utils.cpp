@@ -63,57 +63,6 @@ struct CRYPTO_dynlock_value {
 namespace {
 	bool _sslInited = false;
 	QMutex *_sslLocks = nullptr;
-	void _sslLockingCallback(int mode, int type, const char *file, int line) {
-		if (!_sslLocks) return; // not inited
-
-		if (mode & CRYPTO_LOCK) {
-			_sslLocks[type].lock();
-		} else {
-			_sslLocks[type].unlock();
-		}
-	}
-	void _sslThreadId(CRYPTO_THREADID *id) {
-		CRYPTO_THREADID_set_pointer(id, QThread::currentThreadId());
-	}
-	CRYPTO_dynlock_value *_sslCreateFunction(const char *file, int line) {
-		return new CRYPTO_dynlock_value();
-	}
-	void _sslLockFunction(int mode, CRYPTO_dynlock_value *l, const char *file, int line) {
-		if (mode & CRYPTO_LOCK) {
-			l->mutex.lock();
-		} else {
-			l->mutex.unlock();
-		}
-	}
-	void _sslDestroyFunction(CRYPTO_dynlock_value *l, const char *file, int line) {
-		delete l;
-	}
-
-	int _ffmpegLockManager(void **mutex, AVLockOp op) {
-		switch (op) {
-		case AV_LOCK_CREATE: {
-			Assert(*mutex == nullptr);
-			*mutex = reinterpret_cast<void*>(new QMutex());
-		} break;
-
-		case AV_LOCK_OBTAIN: {
-			Assert(*mutex != nullptr);
-			reinterpret_cast<QMutex*>(*mutex)->lock();
-		} break;
-
-		case AV_LOCK_RELEASE: {
-			Assert(*mutex != nullptr);
-			reinterpret_cast<QMutex*>(*mutex)->unlock();
-		}; break;
-
-		case AV_LOCK_DESTROY: {
-			Assert(*mutex != nullptr);
-			delete reinterpret_cast<QMutex*>(*mutex);
-			*mutex = nullptr;
-		} break;
-		}
-		return 0;
-	}
 }
 
 namespace ThirdParty {

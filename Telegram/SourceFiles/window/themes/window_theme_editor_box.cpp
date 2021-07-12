@@ -254,10 +254,6 @@ void ImportFromFile(
 		crl::guard(parent, callback));
 }
 
-[[nodiscard]] QString BytesToUTF8(QLatin1String string) {
-	return QString::fromUtf8(string.data(), string.size());
-}
-
 // They're duplicated in window_theme.cpp:ChatBackground::ChatBackground.
 [[nodiscard]] QByteArray ReplaceAdjustableColors(QByteArray data) {
 	const auto &themeObject = Background()->themeObject();
