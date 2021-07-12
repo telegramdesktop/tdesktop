@@ -7,8 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/abstract_button.h"
+#include "ui/chat/attach/attach_abstract_single_media_preview.h"
 #include "media/clip/media_clip_reader.h"
 
 namespace Lottie {
@@ -17,11 +16,9 @@ class SinglePlayer;
 
 namespace Ui {
 
-class AttachControlsWidget;
 struct PreparedFile;
-class IconButton;
 
-class SingleMediaPreview final : public RpWidget {
+class SingleMediaPreview final : public AbstractSingleMediaPreview {
 public:
 	static SingleMediaPreview *Create(
 		QWidget *parent,
@@ -35,38 +32,22 @@ public:
 		bool animated,
 		bool sticker,
 		const QString &animatedPreviewPath);
-	~SingleMediaPreview();
 
-	[[nodiscard]] rpl::producer<> deleteRequests() const;
-	[[nodiscard]] rpl::producer<> editRequests() const;
-	[[nodiscard]] rpl::producer<> modifyRequests() const;
+protected:
+	bool drawBackground() const override;
+	bool tryPaintAnimation(Painter &p) override;
+	bool isAnimatedPreviewReady() const override;
 
 private:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void preparePreview(
-		QImage preview,
-		const QString &animatedPreviewPath);
-	void prepareAnimatedPreview(const QString &animatedPreviewPath);
+	void prepareAnimatedPreview(
+		const QString &animatedPreviewPath,
+		bool animated);
 	void clipCallback(Media::Clip::Notification notification);
 
-	Fn<bool()> _gifPaused;
-	bool _animated = false;
-	bool _sticker = false;
-	QPixmap _preview;
-	int _previewLeft = 0;
-	int _previewTop = 0;
-	int _previewWidth = 0;
-	int _previewHeight = 0;
+	const Fn<bool()> _gifPaused;
+	const bool _sticker = false;
 	Media::Clip::ReaderPointer _gifPreview;
 	std::unique_ptr<Lottie::SinglePlayer> _lottiePreview;
-
-	const int _minThumbH;
-	const base::unique_qptr<AbstractButton> _photoEditorButton;
-	const base::unique_qptr<AttachControlsWidget> _controls;
-
-	rpl::event_stream<> _modifyRequests;
 
 };
 
