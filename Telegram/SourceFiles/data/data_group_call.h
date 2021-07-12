@@ -95,11 +95,8 @@ public:
 	[[nodiscard]] rpl::producer<bool> scheduleStartSubscribedValue() const {
 		return _scheduleStartSubscribed.value();
 	}
-	[[nodiscard]] bool canStartVideo() const {
-		return _canStartVideo.current();
-	}
-	[[nodiscard]] rpl::producer<bool> canStartVideoValue() const {
-		return _canStartVideo.value();
+	[[nodiscard]] int unmutedVideoLimit() const {
+		return _unmutedVideoLimit.current();
 	}
 
 	void setPeer(not_null<PeerData*> peer);
@@ -216,10 +213,10 @@ private:
 	QString _nextOffset;
 	int _serverParticipantsCount = 0;
 	rpl::variable<int> _fullCount = 0;
+	rpl::variable<int> _unmutedVideoLimit = 0;
 	rpl::variable<TimeId> _recordStartDate = 0;
 	rpl::variable<TimeId> _scheduleDate = 0;
 	rpl::variable<bool> _scheduleStartSubscribed = false;
-	rpl::variable<bool> _canStartVideo = false;
 
 	base::flat_map<uint32, LastSpokeTimes> _unknownSpokenSsrcs;
 	base::flat_map<PeerId, LastSpokeTimes> _unknownSpokenPeerIds;

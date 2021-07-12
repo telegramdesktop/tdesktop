@@ -677,20 +677,6 @@ void GroupCall::subscribeToReal(not_null<Data::GroupCall*> real) {
 		setScheduledDate(date);
 	}, _lifetime);
 
-	// If we joined before you could start video and then you can,
-	// you have to rejoin so that the server knows your video params.
-	//real->canStartVideoValue( // ignore can_start_video after call start.
-	//) | rpl::combine_previous(
-	//) | rpl::start_with_next([=](bool could, bool can) {
-	//	if (could || !can) {
-	//		return;
-	//	} if (_joinState.action == JoinAction::None) {
-	//		rejoin();
-	//	} else {
-	//		_joinState.nextActionPending = true;
-	//	}
-	//}, _lifetime);
-
 	// Postpone creating video tracks, so that we know if Panel
 	// supports OpenGL and we don't need ARGB32 frames at all.
 	Ui::PostponeCall(this, [=] {
@@ -1965,9 +1951,10 @@ bool GroupCall::emitShareCameraError() {
 		emitShareCameraError(error);
 		return true;
 	};
-	/*if (const auto real = lookupReal(); real && !real->canStartVideo()) {
+	if (const auto real = lookupReal()
+		; real && _activeVideoTracks.size() >= real->unmutedVideoLimit()) {
 		return emitError(Error::DisabledNoCamera);
-	} else */if (!videoIsWorking()) {
+	} else if (!videoIsWorking()) {
 		return emitError(Error::DisabledNoCamera);
 	} else if (mutedByAdmin()) {
 		return emitError(Error::MutedNoCamera);
@@ -1991,9 +1978,10 @@ bool GroupCall::emitShareScreenError() {
 		emitShareScreenError(error);
 		return true;
 	};
-	/*if (const auto real = lookupReal(); real && !real->canStartVideo()) {
+	if (const auto real = lookupReal()
+		; real && _activeVideoTracks.size() >= real->unmutedVideoLimit()) {
 		return emitError(Error::DisabledNoScreen);
-	} else */if (!videoIsWorking()) {
+	} else if (!videoIsWorking()) {
 		return emitError(Error::DisabledNoScreen);
 	} else if (mutedByAdmin()) {
 		return emitError(Error::MutedNoScreen);
