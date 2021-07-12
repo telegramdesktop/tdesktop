@@ -246,51 +246,6 @@ void ShowEditPermissions(
 	}, box->lifetime());
 }
 
-void ShowEditInviteLinks(
-		not_null<Window::SessionNavigation*> navigation,
-		not_null<PeerData*> peer) {
-	auto content = Box<EditPeerPermissionsBox>(navigation, peer);
-	const auto box = QPointer<EditPeerPermissionsBox>(content.data());
-	navigation->parentController()->show(
-		std::move(content),
-		Ui::LayerOption::KeepOther);
-	const auto saving = box->lifetime().make_state<int>(0);
-	const auto save = [=](
-			not_null<PeerData*> peer,
-			EditPeerPermissionsBox::Result result) {
-		Expects(result.slowmodeSeconds == 0 || peer->isChannel());
-
-		const auto close = crl::guard(box, [=] { box->closeBox(); });
-		SaveDefaultRestrictions(
-			peer,
-			result.rights,
-			close);
-		if (const auto channel = peer->asChannel()) {
-			SaveSlowmodeSeconds(channel, result.slowmodeSeconds, close);
-		}
-	};
-	box->saveEvents(
-	) | rpl::start_with_next([=](EditPeerPermissionsBox::Result result) {
-		if (*saving) {
-			return;
-		}
-		*saving = true;
-
-		const auto saveFor = peer->migrateToOrMe();
-		const auto chat = saveFor->asChat();
-		if (!result.slowmodeSeconds || !chat) {
-			save(saveFor, result);
-			return;
-		}
-		const auto api = &peer->session().api();
-		api->migrateChat(chat, [=](not_null<ChannelData*> channel) {
-			save(channel, result);
-		}, [=](const MTP::Error &error) {
-			*saving = false;
-		});
-	}, box->lifetime());
-}
-
 } // namespace
 
 namespace {

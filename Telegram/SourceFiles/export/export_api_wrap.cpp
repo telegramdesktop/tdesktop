@@ -40,12 +40,6 @@ struct LocationKey {
 	}
 };
 
-std::tuple<const uint64 &, const uint64 &> value_ordering_helper(const LocationKey &value) {
-	return std::tie(
-		value.type,
-		value.id);
-}
-
 LocationKey ComputeLocationKey(const Data::FileLocation &value) {
 	auto result = LocationKey();
 	result.type = value.dcId;

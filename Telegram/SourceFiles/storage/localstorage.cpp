@@ -92,10 +92,6 @@ enum class WriteMapWhen {
 	Soon,
 };
 
-bool _working() {
-	return !_basePath.isEmpty();
-}
-
 bool CheckStreamStatus(QDataStream &stream) {
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("Bad data stream status: %1").arg(stream.status()));

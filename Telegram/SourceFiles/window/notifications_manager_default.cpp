@@ -41,10 +41,6 @@ namespace Notifications {
 namespace Default {
 namespace {
 
-int notificationMaxHeight() {
-	return st::notifyMinHeight + st::notifyReplyArea.heightMax + st::notifyBorderWidth;
-}
-
 QPoint notificationStartPosition() {
 	const auto corner = Core::App().settings().notificationsCorner();
 	const auto window = Core::App().activeWindow();

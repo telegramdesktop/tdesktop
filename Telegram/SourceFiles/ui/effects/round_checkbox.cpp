@@ -258,37 +258,6 @@ CheckCaches *FrameCaches() {
 	return result;
 }
 
-void prepareCheckCaches(const style::RoundCheckbox *st, bool displayInactive, QPixmap &checkBgCache, QPixmap &checkFullCache) {
-	auto size = st->size;
-	auto wideSize = size * kWideScale;
-	auto cache = QImage(wideSize * cIntRetinaFactor(), wideSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	cache.setDevicePixelRatio(cRetinaFactor());
-	cache.fill(Qt::transparent);
-	{
-		Painter p(&cache);
-		PainterHighQualityEnabler hq(p);
-
-		if (displayInactive) {
-			p.setPen(Qt::NoPen);
-		} else {
-			auto pen = st->border->p;
-			pen.setWidth(st->width);
-			p.setPen(pen);
-		}
-		p.setBrush(st->bgActive);
-		auto ellipse = QRect((wideSize - size) / 2, (wideSize - size) / 2, size, size);
-		p.drawEllipse(ellipse);
-	}
-	auto cacheIcon = cache;
-	{
-		Painter p(&cacheIcon);
-		auto ellipse = QRect((wideSize - size) / 2, (wideSize - size) / 2, size, size);
-		st->check.paint(p, ellipse.topLeft(), wideSize);
-	}
-	checkBgCache = Ui::PixmapFromImage(std::move(cache));
-	checkFullCache = Ui::PixmapFromImage(std::move(cacheIcon));
-}
-
 } // namespace
 
 RoundCheckbox::RoundCheckbox(const style::RoundCheckbox &st, Fn<void()> updateCallback)

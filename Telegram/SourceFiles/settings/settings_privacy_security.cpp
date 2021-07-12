@@ -237,15 +237,6 @@ void SetupArchiveAndMute(
 	));
 }
 
-not_null<Ui::SlideWrap<Ui::PlainShadow>*> AddSeparator(
-		not_null<Ui::VerticalLayout*> container) {
-	return container->add(
-		object_ptr<Ui::SlideWrap<Ui::PlainShadow>>(
-			container,
-			object_ptr<Ui::PlainShadow>(container),
-			st::settingsSeparatorPadding));
-}
-
 void SetupLocalPasscode(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container) {

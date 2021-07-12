@@ -96,6 +96,7 @@ void Bar::paintEvent(QPaintEvent *e) {
 		_soon ? st::outdateSoonBg : st::outdatedBg);
 }
 
+#ifdef DESKTOP_APP_SPECIAL_TARGET
 QString LastHiddenPath() {
 	return cWorkingDir() + qsl("tdata/outdated_hidden");
 }
@@ -145,6 +146,7 @@ void Closed() {
 		reinterpret_cast<const char*>(&value),
 		sizeof(qint32)));
 }
+#endif // DESKTOP_APP_SPECIAL_TARGET
 
 } // namespace
 
