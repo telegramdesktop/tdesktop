@@ -29,7 +29,7 @@ void AttachControls::paint(Painter &p, int x, int y) {
 		st::sendBoxAlbumGroupButtonMediaEdit.paintInCenter(p, leftRect);
 		QRect rightRect(x + groupHalfWidth, y, groupHalfWidth, groupHeight);
 		st::sendBoxAlbumGroupButtonMediaDelete.paintInCenter(p, rightRect);
-	} else {
+	} else if (_type == Type::EditOnly) {
 		st::sendBoxAlbumButtonMediaEdit.paintInCenter(p, groupRect);
 	}
 }
@@ -37,13 +37,17 @@ void AttachControls::paint(Painter &p, int x, int y) {
 int AttachControls::width() const {
 	return (_type == Type::Full)
 		? st::sendBoxAlbumGroupSize.width()
-		: st::sendBoxAlbumSmallGroupSize.width();
+		: (_type == Type::EditOnly)
+		? st::sendBoxAlbumSmallGroupSize.width()
+		: 0;
 }
 
 int AttachControls::height() const {
 	return (_type == Type::Full)
 		? st::sendBoxAlbumGroupSize.height()
-		: st::sendBoxAlbumSmallGroupSize.height();
+		: (_type == Type::EditOnly)
+		? st::sendBoxAlbumSmallGroupSize.height()
+		: 0;
 }
 
 AttachControls::Type AttachControls::type() const {

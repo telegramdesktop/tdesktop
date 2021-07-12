@@ -18,6 +18,7 @@ public:
 	enum class Type {
 		Full,
 		EditOnly,
+		None,
 	};
 
 	AttachControls();

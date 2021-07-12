@@ -20,12 +20,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 
 namespace Ui {
+namespace {
+
+AttachControls::Type CheckControlsType(
+		not_null<HistoryItem*> item,
+		AttachControls::Type type) {
+	const auto media = item->media();
+	Assert(media != nullptr);
+	return media->allowsEditMedia()
+		? type
+		: AttachControls::Type::None;
+}
+
+} // namespace
 
 ItemSingleFilePreview::ItemSingleFilePreview(
 	QWidget *parent,
 	not_null<HistoryItem*> item,
 	AttachControls::Type type)
-: AbstractSingleFilePreview(parent, type) {
+: AbstractSingleFilePreview(parent, CheckControlsType(item, type)) {
 	const auto media = item->media();
 	Assert(media != nullptr);
 	const auto document = media->document();

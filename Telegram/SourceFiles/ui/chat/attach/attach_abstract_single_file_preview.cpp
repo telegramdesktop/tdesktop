@@ -33,6 +33,9 @@ AbstractSingleFilePreview::AbstractSingleFilePreview(
 	} else if (type == AttachControls::Type::EditOnly) {
 		_deleteMedia->hide();
 		_editMedia->show();
+	} else if (type == AttachControls::Type::None) {
+		_deleteMedia->hide();
+		_editMedia->hide();
 	}
 }
 
