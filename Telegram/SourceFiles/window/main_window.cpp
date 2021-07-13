@@ -491,11 +491,9 @@ void MainWindow::initSize() {
 	}
 
 	const auto primaryScreen = QGuiApplication::primaryScreen();
-	auto geometryScreen = primaryScreen;
 	const auto available = primaryScreen
 		? primaryScreen->availableGeometry()
 		: QRect(0, 0, st::windowDefaultWidth, st::windowDefaultHeight);
-	bool maximized = false;
 	const auto initialWidth = Core::Settings::ThirdColumnByDefault()
 		? st::windowBigDefaultWidth
 		: st::windowDefaultWidth;
@@ -561,13 +559,11 @@ void MainWindow::initSize() {
 						position.y + st::windowMinHeight <= screenGeometry.y() + screenGeometry.height()) {
 						DEBUG_LOG(("Window Pos: Resulting geometry is %1, %2, %3, %4").arg(position.x).arg(position.y).arg(position.w).arg(position.h));
 						geometry = QRect(position.x, position.y, position.w, position.h);
-						geometryScreen = screen;
 					}
 				}
 				break;
 			}
 		}
-		maximized = position.maximized;
 	}
 	geometry += _padding;
 	DEBUG_LOG(("Window Pos: Setting first %1, %2, %3, %4").arg(geometry.x()).arg(geometry.y()).arg(geometry.width()).arg(geometry.height()));

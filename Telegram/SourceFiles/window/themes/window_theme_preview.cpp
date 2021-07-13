@@ -31,7 +31,7 @@ QString fillLetters(const QString &name) {
 	auto ch = name.constData(), end = ch + name.size();
 	while (ch != end) {
 		auto emojiLength = 0;
-		if (auto emoji = Ui::Emoji::Find(ch, end, &emojiLength)) {
+		if (Ui::Emoji::Find(ch, end, &emojiLength)) {
 			ch += emojiLength;
 		} else if (ch->isHighSurrogate()) {
 			++ch;
@@ -243,10 +243,8 @@ void Generator::addAudioBubble(QVector<int> waveform, int waveactive, QString wa
 	auto skipBlock = computeSkipBlock(status, date);
 
 	auto width = st::msgFileMinWidth;
-	auto tleft = 0, tright = 0;
 	const auto &st = st::msgFileLayout;
-	tleft = st.padding.left() + st.thumbSize + st.padding.right();
-	tright = st.padding.left();
+	auto tleft = st.padding.left() + st.thumbSize + st.padding.right();
 	accumulate_max(width, tleft + st::normalFont->width(wavestatus) + skipBlock.width() + st::msgPadding.right());
 	accumulate_min(width, st::msgMaxWidth);
 

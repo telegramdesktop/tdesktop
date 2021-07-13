@@ -1637,7 +1637,7 @@ void InnerWidget::updateSelected() {
 		dragState = view->textState(itemPoint, request);
 		lnkhost = view;
 		if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
-			if (auto message = item->toHistoryMessage()) {
+			if (item->toHistoryMessage()) {
 				if (view->hasFromPhoto()) {
 					enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
 						// stop enumeration if the userpic is below our point

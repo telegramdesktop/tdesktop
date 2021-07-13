@@ -335,7 +335,6 @@ void ChooseJoinAsProcess::start(
 	}, _request->lifetime);
 
 	const auto finish = [=](JoinInfo info) {
-		const auto peer = _request->peer;
 		const auto done = std::move(_request->done);
 		const auto box = _request->box;
 		_request = nullptr;

@@ -2439,7 +2439,7 @@ void OverlayWidget::displayDocument(
 	_docIconRect = QRect((width() - st::mediaviewFileIconSize) / 2, (height() - st::mediaviewFileIconSize) / 2, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	int32 colorIndex = documentColorIndex(_document, _docExt);
 	_docIconColor = documentColor(colorIndex);
-	const style::icon *(thumbs[]) = { &st::mediaviewFileBlue, &st::mediaviewFileGreen, &st::mediaviewFileRed, &st::mediaviewFileYellow };
+	const style::icon *thumbs[] = { &st::mediaviewFileBlue, &st::mediaviewFileGreen, &st::mediaviewFileRed, &st::mediaviewFileYellow };
 	_docIcon = thumbs[colorIndex];
 
 	int32 extmaxw = (st::mediaviewFileIconSize - st::mediaviewFileExtPadding * 2);
@@ -3429,7 +3429,7 @@ void OverlayWidget::paintThemePreviewContent(
 			width(),
 			st::themePreviewMargin.top());
 	}
-	if (const auto fillTitleRect = (titleRect.y() < 0)) {
+	if (titleRect.y() < 0) {
 		titleRect.moveTop(0);
 		fillOverlay(titleRect);
 	}
@@ -3457,8 +3457,7 @@ void OverlayWidget::paintThemePreviewContent(
 		outer.y() + outer.height() - st::themePreviewMargin.bottom(),
 		outer.width(),
 		st::themePreviewMargin.bottom());
-	if (const auto fillButtonsRect
-		= (buttonsRect.y() + buttonsRect.height() > height())) {
+	if (buttonsRect.y() + buttonsRect.height() > height()) {
 		buttonsRect.moveTop(height() - buttonsRect.height());
 		fillOverlay(buttonsRect);
 	}

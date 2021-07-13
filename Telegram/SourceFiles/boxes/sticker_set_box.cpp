@@ -761,7 +761,6 @@ void StickerSetBox::Inner::visibleTopBottomUpdated(
 
 void StickerSetBox::Inner::setupLottie(int index) {
 	auto &element = _elements[index];
-	const auto document = element.document;
 
 	element.animated = ChatHelpers::LottieAnimationFromDocument(
 		getLottiePlayer(),

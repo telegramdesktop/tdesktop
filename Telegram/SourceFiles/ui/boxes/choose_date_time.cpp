@@ -126,7 +126,6 @@ private:
 	void setInnerFocus();
 	void putNext(const object_ptr<TimePart> &field, QChar ch);
 	void erasePrevious(const object_ptr<TimePart> &field);
-	void finishInnerAnimating();
 	void setErrorShown(bool error);
 	void setFocused(bool focused);
 	void startBorderAnimation();
@@ -536,14 +535,6 @@ void TimeInput::setFocused(bool focused) {
 			st::scheduleDateField.duration);
 		startBorderAnimation();
 	}
-}
-
-void TimeInput::finishInnerAnimating() {
-	_hour->finishAnimating();
-	_minute->finishAnimating();
-	_a_borderOpacity.stop();
-	_a_borderShown.stop();
-	_a_error.stop();
 }
 
 void TimeInput::startBorderAnimation() {

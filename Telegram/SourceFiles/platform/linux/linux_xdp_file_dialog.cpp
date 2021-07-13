@@ -176,20 +176,14 @@ public:
 		}
 	}
 
-	bool defaultNameFilterDisables() const;
 	QUrl directory() const;
 	void setDirectory(const QUrl &directory);
 	void selectFile(const QUrl &filename);
 	QList<QUrl> selectedFiles() const;
-	void setFilter();
-	void selectNameFilter(const QString &filter);
-	QString selectedNameFilter() const;
-	void selectMimeTypeFilter(const QString &filter);
-	QString selectedMimeTypeFilter() const;
 
 	int exec() override;
 
-	bool failedToOpen() {
+	bool failedToOpen() const {
 		return _failedToOpen;
 	}
 
@@ -517,10 +511,6 @@ void XDPFileDialog::openPortal() {
 	}
 }
 
-bool XDPFileDialog::defaultNameFilterDisables() const {
-	return false;
-}
-
 void XDPFileDialog::setDirectory(const QUrl &directory) {
 	_directory = directory.path().toStdString();
 }
@@ -542,23 +532,6 @@ QList<QUrl> XDPFileDialog::selectedFiles() const {
 			return QUrl(QString::fromStdString(string));
 		});
 	return files;
-}
-
-void XDPFileDialog::setFilter() {
-}
-
-void XDPFileDialog::selectMimeTypeFilter(const QString &filter) {
-}
-
-QString XDPFileDialog::selectedMimeTypeFilter() const {
-	return QString::fromStdString(_selectedMimeTypeFilter);
-}
-
-void XDPFileDialog::selectNameFilter(const QString &filter) {
-}
-
-QString XDPFileDialog::selectedNameFilter() const {
-	return QString::fromStdString(_selectedNameFilter);
 }
 
 int XDPFileDialog::exec() {

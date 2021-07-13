@@ -1880,7 +1880,6 @@ void StickersListWidget::ensureLottiePlayer(Set &set) {
 
 void StickersListWidget::setupLottie(Set &set, int section, int index) {
 	auto &sticker = set.stickers[index];
-	const auto document = sticker.document;
 	ensureLottiePlayer(set);
 
 	// Document should be loaded already for the animation to be set up.

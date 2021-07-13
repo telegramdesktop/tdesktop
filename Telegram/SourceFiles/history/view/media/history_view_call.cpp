@@ -81,12 +81,11 @@ void Call::draw(Painter &p, const QRect &r, TextSelection selection, crl::time m
 
 	accumulate_min(paintw, maxWidth());
 
-	auto nameleft = 0, nametop = 0, nameright = 0, statustop = 0;
+	auto nameleft = 0, nametop = 0, statustop = 0;
 	auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
 
 	nameleft = st::historyCallLeft;
 	nametop = st::historyCallTop - topMinus;
-	nameright = st::msgFileLayout.padding.left();
 	statustop = st::historyCallStatusTop - topMinus;
 
 	p.setFont(st::semiboldFont);

@@ -198,7 +198,7 @@ ClickHandlerPtr ItemBase::getResultPreviewHandler() const {
 			_result->_content_url,
 			false);
 	} else if (const auto document = _result->_document
-		&& _result->_document->createMediaView()->canBePlayed()) {
+		; document->createMediaView()->canBePlayed()) {
 		return std::make_shared<OpenFileClickHandler>();
 	} else if (_result->_photo) {
 		return std::make_shared<OpenFileClickHandler>();
