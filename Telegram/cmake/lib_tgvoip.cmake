@@ -191,7 +191,7 @@ if (NOT TGVOIP_FOUND)
     if (LINUX)
         if (NOT LIBTGVOIP_DISABLE_ALSA)
             find_package(ALSA REQUIRED)
-            target_include_directories(lib_tgvoip_bundled PRIVATE ${ALSA_INCLUDE_DIRS})
+            target_include_directories(lib_tgvoip_bundled SYSTEM PRIVATE ${ALSA_INCLUDE_DIRS})
         else()
             remove_target_sources(lib_tgvoip_bundled ${tgvoip_loc}
                 os/linux/AudioInputALSA.cpp
@@ -206,7 +206,7 @@ if (NOT TGVOIP_FOUND)
         if (NOT LIBTGVOIP_DISABLE_PULSEAUDIO)
             find_package(PkgConfig REQUIRED)
             pkg_check_modules(PULSE REQUIRED libpulse)
-            target_include_directories(lib_tgvoip_bundled PRIVATE ${PULSE_INCLUDE_DIRS})
+            target_include_directories(lib_tgvoip_bundled SYSTEM PRIVATE ${PULSE_INCLUDE_DIRS})
         else()
             remove_target_sources(lib_tgvoip_bundled ${tgvoip_loc}
                 os/linux/AudioOutputPulse.cpp
