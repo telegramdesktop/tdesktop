@@ -11,13 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_location.h"
 
 namespace Media {
-namespace {
-
-constexpr AVSampleFormat AudioToFormat = AV_SAMPLE_FMT_S16;
-constexpr int64_t AudioToChannelLayout = AV_CH_LAYOUT_STEREO;
-constexpr int32 AudioToChannels = 2;
-
-} // namespace
 
 ChildFFMpegLoader::ChildFFMpegLoader(
 	std::unique_ptr<ExternalSoundData> &&data)

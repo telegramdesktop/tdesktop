@@ -31,7 +31,6 @@ CachedUserpics::CachedUserpics(Type type)
 
 CachedUserpics::~CachedUserpics() {
 	if (_someSavedFlag) {
-		crl::time result = 0;
 		for (const auto &item : std::as_const(_images)) {
 			QFile(item.path).remove();
 		}

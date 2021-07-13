@@ -271,10 +271,6 @@ void Widget::handleSeekProgress(float64 progress) {
 void Widget::handleSeekFinished(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	const auto positionMs = std::clamp(
-		static_cast<crl::time>(progress * _lastDurationMs),
-		crl::time(0),
-		_lastDurationMs);
 	_seekPositionMs = -1;
 
 	instance()->finishSeeking(_type, progress);
@@ -464,7 +460,6 @@ void Widget::handleSongUpdate(const TrackState &state) {
 		_playbackProgress->updateState(state);
 	}
 
-	auto stopped = IsStoppedOrStopping(state.state);
 	auto showPause = ShowPauseIcon(state.state);
 	if (instance()->isSeeking(_type)) {
 		showPause = true;

@@ -58,8 +58,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-// If we can't cloud-export link for such time we export it locally.
-constexpr auto kExportLocalTimeout = crl::time(1000);
 constexpr auto kRescheduleLimit = 20;
 
 MsgId ItemIdAcrossData(not_null<HistoryItem*> item) {
@@ -772,7 +770,6 @@ void AddReportAction(
 		return;
 	}
 	const auto owner = &item->history()->owner();
-	const auto asGroup = (request.pointState != PointState::GroupPart);
 	const auto controller = list->controller();
 	const auto itemId = item->fullId();
 	const auto callback = crl::guard(controller, [=] {
@@ -898,7 +895,6 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	const auto rawLink = link.get();
 	const auto linkPhoto = dynamic_cast<PhotoClickHandler*>(rawLink);
 	const auto linkDocument = dynamic_cast<DocumentClickHandler*>(rawLink);
-	const auto linkPeer = dynamic_cast<PeerClickHandler*>(rawLink);
 	const auto photo = linkPhoto ? linkPhoto->photo().get() : nullptr;
 	const auto document = linkDocument
 		? linkDocument->document().get()

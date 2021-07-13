@@ -480,7 +480,6 @@ void Autocomplete::submitValue(const QString &value) {
 	if (value.startsWith(prefix)) {
 		const auto line = value.indexOf('\n');
 		const auto text = (line > 0) ? value.mid(line + 1) : QString();
-		const auto commented = !text.isEmpty();
 		const auto contact = value.mid(
 			prefix.size(),
 			(line > 0) ? (line - prefix.size()) : -1);

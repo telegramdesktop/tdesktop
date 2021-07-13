@@ -77,7 +77,6 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 	const auto item = _parent->data();
 	accumulate_min(newWidth, maxWidth());
 	if (_parent->media() == this) {
-		const auto infoWidth = _parent->infoWidth() + 2 * st::msgDateImgPadding.x();
 		const auto via = item->Get<HistoryMessageVia>();
 		const auto reply = _parent->displayedReply();
 		const auto forwarded = getDisplayedForwardedInfo();

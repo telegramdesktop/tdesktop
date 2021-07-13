@@ -528,10 +528,6 @@ bool GroupCall::requestParticipantsAfterReload(
 void GroupCall::applyParticipantsSlice(
 		const QVector<MTPGroupCallParticipant> &list,
 		ApplySliceSource sliceSource) {
-	const auto amInCall = inCall();
-	const auto now = base::unixtime::now();
-	const auto speakingAfterActive = TimeId(kSpeakingAfterActive / 1000);
-
 	for (const auto &participant : list) {
 		participant.match([&](const MTPDgroupCallParticipant &data) {
 			const auto participantPeerId = peerFromMTP(data.vpeer());
@@ -568,10 +564,6 @@ void GroupCall::applyParticipantsSlice(
 				|| data.is_can_self_unmute();
 			const auto lastActive = data.vactive_date().value_or(
 				was ? was->lastActive : 0);
-			const auto speaking = canSelfUnmute
-				&& ((was ? was->speaking : false)
-					|| (!amInCall
-						&& (lastActive + speakingAfterActive > now)));
 			const auto volume = (was
 				&& !was->applyVolumeFromMin
 				&& data.is_min())

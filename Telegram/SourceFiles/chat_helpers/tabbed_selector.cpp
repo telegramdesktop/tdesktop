@@ -130,8 +130,6 @@ void TabbedSelector::SlideAnimation::paintFrame(QPainter &p, float64 dt, float64
 
 	_frameAlpha = anim::interpolate(1, 256, opacity);
 
-	auto frameInts = _frameInts + _innerLeft + _innerTop * _frameIntsPerLine;
-
 	auto leftToRight = (_direction == Direction::LeftToRight);
 
 	auto easeOut = anim::easeOutCirc(1., dt);
@@ -241,7 +239,7 @@ void TabbedSelector::SlideAnimation::paintFrame(QPainter &p, float64 dt, float64
 	}
 
 	// Debug
-	//frameInts = _frameInts;
+	//auto frameInts = _frameInts;
 	//auto pattern = anim::shifted((static_cast<uint32>(0xFF) << 24) | (static_cast<uint32>(0xFF) << 16) | (static_cast<uint32>(0xFF) << 8) | static_cast<uint32>(0xFF));
 	//for (auto y = 0; y != _finalHeight; ++y) {
 	//	for (auto x = 0; x != _finalWidth; ++x) {
@@ -938,7 +936,6 @@ void TabbedSelector::switchTab() {
 	}
 
 	const auto wasSectionIcons = hasSectionIcons();
-	const auto wasTab = _currentTabType;
 	const auto wasIndex = indexByType(_currentTabType);
 	currentTab()->saveScrollTop();
 
@@ -1154,7 +1151,6 @@ int TabbedSelector::Inner::resizeGetHeight(int newWidth) {
 }
 
 int TabbedSelector::Inner::minimalHeight() const {
-	auto result = _minimalHeight;
 	return (_minimalHeight > 0)
 		? _minimalHeight
 		: (st::emojiPanMaxHeight - st::emojiFooterHeight);

@@ -2378,7 +2378,6 @@ void ListWidget::mouseActionUpdate() {
 			if (dateTop <= point.y()) {
 				auto opacity = (dateInPlace/* || noFloatingDate*/) ? 1. : scrollDateOpacity;
 				if (opacity > 0.) {
-					const auto item = view->data();
 					auto dateWidth = 0;
 					if (const auto date = view->Get<HistoryView::DateBadge>()) {
 						dateWidth = date->width;
@@ -2427,7 +2426,6 @@ void ListWidget::mouseActionUpdate() {
 							const auto message = view->data()->toHistoryMessage();
 							Assert(message != nullptr);
 
-							const auto from = message->displayFrom();
 							dragState = TextState(nullptr, view->fromPhotoLink());
 							_overItemExact = session().data().message(dragState.itemId);
 							lnkhost = view;
@@ -2449,7 +2447,6 @@ void ListWidget::mouseActionUpdate() {
 		Ui::Tooltip::Show(1000, this);
 	}
 
-	auto cursor = style::cur_default;
 	if (_mouseAction == MouseAction::None) {
 		_mouseCursorState = dragState.cursor;
 		auto cursor = computeMouseCursor();

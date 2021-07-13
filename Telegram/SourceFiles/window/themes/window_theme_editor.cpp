@@ -164,16 +164,13 @@ bool isValidColorValue(QLatin1String value) {
 		skipWhitespacesAndComments(data, end);
 		if (data == end) break;
 
-		auto foundName = base::parse::readName(data, end);
 		skipWhitespacesAndComments(data, end);
 		if (data == end || *data != ':') {
 			return "error";
 		}
 		++data;
 		skipWhitespacesAndComments(data, end);
-		auto valueStart = data;
 		auto value = readValue(data, end);
-		auto valueEnd = data;
 		if (value.size() == 0) {
 			return "error";
 		}

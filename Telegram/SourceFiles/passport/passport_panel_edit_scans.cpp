@@ -599,19 +599,6 @@ void EditScans::setupSpecialScans(
 		std::map<FileType, ScanInfo> &&files) {
 	const auto requiresBothSides = files.find(FileType::ReverseSide)
 		!= end(files);
-	const auto title = [&](FileType type) {
-		switch (type) {
-		case FileType::FrontSide:
-			return requiresBothSides
-				? tr::lng_passport_front_side_title(tr::now)
-				: tr::lng_passport_main_page_title(tr::now);
-		case FileType::ReverseSide:
-			return tr::lng_passport_reverse_side_title(tr::now);
-		case FileType::Selfie:
-			return tr::lng_passport_selfie_title(tr::now);
-		}
-		Unexpected("Type in special row title.");
-	};
 	const auto uploadText = [=](FileType type, bool hasScan) {
 		switch (type) {
 		case FileType::FrontSide:

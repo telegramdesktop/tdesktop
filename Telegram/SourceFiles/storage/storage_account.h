@@ -62,7 +62,7 @@ public:
 	~Account();
 
 	[[nodiscard]] StartResult legacyStart(const QByteArray &passcode);
-	[[nodiscartd]] std::unique_ptr<MTP::Config> start(
+	[[nodiscard]] std::unique_ptr<MTP::Config> start(
 		MTP::AuthKeyPtr localKey);
 	void startAdded(MTP::AuthKeyPtr localKey);
 	[[nodiscard]] int oldMapVersion() const {

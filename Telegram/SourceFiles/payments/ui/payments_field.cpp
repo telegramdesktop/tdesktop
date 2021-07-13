@@ -341,7 +341,6 @@ struct SimpleFieldState {
 	const auto updateRight = [=] {
 		const auto text = result->getLastText();
 		const auto width = state->st.font->width(text);
-		const auto rect = result->getTextRect();
 		const auto &rule = state->rule;
 		const auto symbol = QChar(rule.decimal);
 		const auto decimal = text.indexOf(symbol);

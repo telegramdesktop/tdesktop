@@ -80,7 +80,6 @@ void ConvertIconToBlack(QImage &image) {
 	constexpr auto igreen = shifter(green);
 	constexpr auto iblue = shifter(blue);
 	constexpr auto threshold = 100;
-	constexpr auto ithreshold = shifter(threshold);
 
 	const auto width = image.width();
 	const auto height = image.height();
@@ -789,7 +788,6 @@ void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 		setInnerFocus();
 	}
 	const auto nowRightWidth = _rightColumn ? _rightColumn->width() : 0;
-	const auto wasMaximized = isMaximized();
 	const auto wasMinimumWidth = minimumWidth();
 	const auto nowMinimumWidth = computeMinWidth();
 	const auto firstResize = (nowMinimumWidth < wasMinimumWidth);

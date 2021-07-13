@@ -566,7 +566,6 @@ void DcKeyCreator::dhClientParamsAnswered(
 			return failed();
 		}
 		attempt->data.new_nonce_buf[32] = bytes::type(2);
-		uchar sha1Buffer[20];
 		if (data.vnew_nonce_hash2() != NonceDigest(attempt->data.new_nonce_buf)) {
 			LOG(("AuthKey Error: received new_nonce_hash2 did not match!"));
 			DEBUG_LOG(("AuthKey Error: received new_nonce_hash2: %1, new_nonce_buf: %2").arg(Logs::mb(&data.vnew_nonce_hash2(), 16).str(), Logs::mb(attempt->data.new_nonce_buf.data(), 41).str()));
@@ -586,7 +585,6 @@ void DcKeyCreator::dhClientParamsAnswered(
 			return failed();
 		}
 		attempt->data.new_nonce_buf[32] = bytes::type(3);
-		uchar sha1Buffer[20];
 		if (data.vnew_nonce_hash3() != NonceDigest(attempt->data.new_nonce_buf)) {
 			LOG(("AuthKey Error: received new_nonce_hash3 did not match!"));
 			DEBUG_LOG(("AuthKey Error: received new_nonce_hash3: %1, new_nonce_buf: %2").arg(Logs::mb(&data.vnew_nonce_hash3(), 16).str(), Logs::mb(attempt->data.new_nonce_buf.data(), 41).str()));

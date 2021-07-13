@@ -156,7 +156,6 @@ void SendBotCallbackDataWithPassword(
 	const auto session = &history->session();
 	const auto owner = &history->owner();
 	const auto api = &session->api();
-	const auto bot = item->getMessageBot();
 	const auto fullId = item->fullId();
 	const auto getButton = [=] {
 		return HistoryMessageMarkupButton::Get(

@@ -797,10 +797,6 @@ void MainWidget::cacheBackground() {
 		result.setDevicePixelRatio(cRetinaFactor());
 		{
 			QPainter p(&result);
-			auto left = 0;
-			auto top = 0;
-			auto right = _willCacheFor.width();
-			auto bottom = _willCacheFor.height();
 			auto w = bg.width() / cRetinaFactor();
 			auto h = bg.height() / cRetinaFactor();
 			auto sx = 0;
@@ -1691,7 +1687,6 @@ Window::SectionSlideParams MainWidget::prepareThirdSectionAnimation(Window::Sect
 		result.withTopBarShadow = false;
 	}
 	floatPlayerHideAll();
-	auto sectionTop = getThirdSectionTop();
 	result.oldContentCache = _thirdSection->grabForShowAnimation(result);
 	floatPlayerShowVisible();
 	return result;

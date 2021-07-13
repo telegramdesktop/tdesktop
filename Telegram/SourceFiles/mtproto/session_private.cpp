@@ -1962,7 +1962,7 @@ mtpBuffer SessionPrivate::ungzip(const mtpPrime *from, const mtpPrime *end) cons
 		LOG(("RPC Error: could not read gziped bytes."));
 		return result;
 	}
-	uint32 packedLen = packed.v.size(), unpackedChunk = packedLen, unpackedLen = 0;
+	uint32 packedLen = packed.v.size(), unpackedChunk = packedLen;
 
 	z_stream stream;
 	stream.zalloc = 0;
@@ -2049,8 +2049,6 @@ void SessionPrivate::correctUnixtimeWithBadLocal(TimeId serverTime) {
 }
 
 void SessionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byResponse) {
-	uint32 idsCount = ids.size();
-
 	DEBUG_LOG(("Message Info: requests acked, ids %1").arg(LogIdsVector(ids)));
 
 	QVector<MTPlong> toAckMore;

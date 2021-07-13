@@ -197,7 +197,6 @@ void GroupMembersWidget::refreshMembers() {
 		}
 		fillChatMembers(chat);
 	} else if (const auto megagroup = peer()->asMegagroup()) {
-		auto &megagroupInfo = megagroup->mgInfo;
 		if (megagroup->lastParticipantsRequestNeeded()) {
 			megagroup->session().api().requestLastParticipants(megagroup);
 		}
@@ -213,7 +212,7 @@ void GroupMembersWidget::checkSelfAdmin(not_null<ChatData*> chat) {
 		return;
 	}
 
-	const auto self = chat->session().user();
+	//const auto self = chat->session().user();
 	//if (chat->amAdmin() && !chat->admins.contains(self)) {
 	//	chat->admins.insert(self);
 	//} else if (!chat->amAdmin() && chat->admins.contains(self)) {

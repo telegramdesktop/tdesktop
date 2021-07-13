@@ -15,7 +15,6 @@ namespace HistoryView {
 WebPageText TitleAndDescriptionFromWebPage(not_null<WebPageData*> d) {
 	QString resultTitle, resultDescription;
 	const auto document = d->document;
-	const auto photo = d->photo;
 	const auto author = d->author;
 	const auto siteName = d->siteName;
 	const auto title = d->title;

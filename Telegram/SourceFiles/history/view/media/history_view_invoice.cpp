@@ -99,7 +99,6 @@ QSize Invoice::countOptimalSize() {
 	}
 
 	// init dimensions
-	auto l = st::msgPadding.left(), r = st::msgPadding.right();
 	auto skipBlockWidth = _parent->skipBlockWidth();
 	auto maxWidth = skipBlockWidth;
 	auto minHeight = 0;
@@ -202,14 +201,12 @@ void Invoice::refreshParentId(not_null<HistoryItem*> realParent) {
 
 void Invoice::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
-	auto paintw = width(), painth = height();
+	auto paintw = width();
 
 	auto outbg = _parent->hasOutLayout();
 	bool selected = (selection == FullSelection);
 
-	auto &barfg = selected ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
 	auto &semibold = selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg);
-	auto &regular = selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg);
 
 	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
 	auto padding = inBubblePadding();
@@ -252,7 +249,6 @@ void Invoice::draw(Painter &p, const QRect &r, TextSelection selection, crl::tim
 		p.translate(attachLeft, attachTop);
 		_attach->draw(p, r.translated(-attachLeft, -attachTop), attachSelection, ms);
 		auto pixwidth = _attach->width();
-		auto pixheight = _attach->height();
 
 		auto available = _status.maxWidth();
 		auto statusW = available + 2 * st::msgDateImgPadding.x();
@@ -279,7 +275,7 @@ TextState Invoice::textState(QPoint point, StateRequest request) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) {
 		return result;
 	}
-	auto paintw = width(), painth = height();
+	auto paintw = width();
 
 	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
 	auto padding = inBubblePadding();

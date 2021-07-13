@@ -68,7 +68,6 @@ namespace Data {
 namespace {
 
 constexpr auto kMaxNotifyCheckDelay = 24 * 3600 * crl::time(1000);
-constexpr auto kMaxWallpaperSize = 10 * 1024 * 1024;
 
 using ViewElement = HistoryView::Element;
 
@@ -183,7 +182,6 @@ std::vector<UnavailableReason> ExtractUnavailableReasons(
 [[nodiscard]] std::optional<MTPVideoSize> FindDocumentVideoThumbnail(
 		const MTPDdocument &data) {
 	const auto area = [](const MTPVideoSize &size) {
-		static constexpr auto kInvalid = 0;
 		return size.match([](const MTPDvideoSize &data) {
 			return (data.vw().v * data.vh().v);
 		});
@@ -1044,7 +1042,6 @@ void Session::registerSendAction(
 	if (sendAction->updateNeedsAnimating(user, action)) {
 		user->madeAction(when);
 
-		const auto i = _sendActions.find(std::pair{ history, rootId });
 		if (!_sendActions.contains(std::pair{ history, rootId })) {
 			_sendActions.emplace(std::pair{ history, rootId }, crl::now());
 			_sendActionsAnimation.start();
@@ -2575,7 +2572,6 @@ void Session::photoApplyFields(
 		const MTPDphoto &data) {
 	const auto &sizes = data.vsizes().v;
 	const auto progressive = [&] {
-		const auto kInvalidIndex = sizes.size();
 		const auto area = [&](const MTPPhotoSize &size) {
 			return size.match([](const MTPDphotoSizeProgressive &data) {
 				return data.vw().v * data.vh().v;
@@ -4062,7 +4058,6 @@ void Session::insertCheckedServiceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media,
 		TimeId date) {
-	const auto history = this->history(PeerData::kServiceNotificationsId);
 	const auto flags = MTPDmessage::Flag::f_entities
 		| MTPDmessage::Flag::f_from_id
 		| MTPDmessage::Flag::f_media;

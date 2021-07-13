@@ -292,7 +292,6 @@ bool ValueChanged(not_null<const Value*> value, const ValueMap &data) {
 		return file.deleted;
 	};
 
-	auto filesCount = 0;
 	for (const auto &scan : value->filesInEdit(FileType::Scan)) {
 		if (FileChanged(scan)) {
 			return true;
@@ -1139,7 +1138,6 @@ void FormController::decryptValues() {
 
 void FormController::fillErrors() {
 	const auto find = [&](const MTPSecureValueType &type) -> Value* {
-		const auto converted = ConvertType(type);
 		const auto i = _form.values.find(ConvertType(type));
 		if (i != end(_form.values)) {
 			return &i->second;
@@ -1382,7 +1380,6 @@ void FormController::uploadScan(
 			nullptr);
 		if (type == FileType::Scan || type == FileType::Translation) {
 			auto &list = nonconst->filesInEdit(type);
-			auto scanIndex = int(list.size());
 			list.push_back(std::move(scanInEdit));
 			return list.size() - 1;
 		}

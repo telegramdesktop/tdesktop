@@ -474,7 +474,6 @@ void Updates::differenceDone(const MTPupdates_Difference &result) {
 		stateDone(d.vstate());
 	} break;
 	case mtpc_updates_differenceTooLong: {
-		auto &d = result.c_updates_differenceTooLong();
 		LOG(("API Error: updates.differenceTooLong is not supported by Telegram Desktop!"));
 	} break;
 	};
@@ -1030,9 +1029,6 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 		const auto &d = updates.c_updateShortMessage();
 		const auto flags = mtpCastFlags(d.vflags().v)
 			| MTPDmessage::Flag::f_from_id;
-		const auto peerUserId = d.is_out()
-			? d.vuser_id()
-			: MTP_int(_session->userId().bare); // #TODO ids
 		_session->data().addNewMessage(
 			MTP_message(
 				MTP_flags(flags),
@@ -1250,7 +1246,6 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 
 	case mtpc_updatePinnedMessages: {
 		const auto &d = update.c_updatePinnedMessages();
-		const auto peerId = peerFromMTP(d.vpeer());
 		for (const auto &msgId : d.vmessages().v) {
 			const auto item = session().data().message(0, msgId.v);
 			if (item) {
@@ -1607,7 +1602,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				history->setUnreadMark(data.is_unread());
 			}
 		}, [&](const MTPDdialogPeerFolder &dialog) {
-			const auto id = dialog.vfolder_id().v; // #TODO archive
+			//const auto id = dialog.vfolder_id().v; // #TODO archive
 			//if (const auto folder = session().data().folderLoaded(id)) {
 			//	folder->setUnreadMark(data.is_unread());
 			//}
@@ -1868,19 +1863,15 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateNewEncryptedMessage: {
-		auto &d = update.c_updateNewEncryptedMessage();
 	} break;
 
 	case mtpc_updateEncryptedChatTyping: {
-		auto &d = update.c_updateEncryptedChatTyping();
 	} break;
 
 	case mtpc_updateEncryption: {
-		auto &d = update.c_updateEncryption();
 	} break;
 
 	case mtpc_updateEncryptedMessagesRead: {
-		auto &d = update.c_updateEncryptedMessagesRead();
 	} break;
 
 	case mtpc_updatePhoneCall:

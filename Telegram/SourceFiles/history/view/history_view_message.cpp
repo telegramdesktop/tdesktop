@@ -385,7 +385,6 @@ QSize Message::performCountOptimalSize() {
 		const auto reply = displayedReply();
 		const auto via = item->Get<HistoryMessageVia>();
 		const auto entry = logEntryOriginal();
-		const auto views = item->Get<HistoryMessageViews>();
 		if (forwarded) {
 			forwarded->create(via);
 		}
@@ -955,7 +954,6 @@ void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const 
 		const auto forwarded = item->Get<HistoryMessageForwarded>();
 
 		const auto &serviceFont = st::msgServiceFont;
-		const auto &serviceName = st::msgServiceNameFont;
 		const auto skip1 = forwarded->psaType.isEmpty()
 			? 0
 			: st::historyPsaIconSkip1;
@@ -1023,7 +1021,6 @@ void Message::paintForwardedInfo(Painter &p, QRect &trect, bool selected) const 
 }
 
 void Message::paintReplyInfo(Painter &p, QRect &trect, bool selected) const {
-	const auto item = message();
 	if (auto reply = displayedReply()) {
 		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 
@@ -1081,7 +1078,6 @@ PointState Message::pointState(QPoint point) const {
 
 			// Entry page is always a bubble bottom.
 			auto mediaOnBottom = (mediaDisplayed && media->isBubbleBottom()) || (entry/* && entry->isBubbleBottom()*/);
-			auto mediaOnTop = (mediaDisplayed && media->isBubbleTop()) || (entry && entry->isBubbleTop());
 
 			if (item->repliesAreComments() || item->externalReply()) {
 				g.setHeight(g.height() - st::historyCommentsButtonHeight);
@@ -1564,7 +1560,6 @@ bool Message::getStateReplyInfo(
 		QPoint point,
 		QRect &trect,
 		not_null<TextState*> outResult) const {
-	const auto item = message();
 	if (auto reply = displayedReply()) {
 		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		if (point.y() >= trect.top() && point.y() < trect.top() + h) {
@@ -1629,7 +1624,6 @@ void Message::updatePressed(QPoint point) {
 
 	if (drawBubble()) {
 		auto mediaDisplayed = media && media->isDisplayed();
-		auto top = marginTop();
 		auto trect = g.marginsAdded(-st::msgPadding);
 		if (mediaDisplayed && media->isBubbleTop()) {
 			trect.setY(trect.y() - st::msgPadding.top());
@@ -1656,7 +1650,6 @@ void Message::updatePressed(QPoint point) {
 			trect.setHeight(trect.height() + st::msgPadding.bottom());
 		}
 
-		auto needDateCheck = true;
 		if (mediaDisplayed) {
 			auto mediaHeight = media->height();
 			auto mediaLeft = trect.x() - st::msgPadding.left();
@@ -2506,7 +2499,6 @@ TextSelection Message::unskipTextSelection(TextSelection selection) const {
 QRect Message::countGeometry() const {
 	const auto commentsRoot = (context() == Context::Replies)
 		&& data()->isDiscussionPost();
-	const auto item = message();
 	const auto media = this->media();
 	const auto mediaWidth = (media && media->isDisplayed())
 		? media->width()
@@ -2658,9 +2650,6 @@ int Message::resizeContentGetHeight(int newWidth) {
 			const auto skip1 = forwarded->psaType.isEmpty()
 				? 0
 				: st::historyPsaIconSkip1;
-			const auto skip2 = forwarded->psaType.isEmpty()
-				? 0
-				: st::historyPsaIconSkip2;
 			const auto fwdheight = ((forwarded->text.maxWidth() > (contentWidth - st::msgPadding.left() - st::msgPadding.right() - skip1)) ? 2 : 1) * st::semiboldFont->height;
 			newHeight += fwdheight;
 		}
@@ -2697,7 +2686,6 @@ bool Message::hasVisibleText() const {
 }
 
 QSize Message::performCountCurrentSize(int newWidth) {
-	const auto item = message();
 	const auto newHeight = resizeContentGetHeight(newWidth);
 
 	return { newWidth, newHeight };

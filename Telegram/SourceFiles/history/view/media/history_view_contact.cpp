@@ -150,7 +150,7 @@ QSize Contact::countOptimalSize() {
 
 void Contact::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
-	auto paintx = 0, painty = 0, paintw = width(), painth = height();
+	auto paintw = width();
 
 	auto outbg = _parent->hasOutLayout();
 	bool selected = (selection == FullSelection);

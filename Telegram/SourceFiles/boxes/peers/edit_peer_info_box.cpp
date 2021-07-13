@@ -1313,7 +1313,6 @@ void Controller::saveLinkedChat() {
 		channel->setLinkedChat(*_savingData.linkedChat);
 		continueSave();
 	}).fail([=](const MTP::Error &error) {
-		const auto &type = error.type();
 		cancelSave();
 	}).send();
 }
@@ -1366,7 +1365,6 @@ void Controller::saveTitle() {
 }
 
 void Controller::saveDescription() {
-	const auto channel = _peer->asChannel();
 	if (!_savingData.description
 		|| *_savingData.description == _peer->about()) {
 		return continueSave();

@@ -53,7 +53,10 @@ namespace Calls::Group {
 namespace {
 
 constexpr auto kDelaysCount = 201;
+
+#ifdef Q_OS_MAC
 constexpr auto kCheckAccessibilityInterval = crl::time(500);
+#endif // Q_OS_MAC
 
 void SaveCallJoinMuted(
 		not_null<PeerData*> peer,
@@ -96,7 +99,6 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		const QString &linkSpeaker,
 		const QString &linkListener,
 		Fn<void(QString)> showToast) {
-	const auto session = &peer->session();
 	const auto sending = std::make_shared<bool>();
 	const auto box = std::make_shared<QPointer<ShareBox>>();
 
@@ -167,8 +169,6 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		}
 		const auto owner = &peer->owner();
 		auto &api = peer->session().api();
-		auto &histories = owner->histories();
-		const auto requestType = Data::Histories::RequestType::Send;
 		for (const auto peer : result) {
 			const auto history = owner->history(peer);
 			auto message = ApiWrap::MessageToSend(history);

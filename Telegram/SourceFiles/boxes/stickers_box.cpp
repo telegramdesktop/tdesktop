@@ -1702,7 +1702,6 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 			_installSetCallback(_rows[_actionDown]->set->id);
 		}
 	} else if (_dragging >= 0) {
-		QPoint local(mapFromGlobal(_mouse));
 		_rows[_dragging]->yadd.start(0.);
 		_aboveShadowFadeStart = _shiftingStartTimes[_dragging] = crl::now();
 		_aboveShadowFadeOpacity = anim::value(aboveShadowOpacity(), 0);

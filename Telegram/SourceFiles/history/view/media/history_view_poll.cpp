@@ -307,9 +307,6 @@ int Poll::countAnswerTop(
 	}
 	tshift += _question.countHeight(innerWidth) + st::historyPollSubtitleSkip;
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
-	auto &&answers = ranges::views::zip(
-		_answers,
-		ranges::views::ints(0, int(_answers.size())));
 	const auto i = ranges::find(
 		_answers,
 		&answer,
@@ -338,8 +335,6 @@ int Poll::countAnswerHeight(
 }
 
 QSize Poll::countCurrentSize(int newWidth) {
-	const auto paddings = st::msgPadding.left() + st::msgPadding.right();
-
 	accumulate_min(newWidth, maxWidth());
 	const auto innerWidth = newWidth
 		- st::msgPadding.left()
@@ -722,7 +717,7 @@ void Poll::updateAnswerVotes() {
 
 void Poll::draw(Painter &p, const QRect &r, TextSelection selection, crl::time ms) const {
 	if (width() < st::msgPadding.left() + st::msgPadding.right() + 1) return;
-	auto paintx = 0, painty = 0, paintw = width(), painth = height();
+	auto paintw = width();
 
 	checkSendingAnimation();
 	_poll->checkResultsReload(_parent->data(), ms);
@@ -1173,7 +1168,6 @@ void Poll::paintPercent(
 		int outerWidth,
 		TextSelection selection) const {
 	const auto outbg = _parent->hasOutLayout();
-	const auto selected = (selection == FullSelection);
 	const auto aleft = left + st::historyPollAnswerPadding.left();
 
 	top += st::historyPollAnswerPadding.top();
@@ -1329,9 +1323,6 @@ TextState Poll::textState(QPoint point, StateRequest request) const {
 		return result;
 	}
 	tshift += st::msgDateFont->height + st::historyPollAnswersSkip;
-	const auto awidth = paintw
-		- st::historyPollAnswerPadding.left()
-		- st::historyPollAnswerPadding.right();
 	for (const auto &answer : _answers) {
 		const auto height = countAnswerHeight(answer, paintw);
 		if (point.y() >= tshift && point.y() < tshift + height) {
@@ -1384,7 +1375,6 @@ auto Poll::bubbleRoll() const -> BubbleRoll {
 	if (!_wrongAnswerAnimated) {
 		return BubbleRoll();
 	}
-	const auto rotateFull = value * kRotateSegments;
 	const auto progress = [](float64 full) {
 		const auto lower = std::floor(full);
 		const auto shift = (full - lower);

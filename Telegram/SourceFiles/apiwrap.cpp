@@ -3874,7 +3874,6 @@ void ApiWrap::forwardMessages(
 			}
 		}
 		const auto newFrom = item->history()->peer;
-		const auto newGroupId = item->groupId();
 		if (forwardFrom != newFrom) {
 			sendAccumulated();
 			forwardFrom = newFrom;

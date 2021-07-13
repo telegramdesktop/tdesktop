@@ -773,10 +773,8 @@ void Generator::paintBubble(const Bubble &bubble) {
 	} else if (!bubble.waveform.isEmpty()) {
 		const auto &st = st::msgFileLayout;
 		auto nameleft = x + st.padding.left() + st.thumbSize + st.padding.right();
-		auto nametop = y + st.nameTop;
 		auto nameright = st.padding.left();
 		auto statustop = y + st.statusTop;
-		auto bottom = y + st.padding.top() + st.thumbSize + st.padding.bottom();
 
 		auto inner = style::rtlrect(x + st.padding.left(), y + st.padding.top(), st.thumbSize, st.thumbSize, _rect.width());
 		_p->setPen(Qt::NoPen);

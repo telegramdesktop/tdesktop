@@ -174,7 +174,6 @@ FilterIcon ComputeDefaultFilterIcon(const Data::ChatFilter &filter) {
 		| Flag::Bots;
 	const auto removed = Flag::NoRead | Flag::NoMuted;
 	const auto people = Flag::Contacts | Flag::NonContacts;
-	const auto allNoArchive = all | Flag::NoArchived;
 	if (!filter.always().empty()
 		|| !filter.never().empty()
 		|| !(filter.flags() & all)) {

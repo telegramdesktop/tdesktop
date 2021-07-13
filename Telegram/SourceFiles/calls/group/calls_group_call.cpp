@@ -1502,7 +1502,6 @@ void GroupCall::applyParticipantLocally(
 		? participant->canSelfUnmute
 		: (!mute || IsGroupCallAdmin(_peer, participantPeer));
 	const auto isMutedByYou = mute && !canManageCall;
-	const auto mutedCount = 0/*participant->mutedCount*/;
 	using Flag = MTPDgroupCallParticipant::Flag;
 	const auto flags = (canSelfUnmute ? Flag::f_can_self_unmute : Flag(0))
 		| Flag::f_volume // Without flag the volume is reset to 100%.
@@ -2018,7 +2017,6 @@ void GroupCall::setupOutgoingVideo() {
 		// Recursive entrance may happen if error happens when activating.
 		return (previous != state);
 	}) | rpl::start_with_next([=](VideoState previous, VideoState state) {
-		const auto wasPaused = (previous == VideoState::Paused);
 		const auto wasActive = (previous != VideoState::Inactive);
 		const auto nowPaused = (state == VideoState::Paused);
 		const auto nowActive = (state != VideoState::Inactive);
@@ -2073,7 +2071,6 @@ void GroupCall::setupOutgoingVideo() {
 		// Recursive entrance may happen if error happens when activating.
 		return (previous != state);
 	}) | rpl::start_with_next([=](VideoState previous, VideoState state) {
-		const auto wasPaused = (previous == VideoState::Paused);
 		const auto wasActive = (previous != VideoState::Inactive);
 		const auto nowPaused = (state == VideoState::Paused);
 		const auto nowActive = (state != VideoState::Inactive);
@@ -2372,8 +2369,6 @@ void GroupCall::broadcastPartCancel(not_null<LoadPartTask*> task) {
 
 void GroupCall::mediaChannelDescriptionsStart(
 		std::shared_ptr<MediaChannelDescriptionsTask> task) {
-	const auto raw = task.get();
-
 	const auto real = lookupReal();
 	if (!real || (_instanceMode == InstanceMode::None)) {
 		for (const auto ssrc : task->ssrcs()) {
@@ -2398,7 +2393,6 @@ bool GroupCall::mediaChannelDescriptionsFill(
 	auto result = false;
 	const auto real = lookupReal();
 	Assert(real != nullptr);
-	const auto &existing = real->participants();
 	for (const auto ssrc : task->ssrcs()) {
 		const auto add = [&](
 				std::optional<Channel> channel,
@@ -2833,8 +2827,6 @@ void GroupCall::setScreenInstanceConnected(
 		: inTransit
 		? InstanceState::TransitionToRtc
 		: InstanceState::Connected;
-	const auto connected = (screenInstanceState
-		!= InstanceState::Disconnected);
 	if (_screenInstanceState.current() == screenInstanceState) {
 		return;
 	}
@@ -3078,11 +3070,6 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 		return 0;
 	}
 	const auto owner = &_peer->owner();
-	const auto &invited = owner->invitedToCallUsers(_id);
-	auto &&toInvite = users | ranges::views::filter([&](
-			not_null<UserData*> user) {
-		return !invited.contains(user) && !real->participantByPeer(user);
-	});
 
 	auto count = 0;
 	auto slice = QVector<MTPInputUser>();

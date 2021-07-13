@@ -75,10 +75,6 @@ MenuVolumeItem::MenuVolumeItem(
 		_speakerRect = QRect(_itemRect.topLeft(), _stCross.icon.size());
 		_arcPosition = _speakerRect.center()
 			+ QPoint(0, st::groupCallMenuSpeakerArcsSkip);
-		const auto sliderLeft = _arcPosition.x()
-			+ st::groupCallMenuVolumeSkip
-			+ _arcs->maxWidth()
-			+ st::groupCallMenuVolumeSkip;
 		_slider->setGeometry(
 			st::groupCallMenuVolumeMargin.left(),
 			_speakerRect.y(),

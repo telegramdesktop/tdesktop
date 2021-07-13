@@ -352,7 +352,6 @@ Viewport::Layout Viewport::applyLarge(Layout layout) const {
 	const auto largeTop = largeRect.y();
 	const auto largeRight = largeLeft + largeRect.width();
 	const auto largeBottom = largeTop + largeRect.height();
-	const auto largeCenter = largeRect.center();
 	for (auto &geometry : list) {
 		if (geometry.tile == _large) {
 			geometry.*field = { QPoint(), layout.outer };

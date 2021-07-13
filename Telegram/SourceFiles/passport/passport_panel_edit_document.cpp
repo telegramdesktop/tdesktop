@@ -289,7 +289,7 @@ void PanelEditDocument::setupControls(
 		ScanListData &&scans,
 		std::optional<ScanListData> &&translations,
 		std::map<FileType, ScanInfo> &&specialFiles) {
-	const auto inner = setupContent(
+	setupContent(
 		error,
 		data,
 		scansError,

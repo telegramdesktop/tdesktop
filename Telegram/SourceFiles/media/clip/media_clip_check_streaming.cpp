@@ -28,7 +28,6 @@ Type ReadBigEndian(bytes::const_span data) {
 }
 
 bool IsAtom(bytes::const_span header, const char (&atom)[5]) {
-	const auto check = header.subspan(4, 4);
 	return bytes::compare(
 		header.subspan(4, 4),
 		bytes::make_span(atom).subspan(0, 4)) == 0;

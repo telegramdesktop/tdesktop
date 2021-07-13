@@ -29,8 +29,6 @@ namespace Export {
 namespace Data {
 namespace {
 
-constexpr auto kUserPeerIdShift = (1ULL << 32);
-constexpr auto kChatPeerIdShift = (2ULL << 32);
 constexpr auto kMaxImageSize = 10000;
 constexpr auto kMigratedMessagesIdShift = -1'000'000'000;
 
@@ -546,7 +544,6 @@ Poll ParsePoll(const MTPDmessageMediaPoll &data) {
 		if (const auto resultsList = results.vresults()) {
 			for (const auto &single : resultsList->v) {
 				single.match([&](const MTPDpollAnswerVoters &voters) {
-					const auto &option = voters.voption().v;
 					const auto i = ranges::find(
 						result.answers,
 						voters.voption().v,

@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls::Group {
 namespace {
 
-constexpr auto kDefaultScheduleDuration = 60 * TimeId(60);
 constexpr auto kLabelRefreshInterval = 10 * crl::time(1000);
 
 using Context = ChooseJoinAsProcess::Context;

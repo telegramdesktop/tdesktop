@@ -22,11 +22,8 @@ constexpr auto kDocumentCacheMask = 0x00000000000000FFULL;
 constexpr auto kDocumentThumbCacheTag = 0x0000000000000200ULL;
 constexpr auto kDocumentThumbCacheMask = 0x00000000000000FFULL;
 constexpr auto kWebDocumentCacheTag = 0x0000020000000000ULL;
-constexpr auto kWebDocumentCacheMask = 0x000000FFFFFFFFFFULL;
 constexpr auto kUrlCacheTag = 0x0000030000000000ULL;
-constexpr auto kUrlCacheMask = 0x000000FFFFFFFFFFULL;
 constexpr auto kGeoPointCacheTag = 0x0000040000000000ULL;
-constexpr auto kGeoPointCacheMask = 0x000000FFFFFFFFFFULL;
 
 } // namespace
 

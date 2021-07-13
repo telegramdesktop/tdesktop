@@ -562,7 +562,6 @@ QString XDPFileDialog::selectedNameFilter() const {
 }
 
 int XDPFileDialog::exec() {
-	bool deleteOnClose = testAttribute(Qt::WA_DeleteOnClose);
 	setAttribute(Qt::WA_DeleteOnClose, false);
 
 	bool wasShowModal = testAttribute(Qt::WA_ShowModal);

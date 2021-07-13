@@ -100,11 +100,11 @@ std::map<FileType, ScanInfo> PrepareSpecialFiles(const Value &value) {
 	for (const auto type : types) {
 		if (value.requiresSpecialScan(type)) {
 			const auto i = value.specialScansInEdit.find(type);
-			const auto j = result.emplace(
+			result.emplace(
 				type,
 				(i != end(value.specialScansInEdit)
 					? CollectScanInfo(i->second)
-					: ScanInfo(type))).first;
+					: ScanInfo(type)));
 		}
 	}
 	return result;
@@ -1064,7 +1064,6 @@ void PanelController::editWithUpload(int index, int documentIndex) {
 	const auto type = document->requiresSpecialScan(FileType::FrontSide)
 		? FileType::FrontSide
 		: FileType::Scan;
-	const auto allowMany = (type == FileType::Scan);
 	const auto widget = _panel->widget();
 	EditScans::ChooseScan(widget.get(), type, [=](QByteArray &&content) {
 		if (_scopeDocumentTypeBox) {

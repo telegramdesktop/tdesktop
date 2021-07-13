@@ -216,7 +216,6 @@ std::pair<Languages, Languages> PrepareLists() {
 					Lang::GetInstance().nativeName()
 				};
 			};
-			const auto i = ranges::find(official, current, projId);
 			recent.insert(begin(recent), generate());
 		}
 	}

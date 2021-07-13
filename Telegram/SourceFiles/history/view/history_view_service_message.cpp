@@ -581,7 +581,6 @@ void Service::draw(
 }
 
 PointState Service::pointState(QPoint point) const {
-	const auto item = message();
 	const auto media = this->media();
 
 	auto g = countGeometry();
@@ -705,7 +704,6 @@ void EmptyPainter::paint(Painter &p, int width, int height) {
 	)->maxWidth();
 
 	const auto &font = st::serviceTextStyle.font;
-	const auto margin = st::msgMargin.left();
 	const auto maxBubbleWidth = width - 2 * st::historyGroupAboutMargin;
 	const auto padding = st::historyGroupAboutPadding;
 	const auto bubbleWidth = std::min(
