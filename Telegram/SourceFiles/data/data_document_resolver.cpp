@@ -98,25 +98,27 @@ QString FileExtension(const QString &filepath) {
 	return QString(last.base(), last - reversed.begin());
 }
 
-// bool IsValidMediaFile(const QString &filepath) {
-// 	static const auto kExtensions = [] {
-// 		const auto list = qsl("\
-// 16svx 2sf 3g2 3gp 8svx aac aaf aif aifc aiff amr amv ape asf ast au aup \
-// avchd avi brstm bwf cam cdda cust dat divx drc dsh dsf dts dtshd dtsma \
-// dvr-ms dwd evo f4a f4b f4p f4v fla flac flr flv gif gifv gsf gsm gym iff \
-// ifo it jam la ly m1v m2p m2ts m2v m4a m4p m4v mcf mid mk3d mka mks mkv mng \
-// mov mp1 mp2 mp3 mp4 minipsf mod mpc mpe mpeg mpg mpv mscz mt2 mus mxf mxl \
-// niff nsf nsv off ofr ofs ogg ogv opus ots pac ps psf psf2 psflib ptb qsf \
-// qt ra raw rka rm rmj rmvb roq s3m shn sib sid smi smp sol spc spx ssf svi \
-// swa swf tak ts tta txm usf vgm vob voc vox vqf wav webm wma wmv wrap wtv \
-// wv xm xml ym yuv").split(' ');
-// 		return base::flat_set<QString>(list.begin(), list.end());
-// 	}();
+#if 0
+bool IsValidMediaFile(const QString &filepath) {
+	static const auto kExtensions = [] {
+		const auto list = qsl("\
+16svx 2sf 3g2 3gp 8svx aac aaf aif aifc aiff amr amv ape asf ast au aup \
+avchd avi brstm bwf cam cdda cust dat divx drc dsh dsf dts dtshd dtsma \
+dvr-ms dwd evo f4a f4b f4p f4v fla flac flr flv gif gifv gsf gsm gym iff \
+ifo it jam la ly m1v m2p m2ts m2v m4a m4p m4v mcf mid mk3d mka mks mkv mng \
+mov mp1 mp2 mp3 mp4 minipsf mod mpc mpe mpeg mpg mpv mscz mt2 mus mxf mxl \
+niff nsf nsv off ofr ofs ogg ogv opus ots pac ps psf psf2 psflib ptb qsf \
+qt ra raw rka rm rmj rmvb roq s3m shn sib sid smi smp sol spc spx ssf svi \
+swa swf tak ts tta txm usf vgm vob voc vox vqf wav webm wma wmv wrap wtv \
+wv xm xml ym yuv").split(' ');
+		return base::flat_set<QString>(list.begin(), list.end());
+	}();
 
-// 	return ranges::binary_search(
-// 		kExtensions,
-// 		FileExtension(filepath).toLower());
-// }
+	return ranges::binary_search(
+		kExtensions,
+		FileExtension(filepath).toLower());
+}
+#endif
 
 bool IsExecutableName(const QString &filepath) {
 	static const auto kExtensions = [] {

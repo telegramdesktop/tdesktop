@@ -320,7 +320,7 @@ bool EditorBlock::selectSkip(int direction) {
 	if (newSelected < -1 || newSelected > maxSelected) {
 		newSelected = maxSelected;
 	}
-	if (auto changed = (newSelected != _selected)) {
+	if (newSelected != _selected) {
 		setSelected(newSelected);
 		scrollToSelected();
 		return (newSelected >= 0);

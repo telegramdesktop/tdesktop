@@ -314,10 +314,10 @@ auto ConcurrentSender::SpecificRequestBuilder<Request>::done(
 		Handler,
 		mtpRequestId,
 		Result>;
-	constexpr auto takesResponse = rpl::details::is_callable_plain_v<
+	[[maybe_unused]] constexpr auto takesResponse = rpl::details::is_callable_plain_v<
 		Handler,
 		Result>;
-	constexpr auto takesNone = rpl::details::is_callable_plain_v<Handler>;
+	[[maybe_unused]] constexpr auto takesNone = rpl::details::is_callable_plain_v<Handler>;
 
 	if constexpr (takesFull) {
 		setDoneHandler<Result>(std::forward<Handler>(handler));
@@ -348,10 +348,10 @@ auto ConcurrentSender::SpecificRequestBuilder<Request>::fail(
 		Handler,
 		mtpRequestId,
 		Error>;
-	constexpr auto takesError = rpl::details::is_callable_plain_v<
+	[[maybe_unused]] constexpr auto takesError = rpl::details::is_callable_plain_v<
 		Handler,
 		Error>;
-	constexpr auto takesNone = rpl::details::is_callable_plain_v<Handler>;
+	[[maybe_unused]] constexpr auto takesNone = rpl::details::is_callable_plain_v<Handler>;
 
 	if constexpr (takesFull) {
 		setFailHandler(std::forward<Handler>(handler));

@@ -458,7 +458,6 @@ ActionsFiller::ActionsFiller(
 
 void ActionsFiller::addInviteToGroupAction(
 		not_null<UserData*> user) {
-	const auto controller = _controller;
 	AddActionButton(
 		_wrap,
 		tr::lng_profile_invite_to_group(),

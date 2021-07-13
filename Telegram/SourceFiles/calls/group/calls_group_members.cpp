@@ -1171,21 +1171,6 @@ int Members::Controller::rowPaintStatusIcon(
 			: state.raisedHand
 			? st::groupCallMemberInactiveStatus->c
 			: iconColor;
-		const auto color = (state.speaking == 1. && !state.mutedByMe)
-			? st::groupCallMemberActiveStatus->c
-			: (state.speaking == 0.
-				? (state.active == 1.
-					? st::groupCallMemberNotJoinedStatus->c
-					: (state.active == 0.
-						? (state.muted == 1.
-							? (state.raisedHand
-								? st::groupCallMemberInactiveStatus->c
-								: st::groupCallMemberNotJoinedStatus->c)
-							: (state.muted == 0.
-								? st::groupCallMemberNotJoinedStatus->c
-								: other))
-						: other))
-				: other);
 		if (camera) {
 			st::groupCallNarrowCameraIcon.paint(p, x, y, outerWidth, other);
 			x += st::groupCallNarrowCameraIcon.width();

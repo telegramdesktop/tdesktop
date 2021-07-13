@@ -49,7 +49,6 @@ protected:
 private:
 	void updateControlsGeometry(int newWidth);
 	Ui::RpWidget *pushButton(base::unique_qptr<Ui::RpWidget> button);
-	void removeButton(not_null<Ui::RpWidget*> button);
 
 	const style::InfoTopBar &_st;
 	std::vector<base::unique_qptr<Ui::RpWidget>> _buttons;
@@ -134,12 +133,6 @@ Ui::RpWidget *TopBar::pushButton(base::unique_qptr<Ui::RpWidget> button) {
 		updateControlsGeometry(width());
 	}, lifetime());
 	return weak;
-}
-
-void TopBar::removeButton(not_null<Ui::RpWidget*> button) {
-	_buttons.erase(
-		std::remove(_buttons.begin(), _buttons.end(), button),
-		_buttons.end());
 }
 
 int TopBar::resizeGetHeight(int newWidth) {

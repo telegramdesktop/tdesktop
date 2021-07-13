@@ -115,12 +115,12 @@ private:
 	const Rows::Row &rowBySelection(Selection selected) const;
 	std::unique_ptr<Ui::RippleAnimation> &rippleBySelection(
 		Selection selected);
-	const std::unique_ptr<Ui::RippleAnimation> &rippleBySelection(
+	[[maybe_unused]] const std::unique_ptr<Ui::RippleAnimation> &rippleBySelection(
 		Selection selected) const;
 	std::unique_ptr<Ui::RippleAnimation> &rippleBySelection(
 		not_null<Row*> row,
 		Selection selected);
-	const std::unique_ptr<Ui::RippleAnimation> &rippleBySelection(
+	[[maybe_unused]] const std::unique_ptr<Ui::RippleAnimation> &rippleBySelection(
 		not_null<const Row*> row,
 		Selection selected) const;
 	void addRipple(Selection selected, QPoint position);

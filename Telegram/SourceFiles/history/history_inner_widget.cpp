@@ -2823,7 +2823,7 @@ void HistoryInner::mouseActionUpdate() {
 			_dragStateItem = session().data().message(dragState.itemId);
 			lnkhost = view;
 			if (!dragState.link && m.x() >= st::historyPhotoLeft && m.x() < st::historyPhotoLeft + st::msgPhotoSize) {
-				if (auto msg = item->toHistoryMessage()) {
+				if (item->toHistoryMessage()) {
 					if (view->hasFromPhoto()) {
 						enumerateUserpics([&](not_null<Element*> view, int userpicTop) -> bool {
 							// stop enumeration if the userpic is below our point

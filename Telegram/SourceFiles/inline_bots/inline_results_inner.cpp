@@ -677,7 +677,6 @@ void Inner::updateSelected() {
 	int row = -1, col = -1, sel = -1;
 	ClickHandlerPtr lnk;
 	ClickHandlerHost *lnkhost = nullptr;
-	HistoryView::CursorState cursor = HistoryView::CursorState::None;
 	if (sy >= 0) {
 		row = 0;
 		for (int rows = _rows.size(); row < rows; ++row) {
@@ -706,7 +705,6 @@ void Inner::updateSelected() {
 				QPoint(sx, sy),
 				HistoryView::StateRequest());
 			lnk = result.link;
-			cursor = result.cursor;
 			lnkhost = inlineItems[col];
 		} else {
 			row = col = -1;

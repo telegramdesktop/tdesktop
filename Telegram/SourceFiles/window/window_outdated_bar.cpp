@@ -22,6 +22,7 @@ constexpr auto kMinimalSkip = 7;
 constexpr auto kSoonSkip = 30;
 constexpr auto kNowSkip = 90;
 
+#ifdef DESKTOP_APP_SPECIAL_TARGET
 class Bar : public Ui::RpWidget {
 public:
 	Bar(not_null<QWidget*> parent, QDate date);
@@ -96,7 +97,6 @@ void Bar::paintEvent(QPaintEvent *e) {
 		_soon ? st::outdateSoonBg : st::outdatedBg);
 }
 
-#ifdef DESKTOP_APP_SPECIAL_TARGET
 QString LastHiddenPath() {
 	return cWorkingDir() + qsl("tdata/outdated_hidden");
 }
