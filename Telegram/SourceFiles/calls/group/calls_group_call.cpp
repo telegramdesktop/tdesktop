@@ -1956,13 +1956,35 @@ void GroupCall::setupMediaDevices() {
 	}, _lifetime);
 }
 
+int GroupCall::activeVideoSendersCount() const {
+	auto result = 0;
+	for (const auto &[endpoint, track] : _activeVideoTracks) {
+		if (endpoint.type == VideoEndpointType::Camera) {
+			++result;
+		} else {
+			auto sharesCameraToo = false;
+			for (const auto &[other, _] : _activeVideoTracks) {
+				if (other.type == VideoEndpointType::Camera
+					&& other.peer == endpoint.peer) {
+					sharesCameraToo = true;
+					break;
+				}
+			}
+			if (!sharesCameraToo) {
+				++result;
+			}
+		}
+	}
+	return result;
+}
+
 bool GroupCall::emitShareCameraError() {
 	const auto emitError = [=](Error error) {
 		emitShareCameraError(error);
 		return true;
 	};
 	if (const auto real = lookupReal()
-		; real && _activeVideoTracks.size() >= real->unmutedVideoLimit()) {
+		; real && activeVideoSendersCount() >= real->unmutedVideoLimit()) {
 		return emitError(Error::DisabledNoCamera);
 	} else if (!videoIsWorking()) {
 		return emitError(Error::DisabledNoCamera);
@@ -1989,7 +2011,7 @@ bool GroupCall::emitShareScreenError() {
 		return true;
 	};
 	if (const auto real = lookupReal()
-		; real && _activeVideoTracks.size() >= real->unmutedVideoLimit()) {
+		; real && activeVideoSendersCount() >= real->unmutedVideoLimit()) {
 		return emitError(Error::DisabledNoScreen);
 	} else if (!videoIsWorking()) {
 		return emitError(Error::DisabledNoScreen);

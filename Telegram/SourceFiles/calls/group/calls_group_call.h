@@ -551,6 +551,8 @@ private:
 	void markTrackPaused(const VideoEndpoint &endpoint, bool paused);
 	void markTrackShown(const VideoEndpoint &endpoint, bool shown);
 
+	[[nodiscard]] int activeVideoSendersCount() const;
+
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
 
 	const not_null<Delegate*> _delegate;
