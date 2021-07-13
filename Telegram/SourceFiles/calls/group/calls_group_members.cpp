@@ -41,7 +41,6 @@ namespace Calls::Group {
 namespace {
 
 constexpr auto kKeepRaisedHandStatusDuration = 3 * crl::time(1000);
-constexpr auto kShadowMaxAlpha = 74;
 constexpr auto kUserpicSizeForBlur = 40;
 constexpr auto kUserpicBlurRadius = 8;
 
@@ -496,7 +495,6 @@ void Members::Controller::subscribeToChanges(not_null<Data::GroupCall*> real) {
 			: update.now->peer;
 		if (!update.now) {
 			if (const auto row = findRow(participantPeer)) {
-				const auto owner = &participantPeer->owner();
 				if (isMe(participantPeer)) {
 					updateRow(row, nullptr);
 				} else {
@@ -779,7 +777,6 @@ void Members::Controller::updateRow(
 		const Data::GroupCallParticipant *participant) {
 	const auto wasSounding = row->sounding();
 	const auto wasSsrc = row->ssrc();
-	const auto wasInChat = (row->state() != Row::State::Invited);
 	row->setSkipLevelUpdate(_skipRowLevelUpdate);
 	row->updateState(participant);
 	const auto nowSounding = row->sounding();

@@ -2656,7 +2656,6 @@ Result HtmlWriter::writeSections() {
 }
 
 QByteArray HtmlWriter::wrapMessageLink(int messageId, QByteArray text) {
-	const auto finishedCount = _lastMessageIdsPerFile.size();
 	const auto it = ranges::find_if(_lastMessageIdsPerFile, [&](int maxMessageId) {
 		return messageId <= maxMessageId;
 	});

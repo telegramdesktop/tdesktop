@@ -440,9 +440,6 @@ auto ConnectionState::computeLayout(const State &state) const -> Layout {
 		break;
 	}
 	result.textWidth = st::normalFont->width(result.text);
-	const auto maxTextWidth = (state.type == State::Type::Waiting)
-		? st::normalFont->width(tr::lng_reconnecting(tr::now, lt_count, 88))
-		: result.textWidth;
 	result.contentWidth = (result.textWidth > 0)
 		? (st::connectingTextPadding.left()
 			+ result.textWidth

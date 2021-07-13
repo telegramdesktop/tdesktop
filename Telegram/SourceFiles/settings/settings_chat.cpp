@@ -776,8 +776,6 @@ void SetupMessages(
 				st::settingsSendType),
 			st::settingsSendTypePadding);
 	};
-	const auto small = st::settingsSendTypePadding;
-	const auto top = skip;
 	add(SendByType::Enter, tr::lng_settings_send_enter(tr::now));
 	add(
 		SendByType::CtrlEnter,
@@ -1129,7 +1127,6 @@ void SetupDefaultThemes(
 		const auto fullSkips = width - count * single;
 		const auto skip = fullSkips / float64(skips);
 		auto left = padding.left() + 0.;
-		auto index = 0;
 		for (const auto button : buttons) {
 			button->resizeToWidth(single);
 			button->moveToLeft(int(std::round(left)), 0);

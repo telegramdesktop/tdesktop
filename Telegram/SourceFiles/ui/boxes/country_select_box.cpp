@@ -360,7 +360,6 @@ void CountrySelectBox::Inner::updateFilter(QString filter) {
 	if (!_filter.isEmpty()) {
 		_filtered.clear();
 		for (const auto index : _byLetter[_filter[0].toLower()]) {
-			const auto &names = _namesList[index];
 			if (hasAllWords(_namesList[index])) {
 				_filtered.push_back(_list[index]);
 			}

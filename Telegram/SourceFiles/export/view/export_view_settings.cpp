@@ -64,7 +64,7 @@ void ChooseFormatBox(
 	using Format = Output::Format;
 	const auto group = std::make_shared<Ui::RadioenumGroup<Format>>(format);
 	const auto addFormatOption = [&](QString label, Format format) {
-		const auto radio = box->addRow(
+		box->addRow(
 			object_ptr<Ui::Radioenum<Format>>(
 				box,
 				group,
@@ -261,7 +261,7 @@ void SettingsWidget::setupPathAndFormat(
 		});
 	});
 	const auto addFormatOption = [&](QString label, Format format) {
-		const auto radio = container->add(
+		container->add(
 			object_ptr<Ui::Radioenum<Format>>(
 				container,
 				formatGroup,
@@ -582,7 +582,7 @@ not_null<Ui::Checkbox*> SettingsWidget::addOptionWithAbout(
 		Types types,
 		const QString &about) {
 	const auto result = addOption(container, text, types);
-	const auto label = container->add(
+	container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			about,

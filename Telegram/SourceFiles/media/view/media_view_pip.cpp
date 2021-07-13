@@ -44,7 +44,6 @@ namespace View {
 namespace {
 
 constexpr auto kPipLoaderPriority = 2;
-constexpr auto kSaveGeometryTimeout = crl::time(1000);
 constexpr auto kMsInSecond = 1000;
 
 [[nodiscard]] bool IsWindowControlsOnLeft() {
@@ -1515,7 +1514,7 @@ void Pip::updatePlaybackState() {
 	}
 	_playbackProgress->updateState(state);
 
-	qint64 position = 0, length = state.length;
+	qint64 position = 0;
 	if (Player::IsStoppedAtEnd(state.state)) {
 		position = state.length;
 	} else if (!Player::IsStoppedOrStopping(state.state)) {

@@ -122,10 +122,7 @@ void ThemeDocument::draw(Painter &p, const QRect &r, TextSelection selection, cr
 	auto loaded = dataLoaded();
 	auto displayLoading = _data->displayLoading();
 
-	auto inWebPage = (_parent->media() != this);
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
-
-	auto captionw = paintw - st::msgPadding.left() - st::msgPadding.right();
 
 	if (displayLoading) {
 		ensureAnimation();
@@ -270,7 +267,6 @@ TextState ThemeDocument::textState(QPoint point, StateRequest request) const {
 		return result;
 	}
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
-	auto bubble = _parent->hasBubble();
 	if (QRect(paintx, painty, paintw, painth).contains(point)) {
 		if (_data->uploading()) {
 			result.link = _cancell;

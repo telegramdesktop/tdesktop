@@ -539,7 +539,6 @@ void SendFilesBox::pushBlock(int from, int till) {
 		return controller->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Layer);
 	};
-	const auto index = int(_blocks.size());
 	_blocks.emplace_back(
 		_inner.data(),
 		&_list.files,

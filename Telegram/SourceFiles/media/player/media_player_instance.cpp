@@ -628,7 +628,6 @@ void Instance::playPauseCancelClicked(AudioMsgId::Type type) {
 		return;
 	}
 	const auto state = getState(type);
-	const auto stopped = IsStoppedOrStopping(state.state);
 	const auto showPause = ShowPauseIcon(state.state);
 	const auto audio = state.id.audio();
 	if (audio && audio->loading() && !data->streamed) {

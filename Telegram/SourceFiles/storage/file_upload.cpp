@@ -219,9 +219,6 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 void Uploader::processPhotoProgress(const FullMsgId &newId) {
 	const auto session = &_api->session();
 	if (const auto item = session->data().message(newId)) {
-		const auto photo = item->media()
-			? item->media()->photo()
-			: nullptr;
 		sendProgressUpdate(item, Api::SendProgressType::UploadPhoto);
 	}
 }

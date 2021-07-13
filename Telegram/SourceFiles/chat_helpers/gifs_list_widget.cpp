@@ -919,7 +919,7 @@ bool GifsListWidget::refreshInlineRows(int32 *added) {
 
 int32 GifsListWidget::showInlineRows(bool newResults) {
 	auto added = 0;
-	auto clear = !refreshInlineRows(&added);
+	refreshInlineRows(&added);
 	if (newResults) {
 		scrollTo(0);
 	}

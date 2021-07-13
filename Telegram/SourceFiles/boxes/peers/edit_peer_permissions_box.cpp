@@ -533,7 +533,7 @@ Fn<int()> EditPeerPermissionsBox::addSlowmodeSlider(
 		return has ? aboutInterval : about;
 	});
 
-	const auto about = container->add(
+	container->add(
 		object_ptr<Ui::DividerLabel>(
 			container,
 			object_ptr<Ui::FlatLabel>(

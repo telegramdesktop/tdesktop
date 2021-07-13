@@ -1051,10 +1051,8 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 			? st::msgFileThumbLayout
 			: st::msgFileLayout;
 		const auto w = width() - padding.left() - padding.right();
-		const auto h = 0 + st.thumbSize + 0;
 		const auto nameleft = 0 + st.thumbSize + st.padding.right();
 		const auto nametop = st.nameTop - st.padding.top();
-		const auto nameright = 0;
 		const auto statustop = st.statusTop - st.padding.top();
 		const auto editButton = _isAllowedEditMedia
 			? _editFile->width() + st::editMediaButtonSkip

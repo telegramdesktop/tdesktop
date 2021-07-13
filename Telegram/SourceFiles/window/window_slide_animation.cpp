@@ -85,7 +85,6 @@ void SlideAnimation::setFinishedCallback(FinishedCallback &&callback) {
 }
 
 void SlideAnimation::start() {
-	auto delta = st::slideShift;
 	auto fromLeft = (_direction == SlideDirection::FromLeft);
 	if (fromLeft) std::swap(_cacheUnder, _cacheOver);
 	_animation.start(

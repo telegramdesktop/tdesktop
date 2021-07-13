@@ -832,7 +832,6 @@ void CopyInviteLink(const QString &link) {
 }
 
 void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
-	const auto session = &peer->session();
 	const auto sending = std::make_shared<bool>();
 	const auto box = std::make_shared<QPointer<ShareBox>>();
 
@@ -886,8 +885,6 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 		}
 		const auto owner = &peer->owner();
 		auto &api = peer->session().api();
-		auto &histories = owner->histories();
-		const auto requestType = Data::Histories::RequestType::Send;
 		for (const auto peer : result) {
 			const auto history = owner->history(peer);
 			auto message = ApiWrap::MessageToSend(history);
@@ -900,9 +897,6 @@ void ShareInviteLinkBox(not_null<PeerData*> peer, const QString &link) {
 		if (*box) {
 			(*box)->closeBox();
 		}
-	};
-	auto filterCallback = [](PeerData *peer) {
-		return peer->canWrite();
 	};
 	*box = Ui::show(
 		Box<ShareBox>(ShareBox::Descriptor{

@@ -399,7 +399,6 @@ void PhotoEditorControls::showAnimated(
 	const auto duration = st::photoEditorBarAnimationDuration;
 
 	const auto isTransform = (mode == Mode::Transform);
-	const auto isPaint = (mode == Mode::Paint);
 
 	const auto buttonsLeft = (width() - _transformButtons->width()) / 2;
 	const auto buttonsTop = bottomButtonsTop();

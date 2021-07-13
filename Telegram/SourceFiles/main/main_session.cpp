@@ -41,7 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Main {
 namespace {
 
-constexpr auto kLegacyCallsPeerToPeerNobody = 4;
 constexpr auto kTmpPasswordReserveTime = TimeId(10);
 
 [[nodiscard]] QString ValidatedInternalLinksDomain(

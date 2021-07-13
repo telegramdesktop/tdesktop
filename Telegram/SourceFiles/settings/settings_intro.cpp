@@ -252,7 +252,6 @@ void IntroWidget::updateControlsGeometry() {
 	_topShadow->moveToLeft(0, _topBar->height());
 	_wrap->setGeometry(contentGeometry());
 
-	auto newScrollTop = _scroll->scrollTop();
 	auto scrollGeometry = _wrap->rect().marginsRemoved(
 		QMargins(0, _scrollTopSkip.current(), 0, 0));
 	if (_scroll->geometry() != scrollGeometry) {

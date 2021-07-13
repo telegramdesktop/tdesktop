@@ -436,7 +436,6 @@ void Options::Option::updateFieldGeometry() {
 	const auto skip = st::defaultRadio.diameter
 		+ st::defaultCheckbox.textPosition.x();
 	const auto left = anim::interpolate(0, skip, shown);
-	const auto width = _content->width() - left;
 	_field->resizeToWidth(_content->width() - left);
 	_field->moveToLeft(left, 0);
 }

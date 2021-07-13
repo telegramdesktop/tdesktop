@@ -152,7 +152,6 @@ Document::Document(
 	not_null<DocumentData*> document)
 : File(parent, realParent)
 , _data(document) {
-	const auto item = parent->data();
 	auto caption = createCaption();
 
 	createComponents(!caption.isEmpty());
@@ -703,7 +702,6 @@ TextState Document::textState(
 		StateRequest request,
 		LayoutMode mode) const {
 	const auto width = layout.width();
-	const auto height = layout.height();
 
 	auto result = TextState(_parent);
 
@@ -714,7 +712,7 @@ TextState Document::textState(
 	ensureDataMediaCreated();
 	bool loaded = dataLoaded();
 
-	bool showPause = updateStatusText();
+	updateStatusText();
 
 	const auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
 	const auto thumbed = Get<HistoryDocumentThumbed>();
@@ -724,7 +722,6 @@ TextState Document::textState(
 	const auto nameleft = st.padding.left() + st.thumbSize + st.padding.right();
 	const auto nametop = st.nameTop - topMinus;
 	const auto nameright = st.padding.left();
-	const auto statustop = st.statusTop - topMinus;
 	const auto linktop = st.linkTop - topMinus;
 	const auto bottom = st.padding.top() + st.thumbSize + st.padding.bottom() - topMinus;
 	const auto rthumb = style::rtlrect(st.padding.left(), st.padding.top() - topMinus, st.thumbSize, st.thumbSize, width);
@@ -841,7 +838,6 @@ bool Document::hasTextForCopy() const {
 
 TextForMimeData Document::selectedText(TextSelection selection) const {
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-		const auto &caption = captioned->_caption;
 		return captioned->_caption.toTextForMimeData(selection);
 	}
 	return TextForMimeData();

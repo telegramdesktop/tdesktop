@@ -30,7 +30,6 @@ CountryInput::CountryInput(QWidget *parent, const style::InputField &st)
 , _text(tr::lng_country_code(tr::now)) {
 	resize(_st.width, _st.heightMin);
 
-	auto availableWidth = width() - _st.textMargins.left() - _st.textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1;
 	auto placeholderFont = _st.placeholderFont->f;
 	placeholderFont.setStyleStrategy(QFont::PreferMatch);
 	//auto metrics = QFontMetrics(placeholderFont);

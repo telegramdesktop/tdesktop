@@ -48,7 +48,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace ChatHelpers {
 namespace {
 
-constexpr auto kInlineItemsMaxPerRow = 5;
 constexpr auto kSearchRequestDelay = 400;
 constexpr auto kRecentDisplayLimit = 20;
 constexpr auto kPreloadOfficialPages = 4;
@@ -356,7 +355,6 @@ void StickersListWidget::Footer::returnFocus() {
 void StickersListWidget::Footer::enumerateVisibleIcons(
 		Fn<void(const StickerIcon &, int)> callback) {
 	auto iconsX = qRound(_iconsX.current());
-	auto index = iconsX / st::stickerIconWidth;
 	auto x = _iconsLeft - (iconsX % st::stickerIconWidth);
 	auto first = floorclamp(iconsX, st::stickerIconWidth, 0, _icons.size());
 	auto last = ceilclamp(
@@ -1708,7 +1706,6 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 			paintMegagroupEmptySet(p, info.rowsTop, buttonSelected);
 			return true;
 		}
-		auto special = (set.flags & SetFlag::Official) != 0;
 		auto fromRow = floorclamp(clip.y() - info.rowsTop, _singleSize.height(), 0, info.rowsCount);
 		auto toRow = ceilclamp(clip.y() + clip.height() - info.rowsTop, _singleSize.height(), 0, info.rowsCount);
 		for (int i = fromRow; i < toRow; ++i) {
@@ -1867,7 +1864,6 @@ void StickersListWidget::ensureLottiePlayer(Set &set) {
 
 	raw->updates(
 	) | rpl::start_with_next([=] {
-		const auto &sets = shownSets();
 		enumerateSections([&](const SectionInfo &info) {
 			if (shownSets()[info.section].lottiePlayer.get() == raw) {
 				update(
@@ -2879,7 +2875,6 @@ void StickersListWidget::updateSelected() {
 					newSelected = OverGroupAdd {};
 				}
 			} else {
-				auto special = ((set.flags & SetFlag::Official) != 0);
 				auto rowIndex = qFloor(yOffset / _singleSize.height());
 				auto columnIndex = qFloor(sx / _singleSize.width());
 				auto index = rowIndex * _columnCount + columnIndex;

@@ -48,7 +48,6 @@ enum class BarState {
 
 namespace {
 
-constexpr auto kMaxUsersInBar = 3;
 constexpr auto kUpdateDebugTimeoutMs = crl::time(500);
 constexpr auto kSwitchStateDuration = 120;
 

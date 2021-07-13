@@ -46,7 +46,6 @@ constexpr auto kBaseService = "org.telegram.desktop.BaseGtkIntegration-%1"_cs;
 constexpr auto kWebviewService = "org.telegram.desktop.GtkIntegration.WebviewHelper-%1-%2"_cs;
 constexpr auto kObjectPath = "/org/telegram/desktop/GtkIntegration"_cs;
 constexpr auto kInterface = "org.telegram.desktop.GtkIntegration"_cs;
-constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 constexpr auto kGifcShmId = "tdesktop-gtk-gifc"_cs;
 
 constexpr auto kIntrospectionXML = R"INTROSPECTION(<node>

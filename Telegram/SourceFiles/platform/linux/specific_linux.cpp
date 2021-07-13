@@ -406,7 +406,7 @@ bool GenerateDesktopFile(
 }
 
 void SetDarkMode() {
-	static const auto Inited = [] {
+	[[maybe_unused]] static const auto Inited = [] {
 		QObject::connect(
 			qGuiApp,
 			&QGuiApplication::paletteChanged,

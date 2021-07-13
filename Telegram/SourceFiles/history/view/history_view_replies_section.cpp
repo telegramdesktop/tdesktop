@@ -634,7 +634,6 @@ bool RepliesWidget::confirmSendingFiles(
 		Api::SendType::Normal,
 		SendMenu::Type::SilentOnly); // #TODO replies schedule
 
-	const auto replyTo = replyToId();
 	box->setConfirmedCallback(crl::guard(this, [=](
 			Ui::PreparedList &&list,
 			Ui::SendFilesWay way,

@@ -1344,7 +1344,6 @@ StickersSet *Stickers::feedSetFull(const MTPmessages_StickerSet &data) {
 }
 
 void Stickers::newSetReceived(const MTPmessages_StickerSet &data) {
-	bool writeArchived = false;
 	const auto &set = data.c_messages_stickerSet();
 	const auto &s = set.vset().c_stickerSet();
 	if (!s.vinstalled_date()) {

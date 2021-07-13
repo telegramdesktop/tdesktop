@@ -25,7 +25,7 @@ constexpr auto kMsFrequency = 1000; // 1000 ms per second.
 
 // If we played for 3 seconds and got stuck it looks like we're loading
 // slower than we're playing, so load full file in that case.
-constexpr auto kLoadFullIfStuckAfterPlayback = 3 * crl::time(1000);
+//constexpr auto kLoadFullIfStuckAfterPlayback = 3 * crl::time(1000);
 
 [[nodiscard]] bool FullTrackReceived(const TrackState &state) {
 	return (state.duration != kTimeUnknown)
@@ -348,8 +348,6 @@ void Player::fileWaitingForData() {
 bool Player::fileProcessPackets(
 		base::flat_map<int, std::vector<FFmpeg::Packet>> &packets) {
 	_waitingForData = false;
-	auto audioTill = kTimeUnknown;
-	auto videoTill = kTimeUnknown;
 	for (auto &[index, list] : packets) {
 		if (list.empty()) {
 			continue;

@@ -700,7 +700,6 @@ void Widget::startSlideAnimation() {
 		_folderTopBar->hide();
 	}
 
-	int delta = st::slideShift;
 	if (_showDirection == Window::SlideDirection::FromLeft) {
 		std::swap(_cacheUnder, _cacheOver);
 	}

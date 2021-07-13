@@ -516,7 +516,7 @@ void LocalStorageBox::updateMediaLabel() {
 }
 
 void LocalStorageBox::setupLimits(not_null<Ui::VerticalLayout*> container) {
-	const auto shadow = container->add(
+	container->add(
 		object_ptr<Ui::PlainShadow>(container),
 		st::localStorageRowPadding);
 

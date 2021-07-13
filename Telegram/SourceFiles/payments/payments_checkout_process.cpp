@@ -62,7 +62,6 @@ void CheckoutProcess::Start(
 		Mode mode,
 		Fn<void()> reactivate) {
 	auto &processes = LookupSessionProcesses(item);
-	const auto session = &item->history()->session();
 	const auto media = item->media();
 	const auto invoice = media ? media->invoice() : nullptr;
 	if (mode == Mode::Payment && !invoice) {

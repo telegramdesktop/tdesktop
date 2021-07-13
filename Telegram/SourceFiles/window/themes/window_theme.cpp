@@ -1367,7 +1367,6 @@ QColor CountAverageColor(const QImage &image) {
 	Expects(image.format() == QImage::Format_ARGB32_Premultiplied);
 
 	uint64 components[3] = { 0 };
-	uint64 componentsScroll[3] = { 0 };
 	const auto w = image.width();
 	const auto h = image.height();
 	const auto size = w * h;

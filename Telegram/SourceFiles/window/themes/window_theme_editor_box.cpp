@@ -697,9 +697,6 @@ void CreateForExistingBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::Controller*> window,
 		const Data::CloudTheme &cloud) {
-	const auto userId = window->account().sessionExists()
-		? window->account().session().userId()
-		: UserId(-1);
 	const auto amCreator = window->account().sessionExists()
 		&& (window->account().session().userId() == cloud.createdBy);
 	box->setTitle(amCreator
@@ -794,7 +791,6 @@ struct CollectedData {
 		: ParseTheme(original);
 
 	const auto background = Background()->createCurrentImage();
-	const auto backgroundIsTiled = Background()->tile();
 	const auto changed = !Data::IsThemeWallPaper(Background()->paper())
 		|| originalParsed.background.isEmpty()
 		|| ColorizerForTheme(original.pathAbsolute);

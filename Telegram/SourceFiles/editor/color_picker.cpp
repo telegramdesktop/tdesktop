@@ -269,7 +269,6 @@ void ColorPicker::paintOutline(Painter &p, const QRectF &rect) {
 		return;
 	}
 	const auto draw = [&](float opacity) {
-		const auto was = p.opacity();
 		p.save();
 		p.setOpacity(opacity);
 		p.setPen(Qt::lightGray);

@@ -231,8 +231,6 @@ void FormSummary::setupCover(not_null<VerticalLayout*> layout) {
 			return;
 		}
 		const auto &padding = st::paymentsCoverPadding;
-		const auto thumbnailSkip = st::paymentsThumbnailSize.width()
-			+ st::paymentsThumbnailSkip;
 		const auto left = padding.left();
 		const auto top = padding.top();
 		const auto rect = QRect(

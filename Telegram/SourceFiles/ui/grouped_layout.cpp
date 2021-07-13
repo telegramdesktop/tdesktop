@@ -510,7 +510,6 @@ std::vector<GroupMediaLayout> ComplexLayouter::layout() const {
 		const auto totalHeight = ranges::accumulate(heights, 0.)
 			+ _spacing * (lineCount - 1);
 		const auto minLineHeight = ranges::min(heights);
-		const auto maxLineHeight = ranges::max(heights);
 		const auto bad1 = (minLineHeight < _minWidth) ? 1.5 : 1.;
 		const auto bad2 = [&] {
 			for (auto line = 1; line != lineCount; ++line) {

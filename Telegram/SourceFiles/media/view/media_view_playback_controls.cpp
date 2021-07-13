@@ -468,7 +468,7 @@ void PlaybackControls::updatePlayPauseResumeState(const Player::TrackState &stat
 }
 
 void PlaybackControls::updateTimeTexts(const Player::TrackState &state) {
-	qint64 position = 0, length = state.length;
+	qint64 position = 0;
 
 	if (Player::IsStoppedAtEnd(state.state)) {
 		position = state.length;

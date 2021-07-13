@@ -683,7 +683,6 @@ void DateRow::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, height - _st.border, width, _st.border, _st.borderFg);
 	}
 	auto errorDegree = _a_error.value(_error ? 1. : 0.);
-	auto focusedDegree = _a_focused.value(_focused ? 1. : 0.);
 	auto borderShownDegree = _a_borderShown.value(1.);
 	auto borderOpacity = _a_borderOpacity.value(_borderVisible ? 1. : 0.);
 	if (_st.borderActive && (borderOpacity > 0.)) {

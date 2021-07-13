@@ -33,7 +33,6 @@ namespace {
 
 constexpr auto kConfigBecomesOldIn = 2 * 60 * crl::time(1000);
 constexpr auto kConfigBecomesOldForBlockedIn = 8 * crl::time(1000);
-constexpr auto kCheckKeyEach = 60 * crl::time(1000);
 
 using namespace details;
 
@@ -1276,9 +1275,6 @@ bool Instance::Private::onErrorDefault(
 	const auto requestId = response.requestId;
 	const auto &type = error.type();
 	const auto code = error.code();
-	if (!IsFloodError(error) && type != qstr("AUTH_KEY_UNREGISTERED")) {
-		int breakpoint = 0;
-	}
 	auto badGuestDc = (code == 400) && (type == qsl("FILE_ID_INVALID"));
 	QRegularExpressionMatch m1, m2;
 	if ((m1 = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(type)).hasMatch()) {

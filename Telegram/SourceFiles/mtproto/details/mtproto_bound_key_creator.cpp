@@ -79,7 +79,6 @@ AuthKeyPtr BoundKeyCreator::bindPersistentKey() const {
 
 bool IsDestroyedTemporaryKeyError(const mtpBuffer &buffer) {
 	auto from = buffer.data();
-	const auto end = from + buffer.size();
 	auto error = MTPRpcError();
 	if (!error.read(from, from + buffer.size())) {
 		return false;

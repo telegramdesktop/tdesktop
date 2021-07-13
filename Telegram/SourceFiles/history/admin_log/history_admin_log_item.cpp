@@ -880,7 +880,6 @@ void GenerateItems(
 
 	auto createChangeLinkedChat = [&](const MTPDchannelAdminLogEventActionChangeLinkedChat &action) {
 		const auto broadcast = channel->isBroadcast();
-		const auto was = history->owner().channelLoaded(action.vprev_value().v);
 		const auto now = history->owner().channelLoaded(action.vnew_value().v);
 		if (!now) {
 			auto text = (broadcast

@@ -54,7 +54,6 @@ namespace {
 
 constexpr auto kNewBlockEachMessage = 50;
 constexpr auto kSkipCloudDraftsFor = TimeId(2);
-constexpr auto kSendingDraftTime = TimeId(-1);
 
 using UpdateFlag = Data::HistoryUpdate::Flag;
 
@@ -1223,7 +1222,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 }
 
 void History::addNewerSlice(const QVector<MTPMessage> &slice) {
-	bool wasEmpty = isEmpty(), wasLoadedAtBottom = loadedAtBottom();
+	bool wasLoadedAtBottom = loadedAtBottom();
 
 	if (slice.isEmpty()) {
 		_loadedAtBottom = true;
@@ -1758,7 +1757,6 @@ void History::setFolderPointer(Data::Folder *folder) {
 	if (isPinnedDialog(FilterId())) {
 		owner().setChatPinned(this, FilterId(), false);
 	}
-	auto &filters = owner().chatsFilters();
 	const auto wasKnown = folderKnown();
 	const auto wasInList = inChatList();
 	if (wasInList) {
@@ -2045,7 +2043,6 @@ void History::finishBuildingFrontBlock() {
 	if (const auto block = base::take(_buildingFrontBlock)->block) {
 		if (blocks.size() > 1) {
 			// ... item, item, item, last ], [ first, item, item ...
-			const auto last = block->messages.back().get();
 			const auto first = blocks[1]->messages.front().get();
 
 			// we've added a new front block, so previous item for

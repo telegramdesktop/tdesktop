@@ -154,7 +154,6 @@ constexpr auto kFullDayInMs = 86400 * 1000;
 constexpr auto kSaveDraftTimeout = 1000;
 constexpr auto kSaveDraftAnywayTimeout = 5000;
 constexpr auto kSaveCloudDraftIdleTimeout = 14000;
-constexpr auto kRecordingUpdateDelta = crl::time(100);
 constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
 constexpr auto kCommonModifiers = 0
 	| Qt::ShiftModifier
@@ -2576,12 +2575,10 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 	}
 
 	if (_preloadRequest == requestId) {
-		auto to = toMigrated ? _migrated : _history;
 		addMessagesToFront(peer, *histList);
 		_preloadRequest = 0;
 		preloadHistoryIfNeeded();
 	} else if (_preloadDownRequest == requestId) {
-		auto to = toMigrated ? _migrated : _history;
 		addMessagesToBack(peer, *histList);
 		_preloadDownRequest = 0;
 		preloadHistoryIfNeeded();
@@ -3370,7 +3367,6 @@ PeerData *HistoryWidget::peer() const {
 // Sometimes _showAtMsgId is set directly.
 void HistoryWidget::setMsgId(MsgId showAtMsgId) {
 	if (_showAtMsgId != showAtMsgId) {
-		auto wasMsgId = _showAtMsgId;
 		_showAtMsgId = showAtMsgId;
 		if (_history) {
 			controller()->setActiveChatEntry({
@@ -5644,7 +5640,6 @@ void HistoryWidget::setupGroupCallTracker() {
 		_groupCallBar->joinClicks()
 	) | rpl::start_with_next([=] {
 		const auto peer = _history->peer;
-		const auto channel = peer->asChannel();
 		if (peer->groupCall()) {
 			controller()->startOrJoinGroupCall(peer);
 		}

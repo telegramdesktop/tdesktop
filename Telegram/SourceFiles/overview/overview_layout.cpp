@@ -576,7 +576,6 @@ TextState Video::getState(
 }
 
 void Video::updateStatusText() {
-	bool showPause = false;
 	int statusSize = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = Ui::FileStatusSizeFailed;
@@ -1085,7 +1084,6 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			if (wthumb) {
 				ensureDataMediaCreated();
 				const auto thumbnail = _dataMedia->thumbnail();
-				const auto thumbLoaded = (thumbnail != nullptr);
 				const auto blurred = _dataMedia->thumbnailInline();
 				if (thumbnail || blurred) {
 					if (_thumb.isNull() || (thumbnail && !_thumbLoaded)) {
@@ -1239,7 +1237,6 @@ TextState Document::getState(
 		StateRequest request) const {
 	ensureDataMediaCreated();
 	const auto loaded = dataLoaded();
-	const auto wthumb = withThumb();
 
 	if (_data->isSong()) {
 		const auto nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
@@ -1248,7 +1245,6 @@ TextState Document::getState(
 			_width - nameleft - nameright,
 			_name.maxWidth());
 		const auto nametop = _st.songNameTop;
-		const auto statustop = _st.songStatusTop;
 
 		if (const auto state = cornerDownloadTextState(point, request); state.link) {
 			return state;
@@ -1285,7 +1281,6 @@ TextState Document::getState(
 		const auto namewidth = std::min(
 			_width - nameleft - nameright,
 			_name.maxWidth());
-		const auto statustop = st::linksBorder + _st.fileStatusTop;
 		const auto datetop = st::linksBorder + _st.fileDateTop;
 
 		const auto rthumb = style::rtlrect(

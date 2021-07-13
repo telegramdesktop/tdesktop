@@ -282,8 +282,6 @@ vec4 background() {
 	const auto scaled = InterpolateScaledSize(unscaled, size, expandRatio);
 	const auto left = (size.width() - scaled.width()) / 2;
 	const auto top = (size.height() - scaled.height()) / 2;
-	const auto right = left + scaled.width();
-	const auto bottom = top + scaled.height();
 	auto dleft = float(left) / scaled.width();
 	auto dright = float(size.width() - left) / scaled.width();
 	auto dtop = float(top) / scaled.height();
@@ -511,7 +509,6 @@ void Viewport::RendererGL::paintTile(
 	const auto fullNameShift = st.namePosition.y() + st::normalFont->height;
 	const auto nameShift = anim::interpolate(fullNameShift, 0, shown);
 	const auto row = tile->row();
-	const auto style = row->computeIconState(MembersRowStyle::Video);
 
 	validateOutlineAnimation(tile, tileData);
 	validatePausedAnimation(tile, tileData);
@@ -1336,7 +1333,6 @@ void Viewport::RendererGL::validateDatas() {
 		}
 		for (const auto &request : requests) {
 			const auto i = request.index;
-			const auto index = _tileDataIndices[i];
 			const auto &data = _tileData[_tileDataIndices[i]];
 			if (data.nameRect.isEmpty()) {
 				continue;

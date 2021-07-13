@@ -1113,7 +1113,6 @@ QString AppendShareGameScoreUrl(
 		? session->data().channelLoaded(fullId.channel)
 		: static_cast<ChannelData*>(nullptr);
 	auto channelAccessHash = uint64(channel ? channel->access : 0);
-	auto channelAccessHashInts = reinterpret_cast<int32*>(&channelAccessHash);
 	shareHashDataInts[0] = session->userId().bare;
 	shareHashDataInts[1] = fullId.channel.bare;
 	shareHashDataInts[2] = fullId.msg;

@@ -43,8 +43,6 @@ using SendActionUpdate = VoiceRecordBar::SendActionUpdate;
 using VoiceToSend = VoiceRecordBar::VoiceToSend;
 
 constexpr auto kAudioVoiceUpdateView = crl::time(200);
-constexpr auto kLockDelay = crl::time(100);
-constexpr auto kRecordingUpdateDelta = crl::time(100);
 constexpr auto kAudioVoiceMaxLength = 100 * 60; // 100 minutes
 constexpr auto kMaxSamples =
 	::Media::Player::kDefaultFrequency * kAudioVoiceMaxLength;

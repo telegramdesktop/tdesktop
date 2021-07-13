@@ -423,7 +423,6 @@ void RecordingAction::prepare(rpl::producer<QString> text) {
 	std::move(text) | rpl::start_with_next([=](QString text) {
 		const auto &padding = _st.itemPadding;
 		_text.setMarkedText(_st.itemStyle, { text }, MenuTextOptions);
-		const auto textWidth = _text.maxWidth();
 		_textWidth = w - padding.left() - padding.right();
 		update();
 	}, lifetime());

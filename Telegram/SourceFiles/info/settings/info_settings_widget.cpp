@@ -106,7 +106,6 @@ void Widget::saveState(not_null<Memento*> memento) {
 }
 
 void Widget::restoreState(not_null<Memento*> memento) {
-	const auto scrollTop = memento->scrollTop();
 	scrollTopRestore(memento->scrollTop());
 }
 

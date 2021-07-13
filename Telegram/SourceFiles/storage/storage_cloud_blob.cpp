@@ -126,9 +126,6 @@ rpl::producer<BlobState> BlobLoader::state() const {
 void BlobLoader::setImplementation(
 		std::unique_ptr<MTP::DedicatedLoader> loader) {
 	_implementation = std::move(loader);
-	auto convert = [](auto value) {
-		return BlobState(value);
-	};
 	_state = _implementation->progress(
 	) | rpl::map([](const Loading &state) {
 		return BlobState(state);

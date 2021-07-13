@@ -32,7 +32,6 @@ static_assert(kDisplaySkipped != kTimeUnknown);
 	//}
 
 	auto result = FFmpeg::CreateFrameStorage(data.size);
-	const auto format = AV_PIX_FMT_BGRA;
 	const auto swscale = FFmpeg::MakeSwscalePointer(
 		data.size,
 		AV_PIX_FMT_YUV420P,

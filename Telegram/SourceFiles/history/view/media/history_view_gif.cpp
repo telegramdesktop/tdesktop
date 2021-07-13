@@ -715,7 +715,6 @@ TextState Gif::cornerStatusTextState(
 		return result;
 	}
 	const auto padding = st::msgDateImgPadding;
-	const auto addWidth = st::historyVideoDownloadSize + 2 * padding.y() - padding.x();
 	const auto statusX = position.x() + st::msgDateImgDelta + padding.x();
 	const auto statusY = position.y() + st::msgDateImgDelta + padding.y();
 	const auto inner = QRect(statusX + padding.y() - padding.x(), statusY, st::historyVideoDownloadSize, st::historyVideoDownloadSize);
@@ -928,9 +927,6 @@ void Gif::drawGrouped(
 	const auto streamingMode = _streamed || autoplay;
 	const auto activeOwnPlaying = activeOwnStreamed();
 
-	auto paintx = geometry.x(), painty = geometry.y(), paintw = geometry.width(), painth = geometry.height();
-
-	auto displayMute = false;
 	const auto streamed = activeOwnPlaying
 		? &activeOwnPlaying->instance
 		: nullptr;
@@ -1257,9 +1253,7 @@ void Gif::setStatusSize(int newSize) const {
 
 void Gif::updateStatusText() const {
 	ensureDataMediaCreated();
-	auto showPause = false;
 	auto statusSize = 0;
-	auto realDuration = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_data->uploading()) {

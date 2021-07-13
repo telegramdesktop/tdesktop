@@ -531,7 +531,6 @@ void ReplyKeyboard::updateMessageId() {
 void ReplyKeyboard::resize(int width, int height) {
 	_width = width;
 
-	auto markup = _item->Get<HistoryMessageReplyMarkup>();
 	auto y = 0.;
 	auto buttonHeight = _rows.empty()
 		? float64(_st->buttonHeight())

@@ -137,7 +137,6 @@ WebLoadManager::WebLoadManager()
 , _resetGenerationTimer(&_thread, [=] { resetGeneration(); }) {
 	handleNetworkErrors();
 
-	const auto original = QThread::currentThread();
 	_network->moveToThread(&_thread);
 	QObject::connect(&_thread, &QThread::finished, [=] {
 		clear();

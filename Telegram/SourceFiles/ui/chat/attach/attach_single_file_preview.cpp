@@ -124,9 +124,6 @@ void SingleFilePreview::preparePreview(const PreparedFile &file) {
 	const auto &st = !isThumbedLayout()
 		? st::attachPreviewLayout
 		: st::attachPreviewThumbLayout;
-	const auto nameleft = st.thumbSize + st.padding.right();
-	const auto nametop = st.nameTop;
-	const auto statustop = st.statusTop;
 	const auto availableFileWidth = st::sendMediaPreviewSize
 		- st.thumbSize
 		- st.padding.right()
@@ -149,7 +146,6 @@ void SingleFilePreview::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
-	auto h = height();
 	const auto &st = !isThumbedLayout()
 		? st::attachPreviewLayout
 		: st::attachPreviewThumbLayout;

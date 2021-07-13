@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kPreloadPages = 2;
 constexpr auto kFullArcLength = 360 * 16;
 
 enum class Color {

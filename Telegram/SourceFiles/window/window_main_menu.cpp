@@ -66,7 +66,7 @@ namespace {
 
 constexpr auto kMinDiffIntensity = 0.25;
 
-[[nodicard]] float64 IntensityOfColor(QColor color) {
+[[nodiscard]] float64 IntensityOfColor(QColor color) {
 	return (0.299 * color.red()
 			+ 0.587 * color.green()
 			+ 0.114 * color.blue()) / 255.0;
@@ -397,7 +397,6 @@ void MainMenu::ToggleAccountsButton::paintEvent(QPaintEvent *e) {
 	const auto left = x - size;
 	const auto right = x + size;
 	const auto bottom = y + size2;
-	const auto top = y - size2;
 	constexpr auto kPointCount = 6;
 	std::array<QPointF, kPointCount> points = { {
 		{ left - stroke, bottom - stroke },
