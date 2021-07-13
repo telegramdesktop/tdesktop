@@ -49,9 +49,13 @@ PRIVATE
     Message.h
     NetworkManager.cpp
     NetworkManager.h
+    SctpDataChannelProviderInterfaceImpl.cpp
+    SctpDataChannelProviderInterfaceImpl.h
     StaticThreads.cpp
     StaticThreads.h
     ThreadLocalObject.h
+    TurnCustomizerImpl.cpp
+    TurnCustomizerImpl.h
     VideoCaptureInterface.cpp
     VideoCaptureInterface.h
     VideoCaptureInterfaceImpl.cpp

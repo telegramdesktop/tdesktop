@@ -260,12 +260,26 @@ QString Panel::chooseSourceActiveDeviceId() {
 	return _call->screenSharingDeviceId();
 }
 
+bool Panel::chooseSourceActiveWithAudio() {
+	return _call->screenSharingWithAudio();
+}
+
+bool Panel::chooseSourceWithAudioSupported() {
+#ifdef Q_OS_WIN
+	return true;
+#else // Q_OS_WIN
+	return false;
+#endif // Q_OS_WIN
+}
+
 rpl::lifetime &Panel::chooseSourceInstanceLifetime() {
 	return lifetime();
 }
 
-void Panel::chooseSourceAccepted(const QString &deviceId) {
-	_call->toggleScreenSharing(deviceId);
+void Panel::chooseSourceAccepted(
+		const QString &deviceId,
+		bool withAudio) {
+	_call->toggleScreenSharing(deviceId, withAudio);
 }
 
 void Panel::chooseSourceStop() {
@@ -1185,7 +1199,7 @@ void Panel::chooseShareScreenSource() {
 			if (_call->isSharingScreen()) {
 				_call->toggleScreenSharing(std::nullopt);
 			} else {
-				chooseSourceAccepted(*source);
+				chooseSourceAccepted(*source, false);
 			}
 		} else {
 			Ui::DesktopCapture::ChooseSource(this);

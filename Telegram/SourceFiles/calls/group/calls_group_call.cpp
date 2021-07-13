@@ -613,6 +613,10 @@ QString GroupCall::screenSharingDeviceId() const {
 	return isSharingScreen() ? _screenDeviceId : QString();
 }
 
+bool GroupCall::screenSharingWithAudio() const {
+	return isSharingScreen() && _screenWithAudio;
+}
+
 bool GroupCall::mutedByAdmin() const {
 	const auto mute = muted();
 	return mute == MuteState::ForceMuted || mute == MuteState::RaisedHand;
@@ -635,7 +639,9 @@ void GroupCall::toggleVideo(bool active) {
 		: Webrtc::VideoState::Inactive;
 }
 
-void GroupCall::toggleScreenSharing(std::optional<QString> uniqueId) {
+void GroupCall::toggleScreenSharing(
+		std::optional<QString> uniqueId,
+		bool withAudio) {
 	if (!_instance || !_id) {
 		return;
 	} else if (!uniqueId) {
@@ -645,9 +651,13 @@ void GroupCall::toggleScreenSharing(std::optional<QString> uniqueId) {
 	const auto changed = (_screenDeviceId != *uniqueId);
 	const auto wasSharing = isSharingScreen();
 	_screenDeviceId = *uniqueId;
+	_screenWithAudio = withAudio;
 	_screenState = Webrtc::VideoState::Active;
 	if (changed && wasSharing && isSharingScreen()) {
 		_screenCapture->switchToDevice(uniqueId->toStdString());
+	}
+	if (_screenInstance) {
+		_screenInstance->setIsMuted(!withAudio);
 	}
 }
 
@@ -2281,9 +2291,7 @@ bool GroupCall::tryCreateScreencast() {
 	_screenInstance = std::make_unique<tgcalls::GroupInstanceCustomImpl>(
 		std::move(descriptor));
 
-#ifdef Q_OS_WIN
-	_screenInstance->setIsMuted(false);
-#endif // Q_OS_WIN
+	_screenInstance->setIsMuted(!_screenWithAudio);
 
 	return true;
 }

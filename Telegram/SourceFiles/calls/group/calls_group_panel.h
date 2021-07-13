@@ -169,8 +169,12 @@ private:
 
 	QWidget *chooseSourceParent() override;
 	QString chooseSourceActiveDeviceId() override;
+	bool chooseSourceActiveWithAudio() override;
+	bool chooseSourceWithAudioSupported() override;
 	rpl::lifetime &chooseSourceInstanceLifetime() override;
-	void chooseSourceAccepted(const QString &deviceId) override;
+	void chooseSourceAccepted(
+		const QString &deviceId,
+		bool withAudio) override;
 	void chooseSourceStop() override;
 
 	const not_null<GroupCall*> _call;

@@ -380,8 +380,11 @@ public:
 	[[nodiscard]] bool isCameraPaused() const;
 	[[nodiscard]] const std::string &cameraSharingEndpoint() const;
 	[[nodiscard]] QString screenSharingDeviceId() const;
+	[[nodiscard]] bool screenSharingWithAudio() const;
 	void toggleVideo(bool active);
-	void toggleScreenSharing(std::optional<QString> uniqueId);
+	void toggleScreenSharing(
+		std::optional<QString> uniqueId,
+		bool withAudio = false);
 	[[nodiscard]] bool hasVideoWithFrames() const;
 	[[nodiscard]] rpl::producer<bool> hasVideoWithFramesValue() const;
 
@@ -614,6 +617,7 @@ private:
 	rpl::variable<Webrtc::VideoState> _screenState;
 	rpl::variable<bool> _isSharingScreen = false;
 	QString _screenDeviceId;
+	bool _screenWithAudio = false;
 
 	base::flags<SendUpdateType> _pendingSelfUpdates;
 	bool _requireARGB32 = true;

@@ -1184,6 +1184,16 @@ desktopCaptureSubmit: RoundButton(desktopCaptureCancel) {
 		color: shadowFg;
 	}
 }
+desktopCaptureWithAudio: Checkbox(defaultCheckbox) {
+	textFg: groupCallMembersFg;
+	textFgActive: groupCallMembersFg;
+	rippleBg: groupCallMembersBgRipple;
+	rippleBgActive: groupCallMembersBgRipple;
+	style: semiboldTextStyle;
+}
+desktopCaptureWithAudioCheck: Check(defaultCheck) {
+	untoggledFg: groupCallActiveFg;
+}
 
 groupCallNarrowSkip: 9px;
 groupCallNarrowMembersWidth: 204px;

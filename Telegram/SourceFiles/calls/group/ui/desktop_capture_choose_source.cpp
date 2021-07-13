@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
 #include "ui/platform/ui_platform_window_title.h"
@@ -62,6 +63,8 @@ public:
 
 	[[nodiscard]] rpl::producer<> activations() const;
 	void setActive(bool active);
+	[[nodiscard]] bool isWindow() const;
+	[[nodiscard]] QString deviceIdKey() const;
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
@@ -94,6 +97,7 @@ private:
 	void setupGeometryWithParent(not_null<QWidget*> parent);
 	void fillSources();
 	void setupSourcesGeometry();
+	void updateButtonsVisibility();
 	void destroy();
 
 	static base::flat_map<
@@ -107,6 +111,7 @@ private:
 	const not_null<RpWidget*> _bottom;
 	const not_null<RoundButton*> _submit;
 	const not_null<RoundButton*> _finish;
+	const not_null<Checkbox*> _withAudio;
 
 	std::vector<std::unique_ptr<Source>> _sources;
 	Source *_selected = nullptr;
@@ -164,6 +169,14 @@ Source::Source(
 
 rpl::producer<> Source::activations() const {
 	return _activations.events();
+}
+
+bool Source::isWindow() const {
+	return _source.isWindow();
+}
+
+QString Source::deviceIdKey() const {
+	return QString::fromStdString(_source.deviceIdKey());
 }
 
 void Source::setActive(bool active) {
@@ -255,7 +268,13 @@ ChooseSourceProcess::ChooseSourceProcess(
 	CreateChild<RoundButton>(
 		_bottom.get(),
 		tr::lng_group_call_screen_share_stop(),
-		st::desktopCaptureFinish)) {
+		st::desktopCaptureFinish))
+, _withAudio(
+	CreateChild<Checkbox>(
+		_bottom.get(),
+		tr::lng_group_call_screen_share_audio(tr::now),
+		false,
+		st::desktopCaptureWithAudio)) {
 	setupPanel();
 	setupSources();
 	activate();
@@ -336,7 +355,9 @@ void ChooseSourceProcess::setupPanel() {
 			return;
 		}
 		const auto weak = MakeWeak(_window.get());
-		_delegate->chooseSourceAccepted(_selectedId);
+		_delegate->chooseSourceAccepted(
+			_selectedId,
+			!_withAudio->isHidden() && _withAudio->checked());
 		if (const auto strong = weak.data()) {
 			strong->close();
 		}
@@ -374,6 +395,18 @@ void ChooseSourceProcess::setupPanel() {
 			bottomSkip * 2 + (submitShown ? submitWidth : finishWidth),
 			bottomSkip);
 	}, _bottom->lifetime());
+
+	_withAudio->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		const auto top = (bottomHeight - _withAudio->heightNoMargins()) / 2;
+		_withAudio->moveToLeft(bottomSkip, top);
+	}, _withAudio->lifetime());
+
+	_withAudio->setChecked(_delegate->chooseSourceActiveWithAudio());
+	_withAudio->checkedChanges(
+	) | rpl::start_with_next([=] {
+		updateButtonsVisibility();
+	}, _withAudio->lifetime());
 
 	const auto sharing = !_delegate->chooseSourceActiveDeviceId().isEmpty();
 	_finish->setVisible(sharing);
@@ -420,6 +453,8 @@ void ChooseSourceProcess::fillSources() {
 	auto screensManager = tgcalls::DesktopCaptureSourceManager(Type::Screen);
 	auto windowsManager = tgcalls::DesktopCaptureSourceManager(Type::Window);
 
+	_withAudio->setVisible(false);
+
 	auto screenIndex = 0;
 	auto windowIndex = 0;
 	const auto active = _delegate->chooseSourceActiveDeviceId();
@@ -435,9 +470,13 @@ void ChooseSourceProcess::fillSources() {
 		const auto id = source.deviceIdKey();
 		_sources.push_back(std::make_unique<Source>(_inner, source, title));
 
+		const auto withAudioSupported = !source.isWindow()
+			&& _delegate->chooseSourceWithAudioSupported();
+
 		const auto raw = _sources.back().get();
 		if (!active.isEmpty() && active.toStdString() == id) {
 			_selected = raw;
+			_withAudio->setVisible(withAudioSupported);
 			raw->setActive(true);
 		}
 		_sources.back()->activations(
@@ -448,15 +487,8 @@ void ChooseSourceProcess::fillSources() {
 				_selected->setActive(false);
 			}
 			_selected = raw;
-			_selectedId = QString::fromStdString(id);
-			if (_selectedId == _delegate->chooseSourceActiveDeviceId()) {
-				_selectedId = QString();
-				_finish->setVisible(true);
-				_submit->setVisible(false);
-			} else {
-				_finish->setVisible(false);
-				_submit->setVisible(true);
-			}
+			_withAudio->setVisible(withAudioSupported);
+			updateButtonsVisibility();
 		}, raw->lifetime());
 	};
 	for (const auto &source : screensManager.sources()) {
@@ -464,6 +496,27 @@ void ChooseSourceProcess::fillSources() {
 	}
 	for (const auto &source : windowsManager.sources()) {
 		append(source);
+	}
+}
+
+void ChooseSourceProcess::updateButtonsVisibility() {
+	const auto withAudioSupported = _selected
+		&& !_selected->isWindow()
+		&& _delegate->chooseSourceWithAudioSupported();
+	const auto selectedId = _selected
+		? _selected->deviceIdKey()
+		: QString();
+	if (selectedId == _delegate->chooseSourceActiveDeviceId()
+		&& (!withAudioSupported
+			|| (_withAudio->checked()
+				== _delegate->chooseSourceActiveWithAudio()))) {
+		_selectedId = QString();
+		_finish->setVisible(true);
+		_submit->setVisible(false);
+	} else {
+		_selectedId = selectedId;
+		_finish->setVisible(false);
+		_submit->setVisible(true);
 	}
 }
 
