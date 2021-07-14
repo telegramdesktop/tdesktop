@@ -21,6 +21,7 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir={#ReleasePath}
 SetupIconFile={#SourcePath}..\Resources\art\icon256.ico
+UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\Telegram.exe
 Compression=lzma
 SolidCompression=yes
