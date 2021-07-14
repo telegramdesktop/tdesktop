@@ -356,8 +356,8 @@ void Pip::RendererGL::paintTransformedStaticContent(
 		const auto stride = image.bytesPerLine() / 4;
 		const auto data = image.constBits();
 		uploadTexture(
-			GL_RGBA,
-			GL_RGBA,
+			Ui::GL::kFormatRGBA,
+			Ui::GL::kFormatRGBA,
 			image.size(),
 			_rgbaSize,
 			stride,

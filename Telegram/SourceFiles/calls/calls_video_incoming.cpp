@@ -210,8 +210,8 @@ void Panel::Incoming::RendererGL::paint(
 		if (upload) {
 			uploadTexture(
 				f,
-				GL_RGBA,
-				GL_RGBA,
+				Ui::GL::kFormatRGBA,
+				Ui::GL::kFormatRGBA,
 				data.original.size(),
 				_rgbaSize,
 				data.original.bytesPerLine() / 4,

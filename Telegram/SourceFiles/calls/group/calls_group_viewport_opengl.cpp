@@ -973,8 +973,8 @@ void Viewport::RendererGL::bindFrame(
 			const auto data = image.constBits();
 			uploadTexture(
 				f,
-				GL_RGBA,
-				GL_RGBA,
+				Ui::GL::kFormatRGBA,
+				Ui::GL::kFormatRGBA,
 				image.size(),
 				tileData.rgbaSize,
 				stride,
