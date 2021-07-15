@@ -453,7 +453,7 @@ void ChooseSourceProcess::fillSources() {
 	auto screensManager = tgcalls::DesktopCaptureSourceManager(Type::Screen);
 	auto windowsManager = tgcalls::DesktopCaptureSourceManager(Type::Window);
 
-	_withAudio->setVisible(false);
+	_withAudio->setVisible(_delegate->chooseSourceWithAudioSupported());
 
 	auto screenIndex = 0;
 	auto windowIndex = 0;
@@ -470,13 +470,9 @@ void ChooseSourceProcess::fillSources() {
 		const auto id = source.deviceIdKey();
 		_sources.push_back(std::make_unique<Source>(_inner, source, title));
 
-		const auto withAudioSupported = !source.isWindow()
-			&& _delegate->chooseSourceWithAudioSupported();
-
 		const auto raw = _sources.back().get();
 		if (!active.isEmpty() && active.toStdString() == id) {
 			_selected = raw;
-			_withAudio->setVisible(withAudioSupported);
 			raw->setActive(true);
 		}
 		_sources.back()->activations(
@@ -487,7 +483,6 @@ void ChooseSourceProcess::fillSources() {
 				_selected->setActive(false);
 			}
 			_selected = raw;
-			_withAudio->setVisible(withAudioSupported);
 			updateButtonsVisibility();
 		}, raw->lifetime());
 	};
@@ -500,14 +495,11 @@ void ChooseSourceProcess::fillSources() {
 }
 
 void ChooseSourceProcess::updateButtonsVisibility() {
-	const auto withAudioSupported = _selected
-		&& !_selected->isWindow()
-		&& _delegate->chooseSourceWithAudioSupported();
 	const auto selectedId = _selected
 		? _selected->deviceIdKey()
 		: QString();
 	if (selectedId == _delegate->chooseSourceActiveDeviceId()
-		&& (!withAudioSupported
+		&& (!_delegate->chooseSourceWithAudioSupported()
 			|| (_withAudio->checked()
 				== _delegate->chooseSourceActiveWithAudio()))) {
 		_selectedId = QString();
