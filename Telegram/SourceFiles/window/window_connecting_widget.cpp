@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/update_checker.h"
-#include "window/themes/window_theme.h"
 #include "boxes/connection_box.h"
 #include "boxes/abstract_box.h"
 #include "lang/lang_keys.h"
@@ -112,9 +111,7 @@ private:
 
 };
 
-class ConnectionState::Widget::ProxyIcon
-	: public Ui::RpWidget
-	, private base::Subscriber {
+class ConnectionState::Widget::ProxyIcon final : public Ui::RpWidget {
 public:
 	ProxyIcon(QWidget *parent);
 
@@ -143,12 +140,10 @@ ConnectionState::Widget::ProxyIcon::ProxyIcon(QWidget *parent) : RpWidget(parent
 			st::connectingRadial.size.height(),
 			st::connectingProxyOn.height()));
 
-	using namespace Window::Theme;
-	subscribe(Background(), [=](const BackgroundUpdate &update) {
-		if (update.paletteChanged()) {
-			refreshCacheImages();
-		}
-	});
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		refreshCacheImages();
+	}, lifetime());
 
 	refreshCacheImages();
 }

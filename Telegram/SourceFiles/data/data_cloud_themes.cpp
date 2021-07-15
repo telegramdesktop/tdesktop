@@ -63,8 +63,7 @@ void CloudThemes::setupReload() {
 	if (needReload()) {
 		_reloadCurrentTimer.callOnce(kFirstReloadTimeout);
 	}
-	base::ObservableViewer(
-		*Background()
+	Background()->updates(
 	) | rpl::filter([](const BackgroundUpdate &update) {
 		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
 	}) | rpl::map([=] {

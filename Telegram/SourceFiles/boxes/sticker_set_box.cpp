@@ -55,7 +55,7 @@ using SetFlag = Data::StickersSetFlag;
 
 } // namespace
 
-class StickerSetBox::Inner : public Ui::RpWidget, private base::Subscriber {
+class StickerSetBox::Inner final : public Ui::RpWidget {
 public:
 	Inner(
 		QWidget *parent,

@@ -108,7 +108,7 @@ QString RequestKey(Types &&...values) {
 
 } // namespace Api
 
-class ApiWrap : public MTP::Sender, private base::Subscriber {
+class ApiWrap final : public MTP::Sender {
 public:
 	using SendAction = Api::SendAction;
 	using MessageToSend = Api::MessageToSend;

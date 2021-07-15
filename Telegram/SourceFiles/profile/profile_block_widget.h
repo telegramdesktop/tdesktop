@@ -14,7 +14,7 @@ namespace Profile {
 
 class SectionMemento;
 
-class BlockWidget : public Ui::RpWidget, protected base::Subscriber {
+class BlockWidget : public Ui::RpWidget {
 public:
 	BlockWidget(QWidget *parent, PeerData *peer, const QString &title);
 

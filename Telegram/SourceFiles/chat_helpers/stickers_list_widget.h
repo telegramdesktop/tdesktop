@@ -43,9 +43,7 @@ namespace ChatHelpers {
 
 struct StickerIcon;
 
-class StickersListWidget
-	: public TabbedSelector::Inner
-	, private base::Subscriber {
+class StickersListWidget final : public TabbedSelector::Inner {
 public:
 	StickersListWidget(
 		QWidget *parent,

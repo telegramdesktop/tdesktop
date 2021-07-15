@@ -197,7 +197,7 @@ QString bytesToUtf8(QLatin1String bytes) {
 
 } // namespace
 
-class Editor::Inner : public TWidget, private base::Subscriber {
+class Editor::Inner : public Ui::RpWidget, private base::Subscriber {
 public:
 	Inner(QWidget *parent, const QString &path);
 
@@ -387,7 +387,8 @@ QByteArray StripCloudTextFields(const QByteArray &text) {
 	return (start > 0) ? text.mid(start) : text;
 }
 
-Editor::Inner::Inner(QWidget *parent, const QString &path) : TWidget(parent)
+Editor::Inner::Inner(QWidget *parent, const QString &path)
+: RpWidget(parent)
 , _path(path)
 , _existingRows(this, EditorBlock::Type::Existing, &_context)
 , _newRows(this, EditorBlock::Type::New, &_context) {
@@ -410,7 +411,8 @@ Editor::Inner::Inner(QWidget *parent, const QString &path) : TWidget(parent)
 			_scrollCallback(top, top + data.height);
 		}
 	});
-	subscribe(Background(), [this](const BackgroundUpdate &update) {
+	Background()->updates(
+	) | rpl::start_with_next([=](const BackgroundUpdate &update) {
 		if (_applyingUpdate || !Background()->editingTheme()) {
 			return;
 		}
@@ -422,7 +424,7 @@ Editor::Inner::Inner(QWidget *parent, const QString &path) : TWidget(parent)
 					tr::lng_theme_editor_cant_change_theme(tr::now)));
 			});
 		}
-	});
+	}, lifetime());
 }
 
 void Editor::Inner::recreateRows() {

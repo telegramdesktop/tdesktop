@@ -44,10 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 
-class FieldAutocomplete::Inner final
-	: public Ui::RpWidget
-	, private base::Subscriber {
-
+class FieldAutocomplete::Inner final : public Ui::RpWidget {
 public:
 	struct ScrollTo {
 		int top;

@@ -527,9 +527,7 @@ struct PeerListState {
 	QString searchQuery;
 };
 
-class PeerListContent
-	: public Ui::RpWidget
-	, private base::Subscriber {
+class PeerListContent : public Ui::RpWidget {
 public:
 	PeerListContent(
 		QWidget *parent,

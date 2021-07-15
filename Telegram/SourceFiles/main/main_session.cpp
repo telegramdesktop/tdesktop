@@ -28,8 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "window/window_session_controller.h"
 #include "window/window_lock_widgets.h"
-#include "window/themes/window_theme.h"
-//#include "platform/platform_specific.h"
 #include "base/unixtime.h"
 #include "calls/calls_instance.h"
 #include "support/support_helper.h"

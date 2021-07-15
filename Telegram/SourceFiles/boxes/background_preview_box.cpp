@@ -99,12 +99,10 @@ private:
 };
 
 ServiceCheck::Generator::Generator() {
-	*_lifetime.make_state<base::Subscription>() = Window::Theme::Background(
-	)->add_subscription([=](const Window::Theme::BackgroundUpdate &update) {
-		if (update.paletteChanged()) {
-			invalidate();
-		}
-	});
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		invalidate();
+	}, _lifetime);
 }
 
 auto ServiceCheck::Generator::framesForStyle(

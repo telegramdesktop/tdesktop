@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_preview_box.h"
 #include "boxes/confirm_box.h"
 #include "window/window_session_controller.h"
+#include "window/themes/window_theme.h"
 #include "styles/style_overview.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -55,9 +56,7 @@ QImage TakeMiddleSample(QImage original, QSize size) {
 
 } // namespace
 
-class BackgroundBox::Inner final
-	: public Ui::RpWidget
-	, private base::Subscriber {
+class BackgroundBox::Inner final : public Ui::RpWidget {
 public:
 	Inner(
 		QWidget *parent,
@@ -203,16 +202,22 @@ BackgroundBox::Inner::Inner(
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
+
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_check->invalidateCache();
+	}, lifetime());
+
 	using Update = Window::Theme::BackgroundUpdate;
-	subscribe(Window::Theme::Background(), [=](const Update &update) {
-		if (update.paletteChanged()) {
-			_check->invalidateCache();
-		} else if (update.type == Update::Type::New) {
+	Window::Theme::Background()->updates(
+	) | rpl::start_with_next([=](const Update &update) {
+		if (update.type == Update::Type::New) {
 			sortPapers();
 			requestPapers();
 			this->update();
 		}
-	});
+	}, lifetime());
+
 	setMouseTracking(true);
 }
 

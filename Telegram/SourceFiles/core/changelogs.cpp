@@ -143,7 +143,7 @@ std::map<int, const char*> BetaLogs() {
 		"- Use Direct3D 9 backend in ANGLE by default (Windows).\n"
 
 		"- Fix \"Show in Finder\" not focusing the Finder window (macOS).\n"
-		
+
 		"- Use GTK from a child process (Linux).\n"
 	},
 	};

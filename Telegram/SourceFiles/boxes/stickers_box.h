@@ -49,7 +49,7 @@ namespace Stickers {
 class Set;
 } // namespace Stickers
 
-class StickersBox final : public Ui::BoxContent, private base::Subscriber {
+class StickersBox final : public Ui::BoxContent {
 public:
 	enum class Section {
 		Installed,

@@ -51,7 +51,7 @@ class EmojiListWidget;
 class StickersListWidget;
 class GifsListWidget;
 
-class TabbedSelector : public Ui::RpWidget, private base::Subscriber {
+class TabbedSelector : public Ui::RpWidget {
 public:
 	struct FileChosen {
 		not_null<DocumentData*> document;

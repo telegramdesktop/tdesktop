@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
 #include "window/window_controller.h"
-#include "window/themes/window_theme.h"
 #include "styles/style_intro.h"
 #include "styles/style_window.h"
 
@@ -75,11 +74,8 @@ Step::Step(
 			? st::introCoverDescription
 			: st::introDescription)) {
 	hide();
-	base::ObservableViewer(
-		*Window::Theme::Background()
-	) | rpl::filter([](const Window::Theme::BackgroundUpdate &update) {
-		return update.paletteChanged();
-	}) | rpl::start_with_next([=] {
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
 		if (!_coverMask.isNull()) {
 			_coverMask = QPixmap();
 			prepareCoverMask();

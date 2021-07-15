@@ -43,7 +43,7 @@ class GroupCall;
 class Panel;
 struct DhConfig;
 
-class Instance : private base::Subscriber, public base::has_weak_ptr {
+class Instance final : public base::has_weak_ptr {
 public:
 	Instance();
 	~Instance();

@@ -16,11 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
+#include "data/data_wall_paper.h"
 #include "base/qthelp_url.h"
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
 #include "ui/ui_utility.h"
-#include "window/themes/window_theme.h"
 #include "layout.h" // FullSelection
 #include "styles/style_chat.h"
 

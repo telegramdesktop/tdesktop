@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_service_message.h"
-#include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "ui/widgets/popup_menu.h"
@@ -626,12 +625,9 @@ Main::Session &ListWidget::session() const {
 
 void ListWidget::start() {
 	_controller->setSearchEnabledByContent(false);
-	ObservableViewer(
-		*Window::Theme::Background()
-	) | rpl::start_with_next([this](const auto &update) {
-		if (update.paletteChanged()) {
-			invalidatePaletteCache();
-		}
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		invalidatePaletteCache();
 	}, lifetime());
 
 	session().downloaderTaskFinished(

@@ -15,7 +15,7 @@ class Session;
 
 namespace MTP {
 
-class WeakInstance : private QObject, private base::Subscriber {
+class WeakInstance final : private QObject {
 public:
 	explicit WeakInstance(base::weak_ptr<Main::Session> session);
 

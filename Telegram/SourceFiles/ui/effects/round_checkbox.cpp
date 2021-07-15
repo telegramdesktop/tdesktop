@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/round_checkbox.h"
 
-#include "window/themes/window_theme.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 
@@ -22,9 +21,12 @@ class CheckCaches : public QObject {
 public:
 	CheckCaches(QObject *parent) : QObject(parent) {
 		Expects(parent != nullptr);
-	}
 
-	void clear();
+		style::PaletteChanged(
+		) | rpl::start_with_next([=] {
+			_data.clear();
+		}, _lifetime);
+	}
 
 	QPixmap frame(
 		const style::RoundCheckbox *st,
@@ -54,6 +56,7 @@ private:
 		float64 progress);
 
 	std::map<const style::RoundCheckbox *, Frames> _data;
+	rpl::lifetime _lifetime;
 
 };
 
@@ -132,10 +135,6 @@ QRect WideDestRect(
 	auto iconLeft = x - (kWideScale - 1) * st->size / 2 + iconShift;
 	auto iconTop = y - (kWideScale - 1) * st->size / 2 + iconShift;
 	return QRect(iconLeft, iconTop, iconSize, iconSize);
-}
-
-void CheckCaches::clear() {
-	_data.clear();
 }
 
 int CheckCaches::countFramesCount(const style::RoundCheckbox *st) {
@@ -248,13 +247,6 @@ CheckCaches *FrameCaches() {
 	}
 	const auto result = new CheckCaches(QCoreApplication::instance());
 	Instance = result;
-	const auto subscription = Ui::CreateChild<base::Subscription>(result);
-	*subscription = Window::Theme::Background()->add_subscription([=](
-			const Window::Theme::BackgroundUpdate &update) {
-		if (update.paletteChanged()) {
-			FrameCaches()->clear();
-		}
-	});
 	return result;
 }
 

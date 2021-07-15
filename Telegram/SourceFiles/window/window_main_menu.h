@@ -37,7 +37,7 @@ namespace Window {
 
 class SessionController;
 
-class MainMenu : public Ui::LayerWidget, private base::Subscriber {
+class MainMenu final : public Ui::LayerWidget {
 public:
 	MainMenu(QWidget *parent, not_null<SessionController*> controller);
 

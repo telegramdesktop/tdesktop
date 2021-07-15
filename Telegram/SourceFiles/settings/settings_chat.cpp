@@ -424,8 +424,7 @@ BackgroundRow::BackgroundRow(
 	});
 
 	using Update = const Window::Theme::BackgroundUpdate;
-	base::ObservableViewer(
-		*Window::Theme::Background()
+	Window::Theme::Background()->updates(
 	) | rpl::filter([](const Update &update) {
 		return (update.type == Update::Type::New
 			|| update.type == Update::Type::Start
@@ -958,8 +957,7 @@ void SetupChatBackground(
 	}, tile->lifetime());
 
 	using Update = const Window::Theme::BackgroundUpdate;
-	base::ObservableViewer(
-		*Window::Theme::Background()
+	Window::Theme::Background()->updates(
 	) | rpl::filter([](const Update &update) {
 		return (update.type == Update::Type::Changed);
 	}) | rpl::map([] {
@@ -1089,8 +1087,7 @@ void SetupDefaultThemes(
 		refreshColorizer(scheme.type);
 	}
 
-	base::ObservableViewer(
-		*Background()
+	Background()->updates(
 	) | rpl::filter([](const BackgroundUpdate &update) {
 		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
 	}) | rpl::map([=] {
@@ -1254,9 +1251,9 @@ void SetupCloudThemes(
 	editWrap->toggleOn(rpl::single(BackgroundUpdate(
 		BackgroundUpdate::Type::ApplyingTheme,
 		Background()->tile()
-	)) | rpl::then(base::ObservableViewer(
-		*Background()
-	)) | rpl::filter([](const BackgroundUpdate &update) {
+	)) | rpl::then(
+		Background()->updates()
+	) | rpl::filter([](const BackgroundUpdate &update) {
 		return (update.type == BackgroundUpdate::Type::ApplyingTheme);
 	}) | rpl::map([=] {
 		const auto userId = controller->session().userId();

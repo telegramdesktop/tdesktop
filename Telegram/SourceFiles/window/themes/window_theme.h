@@ -131,11 +131,13 @@ enum class ClearEditing {
 	KeepChanges,
 };
 
-class ChatBackground
-	: public base::Observable<BackgroundUpdate>
-	, private base::Subscriber {
+class ChatBackground final {
 public:
 	ChatBackground();
+
+	[[nodiscard]] rpl::producer<BackgroundUpdate> updates() const {
+		return _updates.events();
+	}
 
 	void start();
 
@@ -158,6 +160,9 @@ public:
 	void saveAdjustableColors();
 	void setTestingDefaultTheme();
 	void revert();
+
+	void appliedEditedPalette();
+	void downloadingStarted(bool tile);
 
 	[[nodiscard]] Data::WallPaper paper() const {
 		return _paper;
@@ -227,6 +232,7 @@ private:
 	friend bool IsNonDefaultBackground();
 
 	Main::Session *_session = nullptr;
+	rpl::event_stream<BackgroundUpdate> _updates;
 	Data::WallPaper _paper = Data::details::UninitializedWallPaper();
 	std::optional<QColor> _paperColor;
 	QImage _original;
@@ -259,7 +265,7 @@ private:
 
 };
 
-ChatBackground *Background();
+[[nodiscard]] ChatBackground *Background();
 
 void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &from);
 

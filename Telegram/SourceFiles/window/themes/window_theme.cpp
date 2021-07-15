@@ -551,11 +551,12 @@ void ChatBackground::initialRead() {
 void ChatBackground::start() {
 	saveAdjustableColors();
 
-	subscribe(this, [=](const BackgroundUpdate &update) {
+	_updates.events(
+	) | rpl::start_with_next([=](const BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
 			style::NotifyPaletteChanged();
 		}
-	});
+	}, _lifetime);
 
 	initialRead();
 
@@ -620,7 +621,7 @@ void ChatBackground::checkUploadWallPaper() {
 			if (const auto paper = Data::WallPaper::Create(_session, result)) {
 				setPaper(*paper);
 				writeNewBackgroundSettings();
-				notify(BackgroundUpdate(BackgroundUpdate::Type::New, tile()));
+				_updates.fire({ BackgroundUpdate::Type::New, tile() });
 			}
 		}).send();
 	});
@@ -705,10 +706,10 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 			&& !_pixmap.isNull()
 			&& !_pixmapForTiled.isNull()));
 
-	notify(BackgroundUpdate(BackgroundUpdate::Type::New, tile()));
+	_updates.fire({ BackgroundUpdate::Type::New, tile() }); // delayed?
 	if (needResetAdjustable) {
-		notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
-		notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, tile()), true);
+		_updates.fire({ BackgroundUpdate::Type::TestingTheme, tile() });
+		_updates.fire({ BackgroundUpdate::Type::ApplyingTheme, tile() });
 	}
 	checkUploadWallPaper();
 }
@@ -883,7 +884,7 @@ void ChatBackground::setTile(bool tile) {
 			&& !Data::details::IsTestingDefaultWallPaper(_paper)) {
 			Local::writeSettings();
 		}
-		notify(BackgroundUpdate(BackgroundUpdate::Type::Changed, tile));
+		_updates.fire({ BackgroundUpdate::Type::Changed, tile }); // delayed?
 	}
 }
 
@@ -927,8 +928,8 @@ void ChatBackground::reset() {
 	} else {
 		set(Data::ThemeWallPaper());
 		restoreAdjustableColors();
-		notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
-		notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, tile()), true);
+		_updates.fire({ BackgroundUpdate::Type::TestingTheme, tile() });
+		_updates.fire({ BackgroundUpdate::Type::ApplyingTheme, tile() });
 	}
 	writeNewBackgroundSettings();
 }
@@ -990,7 +991,7 @@ void ChatBackground::setTestingTheme(Instance &&theme) {
 		// Apply current background image so that service bg colors are recounted.
 		set(_paper, std::move(_original));
 	}
-	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
+	_updates.fire({ BackgroundUpdate::Type::TestingTheme, tile() });
 }
 
 void ChatBackground::setTestingDefaultTheme() {
@@ -1000,7 +1001,7 @@ void ChatBackground::setTestingDefaultTheme() {
 	saveForRevert();
 	set(Data::details::TestingDefaultWallPaper());
 	setTile(false);
-	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, tile()), true);
+	_updates.fire({ BackgroundUpdate::Type::TestingTheme, tile() });
 }
 
 void ChatBackground::keepApplied(const Object &object, bool write) {
@@ -1027,7 +1028,7 @@ void ChatBackground::keepApplied(const Object &object, bool write) {
 			writeNewBackgroundSettings();
 		}
 	}
-	notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, tile()), true);
+	_updates.fire({ BackgroundUpdate::Type::ApplyingTheme, tile() });
 }
 
 bool ChatBackground::isNonDefaultThemeOrBackground() {
@@ -1068,7 +1069,15 @@ void ChatBackground::revert() {
 		// Apply current background image so that service bg colors are recounted.
 		set(_paper, std::move(_original));
 	}
-	notify(BackgroundUpdate(BackgroundUpdate::Type::RevertingTheme, tile()), true);
+	_updates.fire({ BackgroundUpdate::Type::RevertingTheme, tile() });
+}
+
+void ChatBackground::appliedEditedPalette() {
+	_updates.fire({ BackgroundUpdate::Type::ApplyingEdit, tile() });
+}
+
+void ChatBackground::downloadingStarted(bool tile) {
+	_updates.fire({ BackgroundUpdate::Type::Start, tile });
 }
 
 void ChatBackground::setNightModeValue(bool nightMode) {
@@ -1225,7 +1234,7 @@ bool ApplyEditedPalette(const QByteArray &content) {
 		return false;
 	}
 	style::main_palette::apply(out.palette);
-	Background()->notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingEdit, Background()->tile()), true);
+	Background()->appliedEditedPalette();
 	return true;
 }
 

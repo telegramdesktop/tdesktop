@@ -27,7 +27,7 @@ namespace {
 constexpr auto kCommonGroupsPerPage = 40;
 constexpr auto kCommonGroupsSearchAfter = 20;
 
-class ListController : public PeerListController , private base::Subscriber {
+class ListController final : public PeerListController {
 public:
 	ListController(
 		not_null<Controller*> controller,

@@ -145,9 +145,7 @@ private:
 
 };
 
-class SetupChannelBox final
-	: public Ui::BoxContent
-	, private base::Subscriber {
+class SetupChannelBox final : public Ui::BoxContent {
 public:
 	SetupChannelBox(
 		QWidget*,
@@ -244,9 +242,7 @@ private:
 
 };
 
-class RevokePublicLinkBox final
-	: public Ui::BoxContent
-	, private base::Subscriber {
+class RevokePublicLinkBox final : public Ui::BoxContent {
 public:
 	RevokePublicLinkBox(
 		QWidget*,

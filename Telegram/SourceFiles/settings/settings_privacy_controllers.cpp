@@ -47,9 +47,7 @@ namespace {
 
 constexpr auto kBlockedPerPage = 40;
 
-class BlockPeerBoxController
-	: public ChatsListBoxController
-	, private base::Subscriber {
+class BlockPeerBoxController final : public ChatsListBoxController {
 public:
 	explicit BlockPeerBoxController(not_null<Main::Session*> session);
 

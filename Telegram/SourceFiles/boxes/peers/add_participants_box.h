@@ -73,7 +73,6 @@ private:
 // with search + contacts search + global search.
 class AddSpecialBoxController
 	: public PeerListController
-	, private base::Subscriber
 	, public base::has_weak_ptr {
 public:
 	using Role = ParticipantsBoxController::Role;
@@ -146,9 +145,7 @@ protected:
 };
 
 // Finds chat/channel members, then contacts, then global search results.
-class AddSpecialBoxSearchController
-	: public PeerListSearchController
-	, private base::Subscriber {
+class AddSpecialBoxSearchController : public PeerListSearchController {
 public:
 	using Role = ParticipantsBoxController::Role;
 

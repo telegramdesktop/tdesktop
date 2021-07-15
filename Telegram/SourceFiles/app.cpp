@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_location_manager.h"
 #include "history/history_item_components.h"
-#include "history/view/history_view_service_message.h"
+#include "history/view/history_view_element.h"
 #include "media/audio/media_audio.h"
 #include "ui/image/image.h"
 #include "ui/cached_round_corners.h"
@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "core/sandbox.h"
 #include "core/application.h"
-#include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "platform/platform_notifications_manager.h"
@@ -99,16 +98,6 @@ namespace App {
 
 	void initMedia() {
 		Ui::StartCachedCorners();
-
-		using Update = Window::Theme::BackgroundUpdate;
-		static auto subscription = Window::Theme::Background()->add_subscription([](const Update &update) {
-			if (update.paletteChanged()) {
-				if (const auto m = App::main()) { // multi good
-					m->updateScrollColors();
-				}
-				HistoryView::serviceColorsUpdated();
-			}
-		});
 	}
 
 	void deinitMedia() {

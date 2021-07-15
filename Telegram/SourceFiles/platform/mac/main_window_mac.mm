@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager_default.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
-#include "window/themes/window_theme.h"
 #include "platform/mac/touchbar/mac_touchbar_manager.h"
 #include "platform/platform_specific.h"
 #include "platform/platform_notifications_manager.h"
@@ -451,11 +450,10 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 
 	_hideAfterFullScreenTimer.setCallback([this] { hideAndDeactivate(); });
 
-	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
-		if (data.paletteChanged()) {
-			_private->updateNativeTitle();
-		}
-	});
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_private->updateNativeTitle();
+	}, lifetime());
 }
 
 void MainWindow::closeWithoutDestroy() {

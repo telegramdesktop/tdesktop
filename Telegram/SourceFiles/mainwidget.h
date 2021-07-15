@@ -190,7 +190,6 @@ public:
 	void searchMessages(const QString &query, Dialogs::Key inChat);
 
 	QPixmap cachedBackground(const QRect &forRect, int &x, int &y);
-	void updateScrollColors();
 
 	void setChatBackground(
 		const Data::WallPaper &background,

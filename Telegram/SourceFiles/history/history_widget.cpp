@@ -111,7 +111,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
-#include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
 #include "window/window_adaptive.h"
 #include "window/window_controller.h"
@@ -304,7 +303,10 @@ HistoryWidget::HistoryWidget(
 	_scroll->hide();
 	_kbScroll->hide();
 
-	updateScrollColors();
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_scroll->updateBars();
+	}, lifetime());
 
 	_historyDown->installEventFilter(this);
 	_unreadMentions->installEventFilter(this);
@@ -4696,10 +4698,6 @@ void HistoryWidget::itemEdited(not_null<HistoryItem*> item) {
 	if (item.get() == _replyEditMsg) {
 		updateReplyEditTexts(true);
 	}
-}
-
-void HistoryWidget::updateScrollColors() {
-	_scroll->updateBars();
 }
 
 MsgId HistoryWidget::replyToId() const {

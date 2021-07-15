@@ -122,11 +122,12 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 	if (!kTaskbarCreatedMsgId) {
 		kTaskbarCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
 	}
-	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
-		if (_shadow && update.paletteChanged()) {
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		if (_shadow) {
 			_shadow->setColor(st::windowShadowFg->c);
 		}
-	});
+	}, lifetime());
 	setupNativeWindowFrame();
 
 	using namespace rpl::mappers;
@@ -145,8 +146,7 @@ void MainWindow::setupNativeWindowFrame() {
 	);
 
 	using BackgroundUpdate = Window::Theme::BackgroundUpdate;
-	auto paletteChanges = base::ObservableViewer(
-		*Window::Theme::Background()
+	auto themeChanges = Window::Theme::Background()->updates(
 	) | rpl::filter([=](const BackgroundUpdate &update) {
 		return update.type == BackgroundUpdate::Type::ApplyingTheme;
 	}) | rpl::to_empty;
@@ -154,7 +154,7 @@ void MainWindow::setupNativeWindowFrame() {
 	auto nightMode = rpl::single(
 		rpl::empty_value()
 	) | rpl::then(
-		std::move(paletteChanges)
+		std::move(themeChanges)
 	) | rpl::map([=] {
 		return Window::Theme::IsNightMode();
 	}) | rpl::distinct_until_changed();

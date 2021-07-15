@@ -43,6 +43,15 @@ enum CornerHorizontalSide {
 
 class ServiceMessageStyleData : public Data::AbstractStructure {
 public:
+	ServiceMessageStyleData() {
+		style::PaletteChanged(
+		) | rpl::start_with_next([=] {
+			for (auto &corner : corners) {
+				corner = QPixmap();
+			}
+		}, _lifetime);
+	}
+
 	// circle[CircleMask value]
 	QImage circle[2];
 
@@ -50,6 +59,10 @@ public:
 	QPixmap corners[8];
 
 	base::flat_map<std::pair<int, uint32>, QPixmap> overridenCorners;
+
+private:
+	rpl::lifetime _lifetime;
+
 };
 Data::GlobalStructurePointer<ServiceMessageStyleData> serviceMessageStyle;
 
@@ -418,14 +431,6 @@ QVector<int> ServiceMessagePainter::countLineWidths(const Ui::Text::String &text
 		}
 	}
 	return lineWidths;
-}
-
-void serviceColorsUpdated() {
-	if (serviceMessageStyle) {
-		for (auto &corner : serviceMessageStyle->corners) {
-			corner = QPixmap();
-		}
-	}
 }
 
 Service::Service(

@@ -9,11 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "base/binary_guard.h"
-#include "window/themes/window_theme.h"
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/view/history_view_element.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
+#include "data/data_wall_paper.h"
 
 namespace Data {
 class DocumentMedia;
@@ -29,8 +29,7 @@ class Checkbox;
 
 class BackgroundPreviewBox
 	: public Ui::BoxContent
-	, private HistoryView::SimpleElementDelegate
-	, private base::Subscriber {
+	, private HistoryView::SimpleElementDelegate {
 public:
 	BackgroundPreviewBox(
 		QWidget*,

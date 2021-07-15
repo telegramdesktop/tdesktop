@@ -141,7 +141,7 @@ public:
 
 };
 
-class MaxInviteBox : public Ui::BoxContent, private base::Subscriber {
+class MaxInviteBox final : public Ui::BoxContent {
 public:
 	MaxInviteBox(QWidget*, not_null<ChannelData*> channel);
 

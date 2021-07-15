@@ -138,9 +138,7 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 
 namespace Window {
 
-class MainMenu::AccountButton final
-	: public Ui::RippleButton
-	, public base::Subscriber {
+class MainMenu::AccountButton final : public Ui::RippleButton {
 public:
 	AccountButton(QWidget *parent, not_null<Main::Account*> account);
 
@@ -209,12 +207,10 @@ MainMenu::AccountButton::AccountButton(
 		+ _st.itemPadding.bottom();
 	resize(width(), height);
 
-	subscribe(Window::Theme::Background(), [=](
-			const Window::Theme::BackgroundUpdate &update) {
-		if (update.paletteChanged()) {
-			_userpicKey = {};
-		}
-	});
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_userpicKey = {};
+	}, lifetime());
 
 	rpl::single(
 		rpl::empty_value()
@@ -639,8 +635,10 @@ MainMenu::MainMenu(
 		refreshMenu();
 	}, lifetime());
 
-	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
-		if (update.type == Window::Theme::BackgroundUpdate::Type::ApplyingTheme) {
+	using Window::Theme::BackgroundUpdate;
+	Window::Theme::Background()->updates(
+	) | rpl::start_with_next([=](const BackgroundUpdate &update) {
+		if (update.type == BackgroundUpdate::Type::ApplyingTheme) {
 			if (const auto action = *_nightThemeAction) {
 				const auto nightMode = Window::Theme::IsNightMode();
 				if (action->isChecked() != nightMode) {
@@ -649,10 +647,10 @@ MainMenu::MainMenu(
 				}
 			}
 		}
-		if (update.type == Window::Theme::BackgroundUpdate::Type::New) {
+		if (update.type == BackgroundUpdate::Type::New) {
 			refreshBackground();
 		}
-	});
+	}, lifetime());
 	updatePhone();
 	initResetScaleButton();
 }

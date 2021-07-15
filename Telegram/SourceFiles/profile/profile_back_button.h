@@ -15,7 +15,7 @@ class Session;
 
 namespace Profile {
 
-class BackButton final : public Ui::AbstractButton, private base::Subscriber {
+class BackButton final : public Ui::AbstractButton {
 public:
 	BackButton(
 		QWidget *parent,

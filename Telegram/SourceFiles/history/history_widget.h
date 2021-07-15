@@ -188,8 +188,6 @@ public:
 	MessageIdsList getSelectedItems() const;
 	void itemEdited(not_null<HistoryItem*> item);
 
-	void updateScrollColors();
-
 	void replyToMessage(FullMsgId itemId);
 	void replyToMessage(not_null<HistoryItem*> item);
 	void editMessage(FullMsgId itemId);

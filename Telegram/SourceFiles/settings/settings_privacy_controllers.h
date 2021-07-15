@@ -18,9 +18,7 @@ class SessionController;
 
 namespace Settings {
 
-class BlockedBoxController
-	: public PeerListController
-	, private base::Subscriber {
+class BlockedBoxController : public PeerListController {
 public:
 	explicit BlockedBoxController(
 		not_null<Window::SessionController*> window);
