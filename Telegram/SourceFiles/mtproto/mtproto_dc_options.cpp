@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace MTP {
 namespace {
 
+constexpr auto kVersion = 2;
+
 using namespace details;
 
 struct BuiltInDc {
@@ -437,8 +439,6 @@ QByteArray DcOptions::serialize() const {
 		}
 	}
 
-	constexpr auto kVersion = 1;
-
 	auto result = QByteArray();
 	result.reserve(size);
 	{
@@ -541,7 +541,7 @@ bool DcOptions::constructFromSerialized(const QByteArray &serialized) {
 	}
 
 	// Read CDN config
-	if (!stream.atEnd()) {
+	if (!stream.atEnd() && version > 1) {
 		auto count = qint32(0);
 		stream >> count;
 		if (stream.status() != QDataStream::Ok) {

@@ -1,3 +1,7 @@
+2.8.10 (16.07.21)
+
+- Fix media loading.
+
 2.8.9 (16.07.21)
 
 - Fix GIF caption edit.
