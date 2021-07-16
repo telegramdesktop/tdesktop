@@ -1,3 +1,7 @@
+2.8.9 (16.07.21)
+
+- Fix bold font on Linux.
+
 2.8.8 (15.07.21)
 
 - Added an image editor. Crop photos or highlight parts of screenshots before sending.
