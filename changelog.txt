@@ -1,5 +1,6 @@
 2.8.9 (16.07.21)
 
+- Fix GIF caption edit.
 - Fix version on Windows without SetDefaultDllDirectories.
 - Fix fonts on Linux.
 

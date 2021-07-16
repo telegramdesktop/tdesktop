@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_loader_local.h"
 #include "media/streaming/media_streaming_player.h"
+#include "styles/style_boxes.h"
 
 namespace Ui {
 namespace {
@@ -87,7 +88,23 @@ ItemSingleMediaPreview::ItemSingleMediaPreview(
 		session->downloaderTaskFinished()
 	) | rpl::start_with_next([=] {
 		const auto computed = computeThumbInfo();
-		if (computed.loaded) {
+		if (!computed.image) {
+			if (_documentMedia && !_documentMedia->owner()->hasThumbnail()) {
+				const auto size = _documentMedia->owner()->dimensions.scaled(
+					st::sendMediaPreviewSize,
+					st::confirmMaxHeight,
+					Qt::KeepAspectRatio);
+				if (!size.isEmpty()) {
+					auto empty = QImage(
+						size,
+						QImage::Format_ARGB32_Premultiplied);
+					empty.fill(Qt::black);
+					preparePreview(empty);
+				}
+				_lifetimeDownload.destroy();
+			}
+			return;
+		} else if (computed.loaded) {
 			_lifetimeDownload.destroy();
 		}
 		preparePreview(computed.image->original());
