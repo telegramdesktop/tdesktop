@@ -1,6 +1,7 @@
 2.8.9 (16.07.21)
 
-- Fix bold font on Linux.
+- Fix version on Windows without SetDefaultDllDirectories.
+- Fix fonts on Linux.
 
 2.8.8 (15.07.21)
 
