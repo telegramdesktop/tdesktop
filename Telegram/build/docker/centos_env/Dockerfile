@@ -29,8 +29,10 @@ ENV LibrariesPath /usr/src/Libraries
 WORKDIR $LibrariesPath
 
 FROM builder AS patches
-ADD https://api.github.com/repos/desktop-app/patches/git/refs/heads/master patches-version.json
-RUN git clone --depth=1 $GIT/desktop-app/patches.git
+RUN git clone $GIT/desktop-app/patches.git
+
+WORKDIR patches
+RUN git checkout 87a2e9ee07
 
 FROM builder AS extra-cmake-modules
 
