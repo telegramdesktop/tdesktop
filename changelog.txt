@@ -1,3 +1,7 @@
+2.8.11 (17.07.21)
+
+- Check shader compilation / linking before using ANGLE.
+
 2.8.10 (16.07.21)
 
 - Fix media loading.
