@@ -372,49 +372,6 @@ namespace {
 
 namespace Platform {
 
-void RegisterCustomScheme(bool force) {
-	if (cExeName().isEmpty()) {
-		return;
-	}
-	DEBUG_LOG(("App Info: Checking custom scheme 'tg'..."));
-
-	HKEY rkey;
-	QString exe = QDir::toNativeSeparators(cExeDir() + cExeName());
-
-	// Legacy URI scheme registration
-	if (!_psOpenRegKey(L"Software\\Classes\\tg", &rkey)) return;
-	if (!_psSetKeyValue(rkey, L"URL Protocol", QString())) return;
-	if (!_psSetKeyValue(rkey, 0, qsl("URL:Telegram Link"))) return;
-
-	if (!_psOpenRegKey(L"Software\\Classes\\tg\\DefaultIcon", &rkey)) return;
-	if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl(",1\""))) return;
-
-	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell", &rkey)) return;
-	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open", &rkey)) return;
-	if (!_psOpenRegKey(L"Software\\Classes\\tg\\shell\\open\\command", &rkey)) return;
-	if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl("\" -workdir \"") + cWorkingDir() + qsl("\" -- \"%1\""))) return;
-
-	// URI scheme registration as Default Program - Windows Vista and above
-	if (!_psOpenRegKey(L"Software\\Classes\\tdesktop.tg", &rkey)) return;
-	if (!_psOpenRegKey(L"Software\\Classes\\tdesktop.tg\\DefaultIcon", &rkey)) return;
-	if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl(",1\""))) return;
-
-	if (!_psOpenRegKey(L"Software\\Classes\\tdesktop.tg\\shell", &rkey)) return;
-	if (!_psOpenRegKey(L"Software\\Classes\\tdesktop.tg\\shell\\open", &rkey)) return;
-	if (!_psOpenRegKey(L"Software\\Classes\\tdesktop.tg\\shell\\open\\command", &rkey)) return;
-	if (!_psSetKeyValue(rkey, 0, '"' + exe + qsl("\" -workdir \"") + cWorkingDir() + qsl("\" -- \"%1\""))) return;
-
-	if (!_psOpenRegKey(L"Software\\TelegramDesktop", &rkey)) return;
-	if (!_psOpenRegKey(L"Software\\TelegramDesktop\\Capabilities", &rkey)) return;
-	if (!_psSetKeyValue(rkey, L"ApplicationName", qsl("Telegram Desktop"))) return;
-	if (!_psSetKeyValue(rkey, L"ApplicationDescription", qsl("Telegram Desktop"))) return;
-	if (!_psOpenRegKey(L"Software\\TelegramDesktop\\Capabilities\\UrlAssociations", &rkey)) return;
-	if (!_psSetKeyValue(rkey, L"tg", qsl("tdesktop.tg"))) return;
-
-	if (!_psOpenRegKey(L"Software\\RegisteredApplications", &rkey)) return;
-	if (!_psSetKeyValue(rkey, L"Telegram Desktop", qsl("SOFTWARE\\TelegramDesktop\\Capabilities"))) return;
-}
-
 PermissionStatus GetPermissionStatus(PermissionType type) {
 	if (type==PermissionType::Microphone) {
 		PermissionStatus result=PermissionStatus::Granted;
@@ -467,7 +424,6 @@ bool OpenSystemSettings(SystemSettingsType type) {
 } // namespace Platform
 
 void psNewVersion() {
-	Platform::RegisterCustomScheme();
 	if (Local::oldSettingsVersion() < 8051) {
 		AppUserModelId::checkPinned();
 	}
