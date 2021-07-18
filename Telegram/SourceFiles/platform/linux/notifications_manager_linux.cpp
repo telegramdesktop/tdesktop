@@ -669,12 +669,16 @@ void NotificationData::close() {
 }
 
 void NotificationData::setImage(const QString &imagePath) {
-	if (_imageKey.empty()) {
+	if (imagePath.isEmpty() || _imageKey.empty()) {
 		return;
 	}
 
 	const auto image = QImage(imagePath)
 		.convertToFormat(QImage::Format_RGBA8888);
+
+	if (image.isNull()) {
+		return;
+	}
 
 	_hints[_imageKey] = MakeGlibVariant(std::tuple{
 		image.width(),
