@@ -30,7 +30,6 @@ enum class SystemSettingsType {
 void SetWatchingMediaKeys(bool watching);
 void SetApplicationIcon(const QIcon &icon);
 QString SingleInstanceLocalServerName(const QString &hash);
-void RegisterCustomScheme(bool force = false);
 PermissionStatus GetPermissionStatus(PermissionType type);
 void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback);
 void OpenSystemSettingsForPermission(PermissionType type);
