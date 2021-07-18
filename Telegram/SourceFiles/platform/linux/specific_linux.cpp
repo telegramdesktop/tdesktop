@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "platform/linux/linux_xdp_file_dialog.h"
-#include "platform/linux/linux_gsd_media_keys.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
@@ -454,22 +453,6 @@ void SetDarkMode() {
 }
 
 } // namespace
-
-void SetWatchingMediaKeys(bool watching) {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	static std::unique_ptr<internal::GSDMediaKeys> GSDInstance;
-
-	if (watching) {
-		if (!GSDInstance) {
-			GSDInstance = std::make_unique<internal::GSDMediaKeys>();
-		}
-	} else {
-		if (GSDInstance) {
-			GSDInstance = nullptr;
-		}
-	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-}
 
 void SetApplicationIcon(const QIcon &icon) {
 	QApplication::setWindowIcon(icon);

@@ -27,7 +27,6 @@ enum class SystemSettingsType {
 	Audio,
 };
 
-void SetWatchingMediaKeys(bool watching);
 void SetApplicationIcon(const QIcon &icon);
 QString SingleInstanceLocalServerName(const QString &hash);
 PermissionStatus GetPermissionStatus(PermissionType type);
