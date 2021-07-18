@@ -113,25 +113,16 @@ if (LINUX)
     endif()
 
     if (NOT DESKTOP_APP_DISABLE_GTK_INTEGRATION)
-        target_link_libraries(Telegram PRIVATE rt)
         find_package(PkgConfig REQUIRED)
 
-        if (DESKTOP_APP_USE_PACKAGED AND NOT DESKTOP_APP_USE_PACKAGED_LAZY)
-            pkg_check_modules(GTK3 REQUIRED IMPORTED_TARGET gtk+-3.0)
-            target_link_libraries(Telegram PRIVATE PkgConfig::GTK3)
+        pkg_check_modules(GTK REQUIRED gtk+-3.0)
+        target_include_directories(Telegram SYSTEM PRIVATE ${GTK_INCLUDE_DIRS})
 
-            if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)
-                pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
-                target_link_libraries(Telegram PRIVATE PkgConfig::X11)
-            endif()
-        else()
-            pkg_check_modules(GTK REQUIRED gtk+-3.0)
-            target_include_directories(Telegram SYSTEM PRIVATE ${GTK_INCLUDE_DIRS})
-
-            if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)
-                target_link_libraries(Telegram PRIVATE X11)
-            endif()
+        if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)
+            target_link_libraries(Telegram PRIVATE X11)
         endif()
+
+        target_link_libraries(Telegram PRIVATE rt)
     endif()
 endif()
 
