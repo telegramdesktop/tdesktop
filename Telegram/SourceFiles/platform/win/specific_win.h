@@ -16,9 +16,6 @@ class LocationPoint;
 
 namespace Platform {
 
-inline void SetWatchingMediaKeys(bool watching) {
-}
-
 inline void IgnoreApplicationActivationRightNow() {
 }
 
