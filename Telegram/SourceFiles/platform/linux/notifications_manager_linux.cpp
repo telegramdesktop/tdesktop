@@ -49,6 +49,43 @@ bool InhibitionSupported = false;
 std::optional<ServerInformation> CurrentServerInformation;
 QStringList CurrentCapabilities;
 
+std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
+	try {
+		const auto connection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
+
+		const auto activatable = [&] {
+			try {
+				return ranges::contains(
+					base::Platform::DBus::ListActivatableNames(connection),
+					Glib::ustring(std::string(kService)));
+			} catch (...) {
+				// avoid service restart loop in sandboxed environments
+				return true;
+			}
+		}();
+
+		return std::make_unique<base::Platform::DBus::ServiceWatcher>(
+			connection,
+			std::string(kService),
+			[=](
+				const Glib::ustring &service,
+				const Glib::ustring &oldOwner,
+				const Glib::ustring &newOwner) {
+				if (activatable && newOwner.empty()) {
+					return;
+				}
+
+				crl::on_main([] {
+					Core::App().notifications().createManager();
+				});
+			});
+	} catch (...) {
+	}
+
+	return nullptr;
+}
+
 void StartServiceAsync(Fn<void()> callback) {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
@@ -712,6 +749,8 @@ bool ByDefault() {
 }
 
 void Create(Window::Notifications::System *system) {
+	static const auto ServiceWatcher = CreateServiceWatcher();
+
 	const auto managerSetter = [=] {
 		using ManagerType = Window::Notifications::ManagerType;
 		if ((Core::App().settings().nativeNotifications() && Supported())

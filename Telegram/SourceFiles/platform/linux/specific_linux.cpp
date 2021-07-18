@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
-#include "platform/linux/linux_notification_service_watcher.h"
 #include "platform/linux/linux_xdp_file_dialog.h"
 #include "platform/linux/linux_gsd_media_keys.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -84,8 +83,6 @@ constexpr auto kSnapcraftSettingsObjectPath = "/io/snapcraft/Settings"_cs;
 constexpr auto kSnapcraftSettingsInterface = kSnapcraftSettingsService;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-std::unique_ptr<internal::NotificationServiceWatcher> NSWInstance;
-
 void PortalAutostart(bool start, bool silent) {
 	if (cExeName().isEmpty()) {
 		return;
@@ -964,15 +961,11 @@ void start() {
 	crl::async(SetDarkMode);
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	NSWInstance = std::make_unique<internal::NotificationServiceWatcher>();
 	FileDialog::XDP::Start();
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 void finish() {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	NSWInstance = nullptr;
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 } // namespace ThirdParty
