@@ -30,7 +30,7 @@
 	url = https://github.com/desktop-app/codegen.git
 [submodule "Telegram/lib_ui"]
 	path = Telegram/lib_ui
-	url = https://github.com/desktop-app/lib_ui.git
+	url = git@github.com:TundraWork/telegram_lib_ui.git
 [submodule "Telegram/lib_rlottie"]
 	path = Telegram/lib_rlottie
 	url = https://github.com/desktop-app/lib_rlottie.git
