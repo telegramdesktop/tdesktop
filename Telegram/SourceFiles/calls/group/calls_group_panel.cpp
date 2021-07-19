@@ -289,8 +289,6 @@ void Panel::chooseSourceStop() {
 void Panel::initWindow() {
 	window()->setAttribute(Qt::WA_OpaquePaintEvent);
 	window()->setAttribute(Qt::WA_NoSystemBackground);
-	window()->setWindowIcon(
-		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
 	window()->setTitleStyle(st::groupCallTitle);
 
 	subscribeToPeerChanges();

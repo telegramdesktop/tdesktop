@@ -116,8 +116,6 @@ void Panel::replaceCall(not_null<Call*> call) {
 void Panel::initWindow() {
 	window()->setAttribute(Qt::WA_OpaquePaintEvent);
 	window()->setAttribute(Qt::WA_NoSystemBackground);
-	window()->setWindowIcon(
-		QIcon(QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
 	window()->setTitle(_user->name);
 	window()->setTitleStyle(st::callTitle);
 
