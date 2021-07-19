@@ -29,6 +29,7 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT T
 
 get_filename_component(third_party_loc "Telegram/ThirdParty" REALPATH)
 get_filename_component(submodules_loc "Telegram" REALPATH)
+get_filename_component(cmake_helpers_loc "cmake" REALPATH)
 
 include(cmake/variables.cmake)
 include(cmake/nice_target_sources.cmake)
@@ -37,6 +38,7 @@ include(cmake/target_link_frameworks.cmake)
 include(cmake/init_target.cmake)
 include(cmake/generate_target.cmake)
 include(cmake/nuget.cmake)
+include(cmake/validate_d3d_compiler.cmake)
 
 include(cmake/options.cmake)
 

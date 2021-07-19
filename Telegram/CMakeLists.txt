@@ -82,50 +82,6 @@ PRIVATE
     desktop-app::external_xxhash
 )
 
-if (LINUX)
-    target_link_libraries(Telegram
-    PRIVATE
-        desktop-app::external_glibmm
-        desktop-app::external_glib
-    )
-
-    if (NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
-        target_link_libraries(Telegram
-        PRIVATE
-            desktop-app::external_statusnotifieritem
-            desktop-app::external_dbusmenu_qt
-        )
-    endif()
-
-    if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)
-        target_link_libraries(Telegram
-        PRIVATE
-            desktop-app::external_xcb
-        )
-    endif()
-
-    if (NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
-        target_link_libraries(Telegram
-        PRIVATE
-            desktop-app::lib_waylandshells
-            desktop-app::external_kwayland
-        )
-    endif()
-
-    if (NOT DESKTOP_APP_DISABLE_GTK_INTEGRATION)
-        find_package(PkgConfig REQUIRED)
-
-        pkg_check_modules(GTK REQUIRED gtk+-3.0)
-        target_include_directories(Telegram SYSTEM PRIVATE ${GTK_INCLUDE_DIRS})
-
-        if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)
-            target_link_libraries(Telegram PRIVATE X11)
-        endif()
-
-        target_link_libraries(Telegram PRIVATE rt)
-    endif()
-endif()
-
 target_precompile_headers(Telegram PRIVATE ${src_loc}/stdafx.h)
 nice_target_sources(Telegram ${src_loc}
 PRIVATE
@@ -1302,6 +1258,48 @@ elseif (APPLE)
                 COMMAND cp ${libs_loc}/crashpad/out/$<IF:$<CONFIG:Debug>,Debug,Release>/crashpad_handler $<TARGET_FILE_DIR:Telegram>/../Helpers/
             )
         endif()
+    endif()
+else()
+    target_link_libraries(Telegram
+    PRIVATE
+        desktop-app::external_glibmm
+        desktop-app::external_glib
+    )
+
+    if (NOT DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
+        target_link_libraries(Telegram
+        PRIVATE
+            desktop-app::external_statusnotifieritem
+            desktop-app::external_dbusmenu_qt
+        )
+    endif()
+
+    if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)
+        target_link_libraries(Telegram
+        PRIVATE
+            desktop-app::external_xcb
+        )
+    endif()
+
+    if (NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
+        target_link_libraries(Telegram
+        PRIVATE
+            desktop-app::lib_waylandshells
+            desktop-app::external_kwayland
+        )
+    endif()
+
+    if (NOT DESKTOP_APP_DISABLE_GTK_INTEGRATION)
+        find_package(PkgConfig REQUIRED)
+
+        pkg_check_modules(GTK REQUIRED gtk+-3.0)
+        target_include_directories(Telegram SYSTEM PRIVATE ${GTK_INCLUDE_DIRS})
+
+        if (NOT DESKTOP_APP_DISABLE_X11_INTEGRATION)
+            target_link_libraries(Telegram PRIVATE X11)
+        endif()
+
+        target_link_libraries(Telegram PRIVATE rt)
     endif()
 endif()
 

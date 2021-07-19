@@ -35,12 +35,15 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     git clone https://github.com/desktop-app/patches.git
     cd patches
     git checkout 87a2e9ee07
-    cd ../
+    cd ..
+
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
     git checkout 9f2a7bb1
     git apply ../patches/gyp.diff
-    cd ..\..
+    cd ..
+
+    python -m pip install pywin32
 
 Add **GYP**, **Ninja** and **NuGet** to your PATH:
 
