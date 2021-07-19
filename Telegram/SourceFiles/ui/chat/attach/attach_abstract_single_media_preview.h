@@ -29,6 +29,7 @@ protected:
 	virtual bool tryPaintAnimation(Painter &p) = 0;
 	virtual bool isAnimatedPreviewReady() const = 0;
 
+	void updatePhotoEditorButton();
 	void preparePreview(QImage preview);
 
 	int previewLeft() const;

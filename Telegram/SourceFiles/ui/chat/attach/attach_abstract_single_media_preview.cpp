@@ -107,11 +107,15 @@ void AbstractSingleMediaPreview::preparePreview(QImage preview) {
 	_preview = PixmapFromImage(std::move(preview));
 	_preview.setDevicePixelRatio(style::DevicePixelRatio());
 
+	updatePhotoEditorButton();
+
+	resize(width(), std::max(_previewHeight, _minThumbH));
+}
+
+void AbstractSingleMediaPreview::updatePhotoEditorButton() {
 	_photoEditorButton->resize(_previewWidth, _previewHeight);
 	_photoEditorButton->moveToLeft(_previewLeft, _previewTop);
 	_photoEditorButton->setVisible(isPhoto());
-
-	resize(width(), std::max(_previewHeight, _minThumbH));
 }
 
 void AbstractSingleMediaPreview::resizeEvent(QResizeEvent *e) {

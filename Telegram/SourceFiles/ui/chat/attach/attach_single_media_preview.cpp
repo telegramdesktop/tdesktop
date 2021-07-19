@@ -63,8 +63,9 @@ SingleMediaPreview::SingleMediaPreview(
 	Expects(!preview.isNull());
 	setAnimated(animated);
 
-	prepareAnimatedPreview(animatedPreviewPath, animated);
 	preparePreview(preview);
+	prepareAnimatedPreview(animatedPreviewPath, animated);
+	updatePhotoEditorButton();
 }
 
 bool SingleMediaPreview::drawBackground() const {
