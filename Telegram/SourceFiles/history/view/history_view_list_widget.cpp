@@ -1124,7 +1124,7 @@ bool ListWidget::loadedAtBottom() const {
 }
 
 bool ListWidget::isEmpty() const {
-	return loadedAtTop() && loadedAtBottom() && (_itemsHeight == 0);
+	return loadedAtTop() && loadedAtBottom();
 }
 
 int ListWidget::itemMinimalHeight() const {

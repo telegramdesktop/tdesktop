@@ -64,6 +64,8 @@ public:
 
 	void touchScrollUpdated(const QPoint &screenPos);
 
+	void setItemsRevealHeight(int revealHeight);
+	void changeItemsRevealHeight(int revealHeight);
 	void checkHistoryActivation();
 	void recountHistoryGeometry();
 	void updateSize();
@@ -345,6 +347,7 @@ private:
 	History *_migrated = nullptr;
 	int _contentWidth = 0;
 	int _historyPaddingTop = 0;
+	int _revealHeight = 0;
 
 	// Save visible area coords for painting / pressing userpics.
 	int _visibleAreaTop = 0;

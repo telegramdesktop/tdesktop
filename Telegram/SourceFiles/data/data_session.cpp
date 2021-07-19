@@ -1441,12 +1441,12 @@ rpl::producer<not_null<const ViewElement*>> Session::viewLayoutChanged() const {
 	return _viewLayoutChanges.events();
 }
 
-void Session::notifyUnreadItemAdded(not_null<HistoryItem*> item) {
-	_unreadItemAdded.fire_copy(item);
+void Session::notifyNewItemAdded(not_null<HistoryItem*> item) {
+	_newItemAdded.fire_copy(item);
 }
 
-rpl::producer<not_null<HistoryItem*>> Session::unreadItemAdded() const {
-	return _unreadItemAdded.events();
+rpl::producer<not_null<HistoryItem*>> Session::newItemAdded() const {
+	return _newItemAdded.events();
 }
 
 void Session::changeMessageId(ChannelId channel, MsgId wasId, MsgId nowId) {

@@ -1072,16 +1072,16 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	item->contributeToSlowmode();
 	if (item->showNotification()) {
 		_notifications.push_back(item);
-		owner().notifyUnreadItemAdded(item);
-		const auto stillShow = item->showNotification();
-		if (stillShow) {
-			Core::App().notifications().schedule(item);
-			if (!item->out() && item->unread()) {
-				if (unreadCountKnown()) {
-					setUnreadCount(unreadCount() + 1);
-				} else {
-					owner().histories().requestDialogEntry(this);
-				}
+	}
+	owner().notifyNewItemAdded(item);
+	const auto stillShow = item->showNotification(); // Could be read already.
+	if (stillShow) {
+		Core::App().notifications().schedule(item);
+		if (!item->out() && item->unread()) {
+			if (unreadCountKnown()) {
+				setUnreadCount(unreadCount() + 1);
+			} else {
+				owner().histories().requestDialogEntry(this);
 			}
 		}
 	} else if (item->out()) {

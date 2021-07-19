@@ -2369,6 +2369,21 @@ void HistoryInner::repaintScrollDateCallback() {
 	update(0, updateTop, width(), updateHeight);
 }
 
+void HistoryInner::setItemsRevealHeight(int revealHeight) {
+	_revealHeight = revealHeight;
+}
+
+void HistoryInner::changeItemsRevealHeight(int revealHeight) {
+	if (_revealHeight == revealHeight) {
+		return;
+	}
+	const auto old = std::exchange(_revealHeight, revealHeight);
+	resize(_scroll->width(), height() + old - _revealHeight);
+	if (!_revealHeight) {
+		mouseActionUpdate(QCursor::pos());
+	}
+}
+
 void HistoryInner::updateSize() {
 	int visibleHeight = _scroll->height();
 	int newHistoryPaddingTop = qMax(visibleHeight - historyHeight() - st::historyPaddingBottom, 0);
@@ -2393,11 +2408,13 @@ void HistoryInner::updateSize() {
 
 	_historyPaddingTop = newHistoryPaddingTop;
 
-	int newHeight = _historyPaddingTop + historyHeight() + st::historyPaddingBottom;
+	int newHeight = _historyPaddingTop + historyHeight() + st::historyPaddingBottom - _revealHeight;
 	if (width() != _scroll->width() || height() != newHeight) {
 		resize(_scroll->width(), newHeight);
 
-		mouseActionUpdate(QCursor::pos());
+		if (!_revealHeight) {
+			mouseActionUpdate(QCursor::pos());
+		}
 	} else {
 		update();
 	}

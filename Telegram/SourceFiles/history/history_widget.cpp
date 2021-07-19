@@ -154,6 +154,7 @@ constexpr auto kSaveDraftTimeout = 1000;
 constexpr auto kSaveDraftAnywayTimeout = 5000;
 constexpr auto kSaveCloudDraftIdleTimeout = 14000;
 constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
+constexpr auto kItemRevealDuration = crl::time(200);
 constexpr auto kCommonModifiers = 0
 	| Qt::ShiftModifier
 	| Qt::MetaModifier
@@ -425,14 +426,9 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
-	session().data().unreadItemAdded(
+	session().data().newItemAdded(
 	) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
-		unreadMessageAdded(item);
-	}, lifetime());
-
-	session().data().itemRemoved(
-	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
-		itemRemoved(item);
+		newItemAdded(item);
 	}, lifetime());
 
 	session().data().historyChanged(
@@ -539,43 +535,25 @@ HistoryWidget::HistoryWidget(
 	}, lifetime());
 
 	session().changes().messageUpdates(
-		Data::MessageUpdate::Flag::Edited
+		Data::MessageUpdate::Flag::Destroyed
+		| Data::MessageUpdate::Flag::Edited
+		| Data::MessageUpdate::Flag::ReplyMarkup
+		| Data::MessageUpdate::Flag::BotCallbackSent
 	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
-		itemEdited(update.item);
-	}, lifetime());
-
-	session().changes().messageUpdates(
-		Data::MessageUpdate::Flag::ReplyMarkup
-	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
-		if (_keyboard->forMsgId() == update.item->fullId()) {
-			updateBotKeyboard(update.item->history(), true);
-		}
-	}, lifetime());
-
-	session().changes().messageUpdates(
-		Data::MessageUpdate::Flag::BotCallbackSent
-	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
-		const auto item = update.item;
-		if (item->id < 0 || _peer != item->history()->peer) {
+		if (update.flags & Data::MessageUpdate::Flag::Destroyed) {
+			itemRemoved(update.item);
 			return;
 		}
-
-		const auto keyId = _keyboard->forMsgId();
-		const auto lastKeyboardUsed = (keyId == FullMsgId(_channel, item->id))
-			&& (keyId == FullMsgId(_channel, _history->lastKeyboardId));
-
-		session().data().requestItemRepaint(item);
-
-		if (_replyToId == item->id) {
-			cancelReply();
+		if (update.flags & Data::MessageUpdate::Flag::Edited) {
+			itemEdited(update.item);
 		}
-		if (_keyboard->singleUse()
-			&& _keyboard->hasMarkup()
-			&& lastKeyboardUsed) {
-			if (_kbShown) {
-				toggleKeyboard(false);
+		if (update.flags & Data::MessageUpdate::Flag::ReplyMarkup) {
+			if (_keyboard->forMsgId() == update.item->fullId()) {
+				updateBotKeyboard(update.item->history(), true);
 			}
-			_history->lastKeyboardUsed = true;
+		}
+		if (update.flags & Data::MessageUpdate::Flag::BotCallbackSent) {
+			botCallbackSent(update.item);
 		}
 	}, lifetime());
 
@@ -1887,7 +1865,6 @@ void HistoryWidget::showHistory(
 
 	App::clearMousedItems();
 
-	_addToScroll = 0;
 	_saveEditMsgRequestId = 0;
 	_replyEditMsg = nullptr;
 	_editMsgId = _replyToId = 0;
@@ -1939,6 +1916,7 @@ void HistoryWidget::showHistory(
 
 	noSelectingScroll();
 	_nonEmptySelection = false;
+	_itemRevealPending.clear();
 
 	if (_peer) {
 		_history = _peer->owner().history(_peer);
@@ -2447,8 +2425,10 @@ void HistoryWidget::destroyUnreadBarOnClose() {
 	}
 }
 
-void HistoryWidget::unreadMessageAdded(not_null<HistoryItem*> item) {
-	if (_history != item->history() || !_historyInited) {
+void HistoryWidget::newItemAdded(not_null<HistoryItem*> item) {
+	if (_history != item->history()
+		|| !_historyInited
+		|| item->isScheduled()) {
 		return;
 	}
 
@@ -2459,21 +2439,28 @@ void HistoryWidget::unreadMessageAdded(not_null<HistoryItem*> item) {
 	// - on second we get wrong doWeReadServerHistory() and read both.
 	session().data().sendHistoryChangeNotifications();
 
-	const auto atBottom = (_scroll->scrollTop() >= _scroll->scrollTopMax());
-	if (!atBottom) {
+	if (item->isSending()) {
+		synteticScrollToY(_scroll->scrollTopMax());
+	} else if (_scroll->scrollTop() < _scroll->scrollTopMax()) {
 		return;
 	}
-	destroyUnreadBar();
-	if (!doWeReadServerHistory()) {
-		return;
-	}
-	if (item->isUnreadMention() && !item->isUnreadMedia()) {
-		session().api().markMediaRead(item);
-	}
-	session().data().histories().readInboxOnNewMessage(item);
+	if (item->showNotification()) {
+		destroyUnreadBar();
+		if (doWeReadServerHistory()) {
+			if (item->isUnreadMention() && !item->isUnreadMedia()) {
+				session().api().markMediaRead(item);
+			}
+			session().data().histories().readInboxOnNewMessage(item);
 
-	// Also clear possible scheduled messages notifications.
-	Core::App().notifications().clearFromHistory(_history);
+			// Also clear possible scheduled messages notifications.
+			Core::App().notifications().clearFromHistory(_history);
+		}
+	}
+	const auto view = item->mainView();
+	if (anim::Disabled() || !view) {
+		return;
+	}
+	_itemRevealPending.emplace(item);
 }
 
 void HistoryWidget::unreadCountUpdated() {
@@ -2904,9 +2891,13 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 }
 
 void HistoryWidget::handleScroll() {
-	preloadHistoryIfNeeded();
+	if (!_itemsRevealHeight) {
+		preloadHistoryIfNeeded();
+	}
 	visibleAreaUpdated();
-	updatePinnedViewer();
+	if (!_itemsRevealHeight) {
+		updatePinnedViewer();
+	}
 	if (!_synteticScrollEvent) {
 		_lastUserScrolled = crl::now();
 	}
@@ -4692,6 +4683,11 @@ void HistoryWidget::itemRemoved(not_null<const HistoryItem*> item) {
 			updateControlsGeometry();
 		}
 	}
+	const auto i = _itemRevealAnimations.find(item);
+	if (i != end(_itemRevealAnimations)) {
+		_itemRevealAnimations.erase(i);
+		revealItemsCallback();
+	}
 }
 
 void HistoryWidget::itemEdited(not_null<HistoryItem*> item) {
@@ -4784,6 +4780,9 @@ void HistoryWidget::updateHistoryGeometry(
 		bool initial,
 		bool loadedDown,
 		const ScrollChange &change) {
+	const auto guard = gsl::finally([&] {
+		_itemRevealPending.clear();
+	});
 	if (!_history || (initial && _historyInited) || (!initial && !_historyInited)) {
 		return;
 	}
@@ -4867,12 +4866,42 @@ void HistoryWidget::updateHistoryGeometry(
 			newScrollTop += change.value;
 		} else if (change.type == ScrollChangeNoJumpToBottom) {
 			newScrollTop = wasScrollTop;
-		} else if (const auto add = base::take(_addToScroll)) {
-			newScrollTop += add;
 		}
 	}
 	const auto toY = std::clamp(newScrollTop, 0, _scroll->scrollTopMax());
 	synteticScrollToY(toY);
+}
+
+void HistoryWidget::revealItemsCallback() {
+	auto height = 0;
+	if (!_historyInited) {
+		_itemRevealAnimations.clear();
+	}
+	for (auto i = begin(_itemRevealAnimations)
+		; i != end(_itemRevealAnimations);) {
+		if (!i->second.animation.animating()) {
+			i = _itemRevealAnimations.erase(i);
+		} else {
+			height += anim::interpolate(
+				i->second.startHeight,
+				0,
+				i->second.animation.value(1.));
+			++i;
+		}
+	}
+	if (_itemsRevealHeight != height) {
+		const auto wasScrollTop = _scroll->scrollTop();
+		const auto wasAtBottom = (wasScrollTop == _scroll->scrollTopMax());
+
+		_itemsRevealHeight = height;
+		_list->changeItemsRevealHeight(_itemsRevealHeight);
+
+		const auto newScrollTop = (wasAtBottom && !_history->unreadBar())
+			? countAutomaticScrollTop()
+			: _list->historyScrollTop();
+		const auto toY = std::clamp(newScrollTop, 0, _scroll->scrollTopMax());
+		synteticScrollToY(toY);
+	}
 }
 
 void HistoryWidget::updateListSize() {
@@ -4881,6 +4910,30 @@ void HistoryWidget::updateListSize() {
 	if (washidden) {
 		_scroll->show();
 	}
+	for (const auto item : base::take(_itemRevealPending)) {
+		if (const auto view = item->mainView()) {
+			if (const auto top = _list->itemTop(view); top >= 0) {
+				if (const auto height = view->height()) {
+					if (!_itemRevealAnimations.contains(item)) {
+						auto &animation = _itemRevealAnimations[item];
+						if (!animation.animation.animating()) {
+							animation.startHeight
+								= animation.currentHeight
+								= height;
+							_itemsRevealHeight += height;
+							animation.animation.start(
+								[=] { revealItemsCallback(); },
+								0.,
+								1.,
+								kItemRevealDuration,
+								anim::easeOutCirc);
+						}
+					}
+				}
+			}
+		}
+	}
+	_list->setItemsRevealHeight(_itemsRevealHeight);
 	_list->updateSize();
 	if (washidden) {
 		_scroll->hide();
@@ -5027,6 +5080,30 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 	updateFieldPlaceholder();
 	updateControlsGeometry();
 	update();
+}
+
+void HistoryWidget::botCallbackSent(not_null<HistoryItem*> item) {
+	if (item->id < 0 || _peer != item->history()->peer) {
+		return;
+	}
+
+	const auto keyId = _keyboard->forMsgId();
+	const auto lastKeyboardUsed = (keyId == FullMsgId(_channel, item->id))
+		&& (keyId == FullMsgId(_channel, _history->lastKeyboardId));
+
+	session().data().requestItemRepaint(item);
+
+	if (_replyToId == item->id) {
+		cancelReply();
+	}
+	if (_keyboard->singleUse()
+		&& _keyboard->hasMarkup()
+		&& lastKeyboardUsed) {
+		if (_kbShown) {
+			toggleKeyboard(false);
+		}
+		_history->lastKeyboardUsed = true;
+	}
 }
 
 int HistoryWidget::computeMaxFieldHeight() const {
