@@ -1015,8 +1015,11 @@ void ComposeControls::init() {
 	}, _wrap->lifetime());
 
 	_header->visibleChanged(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=](bool shown) {
 		updateHeight();
+		if (shown) {
+			raisePanels();
+		}
 	}, _wrap->lifetime());
 
 	sendContentRequests(
