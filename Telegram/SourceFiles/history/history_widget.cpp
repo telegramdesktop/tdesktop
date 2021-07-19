@@ -154,7 +154,6 @@ constexpr auto kSaveDraftTimeout = 1000;
 constexpr auto kSaveDraftAnywayTimeout = 5000;
 constexpr auto kSaveCloudDraftIdleTimeout = 14000;
 constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
-constexpr auto kItemRevealDuration = crl::time(200);
 constexpr auto kCommonModifiers = 0
 	| Qt::ShiftModifier
 	| Qt::MetaModifier
@@ -4688,6 +4687,10 @@ void HistoryWidget::itemRemoved(not_null<const HistoryItem*> item) {
 		_itemRevealAnimations.erase(i);
 		revealItemsCallback();
 	}
+	const auto j = _itemRevealPending.find(item);
+	if (j != _itemRevealPending.end()) {
+		_itemRevealPending.erase(j);
+	}
 }
 
 void HistoryWidget::itemEdited(not_null<HistoryItem*> item) {
@@ -4904,35 +4907,35 @@ void HistoryWidget::revealItemsCallback() {
 	}
 }
 
-void HistoryWidget::updateListSize() {
-	_list->recountHistoryGeometry();
-	auto washidden = _scroll->isHidden();
-	if (washidden) {
-		_scroll->show();
-	}
+void HistoryWidget::startItemRevealAnimations() {
 	for (const auto item : base::take(_itemRevealPending)) {
 		if (const auto view = item->mainView()) {
 			if (const auto top = _list->itemTop(view); top >= 0) {
 				if (const auto height = view->height()) {
 					if (!_itemRevealAnimations.contains(item)) {
 						auto &animation = _itemRevealAnimations[item];
-						if (!animation.animation.animating()) {
-							animation.startHeight
-								= animation.currentHeight
-								= height;
-							_itemsRevealHeight += height;
-							animation.animation.start(
-								[=] { revealItemsCallback(); },
-								0.,
-								1.,
-								kItemRevealDuration,
-								anim::easeOutCirc);
-						}
+						animation.startHeight = height;
+						_itemsRevealHeight += height;
+						animation.animation.start(
+							[=] { revealItemsCallback(); },
+							0.,
+							1.,
+							HistoryView::kItemRevealDuration,
+							anim::easeOutCirc);
 					}
 				}
 			}
 		}
 	}
+}
+
+void HistoryWidget::updateListSize() {
+	_list->recountHistoryGeometry();
+	auto washidden = _scroll->isHidden();
+	if (washidden) {
+		_scroll->show();
+	}
+	startItemRevealAnimations();
 	_list->setItemsRevealHeight(_itemsRevealHeight);
 	_list->updateSize();
 	if (washidden) {

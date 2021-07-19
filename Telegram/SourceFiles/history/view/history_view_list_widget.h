@@ -143,6 +143,8 @@ private:
 
 };
 
+inline constexpr auto kItemRevealDuration = crl::time(150);
+
 class ListWidget final
 	: public Ui::RpWidget
 	, public ElementDelegate
@@ -296,7 +298,10 @@ private:
 		inline bool operator!=(const MouseState &other) const {
 			return !(*this == other);
 		}
-
+	};
+	struct ItemRevealAnimation {
+		Ui::Animations::Simple animation;
+		int startHeight = 0;
 	};
 	enum class Direction {
 		Up,
@@ -329,7 +334,7 @@ private:
 
 	void refreshViewer();
 	void updateAroundPositionFromNearest(int nearestIndex);
-	void refreshRows();
+	void refreshRows(const Data::MessagesSlice &old);
 	ScrollTopState countScrollState() const;
 	void saveScrollState();
 	void restoreScrollState();
@@ -458,6 +463,8 @@ private:
 	void checkUnreadBarCreation();
 	void applyUpdatedScrollState();
 	void scrollToAnimationCallback(FullMsgId attachToId, int relativeTo);
+	void startItemRevealAnimations();
+	void revealItemsCallback();
 
 	void updateHighlightedMessage();
 	void clearHighlightedMessage();
@@ -505,6 +512,11 @@ private:
 	int _itemsWidth = 0;
 	int _itemsHeight = 0;
 	int _itemAverageHeight = 0;
+	base::flat_set<not_null<Element*>> _itemRevealPending;
+	base::flat_map<
+		not_null<Element*>,
+		ItemRevealAnimation> _itemRevealAnimations;
+	int _itemsRevealHeight = 0;
 	base::flat_set<FullMsgId> _animatedStickersPlayed;
 	base::flat_map<
 		not_null<PeerData*>,

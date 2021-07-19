@@ -323,9 +323,8 @@ private:
 		bool active = false;
 	};
 	struct ItemRevealAnimation {
-		int startHeight = 0;
-		int currentHeight = 0;
 		Ui::Animations::Simple animation;
+		int startHeight = 0;
 	};
 	enum class TextUpdateEvent {
 		SaveDraft = (1 << 0),
@@ -536,6 +535,7 @@ private:
 
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 	void updateListSize();
+	void startItemRevealAnimations();
 	void revealItemsCallback();
 
 	// Does any of the shown histories has this flag set.
