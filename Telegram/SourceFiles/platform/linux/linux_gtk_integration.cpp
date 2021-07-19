@@ -16,13 +16,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/base_platform_info.h"
-#include "webview/platform/linux/webview_linux_webkit2gtk.h"
 #include "platform/linux/linux_gtk_integration_p.h"
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_gtk_open_with_dialog.h"
 #include "platform/linux/linux_wayland_integration.h"
 #include "window/window_controller.h"
 #include "core/application.h"
+
+#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
+#include "webview/platform/linux/webview_linux_webkit2gtk.h"
+#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
 
 #include <QtCore/QProcess>
 
@@ -588,9 +591,11 @@ int GtkIntegration::Exec(
 		if (const auto integration = BaseGtkIntegration::Instance()) {
 			return integration->exec(parentDBusName);
 		}
+#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
 	} else if (type == Type::Webview) {
 		Webview::WebKit2Gtk::SetServiceName(serviceName.toStdString());
 		return Webview::WebKit2Gtk::Exec(parentDBusName.toStdString());
+#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
 	} else if (type == Type::TDesktop) {
 		ServiceName = serviceName.toStdString();
 		if (const auto integration = Instance()) {
@@ -615,8 +620,10 @@ void GtkIntegration::Start(Type type) {
 	if (type == Type::Base) {
 		BaseGtkIntegration::SetServiceName(kBaseService.utf16().arg(h));
 	} else if (type == Type::Webview) {
+#ifndef DESKTOP_APP_DISABLE_WEBKITGTK
 		Webview::WebKit2Gtk::SetServiceName(
 			kWebviewService.utf16().arg(h).arg("%1").toStdString());
+#endif // !DESKTOP_APP_DISABLE_WEBKITGTK
 
 		return;
 	} else {
