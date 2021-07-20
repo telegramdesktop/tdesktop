@@ -90,7 +90,6 @@ void AbstractSingleFilePreview::paintEvent(QPaintEvent *e) {
 	const auto w = width()
 		- st::boxPhotoPadding.left()
 		- st::boxPhotoPadding.right();
-	const auto h = height();
 	const auto &st = !isThumbedLayout(_data)
 		? st::attachPreviewLayout
 		: st::attachPreviewThumbLayout;
@@ -165,9 +164,6 @@ void AbstractSingleFilePreview::updateTextWidthFor(Data &data) {
 	const auto &st = !isThumbedLayout(data)
 		? st::attachPreviewLayout
 		: st::attachPreviewThumbLayout;
-	const auto nameleft = st.thumbSize + st.padding.right();
-	const auto nametop = st.nameTop;
-	const auto statustop = st.statusTop;
 	const auto buttonsCount = (_type == AttachControls::Type::EditOnly)
 		? 1
 		: (_type == AttachControls::Type::Full)
