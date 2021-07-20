@@ -3004,11 +3004,16 @@ void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget) {
 	if (!history) {
 		return;
 	}
+	const auto clearSelection = [weak = Ui::MakeWeak(widget)] {
+		if (const auto strong = weak.data()) {
+			strong->cancelSelection();
+		}
+	};
 	Window::ShowSendNowMessagesBox(
 		navigation,
 		history,
 		widget->getSelectedIds(),
-		[=] { navigation->showBackFromStack(); });
+		clearSelection);
 }
 
 QString WrapBotCommandInChat(

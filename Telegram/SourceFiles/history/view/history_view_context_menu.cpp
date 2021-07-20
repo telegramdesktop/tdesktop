@@ -420,16 +420,12 @@ bool AddSendNowMessageAction(
 	const auto itemId = item->fullId();
 	menu->addAction(tr::lng_context_send_now_msg(tr::now), [=] {
 		if (const auto item = owner->message(itemId)) {
-			const auto callback = [=] {
-				request.navigation->showBackFromStack();
-			};
 			Window::ShowSendNowMessagesBox(
 				request.navigation,
 				item->history(),
 				(asGroup
 					? owner->itemOrItsGroup(item)
-					: MessageIdsList{ 1, itemId }),
-				callback);
+					: MessageIdsList{ 1, itemId }));
 		}
 	});
 	return true;
