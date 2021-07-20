@@ -6964,6 +6964,31 @@ void HistoryWidget::synteticScrollToY(int y) {
 	_synteticScrollEvent = false;
 }
 
+void HistoryWidget::setupUnreadMentionsButtonContextMenu(not_null<Ui::RpWidget*> button) {
+	const auto menu = std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
+	const auto showMenu = [=] {
+		*menu = base::make_unique_q<Ui::PopupMenu>(button);
+		(*menu)->addAction(tr::lng_context_mark_read_mentions_all(tr::now), [=] {
+			if (_history) {
+				// You must add checks for peer and peer->input validity here and everywhere else in code as well
+				// Store it somewhere in vector for each chat, if we don't have internet connection check if request already exists in vector,
+				// you can either drop and replace or simply put it inside if
+				// Delete this comments when you end
+				_history->session().api().request(MTPmessages_ReadMentions(_history->peer->input)).send();
+			}
+		});
+		(*menu)->popup(QCursor::pos());
+		return true;
+	};
+
+	base::install_event_filter(button, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::ContextMenu && showMenu()) {
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
+}
+
 HistoryWidget::~HistoryWidget() {
 	if (_history) {
 		// Saving a draft on account switching.

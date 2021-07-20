@@ -597,6 +597,8 @@ private:
 
 	bool kbWasHidden() const;
 
+	void setupUnreadMentionsButtonContextMenu(not_null<Ui::RpWidget*> button);
+
 	MTP::Sender _api;
 	MsgId _replyToId = 0;
 	Ui::Text::String _replyToName;
