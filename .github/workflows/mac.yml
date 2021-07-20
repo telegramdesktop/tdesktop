@@ -5,7 +5,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
-      - '!docs/building-xcode.md'
+      - '!docs/building-mac.md'
       - 'changelog.txt'
       - 'LEGAL'
       - 'LICENSE'
@@ -14,7 +14,6 @@ on:
       - 'lib/xdg/**'
       - 'snap/**'
       - 'Telegram/build/**'
-      - 'Telegram/Patches/**'
       - 'Telegram/Resources/uwp/**'
       - 'Telegram/Resources/winrc/**'
       - 'Telegram/SourceFiles/platform/win/**'
@@ -24,7 +23,7 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
-      - '!docs/building-xcode.md'
+      - '!docs/building-mac.md'
       - 'changelog.txt'
       - 'LEGAL'
       - 'LICENSE'
@@ -33,7 +32,6 @@ on:
       - 'lib/xdg/**'
       - 'snap/**'
       - 'Telegram/build/**'
-      - 'Telegram/Patches/**'
       - 'Telegram/Resources/uwp/**'
       - 'Telegram/Resources/winrc/**'
       - 'Telegram/SourceFiles/platform/win/**'
@@ -64,7 +62,7 @@ jobs:
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
       MANUAL_CACHING: "2"
-      DOC_PATH: "docs/building-xcode.md"
+      DOC_PATH: "docs/building-mac.md"
       AUTO_CACHING: "1"
 
     steps:
