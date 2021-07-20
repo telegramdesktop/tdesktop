@@ -473,10 +473,15 @@ void psNewVersion() {
 	if (Local::oldSettingsVersion() < 8051) {
 		AppUserModelId::checkPinned();
 	}
-	if (Local::oldSettingsVersion() > 0 && Local::oldSettingsVersion() < 10021) {
+	if (Local::oldSettingsVersion() > 0
+		&& Local::oldSettingsVersion() < 2008012) {
 		// Reset icons cache, because we've changed the application icon.
 		if (Dlls::SHChangeNotify) {
-			Dlls::SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
+			Dlls::SHChangeNotify(
+				SHCNE_ASSOCCHANGED,
+				SHCNF_IDLIST,
+				nullptr,
+				nullptr);
 		}
 	}
 }
