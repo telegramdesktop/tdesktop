@@ -1,6 +1,6 @@
-## Build instructions for Xcode 10.1
+## Build instructions for Mac App Store
 
-**NB** These are used for Mac App Store build, after the [Building using Xcode][xcode] instructions.
+**NB** These are used for Mac App Store build, after the [Build for macOS][mac] instructions.
 
 ### Prepare breakpad
 

@@ -1,4 +1,4 @@
-# Build instructions for Visual Studio 2019
+# Build instructions for Windows 64-bit
 
 - [Prepare folder](#prepare-folder)
 - [Install third party software](#install-third-party-software)
@@ -10,7 +10,7 @@
 
 Choose an empty folder for the future build, for example **D:\\TBuild**. It will be named ***BuildPath*** in the rest of this document. Create two folders there, ***BuildPath*\\ThirdParty** and ***BuildPath*\\Libraries**.
 
-All commands (if not stated otherwise) will be launched from **x86 Native Tools Command Prompt for VS 2019.bat** (should be in **Start Menu > Visual Studio 2019** menu folder). Pay attention not to use any other Command Prompt.
+All commands (if not stated otherwise) will be launched from **x64 Native Tools Command Prompt for VS 2019.bat** (should be in **Start Menu > Visual Studio 2019** menu folder). Pay attention not to use any other Command Prompt.
 
 ### Obtain your API credentials
 
@@ -29,7 +29,7 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 * Download **Git** installer from [https://git-scm.com/download/win](https://git-scm.com/download/win) and install it.
 * Download **NuGet** executable from [https://dist.nuget.org/win-x86-commandline/latest/nuget.exe](https://dist.nuget.org/win-x86-commandline/latest/nuget.exe) and put to ***BuildPath*\\ThirdParty\\NuGet**
 
-Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
+Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
     cd ThirdParty
     git clone https://github.com/desktop-app/patches.git
@@ -54,14 +54,14 @@ Add **GYP**, **Ninja** and **NuGet** to your PATH:
 
 ## Clone source code and prepare libraries
 
-Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
+Open **x64 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** and run
 
     SET PATH=%cd%\ThirdParty\Strawberry\perl\bin;%cd%\ThirdParty\Python27;%cd%\ThirdParty\NASM;%cd%\ThirdParty\jom;%cd%\ThirdParty\cmake\bin;%cd%\ThirdParty\yasm;%PATH%
 
     git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
-    mkdir Libraries
-    cd Libraries
+    if not exist Libraries\win64 mkdir Libraries\win64
+    cd Libraries\win64
 
     git clone https://github.com/desktop-app/patches.git
     cd patches
@@ -70,40 +70,40 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
     git clone https://github.com/desktop-app/lzma.git
     cd lzma\C\Util\LzmaLib
-    msbuild LzmaLib.sln /property:Configuration=Debug /property:Platform="x86"
-    msbuild LzmaLib.sln /property:Configuration=Release /property:Platform="x86"
+    msbuild LzmaLib.sln /property:Configuration=Debug /property:Platform="x64"
+    msbuild LzmaLib.sln /property:Configuration=Release /property:Platform="x64"
     cd ..\..\..\..
 
     git clone https://github.com/openssl/openssl.git openssl_1_1_1
     cd openssl_1_1_1
     git checkout OpenSSL_1_1_1-stable
-    perl Configure no-shared no-tests debug-VC-WIN32
+    perl Configure no-shared no-tests debug-VC-WIN64A
     nmake
-    mkdir out32.dbg
-    move libcrypto.lib out32.dbg
-    move libssl.lib out32.dbg
-    move ossl_static.pdb out32.dbg\ossl_static
+    mkdir out64.dbg
+    move libcrypto.lib out64.dbg
+    move libssl.lib out64.dbg
+    move ossl_static.pdb out64.dbg\ossl_static
     nmake clean
-    move out32.dbg\ossl_static out32.dbg\ossl_static.pdb
-    perl Configure no-shared no-tests VC-WIN32
+    move out64.dbg\ossl_static out64.dbg\ossl_static.pdb
+    perl Configure no-shared no-tests VC-WIN64A
     nmake
-    mkdir out32
-    move libcrypto.lib out32
-    move libssl.lib out32
-    move ossl_static.pdb out32
+    mkdir out64
+    move libcrypto.lib out64
+    move libssl.lib out64
+    move ossl_static.pdb out64
     cd ..
 
     git clone https://github.com/desktop-app/zlib.git
     cd zlib\contrib\vstudio\vc14
-    msbuild zlibstat.vcxproj /property:Configuration=Debug /property:Platform="x86"
-    msbuild zlibstat.vcxproj /property:Configuration=ReleaseWithoutAsm /property:Platform="x86"
+    msbuild zlibstat.vcxproj /property:Configuration=Debug /property:Platform="x64"
+    msbuild zlibstat.vcxproj /property:Configuration=ReleaseWithoutAsm /property:Platform="x64"
     cd ..\..\..\..
 
     git clone -b v4.0.1-rc2 https://github.com/mozilla/mozjpeg.git
     cd mozjpeg
     cmake . ^
         -G "Visual Studio 16 2019" ^
-        -A Win32 ^
+        -A x64 ^
         -DWITH_JPEG8=ON ^
         -DPNG_SUPPORTED=OFF
     cmake --build . --config Debug
@@ -116,11 +116,11 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd build
     cmake .. ^
         -G "Visual Studio 16 2019" ^
-        -A Win32 ^
+        -A x64 ^
         -D LIBTYPE:STRING=STATIC ^
         -D FORCE_STATIC_VCRT=ON
-    msbuild OpenAL.vcxproj /property:Configuration=Debug
-    msbuild OpenAL.vcxproj /property:Configuration=RelWithDebInfo
+    msbuild OpenAL.vcxproj /property:Configuration=Debug /property:Platform="x64"
+    msbuild OpenAL.vcxproj /property:Configuration=RelWithDebInfo /property:Platform="x64"
     cd ..\..
 
     git clone https://github.com/google/breakpad
@@ -132,34 +132,34 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd client\windows
     gyp --no-circular-check breakpad_client.gyp --format=ninja
     cd ..\..
-    ninja -C out/Debug common crash_generation_client exception_handler
-    ninja -C out/Release common crash_generation_client exception_handler
+    ninja -C out/Debug_x64 common crash_generation_client exception_handler
+    ninja -C out/Release_x64 common crash_generation_client exception_handler
     cd tools\windows\dump_syms
     gyp dump_syms.gyp
-    msbuild dump_syms.vcxproj /property:Configuration=Release
+    msbuild dump_syms.vcxproj /property:Configuration=Release /property:Platform="x64"
     cd ..\..\..\..\..
 
     git clone https://github.com/telegramdesktop/opus.git
     cd opus
     git checkout tdesktop
     cd win32\VS2015
-    msbuild opus.sln /property:Configuration=Debug /property:Platform="Win32"
-    msbuild opus.sln /property:Configuration=Release /property:Platform="Win32"
+    msbuild opus.sln /property:Configuration=Debug /property:Platform="x64"
+    msbuild opus.sln /property:Configuration=Release /property:Platform="x64"
     cd ..\..\..
 
     git clone https://github.com/desktop-app/rnnoise.git
     cd rnnoise
     mkdir out
     cd out
-    cmake -A Win32 ..
+    cmake -A x64 ..
     cmake --build . --config Debug
     cmake --build . --config Release
     cd ..\..
 
-    cd ..
+    cd ..\..
     SET PATH_BACKUP_=%PATH%
     SET PATH=%cd%\ThirdParty\msys64\usr\bin;%PATH%
-    cd Libraries
+    cd Libraries\win64
 
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
@@ -181,7 +181,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd Debug
     cmake -G Ninja ^
         -DCMAKE_BUILD_TYPE=Debug ^
-        -DTG_ANGLE_SPECIAL_TARGET=win ^
+        -DTG_ANGLE_SPECIAL_TARGET=win64 ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%cd%/../../../zlib ../..
     ninja
     cd ..
@@ -189,7 +189,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cd Release
     cmake -G Ninja ^
         -DCMAKE_BUILD_TYPE=Release ^
-        -DTG_ANGLE_SPECIAL_TARGET=win ^
+        -DTG_ANGLE_SPECIAL_TARGET=win64 ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%cd%/../../../zlib ../..
     ninja
     cd ..\..\..
@@ -215,17 +215,17 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
         -opengl es2 -no-angle ^
         -I "%LibrariesPath%\tg_angle\include" ^
         -D "GL_APICALL=" ^
-        QMAKE_LIBS_OPENGL_ES2_DEBUG="%LibrariesPath%\tg_angle\out\Debug\tg_angle.lib %LibrariesPath%\zlib\contrib\vstudio\vc14\x86\ZlibStatDebug\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib" ^
-        QMAKE_LIBS_OPENGL_ES2_RELEASE="%LibrariesPath%\tg_angle\out\Release\tg_angle.lib %LibrariesPath%\zlib\contrib\vstudio\vc14\x86\ZlibStatReleaseWithoutAsm\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib" ^
+        QMAKE_LIBS_OPENGL_ES2_DEBUG="%LibrariesPath%\tg_angle\out\Debug\tg_angle.lib %LibrariesPath%\zlib\contrib\vstudio\vc14\x64\ZlibStatDebug\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib" ^
+        QMAKE_LIBS_OPENGL_ES2_RELEASE="%LibrariesPath%\tg_angle\out\Release\tg_angle.lib %LibrariesPath%\zlib\contrib\vstudio\vc14\x64\ZlibStatReleaseWithoutAsm\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib" ^
         -egl ^
         -D "EGLAPI=" ^
         -D "DESKTOP_APP_QT_STATIC_ANGLE=" ^
-        QMAKE_LIBS_EGL_DEBUG="%LibrariesPath%\tg_angle\out\Debug\tg_angle.lib %LibrariesPath%\zlib\contrib\vstudio\vc14\x86\ZlibStatDebug\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
-        QMAKE_LIBS_EGL_RELEASE="%LibrariesPath%\tg_angle\out\Release\tg_angle.lib %LibrariesPath%\zlib\contrib\vstudio\vc14\x86\ZlibStatReleaseWithoutAsm\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
+        QMAKE_LIBS_EGL_DEBUG="%LibrariesPath%\tg_angle\out\Debug\tg_angle.lib %LibrariesPath%\zlib\contrib\vstudio\vc14\x64\ZlibStatDebug\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
+        QMAKE_LIBS_EGL_RELEASE="%LibrariesPath%\tg_angle\out\Release\tg_angle.lib %LibrariesPath%\zlib\contrib\vstudio\vc14\x64\ZlibStatReleaseWithoutAsm\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
         -openssl-linked ^
         -I "%LibrariesPath%\openssl_1_1_1\include" ^
-        OPENSSL_LIBS_DEBUG="%LibrariesPath%\openssl_1_1_1\out32.dbg\libssl.lib %LibrariesPath%\openssl_1_1_1\out32.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
-        OPENSSL_LIBS_RELEASE="%LibrariesPath%\openssl_1_1_1\out32\libssl.lib %LibrariesPath%\openssl_1_1_1\out32\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
+        OPENSSL_LIBS_DEBUG="%LibrariesPath%\openssl_1_1_1\out64.dbg\libssl.lib %LibrariesPath%\openssl_1_1_1\out64.dbg\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
+        OPENSSL_LIBS_RELEASE="%LibrariesPath%\openssl_1_1_1\out64\libssl.lib %LibrariesPath%\openssl_1_1_1\out64\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
         -I "%LibrariesPath%\mozjpeg" ^
         LIBJPEG_LIBS_DEBUG="%LibrariesPath%\mozjpeg\Debug\jpeg-static.lib" ^
         LIBJPEG_LIBS_RELEASE="%LibrariesPath%\mozjpeg\Release\jpeg-static.lib" ^
@@ -250,7 +250,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cmake -G Ninja ^
         -DCMAKE_BUILD_TYPE=Debug ^
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF ^
-        -DTG_OWT_SPECIAL_TARGET=win ^
+        -DTG_OWT_SPECIAL_TARGET=win64 ^
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
         -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include ^
         -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
@@ -262,7 +262,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
     cmake -G Ninja ^
         -DCMAKE_BUILD_TYPE=Release ^
         -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF ^
-        -DTG_OWT_SPECIAL_TARGET=win ^
+        -DTG_OWT_SPECIAL_TARGET=win64 ^
         -DTG_OWT_LIBJPEG_INCLUDE_PATH=%cd%/../../../mozjpeg ^
         -DTG_OWT_OPENSSL_INCLUDE_PATH=%cd%/../../../openssl_1_1_1/include ^
         -DTG_OWT_OPUS_INCLUDE_PATH=%cd%/../../../opus/include ^
@@ -274,7 +274,7 @@ Open **x86 Native Tools Command Prompt for VS 2019.bat**, go to ***BuildPath*** 
 
 Go to ***BuildPath*\\tdesktop\\Telegram** and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
-    configure.bat -D TDESKTOP_API_ID=YOUR_API_ID -D TDESKTOP_API_HASH=YOUR_API_HASH -D DESKTOP_APP_USE_PACKAGED=OFF -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
+    configure.bat x64 -D TDESKTOP_API_ID=YOUR_API_ID -D TDESKTOP_API_HASH=YOUR_API_HASH -D DESKTOP_APP_USE_PACKAGED=OFF -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
 
 * Open ***BuildPath*\\tdesktop\\out\\Telegram.sln** in Visual Studio 2019
 * Select Telegram project and press Build > Build Telegram (Debug and Release configurations)

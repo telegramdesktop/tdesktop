@@ -1,4 +1,4 @@
-## Build instructions for CMake using Docker
+## Build instructions for Linux using Docker
 
 ### Obtain your API credentials
 
