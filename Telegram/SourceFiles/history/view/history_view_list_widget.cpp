@@ -1470,7 +1470,9 @@ void ListWidget::revealItemsCallback() {
 			? (_minHeight - _itemsHeight - st::historyPaddingBottom)
 			: 0;
 		const auto wasHeight = height();
-		const auto nowHeight = std::max(_minHeight, wasHeight + delta);
+		const auto nowHeight = _itemsTop
+			+ _itemsHeight
+			+ st::historyPaddingBottom;
 		if (wasHeight != nowHeight) {
 			resize(width(), nowHeight);
 		}
