@@ -206,7 +206,13 @@ if %BuildUWP% equ 0 (
     )
   )
 
-  call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -target %BuildTarget% %AlphaBetaParam%
+  if %Build64% neq 0 (
+    set "ModulesFolder=x64"
+  ) else (
+    set "ModulesFolder=x86"
+  )
+
+  call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe -path "modules\!ModulesFolder!\d3d\d3dcompiler_47.dll" -target %BuildTarget% %AlphaBetaParam%
   if %errorlevel% neq 0 goto error
 
   if %AlphaVersion% neq 0 (

@@ -96,6 +96,50 @@ BOOL CALLBACK _ActivateProcess(HWND hWnd, LPARAM lParam) {
 	return TRUE;
 }
 
+void DeleteMyModules() {
+	constexpr auto kMaxPathLong = 32767;
+	auto exePath = std::array<WCHAR, kMaxPathLong + 1>{ 0 };
+	const auto exeLength = GetModuleFileName(
+		nullptr,
+		exePath.data(),
+		kMaxPathLong + 1);
+	if (!exeLength || exeLength >= kMaxPathLong + 1) {
+		return;
+	}
+	const auto exe = std::wstring(exePath.data());
+	const auto last1 = exe.find_last_of('\\');
+	const auto last2 = exe.find_last_of('/');
+	const auto last = std::max(
+		(last1 == std::wstring::npos) ? -1 : int(last1),
+		(last2 == std::wstring::npos) ? -1 : int(last2));
+	if (last < 0) {
+		return;
+	}
+	const auto modules = exe.substr(0, last + 1) + L"modules";
+	const auto deleteOne = [&](const wchar_t *name, const wchar_t *arch) {
+		const auto path = modules + L'\\' + arch + L'\\' + name;
+		DeleteFile(path.c_str());
+	};
+	const auto deleteBoth = [&](const wchar_t *name) {
+		deleteOne(name, L"x86");
+		deleteOne(name, L"x64");
+	};
+	const auto removeOne = [&](const std::wstring &name) {
+		const auto path = modules + L'\\' + name;
+		RemoveDirectory(path.c_str());
+	};
+	const auto removeBoth = [&](const std::wstring &name) {
+		removeOne(L"x86\\" + name);
+		removeOne(L"x64\\" + name);
+	};
+	deleteBoth(L"d3d\\d3dcompiler_47.dll");
+
+	removeBoth(L"d3d");
+	removeOne(L"x86");
+	removeOne(L"x64");
+	RemoveDirectory(modules.c_str());
+}
+
 } // namespace
 
 void psActivateProcess(uint64 pid) {
@@ -133,6 +177,7 @@ void psDoCleanup() {
 		psAutoStart(false, true);
 		psSendToMenu(false, true);
 		AppUserModelId::cleanupShortcut();
+		DeleteMyModules();
 	} catch (...) {
 	}
 }
@@ -231,6 +276,7 @@ void StartOpenSSL() {
 
 void start() {
 	StartOpenSSL();
+	Dlls::CheckLoadedModules();
 }
 
 } // namespace ThirdParty
