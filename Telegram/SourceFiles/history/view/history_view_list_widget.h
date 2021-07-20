@@ -143,8 +143,6 @@ private:
 
 };
 
-inline constexpr auto kItemRevealDuration = crl::time(150);
-
 class ListWidget final
 	: public Ui::RpWidget
 	, public ElementDelegate
@@ -155,6 +153,8 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		not_null<ListDelegate*> delegate);
+
+	static const crl::time kItemRevealDuration;
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<Window::SessionController*> controller() const;

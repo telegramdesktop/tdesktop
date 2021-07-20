@@ -4895,6 +4895,10 @@ void HistoryWidget::revealItemsCallback() {
 	if (_itemsRevealHeight != height) {
 		const auto wasScrollTop = _scroll->scrollTop();
 		const auto wasAtBottom = (wasScrollTop == _scroll->scrollTopMax());
+		if (!wasAtBottom) {
+			height = 0;
+			_itemRevealAnimations.clear();
+		}
 
 		_itemsRevealHeight = height;
 		_list->changeItemsRevealHeight(_itemsRevealHeight);
@@ -4920,7 +4924,7 @@ void HistoryWidget::startItemRevealAnimations() {
 							[=] { revealItemsCallback(); },
 							0.,
 							1.,
-							HistoryView::kItemRevealDuration,
+							HistoryView::ListWidget::kItemRevealDuration,
 							anim::easeOutCirc);
 					}
 				}

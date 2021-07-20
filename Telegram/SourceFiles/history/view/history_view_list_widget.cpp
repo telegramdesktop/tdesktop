@@ -75,6 +75,8 @@ ListWidget::MouseState::MouseState(
 , pointState(pointState) {
 }
 
+const crl::time ListWidget::kItemRevealDuration = crl::time(150);
+
 template <ListWidget::EnumItemsDirection direction, typename Method>
 void ListWidget::enumerateItems(Method method) {
 	constexpr auto TopToBottom = (direction == EnumItemsDirection::TopToBottom);
@@ -1455,7 +1457,12 @@ void ListWidget::revealItemsCallback() {
 		}
 	}
 	if (_itemsRevealHeight != revealHeight) {
-		saveScrollState();
+		updateVisibleTopItem();
+		if (_visibleTopItem) {
+			// We're not at the bottom.
+			revealHeight = 0;
+			_itemRevealAnimations.clear();
+		}
 		const auto old = std::exchange(_itemsRevealHeight, revealHeight);
 		const auto delta = old - _itemsRevealHeight;
 		_itemsHeight += delta;
@@ -1463,12 +1470,13 @@ void ListWidget::revealItemsCallback() {
 			? (_minHeight - _itemsHeight - st::historyPaddingBottom)
 			: 0;
 		const auto wasHeight = height();
-		const auto nowHeight = std::min(_minHeight, wasHeight + delta);
+		const auto nowHeight = std::max(_minHeight, wasHeight + delta);
 		if (wasHeight != nowHeight) {
 			resize(width(), nowHeight);
 		}
 		update();
-		restoreScrollState();
+		restoreScrollPosition();
+		updateVisibleTopItem();
 
 		if (!_itemsRevealHeight) {
 			mouseActionUpdate(QCursor::pos());
