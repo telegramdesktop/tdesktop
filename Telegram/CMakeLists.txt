@@ -1443,7 +1443,7 @@ if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT
     endif()
 
     if (DESKTOP_APP_SPECIAL_TARGET)
-        add_executable(Packer WIN32)
+        add_executable(Packer)
         init_target(Packer)
 
         add_dependencies(Telegram Packer)

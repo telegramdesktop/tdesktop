@@ -42,7 +42,7 @@ OutputBaseFilename=tsetup.{#MyAppVersionFull}
 #define ArchModulesFolder "x86"
 #endif
 
-#define ModulesFolder "modules\{#ArchModulesFolder}"
+#define ModulesFolder "modules\" + ArchModulesFolder
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -62,7 +62,7 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 [Files]
 Source: "{#ReleasePath}\Telegram.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#ReleasePath}\Updater.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#ReleasePath}\{#ModulesFolder}\d3d\d3dcompiler_47.dll; DestDir: "{app}\{#ModulesFolder}\d3d"; Flags: ignoreversion
+Source: "{#ReleasePath}\{#ModulesFolder}\d3d\d3dcompiler_47.dll"; DestDir: "{app}\{#ModulesFolder}\d3d"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
