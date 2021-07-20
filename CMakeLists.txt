@@ -14,8 +14,13 @@ include(cmake/validate_special_target.cmake)
 include(cmake/version.cmake)
 desktop_app_parse_version(Telegram/build/version)
 
+set(project_langs C CXX)
+if (APPLE)
+    set(project_langs C CXX OBJC OBJCXX)
+endif()
+
 project(Telegram
-    LANGUAGES C CXX
+    LANGUAGES ${project_langs}
     VERSION ${desktop_app_version_cmake}
     DESCRIPTION "Official Telegram Desktop messenger"
     HOMEPAGE_URL "https://desktop.telegram.org"
