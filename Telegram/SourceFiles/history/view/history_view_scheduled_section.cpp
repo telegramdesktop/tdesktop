@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_scheduled_section.h"
 
 #include "history/view/controls/history_view_compose_controls.h"
+#include "history/view/history_view_empty_list_bubble.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_schedule_box.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toasts/common_toasts.h"
 #include "api/api_common.h"
 #include "api/api_editing.h"
@@ -152,6 +154,16 @@ ScheduledWidget::ScheduledWidget(
 			}
 		}
 	}, _inner->lifetime());
+
+	{
+		auto emptyInfo = base::make_unique_q<EmptyListBubbleWidget>(
+			_inner,
+			st::msgServicePadding);
+		const auto emptyText = Ui::Text::Semibold(
+			tr::lng_scheduled_messages_empty(tr::now));
+		emptyInfo->setText(emptyText);
+		_inner->setEmptyInfoWidget(std::move(emptyInfo));
+	}
 
 	setupScrollDownButton();
 	setupComposeControls();

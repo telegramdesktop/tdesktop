@@ -1494,6 +1494,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_saved_forward_here" = "Forward messages here for quick access";
 
 "lng_scheduled_messages" = "Scheduled Messages";
+"lng_scheduled_messages_empty" = "No scheduled messages here yet...";
 "lng_reminder_messages" = "Reminders";
 "lng_scheduled_date" = "Scheduled for {date}";
 "lng_scheduled_date_until_online" = "Scheduled until online";
