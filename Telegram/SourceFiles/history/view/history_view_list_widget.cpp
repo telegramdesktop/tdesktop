@@ -382,6 +382,9 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 	if (!_itemsRevealHeight) {
 		mouseActionUpdate(QCursor::pos());
 	}
+	if (_emptyInfo) {
+		_emptyInfo->setVisible(isEmpty());
+	}
 	_delegate->listContentRefreshed();
 }
 
@@ -2938,6 +2941,10 @@ void ListWidget::replyNextMessage(FullMsgId fullId, bool next) {
 			reply(nextIt->get());
 		}
 	}
+}
+
+void ListWidget::setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w) {
+	_emptyInfo = std::move(w);
 }
 
 ListWidget::~ListWidget() = default;

@@ -257,6 +257,8 @@ public:
 	bool elementIsChatWide() override;
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 
+	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
+
 	~ListWidget();
 
 protected:
@@ -523,6 +525,8 @@ private:
 		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
+
+	base::unique_qptr<Ui::RpWidget> _emptyInfo = nullptr;
 
 	int _minHeight = 0;
 	int _visibleTop = 0;
