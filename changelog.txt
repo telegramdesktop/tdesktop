@@ -1,3 +1,12 @@
+2.8.12 beta (20.07.21)
+
+- Change the default chat background.
+- Add GIFs overview section in chats.
+- Add a simple new messages animation.
+- Use modern Telegram application icon.
+- Use Direct3D 11 by default on Windows.
+- Fix Direct3D acceleration on basic Windows 7 setup.
+
 2.8.11 (17.07.21)
 
 - Check shader compilation / linking before using ANGLE.
