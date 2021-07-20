@@ -74,14 +74,14 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<HistoryItem*> _historyItem;
-	const bool _isAllowedEditMedia = false;
+	const bool _isAllowedEditMedia;
 	const Ui::AlbumType _albumType;
 
 	const base::unique_qptr<Ui::VerticalLayout> _controls;
 	const base::unique_qptr<Ui::ScrollArea> _scroll;
 	const base::unique_qptr<Ui::InputField> _field;
 	const base::unique_qptr<Ui::EmojiButton> _emojiToggle;
-	const base::unique_qptr<Ui::FadeShadow> _topShadow,_bottomShadow;
+	const base::unique_qptr<Ui::FadeShadow> _topShadow, _bottomShadow;
 
 	base::unique_qptr<Ui::AbstractSinglePreview> _content;
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
@@ -93,15 +93,16 @@ private:
 
 	mtpRequestId _saveRequestId = 0;
 
+	bool _isPhoto = false;
 	bool _asFile = false;
 
 	QString _error;
 
-	rpl::variable<bool> _isPhoto = false;
 	rpl::variable<int> _footerHeight = 0;
 
 	rpl::event_stream<> _editMediaClicks;
 	rpl::event_stream<> _photoEditorOpens;
+	rpl::event_stream<> _previewRebuilds;
 	rpl::event_stream<int> _contentHeight;
 
 };
