@@ -1027,7 +1027,7 @@ void Instance::Private::unregisterRequest(mtpRequestId requestId) {
 		auto handling = 0;
 		do {
 			handling = toResend.size();
-			for (const auto [resendingId, afterId] : _dependentRequests) {
+			for (const auto &[resendingId, afterId] : _dependentRequests) {
 				if (toRemove.contains(afterId)) {
 					toRemove.emplace(resendingId);
 					toResend.emplace(resendingId);
