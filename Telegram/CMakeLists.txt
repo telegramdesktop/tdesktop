@@ -704,6 +704,8 @@ PRIVATE
     lang/lang_numbers_animation.h
     lang/lang_translator.cpp
     lang/lang_translator.h
+    layout/layout_utils.cpp
+    layout/layout_utils.h
     main/main_account.cpp
     main/main_account.h
     main/main_app_config.cpp
