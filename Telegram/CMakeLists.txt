@@ -676,6 +676,8 @@ PRIVATE
     inline_bots/inline_bot_send_data.h
     inline_bots/inline_results_inner.cpp
     inline_bots/inline_results_inner.h
+    inline_bots/inline_results_mosaic_layout.cpp
+    inline_bots/inline_results_mosaic_layout.h
     inline_bots/inline_results_widget.cpp
     inline_bots/inline_results_widget.h
     intro/intro_code.cpp
