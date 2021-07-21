@@ -9,8 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_chat_helpers.h"
 
-namespace InlineBots {
-namespace Layout {
+namespace InlineBots::Layout {
 namespace {
 
 constexpr auto kInlineItemsMaxPerRow = 5;
@@ -31,9 +30,9 @@ int MosaicLayout::rowsCount() const {
 
 int MosaicLayout::countDesiredHeight(int newWidth) {
 	auto result = 0;
-	for (int i = 0, l = _rows.size(); i < l; ++i) {
-		layoutRow(_rows[i], newWidth);
-		result += _rows[i].height;
+	for (auto &row : _rows) {
+		layoutRow(row, newWidth);
+		result += row.height;
 	}
 	return result;
 }
@@ -67,7 +66,10 @@ void MosaicLayout::addItems(const std::vector<ItemBase*> &items) {
 	rowFinalize(row, sumWidth, true);
 }
 
-void MosaicLayout::addItem(ItemBase *item, Row &row, int32 &sumWidth) {
+void MosaicLayout::addItem(
+		not_null<ItemBase*> item,
+		Row &row,
+		int &sumWidth) {
 	item->preload();
 
 	item->setPosition(_rows.size() * MatrixRowShift + row.items.size());
@@ -83,22 +85,18 @@ void MosaicLayout::addItem(ItemBase *item, Row &row, int32 &sumWidth) {
 	row.items.push_back(item);
 }
 
-bool MosaicLayout::rowFinalize(Row &row, int32 &sumWidth, bool force) {
+bool MosaicLayout::rowFinalize(Row &row, int &sumWidth, bool force) {
 	if (row.items.empty()) {
 		return false;
 	}
 
-	auto full = (row.items.size() >= kInlineItemsMaxPerRow);
-
+	const auto full = (row.items.size() >= kInlineItemsMaxPerRow);
 	// Currently use the same GIFs layout for all widget sizes.
-//	auto big = (sumWidth >= st::roundRadiusSmall + width() - st::inlineResultsLeft);
-	auto big = (sumWidth >= st::emojiPanWidth - st::inlineResultsLeft);
+	const auto big = (sumWidth >= st::emojiPanWidth - st::inlineResultsLeft);
 	if (full || big || force) {
 		row.maxWidth = (full || big) ? sumWidth : 0;
-		layoutRow(
-			row,
-			_width);
-		_rows.push_back(row);
+		layoutRow(row, _width);
+		_rows.push_back(std::move(row));
 		row = Row();
 		row.items.reserve(kInlineItemsMaxPerRow);
 		sumWidth = 0;
@@ -108,11 +106,11 @@ bool MosaicLayout::rowFinalize(Row &row, int32 &sumWidth, bool force) {
 }
 
 void MosaicLayout::layoutRow(Row &row, int fullWidth) {
-	auto count = int(row.items.size());
+	const auto count = int(row.items.size());
 	Assert(count <= kInlineItemsMaxPerRow);
 
-	// enumerate items in the order of growing maxWidth()
-	// for that sort item indices by maxWidth()
+	// Enumerate items in the order of growing maxWidth()
+	// for that sort item indices by maxWidth().
 	int indices[kInlineItemsMaxPerRow];
 	for (auto i = 0; i != count; ++i) {
 		indices[i] = i;
@@ -123,20 +121,21 @@ void MosaicLayout::layoutRow(Row &row, int fullWidth) {
 
 	auto desiredWidth = row.maxWidth;
 	row.height = 0;
-	int availw = fullWidth - (st::inlineResultsLeft - st::roundRadiusSmall);
-	for (int i = 0; i < count; ++i) {
+	auto availableWidth = fullWidth
+		- (st::inlineResultsLeft - st::roundRadiusSmall);
+	for (auto i = 0; i < count; ++i) {
 		const auto index = indices[i];
 		const auto &item = row.items[index];
 		const auto w = desiredWidth
-			? (item->maxWidth() * availw / desiredWidth)
+			? (item->maxWidth() * availableWidth / desiredWidth)
 			: item->maxWidth();
-		auto actualw = std::max(w, st::inlineResultsMinWidth);
-		row.height = std::max(row.height, item->resizeGetHeight(actualw));
+		const auto actualWidth = std::max(w, st::inlineResultsMinWidth);
+		row.height = std::max(row.height, item->resizeGetHeight(actualWidth));
 		if (desiredWidth) {
-			availw -= actualw;
+			availableWidth -= actualWidth;
 			desiredWidth -= row.items[index]->maxWidth();
 			if (index > 0 && row.items[index - 1]->hasRightSkip()) {
-				availw -= st::inlineResultsSkip;
+				availableWidth -= st::inlineResultsSkip;
 				desiredWidth -= st::inlineResultsSkip;
 			}
 		}
@@ -149,27 +148,26 @@ void MosaicLayout::paint(
 		int startLeft,
 		const QRect &clip,
 		PaintContext &context) {
-	const auto fromx = rtl() ? (_width - clip.x() - clip.width()) : clip.x();
-	const auto tox = rtl() ? (_width - clip.x()) : (clip.x() + clip.width());
+	const auto fromX = rtl() ? (_width - clip.x() - clip.width()) : clip.x();
+	const auto toX = rtl() ? (_width - clip.x()) : (clip.x() + clip.width());
 	const auto rows = _rows.size();
 	for (auto row = 0; row != rows; ++row) {
-		auto &inlineRow = _rows[row];
 		if (top >= clip.top() + clip.height()) {
 			break;
 		}
-		if (top + inlineRow.height > clip.top()) {
+		auto &inlineRow = _rows[row];
+		if ((top + inlineRow.height) > clip.top()) {
 			auto left = startLeft;
-			if (row == rows - 1) {
+			if (row == (rows - 1)) {
 				context.lastRow = true;
 			}
-			for (int col = 0, cols = inlineRow.items.size(); col < cols; ++col) {
-				if (left >= tox) {
+			for (const auto &item : inlineRow.items) {
+				if (left >= toX) {
 					break;
 				}
 
-				const auto &item = inlineRow.items[col];
 				const auto w = item->width();
-				if (left + w > fromx) {
+				if ((left + w) > fromX) {
 					p.translate(left, top);
 					item->paint(p, clip.translated(-left, -top), &context);
 					p.translate(-left, -top);
@@ -185,10 +183,7 @@ void MosaicLayout::paint(
 }
 
 void MosaicLayout::clearRows(bool resultsDeleted) {
-	if (resultsDeleted) {
-		// _selected = _pressed = -1;
-	} else {
-		// clearSelection();
+	if (!resultsDeleted) {
 		for (const auto &row : _rows) {
 			for (const auto &item : row.items) {
 				item->setPosition(-1);
@@ -207,70 +202,77 @@ void MosaicLayout::preloadImages() {
 }
 
 int MosaicLayout::validateExistingRows(const Results &results) {
-	int count = results.size(), until = 0, untilrow = 0, untilcol = 0;
+	const auto count = results.size();
+	auto until = 0;
+	auto untilRow = 0;
+	auto untilCol = 0;
 	while (until < count) {
-		if (untilrow >= _rows.size()
-			|| _rows[untilrow].items[untilcol]->getResult() != results[until].get()) {
+		auto &rowItems = _rows[untilRow].items;
+		if ((untilRow >= _rows.size())
+			|| (rowItems[untilCol]->getResult() != results[until].get())) {
 			break;
 		}
 		++until;
-		if (++untilcol == _rows[untilrow].items.size()) {
-			++untilrow;
-			untilcol = 0;
+		if (++untilCol == rowItems.size()) {
+			++untilRow;
+			untilCol = 0;
 		}
 	}
-	if (until == count) { // all items are layed out
-		if (untilrow == _rows.size()) { // nothing changed
+	if (until == count) { // All items are layed out.
+		if (untilRow == _rows.size()) { // Nothing changed.
 			return until;
 		}
 
-		for (int i = untilrow, l = _rows.size(), skip = untilcol; i < l; ++i) {
-			for (int j = 0, s = _rows[i].items.size(); j < s; ++j) {
-				if (skip) {
-					--skip;
-				} else {
-					_rows[i].items[j]->setPosition(-1);
+		{
+			const auto rows = _rows.size();
+			auto skip = untilCol;
+			for (auto i = untilRow; i < rows; ++i) {
+				for (const auto &item : _rows[i].items) {
+					if (skip) {
+						--skip;
+					} else {
+						item->setPosition(-1);
+					}
 				}
 			}
 		}
-		if (!untilcol) { // all good rows are filled
-			_rows.resize(untilrow);
+		if (!untilCol) { // All good rows are filled.
+			_rows.resize(untilRow);
 			return until;
 		}
-		_rows.resize(untilrow + 1);
-		_rows[untilrow].items.resize(untilcol);
-		_rows[untilrow].maxWidth = std::accumulate(
-			_rows[untilrow].items.begin(),
-			_rows[untilrow].items.end(),
+		_rows.resize(untilRow + 1);
+		_rows[untilRow].items.resize(untilCol);
+		_rows[untilRow].maxWidth = ranges::accumulate(
+			_rows[untilRow].items,
 			0,
 			[](int w, auto &row) { return w + row->maxWidth(); });
-		layoutRow(_rows[untilrow], _width);
+		layoutRow(_rows[untilRow], _width);
 		return until;
 	}
-	if (untilrow && !untilcol) { // remove last row, maybe it is not full
-		--untilrow;
-		untilcol = _rows[untilrow].items.size();
+	if (untilRow && !untilCol) { // Remove last row, maybe it is not full.
+		--untilRow;
+		untilCol = _rows[untilRow].items.size();
 	}
-	until -= untilcol;
+	until -= untilCol;
 
-	for (int i = untilrow, l = _rows.size(); i < l; ++i) {
-		for (int j = 0, s = _rows[i].items.size(); j < s; ++j) {
-			_rows[i].items[j]->setPosition(-1);
+	for (auto i = untilRow; i < _rows.size(); ++i) {
+		for (const auto &item : _rows[i].items) {
+			item->setPosition(-1);
 		}
 	}
-	_rows.resize(untilrow);
+	_rows.resize(untilRow);
 
-	// if (_rows.isEmpty()) {
-	// 	_inlineWithThumb = false;
-	// 	for (int i = until; i < count; ++i) {
-	// 		if (results.at(i)->hasThumbDisplay()) {
-	// 			_inlineWithThumb = true;
-	// 			break;
-	// 		}
-	// 	}
-	// }
 	return until;
 }
 
-} // namespace Layout
-} // namespace InlineBots
+int MosaicLayout::columnsCountAt(int row) const {
+	Expects(row >= 0 && row < _rows.size());
+	return _rows[row].items.size();
+}
+
+int MosaicLayout::rowHeightAt(int row) {
+	Expects(row >= 0 && row < _rows.size());
+	return _rows[row].height;
+}
+
+} // namespace InlineBots::Layout

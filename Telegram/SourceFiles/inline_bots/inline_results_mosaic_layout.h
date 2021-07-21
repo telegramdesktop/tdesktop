@@ -13,43 +13,32 @@ namespace InlineBots {
 class Result;
 } // namespace InlineBots
 
-namespace InlineBots {
-namespace Layout {
+namespace InlineBots::Layout {
 
-class ItemBase;
 using Results = std::vector<std::unique_ptr<Result>>;
 
 class MosaicLayout final {
 public:
-	struct Row {
-		int maxWidth = 0;
-		int height = 0;
-		std::vector<ItemBase*> items;
-	};
 	MosaicLayout() = default;
 
-	int rowHeightAt(int row);
+	[[nodiscard]] int rowHeightAt(int row);
+	[[nodiscard]] int countDesiredHeight(int newWidth);
 
 	void addItems(const std::vector<ItemBase*> &items);
-	void addItem(ItemBase *item, Row &row, int32 &sumWidth);
 
 	void setFullWidth(int w);
-	bool empty() const;
+	[[nodiscard]] bool empty() const;
 
-	int rowsCount() const;
-	int columnsCountAt(int row) const;
+	[[nodiscard]] int rowsCount() const;
+	[[nodiscard]] int columnsCountAt(int row) const;
 
-	not_null<ItemBase*> itemAt(int row, int column) const;
-	ItemBase *maybeItemAt(int row, int column) const;
+	[[nodiscard]] not_null<ItemBase*> itemAt(int row, int column) const;
+	[[nodiscard]] ItemBase *maybeItemAt(int row, int column) const;
+
+	void clearRows(bool resultsDeleted);
+	[[nodiscard]]int validateExistingRows(const Results &results);
 
 	void preloadImages();
-
-	bool rowFinalize(Row &row, int32 &sumWidth, bool force);
-	void layoutRow(Row &row, int fullWidth);
-	void clearRows(bool resultsDeleted);
-	int validateExistingRows(const Results &results);
-
-	int countDesiredHeight(int newWidth);
 
 	void paint(
 		Painter &p,
@@ -59,9 +48,19 @@ public:
 		PaintContext &context);
 
 private:
+	struct Row {
+		int maxWidth = 0;
+		int height = 0;
+		std::vector<ItemBase*> items;
+	};
+
+	void addItem(not_null<ItemBase*> item, Row &row, int &sumWidth);
+
+	bool rowFinalize(Row &row, int &sumWidth, bool force);
+	void layoutRow(Row &row, int fullWidth);
+
 	int _width = 0;
 	std::vector<Row> _rows;
 };
 
-} // namespace Layout
-} // namespace InlineBots
+} // namespace InlineBots::Layout
