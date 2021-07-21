@@ -160,10 +160,8 @@ private:
 	void deleteUnusedInlineLayouts();
 
 	int validateExistingInlineRows(const InlineResults &results);
-	void selectInlineResult(int row, int column);
 	void selectInlineResult(
-		int row,
-		int column,
+		int index,
 		Api::SendOptions options,
 		bool forceSend = false);
 

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
+#include "layout/layout_utils.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
@@ -330,8 +331,10 @@ void GifsListWidget::paintInlineItems(Painter &p, QRect clip) {
 		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), text, style::al_center);
 		return;
 	}
-	auto gifPaused = controller()->isGifPausedAtLeastFor(Window::GifPauseReason::SavedGifs);
-	InlineBots::Layout::PaintContext context(crl::now(), false, gifPaused, false);
+	const auto gifPaused = controller()->isGifPausedAtLeastFor(
+		Window::GifPauseReason::SavedGifs);
+	using namespace InlineBots::Layout;
+	PaintContext context(crl::now(), false, gifPaused, false);
 
 	_mosaic.paint(
 		p,
@@ -359,11 +362,9 @@ void GifsListWidget::fillContextMenu(
 	if (_selected < 0 || _pressed >= 0) {
 		return;
 	}
-	const auto row = _selected / MatrixRowShift;
-	const auto column = _selected % MatrixRowShift;
 
-	const auto send = [=](Api::SendOptions options) {
-		selectInlineResult(row, column, options, true);
+	const auto send = [=, selected = _selected](Api::SendOptions options) {
+		selectInlineResult(selected, options, true);
 	};
 	SendMenu::FillSendMenu(
 		menu,
@@ -371,7 +372,7 @@ void GifsListWidget::fillContextMenu(
 		SendMenu::DefaultSilentCallback(send),
 		SendMenu::DefaultScheduleCallback(this, type, send));
 
-	if (const auto item = _mosaic.maybeItemAt(row, column)) {
+	if (const auto item = _mosaic.maybeItemAt(_selected)) {
 		const auto document = item->getDocument()
 			? item->getDocument() // Saved GIF.
 			: item->getPreviewDocument(); // Searched GIF.
@@ -403,23 +404,17 @@ void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	}
 
 	if (dynamic_cast<InlineBots::Layout::SendClickHandler*>(activated.get())) {
-		int row = _selected / MatrixRowShift, column = _selected % MatrixRowShift;
-		selectInlineResult(row, column);
+		selectInlineResult(_selected, {});
 	} else {
 		ActivateClickHandler(window(), activated, e->button());
 	}
 }
 
-void GifsListWidget::selectInlineResult(int row, int column) {
-	selectInlineResult(row, column, Api::SendOptions());
-}
-
 void GifsListWidget::selectInlineResult(
-		int row,
-		int column,
+		int index,
 		Api::SendOptions options,
 		bool forceSend) {
-	const auto item = _mosaic.maybeItemAt(row, column);
+	const auto item = _mosaic.maybeItemAt(index);
 	if (!item) {
 		return;
 	}
@@ -481,8 +476,7 @@ void GifsListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
 
 void GifsListWidget::clearSelection() {
 	if (_selected >= 0) {
-		int srow = _selected / MatrixRowShift, scol = _selected % MatrixRowShift;
-		ClickHandler::clearActive(_mosaic.itemAt(srow, scol));
+		ClickHandler::clearActive(_mosaic.itemAt(_selected));
 		setCursor(style::cur_default);
 	}
 	_selected = _pressed = -1;
@@ -685,8 +679,7 @@ void GifsListWidget::inlineItemLayoutChanged(const InlineBots::Layout::ItemBase 
 		return;
 	}
 
-	int row = _selected / MatrixRowShift, col = _selected % MatrixRowShift;
-	if (const auto item = _mosaic.maybeItemAt(row, col)) {
+	if (const auto item = _mosaic.maybeItemAt(_selected)) {
 		if (layout == item) {
 			updateSelected();
 		}
@@ -708,16 +701,14 @@ bool GifsListWidget::inlineItemVisible(const InlineBots::Layout::ItemBase *layou
 		return false;
 	}
 
-	auto row = position / MatrixRowShift;
-	auto col = position % MatrixRowShift;
-
+	const auto &[row, column] = Layout::IndexToPosition(position);
 	auto top = 0;
 	for (auto i = 0; i != row; ++i) {
 		top += _mosaic.rowHeightAt(i);
 	}
 
 	return (top < getVisibleBottom())
-		&& (top + _mosaic.itemAt(row, col)->height() > getVisibleTop());
+		&& (top + _mosaic.itemAt(row, column)->height() > getVisibleTop());
 }
 
 Data::FileOrigin GifsListWidget::inlineItemFileOrigin() {
@@ -860,78 +851,37 @@ void GifsListWidget::updateSelected() {
 		return;
 	}
 
-	auto p = mapFromGlobal(_lastMousePos);
-	int sx = (rtl() ? width() - p.x() : p.x()) - (st::inlineResultsLeft - st::roundRadiusSmall);
-	int sy = p.y() - st::stickerPanPadding;
-	int row = -1, col = -1, sel = -1;
-	ClickHandlerPtr lnk;
-	ClickHandlerHost *lnkhost = nullptr;
-	if (sy >= 0) {
-		row = 0;
-		for (int rows = _mosaic.rowsCount(); row < rows; ++row) {
-			const auto rowHeight = _mosaic.rowHeightAt(row);
-			if (sy < rowHeight) {
-				break;
-			}
-			sy -= rowHeight;
+	const auto p = mapFromGlobal(_lastMousePos);
+	const auto sx = (rtl() ? width() - p.x() : p.x())
+		- (st::inlineResultsLeft - st::roundRadiusSmall);
+	const auto sy = p.y() - st::stickerPanPadding;
+	const auto &[link, item, selected] = _mosaic.findByPoint({ sx, sy });
+
+	if (_selected != selected) {
+		if (const auto s = _mosaic.maybeItemAt(_selected)) {
+			s->update();
 		}
-	}
-	if (sx >= 0 && row >= 0 && row < _mosaic.rowsCount()) {
-		const auto columnsCount = _mosaic.columnsCountAt(row);
-		col = 0;
-		for (int cols = columnsCount; col < cols; ++col) {
-			const auto item = _mosaic.itemAt(row, col);
-			int width = item->width();
-			if (sx < width) {
-				break;
-			}
-			sx -= width;
-			if (item->hasRightSkip()) {
-				sx -= st::inlineResultsSkip;
-			}
-		}
-		if (col < columnsCount) {
-			const auto item = _mosaic.itemAt(row, col);
-			sel = row * MatrixRowShift + col;
-			auto result = item->getState(
-				QPoint(sx, sy),
-				HistoryView::StateRequest());
-			lnk = result.link;
-			lnkhost = item;
-		} else {
-			row = col = -1;
-		}
-	} else {
-		row = col = -1;
-	}
-	int srow = (_selected >= 0) ? (_selected / MatrixRowShift) : -1;
-	int scol = (_selected >= 0) ? (_selected % MatrixRowShift) : -1;
-	if (_selected != sel) {
-		if (srow >= 0 && scol >= 0) {
-			_mosaic.itemAt(srow, scol)->update();
-		}
-		_selected = sel;
-		if (row >= 0 && col >= 0) {
-			_mosaic.itemAt(row, col)->update();
+		_selected = selected;
+		if (item) {
+			item->update();
 		}
 		if (_previewShown && _selected >= 0 && _pressed != _selected) {
 			_pressed = _selected;
-			if (row >= 0 && col >= 0) {
-				const auto layout = _mosaic.itemAt(row, col);
-				if (const auto previewDocument = layout->getPreviewDocument()) {
+			if (item) {
+				if (const auto preview = item->getPreviewDocument()) {
 					controller()->widget()->showMediaPreview(
 						Data::FileOriginSavedGifs(),
-						previewDocument);
-				} else if (const auto previewPhoto = layout->getPreviewPhoto()) {
+						preview);
+				} else if (const auto preview = item->getPreviewPhoto()) {
 					controller()->widget()->showMediaPreview(
 						Data::FileOrigin(),
-						previewPhoto);
+						preview);
 				}
 			}
 		}
 	}
-	if (ClickHandler::setActive(lnk, lnkhost)) {
-		setCursor(lnk ? style::cur_pointer : style::cur_default);
+	if (ClickHandler::setActive(link, item)) {
+		setCursor(link ? style::cur_pointer : style::cur_default);
 	}
 }
 
@@ -939,8 +889,7 @@ void GifsListWidget::showPreview() {
 	if (_pressed < 0) {
 		return;
 	}
-	int row = _pressed / MatrixRowShift, col = _pressed % MatrixRowShift;
-	if (const auto layout = _mosaic.maybeItemAt(row, col)) {
+	if (const auto layout = _mosaic.maybeItemAt(_pressed)) {
 		if (const auto previewDocument = layout->getPreviewDocument()) {
 			_previewShown = controller()->widget()->showMediaPreview(
 				Data::FileOriginSavedGifs(),

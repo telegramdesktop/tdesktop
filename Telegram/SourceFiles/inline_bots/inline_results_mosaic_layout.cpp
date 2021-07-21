@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "inline_bots/inline_results_mosaic_layout.h"
 
+#include "history/view/history_view_cursor_state.h"
+#include "layout/layout_utils.h"
 #include "styles/style_chat_helpers.h"
 
 namespace InlineBots::Layout {
@@ -45,6 +47,11 @@ not_null<ItemBase*> MosaicLayout::itemAt(int row, int column) const {
 	return _rows[row].items[column];
 }
 
+not_null<ItemBase*> MosaicLayout::itemAt(int index) const {
+	const auto &[row, column] = ::Layout::IndexToPosition(index);
+	return itemAt(row, column);
+}
+
 ItemBase *MosaicLayout::maybeItemAt(int row, int column) const {
 	if ((row >= 0)
 		&& (row < _rows.size())
@@ -53,6 +60,11 @@ ItemBase *MosaicLayout::maybeItemAt(int row, int column) const {
 		return _rows[row].items[column];
 	}
 	return nullptr;
+}
+
+ItemBase *MosaicLayout::maybeItemAt(int index) const {
+	const auto &[row, column] = ::Layout::IndexToPosition(index);
+	return maybeItemAt(row, column);
 }
 
 void MosaicLayout::addItems(const std::vector<ItemBase*> &items) {
@@ -72,9 +84,10 @@ void MosaicLayout::addItem(
 		int &sumWidth) {
 	item->preload();
 
-	item->setPosition(_rows.size() * MatrixRowShift + row.items.size());
+	using namespace ::Layout;
+	item->setPosition(PositionToIndex(_rows.size(), row.items.size()));
 	if (rowFinalize(row, sumWidth, item->isFullLine())) {
-		item->setPosition(_rows.size() * MatrixRowShift);
+		item->setPosition(PositionToIndex(_rows.size(), 0));
 	}
 
 	sumWidth += item->maxWidth();
@@ -273,6 +286,52 @@ int MosaicLayout::columnsCountAt(int row) const {
 int MosaicLayout::rowHeightAt(int row) {
 	Expects(row >= 0 && row < _rows.size());
 	return _rows[row].height;
+}
+
+MosaicLayout::FoundItem MosaicLayout::findByPoint(const QPoint &globalPoint) {
+	auto sx = globalPoint.x();
+	auto sy = globalPoint.y();
+	auto row = -1;
+	auto col = -1;
+	auto sel = -1;
+	ClickHandlerPtr link;
+	ItemBase *item = nullptr;
+	if (sy >= 0) {
+		row = 0;
+		for (auto rows = rowsCount(); row < rows; ++row) {
+			const auto rowHeight = _rows[row].height;
+			if (sy < rowHeight) {
+				break;
+			}
+			sy -= rowHeight;
+		}
+	}
+	if (sx >= 0 && row >= 0 && row < rowsCount()) {
+		const auto columnsCount = _rows[row].items.size();
+		col = 0;
+		for (int cols = columnsCount; col < cols; ++col) {
+			const auto item = itemAt(row, col);
+			const auto width = item->width();
+			if (sx < width) {
+				break;
+			}
+			sx -= width;
+			if (item->hasRightSkip()) {
+				sx -= st::inlineResultsSkip;
+			}
+		}
+		if (col < columnsCount) {
+			item = itemAt(row, col);
+			sel = ::Layout::PositionToIndex(row, + col);
+			const auto result = item->getState(QPoint(sx, sy), {});
+			link = result.link;
+		} else {
+			row = col = -1;
+		}
+	} else {
+		row = col = -1;
+	}
+	return { link, item, sel };
 }
 
 } // namespace InlineBots::Layout

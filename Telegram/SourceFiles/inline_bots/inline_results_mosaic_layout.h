@@ -19,10 +19,17 @@ using Results = std::vector<std::unique_ptr<Result>>;
 
 class MosaicLayout final {
 public:
+	struct FoundItem {
+		ClickHandlerPtr link;
+		ItemBase *item = nullptr;
+		int index = -1;
+	};
 	MosaicLayout() = default;
 
 	[[nodiscard]] int rowHeightAt(int row);
 	[[nodiscard]] int countDesiredHeight(int newWidth);
+
+	[[nodiscard]] FoundItem findByPoint(const QPoint &globalPoint);
 
 	void addItems(const std::vector<ItemBase*> &items);
 
@@ -33,7 +40,9 @@ public:
 	[[nodiscard]] int columnsCountAt(int row) const;
 
 	[[nodiscard]] not_null<ItemBase*> itemAt(int row, int column) const;
+	[[nodiscard]] not_null<ItemBase*> itemAt(int index) const;
 	[[nodiscard]] ItemBase *maybeItemAt(int row, int column) const;
+	[[nodiscard]] ItemBase *maybeItemAt(int index) const;
 
 	void clearRows(bool resultsDeleted);
 	[[nodiscard]]int validateExistingRows(const Results &results);
