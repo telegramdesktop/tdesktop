@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "lang/lang_keys.h"
+#include "layout/layout_utils.h"
 #include "mainwindow.h"
 #include "facades.h"
 #include "main/main_session.h"
@@ -42,6 +43,7 @@ Inner::Inner(
 	st::windowBgOver,
 	[=] { update(); }))
 , _updateInlineItems([=] { updateInlineItems(); })
+, _mosaic(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft)
 , _previewTimer([=] { showPreview(); }) {
 	resize(st::emojiPanWidth - st::emojiScroll.width - st::roundRadiusSmall, st::inlineResultsMinHeight);
 
@@ -71,6 +73,11 @@ Inner::Inner(
 			auto h = countHeight();
 			if (h != height()) resize(width(), h);
 		}
+	}, lifetime());
+
+	sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		_mosaic.setFullWidth(s.width());
 	}, lifetime());
 }
 
@@ -120,15 +127,15 @@ bool Inner::isRestrictedView() {
 int Inner::countHeight() {
 	if (isRestrictedView()) {
 		return st::stickerPanPadding + _restrictedLabel->height() + st::stickerPanPadding;
-	} else if (_rows.isEmpty() && !_switchPmButton) {
+	} else if (_mosaic.empty() && !_switchPmButton) {
 		return st::stickerPanPadding + st::normalFont->height + st::stickerPanPadding;
 	}
 	auto result = st::stickerPanPadding;
 	if (_switchPmButton) {
 		result += _switchPmButton->height() + st::inlineResultsSkip;
 	}
-	for (int i = 0, l = _rows.count(); i < l; ++i) {
-		result += _rows[i].height;
+	for (auto i = 0, l = _mosaic.rowsCount(); i < l; ++i) {
+		result += _mosaic.rowHeightAt(i);
 	}
 	return result + st::stickerPanPadding;
 }
@@ -169,48 +176,29 @@ void Inner::paintInlineItems(Painter &p, const QRect &r) {
 	if (_restrictedLabel) {
 		return;
 	}
-	if (_rows.isEmpty() && !_switchPmButton) {
+	if (_mosaic.empty() && !_switchPmButton) {
 		p.setFont(st::normalFont);
 		p.setPen(st::noContactsColor);
 		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), tr::lng_inline_bot_no_results(tr::now), style::al_center);
 		return;
 	}
-	auto gifPaused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::InlineResults);
-	InlineBots::Layout::PaintContext context(crl::now(), false, gifPaused, false);
+	const auto gifPaused = _controller->isGifPausedAtLeastFor(
+		Window::GifPauseReason::InlineResults);
+	using namespace InlineBots::Layout;
+	PaintContext context(crl::now(), false, gifPaused, false);
 	context.pathGradient = _pathGradient.get();
 	context.pathGradient->startFrame(0, width(), width() / 2);
 
-	auto top = st::stickerPanPadding;
-	if (_switchPmButton) {
-		top += _switchPmButton->height() + st::inlineResultsSkip;
-	}
-
-	auto fromx = rtl() ? (width() - r.x() - r.width()) : r.x();
-	auto tox = rtl() ? (width() - r.x()) : (r.x() + r.width());
-	for (auto row = 0, rows = _rows.size(); row != rows; ++row) {
-		auto &inlineRow = _rows[row];
-		if (top >= r.top() + r.height()) break;
-		if (top + inlineRow.height > r.top()) {
-			auto left = st::inlineResultsLeft - st::roundRadiusSmall;
-			if (row == rows - 1) context.lastRow = true;
-			for (int col = 0, cols = inlineRow.items.size(); col < cols; ++col) {
-				if (left >= tox) break;
-
-				auto item = inlineRow.items.at(col);
-				auto w = item->width();
-				if (left + w > fromx) {
-					p.translate(left, top);
-					item->paint(p, r.translated(-left, -top), &context);
-					p.translate(-left, -top);
-				}
-				left += w;
-				if (item->hasRightSkip()) {
-					left += st::inlineResultsSkip;
-				}
-			}
-		}
-		top += inlineRow.height;
-	}
+	const auto top = st::stickerPanPadding
+		+ (_switchPmButton
+			? _switchPmButton->height() + st::inlineResultsSkip
+			: 0);
+	_mosaic.paint(
+		p,
+		top,
+		st::inlineResultsLeft - st::roundRadiusSmall,
+		r,
+		context);
 }
 
 void Inner::mousePressEvent(QMouseEvent *e) {
@@ -246,24 +234,21 @@ void Inner::mouseReleaseEvent(QMouseEvent *e) {
 	using namespace InlineBots::Layout;
 	const auto open = dynamic_cast<OpenFileClickHandler*>(activated.get());
 	if (dynamic_cast<SendClickHandler*>(activated.get()) || open) {
-		const auto row = int(_selected / MatrixRowShift);
-		const auto column = int(_selected % MatrixRowShift);
-		selectInlineResult(row, column, {}, !!open);
+		selectInlineResult(_selected, {}, !!open);
 	} else {
 		ActivateClickHandler(window(), activated, e->button());
 	}
 }
 
 void Inner::selectInlineResult(
-		int row,
-		int column,
+		int index,
 		Api::SendOptions options,
 		bool open) {
-	if (row >= _rows.size() || column >= _rows.at(row).items.size()) {
+	const auto item = _mosaic.maybeItemAt(index);
+	if (!item) {
 		return;
 	}
 
-	auto item = _rows[row].items[column];
 	if (const auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
 			_resultSelectedCallback({
@@ -299,16 +284,14 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 	if (_selected < 0 || _pressed >= 0) {
 		return;
 	}
-	const auto row = _selected / MatrixRowShift;
-	const auto column = _selected % MatrixRowShift;
 	const auto type = _sendMenuType
 		? _sendMenuType()
 		: SendMenu::Type::Disabled;
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(this);
 
-	const auto send = [=](Api::SendOptions options) {
-		selectInlineResult(row, column, options, false);
+	const auto send = [=, selected = _selected](Api::SendOptions options) {
+		selectInlineResult(selected, options, false);
 	};
 	SendMenu::FillSendMenu(
 		_menu,
@@ -316,7 +299,7 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 		SendMenu::DefaultSilentCallback(send),
 		SendMenu::DefaultScheduleCallback(this, type, send));
 
-	auto item = _rows[row].items[column];
+	const auto item = _mosaic.itemAt(_selected);
 	if (const auto previewDocument = item->getPreviewDocument()) {
 		auto callback = [&](const QString &text, Fn<void()> &&done) {
 			_menu->addAction(text, std::move(done));
@@ -331,9 +314,7 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 
 void Inner::clearSelection() {
 	if (_selected >= 0) {
-		int srow = _selected / MatrixRowShift, scol = _selected % MatrixRowShift;
-		Assert(srow >= 0 && srow < _rows.size() && scol >= 0 && scol < _rows.at(srow).items.size());
-		ClickHandler::clearActive(_rows.at(srow).items.at(scol));
+		ClickHandler::clearActive(_mosaic.itemAt(_selected));
 		setCursor(style::cur_default);
 	}
 	_selected = _pressed = -1;
@@ -351,39 +332,6 @@ void Inner::clearHeavyData() {
 	}
 }
 
-bool Inner::inlineRowsAddItem(Result *result, Row &row, int32 &sumWidth) {
-	auto layout = layoutPrepareInlineResult(result, (_rows.size() * MatrixRowShift) + row.items.size());
-	if (!layout) return false;
-
-	layout->preload();
-	if (inlineRowFinalize(row, sumWidth, layout->isFullLine())) {
-		layout->setPosition(_rows.size() * MatrixRowShift);
-	}
-
-	sumWidth += layout->maxWidth();
-	if (!row.items.isEmpty() && row.items.back()->hasRightSkip()) {
-		sumWidth += st::inlineResultsSkip;
-	}
-
-	row.items.push_back(layout);
-	return true;
-}
-
-bool Inner::inlineRowFinalize(Row &row, int32 &sumWidth, bool force) {
-	if (row.items.isEmpty()) return false;
-
-	auto full = (row.items.size() >= kInlineItemsMaxPerRow);
-	auto big = (sumWidth >= st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft);
-	if (full || big || force) {
-		_rows.push_back(layoutInlineRow(row, (full || big) ? sumWidth : 0));
-		row = Row();
-		row.items.reserve(kInlineItemsMaxPerRow);
-		sumWidth = 0;
-		return true;
-	}
-	return false;
-}
-
 void Inner::inlineBotChanged() {
 	refreshInlineRows(nullptr, nullptr, nullptr, true);
 }
@@ -393,16 +341,11 @@ void Inner::clearInlineRows(bool resultsDeleted) {
 		_selected = _pressed = -1;
 	} else {
 		clearSelection();
-		for_const (auto &row, _rows) {
-			for_const (auto &item, row.items) {
-				item->setPosition(-1);
-			}
-		}
 	}
-	_rows.clear();
+	_mosaic.clearRows(resultsDeleted);
 }
 
-ItemBase *Inner::layoutPrepareInlineResult(Result *result, int32 position) {
+ItemBase *Inner::layoutPrepareInlineResult(Result *result) {
 	auto it = _inlineLayouts.find(result);
 	if (it == _inlineLayouts.cend()) {
 		if (auto layout = ItemBase::createLayout(this, result, _inlineWithThumb)) {
@@ -416,12 +359,11 @@ ItemBase *Inner::layoutPrepareInlineResult(Result *result, int32 position) {
 		return nullptr;
 	}
 
-	it->second->setPosition(position);
 	return it->second.get();
 }
 
 void Inner::deleteUnusedInlineLayouts() {
-	if (_rows.isEmpty()) { // delete all
+	if (_mosaic.empty()) { // delete all
 		_inlineLayouts.clear();
 	} else {
 		for (auto i = _inlineLayouts.begin(); i != _inlineLayouts.cend();) {
@@ -434,45 +376,8 @@ void Inner::deleteUnusedInlineLayouts() {
 	}
 }
 
-Inner::Row &Inner::layoutInlineRow(Row &row, int32 sumWidth) {
-	auto count = int(row.items.size());
-	Assert(count <= kInlineItemsMaxPerRow);
-
-	// enumerate items in the order of growing maxWidth()
-	// for that sort item indices by maxWidth()
-	int indices[kInlineItemsMaxPerRow];
-	for (auto i = 0; i != count; ++i) {
-		indices[i] = i;
-	}
-	std::sort(indices, indices + count, [&row](int a, int b) -> bool {
-		return row.items.at(a)->maxWidth() < row.items.at(b)->maxWidth();
-	});
-
-	row.height = 0;
-	int availw = width() - (st::inlineResultsLeft - st::roundRadiusSmall);
-	for (int i = 0; i < count; ++i) {
-		int index = indices[i];
-		int w = sumWidth ? (row.items.at(index)->maxWidth() * availw / sumWidth) : row.items.at(index)->maxWidth();
-		int actualw = qMax(w, int(st::inlineResultsMinWidth));
-		row.height = qMax(row.height, row.items.at(index)->resizeGetHeight(actualw));
-		if (sumWidth) {
-			availw -= actualw;
-			sumWidth -= row.items.at(index)->maxWidth();
-			if (index > 0 && row.items.at(index - 1)->hasRightSkip()) {
-				availw -= st::inlineResultsSkip;
-				sumWidth -= st::inlineResultsSkip;
-			}
-		}
-	}
-	return row;
-}
-
 void Inner::preloadImages() {
-	for (auto row = 0, rows = _rows.size(); row != rows; ++row) {
-		for (auto col = 0, cols = _rows[row].items.size(); col != cols; ++col) {
-			_rows[row].items[col]->preload();
-		}
-	}
+	_mosaic.preloadImages();
 }
 
 void Inner::hideInlineRowsPanel() {
@@ -532,21 +437,22 @@ int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntr
 
 	Assert(_inlineBot != 0);
 
-	auto count = int(entry->results.size());
-	auto from = validateExistingInlineRows(entry->results);
+	const auto count = int(entry->results.size());
+	const auto from = validateExistingInlineRows(entry->results);
 	auto added = 0;
 
 	if (count) {
-		_rows.reserve(count);
-		auto row = Row();
-		row.items.reserve(kInlineItemsMaxPerRow);
-		auto sumWidth = 0;
-		for (auto i = from; i != count; ++i) {
-			if (inlineRowsAddItem(entry->results[i].get(), row, sumWidth)) {
-				++added;
-			}
-		}
-		inlineRowFinalize(row, sumWidth, true);
+		const auto resultItems = entry->results | ranges::views::slice(
+			from,
+			count
+		) | ranges::views::transform([&](const std::unique_ptr<Result> &r) {
+			return layoutPrepareInlineResult(r.get());
+		}) | ranges::views::filter([](const ItemBase *item) {
+			return item != nullptr;
+		}) | ranges::to_vector;
+
+		_mosaic.addItems(resultItems);
+		added = resultItems.size();
 	}
 
 	auto h = countHeight();
@@ -560,56 +466,11 @@ int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntr
 }
 
 int Inner::validateExistingInlineRows(const Results &results) {
-	int count = results.size(), until = 0, untilrow = 0, untilcol = 0;
-	for (; until < count;) {
-		if (untilrow >= _rows.size() || _rows[untilrow].items[untilcol]->getResult() != results[until].get()) {
-			break;
-		}
-		++until;
-		if (++untilcol == _rows[untilrow].items.size()) {
-			++untilrow;
-			untilcol = 0;
-		}
-	}
-	if (until == count) { // all items are layed out
-		if (untilrow == _rows.size()) { // nothing changed
-			return until;
-		}
+	const auto until = _mosaic.validateExistingRows(results);
 
-		for (int i = untilrow, l = _rows.size(), skip = untilcol; i < l; ++i) {
-			for (int j = 0, s = _rows[i].items.size(); j < s; ++j) {
-				if (skip) {
-					--skip;
-				} else {
-					_rows[i].items[j]->setPosition(-1);
-				}
-			}
-		}
-		if (!untilcol) { // all good rows are filled
-			_rows.resize(untilrow);
-			return until;
-		}
-		_rows.resize(untilrow + 1);
-		_rows[untilrow].items.resize(untilcol);
-		_rows[untilrow] = layoutInlineRow(_rows[untilrow]);
-		return until;
-	}
-	if (untilrow && !untilcol) { // remove last row, maybe it is not full
-		--untilrow;
-		untilcol = _rows[untilrow].items.size();
-	}
-	until -= untilcol;
-
-	for (int i = untilrow, l = _rows.size(); i < l; ++i) {
-		for (int j = 0, s = _rows[i].items.size(); j < s; ++j) {
-			_rows[i].items[j]->setPosition(-1);
-		}
-	}
-	_rows.resize(untilrow);
-
-	if (_rows.isEmpty()) {
+	if (_mosaic.empty()) {
 		_inlineWithThumb = false;
-		for (int i = until; i < count; ++i) {
+		for (int i = until; i < results.size(); ++i) {
 			if (results.at(i)->hasThumbDisplay()) {
 				_inlineWithThumb = true;
 				break;
@@ -624,9 +485,8 @@ void Inner::inlineItemLayoutChanged(const ItemBase *layout) {
 		return;
 	}
 
-	int row = _selected / MatrixRowShift, col = _selected % MatrixRowShift;
-	if (row < _rows.size() && col < _rows.at(row).items.size()) {
-		if (layout == _rows.at(row).items.at(col)) {
+	if (const auto item = _mosaic.maybeItemAt(_selected)) {
+		if (layout == item) {
 			updateSelected();
 		}
 	}
@@ -647,15 +507,15 @@ bool Inner::inlineItemVisible(const ItemBase *layout) {
 		return false;
 	}
 
-	int row = position / MatrixRowShift, col = position % MatrixRowShift;
-	Assert((row < _rows.size()) && (col < _rows[row].items.size()));
+	const auto &[row, column] = ::Layout::IndexToPosition(position);
 
-	int top = st::stickerPanPadding;
-	for (int32 i = 0; i < row; ++i) {
-		top += _rows.at(i).height;
+	auto top = st::stickerPanPadding;
+	for (auto i = 0; i != row; ++i) {
+		top += _mosaic.rowHeightAt(i);
 	}
 
-	return (top < _visibleBottom) && (top + _rows[row].items[col]->height() > _visibleTop);
+	return (top < _visibleBottom)
+		&& (top + _mosaic.itemAt(row, column)->height() > _visibleTop);
 }
 
 Data::FileOrigin Inner::inlineItemFileOrigin() {
@@ -667,94 +527,55 @@ void Inner::updateSelected() {
 		return;
 	}
 
-	auto p = mapFromGlobal(_lastMousePos);
+	const auto p = mapFromGlobal(_lastMousePos);
 
-	int sx = (rtl() ? width() - p.x() : p.x()) - (st::inlineResultsLeft - st::roundRadiusSmall);
-	int sy = p.y() - st::stickerPanPadding;
-	if (_switchPmButton) {
-		sy -= _switchPmButton->height() + st::inlineResultsSkip;
-	}
-	int row = -1, col = -1, sel = -1;
-	ClickHandlerPtr lnk;
-	ClickHandlerHost *lnkhost = nullptr;
-	if (sy >= 0) {
-		row = 0;
-		for (int rows = _rows.size(); row < rows; ++row) {
-			if (sy < _rows[row].height) {
-				break;
-			}
-			sy -= _rows[row].height;
+	const auto sx = (rtl() ? width() - p.x() : p.x())
+		- (st::inlineResultsLeft - st::roundRadiusSmall);
+	const auto sy = p.y()
+		- st::stickerPanPadding
+		- (_switchPmButton
+			? _switchPmButton->height() + st::inlineResultsSkip
+			: 0);
+	const auto &[link, item, selected] = _mosaic.findByPoint({ sx, sy });
+
+	if (_selected != selected) {
+		if (const auto s = _mosaic.maybeItemAt(_selected)) {
+			s->update();
 		}
-	}
-	if (sx >= 0 && row >= 0 && row < _rows.size()) {
-		auto &inlineItems = _rows[row].items;
-		col = 0;
-		for (int cols = inlineItems.size(); col < cols; ++col) {
-			int width = inlineItems.at(col)->width();
-			if (sx < width) {
-				break;
-			}
-			sx -= width;
-			if (inlineItems.at(col)->hasRightSkip()) {
-				sx -= st::inlineResultsSkip;
-			}
-		}
-		if (col < inlineItems.size()) {
-			sel = row * MatrixRowShift + col;
-			auto result = inlineItems[col]->getState(
-				QPoint(sx, sy),
-				HistoryView::StateRequest());
-			lnk = result.link;
-			lnkhost = inlineItems[col];
-		} else {
-			row = col = -1;
-		}
-	} else {
-		row = col = -1;
-	}
-	int srow = (_selected >= 0) ? (_selected / MatrixRowShift) : -1;
-	int scol = (_selected >= 0) ? (_selected % MatrixRowShift) : -1;
-	if (_selected != sel) {
-		if (srow >= 0 && scol >= 0) {
-			Assert(srow >= 0 && srow < _rows.size() && scol >= 0 && scol < _rows.at(srow).items.size());
-			_rows[srow].items[scol]->update();
-		}
-		_selected = sel;
-		if (row >= 0 && col >= 0) {
-			Assert(row >= 0 && row < _rows.size() && col >= 0 && col < _rows.at(row).items.size());
-			_rows[row].items[col]->update();
+		_selected = selected;
+		if (item) {
+			item->update();
 		}
 		if (_previewShown && _selected >= 0 && _pressed != _selected) {
 			_pressed = _selected;
-			if (row >= 0 && col >= 0) {
-				auto layout = _rows.at(row).items.at(col);
-				if (const auto previewDocument = layout->getPreviewDocument()) {
+			if (item) {
+				if (const auto preview = item->getPreviewDocument()) {
 					_controller->widget()->showMediaPreview(
 						Data::FileOrigin(),
-						previewDocument);
-				} else if (auto previewPhoto = layout->getPreviewPhoto()) {
+						preview);
+				} else if (const auto preview = item->getPreviewPhoto()) {
 					_controller->widget()->showMediaPreview(
 						Data::FileOrigin(),
-						previewPhoto);
+						preview);
 				}
 			}
 		}
 	}
-	if (ClickHandler::setActive(lnk, lnkhost)) {
-		setCursor(lnk ? style::cur_pointer : style::cur_default);
+	if (ClickHandler::setActive(link, item)) {
+		setCursor(link ? style::cur_pointer : style::cur_default);
 		Ui::Tooltip::Hide();
 	}
-	if (lnk) {
+	if (link) {
 		Ui::Tooltip::Show(1000, this);
 	}
 }
 
 void Inner::showPreview() {
-	if (_pressed < 0) return;
+	if (_pressed < 0) {
+		return;
+	}
 
-	int row = _pressed / MatrixRowShift, col = _pressed % MatrixRowShift;
-	if (row < _rows.size() && col < _rows.at(row).items.size()) {
-		auto layout = _rows.at(row).items.at(col);
+	if (const auto layout = _mosaic.maybeItemAt(_pressed)) {
 		if (const auto previewDocument = layout->getPreviewDocument()) {
 			_previewShown = _controller->widget()->showMediaPreview(
 				Data::FileOrigin(),

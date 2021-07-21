@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "mtproto/sender.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "inline_bots/inline_results_mosaic_layout.h"
 
 namespace Api {
 struct SendOptions;
@@ -120,11 +121,6 @@ private:
 	static constexpr bool kRefreshIconsScrollAnimation = true;
 	static constexpr bool kRefreshIconsNoAnimation = false;
 
-	struct Row {
-		int height = 0;
-		QVector<ItemBase*> items;
-	};
-
 	void switchPm();
 
 	void updateSelected();
@@ -139,18 +135,13 @@ private:
 	void showPreview();
 	void updateInlineItems();
 	void clearInlineRows(bool resultsDeleted);
-	ItemBase *layoutPrepareInlineResult(Result *result, int32 position);
+	ItemBase *layoutPrepareInlineResult(Result *result);
 
-	bool inlineRowsAddItem(Result *result, Row &row, int32 &sumWidth);
-	bool inlineRowFinalize(Row &row, int32 &sumWidth, bool force = false);
-
-	Row &layoutInlineRow(Row &row, int32 sumWidth = 0);
 	void deleteUnusedInlineLayouts();
 
 	int validateExistingInlineRows(const Results &results);
 	void selectInlineResult(
-		int row,
-		int column,
+		int index,
 		Api::SendOptions options,
 		bool open);
 
@@ -174,7 +165,7 @@ private:
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
-	QVector<Row> _rows;
+	InlineBots::Layout::MosaicLayout _mosaic;
 
 	std::map<Result*, std::unique_ptr<ItemBase>> _inlineLayouts;
 

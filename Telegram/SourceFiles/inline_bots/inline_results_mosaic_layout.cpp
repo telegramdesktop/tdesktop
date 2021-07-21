@@ -18,6 +18,10 @@ constexpr auto kInlineItemsMaxPerRow = 5;
 
 } // namespace
 
+MosaicLayout::MosaicLayout(int bigWidth)
+: _bigWidth(bigWidth) {
+}
+
 void MosaicLayout::setFullWidth(int w) {
 	_width = w;
 }
@@ -105,7 +109,7 @@ bool MosaicLayout::rowFinalize(Row &row, int &sumWidth, bool force) {
 
 	const auto full = (row.items.size() >= kInlineItemsMaxPerRow);
 	// Currently use the same GIFs layout for all widget sizes.
-	const auto big = (sumWidth >= st::emojiPanWidth - st::inlineResultsLeft);
+	const auto big = (sumWidth >= _bigWidth);
 	if (full || big || force) {
 		row.maxWidth = (full || big) ? sumWidth : 0;
 		layoutRow(row, _width);

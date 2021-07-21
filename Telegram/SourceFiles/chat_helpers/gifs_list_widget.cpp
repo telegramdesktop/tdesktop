@@ -168,6 +168,7 @@ GifsListWidget::GifsListWidget(
 , _api(&controller->session().mtp())
 , _section(Section::Gifs)
 , _updateInlineItems([=] { updateInlineItems(); })
+, _mosaic(st::emojiPanWidth - st::inlineResultsLeft)
 , _previewTimer([=] { showPreview(); }) {
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);

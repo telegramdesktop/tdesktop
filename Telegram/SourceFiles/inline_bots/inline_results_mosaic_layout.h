@@ -24,7 +24,7 @@ public:
 		ItemBase *item = nullptr;
 		int index = -1;
 	};
-	MosaicLayout() = default;
+	MosaicLayout(int bigWidth);
 
 	[[nodiscard]] int rowHeightAt(int row);
 	[[nodiscard]] int countDesiredHeight(int newWidth);
@@ -68,6 +68,7 @@ private:
 	bool rowFinalize(Row &row, int &sumWidth, bool force);
 	void layoutRow(Row &row, int fullWidth);
 
+	const int _bigWidth;
 	int _width = 0;
 	std::vector<Row> _rows;
 };
