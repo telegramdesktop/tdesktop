@@ -934,6 +934,15 @@ void ListWidget::unregisterHeavyItem(not_null<const BaseLayout*> item) {
 	}
 }
 
+bool ListWidget::itemVisible(not_null<const BaseLayout*> item) {
+	if (const auto &found = findItemById(GetUniversalId(item))) {
+		const auto geometry = found->geometry;
+		return (geometry.top() < _visibleBottom)
+			&& (geometry.top() + geometry.height() > _visibleTop);
+	}
+	return true;
+}
+
 void ListWidget::openPhoto(not_null<PhotoData*> photo, FullMsgId id) {
 	_controller->parentController()->openPhoto(photo, id);
 }

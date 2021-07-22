@@ -1895,7 +1895,8 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 						height,
 						ImageRoundRadius::None, RectPart::None);
 				}
-			} else if (_gif->autoPausedGif()/* && !context()->inlineItemVisible(this)*/) {
+			} else if (_gif->autoPausedGif()
+					&& !delegate()->itemVisible(this)) {
 				clearHeavyPart();
 			}
 		}
@@ -2057,7 +2058,15 @@ void Gif::ensureDataMediaCreated() const {
 }
 
 void Gif::clearHeavyPart() {
+	_gif.reset();
 	_dataMedia = nullptr;
+}
+
+void Gif::setPosition(int32 position) {
+	ItemBase::setPosition(position);
+	if (position < 0) {
+		_gif.reset();
+	}
 }
 
 float64 Gif::dataProgress() const {

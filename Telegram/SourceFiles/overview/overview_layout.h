@@ -225,6 +225,7 @@ public:
 		StateRequest request) const override;
 
 	void clearHeavyPart() override;
+	void setPosition(int32 position);
 
 protected:
 	float64 dataProgress() const override;
