@@ -76,8 +76,10 @@ public:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
+	// Overview::Layout::Delegate
 	void registerHeavyItem(not_null<const BaseLayout*> item) override;
 	void unregisterHeavyItem(not_null<const BaseLayout*> item) override;
+	void repaintItem(not_null<const BaseLayout*> item) override;
 
 	void openPhoto(not_null<PhotoData*> photo, FullMsgId id) override;
 	void openDocument(

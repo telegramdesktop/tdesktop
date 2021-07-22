@@ -835,6 +835,10 @@ void ListWidget::repaintItem(const BaseLayout *item) {
 	}
 }
 
+void ListWidget::repaintItem(not_null<const BaseLayout*> item) {
+	repaintItem(GetUniversalId(item));
+}
+
 void ListWidget::repaintItem(QRect itemGeometry) {
 	rtlupdate(itemGeometry);
 }
