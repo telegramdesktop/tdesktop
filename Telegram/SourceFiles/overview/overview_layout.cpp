@@ -191,13 +191,14 @@ void ItemBase::ensureCheckboxCreated() {
 }
 
 void RadialProgressItem::setDocumentLinks(
-		not_null<DocumentData*> document) {
+		not_null<DocumentData*> document,
+		bool forceOpen) {
 	const auto context = parent()->fullId();
 	setLinks(
 		std::make_shared<DocumentOpenClickHandler>(
 			document,
 			crl::guard(this, [=](FullMsgId id) {
-				delegate()->openDocument(document, id);
+				delegate()->openDocument(document, id, forceOpen);
 			}),
 			context),
 		std::make_shared<DocumentSaveClickHandler>(document, context),

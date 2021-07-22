@@ -117,7 +117,9 @@ protected:
 		ClickHandlerPtr &&openl,
 		ClickHandlerPtr &&savel,
 		ClickHandlerPtr &&cancell);
-	void setDocumentLinks(not_null<DocumentData*> document);
+	void setDocumentLinks(
+		not_null<DocumentData*> document,
+		bool forceOpen = false);
 
 	void radialAnimationCallback(crl::time now) const;
 

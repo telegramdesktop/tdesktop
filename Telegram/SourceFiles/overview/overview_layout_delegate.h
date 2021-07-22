@@ -21,7 +21,8 @@ public:
 	virtual void openPhoto(not_null<PhotoData*> photo, FullMsgId id) = 0;
 	virtual void openDocument(
 		not_null<DocumentData*> document,
-		FullMsgId id) = 0;
+		FullMsgId id,
+		bool showInMediaView = false) = 0;
 
 };
 

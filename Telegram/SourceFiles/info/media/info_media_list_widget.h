@@ -84,7 +84,8 @@ public:
 	void openPhoto(not_null<PhotoData*> photo, FullMsgId id) override;
 	void openDocument(
 		not_null<DocumentData*> document,
-		FullMsgId id) override;
+		FullMsgId id,
+		bool showInMediaView = false) override;
 
 private:
 	struct Context;

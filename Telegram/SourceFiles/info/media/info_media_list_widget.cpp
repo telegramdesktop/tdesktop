@@ -887,8 +887,12 @@ void ListWidget::openPhoto(not_null<PhotoData*> photo, FullMsgId id) {
 
 void ListWidget::openDocument(
 		not_null<DocumentData*> document,
-		FullMsgId id) {
-	_controller->parentController()->openDocument(document, id);
+		FullMsgId id,
+		bool showInMediaView) {
+	_controller->parentController()->openDocument(
+		document,
+		id,
+		showInMediaView);
 }
 
 SparseIdsMergedSlice::Key ListWidget::sliceKey(
