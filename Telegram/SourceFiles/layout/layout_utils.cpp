@@ -8,15 +8,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout/layout_utils.h"
 
 namespace Layout {
+namespace {
+
+constexpr auto kMatrixRowShift = 40000;
+
+} // namespace
 
 Layout::Position IndexToPosition(int index) {
 	return {
-		(index >= 0) ? (index / MatrixRowShift) : -1,
-		(index >= 0) ? (index % MatrixRowShift) : -1 };
+		(index >= 0) ? (index / kMatrixRowShift) : -1,
+		(index >= 0) ? (index % kMatrixRowShift) : -1 };
 }
 
 int PositionToIndex(int row, int column) {
-	return row * MatrixRowShift + column;
+	return row * kMatrixRowShift + column;
 }
 
 int PositionToIndex(const Layout::Position &position) {

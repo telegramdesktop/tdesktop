@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/media/history_view_document.h"
 #include "core/click_handler_types.h"
+#include "layout/layout_utils.h"
 #include "mainwindow.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
@@ -723,7 +724,7 @@ void ReplyKeyboard::clickHandlerPressedChanged(
 void ReplyKeyboard::startAnimation(int i, int j, int direction) {
 	auto notStarted = _animations.empty();
 
-	int indexForAnimation = (i * MatrixRowShift + j + 1) * direction;
+	int indexForAnimation = Layout::PositionToIndex(i, j + 1) * direction;
 
 	_animations.remove(-indexForAnimation);
 	if (!_animations.contains(indexForAnimation)) {
@@ -741,8 +742,7 @@ bool ReplyKeyboard::selectedAnimationCallback(crl::time now) {
 	}
 	for (auto i = _animations.begin(); i != _animations.end();) {
 		const auto index = std::abs(i->first) - 1;
-		const auto row = (index / MatrixRowShift);
-		const auto col = index % MatrixRowShift;
+		const auto &[row, col] = Layout::IndexToPosition(index);
 		const auto dt = float64(now - i->second) / st::botKbDuration;
 		if (dt >= 1) {
 			_rows[row][col].howMuchOver = (i->first > 0) ? 1 : 0;
@@ -759,8 +759,7 @@ bool ReplyKeyboard::selectedAnimationCallback(crl::time now) {
 void ReplyKeyboard::clearSelection() {
 	for (const auto &[relativeIndex, time] : _animations) {
 		const auto index = std::abs(relativeIndex) - 1;
-		const auto row = (index / MatrixRowShift);
-		const auto col = index % MatrixRowShift;
+		const auto &[row, col] = Layout::IndexToPosition(index);
 		_rows[row][col].howMuchOver = 0;
 	}
 	_animations.clear();

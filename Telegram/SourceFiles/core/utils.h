@@ -121,8 +121,6 @@ void memset_rand(void *data, uint32 len);
 QString translitRusEng(const QString &rus);
 QString rusKeyboardLayoutSwitch(const QString &from);
 
-static const int MatrixRowShift = 40000;
-
 inline int rowscount(int fullCount, int countPerRow) {
 	return (fullCount + countPerRow - 1) / countPerRow;
 }
