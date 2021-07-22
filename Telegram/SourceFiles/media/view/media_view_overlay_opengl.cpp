@@ -193,7 +193,6 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 
 	const auto upload = (_trackFrameIndex != data.index)
 		|| (_streamedIndex != _owner->streamedIndex());
-	const auto format = Ui::GL::CurrentSingleComponentFormat();
 	_trackFrameIndex = data.index;
 	_streamedIndex = _owner->streamedIndex();
 
@@ -202,8 +201,8 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 	if (upload) {
 		_f->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 		uploadTexture(
-			format,
-			format,
+			GL_ALPHA,
+			GL_ALPHA,
 			yuv->size,
 			_lumaSize,
 			yuv->y.stride,
@@ -214,8 +213,8 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 	_textures.bind(*_f, 2);
 	if (upload) {
 		uploadTexture(
-			format,
-			format,
+			GL_ALPHA,
+			GL_ALPHA,
 			yuv->chromaSize,
 			_chromaSize,
 			yuv->u.stride,
@@ -225,8 +224,8 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 	_textures.bind(*_f, 3);
 	if (upload) {
 		uploadTexture(
-			format,
-			format,
+			GL_ALPHA,
+			GL_ALPHA,
 			yuv->chromaSize,
 			_chromaSize,
 			yuv->v.stride,

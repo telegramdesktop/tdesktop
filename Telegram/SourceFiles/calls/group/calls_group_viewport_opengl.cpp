@@ -985,7 +985,6 @@ void Viewport::RendererGL::bindFrame(
 		program.argb32->setUniformValue("s_texture", GLint(0));
 	} else {
 		const auto yuv = data.yuv420;
-		const auto format = Ui::GL::CurrentSingleComponentFormat();
 		program.yuv420->bind();
 		f.glActiveTexture(GL_TEXTURE0);
 		tileData.textures.bind(f, 0);
@@ -993,8 +992,8 @@ void Viewport::RendererGL::bindFrame(
 			f.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 			uploadTexture(
 				f,
-				format,
-				format,
+				GL_ALPHA,
+				GL_ALPHA,
 				yuv->size,
 				tileData.textureSize,
 				yuv->y.stride,
@@ -1007,8 +1006,8 @@ void Viewport::RendererGL::bindFrame(
 		if (upload) {
 			uploadTexture(
 				f,
-				format,
-				format,
+				GL_ALPHA,
+				GL_ALPHA,
 				yuv->chromaSize,
 				tileData.textureChromaSize,
 				yuv->u.stride,
@@ -1019,8 +1018,8 @@ void Viewport::RendererGL::bindFrame(
 		if (upload) {
 			uploadTexture(
 				f,
-				format,
-				format,
+				GL_ALPHA,
+				GL_ALPHA,
 				yuv->chromaSize,
 				tileData.textureChromaSize,
 				yuv->v.stride,
@@ -1365,19 +1364,33 @@ void Viewport::RendererGL::validateNoiseTexture(
 	if (_noiseTexture.created()) {
 		return;
 	}
-	const auto format = Ui::GL::CurrentSingleComponentFormat();
 	_noiseTexture.ensureCreated(f, GL_NEAREST, GL_REPEAT);
 	_noiseTexture.bind(f, 0);
+
+	// Rendering to GL_ALPHA is not supported.
 	f.glTexImage2D(
 		GL_TEXTURE_2D,
 		0,
-		format,
+		GL_R8,
 		kNoiseTextureSize,
 		kNoiseTextureSize,
 		0,
-		format,
+		GL_RED,
 		GL_UNSIGNED_BYTE,
 		nullptr);
+	if (f.glGetError() != GL_NO_ERROR) {
+		// Direct3D 9 doesn't support GL_R8 textures.
+		f.glTexImage2D(
+			GL_TEXTURE_2D,
+			0,
+			GL_RGB,
+			kNoiseTextureSize,
+			kNoiseTextureSize,
+			0,
+			GL_RGB,
+			GL_UNSIGNED_BYTE,
+			nullptr);
+	}
 
 	_noiseFramebuffer.ensureCreated(f);
 	_noiseFramebuffer.bind(f, 0);
@@ -1458,6 +1471,5 @@ void Viewport::RendererGL::validatePausedAnimation(
 		paused ? 1. : 0.,
 		st::fadeWrapDuration);
 }
-
 
 } // namespace Calls::Group
