@@ -28,7 +28,8 @@ constexpr auto kTestingEditorBackground = FromLegacyBackgroundId(-664);
 constexpr auto kThemeBackground = FromLegacyBackgroundId(-2);
 constexpr auto kCustomBackground = FromLegacyBackgroundId(-1);
 constexpr auto kLegacy1DefaultBackground = FromLegacyBackgroundId(0);
-constexpr auto kDefaultBackground = 5947530738516623361;
+constexpr auto kLegacy2DefaultBackground = 5947530738516623361;
+constexpr auto kDefaultBackground = 5778236420632084488;
 constexpr auto kIncorrectDefaultBackground = FromLegacyBackgroundId(105);
 
 quint32 SerializeMaybeColor(std::optional<QColor> color) {
@@ -497,13 +498,17 @@ bool IsLegacy1DefaultWallPaper(const WallPaper &paper) {
 	return (paper.id() == kLegacy1DefaultBackground);
 }
 
+bool IsLegacy2DefaultWallPaper(const WallPaper &paper) {
+	return (paper.id() == kLegacy2DefaultBackground)
+		|| (paper.id() == kIncorrectDefaultBackground);
+}
+
 WallPaper DefaultWallPaper() {
 	return WallPaper(kDefaultBackground);
 }
 
 bool IsDefaultWallPaper(const WallPaper &paper) {
-	return (paper.id() == kDefaultBackground)
-		|| (paper.id() == kIncorrectDefaultBackground);
+	return (paper.id() == kDefaultBackground);
 }
 
 bool IsCloudWallPaper(const WallPaper &paper) {

@@ -416,7 +416,7 @@ void Generator::paintHistoryBackground() {
 	if (background.isNull()) {
 		const auto fakePaper = Data::WallPaper(_current.backgroundId);
 		if (Data::IsThemeWallPaper(fakePaper)) {
-			background.load(qsl(":/gui/art/bg.jpg"));
+			background.load(qsl(":/gui/art/background.jpg"));
 			tiled = false;
 		} else {
 			background = std::move(_current.backgroundImage);

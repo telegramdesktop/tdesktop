@@ -239,8 +239,9 @@ void BackgroundBox::Inner::sortPapers() {
 		return std::make_tuple(
 			data.id() == current,
 			night ? data.isDark() : !data.isDark(),
-			!data.isDefault() && !data.isLocal(),
-			!data.isDefault() && data.isLocal());
+			!data.isDefault() && !Data::IsLegacy1DefaultWallPaper(data),
+			Data::IsLegacy2DefaultWallPaper(data),
+			Data::IsLegacy1DefaultWallPaper(data));
 	});
 	if (!_papers.empty() && _papers.front().data.id() == current) {
 		_papers.front().data = _papers.front().data.withParamsFrom(
@@ -366,6 +367,7 @@ void BackgroundBox::Inner::paintPaper(
 		_check->paint(p, checkLeft, checkTop, width());
 	} else if (Data::IsCloudWallPaper(paper.data)
 		&& !Data::IsDefaultWallPaper(paper.data)
+		&& !Data::IsLegacy2DefaultWallPaper(paper.data)
 		&& !v::is_null(over)
 		&& (&paper == &_papers[getSelectionIndex(over)])) {
 		const auto deleteSelected = v::is<DeleteSelected>(over);
@@ -395,6 +397,7 @@ void BackgroundBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 		} else if (result >= _papers.size()) {
 			return Selection();
 		}
+		auto &data = _papers[result].data;
 		const auto deleteLeft = (column + 1) * (width + skip)
 			- st::stickerPanDeleteIconBg.width();
 		const auto deleteBottom = row * (height + skip) + skip
@@ -402,9 +405,10 @@ void BackgroundBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 		const auto currentId = Window::Theme::Background()->id();
 		const auto inDelete = (x >= deleteLeft)
 			&& (y < deleteBottom)
-			&& Data::IsCloudWallPaper(_papers[result].data)
-			&& !Data::IsDefaultWallPaper(_papers[result].data)
-			&& (currentId != _papers[result].data.id());
+			&& Data::IsCloudWallPaper(data)
+			&& !Data::IsDefaultWallPaper(data)
+			&& !Data::IsLegacy2DefaultWallPaper(data)
+			&& (currentId != data.id());
 		return (result >= _papers.size())
 			? Selection()
 			: inDelete

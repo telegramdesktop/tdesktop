@@ -98,6 +98,7 @@ private:
 [[nodiscard]] bool IsCustomWallPaper(const WallPaper &paper);
 [[nodiscard]] WallPaper Legacy1DefaultWallPaper();
 [[nodiscard]] bool IsLegacy1DefaultWallPaper(const WallPaper &paper);
+[[nodiscard]] bool IsLegacy2DefaultWallPaper(const WallPaper &paper);
 [[nodiscard]] WallPaper DefaultWallPaper();
 [[nodiscard]] bool IsDefaultWallPaper(const WallPaper &paper);
 [[nodiscard]] bool IsCloudWallPaper(const WallPaper &paper);

@@ -654,7 +654,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 		|| Data::details::IsTestingEditorWallPaper(_paper)) {
 		if (Data::details::IsTestingDefaultWallPaper(_paper)
 			|| image.isNull()) {
-			image.load(qsl(":/gui/art/bg.jpg"));
+			image.load(qsl(":/gui/art/background.jpg"));
 			setPaper(Data::details::TestingDefaultWallPaper());
 		}
 		image = validateBackgroundImage(std::move(image));
@@ -671,7 +671,7 @@ void ChatBackground::set(const Data::WallPaper &paper, QImage image) {
 		} else if (Data::IsDefaultWallPaper(_paper)
 			|| (!_paper.backgroundColor() && image.isNull())) {
 			setPaper(Data::DefaultWallPaper().withParamsFrom(_paper));
-			image.load(qsl(":/gui/art/bg.jpg"));
+			image.load(qsl(":/gui/art/background.jpg"));
 		}
 		Local::writeBackground(
 			_paper,

@@ -682,9 +682,10 @@ bool readBackground() {
 	const auto isOldEmptyImage = (bg.stream.status() != QDataStream::Ok);
 	if (isOldEmptyImage
 		|| Data::IsLegacy1DefaultWallPaper(*paper)
+		|| (Data::IsLegacy2DefaultWallPaper(*paper) && bg.version < 2008012)
 		|| Data::IsDefaultWallPaper(*paper)) {
 		_backgroundCanWrite = false;
-		if (isOldEmptyImage || bg.version < 8005) {
+		if (isOldEmptyImage || bg.version < 2008012) {
 			Window::Theme::Background()->set(Data::DefaultWallPaper());
 			Window::Theme::Background()->setTile(false);
 		} else {
