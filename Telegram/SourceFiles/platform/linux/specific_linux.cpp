@@ -714,7 +714,7 @@ void InstallLauncher(bool force) {
 
 	const auto icon = icons + kIconName.utf16() + qsl(".png");
 	auto iconExists = QFile::exists(icon);
-	if (Local::oldSettingsVersion() < 10021 && iconExists) {
+	if (Local::oldSettingsVersion() < 2008012 && iconExists) {
 		// Icon was changed.
 		if (QFile::remove(icon)) {
 			iconExists = false;
