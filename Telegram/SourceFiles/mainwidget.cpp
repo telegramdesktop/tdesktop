@@ -1265,7 +1265,7 @@ void MainWidget::checkChatBackground() {
 	};
 	_background->generating = Data::ReadImageAsync(
 		media.get(),
-		Window::Theme::ProcessBackgroundImage,
+		Window::Theme::PreprocessBackgroundImage,
 		generateCallback);
 }
 

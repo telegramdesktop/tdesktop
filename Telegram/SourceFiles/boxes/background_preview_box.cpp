@@ -622,6 +622,7 @@ void BackgroundPreviewBox::paintDate(Painter &p) {
 	if (!date || !_serviceBg) {
 		return;
 	}
+	auto hq = PainterHighQualityEnabler(p);
 	const auto text = date->text;
 	const auto bubbleHeight = st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
 	const auto bubbleTop = st::msgServiceMargin.top();
@@ -758,7 +759,7 @@ void BackgroundPreviewBox::checkLoadedDocument() {
 	};
 	_generating = Data::ReadImageAsync(
 		_media.get(),
-		Window::Theme::ProcessBackgroundImage,
+		Window::Theme::PreprocessBackgroundImage,
 		generateCallback);
 }
 

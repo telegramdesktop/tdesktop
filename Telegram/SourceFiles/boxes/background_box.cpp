@@ -239,6 +239,7 @@ void BackgroundBox::Inner::sortPapers() {
 		return std::make_tuple(
 			data.id() == current,
 			night ? data.isDark() : !data.isDark(),
+			Data::IsDefaultWallPaper(data),
 			!data.isDefault() && !Data::IsLegacy1DefaultWallPaper(data),
 			Data::IsLegacy2DefaultWallPaper(data),
 			Data::IsLegacy1DefaultWallPaper(data));

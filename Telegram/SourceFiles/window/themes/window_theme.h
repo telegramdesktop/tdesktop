@@ -98,9 +98,9 @@ bool LoadFromContent(
 	const QByteArray &content,
 	not_null<Instance*> out,
 	Cached *outCache);
-QColor CountAverageColor(const QImage &image);
-QColor AdjustedColor(QColor original, QColor background);
-QImage ProcessBackgroundImage(QImage image);
+[[nodiscard]] QColor CountAverageColor(const QImage &image);
+[[nodiscard]] QColor AdjustedColor(QColor original, QColor background);
+[[nodiscard]] QImage PreprocessBackgroundImage(QImage image);
 
 struct BackgroundUpdate {
 	enum class Type {
@@ -215,6 +215,7 @@ private:
 	[[nodiscard]] bool isNonDefaultThemeOrBackground();
 	[[nodiscard]] bool isNonDefaultBackground();
 	void checkUploadWallPaper();
+	[[nodiscard]] QImage postprocessBackgroundImage(QImage image);
 
 	friend bool IsNightMode();
 	friend void SetNightModeValue(bool nightMode);
