@@ -156,6 +156,18 @@ void AddPhotoActions(
 	}
 }
 
+void SaveGif(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId) {
+	if (const auto item = controller->session().data().message(itemId)) {
+		if (const auto media = item->media()) {
+			if (const auto document = media->document()) {
+				Api::ToggleSavedGif(document, item->fullId(), true);
+			}
+		}
+	}
+}
+
 void OpenGif(
 		not_null<Window::SessionController*> controller,
 		FullMsgId itemId) {
@@ -225,6 +237,11 @@ void AddDocumentActions(
 		if (notAutoplayedGif) {
 			menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
 				OpenGif(list->controller(), contextId);
+			});
+		}
+		if (document->isGifv()) {
+			menu->addAction(tr::lng_context_save_gif(tr::now), [=] {
+				SaveGif(list->controller(), contextId);
 			});
 		}
 	}
