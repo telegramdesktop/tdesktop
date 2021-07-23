@@ -1,3 +1,8 @@
+2.8.13 beta (23.07.21)
+
+- Fix crash in messages animation.
+- Save GIFs from context menu in channel comments.
+
 2.8.12 beta (20.07.21)
 
 - Change the default chat background.
