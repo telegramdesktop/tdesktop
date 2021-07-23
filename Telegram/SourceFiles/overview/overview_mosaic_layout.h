@@ -17,6 +17,7 @@ public:
 		ClickHandlerPtr link;
 		ItemBase *item = nullptr;
 		int index = -1;
+		bool exact = false;
 	};
 	MosaicLayout();
 

@@ -274,6 +274,7 @@ MosaicLayout::FoundItem MosaicLayout::findByPoint(
 	auto row = -1;
 	auto col = -1;
 	auto sel = -1;
+	bool exact = true;
 	ClickHandlerPtr link;
 	ItemBase *item = nullptr;
 	if (sy >= 0) {
@@ -285,6 +286,17 @@ MosaicLayout::FoundItem MosaicLayout::findByPoint(
 			}
 			sy -= rowHeight;
 		}
+	} else {
+		row = 0;
+		exact = false;
+	}
+	if (row >= rowsCount()) {
+		row = rowsCount() - 1;
+		exact = false;
+	}
+	if (sx < 0) {
+		sx = 0;
+		exact = false;
 	}
 	if (sx >= 0 && row >= 0 && row < rowsCount()) {
 		const auto columnsCount = _rows[row].items.size();
@@ -298,18 +310,18 @@ MosaicLayout::FoundItem MosaicLayout::findByPoint(
 			sx -= width;
 			sx -= _rightSkip;
 		}
-		if (col < columnsCount) {
-			item = itemAt(row, col);
-			sel = ::Layout::PositionToIndex(row, + col);
-			const auto result = item->getState(QPoint(sx, sy), {});
-			link = result.link;
-		} else {
-			row = col = -1;
+		if (col >= columnsCount) {
+			col = columnsCount - 1;
+			exact = false;
 		}
+		item = itemAt(row, col);
+		sel = ::Layout::PositionToIndex(row, + col);
+		const auto result = item->getState(QPoint(sx, sy), {});
+		link = result.link;
 	} else {
 		row = col = -1;
 	}
-	return { link, item, sel };
+	return { link, item, sel, exact };
 }
 
 } // namespace Overview::Layout

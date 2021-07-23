@@ -333,14 +333,9 @@ auto ListWidget::Section::findItemByPoint(
 	Expects(!_items.empty());
 	if (!_mosaic.empty()) {
 		const auto found = _mosaic.findByPoint(point);
-		if (found.item) {
-			const auto rect = findItemRect(found.item);
-			return { found.item, rect, rect.contains(point) };
-		} else {
-			auto item = (_items.end() - 1)->second;
-			const auto rect = findItemRect(item);
-			return { item, rect, rect.contains(point) };
-		}
+		Assert(found.item != nullptr);
+		const auto rect = findItemRect(found.item);
+		return { found.item, rect, found.exact };
 	}
 	auto itemIt = findItemAfterTop(point.y());
 	if (itemIt == _items.end()) {
