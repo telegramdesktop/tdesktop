@@ -63,7 +63,6 @@ public:
 
 	[[nodiscard]] rpl::producer<> activations() const;
 	void setActive(bool active);
-	[[nodiscard]] bool isWindow() const;
 	[[nodiscard]] QString deviceIdKey() const;
 	[[nodiscard]] rpl::lifetime &lifetime();
 
@@ -169,10 +168,6 @@ Source::Source(
 
 rpl::producer<> Source::activations() const {
 	return _activations.events();
-}
-
-bool Source::isWindow() const {
-	return _source.isWindow();
 }
 
 QString Source::deviceIdKey() const {

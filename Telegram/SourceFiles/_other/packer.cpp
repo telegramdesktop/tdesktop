@@ -160,8 +160,7 @@ int main(int argc, char *argv[])
 
 	QString remove;
 	int version = 0;
-	bool targetosx = false;
-	bool targetwin64 = false;
+	[[maybe_unused]] bool targetwin64 = false;
 	QFileInfoList files;
 	for (int i = 0; i < argc; ++i) {
 		if (string("-path") == argv[i] && i + 1 < argc) {
@@ -170,7 +169,6 @@ int main(int argc, char *argv[])
 			files.push_back(info);
 			if (remove.isEmpty()) remove = info.canonicalPath() + "/";
 		} else if (string("-target") == argv[i] && i + 1 < argc) {
-			targetosx = (string("osx") == argv[i + 1]);
 			targetwin64 = (string("win64") == argv[i + 1]);
 		} else if (string("-version") == argv[i] && i + 1 < argc) {
 			version = QString(argv[i + 1]).toInt();
@@ -496,7 +494,7 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_WIN
 	QString outName((targetwin64 ? QString("tx64upd%1") : QString("tupdate%1")).arg(AlphaVersion ? AlphaVersion : version));
 #elif defined Q_OS_MAC
-	QString outName((targetosx ? QString("tosxupd%1") : QString("tmacupd%1")).arg(AlphaVersion ? AlphaVersion : version));
+	QString outName(QString("tmacupd%1").arg(AlphaVersion ? AlphaVersion : version));
 #elif defined Q_OS_UNIX
 #ifndef _LP64
 	QString outName(QString("tlinux32upd%1").arg(AlphaVersion ? AlphaVersion : version));
