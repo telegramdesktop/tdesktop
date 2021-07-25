@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
-#include "layout/layout_utils.h"
+#include "layout/layout_position.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"

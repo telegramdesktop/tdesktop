@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "overview/overview_mosaic_layout.h"
 
 #include "history/view/history_view_cursor_state.h"
-#include "layout/layout_utils.h"
+#include "layout/layout_position.h"
 #include "styles/style_chat_helpers.h"
 
 namespace Overview::Layout {

@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/media/history_view_document.h"
 #include "core/click_handler_types.h"
-#include "layout/layout_utils.h"
+#include "layout/layout_position.h"
 #include "mainwindow.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"

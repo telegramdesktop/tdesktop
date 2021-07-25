@@ -63,6 +63,8 @@ PRIVATE
 
     layout/abstract_layout_item.cpp
     layout/abstract_layout_item.h
+    layout/layout_position.cpp
+    layout/layout_position.h
 
     media/clip/media_clip_check_streaming.cpp
     media/clip/media_clip_check_streaming.h

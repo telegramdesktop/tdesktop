@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "lang/lang_keys.h"
-#include "layout/layout_utils.h"
+#include "layout/layout_position.h"
 #include "emoji_suggestions_data.h"
 #include "emoji_suggestions_helper.h"
 #include "main/main_session.h"
