@@ -120,7 +120,7 @@ void Gif::initDimensions() {
 }
 
 void Gif::setPosition(int32 position) {
-	ItemBase::setPosition(position);
+	AbstractLayoutItem::setPosition(position);
 	if (_position < 0) {
 		_gif.reset();
 	}
@@ -1358,7 +1358,7 @@ void Game::initDimensions() {
 }
 
 void Game::setPosition(int32 position) {
-	ItemBase::setPosition(position);
+	AbstractLayoutItem::setPosition(position);
 	if (_position < 0) {
 		_gif.reset();
 	}

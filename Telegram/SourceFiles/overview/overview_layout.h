@@ -54,13 +54,6 @@ public:
 
 	QDateTime dateTime() const;
 
-	void setPosition(int position) {
-		_position = position;
-	}
-	int position() const {
-		return _position;
-	}
-
 	HistoryItem *getItem() const {
 		return _parent;
 	}
@@ -94,7 +87,6 @@ private:
 	const not_null<HistoryItem*> _parent;
 	const QDateTime _dateTime;
 	std::unique_ptr<Checkbox> _check;
-	int _position = 0;
 
 };
 
@@ -225,7 +217,7 @@ public:
 		StateRequest request) const override;
 
 	void clearHeavyPart() override;
-	void setPosition(int32 position);
+	void setPosition(int32 position) override;
 
 protected:
 	float64 dataProgress() const override;

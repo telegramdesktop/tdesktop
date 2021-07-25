@@ -28,14 +28,6 @@ NeverFreedPointer<DocumentItems> documentItemsMap;
 
 } // namespace
 
-void ItemBase::setPosition(int32 position) {
-	_position = position;
-}
-
-int32 ItemBase::position() const {
-	return _position;
-}
-
 Result *ItemBase::getResult() const {
 	return _result;
 }

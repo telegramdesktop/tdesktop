@@ -2063,7 +2063,7 @@ void Gif::clearHeavyPart() {
 }
 
 void Gif::setPosition(int32 position) {
-	ItemBase::setPosition(position);
+	AbstractLayoutItem::setPosition(position);
 	if (position < 0) {
 		_gif.reset();
 	}

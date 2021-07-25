@@ -30,6 +30,13 @@ int AbstractLayoutItem::height() const {
 	return _height;
 }
 
+void AbstractLayoutItem::setPosition(int position) {
+	_position = position;
+}
+int AbstractLayoutItem::position() const {
+	return _position;
+}
+
 bool AbstractLayoutItem::hasPoint(QPoint point) const {
 	return QRect(0, 0, width(), height()).contains(point);
 }

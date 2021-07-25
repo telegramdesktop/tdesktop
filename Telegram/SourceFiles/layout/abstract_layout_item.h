@@ -27,6 +27,9 @@ public:
 	[[nodiscard]] int width() const;
 	[[nodiscard]] int height() const;
 
+	virtual void setPosition(int position);
+	[[nodiscard]] int position() const;
+
 	[[nodiscard]] bool hasPoint(QPoint point) const;
 
 	virtual ~AbstractLayoutItem();
@@ -36,5 +39,6 @@ protected:
 	int _height = 0;
 	int _maxw = 0;
 	int _minh = 0;
+	int _position = 0; // < 0 means removed from layout
 
 };
