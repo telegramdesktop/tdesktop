@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/runtime_composer.h"
+#include "layout/abstract_layout_item.h"
 
 namespace HistoryView {
 struct TextState;
@@ -70,31 +70,14 @@ public:
 
 };
 
-class LayoutItemBase
-	: public RuntimeComposer<LayoutItemBase>
-	, public ClickHandlerHost {
+class LayoutItemBase : public AbstractLayoutItem {
 public:
 	using TextState = HistoryView::TextState;
 	using StateRequest = HistoryView::StateRequest;
 
-	LayoutItemBase() {
-	}
+	using AbstractLayoutItem::AbstractLayoutItem;
 
-	LayoutItemBase(const LayoutItemBase &other) = delete;
-	LayoutItemBase &operator=(const LayoutItemBase &other) = delete;
-
-	int maxWidth() const {
-		return _maxw;
-	}
-	int minHeight() const {
-		return _minh;
-	}
 	virtual void initDimensions() = 0;
-	virtual int resizeGetHeight(int width) {
-		_width = qMin(width, _maxw);
-		_height = _minh;
-		return _height;
-	}
 
 	[[nodiscard]] virtual TextState getState(
 		QPoint point,
@@ -102,25 +85,5 @@ public:
 	[[nodiscard]] virtual TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const;
-
-	int width() const {
-		return _width;
-	}
-	int height() const {
-		return _height;
-	}
-
-	bool hasPoint(QPoint point) const {
-		return QRect(0, 0, width(), height()).contains(point);
-	}
-
-	virtual ~LayoutItemBase() {
-	}
-
-protected:
-	int _width = 0;
-	int _height = 0;
-	int _maxw = 0;
-	int _minh = 0;
 
 };
