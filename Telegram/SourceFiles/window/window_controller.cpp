@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "export/export_manager.h"
+#include "ui/platform/ui_platform_window.h"
 #include "platform/platform_window_title.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -267,7 +268,7 @@ void Controller::showSettings() {
 
 int Controller::verticalShadowTop() const {
 	return (Platform::NativeTitleRequiresShadow()
-		&& Platform::AllowNativeWindowFrameToggle()
+		&& Ui::Platform::NativeWindowFrameSupported()
 		&& Core::App().settings().nativeWindowFrame())
 		? st::lineWidth
 		: 0;

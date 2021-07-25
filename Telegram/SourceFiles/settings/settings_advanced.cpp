@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/about_box.h"
 #include "boxes/confirm_box.h"
 #include "platform/platform_specific.h"
-#include "platform/platform_window_title.h"
+#include "ui/platform/ui_platform_window.h"
 #include "base/platform/base_platform_info.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -406,7 +406,7 @@ void SetupSystemIntegrationContent(
 			}, taskbar->lifetime());
 		}
 	}
-	if (Platform::AllowNativeWindowFrameToggle()) {
+	if (Ui::Platform::NativeWindowFrameSupported()) {
 		const auto nativeFrame = addCheckbox(
 			tr::lng_settings_native_frame(),
 			Core::App().settings().nativeWindowFrame());

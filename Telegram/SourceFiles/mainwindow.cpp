@@ -41,7 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_intro.h"
 #include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
-#include "ui/platform/ui_platform_utility.h"
 #include "base/call_delayed.h"
 #include "base/variant.h"
 #include "window/notifications_manager.h"
@@ -115,12 +114,7 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 	}, lifetime());
 
 	setAttribute(Qt::WA_NoSystemBackground);
-
-	if (Ui::Platform::WindowExtentsSupported()) {
-		setAttribute(Qt::WA_TranslucentBackground);
-	} else {
-		setAttribute(Qt::WA_OpaquePaintEvent);
-	}
+	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
 void MainWindow::initHook() {
@@ -226,10 +220,8 @@ void MainWindow::applyInitialWorkMode() {
 
 void MainWindow::finishFirstShow() {
 	createTrayIconMenu();
-	initShadows();
 	applyInitialWorkMode();
 	createGlobalMenu();
-	firstShadowsUpdate();
 
 	windowDeactivateEvents(
 	) | rpl::start_with_next([=] {
@@ -419,7 +411,7 @@ void MainWindow::showMainMenu() {
 
 	ensureLayerCreated();
 	_layer->showMainMenu(
-		object_ptr<Window::MainMenu>(this, sessionController()),
+		object_ptr<Window::MainMenu>(body(), sessionController()),
 		anim::type::normal);
 }
 

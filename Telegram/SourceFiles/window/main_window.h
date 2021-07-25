@@ -7,8 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "window/window_title.h"
-#include "ui/rp_widget.h"
+#include "ui/widgets/rp_window.h"
 #include "base/timer.h"
 #include "base/object_ptr.h"
 #include "core/core_settings.h"
@@ -37,7 +36,7 @@ QImage LoadLogoNoMargin();
 QIcon CreateIcon(Main::Session *session = nullptr);
 void ConvertIconToBlack(QImage &image);
 
-class MainWindow : public Ui::RpWidget {
+class MainWindow : public Ui::RpWindow {
 public:
 	explicit MainWindow(not_null<Controller*> controller);
 	virtual ~MainWindow();
@@ -60,7 +59,6 @@ public:
 	[[nodiscard]] QRect desktopRect() const;
 
 	void init();
-	[[nodiscard]] HitTestResult hitTest(const QPoint &p) const;
 
 	void updateIsActive();
 
@@ -76,12 +74,6 @@ public:
 		return _positionInited;
 	}
 	void positionUpdated();
-
-	bool titleVisible() const;
-	void setTitleVisible(bool visible);
-	QString titleText() const {
-		return _titleText;
-	}
 
 	void reActivateWindow();
 
@@ -112,14 +104,11 @@ public:
 
 	void clearWidgets();
 
-	QRect inner() const;
 	int computeMinWidth() const;
 	int computeMinHeight() const;
 
 	void recountGeometryConstraints();
 	virtual void updateControlsGeometry();
-
-	bool hasShadow() const;
 
 	bool minimizeToTray();
 	void updateGlobalMenu() {
@@ -127,7 +116,6 @@ public:
 	}
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
@@ -154,9 +142,6 @@ protected:
 	virtual void stateChangedHook(Qt::WindowState state) {
 	}
 
-	virtual void titleVisibilityChangedHook() {
-	}
-
 	virtual void unreadCounterChangedHook() {
 	}
 
@@ -180,10 +165,6 @@ protected:
 
 	virtual void createGlobalMenu() {
 	}
-	virtual void initShadows() {
-	}
-	virtual void firstShadowsUpdate() {
-	}
 
 	virtual bool initSizeFromSystem() {
 		return false;
@@ -203,7 +184,6 @@ protected:
 private:
 	void refreshTitleWidget();
 	void updateMinimumSize();
-	void updateShadowSize();
 	void updatePalette();
 	void initSize();
 
@@ -214,7 +194,6 @@ private:
 	base::Timer _positionUpdatedTimer;
 	bool _positionInited = false;
 
-	object_ptr<TitleWidget> _title = { nullptr };
 	object_ptr<Ui::PlainShadow> _titleShadow = { nullptr };
 	object_ptr<Ui::RpWidget> _outdated;
 	object_ptr<Ui::RpWidget> _body;
@@ -222,8 +201,6 @@ private:
 
 	QIcon _icon;
 	bool _usingSupportIcon = false;
-	QString _titleText;
-	style::margins _padding;
 
 	bool _isActive = false;
 

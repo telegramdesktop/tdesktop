@@ -873,7 +873,6 @@ PRIVATE
     platform/linux/notifications_manager_linux.h
     platform/linux/specific_linux.cpp
     platform/linux/specific_linux.h
-    platform/linux/window_title_linux.h
     platform/mac/file_utilities_mac.mm
     platform/mac/file_utilities_mac.h
     platform/mac/launcher_mac.mm
@@ -888,7 +887,6 @@ PRIVATE
     platform/mac/specific_mac_p.mm
     platform/mac/specific_mac_p.h
     platform/mac/window_title_mac.mm
-    platform/mac/window_title_mac.h
     platform/mac/touchbar/items/mac_formatter_item.h
     platform/mac/touchbar/items/mac_formatter_item.mm
     platform/mac/touchbar/items/mac_pinned_chats_item.h
@@ -919,8 +917,6 @@ PRIVATE
     platform/win/notifications_manager_win.h
     platform/win/specific_win.cpp
     platform/win/specific_win.h
-    platform/win/window_title_win.cpp
-    platform/win/window_title_win.h
     platform/win/windows_app_user_model_id.cpp
     platform/win/windows_app_user_model_id.h
     platform/win/windows_dlls.cpp
@@ -1099,9 +1095,6 @@ PRIVATE
     window/window_session_controller.h
     window/window_slide_animation.cpp
     window/window_slide_animation.h
-    window/window_title_qt.cpp
-    window/window_title_qt.h
-    window/window_title.h
     window/window_top_bar_wrap.h
     window/themes/window_theme.cpp
     window/themes/window_theme.h
@@ -1139,13 +1132,6 @@ PRIVATE
     settings.h
     stdafx.h
 )
-
-if (NOT LINUX)
-    remove_target_sources(Telegram ${src_loc}
-        window/window_title_qt.cpp
-        window/window_title_qt.h
-    )
-endif()
 
 if (DESKTOP_APP_DISABLE_DBUS_INTEGRATION)
     remove_target_sources(Telegram ${src_loc}

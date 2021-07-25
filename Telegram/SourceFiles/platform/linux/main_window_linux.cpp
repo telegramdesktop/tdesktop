@@ -971,7 +971,6 @@ void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
 }
 
 void MainWindow::unreadCounterChangedHook() {
-	setWindowTitle(titleText());
 	updateIconCounters();
 }
 

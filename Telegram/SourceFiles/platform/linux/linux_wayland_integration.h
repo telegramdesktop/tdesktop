@@ -13,8 +13,7 @@ namespace internal {
 class WaylandIntegration {
 public:
 	[[nodiscard]] static WaylandIntegration *Instance();
-	void waitForInterfaceAnnounce();
-	[[nodiscard]] bool supportsXdgDecoration();
+
 	[[nodiscard]] QString nativeHandle(QWindow *window);
 	[[nodiscard]] bool skipTaskbarSupported();
 	void skipTaskbar(QWindow *window, bool skip);
@@ -27,7 +26,7 @@ private:
 	WaylandIntegration();
 	~WaylandIntegration();
 
-	class Private;
+	struct Private;
 	const std::unique_ptr<Private> _private;
 };
 
