@@ -5,82 +5,17 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "platform/mac/window_title_mac.h"
+#include "platform/platform_window_title.h"
 
-#include "mainwindow.h"
-#include "ui/widgets/shadow.h"
 #include "ui/image/image_prepare.h"
 #include "core/application.h"
 #include "styles/style_window.h"
 #include "styles/style_media_view.h"
-#include "platform/platform_main_window.h"
 #include "window/window_controller.h"
 
 #include <Cocoa/Cocoa.h>
-#include <CoreFoundation/CFURL.h>
 
 namespace Platform {
-
-TitleWidget::TitleWidget(MainWindow *parent, int height)
-: Window::TitleWidget(parent)
-, _shadow(this, st::titleShadow) {
-	setAttribute(Qt::WA_OpaquePaintEvent);
-	resize(width(), height);
-
-#ifndef OS_MAC_OLD
-	QStringList families = { qsl(".SF NS Text"), qsl("Helvetica Neue") };
-	for (auto family : families) {
-		_font.setFamily(family);
-		if (QFontInfo(_font).family() == _font.family()) {
-			break;
-		}
-	}
-#endif // OS_MAC_OLD
-
-	if (QFontInfo(_font).family() == _font.family()) {
-		_font.setPixelSize((height * 15) / 24);
-	} else {
-		_font = st::normalFont;
-	}
-
-	Core::App().unreadBadgeChanges(
-	) | rpl::start_with_next([=] {
-		update();
-	}, lifetime());
-}
-
-void TitleWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	auto active = isActiveWindow();
-	p.fillRect(rect(), active ? st::titleBgActive : st::titleBg);
-
-	p.setFont(_font);
-	p.setPen(active ? st::titleFgActive : st::titleFg);
-	p.drawText(rect(), static_cast<MainWindow*>(parentWidget())->titleText(), style::al_center);
-}
-
-void TitleWidget::resizeEvent(QResizeEvent *e) {
-	_shadow->setGeometry(0, height() - st::lineWidth, width(), st::lineWidth);
-}
-
-void TitleWidget::mouseDoubleClickEvent(QMouseEvent *e) {
-	auto window = parentWidget();
-	if (window->windowState() == Qt::WindowMaximized) {
-		window->setWindowState(Qt::WindowNoState);
-	} else {
-		window->setWindowState(Qt::WindowMaximized);
-	}
-}
-
-object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
-	if (auto window = qobject_cast<Platform::MainWindow*>(parent)) {
-		if (auto height = window->getCustomTitleHeight()) {
-			return object_ptr<TitleWidget>(window, height);
-		}
-	}
-	return { nullptr };
-}
 
 // All the window decorations preview is done without taking cScale() into
 // account, with 100% scale and without "px" dimensions, because thats

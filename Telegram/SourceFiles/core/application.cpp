@@ -269,7 +269,7 @@ void Application::run() {
 
 	const auto currentGeometry = _window->widget()->geometry();
 	_mediaView = std::make_unique<Media::View::OverlayWidget>();
-	_window->widget()->setGeometry(currentGeometry);
+	_window->widget()->Ui::RpWidget::setGeometry(currentGeometry);
 
 	DEBUG_LOG(("Application Info: showing."));
 	_window->finishFirstShow();

@@ -53,9 +53,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 - (void) darkModeChanged:(NSNotification *)aNotification;
 - (void) screenIsLocked:(NSNotification *)aNotification;
 - (void) screenIsUnlocked:(NSNotification *)aNotification;
-- (void) windowWillEnterFullScreen:(NSNotification *)aNotification;
-- (void) windowWillExitFullScreen:(NSNotification *)aNotification;
-- (void) windowDidExitFullScreen:(NSNotification *)aNotification;
 
 @end // @interface MainWindowObserver
 
@@ -66,43 +63,6 @@ namespace {
 // mode and after that hide the window. This is a timeout for elaving the
 // fullscreen mode, after that we'll hide the window no matter what.
 constexpr auto kHideAfterFullscreenTimeoutMs = 3000;
-
-id FindClassInSubviews(NSView *parent, NSString *className) {
-	for (NSView *child in [parent subviews]) {
-		if ([child isKindOfClass:NSClassFromString(className)]) {
-			return child;
-		} else if (id inchild = FindClassInSubviews(child, className)) {
-			return inchild;
-		}
-	}
-	return nil;
-}
-
-#ifndef OS_MAC_OLD
-
-class LayerCreationChecker : public QObject {
-public:
-	LayerCreationChecker(NSView * __weak view, Fn<void()> callback)
-	: _weakView(view)
-	, _callback(std::move(callback)) {
-		QCoreApplication::instance()->installEventFilter(this);
-	}
-
-protected:
-	bool eventFilter(QObject *object, QEvent *event) override {
-		if (!_weakView || [_weakView layer] != nullptr) {
-			_callback();
-		}
-		return QObject::eventFilter(object, event);
-	}
-
-private:
-	NSView * __weak _weakView = nil;
-	Fn<void()> _callback;
-
-};
-
-#endif // OS_MAC_OLD
 
 [[nodiscard]] QImage TrayIconBack(bool darkMode) {
 	static const auto WithColor = [](QColor color) {
@@ -127,38 +87,16 @@ public:
 		not_null<Window::Controller*> controller,
 		rpl::producer<bool> canApplyMarkdown);
 	void setWindowBadge(const QString &str);
-	void setWindowTitle(const QString &str);
-	void updateNativeTitle();
-
-	void enableShadow(WId winId);
-
-	void willEnterFullScreen();
-	void willExitFullScreen();
-	void didExitFullScreen();
 
 	bool clipboardHasText();
 	~Private();
 
 private:
-	void initCustomTitle();
-	void refreshWeakTitleReferences();
-	void enforceCorrectStyleMask();
-
 	not_null<MainWindow*> _public;
 	friend class MainWindow;
 
-#ifdef OS_MAC_OLD
-	NSWindow *_nativeWindow = nil;
-	NSView *_nativeView = nil;
-#else // OS_MAC_OLD
 	NSWindow * __weak _nativeWindow = nil;
 	NSView * __weak _nativeView = nil;
-	id __weak _nativeTitleWrapWeak = nil;
-	id __weak _nativeTitleWeak = nil;
-	std::unique_ptr<LayerCreationChecker> _layerCreationChecker;
-#endif // !OS_MAC_OLD
-	bool _useNativeTitle = false;
-	bool _inFullScreen = false;
 
 	MainWindowObserver *_observer = nullptr;
 	NSPasteboard *_generalPasteboard = nullptr;
@@ -196,18 +134,6 @@ private:
 
 - (void) screenIsUnlocked:(NSNotification *)aNotification {
 	Core::App().setScreenIsLocked(false);
-}
-
-- (void) windowWillEnterFullScreen:(NSNotification *)aNotification {
-	_private->willEnterFullScreen();
-}
-
-- (void) windowWillExitFullScreen:(NSNotification *)aNotification {
-	_private->willExitFullScreen();
-}
-
-- (void) windowDidExitFullScreen:(NSNotification *)aNotification {
-	_private->didExitFullScreen();
 }
 
 @end // @implementation MainWindowObserver
@@ -256,15 +182,12 @@ void MainWindow::Private::setWindowBadge(const QString &str) {
 	}
 }
 
-void MainWindow::Private::setWindowTitle(const QString &str) {
-	_public->setWindowTitle(str);
-	updateNativeTitle();
-}
-
 void MainWindow::Private::setNativeWindow(NSWindow *window, NSView *view) {
 	_nativeWindow = window;
 	_nativeView = view;
-	initCustomTitle();
+	auto inner = [_nativeWindow contentLayoutRect];
+	auto full = [_nativeView frame];
+	_public->_customTitleHeight = qMax(qRound(full.size.height - inner.size.height), 0);
 }
 
 void MainWindow::Private::initTouchBar(
@@ -288,119 +211,6 @@ void MainWindow::Private::initTouchBar(
 #endif
 }
 
-void MainWindow::Private::initCustomTitle() {
-#ifndef OS_MAC_OLD
-	if (![_nativeWindow respondsToSelector:@selector(contentLayoutRect)]
-		|| ![_nativeWindow respondsToSelector:@selector(setTitlebarAppearsTransparent:)]) {
-		return;
-	}
-	[_nativeWindow setTitlebarAppearsTransparent:YES];
-
-	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowWillEnterFullScreen:) name:NSWindowWillEnterFullScreenNotification object:_nativeWindow];
-	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowWillExitFullScreen:) name:NSWindowWillExitFullScreenNotification object:_nativeWindow];
-	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowDidExitFullScreen:) name:NSWindowDidExitFullScreenNotification object:_nativeWindow];
-
-	// Qt has bug with layer-backed widgets containing QOpenGLWidgets.
-	// See https://bugreports.qt.io/browse/QTBUG-64494
-	// Emulate custom title instead (code below).
-	//
-	// Tried to backport a fix, testing.
-	[_nativeWindow setStyleMask:[_nativeWindow styleMask] | NSFullSizeContentViewWindowMask];
-	auto inner = [_nativeWindow contentLayoutRect];
-	auto full = [_nativeView frame];
-	_public->_customTitleHeight = qMax(qRound(full.size.height - inner.size.height), 0);
-
-	// Qt still has some bug with layer-backed widgets containing QOpenGLWidgets.
-	// See https://github.com/telegramdesktop/tdesktop/issues/4150
-	// Tried to workaround it by catching the first moment we have CALayer created
-	// and explicitly setting contentsScale to window->backingScaleFactor there.
-	_layerCreationChecker = std::make_unique<LayerCreationChecker>(_nativeView, [=] {
-		if (_nativeView && _nativeWindow) {
-			if (CALayer *layer = [_nativeView layer]) {
-				LOG(("Window Info: Setting layer scale factor to: %1").arg([_nativeWindow backingScaleFactor]));
-				[layer setContentsScale: [_nativeWindow backingScaleFactor]];
-				_layerCreationChecker = nullptr;
-			}
-		} else {
-			_layerCreationChecker = nullptr;
-		}
-	});
-
-	// Disabled for now.
-	//_useNativeTitle = true;
-	//setWindowTitle(qsl("Telegram"));
-#endif // !OS_MAC_OLD
-}
-
-void MainWindow::Private::refreshWeakTitleReferences() {
-	if (!_nativeWindow) {
-		return;
-	}
-
-#ifndef OS_MAC_OLD
-	@autoreleasepool {
-
-	if (NSView *parent = [[_nativeWindow contentView] superview]) {
-		if (id titleWrap = FindClassInSubviews(parent, Q2NSString(strTitleWrapClass()))) {
-			if ([titleWrap respondsToSelector:@selector(setBackgroundColor:)]) {
-				if (id title = FindClassInSubviews(titleWrap, Q2NSString(strTitleClass()))) {
-					if ([title respondsToSelector:@selector(setAttributedStringValue:)]) {
-						_nativeTitleWrapWeak = titleWrap;
-						_nativeTitleWeak = title;
-					}
-				}
-			}
-		}
-	}
-
-	}
-#endif // !OS_MAC_OLD
-}
-
-void MainWindow::Private::updateNativeTitle() {
-	if (!_useNativeTitle) {
-		return;
-	}
-#ifndef OS_MAC_OLD
-	if (!_nativeTitleWrapWeak || !_nativeTitleWeak) {
-		refreshWeakTitleReferences();
-	}
-	if (_nativeTitleWrapWeak && _nativeTitleWeak) {
-		@autoreleasepool {
-
-		auto convertColor = [](QColor color) {
-			return [NSColor colorWithDeviceRed:color.redF() green:color.greenF() blue:color.blueF() alpha:color.alphaF()];
-		};
-		auto adjustFg = [](const style::color &st) {
-			// Weird thing with NSTextField taking NSAttributedString with
-			// NSForegroundColorAttributeName set to colorWithDeviceRed:green:blue
-			// with components all equal to 128 - it ignores it and prints black text!
-			auto color = st->c;
-			return (color.red() == 128 && color.green() == 128 && color.blue() == 128)
-				? QColor(129, 129, 129, color.alpha())
-				: color;
-		};
-
-		auto active = _public->isActiveWindow();
-		auto bgColor = (active ? st::titleBgActive : st::titleBg)->c;
-		auto fgColor = adjustFg(active ? st::titleFgActive : st::titleFg);
-
-		auto bgConverted = convertColor(bgColor);
-		auto fgConverted = convertColor(fgColor);
-		[_nativeTitleWrapWeak setBackgroundColor:bgConverted];
-
-		auto title = Q2NSString(_public->windowTitle());
-		NSDictionary *attributes = _inFullScreen
-			? nil
-			: [NSDictionary dictionaryWithObjectsAndKeys: fgConverted, NSForegroundColorAttributeName, bgConverted, NSBackgroundColorAttributeName, nil];
-		NSAttributedString *string = [[NSAttributedString alloc] initWithString:title attributes:attributes];
-		[_nativeTitleWeak setAttributedStringValue:string];
-
-		}
-	}
-#endif // !OS_MAC_OLD
-}
-
 bool MainWindow::Private::clipboardHasText() {
 	auto currentChangeCount = static_cast<int>([_generalPasteboard changeCount]);
 	if (_generalPasteboardChangeCount != currentChangeCount) {
@@ -408,32 +218,6 @@ bool MainWindow::Private::clipboardHasText() {
 		_generalPasteboardHasText = !QGuiApplication::clipboard()->text().isEmpty();
 	}
 	return _generalPasteboardHasText;
-}
-
-void MainWindow::Private::willEnterFullScreen() {
-	_inFullScreen = true;
-	_public->setTitleVisible(false);
-}
-
-void MainWindow::Private::willExitFullScreen() {
-	_inFullScreen = false;
-	_public->setTitleVisible(true);
-	enforceCorrectStyleMask();
-}
-
-void MainWindow::Private::didExitFullScreen() {
-	enforceCorrectStyleMask();
-}
-
-void MainWindow::Private::enforceCorrectStyleMask() {
-	if (_nativeWindow && _public->_customTitleHeight > 0) {
-		[_nativeWindow setStyleMask:[_nativeWindow styleMask] | NSFullSizeContentViewWindowMask];
-	}
-}
-
-void MainWindow::Private::enableShadow(WId winId) {
-//	[[(NSView*)winId window] setStyleMask:NSBorderlessWindowMask];
-//	[[(NSView*)winId window] setHasShadow:YES];
 }
 
 MainWindow::Private::~Private() {
@@ -449,11 +233,6 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 #endif // !OS_MAC_OLD
 
 	_hideAfterFullScreenTimer.setCallback([this] { hideAndDeactivate(); });
-
-	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
-		_private->updateNativeTitle();
-	}, lifetime());
 }
 
 void MainWindow::closeWithoutDestroy() {
@@ -475,8 +254,6 @@ void MainWindow::stateChangedHook(Qt::WindowState state) {
 }
 
 void MainWindow::handleActiveChangedHook() {
-	InvokeQueued(this, [this] { _private->updateNativeTitle(); });
-
 	// On macOS just remove trayIcon menu if the window is not active.
 	// So we will activate the window on click instead of showing the menu.
 	if (isActiveForTrayMenu()) {
@@ -504,10 +281,6 @@ void MainWindow::initHook() {
 }
 
 void MainWindow::updateWindowIcon() {
-}
-
-void MainWindow::titleVisibilityChangedHook() {
-	updateTitleCounter();
 }
 
 void MainWindow::hideAndDeactivate() {
@@ -591,12 +364,7 @@ void _placeCounter(QImage &img, int size, int count, style::color bg, style::col
 	img.setDevicePixelRatio(savedRatio);
 }
 
-void MainWindow::updateTitleCounter() {
-	_private->setWindowTitle(titleVisible() ? QString() : titleText());
-}
-
 void MainWindow::unreadCounterChangedHook() {
-	updateTitleCounter();
 	updateIconCounters();
 }
 
@@ -647,10 +415,6 @@ QIcon MainWindow::generateIconForTray(int counter, bool muted) const {
 		QIcon::Active,
 		QIcon::On);
 	return result;
-}
-
-void MainWindow::initShadows() {
-	_private->enableShadow(winId());
 }
 
 void MainWindow::createGlobalMenu() {

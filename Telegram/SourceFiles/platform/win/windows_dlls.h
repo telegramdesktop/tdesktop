@@ -96,8 +96,6 @@ inline HRESULT(__stdcall *PSStringFromPropertyKey)(
 
 // DWMAPI.DLL
 
-inline HRESULT(__stdcall *DwmIsCompositionEnabled)(
-	_Out_ BOOL* pfEnabled);
 inline HRESULT(__stdcall *DwmSetWindowAttribute)(
 	HWND hwnd,
 	DWORD dwAttribute,
