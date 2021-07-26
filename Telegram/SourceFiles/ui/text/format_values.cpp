@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 
 #include "lang/lang_keys.h"
+#include "numbers.h" // phoneNumberParse
 
+#include <QRegularExpression>
 #include <QtCore/QLocale>
 #include <locale>
 #include <sstream>
@@ -367,6 +369,47 @@ QString FormatImageSizeText(const QSize &size) {
 	return QString::number(size.width())
 		+ QChar(215)
 		+ QString::number(size.height());
+}
+
+QString FormatPhone(QString phone) {
+	if (phone.isEmpty()) {
+		return QString();
+	}
+	if (phone.at(0) == '0') {
+		return phone;
+	}
+
+	auto number = phone;
+	{
+		const auto *ch = phone.constData();
+		const auto *e = ch + phone.size();
+		const auto regExp = QRegularExpression(u"[^\\d]"_q);
+		for (; ch != e; ++ch) {
+			if (ch->unicode() < '0' || ch->unicode() > '9') {
+				number = phone.replace(regExp, QString());
+			}
+		}
+	}
+	const auto groups = phoneNumberParse(number);
+	if (groups.isEmpty()) {
+		return '+' + number;
+	}
+
+	QString result;
+	result.reserve(number.size() + groups.size() + 1);
+	result.append('+');
+	int32 sum = 0;
+	for (const auto &group : groups) {
+		result.append(number.midRef(sum, group));
+		sum += group;
+		if (sum < number.size()) {
+			result.append(' ');
+		}
+	}
+	if (sum < number.size()) {
+		result.append(number.midRef(sum));
+	}
+	return result;
 }
 
 } // namespace Ui

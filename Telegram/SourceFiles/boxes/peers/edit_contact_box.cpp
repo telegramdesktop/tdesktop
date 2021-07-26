@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "info/profile/info_profile_cover.h"
 #include "lang/lang_keys.h"
@@ -19,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
-#include "app.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -145,7 +145,7 @@ void Controller::setupCover() {
 			_window,
 			(_phone.isEmpty()
 				? tr::lng_contact_mobile_hidden()
-				: rpl::single(App::formatPhone(_phone)))),
+				: rpl::single(Ui::FormatPhone(_phone)))),
 		style::margins())->setAttribute(Qt::WA_TransparentForMouseEvents);
 }
 

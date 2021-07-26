@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_countries.h"
 #include "boxes/confirm_box.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -551,7 +552,7 @@ void Widget::resetAccount() {
 				Ui::show(Box<InformBox>(tr::lng_signin_reset_wait(
 					tr::now,
 					lt_phone_number,
-					App::formatPhone(getData()->phone),
+					Ui::FormatPhone(getData()->phone),
 					lt_when,
 					when)));
 			} else if (type == qstr("2FA_RECENT_CONFIRM")) {

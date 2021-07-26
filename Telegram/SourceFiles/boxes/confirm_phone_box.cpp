@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "core/click_handler_types.h" // UrlClickHandler
 #include "base/qthelp_url.h" // qthelp::url_encode
@@ -18,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "numbers.h"
-#include "app.h"
 #include "lang/lang_keys.h"
 #include "mtproto/facade.h"
 #include "styles/style_layers.h"
@@ -296,7 +296,7 @@ void ConfirmPhoneBox::prepare() {
 		this,
 		tr::lng_confirm_phone_about(
 			lt_phone,
-			rpl::single(Ui::Text::Bold(App::formatPhone(_phone))),
+			rpl::single(Ui::Text::Bold(Ui::FormatPhone(_phone))),
 			Ui::Text::WithEntities),
 		st::confirmPhoneAboutLabel);
 
@@ -347,7 +347,7 @@ void ConfirmPhoneBox::sendCode() {
 
 void ConfirmPhoneBox::confirmDone(const MTPBool &result) {
 	_sendCodeRequestId = 0;
-	Ui::show(Box<InformBox>(tr::lng_confirm_phone_success(tr::now, lt_phone, App::formatPhone(_phone))));
+	Ui::show(Box<InformBox>(tr::lng_confirm_phone_success(tr::now, lt_phone, Ui::FormatPhone(_phone))));
 }
 
 void ConfirmPhoneBox::confirmFail(const MTP::Error &error) {

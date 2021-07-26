@@ -22,10 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_payments.h"
 #include "styles/style_passport.h"
 
-namespace App {
-QString formatPhone(QString phone); // #TODO
-} // namespace App
-
 namespace Payments::Ui {
 namespace {
 
@@ -551,7 +547,7 @@ void FormSummary::setupSections(not_null<VerticalLayout*> layout) {
 			tr::lng_payments_info_phone(),
 			(_information.phone.isEmpty()
 				? QString()
-				: App::formatPhone(_information.phone)),
+				: Ui::FormatPhone(_information.phone)),
 			&st::paymentsIconPhone,
 			[=] { _delegate->panelEditPhone(); });
 	}

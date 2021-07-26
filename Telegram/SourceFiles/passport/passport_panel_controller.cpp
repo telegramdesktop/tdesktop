@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "core/update_checker.h"
 #include "data/data_countries.h"
-#include "app.h"
 #include "styles/style_layers.h"
 
 namespace Passport {
@@ -485,7 +484,7 @@ EditContactScheme GetContactScheme(Scope::Type type) {
 			).match(value).hasMatch();
 		};
 		result.format = [](const QString &value) {
-			return App::formatPhone(value);
+			return Ui::FormatPhone(value);
 		};
 		result.postprocess = [](QString value) {
 			return value.replace(QRegularExpression("[^\\d]"), QString());

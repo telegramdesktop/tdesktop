@@ -31,13 +31,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/image/image_prepare.h"
 #include "ui/cached_round_corners.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
 #include "settings/settings_privacy_security.h"
 #include "facades.h"
-#include "app.h"
 #include "styles/style_chat.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
@@ -330,7 +330,7 @@ std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 		if (!user) {
 			return tr::lng_group_status(tr::now);
 		} else if (!user->phone().isEmpty()) {
-			return App::formatPhone(user->phone());
+			return Ui::FormatPhone(user->phone());
 		} else if (!user->username.isEmpty()) {
 			return '@' + user->username;
 		} else if (user->isBot()) {

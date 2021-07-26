@@ -41,7 +41,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "boxes/confirm_box.h"
 #include "apiwrap.h"
-#include "app.h" // App::formatPhone
+#include "ui/text/format_values.h" // Ui::FormatPhone
+#include "app.h" // App::quitting
 
 namespace Api {
 namespace {
@@ -1844,7 +1845,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 						|| user->isSelf()
 						|| user->phone().isEmpty())
 						? QString()
-						: App::formatPhone(user->phone())),
+						: Ui::FormatPhone(user->phone())),
 					user->username);
 
 				session().changes().peerUpdated(

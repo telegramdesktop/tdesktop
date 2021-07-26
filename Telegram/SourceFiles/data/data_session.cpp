@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h" // CrashReports::SetAnnotation
 #include "ui/image/image.h"
 #include "ui/image/image_location_factory.h" // Images::FromPhotoSize
+#include "ui/text/format_values.h" // Ui::FormatPhone
 #include "export/export_manager.h"
 #include "export/view/export_view_panel_controller.h"
 #include "mtproto/mtproto_config.h"
@@ -506,7 +507,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 
 			const auto pname = (showPhoneChanged || phoneChanged || nameChanged)
 				? ((showPhone && !phone.isEmpty())
-					? App::formatPhone(phone)
+					? Ui::FormatPhone(phone)
 					: QString())
 				: result->nameOrPhone;
 
@@ -3587,7 +3588,7 @@ QString Session::findContactPhone(not_null<UserData*> contact) const {
 	const auto result = contact->phone();
 	return result.isEmpty()
 		? findContactPhone(peerToUser(contact->id))
-		: App::formatPhone(result);
+		: Ui::FormatPhone(result);
 }
 
 QString Session::findContactPhone(UserId contactId) const {

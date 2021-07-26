@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "ui/image/image.h"
-#include "app.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone
 
 namespace Serialize {
 namespace {
@@ -231,7 +231,7 @@ PeerData *readPeer(
 				&& (user->id != selfId)
 				&& (contact <= 0);
 			const auto pname = (showPhone && !phone.isEmpty())
-				? App::formatPhone(phone)
+				? Ui::FormatPhone(phone)
 				: QString();
 
 			user->setPhone(phone);

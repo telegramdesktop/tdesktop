@@ -14,8 +14,6 @@ class Element;
 } // namespace HistoryView
 
 namespace App {
-	QString formatPhone(QString phone);
-
 	void hoveredItem(HistoryView::Element *item);
 	HistoryView::Element *hoveredItem();
 	void pressedItem(HistoryView::Element *item);

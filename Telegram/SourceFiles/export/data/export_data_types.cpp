@@ -21,10 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <range/v3/view/transform.hpp>
 #include <range/v3/range/conversion.hpp>
 
-namespace App { // Hackish..
-QString formatPhone(QString phone);
-} // namespace App
-
 namespace Export {
 namespace Data {
 namespace {
@@ -1795,7 +1791,7 @@ bool SkipMessageByDate(const Message &message, const Settings &settings) {
 Utf8String FormatPhoneNumber(const Utf8String &phoneNumber) {
 	return phoneNumber.isEmpty()
 		? Utf8String()
-		: App::formatPhone(QString::fromUtf8(phoneNumber)).toUtf8();
+		: Ui::FormatPhone(QString::fromUtf8(phoneNumber)).toUtf8();
 }
 
 Utf8String FormatDateTime(

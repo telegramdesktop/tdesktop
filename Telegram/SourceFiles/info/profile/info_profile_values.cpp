@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "main/main_session.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
 #include "data/data_peer_values.h"
@@ -22,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
-#include "app.h"
 
 namespace Info {
 namespace Profile {
@@ -82,7 +82,7 @@ rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
 		user,
 		UpdateFlag::PhoneNumber
 	) | rpl::map([=] {
-		return App::formatPhone(user->phone());
+		return Ui::FormatPhone(user->phone());
 	}) | Ui::Text::ToWithEntities();
 }
 
