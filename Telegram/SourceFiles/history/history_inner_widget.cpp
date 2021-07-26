@@ -2620,19 +2620,7 @@ bool HistoryInner::elementIsGifPaused() {
 void HistoryInner::elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) {
-	if (auto peer = Ui::getPeerForMouseAction()) { // old way
-		auto bot = peer->isUser() ? peer->asUser() : nullptr;
-		if (!bot) {
-			if (const auto view = App::hoveredLinkItem()) {
-				// may return nullptr
-				bot = view->data()->fromOriginal()->asUser();
-			}
-		}
-		Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
-		App::sendBotCommand(peer, bot, command);
-	} else {
-		App::insertBotCommand(command);
-	}
+	_widget->sendBotCommand({ _history->peer, command, context });
 }
 
 void HistoryInner::elementHandleViaClick(not_null<UserData*> bot) {

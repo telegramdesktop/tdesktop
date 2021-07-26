@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/widgets/tooltip.h"
+#include "chat_helpers/bot_command.h"
 
 class ReplyKeyboard;
 
@@ -62,6 +63,8 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
+	rpl::producer<Bot::SendCommandRequest> sendCommandRequests() const;
+
 	~BotKeyboard();
 
 protected:
@@ -91,6 +94,8 @@ private:
 
 	QPoint _lastMousePos;
 	std::unique_ptr<ReplyKeyboard> _impl;
+
+	rpl::event_stream<Bot::SendCommandRequest> _sendCommandRequests;
 
 	const style::BotKeyboardButton *_st = nullptr;
 

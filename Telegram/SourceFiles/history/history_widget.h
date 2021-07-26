@@ -213,7 +213,7 @@ public:
 
 	void escape();
 
-	void sendBotCommand(Bot::SendCommandRequest request);
+	void sendBotCommand(const Bot::SendCommandRequest &request);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd);
 

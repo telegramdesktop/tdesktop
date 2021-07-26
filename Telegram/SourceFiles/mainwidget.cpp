@@ -828,7 +828,16 @@ crl::time MainWidget::highlightStartTime(not_null<const HistoryItem*> item) cons
 }
 
 void MainWidget::sendBotCommand(Bot::SendCommandRequest request) {
-	_history->sendBotCommand(request);
+	const auto type = _mainSection
+		? _mainSection->sendBotCommand(request)
+		: Window::SectionActionResult::Fallback;
+	if (type == Window::SectionActionResult::Fallback) {
+		ui_showPeerHistory(
+			request.peer->id,
+			SectionShow::Way::ClearStack,
+			ShowAtTheEndMsgId);
+		_history->sendBotCommand(request);
+	}
 }
 
 void MainWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {

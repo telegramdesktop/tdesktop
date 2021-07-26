@@ -93,6 +93,9 @@ public:
 		const Window::SectionShow &params,
 		MsgId messageId) override;
 
+	Window::SectionActionResult sendBotCommand(
+		Bot::SendCommandRequest request) override;
+
 	void setInternalState(
 		const QRect &geometry,
 		not_null<RepliesMemento*> memento);

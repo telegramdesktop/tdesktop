@@ -1094,6 +1094,7 @@ PRIVATE
     window/window_outdated_bar.h
     window/window_peer_menu.cpp
     window/window_peer_menu.h
+    window/window_section_common.h
     window/window_session_controller.cpp
     window/window_session_controller.h
     window/window_slide_animation.cpp

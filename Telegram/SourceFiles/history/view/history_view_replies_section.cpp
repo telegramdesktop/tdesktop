@@ -1394,6 +1394,15 @@ bool RepliesWidget::showMessage(
 	return true;
 }
 
+Window::SectionActionResult RepliesWidget::sendBotCommand(
+		Bot::SendCommandRequest request) {
+	if (request.peer != _history->peer) {
+		return Window::SectionActionResult::Ignore;
+	}
+	listSendBotCommand(request.command, request.context);
+	return Window::SectionActionResult::Handle;
+}
+
 void RepliesWidget::replyToMessage(FullMsgId itemId) {
 	// if (item->history() != _history || item->replyToTop() != _rootId) {
 	_composeControls->replyToMessage(itemId);

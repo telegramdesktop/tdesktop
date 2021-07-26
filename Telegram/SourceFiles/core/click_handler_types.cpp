@@ -216,24 +216,30 @@ auto CashtagClickHandler::getTextEntity() const -> TextEntity {
 
 void BotCommandClickHandler::onClick(ClickContext context) const {
 	const auto button = context.button;
-	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		const auto my = context.other.value<ClickHandlerContext>();
-		if (const auto delegate = my.elementDelegate ? my.elementDelegate() : nullptr) {
-			delegate->elementSendBotCommand(_cmd, my.itemId);
+	if (button != Qt::LeftButton && button != Qt::MiddleButton) {
+		return;
+	}
+	const auto my = context.other.value<ClickHandlerContext>();
+	if (const auto delegate = my.elementDelegate ? my.elementDelegate() : nullptr) {
+		delegate->elementSendBotCommand(_cmd, my.itemId);
+	} else if (const auto controller = my.sessionWindow.get()) {
+		const auto peer = my.peer
+			? my.peer
+			: my.itemId
+			? controller->session().data().message(my.itemId)->history()->peer
+			: nullptr;
+		// Can't find context.
+		if (!peer) {
 			return;
-		} else if (auto peer = Ui::getPeerForMouseAction()) { // old way
-			auto bot = peer->isUser() ? peer->asUser() : nullptr;
-			if (!bot) {
-				if (const auto view = App::hoveredLinkItem()) {
-					// may return nullptr
-					bot = view->data()->fromOriginal()->asUser();
-				}
-			}
-			Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
-			App::sendBotCommand(peer, bot, _cmd);
-		} else {
-			App::insertBotCommand(_cmd);
 		}
+		controller->widget()->ui_hideSettingsAndLayer(anim::type::normal);
+		Core::App().hideMediaView();
+		controller->content()->sendBotCommand({
+			.peer = peer,
+			.command = _cmd,
+			.context = my.itemId,
+			.replyTo = 0,
+		});
 	}
 }
 

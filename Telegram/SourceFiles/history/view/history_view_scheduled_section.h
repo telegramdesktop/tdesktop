@@ -74,6 +74,9 @@ public:
 		const Window::SectionShow &params) override;
 	std::shared_ptr<Window::SectionMemento> createMemento() override;
 
+	Window::SectionActionResult sendBotCommand(
+		Bot::SendCommandRequest request) override;
+
 	void setInternalState(
 		const QRect &geometry,
 		not_null<ScheduledMemento*> memento);

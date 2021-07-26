@@ -572,12 +572,19 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 			return !findBotCommand(command).isEmpty();
 		});
 	};
-	auto sendBotCommand = [=](const QString &command) {
-		auto original = findBotCommand(command);
-		if (!original.isEmpty()) {
-			Ui::showPeerHistory(user, ShowAtTheEndMsgId);
-			App::sendBotCommand(user, user, '/' + original);
+	auto sendBotCommand = [=, window = _controller->parentController()](
+			const QString &command) {
+		const auto original = findBotCommand(command);
+		if (original.isEmpty()) {
+			return;
 		}
+		BotCommandClickHandler('/' + original).onClick(ClickContext{
+			Qt::LeftButton,
+			QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = base::make_weak(window.get()),
+				.peer = user,
+			})
+		});
 	};
 	auto addBotCommand = [=](
 			rpl::producer<QString> text,

@@ -313,6 +313,11 @@ HistoryWidget::HistoryWidget(
 
 	InitMessageField(controller, _field);
 
+	_keyboard->sendCommandRequests(
+	) | rpl::start_with_next([=](Bot::SendCommandRequest r) {
+		sendBotCommand(r);
+	}, lifetime());
+
 	_fieldAutocomplete->mentionChosen(
 	) | rpl::start_with_next([=](FieldAutocomplete::MentionChosen data) {
 		insertMention(data.user);
@@ -1189,7 +1194,7 @@ void HistoryWidget::insertHashtagOrBotCommand(
 
 	// Send bot command at once, if it was not inserted by pressing Tab.
 	if (str.at(0) == '/' && method != FieldAutocomplete::ChooseMethod::ByTab) {
-		App::sendBotCommand(_peer, nullptr, str, replyToId());
+		sendBotCommand({ _peer, str, FullMsgId(), replyToId() });
 		session().api().finishForwarding(Api::SendAction(_history));
 		setFieldText(_field->getTextWithTagsPart(_field->textCursor().position()));
 	} else {
@@ -3601,7 +3606,7 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void HistoryWidget::sendBotCommand(Bot::SendCommandRequest request) {
+void HistoryWidget::sendBotCommand(const Bot::SendCommandRequest &request) {
 // replyTo != 0 from ReplyKeyboardMarkup, == 0 from command links
 	if (_peer != request.peer.get()) {
 		return;

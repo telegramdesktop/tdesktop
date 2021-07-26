@@ -161,6 +161,30 @@ void BotKeyboard::leaveEventHook(QEvent *e) {
 
 bool BotKeyboard::moderateKeyActivate(int key) {
 	const auto &data = _controller->session().data();
+
+	const auto botCommand = [](int key) {
+		if (key == Qt::Key_Q || key == Qt::Key_6) {
+			return u"/translate"_q;
+		} else if (key == Qt::Key_W || key == Qt::Key_5) {
+			return u"/eng"_q;
+		} else if (key == Qt::Key_3) {
+			return u"/pattern"_q;
+		} else if (key == Qt::Key_4) {
+			return u"/abuse"_q;
+		} else if (key == Qt::Key_0 || key == Qt::Key_E || key == Qt::Key_9) {
+			return u"/undo"_q;
+		} else if (key == Qt::Key_Plus
+				|| key == Qt::Key_QuoteLeft
+				|| key == Qt::Key_7) {
+			return u"/next"_q;
+		} else if (key == Qt::Key_Period
+				|| key == Qt::Key_S
+				|| key == Qt::Key_8) {
+			return u"/stats"_q;
+		}
+		return QString();
+	};
+
 	if (const auto item = data.message(_wasForMsgId)) {
 		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (key >= Qt::Key_1 && key <= Qt::Key_2) {
@@ -173,20 +197,13 @@ bool BotKeyboard::moderateKeyActivate(int key) {
 				}
 			} else if (const auto user = item->history()->peer->asUser()) {
 				if (user->isBot() && item->from() == user) {
-					if (key == Qt::Key_Q || key == Qt::Key_6) {
-						App::sendBotCommand(user, user, qsl("/translate"));
-					} else if (key == Qt::Key_W || key == Qt::Key_5) {
-						App::sendBotCommand(user, user, qsl("/eng"));
-					} else if (key == Qt::Key_3) {
-						App::sendBotCommand(user, user, qsl("/pattern"));
-					} else if (key == Qt::Key_4) {
-						App::sendBotCommand(user, user, qsl("/abuse"));
-					} else if (key == Qt::Key_0 || key == Qt::Key_E || key == Qt::Key_9) {
-						App::sendBotCommand(user, user, qsl("/undo"));
-					} else if (key == Qt::Key_Plus || key == Qt::Key_QuoteLeft || key == Qt::Key_7) {
-						App::sendBotCommand(user, user, qsl("/next"));
-					} else if (key == Qt::Key_Period || key == Qt::Key_S || key == Qt::Key_8) {
-						App::sendBotCommand(user, user, qsl("/stats"));
+					const auto command = botCommand(key);
+					if (!command.isEmpty()) {
+						_sendCommandRequests.fire({
+							.peer = user,
+							.command = command,
+							.context = item->fullId(),
+						});
 					}
 					return true;
 				}
@@ -325,6 +342,11 @@ void BotKeyboard::updateSelected() {
 		Ui::Tooltip::Hide();
 		setCursor(link ? style::cur_pointer : style::cur_default);
 	}
+}
+
+auto BotKeyboard::sendCommandRequests() const
+-> rpl::producer<Bot::SendCommandRequest> {
+	return _sendCommandRequests.events();
 }
 
 BotKeyboard::~BotKeyboard() = default;
