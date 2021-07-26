@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_game.h"
 
 #include "lang/lang_keys.h"
-#include "layout.h"
+#include "layout/layout_selection.h"
 #include "history/history_item_components.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"

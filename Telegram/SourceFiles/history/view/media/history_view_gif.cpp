@@ -36,7 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
-#include "layout.h" // FullSelection
+#include "layout/layout_selection.h" // FullSelection
 #include "styles/style_chat.h"
 
 namespace HistoryView {

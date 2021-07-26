@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "layout.h"
+#include "layout/layout_selection.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "core/application.h"

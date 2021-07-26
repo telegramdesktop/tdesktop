@@ -28,7 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/timer.h"
 #include "main/main_session.h"
-#include "layout.h" // FullSelection
+#include "layout/layout_selection.h" // FullSelection
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"

@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
-#include "layout.h"
+#include "layout/layout_selection.h"
 #include "facades.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"

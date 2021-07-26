@@ -18,42 +18,6 @@ namespace Ui {
 enum CachedRoundCorners : int;
 } // namespace Ui
 
-constexpr auto FullSelection = TextSelection { 0xFFFF, 0xFFFF };
-
-inline bool IsSubGroupSelection(TextSelection selection) {
-	return (selection.from == 0xFFFF) && (selection.to != 0xFFFF);
-}
-
-inline bool IsGroupItemSelection(
-		TextSelection selection,
-		int index) {
-	Expects(index >= 0 && index < 0x0F);
-
-	return IsSubGroupSelection(selection) && (selection.to & (1 << index));
-}
-
-[[nodiscard]] inline TextSelection AddGroupItemSelection(
-		TextSelection selection,
-		int index) {
-	Expects(index >= 0 && index < 0x0F);
-
-	const auto bit = uint16(1U << index);
-	return TextSelection(
-		0xFFFF,
-		IsSubGroupSelection(selection) ? (selection.to | bit) : bit);
-}
-
-[[nodiscard]] inline TextSelection RemoveGroupItemSelection(
-		TextSelection selection,
-		int index) {
-	Expects(index >= 0 && index < 0x0F);
-
-	const auto bit = uint16(1U << index);
-	return IsSubGroupSelection(selection)
-		? TextSelection(0xFFFF, selection.to & ~bit)
-		: selection;
-}
-
 int32 documentColorIndex(DocumentData *document, QString &ext);
 style::color documentColor(int colorIndex);
 style::color documentDarkColor(int colorIndex);

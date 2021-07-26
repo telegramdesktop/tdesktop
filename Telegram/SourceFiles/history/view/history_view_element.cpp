@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_groups.h"
 #include "data/data_media_types.h"
 #include "lang/lang_keys.h"
-#include "layout.h"
+#include "layout/layout_selection.h"
 #include "app.h"
 #include "styles/style_chat.h"
 

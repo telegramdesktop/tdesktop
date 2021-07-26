@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "overview/overview_layout.h"
 #include "layout/layout_mosaic.h"
+#include "layout/layout_selection.h"
 #include "data/data_media_types.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"

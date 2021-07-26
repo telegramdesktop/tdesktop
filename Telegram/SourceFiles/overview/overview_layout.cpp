@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
+#include "layout/layout_selection.h"
 #include "mainwidget.h"
 #include "storage/file_upload.h"
 #include "mainwindow.h"

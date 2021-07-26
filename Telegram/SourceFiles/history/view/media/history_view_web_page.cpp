@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
-#include "layout.h" // FullSelection
+#include "layout/layout_selection.h" // FullSelection
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_web_page.h"

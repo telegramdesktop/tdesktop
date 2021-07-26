@@ -66,6 +66,8 @@ PRIVATE
     layout/layout_mosaic.h
     layout/layout_position.cpp
     layout/layout_position.h
+    layout/layout_selection.cpp
+    layout/layout_selection.h
 
     media/clip/media_clip_check_streaming.cpp
     media/clip/media_clip_check_streaming.h

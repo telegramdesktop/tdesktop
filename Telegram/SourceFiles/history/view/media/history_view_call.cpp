@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/text/format_values.h"
-#include "layout.h" // FullSelection
+#include "layout/layout_selection.h" // FullSelection
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/history_view_element.h"
