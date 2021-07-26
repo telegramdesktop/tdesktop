@@ -11,10 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/local_url_handlers.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
 #include "main/main_session.h"
 #include "boxes/confirm_box.h"
 #include "base/qthelp_regex.h"
 #include "storage/storage_account.h"
+#include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
 #include "data/data_user.h"
@@ -24,6 +26,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "app.h"
 
 #include <QtGui/QGuiApplication>
+
+namespace {
+
+void SearchByHashtag(ClickContext context, const QString &tag) {
+	const auto my = context.other.value<ClickHandlerContext>();
+	const auto controller = my.sessionWindow.get();
+	if (!controller) {
+		return;
+	}
+	if (controller->openedFolder().current()) {
+		controller->closeFolder();
+	}
+
+	controller->widget()->ui_hideSettingsAndLayer(anim::type::normal);
+	Core::App().hideMediaView();
+
+	auto &data = controller->session().data();
+	const auto inPeer = my.peer
+		? my.peer
+		: my.itemId
+		? data.message(my.itemId)->history()->peer
+		: nullptr;
+	controller->content()->searchMessages(
+		tag + ' ',
+		(inPeer && !inPeer->isUser())
+			? data.history(inPeer).get()
+			: Dialogs::Key());
+}
+
+} // namespace
 
 bool UrlRequiresConfirmation(const QUrl &url) {
 	using namespace qthelp;
@@ -159,7 +191,7 @@ QString HashtagClickHandler::copyToClipboardContextItemText() const {
 void HashtagClickHandler::onClick(ClickContext context) const {
 	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::searchByHashtag(_tag, Ui::getPeerForMouseAction());
+		SearchByHashtag(context, _tag);
 	}
 }
 
@@ -174,7 +206,7 @@ QString CashtagClickHandler::copyToClipboardContextItemText() const {
 void CashtagClickHandler::onClick(ClickContext context) const {
 	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		App::searchByHashtag(_tag, Ui::getPeerForMouseAction());
+		SearchByHashtag(context, _tag);
 	}
 }
 
