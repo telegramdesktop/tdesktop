@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/stickers/data_stickers.h"
 #include "chat_helpers/send_context_menu.h" // SendMenu::FillSendMenu
+#include "core/click_handler_types.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/popup_menu.h"
@@ -415,7 +416,12 @@ void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	if (dynamic_cast<InlineBots::Layout::SendClickHandler*>(activated.get())) {
 		selectInlineResult(_selected, {});
 	} else {
-		ActivateClickHandler(window(), activated, e->button());
+		ActivateClickHandler(window(), activated, {
+			e->button(),
+			QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = base::make_weak(controller().get()),
+			})
+		});
 	}
 }
 

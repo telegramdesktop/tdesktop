@@ -15,16 +15,18 @@ namespace style {
 struct BotKeyboardButton;
 } // namespace style
 
-namespace Main {
-class Session;
-} // namespace Main
+namespace Window {
+class SessionController;
+} // namespace Window
 
 class BotKeyboard
 	: public TWidget
 	, public Ui::AbstractTooltipShower
 	, public ClickHandlerHost {
 public:
-	BotKeyboard(not_null<Main::Session*> session, QWidget *parent);
+	BotKeyboard(
+		not_null<Window::SessionController*> controller,
+		QWidget *parent);
 
 	bool moderateKeyActivate(int index);
 
@@ -78,7 +80,7 @@ private:
 	void updateStyle(int newWidth);
 	void clearSelection();
 
-	const not_null<Main::Session*> _session;
+	const not_null<Window::SessionController*> _controller;
 	FullMsgId _wasForMsgId;
 	QString _placeholder;
 	int _height = 0;

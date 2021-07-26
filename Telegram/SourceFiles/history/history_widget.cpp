@@ -216,7 +216,7 @@ HistoryWidget::HistoryWidget(
 	tr::lng_message_ph())
 , _kbScroll(this, st::botKbScroll)
 , _keyboard(_kbScroll->setOwnedWidget(object_ptr<BotKeyboard>(
-	&session(),
+	controller,
 	this)))
 , _membersDropdownShowTimer([=] { showMembersDropdown(); })
 , _scrollTimer([=] { scrollByTimer(); })

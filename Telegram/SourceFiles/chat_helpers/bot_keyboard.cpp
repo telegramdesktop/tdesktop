@@ -7,11 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/bot_keyboard.h"
 
+#include "core/click_handler_types.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "window/window_session_controller.h"
 #include "ui/cached_round_corners.h"
 #include "facades.h"
 #include "styles/style_widgets.h"
@@ -98,9 +100,11 @@ int Style::minButtonWidth(HistoryMessageMarkupButton::Type type) const {
 
 } // namespace
 
-BotKeyboard::BotKeyboard(not_null<Main::Session*> session, QWidget *parent)
+BotKeyboard::BotKeyboard(
+	not_null<Window::SessionController*> controller,
+	QWidget *parent)
 : TWidget(parent)
-, _session(session)
+, _controller(controller)
 , _st(&st::botKbButton) {
 	setGeometry(0, 0, _st->margin, st::botKbScroll.deltat);
 	_height = st::botKbScroll.deltat;
@@ -137,7 +141,12 @@ void BotKeyboard::mouseReleaseEvent(QMouseEvent *e) {
 	updateSelected();
 
 	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
-		ActivateClickHandler(window(), activated, e->button());
+		ActivateClickHandler(window(), activated, {
+			e->button(),
+			QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = base::make_weak(_controller.get()),
+			})
+		});
 	}
 }
 
@@ -151,7 +160,8 @@ void BotKeyboard::leaveEventHook(QEvent *e) {
 }
 
 bool BotKeyboard::moderateKeyActivate(int key) {
-	if (const auto item = _session->data().message(_wasForMsgId)) {
+	const auto &data = _controller->session().data();
+	if (const auto item = data.message(_wasForMsgId)) {
 		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (key >= Qt::Key_1 && key <= Qt::Key_2) {
 				const auto index = int(key - Qt::Key_1);

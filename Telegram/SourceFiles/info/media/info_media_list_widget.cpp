@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_overview.h"
 #include "styles/style_info.h"
 #include "base/platform/base_platform_info.h"
+#include "base/weak_ptr.h"
 #include "media/player/media_player_instance.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
@@ -2290,7 +2291,18 @@ void ListWidget::mouseActionFinish(
 	_wasSelectedText = false;
 	if (activated) {
 		mouseActionCancel();
-		ActivateClickHandler(window(), activated, button);
+		const auto found = findItemById(pressState.itemId);
+		const auto fullId = found
+			? found->layout->getItem()->fullId()
+			: FullMsgId();
+		ActivateClickHandler(window(), activated, {
+			button,
+			QVariant::fromValue(ClickHandlerContext{
+				.itemId = fullId,
+				.sessionWindow = base::make_weak(
+					_controller->parentController().get()),
+			})
+		});
 		return;
 	}
 

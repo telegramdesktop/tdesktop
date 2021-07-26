@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_common.h"
 #include "chat_helpers/gifs_list_widget.h" // ChatHelpers::AddGifAction
 #include "chat_helpers/send_context_menu.h" // SendMenu::FillSendMenu
+#include "core/click_handler_types.h"
 #include "data/data_file_origin.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
@@ -237,7 +238,12 @@ void Inner::mouseReleaseEvent(QMouseEvent *e) {
 	if (dynamic_cast<SendClickHandler*>(activated.get()) || open) {
 		selectInlineResult(_selected, {}, !!open);
 	} else {
-		ActivateClickHandler(window(), activated, e->button());
+		ActivateClickHandler(window(), activated, {
+			e->button(),
+			QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = base::make_weak(_controller.get()),
+			})
+		});
 	}
 }
 

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "core/ui_integration.h"
@@ -4299,10 +4300,14 @@ void OverlayWidget::handleMouseRelease(
 		}
 		// There may be a mention / hashtag / bot command link.
 		// For now activate account for all activated links.
-		if (_session) {
-			Core::App().domain().activate(&_session->account());
-		}
-		ActivateClickHandler(_widget, activated, button);
+		// findWindow() will activate account.
+		ActivateClickHandler(_widget, activated, {
+			button,
+			QVariant::fromValue(ClickHandlerContext{
+				.itemId = _msgid,
+				.sessionWindow = base::make_weak(findWindow()),
+			})
+		});
 		return;
 	}
 

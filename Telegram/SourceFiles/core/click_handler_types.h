@@ -23,11 +23,15 @@ class SessionController;
 
 [[nodiscard]] bool UrlRequiresConfirmation(const QUrl &url);
 
+class PeerData;
 struct ClickHandlerContext {
 	FullMsgId itemId;
+	// Is filled from sections.
 	Fn<HistoryView::ElementDelegate*()> elementDelegate;
 	base::weak_ptr<Window::SessionController> sessionWindow;
 	bool skipBotAutoLogin = false;
+	// Is filled from peer info.
+	PeerData *peer = nullptr;
 };
 Q_DECLARE_METATYPE(ClickHandlerContext);
 
@@ -169,7 +173,6 @@ private:
 
 };
 
-class PeerData;
 class BotCommandClickHandler : public TextClickHandler {
 public:
 	BotCommandClickHandler(const QString &cmd) : _cmd(cmd) {

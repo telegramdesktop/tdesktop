@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h" // MainWindow::controller.
 #include "main/main_session.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "apiwrap.h"
 #include "facades.h"
 #include "styles/style_info.h"
@@ -189,9 +190,46 @@ DetailsFiller::DetailsFiller(
 , _wrap(_parent) {
 }
 
+template <typename T>
+bool SetClickContext(
+		const ClickHandlerPtr &handler,
+		const ClickContext &context) {
+	if (const auto casted = dynamic_pointer_cast<T>(handler)) {
+		casted->T::onClick(context);
+		return true;
+	}
+	return false;
+}
+
 object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 	auto result = object_ptr<Ui::VerticalLayout>(_wrap);
 	auto tracker = Ui::MultiSlideTracker();
+
+	// Fill context for a mention / hashtag / bot command link.
+	const auto infoClickFilter = [=,
+		peer = _peer.get(),
+		window = _controller->parentController()](
+			const ClickHandlerPtr &handler,
+			Qt::MouseButton button) {
+		const auto context = ClickContext{
+			button,
+			QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = base::make_weak(window.get()),
+				.peer = peer,
+			})
+		};
+		if (SetClickContext<BotCommandClickHandler>(handler, context)) {
+			return false;
+		} else if (SetClickContext<MentionClickHandler>(handler, context)) {
+			return false;
+		} else if (SetClickContext<HashtagClickHandler>(handler, context)) {
+			return false;
+		} else if (SetClickContext<CashtagClickHandler>(handler, context)) {
+			return false;
+		}
+		return true;
+	};
+
 	auto addInfoLineGeneric = [&](
 			rpl::producer<QString> &&label,
 			rpl::producer<TextWithEntities> &&text,
@@ -203,6 +241,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			textSt,
 			st::infoProfileLabeledPadding);
 		tracker.track(result->add(std::move(line.wrap)));
+
+		line.text->setClickHandlerFilter(infoClickFilter);
 		return line.text;
 	};
 	auto addInfoLine = [&](
