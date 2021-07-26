@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_message.h"
 
+#include "core/click_handler_types.h" // ClickHandlerContext
 #include "history/view/history_view_cursor_state.h"
 #include "history/history_item_components.h"
 #include "history/history_message.h"
@@ -25,12 +26,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
-#include "mainwindow.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "layout/layout_selection.h"
-#include "facades.h"
+
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
@@ -39,6 +39,15 @@ namespace HistoryView {
 namespace {
 
 const auto kPsaTooltipPrefix = "cloud_lng_tooltip_psa_";
+
+std::optional<Window::SessionController*> ExtractController(
+		const ClickContext &context) {
+	const auto my = context.other.value<ClickHandlerContext>();
+	if (const auto controller = my.sessionWindow.get()) {
+		return controller;
+	}
+	return std::nullopt;
+}
 
 class KeyboardStyle : public ReplyKeyboard::Style {
 public:
@@ -1380,21 +1389,25 @@ bool Message::getStateCommentsButton(
 
 ClickHandlerPtr Message::createGoToCommentsLink() const {
 	const auto fullId = data()->fullId();
-	return std::make_shared<LambdaClickHandler>([=] {
-		if (const auto window = App::wnd()) {
-			if (const auto controller = window->sessionController()) {
-				if (const auto item = controller->session().data().message(fullId)) {
-					const auto history = item->history();
-					if (const auto channel = history->peer->asChannel()) {
-						if (channel->invitePeekExpires()) {
-							Ui::Toast::Show(
-								tr::lng_channel_invite_private(tr::now));
-							return;
-						}
-					}
-					controller->showRepliesForMessage(history, item->id);
+	const auto sessionId = data()->history()->session().uniqueId();
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto controller = ExtractController(context).value_or(nullptr);
+		if (!controller) {
+			return;
+		}
+		if (controller->session().uniqueId() != sessionId) {
+			return;
+		}
+		if (const auto item = controller->session().data().message(fullId)) {
+			const auto history = item->history();
+			if (const auto channel = history->peer->asChannel()) {
+				if (channel->invitePeekExpires()) {
+					Ui::Toast::Show(
+						tr::lng_channel_invite_private(tr::now));
+					return;
 				}
 			}
+			controller->showRepliesForMessage(history, item->id);
 		}
 	});
 }
@@ -2318,80 +2331,108 @@ void Message::drawRightAction(
 }
 
 ClickHandlerPtr Message::rightActionLink() const {
-	if (!_rightActionLink) {
-		if (isPinnedContext()) {
-			_rightActionLink = goToMessageClickHandler(data());
-			return _rightActionLink;
-		} else if (displayRightActionComments()) {
-			_rightActionLink = createGoToCommentsLink();
-			return _rightActionLink;
-		}
-		const auto owner = &data()->history()->owner();
-		const auto itemId = data()->fullId();
-		const auto forwarded = data()->Get<HistoryMessageForwarded>();
-		const auto savedFromPeer = forwarded ? forwarded->savedFromPeer : nullptr;
-		const auto savedFromMsgId = forwarded ? forwarded->savedFromMsgId : 0;
-		const auto showByThread = std::make_shared<FnMut<void()>>();
-		const auto showByThreadWeak = std::weak_ptr<FnMut<void()>>(showByThread);
-		if (data()->externalReply()) {
-			*showByThread = [=, requested = 0]() mutable {
-				const auto original = savedFromPeer->owner().message(savedFromPeer->asChannel(), savedFromMsgId);
-				if (original && original->replyToTop()) {
-					App::wnd()->sessionController()->showRepliesForMessage(
-						original->history(),
-						original->replyToTop(),
-						original->id,
-						Window::SectionShow::Way::Forward);
-				} else if (!requested) {
-					const auto channel = savedFromPeer->asChannel();
-					const auto prequested = &requested;
-					requested = 1;
-					channel->session().api().requestMessageData(channel, savedFromMsgId, [=](ChannelData *gotChannel, MsgId gotId) {
+	if (_rightActionLink) {
+		return _rightActionLink;
+	}
+	if (isPinnedContext()) {
+		_rightActionLink = goToMessageClickHandler(data());
+		return _rightActionLink;
+	} else if (displayRightActionComments()) {
+		_rightActionLink = createGoToCommentsLink();
+		return _rightActionLink;
+	}
+	const auto sessionId = data()->history()->session().uniqueId();
+	const auto owner = &data()->history()->owner();
+	const auto itemId = data()->fullId();
+	const auto forwarded = data()->Get<HistoryMessageForwarded>();
+	const auto savedFromPeer = forwarded ? forwarded->savedFromPeer : nullptr;
+	const auto savedFromMsgId = forwarded ? forwarded->savedFromMsgId : 0;
+
+	using Callback = FnMut<void(not_null<Window::SessionController*>)>;
+	const auto showByThread = std::make_shared<Callback>();
+	const auto showByThreadWeak = std::weak_ptr<Callback>(showByThread);
+	if (data()->externalReply()) {
+		*showByThread = [=, requested = 0](
+				not_null<Window::SessionController*> controller) mutable {
+			const auto original = savedFromPeer->owner().message(
+				savedFromPeer->asChannel(),
+				savedFromMsgId);
+			if (original && original->replyToTop()) {
+				controller->showRepliesForMessage(
+					original->history(),
+					original->replyToTop(),
+					original->id,
+					Window::SectionShow::Way::Forward);
+			} else if (!requested) {
+				const auto channel = savedFromPeer->asChannel();
+				const auto prequested = &requested;
+				requested = 1;
+				channel->session().api().requestMessageData(
+					channel,
+					savedFromMsgId,
+					[=, weak = base::make_weak(controller.get())](
+							ChannelData *gotChannel, MsgId gotId) {
 						if (const auto strong = showByThreadWeak.lock()) {
-							*prequested = 2;
-							(*strong)();
+							if (const auto strongController = weak.get()) {
+								*prequested = 2;
+								(*strong)(strongController);
+							}
 						}
 					});
-				} else if (requested == 2) {
-					App::wnd()->sessionController()->showPeerHistory(
-						savedFromPeer,
-						Window::SectionShow::Way::Forward,
-						savedFromMsgId);
-				}
-			};
-		};
-		_rightActionLink = std::make_shared<LambdaClickHandler>([=] {
-			if (const auto item = owner->message(itemId)) {
-				if (*showByThread) {
-					(*showByThread)();
-				} else if (savedFromPeer && savedFromMsgId) {
-					App::wnd()->sessionController()->showPeerHistory(
-						savedFromPeer,
-						Window::SectionShow::Way::Forward,
-						savedFromMsgId);
-				} else {
-					FastShareMessage(item);
-				}
+			} else if (requested == 2) {
+				controller->showPeerHistory(
+					savedFromPeer,
+					Window::SectionShow::Way::Forward,
+					savedFromMsgId);
 			}
-		});
-	}
+		};
+	};
+	_rightActionLink = std::make_shared<LambdaClickHandler>([=](
+			ClickContext context) {
+		const auto controller = ExtractController(context).value_or(nullptr);
+		if (!controller) {
+			return;
+		}
+		if (controller->session().uniqueId() != sessionId) {
+			return;
+		}
+
+		if (const auto item = owner->message(itemId)) {
+			if (*showByThread) {
+				(*showByThread)(controller);
+			} else if (savedFromPeer && savedFromMsgId) {
+				controller->showPeerHistory(
+					savedFromPeer,
+					Window::SectionShow::Way::Forward,
+					savedFromMsgId);
+			} else {
+				FastShareMessage(item);
+			}
+		}
+	});
 	return _rightActionLink;
 }
 
 ClickHandlerPtr Message::fastReplyLink() const {
-	if (!_fastReplyLink) {
-		const auto owner = &data()->history()->owner();
-		const auto itemId = data()->fullId();
-		_fastReplyLink = std::make_shared<LambdaClickHandler>([=] {
-			if (const auto item = owner->message(itemId)) {
-				if (const auto main = App::main()) { // multi good
-					if (&main->session() == &owner->session()) {
-						main->replyToItem(item);
-					}
+	if (_fastReplyLink) {
+		return _fastReplyLink;
+	}
+	const auto owner = &data()->history()->owner();
+	const auto itemId = data()->fullId();
+	_fastReplyLink = std::make_shared<LambdaClickHandler>([=](
+			ClickContext context) {
+		const auto controller = ExtractController(context).value_or(nullptr);
+		if (!controller) {
+			return;
+		}
+		if (const auto item = owner->message(itemId)) {
+			if (const auto main = controller->content()) {
+				if (&main->session() == &owner->session()) {
+					main->replyToItem(item);
 				}
 			}
-		});
-	}
+		}
+	});
 	return _fastReplyLink;
 }
 
