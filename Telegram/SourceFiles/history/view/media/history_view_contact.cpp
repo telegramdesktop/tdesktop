@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_contact.h"
 
+#include "core/click_handler_types.h" // ClickHandlerContext
 #include "lang/lang_keys.h"
 #include "layout/layout_selection.h"
 #include "mainwindow.h"
@@ -25,32 +26,44 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_cloud_file.h"
 #include "main/main_session.h"
-#include "app.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
 namespace {
 
-ClickHandlerPtr sendMessageClickHandler(PeerData *peer) {
-	return std::make_shared<LambdaClickHandler>([peer] {
-		App::wnd()->sessionController()->showPeerHistory(
-			peer->id,
-			Window::SectionShow::Way::Forward);
+ClickHandlerPtr SendMessageClickHandler(PeerData *peer) {
+	return std::make_shared<LambdaClickHandler>([peer](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			if (controller->session().uniqueId()
+					!= peer->session().uniqueId()) {
+				return;
+			}
+			controller->showPeerHistory(
+				peer->id,
+				Window::SectionShow::Way::Forward);
+		}
 	});
 }
 
-ClickHandlerPtr addContactClickHandler(not_null<HistoryItem*> item) {
+ClickHandlerPtr AddContactClickHandler(not_null<HistoryItem*> item) {
 	const auto session = &item->history()->session();
 	const auto fullId = item->fullId();
-	return std::make_shared<LambdaClickHandler>([=] {
-		if (const auto item = session->data().message(fullId)) {
-			if (const auto media = item->media()) {
-				if (const auto contact = media->sharedContact()) {
-					Ui::show(Box<AddContactBox>(
-						session,
-						contact->firstName,
-						contact->lastName,
-						contact->phoneNumber));
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			if (controller->session().uniqueId() != session->uniqueId()) {
+				return;
+			}
+			if (const auto item = session->data().message(fullId)) {
+				if (const auto media = item->media()) {
+					if (const auto contact = media->sharedContact()) {
+						controller->show(Box<AddContactBox>(
+							session,
+							contact->firstName,
+							contact->lastName,
+							contact->phoneNumber));
+					}
 				}
 			}
 		}
@@ -113,10 +126,10 @@ QSize Contact::countOptimalSize() {
 			full);
 	}
 	if (_contact && _contact->isContact()) {
-		_linkl = sendMessageClickHandler(_contact);
+		_linkl = SendMessageClickHandler(_contact);
 		_link = tr::lng_profile_send_message(tr::now).toUpper();
 	} else if (_userId) {
-		_linkl = addContactClickHandler(_parent->data());
+		_linkl = AddContactClickHandler(_parent->data());
 		_link = tr::lng_profile_add_contact(tr::now).toUpper();
 	}
 	_linkw = _link.isEmpty() ? 0 : st::semiboldFont->width(_link);
