@@ -14,15 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
-namespace Data {
-struct FileOrigin;
-} // namespace Data
-
-namespace InlineBots {
-namespace Layout {
-class ItemBase;
-} // namespace Layout
-} // namespace InlineBots
+namespace Window {
+class SessionController;
+} // namespace Window
 
 namespace App {
 
@@ -37,13 +31,9 @@ template <typename Guard, typename Lambda>
 	};
 }
 
-void sendBotCommand(
-	not_null<PeerData*> peer,
-	UserData *bot,
-	const QString &cmd,
-	MsgId replyTo = 0);
 bool insertBotCommand(const QString &cmd);
 void activateBotCommand(
+	Window::SessionController *sessionController,
 	not_null<const HistoryItem*> msg,
 	int row,
 	int column);

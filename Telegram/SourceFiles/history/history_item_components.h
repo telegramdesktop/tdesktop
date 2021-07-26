@@ -246,7 +246,7 @@ private:
 
 };
 
-class ReplyMarkupClickHandler : public LeftButtonClickHandler {
+class ReplyMarkupClickHandler : public ClickHandler {
 public:
 	ReplyMarkupClickHandler(
 		not_null<Data::Session*> owner,
@@ -278,8 +278,7 @@ public:
 		_itemId = msgId;
 	}
 
-protected:
-	void onClickImpl() const override;
+	void onClick(ClickContext context) const override;
 
 private:
 	const not_null<Data::Session*> _owner;

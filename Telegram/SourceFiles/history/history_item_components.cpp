@@ -447,9 +447,13 @@ auto ReplyMarkupClickHandler::getUrlButton() const
 	return nullptr;
 }
 
-void ReplyMarkupClickHandler::onClickImpl() const {
+void ReplyMarkupClickHandler::onClick(ClickContext context) const {
+	if (context.button != Qt::LeftButton) {
+		return;
+	}
 	if (const auto item = _owner->message(_itemId)) {
-		App::activateBotCommand(item, _row, _column);
+		const auto my = context.other.value<ClickHandlerContext>();
+		App::activateBotCommand(my.sessionWindow.get(), item, _row, _column);
 	}
 }
 

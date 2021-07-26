@@ -192,7 +192,7 @@ bool BotKeyboard::moderateKeyActivate(int key) {
 				if (!markup->rows.empty()
 					&& index >= 0
 					&& index < int(markup->rows.front().size())) {
-					App::activateBotCommand(item, 0, index);
+					App::activateBotCommand(_controller, item, 0, index);
 					return true;
 				}
 			} else if (const auto user = item->history()->peer->asUser()) {
