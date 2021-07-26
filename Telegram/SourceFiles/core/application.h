@@ -143,7 +143,6 @@ public:
 	// Media view interface.
 	void checkMediaViewActivation();
 	bool hideMediaView();
-	[[nodiscard]] PeerData *ui_getPeerForMouseAction();
 
 	[[nodiscard]] QPoint getPointForCallPanelCenter() const;
 	[[nodiscard]] QImage logo() const {

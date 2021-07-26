@@ -4593,10 +4593,6 @@ void HistoryWidget::updateHistoryItemsByTimer() {
 	}
 }
 
-PeerData *HistoryWidget::ui_getPeerForMouseAction() {
-	return _peer;
-}
-
 void HistoryWidget::handlePendingHistoryUpdate() {
 	if (hasPendingResizedItems() || _updateHistoryGeometryRequired) {
 		updateHistoryGeometry();

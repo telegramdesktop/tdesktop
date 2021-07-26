@@ -218,7 +218,6 @@ public:
 		PeerId peer,
 		const SectionShow &params,
 		MsgId msgId);
-	PeerData *ui_getPeerForMouseAction();
 
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 

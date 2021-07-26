@@ -1609,10 +1609,6 @@ void MainWidget::ui_showPeerHistory(
 	floatPlayerCheckVisibility();
 }
 
-PeerData *MainWidget::ui_getPeerForMouseAction() {
-	return _history->ui_getPeerForMouseAction();
-}
-
 PeerData *MainWidget::peer() {
 	return _history->peer();
 }

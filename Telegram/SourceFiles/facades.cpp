@@ -259,10 +259,6 @@ void showPeerHistory(not_null<const PeerData*> peer, MsgId msgId) {
 	}
 }
 
-PeerData *getPeerForMouseAction() {
-	return Core::App().ui_getPeerForMouseAction();
-}
-
 bool skipPaintEvent(QWidget *widget, QPaintEvent *event) {
 	if (auto w = App::wnd()) {
 		if (w->contentOverlapped(widget, event)) {

@@ -392,15 +392,6 @@ bool Application::hideMediaView() {
 	return false;
 }
 
-PeerData *Application::ui_getPeerForMouseAction() {
-	if (_mediaView && !_mediaView->isHidden()) {
-		return _mediaView->ui_getPeerForMouseAction();
-	} else if (const auto m = App::main()) { // multi good
-		return m->ui_getPeerForMouseAction();
-	}
-	return nullptr;
-}
-
 bool Application::eventFilter(QObject *object, QEvent *e) {
 	switch (e->type()) {
 	case QEvent::KeyPress:

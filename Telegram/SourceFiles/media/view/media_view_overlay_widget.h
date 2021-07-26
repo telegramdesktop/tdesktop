@@ -92,8 +92,6 @@ public:
 	void activateControls();
 	void close();
 
-	PeerData *ui_getPeerForMouseAction();
-
 	void notifyFileDialogShown(bool shown);
 
 	void clearSession();

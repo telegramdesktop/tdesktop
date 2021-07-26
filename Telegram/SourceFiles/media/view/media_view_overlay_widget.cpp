@@ -1577,10 +1577,6 @@ void OverlayWidget::handleDocumentClick() {
 	}
 }
 
-PeerData *OverlayWidget::ui_getPeerForMouseAction() {
-	return _history ? _history->peer.get() : nullptr;
-}
-
 void OverlayWidget::downloadMedia() {
 	if (!_photo && !_document) {
 		return;
