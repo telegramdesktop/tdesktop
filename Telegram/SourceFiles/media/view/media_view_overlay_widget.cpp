@@ -3103,7 +3103,7 @@ void OverlayWidget::switchToPip() {
 	const auto closeAndContinue = [=] {
 		_showAsPip = false;
 		show(OpenRequest(
-			findWindow(),
+			findWindow(false),
 			document,
 			document->owner().message(msgId),
 			true));
@@ -4536,7 +4536,7 @@ void OverlayWidget::applyHideWindowWorkaround() {
 	}
 }
 
-Window::SessionController *OverlayWidget::findWindow() const {
+Window::SessionController *OverlayWidget::findWindow(bool switchTo) const {
 	if (!_session) {
 		return nullptr;
 	}
@@ -4553,7 +4553,7 @@ Window::SessionController *OverlayWidget::findWindow() const {
 	const auto &active = _session->windows();
 	if (!active.empty()) {
 		return active.front();
-	} else if (window) {
+	} else if (window && switchTo) {
 		Window::SessionController *controllerPtr = nullptr;
 		window->invokeForSessionController(
 			&_session->account(),

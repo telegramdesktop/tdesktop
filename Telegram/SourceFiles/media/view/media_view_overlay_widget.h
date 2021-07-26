@@ -411,7 +411,7 @@ private:
 
 	void applyHideWindowWorkaround();
 
-	Window::SessionController *findWindow() const;
+	Window::SessionController *findWindow(bool switchTo = true) const;
 
 	bool _opengl = false;
 	const std::unique_ptr<Ui::RpWidgetWrap> _surface;
