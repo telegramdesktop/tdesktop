@@ -202,6 +202,11 @@ GifsListWidget::GifsListWidget(
 	) | rpl::start_with_next([=](const QSize &s) {
 		_mosaic.setFullWidth(s.width());
 	}, lifetime());
+
+	_mosaic.setOffset(
+		st::inlineResultsLeft - st::roundRadiusSmall,
+		st::stickerPanPadding);
+	_mosaic.setRightSkip(st::inlineResultsSkip);
 }
 
 rpl::producer<TabbedSelector::FileChosen> GifsListWidget::fileChosen() const {
@@ -337,12 +342,15 @@ void GifsListWidget::paintInlineItems(Painter &p, QRect clip) {
 	using namespace InlineBots::Layout;
 	PaintContext context(crl::now(), false, gifPaused, false);
 
-	_mosaic.paint(
-		p,
-		st::stickerPanPadding,
-		st::inlineResultsLeft - st::roundRadiusSmall,
-		clip,
-		context);
+	auto paintItem = [&](const not_null<ItemBase*> item, QPoint point) {
+		p.translate(point.x(), point.y());
+		item->paint(
+			p,
+			clip.translated(-point),
+			&context);
+		p.translate(-point.x(), -point.y());
+	};
+	_mosaic.paint(std::move(paintItem), clip);
 }
 
 void GifsListWidget::mousePressEvent(QMouseEvent *e) {
@@ -520,7 +528,7 @@ void GifsListWidget::refreshSavedGifs() {
 				return layoutPrepareSavedGif(gif);
 			}) | ranges::views::filter([](const LayoutItem *item) {
 				return item != nullptr;
-			}) | ranges::to_vector;
+			}) | ranges::to<std::vector<not_null<LayoutItem*>>>;
 
 			_mosaic.addItems(layouts);
 		}
@@ -610,7 +618,9 @@ void GifsListWidget::deleteUnusedInlineLayouts() {
 }
 
 void GifsListWidget::preloadImages() {
-	_mosaic.preloadImages();
+	_mosaic.forEach([](const not_null<LayoutItem*> item) {
+		item->preload();
+	});
 }
 
 void GifsListWidget::switchToSavedGifs() {
@@ -645,10 +655,11 @@ int GifsListWidget::refreshInlineRows(const InlineCacheEntry *entry, bool result
 			return layoutPrepareInlineResult(r.get());
 		}) | ranges::views::filter([](const LayoutItem *item) {
 			return item != nullptr;
-		}) | ranges::to_vector;
+		}) | ranges::to<std::vector<not_null<LayoutItem*>>>;
 
 		_mosaic.addItems(resultLayouts);
 		added = resultLayouts.size();
+		preloadImages();
 	}
 
 	resizeToWidth(width());
@@ -661,7 +672,11 @@ int GifsListWidget::refreshInlineRows(const InlineCacheEntry *entry, bool result
 }
 
 int GifsListWidget::validateExistingInlineRows(const InlineResults &results) {
-	const auto until = _mosaic.validateExistingRows(results);
+	const auto until = _mosaic.validateExistingRows([&](
+			const not_null<LayoutItem*> item,
+			int untilIndex) {
+		return item->getResult() != results[untilIndex].get();
+	}, results.size());
 
 	if (_mosaic.empty()) {
 		_inlineWithThumb = false;
@@ -853,10 +868,12 @@ void GifsListWidget::updateSelected() {
 	}
 
 	const auto p = mapFromGlobal(_lastMousePos);
-	const auto sx = (rtl() ? width() - p.x() : p.x())
-		- (st::inlineResultsLeft - st::roundRadiusSmall);
-	const auto sy = p.y() - st::stickerPanPadding;
-	const auto &[link, item, selected] = _mosaic.findByPoint({ sx, sy });
+	const auto sx = rtl() ? (width() - p.x()) : p.x();
+	const auto sy = p.y();
+	const auto &[index, exact, relative] = _mosaic.findByPoint({ sx, sy });
+	const auto selected = exact ? index : -1;
+	const auto item = exact ? _mosaic.itemAt(selected) : nullptr;
+	const auto link = exact ? item->getState(relative, {}).link : nullptr;
 
 	if (_selected != selected) {
 		if (const auto s = _mosaic.maybeItemAt(_selected)) {

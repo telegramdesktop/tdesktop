@@ -79,6 +79,8 @@ Inner::Inner(
 	) | rpl::start_with_next([=](const QSize &s) {
 		_mosaic.setFullWidth(s.width());
 	}, lifetime());
+
+	_mosaic.setRightSkip(st::inlineResultsSkip);
 }
 
 void Inner::visibleTopBottomUpdated(
@@ -189,16 +191,15 @@ void Inner::paintInlineItems(Painter &p, const QRect &r) {
 	context.pathGradient = _pathGradient.get();
 	context.pathGradient->startFrame(0, width(), width() / 2);
 
-	const auto top = st::stickerPanPadding
-		+ (_switchPmButton
-			? _switchPmButton->height() + st::inlineResultsSkip
-			: 0);
-	_mosaic.paint(
-		p,
-		top,
-		st::inlineResultsLeft - st::roundRadiusSmall,
-		r,
-		context);
+	auto paintItem = [&](const not_null<ItemBase*> item, QPoint point) {
+		p.translate(point.x(), point.y());
+		item->paint(
+			p,
+			r.translated(-point),
+			&context);
+		p.translate(-point.x(), -point.y());
+	};
+	_mosaic.paint(std::move(paintItem), r);
 }
 
 void Inner::mousePressEvent(QMouseEvent *e) {
@@ -377,7 +378,9 @@ void Inner::deleteUnusedInlineLayouts() {
 }
 
 void Inner::preloadImages() {
-	_mosaic.preloadImages();
+	_mosaic.forEach([](const not_null<ItemBase*> item) {
+		item->preload();
+	});
 }
 
 void Inner::hideInlineRowsPanel() {
@@ -386,6 +389,16 @@ void Inner::hideInlineRowsPanel() {
 
 void Inner::clearInlineRowsPanel() {
 	clearInlineRows(false);
+}
+
+void Inner::refreshMosaicOffset() {
+	const auto top = st::stickerPanPadding
+		+ (_switchPmButton
+			? _switchPmButton->height() + st::inlineResultsSkip
+			: 0);
+	_mosaic.setOffset(
+		st::inlineResultsLeft - st::roundRadiusSmall,
+		top);
 }
 
 void Inner::refreshSwitchPmButton(const CacheEntry *entry) {
@@ -414,6 +427,7 @@ int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntr
 	_inlineBot = bot;
 	_inlineQueryPeer = queryPeer;
 	refreshSwitchPmButton(entry);
+	refreshMosaicOffset();
 	auto clearResults = [&] {
 		if (!entry) {
 			return true;
@@ -449,10 +463,11 @@ int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntr
 			return layoutPrepareInlineResult(r.get());
 		}) | ranges::views::filter([](const ItemBase *item) {
 			return item != nullptr;
-		}) | ranges::to_vector;
+		}) | ranges::to<std::vector<not_null<ItemBase*>>>;
 
 		_mosaic.addItems(resultItems);
 		added = resultItems.size();
+		preloadImages();
 	}
 
 	auto h = countHeight();
@@ -466,7 +481,11 @@ int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntr
 }
 
 int Inner::validateExistingInlineRows(const Results &results) {
-	const auto until = _mosaic.validateExistingRows(results);
+	const auto until = _mosaic.validateExistingRows([&](
+			const not_null<ItemBase*> item,
+			int untilIndex) {
+		return item->getResult() != results[untilIndex].get();
+	}, results.size());
 
 	if (_mosaic.empty()) {
 		_inlineWithThumb = false;
@@ -528,15 +547,12 @@ void Inner::updateSelected() {
 	}
 
 	const auto p = mapFromGlobal(_lastMousePos);
-
-	const auto sx = (rtl() ? width() - p.x() : p.x())
-		- (st::inlineResultsLeft - st::roundRadiusSmall);
-	const auto sy = p.y()
-		- st::stickerPanPadding
-		- (_switchPmButton
-			? _switchPmButton->height() + st::inlineResultsSkip
-			: 0);
-	const auto &[link, item, selected] = _mosaic.findByPoint({ sx, sy });
+	const auto sx = rtl() ? (width() - p.x()) : p.x();
+	const auto sy = p.y();
+	const auto &[index, exact, relative] = _mosaic.findByPoint({ sx, sy });
+	const auto selected = exact ? index : -1;
+	const auto item = exact ? _mosaic.itemAt(selected) : nullptr;
+	const auto link = exact ? item->getState(relative, {}).link : nullptr;
 
 	if (_selected != selected) {
 		if (const auto s = _mosaic.maybeItemAt(_selected)) {

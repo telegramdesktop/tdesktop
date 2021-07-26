@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "mtproto/sender.h"
 #include "inline_bots/inline_bot_layout_item.h"
-#include "inline_bots/inline_results_mosaic_layout.h"
+#include "layout/layout_mosaic.h"
 
 namespace Api {
 struct SendOptions;
@@ -131,6 +131,7 @@ private:
 	void paintInlineItems(Painter &p, const QRect &r);
 
 	void refreshSwitchPmButton(const CacheEntry *entry);
+	void refreshMosaicOffset();
 
 	void showPreview();
 	void updateInlineItems();
@@ -165,7 +166,7 @@ private:
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
-	InlineBots::Layout::MosaicLayout _mosaic;
+	Mosaic::Layout::MosaicLayout<InlineBots::Layout::ItemBase> _mosaic;
 
 	std::map<Result*, std::unique_ptr<ItemBase>> _inlineLayouts;
 

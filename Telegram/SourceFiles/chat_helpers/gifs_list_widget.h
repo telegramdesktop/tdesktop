@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "base/timer.h"
 #include "inline_bots/inline_bot_layout_item.h"
-#include "inline_bots/inline_results_mosaic_layout.h"
+#include "layout/layout_mosaic.h"
 #include "app.h"
 
 #include <QtCore/QTimer>
@@ -167,7 +167,7 @@ private:
 
 	Footer *_footer = nullptr;
 
-	InlineBots::Layout::MosaicLayout _mosaic;
+	Mosaic::Layout::MosaicLayout<LayoutItem> _mosaic;
 
 	int _selected = -1;
 	int _pressed = -1;

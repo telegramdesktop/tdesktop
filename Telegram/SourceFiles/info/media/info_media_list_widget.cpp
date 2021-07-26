@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/info_controller.h"
 #include "overview/overview_layout.h"
-#include "overview/overview_mosaic_layout.h"
+#include "layout/layout_mosaic.h"
 #include "data/data_media_types.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
@@ -41,8 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
-
-namespace Layout = Overview::Layout;
 
 namespace Info {
 namespace Media {
@@ -88,7 +86,7 @@ bool HasFloatingHeader(Type type) {
 } // namespace
 
 struct ListWidget::Context {
-	Layout::PaintContext layoutContext;
+	Overview::Layout::PaintContext layoutContext;
 	not_null<SelectedMap*> selected;
 	not_null<SelectedMap*> dragSelected;
 	DragSelectAction dragSelectAction;
@@ -98,7 +96,8 @@ class ListWidget::Section {
 public:
 	Section(Type type)
 	: _type(type)
-	, _hasFloatingHeader(HasFloatingHeader(type)) {
+	, _hasFloatingHeader(HasFloatingHeader(type))
+	, _mosaic(st::emojiPanWidth - st::inlineResultsLeft) {
 	}
 
 	bool addItem(not_null<BaseLayout*> item);
@@ -186,7 +185,7 @@ private:
 	int _top = 0;
 	int _height = 0;
 
-	Overview::Layout::MosaicLayout _mosaic;
+	Mosaic::Layout::MosaicLayout<BaseLayout> _mosaic;
 
 };
 
@@ -333,9 +332,10 @@ auto ListWidget::Section::findItemByPoint(
 	Expects(!_items.empty());
 	if (!_mosaic.empty()) {
 		const auto found = _mosaic.findByPoint(point);
-		Assert(found.item != nullptr);
-		const auto rect = findItemRect(found.item);
-		return { found.item, rect, found.exact };
+		Assert(found.index != -1);
+		const auto item = _mosaic.itemAt(found.index);
+		const auto rect = findItemRect(item);
+		return { item, rect, found.exact };
 	}
 	auto itemIt = findItemAfterTop(point.y());
 	if (itemIt == _items.end()) {
@@ -1030,7 +1030,7 @@ std::unique_ptr<BaseLayout> ListWidget::createLayout(
 	};
 
 	auto &songSt = st::overviewFileLayout;
-	using namespace Layout;
+	using namespace Overview::Layout;
 	switch (type) {
 	case Type::Photo:
 		if (const auto photo = getPhoto()) {
@@ -1386,7 +1386,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		fromSectionIt,
 		clip.y() + clip.height());
 	auto context = Context {
-		Layout::PaintContext(ms, hasSelectedItems()),
+		Overview::Layout::PaintContext(ms, hasSelectedItems()),
 		&_selected,
 		&_dragSelected,
 		_dragSelectAction
