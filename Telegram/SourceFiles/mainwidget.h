@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "base/weak_ptr.h"
+#include "chat_helpers/bot_command.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "media/player/media_player_float.h"
@@ -178,11 +179,7 @@ public:
 	// While HistoryInner is not HistoryView::ListWidget.
 	crl::time highlightStartTime(not_null<const HistoryItem*> item) const;
 
-	void sendBotCommand(
-		not_null<PeerData*> peer,
-		UserData *bot,
-		const QString &cmd,
-		MsgId replyTo);
+	void sendBotCommand(Bot::SendCommandRequest request);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd);
 

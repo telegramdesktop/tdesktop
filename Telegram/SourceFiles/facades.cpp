@@ -63,7 +63,7 @@ void sendBotCommand(
 		UserData *bot,
 		const QString &cmd, MsgId replyTo) {
 	if (const auto m = CheckMainWidget(&peer->session())) {
-		m->sendBotCommand(peer, bot, cmd, replyTo);
+		m->sendBotCommand({ peer, /*bot,*/ cmd, FullMsgId(), replyTo });
 	}
 }
 

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "chat_helpers/bot_command.h"
 #include "dialogs/dialogs_key.h"
 #include "media/player/media_player_float.h" // FloatSectionDelegate
 #include "base/object_ptr.h"

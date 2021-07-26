@@ -599,13 +599,4 @@ void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget);
 void ConfirmForwardSelectedItems(not_null<ListWidget*> widget);
 void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget);
 
-[[nodiscard]] QString WrapBotCommandInChat(
-	not_null<PeerData*> peer,
-	const QString &command,
-	const FullMsgId &context);
-[[nodiscard]] QString WrapBotCommandInChat(
-	not_null<PeerData*> peer,
-	const QString &command,
-	not_null<UserData*> bot);
-
 } // namespace HistoryView

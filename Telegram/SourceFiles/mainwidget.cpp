@@ -827,12 +827,8 @@ crl::time MainWidget::highlightStartTime(not_null<const HistoryItem*> item) cons
 	return _history->highlightStartTime(item);
 }
 
-void MainWidget::sendBotCommand(
-		not_null<PeerData*> peer,
-		UserData *bot,
-		const QString &cmd,
-		MsgId replyTo) {
-	_history->sendBotCommand(peer, bot, cmd, replyTo);
+void MainWidget::sendBotCommand(Bot::SendCommandRequest request) {
+	_history->sendBotCommand(request);
 }
 
 void MainWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {

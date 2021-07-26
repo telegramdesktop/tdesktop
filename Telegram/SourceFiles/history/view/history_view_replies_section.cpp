@@ -1766,7 +1766,10 @@ bool RepliesWidget::listIsGoodForAroundPosition(
 void RepliesWidget::listSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) {
-	const auto text = WrapBotCommandInChat(_history->peer, command, context);
+	const auto text = Bot::WrapCommandInChat(
+		_history->peer,
+		command,
+		context);
 	auto message = ApiWrap::MessageToSend(_history);
 	message.textWithTags = { text };
 	message.action.replyTo = replyToId();
