@@ -702,6 +702,8 @@ PRIVATE
     lang/lang_numbers_animation.h
     lang/lang_translator.cpp
     lang/lang_translator.h
+    layout/layout_document_generic_preview.cpp
+    layout/layout_document_generic_preview.h
     main/main_account.cpp
     main/main_account.h
     main/main_app_config.cpp

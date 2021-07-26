@@ -14,17 +14,6 @@ struct TextState;
 struct StateRequest;
 } // namespace HistoryView
 
-namespace Ui {
-enum CachedRoundCorners : int;
-} // namespace Ui
-
-int32 documentColorIndex(DocumentData *document, QString &ext);
-style::color documentColor(int colorIndex);
-style::color documentDarkColor(int colorIndex);
-style::color documentOverColor(int colorIndex);
-style::color documentSelectedColor(int colorIndex);
-Ui::CachedRoundCorners documentCorners(int colorIndex);
-
 class PaintContextBase {
 public:
 	PaintContextBase(crl::time ms, bool selecting) : ms(ms), selecting(selecting) {

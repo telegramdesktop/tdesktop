@@ -933,9 +933,10 @@ Document::Document(
 	}),
 	parent->fullId()))
 , _st(st)
+, _generic(::Layout::DocumentGenericPreview::Create(_data))
 , _date(langDateTime(base::unixtime::parse(_data->date)))
-, _datew(st::normalFont->width(_date))
-, _colorIndex(documentColorIndex(_data, _ext)) {
+, _ext(_generic.ext)
+, _datew(st::normalFont->width(_date)) {
 	_name.setMarkedText(
 		st::defaultTextStyle,
 		Ui::Text::FormatSongNameFor(_data).textWithEntities(),
@@ -1110,7 +1111,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					p.fillRect(rthumb, st::overviewFileThumbBg);
 				}
 			} else {
-				p.fillRect(rthumb, documentColor(_colorIndex));
+				p.fillRect(rthumb, _generic.color);
 				if (!radial && loaded && !_ext.isEmpty()) {
 					p.setFont(st::overviewFileExtFont);
 					p.setPen(st::overviewFileExtFg);
@@ -1127,10 +1128,15 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					auto radialOpacity = (radial && loaded && !_data->uploading()) ? _radial->opacity() : 1;
 					p.setPen(Qt::NoPen);
 					if (selected) {
-						p.setBrush(wthumb ? st::msgDateImgBgSelected : documentSelectedColor(_colorIndex));
+						p.setBrush(wthumb
+							? st::msgDateImgBgSelected
+							: _generic.selected);
 					} else {
 						auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
-						p.setBrush(anim::brush(wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex), wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex), _a_iconOver.value(over ? 1. : 0.)));
+						p.setBrush(anim::brush(
+							wthumb ? st::msgDateImgBg : _generic.dark,
+							wthumb ? st::msgDateImgBgOver : _generic.over,
+							_a_iconOver.value(over ? 1. : 0.)));
 					}
 					p.setOpacity(radialOpacity * p.opacity());
 

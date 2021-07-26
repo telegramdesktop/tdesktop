@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "layout.h"
+#include "layout/layout_document_generic_preview.h"
 #include "media/clip/media_clip_reader.h"
 #include "core/click_handler_types.h"
 #include "ui/effects/animations.h"
@@ -372,6 +373,7 @@ private:
 	ClickHandlerPtr _msgl, _namel;
 
 	const style::OverviewFileLayout &_st;
+	const ::Layout::DocumentGenericPreview _generic;
 
 	bool _thumbLoaded = false;
 	QPixmap _thumb;
@@ -379,7 +381,7 @@ private:
 	Ui::Text::String _name;
 	QString _date, _ext;
 	int32 _datew, _extw;
-	int32 _thumbw, _colorIndex;
+	int32 _thumbw;
 
 	bool withThumb() const;
 	bool updateStatusText();

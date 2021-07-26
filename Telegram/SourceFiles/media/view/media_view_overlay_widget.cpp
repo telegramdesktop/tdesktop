@@ -65,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "layout.h"
+#include "layout/layout_document_generic_preview.h"
 #include "storage/file_download.h"
 #include "storage/storage_account.h"
 #include "calls/calls_instance.h"
@@ -2437,10 +2438,10 @@ void OverlayWidget::displayDocument(
 	refreshCaption(item);
 
 	_docIconRect = QRect((width() - st::mediaviewFileIconSize) / 2, (height() - st::mediaviewFileIconSize) / 2, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
-	int32 colorIndex = documentColorIndex(_document, _docExt);
-	_docIconColor = documentColor(colorIndex);
-	const style::icon *thumbs[] = { &st::mediaviewFileBlue, &st::mediaviewFileGreen, &st::mediaviewFileRed, &st::mediaviewFileYellow };
-	_docIcon = thumbs[colorIndex];
+	const auto docGeneric = Layout::DocumentGenericPreview::Create(_document);
+	_docExt = docGeneric.ext;
+	_docIconColor = docGeneric.color;
+	_docIcon = docGeneric.icon();
 
 	int32 extmaxw = (st::mediaviewFileIconSize - st::mediaviewFileExtPadding * 2);
 	_docExtWidth = st::mediaviewFileExtFont->width(_docExt);
