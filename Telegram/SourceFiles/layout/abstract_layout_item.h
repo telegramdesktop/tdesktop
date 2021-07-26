@@ -10,6 +10,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/runtime_composer.h"
 #include "ui/click_handler.h"
 
+class PaintContextBase {
+public:
+	PaintContextBase(crl::time ms, bool selecting)
+	: ms(ms)
+	, selecting(selecting) {
+	}
+	crl::time ms;
+	bool selecting;
+
+};
+
 class AbstractLayoutItem
 	: public RuntimeComposer<AbstractLayoutItem>
 	, public ClickHandlerHost {

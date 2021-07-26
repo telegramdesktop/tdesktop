@@ -64,7 +64,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h" // Domain::activeSessionValue.
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
-#include "layout.h"
 #include "layout/layout_document_generic_preview.h"
 #include "storage/file_download.h"
 #include "storage/storage_account.h"

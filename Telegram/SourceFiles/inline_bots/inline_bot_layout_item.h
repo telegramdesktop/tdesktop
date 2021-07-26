@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "layout.h"
+#include "layout/layout_item_base.h"
 #include "ui/text/text.h"
 
 class Image;

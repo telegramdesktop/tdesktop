@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "apiwrap.h"
 #include "api/api_attached_stickers.h"
-#include "layout.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"

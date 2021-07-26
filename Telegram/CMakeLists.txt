@@ -704,6 +704,8 @@ PRIVATE
     lang/lang_translator.h
     layout/layout_document_generic_preview.cpp
     layout/layout_document_generic_preview.h
+    layout/layout_item_base.cpp
+    layout/layout_item_base.h
     main/main_account.cpp
     main/main_account.h
     main/main_app_config.cpp
@@ -1123,8 +1125,6 @@ PRIVATE
     config.h
     facades.cpp
     facades.h
-    layout.cpp
-    layout.h
     logs.cpp
     logs.h
     main.cpp

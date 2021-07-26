@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "layout.h"
+#include "layout/layout_item_base.h"
 #include "layout/layout_document_generic_preview.h"
 #include "media/clip/media_clip_reader.h"
 #include "core/click_handler_types.h"

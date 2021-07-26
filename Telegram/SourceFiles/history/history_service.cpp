@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_domain.h" // Core::App().domain().activate().
 #include "apiwrap.h"
-#include "layout.h"
 #include "history/history.h"
 #include "history/view/media/history_view_invoice.h"
 #include "history/history_message.h"

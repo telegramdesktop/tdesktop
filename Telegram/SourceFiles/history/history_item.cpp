@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
-#include "layout.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_service_message.h"
 #include "history/history_item_components.h"

@@ -14,15 +14,6 @@ struct TextState;
 struct StateRequest;
 } // namespace HistoryView
 
-class PaintContextBase {
-public:
-	PaintContextBase(crl::time ms, bool selecting) : ms(ms), selecting(selecting) {
-	}
-	crl::time ms;
-	bool selecting;
-
-};
-
 class LayoutItemBase : public AbstractLayoutItem {
 public:
 	using TextState = HistoryView::TextState;
