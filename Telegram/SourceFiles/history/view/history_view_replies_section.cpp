@@ -1394,15 +1394,8 @@ bool RepliesWidget::showMessage(
 	return true;
 }
 
-bool RepliesWidget::replyToMessage(not_null<HistoryItem*> item) {
-	if (item->history() != _history || item->replyToTop() != _rootId) {
-		return false;
-	}
-	replyToMessage(item->fullId());
-	return true;
-}
-
 void RepliesWidget::replyToMessage(FullMsgId itemId) {
+	// if (item->history() != _history || item->replyToTop() != _rootId) {
 	_composeControls->replyToMessage(itemId);
 	refreshTopBarActiveChat();
 }

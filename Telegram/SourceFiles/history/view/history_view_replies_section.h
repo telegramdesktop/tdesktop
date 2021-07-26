@@ -92,7 +92,6 @@ public:
 		PeerId peerId,
 		const Window::SectionShow &params,
 		MsgId messageId) override;
-	bool replyToMessage(not_null<HistoryItem*> item) override;
 
 	void setInternalState(
 		const QRect &geometry,

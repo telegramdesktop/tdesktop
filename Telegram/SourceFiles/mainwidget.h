@@ -168,7 +168,6 @@ public:
 		PeerId peerId,
 		const QString &url,
 		const QString &text);
-	void replyToItem(not_null<HistoryItem*> item);
 	bool inlineSwitchChosen(PeerId peerId, const QString &botAndQuery);
 	bool sendPaths(PeerId peerId);
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);

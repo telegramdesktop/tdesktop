@@ -1379,6 +1379,10 @@ not_null<Ui::PathShiftGradient*> ListWidget::elementPathShiftGradient() {
 	return _pathGradient.get();
 }
 
+void ListWidget::elementReplyTo(const FullMsgId &to) {
+	replyToMessageRequestNotify(to);
+}
+
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();

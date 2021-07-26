@@ -2647,6 +2647,10 @@ not_null<Ui::PathShiftGradient*> HistoryInner::elementPathShiftGradient() {
 	return _pathGradient.get();
 }
 
+void HistoryInner::elementReplyTo(const FullMsgId &to) {
+	return _widget->replyToMessage(to);
+}
+
 auto HistoryInner::getSelectionState() const
 -> HistoryView::TopBarWidget::SelectedState {
 	auto result = HistoryView::TopBarWidget::SelectedState {};
@@ -3549,6 +3553,11 @@ not_null<HistoryView::ElementDelegate*> HistoryInner::ElementDelegate() {
 			Expects(Instance != nullptr);
 
 			return Instance->elementPathShiftGradient();
+		}
+		void elementReplyTo(const FullMsgId &to) override {
+			if (Instance) {
+				Instance->elementReplyTo(to);
+			}
 		}
 	};
 

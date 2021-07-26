@@ -109,6 +109,7 @@ public:
 	void elementHandleViaClick(not_null<UserData*> bot);
 	bool elementIsChatWide();
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient();
+	void elementReplyTo(const FullMsgId &to);
 
 	void updateBotInfo(bool recount = true);
 

@@ -2417,21 +2417,9 @@ ClickHandlerPtr Message::fastReplyLink() const {
 	if (_fastReplyLink) {
 		return _fastReplyLink;
 	}
-	const auto owner = &data()->history()->owner();
 	const auto itemId = data()->fullId();
-	_fastReplyLink = std::make_shared<LambdaClickHandler>([=](
-			ClickContext context) {
-		const auto controller = ExtractController(context).value_or(nullptr);
-		if (!controller) {
-			return;
-		}
-		if (const auto item = owner->message(itemId)) {
-			if (const auto main = controller->content()) {
-				if (&main->session() == &owner->session()) {
-					main->replyToItem(item);
-				}
-			}
-		}
+	_fastReplyLink = std::make_shared<LambdaClickHandler>([=] {
+		delegate()->elementReplyTo(itemId);
 	});
 	return _fastReplyLink;
 }

@@ -84,6 +84,7 @@ public:
 	virtual void elementHandleViaClick(not_null<UserData*> bot) = 0;
 	virtual bool elementIsChatWide() = 0;
 	virtual not_null<Ui::PathShiftGradient*> elementPathShiftGradient() = 0;
+	virtual void elementReplyTo(const FullMsgId &to) = 0;
 
 	virtual ~ElementDelegate() {
 	}
@@ -138,6 +139,7 @@ public:
 	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
+	void elementReplyTo(const FullMsgId &to) override;
 
 private:
 	const not_null<Window::SessionController*> _controller;

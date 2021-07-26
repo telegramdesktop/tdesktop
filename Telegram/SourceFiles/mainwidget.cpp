@@ -571,14 +571,6 @@ bool MainWidget::shareUrl(
 	return true;
 }
 
-void MainWidget::replyToItem(not_null<HistoryItem*> item) {
-	if ((!_mainSection || !_mainSection->replyToMessage(item))
-		&& (_history->peer() == item->history()->peer
-			|| _history->peer() == item->history()->peer->migrateTo())) {
-		_history->replyToMessage(item);
-	}
-}
-
 bool MainWidget::inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) {
 	Expects(peerId != 0);
 

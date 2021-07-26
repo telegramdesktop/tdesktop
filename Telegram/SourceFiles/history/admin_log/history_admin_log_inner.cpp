@@ -656,6 +656,9 @@ not_null<Ui::PathShiftGradient*> InnerWidget::elementPathShiftGradient() {
 	return _pathGradient.get();
 }
 
+void InnerWidget::elementReplyTo(const FullMsgId &to) {
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));

@@ -125,10 +125,6 @@ public:
 		return false;
 	}
 
-	virtual bool replyToMessage(not_null<HistoryItem*> item) {
-		return false;
-	}
-
 	virtual bool preventsClose(Fn<void()> &&continueCallback) const {
 		return false;
 	}

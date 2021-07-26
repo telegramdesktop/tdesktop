@@ -132,6 +132,7 @@ public:
 	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
+	void elementReplyTo(const FullMsgId &to) override;
 
 	~InnerWidget();
 

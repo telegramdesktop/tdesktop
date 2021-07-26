@@ -169,6 +169,9 @@ auto SimpleElementDelegate::elementPathShiftGradient()
 	return _pathGradient.get();
 }
 
+void SimpleElementDelegate::elementReplyTo(const FullMsgId &to) {
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {
