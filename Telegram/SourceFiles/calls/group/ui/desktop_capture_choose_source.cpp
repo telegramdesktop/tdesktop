@@ -423,7 +423,7 @@ void ChooseSourceProcess::setupPanel() {
 			+ rows * st::desktopCaptureSourceSize.height()
 			+ (rows - 1) * skips.height()
 			+ margins.bottom();
-		_inner->resize(width, std::max(height, innerHeight));
+		_inner->resize(width, innerHeight);
 	}, _inner->lifetime());
 
 	if (const auto parent = _delegate->chooseSourceParent()) {

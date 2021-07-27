@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_cloud_file.h"
 #include "data/data_changes.h"
+#include "calls/group/calls_group_common.h"
 #include "calls/calls_emoji_fingerprint.h"
 #include "calls/calls_signal_bars.h"
 #include "calls/calls_userpic.h"
@@ -25,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/rp_window.h"
+#include "ui/layers/layer_manager.h"
+#include "ui/layers/generic_box.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
 #include "ui/wrap/fade_wrap.h"
@@ -44,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/main_window.h"
 #include "app.h"
 #include "webrtc/webrtc_video_track.h"
+#include "webrtc/webrtc_media_devices.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat.h"
 
@@ -57,6 +61,7 @@ namespace Calls {
 Panel::Panel(not_null<Call*> call)
 : _call(call)
 , _user(call->user())
+, _layerBg(std::make_unique<Ui::LayerManager>(widget()))
 #ifndef Q_OS_MAC
 , _controls(std::make_unique<Ui::Platform::TitleControls>(
 	widget(),
@@ -67,6 +72,7 @@ Panel::Panel(not_null<Call*> call)
 , _answerHangupRedial(widget(), st::callAnswer, &st::callHangup)
 , _decline(widget(), object_ptr<Ui::CallButton>(widget(), st::callHangup))
 , _cancel(widget(), object_ptr<Ui::CallButton>(widget(), st::callCancel))
+, _screencast(widget(), st::callScreencastOn, &st::callScreencastOff)
 , _camera(widget(), st::callCameraMute, &st::callCameraUnmute)
 , _mute(widget(), st::callMicrophoneMute, &st::callMicrophoneUnmute)
 , _name(widget(), st::callName)
@@ -205,9 +211,28 @@ void Panel::initControls() {
 			_call->setMuted(!_call->muted());
 		}
 	});
+	_screencast->setClickedCallback([=] {
+		if (!_call) {
+			return;
+		} else if (!Webrtc::DesktopCaptureAllowed()) {
+			if (auto box = Group::ScreenSharingPrivacyRequestBox()) {
+				_layerBg->showBox(std::move(box));
+			}
+		} else if (const auto source = Webrtc::UniqueDesktopCaptureSource()) {
+			if (_call->isSharingScreen()) {
+				_call->toggleScreenSharing(std::nullopt);
+			} else {
+				chooseSourceAccepted(*source, false);
+			}
+		} else {
+			Group::Ui::DesktopCapture::ChooseSource(this);
+		}
+	});
 	_camera->setClickedCallback([=] {
-		if (_call) {
-			_call->switchVideoOutgoing();
+		if (!_call) {
+			return;
+		} else {
+			_call->toggleCameraSharing(!_call->isSharingCamera());
 		}
 	});
 
@@ -218,7 +243,8 @@ void Panel::initControls() {
 	});
 	_updateOuterRippleTimer.setCallback([this] {
 		if (_call) {
-			_answerHangupRedial->setOuterValue(_call->getWaitingSoundPeakValue());
+			_answerHangupRedial->setOuterValue(
+				_call->getWaitingSoundPeakValue());
 		} else {
 			_answerHangupRedial->setOuterValue(0.);
 			_updateOuterRippleTimer.cancel();
@@ -258,6 +284,40 @@ void Panel::setIncomingSize(QSize size) {
 	_incomingFrameSize = size;
 	refreshIncomingGeometry();
 	showControls();
+}
+
+QWidget *Panel::chooseSourceParent() {
+	return window().get();
+}
+
+QString Panel::chooseSourceActiveDeviceId() {
+	return _call->screenSharingDeviceId();
+}
+
+bool Panel::chooseSourceActiveWithAudio() {
+	return false;// _call->screenSharingWithAudio();
+}
+
+bool Panel::chooseSourceWithAudioSupported() {
+//#ifdef Q_OS_WIN
+//	return true;
+//#else // Q_OS_WIN
+	return false;
+//#endif // Q_OS_WIN
+}
+
+rpl::lifetime &Panel::chooseSourceInstanceLifetime() {
+	return lifetime();
+}
+
+void Panel::chooseSourceAccepted(
+		const QString &deviceId,
+		bool withAudio) {
+	_call->toggleScreenSharing(deviceId/*, withAudio*/);
+}
+
+void Panel::chooseSourceStop() {
+	_call->toggleScreenSharing(std::nullopt);
 }
 
 void Panel::refreshIncomingGeometry() {
@@ -332,12 +392,19 @@ void Panel::reinitWithCall(Call *call) {
 	}, _callLifetime);
 
 	_call->videoOutgoing()->stateValue(
-	) | rpl::start_with_next([=](Webrtc::VideoState state) {
-		const auto active = (state == Webrtc::VideoState::Active);
-		_camera->setProgress(active ? 0. : 1.);
-		_camera->setText(active
-			? tr::lng_call_stop_video()
-			: tr::lng_call_start_video());
+	) | rpl::start_with_next([=] {
+		{
+			const auto active = _call->isSharingCamera();
+			_camera->setProgress(active ? 0. : 1.);
+			_camera->setText(active
+				? tr::lng_call_stop_video()
+				: tr::lng_call_start_video());
+		}
+		{
+			const auto active = _call->isSharingScreen();
+			_screencast->setProgress(active ? 0. : 1.);
+			_screencast->setText(tr::lng_call_screencast());
+		}
 	}, _callLifetime);
 
 	_call->stateValue(
@@ -646,9 +713,11 @@ void Panel::updateControlsGeometry() {
 		updateOutgoingVideoBubbleGeometry();
 	}
 
-	auto bothWidth = _answerHangupRedial->width() + st::callCancel.button.width;
-	_decline->moveToLeft((widget()->width() - bothWidth) / 2, _buttonsTop);
-	_cancel->moveToLeft((widget()->width() - bothWidth) / 2, _buttonsTop);
+	auto threeWidth = _answerHangupRedial->width()
+		+ st::callCancel.button.width
+		- _screencast->width();
+	_decline->moveToLeft((widget()->width() - threeWidth) / 2, _buttonsTop);
+	_cancel->moveToLeft((widget()->width() - threeWidth) / 2, _buttonsTop);
 
 	updateHangupGeometry();
 }
@@ -670,16 +739,19 @@ void Panel::updateOutgoingVideoBubbleGeometry() {
 }
 
 void Panel::updateHangupGeometry() {
-	auto singleWidth = _answerHangupRedial->width();
-	auto bothWidth = singleWidth + st::callCancel.button.width;
-	auto rightFrom = (widget()->width() - bothWidth) / 2;
-	auto rightTo = (widget()->width() - singleWidth) / 2;
+	auto twoWidth = _answerHangupRedial->width() + _screencast->width();
+	auto threeWidth = twoWidth + st::callCancel.button.width;
+	auto rightFrom = (widget()->width() - threeWidth) / 2;
+	auto rightTo = (widget()->width() - twoWidth) / 2;
 	auto hangupProgress = _hangupShownProgress.value(_hangupShown ? 1. : 0.);
 	auto hangupRight = anim::interpolate(rightFrom, rightTo, hangupProgress);
 	_answerHangupRedial->moveToRight(hangupRight, _buttonsTop);
 	_answerHangupRedial->setProgress(hangupProgress);
 	_mute->moveToRight(hangupRight - _mute->width(), _buttonsTop);
-	_camera->moveToLeft(hangupRight - _mute->width(), _buttonsTop);
+	_screencast->moveToLeft(hangupRight - _mute->width(), _buttonsTop);
+	_camera->moveToLeft(
+		hangupRight - _mute->width() + _screencast->width(),
+		_buttonsTop);
 }
 
 void Panel::updateStatusGeometry() {

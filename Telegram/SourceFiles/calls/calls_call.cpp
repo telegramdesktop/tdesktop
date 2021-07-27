@@ -290,16 +290,8 @@ void Call::startIncoming() {
 	}).send();
 }
 
-void Call::switchVideoOutgoing() {
-	const auto video = _videoOutgoing->state() == Webrtc::VideoState::Active;
-	_delegate->callRequestPermissionsOrFail(crl::guard(this, [=] {
-		videoOutgoing()->setState(StartVideoState(!video));
-	}), true);
-
-}
-
 void Call::answer() {
-	const auto video = _videoOutgoing->state() == Webrtc::VideoState::Active;
+	const auto video = isSharingVideo();
 	_delegate->callRequestPermissionsOrFail(crl::guard(this, [=] {
 		actuallyAnswer();
 	}), video);
@@ -366,7 +358,9 @@ void Call::setupOutgoingVideo() {
 	}
 	_videoOutgoing->stateValue(
 	) | rpl::start_with_next([=](Webrtc::VideoState state) {
-		if (state != Webrtc::VideoState::Inactive && !hasDevices()) {
+		if (state != Webrtc::VideoState::Inactive
+			&& !hasDevices()
+			&& !_videoCaptureIsScreencast) {
 			_errors.fire({ ErrorType::NoCamera });
 			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
 		} else if (_state.current() != State::Established
@@ -383,7 +377,8 @@ void Call::setupOutgoingVideo() {
 			// Paused not supported right now.
 			Assert(state == Webrtc::VideoState::Active);
 			if (!_videoCapture) {
-				_videoCapture = _delegate->callGetVideoCapture();
+				_videoCapture = _delegate->callGetVideoCapture(
+					_videoCaptureDeviceId);
 				_videoCapture->setOutput(_videoOutgoing->sink());
 			}
 			if (_instance) {
@@ -986,9 +981,12 @@ void Call::setCurrentAudioDevice(bool input, const QString &deviceId) {
 	}
 }
 
-void Call::setCurrentVideoDevice(const QString &deviceId) {
-	if (_videoCapture) {
-		_videoCapture->switchToDevice(deviceId.toStdString());
+void Call::setCurrentCameraDevice(const QString &deviceId) {
+	if (!_videoCaptureIsScreencast) {
+		_videoCaptureDeviceId = deviceId;
+		if (_videoCapture) {
+			_videoCapture->switchToDevice(deviceId.toStdString());
+		}
 	}
 }
 
@@ -1006,6 +1004,71 @@ void Call::setAudioDuckingEnabled(bool enabled) {
 	if (_instance) {
 		_instance->setAudioOutputDuckingEnabled(enabled);
 	}
+}
+
+bool Call::isSharingVideo() const {
+	return (_videoOutgoing->state() != Webrtc::VideoState::Inactive);
+}
+
+bool Call::isSharingCamera() const {
+	return !_videoCaptureIsScreencast && isSharingVideo();
+}
+
+bool Call::isSharingScreen() const {
+	return _videoCaptureIsScreencast && isSharingVideo();
+}
+
+QString Call::cameraSharingDeviceId() const {
+	return isSharingCamera() ? _videoCaptureDeviceId : QString();
+}
+
+QString Call::screenSharingDeviceId() const {
+	return isSharingScreen() ? _videoCaptureDeviceId : QString();
+}
+
+void Call::toggleCameraSharing(bool enabled) {
+	if (isSharingCamera() == enabled) {
+		return;
+	} else if (!enabled) {
+		if (_videoCapture) {
+			_videoCapture->setState(tgcalls::VideoState::Inactive);
+		}
+		_videoOutgoing->setState(Webrtc::VideoState::Inactive);
+		_videoCaptureDeviceId = QString();
+		return;
+	}
+	_delegate->callRequestPermissionsOrFail(crl::guard(this, [=] {
+		toggleScreenSharing(std::nullopt);
+		const auto deviceId = Core::App().settings().callVideoInputDeviceId();
+		_videoCaptureDeviceId = deviceId;
+		if (_videoCapture) {
+			_videoCapture->switchToDevice(deviceId.toStdString());
+		}
+		_videoOutgoing->setState(Webrtc::VideoState::Active);
+	}), true);
+}
+
+void Call::toggleScreenSharing(std::optional<QString> uniqueId) {
+	if (!uniqueId) {
+		if (isSharingScreen()) {
+			if (_videoCapture) {
+				_videoCapture->setState(tgcalls::VideoState::Inactive);
+			}
+			_videoOutgoing->setState(Webrtc::VideoState::Inactive);
+		}
+		_videoCaptureDeviceId = QString();
+		_videoCaptureIsScreencast = false;
+		return;
+	} else if (screenSharingDeviceId() == *uniqueId) {
+		return;
+	}
+	toggleCameraSharing(false);
+	_videoCaptureIsScreencast = true;
+	_videoCaptureDeviceId = *uniqueId;
+	if (_videoCapture) {
+		_videoCapture->switchToDevice(uniqueId->toStdString());
+	}
+	_videoOutgoing->setState(Webrtc::VideoState::Active);
 }
 
 void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {

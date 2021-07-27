@@ -70,10 +70,6 @@ constexpr auto kRecordingOpacity = 0.6;
 constexpr auto kStartNoConfirmation = TimeId(10);
 constexpr auto kControlsBackgroundOpacity = 0.8;
 constexpr auto kOverrideActiveColorBgAlpha = 172;
-constexpr auto kMicrophoneTooltipAfterLoudCount = 3;
-constexpr auto kDropLoudAfterQuietCount = 5;
-constexpr auto kMicrophoneTooltipLevelThreshold = 0.2;
-constexpr auto kMicrophoneTooltipCheckInterval = crl::time(500);
 
 } // namespace
 
@@ -86,49 +82,6 @@ struct Panel::ControlsBackgroundNarrow {
 	Ui::RpWidget shadow;
 	Ui::RpWidget blocker;
 };
-
-class Panel::MicLevelTester final {
-public:
-	explicit MicLevelTester(Fn<void()> show);
-
-	[[nodiscard]] bool showTooltip() const;
-
-private:
-	void check();
-
-	Fn<void()> _show;
-	base::Timer _timer;
-	Webrtc::AudioInputTester _tester;
-	int _loudCount = 0;
-	int _quietCount = 0;
-
-};
-
-Panel::MicLevelTester::MicLevelTester(Fn<void()> show)
-: _show(std::move(show))
-, _timer([=] { check(); })
-, _tester(
-		Core::App().settings().callAudioBackend(),
-		Core::App().settings().callInputDeviceId()) {
-	_timer.callEach(kMicrophoneTooltipCheckInterval);
-}
-
-bool Panel::MicLevelTester::showTooltip() const {
-	return (_loudCount >= kMicrophoneTooltipAfterLoudCount);
-}
-
-void Panel::MicLevelTester::check() {
-	const auto level = _tester.getAndResetLevel();
-	if (level >= kMicrophoneTooltipLevelThreshold) {
-		_quietCount = 0;
-		if (++_loudCount >= kMicrophoneTooltipAfterLoudCount) {
-			_show();
-		}
-	} else if (_loudCount > 0 && ++_quietCount >= kDropLoudAfterQuietCount) {
-		_quietCount = 0;
-		_loudCount = 0;
-	}
-}
 
 Panel::Panel(not_null<GroupCall*> call)
 : _call(call)
@@ -1155,35 +1108,9 @@ void Panel::refreshTopButton() {
 }
 
 void Panel::screenSharingPrivacyRequest() {
-#ifdef Q_OS_MAC
-	if (!Platform::IsMac10_15OrGreater()) {
-		return;
+	if (auto box = ScreenSharingPrivacyRequestBox()) {
+		_layerBg->showBox(std::move(box));
 	}
-	const auto requestInputMonitoring = Platform::IsMac10_15OrGreater();
-	_layerBg->showBox(Box([=](not_null<Ui::GenericBox*> box) {
-		box->addRow(
-			object_ptr<Ui::FlatLabel>(
-				box.get(),
-				rpl::combine(
-					tr::lng_group_call_mac_screencast_access(),
-					tr::lng_group_call_mac_recording()
-				) | rpl::map([](QString a, QString b) {
-					auto result = Ui::Text::RichLangValue(a);
-					result.append("\n\n").append(Ui::Text::RichLangValue(b));
-					return result;
-				}),
-				st::groupCallBoxLabel),
-			style::margins(
-				st::boxRowPadding.left(),
-				st::boxPadding.top(),
-				st::boxRowPadding.right(),
-				st::boxPadding.bottom()));
-		box->addButton(tr::lng_group_call_mac_settings(), [=] {
-			Platform::OpenDesktopCapturePrivacySettings();
-		});
-		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-	}));
-#endif // Q_OS_MAC
 }
 
 void Panel::chooseShareScreenSource() {

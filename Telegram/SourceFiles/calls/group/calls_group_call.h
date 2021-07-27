@@ -370,7 +370,6 @@ public:
 	}
 
 	void setCurrentAudioDevice(bool input, const QString &deviceId);
-	void setCurrentVideoDevice(const QString &deviceId);
 	[[nodiscard]] bool isSharingScreen() const;
 	[[nodiscard]] rpl::producer<bool> isSharingScreenValue() const;
 	[[nodiscard]] bool isScreenPaused() const;

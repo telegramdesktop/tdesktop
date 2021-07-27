@@ -2009,6 +2009,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_call_start_video" = "Start Video";
 "lng_call_stop_video" = "Stop Video";
+"lng_call_screencast" = "Screencast";
 "lng_call_end_call" = "End Call";
 "lng_call_mute_audio" = "Mute";
 "lng_call_unmute_audio" = "Unmute";

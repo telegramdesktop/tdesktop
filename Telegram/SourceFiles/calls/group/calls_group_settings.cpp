@@ -53,6 +53,10 @@ namespace Calls::Group {
 namespace {
 
 constexpr auto kDelaysCount = 201;
+constexpr auto kMicrophoneTooltipAfterLoudCount = 3;
+constexpr auto kDropLoudAfterQuietCount = 5;
+constexpr auto kMicrophoneTooltipLevelThreshold = 0.2;
+constexpr auto kMicrophoneTooltipCheckInterval = crl::time(500);
 
 #ifdef Q_OS_MAC
 constexpr auto kCheckAccessibilityInterval = crl::time(500);
@@ -733,6 +737,33 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 		}
 	};
 	return { std::move(callback), std::move(lifetime) };
+}
+
+MicLevelTester::MicLevelTester(Fn<void()> show)
+: _show(std::move(show))
+, _timer([=] { check(); })
+, _tester(
+	std::make_unique<Webrtc::AudioInputTester>(
+		Core::App().settings().callAudioBackend(),
+		Core::App().settings().callInputDeviceId())) {
+	_timer.callEach(kMicrophoneTooltipCheckInterval);
+}
+
+bool MicLevelTester::showTooltip() const {
+	return (_loudCount >= kMicrophoneTooltipAfterLoudCount);
+}
+
+void MicLevelTester::check() {
+	const auto level = _tester->getAndResetLevel();
+	if (level >= kMicrophoneTooltipLevelThreshold) {
+		_quietCount = 0;
+		if (++_loudCount >= kMicrophoneTooltipAfterLoudCount) {
+			_show();
+		}
+	} else if (_loudCount > 0 && ++_quietCount >= kDropLoudAfterQuietCount) {
+		_quietCount = 0;
+		_loudCount = 0;
+	}
 }
 
 } // namespace Calls::Group

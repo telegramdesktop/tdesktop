@@ -64,7 +64,7 @@ public:
 		Fn<void()> onSuccess,
 		bool video) override;
 	void callPlaySound(CallSound sound) override;
-	auto callGetVideoCapture()
+	auto callGetVideoCapture(const QString &deviceId)
 		-> std::shared_ptr<tgcalls::VideoCaptureInterface> override;
 
 	void groupCallFinished(not_null<GroupCall*> call) override;
@@ -123,9 +123,9 @@ void Instance::Delegate::callPlaySound(CallSound sound) {
 	}());
 }
 
-auto Instance::Delegate::callGetVideoCapture()
+auto Instance::Delegate::callGetVideoCapture(const QString &deviceId)
 -> std::shared_ptr<tgcalls::VideoCaptureInterface> {
-	return _instance->getVideoCapture();
+	return _instance->getVideoCapture(deviceId);
 }
 
 void Instance::Delegate::groupCallFinished(not_null<GroupCall*> call) {
@@ -699,18 +699,22 @@ void Instance::requestPermissionOrFail(Platform::PermissionType type, Fn<void()>
 }
 
 std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::getVideoCapture(
-		QString deviceId) {
-	if (deviceId.isEmpty()) {
-		deviceId = Core::App().settings().callVideoInputDeviceId();
-	}
+		std::optional<QString> deviceId) {
 	if (auto result = _videoCapture.lock()) {
-		result->switchToDevice(deviceId.toStdString());
+		if (deviceId) {
+			result->switchToDevice((deviceId->isEmpty()
+				? Core::App().settings().callVideoInputDeviceId()
+				: *deviceId).toStdString());
+		}
 		return result;
 	}
+	const auto startDeviceId = (deviceId && !deviceId->isEmpty())
+		? *deviceId
+		: Core::App().settings().callVideoInputDeviceId();
 	auto result = std::shared_ptr<tgcalls::VideoCaptureInterface>(
 		tgcalls::VideoCaptureInterface::Create(
 			tgcalls::StaticThreads::getThreads(),
-			deviceId.toStdString()));
+			startDeviceId.toStdString()));
 	_videoCapture = result;
 	return result;
 }

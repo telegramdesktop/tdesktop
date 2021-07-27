@@ -220,6 +220,7 @@ PRIVATE
     calls/group/calls_choose_join_as.h
     calls/group/calls_group_call.cpp
     calls/group/calls_group_call.h
+    calls/group/calls_group_common.cpp
     calls/group/calls_group_common.h
     calls/group/calls_group_invite_controller.cpp
     calls/group/calls_group_invite_controller.h

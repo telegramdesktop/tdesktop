@@ -173,6 +173,24 @@ callCameraUnmute: CallButton(callMicrophoneUnmute) {
 		}
 	}
 }
+callScreencastOn: CallButton(callMicrophoneMute) {
+	button: IconButton(callButton) {
+		icon: icon {{ "calls/calls_present", callIconFg }};
+		iconPosition: point(-1px, 22px);
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callMuteRipple;
+		}
+	}
+}
+callScreencastOff: CallButton(callMicrophoneUnmute) {
+	button: IconButton(callButton) {
+		icon: icon {{ "calls/calls_present", callIconFgActive }};
+		iconPosition: point(-1px, 22px);
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callIconActiveRipple;
+		}
+	}
+}
 callBottomShadowSize: 124px;
 
 CallMuteButton {
