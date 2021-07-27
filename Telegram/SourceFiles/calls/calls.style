@@ -1215,6 +1215,7 @@ groupCallNarrowColoredCrossLine: CrossLineAnimation(groupCallNarrowInactiveCross
 groupCallNarrowRaisedHand: icon {{ "calls/video_mini_speak", groupCallMemberInactiveStatus }};
 groupCallNarrowCameraIcon: icon {{ "calls/video_mini_video", groupCallMemberNotJoinedStatus }};
 groupCallNarrowScreenIcon: icon {{ "calls/video_mini_screencast", groupCallMemberNotJoinedStatus }};
+groupCallNarrowInvitedIcon: icon {{ "calls/video_mini_invited", groupCallMemberNotJoinedStatus }};
 groupCallNarrowIconPosition: point(-4px, 2px);
 groupCallNarrowIconSkip: 15px;
 groupCallOutline: 2px;

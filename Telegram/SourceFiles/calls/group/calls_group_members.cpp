@@ -1036,12 +1036,16 @@ void Members::Controller::rowPaintIcon(
 		return;
 	}
 	const auto narrow = (state.style == MembersRowStyle::Narrow);
-	if (!narrow && state.invited) {
-		st::groupCallMemberInvited.paintInCenter(
-			p,
-			QRect(
-				rect.topLeft() + st::groupCallMemberInvitedPosition,
-				st::groupCallMemberInvited.size()));
+	if (state.invited) {
+		if (narrow) {
+			st::groupCallNarrowInvitedIcon.paintInCenter(p, rect);
+		} else {
+			st::groupCallMemberInvited.paintInCenter(
+				p,
+				QRect(
+					rect.topLeft() + st::groupCallMemberInvitedPosition,
+					st::groupCallMemberInvited.size()));
+		}
 		return;
 	}
 	const auto video = (state.style == MembersRowStyle::Video);
