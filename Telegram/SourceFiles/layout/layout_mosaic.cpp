@@ -251,13 +251,12 @@ int AbstractMosaicLayout::validateExistingRows(
 	auto untilRow = 0;
 	auto untilCol = 0;
 	while (until < count) {
-		auto &rowItems = _rows[untilRow].items;
 		if ((untilRow >= _rows.size())
-			|| checkItem(rowItems[untilCol], until)) {
+			|| checkItem(_rows[untilRow].items[untilCol], until)) {
 			break;
 		}
 		++until;
-		if (++untilCol == rowItems.size()) {
+		if (++untilCol == _rows[untilRow].items.size()) {
 			++untilRow;
 			untilCol = 0;
 		}
