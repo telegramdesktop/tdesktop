@@ -398,7 +398,7 @@ void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
 		if (const auto peer = session().data().peerLoaded(peerId)) {
 			const auto item = session().data().addNewMessage(
 				message,
-				MTPDmessage_ClientFlags(),
+				MessageFlags(),
 				NewMessageType::Existing);
 			insertRow(item, InsertWay::Append);
 		} else {

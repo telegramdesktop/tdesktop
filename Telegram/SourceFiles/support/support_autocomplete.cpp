@@ -271,22 +271,25 @@ AdminLog::OwnedItem GenerateCommentItem(
 	if (data.comment.isEmpty()) {
 		return nullptr;
 	}
-	using Flag = MTPDmessage::Flag;
 	const auto id = ServerMaxMsgId + (ServerMaxMsgId / 2);
-	const auto flags = Flag::f_entities | Flag::f_from_id | Flag::f_out;
-	const auto clientFlags = MTPDmessage_ClientFlag::f_fake_history_item;
-	const auto replyTo = 0;
-	const auto viaBotId = 0;
+	const auto flags = MessageFlag::HasFromId
+		| MessageFlag::Outgoing
+		| MessageFlag::FakeHistoryItem;
+	const auto replyTo = MsgId();
+	const auto viaBotId = UserId();
+	const auto groupedId = uint64();
 	const auto item = history->makeMessage(
 		id,
 		flags,
-		clientFlags,
 		replyTo,
 		viaBotId,
 		base::unixtime::now(),
 		history->session().userId(),
 		QString(),
-		TextWithEntities{ TextUtilities::Clean(data.comment) });
+		TextWithEntities{ TextUtilities::Clean(data.comment) },
+		MTP_messageMediaEmpty(),
+		MTPReplyMarkup(),
+		groupedId);
 	return AdminLog::OwnedItem(delegate, item);
 }
 
@@ -294,39 +297,29 @@ AdminLog::OwnedItem GenerateContactItem(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		not_null<History*> history,
 		const Contact &data) {
-	using Flag = MTPDmessage::Flag;
-	const auto id = ServerMaxMsgId + (ServerMaxMsgId / 2) + 1;
-	const auto flags = Flag::f_from_id | Flag::f_media | Flag::f_out;
-	const auto message = MTP_message(
-		MTP_flags(flags),
-		MTP_int(id),
-		peerToMTP(history->session().userPeerId()),
-		peerToMTP(history->peer->id),
-		MTPMessageFwdHeader(),
-		MTPint(), // via_bot_id
-		MTPMessageReplyHeader(),
-		MTP_int(base::unixtime::now()),
-		MTP_string(),
+	const auto replyTo = MsgId();
+	const auto viaBotId = UserId();
+	const auto postAuthor = QString();
+	const auto groupedId = uint64();
+	const auto item = history->makeMessage(
+		(ServerMaxMsgId + (ServerMaxMsgId / 2) + 1),
+		(MessageFlag::HasFromId
+			| MessageFlag::Outgoing
+			| MessageFlag::FakeHistoryItem),
+		replyTo,
+		viaBotId,
+		base::unixtime::now(),
+		history->session().userPeerId(),
+		postAuthor,
+		TextWithEntities(),
 		MTP_messageMediaContact(
 			MTP_string(data.phone),
 			MTP_string(data.firstName),
 			MTP_string(data.lastName),
-			MTP_string(),
-			MTP_int(0)),
+			MTP_string(), // vcard
+			MTP_int(0)), // user_id
 		MTPReplyMarkup(),
-		MTPVector<MTPMessageEntity>(),
-		MTPint(), // views
-		MTPint(), // forwards
-		MTPMessageReplies(),
-		MTPint(), // edit_date
-		MTP_string(),
-		MTP_long(0),
-		//MTPMessageReactions(),
-		MTPVector<MTPRestrictionReason>(),
-		MTPint()); // ttl_period
-	const auto item = history->makeMessage(
-		message.c_message(),
-		MTPDmessage_ClientFlag::f_fake_history_item);
+		groupedId);
 	return AdminLog::OwnedItem(delegate, item);
 }
 

@@ -30,7 +30,7 @@ constexpr auto kMessagesPerPage = 50;
 		const QString &text) {
 	return history->makeServiceMessage(
 		history->session().data().nextNonHistoryEntryId(),
-		MTPDmessage_ClientFlag::f_fake_history_item,
+		MessageFlag::FakeHistoryItem,
 		date,
 		HistoryService::PreparedText{ text });
 }
@@ -538,7 +538,7 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	const auto maxId = IdFromMessage(list.front());
 	const auto wasSize = int(_list.size());
 	const auto toFront = (wasSize > 0) && (maxId > _list.front());
-	const auto clientFlags = MTPDmessage_ClientFlags();
+	const auto localFlags = MessageFlags();
 	const auto type = NewMessageType::Existing;
 	auto refreshed = std::vector<MsgId>();
 	if (toFront) {
@@ -546,7 +546,7 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	}
 	auto skipped = 0;
 	for (const auto &message : list) {
-		if (const auto item = owner.addNewMessage(message, clientFlags, type)) {
+		if (const auto item = owner.addNewMessage(message, localFlags, type)) {
 			if (item->replyToTop() == _rootId) {
 				if (toFront) {
 					refreshed.push_back(item->id);

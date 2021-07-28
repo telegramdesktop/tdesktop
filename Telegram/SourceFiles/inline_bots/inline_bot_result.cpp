@@ -364,29 +364,27 @@ bool Result::hasThumbDisplay() const {
 
 void Result::addToHistory(
 		History *history,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId msgId,
 		PeerId fromId,
-		MTPint mtpDate,
+		TimeId date,
 		UserId viaBotId,
 		MsgId replyToId,
 		const QString &postAuthor) const {
-	clientFlags |= MTPDmessage_ClientFlag::f_from_inline_bot;
+	flags |= MessageFlag::FromInlineBot;
 
 	auto markup = MTPReplyMarkup();
 	if (_mtpKeyboard) {
-		flags |= MTPDmessage::Flag::f_reply_markup;
+		flags |= MessageFlag::HasReplyMarkup;
 		markup = *_mtpKeyboard;
 	}
 	sendData->addToHistory(
 		this,
 		history,
 		flags,
-		clientFlags,
 		msgId,
 		fromId,
-		mtpDate,
+		date,
 		viaBotId,
 		replyToId,
 		postAuthor,

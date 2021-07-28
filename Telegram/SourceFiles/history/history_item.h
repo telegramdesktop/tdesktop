@@ -69,12 +69,15 @@ enum class ReplyMarkupFlag : uint32 {
 inline constexpr bool is_flag_type(ReplyMarkupFlag) { return true; }
 using ReplyMarkupFlags = base::flags<ReplyMarkupFlag>;
 
+[[nodiscard]] MessageFlags FlagsFromMTP(MTPDmessage::Flags flags);
+[[nodiscard]] MessageFlags FlagsFromMTP(MTPDmessageService::Flags flags);
+
 class HistoryItem : public RuntimeComposer<HistoryItem> {
 public:
 	static not_null<HistoryItem*> Create(
 		not_null<History*> history,
 		const MTPMessage &message,
-		MTPDmessage_ClientFlags clientFlags);
+		MessageFlags localFlags);
 
 	struct Destroyer {
 		void operator()(HistoryItem *value);
@@ -125,10 +128,10 @@ public:
 
 	void destroy();
 	[[nodiscard]] bool out() const {
-		return _flags & MTPDmessage::Flag::f_out;
+		return _flags & MessageFlag::Outgoing;
 	}
 	[[nodiscard]] bool isPinned() const {
-		return _flags & MTPDmessage::Flag::f_pinned;
+		return _flags & MessageFlag::Pinned;
 	}
 	[[nodiscard]] bool unread() const;
 	[[nodiscard]] bool showNotification() const;
@@ -164,44 +167,44 @@ public:
 	[[nodiscard]] ReplyMarkupFlags replyKeyboardFlags() const;
 
 	[[nodiscard]] bool hasSwitchInlineButton() const {
-		return _clientFlags & MTPDmessage_ClientFlag::f_has_switch_inline_button;
+		return _flags & MessageFlag::HasSwitchInlineButton;
 	}
 	[[nodiscard]] bool hasTextLinks() const {
-		return _clientFlags & MTPDmessage_ClientFlag::f_has_text_links;
+		return _flags & MessageFlag::HasTextLinks;
 	}
 	[[nodiscard]] bool isGroupEssential() const {
-		return _clientFlags & MTPDmessage_ClientFlag::f_is_group_essential;
+		return _flags & MessageFlag::IsGroupEssential;
 	}
 	[[nodiscard]] bool isLocalUpdateMedia() const {
-		return _clientFlags & MTPDmessage_ClientFlag::f_is_local_update_media;
+		return _flags & MessageFlag::IsLocalUpdateMedia;
 	}
 	void setIsLocalUpdateMedia(bool flag) {
 		if (flag) {
-			_clientFlags |= MTPDmessage_ClientFlag::f_is_local_update_media;
+			_flags |= MessageFlag::IsLocalUpdateMedia;
 		} else {
-			_clientFlags &= ~MTPDmessage_ClientFlag::f_is_local_update_media;
+			_flags &= ~MessageFlag::IsLocalUpdateMedia;
 		}
 	}
 	[[nodiscard]] bool isGroupMigrate() const {
 		return isGroupEssential() && isEmpty();
 	}
 	[[nodiscard]] bool isIsolatedEmoji() const {
-		return _clientFlags & MTPDmessage_ClientFlag::f_isolated_emoji;
+		return _flags & MessageFlag::IsolatedEmoji;
 	}
 	[[nodiscard]] bool hasViews() const {
-		return _flags & MTPDmessage::Flag::f_views;
+		return _flags & MessageFlag::HasViews;
 	}
 	[[nodiscard]] bool isPost() const {
-		return _flags & MTPDmessage::Flag::f_post;
+		return _flags & MessageFlag::Post;
 	}
 	[[nodiscard]] bool isSilent() const {
-		return _flags & MTPDmessage::Flag::f_silent;
+		return _flags & MessageFlag::Silent;
 	}
 	[[nodiscard]] bool isSending() const {
-		return _clientFlags & MTPDmessage_ClientFlag::f_sending;
+		return _flags & MessageFlag::BeingSent;
 	}
 	[[nodiscard]] bool hasFailed() const {
-		return _clientFlags & MTPDmessage_ClientFlag::f_failed;
+		return _flags & MessageFlag::SendingFailed;
 	}
 	void sendFailed();
 	[[nodiscard]] virtual int viewsCount() const {
@@ -422,8 +425,7 @@ protected:
 	HistoryItem(
 		not_null<History*> history,
 		MsgId id,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		TimeId date,
 		PeerId from);
 
@@ -436,8 +438,7 @@ protected:
 
 	const not_null<History*> _history;
 	not_null<PeerData*> _from;
-	MTPDmessage::Flags _flags = 0;
-	MTPDmessage_ClientFlags _clientFlags = 0;
+	MessageFlags _flags = 0;
 
 	void invalidateChatListEntry();
 

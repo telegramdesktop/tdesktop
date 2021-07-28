@@ -3783,18 +3783,17 @@ void ApiWrap::forwardMessages(
 	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, action.options);
 
-	auto flags = MTPDmessage::Flags(0);
-	auto clientFlags = MTPDmessage_ClientFlags();
+	auto flags = MessageFlags();
 	auto sendFlags = MTPmessages_ForwardMessages::Flags(0);
 	FillMessagePostFlags(action, peer, flags);
 	if (silentPost) {
 		sendFlags |= MTPmessages_ForwardMessages::Flag::f_silent;
 	}
 	if (action.options.scheduled) {
-		flags |= MTPDmessage::Flag::f_from_scheduled;
+		flags |= MessageFlag::IsOrWasScheduled;
 		sendFlags |= MTPmessages_ForwardMessages::Flag::f_schedule_date;
 	} else {
-		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
+		flags |= MessageFlag::LocalHistoryEntry;
 	}
 
 	auto forwardFrom = items.front()->history()->peer;
@@ -3861,7 +3860,6 @@ void ApiWrap::forwardMessages(
 				history->addNewLocalMessage(
 					newId.msg,
 					flags,
-					clientFlags,
 					HistoryItem::NewMessageDate(action.options.scheduled),
 					messageFromId,
 					messagePostAuthor,
@@ -3926,61 +3924,44 @@ void ApiWrap::sendSharedContact(
 		_session->data().nextLocalMessageId());
 	const auto anonymousPost = peer->amAnonymous();
 
-	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
-	auto clientFlags = NewMessageClientFlags();
+	auto flags = NewMessageFlags(peer);
 	if (action.replyTo) {
-		flags |= MTPDmessage::Flag::f_reply_to;
+		flags |= MessageFlag::HasReplyInfo;
 	}
 	const auto replyHeader = NewMessageReplyHeader(action);
 	FillMessagePostFlags(action, peer, flags);
 	if (action.options.scheduled) {
-		flags |= MTPDmessage::Flag::f_from_scheduled;
+		flags |= MessageFlag::IsOrWasScheduled;
 	} else {
-		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
+		flags |= MessageFlag::LocalHistoryEntry;
 	}
 	const auto messageFromId = anonymousPost ? 0 : _session->userPeerId();
 	const auto messagePostAuthor = peer->isBroadcast()
 		? _session->user()->name
 		: QString();
-	const auto vcard = QString();
-	const auto views = 1;
-	const auto forwards = 0;
-	const auto item = history->addNewMessage(
-		MTP_message(
-			MTP_flags(flags),
-			MTP_int(newId.msg),
-			peerToMTP(messageFromId),
-			peerToMTP(peer->id),
-			MTPMessageFwdHeader(),
-			MTPint(), // via_bot_id
-			replyHeader,
-			MTP_int(HistoryItem::NewMessageDate(action.options.scheduled)),
-			MTP_string(),
-			MTP_messageMediaContact(
-				MTP_string(phone),
-				MTP_string(firstName),
-				MTP_string(lastName),
-				MTP_string(vcard),
-				MTP_int(userId.bare)), // #TODO ids
-			MTPReplyMarkup(),
-			MTPVector<MTPMessageEntity>(),
-			MTP_int(views),
-			MTP_int(forwards),
-			MTPMessageReplies(),
-			MTPint(), // edit_date
-			MTP_string(messagePostAuthor),
-			MTPlong(),
-			//MTPMessageReactions(),
-			MTPVector<MTPRestrictionReason>(),
-			MTPint()), // ttl_period
-		clientFlags,
-		NewMessageType::Unread);
+	const auto viaBotId = UserId();
+	const auto item = history->addNewLocalMessage(
+		newId.msg,
+		flags,
+		viaBotId,
+		action.replyTo,
+		HistoryItem::NewMessageDate(action.options.scheduled),
+		messageFromId,
+		messagePostAuthor,
+		TextWithEntities(),
+		MTP_messageMediaContact(
+			MTP_string(phone),
+			MTP_string(firstName),
+			MTP_string(lastName),
+			MTP_string(), // vcard
+			MTP_int(userId.bare)), // #TODO ids
+		MTPReplyMarkup());
 
 	const auto media = MTP_inputMediaContact(
 		MTP_string(phone),
 		MTP_string(firstName),
 		MTP_string(lastName),
-		MTP_string(vcard));
+		MTP_string()); // vcard
 	sendMedia(item, media, action.options);
 
 	_session->data().sendHistoryChangeNotifications();
@@ -4181,11 +4162,10 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		_session->data().registerMessageSentData(randomId, peer->id, sending.text);
 
 		MTPstring msgText(MTP_string(sending.text));
-		auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_entities;
-		auto clientFlags = NewMessageClientFlags();
+		auto flags = NewMessageFlags(peer);
 		auto sendFlags = MTPmessages_SendMessage::Flags(0);
 		if (action.replyTo) {
-			flags |= MTPDmessage::Flag::f_reply_to;
+			flags |= MessageFlag::HasReplyInfo;
 			sendFlags |= MTPmessages_SendMessage::Flag::f_reply_to_msg_id;
 		}
 		const auto replyHeader = NewMessageReplyHeader(action);
@@ -4198,7 +4178,6 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 				MTP_webPagePending(
 					MTP_long(page->id),
 					MTP_int(page->pendingTill)));
-			flags |= MTPDmessage::Flag::f_media;
 		}
 		const auto anonymousPost = peer->amAnonymous();
 		const auto silentPost = ShouldSendSilent(peer, action.options);
@@ -4206,10 +4185,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_silent;
 		}
-		auto localEntities = Api::EntitiesToMTP(
-			_session,
-			sending.entities);
-		auto sentEntities = Api::EntitiesToMTP(
+		const auto sentEntities = Api::EntitiesToMTP(
 			_session,
 			sending.entities,
 			Api::ConvertOption::SkipLocal);
@@ -4227,39 +4203,23 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			? _session->user()->name
 			: QString();
 		if (action.options.scheduled) {
-			flags |= MTPDmessage::Flag::f_from_scheduled;
+			flags |= MessageFlag::IsOrWasScheduled;
 			sendFlags |= MTPmessages_SendMessage::Flag::f_schedule_date;
 		} else {
-			clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
+			flags |= MessageFlag::LocalHistoryEntry;
 		}
-		const auto views = 1;
-		const auto forwards = 0;
-		lastMessage = history->addNewMessage(
-			MTP_message(
-				MTP_flags(flags),
-				MTP_int(newId.msg),
-				peerToMTP(messageFromId),
-				peerToMTP(peer->id),
-				MTPMessageFwdHeader(),
-				MTPint(), // via_bot_id
-				replyHeader,
-				MTP_int(
-					HistoryItem::NewMessageDate(action.options.scheduled)),
-				msgText,
-				media,
-				MTPReplyMarkup(),
-				localEntities,
-				MTP_int(views),
-				MTP_int(forwards),
-				MTPMessageReplies(),
-				MTPint(), // edit_date
-				MTP_string(messagePostAuthor),
-				MTPlong(),
-				//MTPMessageReactions(),
-				MTPVector<MTPRestrictionReason>(),
-				MTPint()), // ttl_period
-			clientFlags,
-			NewMessageType::Unread);
+		const auto viaBotId = UserId();
+		lastMessage = history->addNewLocalMessage(
+			newId.msg,
+			flags,
+			viaBotId,
+			action.replyTo,
+			HistoryItem::NewMessageDate(action.options.scheduled),
+			messageFromId,
+			messagePostAuthor,
+			sending,
+			media,
+			MTPReplyMarkup());
 		histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
 			history->sendRequestId = request(MTPmessages_SendMessage(
 				MTP_flags(sendFlags),
@@ -4346,11 +4306,10 @@ void ApiWrap::sendInlineResult(
 		_session->data().nextLocalMessageId());
 	const auto randomId = openssl::RandomValue<uint64>();
 
-	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
-	auto clientFlags = NewMessageClientFlags();
+	auto flags = NewMessageFlags(peer);
 	auto sendFlags = MTPmessages_SendInlineBotResult::Flag::f_clear_draft | 0;
 	if (action.replyTo) {
-		flags |= MTPDmessage::Flag::f_reply_to;
+		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;
 	}
 	const auto anonymousPost = peer->amAnonymous();
@@ -4360,13 +4319,13 @@ void ApiWrap::sendInlineResult(
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_silent;
 	}
 	if (bot) {
-		flags |= MTPDmessage::Flag::f_via_bot_id;
+		flags |= MessageFlag::HasViaBot;
 	}
 	if (action.options.scheduled) {
-		flags |= MTPDmessage::Flag::f_from_scheduled;
+		flags |= MessageFlag::IsOrWasScheduled;
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_schedule_date;
 	} else {
-		clientFlags |= MTPDmessage_ClientFlag::f_local_history_entry;
+		flags |= MessageFlag::LocalHistoryEntry;
 	}
 
 	const auto messageFromId = anonymousPost ? 0 : _session->userPeerId();
@@ -4379,10 +4338,9 @@ void ApiWrap::sendInlineResult(
 	data->addToHistory(
 		history,
 		flags,
-		clientFlags,
 		newId.msg,
 		messageFromId,
-		MTP_int(HistoryItem::NewMessageDate(action.options.scheduled)),
+		HistoryItem::NewMessageDate(action.options.scheduled),
 		bot ? peerToUser(bot->id) : 0,
 		action.replyTo,
 		messagePostAuthor);

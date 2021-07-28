@@ -1055,7 +1055,7 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				//MTPMessageReactions(),
 				MTPVector<MTPRestrictionReason>(),
 				MTP_int(d.vttl_period().value_or_empty())),
-			MTPDmessage_ClientFlags(),
+			MessageFlags(),
 			NewMessageType::Unread);
 	} break;
 
@@ -1086,7 +1086,7 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 				//MTPMessageReactions(),
 				MTPVector<MTPRestrictionReason>(),
 				MTP_int(d.vttl_period().value_or_empty())),
-			MTPDmessage_ClientFlags(),
+			MessageFlags(),
 			NewMessageType::Unread);
 	} break;
 
@@ -1115,7 +1115,7 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 		if (needToAdd) {
 			_session->data().addNewMessage(
 				d.vmessage(),
-				MTPDmessage_ClientFlags(),
+				MessageFlags(),
 				NewMessageType::Unread);
 		}
 	} break;
@@ -1209,7 +1209,7 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 		if (needToAdd) {
 			_session->data().addNewMessage(
 				d.vmessage(),
-				MTPDmessage_ClientFlags(),
+				MessageFlags(),
 				NewMessageType::Unread);
 		}
 	} break;

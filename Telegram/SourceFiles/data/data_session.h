@@ -400,7 +400,7 @@ public:
 
 	HistoryItem *addNewMessage(
 		const MTPMessage &data,
-		MTPDmessage_ClientFlags flags,
+		MessageFlags localFlags,
 		NewMessageType type);
 
 	struct SendActionAnimationUpdate {

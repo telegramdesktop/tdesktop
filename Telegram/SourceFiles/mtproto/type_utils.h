@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/flags.h"
-
 inline MTPbool MTP_bool(bool v) {
 	return v ? MTP_boolTrue() : MTP_boolFalse();
 }
@@ -19,60 +17,3 @@ inline bool mtpIsTrue(const MTPBool &v) {
 inline bool mtpIsFalse(const MTPBool &v) {
 	return !mtpIsTrue(v);
 }
-
-// we must validate that MTProto scheme flags don't intersect with client side flags
-// and define common bit operators which allow use Type_ClientFlag together with Type::Flag
-#define DEFINE_MTP_CLIENT_FLAGS(Type) \
-static_assert(Type::Flags(Type::Flag::MAX_FIELD) < static_cast<Type::Flag>(Type##_ClientFlag::MIN_FIELD), \
-	"MTProto flags conflict with client side flags!"); \
-namespace base {\
-	template<>\
-	struct extended_flags<Type##_ClientFlag> {\
-		using type = Type::Flag;\
-	};\
-}
-
-// we use the same flags field for some additional client side flags
-enum class MTPDmessage_ClientFlag : uint32 {
-	// message has links for "shared links" indexing
-	f_has_text_links = (1U << 30),
-
-	// message is a group / channel create or migrate service message
-	f_is_group_essential = (1U << 29),
-
-	// message's edited media is generated on the client
-	// and should not update media from server
-	f_is_local_update_media = (1U << 28),
-
-	// message was sent from inline bot, need to re-set media when sent
-	f_from_inline_bot = (1U << 27),
-
-	// message has a switch inline keyboard button, need to return to inline
-	f_has_switch_inline_button = (1U << 26),
-
-	// message is generated on the client side and should be unread
-	f_clientside_unread = (1U << 25),
-
-	// message has an admin badge in supergroup
-	f_has_admin_badge = (1U << 24),
-
-	// message is an outgoing message that is being sent
-	f_sending = (1U << 23),
-
-	// message was an outgoing message and failed to be sent
-	f_failed = (1U << 22),
-
-	// message has no media and only a several emoji text
-	f_isolated_emoji = (1U << 21),
-
-	// message is local message existing in the message history
-	f_local_history_entry = (1U << 20),
-
-	// message is an admin log entry
-	f_admin_log_entry = (1U << 19),
-
-	// message is a fake message for some ui
-	f_fake_history_item = (1U << 18),
-};
-inline constexpr bool is_flag_type(MTPDmessage_ClientFlag) { return true; }
-using MTPDmessage_ClientFlags = base::flags<MTPDmessage_ClientFlag>;

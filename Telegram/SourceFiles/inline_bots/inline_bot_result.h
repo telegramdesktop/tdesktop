@@ -62,11 +62,10 @@ public:
 
 	void addToHistory(
 		History *history,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId msgId,
 		PeerId fromId,
-		MTPint mtpDate,
+		TimeId date,
 		UserId viaBotId,
 		MsgId replyToId,
 		const QString &postAuthor) const;

@@ -130,7 +130,6 @@ AdminLog::OwnedItem GenerateForwardedItem(
 	Expects(history->peer->isUser());
 
 	using Flag = MTPDmessage::Flag;
-	using FwdFlag = MTPDmessageFwdHeader::Flag;
 	// #TODO common global incrementable id for fake items, like clientMsgId.
 	static auto id = ServerMaxMsgId + (ServerMaxMsgId / 6);
 	const auto flags = Flag::f_from_id | Flag::f_fwd_from;
@@ -140,7 +139,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		peerToMTP(history->peer->id),
 		peerToMTP(history->peer->id),
 		MTP_messageFwdHeader(
-			MTP_flags(FwdFlag::f_from_id),
+			MTP_flags(MTPDmessageFwdHeader::Flag::f_from_id),
 			peerToMTP(history->session().userPeerId()),
 			MTPstring(), // from_name
 			MTP_int(base::unixtime::now()),
@@ -166,9 +165,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		MTPVector<MTPRestrictionReason>(),
 		MTPint() // ttl_period
 	).match([&](const MTPDmessage &data) {
-		return history->makeMessage(
-			data,
-			MTPDmessage_ClientFlag::f_fake_history_item);
+		return history->makeMessage(data, MessageFlag::FakeHistoryItem);
 	}, [](auto &&) -> not_null<HistoryMessage*> {
 		Unexpected("Type in GenerateForwardedItem.");
 	});

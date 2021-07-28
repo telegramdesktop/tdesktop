@@ -385,7 +385,7 @@ private:
 	// This should be called only from previousInBlocksChanged() or when
 	// DateBadge or UnreadBar bit is changed in the Composer mask
 	// then the result should be cached in a client side flag
-	// MTPDmessage_ClientFlag::f_attach_to_previous.
+	// HistoryView::Element::Flag::AttachedToPrevious.
 	void recountAttachToPreviousInBlocks();
 
 	QSize countOptimalSize() final override;

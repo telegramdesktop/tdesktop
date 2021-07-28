@@ -364,3 +364,61 @@ struct StickerSetIdentifier {
 		return !empty();
 	}
 };
+
+enum class MessageFlag : uint32 {
+	HideEdited            = (1U << 0),
+	Legacy                = (1U << 1),
+	HasReplyMarkup        = (1U << 2),
+	HasFromId             = (1U << 3),
+	HasPostAuthor         = (1U << 4),
+	HasViews              = (1U << 5),
+	HasReplyInfo          = (1U << 6),
+	HasViaBot             = (1U << 7),
+	AdminLogEntry         = (1U << 8),
+	Post                  = (1U << 9),
+	Silent                = (1U << 10),
+	Outgoing              = (1U << 11),
+	Pinned                = (1U << 12),
+	MediaIsUnread         = (1U << 13),
+	MentionsMe            = (1U << 14),
+	IsOrWasScheduled      = (1U << 15),
+
+	// Needs to return back to inline mode.
+	HasSwitchInlineButton = (1U << 16),
+
+	// For "shared links" indexing.
+	HasTextLinks          = (1U << 17),
+
+	// Group / channel create or migrate service message.
+	IsGroupEssential      = (1U << 18),
+
+	// Edited media is generated on the client
+	// and should not update media from server.
+	IsLocalUpdateMedia    = (1U << 19),
+
+	// Sent from inline bot, need to re-set media when sent.
+	FromInlineBot         = (1U << 20),
+
+	// Generated on the client side and should be unread.
+	ClientSideUnread      = (1U << 21),
+
+	// In a supergroup.
+	HasAdminBadge         = (1U << 22),
+
+	// Outgoing message that is being sent.
+	BeingSent             = (1U << 23),
+
+	// Outgoing message and failed to be sent.
+	SendingFailed         = (1U << 24),
+
+	// No media and only a several emoji text.
+	IsolatedEmoji         = (1U << 25),
+
+	// Local message existing in the message history.
+	LocalHistoryEntry     = (1U << 26),
+
+	// Fake message for some UI element.
+	FakeHistoryItem       = (1U << 27),
+};
+inline constexpr bool is_flag_type(MessageFlag) { return true; }
+using MessageFlags = base::flags<MessageFlag>;

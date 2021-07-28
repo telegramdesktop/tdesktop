@@ -24,11 +24,10 @@ struct HistoryMessageViews;
 
 [[nodiscard]] Fn<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
 	not_null<HistoryItem*> item);
-[[nodiscard]] MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);
+[[nodiscard]] MessageFlags NewMessageFlags(not_null<PeerData*> peer);
 [[nodiscard]] bool ShouldSendSilent(
 	not_null<PeerData*> peer,
 	const Api::SendOptions &options);
-[[nodiscard]] MTPDmessage_ClientFlags NewMessageClientFlags();
 [[nodiscard]] MsgId LookupReplyToTop(
 	not_null<History*> history,
 	MsgId replyToId);
@@ -50,16 +49,15 @@ public:
 	HistoryMessage(
 		not_null<History*> history,
 		const MTPDmessage &data,
-		MTPDmessage_ClientFlags clientFlags);
+		MessageFlags localFlags);
 	HistoryMessage(
 		not_null<History*> history,
 		const MTPDmessageService &data,
-		MTPDmessage_ClientFlags clientFlags);
+		MessageFlags localFlags);
 	HistoryMessage(
 		not_null<History*> history,
 		MsgId id,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
@@ -67,19 +65,20 @@ public:
 	HistoryMessage(
 		not_null<History*> history,
 		MsgId id,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
-		const TextWithEntities &textWithEntities); // local message
+		const TextWithEntities &textWithEntities,
+		const MTPMessageMedia &media,
+		const MTPReplyMarkup &markup,
+		uint64 groupedId); // local message
 	HistoryMessage(
 		not_null<History*> history,
 		MsgId id,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
@@ -91,8 +90,7 @@ public:
 	HistoryMessage(
 		not_null<History*> history,
 		MsgId id,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
@@ -104,8 +102,7 @@ public:
 	HistoryMessage(
 		not_null<History*> history,
 		MsgId id,
-		MTPDmessage::Flags flags,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		MsgId replyTo,
 		UserId viaBotId,
 		TimeId date,
@@ -129,7 +126,7 @@ public:
 	[[nodiscard]] bool uploading() const;
 
 	[[nodiscard]] bool hideEditedBadge() const {
-		return (_flags & MTPDmessage::Flag::f_edit_hide);
+		return (_flags & MessageFlag::HideEdited);
 	}
 
 	void setViewsCount(int count) override;
@@ -146,7 +143,18 @@ public:
 
 	[[nodiscard]] QString notificationHeader() const override;
 
+	// Looks on:
+	//   f_edit_hide
+	//   f_edit_date
+	//   f_entities
+	//   f_reply_markup
+	//   f_media
+	//   f_views
+	//   f_forwards
+	//   f_replies
+	//   f_ttl_period
 	void applyEdition(const MTPDmessage &message) override;
+
 	void applyEdition(const MTPDmessageService &message) override;
 	void updateSentContent(
 		const TextWithEntities &textWithEntities,
@@ -213,7 +221,7 @@ private:
 	void setEmptyText();
 	[[nodiscard]] bool isTooOldForEdit(TimeId now) const;
 	[[nodiscard]] bool isLegacyMessage() const {
-		return _flags & MTPDmessage::Flag::f_legacy;
+		return _flags & MessageFlag::Legacy;
 	}
 
 	[[nodiscard]] bool checkCommentsLinkedChat(ChannelId id) const;
@@ -228,7 +236,12 @@ private:
 	void setReplyMarkup(const MTPReplyMarkup *markup);
 
 	struct CreateConfig;
-	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, const QString &postAuthor, const MTPReplyMarkup &markup);
+	void createComponentsHelper(
+		MessageFlags flags,
+		MsgId replyTo,
+		UserId viaBotId,
+		const QString &postAuthor,
+		const MTPReplyMarkup &markup);
 	void createComponents(const CreateConfig &config);
 	void setupForwardedComponent(const CreateConfig &config);
 	void changeReplyToTopCounter(

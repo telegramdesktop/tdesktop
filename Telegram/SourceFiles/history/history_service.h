@@ -70,18 +70,17 @@ public:
 	HistoryService(
 		not_null<History*> history,
 		const MTPDmessage &data,
-		MTPDmessage_ClientFlags clientFlags);
+		MessageFlags localFlags);
 	HistoryService(
 		not_null<History*> history,
 		const MTPDmessageService &data,
-		MTPDmessage_ClientFlags clientFlags);
+		MessageFlags localFlags);
 	HistoryService(
 		not_null<History*> history,
 		MsgId id,
-		MTPDmessage_ClientFlags clientFlags,
+		MessageFlags flags,
 		TimeId date,
 		const PreparedText &message,
-		MTPDmessage::Flags flags = 0,
 		PeerId from = 0,
 		PhotoData *photo = nullptr);
 
@@ -174,8 +173,7 @@ private:
 [[nodiscard]] not_null<HistoryService*> GenerateJoinedMessage(
 	not_null<History*> history,
 	TimeId inviteDate,
-	not_null<UserData*> inviter,
-	MTPDmessage::Flags flags);
+	not_null<UserData*> inviter);
 [[nodiscard]] std::optional<bool> PeerHasThisCall(
 	not_null<PeerData*> peer,
 	uint64 id);
