@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/group/ui/desktop_capture_choose_source.h"
 
-#include "ui/widgets/window.h"
+#include "ui/widgets/rp_window.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
@@ -104,7 +104,7 @@ private:
 		std::unique_ptr<ChooseSourceProcess>> &Map();
 
 	const not_null<ChooseSourceDelegate*> _delegate;
-	const std::unique_ptr<Ui::Window> _window;
+	const std::unique_ptr<RpWindow> _window;
 	const std::unique_ptr<ScrollArea> _scroll;
 	const not_null<RpWidget*> _inner;
 	const not_null<RpWidget*> _bottom;
@@ -250,7 +250,7 @@ rpl::lifetime &Source::lifetime() {
 ChooseSourceProcess::ChooseSourceProcess(
 	not_null<ChooseSourceDelegate*> delegate)
 : _delegate(delegate)
-, _window(std::make_unique<Ui::Window>())
+, _window(std::make_unique<RpWindow>())
 , _scroll(std::make_unique<ScrollArea>(_window->body()))
 , _inner(_scroll->setOwnedWidget(object_ptr<RpWidget>(_scroll.get())))
 , _bottom(CreateChild<RpWidget>(_window->body().get()))

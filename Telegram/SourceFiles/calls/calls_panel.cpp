@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
-#include "ui/widgets/window.h"
+#include "ui/widgets/rp_window.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
 #include "ui/wrap/fade_wrap.h"
@@ -709,7 +709,7 @@ void Panel::handleClose() {
 	}
 }
 
-not_null<Ui::Window*> Panel::window() const {
+not_null<Ui::RpWindow*> Panel::window() const {
 	return _window.window();
 }
 

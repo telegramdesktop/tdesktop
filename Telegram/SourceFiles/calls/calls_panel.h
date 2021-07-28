@@ -30,7 +30,7 @@ template <typename Widget>
 class FadeWrap;
 template <typename Widget>
 class PaddingWrap;
-class Window;
+class RpWindow;
 namespace GL {
 enum class Backend;
 } // namespace GL
@@ -73,7 +73,7 @@ private:
 		Redial,
 	};
 
-	[[nodiscard]] not_null<Ui::Window*> window() const;
+	[[nodiscard]] not_null<Ui::RpWindow*> window() const;
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
 	void paint(QRect clip);

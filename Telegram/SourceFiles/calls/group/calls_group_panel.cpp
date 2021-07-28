@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/tooltip.h"
-#include "ui/widgets/window.h"
+#include "ui/widgets/rp_window.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/layers/layer_manager.h"
 #include "ui/layers/generic_box.h"
@@ -2221,7 +2221,7 @@ bool Panel::handleClose() {
 	return false;
 }
 
-not_null<Ui::Window*> Panel::window() const {
+not_null<Ui::RpWindow*> Panel::window() const {
 	return _window.window();
 }
 
