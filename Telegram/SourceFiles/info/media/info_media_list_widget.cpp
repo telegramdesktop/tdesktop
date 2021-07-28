@@ -445,7 +445,7 @@ void ListWidget::Section::paint(
 	localContext.isAfterDate = (header > 0);
 
 	if (!_mosaic.empty()) {
-		auto paintItem = [&](const not_null<BaseLayout*> item, QPoint point) {
+		auto paintItem = [&](not_null<BaseLayout*> item, QPoint point) {
 			p.translate(point.x(), point.y());
 			item->paint(
 				p,

@@ -343,7 +343,7 @@ void GifsListWidget::paintInlineItems(Painter &p, QRect clip) {
 	using namespace InlineBots::Layout;
 	PaintContext context(crl::now(), false, gifPaused, false);
 
-	auto paintItem = [&](const not_null<ItemBase*> item, QPoint point) {
+	auto paintItem = [&](not_null<const ItemBase*> item, QPoint point) {
 		p.translate(point.x(), point.y());
 		item->paint(
 			p,
@@ -624,7 +624,7 @@ void GifsListWidget::deleteUnusedInlineLayouts() {
 }
 
 void GifsListWidget::preloadImages() {
-	_mosaic.forEach([](const not_null<LayoutItem*> item) {
+	_mosaic.forEach([](not_null<const LayoutItem*> item) {
 		item->preload();
 	});
 }
@@ -679,7 +679,7 @@ int GifsListWidget::refreshInlineRows(const InlineCacheEntry *entry, bool result
 
 int GifsListWidget::validateExistingInlineRows(const InlineResults &results) {
 	const auto until = _mosaic.validateExistingRows([&](
-			const not_null<LayoutItem*> item,
+			not_null<const LayoutItem*> item,
 			int untilIndex) {
 		return item->getResult() != results[untilIndex].get();
 	}, results.size());

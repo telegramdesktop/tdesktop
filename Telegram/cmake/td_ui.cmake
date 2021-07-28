@@ -63,6 +63,7 @@ PRIVATE
 
     layout/abstract_layout_item.cpp
     layout/abstract_layout_item.h
+    layout/layout_mosaic.cpp
     layout/layout_mosaic.h
     layout/layout_position.cpp
     layout/layout_position.h

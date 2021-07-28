@@ -192,7 +192,7 @@ void Inner::paintInlineItems(Painter &p, const QRect &r) {
 	context.pathGradient = _pathGradient.get();
 	context.pathGradient->startFrame(0, width(), width() / 2);
 
-	auto paintItem = [&](const not_null<ItemBase*> item, QPoint point) {
+	auto paintItem = [&](not_null<const ItemBase*> item, QPoint point) {
 		p.translate(point.x(), point.y());
 		item->paint(
 			p,
@@ -384,7 +384,7 @@ void Inner::deleteUnusedInlineLayouts() {
 }
 
 void Inner::preloadImages() {
-	_mosaic.forEach([](const not_null<ItemBase*> item) {
+	_mosaic.forEach([](not_null<const ItemBase*> item) {
 		item->preload();
 	});
 }
@@ -488,7 +488,7 @@ int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntr
 
 int Inner::validateExistingInlineRows(const Results &results) {
 	const auto until = _mosaic.validateExistingRows([&](
-			const not_null<ItemBase*> item,
+			not_null<const ItemBase*> item,
 			int untilIndex) {
 		return item->getResult() != results[untilIndex].get();
 	}, results.size());
