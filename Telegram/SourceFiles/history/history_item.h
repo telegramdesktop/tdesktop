@@ -57,6 +57,18 @@ class ElementDelegate;
 struct HiddenSenderInfo;
 class History;
 
+enum class ReplyMarkupFlag : uint32 {
+	None                  = (1U << 0),
+	ForceReply            = (1U << 1),
+	HasSwitchInlineButton = (1U << 2),
+	Inline                = (1U << 3),
+	Resize                = (1U << 4),
+	SingleUse             = (1U << 5),
+	Selective             = (1U << 6),
+};
+inline constexpr bool is_flag_type(ReplyMarkupFlag) { return true; }
+using ReplyMarkupFlags = base::flags<ReplyMarkupFlag>;
+
 class HistoryItem : public RuntimeComposer<HistoryItem> {
 public:
 	static not_null<HistoryItem*> Create(
@@ -149,7 +161,7 @@ public:
 	}
 
 	[[nodiscard]] bool definesReplyKeyboard() const;
-	[[nodiscard]] MTPDreplyKeyboardMarkup::Flags replyKeyboardFlags() const;
+	[[nodiscard]] ReplyMarkupFlags replyKeyboardFlags() const;
 
 	[[nodiscard]] bool hasSwitchInlineButton() const {
 		return _clientFlags & MTPDmessage_ClientFlag::f_has_switch_inline_button;

@@ -76,21 +76,3 @@ enum class MTPDmessage_ClientFlag : uint32 {
 };
 inline constexpr bool is_flag_type(MTPDmessage_ClientFlag) { return true; }
 using MTPDmessage_ClientFlags = base::flags<MTPDmessage_ClientFlag>;
-
-enum class MTPDreplyKeyboardMarkup_ClientFlag : uint32 {
-	// none (zero) markup
-	f_zero = (1U << 30),
-
-	// markup just wants a text reply
-	f_force_reply = (1U << 29),
-
-	// markup keyboard is inline
-	f_inline = (1U << 28),
-
-	// markup has a switch inline keyboard button
-	f_has_switch_inline_button = (1U << 27),
-
-	// update this when adding new client side flags
-	MIN_FIELD = (1U << 27),
-};
-DEFINE_MTP_CLIENT_FLAGS(MTPDreplyKeyboardMarkup)

@@ -781,7 +781,7 @@ not_null<HistoryItem*> History::addNewToBack(
 		}
 		if (item->definesReplyKeyboard()) {
 			auto markupFlags = item->replyKeyboardFlags();
-			if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective)
+			if (!(markupFlags & ReplyMarkupFlag::Selective)
 				|| item->mentionsMe()) {
 				auto getMarkupSenders = [this]() -> base::flat_set<not_null<PeerData*>>* {
 					if (auto chat = peer->asChat()) {
@@ -794,7 +794,8 @@ not_null<HistoryItem*> History::addNewToBack(
 				if (auto markupSenders = getMarkupSenders()) {
 					markupSenders->insert(item->from());
 				}
-				if (markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_zero) { // zero markup means replyKeyboardHide
+				if (markupFlags & ReplyMarkupFlag::None) {
+					// None markup means replyKeyboardHide.
 					if (lastKeyboardFrom == item->from()->id
 						|| (!lastKeyboardInited
 							&& !peer->isChat()
@@ -1294,13 +1295,13 @@ void History::addItemsToLists(
 		if (item->author()->id) {
 			if (markupSenders) { // chats with bots
 				if (!lastKeyboardInited && item->definesReplyKeyboard() && !item->out()) {
-					auto markupFlags = item->replyKeyboardFlags();
-					if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective) || item->mentionsMe()) {
+					const auto markupFlags = item->replyKeyboardFlags();
+					if (!(markupFlags & ReplyMarkupFlag::Selective) || item->mentionsMe()) {
 						bool wasKeyboardHide = markupSenders->contains(item->author());
 						if (!wasKeyboardHide) {
 							markupSenders->insert(item->author());
 						}
-						if (!(markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_zero)) {
+						if (!(markupFlags & ReplyMarkupFlag::None)) {
 							if (!lastKeyboardInited) {
 								bool botNotInChat = false;
 								if (peer->isChat()) {
@@ -1321,9 +1322,9 @@ void History::addItemsToLists(
 					}
 				}
 			} else if (!lastKeyboardInited && item->definesReplyKeyboard() && !item->out()) { // conversations with bots
-				MTPDreplyKeyboardMarkup::Flags markupFlags = item->replyKeyboardFlags();
-				if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective) || item->mentionsMe()) {
-					if (markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_zero) {
+				const auto markupFlags = item->replyKeyboardFlags();
+				if (!(markupFlags & ReplyMarkupFlag::Selective) || item->mentionsMe()) {
+					if (markupFlags & ReplyMarkupFlag::None) {
 						clearLastKeyboard();
 					} else {
 						lastKeyboardInited = true;

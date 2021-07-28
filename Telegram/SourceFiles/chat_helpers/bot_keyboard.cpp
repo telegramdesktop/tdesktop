@@ -242,9 +242,9 @@ bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 	_wasForMsgId = FullMsgId(to->channelId(), to->id);
 
 	auto markupFlags = to->replyKeyboardFlags();
-	_forceReply = markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
-	_maximizeSize = !(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_resize);
-	_singleUse = _forceReply || (markupFlags & MTPDreplyKeyboardMarkup::Flag::f_single_use);
+	_forceReply = markupFlags & ReplyMarkupFlag::ForceReply;
+	_maximizeSize = !(markupFlags & ReplyMarkupFlag::Resize);
+	_singleUse = _forceReply || (markupFlags & ReplyMarkupFlag::SingleUse);
 
 	if (const auto markup = to->Get<HistoryMessageReplyMarkup>()) {
 		_placeholder = markup->placeholder;

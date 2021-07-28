@@ -887,7 +887,7 @@ void HistoryMessageReplyMarkup::createFromButtonRows(
 					if (type == Type::SwitchInline) {
 						// Optimization flag.
 						// Fast check on all new messages if there is a switch button to auto-click it.
-						flags |= MTPDreplyKeyboardMarkup_ClientFlag::f_has_switch_inline_button;
+						flags |= ReplyMarkupFlag::HasSwitchInlineButton;
 					}
 				}, [&](const MTPDkeyboardButtonGame &data) {
 					row.emplace_back(Type::Game, qs(data.vtext()));
@@ -932,35 +932,26 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 	rows.clear();
 	inlineKeyboard = nullptr;
 
-	switch (markup.type()) {
-	case mtpc_replyKeyboardMarkup: {
-		auto &d = markup.c_replyKeyboardMarkup();
-		flags = d.vflags().v;
-		placeholder = d.vplaceholder() ? qs(*d.vplaceholder()) : QString();
-
-		createFromButtonRows(d.vrows().v);
-	} break;
-
-	case mtpc_replyInlineMarkup: {
-		auto &d = markup.c_replyInlineMarkup();
-		flags = MTPDreplyKeyboardMarkup::Flags(0) | MTPDreplyKeyboardMarkup_ClientFlag::f_inline;
+	using Flag = ReplyMarkupFlag;
+	markup.match([&](const MTPDreplyKeyboardMarkup &data) {
+		flags = (data.is_resize() ? Flag::Resize : Flag())
+			| (data.is_selective() ? Flag::Selective : Flag())
+			| (data.is_single_use() ? Flag::SingleUse : Flag());
+		placeholder = qs(data.vplaceholder().value_or_empty());
+		createFromButtonRows(data.vrows().v);
+	}, [&](const MTPDreplyInlineMarkup &data) {
+		flags = Flag::Inline;
 		placeholder = QString();
-
-		createFromButtonRows(d.vrows().v);
-	} break;
-
-	case mtpc_replyKeyboardHide: {
-		auto &d = markup.c_replyKeyboardHide();
-		flags = mtpCastFlags(d.vflags()) | MTPDreplyKeyboardMarkup_ClientFlag::f_zero;
+		createFromButtonRows(data.vrows().v);
+	}, [&](const MTPDreplyKeyboardHide &data) {
+		flags = Flag::None | (data.is_selective() ? Flag::Selective : Flag());
 		placeholder = QString();
-	} break;
-
-	case mtpc_replyKeyboardForceReply: {
-		auto &d = markup.c_replyKeyboardForceReply();
-		flags = mtpCastFlags(d.vflags()) | MTPDreplyKeyboardMarkup_ClientFlag::f_force_reply;
-		placeholder = d.vplaceholder() ? qs(*d.vplaceholder()) : QString();
-	} break;
-	}
+	}, [&](const MTPDreplyKeyboardForceReply &data) {
+		flags = Flag::ForceReply
+			| (data.is_selective() ? Flag::Selective : Flag())
+			| (data.is_single_use() ? Flag::SingleUse : Flag());
+		placeholder = qs(data.vplaceholder().value_or_empty());
+	});
 }
 
 void HistoryMessageReplyMarkup::create(

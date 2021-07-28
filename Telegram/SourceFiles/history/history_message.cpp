@@ -1132,7 +1132,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		} else if (config.inlineMarkup) {
 			markup->create(*config.inlineMarkup);
 		}
-		if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_has_switch_inline_button) {
+		if (markup->flags & ReplyMarkupFlag::HasSwitchInlineButton) {
 			_clientFlags |= MTPDmessage_ClientFlag::f_has_switch_inline_button;
 		}
 	}

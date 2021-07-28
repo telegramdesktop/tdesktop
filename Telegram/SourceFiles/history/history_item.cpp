@@ -231,7 +231,7 @@ void HistoryItem::setGroupId(MessageGroupId groupId) {
 
 HistoryMessageReplyMarkup *HistoryItem::inlineReplyMarkup() {
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
-		if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_inline) {
+		if (markup->flags & ReplyMarkupFlag::Inline) {
 			return markup;
 		}
 	}
@@ -379,7 +379,7 @@ void HistoryItem::setIsPinned(bool pinned) {
 
 bool HistoryItem::definesReplyKeyboard() const {
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
-		if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_inline) {
+		if (markup->flags & ReplyMarkupFlag::Inline) {
 			return false;
 		}
 		return true;
@@ -390,7 +390,7 @@ bool HistoryItem::definesReplyKeyboard() const {
 	return (_flags & MTPDmessage::Flag::f_reply_markup);
 }
 
-MTPDreplyKeyboardMarkup::Flags HistoryItem::replyKeyboardFlags() const {
+ReplyMarkupFlags HistoryItem::replyKeyboardFlags() const {
 	Expects(definesReplyKeyboard());
 
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
@@ -399,7 +399,7 @@ MTPDreplyKeyboardMarkup::Flags HistoryItem::replyKeyboardFlags() const {
 
 	// optimization: don't create markup component for the case
 	// MTPDreplyKeyboardHide with flags = 0, assume it has f_zero flag
-	return MTPDreplyKeyboardMarkup_ClientFlag::f_zero | 0;
+	return ReplyMarkupFlag::None;
 }
 
 void HistoryItem::addLogEntryOriginal(
