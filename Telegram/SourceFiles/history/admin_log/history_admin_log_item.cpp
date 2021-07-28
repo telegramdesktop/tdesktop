@@ -510,7 +510,6 @@ void GenerateItems(
 		return callback(OwnedItem(delegate, item), sentDate);
 	};
 
-	using Flag = MTPDmessage::Flag;
 	const auto fromName = from->name;
 	const auto fromLink = from->createOpenLink();
 	const auto fromLinkText = textcmdLink(1, fromName);
