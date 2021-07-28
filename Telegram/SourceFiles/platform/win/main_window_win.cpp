@@ -587,12 +587,14 @@ void MainWindow::validateWindowTheme(bool native, bool night) {
 		const auto empty = native ? nullptr : L" ";
 		Dlls::SetWindowTheme(ps_hWnd, empty, empty);
 		QApplication::setStyle(QStyleFactory::create(u"Windows"_q));
+#if 0
 	} else if (!Platform::IsDarkModeSupported()/*
 		|| (!Dlls::AllowDarkModeForApp && !Dlls::SetPreferredAppMode)
 		|| !Dlls::AllowDarkModeForWindow
 		|| !Dlls::RefreshImmersiveColorPolicyState
 		|| !Dlls::FlushMenuThemes*/) {
 		return;
+#endif
 	} else if (!native) {
 		Dlls::SetWindowTheme(ps_hWnd, nullptr, nullptr);
 		return;
@@ -606,31 +608,22 @@ void MainWindow::validateWindowTheme(bool native, bool night) {
 
 	const auto updateStyle = [&] {
 		static const auto kSystemVersion = QOperatingSystemVersion::current();
-		if (kSystemVersion.microVersion() < 18362) {
-			SetPropW(
-				ps_hWnd,
-				L"UseImmersiveDarkModeColors",
-				reinterpret_cast<HANDLE>(static_cast<INT_PTR>(darkValue)));
-		} else if (Dlls::SetWindowCompositionAttribute) {
+		if (kSystemVersion.microVersion() >= 18875 && Dlls::SetWindowCompositionAttribute) {
 			Dlls::WINDOWCOMPOSITIONATTRIBDATA data = {
 				Dlls::WINDOWCOMPOSITIONATTRIB::WCA_USEDARKMODECOLORS,
 				&darkValue,
 				sizeof(darkValue)
 			};
 			Dlls::SetWindowCompositionAttribute(ps_hWnd, &data);
-		} else if (Dlls::DwmSetWindowAttribute) {
-			static constexpr auto DWMWA_USE_IMMERSIVE_DARK_MODE_0 = DWORD(19);
-			static constexpr auto DWMWA_USE_IMMERSIVE_DARK_MODE = DWORD(20);
-			const auto set = [&](DWORD attribute) {
-				return Dlls::DwmSetWindowAttribute(
-					ps_hWnd,
-					attribute,
-					&darkValue,
-					sizeof(darkValue));
-			};
-			if (FAILED(set(DWMWA_USE_IMMERSIVE_DARK_MODE))) {
-				set(DWMWA_USE_IMMERSIVE_DARK_MODE_0);
-			}
+		} else if (kSystemVersion.microVersion() >= 17763 && Dlls::DwmSetWindowAttribute) {
+			static const auto DWMWA_USE_IMMERSIVE_DARK_MODE = (kSystemVersion.microVersion() >= 18985)
+				? DWORD(20)
+				: DWORD(19);
+			Dlls::DwmSetWindowAttribute(
+				ps_hWnd,
+				DWMWA_USE_IMMERSIVE_DARK_MODE,
+				&darkValue,
+				sizeof(darkValue));
 		}
 	};
 
