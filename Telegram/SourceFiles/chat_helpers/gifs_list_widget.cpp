@@ -878,7 +878,7 @@ void GifsListWidget::updateSelected() {
 	const auto sy = p.y();
 	const auto &[index, exact, relative] = _mosaic.findByPoint({ sx, sy });
 	const auto selected = exact ? index : -1;
-	const auto item = exact ? _mosaic.itemAt(selected) : nullptr;
+	const auto item = exact ? _mosaic.itemAt(selected).get() : nullptr;
 	const auto link = exact ? item->getState(relative, {}).link : nullptr;
 
 	if (_selected != selected) {

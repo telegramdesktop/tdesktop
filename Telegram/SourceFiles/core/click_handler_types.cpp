@@ -46,7 +46,7 @@ void SearchByHashtag(ClickContext context, const QString &tag) {
 	const auto inPeer = my.peer
 		? my.peer
 		: my.itemId
-		? data.message(my.itemId)->history()->peer
+		? data.message(my.itemId)->history()->peer.get()
 		: nullptr;
 	controller->content()->searchMessages(
 		tag + ' ',
@@ -223,10 +223,11 @@ void BotCommandClickHandler::onClick(ClickContext context) const {
 	if (const auto delegate = my.elementDelegate ? my.elementDelegate() : nullptr) {
 		delegate->elementSendBotCommand(_cmd, my.itemId);
 	} else if (const auto controller = my.sessionWindow.get()) {
+		auto &data = controller->session().data();
 		const auto peer = my.peer
 			? my.peer
 			: my.itemId
-			? controller->session().data().message(my.itemId)->history()->peer
+			? data.message(my.itemId)->history()->peer.get()
 			: nullptr;
 		// Can't find context.
 		if (!peer) {
