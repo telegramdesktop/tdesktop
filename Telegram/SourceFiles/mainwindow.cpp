@@ -113,7 +113,6 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 		Ui::ForceFullRepaint(this);
 	}, lifetime());
 
-	setAttribute(Qt::WA_NoSystemBackground);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
@@ -227,6 +226,8 @@ void MainWindow::finishFirstShow() {
 	) | rpl::start_with_next([=] {
 		Ui::Tooltip::Hide();
 	}, lifetime());
+
+	setAttribute(Qt::WA_NoSystemBackground);
 }
 
 void MainWindow::clearWidgetsHook() {
