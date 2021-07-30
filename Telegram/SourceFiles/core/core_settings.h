@@ -653,7 +653,7 @@ private:
 	bool _callAudioDuckingEnabled = true;
 	bool _disableCalls = false;
 	bool _groupCallPushToTalk = false;
-	bool _groupCallNoiseSuppression = true;
+	bool _groupCallNoiseSuppression = false;
 	QByteArray _groupCallPushToTalkShortcut;
 	crl::time _groupCallPushToTalkDelay = 20;
 	Window::Theme::AccentColors _themesAccentColors;
