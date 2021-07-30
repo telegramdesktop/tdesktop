@@ -684,23 +684,23 @@ void PanelController::setupPassword() {
 		return;
 	}
 
-	auto fields = PasscodeBox::CloudFields();
-	fields.newAlgo = settings.newAlgo;
-	fields.newSecureSecretAlgo = settings.newSecureAlgo;
+	auto fields = PasscodeBox::CloudFields{
+		.newAlgo = settings.newAlgo,
+		.hasRecovery = settings.hasRecovery,
+		.newSecureSecretAlgo = settings.newSecureAlgo,
+		.pendingResetDate = settings.pendingResetDate,
+	};
 	auto box = show(Box<PasscodeBox>(&_form->window()->session(), fields));
 	box->newPasswordSet(
-	) | rpl::filter([=](const QByteArray &password) {
-		return !password.isEmpty();
-	}) | rpl::start_with_next([=](const QByteArray &password) {
-		_form->reloadAndSubmitPassword(password);
+	) | rpl::start_with_next([=](const QByteArray &password) {
+		if (password.isEmpty()) {
+			_form->reloadPassword();
+		} else {
+			_form->reloadAndSubmitPassword(password);
+		}
 	}, box->lifetime());
 
-	rpl::merge(
-		box->passwordReloadNeeded(),
-		box->newPasswordSet(
-		) | rpl::filter([=](const QByteArray &password) {
-			return password.isEmpty();
-		}) | rpl::to_empty
+	box->passwordReloadNeeded(
 	) | rpl::start_with_next([=] {
 		_form->reloadPassword();
 	}, box->lifetime());

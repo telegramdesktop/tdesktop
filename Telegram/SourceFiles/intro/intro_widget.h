@@ -56,10 +56,7 @@ struct Data {
 	int codeLength = 5;
 	bool codeByTelegram = false;
 
-	Core::CloudPasswordCheckRequest pwdRequest;
-	bool hasRecovery = false;
-	QString pwdHint;
-	bool pwdNotEmptyPassport = false;
+	Core::CloudPasswordState pwdState;
 
 	Window::TermsLock termsLock;
 

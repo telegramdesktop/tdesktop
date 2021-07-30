@@ -1000,15 +1000,25 @@ void FormController::recoverPassword() {
 
 		const auto &data = result.c_auth_passwordRecovery();
 		const auto pattern = qs(data.vemail_pattern());
+		auto fields = PasscodeBox::CloudFields{
+			.newAlgo = _password.newAlgo,
+			.hasRecovery = _password.hasRecovery,
+			.newSecureSecretAlgo = _password.newSecureAlgo,
+			.pendingResetDate = _password.pendingResetDate,
+		};
 		const auto box = _view->show(Box<RecoverBox>(
+			&_controller->session().mtp(),
 			&_controller->session(),
 			pattern,
-			_password.notEmptyPassport,
-			_password.pendingResetDate != 0));
+			fields));
 
-		box->passwordCleared(
-		) | rpl::start_with_next([=] {
-			reloadPassword();
+		box->newPasswordSet(
+		) | rpl::start_with_next([=](const QByteArray &password) {
+			if (password.isEmpty()) {
+				reloadPassword();
+			} else {
+				reloadAndSubmitPassword(password);
+			}
 		}, box->lifetime());
 
 		box->recoveryExpired(

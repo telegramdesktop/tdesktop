@@ -341,12 +341,12 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 	stopCheck();
 	_sentRequest = 0;
 	const auto &d = result.c_account_password();
-	getData()->pwdRequest = Core::ParseCloudPasswordCheckRequest(d);
+	getData()->pwdState = Core::ParseCloudPasswordState(d);
 	if (!d.vcurrent_algo() || !d.vsrp_id() || !d.vsrp_B()) {
 		LOG(("API Error: No current password received on login."));
 		_code->setFocus();
 		return;
-	} else if (!getData()->pwdRequest) {
+	} else if (!getData()->pwdState.request) {
 		const auto callback = [=](Fn<void()> &&close) {
 			Core::UpdateApplication();
 			close();
@@ -357,9 +357,6 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 			callback));
 		return;
 	}
-	getData()->hasRecovery = d.is_has_recovery();
-	getData()->pwdHint = qs(d.vhint().value_or_empty());
-	getData()->pwdNotEmptyPassport = d.is_has_secure_values();
 	goReplace<PasswordCheckWidget>(Animate::Forward);
 }
 
@@ -381,10 +378,7 @@ void CodeWidget::submit() {
 	_checkRequestTimer.callEach(1000);
 
 	_sentCode = text;
-	getData()->pwdRequest = Core::CloudPasswordCheckRequest();
-	getData()->hasRecovery = false;
-	getData()->pwdHint = QString();
-	getData()->pwdNotEmptyPassport = false;
+	getData()->pwdState = Core::CloudPasswordState();
 	_sentRequest = api().request(MTPauth_SignIn(
 		MTP_string(getData()->phone),
 		MTP_bytes(getData()->phoneHash),

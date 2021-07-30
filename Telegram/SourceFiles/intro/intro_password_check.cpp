@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/core_cloud_password.h"
 #include "boxes/confirm_box.h"
+#include "boxes/passcode_box.h"
 #include "lang/lang_keys.h"
 #include "intro/intro_signup.h"
 #include "ui/widgets/buttons.h"
@@ -29,16 +30,13 @@ PasswordCheckWidget::PasswordCheckWidget(
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
 : Step(parent, account, data)
-, _request(getData()->pwdRequest)
-, _hasRecovery(getData()->hasRecovery)
-, _notEmptyPassport(getData()->pwdNotEmptyPassport)
-, _hint(getData()->pwdHint)
+, _passwordState(getData()->pwdState)
 , _pwdField(this, st::introPassword, tr::lng_signin_password())
 , _pwdHint(this, st::introPasswordHint)
 , _codeField(this, st::introPassword, tr::lng_signin_code())
 , _toRecover(this, tr::lng_signin_recover(tr::now))
 , _toPassword(this, tr::lng_signin_try_password(tr::now)) {
-	Expects(!!_request);
+	Expects(!!_passwordState.request);
 
 	Lang::Updated(
 	) | rpl::start_with_next([=] {
@@ -53,11 +51,13 @@ PasswordCheckWidget::PasswordCheckWidget(
 	setTitleText(tr::lng_signin_title());
 	updateDescriptionText();
 
-	if (_hint.isEmpty()) {
+	if (_passwordState.hint.isEmpty()) {
 		_pwdHint->hide();
 	} else {
-		_pwdHint->setText(
-			tr::lng_signin_hint(tr::now, lt_password_hint, _hint));
+		_pwdHint->setText(tr::lng_signin_hint(
+			tr::now,
+			lt_password_hint,
+			_passwordState.hint));
 	}
 	_codeField->hide();
 	_toPassword->hide();
@@ -73,9 +73,11 @@ void PasswordCheckWidget::refreshLang() {
 		_toPassword->setText(
 			tr::lng_signin_try_password(tr::now));
 	}
-	if (!_hint.isEmpty()) {
-		_pwdHint->setText(
-			tr::lng_signin_hint(tr::now, lt_password_hint, _hint));
+	if (!_passwordState.hint.isEmpty()) {
+		_pwdHint->setText(tr::lng_signin_hint(
+			tr::now,
+			lt_password_hint,
+			_passwordState.hint));
 	}
 	updateControlsGeometry();
 }
@@ -167,7 +169,7 @@ void PasswordCheckWidget::handleSrpIdInvalid() {
 	const auto now = crl::now();
 	if (_lastSrpIdInvalidTime > 0
 		&& now - _lastSrpIdInvalidTime < Core::kHandleSrpIdInvalidTimeout) {
-		_request.id = 0;
+		_passwordState.request.id = 0;
 		showError(rpl::single(Lang::Hard::ServerError()));
 	} else {
 		_lastSrpIdInvalidTime = now;
@@ -176,7 +178,7 @@ void PasswordCheckWidget::handleSrpIdInvalid() {
 }
 
 void PasswordCheckWidget::checkPasswordHash() {
-	if (_request.id) {
+	if (_passwordState.request.id) {
 		passwordChecked();
 	} else {
 		requestPasswordData();
@@ -190,12 +192,8 @@ void PasswordCheckWidget::requestPasswordData() {
 	).done([=](const MTPaccount_Password &result) {
 		_sentRequest = 0;
 		result.match([&](const MTPDaccount_password &data) {
-			auto request = Core::ParseCloudPasswordCheckRequest(data);
-			if (request && request.id) {
-				_request = std::move(request);
-			} else {
-				// Maybe the password was removed? Just submit it once again.
-			}
+			openssl::AddRandomSeed(bytes::make_span(data.vsecure_random().v));
+			_passwordState = Core::ParseCloudPasswordState(data);
 			passwordChecked();
 		});
 	}).send();
@@ -203,12 +201,12 @@ void PasswordCheckWidget::requestPasswordData() {
 
 void PasswordCheckWidget::passwordChecked() {
 	const auto check = Core::ComputeCloudPasswordCheck(
-		_request,
+		_passwordState.request,
 		_passwordHash);
 	if (!check) {
 		return serverError();
 	}
-	_request.id = 0;
+	_passwordState.request.id = 0;
 	_sentRequest = api().request(
 		MTPauth_CheckPassword(check.result)
 	).done([=](const MTPauth_Authorization &result) {
@@ -220,6 +218,23 @@ void PasswordCheckWidget::passwordChecked() {
 
 void PasswordCheckWidget::serverError() {
 	showError(rpl::single(Lang::Hard::ServerError()));
+}
+
+void PasswordCheckWidget::codeSubmitDone(
+		const QString &code,
+		const MTPBool &result) {
+	auto fields = PasscodeBox::CloudFields::From(_passwordState);
+	fields.fromRecoveryCode = code;
+	fields.hasRecovery = false;
+	fields.curRequest = {};
+	auto box = Box<PasscodeBox>(&api().instance(), nullptr, fields);
+
+	box->newAuthorization(
+	) | rpl::start_with_next([=](const MTPauth_Authorization &result) {
+		pwdSubmitDone(true, result);
+	}, lifetime());
+
+	Ui::show(std::move(box));
 }
 
 void PasswordCheckWidget::codeSubmitFail(const MTP::Error &error) {
@@ -269,7 +284,7 @@ void PasswordCheckWidget::recoverStartFail(const MTP::Error &error) {
 }
 
 void PasswordCheckWidget::toRecover() {
-	if (_hasRecovery) {
+	if (_passwordState.hasRecovery) {
 		if (_sentRequest) {
 			api().request(base::take(_sentRequest)).cancel();
 		}
@@ -339,18 +354,16 @@ void PasswordCheckWidget::submit() {
 			return;
 		}
 		const auto send = crl::guard(this, [=] {
-			_sentRequest = api().request(MTPauth_RecoverPassword(
-				MTP_flags(0),
-				MTP_string(code),
-				MTPaccount_PasswordInputSettings()
-			)).done([=](const MTPauth_Authorization &result) {
-				pwdSubmitDone(true, result);
+			_sentRequest = api().request(MTPauth_CheckRecoveryPassword(
+				MTP_string(code)
+			)).done([=](const MTPBool &result) {
+				codeSubmitDone(code, result);
 			}).fail([=](const MTP::Error &error) {
 				codeSubmitFail(error);
 			}).handleFloodErrors().send();
 		});
 
-		if (_notEmptyPassport) {
+		if (_passwordState.notEmptyPassport) {
 			const auto confirmed = [=](Fn<void()> &&close) {
 				send();
 				close();
@@ -367,7 +380,7 @@ void PasswordCheckWidget::submit() {
 
 		const auto password = _pwdField->getLastText().toUtf8();
 		_passwordHash = Core::ComputeCloudPasswordHash(
-			_request.algo,
+			_passwordState.request.algo,
 			bytes::make_span(password));
 		checkPasswordHash();
 	}
