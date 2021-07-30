@@ -102,6 +102,7 @@ private:
 	not_null<Ui::VerticalLayout*> _layout;
 	const not_null<Ui::RpWidget*> _videoWrap;
 	const std::unique_ptr<Ui::RpWidget> _videoPlaceholder;
+	const std::unique_ptr<Ui::RpWidget> _videoAboutLimit;
 	std::unique_ptr<Viewport> _viewport;
 	rpl::variable<Ui::RpWidget*> _addMemberButton = nullptr;
 	RpWidget *_topSkip = nullptr;

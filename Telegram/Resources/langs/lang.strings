@@ -2103,6 +2103,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_noise_suppression" = "Enable Noise Suppression";
 "lng_group_call_limit#one" = "Video is only available\nfor the first {count} member";
 "lng_group_call_limit#other" = "Video is only available\nfor the first {count} members";
+"lng_group_call_over_limit#one" = "The voice chat is over {count} member.\nNew participants only have access to audio stream.";
+"lng_group_call_over_limit#other" = "The voice chat is over {count} members.\nNew participants only have access to audio stream.";
 "lng_group_call_video_paused" = "Video is paused";
 "lng_group_call_share_speaker" = "Users with this link can speak";
 "lng_group_call_copy_speaker_link" = "Copy Speaker Link";

@@ -742,6 +742,12 @@ groupCallTitleLabel: FlatLabel(groupCallSubtitleLabel) {
 		linkFontOver: font(semibold 14px);
 	}
 }
+groupCallVideoLimitLabel: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	textFg: groupCallMemberNotJoinedStatus;
+	style: semiboldTextStyle;
+	minWidth: 96px;
+}
 groupCallAddButtonPosition: point(10px, 7px);
 groupCallMembersWidthMax: 480px;
 groupCallRecordingMark: 6px;
