@@ -4764,6 +4764,23 @@ void ApiWrap::reloadPasswordState() {
 	}).send();
 }
 
+void ApiWrap::applyPendingReset(const MTPaccount_ResetPasswordResult &data) {
+	if (!_passwordState) {
+		reloadPasswordState();
+		return;
+	}
+	data.match([&](const MTPDaccount_resetPasswordOk &data) {
+		reloadPasswordState();
+	}, [&](const MTPDaccount_resetPasswordRequestedWait &data) {
+		const auto until = data.vuntil_date().v;
+		if (_passwordState->pendingResetDate != until) {
+			_passwordState->pendingResetDate = until;
+			_passwordStateChanges.fire_copy(*_passwordState);
+		}
+	}, [&](const MTPDaccount_resetPasswordFailedWait &data) {
+	});
+}
+
 void ApiWrap::clearUnconfirmedPassword() {
 	_passwordRequestId = request(MTPaccount_CancelPasswordEmail(
 	)).done([=](const MTPBool &result) {

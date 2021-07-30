@@ -1001,7 +1001,8 @@ void FormController::recoverPassword() {
 		const auto box = _view->show(Box<RecoverBox>(
 			&_controller->session(),
 			pattern,
-			_password.notEmptyPassport));
+			_password.notEmptyPassport,
+			_password.pendingResetDate != 0));
 
 		box->passwordCleared(
 		) | rpl::start_with_next([=] {
@@ -2636,6 +2637,7 @@ bool FormController::applyPassword(const MTPDaccount_password &result) {
 		Core::ParseCloudPasswordAlgo(result.vnew_algo()));
 	settings.newSecureAlgo = Core::ValidateNewSecureSecretAlgo(
 		Core::ParseSecureSecretAlgo(result.vnew_secure_algo()));
+	settings.pendingResetDate = result.vpending_reset_date().value_or_empty();
 	openssl::AddRandomSeed(bytes::make_span(result.vsecure_random().v));
 	return applyPassword(std::move(settings));
 }

@@ -82,6 +82,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_box_ok" = "OK";
 "lng_box_done" = "Done";
+"lng_box_yes" = "Yes";
+"lng_box_no" = "No";
 
 "lng_cancel" = "Cancel";
 "lng_continue" = "Continue";
@@ -596,6 +598,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cloud_password_remove" = "Remove cloud password";
 "lng_cloud_password_set" = "Enable two-step verification";
 "lng_cloud_password_edit" = "Change cloud password";
+"lng_cloud_password_reset_in" = "Reset password in";
+"lng_cloud_password_reset_ready" = "Reset password";
+"lng_cloud_password_reset_cancel" = "Cancel password reset";
 "lng_cloud_password_enter_old" = "Enter current password";
 "lng_cloud_password_enter_first" = "Enter a password";
 "lng_cloud_password_enter_new" = "Enter new password";
@@ -618,6 +623,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cloud_password_passport_losing" = "Warning! All data saved in your Telegram Passport will be lost!";
 "lng_cloud_password_resend" = "Resend code";
 "lng_cloud_password_resent" = "Code was resent.";
+"lng_cloud_password_reset_title" = "Reset password";
+"lng_cloud_password_reset_no_email" = "Since you didn't provide a recovery email when setting up your password, your remaining options are either to remember your password or wait 7 days until your password is reset.";
+"lng_cloud_password_reset_with_email" = "If you don't have access to your recovery email, your remaining options are either to remember your password or wait 7 days until your password resets.";
+"lng_cloud_password_reset_ok" = "Reset";
+"lng_cloud_password_reset_cancel_title" = "Cancel reset";
+"lng_cloud_password_reset_cancel_sure" = "Cancel the password reset process? If you request a new reset later, it will take another 7 days.";
+"lng_cloud_password_reset_later" = "You recently requested a password reset that was cancelled. Please wait {duration} before making a new request.";
 
 "lng_connection_auto_connecting" = "Default (connecting...)";
 "lng_connection_auto" = "Default ({transport} used)";

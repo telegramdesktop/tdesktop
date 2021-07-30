@@ -434,6 +434,7 @@ public:
 	void clearPeerPhoto(not_null<PhotoData*> photo);
 
 	void reloadPasswordState();
+	void applyPendingReset(const MTPaccount_ResetPasswordResult &data);
 	void clearUnconfirmedPassword();
 	rpl::producer<Core::CloudPasswordState> passwordState() const;
 	std::optional<Core::CloudPasswordState> passwordStateCurrent() const;

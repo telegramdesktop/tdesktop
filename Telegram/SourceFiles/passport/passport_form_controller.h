@@ -280,6 +280,7 @@ struct PasswordSettings {
 	bool hasRecovery = false;
 	bool notEmptyPassport = false;
 	bool unknownAlgo = false;
+	TimeId pendingResetDate = 0;
 
 	bool operator==(const PasswordSettings &other) const {
 		return (request == other.request)
@@ -296,7 +297,8 @@ struct PasswordSettings {
 			&& (unconfirmedPattern == other.unconfirmedPattern)
 			&& (confirmedEmail == other.confirmedEmail)
 			&& (hasRecovery == other.hasRecovery)
-			&& (unknownAlgo == other.unknownAlgo);
+			&& (unknownAlgo == other.unknownAlgo)
+			&& (pendingResetDate == other.pendingResetDate);
 	}
 	bool operator!=(const PasswordSettings &other) const {
 		return !(*this == other);

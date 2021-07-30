@@ -39,6 +39,7 @@ public:
 		QString hint;
 		Core::SecureSecretAlgo newSecureSecretAlgo;
 		bool turningOff = false;
+		TimeId pendingResetDate = 0;
 
 		// Check cloud password for some action.
 		Fn<void(const Core::CloudPasswordResult &)> customCheckCallback;
@@ -157,6 +158,7 @@ private:
 	object_ptr<Ui::InputField> _passwordHint;
 	object_ptr<Ui::InputField> _recoverEmail;
 	object_ptr<Ui::LinkButton> _recover;
+	bool _showRecoverLink = false;
 
 	QString _oldError, _newError, _emailError;
 
@@ -172,7 +174,9 @@ public:
 		QWidget*,
 		not_null<Main::Session*> session,
 		const QString &pattern,
-		bool notEmptyPassport);
+		bool notEmptyPassport,
+		bool hasPendingReset,
+		Fn<void()> closeParent = nullptr);
 
 	rpl::producer<> passwordCleared() const;
 	rpl::producer<> recoveryExpired() const;
@@ -192,6 +196,7 @@ private:
 	void codeChanged();
 	void codeSubmitDone(const MTPauth_Authorization &result);
 	void codeSubmitFail(const MTP::Error &error);
+	void setError(const QString &error);
 
 	MTP::Sender _api;
 	mtpRequestId _submitRequest = 0;
@@ -200,6 +205,8 @@ private:
 	bool _notEmptyPassport = false;
 
 	object_ptr<Ui::InputField> _recoverCode;
+	object_ptr<Ui::LinkButton> _noEmailAccess;
+	Fn<void()> _closeParent;
 
 	QString _error;
 

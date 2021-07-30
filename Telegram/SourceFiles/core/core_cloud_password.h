@@ -130,6 +130,7 @@ struct CloudPasswordState {
 	CloudPasswordAlgo newPassword;
 	SecureSecretAlgo newSecureSecret;
 	QString unconfirmedPattern;
+	TimeId pendingResetDate = 0;
 };
 
 CloudPasswordState ParseCloudPasswordState(
