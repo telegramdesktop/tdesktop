@@ -311,6 +311,8 @@ historyMessagesTTL: IconButton(historyAttach) {
 }
 historyMessagesTTL2Icon: icon {{ "chat/input_autodelete_7d", historyComposeIconFg }};
 historyMessagesTTL2IconOver: icon {{ "chat/input_autodelete_7d", historyComposeIconFgOver }};
+historyMessagesTTL3Icon: icon {{ "chat/input_autodelete_30d", historyComposeIconFg }};
+historyMessagesTTL3IconOver: icon {{ "chat/input_autodelete_30d", historyComposeIconFgOver }};
 historyAttachEmojiFgActive: windowActiveTextFg;
 historyAttachEmojiActive: icon {{ "chat/input_smile_face", historyAttachEmojiFgActive }};
 historyAttachEmojiTooltipDelta: 4px;

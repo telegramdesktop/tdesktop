@@ -1017,8 +1017,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_manage_messages_ttl_title" = "Auto-delete messages";
 "lng_manage_messages_ttl_never" = "Off";
-"lng_manage_messages_ttl_after1" = "24 hours";
-"lng_manage_messages_ttl_after2" = "7 days";
+"lng_manage_messages_ttl_after1" = "1 day";
+"lng_manage_messages_ttl_after2" = "1 week";
+"lng_manage_messages_ttl_after3" = "1 month";
 
 "lng_ttl_edit_about" = "Automatically delete new messages after a certain period of time for you and {user}.";
 "lng_ttl_edit_about_group" = "Automatically delete new messages sent in this chat after a certain period of time.";
@@ -1027,8 +1028,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ttl_about_tooltip" = "New messages in this chat will be automatically deleted in {duration}.";
 "lng_ttl_about_tooltip_channel" = "New messages in this chat will be automatically deleted in {duration}.";
 "lng_ttl_about_tooltip_off" = "Auto-delete is now disabled.";
-"lng_ttl_about_duration1" = "24 hours";
-"lng_ttl_about_duration2" = "7 days";
+"lng_ttl_about_duration1" = "1 day";
+"lng_ttl_about_duration2" = "1 week";
+"lng_ttl_about_duration3" = "1 month";
 
 "lng_report_title" = "Report channel";
 "lng_report_group_title" = "Report group";

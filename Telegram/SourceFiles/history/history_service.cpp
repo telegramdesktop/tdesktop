@@ -399,9 +399,11 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		const auto period = action.vperiod().v;
 		const auto duration = (period == 5)
 			? u"5 seconds"_q
-			: (period < 3 * 86400)
+			: (period < 2 * 86400)
 			? tr::lng_ttl_about_duration1(tr::now)
-			: tr::lng_ttl_about_duration2(tr::now);
+			: (period < 8 * 86400)
+			? tr::lng_ttl_about_duration2(tr::now)
+			: tr::lng_ttl_about_duration3(tr::now);
 		if (isPost()) {
 			if (!period) {
 				result.text = tr::lng_action_ttl_removed_channel(tr::now);

@@ -2020,8 +2020,11 @@ void Session::scheduleNextTTLs() {
 	}
 	const auto nearest = _ttlMessages.begin()->first;
 	const auto now = base::unixtime::now();
-	const auto timeout = (std::max(now, nearest) - now) * crl::time(1000);
-	_ttlCheckTimer.callOnce(timeout);
+
+	// Set timer not more than for 24 hours.
+	const auto maxTimeout = TimeId(86400);
+	const auto timeout = std::min(std::max(now, nearest) - now, maxTimeout);
+	_ttlCheckTimer.callOnce(timeout * crl::time(1000));
 }
 
 void Session::unregisterMessageTTL(

@@ -93,8 +93,6 @@ void AboutBox::showVersionHistory() {
 			url += qsl("win/%1.zip");
 		} else if (Platform::IsWindows64Bit()) {
 			url += qsl("win64/%1.zip");
-		} else if (Platform::IsOSXBuild()) {
-			url += qsl("osx/%1.zip");
 		} else if (Platform::IsMac()) {
 			url += qsl("mac/%1.zip");
 		} else if (Platform::IsLinux32Bit()) {

@@ -37,9 +37,11 @@ void ShowAutoDeleteToast(not_null<PeerData*> peer) {
 
 	const auto duration = (period == 5)
 		? u"5 seconds"_q
-		: (period < 3 * 86400)
+		: (period < 2 * 86400)
 		? tr::lng_ttl_about_duration1(tr::now)
-		: tr::lng_ttl_about_duration2(tr::now);
+		: (period < 8 * 86400)
+		? tr::lng_ttl_about_duration2(tr::now)
+		: tr::lng_ttl_about_duration3(tr::now);
 	const auto text = peer->isBroadcast()
 		? tr::lng_ttl_about_tooltip_channel(tr::now, lt_duration, duration)
 		: tr::lng_ttl_about_tooltip(tr::now, lt_duration, duration);
@@ -113,12 +115,16 @@ TTLButton::TTLButton(not_null<QWidget*> parent, not_null<PeerData*> peer)
 		Data::PeerUpdate::Flag::MessagesTTL
 	) | rpl::start_with_next([=] {
 		const auto ttl = peer->messagesTTL();
-		if (ttl < 3 * 86400) {
+		if (ttl < 2 * 86400) {
 			_button.setIconOverride(nullptr, nullptr);
-		} else {
+		} else if (ttl < 8 * 86400) {
 			_button.setIconOverride(
 				&st::historyMessagesTTL2Icon,
 				&st::historyMessagesTTL2IconOver);
+		} else {
+			_button.setIconOverride(
+				&st::historyMessagesTTL3Icon,
+				&st::historyMessagesTTL3IconOver);
 		}
 	}, _button.lifetime());
 }
