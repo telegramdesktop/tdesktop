@@ -1906,7 +1906,6 @@ void Members::trackViewportGeometry() {
 			bool aboutLimitShown) {
 		if (placeholder > 0 || viewport <= 0 || !aboutLimitShown) {
 			aboutLimitShown = false;
-			aboutLimit = 0;
 		}
 
 		// This call may update _videoAboutLimit->height() :(

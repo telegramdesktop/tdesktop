@@ -194,7 +194,7 @@ template <typename T>
 bool SetClickContext(
 		const ClickHandlerPtr &handler,
 		const ClickContext &context) {
-	if (const auto casted = dynamic_pointer_cast<T>(handler)) {
+	if (const auto casted = std::dynamic_pointer_cast<T>(handler)) {
 		casted->T::onClick(context);
 		return true;
 	}

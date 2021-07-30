@@ -596,10 +596,6 @@ void GenerateItems(
 			)(tr::now, lt_from, fromLinkText);
 		addSimpleServiceMessage(text);
 
-		auto bodyFlags = MessageFlag::Outgoing | MessageFlag::AdminLogEntry;
-		auto bodyReplyTo = MsgId();
-		auto bodyViaBotId = UserId();
-		auto bodyGroupedId = uint64();
 		auto newLink = newValue.isEmpty()
 			? TextWithEntities()
 			: PrepareText(

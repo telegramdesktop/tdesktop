@@ -91,3 +91,6 @@
 [submodule "Telegram/lib_waylandshells"]
 	path = Telegram/lib_waylandshells
 	url = https://github.com/desktop-app/lib_waylandshells.git
+[submodule "Telegram/ThirdParty/jemalloc"]
+	path = Telegram/ThirdParty/jemalloc
+	url = https://github.com/jemalloc/jemalloc
