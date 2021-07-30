@@ -1,3 +1,7 @@
+2.9.1 (30.07.21)
+
+- Fix requesting screencast rights on macOS.
+
 2.9 (30.07.21)
 
 - Enable auto-delete in your chats to remove messages after 1 month (also 1 day or 1 week).
