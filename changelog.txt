@@ -1,7 +1,10 @@
 2.9 (30.07.21)
 
+- Enable auto-delete in your chats to remove messages after 1 month (also 1 day or 1 week).
+- Quickly find all GIFs from a chat using the new GIF section in Shared Media.
 - Reset your Two-Step Verification password even if you forgot your old password and don't have a recovery email.
 - To do this, you must be logged into your account. The reset takes 7 days and can be cancelled from any of your devices.
+- Enjoy a new app icon and default background.
 
 2.8.13 beta (23.07.21)
 
