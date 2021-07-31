@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_authorizations.h"
 #include "api/api_text_entities.h"
+#include "api/api_user_privacy.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "mtproto/mtp_instance.h"
@@ -1954,13 +1955,10 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			}
 			return true;
 		};
-		if (const auto key = ApiWrap::Privacy::KeyFromMTP(d.vkey().type())) {
-			if (allLoaded()) {
-				session().api().handlePrivacyChange(*key, d.vrules());
-			} else {
-				session().api().reloadPrivacy(*key);
-			}
-		}
+		session().api().userPrivacy().apply(
+			d.vkey().type(),
+			d.vrules(),
+			allLoaded());
 	} break;
 
 	case mtpc_updatePinnedDialogs: {

@@ -124,6 +124,8 @@ PRIVATE
     api/api_toggling_media.h
     api/api_updates.cpp
     api/api_updates.h
+    api/api_user_privacy.cpp
+    api/api_user_privacy.h
     boxes/filters/edit_filter_box.cpp
     boxes/filters/edit_filter_box.h
     boxes/filters/edit_filter_chats_list.cpp

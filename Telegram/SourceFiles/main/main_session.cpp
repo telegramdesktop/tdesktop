@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_updates.h"
 #include "api/api_send_progress.h"
+#include "api/api_user_privacy.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session_settings.h"
@@ -120,11 +121,11 @@ Session::Session(
 		}, _lifetime);
 
 		if (_settings->hadLegacyCallsPeerToPeerNobody()) {
-			api().savePrivacy(
-				MTP_inputPrivacyKeyPhoneP2P(),
-				QVector<MTPInputPrivacyRule>(
-					1,
-					MTP_inputPrivacyValueDisallowAll()));
+			api().userPrivacy().save(
+				Api::UserPrivacy::Key::CallsPeer2Peer,
+				Api::UserPrivacy::Rule{
+					.option = Api::UserPrivacy::Option::Nobody
+				});
 			saveSettingsDelayed();
 		}
 

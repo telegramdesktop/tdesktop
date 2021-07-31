@@ -170,63 +170,6 @@ void EditPrivacyBox::editExceptions(
 		Ui::LayerOption::KeepOther);
 }
 
-QVector<MTPInputPrivacyRule> EditPrivacyBox::collectResult() {
-	const auto collectInputUsers = [](const auto &peers) {
-		auto result = QVector<MTPInputUser>();
-		result.reserve(peers.size());
-		for (const auto peer : peers) {
-			if (const auto user = peer->asUser()) {
-				result.push_back(user->inputUser);
-			}
-		}
-		return result;
-	};
-	const auto collectInputChats = [](const auto &peers) {
-		auto result = QVector<MTPint>(); // #TODO ids
-		result.reserve(peers.size());
-		for (const auto peer : peers) {
-			if (!peer->isUser()) {
-				result.push_back(peerToBareMTPInt(peer->id));
-			}
-		}
-		return result;
-	};
-
-	constexpr auto kMaxRules = 3; // allow users, disallow users, option
-	auto result = QVector<MTPInputPrivacyRule>();
-	result.reserve(kMaxRules);
-	if (showExceptionLink(Exception::Always)) {
-		const auto users = collectInputUsers(_value.always);
-		const auto chats = collectInputChats(_value.always);
-		if (!users.empty()) {
-			result.push_back(MTP_inputPrivacyValueAllowUsers(MTP_vector<MTPInputUser>(users)));
-		}
-		if (!chats.empty()) {
-			result.push_back(MTP_inputPrivacyValueAllowChatParticipants(MTP_vector<MTPint>(chats)));
-		}
-	}
-	if (showExceptionLink(Exception::Never)) {
-		const auto users = collectInputUsers(_value.never);
-		const auto chats = collectInputChats(_value.never);
-		if (!users.empty()) {
-			result.push_back(MTP_inputPrivacyValueDisallowUsers(MTP_vector<MTPInputUser>(users)));
-		}
-		if (!chats.empty()) {
-			result.push_back(MTP_inputPrivacyValueDisallowChatParticipants(MTP_vector<MTPint>(chats)));
-		}
-	}
-	result.push_back([&] {
-		switch (_value.option) {
-		case Option::Everyone: return MTP_inputPrivacyValueAllowAll();
-		case Option::Contacts: return MTP_inputPrivacyValueAllowContacts();
-		case Option::Nobody: return MTP_inputPrivacyValueDisallowAll();
-		}
-		Unexpected("Option value in EditPrivacyBox::collectResult.");
-	}());
-
-	return result;
-}
-
 std::vector<not_null<PeerData*>> &EditPrivacyBox::exceptions(Exception exception) {
 	switch (exception) {
 	case Exception::Always: return _value.always;
@@ -379,10 +322,13 @@ void EditPrivacyBox::setupContent() {
 		const auto someAreDisallowed = (_value.option != Option::Everyone)
 			|| !_value.never.empty();
 		_controller->confirmSave(someAreDisallowed, crl::guard(this, [=] {
+			_value.ignoreAlways = !showExceptionLink(Exception::Always);
+			_value.ignoreNever = !showExceptionLink(Exception::Never);
+
 			_controller->saveAdditional();
-			_window->session().api().savePrivacy(
-				_controller->apiKey(),
-				collectResult());
+			_window->session().api().userPrivacy().save(
+				_controller->key(),
+				_value);
 			closeBox();
 		}));
 	});

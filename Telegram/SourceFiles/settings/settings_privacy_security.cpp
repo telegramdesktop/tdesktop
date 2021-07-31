@@ -57,7 +57,7 @@ namespace {
 
 constexpr auto kUpdateTimeout = 60 * crl::time(1000);
 
-using Privacy = ApiWrap::Privacy;
+using Privacy = Api::UserPrivacy;
 
 QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
 	using Key = Privacy::Key;
@@ -86,10 +86,10 @@ QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
 rpl::producer<QString> PrivacyString(
 		not_null<::Main::Session*> session,
 		Privacy::Key key) {
-	session->api().reloadPrivacy(key);
-	return session->api().privacyValue(
+	session->api().userPrivacy().reload(key);
+	return session->api().userPrivacy().value(
 		key
-	) | rpl::map([=](const Privacy &value) {
+	) | rpl::map([=](const Privacy::Rule &value) {
 		auto add = QStringList();
 		if (const auto never = ExceptionUsersCount(value.never)) {
 			add.push_back("-" + QString::number(never));
@@ -189,7 +189,7 @@ void SetupPrivacy(
 		Key::Invites,
 		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
 
-	session->api().reloadPrivacy(ApiWrap::Privacy::Key::AddedByPhone);
+	session->api().userPrivacy().reload(Api::UserPrivacy::Key::AddedByPhone);
 
 	AddSkip(container, st::settingsPrivacySecurityPadding);
 	AddDividerText(container, tr::lng_settings_group_privacy_about());
@@ -897,11 +897,11 @@ void AddPrivacyButton(
 		PrivacyString(session, key),
 		st::settingsButton
 	)->addClickHandler([=] {
-		*shower = session->api().privacyValue(
+		*shower = session->api().userPrivacy().value(
 			key
 		) | rpl::take(
 			1
-		) | rpl::start_with_next([=](const Privacy &value) {
+		) | rpl::start_with_next([=](const Privacy::Rule &value) {
 			controller->show(
 				Box<EditPrivacyBox>(controller, controllerFactory(), value),
 				Ui::LayerOption::KeepOther);

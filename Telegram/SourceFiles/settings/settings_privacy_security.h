@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "settings/settings_common.h"
-#include "apiwrap.h"
+#include "api/api_user_privacy.h"
 
 class EditPrivacyController;
 
@@ -30,7 +30,7 @@ void AddPrivacyButton(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> label,
-	ApiWrap::Privacy::Key key,
+	Api::UserPrivacy::Key key,
 	Fn<std::unique_ptr<EditPrivacyController>()> controllerFactory);
 
 class PrivacySecurity : public Section {

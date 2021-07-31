@@ -61,6 +61,7 @@ class AttachedStickers;
 class SelfDestruct;
 class SensitiveContent;
 class GlobalPrivacy;
+class UserPrivacy;
 class InviteLinks;
 
 namespace details {
@@ -112,30 +113,6 @@ class ApiWrap final : public MTP::Sender {
 public:
 	using SendAction = Api::SendAction;
 	using MessageToSend = Api::MessageToSend;
-
-	struct Privacy {
-		enum class Key {
-			PhoneNumber,
-			AddedByPhone,
-			LastSeen,
-			Calls,
-			Invites,
-			CallsPeer2Peer,
-			Forwards,
-			ProfilePhoto,
-		};
-		enum class Option {
-			Everyone,
-			Contacts,
-			Nobody,
-		};
-		Option option = Option::Everyone;
-		std::vector<not_null<PeerData*>> always;
-		std::vector<not_null<PeerData*>> never;
-
-		static MTPInputPrivacyKey Input(Key key);
-		static std::optional<Key> KeyFromMTP(mtpTypeId type);
-	};
 
 	struct BlockedPeersSlice {
 		struct Item {
@@ -302,12 +279,6 @@ public:
 	void updateNotifySettingsDelayed(not_null<const PeerData*> peer);
 	void saveDraftToCloudDelayed(not_null<History*> history);
 
-	void savePrivacy(
-		const MTPInputPrivacyKey &key,
-		QVector<MTPInputPrivacyRule> &&rules);
-	void handlePrivacyChange(
-		Privacy::Key key,
-		const MTPVector<MTPPrivacyRule> &rules);
 	static int OnlineTillFromStatus(
 		const MTPUserStatus &status,
 		int currentOnlineTill);
@@ -446,9 +417,6 @@ public:
 
 	void saveSelfBio(const QString &text, FnMut<void()> done);
 
-	void reloadPrivacy(Privacy::Key key);
-	rpl::producer<Privacy> privacyValue(Privacy::Key key);
-
 	void reloadBlockedPeers();
 	rpl::producer<BlockedPeersSlice> blockedPeersSlice();
 
@@ -457,6 +425,7 @@ public:
 	[[nodiscard]] Api::SelfDestruct &selfDestruct();
 	[[nodiscard]] Api::SensitiveContent &sensitiveContent();
 	[[nodiscard]] Api::GlobalPrivacy &globalPrivacy();
+	[[nodiscard]] Api::UserPrivacy &userPrivacy();
 	[[nodiscard]] Api::InviteLinks &inviteLinks();
 
 	void createPoll(
@@ -469,6 +438,8 @@ public:
 		const std::vector<QByteArray> &options);
 	void closePoll(not_null<HistoryItem*> item);
 	void reloadPollResults(not_null<HistoryItem*> item);
+
+	void updatePrivacyLastSeens();
 
 private:
 	struct MessageDataRequest {
@@ -626,12 +597,6 @@ private:
 
 	void photoUploadReady(const FullMsgId &msgId, const MTPInputFile &file);
 
-	Privacy parsePrivacy(const QVector<MTPPrivacyRule> &rules);
-	void pushPrivacy(
-		Privacy::Key key,
-		const QVector<MTPPrivacyRule> &rules);
-	void updatePrivacyLastSeens(const QVector<MTPPrivacyRule> &rules);
-
 	void migrateDone(
 		not_null<PeerData*> peer,
 		not_null<ChannelData*> channel);
@@ -700,8 +665,6 @@ private:
 	base::flat_set<uint64> _featuredSetsRead;
 
 	base::flat_map<not_null<EmojiPtr>, StickersByEmoji> _stickersByEmoji;
-
-	base::flat_map<mtpTypeId, mtpRequestId> _privacySaveRequests;
 
 	mtpRequestId _contactsRequestId = 0;
 	mtpRequestId _contactsStatusesRequestId = 0;
@@ -773,10 +736,6 @@ private:
 	FnMut<void()> _saveBioDone;
 	QString _saveBioText;
 
-	base::flat_map<Privacy::Key, mtpRequestId> _privacyRequestIds;
-	base::flat_map<Privacy::Key, Privacy> _privacyValues;
-	std::map<Privacy::Key, rpl::event_stream<Privacy>> _privacyChanges;
-
 	mtpRequestId _blockedPeersRequestId = 0;
 	std::optional<BlockedPeersSlice> _blockedPeersSlice;
 	rpl::event_stream<BlockedPeersSlice> _blockedPeersChanges;
@@ -786,6 +745,7 @@ private:
 	const std::unique_ptr<Api::SelfDestruct> _selfDestruct;
 	const std::unique_ptr<Api::SensitiveContent> _sensitiveContent;
 	const std::unique_ptr<Api::GlobalPrivacy> _globalPrivacy;
+	const std::unique_ptr<Api::UserPrivacy> _userPrivacy;
 	const std::unique_ptr<Api::InviteLinks> _inviteLinks;
 
 	base::flat_map<FullMsgId, mtpRequestId> _pollVotesRequestIds;

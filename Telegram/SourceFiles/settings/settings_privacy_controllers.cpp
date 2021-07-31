@@ -45,6 +45,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 namespace {
 
+using UserPrivacy = Api::UserPrivacy;
+using PrivacyRule = Api::UserPrivacy::Rule;
+
 constexpr auto kBlockedPerPage = 40;
 
 class BlockPeerBoxController final : public ChatsListBoxController {
@@ -339,12 +342,8 @@ std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 	return row;
 }
 
-ApiWrap::Privacy::Key PhoneNumberPrivacyController::key() {
+UserPrivacy::Key PhoneNumberPrivacyController::key() {
 	return Key::PhoneNumber;
-}
-
-MTPInputPrivacyKey PhoneNumberPrivacyController::apiKey() {
-	return MTP_inputPrivacyKeyPhoneNumber();
 }
 
 rpl::producer<QString> PhoneNumberPrivacyController::title() {
@@ -396,8 +395,8 @@ object_ptr<Ui::RpWidget> PhoneNumberPrivacyController::setupMiddleWidget(
 		not_null<Window::SessionController*> controller,
 		not_null<QWidget*> parent,
 		rpl::producer<Option> optionValue) {
-	const auto key = ApiWrap::Privacy::Key::AddedByPhone;
-	controller->session().api().reloadPrivacy(key);
+	const auto key = UserPrivacy::Key::AddedByPhone;
+	controller->session().api().userPrivacy().reload(key);
 
 	_phoneNumberOption = std::move(optionValue);
 
@@ -413,11 +412,11 @@ object_ptr<Ui::RpWidget> PhoneNumberPrivacyController::setupMiddleWidget(
 	group->setChangedCallback([=](Option value) {
 		_addedByPhone = value;
 	});
-	controller->session().api().privacyValue(
+	controller->session().api().userPrivacy().value(
 		key
 	) | rpl::take(
 		1
-	) | rpl::start_with_next([=](const ApiWrap::Privacy &value) {
+	) | rpl::start_with_next([=](const PrivacyRule &value) {
 		group->setValue(value.option);
 	}, widget->lifetime());
 
@@ -435,15 +434,9 @@ object_ptr<Ui::RpWidget> PhoneNumberPrivacyController::setupMiddleWidget(
 	));
 
 	_saveAdditional = [=] {
-		const auto value = [&] {
-			switch (group->value()) {
-			case Option::Everyone: return MTP_inputPrivacyValueAllowAll();
-			default: return MTP_inputPrivacyValueAllowContacts();
-			}
-		}();
-		controller->session().api().savePrivacy(
-			MTP_inputPrivacyKeyAddedByPhone(),
-			QVector<MTPInputPrivacyRule>(1, value));
+		controller->session().api().userPrivacy().save(
+			Api::UserPrivacy::Key::AddedByPhone,
+			Api::UserPrivacy::Rule{ .option = group->value() });
 	};
 
 	return widget;
@@ -460,12 +453,8 @@ LastSeenPrivacyController::LastSeenPrivacyController(
 : _session(session) {
 }
 
-ApiWrap::Privacy::Key LastSeenPrivacyController::key() {
+UserPrivacy::Key LastSeenPrivacyController::key() {
 	return Key::LastSeen;
-}
-
-MTPInputPrivacyKey LastSeenPrivacyController::apiKey() {
-	return MTP_inputPrivacyKeyStatusTimestamp();
 }
 
 rpl::producer<QString> LastSeenPrivacyController::title() {
@@ -528,12 +517,8 @@ void LastSeenPrivacyController::confirmSave(
 	}
 }
 
-ApiWrap::Privacy::Key GroupsInvitePrivacyController::key() {
+UserPrivacy::Key GroupsInvitePrivacyController::key() {
 	return Key::Invites;
-}
-
-MTPInputPrivacyKey GroupsInvitePrivacyController::apiKey() {
-	return MTP_inputPrivacyKeyChatInvite();
 }
 
 rpl::producer<QString> GroupsInvitePrivacyController::title() {
@@ -571,12 +556,8 @@ auto GroupsInvitePrivacyController::exceptionsDescription()
 	return tr::lng_edit_privacy_groups_exceptions();
 }
 
-ApiWrap::Privacy::Key CallsPrivacyController::key() {
+UserPrivacy::Key CallsPrivacyController::key() {
 	return Key::Calls;
-}
-
-MTPInputPrivacyKey CallsPrivacyController::apiKey() {
-	return MTP_inputPrivacyKeyPhoneCall();
 }
 
 rpl::producer<QString> CallsPrivacyController::title() {
@@ -622,19 +603,15 @@ object_ptr<Ui::RpWidget> CallsPrivacyController::setupBelowWidget(
 		controller,
 		content,
 		tr::lng_settings_calls_peer_to_peer_button(),
-		ApiWrap::Privacy::Key::CallsPeer2Peer,
+		UserPrivacy::Key::CallsPeer2Peer,
 		[] { return std::make_unique<CallsPeer2PeerPrivacyController>(); });
 	AddSkip(content);
 
 	return result;
 }
 
-ApiWrap::Privacy::Key CallsPeer2PeerPrivacyController::key() {
+UserPrivacy::Key CallsPeer2PeerPrivacyController::key() {
 	return Key::CallsPeer2Peer;
-}
-
-MTPInputPrivacyKey CallsPeer2PeerPrivacyController::apiKey() {
-	return MTP_inputPrivacyKeyPhoneP2P();
 }
 
 rpl::producer<QString> CallsPeer2PeerPrivacyController::title() {
@@ -687,12 +664,8 @@ ForwardsPrivacyController::ForwardsPrivacyController(
 , _controller(controller) {
 }
 
-ApiWrap::Privacy::Key ForwardsPrivacyController::key() {
+UserPrivacy::Key ForwardsPrivacyController::key() {
 	return Key::Forwards;
-}
-
-MTPInputPrivacyKey ForwardsPrivacyController::apiKey() {
-	return MTP_inputPrivacyKeyForwards();
 }
 
 rpl::producer<QString> ForwardsPrivacyController::title() {
@@ -882,12 +855,8 @@ HistoryView::Context ForwardsPrivacyController::elementContext() {
 	return HistoryView::Context::ContactPreview;
 }
 
-ApiWrap::Privacy::Key ProfilePhotoPrivacyController::key() {
+UserPrivacy::Key ProfilePhotoPrivacyController::key() {
 	return Key::ProfilePhoto;
-}
-
-MTPInputPrivacyKey ProfilePhotoPrivacyController::apiKey() {
-	return MTP_inputPrivacyKeyProfilePhoto();
 }
 
 rpl::producer<QString> ProfilePhotoPrivacyController::title() {

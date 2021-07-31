@@ -54,7 +54,6 @@ public:
 	using Exception = EditPrivacyBox::Exception;
 
 	Key key() override;
-	MTPInputPrivacyKey apiKey() override;
 
 	rpl::producer<QString> title() override;
 	rpl::producer<QString> optionsTitleKey() override;
@@ -86,7 +85,6 @@ public:
 	explicit LastSeenPrivacyController(not_null<::Main::Session*> session);
 
 	Key key() override;
-	MTPInputPrivacyKey apiKey() override;
 
 	rpl::producer<QString> title() override;
 	rpl::producer<QString> optionsTitleKey() override;
@@ -111,7 +109,6 @@ public:
 	using Exception = EditPrivacyBox::Exception;
 
 	Key key() override;
-	MTPInputPrivacyKey apiKey() override;
 
 	rpl::producer<QString> title() override;
 	bool hasOption(Option option) override;
@@ -129,7 +126,6 @@ public:
 	using Exception = EditPrivacyBox::Exception;
 
 	Key key() override;
-	MTPInputPrivacyKey apiKey() override;
 
 	rpl::producer<QString> title() override;
 	rpl::producer<QString> optionsTitleKey() override;
@@ -150,7 +146,6 @@ public:
 	using Exception = EditPrivacyBox::Exception;
 
 	Key key() override;
-	MTPInputPrivacyKey apiKey() override;
 
 	rpl::producer<QString> title() override;
 	rpl::producer<QString> optionsTitleKey() override;
@@ -174,7 +169,6 @@ public:
 		not_null<Window::SessionController*> controller);
 
 	Key key() override;
-	MTPInputPrivacyKey apiKey() override;
 
 	rpl::producer<QString> title() override;
 	rpl::producer<QString> optionsTitleKey() override;
@@ -208,7 +202,6 @@ public:
 	using Exception = EditPrivacyBox::Exception;
 
 	Key key() override;
-	MTPInputPrivacyKey apiKey() override;
 
 	rpl::producer<QString> title() override;
 	bool hasOption(Option option) override;

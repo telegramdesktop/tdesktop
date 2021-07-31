@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "mtproto/sender.h"
-#include "apiwrap.h"
+#include "api/api_user_privacy.h"
 
 namespace Ui {
 class VerticalLayout;
@@ -31,15 +31,14 @@ class EditPrivacyBox;
 
 class EditPrivacyController {
 public:
-	using Key = ApiWrap::Privacy::Key;
-	using Option = ApiWrap::Privacy::Option;
+	using Key = Api::UserPrivacy::Key;
+	using Option = Api::UserPrivacy::Option;
 	enum class Exception {
 		Always,
 		Never,
 	};
 
 	[[nodiscard]] virtual Key key() = 0;
-	[[nodiscard]] virtual MTPInputPrivacyKey apiKey() = 0;
 
 	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
 	[[nodiscard]] virtual bool hasOption(Option option) {
@@ -102,8 +101,8 @@ private:
 
 class EditPrivacyBox : public Ui::BoxContent {
 public:
-	using Value = ApiWrap::Privacy;
-	using Option = Value::Option;
+	using Value = Api::UserPrivacy::Rule;
+	using Option = Api::UserPrivacy::Option;
 	using Exception = EditPrivacyController::Exception;
 
 	EditPrivacyBox(
@@ -124,7 +123,6 @@ protected:
 private:
 	bool showExceptionLink(Exception exception) const;
 	void setupContent();
-	QVector<MTPInputPrivacyRule> collectResult();
 
 	Ui::FlatLabel *addLabel(
 		not_null<Ui::VerticalLayout*> container,
