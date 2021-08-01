@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "api/api_blocked_peers.h"
 #include "api/api_chat_filters.h"
 #include "api/api_updates.h"
 #include "mtproto/mtproto_config.h"
@@ -428,7 +429,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 		if (user->isBlocked()) {
 			PeerMenuUnblockUserWithBotRestart(user);
 		} else if (user->isBot()) {
-			user->session().api().blockPeer(user);
+			user->session().api().blockedPeers().block(user);
 		} else {
 			window->show(Box(
 				PeerMenuBlockUserBox,
@@ -914,7 +915,7 @@ void PeerMenuBlockUserBox(
 				peer->session().updates().applyUpdates(result);
 			}).send();
 		} else {
-			peer->session().api().blockPeer(peer);
+			peer->session().api().blockedPeers().block(peer);
 			if (reportChecked) {
 				peer->session().api().request(MTPmessages_ReportSpam(
 					peer->input
@@ -938,7 +939,7 @@ void PeerMenuBlockUserBox(
 }
 
 void PeerMenuUnblockUserWithBotRestart(not_null<UserData*> user) {
-	user->session().api().unblockPeer(user, [=] {
+	user->session().api().blockedPeers().unblock(user, [=] {
 		if (user->isBot() && !user->isSupport()) {
 			user->session().api().sendBotStart(user);
 		}

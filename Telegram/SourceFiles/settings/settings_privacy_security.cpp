@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_privacy_security.h"
 
 #include "api/api_authorizations.h"
+#include "api/api_blocked_peers.h"
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
 #include "api/api_global_privacy.h"
@@ -107,8 +108,8 @@ rpl::producer<QString> PrivacyString(
 }
 
 rpl::producer<int> BlockedPeersCount(not_null<::Main::Session*> session) {
-	return session->api().blockedPeersSlice(
-	) | rpl::map([=](const ApiWrap::BlockedPeersSlice &data) {
+	return session->api().blockedPeers().slice(
+	) | rpl::map([](const Api::BlockedPeers::Slice &data) {
 		return data.total;
 	});
 }
@@ -148,7 +149,7 @@ void SetupPrivacy(
 	std::move(
 		updateTrigger
 	) | rpl::start_with_next([=] {
-		session->api().reloadBlockedPeers();
+		session->api().blockedPeers().reload();
 	}, blockedPeers->lifetime());
 
 	using Key = Privacy::Key;

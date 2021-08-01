@@ -91,6 +91,8 @@ PRIVATE
     api/api_attached_stickers.h
     api/api_authorizations.cpp
     api/api_authorizations.h
+    api/api_blocked_peers.cpp
+    api/api_blocked_peers.h
     api/api_bot.cpp
     api/api_bot.h
     api/api_chat_filters.cpp

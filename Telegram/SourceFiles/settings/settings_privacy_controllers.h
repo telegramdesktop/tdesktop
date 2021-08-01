@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "boxes/edit_privacy_box.h"
 #include "history/view/history_view_element.h"
-#include "mtproto/sender.h"
+#include "api/api_blocked_peers.h"
 
 namespace Window {
 class SessionController;
@@ -32,7 +32,7 @@ public:
 	static void BlockNewPeer(not_null<Window::SessionController*> window);
 
 private:
-	void receivedPeers(const QVector<MTPPeerBlocked> &result);
+	void applySlice(const Api::BlockedPeers::Slice &slice);
 	void handleBlockedEvent(not_null<PeerData*> peer);
 
 	bool appendRow(not_null<PeerData*> peer);
@@ -40,11 +40,11 @@ private:
 	std::unique_ptr<PeerListRow> createRow(not_null<PeerData*> peer) const;
 
 	const not_null<Window::SessionController*> _window;
-	MTP::Sender _api;
 
 	int _offset = 0;
-	mtpRequestId _loadRequestId = 0;
 	bool _allLoaded = false;
+
+	base::has_weak_ptr _guard;
 
 };
 

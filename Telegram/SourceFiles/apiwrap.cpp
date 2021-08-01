@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_authorizations.h"
 #include "api/api_attached_stickers.h"
+#include "api/api_blocked_peers.h"
 #include "api/api_hash.h"
 #include "api/api_invite_links.h"
 #include "api/api_media.h"
@@ -109,7 +110,6 @@ constexpr auto kStickersByEmojiInvalidateTimeout = crl::time(60 * 60 * 1000);
 constexpr auto kNotifySettingSaveTimeout = crl::time(1000);
 constexpr auto kDialogsFirstLoad = 20;
 constexpr auto kDialogsPerPage = 500;
-constexpr auto kBlockedFirstSlice = 16;
 
 using PhotoFileLocationId = Data::PhotoFileLocationId;
 using DocumentFileLocationId = Data::DocumentFileLocationId;
@@ -120,22 +120,6 @@ using UpdatedFileReferences = Data::UpdatedFileReferences;
 }
 
 } // namespace
-
-bool ApiWrap::BlockedPeersSlice::Item::operator==(const Item &other) const {
-	return (peer == other.peer) && (date == other.date);
-}
-
-bool ApiWrap::BlockedPeersSlice::Item::operator!=(const Item &other) const {
-	return !(*this == other);
-}
-
-bool ApiWrap::BlockedPeersSlice::operator==(const BlockedPeersSlice &other) const {
-	return (total == other.total) && (list == other.list);
-}
-
-bool ApiWrap::BlockedPeersSlice::operator!=(const BlockedPeersSlice &other) const {
-	return !(*this == other);
-}
 
 ApiWrap::ApiWrap(not_null<Main::Session*> session)
 : MTP::Sender(&session->account().mtp())
@@ -150,6 +134,7 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _updateNotifySettingsTimer([=] { sendNotifySettingsUpdates(); })
 , _authorizations(std::make_unique<Api::Authorizations>(this))
 , _attachedStickers(std::make_unique<Api::AttachedStickers>(this))
+, _blockedPeers(std::make_unique<Api::BlockedPeers>(this))
 , _selfDestruct(std::make_unique<Api::SelfDestruct>(this))
 , _sensitiveContent(std::make_unique<Api::SensitiveContent>(this))
 , _globalPrivacy(std::make_unique<Api::GlobalPrivacy>(this))
@@ -2132,68 +2117,6 @@ void ApiWrap::leaveChannel(not_null<ChannelData*> channel) {
 
 		_channelAmInRequests.insert(channel, requestId);
 	}
-}
-
-void ApiWrap::blockPeer(not_null<PeerData*> peer) {
-	if (peer->isBlocked()) {
-		session().changes().peerUpdated(
-			peer,
-			Data::PeerUpdate::Flag::IsBlocked);
-	} else if (_blockRequests.find(peer) == end(_blockRequests)) {
-		const auto requestId = request(MTPcontacts_Block(
-			peer->input
-		)).done([=](const MTPBool &result) {
-			_blockRequests.erase(peer);
-			peer->setIsBlocked(true);
-			if (_blockedPeersSlice) {
-				_blockedPeersSlice->list.insert(
-					_blockedPeersSlice->list.begin(),
-					{ peer, base::unixtime::now() });
-				++_blockedPeersSlice->total;
-				_blockedPeersChanges.fire_copy(*_blockedPeersSlice);
-			}
-		}).fail([=](const MTP::Error &error) {
-			_blockRequests.erase(peer);
-		}).send();
-
-		_blockRequests.emplace(peer, requestId);
-	}
-}
-
-void ApiWrap::unblockPeer(not_null<PeerData*> peer, Fn<void()> onDone) {
-	if (!peer->isBlocked()) {
-		session().changes().peerUpdated(
-			peer,
-			Data::PeerUpdate::Flag::IsBlocked);
-		return;
-	} else if (_blockRequests.find(peer) != end(_blockRequests)) {
-		return;
-	}
-	const auto requestId = request(MTPcontacts_Unblock(
-		peer->input
-	)).done([=](const MTPBool &result) {
-		_blockRequests.erase(peer);
-		peer->setIsBlocked(false);
-		if (_blockedPeersSlice) {
-			auto &list = _blockedPeersSlice->list;
-			for (auto i = list.begin(); i != list.end(); ++i) {
-				if (i->peer == peer) {
-					list.erase(i);
-					break;
-				}
-			}
-			if (_blockedPeersSlice->total > list.size()) {
-				--_blockedPeersSlice->total;
-			}
-			_blockedPeersChanges.fire_copy(*_blockedPeersSlice);
-		}
-		if (onDone) {
-			onDone();
-		}
-	}).fail([=](const MTP::Error &error) {
-		_blockRequests.erase(peer);
-	}).send();
-	_blockRequests.emplace(peer, requestId);
 }
 
 void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
@@ -4799,63 +4722,16 @@ void ApiWrap::saveSelfBio(const QString &text, FnMut<void()> done) {
 	}).send();
 }
 
-void ApiWrap::reloadBlockedPeers() {
-	if (_blockedPeersRequestId) {
-		return;
-	}
-	_blockedPeersRequestId = request(MTPcontacts_GetBlocked(
-		MTP_int(0),
-		MTP_int(kBlockedFirstSlice)
-	)).done([=](const MTPcontacts_Blocked &result) {
-		_blockedPeersRequestId = 0;
-		const auto push = [&](
-				int count,
-				const QVector<MTPPeerBlocked> &list) {
-			auto slice = BlockedPeersSlice();
-			slice.total = std::max(count, list.size());
-			slice.list.reserve(list.size());
-			for (const auto &contact : list) {
-				contact.match([&](const MTPDpeerBlocked &data) {
-					const auto peer = _session->data().peerLoaded(
-						peerFromMTP(data.vpeer_id()));
-					if (peer) {
-						peer->setIsBlocked(true);
-						slice.list.push_back({ peer, data.vdate().v });
-					}
-				});
-			}
-			if (!_blockedPeersSlice || *_blockedPeersSlice != slice) {
-				_blockedPeersSlice = slice;
-				_blockedPeersChanges.fire(std::move(slice));
-			}
-		};
-		result.match([&](const MTPDcontacts_blockedSlice &data) {
-			_session->data().processUsers(data.vusers());
-			push(data.vcount().v, data.vblocked().v);
-		}, [&](const MTPDcontacts_blocked &data) {
-			_session->data().processUsers(data.vusers());
-			push(0, data.vblocked().v);
-		});
-	}).fail([=](const MTP::Error &error) {
-		_blockedPeersRequestId = 0;
-	}).send();
-}
-
-auto ApiWrap::blockedPeersSlice() -> rpl::producer<BlockedPeersSlice> {
-	if (!_blockedPeersSlice) {
-		reloadBlockedPeers();
-	}
-	return _blockedPeersSlice
-		? _blockedPeersChanges.events_starting_with_copy(*_blockedPeersSlice)
-		: (_blockedPeersChanges.events() | rpl::type_erased());
-}
-
 Api::Authorizations &ApiWrap::authorizations() {
 	return *_authorizations;
 }
 
 Api::AttachedStickers &ApiWrap::attachedStickers() {
 	return *_attachedStickers;
+}
+
+Api::BlockedPeers &ApiWrap::blockedPeers() {
+	return *_blockedPeers;
 }
 
 Api::SelfDestruct &ApiWrap::selfDestruct() {

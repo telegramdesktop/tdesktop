@@ -58,6 +58,7 @@ namespace Api {
 class Updates;
 class Authorizations;
 class AttachedStickers;
+class BlockedPeers;
 class SelfDestruct;
 class SensitiveContent;
 class GlobalPrivacy;
@@ -113,22 +114,6 @@ class ApiWrap final : public MTP::Sender {
 public:
 	using SendAction = Api::SendAction;
 	using MessageToSend = Api::MessageToSend;
-
-	struct BlockedPeersSlice {
-		struct Item {
-			PeerData *peer = nullptr;
-			TimeId date = 0;
-
-			bool operator==(const Item &other) const;
-			bool operator!=(const Item &other) const;
-		};
-
-		QVector<Item> list;
-		int total = 0;
-
-		bool operator==(const BlockedPeersSlice &other) const;
-		bool operator!=(const BlockedPeersSlice &other) const;
-	};
 
 	explicit ApiWrap(not_null<Main::Session*> session);
 	~ApiWrap();
@@ -272,9 +257,6 @@ public:
 	void joinChannel(not_null<ChannelData*> channel);
 	void leaveChannel(not_null<ChannelData*> channel);
 
-	void blockPeer(not_null<PeerData*> peer);
-	void unblockPeer(not_null<PeerData*> peer, Fn<void()> onDone = nullptr);
-
 	void requestNotifySettings(const MTPInputNotifyPeer &peer);
 	void updateNotifySettingsDelayed(not_null<const PeerData*> peer);
 	void saveDraftToCloudDelayed(not_null<History*> history);
@@ -417,11 +399,9 @@ public:
 
 	void saveSelfBio(const QString &text, FnMut<void()> done);
 
-	void reloadBlockedPeers();
-	rpl::producer<BlockedPeersSlice> blockedPeersSlice();
-
 	[[nodiscard]] Api::Authorizations &authorizations();
 	[[nodiscard]] Api::AttachedStickers &attachedStickers();
+	[[nodiscard]] Api::BlockedPeers &blockedPeers();
 	[[nodiscard]] Api::SelfDestruct &selfDestruct();
 	[[nodiscard]] Api::SensitiveContent &sensitiveContent();
 	[[nodiscard]] Api::GlobalPrivacy &globalPrivacy();
@@ -641,7 +621,6 @@ private:
 	QMap<uint64, QPair<uint64, mtpRequestId> > _stickerSetRequests;
 
 	QMap<ChannelData*, mtpRequestId> _channelAmInRequests;
-	base::flat_map<not_null<PeerData*>, mtpRequestId> _blockRequests;
 	base::flat_map<PeerId, mtpRequestId> _notifySettingRequests;
 	base::flat_map<not_null<History*>, mtpRequestId> _draftsSaveRequestIds;
 	base::Timer _draftsSaveTimer;
@@ -736,12 +715,9 @@ private:
 	FnMut<void()> _saveBioDone;
 	QString _saveBioText;
 
-	mtpRequestId _blockedPeersRequestId = 0;
-	std::optional<BlockedPeersSlice> _blockedPeersSlice;
-	rpl::event_stream<BlockedPeersSlice> _blockedPeersChanges;
-
 	const std::unique_ptr<Api::Authorizations> _authorizations;
 	const std::unique_ptr<Api::AttachedStickers> _attachedStickers;
+	const std::unique_ptr<Api::BlockedPeers> _blockedPeers;
 	const std::unique_ptr<Api::SelfDestruct> _selfDestruct;
 	const std::unique_ptr<Api::SensitiveContent> _sensitiveContent;
 	const std::unique_ptr<Api::GlobalPrivacy> _globalPrivacy;

@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "apiwrap.h"
+#include "api/api_blocked_peers.h"
 #include "facades.h"
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
@@ -647,7 +648,7 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 			}
 		} else if (user->isBot()) {
-			user->session().api().blockPeer(user);
+			user->session().api().blockedPeers().block(user);
 		} else {
 			window->show(Box(
 				Window::PeerMenuBlockUserBox,
