@@ -1059,6 +1059,7 @@ MessageFlags FlagsFromMTP(MTPDmessage::Flags flags) {
 		| ((flags & MTP::f_via_bot_id) ? Flag::HasViaBot : Flag())
 		| ((flags & MTP::f_reply_to) ? Flag::HasReplyInfo : Flag())
 		| ((flags & MTP::f_reply_markup) ? Flag::HasReplyMarkup : Flag())
+		| ((flags & MTP::f_from_scheduled) ? Flag::IsOrWasScheduled : Flag())
 		| ((flags & MTP::f_views) ? Flag::HasViews : Flag());
 }
 
