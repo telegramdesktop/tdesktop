@@ -1086,7 +1086,9 @@ void ComposeControls::initKeyHandler() {
 		auto keyEvent = static_cast<QKeyEvent*>(e.get());
 		const auto key = keyEvent->key();
 		const auto isCtrl = keyEvent->modifiers() == Qt::ControlModifier;
-		const auto hasModifiers = keyEvent->modifiers() != Qt::NoModifier;
+		const auto hasModifiers = (Qt::NoModifier !=
+			(keyEvent->modifiers()
+				& ~(Qt::KeypadModifier | Qt::GroupSwitchModifier)));
 		if (key == Qt::Key_O && isCtrl) {
 			_attachRequests.fire({});
 			return;
