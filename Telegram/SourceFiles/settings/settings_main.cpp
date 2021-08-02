@@ -31,8 +31,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "apiwrap.h"
-#include "api/api_sensitive_content.h"
+#include "api/api_cloud_password.h"
 #include "api/api_global_privacy.h"
+#include "api/api_sensitive_content.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "core/click_handler_types.h"
@@ -378,7 +379,7 @@ void Main::setupContent(not_null<Window::SessionController*> controller) {
 	Ui::ResizeFitChild(this, content);
 
 	// If we load this in advance it won't jump when we open its' section.
-	controller->session().api().reloadPasswordState();
+	controller->session().api().cloudPassword().reload();
 	controller->session().api().reloadContactSignupSilent();
 	controller->session().api().sensitiveContent().reload();
 	controller->session().api().globalPrivacy().reload();

@@ -45,10 +45,6 @@ namespace Dialogs {
 class Key;
 } // namespace Dialogs
 
-namespace Core {
-struct CloudPasswordState;
-} // namespace Core
-
 namespace Ui {
 struct PreparedList;
 } // namespace Ui
@@ -59,6 +55,7 @@ class Updates;
 class Authorizations;
 class AttachedStickers;
 class BlockedPeers;
+class CloudPassword;
 class SelfDestruct;
 class SensitiveContent;
 class GlobalPrivacy;
@@ -386,12 +383,6 @@ public:
 	void uploadPeerPhoto(not_null<PeerData*> peer, QImage &&image);
 	void clearPeerPhoto(not_null<PhotoData*> photo);
 
-	void reloadPasswordState();
-	void applyPendingReset(const MTPaccount_ResetPasswordResult &data);
-	void clearUnconfirmedPassword();
-	rpl::producer<Core::CloudPasswordState> passwordState() const;
-	std::optional<Core::CloudPasswordState> passwordStateCurrent() const;
-
 	void reloadContactSignupSilent();
 	rpl::producer<bool> contactSignupSilent() const;
 	std::optional<bool> contactSignupSilentCurrent() const;
@@ -402,6 +393,7 @@ public:
 	[[nodiscard]] Api::Authorizations &authorizations();
 	[[nodiscard]] Api::AttachedStickers &attachedStickers();
 	[[nodiscard]] Api::BlockedPeers &blockedPeers();
+	[[nodiscard]] Api::CloudPassword &cloudPassword();
 	[[nodiscard]] Api::SelfDestruct &selfDestruct();
 	[[nodiscard]] Api::SensitiveContent &sensitiveContent();
 	[[nodiscard]] Api::GlobalPrivacy &globalPrivacy();
@@ -707,10 +699,6 @@ private:
 
 	base::flat_map<FullMsgId, not_null<PeerData*>> _peerPhotoUploads;
 
-	mtpRequestId _passwordRequestId = 0;
-	std::unique_ptr<Core::CloudPasswordState> _passwordState;
-	rpl::event_stream<Core::CloudPasswordState> _passwordStateChanges;
-
 	mtpRequestId _saveBioRequestId = 0;
 	FnMut<void()> _saveBioDone;
 	QString _saveBioText;
@@ -718,6 +706,7 @@ private:
 	const std::unique_ptr<Api::Authorizations> _authorizations;
 	const std::unique_ptr<Api::AttachedStickers> _attachedStickers;
 	const std::unique_ptr<Api::BlockedPeers> _blockedPeers;
+	const std::unique_ptr<Api::CloudPassword> _cloudPassword;
 	const std::unique_ptr<Api::SelfDestruct> _selfDestruct;
 	const std::unique_ptr<Api::SensitiveContent> _sensitiveContent;
 	const std::unique_ptr<Api::GlobalPrivacy> _globalPrivacy;

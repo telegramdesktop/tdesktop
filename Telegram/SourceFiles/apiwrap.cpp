@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_authorizations.h"
 #include "api/api_attached_stickers.h"
 #include "api/api_blocked_peers.h"
+#include "api/api_cloud_password.h"
 #include "api/api_hash.h"
 #include "api/api_invite_links.h"
 #include "api/api_media.h"
@@ -44,7 +45,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "core/core_cloud_password.h"
 #include "core/application.h"
-#include "base/openssl_help.h"
 #include "base/unixtime.h"
 #include "base/qt_adapters.h"
 #include "base/call_delayed.h"
@@ -135,6 +135,7 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _authorizations(std::make_unique<Api::Authorizations>(this))
 , _attachedStickers(std::make_unique<Api::AttachedStickers>(this))
 , _blockedPeers(std::make_unique<Api::BlockedPeers>(this))
+, _cloudPassword(std::make_unique<Api::CloudPassword>(this))
 , _selfDestruct(std::make_unique<Api::SelfDestruct>(this))
 , _sensitiveContent(std::make_unique<Api::SensitiveContent>(this))
 , _globalPrivacy(std::make_unique<Api::GlobalPrivacy>(this))
@@ -4586,69 +4587,6 @@ void ApiWrap::clearPeerPhoto(not_null<PhotoData*> photo) {
 	}
 }
 
-void ApiWrap::reloadPasswordState() {
-	if (_passwordRequestId) {
-		return;
-	}
-	_passwordRequestId = request(MTPaccount_GetPassword(
-	)).done([=](const MTPaccount_Password &result) {
-		_passwordRequestId = 0;
-		result.match([&](const MTPDaccount_password &data) {
-			openssl::AddRandomSeed(bytes::make_span(data.vsecure_random().v));
-			if (_passwordState) {
-				*_passwordState = Core::ParseCloudPasswordState(data);
-			} else {
-				_passwordState = std::make_unique<Core::CloudPasswordState>(
-					Core::ParseCloudPasswordState(data));
-			}
-			_passwordStateChanges.fire_copy(*_passwordState);
-		});
-	}).fail([=](const MTP::Error &error) {
-		_passwordRequestId = 0;
-	}).send();
-}
-
-void ApiWrap::applyPendingReset(const MTPaccount_ResetPasswordResult &data) {
-	if (!_passwordState) {
-		reloadPasswordState();
-		return;
-	}
-	data.match([&](const MTPDaccount_resetPasswordOk &data) {
-		reloadPasswordState();
-	}, [&](const MTPDaccount_resetPasswordRequestedWait &data) {
-		const auto until = data.vuntil_date().v;
-		if (_passwordState->pendingResetDate != until) {
-			_passwordState->pendingResetDate = until;
-			_passwordStateChanges.fire_copy(*_passwordState);
-		}
-	}, [&](const MTPDaccount_resetPasswordFailedWait &data) {
-	});
-}
-
-void ApiWrap::clearUnconfirmedPassword() {
-	_passwordRequestId = request(MTPaccount_CancelPasswordEmail(
-	)).done([=](const MTPBool &result) {
-		_passwordRequestId = 0;
-		reloadPasswordState();
-	}).fail([=](const MTP::Error &error) {
-		_passwordRequestId = 0;
-		reloadPasswordState();
-	}).send();
-}
-
-rpl::producer<Core::CloudPasswordState> ApiWrap::passwordState() const {
-	return _passwordState
-		? _passwordStateChanges.events_starting_with_copy(*_passwordState)
-		: (_passwordStateChanges.events() | rpl::type_erased());
-}
-
-auto ApiWrap::passwordStateCurrent() const
--> std::optional<Core::CloudPasswordState> {
-	return _passwordState
-		? base::make_optional(*_passwordState)
-		: std::nullopt;
-}
-
 void ApiWrap::reloadContactSignupSilent() {
 	if (_contactSignupSilentRequestId) {
 		return;
@@ -4732,6 +4670,10 @@ Api::AttachedStickers &ApiWrap::attachedStickers() {
 
 Api::BlockedPeers &ApiWrap::blockedPeers() {
 	return *_blockedPeers;
+}
+
+Api::CloudPassword &ApiWrap::cloudPassword() {
+	return *_cloudPassword;
 }
 
 Api::SelfDestruct &ApiWrap::selfDestruct() {

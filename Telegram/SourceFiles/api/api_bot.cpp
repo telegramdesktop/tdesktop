@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_bot.h"
 
 #include "apiwrap.h"
+#include "api/api_cloud_password.h"
 #include "core/core_cloud_password.h"
 #include "api/api_send_progress.h"
 #include "boxes/confirm_box.h"
@@ -168,7 +169,7 @@ void SendBotCallbackDataWithPassword(
 	if (!button || button->requestId) {
 		return;
 	}
-	api->reloadPasswordState();
+	api->cloudPassword().reload();
 	SendBotCallbackData(item, row, column, MTP_inputCheckPasswordEmpty(), [=](const MTP::Error &error) {
 		auto box = PrePasswordErrorBox(
 			error,
@@ -181,7 +182,7 @@ void SendBotCallbackDataWithPassword(
 		} else {
 			auto lifetime = std::make_shared<rpl::lifetime>();
 			button->requestId = -1;
-			api->passwordState(
+			api->cloudPassword().state(
 			) | rpl::take(
 				1
 			) | rpl::start_with_next([=](const Core::CloudPasswordState &state) mutable {

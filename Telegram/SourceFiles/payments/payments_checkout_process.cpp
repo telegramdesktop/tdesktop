@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_cloud_password.h" // Core::CloudPasswordState
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
+#include "api/api_cloud_password.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -161,7 +162,7 @@ CheckoutProcess::CheckoutProcess(
 	_panel->toggleProgress(true);
 
 	if (mode == Mode::Payment) {
-		_session->api().passwordState(
+		_session->api().cloudPassword().state(
 		) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
 			_form->setHasPassword(!!state.request);
 		}, _lifetime);
@@ -192,7 +193,7 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 			showForm();
 		}
 		if (_form->paymentMethod().savedCredentials) {
-			_session->api().reloadPasswordState();
+			_session->api().cloudPassword().reload();
 		}
 	}, [&](const ThumbnailUpdated &data) {
 		_panel->updateFormThumbnail(data.thumbnail);
@@ -585,7 +586,7 @@ void CheckoutProcess::editPaymentMethod() {
 }
 
 void CheckoutProcess::requestSetPassword() {
-	_session->api().reloadPasswordState();
+	_session->api().cloudPassword().reload();
 	_panel->askSetPassword();
 }
 
@@ -622,12 +623,12 @@ void CheckoutProcess::panelSetPassword() {
 			box->newPasswordSet() | rpl::to_empty,
 			box->passwordReloadNeeded()
 		) | rpl::start_with_next([=] {
-			_session->api().reloadPasswordState();
+			_session->api().cloudPassword().reload();
 		}, box->lifetime());
 
 		box->clearUnconfirmedPassword(
 		) | rpl::start_with_next([=] {
-			_session->api().clearUnconfirmedPassword();
+			_session->api().cloudPassword().clearUnconfirmedPassword();
 		}, box->lifetime());
 
 		_panel->showBox(std::move(owned));
@@ -645,7 +646,7 @@ void CheckoutProcess::getPasswordState(
 	if (_gettingPasswordState) {
 		return;
 	}
-	_session->api().passwordState(
+	_session->api().cloudPassword().state(
 	) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
 		_gettingPasswordState.destroy();
 		callback(state);

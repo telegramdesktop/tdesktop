@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/qt_adapters.h"
 #include "apiwrap.h"
+#include "api/api_cloud_password.h"
 #include "main/main_session.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -444,7 +445,7 @@ void EditAdminBox::transferOwnership() {
 		? peer()->asChannel()->inputChannel
 		: MTP_inputChannelEmpty();
 	const auto api = &peer()->session().api();
-	api->reloadPasswordState();
+	api->cloudPassword().reload();
 	_checkTransferRequestId = api->request(MTPchannels_EditCreator(
 		channel,
 		MTP_inputUserEmpty(),
@@ -495,7 +496,7 @@ void EditAdminBox::transferOwnershipChecked() {
 }
 
 void EditAdminBox::requestTransferPassword(not_null<ChannelData*> channel) {
-	peer()->session().api().passwordState(
+	peer()->session().api().cloudPassword().state(
 	) | rpl::take(
 		1
 	) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {

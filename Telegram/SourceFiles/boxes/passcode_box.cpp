@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
+#include "api/api_cloud_password.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
 #include "core/application.h"
@@ -43,7 +44,7 @@ enum class PasswordErrorType {
 void SetCloudPassword(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
-	session->api().passwordState(
+	session->api().cloudPassword().state(
 	) | rpl::start_with_next([=] {
 		using namespace Settings;
 		const auto weak = Ui::MakeWeak(box);
@@ -103,7 +104,7 @@ void StartPendingReset(
 	const auto weak = Ui::MakeWeak(context.get());
 	session->api().request(MTPaccount_ResetPassword(
 	)).done([=](const MTPaccount_ResetPasswordResult &result) {
-		session->api().applyPendingReset(result);
+		session->api().cloudPassword().applyPendingReset(result);
 		result.match([&](const MTPDaccount_resetPasswordOk &data) {
 		}, [&](const MTPDaccount_resetPasswordRequestedWait &data) {
 		}, [&](const MTPDaccount_resetPasswordFailedWait &data) {

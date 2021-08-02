@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_authorizations.h"
 #include "api/api_blocked_peers.h"
+#include "api/api_cloud_password.h"
 #include "api/api_self_destruct.h"
 #include "api/api_sensitive_content.h"
 #include "api/api_global_privacy.h"
@@ -332,13 +333,13 @@ void SetupCloudPassword(
 	const auto session = &controller->session();
 	auto has = rpl::single(
 		false
-	) | rpl::then(controller->session().api().passwordState(
+	) | rpl::then(controller->session().api().cloudPassword().state(
 	) | rpl::map([](const State &state) {
 		return state.request
 			|| state.unknownAlgorithm
 			|| !state.unconfirmedPattern.isEmpty();
 	})) | rpl::distinct_until_changed();
-	auto pattern = session->api().passwordState(
+	auto pattern = session->api().cloudPassword().state(
 	) | rpl::map([](const State &state) {
 		return state.unconfirmedPattern;
 	});
@@ -361,7 +362,7 @@ void SetupCloudPassword(
 	) | rpl::then(rpl::duplicate(
 		unconfirmed
 	));
-	auto resetAt = session->api().passwordState(
+	auto resetAt = session->api().cloudPassword().state(
 	) | rpl::map([](const State &state) {
 		return state.pendingResetDate;
 	});
@@ -427,7 +428,7 @@ void SetupCloudPassword(
 		unconfirmed
 	)))->setDuration(0);
 	confirm->entity()->addClickHandler([=] {
-		const auto state = session->api().passwordStateCurrent();
+		const auto state = session->api().cloudPassword().stateCurrent();
 		if (!state) {
 			return;
 		}
@@ -438,13 +439,13 @@ void SetupCloudPassword(
 		std::move(
 			validation.reloadRequests
 		) | rpl::start_with_next([=] {
-			session->api().reloadPasswordState();
+			session->api().cloudPassword().reload();
 		}, validation.box->lifetime());
 
 		std::move(
 			validation.cancelRequests
 		) | rpl::start_with_next([=] {
-			session->api().clearUnconfirmedPassword();
+			session->api().cloudPassword().clearUnconfirmedPassword();
 		}, validation.box->lifetime());
 
 		controller->show(std::move(validation.box));
@@ -551,7 +552,7 @@ void SetupCloudPassword(
 	const auto sent = std::make_shared<mtpRequestId>(0);
 	reset->entity()->addClickHandler([=] {
 		const auto api = &session->api();
-		const auto state = api->passwordStateCurrent();
+		const auto state = api->cloudPassword().stateCurrent();
 		const auto date = state ? state->pendingResetDate : TimeId(0);
 		if (!date || *sent) {
 			return;
@@ -559,7 +560,7 @@ void SetupCloudPassword(
 			*sent = api->request(MTPaccount_ResetPassword(
 			)).done([=](const MTPaccount_ResetPasswordResult &result) {
 				*sent = 0;
-				api->applyPendingReset(result);
+				api->cloudPassword().applyPendingReset(result);
 			}).fail([=](const MTP::Error &error) {
 				*sent = 0;
 			}).send();
@@ -569,7 +570,7 @@ void SetupCloudPassword(
 				*sent = api->request(MTPaccount_DeclinePasswordReset(
 				)).done([=] {
 					*sent = 0;
-					api->reloadPasswordState();
+					api->cloudPassword().reload();
 				}).fail([=](const MTP::Error &error) {
 					*sent = 0;
 				}).send();
@@ -597,7 +598,7 @@ void SetupCloudPassword(
 
 	const auto reloadOnActivation = [=](Qt::ApplicationState state) {
 		if (label->toggled() && state == Qt::ApplicationActive) {
-			controller->session().api().reloadPasswordState();
+			controller->session().api().cloudPassword().reload();
 		}
 	};
 	QObject::connect(
@@ -606,7 +607,7 @@ void SetupCloudPassword(
 		label,
 		reloadOnActivation);
 
-	session->api().reloadPasswordState();
+	session->api().cloudPassword().reload();
 
 	AddSkip(container);
 	AddDivider(container);
@@ -810,7 +811,7 @@ int ExceptionUsersCount(const std::vector<not_null<PeerData*>> &exceptions) {
 }
 
 bool CheckEditCloudPassword(not_null<::Main::Session*> session) {
-	const auto current = session->api().passwordStateCurrent();
+	const auto current = session->api().cloudPassword().stateCurrent();
 	Assert(current.has_value());
 
 	if (!current->unknownAlgorithm
@@ -822,7 +823,7 @@ bool CheckEditCloudPassword(not_null<::Main::Session*> session) {
 }
 
 object_ptr<Ui::BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session) {
-	const auto current = session->api().passwordStateCurrent();
+	const auto current = session->api().cloudPassword().stateCurrent();
 	Assert(current.has_value());
 
 	auto result = Box<PasscodeBox>(
@@ -834,12 +835,12 @@ object_ptr<Ui::BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session
 		box->newPasswordSet() | rpl::to_empty,
 		box->passwordReloadNeeded()
 	) | rpl::start_with_next([=] {
-		session->api().reloadPasswordState();
+		session->api().cloudPassword().reload();
 	}, box->lifetime());
 
 	box->clearUnconfirmedPassword(
 	) | rpl::start_with_next([=] {
-		session->api().clearUnconfirmedPassword();
+		session->api().cloudPassword().clearUnconfirmedPassword();
 	}, box->lifetime());
 
 	return result;
@@ -847,11 +848,11 @@ object_ptr<Ui::BoxContent> EditCloudPasswordBox(not_null<Main::Session*> session
 
 void RemoveCloudPassword(not_null<Window::SessionController*> controller) {
 	const auto session = &controller->session();
-	const auto current = session->api().passwordStateCurrent();
+	const auto current = session->api().cloudPassword().stateCurrent();
 	Assert(current.has_value());
 
 	if (!current->request) {
-		session->api().clearUnconfirmedPassword();
+		session->api().cloudPassword().clearUnconfirmedPassword();
 		return;
 	}
 	auto fields = PasscodeBox::CloudFields::From(*current);
@@ -862,12 +863,12 @@ void RemoveCloudPassword(not_null<Window::SessionController*> controller) {
 		box->newPasswordSet() | rpl::to_empty,
 		box->passwordReloadNeeded()
 	) | rpl::start_with_next([=] {
-		session->api().reloadPasswordState();
+		session->api().cloudPassword().reload();
 	}, box->lifetime());
 
 	box->clearUnconfirmedPassword(
 	) | rpl::start_with_next([=] {
-		session->api().clearUnconfirmedPassword();
+		session->api().cloudPassword().clearUnconfirmedPassword();
 	}, box->lifetime());
 
 	controller->show(std::move(box));
