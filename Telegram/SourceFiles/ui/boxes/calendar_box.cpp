@@ -597,16 +597,11 @@ void CalendarBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void CalendarBox::wheelEvent(QWheelEvent *e) {
-	// Only a mouse wheel is accepted.
-	constexpr auto step = static_cast<int>(QWheelEvent::DefaultDeltasPerStep);
-	const auto delta = e->angleDelta().y();
-	if (std::abs(delta) != step) {
-		return;
-	}
+	const auto direction = Ui::WheelDirection(e);
 
-	if (delta < 0) {
+	if (direction < 0) {
 		goPreviousMonth();
-	} else {
+	} else if (direction > 0) {
 		goNextMonth();
 	}
 }
